@@ -9,6 +9,7 @@ pkgs.mkShell {
     scalafmt
     niv
     nixpkgs-fmt
+    nodejs
   ];
   shellHook = "";
 }

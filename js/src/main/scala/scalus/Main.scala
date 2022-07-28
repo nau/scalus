@@ -1,3 +1,7 @@
+package scalus
+
+import scalus.uplc.{Apply, Cek, Const, Constant, LamAbs, Var}
+
 object Main {
 
   type PubKeyHash = String
@@ -46,5 +50,11 @@ object Main {
   val redeemer = "Test"
   val (result, budget) = Scalus.eval(script, datum, redeemer, Scalus.mkContext())
 
-  def main(args: Array[String]): Unit = {}
+  def main(args: Array[String]): Unit = {
+    println("Scalus Hello World")
+    val h = Const(Constant("Hello"))
+    val id = LamAbs("x", Var("x"))
+    val app = Apply(id, h)
+    println(Cek.evalUPLC(app))
+  }
 }
