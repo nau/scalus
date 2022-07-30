@@ -1,0 +1,115 @@
+package scalus.uplc
+
+import io.bullet.borer.{Cbor, Decoder, Encoder}
+import org.scalacheck.{Arbitrary, Gen}
+import org.scalatest.funsuite.AnyFunSuite
+import org.scalatestplus.scalacheck.ScalaCheckPropertyChecks
+import scalus.uplc.Utils.StringInterpolators
+
+import scala.util.control.NonFatal
+
+object Utils {
+  implicit class StringInterpolators(val sc: StringContext) extends AnyVal {
+
+    def hex(args: Any*): Array[Byte] = {
+      val hexString = sc.s(args: _*).replace(" ", "")
+      try {
+        if ((hexString.length & 1) != 0) sys.error("string length is not even")
+        hexString.grouped(2).map(Integer.parseInt(_, 16).toByte).toArray
+      } catch {
+        case NonFatal(e) =>
+          throw new IllegalArgumentException(s"`$hexString` is not a valid hex string", e)
+      }
+    }
+  }
+}
+
+class DataCborCodecSpec extends AnyFunSuite with ScalaCheckPropertyChecks {
+
+  implicit val plutusDataCborEncoder: Encoder[Data] = PlutusDataCborEncoder
+  implicit val plutusDataCborDecoder: Decoder[Data] = PlutusDataCborDecoder
+
+  implicit val iArb: Arbitrary[I] = Arbitrary(Arbitrary.arbitrary[BigInt].map(l => I(l)))
+  implicit val bArb: Arbitrary[B] = Arbitrary(Arbitrary.arbitrary[Array[Byte]].map(B))
+  implicit val arbData: Arbitrary[Data] = Arbitrary {
+    def constrGen(sz: Int): Gen[Constr] = for {
+      c <- Arbitrary.arbitrary[Long].map(Math.abs)
+      n <- Gen.choose(sz / 3, sz / 2)
+      args <- Gen.listOfN(n, sizedTree(sz / 2))
+    } yield Constr(c, args)
+    def listGen(sz: Int): Gen[List] = for {
+      n <- Gen.choose(sz / 3, sz / 2)
+      args <- Gen.listOfN(n, sizedTree(sz / 2))
+    } yield List(args)
+    def mapGen(sz: Int): Gen[Map] = for {
+      n <- Gen.choose(sz / 3, sz / 2)
+      tuple = Gen.zip(sizedTree(sz / 2), sizedTree(sz / 2))
+      args <- Gen.mapOfN(n, tuple)
+    } yield Map(args.toList)
+    def sizedTree(sz: Int): Gen[Data] =
+      if (sz <= 0) Gen.oneOf(iArb.arbitrary, bArb.arbitrary)
+      else
+        Gen.frequency(
+          (1, iArb.arbitrary),
+          (1, bArb.arbitrary),
+          (3, Gen.oneOf(constrGen(sz), listGen(sz), mapGen(sz)))
+//          (3, listGen(sz))
+//          (3, constrGen(sz))
+//          (3, mapGen(sz))
+        )
+    Gen.sized(sizedTree)
+  }
+
+  def roundtrip(d: Data): Unit = {
+    val ba = Cbor.encode(d).toByteArray
+//    println(s"$d => ${ba.map("%02X" format _).mkString(" ")}")
+    val dd = Cbor.decode(ba).to[Data].value
+    //      println(s"$dd")
+    assert(d == dd)
+  }
+
+  test("Encoder <-> Decoder") {
+    forAll { (d: Data) =>
+      roundtrip(d)
+    }
+  }
+
+  test("PlutusDataCborEncoder") {
+
+    def encodeAsHexString(d: Data) = Cbor
+      .encode(d)
+      .toByteArray
+      .map("%02X" format _)
+      .mkString(" ")
+
+    assert(
+      encodeAsHexString(Constr(3, Constr(3, Nil) :: Nil)) == "D8 7C 9F D8 7C 80 FF"
+    )
+
+    assert(
+      Cbor.decode(hex"D8 7C 9F D8 7C 80 FF").to[Data].value == Constr(3, Constr(3, Nil) :: Nil)
+    )
+
+    assert(
+      encodeAsHexString(List(Constr(3, Nil) :: Nil)) == "9F D8 7C 80 FF"
+    )
+    assert(
+      encodeAsHexString(List(Constr(7, Nil) :: Nil)) == "9F D9 05 00 80 FF"
+    )
+    assert(
+      encodeAsHexString(
+        List(Constr(1234567890, Nil) :: Nil)
+      ) == "9F D8 66 82 1A 49 96 02 D2 80 FF"
+    )
+    assert(
+      encodeAsHexString(
+        List(
+          I(0) :: I(-1) :: I(100) :: I(1000) :: I(BigInt("1234567890111213141516")) :: Nil
+        ): Data
+      ) == "9F 00 20 18 64 19 03 E8 C2 49 42 ED 12 3B 08 FE 58 FE 0C FF"
+    )
+    assert(
+      encodeAsHexString(B("12".getBytes)) == "42 31 32"
+    )
+  }
+}

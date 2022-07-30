@@ -1,5 +1,7 @@
 package scalus.uplc
 
+import scala.collection.immutable
+
 object Cek {
 
   sealed trait Context
@@ -8,7 +10,7 @@ object Cek {
   case class FrameForce(ctx: Context) extends Context
   case object NoFrame extends Context
 
-  type CekValEnv = List[(String, CekValue)]
+  type CekValEnv = immutable.List[(String, CekValue)]
   // 'Values' for the modified CEK machine.
   sealed trait CekValue
   case class VCon(const: Constant) extends CekValue
