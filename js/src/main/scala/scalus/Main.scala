@@ -1,6 +1,6 @@
 package scalus
 
-import scalus.uplc.{Apply, Cek, Const, Constant, LamAbs, Var}
+import scalus.uplc._
 
 object Main {
 
@@ -52,7 +52,7 @@ object Main {
 
   def main(args: Array[String]): Unit = {
     println("Scalus Hello World")
-    val h = Const(Constant("Hello"))
+    val h = Const(Constant(DefaultUniByteString, "Hello"))
     val id = LamAbs("x", Var("x"))
     val app = Apply(id, h)
     println(Cek.evalUPLC(app))

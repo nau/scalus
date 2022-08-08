@@ -7,7 +7,9 @@ import io.bullet.borer.{Decoder, Encoder, Reader, Writer, DataItem => DI}
 import java.util
 import scala.collection.immutable
 
-case class Constant(c: String)
+
+
+case class Constant(tpe: DefaultUni, value: Any)
 
 sealed trait Data
 case class Constr(constr: Long, args: immutable.List[Data]) extends Data
@@ -43,7 +45,7 @@ case class Const(const: Constant) extends Term
 case class Builtin(bn: DefaultFun) extends Term
 case object Error extends Term
 
-case class Program(version: String, term: Term) // FIXME version isn't string
+case class Program(version: (Int, Int, Int), term: Term) // FIXME version isn't string
 
 sealed trait DefaultFun {}
 // Integers
