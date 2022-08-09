@@ -4,6 +4,9 @@ import cats.implicits.toShow
 import cats.parse.Numbers.{bigInt, digits}
 import cats.parse.Rfc5234.{alpha, digit, hexdig}
 import cats.parse.{Numbers, Parser0, Parser as P}
+import scalus.uplc.DefaultUni
+import scalus.uplc.DefaultUni.{ProtoList, ProtoPair}
+import scalus.uplc.Term.*
 
 class UplcParser {
   private[this] val whitespace: P[Unit] = P.charIn(" \t\r\n").void
@@ -24,23 +27,24 @@ class UplcParser {
     def star = lexeme(
       P.stringIn(Seq("integer", "bytestring", "string", "unit", "bool", "data"))
     ).map {
-      case "integer"    => DefaultUniInteger
-      case "bytestring" => DefaultUniByteString
-      case "string"     => DefaultUniString
-      case "unit"       => DefaultUniUnit
-      case "bool"       => DefaultUniBool
-      case "data"       => DefaultUniData
+      case "integer"    => DefaultUni.Integer
+      case "bytestring" => DefaultUni.ByteString
+      case "string"     => DefaultUni.String
+      case "unit"       => DefaultUni.Unit
+      case "bool"       => DefaultUni.Bool
+      case "data"       => DefaultUni.Data
       case _            => sys.error("unexpected default uni")
     }
-    def list = symbol("list") *> inParens(self) map (in => DefaultUniApply(DefaultUniProtoList, in))
+    def list =
+      symbol("list") *> inParens(self) map (in => DefaultUni.Apply(ProtoList, in))
     def pair = symbol("pair") *> inParens(self) ~ inParens(self) map { case (a, b) =>
-      DefaultUniApply(DefaultUniApply(DefaultUniProtoPair, a), b)
+      DefaultUni.Apply(DefaultUni.Apply(ProtoPair, a), b)
     }
     star | list | pair
   }
 
   def hexByte: P[Byte] = hexdig ~ hexdig map { case (a, b) =>
-    Integer.valueOf(Array(a, b).mkString, 16).toByte
+    java.lang.Integer.valueOf(Array(a, b).mkString, 16).toByte
   }
 
   def stringChars(c: Char): Boolean = c != '\"' && c != '\\'
@@ -53,30 +57,30 @@ class UplcParser {
 
   def conListOf(t: DefaultUni): P[Constant] =
     symbol("[") *> constantOf(t).repSep0(symbol(",")) <* symbol("]") map { ls =>
-      Constant(DefaultUniApply(DefaultUniProtoList, t), ls)
+      Constant(DefaultUni.Apply(ProtoList, t), ls)
     }
 
   def conPairOf(a: DefaultUni, b: DefaultUni): P[Constant] =
     inParens((constantOf(a) <* symbol(",")) ~ constantOf(b)) map { p =>
-      Constant(DefaultUniApply(DefaultUniApply(DefaultUniProtoPair, a), b), p)
+      Constant(DefaultUni.Apply(DefaultUni.Apply(ProtoPair, a), b), p)
     }
 
   def constantOf(t: DefaultUni): P[Constant] = t match {
-    case DefaultUniInteger => lexeme(bigInt).map(i => Constant(t, i))
-    case DefaultUniUnit    => symbol("()").map(_ => Constant(t, ()))
-    case DefaultUniBool =>
+    case DefaultUni.Integer => lexeme(bigInt).map(i => Constant(t, i))
+    case DefaultUni.Unit    => symbol("()").map(_ => Constant(t, ()))
+    case DefaultUni.Bool =>
       lexeme(P.stringIn(Seq("True", "False"))).map {
         case "True"  => Constant(t, true)
         case "False" => Constant(t, false)
       }
-    case DefaultUniByteString =>
+    case DefaultUni.ByteString =>
       lexeme(P.char('#') *> hexByte.rep0.map(bs => Constant(t, bs)))
-    case DefaultUniString =>
+    case DefaultUni.String =>
       lexeme(string).map(s => Constant(t, s)) // TODO validate escape sequences
-    case DefaultUniData                          => sys.error("data constant not supported")
-    case DefaultUniApply(DefaultUniProtoList, t) => conListOf(t)
-    case DefaultUniApply(DefaultUniApply(DefaultUniProtoPair, a), b) => conPairOf(a, b)
-    case _                                                           => sys.error("not implemented")
+    case DefaultUni.Data                => sys.error("data constant not supported")
+    case DefaultUni.Apply(ProtoList, t) => conListOf(t)
+    case DefaultUni.Apply(DefaultUni.Apply(ProtoPair, a), b) => conPairOf(a, b)
+    case _                                                   => sys.error("not implemented")
   }
 
   def constant: P[Constant] = for {

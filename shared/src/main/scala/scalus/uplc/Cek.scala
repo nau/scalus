@@ -1,5 +1,8 @@
 package scalus.uplc
 
+import scalus.uplc.Term.*
+
+import scala.annotation.tailrec
 import scala.collection.immutable
 
 object Cek {
@@ -22,7 +25,7 @@ object Cek {
     computeCek(NoFrame, Nil, term)
   }
 
-  def computeCek(ctx: Context, env: CekValEnv, term: Term): Term = {
+  @tailrec def computeCek(ctx: Context, env: CekValEnv, term: Term): Term = {
     term match {
       case Var(name)          => returnCek(ctx, lookupVarName(env, name))
       case LamAbs(name, term) => returnCek(ctx, VLamAbs(name, term, env))
@@ -46,11 +49,11 @@ object Cek {
     }
   }
 
-  def lookupVarName(env: CekValEnv, name: String) = env.collectFirst {
+  def lookupVarName(env: CekValEnv, name: String): CekValue = env.collectFirst {
     case (n, v) if n == name => v
   }.get
 
-  def applyEvaluate(ctx: Context, fun: CekValue, arg: CekValue) = {
+  def applyEvaluate(ctx: Context, fun: CekValue, arg: CekValue): Term = {
     fun match {
       case VLamAbs(name, term, env) => computeCek(ctx, (name, arg) :: env, term)
       case VBuiltin(fun, term) =>

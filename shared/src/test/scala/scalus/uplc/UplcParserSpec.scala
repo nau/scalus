@@ -1,6 +1,9 @@
 package scalus.uplc
 
 import org.scalatest.funsuite.AnyFunSuite
+import scalus.uplc.DefaultUni
+import scalus.uplc.DefaultUni.{Integer, ProtoList, ProtoPair}
+import scalus.uplc.Term.*
 
 class UplcParserSpec extends AnyFunSuite {
   val parser = new UplcParser
@@ -46,37 +49,45 @@ class UplcParserSpec extends AnyFunSuite {
 
   test("Parse constant types") {
     def p(input: String) = parser.defaultUni.parse(input).map(_._2)
-    assert(p("bool") == Right(DefaultUniBool))
-    assert(p("bytestring") == Right(DefaultUniByteString))
-    assert(p("data") == Right(DefaultUniData))
-    assert(p("integer") == Right(DefaultUniInteger))
-    assert(p("list (integer )") == Right(DefaultUniApply(DefaultUniProtoList, DefaultUniInteger)))
+    assert(p("bool") == Right(DefaultUni.Bool))
+    assert(p("bytestring") == Right(DefaultUni.ByteString))
+    assert(p("data") == Right(DefaultUni.Data))
+    assert(p("integer") == Right(DefaultUni.Integer))
+    assert(
+      p("list (integer )") == Right(DefaultUni.Apply(ProtoList, DefaultUni.Integer))
+    )
     assert(
       p("list (list(unit) )") == Right(
-        DefaultUniApply(DefaultUniProtoList, DefaultUniApply(DefaultUniProtoList, DefaultUniUnit))
+        DefaultUni.Apply(
+          ProtoList,
+          DefaultUni.Apply(ProtoList, DefaultUni.Unit)
+        )
       )
     )
     assert(
       p("pair (integer)(bool)") == Right(
-        DefaultUniApply(DefaultUniApply(DefaultUniProtoPair, DefaultUniInteger), DefaultUniBool)
+        DefaultUni.Apply(
+          DefaultUni.Apply(ProtoPair, DefaultUni.Integer),
+          DefaultUni.Bool
+        )
       )
     )
     assert(
       p("pair (list(list(unit))) (pair(integer)(bool) )") == Right(
-        DefaultUniApply(
-          DefaultUniApply(
-            DefaultUniProtoPair,
-            DefaultUniApply(
-              DefaultUniProtoList,
-              DefaultUniApply(DefaultUniProtoList, DefaultUniUnit)
+        DefaultUni.Apply(
+          DefaultUni.Apply(
+            ProtoPair,
+            DefaultUni.Apply(
+              ProtoList,
+              DefaultUni.Apply(ProtoList, DefaultUni.Unit)
             )
           ),
-          DefaultUniApply(DefaultUniApply(DefaultUniProtoPair, DefaultUniInteger), DefaultUniBool)
+          DefaultUni.Apply(DefaultUni.Apply(ProtoPair, DefaultUni.Integer), DefaultUni.Bool)
         )
       )
     )
-    assert(p("string") == Right(DefaultUniString))
-    assert(p("unit") == Right(DefaultUniUnit))
+    assert(p("string") == Right(DefaultUni.String))
+    assert(p("unit") == Right(DefaultUni.Unit))
   }
 
   test("Parse constants") {
@@ -86,9 +97,9 @@ class UplcParserSpec extends AnyFunSuite {
       p("(con list(integer) [1,2, 3333])") == Right(
         Const(
           Constant(
-            DefaultUniApply(DefaultUniProtoList, DefaultUniInteger),
-            Constant(DefaultUniInteger, 1) :: Constant(DefaultUniInteger, 2) :: Constant(
-              DefaultUniInteger,
+            DefaultUni.Apply(ProtoList, Integer),
+            Constant(Integer, 1) :: Constant(Integer, 2) :: Constant(
+              Integer,
               3333
             ) :: Nil
           )
@@ -100,11 +111,11 @@ class UplcParserSpec extends AnyFunSuite {
       p("(con pair (integer) (bool) (12, False))") == Right(
         Const(
           Constant(
-            DefaultUniApply(
-              DefaultUniApply(DefaultUniProtoPair, DefaultUniInteger),
-              DefaultUniBool
+            DefaultUni.Apply(
+              DefaultUni.Apply(ProtoPair, Integer),
+              DefaultUni.Bool
             ),
-            (Constant(DefaultUniInteger, 12), Constant(DefaultUniBool, false))
+            (Constant(Integer, 12), Constant(DefaultUni.Bool, false))
           )
         )
       )
@@ -125,14 +136,14 @@ class UplcParserSpec extends AnyFunSuite {
             Apply(
               Apply(
                 Apply(
-                  Const(Constant(DefaultUniByteString, Seq[Byte](0, 18, 52, -1))),
-                  Const(Constant(DefaultUniBool, true))
+                  Const(Constant(DefaultUni.ByteString, Seq[Byte](0, 18, 52, -1))),
+                  Const(Constant(DefaultUni.Bool, true))
                 ),
-                Const(Constant(DefaultUniBool, false))
+                Const(Constant(DefaultUni.Bool, false))
               ),
-              Const(Constant(DefaultUniUnit, ()))
+              Const(Constant(DefaultUni.Unit, ()))
             ),
-            Const(Constant(DefaultUniString, "Hello"))
+            Const(Constant(DefaultUni.String, "Hello"))
           )
         )
       )
@@ -154,7 +165,7 @@ class UplcParserSpec extends AnyFunSuite {
       r == Right(
         Program(
           version = (1, 0, 0),
-          term = Apply(LamAbs("x", Var("x")), Const(Constant(DefaultUniInteger, BigInt(0))))
+          term = Apply(LamAbs("x", Var("x")), Const(Constant(Integer, BigInt(0))))
         )
       )
     )

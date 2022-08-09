@@ -3,6 +3,7 @@ package scalus.uplc
 import io.bullet.borer.Tag.{NegativeBigNum, Other, PositiveBigNum}
 import io.bullet.borer.encodings.BaseEncoding
 import io.bullet.borer.{Decoder, Encoder, Reader, Writer, DataItem as DI}
+import scalus.uplc.Data.*
 
 import java.util
 import scala.collection.immutable
@@ -10,125 +11,197 @@ import scala.collection.immutable
 case class Constant(tpe: DefaultUni, value: Any)
 
 sealed trait Data
-case class Constr(constr: Long, args: immutable.List[Data]) extends Data
-case class Map(values: immutable.List[(Data, Data)]) extends Data
-case class List(values: immutable.List[Data]) extends Data {
-  override def toString: String = s"List(${values.map(v => v.toString + "::").mkString}Nil)"
-}
-case class I(value: BigInt) extends Data
-case class B(value: Array[Byte]) extends Data {
+object Data {
+  case class Constr(constr: Long, args: immutable.List[Data]) extends Data
 
-  override def toString: String = {
-    s"B(\"${value.map("%02X" format _).mkString}\")"
+  case class Map(values: immutable.List[(Data, Data)]) extends Data
+
+  case class List(values: immutable.List[Data]) extends Data {
+    override def toString: String = s"List(${values.map(v => v.toString + "::").mkString}Nil)"
   }
 
-  override def equals(that: Any): Boolean = that match {
-    case that: B =>
-      that.canEqual(this) &&
-      util.Arrays.equals(value, that.value)
-    case _ => false
-  }
+  case class I(value: BigInt) extends Data
 
-  // Step 8 - implement a corresponding hashCode c=method
-  override def hashCode: Int = util.Arrays.hashCode(value)
+  case class B(value: Array[Byte]) extends Data {
+
+    override def toString: String = {
+      s"B(\"${value.map("%02X" format _).mkString}\")"
+    }
+
+    override def equals(that: Any): Boolean = that match {
+      case that: B =>
+        that.canEqual(this) &&
+        util.Arrays.equals(value, that.value)
+      case _ => false
+    }
+
+    // Step 8 - implement a corresponding hashCode c=method
+    override def hashCode: Int = util.Arrays.hashCode(value)
+  }
 }
 
 sealed trait Term
-case class Var(name: String) extends Term
-case class LamAbs(name: String, term: Term) extends Term
-case class Apply(f: Term, arg: Term) extends Term
-case class Force(term: Term) extends Term
-case class Delay(term: Term) extends Term
-case class Const(const: Constant) extends Term
-case class Builtin(bn: DefaultFun) extends Term
-case object Error extends Term
+object Term {
+  case class Var(name: String) extends Term
+
+  case class LamAbs(name: String, term: Term) extends Term
+
+  case class Apply(f: Term, arg: Term) extends Term
+
+  case class Force(term: Term) extends Term
+
+  case class Delay(term: Term) extends Term
+
+  case class Const(const: Constant) extends Term
+
+  case class Builtin(bn: DefaultFun) extends Term
+
+  case object Error extends Term
+}
 
 case class Program(version: (Int, Int, Int), term: Term)
 
-sealed trait DefaultFun {}
-// Integers
-case object AddInteger extends DefaultFun
-case object SubtractInteger extends DefaultFun
-case object MultiplyInteger extends DefaultFun
-case object DivideInteger extends DefaultFun
-case object QuotientInteger extends DefaultFun
-case object RemainderInteger extends DefaultFun
-case object ModInteger extends DefaultFun
-case object EqualsInteger extends DefaultFun
-case object LessThanInteger extends DefaultFun
-case object LessThanEqualsInteger extends DefaultFun
-// Bytestrings
-case object AppendByteString extends DefaultFun
-case object ConsByteString extends DefaultFun
-case object SliceByteString extends DefaultFun
-case object LengthOfByteString extends DefaultFun
-case object IndexByteString extends DefaultFun
-case object EqualsByteString extends DefaultFun
-case object LessThanByteString extends DefaultFun
-case object LessThanEqualsByteString extends DefaultFun
-// Cryptography and hashes
-case object Sha2_256 extends DefaultFun
-case object Sha3_256 extends DefaultFun
-case object Blake2b_256 extends DefaultFun
-case object VerifyEd25519Signature extends DefaultFun // formerly verifySignature
-case object VerifyEcdsaSecp256k1Signature extends DefaultFun
-case object VerifySchnorrSecp256k1Signature extends DefaultFun
-// Strings
-case object AppendString extends DefaultFun
-case object EqualsString extends DefaultFun
-case object EncodeUtf8 extends DefaultFun
-case object DecodeUtf8 extends DefaultFun
-// Bool
-case object IfThenElse extends DefaultFun
-// Unit
-case object ChooseUnit extends DefaultFun
-// Tracing
-case object Trace extends DefaultFun
-// Pairs
-case object FstPair extends DefaultFun
-case object SndPair extends DefaultFun
-// Lists
-case object ChooseList extends DefaultFun
-case object MkCons extends DefaultFun
-case object HeadList extends DefaultFun
-case object TailList extends DefaultFun
-case object NullList extends DefaultFun
-// Data
-// See Note [Pattern matching on built-in types].
-// It is convenient to have a "choosing" function for a data type that has more than two
-// constructors to get pattern matching over it and we may end up having multiple such data
-// types, hence we include the name of the data type as a suffix.
-case object ChooseData extends DefaultFun
-case object ConstrData extends DefaultFun
-case object MapData extends DefaultFun
-case object List extends DefaultFun
-case object IData extends DefaultFun
-case object BData extends DefaultFun
-case object UnConstrData extends DefaultFun
-case object UnMapData extends DefaultFun
-case object UnListData extends DefaultFun
-case object UnIData extends DefaultFun
-case object UnBData extends DefaultFun
-case object EqualsData extends DefaultFun
-case object SerialiseData extends DefaultFun
-// Misc monomorphized constructors.
-// We could simply replace those with constants, but we use built-in functions for consistency
-// with monomorphic built-in types. Polymorphic built-in constructors are generally problematic,
-// See note [Representable built-in functions over polymorphic built-in types].
-case object MkPairData extends DefaultFun
-case object MkNilData extends DefaultFun
-case object MkNilPairData extends DefaultFun
+sealed trait DefaultFun
+object DefaultFun {
+  // Integers
+  case object AddInteger extends DefaultFun
+
+  case object SubtractInteger extends DefaultFun
+
+  case object MultiplyInteger extends DefaultFun
+
+  case object DivideInteger extends DefaultFun
+
+  case object QuotientInteger extends DefaultFun
+
+  case object RemainderInteger extends DefaultFun
+
+  case object ModInteger extends DefaultFun
+
+  case object EqualsInteger extends DefaultFun
+
+  case object LessThanInteger extends DefaultFun
+
+  case object LessThanEqualsInteger extends DefaultFun
+
+  // Bytestrings
+  case object AppendByteString extends DefaultFun
+
+  case object ConsByteString extends DefaultFun
+
+  case object SliceByteString extends DefaultFun
+
+  case object LengthOfByteString extends DefaultFun
+
+  case object IndexByteString extends DefaultFun
+
+  case object EqualsByteString extends DefaultFun
+
+  case object LessThanByteString extends DefaultFun
+
+  case object LessThanEqualsByteString extends DefaultFun
+
+  // Cryptography and hashes
+  case object Sha2_256 extends DefaultFun
+
+  case object Sha3_256 extends DefaultFun
+
+  case object Blake2b_256 extends DefaultFun
+
+  case object VerifyEd25519Signature extends DefaultFun // formerly verifySignature
+
+  case object VerifyEcdsaSecp256k1Signature extends DefaultFun
+
+  case object VerifySchnorrSecp256k1Signature extends DefaultFun
+
+  // Strings
+  case object AppendString extends DefaultFun
+
+  case object EqualsString extends DefaultFun
+
+  case object EncodeUtf8 extends DefaultFun
+
+  case object DecodeUtf8 extends DefaultFun
+
+  // Bool
+  case object IfThenElse extends DefaultFun
+
+  // Unit
+  case object ChooseUnit extends DefaultFun
+
+  // Tracing
+  case object Trace extends DefaultFun
+
+  // Pairs
+  case object FstPair extends DefaultFun
+
+  case object SndPair extends DefaultFun
+
+  // Lists
+  case object ChooseList extends DefaultFun
+
+  case object MkCons extends DefaultFun
+
+  case object HeadList extends DefaultFun
+
+  case object TailList extends DefaultFun
+
+  case object NullList extends DefaultFun
+
+  // Data
+  // See Note [Pattern matching on built-in types].
+  // It is convenient to have a "choosing" function for a data type that has more than two
+  // constructors to get pattern matching over it and we may end up having multiple such data
+  // types, hence we include the name of the data type as a suffix.
+  case object ChooseData extends DefaultFun
+
+  case object ConstrData extends DefaultFun
+
+  case object MapData extends DefaultFun
+
+  case object List extends DefaultFun
+
+  case object IData extends DefaultFun
+
+  case object BData extends DefaultFun
+
+  case object UnConstrData extends DefaultFun
+
+  case object UnMapData extends DefaultFun
+
+  case object UnListData extends DefaultFun
+
+  case object UnIData extends DefaultFun
+
+  case object UnBData extends DefaultFun
+
+  case object EqualsData extends DefaultFun
+
+  case object SerialiseData extends DefaultFun
+
+  // Misc monomorphized constructors.
+  // We could simply replace those with constants, but we use built-in functions for consistency
+  // with monomorphic built-in types. Polymorphic built-in constructors are generally problematic,
+  // See note [Representable built-in functions over polymorphic built-in types].
+  case object MkPairData extends DefaultFun
+
+  case object MkNilData extends DefaultFun
+
+  case object MkNilPairData extends DefaultFun
+}
 
 sealed trait DefaultUni
-case object DefaultUniInteger extends DefaultUni
-case object DefaultUniByteString extends DefaultUni
-case object DefaultUniString extends DefaultUni
-case object DefaultUniUnit extends DefaultUni
-case object DefaultUniBool extends DefaultUni
-case object DefaultUniProtoList extends DefaultUni
-case object DefaultUniProtoPair extends DefaultUni
-case class DefaultUniApply(f: DefaultUni, arg: DefaultUni) extends DefaultUni
-case object DefaultUniData extends DefaultUni
+object DefaultUni {
+  case object Integer extends DefaultUni
+  case object ByteString extends DefaultUni
+  case object String extends DefaultUni
+  case object Unit extends DefaultUni
+  case object Bool extends DefaultUni
+  case object ProtoList extends DefaultUni
+  case object ProtoPair extends DefaultUni
+  case class Apply(f: DefaultUni, arg: DefaultUni) extends DefaultUni
+  case object Data extends DefaultUni
+}
 
 object PlutusDataCborEncoder extends Encoder[Data] {
   override def write(writer: Writer, data: Data): Writer = {
@@ -145,10 +218,10 @@ object PlutusDataCborEncoder extends Encoder[Data] {
         writer.writeArrayHeader(2)
         writer.writeLong(constr)
         writer.writeLinearSeq(args)
-      case Map(values)  => writer.writeMap(values.toMap)
-      case List(values) => writer.writeLinearSeq(values)
-      case I(value)     => writer.write(value)
-      case B(value)     => writer.write(value)
+      case Map(values)       => writer.writeMap(values.toMap)
+      case Data.List(values) => writer.writeLinearSeq(values)
+      case I(value)          => writer.write(value)
+      case B(value)          => writer.write(value)
     }
   }
 }
@@ -171,7 +244,7 @@ object PlutusDataCborDecoder extends Decoder[Data] {
     r.dataItem() match {
       case DI.Int | DI.Long | DI.OverLong => I(Decoder.forBigInt.read(r))
       case DI.MapHeader                   => Map(Decoder.forMap[Data, Data].read(r).toList)
-      case DI.ArrayStart | DI.ArrayHeader => List(Decoder.forArray[Data].read(r).toList)
+      case DI.ArrayStart | DI.ArrayHeader => Data.List(Decoder.forArray[Data].read(r).toList)
       case DI.Bytes                       => B(Decoder.forByteArray(BaseEncoding.base16).read(r))
       case DI.Tag =>
         r.readTag() match {

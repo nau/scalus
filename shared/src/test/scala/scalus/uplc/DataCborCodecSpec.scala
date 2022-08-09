@@ -4,6 +4,7 @@ import io.bullet.borer.{Cbor, Decoder, Encoder}
 import org.scalacheck.{Arbitrary, Gen}
 import org.scalatest.funsuite.AnyFunSuite
 import org.scalatestplus.scalacheck.ScalaCheckPropertyChecks
+import scalus.uplc.Data.*
 import scalus.uplc.Utils.{StringInterpolators, bytesToHex}
 
 import scala.util.control.NonFatal
