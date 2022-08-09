@@ -2,12 +2,10 @@ package scalus.uplc
 
 import io.bullet.borer.Tag.{NegativeBigNum, Other, PositiveBigNum}
 import io.bullet.borer.encodings.BaseEncoding
-import io.bullet.borer.{Decoder, Encoder, Reader, Writer, DataItem => DI}
+import io.bullet.borer.{Decoder, Encoder, Reader, Writer, DataItem as DI}
 
 import java.util
 import scala.collection.immutable
-
-
 
 case class Constant(tpe: DefaultUni, value: Any)
 
@@ -45,7 +43,7 @@ case class Const(const: Constant) extends Term
 case class Builtin(bn: DefaultFun) extends Term
 case object Error extends Term
 
-case class Program(version: (Int, Int, Int), term: Term) // FIXME version isn't string
+case class Program(version: (Int, Int, Int), term: Term)
 
 sealed trait DefaultFun {}
 // Integers
@@ -129,7 +127,7 @@ case object DefaultUniUnit extends DefaultUni
 case object DefaultUniBool extends DefaultUni
 case object DefaultUniProtoList extends DefaultUni
 case object DefaultUniProtoPair extends DefaultUni
-case object DefaultUniApply extends DefaultUni
+case class DefaultUniApply(f: DefaultUni, arg: DefaultUni) extends DefaultUni
 case object DefaultUniData extends DefaultUni
 
 object PlutusDataCborEncoder extends Encoder[Data] {
@@ -183,9 +181,9 @@ object PlutusDataCborDecoder extends Decoder[Data] {
             val args = Decoder.forArray[Data].read(r)
             Constr(i, args.toList)
           case Other(value) if 121 <= value && value < 128 =>
-            Constr(value - 121, Decoder.forArray.read(r).toList)
+            Constr(value - 121, Decoder.forArray[Data].read(r).toList)
           case Other(value) if 1280 <= value && value < 1401 =>
-            Constr(value - 1280 + 7, Decoder.forArray.read(r).toList)
+            Constr(value - 1280 + 7, Decoder.forArray[Data].read(r).toList)
           case PositiveBigNum => I(fromByteArray())
           case NegativeBigNum => I(fromByteArray().not)
           case _              => sys.error("Unsupported") // TODO proper exception

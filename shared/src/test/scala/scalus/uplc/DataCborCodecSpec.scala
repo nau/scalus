@@ -4,11 +4,22 @@ import io.bullet.borer.{Cbor, Decoder, Encoder}
 import org.scalacheck.{Arbitrary, Gen}
 import org.scalatest.funsuite.AnyFunSuite
 import org.scalatestplus.scalacheck.ScalaCheckPropertyChecks
-import scalus.uplc.Utils.StringInterpolators
+import scalus.uplc.Utils.{StringInterpolators, bytesToHex}
 
 import scala.util.control.NonFatal
 
 object Utils {
+  private val HEX_ARRAY = "0123456789ABCDEF".toCharArray
+  def bytesToHex(bytes: Array[Byte]): String = {
+    val hexChars = new Array[Char](bytes.length * 2)
+    for (j <- bytes.indices) {
+      val v = bytes(j) & 0xff
+      hexChars(j * 2) = HEX_ARRAY(v >>> 4)
+      hexChars(j * 2 + 1) = HEX_ARRAY(v & 0x0f)
+    }
+    new String(hexChars)
+  }
+
   implicit class StringInterpolators(val sc: StringContext) extends AnyVal {
 
     def hex(args: Any*): Array[Byte] = {
@@ -30,7 +41,7 @@ class DataCborCodecSpec extends AnyFunSuite with ScalaCheckPropertyChecks {
   implicit val plutusDataCborDecoder: Decoder[Data] = PlutusDataCborDecoder
 
   implicit val iArb: Arbitrary[I] = Arbitrary(Arbitrary.arbitrary[BigInt].map(l => I(l)))
-  implicit val bArb: Arbitrary[B] = Arbitrary(Arbitrary.arbitrary[Array[Byte]].map(B))
+  implicit val bArb: Arbitrary[B] = Arbitrary(Arbitrary.arbitrary[Array[Byte]].map(B.apply))
   implicit val arbData: Arbitrary[Data] = Arbitrary {
     def constrGen(sz: Int): Gen[Constr] = for {
       c <- Arbitrary.arbitrary[Long].map(Math.abs)
@@ -76,14 +87,12 @@ class DataCborCodecSpec extends AnyFunSuite with ScalaCheckPropertyChecks {
 
   test("PlutusDataCborEncoder") {
 
-    def encodeAsHexString(d: Data) = Cbor
-      .encode(d)
-      .toByteArray
-      .map("%02X" format _)
-      .mkString(" ")
+    // byte array to hex string
+
+    def encodeAsHexString(d: Data) = bytesToHex(Cbor.encode(d).toByteArray)
 
     assert(
-      encodeAsHexString(Constr(3, Constr(3, Nil) :: Nil)) == "D8 7C 9F D8 7C 80 FF"
+      encodeAsHexString(Constr(3, Constr(3, Nil) :: Nil)) == "D87C9FD87C80FF"
     )
 
     assert(
@@ -91,25 +100,25 @@ class DataCborCodecSpec extends AnyFunSuite with ScalaCheckPropertyChecks {
     )
 
     assert(
-      encodeAsHexString(List(Constr(3, Nil) :: Nil)) == "9F D8 7C 80 FF"
+      encodeAsHexString(List(Constr(3, Nil) :: Nil)) == "9FD87C80FF"
     )
     assert(
-      encodeAsHexString(List(Constr(7, Nil) :: Nil)) == "9F D9 05 00 80 FF"
+      encodeAsHexString(List(Constr(7, Nil) :: Nil)) == "9FD9050080FF"
     )
     assert(
       encodeAsHexString(
         List(Constr(1234567890, Nil) :: Nil)
-      ) == "9F D8 66 82 1A 49 96 02 D2 80 FF"
+      ) == "9FD866821A499602D280FF"
     )
     assert(
       encodeAsHexString(
         List(
           I(0) :: I(-1) :: I(100) :: I(1000) :: I(BigInt("1234567890111213141516")) :: Nil
         ): Data
-      ) == "9F 00 20 18 64 19 03 E8 C2 49 42 ED 12 3B 08 FE 58 FE 0C FF"
+      ) == "9F002018641903E8C24942ED123B08FE58FE0CFF"
     )
     assert(
-      encodeAsHexString(B("12".getBytes)) == "42 31 32"
+      encodeAsHexString(B("12".getBytes)) == "423132"
     )
   }
 }

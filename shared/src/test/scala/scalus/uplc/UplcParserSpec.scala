@@ -5,17 +5,16 @@ import org.scalatest.funsuite.AnyFunSuite
 class UplcParserSpec extends AnyFunSuite {
   val parser = new UplcParser
   test("Parse program version") {
-    def p(input: String) = fastparse.parse(input, parser.programVersion(_))
+    def p(input: String) = parser.programVersion.parse(input)
     def check(input: String, expected: (Int, Int, Int)) = {
-      val result = p(input)
-      assert(result.isSuccess)
-      assert(result.get.value == expected)
+      val Right((_, result)) = p(input)
+      assert(result == expected)
     }
     check("111.2.33333   ", (111, 2, 33333))
     check("1.0.03   ", (1, 0, 3))
-    assert(!p("1 . 2 . 3").isSuccess)
-    assert(!p("1.2").isSuccess)
-    assert(!p("1.2.a").isSuccess)
+    assert(!p("1 . 2 . 3").isRight)
+    assert(!p("1.2").isRight)
+    assert(!p("1.2.a").isRight)
   }
 
   test("Parse var") {
@@ -45,7 +44,72 @@ class UplcParserSpec extends AnyFunSuite {
     )
   }
 
+  test("Parse constant types") {
+    def p(input: String) = parser.defaultUni.parse(input).map(_._2)
+    assert(p("bool") == Right(DefaultUniBool))
+    assert(p("bytestring") == Right(DefaultUniByteString))
+    assert(p("data") == Right(DefaultUniData))
+    assert(p("integer") == Right(DefaultUniInteger))
+    assert(p("list (integer )") == Right(DefaultUniApply(DefaultUniProtoList, DefaultUniInteger)))
+    assert(
+      p("list (list(unit) )") == Right(
+        DefaultUniApply(DefaultUniProtoList, DefaultUniApply(DefaultUniProtoList, DefaultUniUnit))
+      )
+    )
+    assert(
+      p("pair (integer)(bool)") == Right(
+        DefaultUniApply(DefaultUniApply(DefaultUniProtoPair, DefaultUniInteger), DefaultUniBool)
+      )
+    )
+    assert(
+      p("pair (list(list(unit))) (pair(integer)(bool) )") == Right(
+        DefaultUniApply(
+          DefaultUniApply(
+            DefaultUniProtoPair,
+            DefaultUniApply(
+              DefaultUniProtoList,
+              DefaultUniApply(DefaultUniProtoList, DefaultUniUnit)
+            )
+          ),
+          DefaultUniApply(DefaultUniApply(DefaultUniProtoPair, DefaultUniInteger), DefaultUniBool)
+        )
+      )
+    )
+    assert(p("string") == Right(DefaultUniString))
+    assert(p("unit") == Right(DefaultUniUnit))
+  }
+
   test("Parse constants") {
+    import cats.implicits.toShow
+    def p(input: String) = parser.conTerm.parse(input).map(_._2).left.map(e => e.show)
+    assert(
+      p("(con list(integer) [1,2, 3333])") == Right(
+        Const(
+          Constant(
+            DefaultUniApply(DefaultUniProtoList, DefaultUniInteger),
+            Constant(DefaultUniInteger, 1) :: Constant(DefaultUniInteger, 2) :: Constant(
+              DefaultUniInteger,
+              3333
+            ) :: Nil
+          )
+        )
+      )
+    )
+
+    assert(
+      p("(con pair (integer) (bool) (12, False))") == Right(
+        Const(
+          Constant(
+            DefaultUniApply(
+              DefaultUniApply(DefaultUniProtoPair, DefaultUniInteger),
+              DefaultUniBool
+            ),
+            (Constant(DefaultUniInteger, 12), Constant(DefaultUniBool, false))
+          )
+        )
+      )
+    )
+
     val r = parser.parseProgram("""(program 1.0.0 [
         |  (con bytestring #001234ff)
         |  (con bool True)
