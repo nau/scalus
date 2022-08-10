@@ -116,7 +116,14 @@ class UplcParser:
     def forceTerm = inParens(symbol("force") *> self).map(Force.apply)
     def delayTerm = inParens(symbol("delay") *> self).map(Delay.apply)
     def errorTerm = inParens(symbol("error")).map(_ => Error)
-    varTerm.backtrack | conTerm.backtrack | lamTerm.backtrack | appTerm.backtrack | forceTerm.backtrack | delayTerm.backtrack | errorTerm.backtrack
+    varTerm.backtrack
+      | builtinTerm.backtrack
+      | conTerm.backtrack
+      | lamTerm.backtrack
+      | appTerm.backtrack
+      | forceTerm.backtrack
+      | delayTerm.backtrack
+      | errorTerm.backtrack
   }
 
   def program: P[Program] = inParens(symbol("program") *> programVersion ~ term) map {

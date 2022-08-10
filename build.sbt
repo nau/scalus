@@ -16,6 +16,7 @@ lazy val scalus = crossProject(JSPlatform, JVMPlatform)
     version := "0.1-SNAPSHOT",
     scalaVersion := scala3Version,
     libraryDependencies += "org.typelevel" %%% "cats-parse" % "0.3.8",
+    libraryDependencies += "org.typelevel" %%% "paiges-core" % "0.4.2",
     libraryDependencies ++= Seq(
       "io.bullet" %%% "borer-core" % "1.10.1",
       "io.bullet" %%% "borer-derivation" % "1.10.1"
