@@ -158,6 +158,15 @@ class UplcParserSpec extends AnyFunSuite:
     )
   }
 
+  test("Parse builtins") {
+    import cats.implicits.toShow
+    def p(input: String) = parser.builtinTerm.parse(input).map(_._2).left.map(e => e.show)
+
+    assert(p("(builtin addInteger)") == Right(Builtin(DefaultFun.AddInteger)))
+    assert(p("(builtin appendByteString)") == Right(Builtin(DefaultFun.AppendByteString)))
+    assert(p("(builtin nonexistent)").left.get.contains("unknown builtin function: nonexistent"))
+  }
+
   test("Parse program") {
     val r = parser.parseProgram("(program 1.0.0 [(lam x x) (con integer 0)])")
     assert(

@@ -89,6 +89,16 @@ class UplcParser:
 
   def conTerm: P[Term] = inParens(symbol("con") *> constant).map(c => Const(c))
 
+  def builtinFunction: P[DefaultFun] = lexeme(
+    name.flatMap(name =>
+      DefaultFun1.cached.get(name) match
+        case Some(f) => P.pure(f)
+        case None    => P.failWith(s"unknown builtin function: $name")
+    )
+  )
+
+  def builtinTerm: P[Builtin] = inParens(symbol("builtin") *> builtinFunction).map(n => Builtin(n))
+
   def programVersion: P[(Int, Int, Int)] =
     lexeme((number <* P.char('.')) ~ (number <* P.char('.')) ~ number) map {
       case ((major, minor), patch) => (major, minor, patch)
