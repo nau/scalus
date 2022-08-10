@@ -5,14 +5,13 @@ import scalus.uplc.DefaultUni
 import scalus.uplc.DefaultUni.{Integer, ProtoList, ProtoPair}
 import scalus.uplc.Term.*
 
-class UplcParserSpec extends AnyFunSuite {
+class UplcParserSpec extends AnyFunSuite:
   val parser = new UplcParser
   test("Parse program version") {
     def p(input: String) = parser.programVersion.parse(input)
-    def check(input: String, expected: (Int, Int, Int)) = {
+    def check(input: String, expected: (Int, Int, Int)) =
       val Right((_, result)) = p(input)
       assert(result == expected)
-    }
     check("111.2.33333   ", (111, 2, 33333))
     check("1.0.03   ", (1, 0, 3))
     assert(!p("1 . 2 . 3").isRight)
@@ -170,4 +169,3 @@ class UplcParserSpec extends AnyFunSuite {
       )
     )
   }
-}

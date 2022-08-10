@@ -4,7 +4,7 @@ import scalus.uplc.*
 import scalus.uplc.DefaultUni.ByteString
 import scalus.uplc.Term.*
 
-object Main {
+object Main:
 
   type PubKeyHash = String
   case class TxInfo(txInfoSignatories: Set[PubKeyHash])
@@ -17,30 +17,26 @@ object Main {
   type Redeemer = String
   type ByteString = String
 
-  implicit class JsonHelper(val sc: StringContext) extends AnyVal {
+  implicit class JsonHelper(val sc: StringContext) extends AnyVal:
     def hex(args: Any*): String = sys.error("TODO - IMPLEMENT")
-  }
 
-  object Scalus {
+  object Scalus:
     def compile[A](a: A): Dynamic = ???
     def eval[A](a: A, b: Any*): (A, A) = ???
     def mkContext() = ???
-  }
 
-  object Builtins {
+  object Builtins:
     def sha256(m: String): String = ???
 
     def unsafeFromBuiltinData[A](s: String): A = ???
-  }
 
   def validator(
       datum: Datum,
       redeemer: Redeemer,
       ctx: ScriptContext
-  ): Boolean = {
+  ): Boolean =
     val (hash, pkh) = Builtins.unsafeFromBuiltinData[(ByteString, ByteString)](datum)
     Builtins.sha256(redeemer) == hash && ctx.scriptContextTxInfo.txInfoSignatories.contains(pkh)
-  }
 
   val script = Scalus.compile(validator _)
   // this can be run on Node.js or in a browser
@@ -52,11 +48,9 @@ object Main {
   val redeemer = "Test"
   val (result, budget) = Scalus.eval(script, datum, redeemer, Scalus.mkContext())
 
-  def main(args: Array[String]): Unit = {
+  def main(args: Array[String]): Unit =
     println("Scalus Hello World")
     val h = Const(Constant(ByteString, "Hello"))
     val id = LamAbs("x", Var("x"))
     val app = Apply(id, h)
     println(Cek.evalUPLC(app))
-  }
-}

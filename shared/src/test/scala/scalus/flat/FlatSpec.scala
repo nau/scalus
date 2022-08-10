@@ -4,7 +4,7 @@ import org.scalacheck.{Arbitrary, Gen, Shrink}
 import org.scalatest.funsuite.AnyFunSuite
 import org.scalatestplus.scalacheck.ScalaCheckPropertyChecks
 
-class FlatSpec extends AnyFunSuite with ScalaCheckPropertyChecks {
+class FlatSpec extends AnyFunSuite with ScalaCheckPropertyChecks:
   test("Flat bits") {
     val enc = new EncoderState(3)
     enc.bits(7, 64)
@@ -26,8 +26,8 @@ class FlatSpec extends AnyFunSuite with ScalaCheckPropertyChecks {
     forAll(gen) { bs =>
       val bitlens =
         bs.map(b =>
-          if (b == 0) 1
-          else if (b < 0) 8
+          if b == 0 then 1
+          else if b < 0 then 8
           else Integer.numberOfTrailingZeros(Integer.highestOneBit(b)) + 1
         )
       val enc = new EncoderState(bs.length + 1)
@@ -43,4 +43,3 @@ class FlatSpec extends AnyFunSuite with ScalaCheckPropertyChecks {
       }
     }
   }
-}

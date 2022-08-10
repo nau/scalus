@@ -9,34 +9,28 @@ import scalus.uplc.Utils.{StringInterpolators, bytesToHex}
 
 import scala.util.control.NonFatal
 
-object Utils {
+object Utils:
   private val HEX_ARRAY = "0123456789ABCDEF".toCharArray
-  def bytesToHex(bytes: Array[Byte]): String = {
+  def bytesToHex(bytes: Array[Byte]): String =
     val hexChars = new Array[Char](bytes.length * 2)
-    for (j <- bytes.indices) {
+    for j <- bytes.indices do
       val v = bytes(j) & 0xff
       hexChars(j * 2) = HEX_ARRAY(v >>> 4)
       hexChars(j * 2 + 1) = HEX_ARRAY(v & 0x0f)
-    }
     new String(hexChars)
-  }
 
-  implicit class StringInterpolators(val sc: StringContext) extends AnyVal {
+  implicit class StringInterpolators(val sc: StringContext) extends AnyVal:
 
-    def hex(args: Any*): Array[Byte] = {
+    def hex(args: Any*): Array[Byte] =
       val hexString = sc.s(args: _*).replace(" ", "")
-      try {
-        if ((hexString.length & 1) != 0) sys.error("string length is not even")
+      try
+        if (hexString.length & 1) != 0 then sys.error("string length is not even")
         hexString.grouped(2).map(Integer.parseInt(_, 16).toByte).toArray
-      } catch {
+      catch
         case NonFatal(e) =>
           throw new IllegalArgumentException(s"`$hexString` is not a valid hex string", e)
-      }
-    }
-  }
-}
 
-class DataCborCodecSpec extends AnyFunSuite with ScalaCheckPropertyChecks {
+class DataCborCodecSpec extends AnyFunSuite with ScalaCheckPropertyChecks:
 
   implicit val plutusDataCborEncoder: Encoder[Data] = PlutusDataCborEncoder
   implicit val plutusDataCborDecoder: Decoder[Data] = PlutusDataCborDecoder
@@ -44,22 +38,22 @@ class DataCborCodecSpec extends AnyFunSuite with ScalaCheckPropertyChecks {
   implicit val iArb: Arbitrary[I] = Arbitrary(Arbitrary.arbitrary[BigInt].map(l => I(l)))
   implicit val bArb: Arbitrary[B] = Arbitrary(Arbitrary.arbitrary[Array[Byte]].map(B.apply))
   implicit val arbData: Arbitrary[Data] = Arbitrary {
-    def constrGen(sz: Int): Gen[Constr] = for {
+    def constrGen(sz: Int): Gen[Constr] = for
       c <- Arbitrary.arbitrary[Long].map(Math.abs)
       n <- Gen.choose(sz / 3, sz / 2)
       args <- Gen.listOfN(n, sizedTree(sz / 2))
-    } yield Constr(c, args)
-    def listGen(sz: Int): Gen[List] = for {
+    yield Constr(c, args)
+    def listGen(sz: Int): Gen[List] = for
       n <- Gen.choose(sz / 3, sz / 2)
       args <- Gen.listOfN(n, sizedTree(sz / 2))
-    } yield List(args)
-    def mapGen(sz: Int): Gen[Map] = for {
+    yield List(args)
+    def mapGen(sz: Int): Gen[Map] = for
       n <- Gen.choose(sz / 3, sz / 2)
       tuple = Gen.zip(sizedTree(sz / 2), sizedTree(sz / 2))
       args <- Gen.mapOfN(n, tuple)
-    } yield Map(args.toList)
+    yield Map(args.toList)
     def sizedTree(sz: Int): Gen[Data] =
-      if (sz <= 0) Gen.oneOf(iArb.arbitrary, bArb.arbitrary)
+      if sz <= 0 then Gen.oneOf(iArb.arbitrary, bArb.arbitrary)
       else
         Gen.frequency(
           (1, iArb.arbitrary),
@@ -72,13 +66,12 @@ class DataCborCodecSpec extends AnyFunSuite with ScalaCheckPropertyChecks {
     Gen.sized(sizedTree)
   }
 
-  def roundtrip(d: Data): Unit = {
+  def roundtrip(d: Data): Unit =
     val ba = Cbor.encode(d).toByteArray
 //    println(s"$d => ${ba.map("%02X" format _).mkString(" ")}")
     val dd = Cbor.decode(ba).to[Data].value
     //      println(s"$dd")
     assert(d == dd)
-  }
 
   test("Encoder <-> Decoder") {
     forAll { (d: Data) =>
@@ -122,4 +115,3 @@ class DataCborCodecSpec extends AnyFunSuite with ScalaCheckPropertyChecks {
       encodeAsHexString(B("12".getBytes)) == "423132"
     )
   }
-}

@@ -11,37 +11,32 @@ import scala.collection.immutable
 case class Constant(tpe: DefaultUni, value: Any)
 
 sealed trait Data
-object Data {
+object Data:
   case class Constr(constr: Long, args: immutable.List[Data]) extends Data
 
   case class Map(values: immutable.List[(Data, Data)]) extends Data
 
-  case class List(values: immutable.List[Data]) extends Data {
+  case class List(values: immutable.List[Data]) extends Data:
     override def toString: String = s"List(${values.map(v => v.toString + "::").mkString}Nil)"
-  }
 
   case class I(value: BigInt) extends Data
 
-  case class B(value: Array[Byte]) extends Data {
+  case class B(value: Array[Byte]) extends Data:
 
-    override def toString: String = {
+    override def toString: String =
       s"B(\"${value.map("%02X" format _).mkString}\")"
-    }
 
-    override def equals(that: Any): Boolean = that match {
+    override def equals(that: Any): Boolean = that match
       case that: B =>
         that.canEqual(this) &&
         util.Arrays.equals(value, that.value)
       case _ => false
-    }
 
     // Step 8 - implement a corresponding hashCode c=method
     override def hashCode: Int = util.Arrays.hashCode(value)
-  }
-}
 
 sealed trait Term
-object Term {
+object Term:
   case class Var(name: String) extends Term
 
   case class LamAbs(name: String, term: Term) extends Term
@@ -57,12 +52,11 @@ object Term {
   case class Builtin(bn: DefaultFun) extends Term
 
   case object Error extends Term
-}
 
 case class Program(version: (Int, Int, Int), term: Term)
 
 sealed trait DefaultFun
-object DefaultFun {
+object DefaultFun:
   // Integers
   case object AddInteger extends DefaultFun
 
@@ -188,10 +182,9 @@ object DefaultFun {
   case object MkNilData extends DefaultFun
 
   case object MkNilPairData extends DefaultFun
-}
 
 sealed trait DefaultUni
-object DefaultUni {
+object DefaultUni:
   case object Integer extends DefaultUni
   case object ByteString extends DefaultUni
   case object String extends DefaultUni
@@ -201,12 +194,11 @@ object DefaultUni {
   case object ProtoPair extends DefaultUni
   case class Apply(f: DefaultUni, arg: DefaultUni) extends DefaultUni
   case object Data extends DefaultUni
-}
 
-object PlutusDataCborEncoder extends Encoder[Data] {
-  override def write(writer: Writer, data: Data): Writer = {
+object PlutusDataCborEncoder extends Encoder[Data]:
+  override def write(writer: Writer, data: Data): Writer =
     implicit val selfEncoder: Encoder[Data] = this
-    data match {
+    data match
       case Constr(constr, args) if 0 <= constr && constr < 7 =>
         writer.writeTag(Other(121 + constr))
         writer.writeLinearSeq(args)
@@ -222,32 +214,28 @@ object PlutusDataCborEncoder extends Encoder[Data] {
       case Data.List(values) => writer.writeLinearSeq(values)
       case I(value)          => writer.write(value)
       case B(value)          => writer.write(value)
-    }
-  }
-}
 
-object PlutusDataCborDecoder extends Decoder[Data] {
+object PlutusDataCborDecoder extends Decoder[Data]:
 
-  override def read(r: Reader): Data = {
+  override def read(r: Reader): Data =
     implicit val selfDecoder: Decoder[Data] = this
 
     val maxCborByteArraySize = 64
-    def fromByteArray() = {
+    def fromByteArray() =
       val byteArray = r.readByteArray()
-      if (byteArray.length > maxCborByteArraySize) {
+      if byteArray.length > maxCborByteArraySize then
         r.overflow(
           "ByteArray for decoding JBigInteger is longer than the configured max of " + maxCborByteArraySize + " bytes"
         )
-      } else new java.math.BigInteger(1, byteArray)
-    }
+      else new java.math.BigInteger(1, byteArray)
 
-    r.dataItem() match {
+    r.dataItem() match
       case DI.Int | DI.Long | DI.OverLong => I(Decoder.forBigInt.read(r))
       case DI.MapHeader                   => Map(Decoder.forMap[Data, Data].read(r).toList)
       case DI.ArrayStart | DI.ArrayHeader => Data.List(Decoder.forArray[Data].read(r).toList)
       case DI.Bytes                       => B(Decoder.forByteArray(BaseEncoding.base16).read(r))
       case DI.Tag =>
-        r.readTag() match {
+        r.readTag() match
           case Other(102) =>
             val len = r.readArrayHeader()
             val i = r.readLong()
@@ -260,10 +248,6 @@ object PlutusDataCborDecoder extends Decoder[Data] {
           case PositiveBigNum => I(fromByteArray())
           case NegativeBigNum => I(fromByteArray().not)
           case _              => sys.error("Unsupported") // TODO proper exception
-        }
       case i => sys.error(s"Unsupported data item $i ${DI.stringify(i)}") // TODO proper exception
-    }
 
-  }
 
-}

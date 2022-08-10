@@ -8,7 +8,7 @@ import scalus.uplc.DefaultUni
 import scalus.uplc.DefaultUni.{ProtoList, ProtoPair}
 import scalus.uplc.Term.*
 
-class UplcParser {
+class UplcParser:
   private[this] val whitespace: P[Unit] = P.charIn(" \t\r\n").void
   private[this] val whitespaces0: Parser0[Unit] = whitespace.rep0.void
 
@@ -65,7 +65,7 @@ class UplcParser {
       Constant(DefaultUni.Apply(DefaultUni.Apply(ProtoPair, a), b), p)
     }
 
-  def constantOf(t: DefaultUni): P[Constant] = t match {
+  def constantOf(t: DefaultUni): P[Constant] = t match
     case DefaultUni.Integer => lexeme(bigInt).map(i => Constant(t, i))
     case DefaultUni.Unit    => symbol("()").map(_ => Constant(t, ()))
     case DefaultUni.Bool =>
@@ -81,12 +81,11 @@ class UplcParser {
     case DefaultUni.Apply(ProtoList, t) => conListOf(t)
     case DefaultUni.Apply(DefaultUni.Apply(ProtoPair, a), b) => conPairOf(a, b)
     case _                                                   => sys.error("not implemented")
-  }
 
-  def constant: P[Constant] = for {
+  def constant: P[Constant] = for
     uni <- defaultUni
     const <- constantOf(uni)
-  } yield const
+  yield const
 
   def conTerm: P[Term] = inParens(symbol("con") *> constant).map(c => Const(c))
 
@@ -115,10 +114,7 @@ class UplcParser {
       Program(v, term)
   }
 
-  def parseProgram(s: String): Either[String, Program] = {
-    program.parse(s) match {
+  def parseProgram(s: String): Either[String, Program] =
+    program.parse(s) match
       case Right((_, result)) => Right(result)
       case Left(f)            => Left(f.show)
-    }
-  }
-}
