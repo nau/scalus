@@ -86,4 +86,5 @@ object Cek:
       case Delay(term)        => Delay(dischargeCekValEnv(env, term))
       case _                  => term
 
-  def evalBuiltinApp(builtinName: DefaultFun, term: Term) = ???
+  def evalBuiltinApp(builtinName: DefaultFun, term: Term): CekValue =
+    ???
