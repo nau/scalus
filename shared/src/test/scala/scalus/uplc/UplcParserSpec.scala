@@ -6,7 +6,7 @@ import org.scalatest.funsuite.AnyFunSuite
 import org.scalatestplus.scalacheck.ScalaCheckPropertyChecks
 import scalus.uplc.Data.{List, Map}
 import scalus.uplc.DefaultUni
-import scalus.uplc.DefaultUni.{Integer, ProtoList, ProtoPair}
+import scalus.uplc.DefaultUni.{Bool, ByteString, Integer, ProtoList, ProtoPair}
 import scalus.uplc.Term.*
 
 import scala.collection.immutable
@@ -310,4 +310,11 @@ class UplcParserSpec extends AnyFunSuite with ScalaCheckPropertyChecks with Arbi
       val parsed = parser.parseProgram(pretty)
       assert(parsed == Right(t))
     }
+  }
+
+  test("asdf") {
+    val a = ByteString ->: Integer ->: Bool
+    val two = Const(Constant(Integer, BigInt(2)))
+    println(a)
+    println(Cek.evalUPLC(Apply(Apply(Builtin(DefaultFun.AddInteger), two), two)))
   }
