@@ -9,7 +9,7 @@ import scala.collection.immutable
 class UnexpectedBuiltinTermArgumentMachineError(term: Term)
     extends Exception(s"Unexpected builtin term argument: $term")
 
-class KnownTypeUnliftingError(expected: DefaultUni, actual: DefaultUni)
+class KnownTypeUnliftingError(expected: TypeScheme, actual: DefaultUni)
     extends Exception(s"Expected $expected, but got $actual")
 
 object Cek:
@@ -62,15 +62,13 @@ object Cek:
       case VBuiltin(fun, term, runtime) =>
         val argTerm = dischargeCekValue(arg)
         val term1 = Apply(term, argTerm)
-        (runtime.typeScheme, arg) match
-          case (TypeScheme.Arrow(t, rest), VCon(const)) if t == const.tpe =>
-            val f = runtime.f.asInstanceOf[Constant => AnyRef]
-            val applied = f(const)
+        runtime.typeScheme match
+          case (TypeScheme.Arrow(_, rest)) =>
+            val f = runtime.f.asInstanceOf[CekValue => AnyRef]
+            val applied = f(arg)
             val runtime1 = runtime.copy(f = applied, typeScheme = rest)
             val res = evalBuiltinApp(fun, term1, runtime1)
             returnCek(ctx, res)
-          case (TypeScheme.Arrow(t, _), VCon(const)) =>
-            throw new KnownTypeUnliftingError(t, const.tpe)
           case _ => throw new UnexpectedBuiltinTermArgumentMachineError(term1)
       case _ =>
         throw new RuntimeException("NonFunctionalApplicationMachineError") // FIXME MachineException
@@ -83,7 +81,7 @@ object Cek:
         rt.typeScheme match
           // It's only possible to force a builtin application if the builtin expects a type
           // argument next.
-          case TypeScheme.All(t) =>
+          case TypeScheme.All(_, t) =>
             val runtime1 = rt.copy(typeScheme = t)
             // We allow a type argument to appear last in the type of a built-in function,
             // otherwise we could just assemble a 'VBuiltin' without trying to evaluate the
@@ -119,7 +117,7 @@ object Cek:
 
   def evalBuiltinApp(builtinName: DefaultFun, term: Term, runtime: Runtime): CekValue =
     runtime.typeScheme match
-      case TypeScheme.Result(t) =>
+      case TypeScheme.Type(_) | TypeScheme.TVar(_) =>
         // spendBudgetCek
         // eval the builtin and return result
         println(runtime.f.getClass.getName)
