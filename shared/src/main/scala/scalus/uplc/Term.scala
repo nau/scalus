@@ -192,15 +192,15 @@ enum DefaultUni:
   case Data extends DefaultUni
 
   def pretty: Doc = this match
-    case Integer               => Doc.text("integer")
-    case ByteString            => Doc.text("bytestring")
-    case String                => Doc.text("string")
-    case Unit                  => Doc.text("unit")
-    case Bool                  => Doc.text("bool")
-    case Apply(ProtoList, arg) => Doc.text("list") + Doc.text("(") + arg.pretty + Doc.text(")")
+    case Integer    => Doc.text("integer")
+    case ByteString => Doc.text("bytestring")
+    case String     => Doc.text("string")
+    case Unit       => Doc.text("unit")
+    case Bool       => Doc.text("bool")
+    case Apply(ProtoList, arg) =>
+      Doc.text("(") + Doc.text("list") + Doc.space + arg.pretty + Doc.text(")")
     case Apply(Apply(ProtoPair, a), b) =>
-      Doc.text("pair") + Doc.space + Doc.text("(") + a.pretty + Doc.text(")") + Doc.space + Doc
-        .text("(") + b.pretty + Doc.text(")")
+      Doc.text("(") + Doc.text("pair") + Doc.space + a.pretty + Doc.space + b.pretty + Doc.text(")")
     case DefaultUni.Data => Doc.text("data")
     case _               => sys.error(s"Unexpected default uni: $this")
 

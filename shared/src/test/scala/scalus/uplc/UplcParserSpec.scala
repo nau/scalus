@@ -159,10 +159,10 @@ class UplcParserSpec extends AnyFunSuite with ScalaCheckPropertyChecks with Arbi
     assert(p("data") == Right(DefaultUni.Data))
     assert(p("integer") == Right(DefaultUni.Integer))
     assert(
-      p("list (integer )") == Right(DefaultUni.Apply(ProtoList, DefaultUni.Integer))
+      p("(list integer )") == Right(DefaultUni.Apply(ProtoList, DefaultUni.Integer))
     )
     assert(
-      p("list (list(unit) )") == Right(
+      p("(list (list unit) )") == Right(
         DefaultUni.Apply(
           ProtoList,
           DefaultUni.Apply(ProtoList, DefaultUni.Unit)
@@ -170,7 +170,7 @@ class UplcParserSpec extends AnyFunSuite with ScalaCheckPropertyChecks with Arbi
       )
     )
     assert(
-      p("pair (integer)(bool)") == Right(
+      p("(pair integer bool)") == Right(
         DefaultUni.Apply(
           DefaultUni.Apply(ProtoPair, DefaultUni.Integer),
           DefaultUni.Bool
@@ -178,7 +178,7 @@ class UplcParserSpec extends AnyFunSuite with ScalaCheckPropertyChecks with Arbi
       )
     )
     assert(
-      p("pair (list(list(unit))) (pair(integer)(bool) )") == Right(
+      p("(pair (list (list unit)) (pair integer bool) )") == Right(
         DefaultUni.Apply(
           DefaultUni.Apply(
             ProtoPair,
@@ -199,7 +199,7 @@ class UplcParserSpec extends AnyFunSuite with ScalaCheckPropertyChecks with Arbi
     import cats.implicits.toShow
     def p(input: String) = parser.conTerm.parse(input).map(_._2).left.map(e => e.show)
     assert(
-      p("(con list(integer) [1,2, 3333])") == Right(
+      p("(con (list integer) [1,2, 3333])") == Right(
         Const(
           Constant(
             DefaultUni.Apply(ProtoList, Integer),
@@ -213,7 +213,7 @@ class UplcParserSpec extends AnyFunSuite with ScalaCheckPropertyChecks with Arbi
     )
 
     assert(
-      p("(con pair (integer) (bool) (12, False))") == Right(
+      p("(con (pair integer bool) (12, False))") == Right(
         Const(
           Constant(
             DefaultUni.Apply(

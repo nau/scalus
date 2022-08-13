@@ -36,11 +36,11 @@ class UplcParser:
       case _            => sys.error("unexpected default uni")
     }
     def list =
-      symbol("list") *> inParens(self) map (in => DefaultUni.Apply(ProtoList, in))
-    def pair = symbol("pair") *> inParens(self) ~ inParens(self) map { case (a, b) =>
+      inParens(symbol("list") *> self) map (in => DefaultUni.Apply(ProtoList, in))
+    def pair = inParens(symbol("pair") *> self ~ self) map { case (a, b) =>
       DefaultUni.Apply(DefaultUni.Apply(ProtoPair, a), b)
     }
-    star | list | pair
+    star | list.backtrack | pair
   }
 
   def hexByte: P[Byte] = hexdig ~ hexdig map { case (a, b) =>
