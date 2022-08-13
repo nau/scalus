@@ -313,7 +313,7 @@ class UplcParserSpec extends AnyFunSuite with ScalaCheckPropertyChecks with Arbi
   }
 
   test("asdf") {
-    val a = ByteString ->: Integer ->: Bool
+    val a = ByteString ->: Integer ->: TypeScheme.Type(Bool)
     val two = Const(Constant(Integer, BigInt(2)))
     println(a)
     println(Cek.evalUPLC(Apply(Apply(Builtin(DefaultFun.AddInteger), two), two)))

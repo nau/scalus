@@ -41,8 +41,9 @@ object Cek:
       case Const(const)       => returnCek(ctx, VCon(const))
       case Builtin(bn)        =>
         // The @term@ is a 'Builtin', so it's fully discharged.
-        val rt = Meaning.AddInteger
-        returnCek(ctx, VBuiltin(bn, term, rt))
+        Meaning.BuiltinMeanings.get(bn) match
+          case Some(meaning) => returnCek(ctx, VBuiltin(bn, term, meaning))
+          case None          => throw new UnexpectedBuiltinTermArgumentMachineError(term)
       case Error => throw new RuntimeException("Error")
 
   def returnCek(ctx: Context, value: CekValue): Term =
@@ -120,8 +121,6 @@ object Cek:
       case TypeScheme.Type(_) | TypeScheme.TVar(_) =>
         // spendBudgetCek
         // eval the builtin and return result
-        println(runtime.f.getClass.getName)
-        val f = runtime.f.asInstanceOf[() => Constant]
-        val r = f()
-        VCon(r)
+        val f = runtime.f.asInstanceOf[() => CekValue]
+        f()
       case _ => VBuiltin(builtinName, term, runtime)

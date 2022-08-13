@@ -78,7 +78,7 @@ enum Term:
       Doc.text("(") + Doc.text("force") + Doc.text(" ") + term.pretty + Doc.text(")")
     case Delay(term) =>
       Doc.text("(") + Doc.text("delay") + Doc.text(" ") + term.pretty + Doc.text(")")
-    case Const(const) => Doc.text("(") + Doc.text("con") + const.pretty + Doc.text(")")
+    case Const(const) => Doc.text("(") + Doc.text("con") + Doc.space + const.pretty + Doc.text(")")
     case Builtin(bn)  => Doc.text("(") + Doc.text("builtin") + Doc.space + bn.pretty + Doc.text(")")
     case Error        => Doc.text("(error)")
 
@@ -180,29 +180,56 @@ enum DefaultFun:
 
   def pretty: Doc = Doc.text(name)
 
-enum DefaultUni:
-  case Integer extends DefaultUni
-  case ByteString extends DefaultUni
-  case String extends DefaultUni
-  case Unit extends DefaultUni
-  case Bool extends DefaultUni
-  case ProtoList extends DefaultUni
-  case ProtoPair extends DefaultUni
-  case Apply(f: DefaultUni, arg: DefaultUni) extends DefaultUni
-  case Data extends DefaultUni
-
+sealed abstract class DefaultUni:
+  type T
   def pretty: Doc = this match
-    case Integer    => Doc.text("integer")
-    case ByteString => Doc.text("bytestring")
-    case String     => Doc.text("string")
-    case Unit       => Doc.text("unit")
-    case Bool       => Doc.text("bool")
-    case Apply(ProtoList, arg) =>
+    case DefaultUni.Integer    => Doc.text("integer")
+    case DefaultUni.ByteString => Doc.text("bytestring")
+    case DefaultUni.String     => Doc.text("string")
+    case DefaultUni.Unit       => Doc.text("unit")
+    case DefaultUni.Bool       => Doc.text("bool")
+    case DefaultUni.Apply(DefaultUni.ProtoList, arg) =>
       Doc.text("(") + Doc.text("list") + Doc.space + arg.pretty + Doc.text(")")
-    case Apply(Apply(ProtoPair, a), b) =>
+    case DefaultUni.Apply(DefaultUni.Apply(DefaultUni.ProtoPair, a), b) =>
       Doc.text("(") + Doc.text("pair") + Doc.space + a.pretty + Doc.space + b.pretty + Doc.text(")")
     case DefaultUni.Data => Doc.text("data")
     case _               => sys.error(s"Unexpected default uni: $this")
+
+object DefaultUni:
+
+  trait Lift[A]:
+    def defaultUni: DefaultUni
+  implicit object LiftBigInt extends Lift[BigInt]:
+    def defaultUni: DefaultUni = DefaultUni.Integer
+
+  implicit object LiftBoolean extends Lift[Boolean]:
+    def defaultUni: DefaultUni = DefaultUni.Bool
+
+  def defaultUniFromValue[A: Lift](value: A): DefaultUni = summon[Lift[A]].defaultUni
+  def asConstant[A: Lift](value: A): Constant = Constant(defaultUniFromValue(value), value)
+
+  case object Integer extends DefaultUni:
+    type T = BigInt
+  case object ByteString extends DefaultUni:
+    type T = Array[Byte]
+  case object String extends DefaultUni:
+    type T = String
+  case object Unit extends DefaultUni:
+    type T = Unit
+
+  case object Bool extends DefaultUni:
+    type T = Boolean
+
+  case object ProtoList extends DefaultUni:
+    type T = Nothing // [A] =>> immutable.List[A]
+
+  case object ProtoPair extends DefaultUni:
+    type T = Nothing // [A, B] =>> (A, B)
+
+  case class Apply(f: DefaultUni, arg: DefaultUni) extends DefaultUni:
+    type T = f.T => arg.T
+  case object Data extends DefaultUni:
+    type T = Data
 
 object PlutusDataCborEncoder extends Encoder[Data]:
   override def write(writer: Writer, data: Data): Writer =
