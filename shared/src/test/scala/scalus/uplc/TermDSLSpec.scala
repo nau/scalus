@@ -1,9 +1,30 @@
 package scalus.uplc
 
-import org.scalacheck.Prop
+import org.scalacheck.*
+import org.scalacheck.Prop.*
 import org.scalatest.funsuite.AnyFunSuite
-import org.scalatestplus.scalacheck.ScalaCheckPropertyChecks
+import org.scalatestplus.scalacheck.{Checkers, ScalaCheckPropertyChecks}
 import scalus.uplc.TermDSL.{*, given}
+
+object ScalaJSExampleSpec extends Properties("ScalaCheck-scalajs") with ArbitraryInstances {
+
+  property("dummy") = Prop.forAll { (t: Term) =>
+    Prop.classify(t.isInstanceOf[Term.Const], "const") {
+      Prop.classify(t.isInstanceOf[Term.Force] || t.isInstanceOf[Term.Delay], "force/delay") {
+        Prop.classify(
+          t.isInstanceOf[Term.LamAbs] || t.isInstanceOf[Term.Apply] || t.isInstanceOf[Term.Var],
+          "var/lam/apply"
+        ) {
+          Prop.classify(t.isInstanceOf[Term.Builtin], "builtin") {
+            Prop.classify(t.isInstanceOf[Term.Error.type], "error") {
+              t == t
+            }
+          }
+        }
+      }
+    }
+  }
+}
 
 class TermDSLSpec extends AnyFunSuite with ScalaCheckPropertyChecks with ArbitraryInstances:
   test("constant as Term") {
