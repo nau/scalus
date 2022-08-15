@@ -2,11 +2,10 @@ package scalus.uplc
 
 import org.scalatest.funsuite.AnyFunSuite
 import org.scalatestplus.scalacheck.ScalaCheckPropertyChecks
-import scalus.uplc.DefaultUni.{Bool, ByteString, asConstant}
-import scalus.uplc.Meaning.EqualsInteger
+import scalus.uplc.DefaultFun.{AddInteger, EqualsInteger}
+import scalus.uplc.DefaultUni.{Bool, ByteString, asConstant, *}
 import scalus.uplc.Term.*
 import scalus.uplc.TermDSL.{*, given}
-import scalus.uplc.DefaultUni.*
 
 import java.io.ByteArrayInputStream
 import scala.io.Source.fromFile
@@ -47,6 +46,22 @@ class CekJVMSpec extends AnyFunSuite with ScalaCheckPropertyChecks with Arbitrar
     parser.parseProgram(code).map(Cek.evalUPLCProgram).getOrElse(sys.error("Parse error"))
   }
 
+  test("AddInteger") {
+    forAll { (a: BigInt, b: BigInt) =>
+      Cek.evalUPLC(AddInteger $ a $ b) match
+        case Const(Constant(Integer, r)) => assert(r == (a + b))
+        case r                           => fail(s"Expected true but got ${r.pretty.render(80)}")
+    }
+
+    forAll { (a: Term, b: Term) =>
+      (a, b) match
+        case (Const(Constant(Integer, aa: BigInt)), Const(Constant(Integer, bb: BigInt))) =>
+          val r = aa + bb
+          assert(Cek.evalUPLC(AddInteger $ a $ b) == Const(Constant(Integer, r)))
+        case _ => assertThrows[Exception](Cek.evalUPLC(AddInteger $ a $ b))
+    }
+  }
+
   test("EqualsInteger") {
     def check(code: String, result: Boolean) =
       assert(evalUPLC(code) == Const(asConstant(result)))
@@ -72,11 +87,11 @@ class CekJVMSpec extends AnyFunSuite with ScalaCheckPropertyChecks with Arbitrar
     }
 
     forAll { (a: BigInt, b: BigInt) =>
-      Cek.evalUPLC(DefaultFun.EqualsInteger $ a $ a) match
+      Cek.evalUPLC(EqualsInteger $ a $ a) match
         case Const(Constant(Bool, true)) => assert(true)
         case r                           => fail(s"Expected true but got ${r.pretty.render(80)}")
 
-      Cek.evalUPLC(DefaultFun.EqualsInteger $ a $ b) match
+      Cek.evalUPLC(EqualsInteger $ a $ b) match
         case Const(Constant(Bool, r)) => assert(r == (a == b))
         case r                        => fail(s"Expected true but got ${r.pretty.render(80)}")
     }
