@@ -12,6 +12,11 @@ class UnexpectedBuiltinTermArgumentMachineError(term: Term)
 class KnownTypeUnliftingError(expected: TypeScheme, actual: DefaultUni)
     extends Exception(s"Expected $expected, but got $actual")
 
+/*
+  TODO:
+  - proper exception handling
+  - execution budget calculation
+ */
 object Cek:
 
   sealed trait Context
@@ -28,8 +33,9 @@ object Cek:
   case class VLamAbs(name: String, term: Term, env: CekValEnv) extends CekValue
   case class VBuiltin(bn: DefaultFun, term: Term, runtime: Runtime) extends CekValue
 
-  def evalUPLC(term: Term): Term =
-    computeCek(NoFrame, Nil, term)
+  def evalUPLC(term: Term): Term = computeCek(NoFrame, Nil, term)
+
+  def evalUPLCProgram(p: Program): Term = evalUPLC(p.term)
 
   @tailrec def computeCek(ctx: Context, env: CekValEnv, term: Term): Term =
     term match

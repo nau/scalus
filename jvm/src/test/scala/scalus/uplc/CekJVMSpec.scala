@@ -38,13 +38,13 @@ class CekJVMSpec extends AnyFunSuite with ScalaCheckPropertyChecks with Arbitrar
     val parser = UplcParser
     for
       program <- parser.parseProgram(code)
-      evaled = Cek.evalUPLC(program.term)
+      evaled = Cek.evalUPLCProgram(program)
     do println(evaled.pretty.render(80))
   }
 
   def eval(code: String): Term = {
     val parser = UplcParser
-    parser.parseProgram(code).map(t => Cek.evalUPLC(t.term)).getOrElse(sys.error("Parse error"))
+    parser.parseProgram(code).map(Cek.evalUPLCProgram).getOrElse(sys.error("Parse error"))
   }
 
   test("EqualsInteger") {
