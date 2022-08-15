@@ -1,7 +1,7 @@
 package scalus.uplc
 
 import scalus.uplc.Cek.CekValue
-import scalus.uplc.DefaultUni.{Bool, Integer, asConstant}
+import scalus.uplc.DefaultUni.{Bool, Integer, asConstant, fromConstant}
 
 import scala.annotation.targetName
 import scala.collection.immutable
@@ -38,9 +38,9 @@ object Meaning:
   def mkMeaning(t: TypeScheme, f: AnyRef) = Runtime(t, f)
   import TypeScheme.*
 
-  def check(t: DefaultUni, v: CekValue): t.T =
+  def check(t: DefaultUni, v: CekValue): t.Unlifted =
     v match
-      case Cek.VCon(c: Constant) if t == c.tpe => c.value.asInstanceOf[t.T]
+      case Cek.VCon(c: Constant) if t == c.tpe => c.value.asInstanceOf[t.Unlifted]
       case _ =>
         sys.error("Unexpected value: " + v)
 
@@ -53,6 +53,15 @@ object Meaning:
           val bb = check(Integer, b)
           () => Cek.VCon(asConstant(aa + bb))
     )
+  val MultiplyInteger =
+    mkMeaning(
+      Integer ->: Integer ->: Integer,
+      (a: CekValue) =>
+        val aa = check(Integer, a)
+        (b: CekValue) =>
+          val bb = check(Integer, b)
+          () => Cek.VCon(asConstant(aa * bb))
+    )
   val EqualsInteger =
     mkMeaning(
       Integer ->: Integer ->: Bool,
@@ -60,7 +69,16 @@ object Meaning:
         val aa = check(Integer, a)
         (b: CekValue) =>
           val bb = check(Integer, b)
-          () => Cek.VCon(Constant(Bool, aa == bb))
+          () => Cek.VCon(asConstant(aa == bb))
+    )
+  val LessThanEqualsInteger =
+    mkMeaning(
+      Integer ->: Integer ->: Bool,
+      (a: CekValue) =>
+        val aa = check(Integer, a)
+        (b: CekValue) =>
+          val bb = check(Integer, b)
+          () => Cek.VCon(asConstant(aa <= bb))
     )
 
   val IfThenElse =
@@ -73,6 +91,8 @@ object Meaning:
 
   val BuiltinMeanings: immutable.Map[DefaultFun, Runtime] = immutable.Map.apply(
     (DefaultFun.AddInteger, Meaning.AddInteger),
+    (DefaultFun.MultiplyInteger, Meaning.MultiplyInteger),
     (DefaultFun.EqualsInteger, Meaning.EqualsInteger),
+    (DefaultFun.LessThanEqualsInteger, Meaning.LessThanEqualsInteger),
     (DefaultFun.IfThenElse, Meaning.IfThenElse)
   )

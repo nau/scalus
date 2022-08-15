@@ -6,6 +6,7 @@ import io.bullet.borer.{Decoder, Encoder, Reader, Writer, DataItem as DI}
 import org.typelevel.paiges.Doc
 import scalus.uplc.Data.*
 import scalus.utils.Utils
+import scalus.utils.Utils.bytesToHex
 
 import java.util
 import scala.collection.immutable
@@ -15,7 +16,9 @@ case class Constant(tpe: DefaultUni, value: Any) {
     tpe match
       case DefaultUni.Integer => Doc.text(value.toString)
       case DefaultUni.ByteString =>
-        Doc.text("#" + Utils.bytesToHex(Array.from(value.asInstanceOf[immutable.List[Byte]])))
+        Doc.text(
+          "#" + Utils.bytesToHex(value.asInstanceOf[Array[Byte]])
+        )
       case DefaultUni.String => Doc.text("\"" + value.asInstanceOf[String] + "\"")
       case DefaultUni.Unit   => Doc.text("()")
       case DefaultUni.Bool   => Doc.text(if value.asInstanceOf[Boolean] then "True" else "False")
@@ -30,6 +33,20 @@ case class Constant(tpe: DefaultUni, value: Any) {
       case DefaultUni.Data => Doc.text(value.toString)
       case _               => sys.error("unsupported constant type: " + tpe)
   def pretty: Doc = tpe.pretty + Doc.space + prettyValue
+
+  override def equals(obj: Any): Boolean = obj match {
+    case Constant(DefaultUni.ByteString, value) =>
+      tpe == this.tpe && util.Arrays.equals(
+        value.asInstanceOf[DefaultUni.ByteString.Unlifted],
+        this.value.asInstanceOf[DefaultUni.ByteString.Unlifted]
+      )
+    case Constant(tpe, value) => tpe == this.tpe && value == this.value
+    case _                    => false
+  }
+
+  override def hashCode(): Int = tpe match
+    case DefaultUni.ByteString => util.Arrays.hashCode(value.asInstanceOf[Array[Byte]])
+    case _                     => value.hashCode()
 }
 
 sealed abstract class Data
@@ -45,8 +62,7 @@ object Data:
 
   case class B(value: Array[Byte]) extends Data:
 
-    override def toString: String =
-      s"B(\"${value.map("%02X" format _).mkString}\")"
+    override def toString: String = s"B(\"${bytesToHex(value)}\")"
 
     override def equals(that: Any): Boolean = that match
       case that: B =>
@@ -181,7 +197,7 @@ enum DefaultFun:
   def pretty: Doc = Doc.text(name)
 
 sealed abstract class DefaultUni:
-  type T
+  type Unlifted
   def pretty: Doc = this match
     case DefaultUni.Integer    => Doc.text("integer")
     case DefaultUni.ByteString => Doc.text("bytestring")
@@ -199,37 +215,35 @@ object DefaultUni:
 
   trait Lift[A]:
     def defaultUni: DefaultUni
-  implicit object LiftBigInt extends Lift[BigInt]:
-    def defaultUni: DefaultUni = DefaultUni.Integer
 
-  implicit object LiftBoolean extends Lift[Boolean]:
-    def defaultUni: DefaultUni = DefaultUni.Bool
+  sealed abstract class LiftedUni[A] extends DefaultUni with Lift[A]:
+    type Unlifted = A
+    def defaultUni: DefaultUni = this
+
+//  given LiftBigInt: Lift[BigInt] with
+//    def defaultUni: DefaultUni = DefaultUni.Integer
 
   def defaultUniFromValue[A: Lift](value: A): DefaultUni = summon[Lift[A]].defaultUni
   def asConstant[A: Lift](value: A): Constant = Constant(defaultUniFromValue(value), value)
+  def fromConstant(const: Constant): const.tpe.Unlifted =
+    const.value.asInstanceOf[const.tpe.Unlifted]
 
-  case object Integer extends DefaultUni:
-    type T = BigInt
-  case object ByteString extends DefaultUni:
-    type T = Array[Byte]
-  case object String extends DefaultUni:
-    type T = String
-  case object Unit extends DefaultUni:
-    type T = Unit
-
-  case object Bool extends DefaultUni:
-    type T = Boolean
+  implicit case object Integer extends LiftedUni[BigInt]
+  implicit case object ByteString extends LiftedUni[Array[Byte]]
+  implicit case object String extends LiftedUni[String]
+  implicit case object Unit extends LiftedUni[Unit]
+  implicit case object Bool extends LiftedUni[Boolean]
 
   case object ProtoList extends DefaultUni:
-    type T = Nothing // [A] =>> immutable.List[A]
+    type Unlifted = Nothing // [A] =>> immutable.List[A]
 
   case object ProtoPair extends DefaultUni:
-    type T = Nothing // [A, B] =>> (A, B)
+    type Unlifted = Nothing // [A, B] =>> (A, B)
 
   case class Apply(f: DefaultUni, arg: DefaultUni) extends DefaultUni:
-    type T = f.T => arg.T
+    type Unlifted = f.Unlifted => arg.Unlifted
   case object Data extends DefaultUni:
-    type T = Data
+    type Unlifted = Data
 
 object PlutusDataCborEncoder extends Encoder[Data]:
   override def write(writer: Writer, data: Data): Writer =

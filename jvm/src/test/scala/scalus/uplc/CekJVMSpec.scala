@@ -8,13 +8,6 @@ import java.io.ByteArrayInputStream
 import scala.io.Source.fromFile
 
 class CekJVMSpec extends AnyFunSuite:
-  test("Scalus") {
-    val h = Const(Constant(ByteString, "Hello"))
-    val id = LamAbs("x", Var("x"))
-    val app = Apply(id, h)
-    assert(Cek.evalUPLC(app) == h)
-  }
-
   def runUPLC(code: String) = {
     import scala.sys.process.*
     val cmd = "/Users/nau/projects/scalus/uplc evaluate"
@@ -89,4 +82,8 @@ class CekJVMSpec extends AnyFunSuite:
     check("builtin/addInteger-uncurried/addInteger-uncurried")
     check("builtin/equalsInteger/equalsInteger")
     check("builtin/ifThenElse/ifThenElse")
+
+    // Examples
+    check("example/factorial/factorial")
+    check("example/fibonacci/fibonacci")
   }

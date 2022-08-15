@@ -8,7 +8,7 @@ import java.io.ByteArrayInputStream
 import scala.io.Source.fromFile
 class CekSpec extends AnyFunSuite:
   test("Scalus") {
-    val h = Const(Constant(ByteString, "Hello"))
+    val h = Const(asConstant("Hello"))
     val id = LamAbs("x", Var("x"))
     val app = Apply(id, h)
     assert(Cek.evalUPLC(app) == h)

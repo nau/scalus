@@ -6,7 +6,7 @@ import org.scalatest.funsuite.AnyFunSuite
 import org.scalatestplus.scalacheck.ScalaCheckPropertyChecks
 import scalus.uplc.Data.{List, Map}
 import scalus.uplc.DefaultUni
-import scalus.uplc.DefaultUni.{Bool, ByteString, Integer, ProtoList, ProtoPair}
+import scalus.uplc.DefaultUni.{Bool, ByteString, Integer, ProtoList, ProtoPair, asConstant}
 import scalus.uplc.Term.*
 
 import scala.collection.immutable
@@ -42,7 +42,7 @@ trait ArbitraryInstances:
   def arbConstantByType(t: DefaultUni): Gen[Constant] =
     val gen = t match
       case DefaultUni.Integer    => Arbitrary.arbitrary[BigInt]
-      case DefaultUni.ByteString => Arbitrary.arbitrary[immutable.List[Byte]]
+      case DefaultUni.ByteString => Arbitrary.arbitrary[Array[Byte]]
       case DefaultUni.String     => Arbitrary.arbitrary[String]
       case DefaultUni.Unit       => Gen.const(())
       case DefaultUni.Bool       => Gen.oneOf(true, false)
@@ -241,8 +241,8 @@ class UplcParserSpec extends AnyFunSuite with ScalaCheckPropertyChecks with Arbi
             Apply(
               Apply(
                 Apply(
-                  Const(Constant(DefaultUni.ByteString, Seq[Byte](0, 18, 52, -1))),
-                  Const(Constant(DefaultUni.Bool, true))
+                  Const(asConstant(Array[Byte](0, 18, 52, -1))),
+                  Const(asConstant(true))
                 ),
                 Const(Constant(DefaultUni.Bool, false))
               ),
@@ -310,11 +310,4 @@ class UplcParserSpec extends AnyFunSuite with ScalaCheckPropertyChecks with Arbi
       val parsed = parser.parseProgram(pretty)
       assert(parsed == Right(t))
     }
-  }
-
-  test("asdf") {
-    val a = ByteString ->: Integer ->: TypeScheme.Type(Bool)
-    val two = Const(Constant(Integer, BigInt(2)))
-    println(a)
-    println(Cek.evalUPLC(Apply(Apply(Builtin(DefaultFun.AddInteger), two), two)))
   }

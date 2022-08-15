@@ -5,7 +5,7 @@ import cats.parse.Numbers.{bigInt, digits}
 import cats.parse.Rfc5234.{alpha, digit, hexdig}
 import cats.parse.{Numbers, Parser0, Parser as P}
 import scalus.uplc.DefaultUni
-import scalus.uplc.DefaultUni.{ProtoList, ProtoPair}
+import scalus.uplc.DefaultUni.{ProtoList, ProtoPair, asConstant}
 import scalus.uplc.Term.*
 
 class UplcParser:
@@ -74,7 +74,7 @@ class UplcParser:
         case "False" => Constant(t, false)
       }
     case DefaultUni.ByteString =>
-      lexeme(P.char('#') *> hexByte.rep0.map(bs => Constant(t, bs)))
+      lexeme(P.char('#') *> hexByte.rep0.map(bs => asConstant(bs.toArray)))
     case DefaultUni.String =>
       lexeme(string).map(s => Constant(t, s)) // TODO validate escape sequences
     case DefaultUni.Data                => sys.error("data constant not supported")
