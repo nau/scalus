@@ -112,7 +112,7 @@ trait ArbitraryInstances:
   }
 
 class UplcParserSpec extends AnyFunSuite with ScalaCheckPropertyChecks with ArbitraryInstances:
-  val parser = new UplcParser
+  val parser = UplcParser
   test("Parse program version") {
     def p(input: String) = parser.programVersion.parse(input)
     def check(input: String, expected: (Int, Int, Int)) =

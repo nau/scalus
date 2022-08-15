@@ -22,7 +22,7 @@ class CekJVMSpec extends AnyFunSuite with ScalaCheckPropertyChecks with Arbitrar
     val cmd = "/Users/nau/projects/scalus/uplc evaluate"
     val out = cmd.#<(new ByteArrayInputStream(code.getBytes("UTF-8"))).!!
     println(out)
-    new UplcParser().term
+    UplcParser.term
       .parse(out)
       .map(_._2)
       .getOrElse(
@@ -33,7 +33,7 @@ class CekJVMSpec extends AnyFunSuite with ScalaCheckPropertyChecks with Arbitrar
   }
 
   def run(code: String) = {
-    val parser = new UplcParser()
+    val parser = UplcParser
     for
       program <- parser.parseProgram(code)
       evaled = Cek.evalUPLC(program.term)
@@ -41,7 +41,7 @@ class CekJVMSpec extends AnyFunSuite with ScalaCheckPropertyChecks with Arbitrar
   }
 
   def eval(code: String): Term = {
-    val parser = new UplcParser()
+    val parser = UplcParser
     parser.parseProgram(code).map(t => Cek.evalUPLC(t.term)).getOrElse(sys.error("Parse error"))
   }
 

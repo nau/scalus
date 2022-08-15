@@ -8,7 +8,7 @@ import scalus.uplc.DefaultUni
 import scalus.uplc.DefaultUni.{ProtoList, ProtoPair, asConstant}
 import scalus.uplc.Term.*
 
-class UplcParser:
+object UplcParser:
   private[this] val whitespace: P[Unit] = P.charIn(" \t\r\n").void
   private[this] val whitespaces0: Parser0[Unit] = whitespace.rep0.void
 

@@ -15,16 +15,14 @@ class CekSpec extends AnyFunSuite:
   }
 
   def run(code: String) = {
-    val parser = new UplcParser()
     for
-      program <- parser.parseProgram(code)
+      program <- UplcParser.parseProgram(code)
       evaled = Cek.evalUPLC(program.term)
     do println(evaled.pretty.render(80))
   }
 
   def eval(code: String): Term = {
-    val parser = new UplcParser()
-    parser.parseProgram(code).map(t => Cek.evalUPLC(t.term)).getOrElse(sys.error("Parse error"))
+    UplcParser.parseProgram(code).map(t => Cek.evalUPLC(t.term)).getOrElse(sys.error("Parse error"))
   }
 
   test("EqualsInteger") {
