@@ -98,6 +98,22 @@ enum Term:
     case Builtin(bn)  => Doc.text("(") + Doc.text("builtin") + Doc.space + bn.pretty + Doc.text(")")
     case Error        => Doc.text("(error)")
 
+object TermDSL:
+  def λ(name: String)(term: Term): Term = Term.LamAbs(name, term)
+  extension (term: Term)
+    def $(rhs: Term) = Term.Apply(term, rhs)
+    def unary_! = Term.Force(term)
+    def unary_~ = Term.Delay(term)
+
+  given Conversion[DefaultFun, Term] with
+    def apply(bn: DefaultFun): Term = Term.Builtin(bn)
+
+  given constantAsTerm[A: DefaultUni.Lift]: Conversion[A, Term] with
+    def apply(c: A): Term = Term.Const(DefaultUni.asConstant(c))
+
+  given Conversion[Constant, Term] with
+    def apply(c: Constant): Term = Term.Const(c)
+
 case class Program(version: (Int, Int, Int), term: Term):
   def pretty: Doc =
     val (major, minor, patch) = version

@@ -5,6 +5,8 @@ import org.scalatestplus.scalacheck.ScalaCheckPropertyChecks
 import scalus.uplc.DefaultUni.{Bool, ByteString, asConstant}
 import scalus.uplc.Meaning.EqualsInteger
 import scalus.uplc.Term.*
+import scalus.uplc.TermDSL.{*, given}
+import scalus.uplc.DefaultUni.*
 
 import java.io.ByteArrayInputStream
 import scala.io.Source.fromFile
@@ -70,13 +72,11 @@ class CekJVMSpec extends AnyFunSuite with ScalaCheckPropertyChecks with Arbitrar
     }
 
     forAll { (a: BigInt, b: BigInt) =>
-      val arg1 = Const(asConstant(a))
-      val arg2 = Const(asConstant(b))
-      Cek.evalUPLC(Apply(Apply(Builtin(DefaultFun.EqualsInteger), arg1), arg1)) match
+      Cek.evalUPLC(DefaultFun.EqualsInteger $ a $ a) match
         case Const(Constant(Bool, true)) => assert(true)
         case r                           => fail(s"Expected true but got ${r.pretty.render(80)}")
 
-      Cek.evalUPLC(Apply(Apply(Builtin(DefaultFun.EqualsInteger), arg1), arg2)) match
+      Cek.evalUPLC(DefaultFun.EqualsInteger $ a $ b) match
         case Const(Constant(Bool, r)) => assert(r == (a == b))
         case r                        => fail(s"Expected true but got ${r.pretty.render(80)}")
     }
