@@ -118,6 +118,15 @@ object Meaning:
             )
           )
     )
+  /*  unListData               : [ data ] -> list(data)
+   */
+  val UnListData =
+    mkMeaning(
+      DefaultUni.Data ->: DefaultUni.List(DefaultUni.Data),
+      (a: CekValue) =>
+        val VCon(Constant.Data(Data.List(values))) = a
+        () => Cek.VCon(Constant.List(DefaultUni.Data, values.map(asConstant)))
+    )
 
   val BuiltinMeanings: immutable.Map[DefaultFun, Runtime] = immutable.Map.apply(
     (DefaultFun.AddInteger, Meaning.AddInteger),
@@ -126,5 +135,6 @@ object Meaning:
     (DefaultFun.LessThanEqualsInteger, Meaning.LessThanEqualsInteger),
     (DefaultFun.IfThenElse, Meaning.IfThenElse),
     (DefaultFun.UnConstrData, Meaning.UnConstrData),
-    (DefaultFun.UnMapData, Meaning.UnMapData)
+    (DefaultFun.UnMapData, Meaning.UnMapData),
+    (DefaultFun.UnListData, Meaning.UnListData)
   )

@@ -95,8 +95,8 @@ object Data:
   given Lift[BigInt] with { def lift(a: BigInt): Data = I(a) }
   given Lift[Int] with { def lift(a: Int): Data = I(a) }
   given Lift[Array[Byte]] with { def lift(a: Array[Byte]): Data = B(a) }
-  given seqLift[A: Lift]: Lift[Seq[A]] with {
-    def lift(a: Seq[A]): Data = List(a.map(summon[Lift[A]].lift).toList)
+  given seqLift[A: Lift, B[A] <: Seq[A]]: Lift[B[A]] with {
+    def lift(a: B[A]): Data = List(a.map(summon[Lift[A]].lift).toList)
   }
 
   given mapLift[A: Lift, B: Lift]: Lift[immutable.Map[A, B]] with {
