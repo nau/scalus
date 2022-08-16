@@ -128,6 +128,16 @@ object Meaning:
         () => Cek.VCon(Constant.List(DefaultUni.Data, values.map(asConstant)))
     )
 
+  /*  unIData                  : [ data ] -> integer
+   */
+  val UnIData =
+    mkMeaning(
+      DefaultUni.Data ->: DefaultUni.Integer,
+      (a: CekValue) =>
+        val VCon(Constant.Data(Data.I(v))) = a
+        () => Cek.VCon(asConstant(v))
+    )
+
   val BuiltinMeanings: immutable.Map[DefaultFun, Runtime] = immutable.Map.apply(
     (DefaultFun.AddInteger, Meaning.AddInteger),
     (DefaultFun.MultiplyInteger, Meaning.MultiplyInteger),
@@ -136,5 +146,6 @@ object Meaning:
     (DefaultFun.IfThenElse, Meaning.IfThenElse),
     (DefaultFun.UnConstrData, Meaning.UnConstrData),
     (DefaultFun.UnMapData, Meaning.UnMapData),
-    (DefaultFun.UnListData, Meaning.UnListData)
+    (DefaultFun.UnListData, Meaning.UnListData),
+    (DefaultFun.UnIData, Meaning.UnIData)
   )
