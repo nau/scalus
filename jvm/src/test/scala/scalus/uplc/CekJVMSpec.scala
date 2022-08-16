@@ -50,7 +50,7 @@ class CekJVMSpec extends AnyFunSuite with ScalaCheckPropertyChecks with Arbitrar
     forAll { (a: BigInt, b: BigInt) =>
       Cek.evalUPLC(AddInteger $ a $ b) match
         case Const(Constant.Integer(r)) => assert(r == (a + b))
-        case r                           => fail(s"Expected true but got ${r.pretty.render(80)}")
+        case r                          => fail(s"Expected true but got ${r.pretty.render(80)}")
     }
 
     forAll { (a: Term, b: Term) =>
@@ -89,11 +89,11 @@ class CekJVMSpec extends AnyFunSuite with ScalaCheckPropertyChecks with Arbitrar
     forAll { (a: BigInt, b: BigInt) =>
       Cek.evalUPLC(EqualsInteger $ a $ a) match
         case Const(Constant.Bool(true)) => assert(true)
-        case r                           => fail(s"Expected true but got ${r.pretty.render(80)}")
+        case r                          => fail(s"Expected true but got ${r.pretty.render(80)}")
 
       Cek.evalUPLC(EqualsInteger $ a $ b) match
         case Const(Constant.Bool(r)) => assert(r == (a == b))
-        case r                        => fail(s"Expected true but got ${r.pretty.render(80)}")
+        case r                       => fail(s"Expected true but got ${r.pretty.render(80)}")
     }
   }
 

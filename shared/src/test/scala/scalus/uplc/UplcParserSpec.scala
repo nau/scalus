@@ -4,10 +4,13 @@ import cats.implicits.toShow
 import org.scalacheck.{Arbitrary, Gen}
 import org.scalatest.funsuite.AnyFunSuite
 import org.scalatestplus.scalacheck.ScalaCheckPropertyChecks
+import scalus.uplc.Constant.given
 import scalus.uplc.Data.{List, Map}
 import scalus.uplc.DefaultUni
 import scalus.uplc.DefaultUni.{Bool, ByteString, Integer, ProtoList, ProtoPair, asConstant}
 import scalus.uplc.Term.*
+import scalus.uplc.TermDSL.{*, given}
+import scalus.utils.Utils.*
 
 import scala.collection.immutable
 
@@ -84,7 +87,7 @@ trait ArbitraryInstances:
       else
         Gen.frequency(
           (1, simple),
-          (2, Gen.oneOf(forceGen(sz), delayGen(sz), lamGen(sz), appGen(sz)))
+          (1, Gen.oneOf(forceGen(sz), delayGen(sz), lamGen(sz), appGen(sz)))
         )
 
     def forceGen(sz: Int): Gen[Term] = for t <- sizedTermGen(sz / 2) yield Term.Force(t)
@@ -198,22 +201,11 @@ class UplcParserSpec extends AnyFunSuite with ScalaCheckPropertyChecks with Arbi
     import cats.implicits.toShow
     def p(input: String) = parser.conTerm.parse(input).map(_._2).left.map(e => e.show)
     assert(
-      p("(con (list integer) [1,2, 3333])") == Right(
-        Const(
-          Constant.List(
-            Integer,
-            Constant.Integer(1) :: Constant.Integer(2) :: Constant.Integer(3333) :: Nil
-          )
-        )
-      )
+      p("(con (list integer) [1,2, 3333])") == Right(Seq(1, 2, 3333): Term)
     )
 
     assert(
-      p("(con (pair integer bool) (12, False))") == Right(
-        Const(
-          Constant.Pair(Constant.Integer(12), Constant.Bool(false))
-        )
-      )
+      p("(con (pair integer bool) (12, False))") == Right((12, false): Term)
     )
 
     val r = parser.parseProgram("""(program 1.0.0 [
@@ -227,19 +219,7 @@ class UplcParserSpec extends AnyFunSuite with ScalaCheckPropertyChecks with Arbi
       r == Right(
         Program(
           version = (1, 0, 0),
-          term = Apply(
-            Apply(
-              Apply(
-                Apply(
-                  Const(asConstant(Array[Byte](0, 18, 52, -1))),
-                  Const(asConstant(true))
-                ),
-                Const(asConstant(false))
-              ),
-              Const(Constant.Unit)
-            ),
-            Const(Constant.String("Hello"))
-          )
+          term = hex"001234ff" $ true $ false $ () $ "Hello"
         )
       )
     )

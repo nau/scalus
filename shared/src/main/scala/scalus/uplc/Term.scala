@@ -134,6 +134,7 @@ enum Term:
 
 object TermDSL:
   def λ(name: String)(term: Term): Term = Term.LamAbs(name, term)
+  def lam(name: String)(term: Term): Term = Term.LamAbs(name, term)
   extension (term: Term)
     def $(rhs: Term) = Term.Apply(term, rhs)
     def unary_! = Term.Force(term)

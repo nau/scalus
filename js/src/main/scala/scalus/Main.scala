@@ -2,6 +2,7 @@ package scalus
 
 import scalus.uplc.*
 import scalus.uplc.Term.*
+import scalus.utils.Utils.*
 
 object Main:
 
@@ -15,9 +16,6 @@ object Main:
   type Datum = String
   type Redeemer = String
   type ByteString = String
-
-  implicit class JsonHelper(val sc: StringContext) extends AnyVal:
-    def hex(args: Any*): String = sys.error("TODO - IMPLEMENT")
 
   object Scalus:
     def compile[A](a: A): Dynamic = ???
