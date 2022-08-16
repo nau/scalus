@@ -49,15 +49,15 @@ class CekJVMSpec extends AnyFunSuite with ScalaCheckPropertyChecks with Arbitrar
   test("AddInteger") {
     forAll { (a: BigInt, b: BigInt) =>
       Cek.evalUPLC(AddInteger $ a $ b) match
-        case Const(Constant(Integer, r)) => assert(r == (a + b))
+        case Const(Constant.Integer(r)) => assert(r == (a + b))
         case r                           => fail(s"Expected true but got ${r.pretty.render(80)}")
     }
 
     forAll { (a: Term, b: Term) =>
       (a, b) match
-        case (Const(Constant(Integer, aa: BigInt)), Const(Constant(Integer, bb: BigInt))) =>
+        case (Const(Constant.Integer(aa)), Const(Constant.Integer(bb))) =>
           val r = aa + bb
-          assert(Cek.evalUPLC(AddInteger $ a $ b) == Const(Constant(Integer, r)))
+          assert(Cek.evalUPLC(AddInteger $ a $ b) == Const(Constant.Integer(r)))
         case _ => assertThrows[Exception](Cek.evalUPLC(AddInteger $ a $ b))
     }
   }
@@ -88,11 +88,11 @@ class CekJVMSpec extends AnyFunSuite with ScalaCheckPropertyChecks with Arbitrar
 
     forAll { (a: BigInt, b: BigInt) =>
       Cek.evalUPLC(EqualsInteger $ a $ a) match
-        case Const(Constant(Bool, true)) => assert(true)
+        case Const(Constant.Bool(true)) => assert(true)
         case r                           => fail(s"Expected true but got ${r.pretty.render(80)}")
 
       Cek.evalUPLC(EqualsInteger $ a $ b) match
-        case Const(Constant(Bool, r)) => assert(r == (a == b))
+        case Const(Constant.Bool(r)) => assert(r == (a == b))
         case r                        => fail(s"Expected true but got ${r.pretty.render(80)}")
     }
   }

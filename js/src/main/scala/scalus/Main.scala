@@ -1,7 +1,6 @@
 package scalus
 
 import scalus.uplc.*
-import scalus.uplc.DefaultUni.ByteString
 import scalus.uplc.Term.*
 
 object Main:
@@ -50,7 +49,7 @@ object Main:
 
   def main(args: Array[String]): Unit =
     println("Scalus Hello World")
-    val h = Const(Constant(ByteString, "Hello"))
+    val h = Const(DefaultUni.asConstant("Hello"))
     val id = LamAbs("x", Var("x"))
     val app = Apply(id, h)
     println(Cek.evalUPLC(app))

@@ -57,26 +57,26 @@ object UplcParser:
 
   def conListOf(t: DefaultUni): P[Constant] =
     symbol("[") *> constantOf(t).repSep0(symbol(",")) <* symbol("]") map { ls =>
-      Constant(DefaultUni.Apply(ProtoList, t), ls)
+      Constant.List(t, ls)
     }
 
   def conPairOf(a: DefaultUni, b: DefaultUni): P[Constant] =
     inParens((constantOf(a) <* symbol(",")) ~ constantOf(b)) map { p =>
-      Constant(DefaultUni.Apply(DefaultUni.Apply(ProtoPair, a), b), p)
+      Constant.Pair(p._1, p._2)
     }
 
   def constantOf(t: DefaultUni): P[Constant] = t match
-    case DefaultUni.Integer => lexeme(bigInt).map(i => Constant(t, i))
-    case DefaultUni.Unit    => symbol("()").map(_ => Constant(t, ()))
+    case DefaultUni.Integer => lexeme(bigInt).map(i => Constant.Integer(i))
+    case DefaultUni.Unit    => symbol("()").map(_ => Constant.Unit)
     case DefaultUni.Bool =>
       lexeme(P.stringIn(Seq("True", "False"))).map {
-        case "True"  => Constant(t, true)
-        case "False" => Constant(t, false)
+        case "True"  => Constant.Bool(true)
+        case "False" => Constant.Bool(false)
       }
     case DefaultUni.ByteString =>
       lexeme(P.char('#') *> hexByte.rep0.map(bs => asConstant(bs.toArray)))
     case DefaultUni.String =>
-      lexeme(string).map(s => Constant(t, s)) // TODO validate escape sequences
+      lexeme(string).map(s => asConstant(s)) // TODO validate escape sequences
     case DefaultUni.Data                => sys.error("data constant not supported")
     case DefaultUni.Apply(ProtoList, t) => conListOf(t)
     case DefaultUni.Apply(DefaultUni.Apply(ProtoPair, a), b) => conPairOf(a, b)

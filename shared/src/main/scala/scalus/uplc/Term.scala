@@ -11,43 +11,77 @@ import scalus.utils.Utils.bytesToHex
 import java.util
 import scala.collection.immutable
 
-case class Constant(tpe: DefaultUni, value: Any) {
-  def prettyValue: Doc =
-    tpe match
-      case DefaultUni.Integer => Doc.text(value.toString)
-      case DefaultUni.ByteString =>
-        Doc.text(
-          "#" + Utils.bytesToHex(value.asInstanceOf[Array[Byte]])
-        )
-      case DefaultUni.String => Doc.text("\"" + value.asInstanceOf[String] + "\"")
-      case DefaultUni.Unit   => Doc.text("()")
-      case DefaultUni.Bool   => Doc.text(if value.asInstanceOf[Boolean] then "True" else "False")
-      case DefaultUni.Apply(DefaultUni.ProtoList, arg) =>
-        Doc.text("[") + Doc.intercalate(
-          Doc.comma,
-          value.asInstanceOf[immutable.List[Constant]].map(_.prettyValue)
-        ) + Doc.text("]")
-      case DefaultUni.Apply(DefaultUni.Apply(DefaultUni.ProtoPair, a), b) =>
-        val (x, y) = value.asInstanceOf[(Constant, Constant)]
-        Doc.text("(") + x.prettyValue + Doc.comma + y.prettyValue + Doc.text(")")
-      case DefaultUni.Data => Doc.text(value.toString)
-      case _               => sys.error("unsupported constant type: " + tpe)
+sealed trait Constant:
+  def tpe: DefaultUni
+
+  def prettyValue: Doc
+
   def pretty: Doc = tpe.pretty + Doc.space + prettyValue
 
-  override def equals(obj: Any): Boolean = obj match {
-    case Constant(DefaultUni.ByteString, value) =>
-      tpe == this.tpe && util.Arrays.equals(
-        value.asInstanceOf[DefaultUni.ByteString.Unlifted],
-        this.value.asInstanceOf[DefaultUni.ByteString.Unlifted]
-      )
-    case Constant(tpe, value) => tpe == this.tpe && value == this.value
-    case _                    => false
+object Constant:
+
+  trait LiftValue[A]:
+    def lift(a: A): Constant
+
+  given LiftValue[BigInt] with { def lift(a: BigInt): Constant = Integer(a) }
+  given LiftValue[Int] with { def lift(a: Int): Constant = Integer(a) }
+  given LiftValue[Array[Byte]] with { def lift(a: Array[Byte]): Constant = ByteString(a) }
+  given LiftValue[java.lang.String] with { def lift(a: java.lang.String): Constant = String(a) }
+  given LiftValue[Boolean] with { def lift(a: Boolean): Constant = Bool(a) }
+  given LiftValue[Unit] with { def lift(a: Unit): Constant = Unit }
+  given seqLiftValue[A: LiftValue: DefaultUni.Lift]: LiftValue[Seq[A]] with {
+    def lift(a: Seq[A]): Constant =
+      List(summon[DefaultUni.Lift[A]].defaultUni, a.map(summon[LiftValue[A]].lift).toList)
   }
 
-  override def hashCode(): Int = tpe match
-    case DefaultUni.ByteString => util.Arrays.hashCode(value.asInstanceOf[Array[Byte]])
-    case _                     => value.hashCode()
-}
+  given tupleLiftValue[A: LiftValue: DefaultUni.Lift, B: LiftValue: DefaultUni.Lift]
+      : LiftValue[(A, B)] with {
+    def lift(a: (A, B)): Constant = Pair(
+      summon[LiftValue[A]].lift(a._1),
+      summon[LiftValue[B]].lift(a._2)
+    )
+  }
+
+  case class Integer(value: BigInt) extends Constant:
+    def tpe = DefaultUni.Integer
+    def prettyValue = Doc.text(value.toString)
+
+  case class ByteString(value: Array[Byte]) extends Constant:
+    def tpe = DefaultUni.ByteString
+    def prettyValue = Doc.text("#" + Utils.bytesToHex(value))
+
+    override def equals(obj: Any): Boolean = obj match {
+      case ByteString(value) => util.Arrays.equals(value, this.value)
+      case _                 => false
+    }
+
+    override def hashCode(): Int = util.Arrays.hashCode(value)
+
+  case class String(value: java.lang.String) extends Constant:
+    def tpe = DefaultUni.String
+    def prettyValue = Doc.text("\"" + value + "\"")
+
+  case object Unit extends Constant:
+    def tpe = DefaultUni.Unit
+    def prettyValue = Doc.text("()")
+
+  case class Bool(value: Boolean) extends Constant:
+    def tpe = DefaultUni.Bool
+    def prettyValue = Doc.text(if value then "True" else "False")
+
+  case class Data(value: scalus.uplc.Data) extends Constant:
+    def tpe = DefaultUni.Data
+    def prettyValue = Doc.text(value.toString)
+
+  case class List(elemType: DefaultUni, value: immutable.List[Constant]) extends Constant:
+    def tpe = DefaultUni.Apply(DefaultUni.ProtoList, elemType)
+    def prettyValue =
+      Doc.text("[") + Doc.intercalate(Doc.text(", "), value.map(_.prettyValue)) + Doc.text("]")
+
+  case class Pair(a: Constant, b: Constant) extends Constant:
+    def tpe = DefaultUni.Apply(DefaultUni.Apply(DefaultUni.ProtoPair, a.tpe), b.tpe)
+    def prettyValue =
+      Doc.text("(") + a.prettyValue + Doc.text(", ") + b.prettyValue + Doc.text(")")
 
 sealed abstract class Data
 object Data:
@@ -108,8 +142,8 @@ object TermDSL:
   given Conversion[DefaultFun, Term] with
     def apply(bn: DefaultFun): Term = Term.Builtin(bn)
 
-  given constantAsTerm[A: DefaultUni.Lift]: Conversion[A, Term] with
-    def apply(c: A): Term = Term.Const(DefaultUni.asConstant(c))
+  given constantAsTerm[A: Constant.LiftValue]: Conversion[A, Term] with
+    def apply(c: A): Term = Term.Const(summon[Constant.LiftValue[A]].lift(c))
 
   given Conversion[Constant, Term] with
     def apply(c: Constant): Term = Term.Const(c)
@@ -240,9 +274,8 @@ object DefaultUni:
 //    def defaultUni: DefaultUni = DefaultUni.Integer
 
   def defaultUniFromValue[A: Lift](value: A): DefaultUni = summon[Lift[A]].defaultUni
-  def asConstant[A: Lift](value: A): Constant = Constant(defaultUniFromValue(value), value)
-  def fromConstant(const: Constant): const.tpe.Unlifted =
-    const.value.asInstanceOf[const.tpe.Unlifted]
+  def asConstant[A: Constant.LiftValue](value: A): Constant =
+    summon[Constant.LiftValue[A]].lift(value)
 
   given Lift[Int] with
     def defaultUni: DefaultUni = DefaultUni.Integer

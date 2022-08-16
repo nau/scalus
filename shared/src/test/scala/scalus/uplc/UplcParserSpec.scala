@@ -40,26 +40,25 @@ trait ArbitraryInstances:
   }
 
   def arbConstantByType(t: DefaultUni): Gen[Constant] =
-    val gen = t match
-      case DefaultUni.Integer    => Arbitrary.arbitrary[BigInt]
-      case DefaultUni.ByteString => Arbitrary.arbitrary[Array[Byte]]
-      case DefaultUni.String     => Arbitrary.arbitrary[String]
-      case DefaultUni.Unit       => Gen.const(())
-      case DefaultUni.Bool       => Gen.oneOf(true, false)
+    t match
+      case DefaultUni.Integer    => Arbitrary.arbitrary[BigInt].map(Constant.Integer.apply)
+      case DefaultUni.ByteString => Arbitrary.arbitrary[Array[Byte]].map(Constant.ByteString.apply)
+      case DefaultUni.String     => Arbitrary.arbitrary[String].map(Constant.String.apply)
+      case DefaultUni.Unit       => Gen.const(Constant.Unit)
+      case DefaultUni.Bool       => Gen.oneOf(Constant.Bool(true), Constant.Bool(false))
       case DefaultUni.Apply(ProtoList, arg) =>
         for
           n <- Gen.choose(0, 10)
-          args <- Gen.listOfN(n, arbConstantByType(arg))
-        yield args
+          elems <- Gen.listOfN(n, arbConstantByType(arg))
+        yield Constant.List(arg, elems)
       // don't generate data for now, Plutus doesn't support it yet
       //        case DefaultUni.Data          => ???
       case DefaultUni.Apply(DefaultUni.Apply(ProtoPair, a), b) =>
         for
-          a <- arbConstantByType(a)
-          b <- arbConstantByType(b)
-        yield (a, b)
+          vala <- arbConstantByType(a)
+          valb <- arbConstantByType(b)
+        yield Constant.Pair(vala, valb)
       case _ => sys.error(s"unsupported type: $t")
-    for a <- gen yield Constant(t, a)
 
   implicit lazy val arbitraryConstant: Arbitrary[Constant] = Arbitrary(
     for
@@ -201,12 +200,9 @@ class UplcParserSpec extends AnyFunSuite with ScalaCheckPropertyChecks with Arbi
     assert(
       p("(con (list integer) [1,2, 3333])") == Right(
         Const(
-          Constant(
-            DefaultUni.Apply(ProtoList, Integer),
-            Constant(Integer, 1) :: Constant(Integer, 2) :: Constant(
-              Integer,
-              3333
-            ) :: Nil
+          Constant.List(
+            Integer,
+            Constant.Integer(1) :: Constant.Integer(2) :: Constant.Integer(3333) :: Nil
           )
         )
       )
@@ -215,13 +211,7 @@ class UplcParserSpec extends AnyFunSuite with ScalaCheckPropertyChecks with Arbi
     assert(
       p("(con (pair integer bool) (12, False))") == Right(
         Const(
-          Constant(
-            DefaultUni.Apply(
-              DefaultUni.Apply(ProtoPair, Integer),
-              DefaultUni.Bool
-            ),
-            (Constant(Integer, 12), Constant(DefaultUni.Bool, false))
-          )
+          Constant.Pair(Constant.Integer(12), Constant.Bool(false))
         )
       )
     )
@@ -244,11 +234,11 @@ class UplcParserSpec extends AnyFunSuite with ScalaCheckPropertyChecks with Arbi
                   Const(asConstant(Array[Byte](0, 18, 52, -1))),
                   Const(asConstant(true))
                 ),
-                Const(Constant(DefaultUni.Bool, false))
+                Const(asConstant(false))
               ),
-              Const(Constant(DefaultUni.Unit, ()))
+              Const(Constant.Unit)
             ),
-            Const(Constant(DefaultUni.String, "Hello"))
+            Const(Constant.String("Hello"))
           )
         )
       )
@@ -279,7 +269,7 @@ class UplcParserSpec extends AnyFunSuite with ScalaCheckPropertyChecks with Arbi
       r == Right(
         Program(
           version = (1, 0, 0),
-          term = Apply(LamAbs("x", Var("x")), Const(Constant(Integer, BigInt(0))))
+          term = Apply(LamAbs("x", Var("x")), Const(Constant.Integer(BigInt(0))))
         )
       )
     )

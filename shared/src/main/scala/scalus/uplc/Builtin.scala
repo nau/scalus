@@ -1,7 +1,7 @@
 package scalus.uplc
 
-import scalus.uplc.Cek.CekValue
-import scalus.uplc.DefaultUni.{Bool, Integer, asConstant, fromConstant}
+import scalus.uplc.Cek.{CekValue, VCon}
+import scalus.uplc.DefaultUni.{Bool, Integer, asConstant}
 
 import scala.annotation.targetName
 import scala.collection.immutable
@@ -38,46 +38,40 @@ object Meaning:
   def mkMeaning(t: TypeScheme, f: AnyRef) = Runtime(t, f)
   import TypeScheme.*
 
-  def check(t: DefaultUni, v: CekValue): t.Unlifted =
-    v match
-      case Cek.VCon(c: Constant) if t == c.tpe => c.value.asInstanceOf[t.Unlifted]
-      case _ =>
-        sys.error("Unexpected value: " + v)
-
   val AddInteger =
     mkMeaning(
       Integer ->: Integer ->: Integer,
       (a: CekValue) =>
-        val aa = check(Integer, a)
+        val VCon(Constant.Integer(aa)) = a
         (b: CekValue) =>
-          val bb = check(Integer, b)
+          val VCon(Constant.Integer(bb)) = b
           () => Cek.VCon(asConstant(aa + bb))
     )
   val MultiplyInteger =
     mkMeaning(
       Integer ->: Integer ->: Integer,
       (a: CekValue) =>
-        val aa = check(Integer, a)
+        val VCon(Constant.Integer(aa)) = a
         (b: CekValue) =>
-          val bb = check(Integer, b)
+          val VCon(Constant.Integer(bb)) = b
           () => Cek.VCon(asConstant(aa * bb))
     )
   val EqualsInteger =
     mkMeaning(
       Integer ->: Integer ->: Bool,
       (a: CekValue) =>
-        val aa = check(Integer, a)
+        val VCon(Constant.Integer(aa)) = a
         (b: CekValue) =>
-          val bb = check(Integer, b)
+          val VCon(Constant.Integer(bb)) = b
           () => Cek.VCon(asConstant(aa == bb))
     )
   val LessThanEqualsInteger =
     mkMeaning(
       Integer ->: Integer ->: Bool,
       (a: CekValue) =>
-        val aa = check(Integer, a)
+        val VCon(Constant.Integer(aa)) = a
         (b: CekValue) =>
-          val bb = check(Integer, b)
+          val VCon(Constant.Integer(bb)) = b
           () => Cek.VCon(asConstant(aa <= bb))
     )
 
@@ -85,7 +79,7 @@ object Meaning:
     mkMeaning(
       All("a", Bool ->: TVar("a") ->: TVar("a") ->: TVar("a")),
       (b: CekValue) =>
-        val bb = check(Bool, b)
+        val VCon(Constant.Bool(bb)) = b
         (t: CekValue) => (f: CekValue) => () => if bb then t else f
     )
 
