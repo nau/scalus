@@ -153,8 +153,8 @@ enum Term:
     case Error        => Doc.text("(error)")
 
 object TermDSL:
-  def λ(name: String)(term: Term): Term = Term.LamAbs(name, term)
-  def lam(name: String)(term: Term): Term = Term.LamAbs(name, term)
+  def λ(names: String*)(term: Term): Term = lam(names: _*)(term)
+  def lam(names: String*)(term: Term): Term = names.foldRight(term)(Term.LamAbs(_, _))
   extension (term: Term)
     def $(rhs: Term) = Term.Apply(term, rhs)
     def unary_! = Term.Force(term)

@@ -259,3 +259,27 @@ class CekJVMSpec extends AnyFunSuite with ScalaCheckPropertyChecks with Arbitrar
     check("example/factorial/factorial")
     check("example/fibonacci/fibonacci")
   }
+
+  test("simple validator example") {
+    import TermDSL.*
+    import scalus.utils.Utils.*
+
+    // simple validator that checks that the spending transaction has no outputs
+    // it's a gift to the validators community
+    val validator = λ("redeemer", "datum", "ctx") {
+      // ScriptContext{scriptContextTxInfo :: TxInfo, scriptContextPurpose :: ScriptPurpose }
+      val scriptContext = DefaultFun.UnConstrData $ Var("ctx")
+      // ScriptContext args
+      val ctxArgs = DefaultFun.SndPair $ scriptContext
+      // second in the list
+      val txInfo = DefaultFun.UnConstrData $ (DefaultFun.HeadList $ ctxArgs)
+      val txInfoArgs = DefaultFun.SndPair $ txInfo
+      val txInfoOutputs =
+        DefaultFun.HeadList $ (DefaultFun.TailList $ (DefaultFun.TailList $ txInfoArgs))
+      val isTxInfoOutputsEmpty = DefaultFun.NullList $ txInfoOutputs
+      val result = !(!DefaultFun.IfThenElse $ isTxInfoOutputsEmpty $ ~() $ ~Error)
+      result
+    }
+    println(validator.pretty.render(80))
+    println(Cek.evalUPLC(validator).pretty.render(80))
+  }

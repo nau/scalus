@@ -97,5 +97,6 @@ class TermDSLSpec extends AnyFunSuite with ScalaCheckPropertyChecks with Arbitra
       assert((t $ t) == Term.Apply(t, t))
       assert(λ("x")(t) == Term.LamAbs("x", t))
       assert(lam("x")(t) == Term.LamAbs("x", t))
+      assert(lam("x", "y")(t) == Term.LamAbs("x", Term.LamAbs("y", t)))
     }
   }
