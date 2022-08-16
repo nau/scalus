@@ -85,6 +85,22 @@ object Constant:
 
 sealed abstract class Data
 object Data:
+  trait Lift[A]:
+    def lift(a: A): Data
+
+  given Lift[BigInt] with { def lift(a: BigInt): Data = I(a) }
+  given Lift[Int] with { def lift(a: Int): Data = I(a) }
+  given Lift[Array[Byte]] with { def lift(a: Array[Byte]): Data = B(a) }
+  given seqLift[A: Lift]: Lift[Seq[A]] with {
+    def lift(a: Seq[A]): Data = List(a.map(summon[Lift[A]].lift).toList)
+  }
+
+  given mapLift[A: Lift, B: Lift]: Lift[immutable.Map[A, B]] with {
+    def lift(a: immutable.Map[A, B]): Data = Map(a.toList.map { case (a, b) =>
+      (summon[Lift[A]].lift(a), summon[Lift[B]].lift(b))
+    })
+  }
+
   case class Constr(constr: Long, args: immutable.List[Data]) extends Data
 
   case class Map(values: immutable.List[(Data, Data)]) extends Data
