@@ -101,11 +101,30 @@ object Meaning:
           )
     )
 
+  /*  unMapData : [ data ] -> list(pair(data, data))
+   */
+  val UnMapData =
+    mkMeaning(
+      DefaultUni.Data ->: DefaultUni.List(DefaultUni.Pair(DefaultUni.Data, DefaultUni.Data)),
+      (a: CekValue) =>
+        val VCon(Constant.Data(Data.Map(values))) = a
+        () =>
+          Cek.VCon(
+            Constant.List(
+              DefaultUni.Pair(DefaultUni.Data, DefaultUni.Data),
+              values.map { case (k, v) =>
+                Constant.Pair(asConstant(k), asConstant(v))
+              }
+            )
+          )
+    )
+
   val BuiltinMeanings: immutable.Map[DefaultFun, Runtime] = immutable.Map.apply(
     (DefaultFun.AddInteger, Meaning.AddInteger),
     (DefaultFun.MultiplyInteger, Meaning.MultiplyInteger),
     (DefaultFun.EqualsInteger, Meaning.EqualsInteger),
     (DefaultFun.LessThanEqualsInteger, Meaning.LessThanEqualsInteger),
     (DefaultFun.IfThenElse, Meaning.IfThenElse),
-    (DefaultFun.UnConstrData, Meaning.UnConstrData)
+    (DefaultFun.UnConstrData, Meaning.UnConstrData),
+    (DefaultFun.UnMapData, Meaning.UnMapData)
   )
