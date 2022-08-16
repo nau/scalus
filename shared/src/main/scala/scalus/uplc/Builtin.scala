@@ -17,11 +17,6 @@ enum TypeScheme:
   def ->:(t: TypeScheme): TypeScheme = Arrow(t, this)
   def ->:(t: DefaultUni): TypeScheme = Arrow(Type(t), this)
 
-  def unifiesWith(t: DefaultUni): Boolean = this match
-    case Type(t2)   => t2 == t
-    case TVar(name) => true
-    case _          => false
-
 extension (x: DefaultUni)
   def ->:(t: DefaultUni): TypeScheme = TypeScheme.Arrow(TypeScheme.Type(t), TypeScheme.Type(x))
 
@@ -145,6 +140,16 @@ object Meaning:
         () => Cek.VCon(asConstant(v))
     )
 
+  // [ forall a, list(a) ] -> bool
+  val NullList =
+    mkMeaning(
+      // FIXME wrong type
+      All("a", Bool ->: Bool),
+      (a: CekValue) =>
+        val VCon(Constant.List(_, ls)) = a
+        () => Cek.VCon(asConstant(ls.isEmpty))
+    )
+
   val BuiltinMeanings: immutable.Map[DefaultFun, Runtime] = immutable.Map.apply(
     (DefaultFun.AddInteger, Meaning.AddInteger),
     (DefaultFun.MultiplyInteger, Meaning.MultiplyInteger),
@@ -155,5 +160,6 @@ object Meaning:
     (DefaultFun.UnMapData, Meaning.UnMapData),
     (DefaultFun.UnListData, Meaning.UnListData),
     (DefaultFun.UnIData, Meaning.UnIData),
-    (DefaultFun.UnBData, Meaning.UnBData)
+    (DefaultFun.UnBData, Meaning.UnBData),
+    (DefaultFun.NullList, Meaning.NullList)
   )

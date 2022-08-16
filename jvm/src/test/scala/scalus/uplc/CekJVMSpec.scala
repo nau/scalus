@@ -241,6 +241,24 @@ class CekJVMSpec extends AnyFunSuite with ScalaCheckPropertyChecks with Arbitrar
     }
   }
 
+  test("NullList") {
+    import scalus.utils.Utils.*
+    assert(
+      Cek.evalUPLC(!DefaultFun.NullList $ Const(Constant.List(DefaultUni.Integer, Nil))) == Const(
+        asConstant(true)
+      )
+    )
+
+    forAll { (t: Constant) =>
+      t match
+        case Constant.List(_, v) =>
+          val result = Cek.evalUPLC(!DefaultFun.NullList $ t)
+          assert(result == Const(Constant.Bool(v.isEmpty)))
+        case _ =>
+          assertThrows[Exception](Cek.evalUPLC(!DefaultFun.NullList $ t))
+    }
+  }
+
   test("conformance") {
     def check(name: String) =
       val path =
