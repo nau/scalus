@@ -216,6 +216,31 @@ class CekJVMSpec extends AnyFunSuite with ScalaCheckPropertyChecks with Arbitrar
     }
   }
 
+  test("UnBData") {
+    import scalus.utils.Utils.*
+    assert(
+      Cek.evalUPLC(DefaultFun.UnBData $ Data.B(hex"deadbeef")) == Const(
+        Constant.ByteString(hex"deadbeef")
+      )
+    )
+
+    forAll { (t: Data) =>
+      t match
+        case Data.B(v) =>
+          val result = Cek.evalUPLC(DefaultFun.UnBData $ t)
+          assert(result == Const(Constant.ByteString(v)))
+        case _ =>
+          assertThrows[Exception](Cek.evalUPLC(DefaultFun.UnBData $ t))
+    }
+
+    // FIXME: now Arbitrary[Term] doesn't generate Data. When it does, update this test
+    forAll { (t: Term) =>
+      assertThrows[Exception](
+        Cek.evalUPLC(DefaultFun.UnBData $ t)
+      )
+    }
+  }
+
   test("conformance") {
     def check(name: String) =
       val path =

@@ -85,11 +85,8 @@ object Meaning:
     )
 
   /*
-   * unConstrData             : [ data ] -> pair(integer, list(data))
-  unMapData                : [ data ] -> list(pair(data, data))
-  unListData               : [ data ] -> list(data)
-  unIData                  : [ data ] -> integer
-  unBData                  : [ data ] -> bytestring*/
+    unConstrData : [ data ] -> pair(integer, list(data))
+   */
   val UnConstrData =
     mkMeaning(
       DefaultUni.Data ->: DefaultUni.Pair(Integer, DefaultUni.List(DefaultUni.Data)),
@@ -118,7 +115,7 @@ object Meaning:
             )
           )
     )
-  /*  unListData               : [ data ] -> list(data)
+  /*  unListData : [ data ] -> list(data)
    */
   val UnListData =
     mkMeaning(
@@ -128,13 +125,23 @@ object Meaning:
         () => Cek.VCon(Constant.List(DefaultUni.Data, values.map(asConstant)))
     )
 
-  /*  unIData                  : [ data ] -> integer
+  /*  unIData : [ data ] -> integer
    */
   val UnIData =
     mkMeaning(
       DefaultUni.Data ->: DefaultUni.Integer,
       (a: CekValue) =>
         val VCon(Constant.Data(Data.I(v))) = a
+        () => Cek.VCon(asConstant(v))
+    )
+
+  /*  unBData : [ data ] -> bytestring
+   */
+  val UnBData =
+    mkMeaning(
+      DefaultUni.Data ->: DefaultUni.ByteString,
+      (a: CekValue) =>
+        val VCon(Constant.Data(Data.B(v))) = a
         () => Cek.VCon(asConstant(v))
     )
 
@@ -147,5 +154,6 @@ object Meaning:
     (DefaultFun.UnConstrData, Meaning.UnConstrData),
     (DefaultFun.UnMapData, Meaning.UnMapData),
     (DefaultFun.UnListData, Meaning.UnListData),
-    (DefaultFun.UnIData, Meaning.UnIData)
+    (DefaultFun.UnIData, Meaning.UnIData),
+    (DefaultFun.UnBData, Meaning.UnBData)
   )
