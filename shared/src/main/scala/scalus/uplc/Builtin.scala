@@ -1,7 +1,8 @@
 package scalus.uplc
 
 import scalus.uplc.Cek.{CekValue, VCon}
-import scalus.uplc.DefaultUni.{Bool, Integer, asConstant}
+import scalus.uplc.Constant.given
+import scalus.uplc.DefaultUni.{Bool, Integer, asConstant, given}
 
 import scala.annotation.targetName
 import scala.collection.immutable
@@ -83,10 +84,28 @@ object Meaning:
         (t: CekValue) => (f: CekValue) => () => if bb then t else f
     )
 
+  /*
+   * unConstrData             : [ data ] -> pair(integer, list(data))
+  unMapData                : [ data ] -> list(pair(data, data))
+  unListData               : [ data ] -> list(data)
+  unIData                  : [ data ] -> integer
+  unBData                  : [ data ] -> bytestring*/
+  val UnConstrData =
+    mkMeaning(
+      DefaultUni.Data ->: DefaultUni.Pair(Integer, DefaultUni.List(DefaultUni.Data)),
+      (a: CekValue) =>
+        val VCon(Constant.Data(Data.Constr(i, ls))) = a
+        () =>
+          Cek.VCon(
+            Constant.Pair(asConstant(i), asConstant(ls))
+          )
+    )
+
   val BuiltinMeanings: immutable.Map[DefaultFun, Runtime] = immutable.Map.apply(
     (DefaultFun.AddInteger, Meaning.AddInteger),
     (DefaultFun.MultiplyInteger, Meaning.MultiplyInteger),
     (DefaultFun.EqualsInteger, Meaning.EqualsInteger),
     (DefaultFun.LessThanEqualsInteger, Meaning.LessThanEqualsInteger),
-    (DefaultFun.IfThenElse, Meaning.IfThenElse)
+    (DefaultFun.IfThenElse, Meaning.IfThenElse),
+    (DefaultFun.UnConstrData, Meaning.UnConstrData)
   )

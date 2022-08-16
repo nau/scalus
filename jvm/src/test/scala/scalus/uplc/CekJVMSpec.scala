@@ -2,8 +2,9 @@ package scalus.uplc
 
 import org.scalatest.funsuite.AnyFunSuite
 import org.scalatestplus.scalacheck.ScalaCheckPropertyChecks
-import scalus.uplc.DefaultFun.{AddInteger, EqualsInteger}
-import scalus.uplc.DefaultUni.{Bool, ByteString, asConstant, *}
+import scalus.uplc.Constant.Pair
+import scalus.uplc.DefaultFun.{AddInteger, EqualsInteger, UnConstrData}
+import scalus.uplc.DefaultUni.{Bool, ByteString, asConstant}
 import scalus.uplc.Term.*
 import scalus.uplc.TermDSL.{*, given}
 
@@ -94,6 +95,34 @@ class CekJVMSpec extends AnyFunSuite with ScalaCheckPropertyChecks with Arbitrar
       Cek.evalUPLC(EqualsInteger $ a $ b) match
         case Const(Constant.Bool(r)) => assert(r == (a == b))
         case r                       => fail(s"Expected true but got ${r.pretty.render(80)}")
+    }
+  }
+
+  test("UnConstrData") {
+    assert(
+      Cek.evalUPLC(DefaultFun.UnConstrData $ Data.Constr(12, 1 :: Nil)) == Const(
+        Pair(asConstant(12), Constant.List(DefaultUni.Data, List(Constant.Data(Data.I(1)))))
+      )
+    )
+
+    forAll { (t: Data) =>
+      t match
+        case Data.Constr(constr, args) =>
+          val result = Cek.evalUPLC(DefaultFun.UnConstrData $ t)
+          assert(
+            result == Const(
+              Pair(asConstant(constr), Constant.List(DefaultUni.Data, args.map(asConstant)))
+            )
+          )
+        case _ =>
+          assertThrows[Exception](Cek.evalUPLC(DefaultFun.UnConstrData $ t))
+    }
+
+    // FIXME: now Arbitrary[Term] doesn't generate Data. When it does, update this test
+    forAll { (t: Term) =>
+      assertThrows[Exception](
+        Cek.evalUPLC(DefaultFun.UnConstrData $ t)
+      )
     }
   }
 

@@ -20,22 +20,26 @@ sealed trait Constant:
 
 object Constant:
 
-  trait LiftValue[A]:
+  trait LiftValue[-A]:
     def lift(a: A): Constant
 
   given LiftValue[BigInt] with { def lift(a: BigInt): Constant = Integer(a) }
   given LiftValue[Int] with { def lift(a: Int): Constant = Integer(a) }
+  given LiftValue[Long] with { def lift(a: Long): Constant = Integer(a) }
   given LiftValue[Array[Byte]] with { def lift(a: Array[Byte]): Constant = ByteString(a) }
   given LiftValue[java.lang.String] with { def lift(a: java.lang.String): Constant = String(a) }
   given LiftValue[Boolean] with { def lift(a: Boolean): Constant = Bool(a) }
   given LiftValue[Unit] with { def lift(a: Unit): Constant = Unit }
+  implicit def LiftValueData[A <: scalus.uplc.Data]: LiftValue[A] = new LiftValue[A] {
+    def lift(a: A): Constant = Data(a)
+  }
   given seqLiftValue[A: LiftValue: DefaultUni.Lift]: LiftValue[Seq[A]] with {
     def lift(a: Seq[A]): Constant =
       List(summon[DefaultUni.Lift[A]].defaultUni, a.map(summon[LiftValue[A]].lift).toList)
   }
 
-  given tupleLiftValue[A: LiftValue: DefaultUni.Lift, B: LiftValue: DefaultUni.Lift]
-      : LiftValue[(A, B)] with {
+  implicit def tupleLiftValue[A: LiftValue: DefaultUni.Lift, B: LiftValue: DefaultUni.Lift]
+      : LiftValue[(A, B)] = new LiftValue[(A, B)] {
     def lift(a: (A, B)): Constant = Pair(
       summon[LiftValue[A]].lift(a._1),
       summon[LiftValue[B]].lift(a._2)
@@ -164,6 +168,9 @@ object TermDSL:
 
   given Conversion[Constant, Term] with
     def apply(c: Constant): Term = Term.Const(c)
+
+  given constantAsData[A: Data.Lift]: Conversion[A, Data] with
+    def apply(c: A): Data = summon[Data.Lift[A]].lift(c)
 
 case class Program(version: (Int, Int, Int), term: Term):
   def pretty: Doc =
@@ -297,11 +304,17 @@ object DefaultUni:
   given Lift[Int] with
     def defaultUni: DefaultUni = DefaultUni.Integer
 
+  given Lift[Long] with
+    def defaultUni: DefaultUni = DefaultUni.Integer
+
   implicit case object Integer extends LiftedUni[BigInt]
   implicit case object ByteString extends LiftedUni[Array[Byte]]
   implicit case object String extends LiftedUni[String]
   implicit case object Unit extends LiftedUni[Unit]
   implicit case object Bool extends LiftedUni[Boolean]
+
+  case object Data extends DefaultUni:
+    type Unlifted = Data
 
   case object ProtoList extends DefaultUni:
     type Unlifted = Nothing // [A] =>> immutable.List[A]
@@ -311,5 +324,9 @@ object DefaultUni:
 
   case class Apply(f: DefaultUni, arg: DefaultUni) extends DefaultUni:
     type Unlifted = f.Unlifted => arg.Unlifted
-  case object Data extends DefaultUni:
-    type Unlifted = Data
+
+  def Pair(a: DefaultUni, b: DefaultUni): DefaultUni = Apply(Apply(ProtoPair, a), b)
+  def List(a: DefaultUni): DefaultUni = Apply(ProtoList, a)
+
+  implicit object LiftData extends Lift[scalus.uplc.Data]:
+    def defaultUni: DefaultUni = DefaultUni.Data
