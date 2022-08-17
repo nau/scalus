@@ -4,11 +4,38 @@ import scalus.utils.Utils.bytesToHex
 
 import java.util
 import scala.collection.immutable
+import scala.deriving.*
+import scala.quoted.*
 
 sealed abstract class Data
 object Data:
   trait Lift[A]:
     def lift(a: A): Data
+
+  object Lift:
+    import scala.compiletime.*
+    inline def summonAll[T <: Tuple]: immutable.List[Lift[_]] =
+      inline erasedValue[T] match
+        case _: EmptyTuple => Nil
+        case _: (t *: ts)  => summonInline[Lift[t]] :: summonAll[ts]
+    inline def derived[T](using m: Mirror.Of[T]): Lift[T] =
+      val elemInstances = summonAll[m.MirroredElemTypes]
+//      println(elemInstances)
+      m match
+        case m: Mirror.ProductOf[T] =>
+          new Lift[T] {
+            def lift(a: T): Data =
+              Data.Constr(
+                0,
+                elemInstances
+                  .zip(a.asInstanceOf[Product].productIterator)
+                  .map { case (l, a) =>
+                    l.asInstanceOf[Lift[Any]].lift(a)
+                  }
+              )
+          }
+
+  extension [A: Lift](a: A) def toData: Data = summon[Lift[A]].lift(a)
 
   given Lift[BigInt] with { def lift(a: BigInt): Data = I(a) }
   given Lift[Int] with { def lift(a: Int): Data = I(a) }

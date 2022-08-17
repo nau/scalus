@@ -1,8 +1,26 @@
 package scalus.ledger.api.v2
 
+import scalus.uplc.Data
+import scalus.uplc.Data.Lift
 import scalus.utils.Utils.bytesToHex
 
-case class TxId(id: Array[Byte]) {
+object Instances:
+  given Lift[TxInfo] with
+    // FIXME: this is not the right way to do it
+    def lift(txInfo: TxInfo): Data =
+      Data.Constr(0, Data.List(Nil) :: Data.List(Nil) :: Data.List(Nil) :: Nil)
+
+  given Lift[ScriptPurpose] with
+    def lift(a: ScriptPurpose): Data = Data.Constr(0, Nil)
+  given Lift[ScriptContext] with
+    def lift(scriptContext: ScriptContext): Data =
+      Data.Constr(
+        0,
+        summon[Lift[TxInfo]].lift(scriptContext.scriptContextTxInfo) ::
+          summon[Lift[ScriptPurpose]].lift(scriptContext.scriptContextPurpose) :: Nil
+      )
+
+case class TxId(id: Array[Byte]) derives Data.Lift {
   override def toString = s"TxId(${bytesToHex(id)})"
 }
 /*

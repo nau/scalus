@@ -2,6 +2,8 @@ package scalus.uplc
 
 import org.scalatest.funsuite.AnyFunSuite
 import org.scalatestplus.scalacheck.ScalaCheckPropertyChecks
+import scalus.ledger.api.v2.*
+import scalus.ledger.api.v2.Instances.*
 import scalus.uplc.Constant.Pair
 import scalus.uplc.DefaultFun.{AddInteger, EqualsInteger, UnConstrData}
 import scalus.uplc.DefaultUni.{Bool, ByteString, asConstant}
@@ -423,15 +425,18 @@ class CekJVMSpec extends AnyFunSuite with ScalaCheckPropertyChecks with Arbitrar
     val bytes = outStream.toByteArray
     println(s"${bytes.length} bytes: ${bytesToHex(bytes)}")
 
+    import Data.*
+    import Instances.given
+
     val redeemer: Term = ()
     val datum: Term = ()
-    val txInfoInputs = Data.List(Nil)
-    val txInfoReferenceInputs = Data.List(Nil)
-    val txInfoOutputs = Data.List(Nil)
-    val txInfo = Data.Constr(0, List(txInfoInputs, txInfoReferenceInputs, txInfoOutputs))
-    val ctx = Data.Constr(0, List(txInfo))
-    val ctxTerm: Term = ctx
+    val scriptContext =
+      ScriptContext(TxInfo(Nil), ScriptPurpose.Spending(TxOutRef(TxId(hex"deadbeef"), 0)))
+    val ctxTerm: Term = scriptContext.toData
+    println(ctxTerm.pretty.render(80))
 
     val appliedScript = Program((1, 0, 0), validator $ redeemer $ datum $ ctxTerm)
     println(Cek.evalUPLCProgram(appliedScript).pretty.render(80))
+
+    println(summon[Lift[TxId]].lift(TxId(hex"deadbeef")).pretty.render(80))
   }
