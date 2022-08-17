@@ -18,22 +18,44 @@ object Data:
       inline erasedValue[T] match
         case _: EmptyTuple => Nil
         case _: (t *: ts)  => summonInline[Lift[t]] :: summonAll[ts]
+
+    def liftSum[T](m: Mirror.SumOf[T], elems: => immutable.List[Lift[_]]): Lift[T] =
+      new Lift[T] {
+        def lift(a: T): Data =
+          Data.Constr(
+            m.ordinal(a),
+            elems
+              .zip(a.asInstanceOf[Product].productIterator)
+              .map { case (l, a) =>
+                l.asInstanceOf[Lift[Any]].lift(a)
+              }
+          )
+      }
+    def liftProduct[T](
+        constrIdx: Int,
+        p: Mirror.ProductOf[T],
+        elems: => immutable.List[Lift[_]]
+    ): Lift[T] =
+      new Lift[T] {
+        def lift(a: T): Data =
+          Data.Constr(
+            constrIdx,
+            elems.zip(a.asInstanceOf[Product].productIterator).map { case (l, a) =>
+              l.asInstanceOf[Lift[Any]].lift(a)
+            }
+          )
+      }
+
     inline def derived[T](using m: Mirror.Of[T]): Lift[T] =
       val elemInstances = summonAll[m.MirroredElemTypes]
 //      println(elemInstances)
-      m match
-        case m: Mirror.ProductOf[T] =>
-          new Lift[T] {
-            def lift(a: T): Data =
-              Data.Constr(
-                0,
-                elemInstances
-                  .zip(a.asInstanceOf[Product].productIterator)
-                  .map { case (l, a) =>
-                    l.asInstanceOf[Lift[Any]].lift(a)
-                  }
-              )
-          }
+      inline m match
+        case m: Mirror.SumOf[T]     => liftSum(m, elemInstances)
+        case m: Mirror.ProductOf[T] => liftProduct(0, m, elemInstances)
+
+    inline def deriveProduct[T](constrIdx: Int)(using m: Mirror.ProductOf[T]): Lift[T] =
+      val elemInstances = summonAll[m.MirroredElemTypes]
+      liftProduct(constrIdx, m, elemInstances)
 
   extension [A: Lift](a: A) def toData: Data = summon[Lift[A]].lift(a)
 

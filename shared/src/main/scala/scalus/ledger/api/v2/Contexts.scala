@@ -1,24 +1,16 @@
 package scalus.ledger.api.v2
 
+import scalus.ledger.api.v2.Instances.given
 import scalus.uplc.Data
 import scalus.uplc.Data.Lift
 import scalus.utils.Utils.bytesToHex
 
 object Instances:
-  given Lift[TxInfo] with
-    // FIXME: this is not the right way to do it
-    def lift(txInfo: TxInfo): Data =
-      Data.Constr(0, Data.List(Nil) :: Data.List(Nil) :: Data.List(Nil) :: Nil)
-
-  given Lift[ScriptPurpose] with
-    def lift(a: ScriptPurpose): Data = Data.Constr(0, Nil)
-  given Lift[ScriptContext] with
-    def lift(scriptContext: ScriptContext): Data =
-      Data.Constr(
-        0,
-        summon[Lift[TxInfo]].lift(scriptContext.scriptContextTxInfo) ::
-          summon[Lift[ScriptPurpose]].lift(scriptContext.scriptContextPurpose) :: Nil
-      )
+  given ScriptPurposeLift[T <: ScriptPurpose]: Lift[T] with
+    def lift(a: T): Data =
+      a match
+        case a: ScriptPurpose.Minting  => Lift.deriveProduct[ScriptPurpose.Minting](0).lift(a)
+        case a: ScriptPurpose.Spending => Lift.deriveProduct[ScriptPurpose.Spending](1).lift(a)
 
 case class TxId(id: Array[Byte]) derives Data.Lift {
   override def toString = s"TxId(${bytesToHex(id)})"
@@ -29,12 +21,12 @@ data TxOutRef = TxOutRef {
     txOutRefIdx :: Integer -- ^ Index into the referenced transaction's outputs
     }
  */
-case class TxOutRef(txOutRefId: TxId, txOutRefIdx: Int)
+case class TxOutRef(txOutRefId: TxId, txOutRefIdx: Int) derives Data.Lift
 
 case class TxInfo(
-    txInfoInputs: List[Int]
-//, txInfoReferenceInputs : [TxInInfo] -- ^ Transaction reference inputs
-//, txInfoOutputs         : [TxOut] -- ^ Transaction outputs
+    txInfoInputs: List[Int],
+    txInfoReferenceInputs: List[Int],
+    txInfoOutputs: List[Int]
 //, txInfoFee             : Value -- ^ The fee paid by this transaction.
 //, txInfoMint            : Value -- ^ The 'Value' minted by this transaction.
 //, txInfoDCert           : [DCert] -- ^ Digests of certificates included in this transaction
@@ -44,7 +36,7 @@ case class TxInfo(
 //, txInfoRedeemers       : Map ScriptPurpose Redeemer
 //, txInfoData            : Map DatumHash Datum
 //, txInfoId              : TxId)
-)
+) derives Data.Lift
 
 /*
 data ScriptPurpose
@@ -53,12 +45,12 @@ data ScriptPurpose
     | Rewarding StakingCredential
     | Certifying DCert
  */
-enum ScriptPurpose {
-//    case Minting(CurrencySymbol)
+enum ScriptPurpose:
+  case Minting(curSymbol: Array[Byte])
   case Spending(txOutRef: TxOutRef)
 //    case Rewarding(StakingCredential)
 //    case Certifying(DCert)
-}
 
 // data ScriptContext = ScriptContext{scriptContextTxInfo :: TxInfo, scriptContextPurpose :: ScriptPurpose }
 case class ScriptContext(scriptContextTxInfo: TxInfo, scriptContextPurpose: ScriptPurpose)
+    derives Data.Lift

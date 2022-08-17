@@ -3,7 +3,6 @@ package scalus.uplc
 import org.scalatest.funsuite.AnyFunSuite
 import org.scalatestplus.scalacheck.ScalaCheckPropertyChecks
 import scalus.ledger.api.v2.*
-import scalus.ledger.api.v2.Instances.*
 import scalus.uplc.Constant.Pair
 import scalus.uplc.DefaultFun.{AddInteger, EqualsInteger, UnConstrData}
 import scalus.uplc.DefaultUni.{Bool, ByteString, asConstant}
@@ -426,12 +425,11 @@ class CekJVMSpec extends AnyFunSuite with ScalaCheckPropertyChecks with Arbitrar
     println(s"${bytes.length} bytes: ${bytesToHex(bytes)}")
 
     import Data.*
-    import Instances.given
 
     val redeemer: Term = ()
     val datum: Term = ()
     val scriptContext =
-      ScriptContext(TxInfo(Nil), ScriptPurpose.Spending(TxOutRef(TxId(hex"deadbeef"), 0)))
+      ScriptContext(TxInfo(Nil, Nil, Nil), ScriptPurpose.Spending(TxOutRef(TxId(hex"deadbeef"), 0)))
     val ctxTerm: Term = scriptContext.toData
     println(ctxTerm.pretty.render(80))
 
