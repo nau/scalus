@@ -115,7 +115,7 @@ object Cek:
         catch {
           case _: Throwable => term
         } // TODO proper exception
-      case LamAbs(name, term) => term // FIXME it's not implemented correctly yet
+      case LamAbs(name, _) => term // FIXME it's not implemented correctly yet
       case Apply(fun, arg) =>
         Apply(dischargeCekValEnv(env, fun), dischargeCekValEnv(env, arg))
       case Force(term) => Force(dischargeCekValEnv(env, term))

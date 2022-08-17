@@ -370,13 +370,13 @@ class CekJVMSpec extends AnyFunSuite with ScalaCheckPropertyChecks with Arbitrar
       // ScriptContext{scriptContextTxInfo :: TxInfo, scriptContextPurpose :: ScriptPurpose }
       val scriptContext = DefaultFun.UnConstrData $ Var("ctx")
       // ScriptContext args
-      val ctxArgs = DefaultFun.SndPair $ scriptContext
+      val ctxArgs = !(!DefaultFun.SndPair) $ scriptContext
       // second in the list
-      val txInfo = DefaultFun.UnConstrData $ (DefaultFun.HeadList $ ctxArgs)
-      val txInfoArgs = DefaultFun.SndPair $ txInfo
+      val txInfo = DefaultFun.UnConstrData $ (!DefaultFun.HeadList $ ctxArgs)
+      val txInfoArgs = !(!DefaultFun.SndPair) $ txInfo
       val txInfoOutputs =
-        DefaultFun.HeadList $ (DefaultFun.TailList $ (DefaultFun.TailList $ txInfoArgs))
-      val isTxInfoOutputsEmpty = DefaultFun.NullList $ txInfoOutputs
+        !DefaultFun.HeadList $ (!DefaultFun.TailList $ (!DefaultFun.TailList $ txInfoArgs))
+      val isTxInfoOutputsEmpty = !DefaultFun.NullList $ txInfoOutputs
       val result = !(!DefaultFun.IfThenElse $ isTxInfoOutputsEmpty $ ~() $ ~Error)
       result
     }
