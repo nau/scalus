@@ -341,6 +341,37 @@ class CekJVMSpec extends AnyFunSuite with ScalaCheckPropertyChecks with Arbitrar
     }
   }
 
+  test("EqualsByteString") {
+    import scalus.utils.Utils.*
+    assert(
+      Cek.evalUPLC(
+        DefaultFun.EqualsByteString $ Const(Constant.ByteString(hex"deadbeef")) $ Const(
+          Constant.ByteString(hex"deadbeef")
+        )
+      ) == Const(
+        asConstant(true)
+      )
+    )
+    assert(
+      Cek.evalUPLC(
+        DefaultFun.EqualsByteString $ Const(Constant.ByteString(hex"")) $ Const(
+          Constant.ByteString(hex"deadbeef")
+        )
+      ) == Const(
+        asConstant(false)
+      )
+    )
+
+    forAll { (t: Constant) =>
+      t match
+        case Constant.ByteString(_) =>
+          val result = Cek.evalUPLC(DefaultFun.EqualsByteString $ t $ t)
+          assert(result == Const(asConstant(true)))
+        case _ =>
+          assertThrows[Exception](Cek.evalUPLC(DefaultFun.EqualsByteString $ t $ t))
+    }
+  }
+
   test("conformance") {
     def check(name: String) =
       val path =
