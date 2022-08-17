@@ -301,6 +301,26 @@ class CekJVMSpec extends AnyFunSuite with ScalaCheckPropertyChecks with Arbitrar
     }
   }
 
+  test("FstPair") {
+    import scalus.utils.Utils.*
+    assert(
+      Cek.evalUPLC(
+        !(!DefaultFun.FstPair) $ Const(Constant.Pair(asConstant(1), asConstant(false)))
+      ) == Const(
+        asConstant(1)
+      )
+    )
+
+    forAll { (t: Constant) =>
+      t match
+        case Constant.Pair(a, _) =>
+          val result = Cek.evalUPLC(!(!DefaultFun.FstPair) $ t)
+          assert(result == Const(a))
+        case _ =>
+          assertThrows[Exception](Cek.evalUPLC(!(!DefaultFun.FstPair) $ t))
+    }
+  }
+
   test("conformance") {
     def check(name: String) =
       val path =
