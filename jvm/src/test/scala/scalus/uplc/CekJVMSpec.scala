@@ -407,7 +407,7 @@ class CekJVMSpec extends AnyFunSuite with ScalaCheckPropertyChecks with Arbitrar
       val txInfoArgs = !(!DefaultFun.SndPair) $ txInfo
       val txInfoOutputs =
         !DefaultFun.HeadList $ (!DefaultFun.TailList $ (!DefaultFun.TailList $ txInfoArgs))
-      val isTxInfoOutputsEmpty = !DefaultFun.NullList $ txInfoOutputs
+      val isTxInfoOutputsEmpty = !DefaultFun.NullList $ (DefaultFun.UnListData $ txInfoOutputs)
       val result = !(!DefaultFun.IfThenElse $ isTxInfoOutputsEmpty $ ~() $ ~Error)
       result
     }
@@ -423,4 +423,15 @@ class CekJVMSpec extends AnyFunSuite with ScalaCheckPropertyChecks with Arbitrar
     val bytes = outStream.toByteArray
     println(s"${bytes.length} bytes: ${bytesToHex(bytes)}")
 
+    val redeemer: Term = ()
+    val datum: Term = ()
+    val txInfoInputs = Data.List(Nil)
+    val txInfoReferenceInputs = Data.List(Nil)
+    val txInfoOutputs = Data.List(Nil)
+    val txInfo = Data.Constr(0, List(txInfoInputs, txInfoReferenceInputs, txInfoOutputs))
+    val ctx = Data.Constr(0, List(txInfo))
+    val ctxTerm: Term = ctx
+
+    val appliedScript = Program((1, 0, 0), validator $ redeemer $ datum $ ctxTerm)
+    println(Cek.evalUPLCProgram(appliedScript).pretty.render(80))
   }
