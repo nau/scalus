@@ -8,7 +8,7 @@ import scalus.uplc.DefaultUni.{Bool, ByteString, asConstant}
 import scalus.uplc.Term.*
 import scalus.uplc.TermDSL.{*, given}
 
-import java.io.ByteArrayInputStream
+import java.io.{ByteArrayInputStream, ByteArrayOutputStream}
 import scala.io.Source.fromFile
 
 class CekJVMSpec extends AnyFunSuite with ScalaCheckPropertyChecks with ArbitraryInstances:
@@ -413,4 +413,14 @@ class CekJVMSpec extends AnyFunSuite with ScalaCheckPropertyChecks with Arbitrar
     }
     println(validator.pretty.render(80))
     println(Cek.evalUPLC(validator).pretty.render(80))
+    val program = Program((1, 0, 0), validator).pretty.render(80)
+
+    import scala.sys.process.*
+    val cmd = "/Users/nau/projects/scalus/uplc convert --of flat"
+    val outStream = new ByteArrayOutputStream()
+    val out =
+      cmd.#<(new ByteArrayInputStream(program.getBytes("UTF-8"))).#>(outStream).!
+    val bytes = outStream.toByteArray
+    println(s"${bytes.length} bytes: ${bytesToHex(bytes)}")
+
   }
