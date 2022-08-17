@@ -333,9 +333,9 @@ class CekJVMSpec extends AnyFunSuite with ScalaCheckPropertyChecks with Arbitrar
 
     forAll { (t: Constant) =>
       t match
-        case Constant.Pair(a, _) =>
+        case Constant.Pair(_, b) =>
           val result = Cek.evalUPLC(!(!DefaultFun.SndPair) $ t)
-          assert(result == Const(a))
+          assert(result == Const(b))
         case _ =>
           assertThrows[Exception](Cek.evalUPLC(!(!DefaultFun.SndPair) $ t))
     }
