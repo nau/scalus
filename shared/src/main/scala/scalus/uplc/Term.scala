@@ -62,8 +62,3 @@ case class Program(version: (Int, Int, Int), term: Term):
     Doc.text("(") + Doc.text("program") + Doc.space + Doc.text(
       s"$major.$minor.$patch"
     ) + Doc.space + term.pretty + Doc.text(")")
-
-object DefaultFun1:
-  lazy val cached: immutable.Map[String, DefaultFun] =
-    DefaultFun.values.map(v => Utils.lowerFirst(v.toString) -> v).toMap
-

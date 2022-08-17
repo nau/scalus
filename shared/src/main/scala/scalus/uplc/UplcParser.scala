@@ -7,10 +7,15 @@ import cats.parse.{Numbers, Parser0, Parser as P}
 import scalus.uplc.DefaultUni
 import scalus.uplc.DefaultUni.{ProtoList, ProtoPair, asConstant}
 import scalus.uplc.Term.*
+import scalus.utils.Utils
+
+import scala.collection.immutable
 
 object UplcParser:
   private[this] val whitespace: P[Unit] = P.charIn(" \t\r\n").void
   private[this] val whitespaces0: Parser0[Unit] = whitespace.rep0.void
+  private lazy val cached: immutable.Map[String, DefaultFun] =
+    DefaultFun.values.map(v => Utils.lowerFirst(v.toString) -> v).toMap
 
   def number: P[Int] = digits.map(_.toList.mkString.toInt)
   def bigint: P[String] = Numbers.bigInt.map(_.toString)
@@ -91,7 +96,7 @@ object UplcParser:
 
   def builtinFunction: P[DefaultFun] = lexeme(
     name.flatMap(name =>
-      DefaultFun1.cached.get(name) match
+      cached.get(name) match
         case Some(f) => P.pure(f)
         case None    => P.failWith(s"unknown builtin function: $name")
     )
