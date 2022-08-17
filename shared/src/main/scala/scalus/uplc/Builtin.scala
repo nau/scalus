@@ -160,6 +160,16 @@ object Meaning:
         () => Cek.VCon(ls.head)
     )
 
+  // [ forall a, list(a) ] -> list(a)
+  val TailList =
+    mkMeaning(
+      // FIXME wrong type
+      All("a", Bool ->: Bool),
+      (a: CekValue) =>
+        val VCon(Constant.List(tpe, ls)) = a
+        () => Cek.VCon(Constant.List(tpe, ls.tail))
+    )
+
   val BuiltinMeanings: immutable.Map[DefaultFun, Runtime] = immutable.Map.apply(
     (DefaultFun.AddInteger, Meaning.AddInteger),
     (DefaultFun.MultiplyInteger, Meaning.MultiplyInteger),
@@ -172,5 +182,6 @@ object Meaning:
     (DefaultFun.UnIData, Meaning.UnIData),
     (DefaultFun.UnBData, Meaning.UnBData),
     (DefaultFun.NullList, Meaning.NullList),
-    (DefaultFun.HeadList, Meaning.HeadList)
+    (DefaultFun.HeadList, Meaning.HeadList),
+    (DefaultFun.TailList, Meaning.TailList)
   )
