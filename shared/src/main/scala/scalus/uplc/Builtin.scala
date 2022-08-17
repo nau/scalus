@@ -180,6 +180,16 @@ object Meaning:
         () => Cek.VCon(fst)
     )
 
+  // [ forall a, forall b, pair(a, b) ] -> b
+  val SndPair =
+    mkMeaning(
+      // FIXME wrong type
+      All("a", All("b", DefaultUni.Pair(Integer, Bool) ->: Bool)),
+      (a: CekValue) =>
+        val VCon(Constant.Pair(_, snd)) = a
+        () => Cek.VCon(snd)
+    )
+
   val BuiltinMeanings: immutable.Map[DefaultFun, Runtime] = immutable.Map.apply(
     (DefaultFun.AddInteger, Meaning.AddInteger),
     (DefaultFun.MultiplyInteger, Meaning.MultiplyInteger),
@@ -194,5 +204,6 @@ object Meaning:
     (DefaultFun.NullList, Meaning.NullList),
     (DefaultFun.HeadList, Meaning.HeadList),
     (DefaultFun.TailList, Meaning.TailList),
-    (DefaultFun.FstPair, Meaning.FstPair)
+    (DefaultFun.FstPair, Meaning.FstPair),
+    (DefaultFun.SndPair, Meaning.SndPair)
   )
