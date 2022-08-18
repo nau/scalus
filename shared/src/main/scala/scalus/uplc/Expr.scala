@@ -2,11 +2,16 @@ package scalus.uplc
 
 import scalus.uplc.Constant.LiftValue
 
+import scala.annotation.targetName
+
 trait Delay[+A]
 case class Expr[+A](term: Term)
 
 object ExprBuilder:
   import TermDSL.*
+
+  given liftableToExpr[A: LiftValue]: Conversion[A, Expr[A]] = const
+
   def const[A: LiftValue](a: A): Expr[A] = Expr(Term.Const(summon[LiftValue[A]].lift(a)))
   def vr[A](name: String): Expr[A] = Expr(Term.Var(name))
   def app[A, B](f: Expr[A => B], x: Expr[B]): Expr[A] = Expr(Term.Apply(f.term, x.term))
@@ -17,12 +22,8 @@ object ExprBuilder:
   def error: Expr[Delay[Nothing]] = Expr(~Term.Error)
   def ifThenElse[A](cond: Expr[Boolean], t: Expr[Delay[A]], f: Expr[Delay[A]]): Expr[Delay[A]] =
     Expr(!Term.Builtin(DefaultFun.IfThenElse) $ cond.term $ t.term $ f.term)
-  def unConstrData(x: Expr[Data]): Expr[(BigInt, List[Data])] = Expr(
-    Term.Builtin(DefaultFun.UnConstrData) $ x.term
-  )
-  def unListData(x: Expr[Data]): Expr[List[Data]] = Expr(
-    Term.Builtin(DefaultFun.UnListData) $ x.term
-  )
+  val unConstrData: Expr[Data => (BigInt, List[Data])] = Expr(Term.Builtin(DefaultFun.UnConstrData))
+  val unListData: Expr[Data => List[Data]] = Expr(Term.Builtin(DefaultFun.UnListData))
 
   def fstPair[A, B](x: Expr[(A, B)]): Expr[A] = Expr(
     Term.Apply(Term.Force(Term.Force(Term.Builtin(DefaultFun.FstPair))), x.term)
@@ -30,20 +31,32 @@ object ExprBuilder:
   def sndPair[A, B](x: Expr[(A, B)]): Expr[B] = Expr(
     Term.Apply(Term.Force(Term.Force(Term.Builtin(DefaultFun.SndPair))), x.term)
   )
-  def headList(x: Expr[List[Data]]): Expr[Data] = Expr(
-    Term.Apply(Term.Force(Term.Builtin(DefaultFun.HeadList)), x.term)
+
+  val headList: Expr[List[Data] => Data] = Expr(
+    Term.Force(Term.Builtin(DefaultFun.HeadList))
   )
 
-  def tailList(x: Expr[List[Data]]): Expr[List[Data]] = Expr(
-    Term.Apply(Term.Force(Term.Builtin(DefaultFun.TailList)), x.term)
+  val tailList: Expr[List[Data] => List[Data]] = Expr(
+    Term.Force(Term.Builtin(DefaultFun.TailList))
   )
 
-  def nullList(x: Expr[List[Data]]): Expr[Boolean] = Expr(
-    Term.Apply(Term.Force(Term.Builtin(DefaultFun.NullList)), x.term)
+  val nullList: Expr[List[Data] => Boolean] = Expr(
+    Term.Force(Term.Builtin(DefaultFun.NullList))
   )
+
+  def addInteger(x: Expr[BigInt], y: Expr[BigInt]): Expr[BigInt] = Expr(
+    Term.Builtin(DefaultFun.AddInteger) $ x.term $ y.term
+  )
+
+  extension (lhs: Expr[BigInt])
+    @targetName("plus")
+    def |+|(rhs: Expr[BigInt]): Expr[BigInt] = addInteger(lhs, rhs)
+
+  extension [A, B](lhs: Expr[A => B]) def apply(rhs: Expr[A]): Expr[B] = app(lhs, rhs)
 
 object Example:
-  import ExprBuilder.*
+  import Constant.given
+  import ExprBuilder.{*, given}
   // simple validator that checks that the spending transaction has no outputs
   // it's a gift to the validators community
   val validator: Expr[Unit => Unit => Data => Unit] = lam[Unit]("redeemer") { _ =>
