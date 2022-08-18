@@ -23,6 +23,10 @@ data TxOutRef = TxOutRef {
  */
 case class TxOutRef(txOutRefId: TxId, txOutRefIdx: Int) derives Data.Lift
 
+case class PubKeyHash(hash: Array[Byte]) derives Data.Lift {
+  override def toString = s"PubKeyHash(${bytesToHex(hash)})"
+}
+
 /*
 data TxInfo = TxInfo
     { txInfoInputs      :: [TxInInfo] -- ^ Transaction inputs

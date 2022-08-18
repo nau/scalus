@@ -1,6 +1,8 @@
 package scalus.uplc
 
+import scalus.ledger.api.v1.PubKeyHash
 import scalus.uplc.Constant.LiftValue
+import scalus.utils.Utils.*
 
 import scala.annotation.targetName
 
@@ -20,6 +22,18 @@ object ExprBuilder:
   def delay[A](x: Expr[A]): Expr[Delay[A]] = Expr(Term.Delay(x.term))
   def force[A](x: Expr[Delay[A]]): Expr[A] = Expr(Term.Force(x.term))
   def error: Expr[Delay[Nothing]] = Expr(Term.Delay(Term.Error))
+
+  // Z Combinator
+  def z[A, B](f: Expr[(A => B) => A => B]): Expr[A => B] =
+    // (lam ff [(lam xx [ff (lam vv [xx xx vv])]) (lam xx [ff (lam vv [xx xx vv])])])
+    val Z: Term = λ("ff") {
+      val zz = λ("xx")(Term.Var("ff") $ λ("vv")(Term.Var("xx") $ Term.Var("xx") $ Term.Var("vv")))
+      zz $ zz
+    }
+
+    // app(ZCombinator, lam(funcName, r))
+    Expr(Z $ f.term)
+
   def ifThenElse[A](cond: Expr[Boolean], t: Expr[Delay[A]], f: Expr[Delay[A]]): Expr[Delay[A]] =
     Expr(Term.Force(Term.Builtin(DefaultFun.IfThenElse)) $ cond.term $ t.term $ f.term)
   val unConstrData: Expr[Data => (BigInt, List[Data])] = Expr(Term.Builtin(DefaultFun.UnConstrData))
@@ -48,9 +62,14 @@ object ExprBuilder:
     Term.Builtin(DefaultFun.AddInteger) $ x.term $ y.term
   )
 
+  val lessThanEqualsInteger: Expr[BigInt => BigInt => Boolean] = Expr(
+    Term.Builtin(DefaultFun.LessThanEqualsInteger)
+  )
+
   extension (lhs: Expr[BigInt])
     @targetName("plus")
     def |+|(rhs: Expr[BigInt]): Expr[BigInt] = addInteger(lhs, rhs)
+    def <=(rhs: Expr[BigInt]): Expr[Boolean] = lessThanEqualsInteger(lhs)(rhs)
 
   extension [A, B](lhs: Expr[A => B]) def apply(rhs: Expr[A]): Expr[B] = app(lhs, rhs)
   extension [A](lhs: Expr[A]) def unary_~ : Expr[Delay[A]] = delay(lhs)
@@ -61,7 +80,7 @@ object Example:
   import ExprBuilder.{*, given}
   // simple validator that checks that the spending transaction has no outputs
   // it's a gift to the validators community
-  val validator: Expr[Unit => Unit => Data => Unit] = lam[Unit]("redeemer") { _ =>
+  val giftValidator: Expr[Unit => Unit => Data => Unit] = lam[Unit]("redeemer") { _ =>
     lam[Unit]("datum") { _ =>
       lam[Data]("ctx") { ctx =>
         // ScriptContext{scriptContextTxInfo :: TxInfo, scriptContextPurpose :: ScriptPurpose }
@@ -79,6 +98,39 @@ object Example:
     }
   }
 
+  // simple validator that checks that the spending transaction has no outputs
+  // it's a gift to the validators community
+  def pubKeyValidator(pkh: PubKeyHash): Expr[Unit => Unit => Data => Unit] = lam[Unit]("redeemer") {
+    _ =>
+      lam[Unit]("datum") { _ =>
+        lam[Data]("ctx") { ctx =>
+          // ScriptContext{scriptContextTxInfo :: TxInfo, scriptContextPurpose :: ScriptPurpose }
+          // ctx.scriptContextTxInfo.txInfo
+          val txInfoArgs: Expr[List[Data]] =
+            sndPair(unConstrData(headList(sndPair(unConstrData(ctx)))))
+          val txInfoSignatories: Expr[Data] = headList(
+            tailList(tailList(tailList(tailList(tailList(tailList(tailList(txInfoArgs)))))))
+          )
+
+//          val search = lam[Unit => Boolean]("self") { self => }
+
+          val isTxInfoOutputsEmpty = nullList(unListData(txInfoSignatories))
+          val result = ifThenElse(isTxInfoOutputsEmpty, delay(const(())), error)
+          !result
+        }
+      }
+  }
+
   def main(args: Array[String]): Unit = {
-    println(validator.term.pretty.render(80))
+//    println(giftValidator.term.pretty.render(80))
+//    println(pubKeyValidator(PubKeyHash(hex"deadbeef")).term.pretty.render(80))
+
+    val rec = z(
+      lam[BigInt => BigInt]("self")(self =>
+        lam[BigInt]("x") { x =>
+          !ifThenElse(x <= BigInt(0), ~self(x |+| const(BigInt(1))), ~const(BigInt(123)))
+        }
+      )
+    )
+    println(Cek.evalUPLC(rec(BigInt(-3)).term).pretty.render(80))
   }
