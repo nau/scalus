@@ -38,7 +38,7 @@ object ExprBuilder:
   def rec[A, B](f: Expr[A => B] => Expr[A => B]): Expr[A => B] =
     z(lam[A => B]("self")(self => f.apply(self)))
 
-  def ifThenElse[A](cond: Expr[Boolean], t: Expr[Delay[A]], f: Expr[Delay[A]]): Expr[Delay[A]] =
+  def ifThenElse[A](cond: Expr[Boolean])(t: Expr[Delay[A]])(f: Expr[Delay[A]]): Expr[Delay[A]] =
     Expr(Term.Force(Term.Builtin(DefaultFun.IfThenElse)) $ cond.term $ t.term $ f.term)
   val unConstrData: Expr[Data => (BigInt, List[Data])] = Expr(Term.Builtin(DefaultFun.UnConstrData))
   val unListData: Expr[Data => List[Data]] = Expr(Term.Builtin(DefaultFun.UnListData))
@@ -80,6 +80,9 @@ object ExprBuilder:
     def |+|(rhs: Expr[BigInt]): Expr[BigInt] = addInteger(lhs, rhs)
     def <=(rhs: Expr[BigInt]): Expr[Boolean] = lessThanEqualsInteger(lhs)(rhs)
 
+  extension (lhs: Expr[Array[Byte]])
+    def ===(rhs: Expr[Array[Byte]]): Expr[Boolean] = equalsByteString(lhs)(rhs)
+
   extension [A, B](lhs: Expr[A => B]) def apply(rhs: Expr[A]): Expr[B] = app(lhs, rhs)
   extension [A](lhs: Expr[A]) def unary_~ : Expr[Delay[A]] = delay(lhs)
   extension [A](lhs: Expr[Delay[A]]) def unary_! : Expr[A] = force(lhs)
@@ -108,7 +111,7 @@ object Example:
         val txInfoArgs = sndPair(txInfo)
         val txInfoOutputs = headList(tailList(tailList(txInfoArgs)))
         val isTxInfoOutputsEmpty = nullList(unListData(txInfoOutputs))
-        val result = ifThenElse(isTxInfoOutputsEmpty, delay(const(())), error)
+        val result = ifThenElse(isTxInfoOutputsEmpty)(~())(error)
         !result
       }
     }
@@ -119,7 +122,6 @@ object Example:
     lam[Unit]("redeemer") { _ =>
       lam[Unit]("datum") { _ =>
         lam[Data]("ctx") { ctx =>
-          // ScriptContext{scriptContextTxInfo :: TxInfo, scriptContextPurpose :: ScriptPurpose }
           // ctx.scriptContextTxInfo.txInfo
           val txInfoArgs: Expr[List[Data]] =
             sndPair(unConstrData(headList(sndPair(unConstrData(ctx)))))
@@ -131,20 +133,11 @@ object Example:
 
           val search = rec[List[Data], Unit] { self =>
             lam[List[Data]]("signatories") { signatories =>
-              !(!ifThenElse(
-                nullList(signatories),
-                error,
-                ~ifThenElse(
-                  equalsByteString(
-                    // signatories.head.pubKeyHash
-                    unBData(headList(sndPair(unConstrData(headList(signatories)))))
-                  )(
-                    const(pkh.hash)
-                  ),
-                  ~const(()),
-                  ~self(tailList(signatories))
-                )
-              ))
+              // signatories.head.pubKeyHash
+              val headPubKeyHash = unBData(headList(sndPair(unConstrData(headList(signatories)))))
+              !(!ifThenElse(nullList(signatories))(error) {
+                ~ifThenElse(headPubKeyHash === pkh.hash)(~()) { ~self(tailList(signatories)) }
+              })
             }
           }
           search(txInfoSignatories)

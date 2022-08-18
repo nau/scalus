@@ -63,42 +63,32 @@ Maybe even Spring Plutus some day :)
 
 ```scala
   /// PubKey style validator. Checks whether the transaction has a specific signature
-  def pubKeyValidator(pkh: PubKeyHash): Expr[Unit => Unit => Data => Unit] =
-    lam[Unit]("redeemer") { _ =>
-      lam[Unit]("datum") { _ =>
-        lam[Data]("ctx") { ctx =>
-          // ScriptContext{scriptContextTxInfo :: TxInfo, scriptContextPurpose :: ScriptPurpose }
-          // ctx.scriptContextTxInfo.txInfo
-          val txInfoArgs: Expr[List[Data]] =
-            sndPair(unConstrData(headList(sndPair(unConstrData(ctx)))))
-          val txInfoSignatories: Expr[List[Data]] = unListData(
-            headList(
-              tailList(tailList(tailList(tailList(tailList(tailList(tailList(txInfoArgs)))))))
-            )
+def pubKeyValidator(pkh: PubKeyHash): Expr[Unit => Unit => Data => Unit] =
+  lam[Unit]("redeemer") { _ =>
+    lam[Unit]("datum") { _ =>
+      lam[Data]("ctx") { ctx =>
+        // ctx.scriptContextTxInfo.txInfo
+        val txInfoArgs: Expr[List[Data]] =
+          sndPair(unConstrData(headList(sndPair(unConstrData(ctx)))))
+        val txInfoSignatories: Expr[List[Data]] = unListData(
+          headList(
+            tailList(tailList(tailList(tailList(tailList(tailList(tailList(txInfoArgs)))))))
           )
+        )
 
-          val search = rec[List[Data], Unit] { self =>
-            lam[List[Data]]("signatories") { signatories =>
-              !(!ifThenElse(
-                nullList(signatories),
-                error,
-                ~ifThenElse(
-                  equalsByteString(
-                    // signatories.head.pubKeyHash
-                    unBData(headList(sndPair(unConstrData(headList(signatories)))))
-                  )(
-                    const(pkh.hash)
-                  ),
-                  ~const(()),
-                  ~self(tailList(signatories))
-                )
-              ))
-            }
+        val search = rec[List[Data], Unit] { self =>
+          lam[List[Data]]("signatories") { signatories =>
+            // signatories.head.pubKeyHash
+            val headPubKeyHash = unBData(headList(sndPair(unConstrData(headList(signatories)))))
+            !(!ifThenElse(nullList(signatories))(error) {
+              ~ifThenElse(headPubKeyHash === pkh.hash)(~()) { ~self(tailList(signatories)) }
+            })
           }
-          search(txInfoSignatories)
         }
+        search(txInfoSignatories)
       }
     }
+  }
 ```
 
 ## What currently works?
