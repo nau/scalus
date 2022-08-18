@@ -50,7 +50,7 @@ case class TxInfo(
     txInfoDCert: List[Int],
     txInfoWdrl: List[(Int, Int)],
     txInfoValidRange: Int,
-    txInfoSignatories: List[Int],
+    txInfoSignatories: List[PubKeyHash],
     txInfoData: List[(Int, Int)],
     txInfoId: TxId
 ) derives Data.Lift

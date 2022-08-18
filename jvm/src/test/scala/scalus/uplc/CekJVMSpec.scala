@@ -10,6 +10,7 @@ import scalus.uplc.Term.*
 import scalus.uplc.TermDSL.{*, given}
 
 import java.io.{ByteArrayInputStream, ByteArrayOutputStream}
+import scala.collection.immutable
 import scala.io.Source.fromFile
 
 class CekJVMSpec extends AnyFunSuite with ScalaCheckPropertyChecks with ArbitraryInstances:
@@ -419,12 +420,7 @@ class CekJVMSpec extends AnyFunSuite with ScalaCheckPropertyChecks with Arbitrar
     println(Cek.evalUPLC(validator).pretty.render(80))
     val program = Program((1, 0, 0), validator).pretty.render(80)
 
-    import scala.sys.process.*
-    val cmd = "/Users/nau/projects/scalus/uplc convert --of flat"
-    val outStream = new ByteArrayOutputStream()
-    val out =
-      cmd.#<(new ByteArrayInputStream(program.getBytes("UTF-8"))).#>(outStream).!
-    val bytes = outStream.toByteArray
+    val bytes = ExprBuilder.uplcToFlat(program)
     println(s"${bytes.length} bytes: ${bytesToHex(bytes)}")
 
     import Data.*
@@ -440,4 +436,57 @@ class CekJVMSpec extends AnyFunSuite with ScalaCheckPropertyChecks with Arbitrar
     println(Cek.evalUPLCProgram(appliedScript).pretty.render(80))
 
     println(summon[Lift[TxId]].lift(TxId(hex"deadbeef")).pretty.render(80))
+  }
+
+  test("PubKey Validator example") {
+    import scalus.ledger.api.v1.*
+    import scalus.utils.Utils.*
+
+    // simple validator that checks that the spending transaction has no outputs
+    // it's a gift to the validators community
+    val validator = Example.pubKeyValidator(PubKeyHash(hex"deadbeef"))
+
+    import Data.*
+
+    def scriptContext(sigs: immutable.List[PubKeyHash]) =
+      ScriptContext(
+        TxInfo(
+          Nil,
+          Nil,
+          0,
+          0,
+          Nil,
+          Nil,
+          0,
+          sigs,
+          Nil,
+          TxId(hex"bb")
+        ),
+        ScriptPurpose.Spending(TxOutRef(TxId(hex"aa"), 0))
+      )
+    def appliedScript(ctx: ScriptContext) =
+      Program((1, 0, 0), validator.term $ () $ () $ ctx.toData)
+
+    assert(
+      Cek.evalUPLCProgram(
+        appliedScript(scriptContext(PubKeyHash(hex"000000") :: PubKeyHash(hex"deadbeef") :: Nil))
+      ) == Const(
+        asConstant(())
+      )
+    )
+
+    assertThrows[EvaluationFailure](
+      Cek.evalUPLCProgram(appliedScript(scriptContext(PubKeyHash(hex"000000") :: Nil))) == Const(
+        asConstant(())
+      )
+    )
+
+    assertThrows[EvaluationFailure](
+      Cek.evalUPLCProgram(appliedScript(scriptContext(Nil))) == Const(
+        asConstant(())
+      )
+    )
+
+    val flatValidator = ExprBuilder.uplcToFlat(Program((1, 0, 0), validator.term).pretty.render(80))
+    assert(flatValidator.length == 104)
   }

@@ -4,6 +4,7 @@ import scalus.ledger.api.v1.PubKeyHash
 import scalus.uplc.Constant.LiftValue
 import scalus.utils.Utils.*
 
+import java.io.{ByteArrayInputStream, ByteArrayOutputStream}
 import scala.annotation.targetName
 
 trait Delay[+A]
@@ -34,10 +35,14 @@ object ExprBuilder:
     // app(ZCombinator, lam(funcName, r))
     Expr(Z $ f.term)
 
+  def rec[A, B](f: Expr[A => B] => Expr[A => B]): Expr[A => B] =
+    z(lam[A => B]("self")(self => f.apply(self)))
+
   def ifThenElse[A](cond: Expr[Boolean], t: Expr[Delay[A]], f: Expr[Delay[A]]): Expr[Delay[A]] =
     Expr(Term.Force(Term.Builtin(DefaultFun.IfThenElse)) $ cond.term $ t.term $ f.term)
   val unConstrData: Expr[Data => (BigInt, List[Data])] = Expr(Term.Builtin(DefaultFun.UnConstrData))
   val unListData: Expr[Data => List[Data]] = Expr(Term.Builtin(DefaultFun.UnListData))
+  val unBData: Expr[Data => Array[Byte]] = Expr(Term.Builtin(DefaultFun.UnBData))
 
   def fstPair[A, B](x: Expr[(A, B)]): Expr[A] = Expr(
     Term.Apply(Term.Force(Term.Force(Term.Builtin(DefaultFun.FstPair))), x.term)
@@ -66,6 +71,10 @@ object ExprBuilder:
     Term.Builtin(DefaultFun.LessThanEqualsInteger)
   )
 
+  val equalsByteString: Expr[Array[Byte] => Array[Byte] => Boolean] = Expr(
+    Term.Builtin(DefaultFun.EqualsByteString)
+  )
+
   extension (lhs: Expr[BigInt])
     @targetName("plus")
     def |+|(rhs: Expr[BigInt]): Expr[BigInt] = addInteger(lhs, rhs)
@@ -74,6 +83,13 @@ object ExprBuilder:
   extension [A, B](lhs: Expr[A => B]) def apply(rhs: Expr[A]): Expr[B] = app(lhs, rhs)
   extension [A](lhs: Expr[A]) def unary_~ : Expr[Delay[A]] = delay(lhs)
   extension [A](lhs: Expr[Delay[A]]) def unary_! : Expr[A] = force(lhs)
+
+  def uplcToFlat(program: String): Array[Byte] =
+    import scala.sys.process.*
+    val cmd = "/Users/nau/projects/scalus/uplc convert --of flat"
+    val outStream = new ByteArrayOutputStream()
+    cmd.#<(new ByteArrayInputStream(program.getBytes("UTF-8"))).#>(outStream).!
+    outStream.toByteArray
 
 object Example:
   import Constant.given
@@ -100,37 +116,56 @@ object Example:
 
   // simple validator that checks that the spending transaction has no outputs
   // it's a gift to the validators community
-  def pubKeyValidator(pkh: PubKeyHash): Expr[Unit => Unit => Data => Unit] = lam[Unit]("redeemer") {
-    _ =>
+  def pubKeyValidator(pkh: PubKeyHash): Expr[Unit => Unit => Data => Unit] =
+    lam[Unit]("redeemer") { _ =>
       lam[Unit]("datum") { _ =>
         lam[Data]("ctx") { ctx =>
           // ScriptContext{scriptContextTxInfo :: TxInfo, scriptContextPurpose :: ScriptPurpose }
           // ctx.scriptContextTxInfo.txInfo
           val txInfoArgs: Expr[List[Data]] =
             sndPair(unConstrData(headList(sndPair(unConstrData(ctx)))))
-          val txInfoSignatories: Expr[Data] = headList(
-            tailList(tailList(tailList(tailList(tailList(tailList(tailList(txInfoArgs)))))))
+          val txInfoSignatories: Expr[List[Data]] = unListData(
+            headList(
+              tailList(tailList(tailList(tailList(tailList(tailList(tailList(txInfoArgs)))))))
+            )
           )
 
-//          val search = lam[Unit => Boolean]("self") { self => }
-
-          val isTxInfoOutputsEmpty = nullList(unListData(txInfoSignatories))
-          val result = ifThenElse(isTxInfoOutputsEmpty, delay(const(())), error)
-          !result
+          val search = rec[List[Data], Unit] { self =>
+            lam[List[Data]]("signatories") { signatories =>
+              !(!ifThenElse(
+                nullList(signatories),
+                error,
+                ~ifThenElse(
+                  equalsByteString(
+                    // signatories.head.pubKeyHash
+                    unBData(headList(sndPair(unConstrData(headList(signatories)))))
+                  )(
+                    const(pkh.hash)
+                  ),
+                  ~const(()),
+                  ~self(tailList(signatories))
+                )
+              ))
+            }
+          }
+          search(txInfoSignatories)
         }
       }
-  }
+    }
 
   def main(args: Array[String]): Unit = {
 //    println(giftValidator.term.pretty.render(80))
-//    println(pubKeyValidator(PubKeyHash(hex"deadbeef")).term.pretty.render(80))
+    val pubKeyProgram =
+      Program((1, 0, 0), pubKeyValidator(PubKeyHash(hex"deadbeef")).term).pretty.render(80)
+    println(pubKeyProgram)
+    val flat = uplcToFlat(pubKeyProgram)
+    println(s"${flat.length} ${bytesToHex(flat)}")
 
-    val rec = z(
-      lam[BigInt => BigInt]("self")(self =>
-        lam[BigInt]("x") { x =>
-          !ifThenElse(x <= BigInt(0), ~self(x |+| const(BigInt(1))), ~const(BigInt(123)))
-        }
-      )
+    /*val asdf = rec[BigInt, BigInt](self =>
+      lam[BigInt]("x") { x =>
+        !ifThenElse(x <= BigInt(0), ~self(x |+| const(BigInt(1))), ~const(BigInt(123)))
+      }
     )
-    println(Cek.evalUPLC(rec(BigInt(-3)).term).pretty.render(80))
+
+    println(Cek.evalUPLC(asdf(BigInt(-3)).term).pretty.render(80))*/
   }

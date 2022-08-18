@@ -6,6 +6,9 @@ import scala.annotation.tailrec
 import scala.collection.immutable
 
 // TODO match Haskell errors
+class EvaluationFailure extends Exception(s"Evaluation failed")
+class BuiltinError(term: Term) extends Exception(s"Error during builtin invocation: $term")
+
 class UnexpectedBuiltinTermArgumentMachineError(term: Term)
     extends Exception(s"Unexpected builtin term argument: $term")
 
@@ -50,7 +53,7 @@ object Cek:
         Meaning.BuiltinMeanings.get(bn) match
           case Some(meaning) => returnCek(ctx, VBuiltin(bn, term, meaning))
           case None          => throw new UnexpectedBuiltinTermArgumentMachineError(term)
-      case Error => throw new RuntimeException("Error")
+      case Error => throw new EvaluationFailure()
 
   def returnCek(ctx: Context, value: CekValue): Term =
     ctx match
@@ -128,5 +131,7 @@ object Cek:
         // spendBudgetCek
         // eval the builtin and return result
         val f = runtime.f.asInstanceOf[() => CekValue]
-        f()
+//        println(s"evaluating builtin $builtinName with runtime $runtime")
+        try f()
+        catch case _: Throwable => throw new UnexpectedBuiltinTermArgumentMachineError(term)
       case _ => VBuiltin(builtinName, term, runtime)
