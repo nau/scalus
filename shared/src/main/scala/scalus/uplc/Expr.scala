@@ -17,11 +17,11 @@ object ExprBuilder:
   def app[A, B](f: Expr[A => B], x: Expr[B]): Expr[A] = Expr(Term.Apply(f.term, x.term))
   def lam[A](name: String): [B] => (Expr[A] => Expr[B]) => Expr[A => B] = [B] =>
     (f: Expr[A] => Expr[B]) => Expr(Term.LamAbs(name, f(vr(name)).term))
-  def delay[A](x: Expr[A]): Expr[Delay[A]] = Expr(~x.term)
-  def force[A](x: Expr[Delay[A]]): Expr[A] = Expr(!x.term)
-  def error: Expr[Delay[Nothing]] = Expr(~Term.Error)
+  def delay[A](x: Expr[A]): Expr[Delay[A]] = Expr(Term.Delay(x.term))
+  def force[A](x: Expr[Delay[A]]): Expr[A] = Expr(Term.Force(x.term))
+  def error: Expr[Delay[Nothing]] = Expr(Term.Delay(Term.Error))
   def ifThenElse[A](cond: Expr[Boolean], t: Expr[Delay[A]], f: Expr[Delay[A]]): Expr[Delay[A]] =
-    Expr(!Term.Builtin(DefaultFun.IfThenElse) $ cond.term $ t.term $ f.term)
+    Expr(Term.Force(Term.Builtin(DefaultFun.IfThenElse)) $ cond.term $ t.term $ f.term)
   val unConstrData: Expr[Data => (BigInt, List[Data])] = Expr(Term.Builtin(DefaultFun.UnConstrData))
   val unListData: Expr[Data => List[Data]] = Expr(Term.Builtin(DefaultFun.UnListData))
 
@@ -53,6 +53,8 @@ object ExprBuilder:
     def |+|(rhs: Expr[BigInt]): Expr[BigInt] = addInteger(lhs, rhs)
 
   extension [A, B](lhs: Expr[A => B]) def apply(rhs: Expr[A]): Expr[B] = app(lhs, rhs)
+  extension [A](lhs: Expr[A]) def unary_~ : Expr[Delay[A]] = delay(lhs)
+  extension [A](lhs: Expr[Delay[A]]) def unary_! : Expr[A] = force(lhs)
 
 object Example:
   import Constant.given
@@ -72,7 +74,7 @@ object Example:
         val txInfoOutputs = headList(tailList(tailList(txInfoArgs)))
         val isTxInfoOutputsEmpty = nullList(unListData(txInfoOutputs))
         val result = ifThenElse(isTxInfoOutputsEmpty, delay(const(())), error)
-        force(result)
+        !result
       }
     }
   }
