@@ -72,6 +72,11 @@ object Data:
     })
   }
 
+  given tupleLift[A: Lift, B: Lift]: Lift[(A, B)] with {
+    def lift(a: (A, B)): Data =
+      Constr(0, summon[Lift[A]].lift(a._1) :: summon[Lift[B]].lift(a._2) :: Nil)
+  }
+
   case class Constr(constr: Long, args: immutable.List[Data]) extends Data
 
   case class Map(values: immutable.List[(Data, Data)]) extends Data
