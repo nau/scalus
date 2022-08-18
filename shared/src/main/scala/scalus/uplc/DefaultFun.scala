@@ -67,7 +67,7 @@ enum DefaultFun:
   case ChooseData extends DefaultFun
   case ConstrData extends DefaultFun
   case MapData extends DefaultFun
-  case List extends DefaultFun
+  case ListData extends DefaultFun
   case IData extends DefaultFun
   case BData extends DefaultFun
   case UnConstrData extends DefaultFun
