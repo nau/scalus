@@ -114,8 +114,7 @@ object Example:
     }
   }
 
-  // simple validator that checks that the spending transaction has no outputs
-  // it's a gift to the validators community
+  /// PubKey style validator. Checks whether the transaction has a specific signature
   def pubKeyValidator(pkh: PubKeyHash): Expr[Unit => Unit => Data => Unit] =
     lam[Unit]("redeemer") { _ =>
       lam[Unit]("datum") { _ =>
