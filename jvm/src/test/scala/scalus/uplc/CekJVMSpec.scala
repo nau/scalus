@@ -413,6 +413,9 @@ class CekJVMSpec extends AnyFunSuite with ScalaCheckPropertyChecks with Arbitrar
       result
     }
     println(validator.pretty.render(80))
+
+    assert(validator == Example.validator.term)
+
     println(Cek.evalUPLC(validator).pretty.render(80))
     val program = Program((1, 0, 0), validator).pretty.render(80)
 
