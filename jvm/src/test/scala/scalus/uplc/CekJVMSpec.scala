@@ -243,6 +243,40 @@ class CekJVMSpec extends AnyFunSuite with ScalaCheckPropertyChecks with Arbitrar
     }
   }
 
+  test("ChooseList") {
+    import scalus.utils.Utils.*
+    // check empty case
+    assert(
+      Cek.evalUPLC(
+        !(!DefaultFun.ChooseList) $ Const(Constant.List(DefaultUni.Integer, Nil)) $
+          asConstant(1) $
+          asConstant(2)
+      ) == Const(
+        asConstant(1)
+      )
+    )
+    // check non-empty case
+    assert(
+      Cek.evalUPLC(
+        !(!DefaultFun.ChooseList) $ Const(
+          Constant.List(DefaultUni.Integer, asConstant(333) :: Nil)
+        ) $ asConstant(1) $ asConstant(2)
+      ) == Const(
+        asConstant(2)
+      )
+    )
+
+    forAll { (t: Constant) =>
+      t match
+        case Constant.List(_, v) =>
+          val result =
+            Cek.evalUPLC(!(!DefaultFun.ChooseList) $ t $ asConstant(true) $ asConstant(false))
+          assert(result == Const(Constant.Bool(v.isEmpty)))
+        case _ =>
+          assertThrows[Exception](Cek.evalUPLC(!DefaultFun.ChooseList $ t))
+    }
+  }
+
   test("NullList") {
     import scalus.utils.Utils.*
     assert(
@@ -446,6 +480,8 @@ class CekJVMSpec extends AnyFunSuite with ScalaCheckPropertyChecks with Arbitrar
     // it's a gift to the validators community
     val validator = Example.pubKeyValidator(PubKeyHash(hex"deadbeef"))
 
+    println(validator.term.pretty.render(80))
+
     import Data.*
 
     def scriptContext(sigs: immutable.List[PubKeyHash]) =
@@ -488,5 +524,5 @@ class CekJVMSpec extends AnyFunSuite with ScalaCheckPropertyChecks with Arbitrar
     )
 
     val flatValidator = ExprBuilder.uplcToFlat(Program((1, 0, 0), validator.term).pretty.render(80))
-    assert(flatValidator.length == 104)
+    assert(flatValidator.length == 102)
   }

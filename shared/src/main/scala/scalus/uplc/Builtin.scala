@@ -180,6 +180,16 @@ object Meaning:
         () => Cek.VCon(Constant.List(tpe, ls.tail))
     )
 
+  // [ forall a, forall b, list(a), b, b ] -> b
+  val ChooseList =
+    mkMeaning(
+      // FIXME wrong type
+      All("a", All("b", Bool ->: Bool ->: Bool ->: Bool)),
+      (a: CekValue) =>
+        val VCon(Constant.List(tpe, ls)) = a
+        (b: CekValue) => (c: CekValue) => () => if ls.isEmpty then b else c
+    )
+
   // [ forall a, forall b, pair(a, b) ] -> a
   val FstPair =
     mkMeaning(
@@ -215,6 +225,7 @@ object Meaning:
     (DefaultFun.NullList, Meaning.NullList),
     (DefaultFun.HeadList, Meaning.HeadList),
     (DefaultFun.TailList, Meaning.TailList),
+    (DefaultFun.ChooseList, Meaning.ChooseList),
     (DefaultFun.FstPair, Meaning.FstPair),
     (DefaultFun.SndPair, Meaning.SndPair)
   )

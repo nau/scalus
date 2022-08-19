@@ -63,6 +63,10 @@ object ExprBuilder:
     Term.Force(Term.Builtin(DefaultFun.NullList))
   )
 
+  def chooseList[A, B](ls: Expr[List[A]])(e: Expr[B])(ne: Expr[B]): Expr[B] = Expr(
+    Term.Force(Term.Force(Term.Builtin(DefaultFun.ChooseList))) $ ls.term $ e.term $ ne.term
+  )
+
   def addInteger(x: Expr[BigInt], y: Expr[BigInt]): Expr[BigInt] = Expr(
     Term.Builtin(DefaultFun.AddInteger) $ x.term $ y.term
   )
@@ -135,7 +139,7 @@ object Example:
             lam[List[Data]]("signatories") { signatories =>
               // signatories.head.pubKeyHash
               val headPubKeyHash = unBData(headList(sndPair(unConstrData(headList(signatories)))))
-              !(!ifThenElse(nullList(signatories))(error) {
+              !(!chooseList(signatories)(error) {
                 ~ifThenElse(headPubKeyHash === pkh.hash)(~()) { ~self(tailList(signatories)) }
               })
             }
