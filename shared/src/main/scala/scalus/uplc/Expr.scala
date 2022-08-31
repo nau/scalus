@@ -1,6 +1,7 @@
 package scalus.uplc
 
 import scalus.ledger.api.v1.PubKeyHash
+import scalus.macros.Macros
 import scalus.uplc.Constant.LiftValue
 import scalus.utils.Utils.*
 
@@ -20,6 +21,7 @@ object ExprBuilder:
   def app[A, B](f: Expr[A => B], x: Expr[B]): Expr[A] = Expr(Term.Apply(f.term, x.term))
   def lam[A](name: String): [B] => (Expr[A] => Expr[B]) => Expr[A => B] = [B] =>
     (f: Expr[A] => Expr[B]) => Expr(Term.LamAbs(name, f(vr(name)).term))
+  inline def lam[A, B](inline f: Expr[A] => Expr[B]): Expr[A => B] = ${ Macros.lamMacro('f) }
   def delay[A](x: Expr[A]): Expr[Delay[A]] = Expr(Term.Delay(x.term))
   def force[A](x: Expr[Delay[A]]): Expr[A] = Expr(Term.Force(x.term))
   def error: Expr[Delay[Nothing]] = Expr(Term.Delay(Term.Error))
@@ -103,9 +105,9 @@ object Example:
   import ExprBuilder.{*, given}
   // simple validator that checks that the spending transaction has no outputs
   // it's a gift to the validators community
-  val giftValidator: Expr[Unit => Unit => Data => Unit] = lam[Unit]("redeemer") { _ =>
-    lam[Unit]("datum") { _ =>
-      lam[Data]("ctx") { ctx =>
+  val giftValidator: Expr[Unit => Unit => Data => Unit] = lam { redeemer =>
+    lam { datum =>
+      lam { ctx =>
         // ScriptContext{scriptContextTxInfo :: TxInfo, scriptContextPurpose :: ScriptPurpose }
         val scriptContext = unConstrData(ctx)
         // ScriptContext args
@@ -123,9 +125,9 @@ object Example:
 
   /// PubKey style validator. Checks whether the transaction has a specific signature
   def pubKeyValidator(pkh: PubKeyHash): Expr[Unit => Unit => Data => Unit] =
-    lam[Unit]("redeemer") { _ =>
-      lam[Unit]("datum") { _ =>
-        lam[Data]("ctx") { ctx =>
+    lam { redeemer =>
+      lam { datum =>
+        lam { ctx =>
           // ctx.scriptContextTxInfo.txInfo
           val txInfoArgs: Expr[List[Data]] =
             sndPair(unConstrData(headList(sndPair(unConstrData(ctx)))))
@@ -136,7 +138,7 @@ object Example:
           )
 
           val search = rec[List[Data], Unit] { self =>
-            lam[List[Data]]("signatories") { signatories =>
+            lam { signatories =>
               // signatories.head.pubKeyHash
               val headPubKeyHash = unBData(headList(sndPair(unConstrData(headList(signatories)))))
               !(!chooseList(signatories)(error) {
@@ -165,3 +167,16 @@ object Example:
 
     println(Cek.evalUPLC(asdf(BigInt(-3)).term).pretty.render(80))*/
   }
+
+  @main def testLam2() =
+    println(
+      lam[BigInt, BigInt](x => x |+| BigInt(1))(BigInt(2)).term.pretty.render(80)
+    )
+
+    println(
+      lam((x: Expr[BigInt]) => x |+| BigInt(1))(BigInt(2)).term.pretty.render(80)
+    )
+
+    println(
+      lam(x => BigInt(1))(BigInt(2)).term.pretty.render(80)
+    )
