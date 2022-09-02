@@ -25,6 +25,7 @@ object ExprBuilder:
   def delay[A](x: Expr[A]): Expr[Delayed[A]] = Expr(Term.Delay(x.term))
   def force[A](x: Expr[Delayed[A]]): Expr[A] = Expr(Term.Force(x.term))
   def error: Expr[Delayed[Nothing]] = Expr(Term.Delay(Term.Error))
+  def let[A, B](expr: Expr[A])(f: Expr[A] => Expr[B]): Expr[B] = lam[A]("let")[B](f)(expr)
 
   // Z Combinator
   def z[A, B](f: Expr[(A => B) => A => B]): Expr[A => B] =
@@ -40,7 +41,9 @@ object ExprBuilder:
   def rec[A, B](f: Expr[A => B] => Expr[A => B]): Expr[A => B] =
     z(lam[A => B]("self")(self => f.apply(self)))
 
-  def ifThenElse[A](cond: Expr[Boolean])(t: Expr[Delayed[A]])(f: Expr[Delayed[A]]): Expr[Delayed[A]] =
+  def ifThenElse[A](cond: Expr[Boolean])(t: Expr[Delayed[A]])(
+      f: Expr[Delayed[A]]
+  ): Expr[Delayed[A]] =
     Expr(Term.Force(Term.Builtin(DefaultFun.IfThenElse)) $ cond.term $ t.term $ f.term)
   val unConstrData: Expr[Data => (BigInt, List[Data])] = Expr(Term.Builtin(DefaultFun.UnConstrData))
   val unListData: Expr[Data => List[Data]] = Expr(Term.Builtin(DefaultFun.UnListData))
@@ -180,3 +183,7 @@ object Example:
     println(
       lam(x => BigInt(1))(BigInt(2)).term.pretty.render(80)
     )
+
+    val letTerm = let(BigInt(123))(x => x |+| BigInt(1)).term
+    println(letTerm.pretty.render(80))
+    println(Cek.evalUPLC(letTerm).pretty.render(80))
