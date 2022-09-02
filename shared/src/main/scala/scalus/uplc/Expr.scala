@@ -8,7 +8,7 @@ import scalus.utils.Utils.*
 import java.io.{ByteArrayInputStream, ByteArrayOutputStream}
 import scala.annotation.targetName
 
-trait Delay[+A]
+trait Delayed[+A]
 case class Expr[+A](term: Term)
 
 object ExprBuilder:
@@ -22,9 +22,9 @@ object ExprBuilder:
   def lam[A](name: String): [B] => (Expr[A] => Expr[B]) => Expr[A => B] = [B] =>
     (f: Expr[A] => Expr[B]) => Expr(Term.LamAbs(name, f(vr(name)).term))
   inline def lam[A, B](inline f: Expr[A] => Expr[B]): Expr[A => B] = ${ Macros.lamMacro('f) }
-  def delay[A](x: Expr[A]): Expr[Delay[A]] = Expr(Term.Delay(x.term))
-  def force[A](x: Expr[Delay[A]]): Expr[A] = Expr(Term.Force(x.term))
-  def error: Expr[Delay[Nothing]] = Expr(Term.Delay(Term.Error))
+  def delay[A](x: Expr[A]): Expr[Delayed[A]] = Expr(Term.Delay(x.term))
+  def force[A](x: Expr[Delayed[A]]): Expr[A] = Expr(Term.Force(x.term))
+  def error: Expr[Delayed[Nothing]] = Expr(Term.Delay(Term.Error))
 
   // Z Combinator
   def z[A, B](f: Expr[(A => B) => A => B]): Expr[A => B] =
@@ -40,7 +40,7 @@ object ExprBuilder:
   def rec[A, B](f: Expr[A => B] => Expr[A => B]): Expr[A => B] =
     z(lam[A => B]("self")(self => f.apply(self)))
 
-  def ifThenElse[A](cond: Expr[Boolean])(t: Expr[Delay[A]])(f: Expr[Delay[A]]): Expr[Delay[A]] =
+  def ifThenElse[A](cond: Expr[Boolean])(t: Expr[Delayed[A]])(f: Expr[Delayed[A]]): Expr[Delayed[A]] =
     Expr(Term.Force(Term.Builtin(DefaultFun.IfThenElse)) $ cond.term $ t.term $ f.term)
   val unConstrData: Expr[Data => (BigInt, List[Data])] = Expr(Term.Builtin(DefaultFun.UnConstrData))
   val unListData: Expr[Data => List[Data]] = Expr(Term.Builtin(DefaultFun.UnListData))
@@ -90,8 +90,8 @@ object ExprBuilder:
     def ===(rhs: Expr[Array[Byte]]): Expr[Boolean] = equalsByteString(lhs)(rhs)
 
   extension [A, B](lhs: Expr[A => B]) def apply(rhs: Expr[A]): Expr[B] = app(lhs, rhs)
-  extension [A](lhs: Expr[A]) def unary_~ : Expr[Delay[A]] = delay(lhs)
-  extension [A](lhs: Expr[Delay[A]]) def unary_! : Expr[A] = force(lhs)
+  extension [A](lhs: Expr[A]) def unary_~ : Expr[Delayed[A]] = delay(lhs)
+  extension [A](lhs: Expr[Delayed[A]]) def unary_! : Expr[A] = force(lhs)
 
   def uplcToFlat(program: String): Array[Byte] =
     import scala.sys.process.*
