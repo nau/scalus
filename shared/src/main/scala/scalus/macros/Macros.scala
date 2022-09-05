@@ -22,4 +22,20 @@ object Macros {
     '{
       Exp(Trm.LamAbs($name, $f(vr($name)).term))
     }
+
+  def asExprMacro[A: Type](e: Expr[A])(using Quotes): Expr[Exp[A]] =
+    import quotes.reflect.*
+    e.asTerm match
+      // lam(x => body)
+      case Inlined(_, _, Block(stmts, expr)) =>
+        def asdf(e: Term): Expr[Exp[A]] = e match
+          case Ident(name) =>
+            val nm = Expr(name)
+            '{ vr[A]($nm) }
+          case Typed(e, _) =>
+            asdf(e)
+          case _ =>
+            report.errorAndAbort(e.toString)
+        asdf(expr)
+      case x => report.errorAndAbort("asExprMacro: " + x.toString)
 }
