@@ -4,7 +4,7 @@ import org.scalatest.funsuite.AnyFunSuite
 import org.scalatestplus.scalacheck.ScalaCheckPropertyChecks
 import scalus.ledger.api.v2.*
 import scalus.uplc.Constant.Pair
-import scalus.uplc.DefaultFun.{AddInteger, EqualsInteger, UnConstrData}
+import scalus.uplc.DefaultFun.{AddInteger, EqualsInteger, SubtractInteger, UnConstrData}
 import scalus.uplc.DefaultUni.{Bool, ByteString, asConstant}
 import scalus.uplc.Term.*
 import scalus.uplc.TermDSL.{*, given}
@@ -61,6 +61,22 @@ class CekJVMSpec extends AnyFunSuite with ScalaCheckPropertyChecks with Arbitrar
         case (Const(Constant.Integer(aa)), Const(Constant.Integer(bb))) =>
           val r = aa + bb
           assert(Cek.evalUPLC(AddInteger $ a $ b) == Const(Constant.Integer(r)))
+        case _ => assertThrows[Exception](Cek.evalUPLC(AddInteger $ a $ b))
+    }
+  }
+
+  test("SubstractInteger") {
+    forAll { (a: BigInt, b: BigInt) =>
+      Cek.evalUPLC(SubtractInteger $ a $ b) match
+        case Const(Constant.Integer(r)) => assert(r == (a - b))
+        case r                          => fail(s"Expected true but got ${r.pretty.render(80)}")
+    }
+
+    forAll { (a: Term, b: Term) =>
+      (a, b) match
+        case (Const(Constant.Integer(aa)), Const(Constant.Integer(bb))) =>
+          val r = aa - bb
+          assert(Cek.evalUPLC(SubtractInteger $ a $ b) == Const(Constant.Integer(r)))
         case _ => assertThrows[Exception](Cek.evalUPLC(AddInteger $ a $ b))
     }
   }

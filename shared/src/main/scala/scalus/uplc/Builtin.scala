@@ -43,6 +43,15 @@ object Meaning:
           val VCon(Constant.Integer(bb)) = b
           () => Cek.VCon(asConstant(aa + bb))
     )
+  val SubtractInteger =
+    mkMeaning(
+      Integer ->: Integer ->: Integer,
+      (a: CekValue) =>
+        val VCon(Constant.Integer(aa)) = a
+        (b: CekValue) =>
+          val VCon(Constant.Integer(bb)) = b
+          () => Cek.VCon(asConstant(aa - bb))
+    )
   val MultiplyInteger =
     mkMeaning(
       Integer ->: Integer ->: Integer,
@@ -69,6 +78,15 @@ object Meaning:
         (b: CekValue) =>
           val VCon(Constant.Integer(bb)) = b
           () => Cek.VCon(asConstant(aa <= bb))
+    )
+  val LessThanInteger =
+    mkMeaning(
+      Integer ->: Integer ->: Bool,
+      (a: CekValue) =>
+        val VCon(Constant.Integer(aa)) = a
+        (b: CekValue) =>
+          val VCon(Constant.Integer(bb)) = b
+          () => Cek.VCon(asConstant(aa < bb))
     )
 
   val EqualsByteString =
@@ -212,9 +230,11 @@ object Meaning:
 
   val BuiltinMeanings: immutable.Map[DefaultFun, Runtime] = immutable.Map.apply(
     (DefaultFun.AddInteger, Meaning.AddInteger),
+    (DefaultFun.SubtractInteger, Meaning.SubtractInteger),
     (DefaultFun.MultiplyInteger, Meaning.MultiplyInteger),
     (DefaultFun.EqualsInteger, Meaning.EqualsInteger),
     (DefaultFun.LessThanEqualsInteger, Meaning.LessThanEqualsInteger),
+    (DefaultFun.LessThanInteger, Meaning.LessThanInteger),
     (DefaultFun.EqualsByteString, Meaning.EqualsByteString),
     (DefaultFun.IfThenElse, Meaning.IfThenElse),
     (DefaultFun.UnConstrData, Meaning.UnConstrData),

@@ -3,6 +3,7 @@ package scalus.uplc
 import scalus.ledger.api.v1.PubKeyHash
 import scalus.macros.Macros
 import scalus.uplc.Constant.LiftValue
+import scalus.uplc.ExprBuilder.equalsByteString
 import scalus.utils.Utils.*
 
 import java.io.{ByteArrayInputStream, ByteArrayOutputStream}
@@ -73,25 +74,37 @@ object ExprBuilder:
     Term.Force(Term.Force(Term.Builtin(DefaultFun.ChooseList))) $ ls.term $ e.term $ ne.term
   )
 
-  def addInteger(x: Expr[BigInt], y: Expr[BigInt]): Expr[BigInt] = Expr(
-    Term.Builtin(DefaultFun.AddInteger) $ x.term $ y.term
+  val addInteger: Expr[BigInt => BigInt => BigInt] = Expr(
+    Term.Builtin(DefaultFun.AddInteger)
+  )
+
+  val substractInteger: Expr[BigInt => BigInt => BigInt] = Expr(
+    Term.Builtin(DefaultFun.SubtractInteger)
   )
 
   val lessThanEqualsInteger: Expr[BigInt => BigInt => Boolean] = Expr(
     Term.Builtin(DefaultFun.LessThanEqualsInteger)
   )
 
-  val equalsByteString: Expr[Array[Byte] => Array[Byte] => Boolean] = Expr(
-    Term.Builtin(DefaultFun.EqualsByteString)
+  val lessThanInteger: Expr[BigInt => BigInt => Boolean] = Expr(
+    Term.Builtin(DefaultFun.LessThanInteger)
+  )
+
+  val equalsInteger: Expr[BigInt => BigInt => Boolean] = Expr(
+    Term.Builtin(DefaultFun.EqualsInteger)
+  )
+
+  infix def equalsByteString(lhs: Expr[Array[Byte]])(rhs: Expr[Array[Byte]]): Expr[Boolean] = Expr(
+    Term.Builtin(DefaultFun.EqualsByteString) $ lhs.term $ rhs.term
   )
 
   extension (lhs: Expr[BigInt])
     @targetName("plus")
-    def |+|(rhs: Expr[BigInt]): Expr[BigInt] = addInteger(lhs, rhs)
+    def |+|(rhs: Expr[BigInt]): Expr[BigInt] = addInteger(lhs)(rhs)
+    def |-|(rhs: Expr[BigInt]): Expr[BigInt] = substractInteger(lhs)(rhs)
+    def ===(rhs: Expr[BigInt]): Expr[Boolean] = equalsInteger(lhs)(rhs)
     def <=(rhs: Expr[BigInt]): Expr[Boolean] = lessThanEqualsInteger(lhs)(rhs)
-
-  extension (lhs: Expr[Array[Byte]])
-    def ===(rhs: Expr[Array[Byte]]): Expr[Boolean] = equalsByteString(lhs)(rhs)
+    def <(rhs: Expr[BigInt]): Expr[Boolean] = lessThanInteger(lhs)(rhs)
 
   extension [A, B](lhs: Expr[A => B]) def apply(rhs: Expr[A]): Expr[B] = app(lhs, rhs)
   extension [A](lhs: Expr[A]) def unary_~ : Expr[Delayed[A]] = delay(lhs)
@@ -146,7 +159,9 @@ object Example:
               // signatories.head.pubKeyHash
               val headPubKeyHash = unBData(headList(sndPair(unConstrData(headList(signatories)))))
               !(!chooseList(signatories)(error) {
-                ~ifThenElse(headPubKeyHash === pkh.hash)(~()) { ~self(tailList(signatories)) }
+                ~ifThenElse(equalsByteString(headPubKeyHash)(pkh.hash))(~()) {
+                  ~self(tailList(signatories))
+                }
               })
             }
           }
