@@ -39,7 +39,7 @@ object Macros {
         asdf(expr)
       case x => report.errorAndAbort("asExprMacro: " + x.toString)
 
-  def fieldMacro[A: Type](e: Expr[A => Any])(using Quotes): Expr[Exp[Data => Data]] =
+  def fieldMacro[A: Type](e: Expr[A => Any])(using Quotes): Expr[Exp[Data] => Exp[Data]] =
     import quotes.reflect.*
     e.asTerm match
       case Inlined(
@@ -54,13 +54,13 @@ object Macros {
           case Some(idx) =>
             val idxExpr = Expr(idx)
             '{
-              var expr: Exp[List[Data]] = sndPair(unConstrData(vr[Data]("d")))
+              var expr: Exp[Data] => Exp[List[Data]] = d => sndPair(unConstrData(d))
               var i = 0
               while i < $idxExpr do
-                expr = tailList(expr)
+                val exp = expr // save the current expr, otherwise it will loop forever
+                expr = d => tailList(exp(d))
                 i += 1
-              val e = lam[Data]("d")(_ => headList(expr))
-              e
+              d => headList(expr(d))
             }
           case None =>
             report.errorAndAbort("fieldMacro: " + fieldName)

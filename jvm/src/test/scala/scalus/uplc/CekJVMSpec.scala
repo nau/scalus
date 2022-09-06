@@ -6,6 +6,7 @@ import scalus.ledger.api.v2.*
 import scalus.uplc.Constant.Pair
 import scalus.uplc.DefaultFun.{AddInteger, EqualsInteger, SubtractInteger, UnConstrData}
 import scalus.uplc.DefaultUni.{Bool, ByteString, asConstant}
+import scalus.uplc.ExprBuilder.{sndPair, unConstrData}
 import scalus.uplc.Term.*
 import scalus.uplc.TermDSL.{*, given}
 
@@ -540,7 +541,7 @@ class CekJVMSpec extends AnyFunSuite with ScalaCheckPropertyChecks with Arbitrar
     )
 
     val flatValidator = ExprBuilder.uplcToFlat(Program((1, 0, 0), validator.term).pretty.render(80))
-    assert(flatValidator.length == 107)
+    assert(flatValidator.length == 102)
   }
 
   test("field macro test") {

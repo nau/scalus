@@ -18,7 +18,7 @@ object ExprBuilder:
 
   def const[A: LiftValue](a: A): Expr[A] = Expr(Term.Const(summon[LiftValue[A]].lift(a)))
   def vr[A](name: String): Expr[A] = Expr(Term.Var(name))
-  def app[A, B](f: Expr[A => B], x: Expr[B]): Expr[A] = Expr(Term.Apply(f.term, x.term))
+  def app[A, B](f: Expr[A => B], x: Expr[A]): Expr[B] = Expr(Term.Apply(f.term, x.term))
   def lam[A](name: String): [B] => (Expr[A] => Expr[B]) => Expr[A => B] = [B] =>
     (f: Expr[A] => Expr[B]) => Expr(Term.LamAbs(name, f(vr(name)).term))
   inline def lam[A, B](inline f: Expr[A] => Expr[B]): Expr[A => B] = ${ Macros.lamMacro('f) }
@@ -98,7 +98,7 @@ object ExprBuilder:
     Term.Builtin(DefaultFun.EqualsByteString) $ lhs.term $ rhs.term
   )
 
-  inline def field[A: Data.Lift](inline expr: A => Any): Expr[Data => Data] = ${
+  inline def field[A: Data.Lift](inline expr: A => Any): Expr[Data] => Expr[Data] = ${
     Macros.fieldMacro('expr)
   }
 
@@ -111,6 +111,8 @@ object ExprBuilder:
     def <(rhs: Expr[BigInt]): Expr[Boolean] = lessThanInteger(lhs)(rhs)
 
   extension [A, B](lhs: Expr[A => B]) def apply(rhs: Expr[A]): Expr[B] = app(lhs, rhs)
+  extension [B, C](lhs: Expr[B => C])
+    def compose[A](rhs: Expr[A => B]): Expr[A => C] = lam(a => app(lhs, app(rhs, a)))
   extension [A](lhs: Expr[A]) def unary_~ : Expr[Delayed[A]] = delay(lhs)
   extension [A](lhs: Expr[Delayed[A]]) def unary_! : Expr[A] = force(lhs)
 
@@ -130,15 +132,9 @@ object Example:
   val giftValidator: Expr[Unit => Unit => Data => Unit] = lam { redeemer =>
     lam { datum =>
       lam { ctx =>
-        // ScriptContext{scriptContextTxInfo :: TxInfo, scriptContextPurpose :: ScriptPurpose }
-        val scriptContext = unConstrData(ctx)
-        // ScriptContext args
-        val ctxArgs = sndPair(scriptContext)
-        // second in the list
-        val txInfo = unConstrData(headList(ctxArgs))
-        val txInfoArgs = sndPair(txInfo)
-        val txInfoOutputs = headList(tailList(tailList(txInfoArgs)))
-        val isTxInfoOutputsEmpty = nullList(unListData(txInfoOutputs))
+        val txInfo = field[scalus.ledger.api.v2.ScriptContext](_.scriptContextTxInfo)
+        val txInfoOutputs = field[scalus.ledger.api.v2.TxInfo](_.txInfoOutputs)
+        val isTxInfoOutputsEmpty = nullList(unListData(txInfoOutputs compose txInfo apply ctx))
         val result = ifThenElse(isTxInfoOutputsEmpty)(~())(error)
         !result
       }
@@ -151,10 +147,10 @@ object Example:
       lam { datum =>
         lam { ctx =>
           // ctx.scriptContextTxInfo
-          val txInfo: Expr[Data] =
-            field[ScriptContext](_.scriptContextTxInfo).apply(ctx)
+          val txInfo: Expr[Data] => Expr[Data] =
+            field[ScriptContext](_.scriptContextTxInfo)
           val txInfoSignatories: Expr[List[Data]] = unListData(
-            field[TxInfo](_.txInfoSignatories).apply(txInfo)
+            field[TxInfo](_.txInfoSignatories).compose(txInfo).apply(ctx)
           )
 
           val search = rec[List[Data], Unit] { self =>
