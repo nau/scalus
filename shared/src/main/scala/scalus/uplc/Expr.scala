@@ -14,6 +14,17 @@ case class Expr[+A](term: Term)
 object ExprBuilder:
   import TermDSL.*
 
+  trait Unlift[A]:
+    def unlift: Expr[Data => A]
+
+  given Unlift[BigInt] with {
+    def unlift = unIData
+  }
+
+  given Unlift[Array[Byte]] with {
+    def unlift = unBData
+  }
+
   given liftableToExpr[A: LiftValue]: Conversion[A, Expr[A]] = const
 
   def const[A: LiftValue](a: A): Expr[A] = Expr(Term.Const(summon[LiftValue[A]].lift(a)))
@@ -100,6 +111,10 @@ object ExprBuilder:
 
   inline def field[A: Data.Lift](inline expr: A => Any): Expr[Data] => Expr[Data] = ${
     Macros.fieldMacro('expr)
+  }
+
+  transparent inline def field2[A: Data.Lift](inline expr: A => Any): Any = ${
+    Macros.fieldMacro2('expr)
   }
 
   extension (lhs: Expr[BigInt])

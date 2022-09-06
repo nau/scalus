@@ -49,10 +49,12 @@ object Macros {
           ) =>
         val tpe: TypeRepr = TypeRepr.of[A]
         val s: Symbol = tpe.typeSymbol
-        val idxOpt = s.caseFields.zipWithIndex.find(_._1.name == fieldName).map(_._2)
-        idxOpt match
-          case Some(idx) =>
+        val fieldOpt = s.caseFields.zipWithIndex.find(_._1.name == fieldName)
+        fieldOpt match
+          case Some((fieldSym: Symbol, idx)) =>
             val idxExpr = Expr(idx)
+            val fieldType = tpe.memberType(fieldSym).dealias
+//            report.errorAndAbort(s"fieldMacro: ${fieldSym.typeRef} $fieldType")
             '{
               var expr: Exp[Data] => Exp[List[Data]] = d => sndPair(unConstrData(d))
               var i = 0
@@ -65,4 +67,53 @@ object Macros {
           case None =>
             report.errorAndAbort("fieldMacro: " + fieldName)
       case x => report.errorAndAbort(x.toString)
+
+  def fieldMacro2[A: Type](e: Expr[A => Any])(using Quotes): Expr[Any] =
+    import quotes.reflect.*
+    e.asTerm match
+      case Inlined(
+            _,
+            _,
+            Block(List(DefDef(_, _, _, Some(Select(_, fieldName)))), _)
+          ) =>
+        val tpe: TypeRepr = TypeRepr.of[A]
+        val s: Symbol = tpe.typeSymbol
+        val fieldOpt = s.caseFields.zipWithIndex.find(_._1.name == fieldName)
+        fieldOpt match
+          case Some((fieldSym: Symbol, idx)) =>
+            val idxExpr = Expr(idx)
+            val fieldType = tpe.memberType(fieldSym).dealias
+            val asdf = TypeRepr.of[Unlift].appliedTo(fieldType)
+            Implicits.search(asdf) match
+              case success: ImplicitSearchSuccess =>
+                val expr = success.tree
+                val exprType = expr.tpe
+                val exprTypeStr = exprType.show
+                val exprStr = expr.show
+                val impl = success.tree.asExpr.asInstanceOf[Expr[Unlift[Any]]]
+                val unlift: Expr[Exp[Data => Any]] = '{ $impl.unlift }
+//                report.errorAndAbort(s"found implicit: $exprTypeStr $exprStr")
+                '{
+                  var expr: Exp[Data] => Exp[List[Data]] = d => sndPair(unConstrData(d))
+                  var i = 0
+                  while i < $idxExpr do
+                    val exp = expr // save the current expr, otherwise it will loop forever
+                    expr = d => tailList(exp(d))
+                    i += 1
+                  (d: Exp[Data]) => ExprBuilder.app($unlift, headList(expr(d)))
+                }
+              case failure: ImplicitSearchFailure =>
+                '{
+                  var expr: Exp[Data] => Exp[List[Data]] = d => sndPair(unConstrData(d))
+                  var i = 0
+                  while i < $idxExpr do
+                    val exp = expr // save the current expr, otherwise it will loop forever
+                    expr = d => tailList(exp(d))
+                    i += 1
+                  (d: Exp[Data]) => headList(expr(d))
+                }
+          case None =>
+            report.errorAndAbort("fieldMacro: " + fieldName)
+      case x => report.errorAndAbort(x.toString)
+
 }
