@@ -1,7 +1,7 @@
 package scalus.macros
 
-import scalus.uplc.ExprBuilder.vr
-import scalus.uplc.{Expr as Exp, Term as Trm}
+import scalus.uplc.ExprBuilder.*
+import scalus.uplc.{Data, ExprBuilder, Expr as Exp, Term as Trm}
 
 import scala.quoted.*
 object Macros {
@@ -38,4 +38,31 @@ object Macros {
             report.errorAndAbort(e.toString)
         asdf(expr)
       case x => report.errorAndAbort("asExprMacro: " + x.toString)
+
+  def fieldMacro[A: Type](e: Expr[A => Any])(using Quotes): Expr[Exp[Data => Data]] =
+    import quotes.reflect.*
+    e.asTerm match
+      case Inlined(
+            _,
+            _,
+            Block(List(DefDef(_, _, _, Some(Select(_, fieldName)))), _)
+          ) =>
+        val tpe: TypeRepr = TypeRepr.of[A]
+        val s: Symbol = tpe.typeSymbol
+        val idxOpt = s.caseFields.zipWithIndex.find(_._1.name == fieldName).map(_._2)
+        idxOpt match
+          case Some(idx) =>
+            val idxExpr = Expr(idx)
+            '{
+              var expr: Exp[List[Data]] = sndPair(unConstrData(vr[Data]("d")))
+              var i = 0
+              while i < $idxExpr do
+                expr = tailList(expr)
+                i += 1
+              val e = lam[Data]("d")(_ => headList(expr))
+              e
+            }
+          case None =>
+            report.errorAndAbort("fieldMacro: " + fieldName)
+      case x => report.errorAndAbort(x.toString)
 }

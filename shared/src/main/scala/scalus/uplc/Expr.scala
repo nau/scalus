@@ -1,9 +1,8 @@
 package scalus.uplc
 
-import scalus.ledger.api.v1.PubKeyHash
+import scalus.ledger.api.v1.{PubKeyHash, ScriptContext, TxInfo}
 import scalus.macros.Macros
 import scalus.uplc.Constant.LiftValue
-import scalus.uplc.ExprBuilder.equalsByteString
 import scalus.utils.Utils.*
 
 import java.io.{ByteArrayInputStream, ByteArrayOutputStream}
@@ -50,6 +49,7 @@ object ExprBuilder:
   val unConstrData: Expr[Data => (BigInt, List[Data])] = Expr(Term.Builtin(DefaultFun.UnConstrData))
   val unListData: Expr[Data => List[Data]] = Expr(Term.Builtin(DefaultFun.UnListData))
   val unBData: Expr[Data => Array[Byte]] = Expr(Term.Builtin(DefaultFun.UnBData))
+  val unIData: Expr[Data => BigInt] = Expr(Term.Builtin(DefaultFun.UnIData))
 
   def fstPair[A, B](x: Expr[(A, B)]): Expr[A] = Expr(
     Term.Apply(Term.Force(Term.Force(Term.Builtin(DefaultFun.FstPair))), x.term)
@@ -98,6 +98,10 @@ object ExprBuilder:
     Term.Builtin(DefaultFun.EqualsByteString) $ lhs.term $ rhs.term
   )
 
+  inline def field[A: Data.Lift](inline expr: A => Any): Expr[Data => Data] = ${
+    Macros.fieldMacro('expr)
+  }
+
   extension (lhs: Expr[BigInt])
     @targetName("plus")
     def |+|(rhs: Expr[BigInt]): Expr[BigInt] = addInteger(lhs)(rhs)
@@ -122,6 +126,7 @@ object Example:
   import ExprBuilder.{*, given}
   // simple validator that checks that the spending transaction has no outputs
   // it's a gift to the validators community
+
   val giftValidator: Expr[Unit => Unit => Data => Unit] = lam { redeemer =>
     lam { datum =>
       lam { ctx =>
@@ -145,13 +150,11 @@ object Example:
     lam { redeemer =>
       lam { datum =>
         lam { ctx =>
-          // ctx.scriptContextTxInfo.txInfo
-          val txInfoArgs: Expr[List[Data]] =
-            sndPair(unConstrData(headList(sndPair(unConstrData(ctx)))))
+          // ctx.scriptContextTxInfo
+          val txInfo: Expr[Data] =
+            field[ScriptContext](_.scriptContextTxInfo).apply(ctx)
           val txInfoSignatories: Expr[List[Data]] = unListData(
-            headList(
-              tailList(tailList(tailList(tailList(tailList(tailList(tailList(txInfoArgs)))))))
-            )
+            field[TxInfo](_.txInfoSignatories).apply(txInfo)
           )
 
           val search = rec[List[Data], Unit] { self =>

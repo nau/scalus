@@ -540,5 +540,29 @@ class CekJVMSpec extends AnyFunSuite with ScalaCheckPropertyChecks with Arbitrar
     )
 
     val flatValidator = ExprBuilder.uplcToFlat(Program((1, 0, 0), validator.term).pretty.render(80))
-    assert(flatValidator.length == 102)
+    assert(flatValidator.length == 107)
+  }
+
+  test("field macro test") {
+    import scalus.ledger.api.v1.*
+    import scalus.utils.Utils.*
+
+    import Data.*
+
+    val txInfo = TxInfo(
+      Nil,
+      Nil,
+      123,
+      0,
+      Nil,
+      Nil,
+      0,
+      Nil,
+      Nil,
+      TxId(hex"bb")
+    )
+    import ExprBuilder.*
+    val applied = unIData(field[TxInfo](_.txInfoFee).apply(Expr(txInfo.toData)))
+    assert(Cek.evalUPLC(applied.term) == Const(asConstant(BigInt(123))))
+
   }

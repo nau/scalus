@@ -45,7 +45,7 @@ data TxInfo = TxInfo
 case class TxInfo(
     txInfoInputs: List[Int],
     txInfoOutputs: List[Int],
-    txInfoFee: Int,
+    txInfoFee: BigInt,
     txInfoMint: Int,
     txInfoDCert: List[Int],
     txInfoWdrl: List[(Int, Int)],
