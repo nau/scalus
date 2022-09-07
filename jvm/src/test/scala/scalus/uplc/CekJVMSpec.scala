@@ -464,37 +464,28 @@ class CekJVMSpec extends AnyFunSuite with ScalaCheckPropertyChecks with Arbitrar
       val result = !(!DefaultFun.IfThenElse $ isTxInfoOutputsEmpty $ ~() $ ~Error)
       result
     }
-    println(validator.pretty.render(80))
-
     assert(validator == Example.giftValidator.term)
 
-    println(Cek.evalUPLC(validator).pretty.render(80))
     val program = Program((1, 0, 0), validator).pretty.render(80)
 
     val bytes = ExprBuilder.uplcToFlat(program)
-    println(s"${bytes.length} bytes: ${bytesToHex(bytes)}")
+//    println(s"${bytes.length} bytes: ${bytesToHex(bytes)}")
+    assert(bytes.length == 36)
 
     import Data.*
 
-    val redeemer: Term = ()
-    val datum: Term = ()
     val scriptContext =
       ScriptContext(TxInfo(Nil, Nil, Nil), ScriptPurpose.Spending(TxOutRef(TxId(hex"deadbeef"), 0)))
-    val ctxTerm: Term = scriptContext.toData
-    println(ctxTerm.pretty.render(80))
-
-    val appliedScript = Program((1, 0, 0), validator $ redeemer $ datum $ ctxTerm)
-    println(Cek.evalUPLCProgram(appliedScript).pretty.render(80))
-
-    println(summon[Lift[TxId]].lift(TxId(hex"deadbeef")).pretty.render(80))
+    val appliedScript = Program((1, 0, 0), validator $ () $ () $ scriptContext.toData)
+    assert(Cek.evalUPLCProgram(appliedScript) == Const(asConstant(())))
   }
 
   test("PubKey Validator example") {
     import scalus.ledger.api.v1.*
     import scalus.utils.Utils.*
 
-    // simple validator that checks that the spending transaction has no outputs
-    // it's a gift to the validators community
+    // simple validator that checks that the spending transaction
+    // has a signature of the given public key hash
     val validator = Example.pubKeyValidator(PubKeyHash(hex"deadbeef"))
 
     println(validator.term.pretty.render(80))
@@ -563,8 +554,12 @@ class CekJVMSpec extends AnyFunSuite with ScalaCheckPropertyChecks with Arbitrar
       TxId(hex"bb")
     )
     import ExprBuilder.*
-    val applied = unIData(field[TxInfo](_.txInfoFee).apply(Expr(txInfo.toData)))
-    assert(Cek.evalUPLC(applied.term) == Const(asConstant(BigInt(123))))
+    val fee = unIData(field[TxInfo](_.txInfoFee).apply(Expr(txInfo.toData)))
+    val txId = unBData(field[TxInfo](_.txInfoId.id).apply(Expr(txInfo.toData)))
+    assert(Cek.evalUPLC(fee.term) == Const(asConstant(BigInt(123))))
+    assert(Cek.evalUPLC(txId.term) == Const(asConstant(hex"bb")))
+    println(txId)
+    println(Cek.evalUPLC(txId.term))
 
   }
 

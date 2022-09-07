@@ -147,9 +147,9 @@ object Example:
   val giftValidator: Expr[Unit => Unit => Data => Unit] = lam { redeemer =>
     lam { datum =>
       lam { ctx =>
-        val txInfo = field[scalus.ledger.api.v2.ScriptContext](_.scriptContextTxInfo)
-        val txInfoOutputs = field[scalus.ledger.api.v2.TxInfo](_.txInfoOutputs)
-        val isTxInfoOutputsEmpty = nullList(unListData(txInfoOutputs compose txInfo apply ctx))
+        val txInfoOutputs =
+          field[scalus.ledger.api.v2.ScriptContext](_.scriptContextTxInfo.txInfoOutputs).apply(ctx)
+        val isTxInfoOutputsEmpty = nullList(unListData(txInfoOutputs))
         val result = ifThenElse(isTxInfoOutputsEmpty)(~())(error)
         !result
       }
@@ -161,17 +161,15 @@ object Example:
     lam { redeemer =>
       lam { datum =>
         lam { ctx =>
-          // ctx.scriptContextTxInfo
-          val txInfo: Expr[Data] => Expr[Data] =
-            field[ScriptContext](_.scriptContextTxInfo)
           val txInfoSignatories: Expr[List[Data]] = unListData(
-            field[TxInfo](_.txInfoSignatories).compose(txInfo).apply(ctx)
+            field[ScriptContext](_.scriptContextTxInfo.txInfoSignatories).apply(ctx)
           )
 
           val search = rec[List[Data], Unit] { self =>
             lam { signatories =>
               // signatories.head.pubKeyHash
-              val headPubKeyHash = unBData(headList(sndPair(unConstrData(headList(signatories)))))
+              val head = headList.apply(signatories)
+              val headPubKeyHash = unBData(field[PubKeyHash](_.hash).apply(head))
               !(!chooseList(signatories)(error) {
                 ~ifThenElse(equalsByteString(headPubKeyHash)(pkh.hash))(~()) {
                   ~self(tailList(signatories))

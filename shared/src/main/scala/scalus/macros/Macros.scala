@@ -45,27 +45,37 @@ object Macros {
       case Inlined(
             _,
             _,
-            Block(List(DefDef(_, _, _, Some(Select(_, fieldName)))), _)
+            Block(List(DefDef(_, _, _, Some(select @ Select(_, fieldName)))), _)
           ) =>
-        val tpe: TypeRepr = TypeRepr.of[A]
-        val s: Symbol = tpe.typeSymbol
-        val fieldOpt = s.caseFields.zipWithIndex.find(_._1.name == fieldName)
-        fieldOpt match
-          case Some((fieldSym: Symbol, idx)) =>
-            val idxExpr = Expr(idx)
-            val fieldType = tpe.memberType(fieldSym).dealias
-//            report.errorAndAbort(s"fieldMacro: ${fieldSym.typeRef} $fieldType")
-            '{
-              var expr: Exp[Data] => Exp[List[Data]] = d => sndPair(unConstrData(d))
-              var i = 0
-              while i < $idxExpr do
-                val exp = expr // save the current expr, otherwise it will loop forever
-                expr = d => tailList(exp(d))
-                i += 1
-              d => headList(expr(d))
-            }
-          case None =>
-            report.errorAndAbort("fieldMacro: " + fieldName)
+        def genGetter(typeSymbolOfA: Symbol, fieldName: String): Expr[Exp[Data] => Exp[Data]] =
+          val fieldOpt = typeSymbolOfA.caseFields.zipWithIndex.find(_._1.name == fieldName)
+          fieldOpt match
+            case Some((fieldSym: Symbol, idx)) =>
+              val idxExpr = Expr(idx)
+              '{
+                var expr: Exp[Data] => Exp[List[Data]] = d => sndPair(unConstrData(d))
+                var i = 0
+                while i < $idxExpr do
+                  val exp = expr // save the current expr, otherwise it will loop forever
+                  expr = d => tailList(exp(d))
+                  i += 1
+                d => headList(expr(d))
+              }
+            case None =>
+              report.errorAndAbort("fieldMacro: " + fieldName)
+
+        def composeGetters(tree: Tree): Expr[Exp[Data] => Exp[Data]] = tree match
+          case Select(select @ Select(_, _), fieldName) =>
+            val a = genGetter(select.tpe.typeSymbol, fieldName)
+            val b = composeGetters(select)
+            '{ $a compose $b }
+          case Select(ident @ Ident(_), fieldName) =>
+            genGetter(ident.tpe.typeSymbol, fieldName)
+          case _ =>
+            report.errorAndAbort(
+              s"field macro supports only this form: _.caseClassField1.field2, but got " + tree.show
+            )
+        composeGetters(select)
       case x => report.errorAndAbort(x.toString)
 
   def fieldMacro2[A: Type](e: Expr[A => Any])(using Quotes): Expr[Any] =
