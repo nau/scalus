@@ -170,7 +170,7 @@ object Example:
             lam { signatories =>
               // signatories.head.pubKeyHash
               val head = headList.apply(signatories)
-              val headPubKeyHash = unBData(field[PubKeyHash](_.hash).apply(head))
+              val headPubKeyHash = unBData(head)
               !(!chooseList(signatories)(error) {
                 ~ifThenElse(equalsByteString(headPubKeyHash)(pkh.hash))(~()) {
                   ~self(tailList(signatories))
