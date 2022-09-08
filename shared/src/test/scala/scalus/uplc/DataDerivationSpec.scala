@@ -2,7 +2,7 @@ package scalus.uplc
 
 import org.scalatest.funsuite.AnyFunSuite
 import org.scalatestplus.scalacheck.ScalaCheckPropertyChecks
-import scalus.ledger.api.v1.{ScriptPurpose, TxId, TxInfo, TxOutRef, Value}
+import scalus.ledger.api.v1.{Interval, ScriptPurpose, TxId, TxInfo, TxOutRef, Value}
 import scalus.ledger.api.v1.Instances.given
 import scalus.uplc.Data.*
 import scalus.utils.Utils.*
@@ -20,7 +20,7 @@ class DataDerivationSpec extends AnyFunSuite with ScalaCheckPropertyChecks with 
         Value.zero,
         Nil,
         Nil,
-        0,
+        Interval.always,
         Nil,
         Nil,
         TxId(hex"bb")
@@ -33,7 +33,13 @@ class DataDerivationSpec extends AnyFunSuite with ScalaCheckPropertyChecks with 
           List(Nil),
           List(Nil),
           List(Nil),
-          I(0),
+          Constr(
+            0,
+            immutable.List(
+              Constr(0, immutable.List(Constr(0, Nil), Constr(1, Nil))),
+              Constr(0, immutable.List(Constr(2, Nil), Constr(1, Nil)))
+            )
+          ),
           List(Nil),
           List(Nil),
           B(hex"BB")

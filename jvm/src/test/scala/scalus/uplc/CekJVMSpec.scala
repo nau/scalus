@@ -483,7 +483,7 @@ class CekJVMSpec extends AnyFunSuite with ScalaCheckPropertyChecks with Arbitrar
           Value.zero,
           Nil,
           Nil,
-          0,
+          Interval.always,
           Nil,
           Nil,
           TxId(hex"bb")
@@ -515,7 +515,7 @@ class CekJVMSpec extends AnyFunSuite with ScalaCheckPropertyChecks with Arbitrar
           Value.zero,
           Nil,
           Nil,
-          0,
+          Interval.always,
           sigs,
           Nil,
           TxId(hex"bb")
@@ -561,7 +561,7 @@ class CekJVMSpec extends AnyFunSuite with ScalaCheckPropertyChecks with Arbitrar
       Value.zero,
       Nil,
       Nil,
-      0,
+      Interval.always,
       Nil,
       Nil,
       TxId(hex"bb")

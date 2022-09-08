@@ -4,6 +4,7 @@ import scalus.utils.Utils.bytesToHex
 
 import java.util
 import scala.collection.immutable
+import scala.collection.immutable.List
 import scala.deriving.*
 import scala.quoted.*
 
@@ -59,6 +60,10 @@ object Data:
 
   extension [A: Lift](a: A) def toData: Data = summon[Lift[A]].lift(a)
 
+  given Lift[Boolean] with {
+    def lift(a: Boolean): Data = if a then Constr(1, Nil) else Constr(0, Nil)
+  }
+  given Lift[Data] with { def lift(a: Data): Data = a }
   given Lift[BigInt] with { def lift(a: BigInt): Data = I(a) }
   given Lift[Int] with { def lift(a: Int): Data = I(a) }
   given Lift[Array[Byte]] with { def lift(a: Array[Byte]): Data = B(a) }
@@ -76,6 +81,16 @@ object Data:
     def lift(a: (A, B)): Data =
       Constr(0, summon[Lift[A]].lift(a._1) :: summon[Lift[B]].lift(a._2) :: Nil)
   }
+
+  given OptionLift[A: Lift]: Lift[Option[A]] with
+    def lift(a: Option[A]): Data = a match
+      case Some(v) => Data.Constr(0, immutable.List(v.toData))
+      case None    => Data.Constr(1, immutable.List.empty)
+
+  given EitherLift[A: Lift, B: Lift]: Lift[Either[A, B]] with
+    def lift(a: Either[A, B]): Data = a match
+      case Left(v)  => Data.Constr(0, immutable.List(v.toData))
+      case Right(v) => Data.Constr(1, immutable.List(v.toData))
 
   case class Constr(constr: Long, args: immutable.List[Data]) extends Data
 
