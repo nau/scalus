@@ -149,7 +149,7 @@ object Example:
     lam { datum =>
       lam { ctx =>
         val txInfoOutputs =
-          field[scalus.ledger.api.v2.ScriptContext](_.scriptContextTxInfo.txInfoOutputs).apply(ctx)
+          field[ScriptContext](_.scriptContextTxInfo.txInfoOutputs).apply(ctx)
         val isTxInfoOutputsEmpty = nullList(unListData(txInfoOutputs))
         val result = ifThenElse(isTxInfoOutputsEmpty)(~())(error)
         !result

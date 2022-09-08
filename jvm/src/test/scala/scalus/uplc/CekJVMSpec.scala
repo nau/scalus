@@ -2,7 +2,7 @@ package scalus.uplc
 
 import org.scalatest.funsuite.AnyFunSuite
 import org.scalatestplus.scalacheck.ScalaCheckPropertyChecks
-import scalus.ledger.api.v2.*
+import scalus.ledger.api.v1.*
 import scalus.uplc.Constant.Pair
 import scalus.uplc.DefaultFun.{AddInteger, EqualsInteger, SubtractInteger, UnConstrData}
 import scalus.uplc.DefaultUni.{Bool, ByteString, asConstant}
@@ -459,7 +459,7 @@ class CekJVMSpec extends AnyFunSuite with ScalaCheckPropertyChecks with Arbitrar
       val txInfo = DefaultFun.UnConstrData $ (!DefaultFun.HeadList $ ctxArgs)
       val txInfoArgs = !(!DefaultFun.SndPair) $ txInfo
       val txInfoOutputs =
-        !DefaultFun.HeadList $ (!DefaultFun.TailList $ (!DefaultFun.TailList $ txInfoArgs))
+        !DefaultFun.HeadList $ (!DefaultFun.TailList $ txInfoArgs)
       val isTxInfoOutputsEmpty = !DefaultFun.NullList $ (DefaultFun.UnListData $ txInfoOutputs)
       val result = !(!DefaultFun.IfThenElse $ isTxInfoOutputsEmpty $ ~() $ ~Error)
       result
@@ -470,12 +470,26 @@ class CekJVMSpec extends AnyFunSuite with ScalaCheckPropertyChecks with Arbitrar
 
     val bytes = ExprBuilder.uplcToFlat(program)
 //    println(s"${bytes.length} bytes: ${bytesToHex(bytes)}")
-    assert(bytes.length == 36)
+    assert(bytes.length == 34)
 
     import Data.*
 
     val scriptContext =
-      ScriptContext(TxInfo(Nil, Nil, Nil), ScriptPurpose.Spending(TxOutRef(TxId(hex"deadbeef"), 0)))
+      ScriptContext(
+        TxInfo(
+          Nil,
+          Nil,
+          Value.zero,
+          Value.zero,
+          Nil,
+          Nil,
+          0,
+          Nil,
+          Nil,
+          TxId(hex"bb")
+        ),
+        ScriptPurpose.Spending(TxOutRef(TxId(hex"deadbeef"), 0))
+      )
     val appliedScript = Program((1, 0, 0), validator $ () $ () $ scriptContext.toData)
     assert(Cek.evalUPLCProgram(appliedScript) == Const(asConstant(())))
   }
@@ -536,10 +550,9 @@ class CekJVMSpec extends AnyFunSuite with ScalaCheckPropertyChecks with Arbitrar
   }
 
   ignore("field macro test") {
+    import Data.*
     import scalus.ledger.api.v1.*
     import scalus.utils.Utils.*
-
-    import Data.*
 
     val txInfo = TxInfo(
       Nil,
@@ -564,11 +577,10 @@ class CekJVMSpec extends AnyFunSuite with ScalaCheckPropertyChecks with Arbitrar
   }
 
   test("field2 macro test") {
-    import scalus.ledger.api.v1.*
-    import scalus.utils.Utils.*
-    import scalus.ledger.api.v1.Instances.given
-
     import Data.*
+    import scalus.ledger.api.v1.*
+    import scalus.ledger.api.v1.Instances.given
+    import scalus.utils.Utils.*
 
     val txOutRef = TxOutRef(TxId(hex"bb"), 123)
     import ExprBuilder.*
@@ -581,11 +593,10 @@ class CekJVMSpec extends AnyFunSuite with ScalaCheckPropertyChecks with Arbitrar
   }
 
   test("toData implementations") {
+    import Data.*
     import scalus.ledger.api.v1.*
     import scalus.ledger.api.v1.Instances.given
     import scalus.utils.Utils.*
-
-    import Data.*
 
     println(Value.zero.toData)
     println(PubKeyHash(hex"deadbeef").toData)
