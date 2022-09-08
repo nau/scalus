@@ -141,6 +141,7 @@ object ExprBuilder:
 object Example:
   import Constant.given
   import ExprBuilder.{*, given}
+  import scalus.ledger.api.v1.Instances.given
   // simple validator that checks that the spending transaction has no outputs
   // it's a gift to the validators community
 

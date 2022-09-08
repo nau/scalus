@@ -497,8 +497,8 @@ class CekJVMSpec extends AnyFunSuite with ScalaCheckPropertyChecks with Arbitrar
         TxInfo(
           Nil,
           Nil,
-          0,
-          0,
+          Value.zero,
+          Value.zero,
           Nil,
           Nil,
           0,
@@ -544,8 +544,8 @@ class CekJVMSpec extends AnyFunSuite with ScalaCheckPropertyChecks with Arbitrar
     val txInfo = TxInfo(
       Nil,
       Nil,
-      123,
-      0,
+      Value.zero,
+      Value.zero,
       Nil,
       Nil,
       0,
@@ -572,8 +572,8 @@ class CekJVMSpec extends AnyFunSuite with ScalaCheckPropertyChecks with Arbitrar
     val txInfo = TxInfo(
       Nil,
       Nil,
-      123,
-      0,
+      Value.zero,
+      Value.zero,
       Nil,
       Nil,
       0,
@@ -587,5 +587,17 @@ class CekJVMSpec extends AnyFunSuite with ScalaCheckPropertyChecks with Arbitrar
     val applied2 = field2[TxInfo](_.txInfoId).apply(Expr(txInfo.toData))
     val aaa = unConstrData(applied2)
     assert(Cek.evalUPLC(applied2.term) == Const(asConstant(TxId(hex"bb").toData)))
+
+  }
+
+  test("toData implementations") {
+    import scalus.ledger.api.v1.*
+    import scalus.ledger.api.v1.Instances.given
+    import scalus.utils.Utils.*
+
+    import Data.*
+
+    println(Value.zero.toData)
+    println(PubKeyHash(hex"deadbeef").toData)
 
   }
