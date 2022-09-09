@@ -10,85 +10,85 @@ import scala.quoted.*
 
 sealed abstract class Data
 object Data:
-  trait Lift[A]:
-    def lift(a: A): Data
+  trait ToData[A]:
+    def toData(a: A): Data
 
-  object Lift:
+  object ToData:
     import scala.compiletime.*
-    inline def summonAll[T <: Tuple]: immutable.List[Lift[_]] =
+    inline def summonAll[T <: Tuple]: immutable.List[ToData[_]] =
       inline erasedValue[T] match
         case _: EmptyTuple => Nil
-        case _: (t *: ts)  => summonInline[Lift[t]] :: summonAll[ts]
+        case _: (t *: ts)  => summonInline[ToData[t]] :: summonAll[ts]
 
-    def liftSum[T](m: Mirror.SumOf[T], elems: => immutable.List[Lift[_]]): Lift[T] =
-      new Lift[T] {
-        def lift(a: T): Data =
+    def liftSum[T](m: Mirror.SumOf[T], elems: => immutable.List[ToData[_]]): ToData[T] =
+      new ToData[T] {
+        def toData(a: T): Data =
           Data.Constr(
             m.ordinal(a),
             elems
               .zip(a.asInstanceOf[Product].productIterator)
               .map { case (l, a) =>
-                l.asInstanceOf[Lift[Any]].lift(a)
+                l.asInstanceOf[ToData[Any]].toData(a)
               }
           )
       }
     def liftProduct[T](
         constrIdx: Int,
         p: Mirror.ProductOf[T],
-        elems: => immutable.List[Lift[_]]
-    ): Lift[T] =
-      new Lift[T] {
-        def lift(a: T): Data =
+        elems: => immutable.List[ToData[_]]
+    ): ToData[T] =
+      new ToData[T] {
+        def toData(a: T): Data =
           Data.Constr(
             constrIdx,
             elems.zip(a.asInstanceOf[Product].productIterator).map { case (l, a) =>
-              l.asInstanceOf[Lift[Any]].lift(a)
+              l.asInstanceOf[ToData[Any]].toData(a)
             }
           )
       }
 
-    inline def derived[T](using m: Mirror.Of[T]): Lift[T] =
+    inline def derived[T](using m: Mirror.Of[T]): ToData[T] =
       val elemInstances = summonAll[m.MirroredElemTypes]
 //      println(elemInstances)
       inline m match
         case m: Mirror.SumOf[T]     => liftSum(m, elemInstances)
         case m: Mirror.ProductOf[T] => liftProduct(0, m, elemInstances)
 
-    inline def deriveProduct[T](constrIdx: Int)(using m: Mirror.ProductOf[T]): Lift[T] =
+    inline def deriveProduct[T](constrIdx: Int)(using m: Mirror.ProductOf[T]): ToData[T] =
       val elemInstances = summonAll[m.MirroredElemTypes]
       liftProduct(constrIdx, m, elemInstances)
 
-  extension [A: Lift](a: A) def toData: Data = summon[Lift[A]].lift(a)
+  extension [A: ToData](a: A) def toData: Data = summon[ToData[A]].toData(a)
 
-  given Lift[Boolean] with {
-    def lift(a: Boolean): Data = if a then Constr(1, Nil) else Constr(0, Nil)
+  given ToData[Boolean] with {
+    def toData(a: Boolean): Data = if a then Constr(1, Nil) else Constr(0, Nil)
   }
-  given Lift[Data] with { def lift(a: Data): Data = a }
-  given Lift[BigInt] with { def lift(a: BigInt): Data = I(a) }
-  given Lift[Int] with { def lift(a: Int): Data = I(a) }
-  given Lift[Array[Byte]] with { def lift(a: Array[Byte]): Data = B(a) }
-  given seqLift[A: Lift, B[A] <: Seq[A]]: Lift[B[A]] with {
-    def lift(a: B[A]): Data = List(a.map(summon[Lift[A]].lift).toList)
+  given ToData[Data] with { def toData(a: Data): Data = a }
+  given ToData[BigInt] with { def toData(a: BigInt): Data = I(a) }
+  given ToData[Int] with { def toData(a: Int): Data = I(a) }
+  given ToData[Array[Byte]] with { def toData(a: Array[Byte]): Data = B(a) }
+  given seqLift[A: ToData, B[A] <: Seq[A]]: ToData[B[A]] with {
+    def toData(a: B[A]): Data = List(a.map(summon[ToData[A]].toData).toList)
   }
 
-  given mapLift[A: Lift, B: Lift]: Lift[immutable.Map[A, B]] with {
-    def lift(a: immutable.Map[A, B]): Data = Map(a.toList.map { case (a, b) =>
-      (summon[Lift[A]].lift(a), summon[Lift[B]].lift(b))
+  given mapLift[A: ToData, B: ToData]: ToData[immutable.Map[A, B]] with {
+    def toData(a: immutable.Map[A, B]): Data = Map(a.toList.map { case (a, b) =>
+      (summon[ToData[A]].toData(a), summon[ToData[B]].toData(b))
     })
   }
 
-  given tupleLift[A: Lift, B: Lift]: Lift[(A, B)] with {
-    def lift(a: (A, B)): Data =
-      Constr(0, summon[Lift[A]].lift(a._1) :: summon[Lift[B]].lift(a._2) :: Nil)
+  given tupleLift[A: ToData, B: ToData]: ToData[(A, B)] with {
+    def toData(a: (A, B)): Data =
+      Constr(0, summon[ToData[A]].toData(a._1) :: summon[ToData[B]].toData(a._2) :: Nil)
   }
 
-  given OptionLift[A: Lift]: Lift[Option[A]] with
-    def lift(a: Option[A]): Data = a match
+  given OptionLift[A: ToData]: ToData[Option[A]] with
+    def toData(a: Option[A]): Data = a match
       case Some(v) => Data.Constr(0, immutable.List(v.toData))
       case None    => Data.Constr(1, immutable.List.empty)
 
-  given EitherLift[A: Lift, B: Lift]: Lift[Either[A, B]] with
-    def lift(a: Either[A, B]): Data = a match
+  given EitherToData[A: ToData, B: ToData]: ToData[Either[A, B]] with
+    def toData(a: Either[A, B]): Data = a match
       case Left(v)  => Data.Constr(0, immutable.List(v.toData))
       case Right(v) => Data.Constr(1, immutable.List(v.toData))
 

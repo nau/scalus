@@ -53,8 +53,8 @@ object TermDSL:
   given Conversion[Constant, Term] with
     def apply(c: Constant): Term = Term.Const(c)
 
-  given constantAsData[A: Data.Lift]: Conversion[A, Data] with
-    def apply(c: A): Data = summon[Data.Lift[A]].lift(c)
+  given constantAsData[A: Data.ToData]: Conversion[A, Data] with
+    def apply(c: A): Data = summon[Data.ToData[A]].toData(c)
 
 case class Program(version: (Int, Int, Int), term: Term):
   def pretty: Doc =

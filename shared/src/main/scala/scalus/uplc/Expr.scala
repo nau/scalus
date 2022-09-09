@@ -109,11 +109,11 @@ object ExprBuilder:
     Term.Builtin(DefaultFun.EqualsByteString) $ lhs.term $ rhs.term
   )
 
-  inline def field[A: Data.Lift](inline expr: A => Any): Expr[Data] => Expr[Data] = ${
+  inline def field[A: Data.ToData](inline expr: A => Any): Expr[Data] => Expr[Data] = ${
     Macros.fieldMacro('expr)
   }
 
-  transparent inline def field2[A: Data.Lift](inline expr: A => Any): Any = ${
+  transparent inline def field2[A: Data.ToData](inline expr: A => Any): Any = ${
     Macros.fieldMacro2('expr)
   }
 

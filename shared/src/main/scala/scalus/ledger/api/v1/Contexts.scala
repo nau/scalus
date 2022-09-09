@@ -2,7 +2,7 @@ package scalus.ledger.api.v1
 
 import scalus.ledger.api.v1.Instances.given
 import scalus.uplc.Data
-import scalus.uplc.Data.Lift
+import scalus.uplc.Data.ToData
 import scalus.utils.Utils.bytesToHex
 
 type ValidatorHash = Array[Byte]
@@ -23,17 +23,17 @@ object Value:
 object Instances:
   import scalus.uplc.Data.toData
 
-  given Lift[TxId] with
-    def lift(a: TxId): Data = a.id.toData
+  given ToData[TxId] with
+    def toData(a: TxId): Data = a.id.toData
 
-  given Lift[Value] with
-    def lift(a: Value): Data = Value.asLists(a).toData
+  given ToData[Value] with
+    def toData(a: Value): Data = Value.asLists(a).toData
 
-  given Lift[PubKeyHash] with
-    def lift(a: PubKeyHash): Data = a.hash.toData
+  given ToData[PubKeyHash] with
+    def toData(a: PubKeyHash): Data = a.hash.toData
 
-  given DCertLift[T <: DCert]: Lift[T] with
-    def lift(a: T): Data =
+  given DCertLift[T <: DCert]: ToData[T] with
+    def toData(a: T): Data =
       a match
         case DCert.DelegRegKey(cred: StakingCredential)   => Data.Constr(0, cred.toData :: Nil)
         case DCert.DelegDeRegKey(cred: StakingCredential) => Data.Constr(1, cred.toData :: Nil)
@@ -46,34 +46,35 @@ object Instances:
         case DCert.Genesis => Data.Constr(5, Nil)
         case DCert.Mir     => Data.Constr(6, Nil)
 
-  given ExtendedLift[A: Lift, T[A] <: Extended[A]]: Lift[T[A]] with
-    def lift(a: T[A]): Data =
+  given ExtendedLift[A: ToData, T[A] <: Extended[A]]: ToData[T[A]] with
+    def toData(a: T[A]): Data =
       a match
         case Extended.NegInf    => Data.Constr(0, Nil)
         case Extended.Finite(a) => Data.Constr(1, a.toData :: Nil)
         case Extended.PosInf    => Data.Constr(2, Nil)
-  given CredentialLift[T <: Credential]: Lift[T] with
-    def lift(a: T): Data =
+  given CredentialToData[T <: Credential]: ToData[T] with
+    def toData(a: T): Data =
       a match
         case a: Credential.PubKeyCredential =>
-          Lift.deriveProduct[Credential.PubKeyCredential](0).lift(a)
+          ToData.deriveProduct[Credential.PubKeyCredential](0).toData(a)
         case a: Credential.ScriptCredential =>
-          Lift.deriveProduct[Credential.ScriptCredential](1).lift(a)
+          ToData.deriveProduct[Credential.ScriptCredential](1).toData(a)
 
-  given StakingCredentialLift[T <: StakingCredential]: Lift[T] with
-    def lift(a: T): Data =
+  given StakingCredentialLift[T <: StakingCredential]: ToData[T] with
+    def toData(a: T): Data =
       a match
         case a: StakingCredential.StakingHash =>
-          Lift.deriveProduct[StakingCredential.StakingHash](0).lift(a)
+          ToData.deriveProduct[StakingCredential.StakingHash](0).toData(a)
         case a: StakingCredential.StakingPtr =>
-          Lift.deriveProduct[StakingCredential.StakingPtr](1).lift(a)
-  given ScriptPurposeLift[T <: ScriptPurpose]: Lift[T] with
-    def lift(a: T): Data =
+          ToData.deriveProduct[StakingCredential.StakingPtr](1).toData(a)
+  given ScriptPurposeLift[T <: ScriptPurpose]: ToData[T] with
+    def toData(a: T): Data =
       a match
-        case a: ScriptPurpose.Minting    => Lift.deriveProduct[ScriptPurpose.Minting](0).lift(a)
-        case a: ScriptPurpose.Spending   => Lift.deriveProduct[ScriptPurpose.Spending](1).lift(a)
-        case a: ScriptPurpose.Rewarding  => Lift.deriveProduct[ScriptPurpose.Rewarding](2).lift(a)
-        case a: ScriptPurpose.Certifying => Lift.deriveProduct[ScriptPurpose.Certifying](3).lift(a)
+        case a: ScriptPurpose.Minting   => ToData.deriveProduct[ScriptPurpose.Minting](0).toData(a)
+        case a: ScriptPurpose.Spending  => ToData.deriveProduct[ScriptPurpose.Spending](1).toData(a)
+        case a: ScriptPurpose.Rewarding => ToData.deriveProduct[ScriptPurpose.Rewarding](2).toData(a)
+        case a: ScriptPurpose.Certifying =>
+          ToData.deriveProduct[ScriptPurpose.Certifying](3).toData(a)
 end Instances
 
 type Closure = Boolean
@@ -82,9 +83,9 @@ enum Extended[+A]:
   case Finite(a: A)
   case PosInf extends Extended[Nothing]
 
-case class UpperBound[A](upper: Extended[A], closure: Closure) derives Lift
-case class LowerBound[A](extended: Extended[A], closure: Closure) derives Lift
-case class Interval[A](from: LowerBound[A], to: UpperBound[A]) derives Lift
+case class UpperBound[A](upper: Extended[A], closure: Closure) derives ToData
+case class LowerBound[A](extended: Extended[A], closure: Closure) derives ToData
+case class Interval[A](from: LowerBound[A], to: UpperBound[A]) derives ToData
 object Interval:
   def always[A]: Interval[A] =
     Interval(LowerBound(Extended.NegInf, true), UpperBound(Extended.PosInf, true))
@@ -127,7 +128,7 @@ data TxOutRef = TxOutRef {
     txOutRefIdx :: Integer -- ^ Index into the referenced transaction's outputs
     }
  */
-case class TxOutRef(txOutRefId: TxId, txOutRefIdx: BigInt) derives Data.Lift
+case class TxOutRef(txOutRefId: TxId, txOutRefIdx: BigInt) derives Data.ToData
 
 case class PubKeyHash(hash: Array[Byte]) {
   override def toString = s"PubKeyHash(${bytesToHex(hash)})"
@@ -147,15 +148,15 @@ enum StakingCredential:
 case class Address(
     addressCredential: Credential,
     addressStakingCredential: Option[StakingCredential]
-) derives Data.Lift
+) derives Data.ToData
 case class TxOut(txOutAddress: Address, txOutValue: Value, txOutDatumHash: Option[DatumHash])
-    derives Data.Lift
+    derives Data.ToData
 
 // TxInInfo
 case class TxInInfo(
     txInInfoOutRef: TxOutRef,
     txInInfoResolved: TxOut
-) derives Data.Lift
+) derives Data.ToData
 
 /*
 data TxInfo = TxInfo
@@ -183,7 +184,7 @@ case class TxInfo(
     txInfoSignatories: List[PubKeyHash],
     txInfoData: List[(DatumHash, Datum)],
     txInfoId: TxId
-) derives Data.Lift
+) derives Data.ToData
 
 /*
 data ScriptPurpose
@@ -200,4 +201,4 @@ enum ScriptPurpose:
 
 // data ScriptContext = ScriptContext{scriptContextTxInfo :: TxInfo, scriptContextPurpose :: ScriptPurpose }
 case class ScriptContext(scriptContextTxInfo: TxInfo, scriptContextPurpose: ScriptPurpose)
-    derives Data.Lift
+    derives Data.ToData
