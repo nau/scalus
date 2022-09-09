@@ -64,24 +64,22 @@ Maybe even Spring Plutus some day :)
 ```scala
   /// PubKey style validator. Checks whether the transaction has a specific signature
 def pubKeyValidator(pkh: PubKeyHash): Expr[Unit => Unit => Data => Unit] =
-  lam[Unit]("redeemer") { _ =>
-    lam[Unit]("datum") { _ =>
-      lam[Data]("ctx") { ctx =>
-        // ctx.scriptContextTxInfo.txInfo
-        val txInfoArgs: Expr[List[Data]] =
-          sndPair(unConstrData(headList(sndPair(unConstrData(ctx)))))
+  lam { redeemer =>
+    lam { datum =>
+      lam { ctx =>
         val txInfoSignatories: Expr[List[Data]] = unListData(
-          headList(
-            tailList(tailList(tailList(tailList(tailList(tailList(tailList(txInfoArgs)))))))
-          )
+          field[ScriptContext](_.scriptContextTxInfo.txInfoSignatories).apply(ctx)
         )
 
         val search = rec[List[Data], Unit] { self =>
-          lam[List[Data]]("signatories") { signatories =>
+          lam { signatories =>
             // signatories.head.pubKeyHash
-            val headPubKeyHash = unBData(headList(sndPair(unConstrData(headList(signatories)))))
-            !(!ifThenElse(nullList(signatories))(error) {
-              ~ifThenElse(headPubKeyHash === pkh.hash)(~()) { ~self(tailList(signatories)) }
+            val head = headList.apply(signatories)
+            val headPubKeyHash = unBData(head)
+            !(!chooseList(signatories)(error) {
+              ~ifThenElse(equalsByteString(headPubKeyHash)(pkh.hash))(~()) {
+                ~self(tailList(signatories))
+              }
             })
           }
         }
@@ -104,5 +102,5 @@ What you can play with:
 - CBOR serialization of Data works on both JVM and JavaScript
 - Type safe UPLC expression builder prototype works on both JVM and JavaScript
 - There are a couple of simple validators that can be used for real.
-- The PubKey validator is 104 bytes long! 
+- The PubKey validator is 95 bytes long! It's 20x smaller than the 1992 bytes long PlutusTx version!
 
