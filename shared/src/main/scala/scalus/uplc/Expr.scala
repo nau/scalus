@@ -1,6 +1,6 @@
 package scalus.uplc
 
-import scalus.ledger.api.v1.{PubKeyHash, ScriptContext, TxInfo}
+import scalus.ledger.api.v1.*
 import scalus.macros.Macros
 import scalus.uplc.Constant.LiftValue
 import scalus.utils.Utils.*
@@ -37,6 +37,7 @@ object ExprBuilder:
   def delay[A](x: Expr[A]): Expr[Delayed[A]] = Expr(Term.Delay(x.term))
   def force[A](x: Expr[Delayed[A]]): Expr[A] = Expr(Term.Force(x.term))
   def error: Expr[Delayed[Nothing]] = Expr(Term.Delay(Term.Error))
+  def err: Expr[Nothing] = Expr(Term.Error)
   def let[A, B](expr: Expr[A])(f: Expr[A] => Expr[B]): Expr[B] = lam[A]("let")[B](f)(expr)
 
   // Z Combinator
@@ -57,6 +58,10 @@ object ExprBuilder:
       f: Expr[Delayed[A]]
   ): Expr[Delayed[A]] =
     Expr(Term.Force(Term.Builtin(DefaultFun.IfThenElse)) $ cond.term $ t.term $ f.term)
+
+  def ifThenElse2[A](cond: Expr[Boolean])(t: Expr[A])(
+      f: Expr[A]
+  ): Expr[A] = !ifThenElse(cond)(delay(t))(delay(f))
   val unConstrData: Expr[Data => (BigInt, List[Data])] = Expr(Term.Builtin(DefaultFun.UnConstrData))
   val unListData: Expr[Data => List[Data]] = Expr(Term.Builtin(DefaultFun.UnListData))
   val unBData: Expr[Data => Array[Byte]] = Expr(Term.Builtin(DefaultFun.UnBData))
@@ -105,7 +110,7 @@ object ExprBuilder:
     Term.Builtin(DefaultFun.EqualsInteger)
   )
 
-  infix def equalsByteString(lhs: Expr[Array[Byte]])(rhs: Expr[Array[Byte]]): Expr[Boolean] = Expr(
+  def equalsByteString(lhs: Expr[Array[Byte]])(rhs: Expr[Array[Byte]]): Expr[Boolean] = Expr(
     Term.Builtin(DefaultFun.EqualsByteString) $ lhs.term $ rhs.term
   )
 
@@ -124,6 +129,9 @@ object ExprBuilder:
     def ===(rhs: Expr[BigInt]): Expr[Boolean] = equalsInteger(lhs)(rhs)
     def <=(rhs: Expr[BigInt]): Expr[Boolean] = lessThanEqualsInteger(lhs)(rhs)
     def <(rhs: Expr[BigInt]): Expr[Boolean] = lessThanInteger(lhs)(rhs)
+
+  extension (lhs: Expr[Array[Byte]])
+    infix def =*=(rhs: Expr[Array[Byte]]): Expr[Boolean] = equalsByteString(lhs)(rhs)
 
   extension [A, B](lhs: Expr[A => B]) def apply(rhs: Expr[A]): Expr[B] = app(lhs, rhs)
   extension [B, C](lhs: Expr[B => C])
@@ -151,8 +159,7 @@ object Example:
         val txInfoOutputs =
           field[ScriptContext](_.scriptContextTxInfo.txInfoOutputs).apply(ctx)
         val isTxInfoOutputsEmpty = nullList(unListData(txInfoOutputs))
-        val result = ifThenElse(isTxInfoOutputsEmpty)(~())(error)
-        !result
+        ifThenElse2(isTxInfoOutputsEmpty)(())(err)
       }
     }
   }
@@ -171,15 +178,74 @@ object Example:
               // signatories.head.pubKeyHash
               val head = headList.apply(signatories)
               val headPubKeyHash = unBData(head)
-              !(!chooseList(signatories)(error) {
-                ~ifThenElse(equalsByteString(headPubKeyHash)(pkh.hash))(~()) {
-                  ~self(tailList(signatories))
+              !chooseList(signatories)(error) {
+                ~ifThenElse2(equalsByteString(headPubKeyHash)(pkh.hash))(()) {
+                  self(tailList(signatories))
                 }
-              })
+              }
             }
           }
           search(txInfoSignatories)
         }
+      }
+    }
+
+  def mintingPolicyScript(txOutRef: TxOutRef, tokenName: TokenName): Expr[Unit => Data => Unit] =
+    lam { redeemer =>
+      lam { ctx =>
+        val txInfo: Expr[Data] = field[ScriptContext](_.scriptContextTxInfo).apply(ctx)
+        val purpose: Expr[Data] =
+          field[ScriptContext](_.scriptContextPurpose).apply(ctx)
+        val ownCurrencySymbol =
+          unBData.apply(field[ScriptPurpose.Minting](_.curSymbol).apply(purpose))
+        val minted: Expr[List[Data]] = unListData(
+          field[TxInfo](_.txInfoMint).apply(txInfo)
+        )
+        val ref: Expr[Data] = headList(unListData(field[TxInfo](_.txInfoInputs).apply(txInfo)))
+        val txId = unBData(field[TxInInfo](_.txInInfoOutRef.txOutRefId).apply(ref))
+        val idx = unIData.apply(field[TxInInfo](_.txInInfoOutRef.txOutRefIdx).apply(ref))
+
+        val checkMintedTrue: Expr[List[Data] => Unit] = rec[List[Data], Unit] { self =>
+          lam(minted => ())
+        }
+        val checkMinted: Expr[List[Data] => Unit] = rec[List[Data], Unit] { self =>
+          lam { minted =>
+            // Value: List[(CurrencySymbol, List[(TokenName, Amount)])]
+            // head: (CurrencySymbol, List[(TokenName, Amount)])
+            val head = headList.apply(minted)
+            // List(CurrencySymbol, List[(TokenName, Amount)])
+            val curSymTokenPair: Expr[List[Data]] = sndPair(unConstrData.apply(head))
+            val curSym = unBData.apply(headList(curSymTokenPair))
+            // List[(TokenName, Amount): Data]
+            val tokens = unListData.apply(headList(tailList(curSymTokenPair)))
+
+            val checkTokens: Expr[List[Data] => Unit] = rec[List[Data], Unit] { self =>
+              lam { tokens =>
+                val head = headList.apply(tokens)
+                val tokenAmountPair: Expr[List[Data]] = sndPair(unConstrData.apply(head))
+                val token = unBData.apply(headList(tokenAmountPair))
+                val amount = unIData.apply(headList(tailList(tokenAmountPair)))
+                !ifThenElse(token =*= tokenName)(
+                  ifThenElse(amount === BigInt(1))(~())(error)
+                ) {
+                  ~self(tailList(tokens))
+                }
+              }
+            }
+
+            ifThenElse2(curSym =*= ownCurrencySymbol) {
+              checkTokens(tokens)
+            } {
+              self(tailList(minted))
+            }
+          }
+        }
+
+        !ifThenElse(txId =*= txOutRef.txOutRefId.id)(
+          ifThenElse(idx === txOutRef.txOutRefIdx)(
+            ~checkMinted(minted)
+          )(error)
+        )(error)
       }
     }
 
