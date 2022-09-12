@@ -70,9 +70,10 @@ object Instances:
   given ScriptPurposeLift[T <: ScriptPurpose]: ToData[T] with
     def toData(a: T): Data =
       a match
-        case a: ScriptPurpose.Minting   => ToData.deriveProduct[ScriptPurpose.Minting](0).toData(a)
-        case a: ScriptPurpose.Spending  => ToData.deriveProduct[ScriptPurpose.Spending](1).toData(a)
-        case a: ScriptPurpose.Rewarding => ToData.deriveProduct[ScriptPurpose.Rewarding](2).toData(a)
+        case a: ScriptPurpose.Minting  => ToData.deriveProduct[ScriptPurpose.Minting](0).toData(a)
+        case a: ScriptPurpose.Spending => ToData.deriveProduct[ScriptPurpose.Spending](1).toData(a)
+        case a: ScriptPurpose.Rewarding =>
+          ToData.deriveProduct[ScriptPurpose.Rewarding](2).toData(a)
         case a: ScriptPurpose.Certifying =>
           ToData.deriveProduct[ScriptPurpose.Certifying](3).toData(a)
 end Instances
@@ -90,26 +91,6 @@ object Interval:
   def always[A]: Interval[A] =
     Interval(LowerBound(Extended.NegInf, true), UpperBound(Extended.PosInf, true))
 
-// data DCert
-//  = DCertDelegRegKey StakingCredential
-//  | DCertDelegDeRegKey StakingCredential
-//  | DCertDelegDelegate
-//      StakingCredential
-//      -- ^ delegator
-//      PubKeyHash
-//      -- ^ delegatee
-//  | -- | A digest of the PoolParams
-//    DCertPoolRegister
-//      PubKeyHash
-//      -- ^ poolId
-//      PubKeyHash
-//      -- ^ pool VFR
-//  | -- | The retiremant certificate and the Epoch N
-//    DCertPoolRetire PubKeyHash Integer -- NB: Should be Word64 but we only have Integer on-chain
-//  | -- | A really terse Digest
-//    DCertGenesis
-//  | -- | Another really terse Digest
-//    DCertMir
 enum DCert:
   case DelegRegKey(cred: StakingCredential)
   case DelegDeRegKey(cred: StakingCredential)
@@ -186,13 +167,6 @@ case class TxInfo(
     txInfoId: TxId
 ) derives Data.ToData
 
-/*
-data ScriptPurpose
-    = Minting CurrencySymbol
-    | Spending TxOutRef
-    | Rewarding StakingCredential
-    | Certifying DCert
- */
 enum ScriptPurpose:
   case Minting(curSymbol: Array[Byte])
   case Spending(txOutRef: TxOutRef)

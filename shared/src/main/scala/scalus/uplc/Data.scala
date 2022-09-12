@@ -67,22 +67,22 @@ object Data:
   given ToData[BigInt] with { def toData(a: BigInt): Data = I(a) }
   given ToData[Int] with { def toData(a: Int): Data = I(a) }
   given ToData[Array[Byte]] with { def toData(a: Array[Byte]): Data = B(a) }
-  given seqLift[A: ToData, B[A] <: Seq[A]]: ToData[B[A]] with {
+  given seqToData[A: ToData, B[A] <: Seq[A]]: ToData[B[A]] with {
     def toData(a: B[A]): Data = List(a.map(summon[ToData[A]].toData).toList)
   }
 
-  given mapLift[A: ToData, B: ToData]: ToData[immutable.Map[A, B]] with {
+  given mapToData[A: ToData, B: ToData]: ToData[immutable.Map[A, B]] with {
     def toData(a: immutable.Map[A, B]): Data = Map(a.toList.map { case (a, b) =>
       (summon[ToData[A]].toData(a), summon[ToData[B]].toData(b))
     })
   }
 
-  given tupleLift[A: ToData, B: ToData]: ToData[(A, B)] with {
+  given tupleToData[A: ToData, B: ToData]: ToData[(A, B)] with {
     def toData(a: (A, B)): Data =
       Constr(0, summon[ToData[A]].toData(a._1) :: summon[ToData[B]].toData(a._2) :: Nil)
   }
 
-  given OptionLift[A: ToData]: ToData[Option[A]] with
+  given OptionToData[A: ToData]: ToData[Option[A]] with
     def toData(a: Option[A]): Data = a match
       case Some(v) => Data.Constr(0, immutable.List(v.toData))
       case None    => Data.Constr(1, immutable.List.empty)
