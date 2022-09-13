@@ -100,3 +100,9 @@ class TermDSLSpec extends AnyFunSuite with ScalaCheckPropertyChecks with Arbitra
       assert(lam("x", "y")(t) == Term.LamAbs("x", Term.LamAbs("y", t)))
     }
   }
+
+  test("pretty Apply") {
+    val t =
+      Term.Apply(Term.Apply(Term.Apply(Term.Var("f"), Term.Var("x")), Term.Var("y")), Term.Var("z"))
+    assert(t.pretty.render(80) == "[f x y z]")
+  }

@@ -26,8 +26,10 @@ enum Term:
     case LamAbs(name, term) =>
       Doc.text("(") + Doc.text("lam") + Doc.space + Doc.text(name) + Doc.space + term.pretty + Doc
         .text(")")
-    case Apply(f, arg) =>
-      Doc.text("[") + f.pretty + Doc.space + arg.pretty + Doc.text("]")
+    case a @ Apply(f, arg) =>
+      val (f, args) = TermDSL.applyToList(a)
+      Doc.text("[") + f.pretty + Doc.space + Doc.intercalate(Doc.space, args.map(_.pretty)) + Doc
+        .text("]")
     case Force(term) =>
       Doc.text("(") + Doc.text("force") + Doc.text(" ") + term.pretty + Doc.text(")")
     case Delay(term) =>
@@ -37,6 +39,13 @@ enum Term:
     case Error        => Doc.text("(error)")
 
 object TermDSL:
+  def applyToList(app: Term): (Term, immutable.List[Term]) =
+    app match
+      case Term.Apply(f, arg) =>
+        val (f1, args) = applyToList(f)
+        (f1, args :+ arg)
+      case f => (f, Nil)
+
   def λ(names: String*)(term: Term): Term = lam(names: _*)(term)
   def lam(names: String*)(term: Term): Term = names.foldRight(term)(Term.LamAbs(_, _))
   extension (term: Term)
