@@ -202,29 +202,29 @@ object Example:
           field[TxInfo](_.txInfoMint).apply(txInfo)
         )
         val ref: Expr[Data] = headList(unListData(field[TxInfo](_.txInfoInputs).apply(txInfo)))
-        val txId = unBData(field[TxInInfo](_.txInInfoOutRef.txOutRefId).apply(ref))
-        val idx = unIData.apply(field[TxInInfo](_.txInInfoOutRef.txOutRefIdx).apply(ref))
+        val txInInfoOutRef: Expr[Data] = field[TxInInfo](_.txInInfoOutRef).apply(ref)
+        val txId = unBData(field[TxOutRef](_.txOutRefId).apply(txInInfoOutRef))
+        val idx = unIData.apply(field[TxOutRef](_.txOutRefIdx).apply(txInInfoOutRef))
 
-        val checkMintedTrue: Expr[List[Data] => Unit] = rec[List[Data], Unit] { self =>
-          lam(minted => ())
-        }
         val checkMinted: Expr[List[Data] => Unit] = rec[List[Data], Unit] { self =>
           lam { minted =>
             // Value: List[(CurrencySymbol, List[(TokenName, Amount)])]
             // head: (CurrencySymbol, List[(TokenName, Amount)])
             val head = headList.apply(minted)
-            // List(CurrencySymbol, List[(TokenName, Amount)])
-            val curSymTokenPair: Expr[List[Data]] = sndPair(unConstrData.apply(head))
-            val curSym = unBData.apply(headList(curSymTokenPair))
+            val curSym =
+              unBData.apply(field[(CurrencySymbol, List[(TokenName, BigInt)])](_._1).apply(head))
             // List[(TokenName, Amount): Data]
-            val tokens = unListData.apply(headList(tailList(curSymTokenPair)))
+            val tokens =
+              unListData.apply(
+                field[(CurrencySymbol, List[(TokenName, BigInt)])](_._2).apply(head)
+              )
 
             val checkTokens: Expr[List[Data] => Unit] = rec[List[Data], Unit] { self =>
               lam { tokens =>
+                // (TokenName, BigInt)
                 val head = headList.apply(tokens)
-                val tokenAmountPair: Expr[List[Data]] = sndPair(unConstrData.apply(head))
-                val token = unBData.apply(headList(tokenAmountPair))
-                val amount = unIData.apply(headList(tailList(tokenAmountPair)))
+                val token = unBData.apply(field[(TokenName, BigInt)](_._1).apply(head))
+                val amount = unIData.apply(field[(TokenName, BigInt)](_._2).apply(head))
                 !ifThenElse(token =*= tokenName)(
                   ifThenElse(amount === BigInt(1))(~())(error)
                 ) {

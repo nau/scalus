@@ -48,7 +48,15 @@ object Macros {
             Block(List(DefDef(_, _, _, Some(select @ Select(_, fieldName)))), _)
           ) =>
         def genGetter(typeSymbolOfA: Symbol, fieldName: String): Expr[Exp[Data] => Exp[Data]] =
-          val fieldOpt = typeSymbolOfA.caseFields.zipWithIndex.find(_._1.name == fieldName)
+          val fieldOpt: Option[(Symbol, Int)] =
+            if typeSymbolOfA == TypeRepr.of[Tuple2].typeSymbol then
+              fieldName match
+                case "_1" => typeSymbolOfA.caseFields.find(_.name == fieldName).map(s => (s, 0))
+                case "_2" => typeSymbolOfA.caseFields.find(_.name == fieldName).map(s => (s, 1))
+                case _ =>
+                  report.errorAndAbort("Unexpected field name for Tuple2 type: " + fieldName)
+            else typeSymbolOfA.caseFields.zipWithIndex.find(_._1.name == fieldName)
+          report.info(s"$typeSymbolOfA => fieldOpt: $fieldOpt")
           fieldOpt match
             case Some((fieldSym: Symbol, idx)) =>
               val idxExpr = Expr(idx)
