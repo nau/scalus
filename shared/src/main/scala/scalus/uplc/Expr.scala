@@ -41,6 +41,11 @@ object ExprBuilder:
   def let[A, B](expr: Expr[A])(f: Expr[A] => Expr[B]): Expr[B] = lam[A]("let")[B](f)(expr)
 
   // Z Combinator
+  val ZTerm: Term = λ("ff") {
+    val zz = λ("xx")(Term.Var("ff") $ λ("vv")(Term.Var("xx") $ Term.Var("xx") $ Term.Var("vv")))
+    zz $ zz
+  }
+  def Z[A, B]: Expr[((A => B) => A => B) => A => B] = Expr(ZTerm)
   def z[A, B](f: Expr[(A => B) => A => B]): Expr[A => B] =
     // (lam ff [(lam xx [ff (lam vv [xx xx vv])]) (lam xx [ff (lam vv [xx xx vv])])])
     val Z: Term = λ("ff") {
@@ -49,10 +54,10 @@ object ExprBuilder:
     }
 
     // app(ZCombinator, lam(funcName, r))
-    Expr(Z $ f.term)
+    Expr(ZTerm $ f.term)
 
   def rec[A, B](f: Expr[A => B] => Expr[A => B]): Expr[A => B] =
-    z(lam[A => B]("self")(self => f.apply(self)))
+    Z(lam[A => B]("self")(self => f.apply(self)))
 
   def ifThenElse[A](cond: Expr[Boolean])(t: Expr[Delayed[A]])(
       f: Expr[Delayed[A]]
@@ -206,7 +211,7 @@ object Example:
         val txId = unBData(field[TxOutRef](_.txOutRefId).apply(txInInfoOutRef))
         val idx = unIData.apply(field[TxOutRef](_.txOutRefIdx).apply(txInInfoOutRef))
 
-        val checkMinted: Expr[List[Data] => Unit] = rec[List[Data], Unit] { self =>
+        val checkMinted: Expr[List[Data] => Unit] = Z[List[Data], Unit].apply(lam { checkMinted =>
           lam { minted =>
             // Value: List[(CurrencySymbol, List[(TokenName, Amount)])]
             // head: (CurrencySymbol, List[(TokenName, Amount)])
@@ -236,10 +241,10 @@ object Example:
             ifThenElse2(curSym =*= ownCurrencySymbol) {
               checkTokens(tokens)
             } {
-              self(tailList(minted))
+              checkMinted(tailList(minted))
             }
           }
-        }
+        })
 
         !ifThenElse(txId =*= txOutRef.txOutRefId.id)(
           ifThenElse(idx === txOutRef.txOutRefIdx)(

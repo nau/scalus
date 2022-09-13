@@ -437,7 +437,7 @@ class CekJVMSpec extends AnyFunSuite with ScalaCheckPropertyChecks with Arbitrar
     check("builtin/addInteger/addInteger")
     check("builtin/addInteger-uncurried/addInteger-uncurried")
     check("builtin/equalsInteger/equalsInteger")
-    check("builtin/ifThenElse/ifThenElse")
+    check("builtin/ifThenElse/ifThenElse1/ifThenElse1")
 
     // Examples
     check("example/factorial/factorial")
