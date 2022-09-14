@@ -621,7 +621,7 @@ class CekJVMSpec extends AnyFunSuite with ScalaCheckPropertyChecks with Arbitrar
     assert(flatValidator.length == 286)
   }
 
-  ignore("field macro test") {
+  ignore("fieldAsData macro test") {
     import Data.*
     import scalus.ledger.api.v1.*
     import scalus.utils.Utils.*
@@ -639,8 +639,8 @@ class CekJVMSpec extends AnyFunSuite with ScalaCheckPropertyChecks with Arbitrar
       TxId(hex"bb")
     )
     import ExprBuilder.*
-    val fee = unIData(field[TxInfo](_.txInfoFee).apply(Expr(txInfo.toData)))
-    val txId = unBData(field[TxInfo](_.txInfoId.id).apply(Expr(txInfo.toData)))
+    val fee = unIData(fieldAsData[TxInfo](_.txInfoFee).apply(Expr(txInfo.toData)))
+    val txId = unBData(fieldAsData[TxInfo](_.txInfoId).apply(Expr(txInfo.toData)))
     assert(Cek.evalUPLC(fee.term) == Const(asConstant(BigInt(123))))
     assert(Cek.evalUPLC(txId.term) == Const(asConstant(hex"bb")))
     println(txId)
@@ -648,7 +648,7 @@ class CekJVMSpec extends AnyFunSuite with ScalaCheckPropertyChecks with Arbitrar
 
   }
 
-  test("field2 macro test") {
+  test("field macro test") {
     import Data.*
     import scalus.ledger.api.v1.*
     import scalus.ledger.api.v1.Instances.given
@@ -656,9 +656,9 @@ class CekJVMSpec extends AnyFunSuite with ScalaCheckPropertyChecks with Arbitrar
 
     val txOutRef = TxOutRef(TxId(hex"bb"), 123)
     import ExprBuilder.*
-    val applied = field2[TxOutRef](_.txOutRefIdx).apply(Expr(txOutRef.toData))
+    val applied = field[TxOutRef](_.txOutRefIdx).apply(Expr(txOutRef.toData))
     assert(Cek.evalUPLC(applied.term) == Const(asConstant(BigInt(123))))
-    val applied2 = field2[TxOutRef](_.txOutRefId).apply(Expr(txOutRef.toData))
+    val applied2 = field[TxOutRef](_.txOutRefId).apply(Expr(txOutRef.toData))
     val aaa = unConstrData(applied2)
     assert(Cek.evalUPLC(applied2.term) == Const(asConstant(TxId(hex"bb").toData)))
 

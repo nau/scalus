@@ -119,16 +119,12 @@ object ExprBuilder:
     Term.Builtin(DefaultFun.EqualsByteString) $ lhs.term $ rhs.term
   )
 
-  inline def field[A: Data.ToData](inline expr: A => Any): Expr[Data] => Expr[Data] = ${
+  inline def fieldAsData[A: Data.ToData](inline expr: A => Any): Expr[Data] => Expr[Data] = ${
+    Macros.fieldAsDataMacro('expr)
+  }
+
+  transparent inline def field[A: Data.ToData](inline expr: A => Any): Any = ${
     Macros.fieldMacro('expr)
-  }
-
-  transparent inline def field2[A: Data.ToData](inline expr: A => Any): Any = ${
-    Macros.fieldMacro2('expr)
-  }
-
-  transparent inline def field3[A: Data.ToData](inline expr: A => Any): Any = ${
-    Macros.fieldMacro3('expr)
   }
 
   extension (lhs: Expr[BigInt])
@@ -166,7 +162,7 @@ object Example:
     lam { datum =>
       lam { ctx =>
         val txInfoOutputs =
-          field[ScriptContext](_.scriptContextTxInfo.txInfoOutputs).apply(ctx)
+          fieldAsData[ScriptContext](_.scriptContextTxInfo.txInfoOutputs).apply(ctx)
         val isTxInfoOutputsEmpty = nullList(unListData(txInfoOutputs))
         ifThenElse2(isTxInfoOutputsEmpty)(())(err)
       }
@@ -179,7 +175,7 @@ object Example:
       lam { datum =>
         lam { ctx =>
           val txInfoSignatories: Expr[List[Data]] = unListData(
-            field[ScriptContext](_.scriptContextTxInfo.txInfoSignatories).apply(ctx)
+            fieldAsData[ScriptContext](_.scriptContextTxInfo.txInfoSignatories).apply(ctx)
           )
 
           val search = rec[List[Data], Unit] { self =>
@@ -202,18 +198,19 @@ object Example:
   def mintingPolicyScript(txOutRef: TxOutRef, tokenName: TokenName): Expr[Unit => Data => Unit] =
     lam { redeemer =>
       lam { ctx =>
-        val txInfo: Expr[Data] = field[ScriptContext](_.scriptContextTxInfo).apply(ctx)
+        val txInfo: Expr[Data] = fieldAsData[ScriptContext](_.scriptContextTxInfo).apply(ctx)
         val purpose: Expr[Data] =
-          field[ScriptContext](_.scriptContextPurpose).apply(ctx)
+          fieldAsData[ScriptContext](_.scriptContextPurpose).apply(ctx)
         val ownCurrencySymbol =
-          unBData.apply(field[ScriptPurpose.Minting](_.curSymbol).apply(purpose))
+          unBData.apply(fieldAsData[ScriptPurpose.Minting](_.curSymbol).apply(purpose))
         val minted: Expr[List[Data]] = unListData(
-          field[TxInfo](_.txInfoMint).apply(txInfo)
+          fieldAsData[TxInfo](_.txInfoMint).apply(txInfo)
         )
-        val ref: Expr[Data] = headList(unListData(field[TxInfo](_.txInfoInputs).apply(txInfo)))
-        val txInInfoOutRef: Expr[Data] = field[TxInInfo](_.txInInfoOutRef).apply(ref)
-        val txId = unBData(field[TxOutRef](_.txOutRefId).apply(txInInfoOutRef))
-        val idx = field3[TxOutRef](_.txOutRefIdx).apply(txInInfoOutRef).asInstanceOf[Expr[BigInt]]
+        val ref: Expr[Data] =
+          headList(unListData(fieldAsData[TxInfo](_.txInfoInputs).apply(txInfo)))
+        val txInInfoOutRef: Expr[Data] = fieldAsData[TxInInfo](_.txInInfoOutRef).apply(ref)
+        val txId = unBData(fieldAsData[TxOutRef](_.txOutRefId).apply(txInInfoOutRef))
+        val idx = field[TxOutRef](_.txOutRefIdx).apply(txInInfoOutRef).asInstanceOf[Expr[BigInt]]
 
         val checkMinted: Expr[List[Data] => Unit] = Z[List[Data], Unit].apply(lam { checkMinted =>
           lam { minted =>
@@ -221,19 +218,21 @@ object Example:
             // head: (CurrencySymbol, List[(TokenName, Amount)])
             val head = headList.apply(minted)
             val curSym =
-              unBData.apply(field[(CurrencySymbol, List[(TokenName, BigInt)])](_._1).apply(head))
+              unBData.apply(
+                fieldAsData[(CurrencySymbol, List[(TokenName, BigInt)])](_._1).apply(head)
+              )
             // List[(TokenName, Amount): Data]
             val tokens =
               unListData.apply(
-                field[(CurrencySymbol, List[(TokenName, BigInt)])](_._2).apply(head)
+                fieldAsData[(CurrencySymbol, List[(TokenName, BigInt)])](_._2).apply(head)
               )
 
             val checkTokens: Expr[List[Data] => Unit] = rec[List[Data], Unit] { self =>
               lam { tokens =>
                 // (TokenName, BigInt)
                 val head = headList.apply(tokens)
-                val token = unBData.apply(field[(TokenName, BigInt)](_._1).apply(head))
-                val amount = unIData.apply(field[(TokenName, BigInt)](_._2).apply(head))
+                val token = unBData.apply(fieldAsData[(TokenName, BigInt)](_._1).apply(head))
+                val amount = unIData.apply(fieldAsData[(TokenName, BigInt)](_._2).apply(head))
                 !ifThenElse(token =*= tokenName)(
                   ifThenElse(amount === BigInt(1))(~())(error)
                 ) {
@@ -250,7 +249,7 @@ object Example:
           }
         })
 
-        !ifThenElse(txId =*= txOutRef.txOutRefId.id)(
+        !ifThenElse(txId =*= txOutRef.txOutRefId.hash)(
           ifThenElse(idx === txOutRef.txOutRefIdx)(
             ~checkMinted(minted)
           )(error)

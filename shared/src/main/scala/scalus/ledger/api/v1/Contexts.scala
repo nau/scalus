@@ -12,8 +12,8 @@ type CurrencySymbol = Array[Byte]
 type TokenName = Array[Byte]
 type POSIXTime = BigInt
 type POSIXTimeRange = Interval[POSIXTime]
-opaque type AssocMap[K, V] = List[(K, V)]
-opaque type Value = AssocMap[CurrencySymbol, AssocMap[TokenName, BigInt]]
+type AssocMap[K, V] = List[(K, V)]
+type Value = AssocMap[CurrencySymbol, AssocMap[TokenName, BigInt]]
 object Value:
   val zero: Value = List.empty
   def apply(cs: CurrencySymbol, tn: TokenName, v: BigInt): Value = List((cs, List((tn, v))))
@@ -24,10 +24,7 @@ object Instances:
   import scalus.uplc.Data.toData
 
   given ToData[TxId] with
-    def toData(a: TxId): Data = a.id.toData
-
-  given ToData[Value] with
-    def toData(a: Value): Data = Value.asLists(a).toData
+    def toData(a: TxId): Data = a.hash.toData
 
   given ToData[PubKeyHash] with
     def toData(a: PubKeyHash): Data = a.hash.toData
@@ -100,9 +97,15 @@ enum DCert:
   case Genesis
   case Mir
 
-case class TxId(id: Array[Byte]) {
-  override def toString = s"TxId(${bytesToHex(id)})"
+opaque type TxId = Array[Byte]
+object TxId:
+  def apply(bytes: Array[Byte]): TxId = bytes
+  def unapply(txId: TxId): Option[Array[Byte]] = Some(txId)
+extension (t: TxId) {
+  def hash: Array[Byte] = t
+  def toString = s"TxId(${bytesToHex(t)})"
 }
+
 /*
 data TxOutRef = TxOutRef {
     txOutRefId  :: TxId,
