@@ -127,6 +127,10 @@ object ExprBuilder:
     Macros.fieldMacro2('expr)
   }
 
+  transparent inline def field3[A: Data.ToData](inline expr: A => Any): Any = ${
+    Macros.fieldMacro3('expr)
+  }
+
   extension (lhs: Expr[BigInt])
     @targetName("plus")
     def |+|(rhs: Expr[BigInt]): Expr[BigInt] = addInteger(lhs)(rhs)
@@ -209,7 +213,7 @@ object Example:
         val ref: Expr[Data] = headList(unListData(field[TxInfo](_.txInfoInputs).apply(txInfo)))
         val txInInfoOutRef: Expr[Data] = field[TxInInfo](_.txInInfoOutRef).apply(ref)
         val txId = unBData(field[TxOutRef](_.txOutRefId).apply(txInInfoOutRef))
-        val idx = unIData.apply(field[TxOutRef](_.txOutRefIdx).apply(txInInfoOutRef))
+        val idx = field3[TxOutRef](_.txOutRefIdx).apply(txInInfoOutRef).asInstanceOf[Expr[BigInt]]
 
         val checkMinted: Expr[List[Data] => Unit] = Z[List[Data], Unit].apply(lam { checkMinted =>
           lam { minted =>

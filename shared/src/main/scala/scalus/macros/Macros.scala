@@ -56,7 +56,7 @@ object Macros {
                 case _ =>
                   report.errorAndAbort("Unexpected field name for Tuple2 type: " + fieldName)
             else typeSymbolOfA.caseFields.zipWithIndex.find(_._1.name == fieldName)
-          report.info(s"$typeSymbolOfA => fieldOpt: $fieldOpt")
+//          report.info(s"$typeSymbolOfA => fieldOpt: $fieldOpt")
           fieldOpt match
             case Some((fieldSym: Symbol, idx)) =>
               val idxExpr = Expr(idx)
@@ -101,8 +101,8 @@ object Macros {
           case Some((fieldSym: Symbol, idx)) =>
             val idxExpr = Expr(idx)
             val fieldType = tpe.memberType(fieldSym).dealias
-            val asdf = TypeRepr.of[Unlift].appliedTo(fieldType)
-            Implicits.search(asdf) match
+            val unliftFieldTypeRepr = TypeRepr.of[Unlift].appliedTo(fieldType)
+            Implicits.search(unliftFieldTypeRepr) match
               case success: ImplicitSearchSuccess =>
                 val expr = success.tree
                 val exprType = expr.tpe
@@ -110,7 +110,9 @@ object Macros {
                 val exprStr = expr.show
                 val impl = success.tree.asExpr.asInstanceOf[Expr[Unlift[Any]]]
                 val unlift: Expr[Exp[Data => Any]] = '{ $impl.unlift }
-//                report.errorAndAbort(s"found implicit: $exprTypeStr $exprStr")
+                report.info(
+                  s"found implicit of type ${unliftFieldTypeRepr.show} => $exprStr: $exprTypeStr"
+                )
                 '{
                   var expr: Exp[Data] => Exp[List[Data]] = d => sndPair(unConstrData(d))
                   var i = 0
@@ -132,6 +134,82 @@ object Macros {
                 }
           case None =>
             report.errorAndAbort("fieldMacro: " + fieldName)
+      case x => report.errorAndAbort(x.toString)
+
+  def fieldMacro3[A: Type](e: Expr[A => Any])(using Quotes): Expr[Exp[Data] => Exp[Any]] =
+    import quotes.reflect.*
+    e.asTerm match
+      case Inlined(
+            _,
+            _,
+            Block(List(DefDef(_, _, _, Some(select @ Select(_, fieldName)))), _)
+          ) =>
+        def genGetter(
+            typeSymbolOfA: Symbol,
+            fieldName: String
+        ): (Symbol, Expr[Exp[Data] => Exp[Data]]) =
+          val fieldOpt: Option[(Symbol, Int)] =
+            if typeSymbolOfA == TypeRepr.of[Tuple2].typeSymbol then
+              fieldName match
+                case "_1" => typeSymbolOfA.caseFields.find(_.name == fieldName).map(s => (s, 0))
+                case "_2" => typeSymbolOfA.caseFields.find(_.name == fieldName).map(s => (s, 1))
+                case _ =>
+                  report.errorAndAbort("Unexpected field name for Tuple2 type: " + fieldName)
+            else typeSymbolOfA.caseFields.zipWithIndex.find(_._1.name == fieldName)
+          fieldOpt match
+            case Some((fieldSym: Symbol, idx)) =>
+              val idxExpr = Expr(idx)
+              (
+                fieldSym,
+                '{
+                  var expr: Exp[Data] => Exp[List[Data]] = d => sndPair(unConstrData(d))
+                  var i = 0
+                  while i < $idxExpr do
+                    val exp = expr // save the current expr, otherwise it will loop forever
+                    expr = d => tailList(exp(d))
+                    i += 1
+                  (d: Exp[Data]) => headList(expr(d))
+                }
+              )
+            case None =>
+              report.errorAndAbort("fieldMacro: " + fieldName)
+
+        def composeGetters(tree: Tree): (TypeRepr, Expr[Exp[Data] => Exp[Data]]) = tree match
+          case Select(select @ Select(_, _), fieldName) =>
+            val (_, a) = genGetter(select.tpe.typeSymbol, fieldName)
+            val (s, b) = composeGetters(select)
+            (s, '{ $a compose $b })
+          case Select(ident @ Ident(_), fieldName) =>
+            val (fieldSym, f) = genGetter(ident.tpe.typeSymbol, fieldName)
+            val fieldType = ident.tpe.memberType(fieldSym).dealias
+            (fieldType, f)
+          case _ =>
+            report.errorAndAbort(
+              s"field macro supports only this form: _.caseClassField1.field2, but got " + tree.show
+            )
+
+        val (fieldType, getter) = composeGetters(select)
+        val unliftTypeRepr = TypeRepr.of[Unlift].appliedTo(fieldType)
+        /*report.info(
+          s"composeGetters: fieldType = ${fieldType.show} unliftTypeRepr = ${unliftTypeRepr.show}, detailed fieldType: $fieldType"
+        )*/
+        Implicits.search(unliftTypeRepr) match
+          case success: ImplicitSearchSuccess =>
+            unliftTypeRepr.asType match
+              case '[Unlift[t]] =>
+                val expr = success.tree
+                val impl = success.tree.asExpr
+                /*report
+                  .info(
+                    s"found implicit ${unliftTypeRepr.show} => ${expr.show}: ${expr.tpe.show}"
+                  )*/
+                '{ (d: Exp[Data]) =>
+                  ExprBuilder
+                    .app($impl.asInstanceOf[Unlift[t]].unlift, $getter(d))
+                }
+          case failure: ImplicitSearchFailure =>
+            report.info(s"not found implicit of type ${unliftTypeRepr.show}")
+            '{ $getter }
       case x => report.errorAndAbort(x.toString)
 
 }
