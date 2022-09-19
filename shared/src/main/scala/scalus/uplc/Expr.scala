@@ -36,8 +36,8 @@ object ExprBuilder:
   inline def asExpr[A](inline e: A): Expr[A] = ${ Macros.asExprMacro('e) }
   def delay[A](x: Expr[A]): Expr[Delayed[A]] = Expr(Term.Delay(x.term))
   def force[A](x: Expr[Delayed[A]]): Expr[A] = Expr(Term.Force(x.term))
-  def error: Expr[Delayed[Nothing]] = Expr(Term.Delay(Term.Error))
-  def err: Expr[Nothing] = Expr(Term.Error)
+  def error(msg: String): Expr[Delayed[Nothing]] = Expr(Term.Delay(Term.Error(msg)))
+  def err(msg: String): Expr[Nothing] = Expr(Term.Error(msg))
   def let[A, B](expr: Expr[A])(f: Expr[A] => Expr[B]): Expr[B] = lam[A]("let")[B](f)(expr)
 
   // Z Combinator
@@ -164,7 +164,7 @@ object Example:
         val txInfoOutputs =
           fieldAsData[ScriptContext](_.scriptContextTxInfo.txInfoOutputs).apply(ctx)
         val isTxInfoOutputsEmpty = nullList(unListData(txInfoOutputs))
-        ifThenElse2(isTxInfoOutputsEmpty)(())(err)
+        ifThenElse2(isTxInfoOutputsEmpty)(())(err("Tx has outputs"))
       }
     }
   }
@@ -183,7 +183,7 @@ object Example:
               // signatories.head.pubKeyHash
               val head = headList.apply(signatories)
               val headPubKeyHash = unBData(head)
-              !chooseList(signatories)(error) {
+              !chooseList(signatories)(error("Signature not found")) {
                 ~ifThenElse2(equalsByteString(headPubKeyHash)(pkh.hash))(()) {
                   self(tailList(signatories))
                 }
@@ -234,7 +234,7 @@ object Example:
                 val token = unBData.apply(fieldAsData[(TokenName, BigInt)](_._1).apply(head))
                 val amount = unIData.apply(fieldAsData[(TokenName, BigInt)](_._2).apply(head))
                 !ifThenElse(token =*= tokenName)(
-                  ifThenElse(amount === BigInt(1))(~())(error)
+                  ifThenElse(amount === BigInt(1))(~())(error("Amount is not 1"))
                 ) {
                   ~self(tailList(tokens))
                 }
@@ -252,8 +252,8 @@ object Example:
         !ifThenElse(txId =*= txOutRef.txOutRefId.hash)(
           ifThenElse(idx === txOutRef.txOutRefIdx)(
             ~checkMinted(minted)
-          )(error)
-        )(error)
+          )(error("Wrong TxOutRef index"))
+        )(error("Wrong TxOutRef Tx id"))
       }
     }
 

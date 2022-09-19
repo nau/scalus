@@ -118,7 +118,7 @@ trait ArbitraryInstances:
     val constGen: Gen[Term] = for c <- Arbitrary.arbitrary[Constant] yield Term.Const(c)
 
     def sizedTermGen(sz: Int): Gen[Term] =
-      val simple = Gen.oneOf(varGen, Gen.const(Term.Error), builtinGen, constGen)
+      val simple = Gen.oneOf(varGen, Gen.const(Term.Error("error")), builtinGen, constGen)
       if sz <= 0 then simple
       else
         Gen.frequency(
@@ -265,7 +265,7 @@ class UplcParserSpec extends AnyFunSuite with ScalaCheckPropertyChecks with Arbi
     val r = parser.parseProgram("(program 1.0.0 (force (delay (error))))")
     assert(
       r == Right(
-        Program(version = (1, 0, 0), term = Force(Delay(Error)))
+        Program(version = (1, 0, 0), term = Force(Delay(Error("error"))))
       )
     )
   }

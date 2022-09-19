@@ -19,7 +19,7 @@ enum Term:
   case Delay(term: Term) extends Term
   case Const(const: Constant) extends Term
   case Builtin(bn: DefaultFun) extends Term
-  case Error extends Term
+  case Error(msg: String) extends Term
 
   def pretty: Doc = this match
     case Var(name) => Doc.text(name)
@@ -36,7 +36,7 @@ enum Term:
       Doc.text("(") + Doc.text("delay") + Doc.text(" ") + term.pretty + Doc.text(")")
     case Const(const) => Doc.text("(") + Doc.text("con") + Doc.space + const.pretty + Doc.text(")")
     case Builtin(bn)  => Doc.text("(") + Doc.text("builtin") + Doc.space + bn.pretty + Doc.text(")")
-    case Error        => Doc.text("(error)")
+    case Error(_)     => Doc.text("(error)")
 
 object TermDSL:
   def applyToList(app: Term): (Term, immutable.List[Term]) =
