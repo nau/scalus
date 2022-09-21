@@ -3,6 +3,9 @@ package scalus.flat
 import org.scalacheck.{Arbitrary, Gen, Shrink}
 import org.scalatest.funsuite.AnyFunSuite
 import org.scalatestplus.scalacheck.ScalaCheckPropertyChecks
+import scalus.utils.Utils
+
+import scala.util.Random
 
 class FlatSpec extends AnyFunSuite with ScalaCheckPropertyChecks:
   test("Flat bits") {
@@ -42,4 +45,42 @@ class FlatSpec extends AnyFunSuite with ScalaCheckPropertyChecks:
         assert(decodedValue == vl)
       }
     }
+  }
+
+  test("encode/decode Array[Byte]") {
+    val fl = summon[Flat[Array[Byte]]]
+
+    {
+      val arr = Array.empty[Byte]
+      val enc = EncoderState(2)
+      fl.encode(arr, enc)
+      assert(Utils.bytesToHex(enc.result) == "0100")
+      val dec = DecoderState(enc.result)
+      assert(fl.decode(dec).length == 0)
+    }
+
+    {
+      val arr = Array[Byte](11, 22, 33)
+      val enc = EncoderState(6)
+      fl.encode(arr, enc)
+      assert(Utils.bytesToHex(enc.result) == "01030B162100")
+      val dec = DecoderState(enc.result)
+      assert(Utils.bytesToHex(fl.decode(dec)) == "0B1621")
+    }
+
+    def check(n: Int) =
+      val arr = new Array[Byte](n)
+      Random.nextBytes(arr)
+      val enc = EncoderState(fl.bitSize(arr) / 8 + 1)
+      fl.encode(arr, enc)
+      val result = enc.result
+      val dec = DecoderState(result)
+      val decoded = fl.decode(dec)
+      assert(decoded.sameElements(arr))
+
+    check(1)
+    check(255)
+    check(256)
+    check(510)
+    check(Random.between(1, 3 * 255))
   }
