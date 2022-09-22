@@ -52,6 +52,7 @@ class FlatSpec extends AnyFunSuite with ScalaCheckPropertyChecks:
 
     {
       val arr = Array.empty[Byte]
+      assert(fl.bitSize(arr) == 16)
       val enc = EncoderState(2)
       fl.encode(arr, enc)
       assert(Utils.bytesToHex(enc.result) == "0100")
@@ -61,6 +62,7 @@ class FlatSpec extends AnyFunSuite with ScalaCheckPropertyChecks:
 
     {
       val arr = Array[Byte](11, 22, 33)
+      assert(fl.bitSize(arr) == 5 * 8)
       val enc = EncoderState(6)
       fl.encode(arr, enc)
       assert(Utils.bytesToHex(enc.result) == "01030B162100")
@@ -112,6 +114,32 @@ class FlatSpec extends AnyFunSuite with ScalaCheckPropertyChecks:
     check(BigInt(-80), "9F01")
 
     forAll { (n: BigInt) =>
+      val enc = EncoderState(fl.bitSize(n) / 8 + 1)
+      fl.encode(n, enc)
+      val result = enc.result
+      val dec = DecoderState(result)
+      val decoded = fl.decode(dec)
+      assert(decoded == n)
+    }
+  }
+
+  test("encode/decode String") {
+    val fl = summon[Flat[String]]
+    assert(fl.bitSize("") == 16)
+    assert(fl.bitSize("aaa") == 6 * 8)
+
+    def check(n: String, encodedHex: String) =
+      val enc = EncoderState(fl.bitSize(n) / 8 + 1)
+      fl.encode(n, enc)
+      assert(Utils.bytesToHex(enc.result) == encodedHex)
+      val dec = DecoderState(enc.result)
+      assert(fl.decode(dec) == n)
+
+    check("", "0100")
+    check("a", "01016100")
+    check("Ї", "0102D08700")
+
+    forAll { (n: String) =>
       val enc = EncoderState(fl.bitSize(n) / 8 + 1)
       fl.encode(n, enc)
       val result = enc.result

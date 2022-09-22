@@ -1,5 +1,7 @@
 package scalus
 
+import scalus.flat.Flat
+
 package object flat:
 
   def byteAsBitString(b: Byte): String =
@@ -103,6 +105,14 @@ package object flat:
       r = r | (BigInt(w & 0x7f) << shl)
       zagZig(r)
 
+  given Flat[String] with
+    def bitSize(a: String): Int = byteArraySize(a.getBytes("UTF-8"))
+    def encode(a: String, encode: EncoderState): Unit =
+      summon[Flat[Array[Byte]]].encode(a.getBytes("UTF-8"), encode)
+
+    def decode(decode: DecoderState): String =
+      new String(summon[Flat[Array[Byte]]].decode(decode), "UTF-8")
+
   def w7l(n: BigInt): List[Byte] =
     val low = n & 0x7f
     val t = n >> 7
@@ -112,7 +122,7 @@ package object flat:
   def zagZig(u: BigInt) = u >> 1 ^ -(u & 1)
 
   private def arrayBlocks(len: Int): Int =
-    Math.ceil(len / 255).toInt + 1
+    if len > 0 then len / 255 + 1 else 0
 
   private def byteArraySize(arr: Uint8Array): Int =
     val numBytes = arr.length + arrayBlocks(arr.length) + 1 + 1 // +1 for pre-align, +1 for end
