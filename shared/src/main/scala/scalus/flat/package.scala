@@ -79,6 +79,38 @@ package object flat:
       decode.currPtr += decoderOffset + 1
       result
 
+  given Flat[BigInt] with
+    def bitSize(a: BigInt): Int =
+      val vs = w7l(zigZag(a))
+      vs.length * 8
+
+    // Encoded as: data NonEmptyList = Elem Word7 | Cons Word7 NonEmptyList
+    def encode(a: BigInt, encode: EncoderState): Unit =
+      val vs = w7l(zigZag(a))
+      var i = 0
+      while i < vs.length do
+        encode.bits(8, vs(i))
+        i += 1
+    def decode(decode: DecoderState): BigInt =
+      var w = decode.bits8(8)
+      var r = BigInt(0)
+      var shl = 0
+      while (w & 0x80) != 0 do
+        r = r | (BigInt(w & 0x7f) << shl)
+        shl += 7
+        w = decode.bits8(8)
+
+      r = r | (BigInt(w & 0x7f) << shl)
+      zagZig(r)
+
+  def w7l(n: BigInt): List[Byte] =
+    val low = n & 0x7f
+    val t = n >> 7
+    if t == 0 then low.toByte :: Nil else (low | 0x80).toByte :: w7l(t)
+
+  def zigZag(x: BigInt) = if x >= 0 then x << 1 else -(x << 1) - 1
+  def zagZig(u: BigInt) = u >> 1 ^ -(u & 1)
+
   private def arrayBlocks(len: Int): Int =
     Math.ceil(len / 255).toInt + 1
 

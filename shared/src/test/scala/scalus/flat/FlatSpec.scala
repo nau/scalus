@@ -84,3 +84,39 @@ class FlatSpec extends AnyFunSuite with ScalaCheckPropertyChecks:
     check(510)
     check(Random.between(1, 3 * 255))
   }
+
+  test("Zagzig/zigZag") {
+    forAll { (n: BigInt) =>
+      assert(zagZig(zigZag(n)) == n)
+    }
+  }
+
+  test("encode/decode BigInt") {
+    val fl = summon[Flat[BigInt]]
+    assert(fl.bitSize(BigInt(0)) == 8)
+    assert(fl.bitSize(BigInt(1)) == 8)
+    assert(fl.bitSize(BigInt(-1)) == 8)
+    assert(fl.bitSize(BigInt(2) << 120) == 144)
+
+    def check(n: BigInt, encodedHex: String) =
+      val enc = EncoderState(fl.bitSize(n) / 8 + 1)
+      fl.encode(n, enc)
+      assert(Utils.bytesToHex(enc.result) == encodedHex)
+      val dec = DecoderState(enc.result)
+      assert(fl.decode(dec) == n)
+
+    check(BigInt(0), "00")
+    check(BigInt(1), "02")
+    check(BigInt(-1), "01")
+    check(BigInt(64), "8001")
+    check(BigInt(-80), "9F01")
+
+    forAll { (n: BigInt) =>
+      val enc = EncoderState(fl.bitSize(n) / 8 + 1)
+      fl.encode(n, enc)
+      val result = enc.result
+      val dec = DecoderState(result)
+      val decoded = fl.decode(dec)
+      assert(decoded == n)
+    }
+  }
