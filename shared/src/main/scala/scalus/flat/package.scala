@@ -1,9 +1,14 @@
 package scalus
 
+import scala.collection.mutable.ListBuffer
+
 package object flat:
 
   def byteAsBitString(b: Byte): String =
     String.format("%8s", Integer.toBinaryString(b & 0xff)).replace(' ', '0')
+
+  def encode[A: Flat](a: A, enc: EncoderState): Unit = summon[Flat[A]].encode(a, enc)
+  def decode[A: Flat](dec: DecoderState): A = summon[Flat[A]].decode(dec)
 
   trait Flat[A]:
     def bitSize(a: A): Int
@@ -12,7 +17,7 @@ package object flat:
 
   given Flat[Unit] with
     def bitSize(a: Unit): Int = 0
-    def encode(a: Unit, encode: EncoderState): Unit = ()
+    def encode(a: Unit, encode: EncoderState): Unit = {}
     def decode(decode: DecoderState): Unit = ()
 
   given Flat[Boolean] with
@@ -31,7 +36,7 @@ package object flat:
     *
     * Array v = A0 \| A1 v (Array v) \| A2 v v (Array v) ... \| A255 ... (Array v)
     */
-  given Flat[Array[Byte]] with
+  class ArrayByteFlat extends Flat[Array[Byte]]:
     def bitSize(a: Array[Byte]): Int = byteArraySize(a)
     def encode(a: Array[Byte], enc: EncoderState): Unit =
       enc.filler() // pre-align
@@ -53,7 +58,7 @@ package object flat:
 
     def decode(decode: DecoderState): Array[Byte] =
       decode.filler()
-      def getSize =
+      val size =
         var numElems = decode.buffer(decode.currPtr) & 0xff
         var decoderOffset = numElems + 1
         var size = numElems
@@ -64,20 +69,18 @@ package object flat:
           decoderOffset += numElems + 1
         size
 
-      val result = new Array[Byte](getSize)
+      val result = new Array[Byte](size)
       var numElems = decode.buffer(decode.currPtr) & 0xff
-      var decoderOffset = 1
+      decode.currPtr += 1
       var resultOffset = 0
-      while numElems == 255 do
-        Array.copy(decode.buffer, decode.currPtr + decoderOffset, result, resultOffset, numElems)
-        decoderOffset += numElems
+      while numElems > 0 do
+        Array.copy(decode.buffer, decode.currPtr, result, resultOffset, numElems)
+        decode.currPtr += numElems
         resultOffset += numElems
-        numElems = decode.buffer(decode.currPtr + decoderOffset) & 0xff
-        decoderOffset += 1
-
-      Array.copy(decode.buffer, decode.currPtr + decoderOffset, result, resultOffset, numElems)
-      decode.currPtr += decoderOffset + 1
+        numElems = decode.buffer(decode.currPtr) & 0xff
+        decode.currPtr += 1
       result
+  given Flat[Array[Byte]] = ArrayByteFlat()
 
   given Flat[BigInt] with
     def bitSize(a: BigInt): Int =
@@ -109,7 +112,44 @@ package object flat:
       summon[Flat[Array[Byte]]].encode(a.getBytes("UTF-8"), encode)
 
     def decode(decode: DecoderState): String =
-      new String(summon[Flat[Array[Byte]]].decode(decode), "UTF-8")
+      val baDecoder = summon[Flat[Array[Byte]]]
+      val bytes = baDecoder.decode(decode)
+      new String(bytes, "UTF-8")
+
+  given listFlat[A: Flat]: Flat[List[A]] with
+    def bitSize(a: List[A]): Int =
+      val flat = summon[Flat[A]]
+      a.foldLeft(0)((acc, elem) => acc + flat.bitSize(elem) + 1)
+
+    def encode(a: List[A], encode: EncoderState): Unit =
+      val flat = summon[Flat[A]]
+      a.foreach { elem =>
+        encode.bits(1, 1)
+        flat.encode(elem, encode)
+      }
+      encode.bits(1, 0)
+
+    def decode(decode: DecoderState): List[A] =
+      val flat = summon[Flat[A]]
+      val result = ListBuffer.empty[A]
+      while decode.bits8(1) == 1 do {
+        val a = flat.decode(decode)
+        result.addOne(a)
+      }
+      result.toList
+
+  given pairFlat[A: Flat, B: Flat]: Flat[(A, B)] with
+    def bitSize(a: (A, B)): Int =
+      summon[Flat[A]].bitSize(a._1) + summon[Flat[B]].bitSize(a._2)
+
+    def encode(a: (A, B), encode: EncoderState): Unit =
+      summon[Flat[A]].encode(a._1, encode)
+      summon[Flat[B]].encode(a._2, encode)
+
+    def decode(decode: DecoderState): (A, B) =
+      val a = summon[Flat[A]].decode(decode)
+      val b = summon[Flat[B]].decode(decode)
+      (a, b)
 
   def w7l(n: BigInt): List[Byte] =
     val low = n & 0x7f
@@ -120,7 +160,8 @@ package object flat:
   def zagZig(u: BigInt) = u >> 1 ^ -(u & 1)
 
   private def arrayBlocks(len: Int): Int =
-    if len > 0 then len / 255 + 1 else 0
+    val d = len / 255
+    d + (if len % 255 == 0 then 0 else 1)
 
   private def byteArraySize(arr: Uint8Array): Int =
     val numBytes = arr.length + arrayBlocks(arr.length) + 1 + 1 // +1 for pre-align, +1 for end

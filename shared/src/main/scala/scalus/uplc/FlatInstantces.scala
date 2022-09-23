@@ -1,11 +1,53 @@
 package scalus.uplc
 
-import scalus.flat.{DecoderState, EncoderState, Flat}
+import io.bullet.borer.{Cbor, Decoder, Encoder}
+import scalus.flat
+import scalus.flat.{DecoderState, EncoderState, Flat, given}
 import scalus.uplc.DefaultFun.*
 
 object FlatInstantces:
   val constantWidth = 4
   val termTagWidth = 4
+
+  def flatForUni(uni: DefaultUni): Flat[Any] =
+    import DefaultUni.*
+    uni match
+      case Integer             => summon[Flat[BigInt]].asInstanceOf[Flat[Any]]
+      case ByteString          => summon[Flat[Array[Byte]]].asInstanceOf[Flat[Any]]
+      case String              => summon[Flat[String]].asInstanceOf[Flat[Any]]
+      case Unit                => summon[Flat[Unit]].asInstanceOf[Flat[Any]]
+      case Bool                => summon[Flat[Boolean]].asInstanceOf[Flat[Any]]
+      case Data                => summon[Flat[Data]].asInstanceOf[Flat[Any]]
+      case Apply(ProtoList, a) => listFlat(flatForUni(a)).asInstanceOf[Flat[Any]]
+      case Apply(Apply(ProtoPair, a), b) =>
+        pairFlat(flatForUni(a), flatForUni(b)).asInstanceOf[Flat[Any]]
+
+  def encodeUni(uni: DefaultUni): List[Int] =
+    uni match
+      case DefaultUni.Integer           => List(0)
+      case DefaultUni.ByteString        => List(1)
+      case DefaultUni.String            => List(2)
+      case DefaultUni.Unit              => List(3)
+      case DefaultUni.Bool              => List(4)
+      case DefaultUni.ProtoList         => List(5)
+      case DefaultUni.ProtoPair         => List(6)
+      case DefaultUni.Apply(uniF, uniA) => 7 :: encodeUni(uniF) ++ encodeUni(uniA)
+      case DefaultUni.Data              => List(8)
+
+  def decodeUni(state: List[Int]): (DefaultUni, List[Int]) =
+    state match
+      case 0 :: tail => (DefaultUni.Integer, tail)
+      case 1 :: tail => (DefaultUni.ByteString, tail)
+      case 2 :: tail => (DefaultUni.String, tail)
+      case 3 :: tail => (DefaultUni.Unit, tail)
+      case 4 :: tail => (DefaultUni.Bool, tail)
+      case 5 :: tail => (DefaultUni.ProtoList, tail)
+      case 6 :: tail => (DefaultUni.ProtoPair, tail)
+      case 7 :: tail =>
+        val (uniF, tail1) = decodeUni(tail)
+        val (uniA, tail2) = decodeUni(tail1)
+        (DefaultUni.Apply(uniF, uniA), tail2)
+      case 8 :: tail => (DefaultUni.Data, tail)
 
   given Flat[DefaultFun] with
     import Term.*
@@ -137,6 +179,49 @@ object FlatInstantces:
         case 53 => VerifySchnorrSecp256k1Signature
         case c  => throw new Exception(s"Invalid builtin function code: $c")
 
+  given Flat[Data] with
+    implicit val plutusDataCborEncoder: Encoder[Data] = PlutusDataCborEncoder
+    implicit val plutusDataCborDecoder: Decoder[Data] = PlutusDataCborDecoder
+
+    def bitSize(a: Data): Int = summon[Flat[Array[Byte]]].bitSize(Cbor.encode(a).toByteArray)
+
+    def encode(a: Data, encode: EncoderState): Unit =
+      flat.encode(Cbor.encode(a).toByteArray, encode)
+
+    def decode(decode: DecoderState): Data =
+      val bytes = summon[Flat[Array[Byte]]].decode(decode)
+      Cbor.decode(bytes).to[Data].value
+
+  given Flat[Constant] with
+
+    val constantTypeTagFlat = new Flat[Int]:
+      def bitSize(a: Int): Int = constantWidth
+
+      def encode(a: Int, encode: EncoderState): Unit = encode.bits(constantWidth, a.toByte)
+
+      def decode(decode: DecoderState): Int = decode.bits8(constantWidth)
+
+    def bitSize(a: Constant): Int =
+      val uniSize = encodeUni(
+        a.tpe
+      ).length * (1 + constantWidth) + 1 // List Cons (1 bit) + constant + List Nil (1 bit)
+      val valueSize = flatForUni(a.tpe).bitSize(Constant.toValue(a))
+      uniSize + valueSize
+
+    def encode(a: Constant, encoder: EncoderState): Unit =
+      val tags = encodeUni(a.tpe)
+      listFlat[Int](constantTypeTagFlat).encode(tags, encoder)
+      flatForUni(a.tpe).encode(Constant.toValue(a), encoder)
+
+    def decode(decoder: DecoderState): Constant =
+      import DefaultUni.*
+      val tags = listFlat[Int](constantTypeTagFlat).decode(decoder)
+      val (tpe, _) = decodeUni(tags)
+      val uniDecoder = flatForUni(tpe)
+      val decoded = uniDecoder.decode(decoder)
+      val result = Constant.fromValue(tpe, decoded)
+      result
+
   given Flat[Term] with
     import Term.*
 
@@ -150,6 +235,30 @@ object FlatInstantces:
       case Builtin(bn) => termTagWidth + summon[Flat[DefaultFun]].bitSize(bn)
       case Error(_)    => termTagWidth
 
-    def encode(a: Term, encode: EncoderState): Unit = ???
+    def encode(a: Term, enc: EncoderState): Unit =
+      a match
+        case Term.Var(name) =>
+          enc.bits(termTagWidth, 0)
+          ??? // flat.encode(name, enc)
+        case Term.Delay(term) =>
+          enc.bits(termTagWidth, 1)
+          encode(term, enc)
+        case Term.LamAbs(name, term) =>
+          enc.bits(termTagWidth, 2)
+          ??? // encode(term, enc)
+        case Term.Apply(f, arg) =>
+          enc.bits(termTagWidth, 3)
+          encode(f, enc); encode(arg, enc)
+        case Term.Const(const) =>
+          enc.bits(termTagWidth, 4)
+          flat.encode(const, enc)
+        case Term.Force(term) =>
+          enc.bits(termTagWidth, 5)
+          encode(term, enc)
+        case Term.Error(msg) =>
+          enc.bits(termTagWidth, 6)
+        case Term.Builtin(bn) =>
+          enc.bits(termTagWidth, 7)
+          flat.encode(bn, enc)
 
     def decode(decode: DecoderState): Term = ???

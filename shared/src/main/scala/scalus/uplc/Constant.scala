@@ -81,3 +81,32 @@ object Constant:
     def tpe = DefaultUni.Apply(DefaultUni.Apply(DefaultUni.ProtoPair, a.tpe), b.tpe)
     def prettyValue =
       Doc.text("(") + a.prettyValue + Doc.text(", ") + b.prettyValue + Doc.text(")")
+
+  def fromValue(tpe: DefaultUni, a: Any): Constant = tpe match {
+    case DefaultUni.Integer    => Integer(a.asInstanceOf[BigInt])
+    case DefaultUni.ByteString => ByteString(a.asInstanceOf[Array[Byte]])
+    case DefaultUni.String     => String(a.asInstanceOf[java.lang.String])
+    case DefaultUni.Unit       => Unit
+    case DefaultUni.Bool       => Bool(a.asInstanceOf[Boolean])
+    case DefaultUni.Data =>
+      Data(a.asInstanceOf[scalus.uplc.Data])
+      Pair(a.asInstanceOf[(Constant, Constant)]._1, a.asInstanceOf[(Constant, Constant)]._2)
+    case DefaultUni.Apply(DefaultUni.ProtoList, elemType) =>
+      List(elemType, a.asInstanceOf[Seq[Any]].toList.map(fromValue(elemType, _)))
+    case DefaultUni.Apply(DefaultUni.Apply(DefaultUni.ProtoPair, aType), bType) =>
+      Pair(
+        fromValue(aType, a.asInstanceOf[(Any, Any)]._1),
+        fromValue(bType, a.asInstanceOf[(Any, Any)]._2)
+      )
+    case _ => throw new IllegalArgumentException(s"Cannot convert $a to $tpe")
+  }
+
+  def toValue(c: Constant): Any = c match
+    case Integer(value)    => value
+    case ByteString(value) => value
+    case String(value)     => value
+    case Unit              => ()
+    case Bool(value)       => value
+    case Data(value)       => value
+    case List(_, value)    => value.map(toValue)
+    case Pair(a, b)        => (toValue(a), toValue(b))

@@ -27,9 +27,7 @@ enum Term:
       Doc.text("(") + Doc.text("lam") + Doc.space + Doc.text(name) + Doc.space + term.pretty + Doc
         .text(")")
     case a @ Apply(f, arg) =>
-      val (f, args) = TermDSL.applyToList(a)
-      Doc.text("[") + f.pretty + Doc.space + Doc.intercalate(Doc.space, args.map(_.pretty)) + Doc
-        .text("]")
+      Doc.text("[") + f.pretty + Doc.space + arg.pretty + Doc.text("]")
     case Force(term) =>
       Doc.text("(") + Doc.text("force") + Doc.text(" ") + term.pretty + Doc.text(")")
     case Delay(term) =>

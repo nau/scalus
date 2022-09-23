@@ -3,10 +3,8 @@ package scalus.flat
 import org.scalacheck.{Arbitrary, Gen, Shrink}
 import org.scalatest.funsuite.AnyFunSuite
 import org.scalatestplus.scalacheck.ScalaCheckPropertyChecks
+import scalus.uplc.{ArbitraryInstances, Constant, DefaultFun, DefaultUni, Term}
 import scalus.utils.Utils
-import scalus.uplc.Term
-import scalus.uplc.ArbitraryInstances
-import scalus.uplc.DefaultFun
 
 import scala.util.Random
 
@@ -65,7 +63,7 @@ class FlatSpec extends AnyFunSuite with ScalaCheckPropertyChecks with ArbitraryI
 
     {
       val arr = Array[Byte](11, 22, 33)
-      assert(fl.bitSize(arr) == 5 * 8)
+      assert(fl.bitSize(arr) == 6 * 8)
       val enc = EncoderState(6)
       fl.encode(arr, enc)
       assert(Utils.bytesToHex(enc.result) == "01030B162100")
@@ -88,6 +86,35 @@ class FlatSpec extends AnyFunSuite with ScalaCheckPropertyChecks with ArbitraryI
     check(256)
     check(510)
     check(Random.between(1, 3 * 255))
+
+    enum Val:
+      case Bit(b: Boolean)
+      case ByteArray(arr: Array[Byte])
+
+    given Arbitrary[Val] = Arbitrary(
+      Gen.oneOf(
+        Gen.oneOf(true, false).map(Val.Bit),
+        Gen.containerOf[Array, Byte](Arbitrary.arbitrary[Byte]).map(Val.ByteArray)
+      )
+    )
+    forAll { (v: List[Val]) =>
+      val size = v.map {
+        case Val.Bit(_)         => 1
+        case Val.ByteArray(arr) => summon[Flat[Array[Byte]]].bitSize(arr)
+      }.sum
+      val enc = new EncoderState(size / 8 + 1)
+      v.foreach {
+        case Val.Bit(b)         => summon[Flat[Boolean]].encode(b, enc)
+        case Val.ByteArray(arr) => summon[Flat[Array[Byte]]].encode(arr, enc)
+      }
+      enc.nextWord()
+      val result = enc.result
+      val dec = DecoderState(result)
+      v.foreach(_ match {
+        case Val.Bit(b)         => assert(summon[Flat[Boolean]].decode(dec) == b)
+        case Val.ByteArray(arr) => assert(summon[Flat[Array[Byte]]].decode(dec).sameElements(arr))
+      })
+    }
   }
 
   test("Zagzig/zigZag") {
@@ -153,8 +180,8 @@ class FlatSpec extends AnyFunSuite with ScalaCheckPropertyChecks with ArbitraryI
   }
 
   test("encode/decode DefaulnUni") {
-    import scalus.uplc.FlatInstantces.given
     import scalus.uplc.DefaultFun.*
+    import scalus.uplc.FlatInstantces.given
     val fl = summon[Flat[DefaultFun]]
     assert(fl.bitSize(AddInteger) == 7)
     forAll(Gen.oneOf(DefaultFun.values)) { (f: DefaultFun) =>
@@ -165,6 +192,49 @@ class FlatSpec extends AnyFunSuite with ScalaCheckPropertyChecks with ArbitraryI
       val dec = DecoderState(result)
       val decoded = fl.decode(dec)
       assert(decoded == f)
+    }
+  }
+
+  // List(String,List(String(皆션㔥䇧쳻쇆뤗뵻胂앸ፚ寭욅ꩵ쫶繬翼䛀輈)))
+
+  test("encode/decode Constant bug") {
+    import scalus.uplc.Constant.*
+    import scalus.uplc.FlatInstantces.given
+    val fl = summon[Flat[Constant]]
+    val value = List(
+      DefaultUni.Pair(DefaultUni.Integer, DefaultUni.String),
+      Pair(Integer(BigInt("3")), String("")) :: Nil
+    )
+//    assert(fl.bitSize(value) == 521)
+    val enc = EncoderState(fl.bitSize(value) / 8 + 10)
+    fl.encode(value, enc)
+    enc.nextWord()
+    val result = enc.result
+    val dec = DecoderState(result)
+    val decoded = fl.decode(dec)
+    assert(decoded == value)
+  }
+
+  test("encode/decode Constant") {
+    import scalus.uplc.Constant.*
+    import scalus.uplc.FlatInstantces.given
+    import scalus.uplc.Data.*
+    val fl = summon[Flat[Constant]]
+    assert(fl.bitSize(Constant.Unit) == 6)
+    assert(fl.bitSize(Constant.Bool(true)) == 7)
+    assert(fl.bitSize(Constant.Integer(1)) == 14)
+    assert(fl.bitSize(Constant.ByteString(Array.empty)) == 22)
+    assert(fl.bitSize(Constant.ByteString(Array(11, 22, 33))) == 54)
+    assert(fl.bitSize(Constant.String("Ї")) == 46)
+    assert(fl.bitSize(Constant.Data(1.toData)) == 38)
+    forAll { (c: Constant) =>
+      val enc = EncoderState(fl.bitSize(c) / 8 + 10)
+      fl.encode(c, enc)
+      enc.nextWord()
+      val result = enc.result
+      val dec = DecoderState(result)
+      val decoded = fl.decode(dec)
+      assert(decoded == c)
     }
   }
 

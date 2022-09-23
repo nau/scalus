@@ -426,7 +426,8 @@ class CekJVMSpec extends AnyFunSuite with ScalaCheckPropertyChecks with Arbitrar
     }
   }
 
-  test("conformance") {
+  // Apparently plutus-conformance doesn't exist on the Plutus V2 commit we're using
+  ignore("conformance") {
     def check(name: String) =
       val path =
         s"/Users/nau/projects/iohk/plutus/plutus-conformance/test-cases/uplc/evaluation"
