@@ -1,7 +1,5 @@
 package scalus
 
-import scalus.flat.Flat
-
 package object flat:
 
   def byteAsBitString(b: Byte): String =
@@ -135,8 +133,9 @@ package object flat:
     var currentByte: Int = 0
 
     def result: Array[Byte] =
-      val result = new Array[Byte](nextPtr)
-      System.arraycopy(buffer, 0, result, 0, nextPtr)
+      val len = if usedBits == 0 then nextPtr else nextPtr + 1
+      val result = new Array[Byte](len)
+      System.arraycopy(buffer, 0, result, 0, len)
       result
 
     override def toString: String =

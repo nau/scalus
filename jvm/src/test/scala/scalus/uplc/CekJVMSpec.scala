@@ -9,6 +9,7 @@ import scalus.uplc.DefaultUni.{Bool, ByteString, asConstant}
 import scalus.uplc.ExprBuilder.{sndPair, unConstrData}
 import scalus.uplc.Term.*
 import scalus.uplc.TermDSL.{*, given}
+import scalus.utils.Utils
 
 import java.io.{ByteArrayInputStream, ByteArrayOutputStream}
 import scala.collection.immutable
@@ -673,4 +674,11 @@ class CekJVMSpec extends AnyFunSuite with ScalaCheckPropertyChecks with Arbitrar
     println(Value.zero.toData)
     println(PubKeyHash(hex"deadbeef").toData)
 
+  }
+
+  test("Flat encoding playground") {
+    def printFlatTerm(term: Term) =
+      val ba = ExprBuilder.uplcToFlat(Program((1, 0, 0), term).pretty.render(80))
+      println(Utils.bytesToHex(ba))
+    printFlatTerm(Error("blah"))
   }

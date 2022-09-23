@@ -4,10 +4,13 @@ import org.scalacheck.{Arbitrary, Gen, Shrink}
 import org.scalatest.funsuite.AnyFunSuite
 import org.scalatestplus.scalacheck.ScalaCheckPropertyChecks
 import scalus.utils.Utils
+import scalus.uplc.Term
+import scalus.uplc.ArbitraryInstances
+import scalus.uplc.DefaultFun
 
 import scala.util.Random
 
-class FlatSpec extends AnyFunSuite with ScalaCheckPropertyChecks:
+class FlatSpec extends AnyFunSuite with ScalaCheckPropertyChecks with ArbitraryInstances:
   test("Flat bits") {
     val enc = new EncoderState(3)
     enc.bits(7, 64)
@@ -147,4 +150,27 @@ class FlatSpec extends AnyFunSuite with ScalaCheckPropertyChecks:
       val decoded = fl.decode(dec)
       assert(decoded == n)
     }
+  }
+
+  test("encode/decode DefaulnUni") {
+    import scalus.uplc.FlatInstantces.given
+    import scalus.uplc.DefaultFun.*
+    val fl = summon[Flat[DefaultFun]]
+    assert(fl.bitSize(AddInteger) == 7)
+    forAll(Gen.oneOf(DefaultFun.values)) { (f: DefaultFun) =>
+      val enc = EncoderState(1)
+      fl.encode(f, enc)
+      enc.nextWord()
+      val result = enc.result
+      val dec = DecoderState(result)
+      val decoded = fl.decode(dec)
+      assert(decoded == f)
+    }
+  }
+
+  test("encode/decode Term") {
+    import scalus.uplc.FlatInstantces.given
+    val fl = summon[Flat[Term]]
+    assert(fl.bitSize(Term.Error("")) == 4)
+
   }
