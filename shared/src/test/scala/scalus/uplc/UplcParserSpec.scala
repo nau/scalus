@@ -123,7 +123,8 @@ trait ArbitraryInstances:
       else
         Gen.frequency(
           (1, simple),
-          (1, Gen.oneOf(forceGen(sz), delayGen(sz), lamGen(sz), appGen(sz)))
+          (2, Gen.oneOf(forceGen(sz), delayGen(sz))),
+          (3, Gen.oneOf(lamGen(sz), appGen(sz)))
         )
 
     def forceGen(sz: Int): Gen[Term] = for t <- sizedTermGen(sz / 2) yield Term.Force(t)

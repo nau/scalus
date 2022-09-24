@@ -226,26 +226,28 @@ object FlatInstantces:
     import Term.*
 
     def bitSize(a: Term): Int = a match
-      //      case Var(_)      => constantWidth
-      //      case Const(_)    => constantWidth
-      case Apply(f, x) => bitSize(f) + bitSize(x)
-      //      case LamAbs(x, t) => bitSize(x) + bitSize(t)
-      case Force(term) => termTagWidth + bitSize(term)
-      case Delay(term) => termTagWidth + bitSize(term)
-      case Builtin(bn) => termTagWidth + summon[Flat[DefaultFun]].bitSize(bn)
-      case Error(_)    => termTagWidth
+      case Var(name) =>
+        // in Plutus See Note [Index (Word64) (de)serialized through Natural]
+        termTagWidth + summon[Flat[BigInt]].bitSize(BigInt(name.index))
+      case Const(c)     => termTagWidth + summon[Flat[Constant]].bitSize(c)
+      case Apply(f, x)  => termTagWidth + bitSize(f) + bitSize(x)
+      case LamAbs(x, t) => termTagWidth + bitSize(t)
+      case Force(term)  => termTagWidth + bitSize(term)
+      case Delay(term)  => termTagWidth + bitSize(term)
+      case Builtin(bn)  => termTagWidth + summon[Flat[DefaultFun]].bitSize(bn)
+      case Error(_)     => termTagWidth
 
     def encode(a: Term, enc: EncoderState): Unit =
       a match
         case Term.Var(name) =>
           enc.bits(termTagWidth, 0)
-          ??? // flat.encode(name, enc)
+          summon[Flat[BigInt]].encode(BigInt(name.index), enc)
         case Term.Delay(term) =>
           enc.bits(termTagWidth, 1)
           encode(term, enc)
         case Term.LamAbs(name, term) =>
           enc.bits(termTagWidth, 2)
-          ??? // encode(term, enc)
+          encode(term, enc)
         case Term.Apply(f, arg) =>
           enc.bits(termTagWidth, 3)
           encode(f, enc); encode(arg, enc)
@@ -261,4 +263,31 @@ object FlatInstantces:
           enc.bits(termTagWidth, 7)
           flat.encode(bn, enc)
 
-    def decode(decode: DecoderState): Term = ???
+    def decode(decoder: DecoderState): Term =
+      val tag = decoder.bits8(termTagWidth)
+      tag match
+        case 0 =>
+          val index = summon[Flat[BigInt]].decode(decoder).toInt
+          val name = s"i$index"
+          Term.Var(NamedDeBruijn(name, index.toInt))
+        case 1 =>
+          val term = decode(decoder)
+          Term.Delay(term)
+        case 2 =>
+          val term = decode(decoder)
+          // in plutus-core it's super-duper over complicated, but it all boils down to this
+          // https://github.com/input-output-hk/plutus/blob/a56c96598b4b25c9e28215214d25189331087244/plutus-core/plutus-core/src/PlutusCore/Flat.hs#L357
+          Term.LamAbs("i0", term)
+        case 3 =>
+          val f = decode(decoder)
+          val arg = decode(decoder)
+          Term.Apply(f, arg)
+        case 4 =>
+          Term.Const(flat.decode(decoder))
+        case 5 =>
+          val term = decode(decoder)
+          Term.Force(term)
+        case 6 =>
+          Term.Error("")
+        case 7 =>
+          Term.Builtin(flat.decode(decoder))

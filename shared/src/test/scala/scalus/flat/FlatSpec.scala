@@ -3,7 +3,7 @@ package scalus.flat
 import org.scalacheck.{Arbitrary, Gen, Shrink}
 import org.scalatest.funsuite.AnyFunSuite
 import org.scalatestplus.scalacheck.ScalaCheckPropertyChecks
-import scalus.uplc.{ArbitraryInstances, Constant, DefaultFun, DefaultUni, Term}
+import scalus.uplc.{ArbitraryInstances, Constant, DefaultFun, DefaultUni, NamedDeBruijn, Term}
 import scalus.utils.Utils
 
 import scala.util.Random
@@ -240,7 +240,39 @@ class FlatSpec extends AnyFunSuite with ScalaCheckPropertyChecks with ArbitraryI
 
   test("encode/decode Term") {
     import scalus.uplc.FlatInstantces.given
+    import scalus.uplc.Data.toData
     val fl = summon[Flat[Term]]
-    assert(fl.bitSize(Term.Error("")) == 4)
-
+    assert(fl.bitSize(Term.Error("any string")) == 4)
+    assert(fl.bitSize(Term.Var(NamedDeBruijn("any name", 12))) == 12)
+    // 4 bits for Const tag + 1 bit Cons of type tags list + 4 bits for Unit tag + 1 bit for Nil
+    assert(fl.bitSize(Term.Const(Constant.Unit)) == 10)
+    // 10 bits as above + 1 bit for Bool
+    assert(fl.bitSize(Term.Const(Constant.Bool(true))) == 11)
+    // 10 bits as above + 8 bit for small integer
+    assert(fl.bitSize(Term.Const(Constant.Integer(1))) == 18)
+    // 10 bits as above + 16 bits for 0 length byte array (as in Flat implementation)
+    assert(fl.bitSize(Term.Const(Constant.ByteString(Array.empty))) == 26)
+    assert(fl.bitSize(Term.Const(Constant.ByteString(Array(11, 22, 33)))) == 58)
+    assert(fl.bitSize(Term.Const(Constant.String("Ї"))) == 50)
+    assert(fl.bitSize(Term.Const(Constant.Data(1.toData))) == 42)
+    forAll { (t: Term) =>
+      // 1. Serialize initial Term
+      val enc = EncoderState(fl.bitSize(t) / 8 + 1)
+      fl.encode(t, enc)
+      enc.nextWord()
+      // 2. Deserialize Term with only indices in names
+      val result = enc.result
+      val dec = DecoderState(result)
+      val decoded = fl.decode(dec)
+      // 3. Serialize Term with only indices in names
+      val enc2 = EncoderState(fl.bitSize(decoded) / 8 + 1)
+      fl.encode(decoded, enc2)
+      enc2.nextWord()
+      val result2 = enc.result
+      // 4. Deserialize Term with only indices in names again
+      val dec2 = DecoderState(result2)
+      val decoded2 = fl.decode(dec2)
+      // 5. Compare
+      assert(decoded == decoded2)
+    }
   }
