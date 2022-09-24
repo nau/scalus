@@ -11,8 +11,11 @@ import scalus.utils.Utils.bytesToHex
 import java.util
 import scala.collection.immutable
 
+case class NamedDeBruijn(name: String, index: Int = 0):
+  override def toString: String = s"$name@$index"
+
 enum Term:
-  case Var(name: String) extends Term
+  case Var(name: NamedDeBruijn) extends Term
   case LamAbs(name: String, term: Term) extends Term
   case Apply(f: Term, arg: Term) extends Term
   case Force(term: Term) extends Term
@@ -22,7 +25,7 @@ enum Term:
   case Error(msg: String) extends Term
 
   def pretty: Doc = this match
-    case Var(name) => Doc.text(name)
+    case Var(name) => Doc.text(name.name)
     case LamAbs(name, term) =>
       Doc.text("(") + Doc.text("lam") + Doc.space + Doc.text(name) + Doc.space + term.pretty + Doc
         .text(")")

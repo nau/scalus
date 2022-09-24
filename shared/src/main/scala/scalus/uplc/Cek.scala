@@ -62,8 +62,8 @@ object Cek:
       case FrameForce(ctx)              => forceEvaluate(ctx, value)
       case NoFrame                      => dischargeCekValue(value)
 
-  def lookupVarName(env: CekValEnv, name: String): CekValue = env.collectFirst {
-    case (n, v) if n == name => v
+  def lookupVarName(env: CekValEnv, name: NamedDeBruijn): CekValue = env.collectFirst {
+    case (n, v) if n == name.name => v
   }.get
 
   def applyEvaluate(ctx: Context, fun: CekValue, arg: CekValue): Term =

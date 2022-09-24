@@ -28,7 +28,7 @@ object ExprBuilder:
   given liftableToExpr[A: LiftValue]: Conversion[A, Expr[A]] = const
 
   def const[A: LiftValue](a: A): Expr[A] = Expr(Term.Const(summon[LiftValue[A]].lift(a)))
-  def vr[A](name: String): Expr[A] = Expr(Term.Var(name))
+  def vr[A](name: String): Expr[A] = Expr(Term.Var(NamedDeBruijn(name)))
   def app[A, B](f: Expr[A => B], x: Expr[A]): Expr[B] = Expr(Term.Apply(f.term, x.term))
   def lam[A](name: String): [B] => (Expr[A] => Expr[B]) => Expr[A => B] = [B] =>
     (f: Expr[A] => Expr[B]) => Expr(Term.LamAbs(name, f(vr(name)).term))
@@ -42,14 +42,26 @@ object ExprBuilder:
 
   // Z Combinator
   val ZTerm: Term = λ("ff") {
-    val zz = λ("xx")(Term.Var("ff") $ λ("vv")(Term.Var("xx") $ Term.Var("xx") $ Term.Var("vv")))
+    val zz = λ("xx")(
+      Term.Var(NamedDeBruijn("ff")) $ λ("vv")(
+        Term.Var(NamedDeBruijn("xx")) $ Term.Var(NamedDeBruijn("xx")) $ Term.Var(
+          NamedDeBruijn("vv")
+        )
+      )
+    )
     zz $ zz
   }
   def Z[A, B]: Expr[((A => B) => A => B) => A => B] = Expr(ZTerm)
   def z[A, B](f: Expr[(A => B) => A => B]): Expr[A => B] =
     // (lam ff [(lam xx [ff (lam vv [xx xx vv])]) (lam xx [ff (lam vv [xx xx vv])])])
     val Z: Term = λ("ff") {
-      val zz = λ("xx")(Term.Var("ff") $ λ("vv")(Term.Var("xx") $ Term.Var("xx") $ Term.Var("vv")))
+      val zz = λ("xx")(
+        Term.Var(NamedDeBruijn("ff")) $ λ("vv")(
+          Term.Var(NamedDeBruijn("xx")) $ Term.Var(NamedDeBruijn("xx")) $ Term.Var(
+            NamedDeBruijn("vv")
+          )
+        )
+      )
       zz $ zz
     }
 

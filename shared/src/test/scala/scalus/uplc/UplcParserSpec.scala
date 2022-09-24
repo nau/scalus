@@ -113,7 +113,7 @@ trait ArbitraryInstances:
         .listOfN(n, Gen.oneOf(Gen.alphaNumChar, Gen.const("_"), Gen.const("'")))
         .map(_.mkString)
     yield alpha + rest
-    val varGen = nameGen.map(Var.apply)
+    val varGen = nameGen.map(n => Var(NamedDeBruijn(n)))
     val builtinGen: Gen[Term] = for b <- Gen.oneOf(DefaultFun.values) yield Term.Builtin(b)
     val constGen: Gen[Term] = for c <- Arbitrary.arbitrary[Constant] yield Term.Const(c)
 
@@ -167,7 +167,7 @@ class UplcParserSpec extends AnyFunSuite with ScalaCheckPropertyChecks with Arbi
     val r = parser.parseProgram("(program 1.0.0 x )")
     assert(
       r == Right(
-        Program(version = (1, 0, 0), term = Var("x"))
+        Program(version = (1, 0, 0), term = Var(NamedDeBruijn("x")))
       )
     )
   }
@@ -176,7 +176,7 @@ class UplcParserSpec extends AnyFunSuite with ScalaCheckPropertyChecks with Arbi
     val r = parser.parseProgram("(program 1.0.0 (lam x x) )")
     assert(
       r == Right(
-        Program(version = (1, 0, 0), term = LamAbs("x", Var("x")))
+        Program(version = (1, 0, 0), term = LamAbs("x", Var(NamedDeBruijn("x"))))
       )
     )
   }
@@ -185,7 +185,13 @@ class UplcParserSpec extends AnyFunSuite with ScalaCheckPropertyChecks with Arbi
     val r = parser.parseProgram("(program 1.0.0 [(lam x x) y z])")
     assert(
       r == Right(
-        Program(version = (1, 0, 0), term = Apply(Apply(LamAbs("x", Var("x")), Var("y")), Var("z")))
+        Program(
+          version = (1, 0, 0),
+          term = Apply(
+            Apply(LamAbs("x", Var(NamedDeBruijn("x"))), Var(NamedDeBruijn("y"))),
+            Var(NamedDeBruijn("z"))
+          )
+        )
       )
     )
   }
@@ -285,7 +291,7 @@ class UplcParserSpec extends AnyFunSuite with ScalaCheckPropertyChecks with Arbi
       r == Right(
         Program(
           version = (1, 0, 0),
-          term = Apply(LamAbs("x", Var("x")), Const(Constant.Integer(BigInt(0))))
+          term = Apply(LamAbs("x", Var(NamedDeBruijn("x"))), Const(Constant.Integer(BigInt(0))))
         )
       )
     )

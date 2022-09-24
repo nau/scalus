@@ -109,7 +109,7 @@ object UplcParser:
       case ((major, minor), patch) => (major, minor, patch)
     }
 
-  def varTerm: P[Var] = lexeme(name).map(Var.apply)
+  def varTerm: P[Var] = lexeme(name).map(n => Var(NamedDeBruijn(n)))
 
   def term: P[Term] = P.recursive { self =>
     def lamTerm = inParens(symbol("lam") ~ lexeme(name) ~ self) map { case ((_, name), term) =>

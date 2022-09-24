@@ -454,7 +454,7 @@ class CekJVMSpec extends AnyFunSuite with ScalaCheckPropertyChecks with Arbitrar
     // it's a gift to the validators community
     val validator = λ("redeemer", "datum", "ctx") {
       // ScriptContext{scriptContextTxInfo :: TxInfo, scriptContextPurpose :: ScriptPurpose }
-      val scriptContext = DefaultFun.UnConstrData $ Var("ctx")
+      val scriptContext = DefaultFun.UnConstrData $ Var(NamedDeBruijn("ctx"))
       // ScriptContext args
       val ctxArgs = !(!DefaultFun.SndPair) $ scriptContext
       // second in the list

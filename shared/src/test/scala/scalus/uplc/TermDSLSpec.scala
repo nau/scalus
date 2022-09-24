@@ -103,6 +103,12 @@ class TermDSLSpec extends AnyFunSuite with ScalaCheckPropertyChecks with Arbitra
 
   test("pretty Apply") {
     val t =
-      Term.Apply(Term.Apply(Term.Apply(Term.Var("f"), Term.Var("x")), Term.Var("y")), Term.Var("z"))
+      Term.Apply(
+        Term.Apply(
+          Term.Apply(Term.Var(NamedDeBruijn("f")), Term.Var(NamedDeBruijn("x"))),
+          Term.Var(NamedDeBruijn("y"))
+        ),
+        Term.Var(NamedDeBruijn("z"))
+      )
     assert(t.pretty.render(80) == "[[[f x] y] z]")
   }

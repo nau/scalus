@@ -48,6 +48,6 @@ object Main:
   def main(args: Array[String]): Unit =
     println("Scalus Hello World")
     val h = Const(DefaultUni.asConstant("Hello"))
-    val id = LamAbs("x", Var("x"))
+    val id = LamAbs("x", Var(NamedDeBruijn("x")))
     val app = Apply(id, h)
     println(Cek.evalUPLC(app))

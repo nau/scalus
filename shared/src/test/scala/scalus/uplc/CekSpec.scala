@@ -9,7 +9,7 @@ import scala.io.Source.fromFile
 class CekSpec extends AnyFunSuite:
   test("Scalus") {
     val h = Const(asConstant("Hello"))
-    val id = LamAbs("x", Var("x"))
+    val id = LamAbs("x", Var(NamedDeBruijn("x")))
     val app = Apply(id, h)
     assert(Cek.evalUPLC(app) == h)
   }
