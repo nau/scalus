@@ -195,26 +195,6 @@ class FlatSpec extends AnyFunSuite with ScalaCheckPropertyChecks with ArbitraryI
     }
   }
 
-  // List(String,List(String(皆션㔥䇧쳻쇆뤗뵻胂앸ፚ寭욅ꩵ쫶繬翼䛀輈)))
-
-  test("encode/decode Constant bug") {
-    import scalus.uplc.Constant.*
-    import scalus.uplc.FlatInstantces.given
-    val fl = summon[Flat[Constant]]
-    val value = List(
-      DefaultUni.Pair(DefaultUni.Integer, DefaultUni.String),
-      Pair(Integer(BigInt("3")), String("")) :: Nil
-    )
-//    assert(fl.bitSize(value) == 521)
-    val enc = EncoderState(fl.bitSize(value) / 8 + 10)
-    fl.encode(value, enc)
-    enc.nextWord()
-    val result = enc.result
-    val dec = DecoderState(result)
-    val decoded = fl.decode(dec)
-    assert(decoded == value)
-  }
-
   test("encode/decode Constant") {
     import scalus.uplc.Constant.*
     import scalus.uplc.FlatInstantces.given
@@ -257,7 +237,7 @@ class FlatSpec extends AnyFunSuite with ScalaCheckPropertyChecks with ArbitraryI
     assert(fl.bitSize(Term.Const(Constant.Data(1.toData))) == 42)
     forAll { (t: Term) =>
       // 1. Serialize initial Term
-      val enc = EncoderState(fl.bitSize(t) / 8 + 1)
+      val enc = EncoderState(fl.bitSize(t) / 8 + 2)
       fl.encode(t, enc)
       enc.nextWord()
       // 2. Deserialize Term with only indices in names
@@ -265,7 +245,7 @@ class FlatSpec extends AnyFunSuite with ScalaCheckPropertyChecks with ArbitraryI
       val dec = DecoderState(result)
       val decoded = fl.decode(dec)
       // 3. Serialize Term with only indices in names
-      val enc2 = EncoderState(fl.bitSize(decoded) / 8 + 1)
+      val enc2 = EncoderState(fl.bitSize(decoded) / 8 + 2)
       fl.encode(decoded, enc2)
       enc2.nextWord()
       val result2 = enc.result

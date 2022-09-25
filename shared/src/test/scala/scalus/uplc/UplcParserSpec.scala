@@ -113,32 +113,42 @@ trait ArbitraryInstances:
         .listOfN(n, Gen.oneOf(Gen.alphaNumChar, Gen.const("_"), Gen.const("'")))
         .map(_.mkString)
     yield alpha + rest
-    val varGen = nameGen.map(n => Var(NamedDeBruijn(n)))
+
+    def varGen(env: immutable.List[String]) = Gen.oneOf(env).map(n => Var(NamedDeBruijn(n)))
     val builtinGen: Gen[Term] = for b <- Gen.oneOf(DefaultFun.values) yield Term.Builtin(b)
     val constGen: Gen[Term] = for c <- Arbitrary.arbitrary[Constant] yield Term.Const(c)
 
-    def sizedTermGen(sz: Int): Gen[Term] =
-      val simple = Gen.oneOf(varGen, Gen.const(Term.Error("error")), builtinGen, constGen)
+    def sizedTermGen(sz: Int, env: immutable.List[String]): Gen[Term] =
+      val maybeVarTerm = if env.isEmpty then Seq.empty else Seq(varGen(env))
+      val simple = Gen.oneOf(
+        Gen.const(Term.Error("error")),
+        builtinGen,
+        (Seq(constGen) ++ maybeVarTerm): _*
+      )
       if sz <= 0 then simple
       else
         Gen.frequency(
           (1, simple),
-          (2, Gen.oneOf(forceGen(sz), delayGen(sz))),
-          (3, Gen.oneOf(lamGen(sz), appGen(sz)))
+          (2, Gen.oneOf(forceGen(sz, env), delayGen(sz, env))),
+          (3, Gen.oneOf(lamGen(sz, env), appGen(sz, env)))
         )
 
-    def forceGen(sz: Int): Gen[Term] = for t <- sizedTermGen(sz / 2) yield Term.Force(t)
-    def delayGen(sz: Int): Gen[Term] = for t <- sizedTermGen(sz / 2) yield Term.Delay(t)
-    def lamGen(sz: Int): Gen[Term] = for
+    def forceGen(sz: Int, env: immutable.List[String]): Gen[Term] =
+      for t <- sizedTermGen(sz / 2, env)
+      yield Term.Force(t)
+    def delayGen(sz: Int, env: immutable.List[String]): Gen[Term] =
+      for t <- sizedTermGen(sz / 2, env)
+      yield Term.Delay(t)
+    def lamGen(sz: Int, env: immutable.List[String]): Gen[Term] = for
       name <- nameGen
-      t <- sizedTermGen(sz / 2)
+      t <- sizedTermGen(sz / 2, name :: env)
     yield Term.LamAbs(name, t)
-    def appGen(sz: Int): Gen[Term] = for
-      t1 <- sizedTermGen(sz / 2)
-      t2 <- sizedTermGen(sz / 2)
+    def appGen(sz: Int, env: immutable.List[String]): Gen[Term] = for
+      t1 <- sizedTermGen(sz / 2, env)
+      t2 <- sizedTermGen(sz / 2, env)
     yield Term.Apply(t1, t2)
 
-    Gen.sized(sizedTermGen)
+    Gen.sized(sizedTermGen(_, Nil))
   }
 
   implicit lazy val arbitraryProgram: Arbitrary[Program] = Arbitrary {
