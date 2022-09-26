@@ -1,5 +1,6 @@
 package scalus.uplc
 
+import io.bullet.borer.{Cbor, Encoder}
 import org.typelevel.paiges.Doc
 import scalus.utils.Utils
 
@@ -70,7 +71,10 @@ object Constant:
 
   case class Data(value: scalus.uplc.Data) extends Constant:
     def tpe = DefaultUni.Data
-    def prettyValue = Doc.text(value.toString)
+    def prettyValue =
+      implicit val encoder = PlutusDataCborEncoder
+      val byteArray = Cbor.encode(value).toByteArray
+      Doc.text("#" + Utils.bytesToHex(byteArray))
 
   case class List(elemType: DefaultUni, value: immutable.List[Constant]) extends Constant:
     def tpe = DefaultUni.Apply(DefaultUni.ProtoList, elemType)
@@ -90,7 +94,6 @@ object Constant:
     case DefaultUni.Bool       => Bool(a.asInstanceOf[Boolean])
     case DefaultUni.Data =>
       Data(a.asInstanceOf[scalus.uplc.Data])
-      Pair(a.asInstanceOf[(Constant, Constant)]._1, a.asInstanceOf[(Constant, Constant)]._2)
     case DefaultUni.Apply(DefaultUni.ProtoList, elemType) =>
       List(elemType, a.asInstanceOf[Seq[Any]].toList.map(fromValue(elemType, _)))
     case DefaultUni.Apply(DefaultUni.Apply(DefaultUni.ProtoPair, aType), bType) =>

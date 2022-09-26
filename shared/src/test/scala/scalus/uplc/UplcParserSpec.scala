@@ -64,7 +64,7 @@ trait ArbitraryInstances:
       val simple = Gen.oneOf(
         DefaultUni.Bool,
         DefaultUni.ByteString,
-        //      DefaultUni.Data,
+        DefaultUni.Data,
         DefaultUni.Integer,
         DefaultUni.String,
         DefaultUni.Unit
@@ -83,6 +83,7 @@ trait ArbitraryInstances:
       case DefaultUni.Integer    => Arbitrary.arbitrary[BigInt].map(Constant.Integer.apply)
       case DefaultUni.ByteString => Arbitrary.arbitrary[Array[Byte]].map(Constant.ByteString.apply)
       case DefaultUni.String     => Arbitrary.arbitrary[String].map(Constant.String.apply)
+      case DefaultUni.Data       => Arbitrary.arbitrary[Data].map(Constant.Data.apply)
       case DefaultUni.Unit       => Gen.const(Constant.Unit)
       case DefaultUni.Bool       => Gen.oneOf(Constant.Bool(true), Constant.Bool(false))
       case DefaultUni.Apply(ProtoList, arg) =>
