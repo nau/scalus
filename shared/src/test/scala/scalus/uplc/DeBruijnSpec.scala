@@ -28,9 +28,7 @@ class DeBruijnSpec extends AnyFunSuite with ScalaCheckPropertyChecks with Arbitr
   test("fromDeBruijnTerm(deBruijnTerm(t)) == t") {
     forAll { (t: Term) =>
       val deBruijnedTerm = DeBruijn.deBruijnTerm(t)
-      println(deBruijnedTerm)
       val namedTerm = DeBruijn.fromDeBruijnTerm(deBruijnedTerm)
-      println(namedTerm)
       val deBruijnedTerm2 = DeBruijn.deBruijnTerm(namedTerm)
       val namedTerm2 = DeBruijn.fromDeBruijnTerm(deBruijnedTerm2)
       assert(namedTerm == namedTerm2)

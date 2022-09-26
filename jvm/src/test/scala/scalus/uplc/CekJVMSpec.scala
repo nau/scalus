@@ -27,7 +27,7 @@ class CekJVMSpec extends AnyFunSuite with ScalaCheckPropertyChecks with Arbitrar
     import scala.sys.process.*
     val cmd = "/Users/nau/projects/scalus/uplc evaluate"
     val out = cmd.#<(new ByteArrayInputStream(code.getBytes("UTF-8"))).!!
-    println(out)
+//    println(out)
     UplcParser.term
       .parse(out)
       .map(_._2)
@@ -664,22 +664,4 @@ class CekJVMSpec extends AnyFunSuite with ScalaCheckPropertyChecks with Arbitrar
     val aaa = unConstrData(applied2)
     assert(Cek.evalUPLC(applied2.term) == Const(asConstant(TxId(hex"bb").toData)))
 
-  }
-
-  test("toData implementations") {
-    import Data.*
-    import scalus.ledger.api.v1.*
-    import scalus.ledger.api.v1.Instances.given
-    import scalus.utils.Utils.*
-
-    println(Value.zero.toData)
-    println(PubKeyHash(hex"deadbeef").toData)
-
-  }
-
-  test("Flat encoding playground") {
-    def printFlatTerm(term: Term) =
-      val ba = ExprBuilder.uplcToFlat(Program((1, 0, 0), term).pretty.render(80))
-      println(Utils.bytesToHex(ba))
-    printFlatTerm(Error("blah"))
   }

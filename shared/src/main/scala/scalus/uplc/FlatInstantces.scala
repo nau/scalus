@@ -2,7 +2,7 @@ package scalus.uplc
 
 import io.bullet.borer.{Cbor, Decoder, Encoder}
 import scalus.flat
-import scalus.flat.{DecoderState, EncoderState, Flat, given}
+import scalus.flat.{DecoderState, EncoderState, Flat, Natural, given}
 import scalus.uplc.DefaultFun.*
 
 object FlatInstantces:
@@ -228,7 +228,7 @@ object FlatInstantces:
     def bitSize(a: Term): Int = a match
       case Var(name) =>
         // in Plutus See Note [Index (Word64) (de)serialized through Natural]
-        termTagWidth + summon[Flat[BigInt]].bitSize(BigInt(name.index))
+        termTagWidth + summon[Flat[Natural]].bitSize(Natural(BigInt(name.index)))
       case Const(c)     => termTagWidth + summon[Flat[Constant]].bitSize(c)
       case Apply(f, x)  => termTagWidth + bitSize(f) + bitSize(x)
       case LamAbs(x, t) => termTagWidth + bitSize(t)
@@ -241,7 +241,7 @@ object FlatInstantces:
       a match
         case Term.Var(name) =>
           enc.bits(termTagWidth, 0)
-          summon[Flat[BigInt]].encode(BigInt(name.index), enc)
+          summon[Flat[Natural]].encode(Natural(BigInt(name.index)), enc)
         case Term.Delay(term) =>
           enc.bits(termTagWidth, 1)
           encode(term, enc)
@@ -267,9 +267,9 @@ object FlatInstantces:
       val tag = decoder.bits8(termTagWidth)
       tag match
         case 0 =>
-          val index = summon[Flat[BigInt]].decode(decoder).toInt
+          val index = summon[Flat[Natural]].decode(decoder).n.toInt
           val name = s"i$index"
-          Term.Var(NamedDeBruijn(name, index.toInt))
+          Term.Var(NamedDeBruijn(name, index))
         case 1 =>
           val term = decode(decoder)
           Term.Delay(term)
@@ -291,3 +291,24 @@ object FlatInstantces:
           Term.Error("")
         case 7 =>
           Term.Builtin(flat.decode(decoder))
+
+  given Flat[Program] with
+    val fn = summon[Flat[Natural]]
+    def bitSize(a: Program): Int =
+      fn.bitSize(Natural(BigInt(a.version._1))) +
+        fn.bitSize(Natural(BigInt(a.version._2))) +
+        fn.bitSize(Natural(BigInt(a.version._3))) +
+        summon[Flat[Term]].bitSize(a.term)
+
+    def encode(a: Program, enc: EncoderState): Unit =
+      fn.encode(Natural(BigInt(a.version._1)), enc)
+      fn.encode(Natural(BigInt(a.version._2)), enc)
+      fn.encode(Natural(BigInt(a.version._3)), enc)
+      flat.encode(a.term, enc)
+
+    def decode(decoder: DecoderState): Program =
+      val v1 = fn.decode(decoder).n.toInt
+      val v2 = fn.decode(decoder).n.toInt
+      val v3 = fn.decode(decoder).n.toInt
+      val term = flat.decode[Term](decoder)
+      Program((v1, v2, v3), term)

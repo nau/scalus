@@ -12,6 +12,7 @@ import java.util
 import scala.collection.immutable
 
 case class NamedDeBruijn(name: String, index: Int = 0):
+  assert(index >= 0)
   override def toString: String = s"$name@$index"
 
 enum Term:

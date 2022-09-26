@@ -3,6 +3,7 @@ package scalus
 import scala.collection.mutable.ListBuffer
 
 package object flat:
+  case class Natural(n: BigInt)
 
   def byteAsBitString(b: Byte): String =
     String.format("%8s", Integer.toBinaryString(b & 0xff)).replace(' ', '0')
@@ -105,6 +106,31 @@ package object flat:
 
       r = r | (BigInt(w & 0x7f) << shl)
       zagZig(r)
+
+  given Flat[Natural] with
+    def bitSize(a: Natural): Int =
+      val vs = w7l(a.n)
+      vs.length * 8
+
+    // Encoded as: data NonEmptyList = Elem Word7 | Cons Word7 NonEmptyList
+    def encode(a: Natural, encode: EncoderState): Unit =
+      val vs = w7l(a.n)
+      var i = 0
+      while i < vs.length do
+        encode.bits(8, vs(i))
+        i += 1
+
+    def decode(decode: DecoderState): Natural =
+      var w = decode.bits8(8)
+      var r = BigInt(0)
+      var shl = 0
+      while (w & 0x80) != 0 do
+        r = r | (BigInt(w & 0x7f) << shl)
+        shl += 7
+        w = decode.bits8(8)
+
+      r = r | (BigInt(w & 0x7f) << shl)
+      Natural(r)
 
   given Flat[String] with
     def bitSize(a: String): Int = byteArraySize(a.getBytes("UTF-8"))

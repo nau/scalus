@@ -97,9 +97,11 @@ This project seeks funding to make it production ready.
 Please, support my Catalyst Fund9 proposal: https://cardano.ideascale.com/c/idea/416933/ by voting!
 
 What you can play with:
-- CEK UPLC evaluation machine works on both JVM and JavaScript
-- UPLC parser and pretty printer works on both JVM and JavaScript
+- CEK UPLC evaluation machine works on both JVM and JavaScript (not all builtins are implemented yet)
+- textual UPLC parser and pretty printer works on both JVM and JavaScript
+- Flat UPLC serialization works on both JVM and JavaScript
 - CBOR serialization of Data works on both JVM and JavaScript
+- DeBruijn/unDeBruijn conversion works on both JVM and JavaScript
 - Type safe UPLC expression builder prototype works on both JVM and JavaScript
 - There are a couple of simple validators that can be used for real.
 - The PubKey validator is 95 bytes long! It's 20x smaller than the 1992 bytes long PlutusTx version!

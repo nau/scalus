@@ -1,9 +1,10 @@
 package scalus.flat
 
+import io.bullet.borer.Cbor
 import org.scalacheck.{Arbitrary, Gen, Shrink}
 import org.scalatest.funsuite.AnyFunSuite
 import org.scalatestplus.scalacheck.ScalaCheckPropertyChecks
-import scalus.uplc.{ArbitraryInstances, Constant, DefaultFun, DefaultUni, NamedDeBruijn, Term}
+import scalus.uplc.*
 import scalus.utils.Utils
 
 import scala.util.Random
@@ -197,8 +198,8 @@ class FlatSpec extends AnyFunSuite with ScalaCheckPropertyChecks with ArbitraryI
 
   test("encode/decode Constant") {
     import scalus.uplc.Constant.*
-    import scalus.uplc.FlatInstantces.given
     import scalus.uplc.Data.*
+    import scalus.uplc.FlatInstantces.given
     val fl = summon[Flat[Constant]]
     assert(fl.bitSize(Constant.Unit) == 6)
     assert(fl.bitSize(Constant.Bool(true)) == 7)
@@ -219,8 +220,8 @@ class FlatSpec extends AnyFunSuite with ScalaCheckPropertyChecks with ArbitraryI
   }
 
   test("encode/decode Term") {
-    import scalus.uplc.FlatInstantces.given
     import scalus.uplc.Data.toData
+    import scalus.uplc.FlatInstantces.given
     val fl = summon[Flat[Term]]
     assert(fl.bitSize(Term.Error("any string")) == 4)
     assert(fl.bitSize(Term.Var(NamedDeBruijn("any name", 12))) == 12)
