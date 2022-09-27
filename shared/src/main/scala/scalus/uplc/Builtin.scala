@@ -62,6 +62,20 @@ object Meaning:
           () => Cek.VCon(asConstant(aa * bb))
     )
   val DivideInteger =
+    import java.math.{BigDecimal, RoundingMode}
+    mkMeaning(
+      Integer ->: Integer ->: Integer,
+      (a: CekValue) =>
+        val VCon(Constant.Integer(aa)) = a
+        (b: CekValue) =>
+          val VCon(Constant.Integer(bb)) = b
+          () =>
+            val r = new BigDecimal(aa.bigInteger)
+              .divide(new BigDecimal(bb.bigInteger), RoundingMode.FLOOR)
+              .toBigInteger()
+            Cek.VCon(asConstant(BigInt(r)))
+    )
+  val QuotientInteger =
     mkMeaning(
       Integer ->: Integer ->: Integer,
       (a: CekValue) =>
@@ -242,7 +256,7 @@ object Meaning:
     (DefaultFun.SubtractInteger, Meaning.SubtractInteger),
     (DefaultFun.MultiplyInteger, Meaning.MultiplyInteger),
     (DefaultFun.DivideInteger, Meaning.DivideInteger),
-//    (DefaultFun.QuotientInteger, Meaning.QuotientInteger),
+    (DefaultFun.QuotientInteger, Meaning.QuotientInteger),
 //    (DefaultFun.RemainderInteger, Meaning.RemainderInteger),
 //    (DefaultFun.ModInteger, Meaning.ModInteger),
 

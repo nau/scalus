@@ -12,6 +12,7 @@ import scalus.uplc.TermDSL.{*, given}
 import scalus.utils.Utils
 
 import java.io.{ByteArrayInputStream, ByteArrayOutputStream}
+import java.math.RoundingMode
 import scala.collection.immutable
 import scala.io.Source.fromFile
 
@@ -84,11 +85,21 @@ class CekJVMSpec extends AnyFunSuite with ScalaCheckPropertyChecks with Arbitrar
   }
 
   test("DivideInteger") {
+    // integer division truncated toward negative infinity
+    assert(Cek.evalUPLC(DivideInteger $ 20 $ 3) == Const(Constant.Integer(6)))
+    assert(Cek.evalUPLC(DivideInteger $ -20 $ -3) == Const(Constant.Integer(6)))
+    assert(Cek.evalUPLC(DivideInteger $ 20 $ -3) == Const(Constant.Integer(-7)))
+    assert(Cek.evalUPLC(DivideInteger $ -20 $ 3) == Const(Constant.Integer(-7)))
+    assertThrows[BuiltinError](Cek.evalUPLC(DivideInteger $ 1 $ 0))
+  }
+
+  test("QuotientInteger") {
+    assert(Cek.evalUPLC(QuotientInteger $ -20 $ 3) == Const(Constant.Integer(-6)))
+    assertThrows[BuiltinError](Cek.evalUPLC(QuotientInteger $ 20 $ 0))
     forAll { (a: BigInt, b: BigInt) =>
-      println(s"$a / $b")
-      if b == 0 then assertThrows[BuiltinError](Cek.evalUPLC(DivideInteger $ a $ b))
+      if b == 0 then assertThrows[BuiltinError](Cek.evalUPLC(QuotientInteger $ a $ b))
       else
-        Cek.evalUPLC(DivideInteger $ a $ b) match
+        Cek.evalUPLC(QuotientInteger $ a $ b) match
           case Const(Constant.Integer(r)) => assert(r == (a / b))
           case r                          => fail(s"Expected true but got ${r.pretty.render(80)}")
     }
