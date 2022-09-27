@@ -84,6 +84,28 @@ object Meaning:
           val VCon(Constant.Integer(bb)) = b
           () => Cek.VCon(asConstant(aa / bb))
     )
+  val RemainderInteger =
+    mkMeaning(
+      Integer ->: Integer ->: Integer,
+      (a: CekValue) =>
+        val VCon(Constant.Integer(aa)) = a
+        (b: CekValue) =>
+          val VCon(Constant.Integer(bb)) = b
+          () => Cek.VCon(asConstant(aa % bb))
+    )
+  val ModInteger =
+    mkMeaning(
+      Integer ->: Integer ->: Integer,
+      (a: CekValue) =>
+        val VCon(Constant.Integer(aa)) = a
+        (b: CekValue) =>
+          val VCon(Constant.Integer(bb)) = b
+          () =>
+            /*divMod n d          =  if signum r == negate (signum d) then (q-1, r+d) else qr
+                                     where qr@(q,r) = quotRem n d */
+            val r = aa % bb
+            if r.signum == -bb.signum then Cek.VCon(asConstant(r + bb)) else Cek.VCon(asConstant(r))
+    )
   val EqualsInteger =
     mkMeaning(
       Integer ->: Integer ->: Bool,
@@ -257,9 +279,8 @@ object Meaning:
     (DefaultFun.MultiplyInteger, Meaning.MultiplyInteger),
     (DefaultFun.DivideInteger, Meaning.DivideInteger),
     (DefaultFun.QuotientInteger, Meaning.QuotientInteger),
-//    (DefaultFun.RemainderInteger, Meaning.RemainderInteger),
-//    (DefaultFun.ModInteger, Meaning.ModInteger),
-
+    (DefaultFun.RemainderInteger, Meaning.RemainderInteger),
+    (DefaultFun.ModInteger, Meaning.ModInteger),
     (DefaultFun.EqualsInteger, Meaning.EqualsInteger),
     (DefaultFun.LessThanEqualsInteger, Meaning.LessThanEqualsInteger),
     (DefaultFun.LessThanInteger, Meaning.LessThanInteger),

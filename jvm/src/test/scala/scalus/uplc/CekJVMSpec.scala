@@ -105,6 +105,51 @@ class CekJVMSpec extends AnyFunSuite with ScalaCheckPropertyChecks with Arbitrar
     }
   }
 
+  test("RemainderInteger") {
+    assert(Cek.evalUPLC(RemainderInteger $ 20 $ 3) == Const(Constant.Integer(2)))
+    assert(Cek.evalUPLC(RemainderInteger $ -20 $ 3) == Const(Constant.Integer(-2)))
+    assert(Cek.evalUPLC(RemainderInteger $ 20 $ -3) == Const(Constant.Integer(2)))
+    assert(Cek.evalUPLC(RemainderInteger $ -20 $ -3) == Const(Constant.Integer(-2)))
+    assertThrows[BuiltinError](Cek.evalUPLC(RemainderInteger $ 20 $ 0))
+    forAll { (a: BigInt, b: BigInt) =>
+      if b == 0 then assertThrows[BuiltinError](Cek.evalUPLC(RemainderInteger $ a $ b))
+      else
+        Cek.evalUPLC(RemainderInteger $ a $ b) match
+          case Const(Constant.Integer(r)) => assert(r == (a % b))
+          case r                          => fail(s"Expected true but got ${r.pretty.render(80)}")
+    }
+  }
+
+  test("ModInteger") {
+    assert(Cek.evalUPLC(ModInteger $ 20 $ 3) == Const(Constant.Integer(2)))
+    assert(Cek.evalUPLC(ModInteger $ -20 $ 3) == Const(Constant.Integer(1)))
+    assert(Cek.evalUPLC(ModInteger $ 20 $ -3) == Const(Constant.Integer(-1)))
+    assert(Cek.evalUPLC(ModInteger $ -20 $ -3) == Const(Constant.Integer(-2)))
+    assertThrows[BuiltinError](Cek.evalUPLC(ModInteger $ 20 $ 0))
+  }
+
+  test("(x `quot` y)*y + (x `rem` y) == x") {
+    forAll { (x: BigInt, y: BigInt) =>
+      whenever(y != 0) {
+        val q = Cek.evalUPLC(QuotientInteger $ x $ y)
+        val r = Cek.evalUPLC(RemainderInteger $ x $ y)
+        val x1 = Cek.evalUPLC(AddInteger $ (MultiplyInteger $ q $ y) $ r)
+        assert(x1 == Const(Constant.Integer(x)))
+      }
+    }
+  }
+
+  test("(x `div` y)*y + (x `mod` y) == x") {
+    forAll { (x: BigInt, y: BigInt) =>
+      whenever(y != 0) {
+        val q = Cek.evalUPLC(DivideInteger $ x $ y)
+        val r = Cek.evalUPLC(ModInteger $ x $ y)
+        val x1 = Cek.evalUPLC(AddInteger $ (MultiplyInteger $ q $ y) $ r)
+        assert(x1 == Const(Constant.Integer(x)))
+      }
+    }
+  }
+
   test("EqualsInteger") {
     def check(code: String, result: Boolean) =
       assert(evalUPLC(code) == Const(asConstant(result)))
@@ -633,7 +678,7 @@ class CekJVMSpec extends AnyFunSuite with ScalaCheckPropertyChecks with Arbitrar
       )
     )
 
-    assertThrows[UnexpectedBuiltinTermArgumentMachineError](
+    assertThrows[BuiltinError](
       Cek.evalUPLCProgram(
         appliedScript(
           scriptContext(TxInInfo(txOutRef, fakeTxOut) :: Nil, Value(hex"cc", hex"deadbeef", 1))
