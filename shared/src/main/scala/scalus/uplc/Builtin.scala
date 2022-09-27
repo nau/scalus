@@ -61,6 +61,15 @@ object Meaning:
           val VCon(Constant.Integer(bb)) = b
           () => Cek.VCon(asConstant(aa * bb))
     )
+  val DivideInteger =
+    mkMeaning(
+      Integer ->: Integer ->: Integer,
+      (a: CekValue) =>
+        val VCon(Constant.Integer(aa)) = a
+        (b: CekValue) =>
+          val VCon(Constant.Integer(bb)) = b
+          () => Cek.VCon(asConstant(aa / bb))
+    )
   val EqualsInteger =
     mkMeaning(
       Integer ->: Integer ->: Bool,
@@ -232,6 +241,11 @@ object Meaning:
     (DefaultFun.AddInteger, Meaning.AddInteger),
     (DefaultFun.SubtractInteger, Meaning.SubtractInteger),
     (DefaultFun.MultiplyInteger, Meaning.MultiplyInteger),
+    (DefaultFun.DivideInteger, Meaning.DivideInteger),
+//    (DefaultFun.QuotientInteger, Meaning.QuotientInteger),
+//    (DefaultFun.RemainderInteger, Meaning.RemainderInteger),
+//    (DefaultFun.ModInteger, Meaning.ModInteger),
+
     (DefaultFun.EqualsInteger, Meaning.EqualsInteger),
     (DefaultFun.LessThanEqualsInteger, Meaning.LessThanEqualsInteger),
     (DefaultFun.LessThanInteger, Meaning.LessThanInteger),

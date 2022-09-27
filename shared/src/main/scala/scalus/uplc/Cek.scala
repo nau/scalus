@@ -7,7 +7,8 @@ import scala.collection.immutable
 
 // TODO match Haskell errors
 class EvaluationFailure(msg: String) extends Exception(msg)
-class BuiltinError(term: Term) extends Exception(s"Error during builtin invocation: $term")
+class BuiltinError(term: Term, cause: Throwable)
+    extends Exception(s"Error during builtin invocation: $term", cause)
 
 class UnexpectedBuiltinTermArgumentMachineError(term: Term)
     extends Exception(s"Unexpected builtin term argument: $term")
@@ -133,5 +134,5 @@ object Cek:
         val f = runtime.f.asInstanceOf[() => CekValue]
 //        println(s"evaluating builtin $builtinName with runtime $runtime")
         try f()
-        catch case _: Throwable => throw new UnexpectedBuiltinTermArgumentMachineError(term)
+        catch case e: Throwable => throw new BuiltinError(term, e)
       case _ => VBuiltin(builtinName, term, runtime)

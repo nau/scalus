@@ -4,7 +4,7 @@ import org.scalatest.funsuite.AnyFunSuite
 import org.scalatestplus.scalacheck.ScalaCheckPropertyChecks
 import scalus.ledger.api.v1.*
 import scalus.uplc.Constant.Pair
-import scalus.uplc.DefaultFun.{AddInteger, EqualsInteger, SubtractInteger, UnConstrData}
+import scalus.uplc.DefaultFun.*
 import scalus.uplc.DefaultUni.{Bool, ByteString, asConstant}
 import scalus.uplc.ExprBuilder.{sndPair, unConstrData}
 import scalus.uplc.Term.*
@@ -80,6 +80,17 @@ class CekJVMSpec extends AnyFunSuite with ScalaCheckPropertyChecks with Arbitrar
           val r = aa - bb
           assert(Cek.evalUPLC(SubtractInteger $ a $ b) == Const(Constant.Integer(r)))
         case _ => assertThrows[Exception](Cek.evalUPLC(AddInteger $ a $ b))
+    }
+  }
+
+  test("DivideInteger") {
+    forAll { (a: BigInt, b: BigInt) =>
+      println(s"$a / $b")
+      if b == 0 then assertThrows[BuiltinError](Cek.evalUPLC(DivideInteger $ a $ b))
+      else
+        Cek.evalUPLC(DivideInteger $ a $ b) match
+          case Const(Constant.Integer(r)) => assert(r == (a / b))
+          case r                          => fail(s"Expected true but got ${r.pretty.render(80)}")
     }
   }
 
