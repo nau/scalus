@@ -46,7 +46,7 @@ object UplcParser:
     def pair = inParens(symbol("pair") *> self ~ self) map { case (a, b) =>
       DefaultUni.Apply(DefaultUni.Apply(ProtoPair, a), b)
     }
-    star | list.backtrack | pair
+    star.backtrack | list.backtrack | pair
   }
 
   def hexByte: P[Byte] = hexdig ~ hexdig map { case (a, b) =>
