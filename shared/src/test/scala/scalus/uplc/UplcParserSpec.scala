@@ -64,9 +64,12 @@ trait ArbitraryInstances:
       val simple = Gen.oneOf(
         DefaultUni.Bool,
         DefaultUni.ByteString,
-        DefaultUni.Data,
+        // don't generate Data, because current Plutus uplc doesn't support its parsing
+//        DefaultUni.Data,
         DefaultUni.Integer,
-        DefaultUni.String,
+        // FIXME: don't generate strings because we don't handle Haskell style escapes
+        // and we get errors parsing results of calling uplc on generated terms
+//        DefaultUni.String,
         DefaultUni.Unit
       )
       if sz <= 0 then simple

@@ -120,119 +120,41 @@ class CekBuiltinsSpec extends AnyFunSuite with ScalaCheckPropertyChecks with Arb
   }
 
   test("UnConstrData") {
-    assertEvalEq(
-      UnConstrData $ Data.Constr(12, 1 :: Nil),
-      Const(Pair(asConstant(12), Constant.List(DefaultUni.Data, List(Constant.Data(Data.I(1))))))
+    assert(
+      Cek.evalUPLC(UnConstrData $ Data.Constr(12, 1 :: Nil)) ==
+        Const(Pair(asConstant(12), Constant.List(DefaultUni.Data, List(Constant.Data(Data.I(1))))))
     )
-
-    forAll { (t: Data) =>
-      t match
-        case Data.Constr(constr, args) =>
-          assertEvalEq(
-            UnConstrData $ t,
-            Const(Pair(asConstant(constr), Constant.List(DefaultUni.Data, args.map(asConstant))))
-          )
-        case _ =>
-          assertEvalThrows[Exception](UnConstrData $ t)
-    }
-
-    // FIXME: now Arbitrary[Term] doesn't generate Data. When it does, update this test
-    forAll { (t: Term) =>
-      assertEvalThrows[Exception](UnConstrData $ t)
-    }
   }
 
   test("UnMapData") {
-    assertEvalEq(
-      UnMapData $ Data.Map((12, 1) :: Nil),
-      Const(
-        Constant.List(
-          DefaultUni.Pair(DefaultUni.Data, DefaultUni.Data),
-          Pair(Constant.Data(12), Constant.Data(1)) :: Nil
-        )
-      )
-    )
-    forAll { (t: Data) =>
-      t match
-        case Data.Map(elems) =>
-          assertEvalEq(
-            UnMapData $ t,
-            Const(
-              Constant.List(
-                DefaultUni.Pair(DefaultUni.Data, DefaultUni.Data),
-                elems.map { case (k, v) => Pair(Constant.Data(k), Constant.Data(v)) }
-              )
-            )
+    assert(
+      Cek.evalUPLC(UnMapData $ Data.Map((12, 1) :: Nil)) ==
+        Const(
+          Constant.List(
+            DefaultUni.Pair(DefaultUni.Data, DefaultUni.Data),
+            Pair(Constant.Data(12), Constant.Data(1)) :: Nil
           )
-        case _ =>
-          assertEvalThrows[Exception](UnMapData $ t)
-    }
-
-    // FIXME: now Arbitrary[Term] doesn't generate Data. When it does, update this test
-    forAll { (t: Term) =>
-      assertEvalThrows[Exception](UnMapData $ t)
-    }
+        )
+    )
   }
 
   test("UnListData") {
-    assertEvalEq(
-      UnListData $ Data.List(Data.I(12) :: Data.I(1) :: Nil),
-      Const(Constant.List(DefaultUni.Data, Constant.Data(12) :: Constant.Data(1) :: Nil))
+    assert(
+      Cek.evalUPLC(UnListData $ Data.List(Data.I(12) :: Data.I(1) :: Nil)) ==
+        Const(Constant.List(DefaultUni.Data, Constant.Data(12) :: Constant.Data(1) :: Nil))
     )
-
-    forAll { (t: Data) =>
-      t match
-        case Data.List(elems) =>
-          assertEvalEq(
-            UnListData $ t,
-            Const(Constant.List(DefaultUni.Data, elems.map(Constant.Data.apply)))
-          )
-        case _ =>
-          assertEvalThrows[Exception](UnListData $ t)
-    }
-
-    // FIXME: now Arbitrary[Term] doesn't generate Data. When it does, update this test
-    forAll { (t: Term) =>
-      assertEvalThrows[Exception](UnListData $ t)
-    }
   }
 
   test("UnIData") {
-    assertEvalEq(UnIData $ Data.I(12), Const(Constant.Integer(12)))
-
-    forAll { (t: Data) =>
-      t match
-        case Data.I(v) =>
-          assertEvalEq(UnIData $ t, Const(Constant.Integer(v)))
-        case _ =>
-          assertEvalThrows[Exception](UnIData $ t)
-    }
-
-    // FIXME: now Arbitrary[Term] doesn't generate Data. When it does, update this test
-    forAll { (t: Term) =>
-      assertEvalThrows[Exception](UnIData $ t)
-    }
+    assert(Cek.evalUPLC(UnIData $ Data.I(12)) == Const(Constant.Integer(12)))
   }
 
   test("UnBData") {
     import scalus.utils.Utils.*
-    assertEvalEq(
-      UnBData $ Data.B(hex"deadbeef"),
-      Const(Constant.ByteString(hex"deadbeef"))
+    assert(
+      Cek.evalUPLC(UnBData $ Data.B(hex"deadbeef")) ==
+        Const(Constant.ByteString(hex"deadbeef"))
     )
-
-    forAll { (t: Data) =>
-      t match
-        case Data.B(v) =>
-          assertEvalEq(UnBData $ t, Const(Constant.ByteString(v)))
-        case _ =>
-          assertEvalThrows[Exception](UnBData $ t)
-    }
-
-    // FIXME: now Arbitrary[Term] doesn't generate Data. When it does, update this test
-    forAll { (t: Term) =>
-      assertEvalThrows[Exception](UnBData $ t)
-    }
   }
 
   test("ChooseList") {
