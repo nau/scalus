@@ -1,11 +1,22 @@
 val scala3Version = "3.2.0"
+ThisBuild / scalaVersion := scala3Version
 
 lazy val root = project
   .in(file("."))
-  .aggregate(scalus.js, scalus.jvm)
+  .aggregate(scalusPlugin, scalus.js, scalus.jvm)
   .settings(
     publish := {},
     publishLocal := {}
+  )
+
+lazy val scalusPlugin = project
+  .in(file("scalus-plugin"))
+  .dependsOn(scalus.jvm)
+  .settings(
+    name := "scalus-plugin",
+    organization := "scalus",
+    version := "0.1.0",
+    libraryDependencies += "org.scala-lang" %% "scala3-compiler" % scala3Version // % "provided"
   )
 
 lazy val scalus = crossProject(JSPlatform, JVMPlatform)
@@ -30,4 +41,14 @@ lazy val scalus = crossProject(JSPlatform, JVMPlatform)
   .jsSettings(
     // Add JS-specific settings here
     scalaJSUseMainModuleInitializer := true
+  )
+
+lazy val bench = project
+  .dependsOn(scalus.jvm)
+  .settings(
+    name := "scalus-bench",
+    organization := "scalus",
+    version := "0.1.0",
+//    scalacOptions += "-Xprint:patternMatcher,genBCode",
+    libraryDependencies += compilerPlugin("scalus" %% "scalus-plugin" % "0.1.0")
   )
