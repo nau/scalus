@@ -24,7 +24,8 @@ object Bench:
 
     println("Hello")
 
-  val script = compile(validator)
+  val script = scalus.uplc.Compiler.compile(validator)
+  val script1 = compile(1)
 
   def main(args: Array[String]): Unit =
     println(script.pretty.render(80))
