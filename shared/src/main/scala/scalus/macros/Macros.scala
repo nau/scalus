@@ -179,6 +179,13 @@ object Macros {
         case Literal(BooleanConstant(lit)) =>
           val litE = Expr(lit)
           '{ SIR.Const(Bool($litE)) }
+        case Literal(_) => report.errorAndAbort("compileExpr: Unsupported literal " + e.show)
+        case lit @ Apply(Select(Ident("BigInt"), "apply"), _) =>
+          val litE = lit.asExprOf[BigInt]
+          '{ SIR.Const(Integer($litE)) }
+        case lit @ Apply(Ident("int2bigInt"), _) =>
+          val litE = lit.asExprOf[BigInt]
+          '{ SIR.Const(Integer($litE)) }
         case If(cond, t, f) =>
           '{
             SIR.Apply(
@@ -190,6 +197,7 @@ object Macros {
             )
           }
         case Block(stmt, expr) => compileExpr(expr)
+        case Typed(expr, _)    => compileExpr(expr)
         case x                 => report.errorAndAbort("compileImpl: " + x.toString)
     }
 

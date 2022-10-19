@@ -14,6 +14,12 @@ class CompileToSIRSpec extends AnyFunSuite with ScalaCheckPropertyChecks:
     assert(compile(true) == Const(Constant.Bool(true)))
     assert(compile(()) == Const(Constant.Unit)) // FIXME
     assert(compile("foo") == Const(Constant.String("foo")))
+    assert(
+      compile(BigInt("15511210043330985984000000")) == Const(
+        Constant.Integer(BigInt("15511210043330985984000000"))
+      )
+    )
+    assert(compile(12: BigInt) == Const(Constant.Integer(BigInt("12"))))
   }
 
   test("compile if-then-else") {
