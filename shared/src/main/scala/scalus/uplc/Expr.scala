@@ -2,6 +2,7 @@ package scalus.uplc
 
 import scalus.ledger.api.v1.*
 import scalus.macros.Macros
+import scalus.sir.SIR
 import scalus.uplc.Constant.LiftValue
 import scalus.utils.Utils.*
 
@@ -138,6 +139,8 @@ object ExprBuilder:
   transparent inline def field[A: Data.ToData](inline expr: A => Any): Any = ${
     Macros.fieldMacro('expr)
   }
+
+  inline def compile(inline e: Any): SIR = ${ Macros.compileImpl('e) }
 
   extension (lhs: Expr[BigInt])
     @targetName("plus")

@@ -21,11 +21,6 @@ import scala.language.implicitConversions
 //case class DataDecl(name: String, params: List[String], constructors: List[DataCtor])
 //case class DataCtor(name: String, params: List[Type])
 
-sealed trait SIR
-case class Let(name: String, value: SIR, body: SIR) extends SIR
-case class If(cond: SIR, t: SIR, f: SIR) extends SIR
-case class Term(uplc: scalus.uplc.Term) extends SIR
-
 class PhaseA extends PluginPhase {
   import tpd.*
 

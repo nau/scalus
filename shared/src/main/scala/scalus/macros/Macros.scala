@@ -1,5 +1,6 @@
 package scalus.macros
 
+import scalus.sir.SIR
 import scalus.uplc.ExprBuilder.*
 import scalus.uplc.{Data, ExprBuilder, Expr as Exp, Term as Trm}
 
@@ -161,5 +162,29 @@ object Macros {
             report.info(s"not found implicit of type ${unliftTypeRepr.show}")
             getter
       case x => report.errorAndAbort(x.toString)
+
+  def compileImpl(e: Expr[Any])(using Quotes): Expr[SIR] =
+    import quotes.reflect.*
+    import scalus.uplc.Constant.*
+
+    def compileExpr(e: Term): Expr[SIR] = {
+      import quotes.reflect.*
+      e match
+        // lam(x => body)
+        case Literal(UnitConstant()) => '{ SIR.Const(Unit) }
+        case Literal(StringConstant(lit)) =>
+          val litE = Expr(lit)
+          '{ SIR.Const(String($litE)) }
+        case Literal(BooleanConstant(lit)) =>
+          val litE = Expr(lit)
+          '{ SIR.Const(Bool($litE)) }
+        case Block(stmt, expr) => compileExpr(expr)
+        case x                 => report.errorAndAbort("compileImpl: " + x.toString)
+    }
+
+    e.asTerm match
+      // lam(x => body)
+      case Inlined(_, _, expr) => compileExpr(expr)
+      case x                   => report.errorAndAbort("compileImpl: " + x.toString)
 
 }
