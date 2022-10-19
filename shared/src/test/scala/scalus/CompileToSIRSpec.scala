@@ -7,6 +7,7 @@ import scalus.uplc.Constant
 import scalus.uplc.DefaultFun
 import scalus.uplc.ExprBuilder.compile
 import scalus.uplc.TermDSL.{lam, λ}
+import scalus.utils.Utils.*
 
 class CompileToSIRSpec extends AnyFunSuite with ScalaCheckPropertyChecks:
   test("compile literals") {
@@ -20,6 +21,7 @@ class CompileToSIRSpec extends AnyFunSuite with ScalaCheckPropertyChecks:
       )
     )
     assert(compile(12: BigInt) == Const(Constant.Integer(BigInt("12"))))
+    assert(compile(hex"deadbeef") == Const(Constant.ByteString(hex"deadbeef")))
   }
 
   test("compile if-then-else") {

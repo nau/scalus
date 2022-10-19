@@ -3,7 +3,9 @@ package scalus.macros
 import scalus.sir.SIR
 import scalus.uplc.ExprBuilder.*
 import scalus.uplc.{Data, ExprBuilder, Expr as Exp, Term as Trm}
+import scalus.utils.Utils
 
+import scala.collection.immutable
 import scala.quoted.*
 object Macros {
   def lamMacro[A: Type, B: Type](f: Expr[Exp[A] => Exp[B]])(using Quotes): Expr[Exp[A => B]] =
@@ -186,6 +188,23 @@ object Macros {
         case lit @ Apply(Ident("int2bigInt"), _) =>
           val litE = lit.asExprOf[BigInt]
           '{ SIR.Const(Integer($litE)) }
+        case lit @ Apply(
+              Select(
+                Apply(
+                  Ident("StringInterpolators"),
+                  immutable.List(
+                    Apply(
+                      Select(Select(Select(Ident("_root_"), "scala"), "StringContext"), "apply"),
+                      _
+                    )
+                  )
+                ),
+                "hex"
+              ),
+              _
+            ) =>
+          val litE = lit.asExprOf[Array[Byte]]
+          '{ SIR.Const(ByteString($litE)) }
         case If(cond, t, f) =>
           '{
             SIR.Apply(
