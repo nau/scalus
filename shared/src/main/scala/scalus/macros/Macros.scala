@@ -166,6 +166,7 @@ object Macros {
   def compileImpl(e: Expr[Any])(using Quotes): Expr[SIR] =
     import quotes.reflect.*
     import scalus.uplc.Constant.*
+    import scalus.uplc.DefaultFun
 
     def compileExpr(e: Term): Expr[SIR] = {
       import quotes.reflect.*
@@ -178,6 +179,16 @@ object Macros {
         case Literal(BooleanConstant(lit)) =>
           val litE = Expr(lit)
           '{ SIR.Const(Bool($litE)) }
+        case If(cond, t, f) =>
+          '{
+            SIR.Apply(
+              SIR.Apply(
+                SIR.Apply(SIR.Builtin(DefaultFun.IfThenElse), ${ compileExpr(cond) }),
+                ${ compileExpr(t) }
+              ),
+              ${ compileExpr(f) }
+            )
+          }
         case Block(stmt, expr) => compileExpr(expr)
         case x                 => report.errorAndAbort("compileImpl: " + x.toString)
     }

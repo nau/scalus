@@ -2,15 +2,30 @@ package scalus
 
 import org.scalatest.funsuite.AnyFunSuite
 import org.scalatestplus.scalacheck.ScalaCheckPropertyChecks
-import scalus.sir.SIR
+import scalus.sir.SIR.*
+import scalus.uplc.Constant
+import scalus.uplc.DefaultFun
 import scalus.uplc.ExprBuilder.compile
-import scalus.uplc.{ArbitraryInstances, Constant, DefaultUni, ExprBuilder, NamedDeBruijn, Term}
 import scalus.uplc.TermDSL.{lam, λ}
 
-class CompileToSIRSpec extends AnyFunSuite with ScalaCheckPropertyChecks with ArbitraryInstances:
+class CompileToSIRSpec extends AnyFunSuite with ScalaCheckPropertyChecks:
   test("compile literals") {
-    assert(compile(false) == SIR.Const(Constant.Bool(false)))
-    assert(compile(true) == SIR.Const(Constant.Bool(true)))
-    assert(compile(()) == SIR.Const(Constant.Unit)) // FIXME
-    assert(compile("foo") == SIR.Const(Constant.String("foo")))
+    assert(compile(false) == Const(Constant.Bool(false)))
+    assert(compile(true) == Const(Constant.Bool(true)))
+    assert(compile(()) == Const(Constant.Unit)) // FIXME
+    assert(compile("foo") == Const(Constant.String("foo")))
+  }
+
+  test("compile if-then-else") {
+    assert(
+      compile {
+        if true then () else ()
+      } == Apply(
+        Apply(
+          Apply(Builtin(DefaultFun.IfThenElse), Const(Constant.Bool(true))),
+          Const(Constant.Unit)
+        ),
+        Const(Constant.Unit)
+      )
+    )
   }
