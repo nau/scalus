@@ -1,8 +1,8 @@
 package scalus.macros
 
-import scalus.sir.SIR
+import scalus.sir.{Binding, SIR}
 import scalus.uplc.ExprBuilder.*
-import scalus.uplc.{Data, ExprBuilder, Expr as Exp, Term as Trm}
+import scalus.uplc.{Data, ExprBuilder, NamedDeBruijn, Expr as Exp, Term as Trm}
 import scalus.utils.Utils
 
 import scala.collection.immutable
@@ -169,6 +169,21 @@ object Macros {
     import quotes.reflect.*
     import scalus.uplc.Constant.*
     import scalus.uplc.DefaultFun
+    import scalus.sir.Recursivity
+
+    def compileStmt(stmt: Statement, expr: Expr[SIR]): Expr[SIR] = {
+      stmt match
+        case ValDef(a, tpe, Some(body)) =>
+          val bodyExpr = compileExpr(body)
+          val aExpr = Expr(a)
+          '{ SIR.Let(Recursivity.NonRec, immutable.List(Binding($aExpr, $bodyExpr)), $expr) }
+        case x => report.errorAndAbort(s"compileStmt: $x")
+    }
+    def compileBlock(stmts: immutable.List[Statement], expr: Term): Expr[SIR] = {
+      import quotes.reflect.*
+      val e = compileExpr(expr)
+      stmts.foldRight(e)(compileStmt)
+    }
 
     def compileExpr(e: Term): Expr[SIR] = {
       import quotes.reflect.*
@@ -205,6 +220,9 @@ object Macros {
             ) =>
           val litE = lit.asExprOf[Array[Byte]]
           '{ SIR.Const(ByteString($litE)) }
+        case Ident(a) =>
+          val aE = Expr(a)
+          '{ SIR.Var(NamedDeBruijn($aE)) }
         case If(cond, t, f) =>
           '{
             SIR.Apply(
@@ -215,9 +233,14 @@ object Macros {
               ${ compileExpr(f) }
             )
           }
-        case Block(stmt, expr) => compileExpr(expr)
+        case Apply(Select(Ident(a), "apply"), args) =>
+          val argsE = args.map(compileExpr)
+          argsE.foldLeft('{ SIR.Var(NamedDeBruijn(${ Expr(a) })) })((acc, arg) =>
+            '{ SIR.Apply($acc, $arg) }
+          )
+        case Block(stmt, expr) => compileBlock(stmt, expr)
         case Typed(expr, _)    => compileExpr(expr)
-        case x                 => report.errorAndAbort("compileImpl: " + x.toString)
+        case x                 => report.errorAndAbort("compileExpr: " + x.toString)
     }
 
     e.asTerm match

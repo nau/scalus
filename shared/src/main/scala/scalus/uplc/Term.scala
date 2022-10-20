@@ -4,6 +4,7 @@ import io.bullet.borer.Tag.{NegativeBigNum, Other, PositiveBigNum}
 import io.bullet.borer.encodings.BaseEncoding
 import io.bullet.borer.{Decoder, Encoder, Reader, Writer, DataItem as DI}
 import org.typelevel.paiges.Doc
+import scalus.sir.SIR
 import scalus.uplc.Data.*
 import scalus.utils.Utils
 import scalus.utils.Utils.bytesToHex
@@ -12,7 +13,7 @@ import java.util
 import scala.collection.immutable
 
 object Compiler:
-  def compile(e: Any): Term = ???
+  def compile(e: Any): SIR = ???
 
 case class NamedDeBruijn(name: String, index: Int = 0):
   assert(index >= 0)

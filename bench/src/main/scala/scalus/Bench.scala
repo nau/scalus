@@ -28,4 +28,10 @@ object Bench:
   val script1 = compile(1)
 
   def main(args: Array[String]): Unit =
+
+    val a = 1
+    val b = 2
+    def foo(): Int = bar(a)
+    def bar(x: Int): Int = x + b + foo()
+
     println(script.pretty.render(80))

@@ -2,12 +2,14 @@ package scalus
 
 import org.scalatest.funsuite.AnyFunSuite
 import org.scalatestplus.scalacheck.ScalaCheckPropertyChecks
+import scalus.sir.{Binding, Recursivity}
 import scalus.sir.SIR.*
-import scalus.uplc.Constant
-import scalus.uplc.DefaultFun
 import scalus.uplc.ExprBuilder.compile
 import scalus.uplc.TermDSL.{lam, λ}
+import scalus.uplc.{Constant, DefaultFun, NamedDeBruijn}
 import scalus.utils.Utils.*
+
+import scala.collection.immutable
 
 class CompileToSIRSpec extends AnyFunSuite with ScalaCheckPropertyChecks:
   test("compile literals") {
@@ -37,3 +39,31 @@ class CompileToSIRSpec extends AnyFunSuite with ScalaCheckPropertyChecks:
       )
     )
   }
+
+  test("compile val def") {
+    assert(
+      compile {
+        val a = true
+        a
+      } == Let(
+        Recursivity.NonRec,
+        immutable.List(Binding("a", Const(Constant.Bool(true)))),
+        Var(NamedDeBruijn("a"))
+      )
+    )
+  }
+
+  /*test("compile lambda") {
+    assert(
+      compile {
+        val a = (x: Boolean) => x
+        a(true)
+      } == Apply(
+        Apply(
+          Apply(Builtin(DefaultFun.IfThenElse), Const(Constant.Bool(true))),
+          Const(Constant.Unit)
+        ),
+        Const(Constant.Unit)
+      )
+    )
+  }*/
