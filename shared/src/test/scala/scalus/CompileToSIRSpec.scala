@@ -53,6 +53,25 @@ class CompileToSIRSpec extends AnyFunSuite with ScalaCheckPropertyChecks:
     )
   }
 
+  test("compile def") {
+    assert(
+      compile {
+        def b() = true
+        def c(x: Boolean) = x
+        c(b())
+//        b()
+      } == Let(
+        Recursivity.Rec,
+        immutable.List(Binding("b", LamAbs("_", Const(Constant.Bool(true))))),
+        Let(
+          Recursivity.Rec,
+          immutable.List(Binding("c", LamAbs("x", Var(NamedDeBruijn("x"))))),
+          Apply(Var(NamedDeBruijn("c")), Apply(Var(NamedDeBruijn("b")), Const(Constant.Unit)))
+        )
+      )
+    )
+  }
+
   /*test("compile lambda") {
     assert(
       compile {

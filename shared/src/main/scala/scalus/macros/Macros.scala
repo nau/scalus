@@ -177,6 +177,22 @@ object Macros {
           val bodyExpr = compileExpr(body)
           val aExpr = Expr(a)
           '{ SIR.Let(Recursivity.NonRec, immutable.List(Binding($aExpr, $bodyExpr)), $expr) }
+        case DefDef(name, immutable.List(TermParamClause(args)), tpe, Some(body)) =>
+          val bodyExpr: Expr[scalus.sir.SIR] = {
+            val bE = compileExpr(body)
+            if args.isEmpty then '{ SIR.LamAbs("_", $bE) }
+            else
+              val names = args.map { case ValDef(name, tpe, rhs) => Expr(name) }
+              names.foldRight(bE) { (name, acc) =>
+                '{ SIR.LamAbs($name, $acc) }
+              }
+          }
+          val nameExpr = Expr(name)
+          '{ SIR.Let(Recursivity.Rec, immutable.List(Binding($nameExpr, $bodyExpr)), $expr) }
+        case DefDef(name, args, tpe, _) =>
+          report.errorAndAbort(
+            "compileStmt: Only single argument list defs are supported, but given: " + stmt.show
+          )
         case x => report.errorAndAbort(s"compileStmt: $x")
     }
     def compileBlock(stmts: immutable.List[Statement], expr: Term): Expr[SIR] = {
@@ -238,6 +254,11 @@ object Macros {
           argsE.foldLeft('{ SIR.Var(NamedDeBruijn(${ Expr(a) })) })((acc, arg) =>
             '{ SIR.Apply($acc, $arg) }
           )
+        case Apply(f, args) =>
+          val fE = compileExpr(f)
+          val argsE = args.map(compileExpr)
+          if argsE.isEmpty then '{ SIR.Apply($fE, SIR.Const(Unit)) }
+          else argsE.foldLeft(fE)((acc, arg) => '{ SIR.Apply($acc, $arg) })
         case Block(stmt, expr) => compileBlock(stmt, expr)
         case Typed(expr, _)    => compileExpr(expr)
         case x                 => report.errorAndAbort("compileExpr: " + x.toString)
