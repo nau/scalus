@@ -259,9 +259,10 @@ object Macros {
           val argsE = args.map(compileExpr)
           if argsE.isEmpty then '{ SIR.Apply($fE, SIR.Const(Unit)) }
           else argsE.foldLeft(fE)((acc, arg) => '{ SIR.Apply($acc, $arg) })
-        case Block(stmt, expr) => compileBlock(stmt, expr)
-        case Typed(expr, _)    => compileExpr(expr)
-        case x                 => report.errorAndAbort("compileExpr: " + x.toString)
+        case Block(stmt, expr)       => compileBlock(stmt, expr)
+        case Typed(expr, _)          => compileExpr(expr)
+        case Closure(Ident(name), _) => '{ SIR.Var(NamedDeBruijn(${ Expr(name) })) }
+        case x                       => report.errorAndAbort("compileExpr: " + x.toString)
     }
 
     e.asTerm match

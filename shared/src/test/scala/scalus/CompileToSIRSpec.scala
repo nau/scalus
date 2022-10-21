@@ -3,7 +3,9 @@ package scalus
 import org.scalatest.funsuite.AnyFunSuite
 import org.scalatestplus.scalacheck.ScalaCheckPropertyChecks
 import scalus.sir.{Binding, Recursivity}
+import scalus.sir.Recursivity.*
 import scalus.sir.SIR.*
+import scalus.uplc.DefaultFun.IfThenElse
 import scalus.uplc.ExprBuilder.compile
 import scalus.uplc.TermDSL.{lam, λ}
 import scalus.uplc.{Constant, DefaultFun, NamedDeBruijn}
@@ -32,7 +34,7 @@ class CompileToSIRSpec extends AnyFunSuite with ScalaCheckPropertyChecks:
         if true then () else ()
       } == Apply(
         Apply(
-          Apply(Builtin(DefaultFun.IfThenElse), Const(Constant.Bool(true))),
+          Apply(Builtin(IfThenElse), Const(Constant.Bool(true))),
           Const(Constant.Unit)
         ),
         Const(Constant.Unit)
@@ -72,17 +74,24 @@ class CompileToSIRSpec extends AnyFunSuite with ScalaCheckPropertyChecks:
     )
   }
 
-  /*test("compile lambda") {
+  test("compile lambda") {
     assert(
       compile {
         val a = (x: Boolean) => x
         a(true)
-      } == Apply(
-        Apply(
-          Apply(Builtin(DefaultFun.IfThenElse), Const(Constant.Bool(true))),
-          Const(Constant.Unit)
+      } == Let(
+        NonRec,
+        List(
+          Binding(
+            "a",
+            Let(
+              Rec,
+              List(Binding("$anonfun", LamAbs("x", Var(NamedDeBruijn("x"))))),
+              Var(NamedDeBruijn("$anonfun"))
+            )
+          )
         ),
-        Const(Constant.Unit)
+        Apply(Var(NamedDeBruijn("a")), Const(Constant.Bool(true)))
       )
     )
-  }*/
+  }
