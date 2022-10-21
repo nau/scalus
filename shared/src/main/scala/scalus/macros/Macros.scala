@@ -249,6 +249,18 @@ object Macros {
               ${ compileExpr(f) }
             )
           }
+        // throw new Exception("error msg")
+        // Supports any exception type that uses first argument as message
+        case Apply(Ident("throw"), immutable.List(ex)) =>
+          val msg = ex match
+            case Apply(
+                  Select(New(tpt), "<init>"),
+                  immutable.List(Literal(StringConstant(msg)), _*)
+                ) if tpt.tpe <:< TypeRepr.of[Exception] =>
+              Expr(msg)
+            case term =>
+              Expr("error")
+          '{ SIR.Error($msg) }
         case Apply(Select(Ident(a), "apply"), args) =>
           val argsE = args.map(compileExpr)
           argsE.foldLeft('{ SIR.Var(NamedDeBruijn(${ Expr(a) })) })((acc, arg) =>

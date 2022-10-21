@@ -95,3 +95,7 @@ class CompileToSIRSpec extends AnyFunSuite with ScalaCheckPropertyChecks:
       )
     )
   }
+
+  test("compile throw") {
+    assert(compile { throw new RuntimeException("foo") } == Error("foo"))
+  }
