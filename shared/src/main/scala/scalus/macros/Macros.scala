@@ -315,6 +315,12 @@ object Macros {
             val tpeE = Expr(typeReprToDefaultUni(tpe.tpe))
             '{ SIR.Const(List($tpeE, Nil)) }
           case Apply(
+                TypeApply(Select(list, "::"), immutable.List(tpe)),
+                immutable.List(arg)
+              ) if list.isList =>
+            val argE = compileExpr(arg)
+            '{ SIR.Apply(SIR.Apply(SIR.Builtin(DefaultFun.MkCons), $argE), ${ compileExpr(list) }) }
+          case Apply(
                 TypeApply(Select(list, "apply"), immutable.List(tpe)),
                 immutable.List(ex)
               ) if list.tpe <:< TypeRepr.of[IterableFactory[immutable.List]] =>

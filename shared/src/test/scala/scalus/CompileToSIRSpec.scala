@@ -122,13 +122,16 @@ class CompileToSIRSpec extends AnyFunSuite with ScalaCheckPropertyChecks:
     assert(
       compile {
         val a = "foo"
-        List(a)
+        "bar" :: List(a)
       } == Let(
         NonRec,
         List(Binding("a", Const(Constant.String("foo")))),
         Apply(
-          Apply(Builtin(MkCons), Var(NamedDeBruijn("a"))),
-          Const(Constant.List(DefaultUni.String, List()))
+          Apply(Builtin(MkCons), Const(Constant.String("bar"))),
+          Apply(
+            Apply(Builtin(MkCons), Var(NamedDeBruijn("a"))),
+            Const(Constant.List(DefaultUni.String, List()))
+          )
         )
       )
     )
