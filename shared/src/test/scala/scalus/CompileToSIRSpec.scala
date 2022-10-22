@@ -8,7 +8,7 @@ import scalus.sir.SIR.*
 import scalus.uplc.DefaultFun.*
 import scalus.uplc.ExprBuilder.compile
 import scalus.uplc.TermDSL.{lam, λ}
-import scalus.uplc.{Constant, DefaultFun, NamedDeBruijn}
+import scalus.uplc.{Constant, DefaultFun, DefaultUni, NamedDeBruijn}
 import scalus.utils.Utils.*
 
 import scala.collection.immutable
@@ -101,9 +101,37 @@ class CompileToSIRSpec extends AnyFunSuite with ScalaCheckPropertyChecks:
   }
 
   test("compile List builtins") {
-    /*assert(compile {
-      List[BigInt](1, 2, 3)
-    } == Error("foo"))*/
+    // Nil
+    assert(
+      compile {
+        List.empty[BigInt]
+      } == Const(Constant.List(DefaultUni.Integer, List()))
+    )
+    // Create a List literal
+    assert(
+      compile {
+        List[BigInt](1, 2, 3)
+      } == Const(
+        Constant.List(
+          DefaultUni.Integer,
+          List(Constant.Integer(1), Constant.Integer(2), Constant.Integer(3))
+        )
+      )
+    )
+    // MkCons builtin
+    assert(
+      compile {
+        val a = "foo"
+        List(a)
+      } == Let(
+        NonRec,
+        List(Binding("a", Const(Constant.String("foo")))),
+        Apply(
+          Apply(Builtin(MkCons), Var(NamedDeBruijn("a"))),
+          Const(Constant.List(DefaultUni.String, List()))
+        )
+      )
+    )
     assert(
       compile {
         def head(l: List[BigInt]) = l.head
