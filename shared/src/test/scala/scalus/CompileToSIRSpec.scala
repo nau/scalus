@@ -106,13 +106,36 @@ class CompileToSIRSpec extends AnyFunSuite with ScalaCheckPropertyChecks:
     } == Error("foo"))*/
     assert(
       compile {
-        def asdf(l: List[BigInt]) = l.head
+        def head(l: List[BigInt]) = l.head
       } == Let(
         Rec,
         List(
-          Binding("asdf", LamAbs("l", Apply(Builtin(HeadList), Var(NamedDeBruijn("l")))))
+          Binding("head", LamAbs("l", Apply(Builtin(HeadList), Var(NamedDeBruijn("l")))))
         ),
         Const(Constant.Unit)
       )
     )
+    assert(
+      compile {
+        def tail(l: List[BigInt]) = l.tail
+      } == Let(
+        Rec,
+        List(
+          Binding("tail", LamAbs("l", Apply(Builtin(TailList), Var(NamedDeBruijn("l")))))
+        ),
+        Const(Constant.Unit)
+      )
+    )
+    assert(
+      compile {
+        def isEmpty(l: List[BigInt]) = l.isEmpty
+      } == Let(
+        Rec,
+        List(
+          Binding("isEmpty", LamAbs("l", Apply(Builtin(NullList), Var(NamedDeBruijn("l")))))
+        ),
+        Const(Constant.Unit)
+      )
+    )
+
   }

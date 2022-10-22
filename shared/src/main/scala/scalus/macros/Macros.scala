@@ -251,8 +251,19 @@ object Macros {
               ${ compileExpr(f) }
             )
           }
-        case Select(lst, "head") if lst.isList =>
-          '{ SIR.Apply(SIR.Builtin(DefaultFun.HeadList), ${ compileExpr(lst) }) }
+        case Select(lst, fun) if lst.isList =>
+          fun match
+            case "head" =>
+              '{ SIR.Apply(SIR.Builtin(DefaultFun.HeadList), ${ compileExpr(lst) }) }
+            case "tail" =>
+              '{ SIR.Apply(SIR.Builtin(DefaultFun.TailList), ${ compileExpr(lst) }) }
+            case "isEmpty" =>
+              '{ SIR.Apply(SIR.Builtin(DefaultFun.NullList), ${ compileExpr(lst) }) }
+            case _ =>
+              report.errorAndAbort(
+                s"compileExpr: Unsupported list method $fun. Only head, tail and isEmpty are supported"
+              )
+
         case Apply(
               TypeApply(Select(list, "apply"), _),
               immutable.List(ex)
