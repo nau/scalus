@@ -17,7 +17,9 @@ object Compiler:
 
 case class NamedDeBruijn(name: String, index: Int = 0):
   assert(index >= 0)
-  override def toString: String = s"$name@$index"
+  override def toString: String =
+    if index == 0 then s"NamedDeBruijn(\"$name\")"
+    else s"NamedDeBruijn(\"$name\", $index)"
 
 enum Term:
   case Var(name: NamedDeBruijn) extends Term

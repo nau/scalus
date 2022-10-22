@@ -5,7 +5,7 @@ import org.scalatestplus.scalacheck.ScalaCheckPropertyChecks
 import scalus.sir.{Binding, Recursivity}
 import scalus.sir.Recursivity.*
 import scalus.sir.SIR.*
-import scalus.uplc.DefaultFun.IfThenElse
+import scalus.uplc.DefaultFun.*
 import scalus.uplc.ExprBuilder.compile
 import scalus.uplc.TermDSL.{lam, λ}
 import scalus.uplc.{Constant, DefaultFun, NamedDeBruijn}
@@ -98,4 +98,21 @@ class CompileToSIRSpec extends AnyFunSuite with ScalaCheckPropertyChecks:
 
   test("compile throw") {
     assert(compile { throw new RuntimeException("foo") } == Error("foo"))
+  }
+
+  test("compile List builtins") {
+    /*assert(compile {
+      List[BigInt](1, 2, 3)
+    } == Error("foo"))*/
+    assert(
+      compile {
+        def asdf(l: List[BigInt]) = l.head
+      } == Let(
+        Rec,
+        List(
+          Binding("asdf", LamAbs("l", Apply(Builtin(HeadList), Var(NamedDeBruijn("l")))))
+        ),
+        Const(Constant.Unit)
+      )
+    )
   }

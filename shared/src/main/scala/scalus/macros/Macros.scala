@@ -171,6 +171,8 @@ object Macros {
     import scalus.uplc.DefaultFun
     import scalus.sir.Recursivity
 
+    extension (t: Term) def isList = t.tpe <:< TypeRepr.of[immutable.List[_]]
+
     def compileStmt(stmt: Statement, expr: Expr[SIR]): Expr[SIR] = {
       stmt match
         case ValDef(a, tpe, Some(body)) =>
@@ -249,6 +251,16 @@ object Macros {
               ${ compileExpr(f) }
             )
           }
+        case Select(lst, "head") if lst.isList =>
+          '{ SIR.Apply(SIR.Builtin(DefaultFun.HeadList), ${ compileExpr(lst) }) }
+        case Apply(
+              TypeApply(Select(list, "apply"), _),
+              immutable.List(ex)
+            ) /*if list.tpe <:< TypeRepr.of[immutable.List]*/ =>
+          report.errorAndAbort(
+            s"compileExpr: List is not supported yet ${list.tpe.typeSymbol}\n$list\n${list.tpe <:< TypeRepr
+                .of[immutable.List[?]]}"
+          )
         // throw new Exception("error msg")
         // Supports any exception type that uses first argument as message
         case Apply(Ident("throw"), immutable.List(ex)) =>
@@ -279,7 +291,9 @@ object Macros {
 
     e.asTerm match
       // lam(x => body)
-      case Inlined(_, _, expr) => compileExpr(expr)
-      case x                   => report.errorAndAbort("compileImpl: " + x.toString)
+      case Inlined(_, _, expr) =>
+        report.info(s"Compile: ${expr}")
+        compileExpr(expr)
+      case x => report.errorAndAbort("compileImpl: " + x.toString)
 
 }
