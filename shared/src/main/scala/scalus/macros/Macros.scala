@@ -376,7 +376,7 @@ object Macros {
     e.asTerm match
       // lam(x => body)
       case Inlined(_, _, expr) =>
-        report.info(s"Compile: ${expr}")
+//        report.info(s"Compile: ${expr}")
         compileExpr(expr)
       case x => report.errorAndAbort("compileImpl: " + x.toString)
 

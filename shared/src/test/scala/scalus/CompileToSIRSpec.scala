@@ -2,13 +2,15 @@ package scalus
 
 import org.scalatest.funsuite.AnyFunSuite
 import org.scalatestplus.scalacheck.ScalaCheckPropertyChecks
-import scalus.sir.{Binding, Recursivity}
+import scalus.builtins.Builtins
+import scalus.ledger.api.v1.*
 import scalus.sir.Recursivity.*
 import scalus.sir.SIR.*
+import scalus.sir.{Binding, Recursivity}
 import scalus.uplc.DefaultFun.*
 import scalus.uplc.ExprBuilder.compile
 import scalus.uplc.TermDSL.{lam, λ}
-import scalus.uplc.{Constant, DefaultFun, DefaultUni, NamedDeBruijn}
+import scalus.uplc.{Constant, Data, DefaultFun, DefaultUni, NamedDeBruijn}
 import scalus.utils.Utils.*
 
 import scala.collection.immutable
@@ -170,3 +172,37 @@ class CompileToSIRSpec extends AnyFunSuite with ScalaCheckPropertyChecks:
     )
 
   }
+
+/*
+  test("PubKey Validator example") {
+    val scriptContext =
+      ScriptContext(
+        TxInfo(
+          Nil,
+          Nil,
+          Value.zero,
+          Value.zero,
+          Nil,
+          Nil,
+          Interval.always,
+          Nil,
+          Nil,
+          TxId(hex"bb")
+        ),
+        ScriptPurpose.Spending(TxOutRef(TxId(hex"deadbeef"), 0))
+      )
+    val compiled = compile {
+      def validator(redeemer: Unit, datum: Unit, ctx: Data) =
+        val txinfo = Builtins.unsafeDataAsList(Builtins.unsafeDataAsConstr(ctx).snd.head)
+        val signatories = Builtins.unsafeDataAsList(txinfo.tail.tail.tail.tail.tail.tail.tail.head)
+        def findSignatureOrFail(signatories: List[Data]): Unit =
+          if signatories.isEmpty then throw new RuntimeException("Signature not found")
+          // FIXME don't use Array[Byte], use ByteString
+          else if Builtins.unsafeDataAsB(signatories.head) == hex"deadbeef" then ()
+          else findSignatureOrFail(signatories.tail)
+        findSignatureOrFail(signatories)
+
+    }
+    println(compiled)
+  }
+ */
