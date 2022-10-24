@@ -1,10 +1,12 @@
 package scalus.uplc
 
+import scalus.builtins.ByteString
 import scalus.ledger.api.v1.*
 import scalus.macros.Macros
 import scalus.sir.SIR
 import scalus.uplc.Constant.LiftValue
-import scalus.utils.Utils.*
+import scalus.builtins.ByteString.given
+import scalus.utils.Utils.bytesToHex
 
 import java.io.{ByteArrayInputStream, ByteArrayOutputStream}
 import scala.annotation.targetName
@@ -22,7 +24,7 @@ object ExprBuilder:
     def unlift = unIData
   }
 
-  given Unlift[Array[Byte]] with {
+  given Unlift[ByteString] with {
     def unlift = unBData
   }
 
@@ -82,7 +84,7 @@ object ExprBuilder:
   ): Expr[A] = !ifThenElse(cond)(delay(t))(delay(f))
   val unConstrData: Expr[Data => (BigInt, List[Data])] = Expr(Term.Builtin(DefaultFun.UnConstrData))
   val unListData: Expr[Data => List[Data]] = Expr(Term.Builtin(DefaultFun.UnListData))
-  val unBData: Expr[Data => Array[Byte]] = Expr(Term.Builtin(DefaultFun.UnBData))
+  val unBData: Expr[Data => ByteString] = Expr(Term.Builtin(DefaultFun.UnBData))
   val unIData: Expr[Data => BigInt] = Expr(Term.Builtin(DefaultFun.UnIData))
 
   def fstPair[A, B](x: Expr[(A, B)]): Expr[A] = Expr(
@@ -128,7 +130,7 @@ object ExprBuilder:
     Term.Builtin(DefaultFun.EqualsInteger)
   )
 
-  def equalsByteString(lhs: Expr[Array[Byte]])(rhs: Expr[Array[Byte]]): Expr[Boolean] = Expr(
+  def equalsByteString(lhs: Expr[ByteString])(rhs: Expr[ByteString]): Expr[Boolean] = Expr(
     Term.Builtin(DefaultFun.EqualsByteString) $ lhs.term $ rhs.term
   )
 
@@ -150,8 +152,8 @@ object ExprBuilder:
     def <=(rhs: Expr[BigInt]): Expr[Boolean] = lessThanEqualsInteger(lhs)(rhs)
     def <(rhs: Expr[BigInt]): Expr[Boolean] = lessThanInteger(lhs)(rhs)
 
-  extension (lhs: Expr[Array[Byte]])
-    infix def =*=(rhs: Expr[Array[Byte]]): Expr[Boolean] = equalsByteString(lhs)(rhs)
+  extension (lhs: Expr[ByteString])
+    infix def =*=(rhs: Expr[ByteString]): Expr[Boolean] = equalsByteString(lhs)(rhs)
 
   extension [A, B](lhs: Expr[A => B]) def apply(rhs: Expr[A]): Expr[B] = app(lhs, rhs)
   extension [B, C](lhs: Expr[B => C])

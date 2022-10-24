@@ -4,6 +4,7 @@ import cats.implicits.toShow
 import org.scalacheck.{Arbitrary, Gen}
 import org.scalatest.funsuite.AnyFunSuite
 import org.scalatestplus.scalacheck.ScalaCheckPropertyChecks
+import scalus.builtins
 import scalus.uplc.Constant.given
 import scalus.uplc.Data.{B, Constr, I, List, Map}
 import scalus.uplc.DefaultUni
@@ -16,8 +17,11 @@ import scala.collection.immutable
 
 trait ArbitraryInstances:
 
+  implicit val byteStringArb: Arbitrary[builtins.ByteString] = Arbitrary(
+    Arbitrary.arbitrary[Array[Byte]].map(builtins.ByteString.unsafeFromArray)
+  )
   implicit val iArb: Arbitrary[I] = Arbitrary(Arbitrary.arbitrary[BigInt].map(l => I(l)))
-  implicit val bArb: Arbitrary[B] = Arbitrary(Arbitrary.arbitrary[Array[Byte]].map(B.apply))
+  implicit val bArb: Arbitrary[B] = Arbitrary(Arbitrary.arbitrary[builtins.ByteString].map(B.apply))
   implicit val arbData: Arbitrary[Data] = Arbitrary {
     def constrGen(sz: Int): Gen[Constr] = for
       c <- Arbitrary.arbitrary[Long].map(Math.abs)
@@ -83,12 +87,13 @@ trait ArbitraryInstances:
 
   def arbConstantByType(t: DefaultUni): Gen[Constant] =
     t match
-      case DefaultUni.Integer    => Arbitrary.arbitrary[BigInt].map(Constant.Integer.apply)
-      case DefaultUni.ByteString => Arbitrary.arbitrary[Array[Byte]].map(Constant.ByteString.apply)
-      case DefaultUni.String     => Arbitrary.arbitrary[String].map(Constant.String.apply)
-      case DefaultUni.Data       => Arbitrary.arbitrary[Data].map(Constant.Data.apply)
-      case DefaultUni.Unit       => Gen.const(Constant.Unit)
-      case DefaultUni.Bool       => Gen.oneOf(Constant.Bool(true), Constant.Bool(false))
+      case DefaultUni.Integer => Arbitrary.arbitrary[BigInt].map(Constant.Integer.apply)
+      case DefaultUni.ByteString =>
+        Arbitrary.arbitrary[builtins.ByteString].map(Constant.ByteString.apply)
+      case DefaultUni.String => Arbitrary.arbitrary[String].map(Constant.String.apply)
+      case DefaultUni.Data   => Arbitrary.arbitrary[Data].map(Constant.Data.apply)
+      case DefaultUni.Unit   => Gen.const(Constant.Unit)
+      case DefaultUni.Bool   => Gen.oneOf(Constant.Bool(true), Constant.Bool(false))
       case DefaultUni.Apply(ProtoList, arg) =>
         for
           n <- Gen.choose(0, 10)
@@ -276,7 +281,7 @@ class UplcParserSpec extends AnyFunSuite with ScalaCheckPropertyChecks with Arbi
       r == Right(
         Program(
           version = (1, 0, 0),
-          term = hex"001234ff" $ true $ false $ () $ "Hello"
+          term = builtins.ByteString.fromHex("001234ff") $ true $ false $ () $ "Hello"
         )
       )
     )

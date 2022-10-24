@@ -2,6 +2,7 @@ package scalus.uplc
 import io.bullet.borer.Tag.{NegativeBigNum, Other, PositiveBigNum}
 import io.bullet.borer.encodings.BaseEncoding
 import io.bullet.borer.{Decoder, Encoder, Reader, Writer, DataItem as DI}
+import scalus.builtins.ByteString
 import scalus.uplc.Data
 import scalus.uplc.Data.{B, Constr, I, Map}
 
@@ -23,7 +24,7 @@ object PlutusDataCborEncoder extends Encoder[Data]:
       case Map(values)       => writer.writeMap(values.toMap)
       case Data.List(values) => writer.writeLinearSeq(values)
       case I(value)          => writer.write(value)
-      case B(value)          => writer.write(value)
+      case B(value)          => writer.write(value.bytes)
 
 object PlutusDataCborDecoder extends Decoder[Data]:
 
@@ -43,7 +44,10 @@ object PlutusDataCborDecoder extends Decoder[Data]:
       case DI.Int | DI.Long | DI.OverLong => I(Decoder.forBigInt.read(r))
       case DI.MapHeader                   => Map(Decoder.forMap[Data, Data].read(r).toList)
       case DI.ArrayStart | DI.ArrayHeader => Data.List(Decoder.forArray[Data].read(r).toList)
-      case DI.Bytes                       => B(Decoder.forByteArray(BaseEncoding.base16).read(r))
+      case DI.Bytes =>
+        B(
+          ByteString.unsafeFromArray(Decoder.forByteArray(BaseEncoding.base16).read(r))
+        )
       case DI.Tag =>
         r.readTag() match
           case Other(102) =>

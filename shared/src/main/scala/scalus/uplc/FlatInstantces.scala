@@ -1,6 +1,7 @@
 package scalus.uplc
 
 import io.bullet.borer.{Cbor, Decoder, Encoder}
+import scalus.builtins
 import scalus.flat
 import scalus.flat.{DecoderState, EncoderState, Flat, Natural, given}
 import scalus.uplc.DefaultFun.*
@@ -9,11 +10,21 @@ object FlatInstantces:
   val constantWidth = 4
   val termTagWidth = 4
 
+  given Flat[builtins.ByteString] with
+    val flatArray = summon[Flat[Array[Byte]]]
+    def bitSize(a: builtins.ByteString): Int = flatArray.bitSize(a.bytes)
+
+    def encode(a: builtins.ByteString, encode: EncoderState): Unit =
+      flatArray.encode(a.bytes, encode)
+
+    def decode(decode: DecoderState): builtins.ByteString =
+      builtins.ByteString.unsafeFromArray(flatArray.decode(decode))
+
   def flatForUni(uni: DefaultUni): Flat[Any] =
     import DefaultUni.*
     uni match
       case Integer             => summon[Flat[BigInt]].asInstanceOf[Flat[Any]]
-      case ByteString          => summon[Flat[Array[Byte]]].asInstanceOf[Flat[Any]]
+      case ByteString          => summon[Flat[builtins.ByteString]].asInstanceOf[Flat[Any]]
       case String              => summon[Flat[String]].asInstanceOf[Flat[Any]]
       case Unit                => summon[Flat[Unit]].asInstanceOf[Flat[Any]]
       case Bool                => summon[Flat[Boolean]].asInstanceOf[Flat[Any]]

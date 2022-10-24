@@ -4,8 +4,9 @@ import io.bullet.borer.{Cbor, Decoder, Encoder}
 import org.scalacheck.{Arbitrary, Gen}
 import org.scalatest.funsuite.AnyFunSuite
 import org.scalatestplus.scalacheck.ScalaCheckPropertyChecks
+import scalus.builtins
 import scalus.uplc.Data.*
-import scalus.utils.Utils.{StringInterpolators, bytesToHex}
+import scalus.utils.Utils
 
 import scala.util.control.NonFatal
 
@@ -31,14 +32,17 @@ class DataCborCodecSpec extends AnyFunSuite with ScalaCheckPropertyChecks with A
 
     // byte array to hex string
 
-    def encodeAsHexString(d: Data) = bytesToHex(Cbor.encode(d).toByteArray)
+    def encodeAsHexString(d: Data) = Utils.bytesToHex(Cbor.encode(d).toByteArray)
 
     assert(
       encodeAsHexString(Constr(3, Constr(3, Nil) :: Nil)) == "D87C9FD87C80FF"
     )
 
     assert(
-      Cbor.decode(hex"D8 7C 9F D8 7C 80 FF").to[Data].value == Constr(3, Constr(3, Nil) :: Nil)
+      Cbor.decode(Utils.hexToBytes("D8 7C 9F D8 7C 80 FF")).to[Data].value == Constr(
+        3,
+        Constr(3, Nil) :: Nil
+      )
     )
 
     assert(
@@ -60,6 +64,6 @@ class DataCborCodecSpec extends AnyFunSuite with ScalaCheckPropertyChecks with A
       ) == "9F002018641903E8C24942ED123B08FE58FE0CFF"
     )
     assert(
-      encodeAsHexString(B("12".getBytes)) == "423132"
+      encodeAsHexString(B(builtins.ByteString.unsafeFromArray("12".getBytes))) == "423132"
     )
   }

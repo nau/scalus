@@ -1,5 +1,6 @@
 package scalus.macros
 
+import scalus.builtins
 import scalus.sir.{Binding, SIR}
 import scalus.uplc.ExprBuilder.*
 import scalus.uplc.{
@@ -199,12 +200,12 @@ object Macros {
 
     def typeReprToDefaultUni(t: TypeRepr): DefaultUni =
       t.asType match
-        case '[BigInt]            => DefaultUni.Integer
-        case '[java.lang.String]  => DefaultUni.String
-        case '[Boolean]           => DefaultUni.Bool
-        case '[Unit]              => DefaultUni.Unit
-        case '[Array[Byte]]       => DefaultUni.ByteString
-        case '[immutable.List[a]] =>
+        case '[BigInt]              => DefaultUni.Integer
+        case '[java.lang.String]    => DefaultUni.String
+        case '[Boolean]             => DefaultUni.Bool
+        case '[Unit]                => DefaultUni.Unit
+        case '[builtins.ByteString] => DefaultUni.ByteString
+        case '[immutable.List[a]]   =>
 //          val aType = typeReprToDefaultUni(a)
           DefaultUni.List(DefaultUni.Integer)
 //        case '[Tuple2[a, b]] => DefaultUni.Pair(typeReprToDefaultUni(a), typeReprToDefaultUni(b))
@@ -256,22 +257,9 @@ object Macros {
       case lit @ Apply(Ident("int2bigInt"), _) =>
         val litE = lit.asExprOf[BigInt]
         '{ Integer($litE) }
-      case lit @ Apply(
-            Select(
-              Apply(
-                Ident("StringInterpolators"),
-                immutable.List(
-                  Apply(
-                    Select(Select(Select(Ident("_root_"), "scala"), "StringContext"), "apply"),
-                    _
-                  )
-                )
-              ),
-              "hex"
-            ),
-            _
-          ) =>
-        val litE = lit.asExprOf[Array[Byte]]
+      case lit @ Apply(Select(byteString, "fromHex"), arg)
+          if byteString.tpe =:= TypeRepr.of[builtins.ByteString.type] =>
+        val litE = lit.asExprOf[builtins.ByteString]
         '{ ByteString($litE) }
     }
 

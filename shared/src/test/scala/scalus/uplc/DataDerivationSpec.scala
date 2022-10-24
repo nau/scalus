@@ -5,7 +5,7 @@ import org.scalatestplus.scalacheck.ScalaCheckPropertyChecks
 import scalus.ledger.api.v1.{Interval, ScriptPurpose, TxId, TxInfo, TxOutRef, Value}
 import scalus.ledger.api.v1.Instances.given
 import scalus.uplc.Data.*
-import scalus.utils.Utils.*
+import scalus.builtins.ByteString.given
 
 import scala.collection.immutable
 

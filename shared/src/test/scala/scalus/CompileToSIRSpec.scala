@@ -3,6 +3,7 @@ package scalus
 import org.scalatest.funsuite.AnyFunSuite
 import org.scalatestplus.scalacheck.ScalaCheckPropertyChecks
 import scalus.builtins.Builtins
+import scalus.builtins.ByteString.given
 import scalus.ledger.api.v1.*
 import scalus.sir.Recursivity.*
 import scalus.sir.SIR.*
@@ -10,8 +11,7 @@ import scalus.sir.{Binding, Recursivity}
 import scalus.uplc.DefaultFun.*
 import scalus.uplc.ExprBuilder.compile
 import scalus.uplc.TermDSL.{lam, λ}
-import scalus.uplc.{Constant, Data, DefaultFun, DefaultUni, NamedDeBruijn}
-import scalus.utils.Utils.*
+import scalus.uplc.*
 
 import scala.collection.immutable
 
@@ -27,7 +27,9 @@ class CompileToSIRSpec extends AnyFunSuite with ScalaCheckPropertyChecks:
       )
     )
     assert(compile(12: BigInt) == Const(Constant.Integer(BigInt("12"))))
-    assert(compile(hex"deadbeef") == Const(Constant.ByteString(hex"deadbeef")))
+    assert(
+      compile(builtins.ByteString.fromHex("deadbeef")) == Const(Constant.ByteString(hex"deadbeef"))
+    )
   }
 
   test("compile if-then-else") {

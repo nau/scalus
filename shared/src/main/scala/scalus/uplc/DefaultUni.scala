@@ -1,6 +1,7 @@
 package scalus.uplc
 
 import org.typelevel.paiges.Doc
+import scalus.builtins.ByteString
 
 sealed abstract class DefaultUni:
   type Unlifted
@@ -40,7 +41,7 @@ object DefaultUni:
     def defaultUni: DefaultUni = DefaultUni.Integer
 
   implicit case object Integer extends LiftedUni[BigInt]
-  implicit case object ByteString extends LiftedUni[Array[Byte]]
+  implicit case object ByteString extends LiftedUni[ByteString]
   implicit case object String extends LiftedUni[String]
   implicit case object Unit extends LiftedUni[Unit]
   implicit case object Bool extends LiftedUni[Boolean]

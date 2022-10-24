@@ -4,6 +4,7 @@ import org.scalacheck.*
 import org.scalacheck.Prop.*
 import org.scalatest.funsuite.AnyFunSuite
 import org.scalatestplus.scalacheck.{Checkers, ScalaCheckPropertyChecks}
+import scalus.builtins.ByteString
 import scalus.uplc.DefaultUni.asConstant
 import scalus.uplc.TermDSL.{*, given}
 
@@ -35,8 +36,8 @@ class TermDSLSpec extends AnyFunSuite with ScalaCheckPropertyChecks with Arbitra
     assert(bigint == Constant.Integer(2))
     val bool: Constant = asConstant(true)
     assert(bool == Constant.Bool(true))
-    val ba: Constant = asConstant(Array[Byte](2, 3))
-    assert(ba == Constant.ByteString(Array[Byte](2, 3)))
+    val ba: Constant = asConstant(ByteString(2, 3))
+    assert(ba == Constant.ByteString(ByteString(2, 3)))
     val s: Constant = asConstant("Hello")
     assert(s == Constant.String("Hello"))
     val u: Constant = asConstant(())
@@ -62,8 +63,8 @@ class TermDSLSpec extends AnyFunSuite with ScalaCheckPropertyChecks with Arbitra
     assert(bigint == Term.Const(Constant.Integer(2)))
     val bool: Term = true
     assert(bool == Term.Const(Constant.Bool(true)))
-    val ba: Term = Array[Byte](2, 3)
-    assert(ba == Term.Const(Constant.ByteString(Array[Byte](2, 3))))
+    val ba: Term = ByteString(2, 3)
+    assert(ba == Term.Const(Constant.ByteString(ByteString(2, 3))))
     val s: Term = "Hello"
     assert(s == Term.Const(Constant.String("Hello")))
     val u: Term = ()

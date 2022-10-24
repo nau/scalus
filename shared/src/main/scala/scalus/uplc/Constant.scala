@@ -2,6 +2,7 @@ package scalus.uplc
 
 import io.bullet.borer.{Cbor, Encoder}
 import org.typelevel.paiges.Doc
+import scalus.builtins
 import scalus.utils.Utils
 
 import java.util
@@ -22,7 +23,9 @@ object Constant:
   given LiftValue[BigInt] with { def lift(a: BigInt): Constant = Integer(a) }
   given LiftValue[Int] with { def lift(a: Int): Constant = Integer(a) }
   given LiftValue[Long] with { def lift(a: Long): Constant = Integer(a) }
-  given LiftValue[Array[Byte]] with { def lift(a: Array[Byte]): Constant = ByteString(a) }
+  given LiftValue[builtins.ByteString] with {
+    def lift(a: builtins.ByteString): Constant = ByteString(a)
+  }
   given LiftValue[java.lang.String] with { def lift(a: java.lang.String): Constant = String(a) }
   given LiftValue[Boolean] with { def lift(a: Boolean): Constant = Bool(a) }
   given LiftValue[Unit] with { def lift(a: Unit): Constant = Unit }
@@ -46,16 +49,9 @@ object Constant:
     def tpe = DefaultUni.Integer
     def prettyValue = Doc.text(value.toString)
 
-  case class ByteString(value: Array[Byte]) extends Constant:
+  case class ByteString(value: builtins.ByteString) extends Constant:
     def tpe = DefaultUni.ByteString
-    def prettyValue = Doc.text("#" + Utils.bytesToHex(value))
-
-    override def equals(obj: Any): Boolean = obj match {
-      case ByteString(value) => util.Arrays.equals(value, this.value)
-      case _                 => false
-    }
-
-    override def hashCode(): Int = util.Arrays.hashCode(value)
+    def prettyValue = Doc.text("#" + value.toHex)
 
   case class String(value: java.lang.String) extends Constant:
     def tpe = DefaultUni.String
@@ -88,7 +84,7 @@ object Constant:
 
   def fromValue(tpe: DefaultUni, a: Any): Constant = tpe match {
     case DefaultUni.Integer    => Integer(a.asInstanceOf[BigInt])
-    case DefaultUni.ByteString => ByteString(a.asInstanceOf[Array[Byte]])
+    case DefaultUni.ByteString => ByteString(a.asInstanceOf[builtins.ByteString])
     case DefaultUni.String     => String(a.asInstanceOf[java.lang.String])
     case DefaultUni.Unit       => Unit
     case DefaultUni.Bool       => Bool(a.asInstanceOf[Boolean])

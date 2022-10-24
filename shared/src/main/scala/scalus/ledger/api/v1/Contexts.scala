@@ -1,15 +1,16 @@
 package scalus.ledger.api.v1
 
+import scalus.builtins.ByteString
 import scalus.ledger.api.v1.Instances.given
 import scalus.uplc.Data
 import scalus.uplc.Data.ToData
 import scalus.utils.Utils.bytesToHex
 
-type ValidatorHash = Array[Byte]
+type ValidatorHash = ByteString
 type Datum = Data
-type DatumHash = Array[Byte]
-type CurrencySymbol = Array[Byte]
-type TokenName = Array[Byte]
+type DatumHash = ByteString
+type CurrencySymbol = ByteString
+type TokenName = ByteString
 type POSIXTime = BigInt
 type POSIXTimeRange = Interval[POSIXTime]
 type AssocMap[K, V] = List[(K, V)]
@@ -17,7 +18,7 @@ type Value = AssocMap[CurrencySymbol, AssocMap[TokenName, BigInt]]
 object Value:
   val zero: Value = List.empty
   def apply(cs: CurrencySymbol, tn: TokenName, v: BigInt): Value = List((cs, List((tn, v))))
-  def lovelace(v: BigInt): Value = apply(Array.empty, Array.empty, v)
+  def lovelace(v: BigInt): Value = apply(ByteString.empty, ByteString.empty, v)
   def asLists(v: Value): List[(CurrencySymbol, List[(TokenName, BigInt)])] = v
 
 object Instances:
@@ -97,13 +98,13 @@ enum DCert:
   case Genesis
   case Mir
 
-opaque type TxId = Array[Byte]
+opaque type TxId = ByteString
 object TxId:
-  def apply(bytes: Array[Byte]): TxId = bytes
-  def unapply(txId: TxId): Option[Array[Byte]] = Some(txId)
+  def apply(bytes: ByteString): TxId = bytes
+  def unapply(txId: TxId): Option[ByteString] = Some(txId)
 extension (t: TxId) {
-  def hash: Array[Byte] = t
-  def toString = s"TxId(${bytesToHex(t)})"
+  def hash: ByteString = t
+  def toString = s"TxId(${t.toHex})"
 }
 
 /*
@@ -114,8 +115,8 @@ data TxOutRef = TxOutRef {
  */
 case class TxOutRef(txOutRefId: TxId, txOutRefIdx: BigInt) derives Data.ToData
 
-case class PubKeyHash(hash: Array[Byte]) {
-  override def toString = s"PubKeyHash(${bytesToHex(hash)})"
+case class PubKeyHash(hash: ByteString) {
+  override def toString = s"PubKeyHash(${hash})"
 }
 
 enum Credential:
@@ -171,7 +172,7 @@ case class TxInfo(
 ) derives Data.ToData
 
 enum ScriptPurpose:
-  case Minting(curSymbol: Array[Byte])
+  case Minting(curSymbol: ByteString)
   case Spending(txOutRef: TxOutRef)
   case Rewarding(stakingCred: StakingCredential)
   case Certifying(cert: DCert)

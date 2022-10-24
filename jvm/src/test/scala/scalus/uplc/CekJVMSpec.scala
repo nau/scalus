@@ -2,6 +2,7 @@ package scalus.uplc
 
 import org.scalatest.funsuite.AnyFunSuite
 import org.scalatestplus.scalacheck.ScalaCheckPropertyChecks
+import scalus.builtins.ByteString.given
 import scalus.ledger.api.v1.*
 import scalus.uplc.Constant.Pair
 import scalus.uplc.DefaultFun.*
@@ -9,7 +10,6 @@ import scalus.uplc.DefaultUni.{Bool, ByteString, asConstant}
 import scalus.uplc.ExprBuilder.{sndPair, unConstrData}
 import scalus.uplc.Term.*
 import scalus.uplc.TermDSL.{*, given}
-import scalus.utils.Utils
 
 import java.io.{ByteArrayInputStream, ByteArrayOutputStream}
 import java.math.RoundingMode

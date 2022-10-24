@@ -1,5 +1,6 @@
 package scalus.uplc
 
+import scalus.builtins.ByteString
 import scalus.utils.Utils.bytesToHex
 
 import java.util
@@ -66,7 +67,7 @@ object Data:
   given ToData[Data] with { def toData(a: Data): Data = a }
   given ToData[BigInt] with { def toData(a: BigInt): Data = I(a) }
   given ToData[Int] with { def toData(a: Int): Data = I(a) }
-  given ToData[Array[Byte]] with { def toData(a: Array[Byte]): Data = B(a) }
+  given ToData[ByteString] with { def toData(a: ByteString): Data = B(a) }
   given seqToData[A: ToData, B[A] <: Seq[A]]: ToData[B[A]] with {
     def toData(a: B[A]): Data = List(a.map(summon[ToData[A]].toData).toList)
   }
@@ -101,15 +102,5 @@ object Data:
 
   case class I(value: BigInt) extends Data
 
-  case class B(value: Array[Byte]) extends Data:
-
-    override def toString: String = s"B(\"${bytesToHex(value)}\")"
-
-    override def equals(that: Any): Boolean = that match
-      case that: B =>
-        that.canEqual(this) &&
-        util.Arrays.equals(value, that.value)
-      case _ => false
-
-    // Step 8 - implement a corresponding hashCode c=method
-    override def hashCode: Int = util.Arrays.hashCode(value)
+  case class B(value: ByteString) extends Data:
+    override def toString: String = s"B(\"${value.toHex}\")"

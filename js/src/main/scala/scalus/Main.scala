@@ -2,7 +2,7 @@ package scalus
 
 import scalus.uplc.*
 import scalus.uplc.Term.*
-import scalus.utils.Utils.*
+import scalus.builtins.ByteString.given
 
 object Main:
 

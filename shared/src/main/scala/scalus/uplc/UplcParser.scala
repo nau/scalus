@@ -5,6 +5,7 @@ import cats.parse.Numbers.{bigInt, digits}
 import cats.parse.Rfc5234.{alpha, digit, hexdig}
 import cats.parse.{Numbers, Parser0, Parser as P}
 import io.bullet.borer.{Cbor, Decoder}
+import scalus.builtins.ByteString
 import scalus.uplc.DefaultUni
 import scalus.uplc.DefaultUni.{ProtoList, ProtoPair, asConstant}
 import scalus.uplc.Term.*
@@ -71,7 +72,7 @@ object UplcParser:
       Constant.Pair(p._1, p._2)
     }
 
-  def bytestring: P[Array[Byte]] = P.char('#') *> hexByte.rep0.map(bs => bs.toArray)
+  def bytestring: P[ByteString] = P.char('#') *> hexByte.rep0.map(bs => ByteString(bs: _*))
   def constantOf(t: DefaultUni): P[Constant] = t match
     case DefaultUni.Integer => lexeme(bigInt).map(i => Constant.Integer(i))
     case DefaultUni.Unit    => symbol("()").map(_ => Constant.Unit)
@@ -87,7 +88,7 @@ object UplcParser:
     case DefaultUni.Data =>
       given Decoder[Data] = PlutusDataCborDecoder
       lexeme(
-        bytestring.map(bytes => asConstant(Cbor.decode(bytes).to[Data].value))
+        bytestring.map(bytes => asConstant(Cbor.decode(bytes.bytes).to[Data].value))
       )
     case DefaultUni.Apply(ProtoList, t)                      => conListOf(t)
     case DefaultUni.Apply(DefaultUni.Apply(ProtoPair, a), b) => conPairOf(a, b)
