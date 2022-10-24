@@ -7,7 +7,7 @@ import scalus.builtins.ByteString.given
 import scalus.ledger.api.v1.*
 import scalus.sir.Recursivity.*
 import scalus.sir.SIR.*
-import scalus.sir.{Binding, Recursivity}
+import scalus.sir.{Binding, Recursivity, SIR}
 import scalus.uplc.DefaultFun.*
 import scalus.uplc.ExprBuilder.compile
 import scalus.uplc.TermDSL.{lam, λ}
@@ -27,9 +27,33 @@ class CompileToSIRSpec extends AnyFunSuite with ScalaCheckPropertyChecks:
       )
     )
     assert(compile(12: BigInt) == Const(Constant.Integer(BigInt("12"))))
+    // ByteStrings
+    assert(
+      compile(builtins.ByteString.empty) == Const(Constant.ByteString(builtins.ByteString.empty))
+    )
     assert(
       compile(builtins.ByteString.fromHex("deadbeef")) == Const(Constant.ByteString(hex"deadbeef"))
     )
+    assert(
+      compile(
+        builtins.ByteString.unsafeFromArray(
+          Array(0xde.toByte, 0xad.toByte, 0xbe.toByte, 0xef.toByte)
+        )
+      ) == Const(Constant.ByteString(hex"deadbeef"))
+    )
+    assert(
+      compile(
+        builtins.ByteString(
+          Array(0xde.toByte, 0xad.toByte, 0xbe.toByte, 0xef.toByte)
+        )
+      ) == Const(Constant.ByteString(hex"deadbeef"))
+    )
+    assert(
+      compile(
+        builtins.ByteString(0xde.toByte, 0xad.toByte, 0xbe.toByte, 0xef.toByte)
+      ) == Const(Constant.ByteString(hex"deadbeef"))
+    )
+
   }
 
   test("compile if-then-else") {

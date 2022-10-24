@@ -257,7 +257,10 @@ object Macros {
       case lit @ Apply(Ident("int2bigInt"), _) =>
         val litE = lit.asExprOf[BigInt]
         '{ Integer($litE) }
-      case lit @ Apply(Select(byteString, "fromHex"), arg)
+      case lit @ Ident("empty") if lit.tpe.show == "scalus.builtins.ByteString.empty" =>
+        val litE = lit.asExprOf[builtins.ByteString]
+        '{ ByteString($litE) }
+      case lit @ Apply(Select(byteString, "fromHex" | "unsafeFromArray" | "apply"), args)
           if byteString.tpe =:= TypeRepr.of[builtins.ByteString.type] =>
         val litE = lit.asExprOf[builtins.ByteString]
         '{ ByteString($litE) }
