@@ -12,7 +12,9 @@ import scalus.utils.Utils.bytesToHex
 import java.util
 import scala.collection.immutable
 
-case class Binding(name: String, value: SIR)
+case class Binding(name: String, value: SIR) {
+  override def toString: String = s"Binding(\"$name\", $value)"
+}
 
 enum Recursivity:
   case NonRec, Rec

@@ -189,10 +189,12 @@ object Macros {
       def apply(x: DefaultUni)(using Quotes) =
         import quotes.reflect._
         x match
-          case DefaultUni.Unit    => '{ DefaultUni.Unit }
-          case DefaultUni.Bool    => '{ DefaultUni.Bool }
-          case DefaultUni.Integer => '{ DefaultUni.Integer }
-          case DefaultUni.String  => '{ DefaultUni.String }
+          case DefaultUni.Unit       => '{ DefaultUni.Unit }
+          case DefaultUni.Bool       => '{ DefaultUni.Bool }
+          case DefaultUni.Integer    => '{ DefaultUni.Integer }
+          case DefaultUni.String     => '{ DefaultUni.String }
+          case DefaultUni.ByteString => '{ DefaultUni.ByteString }
+          case DefaultUni.Data       => '{ DefaultUni.Data }
           case DefaultUni.Apply(DefaultUni.ProtoList, a) =>
             '{ DefaultUni.List(${ Expr(a) }) }
           case DefaultUni.Apply(DefaultUni.Apply(DefaultUni.ProtoPair, a), b) =>
@@ -208,12 +210,17 @@ object Macros {
         case '[Boolean]             => DefaultUni.Bool
         case '[Unit]                => DefaultUni.Unit
         case '[builtins.ByteString] => DefaultUni.ByteString
-        case '[immutable.List[a]]   =>
-//          val aType = typeReprToDefaultUni(a)
-          DefaultUni.List(DefaultUni.Integer)
-//        case '[Tuple2[a, b]] => DefaultUni.Pair(typeReprToDefaultUni(a), typeReprToDefaultUni(b))
-        case '[scalus.uplc.Data] => DefaultUni.Data
-        case _                   => report.errorAndAbort(s"Unsupported type: ${t.show}")
+        case '[builtins.List[a]] =>
+          val immutable.List(a) = t.typeArgs
+          val aType = typeReprToDefaultUni(a)
+          DefaultUni.List(aType)
+        case '[builtins.Pair[a, b]] =>
+          t.typeArgs match
+            case immutable.List(a, b) =>
+              DefaultUni.Pair(typeReprToDefaultUni(a), typeReprToDefaultUni(b))
+            case _ => report.errorAndAbort("Unexpected type arguments for Pair: " + t.show)
+        case _ if t <:< TypeRepr.of[scalus.uplc.Data] => DefaultUni.Data
+        case _ => report.errorAndAbort(s"Unsupported type: ${t.show}")
 
     def compileStmt(stmt: Statement, expr: Expr[SIR]): Expr[SIR] = {
       stmt match
@@ -309,7 +316,7 @@ object Macros {
               '{
                 SIR.Apply(
                   SIR.Apply(SIR.Builtin(DefaultFun.MkPairData), ${ compileExpr(a) }),
-                  ${ compileExpr(a) }
+                  ${ compileExpr(b) }
                 )
               }
             else
@@ -397,25 +404,26 @@ object Macros {
               )
             }
           // Data BUILTINS
+          case bi if bi.tpe.show == "scalus.builtins.Builtins.mkConstr" =>
+            '{ SIR.Builtin(DefaultFun.ConstrData) }
+          case bi if bi.tpe.show == "scalus.builtins.Builtins.mkList" =>
+            '{ SIR.Builtin(DefaultFun.ListData) }
+          case bi if bi.tpe.show == "scalus.builtins.Builtins.mkMap" =>
+            '{ SIR.Builtin(DefaultFun.MapData) }
           case Select(dataB, "apply") if dataB.tpe =:= TypeRepr.of[scalus.uplc.Data.B.type] =>
             '{ SIR.Builtin(DefaultFun.BData) }
           case Select(dataI, "apply") if dataI.tpe =:= TypeRepr.of[scalus.uplc.Data.I.type] =>
             '{ SIR.Builtin(DefaultFun.IData) }
-          case Apply(fun, immutable.List(arg))
-              if fun.tpe.show == "scalus.builtins.Builtins.unsafeDataAsConstr" =>
-            '{ SIR.Apply(SIR.Builtin(DefaultFun.UnConstrData), ${ compileExpr(arg) }) }
-          case Apply(fun, immutable.List(arg))
-              if fun.tpe.show == "scalus.builtins.Builtins.unsafeDataAsList" =>
-            '{ SIR.Apply(SIR.Builtin(DefaultFun.UnListData), ${ compileExpr(arg) }) }
-          case Apply(fun, immutable.List(arg))
-              if fun.tpe.show == "scalus.builtins.Builtins.unsafeDataAsMap" =>
-            '{ SIR.Apply(SIR.Builtin(DefaultFun.UnMapData), ${ compileExpr(arg) }) }
-          case Apply(fun, immutable.List(arg))
-              if fun.tpe.show == "scalus.builtins.Builtins.unsafeDataAsB" =>
-            '{ SIR.Apply(SIR.Builtin(DefaultFun.UnBData), ${ compileExpr(arg) }) }
-          case Apply(fun, immutable.List(arg))
-              if fun.tpe.show == "scalus.builtins.Builtins.unsafeDataAsI" =>
-            '{ SIR.Apply(SIR.Builtin(DefaultFun.UnIData), ${ compileExpr(arg) }) }
+          case bi if bi.tpe.show == "scalus.builtins.Builtins.unsafeDataAsConstr" =>
+            '{ SIR.Builtin(DefaultFun.UnConstrData) }
+          case bi if bi.tpe.show == "scalus.builtins.Builtins.unsafeDataAsList" =>
+            '{ SIR.Builtin(DefaultFun.UnListData) }
+          case bi if bi.tpe.show == "scalus.builtins.Builtins.unsafeDataAsMap" =>
+            '{ SIR.Builtin(DefaultFun.UnMapData) }
+          case bi if bi.tpe.show == "scalus.builtins.Builtins.unsafeDataAsB" =>
+            '{ SIR.Builtin(DefaultFun.UnBData) }
+          case bi if bi.tpe.show == "scalus.builtins.Builtins.unsafeDataAsI" =>
+            '{ SIR.Builtin(DefaultFun.UnIData) }
           case Apply(f, args) =>
             val fE = compileExpr(f)
             val argsE = args.map(compileExpr)

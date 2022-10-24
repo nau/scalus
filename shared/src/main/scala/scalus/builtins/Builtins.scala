@@ -2,7 +2,7 @@ package scalus.builtins
 import scalus.uplc.Data
 import scalus.utils.Utils
 
-import scala.collection.immutable.Nil
+import scala.collection.immutable
 
 class ByteString private (val bytes: Array[Byte]) {
   override def toString: String = "\"" + toHex + "\""
@@ -56,12 +56,19 @@ enum List[+A]:
 
   def ::[B >: A](x: B): List[B] = Cons(x, this)
 
+  def toList: immutable.List[A] = this match
+    case Nil        => immutable.Nil
+    case Cons(h, t) => h :: t.toList
+
 object List:
   def empty[A]: List[A] = Nil
   def apply[A](xs: A*): List[A] = xs.foldRight(empty[A])(_ :: _)
 
 object Builtins:
 
+  def mkConstr(ctor: BigInt, args: List[Data]): Data = Data.Constr(ctor.toLong, args.toList)
+  def mkList(values: List[Data]): Data = Data.List(values.toList)
+  def mkMap(values: List[Pair[Data, Data]]): Data = Data.Map(values.toList.map(p => (p.fst, p.snd)))
   def unsafeDataAsConstr(d: Data): Pair[BigInt, List[Data]] = d match
     case Data.Constr(constr, args) => Pair(constr: BigInt, List(args: _*))
     case _                         => throw new Exception(s"not a constructor but $d")

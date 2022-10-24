@@ -16,6 +16,8 @@ import scalus.uplc.*
 import scala.collection.immutable
 
 class CompileToSIRSpec extends AnyFunSuite with ScalaCheckPropertyChecks:
+  val deadbeef = Constant.ByteString(hex"deadbeef")
+
   test("compile literals") {
     assert(compile(false) == Const(Constant.Bool(false)))
     assert(compile(true) == Const(Constant.Bool(true)))
@@ -32,26 +34,26 @@ class CompileToSIRSpec extends AnyFunSuite with ScalaCheckPropertyChecks:
       compile(builtins.ByteString.empty) == Const(Constant.ByteString(builtins.ByteString.empty))
     )
     assert(
-      compile(builtins.ByteString.fromHex("deadbeef")) == Const(Constant.ByteString(hex"deadbeef"))
+      compile(builtins.ByteString.fromHex("deadbeef")) == Const(deadbeef)
     )
     assert(
       compile(
         builtins.ByteString.unsafeFromArray(
           Array(0xde.toByte, 0xad.toByte, 0xbe.toByte, 0xef.toByte)
         )
-      ) == Const(Constant.ByteString(hex"deadbeef"))
+      ) == Const(deadbeef)
     )
     assert(
       compile(
         builtins.ByteString(
           Array(0xde.toByte, 0xad.toByte, 0xbe.toByte, 0xef.toByte)
         )
-      ) == Const(Constant.ByteString(hex"deadbeef"))
+      ) == Const(deadbeef)
     )
     assert(
       compile(
         builtins.ByteString(0xde.toByte, 0xad.toByte, 0xbe.toByte, 0xef.toByte)
-      ) == Const(Constant.ByteString(hex"deadbeef"))
+      ) == Const(deadbeef)
     )
 
   }
@@ -199,6 +201,53 @@ class CompileToSIRSpec extends AnyFunSuite with ScalaCheckPropertyChecks:
   }
 
   test("compile Data builtins") {
+    val nilData = Const(Constant.List(DefaultUni.Data, immutable.Nil))
+    assert(
+      compile {
+        Builtins.mkConstr(
+          1,
+          builtins.List(Data.I(2))
+        )
+      } == Apply(
+        Apply(Builtin(ConstrData), Const(Constant.Integer(1))),
+        Apply(
+          Apply(Builtin(MkCons), Apply(Builtin(IData), Const(Constant.Integer(2)))),
+          nilData
+        )
+      )
+    )
+    assert(
+      compile {
+        Builtins.mkList(builtins.List(Data.I(1)))
+      } ==
+        Apply(
+          Builtin(ListData),
+          Apply(
+            Apply(Builtin(MkCons), Apply(Builtin(IData), Const(Constant.Integer(1)))),
+            nilData
+          )
+        )
+    )
+    assert(
+      compile {
+        Builtins.mkMap(
+          builtins.List(builtins.Pair(Data.B(ByteString.fromHex("deadbeef")), Data.I(1)))
+        )
+      } == Apply(
+        Builtin(MapData),
+        Apply(
+          Apply(
+            Builtin(MkCons),
+            Apply(
+              Apply(Builtin(MkPairData), Apply(Builtin(BData), Const(deadbeef))),
+              Apply(Builtin(IData), Const(Constant.Integer(1)))
+            )
+          ),
+          Const(Constant.List(DefaultUni.Pair(DefaultUni.Data, DefaultUni.Data), immutable.Nil))
+        )
+      )
+    )
+
     assert(
       compile {
         def unb(d: Data) = Builtins.unsafeDataAsConstr(d)
@@ -272,36 +321,27 @@ class CompileToSIRSpec extends AnyFunSuite with ScalaCheckPropertyChecks:
   }
 
   test("compile Pair builtins") {
+    assert(compile {
+      builtins.Pair(BigInt(1), ByteString.fromHex("deadbeef"))
+    } == Const(Constant.Pair(Constant.Integer(1), deadbeef)))
     assert(
       compile {
-        val p = builtins.Pair(BigInt(1), ByteString.fromHex("deadbeef"))
-        builtins.Pair(Data.B(p.snd), Data.I(p.fst))
+        def swap(p: builtins.Pair[Data, Data]) = builtins.Pair(p.snd, p.fst)
       } == Let(
-        NonRec,
+        Rec,
         List(
           Binding(
-            "p",
-            Const(
-              Constant.Pair(
-                Constant.Integer(1),
-                Constant.ByteString(builtins.ByteString.fromHex("deadbeef"))
+            "swap",
+            LamAbs(
+              "p",
+              Apply(
+                Apply(Builtin(MkPairData), Apply(Builtin(SndPair), Var(NamedDeBruijn("p")))),
+                Apply(Builtin(FstPair), Var(NamedDeBruijn("p")))
               )
             )
           )
         ),
-        Apply(
-          Apply(
-            Builtin(DefaultFun.MkPairData),
-            Apply(
-              Builtin(DefaultFun.BData),
-              Apply(Builtin(DefaultFun.SndPair), Var(NamedDeBruijn("p")))
-            )
-          ),
-          Apply(
-            Builtin(DefaultFun.BData),
-            Apply(Builtin(DefaultFun.SndPair), Var(NamedDeBruijn("p")))
-          )
-        )
+        Const(Constant.Unit)
       )
     )
   }
