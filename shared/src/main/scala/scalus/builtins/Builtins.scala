@@ -68,6 +68,9 @@ object Builtins:
   def unsafeDataAsList(d: Data): List[Data] = d match
     case Data.List(values) => List(values: _*)
     case _                 => throw new Exception(s"not a list but $d")
+  def unsafeDataAsMap(d: Data): List[Pair[Data, Data]] = d match
+    case Data.Map(values) => List(values.map(Pair.apply): _*)
+    case _                => throw new Exception(s"not a list but $d")
 
   def unsafeDataAsI(d: Data): BigInt = d match
     case Data.I(value) => value

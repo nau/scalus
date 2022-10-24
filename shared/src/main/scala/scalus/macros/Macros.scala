@@ -180,7 +180,10 @@ object Macros {
     import scalus.uplc.DefaultFun
     import scalus.sir.Recursivity
 
-    extension (t: Term) def isList = t.tpe <:< TypeRepr.of[immutable.List[_]]
+    extension (t: Term) def isList = t.tpe <:< TypeRepr.of[builtins.List[_]]
+    extension (t: Term) def isPair = t.tpe <:< TypeRepr.of[builtins.Pair[_, _]]
+    extension (t: Term) def isLiteral = compileConstant.isDefinedAt(t)
+    extension (t: Term) def isData = t.tpe <:< TypeRepr.of[scalus.uplc.Data]
 
     given ToExpr[DefaultUni] with {
       def apply(x: DefaultUni)(using Quotes) =
@@ -288,6 +291,36 @@ object Macros {
                 ${ compileExpr(f) }
               )
             }
+          // PAIR
+          case Select(pair, fun) if pair.isPair =>
+            fun match
+              case "fst" =>
+                '{ SIR.Apply(SIR.Builtin(DefaultFun.FstPair), ${ compileExpr(pair) }) }
+              case "snd" =>
+                '{ SIR.Apply(SIR.Builtin(DefaultFun.SndPair), ${ compileExpr(pair) }) }
+              case _ => report.errorAndAbort(s"compileExpr: Unsupported pair function: $fun")
+          case Apply(TypeApply(pair, immutable.List(tpe1, tpe2)), immutable.List(a, b))
+              if pair.tpe.show == "scalus.builtins.Pair.apply" =>
+            // We can create a Pair by either 2 literals as (con pair...)
+            // or 2 Data variables using MkPairData builtin
+            if a.isLiteral && b.isLiteral then
+              '{ SIR.Const(Pair(${ compileConstant(a) }, ${ compileConstant(b) })) }
+            else if a.isData && b.isData then
+              '{
+                SIR.Apply(
+                  SIR.Apply(SIR.Builtin(DefaultFun.MkPairData), ${ compileExpr(a) }),
+                  ${ compileExpr(a) }
+                )
+              }
+            else
+              report.errorAndAbort(
+                s"""Builtin Pair can only be created either by 2 literals or 2 Data variables:
+              |Pair[${tpe1.tpe.show},${tpe2.tpe.show}](${a.show}, ${b.show})
+              |- ${a.show} literal: ${a.isLiteral}, data: ${a.isData}
+              |- ${b.show} literal: ${b.isLiteral}, data: ${b.isData}
+              |""".stripMargin
+              )
+
           case Select(lst, fun) if lst.isList =>
             fun match
               case "head" =>
@@ -302,7 +335,7 @@ object Macros {
                 )
 
           case TypeApply(Select(list, "empty"), immutable.List(tpe))
-              if list.tpe <:< TypeRepr.of[IterableFactory[immutable.List]] =>
+              if list.tpe =:= TypeRepr.of[builtins.List.type] =>
             val tpeE = Expr(typeReprToDefaultUni(tpe.tpe))
             '{ SIR.Const(List($tpeE, Nil)) }
           case Apply(
@@ -314,7 +347,7 @@ object Macros {
           case Apply(
                 TypeApply(Select(list, "apply"), immutable.List(tpe)),
                 immutable.List(ex)
-              ) if list.tpe <:< TypeRepr.of[IterableFactory[immutable.List]] =>
+              ) if list.tpe =:= TypeRepr.of[builtins.List.type] =>
             val tpeE = Expr(typeReprToDefaultUni(tpe.tpe))
             ex match
               case Typed(Repeated(args, _), _) =>
@@ -348,11 +381,41 @@ object Macros {
               case term =>
                 Expr("error")
             '{ SIR.Error($msg) }
+          // f.apply(arg) => Apply(f, arg)
           case Apply(Select(Ident(a), "apply"), args) =>
             val argsE = args.map(compileExpr)
             argsE.foldLeft('{ SIR.Var(NamedDeBruijn(${ Expr(a) })) })((acc, arg) =>
               '{ SIR.Apply($acc, $arg) }
             )
+          // ByteString equality
+          case Apply(Select(lhs, "=="), immutable.List(rhs))
+              if lhs.tpe =:= TypeRepr.of[builtins.ByteString] =>
+            '{
+              SIR.Apply(
+                SIR.Apply(SIR.Builtin(DefaultFun.EqualsByteString), ${ compileExpr(lhs) }),
+                ${ compileExpr(rhs) }
+              )
+            }
+          // Data BUILTINS
+          case Select(dataB, "apply") if dataB.tpe =:= TypeRepr.of[scalus.uplc.Data.B.type] =>
+            '{ SIR.Builtin(DefaultFun.BData) }
+          case Select(dataI, "apply") if dataI.tpe =:= TypeRepr.of[scalus.uplc.Data.I.type] =>
+            '{ SIR.Builtin(DefaultFun.IData) }
+          case Apply(fun, immutable.List(arg))
+              if fun.tpe.show == "scalus.builtins.Builtins.unsafeDataAsConstr" =>
+            '{ SIR.Apply(SIR.Builtin(DefaultFun.UnConstrData), ${ compileExpr(arg) }) }
+          case Apply(fun, immutable.List(arg))
+              if fun.tpe.show == "scalus.builtins.Builtins.unsafeDataAsList" =>
+            '{ SIR.Apply(SIR.Builtin(DefaultFun.UnListData), ${ compileExpr(arg) }) }
+          case Apply(fun, immutable.List(arg))
+              if fun.tpe.show == "scalus.builtins.Builtins.unsafeDataAsMap" =>
+            '{ SIR.Apply(SIR.Builtin(DefaultFun.UnMapData), ${ compileExpr(arg) }) }
+          case Apply(fun, immutable.List(arg))
+              if fun.tpe.show == "scalus.builtins.Builtins.unsafeDataAsB" =>
+            '{ SIR.Apply(SIR.Builtin(DefaultFun.UnBData), ${ compileExpr(arg) }) }
+          case Apply(fun, immutable.List(arg))
+              if fun.tpe.show == "scalus.builtins.Builtins.unsafeDataAsI" =>
+            '{ SIR.Apply(SIR.Builtin(DefaultFun.UnIData), ${ compileExpr(arg) }) }
           case Apply(f, args) =>
             val fE = compileExpr(f)
             val argsE = args.map(compileExpr)

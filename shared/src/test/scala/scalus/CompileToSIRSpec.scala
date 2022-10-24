@@ -2,7 +2,7 @@ package scalus
 
 import org.scalatest.funsuite.AnyFunSuite
 import org.scalatestplus.scalacheck.ScalaCheckPropertyChecks
-import scalus.builtins.Builtins
+import scalus.builtins.{Builtins, ByteString}
 import scalus.builtins.ByteString.given
 import scalus.ledger.api.v1.*
 import scalus.sir.Recursivity.*
@@ -132,13 +132,13 @@ class CompileToSIRSpec extends AnyFunSuite with ScalaCheckPropertyChecks:
     // Nil
     assert(
       compile {
-        List.empty[BigInt]
+        builtins.List.empty[BigInt]
       } == Const(Constant.List(DefaultUni.Integer, List()))
     )
     // Create a List literal
     assert(
       compile {
-        List[BigInt](1, 2, 3)
+        builtins.List[BigInt](1, 2, 3)
       } == Const(
         Constant.List(
           DefaultUni.Integer,
@@ -150,7 +150,7 @@ class CompileToSIRSpec extends AnyFunSuite with ScalaCheckPropertyChecks:
     assert(
       compile {
         val a = "foo"
-        "bar" :: List(a)
+        "bar" :: builtins.List(a)
       } == Let(
         NonRec,
         List(Binding("a", Const(Constant.String("foo")))),
@@ -165,7 +165,7 @@ class CompileToSIRSpec extends AnyFunSuite with ScalaCheckPropertyChecks:
     )
     assert(
       compile {
-        def head(l: List[BigInt]) = l.head
+        def head(l: builtins.List[BigInt]) = l.head
       } == Let(
         Rec,
         List(
@@ -176,7 +176,7 @@ class CompileToSIRSpec extends AnyFunSuite with ScalaCheckPropertyChecks:
     )
     assert(
       compile {
-        def tail(l: List[BigInt]) = l.tail
+        def tail(l: builtins.List[BigInt]) = l.tail
       } == Let(
         Rec,
         List(
@@ -187,7 +187,7 @@ class CompileToSIRSpec extends AnyFunSuite with ScalaCheckPropertyChecks:
     )
     assert(
       compile {
-        def isEmpty(l: List[BigInt]) = l.isEmpty
+        def isEmpty(l: builtins.List[BigInt]) = l.isEmpty
       } == Let(
         Rec,
         List(
@@ -196,10 +196,116 @@ class CompileToSIRSpec extends AnyFunSuite with ScalaCheckPropertyChecks:
         Const(Constant.Unit)
       )
     )
-
   }
 
-/*
+  test("compile Data builtins") {
+    assert(
+      compile {
+        def unb(d: Data) = Builtins.unsafeDataAsConstr(d)
+      } == Let(
+        Rec,
+        List(
+          Binding(
+            "unb",
+            LamAbs("d", Apply(Builtin(DefaultFun.UnConstrData), Var(NamedDeBruijn("d"))))
+          )
+        ),
+        Const(Constant.Unit)
+      )
+    )
+    assert(
+      compile {
+        def unb(d: Data) = Builtins.unsafeDataAsList(d)
+      } == Let(
+        Rec,
+        List(
+          Binding(
+            "unb",
+            LamAbs("d", Apply(Builtin(DefaultFun.UnListData), Var(NamedDeBruijn("d"))))
+          )
+        ),
+        Const(Constant.Unit)
+      )
+    )
+    assert(
+      compile {
+        def unb(d: Data) = Builtins.unsafeDataAsMap(d)
+      } == Let(
+        Rec,
+        List(
+          Binding(
+            "unb",
+            LamAbs("d", Apply(Builtin(DefaultFun.UnMapData), Var(NamedDeBruijn("d"))))
+          )
+        ),
+        Const(Constant.Unit)
+      )
+    )
+    assert(
+      compile {
+        def unb(d: Data) = Builtins.unsafeDataAsB(d)
+      } == Let(
+        Rec,
+        List(
+          Binding(
+            "unb",
+            LamAbs("d", Apply(Builtin(DefaultFun.UnBData), Var(NamedDeBruijn("d"))))
+          )
+        ),
+        Const(Constant.Unit)
+      )
+    )
+    assert(
+      compile {
+        def unb(d: Data) = Builtins.unsafeDataAsI(d)
+      } == Let(
+        Rec,
+        List(
+          Binding(
+            "unb",
+            LamAbs("d", Apply(Builtin(DefaultFun.UnIData), Var(NamedDeBruijn("d"))))
+          )
+        ),
+        Const(Constant.Unit)
+      )
+    )
+  }
+
+  test("compile Pair builtins") {
+    assert(
+      compile {
+        val p = builtins.Pair(BigInt(1), ByteString.fromHex("deadbeef"))
+        builtins.Pair(Data.B(p.snd), Data.I(p.fst))
+      } == Let(
+        NonRec,
+        List(
+          Binding(
+            "p",
+            Const(
+              Constant.Pair(
+                Constant.Integer(1),
+                Constant.ByteString(builtins.ByteString.fromHex("deadbeef"))
+              )
+            )
+          )
+        ),
+        Apply(
+          Apply(
+            Builtin(DefaultFun.MkPairData),
+            Apply(
+              Builtin(DefaultFun.BData),
+              Apply(Builtin(DefaultFun.SndPair), Var(NamedDeBruijn("p")))
+            )
+          ),
+          Apply(
+            Builtin(DefaultFun.BData),
+            Apply(Builtin(DefaultFun.SndPair), Var(NamedDeBruijn("p")))
+          )
+        )
+      )
+    )
+  }
+
   test("PubKey Validator example") {
     val scriptContext =
       ScriptContext(
@@ -221,14 +327,12 @@ class CompileToSIRSpec extends AnyFunSuite with ScalaCheckPropertyChecks:
       def validator(redeemer: Unit, datum: Unit, ctx: Data) =
         val txinfo = Builtins.unsafeDataAsList(Builtins.unsafeDataAsConstr(ctx).snd.head)
         val signatories = Builtins.unsafeDataAsList(txinfo.tail.tail.tail.tail.tail.tail.tail.head)
-        def findSignatureOrFail(signatories: List[Data]): Unit =
+        def findSignatureOrFail(signatories: builtins.List[Data]): Unit =
           if signatories.isEmpty then throw new RuntimeException("Signature not found")
-          // FIXME don't use Array[Byte], use ByteString
-          else if Builtins.unsafeDataAsB(signatories.head) == hex"deadbeef" then ()
+          else if Builtins.unsafeDataAsB(signatories.head) == ByteString.fromHex("deadbeef") then ()
           else findSignatureOrFail(signatories.tail)
         findSignatureOrFail(signatories)
 
     }
     println(compiled)
   }
- */
