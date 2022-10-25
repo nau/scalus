@@ -244,6 +244,8 @@ object Macros {
           report.errorAndAbort(
             "compileStmt: Only single argument list defs are supported, but given: " + stmt.show
           )
+        case x: Term =>
+          '{ SIR.Let(Recursivity.NonRec, immutable.List(Binding("_", ${ compileExpr(x) })), $expr) }
         case x => report.errorAndAbort(s"compileStmt: $x")
     }
     def compileBlock(stmts: immutable.List[Statement], expr: Term): Expr[SIR] = {
