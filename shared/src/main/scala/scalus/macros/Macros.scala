@@ -432,14 +432,9 @@ object Macros {
           case Block(stmt, expr)       => compileBlock(stmt, expr)
           case Typed(expr, _)          => compileExpr(expr)
           case Closure(Ident(name), _) => '{ SIR.Var(NamedDeBruijn(${ Expr(name) })) }
-          case x                       => report.errorAndAbort("compileExpr: " + x.toString)
+          case Inlined(_, _, expr)     => compileExpr(expr)
+          case x => report.errorAndAbort(s"Unsupported expression: ${x.show}\n$x")
     }
 
-    e.asTerm match
-      // lam(x => body)
-      case Inlined(_, _, expr) =>
-//        report.info(s"Compile: ${expr}")
-        compileExpr(expr)
-      case x => report.errorAndAbort("compileImpl: " + x.toString)
-
+    compileExpr(e.asTerm)
 }

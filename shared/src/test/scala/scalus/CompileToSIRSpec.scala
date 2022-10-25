@@ -18,6 +18,8 @@ import scala.collection.immutable
 class CompileToSIRSpec extends AnyFunSuite with ScalaCheckPropertyChecks:
   val deadbeef = Constant.ByteString(hex"deadbeef")
 
+  inline def compilesTo(expected: SIR)(inline e: Any) = assert(compile(e) == expected)
+
   test("compile literals") {
     assert(compile(false) == Const(Constant.Bool(false)))
     assert(compile(true) == Const(Constant.Bool(true)))
@@ -321,13 +323,11 @@ class CompileToSIRSpec extends AnyFunSuite with ScalaCheckPropertyChecks:
   }
 
   test("compile Pair builtins") {
-    assert(compile {
+    compilesTo(Const(Constant.Pair(Constant.Integer(1), deadbeef))) {
       builtins.Pair(BigInt(1), ByteString.fromHex("deadbeef"))
-    } == Const(Constant.Pair(Constant.Integer(1), deadbeef)))
-    assert(
-      compile {
-        def swap(p: builtins.Pair[Data, Data]) = builtins.Pair(p.snd, p.fst)
-      } == Let(
+    }
+    compilesTo(
+      Let(
         Rec,
         List(
           Binding(
@@ -343,7 +343,9 @@ class CompileToSIRSpec extends AnyFunSuite with ScalaCheckPropertyChecks:
         ),
         Const(Constant.Unit)
       )
-    )
+    ) {
+      def swap(p: builtins.Pair[Data, Data]) = builtins.Pair(p.snd, p.fst)
+    }
   }
 
   test("PubKey Validator example") {
