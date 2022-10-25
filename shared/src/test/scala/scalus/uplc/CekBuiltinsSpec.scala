@@ -102,6 +102,7 @@ class CekBuiltinsSpec extends AnyFunSuite with ScalaCheckPropertyChecks with Arb
     }
   }
 
+  // FIXME failed with seed -4192032092246695496
   test("(x `div` y)*y + (x `mod` y) == x") {
     forAll { (x: BigInt, y: BigInt) =>
       whenever(y != 0) {
