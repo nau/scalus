@@ -34,8 +34,9 @@ enum Term:
   def pretty: Doc = this match
     case Var(name) => Doc.text(name.name)
     case LamAbs(name, term) =>
-      Doc.text("(") + Doc.text("lam") + Doc.space + Doc.text(name) + Doc.space + term.pretty + Doc
-        .text(")")
+      Doc.text("(") + Doc.text("lam") + Doc.space + Doc.text(name) + Doc.line + term.pretty.indent(
+        2
+      ) + Doc.text(")")
     case a @ Apply(f, arg) =>
       Doc.text("[") + f.pretty + Doc.space + arg.pretty + Doc.text("]")
     case Force(term) =>

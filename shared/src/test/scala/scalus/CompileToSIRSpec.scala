@@ -7,7 +7,7 @@ import scalus.builtins.ByteString.given
 import scalus.ledger.api.v1.*
 import scalus.sir.Recursivity.*
 import scalus.sir.SIR.*
-import scalus.sir.{Binding, Recursivity, SIR}
+import scalus.sir.{Binding, Recursivity, SIR, SimpleSirToUplcLowering}
 import scalus.uplc.DefaultFun.*
 import scalus.uplc.ExprBuilder.compile
 import scalus.uplc.TermDSL.{lam, λ}
@@ -64,13 +64,7 @@ class CompileToSIRSpec extends AnyFunSuite with ScalaCheckPropertyChecks:
     assert(
       compile {
         if true then () else ()
-      } == Apply(
-        Apply(
-          Apply(Builtin(IfThenElse), Const(Constant.Bool(true))),
-          Const(Constant.Unit)
-        ),
-        Const(Constant.Unit)
-      )
+      } == SIR.IfThenElse(Const(Constant.Bool(true)), Const(Constant.Unit), Const(Constant.Unit))
     )
   }
 
@@ -113,16 +107,7 @@ class CompileToSIRSpec extends AnyFunSuite with ScalaCheckPropertyChecks:
         a(true)
       } == Let(
         NonRec,
-        List(
-          Binding(
-            "a",
-            Let(
-              Rec,
-              List(Binding("$anonfun", LamAbs("x", Var(NamedDeBruijn("x"))))),
-              Var(NamedDeBruijn("$anonfun"))
-            )
-          )
-        ),
+        List(Binding("a", LamAbs("x", Var(NamedDeBruijn("x"))))),
         Apply(Var(NamedDeBruijn("a")), Const(Constant.Bool(true)))
       )
     )
@@ -359,22 +344,31 @@ class CompileToSIRSpec extends AnyFunSuite with ScalaCheckPropertyChecks:
           Nil,
           Nil,
           Interval.always,
-          Nil,
+          PubKeyHash(hex"deadbeef") :: Nil,
           Nil,
           TxId(hex"bb")
         ),
         ScriptPurpose.Spending(TxOutRef(TxId(hex"deadbeef"), 0))
       )
-    val compiled = compile {
-      def validator(redeemer: Unit, datum: Unit, ctx: Data) =
-        val txinfo = Builtins.unsafeDataAsList(Builtins.unsafeDataAsConstr(ctx).snd.head)
-        val signatories = Builtins.unsafeDataAsList(txinfo.tail.tail.tail.tail.tail.tail.tail.head)
-        def findSignatureOrFail(signatories: builtins.List[Data]): Unit =
-          if signatories.isEmpty then throw new RuntimeException("Signature not found")
-          else if Builtins.unsafeDataAsB(signatories.head) == ByteString.fromHex("deadbeef") then ()
-          else findSignatureOrFail(signatories.tail)
-        findSignatureOrFail(signatories)
-
+    val compiled = compile { (redeemer: Unit, datum: Unit, ctx: Data) =>
+      val txinfo = Builtins.unsafeDataAsConstr(Builtins.unsafeDataAsConstr(ctx).snd.head).snd
+      val signatories = Builtins.unsafeDataAsList(txinfo.tail.tail.tail.tail.tail.tail.tail.head)
+      def findSignatureOrFail(signatories: builtins.List[Data]): Unit =
+        if signatories.isEmpty then throw new RuntimeException("Signature not found")
+        else if Builtins.unsafeDataAsB(signatories.head) == ByteString.fromHex("deadbeef") then ()
+        else findSignatureOrFail(signatories.tail)
+      findSignatureOrFail(signatories)
     }
-    println(compiled)
+
+//    println(compiled)
+    val term = new SimpleSirToUplcLowering().lower(compiled)
+//    println(term.pretty.render(80))
+    import TermDSL.{*, given}
+    import Data.*
+    import DefaultUni.asConstant
+//    println(scriptContext.toData)
+    val appliedValidator = term $ asConstant(()) $ asConstant(()) $ scriptContext.toData
+    assert(
+      Cek.evalUPLC(appliedValidator) == Term.Const(asConstant(()))
+    )
   }

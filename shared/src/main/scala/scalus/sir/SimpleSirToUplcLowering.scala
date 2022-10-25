@@ -2,6 +2,7 @@ package scalus.sir
 
 import scalus.sir.Recursivity.*
 import scalus.uplc.DefaultFun.*
+import scalus.uplc.TermDSL.*
 import scalus.uplc.{DefaultFun, ExprBuilder, Meaning, Term, TypeScheme}
 
 class SimpleSirToUplcLowering {
@@ -33,7 +34,9 @@ class SimpleSirToUplcLowering {
       case SIR.LamAbs(name, term) => Term.LamAbs(name, lower(term))
       case SIR.Apply(f, arg)      => Term.Apply(lower(f), lower(arg))
       case SIR.Const(const)       => Term.Const(const)
-      case SIR.Builtin(bn)        => builtinTerms(bn)
-      case SIR.Error(msg)         => Term.Error(msg)
+      case SIR.IfThenElse(cond, t, f) =>
+        !(builtinTerms(DefaultFun.IfThenElse) $ lower(cond) $ ~lower(t) $ ~lower(f))
+      case SIR.Builtin(bn) => builtinTerms(bn)
+      case SIR.Error(msg)  => Term.Error(msg)
 
 }

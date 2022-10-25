@@ -25,6 +25,7 @@ enum SIR:
   case LamAbs(name: String, term: SIR) extends SIR
   case Apply(f: SIR, arg: SIR) extends SIR
   case Const(const: Constant) extends SIR
+  case IfThenElse(cond: SIR, t: SIR, f: SIR) extends SIR
   case Builtin(bn: DefaultFun) extends SIR
   case Error(msg: String) extends SIR
 
@@ -43,8 +44,16 @@ enum SIR:
       }
       Doc.text("[") + pa + Doc.space + Doc.text("]")
     case Const(const) => Doc.text("(") + Doc.text("con") + Doc.space + const.pretty + Doc.text(")")
-    case Builtin(bn)  => Doc.text("(") + Doc.text("builtin") + Doc.space + bn.pretty + Doc.text(")")
-    case Error(_)     => Doc.text("(error)")
+    case IfThenElse(cond, t, f) =>
+      Doc.text("(") + Doc.text("if")
+        + Doc.space + cond.pretty
+        + Doc.space + Doc.text("then")
+        + Doc.space + t.pretty
+        + Doc.space + Doc.text("else")
+        + Doc.space + f.pretty
+        + Doc.text(")")
+    case Builtin(bn) => Doc.text("(") + Doc.text("builtin") + Doc.space + bn.pretty + Doc.text(")")
+    case Error(_)    => Doc.text("(error)")
 
 object TermDSL:
   def applyToList(app: SIR): (SIR, immutable.List[SIR]) =

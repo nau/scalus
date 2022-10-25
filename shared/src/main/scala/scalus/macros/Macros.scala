@@ -291,15 +291,7 @@ object Macros {
             val aE = Expr(a)
             '{ SIR.Var(NamedDeBruijn($aE)) }
           case If(cond, t, f) =>
-            '{
-              SIR.Apply(
-                SIR.Apply(
-                  SIR.Apply(SIR.Builtin(DefaultFun.IfThenElse), ${ compileExpr(cond) }),
-                  ${ compileExpr(t) }
-                ),
-                ${ compileExpr(f) }
-              )
-            }
+            '{ SIR.IfThenElse(${ compileExpr(cond) }, ${ compileExpr(t) }, ${ compileExpr(f) }) }
           // PAIR
           case Select(pair, fun) if pair.isPair =>
             fun match
@@ -397,14 +389,8 @@ object Macros {
               '{ SIR.Apply($acc, $arg) }
             )
           // ByteString equality
-          case Apply(Select(lhs, "=="), immutable.List(rhs))
-              if lhs.tpe =:= TypeRepr.of[builtins.ByteString] =>
-            '{
-              SIR.Apply(
-                SIR.Apply(SIR.Builtin(DefaultFun.EqualsByteString), ${ compileExpr(lhs) }),
-                ${ compileExpr(rhs) }
-              )
-            }
+          case Select(lhs, "==") if lhs.tpe.widen =:= TypeRepr.of[builtins.ByteString] =>
+            '{ SIR.Apply(SIR.Builtin(DefaultFun.EqualsByteString), ${ compileExpr(lhs) }) }
           // Data BUILTINS
           case bi if bi.tpe.show == "scalus.builtins.Builtins.mkConstr" =>
             '{ SIR.Builtin(DefaultFun.ConstrData) }
@@ -426,11 +412,29 @@ object Macros {
             '{ SIR.Builtin(DefaultFun.UnBData) }
           case bi if bi.tpe.show == "scalus.builtins.Builtins.unsafeDataAsI" =>
             '{ SIR.Builtin(DefaultFun.UnIData) }
+          // Generic Apply
           case Apply(f, args) =>
             val fE = compileExpr(f)
             val argsE = args.map(compileExpr)
             if argsE.isEmpty then '{ SIR.Apply($fE, SIR.Const(Unit)) }
             else argsE.foldLeft(fE)((acc, arg) => '{ SIR.Apply($acc, $arg) })
+          // (x: T) => body
+          case Block(
+                immutable.List(
+                  DefDef("$anonfun", immutable.List(TermParamClause(args)), tpe, Some(body))
+                ),
+                Closure(Ident("$anonfun"), _)
+              ) =>
+            val bodyExpr: Expr[scalus.sir.SIR] = {
+              val bE = compileExpr(body)
+              if args.isEmpty then '{ SIR.LamAbs("_", $bE) }
+              else
+                val names = args.map { case ValDef(name, tpe, rhs) => Expr(name) }
+                names.foldRight(bE) { (name, acc) =>
+                  '{ SIR.LamAbs($name, $acc) }
+                }
+            }
+            '{ $bodyExpr }
           case Block(stmt, expr)       => compileBlock(stmt, expr)
           case Typed(expr, _)          => compileExpr(expr)
           case Closure(Ident(name), _) => '{ SIR.Var(NamedDeBruijn(${ Expr(name) })) }
@@ -438,5 +442,6 @@ object Macros {
           case x => report.errorAndAbort(s"Unsupported expression: ${x.show}\n$x")
     }
 
+//    report.info(s"Compiling ${e.asTerm}")
     compileExpr(e.asTerm)
 }
