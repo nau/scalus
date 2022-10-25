@@ -36,7 +36,6 @@ object ExprBuilder:
   def lam[A](name: String): [B] => (Expr[A] => Expr[B]) => Expr[A => B] = [B] =>
     (f: Expr[A] => Expr[B]) => Expr(Term.LamAbs(name, f(vr(name)).term))
   inline def lam[A, B](inline f: Expr[A] => Expr[B]): Expr[A => B] = ${ Macros.lamMacro('f) }
-  inline def asExpr[A](inline e: A): Expr[A] = ${ Macros.asExprMacro('e) }
   def delay[A](x: Expr[A]): Expr[Delayed[A]] = Expr(Term.Delay(x.term))
   def force[A](x: Expr[Delayed[A]]): Expr[A] = Expr(Term.Force(x.term))
   def error(msg: String): Expr[Delayed[Nothing]] = Expr(Term.Delay(Term.Error(msg)))
@@ -290,28 +289,3 @@ object Example:
 
     println(Cek.evalUPLC(asdf(BigInt(-3)).term).pretty.render(80))*/
   }
-
-  @main def testLam2() =
-    println(
-      lam[BigInt, BigInt](x => x |+| BigInt(1))(BigInt(2)).term.pretty.render(80)
-    )
-
-    println(
-      lam((x: Expr[BigInt]) => x |+| BigInt(1))(BigInt(2)).term.pretty.render(80)
-    )
-
-    println(
-      lam(x => BigInt(1))(BigInt(2)).term.pretty.render(80)
-    )
-
-    val letTerm = let(BigInt(123))(x => x |+| BigInt(1)).term
-    println(letTerm.pretty.render(80))
-    println(Cek.evalUPLC(letTerm).pretty.render(80))
-
-    def foo = 4
-
-    val expr = asExpr {
-      val a = 5
-      foo
-    }
-    println(expr.term.pretty.render(80))

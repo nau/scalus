@@ -130,7 +130,7 @@ class CekJVMSpec extends AnyFunSuite with ScalaCheckPropertyChecks with Arbitrar
     // has a signature of the given public key hash
     val validator = Example.pubKeyValidator(PubKeyHash(hex"deadbeef"))
 
-    println(validator.term.pretty.render(80))
+//    println(validator.term.pretty.render(80))
 
     import Data.*
 
@@ -192,7 +192,7 @@ class CekJVMSpec extends AnyFunSuite with ScalaCheckPropertyChecks with Arbitrar
     )
     val validator = Example.mintingPolicyScript(txOutRef, hex"deadbeef")
 
-    println(validator.term.pretty.render(80))
+//    println(validator.term.pretty.render(80))
 
     import Data.*
 
@@ -214,7 +214,7 @@ class CekJVMSpec extends AnyFunSuite with ScalaCheckPropertyChecks with Arbitrar
       )
 
     def appliedScript(ctx: ScriptContext) =
-      println(ctx.toData)
+//      println(ctx.toData)
       Program((1, 0, 0), validator.term $ () $ ctx.toData)
 
     assert(
