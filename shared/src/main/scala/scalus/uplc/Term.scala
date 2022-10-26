@@ -4,6 +4,7 @@ import io.bullet.borer.Tag.{NegativeBigNum, Other, PositiveBigNum}
 import io.bullet.borer.encodings.BaseEncoding
 import io.bullet.borer.{Decoder, Encoder, Reader, Writer, DataItem as DI}
 import org.typelevel.paiges.Doc
+import scalus.flat.{DecoderState, EncoderState, Flat}
 import scalus.sir.SIR
 import scalus.uplc.Data.*
 import scalus.utils.Utils
@@ -80,3 +81,29 @@ case class Program(version: (Int, Int, Int), term: Term):
     Doc.text("(") + Doc.text("program") + Doc.space + Doc.text(
       s"$major.$minor.$patch"
     ) + Doc.space + term.pretty + Doc.text(")")
+
+case class DeBruijnedProgram private[uplc] (version: (Int, Int, Int), term: Term):
+  def pretty: Doc =
+    val (major, minor, patch) = version
+    Doc.text("(") + Doc.text("program") + Doc.space + Doc.text(
+      s"$major.$minor.$patch"
+    ) + Doc.space + term.pretty + Doc.text(")")
+
+object ProgramFlatCodec:
+  import FlatInstantces.given
+  private val flatCodec = summon[Flat[DeBruijnedProgram]]
+
+  def encodeFlat(p: Program): Array[Byte] =
+    val deBruijned = DeBruijn.deBruijnProgram(p)
+    encodeFlat(deBruijned)
+
+  def encodeFlat(deBruijned: DeBruijnedProgram): Array[Byte] =
+    val encoderState = new EncoderState(flatCodec.bitSize(deBruijned) / 8 + 1)
+    flatCodec.encode(deBruijned, encoderState)
+    encoderState.filler()
+    val encoded = encoderState.result
+    encoded
+
+  def decodeFlat(encoded: Array[Byte]): DeBruijnedProgram =
+    val decoderState = new DecoderState(encoded)
+    flatCodec.decode(decoderState)

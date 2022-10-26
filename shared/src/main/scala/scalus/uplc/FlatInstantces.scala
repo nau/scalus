@@ -303,23 +303,23 @@ object FlatInstantces:
         case 7 =>
           Term.Builtin(flat.decode(decoder))
 
-  given Flat[Program] with
+  given Flat[DeBruijnedProgram] with
     val fn = summon[Flat[Natural]]
-    def bitSize(a: Program): Int =
+    def bitSize(a: DeBruijnedProgram): Int =
       fn.bitSize(Natural(BigInt(a.version._1))) +
         fn.bitSize(Natural(BigInt(a.version._2))) +
         fn.bitSize(Natural(BigInt(a.version._3))) +
         summon[Flat[Term]].bitSize(a.term)
 
-    def encode(a: Program, enc: EncoderState): Unit =
+    def encode(a: DeBruijnedProgram, enc: EncoderState): Unit =
       fn.encode(Natural(BigInt(a.version._1)), enc)
       fn.encode(Natural(BigInt(a.version._2)), enc)
       fn.encode(Natural(BigInt(a.version._3)), enc)
       flat.encode(a.term, enc)
 
-    def decode(decoder: DecoderState): Program =
+    def decode(decoder: DecoderState): DeBruijnedProgram =
       val v1 = fn.decode(decoder).n.toInt
       val v2 = fn.decode(decoder).n.toInt
       val v3 = fn.decode(decoder).n.toInt
       val term = flat.decode[Term](decoder)
-      Program((v1, v2, v3), term)
+      DeBruijnedProgram((v1, v2, v3), term)

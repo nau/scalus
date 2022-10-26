@@ -13,7 +13,7 @@ class DeBruijnSpec extends AnyFunSuite with ScalaCheckPropertyChecks with Arbitr
     import TermDSL.*
     val t = lam("x", "x", "y")(Var(NamedDeBruijn("x")))
     val deBruijnedTerm = DeBruijn.deBruijnTerm(t)
-    assert(deBruijnedTerm == LamAbs("x", LamAbs("x", LamAbs("y", Var(NamedDeBruijn("x", 1))))))
+    assert(deBruijnedTerm == LamAbs("x", LamAbs("x", LamAbs("y", Var(NamedDeBruijn("x", 2))))))
   }
 
   test("fromDeBruijnTerm") {
@@ -21,8 +21,8 @@ class DeBruijnSpec extends AnyFunSuite with ScalaCheckPropertyChecks with Arbitr
     val t = lam("x", "x", "y")(Var(NamedDeBruijn("x")))
     val deBruijnedTerm = DeBruijn.deBruijnTerm(t)
     val namedTerm = DeBruijn.fromDeBruijnTerm(deBruijnedTerm)
-    assert(deBruijnedTerm == LamAbs("x", LamAbs("x", LamAbs("y", Var(NamedDeBruijn("x", 1))))))
-    assert(namedTerm == LamAbs("i0", LamAbs("i1", LamAbs("i2", Var(NamedDeBruijn("i1", 1))))))
+    assert(deBruijnedTerm == LamAbs("x", LamAbs("x", LamAbs("y", Var(NamedDeBruijn("x", 2))))))
+    assert(namedTerm == LamAbs("i0", LamAbs("i1", LamAbs("i2", Var(NamedDeBruijn("i1", 2))))))
   }
 
   test("fromDeBruijnTerm(deBruijnTerm(t)) == t") {

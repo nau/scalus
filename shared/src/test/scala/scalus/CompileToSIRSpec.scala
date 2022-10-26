@@ -12,6 +12,7 @@ import scalus.uplc.DefaultFun.*
 import scalus.uplc.ExprBuilder.compile
 import scalus.uplc.TermDSL.{lam, λ}
 import scalus.uplc.*
+import scalus.utils.Utils
 
 import scala.collection.immutable
 
@@ -362,6 +363,9 @@ class CompileToSIRSpec extends AnyFunSuite with ScalaCheckPropertyChecks:
 
 //    println(compiled)
     val term = new SimpleSirToUplcLowering().lower(compiled)
+    val flatBytes = ProgramFlatCodec.encodeFlat(Program(version = (1, 0, 0), term = term))
+    println(Utils.bytesToHex(flatBytes))
+    assert(flatBytes.length == 104)
 //    println(term.pretty.render(80))
     import TermDSL.{*, given}
     import Data.*
