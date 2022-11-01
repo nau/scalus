@@ -364,21 +364,26 @@ class CompileToSIRSpec extends AnyFunSuite with ScalaCheckPropertyChecks:
         ),
         ScriptPurpose.Spending(TxOutRef(TxId(hex"deadbeef"), 0))
       )
-    val compiled = compile { (redeemer: Unit, datum: Unit, ctx: Data) =>
+
+    def validator(redeemer: Unit, datum: Unit, ctx: Data) = {
       val txinfo = Builtins.unsafeDataAsConstr(Builtins.unsafeDataAsConstr(ctx).snd.head).snd
       val signatories = Builtins.unsafeDataAsList(txinfo.tail.tail.tail.tail.tail.tail.tail.head)
+
       def findSignatureOrFail(signatories: builtins.List[Data]): Unit =
         if signatories.isEmpty then throw new RuntimeException("Signature not found")
         else if Builtins.unsafeDataAsB(signatories.head) == ByteString.fromHex("deadbeef") then ()
         else findSignatureOrFail(signatories.tail)
+
       findSignatureOrFail(signatories)
     }
+
+    val compiled = compile { validator }
 
 //    println(compiled)
     val term = new SimpleSirToUplcLowering().lower(compiled)
     val flatBytes = ProgramFlatCodec.encodeFlat(Program(version = (1, 0, 0), term = term))
 //    println(Utils.bytesToHex(flatBytes))
-    assert(flatBytes.length == 104)
+    assert(flatBytes.length == 133)
 //    println(term.pretty.render(80))
     import TermDSL.{*, given}
     import Data.*
@@ -387,5 +392,8 @@ class CompileToSIRSpec extends AnyFunSuite with ScalaCheckPropertyChecks:
     val appliedValidator = term $ asConstant(()) $ asConstant(()) $ scriptContext.toData
     assert(
       Cek.evalUPLC(appliedValidator) == Term.Const(asConstant(()))
+    )
+    assert(
+      validator((), (), scriptContext.toData) == ()
     )
   }
