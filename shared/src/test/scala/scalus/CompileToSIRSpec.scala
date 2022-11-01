@@ -334,6 +334,19 @@ class CompileToSIRSpec extends AnyFunSuite with ScalaCheckPropertyChecks:
     }
   }
 
+  test("compile external definitions") {
+    def foo(i: BigInt) = i
+    compilesTo(
+      Let(
+        Rec,
+        List(Binding("foo", LamAbs("i", Var(NamedDeBruijn("i"))))),
+        Apply(Var(NamedDeBruijn("foo")), Const(Constant.Integer(5)))
+      )
+    ) {
+      foo(5)
+    }
+  }
+
   test("PubKey Validator example") {
     val scriptContext =
       ScriptContext(
@@ -364,7 +377,7 @@ class CompileToSIRSpec extends AnyFunSuite with ScalaCheckPropertyChecks:
 //    println(compiled)
     val term = new SimpleSirToUplcLowering().lower(compiled)
     val flatBytes = ProgramFlatCodec.encodeFlat(Program(version = (1, 0, 0), term = term))
-    println(Utils.bytesToHex(flatBytes))
+//    println(Utils.bytesToHex(flatBytes))
     assert(flatBytes.length == 104)
 //    println(term.pretty.render(80))
     import TermDSL.{*, given}

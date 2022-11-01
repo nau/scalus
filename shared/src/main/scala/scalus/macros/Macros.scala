@@ -14,7 +14,8 @@ import scalus.uplc.{
 }
 import scalus.utils.Utils
 
-import scala.collection.{IterableFactory, SeqFactory, immutable}
+import scala.collection.mutable.ListBuffer
+import scala.collection.{IterableFactory, SeqFactory, immutable, mutable}
 import scala.quoted.*
 object Macros {
   def lamMacro[A: Type, B: Type](f: Expr[Exp[A] => Exp[B]])(using Quotes): Expr[Exp[A => B]] =
@@ -158,16 +159,29 @@ object Macros {
             getter
       case x => report.errorAndAbort(x.toString)
 
-  def compileImpl(e: Expr[Any])(using Quotes): Expr[SIR] =
-    import quotes.reflect.*
-    import scalus.uplc.Constant.*
+  def compileImpl(e: Expr[Any])(using q: Quotes): Expr[SIR] =
+    import q.reflect.*
+//    import scalus.uplc.Constant.*
     import scalus.uplc.DefaultFun
     import scalus.sir.Recursivity
+
+    type Env = immutable.HashSet[String]
+
+    case class B(name: String, recursivity: Recursivity, body: Expr[SIR])
+
+    val globalDefs: mutable.LinkedHashMap[String, B] = mutable.LinkedHashMap.empty
 
     extension (t: Term) def isList = t.tpe <:< TypeRepr.of[builtins.List[_]]
     extension (t: Term) def isPair = t.tpe <:< TypeRepr.of[builtins.Pair[_, _]]
     extension (t: Term) def isLiteral = compileConstant.isDefinedAt(t)
     extension (t: Term) def isData = t.tpe <:< TypeRepr.of[scalus.uplc.Data]
+
+    given ToExpr[Recursivity] with
+      def apply(x: Recursivity)(using Quotes): Expr[Recursivity] =
+        import quotes.reflect._
+        x match
+          case Recursivity.NonRec => '{ Recursivity.NonRec }
+          case Recursivity.Rec    => '{ Recursivity.Rec }
 
     given ToExpr[DefaultUni] with {
       def apply(x: DefaultUni)(using Quotes) =
@@ -206,95 +220,122 @@ object Macros {
         case _ if t <:< TypeRepr.of[scalus.uplc.Data] => DefaultUni.Data
         case _ => report.errorAndAbort(s"Unsupported type: ${t.show}")
 
-    def compileStmt(stmt: Statement, expr: Expr[SIR]): Expr[SIR] = {
+    def compileStmt(env: Env, stmt: Statement): B = {
       stmt match
-        case ValDef(a, tpe, Some(body)) =>
-          val bodyExpr = compileExpr(body)
-          val aExpr = Expr(a)
-          '{ SIR.Let(Recursivity.NonRec, immutable.List(Binding($aExpr, $bodyExpr)), $expr) }
+        case ValDef(name, tpe, Some(body)) =>
+          val bodyExpr = compileExpr(env, body)
+          val aExpr = Expr(name)
+          B(name, Recursivity.NonRec, bodyExpr)
         case DefDef(name, immutable.List(TermParamClause(args)), tpe, Some(body)) =>
           val bodyExpr: Expr[scalus.sir.SIR] = {
-            val bE = compileExpr(body)
-            if args.isEmpty then '{ SIR.LamAbs("_", $bE) }
+            if args.isEmpty then
+              val bE = compileExpr(env + name, body)
+              '{ SIR.LamAbs("_", $bE) }
             else
-              val names = args.map { case ValDef(name, tpe, rhs) => Expr(name) }
+              val names = args.map { case ValDef(name, tpe, rhs) => name }
+              val bE = compileExpr(env ++ names + name, body)
               names.foldRight(bE) { (name, acc) =>
-                '{ SIR.LamAbs($name, $acc) }
+                '{ SIR.LamAbs(${ Expr(name) }, $acc) }
               }
           }
-          val nameExpr = Expr(name)
-          '{ SIR.Let(Recursivity.Rec, immutable.List(Binding($nameExpr, $bodyExpr)), $expr) }
+          B(name, Recursivity.Rec, bodyExpr)
         case DefDef(name, args, tpe, _) =>
           report.errorAndAbort(
-            "compileStmt: Only single argument list defs are supported, but given: " + stmt.show
+            "compileStmt: Only single argument list defs are supported, but given: " + stmt
           )
-        case x: Term =>
-          '{ SIR.Let(Recursivity.NonRec, immutable.List(Binding("_", ${ compileExpr(x) })), $expr) }
+        case x: Term => B("_", Recursivity.NonRec, compileExpr(env, x))
+
         case x => report.errorAndAbort(s"compileStmt: $x")
     }
-    def compileBlock(stmts: immutable.List[Statement], expr: Term): Expr[SIR] = {
-      import quotes.reflect.*
-      val e = compileExpr(expr)
-      stmts.foldRight(e)(compileStmt)
+
+    def compileBlock(env: Env, stmts: immutable.List[Statement], expr: Term): Expr[SIR] = {
+      val exprs = ListBuffer.empty[B]
+      val exprEnv = stmts.foldLeft(env) { case (env, stmt) =>
+        val bind = compileStmt(env, stmt)
+        exprs += bind
+        env + bind.name
+      }
+      val exprExpr = compileExpr(exprEnv, expr)
+      exprs.foldRight(exprExpr) { (bind, expr) =>
+        '{
+          SIR.Let(
+            ${ Expr(bind.recursivity) },
+            List(Binding(${ Expr(bind.name) }, ${ bind.body })),
+            $expr
+          )
+        }
+      }
     }
 
     def compileConstant: PartialFunction[Term, Expr[scalus.uplc.Constant]] = {
-      case Literal(UnitConstant()) => '{ Unit }
+      case Literal(UnitConstant()) => '{ scalus.uplc.Constant.Unit }
       case Literal(StringConstant(lit)) =>
         val litE = Expr(lit)
-        '{ String($litE) }
+        '{ scalus.uplc.Constant.String($litE) }
       case Literal(BooleanConstant(lit)) =>
         val litE = Expr(lit)
-        '{ Bool($litE) }
+        '{ scalus.uplc.Constant.Bool($litE) }
       case Literal(_) => report.errorAndAbort("compileExpr: Unsupported literal " + e.show)
       case lit @ Apply(Select(Ident("BigInt"), "apply"), _) =>
         val litE = lit.asExprOf[BigInt]
-        '{ Integer($litE) }
+        '{ scalus.uplc.Constant.Integer($litE) }
       case lit @ Apply(Ident("int2bigInt"), _) =>
         val litE = lit.asExprOf[BigInt]
-        '{ Integer($litE) }
+        '{ scalus.uplc.Constant.Integer($litE) }
       case lit @ Ident("empty") if lit.tpe.show == "scalus.builtins.ByteString.empty" =>
         val litE = lit.asExprOf[builtins.ByteString]
-        '{ ByteString($litE) }
+        '{ scalus.uplc.Constant.ByteString($litE) }
       case lit @ Apply(Select(byteString, "fromHex" | "unsafeFromArray" | "apply"), args)
           if byteString.tpe =:= TypeRepr.of[builtins.ByteString.type] =>
         val litE = lit.asExprOf[builtins.ByteString]
-        '{ ByteString($litE) }
+        '{ scalus.uplc.Constant.ByteString($litE) }
     }
 
-    def compileExpr(e: Term): Expr[SIR] = {
-      import quotes.reflect.*
+    def compileExpr(env: Env, e: Term): Expr[SIR] = {
       if compileConstant.isDefinedAt(e) then
         val const = compileConstant(e)
         '{ SIR.Const($const) }
       else
         e match
-          case Ident("Nil") if e.isList =>
-            report.errorAndAbort(s"compileExpr: Nil is not supported. Use List.empty instead")
           case Ident(a) =>
-            val aE = Expr(a)
-            '{ SIR.Var(NamedDeBruijn($aE)) }
+            if !env.contains(a) then
+              val b = compileStmt(immutable.HashSet.empty, e.symbol.tree.asInstanceOf[Definition])
+              globalDefs.update(b.name, b)
+              /*report.errorAndAbort(
+                s"compileExpr: Unknown identifier: $a, env: ${env.mkString(", ")}, tree: ${e.symbol.tree}"
+              )*/
+            '{ SIR.Var(NamedDeBruijn(${ Expr(a) })) }
           case If(cond, t, f) =>
-            '{ SIR.IfThenElse(${ compileExpr(cond) }, ${ compileExpr(t) }, ${ compileExpr(f) }) }
+            '{
+              SIR.IfThenElse(
+                ${ compileExpr(env, cond) },
+                ${ compileExpr(env, t) },
+                ${ compileExpr(env, f) }
+              )
+            }
           // PAIR
           case Select(pair, fun) if pair.isPair =>
             fun match
               case "fst" =>
-                '{ SIR.Apply(SIR.Builtin(DefaultFun.FstPair), ${ compileExpr(pair) }) }
+                '{ SIR.Apply(SIR.Builtin(DefaultFun.FstPair), ${ compileExpr(env, pair) }) }
               case "snd" =>
-                '{ SIR.Apply(SIR.Builtin(DefaultFun.SndPair), ${ compileExpr(pair) }) }
+                '{ SIR.Apply(SIR.Builtin(DefaultFun.SndPair), ${ compileExpr(env, pair) }) }
               case _ => report.errorAndAbort(s"compileExpr: Unsupported pair function: $fun")
           case Apply(TypeApply(pair, immutable.List(tpe1, tpe2)), immutable.List(a, b))
               if pair.tpe.show == "scalus.builtins.Pair.apply" =>
             // We can create a Pair by either 2 literals as (con pair...)
             // or 2 Data variables using MkPairData builtin
             if a.isLiteral && b.isLiteral then
-              '{ SIR.Const(Pair(${ compileConstant(a) }, ${ compileConstant(b) })) }
+              '{
+                SIR.Const(
+                  scalus.uplc.Constant.Pair(${ compileConstant(a) }, ${ compileConstant(b) })
+                )
+              }
             else if a.isData && b.isData then
               '{
                 SIR.Apply(
-                  SIR.Apply(SIR.Builtin(DefaultFun.MkPairData), ${ compileExpr(a) }),
-                  ${ compileExpr(b) }
+                  SIR.Apply(SIR.Builtin(DefaultFun.MkPairData), ${ compileExpr(env, a) }),
+                  ${ compileExpr(env, b) }
                 )
               }
             else
@@ -309,11 +350,11 @@ object Macros {
           case Select(lst, fun) if lst.isList =>
             fun match
               case "head" =>
-                '{ SIR.Apply(SIR.Builtin(DefaultFun.HeadList), ${ compileExpr(lst) }) }
+                '{ SIR.Apply(SIR.Builtin(DefaultFun.HeadList), ${ compileExpr(env, lst) }) }
               case "tail" =>
-                '{ SIR.Apply(SIR.Builtin(DefaultFun.TailList), ${ compileExpr(lst) }) }
+                '{ SIR.Apply(SIR.Builtin(DefaultFun.TailList), ${ compileExpr(env, lst) }) }
               case "isEmpty" =>
-                '{ SIR.Apply(SIR.Builtin(DefaultFun.NullList), ${ compileExpr(lst) }) }
+                '{ SIR.Apply(SIR.Builtin(DefaultFun.NullList), ${ compileExpr(env, lst) }) }
               case _ =>
                 report.errorAndAbort(
                   s"compileExpr: Unsupported list method $fun. Only head, tail and isEmpty are supported"
@@ -322,13 +363,18 @@ object Macros {
           case TypeApply(Select(list, "empty"), immutable.List(tpe))
               if list.tpe =:= TypeRepr.of[builtins.List.type] =>
             val tpeE = Expr(typeReprToDefaultUni(tpe.tpe))
-            '{ SIR.Const(List($tpeE, Nil)) }
+            '{ SIR.Const(scalus.uplc.Constant.List($tpeE, Nil)) }
           case Apply(
                 TypeApply(Select(list, "::"), immutable.List(tpe)),
                 immutable.List(arg)
               ) if list.isList =>
-            val argE = compileExpr(arg)
-            '{ SIR.Apply(SIR.Apply(SIR.Builtin(DefaultFun.MkCons), $argE), ${ compileExpr(list) }) }
+            val argE = compileExpr(env, arg)
+            '{
+              SIR.Apply(
+                SIR.Apply(SIR.Builtin(DefaultFun.MkCons), $argE),
+                ${ compileExpr(env, list) }
+              )
+            }
           case Apply(
                 TypeApply(Select(list, "apply"), immutable.List(tpe)),
                 immutable.List(ex)
@@ -339,13 +385,13 @@ object Macros {
                 val allLiterals = args.forall(arg => compileConstant.isDefinedAt(arg))
                 if allLiterals then
                   val lits = Expr.ofList(args.map(compileConstant))
-                  '{ SIR.Const(List($tpeE, $lits)) }
+                  '{ SIR.Const(scalus.uplc.Constant.List($tpeE, $lits)) }
                 else
-                  val nil = '{ SIR.Const(List($tpeE, Nil)) }
+                  val nil = '{ SIR.Const(scalus.uplc.Constant.List($tpeE, Nil)) }
                   args.foldRight(nil) { (arg, acc) =>
                     '{
                       SIR.Apply(
-                        SIR.Apply(SIR.Builtin(DefaultFun.MkCons), ${ compileExpr(arg) }),
+                        SIR.Apply(SIR.Builtin(DefaultFun.MkCons), ${ compileExpr(env, arg) }),
                         $acc
                       )
                     }
@@ -368,13 +414,13 @@ object Macros {
             '{ SIR.Error($msg) }
           // f.apply(arg) => Apply(f, arg)
           case Apply(Select(Ident(a), "apply"), args) =>
-            val argsE = args.map(compileExpr)
+            val argsE = args.map(compileExpr(env, _))
             argsE.foldLeft('{ SIR.Var(NamedDeBruijn(${ Expr(a) })) })((acc, arg) =>
               '{ SIR.Apply($acc, $arg) }
             )
           // ByteString equality
           case Select(lhs, "==") if lhs.tpe.widen =:= TypeRepr.of[builtins.ByteString] =>
-            '{ SIR.Apply(SIR.Builtin(DefaultFun.EqualsByteString), ${ compileExpr(lhs) }) }
+            '{ SIR.Apply(SIR.Builtin(DefaultFun.EqualsByteString), ${ compileExpr(env, lhs) }) }
           // Data BUILTINS
           case bi if bi.tpe.show == "scalus.builtins.Builtins.mkConstr" =>
             '{ SIR.Builtin(DefaultFun.ConstrData) }
@@ -398,9 +444,9 @@ object Macros {
             '{ SIR.Builtin(DefaultFun.UnIData) }
           // Generic Apply
           case Apply(f, args) =>
-            val fE = compileExpr(f)
-            val argsE = args.map(compileExpr)
-            if argsE.isEmpty then '{ SIR.Apply($fE, SIR.Const(Unit)) }
+            val fE = compileExpr(env, f)
+            val argsE = args.map(compileExpr(env, _))
+            if argsE.isEmpty then '{ SIR.Apply($fE, SIR.Const(scalus.uplc.Constant.Unit)) }
             else argsE.foldLeft(fE)((acc, arg) => '{ SIR.Apply($acc, $arg) })
           // (x: T) => body
           case Block(
@@ -410,22 +456,29 @@ object Macros {
                 Closure(Ident("$anonfun"), _)
               ) =>
             val bodyExpr: Expr[scalus.sir.SIR] = {
-              val bE = compileExpr(body)
-              if args.isEmpty then '{ SIR.LamAbs("_", $bE) }
+              if args.isEmpty then
+                val bE = compileExpr(env, body)
+                '{ SIR.LamAbs("_", $bE) }
               else
-                val names = args.map { case ValDef(name, tpe, rhs) => Expr(name) }
+                val names = args.map { case ValDef(name, tpe, rhs) => name }
+                val bE = compileExpr(env ++ names, body)
                 names.foldRight(bE) { (name, acc) =>
-                  '{ SIR.LamAbs($name, $acc) }
+                  '{ SIR.LamAbs(${ Expr(name) }, $acc) }
                 }
             }
-            '{ $bodyExpr }
-          case Block(stmt, expr)       => compileBlock(stmt, expr)
-          case Typed(expr, _)          => compileExpr(expr)
-          case Closure(Ident(name), _) => '{ SIR.Var(NamedDeBruijn(${ Expr(name) })) }
-          case Inlined(_, _, expr)     => compileExpr(expr)
-          case x => report.errorAndAbort(s"Unsupported expression: ${x.show}\n$x")
+            bodyExpr
+          case Block(stmt, expr)   => compileBlock(env, stmt, expr)
+          case Typed(expr, _)      => compileExpr(env, expr)
+          case Inlined(_, _, expr) => compileExpr(env, expr)
+          case x                   => report.errorAndAbort(s"Unsupported expression: ${x.show}\n$x")
     }
 
-//    report.info(s"Compiling ${e.asTerm}")
-    compileExpr(e.asTerm)
+    val result = compileExpr(immutable.HashSet.empty, e.asTerm)
+//    report.info(s"Glogal defs: ${globalDefs}")
+    val full = globalDefs.foldRight(result) { case ((_, b), acc) =>
+      '{
+        SIR.Let(${ Expr(b.recursivity) }, List(Binding(${ Expr(b.name) }, ${ b.body })), $acc)
+      }
+    }
+    full
 }
