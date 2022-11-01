@@ -32,9 +32,10 @@ enum SIR:
   def pretty: Doc = this match
     case Var(name) => Doc.text(name.name)
     case Let(Recursivity.NonRec, immutable.List(Binding(name, body)), inExpr) =>
-      Doc.text("let") & Doc.text(name) & Doc.text(
-        "="
-      ) & body.pretty & Doc.text("in") + Doc.lineOrSpace + inExpr.pretty
+      body.pretty.bracketBy(
+        Doc.text("let") & Doc.text(name) & Doc.text("="),
+        Doc.text("in")
+      ) + Doc.line + inExpr.pretty
     case Let(Recursivity.Rec, immutable.List(Binding(name, body)), inExpr) =>
       val (args, body1) = TermDSL.lamAbsToList(body)
       val prettyArgs = Doc.intercalate(Doc.text(",") + Doc.line, args.map(Doc.text))
