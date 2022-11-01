@@ -47,9 +47,15 @@ enum SIR:
       ) & inExpr.pretty
     case LamAbs(name, term) =>
       val (args, body1) = TermDSL.lamAbsToList(this)
-      val prettyArgs = Doc.intercalate(Doc.space, args.map(Doc.text))
-      Doc.text("{λ") & prettyArgs & Doc.text("->") + Doc.lineOrEmpty + body1.pretty.indent(2) + Doc
-        .text("}")
+      val prettyArgs = Doc.stack(args.map(Doc.text))
+      prettyArgs.bracketBy(
+        Doc.text("{λ"),
+        Doc.empty,
+        4
+      ) + body1.pretty.indent(2) / Doc.text("}")
+
+      val decl = (Doc.text("{λ") + (Doc.line + prettyArgs & Doc.text("->")).nested(2)).grouped
+      (((decl / body1.pretty.indent(2)).grouped / Doc.text("}")).grouped).aligned
     case a @ Apply(f, arg) =>
       val (t, args) = TermDSL.applyToList(a)
       val prettyArgs = args match
