@@ -55,7 +55,9 @@ enum SIR:
         val prettyArgs = args match
           case immutable.List() => Doc.text("()")
           case _ =>
-            Doc.text("(") + Doc.intercalate(Doc.text(", "), args.map(_.pretty)) + Doc.text(")")
+            Doc
+              .intercalate(Doc.text(",") + Doc.line, args.map(_.pretty))
+              .tightBracketBy(Doc.text("("), Doc.text(")"))
 
         t.pretty + prettyArgs
       case Const(const) => const.prettyValue.style(Style.XTerm.Fg.colorCode(64))
