@@ -38,27 +38,27 @@ object Meaning:
     mkMeaning(
       Integer ->: Integer ->: Integer,
       (a: CekValue) =>
-        val VCon(Constant.Integer(aa)) = a
+        val aa = a.asInteger
         (b: CekValue) =>
-          val VCon(Constant.Integer(bb)) = b
+          val bb = b.asInteger
           () => Cek.VCon(asConstant(aa + bb))
     )
   val SubtractInteger =
     mkMeaning(
       Integer ->: Integer ->: Integer,
       (a: CekValue) =>
-        val VCon(Constant.Integer(aa)) = a
+        val aa = a.asInteger
         (b: CekValue) =>
-          val VCon(Constant.Integer(bb)) = b
+          val bb = b.asInteger
           () => Cek.VCon(asConstant(aa - bb))
     )
   val MultiplyInteger =
     mkMeaning(
       Integer ->: Integer ->: Integer,
       (a: CekValue) =>
-        val VCon(Constant.Integer(aa)) = a
+        val aa = a.asInteger
         (b: CekValue) =>
-          val VCon(Constant.Integer(bb)) = b
+          val bb = b.asInteger
           () => Cek.VCon(asConstant(aa * bb))
     )
   val DivideInteger =
@@ -66,9 +66,9 @@ object Meaning:
     mkMeaning(
       Integer ->: Integer ->: Integer,
       (a: CekValue) =>
-        val VCon(Constant.Integer(aa)) = a
+        val aa = a.asInteger
         (b: CekValue) =>
-          val VCon(Constant.Integer(bb)) = b
+          val bb = b.asInteger
           () =>
             val r = new BigDecimal(aa.bigInteger)
               .divide(new BigDecimal(bb.bigInteger), RoundingMode.FLOOR)
@@ -79,27 +79,27 @@ object Meaning:
     mkMeaning(
       Integer ->: Integer ->: Integer,
       (a: CekValue) =>
-        val VCon(Constant.Integer(aa)) = a
+        val aa = a.asInteger
         (b: CekValue) =>
-          val VCon(Constant.Integer(bb)) = b
+          val bb = b.asInteger
           () => Cek.VCon(asConstant(aa / bb))
     )
   val RemainderInteger =
     mkMeaning(
       Integer ->: Integer ->: Integer,
       (a: CekValue) =>
-        val VCon(Constant.Integer(aa)) = a
+        val aa = a.asInteger
         (b: CekValue) =>
-          val VCon(Constant.Integer(bb)) = b
+          val bb = b.asInteger
           () => Cek.VCon(asConstant(aa % bb))
     )
   val ModInteger =
     mkMeaning(
       Integer ->: Integer ->: Integer,
       (a: CekValue) =>
-        val VCon(Constant.Integer(aa)) = a
+        val aa = a.asInteger
         (b: CekValue) =>
-          val VCon(Constant.Integer(bb)) = b
+          val bb = b.asInteger
           () =>
             /*divMod n d          =  if signum r == negate (signum d) then (q-1, r+d) else qr
                                      where qr@(q,r) = quotRem n d */
@@ -110,27 +110,27 @@ object Meaning:
     mkMeaning(
       Integer ->: Integer ->: Bool,
       (a: CekValue) =>
-        val VCon(Constant.Integer(aa)) = a
+        val aa = a.asInteger
         (b: CekValue) =>
-          val VCon(Constant.Integer(bb)) = b
+          val bb = b.asInteger
           () => Cek.VCon(asConstant(aa == bb))
     )
   val LessThanEqualsInteger =
     mkMeaning(
       Integer ->: Integer ->: Bool,
       (a: CekValue) =>
-        val VCon(Constant.Integer(aa)) = a
+        val aa = a.asInteger
         (b: CekValue) =>
-          val VCon(Constant.Integer(bb)) = b
+          val bb = b.asInteger
           () => Cek.VCon(asConstant(aa <= bb))
     )
   val LessThanInteger =
     mkMeaning(
       Integer ->: Integer ->: Bool,
       (a: CekValue) =>
-        val VCon(Constant.Integer(aa)) = a
+        val aa = a.asInteger
         (b: CekValue) =>
-          val VCon(Constant.Integer(bb)) = b
+          val bb = b.asInteger
           () => Cek.VCon(asConstant(aa < bb))
     )
 
@@ -138,9 +138,9 @@ object Meaning:
     mkMeaning(
       DefaultUni.ByteString ->: DefaultUni.ByteString ->: Bool,
       (a: CekValue) =>
-        val VCon(aa: Constant.ByteString) = a
+        val aa = a.asByteString
         (b: CekValue) =>
-          val VCon(bb: Constant.ByteString) = b
+          val bb = b.asByteString
           () => Cek.VCon(asConstant(aa == bb))
     )
 
@@ -148,7 +148,7 @@ object Meaning:
     mkMeaning(
       All("a", Bool ->: TVar("a") ->: TVar("a") ->: TVar("a")),
       (b: CekValue) =>
-        val VCon(Constant.Bool(bb)) = b
+        val bb = b.asBool
         (t: CekValue) => (f: CekValue) => () => if bb then t else f
     )
 
@@ -159,11 +159,13 @@ object Meaning:
     mkMeaning(
       DefaultUni.Data ->: DefaultUni.Pair(Integer, DefaultUni.List(DefaultUni.Data)),
       (a: CekValue) =>
-        val VCon(Constant.Data(Data.Constr(i, ls))) = a
-        () =>
-          Cek.VCon(
-            Constant.Pair(asConstant(i), asConstant(ls))
-          )
+        a match
+          case VCon(Constant.Data(Data.Constr(i, ls))) =>
+            () =>
+              Cek.VCon(
+                Constant.Pair(asConstant(i), asConstant(ls))
+              )
+          case _ => throw new Exception(s"unConstrData: not a constructor, but $a")
     )
 
   /*  unMapData : [ data ] -> list(pair(data, data))
@@ -172,16 +174,18 @@ object Meaning:
     mkMeaning(
       DefaultUni.Data ->: DefaultUni.List(DefaultUni.Pair(DefaultUni.Data, DefaultUni.Data)),
       (a: CekValue) =>
-        val VCon(Constant.Data(Data.Map(values))) = a
-        () =>
-          Cek.VCon(
-            Constant.List(
-              DefaultUni.Pair(DefaultUni.Data, DefaultUni.Data),
-              values.map { case (k, v) =>
-                Constant.Pair(asConstant(k), asConstant(v))
-              }
-            )
-          )
+        a match
+          case VCon(Constant.Data(Data.Map(values))) =>
+            () =>
+              Cek.VCon(
+                Constant.List(
+                  DefaultUni.Pair(DefaultUni.Data, DefaultUni.Data),
+                  values.map { case (k, v) =>
+                    Constant.Pair(asConstant(k), asConstant(v))
+                  }
+                )
+              )
+          case _ => throw new Exception(s"unMapData: not a map, but $a")
     )
   /*  unListData : [ data ] -> list(data)
    */
@@ -189,8 +193,10 @@ object Meaning:
     mkMeaning(
       DefaultUni.Data ->: DefaultUni.List(DefaultUni.Data),
       (a: CekValue) =>
-        val VCon(Constant.Data(Data.List(values))) = a
-        () => Cek.VCon(Constant.List(DefaultUni.Data, values.map(asConstant)))
+        a match
+          case VCon(Constant.Data(Data.List(values))) =>
+            () => Cek.VCon(Constant.List(DefaultUni.Data, values.map(asConstant)))
+          case _ => throw new Exception(s"unListData: not a list, but $a")
     )
 
   /*  unIData : [ data ] -> integer
@@ -199,8 +205,10 @@ object Meaning:
     mkMeaning(
       DefaultUni.Data ->: DefaultUni.Integer,
       (a: CekValue) =>
-        val VCon(Constant.Data(Data.I(v))) = a
-        () => Cek.VCon(asConstant(v))
+        a match
+          case VCon(Constant.Data(Data.I(i))) =>
+            () => Cek.VCon(asConstant(i))
+          case _ => throw new Exception(s"unIData: not an integer, but $a")
     )
 
   /*  unBData : [ data ] -> bytestring
@@ -209,8 +217,10 @@ object Meaning:
     mkMeaning(
       DefaultUni.Data ->: DefaultUni.ByteString,
       (a: CekValue) =>
-        val VCon(Constant.Data(Data.B(v))) = a
-        () => Cek.VCon(asConstant(v))
+        a match
+          case VCon(Constant.Data(Data.B(b))) =>
+            () => Cek.VCon(asConstant(b))
+          case _ => throw new Exception(s"unBData: not a bytestring, but $a")
     )
 
   // [ forall a, list(a) ] -> bool
@@ -219,7 +229,7 @@ object Meaning:
       // FIXME wrong type
       All("a", Bool ->: Bool),
       (a: CekValue) =>
-        val VCon(Constant.List(_, ls)) = a
+        val ls = a.asList
         () => Cek.VCon(asConstant(ls.isEmpty))
     )
 
@@ -229,7 +239,7 @@ object Meaning:
       // FIXME wrong type
       All("a", Bool ->: Bool),
       (a: CekValue) =>
-        val VCon(Constant.List(_, ls)) = a
+        val ls = a.asList
         () => Cek.VCon(ls.head)
     )
 
@@ -239,8 +249,10 @@ object Meaning:
       // FIXME wrong type
       All("a", Bool ->: Bool),
       (a: CekValue) =>
-        val VCon(Constant.List(tpe, ls)) = a
-        () => Cek.VCon(Constant.List(tpe, ls.tail))
+        a match
+          case VCon(Constant.List(tpe, ls)) =>
+            () => Cek.VCon(Constant.List(tpe, ls.tail))
+          case _ => throw new Exception(s"TailList: not a list, but $a")
     )
 
   // [ forall a, forall b, list(a), b, b ] -> b
@@ -249,7 +261,7 @@ object Meaning:
       // FIXME wrong type
       All("a", All("b", Bool ->: Bool ->: Bool ->: Bool)),
       (a: CekValue) =>
-        val VCon(Constant.List(tpe, ls)) = a
+        val ls = a.asList
         (b: CekValue) => (c: CekValue) => () => if ls.isEmpty then b else c
     )
 
@@ -259,7 +271,7 @@ object Meaning:
       // FIXME wrong type
       All("a", All("b", DefaultUni.Pair(Integer, Bool) ->: Integer)),
       (a: CekValue) =>
-        val VCon(Constant.Pair(fst, _)) = a
+        val (fst, _) = a.asPair
         () => Cek.VCon(fst)
     )
 
@@ -269,7 +281,7 @@ object Meaning:
       // FIXME wrong type
       All("a", All("b", DefaultUni.Pair(Integer, Bool) ->: Bool)),
       (a: CekValue) =>
-        val VCon(Constant.Pair(_, snd)) = a
+        val (_, snd) = a.asPair
         () => Cek.VCon(snd)
     )
 

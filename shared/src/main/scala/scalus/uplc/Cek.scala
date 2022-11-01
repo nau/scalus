@@ -1,5 +1,6 @@
 package scalus.uplc
 
+import scalus.builtins.ByteString
 import scalus.uplc.Term.*
 
 import scala.annotation.tailrec
@@ -31,7 +32,36 @@ object Cek:
 
   type CekValEnv = immutable.List[(String, CekValue)]
   // 'Values' for the modified CEK machine.
-  sealed trait CekValue
+  sealed trait CekValue {
+    def asInteger: BigInt = this match {
+      case VCon(Constant.Integer(i)) => i
+      case _                         => throw new RuntimeException(s"Expected integer, got $this")
+    }
+    def asString: String = this match {
+      case VCon(Constant.String(s)) => s
+      case _                        => throw new RuntimeException(s"Expected string, got $this")
+    }
+    def asBool: Boolean = this match {
+      case VCon(Constant.Bool(b)) => b
+      case _                      => throw new RuntimeException(s"Expected bool, got $this")
+    }
+    def asByteString: ByteString = this match {
+      case VCon(Constant.ByteString(bs)) => bs
+      case _ => throw new RuntimeException(s"Expected bytestring, got $this")
+    }
+    def asData: Data = this match {
+      case VCon(Constant.Data(d)) => d
+      case _                      => throw new RuntimeException(s"Expected data, got $this")
+    }
+    def asList: List[Constant] = this match {
+      case VCon(Constant.List(_, l)) => l
+      case _                         => throw new RuntimeException(s"Expected list, got $this")
+    }
+    def asPair: (Constant, Constant) = this match {
+      case VCon(Constant.Pair(l, r)) => (l, r)
+      case _                         => throw new RuntimeException(s"Expected pair, got $this")
+    }
+  }
   case class VCon(const: Constant) extends CekValue
   case class VDelay(term: Term, env: CekValEnv) extends CekValue
   case class VLamAbs(name: String, term: Term, env: CekValEnv) extends CekValue
