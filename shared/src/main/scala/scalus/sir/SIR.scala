@@ -61,12 +61,9 @@ enum SIR:
       t.pretty + prettyArgs
     case Const(const) => const.prettyValue
     case IfThenElse(cond, t, f) =>
-      Doc.text("if")
-        & cond.pretty
-        + Doc.lineOrSpace + Doc.text("then")
-        + t.pretty.indent(2)
-        + Doc.lineOrSpace + Doc.text("else")
-        + f.pretty.indent(2)
+      ((Doc.text("if") + (Doc.line + cond.pretty).nested(2)).grouped
+        + (Doc.line + Doc.text("then") + (Doc.line + t.pretty).nested(2)).grouped
+        + (Doc.line + Doc.text("else") + (Doc.line + f.pretty).nested(2)).grouped).aligned
     case Builtin(bn) => bn.pretty
     case Error(_)    => Doc.text("ERROR")
 
