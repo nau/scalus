@@ -37,9 +37,12 @@ enum SIR:
       ) & body.pretty & Doc.text("in") + Doc.lineOrSpace + inExpr.pretty
     case Let(Recursivity.Rec, immutable.List(Binding(name, body)), inExpr) =>
       val (args, body1) = TermDSL.lamAbsToList(body)
-      val prettyArgs = Doc.intercalate(Doc.text(", "), args.map(Doc.text))
-      Doc.text("fun") & Doc.text(name) + Doc.char('(') + prettyArgs + Doc
-        .char(')') & Doc.char('=') / body1.pretty.indent(2) / Doc.text(
+      val prettyArgs = Doc.intercalate(Doc.text(",") + Doc.line, args.map(Doc.text))
+      prettyArgs.tightBracketBy(
+        Doc.text("fun") & Doc.text(name) + Doc.char('('),
+        Doc
+          .char(')') & Doc.char('=')
+      ) / body1.pretty.indent(2) / Doc.text(
         "in"
       ) & inExpr.pretty
     case LamAbs(name, term) =>
