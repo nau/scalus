@@ -379,7 +379,7 @@ class CompileToSIRSpec extends AnyFunSuite with ScalaCheckPropertyChecks:
 
     val compiled = compile { validator }
 
-//    println(compiled)
+//    println(compiled.pretty.render(80))
     val term = new SimpleSirToUplcLowering().lower(compiled)
     val flatBytes = ProgramFlatCodec.encodeFlat(Program(version = (1, 0, 0), term = term))
 //    println(Utils.bytesToHex(flatBytes))

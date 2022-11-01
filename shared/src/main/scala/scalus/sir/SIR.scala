@@ -30,30 +30,41 @@ enum SIR:
   case Error(msg: String) extends SIR
 
   def pretty: Doc = this match
-    case Var(name)                        => Doc.text(name.name)
-    case Let(recursivity, bindings, body) => Doc.text("let")
+    case Var(name) => Doc.text(name.name)
+    case Let(Recursivity.NonRec, immutable.List(Binding(name, body)), inExpr) =>
+      Doc.text("let") & Doc.text(name) & Doc.text(
+        "="
+      ) & body.pretty & Doc.text("in") + Doc.lineOrSpace + inExpr.pretty
+    case Let(Recursivity.Rec, immutable.List(Binding(name, body)), inExpr) =>
+      val (args, body1) = TermDSL.lamAbsToList(body)
+      val prettyArgs = Doc.intercalate(Doc.text(", "), args.map(Doc.text))
+      Doc.text("fun") & Doc.text(name) + Doc.char('(') + prettyArgs + Doc
+        .char(')') & Doc.char('=') / body1.pretty.indent(2) / Doc.text(
+        "in"
+      ) & inExpr.pretty
     case LamAbs(name, term) =>
-      Doc.text("(") + Doc.text(s"λ$name") + Doc.space + Doc.text(
-        "->"
-      ) + Doc.space + term.pretty + Doc
-        .text(")")
+      val (args, body1) = TermDSL.lamAbsToList(this)
+      val prettyArgs = Doc.intercalate(Doc.space, args.map(Doc.text))
+      Doc.text("{λ") & prettyArgs & Doc.text("->") + Doc.lineOrEmpty + body1.pretty.indent(2) + Doc
+        .text("}")
     case a @ Apply(f, arg) =>
       val (t, args) = TermDSL.applyToList(a)
-      val pa = args.foldRight(t.pretty) { (arg, acc) =>
-        acc + Doc.space + arg.pretty
-      }
-      Doc.text("[") + pa + Doc.space + Doc.text("]")
-    case Const(const) => Doc.text("(") + Doc.text("con") + Doc.space + const.pretty + Doc.text(")")
+      val prettyArgs = args match
+        case immutable.List() => Doc.text("()")
+        case _ =>
+          Doc.text("(") + Doc.intercalate(Doc.text(", "), args.map(_.pretty)) + Doc.text(")")
+
+      t.pretty + prettyArgs
+    case Const(const) => const.prettyValue
     case IfThenElse(cond, t, f) =>
-      Doc.text("(") + Doc.text("if")
-        + Doc.space + cond.pretty
-        + Doc.space + Doc.text("then")
-        + Doc.space + t.pretty
-        + Doc.space + Doc.text("else")
-        + Doc.space + f.pretty
-        + Doc.text(")")
-    case Builtin(bn) => Doc.text("(") + Doc.text("builtin") + Doc.space + bn.pretty + Doc.text(")")
-    case Error(_)    => Doc.text("(error)")
+      Doc.text("if")
+        & cond.pretty
+        + Doc.lineOrSpace + Doc.text("then")
+        + t.pretty.indent(2)
+        + Doc.lineOrSpace + Doc.text("else")
+        + f.pretty.indent(2)
+    case Builtin(bn) => bn.pretty
+    case Error(_)    => Doc.text("ERROR")
 
 object TermDSL:
   def applyToList(app: SIR): (SIR, immutable.List[SIR]) =
@@ -62,6 +73,14 @@ object TermDSL:
         val (f1, args) = applyToList(f)
         (f1, args :+ arg)
       case f => (f, Nil)
+
+  // flatten LamAbs into a list of names and the body
+  def lamAbsToList(lam: SIR): (immutable.List[String], SIR) =
+    lam match
+      case SIR.LamAbs(name, body) =>
+        val (names, body1) = lamAbsToList(body)
+        (name :: names, body1)
+      case body => (Nil, body)
 
   def λ(names: String*)(term: SIR): SIR = lam(names: _*)(term)
   def lam(names: String*)(term: SIR): SIR = names.foldRight(term)(SIR.LamAbs(_, _))
