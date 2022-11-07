@@ -69,6 +69,8 @@ object Builtins:
   def mkConstr(ctor: BigInt, args: List[Data]): Data = Data.Constr(ctor.toLong, args.toList)
   def mkList(values: List[Data]): Data = Data.List(values.toList)
   def mkMap(values: List[Pair[Data, Data]]): Data = Data.Map(values.toList.map(p => (p.fst, p.snd)))
+  def mkI(value: BigInt): Data = Data.I(value)
+  def mkB(value: ByteString): Data = Data.B(value)
   def unsafeDataAsConstr(d: Data): Pair[BigInt, List[Data]] = d match
     case Data.Constr(constr, args) => Pair(constr: BigInt, List(args: _*))
     case _                         => throw new Exception(s"not a constructor but $d")

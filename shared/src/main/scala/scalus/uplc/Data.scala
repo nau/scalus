@@ -1,5 +1,6 @@
 package scalus.uplc
 
+import scalus.builtins.Builtins
 import scalus.builtins.ByteString
 import scalus.utils.Utils.bytesToHex
 
@@ -59,15 +60,15 @@ object Data:
       val elemInstances = summonAll[m.MirroredElemTypes]
       liftProduct(constrIdx, m, elemInstances)
 
-  extension [A: ToData](a: A) def toData: Data = summon[ToData[A]].toData(a)
+  extension [A: ToData](a: A) inline def toData: Data = summon[ToData[A]].toData(a)
 
   given ToData[Boolean] with {
     def toData(a: Boolean): Data = if a then Constr(1, Nil) else Constr(0, Nil)
   }
   given ToData[Data] with { def toData(a: Data): Data = a }
-  given ToData[BigInt] with { def toData(a: BigInt): Data = I(a) }
-  given ToData[Int] with { def toData(a: Int): Data = I(a) }
-  given ToData[ByteString] with { def toData(a: ByteString): Data = B(a) }
+  given ToData[BigInt] with { def toData(a: BigInt): Data = Builtins.mkI(a) }
+  given ToData[Int] with { def toData(a: Int): Data = Builtins.mkI(a) }
+  given ToData[ByteString] with { def toData(a: ByteString): Data = Builtins.mkB(a) }
   given seqToData[A: ToData, B[A] <: Seq[A]]: ToData[B[A]] with {
     def toData(a: B[A]): Data = List(a.map(summon[ToData[A]].toData).toList)
   }

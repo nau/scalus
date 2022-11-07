@@ -165,11 +165,12 @@ object Macros {
     import scalus.uplc.DefaultFun
     import scalus.sir.Recursivity
 
-    type Env = immutable.HashSet[String]
+    type Env = immutable.HashSet[Symbol]
 
-    case class B(name: String, recursivity: Recursivity, body: Expr[SIR])
+    case class B(name: String, symbol: Symbol, recursivity: Recursivity, body: Expr[SIR]):
+      def fullName = symbol.fullName
 
-    val globalDefs: mutable.LinkedHashMap[String, B] = mutable.LinkedHashMap.empty
+    val globalDefs: mutable.LinkedHashMap[Symbol, B] = mutable.LinkedHashMap.empty
 
     extension (t: Term) def isList = t.tpe <:< TypeRepr.of[builtins.List[_]]
     extension (t: Term) def isPair = t.tpe <:< TypeRepr.of[builtins.Pair[_, _]]
@@ -225,25 +226,27 @@ object Macros {
         case ValDef(name, tpe, Some(body)) =>
           val bodyExpr = compileExpr(env, body)
           val aExpr = Expr(name)
-          B(name, Recursivity.NonRec, bodyExpr)
-        case DefDef(name, immutable.List(TermParamClause(args)), tpe, Some(body)) =>
+          B(name, stmt.symbol, Recursivity.NonRec, bodyExpr)
+        case DefDef(name, argss, tpe, Some(body)) =>
+          val args = argss.collect({ case TermParamClause(args) => args }).flatten
           val bodyExpr: Expr[scalus.sir.SIR] = {
             if args.isEmpty then
-              val bE = compileExpr(env + name, body)
+              val bE = compileExpr(env + stmt.symbol, body)
               '{ SIR.LamAbs("_", $bE) }
             else
-              val names = args.map { case ValDef(name, tpe, rhs) => name }
-              val bE = compileExpr(env ++ names + name, body)
-              names.foldRight(bE) { (name, acc) =>
-                '{ SIR.LamAbs(${ Expr(name) }, $acc) }
+              val symbols = args.map { case v @ ValDef(name, tpe, rhs) => v.symbol }
+              val bE = compileExpr(env ++ symbols + stmt.symbol, body)
+              symbols.foldRight(bE) { (symbol, acc) =>
+                '{ SIR.LamAbs(${ Expr(symbol.name) }, $acc) }
               }
           }
-          B(name, Recursivity.Rec, bodyExpr)
+          B(name, stmt.symbol, Recursivity.Rec, bodyExpr)
         case DefDef(name, args, tpe, _) =>
           report.errorAndAbort(
             "compileStmt: Only single argument list defs are supported, but given: " + stmt
           )
-        case x: Term => B("_", Recursivity.NonRec, compileExpr(env, x))
+        case x: Term =>
+          B("_", Symbol.noSymbol, Recursivity.NonRec, compileExpr(env, x))
 
         case x => report.errorAndAbort(s"compileStmt: $x")
     }
@@ -253,7 +256,7 @@ object Macros {
       val exprEnv = stmts.foldLeft(env) { case (env, stmt) =>
         val bind = compileStmt(env, stmt)
         exprs += bind
-        env + bind.name
+        env + bind.symbol
       }
       val exprExpr = compileExpr(exprEnv, expr)
       exprs.foldRight(exprExpr) { (bind, expr) =>
@@ -298,13 +301,14 @@ object Macros {
       else
         e match
           case Ident(a) =>
-            if !env.contains(a) then
+            if !env.contains(e.symbol) then
               val b = compileStmt(immutable.HashSet.empty, e.symbol.tree.asInstanceOf[Definition])
-              globalDefs.update(b.name, b)
+              globalDefs.update(b.symbol, b)
               /*report.errorAndAbort(
                 s"compileExpr: Unknown identifier: $a, env: ${env.mkString(", ")}, tree: ${e.symbol.tree}"
               )*/
-            '{ SIR.Var(NamedDeBruijn(${ Expr(a) })) }
+              '{ SIR.Var(NamedDeBruijn(${ Expr(e.symbol.fullName) })) }
+            else '{ SIR.Var(NamedDeBruijn(${ Expr(a) })) }
           case If(cond, t, f) =>
             '{
               SIR.IfThenElse(
@@ -428,9 +432,9 @@ object Macros {
             '{ SIR.Builtin(DefaultFun.ListData) }
           case bi if bi.tpe.show == "scalus.builtins.Builtins.mkMap" =>
             '{ SIR.Builtin(DefaultFun.MapData) }
-          case Select(dataB, "apply") if dataB.tpe =:= TypeRepr.of[scalus.uplc.Data.B.type] =>
+          case bi if bi.tpe.show == "scalus.builtins.Builtins.mkB" =>
             '{ SIR.Builtin(DefaultFun.BData) }
-          case Select(dataI, "apply") if dataI.tpe =:= TypeRepr.of[scalus.uplc.Data.I.type] =>
+          case bi if bi.tpe.show == "scalus.builtins.Builtins.mkI" =>
             '{ SIR.Builtin(DefaultFun.IData) }
           case bi if bi.tpe.show == "scalus.builtins.Builtins.unsafeDataAsConstr" =>
             '{ SIR.Builtin(DefaultFun.UnConstrData) }
@@ -442,6 +446,16 @@ object Macros {
             '{ SIR.Builtin(DefaultFun.UnBData) }
           case bi if bi.tpe.show == "scalus.builtins.Builtins.unsafeDataAsI" =>
             '{ SIR.Builtin(DefaultFun.UnIData) }
+          case sel @ Select(obj, ident) =>
+            if !env.contains(e.symbol) then
+              val b = compileStmt(immutable.HashSet.empty, e.symbol.tree.asInstanceOf[Definition])
+              globalDefs.update(b.symbol, b)
+            /*report.errorAndAbort(
+              s"compileExpr: Unknown identifier: $a, env: ${env.mkString(", ")}, tree: ${e.symbol.tree}"
+            )*/
+//            report.errorAndAbort(s"Select: ${s} ${sel.symbol.fullName}")
+            '{ SIR.Var(NamedDeBruijn(${ Expr(e.symbol.fullName) })) }
+          case TypeApply(f, args) => compileExpr(env, f)
           // Generic Apply
           case Apply(f, args) =>
             val fE = compileExpr(env, f)
@@ -460,24 +474,25 @@ object Macros {
                 val bE = compileExpr(env, body)
                 '{ SIR.LamAbs("_", $bE) }
               else
-                val names = args.map { case ValDef(name, tpe, rhs) => name }
+                val names = args.map { case v @ ValDef(name, tpe, rhs) => v.symbol }
                 val bE = compileExpr(env ++ names, body)
                 names.foldRight(bE) { (name, acc) =>
-                  '{ SIR.LamAbs(${ Expr(name) }, $acc) }
+                  '{ SIR.LamAbs(${ Expr(name.name) }, $acc) }
                 }
             }
             bodyExpr
-          case Block(stmt, expr)   => compileBlock(env, stmt, expr)
-          case Typed(expr, _)      => compileExpr(env, expr)
-          case Inlined(_, _, expr) => compileExpr(env, expr)
-          case x                   => report.errorAndAbort(s"Unsupported expression: ${x.show}\n$x")
+          case Block(stmt, expr)          => compileBlock(env, stmt, expr)
+          case Typed(expr, _)             => compileExpr(env, expr)
+          case Inlined(_, bindings, expr) => compileBlock(env, bindings, expr)
+          case x => report.errorAndAbort(s"Unsupported expression: ${x.show}\n$x")
     }
 
+    report.info(s"Compiling ${e.asTerm}")
     val result = compileExpr(immutable.HashSet.empty, e.asTerm)
 //    report.info(s"Glogal defs: ${globalDefs}")
     val full = globalDefs.foldRight(result) { case ((_, b), acc) =>
       '{
-        SIR.Let(${ Expr(b.recursivity) }, List(Binding(${ Expr(b.name) }, ${ b.body })), $acc)
+        SIR.Let(${ Expr(b.recursivity) }, List(Binding(${ Expr(b.fullName) }, ${ b.body })), $acc)
       }
     }
     full

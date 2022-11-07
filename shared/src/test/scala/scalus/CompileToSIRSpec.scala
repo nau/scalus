@@ -118,6 +118,36 @@ class CompileToSIRSpec extends AnyFunSuite with ScalaCheckPropertyChecks:
     assert(compile { throw new RuntimeException("foo") } == Error("foo"))
   }
 
+  val asdf = 5
+
+  test("compile ToData") {
+    import scalus.uplc.Data.*
+    val compiled = compile {
+      BigInt(1).toData
+    }
+    assert(
+      compiled == Let(
+        Rec,
+        immutable.List(
+          Binding(
+            "scalus.uplc.Data$.given_ToData_BigInt$.toData",
+            LamAbs("a", Apply(Builtin(IData), Var(NamedDeBruijn("a"))))
+          )
+        ),
+        Let(
+          NonRec,
+          immutable.List(Binding("a$proxy1", Const(Constant.Integer(1)))),
+          Apply(
+            Var(NamedDeBruijn("scalus.uplc.Data$.given_ToData_BigInt$.toData")),
+            Var(NamedDeBruijn("a$proxy1"))
+          )
+        )
+      )
+    )
+//    val term = new SimpleSirToUplcLowering().lower(compiled)
+//    assert(Cek.evalUPLC(term) == Data.I(22))
+  }
+
   test("compile List builtins") {
     // Nil
     assert(
@@ -194,7 +224,7 @@ class CompileToSIRSpec extends AnyFunSuite with ScalaCheckPropertyChecks:
       compile {
         Builtins.mkConstr(
           1,
-          builtins.List(Data.I(2))
+          builtins.List(Builtins.mkI(2))
         )
       } == Apply(
         Apply(Builtin(ConstrData), Const(Constant.Integer(1))),
@@ -206,7 +236,7 @@ class CompileToSIRSpec extends AnyFunSuite with ScalaCheckPropertyChecks:
     )
     assert(
       compile {
-        Builtins.mkList(builtins.List(Data.I(1)))
+        Builtins.mkList(builtins.List(Builtins.mkI(1)))
       } ==
         Apply(
           Builtin(ListData),
@@ -219,7 +249,9 @@ class CompileToSIRSpec extends AnyFunSuite with ScalaCheckPropertyChecks:
     assert(
       compile {
         Builtins.mkMap(
-          builtins.List(builtins.Pair(Data.B(ByteString.fromHex("deadbeef")), Data.I(1)))
+          builtins.List(
+            builtins.Pair(Builtins.mkB(ByteString.fromHex("deadbeef")), Builtins.mkI(1))
+          )
         )
       } == Apply(
         Builtin(MapData),
@@ -339,8 +371,8 @@ class CompileToSIRSpec extends AnyFunSuite with ScalaCheckPropertyChecks:
     compilesTo(
       Let(
         Rec,
-        List(Binding("foo", LamAbs("i", Var(NamedDeBruijn("i"))))),
-        Apply(Var(NamedDeBruijn("foo")), Const(Constant.Integer(5)))
+        List(Binding("scalus.CompileToSIRSpec._$foo", LamAbs("i", Var(NamedDeBruijn("i"))))),
+        Apply(Var(NamedDeBruijn("scalus.CompileToSIRSpec._$foo")), Const(Constant.Integer(5)))
       )
     ) {
       foo(5)
