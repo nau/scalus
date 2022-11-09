@@ -222,6 +222,7 @@ object Macros {
         case _ => report.errorAndAbort(s"Unsupported type: ${t.show}")
 
     def compileStmt(env: Env, stmt: Statement): B = {
+      // report.info(s"compileStmt ${stmt}", stmt.pos)
       stmt match
         case ValDef(name, tpe, Some(body)) =>
           val bodyExpr = compileExpr(env, body)
@@ -248,7 +249,7 @@ object Macros {
         case x: Term =>
           B("_", Symbol.noSymbol, Recursivity.NonRec, compileExpr(env, x))
 
-        case x => report.errorAndAbort(s"compileStmt: $x")
+        case x => report.errorAndAbort(s"compileStmt: $x", stmt.pos)
     }
 
     def compileBlock(env: Env, stmts: immutable.List[Statement], expr: Term): Expr[SIR] = {
@@ -464,14 +465,21 @@ object Macros {
           case bi if bi.tpe.show == "scalus.builtins.Builtins.unsafeDataAsI" =>
             '{ SIR.Builtin(DefaultFun.UnIData) }
           case sel @ Select(obj, ident) =>
-            if !env.contains(e.symbol) then
-              val b = compileStmt(immutable.HashSet.empty, e.symbol.tree.asInstanceOf[Definition])
-              globalDefs.update(b.symbol, b)
-            /*report.errorAndAbort(
-              s"compileExpr: Unknown identifier: $a, env: ${env.mkString(", ")}, tree: ${e.symbol.tree}"
-            )*/
-//            report.errorAndAbort(s"Select: ${s} ${sel.symbol.fullName}")
-            '{ SIR.Var(NamedDeBruijn(${ Expr(e.symbol.fullName) })) }
+            val ts = obj.tpe.widen.typeSymbol
+            lazy val fieldIdx = ts.caseFields.indexOf(sel.symbol)
+            if ts.isClassDef && fieldIdx >= 0 then
+              val lhs = compileExpr(env, obj)
+              val lam = ts.caseFields.foldRight('{ SIR.Var(NamedDeBruijn(${ Expr(ident) })) }) {
+                case (f, acc) =>
+                  '{ SIR.LamAbs(${ Expr(f.name) }, $acc) }
+              }
+              '{ SIR.Apply($lhs, $lam) }
+            else
+              if !env.contains(e.symbol) then
+                val b = compileStmt(immutable.HashSet.empty, e.symbol.tree.asInstanceOf[Definition])
+                globalDefs.update(b.symbol, b)
+              end if
+              '{ SIR.Var(NamedDeBruijn(${ Expr(e.symbol.fullName) })) }
           case TypeApply(f, args) => compileExpr(env, f)
           // Generic Apply
           case Apply(f, args) =>

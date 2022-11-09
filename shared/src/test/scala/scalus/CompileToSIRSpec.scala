@@ -398,13 +398,23 @@ class CompileToSIRSpec extends AnyFunSuite with ScalaCheckPropertyChecks:
             )
           )
         ),
-        Apply(
-          Var(NamedDeBruijn("scalus.ledger.api.v1.PubKeyHash$.apply")),
-          Const(Constant.ByteString(ByteString.fromHex("deadbeef")))
+        Let(
+          NonRec,
+          List(
+            Binding(
+              "pkh",
+              Apply(
+                Var(NamedDeBruijn("scalus.ledger.api.v1.PubKeyHash$.apply")),
+                Const(Constant.ByteString(ByteString.fromHex("deadbeef")))
+              )
+            )
+          ),
+          Apply(Var(NamedDeBruijn("pkh")), LamAbs("hash", Var(NamedDeBruijn("hash"))))
         )
       )
     ) {
-      scalus.ledger.api.v1.PubKeyHash(ByteString.fromHex("deadbeef"))
+      val pkh = scalus.ledger.api.v1.PubKeyHash(ByteString.fromHex("deadbeef"))
+      pkh.hash
     }
   }
 

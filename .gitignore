@@ -1,7 +1,11 @@
 target
 /.bsp
+.bloop/
 /.idea
 /.idea_modules
 /.classpath
 /.project
 /.settings
+.DS_Store
+.metals
+.vscode
