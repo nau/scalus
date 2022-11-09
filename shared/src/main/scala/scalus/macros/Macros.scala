@@ -295,6 +295,7 @@ object Macros {
     }
 
     def compileExpr(env: Env, e: Term): Expr[SIR] = {
+//      println(s"compileExpr: ${e.show}\n${e}\nin ${env}")
       if compileConstant.isDefinedAt(e) then
         val const = compileConstant(e)
         '{ SIR.Const($const) }
@@ -416,8 +417,24 @@ object Macros {
               case term =>
                 Expr("error")
             '{ SIR.Error($msg) }
+          case Apply(con @ Select(f, "<init>"), args) =>
+            con.symbol.tree match
+              case DefDef(_, paramss, _, None) => ()
+              case DefDef(_, paramss, _, Some(b)) =>
+                report.error(
+                  s"Unexpected non-empty constructor of ${f.tpe.typeSymbol}. "
+                    + s"Only empty constructors are supported\n${b.show}\n$b"
+                )
+            val argsE = args.map(compileExpr(env, _))
+            val constrName = f.tpe.typeSymbol.fullName
+            val constr =
+              argsE.foldLeft('{ SIR.Var(NamedDeBruijn(${ Expr(constrName) })) })((acc, arg) =>
+                '{ SIR.Apply($acc, $arg) }
+              )
+            '{ SIR.LamAbs(${ Expr(constrName) }, $constr) }
+
           // f.apply(arg) => Apply(f, arg)
-          case Apply(Select(Ident(a), "apply"), args) =>
+          case Apply(Select(f @ Ident(a), "apply"), args) if f.tpe.widen.isFunctionType =>
             val argsE = args.map(compileExpr(env, _))
             argsE.foldLeft('{ SIR.Var(NamedDeBruijn(${ Expr(a) })) })((acc, arg) =>
               '{ SIR.Apply($acc, $arg) }
@@ -487,7 +504,7 @@ object Macros {
           case x => report.errorAndAbort(s"Unsupported expression: ${x.show}\n$x")
     }
 
-    report.info(s"Compiling ${e.asTerm}")
+//    println(s"Compiling ${e.asTerm}")
     val result = compileExpr(immutable.HashSet.empty, e.asTerm)
 //    report.info(s"Glogal defs: ${globalDefs}")
     val full = globalDefs.foldRight(result) { case ((_, b), acc) =>

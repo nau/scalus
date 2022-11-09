@@ -2,16 +2,16 @@ package scalus
 
 import org.scalatest.funsuite.AnyFunSuite
 import org.scalatestplus.scalacheck.ScalaCheckPropertyChecks
-import scalus.builtins.{Builtins, ByteString}
 import scalus.builtins.ByteString.given
+import scalus.builtins.{Builtins, ByteString}
 import scalus.ledger.api.v1.*
 import scalus.sir.Recursivity.*
 import scalus.sir.SIR.*
 import scalus.sir.{Binding, Recursivity, SIR, SimpleSirToUplcLowering}
+import scalus.uplc.*
 import scalus.uplc.DefaultFun.*
 import scalus.uplc.ExprBuilder.compile
 import scalus.uplc.TermDSL.{lam, λ}
-import scalus.uplc.*
 import scalus.utils.Utils
 
 import scala.collection.immutable
@@ -379,6 +379,35 @@ class CompileToSIRSpec extends AnyFunSuite with ScalaCheckPropertyChecks:
     }
   }
 
+  test("compile datatypes") {
+    val compiled = compilesTo(
+      Let(
+        Rec,
+        List(
+          Binding(
+            "scalus.ledger.api.v1.PubKeyHash$.apply",
+            LamAbs(
+              "hash",
+              LamAbs(
+                "scalus.ledger.api.v1.PubKeyHash",
+                Apply(
+                  Var(NamedDeBruijn("scalus.ledger.api.v1.PubKeyHash")),
+                  Var(NamedDeBruijn("hash"))
+                )
+              )
+            )
+          )
+        ),
+        Apply(
+          Var(NamedDeBruijn("scalus.ledger.api.v1.PubKeyHash$.apply")),
+          Const(Constant.ByteString(ByteString.fromHex("deadbeef")))
+        )
+      )
+    ) {
+      scalus.ledger.api.v1.PubKeyHash(ByteString.fromHex("deadbeef"))
+    }
+  }
+
   test("PubKey Validator example") {
     val scriptContext =
       ScriptContext(
@@ -417,9 +446,9 @@ class CompileToSIRSpec extends AnyFunSuite with ScalaCheckPropertyChecks:
 //    println(Utils.bytesToHex(flatBytes))
     assert(flatBytes.length == 133)
 //    println(term.pretty.render(80))
-    import TermDSL.{*, given}
     import Data.*
     import DefaultUni.asConstant
+    import TermDSL.{*, given}
 //    println(scriptContext.toData)
     val appliedValidator = term $ asConstant(()) $ asConstant(()) $ scriptContext.toData
     assert(
