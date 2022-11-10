@@ -98,14 +98,9 @@ enum DCert:
   case Genesis
   case Mir
 
-opaque type TxId = ByteString
-object TxId:
-  def apply(bytes: ByteString): TxId = bytes
-  def unapply(txId: TxId): Option[ByteString] = Some(txId)
-extension (t: TxId) {
-  def hash: ByteString = t
-  def toString = s"TxId(${t.toHex})"
-}
+case class TxId(hash: ByteString):
+  override def toString = s"TxId(${hash.toHex})"
+
 
 /*
 data TxOutRef = TxOutRef {

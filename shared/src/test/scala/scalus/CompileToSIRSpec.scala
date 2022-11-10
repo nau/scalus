@@ -418,6 +418,18 @@ class CompileToSIRSpec extends AnyFunSuite with ScalaCheckPropertyChecks:
     }
   }
 
+  test("compile match on ADT") {
+    val compiled = compile {
+      val pkh = scalus.ledger.api.v1.PubKeyHash(ByteString.fromHex("deadbeef"))
+      pkh match
+        case PubKeyHash(hash) => hash
+    }
+    // println(compiled.pretty.render(80))
+    val term = new SimpleSirToUplcLowering().lower(compiled)
+    val evaled = Cek.evalUPLC(term)
+    assert(evaled == scalus.uplc.Term.Const(Constant.ByteString(ByteString.fromHex("deadbeef"))))
+  }
+
   test("PubKey Validator example") {
     val scriptContext =
       ScriptContext(

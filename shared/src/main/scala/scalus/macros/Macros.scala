@@ -200,6 +200,7 @@ object Macros {
             '{ DefaultUni.Pair(${ Expr(a) }, ${ Expr(b) }) }
           case DefaultUni.Apply(f, a) =>
             '{ DefaultUni.Apply(${ Expr(f) }, ${ Expr(a) }) }
+          case _ => report.errorAndAbort(s"Unsupported DefaultUni type $x")
     }
 
     def typeReprToDefaultUni(t: TypeRepr): DefaultUni =
@@ -319,6 +320,31 @@ object Macros {
                 ${ compileExpr(env, f) }
               )
             }
+          case Match(t, cases) =>
+            val cs = cases.head
+            cs match
+              case CaseDef(_, Some(guard), rhs) =>
+                report.errorAndAbort(s"Guards are not supported in match expressions", guard.pos)
+              case CaseDef(Unapply(fun, implicits, pats), guard, rhs) =>
+                // report.error(s"Case: ${fun}, pats: ${pats}, rhs: $rhs", t.pos)
+                val names = pats.map {
+                  case b @ Bind(name, Ident("_")) =>
+                    report.info(s"bind ${b.symbol}", b.pos)
+                    b.symbol
+                  case p => report.errorAndAbort(s"Unsupported binding: ${p}", p.pos)
+                }
+                val rhsE = compileExpr(env ++ names, rhs)
+                val lam = pats.foldRight(rhsE) { case (Bind(name, Ident("_")), lam) =>
+                  '{ SIR.LamAbs(${ Expr(name) }, $lam) }
+                }
+                val tE = compileExpr(env, t)
+                // report.error(s"${lam.show}", t.pos)
+                '{ SIR.Apply($tE, $lam) }
+              case a =>
+                report.errorAndAbort(
+                  s"Unsupported match expression: ${e.show}\n$e\n${t.tpe.typeSymbol}, cases: ${cases}",
+                  t.pos
+                )
           // PAIR
           case Select(pair, fun) if pair.isPair =>
             fun match
