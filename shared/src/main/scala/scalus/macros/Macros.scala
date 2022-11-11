@@ -160,7 +160,7 @@ object Macros {
       case x => report.errorAndAbort(x.toString)
 
   def compileImpl(e: Expr[Any])(using q: Quotes): Expr[SIR] =
-    import q.reflect.*
+    import q.reflect.{*, given}
 //    import scalus.uplc.Constant.*
     import scalus.uplc.DefaultFun
     import scalus.sir.Recursivity
@@ -320,31 +320,85 @@ object Macros {
                 ${ compileExpr(env, f) }
               )
             }
+          /*
+              enum A:
+                case C1(a)
+                case C2(b, c)
+              compiles to:
+              c1 = \c1 c2 -> c1 a
+              c2 = \c1 c2 -> c2 b c
+
+              c match
+                C1(a) -> 0
+                C2(b, c) -> 1
+              compiles to:
+              c (\a -> 0) (\b c -> 1)
+           */
           case Match(t, cases) =>
-            val cs = cases.head
-            cs match
-              case CaseDef(_, Some(guard), rhs) =>
-                report.errorAndAbort(s"Guards are not supported in match expressions", guard.pos)
-              case CaseDef(Unapply(fun, implicits, pats), guard, rhs) =>
-                // report.error(s"Case: ${fun}, pats: ${pats}, rhs: $rhs", t.pos)
-                val names = pats.map {
-                  case b @ Bind(name, Ident("_")) =>
-                    report.info(s"bind ${b.symbol}", b.pos)
-                    b.symbol
-                  case p => report.errorAndAbort(s"Unsupported binding: ${p}", p.pos)
-                }
-                val rhsE = compileExpr(env ++ names, rhs)
-                val lam = pats.foldRight(rhsE) { case (Bind(name, Ident("_")), lam) =>
-                  '{ SIR.LamAbs(${ Expr(name) }, $lam) }
-                }
-                val tE = compileExpr(env, t)
-                // report.error(s"${lam.show}", t.pos)
-                '{ SIR.Apply($tE, $lam) }
-              case a =>
-                report.errorAndAbort(
-                  s"Unsupported match expression: ${e.show}\n$e\n${t.tpe.typeSymbol}, cases: ${cases}",
-                  t.pos
-                )
+            if t.tpe.typeSymbol.children.isEmpty
+            then
+              cases match
+                case cs :: Nil =>
+                  cs match
+                    case CaseDef(_, Some(guard), _) =>
+                      report.errorAndAbort(
+                        s"Guards are not supported in match expressions",
+                        guard.pos
+                      )
+
+                    case CaseDef(Unapply(fun, implicits, pats), None, rhs) =>
+                      // report.error(s"Case: ${fun}, pats: ${pats}, rhs: $rhs", t.pos)
+                      val names = pats.map {
+                        case b @ Bind(name, Ident("_")) => b.symbol
+                        case p => report.errorAndAbort(s"Unsupported binding: ${p}", p.pos)
+                      }
+                      val rhsE = compileExpr(env ++ names, rhs)
+                      val lam = pats.foldRight(rhsE) { case (Bind(name, Ident("_")), lam) =>
+                        '{ SIR.LamAbs(${ Expr(name) }, $lam) }
+                      }
+                      val tE = compileExpr(env, t)
+                      // report.error(s"${lam.show}", t.pos)
+                      '{ SIR.Apply($tE, $lam) }
+
+                case _ =>
+                  report.errorAndAbort(
+                    s"Only single constructor pattern supported for type ${t.tpe}",
+                    e.pos
+                  )
+            else if cases.length != t.tpe.typeSymbol.children.length
+            then
+              report.errorAndAbort(
+                s"Unsupported pattern matching for type ${t.tpe.widen.show}, constructors: ${t.tpe.typeSymbol.children}",
+                e.pos
+              )
+            else
+              val cs = cases.map {
+                case CaseDef(_, Some(guard), _) =>
+                  report.errorAndAbort(s"Guards are not supported in match expressions", guard.pos)
+                case CaseDef(asdf, None, rhs) if asdf.isInstanceOf[Typed] =>
+                  val (inner, constrTpe) = Typed.unapply(asdf.asInstanceOf[Typed])
+                  // report.info(s"Case: ${inner}, tpe ${constrTpe.tpe.widen.show}", t.pos)
+                  inner match
+                    case Unapply(fun, implicits, pats) =>
+                      val names = pats.map {
+                        case b @ Bind(name, Ident("_")) => b.symbol
+                        case p => report.errorAndAbort(s"Unsupported binding: ${p}", p.pos)
+                      }
+                      val rhsE = compileExpr(env ++ names, rhs)
+                      val lam = pats.foldRight(rhsE) { case (Bind(name, Ident("_")), lam) =>
+                        '{ SIR.LamAbs(${ Expr(name) }, $lam) }
+                      }
+                      (constrTpe.symbol, lam)
+                case a =>
+                  report.errorAndAbort(
+                    s"Unsupported match expression: ${e.show}\n$e\n${t.tpe.typeSymbol}, cases: ${cases}",
+                    t.pos
+                  )
+              }
+              val tE = compileExpr(env, t)
+              val sortedCases = cs.sortBy((t, _) => t.fullName)
+              // report.info(s"Sorted constrs: ${sortedCases}", cases.head.pos)
+              cs.foldLeft(tE) { case (acc, (_, lam)) => '{ SIR.Apply($acc, $lam) } }
           // PAIR
           case Select(pair, fun) if pair.isPair =>
             fun match
@@ -444,21 +498,40 @@ object Macros {
               case term =>
                 Expr("error")
             '{ SIR.Error($msg) }
+
+          // new Constr(args)
           case Apply(con @ Select(f, "<init>"), args) =>
+            val typeSymbol = f.tpe.typeSymbol
+            if typeSymbol.primaryConstructor != con.symbol
+            then
+              report.errorAndAbort(
+                s"This is not a primary constructor. Only primary constructors supported",
+                e.pos
+              )
+            // disallow non-empty constructors
             con.symbol.tree match
               case DefDef(_, paramss, _, None) => ()
               case DefDef(_, paramss, _, Some(b)) =>
                 report.error(
-                  s"Unexpected non-empty constructor of ${f.tpe.typeSymbol}. "
+                  s"Unexpected non-empty constructor of ${typeSymbol}. "
                     + s"Only empty constructors are supported\n${b.show}\n$b"
                 )
             val argsE = args.map(compileExpr(env, _))
-            val constrName = f.tpe.typeSymbol.fullName
+            val constrName = typeSymbol.fullName
+
+            // constructor body as: constr arg1 arg2 ...
             val constr =
               argsE.foldLeft('{ SIR.Var(NamedDeBruijn(${ Expr(constrName) })) })((acc, arg) =>
                 '{ SIR.Apply($acc, $arg) }
               )
-            '{ SIR.LamAbs(${ Expr(constrName) }, $constr) }
+            // get all constructors of an ADT, like enum Color: case Blue, case Yellow
+            val sortedConstructors =
+              val cases = typeSymbol.maybeOwner.companionClass.children.sortBy(_.name)
+              if cases.isEmpty then List(typeSymbol) else cases
+            // a value represented as: \c1 c2 ... -> c1 arg1 arg2 ...
+            sortedConstructors.foldRight(constr) { case (s, acc) =>
+              '{ SIR.LamAbs(${ Expr(s.fullName) }, $acc) }
+            }
 
           // f.apply(arg) => Apply(f, arg)
           case Apply(Select(f @ Ident(a), "apply"), args) if f.tpe.widen.isFunctionType =>

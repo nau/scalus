@@ -418,7 +418,7 @@ class CompileToSIRSpec extends AnyFunSuite with ScalaCheckPropertyChecks:
     }
   }
 
-  test("compile match on ADT") {
+  test("compile match on a case class") {
     val compiled = compile {
       val pkh = scalus.ledger.api.v1.PubKeyHash(ByteString.fromHex("deadbeef"))
       pkh match
@@ -428,6 +428,23 @@ class CompileToSIRSpec extends AnyFunSuite with ScalaCheckPropertyChecks:
     val term = new SimpleSirToUplcLowering().lower(compiled)
     val evaled = Cek.evalUPLC(term)
     assert(evaled == scalus.uplc.Term.Const(Constant.ByteString(ByteString.fromHex("deadbeef"))))
+  }
+
+  test("compile match on ADT") {
+    import scalus.ledger.api.v1.*
+    val compiled = compile {
+      val minting = ScriptPurpose.Minting(ByteString.fromHex("deadbeef"))
+      minting match
+        case ScriptPurpose.Minting(hash) => BigInt(1)
+        case ScriptPurpose.Spending(txOutRef) => BigInt(2)
+        case ScriptPurpose.Rewarding(stakingCred) => BigInt(3)
+        case ScriptPurpose.Certifying(cert) => BigInt(4)
+    }
+    // println(compiled.pretty.render(80))
+    val term = new SimpleSirToUplcLowering().lower(compiled)
+    val evaled = Cek.evalUPLC(term)
+    // println(evaled.pretty.render(80))
+    assert(evaled == scalus.uplc.Term.Const(Constant.Integer(2)))
   }
 
   test("PubKey Validator example") {
