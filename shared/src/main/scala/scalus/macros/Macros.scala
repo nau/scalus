@@ -517,7 +517,7 @@ object Macros {
                     + s"Only empty constructors are supported\n${b.show}\n$b"
                 )
             val argsE = args.map(compileExpr(env, _))
-            val constrName = typeSymbol.fullName
+            val constrName = typeSymbol.name
 
             // constructor body as: constr arg1 arg2 ...
             val constr =
@@ -530,7 +530,7 @@ object Macros {
               if cases.isEmpty then List(typeSymbol) else cases
             // a value represented as: \c1 c2 ... -> c1 arg1 arg2 ...
             sortedConstructors.foldRight(constr) { case (s, acc) =>
-              '{ SIR.LamAbs(${ Expr(s.fullName) }, $acc) }
+              '{ SIR.LamAbs(${ Expr(s.name) }, $acc) }
             }
 
           // f.apply(arg) => Apply(f, arg)

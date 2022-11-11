@@ -40,15 +40,16 @@ enum SIR:
         ) + Doc.line + inExpr.pretty
       case Let(Recursivity.Rec, immutable.List(Binding(name, body)), inExpr) =>
         val (args, body1) = TermDSL.lamAbsToList(body)
-        val prettyArgs = Doc.intercalate(Doc.text(",") + Doc.line, args.map(Doc.text))
-        prettyArgs.tightBracketBy(
-          kw("fun") & Doc.text(name) + Doc.char('('),
-          Doc.char(')') & Doc.char('=')
-        ) / body1.pretty.indent(2) / kw("in") & inExpr.pretty
+        val prettyArgs = Doc.stack(args.map(Doc.text))
+        val signatureLine =
+          (kw("fun") & Doc.text(name) + (Doc.line + prettyArgs & Doc.char('=')).nested(2)).grouped
+        (signatureLine + (Doc.line + body1.pretty).nested(4).grouped).grouped.aligned / kw(
+          "in"
+        ) & inExpr.pretty
       case LamAbs(name, term) =>
         val (args, body1) = TermDSL.lamAbsToList(this)
         val prettyArgs = Doc.stack(args.map(Doc.text))
-        val decl = (Doc.text("{λ") + (Doc.line + prettyArgs & Doc.text("->")).nested(2)).grouped
+        val decl = (Doc.text("{λ") + (Doc.line + prettyArgs & Doc.text("->")).nested(4)).grouped
         ((decl + (Doc.line + body1.pretty).nested(2)).grouped / Doc.text("}")).grouped.aligned
       case a @ Apply(f, arg) =>
         val (t, args) = TermDSL.applyToList(a)
@@ -62,9 +63,9 @@ enum SIR:
         t.pretty + prettyArgs
       case Const(const) => const.prettyValue.style(Style.XTerm.Fg.colorCode(64))
       case IfThenElse(cond, t, f) =>
-        ((kw("if") + (Doc.line + cond.pretty).nested(2)).grouped
-          + (Doc.line + kw("then") + (Doc.line + t.pretty).nested(2)).grouped
-          + (Doc.line + kw("else") + (Doc.line + f.pretty).nested(2)).grouped).aligned
+        ((kw("if") + (Doc.line + cond.pretty).nested(4)).grouped
+          + (Doc.line + kw("then") + (Doc.line + t.pretty).nested(4)).grouped
+          + (Doc.line + kw("else") + (Doc.line + f.pretty).nested(4)).grouped).aligned
       case Builtin(bn) => bn.pretty.style(Style.XTerm.Fg.colorCode(176))
       case Error(_)    => Doc.text("ERROR").style(Style.XTerm.Fg.colorCode(124))
 

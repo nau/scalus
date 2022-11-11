@@ -389,9 +389,9 @@ class CompileToSIRSpec extends AnyFunSuite with ScalaCheckPropertyChecks:
             LamAbs(
               "hash",
               LamAbs(
-                "scalus.ledger.api.v1.PubKeyHash",
+                "PubKeyHash",
                 Apply(
-                  Var(NamedDeBruijn("scalus.ledger.api.v1.PubKeyHash")),
+                  Var(NamedDeBruijn("PubKeyHash")),
                   Var(NamedDeBruijn("hash"))
                 )
               )
