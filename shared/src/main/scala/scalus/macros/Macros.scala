@@ -3,6 +3,7 @@ package scalus.macros
 import scalus.builtins
 import scalus.sir.{Binding, SIR}
 import scalus.uplc.ExprBuilder.*
+import scalus.builtins.Builtins
 import scalus.uplc.{
   Constant,
   Data,
@@ -159,6 +160,55 @@ object Macros {
             getter
       case x => report.errorAndAbort(x.toString)
 
+  def fieldAsDataMacro1[A: Type](e: Expr[A => Any])(using Quotes): Expr[Data => Data] =
+    import quotes.reflect.*
+    e.asTerm match
+      case Inlined(
+            _,
+            _,
+            Block(List(DefDef(_, _, _, Some(select @ Select(_, fieldName)))), _)
+          ) =>
+        def genGetter(typeSymbolOfA: Symbol, fieldName: String): Expr[Data => Data] =
+          val fieldOpt: Option[(Symbol, Int)] =
+            if typeSymbolOfA == TypeRepr.of[Tuple2].typeSymbol then
+              fieldName match
+                case "_1" => typeSymbolOfA.caseFields.find(_.name == fieldName).map(s => (s, 0))
+                case "_2" => typeSymbolOfA.caseFields.find(_.name == fieldName).map(s => (s, 1))
+                case _ =>
+                  report.errorAndAbort("Unexpected field name for Tuple2 type: " + fieldName)
+            else typeSymbolOfA.caseFields.zipWithIndex.find(_._1.name == fieldName)
+//          report.info(s"$typeSymbolOfA => fieldOpt: $fieldOpt")
+          fieldOpt match
+            case Some((fieldSym: Symbol, idx)) =>
+              val idxExpr = Expr(idx)
+
+              var expr: Expr[Data => builtins.List[Data]] = '{ d =>
+                Builtins.unsafeDataAsConstr(d).snd
+              }
+              var i = 0
+              while i < idx do
+                val exp = expr // save the current expr, otherwise it will loop forever
+                expr = '{ d => $exp(d).tail }
+                i += 1
+              '{ d => $expr(d).head }
+
+            case None =>
+              report.errorAndAbort("fieldMacro: " + fieldName)
+
+        def composeGetters(tree: Tree): Expr[Data => Data] = tree match
+          case Select(select @ Select(_, _), fieldName) =>
+            val a = genGetter(select.tpe.typeSymbol, fieldName)
+            val b = composeGetters(select)
+            '{ ddd => $a($b(ddd)) }
+          case Select(ident @ Ident(_), fieldName) =>
+            genGetter(ident.tpe.typeSymbol, fieldName)
+          case _ =>
+            report.errorAndAbort(
+              s"field macro supports only this form: _.caseClassField1.field2, but got " + tree.show
+            )
+        composeGetters(select)
+      case x => report.errorAndAbort(x.toString)
+
   def compileImpl(e: Expr[Any])(using q: Quotes): Expr[SIR] =
     import q.reflect.{*, given}
 //    import scalus.uplc.Constant.*
@@ -171,6 +221,8 @@ object Macros {
       def fullName = symbol.fullName
 
     val globalDefs: mutable.LinkedHashMap[Symbol, B] = mutable.LinkedHashMap.empty
+
+    var globalPosition = 0
 
     extension (t: Term) def isList = t.tpe <:< TypeRepr.of[builtins.List[_]]
     extension (t: Term) def isPair = t.tpe <:< TypeRepr.of[builtins.Pair[_, _]]
@@ -304,6 +356,8 @@ object Macros {
       else
         e match
           case Ident(a) =>
+            globalPosition += 1
+            // report.info(s"Ident: ${e.show}, a $a, full: ${e.symbol.fullName}, name: ${e.symbol.name}", Position(SourceFile.current, globalPosition, 0))
             if !env.contains(e.symbol) then
               val b = compileStmt(immutable.HashSet.empty, e.symbol.tree.asInstanceOf[Definition])
               globalDefs.update(b.symbol, b)
@@ -311,7 +365,7 @@ object Macros {
                 s"compileExpr: Unknown identifier: $a, env: ${env.mkString(", ")}, tree: ${e.symbol.tree}"
               )*/
               '{ SIR.Var(NamedDeBruijn(${ Expr(e.symbol.fullName) })) }
-            else '{ SIR.Var(NamedDeBruijn(${ Expr(a) })) }
+            else '{ SIR.Var(NamedDeBruijn(${ Expr(e.symbol.name) })) }
           case If(cond, t, f) =>
             '{
               SIR.IfThenElse(
@@ -534,9 +588,10 @@ object Macros {
             }
 
           // f.apply(arg) => Apply(f, arg)
-          case Apply(Select(f @ Ident(a), "apply"), args) if f.tpe.widen.isFunctionType =>
+          case Apply(Select(f, "apply"), args) if f.tpe.widen.isFunctionType =>
+            val fE = compileExpr(env, f)
             val argsE = args.map(compileExpr(env, _))
-            argsE.foldLeft('{ SIR.Var(NamedDeBruijn(${ Expr(a) })) })((acc, arg) =>
+            argsE.foldLeft(fE)((acc, arg) =>
               '{ SIR.Apply($acc, $arg) }
             )
           // ByteString equality
@@ -563,6 +618,9 @@ object Macros {
             '{ SIR.Builtin(DefaultFun.UnBData) }
           case bi if bi.tpe.show == "scalus.builtins.Builtins.unsafeDataAsI" =>
             '{ SIR.Builtin(DefaultFun.UnIData) }
+          // case class User(name: String, age: Int)
+          // val user = User("John", 42) => \u - u "John" 42
+          // user.name => \u name age -> name
           case sel @ Select(obj, ident) =>
             val ts = obj.tpe.widen.typeSymbol
             lazy val fieldIdx = ts.caseFields.indexOf(sel.symbol)
@@ -607,11 +665,16 @@ object Macros {
             bodyExpr
           case Block(stmt, expr)          => compileBlock(env, stmt, expr)
           case Typed(expr, _)             => compileExpr(env, expr)
-          case Inlined(_, bindings, expr) => compileBlock(env, bindings, expr)
+          case Inlined(_, bindings, expr) =>
+            globalPosition += 1
+            val r = compileBlock(env, bindings, expr)
+            val t = r.asTerm.show
+            // report.info(s"Inlined: ${bindings}, ${expr.show}\n${t}", Position(SourceFile.current, globalPosition, 0))
+            r
           case x => report.errorAndAbort(s"Unsupported expression: ${x.show}\n$x")
     }
 
-//    println(s"Compiling ${e.asTerm}")
+    // report.info(s"Compiling ${e.asTerm.show}", e.asTerm.pos)
     val result = compileExpr(immutable.HashSet.empty, e.asTerm)
 //    report.info(s"Glogal defs: ${globalDefs}")
     val full = globalDefs.foldRight(result) { case ((_, b), acc) =>

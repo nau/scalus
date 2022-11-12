@@ -137,6 +137,10 @@ object ExprBuilder:
     Macros.fieldAsDataMacro('expr)
   }
 
+  inline def fieldAsData1[A](inline expr: A => Any): Data => Data = ${
+    Macros.fieldAsDataMacro1('expr)
+  }
+
   transparent inline def field[A: Data.ToData](inline expr: A => Any): Any = ${
     Macros.fieldMacro('expr)
   }

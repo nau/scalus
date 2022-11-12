@@ -10,7 +10,7 @@ import scalus.sir.SIR.*
 import scalus.sir.{Binding, Recursivity, SIR, SimpleSirToUplcLowering}
 import scalus.uplc.*
 import scalus.uplc.DefaultFun.*
-import scalus.uplc.ExprBuilder.compile
+import scalus.uplc.ExprBuilder.{compile, fieldAsData1}
 import scalus.uplc.TermDSL.{lam, λ}
 import scalus.utils.Utils
 
@@ -445,6 +445,44 @@ class CompileToSIRSpec extends AnyFunSuite with ScalaCheckPropertyChecks:
     val evaled = Cek.evalUPLC(term)
     // println(evaled.pretty.render(80))
     assert(evaled == scalus.uplc.Term.Const(Constant.Integer(2)))
+  }
+
+  test("compile fieldAsData1 macro") {
+    import scalus.ledger.api.v1.{*, given}
+    val compiled = compile { (ctx: scalus.uplc.Data) =>
+      val sigsData = fieldAsData1[ScriptContext](_.scriptContextTxInfo.txInfoSignatories)(ctx)
+      val sigs = Builtins.unsafeDataAsList(sigsData)
+      Builtins.unsafeDataAsB(sigs.head)
+    }
+    // println(compiled.pretty.render(80))
+    val term = new SimpleSirToUplcLowering().lower(compiled)
+
+    val scriptContext =
+      ScriptContext(
+        TxInfo(
+          Nil,
+          Nil,
+          Value.zero,
+          Value.zero,
+          Nil,
+          Nil,
+          Interval.always,
+          PubKeyHash(hex"deadbeef") :: Nil,
+          Nil,
+          TxId(hex"bb")
+        ),
+        ScriptPurpose.Spending(TxOutRef(TxId(hex"deadbeef"), 0))
+      )
+    import scalus.uplc.TermDSL.{*, given}
+    import scalus.uplc.Data.{*}
+    import DefaultUni.asConstant
+    val appliedScript = Program(version=(1,0,0), term = term $ scriptContext.toData)
+    val evaled = Cek.evalUPLCProgram(appliedScript)
+    // println(evaled.pretty.render(80))
+    assert(evaled == scalus.uplc.Term.Const(asConstant(hex"deadbeef")))
+    val flatBytes = ProgramFlatCodec.encodeFlat(appliedScript)
+//    println(Utils.bytesToHex(flatBytes))
+    assert(flatBytes.length == 119)
   }
 
   test("PubKey Validator example") {
