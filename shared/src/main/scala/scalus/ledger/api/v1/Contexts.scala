@@ -3,7 +3,7 @@ package scalus.ledger.api.v1
 import scalus.builtins.ByteString
 import scalus.ledger.api.v1.Instances.given
 import scalus.uplc.Data
-import scalus.uplc.Data.ToData
+import scalus.uplc.Data.{ToData, FromData}
 import scalus.utils.Utils.bytesToHex
 
 type ValidatorHash = ByteString
@@ -27,8 +27,16 @@ object Instances:
   given ToData[TxId] with
     def toData(a: TxId): Data = a.hash.toData
 
+  given FromData[TxId] = (d: Data) =>
+    val hash = summon[FromData[ByteString]].apply(d)
+    new TxId(hash)
+
   given ToData[PubKeyHash] with
     def toData(a: PubKeyHash): Data = a.hash.toData
+
+  given FromData[PubKeyHash] = (d: Data) =>
+    val hash = summon[FromData[ByteString]].apply(d)
+    new PubKeyHash(hash)
 
   given DCertLift[T <: DCert]: ToData[T] with
     def toData(a: T): Data =

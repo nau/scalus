@@ -284,7 +284,6 @@ object Macros {
           val aExpr = Expr(name)
           B(name, stmt.symbol, Recursivity.NonRec, bodyExpr)
         case DefDef(name, argss, tpe, Some(body)) =>
-
           val args = argss.collect({ case TermParamClause(args) => args }).flatten
           val bodyExpr: Expr[scalus.sir.SIR] = {
             if args.isEmpty then
@@ -355,14 +354,63 @@ object Macros {
         '{ scalus.uplc.Constant.ByteString($litE) }
     }
 
+    def compileNewConstructor(
+        env: Env,
+        con: Term,
+        typeSymbol: Symbol,
+        args: immutable.List[Term]
+    ): Expr[SIR] = {
+      if typeSymbol.primaryConstructor != con.symbol
+      then
+        report.errorAndAbort(
+          s"This is not a primary constructor. Only primary constructors supported",
+          con.pos
+        )
+      // disallow non-empty constructors
+      con.symbol.tree match
+        case DefDef(_, paramss, _, None) => ()
+        case DefDef(_, paramss, _, Some(b)) =>
+          report.error(
+            s"Unexpected non-empty constructor of ${typeSymbol}. "
+              + s"Only empty constructors are supported\n${b.show}\n$b"
+          )
+      val argsE = args.map(compileExpr(env, _))
+      val constrName = typeSymbol.name
+
+      // constructor body as: constr arg1 arg2 ...
+      val constr =
+        argsE.foldLeft('{ SIR.Var(NamedDeBruijn(${ Expr(constrName) })) })((acc, arg) =>
+          '{ SIR.Apply($acc, $arg) }
+        )
+      // get all constructors of an ADT, like enum Color: case Blue, case Yellow
+      val sortedConstructors =
+        val cases = typeSymbol.maybeOwner.companionClass.children.sortBy(_.name)
+        if cases.isEmpty then List(typeSymbol) else cases
+      // a value represented as: \c1 c2 ... -> c1 arg1 arg2 ...
+      sortedConstructors.foldRight(constr) { case (s, acc) =>
+        '{ SIR.LamAbs(${ Expr(s.name) }, $acc) }
+      }
+    }
+
     def compileExpr(env: Env, e: Term): Expr[SIR] = {
       globalPosition += 1
-      report.info(s"compileExpr: ${e.show}\n${e}\nin ${env}", Position(SourceFile.current, globalPosition, 0))
+      report.info(
+        s"compileExpr: ${e.show}\n${e}\nin ${env}",
+        Position(SourceFile.current, globalPosition, 0)
+      )
       if compileConstant.isDefinedAt(e) then
         val const = compileConstant(e)
         '{ SIR.Const($const) }
       else
         e match
+          case Ident(_) if e.tpe =:= TypeRepr.of[immutable.Nil.type] =>
+            globalPosition += 1
+            report.info(
+              s"Ident NIL: ${e.show}: ${e.symbol.fullName}, name: ${e.symbol.name}",
+              Position(SourceFile.current, globalPosition, 0)
+            )
+            // special case for Nil
+            '{ SIR.LamAbs("Nil", SIR.LamAbs("Cons", SIR.Var(NamedDeBruijn("Nil")))) }
           case Ident(a) =>
             globalPosition += 1
             // report.info(s"Ident: ${e.show}, a $a, full: ${e.symbol.fullName}, name: ${e.symbol.name}", Position(SourceFile.current, globalPosition, 0))
@@ -568,38 +616,10 @@ object Macros {
             '{ SIR.Error($msg) }
 
           // new Constr(args)
+          case Apply(TypeApply(con @ Select(f, "<init>"), _), args) =>
+            compileNewConstructor(env, con, f.tpe.typeSymbol, args)
           case Apply(con @ Select(f, "<init>"), args) =>
-            val typeSymbol = f.tpe.typeSymbol
-            if typeSymbol.primaryConstructor != con.symbol
-            then
-              report.errorAndAbort(
-                s"This is not a primary constructor. Only primary constructors supported",
-                e.pos
-              )
-            // disallow non-empty constructors
-            con.symbol.tree match
-              case DefDef(_, paramss, _, None) => ()
-              case DefDef(_, paramss, _, Some(b)) =>
-                report.error(
-                  s"Unexpected non-empty constructor of ${typeSymbol}. "
-                    + s"Only empty constructors are supported\n${b.show}\n$b"
-                )
-            val argsE = args.map(compileExpr(env, _))
-            val constrName = typeSymbol.name
-
-            // constructor body as: constr arg1 arg2 ...
-            val constr =
-              argsE.foldLeft('{ SIR.Var(NamedDeBruijn(${ Expr(constrName) })) })((acc, arg) =>
-                '{ SIR.Apply($acc, $arg) }
-              )
-            // get all constructors of an ADT, like enum Color: case Blue, case Yellow
-            val sortedConstructors =
-              val cases = typeSymbol.maybeOwner.companionClass.children.sortBy(_.name)
-              if cases.isEmpty then List(typeSymbol) else cases
-            // a value represented as: \c1 c2 ... -> c1 arg1 arg2 ...
-            sortedConstructors.foldRight(constr) { case (s, acc) =>
-              '{ SIR.LamAbs(${ Expr(s.name) }, $acc) }
-            }
+            compileNewConstructor(env, con, f.tpe.typeSymbol, args)
           // (a, b) as scala.Tuple2.apply(a, b)
           case Apply(TypeApply(Select(f, "apply"), _), args)
               if f.tpe.widen =:= TypeRepr.of[scala.Tuple2.type] =>
@@ -657,7 +677,14 @@ object Macros {
                   '{ SIR.LamAbs(${ Expr(f.name) }, $acc) }
               }
               '{ SIR.Apply($lhs, $lam) }
+            // else if obj.symbol.isPackageDef then
+            // compileExpr(env, obj)
+            else if e.tpe =:= TypeRepr.of[immutable.Nil.type] then
+              '{ SIR.LamAbs("Nil", SIR.LamAbs("Cons", SIR.Var(NamedDeBruijn("Nil")))) }
+            else if e.tpe =:= TypeRepr.of[immutable.::] then
+              '{ SIR.LamAbs("Nil", SIR.LamAbs("Cons", SIR.Var(NamedDeBruijn("Nil")))) }
             else
+              // report.errorAndAbort(s"SELECT: ${obj.symbol.isPackageDef}", sel.pos)
               if !env.contains(e.symbol) then
                 val b = compileStmt(immutable.HashSet.empty, e.symbol.tree.asInstanceOf[Definition])
                 globalDefs.update(b.symbol, b)

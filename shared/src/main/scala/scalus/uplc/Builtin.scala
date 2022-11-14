@@ -315,6 +315,26 @@ object Meaning:
             case _ => throw new RuntimeException(s"Expected list, got $this")
     )
 
+  val BData =
+    mkMeaning(
+      DefaultUni.ByteString ->: DefaultUni.Data,
+      (a: CekValue) =>
+        val aa = a.asByteString
+        () => Cek.VCon(Constant.Data(Data.B(aa)))
+    )
+
+  val ListData =
+    mkMeaning(
+      DefaultUni.List(DefaultUni.Data) ->: DefaultUni.Data,
+      (a: CekValue) =>
+        val aa = a.asList
+        val datas = aa.map {
+          case Constant.Data(value) => value
+          case _ => throw new RuntimeException(s"ListData: not a data, but $a")
+        }
+        () => Cek.VCon(Constant.Data(Data.List(datas)))
+    )
+
   val BuiltinMeanings: immutable.Map[DefaultFun, Runtime] = immutable.Map.apply(
     (DefaultFun.AddInteger, Meaning.AddInteger),
     (DefaultFun.SubtractInteger, Meaning.SubtractInteger),
@@ -340,5 +360,7 @@ object Meaning:
     (DefaultFun.FstPair, Meaning.FstPair),
     (DefaultFun.SndPair, Meaning.SndPair),
     (DefaultFun.ConstrData, Meaning.ConstrData),
-    (DefaultFun.MkCons, Meaning.MkCons)
+    (DefaultFun.MkCons, Meaning.MkCons),
+    (DefaultFun.BData, Meaning.BData),
+    (DefaultFun.ListData, Meaning.ListData)
   )

@@ -17,6 +17,9 @@ object Data:
 
   type FromData[A] = Data => A
 
+  given BigIntFromData: FromData[BigInt] = Builtins.unsafeDataAsI
+  given ByteStringFromData: FromData[ByteString] = Builtins.unsafeDataAsB
+
   given BoolFromData: FromData[Boolean] = (d: Data) =>
     val pair = Builtins.unsafeDataAsConstr(d)
     val constr = pair.fst
@@ -24,7 +27,17 @@ object Data:
     else if constr == BigInt(1) then true
     else throw new RuntimeException("Not a boolean")
 
-  given tupleFromData[A, B](using fromA: FromData[A], fromB: FromData[B] ): FromData[(A, B)] =
+  given ListFromData[A: FromData]: FromData[immutable.List[A]] = (d: Data) =>
+    val fromA = summon[FromData[A]]
+    val ls = Builtins.unsafeDataAsList(d)
+    def loop(ls: scalus.builtins.List[Data]): immutable.List[A] =
+      if ls.isEmpty then immutable.Nil
+      else new immutable.::(fromA(ls.head), loop(ls.tail))
+    loop(ls)
+
+
+
+  given tupleFromData[A, B](using fromA: FromData[A], fromB: FromData[B]): FromData[(A, B)] =
     (d: Data) =>
       val pair = Builtins.unsafeDataAsConstr(d)
       val constr = pair.fst

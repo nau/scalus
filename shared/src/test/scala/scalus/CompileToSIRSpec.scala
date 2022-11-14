@@ -429,6 +429,22 @@ class CompileToSIRSpec extends AnyFunSuite with ScalaCheckPropertyChecks:
     assert(evaled == scalus.uplc.Term.Const(Constant.Bool(true)))
   }
 
+  test("compile Nil") {
+    val compiled = compile {
+      immutable.Nil
+    }
+    // println(compiled.pretty.render(80))
+    val term = new SimpleSirToUplcLowering().lower(compiled)
+    // println(term.pretty.render(80))
+    val evaled = Cek.evalUPLC(term)
+    assert(
+      evaled == scalus.uplc.Term
+        .LamAbs("Nil", scalus.uplc.Term.LamAbs("Cons", scalus.uplc.Term.Var(NamedDeBruijn("Nil"))))
+    )
+    val flatBytes = ProgramFlatCodec.encodeFlat(Program(version = (1, 0, 0), term = term))
+    assert(flatBytes.length == 6)
+  }
+
   test("compile match on a case class") {
     val compiled = compile {
       val pkh = scalus.ledger.api.v1.PubKeyHash(ByteString.fromHex("deadbeef"))
@@ -446,10 +462,10 @@ class CompileToSIRSpec extends AnyFunSuite with ScalaCheckPropertyChecks:
     val compiled = compile {
       val minting = ScriptPurpose.Minting(ByteString.fromHex("deadbeef"))
       minting match
-        case ScriptPurpose.Minting(hash) => BigInt(1)
-        case ScriptPurpose.Spending(txOutRef) => BigInt(2)
+        case ScriptPurpose.Minting(hash)          => BigInt(1)
+        case ScriptPurpose.Spending(txOutRef)     => BigInt(2)
         case ScriptPurpose.Rewarding(stakingCred) => BigInt(3)
-        case ScriptPurpose.Certifying(cert) => BigInt(4)
+        case ScriptPurpose.Certifying(cert)       => BigInt(4)
     }
     // println(compiled.pretty.render(80))
     val term = new SimpleSirToUplcLowering().lower(compiled)
@@ -465,7 +481,7 @@ class CompileToSIRSpec extends AnyFunSuite with ScalaCheckPropertyChecks:
       val sigs = Builtins.unsafeDataAsList(sigsData)
       Builtins.unsafeDataAsB(sigs.head)
     }
-    // println(compiled.pretty.render(80))
+    println(compiled.pretty.render(80))
     val term = new SimpleSirToUplcLowering().lower(compiled)
 
     val scriptContext =
@@ -487,12 +503,12 @@ class CompileToSIRSpec extends AnyFunSuite with ScalaCheckPropertyChecks:
     import scalus.uplc.TermDSL.{*, given}
     import scalus.uplc.Data.{*}
     import DefaultUni.asConstant
-    val appliedScript = Program(version=(1,0,0), term = term $ scriptContext.toData)
+    val appliedScript = Program(version = (1, 0, 0), term = term $ scriptContext.toData)
     val evaled = Cek.evalUPLCProgram(appliedScript)
     // println(evaled.pretty.render(80))
     assert(evaled == scalus.uplc.Term.Const(asConstant(hex"deadbeef")))
     val flatBytes = ProgramFlatCodec.encodeFlat(appliedScript)
-//    println(Utils.bytesToHex(flatBytes))
+    println(Utils.bytesToHex(flatBytes))
     assert(flatBytes.length == 119)
   }
 
@@ -528,12 +544,12 @@ class CompileToSIRSpec extends AnyFunSuite with ScalaCheckPropertyChecks:
 
     val compiled = compile { validator }
 
-//    println(compiled.pretty.render(80))
+    // println(compiled.pretty.render(80))
     val term = new SimpleSirToUplcLowering().lower(compiled)
     val flatBytes = ProgramFlatCodec.encodeFlat(Program(version = (1, 0, 0), term = term))
 //    println(Utils.bytesToHex(flatBytes))
-    assert(flatBytes.length == 133)
-//    println(term.pretty.render(80))
+    // println(term.pretty.render(80))
+    assert(flatBytes.length == 119)
     import Data.*
     import DefaultUni.asConstant
     import TermDSL.{*, given}

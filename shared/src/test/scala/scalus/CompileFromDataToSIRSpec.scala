@@ -5,6 +5,7 @@ import org.scalatestplus.scalacheck.ScalaCheckPropertyChecks
 import scalus.builtins.ByteString.given
 import scalus.builtins.{Builtins, ByteString}
 import scalus.ledger.api.v1.*
+import scalus.ledger.api.v1.Instances.given
 import scalus.sir.Recursivity.*
 import scalus.sir.SIR.*
 import scalus.sir.{Binding, Recursivity, SIR, SimpleSirToUplcLowering}
@@ -33,7 +34,7 @@ class CompileFromDataToSIRSpec extends AnyFunSuite with ScalaCheckPropertyChecks
     println(flatBytes.length)
   } */
 
-  test("compile FromData[(A, B)]") {
+  /* test("compile FromData[(A, B)]") {
     val compiled = compile {
       val t = Builtins.mkConstr(1, scalus.builtins.List.empty[Data])
       val f = Builtins.mkConstr(0, scalus.builtins.List.empty[Data])
@@ -49,4 +50,31 @@ class CompileFromDataToSIRSpec extends AnyFunSuite with ScalaCheckPropertyChecks
     println(term.pretty.render(80))
     val flatBytes = ProgramFlatCodec.encodeFlat(Program(version = (1, 0, 0), term = term))
     println(flatBytes.length)
+  } */
+
+  /* test("compile FromData[TxId]") {
+    val compiled = compile {
+      val hash = Builtins.mkB(ByteString.fromHex("deadbeef"))
+      val txid = summon[Data.FromData[TxId]](hash)
+      summon[Data.FromData[PubKeyHash]](hash)
+    }
+    println(compiled.pretty.render(80))
+    val term = new SimpleSirToUplcLowering().lower(compiled)
+    println(term.pretty.render(80))
+    val flatBytes = ProgramFlatCodec.encodeFlat(Program(version = (1, 0, 0), term = term))
+    println(flatBytes.length)
+  } */
+
+  test("compile FromData[List[A]]") {
+    val compiled = compile {
+      val ls = Builtins.mkList(builtins.List.empty[Data])
+      val txids = summon[Data.FromData[immutable.List[TxId]]](ls)
+      txids
+    }
+    println(compiled.pretty.render(80))
+    val term = new SimpleSirToUplcLowering().lower(compiled)
+    println(term.pretty.render(80))
+    val flatBytes = ProgramFlatCodec.encodeFlat(Program(version = (1, 0, 0), term = term))
+    println(flatBytes.length)
   }
+
