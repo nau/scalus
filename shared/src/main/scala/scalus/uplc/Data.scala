@@ -15,6 +15,49 @@ object Data:
   trait ToData[A]:
     def toData(a: A): Data
 
+  type FromData[A] = Data => A
+
+  given BoolFromData: FromData[Boolean] = (d: Data) =>
+    val pair = Builtins.unsafeDataAsConstr(d)
+    val constr = pair.fst
+    if constr == BigInt(0) then false
+    else if constr == BigInt(1) then true
+    else throw new RuntimeException("Not a boolean")
+
+  given tupleFromData[A, B](using fromA: FromData[A], fromB: FromData[B] ): FromData[(A, B)] =
+    (d: Data) =>
+      val pair = Builtins.unsafeDataAsConstr(d)
+      val constr = pair.fst
+      val args = pair.snd
+      if constr == BigInt(0) then (fromA(args.head), fromB(args.tail.head))
+      else throw new RuntimeException("Not a Tuple2")
+
+  /* trait FromData[A]:
+    def fromData(d: Data): A
+
+  object FromData:
+    given FromData[Boolean] with {
+      def fromData(d: Data): Boolean =
+        val pair = Builtins.unsafeDataAsConstr(d)
+        val constr = pair.fst
+        if constr == BigInt(0) then false
+        else if constr == BigInt(1) then true
+        else throw new RuntimeException("Not a boolean")
+    }
+
+    inline implicit def tupleFromData[A, B](implicit inline
+        fromA: FromData[A],
+        fromB: FromData[B]
+    ): FromData[(A, B)] = new FromData[(A, B)] {
+      def fromData(d: Data): (A, B) =
+        val pair = Builtins.unsafeDataAsConstr(d)
+        val constr = pair.fst
+        val args = pair.snd
+        if constr == BigInt(0) then
+          (summon[FromData[A]].fromData(args.head), summon[FromData[B]].fromData(args.tail.head))
+        else throw new RuntimeException("Not a Tuple2")
+    }
+   */
   object ToData:
     import scala.compiletime.*
     inline def summonAll[T <: Tuple]: immutable.List[ToData[_]] =
@@ -51,7 +94,7 @@ object Data:
 
     inline def derived[T](using m: Mirror.Of[T]): ToData[T] =
       val elemInstances = summonAll[m.MirroredElemTypes]
-//      println(elemInstances)
+      //      println(elemInstances)
       inline m match
         case m: Mirror.SumOf[T]     => liftSum(m, elemInstances)
         case m: Mirror.ProductOf[T] => liftProduct(0, m, elemInstances)

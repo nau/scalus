@@ -167,7 +167,7 @@ object Macros {
   def fieldAsDataMacro2(using q: Quotes)(e: q.reflect.Term): Expr[Data => Data] =
     import quotes.reflect.*
     e match
-      case Inlined( _, _, block ) => fieldAsDataMacro2(block)
+      case Inlined(_, _, block) => fieldAsDataMacro2(block)
       case Block(List(DefDef(_, _, _, Some(select @ Select(_, fieldName)))), _) =>
         def genGetter(typeSymbolOfA: Symbol, fieldName: String): Expr[Data => Data] =
           val fieldOpt: Option[(Symbol, Int)] =
@@ -276,14 +276,15 @@ object Macros {
         case _ => report.errorAndAbort(s"Unsupported type: ${t.show}")
 
     def compileStmt(env: Env, stmt: Statement): B = {
+      globalPosition += 1
+      report.info(s"compileStmt  ${stmt}", Position(SourceFile.current, globalPosition, 0))
       stmt match
         case ValDef(name, tpe, Some(body)) =>
           val bodyExpr = compileExpr(env, body)
           val aExpr = Expr(name)
           B(name, stmt.symbol, Recursivity.NonRec, bodyExpr)
         case DefDef(name, argss, tpe, Some(body)) =>
-          // globalPosition += 1
-          // report.info(s"compileStmt DefDef ${name} ${body}", Position(SourceFile.current, globalPosition, 0))
+
           val args = argss.collect({ case TermParamClause(args) => args }).flatten
           val bodyExpr: Expr[scalus.sir.SIR] = {
             if args.isEmpty then
@@ -297,9 +298,13 @@ object Macros {
               }
           }
           B(name, stmt.symbol, Recursivity.Rec, bodyExpr)
-        case DefDef(name, args, tpe, _) =>
+        case ValDef(name, tpe, None) =>
           report.errorAndAbort(
-            "compileStmt: Only single argument list defs are supported, but given: " + stmt
+            s"""compileStmt: val ${stmt.symbol.fullName} has no body. Try adding "scalacOptions += "-Yretain-trees" to your build.sbt"""
+          )
+        case DefDef(name, args, tpe, None) =>
+          report.errorAndAbort(
+            s"""compileStmt: def ${stmt.symbol.fullName} has no body. Try adding "scalacOptions += "-Yretain-trees" to your build.sbt"""
           )
         case x: Term =>
           B("_", Symbol.noSymbol, Recursivity.NonRec, compileExpr(env, x))
@@ -334,7 +339,7 @@ object Macros {
       case Literal(BooleanConstant(lit)) =>
         val litE = Expr(lit)
         '{ scalus.uplc.Constant.Bool($litE) }
-      case Literal(_) => report.errorAndAbort("compileExpr: Unsupported literal " + e.show)
+      case e @ Literal(_) => report.errorAndAbort(s"compileExpr: Unsupported literal ${e.show}\n$e")
       case lit @ Apply(Select(Ident("BigInt"), "apply"), _) =>
         val litE = lit.asExprOf[BigInt]
         '{ scalus.uplc.Constant.Integer($litE) }
@@ -351,7 +356,8 @@ object Macros {
     }
 
     def compileExpr(env: Env, e: Term): Expr[SIR] = {
-//      println(s"compileExpr: ${e.show}\n${e}\nin ${env}")
+      globalPosition += 1
+      report.info(s"compileExpr: ${e.show}\n${e}\nin ${env}", Position(SourceFile.current, globalPosition, 0))
       if compileConstant.isDefinedAt(e) then
         val const = compileConstant(e)
         '{ SIR.Const($const) }
@@ -502,7 +508,7 @@ object Macros {
                   s"compileExpr: Unsupported list method $fun. Only head, tail and isEmpty are supported"
                 )
 
-          case Apply(TypeApply(Ident("fieldAsData1"),List(tpe)),List(expr))     =>
+          case Apply(TypeApply(Ident("fieldAsData1"), List(tpe)), List(expr)) =>
             val getter = fieldAsDataMacro2(expr)
             // report.errorAndAbort(s"Getter")
             val r = compileExpr(env, getter.asTerm)
@@ -594,14 +600,26 @@ object Macros {
             sortedConstructors.foldRight(constr) { case (s, acc) =>
               '{ SIR.LamAbs(${ Expr(s.name) }, $acc) }
             }
-
+          // (a, b) as scala.Tuple2.apply(a, b)
+          case Apply(TypeApply(Select(f, "apply"), _), args)
+              if f.tpe.widen =:= TypeRepr.of[scala.Tuple2.type] =>
+            val typeSymbol = f.tpe.typeSymbol
+            val constrName = typeSymbol.name
+            val argsE = args.map(compileExpr(env, _))
+            val constr =
+              argsE.foldLeft('{ SIR.Var(NamedDeBruijn(${ Expr(constrName) })) })((acc, arg) =>
+                '{ SIR.Apply($acc, $arg) }
+              )
+            '{ SIR.LamAbs(${ Expr(constrName) }, $constr) }
           // f.apply(arg) => Apply(f, arg)
           case Apply(Select(f, "apply"), args) if f.tpe.widen.isFunctionType =>
             val fE = compileExpr(env, f)
             val argsE = args.map(compileExpr(env, _))
-            argsE.foldLeft(fE)((acc, arg) =>
-              '{ SIR.Apply($acc, $arg) }
-            )
+            argsE.foldLeft(fE)((acc, arg) => '{ SIR.Apply($acc, $arg) })
+
+          // BigInt equality
+          case Select(lhs, "==") if lhs.tpe.widen =:= TypeRepr.of[BigInt] =>
+            '{ SIR.Apply(SIR.Builtin(DefaultFun.EqualsInteger), ${ compileExpr(env, lhs) }) }
           // ByteString equality
           case Select(lhs, "==") if lhs.tpe.widen =:= TypeRepr.of[builtins.ByteString] =>
             '{ SIR.Apply(SIR.Builtin(DefaultFun.EqualsByteString), ${ compileExpr(env, lhs) }) }
@@ -671,8 +689,8 @@ object Macros {
                 }
             }
             bodyExpr
-          case Block(stmt, expr)          => compileBlock(env, stmt, expr)
-          case Typed(expr, _)             => compileExpr(env, expr)
+          case Block(stmt, expr) => compileBlock(env, stmt, expr)
+          case Typed(expr, _)    => compileExpr(env, expr)
           case Inlined(_, bindings, expr) =>
             globalPosition += 1
             val r = compileBlock(env, bindings, expr)
@@ -682,7 +700,7 @@ object Macros {
           case x => report.errorAndAbort(s"Unsupported expression: ${x.show}\n$x")
     }
 
-    // report.info(s"Compiling ${e.asTerm.show}", e.asTerm.pos)
+    // report.info(s"Compiling ${e.asTerm.show}\n${e.asTerm}", e.asTerm.pos)
     val result = compileExpr(immutable.HashSet.empty, e.asTerm)
 //    report.info(s"Glogal defs: ${globalDefs}")
     val full = globalDefs.foldRight(result) { case ((_, b), acc) =>

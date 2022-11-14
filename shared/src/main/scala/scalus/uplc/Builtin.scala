@@ -285,6 +285,36 @@ object Meaning:
         () => Cek.VCon(snd)
     )
 
+  val ConstrData =
+    mkMeaning(
+      Integer ->: DefaultUni.List(DefaultUni.Data) ->: DefaultUni.Data,
+      (a: CekValue) =>
+        val i = a.asInteger
+        (b: CekValue) =>
+          val args = b match {
+            case VCon(Constant.List(DefaultUni.Data, l)) =>
+              l.map {
+                case Constant.Data(d) => d
+                case _                => throw new Exception(s"ConstrData: not a data, but $b")
+              }
+            case _ => throw new RuntimeException(s"Expected list, got $this")
+          }
+          () =>
+            Cek.VCon(
+              Constant.Data(Data.Constr(i.longValue, args))
+            )
+    )
+  val MkCons =
+    mkMeaning(
+      All("a", Integer ->: DefaultUni.List(Integer) ->: DefaultUni.List(Integer)),
+      (a: CekValue) =>
+        (b: CekValue) =>
+          (a, b) match
+            case (VCon(aCon), VCon(Constant.List(tp, l))) => // fixme chek type
+              () => Cek.VCon(Constant.List(tp, aCon :: l))
+            case _ => throw new RuntimeException(s"Expected list, got $this")
+    )
+
   val BuiltinMeanings: immutable.Map[DefaultFun, Runtime] = immutable.Map.apply(
     (DefaultFun.AddInteger, Meaning.AddInteger),
     (DefaultFun.SubtractInteger, Meaning.SubtractInteger),
@@ -308,5 +338,7 @@ object Meaning:
     (DefaultFun.TailList, Meaning.TailList),
     (DefaultFun.ChooseList, Meaning.ChooseList),
     (DefaultFun.FstPair, Meaning.FstPair),
-    (DefaultFun.SndPair, Meaning.SndPair)
+    (DefaultFun.SndPair, Meaning.SndPair),
+    (DefaultFun.ConstrData, Meaning.ConstrData),
+    (DefaultFun.MkCons, Meaning.MkCons)
   )

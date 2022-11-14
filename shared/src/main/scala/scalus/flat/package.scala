@@ -41,6 +41,7 @@ package object flat:
     def bitSize(a: Array[Byte]): Int = byteArraySize(a)
     def encode(a: Array[Byte], enc: EncoderState): Unit =
       enc.filler() // pre-align
+      enc.nextWord()
       var numElems = a.length
       var inx = 0
       var blkLen = Math.min(255, numElems)
@@ -234,8 +235,9 @@ package object flat:
     /** Set last bit of current byte to 1, move to next byte
       */
     def filler(): Unit =
+      println(s"currentByte $currentByte usedBits $usedBits")
       this.currentByte |= 1;
-      this.nextWord();
+      this.buffer(this.nextPtr) = this.currentByte.toByte
 
   class DecoderState(
       /** The buffer that contains a sequence of flat-encoded values */
