@@ -162,12 +162,13 @@ object Macros {
 
   def fieldAsDataMacro1[A: Type](e: Expr[A => Any])(using Quotes): Expr[Data => Data] =
     import quotes.reflect.*
-    e.asTerm match
-      case Inlined(
-            _,
-            _,
-            Block(List(DefDef(_, _, _, Some(select @ Select(_, fieldName)))), _)
-          ) =>
+    fieldAsDataMacro2(e.asTerm)
+
+  def fieldAsDataMacro2(using q: Quotes)(e: q.reflect.Term): Expr[Data => Data] =
+    import quotes.reflect.*
+    e match
+      case Inlined( _, _, block ) => fieldAsDataMacro2(block)
+      case Block(List(DefDef(_, _, _, Some(select @ Select(_, fieldName)))), _) =>
         def genGetter(typeSymbolOfA: Symbol, fieldName: String): Expr[Data => Data] =
           val fieldOpt: Option[(Symbol, Int)] =
             if typeSymbolOfA == TypeRepr.of[Tuple2].typeSymbol then
@@ -275,13 +276,14 @@ object Macros {
         case _ => report.errorAndAbort(s"Unsupported type: ${t.show}")
 
     def compileStmt(env: Env, stmt: Statement): B = {
-      // report.info(s"compileStmt ${stmt}", stmt.pos)
       stmt match
         case ValDef(name, tpe, Some(body)) =>
           val bodyExpr = compileExpr(env, body)
           val aExpr = Expr(name)
           B(name, stmt.symbol, Recursivity.NonRec, bodyExpr)
         case DefDef(name, argss, tpe, Some(body)) =>
+          // globalPosition += 1
+          // report.info(s"compileStmt DefDef ${name} ${body}", Position(SourceFile.current, globalPosition, 0))
           val args = argss.collect({ case TermParamClause(args) => args }).flatten
           val bodyExpr: Expr[scalus.sir.SIR] = {
             if args.isEmpty then
@@ -500,6 +502,12 @@ object Macros {
                   s"compileExpr: Unsupported list method $fun. Only head, tail and isEmpty are supported"
                 )
 
+          case Apply(TypeApply(Ident("fieldAsData1"),List(tpe)),List(expr))     =>
+            val getter = fieldAsDataMacro2(expr)
+            // report.errorAndAbort(s"Getter")
+            val r = compileExpr(env, getter.asTerm)
+            // report.errorAndAbort(s"Getter: ${r.show}", expr.pos)
+            r
           case TypeApply(Select(list, "empty"), immutable.List(tpe))
               if list.tpe =:= TypeRepr.of[builtins.List.type] =>
             val tpeE = Expr(typeReprToDefaultUni(tpe.tpe))
