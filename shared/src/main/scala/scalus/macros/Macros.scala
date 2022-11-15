@@ -225,6 +225,10 @@ object Macros {
 
     var globalPosition = 0
 
+    def debugInfo(s: String): Unit =
+      globalPosition += 1
+      report.info(s, Position(SourceFile.current, globalPosition, 0))
+
     extension (t: Term) def isList = t.tpe <:< TypeRepr.of[builtins.List[_]]
     extension (t: Term) def isPair = t.tpe <:< TypeRepr.of[builtins.Pair[_, _]]
     extension (t: Term) def isLiteral = compileConstant.isDefinedAt(t)
@@ -357,9 +361,10 @@ object Macros {
     def compileNewConstructor(
         env: Env,
         con: Term,
-        typeSymbol: Symbol,
+        tpe: TypeRepr,
         args: immutable.List[Term]
     ): Expr[SIR] = {
+      val typeSymbol = tpe.typeSymbol
       if typeSymbol.primaryConstructor != con.symbol
       then
         report.errorAndAbort(
@@ -386,17 +391,20 @@ object Macros {
       val sortedConstructors =
         val cases = typeSymbol.maybeOwner.companionClass.children.sortBy(_.name)
         if cases.isEmpty then List(typeSymbol) else cases
+      // debugInfo(s"sortedConstructors: $sortedConstructors, ${tpe.baseClasses} ${tpe.baseType(typeSymbol)}")
       // a value represented as: \c1 c2 ... -> c1 arg1 arg2 ...
       sortedConstructors.foldRight(constr) { case (s, acc) =>
         '{ SIR.LamAbs(${ Expr(s.name) }, $acc) }
       }
     }
 
+    def isConstructorVal(symbol: Symbol, tpe: TypeRepr): Boolean =
+      debugInfo(s"isConstructor: $symbol: ${tpe.show} <: ${tpe.widen.show}, ${tpe.typeSymbol.isClassDef}, ${symbol.flags.is(Flags.Case)}")
+      tpe.typeSymbol.isClassDef && tpe.typeSymbol.flags.is(Flags.Case)
+
     def compileExpr(env: Env, e: Term): Expr[SIR] = {
-      globalPosition += 1
-      report.info(
-        s"compileExpr: ${e.show}\n${e}\nin ${env}",
-        Position(SourceFile.current, globalPosition, 0)
+      debugInfo(
+        s"compileExpr: ${e.show}\n${e}\nin ${env}"
       )
       if compileConstant.isDefinedAt(e) then
         val const = compileConstant(e)
@@ -410,7 +418,15 @@ object Macros {
               Position(SourceFile.current, globalPosition, 0)
             )
             // special case for Nil
-            '{ SIR.LamAbs("Nil", SIR.LamAbs("Cons", SIR.Var(NamedDeBruijn("Nil")))) }
+            '{
+              SIR.LamAbs(
+                "Nil",
+                SIR.LamAbs(
+                  "Cons",
+                  SIR.Apply(SIR.Var(NamedDeBruijn("Nil")), SIR.Const(scalus.uplc.Constant.Unit))
+                )
+              )
+            }
           case Ident(a) =>
             globalPosition += 1
             // report.info(s"Ident: ${e.show}, a $a, full: ${e.symbol.fullName}, name: ${e.symbol.name}", Position(SourceFile.current, globalPosition, 0))
@@ -445,6 +461,7 @@ object Macros {
               c (\a -> 0) (\b c -> 1)
            */
           case Match(t, cases) =>
+            report.info(s"Match: ${t.tpe.typeSymbol} ${t.tpe.typeSymbol.children}", e.pos)
             if t.tpe.typeSymbol.children.isEmpty
             then
               cases match
@@ -472,7 +489,7 @@ object Macros {
 
                 case _ =>
                   report.errorAndAbort(
-                    s"Only single constructor pattern supported for type ${t.tpe}",
+                    s"Only single constructor pattern supported for type ${t.tpe.show}",
                     e.pos
                   )
             else if cases.length != t.tpe.typeSymbol.children.length
@@ -485,20 +502,28 @@ object Macros {
               val cs = cases.map {
                 case CaseDef(_, Some(guard), _) =>
                   report.errorAndAbort(s"Guards are not supported in match expressions", guard.pos)
-                case CaseDef(asdf, None, rhs) if asdf.isInstanceOf[Typed] =>
-                  val (inner, constrTpe) = Typed.unapply(asdf.asInstanceOf[Typed])
-                  // report.info(s"Case: ${inner}, tpe ${constrTpe.tpe.widen.show}", t.pos)
-                  inner match
-                    case Unapply(fun, implicits, pats) =>
-                      val names = pats.map {
-                        case b @ Bind(name, Ident("_")) => b.symbol
-                        case p => report.errorAndAbort(s"Unsupported binding: ${p}", p.pos)
-                      }
-                      val rhsE = compileExpr(env ++ names, rhs)
-                      val lam = pats.foldRight(rhsE) { case (Bind(name, Ident("_")), lam) =>
-                        '{ SIR.LamAbs(${ Expr(name) }, $lam) }
-                      }
-                      (constrTpe.symbol, lam)
+                case CaseDef(pat @ Ident(name), None, rhs) =>
+                  val rhsE = compileExpr(env, rhs)
+                  val lam = '{ SIR.LamAbs(${ Expr(name) }, $rhsE) }
+                  (pat.tpe.typeSymbol, lam)
+                case CaseDef(pat, None, rhs) =>
+                  if pat.isInstanceOf[Typed] then
+                    val (inner, constrTpe) = Typed.unapply(pat.asInstanceOf[Typed])
+
+                    // report.info(s"Case: ${inner}, tpe ${constrTpe.tpe.widen.show}", t.pos)
+                    inner match
+                      case Unapply(fun, implicits, pats) =>
+                        val names = pats.map {
+                          case b @ Bind(name, Ident("_")) => b.symbol
+                          case p => report.errorAndAbort(s"Unsupported binding: ${p}", p.pos)
+                        }
+                        val rhsE = compileExpr(env ++ names, rhs)
+                        val lam = pats.foldRight(rhsE) { case (Bind(name, Ident("_")), lam) =>
+                          '{ SIR.LamAbs(${ Expr(name) }, $lam) }
+                        }
+                        (constrTpe.symbol, lam)
+                      case _ => report.errorAndAbort(s"Unsupported case: ${inner}", inner.pos)
+                  else report.errorAndAbort("AAAA", e.pos)
                 case a =>
                   report.errorAndAbort(
                     s"Unsupported match expression: ${e.show}\n$e\n${t.tpe.typeSymbol}, cases: ${cases}",
@@ -617,9 +642,9 @@ object Macros {
 
           // new Constr(args)
           case Apply(TypeApply(con @ Select(f, "<init>"), _), args) =>
-            compileNewConstructor(env, con, f.tpe.typeSymbol, args)
+            compileNewConstructor(env, con, f.tpe, args)
           case Apply(con @ Select(f, "<init>"), args) =>
-            compileNewConstructor(env, con, f.tpe.typeSymbol, args)
+            compileNewConstructor(env, con, f.tpe, args)
           // (a, b) as scala.Tuple2.apply(a, b)
           case Apply(TypeApply(Select(f, "apply"), _), args)
               if f.tpe.widen =:= TypeRepr.of[scala.Tuple2.type] =>
@@ -679,10 +704,20 @@ object Macros {
               '{ SIR.Apply($lhs, $lam) }
             // else if obj.symbol.isPackageDef then
             // compileExpr(env, obj)
-            else if e.tpe =:= TypeRepr.of[immutable.Nil.type] then
-              '{ SIR.LamAbs("Nil", SIR.LamAbs("Cons", SIR.Var(NamedDeBruijn("Nil")))) }
-            else if e.tpe =:= TypeRepr.of[immutable.::] then
-              '{ SIR.LamAbs("Nil", SIR.LamAbs("Cons", SIR.Var(NamedDeBruijn("Nil")))) }
+            else if e.tpe =:= TypeRepr.of[scalus.Predef.List.Nil.type] then
+              isConstructorVal(e.symbol, e.tpe)
+              '{
+                SIR.LamAbs(
+                  "Nil",
+                  SIR.LamAbs(
+                    "Cons",
+                    SIR.Apply(SIR.Var(NamedDeBruijn("Nil")), SIR.Const(scalus.uplc.Constant.Unit))
+                  )
+                )
+              }
+            // else if e.tpe =:= TypeRepr.of[immutable.::] then
+              // FIXME: this is wrong!
+              // '{ SIR.LamAbs("Nil", SIR.LamAbs("Cons", SIR.Var(NamedDeBruijn("Cons")))) }
             else
               // report.errorAndAbort(s"SELECT: ${obj.symbol.isPackageDef}", sel.pos)
               if !env.contains(e.symbol) then

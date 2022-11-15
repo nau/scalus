@@ -430,19 +430,30 @@ class CompileToSIRSpec extends AnyFunSuite with ScalaCheckPropertyChecks:
   }
 
   test("compile Nil") {
+    val b= Predef.List.Nil
     val compiled = compile {
-      immutable.Nil
+      /* val f = (ls: Predef.List[BigInt]) =>
+        ls match
+          case Predef.List.Nil        => true
+          case Predef.List.Cons(a, b) => false
+      val a = f(Predef.List.Nil)
+      val b = f(new Predef.List.Cons(32333, Predef.List.Nil))
+      (a, b)*/
+      val a = BigInt(112)
+      // b
+      Predef.List.Nil
     }
-    // println(compiled.pretty.render(80))
+    println(compiled.pretty.render(80))
     val term = new SimpleSirToUplcLowering().lower(compiled)
     // println(term.pretty.render(80))
     val evaled = Cek.evalUPLC(term)
-    assert(
+    println(evaled.pretty.render(80))
+    /* assert(
       evaled == scalus.uplc.Term
         .LamAbs("Nil", scalus.uplc.Term.LamAbs("Cons", scalus.uplc.Term.Var(NamedDeBruijn("Nil"))))
-    )
+    ) */
     val flatBytes = ProgramFlatCodec.encodeFlat(Program(version = (1, 0, 0), term = term))
-    assert(flatBytes.length == 6)
+    assert(flatBytes.length == 12)
   }
 
   test("compile match on a case class") {
