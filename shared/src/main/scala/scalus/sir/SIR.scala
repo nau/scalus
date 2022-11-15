@@ -2,15 +2,13 @@ package scalus.sir
 
 import io.bullet.borer.Tag.{NegativeBigNum, Other, PositiveBigNum}
 import io.bullet.borer.encodings.BaseEncoding
-import io.bullet.borer.{Decoder, Encoder, Reader, Writer, DataItem as DI}
+import io.bullet.borer.{DataItem as DI, Decoder, Encoder, Reader, Writer}
 import org.typelevel.paiges.{Doc, Style}
-import scalus.uplc.Data.*
 import scalus.uplc.{Constant, Data, DefaultFun, NamedDeBruijn}
 import scalus.utils.Utils
 import scalus.utils.Utils.bytesToHex
 
 import java.util
-import scala.collection.immutable
 
 case class Binding(name: String, value: SIR) {
   override def toString: String = s"Binding(\"$name\", $value)"
@@ -19,26 +17,75 @@ case class Binding(name: String, value: SIR) {
 enum Recursivity:
   case NonRec, Rec
 
+case class ConstrDecl(name: String, args: List[String])
+case class DataDecl(name: String, constructors: List[ConstrDecl])
+case class Case(constr: ConstrDecl, bindings: List[String], body: SIR)
+
 enum SIR:
   case Var(name: NamedDeBruijn) extends SIR
-  case Let(recursivity: Recursivity, bindings: immutable.List[Binding], body: SIR) extends SIR
+  case Let(recursivity: Recursivity, bindings: List[Binding], body: SIR) extends SIR
   case LamAbs(name: String, term: SIR) extends SIR
   case Apply(f: SIR, arg: SIR) extends SIR
   case Const(const: Constant) extends SIR
   case IfThenElse(cond: SIR, t: SIR, f: SIR) extends SIR
   case Builtin(bn: DefaultFun) extends SIR
   case Error(msg: String) extends SIR
+  case Decl(data: DataDecl, term: SIR) extends SIR
+  case Constr(name: String, args: List[SIR]) extends SIR
+  case Match(scrutinee: SIR, cases: List[Case]) extends SIR
 
   def pretty: Doc =
     def kw(s: String): Doc = Doc.text(s).style(Style.XTerm.Fg.colorCode(172))
+    def ctr(s: String): Doc = Doc.text(s).style(Style.XTerm.Fg.colorCode(21))
     this match
+      case Decl(DataDecl(name, constructors), term) =>
+        val prettyConstrs = constructors.map { constr =>
+          val params = constr.args match
+            case Nil => Doc.empty
+            case _ =>
+              Doc
+                .intercalate(
+                  Doc.text(",") + Doc.line,
+                  constr.args.map(Doc.text)
+                )
+                .tightBracketBy(Doc.text("("), Doc.text(")"))
+          (ctr(constr.name) + params).aligned
+        }
+        kw("data") & Doc.text(name) &
+          (Doc.text("=") & Doc.intercalate(
+            Doc.line + Doc.text("|") + Doc.space,
+            prettyConstrs
+          )).grouped.aligned
+          / term.pretty
+      case Constr(name, args) =>
+        ctr(name).style(Style.XTerm.Fg.colorCode(21)) + Doc
+          .intercalate(
+            Doc.text(",") + Doc.line,
+            args.map(_.pretty)
+          )
+          .tightBracketBy(Doc.text("("), Doc.text(")"))
+      case Match(scrutinee, cases) =>
+        val prettyCases = Doc.stack(cases.map { case Case(constr, bindings, body) =>
+          val params = bindings match
+            case Nil => Doc.empty
+            case _ =>
+              Doc
+                .intercalate(Doc.text(",") + Doc.line, bindings.map(Doc.text))
+                .tightBracketBy(Doc.text("("), Doc.text(")"))
+          (kw("case") & ctr(constr.name) + params & Doc.text("->") + (Doc.line + body.pretty)
+            .nested(2)).grouped.aligned
+        })
+        ((kw("match") & scrutinee.pretty & kw("with")).grouped + (Doc.line + prettyCases).nested(
+          2
+        )).aligned
+
       case Var(name) => Doc.text(name.name)
-      case Let(Recursivity.NonRec, immutable.List(Binding(name, body)), inExpr) =>
+      case Let(Recursivity.NonRec, List(Binding(name, body)), inExpr) =>
         body.pretty.bracketBy(
           kw("let") & Doc.text(name) & Doc.text("="),
           kw("in")
         ) + Doc.line + inExpr.pretty
-      case Let(Recursivity.Rec, immutable.List(Binding(name, body)), inExpr) =>
+      case Let(Recursivity.Rec, List(Binding(name, body)), inExpr) =>
         val (args, body1) = TermDSL.lamAbsToList(body)
         val prettyArgs = Doc.stack(args.map(Doc.text))
         val signatureLine =
@@ -54,7 +101,7 @@ enum SIR:
       case a @ Apply(f, arg) =>
         val (t, args) = TermDSL.applyToList(a)
         val prettyArgs = args match
-          case immutable.List() => Doc.text("()")
+          case List() => Doc.text("()")
           case _ =>
             Doc
               .intercalate(Doc.text(",") + Doc.line, args.map(_.pretty))
@@ -70,7 +117,7 @@ enum SIR:
       case Error(_)    => Doc.text("ERROR").style(Style.XTerm.Fg.colorCode(124))
 
 object TermDSL:
-  def applyToList(app: SIR): (SIR, immutable.List[SIR]) =
+  def applyToList(app: SIR): (SIR, List[SIR]) =
     app match
       case SIR.Apply(f, arg) =>
         val (f1, args) = applyToList(f)
@@ -78,7 +125,7 @@ object TermDSL:
       case f => (f, Nil)
 
   // flatten LamAbs into a list of names and the body
-  def lamAbsToList(lam: SIR): (immutable.List[String], SIR) =
+  def lamAbsToList(lam: SIR): (List[String], SIR) =
     lam match
       case SIR.LamAbs(name, body) =>
         val (names, body1) = lamAbsToList(body)
