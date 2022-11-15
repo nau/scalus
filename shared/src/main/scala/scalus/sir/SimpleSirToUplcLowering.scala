@@ -7,8 +7,9 @@ import scalus.uplc.ExprBuilder
 import scalus.uplc.Meaning
 import scalus.uplc.NamedDeBruijn
 import scalus.uplc.Term
-import scalus.uplc.TermDSL.*
+import scalus.uplc.TermDSL.{*, given}
 import scalus.uplc.TypeScheme
+import scala.collection.mutable.HashMap
 
 class SimpleSirToUplcLowering {
 
@@ -21,6 +22,7 @@ class SimpleSirToUplcLowering {
   }
 
   private var zCombinatorNeeded: Boolean = false
+  private val decls = HashMap.empty[String, DataDecl]
 
   def lower(sir: SIR): Term =
     val term = lowerInner(sir)
@@ -29,6 +31,51 @@ class SimpleSirToUplcLowering {
 
   def lowerInner(sir: SIR): Term =
     sir match
+      case SIR.Decl(data, body) =>
+        decls(data.name) = data
+        lowerInner(body)
+      case SIR.Constr(name, data, args) =>
+        /* data List a = Nil | Cons a (List a)
+           Nil is represented as \Nil Cons -> force Nil
+           Cons is represented as (\head tail Nil Cons -> Cons head tail) h tl
+         */
+        val constrs = data.constructors.map(_.name)
+        val ctorParams = data.constructors.find(_.name == name).get.args
+        // force Nil | Cons head tail
+        val appInner = ctorParams match
+          case Nil => Term.Force(Term.Var(NamedDeBruijn(name)))
+          case _ =>
+            ctorParams.foldLeft(Term.Var(NamedDeBruijn(name)))((acc, param) =>
+              acc $ Term.Var(NamedDeBruijn(param))
+            )
+        // \Nil Cons -> ...
+        val ctor = constrs.foldRight(appInner) { (constr, acc) =>
+          Term.LamAbs(constr, acc)
+        }
+        // \head tail Nil Cons -> ...
+        val ctorParamsLambda = ctorParams.foldRight(ctor) { (param, acc) =>
+          Term.LamAbs(param, acc)
+        }
+        // (\Nil Cons -> force Nil) | (\head tail Nil Cons -> ...) h tl
+        args.foldLeft(ctorParamsLambda) { (acc, arg) =>
+          Term.Apply(acc, lowerInner(arg))
+        }
+      case SIR.Match(scrutinee, cases) =>
+        /* list match
+          case Nil -> 1
+          case Cons(h, tl) -> 2
+
+          lowers to list (delay 1) (\h tl -> 2)
+         */
+        val scrutineeTerm = lowerInner(scrutinee)
+        val casesTerms = cases.map { case Case(constr, bindings, body) =>
+          constr.args match
+            case Nil => ~lowerInner(body)
+            case _ => bindings.foldRight(lowerInner(body)) { (binding, acc) =>
+              Term.LamAbs(binding, acc)
+            }
+          }
+        casesTerms.foldLeft(scrutineeTerm) { (acc, caseTerm) => Term.Apply(acc, caseTerm) }
       case SIR.Var(name) => Term.Var(name)
       case SIR.Let(NonRec, bindings, body) =>
         bindings.foldRight(lowerInner(body)) { case (Binding(name, rhs), body) =>

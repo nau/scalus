@@ -31,7 +31,7 @@ enum SIR:
   case Builtin(bn: DefaultFun) extends SIR
   case Error(msg: String) extends SIR
   case Decl(data: DataDecl, term: SIR) extends SIR
-  case Constr(name: String, args: List[SIR]) extends SIR
+  case Constr(name: String, data: DataDecl, args: List[SIR]) extends SIR
   case Match(scrutinee: SIR, cases: List[Case]) extends SIR
 
   def pretty: Doc =
@@ -57,7 +57,7 @@ enum SIR:
             prettyConstrs
           )).grouped.aligned
           / term.pretty
-      case Constr(name, args) =>
+      case Constr(name, _, args) =>
         ctr(name).style(Style.XTerm.Fg.colorCode(21)) + Doc
           .intercalate(
             Doc.text(",") + Doc.line,

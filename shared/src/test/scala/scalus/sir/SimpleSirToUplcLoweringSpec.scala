@@ -5,6 +5,7 @@ import scalus.sir.Recursivity.NonRec
 import scalus.uplc.DefaultFun.*
 import scalus.uplc.DefaultUni.asConstant
 import scalus.uplc.{ArbitraryInstances, Constant, DefaultFun, NamedDeBruijn, Term}
+import scalus.builtins.ByteString.StringInterpolators
 
 class SimpleSirToUplcLoweringSpec
     extends AnyFunSuite
@@ -21,7 +22,7 @@ class SimpleSirToUplcLoweringSpec
     val sir = SIR.Decl(
       data,
       SIR.Match(
-        SIR.Constr("Cons", List(SIR.Var(NamedDeBruijn("h")), SIR.Var(NamedDeBruijn("tl")))),
+        SIR.Constr("Cons", data, List(SIR.Var(NamedDeBruijn("h")), SIR.Var(NamedDeBruijn("tl")))),
         List(
           Case(ConstrDecl("Nil", List()), List(), SIR.Const(Constant.Integer(1))),
           Case(ConstrDecl("Cons", List()), List("h", "tl"), SIR.Const(Constant.Integer(2)))
@@ -72,4 +73,56 @@ class SimpleSirToUplcLoweringSpec
     ) lowersTo (lam("x")(
       lam("y")(AddInteger $ Term.Var(NamedDeBruijn("x")) $ Term.Var(NamedDeBruijn("y"))) $ 2
     ) $ 1)
+  }
+
+  test("lower Constr") {
+    import scalus.uplc.TermDSL.{*, given}
+    /* Nil
+       lowers to (\Nil Cons -> force Nil)
+       TxId(name)
+       lowers to (\name TxId -> TxId name) name
+     */
+    val listData =
+      DataDecl("List", List(ConstrDecl("Nil", List()), ConstrDecl("Cons", List("head", "tail"))))
+    val txIdData = DataDecl("TxId", List(ConstrDecl("TxId", List("hash"))))
+    def withDecls(sir: SIR) = SIR.Decl(listData, SIR.Decl(txIdData, sir))
+    withDecls(SIR.Constr("Nil", listData, List())) lowersTo (lam("Nil", "Cons")(
+      !(Term.Var(NamedDeBruijn("Nil")))
+    ))
+    withDecls(
+      SIR.Constr("TxId", txIdData, List(SIR.Const(asConstant(hex"DEADBEEF"))))
+    ) lowersTo (lam(
+      "hash",
+      "TxId"
+    )(Term.Var(NamedDeBruijn("TxId")) $ Term.Var(NamedDeBruijn("hash"))) $ Term.Const(
+      asConstant(hex"DEADBEEF")
+    ))
+
+  }
+
+  test("lower Match") {
+    import scalus.uplc.TermDSL.{*, given}
+    /* Nil match
+        case Nil -> 1
+        case Cons(h, tl) -> 2
+
+       lowers to (\Nil Cons -> force Nil) (delay 1) (\h tl -> 2)
+     */
+    val nilConstr = ConstrDecl("Nil", List())
+    val consConstr = ConstrDecl("Cons", List("head", "tail"))
+    val listData =
+      DataDecl("List", List(nilConstr, consConstr))
+    val txIdData = DataDecl("TxId", List(ConstrDecl("TxId", List("hash"))))
+    def withDecls(sir: SIR) = SIR.Decl(listData, SIR.Decl(txIdData, sir))
+    withDecls(
+      SIR.Match(
+        SIR.Constr("Nil", listData, List()),
+        List(
+          Case(nilConstr, Nil, SIR.Const(Constant.Integer(1))),
+          Case(consConstr, List("h", "tl"), SIR.Const(Constant.Integer(2)))
+        )
+      )
+    ) lowersTo (lam("Nil", "Cons")(!(Term.Var(NamedDeBruijn("Nil")))) $ ~Term.Const(
+      asConstant(1)
+    ) $ lam("h", "tl")(Term.Const(asConstant(2))))
   }
