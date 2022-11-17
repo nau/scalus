@@ -15,6 +15,8 @@ import scalus.uplc.TermDSL.{lam, λ}
 import scalus.utils.Utils
 
 import scala.collection.immutable
+import scalus.sir.DataDecl
+import scalus.sir.ConstrDecl
 
 class CompileToSIRSpec extends AnyFunSuite with ScalaCheckPropertyChecks:
   val deadbeef = Constant.ByteString(hex"deadbeef")
@@ -381,35 +383,36 @@ class CompileToSIRSpec extends AnyFunSuite with ScalaCheckPropertyChecks:
 
   test("compile datatypes") {
     val compiled = compilesTo(
-      Let(
-        Rec,
-        List(
-          Binding(
-            "scalus.ledger.api.v1.PubKeyHash$.apply",
-            LamAbs(
-              "hash",
+      Decl(
+        DataDecl("PubKeyHash", List(ConstrDecl("PubKeyHash", List("hash")))),
+        Let(
+          Rec,
+          List(
+            Binding(
+              "scalus.ledger.api.v1.PubKeyHash$.apply",
               LamAbs(
-                "PubKeyHash",
-                Apply(
-                  Var(NamedDeBruijn("PubKeyHash")),
-                  Var(NamedDeBruijn("hash"))
+                "hash",
+                Constr(
+                  "PubKeyHash",
+                  DataDecl("PubKeyHash", List(ConstrDecl("PubKeyHash", List("hash")))),
+                  List(Var(NamedDeBruijn("hash")))
                 )
               )
             )
-          )
-        ),
-        Let(
-          NonRec,
-          List(
-            Binding(
-              "pkh",
-              Apply(
-                Var(NamedDeBruijn("scalus.ledger.api.v1.PubKeyHash$.apply")),
-                Const(Constant.ByteString(ByteString.fromHex("deadbeef")))
-              )
-            )
           ),
-          Apply(Var(NamedDeBruijn("pkh")), LamAbs("hash", Var(NamedDeBruijn("hash"))))
+          Let(
+            NonRec,
+            List(
+              Binding(
+                "pkh",
+                Apply(
+                  Var(NamedDeBruijn("scalus.ledger.api.v1.PubKeyHash$.apply")),
+                  Const(Constant.ByteString(ByteString.fromHex("DEADBEEF")))
+                )
+              )
+            ),
+            Apply(Var(NamedDeBruijn("pkh")), LamAbs("hash", Var(NamedDeBruijn("hash"))))
+          )
         )
       )
     ) {
@@ -430,7 +433,7 @@ class CompileToSIRSpec extends AnyFunSuite with ScalaCheckPropertyChecks:
   }
 
   test("compile Nil") {
-    val b= Predef.List.Nil
+    val b = Predef.List.Nil
     val compiled = compile {
       /* val f = (ls: Predef.List[BigInt]) =>
         ls match
@@ -464,6 +467,7 @@ class CompileToSIRSpec extends AnyFunSuite with ScalaCheckPropertyChecks:
     }
     // println(compiled.pretty.render(80))
     val term = new SimpleSirToUplcLowering().lower(compiled)
+    // println(term.pretty.render(80))
     val evaled = Cek.evalUPLC(term)
     assert(evaled == scalus.uplc.Term.Const(Constant.ByteString(ByteString.fromHex("deadbeef"))))
   }
@@ -472,6 +476,7 @@ class CompileToSIRSpec extends AnyFunSuite with ScalaCheckPropertyChecks:
     import scalus.ledger.api.v1.*
     val compiled = compile {
       val minting = ScriptPurpose.Minting(ByteString.fromHex("deadbeef"))
+      val spending = ScriptPurpose.Spending(TxOutRef(TxId(ByteString.fromHex("deadbeef")), 1))
       minting match
         case ScriptPurpose.Minting(hash)          => BigInt(1)
         case ScriptPurpose.Spending(txOutRef)     => BigInt(2)
@@ -482,7 +487,7 @@ class CompileToSIRSpec extends AnyFunSuite with ScalaCheckPropertyChecks:
     val term = new SimpleSirToUplcLowering().lower(compiled)
     val evaled = Cek.evalUPLC(term)
     // println(evaled.pretty.render(80))
-    assert(evaled == scalus.uplc.Term.Const(Constant.Integer(2)))
+    assert(evaled == scalus.uplc.Term.Const(Constant.Integer(1)))
   }
 
   test("compile fieldAsData1 macro") {

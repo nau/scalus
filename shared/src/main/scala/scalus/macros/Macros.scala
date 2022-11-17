@@ -4,20 +4,14 @@ import scalus.builtins
 import scalus.sir.{Binding, SIR}
 import scalus.uplc.ExprBuilder.*
 import scalus.builtins.Builtins
-import scalus.uplc.{
-  Constant,
-  Data,
-  DefaultUni,
-  ExprBuilder,
-  NamedDeBruijn,
-  Expr as Exp,
-  Term as Trm
-}
+import scalus.uplc.{Constant, Data, DefaultUni, Expr as Exp, ExprBuilder, NamedDeBruijn, Term as Trm}
 import scalus.utils.Utils
 
 import scala.collection.mutable.ListBuffer
-import scala.collection.{IterableFactory, SeqFactory, immutable, mutable}
+import scala.collection.{immutable, mutable, IterableFactory, SeqFactory}
 import scala.quoted.*
+import scalus.sir.DataDecl
+import scalus.sir.Case
 object Macros {
   def lamMacro[A: Type, B: Type](f: Expr[Exp[A] => Exp[B]])(using Quotes): Expr[Exp[A => B]] =
     import quotes.reflect.*
@@ -222,6 +216,7 @@ object Macros {
       def fullName = symbol.fullName
 
     val globalDefs: mutable.LinkedHashMap[Symbol, B] = mutable.LinkedHashMap.empty
+    val globalDataDecls: mutable.LinkedHashMap[Symbol, Expr[DataDecl]] = mutable.LinkedHashMap.empty
 
     var globalPosition = 0
 
@@ -280,8 +275,7 @@ object Macros {
         case _ => report.errorAndAbort(s"Unsupported type: ${t.show}")
 
     def compileStmt(env: Env, stmt: Statement): B = {
-      globalPosition += 1
-      report.info(s"compileStmt  ${stmt}", Position(SourceFile.current, globalPosition, 0))
+      //debugInfo(s"compileStmt  ${stmt}", Position(SourceFile.current, globalPosition, 0))
       stmt match
         case ValDef(name, tpe, Some(body)) =>
           val bodyExpr = compileExpr(env, body)
@@ -379,56 +373,51 @@ object Macros {
             s"Unexpected non-empty constructor of ${typeSymbol}. "
               + s"Only empty constructors are supported\n${b.show}\n$b"
           )
-      val argsE = args.map(compileExpr(env, _))
+      val argsE = Expr.ofList(args.map(compileExpr(env, _)))
       val constrName = typeSymbol.name
-
-      // constructor body as: constr arg1 arg2 ...
-      val constr =
-        argsE.foldLeft('{ SIR.Var(NamedDeBruijn(${ Expr(constrName) })) })((acc, arg) =>
-          '{ SIR.Apply($acc, $arg) }
-        )
       // get all constructors of an ADT, like enum Color: case Blue, case Yellow
       val sortedConstructors =
         val cases = typeSymbol.maybeOwner.companionClass.children.sortBy(_.name)
         if cases.isEmpty then List(typeSymbol) else cases
-      // debugInfo(s"sortedConstructors: $sortedConstructors, ${tpe.baseClasses} ${tpe.baseType(typeSymbol)}")
-      // a value represented as: \c1 c2 ... -> c1 arg1 arg2 ...
-      sortedConstructors.foldRight(constr) { case (s, acc) =>
-        '{ SIR.LamAbs(${ Expr(s.name) }, $acc) }
-      }
+
+      val constrDecls = Expr.ofList(sortedConstructors.map { sym =>
+        val params = sym.caseFields.map(_.name)
+        '{ scalus.sir.ConstrDecl(${ Expr(sym.name) }, ${ Expr(params) }) }
+      })
+
+      val dataTypeSymbol = if typeSymbol.maybeOwner.companionClass.children.isEmpty then
+        typeSymbol
+      else
+        typeSymbol.maybeOwner.companionClass
+      val dataName = dataTypeSymbol.name
+      // debugInfo(s"compileNewConstructor: $dataTypeSymbol, $dataName, $constrName")
+      val dataDecl = globalDataDecls.get(dataTypeSymbol) match
+        case Some(decl) => decl
+        case None =>
+          val decl = '{ scalus.sir.DataDecl(${ Expr(dataName) }, $constrDecls) }
+          globalDataDecls.addOne(dataTypeSymbol -> decl)
+          decl
+      // constructor body as: constr arg1 arg2 ...
+      '{ SIR.Constr(${ Expr(constrName) }, $dataDecl, $argsE) }
     }
 
     def isConstructorVal(symbol: Symbol, tpe: TypeRepr): Boolean =
-      debugInfo(s"isConstructor: $symbol: ${tpe.show} <: ${tpe.widen.show}, ${tpe.typeSymbol.isClassDef}, ${symbol.flags.is(Flags.Case)}")
+      debugInfo(
+        s"isConstructor: $symbol: ${tpe.show} <: ${tpe.widen.show}, ${tpe.typeSymbol.isClassDef}, ${symbol.flags
+            .is(Flags.Case)}"
+      )
       tpe.typeSymbol.isClassDef && tpe.typeSymbol.flags.is(Flags.Case)
 
     def compileExpr(env: Env, e: Term): Expr[SIR] = {
-      debugInfo(
+      /* debugInfo(
         s"compileExpr: ${e.show}\n${e}\nin ${env}"
-      )
+      ) */
       if compileConstant.isDefinedAt(e) then
         val const = compileConstant(e)
         '{ SIR.Const($const) }
       else
         e match
-          case Ident(_) if e.tpe =:= TypeRepr.of[immutable.Nil.type] =>
-            globalPosition += 1
-            report.info(
-              s"Ident NIL: ${e.show}: ${e.symbol.fullName}, name: ${e.symbol.name}",
-              Position(SourceFile.current, globalPosition, 0)
-            )
-            // special case for Nil
-            '{
-              SIR.LamAbs(
-                "Nil",
-                SIR.LamAbs(
-                  "Cons",
-                  SIR.Apply(SIR.Var(NamedDeBruijn("Nil")), SIR.Const(scalus.uplc.Constant.Unit))
-                )
-              )
-            }
           case Ident(a) =>
-            globalPosition += 1
             // report.info(s"Ident: ${e.show}, a $a, full: ${e.symbol.fullName}, name: ${e.symbol.name}", Position(SourceFile.current, globalPosition, 0))
             if !env.contains(e.symbol) then
               val b = compileStmt(immutable.HashSet.empty, e.symbol.tree.asInstanceOf[Definition])
@@ -448,20 +437,30 @@ object Macros {
             }
           /*
               enum A:
+                case C0
                 case C1(a)
                 case C2(b, c)
               compiles to:
-              c1 = \c1 c2 -> c1 a
-              c2 = \c1 c2 -> c2 b c
+              Decl(DataDecl("A", List(ConstrDecl("C0", List()), ConstrDecl("C1", List("a")), ConstrDecl("C2", List("b", "c")))), ...)
+
+              c ==> Constr("C0", constrDecl, List())
 
               c match
                 C1(a) -> 0
                 C2(b, c) -> 1
               compiles to:
-              c (\a -> 0) (\b c -> 1)
+              Match(c, List(Case(C1, List(a), 0), Case(C2, List(b, c), 1)))
            */
           case Match(t, cases) =>
-            report.info(s"Match: ${t.tpe.typeSymbol} ${t.tpe.typeSymbol.children}", e.pos)
+            // report.info(s"Match: ${t.tpe.typeSymbol} ${t.tpe.typeSymbol.children}", e.pos)
+
+            def constructCase(constrSymbol: Symbol, bindings: List[String], rhs: Expr[SIR]): Expr[scalus.sir.Case] = {
+              val params = constrSymbol.caseFields.map(_.name)
+              val constrDecl = '{ scalus.sir.ConstrDecl(${ Expr(constrSymbol.name) }, ${ Expr(params) }) }
+              '{scalus.sir.Case($constrDecl, ${Expr(bindings)}, $rhs)}
+            }
+
+
             if t.tpe.typeSymbol.children.isEmpty
             then
               cases match
@@ -480,12 +479,9 @@ object Macros {
                         case p => report.errorAndAbort(s"Unsupported binding: ${p}", p.pos)
                       }
                       val rhsE = compileExpr(env ++ names, rhs)
-                      val lam = pats.foldRight(rhsE) { case (Bind(name, Ident("_")), lam) =>
-                        '{ SIR.LamAbs(${ Expr(name) }, $lam) }
-                      }
                       val tE = compileExpr(env, t)
-                      // report.error(s"${lam.show}", t.pos)
-                      '{ SIR.Apply($tE, $lam) }
+                      val cases = List(constructCase(t.tpe.typeSymbol, names.map(_.name), rhsE))
+                      '{ SIR.Match($tE, ${Expr.ofList(cases)}) }
 
                 case _ =>
                   report.errorAndAbort(
@@ -502,10 +498,10 @@ object Macros {
               val cs = cases.map {
                 case CaseDef(_, Some(guard), _) =>
                   report.errorAndAbort(s"Guards are not supported in match expressions", guard.pos)
+                // case object
                 case CaseDef(pat @ Ident(name), None, rhs) =>
                   val rhsE = compileExpr(env, rhs)
-                  val lam = '{ SIR.LamAbs(${ Expr(name) }, $rhsE) }
-                  (pat.tpe.typeSymbol, lam)
+                  (pat.tpe.typeSymbol, Nil, rhsE)
                 case CaseDef(pat, None, rhs) =>
                   if pat.isInstanceOf[Typed] then
                     val (inner, constrTpe) = Typed.unapply(pat.asInstanceOf[Typed])
@@ -513,15 +509,12 @@ object Macros {
                     // report.info(s"Case: ${inner}, tpe ${constrTpe.tpe.widen.show}", t.pos)
                     inner match
                       case Unapply(fun, implicits, pats) =>
-                        val names = pats.map {
+                        val bindings = pats.map {
                           case b @ Bind(name, Ident("_")) => b.symbol
                           case p => report.errorAndAbort(s"Unsupported binding: ${p}", p.pos)
                         }
-                        val rhsE = compileExpr(env ++ names, rhs)
-                        val lam = pats.foldRight(rhsE) { case (Bind(name, Ident("_")), lam) =>
-                          '{ SIR.LamAbs(${ Expr(name) }, $lam) }
-                        }
-                        (constrTpe.symbol, lam)
+                        val rhsE = compileExpr(env ++ bindings, rhs)
+                        (constrTpe.symbol, bindings, rhsE)
                       case _ => report.errorAndAbort(s"Unsupported case: ${inner}", inner.pos)
                   else report.errorAndAbort("AAAA", e.pos)
                 case a =>
@@ -531,9 +524,14 @@ object Macros {
                   )
               }
               val tE = compileExpr(env, t)
-              val sortedCases = cs.sortBy((t, _) => t.fullName)
+              val sortedCases = cs.sortBy((t, _, _) => t.fullName).map { (sym, bindings, rhs) =>
+                val params = sym.caseFields.map(_.name)
+                '{ scalus.sir.ConstrDecl(${ Expr(sym.name) }, ${ Expr(params) }) }
+                constructCase(sym, bindings.map(_.name), rhs)
+              }
               // report.info(s"Sorted constrs: ${sortedCases}", cases.head.pos)
-              cs.foldLeft(tE) { case (acc, (_, lam)) => '{ SIR.Apply($acc, $lam) } }
+              '{ SIR.Match($tE, ${Expr.ofList(sortedCases)}) }
+
           // PAIR
           case Select(pair, fun) if pair.isPair =>
             fun match
@@ -716,8 +714,8 @@ object Macros {
                 )
               }
             // else if e.tpe =:= TypeRepr.of[immutable.::] then
-              // FIXME: this is wrong!
-              // '{ SIR.LamAbs("Nil", SIR.LamAbs("Cons", SIR.Var(NamedDeBruijn("Cons")))) }
+            // FIXME: this is wrong!
+            // '{ SIR.LamAbs("Nil", SIR.LamAbs("Cons", SIR.Var(NamedDeBruijn("Cons")))) }
             else
               // report.errorAndAbort(s"SELECT: ${obj.symbol.isPackageDef}", sel.pos)
               if !env.contains(e.symbol) then
@@ -765,10 +763,14 @@ object Macros {
     // report.info(s"Compiling ${e.asTerm.show}\n${e.asTerm}", e.asTerm.pos)
     val result = compileExpr(immutable.HashSet.empty, e.asTerm)
 //    report.info(s"Glogal defs: ${globalDefs}")
+
     val full = globalDefs.foldRight(result) { case ((_, b), acc) =>
       '{
         SIR.Let(${ Expr(b.recursivity) }, List(Binding(${ Expr(b.fullName) }, ${ b.body })), $acc)
       }
     }
-    full
+    val dataDecls = globalDataDecls.foldRight(full){ case ((_, decl), acc) =>
+      '{ SIR.Decl($decl, $acc) }
+    }
+    dataDecls
 }
