@@ -40,7 +40,10 @@ class SimpleSirToUplcLowering {
            Cons is represented as (\head tail Nil Cons -> Cons head tail) h tl
          */
         val constrs = data.constructors.map(_.name)
-        val ctorParams = data.constructors.find(_.name == name).get.args
+        val ctorParams = data.constructors.find(_.name == name) match
+          case None => throw new IllegalArgumentException(s"Constructor $name not found in $data")
+          case Some(value) => value.args
+
         // force Nil | Cons head tail
         val appInner = ctorParams match
           case Nil => Term.Force(Term.Var(NamedDeBruijn(name)))

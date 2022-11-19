@@ -432,33 +432,6 @@ class CompileToSIRSpec extends AnyFunSuite with ScalaCheckPropertyChecks:
     assert(evaled == scalus.uplc.Term.Const(Constant.Bool(true)))
   }
 
-  test("compile Nil") {
-    val b = Predef.List.Nil
-    val compiled = compile {
-      /* val f = (ls: Predef.List[BigInt]) =>
-        ls match
-          case Predef.List.Nil        => true
-          case Predef.List.Cons(a, b) => false
-      val a = f(Predef.List.Nil)
-      val b = f(new Predef.List.Cons(32333, Predef.List.Nil))
-      (a, b)*/
-      val a = BigInt(112)
-      // b
-      Predef.List.Nil
-    }
-    println(compiled.pretty.render(80))
-    val term = new SimpleSirToUplcLowering().lower(compiled)
-    // println(term.pretty.render(80))
-    val evaled = Cek.evalUPLC(term)
-    println(evaled.pretty.render(80))
-    /* assert(
-      evaled == scalus.uplc.Term
-        .LamAbs("Nil", scalus.uplc.Term.LamAbs("Cons", scalus.uplc.Term.Var(NamedDeBruijn("Nil"))))
-    ) */
-    val flatBytes = ProgramFlatCodec.encodeFlat(Program(version = (1, 0, 0), term = term))
-    assert(flatBytes.length == 12)
-  }
-
   test("compile match on a case class") {
     val compiled = compile {
       val pkh = scalus.ledger.api.v1.PubKeyHash(ByteString.fromHex("deadbeef"))
@@ -474,14 +447,12 @@ class CompileToSIRSpec extends AnyFunSuite with ScalaCheckPropertyChecks:
 
   test("compile match on ADT") {
     import scalus.ledger.api.v1.*
+    import scalus.Predef.List.*
     val compiled = compile {
-      val minting = ScriptPurpose.Minting(ByteString.fromHex("deadbeef"))
-      val spending = ScriptPurpose.Spending(TxOutRef(TxId(ByteString.fromHex("deadbeef")), 1))
-      minting match
-        case ScriptPurpose.Minting(hash)          => BigInt(1)
-        case ScriptPurpose.Spending(txOutRef)     => BigInt(2)
-        case ScriptPurpose.Rewarding(stakingCred) => BigInt(3)
-        case ScriptPurpose.Certifying(cert)       => BigInt(4)
+      val ls = Predef.List.Cons(BigInt(1), Predef.List.Nil)
+      ls match
+        case Cons(h, tl) => h
+        case Nil         => BigInt(0)
     }
     // println(compiled.pretty.render(80))
     val term = new SimpleSirToUplcLowering().lower(compiled)

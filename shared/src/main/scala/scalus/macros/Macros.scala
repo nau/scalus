@@ -358,39 +358,45 @@ object Macros {
         tpe: TypeRepr,
         args: immutable.List[Term]
     ): Expr[SIR] = {
-      val typeSymbol = tpe.typeSymbol
-      if typeSymbol.primaryConstructor != con.symbol
-      then
-        report.errorAndAbort(
-          s"This is not a primary constructor. Only primary constructors supported",
-          con.pos
-        )
-      // disallow non-empty constructors
-      con.symbol.tree match
-        case DefDef(_, paramss, _, None) => ()
-        case DefDef(_, paramss, _, Some(b)) =>
-          report.error(
-            s"Unexpected non-empty constructor of ${typeSymbol}. "
-              + s"Only empty constructors are supported\n${b.show}\n$b"
-          )
-      val argsE = Expr.ofList(args.map(compileExpr(env, _)))
-      val constrName = typeSymbol.name
-      // get all constructors of an ADT, like enum Color: case Blue, case Yellow
-      val sortedConstructors =
-        val cases = typeSymbol.maybeOwner.companionClass.children.sortBy(_.name)
-        if cases.isEmpty then List(typeSymbol) else cases
+      /* We support these cases:
+        1. case class Foo(a: Int, b: String)
+        2. case object Bar
+        3. enum Base { case A ...}
+        4. enum Base { case B(a, b) }
+        5. sealed abstract class Base; object Base { case object A extends Base }
+        6. sealed abstract class Base; object Base { case class B(a: Int, b: String) extends Base }
 
+       */
+      val typeSymbol = tpe.typeSymbol
+
+      // look for a base `sealed abstract class`. If it exists, we are in case 5 or 6
+      val adtBaseType = tpe.baseClasses.find(b => b.flags.is(Flags.Sealed | Flags.Abstract) && !b.flags.is(Flags.Trait))
+
+      // debugInfo(s"compileNewConstructor0")
+      // debugInfo(s"compileNewConstructor1 ${tpe.show} base type: ${adtBaseType}")
+      /* debugInfo(s"compileNewConstructor1 ${typeSymbol} singleton ${tpe.isSingleton} companion: ${typeSymbol.maybeOwner.companionClass} " +
+        s"${typeSymbol.children} widen: ${tpe.widen.typeSymbol}, widen.children: ${tpe.widen.typeSymbol.children} ${typeSymbol.maybeOwner.companionClass.children}") */
+
+
+      val (constructorTypeSymbol, dataTypeSymbol, constructors) =
+        adtBaseType match
+          case None => // case 1 or 2
+            (typeSymbol, typeSymbol, List(typeSymbol))
+          case Some(baseClassSymbol) if tpe.isSingleton => // case 3, 4, 5 or 6
+            (tpe.termSymbol, baseClassSymbol, baseClassSymbol.children)
+          case Some(baseClassSymbol) => // case 3, 4, 5 or 6
+            (typeSymbol, baseClassSymbol, baseClassSymbol.children)
+
+      val argsE = Expr.ofList(args.map(compileExpr(env, _)))
+      val constrName = constructorTypeSymbol.name
+      // sort by name to get a stable order
+      val sortedConstructors = constructors.sortBy(_.name)
       val constrDecls = Expr.ofList(sortedConstructors.map { sym =>
         val params = sym.caseFields.map(_.name)
         '{ scalus.sir.ConstrDecl(${ Expr(sym.name) }, ${ Expr(params) }) }
       })
-
-      val dataTypeSymbol = if typeSymbol.maybeOwner.companionClass.children.isEmpty then
-        typeSymbol
-      else
-        typeSymbol.maybeOwner.companionClass
       val dataName = dataTypeSymbol.name
-      // debugInfo(s"compileNewConstructor: $dataTypeSymbol, $dataName, $constrName")
+      // debugInfo(s"compileNewConstructor2: dataTypeSymbol $dataTypeSymbol, dataName $dataName, constrName $constrName, children ${constructors}")
       val dataDecl = globalDataDecls.get(dataTypeSymbol) match
         case Some(decl) => decl
         case None =>
@@ -402,16 +408,14 @@ object Macros {
     }
 
     def isConstructorVal(symbol: Symbol, tpe: TypeRepr): Boolean =
-      debugInfo(
-        s"isConstructor: $symbol: ${tpe.show} <: ${tpe.widen.show}, ${tpe.typeSymbol.isClassDef}, ${symbol.flags
+      /* debugInfo(
+        s"isConstructorVal: ${tpe.typeSymbol.isClassDef && symbol.flags.is(Flags.Case)} $symbol: ${tpe.show} <: ${tpe.widen.show}, ${tpe.typeSymbol.isClassDef}, ${symbol.flags
             .is(Flags.Case)}"
-      )
-      tpe.typeSymbol.isClassDef && tpe.typeSymbol.flags.is(Flags.Case)
+      ) */
+      tpe.typeSymbol.isClassDef && symbol.flags.is(Flags.Case)
 
     def compileExpr(env: Env, e: Term): Expr[SIR] = {
-      /* debugInfo(
-        s"compileExpr: ${e.show}\n${e}\nin ${env}"
-      ) */
+      // debugInfo( s"compileExpr: ${e.show}\n${e}\nin ${env}" )
       if compileConstant.isDefinedAt(e) then
         val const = compileConstant(e)
         '{ SIR.Const($const) }
@@ -501,7 +505,8 @@ object Macros {
                 // case object
                 case CaseDef(pat @ Ident(name), None, rhs) =>
                   val rhsE = compileExpr(env, rhs)
-                  (pat.tpe.typeSymbol, Nil, rhsE)
+                  // no-arg constructor, it's a Val, so we use termSymbol
+                  (pat.tpe.termSymbol, Nil, rhsE)
                 case CaseDef(pat, None, rhs) =>
                   if pat.isInstanceOf[Typed] then
                     val (inner, constrTpe) = Typed.unapply(pat.asInstanceOf[Typed])
@@ -514,7 +519,7 @@ object Macros {
                           case p => report.errorAndAbort(s"Unsupported binding: ${p}", p.pos)
                         }
                         val rhsE = compileExpr(env ++ bindings, rhs)
-                        (constrTpe.symbol, bindings, rhsE)
+                        (constrTpe.tpe.typeSymbol, bindings, rhsE)
                       case _ => report.errorAndAbort(s"Unsupported case: ${inner}", inner.pos)
                   else report.errorAndAbort("AAAA", e.pos)
                 case a =>
@@ -702,20 +707,8 @@ object Macros {
               '{ SIR.Apply($lhs, $lam) }
             // else if obj.symbol.isPackageDef then
             // compileExpr(env, obj)
-            else if e.tpe =:= TypeRepr.of[scalus.Predef.List.Nil.type] then
-              isConstructorVal(e.symbol, e.tpe)
-              '{
-                SIR.LamAbs(
-                  "Nil",
-                  SIR.LamAbs(
-                    "Cons",
-                    SIR.Apply(SIR.Var(NamedDeBruijn("Nil")), SIR.Const(scalus.uplc.Constant.Unit))
-                  )
-                )
-              }
-            // else if e.tpe =:= TypeRepr.of[immutable.::] then
-            // FIXME: this is wrong!
-            // '{ SIR.LamAbs("Nil", SIR.LamAbs("Cons", SIR.Var(NamedDeBruijn("Cons")))) }
+            else if isConstructorVal(e.symbol, e.tpe) then
+              compileNewConstructor(env, e, e.tpe, Nil)
             else
               // report.errorAndAbort(s"SELECT: ${obj.symbol.isPackageDef}", sel.pos)
               if !env.contains(e.symbol) then
@@ -752,7 +745,6 @@ object Macros {
           case Block(stmt, expr) => compileBlock(env, stmt, expr)
           case Typed(expr, _)    => compileExpr(env, expr)
           case Inlined(_, bindings, expr) =>
-            globalPosition += 1
             val r = compileBlock(env, bindings, expr)
             val t = r.asTerm.show
             // report.info(s"Inlined: ${bindings}, ${expr.show}\n${t}", Position(SourceFile.current, globalPosition, 0))
