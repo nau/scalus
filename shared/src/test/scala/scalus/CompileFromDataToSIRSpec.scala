@@ -64,10 +64,10 @@ class CompileFromDataToSIRSpec extends AnyFunSuite with ScalaCheckPropertyChecks
     println(flatBytes.length)
   }
 
-  /* test("compile FromData[List[A]]") {
+  test("compile FromData[List[A]]") {
     val compiled = compile {
       val ls = Builtins.mkList(builtins.List.empty[Data])
-      val txids = summon[Data.FromData[immutable.List[TxId]]](ls)
+      val txids = summon[Data.FromData[scalus.Predef.List[TxId]]](ls)
       txids
     }
     println(compiled.pretty.render(80))
@@ -75,5 +75,5 @@ class CompileFromDataToSIRSpec extends AnyFunSuite with ScalaCheckPropertyChecks
     println(term.pretty.render(80))
     val flatBytes = ProgramFlatCodec.encodeFlat(Program(version = (1, 0, 0), term = term))
     println(flatBytes.length)
-  } */
+  }
 

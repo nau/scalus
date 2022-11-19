@@ -27,12 +27,12 @@ object Data:
     else if constr == BigInt(1) then true
     else throw new RuntimeException("Not a boolean")
 
-  given ListFromData[A: FromData]: FromData[immutable.List[A]] = (d: Data) =>
+  given ListFromData[A: FromData]: FromData[scalus.Predef.List[A]] = (d: Data) =>
     val fromA = summon[FromData[A]]
     val ls = Builtins.unsafeDataAsList(d)
-    def loop(ls: scalus.builtins.List[Data]): immutable.List[A] =
-      if ls.isEmpty then immutable.Nil
-      else new immutable.::(fromA(ls.head), loop(ls.tail))
+    def loop(ls: scalus.builtins.List[Data]): scalus.Predef.List[A] =
+      if ls.isEmpty then scalus.Predef.List.Nil
+      else scalus.Predef.List.Cons(fromA(ls.head), loop(ls.tail))
     loop(ls)
 
 
