@@ -9,4 +9,5 @@ object Predef {
       case Cons(head, tail) => Cons(f(head), tail.map(f))
   object List:
     def empty[A]: List[A] = Nil
+    def apply[A](args: A*): List[A] = args.foldRight(empty[A])(Cons(_, _))
 }

@@ -15,6 +15,7 @@ import scalus.uplc.TermDSL.{lam, λ}
 import scalus.utils.Utils
 
 import scala.collection.immutable
+import scalus.Predef.List.{Cons, Nil}
 import scalus.sir.DataDecl
 import scalus.sir.ConstrDecl
 
@@ -481,7 +482,7 @@ class CompileToSIRSpec extends AnyFunSuite with ScalaCheckPropertyChecks:
           Nil,
           Nil,
           Interval.always,
-          PubKeyHash(hex"deadbeef") :: Nil,
+          Cons(PubKeyHash(hex"deadbeef"), Nil),
           Nil,
           TxId(hex"bb")
         ),
@@ -510,7 +511,7 @@ class CompileToSIRSpec extends AnyFunSuite with ScalaCheckPropertyChecks:
           Nil,
           Nil,
           Interval.always,
-          PubKeyHash(hex"deadbeef") :: Nil,
+          Cons(PubKeyHash(hex"deadbeef"), Nil),
           Nil,
           TxId(hex"bb")
         ),

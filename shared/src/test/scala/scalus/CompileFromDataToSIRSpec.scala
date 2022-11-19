@@ -77,3 +77,14 @@ class CompileFromDataToSIRSpec extends AnyFunSuite with ScalaCheckPropertyChecks
     println(flatBytes.length)
   }
 
+  test("compile FromData[Value]") {
+    val compiled = compile {
+      (v: Data) => summon[Data.FromData[Value]](v)
+    }
+    println(compiled.pretty.render(80))
+    val term = new SimpleSirToUplcLowering().lower(compiled)
+    println(term.pretty.render(80))
+    val flatBytes = ProgramFlatCodec.encodeFlat(Program(version = (1, 0, 0), term = term))
+    println(flatBytes.length)
+  }
+

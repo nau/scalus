@@ -6,10 +6,11 @@ import scalus.builtins.ByteString.given
 import scalus.ledger.api.v1.*
 import scalus.uplc.Constant.Pair
 import scalus.uplc.DefaultFun.*
-import scalus.uplc.DefaultUni.{Bool, ByteString, asConstant}
+import scalus.uplc.DefaultUni.{asConstant, Bool, ByteString}
 import scalus.uplc.ExprBuilder.{sndPair, unConstrData}
 import scalus.uplc.Term.*
 import scalus.uplc.TermDSL.{*, given}
+import scalus.Predef.List.{Cons, Nil}
 
 import java.io.{ByteArrayInputStream, ByteArrayOutputStream}
 import java.math.RoundingMode
@@ -134,7 +135,7 @@ class CekJVMSpec extends AnyFunSuite with ScalaCheckPropertyChecks with Arbitrar
 
     import Data.*
 
-    def scriptContext(sigs: immutable.List[PubKeyHash]) =
+    def scriptContext(sigs: scalus.Predef.List[PubKeyHash]) =
       ScriptContext(
         TxInfo(
           Nil,
@@ -155,14 +156,18 @@ class CekJVMSpec extends AnyFunSuite with ScalaCheckPropertyChecks with Arbitrar
 
     assert(
       Cek.evalUPLCProgram(
-        appliedScript(scriptContext(PubKeyHash(hex"000000") :: PubKeyHash(hex"deadbeef") :: Nil))
+        appliedScript(
+          scriptContext(Cons(PubKeyHash(hex"000000"), Cons(PubKeyHash(hex"deadbeef"), Nil)))
+        )
       ) == Const(
         asConstant(())
       )
     )
 
     assertThrows[EvaluationFailure](
-      Cek.evalUPLCProgram(appliedScript(scriptContext(PubKeyHash(hex"000000") :: Nil))) == Const(
+      Cek.evalUPLCProgram(
+        appliedScript(scriptContext(Cons(PubKeyHash(hex"000000"), Nil)))
+      ) == Const(
         asConstant(())
       )
     )
@@ -196,7 +201,7 @@ class CekJVMSpec extends AnyFunSuite with ScalaCheckPropertyChecks with Arbitrar
 
     import Data.*
 
-    def scriptContext(txInfoInputs: immutable.List[TxInInfo], value: Value) =
+    def scriptContext(txInfoInputs: scalus.Predef.List[TxInInfo], value: Value) =
       ScriptContext(
         TxInfo(
           txInfoInputs = txInfoInputs,
@@ -220,7 +225,7 @@ class CekJVMSpec extends AnyFunSuite with ScalaCheckPropertyChecks with Arbitrar
     assert(
       Cek.evalUPLCProgram(
         appliedScript(
-          scriptContext(TxInInfo(txOutRef, fakeTxOut) :: Nil, Value(hex"ca", hex"deadbeef", 1))
+          scriptContext(Cons(TxInInfo(txOutRef, fakeTxOut), Nil), Value(hex"ca", hex"deadbeef", 1))
         )
       ) == Const(
         asConstant(())
@@ -232,7 +237,7 @@ class CekJVMSpec extends AnyFunSuite with ScalaCheckPropertyChecks with Arbitrar
     assertThrows[EvaluationFailure](
       Cek.evalUPLCProgram(
         appliedScript(
-          scriptContext(TxInInfo(txOutRef, fakeTxOut) :: Nil, Value(hex"ca", hex"deadbeef", 2))
+          scriptContext(Cons(TxInInfo(txOutRef, fakeTxOut), Nil), Value(hex"ca", hex"deadbeef", 2))
         )
       )
     )
@@ -240,7 +245,7 @@ class CekJVMSpec extends AnyFunSuite with ScalaCheckPropertyChecks with Arbitrar
     assertThrows[BuiltinError](
       Cek.evalUPLCProgram(
         appliedScript(
-          scriptContext(TxInInfo(txOutRef, fakeTxOut) :: Nil, Value(hex"cc", hex"deadbeef", 1))
+          scriptContext(Cons(TxInInfo(txOutRef, fakeTxOut), Nil), Value(hex"cc", hex"deadbeef", 1))
         )
       )
     )

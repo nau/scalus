@@ -129,6 +129,16 @@ object Data:
     def toData(a: B[A]): Data = List(a.map(summon[ToData[A]].toData).toList)
   }
 
+  given listToData[A: ToData]: ToData[scalus.Predef.List[A]] with {
+    def toData(a: scalus.Predef.List[A]): Data =
+      val aToData = summon[ToData[A]]
+      def loop(a: scalus.Predef.List[A]): scalus.builtins.List[Data] =
+        a match
+          case scalus.Predef.List.Nil => scalus.builtins.List.Nil
+          case scalus.Predef.List.Cons(head, tail) => scalus.builtins.List.Cons(aToData.toData(head), loop(tail))
+      Builtins.mkList(loop(a))
+  }
+
   given mapToData[A: ToData, B: ToData]: ToData[immutable.Map[A, B]] with {
     def toData(a: immutable.Map[A, B]): Data = Map(a.toList.map { case (a, b) =>
       (summon[ToData[A]].toData(a), summon[ToData[B]].toData(b))

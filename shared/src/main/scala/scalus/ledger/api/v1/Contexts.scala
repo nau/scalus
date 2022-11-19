@@ -5,6 +5,7 @@ import scalus.ledger.api.v1.Instances.given
 import scalus.uplc.Data
 import scalus.uplc.Data.{ToData, FromData}
 import scalus.utils.Utils.bytesToHex
+import scalus.Predef.List
 
 type ValidatorHash = ByteString
 type Datum = Data
