@@ -23,7 +23,7 @@ class CompileFromDataToSIRSpec extends AnyFunSuite with ScalaCheckPropertyChecks
 
   inline def compilesTo(expected: SIR)(inline e: Any) = assert(compile(e) == expected)
 
-  /* test("compile FromData[Boolean]") {
+  test("compile FromData[Boolean]") {
     val compiled = compile {
       summon[Data.FromData[Boolean]](Builtins.mkConstr(0, scalus.builtins.List.empty[Data]))
     }
@@ -104,36 +104,4 @@ class CompileFromDataToSIRSpec extends AnyFunSuite with ScalaCheckPropertyChecks
     val result = Cek.evalUPLC(term $ Term.Const(Constant.Data(Value.lovelace(42).toData)))
     println(result)
     assert(result == Term.Const(Constant.Integer(42)))
-  } */
-
-
-  test("compile FromData[TxId] derived") {
-    import scalus.Predef.List.{Nil, Cons}
-    given ByteStringFromData: Data.FromData[ByteString] = Builtins.unsafeDataAsB
-    given BigIntFromData: Data.FromData[scala.BigInt] = Builtins.unsafeDataAsI
-
-    // given Data.FromData[TestProduct] = (d: Data) => null
-
-    inline val fromDataTxId = Data.FromData.deriveFromData[TestProduct]
-    inline given FromData[TestProduct] = fromDataTxId
-
-    val compiled = compile {
-      (v: Data) =>
-        val value = fromDataTxId.apply(v)
-        value.a
-
-    }
-    7
-    println(compiled.pretty.render(80))
-    val term = new SimpleSirToUplcLowering().lower(compiled)
-    println(term.pretty.render(80))
-    val flatBytes = ProgramFlatCodec.encodeFlat(Program(version = (1, 0, 0), term = term))
-    println(flatBytes.length)
-    assert(flatBytes.length == 179)
-    import TermDSL.*
-    import scalus.uplc.Data.*
-    val result = Cek.evalUPLC(term $ Term.Const(Constant.Data(Value.lovelace(42).toData)))
-    println(result)
-    assert(result == Term.Const(Constant.Integer(42)))
   }
-

@@ -46,11 +46,6 @@ object Data:
       if constr == BigInt(0) then (fromA(args.head), fromB(args.tail.head))
       else throw new RuntimeException("Not a Tuple2")
 
-  object FromData:
-    inline def deriveFromData[A]: FromData[A] = ${
-      Macros.derivedFromDataImpl[A]
-    }
-
   object ToData:
     import scala.compiletime.*
     inline def summonAll[T <: Tuple]: immutable.List[ToData[_]] =

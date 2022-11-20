@@ -418,7 +418,7 @@ object Macros {
       tpe.typeSymbol.isClassDef && symbol.flags.is(Flags.Case)
 
     def compileExpr(env: Env, e: Term): Expr[SIR] = {
-      debugInfo( s"compileExpr: ${e.show}\n${e}\nin ${env}" )
+      // debugInfo( s"compileExpr: ${e.show}\n${e}\nin ${env}" )
       if compileConstant.isDefinedAt(e) then
         val const = compileConstant(e)
         '{ SIR.Const($const) }
@@ -759,7 +759,7 @@ object Macros {
           case x => report.errorAndAbort(s"Unsupported expression: ${x.show}\n$x")
     }
 
-    report.info(s"Compiling ${e.asTerm.show}\n${e.asTerm}", e.asTerm.pos)
+    // report.info(s"Compiling ${e.asTerm.show}\n${e.asTerm}", e.asTerm.pos)
     val result = compileExpr(immutable.HashSet.empty, e.asTerm)
 //    report.info(s"Glogal defs: ${globalDefs}")
 
@@ -772,56 +772,4 @@ object Macros {
       '{ SIR.Decl($decl, $acc) }
     }
     dataDecls
-
-  def derivedFromDataImpl[A: Type](using q: Quotes): Expr[FromData[A]] =
-    import q.reflect.{*, given}
-
-    val ts = TypeRepr.of[A].typeSymbol
-    def asdf(args: Expr[builtins.List[Data]])(using q: Quotes): List[Expr[Any]] = {
-      val params = ts.caseFields.foldLeft((Seq.empty[Expr[Any]], args)) {
-        case ((params, dataList), field) =>
-          val fieldTypeRepr = TypeRepr.of[A].memberType(field)
-          // FromData for a field's type
-          /* val fromDataTerm = Implicits.search(TypeRepr.of[FromData[_]].appliedTo(fieldTypeRepr)) match {
-          case iss: ImplicitSearchSuccess => iss.tree
-          case isf: ImplicitSearchFailure => report.errorAndAbort(s"Cannot find given FromData for ${fieldTypeRepr.show}")
-        } */
-          val fromDataTerm =
-            Implicits.search(TypeRepr.of[FromData].appliedTo(fieldTypeRepr)) match {
-              case iss: ImplicitSearchSuccess => iss.tree
-              case isf: ImplicitSearchFailure =>
-                report.errorAndAbort(s"Cannot find given FromData for ${fieldTypeRepr.show}")
-            }
-          val fromDataExpr = fromDataTerm.asExprOf[FromData[Any]]
-          // apply FromData to a Data representation of a field
-          val fromData = '{$fromDataExpr.apply($args.head)}
-          (params :+ fromData, '{ $args.tail })
-      }
-      // Apply(Select(New.apply(TypeTree.of[A]), TypeRepr.of[A].typeSymbol.primaryConstructor), params._1.toList).asExprOf[A]
-
-      // val paramsExpr = Expr.ofList[Any](params._1.toList)
-      params._1.toList
-      // paramsExpr
-    }
-
-    val mirror =
-        Implicits.search(TypeRepr.of[Mirror.ProductOf].appliedTo(TypeRepr.of[A])) match {
-          case iss: ImplicitSearchSuccess => iss.tree
-          case isf: ImplicitSearchFailure =>
-            report.errorAndAbort(s"Cannot find Mirror.ProductOf[${ts}]")
-        }
-    val mirrorExpr = mirror.asExprOf[Mirror.ProductOf[A]]
-    val paramsExpr = asdf('{ null })
-    // val constuctorCall = '{$mirrorExpr.fromProduct(Tuple.fromArray(${ paramsExpr }.toArray))}.asExprOf[A]
-
-    val ctor= Apply(Select(New.apply(TypeTree.of[A]), TypeRepr.of[A].typeSymbol.primaryConstructor), List('{(BigInt(1))}.asTerm)).asExprOf[A]
-    val result = '{ (d: Data) =>
-      val pair = Builtins.unsafeDataAsConstr(d)
-      // val args = asdf('{ pair.snd })
-      // $constuctorCall
-      // null.asInstanceOf[A]
-      $ctor
-    }
-    // report.error(s"Result: ${result.show}")
-    result
 }
