@@ -53,15 +53,16 @@ class CompileFromDataToSIRSpec extends AnyFunSuite with ScalaCheckPropertyChecks
 
   test("compile FromData[TxId]") {
     val compiled = compile {
-      val hash = Builtins.mkB(ByteString.fromHex("deadbeef"))
-      val txid = summon[Data.FromData[TxId]](hash)
-      summon[Data.FromData[PubKeyHash]](hash)
+      (d: Data) => summon[Data.FromData[PubKeyHash]](d).hash
     }
     println(compiled.pretty.render(80))
     val term = new SimpleSirToUplcLowering().lower(compiled)
     println(term.pretty.render(80))
     val flatBytes = ProgramFlatCodec.encodeFlat(Program(version = (1, 0, 0), term = term))
     println(flatBytes.length)
+    import TermDSL.*
+    import scalus.uplc.Data.*
+    println(Cek.evalUPLC(term $ Term.Const(Constant.Data(TxId(hex"deadbeef").toData))).pretty.render(80))
   }
 
   test("compile FromData[List[A]]") {
@@ -78,13 +79,29 @@ class CompileFromDataToSIRSpec extends AnyFunSuite with ScalaCheckPropertyChecks
   }
 
   test("compile FromData[Value]") {
+    import scalus.Predef.List.{Nil, Cons}
     val compiled = compile {
-      (v: Data) => summon[Data.FromData[Value]](v)
+      (v: Data) =>
+        val value = summon[Data.FromData[Value]](v)
+        value match
+          case Nil => BigInt(0)
+          case Cons(head, tail) =>  head match
+            case (cs, vals) => vals match
+              case Nil => BigInt(1)
+              case Cons(tn, vl) => tn match
+                case (tn, vl) => vl
+
     }
     println(compiled.pretty.render(80))
     val term = new SimpleSirToUplcLowering().lower(compiled)
     println(term.pretty.render(80))
     val flatBytes = ProgramFlatCodec.encodeFlat(Program(version = (1, 0, 0), term = term))
     println(flatBytes.length)
+    assert(flatBytes.length == 179)
+    import TermDSL.*
+    import scalus.uplc.Data.*
+    val result = Cek.evalUPLC(term $ Term.Const(Constant.Data(Value.lovelace(42).toData)))
+    println(result)
+    assert(result == Term.Const(Constant.Integer(42)))
   }
 
