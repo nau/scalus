@@ -126,3 +126,25 @@ class CompileFromDataToSIRSpec extends AnyFunSuite with ScalaCheckPropertyChecks
     assert(flatBytes.length == 66)
     assert(result == Term.Const(Constant.Integer(2)))
   }
+
+  test("compile FromData[Credential]") {
+    import scalus.Predef.List.{Nil, Cons}
+    val compiled = compile {
+      (v: Data) =>
+        val value = summon[Data.FromData[Credential]](v)
+        value match
+          case Credential.PubKeyCredential(pubKeyHash) => pubKeyHash.hash
+          case Credential.ScriptCredential(hash) => hash
+    }
+    println(compiled.pretty.render(80))
+    val term = new SimpleSirToUplcLowering().lower(compiled)
+    println(term.pretty.render(80))
+    val flatBytes = ProgramFlatCodec.encodeFlat(Program(version = (1, 0, 0), term = term))
+    println(flatBytes.length)
+    import TermDSL.*
+    import scalus.uplc.Data.*
+    val result = Cek.evalUPLC(term $ Term.Const(Constant.Data(Credential.ScriptCredential(hex"12").toData)))
+    println(result)
+    assert(flatBytes.length == 97)
+    assert(result == Term.Const(Constant.ByteString(hex"12")))
+  }

@@ -10,4 +10,8 @@ object Predef {
   object List:
     def empty[A]: List[A] = Nil
     def apply[A](args: A*): List[A] = args.foldRight(empty[A])(Cons(_, _))
+
+  enum Maybe[+A]:
+    case Nothing extends Maybe[Nothing]
+    case Just(value: A)
 }

@@ -10,6 +10,7 @@ import scala.collection.immutable.List
 import scala.deriving.*
 import scala.quoted.*
 import scalus.macros.Macros
+import scalus.Predef.Maybe
 
 sealed abstract class Data
 
@@ -37,6 +38,12 @@ object Data:
       if ls.isEmpty then scalus.Predef.List.Nil
       else scalus.Predef.List.Cons(fromA(ls.head), loop(ls.tail))
     loop(ls)
+
+  given MaybeFromData[A: FromData]: FromData[scalus.Predef.Maybe[A]] = (d: Data) =>
+    val fromA = summon[FromData[A]]
+    val pair = Builtins.unsafeDataAsConstr(d)
+    if pair.fst == BigInt(0) then scalus.Predef.Maybe.Just(fromA(pair.snd.head))
+    else scalus.Predef.Maybe.Nothing
 
   given tupleFromData[A, B](using fromA: FromData[A], fromB: FromData[B]): FromData[(A, B)] =
     (d: Data) =>
@@ -130,6 +137,11 @@ object Data:
     def toData(a: Option[A]): Data = a match
       case Some(v) => Data.Constr(0, immutable.List(v.toData))
       case None    => Data.Constr(1, immutable.List.empty)
+
+  given MaybeToData[A: ToData]: ToData[Maybe[A]] with
+    def toData(a: Maybe[A]): Data = a match
+      case Maybe.Just(v) => Data.Constr(0, immutable.List(v.toData))
+      case Maybe.Nothing => Data.Constr(1, immutable.List.empty)
 
   given EitherToData[A: ToData, B: ToData]: ToData[Either[A, B]] with
     def toData(a: Either[A, B]): Data = a match

@@ -5,7 +5,7 @@ import scalus.ledger.api.v1.Instances.given
 import scalus.uplc.Data
 import scalus.uplc.Data.{FromData, ToData}
 import scalus.utils.Utils.bytesToHex
-import scalus.Predef.List
+import scalus.Predef.{List, Maybe}
 import scalus.builtins.Builtins
 
 type ValidatorHash = ByteString
@@ -75,6 +75,17 @@ object Instances:
         case a: Credential.ScriptCredential =>
           ToData.deriveProduct[Credential.ScriptCredential](1).toData(a)
 
+  given CredentialFromData: FromData[Credential] =
+    (d: Data) =>
+      val pair = Builtins.unsafeDataAsConstr(d)
+      val tag = pair.fst
+      if tag == BigInt(0) then
+        new Credential.PubKeyCredential(summon[FromData[PubKeyHash]].apply(pair.snd.head))
+      else if tag == BigInt(1) then
+        new Credential.ScriptCredential(summon[FromData[ByteString]].apply(pair.snd.head))
+      else throw new RuntimeException("Invalid tag")
+
+
   given StakingCredentialLift[T <: StakingCredential]: ToData[T] with
     def toData(a: T): Data =
       a match
@@ -143,9 +154,9 @@ enum StakingCredential:
 
 case class Address(
     addressCredential: Credential,
-    addressStakingCredential: Option[StakingCredential]
+    addressStakingCredential: Maybe[StakingCredential]
 ) derives Data.ToData
-case class TxOut(txOutAddress: Address, txOutValue: Value, txOutDatumHash: Option[DatumHash])
+case class TxOut(txOutAddress: Address, txOutValue: Value, txOutDatumHash: Maybe[DatumHash])
     derives Data.ToData
 
 // TxInInfo

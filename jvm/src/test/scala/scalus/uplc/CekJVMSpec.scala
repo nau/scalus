@@ -11,6 +11,7 @@ import scalus.uplc.ExprBuilder.{sndPair, unConstrData}
 import scalus.uplc.Term.*
 import scalus.uplc.TermDSL.{*, given}
 import scalus.Predef.List.{Cons, Nil}
+import scalus.Predef.Maybe.*
 
 import java.io.{ByteArrayInputStream, ByteArrayOutputStream}
 import java.math.RoundingMode
@@ -191,9 +192,9 @@ class CekJVMSpec extends AnyFunSuite with ScalaCheckPropertyChecks with Arbitrar
 
     val txOutRef = TxOutRef(TxId(hex"aa"), 1)
     val fakeTxOut = TxOut(
-      txOutAddress = Address(Credential.PubKeyCredential(PubKeyHash(hex"deadbeef")), None),
+      txOutAddress = Address(Credential.PubKeyCredential(PubKeyHash(hex"deadbeef")), Nothing),
       Value.zero,
-      None
+      Nothing
     )
     val validator = Example.mintingPolicyScript(txOutRef, hex"deadbeef")
 
