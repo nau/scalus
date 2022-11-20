@@ -3,9 +3,10 @@ package scalus.ledger.api.v1
 import scalus.builtins.ByteString
 import scalus.ledger.api.v1.Instances.given
 import scalus.uplc.Data
-import scalus.uplc.Data.{ToData, FromData}
+import scalus.uplc.Data.{FromData, ToData}
 import scalus.utils.Utils.bytesToHex
 import scalus.Predef.List
+import scalus.builtins.Builtins
 
 type ValidatorHash = ByteString
 type Datum = Data
@@ -38,6 +39,13 @@ object Instances:
   given FromData[PubKeyHash] = (d: Data) =>
     val hash = summon[FromData[ByteString]].apply(d)
     new PubKeyHash(hash)
+
+  given FromData[TxOutRef] = (d: Data) =>
+    val args = Builtins.unsafeDataAsConstr(d).snd
+    new TxOutRef(
+      summon[FromData[TxId]].apply(args.head),
+      summon[FromData[BigInt]].apply(args.tail.head)
+    )
 
   given DCertLift[T <: DCert]: ToData[T] with
     def toData(a: T): Data =
@@ -109,7 +117,6 @@ enum DCert:
 
 case class TxId(hash: ByteString):
   override def toString = s"TxId(${hash.toHex})"
-
 
 /*
 data TxOutRef = TxOutRef {

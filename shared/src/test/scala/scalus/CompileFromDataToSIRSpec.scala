@@ -105,3 +105,24 @@ class CompileFromDataToSIRSpec extends AnyFunSuite with ScalaCheckPropertyChecks
     println(result)
     assert(result == Term.Const(Constant.Integer(42)))
   }
+
+  test("compile FromData[TxOutRef]") {
+    import scalus.Predef.List.{Nil, Cons}
+    val compiled = compile {
+      (v: Data) =>
+        val value = summon[Data.FromData[TxOutRef]](v)
+        value match
+          case TxOutRef(id, idx) => idx
+    }
+    println(compiled.pretty.render(80))
+    val term = new SimpleSirToUplcLowering().lower(compiled)
+    println(term.pretty.render(80))
+    val flatBytes = ProgramFlatCodec.encodeFlat(Program(version = (1, 0, 0), term = term))
+    println(flatBytes.length)
+    import TermDSL.*
+    import scalus.uplc.Data.*
+    val result = Cek.evalUPLC(term $ Term.Const(Constant.Data(TxOutRef(TxId(hex"12"), 2).toData)))
+    println(result)
+    assert(flatBytes.length == 66)
+    assert(result == Term.Const(Constant.Integer(2)))
+  }
