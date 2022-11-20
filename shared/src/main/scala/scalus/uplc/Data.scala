@@ -12,6 +12,8 @@ import scala.quoted.*
 import scalus.macros.Macros
 
 sealed abstract class Data
+
+case class TestProduct(a: BigInt)
 object Data:
   trait ToData[A]:
     def toData(a: A): Data
