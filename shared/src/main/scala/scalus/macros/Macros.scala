@@ -12,6 +12,8 @@ import scala.collection.{immutable, mutable, IterableFactory, SeqFactory}
 import scala.quoted.*
 import scalus.sir.DataDecl
 import scalus.sir.Case
+import scalus.uplc.Data.FromData
+import scala.deriving.Mirror
 object Macros {
   def lamMacro[A: Type, B: Type](f: Expr[Exp[A] => Exp[B]])(using Quotes): Expr[Exp[A => B]] =
     import quotes.reflect.*
@@ -275,7 +277,7 @@ object Macros {
         case _ => report.errorAndAbort(s"Unsupported type: ${t.show}")
 
     def compileStmt(env: Env, stmt: Statement): B = {
-      //debugInfo(s"compileStmt  ${stmt}", Position(SourceFile.current, globalPosition, 0))
+      // debugInfo(s"compileStmt  ${stmt}", Position(SourceFile.current, globalPosition, 0))
       stmt match
         case ValDef(name, tpe, Some(body)) =>
           val bodyExpr = compileExpr(env, body)
@@ -370,13 +372,14 @@ object Macros {
       val typeSymbol = tpe.typeSymbol
 
       // look for a base `sealed abstract class`. If it exists, we are in case 5 or 6
-      val adtBaseType = tpe.baseClasses.find(b => b.flags.is(Flags.Sealed | Flags.Abstract) && !b.flags.is(Flags.Trait))
+      val adtBaseType = tpe.baseClasses.find(b =>
+        b.flags.is(Flags.Sealed | Flags.Abstract) && !b.flags.is(Flags.Trait)
+      )
 
       // debugInfo(s"compileNewConstructor0")
       // debugInfo(s"compileNewConstructor1 ${tpe.show} base type: ${adtBaseType}")
       /* debugInfo(s"compileNewConstructor1 ${typeSymbol} singleton ${tpe.isSingleton} companion: ${typeSymbol.maybeOwner.companionClass} " +
         s"${typeSymbol.children} widen: ${tpe.widen.typeSymbol}, widen.children: ${tpe.widen.typeSymbol.children} ${typeSymbol.maybeOwner.companionClass.children}") */
-
 
       val (constructorTypeSymbol, dataTypeSymbol, constructors) =
         adtBaseType match
@@ -458,12 +461,17 @@ object Macros {
           case Match(t, cases) =>
             // report.info(s"Match: ${t.tpe.typeSymbol} ${t.tpe.typeSymbol.children}", e.pos)
 
-            def constructCase(constrSymbol: Symbol, bindings: List[String], rhs: Expr[SIR]): Expr[scalus.sir.Case] = {
+            def constructCase(
+                constrSymbol: Symbol,
+                bindings: List[String],
+                rhs: Expr[SIR]
+            ): Expr[scalus.sir.Case] = {
               val params = constrSymbol.caseFields.map(_.name)
-              val constrDecl = '{ scalus.sir.ConstrDecl(${ Expr(constrSymbol.name) }, ${ Expr(params) }) }
-              '{scalus.sir.Case($constrDecl, ${Expr(bindings)}, $rhs)}
+              val constrDecl = '{
+                scalus.sir.ConstrDecl(${ Expr(constrSymbol.name) }, ${ Expr(params) })
+              }
+              '{ scalus.sir.Case($constrDecl, ${ Expr(bindings) }, $rhs) }
             }
-
 
             if t.tpe.typeSymbol.children.isEmpty
             then
@@ -485,7 +493,7 @@ object Macros {
                       val rhsE = compileExpr(env ++ names, rhs)
                       val tE = compileExpr(env, t)
                       val cases = List(constructCase(t.tpe.typeSymbol, names.map(_.name), rhsE))
-                      '{ SIR.Match($tE, ${Expr.ofList(cases)}) }
+                      '{ SIR.Match($tE, ${ Expr.ofList(cases) }) }
 
                 case _ =>
                   report.errorAndAbort(
@@ -535,7 +543,7 @@ object Macros {
                 constructCase(sym, bindings.map(_.name), rhs)
               }
               // report.info(s"Sorted constrs: ${sortedCases}", cases.head.pos)
-              '{ SIR.Match($tE, ${Expr.ofList(sortedCases)}) }
+              '{ SIR.Match($tE, ${ Expr.ofList(sortedCases) }) }
 
           // PAIR
           case Select(pair, fun) if pair.isPair =>
@@ -707,8 +715,7 @@ object Macros {
               '{ SIR.Apply($lhs, $lam) }
             // else if obj.symbol.isPackageDef then
             // compileExpr(env, obj)
-            else if isConstructorVal(e.symbol, e.tpe) then
-              compileNewConstructor(env, e, e.tpe, Nil)
+            else if isConstructorVal(e.symbol, e.tpe) then compileNewConstructor(env, e, e.tpe, Nil)
             else
               // report.errorAndAbort(s"SELECT: ${obj.symbol.isPackageDef}", sel.pos)
               if !env.contains(e.symbol) then
@@ -761,8 +768,54 @@ object Macros {
         SIR.Let(${ Expr(b.recursivity) }, List(Binding(${ Expr(b.fullName) }, ${ b.body })), $acc)
       }
     }
-    val dataDecls = globalDataDecls.foldRight(full){ case ((_, decl), acc) =>
+    val dataDecls = globalDataDecls.foldRight(full) { case ((_, decl), acc) =>
       '{ SIR.Decl($decl, $acc) }
     }
     dataDecls
+
+  def derivedFromDataImpl[A: Type](using q: Quotes): Expr[FromData[A]] =
+    import q.reflect.{*, given}
+
+    def asdf(args: Expr[builtins.List[Data]])(using q: Quotes): Expr[A] = {
+      val ts = TypeRepr.of[A].typeSymbol
+      val params = ts.caseFields.foldLeft((Seq.empty[Expr[Any]], args)) {
+        case ((params, dataList), field) =>
+          val fieldTypeRepr = TypeRepr.of[A].memberType(field)
+          // FromData for a field's type
+          /* val fromDataTerm = Implicits.search(TypeRepr.of[FromData[_]].appliedTo(fieldTypeRepr)) match {
+          case iss: ImplicitSearchSuccess => iss.tree
+          case isf: ImplicitSearchFailure => report.errorAndAbort(s"Cannot find given FromData for ${fieldTypeRepr.show}")
+        } */
+          val fromDataTerm =
+            Implicits.search(TypeRepr.of[FromData].appliedTo(TypeRepr.of[A])) match {
+              case iss: ImplicitSearchSuccess => iss.tree
+              case isf: ImplicitSearchFailure =>
+                report.errorAndAbort(s"Cannot find given FromData for ${fieldTypeRepr.show}")
+            }
+          // apply FromData to a Data representation of a field
+          val fromData = fromDataTerm.appliedTo('{ $args.head }.asTerm).asExprOf[Any]
+          (params :+ fromData, '{ $args.tail })
+      }
+      // Apply(Select(New.apply(TypeTree.of[A]), TypeRepr.of[A].typeSymbol.primaryConstructor), params._1.toList).asExprOf[A]
+      val mirror =
+        Implicits.search(TypeRepr.of[Mirror.ProductOf].appliedTo(TypeRepr.of[A])) match {
+          case iss: ImplicitSearchSuccess => iss.tree
+          case isf: ImplicitSearchFailure =>
+            report.errorAndAbort(s"Cannot find Mirror.ProductOf[${ts}]")
+        }
+      val mirrorExpr = mirror.asExprOf[Mirror.ProductOf[A]]
+      val paramsExpr = Expr.ofList[Any](params._1.toList)
+      val constuctorCall = '{
+        val product = ${ mirrorExpr }
+        product.fromProduct(Tuple.fromArray(${ paramsExpr }.toArray))
+      }.asExprOf[A]
+      constuctorCall
+    }
+
+    '{ (d: Data) =>
+      val pair = Builtins.unsafeDataAsConstr(d)
+      val args = pair.snd
+      ${ asdf('{ args }) }
+      // null.asInstanceOf[A]
+    }
 }

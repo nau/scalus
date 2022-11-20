@@ -9,6 +9,7 @@ import scala.collection.immutable
 import scala.collection.immutable.List
 import scala.deriving.*
 import scala.quoted.*
+import scalus.macros.Macros
 
 sealed abstract class Data
 object Data:
@@ -35,8 +36,6 @@ object Data:
       else scalus.Predef.List.Cons(fromA(ls.head), loop(ls.tail))
     loop(ls)
 
-
-
   given tupleFromData[A, B](using fromA: FromData[A], fromB: FromData[B]): FromData[(A, B)] =
     (d: Data) =>
       val pair = Builtins.unsafeDataAsConstr(d)
@@ -45,32 +44,11 @@ object Data:
       if constr == BigInt(0) then (fromA(args.head), fromB(args.tail.head))
       else throw new RuntimeException("Not a Tuple2")
 
-  /* trait FromData[A]:
-    def fromData(d: Data): A
-
   object FromData:
-    given FromData[Boolean] with {
-      def fromData(d: Data): Boolean =
-        val pair = Builtins.unsafeDataAsConstr(d)
-        val constr = pair.fst
-        if constr == BigInt(0) then false
-        else if constr == BigInt(1) then true
-        else throw new RuntimeException("Not a boolean")
+    inline def deriveFromData[A]: FromData[A] = ${
+      Macros.derivedFromDataImpl[A]
     }
 
-    inline implicit def tupleFromData[A, B](implicit inline
-        fromA: FromData[A],
-        fromB: FromData[B]
-    ): FromData[(A, B)] = new FromData[(A, B)] {
-      def fromData(d: Data): (A, B) =
-        val pair = Builtins.unsafeDataAsConstr(d)
-        val constr = pair.fst
-        val args = pair.snd
-        if constr == BigInt(0) then
-          (summon[FromData[A]].fromData(args.head), summon[FromData[B]].fromData(args.tail.head))
-        else throw new RuntimeException("Not a Tuple2")
-    }
-   */
   object ToData:
     import scala.compiletime.*
     inline def summonAll[T <: Tuple]: immutable.List[ToData[_]] =
@@ -135,7 +113,8 @@ object Data:
       def loop(a: scalus.Predef.List[A]): scalus.builtins.List[Data] =
         a match
           case scalus.Predef.List.Nil => scalus.builtins.List.Nil
-          case scalus.Predef.List.Cons(head, tail) => scalus.builtins.List.Cons(aToData.toData(head), loop(tail))
+          case scalus.Predef.List.Cons(head, tail) =>
+            scalus.builtins.List.Cons(aToData.toData(head), loop(tail))
       Builtins.mkList(loop(a))
   }
 

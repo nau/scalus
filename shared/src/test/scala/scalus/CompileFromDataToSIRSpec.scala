@@ -105,3 +105,30 @@ class CompileFromDataToSIRSpec extends AnyFunSuite with ScalaCheckPropertyChecks
     assert(result == Term.Const(Constant.Integer(42)))
   }
 
+  case class TestProduct(a: ByteString, b: ByteString)
+  test("compile FromData[TxId] derived") {
+    import scalus.Predef.List.{Nil, Cons}
+    given ByteStringFromData: Data.FromData[ByteString] = Builtins.unsafeDataAsB
+    given BigIntFromData: Data.FromData[scala.BigInt] = Builtins.unsafeDataAsI
+
+    val fromDataTxId = Data.FromData.deriveFromData[TestProduct]
+
+    val compiled = compile {
+      (v: Data) =>
+        val value = summon[Data.FromData[TxId]](v)
+        value.hash
+
+    }
+    println(compiled.pretty.render(80))
+    val term = new SimpleSirToUplcLowering().lower(compiled)
+    println(term.pretty.render(80))
+    val flatBytes = ProgramFlatCodec.encodeFlat(Program(version = (1, 0, 0), term = term))
+    println(flatBytes.length)
+    assert(flatBytes.length == 179)
+    import TermDSL.*
+    import scalus.uplc.Data.*
+    val result = Cek.evalUPLC(term $ Term.Const(Constant.Data(Value.lovelace(42).toData)))
+    println(result)
+    assert(result == Term.Const(Constant.Integer(42)))
+  }
+
