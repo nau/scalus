@@ -44,61 +44,44 @@ class CompileFromDataToSIRSpec extends AnyFunSuite with ScalaCheckPropertyChecks
   }
 
   test("compile FromData[Boolean]") {
-    val compiled = compile {
-      summon[Data.FromData[Boolean]](Builtins.mkConstr(0, scalus.builtins.List.empty[Data]))
+    val compiled = compile { (d: Data) =>
+      summon[Data.FromData[Boolean]](d)
     }
-    println(compiled.pretty.render(80))
-    val term = new SimpleSirToUplcLowering().lower(compiled)
-    println(term.pretty.render(80))
-    val flatBytes = ProgramFlatCodec.encodeFlat(Program(version = (1, 0, 0), term = term))
-    println(flatBytes.length)
+    testFromData(compiled, true, 44, Term.Const(Constant.Bool(true)))
   }
 
   test("compile FromData[(A, B)]") {
     val compiled = compile {
-      val t = Builtins.mkConstr(1, scalus.builtins.List.empty[Data])
-      val f = Builtins.mkConstr(0, scalus.builtins.List.empty[Data])
-      summon[Data.FromData[(Boolean, Boolean)]](
-        Builtins.mkConstr(
-          0,
-          scalus.builtins.List(f, t)
-        )
-      )
+      (d: Data) =>
+        val pair = summon[Data.FromData[(Boolean, Boolean)]](d)
+        pair match
+          case (a, b) => b
     }
-    println(compiled.pretty.render(80))
-    val term = new SimpleSirToUplcLowering().lower(compiled)
-    println(term.pretty.render(80))
-    val flatBytes = ProgramFlatCodec.encodeFlat(Program(version = (1, 0, 0), term = term))
-    println(flatBytes.length)
+    testFromData(compiled, (true, false), 121, Term.Const(Constant.Bool(false)))
   }
 
   test("compile FromData[PubKeyHash]") {
     val compiled = compile { (d: Data) =>
       summon[Data.FromData[PubKeyHash]](d).hash
     }
-    println(compiled.pretty.render(80))
-    val term = new SimpleSirToUplcLowering().lower(compiled)
-    println(term.pretty.render(80))
-    val flatBytes = ProgramFlatCodec.encodeFlat(Program(version = (1, 0, 0), term = term))
-    println(flatBytes.length)
-    import TermDSL.*
-    import scalus.uplc.Data.*
-    println(
-      Cek.evalUPLC(term $ Term.Const(Constant.Data(TxId(hex"deadbeef").toData))).pretty.render(80)
-    )
+    testFromData(compiled, TxId(hex"deadbeef"), 27, Term.Const(Constant.ByteString(hex"deadbeef")))
   }
 
   test("compile FromData[List[A]]") {
-    val compiled = compile {
-      val ls = Builtins.mkList(builtins.List.empty[Data])
-      val txids = summon[Data.FromData[scalus.Predef.List[TxId]]](ls)
-      txids
+    import scalus.Predef.List.{Nil, Cons}
+    val compiled = compile { (v: Data) =>
+      val txids = summon[Data.FromData[scalus.Predef.List[TxId]]](v)
+      txids match
+        case Nil              => BigInt(0)
+        case Cons(head, tail) => BigInt(1)
+
     }
-    println(compiled.pretty.render(80))
-    val term = new SimpleSirToUplcLowering().lower(compiled)
-    println(term.pretty.render(80))
-    val flatBytes = ProgramFlatCodec.encodeFlat(Program(version = (1, 0, 0), term = term))
-    println(flatBytes.length)
+    testFromData(
+      compiled,
+      immutable.List(TxId(hex"deadbeef")),
+      116,
+      Term.Const(Constant.Integer(1))
+    )
   }
 
   test("compile FromData[Value]") {
@@ -117,17 +100,7 @@ class CompileFromDataToSIRSpec extends AnyFunSuite with ScalaCheckPropertyChecks
                     case (tn, vl) => vl
 
     }
-    println(compiled.pretty.render(80))
-    val term = new SimpleSirToUplcLowering().lower(compiled)
-    println(term.pretty.render(80))
-    val flatBytes = ProgramFlatCodec.encodeFlat(Program(version = (1, 0, 0), term = term))
-    println(flatBytes.length)
-    assert(flatBytes.length == 179)
-    import TermDSL.*
-    import scalus.uplc.Data.*
-    val result = Cek.evalUPLC(term $ Term.Const(Constant.Data(Value.lovelace(42).toData)))
-    println(result)
-    assert(result == Term.Const(Constant.Integer(42)))
+    testFromData(compiled, Value.lovelace(42), 179, Term.Const(Constant.Integer(42)))
   }
 
   test("compile FromData[TxOutRef]") {
@@ -137,17 +110,7 @@ class CompileFromDataToSIRSpec extends AnyFunSuite with ScalaCheckPropertyChecks
       value match
         case TxOutRef(id, idx) => idx
     }
-    println(compiled.pretty.render(80))
-    val term = new SimpleSirToUplcLowering().lower(compiled)
-    println(term.pretty.render(80))
-    val flatBytes = ProgramFlatCodec.encodeFlat(Program(version = (1, 0, 0), term = term))
-    println(flatBytes.length)
-    import TermDSL.*
-    import scalus.uplc.Data.*
-    val result = Cek.evalUPLC(term $ Term.Const(Constant.Data(TxOutRef(TxId(hex"12"), 2).toData)))
-    println(result)
-    assert(flatBytes.length == 66)
-    assert(result == Term.Const(Constant.Integer(2)))
+    testFromData(compiled, TxOutRef(TxId(hex"12"), 2), 66, Term.Const(Constant.Integer(2)))
   }
 
   test("compile FromData[Credential]") {
@@ -336,17 +299,17 @@ class CompileFromDataToSIRSpec extends AnyFunSuite with ScalaCheckPropertyChecks
     testFromData(
       compiled,
       TxInfo(
-          txInfoInputs = scalus.Predef.List.Nil,
-          txInfoOutputs = scalus.Predef.List.Nil,
-          txInfoFee = Value.zero,
-          txInfoMint = Value.zero,
-          txInfoDCert = scalus.Predef.List.Nil,
-          txInfoWdrl = scalus.Predef.List.Nil,
-          txInfoValidRange = Interval.always,
-          txInfoSignatories = scalus.Predef.List.Nil,
-          txInfoData = scalus.Predef.List.Nil,
-          txInfoId = TxId(ByteString.fromHex("bb"))
-        ),
+        txInfoInputs = scalus.Predef.List.Nil,
+        txInfoOutputs = scalus.Predef.List.Nil,
+        txInfoFee = Value.zero,
+        txInfoMint = Value.zero,
+        txInfoDCert = scalus.Predef.List.Nil,
+        txInfoWdrl = scalus.Predef.List.Nil,
+        txInfoValidRange = Interval.always,
+        txInfoSignatories = scalus.Predef.List.Nil,
+        txInfoData = scalus.Predef.List.Nil,
+        txInfoId = TxId(ByteString.fromHex("bb"))
+      ),
       1240,
       Term.Const(Constant.ByteString(ByteString.fromHex("bb")))
     )
@@ -360,7 +323,8 @@ class CompileFromDataToSIRSpec extends AnyFunSuite with ScalaCheckPropertyChecks
     }
     testFromData(
       compiled,
-      ScriptContext(TxInfo(
+      ScriptContext(
+        TxInfo(
           txInfoInputs = scalus.Predef.List.Nil,
           txInfoOutputs = scalus.Predef.List.Nil,
           txInfoFee = Value.zero,
@@ -371,7 +335,9 @@ class CompileFromDataToSIRSpec extends AnyFunSuite with ScalaCheckPropertyChecks
           txInfoSignatories = scalus.Predef.List.Nil,
           txInfoData = scalus.Predef.List.Nil,
           txInfoId = TxId(ByteString.fromHex("bb"))
-        ), ScriptPurpose.Spending(TxOutRef(TxId(hex"12"), 12))),
+        ),
+        ScriptPurpose.Spending(TxOutRef(TxId(hex"12"), 12))
+      ),
       1387,
       Term.Const(Constant.ByteString(ByteString.fromHex("bb")))
     )
