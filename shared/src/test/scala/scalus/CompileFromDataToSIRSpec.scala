@@ -296,3 +296,18 @@ class CompileFromDataToSIRSpec extends AnyFunSuite with ScalaCheckPropertyChecks
       Term.Const(Constant.Bool(false))
     )
   }
+
+  test("compile FromData[LowerBound[A]]") {
+    import scalus.Predef.Maybe.{Nothing, Just}
+    val compiled = compile { (v: Data) =>
+      val value = summon[Data.FromData[LowerBound[BigInt]]](v)
+      value match
+        case LowerBound(upper, clos) => clos
+    }
+    testFromData(
+      compiled,
+      LowerBound[BigInt](Extended.PosInf, false),
+      193,
+      Term.Const(Constant.Bool(false))
+    )
+  }
