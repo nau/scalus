@@ -92,6 +92,16 @@ object Instances:
         case Extended.NegInf    => Data.Constr(0, Nil)
         case Extended.Finite(a) => Data.Constr(1, a.toData :: Nil)
         case Extended.PosInf    => Data.Constr(2, Nil)
+
+  given ExtendedFromData[A: FromData]: FromData[Extended[A]] = (d: Data) =>
+    val pair = Builtins.unsafeDataAsConstr(d)
+    val tag = pair.fst
+    val args = pair.snd
+    if tag == BigInt(0) then Extended.NegInf
+    else if tag == BigInt(1) then Extended.Finite(summon[FromData[A]].apply(args.head))
+    else if tag == BigInt(2) then Extended.PosInf
+    else throw new Exception(s"Unknown Extended tag: $tag")
+
   given CredentialToData[T <: Credential]: ToData[T] with
     def toData(a: T): Data =
       a match

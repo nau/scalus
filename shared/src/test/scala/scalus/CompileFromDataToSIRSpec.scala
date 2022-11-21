@@ -23,6 +23,20 @@ class CompileFromDataToSIRSpec extends AnyFunSuite with ScalaCheckPropertyChecks
 
   inline def compilesTo(expected: SIR)(inline e: Any) = assert(compile(e) == expected)
 
+  def testFromData[A: Data.ToData](compiled: SIR, arg: A, expectedSize: Int, expectedResult: Term) = {
+    // println(compiled.pretty.render(80))
+    val term = new SimpleSirToUplcLowering().lower(compiled)
+    // println(term.pretty.render(80))
+    val flatBytes = ProgramFlatCodec.encodeFlat(Program(version = (1, 0, 0), term = term))
+    // println(flatBytes.length)
+    import TermDSL.*
+    import scalus.uplc.Data.*
+    val result = Cek.evalUPLC(term $ Term.Const(Constant.Data(arg.toData)))
+    // println(result)
+    assert(flatBytes.length == expectedSize)
+    assert(result == expectedResult)
+  }
+
   test("compile FromData[Boolean]") {
     val compiled = compile {
       summon[Data.FromData[Boolean]](Builtins.mkConstr(0, scalus.builtins.List.empty[Data]))
@@ -136,40 +150,19 @@ class CompileFromDataToSIRSpec extends AnyFunSuite with ScalaCheckPropertyChecks
           case Credential.PubKeyCredential(pubKeyHash) => pubKeyHash.hash
           case Credential.ScriptCredential(hash) => hash
     }
-    println(compiled.pretty.render(80))
-    val term = new SimpleSirToUplcLowering().lower(compiled)
-    println(term.pretty.render(80))
-    val flatBytes = ProgramFlatCodec.encodeFlat(Program(version = (1, 0, 0), term = term))
-    println(flatBytes.length)
-    import TermDSL.*
-    import scalus.uplc.Data.*
-    val result = Cek.evalUPLC(term $ Term.Const(Constant.Data(Credential.ScriptCredential(hex"12").toData)))
-    println(result)
-    assert(flatBytes.length == 97)
-    assert(result == Term.Const(Constant.ByteString(hex"12")))
+    testFromData(compiled, Credential.ScriptCredential(hex"12"), 97, Term.Const(Constant.ByteString(hex"12")))
   }
 
   test("compile FromData[StakingCredential]") {
-    import scalus.Predef.List.{Nil, Cons}
+    import StakingCredential.*
     val compiled = compile {
       (v: Data) =>
         val value = summon[Data.FromData[StakingCredential]](v)
         value match
-          case StakingCredential.StakingHash(cred) => cred
-          case StakingCredential.StakingPtr(a, b, c) => c
-
+          case StakingHash(cred) => BigInt(1)
+          case StakingPtr(a, b, c) => c
     }
-    println(compiled.pretty.render(80))
-    val term = new SimpleSirToUplcLowering().lower(compiled)
-    println(term.pretty.render(80))
-    val flatBytes = ProgramFlatCodec.encodeFlat(Program(version = (1, 0, 0), term = term))
-    println(flatBytes.length)
-    import TermDSL.*
-    import scalus.uplc.Data.*
-    val result = Cek.evalUPLC(term $ Term.Const(Constant.Data(Credential.ScriptCredential(hex"12").toData)))
-    println(result)
-    assert(flatBytes.length == 97)
-    assert(result == Term.Const(Constant.ByteString(hex"12")))
+    testFromData(compiled, StakingPtr(1, 2, 3), 202, Term.Const(Constant.Integer(3)))
   }
 
   test("compile FromData[DCert]") {
@@ -188,15 +181,19 @@ class CompileFromDataToSIRSpec extends AnyFunSuite with ScalaCheckPropertyChecks
           case Mir => BigInt(7)
 
     }
-    // println(compiled.pretty.render(80))
-    val term = new SimpleSirToUplcLowering().lower(compiled)
-    // println(term.pretty.render(80))
-    val flatBytes = ProgramFlatCodec.encodeFlat(Program(version = (1, 0, 0), term = term))
-    // println(flatBytes.length)
-    import TermDSL.*
-    import scalus.uplc.Data.*
-    val result = Cek.evalUPLC(term $ Term.Const(Constant.Data(DCert.Genesis.toData)))
-    // println(result)
-    assert(flatBytes.length == 492)
-    assert(result == Term.Const(Constant.Integer(6)))
+    testFromData(compiled, DCert.Genesis, 492, Term.Const(Constant.Integer(6)))
+  }
+
+  test("compile FromData[Extended]") {
+    import Extended.*
+    val compiled = compile {
+      (v: Data) =>
+        val value = summon[Data.FromData[Extended[BigInt]]](v)
+        value match
+          case NegInf => BigInt(1)
+          case Finite(a) => a
+          case PosInf => BigInt(2)
+
+    }
+    testFromData(compiled, Finite(123), 124, Term.Const(Constant.Integer(123)))
   }
