@@ -182,6 +182,14 @@ object Instances:
       summon[FromData[Value]].apply(args.tail.head),
       summon[FromData[Maybe[DatumHash]]].apply(args.tail.tail.head)
     )
+
+  given FromData[TxInInfo] = (d: Data) =>
+    val pair = Builtins.unsafeDataAsConstr(d)
+    val args = pair.snd
+    new TxInInfo(
+      summon[FromData[TxOutRef]].apply(args.head),
+      summon[FromData[TxOut]].apply(args.tail.head)
+    )
 end Instances
 
 type Closure = Boolean

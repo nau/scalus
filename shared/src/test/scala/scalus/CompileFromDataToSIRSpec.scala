@@ -258,3 +258,22 @@ class CompileFromDataToSIRSpec extends AnyFunSuite with ScalaCheckPropertyChecks
       Term.Const(Constant.Integer(2))
     )
   }
+
+  test("compile FromData[TxInInfo]") {
+    import scalus.Predef.Maybe.{Nothing, Just}
+    val compiled = compile { (v: Data) =>
+      val value = summon[Data.FromData[TxInInfo]](v)
+      value match
+        case TxInInfo(ref, out) => ref.txOutRefIdx
+    }
+    testFromData(
+      compiled,
+      TxInInfo(TxOutRef(TxId(hex"12"), 12), TxOut(
+        Address(Credential.PubKeyCredential(PubKeyHash(hex"12")), Nothing),
+        Value.lovelace(42),
+        Just(hex"beef")
+      )),
+      553,
+      Term.Const(Constant.Integer(12))
+    )
+  }
