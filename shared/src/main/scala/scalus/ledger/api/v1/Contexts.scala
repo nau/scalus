@@ -190,6 +190,17 @@ object Instances:
       summon[FromData[TxOutRef]].apply(args.head),
       summon[FromData[TxOut]].apply(args.tail.head)
     )
+
+  given UpperBoundToData[A: ToData]: ToData[UpperBound[A]] = (a: UpperBound[A]) =>
+    Builtins.mkConstr(0, scalus.builtins.List(a.upper.toData, a.closure.toData))
+
+  given UpperBoundFromData[A: FromData]: FromData[UpperBound[A]] = (d: Data) =>
+    val pair = Builtins.unsafeDataAsConstr(d)
+    val args = pair.snd
+    new UpperBound(
+      summon[FromData[Extended[A]]].apply(args.head),
+      summon[FromData[Closure]].apply(args.tail.head)
+    )
 end Instances
 
 type Closure = Boolean
@@ -198,7 +209,7 @@ enum Extended[+A]:
   case Finite(a: A)
   case PosInf extends Extended[Nothing]
 
-case class UpperBound[A](upper: Extended[A], closure: Closure) derives ToData
+case class UpperBound[A](upper: Extended[A], closure: Closure)
 case class LowerBound[A](extended: Extended[A], closure: Closure) derives ToData
 case class Interval[A](from: LowerBound[A], to: UpperBound[A]) derives ToData
 object Interval:

@@ -243,9 +243,10 @@ class CompileFromDataToSIRSpec extends AnyFunSuite with ScalaCheckPropertyChecks
     val compiled = compile { (v: Data) =>
       val value = summon[Data.FromData[TxOut]](v)
       value match
-        case TxOut(addr, value, datumHash) => datumHash match
-          case Nothing => BigInt(1)
-          case Just(value) => BigInt(2)
+        case TxOut(addr, value, datumHash) =>
+          datumHash match
+            case Nothing     => BigInt(1)
+            case Just(value) => BigInt(2)
     }
     testFromData(
       compiled,
@@ -268,12 +269,30 @@ class CompileFromDataToSIRSpec extends AnyFunSuite with ScalaCheckPropertyChecks
     }
     testFromData(
       compiled,
-      TxInInfo(TxOutRef(TxId(hex"12"), 12), TxOut(
-        Address(Credential.PubKeyCredential(PubKeyHash(hex"12")), Nothing),
-        Value.lovelace(42),
-        Just(hex"beef")
-      )),
+      TxInInfo(
+        TxOutRef(TxId(hex"12"), 12),
+        TxOut(
+          Address(Credential.PubKeyCredential(PubKeyHash(hex"12")), Nothing),
+          Value.lovelace(42),
+          Just(hex"beef")
+        )
+      ),
       553,
       Term.Const(Constant.Integer(12))
+    )
+  }
+
+  test("compile FromData[UpperBound[A]]") {
+    import scalus.Predef.Maybe.{Nothing, Just}
+    val compiled = compile { (v: Data) =>
+      val value = summon[Data.FromData[UpperBound[BigInt]]](v)
+      value match
+        case UpperBound(upper, clos) => clos
+    }
+    testFromData(
+      compiled,
+      UpperBound[BigInt](Extended.PosInf, false),
+      193,
+      Term.Const(Constant.Bool(false))
     )
   }
