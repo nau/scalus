@@ -191,8 +191,6 @@ object Instances:
       summon[FromData[TxOut]].apply(args.tail.head)
     )
 
-  // given UpperBoundToData[A: ToData]: ToData[UpperBound[A]] = (a: UpperBound[A]) =>
-    // Builtins.mkConstr(0, scalus.builtins.List(a.upper.toData, a.closure.toData))
 
   given UpperBoundFromData[A: FromData]: FromData[UpperBound[A]] = (d: Data) =>
     val pair = Builtins.unsafeDataAsConstr(d)
@@ -217,6 +215,47 @@ object Instances:
       summon[FromData[LowerBound[A]]].apply(args.head),
       summon[FromData[UpperBound[A]]].apply(args.tail.head)
     )
+
+    /*
+     txInfoInputs: List[TxInInfo],
+    txInfoOutputs: List[TxOut],
+    txInfoFee: Value,
+    txInfoMint: Value,
+    txInfoDCert: List[DCert],
+    txInfoWdrl: List[(StakingCredential, BigInt)],
+    txInfoValidRange: POSIXTimeRange,
+    txInfoSignatories: List[PubKeyHash],
+    txInfoData: List[(DatumHash, Datum)],
+    txInfoId: TxId */
+  given FromData[TxInfo] = (d: Data) =>
+    val pair = Builtins.unsafeDataAsConstr(d)
+    val args = pair.snd
+    val fromValue = summon[FromData[Value]]
+    /* val txInfoWdrl = summon[FromData[List[(StakingCredential, BigInt)]]].apply(
+        args.tail.tail.tail.tail.tail.head
+      ) */
+    // new TxInfo(null, null, null, null, null, null, null, null, null, null)
+    new TxInfo(
+      summon[FromData[List[TxInInfo]]].apply(args.head),
+      summon[FromData[List[TxOut]]].apply(args.tail.head),
+      fromValue.apply(args.tail.tail.head),
+      fromValue.apply(args.tail.tail.tail.head),
+      summon[FromData[List[DCert]]].apply(args.tail.tail.tail.tail.head),
+      // txInfoWdrl,
+      scalus.Predef.List.Nil, // FIXME !!!
+      summon[FromData[Interval[POSIXTime]]].apply(
+        args.tail.tail.tail.tail.tail.tail.head
+      ),
+      summon[FromData[List[PubKeyHash]]].apply(
+        args.tail.tail.tail.tail.tail.tail.tail.head
+      ),
+      /* summon[FromData[List[(DatumHash, Datum)]]].apply(
+        args.tail.tail.tail.tail.tail.tail.tail.tail.head
+      ), */
+      scalus.Predef.List.Nil, // FIXME !!!
+      summon[FromData[TxId]].apply(args.tail.tail.tail.tail.tail.tail.tail.tail.tail.head)
+    )
+
 end Instances
 
 type Closure = Boolean
