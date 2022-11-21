@@ -191,7 +191,6 @@ object Instances:
       summon[FromData[TxOut]].apply(args.tail.head)
     )
 
-
   given UpperBoundFromData[A: FromData]: FromData[UpperBound[A]] = (d: Data) =>
     val pair = Builtins.unsafeDataAsConstr(d)
     val args = pair.snd
@@ -254,6 +253,14 @@ object Instances:
       ), */
       scalus.Predef.List.Nil, // FIXME !!!
       summon[FromData[TxId]].apply(args.tail.tail.tail.tail.tail.tail.tail.tail.tail.head)
+    )
+
+  given FromData[ScriptContext] = (d: Data) =>
+    val pair = Builtins.unsafeDataAsConstr(d)
+    val args = pair.snd
+    new ScriptContext(
+      summon[FromData[TxInfo]].apply(args.head),
+      summon[FromData[ScriptPurpose]].apply(args.tail.head)
     )
 
 end Instances

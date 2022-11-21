@@ -351,3 +351,28 @@ class CompileFromDataToSIRSpec extends AnyFunSuite with ScalaCheckPropertyChecks
       Term.Const(Constant.ByteString(ByteString.fromHex("bb")))
     )
   }
+
+  test("compile FromData[ScriptContext]") {
+    import scalus.Predef.Maybe.{Nothing, Just}
+    val compiled = compile { (v: Data) =>
+      val value = summon[Data.FromData[ScriptContext]](v)
+      value.scriptContextTxInfo.txInfoId.hash
+    }
+    testFromData(
+      compiled,
+      ScriptContext(TxInfo(
+          txInfoInputs = scalus.Predef.List.Nil,
+          txInfoOutputs = scalus.Predef.List.Nil,
+          txInfoFee = Value.zero,
+          txInfoMint = Value.zero,
+          txInfoDCert = scalus.Predef.List.Nil,
+          txInfoWdrl = scalus.Predef.List.Nil,
+          txInfoValidRange = Interval.always,
+          txInfoSignatories = scalus.Predef.List.Nil,
+          txInfoData = scalus.Predef.List.Nil,
+          txInfoId = TxId(ByteString.fromHex("bb"))
+        ), ScriptPurpose.Spending(TxOutRef(TxId(hex"12"), 12))),
+      1387,
+      Term.Const(Constant.ByteString(ByteString.fromHex("bb")))
+    )
+  }
