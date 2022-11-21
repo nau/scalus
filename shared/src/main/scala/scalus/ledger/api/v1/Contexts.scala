@@ -166,6 +166,13 @@ object Instances:
     else if tag == BigInt(3) then
       new ScriptPurpose.Certifying(summon[FromData[DCert]].apply(args.head))
     else throw new Exception(s"Unknown ScriptPurpose tag: $tag")
+
+  given FromData[Address] = (d: Data) =>
+    val pair = Builtins.unsafeDataAsConstr(d)
+    new Address(
+      summon[FromData[Credential]].apply(pair.snd.head),
+      summon[FromData[Maybe[StakingCredential]]].apply(pair.snd.tail.head)
+    )
 end Instances
 
 type Closure = Boolean
