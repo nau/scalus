@@ -311,3 +311,18 @@ class CompileFromDataToSIRSpec extends AnyFunSuite with ScalaCheckPropertyChecks
       Term.Const(Constant.Bool(false))
     )
   }
+
+  test("compile FromData[POSIXTimeRange]") {
+    import scalus.Predef.Maybe.{Nothing, Just}
+    val compiled = compile { (v: Data) =>
+      val value = summon[Data.FromData[POSIXTimeRange]](v)
+      value match
+        case Interval(lower, upper) => lower.closure
+    }
+    testFromData(
+      compiled,
+      Interval.always[BigInt],
+      275,
+      Term.Const(Constant.Bool(true))
+    )
+  }

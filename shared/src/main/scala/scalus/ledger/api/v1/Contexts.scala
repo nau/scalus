@@ -209,6 +209,14 @@ object Instances:
       summon[FromData[Extended[A]]].apply(args.head),
       summon[FromData[Closure]].apply(args.tail.head)
     )
+
+  given IntervalFromData[A: FromData]: FromData[Interval[A]] = (d: Data) =>
+    val pair = Builtins.unsafeDataAsConstr(d)
+    val args = pair.snd
+    new Interval(
+      summon[FromData[LowerBound[A]]].apply(args.head),
+      summon[FromData[UpperBound[A]]].apply(args.tail.head)
+    )
 end Instances
 
 type Closure = Boolean
