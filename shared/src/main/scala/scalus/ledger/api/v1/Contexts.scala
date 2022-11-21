@@ -173,6 +173,15 @@ object Instances:
       summon[FromData[Credential]].apply(pair.snd.head),
       summon[FromData[Maybe[StakingCredential]]].apply(pair.snd.tail.head)
     )
+
+  given FromData[TxOut] = (d: Data) =>
+    val pair = Builtins.unsafeDataAsConstr(d)
+    val args = pair.snd
+    new TxOut(
+      summon[FromData[Address]].apply(args.head),
+      summon[FromData[Value]].apply(args.tail.head),
+      summon[FromData[Maybe[DatumHash]]].apply(args.tail.tail.head)
+    )
 end Instances
 
 type Closure = Boolean

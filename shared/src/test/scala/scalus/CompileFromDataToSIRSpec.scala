@@ -17,6 +17,7 @@ import scalus.utils.Utils
 
 import scala.collection.immutable
 import scalus.uplc.Data.FromData
+import scalus.Predef.Maybe
 
 class CompileFromDataToSIRSpec extends AnyFunSuite with ScalaCheckPropertyChecks:
   val deadbeef = Constant.ByteString(hex"deadbeef")
@@ -234,5 +235,26 @@ class CompileFromDataToSIRSpec extends AnyFunSuite with ScalaCheckPropertyChecks
       Address(Credential.PubKeyCredential(PubKeyHash(hex"12")), Nothing),
       303,
       Term.Const(Constant.Integer(1))
+    )
+  }
+
+  test("compile FromData[TxOut]") {
+    import scalus.Predef.Maybe.{Nothing, Just}
+    val compiled = compile { (v: Data) =>
+      val value = summon[Data.FromData[TxOut]](v)
+      value match
+        case TxOut(addr, value, datumHash) => datumHash match
+          case Nothing => BigInt(1)
+          case Just(value) => BigInt(2)
+    }
+    testFromData(
+      compiled,
+      TxOut(
+        Address(Credential.PubKeyCredential(PubKeyHash(hex"12")), Nothing),
+        Value.lovelace(42),
+        Just(hex"beef")
+      ),
+      480,
+      Term.Const(Constant.Integer(2))
     )
   }
