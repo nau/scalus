@@ -61,6 +61,31 @@ object Instances:
         case DCert.Genesis => Data.Constr(5, Nil)
         case DCert.Mir     => Data.Constr(6, Nil)
 
+  given FromData[DCert] = (d: Data) =>
+    val pair = Builtins.unsafeDataAsConstr(d)
+    val tag = pair.fst
+    val args = pair.snd
+    if tag == BigInt(0) then DCert.DelegRegKey(summon[FromData[StakingCredential]].apply(args.head))
+    else if tag == BigInt(1) then DCert.DelegDeRegKey(summon[FromData[StakingCredential]].apply(args.head))
+    else if tag == BigInt(2) then
+      DCert.DelegDelegate(
+        summon[FromData[StakingCredential]].apply(args.head),
+        summon[FromData[PubKeyHash]].apply(args.tail.head)
+      )
+    else if tag == BigInt(3) then
+      DCert.PoolRegister(
+        summon[FromData[PubKeyHash]].apply(args.head),
+        summon[FromData[PubKeyHash]].apply(args.tail.head)
+      )
+    else if tag == BigInt(4) then
+      DCert.PoolRetire(
+        summon[FromData[PubKeyHash]].apply(args.head),
+        summon[FromData[BigInt]].apply(args.tail.head)
+      )
+    else if tag == BigInt(5) then DCert.Genesis
+    else if tag == BigInt(6) then DCert.Mir
+    else throw new Exception(s"Unknown DCert tag: $tag")
+
   given ExtendedLift[A: ToData, T[A] <: Extended[A]]: ToData[T[A]] with
     def toData(a: T[A]): Data =
       a match
@@ -85,7 +110,6 @@ object Instances:
         new Credential.ScriptCredential(summon[FromData[ByteString]].apply(pair.snd.head))
       else throw new RuntimeException("Invalid tag")
 
-
   given StakingCredentialLift[T <: StakingCredential]: ToData[T] with
     def toData(a: T): Data =
       a match
@@ -93,6 +117,22 @@ object Instances:
           ToData.deriveProduct[StakingCredential.StakingHash](0).toData(a)
         case a: StakingCredential.StakingPtr =>
           ToData.deriveProduct[StakingCredential.StakingPtr](1).toData(a)
+
+  given FromData[StakingCredential] =
+    (d: Data) =>
+      val pair = Builtins.unsafeDataAsConstr(d)
+      val tag = pair.fst
+      if tag == BigInt(0) then
+        new StakingCredential.StakingHash(summon[FromData[Credential]].apply(pair.snd.head))
+      else if tag == BigInt(1) then
+        val fromBI = summon[FromData[BigInt]]
+        val ptrs = pair.snd
+        new StakingCredential.StakingPtr(
+          fromBI.apply(pair.snd.head),
+          fromBI.apply(pair.snd.tail.head),
+          fromBI.apply(pair.snd.tail.tail.head)
+        )
+      else throw new RuntimeException("Invalid tag")
   given ScriptPurposeLift[T <: ScriptPurpose]: ToData[T] with
     def toData(a: T): Data =
       a match

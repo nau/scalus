@@ -148,3 +148,55 @@ class CompileFromDataToSIRSpec extends AnyFunSuite with ScalaCheckPropertyChecks
     assert(flatBytes.length == 97)
     assert(result == Term.Const(Constant.ByteString(hex"12")))
   }
+
+  test("compile FromData[StakingCredential]") {
+    import scalus.Predef.List.{Nil, Cons}
+    val compiled = compile {
+      (v: Data) =>
+        val value = summon[Data.FromData[StakingCredential]](v)
+        value match
+          case StakingCredential.StakingHash(cred) => cred
+          case StakingCredential.StakingPtr(a, b, c) => c
+
+    }
+    println(compiled.pretty.render(80))
+    val term = new SimpleSirToUplcLowering().lower(compiled)
+    println(term.pretty.render(80))
+    val flatBytes = ProgramFlatCodec.encodeFlat(Program(version = (1, 0, 0), term = term))
+    println(flatBytes.length)
+    import TermDSL.*
+    import scalus.uplc.Data.*
+    val result = Cek.evalUPLC(term $ Term.Const(Constant.Data(Credential.ScriptCredential(hex"12").toData)))
+    println(result)
+    assert(flatBytes.length == 97)
+    assert(result == Term.Const(Constant.ByteString(hex"12")))
+  }
+
+  test("compile FromData[DCert]") {
+    import scalus.Predef.List.{Nil, Cons}
+    import DCert.*
+    val compiled = compile {
+      (v: Data) =>
+        val value = summon[Data.FromData[DCert]](v)
+        value match
+          case DelegRegKey(cred) => BigInt(1)
+          case DelegDeRegKey(cred) => BigInt(2)
+          case DelegDelegate(cred, delegatee) => BigInt(3)
+          case PoolRegister(poolId, vrf) => BigInt(4)
+          case PoolRetire(poolId, epoch) => BigInt(5)
+          case Genesis => BigInt(6)
+          case Mir => BigInt(7)
+
+    }
+    // println(compiled.pretty.render(80))
+    val term = new SimpleSirToUplcLowering().lower(compiled)
+    // println(term.pretty.render(80))
+    val flatBytes = ProgramFlatCodec.encodeFlat(Program(version = (1, 0, 0), term = term))
+    // println(flatBytes.length)
+    import TermDSL.*
+    import scalus.uplc.Data.*
+    val result = Cek.evalUPLC(term $ Term.Const(Constant.Data(DCert.Genesis.toData)))
+    // println(result)
+    assert(flatBytes.length == 492)
+    assert(result == Term.Const(Constant.Integer(6)))
+  }
