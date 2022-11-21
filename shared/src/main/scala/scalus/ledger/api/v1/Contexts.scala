@@ -66,7 +66,8 @@ object Instances:
     val tag = pair.fst
     val args = pair.snd
     if tag == BigInt(0) then DCert.DelegRegKey(summon[FromData[StakingCredential]].apply(args.head))
-    else if tag == BigInt(1) then DCert.DelegDeRegKey(summon[FromData[StakingCredential]].apply(args.head))
+    else if tag == BigInt(1) then
+      DCert.DelegDeRegKey(summon[FromData[StakingCredential]].apply(args.head))
     else if tag == BigInt(2) then
       DCert.DelegDelegate(
         summon[FromData[StakingCredential]].apply(args.head),
@@ -110,15 +111,15 @@ object Instances:
         case a: Credential.ScriptCredential =>
           ToData.deriveProduct[Credential.ScriptCredential](1).toData(a)
 
-  given CredentialFromData: FromData[Credential] =
-    (d: Data) =>
-      val pair = Builtins.unsafeDataAsConstr(d)
-      val tag = pair.fst
-      if tag == BigInt(0) then
-        new Credential.PubKeyCredential(summon[FromData[PubKeyHash]].apply(pair.snd.head))
-      else if tag == BigInt(1) then
-        new Credential.ScriptCredential(summon[FromData[ByteString]].apply(pair.snd.head))
-      else throw new RuntimeException("Invalid tag")
+  given FromData[Credential] = (d: Data) =>
+    val pair = Builtins.unsafeDataAsConstr(d)
+    val tag = pair.fst
+    val args = pair.snd
+    if tag == BigInt(0) then
+      new Credential.PubKeyCredential(summon[FromData[PubKeyHash]].apply(args.head))
+    else if tag == BigInt(1) then
+      new Credential.ScriptCredential(summon[FromData[ByteString]].apply(args.head))
+    else throw new Exception(s"Unknown Credential tag: $tag")
 
   given StakingCredentialLift[T <: StakingCredential]: ToData[T] with
     def toData(a: T): Data =
@@ -152,6 +153,19 @@ object Instances:
           ToData.deriveProduct[ScriptPurpose.Rewarding](2).toData(a)
         case a: ScriptPurpose.Certifying =>
           ToData.deriveProduct[ScriptPurpose.Certifying](3).toData(a)
+
+  given FromData[ScriptPurpose] = (d: Data) =>
+    val pair = Builtins.unsafeDataAsConstr(d)
+    val tag = pair.fst
+    val args = pair.snd
+    if tag == BigInt(0) then new ScriptPurpose.Minting(summon[FromData[TokenName]].apply(args.head))
+    else if tag == BigInt(1) then
+      new ScriptPurpose.Spending(summon[FromData[TxOutRef]].apply(args.head))
+    else if tag == BigInt(2) then
+      new ScriptPurpose.Rewarding(summon[FromData[StakingCredential]].apply(args.head))
+    else if tag == BigInt(3) then
+      new ScriptPurpose.Certifying(summon[FromData[DCert]].apply(args.head))
+    else throw new Exception(s"Unknown ScriptPurpose tag: $tag")
 end Instances
 
 type Closure = Boolean

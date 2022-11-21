@@ -23,7 +23,12 @@ class CompileFromDataToSIRSpec extends AnyFunSuite with ScalaCheckPropertyChecks
 
   inline def compilesTo(expected: SIR)(inline e: Any) = assert(compile(e) == expected)
 
-  def testFromData[A: Data.ToData](compiled: SIR, arg: A, expectedSize: Int, expectedResult: Term) = {
+  def testFromData[A: Data.ToData](
+      compiled: SIR,
+      arg: A,
+      expectedSize: Int,
+      expectedResult: Term
+  ) = {
     // println(compiled.pretty.render(80))
     val term = new SimpleSirToUplcLowering().lower(compiled)
     // println(term.pretty.render(80))
@@ -67,8 +72,8 @@ class CompileFromDataToSIRSpec extends AnyFunSuite with ScalaCheckPropertyChecks
   }
 
   test("compile FromData[PubKeyHash]") {
-    val compiled = compile {
-      (d: Data) => summon[Data.FromData[PubKeyHash]](d).hash
+    val compiled = compile { (d: Data) =>
+      summon[Data.FromData[PubKeyHash]](d).hash
     }
     println(compiled.pretty.render(80))
     val term = new SimpleSirToUplcLowering().lower(compiled)
@@ -77,7 +82,9 @@ class CompileFromDataToSIRSpec extends AnyFunSuite with ScalaCheckPropertyChecks
     println(flatBytes.length)
     import TermDSL.*
     import scalus.uplc.Data.*
-    println(Cek.evalUPLC(term $ Term.Const(Constant.Data(TxId(hex"deadbeef").toData))).pretty.render(80))
+    println(
+      Cek.evalUPLC(term $ Term.Const(Constant.Data(TxId(hex"deadbeef").toData))).pretty.render(80)
+    )
   }
 
   test("compile FromData[List[A]]") {
@@ -95,16 +102,18 @@ class CompileFromDataToSIRSpec extends AnyFunSuite with ScalaCheckPropertyChecks
 
   test("compile FromData[Value]") {
     import scalus.Predef.List.{Nil, Cons}
-    val compiled = compile {
-      (v: Data) =>
-        val value = summon[Data.FromData[Value]](v)
-        value match
-          case Nil => BigInt(0)
-          case Cons(head, tail) =>  head match
-            case (cs, vals) => vals match
-              case Nil => BigInt(1)
-              case Cons(tn, vl) => tn match
-                case (tn, vl) => vl
+    val compiled = compile { (v: Data) =>
+      val value = summon[Data.FromData[Value]](v)
+      value match
+        case Nil => BigInt(0)
+        case Cons(head, tail) =>
+          head match
+            case (cs, vals) =>
+              vals match
+                case Nil => BigInt(1)
+                case Cons(tn, vl) =>
+                  tn match
+                    case (tn, vl) => vl
 
     }
     println(compiled.pretty.render(80))
@@ -122,11 +131,10 @@ class CompileFromDataToSIRSpec extends AnyFunSuite with ScalaCheckPropertyChecks
 
   test("compile FromData[TxOutRef]") {
     import scalus.Predef.List.{Nil, Cons}
-    val compiled = compile {
-      (v: Data) =>
-        val value = summon[Data.FromData[TxOutRef]](v)
-        value match
-          case TxOutRef(id, idx) => idx
+    val compiled = compile { (v: Data) =>
+      val value = summon[Data.FromData[TxOutRef]](v)
+      value match
+        case TxOutRef(id, idx) => idx
     }
     println(compiled.pretty.render(80))
     val term = new SimpleSirToUplcLowering().lower(compiled)
@@ -142,25 +150,28 @@ class CompileFromDataToSIRSpec extends AnyFunSuite with ScalaCheckPropertyChecks
   }
 
   test("compile FromData[Credential]") {
-    import scalus.Predef.List.{Nil, Cons}
-    val compiled = compile {
-      (v: Data) =>
-        val value = summon[Data.FromData[Credential]](v)
-        value match
-          case Credential.PubKeyCredential(pubKeyHash) => pubKeyHash.hash
-          case Credential.ScriptCredential(hash) => hash
+    import Credential.*
+    val compiled = compile { (v: Data) =>
+      val value = summon[Data.FromData[Credential]](v)
+      value match
+        case PubKeyCredential(pubKeyHash) => pubKeyHash.hash
+        case ScriptCredential(hash)       => hash
     }
-    testFromData(compiled, Credential.ScriptCredential(hex"12"), 97, Term.Const(Constant.ByteString(hex"12")))
+    testFromData(
+      compiled,
+      Credential.ScriptCredential(hex"12"),
+      97,
+      Term.Const(Constant.ByteString(hex"12"))
+    )
   }
 
   test("compile FromData[StakingCredential]") {
     import StakingCredential.*
-    val compiled = compile {
-      (v: Data) =>
-        val value = summon[Data.FromData[StakingCredential]](v)
-        value match
-          case StakingHash(cred) => BigInt(1)
-          case StakingPtr(a, b, c) => c
+    val compiled = compile { (v: Data) =>
+      val value = summon[Data.FromData[StakingCredential]](v)
+      value match
+        case StakingHash(cred)   => BigInt(1)
+        case StakingPtr(a, b, c) => c
     }
     testFromData(compiled, StakingPtr(1, 2, 3), 202, Term.Const(Constant.Integer(3)))
   }
@@ -168,32 +179,44 @@ class CompileFromDataToSIRSpec extends AnyFunSuite with ScalaCheckPropertyChecks
   test("compile FromData[DCert]") {
     import scalus.Predef.List.{Nil, Cons}
     import DCert.*
-    val compiled = compile {
-      (v: Data) =>
-        val value = summon[Data.FromData[DCert]](v)
-        value match
-          case DelegRegKey(cred) => BigInt(1)
-          case DelegDeRegKey(cred) => BigInt(2)
-          case DelegDelegate(cred, delegatee) => BigInt(3)
-          case PoolRegister(poolId, vrf) => BigInt(4)
-          case PoolRetire(poolId, epoch) => BigInt(5)
-          case Genesis => BigInt(6)
-          case Mir => BigInt(7)
+    val compiled = compile { (v: Data) =>
+      val value = summon[Data.FromData[DCert]](v)
+      value match
+        case DelegRegKey(cred)              => BigInt(1)
+        case DelegDeRegKey(cred)            => BigInt(2)
+        case DelegDelegate(cred, delegatee) => BigInt(3)
+        case PoolRegister(poolId, vrf)      => BigInt(4)
+        case PoolRetire(poolId, epoch)      => BigInt(5)
+        case Genesis                        => BigInt(6)
+        case Mir                            => BigInt(7)
 
     }
-    testFromData(compiled, DCert.Genesis, 492, Term.Const(Constant.Integer(6)))
+    testFromData(compiled, DCert.Genesis, 491, Term.Const(Constant.Integer(6)))
   }
 
   test("compile FromData[Extended]") {
     import Extended.*
-    val compiled = compile {
-      (v: Data) =>
-        val value = summon[Data.FromData[Extended[BigInt]]](v)
-        value match
-          case NegInf => BigInt(1)
-          case Finite(a) => a
-          case PosInf => BigInt(2)
+    val compiled = compile { (v: Data) =>
+      val value = summon[Data.FromData[Extended[BigInt]]](v)
+      value match
+        case NegInf    => BigInt(1)
+        case Finite(a) => a
+        case PosInf    => BigInt(2)
 
     }
     testFromData(compiled, Finite(123), 124, Term.Const(Constant.Integer(123)))
+  }
+
+  test("compile FromData[ScriptPurpose]") {
+    import ScriptPurpose.*
+    val compiled = compile { (v: Data) =>
+      val value = summon[Data.FromData[ScriptPurpose]](v)
+      value match
+        case Minting(curSymbol)     => BigInt(1)
+        case Spending(txOutRef)     => BigInt(2)
+        case Rewarding(stakingCred) => BigInt(3)
+        case Certifying(cert)       => BigInt(4)
+
+    }
+    testFromData(compiled, Minting(hex"12"), 634, Term.Const(Constant.Integer(1)))
   }
