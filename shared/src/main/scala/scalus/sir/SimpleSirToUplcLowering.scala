@@ -42,7 +42,7 @@ class SimpleSirToUplcLowering {
         val constrs = data.constructors.map(_.name)
         val ctorParams = data.constructors.find(_.name == name) match
           case None => throw new IllegalArgumentException(s"Constructor $name not found in $data")
-          case Some(value) => value.args
+          case Some(value) => value.params
 
         // force Nil | Cons head tail
         val appInner = ctorParams match
@@ -72,7 +72,7 @@ class SimpleSirToUplcLowering {
          */
         val scrutineeTerm = lowerInner(scrutinee)
         val casesTerms = cases.map { case Case(constr, bindings, body) =>
-          constr.args match
+          constr.params match
             case Nil => ~lowerInner(body)
             case _ => bindings.foldRight(lowerInner(body)) { (binding, acc) =>
               Term.LamAbs(binding, acc)

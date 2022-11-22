@@ -17,7 +17,7 @@ case class Binding(name: String, value: SIR) {
 enum Recursivity:
   case NonRec, Rec
 
-case class ConstrDecl(name: String, args: List[String])
+case class ConstrDecl(name: String, params: List[String])
 case class DataDecl(name: String, constructors: List[ConstrDecl])
 case class Case(constr: ConstrDecl, bindings: List[String], body: SIR)
 
@@ -40,13 +40,13 @@ enum SIR:
     this match
       case Decl(DataDecl(name, constructors), term) =>
         val prettyConstrs = constructors.map { constr =>
-          val params = constr.args match
+          val params = constr.params match
             case Nil => Doc.empty
             case _ =>
               Doc
                 .intercalate(
                   Doc.text(",") + Doc.line,
-                  constr.args.map(Doc.text)
+                  constr.params.map(Doc.text)
                 )
                 .tightBracketBy(Doc.text("("), Doc.text(")"))
           (ctr(constr.name) + params).aligned
