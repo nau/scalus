@@ -354,12 +354,10 @@ object Macros {
         '{ scalus.uplc.Constant.ByteString($litE) }
     }
 
-    def compileNewConstructor(
-        env: Env,
-        con: Term,
-        tpe: TypeRepr,
-        args: immutable.List[Term]
-    ): Expr[SIR] = {
+
+    case class AdtTypeInfo(constructorTypeSymbol: Symbol, dataTypeSymbol: Symbol, constructors: List[Symbol])
+
+    def getAdtInfoFromConstroctorType(constrTpe: TypeRepr): AdtTypeInfo = {
       /* We support these cases:
         1. case class Foo(a: Int, b: String)
         2. case object Bar
@@ -369,42 +367,57 @@ object Macros {
         6. sealed abstract class Base; object Base { case class B(a: Int, b: String) extends Base }
 
        */
-      val typeSymbol = tpe.typeSymbol
-
+      val typeSymbol = constrTpe.dealias.widen.typeSymbol
       // look for a base `sealed abstract class`. If it exists, we are in case 5 or 6
-      val adtBaseType = tpe.baseClasses.find(b =>
+      val adtBaseType = constrTpe.baseClasses.find(b =>
         b.flags.is(Flags.Sealed | Flags.Abstract) && !b.flags.is(Flags.Trait)
       )
+
+      val info =
+        if constrTpe <:< TypeRepr.of[Tuple2[_,_]]
+        then AdtTypeInfo(typeSymbol, typeSymbol, List(typeSymbol))
+        else adtBaseType match
+          case None => // case 1 or 2
+            AdtTypeInfo(typeSymbol, typeSymbol, List(typeSymbol))
+          case Some(baseClassSymbol) if constrTpe.isSingleton => // case 3, 5
+            AdtTypeInfo(constrTpe.termSymbol, baseClassSymbol, baseClassSymbol.children)
+          case Some(baseClassSymbol) => // case 4, 6
+            AdtTypeInfo(typeSymbol, baseClassSymbol, baseClassSymbol.children)
+      // report.info(s"adtBaseType: ${constrTpe.show} ${typeSymbol} ${adtBaseType} $info")
+      info
+    }
+
+    def compileNewConstructor(
+        env: Env,
+        con: Term,
+        tpe: TypeRepr,
+        args: immutable.List[Term]
+    ): Expr[SIR] = {
+
+      val typeSymbol = tpe.typeSymbol
 
       // debugInfo(s"compileNewConstructor0")
       // debugInfo(s"compileNewConstructor1 ${tpe.show} base type: ${adtBaseType}")
       /* debugInfo(s"compileNewConstructor1 ${typeSymbol} singleton ${tpe.isSingleton} companion: ${typeSymbol.maybeOwner.companionClass} " +
         s"${typeSymbol.children} widen: ${tpe.widen.typeSymbol}, widen.children: ${tpe.widen.typeSymbol.children} ${typeSymbol.maybeOwner.companionClass.children}") */
 
-      val (constructorTypeSymbol, dataTypeSymbol, constructors) =
-        adtBaseType match
-          case None => // case 1 or 2
-            (typeSymbol, typeSymbol, List(typeSymbol))
-          case Some(baseClassSymbol) if tpe.isSingleton => // case 3, 4, 5 or 6
-            (tpe.termSymbol, baseClassSymbol, baseClassSymbol.children)
-          case Some(baseClassSymbol) => // case 3, 4, 5 or 6
-            (typeSymbol, baseClassSymbol, baseClassSymbol.children)
+      val adtInfo = getAdtInfoFromConstroctorType(tpe)
 
       val argsE = Expr.ofList(args.map(compileExpr(env, _)))
-      val constrName = constructorTypeSymbol.name
+      val constrName = adtInfo.constructorTypeSymbol.name
       // sort by name to get a stable order
-      val sortedConstructors = constructors.sortBy(_.name)
+      val sortedConstructors = adtInfo.constructors.sortBy(_.name)
       val constrDecls = Expr.ofList(sortedConstructors.map { sym =>
         val params = sym.caseFields.map(_.name)
         '{ scalus.sir.ConstrDecl(${ Expr(sym.name) }, ${ Expr(params) }) }
       })
-      val dataName = dataTypeSymbol.name
+      val dataName = adtInfo.dataTypeSymbol.name
       // debugInfo(s"compileNewConstructor2: dataTypeSymbol $dataTypeSymbol, dataName $dataName, constrName $constrName, children ${constructors}")
-      val dataDecl = globalDataDecls.get(dataTypeSymbol) match
+      val dataDecl = globalDataDecls.get(adtInfo.dataTypeSymbol) match
         case Some(decl) => decl
         case None =>
           val decl = '{ scalus.sir.DataDecl(${ Expr(dataName) }, $constrDecls) }
-          globalDataDecls.addOne(dataTypeSymbol -> decl)
+          globalDataDecls.addOne(adtInfo.dataTypeSymbol -> decl)
           decl
       // constructor body as: constr arg1 arg2 ...
       '{ SIR.Constr(${ Expr(constrName) }, $dataDecl, $argsE) }
@@ -459,7 +472,9 @@ object Macros {
               Match(c, List(Case(C1, List(a), 0), Case(C2, List(b, c), 1)))
            */
           case Match(t, cases) =>
-            // report.info(s"Match: ${t.tpe.typeSymbol} ${t.tpe.typeSymbol.children}", e.pos)
+            val adtInfo = getAdtInfoFromConstroctorType(t.tpe)
+            // report.info(s"Match: ${t.tpe.typeSymbol} ${t.tpe.typeSymbol.children} $adtInfo", e.pos)
+
 
             def constructCase(
                 constrSymbol: Symbol,
@@ -473,7 +488,7 @@ object Macros {
               '{ scalus.sir.Case($constrDecl, ${ Expr(bindings) }, $rhs) }
             }
 
-            if t.tpe.typeSymbol.children.isEmpty
+            if adtInfo.constructors.length == 1
             then
               cases match
                 case cs :: Nil =>
@@ -497,10 +512,10 @@ object Macros {
 
                 case _ =>
                   report.errorAndAbort(
-                    s"Only single constructor pattern supported for type ${t.tpe.show}",
+                    s"Only single constructor pattern supported for type ${t.tpe.widen.show}",
                     e.pos
                   )
-            else if cases.length != t.tpe.typeSymbol.children.length
+            else if cases.length != adtInfo.constructors.length
             then
               report.errorAndAbort(
                 s"Unsupported pattern matching for type ${t.tpe.widen.show}, constructors: ${t.tpe.typeSymbol.children}",
@@ -679,6 +694,10 @@ object Macros {
           // ByteString equality
           case Select(lhs, "==") if lhs.tpe.widen =:= TypeRepr.of[builtins.ByteString] =>
             '{ SIR.Apply(SIR.Builtin(DefaultFun.EqualsByteString), ${ compileExpr(env, lhs) }) }
+          case Select(lhs, "==") =>
+            report.errorAndAbort(
+              s"compileExpr: Unsupported equality ${lhs}: ${lhs.tpe.widen.show} =="
+            )
           // Data BUILTINS
           case bi if bi.tpe.show == "scalus.builtins.Builtins.mkConstr" =>
             '{ SIR.Builtin(DefaultFun.ConstrData) }
