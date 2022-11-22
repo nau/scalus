@@ -48,26 +48,6 @@ class MintingPolicyExampleSpec
         redeemer: Unit,
         ctxData: Data
     ): Unit = {
-      /* let
-        -- see note [Obtaining the currency symbol]
-        ownSymbol = V.ownCurrencySymbol ctx
-
-        minted = V.txInfoMint txinfo
-        expected = currencyValue ownSymbol c
-
-        -- True if the pending transaction mints the amount of
-        -- currency that we expect
-        mintOK =
-            let v = expected == minted
-            in traceIfFalse "C0" {-"Value minted different from expected"-} v
-
-        -- True if the pending transaction spends the output
-        -- identified by @(refHash, refIdx)@
-        txOutputSpent =
-            let v = V.spendsOutput txinfo refHash refIdx
-            in  traceIfFalse "C1" {-"Pending transaction does not spend the designated transaction output"-} v
-
-    in mintOK && txOutputSpent */
       val ctx = summon[Data.FromData[ScriptContext]](ctxData)
       val txInfo = ctx.scriptContextTxInfo
       val txInfoInputs = txInfo.txInfoInputs
@@ -79,6 +59,18 @@ class MintingPolicyExampleSpec
         case Rewarding(stakingCred) =>
           throw new RuntimeException("Rewarding context is not supported")
         case Certifying(cert) => throw new RuntimeException("Certifying context is not supported")
+
+      /*       val txInfoData = fieldAsData1[ScriptContext](_.scriptContextTxInfo)(ctxData)
+      val txInfoInputs = summon[Data.FromData[List[TxInInfo]]](fieldAsData1[TxInfo](_.txInfoInputs)(txInfoData))
+      val minted = summon[Data.FromData[Value]](fieldAsData1[TxInfo](_.txInfoMint)(txInfoData))
+      val ownSymbol =
+        val purpose = fieldAsData1[ScriptContext](_.scriptContextPurpose)(ctxData)
+        val pair = Builtins.unsafeDataAsConstr(purpose)
+        val tag = pair.fst
+        val args = pair.snd
+        if tag == BigInt(0) then Builtins.unsafeDataAsB(args.head)
+        else throw new Exception("Not a minting policy") */
+
       def findToken(tokens: List[(ByteString, BigInt)]): Unit =
         tokens match
           case Nil => throw new RuntimeException("Token not found")
@@ -107,7 +99,14 @@ class MintingPolicyExampleSpec
     }
 
     val compiled = ExprBuilder.compile(
-      mintingPolicyScript(txOutRef.txOutRefId.hash, txOutRef.txOutRefIdx, ByteString.fromHex("deadbeef"), 1, _, _)
+      mintingPolicyScript(
+        txOutRef.txOutRefId.hash,
+        txOutRef.txOutRefIdx,
+        ByteString.fromHex("deadbeef"),
+        1,
+        _,
+        _
+      )
     )
     // val compiledTxOutRef = ExprBuilder.compile(txOutRef)
 
@@ -154,24 +153,26 @@ class MintingPolicyExampleSpec
     )
 
     // TODO - add more tests
-    /*
+
     assertThrows[EvaluationFailure](
       Cek.evalUPLCProgram(
         appliedScript(
-          scriptContext(TxInInfo(txOutRef, fakeTxOut) :: Nil, Value(hex"ca", hex"deadbeef", 2))
+          scriptContext(List(TxInInfo(txOutRef, fakeTxOut)), Value(hex"ca", hex"deadbeef", 2))
         )
       )
     )
 
-    assertThrows[BuiltinError](
+    assertThrows[EvaluationFailure](
       Cek.evalUPLCProgram(
         appliedScript(
-          scriptContext(TxInInfo(txOutRef, fakeTxOut) :: Nil, Value(hex"cc", hex"deadbeef", 1))
+          scriptContext(List(TxInInfo(txOutRef, fakeTxOut)), Value(hex"cc", hex"deadbeef", 1))
         )
       )
     )
 
-    val flatValidator = ExprBuilder.uplcToFlat(Program((1, 0, 0), validator.term).pretty.render(80))
-    assert(flatValidator.length == 286) */
+    val deBruijned = DeBruijn.deBruijnProgram(Program((1, 0, 0), validator.term))
+    val namedTerm = DeBruijn.fromDeBruijnTerm(deBruijned.term)
+    val flatValidator = ExprBuilder.uplcToFlat(Program((1, 0, 0), namedTerm).pretty.render(80))
+    assert(flatValidator.length == flatBytes.length)
   }
 }
