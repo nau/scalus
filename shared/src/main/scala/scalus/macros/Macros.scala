@@ -354,8 +354,11 @@ object Macros {
         '{ scalus.uplc.Constant.ByteString($litE) }
     }
 
-
-    case class AdtTypeInfo(constructorTypeSymbol: Symbol, dataTypeSymbol: Symbol, constructors: List[Symbol])
+    case class AdtTypeInfo(
+        constructorTypeSymbol: Symbol,
+        dataTypeSymbol: Symbol,
+        constructors: List[Symbol]
+    )
 
     def getAdtInfoFromConstroctorType(constrTpe: TypeRepr): AdtTypeInfo = {
       /* We support these cases:
@@ -374,15 +377,16 @@ object Macros {
       )
 
       val info =
-        if constrTpe <:< TypeRepr.of[Tuple2[_,_]]
+        if constrTpe <:< TypeRepr.of[Tuple2[_, _]]
         then AdtTypeInfo(typeSymbol, typeSymbol, List(typeSymbol))
-        else adtBaseType match
-          case None => // case 1 or 2
-            AdtTypeInfo(typeSymbol, typeSymbol, List(typeSymbol))
-          case Some(baseClassSymbol) if constrTpe.isSingleton => // case 3, 5
-            AdtTypeInfo(constrTpe.termSymbol, baseClassSymbol, baseClassSymbol.children)
-          case Some(baseClassSymbol) => // case 4, 6
-            AdtTypeInfo(typeSymbol, baseClassSymbol, baseClassSymbol.children)
+        else
+          adtBaseType match
+            case None => // case 1 or 2
+              AdtTypeInfo(typeSymbol, typeSymbol, List(typeSymbol))
+            case Some(baseClassSymbol) if constrTpe.isSingleton => // case 3, 5
+              AdtTypeInfo(constrTpe.termSymbol, baseClassSymbol, baseClassSymbol.children)
+            case Some(baseClassSymbol) => // case 4, 6
+              AdtTypeInfo(typeSymbol, baseClassSymbol, baseClassSymbol.children)
       // report.info(s"adtBaseType: ${constrTpe.show} ${typeSymbol} ${adtBaseType} $info")
       info
     }
@@ -474,7 +478,6 @@ object Macros {
           case Match(t, cases) =>
             val adtInfo = getAdtInfoFromConstroctorType(t.tpe)
             // report.info(s"Match: ${t.tpe.typeSymbol} ${t.tpe.typeSymbol.children} $adtInfo", e.pos)
-
 
             def constructCase(
                 constrSymbol: Symbol,
@@ -688,6 +691,19 @@ object Macros {
             val argsE = args.map(compileExpr(env, _))
             argsE.foldLeft(fE)((acc, arg) => '{ SIR.Apply($acc, $arg) })
 
+          // Boolean &&
+          case Select(lhs, "&&") if lhs.tpe.widen =:= TypeRepr.of[Boolean] =>
+            val lhsExpr = compileExpr(env, lhs)
+            '{
+              SIR.LamAbs(
+                "rhs",
+                SIR.IfThenElse(
+                  $lhsExpr,
+                  SIR.Var(NamedDeBruijn("rhs")),
+                  SIR.Const(scalus.uplc.Constant.Bool(false))
+                )
+              )
+            }
           // BigInt equality
           case Select(lhs, "==") if lhs.tpe.widen =:= TypeRepr.of[BigInt] =>
             '{ SIR.Apply(SIR.Builtin(DefaultFun.EqualsInteger), ${ compileExpr(env, lhs) }) }
