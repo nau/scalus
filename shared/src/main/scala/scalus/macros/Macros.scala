@@ -391,9 +391,14 @@ object Macros {
       info
     }
 
+    def primaryConstructorParams(typeSymbol: Symbol): List[Symbol] = {
+      val fields = typeSymbol.primaryConstructor.paramSymss.flatten.filter(s => s.isTerm)
+      // debugInfo(s"caseFields: ${typeSymbol.fullName} $fields")
+      fields
+    }
+
     def compileNewConstructor(
         env: Env,
-        con: Term,
         tpe: TypeRepr,
         args: immutable.List[Term]
     ): Expr[SIR] = {
@@ -412,7 +417,7 @@ object Macros {
       // sort by name to get a stable order
       val sortedConstructors = adtInfo.constructors.sortBy(_.name)
       val constrDecls = Expr.ofList(sortedConstructors.map { sym =>
-        val params = sym.caseFields.map(_.name)
+        val params = primaryConstructorParams(sym).map(_.name)
         '{ scalus.sir.ConstrDecl(${ Expr(sym.name) }, ${ Expr(params) }) }
       })
       val dataName = adtInfo.dataTypeSymbol.name
@@ -484,7 +489,7 @@ object Macros {
                 bindings: List[String],
                 rhs: Expr[SIR]
             ): Expr[scalus.sir.Case] = {
-              val params = constrSymbol.caseFields.map(_.name)
+              val params = primaryConstructorParams(constrSymbol).map(_.name)
               val constrDecl = '{
                 scalus.sir.ConstrDecl(${ Expr(constrSymbol.name) }, ${ Expr(params) })
               }
@@ -556,8 +561,6 @@ object Macros {
               }
               val tE = compileExpr(env, t)
               val sortedCases = cs.sortBy((t, _, _) => t.fullName).map { (sym, bindings, rhs) =>
-                val params = sym.caseFields.map(_.name)
-                '{ scalus.sir.ConstrDecl(${ Expr(sym.name) }, ${ Expr(params) }) }
                 constructCase(sym, bindings.map(_.name), rhs)
               }
               // report.info(s"Sorted constrs: ${sortedCases}", cases.head.pos)
@@ -671,20 +674,15 @@ object Macros {
 
           // new Constr(args)
           case Apply(TypeApply(con @ Select(f, "<init>"), _), args) =>
-            compileNewConstructor(env, con, f.tpe, args)
+            compileNewConstructor(env, f.tpe, args)
           case Apply(con @ Select(f, "<init>"), args) =>
-            compileNewConstructor(env, con, f.tpe, args)
+            compileNewConstructor(env, f.tpe, args)
           // (a, b) as scala.Tuple2.apply(a, b)
+          // we need to special-case it because we use scala-library 2.13.x
+          // which does not include TASTy so we can't access the method body
           case Apply(TypeApply(Select(f, "apply"), _), args)
               if f.tpe.widen =:= TypeRepr.of[scala.Tuple2.type] =>
-            val typeSymbol = f.tpe.typeSymbol
-            val constrName = typeSymbol.name
-            val argsE = args.map(compileExpr(env, _))
-            val constr =
-              argsE.foldLeft('{ SIR.Var(NamedDeBruijn(${ Expr(constrName) })) })((acc, arg) =>
-                '{ SIR.Apply($acc, $arg) }
-              )
-            '{ SIR.LamAbs(${ Expr(constrName) }, $constr) }
+            compileNewConstructor(env, TypeRepr.of[scala.Tuple2[_, _]], args)
           // f.apply(arg) => Apply(f, arg)
           case Apply(Select(f, "apply"), args) if f.tpe.widen.isFunctionType =>
             val fE = compileExpr(env, f)
@@ -743,14 +741,14 @@ object Macros {
             lazy val fieldIdx = ts.caseFields.indexOf(sel.symbol)
             if ts.isClassDef && fieldIdx >= 0 then
               val lhs = compileExpr(env, obj)
-              val lam = ts.caseFields.foldRight('{ SIR.Var(NamedDeBruijn(${ Expr(ident) })) }) {
+              val lam = primaryConstructorParams(ts).foldRight('{ SIR.Var(NamedDeBruijn(${ Expr(ident) })) }) {
                 case (f, acc) =>
                   '{ SIR.LamAbs(${ Expr(f.name) }, $acc) }
               }
               '{ SIR.Apply($lhs, $lam) }
             // else if obj.symbol.isPackageDef then
             // compileExpr(env, obj)
-            else if isConstructorVal(e.symbol, e.tpe) then compileNewConstructor(env, e, e.tpe, Nil)
+            else if isConstructorVal(e.symbol, e.tpe) then compileNewConstructor(env, e.tpe, Nil)
             else
               // report.errorAndAbort(s"SELECT: ${obj.symbol.isPackageDef}", sel.pos)
               if !env.contains(e.symbol) then

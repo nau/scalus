@@ -424,13 +424,14 @@ class CompileToSIRSpec extends AnyFunSuite with ScalaCheckPropertyChecks:
 
   test("compile Tuple2 construction/matching") {
     val compiled = compile {
-      (true, false) match
-        case (a, b) => a
+      val t = (true, false)
+      t match
+        case (a, b) => a && t._2
     }
-    // println(compiled.pretty.render(80))
+    println(compiled.pretty.render(80))
     val term = new SimpleSirToUplcLowering().lower(compiled)
     val evaled = Cek.evalUPLC(term)
-    assert(evaled == scalus.uplc.Term.Const(Constant.Bool(true)))
+    assert(evaled == scalus.uplc.Term.Const(Constant.Bool(false)))
   }
 
   test("compile match on a case class") {
