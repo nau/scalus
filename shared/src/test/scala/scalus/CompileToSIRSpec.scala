@@ -22,7 +22,10 @@ import scalus.sir.ConstrDecl
 class CompileToSIRSpec extends AnyFunSuite with ScalaCheckPropertyChecks:
   val deadbeef = Constant.ByteString(hex"deadbeef")
 
-  inline def compilesTo(expected: SIR)(inline e: Any) = assert(compile(e) == expected)
+  inline def compilesTo(expected: SIR)(inline e: Any) =
+    val compiled = compile(e)
+    assert(compiled == expected)
+    compiled
 
   test("compile literals") {
     assert(compile(false) == Const(Constant.Bool(false)))
@@ -120,8 +123,6 @@ class CompileToSIRSpec extends AnyFunSuite with ScalaCheckPropertyChecks:
   test("compile throw") {
     assert(compile { throw new RuntimeException("foo") } == Error("foo"))
   }
-
-  val asdf = 5
 
   test("compile ToData") {
     import scalus.uplc.Data.*
@@ -367,6 +368,45 @@ class CompileToSIRSpec extends AnyFunSuite with ScalaCheckPropertyChecks:
     ) {
       def swap(p: builtins.Pair[Data, Data]) = builtins.Pair(p.snd, p.fst)
     }
+  }
+
+  test("compile Boolean &&, ||, ! builtins") {
+    import Constant.Bool
+    val compiled = compilesTo(
+      Let(
+        NonRec,
+        List(Binding("a", Const(Bool(true)))),
+        Apply(
+          LamAbs(
+            "rhs",
+            SIR.IfThenElse(
+              Apply(
+                LamAbs(
+                  "rhs",
+                  SIR.IfThenElse(
+                    SIR.IfThenElse(Var(NamedDeBruijn("a")), Const(Bool(false)), Const(Bool(true))),
+                    Var(NamedDeBruijn("rhs")),
+                    Const(Bool(false))
+                  )
+                ),
+                Const(Bool(false))
+              ),
+              Const(Bool(true)),
+              Var(NamedDeBruijn("rhs"))
+            )
+          ),
+          Const(Bool(true))
+        )
+      )
+    ) {
+      val a = true
+      !a && false || true
+    }
+    // println(compiled.pretty.render(80))
+    val term = new SimpleSirToUplcLowering().lower(compiled)
+    val evaled = Cek.evalUPLC(term)
+    // println(evaled.pretty.render(80))
+    assert(evaled == scalus.uplc.Term.Const(Constant.Bool(true)))
   }
 
   test("compile external definitions") {

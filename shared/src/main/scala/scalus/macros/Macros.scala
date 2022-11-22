@@ -702,6 +702,29 @@ object Macros {
                 )
               )
             }
+          // Boolean ||
+          case Select(lhs, "||") if lhs.tpe.widen =:= TypeRepr.of[Boolean] =>
+            val lhsExpr = compileExpr(env, lhs)
+            '{
+              SIR.LamAbs(
+                "rhs",
+                SIR.IfThenElse(
+                  $lhsExpr,
+                  SIR.Const(scalus.uplc.Constant.Bool(true)),
+                  SIR.Var(NamedDeBruijn("rhs"))
+                )
+              )
+            }
+          // Boolean !
+          case Select(lhs, "unary_!") if lhs.tpe.widen =:= TypeRepr.of[Boolean] =>
+            val lhsExpr = compileExpr(env, lhs)
+            '{
+              SIR.IfThenElse(
+                $lhsExpr,
+                SIR.Const(scalus.uplc.Constant.Bool(false)),
+                SIR.Const(scalus.uplc.Constant.Bool(true))
+              )
+            }
           // BigInt equality
           case Select(lhs, "==") if lhs.tpe.widen =:= TypeRepr.of[BigInt] =>
             '{ SIR.Apply(SIR.Builtin(DefaultFun.EqualsInteger), ${ compileExpr(env, lhs) }) }
@@ -741,9 +764,10 @@ object Macros {
             lazy val fieldIdx = ts.caseFields.indexOf(sel.symbol)
             if ts.isClassDef && fieldIdx >= 0 then
               val lhs = compileExpr(env, obj)
-              val lam = primaryConstructorParams(ts).foldRight('{ SIR.Var(NamedDeBruijn(${ Expr(ident) })) }) {
-                case (f, acc) =>
-                  '{ SIR.LamAbs(${ Expr(f.name) }, $acc) }
+              val lam = primaryConstructorParams(ts).foldRight('{
+                SIR.Var(NamedDeBruijn(${ Expr(ident) }))
+              }) { case (f, acc) =>
+                '{ SIR.LamAbs(${ Expr(f.name) }, $acc) }
               }
               '{ SIR.Apply($lhs, $lam) }
             // else if obj.symbol.isPackageDef then
