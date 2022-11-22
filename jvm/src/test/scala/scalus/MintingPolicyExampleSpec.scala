@@ -40,6 +40,11 @@ class MintingPolicyExampleSpec
       Nothing
     )
 
+    case class TxInInfoTxOutRefOnly(txInInfoOutRef: TxOutRef)
+    given Data.FromData[TxInInfoTxOutRefOnly] = (d: Data) =>
+      val pair = Builtins.unsafeDataAsConstr(d)
+      new TxInInfoTxOutRefOnly(summon[Data.FromData[TxOutRef]](pair.snd.head))
+
     def mintingPolicyScript(
         txId: ByteString,
         txOutIdx: BigInt,
@@ -48,7 +53,7 @@ class MintingPolicyExampleSpec
         redeemer: Unit,
         ctxData: Data
     ): Unit = {
-      val ctx = summon[Data.FromData[ScriptContext]](ctxData)
+      /* val ctx = summon[Data.FromData[ScriptContext]](ctxData)
       val txInfo = ctx.scriptContextTxInfo
       val txInfoInputs = txInfo.txInfoInputs
       val minted = txInfo.txInfoMint
@@ -58,10 +63,11 @@ class MintingPolicyExampleSpec
         case Spending(txOutRef) => throw new RuntimeException("Spending context is not supported")
         case Rewarding(stakingCred) =>
           throw new RuntimeException("Rewarding context is not supported")
-        case Certifying(cert) => throw new RuntimeException("Certifying context is not supported")
+        case Certifying(cert) => throw new RuntimeException("Certifying context is not supported") */
 
-      /*       val txInfoData = fieldAsData1[ScriptContext](_.scriptContextTxInfo)(ctxData)
-      val txInfoInputs = summon[Data.FromData[List[TxInInfo]]](fieldAsData1[TxInfo](_.txInfoInputs)(txInfoData))
+      val txInfoData = fieldAsData1[ScriptContext](_.scriptContextTxInfo)(ctxData)
+      val txInfoInputs =
+        summon[Data.FromData[List[TxInInfoTxOutRefOnly]]](fieldAsData1[TxInfo](_.txInfoInputs)(txInfoData))
       val minted = summon[Data.FromData[Value]](fieldAsData1[TxInfo](_.txInfoMint)(txInfoData))
       val ownSymbol =
         val purpose = fieldAsData1[ScriptContext](_.scriptContextPurpose)(ctxData)
@@ -69,7 +75,7 @@ class MintingPolicyExampleSpec
         val tag = pair.fst
         val args = pair.snd
         if tag == BigInt(0) then Builtins.unsafeDataAsB(args.head)
-        else throw new Exception("Not a minting policy") */
+        else throw new Exception("Not a minting policy")
 
       def findToken(tokens: List[(ByteString, BigInt)]): Unit =
         tokens match
@@ -89,7 +95,7 @@ class MintingPolicyExampleSpec
                 then findToken(tokens)
                 else ensureMinted(tail)
       }
-      def ensureSpendsTxOut(inputs: List[TxInInfo]): Unit = inputs match
+      def ensureSpendsTxOut(inputs: List[TxInInfoTxOutRefOnly]): Unit = inputs match
         case Nil => throw new RuntimeException("TxInfoInputs is empty")
         case Cons(txInInfo, tail) =>
           if txOutRef.txOutRefId.hash == txId && txOutRef.txOutRefIdx == txOutIdx then ()
