@@ -11,6 +11,7 @@ import scala.deriving.*
 import scala.quoted.*
 import scalus.macros.Macros
 import scalus.Predef.Maybe
+import scalus.Predef.===
 
 sealed abstract class Data
 
@@ -27,8 +28,8 @@ object Data:
   given BoolFromData: FromData[Boolean] = (d: Data) =>
     val pair = Builtins.unsafeDataAsConstr(d)
     val constr = pair.fst
-    if constr == BigInt(0) then false
-    else if constr == BigInt(1) then true
+    if constr === BigInt(0) then false
+    else if constr === BigInt(1) then true
     else throw new RuntimeException("Not a boolean")
 
   given ListFromData[A: FromData]: FromData[scalus.Predef.List[A]] = (d: Data) =>
@@ -42,7 +43,7 @@ object Data:
   given MaybeFromData[A: FromData]: FromData[scalus.Predef.Maybe[A]] = (d: Data) =>
     val fromA = summon[FromData[A]]
     val pair = Builtins.unsafeDataAsConstr(d)
-    if pair.fst == BigInt(0) then scalus.Predef.Maybe.Just(fromA(pair.snd.head))
+    if pair.fst === BigInt(0) then scalus.Predef.Maybe.Just(fromA(pair.snd.head))
     else scalus.Predef.Maybe.Nothing
 
   given tupleFromData[A, B](using fromA: FromData[A], fromB: FromData[B]): FromData[(A, B)] =
@@ -50,7 +51,7 @@ object Data:
       val pair = Builtins.unsafeDataAsConstr(d)
       val constr = pair.fst
       val args = pair.snd
-      if constr == BigInt(0) then (fromA(args.head), fromB(args.tail.head))
+      if constr === BigInt(0) then (fromA(args.head), fromB(args.tail.head))
       else throw new RuntimeException("Not a Tuple2")
 
   object ToData:

@@ -16,6 +16,7 @@ import scalus.utils.Utils
 
 import scala.collection.immutable
 import scalus.Predef.List.{Cons, Nil}
+import scalus.Predef.===
 import scalus.sir.DataDecl
 import scalus.sir.ConstrDecl
 
@@ -409,6 +410,21 @@ class CompileToSIRSpec extends AnyFunSuite with ScalaCheckPropertyChecks:
     assert(evaled == scalus.uplc.Term.Const(Constant.Bool(true)))
   }
 
+  test("compile type-safe equality") {
+    import scalus.Predef.*
+    val compiled = compile {
+      val a = BigInt(0)
+      val bs = ByteString.fromHex("deadbeef")
+      val s = "string"
+      a === a && bs === bs && s === s
+    }
+    println(compiled.pretty.render(80))
+    val term = new SimpleSirToUplcLowering().lower(compiled)
+    // println(term.pretty.render(80))
+    val evaled = Cek.evalUPLC(term)
+    assert(evaled == scalus.uplc.Term.Const(Constant.Bool(true)))
+  }
+
   test("compile external definitions") {
     def foo(i: BigInt) = i
     compilesTo(
@@ -565,7 +581,7 @@ class CompileToSIRSpec extends AnyFunSuite with ScalaCheckPropertyChecks:
 
       def findSignatureOrFail(signatories: builtins.List[Data]): Unit =
         if signatories.isEmpty then throw new RuntimeException("Signature not found")
-        else if Builtins.unsafeDataAsB(signatories.head) == ByteString.fromHex("deadbeef") then ()
+        else if Builtins.unsafeDataAsB(signatories.head) === ByteString.fromHex("deadbeef") then ()
         else findSignatureOrFail(signatories.tail)
 
       findSignatureOrFail(signatories)

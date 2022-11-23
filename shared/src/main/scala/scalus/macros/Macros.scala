@@ -566,6 +566,37 @@ object Macros {
               // report.info(s"Sorted constrs: ${sortedCases}", cases.head.pos)
               '{ SIR.Match($tE, ${ Expr.ofList(sortedCases) }) }
 
+          // Type-safe equality
+          case Apply(
+                Apply(Apply(TypeApply(Ident("==="), List(tpe)), List(lhs)), List(rhs)),
+                evidence
+              ) =>
+            if tpe.tpe =:= TypeRepr.of[BigInt] then
+              '{
+                SIR.Apply(
+                  SIR.Apply(SIR.Builtin(DefaultFun.EqualsInteger), ${ compileExpr(env, lhs) }),
+                  ${ compileExpr(env, rhs) }
+                )
+              }
+            else if tpe.tpe =:= TypeRepr.of[builtins.ByteString] then
+              '{
+                SIR.Apply(
+                  SIR.Apply(SIR.Builtin(DefaultFun.EqualsByteString), ${ compileExpr(env, lhs) }),
+                  ${ compileExpr(env, rhs) }
+                )
+              }
+            else if tpe.tpe =:= TypeRepr.of[String] then
+              '{
+                SIR.Apply(
+                  SIR.Apply(SIR.Builtin(DefaultFun.EqualsString), ${ compileExpr(env, lhs) }),
+                  ${ compileExpr(env, rhs) }
+                )
+              }
+            else
+              report.errorAndAbort(
+                s"Type-safe equality is not supported in SIR, use `==` instead",
+                e.pos
+              )
           // PAIR
           case Select(pair, fun) if pair.isPair =>
             fun match
@@ -725,15 +756,10 @@ object Macros {
                 SIR.Const(scalus.uplc.Constant.Bool(true))
               )
             }
-          // BigInt equality
-          case Select(lhs, "==") if lhs.tpe.widen =:= TypeRepr.of[BigInt] =>
-            '{ SIR.Apply(SIR.Builtin(DefaultFun.EqualsInteger), ${ compileExpr(env, lhs) }) }
-          // ByteString equality
-          case Select(lhs, "==") if lhs.tpe.widen =:= TypeRepr.of[builtins.ByteString] =>
-            '{ SIR.Apply(SIR.Builtin(DefaultFun.EqualsByteString), ${ compileExpr(env, lhs) }) }
           case Select(lhs, "==") =>
             report.errorAndAbort(
-              s"compileExpr: Unsupported equality ${lhs}: ${lhs.tpe.widen.show} =="
+              s"compileExpr: Unsupported equality ${lhs}: ${lhs.tpe.widen.show} ==. Use type-safe scalus.Predef.=== instead",
+              lhs.pos
             )
           // Data BUILTINS
           case bi if bi.tpe.show == "scalus.builtins.Builtins.mkConstr" =>

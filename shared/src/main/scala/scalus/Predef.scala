@@ -1,6 +1,15 @@
 package scalus
 
+import scalus.builtins.ByteString
+
 object Predef {
+  sealed class Eq[A]
+  given Eq[BigInt] = new Eq[BigInt]
+  given Eq[ByteString] = new Eq[ByteString]
+  given Eq[String] = new Eq[String]
+  extension [A](x: A) def ===(y: A)(using Eq[A]): Boolean = x == y
+
+
   enum List[+A]:
     case Nil extends List[Nothing]
     case Cons(head: A, tail: List[A])

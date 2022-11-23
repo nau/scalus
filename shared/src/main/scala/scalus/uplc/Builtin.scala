@@ -144,6 +144,16 @@ object Meaning:
           () => Cek.VCon(asConstant(aa == bb))
     )
 
+  val EqualsString =
+    mkMeaning(
+      DefaultUni.String ->: DefaultUni.String ->: Bool,
+      (a: CekValue) =>
+        val aa = a.asString
+        (b: CekValue) =>
+          val bb = b.asString
+          () => Cek.VCon(asConstant(aa == bb))
+    )
+
   val IfThenElse =
     mkMeaning(
       All("a", Bool ->: TVar("a") ->: TVar("a") ->: TVar("a")),
@@ -347,6 +357,7 @@ object Meaning:
     (DefaultFun.LessThanEqualsInteger, Meaning.LessThanEqualsInteger),
     (DefaultFun.LessThanInteger, Meaning.LessThanInteger),
     (DefaultFun.EqualsByteString, Meaning.EqualsByteString),
+    (DefaultFun.EqualsString, Meaning.EqualsString),
     (DefaultFun.IfThenElse, Meaning.IfThenElse),
     (DefaultFun.UnConstrData, Meaning.UnConstrData),
     (DefaultFun.UnMapData, Meaning.UnMapData),

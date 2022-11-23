@@ -18,6 +18,7 @@ import scalus.builtins.Builtins
 import scalus.builtins.ByteString
 import scalus.Predef.Maybe.*
 import scalus.Predef.List
+import scalus.Predef.*
 import scalus.Predef.List.{Cons, Nil}
 import scalus.sir.SimpleSirToUplcLowering
 
@@ -74,7 +75,7 @@ class MintingPolicyExampleSpec
         val pair = Builtins.unsafeDataAsConstr(purpose)
         val tag = pair.fst
         val args = pair.snd
-        if tag == BigInt(0) then Builtins.unsafeDataAsB(args.head)
+        if tag === BigInt(0) then Builtins.unsafeDataAsB(args.head)
         else throw new Exception("Not a minting policy")
 
       def findToken(tokens: List[(ByteString, BigInt)]): Unit =
@@ -83,7 +84,7 @@ class MintingPolicyExampleSpec
           case Cons(token, tail) =>
             token match
               case (tn, amt) =>
-                if tn == tokenName && amt == amount then () // TODO && amt == amount
+                if tn === tokenName && amt === amount then () // TODO && amt == amount
                 else findToken(tail)
       def ensureMinted(minted: Value): Unit = {
         minted match
@@ -91,14 +92,14 @@ class MintingPolicyExampleSpec
           case Cons(head, tail) =>
             head match
               case (curSymbol, tokens) =>
-                if curSymbol == ownSymbol
+                if curSymbol === ownSymbol
                 then findToken(tokens)
                 else ensureMinted(tail)
       }
       def ensureSpendsTxOut(inputs: List[TxInInfoTxOutRefOnly]): Unit = inputs match
         case Nil => throw new RuntimeException("TxInfoInputs is empty")
         case Cons(txInInfo, tail) =>
-          if txOutRef.txOutRefId.hash == txId && txOutRef.txOutRefIdx == txOutIdx then ()
+          if txOutRef.txOutRefId.hash === txId && txOutRef.txOutRefIdx === txOutIdx then ()
           else ensureSpendsTxOut(tail)
       ensureMinted(minted)
       ensureSpendsTxOut(txInfoInputs)

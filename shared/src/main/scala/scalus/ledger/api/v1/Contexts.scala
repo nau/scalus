@@ -6,6 +6,7 @@ import scalus.uplc.Data
 import scalus.uplc.Data.{FromData, ToData}
 import scalus.utils.Utils.bytesToHex
 import scalus.Predef.{List, Maybe}
+import scalus.Predef.===
 import scalus.builtins.Builtins
 
 type ValidatorHash = ByteString
@@ -65,26 +66,27 @@ object Instances:
     val pair = Builtins.unsafeDataAsConstr(d)
     val tag = pair.fst
     val args = pair.snd
-    if tag == BigInt(0) then DCert.DelegRegKey(summon[FromData[StakingCredential]].apply(args.head))
-    else if tag == BigInt(1) then
+    if tag === BigInt(0) then
+      DCert.DelegRegKey(summon[FromData[StakingCredential]].apply(args.head))
+    else if tag === BigInt(1) then
       DCert.DelegDeRegKey(summon[FromData[StakingCredential]].apply(args.head))
-    else if tag == BigInt(2) then
+    else if tag === BigInt(2) then
       DCert.DelegDelegate(
         summon[FromData[StakingCredential]].apply(args.head),
         summon[FromData[PubKeyHash]].apply(args.tail.head)
       )
-    else if tag == BigInt(3) then
+    else if tag === BigInt(3) then
       DCert.PoolRegister(
         summon[FromData[PubKeyHash]].apply(args.head),
         summon[FromData[PubKeyHash]].apply(args.tail.head)
       )
-    else if tag == BigInt(4) then
+    else if tag === BigInt(4) then
       DCert.PoolRetire(
         summon[FromData[PubKeyHash]].apply(args.head),
         summon[FromData[BigInt]].apply(args.tail.head)
       )
-    else if tag == BigInt(5) then DCert.Genesis
-    else if tag == BigInt(6) then DCert.Mir
+    else if tag === BigInt(5) then DCert.Genesis
+    else if tag === BigInt(6) then DCert.Mir
     else throw new Exception(s"Unknown DCert tag: $tag")
 
   given ExtendedLift[A: ToData, T[A] <: Extended[A]]: ToData[T[A]] with
@@ -98,9 +100,9 @@ object Instances:
     val pair = Builtins.unsafeDataAsConstr(d)
     val tag = pair.fst
     val args = pair.snd
-    if tag == BigInt(0) then Extended.NegInf
-    else if tag == BigInt(1) then Extended.Finite(summon[FromData[A]].apply(args.head))
-    else if tag == BigInt(2) then Extended.PosInf
+    if tag === BigInt(0) then Extended.NegInf
+    else if tag === BigInt(1) then Extended.Finite(summon[FromData[A]].apply(args.head))
+    else if tag === BigInt(2) then Extended.PosInf
     else throw new Exception(s"Unknown Extended tag: $tag")
 
   given CredentialToData[T <: Credential]: ToData[T] with
@@ -115,9 +117,9 @@ object Instances:
     val pair = Builtins.unsafeDataAsConstr(d)
     val tag = pair.fst
     val args = pair.snd
-    if tag == BigInt(0) then
+    if tag === BigInt(0) then
       new Credential.PubKeyCredential(summon[FromData[PubKeyHash]].apply(args.head))
-    else if tag == BigInt(1) then
+    else if tag === BigInt(1) then
       new Credential.ScriptCredential(summon[FromData[ByteString]].apply(args.head))
     else throw new Exception(s"Unknown Credential tag: $tag")
 
@@ -133,9 +135,9 @@ object Instances:
     (d: Data) =>
       val pair = Builtins.unsafeDataAsConstr(d)
       val tag = pair.fst
-      if tag == BigInt(0) then
+      if tag === BigInt(0) then
         new StakingCredential.StakingHash(summon[FromData[Credential]].apply(pair.snd.head))
-      else if tag == BigInt(1) then
+      else if tag === BigInt(1) then
         val fromBI = summon[FromData[BigInt]]
         val ptrs = pair.snd
         new StakingCredential.StakingPtr(
@@ -158,12 +160,12 @@ object Instances:
     val pair = Builtins.unsafeDataAsConstr(d)
     val tag = pair.fst
     val args = pair.snd
-    if tag == BigInt(0) then new ScriptPurpose.Minting(summon[FromData[TokenName]].apply(args.head))
-    else if tag == BigInt(1) then
+    if tag === BigInt(0) then new ScriptPurpose.Minting(summon[FromData[TokenName]].apply(args.head))
+    else if tag === BigInt(1) then
       new ScriptPurpose.Spending(summon[FromData[TxOutRef]].apply(args.head))
-    else if tag == BigInt(2) then
+    else if tag === BigInt(2) then
       new ScriptPurpose.Rewarding(summon[FromData[StakingCredential]].apply(args.head))
-    else if tag == BigInt(3) then
+    else if tag === BigInt(3) then
       new ScriptPurpose.Certifying(summon[FromData[DCert]].apply(args.head))
     else throw new Exception(s"Unknown ScriptPurpose tag: $tag")
 
