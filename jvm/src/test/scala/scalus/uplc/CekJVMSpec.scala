@@ -281,19 +281,3 @@ class CekJVMSpec extends AnyFunSuite with ScalaCheckPropertyChecks with Arbitrar
     println(Cek.evalUPLC(txId.term))
 
   }
-
-  test("field macro test") {
-    import Data.*
-    import scalus.ledger.api.v1.*
-    import scalus.ledger.api.v1.Instances.given
-    import scalus.utils.Utils.*
-
-    val txOutRef = TxOutRef(TxId(hex"bb"), 123)
-    import ExprBuilder.*
-    val applied = field[TxOutRef](_.txOutRefIdx).apply(Expr(txOutRef.toData))
-    assert(Cek.evalUPLC(applied.term) == Const(asConstant(BigInt(123))))
-    val applied2 = field[TxOutRef](_.txOutRefId).apply(Expr(txOutRef.toData))
-    val aaa = unConstrData(applied2)
-    assert(Cek.evalUPLC(applied2.term) == Const(asConstant(TxId(hex"bb").toData)))
-
-  }

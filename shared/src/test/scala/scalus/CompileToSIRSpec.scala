@@ -10,7 +10,7 @@ import scalus.sir.SIR.*
 import scalus.sir.{Binding, Recursivity, SIR, SimpleSirToUplcLowering}
 import scalus.uplc.*
 import scalus.uplc.DefaultFun.*
-import scalus.uplc.ExprBuilder.{compile, fieldAsData1}
+import scalus.Compiler.{compile, fieldAsData}
 import scalus.uplc.TermDSL.{lam, λ}
 import scalus.utils.Utils
 
@@ -519,14 +519,14 @@ class CompileToSIRSpec extends AnyFunSuite with ScalaCheckPropertyChecks:
     assert(evaled == scalus.uplc.Term.Const(Constant.Integer(1)))
   }
 
-  test("compile fieldAsData1 macro") {
+  test("compile fieldAsData macro") {
     import scalus.ledger.api.v1.{*, given}
     val compiled = compile { (ctx: scalus.uplc.Data) =>
-      val sigsData = fieldAsData1[ScriptContext](_.scriptContextTxInfo.txInfoSignatories)(ctx)
+      val sigsData = fieldAsData[ScriptContext](_.scriptContextTxInfo.txInfoSignatories)(ctx)
       val sigs = Builtins.unsafeDataAsList(sigsData)
       Builtins.unsafeDataAsB(sigs.head)
     }
-    println(compiled.pretty.render(80))
+    // println(compiled.pretty.render(80))
     val term = new SimpleSirToUplcLowering().lower(compiled)
 
     val scriptContext =
@@ -553,7 +553,7 @@ class CompileToSIRSpec extends AnyFunSuite with ScalaCheckPropertyChecks:
     // println(evaled.pretty.render(80))
     assert(evaled == scalus.uplc.Term.Const(asConstant(hex"deadbeef")))
     val flatBytes = ProgramFlatCodec.encodeFlat(appliedScript)
-    println(Utils.bytesToHex(flatBytes))
+    // println(Utils.bytesToHex(flatBytes))
     assert(flatBytes.length == 119)
   }
 

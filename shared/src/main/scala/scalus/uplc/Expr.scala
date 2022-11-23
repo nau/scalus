@@ -134,18 +134,8 @@ object ExprBuilder:
   )
 
   inline def fieldAsData[A: Data.ToData](inline expr: A => Any): Expr[Data] => Expr[Data] = ${
-    Macros.fieldAsDataMacro('expr)
+    Macros.fieldAsExprDataMacro('expr)
   }
-
-  inline def fieldAsData1[A](inline expr: A => Any): Data => Data = ${
-    Macros.fieldAsDataMacro1('expr)
-  }
-
-  transparent inline def field[A: Data.ToData](inline expr: A => Any): Any = ${
-    Macros.fieldMacro('expr)
-  }
-
-  inline def compile(inline e: Any): SIR = ${ Macros.compileImpl('e) }
 
   extension (lhs: Expr[BigInt])
     @targetName("plus")
@@ -230,7 +220,7 @@ object Example:
           headList(unListData(fieldAsData[TxInfo](_.txInfoInputs).apply(txInfo)))
         val txInInfoOutRef: Expr[Data] = fieldAsData[TxInInfo](_.txInInfoOutRef).apply(ref)
         val txId = unBData(fieldAsData[TxOutRef](_.txOutRefId).apply(txInInfoOutRef))
-        val idx = field[TxOutRef](_.txOutRefIdx).apply(txInInfoOutRef).asInstanceOf[Expr[BigInt]]
+        val idx = unIData(fieldAsData[TxOutRef](_.txOutRefIdx).apply(txInInfoOutRef))
 
         val checkMinted: Expr[List[Data] => Unit] = Z[List[Data], Unit].apply(lam { checkMinted =>
           lam { minted =>

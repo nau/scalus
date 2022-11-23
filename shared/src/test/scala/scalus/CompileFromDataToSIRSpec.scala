@@ -11,7 +11,7 @@ import scalus.sir.SIR.*
 import scalus.sir.{Binding, Recursivity, SIR, SimpleSirToUplcLowering}
 import scalus.uplc.*
 import scalus.uplc.DefaultFun.*
-import scalus.uplc.ExprBuilder.{compile, fieldAsData1}
+import scalus.Compiler.{compile, fieldAsData}
 import scalus.uplc.TermDSL.{lam, λ}
 import scalus.utils.Utils
 

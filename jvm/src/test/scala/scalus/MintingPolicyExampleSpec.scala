@@ -9,7 +9,7 @@ import scalus.ledger.api.v1.Instances.given
 import scalus.uplc.Constant.Pair
 import scalus.uplc.DefaultFun.*
 import scalus.uplc.DefaultUni.{asConstant, Bool}
-import scalus.uplc.ExprBuilder.fieldAsData1
+import scalus.Compiler.{compile, fieldAsData}
 import scalus.uplc.Term.*
 import scalus.uplc.TermDSL.{*, given}
 import scalus.uplc.*
@@ -66,12 +66,14 @@ class MintingPolicyExampleSpec
           throw new RuntimeException("Rewarding context is not supported")
         case Certifying(cert) => throw new RuntimeException("Certifying context is not supported") */
 
-      val txInfoData = fieldAsData1[ScriptContext](_.scriptContextTxInfo)(ctxData)
+      val txInfoData = fieldAsData[ScriptContext](_.scriptContextTxInfo)(ctxData)
       val txInfoInputs =
-        summon[Data.FromData[List[TxInInfoTxOutRefOnly]]](fieldAsData1[TxInfo](_.txInfoInputs)(txInfoData))
-      val minted = summon[Data.FromData[Value]](fieldAsData1[TxInfo](_.txInfoMint)(txInfoData))
+        summon[Data.FromData[List[TxInInfoTxOutRefOnly]]](
+          fieldAsData[TxInfo](_.txInfoInputs)(txInfoData)
+        )
+      val minted = summon[Data.FromData[Value]](fieldAsData[TxInfo](_.txInfoMint).apply(txInfoData))
       val ownSymbol =
-        val purpose = fieldAsData1[ScriptContext](_.scriptContextPurpose)(ctxData)
+        val purpose = fieldAsData[ScriptContext](_.scriptContextPurpose)(ctxData)
         val pair = Builtins.unsafeDataAsConstr(purpose)
         val tag = pair.fst
         val args = pair.snd
@@ -105,7 +107,7 @@ class MintingPolicyExampleSpec
       ensureSpendsTxOut(txInfoInputs)
     }
 
-    val compiled = ExprBuilder.compile(
+    val compiled = compile(
       mintingPolicyScript(
         txOutRef.txOutRefId.hash,
         txOutRef.txOutRefIdx,
