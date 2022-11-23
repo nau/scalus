@@ -310,7 +310,7 @@ class CompileFromDataToSIRSpec extends AnyFunSuite with ScalaCheckPropertyChecks
         txInfoData = scalus.Predef.List.Nil,
         txInfoId = TxId(ByteString.fromHex("bb"))
       ),
-      1245,
+      1299,
       Term.Const(Constant.ByteString(ByteString.fromHex("bb")))
     )
   }
@@ -338,7 +338,7 @@ class CompileFromDataToSIRSpec extends AnyFunSuite with ScalaCheckPropertyChecks
         ),
         ScriptPurpose.Spending(TxOutRef(TxId(hex"12"), 12))
       ),
-      1392,
+      1446,
       Term.Const(Constant.ByteString(ByteString.fromHex("bb")))
     )
   }

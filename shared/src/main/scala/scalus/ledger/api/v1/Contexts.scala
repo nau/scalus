@@ -3,7 +3,7 @@ package scalus.ledger.api.v1
 import scalus.builtins.ByteString
 import scalus.ledger.api.v1.Instances.given
 import scalus.uplc.Data
-import scalus.uplc.Data.{FromData, ToData}
+import scalus.uplc.Data.{FromData, ToData, given}
 import scalus.utils.Utils.bytesToHex
 import scalus.Predef.{List, Maybe}
 import scalus.Predef.===
@@ -160,7 +160,8 @@ object Instances:
     val pair = Builtins.unsafeDataAsConstr(d)
     val tag = pair.fst
     val args = pair.snd
-    if tag === BigInt(0) then new ScriptPurpose.Minting(summon[FromData[TokenName]].apply(args.head))
+    if tag === BigInt(0) then
+      new ScriptPurpose.Minting(summon[FromData[TokenName]].apply(args.head))
     else if tag === BigInt(1) then
       new ScriptPurpose.Spending(summon[FromData[TxOutRef]].apply(args.head))
     else if tag === BigInt(2) then
@@ -232,9 +233,9 @@ object Instances:
     val pair = Builtins.unsafeDataAsConstr(d)
     val args = pair.snd
     val fromValue = summon[FromData[Value]]
-    /* val txInfoWdrl = summon[FromData[List[(StakingCredential, BigInt)]]].apply(
-        args.tail.tail.tail.tail.tail.head
-      ) */
+    val txInfoWdrl = summon[FromData[List[(StakingCredential, BigInt)]]].apply(
+      args.tail.tail.tail.tail.tail.head
+    )
     // new TxInfo(null, null, null, null, null, null, null, null, null, null)
     new TxInfo(
       summon[FromData[List[TxInInfo]]].apply(args.head),
@@ -242,18 +243,16 @@ object Instances:
       fromValue.apply(args.tail.tail.head),
       fromValue.apply(args.tail.tail.tail.head),
       summon[FromData[List[DCert]]].apply(args.tail.tail.tail.tail.head),
-      // txInfoWdrl,
-      scalus.Predef.List.Nil, // FIXME !!!
+      txInfoWdrl,
       summon[FromData[Interval[POSIXTime]]].apply(
         args.tail.tail.tail.tail.tail.tail.head
       ),
       summon[FromData[List[PubKeyHash]]].apply(
         args.tail.tail.tail.tail.tail.tail.tail.head
       ),
-      /* summon[FromData[List[(DatumHash, Datum)]]].apply(
+      summon[FromData[List[(DatumHash, Datum)]]].apply(
         args.tail.tail.tail.tail.tail.tail.tail.tail.head
-      ), */
-      scalus.Predef.List.Nil, // FIXME !!!
+      ),
       summon[FromData[TxId]].apply(args.tail.tail.tail.tail.tail.tail.tail.tail.tail.head)
     )
 

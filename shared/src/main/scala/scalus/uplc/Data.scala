@@ -24,6 +24,7 @@ object Data:
 
   given BigIntFromData: FromData[BigInt] = Builtins.unsafeDataAsI
   given ByteStringFromData: FromData[ByteString] = Builtins.unsafeDataAsB
+  given FromData[Data] = (d: Data) => d
 
   given BoolFromData: FromData[Boolean] = (d: Data) =>
     val pair = Builtins.unsafeDataAsConstr(d)
