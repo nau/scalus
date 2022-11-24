@@ -20,7 +20,7 @@ class ProgramFlatSpec extends AnyFunSuite with ScalaCheckPropertyChecks with Arb
   test("Program flat encoding/decoding is identical to Plutus") {
     forAll { (p: Program) =>
       val str = p.pretty.render(80)
-      val bytes = ExprBuilder.uplcToFlat(str)
+      val bytes = Utils.uplcToFlat(str)
       val encoded = ProgramFlatCodec.encodeFlat(p)
       assert(Utils.bytesToHex(bytes) == Utils.bytesToHex(encoded))
     }

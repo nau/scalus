@@ -10,6 +10,7 @@ import scalus.utils.Utils.bytesToHex
 
 import java.io.{ByteArrayInputStream, ByteArrayOutputStream}
 import scala.annotation.targetName
+import scalus.utils.Utils
 
 trait Delayed[+A]
 case class Expr[+A](term: Term)
@@ -154,13 +155,6 @@ object ExprBuilder:
   extension [A](lhs: Expr[A]) def unary_~ : Expr[Delayed[A]] = delay(lhs)
   extension [A](lhs: Expr[Delayed[A]]) def unary_! : Expr[A] = force(lhs)
 
-  def uplcToFlat(program: String): Array[Byte] =
-    import scala.sys.process.*
-    val cmd = "/Users/nau/projects/scalus/uplc convert --of flat"
-    val outStream = new ByteArrayOutputStream()
-    cmd.#<(new ByteArrayInputStream(program.getBytes("UTF-8"))).#>(outStream).!
-    outStream.toByteArray
-
 object Example:
   import Constant.given
   import ExprBuilder.{*, given}
@@ -272,7 +266,7 @@ object Example:
     val pubKeyProgram =
       Program((1, 0, 0), pubKeyValidator(PubKeyHash(hex"deadbeef")).term).pretty.render(80)
     println(pubKeyProgram)
-    val flat = uplcToFlat(pubKeyProgram)
+    val flat = Utils.uplcToFlat(pubKeyProgram)
     println(s"${flat.length} ${bytesToHex(flat)}")
 
     /*val asdf = rec[BigInt, BigInt](self =>

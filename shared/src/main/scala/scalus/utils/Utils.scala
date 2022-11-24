@@ -1,6 +1,8 @@
 package scalus.utils
 
 import scala.util.control.NonFatal
+import java.io.ByteArrayInputStream
+import java.io.ByteArrayOutputStream
 
 object Utils:
   private val HEX_ARRAY = "0123456789ABCDEF".toCharArray
@@ -24,3 +26,16 @@ object Utils:
     catch
       case NonFatal(e) =>
         throw new IllegalArgumentException(s"`$hexString` is not a valid hex string", e)
+
+  def uplcToFlat(program: String): Array[Byte] =
+    import scala.sys.process.*
+    val cmd = "uplc convert --of flat"
+    val outStream = new ByteArrayOutputStream()
+    cmd.#<(new ByteArrayInputStream(program.getBytes("UTF-8"))).#>(outStream).!
+    outStream.toByteArray
+
+  def uplcEvaluate(code: String): String =
+    import scala.sys.process.*
+    val cmd = "uplc evaluate"
+    val out = cmd.#<(new ByteArrayInputStream(code.getBytes("UTF-8"))).!!
+    out

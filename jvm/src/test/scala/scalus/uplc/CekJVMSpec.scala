@@ -17,19 +17,11 @@ import java.io.{ByteArrayInputStream, ByteArrayOutputStream}
 import java.math.RoundingMode
 import scala.collection.immutable
 import scala.io.Source.fromFile
+import scalus.utils.Utils
 
 class CekJVMSpec extends AnyFunSuite with ScalaCheckPropertyChecks with ArbitraryInstances:
-  def runUPLC(code: String) = {
-    import scala.sys.process.*
-    val cmd = "/Users/nau/projects/scalus/uplc evaluate"
-    val out = cmd.#<(new ByteArrayInputStream(code.getBytes("UTF-8"))).!!
-    println(out)
-  }
-
   def evalUPLC(code: String): Term = {
-    import scala.sys.process.*
-    val cmd = "/Users/nau/projects/scalus/uplc evaluate"
-    val out = cmd.#<(new ByteArrayInputStream(code.getBytes("UTF-8"))).!!
+    val out = Utils.uplcEvaluate(code)
 //    println(out)
     UplcParser.term
       .parse(out)
@@ -55,13 +47,13 @@ class CekJVMSpec extends AnyFunSuite with ScalaCheckPropertyChecks with Arbitrar
   }
 
   // Apparently plutus-conformance doesn't exist on the Plutus V2 commit we're using
-  ignore("conformance") {
+  test("conformance") {
     def check(name: String) =
       val path =
-        s"/Users/nau/projects/iohk/plutus/plutus-conformance/test-cases/uplc/evaluation"
+        s"../plutus-conformance/test-cases/uplc/evaluation"
       val code = fromFile(s"$path/$name.uplc").mkString
       val expected = fromFile(s"$path/$name.uplc.expected").mkString
-      println(eval(code).pretty.render(80))
+      // println(eval(code).pretty.render(80))
       assert(eval(code) == eval(expected))
 
     check("builtin/addInteger/addInteger")
@@ -98,7 +90,7 @@ class CekJVMSpec extends AnyFunSuite with ScalaCheckPropertyChecks with Arbitrar
 
     val program = Program((1, 0, 0), validator).pretty.render(80)
 
-    val bytes = ExprBuilder.uplcToFlat(program)
+    val bytes = Utils.uplcToFlat(program)
 //    println(s"${bytes.length} bytes: ${bytesToHex(bytes)}")
     assert(bytes.length == 34)
 
@@ -179,7 +171,7 @@ class CekJVMSpec extends AnyFunSuite with ScalaCheckPropertyChecks with Arbitrar
       )
     )
 
-    val flatValidator = ExprBuilder.uplcToFlat(Program((1, 0, 0), validator.term).pretty.render(80))
+    val flatValidator = Utils.uplcToFlat(Program((1, 0, 0), validator.term).pretty.render(80))
     assert(flatValidator.length == 95)
   }
 
@@ -251,7 +243,7 @@ class CekJVMSpec extends AnyFunSuite with ScalaCheckPropertyChecks with Arbitrar
       )
     )
 
-    val flatValidator = ExprBuilder.uplcToFlat(Program((1, 0, 0), validator.term).pretty.render(80))
+    val flatValidator = Utils.uplcToFlat(Program((1, 0, 0), validator.term).pretty.render(80))
     assert(flatValidator.length == 286)
   }
 

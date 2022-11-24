@@ -35,7 +35,7 @@ class CekBuiltinsJsSpec extends CekBuiltinsSpec:
     val program = Program((1, 0, 0), t)
     val cp = g.require("child_process")
     val r = cp.spawnSync(
-      "/Users/nau/projects/scalus/uplc",
+      "uplc",
       js.Array("evaluate"),
       js.Dynamic.literal(input = program.pretty.render(80))
     )

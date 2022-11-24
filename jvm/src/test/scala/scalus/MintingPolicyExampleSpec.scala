@@ -21,6 +21,7 @@ import scalus.Predef.List
 import scalus.Predef.*
 import scalus.Predef.List.{Cons, Nil}
 import scalus.sir.SimpleSirToUplcLowering
+import scalus.utils.Utils
 
 class MintingPolicyExampleSpec
     extends AnyFunSuite
@@ -181,7 +182,7 @@ class MintingPolicyExampleSpec
 
     val deBruijned = DeBruijn.deBruijnProgram(Program((1, 0, 0), validator.term))
     val namedTerm = DeBruijn.fromDeBruijnTerm(deBruijned.term)
-    val flatValidator = ExprBuilder.uplcToFlat(Program((1, 0, 0), namedTerm).pretty.render(80))
+    val flatValidator = Utils.uplcToFlat(Program((1, 0, 0), namedTerm).pretty.render(80))
     assert(flatValidator.length == flatBytes.length)
   }
 }
