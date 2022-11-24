@@ -8,7 +8,7 @@ import scalus.builtins
 import scalus.uplc.Constant.given
 import scalus.uplc.Data.{B, Constr, I, List, Map}
 import scalus.uplc.DefaultUni
-import scalus.uplc.DefaultUni.{Bool, ByteString, Integer, ProtoList, ProtoPair, asConstant}
+import scalus.uplc.DefaultUni.{asConstant, Bool, ByteString, Integer, ProtoList, ProtoPair}
 import scalus.uplc.Term.*
 import scalus.uplc.TermDSL.{*, given}
 import scalus.utils.Utils.*

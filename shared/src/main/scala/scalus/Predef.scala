@@ -9,12 +9,11 @@ object Predef {
   given Eq[String] = new Eq[String]
   extension [A](x: A) def ===(y: A)(using Eq[A]): Boolean = x == y
 
-
   enum List[+A]:
     case Nil extends List[Nothing]
     case Cons(head: A, tail: List[A])
     def map[B](f: A => B): List[B] = this match
-      case Nil => Nil
+      case Nil              => Nil
       case Cons(head, tail) => Cons(f(head), tail.map(f))
   object List:
     def empty[A]: List[A] = Nil

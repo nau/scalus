@@ -2,7 +2,7 @@ package scalus.uplc
 
 import org.scalatest.funsuite.AnyFunSuite
 import org.scalatestplus.scalacheck.ScalaCheckPropertyChecks
-import scalus.uplc.DefaultUni.{ByteString, asConstant}
+import scalus.uplc.DefaultUni.{asConstant, ByteString}
 import scalus.uplc.Term.*
 
 import java.io.ByteArrayInputStream

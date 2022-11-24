@@ -4,16 +4,7 @@ import io.bullet.borer.Cbor
 import org.scalatest.funsuite.AnyFunSuite
 import org.scalatestplus.scalacheck.ScalaCheckPropertyChecks
 import scalus.uplc.FlatInstantces.given
-import scalus.uplc.{
-  ArbitraryInstances,
-  DeBruijn,
-  DeBruijnedProgram,
-  ExprBuilder,
-  NamedDeBruijn,
-  Program,
-  ProgramFlatCodec,
-  UplcParser
-}
+import scalus.uplc.{ArbitraryInstances, DeBruijn, DeBruijnedProgram, ExprBuilder, NamedDeBruijn, Program, ProgramFlatCodec, UplcParser}
 import scalus.utils.Utils
 
 class ProgramFlatSpec extends AnyFunSuite with ScalaCheckPropertyChecks with ArbitraryInstances {

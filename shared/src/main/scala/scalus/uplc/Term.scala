@@ -2,7 +2,7 @@ package scalus.uplc
 
 import io.bullet.borer.Tag.{NegativeBigNum, Other, PositiveBigNum}
 import io.bullet.borer.encodings.BaseEncoding
-import io.bullet.borer.{Decoder, Encoder, Reader, Writer, DataItem as DI}
+import io.bullet.borer.{DataItem as DI, Decoder, Encoder, Reader, Writer}
 import org.typelevel.paiges.Doc
 import scalus.flat.{DecoderState, EncoderState, Flat}
 import scalus.sir.SIR

@@ -74,10 +74,11 @@ class SimpleSirToUplcLowering {
         val casesTerms = cases.map { case Case(constr, bindings, body) =>
           constr.params match
             case Nil => ~lowerInner(body)
-            case _ => bindings.foldRight(lowerInner(body)) { (binding, acc) =>
-              Term.LamAbs(binding, acc)
-            }
-          }
+            case _ =>
+              bindings.foldRight(lowerInner(body)) { (binding, acc) =>
+                Term.LamAbs(binding, acc)
+              }
+        }
         casesTerms.foldLeft(scrutineeTerm) { (acc, caseTerm) => Term.Apply(acc, caseTerm) }
       case SIR.Var(name) => Term.Var(name)
       case SIR.Let(NonRec, bindings, body) =>

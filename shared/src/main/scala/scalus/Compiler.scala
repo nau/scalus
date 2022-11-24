@@ -10,4 +10,3 @@ object Compiler:
   }
 
   inline def compile(inline e: Any): SIR = ${ Macros.compileImpl('e) }
-

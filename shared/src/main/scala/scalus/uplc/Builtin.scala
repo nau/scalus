@@ -2,7 +2,7 @@ package scalus.uplc
 
 import scalus.uplc.Cek.{CekValue, VCon}
 import scalus.uplc.Constant.given
-import scalus.uplc.DefaultUni.{Bool, Integer, asConstant, given}
+import scalus.uplc.DefaultUni.{asConstant, Bool, Integer, given}
 
 import scala.annotation.targetName
 import scala.collection.immutable
@@ -340,7 +340,7 @@ object Meaning:
         val aa = a.asList
         val datas = aa.map {
           case Constant.Data(value) => value
-          case _ => throw new RuntimeException(s"ListData: not a data, but $a")
+          case _                    => throw new RuntimeException(s"ListData: not a data, but $a")
         }
         () => Cek.VCon(Constant.Data(Data.List(datas)))
     )

@@ -5,7 +5,7 @@ import org.scalatestplus.scalacheck.ScalaCheckPropertyChecks
 import scalus.ledger.api.v1.*
 import scalus.uplc.Constant.Pair
 import scalus.uplc.DefaultFun.*
-import scalus.uplc.DefaultUni.{Bool, ByteString, asConstant}
+import scalus.uplc.DefaultUni.{asConstant, Bool, ByteString}
 import scalus.uplc.ExprBuilder.{sndPair, unConstrData}
 import scalus.uplc.Program
 import scalus.uplc.Term.*

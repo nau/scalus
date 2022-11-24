@@ -51,11 +51,10 @@ class CompileFromDataToSIRSpec extends AnyFunSuite with ScalaCheckPropertyChecks
   }
 
   test("compile FromData[(A, B)]") {
-    val compiled = compile {
-      (d: Data) =>
-        val pair = summon[Data.FromData[(Boolean, Boolean)]](d)
-        pair match
-          case (a, b) => b
+    val compiled = compile { (d: Data) =>
+      val pair = summon[Data.FromData[(Boolean, Boolean)]](d)
+      pair match
+        case (a, b) => b
     }
     testFromData(compiled, (true, false), 126, Term.Const(Constant.Bool(false)))
   }
