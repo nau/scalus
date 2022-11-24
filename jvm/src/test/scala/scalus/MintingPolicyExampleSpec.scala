@@ -158,6 +158,7 @@ class MintingPolicyExampleSpec
     def evalFlat(program: Program): Term = {
       val deBruijned = DeBruijn.deBruijnProgram(Program((1, 0, 0), program.term))
       val flat = ProgramFlatCodec.encodeFlat(deBruijned)
+      println(s"Flat size: ${flat.length}}")
       import scala.sys.process.*
       val cmd = "uplc evaluate --input-format flat"
       val out = cmd.#<(new ByteArrayInputStream(flat)).!!

@@ -102,16 +102,18 @@ object Macros {
           fieldOpt match
             case Some((fieldSym: Symbol, idx)) =>
               val idxExpr = Expr(idx)
-
-              var expr: Expr[Data => builtins.List[Data]] = '{ d =>
-                Builtins.unsafeDataAsConstr(d).snd
+              '{ d =>
+                // a bit of staged programming here
+                ${
+                  var expr = '{ Builtins.unsafeDataAsConstr(d).snd }
+                  var i = 0
+                  while i < idx do
+                    val exp = expr // save the current expr, otherwise it will loop forever
+                    expr = '{ $exp.tail }
+                    i += 1
+                  expr
+                }.head
               }
-              var i = 0
-              while i < idx do
-                val exp = expr // save the current expr, otherwise it will loop forever
-                expr = '{ d => $exp(d).tail }
-                i += 1
-              '{ d => $expr(d).head }
 
             case None =>
               report.errorAndAbort("fieldMacro: " + fieldName)
