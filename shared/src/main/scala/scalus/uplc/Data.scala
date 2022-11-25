@@ -21,6 +21,9 @@ object Data:
     def toData(a: A): Data
 
   type FromData[A] = Data => A
+  // fromData extension method
+  inline def fromData[A](inline data: Data)(using inline ev: FromData[A]): A =
+    summon[FromData[A]].apply(data)
 
   given BigIntFromData: FromData[BigInt] = Builtins.unsafeDataAsI
   given ByteStringFromData: FromData[ByteString] = Builtins.unsafeDataAsB
@@ -47,13 +50,19 @@ object Data:
     if pair.fst === BigInt(0) then scalus.Predef.Maybe.Just(fromA(pair.snd.head))
     else scalus.Predef.Maybe.Nothing
 
-  given tupleFromData[A, B](using fromA: FromData[A], fromB: FromData[B]): FromData[(A, B)] =
+  /* given tupleFromData[A, B](using fromA: FromData[A], fromB: FromData[B]): FromData[(A, B)] =
     (d: Data) =>
       val pair = Builtins.unsafeDataAsConstr(d)
       val constr = pair.fst
       val args = pair.snd
       if constr === BigInt(0) then (fromA(args.head), fromB(args.tail.head))
-      else throw new RuntimeException("Not a Tuple2")
+      else throw new RuntimeException("Not a Tuple2") */
+
+  given unsafeTupleFromData[A, B](using fromA: FromData[A], fromB: FromData[B]): FromData[(A, B)] =
+    (d: Data) =>
+      val pair = Builtins.unsafeDataAsConstr(d)
+      val args = pair.snd
+      (fromA(args.head), fromB(args.tail.head))
 
   object ToData:
     import scala.compiletime.*

@@ -56,7 +56,7 @@ class CompileFromDataToSIRSpec extends AnyFunSuite with ScalaCheckPropertyChecks
       pair match
         case (a, b) => b
     }
-    testFromData(compiled, (true, false), 126, Term.Const(Constant.Bool(false)))
+    testFromData(compiled, (true, false), 109, Term.Const(Constant.Bool(false)))
   }
 
   test("compile FromData[PubKeyHash]") {
@@ -99,7 +99,7 @@ class CompileFromDataToSIRSpec extends AnyFunSuite with ScalaCheckPropertyChecks
                     case (tn, vl) => vl
 
     }
-    testFromData(compiled, Value.lovelace(42), 184, Term.Const(Constant.Integer(42)))
+    testFromData(compiled, Value.lovelace(42), 167, Term.Const(Constant.Integer(42)))
   }
 
   test("compile FromData[TxOutRef]") {
@@ -217,7 +217,7 @@ class CompileFromDataToSIRSpec extends AnyFunSuite with ScalaCheckPropertyChecks
         Value.lovelace(42),
         Just(hex"beef")
       ),
-      485,
+      468,
       Term.Const(Constant.Integer(2))
     )
   }
@@ -239,7 +239,7 @@ class CompileFromDataToSIRSpec extends AnyFunSuite with ScalaCheckPropertyChecks
           Just(hex"beef")
         )
       ),
-      558,
+      541,
       Term.Const(Constant.Integer(12))
     )
   }
@@ -309,7 +309,7 @@ class CompileFromDataToSIRSpec extends AnyFunSuite with ScalaCheckPropertyChecks
         txInfoData = scalus.Predef.List.Nil,
         txInfoId = TxId(ByteString.fromHex("bb"))
       ),
-      1299,
+      1282,
       Term.Const(Constant.ByteString(ByteString.fromHex("bb")))
     )
   }
@@ -337,7 +337,7 @@ class CompileFromDataToSIRSpec extends AnyFunSuite with ScalaCheckPropertyChecks
         ),
         ScriptPurpose.Spending(TxOutRef(TxId(hex"12"), 12))
       ),
-      1446,
+      1429,
       Term.Const(Constant.ByteString(ByteString.fromHex("bb")))
     )
   }

@@ -708,6 +708,8 @@ object Macros {
             '{ SIR.Builtin(DefaultFun.UnBData) }
           case bi if bi.tpe.show == "scalus.builtins.Builtins.unsafeDataAsI" =>
             '{ SIR.Builtin(DefaultFun.UnIData) }
+          case bi if bi.tpe.show == "scalus.builtins.Builtins.sha2_256" =>
+            '{ SIR.Builtin(DefaultFun.Sha2_256) }
           // case class User(name: String, age: Int)
           // val user = User("John", 42) => \u - u "John" 42
           // user.name => \u name age -> name

@@ -7,6 +7,7 @@ import scalus.uplc.DefaultUni.{asConstant, Bool, Integer, given}
 import scala.annotation.targetName
 import scala.collection.immutable
 import scala.collection.mutable.ArrayBuffer
+import scalus.utils.Utils
 
 enum TypeScheme:
   case Type(argType: DefaultUni)
@@ -345,6 +346,16 @@ object Meaning:
         () => Cek.VCon(Constant.Data(Data.List(datas)))
     )
 
+  val Sha2_256 =
+    mkMeaning(
+      DefaultUni.ByteString ->: DefaultUni.ByteString,
+      (a: CekValue) =>
+        val aa = a.asByteString
+        () =>
+          // FIXME: this is not correct
+          Cek.VCon(Constant.ByteString(scalus.builtins.ByteString.fromHex("00")))
+    )
+
   val BuiltinMeanings: immutable.Map[DefaultFun, Runtime] = immutable.Map.apply(
     (DefaultFun.AddInteger, Meaning.AddInteger),
     (DefaultFun.SubtractInteger, Meaning.SubtractInteger),
@@ -373,5 +384,6 @@ object Meaning:
     (DefaultFun.ConstrData, Meaning.ConstrData),
     (DefaultFun.MkCons, Meaning.MkCons),
     (DefaultFun.BData, Meaning.BData),
-    (DefaultFun.ListData, Meaning.ListData)
+    (DefaultFun.ListData, Meaning.ListData),
+    (DefaultFun.Sha2_256, Meaning.Sha2_256)
   )

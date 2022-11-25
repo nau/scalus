@@ -27,6 +27,11 @@ object Utils:
       case NonFatal(e) =>
         throw new IllegalArgumentException(s"`$hexString` is not a valid hex string", e)
 
+  def sha2_256(bytes: Array[Byte]): Array[Byte] =
+    val digest = java.security.MessageDigest.getInstance("SHA-256")
+    digest.update(bytes)
+    digest.digest()
+
   def uplcToFlat(program: String): Array[Byte] =
     import scala.sys.process.*
     val cmd = "uplc convert --of flat"

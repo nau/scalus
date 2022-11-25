@@ -88,3 +88,8 @@ object Builtins:
   def unsafeDataAsB(d: Data): ByteString = d match
     case Data.B(value) => value
     case _             => throw new Exception(s"not a bytestring but $d")
+
+  def sha2_256(bs: ByteString): ByteString =
+    // calculate the hash
+    val hash = Utils.sha2_256(bs.bytes)
+    ByteString(hash)

@@ -27,49 +27,7 @@ import scala.util.Try
 import scala.util.Success
 import scala.util.Failure
 
-class MintingPolicyExampleSpec
-    extends AnyFunSuite
-    with ScalaCheckPropertyChecks
-    with ArbitraryInstances {
-
-  enum Expected:
-    case Success(term: Term)
-    case Failure(description: String)
-
-  def assertSameResult(expected: Expected)(program: Program) = {
-    val result1 = PlutusUplcEval.evalFlat(program)
-    val result2 = Try(Cek.evalUPLCProgram(program))
-    // println(s"$result1 == $result2")
-    (expected, result1, result2) match
-      case (Expected.Success(term), UplcEvalResult.Success(term1), Success(term2)) =>
-        assert(term == term1)
-        assert(term == term2)
-      case (Expected.Failure(_), UplcEvalResult.UplcFailure(_, err), Failure(e2)) =>
-        // println(s"Error: $err and $e2")
-        assert(true)
-      case _ =>
-        fail(
-          s"Expected $expected, but got uplc evaluate: $result1\nCek.evalUPLCProgram => $result2"
-        )
-  }
-
-  // simple minting policy
-  val hoskyMintTxOutRef = TxOutRef(
-    TxId(ByteString.fromHex("1ab6879fc08345f51dc9571ac4f530bf8673e0d798758c470f9af6f98e2f3982")),
-    0
-  )
-  val hoskyMintTxOut = TxOut(
-    txOutAddress = Address(
-      Credential.PubKeyCredential(
-        PubKeyHash(
-          hex"61822dde476439a526070f36d3d1667ad099b462c111cd85e089f5e7f6"
-        )
-      ),
-      Nothing
-    ),
-    Value.lovelace(BigInt("10000000")),
-    Nothing
-  )
+class MintingPolicyExampleSpec extends BaseValidatorSpec {
 
   case class TxInInfoTxOutRefOnly(txInInfoOutRef: TxOutRef)
   given Data.FromData[TxInInfoTxOutRefOnly] = (d: Data) =>
@@ -217,7 +175,7 @@ class MintingPolicyExampleSpec
     // println(compiled.pretty.render(100))
     val validator = new SimpleSirToUplcLowering().lower(compiled)
     val flatSize = ProgramFlatCodec.encodeFlat(Program((1, 0, 0), validator)).length
-    assert(flatSize == 1738)
+    assert(flatSize == 1721)
     performMintingPolicyValidatorChecks(validator)
   }
 
@@ -296,7 +254,7 @@ class MintingPolicyExampleSpec
     // println(compiled.pretty.render(100))
     val validator = new SimpleSirToUplcLowering().lower(compiled)
     val flatSize = ProgramFlatCodec.encodeFlat(Program((1, 0, 0), validator)).length
-    assert(flatSize == 586)
+    assert(flatSize == 569)
     performMintingPolicyValidatorChecks(validator)
   }
 }
