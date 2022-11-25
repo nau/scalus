@@ -100,27 +100,29 @@ class PreImageExampleSpec extends BaseValidatorSpec {
     import Data.{fromData, given}
 
     def preimageValidator(datum: Data, redeemer: Data, ctxData: Data): Unit = {
-      val (hash, pkh) = summon[FromData[(ByteString, ByteString)]](datum)
-      val preimage = summon[FromData[ByteString]](redeemer)
-      val ctx = summon[FromData[ScriptContext]](ctxData)
+      // deserialize from Data
+      val (hash, pkh) = fromData[(ByteString, ByteString)](datum)
+      val preimage = fromData[ByteString](redeemer)
+      val ctx = fromData[ScriptContext](ctxData)
+      // get the transaction signatories
       val signatories = ctx.scriptContextTxInfo.txInfoSignatories
 
       def findOrFail[A](lst: List[A])(p: A => Boolean): Unit = lst match
         case Nil              => throw new Exception("Not found")
         case Cons(head, tail) => if p(head) then () else findOrFail(tail)(p)
-
-      findOrFail(signatories) { sig =>
-        sig.hash === pkh
-      }
+      // check that the transaction is signed by the public key hash
+      findOrFail(signatories) { sig => sig.hash === pkh }
+      // check that the preimage hashes to the hash
       if Builtins.sha2_256(preimage) === hash then ()
       else throw new RuntimeException("Wrong preimage")
+      // throwing an exception compiles to UPLC error
     }
-
+    // compile to Scalus Intermediate Representation, SIR
     val compiled = compile(preimageValidator)
-    // println(compiled.pretty.render(100))
+    // convert SIR to UPLC
     val validator = new SimpleSirToUplcLowering().lower(compiled)
-    val flatSize = ProgramFlatCodec.encodeFlat(Program((1, 0, 0), validator)).length
-    assert(flatSize == 1529)
+    val flatEncoded = ProgramFlatCodec.encodeFlat(Program((1, 0, 0), validator))
+    assert(flatEncoded.length == 1550)
 
     performChecks(validator)
   }
@@ -133,6 +135,7 @@ class PreImageExampleSpec extends BaseValidatorSpec {
         case (hash, pkh) =>
           val preimage = summon[FromData[ByteString]](redeemer)
           val signatories = summon[FromData[List[PubKeyHash]]](
+            // deserialize only the signatories from the ScriptContext
             fieldAsData[ScriptContext](_.scriptContextTxInfo.txInfoSignatories)(ctxData)
           )
 
@@ -148,7 +151,7 @@ class PreImageExampleSpec extends BaseValidatorSpec {
     }
 
     val compiled = compile(preimageValidator)
-    // println(compiled.pretty.render(100))
+    println(compiled.pretty.render(100))
     val validator = new SimpleSirToUplcLowering().lower(compiled)
     val flatSize = ProgramFlatCodec.encodeFlat(Program((1, 0, 0), validator)).length
     assert(flatSize == 261)
