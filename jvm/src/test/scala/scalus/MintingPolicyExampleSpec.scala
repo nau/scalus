@@ -32,25 +32,70 @@ class MintingPolicyExampleSpec
     with ScalaCheckPropertyChecks
     with ArbitraryInstances {
 
+  enum Expected:
+    case Success(term: Term)
+    case Failure(description: String)
+
+  def assertSameResult(expected: Expected)(program: Program) = {
+    val result1 = PlutusUplcEval.evalFlat(program)
+    val result2 = Try(Cek.evalUPLCProgram(program))
+    // println(s"$result1 == $result2")
+    (expected, result1, result2) match
+      case (Expected.Success(term), UplcEvalResult.Success(term1), Success(term2)) =>
+        assert(term == term1)
+        assert(term == term2)
+      case (Expected.Failure(_), UplcEvalResult.UplcFailure(_, err), Failure(e2)) =>
+        // println(s"Error: $err and $e2")
+        assert(true)
+      case _ =>
+        fail(
+          s"Expected $expected, but got uplc evaluate: $result1\nCek.evalUPLCProgram => $result2"
+        )
+  }
+
+  // simple minting policy
+  val hoskyMintTxOutRef = TxOutRef(
+    TxId(ByteString.fromHex("1ab6879fc08345f51dc9571ac4f530bf8673e0d798758c470f9af6f98e2f3982")),
+    0
+  )
+  val hoskyMintTxOut = TxOut(
+    txOutAddress = Address(
+      Credential.PubKeyCredential(
+        PubKeyHash(
+          hex"61822dde476439a526070f36d3d1667ad099b462c111cd85e089f5e7f6"
+        )
+      ),
+      Nothing
+    ),
+    Value.lovelace(BigInt("10000000")),
+    Nothing
+  )
+
+  case class TxInInfoTxOutRefOnly(txInInfoOutRef: TxOutRef)
+  given Data.FromData[TxInInfoTxOutRefOnly] = (d: Data) =>
+    val pair = Builtins.unsafeDataAsConstr(d)
+    new TxInInfoTxOutRefOnly(summon[Data.FromData[TxOutRef]](pair.snd.head))
+
+  def scriptContext(txInfoInputs: scalus.Predef.List[TxInInfo], value: Value) =
+    ScriptContext(
+      TxInfo(
+        txInfoInputs = txInfoInputs,
+        txInfoOutputs = scalus.Predef.List.Nil,
+        txInfoFee = Value.lovelace(BigInt("188021")),
+        txInfoMint = value,
+        txInfoDCert = scalus.Predef.List.Nil,
+        txInfoWdrl = scalus.Predef.List.Nil,
+        txInfoValidRange = Interval.always,
+        txInfoSignatories = scalus.Predef.List.Nil,
+        txInfoData = scalus.Predef.List.Nil,
+        txInfoId = TxId(hex"1e0612fbd127baddfcd555706de96b46c4d4363ac78c73ab4dee6e6a7bf61fe9")
+      ),
+      ScriptPurpose.Minting(hex"a0028f350aaabe0545fdcb56b039bfb08e4bb4d8c4d7c3c7d481c235")
+    )
+
   test("Minting Policy example") {
     import scalus.utils.Utils.*
     import ScriptPurpose.*
-
-    // simple minting policy
-    val txOutRef = TxOutRef(
-      TxId(ByteString.fromHex("cdf25cc5278b8a583308f6536a537623adc84fa3f886ad573f5d29d0e7a40d43")),
-      1
-    )
-    val fakeTxOut = TxOut(
-      txOutAddress = Address(Credential.PubKeyCredential(PubKeyHash(hex"deadbeef")), Nothing),
-      Value.zero,
-      Nothing
-    )
-
-    case class TxInInfoTxOutRefOnly(txInInfoOutRef: TxOutRef)
-    given Data.FromData[TxInInfoTxOutRefOnly] = (d: Data) =>
-      val pair = Builtins.unsafeDataAsConstr(d)
-      new TxInInfoTxOutRefOnly(summon[Data.FromData[TxOutRef]](pair.snd.head))
 
     def mintingPolicyScript(
         txId: ByteString,
@@ -113,8 +158,9 @@ class MintingPolicyExampleSpec
 
       def ensureSpendsTxOut(inputs: List[TxInInfoTxOutRefOnly]): Unit = findOrFail(inputs) {
         txInInfo =>
-          val ref = txInInfo.txInInfoOutRef
-          ref.txOutRefId.hash === txId && ref.txOutRefIdx === txOutIdx
+          txInInfo.txInInfoOutRef match
+            case TxOutRef(txOutRefTxId, txOutRefIdx) =>
+              txOutRefTxId.hash === txId && txOutRefIdx === txOutIdx
       }
       ensureMinted(minted)
       ensureSpendsTxOut(txInfoInputs)
@@ -122,76 +168,69 @@ class MintingPolicyExampleSpec
 
     val compiled = compile(
       mintingPolicyScript(
-        txOutRef.txOutRefId.hash,
-        txOutRef.txOutRefIdx,
-        ByteString.fromHex("deadbeef"),
-        1,
+        hoskyMintTxOutRef.txOutRefId.hash,
+        hoskyMintTxOutRef.txOutRefIdx,
+        ByteString.fromHex("484f534b59"),
+        BigInt("1000000000000000"),
         _,
         _
       )
     )
     println(compiled.pretty.render(100))
     val validator = new SimpleSirToUplcLowering().lower(compiled)
+    val flatSize = ProgramFlatCodec.encodeFlat(Program((1, 0, 0), validator)).length
+    assert(flatSize == 586)
 
     import Data.toData
+    def appliedScript(ctx: ScriptContext) = Program((1, 0, 0), validator $ () $ ctx.toData)
 
-    def scriptContext(txInfoInputs: scalus.Predef.List[TxInInfo], value: Value) =
-      ScriptContext(
-        TxInfo(
-          txInfoInputs = txInfoInputs,
-          txInfoOutputs = scalus.Predef.List.Nil,
-          txInfoFee = Value.zero,
-          txInfoMint = value,
-          txInfoDCert = scalus.Predef.List.Nil,
-          txInfoWdrl = scalus.Predef.List.Nil,
-          txInfoValidRange = Interval.always,
-          txInfoSignatories = scalus.Predef.List.Nil,
-          txInfoData = scalus.Predef.List.Nil,
-          txInfoId = TxId(hex"bb")
-        ),
-        ScriptPurpose.Minting(hex"ca")
-      )
+    def withScriptContext(txInfoInputs: scalus.Predef.List[TxInInfo], value: Value) =
+      appliedScript(scriptContext(txInfoInputs, value))
 
-    def appliedScript(ctx: ScriptContext) =
-      Program((1, 0, 0), validator $ () $ ctx.toData)
-
-    def evalFlat(program: Program): Term = {
-      val deBruijned = DeBruijn.deBruijnProgram(Program((1, 0, 0), program.term))
-      val flat = ProgramFlatCodec.encodeFlat(deBruijned)
-      println(s"Flat size: ${flat.length}}")
-      import scala.sys.process.*
-      val cmd = "uplc evaluate --input-format flat"
-      val out = cmd.#<(new ByteArrayInputStream(flat)).!!
-      UplcParser.term.parse(out) match
-        case Right(_, term) => term
-        case Left(_)        => throw new EvaluationFailure("Failed to parse")
-    }
-
-    def assertSameResult(program: Program) = {
-      val result1 = Try(evalFlat(program))
-      val result2 = Try(Cek.evalUPLCProgram(program))
-      println(s"$result1 == $result2")
-      (result1, result2) match
-        case (Success(term1), Success(term2)) => assert(term1 == term2)
-        case (Failure(e1), Failure(e2))       => assert(true)
-        case _                                => fail(s"Expected $result1 === $result2")
-    }
-
-    assertSameResult(
-      appliedScript(
-        scriptContext(List(TxInInfo(txOutRef, fakeTxOut)), Value(hex"ca", hex"deadbeef", 1))
+    assertSameResult(Expected.Success(Const(Constant.Unit)))(
+      withScriptContext(
+        List(TxInInfo(hoskyMintTxOutRef, hoskyMintTxOut)),
+        Value(
+          hex"a0028f350aaabe0545fdcb56b039bfb08e4bb4d8c4d7c3c7d481c235",
+          hex"484f534b59",
+          BigInt("1000000000000000")
+        )
       )
     )
 
-    assertSameResult(
-      appliedScript(
-        scriptContext(List(TxInInfo(txOutRef, fakeTxOut)), Value(hex"ca", hex"deadbeef", 2))
+    assertSameResult(Expected.Failure("Wrong minted amount"))(
+      withScriptContext(
+        List(TxInInfo(hoskyMintTxOutRef, hoskyMintTxOut)),
+        Value(hex"a0028f350aaabe0545fdcb56b039bfb08e4bb4d8c4d7c3c7d481c235", hex"484f534b59", 2)
       )
     )
 
-    assertSameResult(
-      appliedScript(
-        scriptContext(List(TxInInfo(txOutRef, fakeTxOut)), Value(hex"cc", hex"deadbeef", 1))
+    assertSameResult(Expected.Failure("Wrong Policy ID"))(
+      withScriptContext(
+        List(TxInInfo(hoskyMintTxOutRef, hoskyMintTxOut)),
+        Value(hex"cc", hex"484f534b59", BigInt("1000000000000000"))
+      )
+    )
+
+    assertSameResult(Expected.Failure("Wrong Token Name"))(
+      withScriptContext(
+        List(TxInInfo(hoskyMintTxOutRef, hoskyMintTxOut)),
+        Value(
+          hex"a0028f350aaabe0545fdcb56b039bfb08e4bb4d8c4d7c3c7d481c235",
+          hex"deadbeef",
+          BigInt("1000000000000000")
+        )
+      )
+    )
+
+    assertSameResult(Expected.Failure("Haven't spent expected TxOutRef"))(
+      withScriptContext(
+        List.empty,
+        Value(
+          hex"a0028f350aaabe0545fdcb56b039bfb08e4bb4d8c4d7c3c7d481c235",
+          hex"484f534b59",
+          BigInt("1000000000000000")
+        )
       )
     )
   }
