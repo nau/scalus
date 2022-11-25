@@ -93,10 +93,63 @@ class MintingPolicyExampleSpec
       ScriptPurpose.Minting(hex"a0028f350aaabe0545fdcb56b039bfb08e4bb4d8c4d7c3c7d481c235")
     )
 
-  test("Minting Policy example") {
-    import scalus.utils.Utils.*
-    import ScriptPurpose.*
+  def performMintingPolicyValidatorChecks(validator: Term) = {
+    import Data.toData
+    def appliedScript(ctx: ScriptContext) = Program((1, 0, 0), validator $ () $ ctx.toData)
 
+    def withScriptContext(txInfoInputs: scalus.Predef.List[TxInInfo], value: Value) =
+      appliedScript(scriptContext(txInfoInputs, value))
+
+    assertSameResult(Expected.Success(Const(Constant.Unit)))(
+      withScriptContext(
+        List(TxInInfo(hoskyMintTxOutRef, hoskyMintTxOut)),
+        Value(
+          hex"a0028f350aaabe0545fdcb56b039bfb08e4bb4d8c4d7c3c7d481c235",
+          hex"484f534b59",
+          BigInt("1000000000000000")
+        )
+      )
+    )
+
+    assertSameResult(Expected.Failure("Wrong minted amount"))(
+      withScriptContext(
+        List(TxInInfo(hoskyMintTxOutRef, hoskyMintTxOut)),
+        Value(hex"a0028f350aaabe0545fdcb56b039bfb08e4bb4d8c4d7c3c7d481c235", hex"484f534b59", 2)
+      )
+    )
+
+    assertSameResult(Expected.Failure("Wrong Policy ID"))(
+      withScriptContext(
+        List(TxInInfo(hoskyMintTxOutRef, hoskyMintTxOut)),
+        Value(hex"cc", hex"484f534b59", BigInt("1000000000000000"))
+      )
+    )
+
+    assertSameResult(Expected.Failure("Wrong Token Name"))(
+      withScriptContext(
+        List(TxInInfo(hoskyMintTxOutRef, hoskyMintTxOut)),
+        Value(
+          hex"a0028f350aaabe0545fdcb56b039bfb08e4bb4d8c4d7c3c7d481c235",
+          hex"deadbeef",
+          BigInt("1000000000000000")
+        )
+      )
+    )
+
+    assertSameResult(Expected.Failure("Haven't spent expected TxOutRef"))(
+      withScriptContext(
+        List.empty,
+        Value(
+          hex"a0028f350aaabe0545fdcb56b039bfb08e4bb4d8c4d7c3c7d481c235",
+          hex"484f534b59",
+          BigInt("1000000000000000")
+        )
+      )
+    )
+  }
+
+  test("Minting Policy Validator") {
+    import ScriptPurpose.*
     def mintingPolicyScript(
         txId: ByteString,
         txOutIdx: BigInt,
@@ -105,7 +158,7 @@ class MintingPolicyExampleSpec
         redeemer: Unit,
         ctxData: Data
     ): Unit = {
-      /* val ctx = summon[Data.FromData[ScriptContext]](ctxData)
+      val ctx = summon[Data.FromData[ScriptContext]](ctxData)
       val txInfo = ctx.scriptContextTxInfo
       val txInfoInputs = txInfo.txInfoInputs
       val minted = txInfo.txInfoMint
@@ -115,8 +168,72 @@ class MintingPolicyExampleSpec
         case Spending(txOutRef) => throw new RuntimeException("Spending context is not supported")
         case Rewarding(stakingCred) =>
           throw new RuntimeException("Rewarding context is not supported")
-        case Certifying(cert) => throw new RuntimeException("Certifying context is not supported") */
+        case Certifying(cert) => throw new RuntimeException("Certifying context is not supported")
 
+      def findOrFail[A](lst: List[A])(p: A => Boolean): Unit = lst match
+        case Nil              => throw new Exception("Not found")
+        case Cons(head, tail) => if p(head) then () else findOrFail(tail)(p)
+
+      def findToken(tokens: List[(ByteString, BigInt)]): Unit =
+        findOrFail(tokens) { token =>
+          token match
+            case (tn, amt) => tn === tokenName && amt === amount
+        }
+
+      def ensureMinted(minted: Value): Unit = {
+        findOrFail(minted) { asset =>
+          asset match
+            case (curSymbol, tokens) =>
+              if curSymbol === ownSymbol
+              then
+                findOrFail(tokens) { tokens =>
+                  tokens match
+                    case (tn, amt) => tn === tokenName && amt === amount
+                }
+                true
+              else false
+        }
+      }
+
+      def ensureSpendsTxOut(inputs: List[TxInInfo]): Unit = findOrFail(inputs) { txInInfo =>
+        txInInfo.txInInfoOutRef match
+          case TxOutRef(txOutRefTxId, txOutRefIdx) =>
+            txOutRefTxId.hash === txId && txOutRefIdx === txOutIdx
+      }
+      ensureMinted(minted)
+      ensureSpendsTxOut(txInfoInputs)
+    }
+
+    val compiled = compile(
+      mintingPolicyScript(
+        hoskyMintTxOutRef.txOutRefId.hash,
+        hoskyMintTxOutRef.txOutRefIdx,
+        ByteString.fromHex("484f534b59"),
+        BigInt("1000000000000000"),
+        _,
+        _
+      )
+    )
+    // println(compiled.pretty.render(100))
+    val validator = new SimpleSirToUplcLowering().lower(compiled)
+    val flatSize = ProgramFlatCodec.encodeFlat(Program((1, 0, 0), validator)).length
+    assert(flatSize == 1738)
+    performMintingPolicyValidatorChecks(validator)
+  }
+
+  test("Minting Policy Validator Optimized") {
+    /* Here we use a custom ScriptContext deserializer
+       to avoid deserializing from Data fields that are not used in the script.
+       This saves us more than 1000 bytes of the script size.
+     */
+    def mintingPolicyScript(
+        txId: ByteString,
+        txOutIdx: BigInt,
+        tokenName: ByteString,
+        amount: BigInt,
+        redeemer: Unit,
+        ctxData: Data
+    ): Unit = {
       val txInfoData = fieldAsData[ScriptContext](_.scriptContextTxInfo)(ctxData)
       val txInfoInputs =
         summon[Data.FromData[List[TxInInfoTxOutRefOnly]]](
@@ -176,62 +293,10 @@ class MintingPolicyExampleSpec
         _
       )
     )
-    println(compiled.pretty.render(100))
+    // println(compiled.pretty.render(100))
     val validator = new SimpleSirToUplcLowering().lower(compiled)
     val flatSize = ProgramFlatCodec.encodeFlat(Program((1, 0, 0), validator)).length
     assert(flatSize == 586)
-
-    import Data.toData
-    def appliedScript(ctx: ScriptContext) = Program((1, 0, 0), validator $ () $ ctx.toData)
-
-    def withScriptContext(txInfoInputs: scalus.Predef.List[TxInInfo], value: Value) =
-      appliedScript(scriptContext(txInfoInputs, value))
-
-    assertSameResult(Expected.Success(Const(Constant.Unit)))(
-      withScriptContext(
-        List(TxInInfo(hoskyMintTxOutRef, hoskyMintTxOut)),
-        Value(
-          hex"a0028f350aaabe0545fdcb56b039bfb08e4bb4d8c4d7c3c7d481c235",
-          hex"484f534b59",
-          BigInt("1000000000000000")
-        )
-      )
-    )
-
-    assertSameResult(Expected.Failure("Wrong minted amount"))(
-      withScriptContext(
-        List(TxInInfo(hoskyMintTxOutRef, hoskyMintTxOut)),
-        Value(hex"a0028f350aaabe0545fdcb56b039bfb08e4bb4d8c4d7c3c7d481c235", hex"484f534b59", 2)
-      )
-    )
-
-    assertSameResult(Expected.Failure("Wrong Policy ID"))(
-      withScriptContext(
-        List(TxInInfo(hoskyMintTxOutRef, hoskyMintTxOut)),
-        Value(hex"cc", hex"484f534b59", BigInt("1000000000000000"))
-      )
-    )
-
-    assertSameResult(Expected.Failure("Wrong Token Name"))(
-      withScriptContext(
-        List(TxInInfo(hoskyMintTxOutRef, hoskyMintTxOut)),
-        Value(
-          hex"a0028f350aaabe0545fdcb56b039bfb08e4bb4d8c4d7c3c7d481c235",
-          hex"deadbeef",
-          BigInt("1000000000000000")
-        )
-      )
-    )
-
-    assertSameResult(Expected.Failure("Haven't spent expected TxOutRef"))(
-      withScriptContext(
-        List.empty,
-        Value(
-          hex"a0028f350aaabe0545fdcb56b039bfb08e4bb4d8c4d7c3c7d481c235",
-          hex"484f534b59",
-          BigInt("1000000000000000")
-        )
-      )
-    )
+    performMintingPolicyValidatorChecks(validator)
   }
 }
