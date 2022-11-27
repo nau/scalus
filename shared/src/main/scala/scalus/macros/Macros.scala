@@ -264,6 +264,8 @@ object Macros {
       case Literal(BooleanConstant(lit)) =>
         val litE = Expr(lit)
         '{ scalus.uplc.Constant.Bool($litE) }
+      case e @ Literal(IntConstant(v)) =>
+        report.errorAndAbort(s"Scalus: Int literals are not supported. Try BigInt($v) instead")
       case e @ Literal(_) => report.errorAndAbort(s"compileExpr: Unsupported literal ${e.show}\n$e")
       case lit @ Apply(Select(Ident("BigInt"), "apply"), _) =>
         val litE = lit.asExprOf[BigInt]
