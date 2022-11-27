@@ -135,6 +135,34 @@ object Meaning:
           () => Cek.VCon(asConstant(aa < bb))
     )
 
+  val ConsByteString =
+    mkMeaning(
+      DefaultUni.Integer ->: DefaultUni.ByteString ->: DefaultUni.ByteString,
+      (a: CekValue) =>
+        val aa = a.asInteger
+        (b: CekValue) =>
+          val bb = b.asByteString
+          () => Cek.VCon(asConstant(scalus.builtins.Builtins.consByteString(aa, bb)))
+    )
+
+  val IndexByteString =
+    mkMeaning(
+      DefaultUni.ByteString ->: DefaultUni.Integer ->: DefaultUni.Integer,
+      (a: CekValue) =>
+        val aa = a.asByteString
+        (b: CekValue) =>
+          val bb = b.asInteger
+          () => Cek.VCon(asConstant(scalus.builtins.Builtins.indexByteString(aa, bb)))
+    )
+
+  val LengthOfByteString =
+    mkMeaning(
+      DefaultUni.ByteString ->: DefaultUni.Integer,
+      (a: CekValue) =>
+        val aa = a.asByteString
+        () => Cek.VCon(asConstant(scalus.builtins.Builtins.lengthOfByteString(aa)))
+    )
+
   val EqualsByteString =
     mkMeaning(
       DefaultUni.ByteString ->: DefaultUni.ByteString ->: Bool,
@@ -143,6 +171,22 @@ object Meaning:
         (b: CekValue) =>
           val bb = b.asByteString
           () => Cek.VCon(asConstant(aa == bb))
+    )
+
+  val DecodeUtf8 =
+    mkMeaning(
+      DefaultUni.ByteString ->: DefaultUni.String,
+      (a: CekValue) =>
+        val aa = a.asByteString
+        () => Cek.VCon(asConstant(scalus.builtins.Builtins.decodeUtf8(aa)))
+    )
+
+  val Trace =
+    mkMeaning(
+      All("a", DefaultUni.String ->: TVar("a") ->: TVar("a")),
+      (a: CekValue) =>
+        val aa = a.asString
+        (b: CekValue) => () => scalus.builtins.Builtins.trace(aa)(b)
     )
 
   val EqualsString =
@@ -368,6 +412,11 @@ object Meaning:
     (DefaultFun.LessThanEqualsInteger, Meaning.LessThanEqualsInteger),
     (DefaultFun.LessThanInteger, Meaning.LessThanInteger),
     (DefaultFun.EqualsByteString, Meaning.EqualsByteString),
+    (DefaultFun.ConsByteString, Meaning.ConsByteString),
+    (DefaultFun.IndexByteString, Meaning.IndexByteString),
+    (DefaultFun.LengthOfByteString, Meaning.LengthOfByteString),
+    (DefaultFun.Trace, Meaning.Trace),
+    (DefaultFun.DecodeUtf8, Meaning.DecodeUtf8),
     (DefaultFun.EqualsString, Meaning.EqualsString),
     (DefaultFun.IfThenElse, Meaning.IfThenElse),
     (DefaultFun.UnConstrData, Meaning.UnConstrData),

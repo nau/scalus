@@ -1,5 +1,6 @@
 package scalus
 
+import io.bullet.borer.Cbor
 import org.scalatest.funsuite.AnyFunSuite
 import org.scalatestplus.scalacheck.ScalaCheckPropertyChecks
 import scalus.Compiler.compile
@@ -23,7 +24,7 @@ import scalus.uplc.DefaultFun.*
 import scalus.uplc.DefaultUni.Bool
 import scalus.uplc.DefaultUni.asConstant
 import scalus.uplc.Term.*
-import scalus.uplc.TermDSL.{_, given}
+import scalus.uplc.TermDSL.{*, given}
 import scalus.uplc.*
 import scalus.utils.Utils
 
@@ -33,6 +34,34 @@ import scala.util.Failure
 import scala.util.Success
 import scala.util.Try
 import java.nio.charset.Charset
+
+object OptimizedPreimageValidator:
+
+  def preimageValidator(datum: Data, redeemer: Data, ctxData: Data): Unit = {
+    summon[FromData[(ByteString, ByteString)]](datum) match
+      case (hash, pkh) =>
+        val preimage = summon[FromData[ByteString]](redeemer)
+        val signatories = summon[FromData[List[PubKeyHash]]](
+          // deserialize only the signatories from the ScriptContext
+          fieldAsData[ScriptContext](_.scriptContextTxInfo.txInfoSignatories)(ctxData)
+        )
+
+        def findOrFail[A](lst: List[A])(p: A => Boolean): Unit = lst match
+          case Nil              => throw new Exception("Not found")
+          case Cons(head, tail) => if p(head) then () else findOrFail(tail)(p)
+
+        findOrFail(signatories) { sig =>
+          sig.hash === pkh
+        }
+        if Builtins.sha2_256(preimage) === hash then ()
+        else throw new RuntimeException("Wrong preimage")
+  }
+  val compiledOptimizedPreimageValidator = compile(preimageValidator)
+  val validator = new SimpleSirToUplcLowering().lower(compiledOptimizedPreimageValidator)
+  val flatEncoded = ProgramFlatCodec.encodeFlat(Program((1, 0, 0), validator))
+  val cbor = Cbor.encode(flatEncoded).toByteArray
+  val cborHex = Utils.bytesToHex(Cbor.encode(flatEncoded).toByteArray)
+  val doubleCborHex = Utils.bytesToHex(Cbor.encode(cbor).toByteArray)
 
 class PreImageExampleSpec extends BaseValidatorSpec {
 
@@ -128,33 +157,7 @@ class PreImageExampleSpec extends BaseValidatorSpec {
   }
 
   test("Preimage Validator Optimized") {
-    import Data.{fromData, given}
-
-    def preimageValidator(datum: Data, redeemer: Data, ctxData: Data): Unit = {
-      summon[FromData[(ByteString, ByteString)]](datum) match
-        case (hash, pkh) =>
-          val preimage = summon[FromData[ByteString]](redeemer)
-          val signatories = summon[FromData[List[PubKeyHash]]](
-            // deserialize only the signatories from the ScriptContext
-            fieldAsData[ScriptContext](_.scriptContextTxInfo.txInfoSignatories)(ctxData)
-          )
-
-          def findOrFail[A](lst: List[A])(p: A => Boolean): Unit = lst match
-            case Nil              => throw new Exception("Not found")
-            case Cons(head, tail) => if p(head) then () else findOrFail(tail)(p)
-
-          findOrFail(signatories) { sig =>
-            sig.hash === pkh
-          }
-          if Builtins.sha2_256(preimage) === hash then ()
-          else throw new RuntimeException("Wrong preimage")
-    }
-
-    val compiled = compile(preimageValidator)
-    println(compiled.pretty.render(100))
-    val validator = new SimpleSirToUplcLowering().lower(compiled)
-    val flatSize = ProgramFlatCodec.encodeFlat(Program((1, 0, 0), validator)).length
-    assert(flatSize == 261)
-    performChecks(validator)
+    assert(OptimizedPreimageValidator.flatEncoded.length == 261)
+    performChecks(OptimizedPreimageValidator.validator)
   }
 }

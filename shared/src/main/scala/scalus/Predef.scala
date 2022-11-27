@@ -1,6 +1,7 @@
 package scalus
 
 import scalus.builtins.ByteString
+import scalus.builtins.Builtins
 
 object Predef {
   sealed class Eq[A]
@@ -22,4 +23,22 @@ object Predef {
   enum Maybe[+A]:
     case Nothing extends Maybe[Nothing]
     case Just(value: A)
+
+  def encodeHex(input: ByteString): String = {
+    val len = Builtins.lengthOfByteString(input)
+
+    val byteToChar =
+      (byte: BigInt) => if Builtins.lessThanInteger(byte, 10) then byte + 48 else byte + 87
+
+    def go(i: BigInt): ByteString = {
+      if i === len then ByteString.fromHex("")
+      else {
+        val byte = Builtins.indexByteString(input, i)
+        val char1 = byteToChar(byte / 16)
+        val char2 = byteToChar(byte % 16)
+        Builtins.consByteString(char1, Builtins.consByteString(char2, go(i + 1)))
+      }
+    }
+    Builtins.decodeUtf8(go(0))
+  }
 }

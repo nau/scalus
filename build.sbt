@@ -3,7 +3,7 @@ ThisBuild / scalaVersion := scala3Version
 
 lazy val root = project
   .in(file("."))
-  .aggregate(scalus.js, scalus.jvm)
+  .aggregate(scalus.js, scalus.jvm, examples)
   .settings(
     publish := {},
     publishLocal := {}
@@ -34,4 +34,11 @@ lazy val scalus = crossProject(JSPlatform, JVMPlatform)
   .jsSettings(
     // Add JS-specific settings here
     scalaJSUseMainModuleInitializer := true
+  )
+
+lazy val examples = project
+  .in(file("examples"))
+  .dependsOn(scalus.jvm % "compile->compile;compile->test")
+  .settings(
+    libraryDependencies += "com.bloxbean.cardano" % "cardano-client-backend-blockfrost" % "0.3.0"
   )

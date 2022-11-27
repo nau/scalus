@@ -93,3 +93,25 @@ object Builtins:
     // calculate the hash
     val hash = Utils.sha2_256(bs.bytes)
     ByteString(hash)
+
+  def trace[A](s: String)(a: A): A =
+    // calculate the hash
+    println(s)
+    a
+
+  def indexByteString(bs: ByteString, i: BigInt): BigInt =
+    if i < 0 || i >= bs.bytes.length then
+      throw new Exception(s"index $i out of bounds for bytestring of length ${bs.bytes.length}")
+    else BigInt(bs.bytes(i.toInt) & 0xff)
+
+  def consByteString(char: BigInt, byteString: ByteString): ByteString =
+    ByteString(char.toByte +: byteString.bytes)
+
+  def lengthOfByteString(bs: ByteString): BigInt = bs.bytes.length
+
+  def decodeUtf8(bs: ByteString): String =
+    new String(bs.bytes, "UTF-8")
+
+  def appendString(s1: String, s2: String): String = s1 + s2
+
+  def lessThanInteger(i1: BigInt, i2: BigInt): Boolean = i1 < i2

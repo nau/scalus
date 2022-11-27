@@ -366,7 +366,7 @@ object Macros {
       tpe.typeSymbol.isClassDef && symbol.flags.is(Flags.Case)
 
     def compileExpr(env: Env, e: Term): Expr[SIR] = {
-      // debugInfo( s"compileExpr: ${e.show}\n${e}\nin ${env}" )
+      // debugInfo(s"compileExpr: ${e.show}\n${e}\nin ${env}")
       if compileConstant.isDefinedAt(e) then
         val const = compileConstant(e)
         '{ SIR.Const($const) }
@@ -492,6 +492,13 @@ object Macros {
               // report.info(s"Sorted constrs: ${sortedCases}", cases.head.pos)
               '{ SIR.Match($tE, ${ Expr.ofList(sortedCases) }) }
 
+          // BigInt stuff
+          case Select(ident, "+") if ident.tpe.widen =:= TypeRepr.of[BigInt] =>
+            '{ SIR.Apply(SIR.Builtin(DefaultFun.AddInteger), ${ compileExpr(env, ident) }) }
+          case Select(ident, "/") if ident.tpe.widen =:= TypeRepr.of[BigInt] =>
+            '{ SIR.Apply(SIR.Builtin(DefaultFun.DivideInteger), ${ compileExpr(env, ident) }) }
+          case Select(ident, "%") if ident.tpe.widen =:= TypeRepr.of[BigInt] =>
+            '{ SIR.Apply(SIR.Builtin(DefaultFun.RemainderInteger), ${ compileExpr(env, ident) }) }
           // Type-safe equality
           case Apply(
                 Apply(Apply(TypeApply(Ident("==="), List(tpe)), List(lhs)), List(rhs)),
@@ -710,6 +717,18 @@ object Macros {
             '{ SIR.Builtin(DefaultFun.UnIData) }
           case bi if bi.tpe.show == "scalus.builtins.Builtins.sha2_256" =>
             '{ SIR.Builtin(DefaultFun.Sha2_256) }
+          case bi if bi.tpe.show == "scalus.builtins.Builtins.trace" =>
+            '{ SIR.Builtin(DefaultFun.Trace) }
+          case bi if bi.tpe.show == "scalus.builtins.Builtins.indexByteString" =>
+            '{ SIR.Builtin(DefaultFun.IndexByteString) }
+          case bi if bi.tpe.show == "scalus.builtins.Builtins.consByteString" =>
+            '{ SIR.Builtin(DefaultFun.ConsByteString) }
+          case bi if bi.tpe.show == "scalus.builtins.Builtins.lengthOfByteString" =>
+            '{ SIR.Builtin(DefaultFun.LengthOfByteString) }
+          case bi if bi.tpe.show == "scalus.builtins.Builtins.lessThanInteger" =>
+            '{ SIR.Builtin(DefaultFun.LessThanInteger) }
+          case bi if bi.tpe.show == "scalus.builtins.Builtins.decodeUtf8" =>
+            '{ SIR.Builtin(DefaultFun.DecodeUtf8) }
           // case class User(name: String, age: Int)
           // val user = User("John", 42) => \u - u "John" 42
           // user.name => \u name age -> name
