@@ -99,6 +99,7 @@ object Builtins:
     println(s)
     a
 
+  def equalsByteString(a: ByteString, b: ByteString): Boolean = a == b
   def indexByteString(bs: ByteString, i: BigInt): BigInt =
     if i < 0 || i >= bs.bytes.length then
       throw new Exception(s"index $i out of bounds for bytestring of length ${bs.bytes.length}")
@@ -113,5 +114,9 @@ object Builtins:
     new String(bs.bytes, "UTF-8")
 
   def appendString(s1: String, s2: String): String = s1 + s2
+  def equalsString(s1: String, s2: String): Boolean = s1 == s2
 
+  def equalsInteger(i1: BigInt, i2: BigInt): Boolean = i1 == i2
   def lessThanInteger(i1: BigInt, i2: BigInt): Boolean = i1 < i2
+
+  def equalsData(d1: Data, d2: Data): Boolean = d1 == d2

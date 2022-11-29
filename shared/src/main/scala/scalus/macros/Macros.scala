@@ -748,6 +748,14 @@ object Macros {
             '{ SIR.Builtin(DefaultFun.LessThanInteger) }
           case bi if bi.tpe.show == "scalus.builtins.Builtins.decodeUtf8" =>
             '{ SIR.Builtin(DefaultFun.DecodeUtf8) }
+          case bi if bi.tpe.show == "scalus.builtins.Builtins.equalsInteger" =>
+            '{ SIR.Builtin(DefaultFun.EqualsInteger) }
+          case bi if bi.tpe.show == "scalus.builtins.Builtins.equalsByteString" =>
+            '{ SIR.Builtin(DefaultFun.EqualsByteString) }
+          case bi if bi.tpe.show == "scalus.builtins.Builtins.equalsString" =>
+            '{ SIR.Builtin(DefaultFun.EqualsString) }
+          case bi if bi.tpe.show == "scalus.builtins.Builtins.equalsData" =>
+            '{ SIR.Builtin(DefaultFun.EqualsData) }
 
           case Ident(a) => compileIdentOrQualifiedSelect(env, e)
           // case class User(name: String, age: Int)
