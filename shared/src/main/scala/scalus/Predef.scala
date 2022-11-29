@@ -19,6 +19,9 @@ object Predef {
   object List:
     def empty[A]: List[A] = Nil
     def apply[A](args: A*): List[A] = args.foldRight(empty[A])(Cons(_, _))
+    def findOrFail[A](lst: List[A])(p: A => Boolean): Unit = lst match
+      case Nil              => throw new Exception("Not found")
+      case Cons(head, tail) => if p(head) then () else findOrFail(tail)(p)
 
   enum Maybe[+A]:
     case Nothing extends Maybe[Nothing]

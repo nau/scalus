@@ -134,7 +134,6 @@ object Macros {
 
   def compileImpl(e: Expr[Any])(using q: Quotes): Expr[SIR] =
     import q.reflect.{*, given}
-//    import scalus.uplc.Constant.*
     import scalus.uplc.DefaultFun
     import scalus.sir.Recursivity
 
@@ -143,7 +142,11 @@ object Macros {
     case class B(name: String, symbol: Symbol, recursivity: Recursivity, body: Expr[SIR]):
       def fullName = symbol.fullName
 
-    val globalDefs: mutable.LinkedHashMap[Symbol, B] = mutable.LinkedHashMap.empty
+    enum CompileDef:
+      case Compiling
+      case Compiled(binding: B)
+
+    val globalDefs: mutable.LinkedHashMap[Symbol, CompileDef] = mutable.LinkedHashMap.empty
     val globalDataDecls: mutable.LinkedHashMap[Symbol, Expr[DataDecl]] = mutable.LinkedHashMap.empty
 
     var globalPosition = 0
@@ -203,7 +206,7 @@ object Macros {
         case _ => report.errorAndAbort(s"Unsupported type: ${t.show}")
 
     def compileStmt(env: Env, stmt: Statement): B = {
-      // debugInfo(s"compileStmt  ${stmt}", Position(SourceFile.current, globalPosition, 0))
+      // debugInfo(s"compileStmt  ${stmt.show} in ${env}")
       stmt match
         case ValDef(name, tpe, Some(body)) =>
           val bodyExpr = compileExpr(env, body)
@@ -368,20 +371,31 @@ object Macros {
       tpe.typeSymbol.isClassDef && symbol.flags.is(Flags.Case)
 
     def compileIdentOrQualifiedSelect(env: Env, e: Term): Expr[SIR] = {
-      // report.info(s"Ident: ${e.show}, a $a, full: ${e.symbol.fullName}, name: ${e.symbol.name}", Position(SourceFile.current, globalPosition, 0))
-      val name = if !env.contains(e.symbol) then
-        val b = compileStmt(immutable.HashSet.empty, e.symbol.tree.asInstanceOf[Definition])
-        globalDefs.update(b.symbol, b)
-        e.symbol.fullName
-      else
-        e match
-          case Ident(a)     => e.symbol.name
-          case Select(_, _) => e.symbol.fullName
+      // debugInfo(s"Ident: ${e.symbol}, env: $env")
+      val isInLocalEnv = env.contains(e.symbol)
+      val isInGlobalEnv = globalDefs.contains(e.symbol)
+      val name = (isInLocalEnv, isInGlobalEnv) match
+        // global def, self reference, use the name
+        case (true, true) => e.symbol.fullName
+        // local def, use the name
+        case (true, false) => e.symbol.name
+        // global def, use full name
+        case (false, true)  => e.symbol.fullName
+        case (false, false) =>
+          // remember the symbol to avoid infinite recursion
+          globalDefs.update(e.symbol, CompileDef.Compiling)
+          val b = compileStmt(immutable.HashSet.empty, e.symbol.tree.asInstanceOf[Definition])
+          // remove the symbol from the linked hash map so the order of the definitions is preserved
+          globalDefs.remove(e.symbol)
+          globalDefs.update(e.symbol, CompileDef.Compiled(b))
+          e.symbol.fullName
+
       '{ SIR.Var(NamedDeBruijn(${ Expr(name) })) }
     }
 
     def compileExpr(env: Env, e: Term): Expr[SIR] = {
       // debugInfo(s"compileExpr: ${e.show}\n${e}\nin ${env}")
+      // debugInfo(s"compileExpr: ${e.show}\nin ${env}\nglobals: ${globalDefs}")
       if compileConstant.isDefinedAt(e) then
         val const = compileConstant(e)
         '{ SIR.Const($const) }
@@ -794,10 +808,12 @@ object Macros {
     val result = compileExpr(immutable.HashSet.empty, e.asTerm)
 //    report.info(s"Glogal defs: ${globalDefs}")
 
-    val full = globalDefs.foldRight(result) { case ((_, b), acc) =>
-      '{
-        SIR.Let(${ Expr(b.recursivity) }, List(Binding(${ Expr(b.fullName) }, ${ b.body })), $acc)
-      }
+    val full = globalDefs.values.foldRight(result) {
+      case (CompileDef.Compiled(b), acc) =>
+        '{
+          SIR.Let(${ Expr(b.recursivity) }, List(Binding(${ Expr(b.fullName) }, ${ b.body })), $acc)
+        }
+      case (d, acc) => report.errorAndAbort(s"Unexpected globalDefs state: $d")
     }
     val dataDecls = globalDataDecls.foldRight(full) { case ((_, decl), acc) =>
       '{ SIR.Decl($decl, $acc) }

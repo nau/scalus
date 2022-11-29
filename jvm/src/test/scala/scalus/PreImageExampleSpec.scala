@@ -46,13 +46,7 @@ object OptimizedPreimageValidator:
           fieldAsData[ScriptContext](_.scriptContextTxInfo.txInfoSignatories)(ctxData)
         )
 
-        def findOrFail[A](lst: List[A])(p: A => Boolean): Unit = lst match
-          case Nil              => throw new Exception("Not found")
-          case Cons(head, tail) => if p(head) then () else findOrFail(tail)(p)
-
-        findOrFail(signatories) { sig =>
-          sig.hash === pkh
-        }
+        List.findOrFail(signatories) { sig => sig.hash === pkh }
         if Builtins.sha2_256(preimage) === hash then ()
         else throw new RuntimeException("Wrong preimage")
   }
@@ -135,12 +129,8 @@ class PreImageExampleSpec extends BaseValidatorSpec {
       val ctx = fromData[ScriptContext](ctxData)
       // get the transaction signatories
       val signatories = ctx.scriptContextTxInfo.txInfoSignatories
-
-      def findOrFail[A](lst: List[A])(p: A => Boolean): Unit = lst match
-        case Nil              => throw new Exception("Not found")
-        case Cons(head, tail) => if p(head) then () else findOrFail(tail)(p)
       // check that the transaction is signed by the public key hash
-      findOrFail(signatories) { sig => sig.hash === pkh }
+      List.findOrFail(signatories) { sig => sig.hash === pkh }
       // check that the preimage hashes to the hash
       if Builtins.sha2_256(preimage) === hash then ()
       else throw new RuntimeException("Wrong preimage")
