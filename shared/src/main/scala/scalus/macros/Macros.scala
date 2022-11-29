@@ -367,6 +367,19 @@ object Macros {
       ) */
       tpe.typeSymbol.isClassDef && symbol.flags.is(Flags.Case)
 
+    def compileIdentOrQualifiedSelect(env: Env, e: Term): Expr[SIR] = {
+      // report.info(s"Ident: ${e.show}, a $a, full: ${e.symbol.fullName}, name: ${e.symbol.name}", Position(SourceFile.current, globalPosition, 0))
+      val name = if !env.contains(e.symbol) then
+        val b = compileStmt(immutable.HashSet.empty, e.symbol.tree.asInstanceOf[Definition])
+        globalDefs.update(b.symbol, b)
+        e.symbol.fullName
+      else
+        e match
+          case Ident(a)     => e.symbol.name
+          case Select(_, _) => e.symbol.fullName
+      '{ SIR.Var(NamedDeBruijn(${ Expr(name) })) }
+    }
+
     def compileExpr(env: Env, e: Term): Expr[SIR] = {
       // debugInfo(s"compileExpr: ${e.show}\n${e}\nin ${env}")
       if compileConstant.isDefinedAt(e) then
@@ -374,16 +387,6 @@ object Macros {
         '{ SIR.Const($const) }
       else
         e match
-          case Ident(a) =>
-            // report.info(s"Ident: ${e.show}, a $a, full: ${e.symbol.fullName}, name: ${e.symbol.name}", Position(SourceFile.current, globalPosition, 0))
-            if !env.contains(e.symbol) then
-              val b = compileStmt(immutable.HashSet.empty, e.symbol.tree.asInstanceOf[Definition])
-              globalDefs.update(b.symbol, b)
-              /*report.errorAndAbort(
-                s"compileExpr: Unknown identifier: $a, env: ${env.mkString(", ")}, tree: ${e.symbol.tree}"
-              )*/
-              '{ SIR.Var(NamedDeBruijn(${ Expr(e.symbol.fullName) })) }
-            else '{ SIR.Var(NamedDeBruijn(${ Expr(e.symbol.name) })) }
           case If(cond, t, f) =>
             '{
               SIR.IfThenElse(
@@ -731,6 +734,8 @@ object Macros {
             '{ SIR.Builtin(DefaultFun.LessThanInteger) }
           case bi if bi.tpe.show == "scalus.builtins.Builtins.decodeUtf8" =>
             '{ SIR.Builtin(DefaultFun.DecodeUtf8) }
+
+          case Ident(a) => compileIdentOrQualifiedSelect(env, e)
           // case class User(name: String, age: Int)
           // val user = User("John", 42) => \u - u "John" 42
           // user.name => \u name age -> name
@@ -748,13 +753,7 @@ object Macros {
             // else if obj.symbol.isPackageDef then
             // compileExpr(env, obj)
             else if isConstructorVal(e.symbol, e.tpe) then compileNewConstructor(env, e.tpe, Nil)
-            else
-              // report.errorAndAbort(s"SELECT: ${obj.symbol.isPackageDef}", sel.pos)
-              if !env.contains(e.symbol) then
-                val b = compileStmt(immutable.HashSet.empty, e.symbol.tree.asInstanceOf[Definition])
-                globalDefs.update(b.symbol, b)
-              end if
-              '{ SIR.Var(NamedDeBruijn(${ Expr(e.symbol.fullName) })) }
+            else compileIdentOrQualifiedSelect(env, e)
           case TypeApply(f, args) => compileExpr(env, f)
           // Generic Apply
           case Apply(f, args) =>
