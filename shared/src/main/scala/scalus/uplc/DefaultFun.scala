@@ -5,86 +5,86 @@ import scalus.utils.Utils
 
 enum DefaultFun:
   // Integers
-  case AddInteger extends DefaultFun
-  case SubtractInteger extends DefaultFun
-  case MultiplyInteger extends DefaultFun
-  case DivideInteger extends DefaultFun
-  case QuotientInteger extends DefaultFun
-  case RemainderInteger extends DefaultFun
-  case ModInteger extends DefaultFun
-  case EqualsInteger extends DefaultFun
-  case LessThanInteger extends DefaultFun
-  case LessThanEqualsInteger extends DefaultFun
+  case AddInteger
+  case SubtractInteger
+  case MultiplyInteger
+  case DivideInteger
+  case QuotientInteger
+  case RemainderInteger
+  case ModInteger
+  case EqualsInteger
+  case LessThanInteger
+  case LessThanEqualsInteger
   // Bytestrings
-  case AppendByteString extends DefaultFun
-  case ConsByteString extends DefaultFun
-  case SliceByteString extends DefaultFun
-  case LengthOfByteString extends DefaultFun
-  case IndexByteString extends DefaultFun
-  case EqualsByteString extends DefaultFun
-  case LessThanByteString extends DefaultFun
-  case LessThanEqualsByteString extends DefaultFun
+  case AppendByteString
+  case ConsByteString
+  case SliceByteString
+  case LengthOfByteString
+  case IndexByteString
+  case EqualsByteString
+  case LessThanByteString
+  case LessThanEqualsByteString
   // Cryptography and hashes
-  case Sha2_256 extends DefaultFun
-  case Sha3_256 extends DefaultFun
-  case Blake2b_256 extends DefaultFun
-  case VerifyEd25519Signature extends DefaultFun // formerly verifySignature
-  case VerifyEcdsaSecp256k1Signature extends DefaultFun
-  case VerifySchnorrSecp256k1Signature extends DefaultFun
+  case Sha2_256
+  case Sha3_256
+  case Blake2b_256
+  case VerifyEd25519Signature // formerly verifySignature
+  case VerifyEcdsaSecp256k1Signature
+  case VerifySchnorrSecp256k1Signature
 
   // Strings
-  case AppendString extends DefaultFun
-  case EqualsString extends DefaultFun
-  case EncodeUtf8 extends DefaultFun
-  case DecodeUtf8 extends DefaultFun
+  case AppendString
+  case EqualsString
+  case EncodeUtf8
+  case DecodeUtf8
 
   // Bool
-  case IfThenElse extends DefaultFun
+  case IfThenElse
 
   // Unit
-  case ChooseUnit extends DefaultFun
+  case ChooseUnit
 
   // Tracing
-  case Trace extends DefaultFun
+  case Trace
 
   // Pairs
-  case FstPair extends DefaultFun
+  case FstPair
 
-  case SndPair extends DefaultFun
+  case SndPair
 
   // Lists
-  case ChooseList extends DefaultFun
-  case MkCons extends DefaultFun
-  case HeadList extends DefaultFun
-  case TailList extends DefaultFun
-  case NullList extends DefaultFun
+  case ChooseList
+  case MkCons
+  case HeadList
+  case TailList
+  case NullList
 
   // Data
   // See Note [Pattern matching on built-in types].
   // It is convenient to have a "choosing" function for a data type that has more than two
   // constructors to get pattern matching over it and we may end up having multiple such data
   // types, hence we include the name of the data type as a suffix.
-  case ChooseData extends DefaultFun
-  case ConstrData extends DefaultFun
-  case MapData extends DefaultFun
-  case ListData extends DefaultFun
-  case IData extends DefaultFun
-  case BData extends DefaultFun
-  case UnConstrData extends DefaultFun
-  case UnMapData extends DefaultFun
-  case UnListData extends DefaultFun
-  case UnIData extends DefaultFun
-  case UnBData extends DefaultFun
-  case EqualsData extends DefaultFun
-  case SerialiseData extends DefaultFun
+  case ChooseData
+  case ConstrData
+  case MapData
+  case ListData
+  case IData
+  case BData
+  case UnConstrData
+  case UnMapData
+  case UnListData
+  case UnIData
+  case UnBData
+  case EqualsData
+  case SerialiseData
 
   // Misc monomorphized constructors.
   // We could simply replace those with constants, but we use built-in functions for consistency
   // with monomorphic built-in types. Polymorphic built-in constructors are generally problematic,
   // See note [Representable built-in functions over polymorphic built-in types].
-  case MkPairData extends DefaultFun
-  case MkNilData extends DefaultFun
-  case MkNilPairData extends DefaultFun
+  case MkPairData
+  case MkNilData
+  case MkNilPairData
 
   def name: String = Utils.lowerFirst(this.toString)
 
