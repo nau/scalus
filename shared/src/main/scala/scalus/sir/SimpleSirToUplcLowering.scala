@@ -10,6 +10,7 @@ import scalus.uplc.Term
 import scalus.uplc.TermDSL.{*, given}
 import scalus.uplc.TypeScheme
 import scala.collection.mutable.HashMap
+import scalus.uplc.Term
 
 class SimpleSirToUplcLowering {
 
@@ -106,4 +107,20 @@ class SimpleSirToUplcLowering {
         !(builtinTerms(DefaultFun.IfThenElse) $ lowerInner(cond) $ ~lowerInner(t) $ ~lowerInner(f))
       case SIR.Builtin(bn) => builtinTerms(bn)
       case SIR.Error(msg)  => Term.Error(msg)
+
+  def etaReduce(term: Term): Term =
+    import Term.*
+    term match
+      case LamAbs(name1, Term.Apply(f, Term.Var(name2))) if name1 == name2.name =>
+        println(
+          s"etaReducing ${term.pretty.render(80).take(50)} to ${f.pretty.render(80).take(50)}"
+        )
+        etaReduce(f)
+      case LamAbs(name, body) =>
+        val body1 = etaReduce(body)
+        if body != body1 then etaReduce(LamAbs(name, body1)) else term
+      case Apply(f, arg) => Apply(etaReduce(f), etaReduce(arg))
+      case Force(term)   => Force(etaReduce(term))
+      case Delay(term)   => Delay(etaReduce(term))
+      case _             => term
 }

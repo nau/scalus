@@ -126,3 +126,22 @@ class SimpleSirToUplcLoweringSpec
       asConstant(1)
     ) $ lam("h", "tl")(Term.Const(asConstant(2))))
   }
+  test("eta-reduction") {
+    import scalus.uplc.TermDSL.{*, given}
+    // (\x -> f x) reduces to f
+    // (\x y -> f x y) reduces to f
+
+    val l = SimpleSirToUplcLowering()
+    assert(
+      l.etaReduce(
+        lam("x")(Term.Var(NamedDeBruijn("f")) $ Term.Var(NamedDeBruijn("x")))
+      ) === Term.Var(NamedDeBruijn("f"))
+    )
+    assert(
+      l.etaReduce(
+        lam("x", "y")(
+          Term.Var(NamedDeBruijn("f")) $ Term.Var(NamedDeBruijn("x")) $ Term.Var(NamedDeBruijn("y"))
+        )
+      ) === Term.Var(NamedDeBruijn("f"))
+    )
+  }
