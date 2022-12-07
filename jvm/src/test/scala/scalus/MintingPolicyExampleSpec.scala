@@ -206,23 +206,19 @@ class MintingPolicyExampleSpec extends BaseValidatorSpec {
         if tag === BigInt(0) then Builtins.unsafeDataAsB(args.head)
         else throw new Exception("Not a minting policy")
 
-      def findOrFail[A](lst: List[A])(p: A => Boolean): Unit = lst match
-        case Nil              => throw new Exception("Not found")
-        case Cons(head, tail) => if p(head) then () else findOrFail(tail)(p)
-
       def findToken(tokens: List[(ByteString, BigInt)]): Unit =
-        findOrFail(tokens) { token =>
+        List.findOrFail(tokens) { token =>
           token match
             case (tn, amt) => tn === tokenName && amt === amount
         }
 
       def ensureMinted(minted: Value): Unit = {
-        findOrFail(minted) { asset =>
+        List.findOrFail(minted) { asset =>
           asset match
             case (curSymbol, tokens) =>
               if curSymbol === ownSymbol
               then
-                findOrFail(tokens) { tokens =>
+                List.findOrFail(tokens) { tokens =>
                   tokens match
                     case (tn, amt) => tn === tokenName && amt === amount
                 }
@@ -231,7 +227,7 @@ class MintingPolicyExampleSpec extends BaseValidatorSpec {
         }
       }
 
-      def ensureSpendsTxOut(inputs: List[TxInInfoTxOutRefOnly]): Unit = findOrFail(inputs) {
+      def ensureSpendsTxOut(inputs: List[TxInInfoTxOutRefOnly]): Unit = List.findOrFail(inputs) {
         txInInfo =>
           txInInfo.txInInfoOutRef match
             case TxOutRef(txOutRefTxId, txOutRefIdx) =>
