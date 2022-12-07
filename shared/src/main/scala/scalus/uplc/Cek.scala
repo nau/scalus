@@ -93,7 +93,7 @@ object Cek:
       case FrameForce(ctx)              => forceEvaluate(ctx, value)
       case NoFrame                      => dischargeCekValue(value)
 
-  def lookupVarName(env: CekValEnv, name: NamedDeBruijn): CekValue = env.collectFirst {
+  private def lookupVarName(env: CekValEnv, name: NamedDeBruijn): CekValue = env.collectFirst {
     case (n, v) if n == name.name => v
   }.get
 
@@ -142,19 +142,23 @@ object Cek:
       case VBuiltin(_, term, _)     => term
 
   def dischargeCekValEnv(env: CekValEnv, term: Term): Term =
-    term match
-      case Var(name) =>
-        try
-          dischargeCekValue(lookupVarName(env, name))
-        catch {
-          case _: Throwable => term
-        } // TODO proper exception
-      case LamAbs(name, _) => term // FIXME it's not implemented correctly yet
-      case Apply(fun, arg) =>
-        Apply(dischargeCekValEnv(env, fun), dischargeCekValEnv(env, arg))
-      case Force(term) => Force(dischargeCekValEnv(env, term))
-      case Delay(term) => Delay(dischargeCekValEnv(env, term))
-      case _           => term
+    def go(localEnv: List[String], term: Term): Term =
+      term match
+        case Var(name) =>
+          if localEnv.contains(name.name) then term
+          else
+            try
+              dischargeCekValue(lookupVarName(env, name))
+            catch {
+              case _: Throwable => term
+            } // TODO proper exception
+        case LamAbs(name, body) => LamAbs(name, go(name :: localEnv, body))
+        case Apply(fun, arg) =>
+          Apply(go(localEnv, fun), go(localEnv, arg))
+        case Force(term) => Force(go(localEnv, term))
+        case Delay(term) => Delay(go(localEnv, term))
+        case _           => term
+    go(Nil, term)
 
   def evalBuiltinApp(builtinName: DefaultFun, term: Term, runtime: Runtime): CekValue =
     runtime.typeScheme match
