@@ -22,6 +22,15 @@ object Predef {
     def findOrFail[A](lst: List[A])(p: A => Boolean): Unit = lst match
       case Nil              => throw new Exception("Not found")
       case Cons(head, tail) => if p(head) then () else findOrFail(tail)(p)
+    def find[A](lst: List[A])(p: A => Boolean): Maybe[A] = lst match
+      case Nil              => Maybe.Nothing
+      case Cons(head, tail) => if p(head) then Maybe.Just(head) else find(tail)(p)
+    def exists[A](lst: List[A])(p: A => Boolean): Boolean = lst match
+      case Nil              => false
+      case Cons(head, tail) => p(head) || exists(tail)(p)
+    def foldLeft[A, B](lst: List[A], z: B)(f: (B, A) => B): B = lst match
+      case Nil              => z
+      case Cons(head, tail) => foldLeft(tail, f(z, head))(f)
 
   enum Maybe[+A]:
     case Nothing extends Maybe[Nothing]
@@ -44,4 +53,8 @@ object Predef {
     }
     Builtins.decodeUtf8(go(0))
   }
+
+  opaque type AssocMap[A, B] = List[(A, B)]
+  object AssocMap:
+    def empty[A, B] = List.empty[(A, B)]
 }
