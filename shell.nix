@@ -11,7 +11,7 @@ pkgs.mkShell {
     niv
     nixpkgs-fmt
     nodejs
-    plutus.plutus.haskell.projectPackages.plutus-core.components.exes.uplc
+    plutus.plutus.haskell.packages.plutus-core.components.exes.uplc
   ];
   shellHook = ''
     ln -s ${sources.plutus}/plutus-conformance plutus-conformance
