@@ -18,6 +18,7 @@ import scalus.utils.Utils
 import scala.collection.immutable
 import scalus.uplc.Data.FromData
 import scalus.Prelude.Maybe
+import scalus.Prelude.AssocMap
 
 class CompileFromDataToSIRSpec extends AnyFunSuite with ScalaCheckPropertyChecks:
   val deadbeef = Constant.ByteString(hex"deadbeef")
@@ -87,19 +88,19 @@ class CompileFromDataToSIRSpec extends AnyFunSuite with ScalaCheckPropertyChecks
     import scalus.Prelude.List.{Nil, Cons}
     val compiled = compile { (v: Data) =>
       val value = summon[Data.FromData[Value]](v)
-      value match
+      AssocMap.toList(value) match
         case Nil => BigInt(0)
         case Cons(head, tail) =>
           head match
             case (cs, vals) =>
-              vals match
+              AssocMap.toList(vals) match
                 case Nil => BigInt(1)
                 case Cons(tn, vl) =>
                   tn match
                     case (tn, vl) => vl
 
     }
-    testFromData(compiled, Value.lovelace(42), 167, Term.Const(Constant.Integer(42)))
+    testFromData(compiled, Value.lovelace(42), 166, Term.Const(Constant.Integer(42)))
   }
 
   test("compile FromData[TxOutRef]") {
@@ -217,7 +218,7 @@ class CompileFromDataToSIRSpec extends AnyFunSuite with ScalaCheckPropertyChecks
         Value.lovelace(42),
         Just(hex"beef")
       ),
-      468,
+      458,
       Term.Const(Constant.Integer(2))
     )
   }
@@ -239,7 +240,7 @@ class CompileFromDataToSIRSpec extends AnyFunSuite with ScalaCheckPropertyChecks
           Just(hex"beef")
         )
       ),
-      541,
+      531,
       Term.Const(Constant.Integer(12))
     )
   }
@@ -309,7 +310,7 @@ class CompileFromDataToSIRSpec extends AnyFunSuite with ScalaCheckPropertyChecks
         txInfoData = scalus.Prelude.List.Nil,
         txInfoId = TxId(ByteString.fromHex("bb"))
       ),
-      1282,
+      1349,
       Term.Const(Constant.ByteString(ByteString.fromHex("bb")))
     )
   }
@@ -337,7 +338,7 @@ class CompileFromDataToSIRSpec extends AnyFunSuite with ScalaCheckPropertyChecks
         ),
         ScriptPurpose.Spending(TxOutRef(TxId(hex"12"), 12))
       ),
-      1429,
+      1496,
       Term.Const(Constant.ByteString(ByteString.fromHex("bb")))
     )
   }

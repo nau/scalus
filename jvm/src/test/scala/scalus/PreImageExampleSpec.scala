@@ -141,7 +141,7 @@ class PreImageExampleSpec extends BaseValidatorSpec {
     // convert SIR to UPLC
     val validator = new SimpleSirToUplcLowering().lower(compiled)
     val flatEncoded = ProgramFlatCodec.encodeFlat(Program((1, 0, 0), validator))
-    assert(flatEncoded.length == 1550)
+    assert(flatEncoded.length == 1617)
 
     performChecks(validator)
   }

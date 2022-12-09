@@ -74,11 +74,11 @@ class MintingPolicyExampleSpec extends BaseValidatorSpec {
         }
       }
       def ensureMinted(minted: Value): Unit = {
-        List.findOrFail(minted) { asset =>
+        List.findOrFail(AssocMap.toList(minted)) { asset =>
           asset match
             case (curSymbol, mintedTokens) =>
               if curSymbol === ownSymbol
-              then equalsAssets(mintedTokens, tokensToMint)
+              then equalsAssets(AssocMap.toList(mintedTokens), tokensToMint)
               else false
         }
       }
@@ -212,12 +212,12 @@ class MintingPolicyExampleSpec extends BaseValidatorSpec {
         }
 
       def ensureMinted(minted: Value): Unit = {
-        findOrFail(minted) { asset =>
+        findOrFail(AssocMap.toList(minted)) { asset =>
           asset match
             case (curSymbol, tokens) =>
               if curSymbol === ownSymbol
               then
-                findOrFail(tokens) { tokens =>
+                findOrFail(AssocMap.toList(tokens)) { tokens =>
                   tokens match
                     case (tn, amt) => tn === tokenName && amt === amount
                 }
@@ -248,7 +248,7 @@ class MintingPolicyExampleSpec extends BaseValidatorSpec {
     // println(compiled.pretty.render(100))
     val validator = new SimpleSirToUplcLowering().lower(compiled)
     val flatSize = ProgramFlatCodec.encodeFlat(Program((1, 0, 0), validator)).length
-    assert(flatSize == 1721)
+    assert(flatSize == 1797)
     performMintingPolicyValidatorChecks(validator)
   }
 
@@ -285,15 +285,14 @@ class MintingPolicyExampleSpec extends BaseValidatorSpec {
     assertSameResult(Expected.Failure("Unexpected tokens"))(
       withScriptContext(
         List(TxInInfo(hoskyMintTxOutRef, hoskyMintTxOut)),
-        List.Cons(
-          (
-            hex"a0028f350aaabe0545fdcb56b039bfb08e4bb4d8c4d7c3c7d481c235",
+        AssocMap.singleton(
+          hex"a0028f350aaabe0545fdcb56b039bfb08e4bb4d8c4d7c3c7d481c235",
+          AssocMap.fromList(
             List.Cons(
               (hex"484f534b59", BigInt("1000000000000000")),
               List.Cons((hex"deadbeef", BigInt("1000000000000000")), List.Nil)
             )
-          ),
-          List.Nil
+          )
         )
       )
     )

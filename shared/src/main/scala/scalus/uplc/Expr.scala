@@ -199,68 +199,6 @@ object Example:
       }
     }
 
-  def mintingPolicyScript(txOutRef: TxOutRef, tokenName: TokenName): Expr[Unit => Data => Unit] =
-    lam { redeemer =>
-      lam { ctx =>
-        val txInfo: Expr[Data] = fieldAsData[ScriptContext](_.scriptContextTxInfo).apply(ctx)
-        val purpose: Expr[Data] =
-          fieldAsData[ScriptContext](_.scriptContextPurpose).apply(ctx)
-        val ownCurrencySymbol =
-          unBData.apply(fieldAsData[ScriptPurpose.Minting](_.curSymbol).apply(purpose))
-        val minted: Expr[List[Data]] = unListData(
-          fieldAsData[TxInfo](_.txInfoMint).apply(txInfo)
-        )
-        val ref: Expr[Data] =
-          headList(unListData(fieldAsData[TxInfo](_.txInfoInputs).apply(txInfo)))
-        val txInInfoOutRef: Expr[Data] = fieldAsData[TxInInfo](_.txInInfoOutRef).apply(ref)
-        val txId = unBData(fieldAsData[TxOutRef](_.txOutRefId).apply(txInInfoOutRef))
-        val idx = unIData(fieldAsData[TxOutRef](_.txOutRefIdx).apply(txInInfoOutRef))
-
-        val checkMinted: Expr[List[Data] => Unit] = Z[List[Data], Unit].apply(lam { checkMinted =>
-          lam { minted =>
-            // Value: List[(CurrencySymbol, List[(TokenName, Amount)])]
-            // head: (CurrencySymbol, List[(TokenName, Amount)])
-            val head = headList.apply(minted)
-            val curSym =
-              unBData.apply(
-                fieldAsData[(CurrencySymbol, List[(TokenName, BigInt)])](_._1).apply(head)
-              )
-            // List[(TokenName, Amount): Data]
-            val tokens =
-              unListData.apply(
-                fieldAsData[(CurrencySymbol, List[(TokenName, BigInt)])](_._2).apply(head)
-              )
-
-            val checkTokens: Expr[List[Data] => Unit] = rec[List[Data], Unit] { self =>
-              lam { tokens =>
-                // (TokenName, BigInt)
-                val head = headList.apply(tokens)
-                val token = unBData.apply(fieldAsData[(TokenName, BigInt)](_._1).apply(head))
-                val amount = unIData.apply(fieldAsData[(TokenName, BigInt)](_._2).apply(head))
-                !ifThenElse(token =*= tokenName)(
-                  ifThenElse(amount === BigInt(1))(~())(error("Amount is not 1"))
-                ) {
-                  ~self(tailList(tokens))
-                }
-              }
-            }
-
-            ifThenElse2(curSym =*= ownCurrencySymbol) {
-              checkTokens(tokens)
-            } {
-              checkMinted(tailList(minted))
-            }
-          }
-        })
-
-        !ifThenElse(txId =*= txOutRef.txOutRefId.hash)(
-          ifThenElse(idx === txOutRef.txOutRefIdx)(
-            ~checkMinted(minted)
-          )(error("Wrong TxOutRef index"))
-        )(error("Wrong TxOutRef Tx id"))
-      }
-    }
-
   def main(args: Array[String]): Unit = {
 //    println(giftValidator.term.pretty.render(80))
     val pubKeyProgram =

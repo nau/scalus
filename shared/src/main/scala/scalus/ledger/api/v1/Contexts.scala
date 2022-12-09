@@ -8,6 +8,7 @@ import scalus.utils.Utils.bytesToHex
 import scalus.Prelude.{List, Maybe}
 import scalus.Prelude.===
 import scalus.builtins.Builtins
+import scalus.Prelude.AssocMap
 
 type ValidatorHash = ByteString
 type Datum = Data
@@ -16,13 +17,12 @@ type CurrencySymbol = ByteString
 type TokenName = ByteString
 type POSIXTime = BigInt
 type POSIXTimeRange = Interval[POSIXTime]
-type AssocMap[K, V] = List[(K, V)]
 type Value = AssocMap[CurrencySymbol, AssocMap[TokenName, BigInt]]
 object Value:
-  val zero: Value = List.empty
-  def apply(cs: CurrencySymbol, tn: TokenName, v: BigInt): Value = List((cs, List((tn, v))))
+  val zero: Value = AssocMap.empty
+  def apply(cs: CurrencySymbol, tn: TokenName, v: BigInt): Value =
+    AssocMap.singleton(cs, AssocMap.singleton(tn, v))
   def lovelace(v: BigInt): Value = apply(ByteString.empty, ByteString.empty, v)
-  def asLists(v: Value): List[(CurrencySymbol, List[(TokenName, BigInt)])] = v
 
 object Instances:
   import scalus.uplc.Data.toData

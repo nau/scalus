@@ -12,6 +12,10 @@ import scala.quoted.*
 import scalus.macros.Macros
 import scalus.Prelude.Maybe
 import scalus.Prelude.===
+import scalus.Prelude.AssocMap
+import scalus.Prelude
+import scalus.builtins
+import scalus.builtins.Pair
 
 sealed abstract class Data
 
@@ -40,9 +44,21 @@ object Data:
     val fromA = summon[FromData[A]]
     val ls = Builtins.unsafeDataAsList(d)
     def loop(ls: scalus.builtins.List[Data]): scalus.Prelude.List[A] =
-      if ls.isEmpty then scalus.Prelude.List.Nil
-      else scalus.Prelude.List.Cons(fromA(ls.head), loop(ls.tail))
+      if ls.isEmpty then Prelude.List.Nil
+      else Prelude.List.Cons(fromA(ls.head), loop(ls.tail))
     loop(ls)
+
+  given AssocMapFromData[A: FromData, B: FromData]: FromData[AssocMap[A, B]] =
+    (d: Data) =>
+      val fromA = summon[FromData[A]]
+      val fromB = summon[FromData[B]]
+      val ls = Builtins.unsafeDataAsMap(d)
+      def loop(ls: scalus.builtins.List[Pair[Data, Data]]): Prelude.List[(A, B)] =
+        if ls.isEmpty then Prelude.List.Nil
+        else
+          val pair = ls.head
+          Prelude.List.Cons((fromA(pair.fst), fromB(pair.snd)), loop(ls.tail))
+      AssocMap.fromList(loop(ls))
 
   given MaybeFromData[A: FromData]: FromData[scalus.Prelude.Maybe[A]] = (d: Data) =>
     val fromA = summon[FromData[A]]
@@ -137,6 +153,20 @@ object Data:
     def toData(a: immutable.Map[A, B]): Data = Map(a.toList.map { case (a, b) =>
       (summon[ToData[A]].toData(a), summon[ToData[B]].toData(b))
     })
+  }
+
+  given assocMapToData[A: ToData, B: ToData]: ToData[AssocMap[A, B]] with {
+    def toData(a: AssocMap[A, B]): Data =
+      def go(a: Prelude.List[(A, B)]): builtins.List[Pair[Data, Data]] = a match
+        case Prelude.List.Nil => builtins.List.empty
+        case Prelude.List.Cons(tuple, tail) =>
+          tuple match
+            case (a, b) =>
+              builtins.List.Cons(
+                Pair(summon[ToData[A]].toData(a), summon[ToData[B]].toData(b)),
+                go(tail)
+              )
+      Builtins.mkMap(go(AssocMap.toList(a)))
   }
 
   given tupleToData[A: ToData, B: ToData]: ToData[(A, B)] with {
