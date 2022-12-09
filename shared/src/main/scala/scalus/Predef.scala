@@ -56,5 +56,30 @@ object Predef {
 
   opaque type AssocMap[A, B] = List[(A, B)]
   object AssocMap:
-    def empty[A, B] = List.empty[(A, B)]
+    def empty[A, B]: AssocMap[A, B] = List.empty[(A, B)]
+    def fromList[A, B](lst: List[(A, B)]): AssocMap[A, B] = lst
+    def toList[A, B](map: AssocMap[A, B]): List[(A, B)] = map
+    def lookup[A: Eq, B](key: A)(map: AssocMap[A, B]): Maybe[B] =
+      def go(lst: List[(A, B)]): Maybe[B] = lst match
+        case List.Nil => Maybe.Nothing
+        case List.Cons(pair, tail) =>
+          pair match
+            case (k, v) => if k === key then Maybe.Just(v) else go(tail)
+      go(map)
+    def insert[A: Eq, B](key: A, value: B)(map: AssocMap[A, B]): AssocMap[A, B] =
+      def go(lst: List[(A, B)]): List[(A, B)] = lst match
+        case List.Nil => List.Cons((key, value), List.Nil)
+        case List.Cons(pair, tail) =>
+          pair match
+            case (k, v) =>
+              if k === key then List.Cons((key, value), tail) else List.Cons(pair, go(tail))
+      go(map)
+    def delete[A: Eq, B](key: A)(map: AssocMap[A, B]): AssocMap[A, B] =
+      def go(lst: List[(A, B)]): List[(A, B)] = lst match
+        case List.Nil => List.Nil
+        case List.Cons(pair, tail) =>
+          pair match
+            case (k, v) =>
+              if k === key then tail else List.Cons(pair, go(tail))
+      go(map)
 }
