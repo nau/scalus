@@ -17,10 +17,10 @@ import scalus.uplc.*
 import scala.collection.immutable
 import scalus.builtins.Builtins
 import scalus.builtins.ByteString
-import scalus.Predef.Maybe.*
-import scalus.Predef.List
-import scalus.Predef.*
-import scalus.Predef.List.{Cons, Nil}
+import scalus.Prelude.Maybe.*
+import scalus.Prelude.List
+import scalus.Prelude.*
+import scalus.Prelude.List.{Cons, Nil}
 import scalus.sir.SimpleSirToUplcLowering
 import scalus.utils.Utils
 import java.io.ByteArrayInputStream
@@ -107,18 +107,18 @@ class MintingPolicyExampleSpec extends BaseValidatorSpec {
     val doubleCborHex = Utils.bytesToHex(Cbor.encode(cbor).toByteArray)
   }
 
-  def scriptContext(txInfoInputs: scalus.Predef.List[TxInInfo], value: Value) =
+  def scriptContext(txInfoInputs: scalus.Prelude.List[TxInInfo], value: Value) =
     ScriptContext(
       TxInfo(
         txInfoInputs = txInfoInputs,
-        txInfoOutputs = scalus.Predef.List.Nil,
+        txInfoOutputs = scalus.Prelude.List.Nil,
         txInfoFee = Value.lovelace(BigInt("188021")),
         txInfoMint = value,
-        txInfoDCert = scalus.Predef.List.Nil,
-        txInfoWdrl = scalus.Predef.List.Nil,
+        txInfoDCert = scalus.Prelude.List.Nil,
+        txInfoWdrl = scalus.Prelude.List.Nil,
         txInfoValidRange = Interval.always,
-        txInfoSignatories = scalus.Predef.List.Nil,
-        txInfoData = scalus.Predef.List.Nil,
+        txInfoSignatories = scalus.Prelude.List.Nil,
+        txInfoData = scalus.Prelude.List.Nil,
         txInfoId = TxId(hex"1e0612fbd127baddfcd555706de96b46c4d4363ac78c73ab4dee6e6a7bf61fe9")
       ),
       ScriptPurpose.Minting(hex"a0028f350aaabe0545fdcb56b039bfb08e4bb4d8c4d7c3c7d481c235")
@@ -128,7 +128,7 @@ class MintingPolicyExampleSpec extends BaseValidatorSpec {
     import Data.toData
     def appliedScript(ctx: ScriptContext) = Program((1, 0, 0), validator $ () $ ctx.toData)
 
-    def withScriptContext(txInfoInputs: scalus.Predef.List[TxInInfo], value: Value) =
+    def withScriptContext(txInfoInputs: scalus.Prelude.List[TxInInfo], value: Value) =
       appliedScript(scriptContext(txInfoInputs, value))
 
     assertSameResult(Expected.Success(Const(Constant.Unit)))(
@@ -261,7 +261,7 @@ class MintingPolicyExampleSpec extends BaseValidatorSpec {
     import Data.toData
     def appliedScript(ctx: ScriptContext) = Program((1, 0, 0), validator $ () $ ctx.toData)
 
-    def withScriptContext(txInfoInputs: scalus.Predef.List[TxInInfo], value: Value) =
+    def withScriptContext(txInfoInputs: scalus.Prelude.List[TxInInfo], value: Value) =
       appliedScript(scriptContext(txInfoInputs, value))
 
     assertSameResult(Expected.Success(Const(Constant.Unit)))(

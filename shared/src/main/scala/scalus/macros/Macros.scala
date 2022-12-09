@@ -710,7 +710,7 @@ object Macros {
             }
           case Select(lhs, "==") =>
             report.errorAndAbort(
-              s"compileExpr: Unsupported equality ${lhs}: ${lhs.tpe.widen.show} ==. Use type-safe scalus.Predef.=== instead",
+              s"compileExpr: Unsupported equality ${lhs}: ${lhs.tpe.widen.show} ==. Use type-safe scalus.Prelude.=== instead",
               lhs.pos
             )
           // Data BUILTINS

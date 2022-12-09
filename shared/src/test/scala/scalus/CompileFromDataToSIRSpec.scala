@@ -17,7 +17,7 @@ import scalus.utils.Utils
 
 import scala.collection.immutable
 import scalus.uplc.Data.FromData
-import scalus.Predef.Maybe
+import scalus.Prelude.Maybe
 
 class CompileFromDataToSIRSpec extends AnyFunSuite with ScalaCheckPropertyChecks:
   val deadbeef = Constant.ByteString(hex"deadbeef")
@@ -67,9 +67,9 @@ class CompileFromDataToSIRSpec extends AnyFunSuite with ScalaCheckPropertyChecks
   }
 
   test("compile FromData[List[A]]") {
-    import scalus.Predef.List.{Nil, Cons}
+    import scalus.Prelude.List.{Nil, Cons}
     val compiled = compile { (v: Data) =>
-      val txids = summon[Data.FromData[scalus.Predef.List[TxId]]](v)
+      val txids = summon[Data.FromData[scalus.Prelude.List[TxId]]](v)
       txids match
         case Nil              => BigInt(0)
         case Cons(head, tail) => BigInt(1)
@@ -84,7 +84,7 @@ class CompileFromDataToSIRSpec extends AnyFunSuite with ScalaCheckPropertyChecks
   }
 
   test("compile FromData[Value]") {
-    import scalus.Predef.List.{Nil, Cons}
+    import scalus.Prelude.List.{Nil, Cons}
     val compiled = compile { (v: Data) =>
       val value = summon[Data.FromData[Value]](v)
       value match
@@ -103,7 +103,7 @@ class CompileFromDataToSIRSpec extends AnyFunSuite with ScalaCheckPropertyChecks
   }
 
   test("compile FromData[TxOutRef]") {
-    import scalus.Predef.List.{Nil, Cons}
+    import scalus.Prelude.List.{Nil, Cons}
     val compiled = compile { (v: Data) =>
       val value = summon[Data.FromData[TxOutRef]](v)
       value match
@@ -140,7 +140,7 @@ class CompileFromDataToSIRSpec extends AnyFunSuite with ScalaCheckPropertyChecks
   }
 
   test("compile FromData[DCert]") {
-    import scalus.Predef.List.{Nil, Cons}
+    import scalus.Prelude.List.{Nil, Cons}
     import DCert.*
     val compiled = compile { (v: Data) =>
       val value = summon[Data.FromData[DCert]](v)
@@ -185,7 +185,7 @@ class CompileFromDataToSIRSpec extends AnyFunSuite with ScalaCheckPropertyChecks
   }
 
   test("compile FromData[Address]") {
-    import scalus.Predef.Maybe.Nothing
+    import scalus.Prelude.Maybe.Nothing
     val compiled = compile { (v: Data) =>
       val value = summon[Data.FromData[Address]](v)
       value match
@@ -201,7 +201,7 @@ class CompileFromDataToSIRSpec extends AnyFunSuite with ScalaCheckPropertyChecks
   }
 
   test("compile FromData[TxOut]") {
-    import scalus.Predef.Maybe.{Nothing, Just}
+    import scalus.Prelude.Maybe.{Nothing, Just}
     val compiled = compile { (v: Data) =>
       val value = summon[Data.FromData[TxOut]](v)
       value match
@@ -223,7 +223,7 @@ class CompileFromDataToSIRSpec extends AnyFunSuite with ScalaCheckPropertyChecks
   }
 
   test("compile FromData[TxInInfo]") {
-    import scalus.Predef.Maybe.{Nothing, Just}
+    import scalus.Prelude.Maybe.{Nothing, Just}
     val compiled = compile { (v: Data) =>
       val value = summon[Data.FromData[TxInInfo]](v)
       value match
@@ -245,7 +245,7 @@ class CompileFromDataToSIRSpec extends AnyFunSuite with ScalaCheckPropertyChecks
   }
 
   test("compile FromData[UpperBound[A]]") {
-    import scalus.Predef.Maybe.{Nothing, Just}
+    import scalus.Prelude.Maybe.{Nothing, Just}
     val compiled = compile { (v: Data) =>
       val value = summon[Data.FromData[UpperBound[BigInt]]](v)
       value match
@@ -260,7 +260,7 @@ class CompileFromDataToSIRSpec extends AnyFunSuite with ScalaCheckPropertyChecks
   }
 
   test("compile FromData[LowerBound[A]]") {
-    import scalus.Predef.Maybe.{Nothing, Just}
+    import scalus.Prelude.Maybe.{Nothing, Just}
     val compiled = compile { (v: Data) =>
       val value = summon[Data.FromData[LowerBound[BigInt]]](v)
       value match
@@ -275,7 +275,7 @@ class CompileFromDataToSIRSpec extends AnyFunSuite with ScalaCheckPropertyChecks
   }
 
   test("compile FromData[POSIXTimeRange]") {
-    import scalus.Predef.Maybe.{Nothing, Just}
+    import scalus.Prelude.Maybe.{Nothing, Just}
     val compiled = compile { (v: Data) =>
       val value = summon[Data.FromData[POSIXTimeRange]](v)
       value match
@@ -290,7 +290,7 @@ class CompileFromDataToSIRSpec extends AnyFunSuite with ScalaCheckPropertyChecks
   }
 
   test("compile FromData[TxInfo]") {
-    import scalus.Predef.Maybe.{Nothing, Just}
+    import scalus.Prelude.Maybe.{Nothing, Just}
     val compiled = compile { (v: Data) =>
       val value = summon[Data.FromData[TxInfo]](v)
       value.txInfoId.hash
@@ -298,15 +298,15 @@ class CompileFromDataToSIRSpec extends AnyFunSuite with ScalaCheckPropertyChecks
     testFromData(
       compiled,
       TxInfo(
-        txInfoInputs = scalus.Predef.List.Nil,
-        txInfoOutputs = scalus.Predef.List.Nil,
+        txInfoInputs = scalus.Prelude.List.Nil,
+        txInfoOutputs = scalus.Prelude.List.Nil,
         txInfoFee = Value.zero,
         txInfoMint = Value.zero,
-        txInfoDCert = scalus.Predef.List.Nil,
-        txInfoWdrl = scalus.Predef.List.Nil,
+        txInfoDCert = scalus.Prelude.List.Nil,
+        txInfoWdrl = scalus.Prelude.List.Nil,
         txInfoValidRange = Interval.always,
-        txInfoSignatories = scalus.Predef.List.Nil,
-        txInfoData = scalus.Predef.List.Nil,
+        txInfoSignatories = scalus.Prelude.List.Nil,
+        txInfoData = scalus.Prelude.List.Nil,
         txInfoId = TxId(ByteString.fromHex("bb"))
       ),
       1282,
@@ -315,7 +315,7 @@ class CompileFromDataToSIRSpec extends AnyFunSuite with ScalaCheckPropertyChecks
   }
 
   test("compile FromData[ScriptContext]") {
-    import scalus.Predef.Maybe.{Nothing, Just}
+    import scalus.Prelude.Maybe.{Nothing, Just}
     val compiled = compile { (v: Data) =>
       val value = summon[Data.FromData[ScriptContext]](v)
       value.scriptContextTxInfo.txInfoId.hash
@@ -324,15 +324,15 @@ class CompileFromDataToSIRSpec extends AnyFunSuite with ScalaCheckPropertyChecks
       compiled,
       ScriptContext(
         TxInfo(
-          txInfoInputs = scalus.Predef.List.Nil,
-          txInfoOutputs = scalus.Predef.List.Nil,
+          txInfoInputs = scalus.Prelude.List.Nil,
+          txInfoOutputs = scalus.Prelude.List.Nil,
           txInfoFee = Value.zero,
           txInfoMint = Value.zero,
-          txInfoDCert = scalus.Predef.List.Nil,
-          txInfoWdrl = scalus.Predef.List.Nil,
+          txInfoDCert = scalus.Prelude.List.Nil,
+          txInfoWdrl = scalus.Prelude.List.Nil,
           txInfoValidRange = Interval.always,
-          txInfoSignatories = scalus.Predef.List.Nil,
-          txInfoData = scalus.Predef.List.Nil,
+          txInfoSignatories = scalus.Prelude.List.Nil,
+          txInfoData = scalus.Prelude.List.Nil,
           txInfoId = TxId(ByteString.fromHex("bb"))
         ),
         ScriptPurpose.Spending(TxOutRef(TxId(hex"12"), 12))

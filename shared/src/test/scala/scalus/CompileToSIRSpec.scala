@@ -15,8 +15,8 @@ import scalus.uplc.TermDSL.{lam, λ}
 import scalus.utils.Utils
 
 import scala.collection.immutable
-import scalus.Predef.List.{Cons, Nil}
-import scalus.Predef.===
+import scalus.Prelude.List.{Cons, Nil}
+import scalus.Prelude.===
 import scalus.sir.DataDecl
 import scalus.sir.ConstrDecl
 
@@ -411,7 +411,7 @@ class CompileToSIRSpec extends AnyFunSuite with ScalaCheckPropertyChecks:
   }
 
   test("compile type-safe equality") {
-    import scalus.Predef.*
+    import scalus.Prelude.*
     val compiled = compile {
       val a = BigInt(0)
       val bs = ByteString.fromHex("deadbeef")
@@ -505,9 +505,9 @@ class CompileToSIRSpec extends AnyFunSuite with ScalaCheckPropertyChecks:
 
   test("compile match on ADT") {
     import scalus.ledger.api.v1.*
-    import scalus.Predef.List.*
+    import scalus.Prelude.List.*
     val compiled = compile {
-      val ls = Predef.List.Cons(BigInt(1), Predef.List.Nil)
+      val ls = Prelude.List.Cons(BigInt(1), Prelude.List.Nil)
       ls match
         case Cons(h, tl) => h
         case Nil         => BigInt(0)

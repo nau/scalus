@@ -5,8 +5,8 @@ import scalus.ledger.api.v1.Instances.given
 import scalus.uplc.Data
 import scalus.uplc.Data.{FromData, ToData, given}
 import scalus.utils.Utils.bytesToHex
-import scalus.Predef.{List, Maybe}
-import scalus.Predef.===
+import scalus.Prelude.{List, Maybe}
+import scalus.Prelude.===
 import scalus.builtins.Builtins
 
 type ValidatorHash = ByteString

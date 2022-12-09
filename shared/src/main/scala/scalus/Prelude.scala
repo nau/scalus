@@ -3,7 +3,7 @@ package scalus
 import scalus.builtins.ByteString
 import scalus.builtins.Builtins
 
-object Predef {
+object Prelude {
   sealed class Eq[A]
   given Eq[BigInt] = new Eq[BigInt]
   given Eq[ByteString] = new Eq[ByteString]

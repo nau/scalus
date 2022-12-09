@@ -10,8 +10,8 @@ import scala.collection.immutable.List
 import scala.deriving.*
 import scala.quoted.*
 import scalus.macros.Macros
-import scalus.Predef.Maybe
-import scalus.Predef.===
+import scalus.Prelude.Maybe
+import scalus.Prelude.===
 
 sealed abstract class Data
 
@@ -36,19 +36,19 @@ object Data:
     else if constr === BigInt(1) then true
     else throw new RuntimeException("Not a boolean")
 
-  given ListFromData[A: FromData]: FromData[scalus.Predef.List[A]] = (d: Data) =>
+  given ListFromData[A: FromData]: FromData[scalus.Prelude.List[A]] = (d: Data) =>
     val fromA = summon[FromData[A]]
     val ls = Builtins.unsafeDataAsList(d)
-    def loop(ls: scalus.builtins.List[Data]): scalus.Predef.List[A] =
-      if ls.isEmpty then scalus.Predef.List.Nil
-      else scalus.Predef.List.Cons(fromA(ls.head), loop(ls.tail))
+    def loop(ls: scalus.builtins.List[Data]): scalus.Prelude.List[A] =
+      if ls.isEmpty then scalus.Prelude.List.Nil
+      else scalus.Prelude.List.Cons(fromA(ls.head), loop(ls.tail))
     loop(ls)
 
-  given MaybeFromData[A: FromData]: FromData[scalus.Predef.Maybe[A]] = (d: Data) =>
+  given MaybeFromData[A: FromData]: FromData[scalus.Prelude.Maybe[A]] = (d: Data) =>
     val fromA = summon[FromData[A]]
     val pair = Builtins.unsafeDataAsConstr(d)
-    if pair.fst === BigInt(0) then scalus.Predef.Maybe.Just(fromA(pair.snd.head))
-    else scalus.Predef.Maybe.Nothing
+    if pair.fst === BigInt(0) then scalus.Prelude.Maybe.Just(fromA(pair.snd.head))
+    else scalus.Prelude.Maybe.Nothing
 
   /* given tupleFromData[A, B](using fromA: FromData[A], fromB: FromData[B]): FromData[(A, B)] =
     (d: Data) =>
@@ -122,13 +122,13 @@ object Data:
     def toData(a: B[A]): Data = List(a.map(summon[ToData[A]].toData).toList)
   }
 
-  given listToData[A: ToData]: ToData[scalus.Predef.List[A]] with {
-    def toData(a: scalus.Predef.List[A]): Data =
+  given listToData[A: ToData]: ToData[scalus.Prelude.List[A]] with {
+    def toData(a: scalus.Prelude.List[A]): Data =
       val aToData = summon[ToData[A]]
-      def loop(a: scalus.Predef.List[A]): scalus.builtins.List[Data] =
+      def loop(a: scalus.Prelude.List[A]): scalus.builtins.List[Data] =
         a match
-          case scalus.Predef.List.Nil => scalus.builtins.List.Nil
-          case scalus.Predef.List.Cons(head, tail) =>
+          case scalus.Prelude.List.Nil => scalus.builtins.List.Nil
+          case scalus.Prelude.List.Cons(head, tail) =>
             scalus.builtins.List.Cons(aToData.toData(head), loop(tail))
       Builtins.mkList(loop(a))
   }

@@ -4,9 +4,9 @@ import org.scalatestplus.scalacheck.ScalaCheckPropertyChecks
 import org.scalatest.funsuite.AnyFunSuite
 
 import org.scalacheck.{Arbitrary, Prop, Properties}
-import Predef.AssocMap
-import Predef.AssocMap.*
-import Predef.List
+import Prelude.AssocMap
+import Prelude.AssocMap.*
+import Prelude.List
 import scalus.uplc.ArbitraryInstances
 import scala.collection.immutable
 

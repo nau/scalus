@@ -14,15 +14,15 @@ class DataDerivationSpec extends AnyFunSuite with ScalaCheckPropertyChecks with 
     assert(TxId(hex"deadbeef").toData == hex"deadbeef".toData)
     assert(
       TxInfo(
-        scalus.Predef.List.Nil,
-        scalus.Predef.List.Nil,
+        scalus.Prelude.List.Nil,
+        scalus.Prelude.List.Nil,
         Value.zero,
         Value.zero,
-        scalus.Predef.List.Nil,
-        scalus.Predef.List.Nil,
+        scalus.Prelude.List.Nil,
+        scalus.Prelude.List.Nil,
         Interval.always,
-        scalus.Predef.List.Nil,
-        scalus.Predef.List.Nil,
+        scalus.Prelude.List.Nil,
+        scalus.Prelude.List.Nil,
         TxId(hex"bb")
       ).toData == Constr(
         0,

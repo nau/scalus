@@ -10,8 +10,8 @@ import scalus.uplc.DefaultUni.{asConstant, Bool, ByteString}
 import scalus.uplc.ExprBuilder.{sndPair, unConstrData}
 import scalus.uplc.Term.*
 import scalus.uplc.TermDSL.{*, given}
-import scalus.Predef.List.{Cons, Nil}
-import scalus.Predef.Maybe.*
+import scalus.Prelude.List.{Cons, Nil}
+import scalus.Prelude.Maybe.*
 
 import java.io.{ByteArrayInputStream, ByteArrayOutputStream}
 import java.math.RoundingMode
@@ -128,7 +128,7 @@ class CekJVMSpec extends AnyFunSuite with ScalaCheckPropertyChecks with Arbitrar
 
     import Data.*
 
-    def scriptContext(sigs: scalus.Predef.List[PubKeyHash]) =
+    def scriptContext(sigs: scalus.Prelude.List[PubKeyHash]) =
       ScriptContext(
         TxInfo(
           Nil,
@@ -194,7 +194,7 @@ class CekJVMSpec extends AnyFunSuite with ScalaCheckPropertyChecks with Arbitrar
 
     import Data.*
 
-    def scriptContext(txInfoInputs: scalus.Predef.List[TxInInfo], value: Value) =
+    def scriptContext(txInfoInputs: scalus.Prelude.List[TxInInfo], value: Value) =
       ScriptContext(
         TxInfo(
           txInfoInputs = txInfoInputs,

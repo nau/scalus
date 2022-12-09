@@ -5,11 +5,11 @@ import org.scalatest.funsuite.AnyFunSuite
 import org.scalatestplus.scalacheck.ScalaCheckPropertyChecks
 import scalus.Compiler.compile
 import scalus.Compiler.fieldAsData
-import scalus.Predef.List
-import scalus.Predef.List.Cons
-import scalus.Predef.List.Nil
-import scalus.Predef.Maybe.*
-import scalus.Predef.*
+import scalus.Prelude.List
+import scalus.Prelude.List.Cons
+import scalus.Prelude.List.Nil
+import scalus.Prelude.Maybe.*
+import scalus.Prelude.*
 import scalus.builtins.Builtins
 import scalus.builtins.ByteString
 import scalus.builtins.ByteString.given
@@ -59,18 +59,18 @@ object OptimizedPreimageValidator:
 
 class PreImageExampleSpec extends BaseValidatorSpec {
 
-  def scriptContext(signatories: scalus.Predef.List[PubKeyHash]) =
+  def scriptContext(signatories: scalus.Prelude.List[PubKeyHash]) =
     ScriptContext(
       TxInfo(
-        txInfoInputs = scalus.Predef.List.Nil,
-        txInfoOutputs = scalus.Predef.List.Nil,
+        txInfoInputs = scalus.Prelude.List.Nil,
+        txInfoOutputs = scalus.Prelude.List.Nil,
         txInfoFee = Value.lovelace(BigInt("188021")),
         txInfoMint = Value.lovelace(BigInt("188021")),
-        txInfoDCert = scalus.Predef.List.Nil,
-        txInfoWdrl = scalus.Predef.List.Nil,
+        txInfoDCert = scalus.Prelude.List.Nil,
+        txInfoWdrl = scalus.Prelude.List.Nil,
         txInfoValidRange = Interval.always,
         txInfoSignatories = signatories,
-        txInfoData = scalus.Predef.List.Nil,
+        txInfoData = scalus.Prelude.List.Nil,
         txInfoId = TxId(hex"1e0612fbd127baddfcd555706de96b46c4d4363ac78c73ab4dee6e6a7bf61fe9")
       ),
       ScriptPurpose.Spending(hoskyMintTxOutRef)
@@ -81,7 +81,7 @@ class PreImageExampleSpec extends BaseValidatorSpec {
         preimage: ByteString,
         pubKeyHash: PubKeyHash,
         hash: ByteString,
-        signatories: scalus.Predef.List[PubKeyHash]
+        signatories: scalus.Prelude.List[PubKeyHash]
     ) =
       val datum = (hash, pubKeyHash).toData
       val redeemer = preimage.toData

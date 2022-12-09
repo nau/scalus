@@ -4,11 +4,11 @@ import org.scalatest.funsuite.AnyFunSuite
 import org.scalatestplus.scalacheck.ScalaCheckPropertyChecks
 import scalus.Compiler.compile
 import scalus.Compiler.fieldAsData
-import scalus.Predef.List
-import scalus.Predef.List.Cons
-import scalus.Predef.List.Nil
-import scalus.Predef.Maybe.*
-import scalus.Predef.*
+import scalus.Prelude.List
+import scalus.Prelude.List.Cons
+import scalus.Prelude.List.Nil
+import scalus.Prelude.Maybe.*
+import scalus.Prelude.*
 import scalus.builtins.Builtins
 import scalus.builtins.ByteString
 import scalus.builtins.ByteString.given
