@@ -16,7 +16,7 @@ import scalus.utils.Utils
 
 import scala.collection.immutable
 import scalus.Prelude.List.{Cons, Nil}
-import scalus.Prelude.===
+import scalus.Prelude.{===, given}
 import scalus.sir.DataDecl
 import scalus.sir.ConstrDecl
 
@@ -594,7 +594,7 @@ class CompileToSIRSpec extends AnyFunSuite with ScalaCheckPropertyChecks:
     val flatBytes = ProgramFlatCodec.encodeFlat(Program(version = (1, 0, 0), term = term))
 //    println(Utils.bytesToHex(flatBytes))
     // println(term.pretty.render(80))
-    assert(flatBytes.length == 119)
+    assert(flatBytes.length == 139)
     import Data.*
     import DefaultUni.asConstant
     import TermDSL.{*, given}

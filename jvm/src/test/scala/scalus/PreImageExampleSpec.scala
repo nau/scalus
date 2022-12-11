@@ -8,6 +8,7 @@ import scalus.Compiler.fieldAsData
 import scalus.Prelude.List
 import scalus.Prelude.List.Cons
 import scalus.Prelude.List.Nil
+import scalus.Prelude.{===, given}
 import scalus.Prelude.Maybe.*
 import scalus.Prelude.*
 import scalus.builtins.Builtins
@@ -141,13 +142,13 @@ class PreImageExampleSpec extends BaseValidatorSpec {
     // convert SIR to UPLC
     val validator = new SimpleSirToUplcLowering().lower(compiled)
     val flatEncoded = ProgramFlatCodec.encodeFlat(Program((1, 0, 0), validator))
-    assert(flatEncoded.length == 1617)
+    assert(flatEncoded.length == 1692)
 
     performChecks(validator)
   }
 
   test("Preimage Validator Optimized") {
-    assert(OptimizedPreimageValidator.flatEncoded.length == 261)
+    assert(OptimizedPreimageValidator.flatEncoded.length == 284)
     performChecks(OptimizedPreimageValidator.validator)
   }
 }

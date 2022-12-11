@@ -6,7 +6,7 @@ import scalus.uplc.Data
 import scalus.uplc.Data.{FromData, ToData, given}
 import scalus.utils.Utils.bytesToHex
 import scalus.Prelude.{List, Maybe}
-import scalus.Prelude.===
+import scalus.Prelude.{===, given}
 import scalus.builtins.Builtins
 import scalus.Prelude.AssocMap
 

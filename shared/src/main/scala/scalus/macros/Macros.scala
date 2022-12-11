@@ -518,37 +518,6 @@ object Macros {
             '{ SIR.Apply(SIR.Builtin(DefaultFun.DivideInteger), ${ compileExpr(env, ident) }) }
           case Select(ident, "%") if ident.tpe.widen =:= TypeRepr.of[BigInt] =>
             '{ SIR.Apply(SIR.Builtin(DefaultFun.RemainderInteger), ${ compileExpr(env, ident) }) }
-          // Type-safe equality
-          case Apply(
-                Apply(Apply(TypeApply(Ident("==="), List(tpe)), List(lhs)), List(rhs)),
-                evidence
-              ) =>
-            if tpe.tpe =:= TypeRepr.of[BigInt] then
-              '{
-                SIR.Apply(
-                  SIR.Apply(SIR.Builtin(DefaultFun.EqualsInteger), ${ compileExpr(env, lhs) }),
-                  ${ compileExpr(env, rhs) }
-                )
-              }
-            else if tpe.tpe =:= TypeRepr.of[builtins.ByteString] then
-              '{
-                SIR.Apply(
-                  SIR.Apply(SIR.Builtin(DefaultFun.EqualsByteString), ${ compileExpr(env, lhs) }),
-                  ${ compileExpr(env, rhs) }
-                )
-              }
-            else if tpe.tpe =:= TypeRepr.of[String] then
-              '{
-                SIR.Apply(
-                  SIR.Apply(SIR.Builtin(DefaultFun.EqualsString), ${ compileExpr(env, lhs) }),
-                  ${ compileExpr(env, rhs) }
-                )
-              }
-            else
-              report.errorAndAbort(
-                s"Type-safe equality is not supported in SIR, use `==` instead",
-                e.pos
-              )
           // PAIR
           case Select(pair, fun) if pair.isPair =>
             fun match
@@ -757,7 +726,10 @@ object Macros {
           case bi if bi.tpe.show == "scalus.builtins.Builtins.equalsData" =>
             '{ SIR.Builtin(DefaultFun.EqualsData) }
 
-          case Ident(a) => compileIdentOrQualifiedSelect(env, e)
+          case Ident(a) =>
+            // FIXME: use isConstructorVal as in Select
+            // Can't do it because isConstructorVal is not always correct
+            compileIdentOrQualifiedSelect(env, e)
           // case class User(name: String, age: Int)
           // val user = User("John", 42) => \u - u "John" 42
           // user.name => \u name age -> name

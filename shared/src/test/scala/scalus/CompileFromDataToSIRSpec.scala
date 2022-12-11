@@ -18,6 +18,7 @@ import scalus.utils.Utils
 import scala.collection.immutable
 import scalus.uplc.Data.FromData
 import scalus.Prelude.Maybe
+import scalus.Prelude.{===, given}
 import scalus.Prelude.AssocMap
 
 class CompileFromDataToSIRSpec extends AnyFunSuite with ScalaCheckPropertyChecks:
@@ -48,7 +49,7 @@ class CompileFromDataToSIRSpec extends AnyFunSuite with ScalaCheckPropertyChecks
     val compiled = compile { (d: Data) =>
       summon[Data.FromData[Boolean]](d)
     }
-    testFromData(compiled, true, 44, Term.Const(Constant.Bool(true)))
+    testFromData(compiled, true, 85, Term.Const(Constant.Bool(true)))
   }
 
   test("compile FromData[(A, B)]") {
@@ -57,7 +58,7 @@ class CompileFromDataToSIRSpec extends AnyFunSuite with ScalaCheckPropertyChecks
       pair match
         case (a, b) => b
     }
-    testFromData(compiled, (true, false), 109, Term.Const(Constant.Bool(false)))
+    testFromData(compiled, (true, false), 132, Term.Const(Constant.Bool(false)))
   }
 
   test("compile FromData[PubKeyHash]") {
@@ -124,7 +125,7 @@ class CompileFromDataToSIRSpec extends AnyFunSuite with ScalaCheckPropertyChecks
     testFromData(
       compiled,
       Credential.ScriptCredential(hex"12"),
-      97,
+      138,
       Term.Const(Constant.ByteString(hex"12"))
     )
   }
@@ -137,7 +138,7 @@ class CompileFromDataToSIRSpec extends AnyFunSuite with ScalaCheckPropertyChecks
         case StakingHash(cred)   => BigInt(1)
         case StakingPtr(a, b, c) => c
     }
-    testFromData(compiled, StakingPtr(1, 2, 3), 202, Term.Const(Constant.Integer(3)))
+    testFromData(compiled, StakingPtr(1, 2, 3), 247, Term.Const(Constant.Integer(3)))
   }
 
   test("compile FromData[DCert]") {
@@ -155,7 +156,7 @@ class CompileFromDataToSIRSpec extends AnyFunSuite with ScalaCheckPropertyChecks
         case Mir                            => BigInt(7)
 
     }
-    testFromData(compiled, DCert.Genesis, 491, Term.Const(Constant.Integer(6)))
+    testFromData(compiled, DCert.Genesis, 533, Term.Const(Constant.Integer(6)))
   }
 
   test("compile FromData[Extended]") {
@@ -168,7 +169,7 @@ class CompileFromDataToSIRSpec extends AnyFunSuite with ScalaCheckPropertyChecks
         case PosInf    => BigInt(2)
 
     }
-    testFromData(compiled, Finite(123), 124, Term.Const(Constant.Integer(123)))
+    testFromData(compiled, Finite(123), 149, Term.Const(Constant.Integer(123)))
   }
 
   test("compile FromData[ScriptPurpose]") {
@@ -182,7 +183,7 @@ class CompileFromDataToSIRSpec extends AnyFunSuite with ScalaCheckPropertyChecks
         case Certifying(cert)       => BigInt(4)
 
     }
-    testFromData(compiled, Minting(hex"12"), 634, Term.Const(Constant.Integer(1)))
+    testFromData(compiled, Minting(hex"12"), 684, Term.Const(Constant.Integer(1)))
   }
 
   test("compile FromData[Address]") {
@@ -196,7 +197,7 @@ class CompileFromDataToSIRSpec extends AnyFunSuite with ScalaCheckPropertyChecks
     testFromData(
       compiled,
       Address(Credential.PubKeyCredential(PubKeyHash(hex"12")), Nothing),
-      303,
+      332,
       Term.Const(Constant.Integer(1))
     )
   }
@@ -218,7 +219,7 @@ class CompileFromDataToSIRSpec extends AnyFunSuite with ScalaCheckPropertyChecks
         Value.lovelace(42),
         Just(hex"beef")
       ),
-      458,
+      486,
       Term.Const(Constant.Integer(2))
     )
   }
@@ -240,7 +241,7 @@ class CompileFromDataToSIRSpec extends AnyFunSuite with ScalaCheckPropertyChecks
           Just(hex"beef")
         )
       ),
-      531,
+      559,
       Term.Const(Constant.Integer(12))
     )
   }
@@ -255,7 +256,7 @@ class CompileFromDataToSIRSpec extends AnyFunSuite with ScalaCheckPropertyChecks
     testFromData(
       compiled,
       UpperBound[BigInt](Extended.PosInf, false),
-      193,
+      222,
       Term.Const(Constant.Bool(false))
     )
   }
@@ -270,7 +271,7 @@ class CompileFromDataToSIRSpec extends AnyFunSuite with ScalaCheckPropertyChecks
     testFromData(
       compiled,
       LowerBound[BigInt](Extended.PosInf, false),
-      193,
+      222,
       Term.Const(Constant.Bool(false))
     )
   }
@@ -285,7 +286,7 @@ class CompileFromDataToSIRSpec extends AnyFunSuite with ScalaCheckPropertyChecks
     testFromData(
       compiled,
       Interval.always[BigInt],
-      275,
+      304,
       Term.Const(Constant.Bool(true))
     )
   }
@@ -310,7 +311,7 @@ class CompileFromDataToSIRSpec extends AnyFunSuite with ScalaCheckPropertyChecks
         txInfoData = scalus.Prelude.List.Nil,
         txInfoId = TxId(ByteString.fromHex("bb"))
       ),
-      1349,
+      1403,
       Term.Const(Constant.ByteString(ByteString.fromHex("bb")))
     )
   }
@@ -338,7 +339,7 @@ class CompileFromDataToSIRSpec extends AnyFunSuite with ScalaCheckPropertyChecks
         ),
         ScriptPurpose.Spending(TxOutRef(TxId(hex"12"), 12))
       ),
-      1496,
+      1559,
       Term.Const(Constant.ByteString(ByteString.fromHex("bb")))
     )
   }

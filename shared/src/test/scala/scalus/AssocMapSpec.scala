@@ -11,7 +11,12 @@ import scalus.uplc.ArbitraryInstances
 import scala.collection.immutable
 
 import Prelude.AssocMap
+import scalus.Prelude.{===, given}
 import Prelude.List
+import Prelude.List.*
+import Prelude.These.*
+import scalus.sir.SimpleSirToUplcLowering
+import scalus.uplc.Cek
 
 class AssocMapSpec extends AnyFunSuite with ScalaCheckPropertyChecks with ArbitraryInstances {
 
@@ -29,6 +34,26 @@ class AssocMapSpec extends AnyFunSuite with ScalaCheckPropertyChecks with Arbitr
 
   test("empty") {
     assert(AssocMap.toList(AssocMap.empty) == List.Nil)
+  }
+
+  test("union") {
+    val m1 = AssocMap.fromList(Cons((BigInt(1), BigInt(2)), Cons((BigInt(0), BigInt(0)), List.Nil)))
+    val m2 = AssocMap.fromList(Cons((BigInt(1), BigInt(3)), Cons((BigInt(3), BigInt(4)), List.Nil)))
+    val m3 = AssocMap.union(m1, m2)
+    val compiled = Compiler.compile {
+      val a = BigInt(132)
+      AssocMap.union(m1, m2)
+    }
+    println(compiled.pretty.render(100))
+    val term = new SimpleSirToUplcLowering().lower(compiled)
+    println(Cek.evalUPLC(term).pretty.render(100))
+    assert(
+      AssocMap.toList(m3) == List(
+        (BigInt(1), These(2, 3)),
+        (BigInt(0), This(BigInt(0))),
+        (BigInt(3), That(BigInt(4)))
+      )
+    )
   }
 
   test("toList(fromList(lst)) == lst") {
@@ -56,7 +81,7 @@ class AssocMapSpec extends AnyFunSuite with ScalaCheckPropertyChecks with Arbitr
     check { (map: AssocMap[BigInt, BigInt], k: BigInt, v: BigInt) =>
       val m1 = AssocMap.insert(k, v)(map)
       AssocMap.lookup(k)(m1) == Prelude.Maybe.Just(v)
-      val m2 = AssocMap.delete(k)(m1)
+      val m2 = AssocMap.delete(m1)(k)
       AssocMap.lookup(k)(m2) == Prelude.Maybe.Nothing
     }
   }

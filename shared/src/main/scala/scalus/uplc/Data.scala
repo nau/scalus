@@ -11,7 +11,7 @@ import scala.deriving.*
 import scala.quoted.*
 import scalus.macros.Macros
 import scalus.Prelude.Maybe
-import scalus.Prelude.===
+import scalus.Prelude.{===, given}
 import scalus.Prelude.AssocMap
 import scalus.Prelude
 import scalus.builtins
