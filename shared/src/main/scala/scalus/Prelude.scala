@@ -27,18 +27,18 @@ object Prelude {
       case Nil              => lst2
       case Cons(head, tail) => Cons(head, append(tail, lst2))
 
-    def map[A, B](f: A => B)(lst: List[A]): List[B] = lst match
+    def map[A, B](lst: List[A])(f: A => B): List[B] = lst match
       case Nil              => List.Nil
-      case Cons(head, tail) => Cons(f(head), List.map(f)(tail))
+      case Cons(head, tail) => Cons(f(head), List.map(tail)(f))
 
-    def filter[A](p: A => Boolean)(lst: List[A]): List[A] = lst match
+    def filter[A](lst: List[A])(p: A => Boolean): List[A] = lst match
       case Nil => List.Nil
       case Cons(head, tail) =>
-        if p(head) then Cons(head, List.filter(p)(tail)) else List.filter(p)(tail)
+        if p(head) then Cons(head, List.filter(tail)(p)) else List.filter(tail)(p)
 
-    def findOrFail[A](lst: List[A])(p: A => Boolean): Unit = lst match
+    def findOrFail[A](lst: List[A])(p: A => Boolean): A = lst match
       case Nil              => throw new Exception("Not found")
-      case Cons(head, tail) => if p(head) then () else findOrFail(tail)(p)
+      case Cons(head, tail) => if p(head) then head else findOrFail(tail)(p)
 
     def find[A](lst: List[A])(p: A => Boolean): Maybe[A] = lst match
       case Nil              => Maybe.Nothing
@@ -51,6 +51,9 @@ object Prelude {
     def foldLeft[A, B](lst: List[A], z: B)(f: (B, A) => B): B = lst match
       case Nil              => z
       case Cons(head, tail) => foldLeft(tail, f(z, head))(f)
+
+    def all[A, B](lst: List[A])(f: A => Boolean): Boolean =
+      foldLeft(lst, true)((acc, x) => acc && f(x))
 
   enum Maybe[+A]:
     case Nothing extends Maybe[Nothing]
@@ -88,7 +91,7 @@ object Prelude {
     def singleton[A, B](key: A, value: B): AssocMap[A, B] = List.Cons((key, value), List.Nil)
     def fromList[A, B](lst: List[(A, B)]): AssocMap[A, B] = lst
     def toList[A, B](map: AssocMap[A, B]): List[(A, B)] = map
-    def lookup[A: Eq, B](key: A)(map: AssocMap[A, B]): Maybe[B] =
+    def lookup[A: Eq, B](map: AssocMap[A, B])(key: A): Maybe[B] =
       def go(lst: List[(A, B)]): Maybe[B] = lst match
         case Nil => Maybe.Nothing
         case Cons(pair, tail) =>
@@ -96,7 +99,7 @@ object Prelude {
             case (k, v) => if k === key then Maybe.Just(v) else go(tail)
       go(map)
 
-    def insert[A: Eq, B](key: A, value: B)(map: AssocMap[A, B]): AssocMap[A, B] =
+    def insert[A: Eq, B](map: AssocMap[A, B])(key: A, value: B): AssocMap[A, B] =
       def go(lst: List[(A, B)]): List[(A, B)] = lst match
         case Nil => List.Cons((key, value), List.Nil)
         case Cons(pair, tail) =>
@@ -123,7 +126,7 @@ object Prelude {
         case Cons(pair, tail) =>
           pair match
             case (k, v) =>
-              val maybeR = AssocMap.lookup(k)(rhs)
+              val maybeR = AssocMap.lookup(rhs)(k)
               val these = maybeR match
                 case Nothing => This(v)
                 case Just(r) => Prelude.These.These(v, r)
@@ -132,11 +135,8 @@ object Prelude {
       val lhs1 = go(lhs) // all left with corresponding right
 
       val rhsNotInLhs =
-        List.filter((pair: (A, C)) => !List.exists(lhs)(p => p._1 === pair._1))(rhs)
+        List.filter(rhs) { case (a, c) => !List.exists(lhs)(p => p._1 === a) }
 
-      val rhsThat =
-        List.map[(A, C), (A, Prelude.These[B, C])]((pair: (A, C)) => (pair._1, That(pair._2)))(
-          rhsNotInLhs
-        )
+      val rhsThat = List.map(rhsNotInLhs) { case (k, v) => (k, That(v)) }
       List.append(lhs1, rhsThat)
 }

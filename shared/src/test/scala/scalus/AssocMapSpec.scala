@@ -17,6 +17,7 @@ import Prelude.List.*
 import Prelude.These.*
 import scalus.sir.SimpleSirToUplcLowering
 import scalus.uplc.Cek
+import scalus.builtins.ByteString
 
 class AssocMapSpec extends AnyFunSuite with ScalaCheckPropertyChecks with ArbitraryInstances {
 
@@ -54,6 +55,34 @@ class AssocMapSpec extends AnyFunSuite with ScalaCheckPropertyChecks with Arbitr
         (BigInt(3), That(BigInt(4)))
       )
     )
+    def equalsAssets(
+        a: AssocMap[BigInt, BigInt],
+        b: AssocMap[BigInt, BigInt]
+    ): Boolean = {
+      val combined = AssocMap.toList(AssocMap.union(a, b))
+      // all values are equal, absent values are 0
+      List.foldLeft(combined, true) { case (acc, pair) =>
+        pair._2 match
+          case These(v1, v2) => acc && v1 === v2
+          case This(v1)      => acc && v1 === BigInt(0)
+          case That(v2)      => acc && v2 === BigInt(0)
+      }
+    }
+    {
+      val compiled = Compiler.compile {
+        equalsAssets(m1, m2)
+      }
+      println(compiled.pretty.render(100))
+      val term = new SimpleSirToUplcLowering().lower(compiled)
+      println(Cek.evalUPLC(term).pretty.render(100))
+    }
+    {
+      val compiled = Compiler.compile {
+        equalsAssets(m1, m1)
+      }
+      val term = new SimpleSirToUplcLowering().lower(compiled)
+      println(Cek.evalUPLC(term).pretty.render(100))
+    }
   }
 
   test("toList(fromList(lst)) == lst") {
@@ -64,7 +93,7 @@ class AssocMapSpec extends AnyFunSuite with ScalaCheckPropertyChecks with Arbitr
 
   test("insert") {
     check { (map: AssocMap[BigInt, BigInt], k: BigInt, v: BigInt) =>
-      val m1 = AssocMap.insert(k, v)(map)
+      val m1 = AssocMap.insert(map)(k, v)
       val lst1 = AssocMap.toList(m1).toList
       lst1.contains((k, v))
     }
@@ -72,17 +101,17 @@ class AssocMapSpec extends AnyFunSuite with ScalaCheckPropertyChecks with Arbitr
 
   test("lookup") {
     check { (map: AssocMap[BigInt, BigInt], k: BigInt, v: BigInt) =>
-      val m1 = AssocMap.insert(k, v)(map)
-      AssocMap.lookup(k)(m1) == Prelude.Maybe.Just(v)
+      val m1 = AssocMap.insert(map)(k, v)
+      AssocMap.lookup(m1)(k) == Prelude.Maybe.Just(v)
     }
   }
 
   test("delete") {
     check { (map: AssocMap[BigInt, BigInt], k: BigInt, v: BigInt) =>
-      val m1 = AssocMap.insert(k, v)(map)
-      AssocMap.lookup(k)(m1) == Prelude.Maybe.Just(v)
+      val m1 = AssocMap.insert(map)(k, v)
+      AssocMap.lookup(m1)(k) == Prelude.Maybe.Just(v)
       val m2 = AssocMap.delete(m1)(k)
-      AssocMap.lookup(k)(m2) == Prelude.Maybe.Nothing
+      AssocMap.lookup(m2)(k) == Prelude.Maybe.Nothing
     }
   }
 
