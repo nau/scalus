@@ -51,10 +51,10 @@ class MintingPolicyExampleSpec extends BaseValidatorSpec {
       val purpose = ctx.scriptContextPurpose
       val ownSymbol = purpose match
         case Minting(curSymbol) => curSymbol
-        case Spending(txOutRef) => throw new RuntimeException("Spending context is not supported")
+        case Spending(txOutRef) => throw new RuntimeException("PS")
         case Rewarding(stakingCred) =>
-          throw new RuntimeException("Rewarding context is not supported")
-        case Certifying(cert) => throw new RuntimeException("Certifying context is not supported")
+          throw new RuntimeException("PR")
+        case Certifying(cert) => throw new RuntimeException("PC")
       new MintingContext(
         List.map(txInfoInputs)(_.txInInfoOutRef),
         minted,
@@ -76,7 +76,7 @@ class MintingPolicyExampleSpec extends BaseValidatorSpec {
         val tag = pair.fst
         val args = pair.snd
         if tag === BigInt(0) then Builtins.unsafeDataAsB(args.head)
-        else throw new Exception("Not a minting policy")
+        else throw new Exception("P")
       new MintingContext(
         List.map(txInfoInputs)(_.txInInfoOutRef),
         minted,
@@ -98,7 +98,7 @@ class MintingPolicyExampleSpec extends BaseValidatorSpec {
           val mintedTokens = AssocMap.lookup(minted)(ownSymbol) match
             case Just(mintedTokens) => mintedTokens
             case Nothing =>
-              throw new Exception("Minted tokens not found")
+              throw new Exception("T")
 
           val checkSpendsTxOut = List.find(txOutRefs) { case TxOutRef(txOutRefTxId, txOutRefIdx) =>
             txOutRefTxId.hash === txId && txOutRefIdx === txOutIdx
@@ -107,14 +107,14 @@ class MintingPolicyExampleSpec extends BaseValidatorSpec {
           val check = (b: Boolean, msg: String) => if b then () else throw new Exception(msg)
           checkSpendsTxOut match
             // If the transaction spends the TxOut, then it's a minting transaction
-            case Just(input) => check(Value.equalsAssets(mintedTokens, tokensToMint), "EM")
+            case Just(input) => check(Value.equalsAssets(mintedTokens, tokensToMint), "M")
             // Otherwise, it's a burn transaction
             case Nothing =>
               // check burned
               val burned = List.all(AssocMap.toList(mintedTokens)) { case (tokenName, amount) =>
                 Builtins.lessThanInteger(amount, BigInt(0))
               }
-              check(burned, "EB")
+              check(burned, "B")
     }
 
     val compiledOptimizedMintingPolicyScript = compile(
@@ -135,7 +135,8 @@ class MintingPolicyExampleSpec extends BaseValidatorSpec {
       )
     )
 
-    val validator = new SimpleSirToUplcLowering().lower(compiledOptimizedMintingPolicyScript)
+    val validator = new SimpleSirToUplcLowering(generateErrorTraces = true)
+      .lower(compiledOptimizedMintingPolicyScript)
     val flatEncoded = ProgramFlatCodec.encodeFlat(Program((1, 0, 0), validator))
     val cbor = Cbor.encode(flatEncoded).toByteArray
     val cborHex = Utils.bytesToHex(Cbor.encode(flatEncoded).toByteArray)
@@ -244,10 +245,11 @@ class MintingPolicyExampleSpec extends BaseValidatorSpec {
   test("Minting Policy Validator") {
     // println(compiled.pretty.render(100))
     val validator =
-      new SimpleSirToUplcLowering().lower(MintingPolicy.compiledMintingPolicyScript)
+      new SimpleSirToUplcLowering(generateErrorTraces = true)
+        .lower(MintingPolicy.compiledMintingPolicyScript)
     val flatSize = ProgramFlatCodec.encodeFlat(Program((1, 0, 0), validator)).length
     // println(flatSize)
-    assert(flatSize == 2294)
+    assert(flatSize == 2433)
     performMintingPolicyValidatorChecks(validator)
   }
 
@@ -256,7 +258,7 @@ class MintingPolicyExampleSpec extends BaseValidatorSpec {
     // println(MintingPolicy.compiledOptimizedMintingPolicyScript.pretty.render(100))
     // println(MintingPolicy.validator.pretty.render(100))
     // println(MintingPolicy.flatEncoded.length)
-    assert(MintingPolicy.flatEncoded.length == 1077)
+    assert(MintingPolicy.flatEncoded.length == 1105)
     performMintingPolicyValidatorChecks(MintingPolicy.validator)
   }
 }

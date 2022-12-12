@@ -39,8 +39,20 @@ class SimpleSirToUplcLoweringSpec
     }
   }
 
-  test("lower") {
+  test("lower error") {
     SIR.Error("error") lowersTo Term.Error("error")
+    val l = SimpleSirToUplcLowering(generateErrorTraces = true)
+    assert(
+      l.lower(SIR.Error("error")) == Term.Force(
+        Term.Apply(
+          Term.Apply(Term.Force(Term.Builtin(Trace)), Term.Const(Constant.String("error"))),
+          Term.Delay(Term.Error("error"))
+        )
+      )
+    )
+  }
+
+  test("lower") {
     SIR.Var(NamedDeBruijn("x", 1)) lowersTo Term.Var(NamedDeBruijn("x", 1))
     SIR.Apply(
       SIR.LamAbs("x", SIR.Var(NamedDeBruijn("x", 0))),

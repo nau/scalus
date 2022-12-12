@@ -11,8 +11,9 @@ import scalus.uplc.TermDSL.{*, given}
 import scalus.uplc.TypeScheme
 import scala.collection.mutable.HashMap
 import scalus.uplc.Term
+import scalus.uplc.Constant
 
-class SimpleSirToUplcLowering {
+class SimpleSirToUplcLowering(generateErrorTraces: Boolean = false) {
 
   val builtinTerms = {
     def forceBuiltin(scheme: TypeScheme, term: Term): Term = scheme match
@@ -106,7 +107,10 @@ class SimpleSirToUplcLowering {
       case SIR.IfThenElse(cond, t, f) =>
         !(builtinTerms(DefaultFun.IfThenElse) $ lowerInner(cond) $ ~lowerInner(t) $ ~lowerInner(f))
       case SIR.Builtin(bn) => builtinTerms(bn)
-      case SIR.Error(msg)  => Term.Error(msg)
+      case SIR.Error(msg) =>
+        if generateErrorTraces
+        then !(builtinTerms(DefaultFun.Trace) $ Term.Const(Constant.String(msg)) $ ~Term.Error(msg))
+        else Term.Error(msg)
 
   def etaReduce(term: Term): Term =
     import Term.*
