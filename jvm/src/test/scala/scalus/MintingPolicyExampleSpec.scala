@@ -17,6 +17,7 @@ import scalus.uplc.*
 import scala.collection.immutable
 import scalus.builtins.Builtins
 import scalus.builtins.ByteString
+import scalus.examples.MintingPolicy
 import scalus.Prelude.Maybe.*
 import scalus.Prelude.List
 import scalus.Prelude.*
@@ -32,118 +33,7 @@ import io.bullet.borer.Cbor
 
 class MintingPolicyExampleSpec extends BaseValidatorSpec {
 
-  case class TxInInfoTxOutRefOnly(txInInfoOutRef: TxOutRef)
-  given Data.FromData[TxInInfoTxOutRefOnly] = (d: Data) =>
-    val pair = Builtins.unsafeDataAsConstr(d)
-    new TxInInfoTxOutRefOnly(summon[Data.FromData[TxOutRef]](pair.snd.head))
-
-  object MintingPolicy {
-    import List.*
-    import ScriptPurpose.*
-
-    case class MintingContext(inputs: List[TxOutRef], minted: Value, ownSymbol: CurrencySymbol)
-
-    val simpleCtxDeserializer: Data => MintingContext = (ctxData: Data) => {
-      val ctx = summon[Data.FromData[ScriptContext]](ctxData)
-      val txInfo = ctx.scriptContextTxInfo
-      val txInfoInputs = txInfo.txInfoInputs
-      val minted = txInfo.txInfoMint
-      val purpose = ctx.scriptContextPurpose
-      val ownSymbol = purpose match
-        case Minting(curSymbol) => curSymbol
-        case Spending(txOutRef) => throw new RuntimeException("PS")
-        case Rewarding(stakingCred) =>
-          throw new RuntimeException("PR")
-        case Certifying(cert) => throw new RuntimeException("PC")
-      new MintingContext(
-        List.map(txInfoInputs)(_.txInInfoOutRef),
-        minted,
-        ownSymbol
-      )
-    }
-
-    val optimizedCtxDeserializer: Data => MintingContext = (ctxData: Data) => {
-      val txInfoData = fieldAsData[ScriptContext](_.scriptContextTxInfo)(ctxData)
-      val txInfoInputs =
-        summon[Data.FromData[List[TxInInfoTxOutRefOnly]]](
-          fieldAsData[TxInfo](_.txInfoInputs)(txInfoData)
-        )
-      val minted =
-        summon[Data.FromData[Value]](fieldAsData[TxInfo](_.txInfoMint).apply(txInfoData))
-      val ownSymbol =
-        val purpose = fieldAsData[ScriptContext](_.scriptContextPurpose)(ctxData)
-        val pair = Builtins.unsafeDataAsConstr(purpose)
-        val tag = pair.fst
-        val args = pair.snd
-        if tag === BigInt(0) then Builtins.unsafeDataAsB(args.head)
-        else throw new Exception("P")
-      new MintingContext(
-        List.map(txInfoInputs)(_.txInInfoOutRef),
-        minted,
-        ownSymbol
-      )
-    }
-    /* Here we use a custom ScriptContext deserializer
-       to avoid deserializing from Data fields that are not used in the script.
-       This saves us more than 1000 bytes of the script size.
-     */
-    def mintingPolicyScript(
-        txId: ByteString,
-        txOutIdx: BigInt,
-        tokensToMint: AssocMap[ByteString, BigInt],
-        deserializer: Data => MintingContext
-    ) = (redeemer: Unit, ctxData: Data) => {
-      deserializer(ctxData) match
-        case MintingContext(txOutRefs, minted, ownSymbol) =>
-          val mintedTokens = AssocMap.lookup(minted)(ownSymbol) match
-            case Just(mintedTokens) => mintedTokens
-            case Nothing =>
-              throw new Exception("T")
-
-          val checkSpendsTxOut = List.find(txOutRefs) { case TxOutRef(txOutRefTxId, txOutRefIdx) =>
-            txOutRefTxId.hash === txId && txOutRefIdx === txOutIdx
-          }
-
-          val check = (b: Boolean, msg: String) => if b then () else throw new Exception(msg)
-          checkSpendsTxOut match
-            // If the transaction spends the TxOut, then it's a minting transaction
-            case Just(input) => check(Value.equalsAssets(mintedTokens, tokensToMint), "M")
-            // Otherwise, it's a burn transaction
-            case Nothing =>
-              // check burned
-              val burned = List.all(AssocMap.toList(mintedTokens)) { case (tokenName, amount) =>
-                Builtins.lessThanInteger(amount, BigInt(0))
-              }
-              check(burned, "B")
-    }
-
-    val compiledOptimizedMintingPolicyScript = compile(
-      mintingPolicyScript(
-        hoskyMintTxOutRef.txOutRefId.hash,
-        hoskyMintTxOutRef.txOutRefIdx,
-        AssocMap.singleton(ByteString.fromHex("484f534b59"), BigInt("1000000000000000")),
-        optimizedCtxDeserializer
-      )
-    )
-
-    val compiledMintingPolicyScript = compile(
-      mintingPolicyScript(
-        hoskyMintTxOutRef.txOutRefId.hash,
-        hoskyMintTxOutRef.txOutRefIdx,
-        AssocMap.singleton(ByteString.fromHex("484f534b59"), BigInt("1000000000000000")),
-        simpleCtxDeserializer
-      )
-    )
-
-    val validator = new SimpleSirToUplcLowering(generateErrorTraces = true)
-      .lower(compiledOptimizedMintingPolicyScript)
-    val flatEncoded = ProgramFlatCodec.encodeFlat(Program((1, 0, 0), validator))
-    val cbor = Cbor.encode(flatEncoded).toByteArray
-    val cborHex = Utils.bytesToHex(Cbor.encode(flatEncoded).toByteArray)
-    val doubleCborHex = Utils.bytesToHex(Cbor.encode(cbor).toByteArray)
-  }
-
-  def scriptContext(txInfoInputs: scalus.Prelude.List[TxInInfo], value: Value) =
+  private def scriptContext(txInfoInputs: scalus.Prelude.List[TxInInfo], value: Value) =
     ScriptContext(
       TxInfo(
         txInfoInputs = txInfoInputs,
@@ -160,7 +50,7 @@ class MintingPolicyExampleSpec extends BaseValidatorSpec {
       ScriptPurpose.Minting(hex"a0028f350aaabe0545fdcb56b039bfb08e4bb4d8c4d7c3c7d481c235")
     )
 
-  def performMintingPolicyValidatorChecks(validator: Term) = {
+  private def performMintingPolicyValidatorChecks(validator: Term) = {
     import Data.toData
     def appliedScript(ctx: ScriptContext) = Program((1, 0, 0), validator $ () $ ctx.toData)
 
@@ -242,23 +132,29 @@ class MintingPolicyExampleSpec extends BaseValidatorSpec {
     )
   }
 
+  val evaledTokens =
+    val tokensSIR =
+      compile(AssocMap.singleton(ByteString.fromHex("484f534b59"), BigInt("1000000000000000")))
+    val tokens = new SimpleSirToUplcLowering().lower(tokensSIR)
+    Cek.evalUPLC(tokens)
+
   test("Minting Policy Validator") {
-    // println(compiled.pretty.render(100))
-    val validator =
-      new SimpleSirToUplcLowering(generateErrorTraces = true)
-        .lower(MintingPolicy.compiledMintingPolicyScript)
-    val flatSize = ProgramFlatCodec.encodeFlat(Program((1, 0, 0), validator)).length
-    // println(flatSize)
-    assert(flatSize == 2433)
-    performMintingPolicyValidatorChecks(validator)
+    val validator = new SimpleSirToUplcLowering(generateErrorTraces = true)
+      .lower(MintingPolicy.compiledMintingPolicyScript)
+    val appliedValidator =
+      validator $ hoskyMintTxOutRef.txOutRefId.hash $ hoskyMintTxOutRef.txOutRefIdx $ evaledTokens
+    val flatSize = ProgramFlatCodec.encodeFlat(Program((1, 0, 0), appliedValidator)).length
+    assert(flatSize == 2385)
+    performMintingPolicyValidatorChecks(appliedValidator)
   }
 
   test("Minting Policy Validator Optimized") {
-    val validator = MintingPolicy.validator
-    // println(MintingPolicy.compiledOptimizedMintingPolicyScript.pretty.render(100))
-    // println(MintingPolicy.validator.pretty.render(100))
-    // println(MintingPolicy.flatEncoded.length)
-    assert(MintingPolicy.flatEncoded.length == 1105)
-    performMintingPolicyValidatorChecks(MintingPolicy.validator)
+    val validator = new SimpleSirToUplcLowering(generateErrorTraces = true)
+      .lower(MintingPolicy.compiledOptimizedMintingPolicyScript)
+    val appliedValidator =
+      validator $ hoskyMintTxOutRef.txOutRefId.hash $ hoskyMintTxOutRef.txOutRefIdx $ evaledTokens
+    val flatSize = ProgramFlatCodec.encodeFlat(Program((1, 0, 0), appliedValidator)).length
+    assert(flatSize == 1058)
+    performMintingPolicyValidatorChecks(appliedValidator)
   }
 }
