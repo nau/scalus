@@ -3,7 +3,7 @@ ThisBuild / scalaVersion := scala3Version
 
 lazy val root = project
   .in(file("."))
-  .aggregate(scalus.js, scalus.jvm, examples)
+  .aggregate(scalus.js, scalus.jvm, examples, `examples-js`)
   .settings(
     publish := {},
     publishLocal := {}
@@ -41,4 +41,15 @@ lazy val examples = project
   .dependsOn(scalus.jvm % "compile->compile;compile->test")
   .settings(
     libraryDependencies += "com.bloxbean.cardano" % "cardano-client-backend-blockfrost" % "0.3.0"
+  )
+
+lazy val `examples-js` = project
+  .enablePlugins(ScalaJSPlugin)
+  .in(file("examples-js"))
+  .dependsOn(scalus.js)
+  .settings(
+    scalaJSUseMainModuleInitializer := true,
+    scalaJSLinkerConfig ~= { _.withModuleKind(ModuleKind.ESModule) },
+    scalacOptions += "-Xcheck-macros",
+    scalacOptions += "-Yretain-trees"
   )
