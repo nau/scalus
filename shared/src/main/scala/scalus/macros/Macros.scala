@@ -279,6 +279,9 @@ object Macros {
       case lit @ Ident("empty") if lit.tpe.show == "scalus.builtins.ByteString.empty" =>
         val litE = lit.asExprOf[builtins.ByteString]
         '{ scalus.uplc.Constant.ByteString($litE) }
+      case lit @ Select(_, "empty") if lit.tpe.show == "scalus.builtins.ByteString.empty" =>
+        val litE = lit.asExprOf[builtins.ByteString]
+        '{ scalus.uplc.Constant.ByteString($litE) }
       case lit @ Apply(Select(byteString, "fromHex" | "unsafeFromArray" | "apply"), args)
           if byteString.tpe =:= TypeRepr.of[builtins.ByteString.type] =>
         val litE = lit.asExprOf[builtins.ByteString]
@@ -371,7 +374,7 @@ object Macros {
       tpe.typeSymbol.isClassDef && symbol.flags.is(Flags.Case)
 
     def compileIdentOrQualifiedSelect(env: Env, e: Term): Expr[SIR] = {
-      // debugInfo(s"Ident: ${e.symbol}, env: $env")
+      debugInfo(s"Ident: ${e.symbol}, flags: ${e.symbol.flags.show}, term: ${e.show}")
       val isInLocalEnv = env.contains(e.symbol)
       val isInGlobalEnv = globalDefs.contains(e.symbol)
       val name = (isInLocalEnv, isInGlobalEnv) match
@@ -384,6 +387,8 @@ object Macros {
         case (false, false) =>
           // remember the symbol to avoid infinite recursion
           globalDefs.update(e.symbol, CompileDef.Compiling)
+          debugInfo(s"Tree of ${e}: ${e.tpe} isList: ${e.isList}")
+          // debugInfo(s"Tree of ${e.symbol}: ${e.symbol.tree.show}\n${e.symbol.tree}")
           val b = compileStmt(immutable.HashSet.empty, e.symbol.tree.asInstanceOf[Definition])
           // remove the symbol from the linked hash map so the order of the definitions is preserved
           globalDefs.remove(e.symbol)
@@ -510,7 +515,8 @@ object Macros {
               }
               // report.info(s"Sorted constrs: ${sortedCases}", cases.head.pos)
               '{ SIR.Match($tE, ${ Expr.ofList(sortedCases) }) }
-
+          // ignore asInstanceOf
+          case TypeApply(Select(e, "asInstanceOf"), _) => compileExpr(env, e)
           // BigInt stuff
           case Select(ident, "+") if ident.tpe.widen =:= TypeRepr.of[BigInt] =>
             '{ SIR.Apply(SIR.Builtin(DefaultFun.AddInteger), ${ compileExpr(env, ident) }) }
@@ -635,6 +641,8 @@ object Macros {
           case Apply(TypeApply(Select(f, "apply"), _), args)
               if f.tpe.widen =:= TypeRepr.of[scala.Tuple2.type] =>
             compileNewConstructor(env, TypeRepr.of[scala.Tuple2[_, _]], args)
+          case Apply(Select(f, "apply"), args) if f.tpe.widen =:= TypeRepr.of[scala.Tuple2.type] =>
+            compileNewConstructor(env, TypeRepr.of[scala.Tuple2[_, _]], args)
           // f.apply(arg) => Apply(f, arg)
           case Apply(Select(f, "apply"), args) if f.tpe.widen.isFunctionType =>
             val fE = compileExpr(env, f)
@@ -734,6 +742,7 @@ object Macros {
           // val user = User("John", 42) => \u - u "John" 42
           // user.name => \u name age -> name
           case sel @ Select(obj, ident) =>
+            debugInfo(s"select: Select: ${sel.show}: ${obj.tpe.widen.show} . ${ident}, isList: ${obj.isList}")
             val ts = obj.tpe.widen.typeSymbol
             lazy val fieldIdx = ts.caseFields.indexOf(sel.symbol)
             if ts.isClassDef && fieldIdx >= 0 then

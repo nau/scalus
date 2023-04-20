@@ -29,8 +29,8 @@ object Data:
   inline def fromData[A](inline data: Data)(using inline ev: FromData[A]): A =
     summon[FromData[A]].apply(data)
 
-  given BigIntFromData: FromData[BigInt] = Builtins.unsafeDataAsI
-  given ByteStringFromData: FromData[ByteString] = Builtins.unsafeDataAsB
+  implicit def BigIntFromData(d: Data): BigInt = Builtins.unsafeDataAsI(d)
+  implicit def ByteStringFromData(d: Data): ByteString = Builtins.unsafeDataAsB(d)
   given FromData[Data] = (d: Data) => d
 
   given BoolFromData: FromData[Boolean] = (d: Data) =>

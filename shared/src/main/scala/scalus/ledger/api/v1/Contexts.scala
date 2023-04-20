@@ -23,7 +23,8 @@ object Value:
   val zero: Value = AssocMap.empty
   def apply(cs: CurrencySymbol, tn: TokenName, v: BigInt): Value =
     AssocMap.singleton(cs, AssocMap.singleton(tn, v))
-  def lovelace(v: BigInt): Value = apply(ByteString.empty, ByteString.empty, v)
+  def lovelace(v: BigInt): Value =
+    AssocMap.singleton(ByteString.empty, AssocMap.singleton(ByteString.empty, v))
 
   def equalsAssets(
       a: AssocMap[TokenName, BigInt],
@@ -50,22 +51,23 @@ object Instances:
   given ToData[TxId] with
     def toData(a: TxId): Data = a.hash.toData
 
-  given FromData[TxId] = (d: Data) =>
+  implicit def fromDataTxId(d: Data): TxId =
     val hash = summon[FromData[ByteString]].apply(d)
     new TxId(hash)
 
   given ToData[PubKeyHash] with
     def toData(a: PubKeyHash): Data = a.hash.toData
 
-  given FromData[PubKeyHash] = (d: Data) =>
+  implicit def fromDataPubKeyHash(d: Data): PubKeyHash =
     val hash = summon[FromData[ByteString]].apply(d)
     new PubKeyHash(hash)
 
-  given FromData[TxOutRef] = (d: Data) =>
+  implicit def fromDataTxOutRef(d: Data): TxOutRef =
     val args = Builtins.unsafeDataAsConstr(d).snd
+    val txidx = args.tail
     new TxOutRef(
       summon[FromData[TxId]].apply(args.head),
-      summon[FromData[BigInt]].apply(args.tail.head)
+      summon[FromData[BigInt]].apply(txidx.head)
     )
 
   given DCertLift[T <: DCert]: ToData[T] with
