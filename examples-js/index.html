@@ -1,0 +1,103 @@
+<!DOCTYPE html>
+<script type="module">
+  import { Blockfrost, C, Data, Lucid } from "https://unpkg.com/lucid-cardano@0.7.9/web/mod.js"
+  import { SendTx } from "/target/scala-3.2.1/examples-js-fastopt.js"
+  console.log('Lucid')
+  const lucid = await Lucid.new(
+    new Blockfrost("https://cardano-testnet.blockfrost.io/api/v0", "testnetR1iknmYGOzgsIQpqJs4xdQx1oIh7f3pv"),
+    "Testnet",
+  );
+  // Nami wallet integration
+
+
+  // Assumes you are in a browser environment
+  console.log(chrome)
+  console.log(window.cardano)
+  console.log(window.cardano.nami)
+  // console.log(asdf)
+  const api = await window.cardano.nami.enable();
+  lucid.selectWallet(api);
+
+  async function mint() {
+    const utxos = await lucid.wallet.getUtxos()
+    if (utxos.length > 0) {
+      console.log(utxos)
+      const utxo = utxos[0]
+      console.log(utxo)
+      const address = await lucid.wallet.address()
+      console.log(address)
+      const mintingScript = SendTx.getPlutusScriptCborFromTxOutRef(utxo.txHash, utxo.outputIndex)
+      console.log(mintingScript.doubleCbor)
+      const mintingPolicy = { type: "PlutusV1", script: mintingScript.doubleCbor }
+      const policyId = lucid.utils.mintingPolicyToId(mintingPolicy);
+      console.log(policyId)
+      const assetid = policyId + "484f534b59";
+      console.log(assetid)
+      const assets = { [assetid]: 1000000000000000n };
+      console.log(assets)
+      const redeemer = Data.to(0n)
+      console.log(redeemer)
+      const tx = await lucid.newTx()
+        .collectFrom([utxo])
+        .mintAssets(assets, redeemer)
+        .attachMintingPolicy(mintingPolicy)
+        // .payToAddress(address, assets)
+        .complete()
+      console.log(tx)
+      const signedTx = await tx.sign().complete();
+      console.log(signedTx)
+      // const txHash = await signedTx.submit();
+      // console.log(txHash)
+    } else {
+      console.log("No UTXOs")
+    }
+  }
+
+  async function burn() {
+    const utxos = await lucid.wallet.getUtxos()
+    if (utxos.length > 0) {
+      console.log(utxos)
+      const utxo = utxos[0]
+      console.log(utxo)
+      const address = await lucid.wallet.address()
+      console.log(address)
+      const mintingScript = SendTx.getPlutusScriptCborFromTxOutRef(utxo.txHash, utxo.outputIndex)
+      console.log(mintingScript.doubleCbor)
+      const mintingPolicy = { type: "PlutusV1", script: mintingScript.doubleCbor }
+      const policyId = lucid.utils.mintingPolicyToId(mintingPolicy);
+      console.log(policyId)
+      const assetid = policyId + "484f534b59";
+      console.log(assetid)
+      const assets = { [assetid]: -1000000000000000n };
+      console.log(assets)
+      const redeemer = Data.to(0n)
+      console.log(redeemer)
+      const tx = await lucid.newTx()
+        // .collectFrom([utxo])
+        .mintAssets(assets, redeemer)
+        .attachMintingPolicy(mintingPolicy)
+        // .payToAddress(address, assets)
+        .complete()
+      console.log(tx)
+      const signedTx = await tx.sign().complete();
+      console.log(signedTx)
+      const txHash = await signedTx.submit();
+      console.log(txHash)
+    } else {
+      console.log("No UTXOs")
+    }
+  }
+
+  await mint()
+  // await burn()
+
+
+
+</script>
+
+<body>
+  <form action="" method="get">
+    <input type="text" name="q" />
+    <input type="submit" value="Search" />
+  </form>
+</body>
