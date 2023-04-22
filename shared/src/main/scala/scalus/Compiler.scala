@@ -8,5 +8,3 @@ object Compiler:
   inline def fieldAsData[A](inline expr: A => Any): Data => Data = ${
     Macros.fieldAsDataMacro('expr)
   }
-
-  inline def compile(inline e: Any): SIR = ${ Macros.compileImpl('e) }
