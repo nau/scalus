@@ -1,12 +1,22 @@
-val scala3Version = "3.2.1"
+val scala3Version = "3.2.2"
 ThisBuild / scalaVersion := scala3Version
 
 lazy val root = project
   .in(file("."))
-  .aggregate(scalus.js, scalus.jvm, examples, `examples-js`)
+  .aggregate(scalusPlugin, scalus.js, scalus.jvm, examples, `examples-js`)
   .settings(
     publish := {},
     publishLocal := {}
+  )
+
+lazy val scalusPlugin = project
+  .in(file("scalus-plugin"))
+  .dependsOn(scalus.jvm)
+  .settings(
+    name := "scalus-plugin",
+    organization := "scalus",
+    version := "0.1.0",
+    libraryDependencies += "org.scala-lang" %% "scala3-compiler" % scala3Version // % "provided"
   )
 
 lazy val scalus = crossProject(JSPlatform, JVMPlatform)
@@ -27,8 +37,8 @@ lazy val scalus = crossProject(JSPlatform, JVMPlatform)
     libraryDependencies += "org.scalatestplus" %%% "scalacheck-1-16" % "3.2.12.0" % "test"
   )
   .jvmSettings(
-    ThisBuild / javaOptions ++= Seq("-Xss10m"),
-    Test / fork := true,
+    javaOptions in ThisBuild ++= Seq("-Xss10m"),
+    fork in Test := true,
     libraryDependencies += "org.scala-lang" %% "scala3-compiler" % scala3Version
   )
   .jsSettings(
@@ -51,5 +61,14 @@ lazy val `examples-js` = project
     scalaJSUseMainModuleInitializer := true,
     scalaJSLinkerConfig ~= { _.withModuleKind(ModuleKind.ESModule) },
     scalacOptions += "-Xcheck-macros",
-    scalacOptions += "-Yretain-trees"
+    scalacOptions += "-Yretain-trees")
+
+lazy val bench = project
+  .dependsOn(scalus.jvm)
+  .settings(
+    name := "scalus-bench",
+    organization := "scalus",
+    version := "0.1.0",
+//    scalacOptions += "-Xprint:patternMatcher,genBCode",
+    libraryDependencies += compilerPlugin("scalus" %% "scalus-plugin" % "0.1.0")
   )
