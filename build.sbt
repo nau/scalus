@@ -1,9 +1,9 @@
 val scala3Version = "3.2.2"
 ThisBuild / scalaVersion := scala3Version
-
+autoCompilerPlugins := true
 lazy val root = project
   .in(file("."))
-  .aggregate(scalusPlugin, scalus.js, scalus.jvm, examples, `examples-js`)
+  .aggregate(scalusPlugin, scalus.js, scalus.jvm, bench)
   .settings(
     publish := {},
     publishLocal := {}
@@ -11,11 +11,10 @@ lazy val root = project
 
 lazy val scalusPlugin = project
   .in(file("scalus-plugin"))
-  .dependsOn(scalus.jvm)
   .settings(
     name := "scalus-plugin",
     organization := "scalus",
-    version := "0.1.0",
+    version := "0.1.0-SNAPSHOT",
     libraryDependencies += "org.scala-lang" %% "scala3-compiler" % scala3Version // % "provided"
   )
 
@@ -46,29 +45,13 @@ lazy val scalus = crossProject(JSPlatform, JVMPlatform)
     scalaJSUseMainModuleInitializer := true
   )
 
-lazy val examples = project
-  .in(file("examples"))
-  .dependsOn(scalus.jvm % "compile->compile;compile->test")
-  .settings(
-    libraryDependencies += "com.bloxbean.cardano" % "cardano-client-backend-blockfrost" % "0.3.0"
-  )
-
-lazy val `examples-js` = project
-  .enablePlugins(ScalaJSPlugin)
-  .in(file("examples-js"))
-  .dependsOn(scalus.js)
-  .settings(
-    scalaJSUseMainModuleInitializer := true,
-    scalaJSLinkerConfig ~= { _.withModuleKind(ModuleKind.ESModule) },
-    scalacOptions += "-Xcheck-macros",
-    scalacOptions += "-Yretain-trees")
-
 lazy val bench = project
   .dependsOn(scalus.jvm)
   .settings(
     name := "scalus-bench",
     organization := "scalus",
     version := "0.1.0",
-//    scalacOptions += "-Xprint:patternMatcher,genBCode",
-    libraryDependencies += compilerPlugin("scalus" %% "scalus-plugin" % "0.1.0")
+    //    scalacOptions += "-Xprint:patternMatcher,genBCode",
+    libraryDependencies += compilerPlugin("scalus" %% "scalus-plugin" % "0.1.0-SNAPSHOT"),
+    // scalacOptions += "-Xshow-phases",
   )
