@@ -26,6 +26,7 @@ import scalus.sir.DataDecl
 import scala.annotation.threadUnsafe
 import dotty.tools.dotc.core.Types.TypeRef
 import scalus.uplc.NamedDeBruijn
+import scalus.uplc.DefaultFun
 
 //case class DataDecl(name: String, params: List[String], constructors: List[DataCtor])
 //case class DataCtor(name: String, params: List[Type])
@@ -33,7 +34,7 @@ import scalus.uplc.NamedDeBruijn
 class PhaseA extends PluginPhase {
   import tpd.*
 
-  val phaseName = "PhaseA"
+  val phaseName = "Scalus"
 
   private var enterSym: Symbol = _
 
@@ -247,22 +248,32 @@ class SIRConverter(using Context) {
    */
   val ErrorSymbol = requiredModule("scalus.sir.SIR.Error")
   val ConstSymbol = requiredModule("scalus.sir.SIR.Const")
-  def mkConst(const: scalus.uplc.Constant) =
-    ref(ConstSymbol.requiredMethod("apply")).appliedTo(convert(const))
+  val ApplySymbol = requiredModule("scalus.sir.SIR.Apply")
   val ConstantIntegerSymbol = requiredModule("scalus.uplc.Constant.Integer")
   val ConstantBoolSymbol = requiredModule("scalus.uplc.Constant.Bool")
   val VarSymbol = requiredModule("scalus.sir.SIR.Var")
-  def mkVar(name: NamedDeBruijn) =
-    ref(VarSymbol.requiredMethod("apply")).appliedTo(convert(name))
   val LetSymbol = requiredModule("scalus.sir.SIR.Let")
   val LamAbsSymbol = requiredModule("scalus.sir.SIR.LamAbs")
   val NamedDeBruijnSymbol = requiredModule("scalus.uplc.NamedDeBruijn")
+  val BuiltinSymbol = requiredModule("scalus.sir.SIR.Builtin")
+  def mkApply(f: SIR, arg: SIR) =
+    ref(ApplySymbol.requiredMethod("apply")).appliedToArgs(List(convert(f), convert(arg)))
+  def mkLamAbs(name: String, term: SIR) =
+    ref(LamAbsSymbol.requiredMethod("apply")).appliedToArgs(List(Literal(Constant(name)), convert(term)))
+  def mkVar(name: NamedDeBruijn) =
+    ref(VarSymbol.requiredMethod("apply")).appliedTo(convert(name))
+  def mkConst(const: scalus.uplc.Constant) =
+    ref(ConstSymbol.requiredMethod("apply")).appliedTo(convert(const))
   def mkNamedDeBruijn(name: String) =
     ref(NamedDeBruijnSymbol.requiredMethod("apply")).appliedTo(Literal(Constant(name)))
+  def mkBuiltin(bn: DefaultFun) =
+    ref(BuiltinSymbol.requiredMethod("apply")).appliedTo(convert(bn))
+  def mkDefaultFun(fun: DefaultFun) = ref(requiredModule(fun.toString()))
 
   def mkError(msg: String) =
     ref(ErrorSymbol.requiredMethod("apply")).appliedTo(Literal(Constant(msg)))
 
+  def convert(fun: DefaultFun): Tree = mkDefaultFun(fun)
   def convert(name: NamedDeBruijn): Tree = mkNamedDeBruijn(name.name)
   def convert(value: Boolean): Tree = Literal(Constant(value))
   def convert(const: scalus.uplc.Constant): Tree = {
@@ -277,6 +288,9 @@ class SIRConverter(using Context) {
       case Error(msg) => mkError(msg)
       case Var(name)  => mkVar(name)
       case Const(const) => mkConst(const)
+      case Apply(f, arg) => mkApply(f, arg)
+      case LamAbs(name, term) => mkLamAbs(name, term)
+      case Builtin(bn) => mkBuiltin(bn)
       case _ =>
         report.error(s"Unsupported expression: ${sir}")
         mkError("Unsupported expression")
