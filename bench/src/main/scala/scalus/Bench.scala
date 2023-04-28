@@ -10,7 +10,7 @@ import scala.annotation.tailrec
 case class Asdf(a: String)
 
 object Bench:
-  val script1 = compile(BigInt(1))
+  val script1 = compile(true)
 
   def main(args: Array[String]): Unit =
 
@@ -19,4 +19,5 @@ object Bench:
     def foo(): Int = bar(a)
     def bar(x: Int): Int = x + b + foo()
 
+    println(script1.toString())
     println(script1.pretty.render(80))

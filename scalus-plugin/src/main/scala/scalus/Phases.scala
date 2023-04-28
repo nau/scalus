@@ -17,10 +17,15 @@ import dotty.tools.dotc.core.Types.Type
 import dotty.tools.dotc.plugins.*
 
 import scala.language.implicitConversions
+import scala.collection.{immutable, mutable}
 import scalus.sir.SIR
 import scalus.uplc
 import java.io.FileOutputStream
 import java.io.BufferedOutputStream
+import scalus.sir.DataDecl
+import scala.annotation.threadUnsafe
+import dotty.tools.dotc.core.Types.TypeRef
+import scalus.uplc.NamedDeBruijn
 
 //case class DataDecl(name: String, params: List[String], constructors: List[DataCtor])
 //case class DataCtor(name: String, params: List[Type])
@@ -55,6 +60,18 @@ class PhaseA extends PluginPhase {
     dir.fileNamed(filename + suffix)
    }*/
 
+  type Env = immutable.HashSet[Symbol]
+
+  /* case class B(name: String, symbol: Symbol, recursivity: sir.Recursivity, body: SIR):
+    def fullName = symbol.name
+
+  enum CompileDef:
+    case Compiling
+    case Compiled(binding: B)
+
+  val globalDefs: mutable.LinkedHashMap[Symbol, CompileDef] = mutable.LinkedHashMap.empty
+  val globalDataDecls: mutable.LinkedHashMap[Symbol, DataDecl] = mutable.LinkedHashMap.empty */
+
   override def prepareForUnit(tree: Tree)(using Context): Context =
     report.echo(s"PhaseA: ${ctx.compilationUnit.source.file.name}")
     // report.echo(tree.showIndented(2))
@@ -88,7 +105,8 @@ class PhaseA extends PluginPhase {
         case code =>
           report.echo(s"compile: ${arg.show}")
           transpile(code)
-      result
+      val converter = new SIRConverter
+      converter.convert(result)
     else tree
   end transformApply
 
@@ -107,12 +125,14 @@ class PhaseA extends PluginPhase {
     import sir.SIR.*
 
     def collectTypeDefs(tree: Tree): List[TypeDef] = {
+      @threadUnsafe lazy val CompileAnnotType: TypeRef = requiredClassRef("scalus.Compile")
+      def CompileAnnot(using Context) = CompileAnnotType.symbol.asClass
+
       tree match {
         case EmptyTree            => Nil
         case PackageDef(_, stats) => stats.flatMap(collectTypeDefs)
         case cd: TypeDef =>
-          if cd.symbol.annotations.map(_.symbol.fullName.show).contains("scalus.Compile") then
-            List(cd)
+          if cd.symbol.hasAnnotation(CompileAnnot) then List(cd)
           else Nil
         case _: ValDef    => Nil // module instance
         case Import(_, _) => Nil
@@ -160,12 +180,10 @@ class PhaseA extends PluginPhase {
       fields
     }
 
-
-
     def compileTypeDef(td: TypeDef) = {
-      println(s"TypeDef: ${td.name}: ${td.symbol.annotations.map(_.symbol.fullName)}, case class: ${td.tpe.typeSymbol.is(Flags.CaseClass)}")
-      if td.tpe.typeSymbol.is(Flags.CaseClass) then
-        compileCaseClass(td)
+      println(s"TypeDef: ${td.name}: ${td.symbol.annotations
+          .map(_.symbol.fullName)}, case class: ${td.tpe.typeSymbol.is(Flags.CaseClass)}")
+      if td.tpe.typeSymbol.is(Flags.CaseClass) then compileCaseClass(td)
       else
         val tpl = td.rhs.asInstanceOf[Template]
         tpl.body.foreach {
@@ -176,7 +194,8 @@ class PhaseA extends PluginPhase {
     }
 
     def compileCaseClass(td: TypeDef) = {
-      report.debuglog(s"compileCaseClass: ${td.name}")
+      println(s"compileCaseClass: ${td.name}")
+
     }
 
     val allTypeDefs = collectTypeDefs(tree)
@@ -197,14 +216,69 @@ class PhaseA extends PluginPhase {
     Const(uplc.Constant.Bool(false))
   }
 
-  private def transpile(tree: Tree)(using Context): Tree =
-    val errSymbol = requiredModule("scalus.sir.SIR.Error").requiredMethod("apply")
-    val app = ref(errSymbol).appliedTo(Literal(Constant("invalid")))
+  private def transpile(tree: Tree)(using Context): SIR = tree match
+    case Literal(const) =>
+      const.tag match
+        case Constants.BooleanTag => SIR.Const(uplc.Constant.Bool(const.booleanValue))
+        case Constants.StringTag  => SIR.Const(uplc.Constant.String(const.stringValue))
+        case Constants.UnitTag    => SIR.Const(uplc.Constant.Unit)
+        case _ =>
+          report.error(s"Unsupported constant type $const");
+          SIR.Error("Unsupported constant type")
 
-//    val result = tree match
-//      case Literal(const) => transpileConst(const)
-//      case _ => report.error(s"Unsupported expression: ${tree.show}")
 
-    app
+}
 
+class SIRConverter(using Context) {
+  import tpd.*
+  /*
+  enum SIR:
+  case Var(name: NamedDeBruijn) extends SIR
+  case Let(recursivity: Recursivity, bindings: List[Binding], body: SIR) extends SIR
+  case LamAbs(name: String, term: SIR) extends SIR
+  case Apply(f: SIR, arg: SIR) extends SIR
+  case Const(const: Constant) extends SIR
+  case IfThenElse(cond: SIR, t: SIR, f: SIR) extends SIR
+  case Builtin(bn: DefaultFun) extends SIR
+  case Error(msg: String) extends SIR
+  case Decl(data: DataDecl, term: SIR) extends SIR
+  case Constr(name: String, data: DataDecl, args: List[SIR]) extends SIR
+  case Match(scrutinee: SIR, cases: List[Case]) extends SIR
+   */
+  val ErrorSymbol = requiredModule("scalus.sir.SIR.Error")
+  val ConstSymbol = requiredModule("scalus.sir.SIR.Const")
+  def mkConst(const: scalus.uplc.Constant) =
+    ref(ConstSymbol.requiredMethod("apply")).appliedTo(convert(const))
+  val ConstantIntegerSymbol = requiredModule("scalus.uplc.Constant.Integer")
+  val ConstantBoolSymbol = requiredModule("scalus.uplc.Constant.Bool")
+  val VarSymbol = requiredModule("scalus.sir.SIR.Var")
+  def mkVar(name: NamedDeBruijn) =
+    ref(VarSymbol.requiredMethod("apply")).appliedTo(convert(name))
+  val LetSymbol = requiredModule("scalus.sir.SIR.Let")
+  val LamAbsSymbol = requiredModule("scalus.sir.SIR.LamAbs")
+  val NamedDeBruijnSymbol = requiredModule("scalus.uplc.NamedDeBruijn")
+  def mkNamedDeBruijn(name: String) =
+    ref(NamedDeBruijnSymbol.requiredMethod("apply")).appliedTo(Literal(Constant(name)))
+
+  def mkError(msg: String) =
+    ref(ErrorSymbol.requiredMethod("apply")).appliedTo(Literal(Constant(msg)))
+
+  def convert(name: NamedDeBruijn): Tree = mkNamedDeBruijn(name.name)
+  def convert(value: Boolean): Tree = Literal(Constant(value))
+  def convert(const: scalus.uplc.Constant): Tree = {
+    const match
+      case uplc.Constant.Bool(value) =>
+        ref(ConstantBoolSymbol.requiredMethod("apply")).appliedTo(convert(value))
+  }
+
+  def convert(sir: SIR): Tree = {
+    import SIR.*
+    sir match
+      case Error(msg) => mkError(msg)
+      case Var(name)  => mkVar(name)
+      case Const(const) => mkConst(const)
+      case _ =>
+        report.error(s"Unsupported expression: ${sir}")
+        mkError("Unsupported expression")
+  }
 }

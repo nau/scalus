@@ -114,7 +114,7 @@ enum SIR:
           + (Doc.line + kw("then") + (Doc.line + t.pretty).nested(4)).grouped
           + (Doc.line + kw("else") + (Doc.line + f.pretty).nested(4)).grouped).aligned
       case Builtin(bn) => bn.pretty.style(Style.XTerm.Fg.colorCode(176))
-      case Error(_)    => Doc.text("ERROR").style(Style.XTerm.Fg.colorCode(124))
+      case Error(msg)    => Doc.text(s"ERROR '$msg'").style(Style.XTerm.Fg.colorCode(124))
 
 object TermDSL:
   def applyToList(app: SIR): (SIR, List[SIR]) =
