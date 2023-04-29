@@ -35,6 +35,7 @@ import scala.collection.mutable
 import scala.language.implicitConversions
 import scalus.builtins.ByteString
 import scalus.uplc.Constant.Data
+import scalus.uplc.DefaultUni
 
 class Plugin extends StandardPlugin {
   val name: String = "scalus"
@@ -263,6 +264,8 @@ class SIRConverter(using Context) {
   val ConstantStringSymbol = requiredModule("scalus.uplc.Constant.String")
   val ConstantByteStringSymbol = requiredModule("scalus.uplc.Constant.ByteString")
   val ConstantDataSymbol = requiredModule("scalus.uplc.Constant.Data")
+  val ConstantListSymbol = requiredModule("scalus.uplc.Constant.List")
+  val ConstantPairSymbol = requiredModule("scalus.uplc.Constant.Pair")
   val ByteStringSymbol = requiredModule("scalus.uplc.ByteString")
   val VarSymbol = requiredModule("scalus.sir.SIR.Var")
   val LetSymbol = requiredModule("scalus.sir.SIR.Let")
@@ -363,6 +366,21 @@ class SIRConverter(using Context) {
 
   def convert(cs: Case): Tree = mkCase(cs)
   def convert(fun: DefaultFun): Tree = mkDefaultFun(fun)
+  def convert(du: DefaultUni): Tree = {
+    du match
+      case DefaultUni.Integer    => ref(requiredModule("scalus.uplc.DefaultUni.Integer"))
+      case DefaultUni.ByteString => ref(requiredModule("scalus.uplc.DefaultUni.ByteString"))
+      case DefaultUni.String     => ref(requiredModule("scalus.uplc.DefaultUni.String"))
+      case DefaultUni.Unit       => ref(requiredModule("scalus.uplc.DefaultUni.Unit"))
+      case DefaultUni.Bool       => ref(requiredModule("scalus.uplc.DefaultUni.Bool"))
+      case DefaultUni.Data       => ref(requiredModule("scalus.uplc.DefaultUni.Data"))
+      case DefaultUni.ProtoList  => ref(requiredModule("scalus.uplc.DefaultUni.ProtoList"))
+      case DefaultUni.ProtoPair  => ref(requiredModule("scalus.uplc.DefaultUni.ProtoPair"))
+      case DefaultUni.Apply(f, arg) =>
+        ref(requiredModule("scalus.uplc.DefaultUni.Apply")).appliedToArgs(
+          List(convert(f), convert(arg))
+        )
+  }
   def convert(recursivity: Recursivity): Tree = ???
   def convert(binding: Binding): Tree = {
     ref(BindingSymbol.requiredMethod("apply"))
@@ -384,6 +402,12 @@ class SIRConverter(using Context) {
         ref(ConstantIntegerSymbol.requiredMethod("apply")).appliedTo(convert(value))
       case uplc.Constant.Data(value) =>
         ref(ConstantDataSymbol.requiredMethod("apply")).appliedTo(convert(value))
+      case scalus.uplc.Constant.List(elemType, value) =>
+        ref(ConstantListSymbol.requiredMethod("apply"))
+          .appliedToArgs(List(convert(elemType), mkList(value.map(convert), convert(elemType))))
+      case scalus.uplc.Constant.Pair(fst, snd) =>
+        ref(ConstantPairSymbol.requiredMethod("apply"))
+          .appliedToArgs(List(convert(fst), convert(snd)))
   }
 
   def mkBigInt(i: BigInt): Tree =
