@@ -278,6 +278,7 @@ class SIRConverter(using Context) {
   val ConstrSymbol = requiredModule("scalus.sir.SIR.Constr")
   val SIRClassSymbol = requiredClass("scalus.sir.SIR")
   val DataDeclSymbol = requiredModule("scalus.sir.DataDecl")
+  val DeclSymbol = requiredModule("scalus.sir.SIR.Decl")
   def mkApply(f: SIR, arg: SIR) =
     ref(ApplySymbol.requiredMethod("apply")).appliedToArgs(List(convert(f), convert(arg)))
   def mkLamAbs(name: String, term: SIR) =
@@ -346,6 +347,10 @@ class SIRConverter(using Context) {
           mkList(args.map(convert), TypeTree(SIRClassSymbol.typeRef))
         )
       )
+  def mkDecl(data: DataDecl, term: SIR) =
+    ref(DeclSymbol.requiredMethod("apply"))
+      .appliedToArgs(List(mkDataDecl(data), convert(term)))
+
   def mkString(s: String) = Literal(Constant(s))
   def mkError(msg: String) =
     ref(ErrorSymbol.requiredMethod("apply")).appliedTo(mkString(msg))
@@ -377,6 +382,6 @@ class SIRConverter(using Context) {
       case Let(rec, bindings, body) => mkLet(rec, bindings, body)
       case Match(scrutinee, cases)  => mkMatch(scrutinee, cases)
       case Constr(name, data, args) => mkConstr(name, data, args)
-      case Decl(data, term)         => ??? // TODO
+      case Decl(data, term)         => mkDecl(data, term)
   }
 }
