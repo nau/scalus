@@ -288,6 +288,17 @@ class SIRCompiler(using ctx: Context) {
       tree match
         case If(cond, t, f) =>
           SIR.IfThenElse(transpile(cond), transpile(t), transpile(f))
+        // throw new Exception("error msg")
+        // Supports any exception type that uses first argument as message
+        case Apply(Ident(nme.throw_), immutable.List(ex)) =>
+            val msg = ex match
+              case Apply(
+                    Select(New(tpt), nme.CONSTRUCTOR),
+                    immutable.List(Literal(msg), _*)
+                  ) if tpt.tpe <:< defn.ExceptionClass.typeRef =>
+                msg.stringValue
+              case term => "error"
+            SIR.Error(msg)
         case Typed(expr, _) => compileExpr(env, expr)
         case x =>
           report.error(s"Unsupported expression: ${x.show}\n$x")
