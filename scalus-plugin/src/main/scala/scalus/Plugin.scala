@@ -249,8 +249,8 @@ class SIRCompiler(using ctx: Context) {
     case e @ Literal(_) =>
       report.error(s"compileExpr: Unsupported literal ${e.show}\n$e")
       scalus.uplc.Constant.Unit
-    // FIXME: check BigInt type
-    case Apply(Select(bigint, nme.apply), List(Literal(c))) =>
+    case Apply(bigintApply, List(Literal(c)))
+        if bigintApply.symbol.showFullName == "scala.math.BigInt.apply" =>
       c.tag match
         case Constants.IntTag =>
           scalus.uplc.Constant.Integer(BigInt(c.intValue))
@@ -259,8 +259,8 @@ class SIRCompiler(using ctx: Context) {
         case _ =>
           report.error(s"Unsupported constant type $c");
           scalus.uplc.Constant.Unit
-    // FIXME: check BigInt type
-    case lit @ Apply(Ident(n), List(Literal(c))) if n.toString() == "int2bigInt" =>
+    case lit @ Apply(i, List(Literal(c)))
+        if i.symbol.showFullName == "scala.math.BigInt.int2bigInt" =>
       scalus.uplc.Constant.Integer(BigInt(c.intValue))
     // FIXME: check ByteString type
     case lit @ Select(_, name) if name.toString() == "empty" =>
@@ -291,14 +291,14 @@ class SIRCompiler(using ctx: Context) {
         // throw new Exception("error msg")
         // Supports any exception type that uses first argument as message
         case Apply(Ident(nme.throw_), immutable.List(ex)) =>
-            val msg = ex match
-              case Apply(
-                    Select(New(tpt), nme.CONSTRUCTOR),
-                    immutable.List(Literal(msg), _*)
-                  ) if tpt.tpe <:< defn.ExceptionClass.typeRef =>
-                msg.stringValue
-              case term => "error"
-            SIR.Error(msg)
+          val msg = ex match
+            case Apply(
+                  Select(New(tpt), nme.CONSTRUCTOR),
+                  immutable.List(Literal(msg), _*)
+                ) if tpt.tpe <:< defn.ExceptionClass.typeRef =>
+              msg.stringValue
+            case term => "error"
+          SIR.Error(msg)
         case Typed(expr, _) => compileExpr(env, expr)
         case x =>
           report.error(s"Unsupported expression: ${x.show}\n$x")
@@ -507,7 +507,7 @@ class SIRConverter(using Context) {
   def convert(bs: ByteString) = {
     // FIXME: doesn't work for some reason
     // val byteArr =
-      // ArrayLiteral(bs.bytes.toList.map(b => Literal(Constant(b))), TypeTree(defn.ByteClass.typeRef))
+    // ArrayLiteral(bs.bytes.toList.map(b => Literal(Constant(b))), TypeTree(defn.ByteClass.typeRef))
     // ref(ByteStringSymbol.requiredMethod("fromArray")).appliedTo(byteArr)
     ref(ByteStringSymbol.requiredMethod("empty"))
   }
