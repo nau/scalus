@@ -275,6 +275,9 @@ class SIRConverter(using Context) {
   val CaseSymbol = requiredModule("scalus.sir.Case")
   val CaseClassSymbol = requiredClass("scalus.sir.Case")
   val ConstrDeclSymbol = requiredModule("scalus.sir.ConstrDecl")
+  val ConstrSymbol = requiredModule("scalus.sir.SIR.Constr")
+  val SIRClassSymbol = requiredClass("scalus.sir.SIR")
+  val DataDeclSymbol = requiredModule("scalus.sir.DataDecl")
   def mkApply(f: SIR, arg: SIR) =
     ref(ApplySymbol.requiredMethod("apply")).appliedToArgs(List(convert(f), convert(arg)))
   def mkLamAbs(name: String, term: SIR) =
@@ -326,6 +329,23 @@ class SIRConverter(using Context) {
         mkList(constr.params.map(mkString), TypeTree(defn.StringClass.typeRef))
       )
     )
+
+  def mkDataDecl(data: DataDecl) =
+    ref(DataDeclSymbol.requiredMethod("apply")).appliedToArgs(
+      List(
+        mkString(data.name),
+        mkList(data.constructors.map(mkConstrDecl), TypeTree(ConstrDeclSymbol.typeRef))
+      )
+    )
+  def mkConstr(name: String, data: DataDecl, args: List[SIR]) =
+    ref(ConstrSymbol.requiredMethod("apply"))
+      .appliedToArgs(
+        List(
+          mkString(name),
+          mkDataDecl(data),
+          mkList(args.map(convert), TypeTree(SIRClassSymbol.typeRef))
+        )
+      )
   def mkString(s: String) = Literal(Constant(s))
   def mkError(msg: String) =
     ref(ErrorSymbol.requiredMethod("apply")).appliedTo(mkString(msg))
@@ -356,7 +376,7 @@ class SIRConverter(using Context) {
       case Builtin(bn)              => mkBuiltin(bn)
       case Let(rec, bindings, body) => mkLet(rec, bindings, body)
       case Match(scrutinee, cases)  => mkMatch(scrutinee, cases)
-      case Constr(name, data, args) => ??? // TODO
+      case Constr(name, data, args) => mkConstr(name, data, args)
       case Decl(data, term)         => ??? // TODO
   }
 }
