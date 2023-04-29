@@ -234,15 +234,51 @@ class ScalusPhase extends PluginPhase {
     Const(uplc.Constant.Bool(false))
   }
 
-  private def transpile(tree: Tree)(using Context): SIR = tree match
-    case Literal(const) =>
-      const.tag match
-        case Constants.BooleanTag => SIR.Const(uplc.Constant.Bool(const.booleanValue))
-        case Constants.StringTag  => SIR.Const(uplc.Constant.String(const.stringValue))
-        case Constants.UnitTag    => SIR.Const(uplc.Constant.Unit)
+  def compileConstant(using Context): PartialFunction[Tree, scalus.uplc.Constant] = {
+    case Literal(c: Constant) =>
+      c.tag match
+        case Constants.BooleanTag => scalus.uplc.Constant.Bool(c.booleanValue)
+        case Constants.StringTag  => scalus.uplc.Constant.String(c.stringValue)
+        case Constants.UnitTag    => scalus.uplc.Constant.Unit
+        case Constants.IntTag =>
+          report.error(s"Scalus: Int literals are not supported. Try BigInt(${c.intValue}) instead")
+          scalus.uplc.Constant.Unit
         case _ =>
-          report.error(s"Unsupported constant type $const");
-          SIR.Error("Unsupported constant type")
+          report.error(s"Unsupported constant type $c");
+          scalus.uplc.Constant.Unit
+
+    case e @ Literal(_) =>
+      report.error(s"compileExpr: Unsupported literal ${e.show}\n$e")
+      scalus.uplc.Constant.Unit
+    /* case Apply(Select(bigint, nme.apply), Literal(c: Constant)) if c.tag == Constants.IntTag =>
+      uplc.Constant.Integer(BigInt(c.intValue))
+     */
+    case Apply(Select(bigint, nme.apply), List(Literal(c))) =>
+      c.tag match
+        case Constants.IntTag =>
+          scalus.uplc.Constant.Integer(BigInt(c.intValue))
+        case Constants.StringTag =>
+          scalus.uplc.Constant.Integer(BigInt(c.stringValue))
+        case _ =>
+          report.error(s"Unsupported constant type $c");
+          scalus.uplc.Constant.Unit
+  }
+
+  private def transpile(tree: Tree)(using Context): SIR = {
+    if compileConstant.isDefinedAt(tree) then
+      val const = compileConstant(tree)
+      SIR.Const(const)
+    else
+      tree match
+        case Literal(const) =>
+          const.tag match
+            case Constants.BooleanTag => SIR.Const(uplc.Constant.Bool(const.booleanValue))
+            case Constants.StringTag  => SIR.Const(uplc.Constant.String(const.stringValue))
+            case Constants.UnitTag    => SIR.Const(uplc.Constant.Unit)
+            case _ =>
+              report.error(s"Unsupported constant type $const");
+              SIR.Error("Unsupported constant type")
+  }
 
 }
 
@@ -393,7 +429,7 @@ class SIRConverter(using Context) {
       case uplc.Constant.Bool(value) =>
         ref(ConstantBoolSymbol.requiredMethod("apply")).appliedTo(convert(value))
       case uplc.Constant.Unit =>
-        ref(ConstantUnitSymbol.requiredMethod("apply"))
+        ref(ConstantUnitSymbol)
       case uplc.Constant.String(value) =>
         ref(ConstantStringSymbol.requiredMethod("apply")).appliedTo(mkString(value))
       case uplc.Constant.ByteString(value) =>
@@ -411,7 +447,8 @@ class SIRConverter(using Context) {
   }
 
   def mkBigInt(i: BigInt): Tree =
-    ref(BigIntSymbol.requiredMethod("apply")).appliedTo(Literal(Constant(i.toString)))
+    ref(BigIntSymbol.requiredMethod("apply", List(defn.StringClass.typeRef)))
+      .appliedTo(Literal(Constant(i.toString)))
 
   private def ArrayLiteral(values: List[Tree], tpt: Tree)(using Context): Tree =
     val clazzOf = TypeApply(ref(defn.Predef_classOf.termRef), tpt :: Nil)

@@ -53,5 +53,7 @@ lazy val bench = project
     version := "0.1.0",
     //    scalacOptions += "-Xprint:patternMatcher,genBCode",
     libraryDependencies += compilerPlugin("scalus" %% "scalus-plugin" % "0.1.0-SNAPSHOT"),
+    libraryDependencies += "org.scalatest" %%% "scalatest" % "3.2.12" % "test",
+    libraryDependencies += "org.scalatestplus" %%% "scalacheck-1-16" % "3.2.12.0" % "test"
     // scalacOptions += "-Xshow-phases",
   )
