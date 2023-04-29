@@ -39,7 +39,8 @@ class CompilerPluginToSIRSpec extends AnyFunSuite with ScalaCheckPropertyChecks:
         Constant.Integer(BigInt("15511210043330985984000000"))
       )
     )
-    /* assert(compile(12: BigInt) == Const(Constant.Integer(BigInt("12"))))
+    assert(compile(12: BigInt) == Const(Constant.Integer(BigInt("12"))))
+    /*
     // ByteStrings
     assert(
       compile(builtins.ByteString.empty) == Const(Constant.ByteString(builtins.ByteString.empty))
