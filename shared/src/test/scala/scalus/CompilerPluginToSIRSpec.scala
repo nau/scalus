@@ -10,7 +10,7 @@ import scalus.sir.SIR.*
 import scalus.sir.{Binding, Recursivity, SIR, SimpleSirToUplcLowering}
 import scalus.uplc.*
 import scalus.uplc.DefaultFun.*
-import scalus.Compiler.{fieldAsData}
+import scalus.Compiler.fieldAsData
 import scalus.uplc.Compiler.compile
 import scalus.uplc.TermDSL.{lam, λ}
 import scalus.utils.Utils
@@ -43,9 +43,9 @@ class CompilerPluginToSIRSpec extends AnyFunSuite with ScalaCheckPropertyChecks:
     assert(compile(scala.math.BigInt.int2bigInt(12)) == Const(Constant.Integer(BigInt("12"))))
 
     // ByteStrings
-   /*  assert(
+    assert(
       compile(builtins.ByteString.empty) == Const(Constant.ByteString(builtins.ByteString.empty))
-    ) */
+    )
 
     // FIXME
     /* assert(
@@ -71,7 +71,7 @@ class CompilerPluginToSIRSpec extends AnyFunSuite with ScalaCheckPropertyChecks:
         builtins.ByteString(0xde.toByte, 0xad.toByte, 0xbe.toByte, 0xef.toByte)
       ) == Const(deadbeef)
     )
- */
+     */
   }
 
   /* test("compile if-then-else") {

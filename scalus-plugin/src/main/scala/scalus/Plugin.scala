@@ -259,14 +259,13 @@ class SIRCompiler(using ctx: Context) {
         case _ =>
           report.error(s"Unsupported constant type $c");
           scalus.uplc.Constant.Unit
-    case lit @ Apply(i, List(Literal(c)))
+    case Apply(i, List(Literal(c)))
         if i.symbol.showFullName == "scala.math.BigInt.int2bigInt" =>
       scalus.uplc.Constant.Integer(BigInt(c.intValue))
-    // FIXME: check ByteString type
-    case lit @ Select(_, name) if name.toString() == "empty" =>
+    case expr if expr.symbol.showFullName == "scalus.builtins.ByteString.empty" =>
       scalus.uplc.Constant.ByteString(scalus.builtins.ByteString.empty)
-    // FIXME: check ByteString type
-    case lit @ Apply(Select(_, name), List(Literal(c))) if name.toString() == "fromHex" =>
+    case Apply(expr, List(Literal(c)))
+        if expr.symbol.showFullName == "scalus.builtins.ByteString.fromHex" =>
       scalus.uplc.Constant.ByteString(scalus.builtins.ByteString(hexToBytes(c.stringValue)))
 
   }
