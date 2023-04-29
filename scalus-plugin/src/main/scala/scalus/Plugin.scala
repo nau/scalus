@@ -245,20 +245,7 @@ class ScalusPhase extends PluginPhase {
 
 class SIRConverter(using Context) {
   import tpd.*
-  /*
-  enum SIR:
-  case Var(name: NamedDeBruijn) extends SIR
-  case Let(recursivity: Recursivity, bindings: List[Binding], body: SIR) extends SIR
-  case LamAbs(name: String, term: SIR) extends SIR
-  case Apply(f: SIR, arg: SIR) extends SIR
-  case Const(const: Constant) extends SIR
-  case IfThenElse(cond: SIR, t: SIR, f: SIR) extends SIR
-  case Builtin(bn: DefaultFun) extends SIR
-  case Error(msg: String) extends SIR
-  case Decl(data: DataDecl, term: SIR) extends SIR
-  case Constr(name: String, data: DataDecl, args: List[SIR]) extends SIR
-  case Match(scrutinee: SIR, cases: List[Case]) extends SIR
-   */
+
   val ErrorSymbol = requiredModule("scalus.sir.SIR.Error")
   val ConstSymbol = requiredModule("scalus.sir.SIR.Const")
   val ApplySymbol = requiredModule("scalus.sir.SIR.Apply")
@@ -279,6 +266,7 @@ class SIRConverter(using Context) {
   val SIRClassSymbol = requiredClass("scalus.sir.SIR")
   val DataDeclSymbol = requiredModule("scalus.sir.DataDecl")
   val DeclSymbol = requiredModule("scalus.sir.SIR.Decl")
+  val IfThenElseSymbol = requiredModule("scalus.sir.SIR.IfThenElse")
   def mkApply(f: SIR, arg: SIR) =
     ref(ApplySymbol.requiredMethod("apply")).appliedToArgs(List(convert(f), convert(arg)))
   def mkLamAbs(name: String, term: SIR) =
@@ -351,6 +339,10 @@ class SIRConverter(using Context) {
     ref(DeclSymbol.requiredMethod("apply"))
       .appliedToArgs(List(mkDataDecl(data), convert(term)))
 
+  def mkIfThenElse(cond: SIR, thenp: SIR, elsep: SIR) =
+    ref(IfThenElseSymbol.requiredMethod("apply"))
+      .appliedToArgs(List(convert(cond), convert(thenp), convert(elsep)))
+
   def mkString(s: String) = Literal(Constant(s))
   def mkError(msg: String) =
     ref(ErrorSymbol.requiredMethod("apply")).appliedTo(mkString(msg))
@@ -383,5 +375,6 @@ class SIRConverter(using Context) {
       case Match(scrutinee, cases)  => mkMatch(scrutinee, cases)
       case Constr(name, data, args) => mkConstr(name, data, args)
       case Decl(data, term)         => mkDecl(data, term)
+      case IfThenElse(cond, t, f)   => mkIfThenElse(cond, t, f)
   }
 }
