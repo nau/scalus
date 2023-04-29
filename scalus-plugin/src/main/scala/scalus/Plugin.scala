@@ -250,6 +250,7 @@ class SIRConverter(using Context) {
   val ErrorSymbol = requiredModule("scalus.sir.SIR.Error")
   val ConstSymbol = requiredModule("scalus.sir.SIR.Const")
   val ApplySymbol = requiredModule("scalus.sir.SIR.Apply")
+  val BigIntSymbol = requiredModule("scala.BigInt")
   val ConstantIntegerSymbol = requiredModule("scalus.uplc.Constant.Integer")
   val ConstantBoolSymbol = requiredModule("scalus.uplc.Constant.Bool")
   val ConstantUnitSymbol = requiredModule("scalus.uplc.Constant.Unit")
@@ -371,13 +372,20 @@ class SIRConverter(using Context) {
         ref(ConstantStringSymbol.requiredMethod("apply")).appliedTo(mkString(value))
       case uplc.Constant.ByteString(value) =>
         ref(ConstantByteStringSymbol.requiredMethod("apply")).appliedTo(convert(value))
+      case scalus.uplc.Constant.Integer(value) =>
+        ref(ConstantIntegerSymbol.requiredMethod("apply")).appliedTo(convert(value))
   }
+
+  def mkBigInt(i: BigInt): Tree =
+    ref(BigIntSymbol.requiredMethod("apply")).appliedTo(Literal(Constant(i.toString)))
 
   private def ArrayLiteral(values: List[Tree], tpt: Tree)(using Context): Tree =
     val clazzOf = TypeApply(ref(defn.Predef_classOf.termRef), tpt :: Nil)
     val ctag = Apply(TypeApply(ref(defn.ClassTagModule_apply.termRef), tpt :: Nil), clazzOf :: Nil)
     val apply = Select(ref(defn.ArrayModule.termRef), nme.apply)
     Apply(Apply(TypeApply(apply, tpt :: Nil), values), ctag :: Nil)
+
+  def convert(i: BigInt): Tree = mkBigInt(i)
 
   def convert(bs: ByteString) = {
     val byteArr =
