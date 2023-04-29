@@ -1,12 +1,11 @@
 package scalus
 
-import dotty.tools.dotc.plugins.*
 import dotty.tools.dotc.*
 import dotty.tools.dotc.ast.Trees.*
 import dotty.tools.dotc.ast.tpd
-import dotty.tools.dotc.core.*
 import dotty.tools.dotc.core.Constants.Constant
-import dotty.tools.dotc.core.Contexts.{Context, *}
+import dotty.tools.dotc.core.Contexts.Context
+import dotty.tools.dotc.core.Contexts._
 import dotty.tools.dotc.core.Decorators.*
 import dotty.tools.dotc.core.Flags.*
 import dotty.tools.dotc.core.Names.*
@@ -14,22 +13,26 @@ import dotty.tools.dotc.core.StdNames.nme
 import dotty.tools.dotc.core.SymDenotations.*
 import dotty.tools.dotc.core.Symbols.*
 import dotty.tools.dotc.core.Types.Type
-import dotty.tools.dotc.core.Types.Type
-import dotty.tools.dotc.plugins.*
-
-import scala.language.implicitConversions
-import scala.collection.{immutable, mutable}
-import scalus.sir.SIR
-import scalus.sir.Recursivity
-import scalus.sir.Binding
-import scalus.uplc
-import java.io.FileOutputStream
-import java.io.BufferedOutputStream
-import scalus.sir.DataDecl
-import scala.annotation.threadUnsafe
 import dotty.tools.dotc.core.Types.TypeRef
-import scalus.uplc.NamedDeBruijn
+import dotty.tools.dotc.core.*
+import dotty.tools.dotc.plugins.*
+import dotty.tools.dotc.plugins.*
+import scalus.sir.Binding
+import scalus.sir.Case
+import scalus.sir.ConstrDecl
+import scalus.sir.DataDecl
+import scalus.sir.Recursivity
+import scalus.sir.SIR
+import scalus.uplc
 import scalus.uplc.DefaultFun
+import scalus.uplc.NamedDeBruijn
+
+import java.io.BufferedOutputStream
+import java.io.FileOutputStream
+import scala.annotation.threadUnsafe
+import scala.collection.immutable
+import scala.collection.mutable
+import scala.language.implicitConversions
 
 class Plugin extends StandardPlugin {
   val name: String = "scalus"
@@ -268,6 +271,10 @@ class SIRConverter(using Context) {
   val BuiltinSymbol = requiredModule("scalus.sir.SIR.Builtin")
   val BindingSymbol = requiredModule("scalus.sir.Binding")
   val BindingClassSymbol = requiredClass("scalus.sir.Binding")
+  val MatchSymbol = requiredModule("scalus.sir.SIR.Match")
+  val CaseSymbol = requiredModule("scalus.sir.Case")
+  val CaseClassSymbol = requiredClass("scalus.sir.Case")
+  val ConstrDeclSymbol = requiredModule("scalus.sir.ConstrDecl")
   def mkApply(f: SIR, arg: SIR) =
     ref(ApplySymbol.requiredMethod("apply")).appliedToArgs(List(convert(f), convert(arg)))
   def mkLamAbs(name: String, term: SIR) =
@@ -293,9 +300,37 @@ class SIRConverter(using Context) {
         )
       )
 
-  def mkError(msg: String) =
-    ref(ErrorSymbol.requiredMethod("apply")).appliedTo(Literal(Constant(msg)))
+  def mkMatch(scrutinee: SIR, cases: List[Case]) =
+    ref(MatchSymbol.requiredMethod("apply"))
+      .appliedToArgs(
+        List(
+          convert(scrutinee),
+          mkList(cases.map(convert), TypeTree(CaseClassSymbol.typeRef))
+        )
+      )
 
+  def mkCase(cs: Case) =
+    ref(CaseSymbol.requiredMethod("apply"))
+      .appliedToArgs(
+        List(
+          mkConstrDecl(cs.constr),
+          mkList(cs.bindings.map(mkString), TypeTree(defn.StringClass.typeRef)),
+          convert(cs.body)
+        )
+      )
+
+  def mkConstrDecl(constr: ConstrDecl) =
+    ref(ConstrDeclSymbol.requiredMethod("apply")).appliedToArgs(
+      List(
+        mkString(constr.name),
+        mkList(constr.params.map(mkString), TypeTree(defn.StringClass.typeRef))
+      )
+    )
+  def mkString(s: String) = Literal(Constant(s))
+  def mkError(msg: String) =
+    ref(ErrorSymbol.requiredMethod("apply")).appliedTo(mkString(msg))
+
+  def convert(cs: Case): Tree = mkCase(cs)
   def convert(fun: DefaultFun): Tree = mkDefaultFun(fun)
   def convert(recursivity: Recursivity): Tree = ???
   def convert(binding: Binding): Tree = {
@@ -320,6 +355,8 @@ class SIRConverter(using Context) {
       case LamAbs(name, term)       => mkLamAbs(name, term)
       case Builtin(bn)              => mkBuiltin(bn)
       case Let(rec, bindings, body) => mkLet(rec, bindings, body)
-
+      case Match(scrutinee, cases)  => mkMatch(scrutinee, cases)
+      case Constr(name, data, args) => ??? // TODO
+      case Decl(data, term)         => ??? // TODO
   }
 }
