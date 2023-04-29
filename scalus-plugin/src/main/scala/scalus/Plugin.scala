@@ -270,14 +270,8 @@ class ScalusPhase extends PluginPhase {
       SIR.Const(const)
     else
       tree match
-        case Literal(const) =>
-          const.tag match
-            case Constants.BooleanTag => SIR.Const(uplc.Constant.Bool(const.booleanValue))
-            case Constants.StringTag  => SIR.Const(uplc.Constant.String(const.stringValue))
-            case Constants.UnitTag    => SIR.Const(uplc.Constant.Unit)
-            case _ =>
-              report.error(s"Unsupported constant type $const");
-              SIR.Error("Unsupported constant type")
+        case If(cond, t, f) =>
+          SIR.IfThenElse(transpile(cond), transpile(t), transpile(f))
   }
 
 }

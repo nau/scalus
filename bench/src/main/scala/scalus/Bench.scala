@@ -13,6 +13,7 @@ object Bench:
   val script1 = compile(true)
   val script2 = compile(BigInt(123))
   val script3 = compile(BigInt("1234567890"))
+  val script4 = compile(if true then () else ())
 
   def main(args: Array[String]): Unit =
 
@@ -24,4 +25,5 @@ object Bench:
     println(script1.toString())
     println(script2.toString())
     println(script3.toString())
+    println(script4.toString())
     println(script1.pretty.render(80))

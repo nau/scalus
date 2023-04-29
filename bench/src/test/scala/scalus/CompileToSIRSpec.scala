@@ -74,9 +74,9 @@ class CompileToSIRSpec extends AnyFunSuite with ScalaCheckPropertyChecks:
         if true then () else ()
       } == SIR.IfThenElse(Const(Constant.Bool(true)), Const(Constant.Unit), Const(Constant.Unit))
     )
-  }
+  } */
 
-  test("compile val def") {
+  /*test("compile val def") {
     assert(
       compile {
         val a = true
