@@ -3,7 +3,7 @@ ThisBuild / scalaVersion := scala3Version
 autoCompilerPlugins := true
 lazy val root = project
   .in(file("."))
-  .aggregate(scalusPlugin, scalus.js, scalus.jvm, bench)
+  .aggregate(scalusPlugin, scalus.js, scalus.jvm)
   .settings(
     publish := {},
     publishLocal := {}
@@ -44,17 +44,4 @@ lazy val scalus = crossProject(JSPlatform, JVMPlatform)
   .jsSettings(
     // Add JS-specific settings here
     scalaJSUseMainModuleInitializer := true
-  )
-
-lazy val bench = project
-  .dependsOn(scalus.jvm)
-  .settings(
-    name := "scalus-bench",
-    organization := "scalus",
-    version := "0.1.0",
-    //    scalacOptions += "-Xprint:patternMatcher,genBCode",
-    libraryDependencies += compilerPlugin("scalus" %% "scalus-plugin" % "0.1.0-SNAPSHOT"),
-    libraryDependencies += "org.scalatest" %%% "scalatest" % "3.2.12" % "test",
-    libraryDependencies += "org.scalatestplus" %%% "scalacheck-1-16" % "3.2.12.0" % "test"
-    // scalacOptions += "-Xshow-phases",
   )
