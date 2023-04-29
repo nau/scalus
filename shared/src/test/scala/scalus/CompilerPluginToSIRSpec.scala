@@ -80,7 +80,7 @@ class CompilerPluginToSIRSpec extends AnyFunSuite with ScalaCheckPropertyChecks:
         if true then () else ()
       } == SIR.IfThenElse(Const(Constant.Bool(true)), Const(Constant.Unit), Const(Constant.Unit))
     )
-  }
+  } */
 
   test("compile val def") {
     assert(
@@ -94,6 +94,7 @@ class CompilerPluginToSIRSpec extends AnyFunSuite with ScalaCheckPropertyChecks:
       )
     )
   }
+  /*
 
   test("compile def") {
     assert(

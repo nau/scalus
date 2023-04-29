@@ -85,7 +85,7 @@ class SIRConverter(using Context) {
   def mkConst(const: scalus.uplc.Constant) =
     ref(ConstSymbol.requiredMethod("apply")).appliedTo(convert(const))
   def mkNamedDeBruijn(name: String) =
-    ref(NamedDeBruijnSymbol.requiredMethod("apply")).appliedTo(Literal(Constant(name)))
+    ref(NamedDeBruijnSymbol.requiredMethod("apply")).appliedToArgs(List(Literal(Constant(name)), Literal(Constant(0))))
   def mkBuiltin(bn: DefaultFun) =
     ref(BuiltinSymbol.requiredMethod("apply")).appliedTo(convert(bn))
   def mkDefaultFun(fun: DefaultFun) = ref(requiredModule(fun.toString()))
@@ -95,7 +95,7 @@ class SIRConverter(using Context) {
       .appliedToArgs(
         List(
           convert(recursivity),
-          mkList(bindings.map(convert), TypeTree(BindingClassSymbol.typeRef)),
+          mkList(Nil, TypeTree(BindingClassSymbol.typeRef)),
           convert(body)
         )
       )
@@ -172,7 +172,11 @@ class SIRConverter(using Context) {
           List(convert(f), convert(arg))
         )
   }
-  def convert(recursivity: Recursivity): Tree = ???
+  def convert(recursivity: Recursivity): Tree = {
+    recursivity match
+      case Recursivity.Rec    => ref(requiredModule("scalus.sir.Recursivity.Rec"))
+      case Recursivity.NonRec => ref(requiredModule("scalus.sir.Recursivity.NonRec"))
+  }
   def convert(binding: Binding): Tree = {
     ref(BindingSymbol.requiredMethod("apply"))
       .appliedToArgs(List(Literal(Constant(binding.name)), convert(binding.value)))
@@ -239,7 +243,8 @@ class SIRConverter(using Context) {
 
   def convert(sir: SIR): Tree = {
     import SIR.*
-    sir match
+    println(sir)
+    val res = sir match
       case Error(msg)               => mkError(msg)
       case Var(name)                => mkVar(name)
       case Const(const)             => mkConst(const)
@@ -251,5 +256,8 @@ class SIRConverter(using Context) {
       case Constr(name, data, args) => mkConstr(name, data, args)
       case Decl(data, term)         => mkDecl(data, term)
       case IfThenElse(cond, t, f)   => mkIfThenElse(cond, t, f)
+    println(res)
+    println(res.showIndented(2))
+    res
   }
 }

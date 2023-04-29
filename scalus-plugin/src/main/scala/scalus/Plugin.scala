@@ -37,6 +37,7 @@ import scalus.builtins.ByteString
 import scalus.uplc.Constant.Data
 import scalus.uplc.DefaultUni
 import scala.util.control.NonFatal
+import scala.collection.mutable.ListBuffer
 
 class Plugin extends StandardPlugin {
   val name: String = "scalus"
@@ -131,6 +132,9 @@ class ScalusPhase extends PluginPhase {
     else tree
   end transformApply
 }
+
+case class B(name: String, symbol: Symbol, recursivity: Recursivity, body: SIR):
+  def fullName(using Context) = symbol.showFullName
 
 class SIRCompiler(using ctx: Context) {
   import tpd.*
@@ -233,6 +237,53 @@ class SIRCompiler(using ctx: Context) {
     Const(uplc.Constant.Bool(false))
   }
 
+  def compileStmt(env: Env, stmt: Tree): B = {
+      // debugInfo(s"compileStmt  ${stmt.show} in ${env}")
+      stmt match
+        case vd @ ValDef(name, _, _) =>
+          val bodyExpr = compileExpr(env, vd.rhs)
+          B(name.show, vd.symbol, Recursivity.NonRec, bodyExpr)
+        /* case DefDef(name, argss, tpe, Some(body)) =>
+          val args = argss.collect({ case TermParamClause(args) => args }).flatten
+          val bodyExpr: Expr[scalus.sir.SIR] = {
+            if args.isEmpty then
+              val bE = compileExpr(env + stmt.symbol, body)
+              '{ SIR.LamAbs("_", $bE) }
+            else
+              val symbols = args.map { case v @ ValDef(name, tpe, rhs) => v.symbol }
+              val bE = compileExpr(env ++ symbols + stmt.symbol, body)
+              symbols.foldRight(bE) { (symbol, acc) =>
+                '{ SIR.LamAbs(${ Expr(symbol.name) }, $acc) }
+              }
+          }
+          B(name, stmt.symbol, Recursivity.Rec, bodyExpr)
+        case ValDef(name, _, _) =>
+          report.errorAndAbort(
+            s"""compileStmt: val ${stmt.symbol.fullName} has no body. Try adding "scalacOptions += "-Yretain-trees" to your build.sbt"""
+          )
+        case DefDef(name, args, tpe, None) =>
+          report.errorAndAbort(
+            s"""compileStmt: def ${stmt.symbol.fullName} has no body. Try adding "scalacOptions += "-Yretain-trees" to your build.sbt"""
+          ) */
+        case x =>
+          B("_", NoSymbol, Recursivity.NonRec, compileExpr(env, x))
+
+        // case x => report.error(s"compileStmt: $x", stmt.sourcePos)
+    }
+
+  def compileBlock(env: Env, stmts: immutable.List[Tree], expr: Tree): SIR = {
+    val exprs = ListBuffer.empty[B]
+    val exprEnv = stmts.foldLeft(env) { case (env, stmt) =>
+      val bind = compileStmt(env, stmt)
+      exprs += bind
+      env + bind.symbol
+    }
+    val exprExpr = compileExpr(exprEnv, expr)
+    exprs.foldRight(exprExpr) { (bind, expr) =>
+      SIR.Let(bind.recursivity, List(Binding(bind.name, bind.body)), expr)
+    }
+  }
+
   def compileConstant: PartialFunction[Tree, scalus.uplc.Constant] = {
     case Literal(c: Constant) =>
       c.tag match
@@ -259,8 +310,7 @@ class SIRCompiler(using ctx: Context) {
         case _ =>
           report.error(s"Unsupported constant type $c");
           scalus.uplc.Constant.Unit
-    case Apply(i, List(Literal(c)))
-        if i.symbol.showFullName == "scala.math.BigInt.int2bigInt" =>
+    case Apply(i, List(Literal(c))) if i.symbol.showFullName == "scala.math.BigInt.int2bigInt" =>
       scalus.uplc.Constant.Integer(BigInt(c.intValue))
     case expr if expr.symbol.showFullName == "scalus.builtins.ByteString.empty" =>
       scalus.uplc.Constant.ByteString(scalus.builtins.ByteString.empty)
@@ -298,7 +348,11 @@ class SIRCompiler(using ctx: Context) {
               msg.stringValue
             case term => "error"
           SIR.Error(msg)
-        case Typed(expr, _) => compileExpr(env, expr)
+        // FIXME: This is wrong. Just temporary
+        case Ident(a) =>
+          SIR.Var(NamedDeBruijn(a.toString()))
+        case Block(stmt, expr) => compileBlock(env, stmt, expr)
+        case Typed(expr, _)    => compileExpr(env, expr)
         case x =>
           report.error(s"Unsupported expression: ${x.show}\n$x")
           SIR.Error("Unsupported expression")
@@ -310,4 +364,3 @@ class SIRCompiler(using ctx: Context) {
   }
 
 }
-
