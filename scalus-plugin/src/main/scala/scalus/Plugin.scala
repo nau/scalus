@@ -33,6 +33,7 @@ import scala.annotation.threadUnsafe
 import scala.collection.immutable
 import scala.collection.mutable
 import scala.language.implicitConversions
+import scalus.builtins.ByteString
 
 class Plugin extends StandardPlugin {
   val name: String = "scalus"
@@ -251,6 +252,10 @@ class SIRConverter(using Context) {
   val ApplySymbol = requiredModule("scalus.sir.SIR.Apply")
   val ConstantIntegerSymbol = requiredModule("scalus.uplc.Constant.Integer")
   val ConstantBoolSymbol = requiredModule("scalus.uplc.Constant.Bool")
+  val ConstantUnitSymbol = requiredModule("scalus.uplc.Constant.Unit")
+  val ConstantStringSymbol = requiredModule("scalus.uplc.Constant.String")
+  val ConstantByteStringSymbol = requiredModule("scalus.uplc.Constant.ByteString")
+  val ByteStringSymbol = requiredModule("scalus.uplc.ByteString")
   val VarSymbol = requiredModule("scalus.sir.SIR.Var")
   val LetSymbol = requiredModule("scalus.sir.SIR.Let")
   val LamAbsSymbol = requiredModule("scalus.sir.SIR.LamAbs")
@@ -360,6 +365,24 @@ class SIRConverter(using Context) {
     const match
       case uplc.Constant.Bool(value) =>
         ref(ConstantBoolSymbol.requiredMethod("apply")).appliedTo(convert(value))
+      case uplc.Constant.Unit =>
+        ref(ConstantUnitSymbol.requiredMethod("apply"))
+      case uplc.Constant.String(value) =>
+        ref(ConstantStringSymbol.requiredMethod("apply")).appliedTo(mkString(value))
+      case uplc.Constant.ByteString(value) =>
+        ref(ConstantByteStringSymbol.requiredMethod("apply")).appliedTo(convert(value))
+  }
+
+  private def ArrayLiteral(values: List[Tree], tpt: Tree)(using Context): Tree =
+    val clazzOf = TypeApply(ref(defn.Predef_classOf.termRef), tpt :: Nil)
+    val ctag = Apply(TypeApply(ref(defn.ClassTagModule_apply.termRef), tpt :: Nil), clazzOf :: Nil)
+    val apply = Select(ref(defn.ArrayModule.termRef), nme.apply)
+    Apply(Apply(TypeApply(apply, tpt :: Nil), values), ctag :: Nil)
+
+  def convert(bs: ByteString) = {
+    val byteArr =
+      ArrayLiteral(bs.bytes.toList.map(b => Literal(Constant(b))), TypeTree(defn.ByteClass.typeRef))
+    ref(ByteStringSymbol.requiredMethod("apply")).appliedTo(byteArr)
   }
 
   def convert(sir: SIR): Tree = {
