@@ -31,7 +31,7 @@ import scalus.uplc.DefaultFun
 //case class DataDecl(name: String, params: List[String], constructors: List[DataCtor])
 //case class DataCtor(name: String, params: List[Type])
 
-class PhaseA extends PluginPhase {
+class ScalusPhase extends PluginPhase {
   import tpd.*
 
   val phaseName = "Scalus"
@@ -74,7 +74,7 @@ class PhaseA extends PluginPhase {
   val globalDataDecls: mutable.LinkedHashMap[Symbol, DataDecl] = mutable.LinkedHashMap.empty */
 
   override def prepareForUnit(tree: Tree)(using Context): Context =
-    report.echo(s"PhaseA: ${ctx.compilationUnit.source.file.name}")
+    report.echo(s"Scalus: ${ctx.compilationUnit.source.file.name}")
     // report.echo(tree.showIndented(2))
     // report.echo(tree.toString)
 
