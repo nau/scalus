@@ -32,6 +32,7 @@ lazy val scalus = crossProject(JSPlatform, JVMPlatform)
       "io.bullet" %%% "borer-core" % "1.10.1",
       "io.bullet" %%% "borer-derivation" % "1.10.1"
     ),
+    libraryDependencies += compilerPlugin("scalus" %% "scalus-plugin" % "0.1.0-SNAPSHOT"),
     libraryDependencies += "org.scalatest" %%% "scalatest" % "3.2.12" % "test",
     libraryDependencies += "org.scalatestplus" %%% "scalacheck-1-16" % "3.2.12.0" % "test"
   )
