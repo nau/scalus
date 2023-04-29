@@ -55,7 +55,7 @@ class CompileToSIRSpec extends AnyFunSuite with ScalaCheckPropertyChecks:
     )
     assert(
       compile(
-        builtins.ByteString(
+        builtins.ByteString.fromArray(
           Array(0xde.toByte, 0xad.toByte, 0xbe.toByte, 0xef.toByte)
         )
       ) == Const(deadbeef)

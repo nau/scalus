@@ -36,6 +36,7 @@ import scala.language.implicitConversions
 import scalus.builtins.ByteString
 import scalus.uplc.Constant.Data
 import scalus.uplc.DefaultUni
+import scala.util.control.NonFatal
 
 class Plugin extends StandardPlugin {
   val name: String = "scalus"
@@ -261,7 +262,23 @@ class SIRCompiler(using ctx: Context) {
     // FIXME: check BigInt type
     case lit @ Apply(Ident(n), List(Literal(c))) if n.toString() == "int2bigInt" =>
       scalus.uplc.Constant.Integer(BigInt(c.intValue))
+    // FIXME: check ByteString type
+    case lit @ Select(_, name) if name.toString() == "empty" =>
+      scalus.uplc.Constant.ByteString(scalus.builtins.ByteString.empty)
+    // FIXME: check ByteString type
+    case lit @ Apply(Select(_, name), List(Literal(c))) if name.toString() == "fromHex" =>
+      scalus.uplc.Constant.ByteString(scalus.builtins.ByteString(hexToBytes(c.stringValue)))
+
   }
+
+  def hexToBytes(hex: String): Array[Byte] =
+    val hexString = hex.replace(" ", "")
+    try
+      if (hexString.length & 1) != 0 then sys.error("string length is not even")
+      hexString.grouped(2).map(Integer.parseInt(_, 16).toByte).toArray
+    catch
+      case NonFatal(e) =>
+        throw new IllegalArgumentException(s"`$hexString` is not a valid hex string", e)
 
   def compileExpr(env: immutable.HashSet[Symbol], tree: Tree)(using Context): SIR = {
     if compileConstant.isDefinedAt(tree) then
@@ -304,7 +321,7 @@ class SIRConverter(using Context) {
   val ConstantDataSymbol = requiredModule("scalus.uplc.Constant.Data")
   val ConstantListSymbol = requiredModule("scalus.uplc.Constant.List")
   val ConstantPairSymbol = requiredModule("scalus.uplc.Constant.Pair")
-  val ByteStringSymbol = requiredModule("scalus.uplc.ByteString")
+  val ByteStringSymbol = requiredModule("scalus.builtins.ByteString")
   val VarSymbol = requiredModule("scalus.sir.SIR.Var")
   val LetSymbol = requiredModule("scalus.sir.SIR.Let")
   val LamAbsSymbol = requiredModule("scalus.sir.SIR.LamAbs")
@@ -477,9 +494,11 @@ class SIRConverter(using Context) {
   }
 
   def convert(bs: ByteString) = {
-    val byteArr =
-      ArrayLiteral(bs.bytes.toList.map(b => Literal(Constant(b))), TypeTree(defn.ByteClass.typeRef))
-    ref(ByteStringSymbol.requiredMethod("apply")).appliedTo(byteArr)
+    // FIXME: doesn't work for some reason
+    // val byteArr =
+      // ArrayLiteral(bs.bytes.toList.map(b => Literal(Constant(b))), TypeTree(defn.ByteClass.typeRef))
+    // ref(ByteStringSymbol.requiredMethod("fromArray")).appliedTo(byteArr)
+    ref(ByteStringSymbol.requiredMethod("empty"))
   }
 
   def convert(sir: SIR): Tree = {

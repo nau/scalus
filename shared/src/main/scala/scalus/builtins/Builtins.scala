@@ -20,7 +20,7 @@ class ByteString private (val bytes: Array[Byte]) {
 
 object ByteString {
   val empty = new ByteString(Array.empty)
-  def apply(bytes: Array[Byte]): ByteString = new ByteString(bytes.toArray)
+  def fromArray(bytes: Array[Byte]): ByteString = new ByteString(bytes.toArray)
 
   def apply(bytes: Byte*): ByteString = new ByteString(bytes.toArray)
 
@@ -92,7 +92,7 @@ object Builtins:
   def sha2_256(bs: ByteString): ByteString =
     // calculate the hash
     val hash = Utils.sha2_256(bs.bytes)
-    ByteString(hash)
+    ByteString.fromArray(hash)
 
   def trace[A](s: String)(a: A): A =
     // calculate the hash
@@ -106,7 +106,7 @@ object Builtins:
     else BigInt(bs.bytes(i.toInt) & 0xff)
 
   def consByteString(char: BigInt, byteString: ByteString): ByteString =
-    ByteString(char.toByte +: byteString.bytes)
+    ByteString.fromArray(char.toByte +: byteString.bytes)
 
   def lengthOfByteString(bs: ByteString): BigInt = bs.bytes.length
 
