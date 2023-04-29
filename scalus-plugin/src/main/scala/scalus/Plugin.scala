@@ -34,6 +34,7 @@ import scala.collection.immutable
 import scala.collection.mutable
 import scala.language.implicitConversions
 import scalus.builtins.ByteString
+import scalus.uplc.Constant.Data
 
 class Plugin extends StandardPlugin {
   val name: String = "scalus"
@@ -251,11 +252,17 @@ class SIRConverter(using Context) {
   val ConstSymbol = requiredModule("scalus.sir.SIR.Const")
   val ApplySymbol = requiredModule("scalus.sir.SIR.Apply")
   val BigIntSymbol = requiredModule("scala.BigInt")
+  val DataConstrSymbol = requiredModule("scalus.uplc.Data.Constr")
+  val DataMapSymbol = requiredModule("scalus.uplc.Data.Map")
+  val DataListSymbol = requiredModule("scalus.uplc.Data.List")
+  val DataISymbol = requiredModule("scalus.uplc.Data.I")
+  val DataBSymbol = requiredModule("scalus.uplc.Data.B")
   val ConstantIntegerSymbol = requiredModule("scalus.uplc.Constant.Integer")
   val ConstantBoolSymbol = requiredModule("scalus.uplc.Constant.Bool")
   val ConstantUnitSymbol = requiredModule("scalus.uplc.Constant.Unit")
   val ConstantStringSymbol = requiredModule("scalus.uplc.Constant.String")
   val ConstantByteStringSymbol = requiredModule("scalus.uplc.Constant.ByteString")
+  val ConstantDataSymbol = requiredModule("scalus.uplc.Constant.Data")
   val ByteStringSymbol = requiredModule("scalus.uplc.ByteString")
   val VarSymbol = requiredModule("scalus.sir.SIR.Var")
   val LetSymbol = requiredModule("scalus.sir.SIR.Let")
@@ -270,6 +277,7 @@ class SIRConverter(using Context) {
   val ConstrDeclSymbol = requiredModule("scalus.sir.ConstrDecl")
   val ConstrSymbol = requiredModule("scalus.sir.SIR.Constr")
   val SIRClassSymbol = requiredClass("scalus.sir.SIR")
+  val DataClassSymbol = requiredClass("scalus.uplc.Data")
   val DataDeclSymbol = requiredModule("scalus.sir.DataDecl")
   val DeclSymbol = requiredModule("scalus.sir.SIR.Decl")
   val IfThenElseSymbol = requiredModule("scalus.sir.SIR.IfThenElse")
@@ -374,6 +382,8 @@ class SIRConverter(using Context) {
         ref(ConstantByteStringSymbol.requiredMethod("apply")).appliedTo(convert(value))
       case scalus.uplc.Constant.Integer(value) =>
         ref(ConstantIntegerSymbol.requiredMethod("apply")).appliedTo(convert(value))
+      case uplc.Constant.Data(value) =>
+        ref(ConstantDataSymbol.requiredMethod("apply")).appliedTo(convert(value))
   }
 
   def mkBigInt(i: BigInt): Tree =
@@ -386,6 +396,22 @@ class SIRConverter(using Context) {
     Apply(Apply(TypeApply(apply, tpt :: Nil), values), ctag :: Nil)
 
   def convert(i: BigInt): Tree = mkBigInt(i)
+
+  def convert(d: uplc.Data): Tree = {
+    d match
+      case uplc.Data.Constr(i, args) =>
+        ref(DataConstrSymbol.requiredMethod("apply")).appliedToArgs(
+          List(Literal(Constant(i)), mkList(args.map(convert), TypeTree(DataClassSymbol.typeRef)))
+        )
+      case uplc.Data.I(i) =>
+        ref(DataISymbol.requiredMethod("apply")).appliedToArgs(List(convert(i)))
+      case uplc.Data.B(b) =>
+        ref(DataBSymbol.requiredMethod("apply")).appliedToArgs(List(convert(b)))
+      case uplc.Data.List(l) =>
+        ref(DataListSymbol.requiredMethod("apply"))
+          .appliedToArgs(List(mkList(l.map(convert), TypeTree(DataClassSymbol.typeRef))))
+      case uplc.Data.Map(m) => ??? // TODO
+  }
 
   def convert(bs: ByteString) = {
     val byteArr =
