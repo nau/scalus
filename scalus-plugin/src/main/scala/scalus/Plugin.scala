@@ -20,6 +20,8 @@ import dotty.tools.dotc.plugins.*
 import scala.language.implicitConversions
 import scala.collection.{immutable, mutable}
 import scalus.sir.SIR
+import scalus.sir.Recursivity
+import scalus.sir.Binding
 import scalus.uplc
 import java.io.FileOutputStream
 import java.io.BufferedOutputStream
@@ -36,8 +38,6 @@ class Plugin extends StandardPlugin {
   def init(options: List[String]): List[PluginPhase] =
     new ScalusPhase :: Nil
 }
-
-
 
 //case class DataDecl(name: String, params: List[String], constructors: List[DataCtor])
 //case class DataCtor(name: String, params: List[Type])
@@ -266,6 +266,8 @@ class SIRConverter(using Context) {
   val LamAbsSymbol = requiredModule("scalus.sir.SIR.LamAbs")
   val NamedDeBruijnSymbol = requiredModule("scalus.uplc.NamedDeBruijn")
   val BuiltinSymbol = requiredModule("scalus.sir.SIR.Builtin")
+  val BindingSymbol = requiredModule("scalus.sir.Binding")
+  val BindingClassSymbol = requiredClass("scalus.sir.Binding")
   def mkApply(f: SIR, arg: SIR) =
     ref(ApplySymbol.requiredMethod("apply")).appliedToArgs(List(convert(f), convert(arg)))
   def mkLamAbs(name: String, term: SIR) =
@@ -281,10 +283,25 @@ class SIRConverter(using Context) {
     ref(BuiltinSymbol.requiredMethod("apply")).appliedTo(convert(bn))
   def mkDefaultFun(fun: DefaultFun) = ref(requiredModule(fun.toString()))
 
+  def mkLet(recursivity: Recursivity, bindings: List[Binding], body: SIR) =
+    ref(LetSymbol.requiredMethod("apply"))
+      .appliedToArgs(
+        List(
+          convert(recursivity),
+          mkList(bindings.map(convert), TypeTree(BindingClassSymbol.typeRef)),
+          convert(body)
+        )
+      )
+
   def mkError(msg: String) =
     ref(ErrorSymbol.requiredMethod("apply")).appliedTo(Literal(Constant(msg)))
 
   def convert(fun: DefaultFun): Tree = mkDefaultFun(fun)
+  def convert(recursivity: Recursivity): Tree = ???
+  def convert(binding: Binding): Tree = {
+    ref(BindingSymbol.requiredMethod("apply"))
+      .appliedToArgs(List(Literal(Constant(binding.name)), convert(binding.value)))
+  }
   def convert(name: NamedDeBruijn): Tree = mkNamedDeBruijn(name.name)
   def convert(value: Boolean): Tree = Literal(Constant(value))
   def convert(const: scalus.uplc.Constant): Tree = {
@@ -296,14 +313,13 @@ class SIRConverter(using Context) {
   def convert(sir: SIR): Tree = {
     import SIR.*
     sir match
-      case Error(msg)         => mkError(msg)
-      case Var(name)          => mkVar(name)
-      case Const(const)       => mkConst(const)
-      case Apply(f, arg)      => mkApply(f, arg)
-      case LamAbs(name, term) => mkLamAbs(name, term)
-      case Builtin(bn)        => mkBuiltin(bn)
-      case _ =>
-        report.error(s"Unsupported expression: ${sir}")
-        mkError("Unsupported expression")
+      case Error(msg)               => mkError(msg)
+      case Var(name)                => mkVar(name)
+      case Const(const)             => mkConst(const)
+      case Apply(f, arg)            => mkApply(f, arg)
+      case LamAbs(name, term)       => mkLamAbs(name, term)
+      case Builtin(bn)              => mkBuiltin(bn)
+      case Let(rec, bindings, body) => mkLet(rec, bindings, body)
+
   }
 }
