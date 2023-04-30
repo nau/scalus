@@ -48,9 +48,9 @@ class CompilerPluginToSIRSpec extends AnyFunSuite with ScalaCheckPropertyChecks:
     )
 
     // FIXME
-    /* assert(
+    assert(
       compile(builtins.ByteString.fromHex("deadbeef")) == Const(deadbeef)
-    ) */
+    )
     /*
     assert(
       compile(

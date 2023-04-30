@@ -217,11 +217,29 @@ class SIRConverter(using Context) {
     ref(BigIntSymbol.requiredMethod("apply", List(defn.StringClass.typeRef)))
       .appliedTo(Literal(Constant(i.toString)))
 
+  /* this doesn't work for some reason. ClassTag is not found
+      java.lang.NullPointerException:
+      at java.base/java.lang.ClassValue.getCacheCarefully(ClassValue.java:190)
+      at java.base/java.lang.ClassValue.get(ClassValue.java:103)
+      at scala.runtime.ClassValueCompat.get(ClassValueCompat.scala:33)
+      at scala.reflect.ClassTag$.apply(ClassTag.scala:157)
+   */
   private def ArrayLiteral(values: List[Tree], tpt: Tree)(using Context): Tree =
     val clazzOf = TypeApply(ref(defn.Predef_classOf.termRef), tpt :: Nil)
     val ctag = Apply(TypeApply(ref(defn.ClassTagModule_apply.termRef), tpt :: Nil), clazzOf :: Nil)
     val apply = Select(ref(defn.ArrayModule.termRef), nme.apply)
-    Apply(Apply(TypeApply(apply, tpt :: Nil), values), ctag :: Nil)
+    TypeApply(apply, tpt :: Nil)
+      .appliedTo(ctx.typeAssigner.seqToRepeated(SeqLiteral(values, tpt)))
+      .appliedTo(ctag)
+
+  private def ByteArrayLiteral(values: List[Tree])(using Context): Tree =
+    val byteType = TypeTree(defn.ByteClass.typeRef)
+    val bytesTrees = values.map(b => b.select(nme.toByte))
+    val ctag = ref(defn.ClassTagModule).select(nme.Byte)
+    val apply = Select(ref(defn.ArrayModule.termRef), nme.apply)
+    TypeApply(apply, byteType :: Nil)
+      .appliedTo(ctx.typeAssigner.seqToRepeated(SeqLiteral(bytesTrees, byteType)))
+      .appliedTo(ctag)
 
   def convert(i: BigInt): Tree = mkBigInt(i)
 
@@ -242,11 +260,10 @@ class SIRConverter(using Context) {
   }
 
   def convert(bs: ByteString) = {
-    // FIXME: doesn't work for some reason
-    // val byteArr =
-    // ArrayLiteral(bs.bytes.toList.map(b => Literal(Constant(b))), TypeTree(defn.ByteClass.typeRef))
-    // ref(ByteStringSymbol.requiredMethod("fromArray")).appliedTo(byteArr)
-    ref(ByteStringSymbol.requiredMethod("empty"))
+    if bs.bytes.isEmpty then ref(ByteStringSymbol.requiredMethod("empty"))
+    else
+      val byteArr = ByteArrayLiteral(bs.bytes.toList.map(b => Literal(Constant(b))))
+      ref(ByteStringSymbol.requiredMethod("fromArray")).appliedTo(byteArr)
   }
 
   def convert(sir: SIR): Tree = {
@@ -264,8 +281,8 @@ class SIRConverter(using Context) {
       case Constr(name, data, args) => mkConstr(name, data, args)
       case Decl(data, term)         => mkDecl(data, term)
       case IfThenElse(cond, t, f)   => mkIfThenElse(cond, t, f)
-    println(res)
-    println(res.showIndented(2))
+    // println(res)
+    // println(res.showIndented(2))
     res
   }
 }
