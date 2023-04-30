@@ -96,7 +96,7 @@ class SIRConverter(using Context) {
       .appliedToArgs(List(Literal(Constant(name)), Literal(Constant(0))))
   def mkBuiltin(bn: DefaultFun) =
     ref(BuiltinSymbol.requiredMethod("apply")).appliedTo(convert(bn))
-  def mkDefaultFun(fun: DefaultFun) = ref(requiredModule(fun.toString()))
+  def mkDefaultFun(fun: DefaultFun) = ref(requiredModule(s"scalus.uplc.DefaultFun.$fun"))
 
   def mkLet(recursivity: Recursivity, bindings: List[Binding], body: SIR) =
     ref(LetSymbol.requiredMethod("apply"))

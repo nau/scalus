@@ -350,6 +350,9 @@ class SIRCompiler(using ctx: Context) {
               msg.stringValue
             case term => "error"
           SIR.Error(msg)
+        // TODO support Ident, when equalsInteger is imported
+        case bi: Select if bi.symbol.showFullName == "scalus.builtins.Builtins.equalsInteger" =>
+          SIR.Builtin(DefaultFun.EqualsInteger)
         // FIXME: This is wrong. Just temporary
         case Ident(a) =>
           SIR.Var(NamedDeBruijn(a.toString()))
@@ -358,6 +361,8 @@ class SIRCompiler(using ctx: Context) {
           val fE = compileExpr(env, f)
           val argsE = args.map(compileExpr(env, _))
           argsE.foldLeft(fE)((acc, arg) => SIR.Apply(acc, arg))
+        // Ignore type application
+        case TypeApply(f, args) => compileExpr(env, f)
         // Generic Apply
         case Apply(f, args) =>
           val fE = compileExpr(env, f)

@@ -74,13 +74,20 @@ class CompilerPluginToSIRSpec extends AnyFunSuite with ScalaCheckPropertyChecks:
      */
   }
 
-  /* test("compile if-then-else") {
+  test("compile if-then-else") {
     assert(
       compile {
-        if true then () else ()
-      } == SIR.IfThenElse(Const(Constant.Bool(true)), Const(Constant.Unit), Const(Constant.Unit))
+        if scalus.builtins.Builtins.equalsInteger(1, 2) then () else ()
+      } == SIR.IfThenElse(
+        Apply(
+          Apply(Builtin(EqualsInteger), Const(Constant.Integer(1))),
+          Const(Constant.Integer(2))
+        ),
+        Const(Constant.Unit),
+        Const(Constant.Unit)
+      )
     )
-  } */
+  }
 
   test("compile val def") {
     assert(
@@ -114,7 +121,7 @@ class CompilerPluginToSIRSpec extends AnyFunSuite with ScalaCheckPropertyChecks:
       )
     )
   }
-  */
+   */
 
   test("compile lambda") {
     assert(
