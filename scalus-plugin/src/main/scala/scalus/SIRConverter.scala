@@ -75,6 +75,13 @@ class SIRConverter(using Context) {
   val DataDeclSymbol = requiredModule("scalus.sir.DataDecl")
   val DeclSymbol = requiredModule("scalus.sir.SIR.Decl")
   val IfThenElseSymbol = requiredModule("scalus.sir.SIR.IfThenElse")
+
+  def mkList(trees: List[Tree], tpt: Tree)(using Context): Tree =
+    ref(defn.ListModule)
+      .select(nme.apply)
+      .appliedToTypeTree(tpt)
+      .appliedTo(ctx.typeAssigner.seqToRepeated(SeqLiteral(trees, tpt)))
+
   def mkApply(f: SIR, arg: SIR) =
     ref(ApplySymbol.requiredMethod("apply")).appliedToArgs(List(convert(f), convert(arg)))
   def mkLamAbs(name: String, term: SIR) =
@@ -85,7 +92,8 @@ class SIRConverter(using Context) {
   def mkConst(const: scalus.uplc.Constant) =
     ref(ConstSymbol.requiredMethod("apply")).appliedTo(convert(const))
   def mkNamedDeBruijn(name: String) =
-    ref(NamedDeBruijnSymbol.requiredMethod("apply")).appliedToArgs(List(Literal(Constant(name)), Literal(Constant(0))))
+    ref(NamedDeBruijnSymbol.requiredMethod("apply"))
+      .appliedToArgs(List(Literal(Constant(name)), Literal(Constant(0))))
   def mkBuiltin(bn: DefaultFun) =
     ref(BuiltinSymbol.requiredMethod("apply")).appliedTo(convert(bn))
   def mkDefaultFun(fun: DefaultFun) = ref(requiredModule(fun.toString()))
@@ -95,7 +103,7 @@ class SIRConverter(using Context) {
       .appliedToArgs(
         List(
           convert(recursivity),
-          mkList(Nil, TypeTree(BindingClassSymbol.typeRef)),
+          mkList(bindings.map(convert), TypeTree(BindingClassSymbol.typeRef)),
           convert(body)
         )
       )

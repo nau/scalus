@@ -359,6 +359,7 @@ class SIRCompiler(using ctx: Context) {
   }
 
   def transpile(tree: Tree)(using Context): SIR = {
+    println(s"transpile: ${tree}")
     val result = compileExpr(immutable.HashSet.empty, tree)
     result
   }
