@@ -114,6 +114,7 @@ class CompilerPluginToSIRSpec extends AnyFunSuite with ScalaCheckPropertyChecks:
       )
     )
   }
+  */
 
   test("compile lambda") {
     assert(
@@ -126,7 +127,7 @@ class CompilerPluginToSIRSpec extends AnyFunSuite with ScalaCheckPropertyChecks:
         Apply(Var(NamedDeBruijn("a")), Const(Constant.Bool(true)))
       )
     )
-  } */
+  }
 
   test("compile throw") {
     assert(compile { throw new RuntimeException("foo") } == Error("foo"))

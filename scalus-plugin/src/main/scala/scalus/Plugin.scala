@@ -238,25 +238,27 @@ class SIRCompiler(using ctx: Context) {
   }
 
   def compileStmt(env: Env, stmt: Tree): B = {
-      // debugInfo(s"compileStmt  ${stmt.show} in ${env}")
-      stmt match
-        case vd @ ValDef(name, _, _) =>
-          val bodyExpr = compileExpr(env, vd.rhs)
-          B(name.show, vd.symbol, Recursivity.NonRec, bodyExpr)
-        /* case DefDef(name, argss, tpe, Some(body)) =>
-          val args = argss.collect({ case TermParamClause(args) => args }).flatten
-          val bodyExpr: Expr[scalus.sir.SIR] = {
-            if args.isEmpty then
-              val bE = compileExpr(env + stmt.symbol, body)
-              '{ SIR.LamAbs("_", $bE) }
-            else
-              val symbols = args.map { case v @ ValDef(name, tpe, rhs) => v.symbol }
-              val bE = compileExpr(env ++ symbols + stmt.symbol, body)
-              symbols.foldRight(bE) { (symbol, acc) =>
-                '{ SIR.LamAbs(${ Expr(symbol.name) }, $acc) }
-              }
-          }
-          B(name, stmt.symbol, Recursivity.Rec, bodyExpr)
+    // debugInfo(s"compileStmt  ${stmt.show} in ${env}")
+    stmt match
+      case vd @ ValDef(name, _, _) =>
+        val bodyExpr = compileExpr(env, vd.rhs)
+        B(name.show, vd.symbol, Recursivity.NonRec, bodyExpr)
+      case dd @ DefDef(name, paramss, tpe, _) =>
+        val params = paramss.flatten.collect({ case vd: ValDef => vd })
+        val body = dd.rhs
+        val bodyExpr: scalus.sir.SIR = {
+          if params.isEmpty then
+            val bE = compileExpr(env + stmt.symbol, body)
+            SIR.LamAbs("_", bE)
+          else
+            val symbols = params.map { case v: ValDef => v.symbol }
+            val bE = compileExpr(env ++ symbols + stmt.symbol, body)
+            symbols.foldRight(bE) { (symbol, acc) =>
+              SIR.LamAbs(symbol.name.show, acc)
+            }
+        }
+        B(name.show, stmt.symbol, Recursivity.Rec, bodyExpr)
+      /*
         case ValDef(name, _, _) =>
           report.errorAndAbort(
             s"""compileStmt: val ${stmt.symbol.fullName} has no body. Try adding "scalacOptions += "-Yretain-trees" to your build.sbt"""
@@ -265,11 +267,11 @@ class SIRCompiler(using ctx: Context) {
           report.errorAndAbort(
             s"""compileStmt: def ${stmt.symbol.fullName} has no body. Try adding "scalacOptions += "-Yretain-trees" to your build.sbt"""
           ) */
-        case x =>
-          B("_", NoSymbol, Recursivity.NonRec, compileExpr(env, x))
+      case x =>
+        B("_", NoSymbol, Recursivity.NonRec, compileExpr(env, x))
 
-        // case x => report.error(s"compileStmt: $x", stmt.sourcePos)
-    }
+      // case x => report.error(s"compileStmt: $x", stmt.sourcePos)
+  }
 
   def compileBlock(env: Env, stmts: immutable.List[Tree], expr: Tree): SIR = {
     val exprs = ListBuffer.empty[B]
@@ -351,6 +353,25 @@ class SIRCompiler(using ctx: Context) {
         // FIXME: This is wrong. Just temporary
         case Ident(a) =>
           SIR.Var(NamedDeBruijn(a.toString()))
+        // f.apply(arg) => Apply(f, arg)
+        case Apply(Select(f, nme.apply), args) if defn.isFunctionType(f.tpe.widen) =>
+          val fE = compileExpr(env, f)
+          val argsE = args.map(compileExpr(env, _))
+          argsE.foldLeft(fE)((acc, arg) => SIR.Apply(acc, arg))
+        // Generic Apply
+        case Apply(f, args) =>
+          val fE = compileExpr(env, f)
+          val argsE = args.map(compileExpr(env, _))
+          if argsE.isEmpty then SIR.Apply(fE, SIR.Const(scalus.uplc.Constant.Unit))
+          else argsE.foldLeft(fE)((acc, arg) => SIR.Apply(acc, arg))
+        // (x: T) => body
+        case Block(
+              immutable.List(
+                dd @ DefDef(nme.ANON_FUN, _, _, _)
+              ),
+              Closure(_, Ident(nme.ANON_FUN), _)
+            ) =>
+          compileStmt(env, dd).body
         case Block(stmt, expr) => compileBlock(env, stmt, expr)
         case Typed(expr, _)    => compileExpr(env, expr)
         case x =>
