@@ -101,7 +101,6 @@ class CompilerPluginToSIRSpec extends AnyFunSuite with ScalaCheckPropertyChecks:
       )
     )
   }
-  /*
 
   test("compile def") {
     assert(
@@ -121,7 +120,6 @@ class CompilerPluginToSIRSpec extends AnyFunSuite with ScalaCheckPropertyChecks:
       )
     )
   }
-   */
 
   test("compile lambda") {
     assert(

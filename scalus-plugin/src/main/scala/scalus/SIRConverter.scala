@@ -76,6 +76,11 @@ class SIRConverter(using Context) {
   val DeclSymbol = requiredModule("scalus.sir.SIR.Decl")
   val IfThenElseSymbol = requiredModule("scalus.sir.SIR.IfThenElse")
 
+  /*
+    This is a modification of Dotty mkList method.
+    The original method generates JavaSeqLiteral, which doesn't work for some reason.
+    Probably it's because of the phase order.
+   */
   def mkList(trees: List[Tree], tpt: Tree)(using Context): Tree =
     ref(defn.ListModule)
       .select(nme.apply)
