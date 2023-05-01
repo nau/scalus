@@ -38,6 +38,8 @@ import scalus.uplc.Constant.Data
 import scalus.uplc.DefaultUni
 import scala.util.control.NonFatal
 import scala.collection.mutable.ListBuffer
+import java.net.URL
+import dotty.tools.io.ClassPath
 
 class Plugin extends StandardPlugin {
   val name: String = "scalus"
@@ -199,8 +201,10 @@ class SIRCompiler(using ctx: Context) {
     }
 
     def compileTypeDef(td: TypeDef) = {
-      println(s"TypeDef: ${td.name}: ${td.symbol.annotations
-          .map(_.symbol.fullName)}, case class: ${td.tpe.typeSymbol.is(Flags.CaseClass)}, ${td.symbol.fullName}")
+      println(
+        s"TypeDef: ${td.name}: ${td.symbol.annotations
+            .map(_.symbol.fullName)}, case class: ${td.tpe.typeSymbol.is(Flags.CaseClass)}, ${td.symbol.fullName}"
+      )
       if td.tpe.typeSymbol.is(Flags.CaseClass) then compileCaseClass(td)
       else
         val tpl = td.rhs.asInstanceOf[Template]
@@ -249,12 +253,42 @@ class SIRCompiler(using ctx: Context) {
   }
 
   def findAndReadSIRFileOfSymbol(symbol: Symbol): Option[SIR] = {
-    println(s"findAndReadSIRFileOfSymbol: ${symbol.isClass}, ${symbol.associatedFile}")
-    None
+
+    def getResources(packageName: String): Seq[URL] = {
+      import scala.collection.JavaConverters._
+      val packagePath = packageName.replace('.', '/')
+      val classLoader = Thread.currentThread().getContextClassLoader
+      val resources: java.util.Enumeration[URL] = classLoader.getResources(packagePath)
+      resources.asScala.toList
+    }
+
+    def makeMacroClassLoader(using Context): ClassLoader = {
+      import scala.language.unsafeNulls
+
+      val entries = ClassPath.expandPath(ctx.settings.classpath.value, expandStar = true)
+      val urls = entries.map(cp => java.nio.file.Paths.get(cp).toUri.toURL).toArray
+      val out = Option(
+        ctx.settings.outputDir.value.toURL
+      ) // to find classes in case of suspended compilation
+      new java.net.URLClassLoader(urls ++ out.toList, getClass.getClassLoader)
+    }
+
+    val filename = symbol.owner.fullName.show.replace('.', '/') + ".sir"
+    println(
+      s"findAndReadSIRFileOfSymbol: ${symbol.isClass}, ${filename}, ${getResources("scalus")}, ${ctx.settings.classpath.value}"
+    )
+    // read the file from the classpath
+    val resource = makeMacroClassLoader.getResourceAsStream(filename)
+    if resource != null then
+      val ois = new java.io.ObjectInputStream(resource)
+      val sir = ois.readObject().asInstanceOf[SIR]
+      ois.close()
+      Some(sir)
+    else None
   }
 
   def compileIdentOrQualifiedSelect(env: Env, e: Tree): SIR = {
-    println(s"Ident: ${e.symbol}, flags: ${e.symbol.flags}, term: ${e.show}")
+    println(s"Ident: ${e.symbol}, flags: ${e.symbol.flags.tryToShow}, term: ${e.show}")
     val isInLocalEnv = env.contains(e.symbol)
     val isInGlobalEnv = globalDefs.contains(e.symbol)
     (isInLocalEnv, isInGlobalEnv) match
