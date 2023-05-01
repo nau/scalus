@@ -98,23 +98,14 @@ class ScalusPhase extends PluginPhase {
     // report.echo(tree.toString)
 
     val compiler = new SIRCompiler
-    val sir = compiler.compileToSIR(tree)
-    val suffix = ".sir"
-    val outputDirectory = ctx.settings.outputDir.value
-    val filename = outputDirectory.fileNamed(ctx.compilationUnit.source.file.name + ".sir")
-    val output = filename.bufferedOutput
-    val oos = new java.io.ObjectOutputStream(output)
-    oos.writeObject(sir)
-    oos.close()
-    output.close()
-
+    compiler.compileToSIR(tree)
     ctx
 
   override def transformApply(tree: tpd.Apply)(using Context): tpd.Tree =
     val compileSymbol = requiredModule("scalus.uplc.Compiler").requiredMethod("compile")
     // report.echo(s"PhaseA: ${tree.fun.symbol.name}")
     if tree.fun.symbol == compileSymbol then
-      report.echo(tree.showIndented(2))
+      // report.echo(tree.showIndented(2))
       val arg = tree.args.head
       val compiler = new SIRCompiler
       val result = arg match
@@ -141,6 +132,12 @@ class SIRCompiler(using ctx: Context) {
   type Env = immutable.HashSet[Symbol]
 
   val converter = new SIRConverter
+
+  enum CompileDef:
+    case Compiling
+    case Compiled(binding: B)
+
+  val globalDefs: mutable.LinkedHashMap[Symbol, CompileDef] = mutable.LinkedHashMap.empty
 
   def compileToSIR(tree: Tree): SIR = {
     import sir.SIR.*
@@ -203,15 +200,29 @@ class SIRCompiler(using ctx: Context) {
 
     def compileTypeDef(td: TypeDef) = {
       println(s"TypeDef: ${td.name}: ${td.symbol.annotations
-          .map(_.symbol.fullName)}, case class: ${td.tpe.typeSymbol.is(Flags.CaseClass)}")
+          .map(_.symbol.fullName)}, case class: ${td.tpe.typeSymbol.is(Flags.CaseClass)}, ${td.symbol.fullName}")
       if td.tpe.typeSymbol.is(Flags.CaseClass) then compileCaseClass(td)
       else
         val tpl = td.rhs.asInstanceOf[Template]
-        tpl.body.foreach {
-          case dd: DefDef =>
-            println(s"DefDef: ${dd.name}")
-          case _ =>
+        val bindings = tpl.body.collect {
+          case dd: DefDef if !dd.symbol.flags.is(Flags.Synthetic) =>
+            compileStmt(immutable.HashSet.empty, dd)
         }
+        val sir = bindings.foldRight(SIR.Const(uplc.Constant.Unit)) { (bind, expr) =>
+          SIR.Let(bind.recursivity, List(Binding(bind.name, bind.body)), expr)
+        }
+
+        val suffix = ".sir"
+        val outputDirectory = ctx.settings.outputDir.value
+        val className = td.symbol.fullName.show
+        val pathParts = className.split('.')
+        val dir = pathParts.init.foldLeft(outputDirectory)(_.subdirectoryNamed(_))
+        val filename = pathParts.last
+        val output = dir.fileNamed(filename + suffix).bufferedOutput
+        val oos = new java.io.ObjectOutputStream(output)
+        oos.writeObject(sir)
+        oos.close()
+        output.close()
     }
 
     def compileCaseClass(td: TypeDef) = {
@@ -235,6 +246,41 @@ class SIRCompiler(using ctx: Context) {
       case _ =>
         report.error(s"Unsupported expression: ${tree.show}") */
     Const(uplc.Constant.Bool(false))
+  }
+
+  def findAndReadSIRFileOfSymbol(symbol: Symbol): Option[SIR] = {
+    println(s"findAndReadSIRFileOfSymbol: ${symbol.isClass}, ${symbol.associatedFile}")
+    None
+  }
+
+  def compileIdentOrQualifiedSelect(env: Env, e: Tree): SIR = {
+    println(s"Ident: ${e.symbol}, flags: ${e.symbol.flags}, term: ${e.show}")
+    val isInLocalEnv = env.contains(e.symbol)
+    val isInGlobalEnv = globalDefs.contains(e.symbol)
+    (isInLocalEnv, isInGlobalEnv) match
+      // global def, self reference, use the name
+      case (true, true) => SIR.Var(NamedDeBruijn(e.symbol.fullName.show))
+      // local def, use the name
+      case (true, false) => SIR.Var(NamedDeBruijn(e.symbol.name.show))
+      // global def, use full name
+      case (false, true) => SIR.Var(NamedDeBruijn(e.symbol.fullName.show))
+      case (false, false) =>
+        if e.symbol.defTree == EmptyTree then
+          findAndReadSIRFileOfSymbol(e.symbol) match
+            case Some(sir) => sir
+            case None =>
+              report.error(s"Symbol ${e.symbol} is not defined")
+              return SIR.Error("Symbol not defined")
+        else
+          // remember the symbol to avoid infinite recursion
+          globalDefs.update(e.symbol, CompileDef.Compiling)
+          // println(s"Tree of ${e}: ${e.tpe} isList: ${e.isList}")
+          // debugInfo(s"Tree of ${e.symbol}: ${e.symbol.tree.show}\n${e.symbol.tree}")
+          val b = compileStmt(immutable.HashSet.empty, e.symbol.defTree)
+          // remove the symbol from the linked hash map so the order of the definitions is preserved
+          globalDefs.remove(e.symbol)
+          globalDefs.update(e.symbol, CompileDef.Compiled(b))
+          SIR.Var(NamedDeBruijn(e.symbol.fullName.show))
   }
 
   def compileStmt(env: Env, stmt: Tree): B = {
@@ -354,8 +400,8 @@ class SIRCompiler(using ctx: Context) {
         case bi: Select if bi.symbol.showFullName == "scalus.builtins.Builtins.equalsInteger" =>
           SIR.Builtin(DefaultFun.EqualsInteger)
         // FIXME: This is wrong. Just temporary
-        case Ident(a) =>
-          SIR.Var(NamedDeBruijn(a.toString()))
+        case tree @ Ident(a) =>
+          compileIdentOrQualifiedSelect(env, tree)
         // f.apply(arg) => Apply(f, arg)
         case Apply(Select(f, nme.apply), args) if defn.isFunctionType(f.tpe.widen) =>
           val fE = compileExpr(env, f)

@@ -18,6 +18,18 @@ lazy val scalusPlugin = project
     libraryDependencies += "org.scala-lang" %% "scala3-compiler" % scala3Version // % "provided"
   )
 
+lazy val scalusPluginTests = project
+  .in(file("scalus-plugin-tests"))
+  .dependsOn(scalus.jvm)
+  .settings(
+    name := "scalus-plugin-tests",
+    organization := "scalus",
+    version := "0.1.0-SNAPSHOT",
+    libraryDependencies += compilerPlugin("scalus" %% "scalus-plugin" % "0.1.0-SNAPSHOT"),
+    libraryDependencies += "org.scalatest" %%% "scalatest" % "3.2.12" % "test",
+    libraryDependencies += "org.scalatestplus" %%% "scalacheck-1-16" % "3.2.12.0" % "test"
+  )
+
 lazy val scalus = crossProject(JSPlatform, JVMPlatform)
   .in(file("."))
   .settings(

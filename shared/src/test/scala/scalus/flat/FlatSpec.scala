@@ -95,8 +95,8 @@ class FlatSpec extends AnyFunSuite with ScalaCheckPropertyChecks with ArbitraryI
 
     given Arbitrary[Val] = Arbitrary(
       Gen.oneOf(
-        Gen.oneOf(true, false).map(Val.Bit),
-        Gen.containerOf[Array, Byte](Arbitrary.arbitrary[Byte]).map(Val.ByteArray)
+        Gen.oneOf(true, false).map(Val.Bit.apply),
+        Gen.containerOf[Array, Byte](Arbitrary.arbitrary[Byte]).map(Val.ByteArray.apply)
       )
     )
     forAll { (v: List[Val]) =>

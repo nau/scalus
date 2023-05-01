@@ -4,6 +4,12 @@ import scala.collection.immutable
 import scalus.builtins.ByteString
 import scalus.builtins.Builtins
 
+@Compile
+object TestCode {
+  def foo() = BigInt(42)
+  val a = true
+}
+
 object Prelude {
   type Eq[A] = (A, A) => Boolean
   given Eq[BigInt] = (x: BigInt, y: BigInt) => Builtins.equalsInteger(x, y)
