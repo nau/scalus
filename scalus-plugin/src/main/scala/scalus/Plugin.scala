@@ -40,6 +40,11 @@ import scala.util.control.NonFatal
 import scala.collection.mutable.ListBuffer
 import java.net.URL
 import dotty.tools.io.ClassPath
+import scalus.flat.Flat.Flat
+import scalus.flat.Flat.EncoderState
+import scalus.flat.Flat
+import scalus.flat.FlatInstantces.given
+import scalus.flat.Flat.DecoderState
 
 class Plugin extends StandardPlugin {
   val name: String = "scalus"
@@ -63,49 +68,16 @@ class ScalusPhase extends PluginPhase {
   override val runsAfter = Set("firstTransform")
   override val runsBefore = Set("patternMatcher")
 
-  /* private def genIRFile(cunit: CompilationUnit, tree: ir.Trees.ClassDef): Unit = {
-    val outfile = getFileFor(cunit, tree.name.name, ".sjsir")
-    val output = outfile.bufferedOutput
-    try {
-      ir.Serializers.serialize(output, tree)
-    } finally {
-      output.close()
-    }
-  }
-
-  private def getFileFor(cunit: CompilationUnit, className: ClassName,
-      suffix: String): dotty.tools.io.AbstractFile = {
-    val outputDirectory = ctx.settings.outputDir.value
-    val pathParts = className.nameString.split('.')
-    val dir = pathParts.init.foldLeft(outputDirectory)(_.subdirectoryNamed(_))
-    val filename = pathParts.last
-    dir.fileNamed(filename + suffix)
-   }*/
-
   type Env = immutable.HashSet[Symbol]
-
-  /* case class B(name: String, symbol: Symbol, recursivity: sir.Recursivity, body: SIR):
-    def fullName = symbol.name
-
-  enum CompileDef:
-    case Compiling
-    case Compiled(binding: B)
-
-  val globalDefs: mutable.LinkedHashMap[Symbol, CompileDef] = mutable.LinkedHashMap.empty
-  val globalDataDecls: mutable.LinkedHashMap[Symbol, DataDecl] = mutable.LinkedHashMap.empty */
 
   override def prepareForUnit(tree: Tree)(using Context): Context =
     report.echo(s"Scalus: ${ctx.compilationUnit.source.file.name}")
-    // report.echo(tree.showIndented(2))
-    // report.echo(tree.toString)
-
     val compiler = new SIRCompiler
     compiler.compileToSIR(tree)
     ctx
 
   override def transformApply(tree: tpd.Apply)(using Context): tpd.Tree =
     val compileSymbol = requiredModule("scalus.uplc.Compiler").requiredMethod("compile")
-    // report.echo(s"PhaseA: ${tree.fun.symbol.name}")
     if tree.fun.symbol == compileSymbol then
       // report.echo(tree.showIndented(2))
       val arg = tree.args.head
@@ -223,9 +195,11 @@ class SIRCompiler(using ctx: Context) {
         val dir = pathParts.init.foldLeft(outputDirectory)(_.subdirectoryNamed(_))
         val filename = pathParts.last
         val output = dir.fileNamed(filename + suffix).bufferedOutput
-        val oos = new java.io.ObjectOutputStream(output)
-        oos.writeObject(sir)
-        oos.close()
+        val fl = summon[Flat[SIR]]
+        val enc = EncoderState(fl.bitSize(sir) / 8 + 1)
+        Flat.encode(sir, enc)
+        enc.filler()
+        output.write(enc.buffer)
         output.close()
     }
 
@@ -280,9 +254,10 @@ class SIRCompiler(using ctx: Context) {
     // read the file from the classpath
     val resource = makeMacroClassLoader.getResourceAsStream(filename)
     if resource != null then
-      val ois = new java.io.ObjectInputStream(resource)
-      val sir = ois.readObject().asInstanceOf[SIR]
-      ois.close()
+      val buffer = resource.readAllBytes()
+      val dec = DecoderState(buffer)
+      val sir = Flat.decode[SIR](dec)
+      resource.close()
       Some(sir)
     else None
   }
@@ -433,7 +408,6 @@ class SIRCompiler(using ctx: Context) {
         // TODO support Ident, when equalsInteger is imported
         case bi: Select if bi.symbol.showFullName == "scalus.builtins.Builtins.equalsInteger" =>
           SIR.Builtin(DefaultFun.EqualsInteger)
-        // FIXME: This is wrong. Just temporary
         case tree @ Ident(a) =>
           compileIdentOrQualifiedSelect(env, tree)
         // f.apply(arg) => Apply(f, arg)
