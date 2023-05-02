@@ -114,6 +114,7 @@ class SIRCompiler(mode: Mode)(using ctx: Context) {
 
   val globalDefs: mutable.LinkedHashMap[Symbol, CompileDef] = mutable.LinkedHashMap.empty
   val globalDataDecls: mutable.LinkedHashMap[Symbol, DataDecl] = mutable.LinkedHashMap.empty
+  val moduleCache: mutable.LinkedHashMap[Symbol, Module] = mutable.LinkedHashMap.empty
 
   def compileToSIR(tree: Tree): SIR = {
     import sir.SIR.*
@@ -248,7 +249,7 @@ class SIRCompiler(mode: Mode)(using ctx: Context) {
     }
 
     val filename = symbol.owner.fullName.show.replace('.', '/') + ".sir"
-    println( s"findAndReadModuleOfSymbol: ${symbol.isClass}, ${filename}" )
+    println(s"findAndReadModuleOfSymbol: ${symbol.isClass}, ${filename}")
     // read the file from the classpath
     val resource = makeClassLoader.getResourceAsStream(filename)
     if resource != null then
@@ -270,15 +271,29 @@ class SIRCompiler(mode: Mode)(using ctx: Context) {
       // local def, use the name
       case (true, false) => SIR.Var(NamedDeBruijn(e.symbol.name.show))
       // global def, use full name
-      case (false, true) => SIR.Var(NamedDeBruijn(e.symbol.fullName.show))
+      case (false, true)                          => SIR.Var(NamedDeBruijn(e.symbol.fullName.show))
       case (false, false) if mode == Mode.Compile => SIR.Var(NamedDeBruijn(e.symbol.fullName.show))
       case (false, false) =>
         if e.symbol.defTree == EmptyTree then
-          findAndReadModuleOfSymbol(e.symbol) match
-            case Some(Module.Module(defs)) => defs.head.value
-            case None =>
-              report.error(s"Symbol ${e.symbol.fullName.show} is not defined")
-              return SIR.Error(s"Symbol ${e.symbol.fullName.show} not defined")
+          moduleCache.get(e.symbol.owner) match
+            case Some(Module.Module(defs)) =>
+              val binding = defs.find(b => b.name == e.symbol.name.show).get
+              globalDefs.update(
+                e.symbol,
+                CompileDef.Compiled(B(binding.name, e.symbol, Recursivity.Rec, binding.value))
+              )
+              binding.value
+            case _ =>
+              findAndReadModuleOfSymbol(e.symbol) match
+                case Some(m @ Module.Module(defs)) =>
+                  moduleCache.put(e.symbol.owner, m)
+                  defs.head.value
+                case Some(Module.DataDecl(decl)) =>
+                  report.error(s"Read DataDecl instead of ${e.symbol.fullName.show}: ${decl}")
+                  return SIR.Error(s"Read DataDecl instead of ${e.symbol.fullName.show}: ${decl}")
+                case None =>
+                  report.error(s"Symbol ${e.symbol.fullName.show} is not defined")
+                  return SIR.Error(s"Symbol ${e.symbol.fullName.show} not defined")
         else
           // remember the symbol to avoid infinite recursion
           globalDefs.update(e.symbol, CompileDef.Compiling)
@@ -440,7 +455,18 @@ class SIRCompiler(mode: Mode)(using ctx: Context) {
   def transpile(tree: Tree)(using Context): SIR = {
     println(s"transpile: ${tree}")
     val result = compileExpr(immutable.HashSet.empty, tree)
-    result
+    val full = globalDefs.values.foldRight(result) {
+      case (CompileDef.Compiled(b), acc) =>
+        SIR.Let(b.recursivity, List(Binding(b.fullName, b.body)), acc)
+      case (d, acc) =>
+        report.error(s"Unexpected globalDefs state: $d")
+        SIR.Error("Unexpected globalDefs state")
+
+    }
+    val dataDecls = globalDataDecls.foldRight(full) { case ((_, decl), acc) =>
+      SIR.Decl(decl, acc)
+    }
+    dataDecls
   }
 
 }

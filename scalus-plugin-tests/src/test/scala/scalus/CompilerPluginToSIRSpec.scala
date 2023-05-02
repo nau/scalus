@@ -27,7 +27,8 @@ class CompilerPluginToSIRSpec extends AnyFunSuite with ScalaCheckPropertyChecks:
 
   test("compile external definitions") {
     import TestCode.foo
-    compile {
+    val compiled = compile {
       foo()
     }
+    assert(compiled == Apply(LamAbs("x", Const(Constant.Integer(42))), Const(Constant.Unit)))
   }
