@@ -366,6 +366,8 @@ class SIRCompiler(mode: scalus.Mode)(using ctx: Context) {
           val fE = compileExpr(env, f)
           val argsE = args.map(compileExpr(env, _))
           argsE.foldLeft(fE)((acc, arg) => SIR.Apply(acc, arg))
+        // ignore asInstanceOf
+        case TypeApply(Select(e, nme.asInstanceOf_), _) => compileExpr(env, e)
         // Ignore type application
         case TypeApply(f, args) => compileExpr(env, f)
         // Generic Apply
