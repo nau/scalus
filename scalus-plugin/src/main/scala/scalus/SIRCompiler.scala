@@ -64,7 +64,7 @@ class SIRCompiler(mode: scalus.Mode)(using ctx: Context) {
   val globalDataDecls: mutable.LinkedHashMap[Symbol, DataDecl] = mutable.LinkedHashMap.empty
   val moduleCache: mutable.LinkedHashMap[Symbol, Module] = mutable.LinkedHashMap.empty
 
-  def compileToSIR(tree: Tree): SIR = {
+  def compileModule(tree: Tree): Unit = {
     import sir.SIR.*
 
     def collectTypeDefs(tree: Tree): List[TypeDef] = {
@@ -123,56 +123,44 @@ class SIRCompiler(mode: scalus.Mode)(using ctx: Context) {
       fields
     }
 
-    def compileTypeDef(td: TypeDef) = {
-      report.echo(
-        s"TypeDef: ${td.name}: ${td.symbol.annotations
-            .map(_.symbol.fullName)}, case class: ${td.tpe.typeSymbol.is(Flags.CaseClass)}, ${td.symbol.fullName}"
-      )
-
-      if td.tpe.typeSymbol.is(Flags.CaseClass) then compileCaseClass(td)
-      else
-        val tpl = td.rhs.asInstanceOf[Template]
-        val bindings = tpl.body.collect {
-          case dd: DefDef if !dd.symbol.flags.is(Flags.Synthetic) =>
-            compileStmt(immutable.HashSet.empty, dd)
-        }
-        val module = Module.Module(bindings.map(b => Binding(b.name, b.body)))
-        val suffix = ".sir"
-        val outputDirectory = ctx.settings.outputDir.value
-        val className = td.symbol.fullName.show
-        val pathParts = className.split('.')
-        val dir = pathParts.init.foldLeft(outputDirectory)(_.subdirectoryNamed(_))
-        val filename = pathParts.last
-        val output = dir.fileNamed(filename + suffix).bufferedOutput
-        val fl = summon[Flat[Module]]
-        val enc = EncoderState(fl.bitSize(module) / 8 + 1)
-        Flat.encode(module, enc)
-        enc.filler()
-        output.write(enc.buffer)
-        output.close()
-    }
-
-    def compileCaseClass(td: TypeDef) = {
-      println(s"compileCaseClass: ${td.name}")
-
-    }
-
     val allTypeDefs = collectTypeDefs(tree)
     println(allTypeDefs.map(td => s"${td.name} ${td.isClassDef}"))
 
     allTypeDefs.foreach(compileTypeDef)
+  }
 
-    /* tree match
-      case Literal(const) =>
-        const.tag match
-          case Constants.BooleanTag => Const(uplc.Constant.Bool(const.booleanValue))
-          case Constants.StringTag  => Const(uplc.Constant.String(const.stringValue))
-          case Constants.UnitTag    => Const(uplc.Constant.Unit)
-          case _ =>
-            report.error(s"Unsupported constant type $const"); Error("Unsupported constant type")
-      case _ =>
-        report.error(s"Unsupported expression: ${tree.show}") */
-    Const(uplc.Constant.Bool(false))
+  def compileTypeDef(td: TypeDef) = {
+    report.echo(
+      s"TypeDef: ${td.name}: ${td.symbol.annotations
+          .map(_.symbol.fullName)}, case class: ${td.tpe.typeSymbol.is(Flags.CaseClass)}, ${td.symbol.fullName}"
+    )
+
+    if td.tpe.typeSymbol.is(Flags.CaseClass) then compileCaseClass(td)
+    else
+      val tpl = td.rhs.asInstanceOf[Template]
+      val bindings = tpl.body.collect {
+        case dd: DefDef if !dd.symbol.flags.is(Flags.Synthetic) =>
+          compileStmt(immutable.HashSet.empty, dd)
+      }
+      val module = Module.Module(bindings.map(b => Binding(b.name, b.body)))
+      val suffix = ".sir"
+      val outputDirectory = ctx.settings.outputDir.value
+      val className = td.symbol.fullName.show
+      val pathParts = className.split('.')
+      val dir = pathParts.init.foldLeft(outputDirectory)(_.subdirectoryNamed(_))
+      val filename = pathParts.last
+      val output = dir.fileNamed(filename + suffix).bufferedOutput
+      val fl = summon[Flat[Module]]
+      val enc = EncoderState(fl.bitSize(module) / 8 + 1)
+      Flat.encode(module, enc)
+      enc.filler()
+      output.write(enc.buffer)
+      output.close()
+  }
+
+  def compileCaseClass(td: TypeDef) = {
+    println(s"compileCaseClass: ${td.name}")
+
   }
 
   def findAndReadModuleOfSymbol(symbol: Symbol): Option[Module] = {
@@ -219,8 +207,9 @@ class SIRCompiler(mode: scalus.Mode)(using ctx: Context) {
       // local def, use the name
       case (true, false) => SIR.Var(NamedDeBruijn(e.symbol.name.show))
       // global def, use full name
-      case (false, true)                          => SIR.Var(NamedDeBruijn(e.symbol.fullName.show))
-      case (false, false) if mode == scalus.Mode.Compile => SIR.Var(NamedDeBruijn(e.symbol.fullName.show))
+      case (false, true) => SIR.Var(NamedDeBruijn(e.symbol.fullName.show))
+      case (false, false) if mode == scalus.Mode.Compile =>
+        SIR.Var(NamedDeBruijn(e.symbol.fullName.show))
       case (false, false) =>
         if e.symbol.defTree == EmptyTree then
           moduleCache.get(e.symbol.owner) match
@@ -355,7 +344,7 @@ class SIRCompiler(mode: scalus.Mode)(using ctx: Context) {
     else
       tree match
         case If(cond, t, f) =>
-          SIR.IfThenElse(transpile(cond), transpile(t), transpile(f))
+          SIR.IfThenElse(compileToSIR(cond), compileToSIR(t), compileToSIR(f))
         // throw new Exception("error msg")
         // Supports any exception type that uses first argument as message
         case Apply(Ident(nme.throw_), immutable.List(ex)) =>
@@ -400,8 +389,8 @@ class SIRCompiler(mode: scalus.Mode)(using ctx: Context) {
           SIR.Error("Unsupported expression")
   }
 
-  def transpile(tree: Tree)(using Context): SIR = {
-    println(s"transpile: ${tree}")
+  def compileToSIR(tree: Tree)(using Context): SIR = {
+    println(s"compileToSIR: ${tree}")
     val result = compileExpr(immutable.HashSet.empty, tree)
     val full = globalDefs.values.foldRight(result) {
       case (CompileDef.Compiled(b), acc) =>

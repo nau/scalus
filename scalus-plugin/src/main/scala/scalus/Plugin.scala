@@ -72,7 +72,7 @@ class ScalusPhase extends PluginPhase {
   override def prepareForUnit(tree: Tree)(using Context): Context =
     report.echo(s"Scalus: ${ctx.compilationUnit.source.file.name}")
     val compiler = new SIRCompiler(Mode.Compile)
-    compiler.compileToSIR(tree)
+    compiler.compileModule(tree)
     ctx
 
   override def transformApply(tree: tpd.Apply)(using Context): tpd.Tree =
@@ -87,10 +87,10 @@ class ScalusPhase extends PluginPhase {
               Closure(Nil, Ident(_), EmptyTree)
             ) =>
           report.echo(s"compile: ${code.show}")
-          compiler.transpile(code.asInstanceOf[Tree]) // FIXME instanceof
+          compiler.compileToSIR(code.asInstanceOf[Tree]) // FIXME instanceof
         case code =>
           report.echo(s"compile: ${arg.show}")
-          compiler.transpile(code)
+          compiler.compileToSIR(code)
       val converter = new SIRConverter
       converter.convert(result)
     else tree
