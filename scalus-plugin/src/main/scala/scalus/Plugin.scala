@@ -46,33 +46,33 @@ import scalus.flat.Flat
 import scalus.flat.FlatInstantces.given
 import scalus.flat.Flat.DecoderState
 
+enum Module:
+  case DataDecl(decl: scalus.sir.DataDecl)
+  case Module(defs: List[Binding])
+
 class Plugin extends StandardPlugin {
+
+  println("Scalus plugin loaded")
   val name: String = "scalus"
   override val description: String = "Compile Scala to Scalus IR"
 
   def init(options: List[String]): List[PluginPhase] =
+    println("Scalus plugin init")
     new ScalusPhase :: Nil
 }
-
-//case class DataDecl(name: String, params: List[String], constructors: List[DataCtor])
-//case class DataCtor(name: String, params: List[Type])
 
 class ScalusPhase extends PluginPhase {
   import tpd.*
 
   val phaseName = "Scalus"
 
-  private var enterSym: Symbol = _
-
   // override val runsAfter = Set("initChecker")
   override val runsAfter = Set("firstTransform")
   override val runsBefore = Set("patternMatcher")
 
-  type Env = immutable.HashSet[Symbol]
-
   override def prepareForUnit(tree: Tree)(using Context): Context =
     report.echo(s"Scalus: ${ctx.compilationUnit.source.file.name}")
-    val compiler = new SIRCompiler
+    val compiler = new SIRCompiler(Mode.Compile)
     compiler.compileToSIR(tree)
     ctx
 
@@ -81,7 +81,7 @@ class ScalusPhase extends PluginPhase {
     if tree.fun.symbol == compileSymbol then
       // report.echo(tree.showIndented(2))
       val arg = tree.args.head
-      val compiler = new SIRCompiler
+      val compiler = new SIRCompiler(Mode.Link)
       val result = arg match
         case Block(
               List(DefDef(_, _, _, Apply(code, _))),
@@ -101,17 +101,19 @@ class ScalusPhase extends PluginPhase {
 case class B(name: String, symbol: Symbol, recursivity: Recursivity, body: SIR):
   def fullName(using Context) = symbol.showFullName
 
-class SIRCompiler(using ctx: Context) {
+enum Mode:
+  case Compile, Link
+
+class SIRCompiler(mode: Mode)(using ctx: Context) {
   import tpd.*
   type Env = immutable.HashSet[Symbol]
-
-  val converter = new SIRConverter
 
   enum CompileDef:
     case Compiling
     case Compiled(binding: B)
 
   val globalDefs: mutable.LinkedHashMap[Symbol, CompileDef] = mutable.LinkedHashMap.empty
+  val globalDataDecls: mutable.LinkedHashMap[Symbol, DataDecl] = mutable.LinkedHashMap.empty
 
   def compileToSIR(tree: Tree): SIR = {
     import sir.SIR.*
@@ -162,7 +164,7 @@ class SIRCompiler(using ctx: Context) {
             AdtTypeInfo(constrTpe.termSymbol, baseClassSymbol, baseClassSymbol.children)
           case Some(baseClassSymbol) => // case 4, 6
             AdtTypeInfo(typeSymbol, baseClassSymbol, baseClassSymbol.children)
-      report.debuglog(s"adtBaseType: ${constrTpe.show} ${typeSymbol} ${adtBaseType} $info")
+      report.echo(s"adtBaseType: ${constrTpe.show} ${typeSymbol} ${adtBaseType} $info")
       info
     }
 
@@ -173,10 +175,11 @@ class SIRCompiler(using ctx: Context) {
     }
 
     def compileTypeDef(td: TypeDef) = {
-      println(
+      report.echo(
         s"TypeDef: ${td.name}: ${td.symbol.annotations
             .map(_.symbol.fullName)}, case class: ${td.tpe.typeSymbol.is(Flags.CaseClass)}, ${td.symbol.fullName}"
       )
+
       if td.tpe.typeSymbol.is(Flags.CaseClass) then compileCaseClass(td)
       else
         val tpl = td.rhs.asInstanceOf[Template]
@@ -184,10 +187,7 @@ class SIRCompiler(using ctx: Context) {
           case dd: DefDef if !dd.symbol.flags.is(Flags.Synthetic) =>
             compileStmt(immutable.HashSet.empty, dd)
         }
-        val sir = bindings.foldRight(SIR.Const(uplc.Constant.Unit)) { (bind, expr) =>
-          SIR.Let(bind.recursivity, List(Binding(bind.name, bind.body)), expr)
-        }
-
+        val module = Module.Module(bindings.map(b => Binding(b.name, b.body)))
         val suffix = ".sir"
         val outputDirectory = ctx.settings.outputDir.value
         val className = td.symbol.fullName.show
@@ -195,9 +195,9 @@ class SIRCompiler(using ctx: Context) {
         val dir = pathParts.init.foldLeft(outputDirectory)(_.subdirectoryNamed(_))
         val filename = pathParts.last
         val output = dir.fileNamed(filename + suffix).bufferedOutput
-        val fl = summon[Flat[SIR]]
-        val enc = EncoderState(fl.bitSize(sir) / 8 + 1)
-        Flat.encode(sir, enc)
+        val fl = summon[Flat[Module]]
+        val enc = EncoderState(fl.bitSize(module) / 8 + 1)
+        Flat.encode(module, enc)
         enc.filler()
         output.write(enc.buffer)
         output.close()
@@ -226,7 +226,7 @@ class SIRCompiler(using ctx: Context) {
     Const(uplc.Constant.Bool(false))
   }
 
-  def findAndReadSIRFileOfSymbol(symbol: Symbol): Option[SIR] = {
+  def findAndReadModuleOfSymbol(symbol: Symbol): Option[Module] = {
 
     def getResources(packageName: String): Seq[URL] = {
       import scala.collection.JavaConverters._
@@ -236,7 +236,7 @@ class SIRCompiler(using ctx: Context) {
       resources.asScala.toList
     }
 
-    def makeMacroClassLoader(using Context): ClassLoader = {
+    def makeClassLoader(using Context): ClassLoader = {
       import scala.language.unsafeNulls
 
       val entries = ClassPath.expandPath(ctx.settings.classpath.value, expandStar = true)
@@ -248,17 +248,15 @@ class SIRCompiler(using ctx: Context) {
     }
 
     val filename = symbol.owner.fullName.show.replace('.', '/') + ".sir"
-    println(
-      s"findAndReadSIRFileOfSymbol: ${symbol.isClass}, ${filename}, ${getResources("scalus")}, ${ctx.settings.classpath.value}"
-    )
+    println( s"findAndReadModuleOfSymbol: ${symbol.isClass}, ${filename}" )
     // read the file from the classpath
-    val resource = makeMacroClassLoader.getResourceAsStream(filename)
+    val resource = makeClassLoader.getResourceAsStream(filename)
     if resource != null then
       val buffer = resource.readAllBytes()
       val dec = DecoderState(buffer)
-      val sir = Flat.decode[SIR](dec)
+      val module = Flat.decode[Module](dec)
       resource.close()
-      Some(sir)
+      Some(module)
     else None
   }
 
@@ -273,13 +271,14 @@ class SIRCompiler(using ctx: Context) {
       case (true, false) => SIR.Var(NamedDeBruijn(e.symbol.name.show))
       // global def, use full name
       case (false, true) => SIR.Var(NamedDeBruijn(e.symbol.fullName.show))
+      case (false, false) if mode == Mode.Compile => SIR.Var(NamedDeBruijn(e.symbol.fullName.show))
       case (false, false) =>
         if e.symbol.defTree == EmptyTree then
-          findAndReadSIRFileOfSymbol(e.symbol) match
-            case Some(sir) => sir
+          findAndReadModuleOfSymbol(e.symbol) match
+            case Some(Module.Module(defs)) => defs.head.value
             case None =>
-              report.error(s"Symbol ${e.symbol} is not defined")
-              return SIR.Error("Symbol not defined")
+              report.error(s"Symbol ${e.symbol.fullName.show} is not defined")
+              return SIR.Error(s"Symbol ${e.symbol.fullName.show} not defined")
         else
           // remember the symbol to avoid infinite recursion
           globalDefs.update(e.symbol, CompileDef.Compiling)
