@@ -58,15 +58,18 @@ class SIRCompiler(mode: scalus.Mode)(using ctx: Context) {
 
   val converter = new SIRConverter
 
-  extension (t: Tree)
-    def isList = t.tpe <:< requiredClass("scalus.builtins.List").typeRef.appliedTo(defn.AnyType)
-
-  extension (t: Tree)
-    def isPair =
-      //FIXME: this is a hack, should be something like List above, but it doesn't work for some reason
-      val r = t.tpe.typeSymbol.showFullName == "scalus.builtins.Pair"
-      println(s"$t is pair: $r, ${t.tpe.typeSymbol.showFullName}")
+  extension (t: Type)
+    def isPair: Boolean =
+      // FIXME: this is a hack, should be something like List above, but it doesn't work for some reason
+      val r = t.typeSymbol.showFullName == "scalus.builtins.Pair"
+      println(s"$t is pair: $r, ${t.typeSymbol.showFullName}")
       r
+    def isList: Boolean =
+      t <:< requiredClass("scalus.builtins.List").typeRef.appliedTo(defn.AnyType)
+
+  extension (t: Tree) def isList: Boolean = t.tpe.isList
+
+  extension (t: Tree) def isPair: Boolean = t.tpe.isPair
 
   extension (t: Tree) def isLiteral = compileConstant.isDefinedAt(t)
   extension (t: Tree) def isData = t.tpe <:< requiredClass("scalus.uplc.Data").typeRef
@@ -382,16 +385,21 @@ class SIRCompiler(mode: scalus.Mode)(using ctx: Context) {
   }
 
   def typeReprToDefaultUni(t: Type): DefaultUni =
-    // TODO FIXME: This is a hack
     if t =:= converter.BigIntClassSymbol.typeRef then DefaultUni.Integer
     else if t =:= defn.StringClass.typeRef then DefaultUni.String
     else if t =:= defn.BooleanClass.typeRef then DefaultUni.Bool
     else if t =:= defn.UnitClass.typeRef then DefaultUni.Unit
     else if t =:= converter.DataClassSymbol.typeRef then DefaultUni.Data
     else if t =:= converter.ByteStringClassSymbol.typeRef then DefaultUni.ByteString
+    else if t.isPair then
+      val List(t1, t2) = t.dealias.argInfos
+      DefaultUni.Pair(typeReprToDefaultUni(t1), typeReprToDefaultUni(t2))
+    else if t.isList then
+      val t1 = t.dealias.argInfos.head
+      DefaultUni.List(typeReprToDefaultUni(t1))
     else
-      report.error(s"Unsupported type: ${t.show}")
-      DefaultUni.Integer
+      report.error(s"Unsupported type $t")
+      DefaultUni.Unit
 
   def compileExpr(env: immutable.HashSet[Symbol], tree: Tree)(using Context): SIR = {
     if compileConstant.isDefinedAt(tree) then

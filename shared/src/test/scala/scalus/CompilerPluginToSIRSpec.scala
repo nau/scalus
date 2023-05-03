@@ -51,27 +51,6 @@ class CompilerPluginToSIRSpec extends AnyFunSuite with ScalaCheckPropertyChecks:
     assert(
       compile(builtins.ByteString.fromHex("deadbeef")) == Const(deadbeef)
     )
-    /*
-    assert(
-      compile(
-        builtins.ByteString.unsafeFromArray(
-          Array(0xde.toByte, 0xad.toByte, 0xbe.toByte, 0xef.toByte)
-        )
-      ) == Const(deadbeef)
-    )
-    assert(
-      compile(
-        builtins.ByteString(
-          Array(0xde.toByte, 0xad.toByte, 0xbe.toByte, 0xef.toByte)
-        )
-      ) == Const(deadbeef)
-    )
-    assert(
-      compile(
-        builtins.ByteString(0xde.toByte, 0xad.toByte, 0xbe.toByte, 0xef.toByte)
-      ) == Const(deadbeef)
-    )
-     */
   }
 
   test("compile if-then-else") {
@@ -268,7 +247,7 @@ class CompilerPluginToSIRSpec extends AnyFunSuite with ScalaCheckPropertyChecks:
           )
         )
     )
-    /* assert(
+    assert(
       compile {
         Builtins.mkMap(
           builtins.List(
@@ -288,7 +267,7 @@ class CompilerPluginToSIRSpec extends AnyFunSuite with ScalaCheckPropertyChecks:
           Const(Constant.List(DefaultUni.Pair(DefaultUni.Data, DefaultUni.Data), immutable.Nil))
         )
       )
-    ) */
+    )
 
     assert(
       compile {
