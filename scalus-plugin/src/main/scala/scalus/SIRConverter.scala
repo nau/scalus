@@ -221,6 +221,7 @@ class SIRConverter(using Context) {
 
   def defaultUniToType(t: DefaultUni): Tree = t match
     case scalus.uplc.DefaultUni.Integer => TypeTree(BigIntClassSymbol.typeRef)
+    case scalus.uplc.DefaultUni.String => TypeTree(defn.StringClass.typeRef)
     case _ =>
       // TODO FIXME
       report.error(s"defaultUniToType: not implemented for $t");

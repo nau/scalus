@@ -56,6 +56,9 @@ class SIRCompiler(mode: scalus.Mode)(using ctx: Context) {
   import tpd.*
   type Env = immutable.HashSet[Symbol]
 
+  extension (t: Tree)
+    def isList = t.tpe <:< requiredClass("scalus.builtins.List").typeRef.appliedTo(defn.AnyType)
+
   enum CompileDef:
     case Compiling
     case Compiled(binding: B)
@@ -340,6 +343,7 @@ class SIRCompiler(mode: scalus.Mode)(using ctx: Context) {
   def typeReprToDefaultUni(t: Type): DefaultUni =
     // TODO FIXME: This is a hack
     if t =:= requiredClass("scala.math.BigInt").typeRef then DefaultUni.Integer
+    else if t =:= defn.StringClass.typeRef then DefaultUni.String
     else
       report.error(s"Unsupported type: ${t.show}")
       DefaultUni.Integer
@@ -372,6 +376,12 @@ class SIRCompiler(mode: scalus.Mode)(using ctx: Context) {
             ).typeRef =>
           val tpeE = typeReprToDefaultUni(tpe.tpe)
           SIR.Const(scalus.uplc.Constant.List(tpeE, Nil))
+        case Apply(
+              TypeApply(Select(list, name), immutable.List(tpe)),
+              immutable.List(arg)
+            ) if name == termName("::") && list.isList =>
+          val argE = compileExpr(env, arg)
+          SIR.Apply(SIR.Apply(SIR.Builtin(DefaultFun.MkCons), argE), compileExpr(env, list))
         case Apply(
               TypeApply(Select(list, nme.apply), immutable.List(tpe)),
               immutable.List(ex)
