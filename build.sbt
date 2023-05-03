@@ -20,6 +20,11 @@ lazy val scalusPlugin = project
     libraryDependencies += "org.scala-lang" %% "scala3-compiler" % scala3Version // % "provided"
   )
 
+lazy val PluginDependency: List[Def.Setting[_]] = List(scalacOptions ++= {
+  val jar = (packageBin in Compile in scalusPlugin).value
+  Seq(s"-Xplugin:${jar.getAbsolutePath}", s"-Jdummy=${jar.lastModified}")
+})
+
 lazy val scalusPluginTests = project
   .in(file("scalus-plugin-tests"))
   .dependsOn(scalus.jvm)
@@ -27,7 +32,8 @@ lazy val scalusPluginTests = project
     name := "scalus-plugin-tests",
     organization := "scalus",
     version := "0.1.0-SNAPSHOT",
-    libraryDependencies += compilerPlugin("scalus" %% "scalus-plugin" % "0.1.0-SNAPSHOT"),
+    PluginDependency,
+    // libraryDependencies += compilerPlugin("scalus" %% "scalus-plugin" % "0.1.0-SNAPSHOT"),
     libraryDependencies += "org.scalatest" %%% "scalatest" % "3.2.12" % "test",
     libraryDependencies += "org.scalatestplus" %%% "scalacheck-1-16" % "3.2.12.0" % "test"
   )
@@ -46,7 +52,8 @@ lazy val scalus = crossProject(JSPlatform, JVMPlatform)
       "io.bullet" %%% "borer-core" % "1.10.1",
       "io.bullet" %%% "borer-derivation" % "1.10.1"
     ),
-    libraryDependencies += compilerPlugin("scalus" %% "scalus-plugin" % "0.1.0-SNAPSHOT"),
+    PluginDependency,
+    // libraryDependencies += compilerPlugin("scalus" %% "scalus-plugin" % "0.1.0-SNAPSHOT"),
     libraryDependencies += "org.scalatest" %%% "scalatest" % "3.2.12" % "test",
     libraryDependencies += "org.scalatestplus" %%% "scalacheck-1-16" % "3.2.12.0" % "test"
   )
