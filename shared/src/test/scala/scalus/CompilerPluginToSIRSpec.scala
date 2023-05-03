@@ -411,7 +411,6 @@ class CompilerPluginToSIRSpec extends AnyFunSuite with ScalaCheckPropertyChecks:
     assert(evaled == scalus.uplc.Term.Const(Constant.Bool(true)))
   }
 
-
   test("compile type-safe equality") {
     import scalus.Prelude.*
     val compiled = compile {
@@ -427,19 +426,20 @@ class CompilerPluginToSIRSpec extends AnyFunSuite with ScalaCheckPropertyChecks:
     assert(evaled == scalus.uplc.Term.Const(Constant.Bool(true)))
   }
 
-  /*
   test("compile external definitions") {
     def foo(i: BigInt) = i
-    compilesTo(
-      Let(
-        Rec,
-        List(Binding("scalus.CompileToSIRSpec._$foo", LamAbs("i", Var(NamedDeBruijn("i"))))),
-        Apply(Var(NamedDeBruijn("scalus.CompileToSIRSpec._$foo")), Const(Constant.Integer(5)))
-      )
-    ) {
-      foo(5)
-    }
+    assert(
+      compile {
+        foo(5)
+      } ==
+        Let(
+          Rec,
+          List(Binding("scalus.CompilerPluginToSIRSpec._$_$foo", LamAbs("i", Var(NamedDeBruijn("i"))))),
+          Apply(Var(NamedDeBruijn("scalus.CompilerPluginToSIRSpec._$_$foo")), Const(Constant.Integer(5)))
+        )
+    )
   }
+  /*
 
   test("compile datatypes") {
     val compiled = compilesTo(
