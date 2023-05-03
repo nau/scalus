@@ -452,6 +452,19 @@ class SIRCompiler(mode: scalus.Mode)(using ctx: Context) {
         // Data BUILTINS
         case bi: Select if BuiltinHelper.builtinFun(bi.symbol.showFullName).isDefined =>
           BuiltinHelper.builtinFun(bi.symbol.showFullName).get
+        // BigInt stuff
+        case Select(ident, op) if ident.tpe.widen =:= converter.BigIntClassSymbol.typeRef =>
+          op match
+            case nme.PLUS =>
+              SIR.Apply(SIR.Builtin(DefaultFun.AddInteger), compileExpr(env, ident) )
+            case nme.MINUS =>
+              SIR.Apply(SIR.Builtin(DefaultFun.SubtractInteger), compileExpr(env, ident) )
+            case nme.MUL =>
+              SIR.Apply(SIR.Builtin(DefaultFun.MultiplyInteger), compileExpr(env, ident) )
+            case nme.DIV =>
+              SIR.Apply(SIR.Builtin(DefaultFun.DivideInteger), compileExpr(env, ident) )
+            case nme.MOD =>
+              SIR.Apply(SIR.Builtin(DefaultFun.RemainderInteger), compileExpr(env, ident) )
         // List BUILTINS
         case Select(lst, fun) if lst.isList =>
           fun.show match
@@ -575,7 +588,7 @@ class SIRCompiler(mode: scalus.Mode)(using ctx: Context) {
           // report.info(s"Inlined: ${bindings}, ${expr.show}\n${t}", Position(SourceFile.current, globalPosition, 0))
           r
         case x =>
-          report.error(s"Unsupported expression: ${x.show}\n$x")
+          report.error(s"Unsupported expression: ${x.show}\n$x", x.srcPos)
           SIR.Error("Unsupported expression")
   }
 
