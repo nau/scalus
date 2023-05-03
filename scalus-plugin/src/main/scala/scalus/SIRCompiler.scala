@@ -56,6 +56,8 @@ class SIRCompiler(mode: scalus.Mode)(using ctx: Context) {
   import tpd.*
   type Env = immutable.HashSet[Symbol]
 
+  val converter = new SIRConverter
+
   extension (t: Tree)
     def isList = t.tpe <:< requiredClass("scalus.builtins.List").typeRef.appliedTo(defn.AnyType)
 
@@ -340,10 +342,43 @@ class SIRCompiler(mode: scalus.Mode)(using ctx: Context) {
       case NonFatal(e) =>
         throw new IllegalArgumentException(s"`$hexString` is not a valid hex string", e)
 
+  object BuiltinHelper {
+    def builtinFun(tpe: String): Option[SIR.Builtin] = {
+      val DefaultFunValues = Map(
+        "scalus.builtins.Builtins.mkConstr" -> DefaultFun.ConstrData,
+        "scalus.builtins.Builtins.mkList" -> DefaultFun.ListData,
+        "scalus.builtins.Builtins.mkMap" -> DefaultFun.MapData,
+        "scalus.builtins.Builtins.mkB" -> DefaultFun.BData,
+        "scalus.builtins.Builtins.mkI" -> DefaultFun.IData,
+        "scalus.builtins.Builtins.unsafeDataAsConstr" -> DefaultFun.UnConstrData,
+        "scalus.builtins.Builtins.unsafeDataAsList" -> DefaultFun.UnListData,
+        "scalus.builtins.Builtins.unsafeDataAsMap" -> DefaultFun.UnMapData,
+        "scalus.builtins.Builtins.unsafeDataAsB" -> DefaultFun.UnBData,
+        "scalus.builtins.Builtins.unsafeDataAsI" -> DefaultFun.UnIData,
+        "scalus.builtins.Builtins.sha2_256" -> DefaultFun.Sha2_256,
+        "scalus.builtins.Builtins.trace" -> DefaultFun.Trace,
+        "scalus.builtins.Builtins.indexByteString" -> DefaultFun.IndexByteString,
+        "scalus.builtins.Builtins.consByteString" -> DefaultFun.ConsByteString,
+        "scalus.builtins.Builtins.lengthOfByteString" -> DefaultFun.LengthOfByteString,
+        "scalus.builtins.Builtins.lessThanInteger" -> DefaultFun.LessThanInteger,
+        "scalus.builtins.Builtins.decodeUtf8" -> DefaultFun.DecodeUtf8,
+        "scalus.builtins.Builtins.equalsInteger" -> DefaultFun.EqualsInteger,
+        "scalus.builtins.Builtins.equalsByteString" -> DefaultFun.EqualsByteString,
+        "scalus.builtins.Builtins.equalsString" -> DefaultFun.EqualsString,
+        "scalus.builtins.Builtins.equalsData" -> DefaultFun.EqualsData
+      )
+      DefaultFunValues.get(tpe).map(SIR.Builtin.apply)
+    }
+  }
+
   def typeReprToDefaultUni(t: Type): DefaultUni =
     // TODO FIXME: This is a hack
-    if t =:= requiredClass("scala.math.BigInt").typeRef then DefaultUni.Integer
+    if t =:= converter.BigIntClassSymbol.typeRef then DefaultUni.Integer
     else if t =:= defn.StringClass.typeRef then DefaultUni.String
+    else if t =:= defn.BooleanClass.typeRef then DefaultUni.Bool
+    else if t =:= defn.UnitClass.typeRef then DefaultUni.Unit
+    else if t =:= converter.DataClassSymbol.typeRef then DefaultUni.Data
+    else if t =:= converter.ByteStringClassSymbol.typeRef then DefaultUni.ByteString
     else
       report.error(s"Unsupported type: ${t.show}")
       DefaultUni.Integer
@@ -367,9 +402,9 @@ class SIRCompiler(mode: scalus.Mode)(using ctx: Context) {
               msg.stringValue
             case term => "error"
           SIR.Error(msg)
-        // TODO support Ident, when equalsInteger is imported
-        case bi: Select if bi.symbol.showFullName == "scalus.builtins.Builtins.equalsInteger" =>
-          SIR.Builtin(DefaultFun.EqualsInteger)
+        // Data BUILTINS
+        case bi: Select if BuiltinHelper.builtinFun(bi.symbol.showFullName).isDefined =>
+          BuiltinHelper.builtinFun(bi.symbol.showFullName).get
         case Select(lst, fun) if lst.isList =>
           fun.show match
             case "head" =>

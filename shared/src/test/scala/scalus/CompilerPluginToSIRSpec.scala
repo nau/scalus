@@ -239,7 +239,7 @@ class CompilerPluginToSIRSpec extends AnyFunSuite with ScalaCheckPropertyChecks:
       )
     )
   }
-  /*
+
 
   test("compile Data builtins") {
     val nilData = Const(Constant.List(DefaultUni.Data, immutable.Nil))
@@ -269,7 +269,7 @@ class CompilerPluginToSIRSpec extends AnyFunSuite with ScalaCheckPropertyChecks:
           )
         )
     )
-    assert(
+    /* assert(
       compile {
         Builtins.mkMap(
           builtins.List(
@@ -289,7 +289,7 @@ class CompilerPluginToSIRSpec extends AnyFunSuite with ScalaCheckPropertyChecks:
           Const(Constant.List(DefaultUni.Pair(DefaultUni.Data, DefaultUni.Data), immutable.Nil))
         )
       )
-    )
+    ) */
 
     assert(
       compile {
@@ -362,6 +362,7 @@ class CompilerPluginToSIRSpec extends AnyFunSuite with ScalaCheckPropertyChecks:
       )
     )
   }
+  /*
 
   test("compile Pair builtins") {
     compilesTo(Const(Constant.Pair(Constant.Integer(1), deadbeef))) {

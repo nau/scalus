@@ -43,13 +43,14 @@ class SIRConverter(using Context) {
   val ErrorSymbol = requiredModule("scalus.sir.SIR.Error")
   val ConstSymbol = requiredModule("scalus.sir.SIR.Const")
   val ApplySymbol = requiredModule("scalus.sir.SIR.Apply")
-  val BigIntSymbol = requiredModule("scala.BigInt")
-  val BigIntClassSymbol = requiredClass("scala.BigInt")
+  val BigIntSymbol = requiredModule("scala.math.BigInt")
+  val BigIntClassSymbol = requiredClass("scala.math.BigInt")
   val DataConstrSymbol = requiredModule("scalus.uplc.Data.Constr")
   val DataMapSymbol = requiredModule("scalus.uplc.Data.Map")
   val DataListSymbol = requiredModule("scalus.uplc.Data.List")
   val DataISymbol = requiredModule("scalus.uplc.Data.I")
   val DataBSymbol = requiredModule("scalus.uplc.Data.B")
+  val ConstantClassSymbol = requiredClass("scalus.uplc.Constant")
   val ConstantIntegerSymbol = requiredModule("scalus.uplc.Constant.Integer")
   val ConstantBoolSymbol = requiredModule("scalus.uplc.Constant.Bool")
   val ConstantUnitSymbol = requiredModule("scalus.uplc.Constant.Unit")
@@ -59,6 +60,7 @@ class SIRConverter(using Context) {
   val ConstantListSymbol = requiredModule("scalus.uplc.Constant.List")
   val ConstantPairSymbol = requiredModule("scalus.uplc.Constant.Pair")
   val ByteStringSymbol = requiredModule("scalus.builtins.ByteString")
+  val ByteStringClassSymbol = requiredClass("scalus.builtins.ByteString")
   val VarSymbol = requiredModule("scalus.sir.SIR.Var")
   val LetSymbol = requiredModule("scalus.sir.SIR.Let")
   val LamAbsSymbol = requiredModule("scalus.sir.SIR.LamAbs")
@@ -213,7 +215,9 @@ class SIRConverter(using Context) {
         ref(ConstantDataSymbol.requiredMethod("apply")).appliedTo(convert(value))
       case scalus.uplc.Constant.List(elemType, value) =>
         ref(ConstantListSymbol.requiredMethod("apply"))
-          .appliedToArgs(List(convert(elemType), mkList(value.map(convert), defaultUniToType(elemType))))
+          .appliedToArgs(
+            List(convert(elemType), mkList(value.map(convert), TypeTree(ConstantClassSymbol.typeRef)))
+          )
       case scalus.uplc.Constant.Pair(fst, snd) =>
         ref(ConstantPairSymbol.requiredMethod("apply"))
           .appliedToArgs(List(convert(fst), convert(snd)))
@@ -226,7 +230,6 @@ class SIRConverter(using Context) {
       // TODO FIXME
       report.error(s"defaultUniToType: not implemented for $t");
       TypeTree(BigIntClassSymbol.typeRef)
-
 
   def mkBigInt(i: BigInt): Tree =
     ref(BigIntSymbol.requiredMethod("apply", List(defn.StringClass.typeRef)))
