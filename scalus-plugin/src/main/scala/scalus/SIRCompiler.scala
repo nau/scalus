@@ -61,6 +61,16 @@ class SIRCompiler(mode: scalus.Mode)(using ctx: Context) {
   extension (t: Tree)
     def isList = t.tpe <:< requiredClass("scalus.builtins.List").typeRef.appliedTo(defn.AnyType)
 
+  extension (t: Tree)
+    def isPair =
+      //FIXME: this is a hack, should be something like List above, but it doesn't work for some reason
+      val r = t.tpe.typeSymbol.showFullName == "scalus.builtins.Pair"
+      println(s"$t is pair: $r, ${t.tpe.typeSymbol.showFullName}")
+      r
+
+  extension (t: Tree) def isLiteral = compileConstant.isDefinedAt(t)
+  extension (t: Tree) def isData = t.tpe <:< requiredClass("scalus.uplc.Data").typeRef
+
   enum CompileDef:
     case Compiling
     case Compiled(binding: B)
@@ -405,6 +415,7 @@ class SIRCompiler(mode: scalus.Mode)(using ctx: Context) {
         // Data BUILTINS
         case bi: Select if BuiltinHelper.builtinFun(bi.symbol.showFullName).isDefined =>
           BuiltinHelper.builtinFun(bi.symbol.showFullName).get
+        // List BUILTINS
         case Select(lst, fun) if lst.isList =>
           fun.show match
             case "head" =>
@@ -453,6 +464,47 @@ class SIRCompiler(mode: scalus.Mode)(using ctx: Context) {
             case _ =>
               report.error(s"compileExpr: List is not supported yet ${ex}")
               SIR.Error("List is not supported")
+        // Pair BUILTINS
+        // PAIR
+        case Select(pair, fun) if pair.isPair =>
+          fun.show match
+            case "fst" =>
+              SIR.Apply(SIR.Builtin(DefaultFun.FstPair), compileExpr(env, pair))
+            case "snd" =>
+              SIR.Apply(SIR.Builtin(DefaultFun.SndPair), compileExpr(env, pair))
+            case _ =>
+              report.error(s"compileExpr: Unsupported pair function: $fun")
+              SIR.Error(s"Unsupported pair function: $fun")
+        case Apply(
+              TypeApply(Select(pair, nme.apply), immutable.List(tpe1, tpe2)),
+              immutable.List(a, b)
+            ) if pair.tpe =:= requiredModule("scalus.builtins.Pair").typeRef =>
+          // We can create a Pair by either 2 literals as (con pair...)
+          // or 2 Data variables using MkPairData builtin
+          if a.isLiteral && b.isLiteral then
+            SIR.Const(
+              scalus.uplc.Constant.Pair(compileConstant(a), compileConstant(b))
+            )
+          else if a.isData && b.isData then
+            SIR.Apply(
+              SIR.Apply(SIR.Builtin(DefaultFun.MkPairData), compileExpr(env, a)),
+              compileExpr(env, b)
+            )
+          else
+            report.error(
+              s"""Builtin Pair can only be created either by 2 literals or 2 Data variables:
+              |Pair[${tpe1.tpe.show},${tpe2.tpe.show}](${a.show}, ${b.show})
+              |- ${a.show} literal: ${a.isLiteral}, data: ${a.isData}
+              |- ${b.show} literal: ${b.isLiteral}, data: ${b.isData}
+              |""".stripMargin
+            )
+            SIR.Error(
+              s"""Builtin Pair can only be created either by 2 literals or 2 Data variables:
+              |Pair[${tpe1.tpe.show},${tpe2.tpe.show}](${a.show}, ${b.show})
+              |- ${a.show} literal: ${a.isLiteral}, data: ${a.isData}
+              |- ${b.show} literal: ${b.isLiteral}, data: ${b.isData}
+              |""".stripMargin
+            )
         case tree @ Ident(a) =>
           compileIdentOrQualifiedSelect(env, tree)
         // f.apply(arg) => Apply(f, arg)
@@ -480,6 +532,11 @@ class SIRCompiler(mode: scalus.Mode)(using ctx: Context) {
           compileStmt(env, dd).body
         case Block(stmt, expr) => compileBlock(env, stmt, expr)
         case Typed(expr, _)    => compileExpr(env, expr)
+        case Inlined(_, bindings, expr) =>
+          val r = compileBlock(env, bindings, expr)
+          // val t = r.asTerm.show
+          // report.info(s"Inlined: ${bindings}, ${expr.show}\n${t}", Position(SourceFile.current, globalPosition, 0))
+          r
         case x =>
           report.error(s"Unsupported expression: ${x.show}\n$x")
           SIR.Error("Unsupported expression")

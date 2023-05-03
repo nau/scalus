@@ -166,7 +166,7 @@ class CompilerPluginToSIRSpec extends AnyFunSuite with ScalaCheckPropertyChecks:
 //    val term = new SimpleSirToUplcLowering().lower(compiled)
 //    assert(Cek.evalUPLC(term) == Data.I(22))
   }
-  */
+   */
 
   test("compile List builtins") {
     // Nil
@@ -239,7 +239,6 @@ class CompilerPluginToSIRSpec extends AnyFunSuite with ScalaCheckPropertyChecks:
       )
     )
   }
-
 
   test("compile Data builtins") {
     val nilData = Const(Constant.List(DefaultUni.Data, immutable.Nil))
@@ -362,34 +361,35 @@ class CompilerPluginToSIRSpec extends AnyFunSuite with ScalaCheckPropertyChecks:
       )
     )
   }
-  /*
 
   test("compile Pair builtins") {
-    compilesTo(Const(Constant.Pair(Constant.Integer(1), deadbeef))) {
+    assert(compile {
       builtins.Pair(BigInt(1), ByteString.fromHex("deadbeef"))
-    }
-    compilesTo(
-      Let(
-        Rec,
-        List(
-          Binding(
-            "swap",
-            LamAbs(
-              "p",
-              Apply(
-                Apply(Builtin(MkPairData), Apply(Builtin(SndPair), Var(NamedDeBruijn("p")))),
-                Apply(Builtin(FstPair), Var(NamedDeBruijn("p")))
+    } == (Const(Constant.Pair(Constant.Integer(1), deadbeef))))
+    assert(
+      compile {
+        def swap(p: builtins.Pair[Data, Data]) = builtins.Pair(p.snd, p.fst)
+      } == (
+        Let(
+          Rec,
+          List(
+            Binding(
+              "swap",
+              LamAbs(
+                "p",
+                Apply(
+                  Apply(Builtin(MkPairData), Apply(Builtin(SndPair), Var(NamedDeBruijn("p")))),
+                  Apply(Builtin(FstPair), Var(NamedDeBruijn("p")))
+                )
               )
             )
-          )
-        ),
-        Const(Constant.Unit)
+          ),
+          Const(Constant.Unit)
+        )
       )
-    ) {
-      def swap(p: builtins.Pair[Data, Data]) = builtins.Pair(p.snd, p.fst)
-    }
+    )
   }
-
+  /*
   test("compile Boolean &&, ||, ! builtins") {
     import Constant.Bool
     val compiled = compilesTo(

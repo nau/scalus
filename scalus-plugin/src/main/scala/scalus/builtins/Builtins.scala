@@ -22,7 +22,7 @@ object ByteString {
   def unsafeFromArray(bytes: Array[Byte]): ByteString = new ByteString(bytes)
 }
 
-case class Pair[A, B](fst: A, snd: B):
+case class Pair[+A, +B](fst: A, snd: B):
   override def toString = "(" + fst + ", " + snd + ")"
 
 enum List[+A]:
