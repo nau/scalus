@@ -402,6 +402,47 @@ class SIRCompiler(mode: scalus.Mode)(using ctx: Context) {
       report.error(s"Unsupported type $t", pos)
       DefaultUni.Unit
 
+  def compileBoolOps(env: Env, lhs: Tree, op: Name): SIR =
+    val lhsExpr = compileExpr(env, lhs)
+    op match
+      case nme.UNARY_! =>
+        SIR.IfThenElse(
+          lhsExpr,
+          SIR.Const(scalus.uplc.Constant.Bool(false)),
+          SIR.Const(scalus.uplc.Constant.Bool(true))
+        )
+      case nme.ZAND =>
+        SIR.LamAbs(
+          "rhs",
+          SIR.IfThenElse(
+            lhsExpr,
+            SIR.Var(NamedDeBruijn("rhs")),
+            SIR.Const(scalus.uplc.Constant.Bool(false))
+          )
+        )
+      case nme.ZOR =>
+        SIR.LamAbs(
+          "rhs",
+          SIR.IfThenElse(
+            lhsExpr,
+            SIR.Const(scalus.uplc.Constant.Bool(true)),
+            SIR.Var(NamedDeBruijn("rhs"))
+          )
+        )
+
+  def compileBigIntOps(env: Env, ident: Tree, op: Name): SIR =
+    op match
+      case nme.PLUS =>
+        SIR.Apply(SIR.Builtin(DefaultFun.AddInteger), compileExpr(env, ident) )
+      case nme.MINUS =>
+        SIR.Apply(SIR.Builtin(DefaultFun.SubtractInteger), compileExpr(env, ident) )
+      case nme.MUL =>
+        SIR.Apply(SIR.Builtin(DefaultFun.MultiplyInteger), compileExpr(env, ident) )
+      case nme.DIV =>
+        SIR.Apply(SIR.Builtin(DefaultFun.DivideInteger), compileExpr(env, ident) )
+      case nme.MOD =>
+        SIR.Apply(SIR.Builtin(DefaultFun.RemainderInteger), compileExpr(env, ident) )
+
   def compileExpr(env: immutable.HashSet[Symbol], tree: Tree)(using Context): SIR = {
     if compileConstant.isDefinedAt(tree) then
       val const = compileConstant(tree)
@@ -424,48 +465,13 @@ class SIRCompiler(mode: scalus.Mode)(using ctx: Context) {
 
         // Boolean &&
         case Select(lhs, op) if lhs.tpe.widen =:= defn.BooleanType =>
-          val lhsExpr = compileExpr(env, lhs)
-          op match
-            case nme.UNARY_! =>
-              SIR.IfThenElse(
-                lhsExpr,
-                SIR.Const(scalus.uplc.Constant.Bool(false)),
-                SIR.Const(scalus.uplc.Constant.Bool(true))
-              )
-            case nme.ZAND =>
-              SIR.LamAbs(
-                "rhs",
-                SIR.IfThenElse(
-                  lhsExpr,
-                  SIR.Var(NamedDeBruijn("rhs")),
-                  SIR.Const(scalus.uplc.Constant.Bool(false))
-                )
-              )
-            case nme.ZOR =>
-              SIR.LamAbs(
-                "rhs",
-                SIR.IfThenElse(
-                  lhsExpr,
-                  SIR.Const(scalus.uplc.Constant.Bool(true)),
-                  SIR.Var(NamedDeBruijn("rhs"))
-                )
-              )
+          compileBoolOps(env, lhs, op)
         // Data BUILTINS
         case bi: Select if BuiltinHelper.builtinFun(bi.symbol.showFullName).isDefined =>
           BuiltinHelper.builtinFun(bi.symbol.showFullName).get
         // BigInt stuff
         case Select(ident, op) if ident.tpe.widen =:= converter.BigIntClassSymbol.typeRef =>
-          op match
-            case nme.PLUS =>
-              SIR.Apply(SIR.Builtin(DefaultFun.AddInteger), compileExpr(env, ident) )
-            case nme.MINUS =>
-              SIR.Apply(SIR.Builtin(DefaultFun.SubtractInteger), compileExpr(env, ident) )
-            case nme.MUL =>
-              SIR.Apply(SIR.Builtin(DefaultFun.MultiplyInteger), compileExpr(env, ident) )
-            case nme.DIV =>
-              SIR.Apply(SIR.Builtin(DefaultFun.DivideInteger), compileExpr(env, ident) )
-            case nme.MOD =>
-              SIR.Apply(SIR.Builtin(DefaultFun.RemainderInteger), compileExpr(env, ident) )
+          compileBigIntOps(env, ident, op)
         // List BUILTINS
         case Select(lst, fun) if lst.isList =>
           fun.show match
