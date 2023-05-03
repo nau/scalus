@@ -370,6 +370,19 @@ class SIRCompiler(mode: scalus.Mode)(using ctx: Context) {
         // TODO support Ident, when equalsInteger is imported
         case bi: Select if bi.symbol.showFullName == "scalus.builtins.Builtins.equalsInteger" =>
           SIR.Builtin(DefaultFun.EqualsInteger)
+        case Select(lst, fun) if lst.isList =>
+          fun.show match
+            case "head" =>
+              SIR.Apply(SIR.Builtin(DefaultFun.HeadList), compileExpr(env, lst))
+            case "tail" =>
+              SIR.Apply(SIR.Builtin(DefaultFun.TailList), compileExpr(env, lst))
+            case "isEmpty" =>
+              SIR.Apply(SIR.Builtin(DefaultFun.NullList), compileExpr(env, lst))
+            case _ =>
+              report.error(
+                s"compileExpr: Unsupported list method $fun. Only head, tail and isEmpty are supported"
+              )
+              SIR.Error(s"Unsupported list method $fun")
         case TypeApply(Select(list, name), immutable.List(tpe))
             if name == termName("empty") && list.tpe =:= requiredModule(
               "scalus.builtins.List"

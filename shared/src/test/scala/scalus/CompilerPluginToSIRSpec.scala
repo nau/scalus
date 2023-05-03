@@ -204,7 +204,7 @@ class CompilerPluginToSIRSpec extends AnyFunSuite with ScalaCheckPropertyChecks:
         )
       )
     )
-    /*
+
     assert(
       compile {
         def head(l: builtins.List[BigInt]) = l.head
@@ -237,7 +237,7 @@ class CompilerPluginToSIRSpec extends AnyFunSuite with ScalaCheckPropertyChecks:
         ),
         Const(Constant.Unit)
       )
-    ) */
+    )
   }
   /*
 
