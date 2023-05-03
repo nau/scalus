@@ -166,6 +166,7 @@ class CompilerPluginToSIRSpec extends AnyFunSuite with ScalaCheckPropertyChecks:
 //    val term = new SimpleSirToUplcLowering().lower(compiled)
 //    assert(Cek.evalUPLC(term) == Data.I(22))
   }
+  */
 
   test("compile List builtins") {
     // Nil
@@ -185,6 +186,7 @@ class CompilerPluginToSIRSpec extends AnyFunSuite with ScalaCheckPropertyChecks:
         )
       )
     )
+    /*
     // MkCons builtin
     assert(
       compile {
@@ -234,8 +236,9 @@ class CompilerPluginToSIRSpec extends AnyFunSuite with ScalaCheckPropertyChecks:
         ),
         Const(Constant.Unit)
       )
-    )
+    ) */
   }
+  /*
 
   test("compile Data builtins") {
     val nilData = Const(Constant.List(DefaultUni.Data, immutable.Nil))

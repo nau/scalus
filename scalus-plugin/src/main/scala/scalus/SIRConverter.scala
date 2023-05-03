@@ -44,6 +44,7 @@ class SIRConverter(using Context) {
   val ConstSymbol = requiredModule("scalus.sir.SIR.Const")
   val ApplySymbol = requiredModule("scalus.sir.SIR.Apply")
   val BigIntSymbol = requiredModule("scala.BigInt")
+  val BigIntClassSymbol = requiredClass("scala.BigInt")
   val DataConstrSymbol = requiredModule("scalus.uplc.Data.Constr")
   val DataMapSymbol = requiredModule("scalus.uplc.Data.Map")
   val DataListSymbol = requiredModule("scalus.uplc.Data.List")
@@ -212,11 +213,19 @@ class SIRConverter(using Context) {
         ref(ConstantDataSymbol.requiredMethod("apply")).appliedTo(convert(value))
       case scalus.uplc.Constant.List(elemType, value) =>
         ref(ConstantListSymbol.requiredMethod("apply"))
-          .appliedToArgs(List(convert(elemType), mkList(value.map(convert), convert(elemType))))
+          .appliedToArgs(List(convert(elemType), mkList(value.map(convert), defaultUniToType(elemType))))
       case scalus.uplc.Constant.Pair(fst, snd) =>
         ref(ConstantPairSymbol.requiredMethod("apply"))
           .appliedToArgs(List(convert(fst), convert(snd)))
   }
+
+  def defaultUniToType(t: DefaultUni): Tree = t match
+    case scalus.uplc.DefaultUni.Integer => TypeTree(BigIntClassSymbol.typeRef)
+    case _ =>
+      // TODO FIXME
+      report.error(s"defaultUniToType: not implemented for $t");
+      TypeTree(BigIntClassSymbol.typeRef)
+
 
   def mkBigInt(i: BigInt): Tree =
     ref(BigIntSymbol.requiredMethod("apply", List(defn.StringClass.typeRef)))

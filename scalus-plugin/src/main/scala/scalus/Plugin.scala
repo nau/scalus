@@ -50,13 +50,10 @@ enum Mode:
   case Compile, Link
 
 class Plugin extends StandardPlugin {
-
-  println("Scalus plugin loaded")
   val name: String = "scalus"
   override val description: String = "Compile Scala to Scalus IR"
 
   def init(options: List[String]): List[PluginPhase] =
-    println("Scalus plugin init")
     new ScalusPhase :: Nil
 }
 

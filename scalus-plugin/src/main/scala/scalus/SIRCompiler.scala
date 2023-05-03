@@ -337,6 +337,13 @@ class SIRCompiler(mode: scalus.Mode)(using ctx: Context) {
       case NonFatal(e) =>
         throw new IllegalArgumentException(s"`$hexString` is not a valid hex string", e)
 
+  def typeReprToDefaultUni(t: Type): DefaultUni =
+    // TODO FIXME: This is a hack
+    if t =:= requiredClass("scala.math.BigInt").typeRef then DefaultUni.Integer
+    else
+      report.error(s"Unsupported type: ${t.show}")
+      DefaultUni.Integer
+
   def compileExpr(env: immutable.HashSet[Symbol], tree: Tree)(using Context): SIR = {
     if compileConstant.isDefinedAt(tree) then
       val const = compileConstant(tree)
@@ -359,6 +366,35 @@ class SIRCompiler(mode: scalus.Mode)(using ctx: Context) {
         // TODO support Ident, when equalsInteger is imported
         case bi: Select if bi.symbol.showFullName == "scalus.builtins.Builtins.equalsInteger" =>
           SIR.Builtin(DefaultFun.EqualsInteger)
+        case TypeApply(Select(list, name), immutable.List(tpe))
+            if name == termName("empty") && list.tpe =:= requiredModule(
+              "scalus.builtins.List"
+            ).typeRef =>
+          val tpeE = typeReprToDefaultUni(tpe.tpe)
+          SIR.Const(scalus.uplc.Constant.List(tpeE, Nil))
+        case Apply(
+              TypeApply(Select(list, nme.apply), immutable.List(tpe)),
+              immutable.List(ex)
+            ) if list.tpe =:= requiredModule("scalus.builtins.List").typeRef =>
+          val tpeE = typeReprToDefaultUni(tpe.tpe)
+          ex match
+            case SeqLiteral(args, _) =>
+              val allLiterals = args.forall(arg => compileConstant.isDefinedAt(arg))
+              if allLiterals then
+                report.echo("all literals")
+                val lits = args.map(compileConstant)
+                SIR.Const(scalus.uplc.Constant.List(tpeE, lits))
+              else
+                val nil = SIR.Const(scalus.uplc.Constant.List(tpeE, Nil))
+                args.foldRight(nil) { (arg, acc) =>
+                  SIR.Apply(
+                    SIR.Apply(SIR.Builtin(DefaultFun.MkCons), compileExpr(env, arg)),
+                    acc
+                  )
+                }
+            case _ =>
+              report.error(s"compileExpr: List is not supported yet ${ex}")
+              SIR.Error("List is not supported")
         case tree @ Ident(a) =>
           compileIdentOrQualifiedSelect(env, tree)
         // f.apply(arg) => Apply(f, arg)
