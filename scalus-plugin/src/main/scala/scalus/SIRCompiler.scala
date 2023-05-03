@@ -50,7 +50,7 @@ enum Module:
   case Module(defs: List[Binding])
 
 case class B(name: String, symbol: Symbol, recursivity: Recursivity, body: SIR):
-  def fullName(using Context) = symbol.showFullName
+  def fullName(using Context) = symbol.fullName.show
 
 class SIRCompiler(mode: scalus.Mode)(using ctx: Context) {
   import tpd.*
