@@ -83,14 +83,14 @@ class SIRCompiler(mode: scalus.Mode)(using ctx: Context) {
   val globalDataDecls: mutable.LinkedHashMap[Symbol, DataDecl] = mutable.LinkedHashMap.empty
   val moduleCache: mutable.LinkedHashMap[Symbol, Module] = mutable.LinkedHashMap.empty
 
+  @threadUnsafe lazy val CompileAnnotType: TypeRef = requiredClassRef("scalus.Compile")
+  def CompileAnnot(using Context) = CompileAnnotType.symbol.asClass
+
   def compileModule(tree: Tree): Unit = {
     import sir.SIR.*
 
     def collectTypeDefs(tree: Tree): List[TypeDef] = {
-      @threadUnsafe lazy val CompileAnnotType: TypeRef = requiredClassRef("scalus.Compile")
-      def CompileAnnot(using Context) = CompileAnnotType.symbol.asClass
-
-      tree match {
+      tree match
         case EmptyTree            => Nil
         case PackageDef(_, stats) => stats.flatMap(collectTypeDefs)
         case cd: TypeDef =>
@@ -98,48 +98,6 @@ class SIRCompiler(mode: scalus.Mode)(using ctx: Context) {
           else Nil
         case _: ValDef    => Nil // module instance
         case Import(_, _) => Nil
-
-      }
-    }
-
-    case class AdtTypeInfo(
-        constructorTypeSymbol: Symbol,
-        dataTypeSymbol: Symbol,
-        constructors: List[Symbol]
-    )
-
-    def getAdtInfoFromConstroctorType(constrTpe: Type): AdtTypeInfo = {
-      /* We support these cases:
-        1. case class Foo(a: Int, b: String)
-        2. case object Bar
-        3. enum Base { case A ...}
-        4. enum Base { case B(a, b) }
-        5. sealed abstract class Base; object Base { case object A extends Base }
-        6. sealed abstract class Base; object Base { case class B(a: Int, b: String) extends Base }
-
-       */
-      val typeSymbol = constrTpe.dealias.widen.typeSymbol
-      // look for a base `sealed abstract class`. If it exists, we are in case 5 or 6
-      val adtBaseType = constrTpe.baseClasses.find(b =>
-        b.flags.isOneOf(Flags.Sealed | Flags.Abstract) && !b.flags.is(Flags.Trait)
-      )
-
-      val info =
-        adtBaseType match
-          case None => // case 1 or 2
-            AdtTypeInfo(typeSymbol, typeSymbol, List(typeSymbol))
-          case Some(baseClassSymbol) if constrTpe.isSingleton => // case 3, 5
-            AdtTypeInfo(constrTpe.termSymbol, baseClassSymbol, baseClassSymbol.children)
-          case Some(baseClassSymbol) => // case 4, 6
-            AdtTypeInfo(typeSymbol, baseClassSymbol, baseClassSymbol.children)
-      report.echo(s"adtBaseType: ${constrTpe.show} ${typeSymbol} ${adtBaseType} $info")
-      info
-    }
-
-    def primaryConstructorParams(typeSymbol: Symbol): List[Symbol] = {
-      val fields = typeSymbol.primaryConstructor.paramSymss.flatten.filter(s => s.isTerm)
-      // debugInfo(s"caseFields: ${typeSymbol.fullName} $fields")
-      fields
     }
 
     val allTypeDefs = collectTypeDefs(tree)
@@ -180,6 +138,46 @@ class SIRCompiler(mode: scalus.Mode)(using ctx: Context) {
   def compileCaseClass(td: TypeDef) = {
     println(s"compileCaseClass: ${td.name}")
 
+  }
+
+  case class AdtTypeInfo(
+      constructorTypeSymbol: Symbol,
+      dataTypeSymbol: Symbol,
+      constructors: List[Symbol]
+  )
+
+  def getAdtInfoFromConstroctorType(constrTpe: Type): AdtTypeInfo = {
+    /* We support these cases:
+        1. case class Foo(a: Int, b: String)
+        2. case object Bar
+        3. enum Base { case A ...}
+        4. enum Base { case B(a, b) }
+        5. sealed abstract class Base; object Base { case object A extends Base }
+        6. sealed abstract class Base; object Base { case class B(a: Int, b: String) extends Base }
+
+     */
+    val typeSymbol = constrTpe.dealias.widen.typeSymbol
+    // look for a base `sealed abstract class`. If it exists, we are in case 5 or 6
+    val adtBaseType = constrTpe.baseClasses.find(b =>
+      b.flags.isOneOf(Flags.Sealed | Flags.Abstract) && !b.flags.is(Flags.Trait)
+    )
+
+    val info =
+      adtBaseType match
+        case None => // case 1 or 2
+          AdtTypeInfo(typeSymbol, typeSymbol, List(typeSymbol))
+        case Some(baseClassSymbol) if constrTpe.isSingleton => // case 3, 5
+          AdtTypeInfo(constrTpe.termSymbol, baseClassSymbol, baseClassSymbol.children)
+        case Some(baseClassSymbol) => // case 4, 6
+          AdtTypeInfo(typeSymbol, baseClassSymbol, baseClassSymbol.children)
+    report.echo(s"adtBaseType: ${constrTpe.show} ${typeSymbol} ${adtBaseType} $info")
+    info
+  }
+
+  def primaryConstructorParams(typeSymbol: Symbol): List[Symbol] = {
+    val fields = typeSymbol.primaryConstructor.paramSymss.flatten.filter(s => s.isTerm)
+    // debugInfo(s"caseFields: ${typeSymbol.fullName} $fields")
+    fields
   }
 
   def findAndReadModuleOfSymbol(symbol: Symbol): Option[Module] = {
@@ -245,7 +243,10 @@ class SIRCompiler(mode: scalus.Mode)(using ctx: Context) {
                   moduleCache.put(e.symbol.owner, m)
                   defs.head.value
                 case Some(Module.DataDecl(decl)) =>
-                  report.error(s"Read DataDecl instead of ${e.symbol.fullName.show}: ${decl}", e.srcPos)
+                  report.error(
+                    s"Read DataDecl instead of ${e.symbol.fullName.show}: ${decl}",
+                    e.srcPos
+                  )
                   return SIR.Error(s"Read DataDecl instead of ${e.symbol.fullName.show}: ${decl}")
                 case None =>
                   report.error(s"Symbol ${e.symbol.fullName.show} is not defined", e.srcPos)
@@ -312,13 +313,16 @@ class SIRCompiler(mode: scalus.Mode)(using ctx: Context) {
   }
 
   def compileConstant: PartialFunction[Tree, scalus.uplc.Constant] = {
-    case l@Literal(c: Constant) =>
+    case l @ Literal(c: Constant) =>
       c.tag match
         case Constants.BooleanTag => scalus.uplc.Constant.Bool(c.booleanValue)
         case Constants.StringTag  => scalus.uplc.Constant.String(c.stringValue)
         case Constants.UnitTag    => scalus.uplc.Constant.Unit
         case Constants.IntTag =>
-          report.error(s"Scalus: Int literals are not supported. Try BigInt(${c.intValue}) instead", l.srcPos)
+          report.error(
+            s"Scalus: Int literals are not supported. Try BigInt(${c.intValue}) instead",
+            l.srcPos
+          )
           scalus.uplc.Constant.Unit
         case _ =>
           report.error(s"Unsupported constant type $c");
@@ -327,7 +331,7 @@ class SIRCompiler(mode: scalus.Mode)(using ctx: Context) {
     case e @ Literal(_) =>
       report.error(s"compileExpr: Unsupported literal ${e.show}\n$e", e.srcPos)
       scalus.uplc.Constant.Unit
-    case t@Apply(bigintApply, List(Literal(c)))
+    case t @ Apply(bigintApply, List(Literal(c)))
         if bigintApply.symbol.showFullName == "scala.math.BigInt.apply" =>
       c.tag match
         case Constants.IntTag =>
@@ -433,15 +437,15 @@ class SIRCompiler(mode: scalus.Mode)(using ctx: Context) {
   def compileBigIntOps(env: Env, ident: Tree, op: Name): SIR =
     op match
       case nme.PLUS =>
-        SIR.Apply(SIR.Builtin(DefaultFun.AddInteger), compileExpr(env, ident) )
+        SIR.Apply(SIR.Builtin(DefaultFun.AddInteger), compileExpr(env, ident))
       case nme.MINUS =>
-        SIR.Apply(SIR.Builtin(DefaultFun.SubtractInteger), compileExpr(env, ident) )
+        SIR.Apply(SIR.Builtin(DefaultFun.SubtractInteger), compileExpr(env, ident))
       case nme.MUL =>
-        SIR.Apply(SIR.Builtin(DefaultFun.MultiplyInteger), compileExpr(env, ident) )
+        SIR.Apply(SIR.Builtin(DefaultFun.MultiplyInteger), compileExpr(env, ident))
       case nme.DIV =>
-        SIR.Apply(SIR.Builtin(DefaultFun.DivideInteger), compileExpr(env, ident) )
+        SIR.Apply(SIR.Builtin(DefaultFun.DivideInteger), compileExpr(env, ident))
       case nme.MOD =>
-        SIR.Apply(SIR.Builtin(DefaultFun.RemainderInteger), compileExpr(env, ident) )
+        SIR.Apply(SIR.Builtin(DefaultFun.RemainderInteger), compileExpr(env, ident))
 
   def compileExpr(env: immutable.HashSet[Symbol], tree: Tree)(using Context): SIR = {
     if compileConstant.isDefinedAt(tree) then
@@ -486,7 +490,7 @@ class SIRCompiler(mode: scalus.Mode)(using ctx: Context) {
                 s"compileExpr: Unsupported list method $fun. Only head, tail and isEmpty are supported"
               )
               SIR.Error(s"Unsupported list method $fun")
-        case tree@TypeApply(Select(list, name), immutable.List(tpe))
+        case tree @ TypeApply(Select(list, name), immutable.List(tpe))
             if name == termName("empty") && list.tpe =:= requiredModule(
               "scalus.builtins.List"
             ).typeRef =>
@@ -498,7 +502,7 @@ class SIRCompiler(mode: scalus.Mode)(using ctx: Context) {
             ) if name == termName("::") && list.isList =>
           val argE = compileExpr(env, arg)
           SIR.Apply(SIR.Apply(SIR.Builtin(DefaultFun.MkCons), argE), compileExpr(env, list))
-        case tree@Apply(
+        case tree @ Apply(
               TypeApply(Select(list, nme.apply), immutable.List(tpe)),
               immutable.List(ex)
             ) if list.tpe =:= requiredModule("scalus.builtins.List").typeRef =>
