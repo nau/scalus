@@ -44,6 +44,7 @@ import scalus.flat.Flat.EncoderState
 import scalus.flat.Flat
 import scalus.flat.FlatInstantces.given
 import scalus.flat.Flat.DecoderState
+import dotty.tools.dotc.util.SrcPos
 
 enum Module:
   case DataDecl(decl: scalus.sir.DataDecl)
@@ -244,10 +245,10 @@ class SIRCompiler(mode: scalus.Mode)(using ctx: Context) {
                   moduleCache.put(e.symbol.owner, m)
                   defs.head.value
                 case Some(Module.DataDecl(decl)) =>
-                  report.error(s"Read DataDecl instead of ${e.symbol.fullName.show}: ${decl}")
+                  report.error(s"Read DataDecl instead of ${e.symbol.fullName.show}: ${decl}", e.srcPos)
                   return SIR.Error(s"Read DataDecl instead of ${e.symbol.fullName.show}: ${decl}")
                 case None =>
-                  report.error(s"Symbol ${e.symbol.fullName.show} is not defined")
+                  report.error(s"Symbol ${e.symbol.fullName.show} is not defined", e.srcPos)
                   return SIR.Error(s"Symbol ${e.symbol.fullName.show} not defined")
         else
           // remember the symbol to avoid infinite recursion
@@ -311,22 +312,22 @@ class SIRCompiler(mode: scalus.Mode)(using ctx: Context) {
   }
 
   def compileConstant: PartialFunction[Tree, scalus.uplc.Constant] = {
-    case Literal(c: Constant) =>
+    case l@Literal(c: Constant) =>
       c.tag match
         case Constants.BooleanTag => scalus.uplc.Constant.Bool(c.booleanValue)
         case Constants.StringTag  => scalus.uplc.Constant.String(c.stringValue)
         case Constants.UnitTag    => scalus.uplc.Constant.Unit
         case Constants.IntTag =>
-          report.error(s"Scalus: Int literals are not supported. Try BigInt(${c.intValue}) instead")
+          report.error(s"Scalus: Int literals are not supported. Try BigInt(${c.intValue}) instead", l.srcPos)
           scalus.uplc.Constant.Unit
         case _ =>
           report.error(s"Unsupported constant type $c");
           scalus.uplc.Constant.Unit
 
     case e @ Literal(_) =>
-      report.error(s"compileExpr: Unsupported literal ${e.show}\n$e")
+      report.error(s"compileExpr: Unsupported literal ${e.show}\n$e", e.srcPos)
       scalus.uplc.Constant.Unit
-    case Apply(bigintApply, List(Literal(c)))
+    case t@Apply(bigintApply, List(Literal(c)))
         if bigintApply.symbol.showFullName == "scala.math.BigInt.apply" =>
       c.tag match
         case Constants.IntTag =>
@@ -334,7 +335,7 @@ class SIRCompiler(mode: scalus.Mode)(using ctx: Context) {
         case Constants.StringTag =>
           scalus.uplc.Constant.Integer(BigInt(c.stringValue))
         case _ =>
-          report.error(s"Unsupported constant type $c");
+          report.error(s"Unsupported constant type $c", t.srcPos);
           scalus.uplc.Constant.Unit
     case Apply(i, List(Literal(c))) if i.symbol.showFullName == "scala.math.BigInt.int2bigInt" =>
       scalus.uplc.Constant.Integer(BigInt(c.intValue))
@@ -384,7 +385,7 @@ class SIRCompiler(mode: scalus.Mode)(using ctx: Context) {
     }
   }
 
-  def typeReprToDefaultUni(t: Type): DefaultUni =
+  def typeReprToDefaultUni(t: Type, pos: SrcPos): DefaultUni =
     if t =:= converter.BigIntClassSymbol.typeRef then DefaultUni.Integer
     else if t =:= defn.StringClass.typeRef then DefaultUni.String
     else if t =:= defn.BooleanClass.typeRef then DefaultUni.Bool
@@ -393,12 +394,12 @@ class SIRCompiler(mode: scalus.Mode)(using ctx: Context) {
     else if t =:= converter.ByteStringClassSymbol.typeRef then DefaultUni.ByteString
     else if t.isPair then
       val List(t1, t2) = t.dealias.argInfos
-      DefaultUni.Pair(typeReprToDefaultUni(t1), typeReprToDefaultUni(t2))
+      DefaultUni.Pair(typeReprToDefaultUni(t1, pos), typeReprToDefaultUni(t2, pos))
     else if t.isList then
       val t1 = t.dealias.argInfos.head
-      DefaultUni.List(typeReprToDefaultUni(t1))
+      DefaultUni.List(typeReprToDefaultUni(t1, pos))
     else
-      report.error(s"Unsupported type $t")
+      report.error(s"Unsupported type $t", pos)
       DefaultUni.Unit
 
   def compileExpr(env: immutable.HashSet[Symbol], tree: Tree)(using Context): SIR = {
@@ -479,11 +480,11 @@ class SIRCompiler(mode: scalus.Mode)(using ctx: Context) {
                 s"compileExpr: Unsupported list method $fun. Only head, tail and isEmpty are supported"
               )
               SIR.Error(s"Unsupported list method $fun")
-        case TypeApply(Select(list, name), immutable.List(tpe))
+        case tree@TypeApply(Select(list, name), immutable.List(tpe))
             if name == termName("empty") && list.tpe =:= requiredModule(
               "scalus.builtins.List"
             ).typeRef =>
-          val tpeE = typeReprToDefaultUni(tpe.tpe)
+          val tpeE = typeReprToDefaultUni(tpe.tpe, tree.srcPos)
           SIR.Const(scalus.uplc.Constant.List(tpeE, Nil))
         case Apply(
               TypeApply(Select(list, name), immutable.List(tpe)),
@@ -491,11 +492,11 @@ class SIRCompiler(mode: scalus.Mode)(using ctx: Context) {
             ) if name == termName("::") && list.isList =>
           val argE = compileExpr(env, arg)
           SIR.Apply(SIR.Apply(SIR.Builtin(DefaultFun.MkCons), argE), compileExpr(env, list))
-        case Apply(
+        case tree@Apply(
               TypeApply(Select(list, nme.apply), immutable.List(tpe)),
               immutable.List(ex)
             ) if list.tpe =:= requiredModule("scalus.builtins.List").typeRef =>
-          val tpeE = typeReprToDefaultUni(tpe.tpe)
+          val tpeE = typeReprToDefaultUni(tpe.tpe, list.srcPos)
           ex match
             case SeqLiteral(args, _) =>
               val allLiterals = args.forall(arg => compileConstant.isDefinedAt(arg))
@@ -512,7 +513,7 @@ class SIRCompiler(mode: scalus.Mode)(using ctx: Context) {
                   )
                 }
             case _ =>
-              report.error(s"compileExpr: List is not supported yet ${ex}")
+              report.error(s"compileExpr: List is not supported yet ${ex}", tree.srcPos)
               SIR.Error("List is not supported")
         // Pair BUILTINS
         // PAIR
@@ -523,7 +524,7 @@ class SIRCompiler(mode: scalus.Mode)(using ctx: Context) {
             case "snd" =>
               SIR.Apply(SIR.Builtin(DefaultFun.SndPair), compileExpr(env, pair))
             case _ =>
-              report.error(s"compileExpr: Unsupported pair function: $fun")
+              report.error(s"compileExpr: Unsupported pair function: $fun", tree.srcPos)
               SIR.Error(s"Unsupported pair function: $fun")
         case Apply(
               TypeApply(Select(pair, nme.apply), immutable.List(tpe1, tpe2)),
@@ -546,7 +547,8 @@ class SIRCompiler(mode: scalus.Mode)(using ctx: Context) {
               |Pair[${tpe1.tpe.show},${tpe2.tpe.show}](${a.show}, ${b.show})
               |- ${a.show} literal: ${a.isLiteral}, data: ${a.isData}
               |- ${b.show} literal: ${b.isLiteral}, data: ${b.isData}
-              |""".stripMargin
+              |""".stripMargin,
+              tree.srcPos
             )
             SIR.Error(
               s"""Builtin Pair can only be created either by 2 literals or 2 Data variables:
@@ -599,7 +601,7 @@ class SIRCompiler(mode: scalus.Mode)(using ctx: Context) {
       case (CompileDef.Compiled(b), acc) =>
         SIR.Let(b.recursivity, List(Binding(b.fullName, b.body)), acc)
       case (d, acc) =>
-        report.error(s"Unexpected globalDefs state: $d")
+        report.error(s"Unexpected globalDefs state: $d", tree.srcPos)
         SIR.Error("Unexpected globalDefs state")
 
     }
