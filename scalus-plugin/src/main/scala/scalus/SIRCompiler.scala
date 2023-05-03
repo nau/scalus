@@ -420,6 +420,35 @@ class SIRCompiler(mode: scalus.Mode)(using ctx: Context) {
               msg.stringValue
             case term => "error"
           SIR.Error(msg)
+
+        // Boolean &&
+        case Select(lhs, op) if lhs.tpe.widen =:= defn.BooleanType =>
+          val lhsExpr = compileExpr(env, lhs)
+          op match
+            case nme.UNARY_! =>
+              SIR.IfThenElse(
+                lhsExpr,
+                SIR.Const(scalus.uplc.Constant.Bool(false)),
+                SIR.Const(scalus.uplc.Constant.Bool(true))
+              )
+            case nme.ZAND =>
+              SIR.LamAbs(
+                "rhs",
+                SIR.IfThenElse(
+                  lhsExpr,
+                  SIR.Var(NamedDeBruijn("rhs")),
+                  SIR.Const(scalus.uplc.Constant.Bool(false))
+                )
+              )
+            case nme.ZOR =>
+              SIR.LamAbs(
+                "rhs",
+                SIR.IfThenElse(
+                  lhsExpr,
+                  SIR.Const(scalus.uplc.Constant.Bool(true)),
+                  SIR.Var(NamedDeBruijn("rhs"))
+                )
+              )
         // Data BUILTINS
         case bi: Select if BuiltinHelper.builtinFun(bi.symbol.showFullName).isDefined =>
           BuiltinHelper.builtinFun(bi.symbol.showFullName).get

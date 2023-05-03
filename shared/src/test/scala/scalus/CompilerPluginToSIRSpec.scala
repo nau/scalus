@@ -368,45 +368,49 @@ class CompilerPluginToSIRSpec extends AnyFunSuite with ScalaCheckPropertyChecks:
       )
     )
   }
-  /*
+
   test("compile Boolean &&, ||, ! builtins") {
     import Constant.Bool
-    val compiled = compilesTo(
-      Let(
-        NonRec,
-        List(Binding("a", Const(Bool(true)))),
-        Apply(
-          LamAbs(
-            "rhs",
-            SIR.IfThenElse(
-              Apply(
-                LamAbs(
-                  "rhs",
-                  SIR.IfThenElse(
-                    SIR.IfThenElse(Var(NamedDeBruijn("a")), Const(Bool(false)), Const(Bool(true))),
-                    Var(NamedDeBruijn("rhs")),
-                    Const(Bool(false))
-                  )
-                ),
-                Const(Bool(false))
-              ),
-              Const(Bool(true)),
-              Var(NamedDeBruijn("rhs"))
-            )
-          ),
-          Const(Bool(true))
-        )
-      )
-    ) {
+    val compiled = compile {
       val a = true
       !a && false || true
     }
+    assert(
+      compiled ==
+        Let(
+          NonRec,
+          List(Binding("a", Const(Bool(true)))),
+          Apply(
+            LamAbs(
+              "rhs",
+              SIR.IfThenElse(
+                Apply(
+                  LamAbs(
+                    "rhs",
+                    SIR.IfThenElse(
+                      SIR
+                        .IfThenElse(Var(NamedDeBruijn("a")), Const(Bool(false)), Const(Bool(true))),
+                      Var(NamedDeBruijn("rhs")),
+                      Const(Bool(false))
+                    )
+                  ),
+                  Const(Bool(false))
+                ),
+                Const(Bool(true)),
+                Var(NamedDeBruijn("rhs"))
+              )
+            ),
+            Const(Bool(true))
+          )
+        )
+    )
     // println(compiled.pretty.render(80))
     val term = new SimpleSirToUplcLowering().lower(compiled)
     val evaled = Cek.evalUPLC(term)
     // println(evaled.pretty.render(80))
     assert(evaled == scalus.uplc.Term.Const(Constant.Bool(true)))
   }
+  /*
 
   test("compile type-safe equality") {
     import scalus.Prelude.*
