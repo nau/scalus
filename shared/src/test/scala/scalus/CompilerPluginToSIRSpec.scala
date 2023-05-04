@@ -532,7 +532,7 @@ class CompilerPluginToSIRSpec extends AnyFunSuite with ScalaCheckPropertyChecks:
     // println(evaled.pretty.render(80))
     assert(evaled == scalus.uplc.Term.Const(Constant.Integer(1)))
   }
-  /*
+
 
   test("compile fieldAsData macro") {
     import scalus.ledger.api.v1.{*, given}
@@ -569,9 +569,9 @@ class CompilerPluginToSIRSpec extends AnyFunSuite with ScalaCheckPropertyChecks:
     assert(evaled == scalus.uplc.Term.Const(asConstant(hex"deadbeef")))
     val flatBytes = ProgramFlatCodec.encodeFlat(appliedScript)
     // println(Utils.bytesToHex(flatBytes))
-    assert(flatBytes.length == 119)
+    assert(flatBytes.length == 117)
   }
-
+  /*
   test("PubKey Validator example") {
     val scriptContext =
       ScriptContext(
