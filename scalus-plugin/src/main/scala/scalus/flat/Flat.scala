@@ -622,7 +622,7 @@ object FlatInstantces:
         termTagWidth + summon[Flat[Recursivity]].bitSize(rec) + listFlat[Binding].bitSize(
           binds
         ) + bitSize(body)
-      case LamAbs(x, t)        => termTagWidth + bitSize(t)
+      case LamAbs(x, t)        => termTagWidth + summon[Flat[String]].bitSize(x) + bitSize(t)
       case Apply(f, x)         => termTagWidth + bitSize(f) + bitSize(x)
       case Const(c)            => termTagWidth + summon[Flat[Constant]].bitSize(c)
       case IfThenElse(c, t, f) => termTagWidth + bitSize(c) + bitSize(t) + bitSize(f)
@@ -648,6 +648,7 @@ object FlatInstantces:
           encode(body, enc)
         case LamAbs(x, t) =>
           enc.bits(termTagWidth, 2)
+          summon[Flat[String]].encode(x, enc)
           encode(t, enc)
         case Apply(f, x) =>
           enc.bits(termTagWidth, 3)
@@ -693,8 +694,9 @@ object FlatInstantces:
           val body = decode(decoder)
           Let(rec, binds, body)
         case 2 =>
+          val x = summon[Flat[String]].decode(decoder)
           val t = decode(decoder)
-          LamAbs("x", t)
+          LamAbs(x, t)
         case 3 =>
           val f = decode(decoder)
           val x = decode(decoder)
