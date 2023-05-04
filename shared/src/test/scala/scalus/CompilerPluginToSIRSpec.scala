@@ -117,7 +117,7 @@ class CompilerPluginToSIRSpec extends AnyFunSuite with ScalaCheckPropertyChecks:
     assert(compile { throw new RuntimeException("foo") } == Error("foo"))
   }
 
-  /*
+
   test("compile ToData") {
     import scalus.uplc.Data.*
     val compiled = compile {
@@ -145,7 +145,7 @@ class CompilerPluginToSIRSpec extends AnyFunSuite with ScalaCheckPropertyChecks:
 //    val term = new SimpleSirToUplcLowering().lower(compiled)
 //    assert(Cek.evalUPLC(term) == Data.I(22))
   }
-   */
+
 
   test("compile List builtins") {
     // Nil
