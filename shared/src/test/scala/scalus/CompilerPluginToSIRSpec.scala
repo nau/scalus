@@ -434,52 +434,61 @@ class CompilerPluginToSIRSpec extends AnyFunSuite with ScalaCheckPropertyChecks:
       } ==
         Let(
           Rec,
-          List(Binding("scalus.CompilerPluginToSIRSpec._$_$foo", LamAbs("i", Var(NamedDeBruijn("i"))))),
-          Apply(Var(NamedDeBruijn("scalus.CompilerPluginToSIRSpec._$_$foo")), Const(Constant.Integer(5)))
+          List(
+            Binding("scalus.CompilerPluginToSIRSpec._$_$foo", LamAbs("i", Var(NamedDeBruijn("i"))))
+          ),
+          Apply(
+            Var(NamedDeBruijn("scalus.CompilerPluginToSIRSpec._$_$foo")),
+            Const(Constant.Integer(5))
+          )
         )
     )
   }
-  /*
 
   test("compile datatypes") {
-    val compiled = compilesTo(
-      Decl(
-        DataDecl("PubKeyHash", List(ConstrDecl("PubKeyHash", List("hash")))),
-        Let(
-          Rec,
-          List(
-            Binding(
-              "scalus.ledger.api.v1.PubKeyHash$.apply",
-              LamAbs(
-                "hash",
-                Constr(
-                  "PubKeyHash",
-                  DataDecl("PubKeyHash", List(ConstrDecl("PubKeyHash", List("hash")))),
-                  List(Var(NamedDeBruijn("hash")))
-                )
-              )
-            )
-          ),
-          Let(
-            NonRec,
-            List(
-              Binding(
-                "pkh",
-                Apply(
-                  Var(NamedDeBruijn("scalus.ledger.api.v1.PubKeyHash$.apply")),
-                  Const(Constant.ByteString(ByteString.fromHex("DEADBEEF")))
-                )
-              )
-            ),
-            Apply(Var(NamedDeBruijn("pkh")), LamAbs("hash", Var(NamedDeBruijn("hash"))))
-          )
-        )
-      )
-    ) {
+    import scalus.ledger.api.v1.PubKeyHash
+    val compiled = compile {
       val pkh = scalus.ledger.api.v1.PubKeyHash(ByteString.fromHex("deadbeef"))
       pkh.hash
     }
+    assert(
+      compiled ==
+        Decl(
+          DataDecl("PubKeyHash", List(ConstrDecl("PubKeyHash", List("hash")))),
+          Let(
+            Rec,
+            List(
+              Binding(
+                "scalus.ledger.api.v1.PubKeyHash$.apply",
+                LamAbs(
+                  "hash",
+                  Constr(
+                    "PubKeyHash",
+                    DataDecl("PubKeyHash", List(ConstrDecl("PubKeyHash", List("hash")))),
+                    List(Var(NamedDeBruijn("hash")))
+                  )
+                )
+              )
+            ),
+            Let(
+              NonRec,
+              List(
+                Binding(
+                  "pkh",
+                  Apply(
+                    Var(NamedDeBruijn("scalus.ledger.api.v1.PubKeyHash$.apply")),
+                    Const(Constant.ByteString(ByteString.fromHex("DEADBEEF")))
+                  )
+                )
+              ),
+              Apply(Var(NamedDeBruijn("pkh")), LamAbs("hash", Var(NamedDeBruijn("hash"))))
+            )
+          )
+        )
+    )
   }
+
+  /*
 
   test("compile Tuple2 construction/matching") {
     val compiled = compile {

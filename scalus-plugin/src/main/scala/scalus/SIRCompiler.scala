@@ -68,6 +68,14 @@ class SIRCompiler(mode: scalus.Mode)(using ctx: Context) {
     def isList: Boolean =
       t <:< requiredClass("scalus.builtins.List").typeRef.appliedTo(defn.AnyType)
 
+  extension (self: Symbol)
+    def caseFields: List[Symbol] =
+      if !self.isClass then Nil
+      else
+        self.asClass.paramAccessors.collect {
+          case sym if sym.is(dotty.tools.dotc.core.Flags.CaseAccessor) => sym.asTerm
+        }
+
   extension (t: Tree) def isList: Boolean = t.tpe.isList
 
   extension (t: Tree) def isPair: Boolean = t.tpe.isPair
@@ -158,9 +166,12 @@ class SIRCompiler(mode: scalus.Mode)(using ctx: Context) {
      */
     val typeSymbol = constrTpe.dealias.widen.typeSymbol
     // look for a base `sealed abstract class`. If it exists, we are in case 5 or 6
-    val adtBaseType = constrTpe.baseClasses.find(b =>
+    // FIXME: temporary hack
+    val adtBaseType: Option[TypeSymbol] = None
+    /* val adtBaseType = constrTpe.baseClasses.find(b =>
+      println(s"base class: ${b.show} ${b.flags.flagsString}")
       b.flags.isOneOf(Flags.Sealed | Flags.Abstract) && !b.flags.is(Flags.Trait)
-    )
+    ) */
 
     val info =
       adtBaseType match
@@ -170,7 +181,7 @@ class SIRCompiler(mode: scalus.Mode)(using ctx: Context) {
           AdtTypeInfo(constrTpe.termSymbol, baseClassSymbol, baseClassSymbol.children)
         case Some(baseClassSymbol) => // case 4, 6
           AdtTypeInfo(typeSymbol, baseClassSymbol, baseClassSymbol.children)
-    report.echo(s"adtBaseType: ${constrTpe.show} ${typeSymbol} ${adtBaseType} $info")
+    report.echo(s"getAdtInfoFromConstroctorType: ${constrTpe.show} ${typeSymbol} ${adtBaseType} $info")
     info
   }
 
@@ -213,6 +224,48 @@ class SIRCompiler(mode: scalus.Mode)(using ctx: Context) {
       Some(module)
     else None
   }
+
+  def compileNewConstructor(
+      env: Env,
+      tpe: Type,
+      args: immutable.List[Tree]
+  ): SIR = {
+
+    val typeSymbol = tpe.typeSymbol
+
+    // debugInfo(s"compileNewConstructor0")
+    // report.inform(s"compileNewConstructor1 ${tpe.show} base type: ${adtBaseType}")
+    report.echo(s"compileNewConstructor1 ${typeSymbol} singleton ${tpe.isSingleton} companion: ${typeSymbol.maybeOwner.companionClass} " +
+        s"${typeSymbol.children} widen: ${tpe.widen.typeSymbol}, widen.children: ${tpe.widen.typeSymbol.children} ${typeSymbol.maybeOwner.companionClass.children}")
+
+    val adtInfo = getAdtInfoFromConstroctorType(tpe)
+
+    val argsE = args.map(compileExpr(env, _))
+    val constrName = adtInfo.constructorTypeSymbol.name.show
+    // sort by name to get a stable order
+    val sortedConstructors = adtInfo.constructors.sortBy(_.name.show)
+    val constrDecls = sortedConstructors.map { sym =>
+      val params = primaryConstructorParams(sym).map(_.name.show)
+      scalus.sir.ConstrDecl(sym.name.show, params)
+    }
+    val dataName = adtInfo.dataTypeSymbol.name.show
+    // debugInfo(s"compileNewConstructor2: dataTypeSymbol $dataTypeSymbol, dataName $dataName, constrName $constrName, children ${constructors}")
+    val dataDecl = globalDataDecls.get(adtInfo.dataTypeSymbol) match
+      case Some(decl) => decl
+      case None =>
+        val decl = scalus.sir.DataDecl(dataName, constrDecls)
+        globalDataDecls.addOne(adtInfo.dataTypeSymbol -> decl)
+        decl
+    // constructor body as: constr arg1 arg2 ...
+    SIR.Constr(constrName, dataDecl, argsE)
+  }
+
+  def isConstructorVal(symbol: Symbol, tpe: Type): Boolean =
+    /* debugInfo(
+        s"isConstructorVal: ${tpe.typeSymbol.isClassDef && symbol.flags.is(Flags.Case)} $symbol: ${tpe.show} <: ${tpe.widen.show}, ${tpe.typeSymbol.isClassDef}, ${symbol.flags
+            .is(Flags.Case)}"
+      ) */
+    tpe.typeSymbol.isClass && symbol.flags.is(Flags.Case)
 
   def compileIdentOrQualifiedSelect(env: Env, e: Tree): SIR = {
     println(s"Ident: ${e.symbol}, flags: ${e.symbol.flags.tryToShow}, term: ${e.show}")
@@ -455,6 +508,110 @@ class SIRCompiler(mode: scalus.Mode)(using ctx: Context) {
       tree match
         case If(cond, t, f) =>
           SIR.IfThenElse(compileToSIR(cond), compileToSIR(t), compileToSIR(f))
+        /*
+            enum A:
+              case C0
+              case C1(a)
+              case C2(b, c)
+            compiles to:
+            Decl(DataDecl("A", List(ConstrDecl("C0", List()), ConstrDecl("C1", List("a")), ConstrDecl("C2", List("b", "c")))), ...)
+
+            c ==> Constr("C0", constrDecl, List())
+
+            c match
+              C1(a) -> 0
+              C2(b, c) -> 1
+            compiles to:
+            Match(c, List(Case(C1, List(a), 0), Case(C2, List(b, c), 1)))
+         */
+        case Match(t, cases) =>
+          val adtInfo = getAdtInfoFromConstroctorType(t.tpe)
+          // report.info(s"Match: ${t.tpe.typeSymbol} ${t.tpe.typeSymbol.children} $adtInfo", e.pos)
+
+          def constructCase(
+              constrSymbol: Symbol,
+              bindings: List[String],
+              rhs: SIR
+          ): scalus.sir.Case = {
+            val params = primaryConstructorParams(constrSymbol).map(_.name.show)
+            val constrDecl = scalus.sir.ConstrDecl(constrSymbol.name.show, params)
+
+            scalus.sir.Case(constrDecl, bindings, rhs)
+          }
+
+          if adtInfo.constructors.length == 1
+          then
+            cases match
+              case cs :: Nil =>
+                cs match
+                  case CaseDef(_, guard, _) if !guard.isEmpty =>
+                    report.error(s"Guards are not supported in match expressions", guard.srcPos)
+                    SIR.Error(s"Guards are not supported in match expressions")
+
+                  case CaseDef(UnApply(fun, implicits, pats), _, rhs) =>
+                    // report.error(s"Case: ${fun}, pats: ${pats}, rhs: $rhs", t.pos)
+                    val names = pats.map {
+                      case b @ Bind(name, Ident(nme.WILDCARD)) => b.symbol
+                      case p =>
+                        report.error(s"Unsupported binding: ${p}", p.srcPos)
+                        NoSymbol
+                    }
+                    val rhsE = compileExpr(env ++ names, rhs)
+                    val tE = compileExpr(env, t)
+                    val cases = List(constructCase(t.tpe.typeSymbol, names.map(_.name.show), rhsE))
+                    SIR.Match(tE, cases)
+
+              case _ =>
+                report.error(
+                  s"Only single constructor pattern supported for type ${t.tpe.widen.show}",
+                  tree.srcPos
+                )
+                SIR.Error(s"Only single constructor pattern supported for type ${t.tpe.widen.show}")
+          else if cases.length != adtInfo.constructors.length
+          then
+            report.error(
+              s"Unsupported pattern matching for type ${t.tpe.widen.show}, constructors: ${t.tpe.typeSymbol.children}",
+              tree.srcPos
+            )
+            SIR.Error(s"Unsupported pattern matching for type ${t.tpe.widen.show}")
+          else
+            val cs = cases.map {
+              case CaseDef(_, guard, _) if guard.isEmpty =>
+                report.error(s"Guards are not supported in match expressions", guard.srcPos)
+                (NoSymbol, Nil, SIR.Error(s"Guards are not supported in match expressions"))
+              // case object
+              case CaseDef(pat @ Ident(name), _, rhs) =>
+                val rhsE = compileExpr(env, rhs)
+                // no-arg constructor, it's a Val, so we use termSymbol
+                (pat.tpe.termSymbol, Nil, rhsE)
+              case CaseDef(Typed(inner, constrTpe), _, rhs) =>
+                // report.info(s"Case: ${inner}, tpe ${constrTpe.tpe.widen.show}", t.pos)
+                inner match
+                  case UnApply(fun, implicits, pats) =>
+                    val bindings = pats.map {
+                      case b @ Bind(name, Ident(nme.WILDCARD)) => b.symbol
+                      case p =>
+                        report.error(s"Unsupported binding: ${p}", p.srcPos)
+                        NoSymbol
+                    }
+                    val rhsE = compileExpr(env ++ bindings, rhs)
+                    (constrTpe.tpe.typeSymbol, bindings, rhsE)
+                  case _ =>
+                    report.error(s"Unsupported case: ${inner}", inner.srcPos)
+                    (NoSymbol, Nil, SIR.Error(s"Unsupported case: ${inner}"))
+              case a =>
+                report.error(
+                  s"Unsupported match expression: ${tree.show}\n$tree\n${t.tpe.typeSymbol}, cases: ${cases}",
+                  t.srcPos
+                )
+                (NoSymbol, Nil, SIR.Error(s"Unsupported case: ${a}"))
+            }
+            val tE = compileExpr(env, t)
+            val sortedCases = cs.sortBy((t, _, _) => t.fullName).map { (sym, bindings, rhs) =>
+              constructCase(sym, bindings.map(_.name.show), rhs)
+            }
+            // report.info(s"Sorted constrs: ${sortedCases}", cases.head.pos)
+            SIR.Match(tE, sortedCases)
         // throw new Exception("error msg")
         // Supports any exception type that uses first argument as message
         case Apply(Ident(nme.throw_), immutable.List(ex)) =>
@@ -567,8 +724,46 @@ class SIRCompiler(mode: scalus.Mode)(using ctx: Context) {
               |- ${b.show} literal: ${b.isLiteral}, data: ${b.isData}
               |""".stripMargin
             )
-        case tree @ Ident(a) =>
+        case Ident(a) =>
+          // FIXME: use isConstructorVal as in Select
+          // Can't do it because isConstructorVal is not always correct
           compileIdentOrQualifiedSelect(env, tree)
+        // case class User(name: String, age: Int)
+        // val user = User("John", 42) => \u - u "John" 42
+        // user.name => \u name age -> name
+        case sel @ Select(obj, ident) =>
+          report.echo(
+            s"select: Select: ${sel.show}: ${obj.tpe.widen.show} . ${ident}, isList: ${obj.isList}",
+            sel.srcPos
+          )
+          val ts = obj.tpe.widen.typeSymbol
+          lazy val fieldIdx = ts.caseFields.indexOf(sel.symbol)
+          if ts.isClass && fieldIdx >= 0 then
+            val lhs = compileExpr(env, obj)
+            val lam = primaryConstructorParams(ts).foldRight(SIR.Var(NamedDeBruijn(ident.show))) {
+              case (f, acc) =>
+                SIR.LamAbs(f.name.show, acc)
+            }
+            SIR.Apply(lhs, lam)
+          // else if obj.symbol.isPackageDef then
+          // compileExpr(env, obj)
+          else if isConstructorVal(tree.symbol, tree.tpe) then
+            compileNewConstructor(env, tree.tpe, Nil)
+          else compileIdentOrQualifiedSelect(env, tree)
+        // new Constr(args)
+        case Apply(TypeApply(con @ Select(f, nme.CONSTRUCTOR), _), args) =>
+          compileNewConstructor(env, f.tpe, args)
+        case Apply(con @ Select(f, nme.CONSTRUCTOR), args) =>
+          compileNewConstructor(env, f.tpe, args)
+        // (a, b) as scala.Tuple2.apply(a, b)
+        // we need to special-case it because we use scala-library 2.13.x
+        // which does not include TASTy so we can't access the method body
+        case Apply(TypeApply(app @ Select(f, nme.apply), _), args)
+            if app.symbol.fullName.show == "scala.Tuple2.apply" =>
+          compileNewConstructor(env, f.tpe, args)
+        case Apply(app @ Select(f, nme.apply), args)
+            if app.symbol.fullName.show == "scala.Tuple2.apply" =>
+          compileNewConstructor(env, f.tpe, args)
         // f.apply(arg) => Apply(f, arg)
         case Apply(Select(f, nme.apply), args) if defn.isFunctionType(f.tpe.widen) =>
           val fE = compileExpr(env, f)
