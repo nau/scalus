@@ -732,6 +732,25 @@ class SIRCompiler(mode: scalus.Mode)(using ctx: Context) {
               |- ${b.show} literal: ${b.isLiteral}, data: ${b.isData}
               |""".stripMargin
             )
+        // new Constr(args)
+        case Apply(TypeApply(con @ Select(f, nme.CONSTRUCTOR), _), args) =>
+          compileNewConstructor(env, f.tpe, args)
+        case Apply(con @ Select(f, nme.CONSTRUCTOR), args) =>
+          compileNewConstructor(env, f.tpe, args)
+        // (a, b) as scala.Tuple2.apply(a, b)
+        // we need to special-case it because we use scala-library 2.13.x
+        // which does not include TASTy so we can't access the method body
+        case Apply(TypeApply(app @ Select(f, nme.apply), _), args)
+            if app.symbol.fullName.show == "scala.Tuple2$.apply" =>
+          compileNewConstructor(env, tree.tpe, args)
+        case Apply(app @ Select(f, nme.apply), args)
+            if app.symbol.fullName.show == "scala.Tuple2$.apply" =>
+          compileNewConstructor(env, tree.tpe, args)
+        // f.apply(arg) => Apply(f, arg)
+        case Apply(Select(f, nme.apply), args) if defn.isFunctionType(f.tpe.widen) =>
+          val fE = compileExpr(env, f)
+          val argsE = args.map(compileExpr(env, _))
+          argsE.foldLeft(fE)((acc, arg) => SIR.Apply(acc, arg))
         case Ident(a) =>
           // FIXME: use isConstructorVal as in Select
           // Can't do it because isConstructorVal is not always correct
@@ -758,25 +777,6 @@ class SIRCompiler(mode: scalus.Mode)(using ctx: Context) {
           else if isConstructorVal(tree.symbol, tree.tpe) then
             compileNewConstructor(env, tree.tpe, Nil)
           else compileIdentOrQualifiedSelect(env, tree)
-        // new Constr(args)
-        case Apply(TypeApply(con @ Select(f, nme.CONSTRUCTOR), _), args) =>
-          compileNewConstructor(env, f.tpe, args)
-        case Apply(con @ Select(f, nme.CONSTRUCTOR), args) =>
-          compileNewConstructor(env, f.tpe, args)
-        // (a, b) as scala.Tuple2.apply(a, b)
-        // we need to special-case it because we use scala-library 2.13.x
-        // which does not include TASTy so we can't access the method body
-        case Apply(TypeApply(app @ Select(f, nme.apply), _), args)
-            if app.symbol.fullName.show == "scala.Tuple2$.apply" =>
-          compileNewConstructor(env, tree.tpe, args)
-        case Apply(app @ Select(f, nme.apply), args)
-            if app.symbol.fullName.show == "scala.Tuple2$.apply" =>
-          compileNewConstructor(env, tree.tpe, args)
-        // f.apply(arg) => Apply(f, arg)
-        case Apply(Select(f, nme.apply), args) if defn.isFunctionType(f.tpe.widen) =>
-          val fE = compileExpr(env, f)
-          val argsE = args.map(compileExpr(env, _))
-          argsE.foldLeft(fE)((acc, arg) => SIR.Apply(acc, arg))
         // ignore asInstanceOf
         case TypeApply(Select(e, nme.asInstanceOf_), _) => compileExpr(env, e)
         // Ignore type application
