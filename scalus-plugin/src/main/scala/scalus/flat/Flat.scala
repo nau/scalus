@@ -617,7 +617,7 @@ object FlatInstantces:
     def bitSize(a: SIR): Int = a match
       case Var(name) =>
         // in Plutus See Note [Index (Word64) (de)serialized through Natural]
-        termTagWidth + summon[Flat[String]].bitSize(name.name)
+        termTagWidth + summon[Flat[String]].bitSize(name)
       case Let(rec, binds, body) =>
         termTagWidth + summon[Flat[Recursivity]].bitSize(rec) + listFlat[Binding].bitSize(
           binds
@@ -640,7 +640,7 @@ object FlatInstantces:
       a match
         case Var(name) =>
           enc.bits(termTagWidth, 0)
-          summon[Flat[String]].encode(name.name, enc)
+          summon[Flat[String]].encode(name, enc)
         case Let(rec, binds, body) =>
           enc.bits(termTagWidth, 1)
           summon[Flat[Recursivity]].encode(rec, enc)
@@ -686,7 +686,7 @@ object FlatInstantces:
       tag match
         case 0 =>
           val name = summon[Flat[String]].decode(decoder)
-          Var(NamedDeBruijn(name))
+          Var(name)
         case 1 =>
           val rec = summon[Flat[Recursivity]].decode(decoder)
           val binds = listFlat[Binding].decode(decoder)

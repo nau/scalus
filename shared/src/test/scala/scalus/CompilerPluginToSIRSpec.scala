@@ -76,7 +76,7 @@ class CompilerPluginToSIRSpec extends AnyFunSuite with ScalaCheckPropertyChecks:
       } == Let(
         Recursivity.NonRec,
         immutable.List(Binding("a", Const(Constant.Bool(true)))),
-        Var(NamedDeBruijn("a"))
+        Var("a")
       )
     )
   }
@@ -93,8 +93,8 @@ class CompilerPluginToSIRSpec extends AnyFunSuite with ScalaCheckPropertyChecks:
         immutable.List(Binding("b", LamAbs("_", Const(Constant.Bool(true))))),
         Let(
           Recursivity.Rec,
-          immutable.List(Binding("c", LamAbs("x", Var(NamedDeBruijn("x"))))),
-          Apply(Var(NamedDeBruijn("c")), Apply(Var(NamedDeBruijn("b")), Const(Constant.Unit)))
+          immutable.List(Binding("c", LamAbs("x", Var("x")))),
+          Apply(Var("c"), Apply(Var("b"), Const(Constant.Unit)))
         )
       )
     )
@@ -107,8 +107,8 @@ class CompilerPluginToSIRSpec extends AnyFunSuite with ScalaCheckPropertyChecks:
         a(true)
       } == Let(
         NonRec,
-        List(Binding("a", LamAbs("x", Var(NamedDeBruijn("x"))))),
-        Apply(Var(NamedDeBruijn("a")), Const(Constant.Bool(true)))
+        List(Binding("a", LamAbs("x", Var("x")))),
+        Apply(Var("a"), Const(Constant.Bool(true)))
       )
     )
   }
@@ -129,15 +129,15 @@ class CompilerPluginToSIRSpec extends AnyFunSuite with ScalaCheckPropertyChecks:
         immutable.List(
           Binding(
             "scalus.uplc.Data$.given_ToData_BigInt$.toData",
-            LamAbs("a", Apply(Builtin(IData), Var(NamedDeBruijn("a"))))
+            LamAbs("a", Apply(Builtin(IData), Var("a")))
           )
         ),
         Let(
           NonRec,
           immutable.List(Binding("a$proxy1", Const(Constant.Integer(1)))),
           Apply(
-            Var(NamedDeBruijn("scalus.uplc.Data$.given_ToData_BigInt$.toData")),
-            Var(NamedDeBruijn("a$proxy1"))
+            Var("scalus.uplc.Data$.given_ToData_BigInt$.toData"),
+            Var("a$proxy1")
           )
         )
       )
@@ -177,7 +177,7 @@ class CompilerPluginToSIRSpec extends AnyFunSuite with ScalaCheckPropertyChecks:
         Apply(
           Apply(Builtin(MkCons), Const(Constant.String("bar"))),
           Apply(
-            Apply(Builtin(MkCons), Var(NamedDeBruijn("a"))),
+            Apply(Builtin(MkCons), Var("a")),
             Const(Constant.List(DefaultUni.String, List()))
           )
         )
@@ -190,7 +190,7 @@ class CompilerPluginToSIRSpec extends AnyFunSuite with ScalaCheckPropertyChecks:
       } == Let(
         Rec,
         List(
-          Binding("head", LamAbs("l", Apply(Builtin(HeadList), Var(NamedDeBruijn("l")))))
+          Binding("head", LamAbs("l", Apply(Builtin(HeadList), Var("l"))))
         ),
         Const(Constant.Unit)
       )
@@ -201,7 +201,7 @@ class CompilerPluginToSIRSpec extends AnyFunSuite with ScalaCheckPropertyChecks:
       } == Let(
         Rec,
         List(
-          Binding("tail", LamAbs("l", Apply(Builtin(TailList), Var(NamedDeBruijn("l")))))
+          Binding("tail", LamAbs("l", Apply(Builtin(TailList), Var("l"))))
         ),
         Const(Constant.Unit)
       )
@@ -212,7 +212,7 @@ class CompilerPluginToSIRSpec extends AnyFunSuite with ScalaCheckPropertyChecks:
       } == Let(
         Rec,
         List(
-          Binding("isEmpty", LamAbs("l", Apply(Builtin(NullList), Var(NamedDeBruijn("l")))))
+          Binding("isEmpty", LamAbs("l", Apply(Builtin(NullList), Var("l"))))
         ),
         Const(Constant.Unit)
       )
@@ -277,7 +277,7 @@ class CompilerPluginToSIRSpec extends AnyFunSuite with ScalaCheckPropertyChecks:
         List(
           Binding(
             "unb",
-            LamAbs("d", Apply(Builtin(DefaultFun.UnConstrData), Var(NamedDeBruijn("d"))))
+            LamAbs("d", Apply(Builtin(DefaultFun.UnConstrData), Var("d")))
           )
         ),
         Const(Constant.Unit)
@@ -291,7 +291,7 @@ class CompilerPluginToSIRSpec extends AnyFunSuite with ScalaCheckPropertyChecks:
         List(
           Binding(
             "unb",
-            LamAbs("d", Apply(Builtin(DefaultFun.UnListData), Var(NamedDeBruijn("d"))))
+            LamAbs("d", Apply(Builtin(DefaultFun.UnListData), Var("d")))
           )
         ),
         Const(Constant.Unit)
@@ -305,7 +305,7 @@ class CompilerPluginToSIRSpec extends AnyFunSuite with ScalaCheckPropertyChecks:
         List(
           Binding(
             "unb",
-            LamAbs("d", Apply(Builtin(DefaultFun.UnMapData), Var(NamedDeBruijn("d"))))
+            LamAbs("d", Apply(Builtin(DefaultFun.UnMapData), Var("d")))
           )
         ),
         Const(Constant.Unit)
@@ -319,7 +319,7 @@ class CompilerPluginToSIRSpec extends AnyFunSuite with ScalaCheckPropertyChecks:
         List(
           Binding(
             "unb",
-            LamAbs("d", Apply(Builtin(DefaultFun.UnBData), Var(NamedDeBruijn("d"))))
+            LamAbs("d", Apply(Builtin(DefaultFun.UnBData), Var("d")))
           )
         ),
         Const(Constant.Unit)
@@ -333,7 +333,7 @@ class CompilerPluginToSIRSpec extends AnyFunSuite with ScalaCheckPropertyChecks:
         List(
           Binding(
             "unb",
-            LamAbs("d", Apply(Builtin(DefaultFun.UnIData), Var(NamedDeBruijn("d"))))
+            LamAbs("d", Apply(Builtin(DefaultFun.UnIData), Var("d")))
           )
         ),
         Const(Constant.Unit)
@@ -357,8 +357,8 @@ class CompilerPluginToSIRSpec extends AnyFunSuite with ScalaCheckPropertyChecks:
               LamAbs(
                 "p",
                 Apply(
-                  Apply(Builtin(MkPairData), Apply(Builtin(SndPair), Var(NamedDeBruijn("p")))),
-                  Apply(Builtin(FstPair), Var(NamedDeBruijn("p")))
+                  Apply(Builtin(MkPairData), Apply(Builtin(SndPair), Var("p"))),
+                  Apply(Builtin(FstPair), Var("p"))
                 )
               )
             )
@@ -389,15 +389,15 @@ class CompilerPluginToSIRSpec extends AnyFunSuite with ScalaCheckPropertyChecks:
                     "rhs",
                     SIR.IfThenElse(
                       SIR
-                        .IfThenElse(Var(NamedDeBruijn("a")), Const(Bool(false)), Const(Bool(true))),
-                      Var(NamedDeBruijn("rhs")),
+                        .IfThenElse(Var("a"), Const(Bool(false)), Const(Bool(true))),
+                      Var("rhs"),
                       Const(Bool(false))
                     )
                   ),
                   Const(Bool(false))
                 ),
                 Const(Bool(true)),
-                Var(NamedDeBruijn("rhs"))
+                Var("rhs")
               )
             ),
             Const(Bool(true))
@@ -435,10 +435,10 @@ class CompilerPluginToSIRSpec extends AnyFunSuite with ScalaCheckPropertyChecks:
         Let(
           Rec,
           List(
-            Binding("scalus.CompilerPluginToSIRSpec._$_$foo", LamAbs("i", Var(NamedDeBruijn("i"))))
+            Binding("scalus.CompilerPluginToSIRSpec._$_$foo", LamAbs("i", Var("i")))
           ),
           Apply(
-            Var(NamedDeBruijn("scalus.CompilerPluginToSIRSpec._$_$foo")),
+            Var("scalus.CompilerPluginToSIRSpec._$_$foo"),
             Const(Constant.Integer(5))
           )
         )
@@ -465,7 +465,7 @@ class CompilerPluginToSIRSpec extends AnyFunSuite with ScalaCheckPropertyChecks:
                   Constr(
                     "PubKeyHash",
                     DataDecl("PubKeyHash", List(ConstrDecl("PubKeyHash", List("hash")))),
-                    List(Var(NamedDeBruijn("hash")))
+                    List(Var("hash"))
                   )
                 )
               )
@@ -476,12 +476,12 @@ class CompilerPluginToSIRSpec extends AnyFunSuite with ScalaCheckPropertyChecks:
                 Binding(
                   "pkh",
                   Apply(
-                    Var(NamedDeBruijn("scalus.ledger.api.v1.PubKeyHash$.apply")),
+                    Var("scalus.ledger.api.v1.PubKeyHash$.apply"),
                     Const(Constant.ByteString(ByteString.fromHex("DEADBEEF")))
                   )
                 )
               ),
-              Apply(Var(NamedDeBruijn("pkh")), LamAbs("hash", Var(NamedDeBruijn("hash"))))
+              Apply(Var("pkh"), LamAbs("hash", Var("hash")))
             )
           )
         )

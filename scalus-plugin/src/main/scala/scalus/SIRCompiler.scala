@@ -279,13 +279,13 @@ class SIRCompiler(mode: scalus.Mode)(using ctx: Context) {
     // println(s"compileIdentOrQualifiedSelect1: ${e.symbol}, term: ${e.show}, loc/glob: $isInLocalEnv/$isInGlobalEnv, env: ${env}")
     (isInLocalEnv, isInGlobalEnv) match
       // global def, self reference, use the name
-      case (true, true) => SIR.Var(NamedDeBruijn(e.symbol.fullName.show))
+      case (true, true) => SIR.Var(e.symbol.fullName.show)
       // local def, use the name
-      case (true, false) => SIR.Var(NamedDeBruijn(e.symbol.name.show))
+      case (true, false) => SIR.Var(e.symbol.name.show)
       // global def, use full name
-      case (false, true) => SIR.Var(NamedDeBruijn(e.symbol.fullName.show))
+      case (false, true) => SIR.Var(e.symbol.fullName.show)
       case (false, false) if mode == scalus.Mode.Compile =>
-        SIR.Var(NamedDeBruijn(e.symbol.fullName.show))
+        SIR.Var(e.symbol.fullName.show)
       case (false, false) =>
         if e.symbol.defTree == EmptyTree then
           moduleCache.get(e.symbol.owner) match
@@ -320,7 +320,7 @@ class SIRCompiler(mode: scalus.Mode)(using ctx: Context) {
           // remove the symbol from the linked hash map so the order of the definitions is preserved
           globalDefs.remove(e.symbol)
           globalDefs.update(e.symbol, CompileDef.Compiled(b))
-          SIR.Var(NamedDeBruijn(e.symbol.fullName.show))
+          SIR.Var(e.symbol.fullName.show)
   }
 
   def compileStmt(env: Env, stmt: Tree): B = {
@@ -481,7 +481,7 @@ class SIRCompiler(mode: scalus.Mode)(using ctx: Context) {
           "rhs",
           SIR.IfThenElse(
             lhsExpr,
-            SIR.Var(NamedDeBruijn("rhs")),
+            SIR.Var("rhs"),
             SIR.Const(scalus.uplc.Constant.Bool(false))
           )
         )
@@ -491,7 +491,7 @@ class SIRCompiler(mode: scalus.Mode)(using ctx: Context) {
           SIR.IfThenElse(
             lhsExpr,
             SIR.Const(scalus.uplc.Constant.Bool(true)),
-            SIR.Var(NamedDeBruijn("rhs"))
+            SIR.Var("rhs")
           )
         )
 
@@ -767,7 +767,7 @@ class SIRCompiler(mode: scalus.Mode)(using ctx: Context) {
           lazy val fieldIdx = ts.caseFields.indexOf(sel.symbol)
           if ts.isClass && fieldIdx >= 0 then
             val lhs = compileExpr(env, obj)
-            val lam = primaryConstructorParams(ts).foldRight(SIR.Var(NamedDeBruijn(ident.show))) {
+            val lam = primaryConstructorParams(ts).foldRight(SIR.Var(ident.show)) {
               case (f, acc) =>
                 SIR.LamAbs(f.name.show, acc)
             }

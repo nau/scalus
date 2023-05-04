@@ -96,8 +96,8 @@ class SIRConverter(using Context) {
   def mkLamAbs(name: String, term: SIR) =
     ref(LamAbsSymbol.requiredMethod("apply"))
       .appliedToArgs(List(Literal(Constant(name)), convert(term)))
-  def mkVar(name: NamedDeBruijn) =
-    ref(VarSymbol.requiredMethod("apply")).appliedTo(convert(name))
+  def mkVar(name: String) =
+    ref(VarSymbol.requiredMethod("apply")).appliedTo(mkString(name))
   def mkConst(const: scalus.uplc.Constant) =
     ref(ConstSymbol.requiredMethod("apply")).appliedTo(convert(const))
   def mkNamedDeBruijn(name: String) =

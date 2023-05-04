@@ -22,7 +22,7 @@ case class DataDecl(name: String, constructors: List[ConstrDecl])
 case class Case(constr: ConstrDecl, bindings: List[String], body: SIR)
 
 enum SIR:
-  case Var(name: NamedDeBruijn) extends SIR
+  case Var(name: String) extends SIR
   case Let(recursivity: Recursivity, bindings: List[Binding], body: SIR) extends SIR
   case LamAbs(name: String, term: SIR) extends SIR
   case Apply(f: SIR, arg: SIR) extends SIR
@@ -79,7 +79,7 @@ enum SIR:
           2
         )).aligned
 
-      case Var(name) => Doc.text(name.name)
+      case Var(name) => Doc.text(name)
       case Let(Recursivity.NonRec, List(Binding(name, body)), inExpr) =>
         body.pretty.bracketBy(
           kw("let") & Doc.text(name) & Doc.text("="),

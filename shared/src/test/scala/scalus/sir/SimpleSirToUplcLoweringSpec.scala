@@ -22,7 +22,7 @@ class SimpleSirToUplcLoweringSpec
     val sir = SIR.Decl(
       data,
       SIR.Match(
-        SIR.Constr("Cons", data, List(SIR.Var(NamedDeBruijn("h")), SIR.Var(NamedDeBruijn("tl")))),
+        SIR.Constr("Cons", data, List(SIR.Var("h"), SIR.Var("tl"))),
         List(
           Case(ConstrDecl("Nil", List()), List(), SIR.Const(Constant.Integer(1))),
           Case(ConstrDecl("Cons", List()), List("h", "tl"), SIR.Const(Constant.Integer(2)))
@@ -53,9 +53,9 @@ class SimpleSirToUplcLoweringSpec
   }
 
   test("lower") {
-    SIR.Var(NamedDeBruijn("x", 1)) lowersTo Term.Var(NamedDeBruijn("x", 1))
+    SIR.Var("x") lowersTo Term.Var(NamedDeBruijn("x", 0))
     SIR.Apply(
-      SIR.LamAbs("x", SIR.Var(NamedDeBruijn("x", 0))),
+      SIR.LamAbs("x", SIR.Var("x")),
       SIR.Const(Constant.Unit)
     ) lowersTo Term.Apply(
       Term.LamAbs("x", Term.Var(NamedDeBruijn("x", 0))),
@@ -79,8 +79,8 @@ class SimpleSirToUplcLoweringSpec
       NonRec,
       Binding("x", SIR.Const(asConstant(1))) :: Binding("y", SIR.Const(asConstant(2))) :: Nil,
       SIR.Apply(
-        SIR.Apply(SIR.Builtin(AddInteger), SIR.Var(NamedDeBruijn("x"))),
-        SIR.Var(NamedDeBruijn("y"))
+        SIR.Apply(SIR.Builtin(AddInteger), SIR.Var("x")),
+        SIR.Var("y")
       )
     ) lowersTo (lam("x")(
       lam("y")(AddInteger $ Term.Var(NamedDeBruijn("x")) $ Term.Var(NamedDeBruijn("y"))) $ 2
