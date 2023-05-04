@@ -294,7 +294,6 @@ class SIRConverter(using Context) {
 
   def convert(sir: SIR): Tree = {
     import SIR.*
-    println(sir)
     val res = sir match
       case Error(msg)               => mkError(msg)
       case Var(name)                => mkVar(name)

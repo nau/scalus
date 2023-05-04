@@ -64,7 +64,7 @@ class SIRCompiler(mode: scalus.Mode)(using ctx: Context) {
     def isPair: Boolean =
       // FIXME: this is a hack, should be something like List above, but it doesn't work for some reason
       val r = t.typeSymbol.showFullName == "scalus.builtins.Pair"
-      println(s"$t is pair: $r, ${t.typeSymbol.showFullName}")
+      // println(s"$t is pair: $r, ${t.typeSymbol.showFullName}")
       r
     def isList: Boolean =
       t <:< requiredClass("scalus.builtins.List").typeRef.appliedTo(defn.AnyType)
@@ -168,7 +168,7 @@ class SIRCompiler(mode: scalus.Mode)(using ctx: Context) {
     val typeSymbol = constrTpe.dealias.widen.typeSymbol
     // look for a base `sealed abstract class`. If it exists, we are in case 5 or 6
     val adtBaseType = constrTpe.baseClasses.find(b =>
-      println(s"base class: ${b.show} ${b.flags.flagsString}")
+      // println(s"base class: ${b.show} ${b.flags.flagsString}")
       b.flags.isAllOf(Flags.Sealed | Flags.Abstract) && !b.flags.is(Flags.Trait)
     )
 
@@ -274,7 +274,7 @@ class SIRCompiler(mode: scalus.Mode)(using ctx: Context) {
     tpe.typeSymbol.isClass && symbol.flags.is(Flags.Case)
 
   def compileIdentOrQualifiedSelect(env: Env, e: Tree): SIR = {
-    println(s"Ident: ${e.symbol}, flags: ${e.symbol.flags.tryToShow}, term: ${e.show}")
+    // println(s"Ident: ${e.symbol}, flags: ${e.symbol.flags.tryToShow}, term: ${e.show}")
     val isInLocalEnv = env.contains(e.symbol)
     val isInGlobalEnv = globalDefs.contains(e.symbol)
     (isInLocalEnv, isInGlobalEnv) match
@@ -674,7 +674,6 @@ class SIRCompiler(mode: scalus.Mode)(using ctx: Context) {
             case SeqLiteral(args, _) =>
               val allLiterals = args.forall(arg => compileConstant.isDefinedAt(arg))
               if allLiterals then
-                report.echo("all literals")
                 val lits = args.map(compileConstant)
                 SIR.Const(scalus.uplc.Constant.List(tpeE, lits))
               else
@@ -738,10 +737,10 @@ class SIRCompiler(mode: scalus.Mode)(using ctx: Context) {
         // val user = User("John", 42) => \u - u "John" 42
         // user.name => \u name age -> name
         case sel @ Select(obj, ident) =>
-          report.echo(
+          /* report.echo(
             s"select: Select: ${sel.show}: ${obj.tpe.widen.show} . ${ident}, isList: ${obj.isList}",
             sel.srcPos
-          )
+          ) */
           val ts = obj.tpe.widen.typeSymbol
           lazy val fieldIdx = ts.caseFields.indexOf(sel.symbol)
           if ts.isClass && fieldIdx >= 0 then
@@ -806,7 +805,7 @@ class SIRCompiler(mode: scalus.Mode)(using ctx: Context) {
   }
 
   def compileToSIR(tree: Tree)(using Context): SIR = {
-    println(s"compileToSIR: ${tree}")
+    // println(s"compileToSIR: ${tree}")
     val result = compileExpr(immutable.HashSet.empty, tree)
     val full = globalDefs.values.foldRight(result) {
       case (CompileDef.Compiled(b), acc) =>

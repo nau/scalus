@@ -83,10 +83,10 @@ class ScalusPhase extends PluginPhase {
               List(DefDef(_, _, _, Apply(code, _))),
               Closure(Nil, Ident(_), EmptyTree)
             ) =>
-          report.echo(s"compile: ${code.show}")
+          // report.echo(s"compile: ${code.show}")
           compiler.compileToSIR(code.asInstanceOf[Tree]) // FIXME instanceof
         case code =>
-          report.echo(s"compile: ${arg.show}")
+          // report.echo(s"compile: ${arg.show}")
           compiler.compileToSIR(code)
       val converter = new SIRConverter
       converter.convert(result)
