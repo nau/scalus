@@ -183,9 +183,9 @@ class SIRCompiler(mode: scalus.Mode)(using ctx: Context) {
             AdtTypeInfo(constrTpe.termSymbol, baseClassSymbol, baseClassSymbol.children)
           case Some(baseClassSymbol) => // case 4, 6
             AdtTypeInfo(typeSymbol, baseClassSymbol, baseClassSymbol.children)
-    report.echo(
+    /* report.echo(
       s"getAdtInfoFromConstroctorType: ${constrTpe.show}: ${typeSymbol.showFullName} ${adtBaseType} $info"
-    )
+    ) */
     info
   }
 
@@ -239,10 +239,10 @@ class SIRCompiler(mode: scalus.Mode)(using ctx: Context) {
 
     // debugInfo(s"compileNewConstructor0")
     // report.inform(s"compileNewConstructor1 ${tpe.show} base type: ${adtBaseType}")
-    report.echo(
+    /* report.echo(
       s"compileNewConstructor1 ${typeSymbol} singleton ${tpe.isSingleton} companion: ${typeSymbol.maybeOwner.companionClass} " +
         s"${typeSymbol.children} widen: ${tpe.widen.typeSymbol}, widen.children: ${tpe.widen.typeSymbol.children} ${typeSymbol.maybeOwner.companionClass.children}"
-    )
+    ) */
 
     val adtInfo = getAdtInfoFromConstroctorType(tpe)
 
@@ -324,7 +324,7 @@ class SIRCompiler(mode: scalus.Mode)(using ctx: Context) {
   }
 
   def compileStmt(env: Env, stmt: Tree): B = {
-    report.echo(s"compileStmt  ${stmt.show} in ${env}")
+    // report.echo(s"compileStmt  ${stmt.show} in ${env}")
     stmt match
       case vd @ ValDef(name, _, _) =>
         val bodyExpr = compileExpr(env, vd.rhs)
