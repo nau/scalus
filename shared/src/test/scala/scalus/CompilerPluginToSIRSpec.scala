@@ -571,7 +571,7 @@ class CompilerPluginToSIRSpec extends AnyFunSuite with ScalaCheckPropertyChecks:
     // println(Utils.bytesToHex(flatBytes))
     assert(flatBytes.length == 117)
   }
-  /*
+
   test("PubKey Validator example") {
     val scriptContext =
       ScriptContext(
@@ -594,7 +594,7 @@ class CompilerPluginToSIRSpec extends AnyFunSuite with ScalaCheckPropertyChecks:
       val txinfo = Builtins.unsafeDataAsConstr(Builtins.unsafeDataAsConstr(ctx).snd.head).snd
       val signatories = Builtins.unsafeDataAsList(txinfo.tail.tail.tail.tail.tail.tail.tail.head)
 
-      def findSignatureOrFail(signatories: builtins.List[Data]): Unit =
+      def findSignatureOrFail(sigs: builtins.List[Data]): Unit =
         if signatories.isEmpty then throw new RuntimeException("Signature not found")
         else if Builtins.unsafeDataAsB(signatories.head) === ByteString.fromHex("deadbeef") then ()
         else findSignatureOrFail(signatories.tail)
@@ -621,4 +621,4 @@ class CompilerPluginToSIRSpec extends AnyFunSuite with ScalaCheckPropertyChecks:
     assert(
       validator((), (), scriptContext.toData) == ()
     )
-  }*/
+  }

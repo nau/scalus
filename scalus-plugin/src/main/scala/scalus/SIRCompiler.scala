@@ -274,9 +274,9 @@ class SIRCompiler(mode: scalus.Mode)(using ctx: Context) {
     tpe.typeSymbol.isClass && symbol.flags.is(Flags.Case)
 
   def compileIdentOrQualifiedSelect(env: Env, e: Tree): SIR = {
-    // println(s"Ident: ${e.symbol}, flags: ${e.symbol.flags.tryToShow}, term: ${e.show}")
     val isInLocalEnv = env.contains(e.symbol)
     val isInGlobalEnv = globalDefs.contains(e.symbol)
+    // println(s"compileIdentOrQualifiedSelect1: ${e.symbol}, term: ${e.show}, loc/glob: $isInLocalEnv/$isInGlobalEnv, env: ${env}")
     (isInLocalEnv, isInGlobalEnv) match
       // global def, self reference, use the name
       case (true, true) => SIR.Var(NamedDeBruijn(e.symbol.fullName.show))
@@ -311,6 +311,7 @@ class SIRCompiler(mode: scalus.Mode)(using ctx: Context) {
                   report.error(s"Symbol ${e.symbol.fullName.show} is not defined", e.srcPos)
                   return SIR.Error(s"Symbol ${e.symbol.fullName.show} not defined")
         else
+          // println(s"compileIdentOrQualifiedSelect2: ${e.symbol} ${e.symbol.defTree}")
           // remember the symbol to avoid infinite recursion
           globalDefs.update(e.symbol, CompileDef.Compiling)
           // println(s"Tree of ${e}: ${e.tpe} isList: ${e.isList}")
@@ -323,7 +324,7 @@ class SIRCompiler(mode: scalus.Mode)(using ctx: Context) {
   }
 
   def compileStmt(env: Env, stmt: Tree): B = {
-    // debugInfo(s"compileStmt  ${stmt.show} in ${env}")
+    report.echo(s"compileStmt  ${stmt.show} in ${env}")
     stmt match
       case vd @ ValDef(name, _, _) =>
         val bodyExpr = compileExpr(env, vd.rhs)
@@ -337,6 +338,7 @@ class SIRCompiler(mode: scalus.Mode)(using ctx: Context) {
             SIR.LamAbs("_", bE)
           else
             val symbols = params.map { case v: ValDef => v.symbol }
+            // println(s"compileStmt DefDef $name: symbols: ${symbols}, env: ${env}")
             val bE = compileExpr(env ++ symbols + stmt.symbol, body)
             symbols.foldRight(bE) { (symbol, acc) =>
               SIR.LamAbs(symbol.name.show, acc)
@@ -507,13 +509,14 @@ class SIRCompiler(mode: scalus.Mode)(using ctx: Context) {
         SIR.Apply(SIR.Builtin(DefaultFun.RemainderInteger), compileExpr(env, ident))
 
   def compileExpr(env: immutable.HashSet[Symbol], tree: Tree)(using Context): SIR = {
+    // println(s"compileExpr: ${tree.showIndented(2)}, env: $env")
     if compileConstant.isDefinedAt(tree) then
       val const = compileConstant(tree)
       SIR.Const(const)
     else
       tree match
         case If(cond, t, f) =>
-          SIR.IfThenElse(compileToSIR(cond), compileToSIR(t), compileToSIR(f))
+          SIR.IfThenElse(compileExpr(env, cond), compileExpr(env, t), compileExpr(env, f))
         /*
             enum A:
               case C0
@@ -791,6 +794,7 @@ class SIRCompiler(mode: scalus.Mode)(using ctx: Context) {
               ),
               Closure(_, Ident(nme.ANON_FUN), _)
             ) =>
+          // FIXME: this should be non-recursive if it's a literal
           compileStmt(env, dd).body
         case Block(stmt, expr) => compileBlock(env, stmt, expr)
         case Typed(expr, _)    => compileExpr(env, expr)
@@ -811,7 +815,7 @@ class SIRCompiler(mode: scalus.Mode)(using ctx: Context) {
       case (CompileDef.Compiled(b), acc) =>
         SIR.Let(b.recursivity, List(Binding(b.fullName, b.body)), acc)
       case (d, acc) =>
-        report.error(s"Unexpected globalDefs state: $d", tree.srcPos)
+        report.error(s"Unexpected globalDefs state: $d\n$globalDefs", tree.srcPos)
         SIR.Error("Unexpected globalDefs state")
 
     }
