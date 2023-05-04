@@ -67,7 +67,7 @@ class ScalusPhase extends PluginPhase {
   override val runsBefore = Set("patternMatcher")
 
   override def prepareForUnit(tree: Tree)(using Context): Context =
-    report.echo(s"Scalus: ${ctx.compilationUnit.source.file.name}")
+    // report.echo(s"Scalus: ${ctx.compilationUnit.source.file.name}")
     val compiler = new SIRCompiler(Mode.Compile)
     compiler.compileModule(tree)
     ctx

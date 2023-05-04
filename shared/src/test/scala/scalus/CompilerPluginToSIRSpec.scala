@@ -517,8 +517,6 @@ class CompilerPluginToSIRSpec extends AnyFunSuite with ScalaCheckPropertyChecks:
     assert(evaled == scalus.uplc.Term.Const(Constant.ByteString(ByteString.fromHex("deadbeef"))))
   }
 
-  /*
-
   test("compile match on ADT") {
     import scalus.ledger.api.v1.*
     import scalus.Prelude.List.*
@@ -534,6 +532,7 @@ class CompilerPluginToSIRSpec extends AnyFunSuite with ScalaCheckPropertyChecks:
     // println(evaled.pretty.render(80))
     assert(evaled == scalus.uplc.Term.Const(Constant.Integer(1)))
   }
+  /*
 
   test("compile fieldAsData macro") {
     import scalus.ledger.api.v1.{*, given}

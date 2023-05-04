@@ -45,6 +45,7 @@ import scalus.flat.Flat
 import scalus.flat.FlatInstantces.given
 import scalus.flat.Flat.DecoderState
 import dotty.tools.dotc.util.SrcPos
+import dotty.tools.dotc.core.Types.ClassInfo
 
 enum Module:
   case DataDecl(decl: scalus.sir.DataDecl)
@@ -109,7 +110,7 @@ class SIRCompiler(mode: scalus.Mode)(using ctx: Context) {
     }
 
     val allTypeDefs = collectTypeDefs(tree)
-    println(allTypeDefs.map(td => s"${td.name} ${td.isClassDef}"))
+    // println(allTypeDefs.map(td => s"${td.name} ${td.isClassDef}"))
 
     allTypeDefs.foreach(compileTypeDef)
   }
@@ -166,12 +167,10 @@ class SIRCompiler(mode: scalus.Mode)(using ctx: Context) {
      */
     val typeSymbol = constrTpe.dealias.widen.typeSymbol
     // look for a base `sealed abstract class`. If it exists, we are in case 5 or 6
-    // FIXME: temporary hack
-    val adtBaseType: Option[TypeSymbol] = None
-    /* val adtBaseType = constrTpe.baseClasses.find(b =>
+    val adtBaseType = constrTpe.baseClasses.find(b =>
       println(s"base class: ${b.show} ${b.flags.flagsString}")
-      b.flags.isOneOf(Flags.Sealed | Flags.Abstract) && !b.flags.is(Flags.Trait)
-    ) */
+      b.flags.isAllOf(Flags.Sealed | Flags.Abstract) && !b.flags.is(Flags.Trait)
+    )
 
     val info =
       if typeSymbol.showFullName == "scala.Tuple2"
@@ -583,7 +582,7 @@ class SIRCompiler(mode: scalus.Mode)(using ctx: Context) {
             SIR.Error(s"Unsupported pattern matching for type ${t.tpe.widen.show}")
           else
             val cs = cases.map {
-              case CaseDef(_, guard, _) if guard.isEmpty =>
+              case CaseDef(_, guard, _) if !guard.isEmpty =>
                 report.error(s"Guards are not supported in match expressions", guard.srcPos)
                 (NoSymbol, Nil, SIR.Error(s"Guards are not supported in match expressions"))
               // case object
