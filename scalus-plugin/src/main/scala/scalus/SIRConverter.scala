@@ -72,6 +72,7 @@ class SIRConverter(using Context) {
   val CaseSymbol = requiredModule("scalus.sir.Case")
   val CaseClassSymbol = requiredClass("scalus.sir.Case")
   val ConstrDeclSymbol = requiredModule("scalus.sir.ConstrDecl")
+  val ConstrDeclClassSymbol = requiredClass("scalus.sir.ConstrDecl")
   val ConstrSymbol = requiredModule("scalus.sir.SIR.Constr")
   val SIRClassSymbol = requiredClass("scalus.sir.SIR")
   val DataClassSymbol = requiredClass("scalus.uplc.Data")
@@ -147,7 +148,7 @@ class SIRConverter(using Context) {
     ref(DataDeclSymbol.requiredMethod("apply")).appliedToArgs(
       List(
         mkString(data.name),
-        mkList(data.constructors.map(mkConstrDecl), TypeTree(ConstrDeclSymbol.typeRef))
+        mkList(data.constructors.map(mkConstrDecl), TypeTree(ConstrDeclClassSymbol.typeRef))
       )
     )
   def mkConstr(name: String, data: DataDecl, args: List[SIR]) =
