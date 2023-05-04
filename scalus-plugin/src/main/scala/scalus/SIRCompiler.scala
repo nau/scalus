@@ -174,14 +174,19 @@ class SIRCompiler(mode: scalus.Mode)(using ctx: Context) {
     ) */
 
     val info =
-      adtBaseType match
-        case None => // case 1 or 2
-          AdtTypeInfo(typeSymbol, typeSymbol, List(typeSymbol))
-        case Some(baseClassSymbol) if constrTpe.isSingleton => // case 3, 5
-          AdtTypeInfo(constrTpe.termSymbol, baseClassSymbol, baseClassSymbol.children)
-        case Some(baseClassSymbol) => // case 4, 6
-          AdtTypeInfo(typeSymbol, baseClassSymbol, baseClassSymbol.children)
-    report.echo(s"getAdtInfoFromConstroctorType: ${constrTpe.show} ${typeSymbol} ${adtBaseType} $info")
+      if typeSymbol.showFullName == "scala.Tuple2"
+      then AdtTypeInfo(typeSymbol, typeSymbol, List(typeSymbol))
+      else
+        adtBaseType match
+          case None => // case 1 or 2
+            AdtTypeInfo(typeSymbol, typeSymbol, List(typeSymbol))
+          case Some(baseClassSymbol) if constrTpe.isSingleton => // case 3, 5
+            AdtTypeInfo(constrTpe.termSymbol, baseClassSymbol, baseClassSymbol.children)
+          case Some(baseClassSymbol) => // case 4, 6
+            AdtTypeInfo(typeSymbol, baseClassSymbol, baseClassSymbol.children)
+    report.echo(
+      s"getAdtInfoFromConstroctorType: ${constrTpe.show}: ${typeSymbol.showFullName} ${adtBaseType} $info"
+    )
     info
   }
 
@@ -235,8 +240,10 @@ class SIRCompiler(mode: scalus.Mode)(using ctx: Context) {
 
     // debugInfo(s"compileNewConstructor0")
     // report.inform(s"compileNewConstructor1 ${tpe.show} base type: ${adtBaseType}")
-    report.echo(s"compileNewConstructor1 ${typeSymbol} singleton ${tpe.isSingleton} companion: ${typeSymbol.maybeOwner.companionClass} " +
-        s"${typeSymbol.children} widen: ${tpe.widen.typeSymbol}, widen.children: ${tpe.widen.typeSymbol.children} ${typeSymbol.maybeOwner.companionClass.children}")
+    report.echo(
+      s"compileNewConstructor1 ${typeSymbol} singleton ${tpe.isSingleton} companion: ${typeSymbol.maybeOwner.companionClass} " +
+        s"${typeSymbol.children} widen: ${tpe.widen.typeSymbol}, widen.children: ${tpe.widen.typeSymbol.children} ${typeSymbol.maybeOwner.companionClass.children}"
+    )
 
     val adtInfo = getAdtInfoFromConstroctorType(tpe)
 
@@ -759,11 +766,11 @@ class SIRCompiler(mode: scalus.Mode)(using ctx: Context) {
         // we need to special-case it because we use scala-library 2.13.x
         // which does not include TASTy so we can't access the method body
         case Apply(TypeApply(app @ Select(f, nme.apply), _), args)
-            if app.symbol.fullName.show == "scala.Tuple2.apply" =>
-          compileNewConstructor(env, f.tpe, args)
+            if app.symbol.fullName.show == "scala.Tuple2$.apply" =>
+          compileNewConstructor(env, tree.tpe, args)
         case Apply(app @ Select(f, nme.apply), args)
-            if app.symbol.fullName.show == "scala.Tuple2.apply" =>
-          compileNewConstructor(env, f.tpe, args)
+            if app.symbol.fullName.show == "scala.Tuple2$.apply" =>
+          compileNewConstructor(env, tree.tpe, args)
         // f.apply(arg) => Apply(f, arg)
         case Apply(Select(f, nme.apply), args) if defn.isFunctionType(f.tpe.widen) =>
           val fE = compileExpr(env, f)

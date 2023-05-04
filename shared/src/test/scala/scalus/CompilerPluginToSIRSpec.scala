@@ -488,7 +488,7 @@ class CompilerPluginToSIRSpec extends AnyFunSuite with ScalaCheckPropertyChecks:
     )
   }
 
-  /*
+
 
   test("compile Tuple2 construction/matching") {
     val compiled = compile {
@@ -502,6 +502,8 @@ class CompilerPluginToSIRSpec extends AnyFunSuite with ScalaCheckPropertyChecks:
     assert(evaled == scalus.uplc.Term.Const(Constant.Bool(false)))
   }
 
+
+
   test("compile match on a case class") {
     val compiled = compile {
       val pkh = scalus.ledger.api.v1.PubKeyHash(ByteString.fromHex("deadbeef"))
@@ -514,6 +516,8 @@ class CompilerPluginToSIRSpec extends AnyFunSuite with ScalaCheckPropertyChecks:
     val evaled = Cek.evalUPLC(term)
     assert(evaled == scalus.uplc.Term.Const(Constant.ByteString(ByteString.fromHex("deadbeef"))))
   }
+
+  /*
 
   test("compile match on ADT") {
     import scalus.ledger.api.v1.*
