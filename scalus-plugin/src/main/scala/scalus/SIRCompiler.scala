@@ -88,7 +88,8 @@ class SIRCompiler(mode: scalus.Mode)(using ctx: Context) {
 
   val globalDefs: mutable.LinkedHashMap[Symbol, CompileDef] = mutable.LinkedHashMap.empty
   val globalDataDecls: mutable.LinkedHashMap[Symbol, DataDecl] = mutable.LinkedHashMap.empty
-  val moduleCache: mutable.LinkedHashMap[Symbol, Module] = mutable.LinkedHashMap.empty
+  val moduleDefsCache: mutable.Map[String, mutable.LinkedHashMap[String, SIR]] =
+    mutable.LinkedHashMap.empty.withDefaultValue(mutable.LinkedHashMap.empty)
 
   @threadUnsafe lazy val CompileAnnotType: TypeRef = requiredClassRef("scalus.Compile")
   def CompileAnnot(using Context) = CompileAnnotType.symbol.asClass
@@ -193,7 +194,7 @@ class SIRCompiler(mode: scalus.Mode)(using ctx: Context) {
     fields
   }
 
-  def findAndReadModuleOfSymbol(symbol: Symbol): Option[Module] = {
+  def findAndReadModuleOfSymbol(moduleName: String): Option[Module] = {
 
     def getResources(packageName: String): Seq[URL] = {
       import scala.collection.JavaConverters._
@@ -214,7 +215,7 @@ class SIRCompiler(mode: scalus.Mode)(using ctx: Context) {
       new java.net.URLClassLoader(urls ++ out.toList, getClass.getClassLoader)
     }
 
-    val filename = symbol.fullName.show.replace('.', '/') + ".sir"
+    val filename = moduleName.replace('.', '/') + ".sir"
     println(s"findAndReadModuleOfSymbol: ${filename}")
     // read the file from the classpath
     val resource = makeClassLoader.getResourceAsStream(filename)
@@ -271,6 +272,65 @@ class SIRCompiler(mode: scalus.Mode)(using ctx: Context) {
       ) */
     tpe.typeSymbol.isClass && symbol.flags.is(Flags.Case)
 
+  def asdf(sir: SIR): Unit = sir match
+    case SIR.Var(name)                     =>
+    case SIR.ExternalVar(moduleName, name) =>
+
+    case SIR.Let(recursivity, bindings, body) =>
+      bindings.foreach(b => asdf(b.value))
+    case SIR.LamAbs(name, term) => asdf(term)
+    case SIR.Apply(f, arg) =>
+      asdf(f)
+      asdf(arg)
+    case SIR.Const(const) =>
+    case SIR.IfThenElse(cond, t, f) =>
+      asdf(cond)
+      asdf(t)
+      asdf(f)
+    case SIR.Builtin(bn)              =>
+    case scalus.sir.SIR.Error(msg)    =>
+    case SIR.Decl(data, term)         => asdf(term)
+    case SIR.Constr(name, data, args) => args.foreach(asdf)
+    case SIR.Match(scrutinee, cases) =>
+      asdf(scrutinee)
+      cases.foreach(c => asdf(c.body))
+
+  def findAndLinkDefinition(defs: collection.Map[String, SIR], defSymbol: Symbol): Option[SIR] = {
+    println(s"findAndLinkDefinition: looking for ${defSymbol.fullName.show}")
+    defs.get(defSymbol.fullName.show).map { sir =>
+      asdf(sir)
+      globalDefs.update(
+        defSymbol,
+        CompileDef.Compiled(B(defSymbol.fullName.show, defSymbol, Recursivity.Rec, sir))
+      )
+      sir
+    }
+  }
+
+  def linkDefinition(e: Tree): SIR = {
+    val moduleName = e.symbol.owner.fullName.show
+    val defn = moduleDefsCache.get(moduleName) match
+      case Some(defs) =>
+        findAndLinkDefinition(defs, e.symbol)
+      case None =>
+        findAndReadModuleOfSymbol(moduleName) match
+          case Some(m @ Module(defs)) =>
+            println(s"Loaded module ${moduleName}, defs: ${defs}")
+            val defsMap = mutable.LinkedHashMap.from(defs.map(d => d.name -> d.value))
+            moduleDefsCache.put(moduleName, defsMap)
+            findAndLinkDefinition(defsMap, e.symbol)
+          case None =>
+            report.error(s"Symbol ${e.symbol.fullName.show} is not defined", e.srcPos)
+            return SIR.Error(s"Symbol ${e.symbol.fullName.show} not defined")
+    defn match
+      case Some(d) =>
+        println(s"Found definition of ${e.symbol.fullName.show}")
+        SIR.Var(e.symbol.fullName.show)
+      case None =>
+        report.error(s"Symbol ${e.symbol.fullName.show} is not found", e.srcPos)
+        SIR.Error(s"Symbol ${e.symbol.fullName.show} not defined")
+  }
+
   def compileIdentOrQualifiedSelect(env: Env, e: Tree): SIR = {
     val isInLocalEnv = env.contains(e.symbol)
     val isInGlobalEnv = globalDefs.contains(e.symbol)
@@ -282,53 +342,26 @@ class SIRCompiler(mode: scalus.Mode)(using ctx: Context) {
       case (true, false) => SIR.Var(e.symbol.name.show)
       // global def, use full name
       case (false, true) => SIR.Var(e.symbol.fullName.show)
-      case (false, false) if mode == scalus.Mode.Compile =>
-        println(s"external var: module ${e.symbol.owner.fullName.show}, ${e.symbol.fullName.show}")
-        SIR.ExternalVar(e.symbol.owner.fullName.show, e.symbol.fullName.show)
       case (false, false) =>
-        if e.symbol.defTree == EmptyTree then
-
-          def findAndLinkDefinition(m: Module) = {
-            println(s"findAndLinkDefinition: looking for ${e.symbol.fullName.show}")
-            m.defs.find(b => b.name == e.symbol.fullName.show) match
-              case None => None
-              case Some(binding) =>
-                globalDefs.update(
-                  e.symbol,
-                  CompileDef.Compiled(B(binding.name, e.symbol, Recursivity.Rec, binding.value))
-                )
-                Some(binding.value)
-          }
-          val defn = moduleCache.get(e.symbol.owner) match
-            case Some(m@Module(defs)) =>
-              findAndLinkDefinition(m)
-            case None =>
-              findAndReadModuleOfSymbol(e.symbol.owner) match
-                case Some(m @ Module(defs)) =>
-                  println(s"Loaded module ${e.symbol.owner.fullName.show}, defs: ${defs}")
-                  moduleCache.put(e.symbol.owner, m)
-                  findAndLinkDefinition(m)
-                case None =>
-                  report.error(s"Symbol ${e.symbol.fullName.show} is not defined", e.srcPos)
-                  return SIR.Error(s"Symbol ${e.symbol.fullName.show} not defined")
-          defn match
-            case Some(d) =>
-              println(s"Found definition of ${e.symbol.fullName.show}")
+        mode match
+          case scalus.Mode.Compile =>
+            println(
+              s"external var: module ${e.symbol.owner.fullName.show}, ${e.symbol.fullName.show}"
+            )
+            SIR.ExternalVar(e.symbol.owner.fullName.show, e.symbol.fullName.show)
+          case scalus.Mode.Link =>
+            if e.symbol.defTree == EmptyTree then linkDefinition(e)
+            else
+              // println(s"compileIdentOrQualifiedSelect2: ${e.symbol} ${e.symbol.defTree}")
+              // remember the symbol to avoid infinite recursion
+              globalDefs.update(e.symbol, CompileDef.Compiling)
+              // println(s"Tree of ${e}: ${e.tpe} isList: ${e.isList}")
+              // debugInfo(s"Tree of ${e.symbol}: ${e.symbol.tree.show}\n${e.symbol.tree}")
+              val b = compileStmt(immutable.HashSet.empty, e.symbol.defTree)
+              // remove the symbol from the linked hash map so the order of the definitions is preserved
+              globalDefs.remove(e.symbol)
+              globalDefs.update(e.symbol, CompileDef.Compiled(b))
               SIR.Var(e.symbol.fullName.show)
-            case None =>
-              report.error(s"Symbol ${e.symbol.fullName.show} is not found", e.srcPos)
-              SIR.Error(s"Symbol ${e.symbol.fullName.show} not defined")
-        else
-          // println(s"compileIdentOrQualifiedSelect2: ${e.symbol} ${e.symbol.defTree}")
-          // remember the symbol to avoid infinite recursion
-          globalDefs.update(e.symbol, CompileDef.Compiling)
-          // println(s"Tree of ${e}: ${e.tpe} isList: ${e.isList}")
-          // debugInfo(s"Tree of ${e.symbol}: ${e.symbol.tree.show}\n${e.symbol.tree}")
-          val b = compileStmt(immutable.HashSet.empty, e.symbol.defTree)
-          // remove the symbol from the linked hash map so the order of the definitions is preserved
-          globalDefs.remove(e.symbol)
-          globalDefs.update(e.symbol, CompileDef.Compiled(b))
-          SIR.Var(e.symbol.fullName.show)
   }
 
   def compileStmt(env: Env, stmt: Tree): B = {
@@ -775,9 +808,8 @@ class SIRCompiler(mode: scalus.Mode)(using ctx: Context) {
           lazy val fieldIdx = ts.caseFields.indexOf(sel.symbol)
           if ts.isClass && fieldIdx >= 0 then
             val lhs = compileExpr(env, obj)
-            val lam = primaryConstructorParams(ts).foldRight(SIR.Var(ident.show)) {
-              case (f, acc) =>
-                SIR.LamAbs(f.name.show, acc)
+            val lam = primaryConstructorParams(ts).foldRight(SIR.Var(ident.show)) { case (f, acc) =>
+              SIR.LamAbs(f.name.show, acc)
             }
             SIR.Apply(lhs, lam)
           // else if obj.symbol.isPackageDef then
