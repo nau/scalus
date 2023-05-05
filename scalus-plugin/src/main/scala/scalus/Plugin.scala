@@ -40,11 +40,7 @@ import scala.util.control.NonFatal
 import scala.collection.mutable.ListBuffer
 import java.net.URL
 import dotty.tools.io.ClassPath
-import scalus.flat.Flat.Flat
-import scalus.flat.Flat.EncoderState
-import scalus.flat.Flat
-import scalus.flat.FlatInstantces.given
-import scalus.flat.Flat.DecoderState
+
 
 enum Mode:
   case Compile, Link

@@ -24,8 +24,11 @@ lazy val scalusPlugin = project
     // and apparently it's not supported
     // TODO: add other common sources
     Compile / managedSources ++= {
-      val baseDir = baseDirectory.value
-      val files = Seq(baseDir / ".." / "shared" / "src" / "main" / "scala" / "scalus" / "sir" / "SIR.scala")
+      val baseDir = baseDirectory.value / ".." / "shared" / "src" / "main" / "scala"
+      val files = Seq(
+        baseDir / "scalus/sir/SIR.scala",
+        baseDir / "scalus/flat/package.scala",
+        )
       files
     }
   )

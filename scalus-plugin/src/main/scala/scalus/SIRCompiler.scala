@@ -39,11 +39,11 @@ import scala.util.control.NonFatal
 import scala.collection.mutable.ListBuffer
 import java.net.URL
 import dotty.tools.io.ClassPath
-import scalus.flat.Flat.Flat
-import scalus.flat.Flat.EncoderState
+import scalus.flat.Flat
+import scalus.flat.EncoderState
 import scalus.flat.Flat
 import scalus.flat.FlatInstantces.given
-import scalus.flat.Flat.DecoderState
+import scalus.flat.DecoderState
 import dotty.tools.dotc.util.SrcPos
 import dotty.tools.dotc.core.Types.ClassInfo
 
@@ -138,7 +138,7 @@ class SIRCompiler(mode: scalus.Mode)(using ctx: Context) {
       val output = dir.fileNamed(filename + suffix).bufferedOutput
       val fl = summon[Flat[Module]]
       val enc = EncoderState(fl.bitSize(module) / 8 + 1)
-      Flat.encode(module, enc)
+      flat.encode(module, enc)
       enc.filler()
       output.write(enc.buffer)
       output.close()
@@ -223,7 +223,7 @@ class SIRCompiler(mode: scalus.Mode)(using ctx: Context) {
     if resource != null then
       val buffer = resource.readAllBytes()
       val dec = DecoderState(buffer)
-      val module = Flat.decode[Module](dec)
+      val module = flat.decode[Module](dec)
       resource.close()
       Some(module)
     else None
