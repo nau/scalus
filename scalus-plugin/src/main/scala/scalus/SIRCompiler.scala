@@ -47,9 +47,7 @@ import scalus.flat.DecoderState
 import dotty.tools.dotc.util.SrcPos
 import dotty.tools.dotc.core.Types.ClassInfo
 
-enum Module:
-  case DataDecl(decl: scalus.sir.DataDecl)
-  case Module(defs: List[Binding])
+case class Module(defs: List[Binding])
 
 case class B(name: String, symbol: Symbol, recursivity: Recursivity, body: SIR):
   def fullName(using Context) = symbol.fullName.show
@@ -128,7 +126,7 @@ class SIRCompiler(mode: scalus.Mode)(using ctx: Context) {
         case dd: DefDef if !dd.symbol.flags.is(Flags.Synthetic) =>
           compileStmt(immutable.HashSet.empty, dd)
       }
-      val module = Module.Module(bindings.map(b => Binding(b.symbol.fullName.show, b.body)))
+      val module = Module(bindings.map(b => Binding(b.symbol.fullName.show, b.body)))
       val suffix = ".sir"
       val outputDirectory = ctx.settings.outputDir.value
       val className = td.symbol.fullName.show
@@ -289,7 +287,7 @@ class SIRCompiler(mode: scalus.Mode)(using ctx: Context) {
       case (false, false) =>
         if e.symbol.defTree == EmptyTree then
 
-          def findAndLinkDefinition(m: Module.Module) = {
+          def findAndLinkDefinition(m: Module) = {
             println(s"findAndLinkDefinition: looking for ${e.symbol.fullName.show}")
             m.defs.find(b => b.name == e.symbol.fullName.show) match
               case None => None
@@ -301,20 +299,14 @@ class SIRCompiler(mode: scalus.Mode)(using ctx: Context) {
                 Some(binding.value)
           }
           val defn = moduleCache.get(e.symbol.owner) match
-            case Some(m@Module.Module(defs)) =>
+            case Some(m@Module(defs)) =>
               findAndLinkDefinition(m)
-            case _ =>
+            case None =>
               findAndReadModuleOfSymbol(e.symbol.owner) match
-                case Some(m @ Module.Module(defs)) =>
+                case Some(m @ Module(defs)) =>
                   println(s"Loaded module ${e.symbol.owner.fullName.show}, defs: ${defs}")
                   moduleCache.put(e.symbol.owner, m)
                   findAndLinkDefinition(m)
-                case Some(Module.DataDecl(decl)) =>
-                  report.error(
-                    s"Read DataDecl instead of ${e.symbol.fullName.show}: ${decl}",
-                    e.srcPos
-                  )
-                  return SIR.Error(s"Read DataDecl instead of ${e.symbol.fullName.show}: ${decl}")
                 case None =>
                   report.error(s"Symbol ${e.symbol.fullName.show} is not defined", e.srcPos)
                   return SIR.Error(s"Symbol ${e.symbol.fullName.show} not defined")

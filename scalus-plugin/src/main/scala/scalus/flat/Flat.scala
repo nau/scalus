@@ -432,22 +432,10 @@ object FlatInstantces:
 
   given Flat[scalus.Module] with
     def bitSize(a: scalus.Module): Int = a match
-      case scalus.Module.Module(defs) => 1 +  listFlat[Binding].bitSize(defs)
-      case scalus.Module.DataDecl(data) => 1 + summon[Flat[DataDecl]].bitSize(data)
+      case scalus.Module(defs) => listFlat[Binding].bitSize(defs)
     def encode(a: scalus.Module, enc: EncoderState): Unit = a match
-      case scalus.Module.Module(defs) =>
-        enc.bits(1, 0)
+      case scalus.Module(defs) =>
         listFlat[Binding].encode(defs, enc)
-      case scalus.Module.DataDecl(data) =>
-        enc.bits(1, 1)
-        summon[Flat[DataDecl]].encode(data, enc)
     def decode(decoder: DecoderState): scalus.Module =
-      val tag = decoder.bits8(1)
-      tag match
-        case 0 =>
-          val defs = listFlat[Binding].decode(decoder)
-          scalus.Module.Module(defs)
-        case 1 =>
-          val data = summon[Flat[DataDecl]].decode(decoder)
-          scalus.Module.DataDecl(data)
-
+      val defs = listFlat[Binding].decode(decoder)
+      scalus.Module(defs)
