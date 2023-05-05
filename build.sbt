@@ -18,25 +18,22 @@ lazy val scalusPlugin = project
     libraryDependencies += "org.scalatest" %%% "scalatest" % "3.2.12" % "test",
     libraryDependencies += "org.scalatestplus" %%% "scalacheck-1-16" % "3.2.12.0" % "test",
     libraryDependencies += "org.scala-lang" %% "scala3-compiler" % scala3Version // % "provided"
+  ).settings(
+    // Include common sources in the plugin
+    // we can't add the scalus project as a dependency because this is a Scala compiler plugin
+    // and apparently it's not supported
+    // TODO: add other common sources
+    Compile / managedSources ++= {
+      val baseDir = baseDirectory.value
+      val files = Seq(baseDir / ".." / "shared" / "src" / "main" / "scala" / "scalus" / "sir" / "SIR.scala")
+      files
+    }
   )
 
 lazy val PluginDependency: List[Def.Setting[_]] = List(scalacOptions ++= {
   val jar = (packageBin in Compile in scalusPlugin).value
   Seq(s"-Xplugin:${jar.getAbsolutePath}", s"-Jdummy=${jar.lastModified}")
 })
-
-lazy val scalusPluginTests = project
-  .in(file("scalus-plugin-tests"))
-  .dependsOn(scalus.jvm)
-  .settings(
-    name := "scalus-plugin-tests",
-    organization := "scalus",
-    version := "0.1.0-SNAPSHOT",
-    PluginDependency,
-    // libraryDependencies += compilerPlugin("scalus" %% "scalus-plugin" % "0.1.0-SNAPSHOT"),
-    libraryDependencies += "org.scalatest" %%% "scalatest" % "3.2.12" % "test",
-    libraryDependencies += "org.scalatestplus" %%% "scalacheck-1-16" % "3.2.12.0" % "test"
-  )
 
 lazy val scalus = crossProject(JSPlatform, JVMPlatform)
   .in(file("."))

@@ -6,6 +6,7 @@ import scalus.uplc.DefaultFun.*
 import scalus.uplc.DefaultUni.asConstant
 import scalus.uplc.{ArbitraryInstances, Constant, DefaultFun, NamedDeBruijn, Term}
 import scalus.builtins.ByteString.StringInterpolators
+import scalus.*
 
 class SimpleSirToUplcLoweringSpec
     extends AnyFunSuite
