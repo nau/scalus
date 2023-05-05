@@ -128,7 +128,7 @@ class SIRCompiler(mode: scalus.Mode)(using ctx: Context) {
         case dd: DefDef if !dd.symbol.flags.is(Flags.Synthetic) =>
           compileStmt(immutable.HashSet.empty, dd)
       }
-      val module = Module.Module(bindings.map(b => Binding(b.name, b.body)))
+      val module = Module.Module(bindings.map(b => Binding(b.symbol.fullName.show, b.body)))
       val suffix = ".sir"
       val outputDirectory = ctx.settings.outputDir.value
       val className = td.symbol.fullName.show
@@ -216,8 +216,8 @@ class SIRCompiler(mode: scalus.Mode)(using ctx: Context) {
       new java.net.URLClassLoader(urls ++ out.toList, getClass.getClassLoader)
     }
 
-    val filename = symbol.owner.fullName.show.replace('.', '/') + ".sir"
-    println(s"findAndReadModuleOfSymbol: ${symbol.isClass}, ${filename}")
+    val filename = symbol.fullName.show.replace('.', '/') + ".sir"
+    println(s"findAndReadModuleOfSymbol: ${filename}")
     // read the file from the classpath
     val resource = makeClassLoader.getResourceAsStream(filename)
     if resource != null then
@@ -288,19 +288,27 @@ class SIRCompiler(mode: scalus.Mode)(using ctx: Context) {
         SIR.Var(e.symbol.fullName.show)
       case (false, false) =>
         if e.symbol.defTree == EmptyTree then
-          moduleCache.get(e.symbol.owner) match
-            case Some(Module.Module(defs)) =>
-              val binding = defs.find(b => b.name == e.symbol.name.show).get
-              globalDefs.update(
-                e.symbol,
-                CompileDef.Compiled(B(binding.name, e.symbol, Recursivity.Rec, binding.value))
-              )
-              binding.value
+
+          def findAndLinkDefinition(m: Module.Module) = {
+            println(s"findAndLinkDefinition: looking for ${e.symbol.fullName.show}")
+            m.defs.find(b => b.name == e.symbol.fullName.show) match
+              case None => None
+              case Some(binding) =>
+                globalDefs.update(
+                  e.symbol,
+                  CompileDef.Compiled(B(binding.name, e.symbol, Recursivity.Rec, binding.value))
+                )
+                Some(binding.value)
+          }
+          val defn = moduleCache.get(e.symbol.owner) match
+            case Some(m@Module.Module(defs)) =>
+              findAndLinkDefinition(m)
             case _ =>
-              findAndReadModuleOfSymbol(e.symbol) match
+              findAndReadModuleOfSymbol(e.symbol.owner) match
                 case Some(m @ Module.Module(defs)) =>
+                  println(s"Loaded module ${e.symbol.owner.fullName.show}, defs: ${defs}")
                   moduleCache.put(e.symbol.owner, m)
-                  defs.head.value
+                  findAndLinkDefinition(m)
                 case Some(Module.DataDecl(decl)) =>
                   report.error(
                     s"Read DataDecl instead of ${e.symbol.fullName.show}: ${decl}",
@@ -310,6 +318,13 @@ class SIRCompiler(mode: scalus.Mode)(using ctx: Context) {
                 case None =>
                   report.error(s"Symbol ${e.symbol.fullName.show} is not defined", e.srcPos)
                   return SIR.Error(s"Symbol ${e.symbol.fullName.show} not defined")
+          defn match
+            case Some(d) =>
+              println(s"Found definition of ${e.symbol.fullName.show}")
+              SIR.Var(e.symbol.fullName.show)
+            case None =>
+              report.error(s"Symbol ${e.symbol.fullName.show} is not found", e.srcPos)
+              SIR.Error(s"Symbol ${e.symbol.fullName.show} not defined")
         else
           // println(s"compileIdentOrQualifiedSelect2: ${e.symbol} ${e.symbol.defTree}")
           // remember the symbol to avoid infinite recursion

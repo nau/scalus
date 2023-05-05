@@ -10,12 +10,13 @@ object TestCode {
   val a = true
 }
 
+@Compile
 object Prelude {
   type Eq[A] = (A, A) => Boolean
   given Eq[BigInt] = (x: BigInt, y: BigInt) => Builtins.equalsInteger(x, y)
   given Eq[ByteString] = (x: ByteString, y: ByteString) => Builtins.equalsByteString(x, y)
   given Eq[String] = (x: String, y: String) => Builtins.equalsString(x, y)
-  extension [A](x: A) def ===(y: A)(using eq: Eq[A]): Boolean = eq(x, y)
+  extension [A](x: A) inline def ===(inline y: A)(using inline eq: Eq[A]): Boolean = eq(x, y)
 
   enum List[+A]:
     case Nil extends List[Nothing]
@@ -72,7 +73,7 @@ object Prelude {
       (byte: BigInt) => if Builtins.lessThanInteger(byte, 10) then byte + 48 else byte + 87
 
     def go(i: BigInt): ByteString = {
-      if i === len then ByteString.fromHex("")
+      if Builtins.equalsInteger(i, len) then ByteString.fromHex("")
       else {
         val byte = Builtins.indexByteString(input, i)
         val char1 = byteToChar(byte / 16)
