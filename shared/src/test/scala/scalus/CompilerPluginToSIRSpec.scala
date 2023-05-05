@@ -493,7 +493,7 @@ class CompilerPluginToSIRSpec extends AnyFunSuite with ScalaCheckPropertyChecks:
       t match
         case (a, b) => a && t._2
     }
-    println(compiled.pretty.render(80))
+    // println(compiled.pretty.render(80))
     val term = new SimpleSirToUplcLowering().lower(compiled)
     val evaled = Cek.evalUPLC(term)
     assert(evaled == scalus.uplc.Term.Const(Constant.Bool(false)))
@@ -591,7 +591,7 @@ class CompilerPluginToSIRSpec extends AnyFunSuite with ScalaCheckPropertyChecks:
     val flatBytes = ProgramFlatCodec.encodeFlat(Program(version = (1, 0, 0), term = term))
 //    println(Utils.bytesToHex(flatBytes))
     // println(term.pretty.render(80))
-    assert(flatBytes.length == 119)
+    assert(flatBytes.length == 131)
     import Data.*
     import DefaultUni.asConstant
     import TermDSL.{*, given}

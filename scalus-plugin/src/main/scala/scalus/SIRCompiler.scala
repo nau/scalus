@@ -12,11 +12,20 @@ import dotty.tools.dotc.core.Names.*
 import dotty.tools.dotc.core.StdNames.nme
 import dotty.tools.dotc.core.SymDenotations.*
 import dotty.tools.dotc.core.Symbols.*
+import dotty.tools.dotc.core.Types.ClassInfo
 import dotty.tools.dotc.core.Types.Type
 import dotty.tools.dotc.core.Types.TypeRef
 import dotty.tools.dotc.core.*
 import dotty.tools.dotc.plugins.*
 import dotty.tools.dotc.plugins.*
+import dotty.tools.dotc.util.NoSourcePosition
+import dotty.tools.dotc.util.SrcPos
+import dotty.tools.io.ClassPath
+import scalus.builtins.ByteString
+import scalus.flat.DecoderState
+import scalus.flat.EncoderState
+import scalus.flat.Flat
+import scalus.flat.FlatInstantces.given
 import scalus.sir.Binding
 import scalus.sir.Case
 import scalus.sir.ConstrDecl
@@ -24,28 +33,20 @@ import scalus.sir.DataDecl
 import scalus.sir.Recursivity
 import scalus.sir.SIR
 import scalus.uplc
+import scalus.uplc.Constant.Data
 import scalus.uplc.DefaultFun
+import scalus.uplc.DefaultUni
 import scalus.uplc.NamedDeBruijn
+
 import java.io.BufferedOutputStream
 import java.io.FileOutputStream
+import java.net.URL
 import scala.annotation.threadUnsafe
 import scala.collection.immutable
 import scala.collection.mutable
-import scala.language.implicitConversions
-import scalus.builtins.ByteString
-import scalus.uplc.Constant.Data
-import scalus.uplc.DefaultUni
-import scala.util.control.NonFatal
 import scala.collection.mutable.ListBuffer
-import java.net.URL
-import dotty.tools.io.ClassPath
-import scalus.flat.Flat
-import scalus.flat.EncoderState
-import scalus.flat.Flat
-import scalus.flat.FlatInstantces.given
-import scalus.flat.DecoderState
-import dotty.tools.dotc.util.SrcPos
-import dotty.tools.dotc.core.Types.ClassInfo
+import scala.language.implicitConversions
+import scala.util.control.NonFatal
 
 case class Module(defs: List[Binding])
 case class FullName(name: String)
@@ -93,7 +94,7 @@ class SIRCompiler(mode: scalus.Mode)(using ctx: Context) {
 
   val globalDefs: mutable.LinkedHashMap[FullName, CompileDef] = mutable.LinkedHashMap.empty
   val globalDataDecls: mutable.LinkedHashMap[Symbol, DataDecl] = mutable.LinkedHashMap.empty
-  val moduleDefsCache: mutable.Map[FullName, mutable.LinkedHashMap[FullName, SIR]] =
+  val moduleDefsCache: mutable.Map[String, mutable.LinkedHashMap[FullName, SIR]] =
     mutable.LinkedHashMap.empty.withDefaultValue(mutable.LinkedHashMap.empty)
 
   @threadUnsafe lazy val CompileAnnotType: TypeRef = requiredClassRef("scalus.Compile")
@@ -121,8 +122,7 @@ class SIRCompiler(mode: scalus.Mode)(using ctx: Context) {
 
   def compileTypeDef(td: TypeDef) = {
     report.echo(
-      s"TypeDef: ${td.name}: ${td.symbol.annotations
-          .map(_.symbol.fullName)}, case class: ${td.tpe.typeSymbol.is(Flags.CaseClass)}, ${td.symbol.fullName}"
+      s"Compiling ${td.name} (${td.symbol.fullName}), is case class: ${td.tpe.typeSymbol.is(Flags.CaseClass)}"
     )
 
     if td.tpe.typeSymbol.is(Flags.CaseClass) then compileCaseClass(td)
@@ -131,6 +131,9 @@ class SIRCompiler(mode: scalus.Mode)(using ctx: Context) {
       val bindings = tpl.body.collect {
         case dd: DefDef if !dd.symbol.flags.is(Flags.Synthetic) =>
           compileStmt(immutable.HashSet.empty, dd)
+        case vd: ValDef if !vd.symbol.flags.is(Flags.Synthetic) =>
+          // println(s"valdef: ${vd.symbol.fullName}")
+          compileStmt(immutable.HashSet.empty, vd)
       }
       val module = Module(bindings.map(b => Binding(b.fullName.name, b.body)))
       val suffix = ".sir"
@@ -221,7 +224,7 @@ class SIRCompiler(mode: scalus.Mode)(using ctx: Context) {
     }
 
     val filename = moduleName.replace('.', '/') + ".sir"
-    println(s"findAndReadModuleOfSymbol: ${filename}")
+    // println(s"findAndReadModuleOfSymbol: ${filename}")
     // read the file from the classpath
     val resource = makeClassLoader.getResourceAsStream(filename)
     if resource != null then
@@ -277,36 +280,35 @@ class SIRCompiler(mode: scalus.Mode)(using ctx: Context) {
       ) */
     tpe.typeSymbol.isClass && symbol.flags.is(Flags.Case)
 
-  def asdf(sir: SIR): Unit = sir match
-    case SIR.Var(name)                     =>
+  def traverseAndLink(sir: SIR): Unit = sir match
     case SIR.ExternalVar(moduleName, name) =>
-
+      linkDefinition(moduleName, FullName(name), NoSourcePosition)
     case SIR.Let(recursivity, bindings, body) =>
-      bindings.foreach(b => asdf(b.value))
-    case SIR.LamAbs(name, term) => asdf(term)
+      bindings.foreach(b => traverseAndLink(b.value))
+      traverseAndLink(body)
+    case SIR.LamAbs(name, term) => traverseAndLink(term)
     case SIR.Apply(f, arg) =>
-      asdf(f)
-      asdf(arg)
+      traverseAndLink(f)
+      traverseAndLink(arg)
     case SIR.Const(const) =>
     case SIR.IfThenElse(cond, t, f) =>
-      asdf(cond)
-      asdf(t)
-      asdf(f)
-    case SIR.Builtin(bn)              =>
-    case scalus.sir.SIR.Error(msg)    =>
-    case SIR.Decl(data, term)         => asdf(term)
-    case SIR.Constr(name, data, args) => args.foreach(asdf)
+      traverseAndLink(cond)
+      traverseAndLink(t)
+      traverseAndLink(f)
+    case SIR.Decl(data, term)         => traverseAndLink(term)
+    case SIR.Constr(name, data, args) => args.foreach(traverseAndLink)
     case SIR.Match(scrutinee, cases) =>
-      asdf(scrutinee)
-      cases.foreach(c => asdf(c.body))
+      traverseAndLink(scrutinee)
+      cases.foreach(c => traverseAndLink(c.body))
+    case _ => ()
 
   def findAndLinkDefinition(
       defs: collection.Map[FullName, SIR],
       fullName: FullName
   ): Option[SIR] = {
-    println(s"findAndLinkDefinition: looking for ${fullName.name}")
+    // println(s"findAndLinkDefinition: looking for ${fullName.name}")
     defs.get(fullName).map { sir =>
-      asdf(sir)
+      traverseAndLink(sir)
       globalDefs.update(
         fullName,
         CompileDef.Compiled(TopLevelBinding(fullName, Recursivity.Rec, sir))
@@ -315,15 +317,13 @@ class SIRCompiler(mode: scalus.Mode)(using ctx: Context) {
     }
   }
 
-  def linkDefinition(e: Tree): SIR = {
-    val moduleName = FullName(e.symbol.owner)
-    val fullName = FullName(e.symbol)
-    val srcPos = e.srcPos
+  def linkDefinition(moduleName: String, fullName: FullName, srcPos: SrcPos): SIR = {
+    // println(s"linkDefinition: ${fullName}")
     val defn = moduleDefsCache.get(moduleName) match
       case Some(defs) =>
         findAndLinkDefinition(defs, fullName)
       case None =>
-        findAndReadModuleOfSymbol(moduleName.name) match
+        findAndReadModuleOfSymbol(moduleName) match
           case Some(m @ Module(defs)) =>
             // println(s"Loaded module ${moduleName}, defs: ${defs}")
             val defsMap = mutable.LinkedHashMap.from(defs.map(d => FullName(d.name) -> d.value))
@@ -334,7 +334,7 @@ class SIRCompiler(mode: scalus.Mode)(using ctx: Context) {
             return SIR.Error(s"Symbol ${fullName} not defined")
     defn match
       case Some(d) =>
-        println(s"Found definition of ${fullName}")
+        // println(s"Found definition of ${fullName.name}")
         SIR.Var(fullName.name)
       case None =>
         report.error(s"Symbol ${fullName} is not found", srcPos)
@@ -346,7 +346,7 @@ class SIRCompiler(mode: scalus.Mode)(using ctx: Context) {
     val fullName = FullName(e.symbol)
     val isInLocalEnv = env.contains(name)
     val isInGlobalEnv = globalDefs.contains(fullName)
-    println(s"compileIdentOrQualifiedSelect1: ${e.symbol} $name $fullName, term: ${e.show}, loc/glob: $isInLocalEnv/$isInGlobalEnv, env: ${env}")
+    // println( s"compileIdentOrQualifiedSelect1: ${e.symbol} $name $fullName, term: ${e.show}, loc/glob: $isInLocalEnv/$isInGlobalEnv, env: ${env}" )
     (isInLocalEnv, isInGlobalEnv) match
       // global def, self reference, use the name
       case (true, true) => SIR.Var(e.symbol.fullName.show)
@@ -357,12 +357,11 @@ class SIRCompiler(mode: scalus.Mode)(using ctx: Context) {
       case (false, false) =>
         mode match
           case scalus.Mode.Compile =>
-            println(
-              s"external var: module ${e.symbol.owner.fullName.show}, ${e.symbol.fullName.show}"
-            )
+            // println( s"external var: module ${e.symbol.owner.fullName.show}, ${e.symbol.fullName.show}" )
             SIR.ExternalVar(e.symbol.owner.fullName.show, e.symbol.fullName.show)
           case scalus.Mode.Link =>
-            if e.symbol.defTree == EmptyTree then linkDefinition(e)
+            if e.symbol.defTree == EmptyTree then
+              linkDefinition(e.symbol.owner.fullName.show, fullName, e.symbol.sourcePos)
             else
               // println(s"compileIdentOrQualifiedSelect2: ${e.symbol} ${e.symbol.defTree}")
               // remember the symbol to avoid infinite recursion
@@ -372,7 +371,11 @@ class SIRCompiler(mode: scalus.Mode)(using ctx: Context) {
               val b = compileStmt(immutable.HashSet.empty, e.symbol.defTree)
               // remove the symbol from the linked hash map so the order of the definitions is preserved
               globalDefs.remove(fullName)
-              globalDefs.update(fullName, CompileDef.Compiled(TopLevelBinding(fullName, b.recursivity, b.body)))
+              traverseAndLink(b.body)
+              globalDefs.update(
+                fullName,
+                CompileDef.Compiled(TopLevelBinding(fullName, b.recursivity, b.body))
+              )
               SIR.Var(e.symbol.fullName.show)
   }
 
