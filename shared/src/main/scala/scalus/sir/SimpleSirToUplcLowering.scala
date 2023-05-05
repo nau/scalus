@@ -83,6 +83,7 @@ class SimpleSirToUplcLowering(generateErrorTraces: Boolean = false) {
         }
         casesTerms.foldLeft(scrutineeTerm) { (acc, caseTerm) => Term.Apply(acc, caseTerm) }
       case SIR.Var(name) => Term.Var(NamedDeBruijn(name))
+      case SIR.ExternalVar(_, name) => Term.Var(NamedDeBruijn(name))
       case SIR.Let(NonRec, bindings, body) =>
         bindings.foldRight(lowerInner(body)) { case (Binding(name, rhs), body) =>
           Term.Apply(Term.LamAbs(name, body), lowerInner(rhs))

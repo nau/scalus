@@ -42,6 +42,7 @@ object FlatInstantces:
       case Apply(ProtoList, a) => listFlat(flatForUni(a)).asInstanceOf[Flat[Any]]
       case Apply(Apply(ProtoPair, a), b) =>
         pairFlat(flatForUni(a), flatForUni(b)).asInstanceOf[Flat[Any]]
+      case _ => throw new Exception("Invalid state")
 
   def encodeUni(uni: DefaultUni): List[Int] =
     uni match
@@ -69,6 +70,7 @@ object FlatInstantces:
         val (uniA, tail2) = decodeUni(tail1)
         (DefaultUni.Apply(uniF, uniA), tail2)
       case 8 :: tail => (DefaultUni.Data, tail)
+      case _         => throw new Exception(s"Invalid state: $state")
 
   given Flat[DefaultFun] with
     import DefaultFun.*
@@ -317,8 +319,9 @@ object FlatInstantces:
 
     def bitSize(a: SIR): Int = a match
       case Var(name) =>
-        // in Plutus See Note [Index (Word64) (de)serialized through Natural]
         termTagWidth + summon[Flat[String]].bitSize(name)
+      case ExternalVar(modName, name) =>
+        termTagWidth + summon[Flat[String]].bitSize(modName) + summon[Flat[String]].bitSize(name)
       case Let(rec, binds, body) =>
         termTagWidth + summon[Flat[Recursivity]].bitSize(rec) + listFlat[Binding].bitSize(
           binds
@@ -382,6 +385,10 @@ object FlatInstantces:
           enc.bits(termTagWidth, 10)
           encode(scrutinee, enc)
           listFlat[Case].encode(cases, enc)
+        case ExternalVar(modName, name) =>
+          enc.bits(termTagWidth, 11)
+          summon[Flat[String]].encode(modName, enc)
+          summon[Flat[String]].encode(name, enc)
 
     def decode(decoder: DecoderState): SIR =
       val tag = decoder.bits8(termTagWidth)
@@ -429,6 +436,10 @@ object FlatInstantces:
           val scrutinee = decode(decoder)
           val cases = listFlat[Case].decode(decoder)
           Match(scrutinee, cases)
+        case 11 =>
+          val modName = summon[Flat[String]].decode(decoder)
+          val name = summon[Flat[String]].decode(decoder)
+          ExternalVar(modName, name)
 
   given Flat[scalus.Module] with
     def bitSize(a: scalus.Module): Int = a match

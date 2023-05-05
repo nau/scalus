@@ -32,6 +32,8 @@ object FlatInstantces:
       case Apply(ProtoList, a) => listFlat(flatForUni(a)).asInstanceOf[Flat[Any]]
       case Apply(Apply(ProtoPair, a), b) =>
         pairFlat(flatForUni(a), flatForUni(b)).asInstanceOf[Flat[Any]]
+      case _ => throw new Exception(s"Unsupported uni: $uni")
+
 
   def encodeUni(uni: DefaultUni): List[Int] =
     uni match
@@ -59,6 +61,7 @@ object FlatInstantces:
         val (uniA, tail2) = decodeUni(tail1)
         (DefaultUni.Apply(uniF, uniA), tail2)
       case 8 :: tail => (DefaultUni.Data, tail)
+      case _         => throw new Exception(s"Invalid uni: $state")
 
   given Flat[DefaultFun] with
     import Term.*

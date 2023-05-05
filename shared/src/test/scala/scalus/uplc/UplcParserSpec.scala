@@ -174,8 +174,9 @@ class UplcParserSpec extends AnyFunSuite with ScalaCheckPropertyChecks with Arbi
   test("Parse program version") {
     def p(input: String) = parser.programVersion.parse(input)
     def check(input: String, expected: (Int, Int, Int)) =
-      val Right((_, result)) = p(input)
-      assert(result == expected)
+      p(input) match
+        case Left(value) =>  fail(value.show)
+        case Right((_, result)) => assert(result == expected)
     check("111.2.33333   ", (111, 2, 33333))
     check("1.0.03   ", (1, 0, 3))
     assert(!p("1 . 2 . 3").isRight)

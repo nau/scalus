@@ -62,6 +62,7 @@ class SIRConverter(using Context) {
   val ByteStringSymbol = requiredModule("scalus.builtins.ByteString")
   val ByteStringClassSymbol = requiredClass("scalus.builtins.ByteString")
   val VarSymbol = requiredModule("scalus.sir.SIR.Var")
+  val ExternalVarSymbol = requiredModule("scalus.sir.SIR.ExternalVar")
   val LetSymbol = requiredModule("scalus.sir.SIR.Let")
   val LamAbsSymbol = requiredModule("scalus.sir.SIR.LamAbs")
   val NamedDeBruijnSymbol = requiredModule("scalus.uplc.NamedDeBruijn")
@@ -98,6 +99,8 @@ class SIRConverter(using Context) {
       .appliedToArgs(List(Literal(Constant(name)), convert(term)))
   def mkVar(name: String) =
     ref(VarSymbol.requiredMethod("apply")).appliedTo(mkString(name))
+  def mkExternalVar(modName: String, name: String) =
+    ref(ExternalVarSymbol.requiredMethod("apply")).appliedTo(mkString(modName), mkString(name))
   def mkConst(const: scalus.uplc.Constant) =
     ref(ConstSymbol.requiredMethod("apply")).appliedTo(convert(const))
   def mkNamedDeBruijn(name: String) =
@@ -295,17 +298,18 @@ class SIRConverter(using Context) {
   def convert(sir: SIR): Tree = {
     import SIR.*
     val res = sir match
-      case Error(msg)               => mkError(msg)
-      case Var(name)                => mkVar(name)
-      case Const(const)             => mkConst(const)
-      case Apply(f, arg)            => mkApply(f, arg)
-      case LamAbs(name, term)       => mkLamAbs(name, term)
-      case Builtin(bn)              => mkBuiltin(bn)
-      case Let(rec, bindings, body) => mkLet(rec, bindings, body)
-      case Match(scrutinee, cases)  => mkMatch(scrutinee, cases)
-      case Constr(name, data, args) => mkConstr(name, data, args)
-      case Decl(data, term)         => mkDecl(data, term)
-      case IfThenElse(cond, t, f)   => mkIfThenElse(cond, t, f)
+      case Error(msg)                 => mkError(msg)
+      case Var(name)                  => mkVar(name)
+      case ExternalVar(modName, name) => mkExternalVar(modName, name)
+      case Const(const)               => mkConst(const)
+      case Apply(f, arg)              => mkApply(f, arg)
+      case LamAbs(name, term)         => mkLamAbs(name, term)
+      case Builtin(bn)                => mkBuiltin(bn)
+      case Let(rec, bindings, body)   => mkLet(rec, bindings, body)
+      case Match(scrutinee, cases)    => mkMatch(scrutinee, cases)
+      case Constr(name, data, args)   => mkConstr(name, data, args)
+      case Decl(data, term)           => mkDecl(data, term)
+      case IfThenElse(cond, t, f)     => mkIfThenElse(cond, t, f)
     // println(res)
     // println(res.showIndented(2))
     res

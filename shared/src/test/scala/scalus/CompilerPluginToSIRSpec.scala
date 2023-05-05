@@ -29,10 +29,7 @@ object PubKeyValidator {
 
     def findSignatureOrFail(sigs: builtins.List[Data]): Unit =
       if signatories.isEmpty then throw new RuntimeException("Signature not found")
-      else if Builtins.equalsByteString(
-          Builtins.unsafeDataAsB(signatories.head),
-          ByteString.fromHex("deadbeef")
-        )
+      else if Builtins.unsafeDataAsB(signatories.head) === ByteString.fromHex("deadbeef")
       then ()
       else findSignatureOrFail(signatories.tail)
 

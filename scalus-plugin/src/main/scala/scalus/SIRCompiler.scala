@@ -283,7 +283,8 @@ class SIRCompiler(mode: scalus.Mode)(using ctx: Context) {
       // global def, use full name
       case (false, true) => SIR.Var(e.symbol.fullName.show)
       case (false, false) if mode == scalus.Mode.Compile =>
-        SIR.Var(e.symbol.fullName.show)
+        println(s"external var: module ${e.symbol.owner.fullName.show}, ${e.symbol.fullName.show}")
+        SIR.ExternalVar(e.symbol.owner.fullName.show, e.symbol.fullName.show)
       case (false, false) =>
         if e.symbol.defTree == EmptyTree then
 
