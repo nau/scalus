@@ -10,10 +10,11 @@ import scala.collection.immutable.List
 import scala.deriving.*
 import scala.quoted.*
 import scalus.macros.Macros
-import scalus.Prelude.Maybe
-import scalus.Prelude.{===, given}
-import scalus.Prelude.AssocMap
-import scalus.Prelude
+import scalus.prelude
+import scalus.prelude.Maybe
+import scalus.prelude.Prelude.{===, given}
+import scalus.prelude.AssocMap
+import scalus.prelude.Prelude
 import scalus.builtins
 import scalus.builtins.Pair
 
@@ -40,12 +41,12 @@ object Data:
     else if constr === BigInt(1) then true
     else throw new RuntimeException("Not a boolean")
 
-  given ListFromData[A: FromData]: FromData[scalus.Prelude.List[A]] = (d: Data) =>
+  given ListFromData[A: FromData]: FromData[scalus.prelude.List[A]] = (d: Data) =>
     val fromA = summon[FromData[A]]
     val ls = Builtins.unsafeDataAsList(d)
-    def loop(ls: scalus.builtins.List[Data]): scalus.Prelude.List[A] =
-      if ls.isEmpty then Prelude.List.Nil
-      else Prelude.List.Cons(fromA(ls.head), loop(ls.tail))
+    def loop(ls: scalus.builtins.List[Data]): scalus.prelude.List[A] =
+      if ls.isEmpty then prelude.List.Nil
+      else prelude.List.Cons(fromA(ls.head), loop(ls.tail))
     loop(ls)
 
   given AssocMapFromData[A: FromData, B: FromData]: FromData[AssocMap[A, B]] =
@@ -53,18 +54,18 @@ object Data:
       val fromA = summon[FromData[A]]
       val fromB = summon[FromData[B]]
       val ls = Builtins.unsafeDataAsMap(d)
-      def loop(ls: scalus.builtins.List[Pair[Data, Data]]): Prelude.List[(A, B)] =
-        if ls.isEmpty then Prelude.List.Nil
+      def loop(ls: scalus.builtins.List[Pair[Data, Data]]): prelude.List[(A, B)] =
+        if ls.isEmpty then prelude.List.Nil
         else
           val pair = ls.head
-          Prelude.List.Cons((fromA(pair.fst), fromB(pair.snd)), loop(ls.tail))
+          prelude.List.Cons((fromA(pair.fst), fromB(pair.snd)), loop(ls.tail))
       AssocMap.fromList(loop(ls))
 
-  given MaybeFromData[A: FromData]: FromData[scalus.Prelude.Maybe[A]] = (d: Data) =>
+  given MaybeFromData[A: FromData]: FromData[scalus.prelude.Maybe[A]] = (d: Data) =>
     val fromA = summon[FromData[A]]
     val pair = Builtins.unsafeDataAsConstr(d)
-    if pair.fst === BigInt(0) then scalus.Prelude.Maybe.Just(fromA(pair.snd.head))
-    else scalus.Prelude.Maybe.Nothing
+    if pair.fst === BigInt(0) then scalus.prelude.Maybe.Just(fromA(pair.snd.head))
+    else scalus.prelude.Maybe.Nothing
 
   /* given tupleFromData[A, B](using fromA: FromData[A], fromB: FromData[B]): FromData[(A, B)] =
     (d: Data) =>
@@ -138,13 +139,13 @@ object Data:
     def toData(a: B[A]): Data = List(a.map(summon[ToData[A]].toData).toList)
   }
 
-  given listToData[A: ToData]: ToData[scalus.Prelude.List[A]] with {
-    def toData(a: scalus.Prelude.List[A]): Data =
+  given listToData[A: ToData]: ToData[scalus.prelude.List[A]] with {
+    def toData(a: scalus.prelude.List[A]): Data =
       val aToData = summon[ToData[A]]
-      def loop(a: scalus.Prelude.List[A]): scalus.builtins.List[Data] =
+      def loop(a: scalus.prelude.List[A]): scalus.builtins.List[Data] =
         a match
-          case scalus.Prelude.List.Nil => scalus.builtins.List.Nil
-          case scalus.Prelude.List.Cons(head, tail) =>
+          case scalus.prelude.List.Nil => scalus.builtins.List.Nil
+          case scalus.prelude.List.Cons(head, tail) =>
             scalus.builtins.List.Cons(aToData.toData(head), loop(tail))
       Builtins.mkList(loop(a))
   }
@@ -157,9 +158,9 @@ object Data:
 
   given assocMapToData[A: ToData, B: ToData]: ToData[AssocMap[A, B]] with {
     def toData(a: AssocMap[A, B]): Data =
-      def go(a: Prelude.List[(A, B)]): builtins.List[Pair[Data, Data]] = a match
-        case Prelude.List.Nil => builtins.List.empty
-        case Prelude.List.Cons(tuple, tail) =>
+      def go(a: prelude.List[(A, B)]): builtins.List[Pair[Data, Data]] = a match
+        case prelude.List.Nil => builtins.List.empty
+        case prelude.List.Cons(tuple, tail) =>
           tuple match
             case (a, b) =>
               builtins.List.Cons(

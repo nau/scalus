@@ -122,7 +122,7 @@ class SIRCompiler(mode: scalus.Mode)(using ctx: Context) {
 
   def compileTypeDef(td: TypeDef) = {
     report.echo(
-      s"Compiling ${td.name} (${td.symbol.fullName}), is case class: ${td.tpe.typeSymbol.is(Flags.CaseClass)}"
+      s"compiling to SIR:  ${td.name} (${td.symbol.fullName}: ${td.tpe.show})"
     )
 
     if td.tpe.typeSymbol.is(Flags.CaseClass) then compileCaseClass(td)
@@ -131,7 +131,7 @@ class SIRCompiler(mode: scalus.Mode)(using ctx: Context) {
       val bindings = tpl.body.collect {
         case dd: DefDef if !dd.symbol.flags.is(Flags.Synthetic) =>
           compileStmt(immutable.HashSet.empty, dd)
-        case vd: ValDef if !vd.symbol.flags.is(Flags.Synthetic) =>
+        case vd: ValDef if !vd.symbol.flags.isOneOf(Flags.Synthetic | Flags.Case) =>
           // println(s"valdef: ${vd.symbol.fullName}")
           compileStmt(immutable.HashSet.empty, vd)
       }

@@ -16,8 +16,8 @@ import scalus.uplc.TermDSL.{lam, λ}
 import scalus.utils.Utils
 
 import scala.collection.immutable
-import scalus.Prelude.List.{Cons, Nil}
-import scalus.Prelude.{===, given}
+import scalus.prelude.List.{Cons, Nil}
+import scalus.prelude.Prelude.{===, given}
 import scalus.sir.DataDecl
 import scalus.sir.ConstrDecl
 

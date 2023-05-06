@@ -5,11 +5,11 @@ import scalus.ledger.api.v1.Instances.given
 import scalus.uplc.Data
 import scalus.uplc.Data.{FromData, ToData, given}
 import scalus.utils.Utils.bytesToHex
-import scalus.Prelude.{List, Maybe}
-import scalus.Prelude.These.*
-import scalus.Prelude.{===, given}
+import scalus.prelude.{List, Maybe}
+import scalus.prelude.These.*
+import scalus.prelude.Prelude.{===, given}
 import scalus.builtins.Builtins
-import scalus.Prelude.AssocMap
+import scalus.prelude.AssocMap
 
 type ValidatorHash = ByteString
 type Datum = Data
