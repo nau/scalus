@@ -93,7 +93,7 @@ class SIRCompiler(mode: scalus.Mode)(using ctx: Context) {
     case Compiled(binding: TopLevelBinding)
 
   val globalDefs: mutable.LinkedHashMap[FullName, CompileDef] = mutable.LinkedHashMap.empty
-  val globalDataDecls: mutable.LinkedHashMap[Symbol, DataDecl] = mutable.LinkedHashMap.empty
+  val globalDataDecls: mutable.LinkedHashMap[FullName, DataDecl] = mutable.LinkedHashMap.empty
   val moduleDefsCache: mutable.Map[String, mutable.LinkedHashMap[FullName, SIR]] =
     mutable.LinkedHashMap.empty.withDefaultValue(mutable.LinkedHashMap.empty)
 
@@ -264,11 +264,11 @@ class SIRCompiler(mode: scalus.Mode)(using ctx: Context) {
     }
     val dataName = adtInfo.dataTypeSymbol.name.show
     // debugInfo(s"compileNewConstructor2: dataTypeSymbol $dataTypeSymbol, dataName $dataName, constrName $constrName, children ${constructors}")
-    val dataDecl = globalDataDecls.get(adtInfo.dataTypeSymbol) match
+    val dataDecl = globalDataDecls.get(FullName(adtInfo.dataTypeSymbol)) match
       case Some(decl) => decl
       case None =>
         val decl = scalus.sir.DataDecl(dataName, constrDecls)
-        globalDataDecls.addOne(adtInfo.dataTypeSymbol -> decl)
+        globalDataDecls.addOne(FullName(adtInfo.dataTypeSymbol) -> decl)
         decl
     // constructor body as: constr arg1 arg2 ...
     SIR.Constr(constrName, dataDecl, argsE)
@@ -291,13 +291,14 @@ class SIRCompiler(mode: scalus.Mode)(using ctx: Context) {
     case SIR.Apply(f, arg) =>
       traverseAndLink(f, srcPos)
       traverseAndLink(arg, srcPos)
-    case SIR.Const(const) =>
     case SIR.IfThenElse(cond, t, f) =>
       traverseAndLink(cond, srcPos)
       traverseAndLink(t, srcPos)
       traverseAndLink(f, srcPos)
     case SIR.Decl(data, term)         => traverseAndLink(term, srcPos)
-    case SIR.Constr(name, data, args) => args.foreach(a => traverseAndLink(a, srcPos))
+    case SIR.Constr(name, data, args) =>
+      globalDataDecls.put(FullName(data.name), data)
+      args.foreach(a => traverseAndLink(a, srcPos))
     case SIR.Match(scrutinee, cases) =>
       traverseAndLink(scrutinee, srcPos)
       cases.foreach(c => traverseAndLink(c.body, srcPos))
