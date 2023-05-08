@@ -155,7 +155,7 @@ class MintingPolicyExampleSpec extends BaseValidatorSpec {
   }
 
   test("Minting Policy Validator Optimized") {
-    println(MintingPolicy.compiledOptimizedMintingPolicyScript.pretty.render(100))
+    // println(MintingPolicy.compiledOptimizedMintingPolicyScript.pretty.render(100))
     val validator = new SimpleSirToUplcLowering(generateErrorTraces = true)
       .lower(MintingPolicy.compiledOptimizedMintingPolicyScript)
     val appliedValidator =

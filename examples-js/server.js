@@ -3,8 +3,8 @@ const fs = require('fs').promises;
 
 const requestListener = function (req, res) {
   console.log(req.url)
-  if (req.url === "/target/scala-3.2.1/examples-js-fastopt.js") {
-    fs.readFile(__dirname + "/target/scala-3.2.1/examples-js-fastopt.js")
+  if (req.url === "/target/scala-3.2.2/examples-js-fastopt.js") {
+    fs.readFile(__dirname + "/target/scala-3.2.2/examples-js-fastopt.js")
         .then(contents => {
             res.setHeader("Content-Type", "text/javascript");
             res.writeHead(200);
