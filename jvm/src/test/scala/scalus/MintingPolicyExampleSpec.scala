@@ -144,15 +144,15 @@ class MintingPolicyExampleSpec extends BaseValidatorSpec {
     val tokens = new SimpleSirToUplcLowering().lower(tokensSIR)
     Cek.evalUPLC(tokens)
 
-  /* test("Minting Policy Validator") {
+  test("Minting Policy Validator") {
     val validator = new SimpleSirToUplcLowering(generateErrorTraces = true)
       .lower(MintingPolicy.compiledMintingPolicyScript)
     val appliedValidator =
       validator $ hoskyMintTxOutRef.txOutRefId.hash $ hoskyMintTxOutRef.txOutRefIdx $ evaledTokens
     val flatSize = ProgramFlatCodec.encodeFlat(Program((1, 0, 0), appliedValidator)).length
-    assert(flatSize == 2385)
+    assert(flatSize == 2397)
     performMintingPolicyValidatorChecks(appliedValidator)
-  } */
+  }
 
   test("Minting Policy Validator Optimized") {
     println(MintingPolicy.compiledOptimizedMintingPolicyScript.pretty.render(100))
@@ -161,7 +161,7 @@ class MintingPolicyExampleSpec extends BaseValidatorSpec {
     val appliedValidator =
       validator $ hoskyMintTxOutRef.txOutRefId.hash $ hoskyMintTxOutRef.txOutRefIdx $ evaledTokens
     val flatSize = ProgramFlatCodec.encodeFlat(Program((1, 0, 0), appliedValidator)).length
-    // assert(flatSize == 1058)
-    // performMintingPolicyValidatorChecks(appliedValidator)
+    assert(flatSize == 1072)
+    performMintingPolicyValidatorChecks(appliedValidator)
   }
 }

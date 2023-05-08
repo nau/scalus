@@ -115,12 +115,37 @@ object MintingPolicy {
       txOutIdx: BigInt,
       tokensToMint: AssocMap[ByteString, BigInt]
   ) = (redeemer: Unit, ctxData: Data) => {
-    true
+    deserializer(ctxData) match
+      case MintingContext(txOutRefs, minted, ownSymbol) =>
+        val mintedTokens = AssocMap.lookup(minted)(ownSymbol) match
+          case Just(mintedTokens) => mintedTokens
+          case Nothing =>
+            throw new Exception("T")
+
+        val checkSpendsTxOut = List.find(txOutRefs) { case TxOutRef(txOutRefTxId, txOutRefIdx) =>
+          txOutRefTxId.hash === txId && txOutRefIdx === txOutIdx
+        }
+
+        val check = (b: Boolean, msg: String) => if b then () else throw new Exception(msg)
+        checkSpendsTxOut match
+          // If the transaction spends the TxOut, then it's a minting transaction
+          case Just(input) => check(Value.equalsAssets(mintedTokens, tokensToMint), "M")
+          // Otherwise, it's a burn transaction
+          case Nothing =>
+            // check burned
+            val burned = List.all(AssocMap.toList(mintedTokens)) { case (tokenName, amount) =>
+              Builtins.lessThanInteger(amount, BigInt(0))
+            }
+            check(burned, "B")
   }
 
-  val compiledOptimizedMintingPolicyScript = compile {
-    optimizedCtxDeserializer
-  }
+  val compiledOptimizedMintingPolicyScript = compile(
+    mintingPolicyScript(optimizedCtxDeserializer)
+  )
+
+  val compiledMintingPolicyScript = compile(
+    mintingPolicyScript(simpleCtxDeserializer)
+  )
 
   // val cbor = Cbor.encode(flatEncoded).toByteArray
   // val cborHex = Utils.bytesToHex(Cbor.encode(flatEncoded).toByteArray)
