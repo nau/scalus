@@ -11,7 +11,7 @@ import scalus.uplc.ArbitraryInstances
 import scala.collection.immutable
 
 import prelude.AssocMap
-import scalus.uplc.Compiler
+import scalus.Compiler
 import scalus.prelude.Prelude.{===, given}
 import prelude.List
 import prelude.List.*

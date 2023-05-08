@@ -69,7 +69,7 @@ class ScalusPhase extends PluginPhase {
     ctx
 
   override def transformApply(tree: tpd.Apply)(using Context): tpd.Tree =
-    val compileSymbol = requiredModule("scalus.uplc.Compiler").requiredMethod("compile")
+    val compileSymbol = requiredModule("scalus.Compiler").requiredMethod("compile")
     if tree.fun.symbol == compileSymbol then
       // report.echo(tree.showIndented(2))
       val arg = tree.args.head

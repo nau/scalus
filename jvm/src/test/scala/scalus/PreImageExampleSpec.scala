@@ -19,7 +19,7 @@ import scalus.prelude.Prelude.given
 import scalus.prelude.*
 import scalus.sir.SimpleSirToUplcLowering
 import scalus.uplc.ArbitraryInstances
-import scalus.uplc.Compiler.compile
+import scalus.Compiler.compile
 import scalus.uplc.Constant.Pair
 import scalus.uplc.Data.FromData
 import scalus.uplc.Data.toData
