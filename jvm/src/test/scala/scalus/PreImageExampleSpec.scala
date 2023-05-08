@@ -3,21 +3,23 @@ package scalus
 import io.bullet.borer.Cbor
 import org.scalatest.funsuite.AnyFunSuite
 import org.scalatestplus.scalacheck.ScalaCheckPropertyChecks
-import scalus.uplc.Compiler.compile
 import scalus.Compiler.fieldAsData
-import scalus.prelude.List
-import scalus.prelude.List.Cons
-import scalus.prelude.List.Nil
-import scalus.prelude.Prelude.{===, given}
-import scalus.prelude.Maybe.*
-import scalus.prelude.*
 import scalus.builtins.Builtins
 import scalus.builtins.ByteString
 import scalus.builtins.ByteString.given
-import scalus.ledger.api.v1.Instances.given
+import scalus.ledger.api.v1.FromDataInstances.given
+import scalus.ledger.api.v1.ToDataInstances.given
 import scalus.ledger.api.v1.*
+import scalus.prelude.List
+import scalus.prelude.List.Cons
+import scalus.prelude.List.Nil
+import scalus.prelude.Maybe.*
+import scalus.prelude.Prelude.===
+import scalus.prelude.Prelude.given
+import scalus.prelude.*
 import scalus.sir.SimpleSirToUplcLowering
 import scalus.uplc.ArbitraryInstances
+import scalus.uplc.Compiler.compile
 import scalus.uplc.Constant.Pair
 import scalus.uplc.Data.FromData
 import scalus.uplc.Data.toData
@@ -25,16 +27,16 @@ import scalus.uplc.DefaultFun.*
 import scalus.uplc.DefaultUni.Bool
 import scalus.uplc.DefaultUni.asConstant
 import scalus.uplc.Term.*
-import scalus.uplc.TermDSL.{*, given}
+import scalus.uplc.TermDSL.{_, given}
 import scalus.uplc.*
 import scalus.utils.Utils
 
 import java.io.ByteArrayInputStream
+import java.nio.charset.Charset
 import scala.collection.immutable
 import scala.util.Failure
 import scala.util.Success
 import scala.util.Try
-import java.nio.charset.Charset
 
 @Compile
 object OptimizedPreimageValidator {

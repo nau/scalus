@@ -2,20 +2,20 @@ package scalus
 
 import org.scalatest.funsuite.AnyFunSuite
 import org.scalatestplus.scalacheck.ScalaCheckPropertyChecks
-import scalus.uplc.Compiler.compile
 import scalus.Compiler.fieldAsData
+import scalus.builtins.Builtins
+import scalus.builtins.ByteString
+import scalus.builtins.ByteString.given
+import scalus.ledger.api.v1.FromDataInstances.given
+import scalus.ledger.api.v1.*
 import scalus.prelude.List
 import scalus.prelude.List.Cons
 import scalus.prelude.List.Nil
 import scalus.prelude.Maybe.*
 import scalus.prelude.*
-import scalus.builtins.Builtins
-import scalus.builtins.ByteString
-import scalus.builtins.ByteString.given
-import scalus.ledger.api.v1.Instances.given
-import scalus.ledger.api.v1.*
 import scalus.sir.SimpleSirToUplcLowering
 import scalus.uplc.ArbitraryInstances
+import scalus.uplc.Compiler.compile
 import scalus.uplc.Constant.Pair
 import scalus.uplc.Data.FromData
 import scalus.uplc.Data.toData

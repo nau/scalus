@@ -2,10 +2,16 @@ package scalus.uplc
 
 import org.scalatest.funsuite.AnyFunSuite
 import org.scalatestplus.scalacheck.ScalaCheckPropertyChecks
-import scalus.ledger.api.v1.{Interval, ScriptPurpose, TxId, TxInfo, TxOutRef, Value}
-import scalus.ledger.api.v1.Instances.given
-import scalus.uplc.Data.*
 import scalus.builtins.ByteString.given
+import scalus.ledger.api.v1.FromDataInstances.given
+import scalus.ledger.api.v1.Interval
+import scalus.ledger.api.v1.ScriptPurpose
+import scalus.ledger.api.v1.ToDataInstances.given
+import scalus.ledger.api.v1.TxId
+import scalus.ledger.api.v1.TxInfo
+import scalus.ledger.api.v1.TxOutRef
+import scalus.ledger.api.v1.Value
+import scalus.uplc.Data.*
 
 import scala.collection.immutable
 

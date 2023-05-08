@@ -1,16 +1,17 @@
 package scalus.uplc
 
 import scalus.builtins.ByteString
+import scalus.builtins.ByteString.given
 import scalus.ledger.api.v1.*
 import scalus.macros.Macros
 import scalus.sir.SIR
 import scalus.uplc.Constant.LiftValue
-import scalus.builtins.ByteString.given
+import scalus.utils.Utils
 import scalus.utils.Utils.bytesToHex
 
-import java.io.{ByteArrayInputStream, ByteArrayOutputStream}
+import java.io.ByteArrayInputStream
+import java.io.ByteArrayOutputStream
 import scala.annotation.targetName
-import scalus.utils.Utils
 
 trait Delayed[+A]
 case class Expr[+A](term: Term)
@@ -158,7 +159,7 @@ object ExprBuilder:
 object Example:
   import Constant.given
   import ExprBuilder.{*, given}
-  import scalus.ledger.api.v1.Instances.given
+  import scalus.ledger.api.v1.FromDataInstances.given
   // simple validator that checks that the spending transaction has no outputs
   // it's a gift to the validators community
 
