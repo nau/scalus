@@ -18,7 +18,6 @@ import dotty.tools.dotc.core.Types.TypeRef
 import dotty.tools.dotc.core.*
 import dotty.tools.dotc.plugins.*
 import dotty.tools.dotc.plugins.*
-import dotty.tools.dotc.util.NoSourcePosition
 import dotty.tools.dotc.util.SrcPos
 import dotty.tools.io.ClassPath
 import scalus.builtins.ByteString
@@ -47,6 +46,7 @@ import scala.collection.mutable
 import scala.collection.mutable.ListBuffer
 import scala.language.implicitConversions
 import scala.util.control.NonFatal
+import dotty.tools.dotc.interfaces.SourcePosition
 
 case class Module(defs: List[Binding])
 case class FullName(name: String)
@@ -130,10 +130,10 @@ class SIRCompiler(mode: scalus.Mode)(using ctx: Context) {
       val tpl = td.rhs.asInstanceOf[Template]
       val bindings = tpl.body.collect {
         case dd: DefDef if !dd.symbol.flags.is(Flags.Synthetic) =>
-          compileStmt(immutable.HashSet.empty, dd)
+          compileStmt(immutable.HashSet.empty, dd, isGlobalDef = true)
         case vd: ValDef if !vd.symbol.flags.isOneOf(Flags.Synthetic | Flags.Case) =>
           // println(s"valdef: ${vd.symbol.fullName}")
-          compileStmt(immutable.HashSet.empty, vd)
+          compileStmt(immutable.HashSet.empty, vd, isGlobalDef = true)
       }
       val module = Module(bindings.map(b => Binding(b.fullName.name, b.body)))
       val suffix = ".sir"
@@ -280,35 +280,38 @@ class SIRCompiler(mode: scalus.Mode)(using ctx: Context) {
       ) */
     tpe.typeSymbol.isClass && symbol.flags.is(Flags.Case)
 
-  def traverseAndLink(sir: SIR): Unit = sir match
-    case SIR.ExternalVar(moduleName, name) =>
-      linkDefinition(moduleName, FullName(name), NoSourcePosition)
+  def traverseAndLink(sir: SIR, srcPos: SrcPos): Unit = sir match
+    case SIR.ExternalVar(moduleName, name) if !globalDefs.contains(FullName(name)) =>
+      linkDefinition(moduleName, FullName(name), srcPos)
     case SIR.Let(recursivity, bindings, body) =>
-      bindings.foreach(b => traverseAndLink(b.value))
-      traverseAndLink(body)
-    case SIR.LamAbs(name, term) => traverseAndLink(term)
+      bindings.foreach(b => traverseAndLink(b.value, srcPos))
+      traverseAndLink(body, srcPos)
+    case SIR.LamAbs(name, term) => traverseAndLink(term, srcPos)
     case SIR.Apply(f, arg) =>
-      traverseAndLink(f)
-      traverseAndLink(arg)
+      traverseAndLink(f, srcPos)
+      traverseAndLink(arg, srcPos)
     case SIR.Const(const) =>
     case SIR.IfThenElse(cond, t, f) =>
-      traverseAndLink(cond)
-      traverseAndLink(t)
-      traverseAndLink(f)
-    case SIR.Decl(data, term)         => traverseAndLink(term)
-    case SIR.Constr(name, data, args) => args.foreach(traverseAndLink)
+      traverseAndLink(cond, srcPos)
+      traverseAndLink(t, srcPos)
+      traverseAndLink(f, srcPos)
+    case SIR.Decl(data, term)         => traverseAndLink(term, srcPos)
+    case SIR.Constr(name, data, args) => args.foreach(a => traverseAndLink(a, srcPos))
     case SIR.Match(scrutinee, cases) =>
-      traverseAndLink(scrutinee)
-      cases.foreach(c => traverseAndLink(c.body))
+      traverseAndLink(scrutinee, srcPos)
+      cases.foreach(c => traverseAndLink(c.body, srcPos))
     case _ => ()
 
   def findAndLinkDefinition(
       defs: collection.Map[FullName, SIR],
-      fullName: FullName
+      fullName: FullName,
+      srcPos: SrcPos
   ): Option[SIR] = {
     // println(s"findAndLinkDefinition: looking for ${fullName.name}")
     defs.get(fullName).map { sir =>
-      traverseAndLink(sir)
+      globalDefs.update(fullName, CompileDef.Compiling)
+      traverseAndLink(sir, srcPos)
+      globalDefs.remove(fullName)
       globalDefs.update(
         fullName,
         CompileDef.Compiled(TopLevelBinding(fullName, Recursivity.Rec, sir))
@@ -321,24 +324,21 @@ class SIRCompiler(mode: scalus.Mode)(using ctx: Context) {
     // println(s"linkDefinition: ${fullName}")
     val defn = moduleDefsCache.get(moduleName) match
       case Some(defs) =>
-        findAndLinkDefinition(defs, fullName)
+        findAndLinkDefinition(defs, fullName, srcPos)
       case None =>
-        findAndReadModuleOfSymbol(moduleName) match
-          case Some(m @ Module(defs)) =>
-            // println(s"Loaded module ${moduleName}, defs: ${defs}")
-            val defsMap = mutable.LinkedHashMap.from(defs.map(d => FullName(d.name) -> d.value))
-            moduleDefsCache.put(moduleName, defsMap)
-            findAndLinkDefinition(defsMap, fullName)
-          case None =>
-            report.error(s"Symbol ${fullName} is not defined", srcPos)
-            return SIR.Error(s"Symbol ${fullName} not defined")
+        findAndReadModuleOfSymbol(moduleName).flatMap { case m @ Module(defs) =>
+          // println(s"Loaded module ${moduleName}, defs: ${defs}")
+          val defsMap = mutable.LinkedHashMap.from(defs.map(d => FullName(d.name) -> d.value))
+          moduleDefsCache.put(moduleName, defsMap)
+          findAndLinkDefinition(defsMap, fullName, srcPos)
+        }
     defn match
       case Some(d) =>
         // println(s"Found definition of ${fullName.name}")
         SIR.Var(fullName.name)
       case None =>
-        report.error(s"Symbol ${fullName} is not found", srcPos)
-        SIR.Error(s"Symbol ${fullName} not defined")
+        report.error(s"Symbol ${fullName.name} is not found", srcPos)
+        SIR.Error(s"Symbol ${fullName.name} not defined")
   }
 
   def compileIdentOrQualifiedSelect(env: Env, e: Tree): SIR = {
@@ -368,10 +368,10 @@ class SIRCompiler(mode: scalus.Mode)(using ctx: Context) {
               globalDefs.update(fullName, CompileDef.Compiling)
               // println(s"Tree of ${e}: ${e.tpe} isList: ${e.isList}")
               // debugInfo(s"Tree of ${e.symbol}: ${e.symbol.tree.show}\n${e.symbol.tree}")
-              val b = compileStmt(immutable.HashSet.empty, e.symbol.defTree)
+              val b = compileStmt(immutable.HashSet.empty, e.symbol.defTree, isGlobalDef = true)
               // remove the symbol from the linked hash map so the order of the definitions is preserved
               globalDefs.remove(fullName)
-              traverseAndLink(b.body)
+              traverseAndLink(b.body, e.symbol.sourcePos)
               globalDefs.update(
                 fullName,
                 CompileDef.Compiled(TopLevelBinding(fullName, b.recursivity, b.body))
@@ -379,7 +379,7 @@ class SIRCompiler(mode: scalus.Mode)(using ctx: Context) {
               SIR.Var(e.symbol.fullName.show)
   }
 
-  def compileStmt(env: Env, stmt: Tree): B = {
+  def compileStmt(env: Env, stmt: Tree, isGlobalDef: Boolean = false): B = {
     // report.echo(s"compileStmt  ${stmt.show} in ${env}")
     stmt match
       case vd @ ValDef(name, _, _) =>
@@ -390,12 +390,14 @@ class SIRCompiler(mode: scalus.Mode)(using ctx: Context) {
         val body = dd.rhs
         val bodyExpr: scalus.sir.SIR = {
           if params.isEmpty then
-            val bE = compileExpr(env + stmt.symbol.name.show, body)
+            val selfName = if isGlobalDef then FullName(dd.symbol).name else dd.symbol.name.show
+            val bE = compileExpr(env + selfName, body)
             SIR.LamAbs("_", bE)
           else
             val names = params.map { case v: ValDef => v.symbol.name.show }
+            val selfName = if isGlobalDef then FullName(dd.symbol).name else dd.symbol.name.show
             // println(s"compileStmt DefDef $name: symbols: ${symbols}, env: ${env}")
-            val bE = compileExpr(env ++ names + stmt.symbol.name.show, body)
+            val bE = compileExpr(env ++ names + selfName, body)
             names.foldRight(bE) { (name, acc) =>
               SIR.LamAbs(name, acc)
             }
