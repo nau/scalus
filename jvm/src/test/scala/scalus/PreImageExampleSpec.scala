@@ -91,7 +91,7 @@ class PreImageExampleSpec extends BaseValidatorSpec {
         hash: ByteString,
         signatories: scalus.prelude.List[PubKeyHash]
     ) =
-      val datum = (hash, pubKeyHash).toData
+      val datum = (hash, pubKeyHash.hash).toData
       val redeemer = preimage.toData
       val ctx = scriptContext(signatories)
       Program((1, 0, 0), validator $ datum $ redeemer $ ctx.toData)
@@ -149,13 +149,13 @@ class PreImageExampleSpec extends BaseValidatorSpec {
     // convert SIR to UPLC
     val validator = new SimpleSirToUplcLowering().lower(compiled)
     val flatEncoded = ProgramFlatCodec.encodeFlat(Program((1, 0, 0), validator))
-    assert(flatEncoded.length == 1665)
+    assert(flatEncoded.length == 1684)
 
     performChecks(validator)
   }
 
   test("Preimage Validator Optimized") {
-    assert(OptimizedPreimage.flatEncoded.length == 264)
+    assert(OptimizedPreimage.flatEncoded.length == 274)
     performChecks(OptimizedPreimage.validator)
   }
 }

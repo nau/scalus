@@ -34,9 +34,6 @@ import scala.util.Success
 import scala.util.Try
 
 case class TxInInfoTxOutRefOnly(txInInfoOutRef: TxOutRef)
-given Data.FromData[TxInInfoTxOutRefOnly] = (d: Data) =>
-  val pair = Builtins.unsafeDataAsConstr(d)
-  new TxInInfoTxOutRefOnly(summon[Data.FromData[TxOutRef]](pair.snd.head))
 
 @Compile
 object MintingPolicy {

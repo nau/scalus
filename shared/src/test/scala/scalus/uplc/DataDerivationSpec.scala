@@ -17,7 +17,7 @@ import scala.collection.immutable
 
 class DataDerivationSpec extends AnyFunSuite with ScalaCheckPropertyChecks with ArbitraryInstances:
   test("Simple derivation") {
-    assert(TxId(hex"deadbeef").toData == hex"deadbeef".toData)
+    assert(TxId(hex"deadbeef").toData == Constr(0, immutable.List(B(hex"deadbeef"))))
     assert(
       TxInfo(
         scalus.prelude.List.Nil,
@@ -48,7 +48,7 @@ class DataDerivationSpec extends AnyFunSuite with ScalaCheckPropertyChecks with 
           ),
           List(Nil),
           List(Nil),
-          B(hex"BB")
+          Constr(0, immutable.List(B(hex"BB")))
         )
       )
     )
@@ -56,7 +56,7 @@ class DataDerivationSpec extends AnyFunSuite with ScalaCheckPropertyChecks with 
     assert(
       ScriptPurpose.Spending(TxOutRef(TxId(hex"deadbeef"), 2)).toData == Constr(
         1,
-        Constr(0, hex"deadbeef".toData :: I(2) :: Nil) :: Nil
+        Constr(0, Constr(0, immutable.List(hex"deadbeef".toData)) :: I(2) :: Nil) :: Nil
       )
     )
   }

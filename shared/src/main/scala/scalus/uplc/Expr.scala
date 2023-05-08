@@ -187,7 +187,7 @@ object Example:
             lam { signatories =>
               // signatories.head.pubKeyHash
               val head = headList.apply(signatories)
-              val headPubKeyHash = unBData(head)
+              val headPubKeyHash = unBData(headList(sndPair(unConstrData(head))))
               !chooseList(signatories)(error("Signature not found")) {
                 ~ifThenElse2(equalsByteString(headPubKeyHash)(pkh.hash))(()) {
                   self(tailList(signatories))

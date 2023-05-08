@@ -28,11 +28,11 @@ type Value = AssocMap[CurrencySymbol, AssocMap[TokenName, BigInt]]
 object FromDataInstances {
 
   implicit def fromDataTxId(d: Data): TxId =
-    val hash = summon[FromData[ByteString]].apply(d)
+    val hash = summon[FromData[ByteString]].apply(Builtins.unsafeDataAsConstr(d).snd.head)
     new TxId(hash)
 
   implicit def fromDataPubKeyHash(d: Data): PubKeyHash =
-    val hash = summon[FromData[ByteString]].apply(d)
+    val hash = summon[FromData[ByteString]].apply(Builtins.unsafeDataAsConstr(d).snd.head)
     new PubKeyHash(hash)
 
   implicit def fromDataTxOutRef(d: Data): TxOutRef =
@@ -241,7 +241,7 @@ enum DCert:
   case Genesis
   case Mir
 
-case class TxId(hash: ByteString):
+case class TxId(hash: ByteString) derives Data.ToData:
   override def toString = s"TxId(${hash.toHex})"
 
 /*
@@ -252,7 +252,7 @@ data TxOutRef = TxOutRef {
  */
 case class TxOutRef(txOutRefId: TxId, txOutRefIdx: BigInt) derives Data.ToData
 
-case class PubKeyHash(hash: ByteString) {
+case class PubKeyHash(hash: ByteString) derives Data.ToData {
   override def toString = s"PubKeyHash(${hash})"
 }
 

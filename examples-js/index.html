@@ -43,13 +43,13 @@
         .collectFrom([utxo])
         .mintAssets(assets, redeemer)
         .attachMintingPolicy(mintingPolicy)
-        // .payToAddress(address, assets)
+        .payToAddress(address, assets)
         .complete()
       console.log(tx)
       const signedTx = await tx.sign().complete();
       console.log(signedTx)
-      // const txHash = await signedTx.submit();
-      // console.log(txHash)
+      const txHash = await signedTx.submit();
+      console.log(txHash)
     } else {
       console.log("No UTXOs")
     }

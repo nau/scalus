@@ -5,13 +5,6 @@ import scalus.uplc.Data
 
 object ToDataInstances {
   import scalus.uplc.Data.toData
-
-  given ToData[TxId] with
-    def toData(a: TxId): Data = a.hash.toData
-
-  given ToData[PubKeyHash] with
-    def toData(a: PubKeyHash): Data = a.hash.toData
-
   given DCertLift[T <: DCert]: ToData[T] with
     def toData(a: T): Data =
       a match

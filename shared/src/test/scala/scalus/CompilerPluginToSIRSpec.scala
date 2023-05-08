@@ -29,7 +29,9 @@ object PubKeyValidator {
 
     def findSignatureOrFail(sigs: builtins.List[Data]): Unit =
       if signatories.isEmpty then throw new RuntimeException("Signature not found")
-      else if Builtins.unsafeDataAsB(signatories.head) === ByteString.fromHex("deadbeef")
+      else if Builtins.unsafeDataAsB(
+          Builtins.unsafeDataAsConstr(signatories.head).snd.head
+        ) === ByteString.fromHex("deadbeef")
       then ()
       else findSignatureOrFail(signatories.tail)
 
@@ -533,7 +535,7 @@ class CompilerPluginToSIRSpec extends AnyFunSuite with ScalaCheckPropertyChecks:
     val compiled = compile { (ctx: scalus.uplc.Data) =>
       val sigsData = fieldAsData[ScriptContext](_.scriptContextTxInfo.txInfoSignatories)(ctx)
       val sigs = Builtins.unsafeDataAsList(sigsData)
-      Builtins.unsafeDataAsB(sigs.head)
+      Builtins.unsafeDataAsB(Builtins.unsafeDataAsConstr(sigs.head).snd.head)
     }
     // println(compiled.pretty.render(80))
     val term = new SimpleSirToUplcLowering().lower(compiled)
@@ -563,7 +565,7 @@ class CompilerPluginToSIRSpec extends AnyFunSuite with ScalaCheckPropertyChecks:
     assert(evaled == scalus.uplc.Term.Const(asConstant(hex"deadbeef")))
     val flatBytes = ProgramFlatCodec.encodeFlat(appliedScript)
     // println(Utils.bytesToHex(flatBytes))
-    assert(flatBytes.length == 117)
+    assert(flatBytes.length == 136)
   }
 
   test("PubKey Validator example") {
@@ -591,7 +593,7 @@ class CompilerPluginToSIRSpec extends AnyFunSuite with ScalaCheckPropertyChecks:
     val flatBytes = ProgramFlatCodec.encodeFlat(Program(version = (1, 0, 0), term = term))
 //    println(Utils.bytesToHex(flatBytes))
     // println(term.pretty.render(80))
-    assert(flatBytes.length == 131)
+    assert(flatBytes.length == 138)
     import Data.*
     import DefaultUni.asConstant
     import TermDSL.{*, given}
