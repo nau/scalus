@@ -1,11 +1,13 @@
 <!DOCTYPE html>
 <script type="module">
-  import { Blockfrost, C, Data, Lucid } from "https://unpkg.com/lucid-cardano@0.7.9/web/mod.js"
-  import { SendTx } from "/target/scala-3.2.2/examples-js-fastopt.js"
+  import { Blockfrost, C, Data, Lucid } from "https://unpkg.com/lucid-cardano@0.10.4/web/mod.js"
+  import { SendTx } from "/examples-js-fastopt.js"
   console.log('Lucid')
+  let apiKey = await fetch("/apikey").then(r => r.text())
+  console.log("API Key: " + apiKey)
   const lucid = await Lucid.new(
-    new Blockfrost("https://cardano-testnet.blockfrost.io/api/v0", "testnetR1iknmYGOzgsIQpqJs4xdQx1oIh7f3pv"),
-    "Testnet",
+    new Blockfrost("https://cardano-preview.blockfrost.io/api/v0", apiKey),
+    "Preview",
   );
   // Nami wallet integration
 
