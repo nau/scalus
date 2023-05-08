@@ -17,10 +17,12 @@ import scalus.prelude.AssocMap
 import scalus.prelude.Prelude
 import scalus.builtins
 import scalus.builtins.Pair
+import scalus.Compile
 
 sealed abstract class Data
 
 case class TestProduct(a: BigInt)
+@Compile
 object Data:
   trait ToData[A]:
     def toData(a: A): Data
@@ -46,7 +48,7 @@ object Data:
     val ls = Builtins.unsafeDataAsList(d)
     def loop(ls: scalus.builtins.List[Data]): scalus.prelude.List[A] =
       if ls.isEmpty then prelude.List.Nil
-      else prelude.List.Cons(fromA(ls.head), loop(ls.tail))
+      else new prelude.List.Cons(fromA(ls.head), loop(ls.tail))
     loop(ls)
 
   given AssocMapFromData[A: FromData, B: FromData]: FromData[AssocMap[A, B]] =
@@ -58,13 +60,13 @@ object Data:
         if ls.isEmpty then prelude.List.Nil
         else
           val pair = ls.head
-          prelude.List.Cons((fromA(pair.fst), fromB(pair.snd)), loop(ls.tail))
+          new prelude.List.Cons((fromA(pair.fst), fromB(pair.snd)), loop(ls.tail))
       AssocMap.fromList(loop(ls))
 
   given MaybeFromData[A: FromData]: FromData[scalus.prelude.Maybe[A]] = (d: Data) =>
     val fromA = summon[FromData[A]]
     val pair = Builtins.unsafeDataAsConstr(d)
-    if pair.fst === BigInt(0) then scalus.prelude.Maybe.Just(fromA(pair.snd.head))
+    if pair.fst === BigInt(0) then new scalus.prelude.Maybe.Just(fromA(pair.snd.head))
     else scalus.prelude.Maybe.Nothing
 
   /* given tupleFromData[A, B](using fromA: FromData[A], fromB: FromData[B]): FromData[(A, B)] =
@@ -146,7 +148,7 @@ object Data:
         a match
           case scalus.prelude.List.Nil => scalus.builtins.List.Nil
           case scalus.prelude.List.Cons(head, tail) =>
-            scalus.builtins.List.Cons(aToData.toData(head), loop(tail))
+            new scalus.builtins.List.Cons(aToData.toData(head), loop(tail))
       Builtins.mkList(loop(a))
   }
 
@@ -163,7 +165,7 @@ object Data:
         case prelude.List.Cons(tuple, tail) =>
           tuple match
             case (a, b) =>
-              builtins.List.Cons(
+              new builtins.List.Cons(
                 Pair(summon[ToData[A]].toData(a), summon[ToData[B]].toData(b)),
                 go(tail)
               )

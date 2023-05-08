@@ -129,7 +129,8 @@ class SIRCompiler(mode: scalus.Mode)(using ctx: Context) {
     else
       val tpl = td.rhs.asInstanceOf[Template]
       val bindings = tpl.body.collect {
-        case dd: DefDef if !dd.symbol.flags.is(Flags.Synthetic) =>
+        // FIXME: hack for derived methods
+        case dd: DefDef if !dd.symbol.flags.is(Flags.Synthetic) && !dd.symbol.name.startsWith("derived") =>
           compileStmt(immutable.HashSet.empty, dd, isGlobalDef = true)
         case vd: ValDef if !vd.symbol.flags.isOneOf(Flags.Synthetic | Flags.Case) =>
           // println(s"valdef: ${vd.symbol.fullName}")
@@ -386,6 +387,7 @@ class SIRCompiler(mode: scalus.Mode)(using ctx: Context) {
         val bodyExpr = compileExpr(env, vd.rhs)
         B(name.show, vd.symbol, Recursivity.NonRec, bodyExpr)
       case dd @ DefDef(name, paramss, tpe, _) =>
+        // report.echo(s"compileStmt DefDef ${dd.name.show}, ${dd.symbol.flags.flagsString}")
         val params = paramss.flatten.collect({ case vd: ValDef => vd })
         val body = dd.rhs
         val bodyExpr: scalus.sir.SIR = {

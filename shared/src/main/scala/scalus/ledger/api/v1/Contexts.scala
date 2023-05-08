@@ -10,6 +10,7 @@ import scalus.prelude.These.*
 import scalus.prelude.Prelude.{===, given}
 import scalus.builtins.Builtins
 import scalus.prelude.AssocMap
+import scalus.Compile
 
 type ValidatorHash = ByteString
 type Datum = Data
@@ -19,6 +20,8 @@ type TokenName = ByteString
 type POSIXTime = BigInt
 type POSIXTimeRange = Interval[POSIXTime]
 type Value = AssocMap[CurrencySymbol, AssocMap[TokenName, BigInt]]
+
+@Compile
 object Value:
   val zero: Value = AssocMap.empty
   def apply(cs: CurrencySymbol, tn: TokenName, v: BigInt): Value =
@@ -45,6 +48,7 @@ object Value:
     }
   }
 
+@Compile
 object Instances:
   import scalus.uplc.Data.toData
 
@@ -89,21 +93,21 @@ object Instances:
     val tag = pair.fst
     val args = pair.snd
     if tag === BigInt(0) then
-      DCert.DelegRegKey(summon[FromData[StakingCredential]].apply(args.head))
+      new DCert.DelegRegKey(summon[FromData[StakingCredential]].apply(args.head))
     else if tag === BigInt(1) then
-      DCert.DelegDeRegKey(summon[FromData[StakingCredential]].apply(args.head))
+      new DCert.DelegDeRegKey(summon[FromData[StakingCredential]].apply(args.head))
     else if tag === BigInt(2) then
-      DCert.DelegDelegate(
+      new DCert.DelegDelegate(
         summon[FromData[StakingCredential]].apply(args.head),
         summon[FromData[PubKeyHash]].apply(args.tail.head)
       )
     else if tag === BigInt(3) then
-      DCert.PoolRegister(
+      new DCert.PoolRegister(
         summon[FromData[PubKeyHash]].apply(args.head),
         summon[FromData[PubKeyHash]].apply(args.tail.head)
       )
     else if tag === BigInt(4) then
-      DCert.PoolRetire(
+      new DCert.PoolRetire(
         summon[FromData[PubKeyHash]].apply(args.head),
         summon[FromData[BigInt]].apply(args.tail.head)
       )
@@ -123,7 +127,7 @@ object Instances:
     val tag = pair.fst
     val args = pair.snd
     if tag === BigInt(0) then Extended.NegInf
-    else if tag === BigInt(1) then Extended.Finite(summon[FromData[A]].apply(args.head))
+    else if tag === BigInt(1) then new Extended.Finite(summon[FromData[A]].apply(args.head))
     else if tag === BigInt(2) then Extended.PosInf
     else throw new Exception(s"Unknown Extended tag: $tag")
 
@@ -297,9 +301,11 @@ enum Extended[+A]:
 case class UpperBound[A](upper: Extended[A], closure: Closure) derives ToData
 case class LowerBound[A](extended: Extended[A], closure: Closure) derives ToData
 case class Interval[A](from: LowerBound[A], to: UpperBound[A]) derives ToData
+
+@Compile
 object Interval:
   def always[A]: Interval[A] =
-    Interval(LowerBound(Extended.NegInf, true), UpperBound(Extended.PosInf, true))
+    new Interval(new LowerBound(Extended.NegInf, true), new UpperBound(Extended.PosInf, true))
 
 enum DCert:
   case DelegRegKey(cred: StakingCredential)
