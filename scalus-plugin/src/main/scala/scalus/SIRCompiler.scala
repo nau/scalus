@@ -122,7 +122,7 @@ class SIRCompiler(mode: scalus.Mode)(using ctx: Context) {
 
   def compileTypeDef(td: TypeDef) = {
     report.echo(
-      s"compiling to SIR:  ${td.name} (${td.symbol.fullName}: ${td.tpe.show})"
+      s"compiling to SIR: ${td.name.show} (${td.symbol.fullName}: ${td.tpe.show})"
     )
 
     if td.tpe.typeSymbol.is(Flags.CaseClass) then compileCaseClass(td)
