@@ -1,108 +1,174 @@
 <!DOCTYPE html>
-<script type="module">
-  import { Blockfrost, C, Data, Lucid } from "https://unpkg.com/lucid-cardano@0.10.4/web/mod.js"
-  import { SendTx } from "/examples-js-fastopt.js"
-  console.log('Lucid')
-  let apiKey = await fetch("/apikey").then(r => r.text())
-  console.log("API Key: " + apiKey)
-  const lucid = await Lucid.new(
-    new Blockfrost("https://cardano-preview.blockfrost.io/api/v0", apiKey),
-    "Preview",
-  );
-  // Nami wallet integration
+<html lang="en">
+
+<head>
+  <title>Scalus Minting and Burning Demo</title>
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.2.3/dist/css/bootstrap.min.css" rel="stylesheet"
+    integrity="sha384-rbsA2VBKQhggwzxH7pPCaAqO46MgnOM80zW1RWuH61DGLwZJEdK2Kadq2F9CUG65" crossorigin="anonymous">
+  <script type="module">
+    import { Blockfrost, C, Data, Lucid } from "https://unpkg.com/lucid-cardano@0.10.4/web/mod.js"
+    import { SendTx } from "/examples-js-fastopt.js"
+    console.log('Lucid')
+    let apiKey = await fetch("/apikey").then(r => r.text())
+    console.log("API Key: " + apiKey)
+    const lucid = await Lucid.new(
+      new Blockfrost("https://cardano-preview.blockfrost.io/api/v0", apiKey),
+      "Preview",
+    );
+    // Nami wallet integration
 
 
-  // Assumes you are in a browser environment
-  console.log(chrome)
-  console.log(window.cardano)
-  console.log(window.cardano.nami)
-  console.log(window.cardano.lace)
-  // console.log(asdf)
-  // const api = await window.cardano.nami.enable();
-  const api = await window.cardano.lace.enable();
-  lucid.selectWallet(api);
+    // Assumes you are in a browser environment
+    console.log(chrome)
+    console.log(window.cardano)
+    console.log(window.cardano.nami)
+    console.log(window.cardano.lace)
+    // console.log(asdf)
+    const api = await window.cardano.nami.enable();
+    // const api = await window.cardano.lace.enable();
+    lucid.selectWallet(api);
 
-  async function mint() {
-    const utxos = await lucid.wallet.getUtxos()
-    if (utxos.length > 0) {
-      console.log(utxos)
-      const utxo = utxos[0]
-      console.log(utxo)
-      const address = await lucid.wallet.address()
-      console.log(address)
-      const mintingScript = SendTx.getPlutusScriptCborFromTxOutRef(utxo.txHash, utxo.outputIndex)
-      console.log(mintingScript.doubleCbor)
-      const mintingPolicy = { type: "PlutusV1", script: mintingScript.doubleCbor }
-      const policyId = lucid.utils.mintingPolicyToId(mintingPolicy);
-      console.log(policyId)
-      const assetid = policyId + "484f534b59";
-      console.log(assetid)
-      const assets = { [assetid]: 1000000000000000n };
-      console.log(assets)
-      const redeemer = Data.to(0n)
-      console.log(redeemer)
-      const tx = await lucid.newTx()
-        .collectFrom([utxo])
-        .mintAssets(assets, redeemer)
-        .attachMintingPolicy(mintingPolicy)
-        .payToAddress(address, assets)
-        .complete()
-      console.log(tx)
-      const signedTx = await tx.sign().complete();
-      console.log(signedTx)
-      const txHash = await signedTx.submit();
-      console.log(txHash)
-    } else {
-      console.log("No UTXOs")
+
+    async function getBurnable(utxo) {
+      const burnable = await Object.entries(utxo.assets).map(async ([assetid, assetQuantity]) => {
+        if (assetid !== 'lovelace') {
+          console.log('Token policy: ' + assetid)
+          const assetInfo = await fetch(lucid.provider.url + '/assets/' + assetid,
+            { headers: { project_id: lucid.provider.projectId, lucid } }).then((res) => res.json());
+          console.log(assetInfo)
+          const mintingTx = await fetch(lucid.provider.url + '/txs/' + assetInfo.initial_mint_tx_hash + '/utxos',
+            { headers: { project_id: lucid.provider.projectId, lucid } }).then((res) => res.json());
+          const burnable = mintingTx.inputs.flatMap(input => {
+            const mintingScript = SendTx.getPlutusScriptCborFromTxOutRef(input.tx_hash, input.output_index, assetInfo.asset_name, parseInt(assetInfo.quantity))
+            const mintingPolicy = { type: "PlutusV1", script: mintingScript.doubleCbor }
+            const policyId = lucid.utils.mintingPolicyToId(mintingPolicy);
+            const tokenName = fromHex(assetid.slice(56))
+            if (policyId === assetid.slice(0, 56) && !input.collateral) {
+              return [{ utxo, policyId, tokenName, mintingPolicy, assetid, assetQuantity }]
+            } else return []
+          })
+          console.log(burnable)
+          return [burnable]
+        } else return []
+      })
+      const asdf = await Promise.all(burnable)
+      return asdf.flat(2)
     }
-  }
 
-  async function burn() {
-    const utxos = await lucid.wallet.getUtxos()
-    if (utxos.length > 0) {
+    async function listBurnable() {
+      const utxos = await lucid.wallet.getUtxos()
       console.log(utxos)
-      const utxo = utxos[0]
+      const burnables = await Promise.all(utxos.map(getBurnable)).then(a => a.flat())
+      console.log(burnables)
+      return burnables
+    }
+
+    function toHex(string) {
+      let result = '';
+      for (let i = 0; i < string.length; i++) {
+        result += string.charCodeAt(i).toString(16);
+      }
+      return result;
+    }
+
+    function fromHex(hex) {
+      let result = '';
+      for (let i = 0; i < hex.length; i += 2) {
+        result += String.fromCharCode(parseInt(hex.substring(i, i + 2), 16));
+      }
+      return result;
+    }
+
+    async function mint() {
+      const utxos = await lucid.wallet.getUtxos()
+      const tokenName = document.getElementById("tokenName").value
+      const tokenNameHex = toHex(tokenName)
+      const amount = parseInt(document.getElementById("tokenAmount").value)
+      console.log(`Minting ${amount} ${tokenName} tokens`)
+
+      if (utxos.length > 0) {
+        console.log(utxos)
+        const utxo = utxos[0]
+        console.log(utxo)
+        const address = await lucid.wallet.address()
+        console.log(address)
+        const mintingScript = SendTx.getPlutusScriptCborFromTxOutRef(utxo.txHash, utxo.outputIndex, tokenNameHex, amount)
+        console.log(mintingScript.doubleCbor)
+        const mintingPolicy = { type: "PlutusV1", script: mintingScript.doubleCbor }
+        const policyId = lucid.utils.mintingPolicyToId(mintingPolicy);
+        console.log(policyId)
+        const assetid = policyId + tokenNameHex;
+        console.log(assetid)
+        const assets = { [assetid]: amount };
+        console.log(assets)
+        const redeemer = Data.to(0n)
+        const tx = await lucid.newTx()
+          .collectFrom([utxo])
+          .mintAssets(assets, redeemer)
+          .attachMintingPolicy(mintingPolicy)
+          .payToAddress(address, assets)
+          .complete()
+        console.log(tx)
+        const signedTx = await tx.sign().complete();
+        console.log(signedTx)
+        const txHash = await signedTx.submit();
+        console.log(txHash)
+      } else {
+        console.log("No UTXOs")
+      }
+    }
+
+    async function burnTokensInUtxo(utxo, burnable) {
       console.log(utxo)
       const address = await lucid.wallet.address()
       console.log(address)
-      const txHash = '41bfb228401cdc0f5d0f5d09bf034fbff584034c947d1b26ae5066146d9f6211'
-      const mintingScript = SendTx.getPlutusScriptCborFromTxOutRef(txHash, 0)
-      console.log(mintingScript.doubleCbor)
-      const mintingPolicy = { type: "PlutusV1", script: mintingScript.doubleCbor }
-      const policyId = lucid.utils.mintingPolicyToId(mintingPolicy);
-      console.log(policyId)
-      const assetid = policyId + "484f534b59";
-      console.log(assetid)
-      const assets = { [assetid]: -1000000000000000n };
+      const assets = { [burnable.assetid]: -burnable.assetQuantity };
       console.log(assets)
       const redeemer = Data.to(0n)
-      console.log(redeemer)
       const tx = await lucid.newTx()
         .collectFrom([utxo])
         .mintAssets(assets, redeemer)
-        .attachMintingPolicy(mintingPolicy)
-        // .payToAddress(address, assets)
+        .attachMintingPolicy(burnable.mintingPolicy)
         .complete()
-      console.log(tx)
       const signedTx = await tx.sign().complete();
-      console.log(signedTx)
       const txHashBurn = await signedTx.submit();
-      console.log(txHashBurn)
-    } else {
-      console.log("No UTXOs")
+      console.log(`Burn Tx Hash: ${txHashBurn}`)
     }
-  }
 
-  // await mint()
-  // await burn()
+    async function showBurnables() {
+      const burnables = await listBurnable()
+      console.log(burnables)
+      const burnableDiv = document.getElementById("burnable")
+      burnableDiv.innerHTML = "<h1>Burnable UTXOs</h1>"
+      burnables.forEach(burnable => {
+        const utxoDiv = document.createElement("div")
+        utxoDiv.innerHTML = `
+          <h2 class='pt-4'>${burnable.tokenName}: ${burnable.assetQuantity}</h2>
+          <p>PolicyId <a href='https://preview.cexplorer.io/policy/${burnable.policyId}' target='_blank'>${burnable.policyId}</a></p>
+          <p>UTXO: ${burnable.utxo.txHash}#${burnable.utxo.outputIndex}</p>`
+        const burnButton = document.createElement("button")
+        burnButton.innerHTML = "Burn"
+        burnButton.className = "btn btn-danger"
+        burnButton.onclick = () => burnTokensInUtxo(burnable.utxo, burnable)
+        utxoDiv.appendChild(burnButton)
+        burnableDiv.appendChild(utxoDiv)
+      })
 
+    }
 
+    await showBurnables()
+    window.mint = mint
+  </script>
+</head>
 
-</script>
-
-<body>
-  <form action="" method="get">
-    <input type="text" name="q" />
-    <input type="submit" value="Search" />
+<body class="container">
+  <h1>Mint Tokens</h1>
+  <form action="" method="get" id="mintForm" onsubmit="return false">
+    <input type="text" name="name" id="tokenName" placeholder="Token Name" />
+    <input type="text" name="amount" id="tokenAmount" placeholder="Amount" />
+    <button class="btn btn-primary" onclick="mint(); return false">Mint</button>
   </form>
+  <div id="burnable" class="pt-3"></div>
 </body>
+
+</html>

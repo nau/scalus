@@ -21,26 +21,36 @@ object SendTx:
 
   val validatorSIR = new SimpleSirToUplcLowering(generateErrorTraces = true)
     .lower(MintingPolicy.compiledOptimizedMintingPolicyScript)
-  val tokensSIR =
-    compile(AssocMap.singleton(ByteString.fromHex("484f534b59"), BigInt("1000000000000000")))
+
   val alwaysok = compile((redeemer: Data, ctx: Data) => ())
   val alwaysokTerm = new SimpleSirToUplcLowering().lower(alwaysok)
-  val tokens = new SimpleSirToUplcLowering().lower(tokensSIR)
-  val evaledTokens = Cek.evalUPLC(tokens)
+
   @JSExportAll
   case class Asdf(cbor: Array[Byte], doubleCbor: String)
   @JSExport
-  def getPlutusScriptCborFromTxOutRef(txIdHex: String, txOutIdx: Int) = {
+  def getPlutusScriptCborFromTxOutRef(
+      txIdHex: String,
+      txOutIdx: Int,
+      tokenNameHex: String,
+      amount: Int
+  ) = {
+    val tokensSIR = compile((tokenNameHex: ByteString, amount: BigInt) =>
+      AssocMap.singleton(tokenNameHex, amount)
+    )
+    val evaledTokens = Cek.evalUPLC(new SimpleSirToUplcLowering().lower(tokensSIR))
     val txId = ByteString.fromHex(txIdHex)
+    val tokens = evaledTokens $ ByteString.fromHex(tokenNameHex) $ amount
     // val appliedValidator = alwaysokTerm
-    val appliedValidator = validatorSIR $ txId $ txOutIdx $ evaledTokens
+    val appliedValidator =
+      validatorSIR $ txId $ txOutIdx $ tokens
     val flatEncoded = ProgramFlatCodec.encodeFlat(Program((1, 0, 0), appliedValidator))
     val cbor = Cbor.encode(flatEncoded).toByteArray
     Asdf(cbor = cbor, doubleCbor = Utils.bytesToHex(Cbor.encode(cbor).toByteArray))
   }
 
   def main(args: Array[String]): Unit =
+    println(validatorSIR.pretty.render(100))
 
-    println(tokensSIR.pretty.render(100))
-    println(tokens.pretty.render(100))
-    println(evaledTokens.pretty.render(100))
+    // println(tokensSIR.pretty.render(100))
+    // println(tokens.pretty.render(100))
+    // println(evaledTokens.pretty.render(100))
