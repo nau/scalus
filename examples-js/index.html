@@ -16,8 +16,10 @@
   console.log(chrome)
   console.log(window.cardano)
   console.log(window.cardano.nami)
+  console.log(window.cardano.lace)
   // console.log(asdf)
-  const api = await window.cardano.nami.enable();
+  // const api = await window.cardano.nami.enable();
+  const api = await window.cardano.lace.enable();
   lucid.selectWallet(api);
 
   async function mint() {
@@ -63,7 +65,8 @@
       console.log(utxo)
       const address = await lucid.wallet.address()
       console.log(address)
-      const mintingScript = SendTx.getPlutusScriptCborFromTxOutRef(utxo.txHash, utxo.outputIndex)
+      const txHash = '41bfb228401cdc0f5d0f5d09bf034fbff584034c947d1b26ae5066146d9f6211'
+      const mintingScript = SendTx.getPlutusScriptCborFromTxOutRef(txHash, 0)
       console.log(mintingScript.doubleCbor)
       const mintingPolicy = { type: "PlutusV1", script: mintingScript.doubleCbor }
       const policyId = lucid.utils.mintingPolicyToId(mintingPolicy);
@@ -75,7 +78,7 @@
       const redeemer = Data.to(0n)
       console.log(redeemer)
       const tx = await lucid.newTx()
-        // .collectFrom([utxo])
+        .collectFrom([utxo])
         .mintAssets(assets, redeemer)
         .attachMintingPolicy(mintingPolicy)
         // .payToAddress(address, assets)
@@ -83,14 +86,14 @@
       console.log(tx)
       const signedTx = await tx.sign().complete();
       console.log(signedTx)
-      const txHash = await signedTx.submit();
-      console.log(txHash)
+      const txHashBurn = await signedTx.submit();
+      console.log(txHashBurn)
     } else {
       console.log("No UTXOs")
     }
   }
 
-  await mint()
+  // await mint()
   // await burn()
 
 
