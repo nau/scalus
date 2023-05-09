@@ -10,7 +10,28 @@ This includes:
 - CEK UPLC evaluation machine including execution cost calculation
 - UPLC parser and pretty printer
 - Type safe UPLC expression builder, think of Plutarch
-- Macros to generate UPLC code from Scala code, think of PlutusTx but simpler
+- Compiler plugin and macros to generate UPLC code from Scala code, think of PlutusTx but simpler
+
+## Support
+
+The project is looking for funding to make it production ready. If you are interested, please contact me at @atlanter on Twitter.
+
+Or you can support the project by donating ADA or BTC to the following addresses:
+
+ADA: addr1qxwg0u9fpl8dac9rkramkcgzerjsfdlqgkw0q8hy5vwk8tzk5pgcmdpe5jeh92guy4mke4zdmagv228nucldzxv95clqe35r3m
+
+BTC: bc1qzefh9we0frls8ktm0dx428v2dx3wtp6xu4hd8k
+
+Please, consider becoming a sponsor on GitHub.
+
+## Full Token Minting/Burning Example
+
+Here is a full example of a token minting/burning validator that works on both JVM and JavaScript:
+
+[MintingPolicy.scala](https://github.com/nau/scalus/blob/master/shared/src/main/scala/scalus/examples/MintingPolicy.scala)
+
+And here is a project that uses it in web frontend:
+[Scalus Minting Example](https://github.com/nau/scalus/tree/master/examples-js)
 
 ## Preimage Validator Example
 
@@ -19,29 +40,25 @@ Below example is taken from `PreImageExampleSpec.scala` and it actually works!
 
 ```scala
 def preimageValidator(datum: Data, redeemer: Data, ctxData: Data): Unit = {
-    // deserialize from Data
-    val (hash, pkh) = fromData[(ByteString, ByteString)](datum)
-    val preimage = fromData[ByteString](redeemer)
-    val ctx = fromData[ScriptContext](ctxData)
-    // get the transaction signatories
-    val signatories = ctx.scriptContextTxInfo.txInfoSignatories
-
-    def findOrFail[A](lst: List[A])(p: A => Boolean): Unit = lst match
-        case Nil              => throw new Exception("Not found")
-        case Cons(head, tail) => if p(head) then () else findOrFail(tail)(p)
-    // check that the transaction is signed by the public key hash
-    findOrFail(signatories) { sig => sig.hash === pkh }
-    // check that the preimage hashes to the hash
-    if Builtins.sha2_256(preimage) === hash then ()
-    else throw new RuntimeException("Wrong preimage")
-    // throwing an exception compiles to UPLC error
+  // deserialize from Data
+  val (hash, pkh) = fromData[(ByteString, ByteString)](datum)
+  val preimage = fromData[ByteString](redeemer)
+  val ctx = fromData[ScriptContext](ctxData)
+  // get the transaction signatories
+  val signatories = ctx.scriptContextTxInfo.txInfoSignatories
+  // check that the transaction is signed by the public key hash
+  List.findOrFail(signatories) { sig => sig.hash === pkh }
+  // check that the preimage hashes to the hash
+  if Builtins.sha2_256(preimage) === hash then ()
+  else throw new RuntimeException("Wrong preimage")
+  // throwing an exception compiles to UPLC error
 }
 // compile to Scalus Intermediate Representation, SIR
 val compiled = compile(preimageValidator)
 // convert SIR to UPLC
 val validator = new SimpleSirToUplcLowering().lower(compiled)
 val flatEncoded = ProgramFlatCodec.encodeFlat(Program((1, 0, 0), validator))
-assert(flatEncoded.length == 1550)
+assert(flatEncoded.length == 1684)
 ```
 
 ## Why?
@@ -79,8 +96,8 @@ What you can play with:
 - DeBruijn/unDeBruijn conversion works on both JVM and JavaScript
 - Type safe UPLC expression builder prototype works on both JVM and JavaScript
 - There are a couple of simple validators that can be used for real.
-- The PubKey validator is 95 bytes long! It's 20x smaller than the 1992 bytes long PlutusTx version!
-- Scala macros to convert simple Scala extpressions to UPLC
+- The PubKey validator is 138 bytes long! It's 14x smaller than the 1992 bytes long PlutusTx version!
+- Scala compiler plugin to convert Scala code to UPLC
 
 ## Comparison to PlutusTx, Aiken, Plutarch
 
@@ -92,6 +109,14 @@ Aiken is a separate programming language which is a pro and a con.
 Plutarch is very low-level. Use it when you need precise control over a script generation.
 
 Scalus aimes to be a better version of all the above.
+
+- You can actually reuse Scala code for your validator, frontend and backend! The goal that PlutusTx failed to achieve.
+
+- You can use existing Scala libraries for testing, including ScalaCheck and ScalaTest.
+
+- Scalus leverages all the development tools that Scala has, including IntelliJ Idea, VSCode, sbt, even GitHub CoPilot and ChatGPT! No need to learn new tools and languages.
+
+- Debugger! It works!
 
 - Scalus allows only a limited subset of Scala, that can be reasonably efficiently
 compiled to UPLC without bloating the code.
@@ -113,13 +138,7 @@ def preimageValidator(datum: Data, redeemer: Data, ctxData: Data): Unit = {
         fieldAsData[ScriptContext](_.scriptContextTxInfo.txInfoSignatories)(ctxData)
       )
 
-      def findOrFail[A](lst: List[A])(p: A => Boolean): Unit = lst match
-        case Nil              => throw new Exception("Not found")
-        case Cons(head, tail) => if p(head) then () else findOrFail(tail)(p)
-
-      findOrFail(signatories) { sig =>
-        sig.hash === pkh
-      }
+      List.findOrFail(signatories) { sig => sig.hash === pkh }
       if Builtins.sha2_256(preimage) === hash then ()
       else throw new RuntimeException("Wrong preimage")
 }
@@ -127,11 +146,11 @@ def preimageValidator(datum: Data, redeemer: Data, ctxData: Data): Unit = {
 val compiled = compile(preimageValidator)
 val validator = new SimpleSirToUplcLowering().lower(compiled)
 val flatSize = ProgramFlatCodec.encodeFlat(Program((1, 0, 0), validator)).length
-assert(flatSize == 261)
+assert(flatSize == 274)
 ```
 
 You can see that deserialising only the fields we actually need significantly reduces the script size:
-261 bytes versus 1550!
+274 bytes versus 1684!
 
 This script compiles to `SIR` that can be pretty-printed in an Haskell-like syntax:
 
@@ -140,138 +159,88 @@ val compiled = compile(preimageValidator)
 compiled.pretty.render(100)
 ```
 
-outputs
+<details>
+  <summary>Click me to see SIR</summary>
 
 ```haskell
+data Tuple2 = Tuple2(_1, _2)
 data List = Cons(head, tail) | Nil
 data PubKeyHash = PubKeyHash(hash)
-data Tuple2 = Tuple2(_1, _2)
-let scalus.uplc.Data$.ByteStringFromData = {λ d -> unBData(d) } in
-fun scalus.Predef$.List$.Cons$.apply head tail = Cons(head, tail)
-in fun scalus.uplc.Data$.ListFromData evidence$1 d =
-       let fromA = evidence$1 in
-       let ls = unListData(d) in
-       fun loop ls =
-           if nullList(ls) then Nil()
-           else
-               scalus.Predef$.List$.Cons$.apply(fromA(headList(ls)), loop(tailList(ls)))
-       in loop(ls)
-in let scalus.ledger.api.v1.Instances$.given_FromData_PubKeyHash =
-  {λ d -> let hash = scalus.uplc.Data$.ByteStringFromData(d) in PubKeyHash(hash) }
-in
 fun scalus.uplc.Data$.unsafeTupleFromData fromA fromB d =
     let pair = unConstrData(d) in
     let args = sndPair(pair) in
     Tuple2(fromA(headList(args)), fromB(headList(tailList(args))))
-in fun scalus.PreImageExampleSpec._$preimageValidator datum redeemer ctxData =
-       match scalus.uplc.Data$.unsafeTupleFromData(
-         scalus.uplc.Data$.ByteStringFromData,
-         scalus.uplc.Data$.ByteStringFromData,
+in fun scalus.uplc.Data$.ByteStringFromData d = unBData(d)
+in fun scalus.uplc.Data$.ListFromData evidence$1 d =
+       let fromA = evidence$1 in
+       let ls = unListData(d) in
+       fun loop ls = if nullList(ls) then Nil() else Cons(fromA(headList(ls)), loop(tailList(ls)))
+       in loop(ls)
+in fun scalus.ledger.api.v1.FromDataInstances$.fromDataPubKeyHash d =
+       let hash =
+         let d = headList(sndPair(unConstrData(d))) in
+         scalus.uplc.Data::scalus.uplc.Data$.ByteStringFromData(d)
+       in
+       PubKeyHash(hash)
+in fun scalus.prelude.List$.findOrFail lst p =
+       match lst with
+         case Cons(head, tail) ->
+           if p(head) then head else scalus.prelude.List::scalus.prelude.List$.findOrFail(tail, p)
+         case Nil -> ERROR 'Not found'
+in fun scalus.prelude.Prelude$.given_Eq_ByteString x y = equalsByteString(x, y)
+in fun scalus.OptimizedPreimageValidator$.preimageValidator datum redeemer ctxData =
+       match scalus.uplc.Data::scalus.uplc.Data$.unsafeTupleFromData(
+         {λ d -> scalus.uplc.Data::scalus.uplc.Data$.ByteStringFromData(d) },
+         {λ d -> scalus.uplc.Data::scalus.uplc.Data$.ByteStringFromData(d) },
          datum
        ) with
          case Tuple2(hash, pkh) ->
-           let preimage = scalus.uplc.Data$.ByteStringFromData(redeemer) in
+           let preimage = scalus.uplc.Data::scalus.uplc.Data$.ByteStringFromData(redeemer) in
            let signatories =
-             scalus.uplc.Data$.ListFromData(
-               scalus.ledger.api.v1.Instances$.given_FromData_PubKeyHash,
-               {λ ddd ->
-                 {λ d ->
-                   headList(
+             scalus.uplc.Data::scalus.uplc.Data$.ListFromData(
+               {λ d ->
+                 scalus.ledger.api.v1.FromDataInstances::scalus.ledger.api.v1.FromDataInstances$.fromDataPubKeyHash(
+                   d
+                 )
+               },
+               let d$proxy1 = headList(sndPair(unConstrData(ctxData))) in
+               headList(
+                 tailList(
+                   tailList(
                      tailList(
-                       tailList(
-                         tailList(tailList(tailList(tailList(tailList(sndPair(unConstrData(d)))))))
-                       )
+                       tailList(tailList(tailList(tailList(sndPair(unConstrData(d$proxy1))))))
                      )
                    )
-                 }({λ d -> headList(sndPair(unConstrData(d))) }(ddd))
-               }(ctxData)
+                 )
+               )
              )
            in
-           fun findOrFail lst p =
-               match lst with
-                 case Cons(head, tail) -> if p(head) then () else findOrFail(tail, p)
-                 case Nil -> ERROR
-           in let _ =
-             findOrFail(signatories, {λ sig -> equalsByteString(sig({λ hash -> hash }), pkh) })
+           let _ =
+             scalus.prelude.List::scalus.prelude.List$.findOrFail(
+               signatories,
+               {λ sig ->
+                 scalus.prelude.Prelude::scalus.prelude.Prelude$.given_Eq_ByteString(
+                   sig({λ hash -> hash }),
+                   pkh
+                 )
+               }
+             )
            in
-           if equalsByteString(sha2_256(preimage), hash) then () else ERROR
-in {λ datum redeemer ctxData ->
-     scalus.PreImageExampleSpec._$preimageValidator(datum, redeemer, ctxData)
-   }
+           if
+               let x$proxy4 = sha2_256(preimage) in
+               scalus.prelude.Prelude::scalus.prelude.Prelude$.given_Eq_ByteString(x$proxy4, hash)
+           then
+               () else ERROR 'Wrong preimage'
+in scalus.OptimizedPreimageValidator$.preimageValidator
 ```
+
+</details>
 
 ## Minting Policy Example
 
-A simple minting policy script. The source is in `MintingPolicyExampleSpec`.
+A simple minting policy script. The source is in [MintingPolicyExampleSpec](https://github.com/nau/scalus/blob/master/shared/src/main/scala/scalus/examples/MintingPolicy.scala).
 This example compiles to UPLC and correctly works using either Scalus implementation of CEK machine or Plutus CEK machine.
 I use `uplc` utility from the Plutus repository.
-
-```scala
-  def mintingPolicyScript(
-        txId: ByteString,
-        txOutIdx: BigInt,
-        tokenName: ByteString,
-        amount: BigInt,
-        redeemer: Unit,
-        ctxData: Data
-    ): Unit = {
-      val ctx = summon[Data.FromData[ScriptContext]](ctxData)
-      val txInfo = ctx.scriptContextTxInfo
-      val txInfoInputs = txInfo.txInfoInputs
-      val minted = txInfo.txInfoMint
-      val purpose = ctx.scriptContextPurpose
-      val ownSymbol = purpose match
-        case Minting(curSymbol) => curSymbol
-        case Spending(txOutRef) => throw new RuntimeException("Spending context is not supported")
-        case Rewarding(stakingCred) =>
-          throw new RuntimeException("Rewarding context is not supported")
-        case Certifying(cert) => throw new RuntimeException("Certifying context is not supported")
-
-      def findOrFail[A](lst: List[A])(p: A => Boolean): Unit = lst match
-        case Nil              => throw new Exception("Not found")
-        case Cons(head, tail) => if p(head) then () else findOrFail(tail)(p)
-
-      def findToken(tokens: List[(ByteString, BigInt)]): Unit =
-        findOrFail(tokens) { token =>
-          token match
-            case (tn, amt) => tn === tokenName && amt === amount
-        }
-
-      def ensureMinted(minted: Value): Unit = {
-        findOrFail(minted) { asset =>
-          asset match
-            case (curSymbol, tokens) =>
-              if curSymbol === ownSymbol
-              then
-                findOrFail(tokens) { tokens =>
-                  tokens match
-                    case (tn, amt) => tn === tokenName && amt === amount
-                }
-                true
-              else false
-        }
-      }
-
-      def ensureSpendsTxOut(inputs: List[TxInInfo]): Unit = findOrFail(inputs) { txInInfo =>
-        txInInfo.txInInfoOutRef match
-          case TxOutRef(txOutRefTxId, txOutRefIdx) =>
-            txOutRefTxId.hash === txId && txOutRefIdx === txOutIdx
-      }
-      ensureMinted(minted)
-      ensureSpendsTxOut(txInfoInputs)
-    }
-
-    val compiled = compile(
-      mintingPolicyScript(
-        hoskyMintTxOutRef.txOutRefId.hash,
-        hoskyMintTxOutRef.txOutRefIdx,
-        ByteString.fromHex("484f534b59"),
-        BigInt("1000000000000000"),
-        _,
-        _
-      )
-    )
-```
 
 ## Taste of type safe low level UPLC API
 
@@ -289,7 +258,7 @@ def pubKeyValidator(pkh: PubKeyHash): Expr[Unit => Unit => Data => Unit] =
           lam { signatories =>
             // signatories.head.pubKeyHash
             val head = headList.apply(signatories)
-            val headPubKeyHash = unBData(head)
+            val headPubKeyHash = unBData(headList(sndPair(unConstrData(head))))
             !chooseList(signatories)(error("Signature not found")) {
               ~ifThenElse2(equalsByteString(headPubKeyHash)(pkh.hash))(()) {
                 self(tailList(signatories))
