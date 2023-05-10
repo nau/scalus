@@ -49,7 +49,8 @@ object SendTx:
   }
 
   def main(args: Array[String]): Unit =
-    println(validatorSIR.pretty.render(100))
+    println("Init")
+    // println(validatorSIR.pretty.render(100))
 
     // println(tokensSIR.pretty.render(100))
     // println(tokens.pretty.render(100))

@@ -36,6 +36,7 @@ import scalus.uplc.Constant.Data
 import scalus.uplc.DefaultFun
 import scalus.uplc.DefaultUni
 import scalus.uplc.NamedDeBruijn
+import scalus.BuiltinHelper
 
 import java.io.BufferedOutputStream
 import java.io.FileOutputStream
@@ -481,35 +482,6 @@ class SIRCompiler(mode: scalus.Mode)(using ctx: Context) {
     catch
       case NonFatal(e) =>
         throw new IllegalArgumentException(s"`$hexString` is not a valid hex string", e)
-
-  object BuiltinHelper {
-    def builtinFun(tpe: String): Option[SIR.Builtin] = {
-      val DefaultFunValues = Map(
-        "scalus.builtins.Builtins.mkConstr" -> DefaultFun.ConstrData,
-        "scalus.builtins.Builtins.mkList" -> DefaultFun.ListData,
-        "scalus.builtins.Builtins.mkMap" -> DefaultFun.MapData,
-        "scalus.builtins.Builtins.mkB" -> DefaultFun.BData,
-        "scalus.builtins.Builtins.mkI" -> DefaultFun.IData,
-        "scalus.builtins.Builtins.unsafeDataAsConstr" -> DefaultFun.UnConstrData,
-        "scalus.builtins.Builtins.unsafeDataAsList" -> DefaultFun.UnListData,
-        "scalus.builtins.Builtins.unsafeDataAsMap" -> DefaultFun.UnMapData,
-        "scalus.builtins.Builtins.unsafeDataAsB" -> DefaultFun.UnBData,
-        "scalus.builtins.Builtins.unsafeDataAsI" -> DefaultFun.UnIData,
-        "scalus.builtins.Builtins.sha2_256" -> DefaultFun.Sha2_256,
-        "scalus.builtins.Builtins.trace" -> DefaultFun.Trace,
-        "scalus.builtins.Builtins.indexByteString" -> DefaultFun.IndexByteString,
-        "scalus.builtins.Builtins.consByteString" -> DefaultFun.ConsByteString,
-        "scalus.builtins.Builtins.lengthOfByteString" -> DefaultFun.LengthOfByteString,
-        "scalus.builtins.Builtins.lessThanInteger" -> DefaultFun.LessThanInteger,
-        "scalus.builtins.Builtins.decodeUtf8" -> DefaultFun.DecodeUtf8,
-        "scalus.builtins.Builtins.equalsInteger" -> DefaultFun.EqualsInteger,
-        "scalus.builtins.Builtins.equalsByteString" -> DefaultFun.EqualsByteString,
-        "scalus.builtins.Builtins.equalsString" -> DefaultFun.EqualsString,
-        "scalus.builtins.Builtins.equalsData" -> DefaultFun.EqualsData
-      )
-      DefaultFunValues.get(tpe).map(SIR.Builtin.apply)
-    }
-  }
 
   def typeReprToDefaultUni(t: Type, pos: SrcPos): DefaultUni =
     if t =:= converter.BigIntClassSymbol.typeRef then DefaultUni.Integer
