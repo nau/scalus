@@ -1,23 +1,24 @@
 package scalus
 
+import io.bullet.borer.Cbor
+import scalus.Compiler.compile
+import scalus.builtins.ByteString
+import scalus.examples.MintingPolicy
+import scalus.prelude.AssocMap
 import scalus.sir.SimpleSirToUplcLowering
 import scalus.uplc.Cek
-import scalus.prelude.AssocMap
-import scalus.examples.MintingPolicy
-import scalus.builtins.ByteString
-import scalus.Compiler.compile
-import scalus.uplc.TermDSL.{*, given}
-import scala.scalajs.js.annotation.JSExportTopLevel
-import scalus.uplc.ProgramFlatCodec
-import io.bullet.borer.Cbor
-import scalus.uplc.Program
-import scala.scalajs.js.annotation.JSExport
-import scalus.utils.Utils
-import scala.scalajs.js.annotation.JSExportAll
 import scalus.uplc.Data
+import scalus.uplc.Program
+import scalus.uplc.ProgramFlatCodec
+import scalus.uplc.TermDSL.{_, given}
+import scalus.utils.Utils
 
-@JSExportTopLevel("SendTx")
-object SendTx:
+import scala.scalajs.js.annotation.JSExport
+import scala.scalajs.js.annotation.JSExportAll
+import scala.scalajs.js.annotation.JSExportTopLevel
+
+@JSExportTopLevel("MintingPolicyJS")
+object MintingPolicyJS:
 
   val validatorSIR = new SimpleSirToUplcLowering(generateErrorTraces = true)
     .lower(MintingPolicy.compiledOptimizedMintingPolicyScript)
@@ -25,15 +26,13 @@ object SendTx:
   val alwaysok = compile((redeemer: Data, ctx: Data) => ())
   val alwaysokTerm = new SimpleSirToUplcLowering().lower(alwaysok)
 
-  @JSExportAll
-  case class Asdf(cbor: Array[Byte], doubleCbor: String)
   @JSExport
   def getPlutusScriptCborFromTxOutRef(
       txIdHex: String,
       txOutIdx: Int,
       tokenNameHex: String,
       amount: Int
-  ) = {
+  ): String = {
     val tokensSIR = compile((tokenNameHex: ByteString, amount: BigInt) =>
       AssocMap.singleton(tokenNameHex, amount)
     )
@@ -45,13 +44,5 @@ object SendTx:
       validatorSIR $ txId $ txOutIdx $ tokens
     val flatEncoded = ProgramFlatCodec.encodeFlat(Program((1, 0, 0), appliedValidator))
     val cbor = Cbor.encode(flatEncoded).toByteArray
-    Asdf(cbor = cbor, doubleCbor = Utils.bytesToHex(Cbor.encode(cbor).toByteArray))
+    Utils.bytesToHex(Cbor.encode(cbor).toByteArray)
   }
-
-  def main(args: Array[String]): Unit =
-    println("Init")
-    // println(validatorSIR.pretty.render(100))
-
-    // println(tokensSIR.pretty.render(100))
-    // println(tokens.pretty.render(100))
-    // println(evaledTokens.pretty.render(100))

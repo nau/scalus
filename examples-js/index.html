@@ -7,7 +7,7 @@
     integrity="sha384-rbsA2VBKQhggwzxH7pPCaAqO46MgnOM80zW1RWuH61DGLwZJEdK2Kadq2F9CUG65" crossorigin="anonymous">
   <script type="module">
     import { Blockfrost, C, Data, Lucid } from "https://unpkg.com/lucid-cardano@0.10.4/web/mod.js"
-    import { SendTx } from "/examples-js-fastopt.js"
+    import { MintingPolicyJS } from "/examples-js-fastopt.js"
     console.log('Lucid')
     let apiKey = await fetch("/apikey").then(r => r.text())
     console.log("API Key: " + apiKey)
@@ -39,8 +39,8 @@
           const mintingTx = await fetch(lucid.provider.url + '/txs/' + assetInfo.initial_mint_tx_hash + '/utxos',
             { headers: { project_id: lucid.provider.projectId, lucid } }).then((res) => res.json());
           const burnable = mintingTx.inputs.flatMap(input => {
-            const mintingScript = SendTx.getPlutusScriptCborFromTxOutRef(input.tx_hash, input.output_index, assetInfo.asset_name, parseInt(assetInfo.quantity))
-            const mintingPolicy = { type: "PlutusV1", script: mintingScript.doubleCbor }
+            const mintingScript = MintingPolicyJS.getPlutusScriptCborFromTxOutRef(input.tx_hash, input.output_index, assetInfo.asset_name, parseInt(assetInfo.quantity))
+            const mintingPolicy = { type: "PlutusV1", script: mintingScript }
             const policyId = lucid.utils.mintingPolicyToId(mintingPolicy);
             const tokenName = fromHex(assetid.slice(56))
             if (policyId === assetid.slice(0, 56) && !input.collateral) {
@@ -92,9 +92,9 @@
         console.log(utxo)
         const address = await lucid.wallet.address()
         console.log(address)
-        const mintingScript = SendTx.getPlutusScriptCborFromTxOutRef(utxo.txHash, utxo.outputIndex, tokenNameHex, amount)
-        console.log(mintingScript.doubleCbor)
-        const mintingPolicy = { type: "PlutusV1", script: mintingScript.doubleCbor }
+        const mintingScript = MintingPolicyJS.getPlutusScriptCborFromTxOutRef(utxo.txHash, utxo.outputIndex, tokenNameHex, amount)
+        console.log(mintingScript)
+        const mintingPolicy = { type: "PlutusV1", script: mintingScript }
         const policyId = lucid.utils.mintingPolicyToId(mintingPolicy);
         console.log(policyId)
         const assetid = policyId + tokenNameHex;

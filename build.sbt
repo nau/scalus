@@ -1,3 +1,5 @@
+import org.scalajs.linker.interface.OutputPatterns
+
 val scala3Version = "3.2.2"
 ThisBuild / scalaVersion := scala3Version
 autoCompilerPlugins := true
@@ -18,7 +20,8 @@ lazy val scalusPlugin = project
     libraryDependencies += "org.scalatest" %%% "scalatest" % "3.2.12" % "test",
     libraryDependencies += "org.scalatestplus" %%% "scalacheck-1-16" % "3.2.12.0" % "test",
     libraryDependencies += "org.scala-lang" %% "scala3-compiler" % scala3Version // % "provided"
-  ).settings(
+  )
+  .settings(
     // Include common sources in the plugin
     // we can't add the scalus project as a dependency because this is a Scala compiler plugin
     // and apparently it's not supported
@@ -27,8 +30,8 @@ lazy val scalusPlugin = project
       val baseDir = baseDirectory.value / ".." / "shared" / "src" / "main" / "scala"
       val files = Seq(
         baseDir / "scalus/sir/SIR.scala",
-        baseDir / "scalus/flat/package.scala",
-        )
+        baseDir / "scalus/flat/package.scala"
+      )
       files
     }
   )
@@ -81,7 +84,11 @@ lazy val `examples-js` = project
   .in(file("examples-js"))
   .dependsOn(scalus.js)
   .settings(
-    scalaJSUseMainModuleInitializer := true,
-    scalaJSLinkerConfig ~= { _.withModuleKind(ModuleKind.ESModule) },
-    PluginDependency,
+    scalaJSUseMainModuleInitializer := false,
+    scalaJSLinkerConfig ~= {
+      _.withModuleKind(ModuleKind.ESModule)
+        // Use .mjs extension.
+        .withOutputPatterns(OutputPatterns.fromJSFile("%s.mjs"))
+    },
+    PluginDependency
   )
