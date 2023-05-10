@@ -1,8 +1,43 @@
 import org.scalajs.linker.interface.OutputPatterns
 
 val scala3Version = "3.2.2"
+Global / onChangedBuildSource := ReloadOnSourceChanges
 ThisBuild / scalaVersion := scala3Version
+Test / publishArtifact := false
 autoCompilerPlugins := true
+ThisBuild / organization := "org.scalus"
+ThisBuild / organizationName := "Scalus"
+ThisBuild / organizationHomepage := Some(url("https://scalus.org/"))
+
+ThisBuild / scmInfo := Some(
+  ScmInfo(url("https://github.com/nau/scalus"), "scm:git@github.com:nau/scalus.git")
+)
+ThisBuild / developers := List(
+  Developer(
+    id = "Your identifier",
+    name = "Alexander Nemish",
+    email = "anemish@gmail.com",
+    url = url("https://github.com/nau")
+  )
+)
+
+ThisBuild / description := "Scalus is a Scala library for writing Plutus smart contracts."
+ThisBuild / licenses := List(
+  "Apache 2" -> new URL("http://www.apache.org/licenses/LICENSE-2.0.txt")
+)
+ThisBuild / homepage := Some(url("https://github.com/nau/scalus"))
+
+// Remove all additional repository other than Maven Central from POM
+ThisBuild / pomIncludeRepository := { _ => false }
+ThisBuild / publishTo := {
+  // For accounts created after Feb 2021:
+  // val nexus = "https://s01.oss.sonatype.org/"
+  val nexus = "https://oss.sonatype.org/"
+  if (isSnapshot.value) Some("snapshots" at nexus + "content/repositories/snapshots")
+  else Some("releases" at nexus + "service/local/staging/deploy/maven2")
+}
+ThisBuild / publishMavenStyle := true
+
 lazy val root = project
   .in(file("."))
   .aggregate(scalusPlugin, scalus.js, scalus.jvm, `examples-js`, examples)
@@ -37,7 +72,7 @@ lazy val scalusPlugin = project
   )
 
 lazy val PluginDependency: List[Def.Setting[_]] = List(scalacOptions ++= {
-  val jar = (packageBin in Compile in scalusPlugin).value
+  val jar = (scalusPlugin / Compile / packageBin).value
   Seq(s"-Xplugin:${jar.getAbsolutePath}", s"-Jdummy=${jar.lastModified}")
 })
 
@@ -45,7 +80,7 @@ lazy val scalus = crossProject(JSPlatform, JVMPlatform)
   .in(file("."))
   .settings(
     name := "scalus",
-    version := "0.1-SNAPSHOT",
+    version := "0.1.0-SNAPSHOT",
     scalaVersion := scala3Version,
     scalacOptions += "-Xcheck-macros",
     scalacOptions += "-explain",
@@ -62,8 +97,8 @@ lazy val scalus = crossProject(JSPlatform, JVMPlatform)
     libraryDependencies += "org.scalatestplus" %%% "scalacheck-1-16" % "3.2.12.0" % "test"
   )
   .jvmSettings(
-    javaOptions in ThisBuild ++= Seq("-Xss10m"),
-    fork in Test := true,
+    ThisBuild / javaOptions ++= Seq("-Xss10m"),
+    Test / fork := true,
     libraryDependencies += "org.scala-lang" %% "scala3-compiler" % scala3Version
   )
   .jsSettings(
@@ -76,6 +111,7 @@ lazy val examples = project
   .dependsOn(scalus.jvm % "compile->compile;compile->test")
   .settings(
     PluginDependency,
+    publish / skip := true,
     libraryDependencies += "com.bloxbean.cardano" % "cardano-client-backend-blockfrost" % "0.3.0"
   )
 
@@ -84,6 +120,7 @@ lazy val `examples-js` = project
   .in(file("examples-js"))
   .dependsOn(scalus.js)
   .settings(
+    publish / skip := true,
     scalaJSUseMainModuleInitializer := false,
     scalaJSLinkerConfig ~= {
       _.withModuleKind(ModuleKind.ESModule)
