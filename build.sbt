@@ -32,7 +32,7 @@ ThisBuild / pomIncludeRepository := { _ => false }
 ThisBuild / publishTo := {
   // For accounts created after Feb 2021:
   // val nexus = "https://s01.oss.sonatype.org/"
-  val nexus = "https://oss.sonatype.org/"
+  val nexus = "https://s01.oss.sonatype.org/"
   if (isSnapshot.value) Some("snapshots" at nexus + "content/repositories/snapshots")
   else Some("releases" at nexus + "service/local/staging/deploy/maven2")
 }
@@ -42,15 +42,14 @@ lazy val root = project
   .in(file("."))
   .aggregate(scalusPlugin, scalus.js, scalus.jvm, `examples-js`, examples)
   .settings(
-    publish := {},
-    publishLocal := {}
+    publish / skip := true,
   )
 
 lazy val scalusPlugin = project
   .in(file("scalus-plugin"))
   .settings(
     name := "scalus-plugin",
-    organization := "scalus",
+    organization := "org.scalus",
     version := "0.1.0-SNAPSHOT",
     libraryDependencies += "org.scalatest" %%% "scalatest" % "3.2.12" % "test",
     libraryDependencies += "org.scalatestplus" %%% "scalacheck-1-16" % "3.2.12.0" % "test",
