@@ -8,8 +8,14 @@
   <script type="module">
     import { Blockfrost, C, Data, Lucid } from "https://unpkg.com/lucid-cardano@0.10.4/web/mod.js"
     import { MintingPolicyJS } from "/examples-js-fastopt.js"
+    window.saveApiKey = saveApiKey
     console.log('Lucid')
-    let apiKey = await fetch("/apikey").then(r => r.text())
+    let apiKey = localStorage.getItem('apiKey');
+    if (!apiKey) {
+      apiKey = document.getElementById("apiKey").value;
+    } else {
+      document.getElementById("apiKey").value = apiKey;
+    }
     console.log("API Key: " + apiKey)
     const lucid = await Lucid.new(
       new Blockfrost("https://cardano-preview.blockfrost.io/api/v0", apiKey),
@@ -28,6 +34,12 @@
     // const api = await window.cardano.lace.enable();
     lucid.selectWallet(api);
 
+    function saveApiKey() {
+      localStorage.setItem('apiKey', document.getElementById("apiKey").value);
+      console.log("Saved API Key: " + localStorage.getItem('apiKey'));
+      window.location.reload();
+      return false;
+    }
 
     async function getBurnable(utxo) {
       const burnable = await Object.entries(utxo.assets).map(async ([assetid, assetQuantity]) => {
@@ -162,6 +174,11 @@
 </head>
 
 <body class="container">
+  <h1>Blockfrost.io API Key for Preview network</h1>
+  <form action="" method="get" onsubmit="return false">
+    <input type="password" id="apiKey" placeholder="API Key" />
+    <button class="btn btn-primary" onclick="saveApiKey(); return false">Save</button>
+  </form>
   <h1>Mint Tokens</h1>
   <form action="" method="get" id="mintForm" onsubmit="return false">
     <input type="text" name="name" id="tokenName" placeholder="Token Name" />
