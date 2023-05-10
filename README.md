@@ -24,6 +24,8 @@ BTC: bc1qzefh9we0frls8ktm0dx428v2dx3wtp6xu4hd8k
 
 Please, consider becoming a sponsor on GitHub.
 
+Scalus Discord: https://discord.gg/DJwAY92Q
+
 ## Full Token Minting/Burning Example
 
 Here is a full example of a token minting/burning validator that works on both JVM and JavaScript:
