@@ -26,6 +26,10 @@ Please, consider becoming a sponsor on GitHub.
 
 Scalus Discord: https://discord.gg/DJwAY92Q
 
+## Tutorial
+
+Check out the [tutorial](Tutorial.md) to get started.
+
 ## Full Token Minting/Burning Example
 
 Here is a full example of a token minting/burning validator that works on both JVM and JavaScript:
