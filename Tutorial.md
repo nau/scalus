@@ -171,3 +171,24 @@ val context = compile {
   }
 }
 ```
+
+## Converting the Scalus code to Flat/CBOR encoded UPLC
+
+The `compile` function converts the Scalus code to a `SIR` value, Scalus Intermediate Representation.
+You then need to convert the `SIR` value to a UPLC value and encode it to Flat and then to CBOR.
+
+```scala
+val serializeToDoubleCborHex: String = {
+  import scalus.sir.SimpleSirToUplcLowering
+  import scalus.uplc.ProgramFlatCodec
+  import scalus.uplc.Program
+  import io.bullet.borer.Cbor
+  import scalus.utils.Utils
+
+  val uplc = new SimpleSirToUplcLowering(generateErrorTraces = true).lower(context)
+  val flatEncoded = ProgramFlatCodec.encodeFlat(Program((1, 0, 0), uplc))
+  val cbor = Cbor.encode(flatEncoded).toByteArray
+  val doubleEncoded = Cbor.encode(cbor).toByteArray
+  Utils.bytesToHex(doubleEncoded)
+}
+```
