@@ -30,8 +30,12 @@
     console.log(window.cardano.nami)
     console.log(window.cardano.lace)
     // console.log(asdf)
-    const api = await window.cardano.nami.enable();
     // const api = await window.cardano.lace.enable();
+    let walletExtension = window.cardano.nami;
+    if (window.cardano.lace) {
+      walletExtension = window.cardano.lace;
+    }
+    const api = await walletExtension.enable();
     lucid.selectWallet(api);
 
     function saveApiKey() {
