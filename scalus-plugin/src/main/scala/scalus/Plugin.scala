@@ -25,7 +25,6 @@ import scalus.sir.Recursivity
 import scalus.sir.SIR
 import scalus.uplc
 import scalus.uplc.DefaultFun
-import scalus.uplc.NamedDeBruijn
 
 import java.io.BufferedOutputStream
 import java.io.FileOutputStream

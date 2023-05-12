@@ -25,7 +25,6 @@ import scalus.sir.Recursivity
 import scalus.sir.SIR
 import scalus.uplc
 import scalus.uplc.DefaultFun
-import scalus.uplc.NamedDeBruijn
 import java.io.BufferedOutputStream
 import java.io.FileOutputStream
 import scala.annotation.threadUnsafe
@@ -103,9 +102,6 @@ class SIRConverter(using Context) {
     ref(ExternalVarSymbol.requiredMethod("apply")).appliedTo(mkString(modName), mkString(name))
   def mkConst(const: scalus.uplc.Constant) =
     ref(ConstSymbol.requiredMethod("apply")).appliedTo(convert(const))
-  def mkNamedDeBruijn(name: String) =
-    ref(NamedDeBruijnSymbol.requiredMethod("apply"))
-      .appliedToArgs(List(Literal(Constant(name)), Literal(Constant(0))))
   def mkBuiltin(bn: DefaultFun) =
     ref(BuiltinSymbol.requiredMethod("apply")).appliedTo(convert(bn))
   def mkDefaultFun(fun: DefaultFun) = ref(requiredModule(s"scalus.uplc.DefaultFun.$fun"))
@@ -201,7 +197,6 @@ class SIRConverter(using Context) {
     ref(BindingSymbol.requiredMethod("apply"))
       .appliedToArgs(List(Literal(Constant(binding.name)), convert(binding.value)))
   }
-  def convert(name: NamedDeBruijn): Tree = mkNamedDeBruijn(name.name)
   def convert(value: Boolean): Tree = Literal(Constant(value))
   def convert(const: scalus.uplc.Constant): Tree = {
     const match

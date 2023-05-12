@@ -3,7 +3,6 @@ package scalus.sir
 import scalus.uplc.Constant
 import scalus.uplc.Data
 import scalus.uplc.DefaultFun
-import scalus.uplc.NamedDeBruijn
 
 import java.util
 

@@ -10,7 +10,6 @@ import scalus.sir.SIR
 import scalus.uplc.Constant
 import scalus.uplc.DefaultFun
 import scalus.uplc.DefaultUni
-import scalus.uplc.NamedDeBruijn
 import scalus.flat.{DecoderState, EncoderState, Flat, Natural, given}
 
 import scala.collection.mutable.ListBuffer

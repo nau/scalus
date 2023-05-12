@@ -35,7 +35,6 @@ import scalus.uplc
 import scalus.uplc.Constant.Data
 import scalus.uplc.DefaultFun
 import scalus.uplc.DefaultUni
-import scalus.uplc.NamedDeBruijn
 import scalus.BuiltinHelper
 
 import java.io.BufferedOutputStream
