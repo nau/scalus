@@ -1,13 +1,21 @@
 package scalus.uplc
 
-import io.bullet.borer.Tag.{NegativeBigNum, Other, PositiveBigNum}
+import io.bullet.borer.Decoder
+import io.bullet.borer.Encoder
+import io.bullet.borer.Reader
+import io.bullet.borer.Tag.NegativeBigNum
+import io.bullet.borer.Tag.Other
+import io.bullet.borer.Tag.PositiveBigNum
+import io.bullet.borer.Writer
 import io.bullet.borer.encodings.BaseEncoding
-import io.bullet.borer.{DataItem as DI, Decoder, Encoder, Reader, Writer}
+import io.bullet.borer.{DataItem => DI}
 import org.typelevel.paiges.Doc
-import scalus.flat.{DecoderState, EncoderState, Flat}
-import scalus.sir.SIR
-import scalus.sir.PrettyPrinter
 import scalus.*
+import scalus.flat.DecoderState
+import scalus.flat.EncoderState
+import scalus.flat.Flat
+import scalus.sir.PrettyPrinter
+import scalus.sir.SIR
 import scalus.uplc.Data.*
 import scalus.utils.Utils
 import scalus.utils.Utils.bytesToHex
@@ -48,37 +56,6 @@ enum Term:
       Doc.text("(") + Doc.text("builtin") + Doc.space + PrettyPrinter.pretty(bn) + Doc.text(")")
     case Error(_) => Doc.text("(error)")
 
-object TermDSL:
-  def applyToList(app: Term): (Term, immutable.List[Term]) =
-    app match
-      case Term.Apply(f, arg) =>
-        val (f1, args) = applyToList(f)
-        (f1, args :+ arg)
-      case f => (f, Nil)
-
-  def λ(names: String*)(term: Term): Term = lam(names: _*)(term)
-  def lam(names: String*)(term: Term): Term = names.foldRight(term)(Term.LamAbs(_, _))
-  def vr(name: String): Term = Term.Var(NamedDeBruijn(name))
-  extension (term: Term)
-    def $(rhs: Term) = Term.Apply(term, rhs)
-    def unary_! = Term.Force(term)
-    def unary_~ = Term.Delay(term)
-
-  extension (sc: StringContext)
-    def vr(args: Any*): Term = Term.Var(NamedDeBruijn(sc.parts.head))
-
-  given Conversion[DefaultFun, Term] with
-    def apply(bn: DefaultFun): Term = Term.Builtin(bn)
-
-  given constantAsTerm[A: Constant.LiftValue]: Conversion[A, Term] with
-    def apply(c: A): Term = Term.Const(summon[Constant.LiftValue[A]].lift(c))
-
-  given Conversion[Constant, Term] with
-    def apply(c: Constant): Term = Term.Const(c)
-
-  given constantAsData[A: Data.ToData]: Conversion[A, Data] with
-    def apply(c: A): Data = summon[Data.ToData[A]].toData(c)
-
 case class Program(version: (Int, Int, Int), term: Term):
   def pretty: Doc =
     val (major, minor, patch) = version
@@ -92,23 +69,3 @@ case class DeBruijnedProgram private[uplc] (version: (Int, Int, Int), term: Term
     Doc.text("(") + Doc.text("program") + Doc.space + Doc.text(
       s"$major.$minor.$patch"
     ) + Doc.space + term.pretty + Doc.text(")")
-
-object ProgramFlatCodec:
-  import FlatInstantces.given
-  private val flatCodec = summon[Flat[DeBruijnedProgram]]
-
-  def encodeFlat(p: Program): Array[Byte] =
-    val deBruijned = DeBruijn.deBruijnProgram(p)
-    encodeFlat(deBruijned)
-
-  def encodeFlat(deBruijned: DeBruijnedProgram): Array[Byte] =
-    // FIXME, why the hell + 2? +1 should always work with post align.
-    val encoderState = new EncoderState(flatCodec.bitSize(deBruijned) / 8 + 2)
-    flatCodec.encode(deBruijned, encoderState)
-    encoderState.filler()
-    val encoded = encoderState.result
-    encoded
-
-  def decodeFlat(encoded: Array[Byte]): DeBruijnedProgram =
-    val decoderState = new DecoderState(encoded)
-    flatCodec.decode(decoderState)
