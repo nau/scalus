@@ -1,12 +1,52 @@
 package scalus.sir
 
+import io.bullet.borer.Cbor
 import org.typelevel.paiges.Doc
 import org.typelevel.paiges.Style
+import scalus.*
+import scalus.uplc.Constant
 import scalus.uplc.DefaultFun
+import scalus.uplc.DefaultUni
+import scalus.uplc.PlutusDataCborEncoder
 import scalus.utils.Utils
 
 object PrettyPrinter {
   def pretty(df: DefaultFun): Doc = Doc.text(Utils.lowerFirst(df.toString))
+
+  def prettyValue(c: Constant): Doc =
+    import Constant.*
+    c match
+      case Integer(value)    => Doc.text(value.toString)
+      case ByteString(value) => Doc.text("#" + value.toHex)
+      case String(value)     => Doc.text("\"" + value + "\"")
+      case Unit              => Doc.text("()")
+      case Bool(value)       => Doc.text(if value then "True" else "False")
+      case Data(value) =>
+        implicit val encoder = PlutusDataCborEncoder
+        val byteArray = Cbor.encode(value).toByteArray
+        Doc.text("#" + Utils.bytesToHex(byteArray))
+      case Pair(a, b) =>
+        Doc.text("(") + prettyValue(a) + Doc.text(", ") + prettyValue(b) + Doc.text(")")
+      case List(tpe, values) =>
+        Doc.text("[") + Doc.intercalate(Doc.text(", ") + Doc.space, values.map(prettyValue)) + Doc
+          .text("]")
+
+  def pretty(c: Constant): Doc = pretty(c.tpe) + Doc.space + prettyValue(c)
+
+  def pretty(du: DefaultUni): Doc = du match
+    case DefaultUni.Integer    => Doc.text("integer")
+    case DefaultUni.ByteString => Doc.text("bytestring")
+    case DefaultUni.String     => Doc.text("string")
+    case DefaultUni.Unit       => Doc.text("unit")
+    case DefaultUni.Bool       => Doc.text("bool")
+    case DefaultUni.Apply(DefaultUni.ProtoList, arg) =>
+      Doc.text("(") + Doc.text("list") + Doc.space + pretty(arg) + Doc.text(")")
+    case DefaultUni.Apply(DefaultUni.Apply(DefaultUni.ProtoPair, a), b) =>
+      Doc.text("(") + Doc.text("pair") + Doc.space + pretty(a) + Doc.space + pretty(b) + Doc.text(
+        ")"
+      )
+    case DefaultUni.Data => Doc.text("data")
+    case _               => sys.error(s"Unexpected default uni: $du")
 
   def pretty(sir: SIR): Doc =
     import SIR.*
@@ -85,7 +125,7 @@ object PrettyPrinter {
               .tightBracketBy(Doc.text("("), Doc.text(")"))
 
         pretty(t) + prettyArgs
-      case Const(const) => const.prettyValue.style(Style.XTerm.Fg.colorCode(64))
+      case Const(const) => prettyValue(const).style(Style.XTerm.Fg.colorCode(64))
       case IfThenElse(cond, t, f) =>
         ((kw("if") + (Doc.line + pretty(cond)).nested(4)).grouped
           + (Doc.line + kw("then") + (Doc.line + pretty(t)).nested(4)).grouped

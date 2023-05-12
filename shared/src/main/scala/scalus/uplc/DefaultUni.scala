@@ -1,22 +1,9 @@
 package scalus.uplc
 
-import org.typelevel.paiges.Doc
 import scalus.builtins.ByteString
 
 sealed abstract class DefaultUni:
   type Unlifted
-  def pretty: Doc = this match
-    case DefaultUni.Integer    => Doc.text("integer")
-    case DefaultUni.ByteString => Doc.text("bytestring")
-    case DefaultUni.String     => Doc.text("string")
-    case DefaultUni.Unit       => Doc.text("unit")
-    case DefaultUni.Bool       => Doc.text("bool")
-    case DefaultUni.Apply(DefaultUni.ProtoList, arg) =>
-      Doc.text("(") + Doc.text("list") + Doc.space + arg.pretty + Doc.text(")")
-    case DefaultUni.Apply(DefaultUni.Apply(DefaultUni.ProtoPair, a), b) =>
-      Doc.text("(") + Doc.text("pair") + Doc.space + a.pretty + Doc.space + b.pretty + Doc.text(")")
-    case DefaultUni.Data => Doc.text("data")
-    case _               => sys.error(s"Unexpected default uni: $this")
 
 object DefaultUni:
 

@@ -7,6 +7,7 @@ import org.typelevel.paiges.Doc
 import scalus.flat.{DecoderState, EncoderState, Flat}
 import scalus.sir.SIR
 import scalus.sir.PrettyPrinter
+import scalus.*
 import scalus.uplc.Data.*
 import scalus.utils.Utils
 import scalus.utils.Utils.bytesToHex

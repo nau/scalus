@@ -1,19 +1,12 @@
 package scalus.uplc
 
-import io.bullet.borer.{Cbor, Encoder}
-import org.typelevel.paiges.Doc
 import scalus.builtins
-import scalus.utils.Utils
 
 import java.util
 import scala.collection.immutable
 
 sealed trait Constant:
   def tpe: DefaultUni
-
-  def prettyValue: Doc
-
-  def pretty: Doc = tpe.pretty + Doc.space + prettyValue
 
 object Constant:
 
@@ -47,40 +40,27 @@ object Constant:
 
   case class Integer(value: BigInt) extends Constant:
     def tpe = DefaultUni.Integer
-    def prettyValue = Doc.text(value.toString)
 
   case class ByteString(value: builtins.ByteString) extends Constant:
     def tpe = DefaultUni.ByteString
-    def prettyValue = Doc.text("#" + value.toHex)
 
   case class String(value: java.lang.String) extends Constant:
     def tpe = DefaultUni.String
-    def prettyValue = Doc.text("\"" + value + "\"")
 
   case object Unit extends Constant:
     def tpe = DefaultUni.Unit
-    def prettyValue = Doc.text("()")
 
   case class Bool(value: Boolean) extends Constant:
     def tpe = DefaultUni.Bool
-    def prettyValue = Doc.text(if value then "True" else "False")
 
   case class Data(value: scalus.uplc.Data) extends Constant:
     def tpe = DefaultUni.Data
-    def prettyValue =
-      implicit val encoder = PlutusDataCborEncoder
-      val byteArray = Cbor.encode(value).toByteArray
-      Doc.text("#" + Utils.bytesToHex(byteArray))
 
   case class List(elemType: DefaultUni, value: immutable.List[Constant]) extends Constant:
     def tpe = DefaultUni.Apply(DefaultUni.ProtoList, elemType)
-    def prettyValue =
-      Doc.text("[") + Doc.intercalate(Doc.text(", "), value.map(_.prettyValue)) + Doc.text("]")
 
   case class Pair(a: Constant, b: Constant) extends Constant:
     def tpe = DefaultUni.Apply(DefaultUni.Apply(DefaultUni.ProtoPair, a.tpe), b.tpe)
-    def prettyValue =
-      Doc.text("(") + a.prettyValue + Doc.text(", ") + b.prettyValue + Doc.text(")")
 
   def fromValue(tpe: DefaultUni, a: Any): Constant = tpe match {
     case DefaultUni.Integer    => Integer(a.asInstanceOf[BigInt])

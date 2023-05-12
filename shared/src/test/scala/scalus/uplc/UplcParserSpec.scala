@@ -4,6 +4,7 @@ import cats.implicits.toShow
 import org.scalacheck.{Arbitrary, Gen}
 import org.scalatest.funsuite.AnyFunSuite
 import org.scalatestplus.scalacheck.ScalaCheckPropertyChecks
+import scalus.*
 import scalus.builtins
 import scalus.uplc.Constant.given
 import scalus.uplc.Data.{B, Constr, I, List, Map}
