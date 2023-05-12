@@ -10,7 +10,6 @@ import scalus.flat.DecoderState
 import scalus.flat.Flat
 import scalus.sir.SIR
 
-
 class SIRFlatSerializationSpec extends AnyFunSuite with ScalaCheckPropertyChecks:
 
   test("serialize and deserialize SIR") {

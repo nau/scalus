@@ -41,4 +41,3 @@ object TermDSL:
 
   given constantAsData[A: Data.ToData]: Conversion[A, Data] with
     def apply(c: A): Data = summon[Data.ToData[A]].toData(c)
-

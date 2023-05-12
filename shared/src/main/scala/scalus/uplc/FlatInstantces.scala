@@ -34,7 +34,6 @@ object FlatInstantces:
         pairFlat(flatForUni(a), flatForUni(b)).asInstanceOf[Flat[Any]]
       case _ => throw new Exception(s"Unsupported uni: $uni")
 
-
   def encodeUni(uni: DefaultUni): List[Int] =
     uni match
       case DefaultUni.Integer           => List(0)

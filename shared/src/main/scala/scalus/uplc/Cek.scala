@@ -95,12 +95,13 @@ object Cek:
 
   private def lookupVarName(env: CekValEnv, name: NamedDeBruijn): CekValue =
     env.collectFirst {
-    case (n, v) if n == name.name => v
-  } match
-    case Some(value) => value
-    case None =>
-      throw new EvaluationFailure(s"Variable ${name.name} not found in environment: ${env.map(_._1).mkString(", ")}")
-
+      case (n, v) if n == name.name => v
+    } match
+      case Some(value) => value
+      case None =>
+        throw new EvaluationFailure(
+          s"Variable ${name.name} not found in environment: ${env.map(_._1).mkString(", ")}"
+        )
 
   def applyEvaluate(ctx: Context, fun: CekValue, arg: CekValue): Term =
     fun match

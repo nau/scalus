@@ -44,8 +44,9 @@ enum Term:
     case Delay(term) =>
       Doc.text("(") + Doc.text("delay") + Doc.text(" ") + term.pretty + Doc.text(")")
     case Const(const) => Doc.text("(") + Doc.text("con") + Doc.space + const.pretty + Doc.text(")")
-    case Builtin(bn)  => Doc.text("(") + Doc.text("builtin") + Doc.space + PrettyPrinter.pretty(bn) + Doc.text(")")
-    case Error(_)     => Doc.text("(error)")
+    case Builtin(bn) =>
+      Doc.text("(") + Doc.text("builtin") + Doc.space + PrettyPrinter.pretty(bn) + Doc.text(")")
+    case Error(_) => Doc.text("(error)")
 
 object TermDSL:
   def applyToList(app: Term): (Term, immutable.List[Term]) =

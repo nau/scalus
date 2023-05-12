@@ -104,7 +104,9 @@ object AssocMap {
   import List.*
   import Maybe.*
   def empty[A, B]: AssocMap[A, B] = new AssocMap(List.empty[(A, B)])
-  def singleton[A, B](key: A, value: B): AssocMap[A, B] = new AssocMap(new List.Cons((key, value), List.Nil))
+  def singleton[A, B](key: A, value: B): AssocMap[A, B] = new AssocMap(
+    new List.Cons((key, value), List.Nil)
+  )
   def fromList[A, B](lst: List[(A, B)]): AssocMap[A, B] = new AssocMap(lst)
   def toList[A, B](map: AssocMap[A, B]): List[(A, B)] = map.inner
   def lookup[A: Eq, B](map: AssocMap[A, B])(key: A): Maybe[B] =

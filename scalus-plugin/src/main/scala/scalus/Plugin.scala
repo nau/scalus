@@ -40,7 +40,6 @@ import scala.collection.mutable.ListBuffer
 import java.net.URL
 import dotty.tools.io.ClassPath
 
-
 enum Mode:
   case Compile, Link
 

@@ -2,7 +2,7 @@ package scalus.ledger.api.v1
 
 import scalus.uplc.Data.ToData
 import scalus.uplc.Data
-import scalus.uplc.DataInstances.{given, _}
+import scalus.uplc.DataInstances.{_, given}
 
 object ToDataInstances {
   import scalus.uplc.Data.toData

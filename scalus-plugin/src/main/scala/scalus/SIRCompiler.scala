@@ -130,7 +130,8 @@ class SIRCompiler(mode: scalus.Mode)(using ctx: Context) {
       val tpl = td.rhs.asInstanceOf[Template]
       val bindings = tpl.body.collect {
         // FIXME: hack for derived methods
-        case dd: DefDef if !dd.symbol.flags.is(Flags.Synthetic) && !dd.symbol.name.startsWith("derived") =>
+        case dd: DefDef
+            if !dd.symbol.flags.is(Flags.Synthetic) && !dd.symbol.name.startsWith("derived") =>
           compileStmt(immutable.HashSet.empty, dd, isGlobalDef = true)
         case vd: ValDef if !vd.symbol.flags.isOneOf(Flags.Synthetic | Flags.Case) =>
           // println(s"valdef: ${vd.symbol.fullName}")
@@ -295,7 +296,7 @@ class SIRCompiler(mode: scalus.Mode)(using ctx: Context) {
       traverseAndLink(cond, srcPos)
       traverseAndLink(t, srcPos)
       traverseAndLink(f, srcPos)
-    case SIR.Decl(data, term)         => traverseAndLink(term, srcPos)
+    case SIR.Decl(data, term) => traverseAndLink(term, srcPos)
     case SIR.Constr(name, data, args) =>
       globalDataDecls.put(FullName(data.name), data)
       args.foreach(a => traverseAndLink(a, srcPos))
