@@ -1,10 +1,8 @@
 package scalus.builtins
+
 import scalus.uplc.Data
 
 import scala.collection.immutable
-
-case class Pair[+A, +B](fst: A, snd: B):
-  override def toString = "(" + fst + ", " + snd + ")"
 
 enum List[+A]:
   case Nil extends List[Nothing]
@@ -33,4 +31,5 @@ object List:
   def empty[A]: List[A] = Nil
   def apply[A](xs: A*): List[A] = xs.foldRight(empty[A])(_ :: _)
 
-
+case class Pair[A, B](fst: A, snd: B):
+  override def toString = "(" + fst + ", " + snd + ")"
