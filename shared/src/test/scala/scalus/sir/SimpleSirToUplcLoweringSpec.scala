@@ -17,23 +17,6 @@ class SimpleSirToUplcLoweringSpec
       val l = SimpleSirToUplcLowering()
       assert(l.lower(s) == r)
 
-  test("pretty") {
-    val data =
-      DataDecl("List", List(ConstrDecl("Nil", List()), ConstrDecl("Cons", List("head", "tail"))))
-    val sir = SIR.Decl(
-      data,
-      SIR.Match(
-        SIR.Constr("Cons", data, List(SIR.Var("h"), SIR.Var("tl"))),
-        List(
-          Case(ConstrDecl("Nil", List()), List(), SIR.Const(Constant.Integer(1))),
-          Case(ConstrDecl("Cons", List()), List("h", "tl"), SIR.Const(Constant.Integer(2)))
-        )
-      )
-    )
-    // println(sir.pretty.render(10))
-    // println(sir.pretty.render(100))
-  }
-
   test("lower constant") {
     forAll { (c: Constant) =>
       SIR.Const(c) lowersTo Term.Const(c)
