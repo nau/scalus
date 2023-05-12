@@ -127,7 +127,7 @@ val serializeToDoubleCborHex: String = {
 
 class TutorialSpec extends AnyFunSuite {
   test("pretty print") {
-    println(constants.pretty.render(80))
+    /* println(constants.pretty.render(80))
     println(builtinFunctions.pretty.render(80))
     println(dataTypes.pretty.render(80))
     println(controlFlow.pretty.render(80))
@@ -135,6 +135,6 @@ class TutorialSpec extends AnyFunSuite {
     println(modules.pretty.render(80))
     println(fromDataExample.pretty.render(80))
     println(context.pretty.render(80))
-    println(serializeToDoubleCborHex)
+    println(serializeToDoubleCborHex) */
   }
 }
