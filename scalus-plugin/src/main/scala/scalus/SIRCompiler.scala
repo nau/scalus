@@ -470,18 +470,9 @@ class SIRCompiler(mode: scalus.Mode)(using ctx: Context) {
       scalus.uplc.Constant.ByteString(scalus.builtins.ByteString.empty)
     case Apply(expr, List(Literal(c)))
         if expr.symbol.showFullName == "scalus.builtins.ByteString.fromHex" =>
-      scalus.uplc.Constant.ByteString(scalus.builtins.ByteString(hexToBytes(c.stringValue)))
+      scalus.uplc.Constant.ByteString(scalus.builtins.ByteString.fromHex(c.stringValue))
 
   }
-
-  def hexToBytes(hex: String): Array[Byte] =
-    val hexString = hex.replace(" ", "")
-    try
-      if (hexString.length & 1) != 0 then sys.error("string length is not even")
-      hexString.grouped(2).map(Integer.parseInt(_, 16).toByte).toArray
-    catch
-      case NonFatal(e) =>
-        throw new IllegalArgumentException(s"`$hexString` is not a valid hex string", e)
 
   def typeReprToDefaultUni(t: Type, pos: SrcPos): DefaultUni =
     if t =:= converter.BigIntClassSymbol.typeRef then DefaultUni.Integer

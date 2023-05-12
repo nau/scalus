@@ -3,25 +3,6 @@ import scalus.uplc.Data
 
 import scala.collection.immutable
 
-class ByteString private (val bytes: Array[Byte]) {
-  override def hashCode(): Int = java.util.Arrays.hashCode(bytes)
-
-  override def equals(obj: Any): Boolean = obj match {
-    case that: ByteString => java.util.Arrays.equals(this.bytes, that.bytes)
-    case _                => false
-  }
-
-}
-
-object ByteString {
-  val empty = new ByteString(Array.empty)
-  def apply(bytes: Array[Byte]): ByteString = new ByteString(bytes.toArray)
-
-  def apply(bytes: Byte*): ByteString = new ByteString(bytes.toArray)
-
-  def unsafeFromArray(bytes: Array[Byte]): ByteString = new ByteString(bytes)
-}
-
 case class Pair[+A, +B](fst: A, snd: B):
   override def toString = "(" + fst + ", " + snd + ")"
 
