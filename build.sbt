@@ -14,7 +14,7 @@ ThisBuild / scmInfo := Some(
 )
 ThisBuild / developers := List(
   Developer(
-    id = "Your identifier",
+    id = "atlanter",
     name = "Alexander Nemish",
     email = "anemish@gmail.com",
     url = url("https://github.com/nau")
@@ -30,8 +30,6 @@ ThisBuild / homepage := Some(url("https://github.com/nau/scalus"))
 // Remove all additional repository other than Maven Central from POM
 ThisBuild / pomIncludeRepository := { _ => false }
 ThisBuild / publishTo := {
-  // For accounts created after Feb 2021:
-  // val nexus = "https://s01.oss.sonatype.org/"
   val nexus = "https://s01.oss.sonatype.org/"
   if (isSnapshot.value) Some("snapshots" at nexus + "content/repositories/snapshots")
   else Some("releases" at nexus + "service/local/staging/deploy/maven2")
@@ -72,6 +70,8 @@ lazy val scalusPlugin = project
 
 lazy val PluginDependency: List[Def.Setting[_]] = List(scalacOptions ++= {
   val jar = (scalusPlugin / Compile / packageBin).value
+  // add plugin timestamp to compiler options to trigger recompile of
+  // main after editing the plugin. (Otherwise a 'clean' is needed.)
   Seq(s"-Xplugin:${jar.getAbsolutePath}", s"-Jdummy=${jar.lastModified}")
 })
 
@@ -84,7 +84,7 @@ lazy val scalus = crossProject(JSPlatform, JVMPlatform)
     scalacOptions += "-Xcheck-macros",
     scalacOptions += "-explain",
     // scalacOptions += "-Yretain-trees",
-    libraryDependencies += "org.typelevel" %%% "cats-parse" % "0.3.8",
+    libraryDependencies += "org.typelevel" %%% "cats-parse" % "0.3.9",
     libraryDependencies += "org.typelevel" %%% "paiges-core" % "0.4.2",
     libraryDependencies ++= Seq(
       "io.bullet" %%% "borer-core" % "1.10.1",
@@ -102,7 +102,7 @@ lazy val scalus = crossProject(JSPlatform, JVMPlatform)
   )
   .jsSettings(
     // Add JS-specific settings here
-    scalaJSUseMainModuleInitializer := true
+    scalaJSUseMainModuleInitializer := false
   )
 
 lazy val examples = project
