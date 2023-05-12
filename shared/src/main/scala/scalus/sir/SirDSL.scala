@@ -7,10 +7,11 @@ import org.typelevel.paiges.{Doc, Style}
 import scalus.uplc.{Constant, Data, DefaultFun, NamedDeBruijn}
 import scalus.utils.Utils
 import scalus.utils.Utils.bytesToHex
+import cats.syntax.all.*
 
 import java.util
 
-object TermDSL:
+object SirDSL:
   def applyToList(app: SIR): (SIR, List[SIR]) =
     app match
       case SIR.Apply(f, arg) =>

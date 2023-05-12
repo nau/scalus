@@ -102,7 +102,7 @@ object PrettyPrinter {
           kw("in")
         ) + Doc.line + pretty(inExpr)
       case Let(Recursivity.Rec, List(Binding(name, body)), inExpr) =>
-        val (args, body1) = TermDSL.lamAbsToList(body)
+        val (args, body1) = SirDSL.lamAbsToList(body)
         val prettyArgs = Doc.stack(args.map(Doc.text))
         val signatureLine =
           (kw("fun") & Doc.text(name) + (Doc.line + prettyArgs & Doc.char('=')).nested(2)).grouped
@@ -111,12 +111,12 @@ object PrettyPrinter {
         ) & pretty(inExpr)
       case Let(_, _, inExpr) => ???
       case LamAbs(name, term) =>
-        val (args, body1) = TermDSL.lamAbsToList(sir)
+        val (args, body1) = SirDSL.lamAbsToList(sir)
         val prettyArgs = Doc.stack(args.map(Doc.text))
         val decl = (Doc.text("{λ") + (Doc.line + prettyArgs & Doc.text("->")).nested(4)).grouped
         ((decl + (Doc.line + pretty(body1)).nested(2)).grouped / Doc.text("}")).grouped.aligned
       case a @ Apply(f, arg) =>
-        val (t, args) = TermDSL.applyToList(a)
+        val (t, args) = SirDSL.applyToList(a)
         val prettyArgs = args match
           case List() => Doc.text("()")
           case _ =>
