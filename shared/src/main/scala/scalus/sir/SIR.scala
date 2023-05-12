@@ -24,6 +24,9 @@ enum SIR:
   case LamAbs(name: String, term: SIR) extends SIR
   case Apply(f: SIR, arg: SIR) extends SIR
   case Const(const: Constant) extends SIR
+  case And(a: SIR, b: SIR) extends SIR
+  case Or(a: SIR, b: SIR) extends SIR
+  case Not(a: SIR) extends SIR
   case IfThenElse(cond: SIR, t: SIR, f: SIR) extends SIR
   case Builtin(bn: DefaultFun) extends SIR
   case Error(msg: String) extends SIR

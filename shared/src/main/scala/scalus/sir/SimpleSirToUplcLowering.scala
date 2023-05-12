@@ -105,6 +105,13 @@ class SimpleSirToUplcLowering(generateErrorTraces: Boolean = false) {
       case SIR.LamAbs(name, term) => Term.LamAbs(name, lowerInner(term))
       case SIR.Apply(f, arg)      => Term.Apply(lowerInner(f), lowerInner(arg))
       case SIR.Const(const)       => Term.Const(const)
+      case SIR.And(lhs, rhs) =>
+        lowerInner(SIR.IfThenElse(lhs, rhs, SIR.Const(Constant.Bool(false))))
+      case SIR.Or(lhs, rhs) => lowerInner(SIR.IfThenElse(lhs, SIR.Const(Constant.Bool(true)), rhs))
+      case SIR.Not(term) =>
+        lowerInner(
+          SIR.IfThenElse(term, SIR.Const(Constant.Bool(false)), SIR.Const(Constant.Bool(true)))
+        )
       case SIR.IfThenElse(cond, t, f) =>
         !(builtinTerms(DefaultFun.IfThenElse) $ lowerInner(cond) $ ~lowerInner(t) $ ~lowerInner(f))
       case SIR.Builtin(bn) => builtinTerms(bn)

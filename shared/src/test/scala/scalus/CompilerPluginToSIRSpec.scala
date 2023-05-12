@@ -396,28 +396,7 @@ class CompilerPluginToSIRSpec extends AnyFunSuite with ScalaCheckPropertyChecks:
         Let(
           NonRec,
           List(Binding("a", Const(Bool(true)))),
-          Apply(
-            LamAbs(
-              "rhs",
-              SIR.IfThenElse(
-                Apply(
-                  LamAbs(
-                    "rhs",
-                    SIR.IfThenElse(
-                      SIR
-                        .IfThenElse(Var("a"), Const(Bool(false)), Const(Bool(true))),
-                      Var("rhs"),
-                      Const(Bool(false))
-                    )
-                  ),
-                  Const(Bool(false))
-                ),
-                Const(Bool(true)),
-                Var("rhs")
-              )
-            ),
-            Const(Bool(true))
-          )
+          Or(And(Not(Var("a")), Const(Bool(false))), Const(Bool(true)))
         )
     )
     // println(compiled.pretty.render(80))

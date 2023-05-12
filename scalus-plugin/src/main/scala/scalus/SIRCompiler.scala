@@ -292,6 +292,13 @@ class SIRCompiler(mode: scalus.Mode)(using ctx: Context) {
     case SIR.Apply(f, arg) =>
       traverseAndLink(f, srcPos)
       traverseAndLink(arg, srcPos)
+    case SIR.And(lhs, rhs) =>
+      traverseAndLink(lhs, srcPos)
+      traverseAndLink(rhs, srcPos)
+    case SIR.Or(lhs, rhs) =>
+      traverseAndLink(lhs, srcPos)
+      traverseAndLink(rhs, srcPos)
+    case SIR.Not(term) => traverseAndLink(term, srcPos)
     case SIR.IfThenElse(cond, t, f) =>
       traverseAndLink(cond, srcPos)
       traverseAndLink(t, srcPos)
@@ -491,34 +498,6 @@ class SIRCompiler(mode: scalus.Mode)(using ctx: Context) {
       report.error(s"Unsupported type $t", pos)
       DefaultUni.Unit
 
-  def compileBoolOps(env: Env, lhs: Tree, op: Name): SIR =
-    val lhsExpr = compileExpr(env, lhs)
-    op match
-      case nme.UNARY_! =>
-        SIR.IfThenElse(
-          lhsExpr,
-          SIR.Const(scalus.uplc.Constant.Bool(false)),
-          SIR.Const(scalus.uplc.Constant.Bool(true))
-        )
-      case nme.ZAND =>
-        SIR.LamAbs(
-          "rhs",
-          SIR.IfThenElse(
-            lhsExpr,
-            SIR.Var("rhs"),
-            SIR.Const(scalus.uplc.Constant.Bool(false))
-          )
-        )
-      case nme.ZOR =>
-        SIR.LamAbs(
-          "rhs",
-          SIR.IfThenElse(
-            lhsExpr,
-            SIR.Const(scalus.uplc.Constant.Bool(true)),
-            SIR.Var("rhs")
-          )
-        )
-
   def compileBigIntOps(env: Env, ident: Tree, op: Name): SIR =
     op match
       case nme.PLUS =>
@@ -658,8 +637,19 @@ class SIRCompiler(mode: scalus.Mode)(using ctx: Context) {
           SIR.Error(msg)
 
         // Boolean &&
-        case Select(lhs, op) if lhs.tpe.widen =:= defn.BooleanType =>
-          compileBoolOps(env, lhs, op)
+        case Select(lhs, op) if lhs.tpe.widen =:= defn.BooleanType && op == nme.UNARY_! =>
+          val lhsExpr = compileExpr(env, lhs)
+          SIR.Not(lhsExpr)
+        case Apply(Select(lhs, op), List(rhs))
+            if lhs.tpe.widen =:= defn.BooleanType && op == nme.ZAND =>
+          val lhsExpr = compileExpr(env, lhs)
+          val rhsExpr = compileExpr(env, rhs)
+          SIR.And(lhsExpr, rhsExpr)
+        case Apply(Select(lhs, op), List(rhs))
+            if lhs.tpe.widen =:= defn.BooleanType && op == nme.ZOR =>
+          val lhsExpr = compileExpr(env, lhs)
+          val rhsExpr = compileExpr(env, rhs)
+          SIR.Or(lhsExpr, rhsExpr)
         // Data BUILTINS
         case bi: Select if BuiltinHelper.builtinFun(bi.symbol.showFullName).isDefined =>
           BuiltinHelper.builtinFun(bi.symbol.showFullName).get

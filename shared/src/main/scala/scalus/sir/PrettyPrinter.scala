@@ -126,6 +126,39 @@ object PrettyPrinter {
 
         pretty(t) + prettyArgs
       case Const(const) => prettyValue(const).style(Style.XTerm.Fg.colorCode(64))
+      case And(a, b)    =>
+        // We don't add parentheses for nested Ands, because they are associative.
+        // But we add parentheses for nested Ors and Nots.
+        val docA = a match {
+          case _: Or | _: Not => Doc.char('(') + pretty(a) + Doc.char(')')
+          case _              => pretty(a)
+        }
+        val docB = b match {
+          case _: Or | _: Not => Doc.char('(') + pretty(b) + Doc.char(')')
+          case _              => pretty(b)
+        }
+        (docA + Doc.line + kw("and") + Doc.line + docB).grouped.aligned
+
+      case Or(a, b) =>
+        // We add parentheses for nested Ors and Nots.
+        val docA = a match {
+          case _: Or | _: Not => Doc.char('(') + pretty(a) + Doc.char(')')
+          case _              => pretty(a)
+        }
+        val docB = b match {
+          case _: Or | _: Not => Doc.char('(') + pretty(b) + Doc.char(')')
+          case _              => pretty(b)
+        }
+        (docA + Doc.line + kw("or") + Doc.line + docB).grouped.aligned
+
+      case Not(a) =>
+        // We add parentheses for nested Nots, Ands, and Ors.
+        val docA = a match {
+          case _: Not | _: And | _: Or => Doc.char('(') + pretty(a) + Doc.char(')')
+          case _                       => pretty(a)
+        }
+        (kw("not") + Doc.line + docA).grouped.aligned
+
       case IfThenElse(cond, t, f) =>
         ((kw("if") + (Doc.line + pretty(cond)).nested(4)).grouped
           + (Doc.line + kw("then") + (Doc.line + pretty(t)).nested(4)).grouped

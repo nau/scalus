@@ -58,10 +58,14 @@ object TermDSL:
 
   def λ(names: String*)(term: Term): Term = lam(names: _*)(term)
   def lam(names: String*)(term: Term): Term = names.foldRight(term)(Term.LamAbs(_, _))
+  def vr(name: String): Term = Term.Var(NamedDeBruijn(name))
   extension (term: Term)
     def $(rhs: Term) = Term.Apply(term, rhs)
     def unary_! = Term.Force(term)
     def unary_~ = Term.Delay(term)
+
+  extension (sc: StringContext)
+    def vr(args: Any*): Term = Term.Var(NamedDeBruijn(sc.parts.head))
 
   given Conversion[DefaultFun, Term] with
     def apply(bn: DefaultFun): Term = Term.Builtin(bn)

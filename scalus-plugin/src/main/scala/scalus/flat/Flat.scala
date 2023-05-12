@@ -328,6 +328,9 @@ object FlatInstantces:
       case LamAbs(x, t)        => termTagWidth + summon[Flat[String]].bitSize(x) + bitSize(t)
       case Apply(f, x)         => termTagWidth + bitSize(f) + bitSize(x)
       case Const(c)            => termTagWidth + summon[Flat[Constant]].bitSize(c)
+      case And(x, y)           => termTagWidth + bitSize(x) + bitSize(y)
+      case Or(x, y)            => termTagWidth + bitSize(x) + bitSize(y)
+      case Not(x)              => termTagWidth + bitSize(x)
       case IfThenElse(c, t, f) => termTagWidth + bitSize(c) + bitSize(t) + bitSize(f)
       case Builtin(bn)         => termTagWidth + summon[Flat[DefaultFun]].bitSize(bn)
       case Error(msg)          => termTagWidth + summon[Flat[String]].bitSize(msg)
@@ -388,6 +391,17 @@ object FlatInstantces:
           enc.bits(termTagWidth, 11)
           summon[Flat[String]].encode(modName, enc)
           summon[Flat[String]].encode(name, enc)
+        case And(x, y) =>
+          enc.bits(termTagWidth, 12)
+          encode(x, enc)
+          encode(y, enc)
+        case Or(x, y) =>
+          enc.bits(termTagWidth, 13)
+          encode(x, enc)
+          encode(y, enc)
+        case Not(x) =>
+          enc.bits(termTagWidth, 14)
+          encode(x, enc)
 
     def decode(decoder: DecoderState): SIR =
       val tag = decoder.bits8(termTagWidth)
@@ -439,6 +453,17 @@ object FlatInstantces:
           val modName = summon[Flat[String]].decode(decoder)
           val name = summon[Flat[String]].decode(decoder)
           ExternalVar(modName, name)
+        case 12 =>
+          val x = decode(decoder)
+          val y = decode(decoder)
+          And(x, y)
+        case 13 =>
+          val x = decode(decoder)
+          val y = decode(decoder)
+          Or(x, y)
+        case 14 =>
+          val x = decode(decoder)
+          Not(x)
 
   given Flat[scalus.Module] with
     def bitSize(a: scalus.Module): Int = a match

@@ -79,6 +79,9 @@ class SIRConverter(using Context) {
   val DataDeclSymbol = requiredModule("scalus.sir.DataDecl")
   val DeclSymbol = requiredModule("scalus.sir.SIR.Decl")
   val IfThenElseSymbol = requiredModule("scalus.sir.SIR.IfThenElse")
+  val AndSymbol = requiredModule("scalus.sir.SIR.And")
+  val OrSymbol = requiredModule("scalus.sir.SIR.Or")
+  val NotSymbol = requiredModule("scalus.sir.SIR.Not")
 
   /*
     This is a modification of Dotty mkList method.
@@ -170,6 +173,15 @@ class SIRConverter(using Context) {
   def mkString(s: String) = Literal(Constant(s))
   def mkError(msg: String) =
     ref(ErrorSymbol.requiredMethod("apply")).appliedTo(mkString(msg))
+
+  def mkAnd(left: SIR, right: SIR) =
+    ref(AndSymbol.requiredMethod("apply")).appliedToArgs(List(convert(left), convert(right)))
+
+  def mkOr(left: SIR, right: SIR) =
+    ref(OrSymbol.requiredMethod("apply")).appliedToArgs(List(convert(left), convert(right)))
+
+  def mkNot(term: SIR) =
+    ref(NotSymbol.requiredMethod("apply")).appliedTo(convert(term))
 
   def convert(cs: Case): Tree = mkCase(cs)
   def convert(fun: DefaultFun): Tree = mkDefaultFun(fun)
@@ -304,6 +316,9 @@ class SIRConverter(using Context) {
       case Match(scrutinee, cases)    => mkMatch(scrutinee, cases)
       case Constr(name, data, args)   => mkConstr(name, data, args)
       case Decl(data, term)           => mkDecl(data, term)
+      case And(t1, t2)                => mkAnd(t1, t2)
+      case Or(t1, t2)                 => mkOr(t1, t2)
+      case Not(t)                     => mkNot(t)
       case IfThenElse(cond, t, f)     => mkIfThenElse(cond, t, f)
     // println(res)
     // println(res.showIndented(2))

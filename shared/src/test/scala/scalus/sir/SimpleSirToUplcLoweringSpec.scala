@@ -30,8 +30,8 @@ class SimpleSirToUplcLoweringSpec
         )
       )
     )
-    println(sir.pretty.render(10))
-    println(sir.pretty.render(100))
+    // println(sir.pretty.render(10))
+    // println(sir.pretty.render(100))
   }
 
   test("lower constant") {
@@ -111,6 +111,16 @@ class SimpleSirToUplcLoweringSpec
       asConstant(hex"DEADBEEF")
     ))
 
+  }
+
+  test("lower And, Or, Not") {
+    import scalus.uplc.TermDSL.{*, given}
+    /* And True False
+       lowers to (\True False -> And True False) True False
+     */
+    SIR.And(SIR.Var("a"), SIR.Var("b")) lowersTo !(!IfThenElse $ vr"a" $ ~vr"b" $ ~false)
+    SIR.Or(SIR.Var("a"), SIR.Var("b")) lowersTo !(!IfThenElse $ vr"a" $ ~true $ ~vr"b")
+    SIR.Not(SIR.Var("a")) lowersTo !(!IfThenElse $ vr"a" $ ~false $ ~true)
   }
 
   test("lower Match") {
