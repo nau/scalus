@@ -12,6 +12,7 @@ import scalus.ledger.api.v1.TxInfo
 import scalus.ledger.api.v1.TxOutRef
 import scalus.ledger.api.v1.Value
 import scalus.uplc.Data.*
+import scalus.uplc.DataInstances.given
 
 import scala.collection.immutable
 

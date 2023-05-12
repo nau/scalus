@@ -6,6 +6,7 @@ import scalus.builtins.Builtins
 import scalus.builtins.ByteString
 import scalus.prelude.Prelude.===
 import scalus.prelude.Prelude.given
+import scalus.uplc.DataInstances.given
 
 val constants = compile {
   val unit = ()

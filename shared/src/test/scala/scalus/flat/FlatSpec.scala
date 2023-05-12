@@ -6,6 +6,7 @@ import org.scalatest.funsuite.AnyFunSuite
 import org.scalatestplus.scalacheck.ScalaCheckPropertyChecks
 import scalus.builtins
 import scalus.uplc.*
+import scalus.uplc.DataInstances.given
 import scalus.utils.Utils
 
 import scala.util.Random

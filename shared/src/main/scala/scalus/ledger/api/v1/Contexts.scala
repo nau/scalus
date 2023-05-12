@@ -13,6 +13,7 @@ import scalus.uplc.Data
 import scalus.uplc.Data.FromData
 import scalus.uplc.Data.ToData
 import scalus.uplc.Data.given
+import scalus.uplc.DataInstances.given
 import scalus.utils.Utils.bytesToHex
 
 type ValidatorHash = ByteString
