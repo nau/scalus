@@ -1,8 +1,5 @@
 package scalus.uplc
 
-import org.typelevel.paiges.Doc
-import scalus.utils.Utils
-
 enum DefaultFun:
   // Integers
   case AddInteger
@@ -86,6 +83,3 @@ enum DefaultFun:
   case MkNilData
   case MkNilPairData
 
-  def name: String = Utils.lowerFirst(this.toString)
-
-  def pretty: Doc = Doc.text(name)

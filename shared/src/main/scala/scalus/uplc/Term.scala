@@ -6,6 +6,7 @@ import io.bullet.borer.{DataItem as DI, Decoder, Encoder, Reader, Writer}
 import org.typelevel.paiges.Doc
 import scalus.flat.{DecoderState, EncoderState, Flat}
 import scalus.sir.SIR
+import scalus.sir.PrettyPrinter
 import scalus.uplc.Data.*
 import scalus.utils.Utils
 import scalus.utils.Utils.bytesToHex
@@ -42,7 +43,7 @@ enum Term:
     case Delay(term) =>
       Doc.text("(") + Doc.text("delay") + Doc.text(" ") + term.pretty + Doc.text(")")
     case Const(const) => Doc.text("(") + Doc.text("con") + Doc.space + const.pretty + Doc.text(")")
-    case Builtin(bn)  => Doc.text("(") + Doc.text("builtin") + Doc.space + bn.pretty + Doc.text(")")
+    case Builtin(bn)  => Doc.text("(") + Doc.text("builtin") + Doc.space + PrettyPrinter.pretty(bn) + Doc.text(")")
     case Error(_)     => Doc.text("(error)")
 
 object TermDSL:

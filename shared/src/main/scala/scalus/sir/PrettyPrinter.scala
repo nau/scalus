@@ -2,8 +2,12 @@ package scalus.sir
 
 import org.typelevel.paiges.Doc
 import org.typelevel.paiges.Style
+import scalus.uplc.DefaultFun
+import scalus.utils.Utils
 
 object PrettyPrinter {
+  def pretty(df: DefaultFun): Doc = Doc.text(Utils.lowerFirst(df.toString))
+
   def pretty(sir: SIR): Doc =
     import SIR.*
     def kw(s: String): Doc = Doc.text(s).style(Style.XTerm.Fg.colorCode(172))
@@ -50,7 +54,7 @@ object PrettyPrinter {
           2
         )).aligned
 
-      case Var(name) => Doc.text(name)
+      case Var(name)                     => Doc.text(name)
       case ExternalVar(moduleName, name) => Doc.text(moduleName + "::" + name)
       case Let(Recursivity.NonRec, List(Binding(name, body)), inExpr) =>
         pretty(body).bracketBy(
@@ -86,7 +90,7 @@ object PrettyPrinter {
         ((kw("if") + (Doc.line + pretty(cond)).nested(4)).grouped
           + (Doc.line + kw("then") + (Doc.line + pretty(t)).nested(4)).grouped
           + (Doc.line + kw("else") + (Doc.line + pretty(f)).nested(4)).grouped).aligned
-      case Builtin(bn) => bn.pretty.style(Style.XTerm.Fg.colorCode(176))
+      case Builtin(bn) => pretty(bn).style(Style.XTerm.Fg.colorCode(176))
       case Error(msg)  => Doc.text(s"ERROR '$msg'").style(Style.XTerm.Fg.colorCode(124))
 
   def pretty(p: Program): Doc =
