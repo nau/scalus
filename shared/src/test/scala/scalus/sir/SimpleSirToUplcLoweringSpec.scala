@@ -1,12 +1,17 @@
 package scalus.sir
 import org.scalatest.funsuite.AnyFunSuite
 import org.scalatestplus.scalacheck.ScalaCheckPropertyChecks
+import scalus.*
+import scalus.builtins.ByteString.StringInterpolators
 import scalus.sir.Recursivity.NonRec
+import scalus.uplc.ArbitraryInstances
+import scalus.uplc.Constant
+import scalus.uplc.DefaultFun
 import scalus.uplc.DefaultFun.*
 import scalus.uplc.DefaultUni.asConstant
-import scalus.uplc.{ArbitraryInstances, Constant, DefaultFun, NamedDeBruijn, Term}
-import scalus.builtins.ByteString.StringInterpolators
-import scalus.*
+import scalus.uplc.NamedDeBruijn
+import scalus.uplc.Term
+import scalus.uplc.TermDSL.{_, given}
 
 class SimpleSirToUplcLoweringSpec
     extends AnyFunSuite
@@ -27,7 +32,7 @@ class SimpleSirToUplcLoweringSpec
     SIR.Error("error") lowersTo Term.Error("error")
     val l = SimpleSirToUplcLowering(generateErrorTraces = true)
     assert(
-      l.lower(SIR.Error("error")) == Term.Force(
+      l.lower(SIR.Error("error")) == !(
         Term.Apply(
           Term.Apply(Term.Force(Term.Builtin(Trace)), Term.Const(Constant.String("error"))),
           Term.Delay(Term.Error("error"))
@@ -37,24 +42,21 @@ class SimpleSirToUplcLoweringSpec
   }
 
   test("lower") {
-    SIR.Var("x") lowersTo Term.Var(NamedDeBruijn("x", 0))
+    SIR.Var("x") lowersTo vr"x"
     SIR.Apply(
       SIR.LamAbs("x", SIR.Var("x")),
       SIR.Const(Constant.Unit)
-    ) lowersTo Term.Apply(
-      Term.LamAbs("x", Term.Var(NamedDeBruijn("x", 0))),
-      Term.Const(Constant.Unit)
-    )
+    ) lowersTo (lam("x")(vr"x") $ Constant.Unit)
+
   }
 
   test("lower builtins") {
-    SIR.Builtin(AddInteger) lowersTo Term.Builtin(AddInteger)
-    SIR.Builtin(HeadList) lowersTo Term.Force(Term.Builtin(HeadList))
-    SIR.Builtin(FstPair) lowersTo Term.Force(Term.Force(Term.Builtin(FstPair)))
+    SIR.Builtin(AddInteger) lowersTo AddInteger
+    SIR.Builtin(HeadList) lowersTo !HeadList
+    SIR.Builtin(FstPair) lowersTo !(!FstPair)
   }
 
   test("lower let") {
-    import scalus.uplc.TermDSL.{*, given}
     /* let x = 1 in
        let y = 2 in x + y
        lowers to (\x -> (\y -> x + y) 2) 1
@@ -66,13 +68,10 @@ class SimpleSirToUplcLoweringSpec
         SIR.Apply(SIR.Builtin(AddInteger), SIR.Var("x")),
         SIR.Var("y")
       )
-    ) lowersTo (lam("x")(
-      lam("y")(AddInteger $ Term.Var(NamedDeBruijn("x")) $ Term.Var(NamedDeBruijn("y"))) $ 2
-    ) $ 1)
+    ) lowersTo (lam("x")(lam("y")(AddInteger $ vr"x" $ vr"y") $ 2) $ 1)
   }
 
   test("lower Constr") {
-    import scalus.uplc.TermDSL.{*, given}
     /* Nil
        lowers to (\Nil Cons -> force Nil)
        TxId(name)
@@ -83,21 +82,15 @@ class SimpleSirToUplcLoweringSpec
     val txIdData = DataDecl("TxId", List(ConstrDecl("TxId", List("hash"))))
     def withDecls(sir: SIR) = SIR.Decl(listData, SIR.Decl(txIdData, sir))
     withDecls(SIR.Constr("Nil", listData, List())) lowersTo (lam("Nil", "Cons")(
-      !(Term.Var(NamedDeBruijn("Nil")))
+      !(vr"Nil")
     ))
     withDecls(
       SIR.Constr("TxId", txIdData, List(SIR.Const(asConstant(hex"DEADBEEF"))))
-    ) lowersTo (lam(
-      "hash",
-      "TxId"
-    )(Term.Var(NamedDeBruijn("TxId")) $ Term.Var(NamedDeBruijn("hash"))) $ Term.Const(
-      asConstant(hex"DEADBEEF")
-    ))
+    ) lowersTo (lam("hash", "TxId")(vr"TxId" $ vr"hash") $ hex"DEADBEEF")
 
   }
 
   test("lower And, Or, Not") {
-    import scalus.uplc.TermDSL.{*, given}
     /* And True False
        lowers to (\True False -> And True False) True False
      */
@@ -107,7 +100,6 @@ class SimpleSirToUplcLoweringSpec
   }
 
   test("lower Match") {
-    import scalus.uplc.TermDSL.{*, given}
     /* Nil match
         case Nil -> 1
         case Cons(h, tl) -> 2
@@ -128,26 +120,13 @@ class SimpleSirToUplcLoweringSpec
           Case(consConstr, List("h", "tl"), SIR.Const(Constant.Integer(2)))
         )
       )
-    ) lowersTo (lam("Nil", "Cons")(!(Term.Var(NamedDeBruijn("Nil")))) $ ~Term.Const(
-      asConstant(1)
-    ) $ lam("h", "tl")(Term.Const(asConstant(2))))
+    ) lowersTo (lam("Nil", "Cons")(!vr"Nil") $ ~asConstant(1) $ lam("h", "tl")(2))
   }
   test("eta-reduction") {
-    import scalus.uplc.TermDSL.{*, given}
     // (\x -> f x) reduces to f
     // (\x y -> f x y) reduces to f
 
     val l = SimpleSirToUplcLowering()
-    assert(
-      l.etaReduce(
-        lam("x")(Term.Var(NamedDeBruijn("f")) $ Term.Var(NamedDeBruijn("x")))
-      ) === Term.Var(NamedDeBruijn("f"))
-    )
-    assert(
-      l.etaReduce(
-        lam("x", "y")(
-          Term.Var(NamedDeBruijn("f")) $ Term.Var(NamedDeBruijn("x")) $ Term.Var(NamedDeBruijn("y"))
-        )
-      ) === Term.Var(NamedDeBruijn("f"))
-    )
+    assert(l.etaReduce(lam("x")(vr"f" $ vr"x")) === vr"f")
+    assert(l.etaReduce(lam("x", "y")(vr"f" $ vr"x" $ vr"y")) === vr"f")
   }

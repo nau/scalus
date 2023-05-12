@@ -125,9 +125,9 @@ class SimpleSirToUplcLowering(generateErrorTraces: Boolean = false) {
     term match
       // FIXME: check f for free occurrences of name1, and check for ERROR in f
       case LamAbs(name1, Term.Apply(f, Term.Var(name2))) if name1 == name2.name =>
-        println(
+        /* println(
           s"etaReducing ${term.pretty.render(80).take(50)} to ${f.pretty.render(80).take(50)}"
-        )
+        ) */
         etaReduce(f)
       case LamAbs(name, body) =>
         val body1 = etaReduce(body)
