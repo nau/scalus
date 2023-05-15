@@ -10,10 +10,19 @@ object Builtins:
   def addInteger(i1: BigInt, i2: BigInt): BigInt = i1 + i2
   def subtractInteger(i1: BigInt, i2: BigInt): BigInt = i1 - i2
   def multiplyInteger(i1: BigInt, i2: BigInt): BigInt = i1 * i2
-  def divideInteger(i1: BigInt, i2: BigInt): BigInt = i1 / i2 // FIXME
-  def quotientInteger(i1: BigInt, i2: BigInt): BigInt = i1 / i2 // FIXME
-  def remainderInteger(i1: BigInt, i2: BigInt): BigInt = i1 % i2 // FIXME
-  def modInteger(i1: BigInt, i2: BigInt): BigInt = i1 % i2 // FIXME
+  def divideInteger(i1: BigInt, i2: BigInt): BigInt =
+    import java.math.{BigDecimal, RoundingMode}
+    val r = new BigDecimal(i1.bigInteger)
+      .divide(new BigDecimal(i2.bigInteger), RoundingMode.FLOOR)
+      .toBigInteger()
+    BigInt(r)
+  def quotientInteger(i1: BigInt, i2: BigInt): BigInt = i1 / i2
+  def remainderInteger(i1: BigInt, i2: BigInt): BigInt = i1 % i2
+  def modInteger(i1: BigInt, i2: BigInt): BigInt =
+    /*divMod n d          =  if signum r == negate (signum d) then (q-1, r+d) else qr
+                                     where qr@(q,r) = quotRem n d */
+    val r = i1 % i2
+    if r.signum == -i2.signum then r + i2 else r
   def equalsInteger(i1: BigInt, i2: BigInt): Boolean = i1 == i2
   def lessThanInteger(i1: BigInt, i2: BigInt): Boolean = i1 < i2
   def lessThanEqualsInteger(i1: BigInt, i2: BigInt): Boolean = i1 <= i2
@@ -59,10 +68,10 @@ object Builtins:
     if a.bytes.length <= b.bytes.length then true
     else false
   // Cryptography and hashes
-  def sha2_256(bs: ByteString): ByteString =
-    // calculate the hash
-    val hash = Utils.sha2_256(bs.bytes)
-    ByteString.fromArray(hash)
+  def sha2_256(bs: ByteString): ByteString = ??? // TODO
+  // calculate the hash
+  // val hash = Utils.sha2_256(bs.bytes)
+  // ByteString.fromArray(hash)
 
   def sha3_256(bs: ByteString): ByteString = ??? // TODO
   def blake2b_256(bs: ByteString): ByteString = ??? // TODO
