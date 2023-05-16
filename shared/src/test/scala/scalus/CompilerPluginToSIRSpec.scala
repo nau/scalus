@@ -24,11 +24,6 @@ import scalus.sir.ConstrDecl
 class CompilerPluginToSIRSpec extends AnyFunSuite with ScalaCheckPropertyChecks:
   val deadbeef = Constant.ByteString(hex"deadbeef")
 
-  /* inline def compilesTo(expected: SIR)(inline e: Any) =
-    val compiled = compile(e)
-    assert(compiled == expected)
-    compiled */
-
   test("compile literals") {
     assert(compile(false) == Const(Constant.Bool(false)))
     assert(compile(true) == Const(Constant.Bool(true)))
@@ -388,20 +383,20 @@ class CompilerPluginToSIRSpec extends AnyFunSuite with ScalaCheckPropertyChecks:
     assert(evaled == scalus.uplc.Term.Const(Constant.Bool(true)))
   }
 
-  /* test("compile type-safe equality") {
-    import scalus.Prelude.*
+  test("compile type-safe equality") {
+    import scalus.prelude.Prelude.*
     val compiled = compile {
       val a = BigInt(0)
       val bs = ByteString.fromHex("deadbeef")
       val s = "string"
       a === a && bs === bs && s === s
     }
-    println(compiled.pretty.render(80))
+    // println(compiled.pretty.render(80))
     val term = new SimpleSirToUplcLowering().lower(compiled)
     // println(term.pretty.render(80))
     val evaled = Cek.evalUPLC(term)
     assert(evaled == scalus.uplc.Term.Const(Constant.Bool(true)))
-  } */
+  }
 
   test("compile external definitions") {
     def foo(i: BigInt) = i
@@ -475,11 +470,12 @@ class CompilerPluginToSIRSpec extends AnyFunSuite with ScalaCheckPropertyChecks:
     assert(evaled == scalus.uplc.Term.Const(Constant.ByteString(ByteString.fromHex("deadbeef"))))
   }
 
-  /* test("compile match on ADT") {
+  test("compile match on ADT") {
     import scalus.ledger.api.v1.*
-    import scalus.Prelude.List.*
+    import scalus.prelude.List
+    import scalus.prelude.List.*
     val compiled = compile {
-      val ls = Prelude.List.Cons(BigInt(1), Prelude.List.Nil)
+      val ls: List[BigInt] = new Cons(BigInt(1), List.Nil)
       ls match
         case Cons(h, tl) => h
         case Nil         => BigInt(0)
@@ -489,7 +485,7 @@ class CompilerPluginToSIRSpec extends AnyFunSuite with ScalaCheckPropertyChecks:
     val evaled = Cek.evalUPLC(term)
     // println(evaled.pretty.render(80))
     assert(evaled == scalus.uplc.Term.Const(Constant.Integer(1)))
-  } */
+  }
 
   test("compile fieldAsData macro") {
     import scalus.ledger.api.v1.{*, given}
