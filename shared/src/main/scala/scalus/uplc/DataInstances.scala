@@ -22,9 +22,9 @@ import scalus.uplc.Data.*
 @Compile
 object DataInstances:
 
-  implicit def BigIntFromData(d: Data): BigInt = Builtins.unsafeDataAsI(d)
-  implicit def ByteStringFromData(d: Data): ByteString = Builtins.unsafeDataAsB(d)
-  given FromData[Data] = (d: Data) => d
+  inline given FromData[BigInt] = (d: Data) => Builtins.unsafeDataAsI(d)
+  inline given FromData[ByteString] = (d: Data) => Builtins.unsafeDataAsB(d)
+  inline given FromData[Data] = (d: Data) => d
 
   given BoolFromData: FromData[Boolean] = (d: Data) =>
     val pair = Builtins.unsafeDataAsConstr(d)

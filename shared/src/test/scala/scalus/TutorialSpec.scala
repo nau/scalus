@@ -95,7 +95,7 @@ val fromDataExample = compile {
   // you can define your own `FromData` instances
   given FromData[Account] = (d: Data) => {
     val args = Builtins.unsafeDataAsConstr(d).snd
-    new Account(args.head, args.tail.head)
+    new Account(fromData[ByteString](args.head), fromData[BigInt](args.tail.head))
   }
   val account = fromData[Account](data)
 }
