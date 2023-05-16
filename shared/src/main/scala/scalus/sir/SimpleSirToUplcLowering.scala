@@ -112,6 +112,11 @@ class SimpleSirToUplcLowering(generateErrorTraces: Boolean = false) {
         lowerInner(
           SIR.IfThenElse(term, SIR.Const(Constant.Bool(false)), SIR.Const(Constant.Bool(true)))
         )
+      /* TODO: enable this small optimization at some point
+      case SIR.IfThenElse(cond, t, f) if noEval(t) && noEval(f) =>
+        import scalus.pretty
+        println(s"ifThenElse without force/delay: ${sir.pretty.render(80)}")
+        builtinTerms(DefaultFun.IfThenElse) $ lowerInner(cond) $ lowerInner(t) $ lowerInner(f) */
       case SIR.IfThenElse(cond, t, f) =>
         !(builtinTerms(DefaultFun.IfThenElse) $ lowerInner(cond) $ ~lowerInner(t) $ ~lowerInner(f))
       case SIR.Builtin(bn) => builtinTerms(bn)
@@ -120,14 +125,33 @@ class SimpleSirToUplcLowering(generateErrorTraces: Boolean = false) {
         then !(builtinTerms(DefaultFun.Trace) $ Term.Const(Constant.String(msg)) $ ~Term.Error(msg))
         else Term.Error(msg)
 
+  def noEval(term: SIR): Boolean =
+    import SIR.*
+    term match
+      case Var(name) => true
+      case ExternalVar(moduleName, name) => true
+      case Let(recursivity, bindings, body) => false
+      case LamAbs(name, term) => true
+      case Apply(f, arg) => false
+      case Const(const) => true
+      case And(a, b) => false
+      case Or(a, b) => false
+      case Not(a) => false
+      case IfThenElse(cond, t, f) => false
+      case Builtin(bn) => true
+      case Error(msg) => false
+      case Decl(data, term) => false
+      case Constr(name, data, args) => false
+      case Match(scrutinee, cases) => false
+
   def etaReduce(term: Term): Term =
     import Term.*
     term match
       case LamAbs(name1, Term.Apply(f, Term.Var(name2)))
           if name1 == name2.name && !freeNames(f, List.empty).contains(name1) && notError(f) =>
-        println(
+        /* println(
           s"etaReducing ${term.pretty.render(80).take(50)} to ${f.pretty.render(80).take(50)}"
-        )
+        ) */
         etaReduce(f)
       case LamAbs(name, body) =>
         val body1 = etaReduce(body)
