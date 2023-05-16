@@ -38,15 +38,16 @@ import scala.collection.immutable
 import scala.util.Failure
 import scala.util.Success
 import scala.util.Try
+import scalus.uplc.Data.fromData
 
 @Compile
 object OptimizedPreimageValidator {
 
   def preimageValidator(datum: Data, redeemer: Data, ctxData: Data): Unit = {
-    summon[FromData[(ByteString, ByteString)]](datum) match
+    fromData[(ByteString, ByteString)](datum) match
       case (hash, pkh) =>
-        val preimage = summon[FromData[ByteString]](redeemer)
-        val signatories = summon[FromData[List[PubKeyHash]]](
+        val preimage = fromData[ByteString](redeemer)
+        val signatories = fromData[List[PubKeyHash]](
           // deserialize only the signatories from the ScriptContext
           fieldAsData[ScriptContext](_.scriptContextTxInfo.txInfoSignatories)(ctxData)
         )
@@ -150,13 +151,13 @@ class PreImageExampleSpec extends BaseValidatorSpec {
     // convert SIR to UPLC
     val validator = new SimpleSirToUplcLowering().lower(compiled)
     val flatEncoded = ProgramFlatCodec.encodeFlat(Program((1, 0, 0), validator))
-    assert(flatEncoded.length == 1684)
+    assert(flatEncoded.length == 1672)
 
     performChecks(validator)
   }
 
   test("Preimage Validator Optimized") {
-    assert(OptimizedPreimage.flatEncoded.length == 274)
+    assert(OptimizedPreimage.flatEncoded.length == 271)
     performChecks(OptimizedPreimage.validator)
   }
 }

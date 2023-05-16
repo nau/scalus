@@ -34,29 +34,25 @@ object DataInstances:
     else throw new RuntimeException("Not a boolean")
 
   given ListFromData[A: FromData]: FromData[scalus.prelude.List[A]] = (d: Data) =>
-    val fromA = summon[FromData[A]]
     val ls = Builtins.unsafeDataAsList(d)
     def loop(ls: scalus.builtins.List[Data]): scalus.prelude.List[A] =
       if ls.isEmpty then prelude.List.Nil
-      else new prelude.List.Cons(fromA(ls.head), loop(ls.tail))
+      else new prelude.List.Cons(fromData[A](ls.head), loop(ls.tail))
     loop(ls)
 
   given AssocMapFromData[A: FromData, B: FromData]: FromData[AssocMap[A, B]] =
     (d: Data) =>
-      val fromA = summon[FromData[A]]
-      val fromB = summon[FromData[B]]
       val ls = Builtins.unsafeDataAsMap(d)
       def loop(ls: scalus.builtins.List[Pair[Data, Data]]): prelude.List[(A, B)] =
         if ls.isEmpty then prelude.List.Nil
         else
           val pair = ls.head
-          new prelude.List.Cons((fromA(pair.fst), fromB(pair.snd)), loop(ls.tail))
+          new prelude.List.Cons((fromData[A](pair.fst), fromData[B](pair.snd)), loop(ls.tail))
       AssocMap.fromList(loop(ls))
 
   given MaybeFromData[A: FromData]: FromData[scalus.prelude.Maybe[A]] = (d: Data) =>
-    val fromA = summon[FromData[A]]
     val pair = Builtins.unsafeDataAsConstr(d)
-    if pair.fst === BigInt(0) then new scalus.prelude.Maybe.Just(fromA(pair.snd.head))
+    if pair.fst === BigInt(0) then new scalus.prelude.Maybe.Just(fromData[A](pair.snd.head))
     else scalus.prelude.Maybe.Nothing
 
   /* given tupleFromData[A, B](using fromA: FromData[A], fromB: FromData[B]): FromData[(A, B)] =

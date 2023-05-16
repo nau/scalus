@@ -64,8 +64,7 @@ object Data:
 
   type FromData[A] = Data => A
   // fromData extension method
-  inline def fromData[A](inline data: Data)(using inline ev: FromData[A]): A =
-    summon[FromData[A]].apply(data)
+  inline def fromData[A](inline data: Data)(using inline ev: FromData[A]): A = ev(data)
 
   case class Constr(constr: Long, args: immutable.List[Data]) extends Data
 

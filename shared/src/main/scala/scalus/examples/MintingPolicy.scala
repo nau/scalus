@@ -34,6 +34,7 @@ import scala.util.Failure
 import scala.util.Success
 import scala.util.Try
 import scalus.uplc.Data
+import scalus.uplc.Data.fromData
 
 case class TxInInfoTxOutRefOnly(txInInfoOutRef: TxOutRef)
 
@@ -42,9 +43,9 @@ object MintingPolicy {
   import List.*
   import ScriptPurpose.*
 
-  implicit val fd: Data.FromData[TxInInfoTxOutRefOnly] = (d: Data) =>
+  given Data.FromData[TxInInfoTxOutRefOnly] = (d: Data) =>
     val pair = Builtins.unsafeDataAsConstr(d)
-    new TxInInfoTxOutRefOnly(summon[Data.FromData[TxOutRef]](pair.snd.head))
+    new TxInInfoTxOutRefOnly(fromData[TxOutRef](pair.snd.head))
 
   case class MintingContext(inputs: List[TxOutRef], minted: Value, ownSymbol: CurrencySymbol)
 
@@ -66,7 +67,7 @@ object MintingPolicy {
   )
 
   val simpleCtxDeserializer: Data => MintingContext = (ctxData: Data) => {
-    val ctx = summon[Data.FromData[ScriptContext]](ctxData)
+    val ctx = fromData[ScriptContext](ctxData)
     val txInfo = ctx.scriptContextTxInfo
     val txInfoInputs = txInfo.txInfoInputs
     val minted = txInfo.txInfoMint
@@ -87,11 +88,11 @@ object MintingPolicy {
   val optimizedCtxDeserializer: Data => MintingContext = (ctxData: Data) => {
     val txInfoData = fieldAsData[ScriptContext](_.scriptContextTxInfo)(ctxData)
     val txInfoInputs =
-      summon[Data.FromData[List[TxInInfoTxOutRefOnly]]](
+      fromData[List[TxInInfoTxOutRefOnly]](
         fieldAsData[TxInfo](_.txInfoInputs)(txInfoData)
       )
     val minted =
-      summon[Data.FromData[Value]](fieldAsData[TxInfo](_.txInfoMint).apply(txInfoData))
+      fromData[Value](fieldAsData[TxInfo](_.txInfoMint).apply(txInfoData))
     val ownSymbol =
       val purpose = fieldAsData[ScriptContext](_.scriptContextPurpose)(ctxData)
       val pair = Builtins.unsafeDataAsConstr(purpose)

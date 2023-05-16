@@ -52,7 +52,7 @@ enum List[+A]:
 @Compile
 object List:
   import Maybe.*
-  def empty[A]: List[A] = List.Nil
+  inline def empty[A]: List[A] = List.Nil
 
   def apply[A](args: A*): List[A] = args.foldRight(empty[A]) { case (a, b) => new Cons(a, b) }
 
