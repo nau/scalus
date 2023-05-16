@@ -128,21 +128,21 @@ class SimpleSirToUplcLowering(generateErrorTraces: Boolean = false) {
   def noEval(term: SIR): Boolean =
     import SIR.*
     term match
-      case Var(name) => true
-      case ExternalVar(moduleName, name) => true
+      case Var(name)                        => true
+      case ExternalVar(moduleName, name)    => true
       case Let(recursivity, bindings, body) => false
-      case LamAbs(name, term) => true
-      case Apply(f, arg) => false
-      case Const(const) => true
-      case And(a, b) => false
-      case Or(a, b) => false
-      case Not(a) => false
-      case IfThenElse(cond, t, f) => false
-      case Builtin(bn) => true
-      case Error(msg) => false
-      case Decl(data, term) => false
-      case Constr(name, data, args) => false
-      case Match(scrutinee, cases) => false
+      case LamAbs(name, term)               => true
+      case Apply(f, arg)                    => false
+      case Const(const)                     => true
+      case And(a, b)                        => false
+      case Or(a, b)                         => false
+      case Not(a)                           => false
+      case IfThenElse(cond, t, f)           => false
+      case Builtin(bn)                      => true
+      case Error(msg)                       => false
+      case Decl(data, term)                 => false
+      case Constr(name, data, args)         => false
+      case Match(scrutinee, cases)          => false
 
   def etaReduce(term: Term): Term =
     import Term.*

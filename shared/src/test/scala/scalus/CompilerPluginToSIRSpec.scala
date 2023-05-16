@@ -2,24 +2,32 @@ package scalus
 
 import org.scalatest.funsuite.AnyFunSuite
 import org.scalatestplus.scalacheck.ScalaCheckPropertyChecks
-import scalus.builtins.ByteString.given
-import scalus.builtins.{Builtins, ByteString}
-import scalus.ledger.api.v1.*
-import scalus.sir.Recursivity.*
-import scalus.sir.SIR.*
-import scalus.sir.{Binding, Recursivity, SIR, SimpleSirToUplcLowering}
-import scalus.uplc.*
-import scalus.uplc.DefaultFun.*
-import scalus.Compiler.fieldAsData
 import scalus.Compiler.compile
-import scalus.uplc.TermDSL.{lam, λ}
+import scalus.Compiler.fieldAsData
+import scalus.builtins.Builtins
+import scalus.builtins.ByteString
+import scalus.builtins.ByteString.given
+import scalus.ledger.api.v1.*
+import scalus.prelude.List.Cons
+import scalus.prelude.List.Nil
+import scalus.prelude.Prelude.===
+import scalus.prelude.Prelude.given
+import scalus.sir.Binding
+import scalus.sir.ConstrDecl
+import scalus.sir.DataDecl
+import scalus.sir.Recursivity
+import scalus.sir.Recursivity.*
+import scalus.sir.SIR
+import scalus.sir.SIR.*
+import scalus.sir.SimpleSirToUplcLowering
+import scalus.sir.SirDSL.{_, given}
+import scalus.uplc.DefaultFun.*
+import scalus.uplc.TermDSL.lam
+import scalus.uplc.TermDSL.λ
+import scalus.uplc.*
 import scalus.utils.Utils
 
 import scala.collection.immutable
-import scalus.prelude.List.{Cons, Nil}
-import scalus.prelude.Prelude.{===, given}
-import scalus.sir.DataDecl
-import scalus.sir.ConstrDecl
 
 class CompilerPluginToSIRSpec extends AnyFunSuite with ScalaCheckPropertyChecks:
   val deadbeef = Constant.ByteString(hex"deadbeef")
@@ -141,6 +149,32 @@ class CompilerPluginToSIRSpec extends AnyFunSuite with ScalaCheckPropertyChecks:
   } */
 
   test("compile List builtins") {
+    assert(
+      compile(
+        Builtins.chooseList(builtins.List[BigInt](1, 2, 3), true, false)
+      ) == (DefaultFun.ChooseList $ List(1, 2, 3) $ true $ false)
+    )
+    assert(
+      compile(
+        Builtins.mkCons(BigInt(4), builtins.List[BigInt](1, 2, 3))
+      ) == (DefaultFun.MkCons $ 4 $ List(1, 2, 3))
+    )
+    assert(
+      compile(
+        Builtins.headList(builtins.List[BigInt](1, 2, 3))
+      ) == (DefaultFun.HeadList $ List(1, 2, 3))
+    )
+    assert(
+      compile(
+        Builtins.tailList(builtins.List[BigInt](1, 2, 3))
+      ) == (DefaultFun.TailList $ List(1, 2, 3))
+    )
+    assert(
+      compile(
+        Builtins.nullList(builtins.List[BigInt](1, 2, 3))
+      ) == (DefaultFun.NullList $ List(1, 2, 3))
+    )
+
     // Nil
     assert(
       compile {
@@ -210,6 +244,8 @@ class CompilerPluginToSIRSpec extends AnyFunSuite with ScalaCheckPropertyChecks:
         Const(Constant.Unit)
       )
     )
+    assert(compile(Builtins.mkNilData) == (Builtin(MkNilData)))
+    assert(compile(Builtins.mkNilPairData) == (Builtin(MkNilPairData)))
   }
 
   test("compile Data builtins") {
@@ -332,9 +368,173 @@ class CompilerPluginToSIRSpec extends AnyFunSuite with ScalaCheckPropertyChecks:
         Const(Constant.Unit)
       )
     )
+    // ChooseData
+    assert(
+      compile {
+        def cd(d: Data) = Builtins.chooseData[BigInt](d, 1, 2, 3, 4, 5)
+      } == Let(
+        Rec,
+        List(
+          Binding(
+            "cd",
+            LamAbs(
+              "d",
+              ChooseData $ Var("d") $ 1 $ 2 $ 3 $ 4 $ 5
+            )
+          )
+        ),
+        Const(Constant.Unit)
+      )
+    )
+    // EqualsData
+    assert(
+      compile {
+        def ed(d1: Data, d2: Data) = Builtins.equalsData(d1, d2)
+      } == Let(
+        Rec,
+        List(
+          Binding("ed", LamAbs("d1", LamAbs("d2", EqualsData $ Var("d1") $ Var("d2"))))
+        ),
+        Const(Constant.Unit)
+      )
+    )
+    // SerialiseData
+    assert(compile { Builtins.serialiseData } == (Builtin(DefaultFun.SerialiseData)))
+  }
+
+  test("compile Integer builtins") {
+    assert(compile(Builtins.addInteger(1, 2)) == (AddInteger $ 1 $ 2))
+    assert(compile(Builtins.subtractInteger(1, 2)) == (SubtractInteger $ 1 $ 2))
+    assert(compile(Builtins.multiplyInteger(1, 2)) == (MultiplyInteger $ 1 $ 2))
+    assert(compile(Builtins.divideInteger(1, 2)) == (DivideInteger $ 1 $ 2))
+    assert(compile(Builtins.modInteger(1, 2)) == (ModInteger $ 1 $ 2))
+    assert(compile(Builtins.quotientInteger(1, 2)) == (QuotientInteger $ 1 $ 2))
+    assert(compile(Builtins.remainderInteger(1, 2)) == (RemainderInteger $ 1 $ 2))
+    assert(compile(Builtins.lessThanInteger(1, 2)) == (LessThanInteger $ 1 $ 2))
+    assert(compile(Builtins.lessThanEqualsInteger(1, 2)) == (LessThanEqualsInteger $ 1 $ 2))
+    assert(compile(Builtins.equalsInteger(1, 2)) == (EqualsInteger $ 1 $ 2))
+  }
+
+  test("compile ByteStrings builtins") {
+    assert(
+      compile(
+        Builtins.appendByteString(ByteString.fromHex("dead"), ByteString.fromHex("beef"))
+      ) == (AppendByteString $ hex"dead" $ hex"beef")
+    )
+
+    assert(
+      compile(
+        Builtins.sliceByteString(ByteString.fromHex("dead"), 1, 2)
+      ) == (SliceByteString $ hex"dead" $ 1 $ 2)
+    )
+
+    assert(
+      compile(
+        Builtins.lengthOfByteString(ByteString.fromHex("dead"))
+      ) == (LengthOfByteString $ hex"dead")
+    )
+
+    assert(
+      compile(
+        Builtins.indexByteString(ByteString.fromHex("dead"), 1)
+      ) == (IndexByteString $ hex"dead" $ 1)
+    )
+
+    assert(
+      compile(
+        Builtins.equalsByteString(ByteString.fromHex("dead"), ByteString.fromHex("beef"))
+      ) == (EqualsByteString $ hex"dead" $ hex"beef")
+    )
+
+    assert(
+      compile(
+        Builtins.lessThanByteString(ByteString.fromHex("dead"), ByteString.fromHex("beef"))
+      ) == (LessThanByteString $ hex"dead" $ hex"beef")
+    )
+
+    assert(
+      compile(
+        Builtins.lessThanEqualsByteString(ByteString.fromHex("dead"), ByteString.fromHex("beef"))
+      ) == (LessThanEqualsByteString $ hex"dead" $ hex"beef")
+    )
+  }
+
+  test("compile Crypto builtins") {
+    /*
+    // Cryptography and hashes
+  case Sha2_256
+  case Sha3_256
+  case Blake2b_256
+  case VerifyEd25519Signature // formerly verifySignature
+  case VerifyEcdsaSecp256k1Signature
+  case VerifySchnorrSecp256k1Signature
+     */
+    assert(compile(Builtins.sha2_256(ByteString.fromHex("dead"))) == (Sha2_256 $ hex"dead"))
+    assert(compile(Builtins.sha3_256(ByteString.fromHex("dead"))) == (Sha3_256 $ hex"dead"))
+    assert(compile(Builtins.blake2b_256(ByteString.fromHex("dead"))) == (Blake2b_256 $ hex"dead"))
+    assert(
+      compile(
+        Builtins.verifyEd25519Signature(
+          ByteString.fromHex("dead"),
+          ByteString.fromHex("beef"),
+          ByteString.fromHex("cafe")
+        )
+      ) == (VerifyEd25519Signature $ hex"dead" $ hex"beef" $ hex"cafe")
+    )
+    assert(
+      compile(
+        Builtins.verifyEcdsaSecp256k1Signature(
+          ByteString.fromHex("dead"),
+          ByteString.fromHex("beef"),
+          ByteString.fromHex("cafe")
+        )
+      ) == (VerifyEcdsaSecp256k1Signature $ hex"dead" $ hex"beef" $ hex"cafe")
+    )
+    assert(
+      compile(
+        Builtins.verifySchnorrSecp256k1Signature(
+          ByteString.fromHex("dead"),
+          ByteString.fromHex("beef"),
+          ByteString.fromHex("cafe")
+        )
+      ) == (VerifySchnorrSecp256k1Signature $ hex"dead" $ hex"beef" $ hex"cafe")
+    )
+  }
+
+  test("compile String builtins") {
+    assert(compile(Builtins.appendString("dead", "beef")) == (AppendString $ "dead" $ "beef"))
+    assert(compile(Builtins.equalsString("dead", "beef")) == (EqualsString $ "dead" $ "beef"))
+    assert(compile(Builtins.encodeUtf8("dead")) == (EncodeUtf8 $ "dead"))
+    assert(compile(Builtins.decodeUtf8(ByteString.fromHex("dead"))) == (DecodeUtf8 $ hex"dead"))
+  }
+
+  test("compile IfThenElse/ChooseUnit/Trace builtins") {
+    assert(
+      compile(
+        Builtins.ifThenElse(true, BigInt(1), BigInt(2))
+      ) == (DefaultFun.IfThenElse $ true $ 1 $ 2)
+    )
+    // TODO: check if that is correct
+    assert(compile(Builtins.chooseUnit()(true)) == (DefaultFun.ChooseUnit $ () $ true))
+    assert(compile(Builtins.trace("dead")(BigInt(1))) == (DefaultFun.Trace $ "dead" $ 1))
   }
 
   test("compile Pair builtins") {
+    assert(compile(Builtins.mkPairData) == (Builtin(MkPairData)))
+    assert(
+      compile {
+        def swap(p: builtins.Pair[Data, Data]) =
+          builtins.Pair(Builtins.sndPair(p), Builtins.fstPair(p))
+      } == (
+        Let(
+          Rec,
+          List(
+            Binding("swap", LamAbs("p", MkPairData $ (SndPair $ Var("p")) $ (FstPair $ Var("p"))))
+          ),
+          Const(Constant.Unit)
+        )
+      )
+    )
     assert(compile {
       builtins.Pair(BigInt(1), ByteString.fromHex("deadbeef"))
     } == (Const(Constant.Pair(Constant.Integer(1), deadbeef))))
