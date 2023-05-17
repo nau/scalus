@@ -20,6 +20,7 @@ import scalus.uplc.Constant.Pair
 import scalus.uplc.Data.FromData
 import scalus.uplc.Data.toData
 import scalus.uplc.DefaultFun.*
+import scalus.uplc.DeBruijn
 import scalus.uplc.DefaultUni.Bool
 import scalus.uplc.DefaultUni.asConstant
 import scalus.uplc.Term.*
@@ -34,6 +35,7 @@ import scala.util.Success
 import scala.util.Try
 
 enum Expected:
+  case SuccessSame
   case Success(term: Term)
   case Failure(description: String)
 
@@ -47,6 +49,10 @@ abstract class BaseValidatorSpec
     val result2 = Try(Cek.evalUPLCProgram(program))
     // println(s"$result1 == $result2")
     (expected, result1, result2) match
+      case (Expected.SuccessSame, UplcEvalResult.Success(term1), Success(term2)) =>
+        val normalized1 = DeBruijn.fromDeBruijnTerm(DeBruijn.deBruijnTerm(term1))
+        val normalized2 = DeBruijn.fromDeBruijnTerm(DeBruijn.deBruijnTerm(term2))
+        assert(normalized1 == normalized2)
       case (Expected.Success(term), UplcEvalResult.Success(term1), Success(term2)) =>
         assert(term == term1)
         assert(term == term2)

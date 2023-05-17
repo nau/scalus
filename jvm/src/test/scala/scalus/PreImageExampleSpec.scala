@@ -93,7 +93,7 @@ class PreImageExampleSpec extends BaseValidatorSpec {
         hash: ByteString,
         signatories: scalus.prelude.List[PubKeyHash]
     ) =
-      val datum = (hash, pubKeyHash.hash).toData
+      val datum = (hash, pubKeyHash).toData
       val redeemer = preimage.toData
       val ctx = scriptContext(signatories)
       Program((1, 0, 0), validator $ datum $ redeemer $ ctx.toData)

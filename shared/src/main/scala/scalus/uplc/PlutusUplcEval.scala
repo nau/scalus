@@ -15,7 +15,7 @@ object PlutusUplcEval:
     import scala.sys.process.*
     val cmd = "uplc evaluate --input-format flat"
     var out = ""
-    val retCode = cmd.#<(new ByteArrayInputStream(flat)).!(ProcessLogger(o => out = o))
+    val retCode = cmd.#<(new ByteArrayInputStream(flat)).!(ProcessLogger(o => out += o))
     if retCode == 0 then
       UplcParser.term.parse(out) match
         case Right(_, term) => UplcEvalResult.Success(term)
