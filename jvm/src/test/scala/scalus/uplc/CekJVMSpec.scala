@@ -172,7 +172,7 @@ class CekJVMSpec extends AnyFunSuite with ScalaCheckPropertyChecks with Arbitrar
     )
 
     val flatValidator = Utils.uplcToFlat(Program((1, 0, 0), validator.term).pretty.render(80))
-    assert(flatValidator.length == 102)
+    assert(flatValidator.length == 95)
   }
 
   ignore("fieldAsData macro test") {

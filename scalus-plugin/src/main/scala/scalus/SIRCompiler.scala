@@ -431,10 +431,12 @@ class SIRCompiler(mode: scalus.Mode)(using ctx: Context) {
 
   def compileBlock(env: Env, stmts: immutable.List[Tree], expr: Tree): SIR = {
     val exprs = ListBuffer.empty[B]
-    val exprEnv = stmts.foldLeft(env) { case (env, stmt) =>
-      val bind = compileStmt(env, stmt)
-      exprs += bind
-      env + bind.name
+    val exprEnv = stmts.foldLeft(env) {
+      case (env, _: Import) => env // ignore local imports
+      case (env, stmt) =>
+        val bind = compileStmt(env, stmt)
+        exprs += bind
+        env + bind.name
     }
     val exprExpr = compileExpr(exprEnv, expr)
     exprs.foldRight(exprExpr) { (bind, expr) =>

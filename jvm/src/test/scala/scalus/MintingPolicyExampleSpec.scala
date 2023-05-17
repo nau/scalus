@@ -8,9 +8,11 @@ import scalus.builtins.Builtins
 import scalus.builtins.ByteString
 import scalus.builtins.ByteString.given
 import scalus.examples.MintingPolicy
+import scalus.examples.MintingPolicyV2
 import scalus.ledger.api.v1.FromDataInstances.given
 import scalus.ledger.api.v1.ToDataInstances.given
 import scalus.ledger.api.v1.*
+import scalus.ledger.api.v2
 import scalus.prelude.List
 import scalus.prelude.List.Cons
 import scalus.prelude.List.Nil
@@ -39,7 +41,7 @@ import scala.util.Try
 
 class MintingPolicyExampleSpec extends BaseValidatorSpec {
 
-  private def scriptContext(txInfoInputs: scalus.prelude.List[TxInInfo], value: Value) =
+  private def scriptContextV1(txInfoInputs: scalus.prelude.List[TxInInfo], value: Value) =
     ScriptContext(
       TxInfo(
         txInfoInputs = txInfoInputs,
@@ -56,16 +58,54 @@ class MintingPolicyExampleSpec extends BaseValidatorSpec {
       ScriptPurpose.Minting(hex"a0028f350aaabe0545fdcb56b039bfb08e4bb4d8c4d7c3c7d481c235")
     )
 
-  private def performMintingPolicyValidatorChecks(validator: Term) = {
+  private def scriptContextV2(txInfoInputs: scalus.prelude.List[v2.TxInInfo], value: Value) =
+    v2.ScriptContext(
+      v2.TxInfo(
+        txInfoInputs = txInfoInputs,
+        txInfoReferenceInputs = scalus.prelude.List.Nil,
+        txInfoOutputs = scalus.prelude.List.Nil,
+        txInfoFee = Value.lovelace(BigInt("188021")),
+        txInfoMint = value,
+        txInfoDCert = scalus.prelude.List.Nil,
+        txInfoWdrl = AssocMap.empty,
+        txInfoValidRange = Interval.always,
+        txInfoSignatories = scalus.prelude.List.Nil,
+        txInfoRedeemers = AssocMap.empty,
+        txInfoData = AssocMap.empty,
+        txInfoId = TxId(hex"1e0612fbd127baddfcd555706de96b46c4d4363ac78c73ab4dee6e6a7bf61fe9")
+      ),
+      ScriptPurpose.Minting(hex"a0028f350aaabe0545fdcb56b039bfb08e4bb4d8c4d7c3c7d481c235")
+    )
+
+  def withScriptContextV1(
+      validator: Term,
+      txInfoInputs: scalus.prelude.List[TxInInfo],
+      value: Value
+  ) =
     import Data.toData
-    def appliedScript(ctx: ScriptContext) = Program((1, 0, 0), validator $ () $ ctx.toData)
+    Program((1, 0, 0), validator $ () $ scriptContextV1(txInfoInputs, value).toData)
 
-    def withScriptContext(txInfoInputs: scalus.prelude.List[TxInInfo], value: Value) =
-      appliedScript(scriptContext(txInfoInputs, value))
+  def withScriptContextV2(
+      validator: Term,
+      txInfoInputs: scalus.prelude.List[TxInInfo],
+      value: Value
+  ) =
+    import Data.toData
+    import scalus.ledger.api.v2.ToDataInstances.given
+    val txInfoInputsV2 = prelude.List.map(txInfoInputs) { case TxInInfo(txOutRef, txOut) =>
+      val txOutV2 =
+        v2.TxOut(txOut.txOutAddress, txOut.txOutValue, v2.OutputDatum.NoOutputDatum, Nothing)
+      v2.TxInInfo(txOutRef, txOutV2)
+    }
+    Program((2, 0, 0), validator $ () $ scriptContextV2(txInfoInputsV2, value).toData)
 
+  private def performMintingPolicyValidatorChecks(
+      validator: Term
+  )(withScriptContext: (Term, scalus.prelude.List[TxInInfo], Value) => Program) = {
     // The minting policy script should succeed when the TxOutRef is spent and the minted tokens are correct
     assertSameResult(Expected.Success(Const(Constant.Unit)))(
       withScriptContext(
+        validator,
         List(TxInInfo(hoskyMintTxOutRef, hoskyMintTxOut)),
         Value(
           hex"a0028f350aaabe0545fdcb56b039bfb08e4bb4d8c4d7c3c7d481c235",
@@ -77,6 +117,7 @@ class MintingPolicyExampleSpec extends BaseValidatorSpec {
     // Successfull burn, the minted tokens are negative and TxOutRef is not spent
     assertSameResult(Expected.Success(Const(Constant.Unit)))(
       withScriptContext(
+        validator,
         List.empty,
         Value(
           hex"a0028f350aaabe0545fdcb56b039bfb08e4bb4d8c4d7c3c7d481c235",
@@ -88,6 +129,7 @@ class MintingPolicyExampleSpec extends BaseValidatorSpec {
 
     assertSameResult(Expected.Failure("Wrong minted amount"))(
       withScriptContext(
+        validator,
         List(TxInInfo(hoskyMintTxOutRef, hoskyMintTxOut)),
         Value(hex"a0028f350aaabe0545fdcb56b039bfb08e4bb4d8c4d7c3c7d481c235", hex"484f534b59", 2)
       )
@@ -95,6 +137,7 @@ class MintingPolicyExampleSpec extends BaseValidatorSpec {
 
     assertSameResult(Expected.Failure("Wrong Policy ID"))(
       withScriptContext(
+        validator,
         List(TxInInfo(hoskyMintTxOutRef, hoskyMintTxOut)),
         Value(hex"cc", hex"484f534b59", BigInt("1000000000000000"))
       )
@@ -102,6 +145,7 @@ class MintingPolicyExampleSpec extends BaseValidatorSpec {
 
     assertSameResult(Expected.Failure("Wrong Token Name"))(
       withScriptContext(
+        validator,
         List(TxInInfo(hoskyMintTxOutRef, hoskyMintTxOut)),
         Value(
           hex"a0028f350aaabe0545fdcb56b039bfb08e4bb4d8c4d7c3c7d481c235",
@@ -113,6 +157,7 @@ class MintingPolicyExampleSpec extends BaseValidatorSpec {
 
     assertSameResult(Expected.Failure("Burning amount is positive"))(
       withScriptContext(
+        validator,
         List.empty,
         Value(
           hex"a0028f350aaabe0545fdcb56b039bfb08e4bb4d8c4d7c3c7d481c235",
@@ -124,6 +169,7 @@ class MintingPolicyExampleSpec extends BaseValidatorSpec {
 
     assertSameResult(Expected.Failure("Unexpected tokens"))(
       withScriptContext(
+        validator,
         List(TxInInfo(hoskyMintTxOutRef, hoskyMintTxOut)),
         AssocMap.singleton(
           hex"a0028f350aaabe0545fdcb56b039bfb08e4bb4d8c4d7c3c7d481c235",
@@ -150,8 +196,18 @@ class MintingPolicyExampleSpec extends BaseValidatorSpec {
     val appliedValidator =
       validator $ hoskyMintTxOutRef.txOutRefId.hash $ hoskyMintTxOutRef.txOutRefIdx $ evaledTokens
     val flatSize = ProgramFlatCodec.encodeFlat(Program((1, 0, 0), appliedValidator)).length
-    assert(flatSize == 2375)
-    performMintingPolicyValidatorChecks(appliedValidator)
+    assert(flatSize == 2366)
+    performMintingPolicyValidatorChecks(appliedValidator)(withScriptContextV1)
+  }
+
+  test("Minting Policy Validator V2") {
+    val validator = new SimpleSirToUplcLowering(generateErrorTraces = true)
+      .lower(MintingPolicyV2.compiledMintingPolicyScriptV2)
+    val appliedValidator =
+      validator $ hoskyMintTxOutRef.txOutRefId.hash $ hoskyMintTxOutRef.txOutRefIdx $ evaledTokens
+    val flatSize = ProgramFlatCodec.encodeFlat(Program((2, 0, 0), appliedValidator)).length
+    assert(flatSize == 2510)
+    performMintingPolicyValidatorChecks(appliedValidator)(withScriptContextV2)
   }
 
   test("Minting Policy Validator Optimized") {
@@ -162,6 +218,6 @@ class MintingPolicyExampleSpec extends BaseValidatorSpec {
       validator $ hoskyMintTxOutRef.txOutRefId.hash $ hoskyMintTxOutRef.txOutRefIdx $ evaledTokens
     val flatSize = ProgramFlatCodec.encodeFlat(Program((1, 0, 0), appliedValidator)).length
     assert(flatSize == 1052)
-    performMintingPolicyValidatorChecks(appliedValidator)
+    performMintingPolicyValidatorChecks(appliedValidator)(withScriptContextV1)
   }
 }

@@ -692,7 +692,7 @@ class CompilerPluginToSIRSpec extends AnyFunSuite with ScalaCheckPropertyChecks:
     val compiled = compile { (ctx: scalus.uplc.Data) =>
       val sigsData = fieldAsData[ScriptContext](_.scriptContextTxInfo.txInfoSignatories)(ctx)
       val sigs = Builtins.unsafeDataAsList(sigsData)
-      Builtins.unsafeDataAsB(Builtins.unsafeDataAsConstr(sigs.head).snd.head)
+      Builtins.unsafeDataAsB(sigs.head)
     }
     // println(compiled.pretty.render(80))
     val term = new SimpleSirToUplcLowering().lower(compiled)
@@ -720,7 +720,7 @@ class CompilerPluginToSIRSpec extends AnyFunSuite with ScalaCheckPropertyChecks:
     val evaled = Cek.evalUPLCProgram(appliedScript)
     // println(evaled.pretty.render(80))
     assert(evaled == scalus.uplc.Term.Const(asConstant(hex"deadbeef")))
-    val flatBytes = ProgramFlatCodec.encodeFlat(appliedScript)
+    val flatBytesLength = ProgramFlatCodec.encodeFlat(appliedScript).length
     // println(Utils.bytesToHex(flatBytes))
-    assert(flatBytes.length == 136)
+    assert(flatBytesLength == 125)
   }

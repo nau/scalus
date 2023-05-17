@@ -29,9 +29,7 @@ object PubKeyValidator {
 
     def findSignatureOrFail(sigs: builtins.List[Data]): Unit =
       if signatories.isEmpty then throw new RuntimeException("Signature not found")
-      else if Builtins.unsafeDataAsB(
-          Builtins.unsafeDataAsConstr(signatories.head).snd.head
-        ) === ByteString.fromHex("deadbeef")
+      else if Builtins.unsafeDataAsB(signatories.head) === ByteString.fromHex("deadbeef")
       then ()
       else findSignatureOrFail(signatories.tail)
 
@@ -62,10 +60,10 @@ class PubKeyValidatorSpec extends AnyFunSuite with ScalaCheckPropertyChecks:
 
     // println(compiled.pretty.render(80))
     val term = new SimpleSirToUplcLowering().lower(compiled)
-    val flatBytes = ProgramFlatCodec.encodeFlat(Program(version = (1, 0, 0), term = term))
+    val flatBytesLen = ProgramFlatCodec.encodeFlat(Program(version = (1, 0, 0), term = term)).length
 //    println(Utils.bytesToHex(flatBytes))
     // println(term.pretty.render(80))
-    assert(flatBytes.length == 138)
+    assert(flatBytesLen == 131)
     import Data.*
     import DefaultUni.asConstant
     import TermDSL.{*, given}

@@ -38,6 +38,8 @@ import scalus.uplc.Data.fromData
 
 case class TxInInfoTxOutRefOnly(txInInfoOutRef: TxOutRef)
 
+case class MintingContext(inputs: List[TxOutRef], minted: Value, ownSymbol: CurrencySymbol)
+
 @Compile
 object MintingPolicy {
   import List.*
@@ -46,8 +48,6 @@ object MintingPolicy {
   given Data.FromData[TxInInfoTxOutRefOnly] = (d: Data) =>
     val pair = Builtins.unsafeDataAsConstr(d)
     new TxInInfoTxOutRefOnly(fromData[TxOutRef](pair.snd.head))
-
-  case class MintingContext(inputs: List[TxOutRef], minted: Value, ownSymbol: CurrencySymbol)
 
   protected final val hoskyMintTxOutRef = TxOutRef(
     TxId(ByteString.fromHex("1ab6879fc08345f51dc9571ac4f530bf8673e0d798758c470f9af6f98e2f3982")),
@@ -150,4 +150,34 @@ object MintingPolicy {
   // val cbor = Cbor.encode(flatEncoded).toByteArray
   // val cborHex = Utils.bytesToHex(Cbor.encode(flatEncoded).toByteArray)
   // val doubleCborHex = Utils.bytesToHex(Cbor.encode(cbor).toByteArray)
+}
+
+@Compile
+object MintingPolicyV2 {
+  import scalus.ledger.api.v2.*
+  import scalus.ledger.api.v2.FromDataInstances.given
+  import ScriptPurpose.*
+
+  val simpleCtxV2Deserializer: Data => MintingContext = (ctxData: Data) => {
+    val ctx = fromData[ScriptContext](ctxData)
+    val txInfo = ctx.scriptContextTxInfo
+    val txInfoInputs = txInfo.txInfoInputs
+    val minted = txInfo.txInfoMint
+    val purpose = ctx.scriptContextPurpose
+    val ownSymbol = purpose match
+      case Minting(curSymbol) => curSymbol
+      case Spending(txOutRef) => throw new RuntimeException("PS")
+      case Rewarding(stakingCred) =>
+        throw new RuntimeException("PR")
+      case Certifying(cert) => throw new RuntimeException("PC")
+    new MintingContext(
+      List.map(txInfoInputs)(_.txInInfoOutRef),
+      minted,
+      ownSymbol
+    )
+  }
+
+  val compiledMintingPolicyScriptV2 = compile(
+    MintingPolicy.mintingPolicyScript(simpleCtxV2Deserializer)
+  )
 }

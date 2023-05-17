@@ -6,6 +6,9 @@ import scalus.uplc.DataInstances.{_, given}
 
 object ToDataInstances {
   import scalus.uplc.Data.toData
+
+  given ToData[PubKeyHash] = (a: PubKeyHash) => a.hash.toData
+
   given DCertLift[T <: DCert]: ToData[T] with
     def toData(a: T): Data =
       a match

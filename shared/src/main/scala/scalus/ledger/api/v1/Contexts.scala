@@ -20,6 +20,9 @@ import scalus.utils.Utils.bytesToHex
 type ValidatorHash = ByteString
 type Datum = Data
 type DatumHash = ByteString
+type Redeemer = Data
+type ScriptHash = ByteString
+type RedeemerHash = ByteString
 type CurrencySymbol = ByteString
 type TokenName = ByteString
 type POSIXTime = BigInt
@@ -34,7 +37,7 @@ object FromDataInstances {
     new TxId(hash)
 
   implicit def fromDataPubKeyHash(d: Data): PubKeyHash =
-    val hash = fromData[ByteString](Builtins.unsafeDataAsConstr(d).snd.head)
+    val hash = fromData[ByteString](d)
     new PubKeyHash(hash)
 
   implicit def fromDataTxOutRef(d: Data): TxOutRef =
@@ -237,7 +240,7 @@ data TxOutRef = TxOutRef {
  */
 case class TxOutRef(txOutRefId: TxId, txOutRefIdx: BigInt) derives Data.ToData
 
-case class PubKeyHash(hash: ByteString) derives Data.ToData {
+case class PubKeyHash(hash: ByteString) {
   override def toString = s"PubKeyHash(${hash})"
 }
 
@@ -265,21 +268,6 @@ case class TxInInfo(
     txInInfoResolved: TxOut
 ) derives Data.ToData
 
-/*
-data TxInfo = TxInfo
-    { txInfoInputs      :: [TxInInfo] -- ^ Transaction inputs
-    , txInfoOutputs     :: [TxOut] -- ^ Transaction outputs
-    , txInfoFee         :: Value -- ^ The fee paid by this transaction.
-    , txInfoMint        :: Value -- ^ The 'Value' minted by this transaction.
-    , txInfoDCert       :: [DCert] -- ^ Digests of certificates included in this transaction
-    , txInfoWdrl        :: [(StakingCredential, Integer)] -- ^ Withdrawals
-    , txInfoValidRange  :: POSIXTimeRange -- ^ The valid range for the transaction.
-    , txInfoSignatories :: [PubKeyHash] -- ^ Signatures provided with the transaction, attested that they all signed the tx
-    , txInfoData        :: [(DatumHash, Datum)]
-    , txInfoId          :: TxId
-    -- ^ Hash of the pending transaction (excluding witnesses)
-    } deriving stock (Generic, Haskell.Show, Haskell.Eq)
- */
 case class TxInfo(
     txInfoInputs: List[TxInInfo],
     txInfoOutputs: List[TxOut],
