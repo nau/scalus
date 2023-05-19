@@ -151,14 +151,14 @@ class PreImageExampleSpec extends BaseValidatorSpec {
     // convert SIR to UPLC
     val validator = new SimpleSirToUplcLowering().lower(compiled)
     val flatSize = ProgramFlatCodec.encodeFlat(Program((1, 0, 0), validator)).length
-    assert(flatSize == 1642)
+    assert(flatSize == 1617)
 
     performChecks(validator)
   }
 
   test("Preimage Validator Optimized") {
     val flatSize = OptimizedPreimage.flatEncoded.length
-    assert(flatSize == 254)
+    assert(flatSize == 257)
     performChecks(OptimizedPreimage.validator)
   }
 }

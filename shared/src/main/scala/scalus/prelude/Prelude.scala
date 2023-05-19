@@ -6,12 +6,6 @@ import scalus.builtins.Builtins
 import scalus.Compile
 
 @Compile
-object TestCode {
-  def foo() = BigInt(42)
-  val a = true
-}
-
-@Compile
 object Prelude {
   type Eq[A] = (A, A) => Boolean
   given Eq[BigInt] = (x: BigInt, y: BigInt) => Builtins.equalsInteger(x, y)
