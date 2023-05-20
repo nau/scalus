@@ -51,7 +51,7 @@ import dotty.tools.dotc.interfaces.SourcePosition
 case class Module(defs: List[Binding])
 case class FullName(name: String)
 object FullName:
-  def apply(sym: Symbol)(using Context): FullName = FullName(sym.fullName.show)
+  def apply(sym: Symbol)(using Context): FullName = FullName(sym.fullName.toString())
 
 case class TopLevelBinding(fullName: FullName, recursivity: Recursivity, body: SIR)
 
@@ -121,7 +121,7 @@ class SIRCompiler(mode: scalus.Mode)(using ctx: Context) {
 
   def compileTypeDef(td: TypeDef) = {
     report.echo(
-      s"compiling to SIR: ${td.name.show} (${td.symbol.fullName}: ${td.tpe.show})"
+      s"compiling to SIR: ${td.name} (${td.symbol.fullName}: ${td.tpe.show})"
     )
 
     if td.tpe.typeSymbol.is(Flags.CaseClass) then compileCaseClass(td)
@@ -137,7 +137,7 @@ class SIRCompiler(mode: scalus.Mode)(using ctx: Context) {
           compileStmt(immutable.HashSet.empty, vd, isGlobalDef = true)
       }
       val module = Module(bindings.map(b => Binding(b.fullName.name, b.body)))
-      writeModule(module, td.symbol.fullName.show)
+      writeModule(module, td.symbol.fullName.toString())
   }
 
   def writeModule(module: Module, className: String) = {
@@ -361,19 +361,19 @@ class SIRCompiler(mode: scalus.Mode)(using ctx: Context) {
     // println( s"compileIdentOrQualifiedSelect1: ${e.symbol} $name $fullName, term: ${e.show}, loc/glob: $isInLocalEnv/$isInGlobalEnv, env: ${env}" )
     (isInLocalEnv, isInGlobalEnv) match
       // global def, self reference, use the name
-      case (true, true) => SIR.Var(e.symbol.fullName.show)
+      case (true, true) => SIR.Var(e.symbol.fullName.toString())
       // local def, use the name
       case (true, false) => SIR.Var(e.symbol.name.show)
       // global def, use full name
-      case (false, true) => SIR.Var(e.symbol.fullName.show)
+      case (false, true) => SIR.Var(e.symbol.fullName.toString())
       case (false, false) =>
         mode match
           case scalus.Mode.Compile =>
-            // println( s"external var: module ${e.symbol.owner.fullName.show}, ${e.symbol.fullName.show}" )
-            SIR.ExternalVar(e.symbol.owner.fullName.show, e.symbol.fullName.show)
+            // println( s"external var: module ${e.symbol.owner.fullName.toString()}, ${e.symbol.fullName.toString()}" )
+            SIR.ExternalVar(e.symbol.owner.fullName.toString(), e.symbol.fullName.toString())
           case scalus.Mode.Link =>
             if e.symbol.defTree == EmptyTree then
-              linkDefinition(e.symbol.owner.fullName.show, fullName, e.symbol.sourcePos)
+              linkDefinition(e.symbol.owner.fullName.toString(), fullName, e.symbol.sourcePos)
             else
               // println(s"compileIdentOrQualifiedSelect2: ${e.symbol} ${e.symbol.defTree}")
               // remember the symbol to avoid infinite recursion
@@ -388,7 +388,7 @@ class SIRCompiler(mode: scalus.Mode)(using ctx: Context) {
                 fullName,
                 CompileDef.Compiled(TopLevelBinding(fullName, b.recursivity, b.body))
               )
-              SIR.Var(e.symbol.fullName.show)
+              SIR.Var(e.symbol.fullName.toString())
   }
 
   def compileStmt(env: Env, stmt: Tree, isGlobalDef: Boolean = false): B = {
