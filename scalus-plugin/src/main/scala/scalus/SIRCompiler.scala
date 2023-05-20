@@ -97,8 +97,7 @@ class SIRCompiler(mode: scalus.Mode)(using ctx: Context) {
   val moduleDefsCache: mutable.Map[String, mutable.LinkedHashMap[FullName, SIR]] =
     mutable.LinkedHashMap.empty.withDefaultValue(mutable.LinkedHashMap.empty)
 
-  @threadUnsafe lazy val CompileAnnotType: TypeRef = requiredClassRef("scalus.Compile")
-  def CompileAnnot(using Context) = CompileAnnotType.symbol.asClass
+  val CompileAnnot = requiredClassRef("scalus.Compile").symbol.asClass
 
   def compileModule(tree: Tree): Unit = {
     import sir.SIR.*
@@ -138,9 +137,12 @@ class SIRCompiler(mode: scalus.Mode)(using ctx: Context) {
           compileStmt(immutable.HashSet.empty, vd, isGlobalDef = true)
       }
       val module = Module(bindings.map(b => Binding(b.fullName.name, b.body)))
-      val suffix = ".sir"
+      writeModule(module, td.symbol.fullName.show)
+  }
+
+  def writeModule(module: Module, className: String) = {
+    val suffix = ".sir"
       val outputDirectory = ctx.settings.outputDir.value
-      val className = td.symbol.fullName.show
       val pathParts = className.split('.')
       val dir = pathParts.init.foldLeft(outputDirectory)(_.subdirectoryNamed(_))
       val filename = pathParts.last
