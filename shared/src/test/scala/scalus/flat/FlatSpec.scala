@@ -184,6 +184,7 @@ class FlatSpec extends AnyFunSuite with ScalaCheckPropertyChecks with ArbitraryI
 
   test("encode/decode DefaulnUni") {
     import scalus.uplc.DefaultFun.*
+    import scalus.uplc.CommonFlatInstantces.{*, given}
     import scalus.uplc.FlatInstantces.given
     val fl = summon[Flat[DefaultFun]]
     assert(fl.bitSize(AddInteger) == 7)
@@ -201,8 +202,9 @@ class FlatSpec extends AnyFunSuite with ScalaCheckPropertyChecks with ArbitraryI
   test("encode/decode Constant") {
     import scalus.uplc.Constant.*
     import scalus.uplc.Data.*
+    import scalus.uplc.CommonFlatInstantces.{*, given}
     import scalus.uplc.FlatInstantces.given
-    val fl = summon[Flat[Constant]]
+    val fl = flatConstant
     assert(fl.bitSize(Constant.Unit) == 6)
     assert(fl.bitSize(Constant.Bool(true)) == 7)
     assert(fl.bitSize(Constant.Integer(1)) == 14)
@@ -223,6 +225,7 @@ class FlatSpec extends AnyFunSuite with ScalaCheckPropertyChecks with ArbitraryI
 
   test("encode/decode Term") {
     import scalus.uplc.Data.toData
+    import scalus.uplc.CommonFlatInstantces.{*, given}
     import scalus.uplc.FlatInstantces.given
     val fl = summon[Flat[Term]]
     assert(fl.bitSize(Term.Error("any string")) == 4)

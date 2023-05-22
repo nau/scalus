@@ -69,6 +69,7 @@ lazy val scalusPlugin = project
         baseDir / "scalus/uplc/Data.scala",
         baseDir / "scalus/uplc/DefaultFun.scala",
         baseDir / "scalus/uplc/DefaultUni.scala",
+        baseDir / "scalus/uplc/CommonFlatInstantces.scala",
         baseDir / "scalus/flat/package.scala"
       )
       files
