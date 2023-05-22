@@ -83,6 +83,30 @@ package object flat:
       result
   given Flat[Array[Byte]] = ArrayByteFlat()
 
+  given Flat[Long] with
+    def bitSize(a: Long): Int =
+      val vs = w7l(zigZag(a))
+      vs.length * 8
+
+    // Encoded as: data NonEmptyList = Elem Word7 | Cons Word7 NonEmptyList
+    def encode(a: Long, encode: EncoderState): Unit =
+      val vs = w7l(zigZag(a))
+      var i = 0
+      while i < vs.length do
+        encode.bits(8, vs(i))
+        i += 1
+    def decode(decode: DecoderState): Long =
+      var w = decode.bits8(8)
+      var r = 0L
+      var shl = 0
+      while (w & 0x80) != 0 do
+        r = r | ((w & 0x7f) << shl)
+        shl += 7
+        w = decode.bits8(8)
+
+      r = r | ((w & 0x7f) << shl)
+      zagZig(r)
+
   given Flat[BigInt] with
     def bitSize(a: BigInt): Int =
       val vs = w7l(zigZag(a))
@@ -176,6 +200,14 @@ package object flat:
       val a = summon[Flat[A]].decode(decode)
       val b = summon[Flat[B]].decode(decode)
       (a, b)
+
+  def w7l(n: Long): List[Byte] =
+    val low = n & 0x7f
+    val t = n >> 7
+    if t == 0 then low.toByte :: Nil else (low | 0x80).toByte :: w7l(t)
+
+  def zigZag(x: Long) = if x >= 0 then x << 1 else -(x << 1) - 1
+  def zagZig(u: Long) = u >> 1 ^ -(u & 1)
 
   def w7l(n: BigInt): List[Byte] =
     val low = n & 0x7f

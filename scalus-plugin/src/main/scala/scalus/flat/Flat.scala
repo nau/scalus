@@ -1,6 +1,11 @@
 package scalus.flat
 
 import scalus.builtins
+import scalus.flat.DecoderState
+import scalus.flat.EncoderState
+import scalus.flat.Flat
+import scalus.flat.Natural
+import scalus.flat.given
 import scalus.sir.Binding
 import scalus.sir.Case
 import scalus.sir.ConstrDecl
@@ -8,9 +13,9 @@ import scalus.sir.DataDecl
 import scalus.sir.Recursivity
 import scalus.sir.SIR
 import scalus.uplc.Constant
+import scalus.uplc.Data
 import scalus.uplc.DefaultFun
 import scalus.uplc.DefaultUni
-import scalus.flat.{DecoderState, EncoderState, Flat, Natural, given}
 
 import scala.collection.mutable.ListBuffer
 
@@ -31,13 +36,12 @@ object FlatInstantces:
   def flatForUni(uni: DefaultUni): Flat[Any] =
     import DefaultUni.*
     uni match
-      case Integer    => summon[Flat[BigInt]].asInstanceOf[Flat[Any]]
-      case ByteString => summon[Flat[builtins.ByteString]].asInstanceOf[Flat[Any]]
-      case String     => summon[Flat[String]].asInstanceOf[Flat[Any]]
-      case Unit       => summon[Flat[Unit]].asInstanceOf[Flat[Any]]
-      case Bool       => summon[Flat[Boolean]].asInstanceOf[Flat[Any]]
-      // FIXME
-      // case Data                => summon[Flat[Data]].asInstanceOf[Flat[Any]]
+      case Integer             => summon[Flat[BigInt]].asInstanceOf[Flat[Any]]
+      case ByteString          => summon[Flat[builtins.ByteString]].asInstanceOf[Flat[Any]]
+      case String              => summon[Flat[String]].asInstanceOf[Flat[Any]]
+      case Unit                => summon[Flat[Unit]].asInstanceOf[Flat[Any]]
+      case Bool                => summon[Flat[Boolean]].asInstanceOf[Flat[Any]]
+      case DefaultUni.Data     => summon[Flat[Data]].asInstanceOf[Flat[Any]]
       case Apply(ProtoList, a) => listFlat(flatForUni(a)).asInstanceOf[Flat[Any]]
       case Apply(Apply(ProtoPair, a), b) =>
         pairFlat(flatForUni(a), flatForUni(b)).asInstanceOf[Flat[Any]]
@@ -201,18 +205,55 @@ object FlatInstantces:
         case 53 => VerifySchnorrSecp256k1Signature
         case c  => throw new Exception(s"Invalid builtin function code: $c")
 
-  /* given Flat[Data] with
-    implicit val plutusDataCborEncoder: Encoder[Data] = PlutusDataCborEncoder
-    implicit val plutusDataCborDecoder: Decoder[Data] = PlutusDataCborDecoder
+  given Flat[Data] with
+    private val width = 3
 
-    def bitSize(a: Data): Int = summon[Flat[Array[Byte]]].bitSize(Cbor.encode(a).toByteArray)
+    def bitSize(a: Data): Int = a match
+      case Data.Constr(constr, args) =>
+        width + summon[Flat[Long]].bitSize(constr) + args.map(bitSize).sum
+      case Data.Map(values)  => width + values.map { case (k, v) => bitSize(k) + bitSize(v) }.sum
+      case Data.List(values) => width + values.map(bitSize).sum
+      case Data.I(value)     => width + summon[Flat[BigInt]].bitSize(value)
+      case Data.B(value)     => width + summon[Flat[builtins.ByteString]].bitSize(value)
 
-    def encode(a: Data, encode: EncoderState): Unit =
-      flat.encode(Cbor.encode(a).toByteArray, encode)
+    def encode(a: Data, enc: EncoderState): Unit =
+      a match
+        case Data.Constr(constr, args) =>
+          enc.bits(width, 0)
+          summon[Flat[Long]].encode(constr, enc)
+          args.foreach(a => encode(a, enc))
+        case Data.Map(values) =>
+          enc.bits(width, 1)
+          values.foreach { case (k, v) => encode(k, enc); encode(v, enc) }
+        case Data.List(values) =>
+          enc.bits(width, 2)
+          values.foreach(a => encode(a, enc))
+        case Data.I(value) =>
+          enc.bits(width, 3)
+          summon[Flat[BigInt]].encode(value, enc)
+        case Data.B(value) =>
+          enc.bits(width, 4)
+          summon[Flat[builtins.ByteString]].encode(value, enc)
 
     def decode(decode: DecoderState): Data =
-      val bytes = summon[Flat[Array[Byte]]].decode(decode)
-      Cbor.decode(bytes).to[Data].value */
+      decode.bits8(width) match
+        case 0 =>
+          val constr = summon[Flat[Long]].decode(decode)
+          val args = summon[Flat[List[Data]]].decode(decode)
+          Data.Constr(constr, args)
+        case 1 =>
+          val values = summon[Flat[List[(Data, Data)]]].decode(decode)
+          Data.Map(values)
+        case 2 =>
+          val values = summon[Flat[List[Data]]].decode(decode)
+          Data.List(values)
+        case 3 =>
+          val value = summon[Flat[BigInt]].decode(decode)
+          Data.I(value)
+        case 4 =>
+          val value = summon[Flat[builtins.ByteString]].decode(decode)
+          Data.B(value)
+        case c => throw new Exception(s"Invalid data code: $c")
 
   given Flat[Constant] with
 
