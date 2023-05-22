@@ -9,6 +9,7 @@ target
 .DS_Store
 .metals
 .vscode
+.direnv
 metals.sbt
 /plutus-conformance
 mnemonic.txt
