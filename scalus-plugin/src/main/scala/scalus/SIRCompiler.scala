@@ -124,40 +124,33 @@ class SIRCompiler(mode: scalus.Mode)(using ctx: Context) {
       s"compiling to SIR: ${td.name} (${td.symbol.fullName}: ${td.tpe.show})"
     )
 
-    if td.tpe.typeSymbol.is(Flags.CaseClass) then compileCaseClass(td)
-    else
-      val tpl = td.rhs.asInstanceOf[Template]
-      val bindings = tpl.body.collect {
-        // FIXME: hack for derived methods
-        case dd: DefDef
-            if !dd.symbol.flags.is(Flags.Synthetic) && !dd.symbol.name.startsWith("derived") =>
-          compileStmt(immutable.HashSet.empty, dd, isGlobalDef = true)
-        case vd: ValDef if !vd.symbol.flags.isOneOf(Flags.Synthetic | Flags.Case) =>
-          // println(s"valdef: ${vd.symbol.fullName}")
-          compileStmt(immutable.HashSet.empty, vd, isGlobalDef = true)
-      }
-      val module = Module(bindings.map(b => Binding(b.fullName.name, b.body)))
-      writeModule(module, td.symbol.fullName.toString())
+    val tpl = td.rhs.asInstanceOf[Template]
+    val bindings = tpl.body.collect {
+      // FIXME: hack for derived methods
+      case dd: DefDef
+          if !dd.symbol.flags.is(Flags.Synthetic) && !dd.symbol.name.startsWith("derived") =>
+        compileStmt(immutable.HashSet.empty, dd, isGlobalDef = true)
+      case vd: ValDef if !vd.symbol.flags.isOneOf(Flags.Synthetic | Flags.Case) =>
+        // println(s"valdef: ${vd.symbol.fullName}")
+        compileStmt(immutable.HashSet.empty, vd, isGlobalDef = true)
+    }
+    val module = Module(bindings.map(b => Binding(b.fullName.name, b.body)))
+    writeModule(module, td.symbol.fullName.toString())
   }
 
   def writeModule(module: Module, className: String) = {
     val suffix = ".sir"
-      val outputDirectory = ctx.settings.outputDir.value
-      val pathParts = className.split('.')
-      val dir = pathParts.init.foldLeft(outputDirectory)(_.subdirectoryNamed(_))
-      val filename = pathParts.last
-      val output = dir.fileNamed(filename + suffix).bufferedOutput
-      val fl = summon[Flat[Module]]
-      val enc = EncoderState(fl.bitSize(module) / 8 + 1)
-      flat.encode(module, enc)
-      enc.filler()
-      output.write(enc.buffer)
-      output.close()
-  }
-
-  def compileCaseClass(td: TypeDef) = {
-    println(s"compileCaseClass: ${td.name}")
-
+    val outputDirectory = ctx.settings.outputDir.value
+    val pathParts = className.split('.')
+    val dir = pathParts.init.foldLeft(outputDirectory)(_.subdirectoryNamed(_))
+    val filename = pathParts.last
+    val output = dir.fileNamed(filename + suffix).bufferedOutput
+    val fl = summon[Flat[Module]]
+    val enc = EncoderState(fl.bitSize(module) / 8 + 1)
+    flat.encode(module, enc)
+    enc.filler()
+    output.write(enc.buffer)
+    output.close()
   }
 
   case class AdtTypeInfo(
