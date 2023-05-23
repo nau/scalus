@@ -428,6 +428,7 @@ class SIRCompiler(mode: scalus.Mode)(using ctx: Context) {
     val exprs = ListBuffer.empty[B]
     val exprEnv = stmts.foldLeft(env) {
       case (env, _: Import) => env // ignore local imports
+      case (env, _: TypeDef) => env // ignore local type definitions
       case (env, stmt) =>
         val bind = compileStmt(env, stmt)
         exprs += bind
