@@ -427,7 +427,7 @@ class SIRCompiler(mode: scalus.Mode)(using ctx: Context) {
   def compileBlock(env: Env, stmts: immutable.List[Tree], expr: Tree): SIR = {
     val exprs = ListBuffer.empty[B]
     val exprEnv = stmts.foldLeft(env) {
-      case (env, _: Import) => env // ignore local imports
+      case (env, _: Import)  => env // ignore local imports
       case (env, _: TypeDef) => env // ignore local type definitions
       case (env, stmt) =>
         val bind = compileStmt(env, stmt)
@@ -509,6 +509,119 @@ class SIRCompiler(mode: scalus.Mode)(using ctx: Context) {
       case nme.MOD =>
         SIR.Apply(SIR.Builtin(DefaultFun.RemainderInteger), compileExpr(env, ident))
 
+  /*
+    enum A:
+      case C0
+      case C1(a)
+      case C2(b, c)
+    compiles to:
+    Decl(DataDecl("A", List(ConstrDecl("C0", List()), ConstrDecl("C1", List("a")), ConstrDecl("C2", List("b", "c")))), ...)
+
+    c ==> Constr("C0", constrDecl, List())
+
+    c match
+      C1(a) -> 0
+      C2(b, c) -> 1
+    compiles to:
+    Match(c, List(Case(C1, List(a), 0), Case(C2, List(b, c), 1)))
+   */
+  def compileMatch(tree: Match, env: Env) = {
+    val Match(t, cases) = tree
+    val adtInfo = getAdtInfoFromConstroctorType(t.tpe)
+    // report.info(s"Match: ${t.tpe.typeSymbol} ${t.tpe.typeSymbol.children} $adtInfo", e.pos)
+
+    def constructCase(
+        constrSymbol: Symbol,
+        bindings: List[String],
+        rhs: SIR
+    ): scalus.sir.Case = {
+      val params = primaryConstructorParams(constrSymbol).map(_.name.show)
+      val constrDecl = scalus.sir.ConstrDecl(constrSymbol.name.show, params)
+
+      scalus.sir.Case(constrDecl, bindings, rhs)
+    }
+
+    if adtInfo.constructors.length == 1
+    then
+      cases match
+        case cs :: Nil =>
+          cs match
+            case CaseDef(_, guard, _) if !guard.isEmpty =>
+              report.error(s"Guards are not supported in match expressions", guard.srcPos)
+              SIR.Error(s"Guards are not supported in match expressions")
+
+            case CaseDef(UnApply(fun, implicits, pats), _, rhs) =>
+              // report.error(s"Case: ${fun}, pats: ${pats}, rhs: $rhs", t.pos)
+              val names = pats.map {
+                case b @ Bind(name, Ident(nme.WILDCARD)) => b.symbol
+                case p =>
+                  report.error(s"Unsupported binding: ${p}", p.srcPos)
+                  NoSymbol
+              }
+              val rhsE = compileExpr(env ++ names.map(_.name.show), rhs)
+              val tE = compileExpr(env, t)
+              val cases = List(constructCase(t.tpe.typeSymbol, names.map(_.name.show), rhsE))
+              SIR.Match(tE, cases)
+
+        case _ =>
+          report.error(
+            s"Only single constructor pattern supported for type ${t.tpe.widen.show}",
+            tree.srcPos
+          )
+          SIR.Error(s"Only single constructor pattern supported for type ${t.tpe.widen.show}")
+    else if cases.length != adtInfo.constructors.length
+    then
+      report.error(
+        s"Unsupported pattern matching for type ${t.tpe.widen.show}, constructors: ${t.tpe.typeSymbol.children}",
+        tree.srcPos
+      )
+      SIR.Error(s"Unsupported pattern matching for type ${t.tpe.widen.show}")
+    else
+      val cs = cases.map {
+        case CaseDef(_, guard, _) if !guard.isEmpty =>
+          report.error(s"Guards are not supported in match expressions", guard.srcPos)
+          (NoSymbol, Nil, SIR.Error(s"Guards are not supported in match expressions"))
+        case CaseDef(Typed(inner, constrTpe), _, rhs) =>
+          // report.info(s"Case: ${inner}, tpe ${constrTpe.tpe.widen.show}", t.pos)
+          inner match
+            case UnApply(fun, implicits, pats) =>
+              val bindings = pats.map {
+                case b @ Bind(name, Ident(nme.WILDCARD)) => b.symbol
+                case p =>
+                  report.error(
+                    s"Unsupported binding: ${p}. Only wildcard bindings supported, like case Cons(head, tail) => ...",
+                    p.srcPos
+                  )
+                  NoSymbol
+              }
+              val rhsE = compileExpr(env ++ bindings.map(_.name.show), rhs)
+              (constrTpe.tpe.typeSymbol, bindings, rhsE)
+            case _ =>
+              report.error(s"Unsupported case: ${inner}", inner.srcPos)
+              (NoSymbol, Nil, SIR.Error(s"Unsupported case: ${inner}"))
+        // case object
+        case CaseDef(pat, _, rhs) if pat.symbol.is(Flags.Case) =>
+          val rhsE = compileExpr(env, rhs)
+          // no-arg constructor, it's a Val, so we use termSymbol
+          (pat.tpe.termSymbol, Nil, rhsE)
+        case a =>
+          val cs = cases
+            .map { case CaseDef(pat, _, _) => pat.toString() + " " + pat.symbol.flagsString }
+            .mkString("\n")
+          report.error(
+            s"Unsupported match expression: ${tree.show}\n$tree\n${t.tpe.typeSymbol}\n${cs}",
+            t.srcPos
+          )
+          (NoSymbol, Nil, SIR.Error(s"Unsupported case: ${a}"))
+      }
+      val tE = compileExpr(env, t)
+      val sortedCases = cs.sortBy((t, _, _) => t.fullName).map { (sym, bindings, rhs) =>
+        constructCase(sym, bindings.map(_.name.show), rhs)
+      }
+      // report.info(s"Sorted constrs: ${sortedCases}", cases.head.pos)
+      SIR.Match(tE, sortedCases)
+  }
+
   def compileExpr(env: Env, tree: Tree)(using Context): SIR = {
     // println(s"compileExpr: ${tree.showIndented(2)}, env: $env")
     if compileConstant.isDefinedAt(tree) then
@@ -518,110 +631,9 @@ class SIRCompiler(mode: scalus.Mode)(using ctx: Context) {
       tree match
         case If(cond, t, f) =>
           SIR.IfThenElse(compileExpr(env, cond), compileExpr(env, t), compileExpr(env, f))
-        /*
-            enum A:
-              case C0
-              case C1(a)
-              case C2(b, c)
-            compiles to:
-            Decl(DataDecl("A", List(ConstrDecl("C0", List()), ConstrDecl("C1", List("a")), ConstrDecl("C2", List("b", "c")))), ...)
 
-            c ==> Constr("C0", constrDecl, List())
+        case m: Match => compileMatch(m, env)
 
-            c match
-              C1(a) -> 0
-              C2(b, c) -> 1
-            compiles to:
-            Match(c, List(Case(C1, List(a), 0), Case(C2, List(b, c), 1)))
-         */
-        case Match(t, cases) =>
-          val adtInfo = getAdtInfoFromConstroctorType(t.tpe)
-          // report.info(s"Match: ${t.tpe.typeSymbol} ${t.tpe.typeSymbol.children} $adtInfo", e.pos)
-
-          def constructCase(
-              constrSymbol: Symbol,
-              bindings: List[String],
-              rhs: SIR
-          ): scalus.sir.Case = {
-            val params = primaryConstructorParams(constrSymbol).map(_.name.show)
-            val constrDecl = scalus.sir.ConstrDecl(constrSymbol.name.show, params)
-
-            scalus.sir.Case(constrDecl, bindings, rhs)
-          }
-
-          if adtInfo.constructors.length == 1
-          then
-            cases match
-              case cs :: Nil =>
-                cs match
-                  case CaseDef(_, guard, _) if !guard.isEmpty =>
-                    report.error(s"Guards are not supported in match expressions", guard.srcPos)
-                    SIR.Error(s"Guards are not supported in match expressions")
-
-                  case CaseDef(UnApply(fun, implicits, pats), _, rhs) =>
-                    // report.error(s"Case: ${fun}, pats: ${pats}, rhs: $rhs", t.pos)
-                    val names = pats.map {
-                      case b @ Bind(name, Ident(nme.WILDCARD)) => b.symbol
-                      case p =>
-                        report.error(s"Unsupported binding: ${p}", p.srcPos)
-                        NoSymbol
-                    }
-                    val rhsE = compileExpr(env ++ names.map(_.name.show), rhs)
-                    val tE = compileExpr(env, t)
-                    val cases = List(constructCase(t.tpe.typeSymbol, names.map(_.name.show), rhsE))
-                    SIR.Match(tE, cases)
-
-              case _ =>
-                report.error(
-                  s"Only single constructor pattern supported for type ${t.tpe.widen.show}",
-                  tree.srcPos
-                )
-                SIR.Error(s"Only single constructor pattern supported for type ${t.tpe.widen.show}")
-          else if cases.length != adtInfo.constructors.length
-          then
-            report.error(
-              s"Unsupported pattern matching for type ${t.tpe.widen.show}, constructors: ${t.tpe.typeSymbol.children}",
-              tree.srcPos
-            )
-            SIR.Error(s"Unsupported pattern matching for type ${t.tpe.widen.show}")
-          else
-            val cs = cases.map {
-              case CaseDef(_, guard, _) if !guard.isEmpty =>
-                report.error(s"Guards are not supported in match expressions", guard.srcPos)
-                (NoSymbol, Nil, SIR.Error(s"Guards are not supported in match expressions"))
-              // case object
-              case CaseDef(pat @ Ident(name), _, rhs) =>
-                val rhsE = compileExpr(env, rhs)
-                // no-arg constructor, it's a Val, so we use termSymbol
-                (pat.tpe.termSymbol, Nil, rhsE)
-              case CaseDef(Typed(inner, constrTpe), _, rhs) =>
-                // report.info(s"Case: ${inner}, tpe ${constrTpe.tpe.widen.show}", t.pos)
-                inner match
-                  case UnApply(fun, implicits, pats) =>
-                    val bindings = pats.map {
-                      case b @ Bind(name, Ident(nme.WILDCARD)) => b.symbol
-                      case p =>
-                        report.error(s"Unsupported binding: ${p}", p.srcPos)
-                        NoSymbol
-                    }
-                    val rhsE = compileExpr(env ++ bindings.map(_.name.show), rhs)
-                    (constrTpe.tpe.typeSymbol, bindings, rhsE)
-                  case _ =>
-                    report.error(s"Unsupported case: ${inner}", inner.srcPos)
-                    (NoSymbol, Nil, SIR.Error(s"Unsupported case: ${inner}"))
-              case a =>
-                report.error(
-                  s"Unsupported match expression: ${tree.show}\n$tree\n${t.tpe.typeSymbol}, cases: ${cases}",
-                  t.srcPos
-                )
-                (NoSymbol, Nil, SIR.Error(s"Unsupported case: ${a}"))
-            }
-            val tE = compileExpr(env, t)
-            val sortedCases = cs.sortBy((t, _, _) => t.fullName).map { (sym, bindings, rhs) =>
-              constructCase(sym, bindings.map(_.name.show), rhs)
-            }
-            // report.info(s"Sorted constrs: ${sortedCases}", cases.head.pos)
-            SIR.Match(tE, sortedCases)
         // throw new Exception("error msg")
         // Supports any exception type that uses first argument as message
         case Apply(Ident(nme.throw_), immutable.List(ex)) =>
