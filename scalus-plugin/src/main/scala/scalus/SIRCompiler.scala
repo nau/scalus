@@ -820,6 +820,18 @@ class SIRCompiler(mode: scalus.Mode)(using ctx: Context) {
           // val t = r.asTerm.show
           // report.info(s"Inlined: ${bindings}, ${expr.show}\n${t}", Position(SourceFile.current, globalPosition, 0))
           r
+        case Return(_, _) =>
+          report.error(s"return expression is not supported: ${tree.show}", tree.srcPos)
+          SIR.Error("Unsupported return statement")
+        case Assign(lhs, rhs) =>
+          report.error(s"Variable assignment is not supported: ${tree.show}", tree.srcPos)
+          SIR.Error("Unsupported assign expression")
+        case Try(_, _, _) =>
+          report.error(s"try expression is not supported: ${tree.show}", tree.srcPos)
+          SIR.Error("Unsupported try expression")
+        case WhileDo(cond, body) =>
+          report.error(s"while statement is not supported: ${tree.show}", tree.srcPos)
+          SIR.Error("Unsupported while expression")
         case x =>
           report.error(s"Unsupported expression: ${x.show}\n$x", x.srcPos)
           SIR.Error("Unsupported expression")
