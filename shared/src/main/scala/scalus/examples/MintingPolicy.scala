@@ -54,7 +54,7 @@ object MintingPolicy {
     0
   )
   protected final val hoskyMintTxOut = TxOut(
-    txOutAddress = Address(
+    address = Address(
       Credential.PubKeyCredential(
         PubKeyHash(
           ByteString.fromHex("61822dde476439a526070f36d3d1667ad099b462c111cd85e089f5e7f6")
@@ -68,10 +68,10 @@ object MintingPolicy {
 
   val simpleCtxDeserializer: Data => MintingContext = (ctxData: Data) => {
     val ctx = fromData[ScriptContext](ctxData)
-    val txInfo = ctx.scriptContextTxInfo
-    val txInfoInputs = txInfo.txInfoInputs
-    val minted = txInfo.txInfoMint
-    val purpose = ctx.scriptContextPurpose
+    val txInfo = ctx.txInfo
+    val txInfoInputs = txInfo.inputs
+    val minted = txInfo.mint
+    val purpose = ctx.purpose
     val ownSymbol = purpose match
       case Minting(curSymbol) => curSymbol
       case Spending(txOutRef) => throw new RuntimeException("PS")
@@ -79,22 +79,22 @@ object MintingPolicy {
         throw new RuntimeException("PR")
       case Certifying(cert) => throw new RuntimeException("PC")
     new MintingContext(
-      List.map(txInfoInputs)(_.txInInfoOutRef),
+      List.map(txInfoInputs)(_.outRef),
       minted,
       ownSymbol
     )
   }
 
   val optimizedCtxDeserializer: Data => MintingContext = (ctxData: Data) => {
-    val txInfoData = fieldAsData[ScriptContext](_.scriptContextTxInfo)(ctxData)
+    val txInfoData = fieldAsData[ScriptContext](_.txInfo)(ctxData)
     val txInfoInputs =
       fromData[List[TxInInfoTxOutRefOnly]](
-        fieldAsData[TxInfo](_.txInfoInputs)(txInfoData)
+        fieldAsData[TxInfo](_.inputs)(txInfoData)
       )
     val minted =
-      fromData[Value](fieldAsData[TxInfo](_.txInfoMint).apply(txInfoData))
+      fromData[Value](fieldAsData[TxInfo](_.mint).apply(txInfoData))
     val ownSymbol =
-      val purpose = fieldAsData[ScriptContext](_.scriptContextPurpose)(ctxData)
+      val purpose = fieldAsData[ScriptContext](_.purpose)(ctxData)
       val pair = Builtins.unsafeDataAsConstr(purpose)
       val tag = pair.fst
       val args = pair.snd
@@ -160,10 +160,10 @@ object MintingPolicyV2 {
 
   val simpleCtxV2Deserializer: Data => MintingContext = (ctxData: Data) => {
     val ctx = fromData[ScriptContext](ctxData)
-    val txInfo = ctx.scriptContextTxInfo
-    val txInfoInputs = txInfo.txInfoInputs
-    val minted = txInfo.txInfoMint
-    val purpose = ctx.scriptContextPurpose
+    val txInfo = ctx.txInfo
+    val txInfoInputs = txInfo.inputs
+    val minted = txInfo.mint
+    val purpose = ctx.purpose
     val ownSymbol = purpose match
       case Minting(curSymbol) => curSymbol
       case Spending(txOutRef) => throw new RuntimeException("PS")
@@ -171,7 +171,7 @@ object MintingPolicyV2 {
         throw new RuntimeException("PR")
       case Certifying(cert) => throw new RuntimeException("PC")
     new MintingContext(
-      List.map(txInfoInputs)(_.txInInfoOutRef),
+      List.map(txInfoInputs)(_.outRef),
       minted,
       ownSymbol
     )

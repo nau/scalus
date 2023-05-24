@@ -167,7 +167,7 @@ object Example:
     lam { datum =>
       lam { ctx =>
         val txInfoOutputs =
-          fieldAsData[ScriptContext](_.scriptContextTxInfo.txInfoOutputs).apply(ctx)
+          fieldAsData[ScriptContext](_.txInfo.outputs).apply(ctx)
         val isTxInfoOutputsEmpty = nullList(unListData(txInfoOutputs))
         ifThenElse2(isTxInfoOutputsEmpty)(())(err("Tx has outputs"))
       }
@@ -180,7 +180,7 @@ object Example:
       lam { datum =>
         lam { ctx =>
           val txInfoSignatories: Expr[List[Data]] = unListData(
-            fieldAsData[ScriptContext](_.scriptContextTxInfo.txInfoSignatories).apply(ctx)
+            fieldAsData[ScriptContext](_.txInfo.signatories).apply(ctx)
           )
 
           val search = rec[List[Data], Unit] { self =>

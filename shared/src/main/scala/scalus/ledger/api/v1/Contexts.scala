@@ -238,7 +238,7 @@ data TxOutRef = TxOutRef {
     txOutRefIdx :: Integer -- ^ Index into the referenced transaction's outputs
     }
  */
-case class TxOutRef(txOutRefId: TxId, txOutRefIdx: BigInt) derives Data.ToData
+case class TxOutRef(id: TxId, idx: BigInt) derives Data.ToData
 
 case class PubKeyHash(hash: ByteString) {
   override def toString = s"PubKeyHash(${hash})"
@@ -256,29 +256,29 @@ enum StakingCredential:
   case StakingPtr(a: BigInt, b: BigInt, c: BigInt)
 
 case class Address(
-    addressCredential: Credential,
-    addressStakingCredential: Maybe[StakingCredential]
+    credential: Credential,
+    stakingCredential: Maybe[StakingCredential]
 ) derives Data.ToData
-case class TxOut(txOutAddress: Address, txOutValue: Value, txOutDatumHash: Maybe[DatumHash])
+case class TxOut(address: Address, value: Value, datumHash: Maybe[DatumHash])
     derives Data.ToData
 
 // TxInInfo
 case class TxInInfo(
-    txInInfoOutRef: TxOutRef,
-    txInInfoResolved: TxOut
+    outRef: TxOutRef,
+    resolved: TxOut
 ) derives Data.ToData
 
 case class TxInfo(
-    txInfoInputs: List[TxInInfo],
-    txInfoOutputs: List[TxOut],
-    txInfoFee: Value,
-    txInfoMint: Value,
-    txInfoDCert: List[DCert],
-    txInfoWdrl: List[(StakingCredential, BigInt)],
-    txInfoValidRange: POSIXTimeRange,
-    txInfoSignatories: List[PubKeyHash],
-    txInfoData: List[(DatumHash, Datum)],
-    txInfoId: TxId
+    inputs: List[TxInInfo],
+    outputs: List[TxOut],
+    fee: Value,
+    mint: Value,
+    dcert: List[DCert],
+    withdrawals: List[(StakingCredential, BigInt)],
+    validRange: POSIXTimeRange,
+    signatories: List[PubKeyHash],
+    data: List[(DatumHash, Datum)],
+    id: TxId
 ) derives Data.ToData
 
 enum ScriptPurpose:
@@ -288,5 +288,5 @@ enum ScriptPurpose:
   case Certifying(cert: DCert)
 
 // data ScriptContext = ScriptContext{scriptContextTxInfo :: TxInfo, scriptContextPurpose :: ScriptPurpose }
-case class ScriptContext(scriptContextTxInfo: TxInfo, scriptContextPurpose: ScriptPurpose)
+case class ScriptContext(txInfo: TxInfo, purpose: ScriptPurpose)
     derives Data.ToData

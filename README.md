@@ -51,7 +51,7 @@ def preimageValidator(datum: Data, redeemer: Data, ctxData: Data): Unit = {
   val preimage = fromData[ByteString](redeemer)
   val ctx = fromData[ScriptContext](ctxData)
   // get the transaction signatories
-  val signatories = ctx.scriptContextTxInfo.txInfoSignatories
+  val signatories = ctx.txInfo.signatories
   // check that the transaction is signed by the public key hash
   List.findOrFail(signatories) { sig => sig.hash === pkh }
   // check that the preimage hashes to the hash
@@ -64,7 +64,7 @@ val compiled = compile(preimageValidator)
 // convert SIR to UPLC
 val validator = new SimpleSirToUplcLowering().lower(compiled)
 val flatEncoded = ProgramFlatCodec.encodeFlat(Program((1, 0, 0), validator))
-assert(flatEncoded.length == 1684)
+assert(flatEncoded.length == 1617)
 ```
 
 ## Why?
@@ -104,6 +104,8 @@ What you can play with:
 - There are a couple of simple validators that can be used for real.
 - The PubKey validator is 138 bytes long! It's 14x smaller than the 1992 bytes long PlutusTx version!
 - Scala compiler plugin to convert Scala code to UPLC
+- All the Plutus builtins are implemented
+- You can write Plutus V1 and V2 scripts
 
 ## Comparison to PlutusTx, Aiken, Plutarch
 
@@ -141,7 +143,7 @@ def preimageValidator(datum: Data, redeemer: Data, ctxData: Data): Unit = {
       val preimage = summon[FromData[ByteString]](redeemer)
       val signatories = summon[FromData[List[PubKeyHash]]](
         // deserialize only the signatories from the ScriptContext
-        fieldAsData[ScriptContext](_.scriptContextTxInfo.txInfoSignatories)(ctxData)
+        fieldAsData[ScriptContext](_.txInfo.signatories)(ctxData)
       )
 
       List.findOrFail(signatories) { sig => sig.hash === pkh }
@@ -152,7 +154,7 @@ def preimageValidator(datum: Data, redeemer: Data, ctxData: Data): Unit = {
 val compiled = compile(preimageValidator)
 val validator = new SimpleSirToUplcLowering().lower(compiled)
 val flatSize = ProgramFlatCodec.encodeFlat(Program((1, 0, 0), validator)).length
-assert(flatSize == 274)
+assert(flatSize == 257)
 ```
 
 You can see that deserialising only the fields we actually need significantly reduces the script size:
@@ -172,40 +174,43 @@ compiled.pretty.render(100)
 data Tuple2 = Tuple2(_1, _2)
 data List = Cons(head, tail) | Nil
 data PubKeyHash = PubKeyHash(hash)
-fun scalus.uplc.Data$.unsafeTupleFromData fromA fromB d =
+fun scalus.uplc.DataInstances$.unsafeTupleFromData fromA fromB d =
     let pair = unConstrData(d) in
     let args = sndPair(pair) in
     Tuple2(fromA(headList(args)), fromB(headList(tailList(args))))
-in fun scalus.uplc.Data$.ByteStringFromData d = unBData(d)
-in fun scalus.uplc.Data$.ListFromData evidence$1 d =
-       let fromA = evidence$1 in
+in fun scalus.uplc.DataInstances$.given_FromData_ByteString d = unBData(d)
+in fun scalus.uplc.DataInstances$.ListFromData evidence$1 d =
        let ls = unListData(d) in
-       fun loop ls = if nullList(ls) then Nil() else Cons(fromA(headList(ls)), loop(tailList(ls)))
+       fun loop ls =
+           if nullList(ls) then Nil() else Cons(evidence$1(headList(ls)), loop(tailList(ls)))
        in loop(ls)
 in fun scalus.ledger.api.v1.FromDataInstances$.fromDataPubKeyHash d =
        let hash =
-         let d = headList(sndPair(unConstrData(d))) in
-         scalus.uplc.Data::scalus.uplc.Data$.ByteStringFromData(d)
+         scalus.uplc.DataInstances$::scalus.uplc.DataInstances$.given_FromData_ByteString(d)
        in
        PubKeyHash(hash)
 in fun scalus.prelude.List$.findOrFail lst p =
        match lst with
          case Cons(head, tail) ->
-           if p(head) then head else scalus.prelude.List::scalus.prelude.List$.findOrFail(tail, p)
+           if p(head) then head else scalus.prelude.List$::scalus.prelude.List$.findOrFail(tail, p)
          case Nil -> ERROR 'Not found'
 in fun scalus.prelude.Prelude$.given_Eq_ByteString x y = equalsByteString(x, y)
 in fun scalus.OptimizedPreimageValidator$.preimageValidator datum redeemer ctxData =
-       match scalus.uplc.Data::scalus.uplc.Data$.unsafeTupleFromData(
-         {λ d -> scalus.uplc.Data::scalus.uplc.Data$.ByteStringFromData(d) },
-         {λ d -> scalus.uplc.Data::scalus.uplc.Data$.ByteStringFromData(d) },
+       match scalus.uplc.DataInstances$::scalus.uplc.DataInstances$.unsafeTupleFromData(
+         scalus.uplc.DataInstances$::scalus.uplc.DataInstances$.given_FromData_ByteString,
+         scalus.uplc.DataInstances$::scalus.uplc.DataInstances$.given_FromData_ByteString,
          datum
        ) with
          case Tuple2(hash, pkh) ->
-           let preimage = scalus.uplc.Data::scalus.uplc.Data$.ByteStringFromData(redeemer) in
+           let preimage =
+             scalus.uplc.DataInstances$::scalus.uplc.DataInstances$.given_FromData_ByteString(
+               redeemer
+             )
+           in
            let signatories =
-             scalus.uplc.Data::scalus.uplc.Data$.ListFromData(
+             scalus.uplc.DataInstances$::scalus.uplc.DataInstances$.ListFromData(
                {λ d ->
-                 scalus.ledger.api.v1.FromDataInstances::scalus.ledger.api.v1.FromDataInstances$.fromDataPubKeyHash(
+                 scalus.ledger.api.v1.FromDataInstances$::scalus.ledger.api.v1.FromDataInstances$.fromDataPubKeyHash(
                    d
                  )
                },
@@ -222,10 +227,10 @@ in fun scalus.OptimizedPreimageValidator$.preimageValidator datum redeemer ctxDa
              )
            in
            let _ =
-             scalus.prelude.List::scalus.prelude.List$.findOrFail(
+             scalus.prelude.List$::scalus.prelude.List$.findOrFail(
                signatories,
                {λ sig ->
-                 scalus.prelude.Prelude::scalus.prelude.Prelude$.given_Eq_ByteString(
+                 scalus.prelude.Prelude$::scalus.prelude.Prelude$.given_Eq_ByteString(
                    sig({λ hash -> hash }),
                    pkh
                  )
@@ -233,8 +238,8 @@ in fun scalus.OptimizedPreimageValidator$.preimageValidator datum redeemer ctxDa
              )
            in
            if
-               let x$proxy4 = sha2_256(preimage) in
-               scalus.prelude.Prelude::scalus.prelude.Prelude$.given_Eq_ByteString(x$proxy4, hash)
+               let x$proxy1 = sha2_256(preimage) in
+               scalus.prelude.Prelude$::scalus.prelude.Prelude$.given_Eq_ByteString(x$proxy1, hash)
            then
                () else ERROR 'Wrong preimage'
 in scalus.OptimizedPreimageValidator$.preimageValidator
@@ -257,14 +262,14 @@ def pubKeyValidator(pkh: PubKeyHash): Expr[Unit => Unit => Data => Unit] =
     lam { datum =>
       lam { ctx =>
         val txInfoSignatories: Expr[List[Data]] = unListData(
-          fieldAsData[ScriptContext](_.scriptContextTxInfo.txInfoSignatories).apply(ctx)
+          fieldAsData[ScriptContext](_.txInfo.signatories).apply(ctx)
         )
 
         val search = rec[List[Data], Unit] { self =>
           lam { signatories =>
             // signatories.head.pubKeyHash
             val head = headList.apply(signatories)
-            val headPubKeyHash = unBData(headList(sndPair(unConstrData(head))))
+            val headPubKeyHash = unBData(head)
             !chooseList(signatories)(error("Signature not found")) {
               ~ifThenElse2(equalsByteString(headPubKeyHash)(pkh.hash))(()) {
                 self(tailList(signatories))

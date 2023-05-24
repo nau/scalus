@@ -71,8 +71,8 @@ class ScriptContextV1DataSerializationSpec extends BaseValidatorSpec:
   )
   val signatories = Cons(PubKeyHash(hex"7369676E61746F7279"), Nil)
   val txInfo = TxInfo(
-    txInfoInputs = Nil,
-    txInfoOutputs = Cons(
+    inputs = Nil,
+    outputs = Cons(
       TxOut(
         address,
         Value(hex"AA", hex"6262", 3),
@@ -80,14 +80,14 @@ class ScriptContextV1DataSerializationSpec extends BaseValidatorSpec:
       ),
       Nil
     ),
-    txInfoFee = Value(hex"AA", hex"555344", 1),
-    txInfoMint = Value(hex"AA", hex"455552", 2),
-    txInfoDCert = Nil,
-    txInfoWdrl = Nil,
-    txInfoValidRange = Interval.always,
-    txInfoSignatories = signatories,
-    txInfoData = Nil,
-    txInfoId = TxId(hex"3131")
+    fee = Value(hex"AA", hex"555344", 1),
+    mint = Value(hex"AA", hex"455552", 2),
+    dcert = Nil,
+    withdrawals = Nil,
+    validRange = Interval.always,
+    signatories = signatories,
+    data = Nil,
+    id = TxId(hex"3131")
   )
   val scriptContextV1 = ScriptContext(
     txInfo,
@@ -96,18 +96,18 @@ class ScriptContextV1DataSerializationSpec extends BaseValidatorSpec:
 
   val scriptContextV2 = v2.ScriptContext(
     v2.TxInfo(
-      txInfoInputs = Nil,
-      txInfoReferenceInputs = Nil,
-      txInfoOutputs = Nil,
-      txInfoFee = txInfo.txInfoFee,
-      txInfoMint = txInfo.txInfoMint,
-      txInfoDCert = txInfo.txInfoDCert,
-      txInfoWdrl = AssocMap.empty,
-      txInfoValidRange = txInfo.txInfoValidRange,
-      txInfoSignatories = txInfo.txInfoSignatories,
-      txInfoData = AssocMap.empty,
-      txInfoRedeemers = AssocMap.empty,
-      txInfoId = txInfo.txInfoId
+      inputs = Nil,
+      referenceInputs = Nil,
+      outputs = Nil,
+      fee = txInfo.fee,
+      mint = txInfo.mint,
+      dcert = txInfo.dcert,
+      withdrawals = AssocMap.empty,
+      validRange = txInfo.validRange,
+      signatories = txInfo.signatories,
+      data = AssocMap.empty,
+      redeemers = AssocMap.empty,
+      id = txInfo.id
     ),
     ScriptPurpose.Spending(TxOutRef(TxId(hex"6465616462656566"), 2))
   )

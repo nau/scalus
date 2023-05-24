@@ -193,8 +193,8 @@ class CekJVMSpec extends AnyFunSuite with ScalaCheckPropertyChecks with Arbitrar
       TxId(hex"bb")
     )
     import ExprBuilder.*
-    val fee = unIData(fieldAsData[TxInfo](_.txInfoFee).apply(Expr(txInfo.toData)))
-    val txId = unBData(fieldAsData[TxInfo](_.txInfoId).apply(Expr(txInfo.toData)))
+    val fee = unIData(fieldAsData[TxInfo](_.fee).apply(Expr(txInfo.toData)))
+    val txId = unBData(fieldAsData[TxInfo](_.id).apply(Expr(txInfo.toData)))
     assert(Cek.evalUPLC(fee.term) == Const(asConstant(BigInt(123))))
     assert(Cek.evalUPLC(txId.term) == Const(asConstant(hex"bb")))
     println(txId)

@@ -78,7 +78,7 @@ abstract class BaseValidatorSpec
     0
   )
   protected final val hoskyMintTxOut = TxOut(
-    txOutAddress = Address(
+    address = Address(
       Credential.PubKeyCredential(
         PubKeyHash(
           hex"61822dde476439a526070f36d3d1667ad099b462c111cd85e089f5e7f6"

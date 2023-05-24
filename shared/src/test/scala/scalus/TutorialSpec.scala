@@ -106,7 +106,7 @@ import scalus.prelude
 val context = compile {
   def validator(redeamder: Data, datum: Data, ctxData: Data) = {
     val ctx = fromData[ScriptContext](ctxData)
-    prelude.List.findOrFail[PubKeyHash](ctx.scriptContextTxInfo.txInfoSignatories)(sig =>
+    prelude.List.findOrFail[PubKeyHash](ctx.txInfo.signatories)(sig =>
       sig.hash === ByteString.fromHex("deadbeef")
     )
   }

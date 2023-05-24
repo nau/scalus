@@ -49,7 +49,7 @@ object OptimizedPreimageValidator {
         val preimage = fromData[ByteString](redeemer)
         val signatories = fromData[List[PubKeyHash]](
           // deserialize only the signatories from the ScriptContext
-          fieldAsData[ScriptContext](_.scriptContextTxInfo.txInfoSignatories)(ctxData)
+          fieldAsData[ScriptContext](_.txInfo.signatories)(ctxData)
         )
 
         List.findOrFail(signatories) { sig => sig.hash === pkh }
@@ -72,16 +72,16 @@ class PreImageExampleSpec extends BaseValidatorSpec {
   def scriptContext(signatories: scalus.prelude.List[PubKeyHash]) =
     ScriptContext(
       TxInfo(
-        txInfoInputs = scalus.prelude.List.Nil,
-        txInfoOutputs = scalus.prelude.List.Nil,
-        txInfoFee = Value.lovelace(BigInt("188021")),
-        txInfoMint = Value.lovelace(BigInt("188021")),
-        txInfoDCert = scalus.prelude.List.Nil,
-        txInfoWdrl = scalus.prelude.List.Nil,
-        txInfoValidRange = Interval.always,
-        txInfoSignatories = signatories,
-        txInfoData = scalus.prelude.List.Nil,
-        txInfoId = TxId(hex"1e0612fbd127baddfcd555706de96b46c4d4363ac78c73ab4dee6e6a7bf61fe9")
+        inputs = scalus.prelude.List.Nil,
+        outputs = scalus.prelude.List.Nil,
+        fee = Value.lovelace(BigInt("188021")),
+        mint = Value.lovelace(BigInt("188021")),
+        dcert = scalus.prelude.List.Nil,
+        withdrawals = scalus.prelude.List.Nil,
+        validRange = Interval.always,
+        signatories = signatories,
+        data = scalus.prelude.List.Nil,
+        id = TxId(hex"1e0612fbd127baddfcd555706de96b46c4d4363ac78c73ab4dee6e6a7bf61fe9")
       ),
       ScriptPurpose.Spending(hoskyMintTxOutRef)
     )
@@ -138,7 +138,7 @@ class PreImageExampleSpec extends BaseValidatorSpec {
       val preimage = fromData[ByteString](redeemer)
       val ctx = fromData[ScriptContext](ctxData)
       // get the transaction signatories
-      val signatories = ctx.scriptContextTxInfo.txInfoSignatories
+      val signatories = ctx.txInfo.signatories
       // check that the transaction is signed by the public key hash
       List.findOrFail(signatories) { sig => sig.hash === pkh }
       // check that the preimage hashes to the hash

@@ -1,37 +1,37 @@
 package scalus.ledger.api.v2
 
 import scalus.Compile
+import scalus.builtins
 import scalus.builtins.Builtins
 import scalus.builtins.ByteString
+import scalus.ledger.api.v1.Address
+import scalus.ledger.api.v1.DCert
+import scalus.ledger.api.v1.Datum
+import scalus.ledger.api.v1.DatumHash
+import scalus.ledger.api.v1.FromDataInstances.given
+import scalus.ledger.api.v1.POSIXTimeRange
+import scalus.ledger.api.v1.PubKeyHash
+import scalus.ledger.api.v1.Redeemer
+import scalus.ledger.api.v1.ScriptHash
+import scalus.ledger.api.v1.ScriptPurpose
+import scalus.ledger.api.v1.StakingCredential
+import scalus.ledger.api.v1.ToDataInstances.given
+import scalus.ledger.api.v1.TxId
+import scalus.ledger.api.v1.TxOutRef
+import scalus.ledger.api.v1.Value
 import scalus.prelude.AssocMap
 import scalus.prelude.List
 import scalus.prelude.Maybe
 import scalus.prelude.Prelude.===
 import scalus.prelude.Prelude.given
 import scalus.prelude.These.*
-import scalus.builtins
 import scalus.uplc.Data
-import scalus.uplc.Data.fromData
 import scalus.uplc.Data.FromData
 import scalus.uplc.Data.ToData
+import scalus.uplc.Data.fromData
 import scalus.uplc.Data.given
 import scalus.uplc.DataInstances.given
 import scalus.utils.Utils.bytesToHex
-import scalus.ledger.api.v1.TxOutRef
-import scalus.ledger.api.v1.Value
-import scalus.ledger.api.v1.DCert
-import scalus.ledger.api.v1.StakingCredential
-import scalus.ledger.api.v1.POSIXTimeRange
-import scalus.ledger.api.v1.PubKeyHash
-import scalus.ledger.api.v1.ScriptPurpose
-import scalus.ledger.api.v1.Redeemer
-import scalus.ledger.api.v1.Datum
-import scalus.ledger.api.v1.TxId
-import scalus.ledger.api.v1.DatumHash
-import scalus.ledger.api.v1.ToDataInstances.given
-import scalus.ledger.api.v1.Address
-import scalus.ledger.api.v1.ScriptHash
-import scalus.ledger.api.v1.FromDataInstances.given
 
 @Compile
 object FromDataInstances {
@@ -131,34 +131,34 @@ enum OutputDatum:
   case OutputDatum(datum: Datum)
 
 case class TxOut(
-    txOutAddress: Address,
-    txOutValue: Value,
-    txOutDatum: OutputDatum,
-    txOutReferenceScript: Maybe[ScriptHash]
+    address: Address,
+    value: Value,
+    datum: OutputDatum,
+    referenceScript: Maybe[ScriptHash]
 ) derives ToData
 
-case class TxInInfo(txInInfoOutRef: TxOutRef, txInInfoResolved: TxOut) derives ToData
+case class TxInInfo(outRef: TxOutRef, resolved: TxOut) derives ToData
 
 /** A pending transaction.
   */
 case class TxInfo(
-    txInfoInputs: List[TxInInfo],
-    txInfoReferenceInputs: List[TxInInfo],
-    txInfoOutputs: List[TxOut],
-    txInfoFee: Value,
-    txInfoMint: Value,
-    txInfoDCert: List[DCert],
-    txInfoWdrl: AssocMap[StakingCredential, BigInt],
-    txInfoValidRange: POSIXTimeRange,
-    txInfoSignatories: List[PubKeyHash],
-    txInfoRedeemers: AssocMap[ScriptPurpose, Redeemer],
-    txInfoData: AssocMap[DatumHash, Datum],
-    txInfoId: TxId
+    inputs: List[TxInInfo],
+    referenceInputs: List[TxInInfo],
+    outputs: List[TxOut],
+    fee: Value,
+    mint: Value,
+    dcert: List[DCert],
+    withdrawals: AssocMap[StakingCredential, BigInt],
+    validRange: POSIXTimeRange,
+    signatories: List[PubKeyHash],
+    redeemers: AssocMap[ScriptPurpose, Redeemer],
+    data: AssocMap[DatumHash, Datum],
+    id: TxId
 ) derives ToData
 
 /** The context that the currently-executing script can access.
   */
 case class ScriptContext(
-    scriptContextTxInfo: TxInfo,
-    scriptContextPurpose: ScriptPurpose
+    txInfo: TxInfo,
+    purpose: ScriptPurpose
 ) derives ToData

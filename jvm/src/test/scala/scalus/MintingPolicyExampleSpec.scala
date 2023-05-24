@@ -44,16 +44,16 @@ class MintingPolicyExampleSpec extends BaseValidatorSpec {
   private def scriptContextV1(txInfoInputs: scalus.prelude.List[TxInInfo], value: Value) =
     ScriptContext(
       TxInfo(
-        txInfoInputs = txInfoInputs,
-        txInfoOutputs = scalus.prelude.List.Nil,
-        txInfoFee = Value.lovelace(BigInt("188021")),
-        txInfoMint = value,
-        txInfoDCert = scalus.prelude.List.Nil,
-        txInfoWdrl = scalus.prelude.List.Nil,
-        txInfoValidRange = Interval.always,
-        txInfoSignatories = scalus.prelude.List.Nil,
-        txInfoData = scalus.prelude.List.Nil,
-        txInfoId = TxId(hex"1e0612fbd127baddfcd555706de96b46c4d4363ac78c73ab4dee6e6a7bf61fe9")
+        inputs = txInfoInputs,
+        outputs = scalus.prelude.List.Nil,
+        fee = Value.lovelace(BigInt("188021")),
+        mint = value,
+        dcert = scalus.prelude.List.Nil,
+        withdrawals = scalus.prelude.List.Nil,
+        validRange = Interval.always,
+        signatories = scalus.prelude.List.Nil,
+        data = scalus.prelude.List.Nil,
+        id = TxId(hex"1e0612fbd127baddfcd555706de96b46c4d4363ac78c73ab4dee6e6a7bf61fe9")
       ),
       ScriptPurpose.Minting(hex"a0028f350aaabe0545fdcb56b039bfb08e4bb4d8c4d7c3c7d481c235")
     )
@@ -61,18 +61,18 @@ class MintingPolicyExampleSpec extends BaseValidatorSpec {
   private def scriptContextV2(txInfoInputs: scalus.prelude.List[v2.TxInInfo], value: Value) =
     v2.ScriptContext(
       v2.TxInfo(
-        txInfoInputs = txInfoInputs,
-        txInfoReferenceInputs = scalus.prelude.List.Nil,
-        txInfoOutputs = scalus.prelude.List.Nil,
-        txInfoFee = Value.lovelace(BigInt("188021")),
-        txInfoMint = value,
-        txInfoDCert = scalus.prelude.List.Nil,
-        txInfoWdrl = AssocMap.empty,
-        txInfoValidRange = Interval.always,
-        txInfoSignatories = scalus.prelude.List.Nil,
-        txInfoRedeemers = AssocMap.empty,
-        txInfoData = AssocMap.empty,
-        txInfoId = TxId(hex"1e0612fbd127baddfcd555706de96b46c4d4363ac78c73ab4dee6e6a7bf61fe9")
+        inputs = txInfoInputs,
+        referenceInputs = scalus.prelude.List.Nil,
+        outputs = scalus.prelude.List.Nil,
+        fee = Value.lovelace(BigInt("188021")),
+        mint = value,
+        dcert = scalus.prelude.List.Nil,
+        withdrawals = AssocMap.empty,
+        validRange = Interval.always,
+        signatories = scalus.prelude.List.Nil,
+        redeemers = AssocMap.empty,
+        data = AssocMap.empty,
+        id = TxId(hex"1e0612fbd127baddfcd555706de96b46c4d4363ac78c73ab4dee6e6a7bf61fe9")
       ),
       ScriptPurpose.Minting(hex"a0028f350aaabe0545fdcb56b039bfb08e4bb4d8c4d7c3c7d481c235")
     )
@@ -94,7 +94,7 @@ class MintingPolicyExampleSpec extends BaseValidatorSpec {
     import scalus.ledger.api.v2.ToDataInstances.given
     val txInfoInputsV2 = prelude.List.map(txInfoInputs) { case TxInInfo(txOutRef, txOut) =>
       val txOutV2 =
-        v2.TxOut(txOut.txOutAddress, txOut.txOutValue, v2.OutputDatum.NoOutputDatum, Nothing)
+        v2.TxOut(txOut.address, txOut.value, v2.OutputDatum.NoOutputDatum, Nothing)
       v2.TxInInfo(txOutRef, txOutV2)
     }
     Program((2, 0, 0), validator $ () $ scriptContextV2(txInfoInputsV2, value).toData)
@@ -194,7 +194,7 @@ class MintingPolicyExampleSpec extends BaseValidatorSpec {
     val validator = new SimpleSirToUplcLowering(generateErrorTraces = true)
       .lower(MintingPolicy.compiledMintingPolicyScript)
     val appliedValidator =
-      validator $ hoskyMintTxOutRef.txOutRefId.hash $ hoskyMintTxOutRef.txOutRefIdx $ evaledTokens
+      validator $ hoskyMintTxOutRef.id.hash $ hoskyMintTxOutRef.idx $ evaledTokens
     val flatSize = ProgramFlatCodec.encodeFlat(Program((1, 0, 0), appliedValidator)).length
     assert(flatSize == 2348)
     performMintingPolicyValidatorChecks(appliedValidator)(withScriptContextV1)
@@ -204,7 +204,7 @@ class MintingPolicyExampleSpec extends BaseValidatorSpec {
     val validator = new SimpleSirToUplcLowering(generateErrorTraces = true)
       .lower(MintingPolicyV2.compiledMintingPolicyScriptV2)
     val appliedValidator =
-      validator $ hoskyMintTxOutRef.txOutRefId.hash $ hoskyMintTxOutRef.txOutRefIdx $ evaledTokens
+      validator $ hoskyMintTxOutRef.id.hash $ hoskyMintTxOutRef.idx $ evaledTokens
     val flatSize = ProgramFlatCodec.encodeFlat(Program((2, 0, 0), appliedValidator)).length
     assert(flatSize == 2489)
     performMintingPolicyValidatorChecks(appliedValidator)(withScriptContextV2)
@@ -215,7 +215,7 @@ class MintingPolicyExampleSpec extends BaseValidatorSpec {
     val validator = new SimpleSirToUplcLowering(generateErrorTraces = true)
       .lower(MintingPolicy.compiledOptimizedMintingPolicyScript)
     val appliedValidator =
-      validator $ hoskyMintTxOutRef.txOutRefId.hash $ hoskyMintTxOutRef.txOutRefIdx $ evaledTokens
+      validator $ hoskyMintTxOutRef.id.hash $ hoskyMintTxOutRef.idx $ evaledTokens
     val flatSize = ProgramFlatCodec.encodeFlat(Program((1, 0, 0), appliedValidator)).length
     assert(flatSize == 1055)
     performMintingPolicyValidatorChecks(appliedValidator)(withScriptContextV1)
