@@ -13,7 +13,7 @@ object PlutusUplcEval:
     val flat = ProgramFlatCodec.encodeFlat(program)
     // println(s"Flat size: ${flat.length}}")
     import scala.sys.process.*
-    val cmd = "uplc evaluate --input-format flat"
+    val cmd = "uplc evaluate --input-format flat --trace-mode LogsWithBudgets"
     var out = ""
     val retCode = cmd.#<(new ByteArrayInputStream(flat)).!(ProcessLogger(o => out += o))
     if retCode == 0 then

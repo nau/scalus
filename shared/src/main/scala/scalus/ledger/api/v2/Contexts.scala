@@ -5,6 +5,7 @@ import scalus.builtins
 import scalus.builtins.Builtins
 import scalus.builtins.ByteString
 import scalus.ledger.api.v1.Address
+import scalus.ledger.api.v1.Credential
 import scalus.ledger.api.v1.DCert
 import scalus.ledger.api.v1.Datum
 import scalus.ledger.api.v1.DatumHash
@@ -32,6 +33,24 @@ import scalus.uplc.Data.fromData
 import scalus.uplc.Data.given
 import scalus.uplc.DataInstances.given
 import scalus.utils.Utils.bytesToHex
+
+export scalus.ledger.api.v1.Address
+export scalus.ledger.api.v1.Credential
+export scalus.ledger.api.v1.DCert
+export scalus.ledger.api.v1.Datum
+export scalus.ledger.api.v1.DatumHash
+export scalus.ledger.api.v1.FromDataInstances.given
+export scalus.ledger.api.v1.Interval
+export scalus.ledger.api.v1.POSIXTimeRange
+export scalus.ledger.api.v1.PubKeyHash
+export scalus.ledger.api.v1.Redeemer
+export scalus.ledger.api.v1.ScriptHash
+export scalus.ledger.api.v1.ScriptPurpose
+export scalus.ledger.api.v1.StakingCredential
+export scalus.ledger.api.v1.ToDataInstances.given
+export scalus.ledger.api.v1.TxId
+export scalus.ledger.api.v1.TxOutRef
+export scalus.ledger.api.v1.Value
 
 @Compile
 object FromDataInstances {
