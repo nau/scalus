@@ -220,11 +220,11 @@ class SIRConverter(using Context) {
         ref(ConstantStringSymbol.requiredMethod("apply")).appliedTo(mkString(value))
       case uplc.Constant.ByteString(value) =>
         ref(ConstantByteStringSymbol.requiredMethod("apply")).appliedTo(convert(value))
-      case scalus.uplc.Constant.Integer(value) =>
+      case uplc.Constant.Integer(value) =>
         ref(ConstantIntegerSymbol.requiredMethod("apply")).appliedTo(convert(value))
       case uplc.Constant.Data(value) =>
         ref(ConstantDataSymbol.requiredMethod("apply")).appliedTo(convert(value))
-      case scalus.uplc.Constant.List(elemType, value) =>
+      case uplc.Constant.List(elemType, value) =>
         ref(ConstantListSymbol.requiredMethod("apply"))
           .appliedToArgs(
             List(
@@ -232,22 +232,10 @@ class SIRConverter(using Context) {
               mkList(value.map(convert), TypeTree(ConstantClassSymbol.typeRef))
             )
           )
-      case scalus.uplc.Constant.Pair(fst, snd) =>
+      case uplc.Constant.Pair(fst, snd) =>
         ref(ConstantPairSymbol.requiredMethod("apply"))
           .appliedToArgs(List(convert(fst), convert(snd)))
   }
-
-  def defaultUniToType(t: DefaultUni): Tree = t match
-    case scalus.uplc.DefaultUni.Integer    => TypeTree(BigIntClassSymbol.typeRef)
-    case scalus.uplc.DefaultUni.String     => TypeTree(defn.StringClass.typeRef)
-    case scalus.uplc.DefaultUni.Unit       => TypeTree(defn.UnitType)
-    case scalus.uplc.DefaultUni.Bool       => TypeTree(defn.BooleanClass.typeRef)
-    case scalus.uplc.DefaultUni.Data       => TypeTree(DataClassSymbol.typeRef)
-    case scalus.uplc.DefaultUni.ByteString => TypeTree(ByteStringClassSymbol.typeRef)
-    case _                                 =>
-      // TODO FIXME
-      report.error(s"defaultUniToType: not implemented for $t");
-      TypeTree(BigIntClassSymbol.typeRef)
 
   def mkBigInt(i: BigInt): Tree =
     ref(BigIntSymbol.requiredMethod("apply", List(defn.StringClass.typeRef)))

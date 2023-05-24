@@ -35,7 +35,7 @@ class CompilerPluginToSIRSpec extends AnyFunSuite with ScalaCheckPropertyChecks:
   test("compile literals") {
     assert(compile(false) == Const(Constant.Bool(false)))
     assert(compile(true) == Const(Constant.Bool(true)))
-    assert(compile(()) == Const(Constant.Unit)) // FIXME
+    assert(compile(()) == Const(Constant.Unit))
     assert(compile("foo") == Const(Constant.String("foo")))
     assert(
       compile(BigInt("15511210043330985984000000")) == Const(
@@ -50,7 +50,6 @@ class CompilerPluginToSIRSpec extends AnyFunSuite with ScalaCheckPropertyChecks:
       compile(builtins.ByteString.empty) == Const(Constant.ByteString(builtins.ByteString.empty))
     )
 
-    // FIXME
     assert(
       compile(builtins.ByteString.fromHex("deadbeef")) == Const(deadbeef)
     )

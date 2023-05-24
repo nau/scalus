@@ -78,7 +78,7 @@ class ScalusPhase extends PluginPhase {
               Closure(Nil, Ident(_), EmptyTree)
             ) =>
           // report.echo(s"compile: ${code.show}")
-          compiler.compileToSIR(code.asInstanceOf[Tree]) // FIXME instanceof
+          compiler.compileToSIR(code.asInstanceOf[Tree])
         case code =>
           // report.echo(s"compile: ${arg.show}")
           compiler.compileToSIR(code)

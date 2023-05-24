@@ -66,7 +66,6 @@ class SIRCompiler(mode: scalus.Mode)(using ctx: Context) {
 
   extension (t: Type)
     def isPair: Boolean =
-      // FIXME: this is a hack, should be something like List above, but it doesn't work for some reason
       val r = t.typeSymbol.showFullName == "scalus.builtins.Pair"
       // println(s"$t is pair: $r, ${t.typeSymbol.showFullName}")
       r
@@ -393,21 +392,17 @@ class SIRCompiler(mode: scalus.Mode)(using ctx: Context) {
       case dd @ DefDef(name, paramss, tpe, _) =>
         // report.echo(s"compileStmt DefDef ${dd.name.show}, ${dd.symbol.flags.flagsString}")
         val params = paramss.flatten.collect({ case vd: ValDef => vd })
+        val names =
+          if params.isEmpty then List("_") /* Param for () argument */
+          else params.map { case v: ValDef => v.symbol.name.show }
         val body = dd.rhs
-        val bodyExpr: scalus.sir.SIR = {
-          if params.isEmpty then
-            val selfName = if isGlobalDef then FullName(dd.symbol).name else dd.symbol.name.show
-            val bE = compileExpr(env + selfName, body)
-            SIR.LamAbs("_", bE)
-          else
-            val names = params.map { case v: ValDef => v.symbol.name.show }
-            val selfName = if isGlobalDef then FullName(dd.symbol).name else dd.symbol.name.show
-            // println(s"compileStmt DefDef $name: symbols: ${symbols}, env: ${env}")
-            val bE = compileExpr(env ++ names + selfName, body)
-            names.foldRight(bE) { (name, acc) =>
-              SIR.LamAbs(name, acc)
-            }
-        }
+        val selfName = if isGlobalDef then FullName(dd.symbol).name else dd.symbol.name.show
+        val bE = compileExpr(env ++ names + selfName, body)
+        val bodyExpr: scalus.sir.SIR =
+          names.foldRight(bE) { (name, acc) =>
+            SIR.LamAbs(name, acc)
+          }
+
         B(name.show, stmt.symbol, Recursivity.Rec, bodyExpr)
       /*
         case ValDef(name, _, _) =>
@@ -817,7 +812,6 @@ class SIRCompiler(mode: scalus.Mode)(using ctx: Context) {
               ),
               Closure(_, Ident(nme.ANON_FUN), _)
             ) =>
-          // FIXME: this should be non-recursive if it's a literal
           compileStmt(env, dd).body
         case Block(stmt, expr) => compileBlock(env, stmt, expr)
         case Typed(expr, _)    => compileExpr(env, expr)
