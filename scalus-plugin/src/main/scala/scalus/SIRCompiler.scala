@@ -269,12 +269,12 @@ class SIRCompiler(mode: scalus.Mode)(using ctx: Context) {
     SIR.Constr(constrName, dataDecl, argsE)
   }
 
+  // Parameterless case class constructor of an enum
   def isConstructorVal(symbol: Symbol, tpe: Type): Boolean =
-    /* debugInfo(
-        s"isConstructorVal: ${tpe.typeSymbol.isClassDef && symbol.flags.is(Flags.Case)} $symbol: ${tpe.show} <: ${tpe.widen.show}, ${tpe.typeSymbol.isClassDef}, ${symbol.flags
-            .is(Flags.Case)}"
-      ) */
-    tpe.typeSymbol.isClass && symbol.flags.is(Flags.Case)
+    /* println(
+        s"isConstructorVal: ${symbol.flags.isAllOf(Flags.EnumCase)} $symbol: ${tpe.show} <: ${tpe.widen.show}, ${symbol.flagsString}"
+      )  */
+    symbol.flags.isAllOf(Flags.EnumCase)
 
   def traverseAndLink(sir: SIR, srcPos: SrcPos): Unit = sir match
     case SIR.ExternalVar(moduleName, name) if !globalDefs.contains(FullName(name)) =>
@@ -771,9 +771,9 @@ class SIRCompiler(mode: scalus.Mode)(using ctx: Context) {
           val argsE = args.map(compileExpr(env, _))
           argsE.foldLeft(fE)((acc, arg) => SIR.Apply(acc, arg))
         case Ident(a) =>
-          // FIXME: use isConstructorVal as in Select
-          // Can't do it because isConstructorVal is not always correct
-          compileIdentOrQualifiedSelect(env, tree)
+          if isConstructorVal(tree.symbol, tree.tpe) then
+            compileNewConstructor(env, tree.tpe, Nil)
+          else compileIdentOrQualifiedSelect(env, tree)
         // case class User(name: String, age: Int)
         // val user = User("John", 42) => \u - u "John" 42
         // user.name => \u name age -> name
