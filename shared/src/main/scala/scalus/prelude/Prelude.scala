@@ -52,6 +52,10 @@ object List:
 
   def apply[A](args: A*): List[A] = args.foldRight(empty[A]) { case (a, b) => new Cons(a, b) }
 
+  def isEmpty[A](lst: List[A]): Boolean = lst match
+    case Nil        => true
+    case Cons(_, _) => false
+
   def getByIndex[A](lst: List[A])(idx: BigInt): A = {
     def go(i: BigInt, lst: List[A]): A = lst match
       case Nil => throw new Exception("Index out of bounds")
