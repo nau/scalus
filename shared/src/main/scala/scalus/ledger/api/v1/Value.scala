@@ -67,3 +67,9 @@ object Value:
   val minus: (a: Value, b: Value) => Value = unionWith(Builtins.subtractInteger)
   val multiply: (a: Value, b: Value) => Value = unionWith(Builtins.multiplyInteger)
   val divide: (a: Value, b: Value) => Value = unionWith(Builtins.divideInteger)
+
+  extension (v: Value)
+    inline def +(other: Value): Value = Value.plus(v, other)
+    inline def -(other: Value): Value = Value.minus(v, other)
+    inline def *(other: Value): Value = Value.multiply(v, other)
+    inline def /(other: Value): Value = Value.divide(v, other)
