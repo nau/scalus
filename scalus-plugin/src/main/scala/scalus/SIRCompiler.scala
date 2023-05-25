@@ -166,9 +166,11 @@ class SIRCompiler(mode: scalus.Mode)(using ctx: Context) {
         4. enum Base { case B(a, b) }
         5. sealed abstract class Base; object Base { case object A extends Base }
         6. sealed abstract class Base; object Base { case class B(a: Int, b: String) extends Base }
+        7. scala.Tuple2
 
      */
-    val typeSymbol = constrTpe.dealias.widen.typeSymbol
+    val typeSymbol = constrTpe.widen.dealias.typeSymbol
+    // println(s"getAdtInfoFromConstroctorType: ${typeSymbol.showFullName}, $constrTpe")
     // look for a base `sealed abstract class`. If it exists, we are in case 5 or 6
     val adtBaseType = constrTpe.baseClasses.find(b =>
       // println(s"base class: ${b.show} ${b.flags.flagsString}")
@@ -575,8 +577,9 @@ class SIRCompiler(mode: scalus.Mode)(using ctx: Context) {
    */
   def compileMatch(tree: Match, env: Env) = {
     val Match(t, cases) = tree
+    val typeSymbol = t.tpe.widen.dealias.typeSymbol
     val adtInfo = getAdtInfoFromConstroctorType(t.tpe)
-    // report.info(s"Match: ${t.tpe.typeSymbol} ${t.tpe.typeSymbol.children} $adtInfo", e.pos)
+    // report.echo(s"Match: ${typeSymbol} ${typeSymbol.children} $adtInfo", tree.srcPos)
 
     def constructCase(
         constrSymbol: Symbol,
@@ -608,7 +611,7 @@ class SIRCompiler(mode: scalus.Mode)(using ctx: Context) {
               }
               val rhsE = compileExpr(env ++ names.map(_.name.show), rhs)
               val tE = compileExpr(env, t)
-              val cases = List(constructCase(t.tpe.typeSymbol, names.map(_.name.show), rhsE))
+              val cases = List(constructCase(typeSymbol, names.map(_.name.show), rhsE))
               SIR.Match(tE, cases)
 
         case _ =>
@@ -620,7 +623,7 @@ class SIRCompiler(mode: scalus.Mode)(using ctx: Context) {
     else if cases.length != adtInfo.constructors.length
     then
       report.error(
-        s"Unsupported pattern matching for type ${t.tpe.widen.show}, constructors: ${t.tpe.typeSymbol.children}",
+        s"Unsupported pattern matching for type ${t.tpe.widen.show}, constructors: ${typeSymbol.children}",
         tree.srcPos
       )
       SIR.Error(s"Unsupported pattern matching for type ${t.tpe.widen.show}")
@@ -844,7 +847,7 @@ class SIRCompiler(mode: scalus.Mode)(using ctx: Context) {
             s"select: Select: ${sel.show}: ${obj.tpe.widen.show} . ${ident}, isList: ${obj.isList}",
             sel.srcPos
           ) */
-          val ts = obj.tpe.widen.typeSymbol
+          val ts = obj.tpe.widen.dealias.typeSymbol
           lazy val fieldIdx = ts.caseFields.indexOf(sel.symbol)
           if ts.isClass && fieldIdx >= 0 then
             val lhs = compileExpr(env, obj)

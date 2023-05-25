@@ -720,7 +720,8 @@ class CompilerPluginToSIRSpec extends AnyFunSuite with ScalaCheckPropertyChecks:
 
   test("compile Tuple2 construction/matching") {
     val compiled = compile {
-      val t = (true, false)
+      type Pair = (Boolean, Boolean)
+      val t: Pair = (true, false)
       t match
         case (a, b) => a && t._2
     }

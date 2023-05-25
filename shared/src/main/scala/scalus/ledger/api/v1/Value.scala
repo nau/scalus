@@ -48,8 +48,8 @@ object Value:
     AssocMap.map(combined) { case (cs, these) =>
       these match
         case These.These(v1, v2) => (cs, AssocMap.union(v1, v2))
-        case This(v1)            => (cs, AssocMap.map(v1) { case (k, v) => (k, These.This(v)) })
-        case That(v2)            => (cs, AssocMap.map(v2) { case (k, v) => (k, These.That(v)) })
+        case This(v1)            => (cs, AssocMap.map(v1) { case (k, v) => (k, new These.This(v)) })
+        case That(v2)            => (cs, AssocMap.map(v2) { case (k, v) => (k, new These.That(v)) })
     }
 
   def unionWith(op: (BigInt, BigInt) => BigInt)(a: Value, b: Value): Value =
