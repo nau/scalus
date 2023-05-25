@@ -151,4 +151,7 @@ object AssocMap {
 
     val rhsThat = List.map(rhsNotInLhs) { case (k, v) => (k, new These.That(v)) }
     new AssocMap(List.append(lhs1, rhsThat))
+
+  def map[A, B, C](map: AssocMap[A, B])(f: ((A, B)) => (A, C)): AssocMap[A, C] =
+    new AssocMap(List.map(map.inner)(f))
 }
