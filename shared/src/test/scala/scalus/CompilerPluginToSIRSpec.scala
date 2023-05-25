@@ -274,7 +274,7 @@ class CompilerPluginToSIRSpec extends AnyFunSuite with ScalaCheckPropertyChecks:
 
   test("compile mkNilPairData") {
     assert(compile(Builtins.mkNilPairData) == (Builtin(MkNilPairData)))
-  }    
+  }
 
   test("compile mkConstr builtins") {
     val nilData = Const(Constant.List(DefaultUni.Data, immutable.Nil))
@@ -458,6 +458,21 @@ class CompilerPluginToSIRSpec extends AnyFunSuite with ScalaCheckPropertyChecks:
         Builtins.serialiseData
       } == Builtin(DefaultFun.SerialiseData)
     )
+  }
+
+  test("compile BigInt ops") {
+    assert(compile(-BigInt(-1)) == (SubtractInteger $ 0 $ -1))
+    assert(compile(BigInt(1) + 2) == (AddInteger $ 1 $ 2))
+    assert(compile(BigInt(1) - 2) == (SubtractInteger $ 1 $ 2))
+    assert(compile(BigInt(1) * 2) == (MultiplyInteger $ 1 $ 2))
+    assert(compile(BigInt(1) / 2) == (DivideInteger $ 1 $ 2))
+    assert(compile(BigInt(1) % 2) == (RemainderInteger $ 1 $ 2))
+    assert(compile(BigInt(1) < 2) == (LessThanInteger $ 1 $ 2))
+    assert(compile(BigInt(1) <= 2) == (LessThanEqualsInteger $ 1 $ 2))
+    assert(compile(BigInt(1) > 2) == (LessThanInteger $ 2 $ 1))
+    assert(compile(BigInt(1) >= 2) == (LessThanEqualsInteger $ 2 $ 1))
+    assert(compile(BigInt(1) == BigInt(2)) == (EqualsInteger $ 1 $ 2))
+    assert(compile(BigInt(1) != BigInt(2)) == Not(EqualsInteger $ 1 $ 2))
   }
 
   test("compile Integer builtins") {

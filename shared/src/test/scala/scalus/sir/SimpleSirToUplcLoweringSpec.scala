@@ -118,7 +118,7 @@ class SimpleSirToUplcLoweringSpec
       )
     ) lowersTo (lam("Nil", "Cons")(!vr"Nil") $ ~asConstant(1) $ lam("h", "tl")(2))
   }
-  
+
   test("eta-reduction") {
     // (\x -> f x) reduces to f
     // (\x y -> f x y) reduces to f

@@ -491,18 +491,71 @@ class SIRCompiler(mode: scalus.Mode)(using ctx: Context) {
       report.error(s"Unsupported type $t", pos)
       DefaultUni.Unit
 
-  def compileBigIntOps(env: Env, ident: Tree, op: Name): SIR =
+  def compileBigIntOps(env: Env, lhs: Tree, op: Name, rhs: Tree): SIR =
     op match
       case nme.PLUS =>
-        SIR.Apply(SIR.Builtin(DefaultFun.AddInteger), compileExpr(env, ident))
+        SIR.Apply(
+          SIR.Apply(SIR.Builtin(DefaultFun.AddInteger), compileExpr(env, lhs)),
+          compileExpr(env, rhs)
+        )
       case nme.MINUS =>
-        SIR.Apply(SIR.Builtin(DefaultFun.SubtractInteger), compileExpr(env, ident))
+        SIR.Apply(
+          SIR.Apply(SIR.Builtin(DefaultFun.SubtractInteger), compileExpr(env, lhs)),
+          compileExpr(env, rhs)
+        )
       case nme.MUL =>
-        SIR.Apply(SIR.Builtin(DefaultFun.MultiplyInteger), compileExpr(env, ident))
+        SIR.Apply(
+          SIR.Apply(SIR.Builtin(DefaultFun.MultiplyInteger), compileExpr(env, lhs)),
+          compileExpr(env, rhs)
+        )
       case nme.DIV =>
-        SIR.Apply(SIR.Builtin(DefaultFun.DivideInteger), compileExpr(env, ident))
+        SIR.Apply(
+          SIR.Apply(SIR.Builtin(DefaultFun.DivideInteger), compileExpr(env, lhs)),
+          compileExpr(env, rhs)
+        )
       case nme.MOD =>
-        SIR.Apply(SIR.Builtin(DefaultFun.RemainderInteger), compileExpr(env, ident))
+        SIR.Apply(
+          SIR.Apply(SIR.Builtin(DefaultFun.RemainderInteger), compileExpr(env, lhs)),
+          compileExpr(env, rhs)
+        )
+      case nme.LT =>
+        SIR.Apply(
+          SIR.Apply(SIR.Builtin(DefaultFun.LessThanInteger), compileExpr(env, lhs)),
+          compileExpr(env, rhs)
+        )
+      case nme.LE =>
+        SIR.Apply(
+          SIR.Apply(SIR.Builtin(DefaultFun.LessThanEqualsInteger), compileExpr(env, lhs)),
+          compileExpr(env, rhs)
+        )
+      case nme.GT =>
+        SIR.Apply(
+          SIR.Apply(SIR.Builtin(DefaultFun.LessThanInteger), compileExpr(env, rhs)),
+          compileExpr(env, lhs)
+        )
+      case nme.GE =>
+        SIR.Apply(
+          (SIR.Apply(SIR.Builtin(DefaultFun.LessThanEqualsInteger), compileExpr(env, rhs))),
+          compileExpr(env, lhs)
+        )
+      case nme.EQ =>
+        SIR.Apply(
+          SIR.Apply(SIR.Builtin(DefaultFun.EqualsInteger), compileExpr(env, lhs)),
+          compileExpr(env, rhs)
+        )
+      case nme.NE =>
+        SIR.Not(
+          SIR.Apply(
+            SIR.Apply(SIR.Builtin(DefaultFun.EqualsInteger), compileExpr(env, lhs)),
+            compileExpr(env, rhs)
+          )
+        )
+      case _ =>
+        report.error(
+          s"Unsupported BigInt operation $op. Only +, -, *, /, %, <, <=, >, >=, ==, != are supported",
+          lhs.srcPos
+        )
+        SIR.Error("Unsupported BigInt operation $op.")
 
   /*
     enum A:
@@ -659,8 +712,18 @@ class SIRCompiler(mode: scalus.Mode)(using ctx: Context) {
         case bi: Select if BuiltinHelper.builtinFun(bi.symbol.showFullName).isDefined =>
           BuiltinHelper.builtinFun(bi.symbol.showFullName).get
         // BigInt stuff
-        case Select(ident, op) if ident.tpe.widen =:= converter.BigIntClassSymbol.typeRef =>
-          compileBigIntOps(env, ident, op)
+        case Apply(Select(lhs, op), List(rhs))
+            if lhs.tpe.widen =:= converter.BigIntClassSymbol.typeRef =>
+          compileBigIntOps(env, lhs, op, rhs)
+        case Select(expr, op)
+            if expr.tpe.widen =:= converter.BigIntClassSymbol.typeRef && op == nme.UNARY_- =>
+          SIR.Apply(
+            SIR.Apply(
+              SIR.Builtin(DefaultFun.SubtractInteger),
+              SIR.Const(scalus.uplc.Constant.Integer(BigInt(0)))
+            ),
+            compileExpr(env, expr)
+          )
         // List BUILTINS
         case Select(lst, fun) if lst.isList =>
           fun.show match
@@ -771,8 +834,7 @@ class SIRCompiler(mode: scalus.Mode)(using ctx: Context) {
           val argsE = args.map(compileExpr(env, _))
           argsE.foldLeft(fE)((acc, arg) => SIR.Apply(acc, arg))
         case Ident(a) =>
-          if isConstructorVal(tree.symbol, tree.tpe) then
-            compileNewConstructor(env, tree.tpe, Nil)
+          if isConstructorVal(tree.symbol, tree.tpe) then compileNewConstructor(env, tree.tpe, Nil)
           else compileIdentOrQualifiedSelect(env, tree)
         // case class User(name: String, age: Int)
         // val user = User("John", 42) => \u - u "John" 42

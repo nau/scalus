@@ -259,8 +259,7 @@ case class Address(
     credential: Credential,
     stakingCredential: Maybe[StakingCredential]
 ) derives Data.ToData
-case class TxOut(address: Address, value: Value, datumHash: Maybe[DatumHash])
-    derives Data.ToData
+case class TxOut(address: Address, value: Value, datumHash: Maybe[DatumHash]) derives Data.ToData
 
 // TxInInfo
 case class TxInInfo(
@@ -288,5 +287,4 @@ enum ScriptPurpose:
   case Certifying(cert: DCert)
 
 // data ScriptContext = ScriptContext{scriptContextTxInfo :: TxInfo, scriptContextPurpose :: ScriptPurpose }
-case class ScriptContext(txInfo: TxInfo, purpose: ScriptPurpose)
-    derives Data.ToData
+case class ScriptContext(txInfo: TxInfo, purpose: ScriptPurpose) derives Data.ToData
