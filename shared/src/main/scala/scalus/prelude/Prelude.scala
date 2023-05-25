@@ -48,7 +48,17 @@ object List:
   import Maybe.*
   inline def empty[A]: List[A] = List.Nil
 
+  extension [A](lst: List[A]) inline def !!(idx: BigInt): A = getByIndex(lst)(idx)
+
   def apply[A](args: A*): List[A] = args.foldRight(empty[A]) { case (a, b) => new Cons(a, b) }
+
+  def getByIndex[A](lst: List[A])(idx: BigInt): A = {
+    def go(i: BigInt, lst: List[A]): A = lst match
+      case Nil => throw new Exception("Index out of bounds")
+      case Cons(head, tail) =>
+        if Builtins.equalsInteger(i, idx) then head else go(Builtins.addInteger(i, 1), tail)
+    go(0, lst)
+  }
 
   def append[A](lst1: List[A], lst2: List[A]): List[A] = lst1 match
     case Nil              => lst2
