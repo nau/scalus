@@ -74,11 +74,12 @@ compile {
   val active: State = new State.Active(account)
   val hash = account.hash // access case class fields
   // Only a simple match is supported
-  // no guards, no nested patterns, no type ascription, no wildcard patterns
+  // no guards, no nested patterns, no type ascription
   // all cases must be covered
   active match
     case Empty           => true
-    case Active(account) => false
+    case Active(account) => account match
+      case Account(_, balance) => balance === BigInt(123)
 }
 ```
 

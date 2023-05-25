@@ -51,7 +51,8 @@ val dataTypes = compile {
   // all cases must be covered
   active match
     case Empty           => true
-    case Active(account) => false
+    case Active(account) => account match
+      case Account(_, balance) => balance === BigInt(123)
 }
 
 val controlFlow = compile {

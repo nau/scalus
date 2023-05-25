@@ -723,7 +723,7 @@ class CompilerPluginToSIRSpec extends AnyFunSuite with ScalaCheckPropertyChecks:
       type Pair = (Boolean, Boolean)
       val t: Pair = (true, false)
       t match
-        case (a, b) => a && t._2
+        case (a, _) => a && t._2
     }
     // println(compiled.pretty.render(80))
     val term = new SimpleSirToUplcLowering().lower(compiled)
