@@ -58,7 +58,7 @@ class CompilerPluginToSIRSpec extends AnyFunSuite with ScalaCheckPropertyChecks:
   test("compile if-then-else") {
     assert(
       compile {
-        if scalus.builtins.Builtins.equalsInteger(1, 2) then () else ()
+        if Builtins.equalsInteger(1, 2) then () else ()
       } == SIR.IfThenElse(
         Apply(
           Apply(Builtin(EqualsInteger), Const(Constant.Integer(1))),
@@ -89,7 +89,6 @@ class CompilerPluginToSIRSpec extends AnyFunSuite with ScalaCheckPropertyChecks:
         def b() = true
         def c(x: Boolean) = x
         c(b())
-//        b()
       } == Let(
         Recursivity.Rec,
         immutable.List(Binding("b", LamAbs("_", Const(Constant.Bool(true))))),
@@ -147,40 +146,55 @@ class CompilerPluginToSIRSpec extends AnyFunSuite with ScalaCheckPropertyChecks:
 //    assert(Cek.evalUPLC(term) == Data.I(22))
   } */
 
-  test("compile List builtins") {
+  test("compile chooseList builtins") {
     assert(
       compile(
         Builtins.chooseList(builtins.List[BigInt](1, 2, 3), true, false)
       ) == (DefaultFun.ChooseList $ List(1, 2, 3) $ true $ false)
     )
+  }
+
+  test("compile mkCons builtins") {
     assert(
       compile(
         Builtins.mkCons(BigInt(4), builtins.List[BigInt](1, 2, 3))
       ) == (DefaultFun.MkCons $ 4 $ List(1, 2, 3))
     )
+  }
+
+  test("compile headList builtins") {
     assert(
       compile(
         Builtins.headList(builtins.List[BigInt](1, 2, 3))
       ) == (DefaultFun.HeadList $ List(1, 2, 3))
     )
+  }
+
+  test("compile tailList builtins") {
     assert(
       compile(
         Builtins.tailList(builtins.List[BigInt](1, 2, 3))
       ) == (DefaultFun.TailList $ List(1, 2, 3))
     )
+  }
+
+  test("compile nullList builtins") {
     assert(
       compile(
         Builtins.nullList(builtins.List[BigInt](1, 2, 3))
       ) == (DefaultFun.NullList $ List(1, 2, 3))
     )
+  }
 
-    // Nil
+  test("compile empty List") {
     assert(
       compile {
         builtins.List.empty[BigInt]
       } == Const(Constant.List(DefaultUni.Integer, List()))
     )
-    // Create a List literal
+  }
+
+  test("compile List literal") {
     assert(
       compile {
         builtins.List[BigInt](1, 2, 3)
@@ -191,8 +205,9 @@ class CompilerPluginToSIRSpec extends AnyFunSuite with ScalaCheckPropertyChecks:
         )
       )
     )
+  }
 
-    // MkCons builtin
+  test("compile MkCons builtin") {
     assert(
       compile {
         val a = "foo"
@@ -209,7 +224,9 @@ class CompilerPluginToSIRSpec extends AnyFunSuite with ScalaCheckPropertyChecks:
         )
       )
     )
+  }
 
+  test("compile head function") {
     assert(
       compile {
         def head(l: builtins.List[BigInt]) = l.head
@@ -221,6 +238,9 @@ class CompilerPluginToSIRSpec extends AnyFunSuite with ScalaCheckPropertyChecks:
         Const(Constant.Unit)
       )
     )
+  }
+
+  test("compile tail function") {
     assert(
       compile {
         def tail(l: builtins.List[BigInt]) = l.tail
@@ -232,6 +252,9 @@ class CompilerPluginToSIRSpec extends AnyFunSuite with ScalaCheckPropertyChecks:
         Const(Constant.Unit)
       )
     )
+  }
+
+  test("compile isEmpty function") {
     assert(
       compile {
         def isEmpty(l: builtins.List[BigInt]) = l.isEmpty
@@ -243,19 +266,25 @@ class CompilerPluginToSIRSpec extends AnyFunSuite with ScalaCheckPropertyChecks:
         Const(Constant.Unit)
       )
     )
-    assert(compile(Builtins.mkNilData) == (Builtin(MkNilData)))
-    assert(compile(Builtins.mkNilPairData) == (Builtin(MkNilPairData)))
   }
 
-  test("compile Data builtins") {
+  test("compile mkNilData") {
+    assert(compile(Builtins.mkNilData) == (Builtin(MkNilData)))
+  }
+
+  test("compile mkNilPairData") {
+    assert(compile(Builtins.mkNilPairData) == (Builtin(MkNilPairData)))
+  }    
+
+  test("compile mkConstr builtins") {
     val nilData = Const(Constant.List(DefaultUni.Data, immutable.Nil))
     assert(
-      compile {
+      compile(
         Builtins.mkConstr(
           1,
           builtins.List(Builtins.mkI(2))
         )
-      } == Apply(
+      ) == Apply(
         Apply(Builtin(ConstrData), Const(Constant.Integer(1))),
         Apply(
           Apply(Builtin(MkCons), Apply(Builtin(IData), Const(Constant.Integer(2)))),
@@ -263,26 +292,32 @@ class CompilerPluginToSIRSpec extends AnyFunSuite with ScalaCheckPropertyChecks:
         )
       )
     )
+  }
+
+  test("compile mkList builtins") {
+    val nilData = Const(Constant.List(DefaultUni.Data, immutable.Nil))
     assert(
-      compile {
+      compile(
         Builtins.mkList(builtins.List(Builtins.mkI(1)))
-      } ==
+      ) == Apply(
+        Builtin(ListData),
         Apply(
-          Builtin(ListData),
-          Apply(
-            Apply(Builtin(MkCons), Apply(Builtin(IData), Const(Constant.Integer(1)))),
-            nilData
-          )
+          Apply(Builtin(MkCons), Apply(Builtin(IData), Const(Constant.Integer(1)))),
+          nilData
         )
+      )
     )
+  }
+
+  test("compile mkMap builtins") {
     assert(
-      compile {
+      compile(
         Builtins.mkMap(
           builtins.List(
             builtins.Pair(Builtins.mkB(ByteString.fromHex("deadbeef")), Builtins.mkI(1))
           )
         )
-      } == Apply(
+      ) == Apply(
         Builtin(MapData),
         Apply(
           Apply(
@@ -296,7 +331,9 @@ class CompilerPluginToSIRSpec extends AnyFunSuite with ScalaCheckPropertyChecks:
         )
       )
     )
+  }
 
+  test("compile unsafeDataAsConstr function") {
     assert(
       compile {
         def unb(d: Data) = Builtins.unsafeDataAsConstr(d)
@@ -311,6 +348,9 @@ class CompilerPluginToSIRSpec extends AnyFunSuite with ScalaCheckPropertyChecks:
         Const(Constant.Unit)
       )
     )
+  }
+
+  test("compile unsafeDataAsList function") {
     assert(
       compile {
         def unb(d: Data) = Builtins.unsafeDataAsList(d)
@@ -325,6 +365,9 @@ class CompilerPluginToSIRSpec extends AnyFunSuite with ScalaCheckPropertyChecks:
         Const(Constant.Unit)
       )
     )
+  }
+
+  test("compile unsafeDataAsMap function") {
     assert(
       compile {
         def unb(d: Data) = Builtins.unsafeDataAsMap(d)
@@ -339,6 +382,9 @@ class CompilerPluginToSIRSpec extends AnyFunSuite with ScalaCheckPropertyChecks:
         Const(Constant.Unit)
       )
     )
+  }
+
+  test("compile unsafeDataAsB function") {
     assert(
       compile {
         def unb(d: Data) = Builtins.unsafeDataAsB(d)
@@ -353,6 +399,9 @@ class CompilerPluginToSIRSpec extends AnyFunSuite with ScalaCheckPropertyChecks:
         Const(Constant.Unit)
       )
     )
+  }
+
+  test("compile unsafeDataAsI function") {
     assert(
       compile {
         def unb(d: Data) = Builtins.unsafeDataAsI(d)
@@ -367,7 +416,9 @@ class CompilerPluginToSIRSpec extends AnyFunSuite with ScalaCheckPropertyChecks:
         Const(Constant.Unit)
       )
     )
-    // ChooseData
+  }
+
+  test("compile chooseData function") {
     assert(
       compile {
         def cd(d: Data) = Builtins.chooseData[BigInt](d, 1, 2, 3, 4, 5)
@@ -385,7 +436,9 @@ class CompilerPluginToSIRSpec extends AnyFunSuite with ScalaCheckPropertyChecks:
         Const(Constant.Unit)
       )
     )
-    // EqualsData
+  }
+
+  test("compile equalsData function") {
     assert(
       compile {
         def ed(d1: Data, d2: Data) = Builtins.equalsData(d1, d2)
@@ -397,8 +450,14 @@ class CompilerPluginToSIRSpec extends AnyFunSuite with ScalaCheckPropertyChecks:
         Const(Constant.Unit)
       )
     )
-    // SerialiseData
-    assert(compile { Builtins.serialiseData } == (Builtin(DefaultFun.SerialiseData)))
+  }
+
+  test("compile serialiseData builtins") {
+    assert(
+      compile {
+        Builtins.serialiseData
+      } == Builtin(DefaultFun.SerialiseData)
+    )
   }
 
   test("compile Integer builtins") {

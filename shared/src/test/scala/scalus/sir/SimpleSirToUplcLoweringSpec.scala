@@ -32,17 +32,13 @@ class SimpleSirToUplcLoweringSpec
     SIR.Error("error") lowersTo Term.Error("error")
     val l = SimpleSirToUplcLowering(generateErrorTraces = true)
     assert(
-      l.lower(SIR.Error("error")) == !(
-        Term.Apply(
-          Term.Apply(Term.Force(Term.Builtin(Trace)), Term.Const(Constant.String("error"))),
-          Term.Delay(Term.Error("error"))
-        )
-      )
+      l.lower(SIR.Error("error")) == !(!Trace $ "error" $ ~(Term.Error("error")))
     )
   }
 
-  test("lower") {
-    SIR.Var("x") lowersTo vr"x"
+  test("lower Var") { SIR.Var("x") lowersTo vr"x" }
+
+  test("lower Lam/Apply") {
     SIR.Apply(
       SIR.LamAbs("x", SIR.Var("x")),
       SIR.Const(Constant.Unit)
@@ -122,6 +118,7 @@ class SimpleSirToUplcLoweringSpec
       )
     ) lowersTo (lam("Nil", "Cons")(!vr"Nil") $ ~asConstant(1) $ lam("h", "tl")(2))
   }
+  
   test("eta-reduction") {
     // (\x -> f x) reduces to f
     // (\x y -> f x y) reduces to f
