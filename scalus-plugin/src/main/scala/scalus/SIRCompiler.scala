@@ -613,6 +613,18 @@ class SIRCompiler(mode: scalus.Mode)(using ctx: Context) {
               val tE = compileExpr(env, t)
               val cases = List(constructCase(typeSymbol, names.map(_.name.show), rhsE))
               SIR.Match(tE, cases)
+            // TODO refactor this
+            case CaseDef(Typed(UnApply(fun, _, pats), constrTpe), _, rhs) =>
+              val names = pats.map {
+                case b @ Bind(name, Ident(nme.WILDCARD)) => b.symbol
+                case p =>
+                  report.error(s"Unsupported binding: ${p}", p.srcPos)
+                  NoSymbol
+              }
+              val rhsE = compileExpr(env ++ names.map(_.name.show), rhs)
+              val tE = compileExpr(env, t)
+              val cases = List(constructCase(typeSymbol, names.map(_.name.show), rhsE))
+              SIR.Match(tE, cases)
 
         case _ =>
           report.error(
