@@ -230,6 +230,76 @@ enum DCert:
   case Genesis
   case Mir
 
+@Compile
+object DCert {
+  given Eq[DCert] = (x: DCert, y: DCert) =>
+    x match
+      case DCert.DelegRegKey(cred) =>
+        y match
+          case DCert.DelegRegKey(cred)              => cred === cred
+          case DCert.DelegDeRegKey(cred)            => false
+          case DCert.DelegDelegate(cred, delegatee) => false
+          case DCert.PoolRegister(poolId, vrf)      => false
+          case DCert.PoolRetire(poolId, epoch)      => false
+          case DCert.Genesis                        => false
+          case DCert.Mir                            => false
+
+      case DCert.DelegDeRegKey(cred) =>
+        y match
+          case DCert.DelegRegKey(cred)              => false
+          case DCert.DelegDeRegKey(cred)            => cred === cred
+          case DCert.DelegDelegate(cred, delegatee) => false
+          case DCert.PoolRegister(poolId, vrf)      => false
+          case DCert.PoolRetire(poolId, epoch)      => false
+          case DCert.Genesis                        => false
+          case DCert.Mir                            => false
+      case DCert.DelegDelegate(cred, delegatee) =>
+        y match
+          case DCert.DelegRegKey(cred)              => false
+          case DCert.DelegDeRegKey(cred)            => false
+          case DCert.DelegDelegate(cred, delegatee) => cred === cred && delegatee === delegatee
+          case DCert.PoolRegister(poolId, vrf)      => false
+          case DCert.PoolRetire(poolId, epoch)      => false
+          case DCert.Genesis                        => false
+          case DCert.Mir                            => false
+      case DCert.PoolRegister(poolId, vrf) =>
+        y match
+          case DCert.DelegRegKey(cred)              => false
+          case DCert.DelegDeRegKey(cred)            => false
+          case DCert.DelegDelegate(cred, delegatee) => false
+          case DCert.PoolRegister(poolId, vrf)      => poolId === poolId && vrf === vrf
+          case DCert.PoolRetire(poolId, epoch)      => false
+          case DCert.Genesis                        => false
+          case DCert.Mir                            => false
+      case DCert.PoolRetire(poolId, epoch) =>
+        y match
+          case DCert.DelegRegKey(cred)              => false
+          case DCert.DelegDeRegKey(cred)            => false
+          case DCert.DelegDelegate(cred, delegatee) => false
+          case DCert.PoolRegister(poolId, vrf)      => false
+          case DCert.PoolRetire(poolId, epoch)      => poolId === poolId && epoch === epoch
+          case DCert.Genesis                        => false
+          case DCert.Mir                            => false
+      case DCert.Genesis =>
+        y match
+          case DCert.DelegRegKey(cred)              => false
+          case DCert.DelegDeRegKey(cred)            => false
+          case DCert.DelegDelegate(cred, delegatee) => false
+          case DCert.PoolRegister(poolId, vrf)      => false
+          case DCert.PoolRetire(poolId, epoch)      => false
+          case DCert.Genesis                        => true
+          case DCert.Mir                            => false
+      case DCert.Mir =>
+        y match
+          case DCert.DelegRegKey(cred)              => false
+          case DCert.DelegDeRegKey(cred)            => false
+          case DCert.DelegDelegate(cred, delegatee) => false
+          case DCert.PoolRegister(poolId, vrf)      => false
+          case DCert.PoolRetire(poolId, epoch)      => false
+          case DCert.Genesis                        => false
+          case DCert.Mir                            => true
+}
+
 case class TxId(hash: ByteString) derives Data.ToData:
   override def toString = s"TxId(${hash.toHex})"
 
@@ -341,6 +411,36 @@ enum ScriptPurpose:
   case Spending(txOutRef: TxOutRef)
   case Rewarding(stakingCred: StakingCredential)
   case Certifying(cert: DCert)
+
+@Compile
+object ScriptPurpose {
+  given Eq[ScriptPurpose] = (x: ScriptPurpose, y: ScriptPurpose) =>
+    x match
+      case ScriptPurpose.Minting(curSymbol) =>
+        y match
+          case ScriptPurpose.Minting(curSymbol)     => curSymbol === curSymbol
+          case ScriptPurpose.Spending(txOutRef)     => false
+          case ScriptPurpose.Rewarding(stakingCred) => false
+          case ScriptPurpose.Certifying(cert)       => false
+      case ScriptPurpose.Spending(txOutRef) =>
+        y match
+          case ScriptPurpose.Minting(curSymbol)     => false
+          case ScriptPurpose.Spending(txOutRef)     => txOutRef === txOutRef
+          case ScriptPurpose.Rewarding(stakingCred) => false
+          case ScriptPurpose.Certifying(cert)       => false
+      case ScriptPurpose.Rewarding(stakingCred) =>
+        y match
+          case ScriptPurpose.Minting(curSymbol)     => false
+          case ScriptPurpose.Spending(txOutRef)     => false
+          case ScriptPurpose.Rewarding(stakingCred) => stakingCred === stakingCred
+          case ScriptPurpose.Certifying(cert)       => false
+      case ScriptPurpose.Certifying(cert) =>
+        y match
+          case ScriptPurpose.Minting(curSymbol)     => false
+          case ScriptPurpose.Spending(txOutRef)     => false
+          case ScriptPurpose.Rewarding(stakingCred) => false
+          case ScriptPurpose.Certifying(cert)       => cert === cert
+}
 
 // data ScriptContext = ScriptContext{scriptContextTxInfo :: TxInfo, scriptContextPurpose :: ScriptPurpose }
 case class ScriptContext(txInfo: TxInfo, purpose: ScriptPurpose) derives Data.ToData

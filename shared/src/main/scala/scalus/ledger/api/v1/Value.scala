@@ -105,4 +105,3 @@ object Value:
     inline def <=(other: Value): Boolean = Value.lte(v, other)
     inline def >(other: Value): Boolean = Value.gt(v, other)
     inline def >=(other: Value): Boolean = Value.gte(v, other)
-    
