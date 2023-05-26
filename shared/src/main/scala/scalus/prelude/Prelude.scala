@@ -4,6 +4,7 @@ import scala.collection.immutable
 import scalus.builtins.ByteString
 import scalus.builtins.Builtins
 import scalus.Compile
+import scalus.Ignore
 
 @Compile
 object Prelude {
@@ -50,6 +51,7 @@ object List:
 
   extension [A](lst: List[A]) inline def !!(idx: BigInt): A = getByIndex(lst)(idx)
 
+  @Ignore
   def apply[A](args: A*): List[A] = args.foldRight(empty[A]) { case (a, b) => new Cons(a, b) }
 
   def isEmpty[A](lst: List[A]): Boolean = lst match

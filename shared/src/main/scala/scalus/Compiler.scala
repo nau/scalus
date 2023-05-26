@@ -7,6 +7,7 @@ import scalus.uplc.Data
 import scala.annotation.Annotation
 
 final class Compile extends Annotation
+final class Ignore extends Annotation
 
 object Compiler:
   inline def fieldAsData[A](inline expr: A => Any): Data => Data = ${

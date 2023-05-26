@@ -115,6 +115,8 @@ You can define reusable code in a Scala object annotated with `@Compile`.
 Scalus will compile the code to *.sir files and include them in the jar file.
 This way you can distribute your code as a library.
 
+Use `@Ignore` to exclude a definition from the compilation.
+
 The `compile` will link the modules together and compile them to a single script.
 
 ```scala
@@ -123,6 +125,8 @@ The `compile` will link the modules together and compile them to a single script
 object ReusableCode {
   val constant = BigInt(1)
   def usefulFunction(a: BigInt): BigInt = a + 1
+  @Ignore // this function is not compiled to UPLC
+  def shouldNotBeInUplc() = ??? 
 }
 
 val modules = compile {

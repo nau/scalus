@@ -77,6 +77,8 @@ val functions = compile {
 object ReusableCode {
   val constant = BigInt(1)
   def usefulFunction(a: BigInt): BigInt = a + 1
+  @Ignore // this function is not compiled to UPLC
+  def shouldNotBeInUplc() = ??? 
 }
 
 val modules = compile {

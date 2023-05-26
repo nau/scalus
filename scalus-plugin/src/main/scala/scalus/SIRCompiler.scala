@@ -97,6 +97,7 @@ class SIRCompiler(mode: scalus.Mode)(using ctx: Context) {
     mutable.LinkedHashMap.empty.withDefaultValue(mutable.LinkedHashMap.empty)
 
   val CompileAnnot = requiredClassRef("scalus.Compile").symbol.asClass
+  val IngoreAnnot = requiredClassRef("scalus.Ignore").symbol.asClass
 
   def compileModule(tree: Tree): Unit = {
     import sir.SIR.*
@@ -119,21 +120,24 @@ class SIRCompiler(mode: scalus.Mode)(using ctx: Context) {
   }
 
   def compileTypeDef(td: TypeDef) = {
-    report.echo(
-      s"compiling to SIR: ${td.name} (${td.symbol.fullName}: ${td.tpe.show})"
-    )
+    report.echo(s"compiling to SIR: ${td.name}")
 
     val tpl = td.rhs.asInstanceOf[Template]
     val bindings = tpl.body.collect {
       // FIXME: hack for derived methods
       case dd: DefDef
-          if !dd.symbol.flags.is(Flags.Synthetic) && !dd.symbol.name.startsWith("derived") =>
+          if !dd.symbol.flags.is(Flags.Synthetic)
+            && !dd.symbol.name.startsWith("derived")
+            && !dd.symbol.hasAnnotation(IngoreAnnot) =>
         compileStmt(immutable.HashSet.empty, dd, isGlobalDef = true)
-      case vd: ValDef if !vd.symbol.flags.isOneOf(Flags.Synthetic | Flags.Case) =>
+      case vd: ValDef
+          if !vd.symbol.flags.isOneOf(Flags.Synthetic | Flags.Case)
+            && !vd.symbol.hasAnnotation(IngoreAnnot) =>
         // println(s"valdef: ${vd.symbol.fullName}")
         compileStmt(immutable.HashSet.empty, vd, isGlobalDef = true)
     }
     val module = Module(bindings.map(b => Binding(b.fullName.name, b.body)))
+    report.echo(s"module ${td.name} definitions: ${bindings.map(_.name).mkString(", ")}")
     writeModule(module, td.symbol.fullName.toString())
   }
 
@@ -595,7 +599,7 @@ class SIRCompiler(mode: scalus.Mode)(using ctx: Context) {
     def compileBinding(pat: Tree): String = {
       pat match
         case b @ Bind(name, Ident(nme.WILDCARD)) => b.symbol.name.show
-        case Ident(nme.WILDCARD) => "_"
+        case Ident(nme.WILDCARD)                 => "_"
         case p =>
           report.error(s"Unsupported binding: ${p}", p.srcPos)
           s"Unsupported binding: ${p}"
