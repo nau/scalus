@@ -9,6 +9,7 @@ import scalus.prelude.List
 import scalus.prelude.These
 import scalus.prelude.These.*
 import scalus.prelude
+import scalus.prelude.Prelude
 
 @Compile
 object Value:
@@ -21,9 +22,30 @@ object Value:
   def equalsAssets(
       a: AssocMap[TokenName, BigInt],
       b: AssocMap[TokenName, BigInt]
-  ): Boolean = checkBinRel(Builtins.equalsInteger)(a, b)
+  ): Boolean = checkBinRelTokens(Builtins.equalsInteger)(a, b)
+
+  def eq(a: Value, b: Value): Boolean = checkBinRel(Builtins.equalsInteger)(a, b)
+
+  def checkPred(l: Value, r: Value)(f: These[BigInt, BigInt] => Boolean): Boolean = {
+    def inner(m: AssocMap[TokenName, These[BigInt, BigInt]]): Boolean =
+      AssocMap.all(m)((k, v) => f(v))
+    AssocMap.all(unionVal(l, r))((k, v) => inner(v))
+  }
 
   def checkBinRel(op: (BigInt, BigInt) => Boolean)(
+      a: Value,
+      b: Value
+  ): Boolean = {
+    // all values are equal, absent values are 0
+    checkPred(a, b) { v =>
+      v match
+        case These.These(v1, v2) => op(v1, v2)
+        case This(v1)            => op(v1, 0)
+        case That(v2)            => op(v2, 0)
+    }
+  }
+
+  def checkBinRelTokens(op: (BigInt, BigInt) => Boolean)(
       a: AssocMap[TokenName, BigInt],
       b: AssocMap[TokenName, BigInt]
   ): Boolean = {
@@ -67,6 +89,8 @@ object Value:
   val minus: (a: Value, b: Value) => Value = unionWith(Builtins.subtractInteger)
   val multiply: (a: Value, b: Value) => Value = unionWith(Builtins.multiplyInteger)
   val divide: (a: Value, b: Value) => Value = unionWith(Builtins.divideInteger)
+
+  given Prelude.Eq[Value] = (a, b) => eq(a, b)
 
   extension (v: Value)
     inline def +(other: Value): Value = Value.plus(v, other)

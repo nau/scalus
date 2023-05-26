@@ -191,4 +191,7 @@ object AssocMap {
 
   def map[A, B, C](map: AssocMap[A, B])(f: ((A, B)) => (A, C)): AssocMap[A, C] =
     new AssocMap(List.map(map.inner)(f))
+
+  def all[A, B](map: AssocMap[A, B])(f: ((A, B)) => Boolean): Boolean =
+    List.all(map.inner)(f)
 }
