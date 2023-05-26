@@ -50,9 +50,10 @@ val dataTypes = compile {
   // no guards, no nested patterns, no type ascription, no wildcard patterns
   // all cases must be covered
   active match
-    case Empty           => true
-    case Active(account) => account match
-      case Account(_, balance) => balance === BigInt(123)
+    case Empty => true
+    case Active(account) =>
+      account match
+        case Account(_, balance) => balance === BigInt(123)
 }
 
 val controlFlow = compile {
@@ -78,7 +79,7 @@ object ReusableCode {
   val constant = BigInt(1)
   def usefulFunction(a: BigInt): BigInt = a + 1
   @Ignore // this function is not compiled to UPLC
-  def shouldNotBeInUplc() = ??? 
+  def shouldNotBeInUplc() = ???
 }
 
 val modules = compile {

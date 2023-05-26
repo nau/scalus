@@ -1,4 +1,4 @@
-package scalus
+package scalus.prelude
 
 import org.scalacheck.Arbitrary
 import org.scalacheck.Prop
@@ -10,12 +10,12 @@ import scalus.uplc.ArbitraryInstances
 
 import scala.collection.immutable
 
-import prelude.AssocMap
+import scalus.prelude.AssocMap
 import scalus.Compiler
 import scalus.prelude.Prelude.{===, given}
-import prelude.List
-import prelude.List.*
-import prelude.These.*
+import scalus.prelude.List
+import scalus.prelude.List.*
+import scalus.prelude.These.*
 import scalus.sir.SimpleSirToUplcLowering
 import scalus.uplc.Cek
 import scalus.builtins.ByteString
@@ -112,16 +112,16 @@ class AssocMapSpec extends AnyFunSuite with ScalaCheckPropertyChecks with Arbitr
   test("lookup") {
     check { (map: AssocMap[BigInt, BigInt], k: BigInt, v: BigInt) =>
       val m1 = AssocMap.insert(map)(k, v)
-      AssocMap.lookup(m1)(k) == prelude.Maybe.Just(v)
+      AssocMap.lookup(m1)(k) == Maybe.Just(v)
     }
   }
 
   test("delete") {
     check { (map: AssocMap[BigInt, BigInt], k: BigInt, v: BigInt) =>
       val m1 = AssocMap.insert(map)(k, v)
-      AssocMap.lookup(m1)(k) == prelude.Maybe.Just(v)
+      AssocMap.lookup(m1)(k) == Maybe.Just(v)
       val m2 = AssocMap.delete(m1)(k)
-      AssocMap.lookup(m2)(k) == prelude.Maybe.Nothing
+      AssocMap.lookup(m2)(k) == Maybe.Nothing
     }
   }
 

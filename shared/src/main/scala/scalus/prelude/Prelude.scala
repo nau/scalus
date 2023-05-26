@@ -5,15 +5,22 @@ import scalus.builtins.ByteString
 import scalus.builtins.Builtins
 import scalus.Compile
 import scalus.Ignore
+import scalus.uplc.Data
 
 @Compile
 object Prelude {
   type Eq[A] = (A, A) => Boolean
+  // given Eq[Nothing] = (x: Nothing, y: Nothing) => throw new Exception("EQN")
   given Eq[BigInt] = (x: BigInt, y: BigInt) => Builtins.equalsInteger(x, y)
   given Eq[ByteString] = (x: ByteString, y: ByteString) => Builtins.equalsByteString(x, y)
   given Eq[String] = (x: String, y: String) => Builtins.equalsString(x, y)
+  given Eq[Boolean] = (x: Boolean, y: Boolean) =>
+    if x then if y then true else false else if y then false else true
+  given Eq[Data] = (x: Data, y: Data) => Builtins.equalsData(x, y)
+  given Eq[Unit] = (x: Unit, y: Unit) => true
 
   extension [A](x: A) inline def ===(inline y: A)(using inline eq: Eq[A]): Boolean = eq(x, y)
+  extension [A](x: A) inline def !==(inline y: A)(using inline eq: Eq[A]): Boolean = !eq(x, y)
 
   def encodeHex(input: ByteString): String = {
     val len = Builtins.lengthOfByteString(input)
@@ -101,6 +108,20 @@ object List:
 enum Maybe[+A]:
   case Nothing extends Maybe[Nothing]
   case Just(value: A)
+
+@Compile
+object Maybe {
+  given maybeEq[A](using eq: Eq[A]): Eq[Maybe[A]] = (a: Maybe[A], b: Maybe[A]) =>
+    a match
+      case Nothing =>
+        b match
+          case Nothing => true
+          case Just(a) => false
+      case Just(value) =>
+        b match
+          case Nothing      => false
+          case Just(value2) => value === value2
+}
 
 enum These[+A, +B]:
   case This(a: A)
