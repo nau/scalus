@@ -25,6 +25,10 @@ object Value:
   ): Boolean = checkBinRelTokens(Builtins.equalsInteger)(a, b)
 
   def eq(a: Value, b: Value): Boolean = checkBinRel(Builtins.equalsInteger)(a, b)
+  def lt(a: Value, b: Value): Boolean = checkBinRel(Builtins.lessThanInteger)(a, b)
+  def lte(a: Value, b: Value): Boolean = checkBinRel(Builtins.lessThanEqualsInteger)(a, b)
+  def gt(a: Value, b: Value): Boolean = checkBinRel(Builtins.lessThanInteger)(b, a)
+  def gte(a: Value, b: Value): Boolean = checkBinRel(Builtins.lessThanEqualsInteger)(b, a)
 
   def checkPred(l: Value, r: Value)(f: These[BigInt, BigInt] => Boolean): Boolean = {
     def inner(m: AssocMap[TokenName, These[BigInt, BigInt]]): Boolean =
@@ -97,3 +101,8 @@ object Value:
     inline def -(other: Value): Value = Value.minus(v, other)
     inline def *(other: Value): Value = Value.multiply(v, other)
     inline def /(other: Value): Value = Value.divide(v, other)
+    inline def <(other: Value): Boolean = Value.lt(v, other)
+    inline def <=(other: Value): Boolean = Value.lte(v, other)
+    inline def >(other: Value): Boolean = Value.gt(v, other)
+    inline def >=(other: Value): Boolean = Value.gte(v, other)
+    
