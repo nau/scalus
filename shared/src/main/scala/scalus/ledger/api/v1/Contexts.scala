@@ -6,6 +6,7 @@ import scalus.builtins.ByteString
 import scalus.prelude.AssocMap
 import scalus.prelude.List
 import scalus.prelude.Maybe
+import scalus.prelude.Prelude.Eq
 import scalus.prelude.Prelude.===
 import scalus.prelude.Prelude.given
 import scalus.prelude.These.*
@@ -242,6 +243,11 @@ case class TxOutRef(id: TxId, idx: BigInt) derives Data.ToData
 
 case class PubKeyHash(hash: ByteString) {
   override def toString = s"PubKeyHash(${hash})"
+}
+
+@Compile
+object PubKeyHash {
+  given Eq[PubKeyHash] = (a: PubKeyHash, b: PubKeyHash) => Builtins.equalsByteString(a.hash, b.hash)
 }
 
 enum Credential:
