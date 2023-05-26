@@ -215,6 +215,7 @@ class SIRCompiler(mode: scalus.Mode)(using ctx: Context) {
       resources.asScala.toList
     }
 
+    // TODO cache classloader
     def makeClassLoader(using Context): ClassLoader = {
       import scala.language.unsafeNulls
 
@@ -248,13 +249,13 @@ class SIRCompiler(mode: scalus.Mode)(using ctx: Context) {
     val typeSymbol = tpe.typeSymbol
 
     // debugInfo(s"compileNewConstructor0")
-    // report.inform(s"compileNewConstructor1 ${tpe.show} base type: ${adtBaseType}")
     /* report.echo(
       s"compileNewConstructor1 ${typeSymbol} singleton ${tpe.isSingleton} companion: ${typeSymbol.maybeOwner.companionClass} " +
-        s"${typeSymbol.children} widen: ${tpe.widen.typeSymbol}, widen.children: ${tpe.widen.typeSymbol.children} ${typeSymbol.maybeOwner.companionClass.children}"
-    ) */
+      s"${typeSymbol.children} widen: ${tpe.widen.typeSymbol}, widen.children: ${tpe.widen.typeSymbol.children} ${typeSymbol.maybeOwner.companionClass.children}"
+      ) */
 
     val adtInfo = getAdtInfoFromConstroctorType(tpe)
+    // report.echo(s"compileNewConstructor1 ${tpe.show} base type: ${adtInfo}")
 
     val argsE = args.map(compileExpr(env, _))
     val constrName = adtInfo.constructorTypeSymbol.name.show
@@ -442,6 +443,17 @@ class SIRCompiler(mode: scalus.Mode)(using ctx: Context) {
     }
   }
 
+  /* Sometimes the compiler leaves Inlined nodes,
+   * which we need to skip to get to the actual expression
+   * otherwise,say, constants are not compiled correctly
+   */
+  object SkipInline {
+    def unapply(expr: Tree): Some[Tree] =
+      expr match
+        case Inlined(EmptyTree, Nil, t) => unapply(t)
+        case _                          => Some(expr)
+  }
+
   def compileConstant: PartialFunction[Tree, scalus.uplc.Constant] = {
     case l @ Literal(c: Constant) =>
       c.tag match
@@ -461,7 +473,7 @@ class SIRCompiler(mode: scalus.Mode)(using ctx: Context) {
     case e @ Literal(_) =>
       report.error(s"compileExpr: Unsupported literal ${e.show}\n$e", e.srcPos)
       scalus.uplc.Constant.Unit
-    case t @ Apply(bigintApply, List(Literal(c)))
+    case t @ Apply(bigintApply, List(SkipInline(Literal(c))))
         if bigintApply.symbol.showFullName == "scala.math.BigInt.apply" =>
       c.tag match
         case Constants.IntTag =>

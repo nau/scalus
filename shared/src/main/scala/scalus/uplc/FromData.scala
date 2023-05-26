@@ -3,6 +3,47 @@ import scalus.uplc.Data.FromData
 
 import scala.deriving.*
 import scala.quoted.*
+import scalus.builtins.Builtins
+
+object TotoData {
+  import scala.compiletime.*
+  import scala.quoted.*
+  type ToData[A] = A => Data
+
+  inline def deriveProduct[T](inline constrIdx: Int): ToData[T] = ${
+    deriveProductMacro[T]('{ constrIdx })
+  }
+
+  def deriveProductMacro[T: Type](constrIdx: Expr[Int])(using Quotes): Expr[ToData[T]] =
+    import quotes.reflect.*
+    import quotes.reflect.*
+    val classSym = TypeTree.of[T].symbol
+    val constr = classSym.primaryConstructor
+    val params = constr.paramSymss.flatten
+    val toDataOfArgs = params.map { param =>
+      val tpe = param.termRef.widen.dealias
+      val implicitType = TypeRepr.of[ToData].appliedTo(tpe)
+      val convTerm = Implicits.search(implicitType) match {
+        case iss: ImplicitSearchSuccess => iss.tree
+        case isf: ImplicitSearchFailure =>
+          report.errorAndAbort(s"Could not find implicit for ${implicitType.show}")
+      }
+      // println(s"convTerm: $convTerm, symbol: ${convTerm.symbol}, isFUnc: ${convTerm.tpe.isFunctionType}, methods: ${convTerm.symbol.methodMembers}")
+      val term =
+        if convTerm.tpe.isFunctionType then convTerm
+        else convTerm.select(convTerm.symbol.methodMember("apply").head)
+
+    }
+    println(s"Derive ${classSym}, ${constr} ${params} toDataOfArgs: $toDataOfArgs")
+
+    val args = '{ scalus.builtins.List.Nil }
+
+    '{ (a: T) =>
+      Builtins.mkConstr(BigInt($constrIdx), $args)
+    }
+
+  extension [A: ToData](a: A) inline def toData: Data = summon[ToData[A]].apply(a)
+}
 
 object FromData {
   import scala.compiletime.*

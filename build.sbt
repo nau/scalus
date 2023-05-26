@@ -76,6 +76,19 @@ lazy val scalusPlugin = project
     }
   )
 
+lazy val scalusPluginTests = project
+  .in(file("scalus-plugin-tests"))
+  .dependsOn(scalus.jvm)
+  .settings(
+    name := "scalus-plugin-tests",
+    organization := "scalus",
+    version := "0.1.0-SNAPSHOT",
+    PluginDependency,
+    libraryDependencies += "org.scalatest" %%% "scalatest" % "3.2.12" % "test",
+    libraryDependencies += "org.scalatestplus" %%% "scalacheck-1-16" % "3.2.12.0" % "test"
+  )
+
+
 lazy val PluginDependency: List[Def.Setting[_]] = List(scalacOptions ++= {
   val jar = (scalusPlugin / Compile / packageBin).value
   // add plugin timestamp to compiler options to trigger recompile of
