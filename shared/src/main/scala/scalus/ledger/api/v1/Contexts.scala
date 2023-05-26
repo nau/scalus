@@ -233,6 +233,10 @@ enum DCert:
 case class TxId(hash: ByteString) derives Data.ToData:
   override def toString = s"TxId(${hash.toHex})"
 
+@Compile
+object TxId:
+  given Eq[TxId] = (a: TxId, b: TxId) => Builtins.equalsByteString(a.hash, b.hash)
+
 /*
 data TxOutRef = TxOutRef {
     txOutRefId  :: TxId,
@@ -240,6 +244,16 @@ data TxOutRef = TxOutRef {
     }
  */
 case class TxOutRef(id: TxId, idx: BigInt) derives Data.ToData
+
+@Compile
+object TxOutRef {
+  given Eq[TxOutRef] = (a: TxOutRef, b: TxOutRef) =>
+    a match
+      case TxOutRef(aTxId, aTxOutIndex) =>
+        b match
+          case TxOutRef(bTxId, bTxOutIndex) =>
+            aTxOutIndex === bTxOutIndex && aTxId === bTxId
+}
 
 case class PubKeyHash(hash: ByteString) {
   override def toString = s"PubKeyHash(${hash})"
@@ -254,17 +268,53 @@ enum Credential:
   case PubKeyCredential(hash: PubKeyHash)
   case ScriptCredential(hash: ValidatorHash)
 
-//data StakingCredential
-//    = StakingHash Credential
-//    | StakingPtr Integer Integer Integer
+@Compile
+object Credential {
+  given Eq[Credential] = (a: Credential, b: Credential) =>
+    a match
+      case Credential.PubKeyCredential(hash) =>
+        b match
+          case Credential.PubKeyCredential(hash2) => hash === hash2
+          case Credential.ScriptCredential(hash)  => false
+      case Credential.ScriptCredential(hash) =>
+        b match
+          case Credential.PubKeyCredential(hash2) => false
+          case Credential.ScriptCredential(hash2) => hash === hash2
+}
+
 enum StakingCredential:
   case StakingHash(cred: Credential)
   case StakingPtr(a: BigInt, b: BigInt, c: BigInt)
+
+@Compile
+object StakingCredential {
+  given Eq[StakingCredential] = (lhs: StakingCredential, rhs: StakingCredential) =>
+    lhs match
+      case StakingCredential.StakingHash(cred) =>
+        rhs match
+          case StakingCredential.StakingHash(cred2)  => cred === cred2
+          case StakingCredential.StakingPtr(a, b, c) => false
+      case StakingCredential.StakingPtr(a, b, c) =>
+        rhs match
+          case StakingCredential.StakingHash(cred2)     => false
+          case StakingCredential.StakingPtr(a2, b2, c2) => a === a2 && b === b2 && c === c2
+}
 
 case class Address(
     credential: Credential,
     stakingCredential: Maybe[StakingCredential]
 ) derives Data.ToData
+
+@Compile
+object Address {
+  given Eq[Address] = (a: Address, b: Address) =>
+    a match
+      case Address(aCredential, aStakingCredential) =>
+        b match
+          case Address(bCredential, bStakingCredential) =>
+            aCredential === bCredential && aStakingCredential === bStakingCredential
+}
+
 case class TxOut(address: Address, value: Value, datumHash: Maybe[DatumHash]) derives Data.ToData
 
 // TxInInfo

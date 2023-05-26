@@ -132,6 +132,7 @@ class SIRCompiler(mode: scalus.Mode)(using ctx: Context) {
         compileStmt(immutable.HashSet.empty, dd, isGlobalDef = true)
       case vd: ValDef
           if !vd.symbol.flags.isOneOf(Flags.Synthetic | Flags.Case)
+            && !vd.symbol.name.startsWith("derived")
             && !vd.symbol.hasAnnotation(IngoreAnnot) =>
         // println(s"valdef: ${vd.symbol.fullName}")
         compileStmt(immutable.HashSet.empty, vd, isGlobalDef = true)

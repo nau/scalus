@@ -23,6 +23,7 @@ import scalus.ledger.api.v1.Value
 import scalus.prelude.AssocMap
 import scalus.prelude.List
 import scalus.prelude.Maybe
+import scalus.prelude.Prelude.Eq
 import scalus.prelude.Prelude.===
 import scalus.prelude.Prelude.given
 import scalus.prelude.These.*
@@ -148,6 +149,28 @@ enum OutputDatum:
   case NoOutputDatum
   case OutputDatumHash(datumHash: DatumHash)
   case OutputDatum(datum: Datum)
+
+@Compile
+object OutputDatum {
+  given Eq[scalus.ledger.api.v2.OutputDatum] =
+    (a: scalus.ledger.api.v2.OutputDatum, b: scalus.ledger.api.v2.OutputDatum) =>
+      a match
+        case NoOutputDatum =>
+          b match
+            case NoOutputDatum              => true
+            case OutputDatumHash(datumHash) => false
+            case OutputDatum(datum)         => false
+        case OutputDatumHash(datumHash) =>
+          b match
+            case NoOutputDatum               => false
+            case OutputDatumHash(datumHash2) => datumHash === datumHash2
+            case OutputDatum(datum)          => false
+        case OutputDatum(datum) =>
+          b match
+            case NoOutputDatum              => false
+            case OutputDatumHash(datumHash) => false
+            case OutputDatum(datum2)        => datum === datum2
+}
 
 case class TxOut(
     address: Address,
