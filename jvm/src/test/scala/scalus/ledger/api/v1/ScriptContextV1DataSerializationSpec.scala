@@ -113,6 +113,7 @@ class ScriptContextV1DataSerializationSpec extends BaseValidatorSpec:
   )
 
   test("ScriptContext is the same as in Plutus") {
+    import scalus.ledger.api.v1.ToDataInstances.given
 
     // byte array to hex string
 
@@ -127,6 +128,7 @@ class ScriptContextV1DataSerializationSpec extends BaseValidatorSpec:
 
   test("deserialize ScriptContext V1") {
     import scalus.uplc.TermDSL.{_, given}
+    import scalus.ledger.api.v1.ToDataInstances.given
     val scriptFlat = Cbor.decode(Utils.hexToBytes(deserializeContractV1)).to[Array[Byte]].value
     val program = ProgramFlatCodec.decodeFlat(scriptFlat)
     val namedTerm = DeBruijn.fromDeBruijnTerm(program.term)
@@ -137,7 +139,7 @@ class ScriptContextV1DataSerializationSpec extends BaseValidatorSpec:
     catch {
       case e: Throwable => fail(e)
     }
-
+    import scalus.ledger.api.v2.ToDataInstances.given
     assertThrows[Exception](
       Cek.evalUPLCProgram(Program((1, 0, 0), namedTerm $ scriptContextV2.toData))
     )
@@ -145,6 +147,7 @@ class ScriptContextV1DataSerializationSpec extends BaseValidatorSpec:
 
   test("deserialize ScriptContext V2") {
     import scalus.uplc.TermDSL.{_, given}
+    import scalus.ledger.api.v2.ToDataInstances.given
     val scriptFlat = Cbor.decode(Utils.hexToBytes(deserializeContractV2)).to[Array[Byte]].value
     val program = ProgramFlatCodec.decodeFlat(scriptFlat)
     val namedTerm = DeBruijn.fromDeBruijnTerm(program.term)
@@ -154,6 +157,7 @@ class ScriptContextV1DataSerializationSpec extends BaseValidatorSpec:
       case e: Throwable => fail(e)
     }
 
+    import scalus.ledger.api.v1.ToDataInstances.given
     assertThrows[Exception](
       Cek.evalUPLCProgram(Program((2, 0, 0), namedTerm $ scriptContextV1.toData))
     )

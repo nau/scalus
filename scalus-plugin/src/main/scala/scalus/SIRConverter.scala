@@ -120,7 +120,7 @@ class SIRConverter(using Context) {
     val tpe = SIRClassSymbol.typeRef
     val defSym = Symbols.newSymbol(ctx.owner, bindings.head.name.toTermName, Flags.Method, tpe, NoSymbol)
     tpd.Block(List(tpd.DefDef(defSym, Nil, tpe, err)), ref(defSym)) */
-    
+
   def mkLet(recursivity: Recursivity, bindings: List[Binding], body: SIR) =
     ref(LetSymbol.requiredMethod("apply"))
       .appliedToArgs(

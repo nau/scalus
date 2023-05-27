@@ -51,4 +51,4 @@ object TermDSL:
     def apply(c: Constant): Term = Term.Const(c)
 
   given constantAsData[A: Data.ToData]: Conversion[A, Data] with
-    def apply(c: A): Data = summon[Data.ToData[A]].toData(c)
+    def apply(c: A): Data = summon[Data.ToData[A]](c)

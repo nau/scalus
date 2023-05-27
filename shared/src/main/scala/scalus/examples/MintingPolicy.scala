@@ -19,7 +19,7 @@ import scalus.sir.SimpleSirToUplcLowering
 import scalus.Compiler.compile
 import scalus.uplc.Constant.Pair
 import scalus.uplc.Data.FromData
-import scalus.uplc.DataInstances.given
+import scalus.uplc.FromDataInstances.given
 import scalus.uplc.DefaultFun.*
 import scalus.uplc.DefaultUni.Bool
 import scalus.uplc.DefaultUni.asConstant

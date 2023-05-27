@@ -1,26 +1,21 @@
 package scalus.uplc
 
+import scalus.Compile
+import scalus.builtins
 import scalus.builtins.Builtins
 import scalus.builtins.ByteString
+import scalus.builtins.Pair
+import scalus.prelude
+import scalus.prelude.AssocMap
+import scalus.prelude.Maybe
+import scalus.prelude.Prelude
+import scalus.prelude.Prelude.===
+import scalus.prelude.Prelude.given
+import scalus.uplc.Data.*
 import scalus.utils.Utils.bytesToHex
 
-import java.util
-import scala.collection.immutable
-import scala.deriving.*
-import scala.quoted.*
-import scalus.macros.Macros
-import scalus.prelude
-import scalus.prelude.Maybe
-import scalus.prelude.Prelude.{===, given}
-import scalus.prelude.AssocMap
-import scalus.prelude.Prelude
-import scalus.builtins
-import scalus.builtins.Pair
-import scalus.Compile
-import scalus.uplc.Data.*
-
 @Compile
-object DataInstances:
+object FromDataInstances {
 
   given FromData[BigInt] = (d: Data) => Builtins.unsafeDataAsI(d)
   given FromData[ByteString] = (d: Data) => Builtins.unsafeDataAsB(d)
@@ -68,65 +63,68 @@ object DataInstances:
       val pair = Builtins.unsafeDataAsConstr(d)
       val args = pair.snd
       (fromA(args.head), fromB(args.tail.head))
+}
 
-  given ToData[Boolean] with {
-    def toData(a: Boolean): Data = if a then Constr(1, Nil) else Constr(0, Nil)
-  }
-  given ToData[Data] with { def toData(a: Data): Data = a }
-  given ToData[BigInt] with { def toData(a: BigInt): Data = Builtins.mkI(a) }
-  given ToData[Int] with { def toData(a: Int): Data = Builtins.mkI(a) }
-  given ToData[ByteString] with { def toData(a: ByteString): Data = Builtins.mkB(a) }
-  given seqToData[A: ToData, B[A] <: Seq[A]]: ToData[B[A]] with {
-    def toData(a: B[A]): Data = List(a.map(summon[ToData[A]].toData).toList)
-  }
+@Compile
+object ToDataInstances {
+  given ToData[Boolean] = (a: Boolean) =>
+    if a then Builtins.mkConstr(1, builtins.List.Nil) else Builtins.mkConstr(0, builtins.List.Nil)
+  given ToData[Data] = (a: Data) => a
+  given ToData[BigInt] = (a: BigInt) => Builtins.mkI(a)
+  given ToData[Int] = (a: Int) => Builtins.mkI(a)
+  given ToData[ByteString] = (a: ByteString) => Builtins.mkB(a)
 
-  given listToData[A: ToData]: ToData[scalus.prelude.List[A]] with {
-    def toData(a: scalus.prelude.List[A]): Data =
+  given listToData[A: ToData]: ToData[scalus.prelude.List[A]] =
+    (a: scalus.prelude.List[A]) => {
       val aToData = summon[ToData[A]]
       def loop(a: scalus.prelude.List[A]): scalus.builtins.List[Data] =
         a match
           case scalus.prelude.List.Nil => scalus.builtins.List.Nil
           case scalus.prelude.List.Cons(head, tail) =>
-            new scalus.builtins.List.Cons(aToData.toData(head), loop(tail))
+            new scalus.builtins.List.Cons(aToData(head), loop(tail))
+
       Builtins.mkList(loop(a))
-  }
+    }
 
-  given mapToData[A: ToData, B: ToData]: ToData[immutable.Map[A, B]] with {
-    def toData(a: immutable.Map[A, B]): Data = Map(a.toList.map { case (a, b) =>
-      (summon[ToData[A]].toData(a), summon[ToData[B]].toData(b))
-    })
-  }
-
-  given assocMapToData[A: ToData, B: ToData]: ToData[AssocMap[A, B]] with {
-    def toData(a: AssocMap[A, B]): Data =
-      def go(a: prelude.List[(A, B)]): builtins.List[Pair[Data, Data]] = a match
-        case prelude.List.Nil => builtins.List.empty
+  given assocMapToData[A: ToData, B: ToData]: ToData[AssocMap[A, B]] =
+    (a: AssocMap[A, B]) => {
+      def go(a: prelude.List[(A, B)]): builtins.List[Pair[Data, Data]] = a match {
+        case prelude.List.Nil => builtins.List.Nil
         case prelude.List.Cons(tuple, tail) =>
-          tuple match
+          tuple match {
             case (a, b) =>
               new builtins.List.Cons(
-                Pair(summon[ToData[A]].toData(a), summon[ToData[B]].toData(b)),
+                Pair(summon[ToData[A]](a), summon[ToData[B]](b)),
                 go(tail)
               )
+          }
+      }
       Builtins.mkMap(go(AssocMap.toList(a)))
-  }
+    }
 
-  given tupleToData[A: ToData, B: ToData]: ToData[(A, B)] with {
-    def toData(a: (A, B)): Data =
-      Constr(0, summon[ToData[A]].toData(a._1) :: summon[ToData[B]].toData(a._2) :: Nil)
-  }
+  given tupleToData[A: ToData, B: ToData]: ToData[(A, B)] =
+    (a: (A, B)) =>
+      Builtins.mkConstr(
+        0,
+        new builtins.List.Cons(
+          summon[ToData[A]](a._1),
+          new builtins.List.Cons(summon[ToData[B]](a._2), builtins.List.Nil)
+        )
+      )
 
-  given OptionToData[A: ToData]: ToData[Option[A]] with
-    def toData(a: Option[A]): Data = a match
-      case Some(v) => Data.Constr(0, immutable.List(v.toData))
-      case None    => Data.Constr(1, immutable.List.empty)
+  given MaybeToData[A: ToData]: ToData[Maybe[A]] =
+    (a: Maybe[A]) => {
+      a match {
+        case Maybe.Just(v) =>
+          Builtins.mkConstr(0, new builtins.List.Cons(v.toData, builtins.List.Nil))
+        case Maybe.Nothing => Builtins.mkConstr(1, builtins.List.Nil)
+      }
+    }
 
-  given MaybeToData[A: ToData]: ToData[Maybe[A]] with
-    def toData(a: Maybe[A]): Data = a match
-      case Maybe.Just(v) => Data.Constr(0, immutable.List(v.toData))
-      case Maybe.Nothing => Data.Constr(1, immutable.List.empty)
+  given EitherToData[A: ToData, B: ToData]: ToData[Either[A, B]] =
+    (a: Either[A, B]) =>
+      a match
+        case Left(v)  => Builtins.mkConstr(0, new builtins.List.Cons(v.toData, builtins.List.Nil))
+        case Right(v) => Builtins.mkConstr(1, new builtins.List.Cons(v.toData, builtins.List.Nil))
 
-  given EitherToData[A: ToData, B: ToData]: ToData[Either[A, B]] with
-    def toData(a: Either[A, B]): Data = a match
-      case Left(v)  => Data.Constr(0, immutable.List(v.toData))
-      case Right(v) => Data.Constr(1, immutable.List(v.toData))
+}

@@ -5,6 +5,7 @@ import org.scalatestplus.scalacheck.ScalaCheckPropertyChecks
 import scalus.builtins.ByteString.given
 import scalus.builtins.{Builtins, ByteString}
 import scalus.ledger.api.v1.*
+import scalus.ledger.api.v1.ToDataInstances.given
 import scalus.sir.Recursivity.*
 import scalus.sir.SIR.*
 import scalus.sir.{Binding, Recursivity, SIR, SimpleSirToUplcLowering}

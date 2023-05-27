@@ -5,6 +5,9 @@ import scala.deriving.*
 import scala.quoted.*
 import scalus.builtins.Builtins
 
+/*
+  WIP ToData derivation, not working yet
+ */
 object TotoData {
   import scala.compiletime.*
   import scala.quoted.*
@@ -45,6 +48,9 @@ object TotoData {
   extension [A: ToData](a: A) inline def toData: Data = summon[ToData[A]].apply(a)
 }
 
+/*
+  WIP FromData derivation, not working yet
+ */
 object FromData {
   import scala.compiletime.*
 

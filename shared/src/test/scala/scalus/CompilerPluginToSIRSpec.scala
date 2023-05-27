@@ -763,6 +763,8 @@ class CompilerPluginToSIRSpec extends AnyFunSuite with ScalaCheckPropertyChecks:
 
   test("compile fieldAsData macro") {
     import scalus.ledger.api.v1.{*, given}
+    import scalus.ledger.api.v1.ToDataInstances.given
+
     val compiled = compile { (ctx: scalus.uplc.Data) =>
       val sigsData = fieldAsData[ScriptContext](_.txInfo.signatories)(ctx)
       val sigs = Builtins.unsafeDataAsList(sigsData)

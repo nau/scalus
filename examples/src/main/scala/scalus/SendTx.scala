@@ -29,7 +29,7 @@ import com.google.common.collect.Lists
 import io.bullet.borer.Cbor
 import scalus.builtins.ByteString
 import scalus.uplc.Data
-import scalus.uplc.DataInstances.given
+import scalus.uplc.ToDataInstances.given
 import scalus.utils.Utils
 
 import java.math.BigInteger

@@ -9,14 +9,12 @@ import scalus.ledger.api.v1.Credential
 import scalus.ledger.api.v1.DCert
 import scalus.ledger.api.v1.Datum
 import scalus.ledger.api.v1.DatumHash
-import scalus.ledger.api.v1.FromDataInstances.given
 import scalus.ledger.api.v1.POSIXTimeRange
 import scalus.ledger.api.v1.PubKeyHash
 import scalus.ledger.api.v1.Redeemer
 import scalus.ledger.api.v1.ScriptHash
 import scalus.ledger.api.v1.ScriptPurpose
 import scalus.ledger.api.v1.StakingCredential
-import scalus.ledger.api.v1.ToDataInstances.given
 import scalus.ledger.api.v1.TxId
 import scalus.ledger.api.v1.TxOutRef
 import scalus.ledger.api.v1.Value
@@ -32,7 +30,7 @@ import scalus.uplc.Data.FromData
 import scalus.uplc.Data.ToData
 import scalus.uplc.Data.fromData
 import scalus.uplc.Data.given
-import scalus.uplc.DataInstances.given
+
 import scalus.utils.Utils.bytesToHex
 
 export scalus.ledger.api.v1.Address
@@ -55,6 +53,8 @@ export scalus.ledger.api.v1.Value
 
 @Compile
 object FromDataInstances {
+  import scalus.uplc.FromDataInstances.given
+  import scalus.ledger.api.v1.FromDataInstances.given
 
   given FromData[OutputDatum] = (d: Data) =>
     val pair = Builtins.unsafeDataAsConstr(d)
@@ -68,10 +68,6 @@ object FromDataInstances {
   given FromData[TxOut] = (d: Data) =>
     val pair = Builtins.unsafeDataAsConstr(d)
     val args = pair.snd
-    /* txOutAddress: Address,
-    txOutValue: Value,
-    txOutDatum: OutputDatum,
-    txOutReferenceScript: Maybe[ScriptHash] */
     new TxOut(
       fromData[Address](args.head),
       fromData[Value](args.tail.head),
@@ -91,18 +87,6 @@ object FromDataInstances {
     val pair = Builtins.unsafeDataAsConstr(d)
     val args = pair.snd
     val fromValue = summon[FromData[Value]]
-    /* txInfoInputs: List[TxInInfo], 1
-    txInfoReferenceInputs: List[TxInInfo],
-    txInfoOutputs: List[TxOut], 3
-    txInfoFee: Value,
-    txInfoMint: Value, 5
-    txInfoDCert: List[DCert],
-    txInfoWdrl: AssocMap[StakingCredential, BigInt], 7
-    txInfoValidRange: POSIXTimeRange,
-    txInfoSignatories: List[PubKeyHash], 9
-    txInfoRedeemers: AssocMap[ScriptPurpose, Redeemer],
-    txInfoData: AssocMap[DatumHash, Datum], 11
-    txInfoId: TxId */
     new TxInfo(
       fromData[List[TxInInfo]](args.head),
       fromData[List[TxInInfo]](args.tail.head),
@@ -131,19 +115,122 @@ object FromDataInstances {
     )
 }
 
+@Compile
 object ToDataInstances {
   import scalus.uplc.Data.toData
+  import scalus.uplc.ToDataInstances.given
 
-  given OutputDatumToData[T <: OutputDatum]: ToData[T] with
-    def toData(d: T): Data =
-      d match
-        case OutputDatum.NoOutputDatum => Builtins.mkConstr(0, Builtins.mkNilData)
-        case OutputDatum.OutputDatumHash(datumHash) =>
-          Builtins.mkConstr(1, builtins.List(datumHash.toData))
-        case OutputDatum.OutputDatum(datum) => Builtins.mkConstr(2, builtins.List(datum))
+  given OutputDatumToData[T <: OutputDatum]: ToData[T] = (d: T) =>
+    d match
+      case OutputDatum.NoOutputDatum => Builtins.mkConstr(0, Builtins.mkNilData)
+      case OutputDatum.OutputDatumHash(datumHash) =>
+        Builtins.mkConstr(1, builtins.List(datumHash.toData))
+      case OutputDatum.OutputDatum(datum) => Builtins.mkConstr(2, builtins.List(datum))
+
+  given ToData[TxOut] = (d: TxOut) =>
+    d match
+      case TxOut(txOutAddress, txOutValue, txOutDatum, txOutReferenceScript) =>
+        Builtins.mkConstr(
+          0,
+          new builtins.List.Cons(
+            txOutAddress.toData,
+            new builtins.List.Cons(
+              txOutValue.toData,
+              new builtins.List.Cons(
+                txOutDatum.toData,
+                new builtins.List.Cons(
+                  txOutReferenceScript.toData,
+                  builtins.List.Nil
+                )
+              )
+            )
+          )
+        )
+  given ToData[TxInInfo] = (d: TxInInfo) =>
+    d match
+      case TxInInfo(txInInfoOutRef, txInInfoTxOut) =>
+        Builtins.mkConstr(
+          0,
+          new builtins.List.Cons(
+            txInInfoOutRef.toData,
+            new builtins.List.Cons(
+              txInInfoTxOut.toData,
+              builtins.List.Nil
+            )
+          )
+        )
+
+  given ToData[TxInfo] = (d: TxInfo) =>
+    d match
+      case TxInfo(
+            txInfoInputs,
+            txInfoReferenceInputs,
+            txInfoOutputs,
+            txInfoFee,
+            txInfoMint,
+            txInfoDCert,
+            txInfoWdrl,
+            txInfoValidRange,
+            txInfoSignatories,
+            txInfoRedeemers,
+            txInfoData,
+            txInfoId
+          ) =>
+        Builtins.mkConstr(
+          0,
+          new builtins.List.Cons(
+            txInfoInputs.toData,
+            new builtins.List.Cons(
+              txInfoReferenceInputs.toData,
+              new builtins.List.Cons(
+                txInfoOutputs.toData,
+                new builtins.List.Cons(
+                  txInfoFee.toData,
+                  new builtins.List.Cons(
+                    txInfoMint.toData,
+                    new builtins.List.Cons(
+                      txInfoDCert.toData,
+                      new builtins.List.Cons(
+                        txInfoWdrl.toData,
+                        new builtins.List.Cons(
+                          txInfoValidRange.toData,
+                          new builtins.List.Cons(
+                            txInfoSignatories.toData,
+                            new builtins.List.Cons(
+                              txInfoRedeemers.toData,
+                              new builtins.List.Cons(
+                                txInfoData.toData,
+                                new builtins.List.Cons(
+                                  txInfoId.toData,
+                                  builtins.List.Nil
+                                )
+                              )
+                            )
+                          )
+                        )
+                      )
+                    )
+                  )
+                )
+              )
+            )
+          )
+        )
+
+  given ToData[ScriptContext] = (d: ScriptContext) =>
+    d match
+      case ScriptContext(scriptContextTxInfo, scriptContextPurpose) =>
+        Builtins.mkConstr(
+          0,
+          new builtins.List.Cons(
+            scriptContextTxInfo.toData,
+            new builtins.List.Cons(
+              scriptContextPurpose.toData,
+              builtins.List.Nil
+            )
+          )
+        )
 }
-
-import ToDataInstances.given
 
 enum OutputDatum:
   case NoOutputDatum
@@ -177,9 +264,9 @@ case class TxOut(
     value: Value,
     datum: OutputDatum,
     referenceScript: Maybe[ScriptHash]
-) derives ToData
+)
 
-case class TxInInfo(outRef: TxOutRef, resolved: TxOut) derives ToData
+case class TxInInfo(outRef: TxOutRef, resolved: TxOut)
 
 /** A pending transaction.
   */
@@ -196,11 +283,11 @@ case class TxInfo(
     redeemers: AssocMap[ScriptPurpose, Redeemer],
     data: AssocMap[DatumHash, Datum],
     id: TxId
-) derives ToData
+)
 
 /** The context that the currently-executing script can access.
   */
 case class ScriptContext(
     txInfo: TxInfo,
     purpose: ScriptPurpose
-) derives ToData
+)

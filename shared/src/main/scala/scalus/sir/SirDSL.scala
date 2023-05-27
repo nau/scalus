@@ -39,6 +39,3 @@ object SirDSL:
 
   given Conversion[Constant, SIR] with
     def apply(c: Constant): SIR = SIR.Const(c)
-
-  given constantAsData[A: Data.ToData]: Conversion[A, Data] with
-    def apply(c: A): Data = summon[Data.ToData[A]].toData(c)

@@ -15,7 +15,6 @@ import scalus.uplc.Data.fromData
 import scalus.uplc.Data.FromData
 import scalus.uplc.Data.ToData
 import scalus.uplc.Data.given
-import scalus.uplc.DataInstances.given
 import scalus.utils.Utils.bytesToHex
 
 type ValidatorHash = ByteString
@@ -32,6 +31,7 @@ type Value = AssocMap[CurrencySymbol, AssocMap[TokenName, BigInt]]
 
 @Compile
 object FromDataInstances {
+  import scalus.uplc.FromDataInstances.given
 
   implicit def fromDataTxId(d: Data): TxId =
     val hash = fromData[ByteString](Builtins.unsafeDataAsConstr(d).snd.head)
@@ -212,9 +212,9 @@ enum Extended[+A]:
 
 import ToDataInstances.given
 
-case class UpperBound[A](upper: Extended[A], closure: Closure) derives ToData
-case class LowerBound[A](extended: Extended[A], closure: Closure) derives ToData
-case class Interval[A](from: LowerBound[A], to: UpperBound[A]) derives ToData
+case class UpperBound[A](upper: Extended[A], closure: Closure)
+case class LowerBound[A](extended: Extended[A], closure: Closure)
+case class Interval[A](from: LowerBound[A], to: UpperBound[A])
 
 @Compile
 object Interval:
@@ -300,7 +300,7 @@ object DCert {
           case DCert.Mir                            => true
 }
 
-case class TxId(hash: ByteString) derives Data.ToData:
+case class TxId(hash: ByteString):
   override def toString = s"TxId(${hash.toHex})"
 
 @Compile
@@ -313,7 +313,7 @@ data TxOutRef = TxOutRef {
     txOutRefIdx :: Integer -- ^ Index into the referenced transaction's outputs
     }
  */
-case class TxOutRef(id: TxId, idx: BigInt) derives Data.ToData
+case class TxOutRef(id: TxId, idx: BigInt)
 
 @Compile
 object TxOutRef {
@@ -373,7 +373,7 @@ object StakingCredential {
 case class Address(
     credential: Credential,
     stakingCredential: Maybe[StakingCredential]
-) derives Data.ToData
+)
 
 @Compile
 object Address {
@@ -385,13 +385,13 @@ object Address {
             aCredential === bCredential && aStakingCredential === bStakingCredential
 }
 
-case class TxOut(address: Address, value: Value, datumHash: Maybe[DatumHash]) derives Data.ToData
+case class TxOut(address: Address, value: Value, datumHash: Maybe[DatumHash])
 
 // TxInInfo
 case class TxInInfo(
     outRef: TxOutRef,
     resolved: TxOut
-) derives Data.ToData
+)
 
 case class TxInfo(
     inputs: List[TxInInfo],
@@ -404,7 +404,7 @@ case class TxInfo(
     signatories: List[PubKeyHash],
     data: List[(DatumHash, Datum)],
     id: TxId
-) derives Data.ToData
+)
 
 enum ScriptPurpose:
   case Minting(curSymbol: ByteString)
@@ -443,4 +443,4 @@ object ScriptPurpose {
 }
 
 // data ScriptContext = ScriptContext{scriptContextTxInfo :: TxInfo, scriptContextPurpose :: ScriptPurpose }
-case class ScriptContext(txInfo: TxInfo, purpose: ScriptPurpose) derives Data.ToData
+case class ScriptContext(txInfo: TxInfo, purpose: ScriptPurpose)
