@@ -95,7 +95,7 @@ object PrettyPrinter {
         )).aligned
 
       case Var(name)                     => Doc.text(name)
-      case ExternalVar(moduleName, name) => Doc.text(moduleName + "::" + name)
+      case ExternalVar(moduleName, name) => Doc.text(name)
       case Let(Recursivity.NonRec, List(Binding(name, body)), inExpr) =>
         pretty(body).bracketBy(
           kw("let") & Doc.text(name) & Doc.text("="),
