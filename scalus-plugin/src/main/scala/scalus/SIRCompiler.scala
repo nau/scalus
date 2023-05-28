@@ -796,21 +796,13 @@ class SIRCompiler(mode: scalus.Mode)(using ctx: Context) {
               compileExpr(env, b)
             )
           else
-            report.error(
-              s"""Builtin Pair can only be created either by 2 literals or 2 Data variables:
-              |Pair[${tpe1.tpe.show},${tpe2.tpe.show}](${a.show}, ${b.show})
-              |- ${a.show} literal: ${a.isLiteral}, data: ${a.isData}
-              |- ${b.show} literal: ${b.isLiteral}, data: ${b.isData}
-              |""".stripMargin,
-              tree.srcPos
-            )
-            SIR.Error(
-              s"""Builtin Pair can only be created either by 2 literals or 2 Data variables:
-              |Pair[${tpe1.tpe.show},${tpe2.tpe.show}](${a.show}, ${b.show})
-              |- ${a.show} literal: ${a.isLiteral}, data: ${a.isData}
-              |- ${b.show} literal: ${b.isLiteral}, data: ${b.isData}
-              |""".stripMargin
-            )
+            val msg = s"""Builtin Pair can only be created either by 2 literals or 2 Data variables:
+                         |Pair[${tpe1.tpe.show},${tpe2.tpe.show}](${a.show}, ${b.show})
+                         |- ${a.show} literal: ${a.isLiteral}, data: ${a.isData}
+                         |- ${b.show} literal: ${b.isLiteral}, data: ${b.isData}
+                         |""".stripMargin
+            report.error(msg, tree.srcPos)
+            SIR.Error(msg)
         // new Constr(args)
         case Apply(TypeApply(con @ Select(f, nme.CONSTRUCTOR), _), args) =>
           compileNewConstructor(env, f.tpe, args)

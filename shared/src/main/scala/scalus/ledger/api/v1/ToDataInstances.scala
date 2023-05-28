@@ -11,93 +11,93 @@ object ToDataInstances {
 
   given ToData[PubKeyHash] = (a: PubKeyHash) => a.hash.toData
   given ToData[TxId] = (a: TxId) =>
-    Builtins.mkConstr(0, new builtins.List.Cons(a.hash.toData, builtins.List.Nil))
+    Builtins.mkConstr(0, Builtins.mkCons(a.hash.toData, Builtins.mkNilData))
   given ToData[TxOutRef] = (a: TxOutRef) =>
     a match
       case TxOutRef(txId, idx) =>
         Builtins.mkConstr(
           0,
-          new builtins.List.Cons(txId.toData, new builtins.List.Cons(idx.toData, builtins.List.Nil))
+          Builtins.mkCons(txId.toData, Builtins.mkCons(idx.toData, Builtins.mkNilData))
         )
 
   given DCertLift[T <: DCert]: ToData[T] = (a: T) =>
     a match
       case DCert.DelegRegKey(cred: StakingCredential) =>
-        Builtins.mkConstr(0, new builtins.List.Cons(cred.toData, builtins.List.Nil))
+        Builtins.mkConstr(0, Builtins.mkCons(cred.toData, Builtins.mkNilData))
       case DCert.DelegDeRegKey(cred: StakingCredential) =>
-        Builtins.mkConstr(1, new builtins.List.Cons(cred.toData, builtins.List.Nil))
+        Builtins.mkConstr(1, Builtins.mkCons(cred.toData, Builtins.mkNilData))
       case DCert.DelegDelegate(cred: StakingCredential, delegatee: PubKeyHash) =>
         Builtins.mkConstr(
           2,
-          new builtins.List.Cons(
+          Builtins.mkCons(
             cred.toData,
-            new builtins.List.Cons(delegatee.toData, builtins.List.Nil)
+            Builtins.mkCons(delegatee.toData, Builtins.mkNilData)
           )
         )
       case DCert.PoolRegister(poolId: PubKeyHash, vrf: PubKeyHash) =>
         Builtins.mkConstr(
           3,
-          new builtins.List.Cons(
+          Builtins.mkCons(
             poolId.toData,
-            new builtins.List.Cons(vrf.toData, builtins.List.Nil)
+            Builtins.mkCons(vrf.toData, Builtins.mkNilData)
           )
         )
       case DCert.PoolRetire(poolId: PubKeyHash, epoch: BigInt) =>
         Builtins.mkConstr(
           4,
-          new builtins.List.Cons(
+          Builtins.mkCons(
             poolId.toData,
-            new builtins.List.Cons(epoch.toData, builtins.List.Nil)
+            Builtins.mkCons(epoch.toData, Builtins.mkNilData)
           )
         )
-      case DCert.Genesis => Builtins.mkConstr(5, builtins.List.Nil)
-      case DCert.Mir     => Builtins.mkConstr(6, builtins.List.Nil)
+      case DCert.Genesis => Builtins.mkConstr(5, Builtins.mkNilData)
+      case DCert.Mir     => Builtins.mkConstr(6, Builtins.mkNilData)
 
   given ExtendedLift[A: ToData, T[A] <: Extended[A]]: ToData[T[A]] = (a: T[A]) =>
     a match
-      case Extended.NegInf    => Builtins.mkConstr(0, builtins.List.Nil)
-      case Extended.Finite(a) => Builtins.mkConstr(1, a.toData :: builtins.List.Nil)
-      case Extended.PosInf    => Builtins.mkConstr(2, builtins.List.Nil)
+      case Extended.NegInf    => Builtins.mkConstr(0, Builtins.mkNilData)
+      case Extended.Finite(a) => Builtins.mkConstr(1, a.toData :: Builtins.mkNilData)
+      case Extended.PosInf    => Builtins.mkConstr(2, Builtins.mkNilData)
 
   given CredentialToData[T <: Credential]: ToData[T] = (a: T) =>
     a match
       case Credential.PubKeyCredential(hash) =>
-        Builtins.mkConstr(0, new builtins.List.Cons(hash.toData, builtins.List.Nil))
+        Builtins.mkConstr(0, Builtins.mkCons(hash.toData, Builtins.mkNilData))
       case Credential.ScriptCredential(hash) =>
-        Builtins.mkConstr(1, hash.toData :: builtins.List.Nil)
+        Builtins.mkConstr(1, hash.toData :: Builtins.mkNilData)
 
   given StakingCredentialLift[T <: StakingCredential]: ToData[T] = (a: T) =>
     a match
       case StakingCredential.StakingHash(cred) =>
-        Builtins.mkConstr(0, new builtins.List.Cons(cred.toData, builtins.List.Nil))
+        Builtins.mkConstr(0, Builtins.mkCons(cred.toData, Builtins.mkNilData))
       case StakingCredential.StakingPtr(a, b, c) =>
         Builtins.mkConstr(
           1,
-          new builtins.List.Cons(
+          Builtins.mkCons(
             a.toData,
-            new builtins.List.Cons(b.toData, new builtins.List.Cons(c.toData, builtins.List.Nil))
+            Builtins.mkCons(b.toData, Builtins.mkCons(c.toData, Builtins.mkNilData))
           )
         )
 
   given ScriptPurposeLift[T <: ScriptPurpose]: ToData[T] = (a: T) =>
     a match
       case ScriptPurpose.Minting(curSymbol) =>
-        Builtins.mkConstr(0, new builtins.List.Cons(curSymbol.toData, builtins.List.Nil))
+        Builtins.mkConstr(0, Builtins.mkCons(curSymbol.toData, Builtins.mkNilData))
       case ScriptPurpose.Spending(txOutRef) =>
-        Builtins.mkConstr(1, new builtins.List.Cons(txOutRef.toData, builtins.List.Nil))
+        Builtins.mkConstr(1, Builtins.mkCons(txOutRef.toData, Builtins.mkNilData))
       case ScriptPurpose.Rewarding(stakingCred) =>
-        Builtins.mkConstr(2, new builtins.List.Cons(stakingCred.toData, builtins.List.Nil))
+        Builtins.mkConstr(2, Builtins.mkCons(stakingCred.toData, Builtins.mkNilData))
       case ScriptPurpose.Certifying(cert) =>
-        Builtins.mkConstr(3, new builtins.List.Cons(cert.toData, builtins.List.Nil))
+        Builtins.mkConstr(3, Builtins.mkCons(cert.toData, Builtins.mkNilData))
 
   given ToData[Address] = (a: Address) =>
     a match
       case Address(credential, stakingCredential) =>
         Builtins.mkConstr(
           0,
-          new builtins.List.Cons(
+          Builtins.mkCons(
             credential.toData,
-            new builtins.List.Cons(stakingCredential.toData, builtins.List.Nil)
+            Builtins.mkCons(stakingCredential.toData, Builtins.mkNilData)
           )
         )
 
@@ -106,11 +106,11 @@ object ToDataInstances {
       case TxOut(address, value, datumHash) =>
         Builtins.mkConstr(
           0,
-          new builtins.List.Cons(
+          Builtins.mkCons(
             address.toData,
-            new builtins.List.Cons(
+            Builtins.mkCons(
               value.toData,
-              new builtins.List.Cons(datumHash.toData, builtins.List.Nil)
+              Builtins.mkCons(datumHash.toData, Builtins.mkNilData)
             )
           )
         )
@@ -119,9 +119,9 @@ object ToDataInstances {
       case TxInInfo(outRef, resolved) =>
         Builtins.mkConstr(
           0,
-          new builtins.List.Cons(
+          Builtins.mkCons(
             outRef.toData,
-            new builtins.List.Cons(resolved.toData, builtins.List.Nil)
+            Builtins.mkCons(resolved.toData, Builtins.mkNilData)
           )
         )
 
@@ -130,9 +130,9 @@ object ToDataInstances {
       case LowerBound(a, b) =>
         Builtins.mkConstr(
           0,
-          new builtins.List.Cons(
+          Builtins.mkCons(
             a.toData,
-            new builtins.List.Cons(b.toData, builtins.List.Nil)
+            Builtins.mkCons(b.toData, Builtins.mkNilData)
           )
         )
   given UpperBoundToData[A: ToData]: ToData[UpperBound[A]] = (a: UpperBound[A]) =>
@@ -140,9 +140,9 @@ object ToDataInstances {
       case UpperBound(a, b) =>
         Builtins.mkConstr(
           0,
-          new builtins.List.Cons(
+          Builtins.mkCons(
             a.toData,
-            new builtins.List.Cons(b.toData, builtins.List.Nil)
+            Builtins.mkCons(b.toData, Builtins.mkNilData)
           )
         )
 
@@ -151,9 +151,9 @@ object ToDataInstances {
       case Interval(a, b) =>
         Builtins.mkConstr(
           0,
-          new builtins.List.Cons(
+          Builtins.mkCons(
             a.toData,
-            new builtins.List.Cons(b.toData, builtins.List.Nil)
+            Builtins.mkCons(b.toData, Builtins.mkNilData)
           )
         )
 
@@ -173,25 +173,25 @@ object ToDataInstances {
           ) =>
         Builtins.mkConstr(
           0,
-          new builtins.List.Cons(
+          Builtins.mkCons(
             inputs.toData,
-            new builtins.List.Cons(
+            Builtins.mkCons(
               outputs.toData,
-              new builtins.List.Cons(
+              Builtins.mkCons(
                 fee.toData,
-                new builtins.List.Cons(
+                Builtins.mkCons(
                   mint.toData,
-                  new builtins.List.Cons(
+                  Builtins.mkCons(
                     dcert.toData,
-                    new builtins.List.Cons(
+                    Builtins.mkCons(
                       withdrawals.toData,
-                      new builtins.List.Cons(
+                      Builtins.mkCons(
                         validRange.toData,
-                        new builtins.List.Cons(
+                        Builtins.mkCons(
                           signatories.toData,
-                          new builtins.List.Cons(
+                          Builtins.mkCons(
                             data.toData,
-                            new builtins.List.Cons(id.toData, builtins.List.Nil)
+                            Builtins.mkCons(id.toData, Builtins.mkNilData)
                           )
                         )
                       )
@@ -208,9 +208,9 @@ object ToDataInstances {
       case ScriptContext(txInfo, purpose) =>
         Builtins.mkConstr(
           0,
-          new builtins.List.Cons(
+          Builtins.mkCons(
             txInfo.toData,
-            new builtins.List.Cons(purpose.toData, builtins.List.Nil)
+            Builtins.mkCons(purpose.toData, Builtins.mkNilData)
           )
         )
 

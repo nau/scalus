@@ -39,7 +39,7 @@ object TotoData {
     }
     println(s"Derive ${classSym}, ${constr} ${params} toDataOfArgs: $toDataOfArgs")
 
-    val args = '{ scalus.builtins.List.Nil }
+    val args = '{ scalus.builtins.Builtins.mkNilData }
 
     '{ (a: T) =>
       Builtins.mkConstr(BigInt($constrIdx), $args)

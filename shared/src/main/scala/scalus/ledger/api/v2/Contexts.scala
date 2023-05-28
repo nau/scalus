@@ -132,15 +132,15 @@ object ToDataInstances {
       case TxOut(txOutAddress, txOutValue, txOutDatum, txOutReferenceScript) =>
         Builtins.mkConstr(
           0,
-          new builtins.List.Cons(
+          Builtins.mkCons(
             txOutAddress.toData,
-            new builtins.List.Cons(
+            Builtins.mkCons(
               txOutValue.toData,
-              new builtins.List.Cons(
+              Builtins.mkCons(
                 txOutDatum.toData,
-                new builtins.List.Cons(
+                Builtins.mkCons(
                   txOutReferenceScript.toData,
-                  builtins.List.Nil
+                  Builtins.mkNilData
                 )
               )
             )
@@ -151,11 +151,11 @@ object ToDataInstances {
       case TxInInfo(txInInfoOutRef, txInInfoTxOut) =>
         Builtins.mkConstr(
           0,
-          new builtins.List.Cons(
+          Builtins.mkCons(
             txInInfoOutRef.toData,
-            new builtins.List.Cons(
+            Builtins.mkCons(
               txInInfoTxOut.toData,
-              builtins.List.Nil
+              Builtins.mkNilData
             )
           )
         )
@@ -178,31 +178,31 @@ object ToDataInstances {
           ) =>
         Builtins.mkConstr(
           0,
-          new builtins.List.Cons(
+          Builtins.mkCons(
             txInfoInputs.toData,
-            new builtins.List.Cons(
+            Builtins.mkCons(
               txInfoReferenceInputs.toData,
-              new builtins.List.Cons(
+              Builtins.mkCons(
                 txInfoOutputs.toData,
-                new builtins.List.Cons(
+                Builtins.mkCons(
                   txInfoFee.toData,
-                  new builtins.List.Cons(
+                  Builtins.mkCons(
                     txInfoMint.toData,
-                    new builtins.List.Cons(
+                    Builtins.mkCons(
                       txInfoDCert.toData,
-                      new builtins.List.Cons(
+                      Builtins.mkCons(
                         txInfoWdrl.toData,
-                        new builtins.List.Cons(
+                        Builtins.mkCons(
                           txInfoValidRange.toData,
-                          new builtins.List.Cons(
+                          Builtins.mkCons(
                             txInfoSignatories.toData,
-                            new builtins.List.Cons(
+                            Builtins.mkCons(
                               txInfoRedeemers.toData,
-                              new builtins.List.Cons(
+                              Builtins.mkCons(
                                 txInfoData.toData,
-                                new builtins.List.Cons(
+                                Builtins.mkCons(
                                   txInfoId.toData,
-                                  builtins.List.Nil
+                                  Builtins.mkNilData
                                 )
                               )
                             )
@@ -222,11 +222,11 @@ object ToDataInstances {
       case ScriptContext(scriptContextTxInfo, scriptContextPurpose) =>
         Builtins.mkConstr(
           0,
-          new builtins.List.Cons(
+          Builtins.mkCons(
             scriptContextTxInfo.toData,
-            new builtins.List.Cons(
+            Builtins.mkCons(
               scriptContextPurpose.toData,
-              builtins.List.Nil
+              Builtins.mkNilData
             )
           )
         )
