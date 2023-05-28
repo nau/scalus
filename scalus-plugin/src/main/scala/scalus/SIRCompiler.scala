@@ -706,6 +706,8 @@ class SIRCompiler(mode: scalus.Mode)(using ctx: Context) {
         // Data BUILTINS
         case bi: Select if BuiltinHelper.builtinFun(bi.symbol.showFullName).isDefined =>
           BuiltinHelper.builtinFun(bi.symbol.showFullName).get
+        case bi: Ident if BuiltinHelper.builtinFun(bi.symbol.showFullName).isDefined =>
+          BuiltinHelper.builtinFun(bi.symbol.showFullName).get
         // BigInt stuff
         case Apply(Select(lhs, op), List(rhs))
             if lhs.tpe.widen =:= converter.BigIntClassSymbol.typeRef =>

@@ -16,8 +16,9 @@ import scalus.utils.Utils.bytesToHex
 
 @Compile
 object FromDataInstances {
+  import scalus.builtins.Builtins.*
 
-  given FromData[BigInt] = (d: Data) => Builtins.unsafeDataAsI(d)
+  given FromData[BigInt] = (d: Data) => unsafeDataAsI(d)
   given FromData[ByteString] = (d: Data) => Builtins.unsafeDataAsB(d)
   given FromData[Data] = (d: Data) => d
 
