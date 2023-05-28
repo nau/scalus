@@ -81,9 +81,8 @@ object ToDataInstances {
     (a: scalus.prelude.List[A]) => {
       def loop(a: scalus.prelude.List[A]): scalus.builtins.List[Data] =
         a match
-          case scalus.prelude.List.Nil => mkNilData
-          case scalus.prelude.List.Cons(head, tail) =>
-            new scalus.builtins.List.Cons(summon[ToData[A]](head), loop(tail))
+          case scalus.prelude.List.Nil              => mkNilData
+          case scalus.prelude.List.Cons(head, tail) => mkCons(summon[ToData[A]](head), loop(tail))
 
       mkList(loop(a))
     }

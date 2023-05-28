@@ -5,9 +5,9 @@ import scalus.uplc.Data
 import scala.collection.immutable
 
 enum List[+A]:
-  case Nil extends List[Nothing]
+  private case Nil extends List[Nothing]
 
-  case Cons(h: A, tl: List[A]) extends List[A]
+  private case Cons(h: A, tl: List[A]) extends List[A]
 
   def isEmpty: Boolean = this match
     case Nil => true

@@ -4,7 +4,9 @@ import scalus.uplc.Data.ToData
 import scalus.uplc.Data
 import scalus.builtins
 import scalus.builtins.Builtins
+import scalus.Compile
 
+@Compile
 object ToDataInstances {
   import scalus.uplc.ToDataInstances.given
   import scalus.uplc.Data.toData
@@ -22,11 +24,11 @@ object ToDataInstances {
 
   given DCertLift[T <: DCert]: ToData[T] = (a: T) =>
     a match
-      case DCert.DelegRegKey(cred: StakingCredential) =>
+      case DCert.DelegRegKey(cred) =>
         Builtins.mkConstr(0, Builtins.mkCons(cred.toData, Builtins.mkNilData))
-      case DCert.DelegDeRegKey(cred: StakingCredential) =>
+      case DCert.DelegDeRegKey(cred) =>
         Builtins.mkConstr(1, Builtins.mkCons(cred.toData, Builtins.mkNilData))
-      case DCert.DelegDelegate(cred: StakingCredential, delegatee: PubKeyHash) =>
+      case DCert.DelegDelegate(cred, delegatee) =>
         Builtins.mkConstr(
           2,
           Builtins.mkCons(
@@ -34,7 +36,7 @@ object ToDataInstances {
             Builtins.mkCons(delegatee.toData, Builtins.mkNilData)
           )
         )
-      case DCert.PoolRegister(poolId: PubKeyHash, vrf: PubKeyHash) =>
+      case DCert.PoolRegister(poolId, vrf) =>
         Builtins.mkConstr(
           3,
           Builtins.mkCons(
@@ -42,7 +44,7 @@ object ToDataInstances {
             Builtins.mkCons(vrf.toData, Builtins.mkNilData)
           )
         )
-      case DCert.PoolRetire(poolId: PubKeyHash, epoch: BigInt) =>
+      case DCert.PoolRetire(poolId, epoch) =>
         Builtins.mkConstr(
           4,
           Builtins.mkCons(
