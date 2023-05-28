@@ -99,6 +99,19 @@ class SIRCompiler(mode: scalus.Mode)(using ctx: Context) {
   val CompileAnnot = requiredClassRef("scalus.Compile").symbol.asClass
   val IngoreAnnot = requiredClassRef("scalus.Ignore").symbol.asClass
 
+  lazy val classLoader = makeClassLoader
+
+  def makeClassLoader(using Context): ClassLoader = {
+    import scala.language.unsafeNulls
+
+    val entries = ClassPath.expandPath(ctx.settings.classpath.value, expandStar = true)
+    val urls = entries.map(cp => java.nio.file.Paths.get(cp).toUri.toURL).toArray
+    val out = Option(
+      ctx.settings.outputDir.value.toURL
+    ) // to find classes in case of suspended compilation
+    new java.net.URLClassLoader(urls ++ out.toList, getClass.getClassLoader)
+  }
+
   def compileModule(tree: Tree): Unit = {
     import sir.SIR.*
 
@@ -215,22 +228,10 @@ class SIRCompiler(mode: scalus.Mode)(using ctx: Context) {
       resources.asScala.toList
     }
 
-    // TODO cache classloader
-    def makeClassLoader(using Context): ClassLoader = {
-      import scala.language.unsafeNulls
-
-      val entries = ClassPath.expandPath(ctx.settings.classpath.value, expandStar = true)
-      val urls = entries.map(cp => java.nio.file.Paths.get(cp).toUri.toURL).toArray
-      val out = Option(
-        ctx.settings.outputDir.value.toURL
-      ) // to find classes in case of suspended compilation
-      new java.net.URLClassLoader(urls ++ out.toList, getClass.getClassLoader)
-    }
-
     val filename = moduleName.replace('.', '/') + ".sir"
     // println(s"findAndReadModuleOfSymbol: ${filename}")
     // read the file from the classpath
-    val resource = makeClassLoader.getResourceAsStream(filename)
+    val resource = classLoader.getResourceAsStream(filename)
     if resource != null then
       val buffer = resource.readAllBytes()
       val dec = DecoderState(buffer)
