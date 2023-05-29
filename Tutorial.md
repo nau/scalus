@@ -10,15 +10,27 @@ Add the following to your `build.sbt` file:
 
 ```scala
 scalaVersion := "3.2.2"
-libraryDependencies += "org.scalus" %% "scalus" % "0.1.0-SNAPSHOT"
-addCompilerPlugin("org.scalus" %% "scalus-plugin" % "0.1.0-SNAPSHOT")
+libraryDependencies += "org.scalus" %% "scalus" % "0.1.0"
+addCompilerPlugin("org.scalus" %% "scalus-plugin" % "0.1.0")
 ```
+
+## Basic workflow
+
+The basic workflow is to write a Scala program and then compile it to a Plutus script, 
+similar to how PlutuxTx works.
+
+You write a script using a small subset of Scala, 
+which is then compiled to a Scalus Intermediate Representation (SIR) with `compile` function.
+
+The SIR can be pretty-printed and reviewed.
+
+The SIR is then compiled to Untyped Plutus Core (UPLC) that can be executed on the Cardano blockchain.
 
 ## Constans and primitives
 
 ```scala
 import scalus.Compiler.compile
-import scalus._
+import scalus.*
 import scalus.builtins
 import scalus.builtins.Builtins
 import scalus.builtins.ByteString
@@ -90,7 +102,7 @@ compile {
   val a = BigInt(1)
   // if-then-else
   if a === BigInt(2) then ()
-  // throwing an exception compiles to PLutus ERROR,
+  // throwing an exception compiles to Plutus ERROR,
   // which aborts the evaluation of the script
   // the exception message can be translated to a trace message
   // using new SimpleSIRToUplcLowering(generateErrorTraces = true)
@@ -168,7 +180,7 @@ import scalus.ledger.api.v1.*
 import scalus.ledger.api.v1.FromDataInstances.given
 import scalus.prelude
 val context = compile {
-  def validator(redeamder: Data, datum: Data, ctxData: Data) = {
+  def validator(datum: Data, redeamder: Data, ctxData: Data) = {
     val ctx = fromData[ScriptContext](ctxData)
     prelude.List.findOrFail[PubKeyHash](ctx.txInfo.signatories)(sig =>
       sig.hash === ByteString.fromHex("deadbeef")
@@ -197,3 +209,9 @@ val serializeToDoubleCborHex: String = {
   Utils.bytesToHex(doubleEncoded)
 }
 ```
+
+## Validator examples
+
+[PreImage Validator](https://github.com/nau/scalus/blob/9ab69d5bdbe6be5c20b1f5cf99b8a2c2b051ee09/jvm/src/test/scala/scalus/PreImageExampleSpec.scala)
+
+[MintingPolicy](https://github.com/nau/scalus/blob/9ab69d5bdbe6be5c20b1f5cf99b8a2c2b051ee09/shared/src/main/scala/scalus/examples/MintingPolicy.scala)

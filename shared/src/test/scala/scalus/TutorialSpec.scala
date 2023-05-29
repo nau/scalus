@@ -1,6 +1,6 @@
 import org.scalatest.funsuite.AnyFunSuite
 import scalus.Compiler.compile
-import scalus._
+import scalus.*
 import scalus.builtins
 import scalus.builtins.Builtins
 import scalus.builtins.ByteString
@@ -60,7 +60,7 @@ val controlFlow = compile {
   val a = BigInt(1)
   // if-then-else
   if a === BigInt(2) then ()
-  // throwing an exception compiles to PLutus ERROR,
+  // throwing an exception compiles to Plutus ERROR,
   // which aborts the evaluation of the script
   // the exception message can be translated to a trace message
   // using new SimpleSIRToUplcLowering(generateErrorTraces = true)
@@ -108,7 +108,7 @@ import scalus.ledger.api.v1.*
 import scalus.ledger.api.v1.FromDataInstances.given
 import scalus.prelude
 val context = compile {
-  def validator(redeamder: Data, datum: Data, ctxData: Data) = {
+  def validator(datum: Data, redeamder: Data, ctxData: Data) = {
     val ctx = fromData[ScriptContext](ctxData)
     prelude.List.findOrFail[PubKeyHash](ctx.txInfo.signatories)(sig =>
       sig.hash === ByteString.fromHex("deadbeef")
@@ -132,14 +132,14 @@ val serializeToDoubleCborHex: String = {
 
 class TutorialSpec extends AnyFunSuite {
   test("pretty print") {
-    /* println(constants.pretty.render(80))
-    println(builtinFunctions.pretty.render(80))
-    println(dataTypes.pretty.render(80))
-    println(controlFlow.pretty.render(80))
-    println(functions.pretty.render(80))
-    println(modules.pretty.render(80))
-    println(fromDataExample.pretty.render(80))
-    println(context.pretty.render(80))
-    println(serializeToDoubleCborHex) */
+    // println(constants.pretty.render(80))
+    // println(builtinFunctions.pretty.render(80))
+    // println(dataTypes.pretty.render(80))
+    // println(controlFlow.pretty.render(80))
+    // println(functions.pretty.render(80))
+    // println(modules.pretty.render(80))
+    // println(fromDataExample.pretty.render(80))
+    // println(context.pretty.render(80))
+    // println(serializeToDoubleCborHex) 
   }
 }

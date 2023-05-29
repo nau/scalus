@@ -14,17 +14,21 @@ This includes:
 
 ## Support
 
-The project is looking for funding to make it production ready. If you are interested, please contact me at @atlanter on Twitter.
+You can ask questions on Scalus Discord: https://discord.gg/ygwtuBybsy
 
-Or you can support the project by donating ADA or BTC to the following addresses:
+The project is looking for funding to make it production ready. 
+If you are interested, please contact me at [@atlanter](https://twitter.com/atlanter) on Twitter.
+Follow the official Scalus Twitter account: [@Scalus3](https://twitter.com/Scalus3).
+
+You can support the project by donating ADA or BTC to the following addresses:
 
 ADA: addr1qxwg0u9fpl8dac9rkramkcgzerjsfdlqgkw0q8hy5vwk8tzk5pgcmdpe5jeh92guy4mke4zdmagv228nucldzxv95clqe35r3m
 
 BTC: bc1qzefh9we0frls8ktm0dx428v2dx3wtp6xu4hd8k
 
-Please, consider becoming a sponsor on GitHub.
+Please, consider becoming a sponsor on GitHub. 
 
-Scalus Discord: https://discord.gg/DJwAY92Q
+And vote for the project on Cardano Catalyst!
 
 ## Tutorial
 
@@ -95,17 +99,17 @@ This project seeks funding to make it production ready.
 
 What you can play with:
 
-- CEK UPLC evaluation machine works on both JVM and JavaScript (not all builtins are implemented yet)
-- textual UPLC parser and pretty printer works on both JVM and JavaScript
+- Scala compiler plugin to convert Scala code to UPLC
+- All the Plutus builtins are implemented
+- You can write Plutus V1 and V2 scripts
 - Flat UPLC serialization works on both JVM and JavaScript
 - CBOR serialization of Data works on both JVM and JavaScript
 - DeBruijn/unDeBruijn conversion works on both JVM and JavaScript
 - Type safe UPLC expression builder prototype works on both JVM and JavaScript
 - There are a couple of simple validators that can be used for real.
+- CEK UPLC evaluation machine works on both JVM and JavaScript (not all builtins are implemented yet)
+- textual UPLC parser and pretty printer works on both JVM and JavaScript
 - The PubKey validator is 138 bytes long! It's 14x smaller than the 1992 bytes long PlutusTx version!
-- Scala compiler plugin to convert Scala code to UPLC
-- All the Plutus builtins are implemented
-- You can write Plutus V1 and V2 scripts
 
 ## Comparison to PlutusTx, Aiken, Plutarch
 
@@ -138,7 +142,7 @@ Here is an optimized version of Preimage Validator from the above:
 
 ```scala
 def preimageValidator(datum: Data, redeemer: Data, ctxData: Data): Unit = {
-  summon[FromData[(ByteString, ByteString)]](datum) match
+  fromData[(ByteString, ByteString)](datum) match
     case (hash, pkh) =>
       val preimage = summon[FromData[ByteString]](redeemer)
       val signatories = summon[FromData[List[PubKeyHash]]](
@@ -170,50 +174,39 @@ compiled.pretty.render(100)
 <details>
   <summary>Click me to see SIR</summary>
 
-```haskell
+```ocaml
 data Tuple2 = Tuple2(_1, _2)
 data List = Cons(head, tail) | Nil
 data PubKeyHash = PubKeyHash(hash)
-fun scalus.uplc.DataInstances$.unsafeTupleFromData fromA fromB d =
+fun scalus.uplc.FromDataInstances$.unsafeTupleFromData fromA fromB d =
     let pair = unConstrData(d) in
     let args = sndPair(pair) in
     Tuple2(fromA(headList(args)), fromB(headList(tailList(args))))
-in fun scalus.uplc.DataInstances$.given_FromData_ByteString d = unBData(d)
-in fun scalus.uplc.DataInstances$.ListFromData evidence$1 d =
+in fun scalus.uplc.FromDataInstances$.given_FromData_ByteString d = unBData(d)
+in fun scalus.uplc.FromDataInstances$.ListFromData evidence$1 d =
        let ls = unListData(d) in
        fun loop ls =
            if nullList(ls) then Nil() else Cons(evidence$1(headList(ls)), loop(tailList(ls)))
        in loop(ls)
 in fun scalus.ledger.api.v1.FromDataInstances$.fromDataPubKeyHash d =
-       let hash =
-         scalus.uplc.DataInstances$::scalus.uplc.DataInstances$.given_FromData_ByteString(d)
-       in
+       let hash = scalus.uplc.FromDataInstances$.given_FromData_ByteString(d) in
        PubKeyHash(hash)
 in fun scalus.prelude.List$.findOrFail lst p =
        match lst with
-         case Cons(head, tail) ->
-           if p(head) then head else scalus.prelude.List$::scalus.prelude.List$.findOrFail(tail, p)
+         case Cons(head, tail) -> if p(head) then head else scalus.prelude.List$.findOrFail(tail, p)
          case Nil -> ERROR 'Not found'
 in fun scalus.prelude.Prelude$.given_Eq_ByteString x y = equalsByteString(x, y)
 in fun scalus.OptimizedPreimageValidator$.preimageValidator datum redeemer ctxData =
-       match scalus.uplc.DataInstances$::scalus.uplc.DataInstances$.unsafeTupleFromData(
-         scalus.uplc.DataInstances$::scalus.uplc.DataInstances$.given_FromData_ByteString,
-         scalus.uplc.DataInstances$::scalus.uplc.DataInstances$.given_FromData_ByteString,
+       match scalus.uplc.FromDataInstances$.unsafeTupleFromData(
+         scalus.uplc.FromDataInstances$.given_FromData_ByteString,
+         scalus.uplc.FromDataInstances$.given_FromData_ByteString,
          datum
        ) with
          case Tuple2(hash, pkh) ->
-           let preimage =
-             scalus.uplc.DataInstances$::scalus.uplc.DataInstances$.given_FromData_ByteString(
-               redeemer
-             )
-           in
+           let preimage = scalus.uplc.FromDataInstances$.given_FromData_ByteString(redeemer) in
            let signatories =
-             scalus.uplc.DataInstances$::scalus.uplc.DataInstances$.ListFromData(
-               {λ d ->
-                 scalus.ledger.api.v1.FromDataInstances$::scalus.ledger.api.v1.FromDataInstances$.fromDataPubKeyHash(
-                   d
-                 )
-               },
+             scalus.uplc.FromDataInstances$.ListFromData(
+               {λ d -> scalus.ledger.api.v1.FromDataInstances$.fromDataPubKeyHash(d) },
                let d$proxy1 = headList(sndPair(unConstrData(ctxData))) in
                headList(
                  tailList(
@@ -227,21 +220,16 @@ in fun scalus.OptimizedPreimageValidator$.preimageValidator datum redeemer ctxDa
              )
            in
            let _ =
-             scalus.prelude.List$::scalus.prelude.List$.findOrFail(
+             scalus.prelude.List$.findOrFail(
                signatories,
-               {λ sig ->
-                 scalus.prelude.Prelude$::scalus.prelude.Prelude$.given_Eq_ByteString(
-                   sig({λ hash -> hash }),
-                   pkh
-                 )
-               }
+               {λ sig -> scalus.prelude.Prelude$.given_Eq_ByteString(sig({λ hash -> hash }), pkh) }
              )
            in
            if
                let x$proxy1 = sha2_256(preimage) in
-               scalus.prelude.Prelude$::scalus.prelude.Prelude$.given_Eq_ByteString(x$proxy1, hash)
-           then
-               () else ERROR 'Wrong preimage'
+               scalus.prelude.Prelude$.given_Eq_ByteString(x$proxy1, hash) then ()
+           else
+               ERROR 'Wrong preimage'
 in scalus.OptimizedPreimageValidator$.preimageValidator
 ```
 
