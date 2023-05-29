@@ -182,6 +182,33 @@ class FlatSpec extends AnyFunSuite with ScalaCheckPropertyChecks with ArbitraryI
     }
   }
 
+  test("encode/decode List") {
+    val fl = summon[Flat[List[Boolean]]]
+    assert(fl.bitSize(List.empty[Boolean]) == 1)
+    assert(fl.bitSize(List(true, false, true)) == 7)
+
+    def check(n: List[Boolean], encodedHex: String) =
+      val enc = EncoderState(fl.bitSize(n) / 8 + 1)
+      fl.encode(n, enc)
+      enc.nextWord()
+      assert(Utils.bytesToHex(enc.result) == encodedHex)
+      val dec = DecoderState(enc.result)
+      assert(fl.decode(dec) == n)
+
+    check(List.empty[Boolean], "00")
+    check(List(true, false, true), "EC")
+
+    forAll { (n: List[Boolean]) =>
+      val enc = EncoderState(fl.bitSize(n) / 8 + 1)
+      fl.encode(n, enc)
+      enc.nextWord()
+      val result = enc.result
+      val dec = DecoderState(result)
+      val decoded = fl.decode(dec)
+      assert(decoded == n)
+    }
+  }
+
   test("encode/decode DefaulnUni") {
     import scalus.uplc.DefaultFun.*
     import scalus.uplc.CommonFlatInstantces.{*, given}

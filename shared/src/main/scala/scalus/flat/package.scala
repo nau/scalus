@@ -169,7 +169,7 @@ package object flat:
   given listFlat[A: Flat]: Flat[List[A]] with
     def bitSize(a: List[A]): Int =
       val flat = summon[Flat[A]]
-      a.foldLeft(0)((acc, elem) => acc + flat.bitSize(elem) + 1)
+      a.foldLeft(1)((acc, elem) => acc + flat.bitSize(elem) + 1)
 
     def encode(a: List[A], encode: EncoderState): Unit =
       val flat = summon[Flat[A]]
