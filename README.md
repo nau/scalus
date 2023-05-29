@@ -34,6 +34,11 @@ And vote for the project on Cardano Catalyst!
 
 Check out the [tutorial](Tutorial.md) to get started.
 
+## Scalus Starter Project
+
+You can use the [Scalus Starter Project](https://github.com/nau/scalus-starter) to get started with Scalus.
+Clone the repository and follow the instructions in the README.
+
 ## Full Token Minting/Burning Example
 
 Here is a full example of a token minting/burning validator that works on both JVM and JavaScript:

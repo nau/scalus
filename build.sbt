@@ -1,6 +1,8 @@
 import org.scalajs.linker.interface.OutputPatterns
 
 val scala3Version = "3.2.2"
+val scalusVersion = "0.1.0"
+
 Global / onChangedBuildSource := ReloadOnSourceChanges
 ThisBuild / scalaVersion := scala3Version
 Test / publishArtifact := false
@@ -48,7 +50,7 @@ lazy val scalusPlugin = project
   .settings(
     name := "scalus-plugin",
     organization := "org.scalus",
-    version := "0.1.0-SNAPSHOT",
+    version := scalusVersion,
     libraryDependencies += "org.scalatest" %%% "scalatest" % "3.2.15" % "test",
     libraryDependencies += "org.scalatestplus" %%% "scalacheck-1-16" % "3.2.14.0" % "test",
     libraryDependencies += "org.scala-lang" %% "scala3-compiler" % scala3Version // % "provided"
@@ -82,7 +84,7 @@ lazy val scalusPluginTests = project
   .settings(
     name := "scalus-plugin-tests",
     organization := "scalus",
-    version := "0.1.0-SNAPSHOT",
+    version := scalusVersion,
     PluginDependency,
     libraryDependencies += "org.scalatest" %%% "scalatest" % "3.2.12" % "test",
     libraryDependencies += "org.scalatestplus" %%% "scalacheck-1-16" % "3.2.12.0" % "test"
@@ -100,7 +102,7 @@ lazy val scalus = crossProject(JSPlatform, JVMPlatform)
   .in(file("."))
   .settings(
     name := "scalus",
-    version := "0.1.0-SNAPSHOT",
+    version := scalusVersion,
     scalaVersion := scala3Version,
     scalacOptions += "-Xcheck-macros",
     scalacOptions += "-explain",
