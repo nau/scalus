@@ -196,7 +196,7 @@ class MintingPolicyExampleSpec extends BaseValidatorSpec {
     val appliedValidator =
       validator $ hoskyMintTxOutRef.id.hash $ hoskyMintTxOutRef.idx $ evaledTokens
     val flatSize = ProgramFlatCodec.encodeFlat(Program((1, 0, 0), appliedValidator)).length
-    assert(flatSize == 2348)
+    assert(flatSize == 2350)
     performMintingPolicyValidatorChecks(appliedValidator)(withScriptContextV1)
   }
 
@@ -206,7 +206,7 @@ class MintingPolicyExampleSpec extends BaseValidatorSpec {
     val appliedValidator =
       validator $ hoskyMintTxOutRef.id.hash $ hoskyMintTxOutRef.idx $ evaledTokens
     val flatSize = ProgramFlatCodec.encodeFlat(Program((2, 0, 0), appliedValidator)).length
-    assert(flatSize == 2489)
+    assert(flatSize == 2491)
     performMintingPolicyValidatorChecks(appliedValidator)(withScriptContextV2)
   }
 

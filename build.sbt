@@ -1,7 +1,7 @@
 import org.scalajs.linker.interface.OutputPatterns
 
-val scala3Version = "3.2.2"
-val scalusVersion = "0.1.0"
+val scala3Version = "3.3.0"
+val scalusVersion = "0.2.0-SNAPSHOT"
 
 Global / onChangedBuildSource := ReloadOnSourceChanges
 ThisBuild / scalaVersion := scala3Version

@@ -31,6 +31,7 @@
       in
       rec {
         devShell = pkgs.mkShell {
+          JAVA_OPTS="-Xmx2g -XX:+UseG1GC";
           packages = with pkgs; [
             git
             openjdk11
