@@ -1,17 +1,17 @@
 package scalus.sir
 
 import scalus.sir.Recursivity.*
+import scalus.uplc.Constant
 import scalus.uplc.DefaultFun
 import scalus.uplc.DefaultFun.*
 import scalus.uplc.ExprBuilder
 import scalus.uplc.Meaning
 import scalus.uplc.NamedDeBruijn
 import scalus.uplc.Term
-import scalus.uplc.TermDSL.{*, given}
+import scalus.uplc.TermDSL.*
 import scalus.uplc.TypeScheme
+
 import scala.collection.mutable.HashMap
-import scalus.uplc.Term
-import scalus.uplc.Constant
 
 class SimpleSirToUplcLowering(generateErrorTraces: Boolean = false) {
 

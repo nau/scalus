@@ -17,7 +17,7 @@ object Prelude {
   given Eq[Boolean] = (x: Boolean, y: Boolean) =>
     if x then if y then true else false else if y then false else true
   given Eq[Data] = (x: Data, y: Data) => Builtins.equalsData(x, y)
-  given Eq[Unit] = (x: Unit, y: Unit) => true
+  given Eq[Unit] = (_: Unit, _: Unit) => true
 
   extension [A](x: A) inline def ===(inline y: A)(using inline eq: Eq[A]): Boolean = eq(x, y)
   extension [A](x: A) inline def !==(inline y: A)(using inline eq: Eq[A]): Boolean = !eq(x, y)
@@ -42,7 +42,7 @@ object Prelude {
 
 }
 
-import Prelude.{*, given}
+import Prelude.*
 
 enum List[+A]:
   case Nil extends List[Nothing]

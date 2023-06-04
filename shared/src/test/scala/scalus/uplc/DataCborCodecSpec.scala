@@ -1,14 +1,13 @@
 package scalus.uplc
 
-import io.bullet.borer.{Cbor, Decoder, Encoder}
-import org.scalacheck.{Arbitrary, Gen}
+import io.bullet.borer.Cbor
+import io.bullet.borer.Decoder
+import io.bullet.borer.Encoder
 import org.scalatest.funsuite.AnyFunSuite
 import org.scalatestplus.scalacheck.ScalaCheckPropertyChecks
 import scalus.builtins
 import scalus.uplc.Data.*
 import scalus.utils.Utils
-
-import scala.util.control.NonFatal
 
 class DataCborCodecSpec extends AnyFunSuite with ScalaCheckPropertyChecks with ArbitraryInstances:
 

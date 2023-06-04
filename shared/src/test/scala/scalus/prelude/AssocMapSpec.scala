@@ -2,23 +2,18 @@ package scalus.prelude
 
 import org.scalacheck.Arbitrary
 import org.scalacheck.Prop
-import org.scalacheck.Properties
 import org.scalatest.funsuite.AnyFunSuite
 import org.scalatestplus.scalacheck.Checkers._
 import org.scalatestplus.scalacheck.ScalaCheckPropertyChecks
+import scalus.Compiler
+import scalus.prelude.List.*
+import scalus.prelude.Prelude.===
+import scalus.prelude.Prelude.given
+import scalus.prelude.These.*
+import scalus.sir.SimpleSirToUplcLowering
 import scalus.uplc.ArbitraryInstances
 
 import scala.collection.immutable
-
-import scalus.prelude.AssocMap
-import scalus.Compiler
-import scalus.prelude.Prelude.{===, given}
-import scalus.prelude.List
-import scalus.prelude.List.*
-import scalus.prelude.These.*
-import scalus.sir.SimpleSirToUplcLowering
-import scalus.uplc.Cek
-import scalus.builtins.ByteString
 
 class AssocMapSpec extends AnyFunSuite with ScalaCheckPropertyChecks with ArbitraryInstances {
 

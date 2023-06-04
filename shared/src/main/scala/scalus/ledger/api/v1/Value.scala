@@ -32,8 +32,8 @@ object Value:
 
   def checkPred(l: Value, r: Value)(f: These[BigInt, BigInt] => Boolean): Boolean = {
     def inner(m: AssocMap[TokenName, These[BigInt, BigInt]]): Boolean =
-      AssocMap.all(m)((k, v) => f(v))
-    AssocMap.all(unionVal(l, r))((k, v) => inner(v))
+      AssocMap.all(m)((_, v) => f(v))
+    AssocMap.all(unionVal(l, r))((_, v) => inner(v))
   }
 
   def checkBinRel(op: (BigInt, BigInt) => Boolean)(

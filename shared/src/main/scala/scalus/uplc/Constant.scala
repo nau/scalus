@@ -2,7 +2,6 @@ package scalus.uplc
 
 import scalus.builtins
 
-import java.util
 import scala.collection.immutable
 
 sealed trait Constant:

@@ -299,14 +299,9 @@ package object flat:
         ((this.buffer(this.currPtr) << this.usedBits) & 255) >>> leadingZeros
 
       if numBits > unusedBits then
-        val os = byteAsBitString(r.toByte)
         val nextByte: Byte = this.buffer(this.currPtr + 1)
-        val nbs = byteAsBitString(nextByte)
         val lowerBits = (nextByte & 255) >>> (unusedBits + leadingZeros)
-        val lbs = byteAsBitString(lowerBits.toByte)
         r = r | lowerBits
-        val ns = byteAsBitString(r.toByte)
-//        println(s"here: was ${os} | $lbs = $ns, nextbyte $nbs, shift: ${unusedBits + leadingZeros}")
 
       this.dropBits(numBits)
 

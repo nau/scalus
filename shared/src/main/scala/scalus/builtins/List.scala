@@ -1,7 +1,5 @@
 package scalus.builtins
 
-import scalus.uplc.Data
-
 import scala.collection.immutable
 
 enum List[+A]:

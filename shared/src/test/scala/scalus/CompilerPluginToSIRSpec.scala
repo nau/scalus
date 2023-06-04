@@ -10,7 +10,6 @@ import scalus.builtins.ByteString.given
 import scalus.ledger.api.v1.*
 import scalus.prelude.List.Cons
 import scalus.prelude.List.Nil
-import scalus.prelude.Prelude.===
 import scalus.prelude.Prelude.given
 import scalus.sir.Binding
 import scalus.sir.ConstrDecl
@@ -20,12 +19,9 @@ import scalus.sir.Recursivity.*
 import scalus.sir.SIR
 import scalus.sir.SIR.*
 import scalus.sir.SimpleSirToUplcLowering
-import scalus.sir.SirDSL.{_, given}
+import scalus.sir.SirDSL.{*, given}
 import scalus.uplc.DefaultFun.*
-import scalus.uplc.TermDSL.lam
-import scalus.uplc.TermDSL.λ
 import scalus.uplc.*
-import scalus.utils.Utils
 
 import scala.collection.immutable
 
@@ -745,7 +741,6 @@ class CompilerPluginToSIRSpec extends AnyFunSuite with ScalaCheckPropertyChecks:
   }
 
   test("compile match on ADT") {
-    import scalus.ledger.api.v1.*
     import scalus.prelude.List
     import scalus.prelude.List.*
     val compiled = compile {
@@ -762,7 +757,7 @@ class CompilerPluginToSIRSpec extends AnyFunSuite with ScalaCheckPropertyChecks:
   }
 
   test("compile fieldAsData macro") {
-    import scalus.ledger.api.v1.{*, given}
+    import scalus.ledger.api.v1.*
     import scalus.ledger.api.v1.ToDataInstances.given
 
     val compiled = compile { (ctx: scalus.uplc.Data) =>

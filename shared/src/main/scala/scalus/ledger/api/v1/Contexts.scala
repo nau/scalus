@@ -6,16 +6,13 @@ import scalus.builtins.ByteString
 import scalus.prelude.AssocMap
 import scalus.prelude.List
 import scalus.prelude.Maybe
-import scalus.prelude.Prelude.Eq
 import scalus.prelude.Prelude.===
+import scalus.prelude.Prelude.Eq
 import scalus.prelude.Prelude.given
 import scalus.prelude.These.*
 import scalus.uplc.Data
-import scalus.uplc.Data.fromData
 import scalus.uplc.Data.FromData
-import scalus.uplc.Data.ToData
-import scalus.uplc.Data.given
-import scalus.utils.Utils.bytesToHex
+import scalus.uplc.Data.fromData
 
 type ValidatorHash = ByteString
 type Datum = Data
@@ -209,8 +206,6 @@ enum Extended[+A]:
   case NegInf extends Extended[Nothing]
   case Finite(a: A)
   case PosInf extends Extended[Nothing]
-
-import ToDataInstances.given
 
 case class UpperBound[A](upper: Extended[A], closure: Closure)
 case class LowerBound[A](extended: Extended[A], closure: Closure)

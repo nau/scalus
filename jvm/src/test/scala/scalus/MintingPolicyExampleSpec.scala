@@ -1,15 +1,10 @@
 package scalus
 
-import io.bullet.borer.Cbor
-import org.scalatest.funsuite.AnyFunSuite
-import org.scalatestplus.scalacheck.ScalaCheckPropertyChecks
-import scalus.Compiler.fieldAsData
-import scalus.builtins.Builtins
+import scalus.Compiler.compile
 import scalus.builtins.ByteString
 import scalus.builtins.ByteString.given
 import scalus.examples.MintingPolicy
 import scalus.examples.MintingPolicyV2
-import scalus.ledger.api.v1.FromDataInstances.given
 import scalus.ledger.api.v1.ToDataInstances.given
 import scalus.ledger.api.v1.*
 import scalus.ledger.api.v2
@@ -17,27 +12,11 @@ import scalus.prelude.List
 import scalus.prelude.List.Cons
 import scalus.prelude.List.Nil
 import scalus.prelude.Maybe.*
-import scalus.prelude.Prelude.===
-import scalus.prelude.Prelude.given
 import scalus.prelude.*
 import scalus.sir.SimpleSirToUplcLowering
-import scalus.uplc.ArbitraryInstances
-import scalus.Compiler.compile
-import scalus.uplc.Constant.Pair
-import scalus.uplc.Data.FromData
-import scalus.uplc.DefaultFun.*
-import scalus.uplc.DefaultUni.Bool
-import scalus.uplc.DefaultUni.asConstant
 import scalus.uplc.Term.*
 import scalus.uplc.TermDSL.{_, given}
 import scalus.uplc.*
-import scalus.utils.Utils
-
-import java.io.ByteArrayInputStream
-import scala.collection.immutable
-import scala.util.Failure
-import scala.util.Success
-import scala.util.Try
 
 class MintingPolicyExampleSpec extends BaseValidatorSpec {
 

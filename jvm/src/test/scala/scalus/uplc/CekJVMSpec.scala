@@ -3,22 +3,18 @@ package scalus.uplc
 import org.scalatest.funsuite.AnyFunSuite
 import org.scalatestplus.scalacheck.ScalaCheckPropertyChecks
 import scalus.builtins.ByteString.given
-import scalus.ledger.api.v1.*
 import scalus.ledger.api.v1.ToDataInstances.given
-import scalus.uplc.Constant.Pair
+import scalus.ledger.api.v1.*
+import scalus.prelude.List.Cons
+import scalus.prelude.List.Nil
 import scalus.uplc.DefaultFun.*
-import scalus.uplc.DefaultUni.{asConstant, Bool, ByteString}
-import scalus.uplc.ExprBuilder.{sndPair, unConstrData}
+import scalus.uplc.DefaultUni.asConstant
 import scalus.uplc.Term.*
 import scalus.uplc.TermDSL.{*, given}
-import scalus.prelude.List.{Cons, Nil}
-import scalus.prelude.Maybe.*
+import scalus.utils.Utils
 
-import java.io.{ByteArrayInputStream, ByteArrayOutputStream}
-import java.math.RoundingMode
 import scala.collection.immutable
 import scala.io.Source.fromFile
-import scalus.utils.Utils
 
 class CekJVMSpec extends AnyFunSuite with ScalaCheckPropertyChecks with ArbitraryInstances:
   def evalUPLC(code: String): Term = {
@@ -179,7 +175,6 @@ class CekJVMSpec extends AnyFunSuite with ScalaCheckPropertyChecks with Arbitrar
   ignore("fieldAsData macro test") {
     import Data.*
     import scalus.ledger.api.v1.*
-    import scalus.utils.Utils.*
 
     val txInfo = TxInfo(
       Nil,

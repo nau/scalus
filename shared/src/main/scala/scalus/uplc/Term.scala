@@ -1,27 +1,9 @@
 package scalus.uplc
 
-import io.bullet.borer.Decoder
-import io.bullet.borer.Encoder
-import io.bullet.borer.Reader
-import io.bullet.borer.Tag.NegativeBigNum
-import io.bullet.borer.Tag.Other
-import io.bullet.borer.Tag.PositiveBigNum
-import io.bullet.borer.Writer
-import io.bullet.borer.encodings.BaseEncoding
-import io.bullet.borer.{DataItem => DI}
 import org.typelevel.paiges.Doc
 import scalus.*
-import scalus.flat.DecoderState
-import scalus.flat.EncoderState
-import scalus.flat.Flat
 import scalus.sir.PrettyPrinter
-import scalus.sir.SIR
 import scalus.uplc.Data.*
-import scalus.utils.Utils
-import scalus.utils.Utils.bytesToHex
-
-import java.util
-import scala.collection.immutable
 
 case class NamedDeBruijn(name: String, index: Int = 0):
   assert(index >= 0)

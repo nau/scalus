@@ -1,15 +1,7 @@
 package scalus.sir
 
-import io.bullet.borer.Tag.{NegativeBigNum, Other, PositiveBigNum}
-import io.bullet.borer.encodings.BaseEncoding
-import io.bullet.borer.{DataItem as DI, Decoder, Encoder, Reader, Writer}
-import org.typelevel.paiges.{Doc, Style}
-import scalus.uplc.{Constant, Data, DefaultFun, NamedDeBruijn}
-import scalus.utils.Utils
-import scalus.utils.Utils.bytesToHex
-import cats.syntax.all.*
-
-import java.util
+import scalus.uplc.Constant
+import scalus.uplc.DefaultFun
 
 object SirDSL:
   def applyToList(app: SIR): (SIR, List[SIR]) =

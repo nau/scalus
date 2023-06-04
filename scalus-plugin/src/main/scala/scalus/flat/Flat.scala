@@ -4,7 +4,6 @@ import scalus.builtins
 import scalus.flat.DecoderState
 import scalus.flat.EncoderState
 import scalus.flat.Flat
-import scalus.flat.Natural
 import scalus.flat.given
 import scalus.sir.Binding
 import scalus.sir.Case
@@ -12,14 +11,10 @@ import scalus.sir.ConstrDecl
 import scalus.sir.DataDecl
 import scalus.sir.Recursivity
 import scalus.sir.SIR
-import scalus.uplc.Constant
-import scalus.uplc.Data
-import scalus.uplc.DefaultFun
-import scalus.uplc.DefaultUni
 import scalus.uplc.CommonFlatInstantces.*
 import scalus.uplc.CommonFlatInstantces.given
-
-import scala.collection.mutable.ListBuffer
+import scalus.uplc.Data
+import scalus.uplc.DefaultFun
 
 object FlatInstantces:
   val termTagWidth = 4

@@ -1,8 +1,6 @@
 package scalus.builtins
 
-import scalus.uplc.Data
 import scalus.utils.Hex
-import scala.collection.immutable
 
 class ByteString private (val bytes: Array[Byte]) {
   override def toString: String = "\"" + toHex + "\""

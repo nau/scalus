@@ -1,21 +1,7 @@
 package scalus.uplc
 
-import org.scalatest.funsuite.AnyFunSuite
-import org.scalatestplus.scalacheck.ScalaCheckPropertyChecks
-import scalus.ledger.api.v1.*
-import scalus.uplc.Constant.Pair
-import scalus.uplc.DefaultFun.*
-import scalus.uplc.DefaultUni.{asConstant, Bool, ByteString}
-import scalus.uplc.ExprBuilder.{sndPair, unConstrData}
-import scalus.uplc.Program
-import scalus.uplc.Term.*
-import scalus.uplc.TermDSL.{*, given}
-import scalus.utils.Utils
+import scalus.uplc.TermDSL.*
 
-import java.io.{ByteArrayInputStream, ByteArrayOutputStream}
-import java.math.RoundingMode
-import scala.collection.immutable
-import scala.io.Source.fromFile
 import scala.reflect.ClassTag
 import scala.scalajs.js
 import scala.scalajs.js.annotation.JSImport

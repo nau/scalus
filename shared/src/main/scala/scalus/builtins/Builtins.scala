@@ -1,9 +1,6 @@
 package scalus.builtins
-import scalus.uplc.Data
-import scalus.utils.Utils
-
-import scala.collection.immutable
 import io.bullet.borer.Cbor
+import scalus.uplc.Data
 
 object Builtins:
   // Integers

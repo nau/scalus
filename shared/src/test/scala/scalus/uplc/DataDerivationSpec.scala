@@ -3,7 +3,6 @@ package scalus.uplc
 import org.scalatest.funsuite.AnyFunSuite
 import org.scalatestplus.scalacheck.ScalaCheckPropertyChecks
 import scalus.builtins.ByteString.given
-import scalus.ledger.api.v1.FromDataInstances.given
 import scalus.ledger.api.v1.Interval
 import scalus.ledger.api.v1.ScriptPurpose
 import scalus.ledger.api.v1.ToDataInstances.given

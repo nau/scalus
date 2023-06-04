@@ -1,7 +1,6 @@
 package scalus.uplc
 
 import scalus.builtins.ByteString
-import scalus.utils.Hex.bytesToHex
 
 import scala.collection.immutable
 import scala.collection.immutable.List

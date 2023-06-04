@@ -1,10 +1,7 @@
 package scalus.sir
 
 import scalus.uplc.Constant
-import scalus.uplc.Data
 import scalus.uplc.DefaultFun
-
-import java.util
 
 case class Binding(name: String, value: SIR) {
   override def toString: String = s"Binding(\"$name\", $value)"

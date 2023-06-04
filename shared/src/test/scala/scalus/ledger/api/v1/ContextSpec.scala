@@ -1,25 +1,16 @@
 package scalus.ledger.api.v1
 
-import org.scalacheck.Arbitrary
-import org.scalacheck.Prop
-import org.scalacheck.Properties
 import org.scalatest.funsuite.AnyFunSuite
-import org.scalatestplus.scalacheck.Checkers._
 import org.scalatestplus.scalacheck.ScalaCheckPropertyChecks
-import scalus.pretty
-import scalus.uplc.ArbitraryInstances
-
-import scala.collection.immutable
-
-import scalus.prelude.Prelude.{*, given}
-import scalus.prelude.Maybe.*
 import scalus.Compiler.compile
-import scalus.sir.SIR
-import scalus.uplc.Term
-import scalus.uplc.TermDSL.{*, given}
-import scalus.sir.SimpleSirToUplcLowering
-import scalus.uplc.Cek
 import scalus.builtins.ByteString
+import scalus.prelude.Prelude.*
+import scalus.sir.SIR
+import scalus.sir.SimpleSirToUplcLowering
+import scalus.uplc.ArbitraryInstances
+import scalus.uplc.Cek
+import scalus.uplc.Term
+import scalus.uplc.TermDSL.given
 
 class ContextSpec extends AnyFunSuite with ScalaCheckPropertyChecks with ArbitraryInstances {
   test("PubKeyHash Eq") {

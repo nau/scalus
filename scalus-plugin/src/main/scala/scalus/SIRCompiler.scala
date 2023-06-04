@@ -5,19 +5,12 @@ import dotty.tools.dotc.ast.Trees.*
 import dotty.tools.dotc.ast.tpd
 import dotty.tools.dotc.core.Constants.Constant
 import dotty.tools.dotc.core.Contexts.Context
-import dotty.tools.dotc.core.Contexts._
-import dotty.tools.dotc.core.Decorators.*
 import dotty.tools.dotc.core.Flags.*
 import dotty.tools.dotc.core.Names.*
 import dotty.tools.dotc.core.StdNames.nme
-import dotty.tools.dotc.core.SymDenotations.*
 import dotty.tools.dotc.core.Symbols.*
-import dotty.tools.dotc.core.Types.ClassInfo
 import dotty.tools.dotc.core.Types.Type
-import dotty.tools.dotc.core.Types.TypeRef
 import dotty.tools.dotc.core.*
-import dotty.tools.dotc.plugins.*
-import dotty.tools.dotc.plugins.*
 import dotty.tools.dotc.util.SrcPos
 import dotty.tools.io.ClassPath
 import scalus.builtins.ByteString
@@ -31,22 +24,14 @@ import scalus.sir.ConstrDecl
 import scalus.sir.DataDecl
 import scalus.sir.Recursivity
 import scalus.sir.SIR
-import scalus.uplc
-import scalus.uplc.Constant.Data
 import scalus.uplc.DefaultFun
 import scalus.uplc.DefaultUni
-import scalus.BuiltinHelper
 
-import java.io.BufferedOutputStream
-import java.io.FileOutputStream
 import java.net.URL
-import scala.annotation.threadUnsafe
 import scala.collection.immutable
 import scala.collection.mutable
 import scala.collection.mutable.ListBuffer
 import scala.language.implicitConversions
-import scala.util.control.NonFatal
-import dotty.tools.dotc.interfaces.SourcePosition
 
 case class Module(defs: List[Binding])
 case class FullName(name: String)
@@ -113,8 +98,6 @@ class SIRCompiler(mode: scalus.Mode)(using ctx: Context) {
   }
 
   def compileModule(tree: Tree): Unit = {
-    import sir.SIR.*
-
     def collectTypeDefs(tree: Tree): List[TypeDef] = {
       tree match
         case EmptyTree            => Nil
@@ -219,15 +202,6 @@ class SIRCompiler(mode: scalus.Mode)(using ctx: Context) {
   }
 
   def findAndReadModuleOfSymbol(moduleName: String): Option[Module] = {
-
-    def getResources(packageName: String): Seq[URL] = {
-      import scala.collection.JavaConverters._
-      val packagePath = packageName.replace('.', '/')
-      val classLoader = Thread.currentThread().getContextClassLoader
-      val resources: java.util.Enumeration[URL] = classLoader.getResources(packagePath)
-      resources.asScala.toList
-    }
-
     val filename = moduleName.replace('.', '/') + ".sir"
     // println(s"findAndReadModuleOfSymbol: ${filename}")
     // read the file from the classpath
@@ -247,8 +221,7 @@ class SIRCompiler(mode: scalus.Mode)(using ctx: Context) {
       args: immutable.List[Tree]
   ): SIR = {
 
-    val typeSymbol = tpe.typeSymbol
-
+    // val typeSymbol = tpe.typeSymbol
     // debugInfo(s"compileNewConstructor0")
     /* report.echo(
       s"compileNewConstructor1 ${typeSymbol} singleton ${tpe.isSingleton} companion: ${typeSymbol.maybeOwner.companionClass} " +

@@ -4,13 +4,10 @@ import scalus.builtins.ByteString
 import scalus.builtins.ByteString.given
 import scalus.ledger.api.v1.*
 import scalus.macros.Macros
-import scalus.sir.SIR
 import scalus.uplc.Constant.LiftValue
 import scalus.utils.Utils
 import scalus.utils.Utils.bytesToHex
 
-import java.io.ByteArrayInputStream
-import java.io.ByteArrayOutputStream
 import scala.annotation.targetName
 
 trait Delayed[+A]
@@ -45,6 +42,7 @@ object ExprBuilder:
   def let[A, B](expr: Expr[A])(f: Expr[A] => Expr[B]): Expr[B] = lam[A]("let")[B](f)(expr)
 
   // Z Combinator
+  // (lam ff [(lam xx [ff (lam vv [xx xx vv])]) (lam xx [ff (lam vv [xx xx vv])])])
   val ZTerm: Term = λ("ff") {
     val zz = λ("xx")(
       Term.Var(NamedDeBruijn("ff")) $ λ("vv")(
@@ -57,19 +55,6 @@ object ExprBuilder:
   }
   def Z[A, B]: Expr[((A => B) => A => B) => A => B] = Expr(ZTerm)
   def z[A, B](f: Expr[(A => B) => A => B]): Expr[A => B] =
-    // (lam ff [(lam xx [ff (lam vv [xx xx vv])]) (lam xx [ff (lam vv [xx xx vv])])])
-    val Z: Term = λ("ff") {
-      val zz = λ("xx")(
-        Term.Var(NamedDeBruijn("ff")) $ λ("vv")(
-          Term.Var(NamedDeBruijn("xx")) $ Term.Var(NamedDeBruijn("xx")) $ Term.Var(
-            NamedDeBruijn("vv")
-          )
-        )
-      )
-      zz $ zz
-    }
-
-    // app(ZCombinator, lam(funcName, r))
     Expr(ZTerm $ f.term)
 
   def rec[A, B](f: Expr[A => B] => Expr[A => B]): Expr[A => B] =

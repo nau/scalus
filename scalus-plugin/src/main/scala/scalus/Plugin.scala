@@ -3,42 +3,15 @@ package scalus
 import dotty.tools.dotc.*
 import dotty.tools.dotc.ast.Trees.*
 import dotty.tools.dotc.ast.tpd
-import dotty.tools.dotc.core.Constants.Constant
 import dotty.tools.dotc.core.Contexts.Context
-import dotty.tools.dotc.core.Contexts._
-import dotty.tools.dotc.core.Decorators.*
-import dotty.tools.dotc.core.Flags.*
+import dotty.tools.dotc.core.Contexts.*
 import dotty.tools.dotc.core.Names.*
-import dotty.tools.dotc.core.StdNames.nme
-import dotty.tools.dotc.core.SymDenotations.*
 import dotty.tools.dotc.core.Symbols.*
-import dotty.tools.dotc.core.Types.Type
-import dotty.tools.dotc.core.Types.TypeRef
 import dotty.tools.dotc.core.*
 import dotty.tools.dotc.plugins.*
-import dotty.tools.dotc.plugins.*
-import scalus.sir.Binding
-import scalus.sir.Case
-import scalus.sir.ConstrDecl
-import scalus.sir.DataDecl
-import scalus.sir.Recursivity
-import scalus.sir.SIR
-import scalus.uplc
-import scalus.uplc.DefaultFun
 
-import java.io.BufferedOutputStream
-import java.io.FileOutputStream
-import scala.annotation.threadUnsafe
 import scala.collection.immutable
-import scala.collection.mutable
 import scala.language.implicitConversions
-import scalus.builtins.ByteString
-import scalus.uplc.Constant.Data
-import scalus.uplc.DefaultUni
-import scala.util.control.NonFatal
-import scala.collection.mutable.ListBuffer
-import java.net.URL
-import dotty.tools.io.ClassPath
 
 enum Mode:
   case Compile, Link

@@ -1,10 +1,18 @@
 package scalus.uplc
-import io.bullet.borer.Tag.{NegativeBigNum, Other, PositiveBigNum}
+import io.bullet.borer.Decoder
+import io.bullet.borer.Encoder
+import io.bullet.borer.Reader
+import io.bullet.borer.Tag.NegativeBigNum
+import io.bullet.borer.Tag.Other
+import io.bullet.borer.Tag.PositiveBigNum
+import io.bullet.borer.Writer
 import io.bullet.borer.encodings.BaseEncoding
-import io.bullet.borer.{DataItem as DI, Decoder, Encoder, Reader, Writer}
+import io.bullet.borer.{DataItem => DI}
 import scalus.builtins.ByteString
-import scalus.uplc.Data
-import scalus.uplc.Data.{B, Constr, I, Map}
+import scalus.uplc.Data.B
+import scalus.uplc.Data.Constr
+import scalus.uplc.Data.I
+import scalus.uplc.Data.Map
 
 object PlutusDataCborEncoder extends Encoder[Data]:
   override def write(writer: Writer, data: Data): Writer =
@@ -51,7 +59,7 @@ object PlutusDataCborDecoder extends Decoder[Data]:
       case DI.Tag =>
         r.readTag() match
           case Other(102) =>
-            val len = r.readArrayHeader()
+            val _ = r.readArrayHeader()
             val i = r.readLong()
             val args = Decoder.forArray[Data].read(r)
             Constr(i, args.toList)

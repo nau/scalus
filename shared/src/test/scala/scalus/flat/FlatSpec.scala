@@ -1,12 +1,13 @@
 package scalus.flat
 
-import io.bullet.borer.Cbor
-import org.scalacheck.{Arbitrary, Gen, Shrink}
+import org.scalacheck.Arbitrary
+import org.scalacheck.Gen
+import org.scalacheck.Shrink
 import org.scalatest.funsuite.AnyFunSuite
 import org.scalatestplus.scalacheck.ScalaCheckPropertyChecks
 import scalus.builtins
-import scalus.uplc.*
 import scalus.uplc.ToDataInstances.given
+import scalus.uplc.*
 import scalus.utils.Utils
 
 import scala.util.Random
@@ -211,8 +212,7 @@ class FlatSpec extends AnyFunSuite with ScalaCheckPropertyChecks with ArbitraryI
 
   test("encode/decode DefaulnUni") {
     import scalus.uplc.DefaultFun.*
-    import scalus.uplc.CommonFlatInstantces.{*, given}
-    import scalus.uplc.FlatInstantces.given
+    import scalus.uplc.CommonFlatInstantces.given
     val fl = summon[Flat[DefaultFun]]
     assert(fl.bitSize(AddInteger) == 7)
     forAll(Gen.oneOf(DefaultFun.values)) { (f: DefaultFun) =>

@@ -3,11 +3,10 @@ package scalus.flat
 import org.scalatest.funsuite.AnyFunSuite
 import org.scalatestplus.scalacheck.ScalaCheckPropertyChecks
 import scalus.flat
-import scalus.flat.given
-import scalus.flat.FlatInstantces.given
-import scalus.flat.EncoderState
 import scalus.flat.DecoderState
+import scalus.flat.EncoderState
 import scalus.flat.Flat
+import scalus.flat.FlatInstantces.given
 import scalus.sir.SIR
 
 class SIRFlatSerializationSpec extends AnyFunSuite with ScalaCheckPropertyChecks:

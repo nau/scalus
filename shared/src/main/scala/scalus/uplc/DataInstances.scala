@@ -12,7 +12,6 @@ import scalus.prelude.Prelude
 import scalus.prelude.Prelude.===
 import scalus.prelude.Prelude.given
 import scalus.uplc.Data.*
-import scalus.utils.Utils.bytesToHex
 
 @Compile
 object FromDataInstances {

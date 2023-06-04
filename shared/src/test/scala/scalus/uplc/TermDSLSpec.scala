@@ -1,12 +1,12 @@
 package scalus.uplc
 
-import org.scalacheck.*
 import org.scalacheck.Prop.*
+import org.scalacheck.*
 import org.scalatest.funsuite.AnyFunSuite
-import org.scalatestplus.scalacheck.{Checkers, ScalaCheckPropertyChecks}
+import org.scalatestplus.scalacheck.ScalaCheckPropertyChecks
 import scalus.builtins.ByteString
 import scalus.uplc.DefaultUni.asConstant
-import scalus.uplc.TermDSL.{*, given}
+import scalus.uplc.TermDSL.{_, given}
 
 object ScalaJSExampleSpec extends Properties("ScalaCheck-scalajs") with ArbitraryInstances {
 

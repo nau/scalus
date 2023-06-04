@@ -1,11 +1,9 @@
 package scalus.uplc
 
 import org.scalatest.funsuite.AnyFunSuite
-import scalus.uplc.DefaultUni.{asConstant, ByteString}
+import scalus.uplc.DefaultUni.asConstant
 import scalus.uplc.Term.*
 
-import java.io.ByteArrayInputStream
-import scala.io.Source.fromFile
 class CekSpec extends AnyFunSuite:
   test("Scalus") {
     val h = Const(asConstant("Hello"))

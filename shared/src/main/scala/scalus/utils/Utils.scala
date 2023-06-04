@@ -1,6 +1,5 @@
 package scalus.utils
 
-import scala.util.control.NonFatal
 import java.io.ByteArrayInputStream
 import java.io.ByteArrayOutputStream
 

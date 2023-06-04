@@ -9,7 +9,6 @@ import scalus.uplc.Constant
 import scalus.uplc.DefaultFun
 import scalus.uplc.DefaultFun.*
 import scalus.uplc.DefaultUni.asConstant
-import scalus.uplc.NamedDeBruijn
 import scalus.uplc.Term
 import scalus.uplc.TermDSL.{_, given}
 

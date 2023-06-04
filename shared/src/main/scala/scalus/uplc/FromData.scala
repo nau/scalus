@@ -1,16 +1,13 @@
 package scalus.uplc
+import scalus.builtins.Builtins
 import scalus.uplc.Data.FromData
 
-import scala.deriving.*
 import scala.quoted.*
-import scalus.builtins.Builtins
 
 /*
   WIP ToData derivation, not working yet
  */
 object TotoData {
-  import scala.compiletime.*
-  import scala.quoted.*
   type ToData[A] = A => Data
 
   inline def deriveProduct[T](inline constrIdx: Int): ToData[T] = ${
@@ -18,7 +15,6 @@ object TotoData {
   }
 
   def deriveProductMacro[T: Type](constrIdx: Expr[Int])(using Quotes): Expr[ToData[T]] =
-    import quotes.reflect.*
     import quotes.reflect.*
     val classSym = TypeTree.of[T].symbol
     val constr = classSym.primaryConstructor
@@ -52,7 +48,6 @@ object TotoData {
   WIP FromData derivation, not working yet
  */
 object FromData {
-  import scala.compiletime.*
 
   inline def derived[T]: FromData[T] = ${ derivedMacro[T] }
 

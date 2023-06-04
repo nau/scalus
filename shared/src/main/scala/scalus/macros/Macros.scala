@@ -1,19 +1,15 @@
 package scalus.macros
 
 import scalus.builtins
-import scalus.sir.{Binding, SIR}
-import scalus.uplc.ExprBuilder.*
 import scalus.builtins.Builtins
-import scalus.uplc.{Constant, Data, DefaultUni, Expr as Exp, ExprBuilder, NamedDeBruijn, Term as Trm}
-import scalus.utils.Utils
+import scalus.uplc.Data
+import scalus.uplc.ExprBuilder
+import scalus.uplc.ExprBuilder.*
+import scalus.uplc.{Expr => Exp}
+import scalus.uplc.{Term => Trm}
 
-import scala.collection.mutable.ListBuffer
-import scala.collection.{immutable, mutable, IterableFactory, SeqFactory}
+import scala.collection.immutable
 import scala.quoted.*
-import scalus.sir.DataDecl
-import scalus.sir.Case
-import scalus.uplc.Data.FromData
-import scala.deriving.Mirror
 object Macros {
   def lamMacro[A: Type, B: Type](f: Expr[Exp[A] => Exp[B]])(using Quotes): Expr[Exp[A => B]] =
     import quotes.reflect.*
@@ -101,7 +97,6 @@ object Macros {
 //          report.info(s"$typeSymbolOfA => fieldOpt: $fieldOpt")
           fieldOpt match
             case Some((fieldSym: Symbol, idx)) =>
-              val idxExpr = Expr(idx)
               '{ d =>
                 // a bit of staged programming here
                 ${

@@ -2,25 +2,18 @@ package scalus
 
 import org.scalatest.funsuite.AnyFunSuite
 import org.scalatestplus.scalacheck.ScalaCheckPropertyChecks
-import scalus.builtins.ByteString.given
-import scalus.builtins.{Builtins, ByteString}
-import scalus.ledger.api.v1.*
-import scalus.ledger.api.v1.ToDataInstances.given
-import scalus.sir.Recursivity.*
-import scalus.sir.SIR.*
-import scalus.sir.{Binding, Recursivity, SIR, SimpleSirToUplcLowering}
-import scalus.uplc.*
-import scalus.uplc.DefaultFun.*
-import scalus.Compiler.fieldAsData
 import scalus.Compiler.compile
-import scalus.uplc.TermDSL.{lam, λ}
-import scalus.utils.Utils
-
-import scala.collection.immutable
-import scalus.prelude.List.{Cons, Nil}
-import scalus.prelude.Prelude.{===, given}
-import scalus.sir.DataDecl
-import scalus.sir.ConstrDecl
+import scalus.builtins.Builtins
+import scalus.builtins.ByteString
+import scalus.builtins.ByteString.given
+import scalus.ledger.api.v1.ToDataInstances.given
+import scalus.ledger.api.v1.*
+import scalus.prelude.List.Cons
+import scalus.prelude.List.Nil
+import scalus.prelude.Prelude.===
+import scalus.prelude.Prelude.given
+import scalus.sir.SimpleSirToUplcLowering
+import scalus.uplc.*
 
 @Compile
 object PubKeyValidator {

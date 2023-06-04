@@ -8,11 +8,8 @@ import scalus.uplc.DefaultUni.Bool
 import scalus.uplc.DefaultUni.Integer
 import scalus.uplc.DefaultUni.asConstant
 import scalus.uplc.DefaultUni.given
-import scalus.utils.Utils
 
-import scala.annotation.targetName
 import scala.collection.immutable
-import scala.collection.mutable.ArrayBuffer
 
 enum TypeScheme:
   case Type(argType: DefaultUni)

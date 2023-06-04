@@ -6,7 +6,6 @@ import cats.parse.Rfc5234.{alpha, digit, hexdig}
 import cats.parse.{Numbers, Parser as P, Parser0}
 import io.bullet.borer.{Cbor, Decoder}
 import scalus.builtins.ByteString
-import scalus.uplc.DefaultUni
 import scalus.uplc.DefaultUni.{asConstant, ProtoList, ProtoPair}
 import scalus.uplc.Term.*
 import scalus.utils.Utils

@@ -1,35 +1,31 @@
 package scalus.ledger.api.v1
 
-import io.bullet.borer.{Cbor, Decoder, Encoder}
-import org.scalacheck.{Arbitrary, Gen}
-import org.scalatest.funsuite.AnyFunSuite
-import org.scalatestplus.scalacheck.ScalaCheckPropertyChecks
+import io.bullet.borer.Cbor
+import io.bullet.borer.Decoder
+import io.bullet.borer.Encoder
+import scalus.BaseValidatorSpec
+import scalus.Compiler.compile
+import scalus.Expected
 import scalus.builtins
-import scalus.uplc.Data.*
-import scalus.utils.Utils
 import scalus.builtins.ByteString.StringInterpolators
-import scalus.uplc.Data.fromData
-import scalus.ledger.api.v1.FromDataInstances.given
-
-import scala.util.control.NonFatal
-import scalus.ledger.api.v1.*
 import scalus.ledger.api.v1.Credential.*
+import scalus.ledger.api.v1.FromDataInstances.given
+import scalus.ledger.api.v1.*
 import scalus.ledger.api.v2
+import scalus.prelude.AssocMap
 import scalus.prelude.List.*
 import scalus.prelude.Maybe.*
-import scalus.uplc.Data
-import scalus.uplc.PlutusDataCborEncoder
-import scalus.uplc.PlutusDataCborDecoder
-import scalus.uplc.ProgramFlatCodec
-import scalus.uplc.Cek
-import scalus.uplc.DeBruijn
-import scalus.uplc.Program
-import scalus.prelude.AssocMap
-import scalus.BaseValidatorSpec
-import scalus.Expected
-import scalus.Compiler.compile
-import scalus.doubleCborHex
 import scalus.sir.SimpleSirToUplcLowering
+import scalus.uplc.Cek
+import scalus.uplc.Data
+import scalus.uplc.Data.*
+import scalus.uplc.Data.fromData
+import scalus.uplc.DeBruijn
+import scalus.uplc.PlutusDataCborDecoder
+import scalus.uplc.PlutusDataCborEncoder
+import scalus.uplc.Program
+import scalus.uplc.ProgramFlatCodec
+import scalus.utils.Utils
 
 class ScriptContextV1DataSerializationSpec extends BaseValidatorSpec:
   /*

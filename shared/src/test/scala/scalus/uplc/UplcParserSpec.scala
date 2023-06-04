@@ -1,18 +1,25 @@
 package scalus.uplc
 
 import cats.implicits.toShow
-import org.scalacheck.{Arbitrary, Gen}
+import org.scalacheck.Arbitrary
+import org.scalacheck.Gen
 import org.scalatest.funsuite.AnyFunSuite
 import org.scalatestplus.scalacheck.ScalaCheckPropertyChecks
 import scalus.*
 import scalus.builtins
 import scalus.uplc.Constant.given
-import scalus.uplc.Data.{B, Constr, I, List, Map}
-import scalus.uplc.DefaultUni
-import scalus.uplc.DefaultUni.{asConstant, Bool, ByteString, Integer, ProtoList, ProtoPair}
+import scalus.uplc.Data.B
+import scalus.uplc.Data.Constr
+import scalus.uplc.Data.I
+import scalus.uplc.Data.List
+import scalus.uplc.Data.Map
+import scalus.uplc.DefaultUni.Bool
+import scalus.uplc.DefaultUni.ByteString
+import scalus.uplc.DefaultUni.Integer
+import scalus.uplc.DefaultUni.ProtoList
+import scalus.uplc.DefaultUni.ProtoPair
 import scalus.uplc.Term.*
-import scalus.uplc.TermDSL.{*, given}
-import scalus.utils.Utils.*
+import scalus.uplc.TermDSL.{_, given}
 
 import scala.collection.immutable
 

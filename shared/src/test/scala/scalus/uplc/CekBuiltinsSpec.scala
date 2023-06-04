@@ -3,19 +3,13 @@ package scalus.uplc
 import org.scalatest.funsuite.AnyFunSuite
 import org.scalatestplus.scalacheck.ScalaCheckPropertyChecks
 import scalus.builtins.ByteString.given
-import scalus.ledger.api.v1.*
 import scalus.uplc.Constant.Pair
-import scalus.uplc.ToDataInstances.given
 import scalus.uplc.DefaultFun.*
-import scalus.uplc.DefaultUni.{asConstant, Bool, ByteString}
-import scalus.uplc.ExprBuilder.{sndPair, unConstrData}
+import scalus.uplc.DefaultUni.asConstant
 import scalus.uplc.Term.*
-import scalus.uplc.TermDSL.{*, given}
+import scalus.uplc.TermDSL.{_, given}
+import scalus.uplc.ToDataInstances.given
 
-import java.io.{ByteArrayInputStream, ByteArrayOutputStream}
-import java.math.RoundingMode
-import scala.collection.immutable
-import scala.io.Source.fromFile
 import scala.reflect.ClassTag
 
 class CekBuiltinsSpec extends AnyFunSuite with ScalaCheckPropertyChecks with ArbitraryInstances:
@@ -160,7 +154,6 @@ class CekBuiltinsSpec extends AnyFunSuite with ScalaCheckPropertyChecks with Arb
   }
 
   test("ChooseList") {
-    import scalus.utils.Utils.*
     // check empty case
     assertEvalEq(
       !(!ChooseList) $ Const(Constant.List(DefaultUni.Integer, Nil)) $ asConstant(
@@ -189,7 +182,6 @@ class CekBuiltinsSpec extends AnyFunSuite with ScalaCheckPropertyChecks with Arb
   }
 
   test("NullList") {
-    import scalus.utils.Utils.*
     assertEvalEq(
       !NullList $ Const(Constant.List(DefaultUni.Integer, Nil)),
       Const(asConstant(true))
@@ -205,7 +197,6 @@ class CekBuiltinsSpec extends AnyFunSuite with ScalaCheckPropertyChecks with Arb
   }
 
   test("HeadList") {
-    import scalus.utils.Utils.*
     assertEvalEq(
       !HeadList $ Const(Constant.List(DefaultUni.Integer, asConstant(1) :: Nil)),
       Const(asConstant(1))
@@ -221,7 +212,6 @@ class CekBuiltinsSpec extends AnyFunSuite with ScalaCheckPropertyChecks with Arb
   }
 
   test("TailList") {
-    import scalus.utils.Utils.*
     assertEvalEq(
       !TailList $ Const(
         Constant.List(DefaultUni.Integer, asConstant(1) :: asConstant(2) :: Nil)
@@ -239,7 +229,6 @@ class CekBuiltinsSpec extends AnyFunSuite with ScalaCheckPropertyChecks with Arb
   }
 
   test("FstPair") {
-    import scalus.utils.Utils.*
     assertEvalEq(
       !(!FstPair) $ Const(Constant.Pair(asConstant(1), asConstant(false))),
       Const(asConstant(1))
@@ -255,7 +244,6 @@ class CekBuiltinsSpec extends AnyFunSuite with ScalaCheckPropertyChecks with Arb
   }
 
   test("SndPair") {
-    import scalus.utils.Utils.*
     assertEvalEq(
       !(!SndPair) $ Const(Constant.Pair(asConstant(1), asConstant(false))),
       Const(asConstant(false))
@@ -271,7 +259,6 @@ class CekBuiltinsSpec extends AnyFunSuite with ScalaCheckPropertyChecks with Arb
   }
 
   test("EqualsByteString") {
-    import scalus.utils.Utils.*
     assertEvalEq(
       EqualsByteString $ Const(Constant.ByteString(hex"deadbeef")) $ Const(
         Constant.ByteString(hex"deadbeef")

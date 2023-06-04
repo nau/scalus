@@ -2,7 +2,10 @@ package scalus.uplc
 
 import scalus.builtins
 import scalus.flat
-import scalus.flat.{DecoderState, EncoderState, Flat, Natural, given}
+import scalus.flat.DecoderState
+import scalus.flat.EncoderState
+import scalus.flat.Flat
+import scalus.flat.given
 import scalus.uplc.DefaultFun.*
 
 object CommonFlatInstantces:
@@ -210,7 +213,6 @@ object CommonFlatInstantces:
       flatForUni(a.tpe).encode(Constant.toValue(a), encoder)
 
     def decode(decoder: DecoderState): Constant =
-      import DefaultUni.*
       val tags = listFlat[Int](constantTypeTagFlat).decode(decoder)
       val (tpe, _) = decodeUni(tags)
       val uniDecoder = flatForUni(tpe)

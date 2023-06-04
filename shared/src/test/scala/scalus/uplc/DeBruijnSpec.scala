@@ -2,11 +2,7 @@ package scalus.uplc
 
 import org.scalatest.funsuite.AnyFunSuite
 import org.scalatestplus.scalacheck.ScalaCheckPropertyChecks
-import scalus.uplc.DefaultUni.{asConstant, ByteString}
 import scalus.uplc.Term.*
-
-import java.io.ByteArrayInputStream
-import scala.io.Source.fromFile
 
 class DeBruijnSpec extends AnyFunSuite with ScalaCheckPropertyChecks with ArbitraryInstances:
   test("deBruijnTerm") {

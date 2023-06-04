@@ -21,18 +21,14 @@ import scalus.ledger.api.v1.Value
 import scalus.prelude.AssocMap
 import scalus.prelude.List
 import scalus.prelude.Maybe
-import scalus.prelude.Prelude.Eq
 import scalus.prelude.Prelude.===
+import scalus.prelude.Prelude.Eq
 import scalus.prelude.Prelude.given
 import scalus.prelude.These.*
 import scalus.uplc.Data
 import scalus.uplc.Data.FromData
 import scalus.uplc.Data.ToData
 import scalus.uplc.Data.fromData
-import scalus.uplc.Data.given
-
-import scalus.utils.Utils.bytesToHex
-
 export scalus.ledger.api.v1.Address
 export scalus.ledger.api.v1.Credential
 export scalus.ledger.api.v1.DCert
