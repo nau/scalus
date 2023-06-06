@@ -756,6 +756,19 @@ class CompilerPluginToSIRSpec extends AnyFunSuite with ScalaCheckPropertyChecks:
     assert(evaled == scalus.uplc.Term.Const(Constant.Integer(1)))
   }
 
+  test("compile wildcard match on ADT") {
+    import scalus.prelude.These
+    val compiled = compile {
+      val t: These[BigInt, Boolean] = new These.This(BigInt(1))
+      t match
+        case These.This(h) => h
+        case _             => BigInt(0)
+    }
+    val term = new SimpleSirToUplcLowering().lower(compiled)
+    val evaled = Cek.evalUPLC(term)
+    assert(evaled == scalus.uplc.Term.Const(Constant.Integer(1)))
+  }
+
   test("compile fieldAsData macro") {
     import scalus.ledger.api.v1.*
     import scalus.ledger.api.v1.ToDataInstances.given

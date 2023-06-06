@@ -47,13 +47,16 @@ val dataTypes = compile {
   val active: State = new State.Active(account)
   val hash = account.hash // access case class fields
   // Only a simple match is supported
-  // no guards, no nested patterns, no type ascription, no wildcard patterns
-  // all cases must be covered
+  // no guards, no nested patterns, no type ascription
   active match
     case Empty => true
     case Active(account) =>
       account match
         case Account(_, balance) => balance === BigInt(123)
+  // all cases must be covered or there must be a default case
+  val isEmpty = active match
+    case Empty => true
+    case _     => false
 }
 
 val controlFlow = compile {
@@ -140,6 +143,6 @@ class TutorialSpec extends AnyFunSuite {
     // println(modules.pretty.render(80))
     // println(fromDataExample.pretty.render(80))
     // println(context.pretty.render(80))
-    // println(serializeToDoubleCborHex) 
+    // println(serializeToDoubleCborHex)
   }
 }

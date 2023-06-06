@@ -77,7 +77,8 @@ final class SIRCompiler(mode: scalus.Mode)(using ctx: Context) {
     case Compiled(binding: TopLevelBinding)
 
   private val globalDefs: mutable.LinkedHashMap[FullName, CompileDef] = mutable.LinkedHashMap.empty
-  private val globalDataDecls: mutable.LinkedHashMap[FullName, DataDecl] = mutable.LinkedHashMap.empty
+  private val globalDataDecls: mutable.LinkedHashMap[FullName, DataDecl] =
+    mutable.LinkedHashMap.empty
   private val moduleDefsCache: mutable.Map[String, mutable.LinkedHashMap[FullName, SIR]] =
     mutable.LinkedHashMap.empty.withDefaultValue(mutable.LinkedHashMap.empty)
 
@@ -102,18 +103,18 @@ final class SIRCompiler(mode: scalus.Mode)(using ctx: Context) {
       tree match
         case EmptyTree            => Nil
         case PackageDef(_, stats) => stats.flatMap(collectTypeDefs)
-        case cd: TypeDef =>
-          println(s"typedef ${cd.name}: ${cd.rhs.showIndented(2)}")
+        case cd: TypeDef          =>
+          // println(s"typedef ${cd.name}: ${cd.rhs.showIndented(2)}")
           if cd.symbol.hasAnnotation(CompileAnnot) then List(cd)
           else Nil
-        case vd: ValDef    => 
-          println(s"valdef $vd")
+        case vd: ValDef =>
+          // println(s"valdef $vd")
           Nil // module instance
         case Import(_, _) => Nil
     }
 
     val allTypeDefs = collectTypeDefs(tree)
-    println(allTypeDefs.map(td => s"${td.name} ${td.isClassDef}"))
+    // println(allTypeDefs.map(td => s"${td.name} ${td.isClassDef}"))
 
     allTypeDefs.foreach(compileTypeDef)
   }
@@ -558,21 +559,29 @@ final class SIRCompiler(mode: scalus.Mode)(using ctx: Context) {
       case C0
       case C1(a)
       case C2(b, c)
+      case C3(a, b, c)
     compiles to:
     Decl(DataDecl("A", List(ConstrDecl("C0", List()), ConstrDecl("C1", List("a")), ConstrDecl("C2", List("b", "c")))), ...)
 
     c ==> Constr("C0", constrDecl, List())
 
     c match
-      C1(a) -> 0
-      C2(b, c) -> 1
+      case C0 => 0
+      case C1(a) => 1
+      case C2(b, c) => 2
+      case _ => 3
     compiles to:
-    Match(c, List(Case(C1, List(a), 0), Case(C2, List(b, c), 1)))
+    Match(c, List(
+      Case(C0, Nil, 0),
+      Case(C1, List(a), 1),
+      Case(C2, List(b, c), 2),
+      Case(C3, List(_, _, _), 3)
+    )
    */
-  private def compileMatch(tree: Match, env: Env) = {
-    val Match(t, cases) = tree
-    val typeSymbol = t.tpe.widen.dealias.typeSymbol
-    val adtInfo = getAdtInfoFromConstroctorType(t.tpe)
+  private def compileMatch(tree: Match, env: Env): SIR = {
+    val Match(matchTree, cases) = tree
+    val typeSymbol = matchTree.tpe.widen.dealias.typeSymbol
+    val adtInfo = getAdtInfoFromConstroctorType(matchTree.tpe)
     // report.echo(s"Match: ${typeSymbol} ${typeSymbol.children} $adtInfo", tree.srcPos)
 
     def constructCase(
@@ -595,51 +604,91 @@ final class SIRCompiler(mode: scalus.Mode)(using ctx: Context) {
           s"Unsupported binding: ${p}"
     }
 
-    if cases.length != adtInfo.constructors.length
-    then
-      report.error(
-        s"Unsupported pattern matching for type ${t.tpe.widen.show}, constructors: ${typeSymbol.children}",
-        tree.srcPos
-      )
-      SIR.Error(s"Unsupported pattern matching for type ${t.tpe.widen.show}")
-    else
-      val cs = cases.map {
-        case CaseDef(_, guard, _) if !guard.isEmpty =>
-          report.error(s"Guards are not supported in match expressions", guard.srcPos)
-          (NoSymbol, Nil, SIR.Error(s"Guards are not supported in match expressions"))
-        // this case is for matching on a case class
-        case CaseDef(UnApply(_, _, pats), _, rhs) =>
-          // report.error(s"Case: ${fun}, pats: ${pats}, rhs: $rhs", t.pos)
-          val bindings = pats.map(compileBinding)
-          val rhsE = compileExpr(env ++ bindings, rhs)
-          (typeSymbol, bindings, rhsE)
-        // this case is for matching on an enum
-        case CaseDef(Typed(UnApply(_, _, pats), constrTpe), _, rhs) =>
-          // report.info(s"Case: ${inner}, tpe ${constrTpe.tpe.widen.show}", t.pos)
-          val bindings = pats.map(compileBinding)
-          val rhsE = compileExpr(env ++ bindings, rhs)
-          (constrTpe.tpe.typeSymbol, bindings, rhsE)
-        // case object
-        case CaseDef(pat, _, rhs) if pat.symbol.is(Flags.Case) =>
-          val rhsE = compileExpr(env, rhs)
-          // no-arg constructor, it's a Val, so we use termSymbol
-          (pat.tpe.termSymbol, Nil, rhsE)
-        case a =>
-          val cs = cases
-            .map { case CaseDef(pat, _, _) => pat.toString() + " " + pat.symbol.flagsString }
-            .mkString("\n")
-          report.error(
-            s"Unsupported match expression: ${a.show}\n$a\n${t.tpe.typeSymbol}\n${cs}",
-            t.srcPos
-          )
-          (NoSymbol, Nil, SIR.Error(s"Unsupported case: ${a}"))
-      }
-      val tE = compileExpr(env, t)
-      val sortedCases = cs.sortBy((t, _, _) => t.fullName).map { (sym, bindings, rhs) =>
-        constructCase(sym, bindings, rhs)
-      }
-      // report.info(s"Sorted constrs: ${sortedCases}", cases.head.pos)
-      SIR.Match(tE, sortedCases)
+    enum SirCase:
+      case Case(constructorSymbol: Symbol, bindings: List[String], rhs: SIR)
+      case Wildcard(rhs: SIR, srcPos: SrcPos)
+      case Error(msg: String, srcPos: SrcPos)
+
+    def scalaCaseDefToSirCase(c: CaseDef): SirCase = c match
+      case CaseDef(_, guard, _) if !guard.isEmpty =>
+        SirCase.Error(s"Guards are not supported in match expressions", guard.srcPos)
+      // this case is for matching on a case class
+      case CaseDef(UnApply(_, _, pats), _, rhs) =>
+        // report.error(s"Case: ${fun}, pats: ${pats}, rhs: $rhs", t.pos)
+        val bindings = pats.map(compileBinding)
+        val rhsE = compileExpr(env ++ bindings, rhs)
+        SirCase.Case(typeSymbol, bindings, rhsE)
+      // this case is for matching on an enum
+      case CaseDef(Typed(UnApply(_, _, pats), constrTpe), _, rhs) =>
+        // report.info(s"Case: ${inner}, tpe ${constrTpe.tpe.widen.show}", t.pos)
+        val bindings = pats.map(compileBinding)
+        val rhsE = compileExpr(env ++ bindings, rhs)
+        SirCase.Case(constrTpe.tpe.typeSymbol, bindings, rhsE)
+      // case object
+      case CaseDef(pat, _, rhs) if pat.symbol.is(Flags.Case) =>
+        val rhsE = compileExpr(env, rhs)
+        // no-arg constructor, it's a Val, so we use termSymbol
+        SirCase.Case(pat.tpe.termSymbol, Nil, rhsE)
+      // case _ => rhs, wildcard pattern, must be the last case
+      case CaseDef(Ident(nme.WILDCARD), _, rhs) =>
+        val rhsE = compileExpr(env, rhs)
+        SirCase.Wildcard(rhsE, c.srcPos)
+      case a =>
+        val cs = cases
+          .map { case CaseDef(pat, _, _) => pat.toString() + " " + pat.symbol.flagsString }
+          .mkString("\n")
+        SirCase.Error(
+          s"Unsupported match expression: ${a.show}\n$a\n${matchTree.tpe.typeSymbol}\n${cs}",
+          matchTree.srcPos
+        )
+
+    val matchExpr = compileExpr(env, matchTree)
+    val sirCases = cases.map(scalaCaseDefToSirCase)
+
+    // 1. If we have a wildcard case, it must be the last one
+    // 2. Validate we don't have any errors
+    // 3. Convert Wildcard to the rest of the cases/constructors
+    // 4. Ensure we cover all constructors
+    // 5. Sort the cases by constructor name
+
+    var idx = 0
+    val iter = sirCases.iterator
+    val allConstructors = adtInfo.constructors.toSet
+    val matchedConstructors = mutable.HashSet.empty[Symbol]
+    val expandedCases = mutable.ArrayBuffer.empty[scalus.sir.Case]
+
+    while iter.hasNext do
+      iter.next() match
+        case SirCase.Case(constructorSymbol, bindings, rhs) =>
+          matchedConstructors += constructorSymbol // collect all matched constructors
+          expandedCases += constructCase(constructorSymbol, bindings, rhs)
+        case SirCase.Wildcard(rhs, srcPos) =>
+          // If we have a wildcard case, it must be the last one
+          if idx != sirCases.length - 1 then
+            report.error(s"Wildcard case must be the last and only one in match expression", srcPos)
+          else
+            // Convert Wildcard to the rest of the cases/constructors
+            val missingConstructors = allConstructors -- matchedConstructors
+            missingConstructors.foreach { constr =>
+              val bindings = primaryConstructorParams(constr).map(_ => "_")
+              // TODO: extract rhs to a let binding before the match
+              // so we don't have to repeat it for each case
+              expandedCases += constructCase(constr, bindings, rhs)
+              matchedConstructors += constr // collect all matched constructors
+            }
+        case SirCase.Error(msg, srcPos) => report.error(msg, srcPos)
+
+      idx += 1
+    end while
+    // Ensure we cover all constructors
+    val missingConstructors = allConstructors -- matchedConstructors
+    if missingConstructors.nonEmpty then
+      val missing = missingConstructors.map(_.name).toBuffer.sorted.mkString(", ")
+      report.error(s"Missing cases for constructors: ${missing}", matchTree.srcPos)
+
+    // Sort the cases by constructor name to ensure we have a deterministic order
+    val sortedCases = expandedCases.sortBy(_.constr.name).toList
+    SIR.Match(matchExpr, sortedCases)
   }
 
   private def compileExpr(env: Env, tree: Tree)(using Context): SIR = {
