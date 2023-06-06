@@ -43,11 +43,11 @@ case class TopLevelBinding(fullName: FullName, recursivity: Recursivity, body: S
 case class B(name: String, symbol: Symbol, recursivity: Recursivity, body: SIR):
   def fullName(using Context) = FullName(symbol)
 
-class SIRCompiler(mode: scalus.Mode)(using ctx: Context) {
+final class SIRCompiler(mode: scalus.Mode)(using ctx: Context) {
   import tpd.*
   type Env = immutable.HashSet[String]
 
-  val converter = new SIRConverter
+  private val converter = new SIRConverter
 
   extension (t: Type)
     def isPair: Boolean =
@@ -76,17 +76,17 @@ class SIRCompiler(mode: scalus.Mode)(using ctx: Context) {
     case Compiling
     case Compiled(binding: TopLevelBinding)
 
-  val globalDefs: mutable.LinkedHashMap[FullName, CompileDef] = mutable.LinkedHashMap.empty
-  val globalDataDecls: mutable.LinkedHashMap[FullName, DataDecl] = mutable.LinkedHashMap.empty
-  val moduleDefsCache: mutable.Map[String, mutable.LinkedHashMap[FullName, SIR]] =
+  private val globalDefs: mutable.LinkedHashMap[FullName, CompileDef] = mutable.LinkedHashMap.empty
+  private val globalDataDecls: mutable.LinkedHashMap[FullName, DataDecl] = mutable.LinkedHashMap.empty
+  private val moduleDefsCache: mutable.Map[String, mutable.LinkedHashMap[FullName, SIR]] =
     mutable.LinkedHashMap.empty.withDefaultValue(mutable.LinkedHashMap.empty)
 
-  val CompileAnnot = requiredClassRef("scalus.Compile").symbol.asClass
-  val IngoreAnnot = requiredClassRef("scalus.Ignore").symbol.asClass
+  private val CompileAnnot = requiredClassRef("scalus.Compile").symbol.asClass
+  private val IngoreAnnot = requiredClassRef("scalus.Ignore").symbol.asClass
 
-  lazy val classLoader = makeClassLoader
+  private lazy val classLoader = makeClassLoader
 
-  def makeClassLoader(using Context): ClassLoader = {
+  private def makeClassLoader(using Context): ClassLoader = {
     import scala.language.unsafeNulls
 
     val entries = ClassPath.expandPath(ctx.settings.classpath.value, expandStar = true)
@@ -103,19 +103,22 @@ class SIRCompiler(mode: scalus.Mode)(using ctx: Context) {
         case EmptyTree            => Nil
         case PackageDef(_, stats) => stats.flatMap(collectTypeDefs)
         case cd: TypeDef =>
+          println(s"typedef ${cd.name}: ${cd.rhs.showIndented(2)}")
           if cd.symbol.hasAnnotation(CompileAnnot) then List(cd)
           else Nil
-        case _: ValDef    => Nil // module instance
+        case vd: ValDef    => 
+          println(s"valdef $vd")
+          Nil // module instance
         case Import(_, _) => Nil
     }
 
     val allTypeDefs = collectTypeDefs(tree)
-    // println(allTypeDefs.map(td => s"${td.name} ${td.isClassDef}"))
+    println(allTypeDefs.map(td => s"${td.name} ${td.isClassDef}"))
 
     allTypeDefs.foreach(compileTypeDef)
   }
 
-  def compileTypeDef(td: TypeDef) = {
+  private def compileTypeDef(td: TypeDef) = {
     report.echo(s"compiling to SIR: ${td.name}")
 
     val tpl = td.rhs.asInstanceOf[Template]
@@ -138,7 +141,7 @@ class SIRCompiler(mode: scalus.Mode)(using ctx: Context) {
     writeModule(module, td.symbol.fullName.toString())
   }
 
-  def writeModule(module: Module, className: String) = {
+  private def writeModule(module: Module, className: String) = {
     val suffix = ".sir"
     val outputDirectory = ctx.settings.outputDir.value
     val pathParts = className.split('.')
@@ -159,7 +162,7 @@ class SIRCompiler(mode: scalus.Mode)(using ctx: Context) {
       constructors: List[Symbol]
   )
 
-  def getAdtInfoFromConstroctorType(constrTpe: Type): AdtTypeInfo = {
+  private def getAdtInfoFromConstroctorType(constrTpe: Type): AdtTypeInfo = {
     /* We support these cases:
         1. case class Foo(a: Int, b: String)
         2. case object Bar
@@ -195,13 +198,13 @@ class SIRCompiler(mode: scalus.Mode)(using ctx: Context) {
     info
   }
 
-  def primaryConstructorParams(typeSymbol: Symbol): List[Symbol] = {
+  private def primaryConstructorParams(typeSymbol: Symbol): List[Symbol] = {
     val fields = typeSymbol.primaryConstructor.paramSymss.flatten.filter(s => s.isTerm)
     // debugInfo(s"caseFields: ${typeSymbol.fullName} $fields")
     fields
   }
 
-  def findAndReadModuleOfSymbol(moduleName: String): Option[Module] = {
+  private def findAndReadModuleOfSymbol(moduleName: String): Option[Module] = {
     val filename = moduleName.replace('.', '/') + ".sir"
     // println(s"findAndReadModuleOfSymbol: ${filename}")
     // read the file from the classpath
@@ -215,7 +218,7 @@ class SIRCompiler(mode: scalus.Mode)(using ctx: Context) {
     else None
   }
 
-  def compileNewConstructor(
+  private def compileNewConstructor(
       env: Env,
       tpe: Type,
       args: immutable.List[Tree]
@@ -252,7 +255,7 @@ class SIRCompiler(mode: scalus.Mode)(using ctx: Context) {
   }
 
   // Parameterless case class constructor of an enum
-  def isConstructorVal(symbol: Symbol, tpe: Type): Boolean =
+  private def isConstructorVal(symbol: Symbol, tpe: Type): Boolean =
     /* println(
         s"isConstructorVal: ${symbol.flags.isAllOf(Flags.EnumCase)} $symbol: ${tpe.show} <: ${tpe.widen.show}, ${symbol.flagsString}"
       )  */
@@ -288,7 +291,7 @@ class SIRCompiler(mode: scalus.Mode)(using ctx: Context) {
       cases.foreach(c => traverseAndLink(c.body, srcPos))
     case _ => ()
 
-  def findAndLinkDefinition(
+  private def findAndLinkDefinition(
       defs: collection.Map[FullName, SIR],
       fullName: FullName,
       srcPos: SrcPos
@@ -306,7 +309,7 @@ class SIRCompiler(mode: scalus.Mode)(using ctx: Context) {
     }
   }
 
-  def linkDefinition(moduleName: String, fullName: FullName, srcPos: SrcPos): SIR = {
+  private def linkDefinition(moduleName: String, fullName: FullName, srcPos: SrcPos): SIR = {
     // println(s"linkDefinition: ${fullName}")
     val defn = moduleDefsCache.get(moduleName) match
       case Some(defs) =>
@@ -327,7 +330,7 @@ class SIRCompiler(mode: scalus.Mode)(using ctx: Context) {
         SIR.Error(s"Symbol ${fullName.name} not defined")
   }
 
-  def compileIdentOrQualifiedSelect(env: Env, e: Tree): SIR = {
+  private def compileIdentOrQualifiedSelect(env: Env, e: Tree): SIR = {
     val name = e.symbol.name.show
     val fullName = FullName(e.symbol)
     val isInLocalEnv = env.contains(name)
@@ -365,7 +368,7 @@ class SIRCompiler(mode: scalus.Mode)(using ctx: Context) {
               SIR.Var(e.symbol.fullName.toString())
   }
 
-  def compileStmt(env: Env, stmt: Tree, isGlobalDef: Boolean = false): B = {
+  private def compileStmt(env: Env, stmt: Tree, isGlobalDef: Boolean = false): B = {
     // report.echo(s"compileStmt  ${stmt.show} in ${env}")
     stmt match
       case vd @ ValDef(name, _, _) =>
@@ -401,7 +404,7 @@ class SIRCompiler(mode: scalus.Mode)(using ctx: Context) {
       // case x => report.error(s"compileStmt: $x", stmt.sourcePos)
   }
 
-  def compileBlock(env: Env, stmts: immutable.List[Tree], expr: Tree): SIR = {
+  private def compileBlock(env: Env, stmts: immutable.List[Tree], expr: Tree): SIR = {
     val exprs = ListBuffer.empty[B]
     val exprEnv = stmts.foldLeft(env) {
       case (env, _: Import)  => env // ignore local imports
@@ -428,7 +431,7 @@ class SIRCompiler(mode: scalus.Mode)(using ctx: Context) {
         case _                          => Some(expr)
   }
 
-  def compileConstant: PartialFunction[Tree, scalus.uplc.Constant] = {
+  private def compileConstant: PartialFunction[Tree, scalus.uplc.Constant] = {
     case l @ Literal(c: Constant) =>
       c.tag match
         case Constants.BooleanTag => scalus.uplc.Constant.Bool(c.booleanValue)
@@ -467,7 +470,7 @@ class SIRCompiler(mode: scalus.Mode)(using ctx: Context) {
 
   }
 
-  def typeReprToDefaultUni(t: Type, pos: SrcPos): DefaultUni =
+  private def typeReprToDefaultUni(t: Type, pos: SrcPos): DefaultUni =
     if t =:= converter.BigIntClassSymbol.typeRef then DefaultUni.Integer
     else if t =:= defn.StringClass.typeRef then DefaultUni.String
     else if t =:= defn.BooleanClass.typeRef then DefaultUni.Bool
@@ -484,7 +487,7 @@ class SIRCompiler(mode: scalus.Mode)(using ctx: Context) {
       report.error(s"Unsupported type $t", pos)
       DefaultUni.Unit
 
-  def compileBigIntOps(env: Env, lhs: Tree, op: Name, rhs: Tree): SIR =
+  private def compileBigIntOps(env: Env, lhs: Tree, op: Name, rhs: Tree): SIR =
     op match
       case nme.PLUS =>
         SIR.Apply(
@@ -566,7 +569,7 @@ class SIRCompiler(mode: scalus.Mode)(using ctx: Context) {
     compiles to:
     Match(c, List(Case(C1, List(a), 0), Case(C2, List(b, c), 1)))
    */
-  def compileMatch(tree: Match, env: Env) = {
+  private def compileMatch(tree: Match, env: Env) = {
     val Match(t, cases) = tree
     val typeSymbol = t.tpe.widen.dealias.typeSymbol
     val adtInfo = getAdtInfoFromConstroctorType(t.tpe)
@@ -639,7 +642,7 @@ class SIRCompiler(mode: scalus.Mode)(using ctx: Context) {
       SIR.Match(tE, sortedCases)
   }
 
-  def compileExpr(env: Env, tree: Tree)(using Context): SIR = {
+  private def compileExpr(env: Env, tree: Tree)(using Context): SIR = {
     // println(s"compileExpr: ${tree.showIndented(2)}, env: $env")
     if compileConstant.isDefinedAt(tree) then
       val const = compileConstant(tree)
