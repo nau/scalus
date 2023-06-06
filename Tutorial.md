@@ -34,8 +34,10 @@ import scalus.*
 import scalus.builtins
 import scalus.builtins.Builtins
 import scalus.builtins.ByteString
+import scalus.builtins.ByteString.given
 import scalus.prelude.Prelude.===
 import scalus.prelude.Prelude.given
+import scalus.uplc.FromDataInstances.given
 
 val constants = compile {
   val unit = ()
@@ -45,6 +47,7 @@ val constants = compile {
   val implicitBigIng: BigInt = 123
   val emptyByteString = ByteString.empty
   val byteString = ByteString.fromHex("deadbeef")
+  val byteString2 = hex"deadbeef"
   val string = "Scalus Rocks!"
   val emptyList = builtins.List.empty[BigInt]
   val list = builtins.List[BigInt](1, 2, 3)

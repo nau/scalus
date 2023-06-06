@@ -8,9 +8,9 @@ import scalus.uplc.ProgramFlatCodec
 import scalus.uplc.Program
 import scalus.utils.Hex
 package object scalus {
-  extension (sir: SIR) 
+  extension (sir: SIR)
     def pretty: Doc = PrettyPrinter.pretty(sir)
-    def doubleCborHex(version: (Int, Int, Int), generateErrorTraces: Boolean = false): String = 
+    def doubleCborHex(version: (Int, Int, Int), generateErrorTraces: Boolean = false): String =
       import io.bullet.borer.Cbor
       val term = new SimpleSirToUplcLowering(generateErrorTraces).lower(sir)
       val flatEncoded = ProgramFlatCodec.encodeFlat(Program(version, term))

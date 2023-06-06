@@ -468,7 +468,26 @@ final class SIRCompiler(mode: scalus.Mode)(using ctx: Context) {
     case Apply(expr, List(Literal(c)))
         if expr.symbol.showFullName == "scalus.builtins.ByteString.fromHex" =>
       scalus.uplc.Constant.ByteString(scalus.builtins.ByteString.fromHex(c.stringValue))
-
+    // hex"deadbeef" as ByteString
+    case Apply(
+          Select(
+            Apply(
+              stringInterpolators,
+              List(
+                Apply(
+                  Select(stringContext, nme.apply),
+                  List(SeqLiteral(List(Literal(const)), _))
+                )
+              )
+            ),
+            hex
+          ),
+          List(SeqLiteral(Nil, _))
+        )
+        if stringInterpolators.symbol.showFullName == "scalus.builtins.ByteString.StringInterpolators"
+          && stringContext.symbol.showFullName == "scala.StringContext" && hex == termName("hex") &&
+          const.tag == Constants.StringTag =>
+      scalus.uplc.Constant.ByteString(scalus.builtins.ByteString.fromHex(const.stringValue))
   }
 
   private def typeReprToDefaultUni(t: Type, pos: SrcPos): DefaultUni =
