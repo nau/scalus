@@ -98,9 +98,9 @@ object FromDataInstances {
         val fromBI = summon[FromData[BigInt]]
         val ptrs = pair.snd
         new StakingCredential.StakingPtr(
-          fromBI(pair.snd.head),
-          fromBI(pair.snd.tail.head),
-          fromBI(pair.snd.tail.tail.head)
+          fromBI(ptrs.head),
+          fromBI(ptrs.tail.head),
+          fromBI(ptrs.tail.tail.head)
         )
       else throw new RuntimeException("Invalid tag")
 
