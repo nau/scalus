@@ -55,7 +55,7 @@ abstract class BaseValidatorSpec
   }
 
   protected final val hoskyMintTxOutRef = TxOutRef(
-    TxId(ByteString.fromHex("1ab6879fc08345f51dc9571ac4f530bf8673e0d798758c470f9af6f98e2f3982")),
+    TxId(hex"1ab6879fc08345f51dc9571ac4f530bf8673e0d798758c470f9af6f98e2f3982"),
     0
   )
   protected final val hoskyMintTxOut = TxOut(

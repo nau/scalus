@@ -4,6 +4,7 @@ import org.scalatest.funsuite.AnyFunSuite
 import org.scalatestplus.scalacheck.ScalaCheckPropertyChecks
 import scalus.Compiler.compile
 import scalus.builtins.ByteString
+import scalus.builtins.ByteString.given
 import scalus.prelude.Prelude.*
 import scalus.sir.SIR
 import scalus.sir.SimpleSirToUplcLowering
@@ -15,15 +16,15 @@ import scalus.uplc.TermDSL.given
 class ContextSpec extends AnyFunSuite with ScalaCheckPropertyChecks with ArbitraryInstances {
   test("PubKeyHash Eq") {
     assert(PubKeyHash(ByteString.empty) === PubKeyHash(ByteString.empty))
-    assert(PubKeyHash(ByteString.fromHex("aa")) !== PubKeyHash(ByteString.empty))
+    assert(PubKeyHash(hex"aa") !== PubKeyHash(ByteString.empty))
     assertEval(compile(new PubKeyHash(ByteString.empty) === new PubKeyHash(ByteString.empty)), true)
     assertEval(
-      compile(new PubKeyHash(ByteString.fromHex("aa")) === new PubKeyHash(ByteString.empty)),
+      compile(new PubKeyHash(hex"aa") === new PubKeyHash(ByteString.empty)),
       false
     )
     assertEval(
       compile(
-        new PubKeyHash(ByteString.fromHex("aa")) === new PubKeyHash(ByteString.fromHex("aa"))
+        new PubKeyHash(hex"aa") === new PubKeyHash(hex"aa")
       ),
       true
     )

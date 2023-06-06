@@ -165,7 +165,7 @@ class MintingPolicyExampleSpec extends BaseValidatorSpec {
 
   val evaledTokens =
     val tokensSIR =
-      compile(AssocMap.singleton(ByteString.fromHex("484f534b59"), BigInt("1000000000000000")))
+      compile(AssocMap.singleton(hex"484f534b59", BigInt("1000000000000000")))
     val tokens = new SimpleSirToUplcLowering().lower(tokensSIR)
     Cek.evalUPLC(tokens)
 

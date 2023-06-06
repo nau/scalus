@@ -27,7 +27,7 @@ val constants = compile {
 val builtinFunctions = compile {
   // See scalus.builtins.Builtins for what is available
   val data = Builtins.mkI(123)
-  val eq = Builtins.equalsByteString(ByteString.fromHex("deadbeef"), ByteString.empty)
+  val eq = Builtins.equalsByteString(hex"deadbeef", ByteString.empty)
   val a = BigInt(1)
   val sum = a + 1 - a * 3 / 4 // arithmetic operators
   val equals = a === sum // comparison operators
@@ -115,9 +115,7 @@ import scalus.prelude
 val context = compile {
   def validator(datum: Data, redeamder: Data, ctxData: Data) = {
     val ctx = fromData[ScriptContext](ctxData)
-    prelude.List.findOrFail[PubKeyHash](ctx.txInfo.signatories)(sig =>
-      sig.hash === ByteString.fromHex("deadbeef")
-    )
+    prelude.List.findOrFail[PubKeyHash](ctx.txInfo.signatories)(sig => sig.hash === hex"deadbeef")
   }
 }
 

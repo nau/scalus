@@ -5,6 +5,7 @@ import scalus.Compiler.compile
 import scalus.Compiler.fieldAsData
 import scalus.builtins.Builtins
 import scalus.builtins.ByteString
+import scalus.builtins.ByteString.given
 import scalus.ledger.api.v1.FromDataInstances.given
 import scalus.ledger.api.v1.*
 import scalus.prelude.List
@@ -32,14 +33,14 @@ object MintingPolicy {
     new TxInInfoTxOutRefOnly(fromData[TxOutRef](pair.snd.head))
 
   protected final val hoskyMintTxOutRef = TxOutRef(
-    TxId(ByteString.fromHex("1ab6879fc08345f51dc9571ac4f530bf8673e0d798758c470f9af6f98e2f3982")),
+    TxId(hex"1ab6879fc08345f51dc9571ac4f530bf8673e0d798758c470f9af6f98e2f3982"),
     0
   )
   protected final val hoskyMintTxOut = TxOut(
     address = Address(
       Credential.PubKeyCredential(
         PubKeyHash(
-          ByteString.fromHex("61822dde476439a526070f36d3d1667ad099b462c111cd85e089f5e7f6")
+          hex"61822dde476439a526070f36d3d1667ad099b462c111cd85e089f5e7f6"
         )
       ),
       Nothing

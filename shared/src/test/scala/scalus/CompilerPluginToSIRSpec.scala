@@ -310,7 +310,7 @@ class CompilerPluginToSIRSpec extends AnyFunSuite with ScalaCheckPropertyChecks:
       compile(
         Builtins.mkMap(
           builtins.List(
-            builtins.Pair(Builtins.mkB(ByteString.fromHex("deadbeef")), Builtins.mkI(1))
+            builtins.Pair(Builtins.mkB(hex"deadbeef"), Builtins.mkI(1))
           )
         )
       ) == Apply(
@@ -487,43 +487,43 @@ class CompilerPluginToSIRSpec extends AnyFunSuite with ScalaCheckPropertyChecks:
   test("compile ByteStrings builtins") {
     assert(
       compile(
-        Builtins.appendByteString(ByteString.fromHex("dead"), ByteString.fromHex("beef"))
+        Builtins.appendByteString(hex"dead", hex"beef")
       ) == (AppendByteString $ hex"dead" $ hex"beef")
     )
 
     assert(
       compile(
-        Builtins.sliceByteString(ByteString.fromHex("dead"), 1, 2)
+        Builtins.sliceByteString(hex"dead", 1, 2)
       ) == (SliceByteString $ hex"dead" $ 1 $ 2)
     )
 
     assert(
       compile(
-        Builtins.lengthOfByteString(ByteString.fromHex("dead"))
+        Builtins.lengthOfByteString(hex"dead")
       ) == (LengthOfByteString $ hex"dead")
     )
 
     assert(
       compile(
-        Builtins.indexByteString(ByteString.fromHex("dead"), 1)
+        Builtins.indexByteString(hex"dead", 1)
       ) == (IndexByteString $ hex"dead" $ 1)
     )
 
     assert(
       compile(
-        Builtins.equalsByteString(ByteString.fromHex("dead"), ByteString.fromHex("beef"))
+        Builtins.equalsByteString(hex"dead", hex"beef")
       ) == (EqualsByteString $ hex"dead" $ hex"beef")
     )
 
     assert(
       compile(
-        Builtins.lessThanByteString(ByteString.fromHex("dead"), ByteString.fromHex("beef"))
+        Builtins.lessThanByteString(hex"dead", hex"beef")
       ) == (LessThanByteString $ hex"dead" $ hex"beef")
     )
 
     assert(
       compile(
-        Builtins.lessThanEqualsByteString(ByteString.fromHex("dead"), ByteString.fromHex("beef"))
+        Builtins.lessThanEqualsByteString(hex"dead", hex"beef")
       ) == (LessThanEqualsByteString $ hex"dead" $ hex"beef")
     )
   }
@@ -538,33 +538,33 @@ class CompilerPluginToSIRSpec extends AnyFunSuite with ScalaCheckPropertyChecks:
   case VerifyEcdsaSecp256k1Signature
   case VerifySchnorrSecp256k1Signature
      */
-    assert(compile(Builtins.sha2_256(ByteString.fromHex("dead"))) == (Sha2_256 $ hex"dead"))
-    assert(compile(Builtins.sha3_256(ByteString.fromHex("dead"))) == (Sha3_256 $ hex"dead"))
-    assert(compile(Builtins.blake2b_256(ByteString.fromHex("dead"))) == (Blake2b_256 $ hex"dead"))
+    assert(compile(Builtins.sha2_256(hex"dead")) == (Sha2_256 $ hex"dead"))
+    assert(compile(Builtins.sha3_256(hex"dead")) == (Sha3_256 $ hex"dead"))
+    assert(compile(Builtins.blake2b_256(hex"dead")) == (Blake2b_256 $ hex"dead"))
     assert(
       compile(
         Builtins.verifyEd25519Signature(
-          ByteString.fromHex("dead"),
-          ByteString.fromHex("beef"),
-          ByteString.fromHex("cafe")
+          hex"dead",
+          hex"beef",
+          hex"cafe"
         )
       ) == (VerifyEd25519Signature $ hex"dead" $ hex"beef" $ hex"cafe")
     )
     assert(
       compile(
         Builtins.verifyEcdsaSecp256k1Signature(
-          ByteString.fromHex("dead"),
-          ByteString.fromHex("beef"),
-          ByteString.fromHex("cafe")
+          hex"dead",
+          hex"beef",
+          hex"cafe"
         )
       ) == (VerifyEcdsaSecp256k1Signature $ hex"dead" $ hex"beef" $ hex"cafe")
     )
     assert(
       compile(
         Builtins.verifySchnorrSecp256k1Signature(
-          ByteString.fromHex("dead"),
-          ByteString.fromHex("beef"),
-          ByteString.fromHex("cafe")
+          hex"dead",
+          hex"beef",
+          hex"cafe"
         )
       ) == (VerifySchnorrSecp256k1Signature $ hex"dead" $ hex"beef" $ hex"cafe")
     )
@@ -574,7 +574,7 @@ class CompilerPluginToSIRSpec extends AnyFunSuite with ScalaCheckPropertyChecks:
     assert(compile(Builtins.appendString("dead", "beef")) == (AppendString $ "dead" $ "beef"))
     assert(compile(Builtins.equalsString("dead", "beef")) == (EqualsString $ "dead" $ "beef"))
     assert(compile(Builtins.encodeUtf8("dead")) == (EncodeUtf8 $ "dead"))
-    assert(compile(Builtins.decodeUtf8(ByteString.fromHex("dead"))) == (DecodeUtf8 $ hex"dead"))
+    assert(compile(Builtins.decodeUtf8(hex"dead")) == (DecodeUtf8 $ hex"dead"))
   }
 
   test("compile IfThenElse/ChooseUnit/Trace builtins") {
@@ -605,7 +605,7 @@ class CompilerPluginToSIRSpec extends AnyFunSuite with ScalaCheckPropertyChecks:
       )
     )
     assert(compile {
-      builtins.Pair(BigInt(1), ByteString.fromHex("deadbeef"))
+      builtins.Pair(BigInt(1), hex"deadbeef")
     } == (Const(Constant.Pair(Constant.Integer(1), deadbeef))))
     assert(
       compile {
@@ -656,7 +656,7 @@ class CompilerPluginToSIRSpec extends AnyFunSuite with ScalaCheckPropertyChecks:
     import scalus.prelude.Prelude.*
     val compiled = compile {
       val a = BigInt(0)
-      val bs = ByteString.fromHex("deadbeef")
+      val bs = hex"deadbeef"
       val s = "string"
       a === a && bs === bs && s === s
     }
@@ -689,7 +689,7 @@ class CompilerPluginToSIRSpec extends AnyFunSuite with ScalaCheckPropertyChecks:
   test("compile datatypes") {
     import scalus.ledger.api.v1.PubKeyHash
     val compiled = compile {
-      val pkh = new scalus.ledger.api.v1.PubKeyHash(ByteString.fromHex("deadbeef"))
+      val pkh = new scalus.ledger.api.v1.PubKeyHash(hex"deadbeef")
       pkh.hash
     }
     assert(
@@ -704,7 +704,7 @@ class CompilerPluginToSIRSpec extends AnyFunSuite with ScalaCheckPropertyChecks:
                 Constr(
                   "PubKeyHash",
                   DataDecl("PubKeyHash", List(ConstrDecl("PubKeyHash", List("hash")))),
-                  List(Const(uplc.Constant.ByteString(ByteString.fromHex("DEADBEEF"))))
+                  List(Const(uplc.Constant.ByteString(hex"DEADBEEF")))
                 )
               )
             ),
@@ -729,7 +729,7 @@ class CompilerPluginToSIRSpec extends AnyFunSuite with ScalaCheckPropertyChecks:
 
   test("compile match on a case class") {
     val compiled = compile {
-      val pkh = new scalus.ledger.api.v1.PubKeyHash(ByteString.fromHex("deadbeef"))
+      val pkh = new scalus.ledger.api.v1.PubKeyHash(hex"deadbeef")
       pkh match
         case PubKeyHash(hash) => hash
     }
@@ -737,7 +737,7 @@ class CompilerPluginToSIRSpec extends AnyFunSuite with ScalaCheckPropertyChecks:
     val term = new SimpleSirToUplcLowering().lower(compiled)
     // println(term.pretty.render(80))
     val evaled = Cek.evalUPLC(term)
-    assert(evaled == scalus.uplc.Term.Const(Constant.ByteString(ByteString.fromHex("deadbeef"))))
+    assert(evaled == scalus.uplc.Term.Const(Constant.ByteString(hex"deadbeef")))
   }
 
   test("compile match on ADT") {

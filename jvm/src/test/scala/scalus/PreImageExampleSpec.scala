@@ -96,7 +96,7 @@ class PreImageExampleSpec extends BaseValidatorSpec {
       appliedScript(
         preimage = ByteString.fromArray("Scalus rocks!".getBytes("UTF-8")),
         pubKeyHash = PubKeyHash(hex"61822dde476439a526070f36d3d1667ad099b462c111cd85e089f5e7f6"),
-        hash = ByteString.fromHex("000000"),
+        hash = hex"000000",
         signatories =
           List(PubKeyHash(hex"61822dde476439a526070f36d3d1667ad099b462c111cd85e089f5e7f6"))
       )
