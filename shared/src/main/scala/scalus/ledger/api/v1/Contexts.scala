@@ -30,15 +30,15 @@ type Value = AssocMap[CurrencySymbol, AssocMap[TokenName, BigInt]]
 object FromDataInstances {
   import scalus.uplc.FromDataInstances.given
 
-  implicit def fromDataTxId(d: Data): TxId =
+  given FromData[TxId] = (d: Data) =>
     val hash = fromData[ByteString](Builtins.unsafeDataAsConstr(d).snd.head)
     new TxId(hash)
 
-  implicit def fromDataPubKeyHash(d: Data): PubKeyHash =
+  given FromData[PubKeyHash] = (d: Data) =>
     val hash = fromData[ByteString](d)
     new PubKeyHash(hash)
 
-  implicit def fromDataTxOutRef(d: Data): TxOutRef =
+  given FromData[TxOutRef] = (d: Data) =>
     val args = Builtins.unsafeDataAsConstr(d).snd
     val txidx = args.tail
     new TxOutRef(
@@ -163,17 +163,6 @@ object FromDataInstances {
       fromData[UpperBound[A]](args.tail.head)
     )
 
-    /*
-     txInfoInputs: List[TxInInfo],
-    txInfoOutputs: List[TxOut],
-    txInfoFee: Value,
-    txInfoMint: Value,
-    txInfoDCert: List[DCert],
-    txInfoWdrl: List[(StakingCredential, BigInt)],
-    txInfoValidRange: POSIXTimeRange,
-    txInfoSignatories: List[PubKeyHash],
-    txInfoData: List[(DatumHash, Datum)],
-    txInfoId: TxId */
   given FromData[TxInfo] = (d: Data) =>
     val pair = Builtins.unsafeDataAsConstr(d)
     val args = pair.snd
@@ -231,68 +220,33 @@ object DCert {
     x match
       case DCert.DelegRegKey(cred) =>
         y match
-          case DCert.DelegRegKey(cred)              => cred === cred
-          case DCert.DelegDeRegKey(cred)            => false
-          case DCert.DelegDelegate(cred, delegatee) => false
-          case DCert.PoolRegister(poolId, vrf)      => false
-          case DCert.PoolRetire(poolId, epoch)      => false
-          case DCert.Genesis                        => false
-          case DCert.Mir                            => false
+          case DCert.DelegRegKey(cred) => cred === cred
+          case _                       => false
 
       case DCert.DelegDeRegKey(cred) =>
         y match
-          case DCert.DelegRegKey(cred)              => false
-          case DCert.DelegDeRegKey(cred)            => cred === cred
-          case DCert.DelegDelegate(cred, delegatee) => false
-          case DCert.PoolRegister(poolId, vrf)      => false
-          case DCert.PoolRetire(poolId, epoch)      => false
-          case DCert.Genesis                        => false
-          case DCert.Mir                            => false
+          case DCert.DelegDeRegKey(cred) => cred === cred
+          case _                         => false
       case DCert.DelegDelegate(cred, delegatee) =>
         y match
-          case DCert.DelegRegKey(cred)              => false
-          case DCert.DelegDeRegKey(cred)            => false
           case DCert.DelegDelegate(cred, delegatee) => cred === cred && delegatee === delegatee
-          case DCert.PoolRegister(poolId, vrf)      => false
-          case DCert.PoolRetire(poolId, epoch)      => false
-          case DCert.Genesis                        => false
-          case DCert.Mir                            => false
+          case _                                    => false
       case DCert.PoolRegister(poolId, vrf) =>
         y match
-          case DCert.DelegRegKey(cred)              => false
-          case DCert.DelegDeRegKey(cred)            => false
-          case DCert.DelegDelegate(cred, delegatee) => false
-          case DCert.PoolRegister(poolId, vrf)      => poolId === poolId && vrf === vrf
-          case DCert.PoolRetire(poolId, epoch)      => false
-          case DCert.Genesis                        => false
-          case DCert.Mir                            => false
+          case DCert.PoolRegister(poolId, vrf) => poolId === poolId && vrf === vrf
+          case _                               => false
       case DCert.PoolRetire(poolId, epoch) =>
         y match
-          case DCert.DelegRegKey(cred)              => false
-          case DCert.DelegDeRegKey(cred)            => false
-          case DCert.DelegDelegate(cred, delegatee) => false
-          case DCert.PoolRegister(poolId, vrf)      => false
-          case DCert.PoolRetire(poolId, epoch)      => poolId === poolId && epoch === epoch
-          case DCert.Genesis                        => false
-          case DCert.Mir                            => false
+          case DCert.PoolRetire(poolId, epoch) => poolId === poolId && epoch === epoch
+          case _                               => false
       case DCert.Genesis =>
         y match
-          case DCert.DelegRegKey(cred)              => false
-          case DCert.DelegDeRegKey(cred)            => false
-          case DCert.DelegDelegate(cred, delegatee) => false
-          case DCert.PoolRegister(poolId, vrf)      => false
-          case DCert.PoolRetire(poolId, epoch)      => false
-          case DCert.Genesis                        => true
-          case DCert.Mir                            => false
+          case DCert.Genesis => true
+          case _             => false
       case DCert.Mir =>
         y match
-          case DCert.DelegRegKey(cred)              => false
-          case DCert.DelegDeRegKey(cred)            => false
-          case DCert.DelegDelegate(cred, delegatee) => false
-          case DCert.PoolRegister(poolId, vrf)      => false
-          case DCert.PoolRetire(poolId, epoch)      => false
-          case DCert.Genesis                        => false
-          case DCert.Mir                            => true
+          case DCert.Mir => true
+          case _         => false
 }
 
 case class TxId(hash: ByteString):
@@ -302,12 +256,6 @@ case class TxId(hash: ByteString):
 object TxId:
   given Eq[TxId] = (a: TxId, b: TxId) => Builtins.equalsByteString(a.hash, b.hash)
 
-/*
-data TxOutRef = TxOutRef {
-    txOutRefId  :: TxId,
-    txOutRefIdx :: Integer -- ^ Index into the referenced transaction's outputs
-    }
- */
 case class TxOutRef(id: TxId, idx: BigInt)
 
 @Compile
@@ -382,7 +330,6 @@ object Address {
 
 case class TxOut(address: Address, value: Value, datumHash: Maybe[DatumHash])
 
-// TxInInfo
 case class TxInInfo(
     outRef: TxOutRef,
     resolved: TxOut
@@ -413,29 +360,20 @@ object ScriptPurpose {
     x match
       case ScriptPurpose.Minting(curSymbol) =>
         y match
-          case ScriptPurpose.Minting(curSymbol)     => curSymbol === curSymbol
-          case ScriptPurpose.Spending(txOutRef)     => false
-          case ScriptPurpose.Rewarding(stakingCred) => false
-          case ScriptPurpose.Certifying(cert)       => false
+          case ScriptPurpose.Minting(curSymbol) => curSymbol === curSymbol
+          case _                                => false
       case ScriptPurpose.Spending(txOutRef) =>
         y match
-          case ScriptPurpose.Minting(curSymbol)     => false
-          case ScriptPurpose.Spending(txOutRef)     => txOutRef === txOutRef
-          case ScriptPurpose.Rewarding(stakingCred) => false
-          case ScriptPurpose.Certifying(cert)       => false
+          case ScriptPurpose.Spending(txOutRef) => txOutRef === txOutRef
+          case _                                => false
       case ScriptPurpose.Rewarding(stakingCred) =>
         y match
-          case ScriptPurpose.Minting(curSymbol)     => false
-          case ScriptPurpose.Spending(txOutRef)     => false
           case ScriptPurpose.Rewarding(stakingCred) => stakingCred === stakingCred
-          case ScriptPurpose.Certifying(cert)       => false
+          case _                                    => false
       case ScriptPurpose.Certifying(cert) =>
         y match
-          case ScriptPurpose.Minting(curSymbol)     => false
-          case ScriptPurpose.Spending(txOutRef)     => false
-          case ScriptPurpose.Rewarding(stakingCred) => false
-          case ScriptPurpose.Certifying(cert)       => cert === cert
+          case ScriptPurpose.Certifying(cert) => cert === cert
+          case _                              => false
 }
 
-// data ScriptContext = ScriptContext{scriptContextTxInfo :: TxInfo, scriptContextPurpose :: ScriptPurpose }
 case class ScriptContext(txInfo: TxInfo, purpose: ScriptPurpose)

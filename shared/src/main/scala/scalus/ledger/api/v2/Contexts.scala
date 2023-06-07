@@ -240,19 +240,16 @@ object OutputDatum {
       a match
         case NoOutputDatum =>
           b match
-            case NoOutputDatum              => true
-            case OutputDatumHash(datumHash) => false
-            case OutputDatum(datum)         => false
+            case NoOutputDatum => true
+            case _             => false
         case OutputDatumHash(datumHash) =>
           b match
-            case NoOutputDatum               => false
             case OutputDatumHash(datumHash2) => datumHash === datumHash2
-            case OutputDatum(datum)          => false
+            case _                           => false
         case OutputDatum(datum) =>
           b match
-            case NoOutputDatum              => false
-            case OutputDatumHash(datumHash) => false
-            case OutputDatum(datum2)        => datum === datum2
+            case OutputDatum(datum2) => datum === datum2
+            case _                   => false
 }
 
 case class TxOut(
