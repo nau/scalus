@@ -19,9 +19,10 @@ object FromDataInstances {
 
   given FromData[BigInt] = (d: Data) => unsafeDataAsI(d)
   given FromData[ByteString] = (d: Data) => unsafeDataAsB(d)
+  given FromData[String] = (d: Data) => decodeUtf8(unsafeDataAsB(d))
   given FromData[Data] = (d: Data) => d
 
-  given BoolFromData: FromData[Boolean] = (d: Data) =>
+  given FromData[Boolean] = (d: Data) =>
     val pair = unsafeDataAsConstr(d)
     val constr = pair.fst
     if constr === BigInt(0) then false
@@ -67,6 +68,7 @@ object ToDataInstances {
   given ToData[BigInt] = (a: BigInt) => mkI(a)
   given ToData[Int] = (a: Int) => mkI(a)
   given ToData[ByteString] = (a: ByteString) => mkB(a)
+  given ToData[String] = (a: String) => mkB(encodeUtf8(a))
 
   given listToData[A: ToData]: ToData[scalus.prelude.List[A]] =
     (a: scalus.prelude.List[A]) => {
