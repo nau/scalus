@@ -14,6 +14,7 @@ class DataCborCodecSpec extends AnyFunSuite with ScalaCheckPropertyChecks with A
   implicit val plutusDataCborEncoder: Encoder[Data] = PlutusDataCborEncoder
   implicit val plutusDataCborDecoder: Decoder[Data] = PlutusDataCborDecoder
 
+  def encodeAsHexString(d: Data) = Utils.bytesToHex(Cbor.encode(d).toByteArray)
   def roundtrip(d: Data): Unit =
     val ba = Cbor.encode(d).toByteArray
 //    println(s"$d => ${ba.map("%02X" format _).mkString(" ")}")
@@ -30,8 +31,6 @@ class DataCborCodecSpec extends AnyFunSuite with ScalaCheckPropertyChecks with A
   test("PlutusDataCborEncoder") {
 
     // byte array to hex string
-
-    def encodeAsHexString(d: Data) = Utils.bytesToHex(Cbor.encode(d).toByteArray)
 
     assert(
       encodeAsHexString(Constr(3, Constr(3, Nil) :: Nil)) == "D87C9FD87C80FF"
@@ -64,5 +63,28 @@ class DataCborCodecSpec extends AnyFunSuite with ScalaCheckPropertyChecks with A
     )
     assert(
       encodeAsHexString(B(builtins.ByteString.unsafeFromArray("12".getBytes))) == "423132"
+    )
+  }
+
+  test("ByteString < 64") {
+    val longBs = "1234567890"
+    val expected =
+      "4A31323334353637383930"
+    assert(encodeAsHexString(B(builtins.ByteString.unsafeFromArray(longBs.getBytes))) == expected)
+    assert(
+      Cbor.decode(Utils.hexToBytes(expected)).to[Data].value == B(
+        builtins.ByteString.unsafeFromArray(longBs.getBytes)
+      )
+    )
+  }
+  test("ByteString chunks") {
+    val longBs = "1234567890" * 7
+    val expected =
+      "5F58403132333435363738393031323334353637383930313233343536373839303132333435363738393031323334353637383930313233343536373839303132333446353637383930FF"
+    assert(encodeAsHexString(B(builtins.ByteString.unsafeFromArray(longBs.getBytes))) == expected)
+    assert(
+      Cbor.decode(Utils.hexToBytes(expected)).to[Data].value == B(
+        builtins.ByteString.unsafeFromArray(longBs.getBytes)
+      )
     )
   }

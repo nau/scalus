@@ -13,6 +13,9 @@ import scalus.uplc.Data.B
 import scalus.uplc.Data.Constr
 import scalus.uplc.Data.I
 import scalus.uplc.Data.Map
+import scala.collection.mutable.ArrayBuffer
+import io.bullet.borer.ByteAccess
+import scalus.utils.Hex
 
 object PlutusDataCborEncoder extends Encoder[Data]:
   override def write(writer: Writer, data: Data): Writer =
@@ -32,7 +35,14 @@ object PlutusDataCborEncoder extends Encoder[Data]:
       case Map(values)       => writer.writeMap(values.toMap)
       case Data.List(values) => writer.writeLinearSeq(values)
       case I(value)          => writer.write(value)
-      case B(value)          => writer.write(value.bytes)
+      case B(value) =>
+        if value.bytes.length <= 64
+        then writer.write(value.bytes)
+        else
+          def to64ByteChunks(bytes: Array[Byte]): List[Array[Byte]] =
+            if bytes.length <= 64 then List(bytes)
+            else bytes.take(64) :: to64ByteChunks(bytes.drop(64))
+          writer.writeBytesIterator(to64ByteChunks(value.bytes).iterator)
 
 object PlutusDataCborDecoder extends Decoder[Data]:
 
@@ -56,6 +66,17 @@ object PlutusDataCborDecoder extends Decoder[Data]:
         B(
           ByteString.unsafeFromArray(Decoder.forByteArray(BaseEncoding.base16).read(r))
         )
+      case DI.BytesStart =>
+        // read chunks of 64 bytes
+        def readChunks(): Array[Byte] =
+          val acc = new ArrayBuffer[Byte](64)
+          while !r.tryReadBreak() do
+            val bytes = r.readBytes()(using ByteAccess.ForByteArray)
+            if bytes.length > 64 then r.overflow("ByteString chunk is not 64 bytes")
+            acc ++= bytes
+          acc.toArray
+        r.readBytesStart()
+        B(ByteString.unsafeFromArray(readChunks()))
       case DI.Tag =>
         r.readTag() match
           case Other(102) =>
