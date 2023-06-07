@@ -17,21 +17,46 @@ import scalus.uplc.DefaultUni.ProtoPair
 import scalus.uplc.Term.*
 
 import scala.collection.immutable
+import org.scalacheck.Shrink
 
 trait ArbitraryInstances:
 
-  // FIXME: use any length, should work
   implicit val byteStringArb: Arbitrary[builtins.ByteString] = Arbitrary(
     for
-      sz <- Gen.choose(0, 64) // Plutus supports ByteString up to 64 bytes
+      sz <- Gen.frequency((0, Gen.choose(1000, 10000)), (10, Gen.choose(0, 100)))
       bytes <- Gen.containerOfN[Array, Byte](sz, Arbitrary.arbitrary)
     yield builtins.ByteString.unsafeFromArray(bytes)
   )
-  implicit val iArb: Arbitrary[I] = Arbitrary(Arbitrary.arbitrary[BigInt].map(l => I(l)))
+  implicit val iArb: Arbitrary[I] = Arbitrary(
+    for n <- Gen.oneOf[BigInt](
+        Gen.const[BigInt](0),
+        Gen.const[BigInt](-1),
+        Gen.const[BigInt](1),
+        Gen.const[BigInt](-1000),
+        Gen.const[BigInt](1000),
+        Gen.const[BigInt](Int.MaxValue),
+        Gen.const[BigInt](Int.MinValue),
+        Gen.const[BigInt](Long.MaxValue),
+        Gen.const[BigInt](Long.MinValue),
+        Gen.choose[BigInt](2 ^ 32, 2 ^ 64)
+      )
+    yield I(n)
+  )
   implicit val bArb: Arbitrary[B] = Arbitrary(Arbitrary.arbitrary[builtins.ByteString].map(B.apply))
+
+  given Shrink[Data] =
+    Shrink {
+      case I(i) => Shrink.shrink(i).map(I.apply)
+      case B(b) => Shrink.shrink(b).map(B.apply)
+      case Constr(c, args) =>
+        Shrink.shrink(args).map(Constr(c, _))
+      case List(args) => Shrink.shrink(args).map(List.apply)
+      case Map(args)  => Shrink.shrink(args).map(Map.apply)
+    }
+
   implicit val arbData: Arbitrary[Data] = Arbitrary {
     def constrGen(sz: Int): Gen[Constr] = for
-      c <- Arbitrary.arbitrary[Long].map(Math.abs)
+      c <- Gen.posNum[Long]
       n <- Gen.choose(sz / 3, sz / 2)
       args <- Gen.listOfN(n, sizedTree(sz / 2))
     yield Constr(c, args)
@@ -53,7 +78,7 @@ trait ArbitraryInstances:
         Gen.frequency(
           (1, iArb.arbitrary),
           (1, bArb.arbitrary),
-          (3, Gen.oneOf(constrGen(sz), listGen(sz), mapGen(sz)))
+          (1, Gen.oneOf(constrGen(sz), listGen(sz), mapGen(sz)))
         )
 
     Gen.sized(sizedTree)
