@@ -50,8 +50,9 @@ object TotoData {
 object FromData {
 
   inline def derived[T]: FromData[T] = ${ derivedMacro[T] }
+  inline def deriveConstructor[T]: scalus.builtins.List[Data] => T = ${ deriveConstructorMacro[T] }
 
-  def derivedMacro[T: Type](using Quotes): Expr[FromData[T]] =
+  def deriveConstructorMacro[T: Type](using Quotes): Expr[scalus.builtins.List[Data] => T] =
     import quotes.reflect.*
     val classSym = TypeTree.of[T].symbol
     val constr = classSym.primaryConstructor
@@ -73,7 +74,9 @@ object FromData {
         i += 1
       '{ $expr.head }
 
-    def expr(a: Expr[scalus.builtins.List[scalus.uplc.Data]])(using Quotes): Expr[T] = {
+    def genConstructorCall(
+        a: Expr[scalus.builtins.List[scalus.uplc.Data]]
+    )(using Quotes): Expr[T] = {
       val args = fromDataOfArgs.zipWithIndex.map { case (appl, idx) =>
         val arg = genGetter(a, idx)
         '{ $appl($arg) }.asTerm
@@ -81,8 +84,15 @@ object FromData {
       // Couldn't find a way to do this using quotes, so just construct the tree manually
       New(TypeTree.of[T]).select(constr).appliedToArgs(args).asExprOf[T]
     }
+    '{ (args: scalus.builtins.List[scalus.uplc.Data]) => ${ genConstructorCall('{ args }) } }
+
+  def derivedMacro[T: Type](using Quotes): Expr[FromData[T]] =
     '{ (d: Data) =>
       val args = scalus.builtins.Builtins.unsafeDataAsConstr(d).snd
-      ${ expr('{ args }) }
+
+      // generate f = (args) => new Constructor(args.head, args.tail.head, ...)
+      // then apply to args: f(args)
+      // and finally beta reduce it in compile time
+      ${ Expr.betaReduce('{ ${ deriveConstructorMacro[T] }(args) }) }
     }
 }
