@@ -16,9 +16,17 @@ object Data:
   // fromData extension method
   inline def fromData[A](inline data: Data)(using inline ev: FromData[A]): A = ev(data)
 
-  case class Constr(constr: Long, args: immutable.List[Data]) extends Data
+  case class Constr(constr: Long, args: immutable.List[Data]) extends Data {
+    assert(constr >= 0, s"Constructor must be non-negative, got $constr")
+  }
 
-  case class Map(values: immutable.List[(Data, Data)]) extends Data
+  case class Map(values: immutable.List[(Data, Data)]) extends Data {
+    override def hashCode(): Int = values.toSet.hashCode()
+    override def equals(x: Any): Boolean = x match {
+      case Map(otherValues) => values.toSet == otherValues.toSet
+      case _                => false
+    }
+  }
 
   case class List(values: immutable.List[Data]) extends Data:
     override def toString: String = s"List(${values.map(v => v.toString + "::").mkString}Nil)"
