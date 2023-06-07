@@ -58,17 +58,13 @@ object FromData {
     val params = constr.paramSymss.flatten
     val fromDataOfArgs = params.map { param =>
       val tpe = param.termRef.widen.dealias
-      val implicitType = TypeRepr.of[FromData].appliedTo(tpe)
-      val convTerm = Implicits.search(implicitType) match {
-        case iss: ImplicitSearchSuccess => iss.tree
-        case isf: ImplicitSearchFailure =>
-          report.errorAndAbort(s"Could not find implicit for ${implicitType.show}")
-      }
-      // println(s"convTerm: $convTerm, symbol: ${convTerm.symbol}, isFUnc: ${convTerm.tpe.isFunctionType}, methods: ${convTerm.symbol.methodMembers}")
-      if convTerm.tpe.isFunctionType then convTerm
-      else convTerm.select(convTerm.symbol.methodMember("apply").head)
+      tpe.asType match
+        case '[t] =>
+          Expr.summon[FromData[t]] match
+            case None => report.errorAndAbort(s"Could not find implicit for FromData[${tpe.show}]")
+            case Some(value) => value
     }
-    def genGetter(init: Expr[scalus.builtins.List[Data]], idx: Int): Expr[Data] =
+    def genGetter(init: Expr[scalus.builtins.List[Data]], idx: Int)(using Quotes): Expr[Data] =
       var expr = init
       var i = 0
       while i < idx do
@@ -77,15 +73,16 @@ object FromData {
         i += 1
       '{ $expr.head }
 
-    def expr(a: Term) = {
+    def expr(a: Expr[scalus.builtins.List[scalus.uplc.Data]])(using Quotes): Expr[T] = {
       val args = fromDataOfArgs.zipWithIndex.map { case (appl, idx) =>
-        val arg = genGetter(a.asExprOf[scalus.builtins.List[Data]], idx).asTerm
-        appl.appliedTo(arg)
+        val arg = genGetter(a, idx)
+        '{ $appl($arg) }.asTerm
       }
+      // Couldn't find a way to do this using quotes, so just construct the tree manually
       New(TypeTree.of[T]).select(constr).appliedToArgs(args).asExprOf[T]
     }
     '{ (d: Data) =>
       val args = scalus.builtins.Builtins.unsafeDataAsConstr(d).snd
-      ${ expr('{ args }.asTerm) }
+      ${ expr('{ args }) }
     }
 }
