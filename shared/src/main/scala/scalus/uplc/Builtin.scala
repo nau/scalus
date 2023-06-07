@@ -378,7 +378,7 @@ object Meaning:
           (a, b) match
             case (VCon(aCon), VCon(Constant.List(tp, l))) => // fixme chek type
               () => Cek.VCon(Constant.List(tp, aCon :: l))
-            case _ => throw new RuntimeException(s"Expected list, got $this")
+            case _ => throw new RuntimeException(s"Expected list, got $b")
     )
 
   // [ forall a, list(a) ] -> a
@@ -441,7 +441,7 @@ object Meaning:
                 case Constant.Data(d) => d
                 case _                => throw new Exception(s"ConstrData: not a data, but $b")
               }
-            case _ => throw new RuntimeException(s"Expected list, got $this")
+            case _ => throw new RuntimeException(s"Expected list, got $b")
           }
           () =>
             Cek.VCon(
