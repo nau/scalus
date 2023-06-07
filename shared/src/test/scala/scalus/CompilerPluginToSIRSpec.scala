@@ -114,8 +114,9 @@ class CompilerPluginToSIRSpec extends AnyFunSuite with ScalaCheckPropertyChecks:
     assert(compile { throw new RuntimeException("foo") } == Error("foo"))
   }
 
-  /* test("compile ToData") {
+  test("compile ToData") {
     import scalus.uplc.Data.*
+    import scalus.uplc.ToDataInstances.given
     val compiled = compile {
       BigInt(1).toData
     }
@@ -124,23 +125,20 @@ class CompilerPluginToSIRSpec extends AnyFunSuite with ScalaCheckPropertyChecks:
         Rec,
         immutable.List(
           Binding(
-            "scalus.uplc.Data$.given_ToData_BigInt$.toData",
+            "scalus.uplc.ToDataInstances$.given_ToData_BigInt",
             LamAbs("a", Apply(Builtin(IData), Var("a")))
           )
         ),
         Let(
           NonRec,
           immutable.List(Binding("a$proxy1", Const(Constant.Integer(1)))),
-          Apply(
-            Var("scalus.uplc.Data$.given_ToData_BigInt$.toData"),
-            Var("a$proxy1")
-          )
+          Apply(Var("scalus.uplc.ToDataInstances$.given_ToData_BigInt"), Var("a$proxy1"))
         )
       )
     )
 //    val term = new SimpleSirToUplcLowering().lower(compiled)
 //    assert(Cek.evalUPLC(term) == Data.I(22))
-  } */
+  }
 
   test("compile chooseList builtins") {
     assert(
@@ -265,11 +263,13 @@ class CompilerPluginToSIRSpec extends AnyFunSuite with ScalaCheckPropertyChecks:
   }
 
   test("compile mkNilData") {
-    assert(compile(Builtins.mkNilData) == (Builtin(MkNilData)))
+    assert(compile(Builtins.mkNilData()) == (Apply(Builtin(MkNilData), Const(Constant.Unit))))
   }
 
   test("compile mkNilPairData") {
-    assert(compile(Builtins.mkNilPairData) == (Builtin(MkNilPairData)))
+    assert(
+      compile(Builtins.mkNilPairData()) == (Apply(Builtin(MkNilPairData), Const(Constant.Unit)))
+    )
   }
 
   test("compile mkConstr builtins") {

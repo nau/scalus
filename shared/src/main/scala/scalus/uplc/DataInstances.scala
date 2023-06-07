@@ -50,14 +50,6 @@ object FromDataInstances {
     if pair.fst === BigInt(0) then new scalus.prelude.Maybe.Just(fromData[A](pair.snd.head))
     else scalus.prelude.Maybe.Nothing
 
-  /* given tupleFromData[A, B](using fromA: FromData[A], fromB: FromData[B]): FromData[(A, B)] =
-    (d: Data) =>
-      val pair = unsafeDataAsConstr(d)
-      val constr = pair.fst
-      val args = pair.snd
-      if constr === BigInt(0) then (fromA(args.head), fromB(args.tail.head))
-      else throw new RuntimeException("Not a Tuple2") */
-
   given unsafeTupleFromData[A, B](using fromA: FromData[A], fromB: FromData[B]): FromData[(A, B)] =
     (d: Data) =>
       val pair = unsafeDataAsConstr(d)
@@ -70,7 +62,7 @@ object ToDataInstances {
   import scalus.builtins.Builtins.*
 
   given ToData[Boolean] = (a: Boolean) =>
-    if a then mkConstr(1, mkNilData) else mkConstr(0, mkNilData)
+    if a then mkConstr(1, mkNilData()) else mkConstr(0, mkNilData())
   given ToData[Data] = (a: Data) => a
   given ToData[BigInt] = (a: BigInt) => mkI(a)
   given ToData[Int] = (a: Int) => mkI(a)
@@ -80,7 +72,7 @@ object ToDataInstances {
     (a: scalus.prelude.List[A]) => {
       def loop(a: scalus.prelude.List[A]): scalus.builtins.List[Data] =
         a match
-          case scalus.prelude.List.Nil              => mkNilData
+          case scalus.prelude.List.Nil              => mkNilData()
           case scalus.prelude.List.Cons(head, tail) => mkCons(summon[ToData[A]](head), loop(tail))
 
       mkList(loop(a))
@@ -89,7 +81,7 @@ object ToDataInstances {
   given assocMapToData[A: ToData, B: ToData]: ToData[AssocMap[A, B]] =
     (a: AssocMap[A, B]) => {
       def go(a: prelude.List[(A, B)]): builtins.List[Pair[Data, Data]] = a match {
-        case prelude.List.Nil => mkNilPairData
+        case prelude.List.Nil => mkNilPairData()
         case prelude.List.Cons(tuple, tail) =>
           tuple match {
             case (a, b) =>
@@ -108,7 +100,7 @@ object ToDataInstances {
         0,
         mkCons(
           summon[ToData[A]](a._1),
-          mkCons(summon[ToData[B]](a._2), mkNilData)
+          mkCons(summon[ToData[B]](a._2), mkNilData())
         )
       )
 
@@ -116,15 +108,15 @@ object ToDataInstances {
     (a: Maybe[A]) => {
       a match {
         case Maybe.Just(v) =>
-          mkConstr(0, mkCons(v.toData, mkNilData))
-        case Maybe.Nothing => mkConstr(1, mkNilData)
+          mkConstr(0, mkCons(v.toData, mkNilData()))
+        case Maybe.Nothing => mkConstr(1, mkNilData())
       }
     }
 
   given EitherToData[A: ToData, B: ToData]: ToData[Either[A, B]] =
     (a: Either[A, B]) =>
       a match
-        case Left(v)  => mkConstr(0, mkCons(v.toData, mkNilData))
-        case Right(v) => mkConstr(1, mkCons(v.toData, mkNilData))
+        case Left(v)  => mkConstr(0, mkCons(v.toData, mkNilData()))
+        case Right(v) => mkConstr(1, mkCons(v.toData, mkNilData()))
 
 }

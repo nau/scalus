@@ -118,7 +118,7 @@ object ToDataInstances {
 
   given OutputDatumToData[T <: OutputDatum]: ToData[T] = (d: T) =>
     d match
-      case OutputDatum.NoOutputDatum => Builtins.mkConstr(0, Builtins.mkNilData)
+      case OutputDatum.NoOutputDatum => Builtins.mkConstr(0, Builtins.mkNilData())
       case OutputDatum.OutputDatumHash(datumHash) =>
         Builtins.mkConstr(1, builtins.List(datumHash.toData))
       case OutputDatum.OutputDatum(datum) => Builtins.mkConstr(2, builtins.List(datum))
@@ -136,7 +136,7 @@ object ToDataInstances {
                 txOutDatum.toData,
                 Builtins.mkCons(
                   txOutReferenceScript.toData,
-                  Builtins.mkNilData
+                  Builtins.mkNilData()
                 )
               )
             )
@@ -151,7 +151,7 @@ object ToDataInstances {
             txInInfoOutRef.toData,
             Builtins.mkCons(
               txInInfoTxOut.toData,
-              Builtins.mkNilData
+              Builtins.mkNilData()
             )
           )
         )
@@ -198,7 +198,7 @@ object ToDataInstances {
                                 txInfoData.toData,
                                 Builtins.mkCons(
                                   txInfoId.toData,
-                                  Builtins.mkNilData
+                                  Builtins.mkNilData()
                                 )
                               )
                             )
@@ -222,7 +222,7 @@ object ToDataInstances {
             scriptContextTxInfo.toData,
             Builtins.mkCons(
               scriptContextPurpose.toData,
-              Builtins.mkNilData
+              Builtins.mkNilData()
             )
           )
         )

@@ -156,5 +156,5 @@ object Builtins:
   // with monomorphic built-in types. Polymorphic built-in constructors are generally problematic,
   // See note [Representable built-in functions over polymorphic built-in types].
   def mkPairData(fst: Data, snd: Data): Pair[Data, Data] = Pair(fst, snd)
-  def mkNilData: List[Data] = List.empty
-  def mkNilPairData: List[Pair[Data, Data]] = List.empty
+  def mkNilData(): List[Data] = List.empty
+  def mkNilPairData(): List[Pair[Data, Data]] = List.empty
