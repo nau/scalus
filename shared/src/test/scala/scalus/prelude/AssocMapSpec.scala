@@ -13,21 +13,7 @@ import scalus.prelude.These.*
 import scalus.sir.SimpleSirToUplcLowering
 import scalus.uplc.ArbitraryInstances
 
-import scala.collection.immutable
-
 class AssocMapSpec extends AnyFunSuite with ScalaCheckPropertyChecks with ArbitraryInstances {
-
-  given arbList[A: Arbitrary]: Arbitrary[List[A]] = Arbitrary {
-    for {
-      lst <- Arbitrary.arbitrary[immutable.List[A]]
-    } yield List(lst: _*)
-  }
-
-  given arbAssocMap[A: Arbitrary, B: Arbitrary]: Arbitrary[AssocMap[A, B]] = Arbitrary {
-    for {
-      map <- Arbitrary.arbitrary[Map[A, B]]
-    } yield AssocMap.fromList(List(map.toSeq: _*))
-  }
 
   test("empty") {
     assert(AssocMap.toList(AssocMap.empty) == List.Nil)
