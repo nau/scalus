@@ -591,13 +591,17 @@ object Meaning:
 
   val MkNilData =
     mkMeaning(
-      Type(DefaultUni.List(DefaultUni.Data)),
-      () => Cek.VCon(Constant.List(DefaultUni.Data, Nil))
+      DefaultUni.Unit ->: DefaultUni.List(DefaultUni.Data),
+      (a: CekValue) =>
+        val _ = a.asUnit
+        () => Cek.VCon(Constant.List(DefaultUni.Data, Nil))
     )
 
   val MkNilPairData = mkMeaning(
-    Type(DefaultUni.Pair(DefaultUni.Data, DefaultUni.Data)),
-    () => Cek.VCon(Constant.List(DefaultUni.Pair(DefaultUni.Data, DefaultUni.Data), Nil))
+    DefaultUni.Unit ->: DefaultUni.Pair(DefaultUni.Data, DefaultUni.Data),
+    (a: CekValue) =>
+      val _ = a.asUnit
+      () => Cek.VCon(Constant.List(DefaultUni.Pair(DefaultUni.Data, DefaultUni.Data), Nil))
   )
 
   val BuiltinMeanings: immutable.Map[DefaultFun, Runtime] = immutable.Map.apply(

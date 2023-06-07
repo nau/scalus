@@ -33,6 +33,10 @@ object Cek:
   type CekValEnv = immutable.List[(String, CekValue)]
   // 'Values' for the modified CEK machine.
   sealed trait CekValue {
+    def asUnit: Unit = this match {
+      case VCon(Constant.Unit) => ()
+      case _                   => throw new RuntimeException(s"Expected unit, got $this")
+    }
     def asInteger: BigInt = this match {
       case VCon(Constant.Integer(i)) => i
       case _                         => throw new RuntimeException(s"Expected integer, got $this")
