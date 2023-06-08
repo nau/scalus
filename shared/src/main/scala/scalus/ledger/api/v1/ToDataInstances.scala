@@ -1,7 +1,7 @@
 package scalus.ledger.api.v1
 
 import scalus.uplc.Data.ToData
-import scalus.uplc.Data
+import scalus.uplc.ToData
 import scalus.builtins
 import scalus.builtins.Builtins
 import scalus.Compile
@@ -14,13 +14,8 @@ object ToDataInstances {
   given ToData[PubKeyHash] = (a: PubKeyHash) => a.hash.toData
   given ToData[TxId] = (a: TxId) =>
     Builtins.mkConstr(0, Builtins.mkCons(a.hash.toData, Builtins.mkNilData()))
-  given ToData[TxOutRef] = (a: TxOutRef) =>
-    a match
-      case TxOutRef(txId, idx) =>
-        Builtins.mkConstr(
-          0,
-          Builtins.mkCons(txId.toData, Builtins.mkCons(idx.toData, Builtins.mkNilData()))
-        )
+
+  given ToData[TxOutRef] = ToData.deriveCaseClass[TxOutRef](0)
 
   given DCertLift[T <: DCert]: ToData[T] = (a: T) =>
     a match
@@ -92,40 +87,11 @@ object ToDataInstances {
       case ScriptPurpose.Certifying(cert) =>
         Builtins.mkConstr(3, Builtins.mkCons(cert.toData, Builtins.mkNilData()))
 
-  given ToData[Address] = (a: Address) =>
-    a match
-      case Address(credential, stakingCredential) =>
-        Builtins.mkConstr(
-          0,
-          Builtins.mkCons(
-            credential.toData,
-            Builtins.mkCons(stakingCredential.toData, Builtins.mkNilData())
-          )
-        )
+  given ToData[Address] = ToData.deriveCaseClass[Address](0)
 
-  given ToData[TxOut] = (a: TxOut) =>
-    a match
-      case TxOut(address, value, datumHash) =>
-        Builtins.mkConstr(
-          0,
-          Builtins.mkCons(
-            address.toData,
-            Builtins.mkCons(
-              value.toData,
-              Builtins.mkCons(datumHash.toData, Builtins.mkNilData())
-            )
-          )
-        )
-  given ToData[TxInInfo] = (a: TxInInfo) =>
-    a match
-      case TxInInfo(outRef, resolved) =>
-        Builtins.mkConstr(
-          0,
-          Builtins.mkCons(
-            outRef.toData,
-            Builtins.mkCons(resolved.toData, Builtins.mkNilData())
-          )
-        )
+  given ToData[TxOut] = ToData.deriveCaseClass[TxOut](0)
+
+  given ToData[TxInInfo] = ToData.deriveCaseClass[TxInInfo](0)
 
   given LowerBoundToData[A: ToData]: ToData[LowerBound[A]] = (a: LowerBound[A]) =>
     a match
@@ -159,61 +125,7 @@ object ToDataInstances {
           )
         )
 
-  given ToData[TxInfo] = (a: TxInfo) =>
-    a match
-      case TxInfo(
-            inputs,
-            outputs,
-            fee,
-            mint,
-            dcert,
-            withdrawals,
-            validRange,
-            signatories,
-            data,
-            id
-          ) =>
-        Builtins.mkConstr(
-          0,
-          Builtins.mkCons(
-            inputs.toData,
-            Builtins.mkCons(
-              outputs.toData,
-              Builtins.mkCons(
-                fee.toData,
-                Builtins.mkCons(
-                  mint.toData,
-                  Builtins.mkCons(
-                    dcert.toData,
-                    Builtins.mkCons(
-                      withdrawals.toData,
-                      Builtins.mkCons(
-                        validRange.toData,
-                        Builtins.mkCons(
-                          signatories.toData,
-                          Builtins.mkCons(
-                            data.toData,
-                            Builtins.mkCons(id.toData, Builtins.mkNilData())
-                          )
-                        )
-                      )
-                    )
-                  )
-                )
-              )
-            )
-          )
-        )
+  given ToData[TxInfo] = ToData.deriveCaseClass[TxInfo](0)
 
-  given ToData[ScriptContext] = (a: ScriptContext) =>
-    a match
-      case ScriptContext(txInfo, purpose) =>
-        Builtins.mkConstr(
-          0,
-          Builtins.mkCons(
-            txInfo.toData,
-            Builtins.mkCons(purpose.toData, Builtins.mkNilData())
-          )
-        )
-
+  given ToData[ScriptContext] = ToData.deriveCaseClass[ScriptContext](0)
 }
