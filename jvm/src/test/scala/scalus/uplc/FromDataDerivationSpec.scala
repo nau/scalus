@@ -6,6 +6,7 @@ import org.scalacheck.Shrink
 import org.scalatest.funsuite.AnyFunSuite
 import org.scalatestplus.scalacheck.ScalaCheckPropertyChecks
 import scalus.Compile
+import scalus.pretty
 import scalus.Compiler.compile
 import scalus.builtins.Builtins
 import scalus.builtins.ByteString
@@ -56,13 +57,14 @@ object BigRecord extends ArbitraryInstances:
 @Compile
 object ToDataBigRecord:
   import scalus.uplc.ToDataInstances.given
-  given ToData[BigRecord] = (r: BigRecord) =>
+  /* given ToData[BigRecord] = (r: BigRecord) =>
     r match
       case BigRecord(a, b, bs, s, d, ls, m) =>
         Builtins.mkConstr(
           0,
           scalus.builtins.List(a.toData, b.toData, bs.toData, s.toData, d, ls.toData, m.toData)
-        )
+        ) */
+  given ToData[BigRecord] = TotoData.deriveProduct[BigRecord](0)
 
 class FromDataDerivationSpec
     extends AnyFunSuite
@@ -128,7 +130,7 @@ class FromDataDerivationSpec
     }
   }
 
-  test("deriveEnum") {
+  test("FromData.deriveEnum") {
     import ToDataAdt.given
     import scalus.uplc.TermDSL.{*, given}
     val sir = compile { (d: Data) => fromData[Adt](d).toData }
