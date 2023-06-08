@@ -3,7 +3,6 @@ import scalus.builtins.Builtins
 import scalus.uplc.Data.FromData
 
 import scala.quoted.*
-import scala.util.matching.Regex.Match
 
 /*
   WIP ToData derivation
@@ -18,8 +17,11 @@ object TotoData {
   def deriveProductMacro[T: Type](constrIdx: Expr[Int])(using Quotes): Expr[ToData[T]] =
     import quotes.reflect.*
     val classSym = TypeTree.of[T].symbol
+    val companionModuleRef = classSym.companionModule
+    val unapplyRef = companionModuleRef.memberMethod("unapply").head.termRef
     val constr = classSym.primaryConstructor
     val params = constr.paramSymss.flatten
+    val sdf = params.map(p => p.name -> p.typeRef)
     /*
       TODO: generate a pattern match to introduce all the params,
       to avoid a.field1, a.field2, etc.
@@ -33,13 +35,36 @@ object TotoData {
               scalus.builtins.List(field1.toData, field2.toData, ...)
             )
      */
+    def genMatch(prodTerm: Term, params: List[(String, TypeRepr)], rhs: Term)(using Quotes) = {
+      val bindings = params.map { (name, tpe) =>
+        Bind(Symbol.newBind(Symbol.noSymbol, name, Flags.EmptyFlags, tpe), Wildcard())
+      }
+      val m = Match(prodTerm, List(CaseDef(Unapply(Ident(unapplyRef), Nil, bindings), None, rhs)))
+      m
+    }
 
-    val r = '{ (product: T) =>
-      // val match = Match(product.asTerm, List(CaseDef(Bind("a", Typed(Ident("a"), TypeTree.of[T])), None, '{ ??? }.asTerm)
+    def genArgs(prodTerm: Term)(using Quotes) =
+      val args = params
+        .map { param =>
+          val tpe = param.termRef.widen.dealias
+          tpe.asType match
+            case '[t] =>
+              Expr.summon[ToData[t]] match
+                case None =>
+                  report.errorAndAbort(s"Could not find implicit for FromData[${tpe.show}]")
+                case Some(toData) =>
+                  val arg = prodTerm.select(param).asExprOf[t]
+                  '{ $toData($arg) }
+              // '{ Builtins.mkI(12) }
+        }
+        .asInstanceOf[List[Expr[Data]]]
+      args
+
+    def genRhs(prodTerm: Term)(using Quotes) = '{
       Builtins.mkConstr(
         BigInt($constrIdx),
         ${
-          val args = params
+          /* val args = params
             .map { param =>
               val tpe = param.termRef.widen.dealias
               tpe.asType match
@@ -48,17 +73,33 @@ object TotoData {
                     case None =>
                       report.errorAndAbort(s"Could not find implicit for FromData[${tpe.show}]")
                     case Some(toData) =>
-                      val arg = '{ product }.asTerm.select(param).asExprOf[t]
+                      val arg = prodTerm.select(param).asExprOf[t]
                       '{ $toData($arg) }
             }
-            .asInstanceOf[List[Expr[Data]]]
-          args.foldRight('{ scalus.builtins.Builtins.mkNilData() }) { (data, acc) =>
+            .asInstanceOf[List[Expr[Data]]] */
+          // val args = Nil
+          genArgs(prodTerm).foldRight('{ scalus.builtins.Builtins.mkNilData() }) { (data, acc) =>
             '{ scalus.builtins.Builtins.mkCons($data, $acc) }
           }
         }
       )
     }
-    println(r.show)
+
+    val r = '{ (product: T) =>
+      ${
+        val prodTerm = '{ product }.asTerm
+        // val rhs = '{ Builtins.mkI(12) }
+        /* val rhs = '{
+          Builtins.mkConstr(
+            BigInt($constrIdx),
+            scalus.builtins.Builtins.mkNilData()
+          )
+        } */
+        val rhs = genRhs(prodTerm)
+        genMatch(prodTerm, sdf, rhs.asTerm).asExprOf[Data]
+      }
+    }
+    // println(r.asTerm.show)
     r
 
   extension [A: ToData](a: A) inline def toData: Data = summon[ToData[A]].apply(a)
