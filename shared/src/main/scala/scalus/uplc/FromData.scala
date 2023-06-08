@@ -35,50 +35,36 @@ object TotoData {
               scalus.builtins.List(field1.toData, field2.toData, ...)
             )
      */
-    def genMatch(prodTerm: Term, params: List[(String, TypeRepr)], rhs: Term)(using Quotes) = {
-      val bindings = params.map { (name, tpe) =>
-        Bind(Symbol.newBind(Symbol.noSymbol, name, Flags.EmptyFlags, tpe), Wildcard())
+    def genMatch(prodTerm: Term, params: List[(String, TypeRepr)])(using Quotes) = {
+      val bindingsSymbols = params.map { (name, tpe) =>
+        (Symbol.newBind(Symbol.noSymbol, name, Flags.EmptyFlags, tpe), tpe)
       }
+
+      val bindings = bindingsSymbols.map { case (symbol, _) =>
+        Bind(symbol, Wildcard())
+      }
+      val rhs = genRhs(prodTerm, bindingsSymbols).asTerm
       val m = Match(prodTerm, List(CaseDef(Unapply(Ident(unapplyRef), Nil, bindings), None, rhs)))
       m
     }
 
-    def genArgs(prodTerm: Term)(using Quotes) =
-      val args = params
-        .map { param =>
-          val tpe = param.termRef.widen.dealias
-          tpe.asType match
-            case '[t] =>
-              Expr.summon[ToData[t]] match
-                case None =>
-                  report.errorAndAbort(s"Could not find implicit for FromData[${tpe.show}]")
-                case Some(toData) =>
-                  val arg = prodTerm.select(param).asExprOf[t]
-                  '{ $toData($arg) }
-              // '{ Builtins.mkI(12) }
-        }
-        .asInstanceOf[List[Expr[Data]]]
-      args
-
-    def genRhs(prodTerm: Term)(using Quotes) = '{
+    def genRhs(prodTerm: Term, bindings: List[(Symbol, TypeRepr)])(using Quotes) = '{
       Builtins.mkConstr(
         BigInt($constrIdx),
         ${
-          /* val args = params
-            .map { param =>
-              val tpe = param.termRef.widen.dealias
+          val args = bindings
+            .map { case (binding, tpe) =>
               tpe.asType match
                 case '[t] =>
                   Expr.summon[ToData[t]] match
                     case None =>
                       report.errorAndAbort(s"Could not find implicit for FromData[${tpe.show}]")
                     case Some(toData) =>
-                      val arg = prodTerm.select(param).asExprOf[t]
+                      val arg = Ident(binding.termRef).asExprOf[t]
                       '{ $toData($arg) }
             }
-            .asInstanceOf[List[Expr[Data]]] */
-          // val args = Nil
-          genArgs(prodTerm).foldRight('{ scalus.builtins.Builtins.mkNilData() }) { (data, acc) =>
+            .asInstanceOf[List[Expr[Data]]]
+          args.foldRight('{ scalus.builtins.Builtins.mkNilData() }) { (data, acc) =>
             '{ scalus.builtins.Builtins.mkCons($data, $acc) }
           }
         }
@@ -95,8 +81,7 @@ object TotoData {
             scalus.builtins.Builtins.mkNilData()
           )
         } */
-        val rhs = genRhs(prodTerm)
-        genMatch(prodTerm, sdf, rhs.asTerm).asExprOf[Data]
+        genMatch(prodTerm, sdf).asExprOf[Data]
       }
     }
     // println(r.asTerm.show)
