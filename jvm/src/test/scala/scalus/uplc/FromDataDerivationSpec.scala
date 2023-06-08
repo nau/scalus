@@ -1,6 +1,8 @@
 package scalus.uplc
 
 import org.scalacheck.Arbitrary
+import org.scalacheck.Gen
+import org.scalacheck.Shrink
 import org.scalatest.funsuite.AnyFunSuite
 import org.scalatestplus.scalacheck.ScalaCheckPropertyChecks
 import scalus.Compile
@@ -10,7 +12,32 @@ import scalus.builtins.ByteString
 import scalus.sir.SimpleSirToUplcLowering
 import scalus.uplc.Data.*
 import scalus.uplc.FromDataInstances.given
-import org.scalacheck.Shrink
+
+enum Adt:
+  case A
+  case B(b: Boolean)
+  case C(a: Adt, b: Adt)
+
+@Compile
+object Adt:
+  given FromData[Adt] = FromData.deriveEnum[Adt] {
+    case 0 => _ => Adt.A
+    case 1 => FromData.deriveConstructor[Adt.B]
+    case 2 => FromData.deriveConstructor[Adt.C]
+  }
+
+@Compile
+object ToDataAdt:
+  given ToData[Adt] = (a: Adt) =>
+    import scalus.uplc.ToDataInstances.given
+    a match
+      case Adt.A     => Builtins.mkConstr(0, Builtins.mkNilData())
+      case Adt.B(bs) => Builtins.mkConstr(1, Builtins.mkCons(bs.toData, Builtins.mkNilData()))
+      case Adt.C(a, b) =>
+        Builtins.mkConstr(
+          2,
+          Builtins.mkCons(a.toData, Builtins.mkCons(b.toData, Builtins.mkNilData()))
+        )
 
 case class BigRecord(
     a: Boolean,
@@ -54,6 +81,20 @@ class FromDataDerivationSpec
     yield BigRecord(a, b, bs, s, d, ls, m)
   )
 
+  def sizedAdt(sz: Int): Gen[Adt] =
+    if sz <= 0 then
+      Gen.oneOf(
+        Gen.const(Adt.A),
+        for bs <- Arbitrary.arbitrary[Boolean]
+        yield Adt.B(bs)
+      )
+    else
+      for
+        a <- sizedAdt(sz / 3)
+        b <- sizedAdt(sz / 3)
+      yield Adt.C(a, b)
+  given Arbitrary[Adt] = Arbitrary(Gen.sized(sizedAdt))
+
   given Shrink[BigRecord] = Shrink { r =>
     val BigRecord(a, b, bs, s, d, ls, m) = r
     val aShrunk = Shrink.shrink(a).map(BigRecord(_, b, bs, s, d, ls, m))
@@ -76,6 +117,26 @@ class FromDataDerivationSpec
     forAll { (r: BigRecord) =>
       val d = r.toData
       assert(fromData[BigRecord](d) == r)
+      val out = PlutusUplcEval.evalFlat(Program((2, 0, 0), term $ d))
+      out match
+        case UplcEvalResult.Success(term) =>
+          assert(term == Term.Const(Constant.Data(d)))
+        case UplcEvalResult.UplcFailure(errorCode, error) => fail(error)
+        case UplcEvalResult.TermParsingError(error)       => fail(error)
+
+      assert(Cek.evalUPLC(term $ d) == Term.Const(Constant.Data(d)))
+    }
+  }
+
+  test("deriveEnum") {
+    import ToDataAdt.given
+    import scalus.uplc.TermDSL.{*, given}
+    val sir = compile { (d: Data) => fromData[Adt](d).toData }
+    val term = new SimpleSirToUplcLowering().lower(sir)
+    // println(sir.pretty.render(100))
+    forAll { (r: Adt) =>
+      val d = r.toData
+      assert(fromData[Adt](d) == r)
       val out = PlutusUplcEval.evalFlat(Program((2, 0, 0), term $ d))
       out match
         case UplcEvalResult.Success(term) =>

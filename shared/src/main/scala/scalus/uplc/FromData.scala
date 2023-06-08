@@ -45,11 +45,37 @@ object TotoData {
 }
 
 /*
-  WIP FromData derivation, not working yet
+  WIP FromData derivation
  */
 object FromData {
 
   inline def derived[T]: FromData[T] = ${ derivedMacro[T] }
+
+  /** Derive FromData for an enum type
+    *
+    * @param conf
+    *   a partial function mapping tag to constructor function, like
+    * @return
+    *   a FromData instance
+    *
+    * @example
+    *   {{{
+    *   enum Adt:
+    *     case A
+    *     case B(b: Boolean)
+    *     case C(a: Adt, b: Adt)
+    *
+    *   given FromData[Adt] = FromData.deriveEnum[Adt] {
+    *     case 0 => _ => Adt.A
+    *     case 1 => FromData.deriveConstructor[Adt.B]
+    *     case 2 => FromData.deriveConstructor[Adt.C]
+    *     }
+    *   }}}
+    */
+  inline def deriveEnum[T](
+      inline conf: PartialFunction[Int, scalus.builtins.List[Data] => T]
+  ): FromData[T] = ${ deriveEnumMacro[T]('{ conf }) }
+
   inline def deriveConstructor[T]: scalus.builtins.List[Data] => T = ${ deriveConstructorMacro[T] }
 
   def deriveConstructorMacro[T: Type](using Quotes): Expr[scalus.builtins.List[Data] => T] =
@@ -94,5 +120,27 @@ object FromData {
       // then apply to args: f(args)
       // and finally beta reduce it in compile time
       ${ Expr.betaReduce('{ ${ deriveConstructorMacro[T] }(args) }) }
+    }
+
+  def deriveEnumMacro[T: Type](conf: Expr[PartialFunction[Int, scalus.builtins.List[Data] => T]])(
+      using Quotes
+  ): Expr[FromData[T]] =
+    import quotes.reflect.*
+    val mapping = conf.asTerm match
+      case Inlined(_, _, Block(List(DefDef(_, _, _, Some(Match(_, cases)))), _)) =>
+        cases.map { case CaseDef(Literal(IntConstant(tag)), _, code) =>
+          (tag, code.asExprOf[scalus.builtins.List[Data] => T])
+        }
+    // stage programming is cool, but it's hard to comprehend what's going on
+    '{ (d: Data) =>
+      val pair = Builtins.unsafeDataAsConstr(d)
+      val tag = pair.fst
+      val args = pair.snd
+      ${
+        mapping.foldRight('{ throw new Exception("Invalid tag") }.asExprOf[T]) {
+          case ((t, code), acc) =>
+            '{ if Builtins.equalsInteger(tag, BigInt(${ Expr(t) })) then $code(args) else $acc }
+        }
+      }
     }
 }
