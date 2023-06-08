@@ -6,7 +6,6 @@ import org.scalacheck.Shrink
 import org.scalatest.funsuite.AnyFunSuite
 import org.scalatestplus.scalacheck.ScalaCheckPropertyChecks
 import scalus.Compile
-import scalus.pretty
 import scalus.Compiler.compile
 import scalus.builtins.Builtins
 import scalus.builtins.ByteString
@@ -64,7 +63,7 @@ object ToDataBigRecord:
           0,
           scalus.builtins.List(a.toData, b.toData, bs.toData, s.toData, d, ls.toData, m.toData)
         ) */
-  given ToData[BigRecord] = TotoData.deriveProduct[BigRecord](0)
+  given ToData[BigRecord] = ToData.deriveProduct[BigRecord](0)
 
 class FromDataDerivationSpec
     extends AnyFunSuite
