@@ -42,7 +42,7 @@ lazy val root = project
   .in(file("."))
   .aggregate(scalusPlugin, scalus.js, scalus.jvm, `examples-js`, examples)
   .settings(
-    publish / skip := true,
+    publish / skip := true
   )
 
 lazy val scalusPlugin = project
@@ -91,7 +91,6 @@ lazy val scalusPluginTests = project
     libraryDependencies += "org.scalatestplus" %%% "scalacheck-1-16" % "3.2.12.0" % "test"
   )
 
-
 lazy val PluginDependency: List[Def.Setting[_]] = List(scalacOptions ++= {
   val jar = (scalusPlugin / Compile / packageBin).value
   // add plugin timestamp to compiler options to trigger recompile of
@@ -107,7 +106,8 @@ lazy val scalus = crossProject(JSPlatform, JVMPlatform)
     scalaVersion := scala3Version,
     scalacOptions += "-Xcheck-macros",
     scalacOptions += "-explain",
-    scalacOptions += "-Wunused:all",
+    scalacOptions += "-Wunused:imports",
+    scalacOptions += "-Wunused:params",
     // scalacOptions += "-Yretain-trees",
     libraryDependencies += "org.typelevel" %%% "cats-parse" % "0.3.9",
     libraryDependencies += "org.typelevel" %%% "paiges-core" % "0.4.2",
