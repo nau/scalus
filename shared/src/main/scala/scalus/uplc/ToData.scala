@@ -8,11 +8,11 @@ import scala.quoted.*
 object ToData {
   type ToData[A] = A => Data
 
-  inline def deriveProduct[T](inline constrIdx: Int): ToData[T] = ${
-    deriveProductMacro[T]('{ constrIdx })
+  inline def deriveCaseClass[T](inline constrIdx: Int): ToData[T] = ${
+    deriveCaseClassMacro[T]('{ constrIdx })
   }
 
-  def deriveProductMacro[T: Type](constrIdx: Expr[Int])(using Quotes): Expr[ToData[T]] =
+  def deriveCaseClassMacro[T: Type](constrIdx: Expr[Int])(using Quotes): Expr[ToData[T]] =
     import quotes.reflect.*
     val classSym = TypeTree.of[T].symbol
     val companionModuleRef = classSym.companionModule

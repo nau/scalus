@@ -51,7 +51,7 @@ case class BigRecord(
 
 @Compile
 object BigRecord extends ArbitraryInstances:
-  given FromData[BigRecord] = FromData.derived[BigRecord]
+  given FromData[BigRecord] = FromData.deriveCaseClass[BigRecord]
 
 @Compile
 object ToDataBigRecord:
@@ -63,7 +63,7 @@ object ToDataBigRecord:
           0,
           scalus.builtins.List(a.toData, b.toData, bs.toData, s.toData, d, ls.toData, m.toData)
         ) */
-  given ToData[BigRecord] = ToData.deriveProduct[BigRecord](0)
+  given ToData[BigRecord] = ToData.deriveCaseClass[BigRecord](0)
 
 class FromDataDerivationSpec
     extends AnyFunSuite

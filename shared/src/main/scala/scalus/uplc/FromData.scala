@@ -8,7 +8,7 @@ import scala.quoted.*
   */
 object FromData {
 
-  inline def derived[T]: FromData[T] = ${ derivedMacro[T] }
+  inline def deriveCaseClass[T]: FromData[T] = ${ deriveCaseClassMacro[T] }
 
   /** Derive FromData for an enum type
     *
@@ -71,7 +71,7 @@ object FromData {
     }
     '{ (args: scalus.builtins.List[scalus.uplc.Data]) => ${ genConstructorCall('{ args }) } }
 
-  def derivedMacro[T: Type](using Quotes): Expr[FromData[T]] =
+  def deriveCaseClassMacro[T: Type](using Quotes): Expr[FromData[T]] =
     '{ (d: Data) =>
       val args = scalus.builtins.Builtins.unsafeDataAsConstr(d).snd
 
