@@ -7,9 +7,9 @@ import org.scalatest.funsuite.AnyFunSuite
 import org.scalatestplus.scalacheck.ScalaCheckPropertyChecks
 import scalus.Compile
 import scalus.Compiler.compile
+import scalus.*
 import scalus.builtins.Builtins
 import scalus.builtins.ByteString
-import scalus.sir.SimpleSirToUplcLowering
 import scalus.uplc.Data.*
 import scalus.uplc.FromDataInstances.given
 
@@ -113,7 +113,7 @@ class FromDataDerivationSpec
     import scalus.uplc.TermDSL.{*, given}
     val sir = compile { (d: Data) => fromData[BigRecord](d).toData }
     // println(sir.pretty.render(100))
-    val term = new SimpleSirToUplcLowering().lower(sir)
+    val term = sir.toUplc()
     // println(term.pretty.render(100))
     forAll { (r: BigRecord) =>
       val d = r.toData
@@ -133,7 +133,7 @@ class FromDataDerivationSpec
     import ToDataAdt.given
     import scalus.uplc.TermDSL.{*, given}
     val sir = compile { (d: Data) => fromData[Adt](d).toData }
-    val term = new SimpleSirToUplcLowering().lower(sir)
+    val term = sir.toUplc()
     // println(sir.pretty.render(100))
     forAll { (r: Adt) =>
       val d = r.toData

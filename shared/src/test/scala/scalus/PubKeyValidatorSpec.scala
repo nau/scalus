@@ -12,7 +12,6 @@ import scalus.prelude.List.Cons
 import scalus.prelude.List.Nil
 import scalus.prelude.Prelude.===
 import scalus.prelude.Prelude.given
-import scalus.sir.SimpleSirToUplcLowering
 import scalus.uplc.*
 
 @Compile
@@ -53,7 +52,7 @@ class PubKeyValidatorSpec extends AnyFunSuite with ScalaCheckPropertyChecks:
     val compiled = compile { PubKeyValidator.validator }
 
     // println(compiled.pretty.render(80))
-    val term = new SimpleSirToUplcLowering().lower(compiled)
+    val term = compiled.toUplc()
     val flatBytesLen = ProgramFlatCodec.encodeFlat(Program(version = (1, 0, 0), term = term)).length
 //    println(Utils.bytesToHex(flatBytes))
     // println(term.pretty.render(80))

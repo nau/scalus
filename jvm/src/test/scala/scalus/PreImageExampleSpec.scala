@@ -14,7 +14,6 @@ import scalus.prelude.List.Nil
 import scalus.prelude.Prelude.===
 import scalus.prelude.Prelude.given
 import scalus.prelude.*
-import scalus.sir.SimpleSirToUplcLowering
 import scalus.uplc.Data.fromData
 import scalus.uplc.Data.toData
 import scalus.uplc.FromDataInstances.given
@@ -43,7 +42,7 @@ object OptimizedPreimageValidator {
 
 object OptimizedPreimage {
   val compiledOptimizedPreimageValidator = compile(OptimizedPreimageValidator.preimageValidator)
-  val validator = new SimpleSirToUplcLowering().lower(compiledOptimizedPreimageValidator)
+  val validator = compiledOptimizedPreimageValidator.toUplc()
   val flatEncoded = ProgramFlatCodec.encodeFlat(Program((1, 0, 0), validator))
   val cbor = Cbor.encode(flatEncoded).toByteArray
   val cborHex = Utils.bytesToHex(Cbor.encode(flatEncoded).toByteArray)
@@ -133,7 +132,7 @@ class PreImageExampleSpec extends BaseValidatorSpec {
     // compile to Scalus Intermediate Representation, SIR
     val compiled = compile(preimageValidator)
     // convert SIR to UPLC
-    val validator = new SimpleSirToUplcLowering().lower(compiled)
+    val validator = compiled.toUplc()
     val flatSize = ProgramFlatCodec.encodeFlat(Program((1, 0, 0), validator)).length
     assert(flatSize == 1586)
 

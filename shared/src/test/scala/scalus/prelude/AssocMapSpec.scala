@@ -6,11 +6,11 @@ import org.scalatest.funsuite.AnyFunSuite
 import org.scalatestplus.scalacheck.Checkers._
 import org.scalatestplus.scalacheck.ScalaCheckPropertyChecks
 import scalus.Compiler
+import scalus.*
 import scalus.prelude.List.*
 import scalus.prelude.Prelude.===
 import scalus.prelude.Prelude.given
 import scalus.prelude.These.*
-import scalus.sir.SimpleSirToUplcLowering
 import scalus.uplc.ArbitraryInstances
 
 class AssocMapSpec extends AnyFunSuite with ScalaCheckPropertyChecks with ArbitraryInstances {
@@ -37,7 +37,7 @@ class AssocMapSpec extends AnyFunSuite with ScalaCheckPropertyChecks with Arbitr
       AssocMap.union(m1, m2)
     }
     // println(compiled.pretty.render(100))
-    val term = new SimpleSirToUplcLowering().lower(compiled)
+    val term = compiled.toUplc()
     // println(Cek.evalUPLC(term).pretty.render(100))
     assert(
       AssocMap.toList(m3) == List(
@@ -64,14 +64,14 @@ class AssocMapSpec extends AnyFunSuite with ScalaCheckPropertyChecks with Arbitr
         equalsAssets(m1, m2)
       }
       // println(compiled.pretty.render(100))
-      val term = new SimpleSirToUplcLowering().lower(compiled)
+      val term = compiled.toUplc()
       // println(Cek.evalUPLC(term).pretty.render(100))
     }
     {
       val compiled = Compiler.compile {
         equalsAssets(m1, m1)
       }
-      val term = new SimpleSirToUplcLowering().lower(compiled)
+      val term = compiled.toUplc()
       // println(Cek.evalUPLC(term).pretty.render(100))
     }
   }

@@ -68,7 +68,7 @@ val controlFlow = compile {
   // throwing an exception compiles to Plutus ERROR,
   // which aborts the evaluation of the script
   // the exception message can be translated to a trace message
-  // using new SimpleSIRToUplcLowering(generateErrorTraces = true)
+  // using sir.toUplc(generateErrorTraces = true)
   else throw new Exception("not 2")
 }
 
@@ -120,13 +120,13 @@ val context = compile {
 }
 
 val serializeToDoubleCborHex: String = {
-  import scalus.sir.SimpleSirToUplcLowering
+  import scalus.*
   import scalus.uplc.ProgramFlatCodec
   import scalus.uplc.Program
   import io.bullet.borer.Cbor
   import scalus.utils.Utils
 
-  val uplc = new SimpleSirToUplcLowering(generateErrorTraces = true).lower(context)
+  val uplc = context.toUplc(generateErrorTraces = true)
   val flatEncoded = ProgramFlatCodec.encodeFlat(Program((1, 0, 0), uplc))
   val cbor = Cbor.encode(flatEncoded).toByteArray
   val doubleEncoded = Cbor.encode(cbor).toByteArray

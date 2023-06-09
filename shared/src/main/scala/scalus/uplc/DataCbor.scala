@@ -15,7 +15,6 @@ import scalus.uplc.Data.I
 import scalus.uplc.Data.Map
 import scala.collection.mutable.ArrayBuffer
 import io.bullet.borer.ByteAccess
-import scalus.utils.Hex
 
 object PlutusDataCborEncoder extends Encoder[Data]:
   override def write(writer: Writer, data: Data): Writer =

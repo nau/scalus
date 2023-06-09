@@ -13,7 +13,6 @@ import scalus.prelude.List.Cons
 import scalus.prelude.List.Nil
 import scalus.prelude.Maybe.*
 import scalus.prelude.*
-import scalus.sir.SimpleSirToUplcLowering
 import scalus.uplc.Term.*
 import scalus.uplc.TermDSL.{_, given}
 import scalus.uplc.*
@@ -166,12 +165,11 @@ class MintingPolicyExampleSpec extends BaseValidatorSpec {
   val evaledTokens =
     val tokensSIR =
       compile(AssocMap.singleton(hex"484f534b59", BigInt("1000000000000000")))
-    val tokens = new SimpleSirToUplcLowering().lower(tokensSIR)
+    val tokens = tokensSIR.toUplc()
     Cek.evalUPLC(tokens)
 
   test("Minting Policy Validator") {
-    val validator = new SimpleSirToUplcLowering(generateErrorTraces = true)
-      .lower(MintingPolicy.compiledMintingPolicyScript)
+    val validator = MintingPolicy.compiledMintingPolicyScript.toUplc(generateErrorTraces = true)
     val appliedValidator =
       validator $ hoskyMintTxOutRef.id.hash $ hoskyMintTxOutRef.idx $ evaledTokens
     val flatSize = ProgramFlatCodec.encodeFlat(Program((1, 0, 0), appliedValidator)).length
@@ -180,8 +178,7 @@ class MintingPolicyExampleSpec extends BaseValidatorSpec {
   }
 
   test("Minting Policy Validator V2") {
-    val validator = new SimpleSirToUplcLowering(generateErrorTraces = true)
-      .lower(MintingPolicyV2.compiledMintingPolicyScriptV2)
+    val validator = MintingPolicyV2.compiledMintingPolicyScriptV2.toUplc(generateErrorTraces = true)
     val appliedValidator =
       validator $ hoskyMintTxOutRef.id.hash $ hoskyMintTxOutRef.idx $ evaledTokens
     val flatSize = ProgramFlatCodec.encodeFlat(Program((2, 0, 0), appliedValidator)).length
@@ -191,8 +188,8 @@ class MintingPolicyExampleSpec extends BaseValidatorSpec {
 
   test("Minting Policy Validator Optimized") {
     // println(MintingPolicy.compiledOptimizedMintingPolicyScript.pretty.render(100))
-    val validator = new SimpleSirToUplcLowering(generateErrorTraces = true)
-      .lower(MintingPolicy.compiledOptimizedMintingPolicyScript)
+    val validator =
+      MintingPolicy.compiledOptimizedMintingPolicyScript.toUplc(generateErrorTraces = true)
     val appliedValidator =
       validator $ hoskyMintTxOutRef.id.hash $ hoskyMintTxOutRef.idx $ evaledTokens
     val flatSize = ProgramFlatCodec.encodeFlat(Program((1, 0, 0), appliedValidator)).length

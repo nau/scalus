@@ -19,7 +19,6 @@ import scalus.sir.Recursivity
 import scalus.sir.Recursivity.*
 import scalus.sir.SIR
 import scalus.sir.SIR.*
-import scalus.sir.SimpleSirToUplcLowering
 import scalus.sir.SirDSL.{_, given}
 import scalus.uplc.DefaultFun.*
 import scalus.uplc.TermDSL.lam

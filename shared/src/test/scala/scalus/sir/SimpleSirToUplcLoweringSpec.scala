@@ -18,8 +18,7 @@ class SimpleSirToUplcLoweringSpec
     with ArbitraryInstances:
   extension (s: SIR)
     infix def lowersTo(r: Term): Unit =
-      val l = SimpleSirToUplcLowering()
-      assert(l.lower(s) == r)
+      assert(s.toUplc() == r)
 
   test("lower constant") {
     forAll { (c: Constant) =>
@@ -29,9 +28,10 @@ class SimpleSirToUplcLoweringSpec
 
   test("lower error") {
     SIR.Error("error") lowersTo Term.Error("error")
-    val l = SimpleSirToUplcLowering(generateErrorTraces = true)
     assert(
-      l.lower(SIR.Error("error")) == !(!Trace $ "error" $ ~(Term.Error("error")))
+      SIR.Error("error").toUplc(generateErrorTraces = true) == !(!Trace $ "error" $ ~(Term.Error(
+        "error"
+      )))
     )
   }
 

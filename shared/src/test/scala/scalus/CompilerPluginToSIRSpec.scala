@@ -18,7 +18,6 @@ import scalus.sir.Recursivity
 import scalus.sir.Recursivity.*
 import scalus.sir.SIR
 import scalus.sir.SIR.*
-import scalus.sir.SimpleSirToUplcLowering
 import scalus.sir.SirDSL.{*, given}
 import scalus.uplc.DefaultFun.*
 import scalus.uplc.*
@@ -136,7 +135,7 @@ class CompilerPluginToSIRSpec extends AnyFunSuite with ScalaCheckPropertyChecks:
         )
       )
     )
-//    val term = new SimpleSirToUplcLowering().lower(compiled)
+//    val term = compiled.toUplc()
 //    assert(Cek.evalUPLC(term) == Data.I(22))
   }
 
@@ -646,7 +645,7 @@ class CompilerPluginToSIRSpec extends AnyFunSuite with ScalaCheckPropertyChecks:
         )
     )
     // println(compiled.pretty.render(80))
-    val term = new SimpleSirToUplcLowering().lower(compiled)
+    val term = compiled.toUplc()
     val evaled = Cek.evalUPLC(term)
     // println(evaled.pretty.render(80))
     assert(evaled == scalus.uplc.Term.Const(Constant.Bool(true)))
@@ -661,7 +660,7 @@ class CompilerPluginToSIRSpec extends AnyFunSuite with ScalaCheckPropertyChecks:
       a === a && bs === bs && s === s
     }
     // println(compiled.pretty.render(80))
-    val term = new SimpleSirToUplcLowering().lower(compiled)
+    val term = compiled.toUplc()
     // println(term.pretty.render(80))
     val evaled = Cek.evalUPLC(term)
     assert(evaled == scalus.uplc.Term.Const(Constant.Bool(true)))
@@ -722,7 +721,7 @@ class CompilerPluginToSIRSpec extends AnyFunSuite with ScalaCheckPropertyChecks:
         case (a, _) => a && t._2
     }
     // println(compiled.pretty.render(80))
-    val term = new SimpleSirToUplcLowering().lower(compiled)
+    val term = compiled.toUplc()
     val evaled = Cek.evalUPLC(term)
     assert(evaled == scalus.uplc.Term.Const(Constant.Bool(false)))
   }
@@ -734,7 +733,7 @@ class CompilerPluginToSIRSpec extends AnyFunSuite with ScalaCheckPropertyChecks:
         case PubKeyHash(hash) => hash
     }
     // println(compiled.pretty.render(80))
-    val term = new SimpleSirToUplcLowering().lower(compiled)
+    val term = compiled.toUplc()
     // println(term.pretty.render(80))
     val evaled = Cek.evalUPLC(term)
     assert(evaled == scalus.uplc.Term.Const(Constant.ByteString(hex"deadbeef")))
@@ -750,7 +749,7 @@ class CompilerPluginToSIRSpec extends AnyFunSuite with ScalaCheckPropertyChecks:
         case Nil         => BigInt(0)
     }
     // println(compiled.pretty.render(80))
-    val term = new SimpleSirToUplcLowering().lower(compiled)
+    val term = compiled.toUplc()
     val evaled = Cek.evalUPLC(term)
     // println(evaled.pretty.render(80))
     assert(evaled == scalus.uplc.Term.Const(Constant.Integer(1)))
@@ -764,7 +763,7 @@ class CompilerPluginToSIRSpec extends AnyFunSuite with ScalaCheckPropertyChecks:
         case These.This(h) => h
         case _             => BigInt(0)
     }
-    val term = new SimpleSirToUplcLowering().lower(compiled)
+    val term = compiled.toUplc()
     val evaled = Cek.evalUPLC(term)
     assert(evaled == scalus.uplc.Term.Const(Constant.Integer(1)))
   }
@@ -779,7 +778,7 @@ class CompilerPluginToSIRSpec extends AnyFunSuite with ScalaCheckPropertyChecks:
       Builtins.unsafeDataAsB(sigs.head)
     }
     // println(compiled.pretty.render(80))
-    val term = new SimpleSirToUplcLowering().lower(compiled)
+    val term = compiled.toUplc()
 
     val scriptContext =
       ScriptContext(

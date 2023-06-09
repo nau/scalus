@@ -3,21 +3,20 @@ package scalus.ledger.api.v1
 import org.scalatest.funsuite.AnyFunSuite
 import org.scalatestplus.scalacheck.ScalaCheckPropertyChecks
 import scalus.Compiler.compile
+import scalus.*
 import scalus.builtins.ByteString
 import scalus.builtins.ByteString.given
 import scalus.prelude.Prelude.*
 import scalus.prelude.Prelude.given
 import scalus.sir.SIR
-import scalus.sir.SimpleSirToUplcLowering
 import scalus.uplc.ArbitraryInstances
 import scalus.uplc.Cek
-import scalus.uplc.Term
-import scalus.uplc.TermDSL.given
+import scalus.uplc.Constant
 import scalus.uplc.Data
 import scalus.uplc.Data.fromData
 import scalus.uplc.Data.toData
-import scalus.uplc.Constant
-import scalus.pretty
+import scalus.uplc.Term
+import scalus.uplc.TermDSL.given
 
 class ContextSpec
     extends AnyFunSuite
@@ -60,7 +59,7 @@ class ContextSpec
   }
 
   private def assertEval(sir: SIR, expected: Term) = {
-    val term = new SimpleSirToUplcLowering().lower(sir)
+    val term = sir.toUplc()
     assert(Cek.evalUPLC(term) == expected)
   }
 }

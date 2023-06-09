@@ -3,10 +3,10 @@ package scalus.prelude
 import org.scalatest.funsuite.AnyFunSuite
 import org.scalatestplus.scalacheck.ScalaCheckPropertyChecks
 import scalus.Compiler.compile
+import scalus.*
 import scalus.prelude.Maybe.*
 import scalus.prelude.Prelude.{_, given}
 import scalus.sir.SIR
-import scalus.sir.SimpleSirToUplcLowering
 import scalus.uplc.ArbitraryInstances
 import scalus.uplc.Cek
 import scalus.uplc.Term
@@ -23,7 +23,7 @@ class MaybeSpec extends AnyFunSuite with ScalaCheckPropertyChecks with Arbitrary
   }
 
   private def assertEval(sir: SIR, expected: Term) = {
-    val term = new SimpleSirToUplcLowering().lower(sir)
+    val term = sir.toUplc()
     assert(Cek.evalUPLC(term) == expected)
   }
 }
