@@ -24,6 +24,7 @@ object ByteString {
 
   def unsafeFromArray(bytes: Array[Byte]): ByteString = new ByteString(bytes)
   def fromHex(bytes: String): ByteString = new ByteString(Hex.hexToBytes(bytes))
+  def fromString(s: String): ByteString = new ByteString(s.getBytes("UTF-8"))
 
   implicit class StringInterpolators(val sc: StringContext) extends AnyVal:
 

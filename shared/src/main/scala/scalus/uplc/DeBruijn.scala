@@ -6,6 +6,10 @@ object DeBruijn:
     val term = DeBruijn.deBruijnTerm(p.term)
     DeBruijnedProgram(version = p.version, term = term)
 
+  def fromDeBruijnProgram(p: DeBruijnedProgram): Program =
+    val term = DeBruijn.fromDeBruijnTerm(p.term)
+    Program(version = p.version, term = term)
+
   def deBruijnTerm(term: Term, env: List[String] = Nil): Term =
     term match
       case Var(name) =>

@@ -199,7 +199,7 @@ object SendTx:
     val pubKeyHash = Utils.bytesToHex(pubKeyHashBytes)
     import scalus.uplc.Data.toData
     implicit val enc = scalus.uplc.PlutusDataCborEncoder
-    val datum = (ByteString.fromHex(preimageHash), ByteString.fromHex(pubKeyHash)).toData
+    val datum = (ByteString.fromArray(preimageBytes), ByteString.fromArray(pubKeyHashBytes)).toData
     val datumCbor = Cbor.encode(datum).toByteArray
     val datumHash = Blake2bUtil.blake2bHash256(datumCbor)
     val datumHashHex = Utils.bytesToHex(datumHash)
