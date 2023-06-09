@@ -196,14 +196,65 @@ enum Extended[+A]:
   case Finite(a: A)
   case PosInf extends Extended[Nothing]
 
+@Compile
+object Extended {
+  given Eq[A: Eq]: Eq[Extended[A]] = (x: Extended[A], y: Extended[A]) =>
+    x match
+      case NegInf =>
+        y match
+          case NegInf => true
+          case _      => false
+      case Finite(a) =>
+        y match
+          case Finite(b) => a === b
+          case _         => false
+      case PosInf =>
+        y match
+          case PosInf => true
+          case _      => false
+}
+
 case class UpperBound[A](upper: Extended[A], closure: Closure)
+@Compile
+object UpperBound:
+  given Eq[A: Eq]: Eq[UpperBound[A]] = (x: UpperBound[A], y: UpperBound[A]) =>
+    x match
+      case UpperBound(upper1, closure1) =>
+        y match
+          case UpperBound(upper2, closure2) =>
+            upper1 === upper2 && closure1 === closure2
+
 case class LowerBound[A](extended: Extended[A], closure: Closure)
+@Compile
+object LowerBound:
+  given Eq[A: Eq]: Eq[LowerBound[A]] = (x: LowerBound[A], y: LowerBound[A]) =>
+    x match
+      case LowerBound(extended1, closure1) =>
+        y match
+          case LowerBound(extended2, closure2) =>
+            extended1 === extended2 && closure1 === closure2
+
 case class Interval[A](from: LowerBound[A], to: UpperBound[A])
 
 @Compile
 object Interval:
+  given Eq[A: Eq]: Eq[Interval[A]] = (x: Interval[A], y: Interval[A]) =>
+    x match
+      case Interval(from1, to1) =>
+        y match
+          case Interval(from2, to2) =>
+            from1 === from2 && to1 === to2
+
   def always[A]: Interval[A] =
     new Interval(new LowerBound(Extended.NegInf, true), new UpperBound(Extended.PosInf, true))
+
+  def lowerBound[A](a: A): LowerBound[A] = new LowerBound(Extended.Finite(a), true)
+  def upperBound[A](a: A): UpperBound[A] = new UpperBound(Extended.Finite(a), true)
+
+  def from[A](a: A): Interval[A] =
+    new Interval(lowerBound(a), new UpperBound(Extended.PosInf, true))
+
+  def to[A](a: A): Interval[A] = new Interval(new LowerBound(Extended.NegInf, true), upperBound(a))
 
 enum DCert:
   case DelegRegKey(cred: StakingCredential)
