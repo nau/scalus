@@ -20,7 +20,7 @@ package object scalus {
       Hex.bytesToHex(cbor2)
 
     def toUplc(generateErrorTraces: Boolean = false): Term =
-      SimpleSirToUplcLowering(generateErrorTraces).lower(sir)
+      SimpleSirToUplcLowering(sir, generateErrorTraces).lower()
 
   extension (du: DefaultUni) def pretty: Doc = PrettyPrinter.pretty(du)
   extension (c: Constant) def pretty: Doc = PrettyPrinter.pretty(c)

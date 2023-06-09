@@ -13,7 +13,7 @@ import scalus.uplc.TypeScheme
 
 import scala.collection.mutable.HashMap
 
-class SimpleSirToUplcLowering(generateErrorTraces: Boolean = false) {
+class SimpleSirToUplcLowering(sir: SIR, generateErrorTraces: Boolean = false) {
 
   val builtinTerms = {
     def forceBuiltin(scheme: TypeScheme, term: Term): Term = scheme match
@@ -26,12 +26,12 @@ class SimpleSirToUplcLowering(generateErrorTraces: Boolean = false) {
   private var zCombinatorNeeded: Boolean = false
   private val decls = HashMap.empty[String, DataDecl]
 
-  def lower(sir: SIR): Term =
+  def lower(): Term =
     val term = lowerInner(sir)
     if zCombinatorNeeded then Term.Apply(Term.LamAbs("__z_combinator__", term), ExprBuilder.ZTerm)
     else term
 
-  def lowerInner(sir: SIR): Term =
+  private def lowerInner(sir: SIR): Term =
     sir match
       case SIR.Decl(data, body) =>
         decls(data.name) = data
@@ -143,7 +143,9 @@ class SimpleSirToUplcLowering(generateErrorTraces: Boolean = false) {
       case Decl(data, term)                 => false
       case Constr(name, data, args)         => false
       case Match(scrutinee, cases)          => false
+}
 
+object EtaReduce {
   def etaReduce(term: Term): Term =
     import Term.*
     term match

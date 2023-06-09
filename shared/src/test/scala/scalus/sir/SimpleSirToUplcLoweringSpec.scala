@@ -122,7 +122,6 @@ class SimpleSirToUplcLoweringSpec
     // (\x -> f x) reduces to f
     // (\x y -> f x y) reduces to f
 
-    val l = SimpleSirToUplcLowering()
-    assert(l.etaReduce(lam("x")(vr"f" $ vr"x")) === vr"f")
-    assert(l.etaReduce(lam("x", "y")(vr"f" $ vr"x" $ vr"y")) === vr"f")
+    assert(EtaReduce.etaReduce(lam("x")(vr"f" $ vr"x")) === vr"f")
+    assert(EtaReduce.etaReduce(lam("x", "y")(vr"f" $ vr"x" $ vr"y")) === vr"f")
   }
