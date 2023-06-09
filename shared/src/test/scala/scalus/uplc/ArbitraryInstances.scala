@@ -159,7 +159,7 @@ trait ArbitraryInstances:
     def sizedTermGen(sz: Int, env: immutable.List[String]): Gen[Term] =
       val maybeVarTerm = if env.isEmpty then Seq.empty else Seq(varGen(env))
       val simple = Gen.oneOf(
-        Gen.const(Term.Error("error")),
+        Gen.const(Term.Error("")),
         builtinGen,
         (Seq(constGen) ++ maybeVarTerm): _*
       )
