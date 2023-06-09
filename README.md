@@ -72,7 +72,7 @@ def preimageValidator(datum: Data, redeemer: Data, ctxData: Data): Unit = {
 val compiled = compile(preimageValidator)
 // convert SIR to UPLC
 val validator = compiled.toUplc()
-val flatEncoded = ProgramFlatCodec.encodeFlat(Program((1, 0, 0), validator))
+val flatEncoded = Program((1, 0, 0), validator).flatEncoded
 assert(flatEncoded.length == 1617)
 ```
 
@@ -162,7 +162,7 @@ def preimageValidator(datum: Data, redeemer: Data, ctxData: Data): Unit = {
 
 val compiled = compile(preimageValidator)
 val validator = compiled.toUplc()
-val flatSize = ProgramFlatCodec.encodeFlat(Program((1, 0, 0), validator)).length
+val flatSize = Program((1, 0, 0), validator).flatEncoded.length
 assert(flatSize == 257)
 ```
 

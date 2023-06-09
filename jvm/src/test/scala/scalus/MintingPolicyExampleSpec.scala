@@ -172,7 +172,7 @@ class MintingPolicyExampleSpec extends BaseValidatorSpec {
     val validator = MintingPolicy.compiledMintingPolicyScript.toUplc(generateErrorTraces = true)
     val appliedValidator =
       validator $ hoskyMintTxOutRef.id.hash $ hoskyMintTxOutRef.idx $ evaledTokens
-    val flatSize = ProgramFlatCodec.encodeFlat(Program((1, 0, 0), appliedValidator)).length
+    val flatSize = Program((1, 0, 0), appliedValidator).flatEncoded.length
     assert(flatSize == 2316)
     performMintingPolicyValidatorChecks(appliedValidator)(withScriptContextV1)
   }
@@ -181,7 +181,7 @@ class MintingPolicyExampleSpec extends BaseValidatorSpec {
     val validator = MintingPolicyV2.compiledMintingPolicyScriptV2.toUplc(generateErrorTraces = true)
     val appliedValidator =
       validator $ hoskyMintTxOutRef.id.hash $ hoskyMintTxOutRef.idx $ evaledTokens
-    val flatSize = ProgramFlatCodec.encodeFlat(Program((2, 0, 0), appliedValidator)).length
+    val flatSize = Program((2, 0, 0), appliedValidator).flatEncoded.length
     assert(flatSize == 2457)
     performMintingPolicyValidatorChecks(appliedValidator)(withScriptContextV2)
   }
@@ -192,7 +192,7 @@ class MintingPolicyExampleSpec extends BaseValidatorSpec {
       MintingPolicy.compiledOptimizedMintingPolicyScript.toUplc(generateErrorTraces = true)
     val appliedValidator =
       validator $ hoskyMintTxOutRef.id.hash $ hoskyMintTxOutRef.idx $ evaledTokens
-    val flatSize = ProgramFlatCodec.encodeFlat(Program((1, 0, 0), appliedValidator)).length
+    val flatSize = Program((1, 0, 0), appliedValidator).flatEncoded.length
     assert(flatSize == 1050)
     performMintingPolicyValidatorChecks(appliedValidator)(withScriptContextV1)
   }

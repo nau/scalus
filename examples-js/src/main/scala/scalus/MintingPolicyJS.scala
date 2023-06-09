@@ -8,7 +8,6 @@ import scalus.prelude.AssocMap
 import scalus.uplc.Cek
 import scalus.uplc.Data
 import scalus.uplc.Program
-import scalus.uplc.ProgramFlatCodec
 import scalus.uplc.TermDSL.{_, given}
 import scalus.utils.Utils
 
@@ -41,7 +40,6 @@ object MintingPolicyJS:
     // val appliedValidator = alwaysokTerm
     val appliedValidator =
       validatorSIR $ txId $ txOutIdx $ tokens
-    val flatEncoded = ProgramFlatCodec.encodeFlat(Program((1, 0, 0), appliedValidator))
-    val cbor = Cbor.encode(flatEncoded).toByteArray
-    Utils.bytesToHex(Cbor.encode(cbor).toByteArray)
+
+    Program((1, 0, 0), appliedValidator).doubleCborHex
   }

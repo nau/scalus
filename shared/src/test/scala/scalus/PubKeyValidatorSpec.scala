@@ -53,7 +53,7 @@ class PubKeyValidatorSpec extends AnyFunSuite with ScalaCheckPropertyChecks:
 
     // println(compiled.pretty.render(80))
     val term = compiled.toUplc()
-    val flatBytesLen = ProgramFlatCodec.encodeFlat(Program(version = (1, 0, 0), term = term)).length
+    val flatBytesLen = Program(version = (1, 0, 0), term = term).flatEncoded.length
 //    println(Utils.bytesToHex(flatBytes))
     // println(term.pretty.render(80))
     assert(flatBytesLen == 131)

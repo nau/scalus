@@ -1,6 +1,5 @@
 package scalus
 
-import io.bullet.borer.Cbor
 import scalus.Compiler.compile
 import scalus.Compiler.fieldAsData
 import scalus.builtins.Builtins
@@ -20,7 +19,6 @@ import scalus.uplc.FromDataInstances.given
 import scalus.uplc.Term.*
 import scalus.uplc.TermDSL.{*, given}
 import scalus.uplc.*
-import scalus.utils.Utils
 
 @Compile
 object OptimizedPreimageValidator {
@@ -43,10 +41,10 @@ object OptimizedPreimageValidator {
 object OptimizedPreimage {
   val compiledOptimizedPreimageValidator = compile(OptimizedPreimageValidator.preimageValidator)
   val validator = compiledOptimizedPreimageValidator.toUplc()
-  val flatEncoded = ProgramFlatCodec.encodeFlat(Program((1, 0, 0), validator))
-  val cbor = Cbor.encode(flatEncoded).toByteArray
-  val cborHex = Utils.bytesToHex(Cbor.encode(flatEncoded).toByteArray)
-  val doubleCborHex = Utils.bytesToHex(Cbor.encode(cbor).toByteArray)
+  val programV1 = Program((1, 0, 0), validator)
+  // val cbor = Cbor.encode(flatEncoded).toByteArray
+  // val cborHex = Utils.bytesToHex(Cbor.encode(flatEncoded).toByteArray)
+  val doubleCborHex = Program((1, 0, 0), validator).doubleCborHex
 }
 
 class PreImageExampleSpec extends BaseValidatorSpec {
@@ -133,14 +131,14 @@ class PreImageExampleSpec extends BaseValidatorSpec {
     val compiled = compile(preimageValidator)
     // convert SIR to UPLC
     val validator = compiled.toUplc()
-    val flatSize = ProgramFlatCodec.encodeFlat(Program((1, 0, 0), validator)).length
+    val flatSize = Program((1, 0, 0), validator).flatEncoded.length
     assert(flatSize == 1586)
 
     performChecks(validator)
   }
 
   test("Preimage Validator Optimized") {
-    val flatSize = OptimizedPreimage.flatEncoded.length
+    val flatSize = OptimizedPreimage.programV1.flatEncoded.length
     assert(flatSize == 254)
     performChecks(OptimizedPreimage.validator)
   }

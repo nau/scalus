@@ -198,19 +198,21 @@ val context = compile {
 The `compile` function converts the Scalus code to a `SIR` value, Scalus Intermediate Representation.
 You then need to convert the `SIR` value to a UPLC value and encode it to Flat and then to CBOR.
 
+Many APIs require the HEX encoded string of double CBOR encoded Flat encoded UPLC program,
+like `Hex(CborEncode(CborEncode(FlatEncode(Program(version, uplc)))))`.
+
 ```scala
 val serializeToDoubleCborHex: String = {
   import scalus.*
-  import scalus.uplc.ProgramFlatCodec
   import scalus.uplc.Program
-  import io.bullet.borer.Cbor
-  import scalus.utils.Utils
 
   val uplc = context.toUplc(generateErrorTraces = true)
-  val flatEncoded = ProgramFlatCodec.encodeFlat(Program((1, 0, 0), uplc))
-  val cbor = Cbor.encode(flatEncoded).toByteArray
-  val doubleEncoded = Cbor.encode(cbor).toByteArray
-  Utils.bytesToHex(doubleEncoded)
+  val programV1 = Program((1, 0, 0), uplc)
+  val flatEncoded = programV1.flatEncoded // if needed
+  val cbor = programV1.cborEncoded // if needed
+  val doubleEncoded = programV1.doubleCborEncoded // if needed
+  // in most cases you want to use the hex representation of the double CBOR encoded program
+  programV1.doubleCborHex
 }
 ```
 

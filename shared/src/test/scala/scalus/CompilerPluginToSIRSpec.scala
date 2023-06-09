@@ -803,7 +803,7 @@ class CompilerPluginToSIRSpec extends AnyFunSuite with ScalaCheckPropertyChecks:
     val evaled = Cek.evalUPLCProgram(appliedScript)
     // println(evaled.pretty.render(80))
     assert(evaled == scalus.uplc.Term.Const(asConstant(hex"deadbeef")))
-    val flatBytesLength = ProgramFlatCodec.encodeFlat(appliedScript).length
+    val flatBytesLength = appliedScript.flatEncoded.length
     // println(Utils.bytesToHex(flatBytes))
     assert(flatBytesLength == 125)
   }

@@ -10,7 +10,7 @@ enum UplcEvalResult:
 object PlutusUplcEval:
   def evalFlat(program: Program): UplcEvalResult =
     import cats.implicits.toShow
-    val flat = ProgramFlatCodec.encodeFlat(program)
+    val flat = program.flatEncoded
     // println(s"Flat size: ${flat.length}}")
     import scala.sys.process.*
     val cmd = "uplc evaluate --input-format flat --trace-mode LogsWithBudgets"

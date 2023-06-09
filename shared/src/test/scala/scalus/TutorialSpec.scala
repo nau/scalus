@@ -121,16 +121,15 @@ val context = compile {
 
 val serializeToDoubleCborHex: String = {
   import scalus.*
-  import scalus.uplc.ProgramFlatCodec
   import scalus.uplc.Program
-  import io.bullet.borer.Cbor
-  import scalus.utils.Utils
 
   val uplc = context.toUplc(generateErrorTraces = true)
-  val flatEncoded = ProgramFlatCodec.encodeFlat(Program((1, 0, 0), uplc))
-  val cbor = Cbor.encode(flatEncoded).toByteArray
-  val doubleEncoded = Cbor.encode(cbor).toByteArray
-  Utils.bytesToHex(doubleEncoded)
+  val programV1 = Program((1, 0, 0), uplc)
+  val flatEncoded = programV1.flatEncoded // if needed
+  val cbor = programV1.cborEncoded // if needed
+  val doubleEncoded = programV1.doubleCborEncoded // if needed
+  // in most cases you want to use the hex representation of the double CBOR encoded program
+  programV1.doubleCborHex
 }
 
 class TutorialSpec extends AnyFunSuite {

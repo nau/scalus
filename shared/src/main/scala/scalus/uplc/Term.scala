@@ -4,6 +4,8 @@ import org.typelevel.paiges.Doc
 import scalus.*
 import scalus.sir.PrettyPrinter
 import scalus.uplc.Data.*
+import io.bullet.borer.Cbor
+import scalus.utils.Hex
 
 case class NamedDeBruijn(name: String, index: Int = 0):
   assert(index >= 0)
@@ -44,6 +46,11 @@ case class Program(version: (Int, Int, Int), term: Term):
     Doc.text("(") + Doc.text("program") + Doc.space + Doc.text(
       s"$major.$minor.$patch"
     ) + Doc.space + term.pretty + Doc.text(")")
+
+  lazy val flatEncoded = ProgramFlatCodec.encodeFlat(this)
+  lazy val cborEncoded = Cbor.encode(flatEncoded).toByteArray
+  lazy val doubleCborEncoded = Cbor.encode(cborEncoded).toByteArray
+  lazy val doubleCborHex = Hex.bytesToHex(doubleCborEncoded)
 
 case class DeBruijnedProgram private[uplc] (version: (Int, Int, Int), term: Term):
   def pretty: Doc =
