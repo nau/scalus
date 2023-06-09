@@ -27,11 +27,9 @@ class SimpleSirToUplcLoweringSpec
   }
 
   test("lower error") {
-    SIR.Error("error") lowersTo Term.Error("error")
+    SIR.Error("error") lowersTo Term.Error
     assert(
-      SIR.Error("error").toUplc(generateErrorTraces = true) == !(!Trace $ "error" $ ~(Term.Error(
-        "error"
-      )))
+      SIR.Error("error").toUplc(generateErrorTraces = true) == !(!Trace $ "error" $ ~(Term.Error))
     )
   }
 

@@ -80,7 +80,7 @@ class CekJVMSpec extends AnyFunSuite with ScalaCheckPropertyChecks with Arbitrar
       val txInfoOutputs =
         !DefaultFun.HeadList $ (!DefaultFun.TailList $ txInfoArgs)
       val isTxInfoOutputsEmpty = !DefaultFun.NullList $ (DefaultFun.UnListData $ txInfoOutputs)
-      val result = !(!DefaultFun.IfThenElse $ isTxInfoOutputsEmpty $ ~() $ ~Error("Tx has outputs"))
+      val result = !(!DefaultFun.IfThenElse $ isTxInfoOutputsEmpty $ ~() $ ~Error)
       result
     }
     assert(validator == Example.giftValidator.term)

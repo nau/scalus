@@ -21,7 +21,7 @@ enum Term:
   case Delay(term: Term) extends Term
   case Const(const: Constant) extends Term
   case Builtin(bn: DefaultFun) extends Term
-  case Error(msg: String) extends Term
+  case Error extends Term
 
   def pretty: Doc = this match
     case Var(name) => Doc.text(name.name)
@@ -38,7 +38,7 @@ enum Term:
     case Const(const) => Doc.text("(") + Doc.text("con") + Doc.space + const.pretty + Doc.text(")")
     case Builtin(bn) =>
       Doc.text("(") + Doc.text("builtin") + Doc.space + PrettyPrinter.pretty(bn) + Doc.text(")")
-    case Error(_) => Doc.text("(error)")
+    case Error => Doc.text("(error)")
 
 case class Program(version: (Int, Int, Int), term: Term):
   def pretty: Doc =

@@ -22,7 +22,7 @@ object DeBruijn:
       case Delay(term)        => Delay(deBruijnTerm(term, env))
       case Const(const)       => term
       case Builtin(bn)        => term
-      case Error(msg)         => term
+      case Error              => term
 
   def fromDeBruijnTerm(term: Term): Term =
     var idx = 0
@@ -39,6 +39,6 @@ object DeBruijn:
       case Delay(term)   => Delay(go(term, env))
       case Const(const)  => term
       case Builtin(bn)   => term
-      case Error(msg)    => term
+      case Error         => term
 
     go(term, Nil)

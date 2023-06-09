@@ -122,8 +122,8 @@ class SimpleSirToUplcLowering(sir: SIR, generateErrorTraces: Boolean = false) {
       case SIR.Builtin(bn) => builtinTerms(bn)
       case SIR.Error(msg) =>
         if generateErrorTraces
-        then !(builtinTerms(DefaultFun.Trace) $ Term.Const(Constant.String(msg)) $ ~Term.Error(msg))
-        else Term.Error(msg)
+        then !(builtinTerms(DefaultFun.Trace) $ Term.Const(Constant.String(msg)) $ ~Term.Error)
+        else Term.Error
 
   def noEval(term: SIR): Boolean =
     import SIR.*
@@ -172,13 +172,13 @@ object EtaReduce {
       case Force(term)                 => freeNames(term, env)
       case Delay(term)                 => freeNames(term, env)
       case Const(_)                    => Set.empty
-      case Error(_)                    => Set.empty
+      case Error                       => Set.empty
       case Builtin(bn)                 => Set.empty
 
   def notError(term: Term): Boolean =
     import Term.*
     term match
-      case Error(_)        => false
+      case Error           => false
       case Apply(f, a)     => notError(f) && notError(a)
       case LamAbs(_, body) => notError(body)
       case Force(term)     => notError(term)

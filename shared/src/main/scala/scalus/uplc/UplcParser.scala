@@ -126,7 +126,7 @@ object UplcParser:
     }
     def forceTerm = inParens(symbol("force") *> self).map(Force.apply)
     def delayTerm = inParens(symbol("delay") *> self).map(Delay.apply)
-    def errorTerm = inParens(symbol("error")).map(_ => Error("error"))
+    def errorTerm = inParens(symbol("error")).map(_ => Error)
     varTerm.backtrack
       | builtinTerm.backtrack
       | conTerm.backtrack

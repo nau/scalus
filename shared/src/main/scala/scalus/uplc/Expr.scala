@@ -37,8 +37,8 @@ object ExprBuilder:
   inline def lam[A, B](inline f: Expr[A] => Expr[B]): Expr[A => B] = ${ Macros.lamMacro('f) }
   def delay[A](x: Expr[A]): Expr[Delayed[A]] = Expr(Term.Delay(x.term))
   def force[A](x: Expr[Delayed[A]]): Expr[A] = Expr(Term.Force(x.term))
-  def error(msg: String): Expr[Delayed[Nothing]] = Expr(Term.Delay(Term.Error(msg)))
-  def err(msg: String): Expr[Nothing] = Expr(Term.Error(msg))
+  def error(msg: String): Expr[Delayed[Nothing]] = Expr(Term.Delay(Term.Error)) // TODO: add trace
+  def err(msg: String): Expr[Nothing] = Expr(Term.Error) // TODO: add trace
   def let[A, B](expr: Expr[A])(f: Expr[A] => Expr[B]): Expr[B] = lam[A]("let")[B](f)(expr)
 
   // Z Combinator

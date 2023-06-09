@@ -34,7 +34,7 @@ class UtilsSpec
   test("readPlutusFile always-fails.plutus work") {
     val alwaysFails = """{"type":"PlutusScriptV2","description":"","cborHex":"4746020000222601"}"""
     val program = Utils.readPlutusFileContent(alwaysFails.getBytes("UTF-8"))
-    assert(program == Program((2, 0, 0), lam("i0", "i1", "i2")(Term.Error(""))))
+    assert(program == Program((2, 0, 0), lam("i0", "i1", "i2")(Term.Error)))
     val serialized = new String(Utils.programToPlutusFileContent(program), "UTF-8")
     assert(serialized == alwaysFails)
   }

@@ -255,7 +255,7 @@ class FlatSpec extends AnyFunSuite with ScalaCheckPropertyChecks with ArbitraryI
     import scalus.uplc.CommonFlatInstantces.{*, given}
     import scalus.uplc.FlatInstantces.given
     val fl = summon[Flat[Term]]
-    assert(fl.bitSize(Term.Error("any string")) == 4)
+    assert(fl.bitSize(Term.Error) == 4)
     assert(fl.bitSize(Term.Var(NamedDeBruijn("any name", 12))) == 12)
     // 4 bits for Const tag + 1 bit Cons of type tags list + 4 bits for Unit tag + 1 bit for Nil
     assert(fl.bitSize(Term.Const(Constant.Unit)) == 10)

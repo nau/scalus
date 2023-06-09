@@ -88,7 +88,7 @@ object Cek:
         Meaning.BuiltinMeanings.get(bn) match
           case Some(meaning) => returnCek(ctx, VBuiltin(bn, term, meaning))
           case None          => throw new UnexpectedBuiltinTermArgumentMachineError(term)
-      case Error(msg) => throw new EvaluationFailure(msg)
+      case Error => throw new EvaluationFailure("Error")
 
   def returnCek(ctx: Context, value: CekValue): Term =
     ctx match
