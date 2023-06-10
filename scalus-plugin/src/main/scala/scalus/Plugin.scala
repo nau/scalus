@@ -56,7 +56,7 @@ class ScalusPhase extends PluginPhase {
           // report.echo(s"compile: ${arg.show}")
           compiler.compileToSIR(code)
       val converter = new SIRConverter
-      converter.convert(result)
+      converter.convertSIRToTree(result)
     else tree
   end transformApply
 }
