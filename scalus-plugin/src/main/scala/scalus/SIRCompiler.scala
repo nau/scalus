@@ -710,6 +710,98 @@ final class SIRCompiler(mode: scalus.Mode)(using ctx: Context) {
     SIR.Match(matchExpr, sortedCases)
   }
 
+  private def compileBuiltinPairMethods(env: Env, fun: Name, pair: Tree, tree: Tree): SIR =
+    fun.show match
+      case "fst" =>
+        SIR.Apply(SIR.Builtin(DefaultFun.FstPair), compileExpr(env, pair))
+      case "snd" =>
+        SIR.Apply(SIR.Builtin(DefaultFun.SndPair), compileExpr(env, pair))
+      case _ =>
+        report.error(s"compileExpr: Unsupported pair function: $fun", tree.srcPos)
+        SIR.Error(s"Unsupported pair function: $fun")
+
+  private def compileBuiltinPairConstructor(
+      env: Env,
+      a: Tree,
+      b: Tree,
+      tpe1: Tree,
+      tpe2: Tree,
+      tree: Tree
+  ): SIR =
+    // We can create a Pair by either 2 literals as (con pair...)
+    // or 2 Data variables using MkPairData builtin
+    if a.isLiteral && b.isLiteral then
+      SIR.Const(
+        scalus.uplc.Constant.Pair(compileConstant(a), compileConstant(b))
+      )
+    else if a.isData && b.isData then
+      SIR.Apply(
+        SIR.Apply(SIR.Builtin(DefaultFun.MkPairData), compileExpr(env, a)),
+        compileExpr(env, b)
+      )
+    else
+      val msg = s"""Builtin Pair can only be created either by 2 literals or 2 Data variables:
+                   |Pair[${tpe1.tpe.show},${tpe2.tpe.show}](${a.show}, ${b.show})
+                   |- ${a.show} literal: ${a.isLiteral}, data: ${a.isData}
+                   |- ${b.show} literal: ${b.isLiteral}, data: ${b.isData}
+                   |""".stripMargin
+      report.error(msg, tree.srcPos)
+      SIR.Error(msg)
+
+  private def compileBuiltinListMethods(env: Env, lst: Tree, fun: Name): SIR =
+    fun.show match
+      case "head" =>
+        SIR.Apply(SIR.Builtin(DefaultFun.HeadList), compileExpr(env, lst))
+      case "tail" =>
+        SIR.Apply(SIR.Builtin(DefaultFun.TailList), compileExpr(env, lst))
+      case "isEmpty" =>
+        SIR.Apply(SIR.Builtin(DefaultFun.NullList), compileExpr(env, lst))
+      case _ =>
+        report.error(
+          s"compileExpr: Unsupported list method $fun. Only head, tail and isEmpty are supported"
+        )
+        SIR.Error(s"Unsupported list method $fun")
+
+  private def compileBuiltinListConstructor(
+      env: Env,
+      ex: Tree,
+      list: Tree,
+      tpe: Tree,
+      srcPos: SrcPos
+  ): SIR =
+    val tpeE = typeReprToDefaultUni(tpe.tpe, list.srcPos)
+    ex match
+      case SeqLiteral(args, _) =>
+        val allLiterals = args.forall(arg => compileConstant.isDefinedAt(arg))
+        if allLiterals then
+          val lits = args.map(compileConstant)
+          SIR.Const(scalus.uplc.Constant.List(tpeE, lits))
+        else
+          val nil = SIR.Const(scalus.uplc.Constant.List(tpeE, Nil))
+          args.foldRight(nil) { (arg, acc) =>
+            SIR.Apply(
+              SIR.Apply(SIR.Builtin(DefaultFun.MkCons), compileExpr(env, arg)),
+              acc
+            )
+          }
+      case _ =>
+        report.error(s"compileExpr: List is not supported yet ${ex}", srcPos)
+        SIR.Error("List is not supported")
+
+  private def compileApply(env: Env, f: Tree, args: List[Tree]): SIR =
+    val fE = compileExpr(env, f)
+    val argsE = args.map(compileExpr(env, _))
+    if argsE.isEmpty then SIR.Apply(fE, SIR.Const(scalus.uplc.Constant.Unit))
+    else argsE.foldLeft(fE)((acc, arg) => SIR.Apply(acc, arg))
+
+  private def compileThrowException(ex: Tree): SIR =
+    val msg = ex match
+      case Apply(Select(New(tpt), nme.CONSTRUCTOR), immutable.List(Literal(msg), _*))
+          if tpt.tpe <:< defn.ExceptionClass.typeRef =>
+        msg.stringValue
+      case term => "error"
+    SIR.Error(msg)
+
   private def compileExpr(env: Env, tree: Tree)(using Context): SIR = {
     // println(s"compileExpr: ${tree.showIndented(2)}, env: $env")
     if compileConstant.isDefinedAt(tree) then
@@ -719,22 +811,11 @@ final class SIRCompiler(mode: scalus.Mode)(using ctx: Context) {
       tree match
         case If(cond, t, f) =>
           SIR.IfThenElse(compileExpr(env, cond), compileExpr(env, t), compileExpr(env, f))
-
         case m: Match => compileMatch(m, env)
-
         // throw new Exception("error msg")
         // Supports any exception type that uses first argument as message
-        case Apply(Ident(nme.throw_), immutable.List(ex)) =>
-          val msg = ex match
-            case Apply(
-                  Select(New(tpt), nme.CONSTRUCTOR),
-                  immutable.List(Literal(msg), _*)
-                ) if tpt.tpe <:< defn.ExceptionClass.typeRef =>
-              msg.stringValue
-            case term => "error"
-          SIR.Error(msg)
-
-        // Boolean &&
+        case Apply(Ident(nme.throw_), immutable.List(ex)) => compileThrowException(ex)
+        // Boolean
         case Select(lhs, op) if lhs.tpe.widen =:= defn.BooleanType && op == nme.UNARY_! =>
           val lhsExpr = compileExpr(env, lhs)
           SIR.Not(lhsExpr)
@@ -767,19 +848,7 @@ final class SIRCompiler(mode: scalus.Mode)(using ctx: Context) {
             compileExpr(env, expr)
           )
         // List BUILTINS
-        case Select(lst, fun) if lst.isList =>
-          fun.show match
-            case "head" =>
-              SIR.Apply(SIR.Builtin(DefaultFun.HeadList), compileExpr(env, lst))
-            case "tail" =>
-              SIR.Apply(SIR.Builtin(DefaultFun.TailList), compileExpr(env, lst))
-            case "isEmpty" =>
-              SIR.Apply(SIR.Builtin(DefaultFun.NullList), compileExpr(env, lst))
-            case _ =>
-              report.error(
-                s"compileExpr: Unsupported list method $fun. Only head, tail and isEmpty are supported"
-              )
-              SIR.Error(s"Unsupported list method $fun")
+        case Select(lst, fun) if lst.isList => compileBuiltinListMethods(env, lst, fun)
         case tree @ TypeApply(Select(list, name), immutable.List(tpe))
             if name == termName("empty") && list.tpe =:= requiredModule(
               "scalus.builtins.List"
@@ -796,58 +865,15 @@ final class SIRCompiler(mode: scalus.Mode)(using ctx: Context) {
               TypeApply(Select(list, nme.apply), immutable.List(tpe)),
               immutable.List(ex)
             ) if list.tpe =:= requiredModule("scalus.builtins.List").typeRef =>
-          val tpeE = typeReprToDefaultUni(tpe.tpe, list.srcPos)
-          ex match
-            case SeqLiteral(args, _) =>
-              val allLiterals = args.forall(arg => compileConstant.isDefinedAt(arg))
-              if allLiterals then
-                val lits = args.map(compileConstant)
-                SIR.Const(scalus.uplc.Constant.List(tpeE, lits))
-              else
-                val nil = SIR.Const(scalus.uplc.Constant.List(tpeE, Nil))
-                args.foldRight(nil) { (arg, acc) =>
-                  SIR.Apply(
-                    SIR.Apply(SIR.Builtin(DefaultFun.MkCons), compileExpr(env, arg)),
-                    acc
-                  )
-                }
-            case _ =>
-              report.error(s"compileExpr: List is not supported yet ${ex}", tree.srcPos)
-              SIR.Error("List is not supported")
+          compileBuiltinListConstructor(env, ex, list, tpe, tree.srcPos)
         // Pair BUILTINS
         // PAIR
-        case Select(pair, fun) if pair.isPair =>
-          fun.show match
-            case "fst" =>
-              SIR.Apply(SIR.Builtin(DefaultFun.FstPair), compileExpr(env, pair))
-            case "snd" =>
-              SIR.Apply(SIR.Builtin(DefaultFun.SndPair), compileExpr(env, pair))
-            case _ =>
-              report.error(s"compileExpr: Unsupported pair function: $fun", tree.srcPos)
-              SIR.Error(s"Unsupported pair function: $fun")
+        case Select(pair, fun) if pair.isPair => compileBuiltinPairMethods(env, fun, pair, tree)
         case Apply(
               TypeApply(Select(pair, nme.apply), immutable.List(tpe1, tpe2)),
               immutable.List(a, b)
             ) if pair.tpe =:= requiredModule("scalus.builtins.Pair").typeRef =>
-          // We can create a Pair by either 2 literals as (con pair...)
-          // or 2 Data variables using MkPairData builtin
-          if a.isLiteral && b.isLiteral then
-            SIR.Const(
-              scalus.uplc.Constant.Pair(compileConstant(a), compileConstant(b))
-            )
-          else if a.isData && b.isData then
-            SIR.Apply(
-              SIR.Apply(SIR.Builtin(DefaultFun.MkPairData), compileExpr(env, a)),
-              compileExpr(env, b)
-            )
-          else
-            val msg = s"""Builtin Pair can only be created either by 2 literals or 2 Data variables:
-                         |Pair[${tpe1.tpe.show},${tpe2.tpe.show}](${a.show}, ${b.show})
-                         |- ${a.show} literal: ${a.isLiteral}, data: ${a.isData}
-                         |- ${b.show} literal: ${b.isLiteral}, data: ${b.isData}
-                         |""".stripMargin
-            report.error(msg, tree.srcPos)
-            SIR.Error(msg)
+          compileBuiltinPairConstructor(env, a, b, tpe1, tpe2, tree)
         // new Constr(args)
         case Apply(TypeApply(con @ Select(f, nme.CONSTRUCTOR), _), args) =>
           compileNewConstructor(env, f.tpe, args)
@@ -864,9 +890,7 @@ final class SIRCompiler(mode: scalus.Mode)(using ctx: Context) {
           compileNewConstructor(env, tree.tpe, args)
         // f.apply(arg) => Apply(f, arg)
         case Apply(Select(f, nme.apply), args) if defn.isFunctionType(f.tpe.widen) =>
-          val fE = compileExpr(env, f)
-          val argsE = args.map(compileExpr(env, _))
-          argsE.foldLeft(fE)((acc, arg) => SIR.Apply(acc, arg))
+          compileApply(env, f, args)
         case Ident(a) =>
           if isConstructorVal(tree.symbol, tree.tpe) then compileNewConstructor(env, tree.tpe, Nil)
           else compileIdentOrQualifiedSelect(env, tree)
@@ -896,16 +920,10 @@ final class SIRCompiler(mode: scalus.Mode)(using ctx: Context) {
         // Ignore type application
         case TypeApply(f, args) => compileExpr(env, f)
         // Generic Apply
-        case Apply(f, args) =>
-          val fE = compileExpr(env, f)
-          val argsE = args.map(compileExpr(env, _))
-          if argsE.isEmpty then SIR.Apply(fE, SIR.Const(scalus.uplc.Constant.Unit))
-          else argsE.foldLeft(fE)((acc, arg) => SIR.Apply(acc, arg))
+        case Apply(f, args) => compileApply(env, f, args)
         // (x: T) => body
         case Block(
-              immutable.List(
-                dd @ DefDef(nme.ANON_FUN, _, _, _)
-              ),
+              immutable.List(dd @ DefDef(nme.ANON_FUN, _, _, _)),
               Closure(_, Ident(nme.ANON_FUN), _)
             ) =>
           compileStmt(env, dd).body
