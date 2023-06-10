@@ -38,7 +38,7 @@ ThisBuild / publishTo := {
 }
 ThisBuild / publishMavenStyle := true
 
-lazy val root = project
+lazy val root: Project = project
   .in(file("."))
   .aggregate(scalusPlugin, scalus.js, scalus.jvm, `examples-js`, examples)
   .settings(
@@ -153,4 +153,20 @@ lazy val `examples-js` = project
         .withOutputPatterns(OutputPatterns.fromJSFile("%s.mjs"))
     },
     PluginDependency
+  )
+
+lazy val docs = project // documentation project
+  .in(file("scalus-docs")) // important: it must not be docs/
+  .dependsOn(scalus.jvm)
+  .enablePlugins(MdocPlugin)
+  .settings(
+    mdocVariables := Map(
+      "VERSION" -> scalusVersion,
+      "SCALA3_VERSION" -> scala3Version
+    ),
+    mdocOut := (root / baseDirectory).value,
+    mdocExtraArguments ++= Seq(
+      "--scalac-options",
+      s"-Xplugin:${(scalusPlugin / Compile / target).value}/scala-${scala3Version}/scalus-plugin_3-${scalusVersion}.jar"
+    )
   )
