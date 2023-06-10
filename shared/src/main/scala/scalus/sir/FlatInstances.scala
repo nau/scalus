@@ -9,6 +9,7 @@ import scalus.sir.Binding
 import scalus.sir.Case
 import scalus.sir.ConstrDecl
 import scalus.sir.DataDecl
+import scalus.sir.Module
 import scalus.sir.Recursivity
 import scalus.sir.SIR
 import scalus.uplc.CommonFlatInstantces.*
@@ -290,12 +291,12 @@ object FlatInstantces:
           val x = decode(decoder)
           Not(x)
 
-  given Flat[scalus.Module] with
-    def bitSize(a: scalus.Module): Int = a match
-      case scalus.Module(defs) => listFlat[Binding].bitSize(defs)
-    def encode(a: scalus.Module, enc: EncoderState): Unit = a match
-      case scalus.Module(defs) =>
+  given Flat[Module] with
+    def bitSize(a: Module): Int = a match
+      case Module(defs) => listFlat[Binding].bitSize(defs)
+    def encode(a: Module, enc: EncoderState): Unit = a match
+      case Module(defs) =>
         listFlat[Binding].encode(defs, enc)
-    def decode(decoder: DecoderState): scalus.Module =
+    def decode(decoder: DecoderState): Module =
       val defs = listFlat[Binding].decode(decoder)
-      scalus.Module(defs)
+      Module(defs)

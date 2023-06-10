@@ -60,7 +60,8 @@ lazy val scalusPlugin = project
     // Include common sources in the plugin
     // we can't add the scalus project as a dependency because this is a Scala compiler plugin
     // and apparently it's not supported
-    // TODO: add other common sources
+    // Another option is to use sbt-assembly to create a fat jar with all the dependencies
+    // This is a simpler solution
     Compile / managedSources ++= {
       val baseDir = baseDirectory.value / ".." / "shared" / "src" / "main" / "scala"
       val files = Seq(
@@ -68,6 +69,7 @@ lazy val scalusPlugin = project
         baseDir / "scalus/builtins/ByteString.scala",
         baseDir / "scalus/builtins/List.scala",
         baseDir / "scalus/sir/SIR.scala",
+        baseDir / "scalus/sir/FlatInstances.scala",
         baseDir / "scalus/uplc/Constant.scala",
         baseDir / "scalus/uplc/Data.scala",
         baseDir / "scalus/uplc/DefaultFun.scala",

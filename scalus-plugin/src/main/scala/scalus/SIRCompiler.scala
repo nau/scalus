@@ -22,6 +22,7 @@ import scalus.sir.Binding
 import scalus.sir.Case
 import scalus.sir.ConstrDecl
 import scalus.sir.DataDecl
+import scalus.sir.Module
 import scalus.sir.Recursivity
 import scalus.sir.SIR
 import scalus.uplc.DefaultFun
@@ -33,7 +34,6 @@ import scala.collection.mutable
 import scala.collection.mutable.ListBuffer
 import scala.language.implicitConversions
 
-case class Module(defs: List[Binding])
 case class FullName(name: String)
 object FullName:
   def apply(sym: Symbol)(using Context): FullName = FullName(sym.fullName.toString())
