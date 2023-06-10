@@ -72,8 +72,8 @@ def preimageValidator(datum: Data, redeemer: Data, ctxData: Data): Unit = {
 val compiled = compile(preimageValidator)
 // convert SIR to UPLC
 val validator = compiled.toUplc()
-val flatEncoded = Program((1, 0, 0), validator).flatEncoded
-assert(flatEncoded.length == 1617)
+val flatSize = Program((1, 0, 0), validator).flatEncoded.length
+assert(flatSize == 1586)
 ```
 
 ## Why?
@@ -149,8 +149,8 @@ Here is an optimized version of Preimage Validator from the above:
 def preimageValidator(datum: Data, redeemer: Data, ctxData: Data): Unit = {
   fromData[(ByteString, ByteString)](datum) match
     case (hash, pkh) =>
-      val preimage = summon[FromData[ByteString]](redeemer)
-      val signatories = summon[FromData[List[PubKeyHash]]](
+      val preimage = fromData[ByteString](redeemer)
+      val signatories = fromData[List[PubKeyHash]](
         // deserialize only the signatories from the ScriptContext
         fieldAsData[ScriptContext](_.txInfo.signatories)(ctxData)
       )
@@ -169,7 +169,7 @@ assert(flatSize == 257)
 You can see that deserialising only the fields we actually need significantly reduces the script size:
 274 bytes versus 1684!
 
-This script compiles to `SIR` that can be pretty-printed in an Haskell-like syntax:
+This script compiles to `SIR` that can be pretty-printed in an OCaml-like syntax:
 
 ```scala
 val compiled = compile(preimageValidator)

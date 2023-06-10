@@ -111,18 +111,19 @@ val fromDataExample = compile {
 
 import scalus.ledger.api.v1.*
 import scalus.ledger.api.v1.FromDataInstances.given
-import scalus.prelude
+import scalus.prelude.List
 val context = compile {
   def validator(datum: Data, redeamder: Data, ctxData: Data) = {
     val ctx = fromData[ScriptContext](ctxData)
-    prelude.List.findOrFail[PubKeyHash](ctx.txInfo.signatories)(sig => sig.hash === hex"deadbeef")
+    List.findOrFail[PubKeyHash](ctx.txInfo.signatories)(sig => sig.hash === hex"deadbeef")
   }
 }
 
 val serializeToDoubleCborHex: String = {
   import scalus.*
   import scalus.uplc.Program
-
+  // convert to UPLC
+  // generateErrorTraces = true will add trace messages to the UPLC program
   val uplc = context.toUplc(generateErrorTraces = true)
   val programV1 = Program((1, 0, 0), uplc)
   val flatEncoded = programV1.flatEncoded // if needed

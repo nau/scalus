@@ -19,6 +19,10 @@ addCompilerPlugin("org.scalus" %% "scalus-plugin" % "0.1.0")
 The basic workflow is to write a Scala program and then compile it to a Plutus script, 
 similar to how PlutuxTx works.
 
+You can store the Plutus script in a *.plutus file and use it with the Cardano CLI.
+Or use one of the Java/JavaScript libraries to construct transactions with the script.
+[This example](examples/src/main/scala/scalus/SendTx.scala) shows how to use the [cardano-client-lib](https://github.com/bloxbean/cardano-client-lib) to send transactions.
+
 You write a script using a small subset of Scala, 
 which is then compiled to a Scalus Intermediate Representation (SIR) with `compile` function.
 
@@ -184,11 +188,11 @@ Here is a simple example of a Plutus V1 validator written in Scalus.
 ```scala
 import scalus.ledger.api.v1.*
 import scalus.ledger.api.v1.FromDataInstances.given
-import scalus.prelude
+import scalus.prelude.List
 val context = compile {
   def validator(datum: Data, redeamder: Data, ctxData: Data) = {
     val ctx = fromData[ScriptContext](ctxData)
-    prelude.List.findOrFail[PubKeyHash](ctx.txInfo.signatories)(sig => sig.hash === hex"deadbeef")
+    List.findOrFail[PubKeyHash](ctx.txInfo.signatories)(sig => sig.hash === hex"deadbeef")
   }
 }
 ```
@@ -205,7 +209,8 @@ like `Hex(CborEncode(CborEncode(FlatEncode(Program(version, uplc)))))`.
 val serializeToDoubleCborHex: String = {
   import scalus.*
   import scalus.uplc.Program
-
+  // convert to UPLC
+  // generateErrorTraces = true will add trace messages to the UPLC program
   val uplc = context.toUplc(generateErrorTraces = true)
   val programV1 = Program((1, 0, 0), uplc)
   val flatEncoded = programV1.flatEncoded // if needed
@@ -218,6 +223,6 @@ val serializeToDoubleCborHex: String = {
 
 ## Validator examples
 
-[PreImage Validator](https://github.com/nau/scalus/blob/9ab69d5bdbe6be5c20b1f5cf99b8a2c2b051ee09/jvm/src/test/scala/scalus/PreImageExampleSpec.scala)
+[PreImage Validator](https://github.com/nau/scalus/blob/ce7a37edb06ef2e39794825ee4f81ff061198666/jvm/src/test/scala/scalus/PreImageExampleSpec.scala)
 
-[MintingPolicy](https://github.com/nau/scalus/blob/9ab69d5bdbe6be5c20b1f5cf99b8a2c2b051ee09/shared/src/main/scala/scalus/examples/MintingPolicy.scala)
+[MintingPolicy](https://github.com/nau/scalus/blob/612b4bd581c55cb6c68339247cfecfbe22e4e61d/shared/src/main/scala/scalus/examples/MintingPolicy.scala)
