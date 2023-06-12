@@ -1,7 +1,8 @@
+package scalus
+
 import org.scalatest.funsuite.AnyFunSuite
 import scalus.Compiler.compile
 import scalus.*
-import scalus.builtins
 import scalus.builtins.Builtins
 import scalus.builtins.ByteString
 import scalus.builtins.ByteString.given
@@ -94,6 +95,7 @@ val modules = compile {
 import scalus.uplc.Data
 import scalus.uplc.Data.FromData
 import scalus.uplc.Data.fromData
+import scalus.uplc.FromData
 val fromDataExample = compile {
   // The `fromData` function is used to convert a `Data` value to a Scalus value.
   val data = Builtins.mkI(123)
@@ -102,35 +104,49 @@ val fromDataExample = compile {
   val a = fromData[BigInt](data)
 
   // you can define your own `FromData` instances
-  given FromData[Account] = (d: Data) => {
-    val args = Builtins.unsafeDataAsConstr(d).snd
-    new Account(fromData[ByteString](args.head), fromData[BigInt](args.tail.head))
+  {
+    given FromData[Account] = (d: Data) => {
+      val args = Builtins.unsafeDataAsConstr(d).snd
+      new Account(fromData[ByteString](args.head), fromData[BigInt](args.tail.head))
+    }
+    val account = fromData[Account](data)
   }
-  val account = fromData[Account](data)
+
+  // or your can you a macro to derive the FromData instance
+  {
+    given FromData[Account] = FromData.deriveCaseClass
+    given FromData[State] = FromData.deriveEnum[State] {
+      case 0 => d => Empty
+      case 1 => FromData.deriveConstructor[State.Active]
+    }
+  }
 }
 
 import scalus.ledger.api.v1.*
 import scalus.ledger.api.v1.FromDataInstances.given
 import scalus.prelude.List
-val context = compile {
+val pubKeyValidator = compile {
   def validator(datum: Data, redeamder: Data, ctxData: Data) = {
     val ctx = fromData[ScriptContext](ctxData)
     List.findOrFail[PubKeyHash](ctx.txInfo.signatories)(sig => sig.hash === hex"deadbeef")
   }
 }
 
-val serializeToDoubleCborHex: String = {
+val serializeToDoubleCborHex = {
   import scalus.*
   import scalus.uplc.Program
   // convert to UPLC
   // generateErrorTraces = true will add trace messages to the UPLC program
-  val uplc = context.toUplc(generateErrorTraces = true)
+  val uplc = pubKeyValidator.toUplc(generateErrorTraces = true)
   val programV1 = Program((1, 0, 0), uplc)
   val flatEncoded = programV1.flatEncoded // if needed
   val cbor = programV1.cborEncoded // if needed
   val doubleEncoded = programV1.doubleCborEncoded // if needed
   // in most cases you want to use the hex representation of the double CBOR encoded program
   programV1.doubleCborHex
+  // also you can produce a pubKeyValidator.plutus file for use with cardano-cli
+  import scalus.utils.Utils
+  Utils.writePlutusFile("pubKeyValidator.plutus", programV1)
 }
 
 class TutorialSpec extends AnyFunSuite {
