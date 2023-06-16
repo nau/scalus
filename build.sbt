@@ -1,7 +1,7 @@
 import org.scalajs.linker.interface.OutputPatterns
 
 val scala3Version = "3.3.0"
-val scalusVersion = "0.2.0"
+val scalusVersion = "0.3.0-SNAPSHOT"
 
 Global / onChangedBuildSource := ReloadOnSourceChanges
 ThisBuild / scalaVersion := scala3Version
@@ -52,7 +52,7 @@ lazy val scalusPlugin = project
     organization := "org.scalus",
     version := scalusVersion,
     scalacOptions += "-Wunused:all",
-    libraryDependencies += "org.scalatest" %%% "scalatest" % "3.2.15" % "test",
+    libraryDependencies += "org.scalatest" %%% "scalatest" % "3.2.16" % "test",
     libraryDependencies += "org.scalatestplus" %%% "scalacheck-1-16" % "3.2.14.0" % "test",
     libraryDependencies += "org.scala-lang" %% "scala3-compiler" % scala3Version // % "provided"
   )
@@ -89,7 +89,7 @@ lazy val scalusPluginTests = project
     organization := "scalus",
     version := scalusVersion,
     PluginDependency,
-    libraryDependencies += "org.scalatest" %%% "scalatest" % "3.2.12" % "test",
+    libraryDependencies += "org.scalatest" %%% "scalatest" % "3.2.16" % "test",
     libraryDependencies += "org.scalatestplus" %%% "scalacheck-1-16" % "3.2.12.0" % "test"
   )
 
@@ -114,12 +114,12 @@ lazy val scalus = crossProject(JSPlatform, JVMPlatform)
     libraryDependencies += "org.typelevel" %%% "cats-parse" % "0.3.9",
     libraryDependencies += "org.typelevel" %%% "paiges-core" % "0.4.2",
     libraryDependencies ++= Seq(
-      "io.bullet" %%% "borer-core" % "1.10.2",
-      "io.bullet" %%% "borer-derivation" % "1.10.2"
+      "io.bullet" %%% "borer-core" % "1.10.3",
+      "io.bullet" %%% "borer-derivation" % "1.10.3"
     ),
     PluginDependency,
     // libraryDependencies += compilerPlugin("scalus" %% "scalus-plugin" % "0.1.0-SNAPSHOT"),
-    libraryDependencies += "org.scalatest" %%% "scalatest" % "3.2.15" % "test",
+    libraryDependencies += "org.scalatest" %%% "scalatest" % "3.2.16" % "test",
     libraryDependencies += "org.scalatestplus" %%% "scalacheck-1-16" % "3.2.14.0" % "test"
   )
   .jvmSettings(
