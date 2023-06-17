@@ -6,6 +6,7 @@ import dotty.tools.dotc.ast.tpd
 import dotty.tools.dotc.core.Constants.Constant
 import dotty.tools.dotc.core.Contexts.Context
 import dotty.tools.dotc.core.Flags.*
+import dotty.tools.dotc.core.NameKinds.UniqueNameKind
 import dotty.tools.dotc.core.Names.*
 import dotty.tools.dotc.core.StdNames.nme
 import dotty.tools.dotc.core.Symbols.*
@@ -30,6 +31,7 @@ import scalus.uplc.DefaultUni
 
 import java.net.URL
 import scala.collection.immutable
+import scala.collection.immutable.HashSet
 import scala.collection.mutable
 import scala.collection.mutable.ListBuffer
 import scala.language.implicitConversions
@@ -45,9 +47,10 @@ case class B(name: String, symbol: Symbol, recursivity: Recursivity, body: SIR):
 
 final class SIRCompiler(mode: scalus.Mode)(using ctx: Context) {
   import tpd.*
-  type Env = immutable.HashSet[String]
+  type Env = HashSet[String]
 
   private val converter = new SIRConverter
+  private val patternName: UniqueNameKind = new UniqueNameKind("$pat")
 
   extension (t: Type)
     def isPair: Boolean =
@@ -129,13 +132,13 @@ final class SIRCompiler(mode: scalus.Mode)(using ctx: Context) {
           if !dd.symbol.flags.is(Flags.Synthetic)
             && !dd.symbol.name.startsWith("derived")
             && !dd.symbol.hasAnnotation(IngoreAnnot) =>
-        compileStmt(immutable.HashSet.empty, dd, isGlobalDef = true)
+        compileStmt(HashSet.empty, dd, isGlobalDef = true)
       case vd: ValDef
           if !vd.symbol.flags.isOneOf(Flags.Synthetic | Flags.Case)
             && !vd.symbol.name.startsWith("derived")
             && !vd.symbol.hasAnnotation(IngoreAnnot) =>
         // println(s"valdef: ${vd.symbol.fullName}")
-        compileStmt(immutable.HashSet.empty, vd, isGlobalDef = true)
+        compileStmt(HashSet.empty, vd, isGlobalDef = true)
     }
     val module = Module(bindings.map(b => Binding(b.fullName.name, b.body)))
     report.echo(s"module ${td.name} definitions: ${bindings.map(_.name).mkString(", ")}")
@@ -358,7 +361,7 @@ final class SIRCompiler(mode: scalus.Mode)(using ctx: Context) {
               globalDefs.update(fullName, CompileDef.Compiling)
               // println(s"Tree of ${e}: ${e.tpe} isList: ${e.isList}")
               // debugInfo(s"Tree of ${e.symbol}: ${e.symbol.tree.show}\n${e.symbol.tree}")
-              val b = compileStmt(immutable.HashSet.empty, e.symbol.defTree, isGlobalDef = true)
+              val b = compileStmt(HashSet.empty, e.symbol.defTree, isGlobalDef = true)
               // remove the symbol from the linked hash map so the order of the definitions is preserved
               globalDefs.remove(fullName)
               traverseAndLink(b.body, e.symbol.sourcePos)
@@ -614,13 +617,63 @@ final class SIRCompiler(mode: scalus.Mode)(using ctx: Context) {
       scalus.sir.Case(constrDecl, bindings, rhs)
     }
 
-    def compileBinding(pat: Tree): String = {
+    def compileBinding(pat: Tree): SirBinding = {
       pat match
-        case b @ Bind(name, Ident(nme.WILDCARD)) => b.symbol.name.show
-        case Ident(nme.WILDCARD)                 => "_"
-        case p =>
-          report.error(s"Unsupported binding: ${p}", p.srcPos)
-          s"Unsupported binding: ${p}"
+        case Bind(name, Ident(nme.WILDCARD)) => SirBinding.Name(name.show)
+        case Bind(name, UnApply(_, _, pats)) =>
+          val typeSymbol = pat.tpe.widen.dealias.typeSymbol
+          SirBinding.CaseClass(name.show, typeSymbol, pats.map(compileBinding))
+        case Ident(nme.WILDCARD) => SirBinding.Name("_")
+        case UnApply(_, _, pats) =>
+          val typeSymbol = pat.tpe.widen.dealias.typeSymbol
+          val name = patternName.fresh()
+          SirBinding.CaseClass(name.show, typeSymbol, pats.map(compileBinding))
+        case p => SirBinding.Error(p)
+    }
+
+    enum SirBinding:
+      case Name(name: String)
+      case CaseClass(name: String, constructorSymbol: Symbol, bindings: List[SirBinding])
+      case Error(b: Tree)
+
+    case class PatternInfo(
+        allBindings: HashSet[String],
+        generator: SIR => SIR, /// generates inner Match for nested case classes
+        bindings: List[String] /// current level bindings to generate SirCase.Case
+    )
+
+    def compileBindings(
+        sirBindings: List[SirBinding]
+    ): Either[List[SirBinding.Error], PatternInfo] = {
+      sirBindings.foldRight(
+        Right(PatternInfo(HashSet.empty, identity, Nil)): Either[List[
+          SirBinding.Error
+        ], PatternInfo]
+      ) {
+        case (e: SirBinding.Error, Left(errors)) => Left(e :: errors)
+        case (_, Left(errors))                   => Left(errors)
+        case (e: SirBinding.Error, Right(_))     => Left(e :: Nil)
+        case (SirBinding.Name(name), Right(PatternInfo(bindings, generator, names))) =>
+          Right(PatternInfo(bindings + name, generator, name :: names))
+        case (
+              SirBinding.CaseClass(name, constructorSymbol, sirBindings),
+              Right(PatternInfo(bindings, generator, names))
+            ) =>
+          compileBindings(sirBindings) match
+            case Left(errors) => Left(errors)
+            case Right(PatternInfo(bindings2, generator, innerNames)) =>
+              Right(
+                PatternInfo(
+                  (bindings ++ bindings2) + name,
+                  cont =>
+                    SIR.Match(
+                      SIR.Var(name),
+                      List(constructCase(constructorSymbol, innerNames, generator(cont)))
+                    ),
+                  name :: names
+                )
+              )
+      }
     }
 
     enum SirCase:
@@ -628,30 +681,40 @@ final class SIRCompiler(mode: scalus.Mode)(using ctx: Context) {
       case Wildcard(rhs: SIR, srcPos: SrcPos)
       case Error(msg: String, srcPos: SrcPos)
 
-    def scalaCaseDefToSirCase(c: CaseDef): SirCase = c match
+    def compileConstructorPatterns(
+        constrTypeSymbol: Symbol,
+        pats: List[Tree],
+        rhs: Tree
+    ): List[SirCase] = {
+      val sirBindings = pats.map(compileBinding)
+      compileBindings(sirBindings) match
+        case Left(errors) =>
+          errors.map(e => SirCase.Error(s"Unsupported binding: ${e.b.show}", e.b.srcPos))
+        case Right(PatternInfo(bindings, generateSir, names)) =>
+          val rhsE = compileExpr(env ++ bindings, rhs)
+          SirCase.Case(constrTypeSymbol, names, generateSir(rhsE)) :: Nil
+    }
+
+    def scalaCaseDefToSirCase(c: CaseDef): List[SirCase] = c match
       case CaseDef(_, guard, _) if !guard.isEmpty =>
-        SirCase.Error(s"Guards are not supported in match expressions", guard.srcPos)
+        SirCase.Error(s"Guards are not supported in match expressions", guard.srcPos) :: Nil
       // this case is for matching on a case class
       case CaseDef(UnApply(_, _, pats), _, rhs) =>
         // report.error(s"Case: ${fun}, pats: ${pats}, rhs: $rhs", t.pos)
-        val bindings = pats.map(compileBinding)
-        val rhsE = compileExpr(env ++ bindings, rhs)
-        SirCase.Case(typeSymbol, bindings, rhsE)
+        compileConstructorPatterns(typeSymbol, pats, rhs)
       // this case is for matching on an enum
       case CaseDef(Typed(UnApply(_, _, pats), constrTpe), _, rhs) =>
         // report.info(s"Case: ${inner}, tpe ${constrTpe.tpe.widen.show}", t.pos)
-        val bindings = pats.map(compileBinding)
-        val rhsE = compileExpr(env ++ bindings, rhs)
-        SirCase.Case(constrTpe.tpe.typeSymbol, bindings, rhsE)
+        compileConstructorPatterns(constrTpe.tpe.typeSymbol, pats, rhs)
       // case object
       case CaseDef(pat, _, rhs) if pat.symbol.is(Flags.Case) =>
         val rhsE = compileExpr(env, rhs)
         // no-arg constructor, it's a Val, so we use termSymbol
-        SirCase.Case(pat.tpe.termSymbol, Nil, rhsE)
+        SirCase.Case(pat.tpe.termSymbol, Nil, rhsE) :: Nil
       // case _ => rhs, wildcard pattern, must be the last case
       case CaseDef(Ident(nme.WILDCARD), _, rhs) =>
         val rhsE = compileExpr(env, rhs)
-        SirCase.Wildcard(rhsE, c.srcPos)
+        SirCase.Wildcard(rhsE, c.srcPos) :: Nil
       case a =>
         val cs = cases
           .map { case CaseDef(pat, _, _) => pat.toString() + " " + pat.symbol.flagsString }
@@ -659,10 +722,10 @@ final class SIRCompiler(mode: scalus.Mode)(using ctx: Context) {
         SirCase.Error(
           s"Unsupported match expression: ${a.show}\n$a\n${matchTree.tpe.typeSymbol}\n${cs}",
           matchTree.srcPos
-        )
+        ) :: Nil
 
     val matchExpr = compileExpr(env, matchTree)
-    val sirCases = cases.map(scalaCaseDefToSirCase)
+    val sirCases = cases.flatMap(scalaCaseDefToSirCase)
 
     // 1. If we have a wildcard case, it must be the last one
     // 2. Validate we don't have any errors
@@ -953,7 +1016,7 @@ final class SIRCompiler(mode: scalus.Mode)(using ctx: Context) {
 
   def compileToSIR(tree: Tree)(using Context): SIR = {
     // println(s"compileToSIR: ${tree}")
-    val result = compileExpr(immutable.HashSet.empty, tree)
+    val result = compileExpr(HashSet.empty, tree)
     val full = globalDefs.values.foldRight(result) {
       case (CompileDef.Compiled(b), acc) =>
         SIR.Let(b.recursivity, List(Binding(b.fullName.name, b.body)), acc)

@@ -49,13 +49,13 @@ val dataTypes = compile {
   val account = new Account(ByteString.empty, tuple._2) // access tuple fields
   val active: State = new State.Active(account)
   val hash = account.hash // access case class fields
-  // Only a simple match is supported
-  // no guards, no nested patterns, no type ascription
+  // A simple pattern matching is supported
+  // no guards, no type ascriptions.
+  // Inner matches can be done only on single constructor case classes
+  // Wildcard patterns are supported
   active match
-    case Empty => true
-    case Active(account) =>
-      account match
-        case Account(_, balance) => balance === BigInt(123)
+    case Empty                                 => true
+    case Active(account @ Account(_, balance)) => balance === BigInt(123)
   // all cases must be covered or there must be a default case
   val isEmpty = active match
     case Empty => true

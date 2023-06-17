@@ -768,6 +768,23 @@ class CompilerPluginToSIRSpec extends AnyFunSuite with ScalaCheckPropertyChecks:
     assert(evaled == scalus.uplc.Term.Const(Constant.Integer(1)))
   }
 
+  test("compile inner matches") {
+    import scalus.prelude.List
+    import scalus.prelude.List.*
+    val compiled = compile {
+      val ls: List[(BigInt, TxOutRef)] =
+        new Cons((1, new TxOutRef(new TxId(hex"deadbeef"), 2)), Nil)
+      ls match
+        case Cons(h @ (a, TxOutRef(TxId(_), idx)), _) => a + idx
+        case Nil                                      => BigInt(0)
+    }
+    // println(compiled.pretty.render(80))
+    val term = compiled.toUplc()
+    val evaled = Cek.evalUPLC(term)
+    // println(evaled.pretty.render(80))
+    assert(evaled == scalus.uplc.Term.Const(Constant.Integer(3)))
+  }
+
   test("compile fieldAsData macro") {
     import scalus.ledger.api.v1.*
     import scalus.ledger.api.v1.ToDataInstances.given
