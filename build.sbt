@@ -111,11 +111,11 @@ lazy val scalus = crossProject(JSPlatform, JVMPlatform)
     scalacOptions += "-Wunused:imports",
     scalacOptions += "-Wunused:params",
     // scalacOptions += "-Yretain-trees",
-    libraryDependencies += "org.typelevel" %%% "cats-parse" % "0.3.9",
-    libraryDependencies += "org.typelevel" %%% "paiges-core" % "0.4.2",
+    libraryDependencies += "org.typelevel" %%% "cats-parse" % "0.3.10",
+    libraryDependencies += "org.typelevel" %%% "paiges-core" % "0.4.3",
     libraryDependencies ++= Seq(
-      "io.bullet" %%% "borer-core" % "1.10.3",
-      "io.bullet" %%% "borer-derivation" % "1.10.3"
+      "io.bullet" %%% "borer-core" % "1.11.0",
+      "io.bullet" %%% "borer-derivation" % "1.11.0"
     ),
     PluginDependency,
     // libraryDependencies += compilerPlugin("scalus" %% "scalus-plugin" % "0.1.0-SNAPSHOT"),
