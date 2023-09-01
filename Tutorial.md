@@ -10,20 +10,20 @@ Add the following to your `build.sbt` file:
 
 ```scala
 scalaVersion := "3.3.0"
-libraryDependencies += "org.scalus" %% "scalus" % "0.2.0"
-addCompilerPlugin("org.scalus" %% "scalus-plugin" % "0.2.0")
+libraryDependencies += "org.scalus" %% "scalus" % "0.3.0"
+addCompilerPlugin("org.scalus" %% "scalus-plugin" % "0.3.0")
 ```
 
 ## Basic workflow
 
-The basic workflow is to write a Scala program and then compile it to a Plutus script, 
+The basic workflow is to write a Scala program and then compile it to a Plutus script,
 similar to how PlutuxTx works.
 
 You can store the Plutus script in a *.plutus file and use it with the Cardano CLI.
 Or use one of the Java/JavaScript libraries to construct transactions with the script.
 [This example](examples/src/main/scala/scalus/SendTx.scala) shows how to use the [cardano-client-lib](https://github.com/bloxbean/cardano-client-lib) to send transactions.
 
-You write a script using a small subset of Scala, 
+You write a script using a small subset of Scala,
 which is then compiled to a Scalus Intermediate Representation (SIR) with `compile` function.
 
 The SIR can be pretty-printed and reviewed.
@@ -148,7 +148,7 @@ object ReusableCode {
   val constant = BigInt(1)
   def usefulFunction(a: BigInt): BigInt = a + 1
   @Ignore // this function is not compiled to UPLC
-  def shouldNotBeInUplc() = ??? 
+  def shouldNotBeInUplc() = ???
 }
 
 val modules = compile {
