@@ -35,6 +35,7 @@ import scala.collection.immutable.HashSet
 import scala.collection.mutable
 import scala.collection.mutable.ListBuffer
 import scala.language.implicitConversions
+import scala.annotation.unused
 
 case class FullName(name: String)
 object FullName:
@@ -50,15 +51,18 @@ final class SIRCompiler(mode: scalus.Mode)(using ctx: Context) {
   type Env = HashSet[String]
 
   private val converter = new SIRConverter
+  private val builtinsHelper = new BuiltinHelper
   private val patternName: UniqueNameKind = new UniqueNameKind("$pat")
-
+  private val PairSymbol = requiredClass("scalus.builtins.Pair")
+  private val ScalusBuiltinListClassSymbol = requiredClass("scalus.builtins.List")
+  private val StringContextSymbol = requiredModule("scala.StringContext")
+  private val Tuple2Symbol = requiredClass("scala.Tuple2")
+  private val ByteStringModuleSymbol = requiredModule("scalus.builtins.ByteString")
+  private val ByteStringStringInterpolatorsMethodSymbol =
+    ByteStringModuleSymbol.requiredMethod("StringInterpolators")
   extension (t: Type)
-    def isPair: Boolean =
-      val r = t.typeSymbol.showFullName == "scalus.builtins.Pair"
-      // println(s"$t is pair: $r, ${t.typeSymbol.showFullName}")
-      r
-    def isList: Boolean =
-      t <:< requiredClass("scalus.builtins.List").typeRef.appliedTo(defn.AnyType)
+    def isPair: Boolean = t.typeConstructor.classSymbol == PairSymbol
+    def isList: Boolean = t.typeConstructor.classSymbol == ScalusBuiltinListClassSymbol
 
   extension (self: Symbol)
     def caseFields: List[Symbol] =
@@ -186,7 +190,7 @@ final class SIRCompiler(mode: scalus.Mode)(using ctx: Context) {
     )
 
     val info =
-      if typeSymbol.showFullName == "scala.Tuple2"
+      if constrTpe.typeConstructor =:= Tuple2Symbol.typeRef
       then AdtTypeInfo(typeSymbol, typeSymbol, List(typeSymbol))
       else
         adtBaseType match
@@ -259,7 +263,7 @@ final class SIRCompiler(mode: scalus.Mode)(using ctx: Context) {
   }
 
   // Parameterless case class constructor of an enum
-  private def isConstructorVal(symbol: Symbol, tpe: Type): Boolean =
+  private def isConstructorVal(symbol: Symbol, @unused tpe: Type): Boolean =
     /* println(
         s"isConstructorVal: ${symbol.flags.isAllOf(Flags.EnumCase)} $symbol: ${tpe.show} <: ${tpe.widen.show}, ${symbol.flagsString}"
       )  */
@@ -455,21 +459,25 @@ final class SIRCompiler(mode: scalus.Mode)(using ctx: Context) {
       report.error(s"compileExpr: Unsupported literal ${e.show}\n$e", e.srcPos)
       scalus.uplc.Constant.Unit
     case t @ Apply(bigintApply, List(SkipInline(Literal(c))))
-        if bigintApply.symbol.showFullName == "scala.math.BigInt.apply" =>
-      c.tag match
-        case Constants.IntTag =>
-          scalus.uplc.Constant.Integer(BigInt(c.intValue))
-        case Constants.StringTag =>
-          scalus.uplc.Constant.Integer(BigInt(c.stringValue))
-        case _ =>
-          report.error(s"Unsupported constant type $c", t.srcPos);
-          scalus.uplc.Constant.Unit
-    case Apply(i, List(Literal(c))) if i.symbol.showFullName == "scala.math.BigInt.int2bigInt" =>
+        if bigintApply.symbol == converter.BigIntSymbol.requiredMethod(
+          "apply",
+          List(defn.StringClass.typeRef)
+        ) && c.tag == Constants.StringTag =>
+      scalus.uplc.Constant.Integer(BigInt(c.stringValue))
+    case t @ Apply(bigintApply, List(SkipInline(Literal(c))))
+        if bigintApply.symbol == converter.BigIntSymbol.requiredMethod(
+          "apply",
+          List(defn.IntType)
+        ) && c.tag == Constants.IntTag =>
       scalus.uplc.Constant.Integer(BigInt(c.intValue))
-    case expr if expr.symbol.showFullName == "scalus.builtins.ByteString.empty" =>
+
+    case Apply(i, List(Literal(c)))
+        if i.symbol == converter.BigIntSymbol.requiredMethod("int2bigInt") =>
+      scalus.uplc.Constant.Integer(BigInt(c.intValue))
+    case expr if expr.symbol == converter.ByteStringSymbol.requiredMethod("empty") =>
       scalus.uplc.Constant.ByteString(scalus.builtins.ByteString.empty)
     case Apply(expr, List(Literal(c)))
-        if expr.symbol.showFullName == "scalus.builtins.ByteString.fromHex" =>
+        if expr.symbol == converter.ByteStringSymbol.requiredMethod("fromHex") =>
       scalus.uplc.Constant.ByteString(scalus.builtins.ByteString.fromHex(c.stringValue))
     // hex"deadbeef" as ByteString
     case Apply(
@@ -487,8 +495,8 @@ final class SIRCompiler(mode: scalus.Mode)(using ctx: Context) {
           ),
           List(SeqLiteral(Nil, _))
         )
-        if stringInterpolators.symbol.showFullName == "scalus.builtins.ByteString.StringInterpolators"
-          && stringContext.symbol.showFullName == "scala.StringContext" && hex == termName("hex") &&
+        if ByteStringStringInterpolatorsMethodSymbol == stringInterpolators.symbol
+          && stringContext.symbol == StringContextSymbol && hex == termName("hex") &&
           const.tag == Constants.StringTag =>
       scalus.uplc.Constant.ByteString(scalus.builtins.ByteString.fromHex(const.stringValue))
   }
@@ -893,10 +901,10 @@ final class SIRCompiler(mode: scalus.Mode)(using ctx: Context) {
           val rhsExpr = compileExpr(env, rhs)
           SIR.Or(lhsExpr, rhsExpr)
         // Data BUILTINS
-        case bi: Select if BuiltinHelper.builtinFun(bi.symbol.showFullName).isDefined =>
-          BuiltinHelper.builtinFun(bi.symbol.showFullName).get
-        case bi: Ident if BuiltinHelper.builtinFun(bi.symbol.showFullName).isDefined =>
-          BuiltinHelper.builtinFun(bi.symbol.showFullName).get
+        case bi: Select if builtinsHelper.builtinFun(bi.symbol).isDefined =>
+          builtinsHelper.builtinFun(bi.symbol).get
+        case bi: Ident if builtinsHelper.builtinFun(bi.symbol).isDefined =>
+          builtinsHelper.builtinFun(bi.symbol).get
         // BigInt stuff
         case Apply(Select(lhs, op), List(rhs))
             if lhs.tpe.widen =:= converter.BigIntClassSymbol.typeRef =>
