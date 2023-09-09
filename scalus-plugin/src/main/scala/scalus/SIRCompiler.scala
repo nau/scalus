@@ -454,10 +454,6 @@ final class SIRCompiler(mode: scalus.Mode)(using ctx: Context) {
         case _ =>
           report.error(s"Unsupported constant type $c");
           scalus.uplc.Constant.Unit
-
-    case e @ Literal(_) =>
-      report.error(s"compileExpr: Unsupported literal ${e.show}\n$e", e.srcPos)
-      scalus.uplc.Constant.Unit
     case t @ Apply(bigintApply, List(SkipInline(Literal(c))))
         if bigintApply.symbol == converter.BigIntSymbol.requiredMethod(
           "apply",
