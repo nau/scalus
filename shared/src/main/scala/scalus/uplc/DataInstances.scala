@@ -22,6 +22,11 @@ object FromDataInstances {
   given FromData[String] = (d: Data) => decodeUtf8(unsafeDataAsB(d))
   given FromData[Data] = (d: Data) => d
 
+  given FromData[Unit] = (d: Data) =>
+    val pair = unsafeDataAsConstr(d)
+    if pair.fst === BigInt(0) then ()
+    else throw new RuntimeException("Not a unit")
+
   given FromData[Boolean] = (d: Data) =>
     val pair = unsafeDataAsConstr(d)
     val constr = pair.fst
@@ -67,8 +72,10 @@ object ToDataInstances {
   given ToData[Data] = (a: Data) => a
   given ToData[BigInt] = (a: BigInt) => mkI(a)
   given ToData[Int] = (a: Int) => mkI(a)
+  given ToData[Long] = (a: Long) => mkI(a)
   given ToData[ByteString] = (a: ByteString) => mkB(a)
   given ToData[String] = (a: String) => mkB(encodeUtf8(a))
+  given ToData[Unit] = (a: Unit) => mkConstr(0, mkNilData())
 
   given listToData[A: ToData]: ToData[scalus.prelude.List[A]] =
     (a: scalus.prelude.List[A]) => {
