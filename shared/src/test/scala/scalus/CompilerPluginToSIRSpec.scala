@@ -96,6 +96,15 @@ class CompilerPluginToSIRSpec extends AnyFunSuite with ScalaCheckPropertyChecks:
     )
   }
 
+  test("compile inline def") {
+    assert(
+      compile {
+        inline def b = true
+        b
+      } == Const(Constant.Bool(true))
+    )
+  }
+
   test("compile lambda") {
     assert(
       compile {

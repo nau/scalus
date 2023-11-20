@@ -130,7 +130,7 @@ final class SIRCompiler(mode: scalus.Mode)(using ctx: Context) {
     report.echo(s"compiling to SIR: ${td.name}")
 
     val tpl = td.rhs.asInstanceOf[Template]
-    val bindings = tpl.body.collect {
+    val bindings = tpl.body.flatMap {
       // FIXME: hack for derived methods
       case dd: DefDef
           if !dd.symbol.flags.is(Flags.Synthetic)
@@ -143,6 +143,7 @@ final class SIRCompiler(mode: scalus.Mode)(using ctx: Context) {
             && !vd.symbol.hasAnnotation(IngoreAnnot) =>
         // println(s"valdef: ${vd.symbol.fullName}")
         compileStmt(HashSet.empty, vd, isGlobalDef = true)
+      case _ => None
     }
     val module = Module(bindings.map(b => Binding(b.fullName.name, b.body)))
     report.echo(s"module ${td.name} definitions: ${bindings.map(_.name).mkString(", ")}")
@@ -368,22 +369,25 @@ final class SIRCompiler(mode: scalus.Mode)(using ctx: Context) {
               val b = compileStmt(HashSet.empty, e.symbol.defTree, isGlobalDef = true)
               // remove the symbol from the linked hash map so the order of the definitions is preserved
               globalDefs.remove(fullName)
-              traverseAndLink(b.body, e.symbol.sourcePos)
-              globalDefs.update(
-                fullName,
-                CompileDef.Compiled(TopLevelBinding(fullName, b.recursivity, b.body))
-              )
+              b match
+                case None =>
+                case Some(b) =>
+                  traverseAndLink(b.body, e.symbol.sourcePos)
+                  globalDefs.update(
+                    fullName,
+                    CompileDef.Compiled(TopLevelBinding(fullName, b.recursivity, b.body))
+                  )
               SIR.Var(e.symbol.fullName.toString())
   }
 
-  private def compileStmt(env: Env, stmt: Tree, isGlobalDef: Boolean = false): B = {
+  private def compileStmt(env: Env, stmt: Tree, isGlobalDef: Boolean = false): Option[B] = {
     // report.echo(s"compileStmt  ${stmt.show} in ${env}")
     stmt match
       case vd @ ValDef(name, _, _) =>
         val bodyExpr = compileExpr(env, vd.rhs)
-        B(name.show, vd.symbol, Recursivity.NonRec, bodyExpr)
+        Some(B(name.show, vd.symbol, Recursivity.NonRec, bodyExpr))
+      case dd @ DefDef(name, paramss, tpe, _) if dd.symbol.flags.is(Flags.Inline) => None
       case dd @ DefDef(name, paramss, tpe, _) =>
-        // report.echo(s"compileStmt DefDef ${dd.name.show}, ${dd.symbol.flags.flagsString}")
         val params = paramss.flatten.collect({ case vd: ValDef => vd })
         val names =
           if params.isEmpty then List("_") /* Param for () argument */
@@ -396,7 +400,7 @@ final class SIRCompiler(mode: scalus.Mode)(using ctx: Context) {
             SIR.LamAbs(name, acc)
           }
 
-        B(name.show, stmt.symbol, Recursivity.Rec, bodyExpr)
+        Some(B(name.show, stmt.symbol, Recursivity.Rec, bodyExpr))
       /*
         case ValDef(name, _, _) =>
           report.errorAndAbort(
@@ -407,7 +411,7 @@ final class SIRCompiler(mode: scalus.Mode)(using ctx: Context) {
             s"""compileStmt: def ${stmt.symbol.fullName} has no body. Try adding "scalacOptions += "-Yretain-trees" to your build.sbt"""
           ) */
       case x =>
-        B("_", NoSymbol, Recursivity.NonRec, compileExpr(env, x))
+        Some(B("_", NoSymbol, Recursivity.NonRec, compileExpr(env, x)))
 
       // case x => report.error(s"compileStmt: $x", stmt.sourcePos)
   }
@@ -418,9 +422,11 @@ final class SIRCompiler(mode: scalus.Mode)(using ctx: Context) {
       case (env, _: Import)  => env // ignore local imports
       case (env, _: TypeDef) => env // ignore local type definitions
       case (env, stmt) =>
-        val bind = compileStmt(env, stmt)
-        exprs += bind
-        env + bind.name
+        compileStmt(env, stmt) match
+          case None => env
+          case Some(bind) =>
+            exprs += bind
+            env + bind.name
     }
     val exprExpr = compileExpr(exprEnv, expr)
     exprs.foldRight(exprExpr) { (bind, expr) =>
@@ -993,7 +999,7 @@ final class SIRCompiler(mode: scalus.Mode)(using ctx: Context) {
               immutable.List(dd @ DefDef(nme.ANON_FUN, _, _, _)),
               Closure(_, Ident(nme.ANON_FUN), _)
             ) =>
-          compileStmt(env, dd).body
+          compileStmt(env, dd).get.body
         case Block(stmt, expr) => compileBlock(env, stmt, expr)
         case Typed(expr, _)    => compileExpr(env, expr)
         case Inlined(_, bindings, expr) =>
