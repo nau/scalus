@@ -6,6 +6,7 @@ import scalus.Compiler.compile
 import scalus.builtins.Builtins
 import scalus.builtins.ByteString
 import scalus.builtins.ByteString.given
+import scalus.builtins.given
 import scalus.ledger.api.v1.ToDataInstances.given
 import scalus.ledger.api.v1.*
 import scalus.prelude.List.Cons

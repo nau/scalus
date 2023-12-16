@@ -3,6 +3,7 @@ package scalus
 import io.bullet.borer.Cbor
 import scalus.Compiler.compile
 import scalus.builtins.ByteString
+import scalus.builtins.given
 import scalus.examples.MintingPolicy
 import scalus.prelude.AssocMap
 import scalus.uplc.Cek

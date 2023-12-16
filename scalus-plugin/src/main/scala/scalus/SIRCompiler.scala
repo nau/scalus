@@ -55,6 +55,7 @@ final class SIRCompiler(mode: scalus.Mode)(using ctx: Context) {
   private val patternName: UniqueNameKind = new UniqueNameKind("$pat")
   private val PairSymbol = requiredClass("scalus.builtins.Pair")
   private val ScalusBuiltinListClassSymbol = requiredClass("scalus.builtins.List")
+  private val PlatformSpecificClassSymbol = requiredClass("scalus.builtins.PlatformSpecific")
   private val StringContextSymbol = requiredModule("scala.StringContext")
   private val Tuple2Symbol = requiredClass("scala.Tuple2")
   private val ByteStringModuleSymbol = requiredModule("scalus.builtins.ByteString")
@@ -888,6 +889,13 @@ final class SIRCompiler(mode: scalus.Mode)(using ctx: Context) {
         // throw new Exception("error msg")
         // Supports any exception type that uses first argument as message
         case Apply(Ident(nme.throw_), immutable.List(ex)) => compileThrowException(ex)
+        /* Handle PlatformSpecific builtins
+           Builtins.sha2_256(using PlatformSpecific)(msg: ByteString): ByteString
+           So we just ignore this PlatformSpecific argument and compile the rest
+         */
+        case Apply(builtin, immutable.List(ps))
+            if ps.tpe <:< PlatformSpecificClassSymbol.typeRef =>
+          compileExpr(env, builtin)
         // Boolean
         case Select(lhs, op) if lhs.tpe.widen =:= defn.BooleanType && op == nme.UNARY_! =>
           val lhsExpr = compileExpr(env, lhs)
@@ -902,7 +910,7 @@ final class SIRCompiler(mode: scalus.Mode)(using ctx: Context) {
           val lhsExpr = compileExpr(env, lhs)
           val rhsExpr = compileExpr(env, rhs)
           SIR.Or(lhsExpr, rhsExpr)
-        // Data BUILTINS
+        // BUILTINS
         case bi: Select if builtinsHelper.builtinFun(bi.symbol).isDefined =>
           builtinsHelper.builtinFun(bi.symbol).get
         case bi: Ident if builtinsHelper.builtinFun(bi.symbol).isDefined =>

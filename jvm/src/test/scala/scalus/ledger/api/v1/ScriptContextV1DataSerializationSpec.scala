@@ -6,8 +6,8 @@ import io.bullet.borer.Encoder
 import scalus.BaseValidatorSpec
 import scalus.Compiler.compile
 import scalus.Expected
-import scalus.builtins
 import scalus.builtins.ByteString.StringInterpolators
+import scalus.builtins.given
 import scalus.ledger.api.v1.Credential.*
 import scalus.ledger.api.v1.FromDataInstances.given
 import scalus.ledger.api.v1.*
@@ -15,6 +15,7 @@ import scalus.ledger.api.v2
 import scalus.prelude.AssocMap
 import scalus.prelude.List.*
 import scalus.prelude.Maybe.*
+import scalus.toUplc
 import scalus.uplc.Cek
 import scalus.uplc.Data
 import scalus.uplc.Data.*
@@ -25,7 +26,6 @@ import scalus.uplc.PlutusDataCborEncoder
 import scalus.uplc.Program
 import scalus.uplc.ProgramFlatCodec
 import scalus.utils.Utils
-import scalus.toUplc
 
 class ScriptContextV1DataSerializationSpec extends BaseValidatorSpec:
   /*

@@ -2,6 +2,14 @@ package scalus.builtins
 import io.bullet.borer.Cbor
 import scalus.uplc.Data
 
+trait PlatformSpecific:
+  def sha2_256(bs: ByteString): ByteString
+  def sha3_256(bs: ByteString): ByteString
+  def blake2b_256(bs: ByteString): ByteString
+  def verifyEd25519Signature(pk: ByteString, msg: ByteString, sig: ByteString): Boolean
+  def verifyEcdsaSecp256k1Signature(pk: ByteString, msg: ByteString, sig: ByteString): Boolean
+  def verifySchnorrSecp256k1Signature(pk: ByteString, msg: ByteString, sig: ByteString): Boolean
+
 object Builtins:
   // Integers
   def addInteger(i1: BigInt, i2: BigInt): BigInt = i1 + i2
@@ -65,22 +73,22 @@ object Builtins:
     if a.bytes.length <= b.bytes.length then true
     else false
   // Cryptography and hashes
-  def sha2_256(bs: ByteString): ByteString = ??? // TODO
-  // calculate the hash
-  // val hash = Utils.sha2_256(bs.bytes)
-  // ByteString.fromArray(hash)
-
-  def sha3_256(bs: ByteString): ByteString = ??? // TODO
-  def blake2b_256(bs: ByteString): ByteString = ??? // TODO
-  def verifyEd25519Signature(
+  def sha2_256(using ps: PlatformSpecific)(bs: ByteString): ByteString = ps.sha2_256(bs)
+  def sha3_256(using ps: PlatformSpecific)(bs: ByteString): ByteString = ps.sha3_256(bs)
+  def blake2b_256(using ps: PlatformSpecific)(bs: ByteString): ByteString = ps.blake2b_256(bs)
+  def verifyEd25519Signature(using ps: PlatformSpecific)(
       pk: ByteString,
       msg: ByteString,
       sig: ByteString
-  ): Boolean = ??? // TODO
-  def verifyEcdsaSecp256k1Signature(pk: ByteString, msg: ByteString, sig: ByteString): Boolean =
-    ??? // TODO
-  def verifySchnorrSecp256k1Signature(pk: ByteString, msg: ByteString, sig: ByteString): Boolean =
-    ??? // TODO
+  ): Boolean = ps.verifyEd25519Signature(pk, msg, sig)
+  def verifyEcdsaSecp256k1Signature(using
+      ps: PlatformSpecific
+  )(pk: ByteString, msg: ByteString, sig: ByteString): Boolean =
+    ps.verifyEcdsaSecp256k1Signature(pk, msg, sig)
+  def verifySchnorrSecp256k1Signature(using
+      ps: PlatformSpecific
+  )(pk: ByteString, msg: ByteString, sig: ByteString): Boolean =
+    ps.verifySchnorrSecp256k1Signature(pk, msg, sig)
 
   // Strings
   def appendString(s1: String, s2: String): String = s1 + s2

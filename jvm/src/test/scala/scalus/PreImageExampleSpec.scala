@@ -5,6 +5,7 @@ import scalus.Compiler.fieldAsData
 import scalus.builtins.Builtins
 import scalus.builtins.ByteString
 import scalus.builtins.ByteString.given
+import scalus.builtins.given
 import scalus.ledger.api.v1.FromDataInstances.given
 import scalus.ledger.api.v1.ToDataInstances.given
 import scalus.ledger.api.v1.*
@@ -79,7 +80,7 @@ class PreImageExampleSpec extends BaseValidatorSpec {
       val ctx = scriptContext(signatories)
       Program((1, 0, 0), validator $ datum $ redeemer $ ctx.toData)
 
-    assertUplcEvalResult(Expected.Success(Const(Constant.Unit)))(
+    assertSameResult(Expected.Success(Const(Constant.Unit)))(
       appliedScript(
         preimage = ByteString.fromArray("Scalus rocks!".getBytes("UTF-8")),
         pubKeyHash = PubKeyHash(hex"61822dde476439a526070f36d3d1667ad099b462c111cd85e089f5e7f6"),
@@ -89,7 +90,7 @@ class PreImageExampleSpec extends BaseValidatorSpec {
       )
     )
 
-    assertUplcEvalResult(Expected.Failure("Wrong preimage"))(
+    assertSameResult(Expected.Failure("Wrong preimage"))(
       appliedScript(
         preimage = ByteString.fromArray("Scalus rocks!".getBytes("UTF-8")),
         pubKeyHash = PubKeyHash(hex"61822dde476439a526070f36d3d1667ad099b462c111cd85e089f5e7f6"),
@@ -99,7 +100,7 @@ class PreImageExampleSpec extends BaseValidatorSpec {
       )
     )
 
-    assertUplcEvalResult(Expected.Failure("No valid signature"))(
+    assertSameResult(Expected.Failure("No valid signature"))(
       appliedScript(
         preimage = ByteString.fromArray("Scalus rocks!".getBytes("UTF-8")),
         pubKeyHash = PubKeyHash(hex"61822dde476439a526070f36d3d1667ad099b462c111cd85e089f5e7f6"),

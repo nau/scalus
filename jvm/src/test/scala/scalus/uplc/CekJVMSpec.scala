@@ -3,6 +3,7 @@ package scalus.uplc
 import org.scalatest.funsuite.AnyFunSuite
 import org.scalatestplus.scalacheck.ScalaCheckPropertyChecks
 import scalus.builtins.ByteString.given
+import scalus.builtins.given
 import scalus.ledger.api.v1.ToDataInstances.given
 import scalus.ledger.api.v1.*
 import scalus.prelude.List.Cons
@@ -13,7 +14,6 @@ import scalus.uplc.Term.*
 import scalus.uplc.TermDSL.{*, given}
 import scalus.utils.Utils
 
-import scala.collection.immutable
 import scala.io.Source.fromFile
 
 class CekJVMSpec extends AnyFunSuite with ScalaCheckPropertyChecks with ArbitraryInstances:

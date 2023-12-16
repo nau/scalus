@@ -1,5 +1,6 @@
 package scalus.uplc
 
+import scalus.builtins.given
 import scalus.uplc.TermDSL.*
 
 import scala.reflect.ClassTag

@@ -10,6 +10,7 @@ import scalus.Compiler.compile
 import scalus.*
 import scalus.builtins.Builtins
 import scalus.builtins.ByteString
+import scalus.builtins.given
 import scalus.uplc.Data.*
 import scalus.uplc.FromDataInstances.given
 

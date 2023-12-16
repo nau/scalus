@@ -1,6 +1,7 @@
 package scalus.uplc
 
 import scalus.builtins.ByteString
+import scalus.builtins.PlatformSpecific
 import scalus.uplc.Term.*
 
 import scala.annotation.tailrec
@@ -71,11 +72,13 @@ object Cek:
   case class VLamAbs(name: String, term: Term, env: CekValEnv) extends CekValue
   case class VBuiltin(bn: DefaultFun, term: Term, runtime: Runtime) extends CekValue
 
-  def evalUPLC(term: Term): Term = computeCek(NoFrame, Nil, term)
+  def evalUPLC(term: Term)(using ps: PlatformSpecific): Term = computeCek(NoFrame, Nil, term)
 
-  def evalUPLCProgram(p: Program): Term = evalUPLC(p.term)
+  def evalUPLCProgram(p: Program)(using ps: PlatformSpecific): Term = evalUPLC(p.term)
 
-  @tailrec def computeCek(ctx: Context, env: CekValEnv, term: Term): Term =
+  @tailrec def computeCek(ctx: Context, env: CekValEnv, term: Term)(using
+      ps: PlatformSpecific
+  ): Term =
     term match
       case Var(name)          => returnCek(ctx, lookupVarName(env, name))
       case LamAbs(name, term) => returnCek(ctx, VLamAbs(name, term, env))
@@ -90,7 +93,7 @@ object Cek:
           case None          => throw new UnexpectedBuiltinTermArgumentMachineError(term)
       case Error => throw new EvaluationFailure("Error")
 
-  def returnCek(ctx: Context, value: CekValue): Term =
+  def returnCek(ctx: Context, value: CekValue)(using ps: PlatformSpecific): Term =
     ctx match
       case FrameApplyArg(env, arg, ctx) => computeCek(FrameApplyFun(value, ctx), env, arg)
       case FrameApplyFun(fun, ctx)      => applyEvaluate(ctx, fun, value)
@@ -107,7 +110,7 @@ object Cek:
           s"Variable ${name.name} not found in environment: ${env.map(_._1).mkString(", ")}"
         )
 
-  def applyEvaluate(ctx: Context, fun: CekValue, arg: CekValue): Term =
+  def applyEvaluate(ctx: Context, fun: CekValue, arg: CekValue)(using ps: PlatformSpecific): Term =
     fun match
       case VLamAbs(name, term, env) => computeCek(ctx, (name, arg) :: env, term)
       case VBuiltin(fun, term, runtime) =>
@@ -124,7 +127,7 @@ object Cek:
       case _ =>
         throw new RuntimeException("NonFunctionalApplicationMachineError") // FIXME MachineException
 
-  def forceEvaluate(ctx: Context, value: CekValue): Term =
+  def forceEvaluate(ctx: Context, value: CekValue)(using ps: PlatformSpecific): Term =
     value match
       case VDelay(term, env) => computeCek(ctx, env, term)
       case VBuiltin(bn, term, rt) =>
@@ -170,13 +173,13 @@ object Cek:
         case _           => term
     go(Nil, term)
 
-  def evalBuiltinApp(builtinName: DefaultFun, term: Term, runtime: Runtime): CekValue =
+  def evalBuiltinApp(builtinName: DefaultFun, term: Term, runtime: Runtime)(using ps: PlatformSpecific): CekValue =
     runtime.typeScheme match
       case TypeScheme.Type(_) | TypeScheme.TVar(_) =>
         // spendBudgetCek
         // eval the builtin and return result
-        val f = runtime.f.asInstanceOf[() => CekValue]
+        val f = runtime.f.asInstanceOf[PlatformSpecific => CekValue]
 //        println(s"evaluating builtin $builtinName with runtime $runtime")
-        try f()
+        try f(ps)
         catch case e: Throwable => throw new BuiltinError(term, e)
       case _ => VBuiltin(builtinName, term, runtime)

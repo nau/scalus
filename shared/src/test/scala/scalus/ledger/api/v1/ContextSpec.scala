@@ -6,6 +6,7 @@ import scalus.Compiler.compile
 import scalus.*
 import scalus.builtins.ByteString
 import scalus.builtins.ByteString.given
+import scalus.builtins.given
 import scalus.prelude.Prelude.*
 import scalus.prelude.Prelude.given
 import scalus.sir.SIR
