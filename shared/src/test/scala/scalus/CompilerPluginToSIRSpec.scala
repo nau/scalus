@@ -48,7 +48,11 @@ class CompilerPluginToSIRSpec extends AnyFunSuite with ScalaCheckPropertyChecks:
 
     assert(compile(builtins.ByteString.fromHex("deadbeef")) == Const(deadbeef))
     assert(compile(hex"deadbeef") == Const(deadbeef))
-
+    assert(
+      compile(builtins.ByteString.fromString("deadbeef")) == Const(
+        Constant.ByteString(builtins.ByteString.fromString("deadbeef"))
+      )
+    )
   }
 
   test("compile if-then-else") {

@@ -482,6 +482,9 @@ final class SIRCompiler(mode: scalus.Mode)(using ctx: Context) {
     case Apply(expr, List(Literal(c)))
         if expr.symbol == converter.ByteStringSymbol.requiredMethod("fromHex") =>
       scalus.uplc.Constant.ByteString(scalus.builtins.ByteString.fromHex(c.stringValue))
+    case Apply(expr, List(Literal(c)))
+        if expr.symbol == converter.ByteStringSymbol.requiredMethod("fromString") =>
+      scalus.uplc.Constant.ByteString(scalus.builtins.ByteString.fromString(c.stringValue))
     // hex"deadbeef" as ByteString
     case Apply(
           Select(
@@ -1033,7 +1036,7 @@ final class SIRCompiler(mode: scalus.Mode)(using ctx: Context) {
   }
 
   def compileToSIR(tree: Tree)(using Context): SIR = {
-    // println(s"compileToSIR: ${tree}")
+    println(s"compileToSIR: ${tree}")
     val result = compileExpr(HashSet.empty, tree)
     val full = globalDefs.values.foldRight(result) {
       case (CompileDef.Compiled(b), acc) =>

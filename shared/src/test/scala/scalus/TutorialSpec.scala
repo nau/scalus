@@ -18,6 +18,7 @@ val constants = compile {
   val implicitBigIng: BigInt = 123
   val emptyByteString = ByteString.empty
   val byteString = ByteString.fromHex("deadbeef")
+  val byteStringUtf8 = ByteString.fromString("hello") // utf8 encoded
   val byteString2 = hex"deadbeef"
   val string = "Scalus Rocks!"
   val emptyList = builtins.List.empty[BigInt]
