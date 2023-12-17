@@ -118,14 +118,14 @@ lazy val scalus = crossProject(JSPlatform, JVMPlatform)
       "io.bullet" %%% "borer-derivation" % "1.11.0"
     ),
     PluginDependency,
-    // libraryDependencies += compilerPlugin("scalus" %% "scalus-plugin" % "0.1.0-SNAPSHOT"),
     libraryDependencies += "org.scalatest" %%% "scalatest" % "3.2.16" % "test",
     libraryDependencies += "org.scalatestplus" %%% "scalacheck-1-16" % "3.2.14.0" % "test"
   )
   .jvmSettings(
     ThisBuild / javaOptions ++= Seq("-Xss10m"),
     Test / fork := true,
-    libraryDependencies += "org.scala-lang" %% "scala3-compiler" % scala3Version
+    libraryDependencies += "org.scala-lang" %% "scala3-compiler" % scala3Version,
+    libraryDependencies += "org.bouncycastle" % "bcprov-jdk18on" % "1.77",
   )
   .jsSettings(
     // Add JS-specific settings here
