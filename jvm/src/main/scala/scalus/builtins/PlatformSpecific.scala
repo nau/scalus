@@ -1,6 +1,8 @@
 package scalus.builtins
 
 import org.bouncycastle.crypto.digests.Blake2bDigest
+import org.bouncycastle.crypto.params.Ed25519PublicKeyParameters
+import org.bouncycastle.crypto.signers.Ed25519Signer
 import org.bouncycastle.jcajce.provider.digest.SHA3
 import scalus.utils.Utils
 
@@ -27,18 +29,17 @@ class JVMPlatformSpecific extends PlatformSpecific {
     ???
 
   override def verifyEd25519Signature(pk: ByteString, msg: ByteString, sig: ByteString): Boolean =
-    ???
-  /* val verifier = new Ed25519Signer()
+    val verifier = new Ed25519Signer()
     verifier.init(false, new Ed25519PublicKeyParameters(pk.bytes, 0))
     verifier.update(msg.bytes, 0, msg.bytes.length)
-    verifier.verifySignature(sig.bytes) */
+    verifier.verifySignature(sig.bytes)
 
   override def verifyEcdsaSecp256k1Signature(
       pk: ByteString,
       msg: ByteString,
       sig: ByteString
   ): Boolean = ??? // TODO
-    /* val curveParams = org.bouncycastle.asn1.sec.SECNamedCurves.getByName("secp256k1")
+  /* val curveParams = org.bouncycastle.asn1.sec.SECNamedCurves.getByName("secp256k1")
     val curve = new SecP256K1Curve()
     val domainParams =
       new ECDomainParameters(curve, curveParams.getG, curveParams.getN, curveParams.getH)

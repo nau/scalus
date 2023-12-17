@@ -1,7 +1,7 @@
 package scalus.uplc
 
-import org.scalatest.funsuite.AnyFunSuite
-import org.scalatestplus.scalacheck.ScalaCheckPropertyChecks
+import scalus.BaseValidatorSpec
+import scalus.Expected
 import scalus.builtins.ByteString.given
 import scalus.builtins.given
 import scalus.ledger.api.v1.ToDataInstances.given
@@ -13,10 +13,14 @@ import scalus.uplc.DefaultUni.asConstant
 import scalus.uplc.Term.*
 import scalus.uplc.TermDSL.{*, given}
 import scalus.utils.Utils
+import scalus.builtins.Builtins
+import scalus.builtins.ByteString
+import scalus.Compiler.compile
+import scalus.toUplc
 
 import scala.io.Source.fromFile
 
-class CekJVMSpec extends AnyFunSuite with ScalaCheckPropertyChecks with ArbitraryInstances:
+class CekJVMSpec extends BaseValidatorSpec:
   def evalUPLC(code: String): Term = {
     val out = Utils.uplcEvaluate(code)
 //    println(out)
@@ -196,4 +200,17 @@ class CekJVMSpec extends AnyFunSuite with ScalaCheckPropertyChecks with Arbitrar
     println(txId)
     println(Cek.evalUPLC(txId.term))
 
+  }
+
+  test("verifyEd25519Signature") {
+    val sir = compile {
+      scalus.builtins.Builtins.verifyEd25519Signature(
+        ByteString.fromHex("9518c18103cbdab9c6e60b58ecc3e2eb439fef6519bb22570f391327381900a8"),
+        ByteString.fromString("hello"),
+        ByteString.fromHex(
+          "f13fa9acffb108114ec060561b58005fb2d69184de0a2d7400b2ea1f111c0794831cc832c92daf4807820dd9458324935e90bec855e8bf076bbbc4e42b727b07"
+        )
+      )
+    }
+    assertSameResult(Expected.Success(true))(Program((1, 0, 0), sir.toUplc()))
   }
