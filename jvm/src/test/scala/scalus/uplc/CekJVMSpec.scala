@@ -203,14 +203,35 @@ class CekJVMSpec extends BaseValidatorSpec:
   }
 
   test("verifyEd25519Signature") {
-    val sir = compile {
-      scalus.builtins.Builtins.verifyEd25519Signature(
-        ByteString.fromHex("9518c18103cbdab9c6e60b58ecc3e2eb439fef6519bb22570f391327381900a8"),
-        ByteString.fromString("hello"),
-        ByteString.fromHex(
-          "f13fa9acffb108114ec060561b58005fb2d69184de0a2d7400b2ea1f111c0794831cc832c92daf4807820dd9458324935e90bec855e8bf076bbbc4e42b727b07"
-        )
-      )
-    }
-    assertSameResult(Expected.Success(true))(Program((1, 0, 0), sir.toUplc()))
+    val sir = compile { scalus.builtins.Builtins.verifyEd25519Signature }
+    import scalus.pretty
+    println(sir.pretty.render(80))
+    val verify = sir.toUplc()
+    val valid = verify $
+      hex"9518c18103cbdab9c6e60b58ecc3e2eb439fef6519bb22570f391327381900a8" $
+      ByteString.fromString("hello") $
+      hex"f13fa9acffb108114ec060561b58005fb2d69184de0a2d7400b2ea1f111c0794831cc832c92daf4807820dd9458324935e90bec855e8bf076bbbc4e42b727b07"
+
+    assertSameResult(Expected.Success(true))(Program((1, 0, 0), valid))
+
+    val wrongMessage = verify $
+      hex"9518c18103cbdab9c6e60b58ecc3e2eb439fef6519bb22570f391327381900a8" $
+      ByteString.fromString("NOT hello") $
+      hex"f13fa9acffb108114ec060561b58005fb2d69184de0a2d7400b2ea1f111c0794831cc832c92daf4807820dd9458324935e90bec855e8bf076bbbc4e42b727b07"
+
+    assertSameResult(Expected.Success(false))(Program((1, 0, 0), wrongMessage))
+
+    val wrongPubKey = verify $
+      hex"AA18c18103cbdab9c6e60b58ecc3e2eb439fef6519bb22570f391327381900a8" $
+      ByteString.fromString("hello") $
+      hex"f13fa9acffb108114ec060561b58005fb2d69184de0a2d7400b2ea1f111c0794831cc832c92daf4807820dd9458324935e90bec855e8bf076bbbc4e42b727b07"
+
+    assertSameResult(Expected.Success(false))(Program((1, 0, 0), wrongPubKey))
+
+    val wrongSignature = verify $
+      hex"9518c18103cbdab9c6e60b58ecc3e2eb439fef6519bb22570f391327381900a8" $
+      ByteString.fromString("NOT hello") $
+      hex"FF3fa9acffb108114ec060561b58005fb2d69184de0a2d7400b2ea1f111c0794831cc832c92daf4807820dd9458324935e90bec855e8bf076bbbc4e42b727b07"
+
+    assertSameResult(Expected.Success(false))(Program((1, 0, 0), wrongSignature))
   }

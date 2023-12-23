@@ -91,7 +91,7 @@ final class SIRCompiler(mode: scalus.Mode)(using ctx: Context) {
     mutable.LinkedHashMap.empty.withDefaultValue(mutable.LinkedHashMap.empty)
 
   private val CompileAnnot = requiredClassRef("scalus.Compile").symbol.asClass
-  private val IngoreAnnot = requiredClassRef("scalus.Ignore").symbol.asClass
+  private val IgnoreAnnot = requiredClassRef("scalus.Ignore").symbol.asClass
 
   private lazy val classLoader = makeClassLoader
 
@@ -136,12 +136,12 @@ final class SIRCompiler(mode: scalus.Mode)(using ctx: Context) {
       case dd: DefDef
           if !dd.symbol.flags.is(Flags.Synthetic)
             && !dd.symbol.name.startsWith("derived")
-            && !dd.symbol.hasAnnotation(IngoreAnnot) =>
+            && !dd.symbol.hasAnnotation(IgnoreAnnot) =>
         compileStmt(HashSet.empty, dd, isGlobalDef = true)
       case vd: ValDef
           if !vd.symbol.flags.isOneOf(Flags.Synthetic | Flags.Case)
             && !vd.symbol.name.startsWith("derived")
-            && !vd.symbol.hasAnnotation(IngoreAnnot) =>
+            && !vd.symbol.hasAnnotation(IgnoreAnnot) =>
         // println(s"valdef: ${vd.symbol.fullName}")
         compileStmt(HashSet.empty, vd, isGlobalDef = true)
       case _ => None
@@ -384,9 +384,16 @@ final class SIRCompiler(mode: scalus.Mode)(using ctx: Context) {
   private def compileStmt(env: Env, stmt: Tree, isGlobalDef: Boolean = false): Option[B] = {
     // report.echo(s"compileStmt  ${stmt.show} in ${env}")
     stmt match
+      // ignore @Ignore annotated statements
+      case vd @ ValDef(name, _, _) if vd.symbol.hasAnnotation(IgnoreAnnot) => None
+      // ignore PlatformSpecific statements
+      case vd @ ValDef(name, _, _) if vd.tpe <:< PlatformSpecificClassSymbol.typeRef =>
+        println(s"Ignore PlatformSpecific: ${vd.symbol.fullName}")
+        None
       case vd @ ValDef(name, _, _) =>
         val bodyExpr = compileExpr(env, vd.rhs)
         Some(B(name.show, vd.symbol, Recursivity.NonRec, bodyExpr))
+      case dd @ DefDef(name, paramss, tpe, _) if dd.symbol.hasAnnotation(IgnoreAnnot) => None
       case dd @ DefDef(name, paramss, tpe, _) if dd.symbol.flags.is(Flags.Inline) => None
       case dd @ DefDef(name, paramss, tpe, _) =>
         val params = paramss.flatten.collect({ case vd: ValDef => vd })

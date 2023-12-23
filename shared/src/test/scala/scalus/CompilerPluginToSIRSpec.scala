@@ -838,3 +838,17 @@ class CompilerPluginToSIRSpec extends AnyFunSuite with ScalaCheckPropertyChecks:
     // println(Utils.bytesToHex(flatBytes))
     assert(flatBytesLength == 125)
   }
+
+  test("@Ignore annotation") {
+    @Ignore
+    def foo() = 1
+    assert(compile {
+      @Ignore val a = true
+      @Ignore def foo() = true
+    } == Const(Constant.Unit))
+  }
+
+  test("Ignore PlatformSpecific arguments") {
+    // Make sure that the implicit PlatformSpecific argument is not generated
+    assert(compile(Builtins.sha2_256) == (lam("bs")(Sha2_256 $ Var("bs"))))
+  }
