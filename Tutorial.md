@@ -38,6 +38,7 @@ import scalus.*
 import scalus.builtins.Builtins
 import scalus.builtins.ByteString
 import scalus.builtins.ByteString.given
+import scalus.ledger.api.PlutusLedgerLanguage
 import scalus.prelude.Prelude.===
 import scalus.prelude.Prelude.given
 import scalus.uplc.FromDataInstances.given
@@ -224,16 +225,17 @@ val serializeToDoubleCborHex = {
   // convert to UPLC
   // generateErrorTraces = true will add trace messages to the UPLC program
   val uplc = pubKeyValidator.toUplc(generateErrorTraces = true)
-  val programV1 = Program((1, 0, 0), uplc)
-  val flatEncoded = programV1.flatEncoded // if needed
-  val cbor = programV1.cborEncoded // if needed
-  val doubleEncoded = programV1.doubleCborEncoded // if needed
+  val program = Program((1, 0, 0), uplc)
+  val flatEncoded = program.flatEncoded // if needed
+  val cbor = program.cborEncoded // if needed
+  val doubleEncoded = program.doubleCborEncoded // if needed
   // in most cases you want to use the hex representation of the double CBOR encoded program
-  programV1.doubleCborHex
+  program.doubleCborHex
   // also you can produce a pubKeyValidator.plutus file for use with cardano-cli
   import scalus.utils.Utils
-  Utils.writePlutusFile("pubKeyValidator.plutus", programV1)
+  Utils.writePlutusFile("pubKeyValidator.plutus", program, PlutusLedgerLanguage.PlutusV1)
 }
+
 ```
 
 ## Validator examples

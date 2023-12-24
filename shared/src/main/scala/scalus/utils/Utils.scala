@@ -1,15 +1,17 @@
 package scalus.utils
 
+import io.bullet.borer.Cbor
 import io.bullet.borer.Codec
+import io.bullet.borer.Json
+import scalus.ledger.api.PlutusLedgerLanguage
+import scalus.ledger.api.PlutusLedgerLanguage.*
+import scalus.uplc.DeBruijn
 import scalus.uplc.Program
+import scalus.uplc.ProgramFlatCodec
 
 import java.io.ByteArrayInputStream
 import java.io.ByteArrayOutputStream
 import java.nio.file.*
-import io.bullet.borer.Json
-import io.bullet.borer.Cbor
-import scalus.uplc.ProgramFlatCodec
-import scalus.uplc.DeBruijn
 
 case class PlutusTextEnvelope(`type`: String, description: String, cborHex: String)
 object PlutusTextEnvelope {
@@ -41,30 +43,28 @@ object Utils:
     val out = cmd.#<(new ByteArrayInputStream(code.getBytes("UTF-8"))).!!
     out
 
-  def writePlutusFile(path: String, program: Program): Unit =
-    val content = programToPlutusFileContent(program)
+  def writePlutusFile(path: String, program: Program, plutusVersion: PlutusLedgerLanguage): Unit =
+    val content = programToPlutusFileContent(program, plutusVersion)
     Files.write(Paths.get(path), content)
 
-  def programToPlutusFileContent(program: Program): Array[Byte] =
-    val `type` = program.version match
-      case (1, 0, 0) => "PlutusScriptV1"
-      case (2, 0, 0) => "PlutusScriptV2"
-      case _         => throw new Exception(s"Unsupported Plutus version: ${program.version}")
+  def programToPlutusFileContent(
+      program: Program,
+      plutusVersion: PlutusLedgerLanguage
+  ): Array[Byte] =
+    val `type` = plutusVersion match
+      case PlutusV1 => "PlutusScriptV1"
+      case PlutusV2 => "PlutusScriptV2"
+      case _        => throw new Exception(s"Unsupported Plutus version: ${plutusVersion}")
     Json.encode(PlutusTextEnvelope(`type`, "", program.doubleCborHex)).toByteArray
 
   def readPlutusFileContent(content: Array[Byte]): Program =
     val envelope = Json.decode(content).to[PlutusTextEnvelope].value
-    val version = envelope.`type` match
-      case "PlutusScriptV1" => (1, 0, 0)
-      case "PlutusScriptV2" => (2, 0, 0)
-      case _ => throw new Exception(s"Unsupported Plutus version: ${envelope.`type`}")
+    // TODO: check that the version is supported, validate builtins etc
     val doubleCborHex = envelope.cborHex
     val cbor = Cbor.decode(Utils.hexToBytes(doubleCborHex)).to[Array[Byte]].value
     val scriptFlat = Cbor.decode(cbor).to[Array[Byte]].value
     val debruijnedProgram = ProgramFlatCodec.decodeFlat(scriptFlat)
     val program = DeBruijn.fromDeBruijnProgram(debruijnedProgram)
-    if program.version != version then
-      throw new Exception(s"Version mismatch: ${program.version} != ${version}")
     program
 
   def readPlutusFile(path: String): Program =
