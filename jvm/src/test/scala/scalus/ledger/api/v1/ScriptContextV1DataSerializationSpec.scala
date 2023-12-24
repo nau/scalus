@@ -174,7 +174,7 @@ class ScriptContextV1DataSerializationSpec extends BaseValidatorSpec:
     val scriptFlat = Cbor.decode(Utils.hexToBytes(deserializeContractV2)).to[Array[Byte]].value
     val program = ProgramFlatCodec.decodeFlat(scriptFlat)
     val namedTerm = DeBruijn.fromDeBruijnTerm(program.term)
-    val applied = Program((2, 0, 0), namedTerm $ scriptContextV2.toData)
+    val applied = Program((1, 0, 0), namedTerm $ scriptContextV2.toData)
     try Cek.evalUPLCProgram(applied)
     catch {
       case e: Throwable => fail(e)
@@ -182,7 +182,7 @@ class ScriptContextV1DataSerializationSpec extends BaseValidatorSpec:
 
     import scalus.ledger.api.v1.ToDataInstances.given
     assertThrows[Exception](
-      Cek.evalUPLCProgram(Program((2, 0, 0), namedTerm $ scriptContextV1.toData))
+      Cek.evalUPLCProgram(Program((1, 0, 0), namedTerm $ scriptContextV1.toData))
     )
   }
 

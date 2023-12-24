@@ -119,7 +119,7 @@ class FromDataDerivationSpec
     forAll { (r: BigRecord) =>
       val d = r.toData
       assert(fromData[BigRecord](d) == r)
-      val out = PlutusUplcEval.evalFlat(Program((2, 0, 0), term $ d))
+      val out = PlutusUplcEval.evalFlat(Program((1, 0, 0), term $ d))
       out match
         case UplcEvalResult.Success(term) =>
           assert(term == Term.Const(Constant.Data(d)))
@@ -139,7 +139,7 @@ class FromDataDerivationSpec
     forAll { (r: Adt) =>
       val d = r.toData
       assert(fromData[Adt](d) == r)
-      val out = PlutusUplcEval.evalFlat(Program((2, 0, 0), term $ d))
+      val out = PlutusUplcEval.evalFlat(Program((1, 0, 0), term $ d))
       out match
         case UplcEvalResult.Success(term) =>
           assert(term == Term.Const(Constant.Data(d)))

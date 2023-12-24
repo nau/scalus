@@ -76,7 +76,7 @@ class MintingPolicyExampleSpec extends BaseValidatorSpec {
         v2.TxOut(txOut.address, txOut.value, v2.OutputDatum.NoOutputDatum, Nothing)
       v2.TxInInfo(txOutRef, txOutV2)
     }
-    Program((2, 0, 0), validator $ () $ scriptContextV2(txInfoInputsV2, value).toData)
+    Program((1, 0, 0), validator $ () $ scriptContextV2(txInfoInputsV2, value).toData)
 
   private def performMintingPolicyValidatorChecks(
       validator: Term
@@ -182,7 +182,7 @@ class MintingPolicyExampleSpec extends BaseValidatorSpec {
     val validator = MintingPolicyV2.compiledMintingPolicyScriptV2.toUplc(generateErrorTraces = true)
     val appliedValidator =
       validator $ hoskyMintTxOutRef.id.hash $ hoskyMintTxOutRef.idx $ evaledTokens
-    val flatSize = Program((2, 0, 0), appliedValidator).flatEncoded.length
+    val flatSize = Program((1, 0, 0), appliedValidator).flatEncoded.length
     assert(flatSize == 2457)
     performMintingPolicyValidatorChecks(appliedValidator)(withScriptContextV2)
   }
