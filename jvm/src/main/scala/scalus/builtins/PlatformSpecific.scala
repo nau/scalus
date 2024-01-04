@@ -1,14 +1,15 @@
 package scalus.builtins
 
+import org.bitcoins.crypto.ECDigitalSignature
+import org.bitcoins.crypto.ECPublicKey
+import org.bitcoins.crypto.SchnorrDigitalSignature
+import org.bitcoins.crypto.SchnorrPublicKey
 import org.bouncycastle.crypto.digests.Blake2bDigest
 import org.bouncycastle.crypto.params.Ed25519PublicKeyParameters
 import org.bouncycastle.crypto.signers.Ed25519Signer
 import org.bouncycastle.jcajce.provider.digest.SHA3
 import scalus.utils.Utils
-import org.bouncycastle.math.ec.custom.sec.SecP256K1Curve
-import org.bouncycastle.crypto.params.ECDomainParameters
-import org.bouncycastle.crypto.params.ECPublicKeyParameters
-import org.bouncycastle.crypto.signers.ECDSASigner
+import scodec.bits.ByteVector
 
 class JVMPlatformSpecific extends PlatformSpecific {
   override def sha2_256(bs: ByteString): ByteString =
@@ -29,8 +30,16 @@ class JVMPlatformSpecific extends PlatformSpecific {
       pk: ByteString,
       msg: ByteString,
       sig: ByteString
-  ): Boolean =
-    ???
+  ): Boolean = {
+    if pk.bytes.length != 32 then
+      throw new IllegalArgumentException(s"Invalid public key length ${pk.bytes.length}")
+    if msg.bytes.length != 32 then
+      throw new IllegalArgumentException(s"Invalid message length ${msg.bytes.length}")
+    if sig.bytes.length != 64 then
+      throw new IllegalArgumentException(s"Invalid signature length ${sig.bytes.length}")
+    val signature = SchnorrDigitalSignature(ByteVector(sig.bytes))
+    SchnorrPublicKey(ByteVector(pk.bytes)).verify(ByteVector(msg.bytes), signature)
+  }
 
   override def verifyEd25519Signature(pk: ByteString, msg: ByteString, sig: ByteString): Boolean =
     val verifier = new Ed25519Signer()
@@ -49,24 +58,8 @@ class JVMPlatformSpecific extends PlatformSpecific {
       throw new IllegalArgumentException(s"Invalid message length ${msg.bytes.length}")
     if sig.bytes.length != 64 then
       throw new IllegalArgumentException(s"Invalid signature length ${sig.bytes.length}")
-    val curveParams = org.bouncycastle.asn1.sec.SECNamedCurves.getByName("secp256k1")
-    val curve = new SecP256K1Curve()
-    val domainParams =
-      new ECDomainParameters(curve, curveParams.getG, curveParams.getN, curveParams.getH)
-
-    val q = curve.decodePoint(pk.bytes)
-    val publicKeyParams = new ECPublicKeyParameters(q, domainParams)
-
-    val signer = new ECDSASigner()
-    signer.init(false, publicKeyParams)
-
-    val signature = sig.bytes
-    // Split signature into its r and s components
-    val r = BigInt(1, signature.slice(0, signature.length / 2))
-    val s = BigInt(1, signature.slice(signature.length / 2, signature.length))
-
-    signer.verifySignature(msg.bytes, r.bigInteger, s.bigInteger)
-
+    val signature = ECDigitalSignature.fromRS(ByteVector(sig.bytes))
+    ECPublicKey(ByteVector(pk.bytes)).verify(ByteVector(msg.bytes), signature)
 }
 
 given PlatformSpecific = JVMPlatformSpecific()

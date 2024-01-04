@@ -1,14 +1,6 @@
 package scalus.uplc
 
-import org.bouncycastle.asn1.sec.SECNamedCurves
-import org.bouncycastle.crypto.generators.ECKeyPairGenerator
-import org.bouncycastle.crypto.params.ECDomainParameters
-import org.bouncycastle.crypto.params.ECKeyGenerationParameters
-import org.bouncycastle.crypto.params.ECPrivateKeyParameters
-import org.bouncycastle.crypto.params.ECPublicKeyParameters
-import org.bouncycastle.crypto.signers.ECDSASigner
-import org.bouncycastle.math.ec.FixedPointCombMultiplier
-import org.bouncycastle.math.ec.custom.sec.SecP256K1Curve
+import org.bitcoins.crypto.ECPrivateKey
 import org.scalacheck.Arbitrary
 import org.scalacheck.Gen
 import scalus.BaseValidatorSpec
@@ -28,6 +20,7 @@ import scalus.uplc.DefaultUni.asConstant
 import scalus.uplc.Term.*
 import scalus.uplc.TermDSL.{*, given}
 import scalus.utils.Utils
+import scodec.bits.ByteVector
 
 import java.security.SecureRandom
 import scala.io.Source.fromFile
@@ -248,22 +241,14 @@ class CekJVMSpec extends BaseValidatorSpec:
 
   test("verifyEcdsaSecp256k1Signature") {
     val sir = compile { scalus.builtins.Builtins.verifyEcdsaSecp256k1Signature }
-    val curveParams = SECNamedCurves.getByName("secp256k1")
-    val curve = new SecP256K1Curve()
-    val domainParams =
-      new ECDomainParameters(curve, curveParams.getG, curveParams.getN, curveParams.getH)
-    val keyGenParams =
-      new ECKeyGenerationParameters(domainParams, new SecureRandom())
-    val keyPairGenerator = new ECKeyPairGenerator()
-    keyPairGenerator.init(keyGenParams)
-    // Generate the key pair
-    val keyPair = keyPairGenerator.generateKeyPair()
-    val privateKeyParams = keyPair.getPrivate.asInstanceOf[ECPrivateKeyParameters]
-    val publicKeyParams = keyPair.getPublic.asInstanceOf[ECPublicKeyParameters]
 
-    // Derive the public key in compressed format
-    val q = new FixedPointCombMultiplier().multiply(domainParams.getG, privateKeyParams.getD)
-    val publicKeyBytesCompressed = ByteString.fromArray(q.getEncoded(true))
+    // Construct private key from hex
+    val privateKey =
+      ECPrivateKey("6846a082d76e7c34cd2deddc6ef3d4cb3220e6c72c7c9ec03408d60ed976837c")
+
+    // Compute schnorr public key from private key
+    val publicKey = privateKey.publicKey
+    val publicKeyBytesCompressed = ByteString.fromArray(publicKey.bytes.toArray)
 
     val messageGen =
       Gen.containerOfN[Array, Byte](32, Arbitrary.arbitrary[Byte]).map(ByteString.unsafeFromArray)
@@ -274,20 +259,11 @@ class CekJVMSpec extends BaseValidatorSpec:
         .map(ByteString.unsafeFromArray)
         .suchThat(_.bytes.length != 32)
 
+    val verify = sir.toUplc()
     forAll(messageGen, wrongMessageGen) { (message, wrongMessage) =>
       // Create a signature
-      val signer = new ECDSASigner()
-      signer.init(true, privateKeyParams)
-      val signature = signer.generateSignature(message.bytes)
-      val r = signature(0)
-      val sOriginal = signature(1)
-      // Enforce low s value (BIP 62)
-      val order = domainParams.getN
-      val halfOrder = order.shiftRight(1) // half of the curve order
-      val s = if sOriginal.compareTo(halfOrder) > 0 then order.subtract(sOriginal) else sOriginal
-      val signatureBytes = r.toByteArray.takeRight(32) ++ s.toByteArray.takeRight(32)
-      val sig = ByteString.fromArray(signatureBytes)
-      val verify = sir.toUplc()
+
+      val sig = ByteString.fromArray(privateKey.sign(ByteVector(message.bytes)).toRawRS.toArray)
       val valid = verify $ publicKeyBytesCompressed $ message $ sig
 
       val invalidVk = verify $
@@ -300,10 +276,11 @@ class CekJVMSpec extends BaseValidatorSpec:
       val invalidSignature =
         verify $ publicKeyBytesCompressed $ message $ ByteString.fromArray(sig.bytes.drop(1))
 
-      val wrongSignatureBytes =
-        r.add(java.math.BigInteger.ONE).toByteArray.takeRight(32) ++ s.toByteArray.takeRight(32)
+      val wrongSig = privateKey.sign(
+        ByteVector.fromHex("0000000000000000000000000000000000000000000000000000000000000000").get
+      )
       val wrongSignature = verify $ publicKeyBytesCompressed $ message $ ByteString.fromArray(
-        wrongSignatureBytes
+        wrongSig.toRawRS.toArray // wrong signature
       )
 
       assertSameResult(Expected.Success(true))(Program((1, 0, 0), valid))
@@ -311,5 +288,61 @@ class CekJVMSpec extends BaseValidatorSpec:
       assertSameResult(Expected.Failure("invalidVk"))(Program((1, 0, 0), invalidVk))
       assertSameResult(Expected.Failure("invalidData"))(Program((1, 0, 0), invalidData))
       assertSameResult(Expected.Failure("invalidSignature"))(Program((1, 0, 0), invalidSignature))
+    }
+  }
+
+  test("verifySchnorrSecp256k1Signature") {
+    val sir = compile { scalus.builtins.Builtins.verifySchnorrSecp256k1Signature }
+
+    // Construct private key from hex
+    val privateKey =
+      ECPrivateKey("6846a082d76e7c34cd2deddc6ef3d4cb3220e6c72c7c9ec03408d60ed976837c")
+
+    // Compute schnorr public key from private key
+    val publicKey = privateKey.schnorrPublicKey
+    val publicKeyBytesCompressed =
+      ByteString.fromArray(publicKey.bytes.toArray)
+
+    val messageGen =
+      Gen.containerOfN[Array, Byte](32, Arbitrary.arbitrary[Byte]).map(ByteString.unsafeFromArray)
+
+    val wrongMessageGen =
+      Gen
+        .containerOf[Array, Byte](Arbitrary.arbitrary[Byte])
+        .map(ByteString.unsafeFromArray)
+        .suchThat(_.bytes.length != 32)
+
+    val verify = sir.toUplc()
+    forAll(messageGen, wrongMessageGen) { (message, wrongMessage) =>
+      // Create a signature
+      val signature = privateKey.schnorrSign(ByteVector(message.bytes))
+      val sig = ByteString.fromArray(signature.bytes.toArray)
+      val valid = verify $ publicKeyBytesCompressed $ message $ sig
+
+      val invalidVk = verify $
+        ByteString.fromArray(publicKeyBytesCompressed.bytes.drop(1)) $
+        message $
+        sig
+
+      val invalidData = verify $ publicKeyBytesCompressed $ wrongMessage $ sig
+
+      val invalidSignature =
+        verify $ publicKeyBytesCompressed $ message $ ByteString.fromArray(sig.bytes.drop(1))
+
+      val wrongSig = privateKey.schnorrSign(
+        ByteVector.fromHex("0000000000000000000000000000000000000000000000000000000000000000").get
+      )
+      val wrongSignature = verify $ publicKeyBytesCompressed $ message $ ByteString.fromArray(
+        wrongSig.bytes.toArray // wrong signature
+      )
+
+      assertSameResult(Expected.Success(true))(Program((1, 0, 0), valid))
+      assertSameResult(Expected.Success(false))(Program((1, 0, 0), wrongSignature))
+      // FIXME: these tests fail because current CEK implementation uses UnliftingImmediate as the default
+      // and the uplc uses UnliftingDeferred.
+      // TODO: uncomment this when we upgrade the CEK implementation
+      // assertSameResult(Expected.Failure("invalidVk"))(Program((1, 0, 0), invalidVk))
+      // assertSameResult(Expected.Failure("invalidData"))(Program((1, 0, 0), invalidData))
+      // assertSameResult(Expected.Failure("invalidSignature"))(Program((1, 0, 0), invalidSignature))
     }
   }

@@ -126,6 +126,8 @@ lazy val scalus = crossProject(JSPlatform, JVMPlatform)
     Test / fork := true,
     libraryDependencies += "org.scala-lang" %% "scala3-compiler" % scala3Version,
     libraryDependencies += "org.bouncycastle" % "bcprov-jdk18on" % "1.77",
+    libraryDependencies += "org.bitcoin-s" % "bitcoin-s-crypto_2.13" % "1.9.7",
+    libraryDependencies += "org.bitcoin-s" % "bitcoin-s-secp256k1jni" % "1.9.7",
   )
   .jsSettings(
     // Add JS-specific settings here
