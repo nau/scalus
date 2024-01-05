@@ -52,7 +52,7 @@ lazy val scalusPlugin = project
     organization := "org.scalus",
     version := scalusVersion,
     scalacOptions += "-Wunused:all",
-    libraryDependencies += "org.scalatest" %%% "scalatest" % "3.2.16" % "test",
+    libraryDependencies += "org.scalatest" %%% "scalatest" % "3.2.17" % "test",
     libraryDependencies += "org.scalatestplus" %%% "scalacheck-1-16" % "3.2.14.0" % "test",
     libraryDependencies += "org.scala-lang" %% "scala3-compiler" % scala3Version // % "provided"
   )
@@ -89,7 +89,7 @@ lazy val scalusPluginTests = project
     organization := "scalus",
     version := scalusVersion,
     PluginDependency,
-    libraryDependencies += "org.scalatest" %%% "scalatest" % "3.2.16" % "test",
+    libraryDependencies += "org.scalatest" %%% "scalatest" % "3.2.17" % "test",
     libraryDependencies += "org.scalatestplus" %%% "scalacheck-1-16" % "3.2.12.0" % "test"
   )
 
@@ -111,14 +111,14 @@ lazy val scalus = crossProject(JSPlatform, JVMPlatform)
     scalacOptions += "-Wunused:imports",
     scalacOptions += "-Wunused:params",
     // scalacOptions += "-Yretain-trees",
-    libraryDependencies += "org.typelevel" %%% "cats-parse" % "0.3.10",
+    libraryDependencies += "org.typelevel" %%% "cats-parse" % "1.0.0",
     libraryDependencies += "org.typelevel" %%% "paiges-core" % "0.4.3",
     libraryDependencies ++= Seq(
-      "io.bullet" %%% "borer-core" % "1.11.0",
-      "io.bullet" %%% "borer-derivation" % "1.11.0"
+      "io.bullet" %%% "borer-core" % "1.13.0",
+      "io.bullet" %%% "borer-derivation" % "1.13.0"
     ),
     PluginDependency,
-    libraryDependencies += "org.scalatest" %%% "scalatest" % "3.2.16" % "test",
+    libraryDependencies += "org.scalatest" %%% "scalatest" % "3.2.17" % "test",
     libraryDependencies += "org.scalatestplus" %%% "scalacheck-1-16" % "3.2.14.0" % "test"
   )
   .jvmSettings(
@@ -140,8 +140,8 @@ lazy val examples = project
   .settings(
     PluginDependency,
     publish / skip := true,
-    libraryDependencies += "com.bloxbean.cardano" % "cardano-client-lib" % "0.4.3",
-    libraryDependencies += "com.bloxbean.cardano" % "cardano-client-backend-blockfrost" % "0.4.3"
+    libraryDependencies += "com.bloxbean.cardano" % "cardano-client-lib" % "0.5.0",
+    libraryDependencies += "com.bloxbean.cardano" % "cardano-client-backend-blockfrost" % "0.5.0"
   )
 
 lazy val `examples-js` = project
