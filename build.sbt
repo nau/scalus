@@ -38,7 +38,11 @@ ThisBuild / publishTo := {
 }
 ThisBuild / publishMavenStyle := true
 
-lazy val root = project
+// Temporary. This is needed for addSbtPlugin("org.scalameta" % "sbt-mdoc" % "2.5.1+14-bd750aad-SNAPSHOT")
+// TODO: Remove when mdoc 2.5.2 is released
+ThisBuild / resolvers ++= Resolver.sonatypeOssRepos("snapshots")
+
+lazy val root: Project = project
   .in(file("."))
   .aggregate(scalusPlugin, scalus.js, scalus.jvm, `examples-js`, examples)
   .settings(
@@ -127,7 +131,7 @@ lazy val scalus = crossProject(JSPlatform, JVMPlatform)
     libraryDependencies += "org.scala-lang" %% "scala3-compiler" % scala3Version,
     libraryDependencies += "org.bouncycastle" % "bcprov-jdk18on" % "1.77",
     libraryDependencies += "org.bitcoin-s" % "bitcoin-s-crypto_2.13" % "1.9.7",
-    libraryDependencies += "org.bitcoin-s" % "bitcoin-s-secp256k1jni" % "1.9.7",
+    libraryDependencies += "org.bitcoin-s" % "bitcoin-s-secp256k1jni" % "1.9.7"
   )
   .jsSettings(
     // Add JS-specific settings here
@@ -157,4 +161,19 @@ lazy val `examples-js` = project
         .withOutputPatterns(OutputPatterns.fromJSFile("%s.mjs"))
     },
     PluginDependency
+  )
+
+lazy val docs = project // documentation project
+  .in(file("scalus-docs")) // important: it must not be docs/
+  .dependsOn(scalus.jvm)
+  .enablePlugins(MdocPlugin)
+  .settings(
+    mdocVariables := Map(
+      "VERSION" -> scalusVersion,
+      "SCALA3_VERSION" -> scala3Version
+    ),
+    mdocOut := (root / baseDirectory).value,
+    scalacOptions ++= Seq(
+      s"-Xplugin:${(scalusPlugin / Compile / target).value}/scala-${scala3Version}/scalus-plugin_3-${scalusVersion}.jar",
+    )
   )

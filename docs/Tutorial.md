@@ -9,9 +9,9 @@ You can find the code for this tutorial in the [TutorialSpec.scala](https://gith
 Add the following to your `build.sbt` file:
 
 ```scala
-scalaVersion := "3.3.1"
-libraryDependencies += "org.scalus" %% "scalus" % "0.4.0-SNAPSHOT"
-addCompilerPlugin("org.scalus" %% "scalus-plugin" % "0.4.0-SNAPSHOT")
+scalaVersion := "@SCALA3_VERSION@"
+libraryDependencies += "org.scalus" %% "scalus" % "@VERSION@"
+addCompilerPlugin("org.scalus" %% "scalus-plugin" % "@VERSION@")
 ```
 
 ## Basic workflow
