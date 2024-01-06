@@ -1,4 +1,4 @@
-# Scalus Tutorial
+# Tutorial
 
 ## Introduction
 
@@ -14,6 +14,11 @@ libraryDependencies += "org.scalus" %% "scalus" % "@VERSION@"
 addCompilerPlugin("org.scalus" %% "scalus-plugin" % "@VERSION@")
 ```
 
+### Scalus Starter Project
+
+You can use the [Scalus Starter Project](https://github.com/nau/scalus-starter) to get started with Scalus.
+Clone the repository and follow the instructions in the README.
+
 ## Basic workflow
 
 The basic workflow is to write a Scala program and then compile it to a Plutus script,
@@ -21,7 +26,7 @@ similar to how PlutuxTx works.
 
 You can store the Plutus script in a *.plutus file and use it with the Cardano CLI.
 Or use one of the Java/JavaScript libraries to construct transactions with the script.
-[This example](examples/src/main/scala/scalus/SendTx.scala) shows how to use the [cardano-client-lib](https://github.com/bloxbean/cardano-client-lib) to send transactions.
+[This example](https://github.com/nau/scalus/blob/d42d24385666efdb2690321958aa4fb8108e2db5/examples/src/main/scala/scalus/SendTx.scala) shows how to use the [cardano-client-lib](https://github.com/bloxbean/cardano-client-lib) to send transactions.
 
 You write a script using a small subset of Scala,
 which is then compiled to a Scalus Intermediate Representation (SIR) with `compile` function.

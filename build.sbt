@@ -166,14 +166,17 @@ lazy val `examples-js` = project
 lazy val docs = project // documentation project
   .in(file("scalus-docs")) // important: it must not be docs/
   .dependsOn(scalus.jvm)
-  .enablePlugins(MdocPlugin)
+  .enablePlugins(MdocPlugin, DocusaurusPlugin)
   .settings(
+    publish / skip := true,
+    moduleName := "scalus-docs",
     mdocVariables := Map(
       "VERSION" -> scalusVersion,
       "SCALA3_VERSION" -> scala3Version
     ),
-    mdocOut := (root / baseDirectory).value,
+    // mdocOut := mdocOut.value / "docs",
     scalacOptions ++= Seq(
+      // FIXME: use published scalus-plugin
       s"-Xplugin:${(scalusPlugin / Compile / target).value}/scala-${scala3Version}/scalus-plugin_3-${scalusVersion}.jar",
     )
   )
