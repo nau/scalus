@@ -1,6 +1,6 @@
-# Scalus - Scala implementation of Cardano Plutus
+# Scalus - DApps Development Platform for Cardano
 
-## What is it planned to be?
+## What is Scalus?
 
 Scalus is a set of libraries to work with Cardano Untyped Plutus Core that works on both JVM and JavaScript.
 This includes:
@@ -12,11 +12,17 @@ This includes:
 - Type safe UPLC expression builder, think of Plutarch
 - Compiler plugin and macros to generate UPLC code from Scala code, think of PlutusTx but simpler
 
+## Documentation and examples
+
+Check out Scalus website: https://scalus.org
+
+Check out the [tutorial](docs/Tutorial.md) to get started.
+
 ## Support
 
 You can ask questions on Scalus Discord: https://discord.gg/ygwtuBybsy
 
-The project is looking for funding to make it production ready. 
+The project is looking for funding to make it production ready.
 If you are interested, please contact me at [@atlanter](https://twitter.com/atlanter) on Twitter.
 Follow the official Scalus Twitter account: [@Scalus3](https://twitter.com/Scalus3).
 
@@ -26,13 +32,9 @@ ADA: addr1qxwg0u9fpl8dac9rkramkcgzerjsfdlqgkw0q8hy5vwk8tzk5pgcmdpe5jeh92guy4mke4
 
 BTC: bc1qzefh9we0frls8ktm0dx428v2dx3wtp6xu4hd8k
 
-Please, consider becoming a sponsor on GitHub. 
+Please, consider becoming a sponsor on GitHub.
 
 And vote for the project on Cardano Catalyst!
-
-## Tutorial
-
-Check out the [tutorial](Tutorial.md) to get started.
 
 ## Scalus Starter Project
 
