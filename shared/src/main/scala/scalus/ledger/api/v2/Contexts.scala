@@ -49,90 +49,91 @@ export scalus.ledger.api.v1.Value
 
 @Compile
 object FromDataInstances {
-  import scalus.uplc.FromDataInstances.given
-  import scalus.ledger.api.v1.FromDataInstances.given
+    import scalus.uplc.FromDataInstances.given
+    import scalus.ledger.api.v1.FromDataInstances.given
 
-  given FromData[OutputDatum] = (d: Data) =>
-    val pair = Builtins.unsafeDataAsConstr(d)
-    val tag = pair.fst
-    val args = pair.snd
-    if tag === BigInt(0) then OutputDatum.NoOutputDatum
-    else if tag === BigInt(1) then new OutputDatum.OutputDatumHash(fromData[DatumHash](args.head))
-    else if tag === BigInt(2) then new OutputDatum.OutputDatum(fromData[Datum](args.head))
-    else throw new Exception("PT1")
+    given FromData[OutputDatum] = (d: Data) =>
+        val pair = Builtins.unsafeDataAsConstr(d)
+        val tag = pair.fst
+        val args = pair.snd
+        if tag === BigInt(0) then OutputDatum.NoOutputDatum
+        else if tag === BigInt(1) then
+            new OutputDatum.OutputDatumHash(fromData[DatumHash](args.head))
+        else if tag === BigInt(2) then new OutputDatum.OutputDatum(fromData[Datum](args.head))
+        else throw new Exception("PT1")
 
-  given FromData[TxOut] = (d: Data) =>
-    val pair = Builtins.unsafeDataAsConstr(d)
-    val args = pair.snd
-    new TxOut(
-      fromData[Address](args.head),
-      fromData[Value](args.tail.head),
-      fromData[OutputDatum](args.tail.tail.head),
-      fromData[Maybe[ScriptHash]](args.tail.tail.tail.head)
-    )
+    given FromData[TxOut] = (d: Data) =>
+        val pair = Builtins.unsafeDataAsConstr(d)
+        val args = pair.snd
+        new TxOut(
+          fromData[Address](args.head),
+          fromData[Value](args.tail.head),
+          fromData[OutputDatum](args.tail.tail.head),
+          fromData[Maybe[ScriptHash]](args.tail.tail.tail.head)
+        )
 
-  given FromData[TxInInfo] = (d: Data) =>
-    val pair = Builtins.unsafeDataAsConstr(d)
-    val args = pair.snd
-    new TxInInfo(
-      fromData[TxOutRef](args.head),
-      fromData[TxOut](args.tail.head)
-    )
+    given FromData[TxInInfo] = (d: Data) =>
+        val pair = Builtins.unsafeDataAsConstr(d)
+        val args = pair.snd
+        new TxInInfo(
+          fromData[TxOutRef](args.head),
+          fromData[TxOut](args.tail.head)
+        )
 
-  given FromData[TxInfo] = (d: Data) =>
-    val pair = Builtins.unsafeDataAsConstr(d)
-    val args = pair.snd
-    val fromValue = summon[FromData[Value]]
-    new TxInfo(
-      fromData[List[TxInInfo]](args.head),
-      fromData[List[TxInInfo]](args.tail.head),
-      fromData[List[TxOut]](args.tail.tail.head),
-      fromValue(args.tail.tail.tail.head),
-      fromValue(args.tail.tail.tail.tail.head),
-      fromData[List[DCert]](args.tail.tail.tail.tail.tail.head),
-      fromData[AssocMap[StakingCredential, BigInt]](args.tail.tail.tail.tail.tail.tail.head),
-      fromData[POSIXTimeRange](args.tail.tail.tail.tail.tail.tail.tail.head),
-      fromData[List[PubKeyHash]](args.tail.tail.tail.tail.tail.tail.tail.tail.head),
-      fromData[AssocMap[ScriptPurpose, Redeemer]](
-        args.tail.tail.tail.tail.tail.tail.tail.tail.tail.head
-      ),
-      fromData[AssocMap[DatumHash, Datum]](
-        args.tail.tail.tail.tail.tail.tail.tail.tail.tail.tail.head
-      ),
-      fromData[TxId](args.tail.tail.tail.tail.tail.tail.tail.tail.tail.tail.tail.head)
-    )
+    given FromData[TxInfo] = (d: Data) =>
+        val pair = Builtins.unsafeDataAsConstr(d)
+        val args = pair.snd
+        val fromValue = summon[FromData[Value]]
+        new TxInfo(
+          fromData[List[TxInInfo]](args.head),
+          fromData[List[TxInInfo]](args.tail.head),
+          fromData[List[TxOut]](args.tail.tail.head),
+          fromValue(args.tail.tail.tail.head),
+          fromValue(args.tail.tail.tail.tail.head),
+          fromData[List[DCert]](args.tail.tail.tail.tail.tail.head),
+          fromData[AssocMap[StakingCredential, BigInt]](args.tail.tail.tail.tail.tail.tail.head),
+          fromData[POSIXTimeRange](args.tail.tail.tail.tail.tail.tail.tail.head),
+          fromData[List[PubKeyHash]](args.tail.tail.tail.tail.tail.tail.tail.tail.head),
+          fromData[AssocMap[ScriptPurpose, Redeemer]](
+            args.tail.tail.tail.tail.tail.tail.tail.tail.tail.head
+          ),
+          fromData[AssocMap[DatumHash, Datum]](
+            args.tail.tail.tail.tail.tail.tail.tail.tail.tail.tail.head
+          ),
+          fromData[TxId](args.tail.tail.tail.tail.tail.tail.tail.tail.tail.tail.tail.head)
+        )
 
-  given FromData[ScriptContext] = (d: Data) =>
-    val pair = Builtins.unsafeDataAsConstr(d)
-    val args = pair.snd
-    new ScriptContext(
-      fromData[TxInfo](args.head),
-      fromData[ScriptPurpose](args.tail.head)
-    )
+    given FromData[ScriptContext] = (d: Data) =>
+        val pair = Builtins.unsafeDataAsConstr(d)
+        val args = pair.snd
+        new ScriptContext(
+          fromData[TxInfo](args.head),
+          fromData[ScriptPurpose](args.tail.head)
+        )
 }
 
 enum OutputDatum:
-  case NoOutputDatum
-  case OutputDatumHash(datumHash: DatumHash)
-  case OutputDatum(datum: Datum)
+    case NoOutputDatum
+    case OutputDatumHash(datumHash: DatumHash)
+    case OutputDatum(datum: Datum)
 
 @Compile
 object OutputDatum {
-  given Eq[scalus.ledger.api.v2.OutputDatum] =
-    (a: scalus.ledger.api.v2.OutputDatum, b: scalus.ledger.api.v2.OutputDatum) =>
-      a match
-        case NoOutputDatum =>
-          b match
-            case NoOutputDatum => true
-            case _             => false
-        case OutputDatumHash(datumHash) =>
-          b match
-            case OutputDatumHash(datumHash2) => datumHash === datumHash2
-            case _                           => false
-        case OutputDatum(datum) =>
-          b match
-            case OutputDatum(datum2) => datum === datum2
-            case _                   => false
+    given Eq[scalus.ledger.api.v2.OutputDatum] =
+        (a: scalus.ledger.api.v2.OutputDatum, b: scalus.ledger.api.v2.OutputDatum) =>
+            a match
+                case NoOutputDatum =>
+                    b match
+                        case NoOutputDatum => true
+                        case _             => false
+                case OutputDatumHash(datumHash) =>
+                    b match
+                        case OutputDatumHash(datumHash2) => datumHash === datumHash2
+                        case _                           => false
+                case OutputDatum(datum) =>
+                    b match
+                        case OutputDatum(datum2) => datum === datum2
+                        case _                   => false
 }
 
 case class TxOut(

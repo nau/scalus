@@ -26,26 +26,25 @@ import scalus.uplc.*
 import scala.collection.immutable
 
 class CompilerPluginToSIRSpec extends AnyFunSuite with ScalaCheckPropertyChecks:
-  val deadbeef = Constant.ByteString(hex"deadbeef")
+    val deadbeef = Constant.ByteString(hex"deadbeef")
 
-  test("compile Boolean &&, ||, ! builtins") {
-    import Constant.Bool
-    val compiled = compile {
-      val a = true || (throw new Exception("M"))
-      !a && false || true
-    }
-    assert(
-      compiled ==
-        Let(
-          NonRec,
-          List(Binding("a", Or(Const(Bool(true)), Error("M")))),
-          Or(And(Not(Var("a")), Const(Bool(false))), Const(Bool(true)))
+    test("compile Boolean &&, ||, ! builtins") {
+        import Constant.Bool
+        val compiled = compile {
+            val a = true || (throw new Exception("M"))
+            !a && false || true
+        }
+        assert(
+          compiled ==
+              Let(
+                NonRec,
+                List(Binding("a", Or(Const(Bool(true)), Error("M")))),
+                Or(And(Not(Var("a")), Const(Bool(false))), Const(Bool(true)))
+              )
         )
-    )
-    // println(compiled.pretty.render(80))
-    val term = compiled.toUplc()
-    val evaled = Cek.evalUPLC(term)
-    // println(evaled.pretty.render(80))
-    assert(evaled == scalus.uplc.Term.Const(Constant.Bool(true)))
-  }
-
+        // println(compiled.pretty.render(80))
+        val term = compiled.toUplc()
+        val evaled = Cek.evalUPLC(term)
+        // println(evaled.pretty.render(80))
+        assert(evaled == scalus.uplc.Term.Const(Constant.Bool(true)))
+    }
