@@ -58,6 +58,7 @@ final class SIRCompiler(mode: scalus.Mode)(using ctx: Context) {
   private val PlatformSpecificClassSymbol = requiredClass("scalus.builtins.PlatformSpecific")
   private val StringContextSymbol = requiredModule("scala.StringContext")
   private val Tuple2Symbol = requiredClass("scala.Tuple2")
+  private val NothingSymbol = requiredClass("scala.Nothing")
   private val ByteStringModuleSymbol = requiredModule("scalus.builtins.ByteString")
   private val ByteStringStringInterpolatorsMethodSymbol =
     ByteStringModuleSymbol.requiredMethod("StringInterpolators")
@@ -387,14 +388,16 @@ final class SIRCompiler(mode: scalus.Mode)(using ctx: Context) {
       // ignore @Ignore annotated statements
       case vd @ ValDef(name, _, _) if vd.symbol.hasAnnotation(IgnoreAnnot) => None
       // ignore PlatformSpecific statements
-      case vd @ ValDef(name, _, _) if vd.tpe <:< PlatformSpecificClassSymbol.typeRef =>
-        println(s"Ignore PlatformSpecific: ${vd.symbol.fullName}")
+      // NOTE: check ps.tpe is not Nothing, as Nothing is a subtype of everything
+      case vd @ ValDef(name, _, _)
+          if vd.tpe <:< PlatformSpecificClassSymbol.typeRef && !(vd.tpe =:= NothingSymbol.typeRef) =>
+        // println(s"Ignore PlatformSpecific: ${vd.symbol.fullName}")
         None
       case vd @ ValDef(name, _, _) =>
         val bodyExpr = compileExpr(env, vd.rhs)
         Some(B(name.show, vd.symbol, Recursivity.NonRec, bodyExpr))
       case dd @ DefDef(name, paramss, tpe, _) if dd.symbol.hasAnnotation(IgnoreAnnot) => None
-      case dd @ DefDef(name, paramss, tpe, _) if dd.symbol.flags.is(Flags.Inline) => None
+      case dd @ DefDef(name, paramss, tpe, _) if dd.symbol.flags.is(Flags.Inline)     => None
       case dd @ DefDef(name, paramss, tpe, _) =>
         val params = paramss.flatten.collect({ case vd: ValDef => vd })
         val names =
@@ -904,7 +907,8 @@ final class SIRCompiler(mode: scalus.Mode)(using ctx: Context) {
            So we just ignore this PlatformSpecific argument and compile the rest
          */
         case Apply(builtin, immutable.List(ps))
-            if ps.tpe <:< PlatformSpecificClassSymbol.typeRef =>
+            // NOTE: check ps.tpe is not Nothing, as Nothing is a subtype of everything
+            if ps.tpe <:< PlatformSpecificClassSymbol.typeRef && !(ps.tpe =:= NothingSymbol.typeRef) =>
           compileExpr(env, builtin)
         // Boolean
         case Select(lhs, op) if lhs.tpe.widen =:= defn.BooleanType && op == nme.UNARY_! =>
