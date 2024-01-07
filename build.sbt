@@ -1,19 +1,12 @@
 import org.scalajs.linker.interface.OutputPatterns
 
-val scala3Version = "3.3.1"
-val scalusVersion = "0.4.1"
-
 Global / onChangedBuildSource := ReloadOnSourceChanges
-ThisBuild / scalaVersion := scala3Version
-Test / publishArtifact := false
 autoCompilerPlugins := true
+
+ThisBuild / scalaVersion := "3.3.1"
 ThisBuild / organization := "org.scalus"
 ThisBuild / organizationName := "Scalus"
 ThisBuild / organizationHomepage := Some(url("https://scalus.org/"))
-
-ThisBuild / scmInfo := Some(
-  ScmInfo(url("https://github.com/nau/scalus"), "scm:git@github.com:nau/scalus.git")
-)
 ThisBuild / developers := List(
   Developer(
     id = "atlanter",
@@ -29,18 +22,9 @@ ThisBuild / licenses := List(
 )
 ThisBuild / homepage := Some(url("https://github.com/nau/scalus"))
 
-// Remove all additional repository other than Maven Central from POM
-ThisBuild / pomIncludeRepository := { _ => false }
-ThisBuild / publishTo := {
-  val nexus = "https://s01.oss.sonatype.org/"
-  if (isSnapshot.value) Some("snapshots" at nexus + "content/repositories/snapshots")
-  else Some("releases" at nexus + "service/local/staging/deploy/maven2")
-}
-ThisBuild / publishMavenStyle := true
-
-// Temporary. This is needed for addSbtPlugin("org.scalameta" % "sbt-mdoc" % "2.5.1+14-bd750aad-SNAPSHOT")
-// TODO: Remove when mdoc 2.5.2 is released
-ThisBuild / resolvers ++= Resolver.sonatypeOssRepos("snapshots")
+ThisBuild / sonatypeCredentialHost := "s01.oss.sonatype.org"
+sonatypeRepository := "https://s01.oss.sonatype.org/service/local"
+Test / publishArtifact := false
 
 lazy val root: Project = project
   .in(file("."))
@@ -49,16 +33,15 @@ lazy val root: Project = project
     publish / skip := true
   )
 
+// Scala 3 Compiler Plugin for Scalus
 lazy val scalusPlugin = project
   .in(file("scalus-plugin"))
   .settings(
     name := "scalus-plugin",
-    organization := "org.scalus",
-    version := scalusVersion,
     scalacOptions += "-Wunused:all",
     libraryDependencies += "org.scalatest" %%% "scalatest" % "3.2.17" % "test",
     libraryDependencies += "org.scalatestplus" %%% "scalacheck-1-16" % "3.2.14.0" % "test",
-    libraryDependencies += "org.scala-lang" %% "scala3-compiler" % scala3Version // % "provided"
+    libraryDependencies += "org.scala-lang" %% "scala3-compiler" % scalaVersion.value // % "provided"
   )
   .settings(
     // Include common sources in the plugin
@@ -85,13 +68,14 @@ lazy val scalusPlugin = project
     }
   )
 
+// Used only for development
+// TODO remove or comment out
 lazy val scalusPluginTests = project
   .in(file("scalus-plugin-tests"))
   .dependsOn(scalus.jvm)
   .settings(
     name := "scalus-plugin-tests",
-    organization := "scalus",
-    version := scalusVersion,
+    publish / skip := true,
     PluginDependency,
     libraryDependencies += "org.scalatest" %%% "scalatest" % "3.2.17" % "test",
     libraryDependencies += "org.scalatestplus" %%% "scalacheck-1-16" % "3.2.12.0" % "test"
@@ -104,12 +88,12 @@ lazy val PluginDependency: List[Def.Setting[_]] = List(scalacOptions ++= {
   Seq(s"-Xplugin:${jar.getAbsolutePath}", s"-Jdummy=${jar.lastModified}")
 })
 
+// Scalus Core and Standard Library for JVM and JS
 lazy val scalus = crossProject(JSPlatform, JVMPlatform)
   .in(file("."))
   .settings(
     name := "scalus",
-    version := scalusVersion,
-    scalaVersion := scala3Version,
+    scalaVersion := scalaVersion.value,
     scalacOptions += "-Xcheck-macros",
     scalacOptions += "-explain",
     scalacOptions += "-Wunused:imports",
@@ -128,7 +112,7 @@ lazy val scalus = crossProject(JSPlatform, JVMPlatform)
   .jvmSettings(
     ThisBuild / javaOptions ++= Seq("-Xss10m"),
     Test / fork := true,
-    libraryDependencies += "org.scala-lang" %% "scala3-compiler" % scala3Version,
+    libraryDependencies += "org.scala-lang" %% "scala3-compiler" % scalaVersion.value,
     libraryDependencies += "org.bouncycastle" % "bcprov-jdk18on" % "1.77",
     libraryDependencies += "org.bitcoin-s" % "bitcoin-s-crypto_2.13" % "1.9.7",
     libraryDependencies += "org.bitcoin-s" % "bitcoin-s-secp256k1jni" % "1.9.7"
@@ -163,6 +147,9 @@ lazy val `examples-js` = project
     PluginDependency
   )
 
+// Documentation
+// We use Docusaurus for documentation
+// and Mdoc for Scala code examples
 lazy val docs = project // documentation project
   .in(file("scalus-docs")) // important: it must not be docs/
   .dependsOn(scalus.jvm)
@@ -171,12 +158,8 @@ lazy val docs = project // documentation project
     publish / skip := true,
     moduleName := "scalus-docs",
     mdocVariables := Map(
-      "VERSION" -> scalusVersion,
-      "SCALA3_VERSION" -> scala3Version
+      "VERSION" -> version.value,
+      "SCALA3_VERSION" -> scalaVersion.value
     ),
-    // mdocOut := mdocOut.value / "docs",
-    scalacOptions ++= Seq(
-      // FIXME: use published scalus-plugin
-      s"-Xplugin:${(scalusPlugin / Compile / target).value}/scala-${scala3Version}/scalus-plugin_3-${scalusVersion}.jar",
-    )
+    PluginDependency
   )
