@@ -1,23 +1,7 @@
+---
+sidebar_position: 2
+---
 # Tutorial
-
-## Introduction
-
-You can find the code for this tutorial in the [TutorialSpec.scala](https://github.com/nau/scalus/blob/master/shared/src/test/scala/scalus/TutorialSpec.scala) file.
-
-## Project setup
-
-Add the following to your `build.sbt` file:
-
-```scala
-scalaVersion := "@SCALA3_VERSION@"
-libraryDependencies += "org.scalus" %% "scalus" % "@VERSION@"
-addCompilerPlugin("org.scalus" %% "scalus-plugin" % "@VERSION@")
-```
-
-### Scalus Starter Project
-
-You can use the [Scalus Starter Project](https://github.com/nau/scalus-starter) to get started with Scalus.
-Clone the repository and follow the instructions in the README.
 
 ## Basic workflow
 
@@ -35,22 +19,32 @@ The SIR can be pretty-printed and reviewed.
 
 The SIR is then compiled to Untyped Plutus Core (UPLC) that can be executed on the Cardano blockchain.
 
-## Constans and primitives
+## Simple validator
 
-```scala
+```scala mdoc
 import scalus.Compiler.compile
 import scalus.*
-import scalus.builtins.Builtins
-import scalus.builtins.ByteString
+import scalus.uplc.Data
+
+val validator = compile {
+  (datum: Data, redeemer: Data, context: Data) => ()
+}
+validator.toUplc().pretty.render(80)
+validator.doubleCborHex(version = (1, 0, 0))
+```
+
+## Constans and primitives
+
+```scala mdoc:compile-only
+import scalus.Compiler.compile
+import scalus.*
+import scalus.builtins.*
 import scalus.builtins.ByteString.given
-import scalus.ledger.api.PlutusLedgerLanguage
-import scalus.prelude.Prelude.===
-import scalus.prelude.Prelude.given
-import scalus.uplc.FromDataInstances.given
+import scalus.prelude.Prelude.{*, given}
 
 val constants = compile {
   val unit = ()
-  val bool = true
+  val bool = true || false
   val int = BigInt(123)
   val bigint = BigInt("12345678901234567890")
   val implicitBigIng: BigInt = 123
@@ -67,7 +61,11 @@ val constants = compile {
 
 ## Builtin Functions
 
-```scala
+```scala mdoc:compile-only
+import scalus.builtins.Builtins
+import scalus.builtins.ByteString
+import scalus.builtins.ByteString.given
+import scalus.prelude.Prelude.{*, given}
 compile {
   // See scalus.builtins.Builtins for what is available
   val data = Builtins.mkI(123)
@@ -82,7 +80,9 @@ compile {
 
 You can define your own data types using Scala case classes and enums.
 
-```scala
+```scala mdoc:compile-only
+import scalus.builtins.ByteString
+import scalus.prelude.Prelude.{*, given}
 case class Account(hash: ByteString, balance: BigInt)
 
 enum State:
@@ -114,7 +114,8 @@ compile {
 
 ## Control flow
 
-```scala
+```scala mdoc:compile-only
+import scalus.prelude.Prelude.{*, given}
 compile {
   val a = BigInt(1)
   // if-then-else
@@ -129,7 +130,8 @@ compile {
 
 ## Functions
 
-```scala
+```scala mdoc:compile-only
+import scalus.prelude.Prelude.{*, given}
 compile {
   val nonRecursiveLambda = (a: BigInt) => a + 1
   def recursive(a: BigInt): BigInt =

@@ -63,6 +63,14 @@ const config = {
   themeConfig:
     /** @type {import('@docusaurus/preset-classic').ThemeConfig} */
     ({
+      announcementBar: {
+        id: 'support_us',
+        content:
+          'Support us! Vote for Cardano Catalyst Fund 11 <a target="_blank" rel="noopener noreferrer" href="https://cardano.ideascale.com/c/idea/112174">Scalus proposal</a>',
+        backgroundColor: '#fafbfc',
+        textColor: '#091E42',
+        isCloseable: false,
+      },
       colorMode: {
         defaultMode: 'dark',
         disableSwitch: true,
