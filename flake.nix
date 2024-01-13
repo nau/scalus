@@ -28,7 +28,8 @@
       (system:
       let
         pkgs = import nixpkgs { inherit system; };
-        patchedUplc = plutus.${system}.plutus.library.plutus-project.hsPkgs.plutus-core.components.exes.uplc.overrideAttrs (oldAttrs: {
+        uplc = plutus.${system}.plutus.library.plutus-project.hsPkgs.plutus-core.components.exes.uplc;
+        patchedUplc = uplc.overrideAttrs (oldAttrs: {
           patches = oldAttrs.patches or [] ++ [ ./uplc.patch ];
           patchFlags = [ "-p2" ];
         });
@@ -47,10 +48,11 @@
             nodejs
             # cardano-node.packages.${system}.cardano-node
             # cardano-node.packages.${system}.cardano-cli
+            uplc
             # patchedUplc
           ];
           shellHook = ''
-            # ln -s ${plutus}/plutus-conformance plutus-conformance
+            ln -s ${plutus}/plutus-conformance plutus-conformance
           '';
         };
       })
