@@ -11,12 +11,5 @@ jobs:
     - uses: cachix/install-nix-action@v25
       with:
         nix_path: nixpkgs=channel:nixos-unstable
-    - name: Build and test in Nix devshell
-      uses: workflow/nix-shell-action@v3.3.0
-      with:
-        flakes-from-devshell: true
-        extra_nix_config: |
-          trusted-public-keys = hydra.iohk.io:f/Ea+s+dFdN+3Y/G+FDgSq+a5NEWhJGzdjvKNGv0/EQ= cache.nixos.org-1:6NCHdD59X431o0gWypbMrAURkbJ16ZPMQFGspcDShjY=
-          substituters = https://cache.iog.io https://hydra.iohk.io https://cache.nixos.org/
-        script: |
-            sbt -v test
+    # - name: Build and test in Nix devshell
+    - run: nix develop --command bash -c "sbt test"
