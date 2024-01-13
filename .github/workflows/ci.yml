@@ -11,8 +11,9 @@ jobs:
     - uses: cachix/install-nix-action@v25
       with:
         nix_path: nixpkgs=channel:nixos-unstable
-    - uses: workflow/nix-shell-action@v3
+    - name: Build and test in Nix devshell
+      uses: workflow/nix-shell-action@v3
       with:
         flakes-from-devshell: true
-    - name: Build and Test
-      run: sbt -v test
+        script: |
+            sbt -v test
