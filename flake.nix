@@ -45,12 +45,12 @@
             nixpkgs-fmt
             # (builtins.trace (builtins.toJSON plutus) nodejs)
             nodejs
-            cardano-node.packages.${system}.cardano-node
-            cardano-node.packages.${system}.cardano-cli
-            patchedUplc
+            # cardano-node.packages.${system}.cardano-node
+            # cardano-node.packages.${system}.cardano-cli
+            # patchedUplc
           ];
           shellHook = ''
-            ln -s ${plutus}/plutus-conformance plutus-conformance
+            # ln -s ${plutus}/plutus-conformance plutus-conformance
           '';
         };
       })
