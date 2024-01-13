@@ -1,5 +1,10 @@
 # Scalus - DApps Development Platform for Cardano
 
+![CI/Release](https://github.com/nau/scalus/actions/workflows/release.yml/badge.svg)
+![Maven Central](https://img.shields.io/maven-central/v/org.scalus/scalus_3)
+[![Discord](https://img.shields.io/discord/1105852427346911252
+.svg?label=&logo=discord&logoColor=ffffff&color=404244&labelColor=6A7EC2)](https://discord.gg/ygwtuBybsy)
+
 ## What is Scalus?
 
 Scalus is a set of libraries to work with Cardano Untyped Plutus Core that works on both JVM and JavaScript.
