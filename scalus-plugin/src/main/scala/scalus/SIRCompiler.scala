@@ -46,6 +46,12 @@ case class TopLevelBinding(fullName: FullName, recursivity: Recursivity, body: S
 case class B(name: String, symbol: Symbol, recursivity: Recursivity, body: SIR):
     def fullName(using Context) = FullName(symbol)
 
+case class AdtTypeInfo(
+    constructorTypeSymbol: Symbol,
+    dataTypeSymbol: Symbol,
+    constructors: List[Symbol]
+)
+
 final class SIRCompiler(mode: scalus.Mode)(using ctx: Context) {
     import tpd.*
     type Env = HashSet[String]
@@ -79,7 +85,7 @@ final class SIRCompiler(mode: scalus.Mode)(using ctx: Context) {
     extension (t: Tree) def isPair: Boolean = t.tpe.isPair
 
     extension (t: Tree) def isLiteral = compileConstant.isDefinedAt(t)
-    extension (t: Tree) def isData = t.tpe <:< requiredClass("scalus.uplc.Data").typeRef
+    extension (t: Tree) def isData = t.tpe <:< converter.DataClassSymbol.typeRef
 
     enum CompileDef:
         case Compiling
@@ -167,12 +173,6 @@ final class SIRCompiler(mode: scalus.Mode)(using ctx: Context) {
         output.write(enc.buffer)
         output.close()
     }
-
-    case class AdtTypeInfo(
-        constructorTypeSymbol: Symbol,
-        dataTypeSymbol: Symbol,
-        constructors: List[Symbol]
-    )
 
     private def getAdtInfoFromConstroctorType(constrTpe: Type): AdtTypeInfo = {
         /* We support these cases:
@@ -339,8 +339,12 @@ final class SIRCompiler(mode: scalus.Mode)(using ctx: Context) {
                 // println(s"Found definition of ${fullName.name}")
                 SIR.Var(fullName.name)
             case None =>
-                report.error(s"Symbol ${fullName.name} is not found", srcPos)
-                SIR.Error(s"Symbol ${fullName.name} not defined")
+                error(SymbolNotFound(fullName.name, srcPos), SIR.Error("Symbol not found"))
+    }
+
+    private def error[A](error: CompilationError, defaultValue: A): A = {
+        report.error(error.message, error.srcPos)
+        defaultValue
     }
 
     private def compileIdentOrQualifiedSelect(env: Env, e: Tree): SIR = {
@@ -369,7 +373,7 @@ final class SIRCompiler(mode: scalus.Mode)(using ctx: Context) {
                             linkDefinition(
                               e.symbol.owner.fullName.toString(),
                               fullName,
-                              e.symbol.sourcePos
+                              e.srcPos
                             )
                         else
                             // println(s"compileIdentOrQualifiedSelect2: ${e.symbol} ${e.symbol.defTree}")
@@ -393,20 +397,29 @@ final class SIRCompiler(mode: scalus.Mode)(using ctx: Context) {
                             SIR.Var(e.symbol.fullName.toString())
     }
 
+    private def compileValDef(env: Env, vd: ValDef): Option[B] = {
+        val name = vd.name
+        // vars are not supported
+        if vd.symbol.flags.is(Flags.Mutable) then
+            error(VarNotSupported(vd, vd.srcPos), None)
+            None
+        // ignore @Ignore annotated statements
+        else if vd.symbol.hasAnnotation(IgnoreAnnot) then None
+        // ignore PlatformSpecific statements
+        // NOTE: check ps.tpe is not Nothing, as Nothing is a subtype of everything
+        else if vd.tpe <:< PlatformSpecificClassSymbol.typeRef && !(vd.tpe =:= NothingSymbol.typeRef)
+        then
+            // println(s"Ignore PlatformSpecific: ${vd.symbol.fullName}")
+            None
+        else
+            val bodyExpr = compileExpr(env, vd.rhs)
+            Some(B(name.show, vd.symbol, Recursivity.NonRec, bodyExpr))
+    }
+
     private def compileStmt(env: Env, stmt: Tree, isGlobalDef: Boolean = false): Option[B] = {
         // report.echo(s"compileStmt  ${stmt.show} in ${env}")
         stmt match
-            // ignore @Ignore annotated statements
-            case vd @ ValDef(name, _, _) if vd.symbol.hasAnnotation(IgnoreAnnot) => None
-            // ignore PlatformSpecific statements
-            // NOTE: check ps.tpe is not Nothing, as Nothing is a subtype of everything
-            case vd @ ValDef(name, _, _)
-                if vd.tpe <:< PlatformSpecificClassSymbol.typeRef && !(vd.tpe =:= NothingSymbol.typeRef) =>
-                // println(s"Ignore PlatformSpecific: ${vd.symbol.fullName}")
-                None
-            case vd @ ValDef(name, _, _) =>
-                val bodyExpr = compileExpr(env, vd.rhs)
-                Some(B(name.show, vd.symbol, Recursivity.NonRec, bodyExpr))
+            case vd @ ValDef(name, _, _) => compileValDef(env, vd)
             case dd @ DefDef(name, paramss, tpe, _) if dd.symbol.hasAnnotation(IgnoreAnnot) => None
             case dd @ DefDef(name, paramss, tpe, _) if dd.symbol.flags.is(Flags.Inline)     => None
             case dd @ DefDef(name, paramss, tpe, _) =>
@@ -467,21 +480,13 @@ final class SIRCompiler(mode: scalus.Mode)(using ctx: Context) {
                 case _                          => Some(expr)
     }
 
-    private def compileConstant: PartialFunction[Tree, scalus.uplc.Constant] = {
+    private val compileConstant: PartialFunction[Tree, scalus.uplc.Constant] = {
         case l @ Literal(c: Constant) =>
             c.tag match
                 case Constants.BooleanTag => scalus.uplc.Constant.Bool(c.booleanValue)
                 case Constants.StringTag  => scalus.uplc.Constant.String(c.stringValue)
                 case Constants.UnitTag    => scalus.uplc.Constant.Unit
-                case Constants.IntTag =>
-                    report.error(
-                      s"Scalus: Int literals are not supported. Try BigInt(${c.intValue}) instead",
-                      l.srcPos
-                    )
-                    scalus.uplc.Constant.Unit
-                case _ =>
-                    report.error(s"Unsupported constant type $c");
-                    scalus.uplc.Constant.Unit
+                case _ => error(LiteralTypeNotSupported(c, l.srcPos), scalus.uplc.Constant.Unit)
         case t @ Apply(bigintApply, List(SkipInline(Literal(c))))
             if bigintApply.symbol == converter.BigIntSymbol.requiredMethod(
               "apply",
@@ -528,24 +533,22 @@ final class SIRCompiler(mode: scalus.Mode)(using ctx: Context) {
             scalus.uplc.Constant.ByteString(scalus.builtins.ByteString.fromHex(const.stringValue))
     }
 
-    private def typeReprToDefaultUni(t: Type, pos: SrcPos): DefaultUni =
-        if t =:= converter.BigIntClassSymbol.typeRef then DefaultUni.Integer
-        else if t =:= defn.StringClass.typeRef then DefaultUni.String
-        else if t =:= defn.BooleanClass.typeRef then DefaultUni.Bool
-        else if t =:= defn.UnitClass.typeRef then DefaultUni.Unit
-        else if t =:= converter.DataClassSymbol.typeRef then DefaultUni.Data
-        else if t =:= converter.ByteStringClassSymbol.typeRef then DefaultUni.ByteString
-        else if t.isPair then
-            val List(t1, t2) = t.dealias.argInfos
-            DefaultUni.Pair(typeReprToDefaultUni(t1, pos), typeReprToDefaultUni(t2, pos))
-        else if t.isList then
-            val t1 = t.dealias.argInfos.head
-            DefaultUni.List(typeReprToDefaultUni(t1, pos))
-        else
-            report.error(s"Unsupported type $t", pos)
-            DefaultUni.Unit
+    private def typeReprToDefaultUni(tpe: Type, list: Tree): DefaultUni =
+        if tpe =:= converter.BigIntClassSymbol.typeRef then DefaultUni.Integer
+        else if tpe =:= defn.StringClass.typeRef then DefaultUni.String
+        else if tpe =:= defn.BooleanClass.typeRef then DefaultUni.Bool
+        else if tpe =:= defn.UnitClass.typeRef then DefaultUni.Unit
+        else if tpe =:= converter.DataClassSymbol.typeRef then DefaultUni.Data
+        else if tpe =:= converter.ByteStringClassSymbol.typeRef then DefaultUni.ByteString
+        else if tpe.isPair then
+            val List(t1, t2) = tpe.dealias.argInfos
+            DefaultUni.Pair(typeReprToDefaultUni(t1, list), typeReprToDefaultUni(t2, list))
+        else if tpe.isList then
+            val t1 = tpe.dealias.argInfos.head
+            DefaultUni.List(typeReprToDefaultUni(t1, list))
+        else error(NotBuiltinTypeInBuiltinListConstruction(tpe, list), DefaultUni.Unit)
 
-    private def compileBigIntOps(env: Env, lhs: Tree, op: Name, rhs: Tree): SIR =
+    private def compileBigIntOps(env: Env, lhs: Tree, op: Name, rhs: Tree, optree: Tree): SIR =
         op match
             case nme.PLUS =>
                 SIR.Apply(
@@ -605,11 +608,10 @@ final class SIRCompiler(mode: scalus.Mode)(using ctx: Context) {
                   )
                 )
             case _ =>
-                report.error(
-                  s"Unsupported BigInt operation $op. Only +, -, *, /, %, <, <=, >, >=, ==, != are supported",
-                  lhs.srcPos
+                error(
+                  UnsupportedBigIntOp(op.show, optree.srcPos),
+                  SIR.Error("Unsupported BigInt operation")
                 )
-                SIR.Error("Unsupported BigInt operation $op.")
 
     /*
     enum A:
@@ -720,7 +722,7 @@ final class SIRCompiler(mode: scalus.Mode)(using ctx: Context) {
         enum SirCase:
             case Case(constructorSymbol: Symbol, bindings: List[String], rhs: SIR)
             case Wildcard(rhs: SIR, srcPos: SrcPos)
-            case Error(msg: String, srcPos: SrcPos)
+            case Error(error: CompilationError)
 
         def compileConstructorPatterns(
             constrTypeSymbol: Symbol,
@@ -730,7 +732,9 @@ final class SIRCompiler(mode: scalus.Mode)(using ctx: Context) {
             val sirBindings = pats.map(compileBinding)
             compileBindings(sirBindings) match
                 case Left(errors) =>
-                    errors.map(e => SirCase.Error(s"Unsupported binding: ${e.b.show}", e.b.srcPos))
+                    errors.map(e =>
+                        SirCase.Error(GenericError(s"Unsupported binding: ${e.b.show}", e.b.srcPos))
+                    )
                 case Right(PatternInfo(bindings, generateSir, names)) =>
                     val rhsE = compileExpr(env ++ bindings, rhs)
                     SirCase.Case(constrTypeSymbol, names, generateSir(rhsE)) :: Nil
@@ -738,7 +742,7 @@ final class SIRCompiler(mode: scalus.Mode)(using ctx: Context) {
 
         def scalaCaseDefToSirCase(c: CaseDef): List[SirCase] = c match
             case CaseDef(_, guard, _) if !guard.isEmpty =>
-                SirCase.Error(s"Guards are not supported in match expressions", guard.srcPos) :: Nil
+                SirCase.Error(GuardsNotSupported(guard.srcPos)) :: Nil
             // this case is for matching on a case class
             case CaseDef(UnApply(_, _, pats), _, rhs) =>
                 // report.error(s"Case: ${fun}, pats: ${pats}, rhs: $rhs", t.pos)
@@ -747,25 +751,17 @@ final class SIRCompiler(mode: scalus.Mode)(using ctx: Context) {
             case CaseDef(Typed(UnApply(_, _, pats), constrTpe), _, rhs) =>
                 // report.info(s"Case: ${inner}, tpe ${constrTpe.tpe.widen.show}", t.pos)
                 compileConstructorPatterns(constrTpe.tpe.typeSymbol, pats, rhs)
+            // case _ => rhs, wildcard pattern, must be the last case
+            case CaseDef(Ident(nme.WILDCARD), _, rhs) =>
+                val rhsE = compileExpr(env, rhs)
+                SirCase.Wildcard(rhsE, c.srcPos) :: Nil
             // case object
             case CaseDef(pat, _, rhs) if pat.symbol.is(Flags.Case) =>
                 val rhsE = compileExpr(env, rhs)
                 // no-arg constructor, it's a Val, so we use termSymbol
                 SirCase.Case(pat.tpe.termSymbol, Nil, rhsE) :: Nil
-            // case _ => rhs, wildcard pattern, must be the last case
-            case CaseDef(Ident(nme.WILDCARD), _, rhs) =>
-                val rhsE = compileExpr(env, rhs)
-                SirCase.Wildcard(rhsE, c.srcPos) :: Nil
             case a =>
-                val cs = cases
-                    .map { case CaseDef(pat, _, _) =>
-                        pat.toString() + " " + pat.symbol.flagsString
-                    }
-                    .mkString("\n")
-                SirCase.Error(
-                  s"Unsupported match expression: ${a.show}\n$a\n${matchTree.tpe.typeSymbol}\n${cs}",
-                  matchTree.srcPos
-                ) :: Nil
+                SirCase.Error(UnsupportedMatchExpression(a, a.srcPos)) :: Nil
 
         val matchExpr = compileExpr(env, matchTree)
         val sirCases = cases.flatMap(scalaCaseDefToSirCase)
@@ -790,9 +786,12 @@ final class SIRCompiler(mode: scalus.Mode)(using ctx: Context) {
                 case SirCase.Wildcard(rhs, srcPos) =>
                     // If we have a wildcard case, it must be the last one
                     if idx != sirCases.length - 1 then
-                        report.error(
-                          s"Wildcard case must be the last and only one in match expression",
-                          srcPos
+                        error(
+                          GenericError(
+                            s"Wildcard case must be the last and only one in match expression",
+                            srcPos
+                          ),
+                          ()
                         )
                     else
                         // Convert Wildcard to the rest of the cases/constructors
@@ -804,15 +803,21 @@ final class SIRCompiler(mode: scalus.Mode)(using ctx: Context) {
                             expandedCases += constructCase(constr, bindings, rhs)
                             matchedConstructors += constr // collect all matched constructors
                         }
-                case SirCase.Error(msg, srcPos) => report.error(msg, srcPos)
+                case SirCase.Error(err) => error(err, ())
 
             idx += 1
         end while
         // Ensure we cover all constructors
         val missingConstructors = allConstructors -- matchedConstructors
         if missingConstructors.nonEmpty then
-            val missing = missingConstructors.map(_.name).toBuffer.sorted.mkString(", ")
-            report.error(s"Missing cases for constructors: ${missing}", matchTree.srcPos)
+            error(
+              MissingConstructors(
+                adtInfo,
+                missingConstructors,
+                tree.srcPos
+              ),
+              ()
+            )
 
         // Sort the cases by constructor name to ensure we have a deterministic order
         val sortedCases = expandedCases.sortBy(_.constr.name).toList
@@ -825,9 +830,7 @@ final class SIRCompiler(mode: scalus.Mode)(using ctx: Context) {
                 SIR.Apply(SIR.Builtin(DefaultFun.FstPair), compileExpr(env, pair))
             case "snd" =>
                 SIR.Apply(SIR.Builtin(DefaultFun.SndPair), compileExpr(env, pair))
-            case _ =>
-                report.error(s"compileExpr: Unsupported pair function: $fun", tree.srcPos)
-                SIR.Error(s"Unsupported pair function: $fun")
+            case _ => error(UnsupportedPairFunction(fun.toString, tree.srcPos), SIR.Error(""))
 
     private def compileBuiltinPairConstructor(
         env: Env,
@@ -849,13 +852,20 @@ final class SIRCompiler(mode: scalus.Mode)(using ctx: Context) {
               compileExpr(env, b)
             )
         else
-            val msg = s"""Builtin Pair can only be created either by 2 literals or 2 Data variables:
-                   |Pair[${tpe1.tpe.show},${tpe2.tpe.show}](${a.show}, ${b.show})
-                   |- ${a.show} literal: ${a.isLiteral}, data: ${a.isData}
-                   |- ${b.show} literal: ${b.isLiteral}, data: ${b.isData}
-                   |""".stripMargin
-            report.error(msg, tree.srcPos)
-            SIR.Error(msg)
+            error(
+              PairConstructionError(
+                a,
+                tpe1,
+                a.isLiteral,
+                a.isData,
+                b,
+                tpe2,
+                b.isLiteral,
+                b.isData,
+                tree.srcPos
+              ),
+              SIR.Error("")
+            )
 
     private def compileBuiltinListMethods(env: Env, lst: Tree, fun: Name): SIR =
         fun.show match
@@ -866,19 +876,16 @@ final class SIRCompiler(mode: scalus.Mode)(using ctx: Context) {
             case "isEmpty" =>
                 SIR.Apply(SIR.Builtin(DefaultFun.NullList), compileExpr(env, lst))
             case _ =>
-                report.error(
-                  s"compileExpr: Unsupported list method $fun. Only head, tail and isEmpty are supported"
-                )
-                SIR.Error(s"Unsupported list method $fun")
+                error(UnsupportedListFunction(fun.toString, lst.srcPos), SIR.Error(""))
 
     private def compileBuiltinListConstructor(
         env: Env,
         ex: Tree,
         list: Tree,
         tpe: Tree,
-        srcPos: SrcPos
+        tree: Tree
     ): SIR =
-        val tpeE = typeReprToDefaultUni(tpe.tpe, list.srcPos)
+        val tpeE = typeReprToDefaultUni(tpe.tpe, list)
         ex match
             case SeqLiteral(args, _) =>
                 val allLiterals = args.forall(arg => compileConstant.isDefinedAt(arg))
@@ -894,8 +901,7 @@ final class SIRCompiler(mode: scalus.Mode)(using ctx: Context) {
                         )
                     }
             case _ =>
-                report.error(s"compileExpr: List is not supported yet ${ex}", srcPos)
-                SIR.Error("List is not supported")
+                error(UnsupportedListApplyInvocation(tree, tpe, tree.srcPos), SIR.Error(""))
 
     private def compileApply(env: Env, f: Tree, args: List[Tree]): SIR =
         val fE = compileExpr(env, f)
@@ -916,162 +922,172 @@ final class SIRCompiler(mode: scalus.Mode)(using ctx: Context) {
         if compileConstant.isDefinedAt(tree) then
             val const = compileConstant(tree)
             SIR.Const(const)
-        else
-            tree match
-                case If(cond, t, f) =>
-                    SIR.IfThenElse(compileExpr(env, cond), compileExpr(env, t), compileExpr(env, f))
-                case m: Match => compileMatch(m, env)
-                // throw new Exception("error msg")
-                // Supports any exception type that uses first argument as message
-                case Apply(Ident(nme.throw_), immutable.List(ex)) => compileThrowException(ex)
-                /* Handle PlatformSpecific builtins
+        else compileExpr2(env, tree)
+    }
+
+    private def compileExpr2(env: Env, tree: Tree)(using Context): SIR = {
+        tree match
+            case If(cond, t, f) =>
+                SIR.IfThenElse(compileExpr(env, cond), compileExpr(env, t), compileExpr(env, f))
+            case m: Match => compileMatch(m, env)
+            // throw new Exception("error msg")
+            // Supports any exception type that uses first argument as message
+            case Apply(Ident(nme.throw_), immutable.List(ex)) => compileThrowException(ex)
+            /* Handle PlatformSpecific builtins
            Builtins.sha2_256(using PlatformSpecific)(msg: ByteString): ByteString
            So we just ignore this PlatformSpecific argument and compile the rest
-                 */
-                case Apply(builtin, immutable.List(ps))
-                    // NOTE: check ps.tpe is not Nothing, as Nothing is a subtype of everything
-                    if ps.tpe <:< PlatformSpecificClassSymbol.typeRef && !(ps.tpe =:= NothingSymbol.typeRef) =>
-                    compileExpr(env, builtin)
-                // Boolean
-                case Select(lhs, op) if lhs.tpe.widen =:= defn.BooleanType && op == nme.UNARY_! =>
-                    val lhsExpr = compileExpr(env, lhs)
-                    SIR.Not(lhsExpr)
-                case Apply(Select(lhs, op), List(rhs))
-                    if lhs.tpe.widen =:= defn.BooleanType && op == nme.ZAND =>
-                    val lhsExpr = compileExpr(env, lhs)
-                    val rhsExpr = compileExpr(env, rhs)
-                    SIR.And(lhsExpr, rhsExpr)
-                case Apply(Select(lhs, op), List(rhs))
-                    if lhs.tpe.widen =:= defn.BooleanType && op == nme.ZOR =>
-                    val lhsExpr = compileExpr(env, lhs)
-                    val rhsExpr = compileExpr(env, rhs)
-                    SIR.Or(lhsExpr, rhsExpr)
-                // BUILTINS
-                case bi: Select if builtinsHelper.builtinFun(bi.symbol).isDefined =>
-                    builtinsHelper.builtinFun(bi.symbol).get
-                case bi: Ident if builtinsHelper.builtinFun(bi.symbol).isDefined =>
-                    builtinsHelper.builtinFun(bi.symbol).get
-                // BigInt stuff
-                case Apply(Select(lhs, op), List(rhs))
-                    if lhs.tpe.widen =:= converter.BigIntClassSymbol.typeRef =>
-                    compileBigIntOps(env, lhs, op, rhs)
-                case Select(expr, op)
-                    if expr.tpe.widen =:= converter.BigIntClassSymbol.typeRef && op == nme.UNARY_- =>
-                    SIR.Apply(
-                      SIR.Apply(
-                        SIR.Builtin(DefaultFun.SubtractInteger),
-                        SIR.Const(scalus.uplc.Constant.Integer(BigInt(0)))
-                      ),
-                      compileExpr(env, expr)
-                    )
-                // List BUILTINS
-                case Select(lst, fun) if lst.isList => compileBuiltinListMethods(env, lst, fun)
-                case tree @ TypeApply(Select(list, name), immutable.List(tpe))
-                    if name == termName("empty") && list.tpe =:= requiredModule(
-                      "scalus.builtins.List"
-                    ).typeRef =>
-                    val tpeE = typeReprToDefaultUni(tpe.tpe, tree.srcPos)
-                    SIR.Const(scalus.uplc.Constant.List(tpeE, Nil))
-                case Apply(
-                      TypeApply(Select(list, name), immutable.List(tpe)),
-                      immutable.List(arg)
-                    ) if name == termName("::") && list.isList =>
-                    val argE = compileExpr(env, arg)
-                    SIR.Apply(
-                      SIR.Apply(SIR.Builtin(DefaultFun.MkCons), argE),
-                      compileExpr(env, list)
-                    )
-                case tree @ Apply(
-                      TypeApply(Select(list, nme.apply), immutable.List(tpe)),
-                      immutable.List(ex)
-                    ) if list.tpe =:= requiredModule("scalus.builtins.List").typeRef =>
-                    compileBuiltinListConstructor(env, ex, list, tpe, tree.srcPos)
-                // Pair BUILTINS
-                // PAIR
-                case Select(pair, fun) if pair.isPair =>
-                    compileBuiltinPairMethods(env, fun, pair, tree)
-                case Apply(
-                      TypeApply(Select(pair, nme.apply), immutable.List(tpe1, tpe2)),
-                      immutable.List(a, b)
-                    ) if pair.tpe =:= requiredModule("scalus.builtins.Pair").typeRef =>
-                    compileBuiltinPairConstructor(env, a, b, tpe1, tpe2, tree)
-                // new Constr(args)
-                case Apply(TypeApply(con @ Select(f, nme.CONSTRUCTOR), _), args) =>
-                    compileNewConstructor(env, f.tpe, args)
-                case Apply(con @ Select(f, nme.CONSTRUCTOR), args) =>
-                    compileNewConstructor(env, f.tpe, args)
-                // (a, b) as scala.Tuple2.apply(a, b)
-                // we need to special-case it because we use scala-library 2.13.x
-                // which does not include TASTy so we can't access the method body
-                case Apply(TypeApply(app @ Select(f, nme.apply), _), args)
-                    if app.symbol.fullName.show == "scala.Tuple2$.apply" =>
-                    compileNewConstructor(env, tree.tpe, args)
-                case Apply(app @ Select(f, nme.apply), args)
-                    if app.symbol.fullName.show == "scala.Tuple2$.apply" =>
-                    compileNewConstructor(env, tree.tpe, args)
-                // f.apply(arg) => Apply(f, arg)
-                case Apply(Select(f, nme.apply), args) if defn.isFunctionType(f.tpe.widen) =>
-                    compileApply(env, f, args)
-                case Ident(a) =>
-                    if isConstructorVal(tree.symbol, tree.tpe) then
-                        compileNewConstructor(env, tree.tpe, Nil)
-                    else compileIdentOrQualifiedSelect(env, tree)
-                // case class User(name: String, age: Int)
-                // val user = User("John", 42) => \u - u "John" 42
-                // user.name => \u name age -> name
-                case sel @ Select(obj, ident) =>
-                    /* report.echo(
+             */
+            case Apply(builtin, immutable.List(ps))
+                // NOTE: check ps.tpe is not Nothing, as Nothing is a subtype of everything
+                if ps.tpe <:< PlatformSpecificClassSymbol.typeRef && !(ps.tpe =:= NothingSymbol.typeRef) =>
+                compileExpr(env, builtin)
+            // Boolean
+            case Select(lhs, op) if lhs.tpe.widen =:= defn.BooleanType && op == nme.UNARY_! =>
+                val lhsExpr = compileExpr(env, lhs)
+                SIR.Not(lhsExpr)
+            case Apply(Select(lhs, op), List(rhs))
+                if lhs.tpe.widen =:= defn.BooleanType && op == nme.ZAND =>
+                val lhsExpr = compileExpr(env, lhs)
+                val rhsExpr = compileExpr(env, rhs)
+                SIR.And(lhsExpr, rhsExpr)
+            case Apply(Select(lhs, op), List(rhs))
+                if lhs.tpe.widen =:= defn.BooleanType && op == nme.ZOR =>
+                val lhsExpr = compileExpr(env, lhs)
+                val rhsExpr = compileExpr(env, rhs)
+                SIR.Or(lhsExpr, rhsExpr)
+            // BUILTINS
+            case bi: Select if builtinsHelper.builtinFun(bi.symbol).isDefined =>
+                builtinsHelper.builtinFun(bi.symbol).get
+            case bi: Ident if builtinsHelper.builtinFun(bi.symbol).isDefined =>
+                builtinsHelper.builtinFun(bi.symbol).get
+            // BigInt stuff
+            case Apply(optree @ Select(lhs, op), List(rhs))
+                if lhs.tpe.widen =:= converter.BigIntClassSymbol.typeRef =>
+                compileBigIntOps(env, lhs, op, rhs, optree)
+            case Select(expr, op)
+                if expr.tpe.widen =:= converter.BigIntClassSymbol.typeRef && op == nme.UNARY_- =>
+                SIR.Apply(
+                  SIR.Apply(
+                    SIR.Builtin(DefaultFun.SubtractInteger),
+                    SIR.Const(scalus.uplc.Constant.Integer(BigInt(0)))
+                  ),
+                  compileExpr(env, expr)
+                )
+            // List BUILTINS
+            case Select(lst, fun) if lst.isList => compileBuiltinListMethods(env, lst, fun)
+            case tree @ TypeApply(Select(list, name), immutable.List(tpe))
+                if name == termName("empty") && list.tpe =:= requiredModule(
+                  "scalus.builtins.List"
+                ).typeRef =>
+                val tpeE = typeReprToDefaultUni(tpe.tpe, tree)
+                SIR.Const(scalus.uplc.Constant.List(tpeE, Nil))
+            case Apply(
+                  TypeApply(Select(list, name), immutable.List(tpe)),
+                  immutable.List(arg)
+                ) if name == termName("::") && list.isList =>
+                val argE = compileExpr(env, arg)
+                SIR.Apply(
+                  SIR.Apply(SIR.Builtin(DefaultFun.MkCons), argE),
+                  compileExpr(env, list)
+                )
+            case tree @ Apply(
+                  TypeApply(Select(list, nme.apply), immutable.List(tpe)),
+                  immutable.List(ex)
+                ) if list.tpe =:= requiredModule("scalus.builtins.List").typeRef =>
+                compileBuiltinListConstructor(env, ex, list, tpe, tree)
+            // Pair BUILTINS
+            // PAIR
+            case Select(pair, fun) if pair.isPair =>
+                compileBuiltinPairMethods(env, fun, pair, tree)
+            case Apply(
+                  TypeApply(Select(pair, nme.apply), immutable.List(tpe1, tpe2)),
+                  immutable.List(a, b)
+                ) if pair.tpe =:= requiredModule("scalus.builtins.Pair").typeRef =>
+                compileBuiltinPairConstructor(env, a, b, tpe1, tpe2, tree)
+            // new Constr(args)
+            case Apply(TypeApply(con @ Select(f, nme.CONSTRUCTOR), _), args) =>
+                compileNewConstructor(env, f.tpe, args)
+            case Apply(con @ Select(f, nme.CONSTRUCTOR), args) =>
+                compileNewConstructor(env, f.tpe, args)
+            // (a, b) as scala.Tuple2.apply(a, b)
+            // we need to special-case it because we use scala-library 2.13.x
+            // which does not include TASTy so we can't access the method body
+            case Apply(TypeApply(app @ Select(f, nme.apply), _), args)
+                if app.symbol.fullName.show == "scala.Tuple2$.apply" =>
+                compileNewConstructor(env, tree.tpe, args)
+            case Apply(app @ Select(f, nme.apply), args)
+                if app.symbol.fullName.show == "scala.Tuple2$.apply" =>
+                compileNewConstructor(env, tree.tpe, args)
+            // f.apply(arg) => Apply(f, arg)
+            case Apply(Select(f, nme.apply), args) if defn.isFunctionType(f.tpe.widen) =>
+                compileApply(env, f, args)
+            case Ident(a) =>
+                if isConstructorVal(tree.symbol, tree.tpe) then
+                    compileNewConstructor(env, tree.tpe, Nil)
+                else compileIdentOrQualifiedSelect(env, tree)
+            // case class User(name: String, age: Int)
+            // val user = User("John", 42) => \u - u "John" 42
+            // user.name => \u name age -> name
+            case sel @ Select(obj, ident) =>
+                /* report.echo(
             s"select: Select: ${sel.show}: ${obj.tpe.widen.show} . ${ident}, isList: ${obj.isList}",
             sel.srcPos
           ) */
-                    val ts = obj.tpe.widen.dealias.typeSymbol
-                    lazy val fieldIdx = ts.caseFields.indexOf(sel.symbol)
-                    if ts.isClass && fieldIdx >= 0 then
-                        val lhs = compileExpr(env, obj)
-                        val lam = primaryConstructorParams(ts).foldRight(SIR.Var(ident.show)) {
-                            case (f, acc) =>
-                                SIR.LamAbs(f.name.show, acc)
-                        }
-                        SIR.Apply(lhs, lam)
-                    // else if obj.symbol.isPackageDef then
-                    // compileExpr(env, obj)
-                    else if isConstructorVal(tree.symbol, tree.tpe) then
-                        compileNewConstructor(env, tree.tpe, Nil)
-                    else compileIdentOrQualifiedSelect(env, tree)
-                // ignore asInstanceOf
-                case TypeApply(Select(e, nme.asInstanceOf_), _) => compileExpr(env, e)
-                // Ignore type application
-                case TypeApply(f, args) => compileExpr(env, f)
-                // Generic Apply
-                case Apply(f, args) => compileApply(env, f, args)
-                // (x: T) => body
-                case Block(
-                      immutable.List(dd @ DefDef(nme.ANON_FUN, _, _, _)),
-                      Closure(_, Ident(nme.ANON_FUN), _)
-                    ) =>
-                    compileStmt(env, dd).get.body
-                case Block(stmt, expr) => compileBlock(env, stmt, expr)
-                case Typed(expr, _)    => compileExpr(env, expr)
-                case Inlined(_, bindings, expr) =>
-                    val r = compileBlock(env, bindings, expr)
-                    // val t = r.asTerm.show
-                    // report.info(s"Inlined: ${bindings}, ${expr.show}\n${t}", Position(SourceFile.current, globalPosition, 0))
-                    r
-                case Return(_, _) =>
-                    report.error(s"return expression is not supported: ${tree.show}", tree.srcPos)
-                    SIR.Error("Unsupported return statement")
-                case Assign(lhs, rhs) =>
-                    report.error(s"Variable assignment is not supported: ${tree.show}", tree.srcPos)
-                    SIR.Error("Unsupported assign expression")
-                case Try(_, _, _) =>
-                    report.error(s"try expression is not supported: ${tree.show}", tree.srcPos)
-                    SIR.Error("Unsupported try expression")
-                case WhileDo(cond, body) =>
-                    report.error(s"while statement is not supported: ${tree.show}", tree.srcPos)
-                    SIR.Error("Unsupported while expression")
-                case x =>
-                    report.error(s"Unsupported expression: ${x.show}\n$x", x.srcPos)
-                    SIR.Error("Unsupported expression")
+                val ts = obj.tpe.widen.dealias.typeSymbol
+                lazy val fieldIdx = ts.caseFields.indexOf(sel.symbol)
+                if ts.isClass && fieldIdx >= 0 then
+                    val lhs = compileExpr(env, obj)
+                    val lam = primaryConstructorParams(ts).foldRight(SIR.Var(ident.show)) {
+                        case (f, acc) =>
+                            SIR.LamAbs(f.name.show, acc)
+                    }
+                    SIR.Apply(lhs, lam)
+                // else if obj.symbol.isPackageDef then
+                // compileExpr(env, obj)
+                else if isConstructorVal(tree.symbol, tree.tpe) then
+                    compileNewConstructor(env, tree.tpe, Nil)
+                else compileIdentOrQualifiedSelect(env, tree)
+            // ignore asInstanceOf
+            case TypeApply(Select(e, nme.asInstanceOf_), _) => compileExpr(env, e)
+            // Ignore type application
+            case TypeApply(f, args) => compileExpr(env, f)
+            // Generic Apply
+            case Apply(f, args) => compileApply(env, f, args)
+            // (x: T) => body
+            case Block(
+                  immutable.List(dd @ DefDef(nme.ANON_FUN, _, _, _)),
+                  Closure(_, Ident(nme.ANON_FUN), _)
+                ) =>
+                compileStmt(env, dd).get.body
+            case Block(stmt, expr) => compileBlock(env, stmt, expr)
+            case Typed(expr, _)    => compileExpr(env, expr)
+            case Inlined(_, bindings, expr) =>
+                val r = compileBlock(env, bindings, expr)
+                // val t = r.asTerm.show
+                // report.info(s"Inlined: ${bindings}, ${expr.show}\n${t}", Position(SourceFile.current, globalPosition, 0))
+                r
+            case Return(expr, _) =>
+                error(ReturnNotSupported(expr, tree.srcPos), SIR.Error("Return not supported"))
+            case Assign(lhs, rhs) =>
+                error(
+                  ExpressionNotSupported("Variable assignment", tree.srcPos),
+                  SIR.Error("Unsupported assign expression")
+                )
+            case Try(_, _, _) =>
+                error(
+                  ExpressionNotSupported("'try-catch-finally'", tree.srcPos),
+                  SIR.Error("Unsupported try expression")
+                )
+            case WhileDo(cond, body) =>
+                error(
+                  ExpressionNotSupported("'while' expression", tree.srcPos),
+                  SIR.Error("Unsupported while expression")
+                )
+            case x =>
+                error(
+                  ExpressionNotSupported(x.show, tree.srcPos),
+                  SIR.Error("Unsupported expression")
+                )
     }
 
     def compileToSIR(tree: Tree)(using Context): SIR = {
@@ -1081,8 +1097,16 @@ final class SIRCompiler(mode: scalus.Mode)(using ctx: Context) {
             case (CompileDef.Compiled(b), acc) =>
                 SIR.Let(b.recursivity, List(Binding(b.fullName.name, b.body)), acc)
             case (d, acc) =>
-                report.error(s"Unexpected globalDefs state: $d\n$globalDefs", tree.srcPos)
-                SIR.Error("Unexpected globalDefs state")
+                error(
+                  GenericError(
+                    s"""Unexpected globalDefs state: $d
+                  |$globalDefs
+                  |It's likely a Scalus bug. Please, report it via GitHub Issues or Discord
+                  |""".stripMargin,
+                    tree.srcPos
+                  ),
+                  SIR.Error("")
+                )
 
         }
         val dataDecls = globalDataDecls.foldRight(full) { case ((_, decl), acc) =>
