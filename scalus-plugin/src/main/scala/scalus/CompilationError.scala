@@ -171,16 +171,37 @@ case class GuardsNotSupported(srcPos: SrcPos)(using Context) extends Compilation
            |""".stripMargin
 }
 
+case class UnsupportedTopLevelBind(name: String, srcPos: SrcPos)(using Context)
+    extends CompilationError {
+    def message: String =
+        s"""You can't bind names in top-level pattern-matching expression in Scalus scripts.
+           |Remove the '$name @' binding""".stripMargin
+}
+
+case class LiteralPattern(srcPos: SrcPos)(using Context) extends CompilationError {
+    def message: String =
+        s"""Literal patterns can't be used in Scalus scripts.
+           |Use a named binding instead""".stripMargin
+}
+
+case class UnsupportedBinding(name: String, srcPos: SrcPos)(using Context)
+    extends CompilationError {
+    def message: String =
+        s"""This type of binding of name '$name' is not supported in Scalus scripts.
+           |You can only bind names to constructor parameters, like 'case MyType(a, b@Inner(c)) => ...'.
+           |Remove the '$name @' binding""".stripMargin
+}
+
 case class UnsupportedMatchExpression(tree: Tree, srcPos: SrcPos)(using Context)
     extends CompilationError {
     def message: String =
-        s"""Unsupported pattern-matching expression
+        s"""Unsupported pattern-matching expression.
            |Try rewriting your program without using it""".stripMargin
 }
 
 case class VarNotSupported(vd: ValDef, srcPos: SrcPos)(using Context) extends CompilationError {
     def message: String =
-        s"""'var' keyword can't be used in Scalus scripts
+        s"""'var' keyword can't be used in Scalus scripts.
            |Try 'val ${vd.symbol.name} = ...' instead""".stripMargin
 }
 

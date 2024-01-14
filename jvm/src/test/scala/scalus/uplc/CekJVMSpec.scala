@@ -22,7 +22,6 @@ import scalus.uplc.TermDSL.{*, given}
 import scalus.utils.Utils
 import scodec.bits.ByteVector
 
-import java.security.SecureRandom
 import scala.io.Source.fromFile
 
 class CekJVMSpec extends BaseValidatorSpec:

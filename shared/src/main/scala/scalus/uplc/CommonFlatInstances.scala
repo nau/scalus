@@ -8,7 +8,7 @@ import scalus.flat.Flat
 import scalus.flat.given
 import scalus.uplc.DefaultFun.*
 
-object CommonFlatInstantces:
+object CommonFlatInstances:
     val constantWidth = 4
 
     given Flat[builtins.ByteString] with

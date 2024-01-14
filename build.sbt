@@ -61,7 +61,7 @@ lazy val scalusPlugin = project
             baseDir / "scalus/uplc/Data.scala",
             baseDir / "scalus/uplc/DefaultFun.scala",
             baseDir / "scalus/uplc/DefaultUni.scala",
-            baseDir / "scalus/uplc/CommonFlatInstantces.scala",
+            baseDir / "scalus/uplc/CommonFlatInstances.scala",
             baseDir / "scalus/flat/package.scala"
           )
           files
@@ -164,3 +164,8 @@ lazy val docs = project // documentation project
       ),
       PluginDependency
     )
+
+addCommandAlias(
+  "precommit",
+  "clean;scalafmtAll;scalafmtSbt;Test/compile;test;docs/mdoc"
+)
