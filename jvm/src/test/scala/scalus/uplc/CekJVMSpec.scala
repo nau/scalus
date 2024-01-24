@@ -62,10 +62,10 @@ class CekJVMSpec extends BaseValidatorSpec:
             // println(eval(code).pretty.render(80))
             assert(eval(code) == eval(expected))
 
-        check("builtin/addInteger/addInteger")
-        check("builtin/addInteger-uncurried/addInteger-uncurried")
-        check("builtin/equalsInteger/equalsInteger")
-        check("builtin/ifThenElse/ifThenElse1/ifThenElse1")
+        check("builtin/semantics/addInteger/addInteger1/addInteger1")
+        check("builtin/semantics/addInteger/addInteger-uncurried/addInteger-uncurried")
+        check("builtin/semantics/equalsInteger/equalsInteger1/equalsInteger1")
+        check("builtin/semantics/ifThenElse/ifThenElse-1/ifThenElse-1")
 
         // Examples
         check("example/factorial/factorial")
