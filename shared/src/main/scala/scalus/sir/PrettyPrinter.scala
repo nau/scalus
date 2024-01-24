@@ -5,15 +5,17 @@ import org.typelevel.paiges.Doc
 import org.typelevel.paiges.Style
 import scalus.*
 import scalus.uplc.Constant
+import scalus.uplc.Data
 import scalus.uplc.DefaultFun
 import scalus.uplc.DefaultUni
 import scalus.uplc.PlutusDataCborEncoder
 import scalus.utils.Utils
 
 object PrettyPrinter {
+    def inParens(d: Doc): Doc = Doc.char('(') + d + Doc.char(')')
     def pretty(df: DefaultFun): Doc = Doc.text(Utils.lowerFirst(df.toString))
 
-    def prettyValue(c: Constant): Doc =
+    def prettyValue(c: Constant, dataParens: Boolean = false): Doc =
         import Constant.*
         c match
             case Integer(value)    => Doc.text(value.toString)
@@ -21,20 +23,41 @@ object PrettyPrinter {
             case String(value)     => Doc.text("\"" + value + "\"")
             case Unit              => Doc.text("()")
             case Bool(value)       => Doc.text(if value then "True" else "False")
-            case Data(value) =>
-                implicit val encoder = PlutusDataCborEncoder
-                val byteArray = Cbor.encode(value).toByteArray
-                Doc.text("#" + Utils.bytesToHex(byteArray))
+            case Constant.Data(value) =>
+                if dataParens then inParens(pretty(value)) else pretty(value)
             case Pair(a, b) =>
-                Doc.text("(") + prettyValue(a) + Doc.text(", ") + prettyValue(b) + Doc.text(")")
+                inParens(prettyValue(a) + Doc.text(", ") + prettyValue(b))
             case List(tpe, values) =>
                 Doc.text("[") + Doc.intercalate(
                   Doc.text(", ") + Doc.space,
-                  values.map(prettyValue)
+                  values.map(v => prettyValue(v))
                 ) + Doc
                     .text("]")
 
-    def pretty(c: Constant): Doc = pretty(c.tpe) + Doc.space + prettyValue(c)
+    def pretty(d: Data): Doc =
+        d match
+            case Data.I(value) => Doc.text("I") + Doc.space + Doc.text(value.toString)
+            case Data.B(value) => Doc.text("B") + Doc.space + Doc.text("#" + value.toHex)
+            case Data.Constr(tag, args) =>
+                Doc.text("Constr") + Doc.space + Doc.text(tag.toString) + Doc.space +
+                    Doc.text("[") + Doc.intercalate(
+                      Doc.text(",") + Doc.space,
+                      args.map(pretty)
+                    ) + Doc.text("]")
+            case Data.List(values) =>
+                Doc.text("List") + Doc.space + Doc.text("[") + Doc.intercalate(
+                  Doc.text(",") + Doc.space,
+                  values.map(pretty)
+                ) + Doc.text("]")
+            case Data.Map(entries) =>
+                Doc.text("Map") + Doc.space + Doc.text("[") + Doc.intercalate(
+                  Doc.text(",") + Doc.space,
+                  entries.map { case (k, v) =>
+                      inParens(pretty(k) + Doc.text(",") + Doc.space + pretty(v))
+                  }
+                ) + Doc.text("]")
+
+    def pretty(c: Constant): Doc = pretty(c.tpe) + Doc.space + prettyValue(c, true)
 
     def pretty(du: DefaultUni): Doc = du match
         case DefaultUni.Integer    => Doc.text("integer")
@@ -43,12 +66,9 @@ object PrettyPrinter {
         case DefaultUni.Unit       => Doc.text("unit")
         case DefaultUni.Bool       => Doc.text("bool")
         case DefaultUni.Apply(DefaultUni.ProtoList, arg) =>
-            Doc.text("(") + Doc.text("list") + Doc.space + pretty(arg) + Doc.text(")")
+            inParens(Doc.text("list") + Doc.space + pretty(arg))
         case DefaultUni.Apply(DefaultUni.Apply(DefaultUni.ProtoPair, a), b) =>
-            Doc.text("(") + Doc.text("pair") + Doc.space + pretty(a) + Doc.space + pretty(b) + Doc
-                .text(
-                  ")"
-                )
+            inParens(Doc.text("pair") + Doc.space + pretty(a) + Doc.space + pretty(b))
         case DefaultUni.Data => Doc.text("data")
         case _               => sys.error(s"Unexpected default uni: $du")
 

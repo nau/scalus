@@ -99,8 +99,7 @@ trait ArbitraryInstances:
             val simple = Gen.oneOf(
               DefaultUni.Bool,
               DefaultUni.ByteString,
-              // don't generate Data, because current Plutus uplc doesn't support its parsing
-//        DefaultUni.Data,
+              DefaultUni.Data,
               DefaultUni.Integer,
               // FIXME: don't generate strings because we don't handle Haskell style escapes
               // and we get errors parsing results of calling uplc on generated terms
@@ -130,8 +129,6 @@ trait ArbitraryInstances:
                     n <- Gen.choose(0, 10)
                     elems <- Gen.listOfN(n, arbConstantByType(arg))
                 yield Constant.List(arg, elems)
-            // don't generate data for now, Plutus doesn't support it yet
-            //        case DefaultUni.Data          => ???
             case DefaultUni.Apply(DefaultUni.Apply(ProtoPair, a), b) =>
                 for
                     vala <- arbConstantByType(a)

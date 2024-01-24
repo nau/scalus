@@ -9,7 +9,7 @@
       # flake = false;
     # };
     # cardano-node.url = "github:input-output-hk/cardano-node/1.35.7";
-    plutus.url = "github:input-output-hk/plutus/914b7f3108362cfa925810af8082d2ad5564c7b2";
+    plutus.url = "github:input-output-hk/plutus/e2cbee0d31da1b2dfa42cc76fb112dc69fa06798";
     /* gitignore-nix = {
       url = "github:hercules-ci/gitignore.nix";
       inputs.nixpkgs.follows = "nixpkgs";
@@ -37,6 +37,8 @@
       rec {
         devShell = pkgs.mkShell {
           JAVA_OPTS="-Xmx2g -XX:+UseG1GC";
+          # This fixes bash prompt/autocomplete issues with subshells (i.e. in VSCode) under `nix develop`/direnv
+          buildInputs = [ pkgs.bashInteractive ];
           packages = with pkgs; [
             git
             openjdk11

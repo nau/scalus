@@ -5,6 +5,7 @@ import org.scalatest.funsuite.AnyFunSuite
 import org.scalatestplus.scalacheck.ScalaCheckPropertyChecks
 import scalus.*
 import scalus.builtins
+import scalus.builtins.ByteString.StringInterpolators
 import scalus.uplc.Constant.given
 import scalus.uplc.DefaultUni.Bool
 import scalus.uplc.DefaultUni.ByteString
@@ -12,7 +13,7 @@ import scalus.uplc.DefaultUni.Integer
 import scalus.uplc.DefaultUni.ProtoList
 import scalus.uplc.DefaultUni.ProtoPair
 import scalus.uplc.Term.*
-import scalus.uplc.TermDSL.{_, given}
+import scalus.uplc.TermDSL.{*, given}
 
 class UplcParserSpec extends AnyFunSuite with ScalaCheckPropertyChecks with ArbitraryInstances:
     val parser = UplcParser
@@ -105,6 +106,13 @@ class UplcParserSpec extends AnyFunSuite with ScalaCheckPropertyChecks with Arbi
         assert(p("unit") == Right(DefaultUni.Unit))
     }
 
+    test("Parse data") {
+        def p(input: String) = parser.dataTerm.parse(input).map(_._2).left.map(e => e.show)
+        assert(p("B #  ") == Right(Data.B(scalus.builtins.ByteString.empty)))
+        assert(p("I 123 ") == Right(Data.I(123)))
+        assert(p("Constr 0 [Constr 1 []] ") == Right(Data.Constr(0, List(Data.Constr(1, Nil)))))
+    }
+
     test("Parse constants") {
         import cats.implicits.toShow
         def p(input: String) = parser.conTerm.parse(input).map(_._2).left.map(e => e.show)
@@ -114,6 +122,19 @@ class UplcParserSpec extends AnyFunSuite with ScalaCheckPropertyChecks with Arbi
 
         assert(
           p("(con (pair integer bool) (12, False))") == Right((12, false): Term)
+        )
+
+        assert(
+          p(
+            "(con (pair integer (pair data data)) (9223372036854775807, (B #4104, I -1)))"
+          ) == Right(
+            Const(
+              Constant.Pair(
+                Constant.Integer(BigInt("9223372036854775807")),
+                Constant.Pair(Constant.Data(Data.B(hex"4104")), Constant.Data(Data.I(-1)))
+              )
+            )
+          )
         )
 
         val r = parser.parseProgram("""(program 1.0.0 [

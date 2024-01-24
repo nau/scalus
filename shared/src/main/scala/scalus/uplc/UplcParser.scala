@@ -19,6 +19,7 @@ object UplcParser:
         DefaultFun.values.map(v => Utils.lowerFirst(v.toString) -> v).toMap
 
     def number: P[Int] = digits.map(_.toList.mkString.toInt)
+    def long: P[Long] = digits.map(_.toList.mkString.toLong)
     def bigint: P[String] = Numbers.bigInt.map(_.toString)
     def inParens[A](p: P[A]): P[A] = p.between(symbol("("), symbol(")"))
     def inBrackets[A](p: P[A]): P[A] = p.between(symbol("["), symbol("]"))
@@ -72,7 +73,7 @@ object UplcParser:
         }
 
     def bytestring: P[ByteString] = P.char('#') *> hexByte.rep0.map(bs => ByteString(bs: _*))
-    def constantOf(t: DefaultUni): P[Constant] = t match
+    def constantOf(t: DefaultUni, expectDataParens: Boolean = false): P[Constant] = t match
         case DefaultUni.Integer => lexeme(bigInt).map(i => Constant.Integer(i))
         case DefaultUni.Unit    => symbol("()").map(_ => Constant.Unit)
         case DefaultUni.Bool =>
@@ -85,17 +86,31 @@ object UplcParser:
         case DefaultUni.String =>
             lexeme(string).map(s => asConstant(s)) // TODO validate escape sequences
         case DefaultUni.Data =>
-            given Decoder[Data] = PlutusDataCborDecoder
-            lexeme(
-              bytestring.map(bytes => asConstant(Cbor.decode(bytes.bytes).to[Data].value))
-            )
+            (if expectDataParens then inParens(dataTerm) else dataTerm).map(asConstant)
         case DefaultUni.Apply(ProtoList, t)                      => conListOf(t)
         case DefaultUni.Apply(DefaultUni.Apply(ProtoPair, a), b) => conPairOf(a, b)
         case _                                                   => sys.error("not implemented")
 
+    def dataTerm: P[Data] = P.recursive { self =>
+        def args: P[List[Data]] =
+            symbol("[") *> lexeme(self).repSep0(symbol(",")) <* symbol("]")
+        def dataConstr: P[Data] =
+            symbol("Constr") *> lexeme(long) ~ args map Data.Constr.apply
+
+        def dataList: P[Data] = symbol("List") *> args map Data.List.apply
+        def dataMap: P[Data] = symbol("Map") *>
+            symbol("[") *> dataPair.repSep0(symbol(",")) <* symbol("]") map Data.Map.apply
+
+        def dataB: P[Data] = symbol("B") *> lexeme(bytestring) map Data.B.apply
+        def dataI: P[Data] = symbol("I") *> lexeme(Numbers.bigInt) map Data.I.apply
+        def dataPair: P[(Data, Data)] = inParens((self <* symbol(",")) ~ self)
+
+        dataConstr | dataMap | dataList | dataB | dataI
+    }
+
     def constant: P[Constant] = for
         uni <- defaultUni
-        const <- constantOf(uni)
+        const <- constantOf(uni, expectDataParens = true)
     yield const
 
     def conTerm: P[Term] = inParens(symbol("con") *> constant).map(c => Const(c))
