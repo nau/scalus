@@ -53,9 +53,9 @@
             uplc
             # patchedUplc
           ];
-          # shellHook = ''
-          #   ln -s ${plutus}/plutus-conformance plutus-conformance
-          # '';
+          shellHook = ''
+             ln -s ${plutus}/plutus-conformance plutus-conformance
+          '';
         };
       })
     );
