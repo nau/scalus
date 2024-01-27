@@ -19,6 +19,13 @@ class JVMPlatformSpecific extends PlatformSpecific {
         val digestSHA3 = new SHA3.Digest256()
         ByteString.unsafeFromArray(digestSHA3.digest(bs.bytes))
 
+    override def blake2b_224(bs: ByteString): ByteString =
+        val digest = new Blake2bDigest(224)
+        digest.update(bs.bytes, 0, bs.bytes.length)
+        val hash = new Array[Byte](digest.getDigestSize)
+        digest.doFinal(hash, 0)
+        ByteString.unsafeFromArray(hash)
+
     override def blake2b_256(bs: ByteString): ByteString =
         val digest = new Blake2bDigest(256)
         digest.update(bs.bytes, 0, bs.bytes.length)

@@ -11,6 +11,7 @@ class JSPlatformSpecific extends PlatformSpecific {
         sig: ByteString
     ): Boolean = ???
 
+    override def blake2b_224(bs: ByteString): ByteString = ???
     override def blake2b_256(bs: ByteString): ByteString = ???
 
     override def verifyEd25519Signature(pk: ByteString, msg: ByteString, sig: ByteString): Boolean =

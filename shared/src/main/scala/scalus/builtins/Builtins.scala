@@ -5,6 +5,7 @@ import scalus.uplc.Data
 trait PlatformSpecific:
     def sha2_256(bs: ByteString): ByteString
     def sha3_256(bs: ByteString): ByteString
+    def blake2b_224(bs: ByteString): ByteString
     def blake2b_256(bs: ByteString): ByteString
     def verifyEd25519Signature(pk: ByteString, msg: ByteString, sig: ByteString): Boolean
     def verifyEcdsaSecp256k1Signature(pk: ByteString, msg: ByteString, sig: ByteString): Boolean
