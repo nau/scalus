@@ -1,23 +1,13 @@
 package scalus.uplc
 
-import org.scalacheck.Arbitrary
-import org.scalacheck.Gen
+import org.scalacheck.{Arbitrary, Gen, Shrink}
 import scalus.*
-import scalus.builtins
-import scalus.uplc.Data.B
-import scalus.uplc.Data.Constr
-import scalus.uplc.Data.I
-import scalus.uplc.Data.List
-import scalus.uplc.Data.Map
-import scalus.uplc.DefaultUni.Bool
-import scalus.uplc.DefaultUni.ByteString
-import scalus.uplc.DefaultUni.Integer
-import scalus.uplc.DefaultUni.ProtoList
-import scalus.uplc.DefaultUni.ProtoPair
+import scalus.builtins.ByteString
+import scalus.uplc.Data.{B, Constr, I, List, Map}
+import scalus.uplc.DefaultUni.{Bool, ByteString, Integer, ProtoList, ProtoPair}
 import scalus.uplc.Term.*
 
 import scala.collection.immutable
-import org.scalacheck.Shrink
 
 trait ArbitraryInstances:
 
@@ -48,12 +38,27 @@ trait ArbitraryInstances:
 
     given Shrink[Data] =
         Shrink {
-            case I(i) => Shrink.shrink(i).map(I.apply)
-            case B(b) => Shrink.shrink(b).map(B.apply)
+            case I(i) =>
+                if i == 0 then Stream.empty else Stream(I(i / 2))
+            case B(b) =>
+                if b.bytes.isEmpty then Stream.empty
+                else
+                    Stream(
+                      B(
+                        builtins.ByteString.unsafeFromArray(
+                          b.bytes.slice(0, b.bytes.length / 2)
+                        )
+                      )
+                    )
             case Constr(c, args) =>
-                Shrink.shrink(args).map(Constr(c, _))
-            case List(args) => Shrink.shrink(args).map(List.apply)
-            case Map(args)  => Shrink.shrink(args).map(Map.apply)
+                if args.isEmpty then Stream.empty
+                else Shrink.shrink(args).map(Constr(c, _))
+            case List(args) =>
+                if args.isEmpty then Stream.empty
+                else Shrink.shrink(args).map(List)
+            case Map(args) =>
+                if args.isEmpty then Stream.empty
+                else Shrink.shrink(args).map(Map)
         }
 
     implicit val arbData: Arbitrary[Data] = Arbitrary {
@@ -142,6 +147,24 @@ trait ArbitraryInstances:
           value <- arbConstantByType(a)
       yield value
     )
+
+    given Shrink[Constant] = Shrink {
+        case Constant.Integer(i) => Shrink.shrink(i).map(Constant.Integer.apply)
+        case Constant.ByteString(b) =>
+            Shrink.shrink(b).map(Constant.ByteString.apply)
+        case Constant.String(s) => Shrink.shrink(s).map(Constant.String.apply)
+        case Constant.Data(d)   => Shrink.shrink(d).map(Constant.Data.apply)
+        case Constant.Unit      => Stream.empty
+        case Constant.Bool(b)   => Stream.empty
+        case Constant.List(t, elems) =>
+            val elemsShrunk = Shrink.shrink(elems).map(Constant.List(t, _))
+            elemsShrunk
+        case Constant.Pair(a, b) =>
+            val aShrunk = Shrink.shrink(a).map(Constant.Pair(_, b))
+            val bShrunk = Shrink.shrink(b).map(Constant.Pair(a, _))
+            aShrunk ++ bShrunk
+    }
+
     implicit lazy val arbitraryTerm: Arbitrary[Term] = Arbitrary {
         val nameGen = for
             alpha <- Gen.alphaChar
@@ -188,13 +211,34 @@ trait ArbitraryInstances:
         Gen.sized(sizedTermGen(_, Nil))
     }
 
-    implicit lazy val arbitraryProgram: Arbitrary[Program] = Arbitrary {
+    given Shrink[Term] = Shrink {
+        case Term.Error        => Stream.empty
+        case Term.Builtin(_)   => Stream.empty
+        case Term.Const(const) => Shrink.shrink(const).map(Term.Const.apply)
+        case Term.Var(_)       => Stream.empty
+        case Term.Force(t)     => Shrink.shrink(t).map(Term.Force.apply)
+        case Term.Delay(t)     => Shrink.shrink(t).map(Term.Delay.apply)
+        case Term.LamAbs(n, t) =>
+            val tShrunk = Shrink.shrink(t).map(Term.LamAbs(n, _))
+            tShrunk
+        case Term.Apply(t1, t2) =>
+            val t1Shrunk = Shrink.shrink(t1).map(Term.Apply(_, t2))
+            val t2Shrunk = Shrink.shrink(t2).map(Term.Apply(t1, _))
+            t1Shrunk ++ t2Shrunk
+    }
+
+    given Arbitrary[Program] = Arbitrary {
         for
             maj <- Gen.posNum[Int]
             min <- Gen.posNum[Int]
             patch <- Gen.posNum[Int]
             term <- Arbitrary.arbitrary[Term]
         yield Program((maj, min, patch), term)
+    }
+
+    given Shrink[Program] = Shrink { case Program(v, t) =>
+        val tShrunk = Shrink.shrink(t).map(Program(v, _))
+        tShrunk
     }
 
     given arbList[A: Arbitrary]: Arbitrary[scalus.prelude.List[A]] = Arbitrary {
