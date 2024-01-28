@@ -23,6 +23,16 @@ enum Term:
     case Builtin(bn: DefaultFun) extends Term
     case Error extends Term
 
+    override def toString: String = this match
+        case Var(name)          => s"Var(NamedDeBruijn(\"${name.name}\"))"
+        case LamAbs(name, term) => s"LamAbs(\"$name\", $term)"
+        case Apply(f, arg)      => s"Apply($f, $arg)"
+        case Force(term)        => s"Force($term)"
+        case Delay(term)        => s"Delay($term)"
+        case Const(const)       => s"Const($const)"
+        case Builtin(bn)        => s"Builtin($bn)"
+        case Error              => "Error"
+
     def pretty: Doc = this match
         case Var(name) => Doc.text(name.name)
         case LamAbs(name, term) =>
