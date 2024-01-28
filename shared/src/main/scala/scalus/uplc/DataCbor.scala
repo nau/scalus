@@ -1,20 +1,13 @@
 package scalus.uplc
-import io.bullet.borer.Decoder
-import io.bullet.borer.Encoder
-import io.bullet.borer.Reader
-import io.bullet.borer.Tag.NegativeBigNum
-import io.bullet.borer.Tag.Other
-import io.bullet.borer.Tag.PositiveBigNum
-import io.bullet.borer.Writer
+import io.bullet.borer.Tag.{NegativeBigNum, Other, PositiveBigNum}
 import io.bullet.borer.encodings.BaseEncoding
-import io.bullet.borer.{DataItem => DI}
+import io.bullet.borer.{ByteAccess, DataItem as DI, Decoder, Encoder, Reader, Writer}
 import scalus.builtins.ByteString
-import scalus.uplc.Data.B
-import scalus.uplc.Data.Constr
-import scalus.uplc.Data.I
-import scalus.uplc.Data.Map
-import scala.collection.mutable.ArrayBuffer
-import io.bullet.borer.ByteAccess
+import scalus.uplc.Data.{B, Constr, I, Map}
+
+import scala.annotation.tailrec
+import scala.collection.mutable
+import scala.collection.mutable.{ArrayBuffer, ListBuffer}
 
 object PlutusDataCborEncoder extends Encoder[Data]:
     override def write(writer: Writer, data: Data): Writer =
@@ -31,6 +24,7 @@ object PlutusDataCborEncoder extends Encoder[Data]:
                 writer.writeArrayHeader(2)
                 writer.writeLong(constr)
                 writer.writeLinearSeq(args)
+            case Map(values)       => writeMap(writer, values)
             case Map(values)       => writer.writeMap(values.toMap)
             case Data.List(values) => writer.writeLinearSeq(values)
             case I(value)          => writer.write(value)
@@ -42,6 +36,23 @@ object PlutusDataCborEncoder extends Encoder[Data]:
                         if bytes.length <= 64 then List(bytes)
                         else bytes.take(64) :: to64ByteChunks(bytes.drop(64))
                     writer.writeBytesIterator(to64ByteChunks(value.bytes).iterator)
+    /*
+     * Cardano stores maps as a list of key-value pairs
+     * Note, that it allows duplicate keys!
+     * This is why we don't use the `writeMap` method from `Writer` here
+     */
+    def writeMap[A: Encoder, B: Encoder](writer: Writer, x: Iterable[(A, B)]): Writer =
+        if (x.nonEmpty)
+            val iterator = x.iterator
+            def writeEntries(): Unit =
+                while (iterator.hasNext)
+                    val (k, v) = iterator.next()
+                    writer.write(k)
+                    writer.write(v)
+            writer.writeMapHeader(x.size)
+            writeEntries()
+        else writer.writeEmptyMap()
+        writer
 
 object PlutusDataCborDecoder extends Decoder[Data]:
 
@@ -59,7 +70,7 @@ object PlutusDataCborDecoder extends Decoder[Data]:
 
         r.dataItem() match
             case DI.Int | DI.Long | DI.OverLong => I(Decoder.forBigInt.read(r))
-            case DI.MapHeader                   => Map(Decoder.forMap[Data, Data].read(r).toList)
+            case DI.MapHeader                   => Map(readMap.read(r))
             case DI.ArrayStart | DI.ArrayHeader => Data.List(Decoder.forArray[Data].read(r).toList)
             case DI.Bytes =>
                 B(
@@ -92,3 +103,28 @@ object PlutusDataCborDecoder extends Decoder[Data]:
                     case _              => sys.error("Unsupported") // TODO proper exception
             case i =>
                 sys.error(s"Unsupported data item $i ${DI.stringify(i)}") // TODO proper exception
+
+    /*
+     * Cardano stores maps as a list of key-value pairs
+     * Note, that it allows duplicate keys!
+     * This is why we don't use the `readMap` method from `Reader` here
+     */
+    def readMap[A: Decoder, B: Decoder]: Decoder[List[(A, B)]] =
+        Decoder { r =>
+            if (r.hasMapHeader)
+                @tailrec def rec(remaining: Int, map: ListBuffer[(A, B)]): ListBuffer[(A, B)] =
+                    if (remaining > 0) rec(remaining - 1, map.append((r[A], r[B])))
+                    else map
+
+                val size = r.readMapHeader()
+                if (size <= Int.MaxValue) rec(size.toInt, ListBuffer.empty).toList
+                else r.overflow(s"Cannot deserialize Map with size $size (> Int.MaxValue)")
+            else if (r.hasMapStart)
+                r.readMapStart()
+
+                @tailrec def rec(map: ListBuffer[(A, B)]): ListBuffer[(A, B)] =
+                    if (r.tryReadBreak()) map else rec(map.append((r[A], r[B])))
+
+                rec(ListBuffer.empty).toList
+            else r.unexpectedDataItem(expected = "Map")
+        }

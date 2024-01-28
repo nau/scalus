@@ -6,8 +6,11 @@ import io.bullet.borer.Encoder
 import org.scalatest.funsuite.AnyFunSuite
 import org.scalatestplus.scalacheck.ScalaCheckPropertyChecks
 import scalus.builtins
+import scalus.builtins.ByteString.StringInterpolators
 import scalus.uplc.Data.*
 import scalus.utils.Utils
+
+import scala.collection.immutable
 
 class DataCborCodecSpec extends AnyFunSuite with ScalaCheckPropertyChecks with ArbitraryInstances:
 
@@ -91,4 +94,32 @@ class DataCborCodecSpec extends AnyFunSuite with ScalaCheckPropertyChecks with A
             builtins.ByteString.unsafeFromArray(longBs.getBytes)
           )
         )
+    }
+
+    test("Map can have duplicate keys") {
+        val data =
+            Map(
+              immutable.List(
+                (
+                  Map(
+                    immutable.List(
+                      (
+                        Map(Nil),
+                        B(
+                          hex"95800C7F4D004080660000DEC201FFD1FF01FF9D00CE9058267FA001807F62BD7F7F80BAFFBCCF567FFFBB06FF9B7F4EFF39807FC7010B0001FFCA00D0C1F8"
+                        )
+                      ),
+                      (
+                        Map(Nil),
+                        B(hex"4F0138E6010000B2017F7F01DE01")
+                      )
+                    )
+                  ),
+                  B(
+                    hex"6A017FD28A7F007FFF80009CB6997F8BBCB2F080FF97FF0ECA0A0142FFFF007F808480FFBD6C5E606580AB6101FFFFFBA13B7F7F0101DBFFFF62"
+                  )
+                )
+              )
+            )
+        roundtrip(data)
     }
