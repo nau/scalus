@@ -406,6 +406,16 @@ final class SIRCompiler(mode: scalus.Mode)(using ctx: Context) {
         if vd.symbol.flags.is(Flags.Mutable) then
             error(VarNotSupported(vd, vd.srcPos), None)
             None
+        /*
+            lazy vals are not supported
+            but we use givens for To/FromData instances
+            which are compiled as final lazy vals
+            Those are supported. They have the Given flag.
+            Thus, we need to ignore them here.
+         */
+        else if vd.symbol.flags.isAllOf(Flags.Lazy, Flags.Given) then
+            error(LazyValNotSupported(vd, vd.srcPos), None)
+            None
         // ignore @Ignore annotated statements
         else if vd.symbol.hasAnnotation(IgnoreAnnot) then None
         // ignore PlatformSpecific statements

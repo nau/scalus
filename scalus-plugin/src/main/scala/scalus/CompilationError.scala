@@ -205,4 +205,10 @@ case class VarNotSupported(vd: ValDef, srcPos: SrcPos)(using Context) extends Co
            |Try 'val ${vd.symbol.name} = ...' instead""".stripMargin
 }
 
+case class LazyValNotSupported(vd: ValDef, srcPos: SrcPos)(using Context) extends CompilationError {
+    def message: String =
+        s"""lazy vals can't be used in Scalus scripts.
+           |Try 'val ${vd.symbol.name} = ...' instead""".stripMargin
+}
+
 case class GenericError(message: String, srcPos: SrcPos) extends CompilationError
