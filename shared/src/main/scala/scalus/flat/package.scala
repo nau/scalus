@@ -83,6 +83,31 @@ package object flat:
             result
     given Flat[Array[Byte]] = ArrayByteFlat()
 
+    given Flat[Int] with
+        def bitSize(a: Int): Int =
+            val vs = w7l(zigZag(a))
+            vs.length * 8
+
+        // Encoded as: data NonEmptyList = Elem Word7 | Cons Word7 NonEmptyList
+        def encode(a: Int, encode: EncoderState): Unit =
+            val vs = w7l(zigZag(a))
+            var i = 0
+            while i < vs.length do
+                encode.bits(8, vs(i))
+                i += 1
+
+        def decode(decode: DecoderState): Int =
+            var w = decode.bits8(8)
+            var r = 0
+            var shl = 0
+            while (w & 0x80) != 0 do
+                r = r | ((w & 0x7f) << shl)
+                shl += 7
+                w = decode.bits8(8)
+
+            r = r | ((w & 0x7f) << shl)
+            zagZig(r)
+
     given Flat[Long] with
         def bitSize(a: Long): Int =
             val vs = w7l(zigZag(a))
@@ -206,7 +231,17 @@ package object flat:
         val t = n >> 7
         if t == 0 then low.toByte :: Nil else (low | 0x80).toByte :: w7l(t)
 
-    def zigZag(x: Long) = if x >= 0 then x << 1 else -(x << 1) - 1
+    /** ZigZag encoding https://gist.github.com/mfuerstenau/ba870a29e16536fdbaba Maps negative
+      * values to positive values while going back and forth (0 = 0, -1 = 1, 1 = 2, -2 = 3, 2 = 4,
+      * -3 = 5, 3 = 6 ...)
+      */
+    def zigZag(x: Int) =
+        assert(Math.abs(x) <= (1 << 30), "zigZag: value out or range: -2^31..2^31")
+        if x >= 0 then x << 1 else -(x << 1) - 1
+    def zigZag(x: Long) =
+        assert(Math.abs(x) <= (1L << 62), "zigZag: value out or range: -2^62..2^62")
+        if x >= 0 then x << 1 else -(x << 1) - 1
+    def zagZig(u: Int) = u >> 1 ^ -(u & 1)
     def zagZig(u: Long) = u >> 1 ^ -(u & 1)
 
     def w7l(n: BigInt): List[Byte] =
