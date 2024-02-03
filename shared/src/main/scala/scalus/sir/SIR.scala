@@ -3,7 +3,7 @@ package scalus.sir
 import scalus.uplc.Constant
 import scalus.uplc.DefaultFun
 
-case class Module(defs: List[Binding])
+case class Module(version: (Int, Int), defs: List[Binding])
 case class Binding(name: String, value: SIR) {
     override def toString: String = s"Binding(\"$name\", $value)"
 }

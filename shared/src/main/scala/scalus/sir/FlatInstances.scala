@@ -297,10 +297,14 @@ object FlatInstantces:
 
     given Flat[Module] with
         def bitSize(a: Module): Int = a match
-            case Module(defs) => listFlat[Binding].bitSize(defs)
+            case Module(version, defs) =>
+                summon[Flat[(Int, Int)]].bitSize(version) +
+                    summon[Flat[List[Binding]]].bitSize(defs)
         def encode(a: Module, enc: EncoderState): Unit = a match
-            case Module(defs) =>
-                listFlat[Binding].encode(defs, enc)
+            case Module(version, defs) =>
+                summon[Flat[(Int, Int)]].encode(version, enc)
+                summon[Flat[List[Binding]]].encode(defs, enc)
         def decode(decoder: DecoderState): Module =
-            val defs = listFlat[Binding].decode(decoder)
-            Module(defs)
+            val version = summon[Flat[(Int, Int)]].decode(decoder)
+            val defs = summon[Flat[List[Binding]]].decode(decoder)
+            Module(version, defs)

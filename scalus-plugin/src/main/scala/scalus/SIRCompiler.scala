@@ -54,6 +54,8 @@ final class SIRCompiler(mode: scalus.Mode)(using ctx: Context) {
     import tpd.*
     type Env = HashSet[String]
 
+    val SirVersion = (0, 0)
+
     private val converter = new SIRConverter
     private val builtinsHelper = new BuiltinHelper
     private val PairSymbol = requiredClass("scalus.builtins.Pair")
@@ -154,7 +156,7 @@ final class SIRCompiler(mode: scalus.Mode)(using ctx: Context) {
                 compileStmt(HashSet.empty, vd, isGlobalDef = true)
             case _ => None
         }
-        val module = Module(bindings.map(b => Binding(b.fullName.name, b.body)))
+        val module = Module(SirVersion, bindings.map(b => Binding(b.fullName.name, b.body)))
         writeModule(module, td.symbol.fullName.toString())
         val time = System.currentTimeMillis() - start
         report.echo(
@@ -330,7 +332,7 @@ final class SIRCompiler(mode: scalus.Mode)(using ctx: Context) {
             case Some(defs) =>
                 findAndLinkDefinition(defs, fullName, srcPos)
             case None =>
-                findAndReadModuleOfSymbol(moduleName).flatMap { case m @ Module(defs) =>
+                findAndReadModuleOfSymbol(moduleName).flatMap { case m @ Module(version, defs) =>
                     // println(s"Loaded module ${moduleName}, defs: ${defs}")
                     val defsMap =
                         mutable.LinkedHashMap.from(defs.map(d => FullName(d.name) -> d.value))
