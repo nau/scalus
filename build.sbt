@@ -102,8 +102,8 @@ lazy val scalus = crossProject(JSPlatform, JVMPlatform)
       libraryDependencies += "org.typelevel" %%% "cats-parse" % "1.0.0",
       libraryDependencies += "org.typelevel" %%% "paiges-core" % "0.4.3",
       libraryDependencies ++= Seq(
-        "io.bullet" %%% "borer-core" % "1.13.0",
-        "io.bullet" %%% "borer-derivation" % "1.13.0"
+        "io.bullet" %%% "borer-core" % "1.14.0",
+        "io.bullet" %%% "borer-derivation" % "1.14.0"
       ),
       PluginDependency,
       libraryDependencies += "org.scalatest" %%% "scalatest" % "3.2.17" % "test",
@@ -114,7 +114,7 @@ lazy val scalus = crossProject(JSPlatform, JVMPlatform)
       Test / fork := true,
       // Test / testOptions += Tests.Argument(TestFrameworks.ScalaTest, "-S", "-8077211454138081902"),
       libraryDependencies += "org.scala-lang" %% "scala3-compiler" % scalaVersion.value,
-      libraryDependencies += "org.slf4j" % "slf4j-simple" % "1.7.5" % "provided",
+      libraryDependencies += "org.slf4j" % "slf4j-simple" % "2.0.11" % "provided",
       libraryDependencies += "org.bouncycastle" % "bcprov-jdk18on" % "1.77",
       libraryDependencies += "org.bitcoin-s" % "bitcoin-s-crypto_2.13" % "1.9.7",
       libraryDependencies += "org.bitcoin-s" % "bitcoin-s-secp256k1jni" % "1.9.7"
@@ -130,8 +130,8 @@ lazy val examples = project
     .settings(
       PluginDependency,
       publish / skip := true,
-      libraryDependencies += "com.bloxbean.cardano" % "cardano-client-lib" % "0.5.0",
-      libraryDependencies += "com.bloxbean.cardano" % "cardano-client-backend-blockfrost" % "0.5.0"
+      libraryDependencies += "com.bloxbean.cardano" % "cardano-client-lib" % "0.5.1",
+      libraryDependencies += "com.bloxbean.cardano" % "cardano-client-backend-blockfrost" % "0.5.1"
     )
 
 lazy val `examples-js` = project
