@@ -77,9 +77,7 @@ object PrettyPrinter {
     def pretty(sir: SIR, style: Style): Doc =
         import SIR.*
         extension (d: Doc)
-            def styled(s: paiges.Style): Doc =
-                println(s"style: $style")
-                if style == Style.XTerm then d.style(s) else d
+            def styled(s: paiges.Style): Doc = if style == Style.XTerm then d.style(s) else d
         def kw(s: String): Doc = Doc.text(s).styled(Fg.colorCode(172))
         def ctr(s: String): Doc = Doc.text(s).styled(Fg.colorCode(21))
         sir match
