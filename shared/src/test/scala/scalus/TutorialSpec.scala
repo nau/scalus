@@ -149,6 +149,8 @@ val serializeToDoubleCborHex = {
     // also you can produce a pubKeyValidator.plutus file for use with cardano-cli
     import scalus.utils.Utils
     Utils.writePlutusFile("pubKeyValidator.plutus", program, PlutusLedgerLanguage.PlutusV1)
+    // or simply
+    program.writePlutusFile("pubKeyValidator.plutus", PlutusLedgerLanguage.PlutusV1)
 }
 
 class TutorialSpec extends AnyFunSuite {

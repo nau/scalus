@@ -205,10 +205,14 @@ val fromDataExample = compile {
 
 Here is a simple example of a Plutus V1 validator written in Scalus.
 
-```scala
+```scala mdoc:compile-only
 import scalus.ledger.api.v1.*
 import scalus.ledger.api.v1.FromDataInstances.given
+import scalus.builtins.ByteString.given
 import scalus.prelude.List
+import scalus.prelude.Prelude.===
+import scalus.prelude.Prelude.given
+import scalus.uplc.Data.fromData
 val pubKeyValidator = compile {
   def validator(datum: Data, redeamder: Data, ctxData: Data) = {
     val ctx = fromData[ScriptContext](ctxData)
@@ -225,10 +229,25 @@ You then need to convert the `SIR` value to a UPLC value and encode it to Flat a
 Many APIs require the HEX encoded string of double CBOR encoded Flat encoded UPLC program,
 like `Hex(CborEncode(CborEncode(FlatEncode(Program(version, uplc)))))`.
 
-```scala
+```scala mdoc:compile-only
+import scalus.ledger.api.v1.*
+import scalus.ledger.api.v1.FromDataInstances.given
+import scalus.builtins.ByteString.given
+import scalus.prelude.List
+import scalus.prelude.Prelude.===
+import scalus.prelude.Prelude.given
+import scalus.uplc.Data.fromData
+import scalus.ledger.api.PlutusLedgerLanguage
+import scalus.*
+import scalus.uplc.Program
+
 val serializeToDoubleCborHex = {
-  import scalus.*
-  import scalus.uplc.Program
+  val pubKeyValidator = compile {
+    def validator(datum: Data, redeamder: Data, ctxData: Data) = {
+      val ctx = fromData[ScriptContext](ctxData)
+      List.findOrFail[PubKeyHash](ctx.txInfo.signatories)(sig => sig.hash === hex"deadbeef")
+    }
+  }
   // convert to UPLC
   // generateErrorTraces = true will add trace messages to the UPLC program
   val uplc = pubKeyValidator.toUplc(generateErrorTraces = true)
@@ -241,6 +260,8 @@ val serializeToDoubleCborHex = {
   // also you can produce a pubKeyValidator.plutus file for use with cardano-cli
   import scalus.utils.Utils
   Utils.writePlutusFile("pubKeyValidator.plutus", program, PlutusLedgerLanguage.PlutusV1)
+  // or simply
+  program.writePlutusFile("pubKeyValidator.plutus", PlutusLedgerLanguage.PlutusV1)
 }
 
 ```

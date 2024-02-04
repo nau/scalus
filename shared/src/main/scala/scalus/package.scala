@@ -7,6 +7,8 @@ import scalus.uplc.Constant
 import scalus.uplc.DefaultUni
 import scalus.uplc.Program
 import scalus.uplc.Term
+import scalus.ledger.api.PlutusLedgerLanguage
+import scalus.utils.Utils
 package object scalus {
     extension (sir: SIR)
         def pretty: Doc = PrettyPrinter.pretty(sir, Style.Normal)
@@ -17,6 +19,17 @@ package object scalus {
 
         def toUplc(generateErrorTraces: Boolean = false): Term =
             SimpleSirToUplcLowering(sir, generateErrorTraces).lower()
+
+        def toPlutusProgram(
+            version: (Int, Int, Int),
+            generateErrorTraces: Boolean = false
+        ): Program =
+            val term = sir.toUplc(generateErrorTraces)
+            Program(version, term)
+
+    extension (p: Program)
+        def writePlutusFile(path: String, plutusVersion: PlutusLedgerLanguage): Unit =
+            Utils.writePlutusFile(path, p, plutusVersion)
 
     extension (du: DefaultUni) def pretty: Doc = PrettyPrinter.pretty(du)
     extension (c: Constant) def pretty: Doc = PrettyPrinter.pretty(c)
