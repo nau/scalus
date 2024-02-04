@@ -114,6 +114,7 @@ lazy val scalus = crossProject(JSPlatform, JVMPlatform)
       Test / fork := true,
       // Test / testOptions += Tests.Argument(TestFrameworks.ScalaTest, "-S", "-8077211454138081902"),
       libraryDependencies += "org.scala-lang" %% "scala3-compiler" % scalaVersion.value,
+      libraryDependencies += "org.slf4j" % "slf4j-simple" % "1.7.5" % "provided",
       libraryDependencies += "org.bouncycastle" % "bcprov-jdk18on" % "1.77",
       libraryDependencies += "org.bitcoin-s" % "bitcoin-s-crypto_2.13" % "1.9.7",
       libraryDependencies += "org.bitcoin-s" % "bitcoin-s-secp256k1jni" % "1.9.7"

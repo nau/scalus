@@ -55,10 +55,10 @@ trait ArbitraryInstances:
                 else Shrink.shrink(args).map(Constr(c, _))
             case List(args) =>
                 if args.isEmpty then Stream.empty
-                else Shrink.shrink(args).map(List)
+                else Shrink.shrink(args).map(List.apply)
             case Map(args) =>
                 if args.isEmpty then Stream.empty
-                else Shrink.shrink(args).map(Map)
+                else Shrink.shrink(args).map(Map.apply)
         }
 
     implicit val arbData: Arbitrary[Data] = Arbitrary {

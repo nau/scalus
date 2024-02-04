@@ -25,7 +25,6 @@ object PlutusDataCborEncoder extends Encoder[Data]:
                 writer.writeLong(constr)
                 writer.writeLinearSeq(args)
             case Map(values)       => writeMap(writer, values)
-            case Map(values)       => writer.writeMap(values.toMap)
             case Data.List(values) => writer.writeLinearSeq(values)
             case I(value)          => writer.write(value)
             case B(value) =>
@@ -41,7 +40,7 @@ object PlutusDataCborEncoder extends Encoder[Data]:
      * Note, that it allows duplicate keys!
      * This is why we don't use the `writeMap` method from `Writer` here
      */
-    def writeMap[A: Encoder, B: Encoder](writer: Writer, x: Iterable[(A, B)]): Writer =
+    private def writeMap[A: Encoder, B: Encoder](writer: Writer, x: Iterable[(A, B)]): Writer =
         if (x.nonEmpty)
             val iterator = x.iterator
             def writeEntries(): Unit =
