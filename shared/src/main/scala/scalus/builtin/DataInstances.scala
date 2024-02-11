@@ -3,7 +3,7 @@ package scalus.builtin
 import scalus.{builtin, prelude, Compile}
 import scalus.prelude.{AssocMap, Maybe, Prelude}
 import scalus.prelude.Prelude.{===, given}
-import scalus.uplc.Data.*
+import scalus.builtin.Data.*
 
 @Compile
 object FromDataInstances {

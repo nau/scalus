@@ -12,7 +12,7 @@ import scalus.prelude.AssocMap
 import scalus.prelude.List.*
 import scalus.prelude.Maybe.*
 import scalus.{toUplc, BaseValidatorSpec, Expected}
-import scalus.uplc.Data.*
+import scalus.builtin.Data.*
 import scalus.uplc.*
 import scalus.utils.Utils
 

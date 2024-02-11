@@ -211,7 +211,7 @@ object SendTx:
         val preimageHash = Utils.bytesToHex(Utils.sha2_256(preimageBytes))
         val pubKeyHashBytes = sender.hdKeyPair().getPublicKey.getKeyHash()
         val pubKeyHash = Utils.bytesToHex(pubKeyHashBytes)
-        import scalus.uplc.Data.toData
+        import scalus.builtin.Data.toData
         implicit val enc = scalus.builtin.PlutusDataCborEncoder
         val datum =
             (ByteString.fromArray(preimageBytes), ByteString.fromArray(pubKeyHashBytes)).toData

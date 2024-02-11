@@ -1,7 +1,7 @@
 package scalus.uplc
 
 import scalus.*
-import scalus.uplc.Data.*
+import scalus.builtin.Data.*
 import scala.collection.immutable
 
 object TermDSL:

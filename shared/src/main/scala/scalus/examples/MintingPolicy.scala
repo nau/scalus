@@ -13,9 +13,9 @@ import scalus.prelude.Maybe.*
 import scalus.prelude.Prelude.===
 import scalus.prelude.Prelude.given
 import scalus.prelude.*
-import scalus.uplc.Data
-import scalus.uplc.Data.FromData
-import scalus.uplc.Data.fromData
+import scalus.builtin.Data
+import scalus.builtin.Data.FromData
+import scalus.builtin.Data.fromData
 import scalus.builtin.FromDataInstances.given
 
 case class TxInInfoTxOutRefOnly(txInInfoOutRef: TxOutRef)

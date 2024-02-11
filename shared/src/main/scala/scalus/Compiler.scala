@@ -2,7 +2,7 @@ package scalus
 
 import scalus.macros.Macros
 import scalus.sir.SIR
-import scalus.uplc.Data
+import scalus.builtin.Data
 
 import scala.annotation.Annotation
 

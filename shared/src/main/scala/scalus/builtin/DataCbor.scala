@@ -2,7 +2,7 @@ package scalus.builtin
 import io.bullet.borer.Tag.{NegativeBigNum, Other, PositiveBigNum}
 import io.bullet.borer.encodings.BaseEncoding
 import io.bullet.borer.{ByteAccess, DataItem as DI, Decoder, Encoder, Reader, Writer}
-import scalus.uplc.Data.{B, Constr, I, Map}
+import scalus.builtin.Data.{B, Constr, I, Map}
 
 import scala.annotation.tailrec
 import scala.collection.immutable.List

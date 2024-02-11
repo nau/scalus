@@ -1,6 +1,5 @@
 package scalus.builtin
 import io.bullet.borer.Cbor
-import scalus.uplc.Data
 
 trait PlatformSpecific:
     def sha2_256(bs: ByteString): ByteString

@@ -3,7 +3,7 @@ package scalus.uplc
 import org.scalacheck.{Arbitrary, Gen, Shrink}
 import scalus.*
 import scalus.builtin.ByteString
-import scalus.uplc.Data.{B, Constr, I, List, Map}
+import scalus.builtin.Data.{B, Constr, I, List, Map}
 import scalus.uplc.DefaultUni.{Bool, ByteString, Integer, ProtoList, ProtoPair}
 import scalus.uplc.Term.*
 

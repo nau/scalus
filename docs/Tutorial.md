@@ -24,7 +24,7 @@ The SIR is then compiled to Untyped Plutus Core (UPLC) that can be executed on t
 ```scala mdoc
 import scalus.Compiler.compile
 import scalus.*
-import scalus.uplc.Data
+import scalus.builtin.Data
 
 val validator = compile {
   (datum: Data, redeemer: Data, context: Data) => ()
@@ -170,9 +170,9 @@ val modules = compile {
 FromData type class is used to convert a Data value to a Scalus value.
 
 ```scala
-import scalus.uplc.Data
-import scalus.uplc.Data.FromData
-import scalus.uplc.Data.fromData
+import scalus.builtin.Data
+import scalus.builtin.Data.FromData
+import scalus.builtin.Data.fromData
 import scalus.uplc.FromData
 val fromDataExample = compile {
   // The `fromData` function is used to convert a `Data` value to a Scalus value.
@@ -212,7 +212,7 @@ import scalus.builtin.ByteString.given
 import scalus.prelude.List
 import scalus.prelude.Prelude.===
 import scalus.prelude.Prelude.given
-import scalus.uplc.Data.fromData
+import scalus.builtin.Data.fromData
 val pubKeyValidator = compile {
   def validator(datum: Data, redeamder: Data, ctxData: Data) = {
     val ctx = fromData[ScriptContext](ctxData)
@@ -236,7 +236,7 @@ import scalus.builtin.ByteString.given
 import scalus.prelude.List
 import scalus.prelude.Prelude.===
 import scalus.prelude.Prelude.given
-import scalus.uplc.Data.fromData
+import scalus.builtin.Data.fromData
 import scalus.ledger.api.PlutusLedgerLanguage
 import scalus.*
 import scalus.uplc.Program

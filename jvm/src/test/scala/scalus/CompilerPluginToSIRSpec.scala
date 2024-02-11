@@ -814,7 +814,7 @@ class CompilerPluginToSIRSpec extends AnyFunSuite with ScalaCheckPropertyChecks:
         import scalus.ledger.api.v1.*
         import scalus.ledger.api.v1.ToDataInstances.given
 
-        val compiled = compile { (ctx: scalus.uplc.Data) =>
+        val compiled = compile { (ctx: scalus.builtin.Data) =>
             val sigsData = fieldAsData[ScriptContext](_.txInfo.signatories)(ctx)
             val sigs = Builtins.unsafeDataAsList(sigsData)
             Builtins.unsafeDataAsB(sigs.head)
@@ -839,7 +839,7 @@ class CompilerPluginToSIRSpec extends AnyFunSuite with ScalaCheckPropertyChecks:
               ScriptPurpose.Spending(TxOutRef(TxId(hex"deadbeef"), 0))
             )
         import scalus.uplc.TermDSL.{*, given}
-        import scalus.uplc.Data.{*}
+        import scalus.builtin.Data.{*}
         import DefaultUni.asConstant
         val appliedScript = Program(version = (1, 0, 0), term = term $ scriptContext.toData)
         val evaled = Cek.evalUPLCProgram(appliedScript)

@@ -11,7 +11,7 @@ import scalus.builtin.ToData
 
 @Compile
 object ToDataInstances {
-    import scalus.uplc.Data.toData
+    import scalus.builtin.Data.toData
     import scalus.builtin.ToDataInstances.given
 
     given OutputDatumToData[T <: OutputDatum]: ToData[T] = (d: T) =>

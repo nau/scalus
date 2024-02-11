@@ -7,7 +7,7 @@ import scalus.builtin.given
 import scalus.examples.MintingPolicy
 import scalus.prelude.AssocMap
 import scalus.uplc.Cek
-import scalus.uplc.Data
+import scalus.builtin.Data
 import scalus.uplc.Program
 import scalus.uplc.TermDSL.{_, given}
 import scalus.utils.Utils

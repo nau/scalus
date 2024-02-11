@@ -65,7 +65,7 @@ object FromData {
             '{ $expr.head }
 
         def genConstructorCall(
-            a: Expr[scalus.builtin.List[scalus.uplc.Data]]
+            a: Expr[scalus.builtin.List[scalus.builtin.Data]]
         )(using Quotes): Expr[T] = {
             val args = fromDataOfArgs.zipWithIndex.map { case (appl, idx) =>
                 val arg = genGetter(a, idx)
@@ -74,7 +74,7 @@ object FromData {
             // Couldn't find a way to do this using quotes, so just construct the tree manually
             New(TypeTree.of[T]).select(constr).appliedToArgs(args).asExprOf[T]
         }
-        '{ (args: scalus.builtin.List[scalus.uplc.Data]) => ${ genConstructorCall('{ args }) } }
+        '{ (args: scalus.builtin.List[scalus.builtin.Data]) => ${ genConstructorCall('{ args }) } }
 
     def deriveCaseClassMacro[T: Type](using Quotes): Expr[FromData[T]] =
         '{ (d: Data) =>

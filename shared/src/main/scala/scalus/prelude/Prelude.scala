@@ -5,7 +5,7 @@ import scalus.builtin.ByteString
 import scalus.builtin.Builtins
 import scalus.Compile
 import scalus.Ignore
-import scalus.uplc.Data
+import scalus.builtin.Data
 
 @Compile
 object Prelude {

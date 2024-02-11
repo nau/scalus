@@ -9,7 +9,7 @@ import scalus.Compile
 @Compile
 object ToDataInstances {
     import scalus.builtin.ToDataInstances.given
-    import scalus.uplc.Data.toData
+    import scalus.builtin.Data.toData
 
     given ToData[PubKeyHash] = (a: PubKeyHash) => a.hash.toData
     given ToData[TxId] = (a: TxId) =>

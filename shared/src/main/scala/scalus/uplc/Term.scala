@@ -3,7 +3,7 @@ package scalus.uplc
 import org.typelevel.paiges.Doc
 import scalus.*
 import scalus.sir.PrettyPrinter
-import scalus.uplc.Data.*
+import scalus.builtin.Data.*
 import io.bullet.borer.Cbor
 import scalus.utils.Hex
 

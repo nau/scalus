@@ -2,7 +2,7 @@ package scalus.macros
 
 import scalus.builtin
 import scalus.builtin.Builtins
-import scalus.uplc.Data
+import scalus.builtin.Data
 import scalus.uplc.ExprBuilder
 import scalus.uplc.ExprBuilder.*
 import scalus.uplc.{Expr => Exp}
@@ -145,7 +145,7 @@ object Macros {
                     case Select(select @ Select(_, _), fieldName) =>
                         val a = genGetter(select.tpe.typeSymbol, fieldName)
                         val b = composeGetters(select)
-                        '{ ddd => $a($b(ddd)) }
+                        '{ ddd => ${ Expr.betaReduce('{ $a($b(ddd)) }) } }
                     case Select(ident @ Ident(_), fieldName) =>
                         genGetter(ident.tpe.typeSymbol, fieldName)
                     case _ =>
