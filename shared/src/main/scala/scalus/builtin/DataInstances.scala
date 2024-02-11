@@ -1,13 +1,13 @@
-package scalus.builtins
+package scalus.builtin
 
-import scalus.{builtins, prelude, Compile}
+import scalus.{builtin, prelude, Compile}
 import scalus.prelude.{AssocMap, Maybe, Prelude}
 import scalus.prelude.Prelude.{===, given}
 import scalus.uplc.Data.*
 
 @Compile
 object FromDataInstances {
-    import scalus.builtins.Builtins.*
+    import scalus.builtin.Builtins.*
 
     given FromData[BigInt] = (d: Data) => unsafeDataAsI(d)
     given FromData[ByteString] = (d: Data) => unsafeDataAsB(d)
@@ -28,7 +28,7 @@ object FromDataInstances {
 
     given ListFromData[A: FromData]: FromData[scalus.prelude.List[A]] = (d: Data) =>
         val ls = unsafeDataAsList(d)
-        def loop(ls: scalus.builtins.List[Data]): scalus.prelude.List[A] =
+        def loop(ls: scalus.builtin.List[Data]): scalus.prelude.List[A] =
             if ls.isEmpty then prelude.List.Nil
             else new prelude.List.Cons(fromData[A](ls.head), loop(ls.tail))
         loop(ls)
@@ -36,7 +36,7 @@ object FromDataInstances {
     given AssocMapFromData[A: FromData, B: FromData]: FromData[AssocMap[A, B]] =
         (d: Data) =>
             val ls = unsafeDataAsMap(d)
-            def loop(ls: scalus.builtins.List[Pair[Data, Data]]): prelude.List[(A, B)] =
+            def loop(ls: scalus.builtin.List[Pair[Data, Data]]): prelude.List[(A, B)] =
                 if ls.isEmpty then prelude.List.Nil
                 else
                     val pair = ls.head
@@ -63,7 +63,7 @@ object FromDataInstances {
 
 @Compile
 object ToDataInstances {
-    import scalus.builtins.Builtins.*
+    import scalus.builtin.Builtins.*
 
     given ToData[Boolean] = (a: Boolean) =>
         if a then mkConstr(1, mkNilData()) else mkConstr(0, mkNilData())
@@ -77,7 +77,7 @@ object ToDataInstances {
 
     given listToData[A: ToData]: ToData[scalus.prelude.List[A]] =
         (a: scalus.prelude.List[A]) => {
-            def loop(a: scalus.prelude.List[A]): scalus.builtins.List[Data] =
+            def loop(a: scalus.prelude.List[A]): scalus.builtin.List[Data] =
                 a match
                     case scalus.prelude.List.Nil => mkNilData()
                     case scalus.prelude.List.Cons(head, tail) =>
@@ -88,7 +88,7 @@ object ToDataInstances {
 
     given assocMapToData[A: ToData, B: ToData]: ToData[AssocMap[A, B]] =
         (a: AssocMap[A, B]) => {
-            def go(a: prelude.List[(A, B)]): builtins.List[Pair[Data, Data]] = a match {
+            def go(a: prelude.List[(A, B)]): builtin.List[Pair[Data, Data]] = a match {
                 case prelude.List.Nil => mkNilPairData()
                 case prelude.List.Cons(tuple, tail) =>
                     tuple match {

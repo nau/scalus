@@ -3,15 +3,15 @@ package scalus
 import org.scalatest.funsuite.AnyFunSuite
 import org.scalatestplus.scalacheck.ScalaCheckPropertyChecks
 import scalus.Compiler.compile
-import scalus.builtins.ByteString.given
-import scalus.builtins.{Builtins, ByteString}
+import scalus.builtin.ByteString.given
+import scalus.builtin.{Builtins, ByteString}
 import scalus.uplc.*
 import scalus.uplc.ToData.toData
 
 @Compile
 object TotoDataInstances {
-    given ToData.ToData[BigInt] = (a: BigInt) => builtins.Builtins.mkI(a)
-    given ToData.ToData[String] = (a: String) => builtins.Builtins.mkI(1)
+    given ToData.ToData[BigInt] = (a: BigInt) => builtin.Builtins.mkI(a)
+    given ToData.ToData[String] = (a: String) => builtin.Builtins.mkI(1)
 }
 
 case class Test(a: BigInt, b: String)

@@ -13,7 +13,7 @@ import dotty.tools.dotc.core.Types.Type
 import dotty.tools.dotc.core.*
 import dotty.tools.dotc.util.SrcPos
 import dotty.tools.io.ClassPath
-import scalus.builtins.ByteString
+import scalus.builtin.ByteString
 import scalus.flat.DecoderState
 import scalus.flat.EncoderState
 import scalus.flat.Flat
@@ -58,13 +58,13 @@ final class SIRCompiler(mode: scalus.Mode)(using ctx: Context) {
 
     private val converter = new SIRConverter
     private val builtinsHelper = new BuiltinHelper
-    private val PairSymbol = requiredClass("scalus.builtins.Pair")
-    private val ScalusBuiltinListClassSymbol = requiredClass("scalus.builtins.List")
-    private val PlatformSpecificClassSymbol = requiredClass("scalus.builtins.PlatformSpecific")
+    private val PairSymbol = requiredClass("scalus.builtin.Pair")
+    private val ScalusBuiltinListClassSymbol = requiredClass("scalus.builtin.List")
+    private val PlatformSpecificClassSymbol = requiredClass("scalus.builtin.PlatformSpecific")
     private val StringContextSymbol = requiredModule("scala.StringContext")
     private val Tuple2Symbol = requiredClass("scala.Tuple2")
     private val NothingSymbol = requiredClass("scala.Nothing")
-    private val ByteStringModuleSymbol = requiredModule("scalus.builtins.ByteString")
+    private val ByteStringModuleSymbol = requiredModule("scalus.builtin.ByteString")
     private val ByteStringStringInterpolatorsMethodSymbol =
         ByteStringModuleSymbol.requiredMethod("StringInterpolators")
     private val pmCompiler = new PatternMatchingCompiler(this)
@@ -513,13 +513,13 @@ final class SIRCompiler(mode: scalus.Mode)(using ctx: Context) {
             if i.symbol == converter.BigIntSymbol.requiredMethod("int2bigInt") =>
             scalus.uplc.Constant.Integer(BigInt(c.intValue))
         case expr if expr.symbol == converter.ByteStringSymbol.requiredMethod("empty") =>
-            scalus.uplc.Constant.ByteString(scalus.builtins.ByteString.empty)
+            scalus.uplc.Constant.ByteString(scalus.builtin.ByteString.empty)
         case Apply(expr, List(Literal(c)))
             if expr.symbol == converter.ByteStringSymbol.requiredMethod("fromHex") =>
-            scalus.uplc.Constant.ByteString(scalus.builtins.ByteString.fromHex(c.stringValue))
+            scalus.uplc.Constant.ByteString(scalus.builtin.ByteString.fromHex(c.stringValue))
         case Apply(expr, List(Literal(c)))
             if expr.symbol == converter.ByteStringSymbol.requiredMethod("fromString") =>
-            scalus.uplc.Constant.ByteString(scalus.builtins.ByteString.fromString(c.stringValue))
+            scalus.uplc.Constant.ByteString(scalus.builtin.ByteString.fromString(c.stringValue))
         // hex"deadbeef" as ByteString
         case Apply(
               Select(
@@ -539,7 +539,7 @@ final class SIRCompiler(mode: scalus.Mode)(using ctx: Context) {
             if ByteStringStringInterpolatorsMethodSymbol == stringInterpolators.symbol
                 && stringContext.symbol == StringContextSymbol && hex == termName("hex") &&
                 const.tag == Constants.StringTag =>
-            scalus.uplc.Constant.ByteString(scalus.builtins.ByteString.fromHex(const.stringValue))
+            scalus.uplc.Constant.ByteString(scalus.builtin.ByteString.fromHex(const.stringValue))
     }
 
     private def typeReprToDefaultUni(tpe: Type, list: Tree): DefaultUni =
@@ -779,7 +779,7 @@ final class SIRCompiler(mode: scalus.Mode)(using ctx: Context) {
             case Select(lst, fun) if lst.isList => compileBuiltinListMethods(env, lst, fun)
             case tree @ TypeApply(Select(list, name), immutable.List(tpe))
                 if name == termName("empty") && list.tpe =:= requiredModule(
-                  "scalus.builtins.List"
+                  "scalus.builtin.List"
                 ).typeRef =>
                 val tpeE = typeReprToDefaultUni(tpe.tpe, tree)
                 SIR.Const(scalus.uplc.Constant.List(tpeE, Nil))
@@ -795,7 +795,7 @@ final class SIRCompiler(mode: scalus.Mode)(using ctx: Context) {
             case tree @ Apply(
                   TypeApply(Select(list, nme.apply), immutable.List(tpe)),
                   immutable.List(ex)
-                ) if list.tpe =:= requiredModule("scalus.builtins.List").typeRef =>
+                ) if list.tpe =:= requiredModule("scalus.builtin.List").typeRef =>
                 compileBuiltinListConstructor(env, ex, list, tpe, tree)
             // Pair BUILTINS
             // PAIR
@@ -804,7 +804,7 @@ final class SIRCompiler(mode: scalus.Mode)(using ctx: Context) {
             case Apply(
                   TypeApply(Select(pair, nme.apply), immutable.List(tpe1, tpe2)),
                   immutable.List(a, b)
-                ) if pair.tpe =:= requiredModule("scalus.builtins.Pair").typeRef =>
+                ) if pair.tpe =:= requiredModule("scalus.builtin.Pair").typeRef =>
                 compileBuiltinPairConstructor(env, a, b, tpe1, tpe2, tree)
             // new Constr(args)
             case Apply(TypeApply(con @ Select(f, nme.CONSTRUCTOR), _), args) =>

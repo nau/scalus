@@ -2,9 +2,9 @@ package scalus
 
 import org.scalatest.funsuite.AnyFunSuite
 import org.scalatestplus.scalacheck.ScalaCheckPropertyChecks
-import scalus.builtins.ByteString
-import scalus.builtins.ByteString.given
-import scalus.builtins.given
+import scalus.builtin.ByteString
+import scalus.builtin.ByteString.given
+import scalus.builtin.given
 import scalus.ledger.api.v1.*
 import scalus.prelude.Maybe.*
 import scalus.prelude.*

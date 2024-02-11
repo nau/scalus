@@ -1,6 +1,6 @@
 package scalus.flat
 
-import scalus.builtins
+import scalus.builtin
 import scalus.flat.DecoderState
 import scalus.flat.EncoderState
 import scalus.flat.Flat
@@ -14,7 +14,7 @@ import scalus.sir.Recursivity
 import scalus.sir.SIR
 import scalus.uplc.CommonFlatInstances.*
 import scalus.uplc.CommonFlatInstances.given
-import scalus.builtins.Data
+import scalus.builtin.Data
 import scalus.uplc.DefaultFun
 
 object FlatInstantces:
@@ -30,7 +30,7 @@ object FlatInstantces:
                 width + values.map { case (k, v) => bitSize(k) + bitSize(v) }.sum
             case Data.List(values) => width + values.map(bitSize).sum
             case Data.I(value)     => width + summon[Flat[BigInt]].bitSize(value)
-            case Data.B(value)     => width + summon[Flat[builtins.ByteString]].bitSize(value)
+            case Data.B(value)     => width + summon[Flat[builtin.ByteString]].bitSize(value)
 
         def encode(a: Data, enc: EncoderState): Unit =
             a match
@@ -49,7 +49,7 @@ object FlatInstantces:
                     summon[Flat[BigInt]].encode(value, enc)
                 case Data.B(value) =>
                     enc.bits(width, 4)
-                    summon[Flat[builtins.ByteString]].encode(value, enc)
+                    summon[Flat[builtin.ByteString]].encode(value, enc)
 
         def decode(decode: DecoderState): Data =
             decode.bits8(width) match
@@ -67,7 +67,7 @@ object FlatInstantces:
                     val value = summon[Flat[BigInt]].decode(decode)
                     Data.I(value)
                 case 4 =>
-                    val value = summon[Flat[builtins.ByteString]].decode(decode)
+                    val value = summon[Flat[builtin.ByteString]].decode(decode)
                     Data.B(value)
                 case c => throw new Exception(s"Invalid data code: $c")
 

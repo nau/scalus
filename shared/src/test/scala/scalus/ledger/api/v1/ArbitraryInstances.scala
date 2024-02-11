@@ -3,9 +3,9 @@ package scalus.ledger.api.v1
 import org.scalacheck.Arbitrary
 import org.scalacheck.Gen
 import scalus.*
-import scalus.builtins
+import scalus.builtin
 
-import scalus.builtins.ByteString
+import scalus.builtin.ByteString
 
 trait ArbitraryInstances extends scalus.uplc.ArbitraryInstances:
     given Arbitrary[Extended[POSIXTime]] = Arbitrary {

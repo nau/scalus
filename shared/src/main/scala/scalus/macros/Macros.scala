@@ -1,7 +1,7 @@
 package scalus.macros
 
-import scalus.builtins
-import scalus.builtins.Builtins
+import scalus.builtin
+import scalus.builtin.Builtins
 import scalus.uplc.Data
 import scalus.uplc.ExprBuilder
 import scalus.uplc.ExprBuilder.*

@@ -6,7 +6,7 @@ import scalus.sir.SIR
 import scalus.uplc.DefaultFun
 
 class BuiltinHelper(using Context) {
-    val BuiltinsClass = requiredModule("scalus.builtins.Builtins")
+    val BuiltinsClass = requiredModule("scalus.builtin.Builtins")
     val DefaultFunValues: Map[Symbol, DefaultFun] = Map(
       "addInteger" -> DefaultFun.AddInteger,
       "subtractInteger" -> DefaultFun.SubtractInteger,

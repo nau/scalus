@@ -1,5 +1,5 @@
-package scalus.builtins
-import scalus.builtins.Data.FromData
+package scalus.builtin
+import scalus.builtin.Data.FromData
 import scala.collection.immutable.List
 
 import scala.quoted.*
@@ -32,14 +32,14 @@ object FromData {
       *   }}}
       */
     inline def deriveEnum[T](
-        inline conf: PartialFunction[Int, scalus.builtins.List[Data] => T]
+        inline conf: PartialFunction[Int, scalus.builtin.List[Data] => T]
     ): FromData[T] = ${ deriveEnumMacro[T]('{ conf }) }
 
-    inline def deriveConstructor[T]: scalus.builtins.List[Data] => T = ${
+    inline def deriveConstructor[T]: scalus.builtin.List[Data] => T = ${
         deriveConstructorMacro[T]
     }
 
-    def deriveConstructorMacro[T: Type](using Quotes): Expr[scalus.builtins.List[Data] => T] =
+    def deriveConstructorMacro[T: Type](using Quotes): Expr[scalus.builtin.List[Data] => T] =
         import quotes.reflect.*
         val classSym = TypeTree.of[T].symbol
         val constr = classSym.primaryConstructor
@@ -55,7 +55,7 @@ object FromData {
                             )
                         case Some(value) => value
         }
-        def genGetter(init: Expr[scalus.builtins.List[Data]], idx: Int)(using Quotes): Expr[Data] =
+        def genGetter(init: Expr[scalus.builtin.List[Data]], idx: Int)(using Quotes): Expr[Data] =
             var expr = init
             var i = 0
             while i < idx do
@@ -65,7 +65,7 @@ object FromData {
             '{ $expr.head }
 
         def genConstructorCall(
-            a: Expr[scalus.builtins.List[scalus.uplc.Data]]
+            a: Expr[scalus.builtin.List[scalus.uplc.Data]]
         )(using Quotes): Expr[T] = {
             val args = fromDataOfArgs.zipWithIndex.map { case (appl, idx) =>
                 val arg = genGetter(a, idx)
@@ -74,11 +74,11 @@ object FromData {
             // Couldn't find a way to do this using quotes, so just construct the tree manually
             New(TypeTree.of[T]).select(constr).appliedToArgs(args).asExprOf[T]
         }
-        '{ (args: scalus.builtins.List[scalus.uplc.Data]) => ${ genConstructorCall('{ args }) } }
+        '{ (args: scalus.builtin.List[scalus.uplc.Data]) => ${ genConstructorCall('{ args }) } }
 
     def deriveCaseClassMacro[T: Type](using Quotes): Expr[FromData[T]] =
         '{ (d: Data) =>
-            val args = scalus.builtins.Builtins.unsafeDataAsConstr(d).snd
+            val args = scalus.builtin.Builtins.unsafeDataAsConstr(d).snd
 
             // generate f = (args) => new Constructor(args.head, args.tail.head, ...)
             // then apply to args: f(args)
@@ -86,14 +86,14 @@ object FromData {
             ${ Expr.betaReduce('{ ${ deriveConstructorMacro[T] }(args) }) }
         }
 
-    def deriveEnumMacro[T: Type](conf: Expr[PartialFunction[Int, scalus.builtins.List[Data] => T]])(
+    def deriveEnumMacro[T: Type](conf: Expr[PartialFunction[Int, scalus.builtin.List[Data] => T]])(
         using Quotes
     ): Expr[FromData[T]] =
         import quotes.reflect.*
         val mapping = conf.asTerm match
             case Inlined(_, _, Block(List(DefDef(_, _, _, Some(Match(_, cases)))), _)) =>
                 cases.map { case CaseDef(Literal(IntConstant(tag)), _, code) =>
-                    (tag, code.asExprOf[scalus.builtins.List[Data] => T])
+                    (tag, code.asExprOf[scalus.builtin.List[Data] => T])
                 }
         // stage programming is cool, but it's hard to comprehend what's going on
         '{ (d: Data) =>

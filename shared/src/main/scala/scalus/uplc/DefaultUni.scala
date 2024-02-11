@@ -1,7 +1,7 @@
 package scalus.uplc
 
-import scalus.builtins.ByteString
-import scalus.builtins.Data
+import scalus.builtin.ByteString
+import scalus.builtin.Data
 
 sealed abstract class DefaultUni:
     type Unlifted
@@ -49,5 +49,5 @@ object DefaultUni:
     def Pair(a: DefaultUni, b: DefaultUni): DefaultUni = Apply(Apply(ProtoPair, a), b)
     def List(a: DefaultUni): DefaultUni = Apply(ProtoList, a)
 
-    implicit object LiftData extends Lift[scalus.builtins.Data]:
+    implicit object LiftData extends Lift[scalus.builtin.Data]:
         def defaultUni: DefaultUni = DefaultUni.Data

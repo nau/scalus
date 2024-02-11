@@ -1,6 +1,6 @@
 package scalus.uplc
 
-import scalus.builtins
+import scalus.builtin
 
 import scala.collection.immutable
 
@@ -15,13 +15,13 @@ object Constant:
     given LiftValue[BigInt] with { def lift(a: BigInt): Constant = Integer(a) }
     given LiftValue[Int] with { def lift(a: Int): Constant = Integer(a) }
     given LiftValue[Long] with { def lift(a: Long): Constant = Integer(a) }
-    given LiftValue[builtins.ByteString] with {
-        def lift(a: builtins.ByteString): Constant = ByteString(a)
+    given LiftValue[builtin.ByteString] with {
+        def lift(a: builtin.ByteString): Constant = ByteString(a)
     }
     given LiftValue[java.lang.String] with { def lift(a: java.lang.String): Constant = String(a) }
     given LiftValue[Boolean] with { def lift(a: Boolean): Constant = Bool(a) }
     given LiftValue[Unit] with { def lift(a: Unit): Constant = Unit }
-    implicit def LiftValueData[A <: scalus.builtins.Data]: LiftValue[A] = new LiftValue[A] {
+    implicit def LiftValueData[A <: scalus.builtin.Data]: LiftValue[A] = new LiftValue[A] {
         def lift(a: A): Constant = Data(a)
     }
     given seqLiftValue[A: LiftValue: DefaultUni.Lift]: LiftValue[Seq[A]] with {
@@ -40,7 +40,7 @@ object Constant:
     case class Integer(value: BigInt) extends Constant:
         def tpe = DefaultUni.Integer
 
-    case class ByteString(value: builtins.ByteString) extends Constant:
+    case class ByteString(value: builtin.ByteString) extends Constant:
         def tpe = DefaultUni.ByteString
 
     case class String(value: java.lang.String) extends Constant:
@@ -52,7 +52,7 @@ object Constant:
     case class Bool(value: Boolean) extends Constant:
         def tpe = DefaultUni.Bool
 
-    case class Data(value: scalus.builtins.Data) extends Constant:
+    case class Data(value: scalus.builtin.Data) extends Constant:
         def tpe = DefaultUni.Data
 
     case class List(elemType: DefaultUni, value: immutable.List[Constant]) extends Constant:
@@ -63,12 +63,12 @@ object Constant:
 
     def fromValue(tpe: DefaultUni, a: Any): Constant = tpe match {
         case DefaultUni.Integer    => Integer(a.asInstanceOf[BigInt])
-        case DefaultUni.ByteString => ByteString(a.asInstanceOf[builtins.ByteString])
+        case DefaultUni.ByteString => ByteString(a.asInstanceOf[builtin.ByteString])
         case DefaultUni.String     => String(a.asInstanceOf[java.lang.String])
         case DefaultUni.Unit       => Unit
         case DefaultUni.Bool       => Bool(a.asInstanceOf[Boolean])
         case DefaultUni.Data =>
-            Data(a.asInstanceOf[scalus.builtins.Data])
+            Data(a.asInstanceOf[scalus.builtin.Data])
         case DefaultUni.Apply(DefaultUni.ProtoList, elemType) =>
             List(elemType, a.asInstanceOf[Seq[Any]].toList.map(fromValue(elemType, _)))
         case DefaultUni.Apply(DefaultUni.Apply(DefaultUni.ProtoPair, aType), bType) =>

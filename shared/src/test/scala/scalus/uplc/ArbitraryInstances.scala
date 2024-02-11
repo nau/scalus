@@ -2,7 +2,7 @@ package scalus.uplc
 
 import org.scalacheck.{Arbitrary, Gen, Shrink}
 import scalus.*
-import scalus.builtins.ByteString
+import scalus.builtin.ByteString
 import scalus.uplc.Data.{B, Constr, I, List, Map}
 import scalus.uplc.DefaultUni.{Bool, ByteString, Integer, ProtoList, ProtoPair}
 import scalus.uplc.Term.*
@@ -11,11 +11,11 @@ import scala.collection.immutable
 
 trait ArbitraryInstances:
 
-    implicit val byteStringArb: Arbitrary[builtins.ByteString] = Arbitrary(
+    implicit val byteStringArb: Arbitrary[builtin.ByteString] = Arbitrary(
       for
           sz <- Gen.frequency((0, Gen.choose(1000, 10000)), (10, Gen.choose(0, 100)))
           bytes <- Gen.containerOfN[Array, Byte](sz, Arbitrary.arbitrary)
-      yield builtins.ByteString.unsafeFromArray(bytes)
+      yield builtin.ByteString.unsafeFromArray(bytes)
     )
     implicit val iArb: Arbitrary[I] = Arbitrary(
       for n <- Gen.oneOf[BigInt](
@@ -33,7 +33,7 @@ trait ArbitraryInstances:
       yield I(n)
     )
     implicit val bArb: Arbitrary[B] = Arbitrary(
-      Arbitrary.arbitrary[builtins.ByteString].map(B.apply)
+      Arbitrary.arbitrary[builtin.ByteString].map(B.apply)
     )
 
     given Shrink[Data] =
@@ -45,7 +45,7 @@ trait ArbitraryInstances:
                 else
                     Stream(
                       B(
-                        builtins.ByteString.unsafeFromArray(
+                        builtin.ByteString.unsafeFromArray(
                           b.bytes.slice(0, b.bytes.length / 2)
                         )
                       )
@@ -124,7 +124,7 @@ trait ArbitraryInstances:
         t match
             case DefaultUni.Integer => Arbitrary.arbitrary[BigInt].map(Constant.Integer.apply)
             case DefaultUni.ByteString =>
-                Arbitrary.arbitrary[builtins.ByteString].map(Constant.ByteString.apply)
+                Arbitrary.arbitrary[builtin.ByteString].map(Constant.ByteString.apply)
             case DefaultUni.String => Arbitrary.arbitrary[String].map(Constant.String.apply)
             case DefaultUni.Data   => Arbitrary.arbitrary[Data].map(Constant.Data.apply)
             case DefaultUni.Unit   => Gen.const(Constant.Unit)

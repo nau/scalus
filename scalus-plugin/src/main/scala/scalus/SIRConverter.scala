@@ -14,8 +14,8 @@ import dotty.tools.dotc.core.Types.MethodType
 import dotty.tools.dotc.core.Types.Type
 import dotty.tools.dotc.core.Types.TypeRef
 import dotty.tools.dotc.core.*
-import scalus.builtins.ByteString
-import scalus.builtins.Data
+import scalus.builtin.ByteString
+import scalus.builtin.Data
 import scalus.sir.Binding
 import scalus.sir.Case
 import scalus.sir.ConstrDecl
@@ -36,11 +36,11 @@ class SIRConverter(using Context) {
     val ApplySymbol = requiredModule("scalus.sir.SIR.Apply")
     val BigIntSymbol = requiredModule("scala.math.BigInt")
     val BigIntClassSymbol = requiredClass("scala.math.BigInt")
-    val DataConstrSymbol = requiredModule("scalus.builtins.Data.Constr")
-    val DataMapSymbol = requiredModule("scalus.builtins.Data.Map")
-    val DataListSymbol = requiredModule("scalus.builtins.Data.List")
-    val DataISymbol = requiredModule("scalus.builtins.Data.I")
-    val DataBSymbol = requiredModule("scalus.builtins.Data.B")
+    val DataConstrSymbol = requiredModule("scalus.builtin.Data.Constr")
+    val DataMapSymbol = requiredModule("scalus.builtin.Data.Map")
+    val DataListSymbol = requiredModule("scalus.builtin.Data.List")
+    val DataISymbol = requiredModule("scalus.builtin.Data.I")
+    val DataBSymbol = requiredModule("scalus.builtin.Data.B")
     val ConstantClassSymbol = requiredClass("scalus.uplc.Constant")
     val ConstantIntegerSymbol = requiredModule("scalus.uplc.Constant.Integer")
     val ConstantBoolSymbol = requiredModule("scalus.uplc.Constant.Bool")
@@ -50,8 +50,8 @@ class SIRConverter(using Context) {
     val ConstantDataSymbol = requiredModule("scalus.uplc.Constant.Data")
     val ConstantListSymbol = requiredModule("scalus.uplc.Constant.List")
     val ConstantPairSymbol = requiredModule("scalus.uplc.Constant.Pair")
-    val ByteStringSymbol = requiredModule("scalus.builtins.ByteString")
-    val ByteStringClassSymbol = requiredClass("scalus.builtins.ByteString")
+    val ByteStringSymbol = requiredModule("scalus.builtin.ByteString")
+    val ByteStringClassSymbol = requiredClass("scalus.builtin.ByteString")
     val VarSymbol = requiredModule("scalus.sir.SIR.Var")
     val ExternalVarSymbol = requiredModule("scalus.sir.SIR.ExternalVar")
     val LetSymbol = requiredModule("scalus.sir.SIR.Let")
@@ -67,7 +67,7 @@ class SIRConverter(using Context) {
     val ConstrDeclClassSymbol = requiredClass("scalus.sir.ConstrDecl")
     val ConstrSymbol = requiredModule("scalus.sir.SIR.Constr")
     val SIRClassSymbol = requiredClass("scalus.sir.SIR")
-    val DataClassSymbol = requiredClass("scalus.builtins.Data")
+    val DataClassSymbol = requiredClass("scalus.builtin.Data")
     val DataDeclSymbol = requiredModule("scalus.sir.DataDecl")
     val DeclSymbol = requiredModule("scalus.sir.SIR.Decl")
     val IfThenElseSymbol = requiredModule("scalus.sir.SIR.IfThenElse")

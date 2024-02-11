@@ -1,7 +1,7 @@
 package scalus.uplc
 
-import scalus.builtins.Builtins
-import scalus.builtins.PlatformSpecific
+import scalus.builtin.Builtins
+import scalus.builtin.PlatformSpecific
 import scalus.uplc.Cek.CekValue
 import scalus.uplc.Cek.VCon
 import scalus.uplc.Constant.given
@@ -353,7 +353,7 @@ object Meaning:
           All("a", DefaultUni.String ->: TVar("a") ->: TVar("a")),
           (a: CekValue) =>
               val aa = a.asString
-              (b: CekValue) => (ps: PlatformSpecific) => scalus.builtins.Builtins.trace(aa)(b)
+              (b: CekValue) => (ps: PlatformSpecific) => scalus.builtin.Builtins.trace(aa)(b)
         )
 
     // [ forall a, forall b, pair(a, b) ] -> a

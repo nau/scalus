@@ -1,7 +1,7 @@
 package scalus.uplc
 
-import scalus.builtins.ByteString
-import scalus.builtins.PlatformSpecific
+import scalus.builtin.ByteString
+import scalus.builtin.PlatformSpecific
 import scalus.uplc.Term.*
 
 import scala.annotation.tailrec

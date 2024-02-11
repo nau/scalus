@@ -1,8 +1,8 @@
 package scalus.ledger.api.v1
 
 import scalus.Compile
-import scalus.builtins.Builtins
-import scalus.builtins.ByteString
+import scalus.builtin.Builtins
+import scalus.builtin.ByteString
 import scalus.prelude.AssocMap
 import scalus.prelude.List
 import scalus.prelude.Maybe
@@ -10,9 +10,9 @@ import scalus.prelude.Prelude.===
 import scalus.prelude.Prelude.Eq
 import scalus.prelude.Prelude.given
 import scalus.prelude.These.*
-import scalus.builtins.Data
-import scalus.builtins.Data.FromData
-import scalus.builtins.Data.fromData
+import scalus.builtin.Data
+import scalus.builtin.Data.FromData
+import scalus.builtin.Data.fromData
 
 type ValidatorHash = ByteString
 type Datum = Data
@@ -28,7 +28,7 @@ type Value = AssocMap[CurrencySymbol, AssocMap[TokenName, BigInt]]
 
 @Compile
 object FromDataInstances {
-    import scalus.builtins.FromDataInstances.given
+    import scalus.builtin.FromDataInstances.given
 
     given FromData[TxId] = (d: Data) =>
         val hash = fromData[ByteString](Builtins.unsafeDataAsConstr(d).snd.head)

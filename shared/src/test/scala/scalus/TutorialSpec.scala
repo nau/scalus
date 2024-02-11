@@ -3,17 +3,17 @@ package scalus
 import org.scalatest.funsuite.AnyFunSuite
 import scalus.Compiler.compile
 import scalus.*
-import scalus.builtins.Builtins
-import scalus.builtins.ByteString
-import scalus.builtins.ByteString.given
-import scalus.builtins.Data
-import scalus.builtins.Data.FromData
-import scalus.builtins.Data.fromData
-import scalus.builtins.FromData
+import scalus.builtin.Builtins
+import scalus.builtin.ByteString
+import scalus.builtin.ByteString.given
+import scalus.builtin.Data
+import scalus.builtin.Data.FromData
+import scalus.builtin.Data.fromData
+import scalus.builtin.FromData
 import scalus.ledger.api.PlutusLedgerLanguage
 import scalus.prelude.Prelude.===
 import scalus.prelude.Prelude.given
-import scalus.builtins.FromDataInstances.given
+import scalus.builtin.FromDataInstances.given
 
 val constants = compile {
     val unit = ()
@@ -26,13 +26,13 @@ val constants = compile {
     val byteStringUtf8 = ByteString.fromString("hello") // utf8 encoded
     val byteString2 = hex"deadbeef"
     val string = "Scalus Rocks!"
-    val emptyList = builtins.List.empty[BigInt]
-    val list = builtins.List[BigInt](1, 2, 3)
-    val pair = builtins.Pair(true, ())
+    val emptyList = builtin.List.empty[BigInt]
+    val list = builtin.List[BigInt](1, 2, 3)
+    val pair = builtin.Pair(true, ())
 }
 
 val builtinFunctions = compile {
-    // See scalus.builtins.Builtins for what is available
+    // See scalus.builtin.Builtins for what is available
     val data = Builtins.mkI(123)
     val eq = Builtins.equalsByteString(hex"deadbeef", ByteString.empty)
     val a = BigInt(1)

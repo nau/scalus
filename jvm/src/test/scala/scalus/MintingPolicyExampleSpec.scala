@@ -1,9 +1,9 @@
 package scalus
 
 import scalus.Compiler.compile
-import scalus.builtins.ByteString
-import scalus.builtins.ByteString.given
-import scalus.builtins.given
+import scalus.builtin.ByteString
+import scalus.builtin.ByteString.given
+import scalus.builtin.given
 import scalus.examples.MintingPolicy
 import scalus.examples.MintingPolicyV2
 import scalus.ledger.api.v1.ToDataInstances.given

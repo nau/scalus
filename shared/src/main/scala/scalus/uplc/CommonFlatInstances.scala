@@ -1,6 +1,6 @@
 package scalus.uplc
 
-import scalus.builtins
+import scalus.builtin
 import scalus.flat
 import scalus.flat.DecoderState
 import scalus.flat.EncoderState
@@ -11,25 +11,25 @@ import scalus.uplc.DefaultFun.*
 object CommonFlatInstances:
     val constantWidth = 4
 
-    given Flat[builtins.ByteString] with
+    given Flat[builtin.ByteString] with
         val flatArray = summon[Flat[Array[Byte]]]
-        def bitSize(a: builtins.ByteString): Int = flatArray.bitSize(a.bytes)
+        def bitSize(a: builtin.ByteString): Int = flatArray.bitSize(a.bytes)
 
-        def encode(a: builtins.ByteString, encode: EncoderState): Unit =
+        def encode(a: builtin.ByteString, encode: EncoderState): Unit =
             flatArray.encode(a.bytes, encode)
 
-        def decode(decode: DecoderState): builtins.ByteString =
-            builtins.ByteString.unsafeFromArray(flatArray.decode(decode))
+        def decode(decode: DecoderState): builtin.ByteString =
+            builtin.ByteString.unsafeFromArray(flatArray.decode(decode))
 
-    def flatForUni(uni: DefaultUni)(using Flat[builtins.Data]): Flat[Any] =
+    def flatForUni(uni: DefaultUni)(using Flat[builtin.Data]): Flat[Any] =
         import DefaultUni.*
         uni match
             case Integer             => summon[Flat[BigInt]].asInstanceOf[Flat[Any]]
-            case ByteString          => summon[Flat[builtins.ByteString]].asInstanceOf[Flat[Any]]
+            case ByteString          => summon[Flat[builtin.ByteString]].asInstanceOf[Flat[Any]]
             case String              => summon[Flat[String]].asInstanceOf[Flat[Any]]
             case Unit                => summon[Flat[Unit]].asInstanceOf[Flat[Any]]
             case Bool                => summon[Flat[Boolean]].asInstanceOf[Flat[Any]]
-            case Data                => summon[Flat[builtins.Data]].asInstanceOf[Flat[Any]]
+            case Data                => summon[Flat[builtin.Data]].asInstanceOf[Flat[Any]]
             case Apply(ProtoList, a) => listFlat(flatForUni(a)).asInstanceOf[Flat[Any]]
             case Apply(Apply(ProtoPair, a), b) =>
                 pairFlat(flatForUni(a), flatForUni(b)).asInstanceOf[Flat[Any]]
@@ -191,7 +191,7 @@ object CommonFlatInstances:
                 case 53 => VerifySchnorrSecp256k1Signature
                 case c  => throw new Exception(s"Invalid builtin function code: $c")
 
-    def flatConstant(using Flat[builtins.Data]): Flat[Constant] = new Flat[Constant]:
+    def flatConstant(using Flat[builtin.Data]): Flat[Constant] = new Flat[Constant]:
 
         val constantTypeTagFlat = new Flat[Int]:
             def bitSize(a: Int): Int = constantWidth

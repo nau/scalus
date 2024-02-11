@@ -1,9 +1,9 @@
 package scalus.ledger.api.v2
 
 import scalus.Compile
-import scalus.builtins
-import scalus.builtins.Builtins
-import scalus.builtins.ByteString
+import scalus.builtin
+import scalus.builtin.Builtins
+import scalus.builtin.ByteString
 import scalus.ledger.api.v1.Address
 import scalus.ledger.api.v1.Credential
 import scalus.ledger.api.v1.DCert
@@ -25,10 +25,10 @@ import scalus.prelude.Prelude.===
 import scalus.prelude.Prelude.Eq
 import scalus.prelude.Prelude.given
 import scalus.prelude.These.*
-import scalus.builtins.Data
-import scalus.builtins.Data.FromData
-import scalus.builtins.Data.ToData
-import scalus.builtins.Data.fromData
+import scalus.builtin.Data
+import scalus.builtin.Data.FromData
+import scalus.builtin.Data.ToData
+import scalus.builtin.Data.fromData
 export scalus.ledger.api.v1.Address
 export scalus.ledger.api.v1.Credential
 export scalus.ledger.api.v1.DCert
@@ -49,7 +49,7 @@ export scalus.ledger.api.v1.Value
 
 @Compile
 object FromDataInstances {
-    import scalus.builtins.FromDataInstances.given
+    import scalus.builtin.FromDataInstances.given
     import scalus.ledger.api.v1.FromDataInstances.given
 
     given FromData[OutputDatum] = (d: Data) =>

@@ -2,9 +2,9 @@ package scalus.uplc
 
 import org.scalatest.funsuite.AnyFunSuite
 import org.scalatestplus.scalacheck.ScalaCheckPropertyChecks
-import scalus.builtins.ByteString.given
-import scalus.builtins.ToDataInstances.given
-import scalus.builtins.given
+import scalus.builtin.ByteString.given
+import scalus.builtin.ToDataInstances.given
+import scalus.builtin.given
 import scalus.uplc.Constant.Pair
 import scalus.uplc.DefaultFun.*
 import scalus.uplc.DefaultUni.asConstant

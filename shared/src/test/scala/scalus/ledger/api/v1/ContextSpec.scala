@@ -4,9 +4,9 @@ import org.scalatest.funsuite.AnyFunSuite
 import org.scalatestplus.scalacheck.ScalaCheckPropertyChecks
 import scalus.*
 import scalus.Compiler.compile
-import scalus.builtins.ByteString.given
-import scalus.builtins.Data.{fromData, toData}
-import scalus.builtins.{ByteString, Data, given}
+import scalus.builtin.ByteString.given
+import scalus.builtin.Data.{fromData, toData}
+import scalus.builtin.{ByteString, Data, given}
 import scalus.prelude.Prelude.{*, given}
 import scalus.sir.SIR
 import scalus.uplc.{ArbitraryInstances, Cek, Constant, Term}
@@ -40,14 +40,14 @@ class ContextSpec
         import scalus.sir.SirDSL.*
         val sir = compile { (d: Data) =>
             import scalus.ledger.api.v1.FromDataInstances.given
-            import scalus.builtins.FromDataInstances.given
+            import scalus.builtin.FromDataInstances.given
             val i = fromData[Interval[POSIXTime]](d)
             i === i
         }
 
         forAll { (i: Interval[POSIXTime]) =>
             import scalus.ledger.api.v1.ToDataInstances.given
-            import scalus.builtins.ToDataInstances.given
+            import scalus.builtin.ToDataInstances.given
             assert(i === i)
             val d = i.toData
             val applied = sir $ SIR.Const(Constant.Data(d))

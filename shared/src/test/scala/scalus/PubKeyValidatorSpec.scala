@@ -3,10 +3,10 @@ package scalus
 import org.scalatest.funsuite.AnyFunSuite
 import org.scalatestplus.scalacheck.ScalaCheckPropertyChecks
 import scalus.Compiler.compile
-import scalus.builtins.Builtins
-import scalus.builtins.ByteString
-import scalus.builtins.ByteString.given
-import scalus.builtins.given
+import scalus.builtin.Builtins
+import scalus.builtin.ByteString
+import scalus.builtin.ByteString.given
+import scalus.builtin.given
 import scalus.ledger.api.v1.ToDataInstances.given
 import scalus.ledger.api.v1.*
 import scalus.prelude.List.Cons
@@ -21,7 +21,7 @@ object PubKeyValidator {
         val txinfo = Builtins.unsafeDataAsConstr(Builtins.unsafeDataAsConstr(ctx).snd.head).snd
         val signatories = Builtins.unsafeDataAsList(txinfo.tail.tail.tail.tail.tail.tail.tail.head)
 
-        def findSignatureOrFail(sigs: builtins.List[Data]): Unit =
+        def findSignatureOrFail(sigs: builtin.List[Data]): Unit =
             if signatories.isEmpty then throw new RuntimeException("Signature not found")
             else if Builtins.unsafeDataAsB(signatories.head) === hex"deadbeef"
             then ()

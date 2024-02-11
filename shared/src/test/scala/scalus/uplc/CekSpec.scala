@@ -1,7 +1,7 @@
 package scalus.uplc
 
 import org.scalatest.funsuite.AnyFunSuite
-import scalus.builtins.given
+import scalus.builtin.given
 import scalus.uplc.DefaultUni.asConstant
 import scalus.uplc.Term.*
 

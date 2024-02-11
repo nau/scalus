@@ -2,8 +2,8 @@ package scalus
 
 import io.bullet.borer.Cbor
 import scalus.Compiler.compile
-import scalus.builtins.ByteString
-import scalus.builtins.given
+import scalus.builtin.ByteString
+import scalus.builtin.given
 import scalus.examples.MintingPolicy
 import scalus.prelude.AssocMap
 import scalus.uplc.Cek

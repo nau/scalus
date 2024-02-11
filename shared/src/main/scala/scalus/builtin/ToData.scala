@@ -1,4 +1,4 @@
-package scalus.builtins
+package scalus.builtin
 import scala.collection.immutable.List
 
 import scala.quoted.*
@@ -63,8 +63,8 @@ object ToData {
                                           '{ $toData($arg) }
                       }
                       .asInstanceOf[List[Expr[Data]]]
-                  args.foldRight('{ scalus.builtins.Builtins.mkNilData() }) { (data, acc) =>
-                      '{ scalus.builtins.Builtins.mkCons($data, $acc) }
+                  args.foldRight('{ scalus.builtin.Builtins.mkNilData() }) { (data, acc) =>
+                      '{ scalus.builtin.Builtins.mkCons($data, $acc) }
                   }
               }
             )

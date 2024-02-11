@@ -3,9 +3,9 @@ package scalus.examples
 import scalus.Compile
 import scalus.Compiler.compile
 import scalus.Compiler.fieldAsData
-import scalus.builtins.Builtins
-import scalus.builtins.ByteString
-import scalus.builtins.ByteString.given
+import scalus.builtin.Builtins
+import scalus.builtin.ByteString
+import scalus.builtin.ByteString.given
 import scalus.ledger.api.v1.FromDataInstances.given
 import scalus.ledger.api.v1.*
 import scalus.prelude.List
@@ -16,7 +16,7 @@ import scalus.prelude.*
 import scalus.uplc.Data
 import scalus.uplc.Data.FromData
 import scalus.uplc.Data.fromData
-import scalus.builtins.FromDataInstances.given
+import scalus.builtin.FromDataInstances.given
 
 case class TxInInfoTxOutRefOnly(txInInfoOutRef: TxOutRef)
 

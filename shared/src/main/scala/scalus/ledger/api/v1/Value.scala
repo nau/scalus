@@ -2,8 +2,8 @@ package scalus.ledger.api.v1
 
 import scalus.Compile
 import scalus.prelude.AssocMap
-import scalus.builtins.ByteString
-import scalus.builtins.Builtins
+import scalus.builtin.ByteString
+import scalus.builtin.Builtins
 import scalus.prelude.Prelude.given
 import scalus.prelude.List
 import scalus.prelude.These

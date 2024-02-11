@@ -6,10 +6,10 @@ import org.scalacheck.Gen
 import scalus.BaseValidatorSpec
 import scalus.Compiler.compile
 import scalus.Expected
-import scalus.builtins.Builtins
-import scalus.builtins.ByteString
-import scalus.builtins.ByteString.given
-import scalus.builtins.given
+import scalus.builtin.Builtins
+import scalus.builtin.ByteString
+import scalus.builtin.ByteString.given
+import scalus.builtin.given
 import scalus.ledger.api.v1.ToDataInstances.given
 import scalus.ledger.api.v1.*
 import scalus.prelude.List.Cons
@@ -208,7 +208,7 @@ class CekJVMSpec extends BaseValidatorSpec:
     }
 
     test("verifyEd25519Signature") {
-        val sir = compile { scalus.builtins.Builtins.verifyEd25519Signature }
+        val sir = compile { scalus.builtin.Builtins.verifyEd25519Signature }
         val verify = sir.toUplc()
         val valid = verify $
             hex"9518c18103cbdab9c6e60b58ecc3e2eb439fef6519bb22570f391327381900a8" $
@@ -240,7 +240,7 @@ class CekJVMSpec extends BaseValidatorSpec:
     }
 
     test("verifyEcdsaSecp256k1Signature") {
-        val sir = compile { scalus.builtins.Builtins.verifyEcdsaSecp256k1Signature }
+        val sir = compile { scalus.builtin.Builtins.verifyEcdsaSecp256k1Signature }
 
         // Construct private key from hex
         val privateKey =
@@ -300,7 +300,7 @@ class CekJVMSpec extends BaseValidatorSpec:
     }
 
     test("verifySchnorrSecp256k1Signature") {
-        val sir = compile { scalus.builtins.Builtins.verifySchnorrSecp256k1Signature }
+        val sir = compile { scalus.builtin.Builtins.verifySchnorrSecp256k1Signature }
 
         // Construct private key from hex
         val privateKey =

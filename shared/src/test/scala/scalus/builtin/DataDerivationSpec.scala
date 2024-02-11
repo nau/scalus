@@ -1,10 +1,10 @@
-package scalus.builtins
+package scalus.builtin
 
 import org.scalatest.funsuite.AnyFunSuite
 import org.scalatestplus.scalacheck.ScalaCheckPropertyChecks
-import scalus.builtins.ByteString.given
-import scalus.builtins.Data.*
-import scalus.builtins.ToDataInstances.given
+import scalus.builtin.ByteString.given
+import scalus.builtin.Data.*
+import scalus.builtin.ToDataInstances.given
 import scalus.ledger.api.v1.*
 import scalus.ledger.api.v1.ToDataInstances.given
 

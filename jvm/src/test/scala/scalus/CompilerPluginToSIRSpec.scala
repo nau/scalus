@@ -4,10 +4,10 @@ import org.scalatest.funsuite.AnyFunSuite
 import org.scalatestplus.scalacheck.ScalaCheckPropertyChecks
 import scalus.Compiler.compile
 import scalus.Compiler.fieldAsData
-import scalus.builtins.Builtins
-import scalus.builtins.ByteString
-import scalus.builtins.ByteString.given
-import scalus.builtins.given
+import scalus.builtin.Builtins
+import scalus.builtin.ByteString
+import scalus.builtin.ByteString.given
+import scalus.builtin.given
 import scalus.ledger.api.v1.*
 import scalus.prelude.List.Cons
 import scalus.prelude.List.Nil
@@ -43,16 +43,16 @@ class CompilerPluginToSIRSpec extends AnyFunSuite with ScalaCheckPropertyChecks:
 
         // ByteStrings
         assert(
-          compile(builtins.ByteString.empty) == Const(
-            Constant.ByteString(builtins.ByteString.empty)
+          compile(builtin.ByteString.empty) == Const(
+            Constant.ByteString(builtin.ByteString.empty)
           )
         )
 
-        assert(compile(builtins.ByteString.fromHex("deadbeef")) == Const(deadbeef))
+        assert(compile(builtin.ByteString.fromHex("deadbeef")) == Const(deadbeef))
         assert(compile(hex"deadbeef") == Const(deadbeef))
         assert(
-          compile(builtins.ByteString.fromString("deadbeef")) == Const(
-            Constant.ByteString(builtins.ByteString.fromString("deadbeef"))
+          compile(builtin.ByteString.fromString("deadbeef")) == Const(
+            Constant.ByteString(builtin.ByteString.fromString("deadbeef"))
           )
         )
     }
@@ -135,8 +135,8 @@ class CompilerPluginToSIRSpec extends AnyFunSuite with ScalaCheckPropertyChecks:
     }
 
     test("compile ToData") {
-        import scalus.builtins.Data.*
-        import scalus.builtins.ToDataInstances.given
+        import scalus.builtin.Data.*
+        import scalus.builtin.ToDataInstances.given
         val compiled = compile {
             BigInt(1).toData
         }
@@ -145,14 +145,14 @@ class CompilerPluginToSIRSpec extends AnyFunSuite with ScalaCheckPropertyChecks:
             Rec,
             immutable.List(
               Binding(
-                "scalus.builtins.ToDataInstances$.given_ToData_BigInt",
+                "scalus.builtin.ToDataInstances$.given_ToData_BigInt",
                 LamAbs("a", Apply(Builtin(IData), Var("a")))
               )
             ),
             Let(
               NonRec,
               immutable.List(Binding("a$proxy1", Const(Constant.Integer(1)))),
-              Apply(Var("scalus.builtins.ToDataInstances$.given_ToData_BigInt"), Var("a$proxy1"))
+              Apply(Var("scalus.builtin.ToDataInstances$.given_ToData_BigInt"), Var("a$proxy1"))
             )
           )
         )
@@ -163,7 +163,7 @@ class CompilerPluginToSIRSpec extends AnyFunSuite with ScalaCheckPropertyChecks:
     test("compile chooseList builtins") {
         assert(
           compile(
-            Builtins.chooseList(builtins.List[BigInt](1, 2, 3), true, false)
+            Builtins.chooseList(builtin.List[BigInt](1, 2, 3), true, false)
           ) == (DefaultFun.ChooseList $ List(1, 2, 3) $ true $ false)
         )
     }
@@ -171,7 +171,7 @@ class CompilerPluginToSIRSpec extends AnyFunSuite with ScalaCheckPropertyChecks:
     test("compile mkCons builtins") {
         assert(
           compile(
-            Builtins.mkCons(BigInt(4), builtins.List[BigInt](1, 2, 3))
+            Builtins.mkCons(BigInt(4), builtin.List[BigInt](1, 2, 3))
           ) == (DefaultFun.MkCons $ 4 $ List(1, 2, 3))
         )
     }
@@ -179,7 +179,7 @@ class CompilerPluginToSIRSpec extends AnyFunSuite with ScalaCheckPropertyChecks:
     test("compile headList builtins") {
         assert(
           compile(
-            Builtins.headList(builtins.List[BigInt](1, 2, 3))
+            Builtins.headList(builtin.List[BigInt](1, 2, 3))
           ) == (DefaultFun.HeadList $ List(1, 2, 3))
         )
     }
@@ -187,7 +187,7 @@ class CompilerPluginToSIRSpec extends AnyFunSuite with ScalaCheckPropertyChecks:
     test("compile tailList builtins") {
         assert(
           compile(
-            Builtins.tailList(builtins.List[BigInt](1, 2, 3))
+            Builtins.tailList(builtin.List[BigInt](1, 2, 3))
           ) == (DefaultFun.TailList $ List(1, 2, 3))
         )
     }
@@ -195,7 +195,7 @@ class CompilerPluginToSIRSpec extends AnyFunSuite with ScalaCheckPropertyChecks:
     test("compile nullList builtins") {
         assert(
           compile(
-            Builtins.nullList(builtins.List[BigInt](1, 2, 3))
+            Builtins.nullList(builtin.List[BigInt](1, 2, 3))
           ) == (DefaultFun.NullList $ List(1, 2, 3))
         )
     }
@@ -203,7 +203,7 @@ class CompilerPluginToSIRSpec extends AnyFunSuite with ScalaCheckPropertyChecks:
     test("compile empty List") {
         assert(
           compile {
-              builtins.List.empty[BigInt]
+              builtin.List.empty[BigInt]
           } == Const(Constant.List(DefaultUni.Integer, List()))
         )
     }
@@ -211,7 +211,7 @@ class CompilerPluginToSIRSpec extends AnyFunSuite with ScalaCheckPropertyChecks:
     test("compile List literal") {
         assert(
           compile {
-              builtins.List[BigInt](1, 2, 3)
+              builtin.List[BigInt](1, 2, 3)
           } == Const(
             Constant.List(
               DefaultUni.Integer,
@@ -225,7 +225,7 @@ class CompilerPluginToSIRSpec extends AnyFunSuite with ScalaCheckPropertyChecks:
         assert(
           compile {
               val a = "foo"
-              "bar" :: builtins.List(a)
+              "bar" :: builtin.List(a)
           } == Let(
             NonRec,
             List(Binding("a", Const(Constant.String("foo")))),
@@ -243,7 +243,7 @@ class CompilerPluginToSIRSpec extends AnyFunSuite with ScalaCheckPropertyChecks:
     test("compile head function") {
         assert(
           compile {
-              def head(l: builtins.List[BigInt]) = l.head
+              def head(l: builtin.List[BigInt]) = l.head
           } == Let(
             Rec,
             List(
@@ -257,7 +257,7 @@ class CompilerPluginToSIRSpec extends AnyFunSuite with ScalaCheckPropertyChecks:
     test("compile tail function") {
         assert(
           compile {
-              def tail(l: builtins.List[BigInt]) = l.tail
+              def tail(l: builtin.List[BigInt]) = l.tail
           } == Let(
             Rec,
             List(
@@ -271,7 +271,7 @@ class CompilerPluginToSIRSpec extends AnyFunSuite with ScalaCheckPropertyChecks:
     test("compile isEmpty function") {
         assert(
           compile {
-              def isEmpty(l: builtins.List[BigInt]) = l.isEmpty
+              def isEmpty(l: builtin.List[BigInt]) = l.isEmpty
           } == Let(
             Rec,
             List(
@@ -298,7 +298,7 @@ class CompilerPluginToSIRSpec extends AnyFunSuite with ScalaCheckPropertyChecks:
           compile(
             Builtins.mkConstr(
               1,
-              builtins.List(Builtins.mkI(2))
+              builtin.List(Builtins.mkI(2))
             )
           ) == Apply(
             Apply(Builtin(ConstrData), Const(Constant.Integer(1))),
@@ -314,7 +314,7 @@ class CompilerPluginToSIRSpec extends AnyFunSuite with ScalaCheckPropertyChecks:
         val nilData = Const(Constant.List(DefaultUni.Data, immutable.Nil))
         assert(
           compile(
-            Builtins.mkList(builtins.List(Builtins.mkI(1)))
+            Builtins.mkList(builtin.List(Builtins.mkI(1)))
           ) == Apply(
             Builtin(ListData),
             Apply(
@@ -329,8 +329,8 @@ class CompilerPluginToSIRSpec extends AnyFunSuite with ScalaCheckPropertyChecks:
         assert(
           compile(
             Builtins.mkMap(
-              builtins.List(
-                builtins.Pair(Builtins.mkB(hex"deadbeef"), Builtins.mkI(1))
+              builtin.List(
+                builtin.Pair(Builtins.mkB(hex"deadbeef"), Builtins.mkI(1))
               )
             )
           ) == Apply(
@@ -612,8 +612,8 @@ class CompilerPluginToSIRSpec extends AnyFunSuite with ScalaCheckPropertyChecks:
         assert(compile(Builtins.mkPairData) == (Builtin(MkPairData)))
         assert(
           compile {
-              def swap(p: builtins.Pair[Data, Data]) =
-                  builtins.Pair(Builtins.sndPair(p), Builtins.fstPair(p))
+              def swap(p: builtin.Pair[Data, Data]) =
+                  builtin.Pair(Builtins.sndPair(p), Builtins.fstPair(p))
           } == (
             Let(
               Rec,
@@ -628,11 +628,11 @@ class CompilerPluginToSIRSpec extends AnyFunSuite with ScalaCheckPropertyChecks:
           )
         )
         assert(compile {
-            builtins.Pair(BigInt(1), hex"deadbeef")
+            builtin.Pair(BigInt(1), hex"deadbeef")
         } == (Const(Constant.Pair(Constant.Integer(1), deadbeef))))
         assert(
           compile {
-              def swap(p: builtins.Pair[Data, Data]) = builtins.Pair(p.snd, p.fst)
+              def swap(p: builtin.Pair[Data, Data]) = builtin.Pair(p.snd, p.fst)
           } == (
             Let(
               Rec,

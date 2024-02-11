@@ -1,11 +1,11 @@
-package scalus.builtins
+package scalus.builtin
 
 import io.bullet.borer.{Cbor, Decoder, Encoder}
 import org.scalatest.funsuite.AnyFunSuite
 import org.scalatestplus.scalacheck.ScalaCheckPropertyChecks
-import scalus.builtins
-import scalus.builtins.ByteString.given
-import scalus.builtins.Data.*
+import scalus.builtin
+import scalus.builtin.ByteString.given
+import scalus.builtin.Data.*
 import scalus.uplc.ArbitraryInstances
 import scalus.utils.Utils
 
@@ -64,7 +64,7 @@ class DataCborCodecSpec extends AnyFunSuite with ScalaCheckPropertyChecks with A
           ) == "9F002018641903E8C24942ED123B08FE58FE0CFF"
         )
         assert(
-          encodeAsHexString(B(builtins.ByteString.unsafeFromArray("12".getBytes))) == "423132"
+          encodeAsHexString(B(builtin.ByteString.unsafeFromArray("12".getBytes))) == "423132"
         )
     }
 
@@ -73,11 +73,11 @@ class DataCborCodecSpec extends AnyFunSuite with ScalaCheckPropertyChecks with A
         val expected =
             "4A31323334353637383930"
         assert(
-          encodeAsHexString(B(builtins.ByteString.unsafeFromArray(longBs.getBytes))) == expected
+          encodeAsHexString(B(builtin.ByteString.unsafeFromArray(longBs.getBytes))) == expected
         )
         assert(
           Cbor.decode(Utils.hexToBytes(expected)).to[Data].value == B(
-            builtins.ByteString.unsafeFromArray(longBs.getBytes)
+            builtin.ByteString.unsafeFromArray(longBs.getBytes)
           )
         )
     }
@@ -86,11 +86,11 @@ class DataCborCodecSpec extends AnyFunSuite with ScalaCheckPropertyChecks with A
         val expected =
             "5F58403132333435363738393031323334353637383930313233343536373839303132333435363738393031323334353637383930313233343536373839303132333446353637383930FF"
         assert(
-          encodeAsHexString(B(builtins.ByteString.unsafeFromArray(longBs.getBytes))) == expected
+          encodeAsHexString(B(builtin.ByteString.unsafeFromArray(longBs.getBytes))) == expected
         )
         assert(
           Cbor.decode(Utils.hexToBytes(expected)).to[Data].value == B(
-            builtins.ByteString.unsafeFromArray(longBs.getBytes)
+            builtin.ByteString.unsafeFromArray(longBs.getBytes)
           )
         )
     }

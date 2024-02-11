@@ -1,4 +1,4 @@
-package scalus.builtins
+package scalus.builtin
 import io.bullet.borer.Cbor
 import scalus.uplc.Data
 

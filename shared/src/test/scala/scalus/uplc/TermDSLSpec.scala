@@ -4,7 +4,7 @@ import org.scalacheck.Prop.*
 import org.scalacheck.*
 import org.scalatest.funsuite.AnyFunSuite
 import org.scalatestplus.scalacheck.ScalaCheckPropertyChecks
-import scalus.builtins.ByteString
+import scalus.builtin.ByteString
 import scalus.uplc.DefaultUni.asConstant
 import scalus.uplc.TermDSL.{_, given}
 

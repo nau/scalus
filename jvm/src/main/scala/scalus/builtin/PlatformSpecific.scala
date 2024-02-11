@@ -1,4 +1,4 @@
-package scalus.builtins
+package scalus.builtin
 
 import org.bitcoins.crypto.ECDigitalSignature
 import org.bitcoins.crypto.ECPublicKey

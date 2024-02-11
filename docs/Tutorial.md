@@ -38,8 +38,8 @@ validator.doubleCborHex(version = (1, 0, 0))
 ```scala mdoc:compile-only
 import scalus.Compiler.compile
 import scalus.*
-import scalus.builtins.*
-import scalus.builtins.ByteString.given
+import scalus.builtin.*
+import scalus.builtin.ByteString.given
 import scalus.prelude.Prelude.{*, given}
 
 val constants = compile {
@@ -53,21 +53,21 @@ val constants = compile {
   val byteStringUtf8 = ByteString.fromString("hello") // utf8 encoded
   val byteString2 = hex"deadbeef"
   val string = "Scalus Rocks!"
-  val emptyList = builtins.List.empty[BigInt]
-  val list = builtins.List[BigInt](1, 2, 3)
-  val pair = builtins.Pair(true, ())
+  val emptyList = builtin.List.empty[BigInt]
+  val list = builtin.List[BigInt](1, 2, 3)
+  val pair = builtin.Pair(true, ())
 }
 ```
 
 ## Builtin Functions
 
 ```scala mdoc:compile-only
-import scalus.builtins.Builtins
-import scalus.builtins.ByteString
-import scalus.builtins.ByteString.given
+import scalus.builtin.Builtins
+import scalus.builtin.ByteString
+import scalus.builtin.ByteString.given
 import scalus.prelude.Prelude.{*, given}
 compile {
-  // See scalus.builtins.Builtins for what is available
+  // See scalus.builtin.Builtins for what is available
   val data = Builtins.mkI(123)
   val eq = Builtins.equalsByteString(hex"deadbeef", ByteString.empty)
   val a = BigInt(1)
@@ -81,7 +81,7 @@ compile {
 You can define your own data types using Scala case classes and enums.
 
 ```scala mdoc:compile-only
-import scalus.builtins.ByteString
+import scalus.builtin.ByteString
 import scalus.prelude.Prelude.{*, given}
 case class Account(hash: ByteString, balance: BigInt)
 
@@ -208,7 +208,7 @@ Here is a simple example of a Plutus V1 validator written in Scalus.
 ```scala mdoc:compile-only
 import scalus.ledger.api.v1.*
 import scalus.ledger.api.v1.FromDataInstances.given
-import scalus.builtins.ByteString.given
+import scalus.builtin.ByteString.given
 import scalus.prelude.List
 import scalus.prelude.Prelude.===
 import scalus.prelude.Prelude.given
@@ -232,7 +232,7 @@ like `Hex(CborEncode(CborEncode(FlatEncode(Program(version, uplc)))))`.
 ```scala mdoc:compile-only
 import scalus.ledger.api.v1.*
 import scalus.ledger.api.v1.FromDataInstances.given
-import scalus.builtins.ByteString.given
+import scalus.builtin.ByteString.given
 import scalus.prelude.List
 import scalus.prelude.Prelude.===
 import scalus.prelude.Prelude.given

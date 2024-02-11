@@ -4,8 +4,8 @@ import cats.implicits.toShow
 import org.scalatest.funsuite.AnyFunSuite
 import org.scalatestplus.scalacheck.ScalaCheckPropertyChecks
 import scalus.*
-import scalus.builtins
-import scalus.builtins.ByteString.StringInterpolators
+import scalus.builtin
+import scalus.builtin.ByteString.StringInterpolators
 import scalus.uplc.Constant.given
 import scalus.uplc.DefaultUni.Bool
 import scalus.uplc.DefaultUni.ByteString
@@ -108,7 +108,7 @@ class UplcParserSpec extends AnyFunSuite with ScalaCheckPropertyChecks with Arbi
 
     test("Parse data") {
         def p(input: String) = parser.dataTerm.parse(input).map(_._2).left.map(e => e.show)
-        assert(p("B #  ") == Right(Data.B(scalus.builtins.ByteString.empty)))
+        assert(p("B #  ") == Right(Data.B(scalus.builtin.ByteString.empty)))
         assert(p("I 123 ") == Right(Data.I(123)))
         assert(p("Constr 0 [Constr 1 []] ") == Right(Data.Constr(0, List(Data.Constr(1, Nil)))))
     }
@@ -148,7 +148,7 @@ class UplcParserSpec extends AnyFunSuite with ScalaCheckPropertyChecks with Arbi
           r == Right(
             Program(
               version = (1, 0, 0),
-              term = builtins.ByteString.fromHex("001234ff") $ true $ false $ () $ "Hello"
+              term = builtin.ByteString.fromHex("001234ff") $ true $ false $ () $ "Hello"
             )
           )
         )

@@ -5,7 +5,7 @@ import scalus.flat
 import scalus.flat.{DecoderState, EncoderState, Flat, Natural, given}
 import scalus.uplc.CommonFlatInstances.*
 import scalus.uplc.CommonFlatInstances.given
-import scalus.builtins.{PlutusDataCborDecoder, PlutusDataCborEncoder}
+import scalus.builtin.{PlutusDataCborDecoder, PlutusDataCborEncoder}
 
 object FlatInstantces:
     val termTagWidth = 4

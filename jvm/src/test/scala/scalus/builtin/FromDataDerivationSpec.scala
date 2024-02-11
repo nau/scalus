@@ -1,13 +1,13 @@
-package scalus.builtins
+package scalus.builtin
 
 import org.scalacheck.{Arbitrary, Gen, Shrink}
 import org.scalatest.funsuite.AnyFunSuite
 import org.scalatestplus.scalacheck.ScalaCheckPropertyChecks
 import scalus.*
 import scalus.Compiler.compile
-import scalus.builtins.Data.*
-import scalus.builtins.FromDataInstances.given
-import scalus.builtins.given
+import scalus.builtin.Data.*
+import scalus.builtin.FromDataInstances.given
+import scalus.builtin.given
 import scalus.uplc.*
 
 enum Adt:
@@ -58,7 +58,7 @@ object ToDataBigRecord:
       case BigRecord(a, b, bs, s, d, ls, m) =>
         Builtins.mkConstr(
           0,
-          scalus.builtins.List(a.toData, b.toData, bs.toData, s.toData, d, ls.toData, m.toData)
+          scalus.builtin.List(a.toData, b.toData, bs.toData, s.toData, d, ls.toData, m.toData)
         ) */
     given ToData[BigRecord] = ToData.deriveCaseClass[BigRecord](0)
 

@@ -1,8 +1,8 @@
 package scalus.prelude
 
 import scala.collection.immutable
-import scalus.builtins.ByteString
-import scalus.builtins.Builtins
+import scalus.builtin.ByteString
+import scalus.builtin.Builtins
 import scalus.Compile
 import scalus.Ignore
 import scalus.uplc.Data

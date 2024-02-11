@@ -2,8 +2,8 @@ package scalus.ledger.api.v1
 
 import io.bullet.borer.{Cbor, Decoder, Encoder}
 import scalus.Compiler.compile
-import scalus.builtins.ByteString.StringInterpolators
-import scalus.builtins.{PlutusDataCborDecoder, PlutusDataCborEncoder, given}
+import scalus.builtin.ByteString.StringInterpolators
+import scalus.builtin.{PlutusDataCborDecoder, PlutusDataCborEncoder, given}
 import scalus.ledger.api.v1.*
 import scalus.ledger.api.v1.Credential.*
 import scalus.ledger.api.v1.FromDataInstances.given

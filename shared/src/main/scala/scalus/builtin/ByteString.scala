@@ -1,4 +1,4 @@
-package scalus.builtins
+package scalus.builtin
 
 import scalus.utils.Hex
 

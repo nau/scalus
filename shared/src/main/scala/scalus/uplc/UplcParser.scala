@@ -4,7 +4,7 @@ import cats.implicits.toShow
 import cats.parse.Numbers.{bigInt, digits}
 import cats.parse.Rfc5234.{alpha, digit, hexdig}
 import cats.parse.{Numbers, Parser as P, Parser0}
-import scalus.builtins.ByteString
+import scalus.builtin.ByteString
 import scalus.uplc.DefaultUni.{asConstant, ProtoList, ProtoPair}
 import scalus.uplc.Term.*
 import scalus.utils.Utils
