@@ -56,7 +56,7 @@ object ToData {
                                   Expr.summon[ToData[t]] match
                                       case None =>
                                           report.errorAndAbort(
-                                            s"Could not find implicit for FromData[${tpe.show}]"
+                                            s"Could not find implicit for ToData[${tpe.widen.show}]"
                                           )
                                       case Some(toData) =>
                                           val arg = Ident(binding.termRef).asExprOf[t]

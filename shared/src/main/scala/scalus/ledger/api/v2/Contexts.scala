@@ -4,20 +4,9 @@ import scalus.Compile
 import scalus.builtin
 import scalus.builtin.Builtins
 import scalus.builtin.ByteString
-import scalus.ledger.api.v1.Address
-import scalus.ledger.api.v1.Credential
-import scalus.ledger.api.v1.DCert
-import scalus.ledger.api.v1.Datum
-import scalus.ledger.api.v1.DatumHash
-import scalus.ledger.api.v1.POSIXTimeRange
-import scalus.ledger.api.v1.PubKeyHash
-import scalus.ledger.api.v1.Redeemer
-import scalus.ledger.api.v1.ScriptHash
-import scalus.ledger.api.v1.ScriptPurpose
-import scalus.ledger.api.v1.StakingCredential
-import scalus.ledger.api.v1.TxId
-import scalus.ledger.api.v1.TxOutRef
-import scalus.ledger.api.v1.Value
+import scalus.builtin.Data
+import scalus.builtin.Data.FromData
+import scalus.builtin.Data.fromData
 import scalus.prelude.AssocMap
 import scalus.prelude.List
 import scalus.prelude.Maybe
@@ -25,27 +14,6 @@ import scalus.prelude.Prelude.===
 import scalus.prelude.Prelude.Eq
 import scalus.prelude.Prelude.given
 import scalus.prelude.These.*
-import scalus.builtin.Data
-import scalus.builtin.Data.FromData
-import scalus.builtin.Data.ToData
-import scalus.builtin.Data.fromData
-export scalus.ledger.api.v1.Address
-export scalus.ledger.api.v1.Credential
-export scalus.ledger.api.v1.DCert
-export scalus.ledger.api.v1.Datum
-export scalus.ledger.api.v1.DatumHash
-export scalus.ledger.api.v1.FromDataInstances.given
-export scalus.ledger.api.v1.Interval
-export scalus.ledger.api.v1.POSIXTimeRange
-export scalus.ledger.api.v1.PubKeyHash
-export scalus.ledger.api.v1.Redeemer
-export scalus.ledger.api.v1.ScriptHash
-export scalus.ledger.api.v1.ScriptPurpose
-export scalus.ledger.api.v1.StakingCredential
-export scalus.ledger.api.v1.ToDataInstances.given
-export scalus.ledger.api.v1.TxId
-export scalus.ledger.api.v1.TxOutRef
-export scalus.ledger.api.v1.Value
 
 @Compile
 object FromDataInstances {
@@ -119,7 +87,7 @@ enum OutputDatum:
 
 @Compile
 object OutputDatum {
-    given Eq[scalus.ledger.api.v2.OutputDatum] =
+    given Eq[OutputDatum] =
         (a: scalus.ledger.api.v2.OutputDatum, b: scalus.ledger.api.v2.OutputDatum) =>
             a match
                 case NoOutputDatum =>
