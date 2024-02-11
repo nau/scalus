@@ -10,9 +10,9 @@ import scalus.prelude.Prelude.===
 import scalus.prelude.Prelude.Eq
 import scalus.prelude.Prelude.given
 import scalus.prelude.These.*
-import scalus.uplc.Data
-import scalus.uplc.Data.FromData
-import scalus.uplc.Data.fromData
+import scalus.builtins.Data
+import scalus.builtins.Data.FromData
+import scalus.builtins.Data.fromData
 
 type ValidatorHash = ByteString
 type Datum = Data
@@ -28,7 +28,7 @@ type Value = AssocMap[CurrencySymbol, AssocMap[TokenName, BigInt]]
 
 @Compile
 object FromDataInstances {
-    import scalus.uplc.FromDataInstances.given
+    import scalus.builtins.FromDataInstances.given
 
     given FromData[TxId] = (d: Data) =>
         val hash = fromData[ByteString](Builtins.unsafeDataAsConstr(d).snd.head)

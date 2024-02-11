@@ -15,13 +15,13 @@ import dotty.tools.dotc.core.Types.Type
 import dotty.tools.dotc.core.Types.TypeRef
 import dotty.tools.dotc.core.*
 import scalus.builtins.ByteString
+import scalus.builtins.Data
 import scalus.sir.Binding
 import scalus.sir.Case
 import scalus.sir.ConstrDecl
 import scalus.sir.DataDecl
 import scalus.sir.Recursivity
 import scalus.sir.SIR
-import scalus.uplc.Constant.Data
 import scalus.uplc.DefaultFun
 import scalus.uplc.DefaultUni
 
@@ -36,11 +36,11 @@ class SIRConverter(using Context) {
     val ApplySymbol = requiredModule("scalus.sir.SIR.Apply")
     val BigIntSymbol = requiredModule("scala.math.BigInt")
     val BigIntClassSymbol = requiredClass("scala.math.BigInt")
-    val DataConstrSymbol = requiredModule("scalus.uplc.Data.Constr")
-    val DataMapSymbol = requiredModule("scalus.uplc.Data.Map")
-    val DataListSymbol = requiredModule("scalus.uplc.Data.List")
-    val DataISymbol = requiredModule("scalus.uplc.Data.I")
-    val DataBSymbol = requiredModule("scalus.uplc.Data.B")
+    val DataConstrSymbol = requiredModule("scalus.builtins.Data.Constr")
+    val DataMapSymbol = requiredModule("scalus.builtins.Data.Map")
+    val DataListSymbol = requiredModule("scalus.builtins.Data.List")
+    val DataISymbol = requiredModule("scalus.builtins.Data.I")
+    val DataBSymbol = requiredModule("scalus.builtins.Data.B")
     val ConstantClassSymbol = requiredClass("scalus.uplc.Constant")
     val ConstantIntegerSymbol = requiredModule("scalus.uplc.Constant.Integer")
     val ConstantBoolSymbol = requiredModule("scalus.uplc.Constant.Bool")
@@ -67,7 +67,7 @@ class SIRConverter(using Context) {
     val ConstrDeclClassSymbol = requiredClass("scalus.sir.ConstrDecl")
     val ConstrSymbol = requiredModule("scalus.sir.SIR.Constr")
     val SIRClassSymbol = requiredClass("scalus.sir.SIR")
-    val DataClassSymbol = requiredClass("scalus.uplc.Data")
+    val DataClassSymbol = requiredClass("scalus.builtins.Data")
     val DataDeclSymbol = requiredModule("scalus.sir.DataDecl")
     val DeclSymbol = requiredModule("scalus.sir.SIR.Decl")
     val IfThenElseSymbol = requiredModule("scalus.sir.SIR.IfThenElse")
@@ -279,23 +279,23 @@ class SIRConverter(using Context) {
 
     def convert(i: BigInt): Tree = mkBigInt(i)
 
-    def convert(d: uplc.Data): Tree = {
+    def convert(d: Data): Tree = {
         d match
-            case uplc.Data.Constr(i, args) =>
+            case Data.Constr(i, args) =>
                 ref(DataConstrSymbol.requiredMethod("apply")).appliedToArgs(
                   List(
                     Literal(Constant(i)),
                     mkList(args.map(convert), TypeTree(DataClassSymbol.typeRef))
                   )
                 )
-            case uplc.Data.I(i) =>
+            case Data.I(i) =>
                 ref(DataISymbol.requiredMethod("apply")).appliedToArgs(List(convert(i)))
-            case uplc.Data.B(b) =>
+            case Data.B(b) =>
                 ref(DataBSymbol.requiredMethod("apply")).appliedToArgs(List(convert(b)))
-            case uplc.Data.List(l) =>
+            case Data.List(l) =>
                 ref(DataListSymbol.requiredMethod("apply"))
                     .appliedToArgs(List(mkList(l.map(convert), TypeTree(DataClassSymbol.typeRef))))
-            case uplc.Data.Map(m) => ??? // TODO
+            case Data.Map(m) => ??? // TODO
     }
 
     def convert(bs: ByteString) = {

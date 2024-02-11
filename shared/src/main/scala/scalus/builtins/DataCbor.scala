@@ -1,11 +1,11 @@
-package scalus.uplc
+package scalus.builtins
 import io.bullet.borer.Tag.{NegativeBigNum, Other, PositiveBigNum}
 import io.bullet.borer.encodings.BaseEncoding
 import io.bullet.borer.{ByteAccess, DataItem as DI, Decoder, Encoder, Reader, Writer}
-import scalus.builtins.ByteString
 import scalus.uplc.Data.{B, Constr, I, Map}
 
 import scala.annotation.tailrec
+import scala.collection.immutable.List
 import scala.collection.mutable
 import scala.collection.mutable.{ArrayBuffer, ListBuffer}
 

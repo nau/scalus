@@ -1,14 +1,14 @@
 package scalus.ledger.api.v1
 
-import scalus.uplc.Data.ToData
-import scalus.uplc.ToData
+import scalus.builtins.Data.ToData
+import scalus.builtins.ToData
 import scalus.builtins
 import scalus.builtins.Builtins
 import scalus.Compile
 
 @Compile
 object ToDataInstances {
-    import scalus.uplc.ToDataInstances.given
+    import scalus.builtins.ToDataInstances.given
     import scalus.uplc.Data.toData
 
     given ToData[PubKeyHash] = (a: PubKeyHash) => a.hash.toData

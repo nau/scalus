@@ -135,8 +135,8 @@ class CompilerPluginToSIRSpec extends AnyFunSuite with ScalaCheckPropertyChecks:
     }
 
     test("compile ToData") {
-        import scalus.uplc.Data.*
-        import scalus.uplc.ToDataInstances.given
+        import scalus.builtins.Data.*
+        import scalus.builtins.ToDataInstances.given
         val compiled = compile {
             BigInt(1).toData
         }
@@ -145,14 +145,14 @@ class CompilerPluginToSIRSpec extends AnyFunSuite with ScalaCheckPropertyChecks:
             Rec,
             immutable.List(
               Binding(
-                "scalus.uplc.ToDataInstances$.given_ToData_BigInt",
+                "scalus.builtins.ToDataInstances$.given_ToData_BigInt",
                 LamAbs("a", Apply(Builtin(IData), Var("a")))
               )
             ),
             Let(
               NonRec,
               immutable.List(Binding("a$proxy1", Const(Constant.Integer(1)))),
-              Apply(Var("scalus.uplc.ToDataInstances$.given_ToData_BigInt"), Var("a$proxy1"))
+              Apply(Var("scalus.builtins.ToDataInstances$.given_ToData_BigInt"), Var("a$proxy1"))
             )
           )
         )

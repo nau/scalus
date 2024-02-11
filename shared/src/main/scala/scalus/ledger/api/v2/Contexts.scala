@@ -25,10 +25,10 @@ import scalus.prelude.Prelude.===
 import scalus.prelude.Prelude.Eq
 import scalus.prelude.Prelude.given
 import scalus.prelude.These.*
-import scalus.uplc.Data
-import scalus.uplc.Data.FromData
-import scalus.uplc.Data.ToData
-import scalus.uplc.Data.fromData
+import scalus.builtins.Data
+import scalus.builtins.Data.FromData
+import scalus.builtins.Data.ToData
+import scalus.builtins.Data.fromData
 export scalus.ledger.api.v1.Address
 export scalus.ledger.api.v1.Credential
 export scalus.ledger.api.v1.DCert
@@ -49,7 +49,7 @@ export scalus.ledger.api.v1.Value
 
 @Compile
 object FromDataInstances {
-    import scalus.uplc.FromDataInstances.given
+    import scalus.builtins.FromDataInstances.given
     import scalus.ledger.api.v1.FromDataInstances.given
 
     given FromData[OutputDatum] = (d: Data) =>

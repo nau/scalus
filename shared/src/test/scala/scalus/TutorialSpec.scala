@@ -6,10 +6,14 @@ import scalus.*
 import scalus.builtins.Builtins
 import scalus.builtins.ByteString
 import scalus.builtins.ByteString.given
+import scalus.builtins.Data
+import scalus.builtins.Data.FromData
+import scalus.builtins.Data.fromData
+import scalus.builtins.FromData
 import scalus.ledger.api.PlutusLedgerLanguage
 import scalus.prelude.Prelude.===
 import scalus.prelude.Prelude.given
-import scalus.uplc.FromDataInstances.given
+import scalus.builtins.FromDataInstances.given
 
 val constants = compile {
     val unit = ()
@@ -94,10 +98,6 @@ val modules = compile {
     ReusableCode.usefulFunction(ReusableCode.constant)
 }
 
-import scalus.uplc.Data
-import scalus.uplc.Data.FromData
-import scalus.uplc.Data.fromData
-import scalus.uplc.FromData
 val fromDataExample = compile {
     // The `fromData` function is used to convert a `Data` value to a Scalus value.
     val data = Builtins.mkI(123)

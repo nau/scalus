@@ -21,7 +21,7 @@ object CommonFlatInstances:
         def decode(decode: DecoderState): builtins.ByteString =
             builtins.ByteString.unsafeFromArray(flatArray.decode(decode))
 
-    def flatForUni(uni: DefaultUni)(using Flat[Data]): Flat[Any] =
+    def flatForUni(uni: DefaultUni)(using Flat[builtins.Data]): Flat[Any] =
         import DefaultUni.*
         uni match
             case Integer             => summon[Flat[BigInt]].asInstanceOf[Flat[Any]]
@@ -29,7 +29,7 @@ object CommonFlatInstances:
             case String              => summon[Flat[String]].asInstanceOf[Flat[Any]]
             case Unit                => summon[Flat[Unit]].asInstanceOf[Flat[Any]]
             case Bool                => summon[Flat[Boolean]].asInstanceOf[Flat[Any]]
-            case Data                => summon[Flat[Data]].asInstanceOf[Flat[Any]]
+            case Data                => summon[Flat[builtins.Data]].asInstanceOf[Flat[Any]]
             case Apply(ProtoList, a) => listFlat(flatForUni(a)).asInstanceOf[Flat[Any]]
             case Apply(Apply(ProtoPair, a), b) =>
                 pairFlat(flatForUni(a), flatForUni(b)).asInstanceOf[Flat[Any]]
@@ -191,7 +191,7 @@ object CommonFlatInstances:
                 case 53 => VerifySchnorrSecp256k1Signature
                 case c  => throw new Exception(s"Invalid builtin function code: $c")
 
-    def flatConstant(using Flat[Data]): Flat[Constant] = new Flat[Constant]:
+    def flatConstant(using Flat[builtins.Data]): Flat[Constant] = new Flat[Constant]:
 
         val constantTypeTagFlat = new Flat[Int]:
             def bitSize(a: Int): Int = constantWidth

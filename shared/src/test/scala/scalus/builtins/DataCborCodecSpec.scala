@@ -1,13 +1,12 @@
-package scalus.uplc
+package scalus.builtins
 
-import io.bullet.borer.Cbor
-import io.bullet.borer.Decoder
-import io.bullet.borer.Encoder
+import io.bullet.borer.{Cbor, Decoder, Encoder}
 import org.scalatest.funsuite.AnyFunSuite
 import org.scalatestplus.scalacheck.ScalaCheckPropertyChecks
 import scalus.builtins
-import scalus.builtins.ByteString.StringInterpolators
-import scalus.uplc.Data.*
+import scalus.builtins.ByteString.given
+import scalus.builtins.Data.*
+import scalus.uplc.ArbitraryInstances
 import scalus.utils.Utils
 
 import scala.collection.immutable

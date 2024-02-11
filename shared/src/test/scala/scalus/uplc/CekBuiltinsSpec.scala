@@ -3,13 +3,13 @@ package scalus.uplc
 import org.scalatest.funsuite.AnyFunSuite
 import org.scalatestplus.scalacheck.ScalaCheckPropertyChecks
 import scalus.builtins.ByteString.given
+import scalus.builtins.ToDataInstances.given
 import scalus.builtins.given
 import scalus.uplc.Constant.Pair
 import scalus.uplc.DefaultFun.*
 import scalus.uplc.DefaultUni.asConstant
 import scalus.uplc.Term.*
-import scalus.uplc.TermDSL.{_, given}
-import scalus.uplc.ToDataInstances.given
+import scalus.uplc.TermDSL.{*, given}
 
 import scala.reflect.ClassTag
 

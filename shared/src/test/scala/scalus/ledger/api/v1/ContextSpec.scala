@@ -2,21 +2,14 @@ package scalus.ledger.api.v1
 
 import org.scalatest.funsuite.AnyFunSuite
 import org.scalatestplus.scalacheck.ScalaCheckPropertyChecks
-import scalus.Compiler.compile
 import scalus.*
-import scalus.builtins.ByteString
+import scalus.Compiler.compile
 import scalus.builtins.ByteString.given
-import scalus.builtins.given
-import scalus.prelude.Prelude.*
-import scalus.prelude.Prelude.given
+import scalus.builtins.Data.{fromData, toData}
+import scalus.builtins.{ByteString, Data, given}
+import scalus.prelude.Prelude.{*, given}
 import scalus.sir.SIR
-import scalus.uplc.ArbitraryInstances
-import scalus.uplc.Cek
-import scalus.uplc.Constant
-import scalus.uplc.Data
-import scalus.uplc.Data.fromData
-import scalus.uplc.Data.toData
-import scalus.uplc.Term
+import scalus.uplc.{ArbitraryInstances, Cek, Constant, Term}
 import scalus.uplc.TermDSL.given
 
 class ContextSpec
@@ -46,15 +39,15 @@ class ContextSpec
     test("Interval Eq") {
         import scalus.sir.SirDSL.*
         val sir = compile { (d: Data) =>
-            import scalus.uplc.FromDataInstances.given
             import scalus.ledger.api.v1.FromDataInstances.given
+            import scalus.builtins.FromDataInstances.given
             val i = fromData[Interval[POSIXTime]](d)
             i === i
         }
 
         forAll { (i: Interval[POSIXTime]) =>
-            import scalus.uplc.ToDataInstances.given
             import scalus.ledger.api.v1.ToDataInstances.given
+            import scalus.builtins.ToDataInstances.given
             assert(i === i)
             val d = i.toData
             val applied = sir $ SIR.Const(Constant.Data(d))

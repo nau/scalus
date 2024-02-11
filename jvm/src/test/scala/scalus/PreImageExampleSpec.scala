@@ -1,25 +1,19 @@
 package scalus
 
-import scalus.Compiler.compile
-import scalus.Compiler.fieldAsData
-import scalus.builtins.Builtins
-import scalus.builtins.ByteString
+import scalus.Compiler.{compile, fieldAsData}
 import scalus.builtins.ByteString.given
-import scalus.builtins.given
+import scalus.builtins.Data.{fromData, toData}
+import scalus.builtins.FromDataInstances.given
+import scalus.builtins.{Builtins, ByteString, given}
+import scalus.ledger.api.v1.*
 import scalus.ledger.api.v1.FromDataInstances.given
 import scalus.ledger.api.v1.ToDataInstances.given
-import scalus.ledger.api.v1.*
-import scalus.prelude.List
+import scalus.prelude.{List, *}
 import scalus.prelude.List.Nil
-import scalus.prelude.Prelude.===
-import scalus.prelude.Prelude.given
-import scalus.prelude.*
-import scalus.uplc.Data.fromData
-import scalus.uplc.Data.toData
-import scalus.uplc.FromDataInstances.given
+import scalus.prelude.Prelude.{===, given}
+import scalus.uplc.*
 import scalus.uplc.Term.*
 import scalus.uplc.TermDSL.{*, given}
-import scalus.uplc.*
 
 @Compile
 object OptimizedPreimageValidator {
@@ -49,7 +43,7 @@ object OptimizedPreimage {
 }
 
 class PreImageExampleSpec extends BaseValidatorSpec {
-    import scalus.uplc.ToDataInstances.given
+    import scalus.builtins.ToDataInstances.given
 
     def scriptContext(signatories: scalus.prelude.List[PubKeyHash]) =
         ScriptContext(

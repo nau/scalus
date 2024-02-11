@@ -40,8 +40,8 @@ import com.bloxbean.cardano.client.util.HexUtil
 import com.google.common.collect.Lists
 import io.bullet.borer.Cbor
 import scalus.builtins.ByteString
-import scalus.uplc.Data
-import scalus.uplc.ToDataInstances.given
+import scalus.builtins.Data
+import scalus.builtins.ToDataInstances.given
 import scalus.utils.Utils
 
 import java.math.BigInteger
@@ -212,7 +212,7 @@ object SendTx:
         val pubKeyHashBytes = sender.hdKeyPair().getPublicKey.getKeyHash()
         val pubKeyHash = Utils.bytesToHex(pubKeyHashBytes)
         import scalus.uplc.Data.toData
-        implicit val enc = scalus.uplc.PlutusDataCborEncoder
+        implicit val enc = scalus.builtins.PlutusDataCborEncoder
         val datum =
             (ByteString.fromArray(preimageBytes), ByteString.fromArray(pubKeyHashBytes)).toData
         val datumCbor = Cbor.encode(datum).toByteArray

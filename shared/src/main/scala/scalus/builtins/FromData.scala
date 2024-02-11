@@ -1,6 +1,6 @@
-package scalus.uplc
-import scalus.builtins.Builtins
-import scalus.uplc.Data.FromData
+package scalus.builtins
+import scalus.builtins.Data.FromData
+import scala.collection.immutable.List
 
 import scala.quoted.*
 

@@ -1,30 +1,19 @@
 package scalus.ledger.api.v1
 
-import io.bullet.borer.Cbor
-import io.bullet.borer.Decoder
-import io.bullet.borer.Encoder
-import scalus.BaseValidatorSpec
+import io.bullet.borer.{Cbor, Decoder, Encoder}
 import scalus.Compiler.compile
-import scalus.Expected
 import scalus.builtins.ByteString.StringInterpolators
-import scalus.builtins.given
+import scalus.builtins.{PlutusDataCborDecoder, PlutusDataCborEncoder, given}
+import scalus.ledger.api.v1.*
 import scalus.ledger.api.v1.Credential.*
 import scalus.ledger.api.v1.FromDataInstances.given
-import scalus.ledger.api.v1.*
 import scalus.ledger.api.v2
 import scalus.prelude.AssocMap
 import scalus.prelude.List.*
 import scalus.prelude.Maybe.*
-import scalus.toUplc
-import scalus.uplc.Cek
-import scalus.uplc.Data
+import scalus.{toUplc, BaseValidatorSpec, Expected}
 import scalus.uplc.Data.*
-import scalus.uplc.Data.fromData
-import scalus.uplc.DeBruijn
-import scalus.uplc.PlutusDataCborDecoder
-import scalus.uplc.PlutusDataCborEncoder
-import scalus.uplc.Program
-import scalus.uplc.ProgramFlatCodec
+import scalus.uplc.*
 import scalus.utils.Utils
 
 class ScriptContextV1DataSerializationSpec extends BaseValidatorSpec:
@@ -134,8 +123,8 @@ class ScriptContextV1DataSerializationSpec extends BaseValidatorSpec:
     }
 
     test("deserialize ScriptContext V1 using Plutus") {
-        import scalus.uplc.TermDSL.{_, given}
         import scalus.ledger.api.v1.ToDataInstances.given
+        import scalus.uplc.TermDSL.{*, given}
         val scriptFlat = Cbor.decode(Utils.hexToBytes(deserializeContractV1)).to[Array[Byte]].value
         val program = ProgramFlatCodec.decodeFlat(scriptFlat)
         val namedTerm = DeBruijn.fromDeBruijnTerm(program.term)
@@ -153,8 +142,8 @@ class ScriptContextV1DataSerializationSpec extends BaseValidatorSpec:
     }
 
     test("deserialize ScriptContext V1 using Scalus") {
-        import scalus.uplc.TermDSL.{_, given}
         import scalus.ledger.api.v1.ToDataInstances.given
+        import scalus.uplc.TermDSL.{*, given}
         val applied = Program((1, 0, 0), scalusDeserializerV1 $ scriptContextV1.toData)
 
         assertSameResult(Expected.SuccessSame)(applied)
@@ -169,8 +158,8 @@ class ScriptContextV1DataSerializationSpec extends BaseValidatorSpec:
     }
 
     test("deserialize ScriptContext V2 using Plutus") {
-        import scalus.uplc.TermDSL.{_, given}
         import scalus.ledger.api.v2.ToDataInstances.given
+        import scalus.uplc.TermDSL.{*, given}
         val scriptFlat = Cbor.decode(Utils.hexToBytes(deserializeContractV2)).to[Array[Byte]].value
         val program = ProgramFlatCodec.decodeFlat(scriptFlat)
         val namedTerm = DeBruijn.fromDeBruijnTerm(program.term)
@@ -187,8 +176,8 @@ class ScriptContextV1DataSerializationSpec extends BaseValidatorSpec:
     }
 
     test("deserialize ScriptContext V2 using Scalus") {
-        import scalus.uplc.TermDSL.{_, given}
         import scalus.ledger.api.v2.ToDataInstances.given
+        import scalus.uplc.TermDSL.{*, given}
         val applied = Program((1, 0, 0), scalusDeserializerV2 $ scriptContextV2.toData)
 
         assertSameResult(Expected.SuccessSame)(applied)

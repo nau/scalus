@@ -14,7 +14,7 @@ import scalus.sir.Recursivity
 import scalus.sir.SIR
 import scalus.uplc.CommonFlatInstances.*
 import scalus.uplc.CommonFlatInstances.given
-import scalus.uplc.Data
+import scalus.builtins.Data
 import scalus.uplc.DefaultFun
 
 object FlatInstantces:

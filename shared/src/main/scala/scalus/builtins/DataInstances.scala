@@ -1,16 +1,8 @@
-package scalus.uplc
+package scalus.builtins
 
-import scalus.Compile
-import scalus.builtins
-import scalus.builtins.Builtins
-import scalus.builtins.ByteString
-import scalus.builtins.Pair
-import scalus.prelude
-import scalus.prelude.AssocMap
-import scalus.prelude.Maybe
-import scalus.prelude.Prelude
-import scalus.prelude.Prelude.===
-import scalus.prelude.Prelude.given
+import scalus.{builtins, prelude, Compile}
+import scalus.prelude.{AssocMap, Maybe, Prelude}
+import scalus.prelude.Prelude.{===, given}
 import scalus.uplc.Data.*
 
 @Compile

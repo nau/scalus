@@ -1,9 +1,6 @@
-package scalus.uplc
-
-import scalus.builtins.ByteString
+package scalus.builtins
 
 import scala.collection.immutable
-import scala.collection.immutable.List
 
 sealed abstract class Data
 

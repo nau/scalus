@@ -16,8 +16,7 @@ import scalus.prelude.*
 import scalus.uplc.Data
 import scalus.uplc.Data.FromData
 import scalus.uplc.Data.fromData
-import scalus.uplc.FromDataInstances.given
-import scalus.uplc.*
+import scalus.builtins.FromDataInstances.given
 
 case class TxInInfoTxOutRefOnly(txInInfoOutRef: TxOutRef)
 

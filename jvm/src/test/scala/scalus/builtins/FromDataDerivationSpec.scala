@@ -1,18 +1,14 @@
-package scalus.uplc
+package scalus.builtins
 
-import org.scalacheck.Arbitrary
-import org.scalacheck.Gen
-import org.scalacheck.Shrink
+import org.scalacheck.{Arbitrary, Gen, Shrink}
 import org.scalatest.funsuite.AnyFunSuite
 import org.scalatestplus.scalacheck.ScalaCheckPropertyChecks
-import scalus.Compile
-import scalus.Compiler.compile
 import scalus.*
-import scalus.builtins.Builtins
-import scalus.builtins.ByteString
+import scalus.Compiler.compile
+import scalus.builtins.Data.*
+import scalus.builtins.FromDataInstances.given
 import scalus.builtins.given
-import scalus.uplc.Data.*
-import scalus.uplc.FromDataInstances.given
+import scalus.uplc.*
 
 enum Adt:
     case A
@@ -30,7 +26,7 @@ object Adt:
 @Compile
 object ToDataAdt:
     given ToData[Adt] = (a: Adt) =>
-        import scalus.uplc.ToDataInstances.given
+        import ToDataInstances.given
         a match
             case Adt.A     => Builtins.mkConstr(0, Builtins.mkNilData())
             case Adt.B(bs) => Builtins.mkConstr(1, Builtins.mkCons(bs.toData, Builtins.mkNilData()))
@@ -56,7 +52,7 @@ object BigRecord extends ArbitraryInstances:
 
 @Compile
 object ToDataBigRecord:
-    import scalus.uplc.ToDataInstances.given
+    import ToDataInstances.given
     /* given ToData[BigRecord] = (r: BigRecord) =>
     r match
       case BigRecord(a, b, bs, s, d, ls, m) =>

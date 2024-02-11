@@ -6,7 +6,7 @@ import org.scalacheck.Shrink
 import org.scalatest.funsuite.AnyFunSuite
 import org.scalatestplus.scalacheck.ScalaCheckPropertyChecks
 import scalus.builtins
-import scalus.uplc.ToDataInstances.given
+import scalus.builtins.ToDataInstances.given
 import scalus.uplc.*
 import scalus.utils.Utils
 
@@ -244,7 +244,7 @@ class FlatSpec extends AnyFunSuite with ScalaCheckPropertyChecks with ArbitraryI
     test("encode/decode Constant") {
         import scalus.uplc.Constant.*
         import scalus.uplc.Data.*
-        import scalus.uplc.CommonFlatInstances.{*, given}
+        import scalus.uplc.CommonFlatInstances.*
         import scalus.uplc.FlatInstantces.given
         val fl = flatConstant
         assert(fl.bitSize(Constant.Unit) == 6)
@@ -267,7 +267,7 @@ class FlatSpec extends AnyFunSuite with ScalaCheckPropertyChecks with ArbitraryI
 
     test("encode/decode Term") {
         import scalus.uplc.Data.toData
-        import scalus.uplc.CommonFlatInstances.{*, given}
+        import scalus.uplc.CommonFlatInstances.*
         import scalus.uplc.FlatInstantces.given
         val fl = summon[Flat[Term]]
         assert(fl.bitSize(Term.Error) == 4)

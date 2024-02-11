@@ -1,5 +1,5 @@
-package scalus.uplc
-import scalus.builtins.Builtins
+package scalus.builtins
+import scala.collection.immutable.List
 
 import scala.quoted.*
 
