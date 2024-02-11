@@ -87,7 +87,7 @@ enum OutputDatum:
 
 @Compile
 object OutputDatum {
-    given Eq[OutputDatum] =
+    given Eq[scalus.ledger.api.v2.OutputDatum] =
         (a: scalus.ledger.api.v2.OutputDatum, b: scalus.ledger.api.v2.OutputDatum) =>
             a match
                 case NoOutputDatum =>
