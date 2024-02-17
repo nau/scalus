@@ -14,7 +14,7 @@ import scalus.ledger.api.v1.ToDataInstances.given
 import scalus.ledger.api.v1.*
 import scalus.prelude.List.Cons
 import scalus.prelude.List.Nil
-import scalus.toUplc
+import scalus.*
 import scalus.uplc.DefaultFun.*
 import scalus.uplc.DefaultUni.asConstant
 import scalus.uplc.Term.*

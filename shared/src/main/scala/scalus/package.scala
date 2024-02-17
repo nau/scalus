@@ -33,4 +33,12 @@ package object scalus {
 
     extension (du: DefaultUni) def pretty: Doc = PrettyPrinter.pretty(du)
     extension (c: Constant) def pretty: Doc = PrettyPrinter.pretty(c)
+
+    extension (self: Term)
+        def pretty: Doc = PrettyPrinter.pretty(self, Style.Normal)
+        def prettyXTerm: Doc = PrettyPrinter.pretty(self, Style.XTerm)
+
+    extension (self: uplc.Program)
+        def pretty: Doc = PrettyPrinter.pretty(self, Style.Normal)
+        def prettyXTerm: Doc = PrettyPrinter.pretty(self, Style.XTerm)
 }

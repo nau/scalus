@@ -1,5 +1,6 @@
 package scalus.uplc
 
+import scalus.*
 import scalus.builtin.given
 import scalus.uplc.TermDSL.*
 

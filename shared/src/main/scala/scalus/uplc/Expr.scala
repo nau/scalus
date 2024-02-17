@@ -5,6 +5,7 @@ import scalus.builtin.ByteString.given
 import scalus.ledger.api.v1.*
 import scalus.macros.Macros
 import scalus.uplc.Constant.LiftValue
+import scalus.*
 import scalus.utils.Utils
 import scalus.utils.Utils.bytesToHex
 

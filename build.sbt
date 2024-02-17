@@ -168,5 +168,5 @@ lazy val docs = project // documentation project
 
 addCommandAlias(
   "precommit",
-  "clean;scalafmtAll;scalafmtSbt;Test/compile;test;docs/mdoc"
+  "clean;docs/clean;scalafmtAll;scalafmtSbt;Test/compile;test;docs/mdoc"
 )

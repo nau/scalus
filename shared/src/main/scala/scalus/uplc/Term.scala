@@ -2,7 +2,6 @@ package scalus.uplc
 
 import org.typelevel.paiges.Doc
 import scalus.*
-import scalus.sir.PrettyPrinter
 import scalus.builtin.Data.*
 import io.bullet.borer.Cbor
 import scalus.utils.Hex
@@ -33,34 +32,7 @@ enum Term:
         case Builtin(bn)        => s"Builtin($bn)"
         case Error              => "Error"
 
-    def pretty: Doc = this match
-        case Var(name) => Doc.text(name.name)
-        case LamAbs(name, term) =>
-            Doc.text("(") + Doc.text("lam") + Doc.space + Doc.text(name) + Doc.line + term.pretty
-                .indent(
-                  2
-                ) + Doc.text(")")
-        case a @ Apply(f, arg) =>
-            Doc.text("[") + f.pretty + Doc.space + arg.pretty + Doc.text("]")
-        case Force(term) =>
-            Doc.text("(") + Doc.text("force") + Doc.text(" ") + term.pretty + Doc.text(")")
-        case Delay(term) =>
-            Doc.text("(") + Doc.text("delay") + Doc.text(" ") + term.pretty + Doc.text(")")
-        case Const(const) =>
-            Doc.text("(") + Doc.text("con") + Doc.space + const.pretty + Doc.text(")")
-        case Builtin(bn) =>
-            Doc.text("(") + Doc.text("builtin") + Doc.space + PrettyPrinter.pretty(bn) + Doc.text(
-              ")"
-            )
-        case Error => Doc.text("(error)")
-
 case class Program(version: (Int, Int, Int), term: Term):
-    def pretty: Doc =
-        val (major, minor, patch) = version
-        Doc.text("(") + Doc.text("program") + Doc.space + Doc.text(
-          s"$major.$minor.$patch"
-        ) + Doc.space + term.pretty + Doc.text(")")
-
     lazy val flatEncoded = ProgramFlatCodec.encodeFlat(this)
     lazy val cborEncoded = Cbor.encode(flatEncoded).toByteArray
     lazy val doubleCborEncoded = Cbor.encode(cborEncoded).toByteArray

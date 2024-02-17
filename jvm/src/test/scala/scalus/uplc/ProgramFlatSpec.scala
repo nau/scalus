@@ -2,6 +2,7 @@ package scalus.uplc
 
 import org.scalatest.funsuite.AnyFunSuite
 import org.scalatestplus.scalacheck.ScalaCheckPropertyChecks
+import scalus.*
 import scalus.utils.Utils
 
 class ProgramFlatSpec extends AnyFunSuite with ScalaCheckPropertyChecks with ArbitraryInstances {

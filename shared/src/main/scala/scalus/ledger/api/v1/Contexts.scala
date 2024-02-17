@@ -250,8 +250,8 @@ object Interval:
     def always[A]: Interval[A] =
         new Interval(new LowerBound(Extended.NegInf, true), new UpperBound(Extended.PosInf, true))
 
-    def lowerBound[A](a: A): LowerBound[A] = new LowerBound(Extended.Finite(a), true)
-    def upperBound[A](a: A): UpperBound[A] = new UpperBound(Extended.Finite(a), true)
+    def lowerBound[A](a: A): LowerBound[A] = new LowerBound(new Extended.Finite(a), true)
+    def upperBound[A](a: A): UpperBound[A] = new UpperBound(new Extended.Finite(a), true)
 
     def from[A](a: A): Interval[A] =
         new Interval(lowerBound(a), new UpperBound(Extended.PosInf, true))

@@ -9,6 +9,8 @@ import scalus.builtin.Data
 import scalus.uplc.DefaultFun
 import scalus.uplc.DefaultUni
 import scalus.utils.Utils
+import scalus.uplc.Term
+import scalus.uplc.TermDSL
 
 object PrettyPrinter {
     enum Style:
@@ -213,4 +215,43 @@ object PrettyPrinter {
         Doc.text("(") + Doc.text("program") + Doc.space + Doc.text(
           s"$major.$minor.$patch"
         ) + Doc.space + pretty(p.term, Style.Normal) + Doc.text(")")
+
+    def pretty(term: Term, style: Style): Doc =
+        import Term.*
+        extension (d: Doc)
+            def styled(s: paiges.Style): Doc = if style == Style.XTerm then d.style(s) else d
+        def kw(s: String): Doc = Doc.text(s).styled(Fg.colorCode(172))
+        term match
+            case Var(name) => Doc.text(name.name)
+            case LamAbs(name, term) =>
+                Doc.text("(") + kw("lam") & Doc.text(
+                  name
+                ) / pretty(term, style).indent(2) + Doc.text(")")
+            case a @ Apply(f, arg) =>
+                val (t, args) = TermDSL.applyToList(a)
+                Doc.intercalate(Doc.line, (t :: args).map(pretty(_, style)))
+                    .tightBracketBy(Doc.text("["), Doc.text("]"))
+            case Force(term) =>
+                Doc.text("(") + kw("force") & pretty(term, style) + Doc.text(")")
+            case Delay(term) =>
+                Doc.text("(") + kw("delay") & pretty(term, style) + Doc.text(")")
+            case Const(const) =>
+                Doc.text("(") + kw("con") & const.pretty.styled(Fg.colorCode(64)) + Doc.text(")")
+            case Builtin(bn) =>
+                Doc.text("(") + kw("builtin") & PrettyPrinter
+                    .pretty(bn)
+                    .styled(Fg.colorCode(176)) + Doc
+                    .text(
+                      ")"
+                    )
+            case Error => kw("(error)")
+
+    def pretty(program: uplc.Program, style: Style): Doc =
+        val (major, minor, patch) = program.version
+        (Doc.text("program") / Doc.text(s"$major.$minor.$patch") / pretty(program.term, style))
+            .tightBracketBy(
+              Doc.text("("),
+              Doc.text(")")
+            )
+
 }

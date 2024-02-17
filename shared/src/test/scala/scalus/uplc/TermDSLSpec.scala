@@ -4,6 +4,7 @@ import org.scalacheck.Prop.*
 import org.scalacheck.*
 import org.scalatest.funsuite.AnyFunSuite
 import org.scalatestplus.scalacheck.ScalaCheckPropertyChecks
+import scalus.*
 import scalus.builtin.ByteString
 import scalus.uplc.DefaultUni.asConstant
 import scalus.uplc.TermDSL.{_, given}
@@ -106,5 +107,5 @@ class TermDSLSpec extends AnyFunSuite with ScalaCheckPropertyChecks with Arbitra
 
     test("pretty Apply") {
         val t = vr"f" $ vr"x" $ vr"y" $ vr"z"
-        assert(t.pretty.render(80) == "[[[f x] y] z]")
+        assert(t.pretty.render(80) == "[f x y z]")
     }
