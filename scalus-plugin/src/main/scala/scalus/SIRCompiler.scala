@@ -9,7 +9,7 @@ import dotty.tools.dotc.core.Flags.*
 import dotty.tools.dotc.core.Names.*
 import dotty.tools.dotc.core.StdNames.nme
 import dotty.tools.dotc.core.Symbols.*
-import dotty.tools.dotc.core.Types.Type
+import dotty.tools.dotc.core.Types.{MethodType, Type}
 import dotty.tools.dotc.core.*
 import dotty.tools.dotc.util.SrcPos
 import dotty.tools.io.ClassPath
@@ -72,6 +72,7 @@ final class SIRCompiler(mode: scalus.Mode)(using ctx: Context) {
     extension (t: Type)
         def isPair: Boolean = t.typeConstructor.classSymbol == PairSymbol
         def isList: Boolean = t.typeConstructor.classSymbol == ScalusBuiltinListClassSymbol
+        def isMethodType: Boolean = t.isInstanceOf[MethodType]
 
     extension (self: Symbol)
         def caseFields: List[Symbol] =
@@ -820,6 +821,14 @@ final class SIRCompiler(mode: scalus.Mode)(using ctx: Context) {
             case Apply(app @ Select(f, nme.apply), args)
                 if app.symbol.fullName.show == "scala.Tuple2$.apply" =>
                 compileNewConstructor(env, tree.tpe, args)
+            // f.apply[A, B](arg) => Apply(f, arg)
+            /* When we have something like this:
+             * (f: [A] => List[A] => A, a: A) => f[Data](a)
+             * f.tpe will be a MethodType
+             */
+            case Apply(applied @ TypeApply(fun @ Select(f, nme.apply), _), args)
+                if defn.isFunctionType(f.tpe.widen) || applied.tpe.isMethodType =>
+                compileApply(env, f, args)
             // f.apply(arg) => Apply(f, arg)
             case Apply(Select(f, nme.apply), args) if defn.isFunctionType(f.tpe.widen) =>
                 compileApply(env, f, args)

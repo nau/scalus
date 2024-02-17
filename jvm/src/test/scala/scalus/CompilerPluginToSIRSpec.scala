@@ -105,6 +105,17 @@ class CompilerPluginToSIRSpec extends AnyFunSuite with ScalaCheckPropertyChecks:
         )
     }
 
+    test("compile lambda with args with type parameters") {
+        // tail has a MethodType, check if it compiles
+        val sir = compile {
+            (tail: [A] => builtin.List[A] => builtin.List[A], ctx: builtin.List[Data]) =>
+                tail[Data](ctx)
+        }
+        assert(
+          sir == LamAbs("tail", LamAbs("ctx", Apply(Var("tail"), Var("ctx"))))
+        )
+    }
+
     test("compile inline def") {
         assert(
           compile {
