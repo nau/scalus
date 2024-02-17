@@ -49,18 +49,18 @@ Below example is taken from [`PreImageExampleSpec.scala`](https://github.com/nau
 
 ```scala
 def preimageValidator(datum: Data, redeemer: Data, ctxData: Data): Unit = {
-  // deserialize from Data
-  val (hash, pkh) = fromData[(ByteString, ByteString)](datum)
-  val preimage = fromData[ByteString](redeemer)
-  val ctx = fromData[ScriptContext](ctxData)
-  // get the transaction signatories
-  val signatories = ctx.txInfo.signatories
-  // check that the transaction is signed by the public key hash
-  List.findOrFail(signatories) { sig => sig.hash === pkh }
-  // check that the preimage hashes to the hash
-  if Builtins.sha2_256(preimage) === hash then ()
-  else throw new RuntimeException("Wrong preimage")
-  // throwing an exception compiles to UPLC error
+    // deserialize from Data
+    val (hash, pkh) = fromData[(ByteString, ByteString)](datum)
+    val preimage = fromData[ByteString](redeemer)
+    val ctx = fromData[ScriptContext](ctxData)
+    // get the transaction signatories
+    val signatories = ctx.txInfo.signatories
+    // check that the transaction is signed by the public key hash
+    List.findOrFail(signatories) { sig => sig.hash === pkh }
+    // check that the preimage hashes to the hash
+    if Builtins.sha2_256(preimage) === hash then ()
+    else throw new RuntimeException("Wrong preimage")
+    // throwing an exception compiles to UPLC error
 }
 // compile to Scalus Intermediate Representation, SIR
 val compiled = compile(preimageValidator)
@@ -108,7 +108,7 @@ Scalus also provides primitives to do your custom deserialization to reduce vali
 
 ## Support
 
-You can ask questions on Scalus Discord: https://discord.gg/ygwtuBybsy
+You can ask questions on Scalus Discord: <https://discord.gg/ygwtuBybsy>
 
 The project is looking for funding to make it production ready.
 If you are interested, please contact me at [@atlanter](https://twitter.com/atlanter) on Twitter.
