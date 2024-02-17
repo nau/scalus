@@ -3,7 +3,7 @@ import org.scalajs.linker.interface.OutputPatterns
 Global / onChangedBuildSource := ReloadOnSourceChanges
 autoCompilerPlugins := true
 
-ThisBuild / scalaVersion := "3.3.1"
+ThisBuild / scalaVersion := "3.3.2"
 ThisBuild / organization := "org.scalus"
 ThisBuild / organizationName := "Scalus"
 ThisBuild / organizationHomepage := Some(url("https://scalus.org/"))
@@ -39,7 +39,7 @@ lazy val scalusPlugin = project
     .settings(
       name := "scalus-plugin",
       scalacOptions += "-Wunused:all",
-      libraryDependencies += "org.scalatest" %%% "scalatest" % "3.2.17" % "test",
+      libraryDependencies += "org.scalatest" %%% "scalatest" % "3.2.18" % "test",
       libraryDependencies += "org.scalatestplus" %%% "scalacheck-1-16" % "3.2.14.0" % "test",
       libraryDependencies += "org.scala-lang" %% "scala3-compiler" % scalaVersion.value // % "provided"
     )
@@ -77,7 +77,7 @@ lazy val scalusPluginTests = project
       name := "scalus-plugin-tests",
       publish / skip := true,
       PluginDependency,
-      libraryDependencies += "org.scalatest" %%% "scalatest" % "3.2.17" % "test",
+      libraryDependencies += "org.scalatest" %%% "scalatest" % "3.2.18" % "test",
       libraryDependencies += "org.scalatestplus" %%% "scalacheck-1-16" % "3.2.12.0" % "test"
     )
 
@@ -106,7 +106,7 @@ lazy val scalus = crossProject(JSPlatform, JVMPlatform)
         "io.bullet" %%% "borer-derivation" % "1.14.0"
       ),
       PluginDependency,
-      libraryDependencies += "org.scalatest" %%% "scalatest" % "3.2.17" % "test",
+      libraryDependencies += "org.scalatest" %%% "scalatest" % "3.2.18" % "test",
       libraryDependencies += "org.scalatestplus" %%% "scalacheck-1-16" % "3.2.14.0" % "test"
     )
     .jvmSettings(
@@ -114,7 +114,7 @@ lazy val scalus = crossProject(JSPlatform, JVMPlatform)
       Test / fork := true,
       // Test / testOptions += Tests.Argument(TestFrameworks.ScalaTest, "-S", "-8077211454138081902"),
       libraryDependencies += "org.scala-lang" %% "scala3-compiler" % scalaVersion.value,
-      libraryDependencies += "org.slf4j" % "slf4j-simple" % "2.0.11" % "provided",
+      libraryDependencies += "org.slf4j" % "slf4j-simple" % "2.0.12" % "provided",
       libraryDependencies += "org.bouncycastle" % "bcprov-jdk18on" % "1.77",
       libraryDependencies += "org.bitcoin-s" % "bitcoin-s-crypto_2.13" % "1.9.7",
       libraryDependencies += "org.bitcoin-s" % "bitcoin-s-secp256k1jni" % "1.9.7"
