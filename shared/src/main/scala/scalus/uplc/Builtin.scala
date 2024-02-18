@@ -3,13 +3,14 @@ package scalus.uplc
 import scalus.builtin.Builtins.*
 import scalus.builtin.Data
 import scalus.builtin.PlatformSpecific
-import scalus.uplc.Cek.CekValue
-import scalus.uplc.Cek.VCon
 import scalus.uplc.Constant.given
 import scalus.uplc.DefaultUni.Bool
 import scalus.uplc.DefaultUni.Integer
 import scalus.uplc.DefaultUni.asConstant
 import scalus.uplc.DefaultUni.given
+import scalus.uplc.eval.CekValue
+import scalus.uplc.eval.KnownTypeUnliftingError
+import scalus.uplc.eval.VCon
 
 import scala.collection.immutable
 
@@ -29,7 +30,8 @@ enum TypeScheme:
 
 case class Runtime(
     typeScheme: TypeScheme,
-    f: AnyRef
+    f: AnyRef => AnyRef,
+    args: Seq[AnyRef]
 )
 
 object Meaning:
@@ -41,7 +43,7 @@ object Meaning:
         infix def $(t: TypeScheme): TypeScheme = TypeScheme.Type(x) $ t
         infix def $(t: String): TypeScheme = TypeScheme.Type(x) $ t
 
-    def mkMeaning(t: TypeScheme, f: AnyRef) = Runtime(t, f)
+    def mkMeaning(t: TypeScheme, f: AnyRef) = Runtime(t, f.asInstanceOf[AnyRef => AnyRef], Seq.empty)
     import TypeScheme.*
 
     val AddInteger =
@@ -51,7 +53,7 @@ object Meaning:
               val aa = a.asInteger
               (b: CekValue) =>
                   val bb = b.asInteger
-                  (ps: PlatformSpecific) => Cek.VCon(asConstant(addInteger(aa, bb)))
+                  (ps: PlatformSpecific) => VCon(asConstant(addInteger(aa, bb)))
         )
     val SubtractInteger =
         mkMeaning(
@@ -60,7 +62,7 @@ object Meaning:
               val aa = a.asInteger
               (b: CekValue) =>
                   val bb = b.asInteger
-                  (ps: PlatformSpecific) => Cek.VCon(asConstant(subtractInteger(aa, bb)))
+                  (ps: PlatformSpecific) => VCon(asConstant(subtractInteger(aa, bb)))
         )
     val MultiplyInteger =
         mkMeaning(
@@ -69,7 +71,7 @@ object Meaning:
               val aa = a.asInteger
               (b: CekValue) =>
                   val bb = b.asInteger
-                  (ps: PlatformSpecific) => Cek.VCon(asConstant(multiplyInteger(aa, bb)))
+                  (ps: PlatformSpecific) => VCon(asConstant(multiplyInteger(aa, bb)))
         )
     val DivideInteger =
         mkMeaning(
@@ -78,7 +80,7 @@ object Meaning:
               val aa = a.asInteger
               (b: CekValue) =>
                   val bb = b.asInteger
-                  (ps: PlatformSpecific) => Cek.VCon(asConstant(divideInteger(aa, bb)))
+                  (ps: PlatformSpecific) => VCon(asConstant(divideInteger(aa, bb)))
         )
     val QuotientInteger =
         mkMeaning(
@@ -87,7 +89,7 @@ object Meaning:
               val aa = a.asInteger
               (b: CekValue) =>
                   val bb = b.asInteger
-                  (ps: PlatformSpecific) => Cek.VCon(asConstant(quotientInteger(aa, bb)))
+                  (ps: PlatformSpecific) => VCon(asConstant(quotientInteger(aa, bb)))
         )
     val RemainderInteger =
         mkMeaning(
@@ -96,7 +98,7 @@ object Meaning:
               val aa = a.asInteger
               (b: CekValue) =>
                   val bb = b.asInteger
-                  (ps: PlatformSpecific) => Cek.VCon(asConstant(remainderInteger(aa, bb)))
+                  (ps: PlatformSpecific) => VCon(asConstant(remainderInteger(aa, bb)))
         )
     val ModInteger =
         mkMeaning(
@@ -105,7 +107,7 @@ object Meaning:
               val aa = a.asInteger
               (b: CekValue) =>
                   val bb = b.asInteger
-                  (ps: PlatformSpecific) => Cek.VCon(asConstant(modInteger(aa, bb)))
+                  (ps: PlatformSpecific) => VCon(asConstant(modInteger(aa, bb)))
         )
     val EqualsInteger =
         mkMeaning(
@@ -114,7 +116,7 @@ object Meaning:
               val aa = a.asInteger
               (b: CekValue) =>
                   val bb = b.asInteger
-                  (ps: PlatformSpecific) => Cek.VCon(asConstant(equalsInteger(aa, bb)))
+                  (ps: PlatformSpecific) => VCon(asConstant(equalsInteger(aa, bb)))
         )
     val LessThanEqualsInteger =
         mkMeaning(
@@ -123,7 +125,7 @@ object Meaning:
               val aa = a.asInteger
               (b: CekValue) =>
                   val bb = b.asInteger
-                  (ps: PlatformSpecific) => Cek.VCon(asConstant(lessThanEqualsInteger(aa, bb)))
+                  (ps: PlatformSpecific) => VCon(asConstant(lessThanEqualsInteger(aa, bb)))
         )
     val LessThanInteger =
         mkMeaning(
@@ -132,7 +134,7 @@ object Meaning:
               val aa = a.asInteger
               (b: CekValue) =>
                   val bb = b.asInteger
-                  (ps: PlatformSpecific) => Cek.VCon(asConstant(lessThanInteger(aa, bb)))
+                  (ps: PlatformSpecific) => VCon(asConstant(lessThanInteger(aa, bb)))
         )
 
     val AppendByteString =
@@ -142,7 +144,7 @@ object Meaning:
               val aa = a.asByteString
               (b: CekValue) =>
                   val bb = b.asByteString
-                  (ps: PlatformSpecific) => Cek.VCon(asConstant(appendByteString(aa, bb)))
+                  (ps: PlatformSpecific) => VCon(asConstant(appendByteString(aa, bb)))
         )
 
     val ConsByteString =
@@ -152,7 +154,7 @@ object Meaning:
               val aa = a.asInteger
               (b: CekValue) =>
                   val bb = b.asByteString
-                  (ps: PlatformSpecific) => Cek.VCon(asConstant(consByteString(aa, bb)))
+                  (ps: PlatformSpecific) => VCon(asConstant(consByteString(aa, bb)))
         )
 
     val SliceByteString =
@@ -165,7 +167,7 @@ object Meaning:
                   (c: CekValue) =>
                       val end = c.asInteger
                       (ps: PlatformSpecific) =>
-                          Cek.VCon(asConstant(sliceByteString(bs, start, end)))
+                          VCon(asConstant(sliceByteString(bs, start, end)))
         )
 
     val IndexByteString =
@@ -175,7 +177,7 @@ object Meaning:
               val aa = a.asByteString
               (b: CekValue) =>
                   val bb = b.asInteger
-                  (ps: PlatformSpecific) => Cek.VCon(asConstant(indexByteString(aa, bb)))
+                  (ps: PlatformSpecific) => VCon(asConstant(indexByteString(aa, bb)))
         )
 
     val LengthOfByteString =
@@ -183,7 +185,7 @@ object Meaning:
           DefaultUni.ByteString ->: DefaultUni.Integer,
           (a: CekValue) =>
               val aa = a.asByteString
-              (ps: PlatformSpecific) => Cek.VCon(asConstant(lengthOfByteString(aa)))
+              (ps: PlatformSpecific) => VCon(asConstant(lengthOfByteString(aa)))
         )
 
     val EqualsByteString =
@@ -193,7 +195,7 @@ object Meaning:
               val aa = a.asByteString
               (b: CekValue) =>
                   val bb = b.asByteString
-                  (ps: PlatformSpecific) => Cek.VCon(asConstant(aa == bb))
+                  (ps: PlatformSpecific) => VCon(asConstant(aa == bb))
         )
 
     val LessThanByteString =
@@ -203,7 +205,7 @@ object Meaning:
               val aa = a.asByteString
               (b: CekValue) =>
                   val bb = b.asByteString
-                  (ps: PlatformSpecific) => Cek.VCon(asConstant(lessThanByteString(aa, bb)))
+                  (ps: PlatformSpecific) => VCon(asConstant(lessThanByteString(aa, bb)))
         )
 
     val LessThanEqualsByteString =
@@ -213,7 +215,7 @@ object Meaning:
               val aa = a.asByteString
               (b: CekValue) =>
                   val bb = b.asByteString
-                  (ps: PlatformSpecific) => Cek.VCon(asConstant(lessThanEqualsByteString(aa, bb)))
+                  (ps: PlatformSpecific) => VCon(asConstant(lessThanEqualsByteString(aa, bb)))
         )
 
     val Sha2_256 =
@@ -221,7 +223,7 @@ object Meaning:
           DefaultUni.ByteString ->: DefaultUni.ByteString,
           (a: CekValue) =>
               val aa = a.asByteString
-              (ps: PlatformSpecific) => Cek.VCon(asConstant(sha2_256(using ps)(aa)))
+              (ps: PlatformSpecific) => VCon(asConstant(sha2_256(using ps)(aa)))
         )
 
     val Sha3_256 =
@@ -229,7 +231,7 @@ object Meaning:
           DefaultUni.ByteString ->: DefaultUni.ByteString,
           (a: CekValue) =>
               val aa = a.asByteString
-              (ps: PlatformSpecific) => Cek.VCon(asConstant(sha3_256(using ps)(aa)))
+              (ps: PlatformSpecific) => VCon(asConstant(sha3_256(using ps)(aa)))
         )
 
     val Blake2b_256 =
@@ -237,7 +239,7 @@ object Meaning:
           DefaultUni.ByteString ->: DefaultUni.ByteString,
           (a: CekValue) =>
               val aa = a.asByteString
-              (ps: PlatformSpecific) => Cek.VCon(asConstant(blake2b_256(using ps)(aa)))
+              (ps: PlatformSpecific) => VCon(asConstant(blake2b_256(using ps)(aa)))
         )
 
     val VerifyEd25519Signature = {
@@ -252,7 +254,7 @@ object Meaning:
                   (c: CekValue) =>
                       val sig = c.asByteString
                       (ps: PlatformSpecific) =>
-                          Cek.VCon(
+                          VCon(
                             asConstant(verifyEd25519Signature(using ps)(pk, msg, sig))
                           )
         )
@@ -270,7 +272,7 @@ object Meaning:
                   (c: CekValue) =>
                       val sig = c.asByteString
                       (ps: PlatformSpecific) =>
-                          Cek.VCon(
+                          VCon(
                             asConstant(
                               verifyEcdsaSecp256k1Signature(using ps)(pk, msg, sig)
                             )
@@ -290,7 +292,7 @@ object Meaning:
                   (c: CekValue) =>
                       val sig = c.asByteString
                       (ps: PlatformSpecific) =>
-                          Cek.VCon(
+                          VCon(
                             asConstant(
                               verifySchnorrSecp256k1Signature(using ps)(pk, msg, sig)
                             )
@@ -305,7 +307,7 @@ object Meaning:
               val aa = a.asString
               (b: CekValue) =>
                   val bb = b.asString
-                  (ps: PlatformSpecific) => Cek.VCon(asConstant(appendString(aa, bb)))
+                  (ps: PlatformSpecific) => VCon(asConstant(appendString(aa, bb)))
         )
 
     val EqualsString =
@@ -315,7 +317,7 @@ object Meaning:
               val aa = a.asString
               (b: CekValue) =>
                   val bb = b.asString
-                  (ps: PlatformSpecific) => Cek.VCon(asConstant(equalsString(aa, bb)))
+                  (ps: PlatformSpecific) => VCon(asConstant(equalsString(aa, bb)))
         )
 
     val EncodeUtf8 = {
@@ -324,7 +326,7 @@ object Meaning:
           tpe,
           (a: CekValue) =>
               val aa = a.asString
-              (ps: PlatformSpecific) => Cek.VCon(asConstant(encodeUtf8(aa)))
+              (ps: PlatformSpecific) => VCon(asConstant(encodeUtf8(aa)))
         )
     }
 
@@ -333,7 +335,7 @@ object Meaning:
           DefaultUni.ByteString ->: DefaultUni.String,
           (a: CekValue) =>
               val aa = a.asByteString
-              (ps: PlatformSpecific) => Cek.VCon(asConstant(decodeUtf8(aa)))
+              (ps: PlatformSpecific) => VCon(asConstant(decodeUtf8(aa)))
         )
 
     val IfThenElse =
@@ -349,8 +351,8 @@ object Meaning:
           All("a", DefaultUni.Unit ->: TVar("a") ->: TVar("a")),
           (unit: CekValue) =>
               unit match
-                  case Cek.VCon(Constant.Unit) => (a: CekValue) => (ps: PlatformSpecific) => a
-                  case _                       => throw new Error("impossible")
+                  case VCon(Constant.Unit) => (a: CekValue) => (ps: PlatformSpecific) => a
+                  case _                   => throw new Error("impossible")
         )
 
     val Trace =
@@ -367,7 +369,7 @@ object Meaning:
           All("a", All("b", (DefaultUni.ProtoPair $ "a" $ "b") ->: TVar("a"))),
           (a: CekValue) =>
               val (fst, _) = a.asPair
-              (ps: PlatformSpecific) => Cek.VCon(fst)
+              (ps: PlatformSpecific) => VCon(fst)
         )
 
     // [ forall a, forall b, pair(a, b) ] -> b
@@ -376,7 +378,7 @@ object Meaning:
           All("a", All("b", (DefaultUni.ProtoPair $ "a" $ "b") ->: TVar("b"))),
           (a: CekValue) =>
               val (_, snd) = a.asPair
-              (ps: PlatformSpecific) => Cek.VCon(snd)
+              (ps: PlatformSpecific) => VCon(snd)
         )
 
     // [ forall a, forall b, list(a), b, b ] -> b
@@ -406,7 +408,7 @@ object Meaning:
                       case (VCon(aCon), VCon(Constant.List(tp, l))) =>
                           if aCon.tpe != tp then
                               throw new KnownTypeUnliftingError(TypeScheme.Type(tp), aCon.tpe)
-                          else (ps: PlatformSpecific) => Cek.VCon(Constant.List(tp, aCon :: l))
+                          else (ps: PlatformSpecific) => VCon(Constant.List(tp, aCon :: l))
                       case _ => throw new RuntimeException(s"Expected list, got $b")
         )
 
@@ -416,7 +418,7 @@ object Meaning:
           All("a", (DefaultUni.ProtoList $ "a") ->: TVar("a")),
           (a: CekValue) =>
               val ls = a.asList
-              (ps: PlatformSpecific) => Cek.VCon(ls.head)
+              (ps: PlatformSpecific) => VCon(ls.head)
         )
 
     // [ forall a, list(a) ] -> list(a)
@@ -426,7 +428,7 @@ object Meaning:
           (a: CekValue) =>
               a match
                   case VCon(Constant.List(tpe, ls)) =>
-                      (ps: PlatformSpecific) => Cek.VCon(Constant.List(tpe, ls.tail))
+                      (ps: PlatformSpecific) => VCon(Constant.List(tpe, ls.tail))
                   case _ => throw new Exception(s"TailList: not a list, but $a")
         )
 
@@ -436,7 +438,7 @@ object Meaning:
           All("a", (DefaultUni.ProtoList $ "a") ->: Type(Bool)),
           (a: CekValue) =>
               val ls = a.asList
-              (ps: PlatformSpecific) => Cek.VCon(asConstant(ls.isEmpty))
+              (ps: PlatformSpecific) => VCon(asConstant(ls.isEmpty))
         )
 
     val ChooseData =
@@ -472,7 +474,7 @@ object Meaning:
                       case _ => throw new RuntimeException(s"Expected list, got $b")
                   }
                   (ps: PlatformSpecific) =>
-                      Cek.VCon(
+                      VCon(
                         Constant.Data(Data.Constr(i.longValue, args))
                       )
         )
@@ -483,7 +485,7 @@ object Meaning:
           (a: CekValue) =>
               val aa = a.asList
               (ps: PlatformSpecific) =>
-                  Cek.VCon(
+                  VCon(
                     Constant.Data(Data.Map(aa.map {
                         case Constant.Pair(Constant.Data(a), Constant.Data(b)) => (a, b)
                         case _ => throw new RuntimeException(s"MapData: not a pair, but $a")
@@ -500,7 +502,7 @@ object Meaning:
                   case Constant.Data(value) => value
                   case _ => throw new RuntimeException(s"ListData: not a data, but $a")
               }
-              (ps: PlatformSpecific) => Cek.VCon(Constant.Data(Data.List(datas)))
+              (ps: PlatformSpecific) => VCon(Constant.Data(Data.List(datas)))
         )
 
     val IData =
@@ -508,7 +510,7 @@ object Meaning:
           Integer ->: DefaultUni.Data,
           (a: CekValue) =>
               val aa = a.asInteger
-              (ps: PlatformSpecific) => Cek.VCon(Constant.Data(Data.I(aa)))
+              (ps: PlatformSpecific) => VCon(Constant.Data(Data.I(aa)))
         )
 
     val BData =
@@ -516,7 +518,7 @@ object Meaning:
           DefaultUni.ByteString ->: DefaultUni.Data,
           (a: CekValue) =>
               val aa = a.asByteString
-              (ps: PlatformSpecific) => Cek.VCon(Constant.Data(Data.B(aa)))
+              (ps: PlatformSpecific) => VCon(Constant.Data(Data.B(aa)))
         )
 
     /*
@@ -529,7 +531,7 @@ object Meaning:
               a match
                   case VCon(Constant.Data(Data.Constr(i, ls))) =>
                       (ps: PlatformSpecific) =>
-                          Cek.VCon(
+                          VCon(
                             Constant.Pair(asConstant(i), asConstant(ls))
                           )
                   case _ => throw new Exception(s"unConstrData: not a constructor, but $a")
@@ -544,7 +546,7 @@ object Meaning:
               a match
                   case VCon(Constant.Data(Data.Map(values))) =>
                       (ps: PlatformSpecific) =>
-                          Cek.VCon(
+                          VCon(
                             Constant.List(
                               DefaultUni.Pair(DefaultUni.Data, DefaultUni.Data),
                               values.map { case (k, v) =>
@@ -563,7 +565,7 @@ object Meaning:
               a match
                   case VCon(Constant.Data(Data.List(values))) =>
                       (ps: PlatformSpecific) =>
-                          Cek.VCon(Constant.List(DefaultUni.Data, values.map(asConstant)))
+                          VCon(Constant.List(DefaultUni.Data, values.map(asConstant)))
                   case _ => throw new Exception(s"unListData: not a list, but $a")
         )
 
@@ -575,7 +577,7 @@ object Meaning:
           (a: CekValue) =>
               a match
                   case VCon(Constant.Data(Data.I(i))) =>
-                      (ps: PlatformSpecific) => Cek.VCon(asConstant(i))
+                      (ps: PlatformSpecific) => VCon(asConstant(i))
                   case _ => throw new Exception(s"unIData: not an integer, but $a")
         )
 
@@ -587,7 +589,7 @@ object Meaning:
           (a: CekValue) =>
               a match
                   case VCon(Constant.Data(Data.B(b))) =>
-                      (ps: PlatformSpecific) => Cek.VCon(asConstant(b))
+                      (ps: PlatformSpecific) => VCon(asConstant(b))
                   case _ => throw new Exception(s"unBData: not a bytestring, but $a")
         )
 
@@ -598,14 +600,14 @@ object Meaning:
               val aa = a.asData
               (b: CekValue) =>
                   val bb = b.asData
-                  (ps: PlatformSpecific) => Cek.VCon(Constant.Bool(equalsData(aa, bb)))
+                  (ps: PlatformSpecific) => VCon(Constant.Bool(equalsData(aa, bb)))
         )
 
     val SerialiseData = mkMeaning(
       DefaultUni.Data ->: DefaultUni.ByteString,
       (a: CekValue) =>
           val aa = a.asData
-          (ps: PlatformSpecific) => Cek.VCon(Constant.ByteString(serialiseData(aa)))
+          (ps: PlatformSpecific) => VCon(Constant.ByteString(serialiseData(aa)))
     )
 
     val MkPairData =
@@ -615,7 +617,7 @@ object Meaning:
               val aa = a.asData
               (b: CekValue) =>
                   val bb = b.asData
-                  (ps: PlatformSpecific) => Cek.VCon(Constant.Pair(asConstant(aa), asConstant(bb)))
+                  (ps: PlatformSpecific) => VCon(Constant.Pair(asConstant(aa), asConstant(bb)))
         )
 
     val MkNilData =
@@ -623,7 +625,7 @@ object Meaning:
           DefaultUni.Unit ->: DefaultUni.List(DefaultUni.Data),
           (a: CekValue) =>
               val _ = a.asUnit
-              (ps: PlatformSpecific) => Cek.VCon(Constant.List(DefaultUni.Data, Nil))
+              (ps: PlatformSpecific) => VCon(Constant.List(DefaultUni.Data, Nil))
         )
 
     val MkNilPairData = mkMeaning(
@@ -631,7 +633,7 @@ object Meaning:
       (a: CekValue) =>
           val _ = a.asUnit
           (ps: PlatformSpecific) =>
-              Cek.VCon(Constant.List(DefaultUni.Pair(DefaultUni.Data, DefaultUni.Data), Nil))
+              VCon(Constant.List(DefaultUni.Pair(DefaultUni.Data, DefaultUni.Data), Nil))
     )
 
     val BuiltinMeanings: immutable.Map[DefaultFun, Runtime] = immutable.Map.apply(

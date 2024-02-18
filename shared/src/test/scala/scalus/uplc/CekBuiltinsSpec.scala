@@ -11,6 +11,7 @@ import scalus.uplc.DefaultFun.*
 import scalus.uplc.DefaultUni.asConstant
 import scalus.uplc.Term.*
 import scalus.uplc.TermDSL.{*, given}
+import scalus.uplc.eval.*
 
 import scala.reflect.ClassTag
 
@@ -21,6 +22,10 @@ class CekBuiltinsSpec extends AnyFunSuite with ScalaCheckPropertyChecks with Arb
 
     def assertEvalThrows[A <: AnyRef: ClassTag](a: Term): Unit =
         assertThrows[A](Cek.evalUPLC(a))
+
+    test("Lazy builtin evaluation") {
+        assertEvalEq(AddInteger $ "wrong", Apply(Builtin(AddInteger), "wrong"))
+    }
 
     test("AddInteger") {
         forAll { (a: BigInt, b: BigInt) =>

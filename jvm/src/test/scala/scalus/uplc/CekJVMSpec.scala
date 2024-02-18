@@ -6,6 +6,7 @@ import org.scalacheck.Gen
 import scalus.BaseValidatorSpec
 import scalus.Compiler.compile
 import scalus.Expected
+import scalus.*
 import scalus.builtin.Builtins
 import scalus.builtin.ByteString
 import scalus.builtin.ByteString.given
@@ -15,11 +16,11 @@ import scalus.ledger.api.v1.ToDataInstances.given
 import scalus.ledger.api.v1.*
 import scalus.prelude.List.Cons
 import scalus.prelude.List.Nil
-import scalus.*
 import scalus.uplc.DefaultFun.*
 import scalus.uplc.DefaultUni.asConstant
 import scalus.uplc.Term.*
 import scalus.uplc.TermDSL.{*, given}
+import scalus.uplc.eval.*
 import scalus.utils.Utils
 import scodec.bits.ByteVector
 

@@ -3,6 +3,7 @@ package scalus.uplc
 import scalus.*
 import scalus.builtin.given
 import scalus.uplc.TermDSL.*
+import scalus.uplc.eval.Cek
 
 import scala.reflect.ClassTag
 import scala.scalajs.js

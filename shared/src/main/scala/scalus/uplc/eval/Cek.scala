@@ -1,4 +1,5 @@
 package scalus.uplc
+package eval
 
 import scalus.builtin.ByteString
 import scalus.builtin.Data
@@ -19,12 +20,60 @@ class UnexpectedBuiltinTermArgumentMachineError(term: Term)
 class KnownTypeUnliftingError(expected: TypeScheme, actual: DefaultUni)
     extends Exception(s"Expected $expected, but got $actual")
 
+type CekValEnv = immutable.List[(String, CekValue)]
+
+// 'Values' for the modified CEK machine.
+sealed trait CekValue {
+    def asUnit: Unit = this match {
+        case VCon(Constant.Unit) => ()
+        case _                   => throw new RuntimeException(s"Expected unit, got $this")
+    }
+    def asInteger: BigInt = this match {
+        case VCon(Constant.Integer(i)) => i
+        case _                         => throw new RuntimeException(s"Expected integer, got $this")
+    }
+    def asString: String = this match {
+        case VCon(Constant.String(s)) => s
+        case _                        => throw new RuntimeException(s"Expected string, got $this")
+    }
+    def asBool: Boolean = this match {
+        case VCon(Constant.Bool(b)) => b
+        case _                      => throw new RuntimeException(s"Expected bool, got $this")
+    }
+    def asByteString: ByteString = this match {
+        case VCon(Constant.ByteString(bs)) => bs
+        case _ => throw new RuntimeException(s"Expected bytestring, got $this")
+    }
+    def asData: Data = this match {
+        case VCon(Constant.Data(d)) => d
+        case _                      => throw new RuntimeException(s"Expected data, got $this")
+    }
+    def asList: List[Constant] = this match {
+        case VCon(Constant.List(_, l)) => l
+        case _                         => throw new RuntimeException(s"Expected list, got $this")
+    }
+    def asPair: (Constant, Constant) = this match {
+        case VCon(Constant.Pair(l, r)) => (l, r)
+        case _                         => throw new RuntimeException(s"Expected pair, got $this")
+    }
+}
+case class VCon(const: Constant) extends CekValue
+case class VDelay(term: Term, env: CekValEnv) extends CekValue
+case class VLamAbs(name: String, term: Term, env: CekValEnv) extends CekValue
+case class VBuiltin(bn: DefaultFun, term: Term, runtime: Runtime) extends CekValue
+
 /*
   TODO:
   - proper exception handling
   - execution budget calculation
  */
-object Cek:
+object Cek {
+    def evalUPLC(term: Term)(using ps: PlatformSpecific): Term = new CekMachine(ps).evalUPLC(term)
+
+    def evalUPLCProgram(p: Program)(using ps: PlatformSpecific): Term = evalUPLC(p.term)
+}
+
+class CekMachine(ps: PlatformSpecific) {
 
     sealed trait Context
     case class FrameApplyFun(f: CekValue, ctx: Context) extends Context
@@ -32,54 +81,9 @@ object Cek:
     case class FrameForce(ctx: Context) extends Context
     case object NoFrame extends Context
 
-    type CekValEnv = immutable.List[(String, CekValue)]
-    // 'Values' for the modified CEK machine.
-    sealed trait CekValue {
-        def asUnit: Unit = this match {
-            case VCon(Constant.Unit) => ()
-            case _                   => throw new RuntimeException(s"Expected unit, got $this")
-        }
-        def asInteger: BigInt = this match {
-            case VCon(Constant.Integer(i)) => i
-            case _ => throw new RuntimeException(s"Expected integer, got $this")
-        }
-        def asString: String = this match {
-            case VCon(Constant.String(s)) => s
-            case _ => throw new RuntimeException(s"Expected string, got $this")
-        }
-        def asBool: Boolean = this match {
-            case VCon(Constant.Bool(b)) => b
-            case _                      => throw new RuntimeException(s"Expected bool, got $this")
-        }
-        def asByteString: ByteString = this match {
-            case VCon(Constant.ByteString(bs)) => bs
-            case _ => throw new RuntimeException(s"Expected bytestring, got $this")
-        }
-        def asData: Data = this match {
-            case VCon(Constant.Data(d)) => d
-            case _                      => throw new RuntimeException(s"Expected data, got $this")
-        }
-        def asList: List[Constant] = this match {
-            case VCon(Constant.List(_, l)) => l
-            case _ => throw new RuntimeException(s"Expected list, got $this")
-        }
-        def asPair: (Constant, Constant) = this match {
-            case VCon(Constant.Pair(l, r)) => (l, r)
-            case _ => throw new RuntimeException(s"Expected pair, got $this")
-        }
-    }
-    case class VCon(const: Constant) extends CekValue
-    case class VDelay(term: Term, env: CekValEnv) extends CekValue
-    case class VLamAbs(name: String, term: Term, env: CekValEnv) extends CekValue
-    case class VBuiltin(bn: DefaultFun, term: Term, runtime: Runtime) extends CekValue
-
     def evalUPLC(term: Term)(using ps: PlatformSpecific): Term = computeCek(NoFrame, Nil, term)
 
-    def evalUPLCProgram(p: Program)(using ps: PlatformSpecific): Term = evalUPLC(p.term)
-
-    @tailrec def computeCek(ctx: Context, env: CekValEnv, term: Term)(using
-        ps: PlatformSpecific
-    ): Term =
+    @tailrec final def computeCek(ctx: Context, env: CekValEnv, term: Term): Term =
         term match
             case Var(name)          => returnCek(ctx, lookupVarName(env, name))
             case LamAbs(name, term) => returnCek(ctx, VLamAbs(name, term, env))
@@ -94,7 +98,7 @@ object Cek:
                     case None          => throw new UnexpectedBuiltinTermArgumentMachineError(term)
             case Error => throw new EvaluationFailure("Error")
 
-    def returnCek(ctx: Context, value: CekValue)(using ps: PlatformSpecific): Term =
+    def returnCek(ctx: Context, value: CekValue): Term =
         ctx match
             case FrameApplyArg(env, arg, ctx) => computeCek(FrameApplyFun(value, ctx), env, arg)
             case FrameApplyFun(fun, ctx)      => applyEvaluate(ctx, fun, value)
@@ -111,9 +115,7 @@ object Cek:
                   s"Variable ${name.name} not found in environment: ${env.map(_._1).mkString(", ")}"
                 )
 
-    def applyEvaluate(ctx: Context, fun: CekValue, arg: CekValue)(using
-        ps: PlatformSpecific
-    ): Term =
+    def applyEvaluate(ctx: Context, fun: CekValue, arg: CekValue): Term =
         fun match
             case VLamAbs(name, term, env) => computeCek(ctx, (name, arg) :: env, term)
             case VBuiltin(fun, term, runtime) =>
@@ -122,8 +124,7 @@ object Cek:
                 runtime.typeScheme match
                     case (TypeScheme.Arrow(_, rest)) =>
                         val f = runtime.f.asInstanceOf[CekValue => AnyRef]
-                        val applied = f(arg)
-                        val runtime1 = runtime.copy(f = applied, typeScheme = rest)
+                        val runtime1 = runtime.copy(args = runtime.args :+ arg, typeScheme = rest)
                         val res = evalBuiltinApp(fun, term1, runtime1)
                         returnCek(ctx, res)
                     case _ => throw new UnexpectedBuiltinTermArgumentMachineError(term1)
@@ -132,7 +133,7 @@ object Cek:
                   "NonFunctionalApplicationMachineError"
                 ) // FIXME MachineException
 
-    def forceEvaluate(ctx: Context, value: CekValue)(using ps: PlatformSpecific): Term =
+    def forceEvaluate(ctx: Context, value: CekValue): Term =
         value match
             case VDelay(term, env) => computeCek(ctx, env, term)
             case VBuiltin(bn, term, rt) =>
@@ -178,13 +179,17 @@ object Cek:
                 case _           => term
         go(Nil, term)
 
-    def evalBuiltinApp(builtinName: DefaultFun, term: Term, runtime: Runtime)(using
-        ps: PlatformSpecific
-    ): CekValue =
+    def evalBuiltinApp(builtinName: DefaultFun, term: Term, runtime: Runtime): CekValue =
         runtime.typeScheme match
             case TypeScheme.Type(_) | TypeScheme.TVar(_) | TypeScheme.App(_, _) =>
                 // eval the builtin and return result
-                val f = runtime.f.asInstanceOf[PlatformSpecific => CekValue]
-                try f(ps)
+                try
+                    // eval builtin when it's fully saturated, i.e. when all arguments were applied
+                    val applied = runtime.args.foldLeft(runtime.f) { case (f, arg) =>
+                        f(arg).asInstanceOf[AnyRef => AnyRef]
+                    }
+                    val f = applied.asInstanceOf[PlatformSpecific => CekValue]
+                    f(ps)
                 catch case e: Throwable => throw new BuiltinError(term, e)
             case _ => VBuiltin(builtinName, term, runtime)
+}
