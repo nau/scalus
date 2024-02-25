@@ -124,7 +124,7 @@ class FromDataDerivationSpec
             assert(fromData[BigRecord](d) == r)
             val out = PlutusUplcEval.evalFlat(Program((1, 0, 0), term $ d))
             out match
-                case UplcEvalResult.Success(term) =>
+                case UplcEvalResult.Success(term, _) =>
                     assert(term == Term.Const(Constant.Data(d)))
                 case UplcEvalResult.UplcFailure(errorCode, error) => fail(error)
                 case UplcEvalResult.TermParsingError(error)       => fail(error)
@@ -144,7 +144,7 @@ class FromDataDerivationSpec
             assert(fromData[Adt](d) == r)
             val out = PlutusUplcEval.evalFlat(Program((1, 0, 0), term $ d))
             out match
-                case UplcEvalResult.Success(term) =>
+                case UplcEvalResult.Success(term, _) =>
                     assert(term == Term.Const(Constant.Data(d)))
                 case UplcEvalResult.UplcFailure(errorCode, error) => fail(error)
                 case UplcEvalResult.TermParsingError(error)       => fail(error)

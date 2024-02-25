@@ -4,10 +4,49 @@ package eval
 import scalus.builtin.ByteString
 import scalus.builtin.Data
 import scalus.builtin.PlatformSpecific
+import cats.Monoid
 import scalus.uplc.Term.*
 
 import scala.annotation.tailrec
 import scala.collection.immutable
+
+opaque type ExCPU <: Long = Long
+object ExCPU {
+    inline def apply(l: Long): ExCPU = l
+}
+opaque type ExMemory <: Long = Long
+object ExMemory {
+    inline def apply(l: Long): ExMemory = l
+}
+
+case class ExBudget(cpu: ExCPU, memory: ExMemory)
+object ExBudget {
+    val zero: ExBudget = ExBudget(ExCPU(0), ExMemory(0))
+    given Monoid[ExBudget] with
+        def combine(x: ExBudget, y: ExBudget): ExBudget =
+            ExBudget(ExCPU(x.cpu + y.cpu), ExMemory(x.memory + y.memory))
+        def empty: ExBudget = ExBudget.zero
+    given Ordering[ExBudget] with
+        def compare(x: ExBudget, y: ExBudget): Int =
+            val c = x.cpu.compareTo(y.cpu)
+            if c != 0 then c else x.memory.compareTo(y.memory)
+}
+
+enum ExBudgetCategory:
+    case Step(term: Term)
+    case Startup
+    case BuiltinApp(costingFunction: CostingFun[CostModel], args: Seq[CekValue])
+
+case class CekMachineCosts(
+    startupCost: ExBudget,
+    varCost: ExBudget,
+    constCost: ExBudget,
+    lamCost: ExBudget,
+    delayCost: ExBudget,
+    forceCost: ExBudget,
+    applyCost: ExBudget,
+    builtinCost: ExBudget
+)
 
 // TODO match Haskell errors
 class EvaluationFailure(msg: String) extends Exception(msg)
@@ -81,9 +120,12 @@ class CekMachine(ps: PlatformSpecific) {
     case class FrameForce(ctx: Context) extends Context
     case object NoFrame extends Context
 
-    def evalUPLC(term: Term)(using ps: PlatformSpecific): Term = computeCek(NoFrame, Nil, term)
+    def evalUPLC(term: Term)(using ps: PlatformSpecific): Term =
+        spendBudget(ExBudgetCategory.Startup)
+        computeCek(NoFrame, Nil, term)
 
-    @tailrec final def computeCek(ctx: Context, env: CekValEnv, term: Term): Term =
+    @tailrec private final def computeCek(ctx: Context, env: CekValEnv, term: Term): Term =
+        spendBudget(ExBudgetCategory.Step(term))
         term match
             case Var(name)          => returnCek(ctx, lookupVarName(env, name))
             case LamAbs(name, term) => returnCek(ctx, VLamAbs(name, term, env))
@@ -182,6 +224,7 @@ class CekMachine(ps: PlatformSpecific) {
     def evalBuiltinApp(builtinName: DefaultFun, term: Term, runtime: Runtime): CekValue =
         runtime.typeScheme match
             case TypeScheme.Type(_) | TypeScheme.TVar(_) | TypeScheme.App(_, _) =>
+                spendBudget(ExBudgetCategory.BuiltinApp(runtime.costFunction, runtime.args))
                 // eval the builtin and return result
                 try
                     // eval builtin when it's fully saturated, i.e. when all arguments were applied
@@ -192,4 +235,57 @@ class CekMachine(ps: PlatformSpecific) {
                     f(ps)
                 catch case e: Throwable => throw new BuiltinError(term, e)
             case _ => VBuiltin(builtinName, term, runtime)
+
+    var unbudgetedStepsTotal: Long = 0L
+    var cekSlippage: Long = 0L
+
+    val machineCosts = CekMachineCosts(
+      startupCost = ExBudget(ExCPU(100), ExMemory(100)),
+      varCost = ExBudget(ExCPU(23000), ExMemory(100)),
+      constCost = ExBudget(ExCPU(23000), ExMemory(100)),
+      lamCost = ExBudget(ExCPU(23000), ExMemory(100)),
+      delayCost = ExBudget(ExCPU(23000), ExMemory(100)),
+      forceCost = ExBudget(ExCPU(23000), ExMemory(100)),
+      applyCost = ExBudget(ExCPU(23000), ExMemory(100)),
+      builtinCost = ExBudget(ExCPU(23000), ExMemory(100))
+    )
+
+    var budgetCPU = 0L
+    var budgetMemory = 0L
+
+    def getExBudget: ExBudget = ExBudget(ExCPU(budgetCPU), ExMemory(budgetMemory))
+
+    private def spendBudget(cat: ExBudgetCategory) =
+        cat match
+            case ExBudgetCategory.Startup =>
+                budgetCPU += machineCosts.startupCost.cpu
+                budgetMemory += machineCosts.startupCost.memory
+            case ExBudgetCategory.Step(term) =>
+                term match
+                    case _: Var =>
+                        budgetCPU += machineCosts.varCost.cpu
+                        budgetMemory += machineCosts.varCost.memory
+                    case _: Const =>
+                        budgetCPU += machineCosts.constCost.cpu
+                        budgetMemory += machineCosts.constCost.memory
+                    case _: LamAbs =>
+                        budgetCPU += machineCosts.lamCost.cpu
+                        budgetMemory += machineCosts.lamCost.memory
+                    case _: Delay =>
+                        budgetCPU += machineCosts.delayCost.cpu
+                        budgetMemory += machineCosts.delayCost.memory
+                    case _: Force =>
+                        budgetCPU += machineCosts.forceCost.cpu
+                        budgetMemory += machineCosts.forceCost.memory
+                    case _: Apply =>
+                        budgetCPU += machineCosts.applyCost.cpu
+                        budgetMemory += machineCosts.applyCost.memory
+                    case _: Builtin =>
+                        budgetCPU += machineCosts.builtinCost.cpu
+                        budgetMemory += machineCosts.builtinCost.memory
+                    case Error => // do nothing
+            case ExBudgetCategory.BuiltinApp(costingFun, args) =>
+                val budget = costingFun.calculateCost(args)
+                budgetCPU += budget.cpu
+                budgetMemory += budget.memory
 }

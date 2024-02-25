@@ -31,11 +31,11 @@ abstract class BaseValidatorSpec
         val result2 = Try(Cek.evalUPLCProgram(program))
         // println(s"$result1 == $result2")
         (expected, result1, result2) match
-            case (Expected.SuccessSame, UplcEvalResult.Success(term1), Success(term2)) =>
+            case (Expected.SuccessSame, UplcEvalResult.Success(term1, _), Success(term2)) =>
                 val normalized1 = DeBruijn.fromDeBruijnTerm(DeBruijn.deBruijnTerm(term1))
                 val normalized2 = DeBruijn.fromDeBruijnTerm(DeBruijn.deBruijnTerm(term2))
                 assert(normalized1 == normalized2)
-            case (Expected.Success(term), UplcEvalResult.Success(term1), Success(term2)) =>
+            case (Expected.Success(term), UplcEvalResult.Success(term1, _), Success(term2)) =>
                 assert(term == term1)
                 assert(term == term2)
             case (Expected.Failure(_), UplcEvalResult.UplcFailure(_, err), Failure(e2)) =>
@@ -50,8 +50,8 @@ abstract class BaseValidatorSpec
     protected final def assertUplcEvalResult(expected: Expected)(program: Program) = {
         val result1 = PlutusUplcEval.evalFlat(program)
         (expected, result1) match
-            case (Expected.Success(term), UplcEvalResult.Success(term1))   => assert(term == term1)
-            case (Expected.Failure(_), UplcEvalResult.UplcFailure(_, err)) => assert(true)
+            case (Expected.Success(term), UplcEvalResult.Success(term1, _)) => assert(term == term1)
+            case (Expected.Failure(_), UplcEvalResult.UplcFailure(_, err))  => assert(true)
             case _ => fail(s"Expected $expected, but got uplc evaluate: $result1")
     }
 
