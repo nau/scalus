@@ -21,3 +21,8 @@ yarn run serve
 cd website
  USE_SSH=true yarn deploy
 ```
+
+## Run benchmarks
+
+```bash
+jmh:run -i 1 -wi 1 -f 1 -t 1

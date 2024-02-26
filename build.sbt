@@ -29,7 +29,7 @@ Test / publishArtifact := false
 
 lazy val root: Project = project
     .in(file("."))
-    .aggregate(scalusPlugin, scalus.js, scalus.jvm, `examples-js`, examples)
+    .aggregate(scalusPlugin, scalus.js, scalus.jvm, `examples-js`, examples, bench)
     .settings(
       publish / skip := true
     )
@@ -168,6 +168,17 @@ lazy val docs = project // documentation project
         "SCALA3_VERSION" -> scalaVersion.value
       ),
       PluginDependency
+    )
+
+lazy val bench = project
+    .in(file("bench"))
+    .dependsOn(scalus.jvm)
+    .enablePlugins(JmhPlugin)
+    .settings(
+      name := "scalus-bench",
+      PluginDependency,
+      ThisBuild / javaOptions ++= Seq("-Xss20m"),
+      publish / skip := true
     )
 
 addCommandAlias(
