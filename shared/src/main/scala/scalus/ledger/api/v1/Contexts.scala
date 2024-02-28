@@ -31,7 +31,7 @@ object FromDataInstances {
     import scalus.builtin.FromDataInstances.given
 
     given FromData[TxId] = (d: Data) =>
-        val hash = fromData[ByteString](Builtins.unsafeDataAsConstr(d).snd.head)
+        val hash = fromData[ByteString](Builtins.unConstrData(d).snd.head)
         new TxId(hash)
 
     given FromData[PubKeyHash] = (d: Data) =>
@@ -39,7 +39,7 @@ object FromDataInstances {
         new PubKeyHash(hash)
 
     given FromData[TxOutRef] = (d: Data) =>
-        val args = Builtins.unsafeDataAsConstr(d).snd
+        val args = Builtins.unConstrData(d).snd
         val txidx = args.tail
         new TxOutRef(
           fromData[TxId](args.head),
@@ -47,7 +47,7 @@ object FromDataInstances {
         )
 
     given FromData[DCert] = (d: Data) =>
-        val pair = Builtins.unsafeDataAsConstr(d)
+        val pair = Builtins.unConstrData(d)
         val tag = pair.fst
         val args = pair.snd
         if tag === BigInt(0) then new DCert.DelegRegKey(fromData[StakingCredential](args.head))
@@ -73,7 +73,7 @@ object FromDataInstances {
         else throw new Exception(s"Unknown DCert tag: $tag")
 
     given ExtendedFromData[A: FromData]: FromData[Extended[A]] = (d: Data) =>
-        val pair = Builtins.unsafeDataAsConstr(d)
+        val pair = Builtins.unConstrData(d)
         val tag = pair.fst
         val args = pair.snd
         if tag === BigInt(0) then Extended.NegInf
@@ -82,7 +82,7 @@ object FromDataInstances {
         else throw new Exception(s"Unknown Extended tag: $tag")
 
     given FromData[Credential] = (d: Data) =>
-        val pair = Builtins.unsafeDataAsConstr(d)
+        val pair = Builtins.unConstrData(d)
         val tag = pair.fst
         val args = pair.snd
         if tag === BigInt(0) then new Credential.PubKeyCredential(fromData[PubKeyHash](args.head))
@@ -92,7 +92,7 @@ object FromDataInstances {
 
     given FromData[StakingCredential] =
         (d: Data) =>
-            val pair = Builtins.unsafeDataAsConstr(d)
+            val pair = Builtins.unConstrData(d)
             val tag = pair.fst
             if tag === BigInt(0) then
                 new StakingCredential.StakingHash(fromData[Credential](pair.snd.head))
@@ -107,7 +107,7 @@ object FromDataInstances {
             else throw new RuntimeException("Invalid tag")
 
     given FromData[ScriptPurpose] = (d: Data) =>
-        val pair = Builtins.unsafeDataAsConstr(d)
+        val pair = Builtins.unConstrData(d)
         val tag = pair.fst
         val args = pair.snd
         if tag === BigInt(0) then new ScriptPurpose.Minting(fromData[TokenName](args.head))
@@ -118,14 +118,14 @@ object FromDataInstances {
         else throw new Exception(s"Unknown ScriptPurpose tag: $tag")
 
     given FromData[Address] = (d: Data) =>
-        val pair = Builtins.unsafeDataAsConstr(d)
+        val pair = Builtins.unConstrData(d)
         new Address(
           fromData[Credential](pair.snd.head),
           fromData[Maybe[StakingCredential]](pair.snd.tail.head)
         )
 
     given FromData[TxOut] = (d: Data) =>
-        val pair = Builtins.unsafeDataAsConstr(d)
+        val pair = Builtins.unConstrData(d)
         val args = pair.snd
         new TxOut(
           fromData[Address](args.head),
@@ -134,7 +134,7 @@ object FromDataInstances {
         )
 
     given FromData[TxInInfo] = (d: Data) =>
-        val pair = Builtins.unsafeDataAsConstr(d)
+        val pair = Builtins.unConstrData(d)
         val args = pair.snd
         new TxInInfo(
           fromData[TxOutRef](args.head),
@@ -142,7 +142,7 @@ object FromDataInstances {
         )
 
     given UpperBoundFromData[A: FromData]: FromData[UpperBound[A]] = (d: Data) =>
-        val pair = Builtins.unsafeDataAsConstr(d)
+        val pair = Builtins.unConstrData(d)
         val args = pair.snd
         new UpperBound(
           fromData[Extended[A]](args.head),
@@ -150,7 +150,7 @@ object FromDataInstances {
         )
 
     given LowerBoundFromData[A: FromData]: FromData[LowerBound[A]] = (d: Data) =>
-        val pair = Builtins.unsafeDataAsConstr(d)
+        val pair = Builtins.unConstrData(d)
         val args = pair.snd
         new LowerBound(
           fromData[Extended[A]](args.head),
@@ -158,7 +158,7 @@ object FromDataInstances {
         )
 
     given IntervalFromData[A: FromData]: FromData[Interval[A]] = (d: Data) =>
-        val pair = Builtins.unsafeDataAsConstr(d)
+        val pair = Builtins.unConstrData(d)
         val args = pair.snd
         new Interval(
           fromData[LowerBound[A]](args.head),
@@ -166,7 +166,7 @@ object FromDataInstances {
         )
 
     given FromData[TxInfo] = (d: Data) =>
-        val pair = Builtins.unsafeDataAsConstr(d)
+        val pair = Builtins.unConstrData(d)
         val args = pair.snd
         val fromValue = summon[FromData[Value]]
         new TxInfo(
@@ -183,7 +183,7 @@ object FromDataInstances {
         )
 
     given FromData[ScriptContext] = (d: Data) =>
-        val pair = Builtins.unsafeDataAsConstr(d)
+        val pair = Builtins.unConstrData(d)
         val args = pair.snd
         new ScriptContext(
           fromData[TxInfo](args.head),

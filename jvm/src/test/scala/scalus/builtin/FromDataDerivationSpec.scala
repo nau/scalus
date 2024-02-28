@@ -28,10 +28,11 @@ object ToDataAdt:
     given ToData[Adt] = (a: Adt) =>
         import ToDataInstances.given
         a match
-            case Adt.A     => Builtins.mkConstr(0, Builtins.mkNilData())
-            case Adt.B(bs) => Builtins.mkConstr(1, Builtins.mkCons(bs.toData, Builtins.mkNilData()))
+            case Adt.A => Builtins.constrData(0, Builtins.mkNilData())
+            case Adt.B(bs) =>
+                Builtins.constrData(1, Builtins.mkCons(bs.toData, Builtins.mkNilData()))
             case Adt.C(a, b) =>
-                Builtins.mkConstr(
+                Builtins.constrData(
                   2,
                   Builtins.mkCons(a.toData, Builtins.mkCons(b.toData, Builtins.mkNilData()))
                 )

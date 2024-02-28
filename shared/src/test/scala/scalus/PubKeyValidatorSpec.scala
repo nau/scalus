@@ -19,12 +19,12 @@ import scalus.uplc.*
 @Compile
 object PubKeyValidator {
     def validator(redeemer: Unit, datum: Unit, ctx: Data) = {
-        val txinfo = Builtins.unsafeDataAsConstr(Builtins.unsafeDataAsConstr(ctx).snd.head).snd
-        val signatories = Builtins.unsafeDataAsList(txinfo.tail.tail.tail.tail.tail.tail.tail.head)
+        val txinfo = Builtins.unConstrData(Builtins.unConstrData(ctx).snd.head).snd
+        val signatories = Builtins.unListData(txinfo.tail.tail.tail.tail.tail.tail.tail.head)
 
         def findSignatureOrFail(sigs: builtin.List[Data]): Unit =
             if signatories.isEmpty then throw new RuntimeException("Signature not found")
-            else if Builtins.unsafeDataAsB(signatories.head) === hex"deadbeef"
+            else if Builtins.unBData(signatories.head) === hex"deadbeef"
             then ()
             else findSignatureOrFail(signatories.tail)
 

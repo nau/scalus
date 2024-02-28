@@ -127,7 +127,7 @@ object Macros {
                             '{ d =>
                                 // a bit of staged programming here
                                 ${
-                                    var expr = '{ Builtins.unsafeDataAsConstr(d).snd }
+                                    var expr = '{ Builtins.unConstrData(d).snd }
                                     var i = 0
                                     while i < idx do
                                         val exp =

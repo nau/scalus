@@ -16,7 +16,7 @@ object ToData {
         import quotes.reflect.*
         val classSym = TypeTree.of[T].symbol
         val companionModuleRef = classSym.companionModule
-        val unapplyRef = companionModuleRef.memberMethod("unapply").head.termRef
+        val unapplyRef = companionModuleRef.methodMember("unapply").head.termRef
         val constr = classSym.primaryConstructor
         val params = constr.paramSymss.flatten
         val paramsNameType = params.map(p => p.name -> p.typeRef)

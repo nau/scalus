@@ -21,7 +21,7 @@ object FromDataInstances {
     import scalus.ledger.api.v1.FromDataInstances.given
 
     given FromData[OutputDatum] = (d: Data) =>
-        val pair = Builtins.unsafeDataAsConstr(d)
+        val pair = Builtins.unConstrData(d)
         val tag = pair.fst
         val args = pair.snd
         if tag === BigInt(0) then OutputDatum.NoOutputDatum
@@ -31,7 +31,7 @@ object FromDataInstances {
         else throw new Exception("PT1")
 
     given FromData[TxOut] = (d: Data) =>
-        val pair = Builtins.unsafeDataAsConstr(d)
+        val pair = Builtins.unConstrData(d)
         val args = pair.snd
         new TxOut(
           fromData[Address](args.head),
@@ -41,7 +41,7 @@ object FromDataInstances {
         )
 
     given FromData[TxInInfo] = (d: Data) =>
-        val pair = Builtins.unsafeDataAsConstr(d)
+        val pair = Builtins.unConstrData(d)
         val args = pair.snd
         new TxInInfo(
           fromData[TxOutRef](args.head),
@@ -49,7 +49,7 @@ object FromDataInstances {
         )
 
     given FromData[TxInfo] = (d: Data) =>
-        val pair = Builtins.unsafeDataAsConstr(d)
+        val pair = Builtins.unConstrData(d)
         val args = pair.snd
         val fromValue = summon[FromData[Value]]
         new TxInfo(
@@ -72,7 +72,7 @@ object FromDataInstances {
         )
 
     given FromData[ScriptContext] = (d: Data) =>
-        val pair = Builtins.unsafeDataAsConstr(d)
+        val pair = Builtins.unConstrData(d)
         val args = pair.snd
         new ScriptContext(
           fromData[TxInfo](args.head),

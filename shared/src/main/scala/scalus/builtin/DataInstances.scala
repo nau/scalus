@@ -9,25 +9,25 @@ import scalus.builtin.Data.*
 object FromDataInstances {
     import scalus.builtin.Builtins.*
 
-    given FromData[BigInt] = (d: Data) => unsafeDataAsI(d)
-    given FromData[ByteString] = (d: Data) => unsafeDataAsB(d)
-    given FromData[String] = (d: Data) => decodeUtf8(unsafeDataAsB(d))
+    given FromData[BigInt] = (d: Data) => unIData(d)
+    given FromData[ByteString] = (d: Data) => unBData(d)
+    given FromData[String] = (d: Data) => decodeUtf8(unBData(d))
     given FromData[Data] = (d: Data) => d
 
     given FromData[Unit] = (d: Data) =>
-        val pair = unsafeDataAsConstr(d)
+        val pair = unConstrData(d)
         if pair.fst === BigInt(0) then ()
         else throw new RuntimeException("Not a unit")
 
     given FromData[Boolean] = (d: Data) =>
-        val pair = unsafeDataAsConstr(d)
+        val pair = unConstrData(d)
         val constr = pair.fst
         if constr === BigInt(0) then false
         else if constr === BigInt(1) then true
         else throw new RuntimeException("Not a boolean")
 
     given ListFromData[A: FromData]: FromData[scalus.prelude.List[A]] = (d: Data) =>
-        val ls = unsafeDataAsList(d)
+        val ls = unListData(d)
         def loop(ls: scalus.builtin.List[Data]): scalus.prelude.List[A] =
             if ls.isEmpty then prelude.List.Nil
             else new prelude.List.Cons(fromData[A](ls.head), loop(ls.tail))
@@ -35,7 +35,7 @@ object FromDataInstances {
 
     given AssocMapFromData[A: FromData, B: FromData]: FromData[AssocMap[A, B]] =
         (d: Data) =>
-            val ls = unsafeDataAsMap(d)
+            val ls = unMapData(d)
             def loop(ls: scalus.builtin.List[Pair[Data, Data]]): prelude.List[(A, B)] =
                 if ls.isEmpty then prelude.List.Nil
                 else
@@ -47,7 +47,7 @@ object FromDataInstances {
             AssocMap.fromList(loop(ls))
 
     given MaybeFromData[A: FromData]: FromData[scalus.prelude.Maybe[A]] = (d: Data) =>
-        val pair = unsafeDataAsConstr(d)
+        val pair = unConstrData(d)
         if pair.fst === BigInt(0) then new scalus.prelude.Maybe.Just(fromData[A](pair.snd.head))
         else scalus.prelude.Maybe.Nothing
 
@@ -56,7 +56,7 @@ object FromDataInstances {
         fromB: FromData[B]
     ): FromData[(A, B)] =
         (d: Data) =>
-            val pair = unsafeDataAsConstr(d)
+            val pair = unConstrData(d)
             val args = pair.snd
             (fromA(args.head), fromB(args.tail.head))
 }
@@ -66,14 +66,14 @@ object ToDataInstances {
     import scalus.builtin.Builtins.*
 
     given ToData[Boolean] = (a: Boolean) =>
-        if a then mkConstr(1, mkNilData()) else mkConstr(0, mkNilData())
+        if a then constrData(1, mkNilData()) else constrData(0, mkNilData())
     given ToData[Data] = (a: Data) => a
-    given ToData[BigInt] = (a: BigInt) => mkI(a)
-    given ToData[Int] = (a: Int) => mkI(a)
-    given ToData[Long] = (a: Long) => mkI(a)
-    given ToData[ByteString] = (a: ByteString) => mkB(a)
-    given ToData[String] = (a: String) => mkB(encodeUtf8(a))
-    given ToData[Unit] = (a: Unit) => mkConstr(0, mkNilData())
+    given ToData[BigInt] = (a: BigInt) => iData(a)
+    given ToData[Int] = (a: Int) => iData(a)
+    given ToData[Long] = (a: Long) => iData(a)
+    given ToData[ByteString] = (a: ByteString) => bData(a)
+    given ToData[String] = (a: String) => bData(encodeUtf8(a))
+    given ToData[Unit] = (a: Unit) => constrData(0, mkNilData())
 
     given listToData[A: ToData]: ToData[scalus.prelude.List[A]] =
         (a: scalus.prelude.List[A]) => {
@@ -83,7 +83,7 @@ object ToDataInstances {
                     case scalus.prelude.List.Cons(head, tail) =>
                         mkCons(summon[ToData[A]](head), loop(tail))
 
-            mkList(loop(a))
+            listData(loop(a))
         }
 
     given assocMapToData[A: ToData, B: ToData]: ToData[AssocMap[A, B]] =
@@ -99,12 +99,12 @@ object ToDataInstances {
                             )
                     }
             }
-            mkMap(go(AssocMap.toList(a)))
+            mapData(go(AssocMap.toList(a)))
         }
 
     given tupleToData[A: ToData, B: ToData]: ToData[(A, B)] =
         (a: (A, B)) =>
-            mkConstr(
+            constrData(
               0,
               mkCons(
                 summon[ToData[A]](a._1),
@@ -116,15 +116,15 @@ object ToDataInstances {
         (a: Maybe[A]) => {
             a match {
                 case Maybe.Just(v) =>
-                    mkConstr(0, mkCons(v.toData, mkNilData()))
-                case Maybe.Nothing => mkConstr(1, mkNilData())
+                    constrData(0, mkCons(v.toData, mkNilData()))
+                case Maybe.Nothing => constrData(1, mkNilData())
             }
         }
 
     given EitherToData[A: ToData, B: ToData]: ToData[Either[A, B]] =
         (a: Either[A, B]) =>
             a match
-                case Left(v)  => mkConstr(0, mkCons(v.toData, mkNilData()))
-                case Right(v) => mkConstr(1, mkCons(v.toData, mkNilData()))
+                case Left(v)  => constrData(0, mkCons(v.toData, mkNilData()))
+                case Right(v) => constrData(1, mkCons(v.toData, mkNilData()))
 
 }

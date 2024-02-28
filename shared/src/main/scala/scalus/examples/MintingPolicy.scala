@@ -28,7 +28,7 @@ object MintingPolicy {
     import ScriptPurpose.*
 
     given Data.FromData[TxInInfoTxOutRefOnly] = (d: Data) =>
-        val pair = Builtins.unsafeDataAsConstr(d)
+        val pair = Builtins.unConstrData(d)
         new TxInInfoTxOutRefOnly(fromData[TxOutRef](pair.snd.head))
 
     protected final val hoskyMintTxOutRef = TxOutRef(
@@ -77,10 +77,10 @@ object MintingPolicy {
             fromData[Value](fieldAsData[TxInfo](_.mint).apply(txInfoData))
         val ownSymbol =
             val purpose = fieldAsData[ScriptContext](_.purpose)(ctxData)
-            val pair = Builtins.unsafeDataAsConstr(purpose)
+            val pair = Builtins.unConstrData(purpose)
             val tag = pair.fst
             val args = pair.snd
-            if Builtins.equalsInteger(tag, BigInt(0)) then Builtins.unsafeDataAsB(args.head)
+            if Builtins.equalsInteger(tag, BigInt(0)) then Builtins.unBData(args.head)
             else throw new Exception("P")
         new MintingContext(
           List.map(txInfoInputs)(_.txInInfoOutRef),

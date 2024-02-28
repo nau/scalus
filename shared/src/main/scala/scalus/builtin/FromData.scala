@@ -78,7 +78,7 @@ object FromData {
 
     def deriveCaseClassMacro[T: Type](using Quotes): Expr[FromData[T]] =
         '{ (d: Data) =>
-            val args = scalus.builtin.Builtins.unsafeDataAsConstr(d).snd
+            val args = scalus.builtin.Builtins.unConstrData(d).snd
 
             // generate f = (args) => new Constructor(args.head, args.tail.head, ...)
             // then apply to args: f(args)
@@ -97,7 +97,7 @@ object FromData {
                 }
         // stage programming is cool, but it's hard to comprehend what's going on
         '{ (d: Data) =>
-            val pair = Builtins.unsafeDataAsConstr(d)
+            val pair = Builtins.unConstrData(d)
             val tag = pair.fst
             val args = pair.snd
             ${

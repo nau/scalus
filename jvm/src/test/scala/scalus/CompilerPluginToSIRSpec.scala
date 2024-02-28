@@ -308,9 +308,9 @@ class CompilerPluginToSIRSpec extends AnyFunSuite with ScalaCheckPropertyChecks:
         val nilData = Const(Constant.List(DefaultUni.Data, immutable.Nil))
         assert(
           compile(
-            Builtins.mkConstr(
+            Builtins.constrData(
               1,
-              builtin.List(Builtins.mkI(2))
+              builtin.List(Builtins.iData(2))
             )
           ) == Apply(
             Apply(Builtin(ConstrData), Const(Constant.Integer(1))),
@@ -326,7 +326,7 @@ class CompilerPluginToSIRSpec extends AnyFunSuite with ScalaCheckPropertyChecks:
         val nilData = Const(Constant.List(DefaultUni.Data, immutable.Nil))
         assert(
           compile(
-            Builtins.mkList(builtin.List(Builtins.mkI(1)))
+            Builtins.listData(builtin.List(Builtins.iData(1)))
           ) == Apply(
             Builtin(ListData),
             Apply(
@@ -340,9 +340,9 @@ class CompilerPluginToSIRSpec extends AnyFunSuite with ScalaCheckPropertyChecks:
     test("compile mkMap builtins") {
         assert(
           compile(
-            Builtins.mkMap(
+            Builtins.mapData(
               builtin.List(
-                builtin.Pair(Builtins.mkB(hex"deadbeef"), Builtins.mkI(1))
+                builtin.Pair(Builtins.bData(hex"deadbeef"), Builtins.iData(1))
               )
             )
           ) == Apply(
@@ -364,7 +364,7 @@ class CompilerPluginToSIRSpec extends AnyFunSuite with ScalaCheckPropertyChecks:
     test("compile unsafeDataAsConstr function") {
         assert(
           compile {
-              def unb(d: Data) = Builtins.unsafeDataAsConstr(d)
+              def unb(d: Data) = Builtins.unConstrData(d)
           } == Let(
             Rec,
             List(
@@ -381,7 +381,7 @@ class CompilerPluginToSIRSpec extends AnyFunSuite with ScalaCheckPropertyChecks:
     test("compile unsafeDataAsList function") {
         assert(
           compile {
-              def unb(d: Data) = Builtins.unsafeDataAsList(d)
+              def unb(d: Data) = Builtins.unListData(d)
           } == Let(
             Rec,
             List(
@@ -398,7 +398,7 @@ class CompilerPluginToSIRSpec extends AnyFunSuite with ScalaCheckPropertyChecks:
     test("compile unsafeDataAsMap function") {
         assert(
           compile {
-              def unb(d: Data) = Builtins.unsafeDataAsMap(d)
+              def unb(d: Data) = Builtins.unMapData(d)
           } == Let(
             Rec,
             List(
@@ -415,7 +415,7 @@ class CompilerPluginToSIRSpec extends AnyFunSuite with ScalaCheckPropertyChecks:
     test("compile unsafeDataAsB function") {
         assert(
           compile {
-              def unb(d: Data) = Builtins.unsafeDataAsB(d)
+              def unb(d: Data) = Builtins.unBData(d)
           } == Let(
             Rec,
             List(
@@ -432,7 +432,7 @@ class CompilerPluginToSIRSpec extends AnyFunSuite with ScalaCheckPropertyChecks:
     test("compile unsafeDataAsI function") {
         assert(
           compile {
-              def unb(d: Data) = Builtins.unsafeDataAsI(d)
+              def unb(d: Data) = Builtins.unIData(d)
           } == Let(
             Rec,
             List(
@@ -828,8 +828,8 @@ class CompilerPluginToSIRSpec extends AnyFunSuite with ScalaCheckPropertyChecks:
 
         val compiled = compile { (ctx: scalus.builtin.Data) =>
             val sigsData = fieldAsData[ScriptContext](_.txInfo.signatories)(ctx)
-            val sigs = Builtins.unsafeDataAsList(sigsData)
-            Builtins.unsafeDataAsB(sigs.head)
+            val sigs = Builtins.unListData(sigsData)
+            Builtins.unBData(sigs.head)
         }
         // println(compiled.pretty.render(80))
         val term = compiled.toUplc()

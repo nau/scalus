@@ -33,7 +33,7 @@ val constants = compile {
 
 val builtinFunctions = compile {
     // See scalus.builtin.Builtins for what is available
-    val data = Builtins.mkI(123)
+    val data = Builtins.iData(123)
     val eq = Builtins.equalsByteString(hex"deadbeef", ByteString.empty)
     val a = BigInt(1)
     val sum = a + 1 - a * 3 / 4 // arithmetic operators
@@ -100,7 +100,7 @@ val modules = compile {
 
 val fromDataExample = compile {
     // The `fromData` function is used to convert a `Data` value to a Scalus value.
-    val data = Builtins.mkI(123)
+    val data = Builtins.iData(123)
     // fromData is a summoner method for the `FromData` type class
     // there are instances for all built-in types
     val a = fromData[BigInt](data)
@@ -108,7 +108,7 @@ val fromDataExample = compile {
     // you can define your own `FromData` instances
     {
         given FromData[Account] = (d: Data) => {
-            val args = Builtins.unsafeDataAsConstr(d).snd
+            val args = Builtins.unConstrData(d).snd
             new Account(fromData[ByteString](args.head), fromData[BigInt](args.tail.head))
         }
         val account = fromData[Account](data)
