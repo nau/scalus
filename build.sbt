@@ -1,4 +1,5 @@
 import org.scalajs.linker.interface.OutputPatterns
+import sbtwelcome._
 
 Global / onChangedBuildSource := ReloadOnSourceChanges
 autoCompilerPlugins := true
@@ -169,4 +170,22 @@ lazy val docs = project // documentation project
 addCommandAlias(
   "precommit",
   "clean;docs/clean;scalafmtAll;scalafmtSbt;Test/compile;test;docs/mdoc"
+)
+
+logo :=
+    s"""
+     |  ███████╗ ██████╗ █████╗ ██╗     ██╗   ██╗███████╗
+     |  ██╔════╝██╔════╝██╔══██╗██║     ██║   ██║██╔════╝
+     |  ███████╗██║     ███████║██║     ██║   ██║███████╗
+     |  ╚════██║██║     ██╔══██║██║     ██║   ██║╚════██║
+     |  ███████║╚██████╗██║  ██║███████╗╚██████╔╝███████║
+     |  ╚══════╝ ╚═════╝╚═╝  ╚═╝╚══════╝ ╚═════╝ ╚══════╝
+     |
+     |  Version: ${version.value} ${scala.Console.YELLOW}Scala ${scalaVersion.value}${scala.Console.RESET}
+     |
+     |""".stripMargin
+
+usefulTasks := Seq(
+  UsefulTask("~compile", "Compile with file-watch enabled"),
+  UsefulTask("precommit", "Format all, clean compile and test everything")
 )
