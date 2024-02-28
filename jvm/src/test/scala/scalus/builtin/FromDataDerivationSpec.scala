@@ -12,6 +12,7 @@ import scalus.builtin.Data.*
 import scalus.builtin.FromDataInstances.given
 import scalus.builtin.given
 import scalus.uplc.*
+import scalus.uplc.eval.Cek
 
 import scala.annotation.nowarn
 

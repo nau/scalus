@@ -1,9 +1,8 @@
 package scalus.builtin
 import io.bullet.borer.Cbor
 
-/**
-  * This is the platform specific part of the builtins.
-  * This is mostly cryptographic primitives that have different implementations on different platforms.
+/** This is the platform specific part of the builtins. This is mostly cryptographic primitives that
+  * have different implementations on different platforms.
   */
 trait PlatformSpecific:
     def sha2_256(bs: ByteString): ByteString

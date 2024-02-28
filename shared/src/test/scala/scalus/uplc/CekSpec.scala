@@ -1,10 +1,11 @@
 package scalus.uplc
 
 import org.scalatest.funsuite.AnyFunSuite
+import scalus.*
 import scalus.builtin.given
 import scalus.uplc.DefaultUni.asConstant
-import scalus.*
 import scalus.uplc.Term.*
+import scalus.uplc.eval.Cek
 
 class CekSpec extends AnyFunSuite:
     test("Scalus") {

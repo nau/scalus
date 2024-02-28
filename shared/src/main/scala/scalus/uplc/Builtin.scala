@@ -1,22 +1,22 @@
 package scalus.uplc
 
-import scalus.builtin.*
 import scalus.builtin.Builtins.*
 import scalus.builtin.Data
 import scalus.builtin.PlatformSpecific
+import scalus.builtin.*
 import scalus.uplc.Constant.given
 import scalus.uplc.DefaultUni.Bool
 import scalus.uplc.DefaultUni.Integer
 import scalus.uplc.DefaultUni.asConstant
 import scalus.uplc.DefaultUni.given
+import scalus.uplc.eval.BuiltinCostModel
 import scalus.uplc.eval.CekValue
-import scalus.uplc.eval.KnownTypeUnliftingError
+import scalus.uplc.eval.CostModel
+import scalus.uplc.eval.CostingFun
 import scalus.uplc.eval.VCon
 
 import scala.collection.immutable
-import scalus.uplc.eval.CostingFun
-import scalus.uplc.eval.CostModel
-import scalus.uplc.eval.BuiltinCostModel
+import scalus.uplc.eval.KnownTypeUnliftingError
 
 enum TypeScheme:
     case Type(argType: DefaultUni)
@@ -29,8 +29,6 @@ enum TypeScheme:
     def ->:(t: DefaultUni): TypeScheme = Arrow(Type(t), this)
     infix def $(t: TypeScheme): TypeScheme = App(this, t)
     infix def $(t: String): TypeScheme = App(this, TVar(t))
-
-//  def ->:(t: TypeScheme): TypeScheme = TypeScheme.Arrow(t, TypeScheme.Type(x))
 
 case class Runtime(
     typeScheme: TypeScheme,
@@ -196,8 +194,7 @@ object Meaning:
                   val start = b.asInteger
                   (c: CekValue) =>
                       val end = c.asInteger
-                      (ps: PlatformSpecific) =>
-                          VCon(asConstant(sliceByteString(bs, start, end)))
+                      (ps: PlatformSpecific) => VCon(asConstant(sliceByteString(bs, start, end)))
           ,
           BuiltinCostModel.defaultBuiltinCostModel.sliceByteString
         )
@@ -255,8 +252,7 @@ object Meaning:
               val aa = a.asByteString
               (b: CekValue) =>
                   val bb = b.asByteString
-                  (ps: PlatformSpecific) =>
-                      VCon(asConstant(lessThanEqualsByteString(aa, bb)))
+                  (ps: PlatformSpecific) => VCon(asConstant(lessThanEqualsByteString(aa, bb)))
           ,
           BuiltinCostModel.defaultBuiltinCostModel.lessThanEqualsByteString
         )
@@ -406,8 +402,7 @@ object Meaning:
           All("a", Bool ->: TVar("a") ->: TVar("a") ->: TVar("a")),
           (b: CekValue) =>
               val bb = b.asBool
-              (t: CekValue) =>
-                  (f: CekValue) => (ps: PlatformSpecific) => ifThenElse(bb, t, f)
+              (t: CekValue) => (f: CekValue) => (ps: PlatformSpecific) => ifThenElse(bb, t, f)
           ,
           BuiltinCostModel.defaultBuiltinCostModel.ifThenElse
         )
@@ -477,8 +472,14 @@ object Meaning:
           (a: CekValue) =>
               (b: CekValue) =>
                   (a, b) match {
-                      case (VCon(aCon), VCon(Constant.List(tp, l))) => // fixme chek type
-                          (ps: PlatformSpecific) => VCon(Constant.List(tp, aCon :: l))
+                      // Checking that the type of the constant is the same as the type of the elements
+                      // of the unlifted list. Note that there's no way we could enforce this statically
+                      // since in UPLC one can create an ill-typed program that attempts to prepend
+                      // a value of the wrong type to a list.
+                      case (VCon(aCon), VCon(Constant.List(tp, l))) =>
+                          if aCon.tpe != tp then
+                              throw new KnownTypeUnliftingError(TypeScheme.Type(tp), aCon.tpe)
+                          else (ps: PlatformSpecific) => VCon(Constant.List(tp, aCon :: l))
                       case _ => throw new RuntimeException(s"Expected list, got $b")
                   },
           BuiltinCostModel.defaultBuiltinCostModel.mkCons

@@ -14,6 +14,7 @@ import scalus.prelude.Maybe.*
 import scalus.{toUplc, BaseValidatorSpec, Expected}
 import scalus.builtin.Data.*
 import scalus.uplc.*
+import scalus.uplc.eval.Cek
 import scalus.utils.Utils
 
 class ScriptContextV1DataSerializationSpec extends BaseValidatorSpec:

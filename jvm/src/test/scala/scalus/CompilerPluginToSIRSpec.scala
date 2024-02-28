@@ -23,6 +23,7 @@ import scalus.sir.SIR.*
 import scalus.sir.SirDSL.{*, given}
 import scalus.uplc.DefaultFun.*
 import scalus.uplc.*
+import scalus.uplc.eval.Cek
 
 import scala.collection.immutable
 

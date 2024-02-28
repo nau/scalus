@@ -11,6 +11,7 @@ import scalus.prelude.*
 import scalus.uplc.ArbitraryInstances
 import scalus.uplc.DeBruijn
 import scalus.uplc.*
+import scalus.uplc.eval.Cek
 
 import scala.util.Failure
 import scala.util.Success

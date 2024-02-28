@@ -9,8 +9,9 @@ import scalus.builtin.Data.{fromData, toData}
 import scalus.builtin.{ByteString, Data, given}
 import scalus.prelude.Prelude.{*, given}
 import scalus.sir.SIR
-import scalus.uplc.{ArbitraryInstances, Cek, Constant, Term}
+import scalus.uplc.{ArbitraryInstances, Constant, Term}
 import scalus.uplc.TermDSL.given
+import scalus.uplc.eval.Cek
 
 class ContextSpec
     extends AnyFunSuite

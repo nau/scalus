@@ -461,21 +461,21 @@ object BuiltinCostModel {
           )
     )
 
-    /**
-      * Read a BuiltinCostModel from an input stream of JSON
+    /** Read a BuiltinCostModel from an input stream of JSON
       *
       * @param input
-      * @return a BuiltinCostModel
+      * @return
+      *   a BuiltinCostModel
       */
     def fromInputStream(input: java.io.InputStream): BuiltinCostModel = {
         read[BuiltinCostModel](input)
     }
 
-    /**
-     * Read a BuiltinCostModel from a string of JSON
-     * @param json
-     * @return a BuiltinCostModel
-     */
+    /** Read a BuiltinCostModel from a string of JSON
+      * @param json
+      * @return
+      *   a BuiltinCostModel
+      */
     def fromJsonString(json: String): BuiltinCostModel = {
         read[BuiltinCostModel](json)
     }

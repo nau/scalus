@@ -15,6 +15,7 @@ import scalus.prelude.List.Nil
 import scalus.prelude.Prelude.===
 import scalus.prelude.Prelude.given
 import scalus.uplc.*
+import scalus.uplc.eval.Cek
 
 @Compile
 object PubKeyValidator {

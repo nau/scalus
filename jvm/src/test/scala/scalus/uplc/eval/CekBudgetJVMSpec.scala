@@ -11,19 +11,42 @@ import scalus.uplc.DefaultUni.asConstant
 import scalus.uplc.Term.*
 
 class CekBudgetJVMSpec extends AnyFunSuite:
-    test("Budget") {
+    test("Check machine budget for terms is correct") {
+        import cats.syntax.all.*
+        import Cek.defaultMachineCosts.*
+        def check(term: Term, expected: ExBudget) = {
+            val cek = CekMachine(Cek.defaultEvaluationContext)
+            val res = PlutusUplcEval.evalFlat(Program((1, 0, 0), term))
+            (cek.runCek(term), res) match
+                case (CekResult.Success(t1, budget), UplcEvalResult.Success(t2, budget2)) =>
+                    assert(budget == (expected |+| Cek.defaultMachineCosts.startupCost))
+                    assert(budget == budget2)
+                case r => fail(s"Unexpected result for term $term: $r")
+        }
+
         val h = Const(asConstant("Hello"))
         val id = LamAbs("x", Var(NamedDeBruijn("x")))
         val app = Apply(id, h)
-        val cek = CekMachine(Cek.defaultEvaluationContext)
-        cek.evalUPLC(h)
-        // assert(cek.evalUPLC(h) == h)
-        println(s"${cek.getExBudget.cpu} ${cek.getExBudget.memory}")
+        val delay = Delay(h)
+        val force = Force(delay)
+        val builtin = Builtin(DefaultFun.MkNilData)
+
+        check(h, constCost)
+        check(id, lamCost)
+        check(app, applyCost |+| lamCost |+| varCost |+| constCost)
+        check(delay, delayCost)
+        check(force, forceCost |+| delayCost |+| constCost)
+        check(builtin, builtinCost)
     }
 
     test("Check builtinCostModel.json == defaultBuiltinCostModel") {
-        import upickle.default.*
         val input = this.getClass().getResourceAsStream("/builtinCostModel.json")
+        val costModel = BuiltinCostModel.fromInputStream(input)
+        assert(costModel == BuiltinCostModel.defaultBuiltinCostModel)
+    }
+
+    ignore("Check jvm/src/main/resources/cekMachineCosts.json.json == defaultMachineCosts") {
+        val input = this.getClass().getResourceAsStream("/cekMachineCosts.json")
         val costModel = BuiltinCostModel.fromInputStream(input)
         assert(costModel == BuiltinCostModel.defaultBuiltinCostModel)
     }

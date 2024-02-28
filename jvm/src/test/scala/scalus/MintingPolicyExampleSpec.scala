@@ -18,6 +18,7 @@ import scalus.prelude.*
 import scalus.uplc.Term.*
 import scalus.uplc.TermDSL.{_, given}
 import scalus.uplc.*
+import scalus.uplc.eval.Cek
 
 class MintingPolicyExampleSpec extends BaseValidatorSpec {
 

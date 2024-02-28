@@ -1,15 +1,14 @@
 package scalus.uplc
 package eval
 
+import cats.Monoid
 import scalus.builtin.ByteString
 import scalus.builtin.Data
 import scalus.builtin.PlatformSpecific
-import cats.Monoid
 import scalus.uplc.Term.*
 
 import scala.annotation.tailrec
 import scala.collection.immutable
-import scala.util.Try
 
 opaque type ExCPU <: Long = Long
 object ExCPU {
@@ -23,6 +22,7 @@ object ExMemory {
 case class ExBudget(cpu: ExCPU, memory: ExMemory)
 object ExBudget {
     val zero: ExBudget = ExBudget(ExCPU(0), ExMemory(0))
+    def fromCpuAndMemory(cpu: Long, memory: Long): ExBudget = ExBudget(ExCPU(cpu), ExMemory(memory))
     given Monoid[ExBudget] with
         def combine(x: ExBudget, y: ExBudget): ExBudget =
             ExBudget(ExCPU(x.cpu + y.cpu), ExMemory(x.memory + y.memory))
@@ -143,12 +143,12 @@ object Cek {
     )
 
     def defaultEvaluationContext(using ps: PlatformSpecific) = EvaluationContext(
-          MachineParameters(
-            machineCosts = defaultMachineCosts,
-            builtinCostModel = BuiltinCostModel.defaultBuiltinCostModel
-          ),
-          platformSpecific = ps
-        )
+      MachineParameters(
+        machineCosts = defaultMachineCosts,
+        builtinCostModel = BuiltinCostModel.defaultBuiltinCostModel
+      ),
+      platformSpecific = ps
+    )
 }
 
 enum CekResult:
@@ -167,20 +167,20 @@ class CekMachine(val evaluationContext: EvaluationContext) {
         spendBudget(ExBudgetCategory.Startup)
         computeCek(NoFrame, Nil, term)
 
-    /**
-      * Evaluate a UPLC term.
+    /** Evaluate a UPLC term.
       *
-      * @param term The term to evaluate
-      * @return CekResult, either a success with the resulting term and the execution budget,
-      * or a failure with an error message and the execution budget.
+      * @param term
+      *   The term to evaluate
+      * @return
+      *   CekResult, either a success with the resulting term and the execution budget, or a failure
+      *   with an error message and the execution budget.
       */
     def runCek(term: Term): CekResult =
         spendBudget(ExBudgetCategory.Startup)
         try
             val res = computeCek(NoFrame, Nil, term)
             CekResult.Success(res, getExBudget)
-        catch
-            case e: Exception => CekResult.Failure(e.getMessage, getExBudget)
+        catch case e: Exception => CekResult.Failure(e.getMessage, getExBudget)
 
     @tailrec private final def computeCek(ctx: Context, env: CekValEnv, term: Term): Term =
         spendBudget(ExBudgetCategory.Step(term))
