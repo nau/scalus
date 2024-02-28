@@ -9,6 +9,7 @@ import scalus.uplc.Term.*
 
 import scala.annotation.tailrec
 import scala.collection.immutable
+import scala.util.Try
 
 opaque type ExCPU <: Long = Long
 object ExCPU {
@@ -150,6 +151,10 @@ object Cek {
         )
 }
 
+enum CekResult:
+    case Success(term: Term, budget: ExBudget)
+    case Failure(msg: String, budget: ExBudget)
+
 class CekMachine(val evaluationContext: EvaluationContext) {
 
     sealed trait Context
@@ -158,9 +163,24 @@ class CekMachine(val evaluationContext: EvaluationContext) {
     case class FrameForce(ctx: Context) extends Context
     case object NoFrame extends Context
 
-    def evalUPLC(term: Term)(using ps: PlatformSpecific): Term =
+    def evalUPLC(term: Term): Term =
         spendBudget(ExBudgetCategory.Startup)
         computeCek(NoFrame, Nil, term)
+
+    /**
+      * Evaluate a UPLC term.
+      *
+      * @param term The term to evaluate
+      * @return CekResult, either a success with the resulting term and the execution budget,
+      * or a failure with an error message and the execution budget.
+      */
+    def runCek(term: Term): CekResult =
+        spendBudget(ExBudgetCategory.Startup)
+        try
+            val res = computeCek(NoFrame, Nil, term)
+            CekResult.Success(res, getExBudget)
+        catch
+            case e: Exception => CekResult.Failure(e.getMessage, getExBudget)
 
     @tailrec private final def computeCek(ctx: Context, env: CekValEnv, term: Term): Term =
         spendBudget(ExBudgetCategory.Step(term))
