@@ -46,7 +46,7 @@ object ToData {
         }
 
         def genRhs(prodTerm: Term, bindings: List[(Symbol, TypeRepr)])(using Quotes) = '{
-            Builtins.mkConstr(
+            Builtins.constrData(
               BigInt($constrIdx),
               ${
                   val args = bindings

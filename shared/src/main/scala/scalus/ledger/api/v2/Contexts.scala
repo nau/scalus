@@ -2,7 +2,7 @@ package scalus.ledger.api.v2
 
 import scalus.Compile
 import scalus.builtin
-import scalus.builtin.Builtins
+import scalus.builtin.Builtins.*
 import scalus.builtin.ByteString
 import scalus.builtin.Data
 import scalus.builtin.Data.FromData
@@ -13,7 +13,6 @@ import scalus.prelude.Maybe
 import scalus.prelude.Prelude.===
 import scalus.prelude.Prelude.Eq
 import scalus.prelude.Prelude.given
-import scalus.prelude.These.*
 
 @Compile
 object FromDataInstances {
@@ -21,7 +20,7 @@ object FromDataInstances {
     import scalus.ledger.api.v1.FromDataInstances.given
 
     given FromData[OutputDatum] = (d: Data) =>
-        val pair = Builtins.unConstrData(d)
+        val pair = unConstrData(d)
         val tag = pair.fst
         val args = pair.snd
         if tag === BigInt(0) then OutputDatum.NoOutputDatum
@@ -31,7 +30,7 @@ object FromDataInstances {
         else throw new Exception("PT1")
 
     given FromData[TxOut] = (d: Data) =>
-        val pair = Builtins.unConstrData(d)
+        val pair = unConstrData(d)
         val args = pair.snd
         new TxOut(
           fromData[Address](args.head),
@@ -41,7 +40,7 @@ object FromDataInstances {
         )
 
     given FromData[TxInInfo] = (d: Data) =>
-        val pair = Builtins.unConstrData(d)
+        val pair = unConstrData(d)
         val args = pair.snd
         new TxInInfo(
           fromData[TxOutRef](args.head),
@@ -49,7 +48,7 @@ object FromDataInstances {
         )
 
     given FromData[TxInfo] = (d: Data) =>
-        val pair = Builtins.unConstrData(d)
+        val pair = unConstrData(d)
         val args = pair.snd
         val fromValue = summon[FromData[Value]]
         new TxInfo(
@@ -72,7 +71,7 @@ object FromDataInstances {
         )
 
     given FromData[ScriptContext] = (d: Data) =>
-        val pair = Builtins.unConstrData(d)
+        val pair = unConstrData(d)
         val args = pair.snd
         new ScriptContext(
           fromData[TxInfo](args.head),

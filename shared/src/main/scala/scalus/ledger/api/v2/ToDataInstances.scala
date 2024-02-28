@@ -2,7 +2,7 @@ package scalus.ledger.api.v2
 
 import scalus.Compile
 import scalus.builtin
-import scalus.builtin.Builtins
+import scalus.builtin.Builtins.*
 import scalus.ledger.api.v1.Datum
 import scalus.ledger.api.v1.DatumHash
 import scalus.builtin.Data
@@ -16,11 +16,11 @@ object ToDataInstances {
 
     given OutputDatumToData[T <: OutputDatum]: ToData[T] = (d: T) =>
         d match
-            case OutputDatum.NoOutputDatum => Builtins.constrData(0, Builtins.mkNilData())
+            case OutputDatum.NoOutputDatum => constrData(0, mkNilData())
             case OutputDatum.OutputDatumHash(datumHash) =>
-                Builtins.constrData(1, builtin.List(datumHash.toData))
+                constrData(1, builtin.List(datumHash.toData))
             case OutputDatum.OutputDatum(datum) =>
-                Builtins.constrData(2, builtin.List(datum.toData))
+                constrData(2, builtin.List(datum.toData))
 
     given ToData[TxOut] = ToData.deriveCaseClass[TxOut](0)
 

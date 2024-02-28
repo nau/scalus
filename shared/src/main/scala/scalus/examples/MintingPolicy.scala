@@ -3,7 +3,7 @@ package scalus.examples
 import scalus.Compile
 import scalus.Compiler.compile
 import scalus.Compiler.fieldAsData
-import scalus.builtin.Builtins
+import scalus.builtin.Builtins.*
 import scalus.builtin.ByteString
 import scalus.builtin.ByteString.given
 import scalus.ledger.api.v1.FromDataInstances.given
@@ -28,7 +28,7 @@ object MintingPolicy {
     import ScriptPurpose.*
 
     given Data.FromData[TxInInfoTxOutRefOnly] = (d: Data) =>
-        val pair = Builtins.unConstrData(d)
+        val pair = unConstrData(d)
         new TxInInfoTxOutRefOnly(fromData[TxOutRef](pair.snd.head))
 
     protected final val hoskyMintTxOutRef = TxOutRef(
@@ -77,10 +77,10 @@ object MintingPolicy {
             fromData[Value](fieldAsData[TxInfo](_.mint).apply(txInfoData))
         val ownSymbol =
             val purpose = fieldAsData[ScriptContext](_.purpose)(ctxData)
-            val pair = Builtins.unConstrData(purpose)
+            val pair = unConstrData(purpose)
             val tag = pair.fst
             val args = pair.snd
-            if Builtins.equalsInteger(tag, BigInt(0)) then Builtins.unBData(args.head)
+            if equalsInteger(tag, BigInt(0)) then unBData(args.head)
             else throw new Exception("P")
         new MintingContext(
           List.map(txInfoInputs)(_.txInInfoOutRef),
@@ -118,7 +118,7 @@ object MintingPolicy {
                         // check burned
                         val burned = List.all(AssocMap.toList(mintedTokens)) {
                             case (tokenName, amount) =>
-                                Builtins.lessThanInteger(amount, BigInt(0))
+                                lessThanInteger(amount, BigInt(0))
                         }
                         check(burned, "B")
     }

@@ -1,14 +1,18 @@
 package scalus.builtin
 
-import org.scalacheck.{Arbitrary, Gen, Shrink}
+import org.scalacheck.Arbitrary
+import org.scalacheck.Gen
+import org.scalacheck.Shrink
 import org.scalatest.funsuite.AnyFunSuite
 import org.scalatestplus.scalacheck.ScalaCheckPropertyChecks
-import scalus.*
 import scalus.Compiler.compile
+import scalus.*
+import scalus.builtin.Builtins.*
 import scalus.builtin.Data.*
 import scalus.builtin.FromDataInstances.given
 import scalus.builtin.given
 import scalus.uplc.*
+
 import scala.annotation.nowarn
 
 enum Adt:
@@ -29,13 +33,13 @@ object ToDataAdt:
     given ToData[Adt] = (a: Adt) =>
         import ToDataInstances.given
         a match
-            case Adt.A => Builtins.constrData(0, Builtins.mkNilData())
+            case Adt.A => constrData(0, mkNilData())
             case Adt.B(bs) =>
-                Builtins.constrData(1, Builtins.mkCons(bs.toData, Builtins.mkNilData()))
+                constrData(1, mkCons(bs.toData, mkNilData()))
             case Adt.C(a, b) =>
-                Builtins.constrData(
+                constrData(
                   2,
-                  Builtins.mkCons(a.toData, Builtins.mkCons(b.toData, Builtins.mkNilData()))
+                  mkCons(a.toData, mkCons(b.toData, mkNilData()))
                 )
 
 case class BigRecord(
@@ -58,7 +62,7 @@ object ToDataBigRecord:
     /* given ToData[BigRecord] = (r: BigRecord) =>
     r match
       case BigRecord(a, b, bs, s, d, ls, m) =>
-        Builtins.mkConstr(
+        mkConstr(
           0,
           scalus.builtin.List(a.toData, b.toData, bs.toData, s.toData, d, ls.toData, m.toData)
         ) */

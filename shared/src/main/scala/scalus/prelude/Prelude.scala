@@ -2,7 +2,7 @@ package scalus.prelude
 
 import scala.collection.immutable
 import scalus.builtin.ByteString
-import scalus.builtin.Builtins
+import scalus.builtin.Builtins.*
 import scalus.Compile
 import scalus.Ignore
 import scalus.builtin.Data
@@ -11,33 +11,33 @@ import scalus.builtin.Data
 object Prelude {
     type Eq[A] = (A, A) => Boolean
     // given Eq[Nothing] = (x: Nothing, y: Nothing) => throw new Exception("EQN")
-    given Eq[BigInt] = (x: BigInt, y: BigInt) => Builtins.equalsInteger(x, y)
-    given Eq[ByteString] = (x: ByteString, y: ByteString) => Builtins.equalsByteString(x, y)
-    given Eq[String] = (x: String, y: String) => Builtins.equalsString(x, y)
+    given Eq[BigInt] = (x: BigInt, y: BigInt) => equalsInteger(x, y)
+    given Eq[ByteString] = (x: ByteString, y: ByteString) => equalsByteString(x, y)
+    given Eq[String] = (x: String, y: String) => equalsString(x, y)
     given Eq[Boolean] = (x: Boolean, y: Boolean) =>
         if x then if y then true else false else if y then false else true
-    given Eq[Data] = (x: Data, y: Data) => Builtins.equalsData(x, y)
+    given Eq[Data] = (x: Data, y: Data) => equalsData(x, y)
     given Eq[Unit] = (_: Unit, _: Unit) => true
 
     extension [A](x: A) inline def ===(inline y: A)(using inline eq: Eq[A]): Boolean = eq(x, y)
     extension [A](x: A) inline def !==(inline y: A)(using inline eq: Eq[A]): Boolean = !eq(x, y)
 
     def encodeHex(input: ByteString): String = {
-        val len = Builtins.lengthOfByteString(input)
+        val len = lengthOfByteString(input)
 
         val byteToChar =
-            (byte: BigInt) => if Builtins.lessThanInteger(byte, 10) then byte + 48 else byte + 87
+            (byte: BigInt) => if lessThanInteger(byte, 10) then byte + 48 else byte + 87
 
         def go(i: BigInt): ByteString = {
-            if Builtins.equalsInteger(i, len) then ByteString.fromHex("")
+            if equalsInteger(i, len) then ByteString.fromHex("")
             else {
-                val byte = Builtins.indexByteString(input, i)
+                val byte = indexByteString(input, i)
                 val char1 = byteToChar(byte / 16)
                 val char2 = byteToChar(byte % 16)
-                Builtins.consByteString(char1, Builtins.consByteString(char2, go(i + 1)))
+                consByteString(char1, consByteString(char2, go(i + 1)))
             }
         }
-        Builtins.decodeUtf8(go(0))
+        decodeUtf8(go(0))
     }
 
 }
@@ -69,7 +69,7 @@ object List:
         def go(i: BigInt, lst: List[A]): A = lst match
             case Nil => throw new Exception("Index out of bounds")
             case Cons(head, tail) =>
-                if Builtins.equalsInteger(i, idx) then head else go(Builtins.addInteger(i, 1), tail)
+                if equalsInteger(i, idx) then head else go(addInteger(i, 1), tail)
         go(0, lst)
     }
 

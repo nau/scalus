@@ -3,7 +3,7 @@ package scalus.ledger.api.v1
 import scalus.Compile
 import scalus.prelude.AssocMap
 import scalus.builtin.ByteString
-import scalus.builtin.Builtins
+import scalus.builtin.Builtins.*
 import scalus.prelude.Prelude.given
 import scalus.prelude.List
 import scalus.prelude.These
@@ -22,13 +22,13 @@ object Value:
     def equalsAssets(
         a: AssocMap[TokenName, BigInt],
         b: AssocMap[TokenName, BigInt]
-    ): Boolean = checkBinRelTokens(Builtins.equalsInteger)(a, b)
+    ): Boolean = checkBinRelTokens(equalsInteger)(a, b)
 
-    def eq(a: Value, b: Value): Boolean = checkBinRel(Builtins.equalsInteger)(a, b)
-    def lt(a: Value, b: Value): Boolean = checkBinRel(Builtins.lessThanInteger)(a, b)
-    def lte(a: Value, b: Value): Boolean = checkBinRel(Builtins.lessThanEqualsInteger)(a, b)
-    def gt(a: Value, b: Value): Boolean = checkBinRel(Builtins.lessThanInteger)(b, a)
-    def gte(a: Value, b: Value): Boolean = checkBinRel(Builtins.lessThanEqualsInteger)(b, a)
+    def eq(a: Value, b: Value): Boolean = checkBinRel(equalsInteger)(a, b)
+    def lt(a: Value, b: Value): Boolean = checkBinRel(lessThanInteger)(a, b)
+    def lte(a: Value, b: Value): Boolean = checkBinRel(lessThanEqualsInteger)(a, b)
+    def gt(a: Value, b: Value): Boolean = checkBinRel(lessThanInteger)(b, a)
+    def gte(a: Value, b: Value): Boolean = checkBinRel(lessThanEqualsInteger)(b, a)
 
     def checkPred(l: Value, r: Value)(f: These[BigInt, BigInt] => Boolean): Boolean = {
         def inner(m: AssocMap[TokenName, These[BigInt, BigInt]]): Boolean =
@@ -89,10 +89,10 @@ object Value:
             (cs, AssocMap.map(v) { case (tn, v) => (tn, unThese(v)) })
         }
 
-    val plus: (a: Value, b: Value) => Value = unionWith(Builtins.addInteger)
-    val minus: (a: Value, b: Value) => Value = unionWith(Builtins.subtractInteger)
-    val multiply: (a: Value, b: Value) => Value = unionWith(Builtins.multiplyInteger)
-    val divide: (a: Value, b: Value) => Value = unionWith(Builtins.divideInteger)
+    val plus: (a: Value, b: Value) => Value = unionWith(addInteger)
+    val minus: (a: Value, b: Value) => Value = unionWith(subtractInteger)
+    val multiply: (a: Value, b: Value) => Value = unionWith(multiplyInteger)
+    val divide: (a: Value, b: Value) => Value = unionWith(divideInteger)
 
     given Prelude.Eq[Value] = (a, b) => eq(a, b)
 
