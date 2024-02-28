@@ -11,10 +11,20 @@ import scalus.uplc.DefaultUni.asConstant
 import scalus.uplc.Term.*
 
 class CekBudgetJVMSpec extends AnyFunSuite:
+    test("Budget") {
+        val h = Const(asConstant("Hello"))
+        val id = LamAbs("x", Var(NamedDeBruijn("x")))
+        val app = Apply(id, h)
+        val cek = CekMachine(Cek.defaultEvaluationContext)
+        cek.evalUPLC(h)
+        // assert(cek.evalUPLC(h) == h)
+        println(s"${cek.getExBudget.cpu} ${cek.getExBudget.memory}")
+    }
+
     test("Check builtinCostModel.json == defaultBuiltinCostModel") {
         import upickle.default.*
         val input = this.getClass().getResourceAsStream("/builtinCostModel.json")
-        val costModel = read[BuiltinCostModel](input)
+        val costModel = BuiltinCostModel.fromInputStream(input)
         assert(costModel == BuiltinCostModel.defaultBuiltinCostModel)
     }
 
@@ -33,7 +43,7 @@ class CekBudgetJVMSpec extends AnyFunSuite:
           Seq(VCon(Constant.Integer(3)))
         )
         println(r)
-        val cek = CekMachine(scalus.builtin.given_PlatformSpecific)
+        val cek = CekMachine(Cek.defaultEvaluationContext)
         cek.evalUPLC(program.term)
         println(s"${cek.getExBudget}")
     }

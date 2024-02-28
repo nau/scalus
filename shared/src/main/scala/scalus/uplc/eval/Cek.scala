@@ -48,6 +48,16 @@ case class CekMachineCosts(
     builtinCost: ExBudget
 )
 
+case class MachineParameters(
+    machineCosts: CekMachineCosts,
+    builtinCostModel: BuiltinCostModel
+)
+
+case class EvaluationContext(
+    params: MachineParameters,
+    platformSpecific: PlatformSpecific
+)
+
 // TODO match Haskell errors
 class EvaluationFailure(msg: String) extends Exception(msg)
 class BuiltinError(term: Term, cause: Throwable)
@@ -107,12 +117,40 @@ case class VBuiltin(bn: DefaultFun, term: Term, runtime: Runtime) extends CekVal
   - execution budget calculation
  */
 object Cek {
-    def evalUPLC(term: Term)(using ps: PlatformSpecific): Term = new CekMachine(ps).evalUPLC(term)
+    def evalUPLC(term: Term)(using ps: PlatformSpecific): Term = {
+        val evaluationContext = EvaluationContext(
+          MachineParameters(
+            machineCosts = defaultMachineCosts,
+            builtinCostModel = BuiltinCostModel.defaultBuiltinCostModel
+          ),
+          platformSpecific = ps
+        )
+        new CekMachine(evaluationContext).evalUPLC(term)
+    }
 
     def evalUPLCProgram(p: Program)(using ps: PlatformSpecific): Term = evalUPLC(p.term)
+
+    val defaultMachineCosts = CekMachineCosts(
+      startupCost = ExBudget(ExCPU(100), ExMemory(100)),
+      varCost = ExBudget(ExCPU(23000), ExMemory(100)),
+      constCost = ExBudget(ExCPU(23000), ExMemory(100)),
+      lamCost = ExBudget(ExCPU(23000), ExMemory(100)),
+      delayCost = ExBudget(ExCPU(23000), ExMemory(100)),
+      forceCost = ExBudget(ExCPU(23000), ExMemory(100)),
+      applyCost = ExBudget(ExCPU(23000), ExMemory(100)),
+      builtinCost = ExBudget(ExCPU(23000), ExMemory(100))
+    )
+
+    def defaultEvaluationContext(using ps: PlatformSpecific) = EvaluationContext(
+          MachineParameters(
+            machineCosts = defaultMachineCosts,
+            builtinCostModel = BuiltinCostModel.defaultBuiltinCostModel
+          ),
+          platformSpecific = ps
+        )
 }
 
-class CekMachine(ps: PlatformSpecific) {
+class CekMachine(val evaluationContext: EvaluationContext) {
 
     sealed trait Context
     case class FrameApplyFun(f: CekValue, ctx: Context) extends Context
@@ -232,30 +270,17 @@ class CekMachine(ps: PlatformSpecific) {
                         f(arg).asInstanceOf[AnyRef => AnyRef]
                     }
                     val f = applied.asInstanceOf[PlatformSpecific => CekValue]
-                    f(ps)
+                    f(evaluationContext.platformSpecific)
                 catch case e: Throwable => throw new BuiltinError(term, e)
             case _ => VBuiltin(builtinName, term, runtime)
 
-    var unbudgetedStepsTotal: Long = 0L
-    var cekSlippage: Long = 0L
-
-    val machineCosts = CekMachineCosts(
-      startupCost = ExBudget(ExCPU(100), ExMemory(100)),
-      varCost = ExBudget(ExCPU(23000), ExMemory(100)),
-      constCost = ExBudget(ExCPU(23000), ExMemory(100)),
-      lamCost = ExBudget(ExCPU(23000), ExMemory(100)),
-      delayCost = ExBudget(ExCPU(23000), ExMemory(100)),
-      forceCost = ExBudget(ExCPU(23000), ExMemory(100)),
-      applyCost = ExBudget(ExCPU(23000), ExMemory(100)),
-      builtinCost = ExBudget(ExCPU(23000), ExMemory(100))
-    )
-
-    var budgetCPU = 0L
-    var budgetMemory = 0L
+    private[this] var budgetCPU = 0L
+    private[this] var budgetMemory = 0L
 
     def getExBudget: ExBudget = ExBudget(ExCPU(budgetCPU), ExMemory(budgetMemory))
 
     private def spendBudget(cat: ExBudgetCategory) =
+        val machineCosts = evaluationContext.params.machineCosts
         cat match
             case ExBudgetCategory.Startup =>
                 budgetCPU += machineCosts.startupCost.cpu
