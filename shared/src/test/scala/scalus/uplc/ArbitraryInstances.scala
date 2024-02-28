@@ -9,7 +9,11 @@ import scalus.uplc.DefaultUni.{Bool, ByteString, Integer, ProtoList, ProtoPair}
 import scalus.uplc.Term.*
 
 import scala.collection.immutable
+import scala.annotation.nowarn
 
+// ScalaCheck uses Stream for shrinking, which is deprecated
+// Remove the deprecation warning for now
+@nowarn("cat=deprecation")
 trait ArbitraryInstances:
 
     implicit val byteStringArb: Arbitrary[builtin.ByteString] = Arbitrary(
@@ -173,10 +177,11 @@ trait ArbitraryInstances:
             rest <- Gen
                 .listOfN(n, Gen.oneOf(Gen.alphaNumChar, Gen.const("_"), Gen.const("'")))
                 .map(_.mkString)
-        yield alpha + rest
+        yield s"$alpha$rest"
 
         def varGen(env: immutable.List[String]) = Gen.oneOf(env).map(n => Var(NamedDeBruijn(n)))
-        val builtinGen: Gen[Term] = for b <- Gen.oneOf(DefaultFun.values) yield Term.Builtin(b)
+        val builtinGen: Gen[Term] =
+            for b <- Gen.oneOf(DefaultFun.values.toSeq) yield Term.Builtin(b)
         val constGen: Gen[Term] = for c <- Arbitrary.arbitrary[Constant] yield Term.Const(c)
 
         def sizedTermGen(sz: Int, env: immutable.List[String]): Gen[Term] =

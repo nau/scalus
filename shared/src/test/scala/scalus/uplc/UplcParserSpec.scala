@@ -171,7 +171,9 @@ class UplcParserSpec extends AnyFunSuite with ScalaCheckPropertyChecks with Arbi
         assert(p("(builtin addInteger)") == Right(Builtin(DefaultFun.AddInteger)))
         assert(p("(builtin appendByteString)") == Right(Builtin(DefaultFun.AppendByteString)))
         assert(
-          p("(builtin nonexistent)").left.get.contains("unknown builtin function: nonexistent")
+          p("(builtin nonexistent)").swap
+              .getOrElse("")
+              .contains("unknown builtin function: nonexistent")
         )
     }
 

@@ -16,10 +16,11 @@ object ToDataInstances {
 
     given OutputDatumToData[T <: OutputDatum]: ToData[T] = (d: T) =>
         d match
-            case OutputDatum.NoOutputDatum => Builtins.mkConstr(0, Builtins.mkNilData())
+            case OutputDatum.NoOutputDatum => Builtins.constrData(0, Builtins.mkNilData())
             case OutputDatum.OutputDatumHash(datumHash) =>
-                Builtins.mkConstr(1, builtin.List(datumHash.toData))
-            case OutputDatum.OutputDatum(datum) => Builtins.mkConstr(2, builtin.List(datum.toData))
+                Builtins.constrData(1, builtin.List(datumHash.toData))
+            case OutputDatum.OutputDatum(datum) =>
+                Builtins.constrData(2, builtin.List(datum.toData))
 
     given ToData[TxOut] = ToData.deriveCaseClass[TxOut](0)
 

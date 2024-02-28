@@ -9,6 +9,7 @@ import scalus.builtin.Data.*
 import scalus.builtin.FromDataInstances.given
 import scalus.builtin.given
 import scalus.uplc.*
+import scala.annotation.nowarn
 
 enum Adt:
     case A
@@ -94,6 +95,7 @@ class FromDataDerivationSpec
             yield Adt.C(a, b)
     given Arbitrary[Adt] = Arbitrary(Gen.sized(sizedAdt))
 
+    @nowarn("cat=deprecation")
     given Shrink[BigRecord] = Shrink { r =>
         val BigRecord(a, b, bs, s, d, ls, m) = r
         val aShrunk = Shrink.shrink(a).map(BigRecord(_, b, bs, s, d, ls, m))
