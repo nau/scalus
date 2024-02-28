@@ -5,8 +5,9 @@ import org.scalatestplus.scalacheck.ScalaCheckPropertyChecks
 import scalus.Compiler.compile
 import scalus.builtin.ByteString.given
 import scalus.builtin.{Builtins, ByteString}
+import scalus.builtin.ToData
+import scalus.builtin.ToData.toData
 import scalus.uplc.*
-import scalus.uplc.ToData.toData
 
 @Compile
 object TotoDataInstances {

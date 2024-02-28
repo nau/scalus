@@ -1,6 +1,7 @@
 package scalus.uplc
 
 import scalus.*
+import scalus.builtin.Data
 import scalus.builtin.Data.*
 import scala.collection.immutable
 

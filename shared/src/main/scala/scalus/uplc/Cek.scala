@@ -1,6 +1,7 @@
 package scalus.uplc
 
 import scalus.builtin.ByteString
+import scalus.builtin.Data
 import scalus.builtin.PlatformSpecific
 import scalus.uplc.Term.*
 

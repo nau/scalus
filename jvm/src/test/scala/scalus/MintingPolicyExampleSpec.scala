@@ -3,6 +3,7 @@ package scalus
 import scalus.Compiler.compile
 import scalus.builtin.ByteString
 import scalus.builtin.ByteString.given
+import scalus.builtin.Data
 import scalus.builtin.given
 import scalus.examples.MintingPolicy
 import scalus.examples.MintingPolicyV2

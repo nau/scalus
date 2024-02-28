@@ -1,6 +1,7 @@
 package scalus.uplc
 
 import io.bullet.borer.{Cbor, Decoder, Encoder}
+import scalus.builtin.Data
 import scalus.flat
 import scalus.flat.{DecoderState, EncoderState, Flat, Natural, given}
 import scalus.uplc.CommonFlatInstances.*

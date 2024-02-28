@@ -1,6 +1,7 @@
 package scalus.uplc
 
 import scalus.builtin.Builtins
+import scalus.builtin.Data
 import scalus.builtin.PlatformSpecific
 import scalus.uplc.Cek.CekValue
 import scalus.uplc.Cek.VCon
