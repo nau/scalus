@@ -182,11 +182,9 @@ object Cek:
         ps: PlatformSpecific
     ): CekValue =
         runtime.typeScheme match
-            case TypeScheme.Type(_) | TypeScheme.TVar(_) =>
-                // spendBudgetCek
+            case TypeScheme.Type(_) | TypeScheme.TVar(_) | TypeScheme.App(_, _) =>
                 // eval the builtin and return result
                 val f = runtime.f.asInstanceOf[PlatformSpecific => CekValue]
-//        println(s"evaluating builtin $builtinName with runtime $runtime")
                 try f(ps)
                 catch case e: Throwable => throw new BuiltinError(term, e)
             case _ => VBuiltin(builtinName, term, runtime)

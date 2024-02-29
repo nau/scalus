@@ -15,15 +15,15 @@ import scala.collection.immutable
 
 enum TypeScheme:
     case Type(argType: DefaultUni)
+    case App(f: TypeScheme, arg: TypeScheme)
     case Arrow(argType: TypeScheme, t: TypeScheme)
     case All(name: String, t: TypeScheme)
     case TVar(name: String)
 
     def ->:(t: TypeScheme): TypeScheme = Arrow(t, this)
     def ->:(t: DefaultUni): TypeScheme = Arrow(Type(t), this)
-
-extension (x: DefaultUni)
-    def ->:(t: DefaultUni): TypeScheme = TypeScheme.Arrow(TypeScheme.Type(t), TypeScheme.Type(x))
+    infix def $(t: TypeScheme): TypeScheme = App(this, t)
+    infix def $(t: String): TypeScheme = App(this, TVar(t))
 
 //  def ->:(t: TypeScheme): TypeScheme = TypeScheme.Arrow(t, TypeScheme.Type(x))
 
@@ -33,6 +33,14 @@ case class Runtime(
 )
 
 object Meaning:
+    // local extension used to create a TypeScheme from a DefaultUni
+    extension (x: DefaultUni)
+        def ->:(t: TypeScheme): TypeScheme = TypeScheme.Arrow(t, TypeScheme.Type(x))
+        def ->:(t: DefaultUni): TypeScheme =
+            TypeScheme.Arrow(TypeScheme.Type(t), TypeScheme.Type(x))
+        infix def $(t: TypeScheme): TypeScheme = TypeScheme.Type(x) $ t
+        infix def $(t: String): TypeScheme = TypeScheme.Type(x) $ t
+
     def mkMeaning(t: TypeScheme, f: AnyRef) = Runtime(t, f)
     import TypeScheme.*
 
@@ -356,8 +364,7 @@ object Meaning:
     // [ forall a, forall b, pair(a, b) ] -> a
     val FstPair =
         mkMeaning(
-          // FIXME wrong type
-          All("a", All("b", DefaultUni.Pair(Integer, Bool) ->: TVar("a"))),
+          All("a", All("b", (DefaultUni.ProtoPair $ "a" $ "b") ->: TVar("a"))),
           (a: CekValue) =>
               val (fst, _) = a.asPair
               (ps: PlatformSpecific) => Cek.VCon(fst)
@@ -366,8 +373,7 @@ object Meaning:
     // [ forall a, forall b, pair(a, b) ] -> b
     val SndPair =
         mkMeaning(
-          // FIXME wrong type
-          All("a", All("b", DefaultUni.Pair(Integer, Bool) ->: Bool)),
+          All("a", All("b", (DefaultUni.ProtoPair $ "a" $ "b") ->: TVar("b"))),
           (a: CekValue) =>
               val (_, snd) = a.asPair
               (ps: PlatformSpecific) => Cek.VCon(snd)
@@ -376,8 +382,10 @@ object Meaning:
     // [ forall a, forall b, list(a), b, b ] -> b
     val ChooseList =
         mkMeaning(
-          // FIXME wrong type
-          All("a", All("b", DefaultUni.List(Bool) ->: TVar("b") ->: TVar("b") ->: TVar("b"))),
+          All(
+            "a",
+            All("b", (DefaultUni.ProtoList $ "a") ->: TVar("b") ->: TVar("b") ->: TVar("b"))
+          ),
           (a: CekValue) =>
               val ls = a.asList
               (b: CekValue) =>
@@ -398,8 +406,7 @@ object Meaning:
     // [ forall a, list(a) ] -> a
     val HeadList =
         mkMeaning(
-          // FIXME wrong type
-          All("a", Bool ->: Bool),
+          All("a", (DefaultUni.ProtoList $ "a") ->: TVar("a")),
           (a: CekValue) =>
               val ls = a.asList
               (ps: PlatformSpecific) => Cek.VCon(ls.head)
@@ -408,8 +415,7 @@ object Meaning:
     // [ forall a, list(a) ] -> list(a)
     val TailList =
         mkMeaning(
-          // FIXME wrong type
-          All("a", Bool ->: Bool),
+          All("a", (DefaultUni.ProtoList $ "a") ->: (DefaultUni.ProtoList $ "a")),
           (a: CekValue) =>
               a match
                   case VCon(Constant.List(tpe, ls)) =>
@@ -420,8 +426,7 @@ object Meaning:
     // [ forall a, list(a) ] -> bool
     val NullList =
         mkMeaning(
-          // FIXME wrong type
-          All("a", Bool ->: Bool),
+          All("a", (DefaultUni.ProtoList $ "a") ->: Type(Bool)),
           (a: CekValue) =>
               val ls = a.asList
               (ps: PlatformSpecific) => Cek.VCon(asConstant(ls.isEmpty))
