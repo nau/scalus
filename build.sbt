@@ -4,7 +4,7 @@ import sbtwelcome._
 Global / onChangedBuildSource := ReloadOnSourceChanges
 autoCompilerPlugins := true
 
-ThisBuild / scalaVersion := "3.3.2"
+ThisBuild / scalaVersion := "3.3.3"
 ThisBuild / organization := "org.scalus"
 ThisBuild / organizationName := "Scalus"
 ThisBuild / organizationHomepage := Some(url("https://scalus.org/"))
