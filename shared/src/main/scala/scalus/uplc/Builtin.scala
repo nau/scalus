@@ -392,14 +392,21 @@ object Meaning:
                   (c: CekValue) => (ps: PlatformSpecific) => if ls.isEmpty then b else c
         )
 
+    // [ forall a, a, list(a) ] -> list(a)
     val MkCons =
         mkMeaning(
-          All("a", Integer ->: DefaultUni.List(Integer) ->: DefaultUni.List(Integer)),
+          All("a", TVar("a") ->: (DefaultUni.ProtoList $ "a") ->: (DefaultUni.ProtoList $ "a")),
           (a: CekValue) =>
               (b: CekValue) =>
                   (a, b) match
-                      case (VCon(aCon), VCon(Constant.List(tp, l))) => // fixme chek type
-                          (ps: PlatformSpecific) => Cek.VCon(Constant.List(tp, aCon :: l))
+                      // Checking that the type of the constant is the same as the type of the elements
+                      // of the unlifted list. Note that there's no way we could enforce this statically
+                      // since in UPLC one can create an ill-typed program that attempts to prepend
+                      // a value of the wrong type to a list.
+                      case (VCon(aCon), VCon(Constant.List(tp, l))) =>
+                          if aCon.tpe != tp then
+                              throw new KnownTypeUnliftingError(TypeScheme.Type(tp), aCon.tpe)
+                          else (ps: PlatformSpecific) => Cek.VCon(Constant.List(tp, aCon :: l))
                       case _ => throw new RuntimeException(s"Expected list, got $b")
         )
 

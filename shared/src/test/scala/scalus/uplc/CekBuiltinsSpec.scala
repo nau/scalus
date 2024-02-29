@@ -199,6 +199,19 @@ class CekBuiltinsSpec extends AnyFunSuite with ScalaCheckPropertyChecks with Arb
         }
     }
 
+    test("MkCons") {
+        assertEvalEq(
+          !MkCons $ Constant.Integer(0) $ Const(
+            Constant.List(DefaultUni.Integer, asConstant(1) :: Nil)
+          ),
+          Const(Constant.List(DefaultUni.Integer, asConstant(0) :: asConstant(1) :: Nil))
+        )
+        // should throw if constant types don't match
+        assertEvalThrows[Exception](
+          !MkCons $ Constant.Unit $ Constant.List(DefaultUni.Integer, Nil)
+        )
+    }
+
     test("HeadList") {
         assertEvalEq(
           !HeadList $ Const(Constant.List(DefaultUni.Integer, asConstant(1) :: Nil)),
