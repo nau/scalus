@@ -7,7 +7,60 @@ trait PlatformSpecific:
     def blake2b_224(bs: ByteString): ByteString
     def blake2b_256(bs: ByteString): ByteString
     def verifyEd25519Signature(pk: ByteString, msg: ByteString, sig: ByteString): Boolean
+
+    /** Verify an ECDSA signature made using the SECP256k1 curve.
+      *
+      * @note
+      *
+      * There are additional well-formation requirements for the arguments beyond their length:
+      *
+      *   - The first byte of the public key must correspond to the sign of the `y` coordinate: this
+      *     is `0x02` if `y` is even, and `0x03` otherwise.
+      *   - The remaining bytes of the public key must correspond to the `x` coordinate, as a
+      *     big-endian integer.
+      *   - The first 32 bytes of the signature must correspond to the big-endian integer
+      *     representation of _r_.
+      *   - The last 32 bytes of the signature must correspond to the big-endian integer
+      *     representation of _s_.
+      *
+      * While this primitive `accepts` a hash, any caller should only pass it hashes that they
+      * computed themselves: specifically, they should receive the `message` from a sender and hash
+      * it, rather than receiving the `hash` from said sender. Failure to do so can be
+      * [dangerous](https://bitcoin.stackexchange.com/a/81116/35586). Other than length, we make no
+      * requirements of what hash gets used.
+      * @param pk
+      *   Public key (33 bytes)
+      * @param msg
+      *   Message (32 bytes)
+      * @param sig
+      *   Signature (64 bytes)
+      */
     def verifyEcdsaSecp256k1Signature(pk: ByteString, msg: ByteString, sig: ByteString): Boolean
+
+    /** Verify a Schnorr signature made using the SECP256k1 curve.
+      *
+      * @note
+      *
+      * There are additional well-formation requirements for the arguments beyond their length.
+      * Throughout, we refer to co-ordinates of the point `R`.
+      *
+      *   - The bytes of the public key must correspond to the `x` coordinate, as a big-endian
+      *     integer, as specified in BIP-340.
+      *   - The first 32 bytes of the signature must correspond to the `x` coordinate, as a
+      *     big-endian integer, as specified in BIP-340.
+      *   - The last 32 bytes of the signature must correspond to the bytes of `s`, as a big-endian
+      *     integer, as specified in BIP-340.
+      *
+      * @see
+      *   [BIP-340](https://github.com/bitcoin/bips/blob/master/bip-0340.mediawiki)
+      *
+      * @param pk
+      *   Public key (32 bytes)
+      * @param msg
+      *   Message (arbitrary length)
+      * @param sig
+      *   Signature (64 bytes)
+      */
     def verifySchnorrSecp256k1Signature(pk: ByteString, msg: ByteString, sig: ByteString): Boolean
 
 object Builtins:

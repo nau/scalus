@@ -352,11 +352,12 @@ class CekJVMSpec extends BaseValidatorSpec:
 
             assertSameResult(Expected.Success(true))(Program((1, 0, 0), valid))
             assertSameResult(Expected.Success(false))(Program((1, 0, 0), wrongSignature))
-            // FIXME: these tests fail because current CEK implementation uses UnliftingImmediate as the default
-            // and the uplc uses UnliftingDeferred.
-            // TODO: uncomment this when we upgrade the CEK implementation
-            // assertSameResult(Expected.Failure("invalidVk"))(Program((1, 0, 0), invalidVk))
-            // assertSameResult(Expected.Failure("invalidData"))(Program((1, 0, 0), invalidData))
-            // assertSameResult(Expected.Failure("invalidSignature"))(Program((1, 0, 0), invalidSignature))
+            assertSameResult(Expected.Failure("invalidVk"))(Program((1, 0, 0), invalidVk))
+            // FIXME: This test is failing because Bitcoin-s library only allows 32 byte messages
+            // uncomment when fixed this: https://github.com/bitcoin-s/bitcoin-s/issues/5436
+            // assertSameResult(Expected.Success(false))(Program((1, 0, 0), invalidData))
+            assertSameResult(Expected.Failure("invalidSignature"))(
+              Program((1, 0, 0), invalidSignature)
+            )
         }
     }

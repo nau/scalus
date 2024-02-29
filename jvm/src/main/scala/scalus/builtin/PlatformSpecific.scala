@@ -40,8 +40,6 @@ class JVMPlatformSpecific extends PlatformSpecific {
     ): Boolean = {
         if pk.bytes.length != 32 then
             throw new IllegalArgumentException(s"Invalid public key length ${pk.bytes.length}")
-        if msg.bytes.length != 32 then
-            throw new IllegalArgumentException(s"Invalid message length ${msg.bytes.length}")
         if sig.bytes.length != 64 then
             throw new IllegalArgumentException(s"Invalid signature length ${sig.bytes.length}")
         val signature = SchnorrDigitalSignature(ByteVector(sig.bytes))
