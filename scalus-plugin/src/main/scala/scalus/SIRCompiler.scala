@@ -143,15 +143,16 @@ final class SIRCompiler(mode: scalus.Mode)(using ctx: Context) {
 
         val tpl = td.rhs.asInstanceOf[Template]
         val bindings = tpl.body.flatMap {
-            // FIXME: hack for derived methods
             case dd: DefDef
                 if !dd.symbol.flags.is(Flags.Synthetic)
-                    && !dd.symbol.name.startsWith("derived")
+                // uncomment to ignore derived methods
+                // && !dd.symbol.name.startsWith("derived")
                     && !dd.symbol.hasAnnotation(IgnoreAnnot) =>
                 compileStmt(HashSet.empty, dd, isGlobalDef = true)
             case vd: ValDef
                 if !vd.symbol.flags.isOneOf(Flags.Synthetic | Flags.Case)
-                    && !vd.symbol.name.startsWith("derived")
+                // uncomment to ignore derived methods
+                // && !vd.symbol.name.startsWith("derived")
                     && !vd.symbol.hasAnnotation(IgnoreAnnot) =>
                 // println(s"valdef: ${vd.symbol.fullName}")
                 compileStmt(HashSet.empty, vd, isGlobalDef = true)
