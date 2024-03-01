@@ -1,9 +1,9 @@
 package scalus.uplc.eval
 
-import upickle.default.*
 import scalus.builtin.ByteString
 import scalus.builtin.Data
 import scalus.uplc.Constant
+import scalus.uplc.eval.CekValue.*
 
 trait MemoryUsage[A]:
     def memoryUsage(a: A): CostingInteger

@@ -1,7 +1,6 @@
 package scalus.uplc
 package eval
 
-import cats.Monoid
 import scalus.builtin.ByteString
 import scalus.builtin.Data
 import scalus.builtin.PlatformSpecific
@@ -9,6 +8,7 @@ import scalus.uplc.Term.*
 
 import scala.annotation.tailrec
 import scala.collection.immutable
+import cats.kernel.Group
 
 opaque type ExCPU <: Long = Long
 object ExCPU {
@@ -21,12 +21,20 @@ object ExMemory {
 
 case class ExBudget(cpu: ExCPU, memory: ExMemory)
 object ExBudget {
+
+    /** The zero budget */
     val zero: ExBudget = ExBudget(ExCPU(0), ExMemory(0))
+
+    /** Constructs an 'ExBudget' from CPU and memory components. */
     def fromCpuAndMemory(cpu: Long, memory: Long): ExBudget = ExBudget(ExCPU(cpu), ExMemory(memory))
-    given Monoid[ExBudget] with
+
+    /// Cats Group instance for ExBudget
+    given Group[ExBudget] with
         def combine(x: ExBudget, y: ExBudget): ExBudget =
             ExBudget(ExCPU(x.cpu + y.cpu), ExMemory(x.memory + y.memory))
         def empty: ExBudget = ExBudget.zero
+        def inverse(x: ExBudget): ExBudget = ExBudget(ExCPU(-x.cpu), ExMemory(-x.memory))
+
     given Ordering[ExBudget] with
         def compare(x: ExBudget, y: ExBudget): Int =
             val c = x.cpu.compareTo(y.cpu)
@@ -73,7 +81,12 @@ class KnownTypeUnliftingError(expected: TypeScheme, actual: DefaultUni)
 type CekValEnv = immutable.List[(String, CekValue)]
 
 // 'Values' for the modified CEK machine.
-sealed trait CekValue {
+enum CekValue {
+    case VCon(const: Constant)
+    case VDelay(term: Term, env: CekValEnv)
+    case VLamAbs(name: String, term: Term, env: CekValEnv)
+    case VBuiltin(bn: DefaultFun, term: Term, runtime: Runtime)
+
     def asUnit: Unit = this match {
         case VCon(Constant.Unit) => ()
         case _                   => throw new RuntimeException(s"Expected unit, got $this")
@@ -107,11 +120,6 @@ sealed trait CekValue {
         case _                         => throw new RuntimeException(s"Expected pair, got $this")
     }
 }
-case class VCon(const: Constant) extends CekValue
-case class VDelay(term: Term, env: CekValEnv) extends CekValue
-case class VLamAbs(name: String, term: Term, env: CekValEnv) extends CekValue
-case class VBuiltin(bn: DefaultFun, term: Term, runtime: Runtime) extends CekValue
-
 /*
   TODO:
   - proper exception handling
@@ -157,11 +165,14 @@ enum CekResult:
 
 class CekMachine(val evaluationContext: EvaluationContext) {
 
-    sealed trait Context
-    case class FrameApplyFun(f: CekValue, ctx: Context) extends Context
-    case class FrameApplyArg(env: CekValEnv, arg: Term, ctx: Context) extends Context
-    case class FrameForce(ctx: Context) extends Context
-    case object NoFrame extends Context
+    enum Context {
+        case FrameApplyFun(f: CekValue, ctx: Context)
+        case FrameApplyArg(env: CekValEnv, arg: Term, ctx: Context)
+        case FrameForce(ctx: Context)
+        case NoFrame
+    }
+    import Context.*
+    import CekValue.*
 
     def evalUPLC(term: Term): Term =
         spendBudget(ExBudgetCategory.Startup)

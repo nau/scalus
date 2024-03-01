@@ -9,6 +9,7 @@ import scalus.builtin.ByteString
 import scalus.builtin.given
 import scalus.uplc.DefaultUni.asConstant
 import scalus.uplc.Term.*
+import scalus.uplc.eval.CekValue.VCon
 
 class CekBudgetJVMSpec extends AnyFunSuite:
     test("Check machine budget for terms is correct") {

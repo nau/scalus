@@ -11,12 +11,12 @@ import scalus.uplc.DefaultUni.asConstant
 import scalus.uplc.DefaultUni.given
 import scalus.uplc.eval.BuiltinCostModel
 import scalus.uplc.eval.CekValue
+import scalus.uplc.eval.CekValue.*
 import scalus.uplc.eval.CostModel
 import scalus.uplc.eval.CostingFun
-import scalus.uplc.eval.VCon
+import scalus.uplc.eval.KnownTypeUnliftingError
 
 import scala.collection.immutable
-import scalus.uplc.eval.KnownTypeUnliftingError
 
 enum TypeScheme:
     case Type(argType: DefaultUni)
