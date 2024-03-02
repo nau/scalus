@@ -52,5 +52,5 @@ class CekJVMBenchmark:
     @OutputTimeUnit(TimeUnit.MICROSECONDS)
     def bench() = {
         val cek = CekMachine(Cek.defaultEvaluationContext)
-        cek.evalUPLC(program.term)
+        cek.evalCek(program.term)
     }

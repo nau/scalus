@@ -114,7 +114,6 @@ lazy val scalus = crossProject(JSPlatform, JVMPlatform)
       libraryDependencies += "org.scalatestplus" %%% "scalacheck-1-16" % "3.2.14.0" % "test"
     )
     .jvmSettings(
-      ThisBuild / javaOptions ++= Seq("-Xss10m"),
       Test / fork := true,
       // Test / testOptions += Tests.Argument(TestFrameworks.ScalaTest, "-S", "-8077211454138081902"),
       libraryDependencies += "org.scala-lang" %% "scala3-compiler" % scalaVersion.value,
@@ -177,7 +176,6 @@ lazy val bench = project
     .settings(
       name := "scalus-bench",
       PluginDependency,
-      ThisBuild / javaOptions ++= Seq("-Xss20m"),
       publish / skip := true
     )
 

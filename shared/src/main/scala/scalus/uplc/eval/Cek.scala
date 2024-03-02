@@ -133,7 +133,7 @@ object Cek {
           platformSpecific = ps
         )
         val debruijnedTerm = DeBruijn.deBruijnTerm(term)
-        new CekMachine(evaluationContext).evalUPLC(debruijnedTerm)
+        new CekMachine(evaluationContext).evalCek(debruijnedTerm)
     }
 
     def evalUPLCProgram(p: Program)(using ps: PlatformSpecific): Term = evalUPLC(p.term)
@@ -164,18 +164,40 @@ enum CekResult:
 
 class CekMachine(val evaluationContext: EvaluationContext) {
 
-    enum Context {
+    private enum Context {
         case FrameApplyFun(f: CekValue, ctx: Context)
         case FrameApplyArg(env: CekValEnv, arg: Term, ctx: Context)
         case FrameForce(ctx: Context)
         case NoFrame
     }
+
+    private enum CekState {
+        case Return(ctx: Context, value: CekValue)
+        case Compute(ctx: Context, env: CekValEnv, term: Term)
+        case Done(term: Term)
+
+    }
+    import CekState.*
     import CekValue.*
     import Context.*
 
-    def evalUPLC(term: Term): Term = {
+    /** Evaluates a UPLC term.
+      *
+      * @param term
+      *   The term to evaluate
+      * @return
+      *   The resulting term
+      * @throws EvaluationFailure
+      */
+    def evalCek(term: Term): Term = {
+        @tailrec def loop(state: CekState): Term = {
+            state match
+                case Compute(ctx, env, term) => loop(computeCek(ctx, env, term))
+                case Return(ctx, value)      => loop(returnCek(ctx, value))
+                case Done(term)              => term
+        }
         spendBudget(ExBudgetCategory.Startup)
-        computeCek(NoFrame, ArraySeq.empty, term)
+        loop(Compute(NoFrame, ArraySeq.empty, term))
     }
 
     /** Evaluate a UPLC term.
@@ -188,34 +210,34 @@ class CekMachine(val evaluationContext: EvaluationContext) {
       */
     def runCek(term: Term): CekResult = {
         try
-            val res = evalUPLC(term)
+            val res = evalCek(term)
             CekResult.Success(res, getExBudget)
         catch case e: Exception => CekResult.Failure(e.getMessage, getExBudget)
     }
 
-    @tailrec private final def computeCek(ctx: Context, env: CekValEnv, term: Term): Term = {
+    private final def computeCek(ctx: Context, env: CekValEnv, term: Term): CekState = {
         spendBudget(ExBudgetCategory.Step(term))
         term match
-            case Var(name)          => returnCek(ctx, lookupVarName(env, name))
-            case LamAbs(name, term) => returnCek(ctx, VLamAbs(name, term, env))
-            case Apply(fun, arg)    => computeCek(FrameApplyArg(env, arg, ctx), env, fun)
-            case Force(term)        => computeCek(FrameForce(ctx), env, term)
-            case Delay(term)        => returnCek(ctx, VDelay(term, env))
-            case Const(const)       => returnCek(ctx, VCon(const))
+            case Var(name)          => Return(ctx, lookupVarName(env, name))
+            case LamAbs(name, term) => Return(ctx, VLamAbs(name, term, env))
+            case Apply(fun, arg)    => Compute(FrameApplyArg(env, arg, ctx), env, fun)
+            case Force(term)        => Compute(FrameForce(ctx), env, term)
+            case Delay(term)        => Return(ctx, VDelay(term, env))
+            case Const(const)       => Return(ctx, VCon(const))
             case Builtin(bn)        =>
                 // The @term@ is a 'Builtin', so it's fully discharged.
                 Meaning.BuiltinMeanings.get(bn) match
-                    case Some(meaning) => returnCek(ctx, VBuiltin(bn, term, meaning))
+                    case Some(meaning) => Return(ctx, VBuiltin(bn, term, meaning))
                     case None          => throw new UnexpectedBuiltinTermArgumentMachineError(term)
             case Error => throw new EvaluationFailure("Error")
     }
 
-    private def returnCek(ctx: Context, value: CekValue): Term = {
+    private def returnCek(ctx: Context, value: CekValue): CekState = {
         ctx match
-            case FrameApplyArg(env, arg, ctx) => computeCek(FrameApplyFun(value, ctx), env, arg)
+            case FrameApplyArg(env, arg, ctx) => Compute(FrameApplyFun(value, ctx), env, arg)
             case FrameApplyFun(fun, ctx)      => applyEvaluate(ctx, fun, value)
             case FrameForce(ctx)              => forceEvaluate(ctx, value)
-            case NoFrame                      => dischargeCekValue(value)
+            case NoFrame                      => Done(dischargeCekValue(value))
     }
 
     private def lookupVarName(env: CekValEnv, name: NamedDeBruijn): CekValue = {
@@ -226,9 +248,9 @@ class CekMachine(val evaluationContext: EvaluationContext) {
         else env(env.size - name.index)._2
     }
 
-    private def applyEvaluate(ctx: Context, fun: CekValue, arg: CekValue): Term = {
+    private def applyEvaluate(ctx: Context, fun: CekValue, arg: CekValue): CekState = {
         fun match
-            case VLamAbs(name, term, env) => computeCek(ctx, env :+ (name, arg), term)
+            case VLamAbs(name, term, env) => Compute(ctx, env :+ (name, arg), term)
             case VBuiltin(fun, term, runtime) =>
                 val argTerm = dischargeCekValue(arg)
                 val term1 = Apply(term, argTerm)
@@ -237,7 +259,7 @@ class CekMachine(val evaluationContext: EvaluationContext) {
                         val f = runtime.f.asInstanceOf[CekValue => AnyRef]
                         val runtime1 = runtime.copy(args = runtime.args :+ arg, typeScheme = rest)
                         val res = evalBuiltinApp(fun, term1, runtime1)
-                        returnCek(ctx, res)
+                        Return(ctx, res)
                     case _ => throw new UnexpectedBuiltinTermArgumentMachineError(term1)
             case _ =>
                 throw new RuntimeException(
@@ -245,9 +267,9 @@ class CekMachine(val evaluationContext: EvaluationContext) {
                 ) // FIXME MachineException
     }
 
-    private def forceEvaluate(ctx: Context, value: CekValue): Term = {
+    private def forceEvaluate(ctx: Context, value: CekValue): CekState = {
         value match
-            case VDelay(term, env) => computeCek(ctx, env, term)
+            case VDelay(term, env) => Compute(ctx, env, term)
             case VBuiltin(bn, term, rt) =>
                 val term1 = Force(term)
                 rt.typeScheme match
@@ -259,7 +281,7 @@ class CekMachine(val evaluationContext: EvaluationContext) {
                         // otherwise we could just assemble a 'VBuiltin' without trying to evaluate the
                         // application.
                         val res = evalBuiltinApp(bn, term1, runtime1)
-                        returnCek(ctx, res)
+                        Return(ctx, res)
                     case _ => throw new UnexpectedBuiltinTermArgumentMachineError(term1)
             case _ =>
                 // TODO proper exception

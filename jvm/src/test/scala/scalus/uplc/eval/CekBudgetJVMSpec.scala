@@ -69,6 +69,6 @@ class CekBudgetJVMSpec extends AnyFunSuite:
         )
         println(r)
         val cek = CekMachine(Cek.defaultEvaluationContext)
-        cek.evalUPLC(program.term)
+        cek.evalCek(program.term)
         println(s"${cek.getExBudget}")
     }
