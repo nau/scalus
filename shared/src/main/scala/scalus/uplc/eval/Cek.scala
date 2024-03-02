@@ -1,14 +1,13 @@
 package scalus.uplc
 package eval
 
-import scalus.builtin.ByteString
-import scalus.builtin.Data
-import scalus.builtin.PlatformSpecific
+import cats.kernel.Group
+import scalus.builtin.{ByteString, Data, PlatformSpecific}
 import scalus.uplc.Term.*
 
 import scala.annotation.tailrec
 import scala.collection.immutable
-import cats.kernel.Group
+import scala.collection.immutable.ArraySeq
 
 opaque type ExCPU <: Long = Long
 object ExCPU {
@@ -78,7 +77,7 @@ class UnexpectedBuiltinTermArgumentMachineError(term: Term)
 class KnownTypeUnliftingError(expected: TypeScheme, actual: DefaultUni)
     extends Exception(s"Expected $expected, but got $actual")
 
-type CekValEnv = immutable.List[(String, CekValue)]
+type CekValEnv = immutable.ArraySeq[(String, CekValue)]
 
 // 'Values' for the modified CEK machine.
 enum CekValue {
@@ -123,7 +122,6 @@ enum CekValue {
 /*
   TODO:
   - proper exception handling
-  - execution budget calculation
  */
 object Cek {
     def evalUPLC(term: Term)(using ps: PlatformSpecific): Term = {
@@ -134,12 +132,13 @@ object Cek {
           ),
           platformSpecific = ps
         )
-        new CekMachine(evaluationContext).evalUPLC(term)
+        val debruijnedTerm = DeBruijn.deBruijnTerm(term)
+        new CekMachine(evaluationContext).evalUPLC(debruijnedTerm)
     }
 
     def evalUPLCProgram(p: Program)(using ps: PlatformSpecific): Term = evalUPLC(p.term)
 
-    val defaultMachineCosts = CekMachineCosts(
+    val defaultMachineCosts: CekMachineCosts = CekMachineCosts(
       startupCost = ExBudget(ExCPU(100), ExMemory(100)),
       varCost = ExBudget(ExCPU(23000), ExMemory(100)),
       constCost = ExBudget(ExCPU(23000), ExMemory(100)),
@@ -150,7 +149,7 @@ object Cek {
       builtinCost = ExBudget(ExCPU(23000), ExMemory(100))
     )
 
-    def defaultEvaluationContext(using ps: PlatformSpecific) = EvaluationContext(
+    def defaultEvaluationContext(using ps: PlatformSpecific): EvaluationContext = EvaluationContext(
       MachineParameters(
         machineCosts = defaultMachineCosts,
         builtinCostModel = BuiltinCostModel.defaultBuiltinCostModel
@@ -171,12 +170,13 @@ class CekMachine(val evaluationContext: EvaluationContext) {
         case FrameForce(ctx: Context)
         case NoFrame
     }
-    import Context.*
     import CekValue.*
+    import Context.*
 
-    def evalUPLC(term: Term): Term =
+    def evalUPLC(term: Term): Term = {
         spendBudget(ExBudgetCategory.Startup)
-        computeCek(NoFrame, Nil, term)
+        computeCek(NoFrame, ArraySeq.empty, term)
+    }
 
     /** Evaluate a UPLC term.
       *
@@ -186,14 +186,14 @@ class CekMachine(val evaluationContext: EvaluationContext) {
       *   CekResult, either a success with the resulting term and the execution budget, or a failure
       *   with an error message and the execution budget.
       */
-    def runCek(term: Term): CekResult =
-        spendBudget(ExBudgetCategory.Startup)
+    def runCek(term: Term): CekResult = {
         try
-            val res = computeCek(NoFrame, Nil, term)
+            val res = evalUPLC(term)
             CekResult.Success(res, getExBudget)
         catch case e: Exception => CekResult.Failure(e.getMessage, getExBudget)
+    }
 
-    @tailrec private final def computeCek(ctx: Context, env: CekValEnv, term: Term): Term =
+    @tailrec private final def computeCek(ctx: Context, env: CekValEnv, term: Term): Term = {
         spendBudget(ExBudgetCategory.Step(term))
         term match
             case Var(name)          => returnCek(ctx, lookupVarName(env, name))
@@ -208,27 +208,27 @@ class CekMachine(val evaluationContext: EvaluationContext) {
                     case Some(meaning) => returnCek(ctx, VBuiltin(bn, term, meaning))
                     case None          => throw new UnexpectedBuiltinTermArgumentMachineError(term)
             case Error => throw new EvaluationFailure("Error")
+    }
 
-    def returnCek(ctx: Context, value: CekValue): Term =
+    private def returnCek(ctx: Context, value: CekValue): Term = {
         ctx match
             case FrameApplyArg(env, arg, ctx) => computeCek(FrameApplyFun(value, ctx), env, arg)
             case FrameApplyFun(fun, ctx)      => applyEvaluate(ctx, fun, value)
             case FrameForce(ctx)              => forceEvaluate(ctx, value)
             case NoFrame                      => dischargeCekValue(value)
+    }
 
-    private def lookupVarName(env: CekValEnv, name: NamedDeBruijn): CekValue =
-        env.collectFirst {
-            case (n, v) if n == name.name => v
-        } match
-            case Some(value) => value
-            case None =>
-                throw new EvaluationFailure(
-                  s"Variable ${name.name} not found in environment: ${env.map(_._1).mkString(", ")}"
-                )
+    private def lookupVarName(env: CekValEnv, name: NamedDeBruijn): CekValue = {
+        if name.index > env.size then
+            throw new EvaluationFailure(
+              s"Variable ${name.name} not found in environment: ${env.reverse.map(_._1).mkString(", ")}"
+            )
+        else env(env.size - name.index)._2
+    }
 
-    def applyEvaluate(ctx: Context, fun: CekValue, arg: CekValue): Term =
+    private def applyEvaluate(ctx: Context, fun: CekValue, arg: CekValue): Term = {
         fun match
-            case VLamAbs(name, term, env) => computeCek(ctx, (name, arg) :: env, term)
+            case VLamAbs(name, term, env) => computeCek(ctx, env :+ (name, arg), term)
             case VBuiltin(fun, term, runtime) =>
                 val argTerm = dischargeCekValue(arg)
                 val term1 = Apply(term, argTerm)
@@ -243,8 +243,9 @@ class CekMachine(val evaluationContext: EvaluationContext) {
                 throw new RuntimeException(
                   "NonFunctionalApplicationMachineError"
                 ) // FIXME MachineException
+    }
 
-    def forceEvaluate(ctx: Context, value: CekValue): Term =
+    private def forceEvaluate(ctx: Context, value: CekValue): Term = {
         value match
             case VDelay(term, env) => computeCek(ctx, env, term)
             case VBuiltin(bn, term, rt) =>
@@ -263,34 +264,51 @@ class CekMachine(val evaluationContext: EvaluationContext) {
             case _ =>
                 // TODO proper exception
                 throw new RuntimeException("NonPolymorphicInstantiationMachineError")
+    }
 
-    def dischargeCekValue(value: CekValue): Term =
+    /** Converts a 'CekValue' into a 'Term' by replacing all bound variables with the terms they're
+      * bound to (which themselves have to be obtain by recursively discharging values).
+      */
+    private def dischargeCekValue(value: CekValue): Term = {
+        def dischargeCekValEnv(env: CekValEnv, term: Term): Term = {
+            def go(lamCnt: Int, term: Term): Term = {
+                term match
+                    case Var(name) =>
+                        if lamCnt >= name.index
+                            // the index n is less-than-or-equal than the number of lambdas we have descended
+                            // this means that n points to a bound variable, so we don't discharge it.
+                        then term
+                        else
+                            // index relative to (as seen from the point of view of) the environment
+                            val relativeIdx = env.size - (name.index - lamCnt)
+                            if env.isDefinedAt(relativeIdx) then
+                                // var is in the env, discharge its value
+                                dischargeCekValue(env(relativeIdx)._2)
+                            else
+                                // var is free, leave it alone
+                                term
+
+                    case LamAbs(name, body) => LamAbs(name, go(lamCnt + 1, body))
+                    case Apply(fun, arg)    => Apply(go(lamCnt, fun), go(lamCnt, arg))
+                    case Force(term)        => Force(go(lamCnt, term))
+                    case Delay(term)        => Delay(go(lamCnt, term))
+                    case _                  => term
+            }
+
+            go(0, term)
+        }
+
         value match
-            case VCon(const)              => Const(const)
-            case VDelay(term, env)        => dischargeCekValEnv(env, Delay(term))
+            case VCon(const)       => Const(const)
+            case VDelay(term, env) => dischargeCekValEnv(env, Delay(term))
+            // `computeCek` turns @LamAbs _ name body@ into @VLamAbs name body env@ where @env@ is an
+            // argument of 'computeCek' and hence we need to start discharging outside of the reassembled
+            // lambda, otherwise @name@ could clash with the names that we have in @env@.
             case VLamAbs(name, term, env) => dischargeCekValEnv(env, LamAbs(name, term))
             case VBuiltin(_, term, _)     => term
+    }
 
-    def dischargeCekValEnv(env: CekValEnv, term: Term): Term =
-        def go(localEnv: List[String], term: Term): Term =
-            term match
-                case Var(name) =>
-                    if localEnv.contains(name.name) then term
-                    else
-                        try
-                            dischargeCekValue(lookupVarName(env, name))
-                        catch {
-                            case _: Throwable => term
-                        } // TODO proper exception
-                case LamAbs(name, body) => LamAbs(name, go(name :: localEnv, body))
-                case Apply(fun, arg) =>
-                    Apply(go(localEnv, fun), go(localEnv, arg))
-                case Force(term) => Force(go(localEnv, term))
-                case Delay(term) => Delay(go(localEnv, term))
-                case _           => term
-        go(Nil, term)
-
-    def evalBuiltinApp(builtinName: DefaultFun, term: Term, runtime: Runtime): CekValue =
+    private def evalBuiltinApp(builtinName: DefaultFun, term: Term, runtime: Runtime): CekValue = {
         runtime.typeScheme match
             case TypeScheme.Type(_) | TypeScheme.TVar(_) | TypeScheme.App(_, _) =>
                 spendBudget(ExBudgetCategory.BuiltinApp(runtime.costFunction, runtime.args))
@@ -304,13 +322,14 @@ class CekMachine(val evaluationContext: EvaluationContext) {
                     f(evaluationContext.platformSpecific)
                 catch case e: Throwable => throw new BuiltinError(term, e)
             case _ => VBuiltin(builtinName, term, runtime)
+    }
 
-    private[this] var budgetCPU = 0L
-    private[this] var budgetMemory = 0L
+    private var budgetCPU = 0L
+    private var budgetMemory = 0L
 
     def getExBudget: ExBudget = ExBudget(ExCPU(budgetCPU), ExMemory(budgetMemory))
 
-    private def spendBudget(cat: ExBudgetCategory) =
+    private def spendBudget(cat: ExBudgetCategory): Unit = {
         val machineCosts = evaluationContext.params.machineCosts
         cat match
             case ExBudgetCategory.Startup =>
@@ -344,4 +363,5 @@ class CekMachine(val evaluationContext: EvaluationContext) {
                 val budget = costingFun.calculateCost(args)
                 budgetCPU += budget.cpu
                 budgetMemory += budget.memory
+    }
 }

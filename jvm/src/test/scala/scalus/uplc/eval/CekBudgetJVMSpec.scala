@@ -16,9 +16,10 @@ class CekBudgetJVMSpec extends AnyFunSuite:
         import cats.syntax.all.*
         import Cek.defaultMachineCosts.*
         def check(term: Term, expected: ExBudget) = {
+            val debruijnedTerm = DeBruijn.deBruijnTerm(term)
             val cek = CekMachine(Cek.defaultEvaluationContext)
             val res = PlutusUplcEval.evalFlat(Program((1, 0, 0), term))
-            (cek.runCek(term), res) match
+            (cek.runCek(debruijnedTerm), res) match
                 case (CekResult.Success(t1, budget), UplcEvalResult.Success(t2, budget2)) =>
                     assert(budget == (expected |+| Cek.defaultMachineCosts.startupCost))
                     assert(budget == budget2)
