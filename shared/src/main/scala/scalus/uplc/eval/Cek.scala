@@ -8,6 +8,7 @@ import scalus.uplc.Term.*
 import scala.annotation.tailrec
 import scala.collection.immutable
 import scala.collection.immutable.ArraySeq
+import scala.util.control.NonFatal
 
 opaque type ExCPU <: Long = Long
 object ExCPU {
@@ -66,16 +67,29 @@ case class EvaluationContext(
     platformSpecific: PlatformSpecific
 )
 
-// TODO match Haskell errors
-class EvaluationFailure(msg: String) extends Exception(msg)
-class BuiltinError(term: Term, cause: Throwable)
-    extends Exception(s"Error during builtin invocation: $term", cause)
-
+class MachineError(msg: String) extends RuntimeException(msg)
+class NonPolymorphicInstantiationMachineError(value: CekValue)
+    extends MachineError(s"Non-polymorphic instantiation: $value")
+class NonFunctionalApplicationMachineError(arg: CekValue)
+    extends MachineError(s"Non-functional application: $arg")
+class OpenTermEvaluatedMachineError(name: NamedDeBruijn, env: CekValEnv)
+    extends MachineError(
+      s"Variable ${name.name} not found in environment: ${env.reverse.map(_._1).mkString(", ")}"
+    )
+class BuiltinTermArgumentExpectedMachineError(term: Term)
+    extends MachineError(s"Expected builtin term argument, got $term")
 class UnexpectedBuiltinTermArgumentMachineError(term: Term)
-    extends Exception(s"Unexpected builtin term argument: $term")
-
-class KnownTypeUnliftingError(expected: TypeScheme, actual: DefaultUni)
-    extends Exception(s"Expected $expected, but got $actual")
+    extends MachineError(s"Unexpected builtin term argument: $term")
+class UnknownBuiltin(builtin: DefaultFun) extends MachineError(s"Unknown builtin: $builtin")
+class EvaluationFailure extends MachineError("Error evaluated")
+class DeserializationError(fun: DefaultFun, value: CekValue)
+    extends MachineError(s"Deserialization error in $fun: $value")
+class BuiltinError(builtin: DefaultFun, term: Term, cause: Throwable)
+    extends MachineError(s"Builtin error: $builtin $term, caused by $cause")
+class KnownTypeUnliftingError(expected: DefaultUni, actual: CekValue)
+    extends MachineError(
+      s"Expected type $expected, got $actual"
+    )
 
 type CekValEnv = immutable.ArraySeq[(String, CekValue)]
 
@@ -88,41 +102,38 @@ enum CekValue {
 
     def asUnit: Unit = this match {
         case VCon(Constant.Unit) => ()
-        case _                   => throw new RuntimeException(s"Expected unit, got $this")
+        case _                   => throw new KnownTypeUnliftingError(DefaultUni.Unit, this)
     }
     def asInteger: BigInt = this match {
         case VCon(Constant.Integer(i)) => i
-        case _                         => throw new RuntimeException(s"Expected integer, got $this")
+        case _ => throw new KnownTypeUnliftingError(DefaultUni.Integer, this)
     }
     def asString: String = this match {
         case VCon(Constant.String(s)) => s
-        case _                        => throw new RuntimeException(s"Expected string, got $this")
+        case _                        => throw new KnownTypeUnliftingError(DefaultUni.String, this)
     }
     def asBool: Boolean = this match {
         case VCon(Constant.Bool(b)) => b
-        case _                      => throw new RuntimeException(s"Expected bool, got $this")
+        case _                      => throw new KnownTypeUnliftingError(DefaultUni.Bool, this)
     }
     def asByteString: ByteString = this match {
         case VCon(Constant.ByteString(bs)) => bs
-        case _ => throw new RuntimeException(s"Expected bytestring, got $this")
+        case _ => throw new KnownTypeUnliftingError(DefaultUni.ByteString, this)
     }
     def asData: Data = this match {
         case VCon(Constant.Data(d)) => d
-        case _                      => throw new RuntimeException(s"Expected data, got $this")
+        case _                      => throw new KnownTypeUnliftingError(DefaultUni.Data, this)
     }
     def asList: List[Constant] = this match {
         case VCon(Constant.List(_, l)) => l
-        case _                         => throw new RuntimeException(s"Expected list, got $this")
+        case _ => throw new KnownTypeUnliftingError(DefaultUni.ProtoList, this)
     }
     def asPair: (Constant, Constant) = this match {
         case VCon(Constant.Pair(l, r)) => (l, r)
-        case _                         => throw new RuntimeException(s"Expected pair, got $this")
+        case _ => throw new KnownTypeUnliftingError(DefaultUni.ProtoPair, this)
     }
 }
-/*
-  TODO:
-  - proper exception handling
- */
+
 object Cek {
     def evalUPLC(term: Term)(using ps: PlatformSpecific): Term = {
         val evaluationContext = EvaluationContext(
@@ -187,7 +198,7 @@ class CekMachine(val evaluationContext: EvaluationContext) {
       *   The term to evaluate
       * @return
       *   The resulting term
-      * @throws EvaluationFailure
+      * @throws MachineError
       */
     def evalCek(term: Term): Term = {
         @tailrec def loop(state: CekState): Term = {
@@ -212,7 +223,7 @@ class CekMachine(val evaluationContext: EvaluationContext) {
         try
             val res = evalCek(term)
             CekResult.Success(res, getExBudget)
-        catch case e: Exception => CekResult.Failure(e.getMessage, getExBudget)
+        catch case e: MachineError => CekResult.Failure(e.getMessage, getExBudget)
     }
 
     private final def computeCek(ctx: Context, env: CekValEnv, term: Term): CekState = {
@@ -228,8 +239,8 @@ class CekMachine(val evaluationContext: EvaluationContext) {
                 // The @term@ is a 'Builtin', so it's fully discharged.
                 Meaning.BuiltinMeanings.get(bn) match
                     case Some(meaning) => Return(ctx, VBuiltin(bn, term, meaning))
-                    case None          => throw new UnexpectedBuiltinTermArgumentMachineError(term)
-            case Error => throw new EvaluationFailure("Error")
+                    case None          => throw new UnknownBuiltin(bn)
+            case Error => throw new EvaluationFailure
     }
 
     private def returnCek(ctx: Context, value: CekValue): CekState = {
@@ -241,10 +252,7 @@ class CekMachine(val evaluationContext: EvaluationContext) {
     }
 
     private def lookupVarName(env: CekValEnv, name: NamedDeBruijn): CekValue = {
-        if name.index > env.size then
-            throw new EvaluationFailure(
-              s"Variable ${name.name} not found in environment: ${env.reverse.map(_._1).mkString(", ")}"
-            )
+        if name.index > env.size then throw new OpenTermEvaluatedMachineError(name, env)
         else env(env.size - name.index)._2
     }
 
@@ -255,18 +263,22 @@ class CekMachine(val evaluationContext: EvaluationContext) {
                 val argTerm = dischargeCekValue(arg)
                 val term1 = Apply(term, argTerm)
                 runtime.typeScheme match
-                    case (TypeScheme.Arrow(_, rest)) =>
-                        val f = runtime.f.asInstanceOf[CekValue => AnyRef]
+                    case TypeScheme.Arrow(_, rest) =>
                         val runtime1 = runtime.copy(args = runtime.args :+ arg, typeScheme = rest)
                         val res = evalBuiltinApp(fun, term1, runtime1)
                         Return(ctx, res)
                     case _ => throw new UnexpectedBuiltinTermArgumentMachineError(term1)
             case _ =>
-                throw new RuntimeException(
-                  "NonFunctionalApplicationMachineError"
-                ) // FIXME MachineException
+                throw new NonFunctionalApplicationMachineError(fun)
     }
 
+    /** `force`` a term and proceed.
+      *
+      * If `value` is a delay then compute the body of `value`; if v is a builtin application then
+      * check that it's expecting a type argument, and either calculate the builtin application or
+      * stick a 'Force' on top of its 'Term' representation depending on whether the application is
+      * saturated or not, if v is anything else, fail.
+      */
     private def forceEvaluate(ctx: Context, value: CekValue): CekState = {
         value match
             case VDelay(term, env) => Compute(ctx, env, term)
@@ -282,10 +294,25 @@ class CekMachine(val evaluationContext: EvaluationContext) {
                         // application.
                         val res = evalBuiltinApp(bn, term1, runtime1)
                         Return(ctx, res)
-                    case _ => throw new UnexpectedBuiltinTermArgumentMachineError(term1)
+                    case _ => throw new BuiltinTermArgumentExpectedMachineError(term1)
             case _ =>
-                // TODO proper exception
-                throw new RuntimeException("NonPolymorphicInstantiationMachineError")
+                throw new NonPolymorphicInstantiationMachineError(value)
+    }
+
+    private def evalBuiltinApp(builtinName: DefaultFun, term: Term, runtime: Runtime): CekValue = {
+        runtime.typeScheme match
+            case TypeScheme.Type(_) | TypeScheme.TVar(_) | TypeScheme.App(_, _) =>
+                spendBudget(ExBudgetCategory.BuiltinApp(runtime.costFunction, runtime.args))
+                // eval the builtin and return result
+                try
+                    // eval builtin when it's fully saturated, i.e. when all arguments were applied
+                    val applied = runtime.args.foldLeft(runtime.f) { case (f, arg) =>
+                        f(arg).asInstanceOf[AnyRef => AnyRef]
+                    }
+                    val f = applied.asInstanceOf[PlatformSpecific => CekValue]
+                    f(evaluationContext.platformSpecific)
+                catch case NonFatal(e) => throw new BuiltinError(builtinName, term, e)
+            case _ => VBuiltin(builtinName, term, runtime)
     }
 
     /** Converts a 'CekValue' into a 'Term' by replacing all bound variables with the terms they're
@@ -328,22 +355,6 @@ class CekMachine(val evaluationContext: EvaluationContext) {
             // lambda, otherwise @name@ could clash with the names that we have in @env@.
             case VLamAbs(name, term, env) => dischargeCekValEnv(env, LamAbs(name, term))
             case VBuiltin(_, term, _)     => term
-    }
-
-    private def evalBuiltinApp(builtinName: DefaultFun, term: Term, runtime: Runtime): CekValue = {
-        runtime.typeScheme match
-            case TypeScheme.Type(_) | TypeScheme.TVar(_) | TypeScheme.App(_, _) =>
-                spendBudget(ExBudgetCategory.BuiltinApp(runtime.costFunction, runtime.args))
-                // eval the builtin and return result
-                try
-                    // eval builtin when it's fully saturated, i.e. when all arguments were applied
-                    val applied = runtime.args.foldLeft(runtime.f) { case (f, arg) =>
-                        f(arg).asInstanceOf[AnyRef => AnyRef]
-                    }
-                    val f = applied.asInstanceOf[PlatformSpecific => CekValue]
-                    f(evaluationContext.platformSpecific)
-                catch case e: Throwable => throw new BuiltinError(term, e)
-            case _ => VBuiltin(builtinName, term, runtime)
     }
 
     private var budgetCPU = 0L

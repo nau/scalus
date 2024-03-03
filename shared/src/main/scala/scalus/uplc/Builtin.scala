@@ -18,6 +18,7 @@ import scalus.uplc.eval.KnownTypeUnliftingError
 
 import scala.collection.immutable
 import scala.collection.immutable.ArraySeq
+import scalus.uplc.eval.DeserializationError
 
 enum TypeScheme:
     case Type(argType: DefaultUni)
@@ -419,7 +420,7 @@ object Meaning:
           (unit: CekValue) => {
               unit match
                   case VCon(Constant.Unit) => (a: CekValue) => (ps: PlatformSpecific) => a
-                  case _                   => throw new Error("impossible")
+                  case _ => throw new DeserializationError(DefaultFun.ChooseUnit, unit)
           },
           BuiltinCostModel.defaultBuiltinCostModel.chooseUnit
         )
@@ -483,10 +484,9 @@ object Meaning:
                       // since in UPLC one can create an ill-typed program that attempts to prepend
                       // a value of the wrong type to a list.
                       case (VCon(aCon), VCon(Constant.List(tp, l))) =>
-                          if aCon.tpe != tp then
-                              throw new KnownTypeUnliftingError(TypeScheme.Type(tp), aCon.tpe)
+                          if aCon.tpe != tp then throw new KnownTypeUnliftingError(tp, a)
                           else (ps: PlatformSpecific) => VCon(Constant.List(tp, aCon :: l))
-                      case _ => throw new RuntimeException(s"Expected list, got $b")
+                      case _ => throw new DeserializationError(DefaultFun.MkCons, b)
                   },
           BuiltinCostModel.defaultBuiltinCostModel.mkCons
         )
@@ -510,7 +510,7 @@ object Meaning:
               a match {
                   case VCon(Constant.List(tpe, ls)) =>
                       (ps: PlatformSpecific) => VCon(Constant.List(tpe, ls.tail))
-                  case _ => throw new Exception(s"TailList: not a list, but $a")
+                  case _ => throw new DeserializationError(DefaultFun.TailList, a)
               },
           BuiltinCostModel.defaultBuiltinCostModel.tailList
         )
@@ -556,9 +556,9 @@ object Meaning:
                       case VCon(Constant.List(DefaultUni.Data, l)) =>
                           l.map {
                               case Constant.Data(d) => d
-                              case _ => throw new Exception(s"ConstrData: not a data, but $b")
+                              case _ => throw new DeserializationError(DefaultFun.ConstrData, b)
                           }
-                      case _ => throw new RuntimeException(s"Expected list, got $b")
+                      case _ => throw new DeserializationError(DefaultFun.ConstrData, b)
                   }
                   (ps: PlatformSpecific) =>
                       VCon(
@@ -577,7 +577,11 @@ object Meaning:
                   VCon(
                     Constant.Data(Data.Map(aa.map {
                         case Constant.Pair(Constant.Data(a), Constant.Data(b)) => (a, b)
-                        case _ => throw new RuntimeException(s"MapData: not a pair, but $a")
+                        case _ =>
+                            throw new KnownTypeUnliftingError(
+                              DefaultUni.Pair(DefaultUni.Data, DefaultUni.Data),
+                              a
+                            )
                     }))
                   )
           ,
@@ -591,7 +595,7 @@ object Meaning:
               val aa = a.asList
               val datas = aa.map {
                   case Constant.Data(value) => value
-                  case _ => throw new RuntimeException(s"ListData: not a data, but $a")
+                  case _                    => throw new KnownTypeUnliftingError(DefaultUni.Data, a)
               }
               (ps: PlatformSpecific) => VCon(Constant.Data(Data.List(datas)))
           ,
@@ -631,7 +635,7 @@ object Meaning:
                           VCon(
                             Constant.Pair(asConstant(i), asConstant(ls))
                           )
-                  case _ => throw new Exception(s"unConstrData: not a constructor, but $a")
+                  case _ => throw new DeserializationError(DefaultFun.UnConstrData, a)
               },
           BuiltinCostModel.defaultBuiltinCostModel.unConstrData
         )
@@ -653,7 +657,7 @@ object Meaning:
                               }
                             )
                           )
-                  case _ => throw new Exception(s"unMapData: not a map, but $a")
+                  case _ => throw new DeserializationError(DefaultFun.UnMapData, a)
               },
           BuiltinCostModel.defaultBuiltinCostModel.unMapData
         )
@@ -667,7 +671,7 @@ object Meaning:
                   case VCon(Constant.Data(Data.List(values))) =>
                       (ps: PlatformSpecific) =>
                           VCon(Constant.List(DefaultUni.Data, values.map(asConstant)))
-                  case _ => throw new Exception(s"unListData: not a list, but $a")
+                  case _ => throw new DeserializationError(DefaultFun.UnListData, a)
           },
           BuiltinCostModel.defaultBuiltinCostModel.unListData
         )
@@ -681,7 +685,7 @@ object Meaning:
               a match
                   case VCon(Constant.Data(Data.I(i))) =>
                       (ps: PlatformSpecific) => VCon(asConstant(i))
-                  case _ => throw new Exception(s"unIData: not an integer, but $a")
+                  case _ => throw new DeserializationError(DefaultFun.UnIData, a)
           },
           BuiltinCostModel.defaultBuiltinCostModel.unIData
         )
@@ -695,7 +699,7 @@ object Meaning:
               a match
                   case VCon(Constant.Data(Data.B(b))) =>
                       (ps: PlatformSpecific) => VCon(asConstant(b))
-                  case _ => throw new Exception(s"unBData: not a bytestring, but $a")
+                  case _ => throw new DeserializationError(DefaultFun.UnBData, a)
           },
           BuiltinCostModel.defaultBuiltinCostModel.unBData
         )
