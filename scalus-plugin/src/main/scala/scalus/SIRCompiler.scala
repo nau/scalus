@@ -139,8 +139,6 @@ final class SIRCompiler(mode: scalus.Mode)(using ctx: Context) {
 
     private def compileTypeDef(td: TypeDef) = {
         val start = System.currentTimeMillis()
-        report.echo(s"compiling to SIR: ${td.name}")
-
         val tpl = td.rhs.asInstanceOf[Template]
         val bindings = tpl.body.flatMap {
             case dd: DefDef
