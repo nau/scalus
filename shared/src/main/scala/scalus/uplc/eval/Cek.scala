@@ -382,7 +382,7 @@ class CekMachine(val evaluationContext: EvaluationContext) {
                         budgetMemory += machineCosts.builtinCost.memory
                     case Error => // do nothing
             case ExBudgetCategory.BuiltinApp(costingFun, args) =>
-                val budget = costingFun.calculateCost(args)
+                val budget = costingFun.calculateCost(args: _*)
                 budgetCPU += budget.cpu
                 budgetMemory += budget.memory
     }

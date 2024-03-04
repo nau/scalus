@@ -64,9 +64,7 @@ class CekBudgetJVMSpec extends AnyFunSuite:
         val r = CostingFun(
           OneArgument.LinearCost(OneVariableLinearFunction(806990, 30482)),
           OneArgument.ConstantCost(4)
-        ).calculateCost(
-          Seq(VCon(Constant.Integer(3)))
-        )
+        ).calculateCost(VCon(Constant.Integer(3)))
         println(r)
         val cek = CekMachine(Cek.defaultEvaluationContext)
         cek.evalCek(program.term)

@@ -17,6 +17,7 @@ import scalus.uplc.eval.CostingFun
 import scalus.uplc.eval.KnownTypeUnliftingError
 
 import scala.collection.immutable
+import scala.collection.immutable.ArraySeq
 
 enum TypeScheme:
     case Type(argType: DefaultUni)
@@ -24,6 +25,11 @@ enum TypeScheme:
     case Arrow(argType: TypeScheme, t: TypeScheme)
     case All(name: String, t: TypeScheme)
     case TVar(name: String)
+
+    lazy val arity: Int = this match
+        case Arrow(_, t) => 1 + t.arity
+        case All(_, t)   => t.arity
+        case _           => 0
 
     def ->:(t: TypeScheme): TypeScheme = Arrow(t, this)
     def ->:(t: DefaultUni): TypeScheme = Arrow(Type(t), this)
@@ -47,7 +53,7 @@ object Meaning:
         infix def $(t: String): TypeScheme = TypeScheme.Type(x) $ t
 
     def mkMeaning(t: TypeScheme, f: AnyRef, costFunction: CostingFun[CostModel]) =
-        Runtime(t, f.asInstanceOf[AnyRef => AnyRef], Seq.empty, costFunction)
+        Runtime(t, f.asInstanceOf[AnyRef => AnyRef], ArraySeq.empty, costFunction)
     import TypeScheme.*
 
     val AddInteger =

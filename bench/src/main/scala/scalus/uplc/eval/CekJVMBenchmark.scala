@@ -38,6 +38,7 @@ class CekJVMBenchmark:
     )
     private var file: String = ""
     private var program: Program = null
+    val cek = CekMachine(Cek.defaultEvaluationContext)
 
     @Setup
     def readProgram() = {
@@ -51,6 +52,5 @@ class CekJVMBenchmark:
     @BenchmarkMode(Array(Mode.AverageTime))
     @OutputTimeUnit(TimeUnit.MICROSECONDS)
     def bench() = {
-        val cek = CekMachine(Cek.defaultEvaluationContext)
         cek.evalCek(program.term)
     }

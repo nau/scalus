@@ -310,7 +310,7 @@ object SixArguments {
 }
 
 case class CostingFun[+M <: CostModel](cpu: M, memory: M) derives ReadWriter {
-    def calculateCost(args: Seq[CekValue]): ExBudget = {
+    def calculateCost(args: CekValue*): ExBudget = {
         val argsMem = args.map(MemoryUsage.memoryUsage)
         val cpu = ExCPU(this.cpu.calculateCost(argsMem))
         val mem = ExMemory(this.memory.calculateCost(argsMem))
