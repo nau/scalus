@@ -1,18 +1,22 @@
 package scalus.uplc
 package eval
 
-import scalus.builtin.{ByteString, Data, PlatformSpecific}
+import cats.syntax.group.*
+import scalus.builtin.ByteString
+import scalus.builtin.Data
+import scalus.builtin.PlatformSpecific
 import scalus.uplc.Term.*
 
 import scala.annotation.tailrec
 import scala.collection.immutable
 import scala.collection.immutable.ArraySeq
+import scala.collection.mutable.HashMap
 import scala.util.control.NonFatal
 
 enum ExBudgetCategory:
     case Step(term: Term)
     case Startup
-    case BuiltinApp(costingFunction: CostingFun[CostModel], args: Seq[CekValue])
+    case BuiltinApp(bi: DefaultFun, budget: ExBudget)
 
 case class CekMachineCosts(
     startupCost: ExBudget,
@@ -299,7 +303,7 @@ class CekMachine(val evaluationContext: EvaluationContext) {
     ): CekValue = {
         runtime.typeScheme match
             case TypeScheme.Type(_) | TypeScheme.TVar(_) | TypeScheme.App(_, _) =>
-                spendBudget(ExBudgetCategory.BuiltinApp(runtime.costFunction, runtime.args))
+                spendBudget(ExBudgetCategory.BuiltinApp(builtinName, runtime.budget))
                 // eval the builtin and return result
                 try
                     // eval builtin when it's fully saturated, i.e. when all arguments were applied
@@ -357,6 +361,8 @@ class CekMachine(val evaluationContext: EvaluationContext) {
     private var budgetCPU = 0L
     private var budgetMemory = 0L
 
+    val builtinBudgetCosts: HashMap[DefaultFun, ExBudget] = HashMap.empty
+
     def getExBudget: ExBudget = ExBudget(ExCPU(budgetCPU), ExMemory(budgetMemory))
 
     private def spendBudget(cat: ExBudgetCategory): Unit = {
@@ -389,9 +395,12 @@ class CekMachine(val evaluationContext: EvaluationContext) {
                         budgetCPU += machineCosts.builtinCost.cpu
                         budgetMemory += machineCosts.builtinCost.memory
                     case Error => // do nothing
-            case ExBudgetCategory.BuiltinApp(costingFun, args) =>
-                val budget = costingFun.calculateCost(args: _*)
+            case ExBudgetCategory.BuiltinApp(builtin, budget) =>
                 budgetCPU += budget.cpu
                 budgetMemory += budget.memory
+                builtinBudgetCosts.updateWith(builtin) {
+                    case Some(b) => Some(b |+| budget)
+                    case None    => Some(budget)
+                }
     }
 }

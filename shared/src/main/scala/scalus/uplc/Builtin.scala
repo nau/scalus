@@ -19,6 +19,7 @@ import scalus.uplc.eval.KnownTypeUnliftingError
 import scala.collection.immutable
 import scala.collection.immutable.ArraySeq
 import scalus.uplc.eval.DeserializationError
+import scalus.uplc.eval.ExBudget
 
 enum TypeScheme:
     case Type(argType: DefaultUni)
@@ -42,7 +43,9 @@ case class Runtime(
     f: AnyRef => AnyRef,
     args: Seq[CekValue],
     costFunction: CostingFun[CostModel]
-)
+) {
+    def budget: ExBudget = costFunction.calculateCost(args: _*)
+}
 
 object Meaning:
     // local extension used to create a TypeScheme from a DefaultUni
