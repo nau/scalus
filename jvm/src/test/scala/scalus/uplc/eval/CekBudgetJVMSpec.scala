@@ -20,7 +20,7 @@ class CekBudgetJVMSpec extends AnyFunSuite:
             val cek = CekMachine(Cek.defaultEvaluationContext)
             val res = PlutusUplcEval.evalFlat(Program((1, 0, 0), term))
             (cek.runCek(debruijnedTerm), res) match
-                case (CekResult.Success(t1, budget), UplcEvalResult.Success(t2, budget2)) =>
+                case (CekResult.Success(t1, _, budget), UplcEvalResult.Success(t2, budget2)) =>
                     assert(budget == (expected |+| Cek.defaultMachineCosts.startupCost))
                     assert(budget == budget2)
                 case r => fail(s"Unexpected result for term $term: $r")

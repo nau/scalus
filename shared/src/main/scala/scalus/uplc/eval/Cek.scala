@@ -12,6 +12,7 @@ import scala.collection.immutable
 import scala.collection.immutable.ArraySeq
 import scala.collection.mutable.HashMap
 import scala.util.control.NonFatal
+import scala.collection.mutable.ArrayBuffer
 
 enum ExBudgetCategory:
     case Step(term: Term)
@@ -159,8 +160,9 @@ object Cek {
 
 sealed trait CekResult
 object CekResult:
-    case class Success(term: Term, budget: ExBudget) extends CekResult
-    case class Failure(msg: String, env: CekValEnv, budget: ExBudget) extends CekResult {
+    case class Success(term: Term, logs: Array[String], budget: ExBudget) extends CekResult
+    case class Failure(msg: String, env: CekValEnv, logs: Array[String], budget: ExBudget)
+        extends CekResult {
         def getCekStack: Array[String] = env.view.reverse.map(_._1).toArray
     }
 
@@ -182,6 +184,9 @@ class CekMachine(val evaluationContext: EvaluationContext) {
     import CekState.*
     import CekValue.*
     import Context.*
+
+    private[uplc] val logs: ArrayBuffer[String] = ArrayBuffer.empty[String]
+    def getLogs: Array[String] = logs.toArray
 
     /** Evaluates a UPLC term.
       *
@@ -213,8 +218,10 @@ class CekMachine(val evaluationContext: EvaluationContext) {
     def runCek(term: Term): CekResult = {
         try
             val res = evalCek(term)
-            CekResult.Success(res, getExBudget)
-        catch case e: StackTraceMachineError => CekResult.Failure(e.getMessage, e.env, getExBudget)
+            CekResult.Success(res, getLogs, getExBudget)
+        catch
+            case e: StackTraceMachineError =>
+                CekResult.Failure(e.getMessage, e.env, getLogs, getExBudget)
     }
 
     private final def computeCek(ctx: Context, env: CekValEnv, term: Term): CekState = {
@@ -310,8 +317,8 @@ class CekMachine(val evaluationContext: EvaluationContext) {
                     val applied = runtime.args.foldLeft(runtime.f) { case (f, arg) =>
                         f(arg).asInstanceOf[AnyRef => AnyRef]
                     }
-                    val f = applied.asInstanceOf[PlatformSpecific => CekValue]
-                    f(evaluationContext.platformSpecific)
+                    val f = applied.asInstanceOf[CekMachine => CekValue]
+                    f(this)
                 catch case NonFatal(e) => throw new BuiltinError(builtinName, term, e, env)
             case _ => VBuiltin(builtinName, term, runtime)
     }
