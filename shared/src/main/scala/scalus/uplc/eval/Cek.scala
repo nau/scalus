@@ -153,9 +153,12 @@ object Cek {
     )
 }
 
-enum CekResult:
-    case Success(term: Term, budget: ExBudget)
-    case Failure(msg: String, env: CekValEnv, budget: ExBudget)
+sealed trait CekResult
+object CekResult:
+    case class Success(term: Term, budget: ExBudget) extends CekResult
+    case class Failure(msg: String, env: CekValEnv, budget: ExBudget) extends CekResult {
+        def getCekStack: Array[String] = env.view.reverse.map(_._1).toArray
+    }
 
 class CekMachine(val evaluationContext: EvaluationContext) {
 
