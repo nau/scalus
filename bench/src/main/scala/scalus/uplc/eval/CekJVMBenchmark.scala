@@ -32,7 +32,7 @@ class CekJVMBenchmark:
         "auction_1-1.flat",
         "auction_1-2.flat",
         "auction_1-3.flat",
-        "auction_1-4.flat",
+        "auction_1-4.flat"
       )
     )
     private var file: String = ""

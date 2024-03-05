@@ -1,7 +1,6 @@
 package scalus.uplc
 package eval
 
-import cats.kernel.Group
 import scalus.builtin.{ByteString, Data, PlatformSpecific}
 import scalus.uplc.Term.*
 
@@ -9,37 +8,6 @@ import scala.annotation.tailrec
 import scala.collection.immutable
 import scala.collection.immutable.ArraySeq
 import scala.util.control.NonFatal
-
-opaque type ExCPU <: Long = Long
-object ExCPU {
-    inline def apply(l: Long): ExCPU = l
-}
-opaque type ExMemory <: Long = Long
-object ExMemory {
-    inline def apply(l: Long): ExMemory = l
-}
-
-case class ExBudget(cpu: ExCPU, memory: ExMemory)
-object ExBudget {
-
-    /** The zero budget */
-    val zero: ExBudget = ExBudget(ExCPU(0), ExMemory(0))
-
-    /** Constructs an 'ExBudget' from CPU and memory components. */
-    def fromCpuAndMemory(cpu: Long, memory: Long): ExBudget = ExBudget(ExCPU(cpu), ExMemory(memory))
-
-    /// Cats Group instance for ExBudget
-    given Group[ExBudget] with
-        def combine(x: ExBudget, y: ExBudget): ExBudget =
-            ExBudget(ExCPU(x.cpu + y.cpu), ExMemory(x.memory + y.memory))
-        def empty: ExBudget = ExBudget.zero
-        def inverse(x: ExBudget): ExBudget = ExBudget(ExCPU(-x.cpu), ExMemory(-x.memory))
-
-    given Ordering[ExBudget] with
-        def compare(x: ExBudget, y: ExBudget): Int =
-            val c = x.cpu.compareTo(y.cpu)
-            if c != 0 then c else x.memory.compareTo(y.memory)
-}
 
 enum ExBudgetCategory:
     case Step(term: Term)
@@ -187,7 +155,7 @@ object Cek {
 
 enum CekResult:
     case Success(term: Term, budget: ExBudget)
-    case Failure(msg: String, budget: ExBudget)
+    case Failure(msg: String, env: CekValEnv, budget: ExBudget)
 
 class CekMachine(val evaluationContext: EvaluationContext) {
 
@@ -239,7 +207,7 @@ class CekMachine(val evaluationContext: EvaluationContext) {
         try
             val res = evalCek(term)
             CekResult.Success(res, getExBudget)
-        catch case e: MachineError => CekResult.Failure(e.getMessage, getExBudget)
+        catch case e: StackTraceMachineError => CekResult.Failure(e.getMessage, e.env, getExBudget)
     }
 
     private final def computeCek(ctx: Context, env: CekValEnv, term: Term): CekState = {
