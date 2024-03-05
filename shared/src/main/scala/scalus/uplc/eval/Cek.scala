@@ -158,29 +158,39 @@ object Cek {
     )
 }
 
-sealed trait CekResult
-object CekResult:
-    case class Success(term: Term, logs: Array[String], budget: ExBudget) extends CekResult
+sealed trait CekResult {
+    def budget: ExBudget
+    def logs: Array[String]
+    def isSuccess: Boolean
+    def isFailure: Boolean
+}
+object CekResult {
+    case class Success(term: Term, logs: Array[String], budget: ExBudget) extends CekResult {
+        def isSuccess: Boolean = true
+        def isFailure: Boolean = false
+    }
     case class Failure(msg: String, env: CekValEnv, logs: Array[String], budget: ExBudget)
         extends CekResult {
         def getCekStack: Array[String] = env.view.reverse.map(_._1).toArray
+        def isSuccess: Boolean = false
+        def isFailure: Boolean = true
     }
+}
+
+private enum Context {
+    case FrameApplyFun(f: CekValue, ctx: Context)
+    case FrameApplyArg(env: CekValEnv, arg: Term, ctx: Context)
+    case FrameForce(ctx: Context)
+    case NoFrame
+}
+
+private enum CekState {
+    case Return(ctx: Context, env: CekValEnv, value: CekValue)
+    case Compute(ctx: Context, env: CekValEnv, term: Term)
+    case Done(term: Term)
+}
 
 class CekMachine(val evaluationContext: EvaluationContext) {
-
-    private enum Context {
-        case FrameApplyFun(f: CekValue, ctx: Context)
-        case FrameApplyArg(env: CekValEnv, arg: Term, ctx: Context)
-        case FrameForce(ctx: Context)
-        case NoFrame
-    }
-
-    private enum CekState {
-        case Return(ctx: Context, env: CekValEnv, value: CekValue)
-        case Compute(ctx: Context, env: CekValEnv, term: Term)
-        case Done(term: Term)
-
-    }
     import CekState.*
     import CekValue.*
     import Context.*
@@ -276,13 +286,13 @@ class CekMachine(val evaluationContext: EvaluationContext) {
         fun match
             case VLamAbs(name, term, env) => Compute(ctx, env :+ (name, arg), term)
             case VBuiltin(fun, term, runtime) =>
-                lazy val term1 = Apply(term(), dischargeCekValue(arg))
+                val term1 = () => Apply(term(), dischargeCekValue(arg))
                 runtime.typeScheme match
                     case TypeScheme.Arrow(_, rest) =>
                         val runtime1 = runtime.copy(args = runtime.args :+ arg, typeScheme = rest)
                         val res = evalBuiltinApp(env, fun, term1, runtime1)
                         Return(ctx, env, res)
-                    case _ => throw new UnexpectedBuiltinTermArgumentMachineError(term1, env)
+                    case _ => throw new UnexpectedBuiltinTermArgumentMachineError(term1(), env)
             case _ =>
                 throw new NonFunctionalApplicationMachineError(fun, env)
     }
@@ -298,7 +308,7 @@ class CekMachine(val evaluationContext: EvaluationContext) {
         value match
             case VDelay(term, env) => Compute(ctx, env, term)
             case VBuiltin(bn, term, rt) =>
-                lazy val term1 = Force(term())
+                val term1 = () => Force(term())
                 rt.typeScheme match
                     // It's only possible to force a builtin application if the builtin expects a type
                     // argument next.
@@ -309,7 +319,7 @@ class CekMachine(val evaluationContext: EvaluationContext) {
                         // application.
                         val res = evalBuiltinApp(env, bn, term1, runtime1)
                         Return(ctx, env, res)
-                    case _ => throw new BuiltinTermArgumentExpectedMachineError(term1, env)
+                    case _ => throw new BuiltinTermArgumentExpectedMachineError(term1(), env)
             case _ =>
                 throw new NonPolymorphicInstantiationMachineError(value, env)
     }
@@ -317,7 +327,7 @@ class CekMachine(val evaluationContext: EvaluationContext) {
     private def evalBuiltinApp(
         env: CekValEnv,
         builtinName: DefaultFun,
-        term: => Term,
+        term: () => Term, // lazily discharge the term as it might not be needed
         runtime: Runtime
     ): CekValue = {
         runtime.typeScheme match
@@ -331,8 +341,8 @@ class CekMachine(val evaluationContext: EvaluationContext) {
                     }
                     val f = applied.asInstanceOf[CekMachine => CekValue]
                     f(this)
-                catch case NonFatal(e) => throw new BuiltinError(builtinName, term, e, env)
-            case _ => VBuiltin(builtinName, () => term, runtime)
+                catch case NonFatal(e) => throw new BuiltinError(builtinName, term(), e, env)
+            case _ => VBuiltin(builtinName, term, runtime)
     }
 
     /** Converts a 'CekValue' into a 'Term' by replacing all bound variables with the terms they're
