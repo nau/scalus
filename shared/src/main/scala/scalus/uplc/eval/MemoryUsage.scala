@@ -9,12 +9,9 @@ trait MemoryUsage[A]:
     def memoryUsage(a: A): CostingInteger
 
 object MemoryUsage {
-    def memoryUsageInteger(i: BigInt): CostingInteger =
-        if i == 0 then 1 else i.bitLength / 8 + 1
+    def memoryUsageInteger(i: BigInt): CostingInteger = i.bitLength / 64
 
-    def memoryUsageByteString(bs: ByteString): CostingInteger =
-        val len = bs.bytes.length
-        if len == 0 then 1 else len / 8 + 1
+    def memoryUsageByteString(bs: ByteString): CostingInteger = bs.bytes.length / 8 + 1
 
     def memoryUsageString(s: String): CostingInteger = s.length
 
