@@ -15,9 +15,9 @@ import scala.util.control.NonFatal
 import scala.collection.mutable.ArrayBuffer
 
 enum ExBudgetCategory:
-    case Step(term: Term)
+    case Step
     case Startup
-    case BuiltinApp(bi: DefaultFun, budget: ExBudget)
+    case BuiltinApp(bi: DefaultFun)
 
 case class CekMachineCosts(
     startupCost: ExBudget,
@@ -87,7 +87,7 @@ enum CekValue {
     case VCon(const: Constant)
     case VDelay(term: Term, env: CekValEnv)
     case VLamAbs(name: String, term: Term, env: CekValEnv)
-    case VBuiltin(bn: DefaultFun, term: Term, runtime: Runtime)
+    case VBuiltin(bn: DefaultFun, term: () => Term, runtime: Runtime)
 
     def asUnit: Unit = this match {
         case VCon(Constant.Unit) => ()
@@ -203,7 +203,7 @@ class CekMachine(val evaluationContext: EvaluationContext) {
                 case Return(ctx, env, value) => loop(returnCek(ctx, env, value))
                 case Done(term)              => term
         }
-        spendBudget(ExBudgetCategory.Startup)
+        spendBudget(ExBudgetCategory.Startup, evaluationContext.params.machineCosts.startupCost)
         loop(Compute(NoFrame, ArraySeq.empty, term))
     }
 
@@ -225,18 +225,31 @@ class CekMachine(val evaluationContext: EvaluationContext) {
     }
 
     private final def computeCek(ctx: Context, env: CekValEnv, term: Term): CekState = {
-        spendBudget(ExBudgetCategory.Step(term))
+        val costs = evaluationContext.params.machineCosts
         term match
-            case Var(name)          => Return(ctx, env, lookupVarName(env, name))
-            case LamAbs(name, term) => Return(ctx, env, VLamAbs(name, term, env))
-            case Apply(fun, arg)    => Compute(FrameApplyArg(env, arg, ctx), env, fun)
-            case Force(term)        => Compute(FrameForce(ctx), env, term)
-            case Delay(term)        => Return(ctx, env, VDelay(term, env))
-            case Const(const)       => Return(ctx, env, VCon(const))
-            case Builtin(bn)        =>
+            case Var(name) =>
+                spendBudget(ExBudgetCategory.Step, costs.varCost)
+                Return(ctx, env, lookupVarName(env, name))
+            case LamAbs(name, term) =>
+                spendBudget(ExBudgetCategory.Step, costs.lamCost)
+                Return(ctx, env, VLamAbs(name, term, env))
+            case Apply(fun, arg) =>
+                spendBudget(ExBudgetCategory.Step, costs.applyCost)
+                Compute(FrameApplyArg(env, arg, ctx), env, fun)
+            case Force(term) =>
+                spendBudget(ExBudgetCategory.Step, costs.forceCost)
+                Compute(FrameForce(ctx), env, term)
+            case Delay(term) =>
+                spendBudget(ExBudgetCategory.Step, costs.delayCost)
+                Return(ctx, env, VDelay(term, env))
+            case Const(const) =>
+                spendBudget(ExBudgetCategory.Step, costs.constCost)
+                Return(ctx, env, VCon(const))
+            case Builtin(bn) =>
+                spendBudget(ExBudgetCategory.Step, costs.builtinCost)
                 // The @term@ is a 'Builtin', so it's fully discharged.
                 Meaning.BuiltinMeanings.get(bn) match
-                    case Some(meaning) => Return(ctx, env, VBuiltin(bn, term, meaning))
+                    case Some(meaning) => Return(ctx, env, VBuiltin(bn, () => term, meaning))
                     case None          => throw new UnknownBuiltin(bn, env)
             case Error => throw new EvaluationFailure(env)
     }
@@ -263,8 +276,7 @@ class CekMachine(val evaluationContext: EvaluationContext) {
         fun match
             case VLamAbs(name, term, env) => Compute(ctx, env :+ (name, arg), term)
             case VBuiltin(fun, term, runtime) =>
-                val argTerm = dischargeCekValue(arg)
-                val term1 = Apply(term, argTerm)
+                lazy val term1 = Apply(term(), dischargeCekValue(arg))
                 runtime.typeScheme match
                     case TypeScheme.Arrow(_, rest) =>
                         val runtime1 = runtime.copy(args = runtime.args :+ arg, typeScheme = rest)
@@ -286,7 +298,7 @@ class CekMachine(val evaluationContext: EvaluationContext) {
         value match
             case VDelay(term, env) => Compute(ctx, env, term)
             case VBuiltin(bn, term, rt) =>
-                val term1 = Force(term)
+                lazy val term1 = Force(term())
                 rt.typeScheme match
                     // It's only possible to force a builtin application if the builtin expects a type
                     // argument next.
@@ -305,12 +317,12 @@ class CekMachine(val evaluationContext: EvaluationContext) {
     private def evalBuiltinApp(
         env: CekValEnv,
         builtinName: DefaultFun,
-        term: Term,
+        term: => Term,
         runtime: Runtime
     ): CekValue = {
         runtime.typeScheme match
             case TypeScheme.Type(_) | TypeScheme.TVar(_) | TypeScheme.App(_, _) =>
-                spendBudget(ExBudgetCategory.BuiltinApp(builtinName, runtime.budget))
+                spendBudget(ExBudgetCategory.BuiltinApp(builtinName), runtime.budget)
                 // eval the builtin and return result
                 try
                     // eval builtin when it's fully saturated, i.e. when all arguments were applied
@@ -320,7 +332,7 @@ class CekMachine(val evaluationContext: EvaluationContext) {
                     val f = applied.asInstanceOf[CekMachine => CekValue]
                     f(this)
                 catch case NonFatal(e) => throw new BuiltinError(builtinName, term, e, env)
-            case _ => VBuiltin(builtinName, term, runtime)
+            case _ => VBuiltin(builtinName, () => term, runtime)
     }
 
     /** Converts a 'CekValue' into a 'Term' by replacing all bound variables with the terms they're
@@ -362,7 +374,7 @@ class CekMachine(val evaluationContext: EvaluationContext) {
             // argument of 'computeCek' and hence we need to start discharging outside of the reassembled
             // lambda, otherwise @name@ could clash with the names that we have in @env@.
             case VLamAbs(name, term, env) => dischargeCekValEnv(env, LamAbs(name, term))
-            case VBuiltin(_, term, _)     => term
+            case VBuiltin(_, term, _)     => term()
     }
 
     private var budgetCPU = 0L
@@ -372,42 +384,15 @@ class CekMachine(val evaluationContext: EvaluationContext) {
 
     def getExBudget: ExBudget = ExBudget(ExCPU(budgetCPU), ExMemory(budgetMemory))
 
-    private def spendBudget(cat: ExBudgetCategory): Unit = {
-        val machineCosts = evaluationContext.params.machineCosts
+    private def spendBudget(cat: ExBudgetCategory, budget: ExBudget): Unit = {
+        budgetCPU += budget.cpu
+        budgetMemory += budget.memory
         cat match
-            case ExBudgetCategory.Startup =>
-                budgetCPU += machineCosts.startupCost.cpu
-                budgetMemory += machineCosts.startupCost.memory
-            case ExBudgetCategory.Step(term) =>
-                term match
-                    case _: Var =>
-                        budgetCPU += machineCosts.varCost.cpu
-                        budgetMemory += machineCosts.varCost.memory
-                    case _: Const =>
-                        budgetCPU += machineCosts.constCost.cpu
-                        budgetMemory += machineCosts.constCost.memory
-                    case _: LamAbs =>
-                        budgetCPU += machineCosts.lamCost.cpu
-                        budgetMemory += machineCosts.lamCost.memory
-                    case _: Delay =>
-                        budgetCPU += machineCosts.delayCost.cpu
-                        budgetMemory += machineCosts.delayCost.memory
-                    case _: Force =>
-                        budgetCPU += machineCosts.forceCost.cpu
-                        budgetMemory += machineCosts.forceCost.memory
-                    case _: Apply =>
-                        budgetCPU += machineCosts.applyCost.cpu
-                        budgetMemory += machineCosts.applyCost.memory
-                    case _: Builtin =>
-                        budgetCPU += machineCosts.builtinCost.cpu
-                        budgetMemory += machineCosts.builtinCost.memory
-                    case Error => // do nothing
-            case ExBudgetCategory.BuiltinApp(builtin, budget) =>
-                budgetCPU += budget.cpu
-                budgetMemory += budget.memory
+            case ExBudgetCategory.BuiltinApp(builtin) =>
                 builtinBudgetCosts.updateWith(builtin) {
                     case Some(b) => Some(b |+| budget)
                     case None    => Some(budget)
                 }
+            case _ =>
     }
 }
