@@ -190,6 +190,21 @@ private enum CekState {
     case Done(term: Term)
 }
 
+/** CEK machine implementation based on Cardano Plutus CEK machine.
+  *
+  * The CEK machine is a stack-based abstract machine that is used to evaluate UPLC terms.
+  *
+  * @param evaluationContext
+  *   The evaluation context
+  * @see
+  *   https://github.com/input-output-hk/plutus/blob/41a7afebc4cee277bab702ee1678c070e5e38810/plutus-core/untyped-plutus-core/src/UntypedPlutusCore/Evaluation/Machine/Cek/Internal.hs
+  * @example
+  *   {{{
+  *   val term = LamAbs("x", Apply(Var(NamedDeBruijn("x", 0)), Var(NamedDeBruijn("x", 0))))
+  *   val cek = new CekMachine(Cek.defaultEvaluationContext)
+  *   val res = cek.runCek(term)
+  *   }}}
+  */
 class CekMachine(val evaluationContext: EvaluationContext) {
     import CekState.*
     import CekValue.*
@@ -222,8 +237,8 @@ class CekMachine(val evaluationContext: EvaluationContext) {
       * @param term
       *   The term to evaluate
       * @return
-      *   CekResult, either a success with the resulting term and the execution budget, or a failure
-      *   with an error message and the execution budget.
+      *   [[CekResult]], either a success with the resulting term and the execution budget, or a
+      *   failure with an error message and the execution budget.
       */
     def runCek(term: Term): CekResult = {
         try
@@ -332,15 +347,14 @@ class CekMachine(val evaluationContext: EvaluationContext) {
     ): CekValue = {
         runtime.typeScheme match
             case TypeScheme.Type(_) | TypeScheme.TVar(_) | TypeScheme.App(_, _) =>
-                spendBudget(ExBudgetCategory.BuiltinApp(builtinName), runtime.budget)
+                spendBudget(
+                  ExBudgetCategory.BuiltinApp(builtinName),
+                  runtime.calculateCost(evaluationContext.params.builtinCostModel)
+                )
                 // eval the builtin and return result
                 try
                     // eval builtin when it's fully saturated, i.e. when all arguments were applied
-                    val applied = runtime.args.foldLeft(runtime.f) { case (f, arg) =>
-                        f(arg).asInstanceOf[AnyRef => AnyRef]
-                    }
-                    val f = applied.asInstanceOf[CekMachine => CekValue]
-                    f(this)
+                    runtime.apply(this)
                 catch case NonFatal(e) => throw new BuiltinError(builtinName, term(), e, env)
             case _ => VBuiltin(builtinName, term, runtime)
     }

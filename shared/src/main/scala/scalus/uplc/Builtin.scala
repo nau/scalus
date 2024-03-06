@@ -42,9 +42,15 @@ case class Runtime(
     typeScheme: TypeScheme,
     f: AnyRef => AnyRef,
     args: Seq[CekValue],
-    costFunction: CostingFun[CostModel]
+    costFunction: BuiltinCostModel => CostingFun[CostModel]
 ) {
-    def budget: ExBudget = costFunction.calculateCost(args: _*)
+    def apply(m: CekMachine) = {
+        val applied = args.foldLeft(f) { (f, arg) => f(arg).asInstanceOf[AnyRef => AnyRef] }
+        applied.asInstanceOf[CekMachine => CekValue](m)
+    }
+
+    def calculateCost(costModel: BuiltinCostModel): ExBudget =
+        costFunction(costModel).calculateCost(args: _*)
 }
 
 object Meaning:
@@ -56,7 +62,11 @@ object Meaning:
         infix def $(t: TypeScheme): TypeScheme = TypeScheme.Type(x) $ t
         infix def $(t: String): TypeScheme = TypeScheme.Type(x) $ t
 
-    def mkMeaning(t: TypeScheme, f: AnyRef, costFunction: CostingFun[CostModel]) =
+    def mkMeaning(
+        t: TypeScheme,
+        f: AnyRef,
+        costFunction: BuiltinCostModel => CostingFun[CostModel]
+    ) =
         Runtime(t, f.asInstanceOf[AnyRef => AnyRef], ArraySeq.empty, costFunction)
     import TypeScheme.*
 
@@ -69,7 +79,7 @@ object Meaning:
                   val bb = b.asInteger
                   (m: CekMachine) => VCon(asConstant(addInteger(aa, bb)))
           ,
-          BuiltinCostModel.defaultBuiltinCostModel.addInteger
+          _.addInteger
         )
     val SubtractInteger =
         mkMeaning(
@@ -80,7 +90,7 @@ object Meaning:
                   val bb = b.asInteger
                   (m: CekMachine) => VCon(asConstant(subtractInteger(aa, bb)))
           ,
-          BuiltinCostModel.defaultBuiltinCostModel.subtractInteger
+          _.subtractInteger
         )
     val MultiplyInteger =
         mkMeaning(
@@ -91,7 +101,7 @@ object Meaning:
                   val bb = b.asInteger
                   (m: CekMachine) => VCon(asConstant(multiplyInteger(aa, bb)))
           ,
-          BuiltinCostModel.defaultBuiltinCostModel.multiplyInteger
+          _.multiplyInteger
         )
     val DivideInteger =
         mkMeaning(
@@ -102,7 +112,7 @@ object Meaning:
                   val bb = b.asInteger
                   (m: CekMachine) => VCon(asConstant(divideInteger(aa, bb)))
           ,
-          BuiltinCostModel.defaultBuiltinCostModel.divideInteger
+          _.divideInteger
         )
     val QuotientInteger =
         mkMeaning(
@@ -113,7 +123,7 @@ object Meaning:
                   val bb = b.asInteger
                   (m: CekMachine) => VCon(asConstant(quotientInteger(aa, bb)))
           ,
-          BuiltinCostModel.defaultBuiltinCostModel.quotientInteger
+          _.quotientInteger
         )
     val RemainderInteger =
         mkMeaning(
@@ -124,7 +134,7 @@ object Meaning:
                   val bb = b.asInteger
                   (m: CekMachine) => VCon(asConstant(remainderInteger(aa, bb)))
           ,
-          BuiltinCostModel.defaultBuiltinCostModel.remainderInteger
+          _.remainderInteger
         )
     val ModInteger =
         mkMeaning(
@@ -135,7 +145,7 @@ object Meaning:
                   val bb = b.asInteger
                   (m: CekMachine) => VCon(asConstant(modInteger(aa, bb)))
           ,
-          BuiltinCostModel.defaultBuiltinCostModel.modInteger
+          _.modInteger
         )
     val EqualsInteger =
         mkMeaning(
@@ -146,7 +156,7 @@ object Meaning:
                   val bb = b.asInteger
                   (m: CekMachine) => VCon(asConstant(equalsInteger(aa, bb)))
           ,
-          BuiltinCostModel.defaultBuiltinCostModel.equalsInteger
+          _.equalsInteger
         )
     val LessThanEqualsInteger =
         mkMeaning(
@@ -157,7 +167,7 @@ object Meaning:
                   val bb = b.asInteger
                   (m: CekMachine) => VCon(asConstant(lessThanEqualsInteger(aa, bb)))
           ,
-          BuiltinCostModel.defaultBuiltinCostModel.lessThanEqualsInteger
+          _.lessThanEqualsInteger
         )
     val LessThanInteger =
         mkMeaning(
@@ -168,7 +178,7 @@ object Meaning:
                   val bb = b.asInteger
                   (m: CekMachine) => VCon(asConstant(lessThanInteger(aa, bb)))
           ,
-          BuiltinCostModel.defaultBuiltinCostModel.lessThanInteger
+          _.lessThanInteger
         )
 
     val AppendByteString =
@@ -180,7 +190,7 @@ object Meaning:
                   val bb = b.asByteString
                   (m: CekMachine) => VCon(asConstant(appendByteString(aa, bb)))
           ,
-          BuiltinCostModel.defaultBuiltinCostModel.appendByteString
+          _.appendByteString
         )
 
     val ConsByteString =
@@ -192,7 +202,7 @@ object Meaning:
                   val bb = b.asByteString
                   (m: CekMachine) => VCon(asConstant(consByteString(aa, bb)))
           ,
-          BuiltinCostModel.defaultBuiltinCostModel.consByteString
+          _.consByteString
         )
 
     val SliceByteString =
@@ -206,7 +216,7 @@ object Meaning:
                       val end = c.asInteger
                       (m: CekMachine) => VCon(asConstant(sliceByteString(bs, start, end)))
           ,
-          BuiltinCostModel.defaultBuiltinCostModel.sliceByteString
+          _.sliceByteString
         )
 
     val IndexByteString =
@@ -218,7 +228,7 @@ object Meaning:
                   val bb = b.asInteger
                   (m: CekMachine) => VCon(asConstant(indexByteString(aa, bb)))
           ,
-          BuiltinCostModel.defaultBuiltinCostModel.indexByteString
+          _.indexByteString
         )
 
     val LengthOfByteString =
@@ -228,7 +238,7 @@ object Meaning:
               val aa = a.asByteString
               (m: CekMachine) => VCon(asConstant(lengthOfByteString(aa)))
           ,
-          BuiltinCostModel.defaultBuiltinCostModel.lengthOfByteString
+          _.lengthOfByteString
         )
 
     val EqualsByteString =
@@ -240,7 +250,7 @@ object Meaning:
                   val bb = b.asByteString
                   (m: CekMachine) => VCon(asConstant(aa == bb))
           ,
-          BuiltinCostModel.defaultBuiltinCostModel.equalsByteString
+          _.equalsByteString
         )
 
     val LessThanByteString =
@@ -252,7 +262,7 @@ object Meaning:
                   val bb = b.asByteString
                   (m: CekMachine) => VCon(asConstant(lessThanByteString(aa, bb)))
           ,
-          BuiltinCostModel.defaultBuiltinCostModel.lessThanByteString
+          _.lessThanByteString
         )
 
     val LessThanEqualsByteString =
@@ -264,7 +274,7 @@ object Meaning:
                   val bb = b.asByteString
                   (m: CekMachine) => VCon(asConstant(lessThanEqualsByteString(aa, bb)))
           ,
-          BuiltinCostModel.defaultBuiltinCostModel.lessThanEqualsByteString
+          _.lessThanEqualsByteString
         )
 
     val Sha2_256 =
@@ -275,7 +285,7 @@ object Meaning:
               (m: CekMachine) =>
                   VCon(asConstant(sha2_256(using m.evaluationContext.platformSpecific)(aa)))
           ,
-          BuiltinCostModel.defaultBuiltinCostModel.sha2_256
+          _.sha2_256
         )
 
     val Sha3_256 =
@@ -286,7 +296,7 @@ object Meaning:
               (m: CekMachine) =>
                   VCon(asConstant(sha3_256(using m.evaluationContext.platformSpecific)(aa)))
           ,
-          BuiltinCostModel.defaultBuiltinCostModel.sha3_256
+          _.sha3_256
         )
 
     val Blake2b_256 =
@@ -297,7 +307,7 @@ object Meaning:
               (m: CekMachine) =>
                   VCon(asConstant(blake2b_256(using m.evaluationContext.platformSpecific)(aa)))
           ,
-          BuiltinCostModel.defaultBuiltinCostModel.blake2b_256
+          _.blake2b_256
         )
 
     val VerifyEd25519Signature = {
@@ -322,7 +332,7 @@ object Meaning:
                             )
                           )
           ,
-          BuiltinCostModel.defaultBuiltinCostModel.verifyEd25519Signature
+          _.verifyEd25519Signature
         )
     }
 
@@ -346,7 +356,7 @@ object Meaning:
                             )
                           )
           ,
-          BuiltinCostModel.defaultBuiltinCostModel.verifyEcdsaSecp256k1Signature
+          _.verifyEcdsaSecp256k1Signature
         )
     }
 
@@ -370,7 +380,7 @@ object Meaning:
                             )
                           )
           ,
-          BuiltinCostModel.defaultBuiltinCostModel.verifySchnorrSecp256k1Signature
+          _.verifySchnorrSecp256k1Signature
         )
     }
 
@@ -383,7 +393,7 @@ object Meaning:
                   val bb = b.asString
                   (m: CekMachine) => VCon(asConstant(appendString(aa, bb)))
           ,
-          BuiltinCostModel.defaultBuiltinCostModel.appendString
+          _.appendString
         )
 
     val EqualsString =
@@ -395,7 +405,7 @@ object Meaning:
                   val bb = b.asString
                   (m: CekMachine) => VCon(asConstant(equalsString(aa, bb)))
           ,
-          BuiltinCostModel.defaultBuiltinCostModel.equalsString
+          _.equalsString
         )
 
     val EncodeUtf8 = {
@@ -406,7 +416,7 @@ object Meaning:
               val aa = a.asString
               (m: CekMachine) => VCon(asConstant(encodeUtf8(aa)))
           ,
-          BuiltinCostModel.defaultBuiltinCostModel.encodeUtf8
+          _.encodeUtf8
         )
     }
 
@@ -417,7 +427,7 @@ object Meaning:
               val aa = a.asByteString
               (m: CekMachine) => VCon(asConstant(decodeUtf8(aa)))
           ,
-          BuiltinCostModel.defaultBuiltinCostModel.decodeUtf8
+          _.decodeUtf8
         )
 
     val IfThenElse =
@@ -427,7 +437,7 @@ object Meaning:
               val bb = b.asBool
               (t: CekValue) => (f: CekValue) => (m: CekMachine) => ifThenElse(bb, t, f)
           ,
-          BuiltinCostModel.defaultBuiltinCostModel.ifThenElse
+          _.ifThenElse
         )
 
     val ChooseUnit =
@@ -438,7 +448,7 @@ object Meaning:
                   case VCon(Constant.Unit) => (a: CekValue) => (m: CekMachine) => a
                   case _ => throw new DeserializationError(DefaultFun.ChooseUnit, unit)
           },
-          BuiltinCostModel.defaultBuiltinCostModel.chooseUnit
+          _.chooseUnit
         )
 
     val Trace =
@@ -448,7 +458,7 @@ object Meaning:
               val aa = a.asString
               (b: CekValue) => (m: CekMachine) => m.logs.addOne(aa)
           ,
-          BuiltinCostModel.defaultBuiltinCostModel.trace
+          _.trace
         )
 
     // [ forall a, forall b, pair(a, b) ] -> a
@@ -459,7 +469,7 @@ object Meaning:
               val (fst, _) = a.asPair
               (m: CekMachine) => VCon(fst)
           ,
-          BuiltinCostModel.defaultBuiltinCostModel.fstPair
+          _.fstPair
         )
 
     // [ forall a, forall b, pair(a, b) ] -> b
@@ -470,7 +480,7 @@ object Meaning:
               val (_, snd) = a.asPair
               (m: CekMachine) => VCon(snd)
           ,
-          BuiltinCostModel.defaultBuiltinCostModel.sndPair
+          _.sndPair
         )
 
     // [ forall a, forall b, list(a), b, b ] -> b
@@ -484,7 +494,7 @@ object Meaning:
               val ls = a.asList
               (b: CekValue) => (c: CekValue) => (m: CekMachine) => if ls.isEmpty then b else c
           ,
-          BuiltinCostModel.defaultBuiltinCostModel.chooseList
+          _.chooseList
         )
 
     // [ forall a, a, list(a) ] -> list(a)
@@ -503,7 +513,7 @@ object Meaning:
                           else (m: CekMachine) => VCon(Constant.List(tp, aCon :: l))
                       case _ => throw new DeserializationError(DefaultFun.MkCons, b)
                   },
-          BuiltinCostModel.defaultBuiltinCostModel.mkCons
+          _.mkCons
         )
 
     // [ forall a, list(a) ] -> a
@@ -514,7 +524,7 @@ object Meaning:
               val ls = a.asList
               (m: CekMachine) => VCon(ls.head)
           ,
-          BuiltinCostModel.defaultBuiltinCostModel.headList
+          _.headList
         )
 
     // [ forall a, list(a) ] -> list(a)
@@ -527,7 +537,7 @@ object Meaning:
                       (m: CekMachine) => VCon(Constant.List(tpe, ls.tail))
                   case _ => throw new DeserializationError(DefaultFun.TailList, a)
               },
-          BuiltinCostModel.defaultBuiltinCostModel.tailList
+          _.tailList
         )
 
     // [ forall a, list(a) ] -> bool
@@ -538,7 +548,7 @@ object Meaning:
               val ls = a.asList
               (m: CekMachine) => VCon(asConstant(ls.isEmpty))
           ,
-          BuiltinCostModel.defaultBuiltinCostModel.nullList
+          _.nullList
         )
 
     val ChooseData =
@@ -557,7 +567,7 @@ object Meaning:
                           (e: CekValue) =>
                               (f: CekValue) => (m: CekMachine) => chooseData(aa, b, c, d, e, f)
           ,
-          BuiltinCostModel.defaultBuiltinCostModel.chooseData
+          _.chooseData
         )
 
     val ConstrData =
@@ -579,7 +589,7 @@ object Meaning:
                         Constant.Data(Data.Constr(i.longValue, args))
                       )
           ,
-          BuiltinCostModel.defaultBuiltinCostModel.constrData
+          _.constrData
         )
 
     val MapData =
@@ -599,7 +609,7 @@ object Meaning:
                     }))
                   )
           ,
-          BuiltinCostModel.defaultBuiltinCostModel.mapData
+          _.mapData
         )
 
     val ListData =
@@ -613,7 +623,7 @@ object Meaning:
               }
               (m: CekMachine) => VCon(Constant.Data(Data.List(datas)))
           ,
-          BuiltinCostModel.defaultBuiltinCostModel.listData
+          _.listData
         )
 
     val IData =
@@ -623,7 +633,7 @@ object Meaning:
               val aa = a.asInteger
               (m: CekMachine) => VCon(Constant.Data(Data.I(aa)))
           ,
-          BuiltinCostModel.defaultBuiltinCostModel.iData
+          _.iData
         )
 
     val BData =
@@ -633,7 +643,7 @@ object Meaning:
               val aa = a.asByteString
               (m: CekMachine) => VCon(Constant.Data(Data.B(aa)))
           ,
-          BuiltinCostModel.defaultBuiltinCostModel.bData
+          _.bData
         )
 
     /*
@@ -651,7 +661,7 @@ object Meaning:
                           )
                   case _ => throw new DeserializationError(DefaultFun.UnConstrData, a)
               },
-          BuiltinCostModel.defaultBuiltinCostModel.unConstrData
+          _.unConstrData
         )
 
     /*  unMapData : [ data ] -> list(pair(data, data))
@@ -673,7 +683,7 @@ object Meaning:
                           )
                   case _ => throw new DeserializationError(DefaultFun.UnMapData, a)
               },
-          BuiltinCostModel.defaultBuiltinCostModel.unMapData
+          _.unMapData
         )
     /*  unListData : [ data ] -> list(data)
      */
@@ -687,7 +697,7 @@ object Meaning:
                           VCon(Constant.List(DefaultUni.Data, values.map(asConstant)))
                   case _ => throw new DeserializationError(DefaultFun.UnListData, a)
           },
-          BuiltinCostModel.defaultBuiltinCostModel.unListData
+          _.unListData
         )
 
     /*  unIData : [ data ] -> integer
@@ -701,7 +711,7 @@ object Meaning:
                       (m: CekMachine) => VCon(asConstant(i))
                   case _ => throw new DeserializationError(DefaultFun.UnIData, a)
           },
-          BuiltinCostModel.defaultBuiltinCostModel.unIData
+          _.unIData
         )
 
     /*  unBData : [ data ] -> bytestring
@@ -715,7 +725,7 @@ object Meaning:
                       (m: CekMachine) => VCon(asConstant(b))
                   case _ => throw new DeserializationError(DefaultFun.UnBData, a)
           },
-          BuiltinCostModel.defaultBuiltinCostModel.unBData
+          _.unBData
         )
 
     val EqualsData =
@@ -727,7 +737,7 @@ object Meaning:
                   val bb = b.asData
                   (m: CekMachine) => VCon(Constant.Bool(equalsData(aa, bb)))
           ,
-          BuiltinCostModel.defaultBuiltinCostModel.equalsData
+          _.equalsData
         )
 
     val SerialiseData = mkMeaning(
@@ -736,7 +746,7 @@ object Meaning:
           val aa = a.asData
           (m: CekMachine) => VCon(Constant.ByteString(serialiseData(aa)))
       ,
-      BuiltinCostModel.defaultBuiltinCostModel.serialiseData
+      _.serialiseData
     )
 
     val MkPairData =
@@ -748,7 +758,7 @@ object Meaning:
                   val bb = b.asData
                   (m: CekMachine) => VCon(Constant.Pair(asConstant(aa), asConstant(bb)))
           ,
-          BuiltinCostModel.defaultBuiltinCostModel.mkPairData
+          _.mkPairData
         )
 
     val MkNilData =
@@ -758,7 +768,7 @@ object Meaning:
               val _ = a.asUnit
               (m: CekMachine) => VCon(Constant.List(DefaultUni.Data, Nil))
           ,
-          BuiltinCostModel.defaultBuiltinCostModel.mkNilData
+          _.mkNilData
         )
 
     val MkNilPairData = mkMeaning(
@@ -768,7 +778,7 @@ object Meaning:
           (m: CekMachine) =>
               VCon(Constant.List(DefaultUni.Pair(DefaultUni.Data, DefaultUni.Data), Nil))
       ,
-      BuiltinCostModel.defaultBuiltinCostModel.mkNilPairData
+      _.mkNilPairData
     )
 
     val BuiltinMeanings: immutable.Map[DefaultFun, Runtime] = immutable.Map.apply(
