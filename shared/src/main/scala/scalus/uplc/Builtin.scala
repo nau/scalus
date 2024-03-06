@@ -53,7 +53,7 @@ case class Runtime(
 }
 
 object Meaning {
-    val plutusV2Builtins = Meaning(BuiltinCostModel.defaultBuiltinCostModel)
+    val plutusV2Builtins = Meaning(BuiltinCostModel.plutusV2BuiltinCostModel)
 }
 
 class Meaning(builtinCostModel: BuiltinCostModel):

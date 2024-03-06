@@ -72,7 +72,7 @@ case class BuiltinCostModel(
 
 object BuiltinCostModel {
 
-    val defaultBuiltinCostModel = BuiltinCostModel(
+    val plutusV2BuiltinCostModel = BuiltinCostModel(
       addInteger = CostingFun(
         cpu = TwoArguments.MaxSize(OneVariableLinearFunction(intercept = 205665, slope = 812)),
         memory = TwoArguments.MaxSize(OneVariableLinearFunction(intercept = 1, slope = 1))

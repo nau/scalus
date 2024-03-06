@@ -14,7 +14,7 @@ import scalus.uplc.eval.CekValue.VCon
 class CekBudgetJVMSpec extends AnyFunSuite:
     test("Check machine budget for terms is correct") {
         import cats.syntax.all.*
-        import Cek.defaultMachineCosts.*
+        import Cek.plutusV2MachineCosts.*
         def check(term: Term, expected: ExBudget) = {
             val debruijnedTerm = DeBruijn.deBruijnTerm(term)
             val cek =
@@ -23,7 +23,7 @@ class CekBudgetJVMSpec extends AnyFunSuite:
             (cek.runCek(debruijnedTerm), res) match
                 case (CekResult.Success(t1, _, budget), UplcEvalResult.Success(t2, budget2)) =>
                     assert(
-                      budget == (expected |+| Cek.defaultMachineCosts.startupCost),
+                      budget == (expected |+| Cek.plutusV2MachineCosts.startupCost),
                       s"for term $term"
                     )
                     assert(budget == budget2)
@@ -48,13 +48,13 @@ class CekBudgetJVMSpec extends AnyFunSuite:
     test("Check builtinCostModel.json == defaultBuiltinCostModel") {
         val input = this.getClass().getResourceAsStream("/builtinCostModel.json")
         val costModel = BuiltinCostModel.fromInputStream(input)
-        assert(costModel == BuiltinCostModel.defaultBuiltinCostModel)
+        assert(costModel == BuiltinCostModel.plutusV2BuiltinCostModel)
     }
 
     ignore("Check jvm/src/main/resources/cekMachineCosts.json.json == defaultMachineCosts") {
         val input = this.getClass().getResourceAsStream("/cekMachineCosts.json")
         val costModel = BuiltinCostModel.fromInputStream(input)
-        assert(costModel == BuiltinCostModel.defaultBuiltinCostModel)
+        assert(costModel == BuiltinCostModel.plutusV2BuiltinCostModel)
     }
 
     test("Run") {

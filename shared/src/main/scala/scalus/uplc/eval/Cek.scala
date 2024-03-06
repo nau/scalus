@@ -121,19 +121,14 @@ enum CekValue {
 
 object Cek {
     def evalUPLC(term: Term)(using ps: PlatformSpecific): Term = {
-        val params =
-            MachineParams(
-              machineCosts = defaultMachineCosts,
-              builtinMeanings = Meaning.plutusV2Builtins.BuiltinMeanings,
-              platformSpecific = ps
-            )
+        val params = plutusV2Params
         val debruijnedTerm = DeBruijn.deBruijnTerm(term)
         new CekMachine(params).evalCek(debruijnedTerm)
     }
 
     def evalUPLCProgram(p: Program)(using ps: PlatformSpecific): Term = evalUPLC(p.term)
 
-    val defaultMachineCosts: CekMachineCosts = CekMachineCosts(
+    val plutusV1MachineCosts: CekMachineCosts = CekMachineCosts(
       startupCost = ExBudget(ExCPU(100), ExMemory(100)),
       varCost = ExBudget(ExCPU(23000), ExMemory(100)),
       constCost = ExBudget(ExCPU(23000), ExMemory(100)),
@@ -144,9 +139,11 @@ object Cek {
       builtinCost = ExBudget(ExCPU(23000), ExMemory(100))
     )
 
+    val plutusV2MachineCosts = plutusV1MachineCosts
+
     def plutusV2Params(using ps: PlatformSpecific): MachineParams =
         MachineParams(
-          machineCosts = defaultMachineCosts,
+          machineCosts = plutusV2MachineCosts,
           builtinMeanings = Meaning.plutusV2Builtins.BuiltinMeanings,
           platformSpecific = ps
         )
