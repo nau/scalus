@@ -30,13 +30,9 @@ case class CekMachineCosts(
     builtinCost: ExBudget
 )
 
-case class MachineParameters(
+case class MachineParams(
     machineCosts: CekMachineCosts,
-    builtinCostModel: BuiltinCostModel
-)
-
-case class EvaluationContext(
-    params: MachineParameters,
+    builtinMeanings: Map[DefaultFun, Runtime],
     platformSpecific: PlatformSpecific
 )
 
@@ -125,15 +121,14 @@ enum CekValue {
 
 object Cek {
     def evalUPLC(term: Term)(using ps: PlatformSpecific): Term = {
-        val evaluationContext = EvaluationContext(
-          MachineParameters(
-            machineCosts = defaultMachineCosts,
-            builtinCostModel = BuiltinCostModel.defaultBuiltinCostModel
-          ),
-          platformSpecific = ps
-        )
+        val params =
+            MachineParams(
+              machineCosts = defaultMachineCosts,
+              builtinMeanings = Meaning.plutusV2Builtins.BuiltinMeanings,
+              platformSpecific = ps
+            )
         val debruijnedTerm = DeBruijn.deBruijnTerm(term)
-        new CekMachine(evaluationContext).evalCek(debruijnedTerm)
+        new CekMachine(params).evalCek(debruijnedTerm)
     }
 
     def evalUPLCProgram(p: Program)(using ps: PlatformSpecific): Term = evalUPLC(p.term)
@@ -149,13 +144,12 @@ object Cek {
       builtinCost = ExBudget(ExCPU(23000), ExMemory(100))
     )
 
-    def defaultEvaluationContext(using ps: PlatformSpecific): EvaluationContext = EvaluationContext(
-      MachineParameters(
-        machineCosts = defaultMachineCosts,
-        builtinCostModel = BuiltinCostModel.defaultBuiltinCostModel
-      ),
-      platformSpecific = ps
-    )
+    def plutusV2Params(using ps: PlatformSpecific): MachineParams =
+        MachineParams(
+          machineCosts = defaultMachineCosts,
+          builtinMeanings = Meaning.plutusV2Builtins.BuiltinMeanings,
+          platformSpecific = ps
+        )
 }
 
 sealed trait CekResult {
@@ -194,18 +188,20 @@ private enum CekState {
   *
   * The CEK machine is a stack-based abstract machine that is used to evaluate UPLC terms.
   *
-  * @param evaluationContext
-  *   The evaluation context
+  * @param params
+  *   The machine parameters
   * @see
   *   https://github.com/input-output-hk/plutus/blob/41a7afebc4cee277bab702ee1678c070e5e38810/plutus-core/untyped-plutus-core/src/UntypedPlutusCore/Evaluation/Machine/Cek/Internal.hs
   * @example
   *   {{{
   *   val term = LamAbs("x", Apply(Var(NamedDeBruijn("x", 0)), Var(NamedDeBruijn("x", 0))))
-  *   val cek = new CekMachine(Cek.defaultEvaluationContext)
+  *   val cek = new CekMachine(Cek.plutusV2Params)
   *   val res = cek.runCek(term)
   *   }}}
   */
-class CekMachine(val evaluationContext: EvaluationContext) {
+class CekMachine(
+    val params: MachineParams
+) {
     import CekState.*
     import CekValue.*
     import Context.*
@@ -228,7 +224,7 @@ class CekMachine(val evaluationContext: EvaluationContext) {
                 case Return(ctx, env, value) => loop(returnCek(ctx, env, value))
                 case Done(term)              => term
         }
-        spendBudget(ExBudgetCategory.Startup, evaluationContext.params.machineCosts.startupCost)
+        spendBudget(ExBudgetCategory.Startup, params.machineCosts.startupCost)
         loop(Compute(NoFrame, ArraySeq.empty, term))
     }
 
@@ -250,7 +246,7 @@ class CekMachine(val evaluationContext: EvaluationContext) {
     }
 
     private final def computeCek(ctx: Context, env: CekValEnv, term: Term): CekState = {
-        val costs = evaluationContext.params.machineCosts
+        val costs = params.machineCosts
         term match
             case Var(name) =>
                 spendBudget(ExBudgetCategory.Step, costs.varCost)
@@ -273,7 +269,7 @@ class CekMachine(val evaluationContext: EvaluationContext) {
             case Builtin(bn) =>
                 spendBudget(ExBudgetCategory.Step, costs.builtinCost)
                 // The @term@ is a 'Builtin', so it's fully discharged.
-                Meaning.BuiltinMeanings.get(bn) match
+                params.builtinMeanings.get(bn) match
                     case Some(meaning) => Return(ctx, env, VBuiltin(bn, () => term, meaning))
                     case None          => throw new UnknownBuiltin(bn, env)
             case Error => throw new EvaluationFailure(env)
@@ -347,10 +343,7 @@ class CekMachine(val evaluationContext: EvaluationContext) {
     ): CekValue = {
         runtime.typeScheme match
             case TypeScheme.Type(_) | TypeScheme.TVar(_) | TypeScheme.App(_, _) =>
-                spendBudget(
-                  ExBudgetCategory.BuiltinApp(builtinName),
-                  runtime.calculateCost(evaluationContext.params.builtinCostModel)
-                )
+                spendBudget(ExBudgetCategory.BuiltinApp(builtinName), runtime.calculateCost)
                 // eval the builtin and return result
                 try
                     // eval builtin when it's fully saturated, i.e. when all arguments were applied

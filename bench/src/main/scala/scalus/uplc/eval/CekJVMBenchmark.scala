@@ -24,6 +24,7 @@ import org.openjdk.jmh.annotations.BenchmarkMode
 import org.openjdk.jmh.annotations.Mode
 import org.openjdk.jmh.annotations.OutputTimeUnit
 import java.util.concurrent.TimeUnit
+import scalus.uplc.Meaning
 
 @State(Scope.Benchmark)
 class CekJVMBenchmark:
@@ -37,7 +38,7 @@ class CekJVMBenchmark:
     )
     private var file: String = ""
     private var program: Program = null
-    val cek = CekMachine(Cek.defaultEvaluationContext)
+    val cek = CekMachine(Cek.plutusV2Params)
 
     @Setup
     def readProgram() = {

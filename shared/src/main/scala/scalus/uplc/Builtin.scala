@@ -42,18 +42,21 @@ case class Runtime(
     typeScheme: TypeScheme,
     f: AnyRef => AnyRef,
     args: Seq[CekValue],
-    costFunction: BuiltinCostModel => CostingFun[CostModel]
+    costFunction: CostingFun[CostModel]
 ) {
     def apply(m: CekMachine) = {
         val applied = args.foldLeft(f) { (f, arg) => f(arg).asInstanceOf[AnyRef => AnyRef] }
         applied.asInstanceOf[CekMachine => CekValue](m)
     }
 
-    def calculateCost(costModel: BuiltinCostModel): ExBudget =
-        costFunction(costModel).calculateCost(args: _*)
+    def calculateCost: ExBudget = costFunction.calculateCost(args: _*)
 }
 
-object Meaning:
+object Meaning {
+    val plutusV2Builtins = Meaning(BuiltinCostModel.defaultBuiltinCostModel)
+}
+
+class Meaning(builtinCostModel: BuiltinCostModel):
     // local extension used to create a TypeScheme from a DefaultUni
     extension (x: DefaultUni)
         def ->:(t: TypeScheme): TypeScheme = TypeScheme.Arrow(t, TypeScheme.Type(x))
@@ -65,7 +68,7 @@ object Meaning:
     def mkMeaning(
         t: TypeScheme,
         f: AnyRef,
-        costFunction: BuiltinCostModel => CostingFun[CostModel]
+        costFunction: CostingFun[CostModel]
     ) =
         Runtime(t, f.asInstanceOf[AnyRef => AnyRef], ArraySeq.empty, costFunction)
     import TypeScheme.*
@@ -79,7 +82,7 @@ object Meaning:
                   val bb = b.asInteger
                   (m: CekMachine) => VCon(asConstant(addInteger(aa, bb)))
           ,
-          _.addInteger
+          builtinCostModel.addInteger
         )
     val SubtractInteger =
         mkMeaning(
@@ -90,7 +93,7 @@ object Meaning:
                   val bb = b.asInteger
                   (m: CekMachine) => VCon(asConstant(subtractInteger(aa, bb)))
           ,
-          _.subtractInteger
+          builtinCostModel.subtractInteger
         )
     val MultiplyInteger =
         mkMeaning(
@@ -101,7 +104,7 @@ object Meaning:
                   val bb = b.asInteger
                   (m: CekMachine) => VCon(asConstant(multiplyInteger(aa, bb)))
           ,
-          _.multiplyInteger
+          builtinCostModel.multiplyInteger
         )
     val DivideInteger =
         mkMeaning(
@@ -112,7 +115,7 @@ object Meaning:
                   val bb = b.asInteger
                   (m: CekMachine) => VCon(asConstant(divideInteger(aa, bb)))
           ,
-          _.divideInteger
+          builtinCostModel.divideInteger
         )
     val QuotientInteger =
         mkMeaning(
@@ -123,7 +126,7 @@ object Meaning:
                   val bb = b.asInteger
                   (m: CekMachine) => VCon(asConstant(quotientInteger(aa, bb)))
           ,
-          _.quotientInteger
+          builtinCostModel.quotientInteger
         )
     val RemainderInteger =
         mkMeaning(
@@ -134,7 +137,7 @@ object Meaning:
                   val bb = b.asInteger
                   (m: CekMachine) => VCon(asConstant(remainderInteger(aa, bb)))
           ,
-          _.remainderInteger
+          builtinCostModel.remainderInteger
         )
     val ModInteger =
         mkMeaning(
@@ -145,7 +148,7 @@ object Meaning:
                   val bb = b.asInteger
                   (m: CekMachine) => VCon(asConstant(modInteger(aa, bb)))
           ,
-          _.modInteger
+          builtinCostModel.modInteger
         )
     val EqualsInteger =
         mkMeaning(
@@ -156,7 +159,7 @@ object Meaning:
                   val bb = b.asInteger
                   (m: CekMachine) => VCon(asConstant(equalsInteger(aa, bb)))
           ,
-          _.equalsInteger
+          builtinCostModel.equalsInteger
         )
     val LessThanEqualsInteger =
         mkMeaning(
@@ -167,7 +170,7 @@ object Meaning:
                   val bb = b.asInteger
                   (m: CekMachine) => VCon(asConstant(lessThanEqualsInteger(aa, bb)))
           ,
-          _.lessThanEqualsInteger
+          builtinCostModel.lessThanEqualsInteger
         )
     val LessThanInteger =
         mkMeaning(
@@ -178,7 +181,7 @@ object Meaning:
                   val bb = b.asInteger
                   (m: CekMachine) => VCon(asConstant(lessThanInteger(aa, bb)))
           ,
-          _.lessThanInteger
+          builtinCostModel.lessThanInteger
         )
 
     val AppendByteString =
@@ -190,7 +193,7 @@ object Meaning:
                   val bb = b.asByteString
                   (m: CekMachine) => VCon(asConstant(appendByteString(aa, bb)))
           ,
-          _.appendByteString
+          builtinCostModel.appendByteString
         )
 
     val ConsByteString =
@@ -202,7 +205,7 @@ object Meaning:
                   val bb = b.asByteString
                   (m: CekMachine) => VCon(asConstant(consByteString(aa, bb)))
           ,
-          _.consByteString
+          builtinCostModel.consByteString
         )
 
     val SliceByteString =
@@ -216,7 +219,7 @@ object Meaning:
                       val end = c.asInteger
                       (m: CekMachine) => VCon(asConstant(sliceByteString(bs, start, end)))
           ,
-          _.sliceByteString
+          builtinCostModel.sliceByteString
         )
 
     val IndexByteString =
@@ -228,7 +231,7 @@ object Meaning:
                   val bb = b.asInteger
                   (m: CekMachine) => VCon(asConstant(indexByteString(aa, bb)))
           ,
-          _.indexByteString
+          builtinCostModel.indexByteString
         )
 
     val LengthOfByteString =
@@ -238,7 +241,7 @@ object Meaning:
               val aa = a.asByteString
               (m: CekMachine) => VCon(asConstant(lengthOfByteString(aa)))
           ,
-          _.lengthOfByteString
+          builtinCostModel.lengthOfByteString
         )
 
     val EqualsByteString =
@@ -250,7 +253,7 @@ object Meaning:
                   val bb = b.asByteString
                   (m: CekMachine) => VCon(asConstant(aa == bb))
           ,
-          _.equalsByteString
+          builtinCostModel.equalsByteString
         )
 
     val LessThanByteString =
@@ -262,7 +265,7 @@ object Meaning:
                   val bb = b.asByteString
                   (m: CekMachine) => VCon(asConstant(lessThanByteString(aa, bb)))
           ,
-          _.lessThanByteString
+          builtinCostModel.lessThanByteString
         )
 
     val LessThanEqualsByteString =
@@ -274,7 +277,7 @@ object Meaning:
                   val bb = b.asByteString
                   (m: CekMachine) => VCon(asConstant(lessThanEqualsByteString(aa, bb)))
           ,
-          _.lessThanEqualsByteString
+          builtinCostModel.lessThanEqualsByteString
         )
 
     val Sha2_256 =
@@ -282,10 +285,9 @@ object Meaning:
           DefaultUni.ByteString ->: DefaultUni.ByteString,
           (a: CekValue) =>
               val aa = a.asByteString
-              (m: CekMachine) =>
-                  VCon(asConstant(sha2_256(using m.evaluationContext.platformSpecific)(aa)))
+              (m: CekMachine) => VCon(asConstant(sha2_256(using m.params.platformSpecific)(aa)))
           ,
-          _.sha2_256
+          builtinCostModel.sha2_256
         )
 
     val Sha3_256 =
@@ -293,10 +295,9 @@ object Meaning:
           DefaultUni.ByteString ->: DefaultUni.ByteString,
           (a: CekValue) =>
               val aa = a.asByteString
-              (m: CekMachine) =>
-                  VCon(asConstant(sha3_256(using m.evaluationContext.platformSpecific)(aa)))
+              (m: CekMachine) => VCon(asConstant(sha3_256(using m.params.platformSpecific)(aa)))
           ,
-          _.sha3_256
+          builtinCostModel.sha3_256
         )
 
     val Blake2b_256 =
@@ -304,10 +305,9 @@ object Meaning:
           DefaultUni.ByteString ->: DefaultUni.ByteString,
           (a: CekValue) =>
               val aa = a.asByteString
-              (m: CekMachine) =>
-                  VCon(asConstant(blake2b_256(using m.evaluationContext.platformSpecific)(aa)))
+              (m: CekMachine) => VCon(asConstant(blake2b_256(using m.params.platformSpecific)(aa)))
           ,
-          _.blake2b_256
+          builtinCostModel.blake2b_256
         )
 
     val VerifyEd25519Signature = {
@@ -324,7 +324,7 @@ object Meaning:
                       (m: CekMachine) =>
                           VCon(
                             asConstant(
-                              verifyEd25519Signature(using m.evaluationContext.platformSpecific)(
+                              verifyEd25519Signature(using m.params.platformSpecific)(
                                 pk,
                                 msg,
                                 sig
@@ -332,7 +332,7 @@ object Meaning:
                             )
                           )
           ,
-          _.verifyEd25519Signature
+          builtinCostModel.verifyEd25519Signature
         )
     }
 
@@ -351,12 +351,12 @@ object Meaning:
                           VCon(
                             asConstant(
                               verifyEcdsaSecp256k1Signature(using
-                                m.evaluationContext.platformSpecific
+                                m.params.platformSpecific
                               )(pk, msg, sig)
                             )
                           )
           ,
-          _.verifyEcdsaSecp256k1Signature
+          builtinCostModel.verifyEcdsaSecp256k1Signature
         )
     }
 
@@ -375,12 +375,12 @@ object Meaning:
                           VCon(
                             asConstant(
                               verifySchnorrSecp256k1Signature(using
-                                m.evaluationContext.platformSpecific
+                                m.params.platformSpecific
                               )(pk, msg, sig)
                             )
                           )
           ,
-          _.verifySchnorrSecp256k1Signature
+          builtinCostModel.verifySchnorrSecp256k1Signature
         )
     }
 
@@ -393,7 +393,7 @@ object Meaning:
                   val bb = b.asString
                   (m: CekMachine) => VCon(asConstant(appendString(aa, bb)))
           ,
-          _.appendString
+          builtinCostModel.appendString
         )
 
     val EqualsString =
@@ -405,7 +405,7 @@ object Meaning:
                   val bb = b.asString
                   (m: CekMachine) => VCon(asConstant(equalsString(aa, bb)))
           ,
-          _.equalsString
+          builtinCostModel.equalsString
         )
 
     val EncodeUtf8 = {
@@ -416,7 +416,7 @@ object Meaning:
               val aa = a.asString
               (m: CekMachine) => VCon(asConstant(encodeUtf8(aa)))
           ,
-          _.encodeUtf8
+          builtinCostModel.encodeUtf8
         )
     }
 
@@ -427,7 +427,7 @@ object Meaning:
               val aa = a.asByteString
               (m: CekMachine) => VCon(asConstant(decodeUtf8(aa)))
           ,
-          _.decodeUtf8
+          builtinCostModel.decodeUtf8
         )
 
     val IfThenElse =
@@ -437,7 +437,7 @@ object Meaning:
               val bb = b.asBool
               (t: CekValue) => (f: CekValue) => (m: CekMachine) => ifThenElse(bb, t, f)
           ,
-          _.ifThenElse
+          builtinCostModel.ifThenElse
         )
 
     val ChooseUnit =
@@ -448,7 +448,7 @@ object Meaning:
                   case VCon(Constant.Unit) => (a: CekValue) => (m: CekMachine) => a
                   case _ => throw new DeserializationError(DefaultFun.ChooseUnit, unit)
           },
-          _.chooseUnit
+          builtinCostModel.chooseUnit
         )
 
     val Trace =
@@ -458,7 +458,7 @@ object Meaning:
               val aa = a.asString
               (b: CekValue) => (m: CekMachine) => m.logs.addOne(aa)
           ,
-          _.trace
+          builtinCostModel.trace
         )
 
     // [ forall a, forall b, pair(a, b) ] -> a
@@ -469,7 +469,7 @@ object Meaning:
               val (fst, _) = a.asPair
               (m: CekMachine) => VCon(fst)
           ,
-          _.fstPair
+          builtinCostModel.fstPair
         )
 
     // [ forall a, forall b, pair(a, b) ] -> b
@@ -480,7 +480,7 @@ object Meaning:
               val (_, snd) = a.asPair
               (m: CekMachine) => VCon(snd)
           ,
-          _.sndPair
+          builtinCostModel.sndPair
         )
 
     // [ forall a, forall b, list(a), b, b ] -> b
@@ -494,7 +494,7 @@ object Meaning:
               val ls = a.asList
               (b: CekValue) => (c: CekValue) => (m: CekMachine) => if ls.isEmpty then b else c
           ,
-          _.chooseList
+          builtinCostModel.chooseList
         )
 
     // [ forall a, a, list(a) ] -> list(a)
@@ -513,7 +513,7 @@ object Meaning:
                           else (m: CekMachine) => VCon(Constant.List(tp, aCon :: l))
                       case _ => throw new DeserializationError(DefaultFun.MkCons, b)
                   },
-          _.mkCons
+          builtinCostModel.mkCons
         )
 
     // [ forall a, list(a) ] -> a
@@ -524,7 +524,7 @@ object Meaning:
               val ls = a.asList
               (m: CekMachine) => VCon(ls.head)
           ,
-          _.headList
+          builtinCostModel.headList
         )
 
     // [ forall a, list(a) ] -> list(a)
@@ -537,7 +537,7 @@ object Meaning:
                       (m: CekMachine) => VCon(Constant.List(tpe, ls.tail))
                   case _ => throw new DeserializationError(DefaultFun.TailList, a)
               },
-          _.tailList
+          builtinCostModel.tailList
         )
 
     // [ forall a, list(a) ] -> bool
@@ -548,7 +548,7 @@ object Meaning:
               val ls = a.asList
               (m: CekMachine) => VCon(asConstant(ls.isEmpty))
           ,
-          _.nullList
+          builtinCostModel.nullList
         )
 
     val ChooseData =
@@ -567,7 +567,7 @@ object Meaning:
                           (e: CekValue) =>
                               (f: CekValue) => (m: CekMachine) => chooseData(aa, b, c, d, e, f)
           ,
-          _.chooseData
+          builtinCostModel.chooseData
         )
 
     val ConstrData =
@@ -589,7 +589,7 @@ object Meaning:
                         Constant.Data(Data.Constr(i.longValue, args))
                       )
           ,
-          _.constrData
+          builtinCostModel.constrData
         )
 
     val MapData =
@@ -609,7 +609,7 @@ object Meaning:
                     }))
                   )
           ,
-          _.mapData
+          builtinCostModel.mapData
         )
 
     val ListData =
@@ -623,7 +623,7 @@ object Meaning:
               }
               (m: CekMachine) => VCon(Constant.Data(Data.List(datas)))
           ,
-          _.listData
+          builtinCostModel.listData
         )
 
     val IData =
@@ -633,7 +633,7 @@ object Meaning:
               val aa = a.asInteger
               (m: CekMachine) => VCon(Constant.Data(Data.I(aa)))
           ,
-          _.iData
+          builtinCostModel.iData
         )
 
     val BData =
@@ -643,7 +643,7 @@ object Meaning:
               val aa = a.asByteString
               (m: CekMachine) => VCon(Constant.Data(Data.B(aa)))
           ,
-          _.bData
+          builtinCostModel.bData
         )
 
     /*
@@ -661,7 +661,7 @@ object Meaning:
                           )
                   case _ => throw new DeserializationError(DefaultFun.UnConstrData, a)
               },
-          _.unConstrData
+          builtinCostModel.unConstrData
         )
 
     /*  unMapData : [ data ] -> list(pair(data, data))
@@ -683,7 +683,7 @@ object Meaning:
                           )
                   case _ => throw new DeserializationError(DefaultFun.UnMapData, a)
               },
-          _.unMapData
+          builtinCostModel.unMapData
         )
     /*  unListData : [ data ] -> list(data)
      */
@@ -697,7 +697,7 @@ object Meaning:
                           VCon(Constant.List(DefaultUni.Data, values.map(asConstant)))
                   case _ => throw new DeserializationError(DefaultFun.UnListData, a)
           },
-          _.unListData
+          builtinCostModel.unListData
         )
 
     /*  unIData : [ data ] -> integer
@@ -711,7 +711,7 @@ object Meaning:
                       (m: CekMachine) => VCon(asConstant(i))
                   case _ => throw new DeserializationError(DefaultFun.UnIData, a)
           },
-          _.unIData
+          builtinCostModel.unIData
         )
 
     /*  unBData : [ data ] -> bytestring
@@ -725,7 +725,7 @@ object Meaning:
                       (m: CekMachine) => VCon(asConstant(b))
                   case _ => throw new DeserializationError(DefaultFun.UnBData, a)
           },
-          _.unBData
+          builtinCostModel.unBData
         )
 
     val EqualsData =
@@ -737,7 +737,7 @@ object Meaning:
                   val bb = b.asData
                   (m: CekMachine) => VCon(Constant.Bool(equalsData(aa, bb)))
           ,
-          _.equalsData
+          builtinCostModel.equalsData
         )
 
     val SerialiseData = mkMeaning(
@@ -746,7 +746,7 @@ object Meaning:
           val aa = a.asData
           (m: CekMachine) => VCon(Constant.ByteString(serialiseData(aa)))
       ,
-      _.serialiseData
+      builtinCostModel.serialiseData
     )
 
     val MkPairData =
@@ -758,7 +758,7 @@ object Meaning:
                   val bb = b.asData
                   (m: CekMachine) => VCon(Constant.Pair(asConstant(aa), asConstant(bb)))
           ,
-          _.mkPairData
+          builtinCostModel.mkPairData
         )
 
     val MkNilData =
@@ -768,7 +768,7 @@ object Meaning:
               val _ = a.asUnit
               (m: CekMachine) => VCon(Constant.List(DefaultUni.Data, Nil))
           ,
-          _.mkNilData
+          builtinCostModel.mkNilData
         )
 
     val MkNilPairData = mkMeaning(
@@ -778,62 +778,62 @@ object Meaning:
           (m: CekMachine) =>
               VCon(Constant.List(DefaultUni.Pair(DefaultUni.Data, DefaultUni.Data), Nil))
       ,
-      _.mkNilPairData
+      builtinCostModel.mkNilPairData
     )
 
     val BuiltinMeanings: immutable.Map[DefaultFun, Runtime] = immutable.Map.apply(
-      (DefaultFun.AddInteger, Meaning.AddInteger),
-      (DefaultFun.SubtractInteger, Meaning.SubtractInteger),
-      (DefaultFun.MultiplyInteger, Meaning.MultiplyInteger),
-      (DefaultFun.DivideInteger, Meaning.DivideInteger),
-      (DefaultFun.QuotientInteger, Meaning.QuotientInteger),
-      (DefaultFun.RemainderInteger, Meaning.RemainderInteger),
-      (DefaultFun.ModInteger, Meaning.ModInteger),
-      (DefaultFun.EqualsInteger, Meaning.EqualsInteger),
-      (DefaultFun.LessThanEqualsInteger, Meaning.LessThanEqualsInteger),
-      (DefaultFun.LessThanInteger, Meaning.LessThanInteger),
-      (DefaultFun.AppendByteString, Meaning.AppendByteString),
-      (DefaultFun.ConsByteString, Meaning.ConsByteString),
-      (DefaultFun.SliceByteString, Meaning.SliceByteString),
-      (DefaultFun.LengthOfByteString, Meaning.LengthOfByteString),
-      (DefaultFun.IndexByteString, Meaning.IndexByteString),
-      (DefaultFun.EqualsByteString, Meaning.EqualsByteString),
-      (DefaultFun.LessThanByteString, Meaning.LessThanByteString),
-      (DefaultFun.LessThanEqualsByteString, Meaning.LessThanEqualsByteString),
-      (DefaultFun.Sha2_256, Meaning.Sha2_256),
-      (DefaultFun.Sha3_256, Meaning.Sha3_256),
-      (DefaultFun.Blake2b_256, Meaning.Blake2b_256),
-      (DefaultFun.VerifyEd25519Signature, Meaning.VerifyEd25519Signature),
-      (DefaultFun.VerifyEcdsaSecp256k1Signature, Meaning.VerifyEcdsaSecp256k1Signature),
-      (DefaultFun.VerifySchnorrSecp256k1Signature, Meaning.VerifySchnorrSecp256k1Signature),
-      (DefaultFun.AppendString, Meaning.AppendString),
-      (DefaultFun.EqualsString, Meaning.EqualsString),
-      (DefaultFun.EncodeUtf8, Meaning.EncodeUtf8),
-      (DefaultFun.DecodeUtf8, Meaning.DecodeUtf8),
-      (DefaultFun.IfThenElse, Meaning.IfThenElse),
-      (DefaultFun.ChooseUnit, Meaning.ChooseUnit),
-      (DefaultFun.Trace, Meaning.Trace),
-      (DefaultFun.FstPair, Meaning.FstPair),
-      (DefaultFun.SndPair, Meaning.SndPair),
-      (DefaultFun.ChooseList, Meaning.ChooseList),
-      (DefaultFun.MkCons, Meaning.MkCons),
-      (DefaultFun.HeadList, Meaning.HeadList),
-      (DefaultFun.TailList, Meaning.TailList),
-      (DefaultFun.NullList, Meaning.NullList),
-      (DefaultFun.ChooseData, Meaning.ChooseData),
-      (DefaultFun.ConstrData, Meaning.ConstrData),
-      (DefaultFun.MapData, Meaning.MapData),
-      (DefaultFun.ListData, Meaning.ListData),
-      (DefaultFun.IData, Meaning.IData),
-      (DefaultFun.BData, Meaning.BData),
-      (DefaultFun.UnConstrData, Meaning.UnConstrData),
-      (DefaultFun.UnMapData, Meaning.UnMapData),
-      (DefaultFun.UnListData, Meaning.UnListData),
-      (DefaultFun.UnIData, Meaning.UnIData),
-      (DefaultFun.UnBData, Meaning.UnBData),
-      (DefaultFun.EqualsData, Meaning.EqualsData),
-      (DefaultFun.SerialiseData, Meaning.SerialiseData),
-      (DefaultFun.MkPairData, Meaning.MkPairData),
-      (DefaultFun.MkNilData, Meaning.MkNilData),
-      (DefaultFun.MkNilPairData, Meaning.MkNilPairData)
+      (DefaultFun.AddInteger, AddInteger),
+      (DefaultFun.SubtractInteger, SubtractInteger),
+      (DefaultFun.MultiplyInteger, MultiplyInteger),
+      (DefaultFun.DivideInteger, DivideInteger),
+      (DefaultFun.QuotientInteger, QuotientInteger),
+      (DefaultFun.RemainderInteger, RemainderInteger),
+      (DefaultFun.ModInteger, ModInteger),
+      (DefaultFun.EqualsInteger, EqualsInteger),
+      (DefaultFun.LessThanEqualsInteger, LessThanEqualsInteger),
+      (DefaultFun.LessThanInteger, LessThanInteger),
+      (DefaultFun.AppendByteString, AppendByteString),
+      (DefaultFun.ConsByteString, ConsByteString),
+      (DefaultFun.SliceByteString, SliceByteString),
+      (DefaultFun.LengthOfByteString, LengthOfByteString),
+      (DefaultFun.IndexByteString, IndexByteString),
+      (DefaultFun.EqualsByteString, EqualsByteString),
+      (DefaultFun.LessThanByteString, LessThanByteString),
+      (DefaultFun.LessThanEqualsByteString, LessThanEqualsByteString),
+      (DefaultFun.Sha2_256, Sha2_256),
+      (DefaultFun.Sha3_256, Sha3_256),
+      (DefaultFun.Blake2b_256, Blake2b_256),
+      (DefaultFun.VerifyEd25519Signature, VerifyEd25519Signature),
+      (DefaultFun.VerifyEcdsaSecp256k1Signature, VerifyEcdsaSecp256k1Signature),
+      (DefaultFun.VerifySchnorrSecp256k1Signature, VerifySchnorrSecp256k1Signature),
+      (DefaultFun.AppendString, AppendString),
+      (DefaultFun.EqualsString, EqualsString),
+      (DefaultFun.EncodeUtf8, EncodeUtf8),
+      (DefaultFun.DecodeUtf8, DecodeUtf8),
+      (DefaultFun.IfThenElse, IfThenElse),
+      (DefaultFun.ChooseUnit, ChooseUnit),
+      (DefaultFun.Trace, Trace),
+      (DefaultFun.FstPair, FstPair),
+      (DefaultFun.SndPair, SndPair),
+      (DefaultFun.ChooseList, ChooseList),
+      (DefaultFun.MkCons, MkCons),
+      (DefaultFun.HeadList, HeadList),
+      (DefaultFun.TailList, TailList),
+      (DefaultFun.NullList, NullList),
+      (DefaultFun.ChooseData, ChooseData),
+      (DefaultFun.ConstrData, ConstrData),
+      (DefaultFun.MapData, MapData),
+      (DefaultFun.ListData, ListData),
+      (DefaultFun.IData, IData),
+      (DefaultFun.BData, BData),
+      (DefaultFun.UnConstrData, UnConstrData),
+      (DefaultFun.UnMapData, UnMapData),
+      (DefaultFun.UnListData, UnListData),
+      (DefaultFun.UnIData, UnIData),
+      (DefaultFun.UnBData, UnBData),
+      (DefaultFun.EqualsData, EqualsData),
+      (DefaultFun.SerialiseData, SerialiseData),
+      (DefaultFun.MkPairData, MkPairData),
+      (DefaultFun.MkNilData, MkNilData),
+      (DefaultFun.MkNilPairData, MkNilPairData)
     )
