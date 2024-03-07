@@ -5,14 +5,16 @@ import cats.syntax.group.*
 import scalus.builtin.ByteString
 import scalus.builtin.Data
 import scalus.builtin.PlatformSpecific
+import scalus.uplc.DefaultUni.asConstant
 import scalus.uplc.Term.*
 
 import scala.annotation.tailrec
+import scala.annotation.varargs
 import scala.collection.immutable
 import scala.collection.immutable.ArraySeq
+import scala.collection.mutable.ArrayBuffer
 import scala.collection.mutable.HashMap
 import scala.util.control.NonFatal
-import scala.collection.mutable.ArrayBuffer
 
 enum ExBudgetCategory:
     case Step
@@ -119,11 +121,13 @@ enum CekValue {
     }
 }
 
+@deprecated("Use VM instead", "0.7.0")
 object Cek {
+    @deprecated("Use VM methods instead", "0.7.0")
     def evalUPLC(term: Term)(using ps: PlatformSpecific): Term = {
         val params = plutusV2Params
         val debruijnedTerm = DeBruijn.deBruijnTerm(term)
-        new CekMachine(params).evalCek(debruijnedTerm)
+        new CekMachine(params).evaluateTerm(debruijnedTerm)
     }
 
     def evalUPLCProgram(p: Program)(using ps: PlatformSpecific): Term = evalUPLC(p.term)
@@ -149,16 +153,69 @@ object Cek {
         )
 }
 
+trait VMBase {
+    type ScriptForEvaluation = Array[Byte]
+
+    /** Evaluates a script, returning the minimum budget that the script would need to evaluate.
+      * This will take as long as the script takes, if you need to limit the execution time of the
+      * script also, you can use 'evaluateScriptRestricting', which also returns the used budget.
+      *
+      * @note:
+      *   Parameterized over the ledger-plutus-version since the builtins allowed (during decoding)
+      *   differs.
+      * @param params
+      *   The machine parameters
+      * @param script
+      *   Flat encoded script to evaluate
+      * @param args
+      *   The arguments to the script
+      * @return
+      *   [[CekResult]], either a success with the resulting term and the execution budget, or a
+      *   failure with an error message and the execution budget.
+      */
+    @varargs
+    def evaluateScriptCounting(
+        params: MachineParams,
+        script: ScriptForEvaluation,
+        args: Data*
+    ): CekResult = {
+        val namedProgram = DeBruijn.fromDeBruijnProgram(ProgramFlatCodec.decodeFlat(script))
+        val applied = args.foldLeft(namedProgram.term) { (acc, arg) =>
+            Apply(acc, Const(asConstant(arg)))
+        }
+        evaluateTerm(params, applied)
+    }
+
+    /** Evaluates a UPLC term.
+      *
+      * @param params
+      *   The machine parameters
+      * @param term
+      *   The debruijned term to evaluate
+      * @return
+      *   [[CekResult]], either a success with the resulting term and the execution budget, or a
+      *   failure with an error message and the execution budget.
+      */
+    def evaluateTerm(params: MachineParams, term: Term): CekResult = {
+        val cek = new CekMachine(params)
+        cek.runCek(term)
+    }
+}
+
 sealed trait CekResult {
     def budget: ExBudget
     def logs: Array[String]
     def isSuccess: Boolean
     def isFailure: Boolean
 }
+
 object CekResult {
     case class Success(term: Term, logs: Array[String], budget: ExBudget) extends CekResult {
         def isSuccess: Boolean = true
         def isFailure: Boolean = false
+
+        override def toString(): String =
+            s"Success($term, ${logs.mkString("[", "\n", "]")}, $budget)"
     }
     case class Failure(msg: String, env: CekValEnv, logs: Array[String], budget: ExBudget)
         extends CekResult {
@@ -214,12 +271,12 @@ class CekMachine(
     /** Evaluates a UPLC term.
       *
       * @param term
-      *   The term to evaluate
+      *   The debruijned term to evaluate
       * @return
       *   The resulting term
       * @throws StackTraceMachineError
       */
-    def evalCek(term: Term): Term = {
+    def evaluateTerm(term: Term): Term = {
         @tailrec def loop(state: CekState): Term = {
             state match
                 case Compute(ctx, env, term) => loop(computeCek(ctx, env, term))
@@ -233,14 +290,14 @@ class CekMachine(
     /** Evaluate a UPLC term.
       *
       * @param term
-      *   The term to evaluate
+      *   The debruijned term to evaluate
       * @return
       *   [[CekResult]], either a success with the resulting term and the execution budget, or a
       *   failure with an error message and the execution budget.
       */
     def runCek(term: Term): CekResult = {
         try
-            val res = evalCek(term)
+            val res = DeBruijn.fromDeBruijnTerm(evaluateTerm(term))
             CekResult.Success(res, getLogs, getExBudget)
         catch
             case e: StackTraceMachineError =>

@@ -71,6 +71,6 @@ class CekBudgetJVMSpec extends AnyFunSuite:
         ).calculateCost(VCon(Constant.Integer(3)))
         println(r)
         val cek = CekMachine(Cek.plutusV2Params)
-        cek.evalCek(program.term)
+        cek.evaluateTerm(program.term)
         println(s"${cek.getExBudget}")
     }

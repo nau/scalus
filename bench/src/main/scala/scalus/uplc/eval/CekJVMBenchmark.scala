@@ -52,5 +52,5 @@ class CekJVMBenchmark:
     @BenchmarkMode(Array(Mode.AverageTime))
     @OutputTimeUnit(TimeUnit.MICROSECONDS)
     def bench() = {
-        cek.evalCek(program.term)
+        cek.evaluateTerm(program.term)
     }
