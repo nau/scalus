@@ -32,7 +32,7 @@ case class CekMachineCosts(
 
 case class MachineParams(
     machineCosts: CekMachineCosts,
-    builtinMeanings: Map[DefaultFun, Runtime],
+    builtinMeanings: Map[DefaultFun, BuiltinRuntime],
     platformSpecific: PlatformSpecific
 )
 
@@ -83,7 +83,7 @@ enum CekValue {
     case VCon(const: Constant)
     case VDelay(term: Term, env: CekValEnv)
     case VLamAbs(name: String, term: Term, env: CekValEnv)
-    case VBuiltin(bn: DefaultFun, term: () => Term, runtime: Runtime)
+    case VBuiltin(bn: DefaultFun, term: () => Term, runtime: BuiltinRuntime)
 
     def asUnit: Unit = this match {
         case VCon(Constant.Unit) => ()
@@ -205,6 +205,7 @@ class CekMachine(
 
     private[uplc] val logs: ArrayBuffer[String] = ArrayBuffer.empty[String]
     def getLogs: Array[String] = logs.toArray
+    def log(msg: String): Unit = logs.append(msg)
 
     /** Evaluates a UPLC term.
       *
@@ -336,7 +337,7 @@ class CekMachine(
         env: CekValEnv,
         builtinName: DefaultFun,
         term: () => Term, // lazily discharge the term as it might not be needed
-        runtime: Runtime
+        runtime: BuiltinRuntime
     ): CekValue = {
         runtime.typeScheme match
             case TypeScheme.Type(_) | TypeScheme.TVar(_) | TypeScheme.App(_, _) =>
