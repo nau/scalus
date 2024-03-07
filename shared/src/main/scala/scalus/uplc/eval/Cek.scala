@@ -185,8 +185,12 @@ private enum CekState {
   *
   * The CEK machine is a stack-based abstract machine that is used to evaluate UPLC terms.
   *
+  * @note
+  *   The machine is statuful and should not be shared between threads. It stores the logs and the
+  *   budget spent during the evaluation.
+  *
   * @param params
-  *   The machine parameters
+  *   The machine parameters [[MachineParams]]
   * @see
   *   https://github.com/input-output-hk/plutus/blob/41a7afebc4cee277bab702ee1678c070e5e38810/plutus-core/untyped-plutus-core/src/UntypedPlutusCore/Evaluation/Machine/Cek/Internal.hs
   * @example
