@@ -1,18 +1,10 @@
-package scalus
+package scalus.examples
 
 import com.bloxbean.cardano.client.account.Account
-import com.bloxbean.cardano.client.address.Address
-import com.bloxbean.cardano.client.address.AddressService
-import com.bloxbean.cardano.client.api.UtxoSupplier
-import com.bloxbean.cardano.client.api.exception.ApiRuntimeException
+import com.bloxbean.cardano.client.address.AddressProvider
 import com.bloxbean.cardano.client.api.model.Amount
-import com.bloxbean.cardano.client.api.model.Result
-import com.bloxbean.cardano.client.api.model.Utxo
-import com.bloxbean.cardano.client.backend.api.DefaultProtocolParamsSupplier
-import com.bloxbean.cardano.client.backend.api.DefaultUtxoSupplier
-import com.bloxbean.cardano.client.backend.api.TransactionService
+import com.bloxbean.cardano.client.backend.api.{DefaultProtocolParamsSupplier, DefaultUtxoSupplier}
 import com.bloxbean.cardano.client.backend.blockfrost.common.Constants
-import com.bloxbean.cardano.client.backend.blockfrost.excpetion.BlockfrostConfigurationException
 import com.bloxbean.cardano.client.backend.blockfrost.service.BFBackendService
 import com.bloxbean.cardano.client.coinselection.impl.LargestFirstUtxoSelectionStrategy
 import com.bloxbean.cardano.client.common.ADAConversionUtil.adaToLovelace
@@ -20,28 +12,16 @@ import com.bloxbean.cardano.client.common.CardanoConstants
 import com.bloxbean.cardano.client.common.CardanoConstants.LOVELACE
 import com.bloxbean.cardano.client.common.model.Networks
 import com.bloxbean.cardano.client.crypto.Blake2bUtil
-import com.bloxbean.cardano.client.function.Output
-import com.bloxbean.cardano.client.function.TxBuilder
-import com.bloxbean.cardano.client.function.TxBuilderContext
-import com.bloxbean.cardano.client.function.TxSigner
-import com.bloxbean.cardano.client.function.helper.BalanceTxBuilders
-import com.bloxbean.cardano.client.function.helper.CollateralBuilders
-import com.bloxbean.cardano.client.function.helper.InputBuilders
-import com.bloxbean.cardano.client.function.helper.ScriptCallContextProviders
-import com.bloxbean.cardano.client.function.helper.ScriptUtxoFinders
+import com.bloxbean.cardano.client.function.helper.*
 import com.bloxbean.cardano.client.function.helper.SignerProviders.signerFrom
 import com.bloxbean.cardano.client.function.helper.model.ScriptCallContext
+import com.bloxbean.cardano.client.function.{Output, TxBuilder, TxBuilderContext}
 import com.bloxbean.cardano.client.plutus.spec.*
-import com.bloxbean.cardano.client.transaction.model.PaymentTransaction
-import com.bloxbean.cardano.client.transaction.model.TransactionDetailsParams
-import com.bloxbean.cardano.client.transaction.spec.*
-import com.bloxbean.cardano.client.transaction.spec.script.ScriptPubkey
-import com.bloxbean.cardano.client.util.HexUtil
 import com.google.common.collect.Lists
-import io.bullet.borer.Cbor
-import scalus.builtin.ByteString
-import scalus.builtin.Data
+import io.bullet.borer.{Cbor, Encoder}
+import scalus.*
 import scalus.builtin.ToDataInstances.given
+import scalus.builtin.{ByteString, Data}
 import scalus.utils.Utils
 
 import java.math.BigInteger
@@ -204,15 +184,15 @@ object SendTx:
     def main(args: Array[String]): Unit =
         val cborHex = OptimizedPreimage.doubleCborHex
         val script = PlutusV1Script.builder().cborHex(cborHex).build()
-        val scriptAddress = AddressService.getInstance().getEntAddress(script, Networks.testnet())
+        val scriptAddress = AddressProvider.getEntAddress(script, Networks.testnet())
         val scriptAddressBech32 = scriptAddress.toBech32()
         val preimage = "Scalus rocks!"
         val preimageBytes = preimage.getBytes("UTF-8")
         val preimageHash = Utils.bytesToHex(Utils.sha2_256(preimageBytes))
-        val pubKeyHashBytes = sender.hdKeyPair().getPublicKey.getKeyHash()
+        val pubKeyHashBytes = sender.hdKeyPair().getPublicKey.getKeyHash
         val pubKeyHash = Utils.bytesToHex(pubKeyHashBytes)
         import scalus.builtin.Data.toData
-        implicit val enc = scalus.builtin.PlutusDataCborEncoder
+        given Encoder[Data] = scalus.builtin.PlutusDataCborEncoder
         val datum =
             (ByteString.fromArray(preimageBytes), ByteString.fromArray(pubKeyHashBytes)).toData
         val datumCbor = Cbor.encode(datum).toByteArray

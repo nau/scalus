@@ -129,7 +129,7 @@ lazy val scalus = crossProject(JSPlatform, JVMPlatform)
 
 lazy val examples = project
     .in(file("examples"))
-    .dependsOn(scalus.jvm % "compile->compile;compile->test")
+    .dependsOn(scalus.jvm)
     .settings(
       PluginDependency,
       publish / skip := true,
