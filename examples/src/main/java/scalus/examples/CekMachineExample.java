@@ -1,4 +1,4 @@
-package scalus;
+package scalus.examples;
 
 import java.nio.file.Files;
 import java.nio.file.Paths;
