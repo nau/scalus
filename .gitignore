@@ -1,4 +1,5 @@
 target
+out
 /.bsp
 .bloop/
 .direnv
