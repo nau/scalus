@@ -1,4 +1,5 @@
 package scalus
+package examples
 
 import scalus.Compiler.compile
 import scalus.builtin.Builtins
@@ -8,7 +9,6 @@ import scalus.builtin.Data
 import scalus.builtin.Data.toData
 import scalus.builtin.FromDataInstances.given
 import scalus.builtin.given
-import scalus.examples.OptimizedPreimage
 import scalus.ledger.api.v1.FromDataInstances.given
 import scalus.ledger.api.v1.ToDataInstances.given
 import scalus.ledger.api.v1.*
