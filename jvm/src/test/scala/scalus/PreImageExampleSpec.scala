@@ -1,20 +1,25 @@
 package scalus
 
-import scalus.Compiler.{compile, fieldAsData}
+import scalus.Compiler.compile
+import scalus.builtin.Builtins
+import scalus.builtin.ByteString
 import scalus.builtin.ByteString.given
 import scalus.builtin.Data
-import scalus.builtin.Data.{fromData, toData}
+import scalus.builtin.Data.toData
 import scalus.builtin.FromDataInstances.given
-import scalus.builtin.{Builtins, ByteString, given}
-import scalus.ledger.api.v1.*
+import scalus.builtin.given
+import scalus.examples.OptimizedPreimage
 import scalus.ledger.api.v1.FromDataInstances.given
 import scalus.ledger.api.v1.ToDataInstances.given
-import scalus.prelude.{List, *}
+import scalus.ledger.api.v1.*
+import scalus.prelude.List
 import scalus.prelude.List.Nil
-import scalus.prelude.Prelude.{===, given}
-import scalus.uplc.*
+import scalus.prelude.Prelude.===
+import scalus.prelude.Prelude.given
+import scalus.prelude._
 import scalus.uplc.Term.*
 import scalus.uplc.TermDSL.{*, given}
+import scalus.uplc.*
 
 class PreImageExampleSpec extends BaseValidatorSpec {
     import scalus.builtin.ToDataInstances.given

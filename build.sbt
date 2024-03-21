@@ -104,7 +104,7 @@ lazy val scalus = crossProject(JSPlatform, JVMPlatform)
       libraryDependencies += "org.typelevel" %%% "cats-core" % "2.10.0",
       libraryDependencies += "org.typelevel" %%% "cats-parse" % "1.0.0",
       libraryDependencies += "org.typelevel" %%% "paiges-core" % "0.4.3",
-      libraryDependencies += "com.lihaoyi" %% "upickle" % "3.1.4",
+      libraryDependencies += "com.lihaoyi" %% "upickle" % "3.2.0",
       libraryDependencies ++= Seq(
         "io.bullet" %%% "borer-core" % "1.14.0",
         "io.bullet" %%% "borer-derivation" % "1.14.0"

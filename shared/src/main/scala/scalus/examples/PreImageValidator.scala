@@ -31,7 +31,9 @@ object OptimizedPreimageValidator {
 }
 
 object OptimizedPreimage {
-    val compiledOptimizedPreimageValidator: SIR = compile(OptimizedPreimageValidator.preimageValidator)
+    val compiledOptimizedPreimageValidator: SIR = compile(
+      OptimizedPreimageValidator.preimageValidator
+    )
     val validator: Term = compiledOptimizedPreimageValidator.toUplc()
     val programV1: Program = Program((1, 0, 0), validator)
     // val cbor = Cbor.encode(flatEncoded).toByteArray
