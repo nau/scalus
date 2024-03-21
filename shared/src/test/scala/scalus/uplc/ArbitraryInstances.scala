@@ -223,15 +223,19 @@ trait ArbitraryInstances:
         case Term.Builtin(_)   => Stream.empty
         case Term.Const(const) => Shrink.shrink(const).map(Term.Const.apply)
         case Term.Var(_)       => Stream.empty
-        case Term.Force(t)     => Shrink.shrink(t).map(Term.Force.apply)
-        case Term.Delay(t)     => Shrink.shrink(t).map(Term.Delay.apply)
+        case Term.Force(t) =>
+            Stream(t) ++ Shrink.shrink(t).map(Term.Force.apply)
+        case Term.Delay(t) =>
+            Stream(t) ++ Shrink.shrink(t).map(Term.Delay.apply)
         case Term.LamAbs(n, t) =>
-            val tShrunk = Shrink.shrink(t).map(Term.LamAbs(n, _))
-            tShrunk
+            val tShrunk = Shrink.shrink(t)
+            // try without the lambda, and then try shrinking the body
+            tShrunk ++ tShrunk.map(Term.LamAbs(n, _))
         case Term.Apply(t1, t2) =>
             val t1Shrunk = Shrink.shrink(t1).map(Term.Apply(_, t2))
             val t2Shrunk = Shrink.shrink(t2).map(Term.Apply(t1, _))
-            t1Shrunk ++ t2Shrunk
+            // try without the application, and then try shrinking the arguments
+            Stream.from(Seq(t1, t2))// ++ t1Shrunk ++ t2Shrunk
     }
 
     given Arbitrary[Program] = Arbitrary {
