@@ -39,27 +39,36 @@ object Constant:
 
     case class Integer(value: BigInt) extends Constant:
         def tpe = DefaultUni.Integer
+        override def toString(): java.lang.String =
+          s"Constant.Integer(BigInt(\"$value\"))"
 
     case class ByteString(value: builtin.ByteString) extends Constant:
         def tpe = DefaultUni.ByteString
+        override def toString(): java.lang.String = s"Constant.ByteString($value)"
 
     case class String(value: java.lang.String) extends Constant:
         def tpe = DefaultUni.String
+        override def toString(): java.lang.String = s"Constant.String($value)"
 
     case object Unit extends Constant:
         def tpe = DefaultUni.Unit
+        override def toString(): java.lang.String = s"Constant.Unit"
 
     case class Bool(value: Boolean) extends Constant:
         def tpe = DefaultUni.Bool
+        override def toString(): java.lang.String = s"Constant.Bool($value)"
 
     case class Data(value: scalus.builtin.Data) extends Constant:
         def tpe = DefaultUni.Data
+        override def toString(): java.lang.String = s"Constant.Data($value)"
 
     case class List(elemType: DefaultUni, value: immutable.List[Constant]) extends Constant:
         def tpe = DefaultUni.Apply(DefaultUni.ProtoList, elemType)
+        override def toString(): java.lang.String = s"Constant.List($elemType, $value)"
 
     case class Pair(a: Constant, b: Constant) extends Constant:
         def tpe = DefaultUni.Apply(DefaultUni.Apply(DefaultUni.ProtoPair, a.tpe), b.tpe)
+        override def toString(): java.lang.String = s"Constant.Pair($a, $b)"
 
     def fromValue(tpe: DefaultUni, a: Any): Constant = tpe match {
         case DefaultUni.Integer    => Integer(a.asInstanceOf[BigInt])

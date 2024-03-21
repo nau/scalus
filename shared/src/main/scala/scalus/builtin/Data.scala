@@ -15,6 +15,9 @@ object Data:
 
     case class Constr(constr: Long, args: immutable.List[Data]) extends Data {
         assert(constr >= 0, s"Constructor must be non-negative, got $constr")
+        override def toString: String =
+            if args.isEmpty then s"Constr($constr, Nil)"
+            else s"Constr($constr, $args)"
     }
 
     case class Map(values: immutable.List[(Data, Data)]) extends Data {
@@ -23,12 +26,19 @@ object Data:
             case Map(otherValues) => values.toSet == otherValues.toSet
             case _                => false
         }
+        override def toString: String =
+            if values.isEmpty then "Data.Map(Nil)"
+            else s"Data.Map($values)"
     }
 
     case class List(values: immutable.List[Data]) extends Data:
-        override def toString: String = s"List(${values.map(v => v.toString + "::").mkString}Nil)"
+        override def toString: String =
+            s"Data.List($values)"
 
-    case class I(value: BigInt) extends Data
+    case class I(value: BigInt) extends Data:
+        override def toString(): String =
+            if value.abs < Int.MaxValue then s"I(${value.toString})"
+            else s"I(BigInt(\"$value\"))"
 
     case class B(value: ByteString) extends Data:
-        override def toString: String = s"B(\"${value.toHex}\")"
+        override def toString: String = s"B(hex\"${value.toHex}\")"

@@ -28,23 +28,37 @@ object DefaultUni:
     given Lift[Long] with
         def defaultUni: DefaultUni = DefaultUni.Integer
 
-    implicit case object Integer extends LiftedUni[BigInt]
-    implicit case object ByteString extends LiftedUni[ByteString]
-    implicit case object String extends LiftedUni[String]
-    implicit case object Unit extends LiftedUni[Unit]
-    implicit case object Bool extends LiftedUni[Boolean]
+    implicit case object Integer extends LiftedUni[BigInt] {
+        override def toString(): java.lang.String = "DefaultUni.Integer"
+    }
+    implicit case object ByteString extends LiftedUni[ByteString] {
+        override def toString(): java.lang.String = "DefaultUni.ByteString"
+    }
+    implicit case object String extends LiftedUni[String] {
+        override def toString(): java.lang.String = "DefaultUni.String"
+    }
+    implicit case object Unit extends LiftedUni[Unit] {
+        override def toString(): java.lang.String = "DefaultUni.Unit"
+    }
+    implicit case object Bool extends LiftedUni[Boolean] {
+        override def toString(): java.lang.String = "DefaultUni.Bool"
+    }
 
     case object Data extends DefaultUni:
         type Unlifted = Data
+        override def toString(): java.lang.String = "DefaultUni.Data"
 
     case object ProtoList extends DefaultUni:
         type Unlifted = Nothing // [A] =>> immutable.List[A]
+        override def toString(): java.lang.String = "DefaultUni.ProtoList"
 
     case object ProtoPair extends DefaultUni:
         type Unlifted = Nothing // [A, B] =>> (A, B)
+        override def toString(): java.lang.String = "DefaultUni.ProtoPair"
 
     case class Apply(f: DefaultUni, arg: DefaultUni) extends DefaultUni:
         type Unlifted = f.Unlifted => arg.Unlifted
+        override def toString(): java.lang.String = s"DefaultUni.Apply($f, $arg)"
 
     def Pair(a: DefaultUni, b: DefaultUni): DefaultUni = Apply(Apply(ProtoPair, a), b)
     def List(a: DefaultUni): DefaultUni = Apply(ProtoList, a)
