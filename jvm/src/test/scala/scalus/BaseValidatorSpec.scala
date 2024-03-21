@@ -28,7 +28,7 @@ abstract class BaseValidatorSpec
     with ArbitraryInstances {
 
     protected final def assertSameResult(expected: Expected)(program: Program) = {
-        val result1 = PlutusUplcEval.evalFlat(program)
+        val result1 = UplcCli.evalFlat(program)
         val result2 = Try(Cek.evalUPLCProgram(program))
         // println(s"$result1 == $result2")
         (expected, result1, result2) match
@@ -49,7 +49,7 @@ abstract class BaseValidatorSpec
     }
 
     protected final def assertUplcEvalResult(expected: Expected)(program: Program) = {
-        val result1 = PlutusUplcEval.evalFlat(program)
+        val result1 = UplcCli.evalFlat(program)
         (expected, result1) match
             case (Expected.Success(term), UplcEvalResult.Success(term1, _)) => assert(term == term1)
             case (Expected.Failure(_), UplcEvalResult.UplcFailure(_, err))  => assert(true)

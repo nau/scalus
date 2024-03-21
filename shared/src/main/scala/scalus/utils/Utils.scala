@@ -9,8 +9,6 @@ import scalus.uplc.DeBruijn
 import scalus.uplc.Program
 import scalus.uplc.ProgramFlatCodec
 
-import java.io.ByteArrayInputStream
-import java.io.ByteArrayOutputStream
 import java.nio.file.*
 
 case class PlutusTextEnvelope(`type`: String, description: String, cborHex: String)
@@ -29,19 +27,6 @@ object Utils:
         val digest = java.security.MessageDigest.getInstance("SHA-256")
         digest.update(bytes)
         digest.digest()
-
-    def uplcToFlat(program: String): Array[Byte] =
-        import scala.sys.process.*
-        val cmd = "uplc convert --of flat"
-        val outStream = new ByteArrayOutputStream()
-        cmd.#<(new ByteArrayInputStream(program.getBytes("UTF-8"))).#>(outStream).!
-        outStream.toByteArray
-
-    def uplcEvaluate(code: String): String =
-        import scala.sys.process.*
-        val cmd = "uplc evaluate"
-        val out = cmd.#<(new ByteArrayInputStream(code.getBytes("UTF-8"))).!!
-        out
 
     def writePlutusFile(path: String, program: Program, plutusVersion: PlutusLedgerLanguage): Unit =
         val content = programToPlutusFileContent(program, plutusVersion)

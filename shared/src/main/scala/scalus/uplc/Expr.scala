@@ -194,7 +194,7 @@ object Example:
         val pubKeyProgram =
             Program((1, 0, 0), pubKeyValidator(PubKeyHash(hex"deadbeef")).term).pretty.render(80)
         println(pubKeyProgram)
-        val flat = Utils.uplcToFlat(pubKeyProgram)
+        val flat = UplcCli.uplcToFlat(pubKeyProgram)
         println(s"${flat.length} ${bytesToHex(flat)}")
 
         /*val asdf = rec[BigInt, BigInt](self =>

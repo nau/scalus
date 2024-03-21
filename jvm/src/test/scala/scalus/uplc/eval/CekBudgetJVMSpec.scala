@@ -19,7 +19,7 @@ class CekBudgetJVMSpec extends AnyFunSuite:
             val debruijnedTerm = DeBruijn.deBruijnTerm(term)
             val cek =
                 CekMachine(Cek.plutusV2Params)
-            val res = PlutusUplcEval.evalFlat(Program((1, 0, 0), term))
+            val res = UplcCli.evalFlat(Program((1, 0, 0), term))
             (cek.runCek(debruijnedTerm), res) match
                 case (CekResult.Success(t1, _, budget), UplcEvalResult.Success(t2, budget2)) =>
                     assert(
@@ -62,7 +62,7 @@ class CekBudgetJVMSpec extends AnyFunSuite:
         val program = compile(Builtins.sha2_256(ByteString.empty)).toPlutusProgram((1, 0, 0), false)
         // val program = compile(Builtins.addInteger(1, 2)).toPlutusProgram((1, 0, 0), false)
         println(program.pretty.render(80))
-        val res = PlutusUplcEval.evalFlat(program)
+        val res = UplcCli.evalFlat(program)
         println(res)
 
         val r = CostingFun(

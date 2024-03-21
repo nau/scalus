@@ -21,25 +21,11 @@ import scalus.uplc.DefaultUni.asConstant
 import scalus.uplc.Term.*
 import scalus.uplc.TermDSL.{*, given}
 import scalus.uplc.eval.*
-import scalus.utils.Utils
 import scodec.bits.ByteVector
 
 import scala.io.Source.fromFile
 
 class CekJVMSpec extends BaseValidatorSpec:
-    def evalUPLC(code: String): Term = {
-        val out = Utils.uplcEvaluate(code)
-//    println(out)
-        UplcParser.term
-            .parse(out)
-            .map(_._2)
-            .getOrElse(
-              throw new Exception(
-                s"Could not parse: $out"
-              )
-            )
-    }
-
     def run(code: String) = {
         val parser = UplcParser
         for
@@ -75,8 +61,6 @@ class CekJVMSpec extends BaseValidatorSpec:
 
     test("simple validator example") {
         import TermDSL.*
-        import scalus.utils.Utils.*
-
         // simple validator that checks that the spending transaction has no outputs
         // it's a gift to the validators community
         val validator = λ("redeemer", "datum", "ctx") {
@@ -98,7 +82,7 @@ class CekJVMSpec extends BaseValidatorSpec:
 
         val program = Program((1, 0, 0), validator).pretty.render(80)
 
-        val bytes = Utils.uplcToFlat(program)
+        val bytes = UplcCli.uplcToFlat(program)
 //    println(s"${bytes.length} bytes: ${bytesToHex(bytes)}")
         assert(bytes.length == 34)
 
@@ -126,8 +110,6 @@ class CekJVMSpec extends BaseValidatorSpec:
 
     test("PubKey Validator example") {
         import scalus.ledger.api.v1.*
-        import scalus.utils.Utils.*
-
         // simple validator that checks that the spending transaction
         // has a signature of the given public key hash
         val validator = Example.pubKeyValidator(PubKeyHash(hex"deadbeef"))
@@ -179,7 +161,7 @@ class CekJVMSpec extends BaseValidatorSpec:
           )
         )
 
-        val flatValidator = Utils.uplcToFlat(Program((1, 0, 0), validator.term).pretty.render(80))
+        val flatValidator = UplcCli.uplcToFlat(Program((1, 0, 0), validator.term).pretty.render(80))
         assert(flatValidator.length == 95)
     }
 
