@@ -64,3 +64,9 @@ object UplcCli:
         val outStream = new ByteArrayOutputStream()
         cmd.#<(new ByteArrayInputStream(program.getBytes("UTF-8"))).#>(outStream).!
         outStream.toByteArray
+
+    def uplcFromFlat(program: Array[Byte]): String =
+        val cmd = "uplc convert --if flat --of textual"
+        val outStream = new ByteArrayOutputStream()
+        cmd.#<(new ByteArrayInputStream(program)).#>(outStream).!
+        new String(outStream.toByteArray, "UTF-8")

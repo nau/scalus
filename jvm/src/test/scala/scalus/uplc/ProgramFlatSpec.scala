@@ -1,10 +1,9 @@
 package scalus.uplc
 
-import org.scalacheck.Prop
-import org.scalacheck.Properties
+import org.scalacheck.{Prop, Properties}
+import org.scalatest.funsuite.AnyFunSuite
 import scalus.*
 import scalus.utils.Utils
-import org.scalatest.funsuite.AnyFunSuite
 
 class ProgramFlatSpec extends Properties("ScalaCheck-scalajs") with ArbitraryInstances {
 
@@ -21,10 +20,12 @@ class ProgramFlatSpec extends Properties("ScalaCheck-scalajs") with ArbitraryIns
 
 class BugSpec extends AnyFunSuite {
     test("Bug") {
-        import scalus.uplc.*, Term.*, DefaultFun.*
+        import scalus.uplc.*
+        import DefaultFun.*
+        import Term.*
         import scalus.builtin.ByteString.StringInterpolators
         import scalus.builtin.Data
-        import scalus.builtin.Data.{B, I, Constr}
+        import scalus.builtin.Data.{B, Constr, I}
         val p = Program(
           (43, 38, 18),
           Const(
@@ -48,7 +49,7 @@ class BugSpec extends AnyFunSuite {
                       ),
                       B(hex"4E1454FF835759B9E5FF007F7F7F9480500101C803BD80971E01FF"),
                       I(BigInt("9223372036854775807")),
-                      I(0),
+                      I(1),
                       B(
                         hex"F47CC8E5C7007F7FE2B57F7F0106FFFF1380FF9D85B87F486680034005800151011F8CDF09008F00EB826100E10080A601800F80803C4EFA303D8EF33AE05E7F45FF9AD33000DF857414560180"
                       )
@@ -63,7 +64,7 @@ class BugSpec extends AnyFunSuite {
                   Data.List(
                     List(
                       Constr(
-                        27,
+                        7, // fails if 7 or more, works if 6 or less
                         List(
                           Data.Map(
                             List(
@@ -164,7 +165,6 @@ class BugSpec extends AnyFunSuite {
                       )
                     )
                   ),
-                  B(hex"0165D201E9D500A47F1ADFFF0100D5"),
                   Data.Map(
                     List(
                       (
@@ -461,7 +461,7 @@ class BugSpec extends AnyFunSuite {
                         )
                       ),
                       (
-                        I(BigInt("2147483647")),
+                        I(BigInt("1")),
                         B(
                           hex"61017F00BA0137896E15C2FFC5700100D400CFA554FF00F4008000BC807F7FF65BFF7F7A0100C8FF007F9780FFF48013657FCB00FFBC"
                         )
@@ -489,6 +489,15 @@ class BugSpec extends AnyFunSuite {
         )
         val str = p.pretty.render(80)
         val bytes = UplcCli.uplcToFlat(str)
+        println(Utils.bytesToHex(bytes))
+        // println(Utils.bytesToHex(p.flatEncoded))
         assert(Utils.bytesToHex(bytes) == Utils.bytesToHex(p.flatEncoded))
     }
+    // 1st bytestring is 86 bytes long, should be split at 64 bytes and 22 bytes
+    // 2nd bytestring is 54 bytes long, should not be split
+    // 3rd bytestring is 89 bytes, 64 + 25
+    // ByteString parts                                                                                                  | 0x40 + 0x16 (22) | 22 bytes chunk  ByteString chunks list ends | I(BigInt("1")) | 2nd Bytestring                                                                          end ByteString   | Arr start Bytes start  len | 3rd Bytestring, 64 bytes chunk                                                                                                | len | 25 bytes chunk               end of Bytestring | break                                                            | next Bytestring    |   |continuation
+    //                    Flat Bytestring split, but why the hell F7 instead of FF???                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                here, after F7 bytes there is 69 left. Instead it should be FF and then 61 left
+    // 7501813E97DA01FFBA F7 29FFDB69377A8062B7B2544AC53E7F7FB20A7F80005C2A287F003E82012A01FFFF01000000A763B2C6370100809E 56                99B83C0D86FFFFE3FF7F80FFBE55E27E8F4614F9709D FF 0158 36        61017F00BA0137896E15C2FFC5700100D400CFA554FF00F4008000BC807F7FF65BFF7F7A0100C8FF007F9780FFF48013657FCB00FFBC 9F        5F           5840 8172012030B5DF7F7F007F7FC3FFB9D3013636017F127F80807F807F8F9CBC807F55EDFF6DFF995BB1EE7F6D807F5CE292C90001005E650001BA66808001FF80 5819 8084970101FFBC00BEA182008022800001C1FF6E9D012BEF7F FF     D905229FD9051780D9050280FFA11A7FFFFFFF1903E8FF5F 69 5840 0101AAACDB2F            ] 8021E15080FF01189607..." did not equal "...
+    // 7501813E97DA01FFBA FF 29FFDB69377A8062B7B2544AC53E7F7FB20A7F80005C2A287F003E82012A01FFFF01000000A763B2C6370100809E 56                99B83C0D86FFFFE3FF7F80FFBE55E27E8F4614F9709D FF 0158 36        61017F00BA0137896E15C2FFC5700100D400CFA554FF00F4008000BC807F7FF65BFF7F7A0100C8FF007F9780FFF48013657FCB00FFBC 9F        5F           5840 8172012030B5DF7F7F007F7FC3FFB9D3013636017F127F80807F807F8F9CBC807F55EDFF6DFF995BB1EE7F6D807F5CE292C90001005E650001BA66808001FF80 5819 8084970101FFBC00BEA182008022800001C1FF6E9D012BEF7F FF     D905229FD9051780D9050280FFA11A7FFFFFFF1903E8FF5F    5840 0101AAACDB2F          61] 8021E15080FF01189607
 }

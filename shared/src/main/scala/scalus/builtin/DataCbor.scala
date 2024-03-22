@@ -1,7 +1,7 @@
 package scalus.builtin
 import io.bullet.borer.Tag.{NegativeBigNum, Other, PositiveBigNum}
 import io.bullet.borer.encodings.BaseEncoding
-import io.bullet.borer.{ByteAccess, DataItem as DI, Decoder, Encoder, Reader, Writer}
+import io.bullet.borer.{ByteAccess, Decoder, Encoder, Reader, Writer, DataItem as DI}
 import scalus.builtin.Data.{B, Constr, I, Map}
 
 import scala.annotation.tailrec
@@ -9,6 +9,19 @@ import scala.collection.immutable.List
 import scala.collection.mutable
 import scala.collection.mutable.{ArrayBuffer, ListBuffer}
 
+/* CBOR Debug hints
+ * 40 + length - Array[Bytes]
+ * 80 + length - array header
+ * A0 + length - Map header
+ * 9F - array start
+ * 5F - byte array start
+ * FF - break
+ *
+ * F4 - false
+ * F5 - true
+ * F6 - null
+ * F7 - undefined
+ * */
 object PlutusDataCborEncoder extends Encoder[Data]:
     override def write(writer: Writer, data: Data): Writer =
         implicit val selfEncoder: Encoder[Data] = this
