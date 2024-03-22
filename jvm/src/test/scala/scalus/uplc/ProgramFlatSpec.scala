@@ -33,7 +33,6 @@ class BugSpec extends AnyFunSuite {
                 List(
                   Data.List(
                     List(
-                      I(1),
                       B(
                         hex"FD6E21FFFFE9BC428000F38C640180400100019100A97F807F7F3F9F000080807F0901FF804C4DB864800A9E7F8000877F0D7FDF00AE00FFC2017F3385B200B6DE0101808028CE011E07807F287F35D3CFFFE67F0880"
                       ),
@@ -47,68 +46,11 @@ class BugSpec extends AnyFunSuite {
                           Data.List(List(I(1000), Data.Map(Nil)))
                         )
                       ),
-                      I(0),
                       B(hex"4E1454FF835759B9E5FF007F7F7F9480500101C803BD80971E01FF"),
-                      I(59),
                       I(BigInt("9223372036854775807")),
                       I(0),
                       B(
                         hex"F47CC8E5C7007F7FE2B57F7F0106FFFF1380FF9D85B87F486680034005800151011F8CDF09008F00EB826100E10080A601800F80803C4EFA303D8EF33AE05E7F45FF9AD33000DF857414560180"
-                      ),
-                      Data.Map(
-                        List(
-                          (I(BigInt("2147483647")), I(BigInt("2147483647"))),
-                          (
-                            I(0),
-                            Data.Map(
-                              List(
-                                (
-                                  I(BigInt("-9223372036854775808")),
-                                  Constr(
-                                    28,
-                                    List(
-                                      B(
-                                        hex"8023D3015F01FF2F001EC7D6837AFFB861FB015C017FFF00FF0101BB7F7F7FFF77009500FFFFB500FA7FC701AFF567A131A624CA7F7AE99401FFF722002F2815FF013080DEDC7F"
-                                      )
-                                    )
-                                  )
-                                ),
-                                (
-                                  Data.Map(
-                                    List(
-                                      (
-                                        Data.Map(Nil),
-                                        B(
-                                          hex"5E05A07F000061B47F0141A401E301EC807FFFBF00F9A6"
-                                        )
-                                      )
-                                    )
-                                  ),
-                                  B(
-                                    hex"48012F7FC00101CB010180461901FF51506AA00180801780E1FFA40000B4007F546380BB01EA172C80FF06007F030D01807F7FB7B4AE97FF01F73D80FF7F0301000068A401FFE3FFD10180200198807B20FF80"
-                                  )
-                                )
-                              )
-                            )
-                          ),
-                          (
-                            B(
-                              hex"0001F85B80018001E400000CFB80A680012AF90080E08075FFFF80BE01E88022017F807F2D65FF4E7F00011BFFF47FFF7F3E357FE480C2FF3FFF012B4D8EC68001453F0080F301FF8080B8E8015A1AF800807F00FF7FF1808080E9FFFFCEAE0063"
-                            ),
-                            Constr(
-                              38,
-                              List(
-                                B(
-                                  hex"7F800180FF01803B7F49FFC2DE7F7F808E80FF8001317F1D7F2385800FBC00168080E7FF357A7F7BE9B448D5A0FFFF7F"
-                                )
-                              )
-                            )
-                          ),
-                          (
-                            I(BigInt("-2147483648")),
-                            Constr(2, List(I(0), B(hex"00FF007AFFCB6CFFEB808FFF3E00")))
-                          )
-                        )
                       )
                     )
                   ),
@@ -146,7 +88,6 @@ class BugSpec extends AnyFunSuite {
                               )
                             )
                           ),
-                          I(-1),
                           Data.Map(
                             List(
                               (
@@ -220,9 +161,7 @@ class BugSpec extends AnyFunSuite {
                       B(hex"8039FF84C2FA51AB"),
                       B(
                         hex"7F583E00C780D3FF019F0D7F1929C801807F730D0153E07FA8004380B9D5FF6500705A51008041360000FF4E8089CE80AFFF2701EAFFFF1A0101011580"
-                      ),
-                      I(57),
-                      I(1000)
+                      )
                     )
                   ),
                   B(hex"0165D201E9D500A47F1ADFFF0100D5"),
@@ -482,7 +421,6 @@ class BugSpec extends AnyFunSuite {
                       (
                         Data.List(
                           List(
-                            I(-1000),
                             Constr(
                               42,
                               List(
@@ -531,7 +469,6 @@ class BugSpec extends AnyFunSuite {
                       (
                         Data.List(
                           List(
-                            I(1000),
                             B(
                               hex"8172012030B5DF7F7F007F7FC3FFB9D3013636017F127F80807F807F8F9CBC807F55EDFF6DFF995BB1EE7F6D807F5CE292C90001005E650001BA66808001FF808084970101FFBC00BEA182008022800001C1FF6E9D012BEF7F"
                             ),
@@ -542,259 +479,8 @@ class BugSpec extends AnyFunSuite {
                         B(
                           hex"0101AAACDB2F8021E15080FF0118960799D6487F5A3180FF9D7F01E9D600E87FFF0101FF7FDCFF011E5A05D0DE8D1701EBFF01F0777FE4B70100AA80FF6A9B017F88FF7F8980FFA58021434E007601A01E7F80000000802000807F01FF01007FFF6B00"
                         )
-                      ),
-                      (
-                        B(hex"C980EFB80080A5010F6FE6FF6F7F8001806B"),
-                        I(BigInt("2147483647"))
-                      ),
-                      (
-                        Constr(
-                          8,
-                          List(
-                            I(BigInt("-9223372036854775808")),
-                            Data.List(List(Data.Map(Nil))),
-                            B(
-                              hex"4C08A3007FA05E7F807F56DEFFF47CB77D920180FF8DFFFF7F76FF017F89FFE8"
-                            ),
-                            I(1000)
-                          )
-                        ),
-                        B(hex"01FC7F3D427F00017F3511")
-                      ),
-                      (
-                        B(
-                          hex"F901779AC41A7F515285427FFF2601011B7F000E007F4AAB6D0038544E7F"
-                        ),
-                        I(-1000)
                       )
                     )
-                  ),
-                  Constr(
-                    23,
-                    List(
-                      I(40),
-                      I(BigInt("9223372036854775807")),
-                      B(
-                        hex"ADF0FFFF2F2B1FFFA493BEA8C07FFFFFC589FF00FF7F0024BA7F56D28EFF75FE7F00FF47EF800009FF756073B2839800007F0078E5A63B80E2806780045F8000FF422E80FFFF75"
-                      ),
-                      B(
-                        hex"BB0000075CB8862C935D797F6EF901FF1A01FF2D45FF64EB664DFFE10000006BFF7F0080BF00017FCC3610FF00008080012B47017FC20036482910012F95897880FF2100433498FFFF84537FFF7FC04F80FF0C00"
-                      ),
-                      Data.Map(
-                        List(
-                          (
-                            Constr(
-                              23,
-                              List(Data.List(List()), I(BigInt("-9223372036854775808")))
-                            ),
-                            Constr(
-                              31,
-                              List(
-                                Data.List(
-                                  List(
-                                    B(
-                                      hex"7F5B7F017F6192367F807F0A936BFF4FFF4900D0F00128FFDA4F720100FFF8FF9EFF80017F"
-                                    )
-                                  )
-                                ),
-                                I(BigInt("-2147483648"))
-                              )
-                            )
-                          ),
-                          (
-                            B(
-                              hex"227F7F807F003364E601FF7FFFFFFF01EE7CFF5D7F00731432FF8077A800FF00A67FFF01C77F70FFD7BE7E8000FFD9017F158080D98C5BB428F5C3E8B4887FFF997F80D37F7ED2CAFD005D36017F000128FF80"
-                            ),
-                            B(
-                              hex"00D07F7F7F7F00C094397F72017F009099FF225E8A012C8000EC00587F5737800180FF0101FF80F901D6A4001F9D7F7FFC"
-                            )
-                          ),
-                          (
-                            I(1),
-                            Data.Map(
-                              List(
-                                (
-                                  I(BigInt("-9223372036854775808")),
-                                  B(
-                                    hex"00147F34807FE87A66FF802545F30001BE99B28BFF001E2C428000807F80397FFF7F00D680A8010180D901807FB1FFFF1B6A330117EC01800C01799A01EEFF0162537F018080804E7C1064A2A37FFF9AB88001FF01C700"
-                                  )
-                                ),
-                                (
-                                  B(hex"7FBC8C80407F80FF007F007E0180DB"),
-                                  B(hex"7FEB00BE017600806784015100")
-                                )
-                              )
-                            )
-                          ),
-                          (I(-1000), I(-1000)),
-                          (
-                            Data.Map(
-                              List(
-                                (
-                                  I(-1),
-                                  Data.Map(
-                                    List(
-                                      (
-                                        B(
-                                          hex"05A1890173841726E08E767F02F4AD80C5E08500C0004A028477FF5680F641AB6A00"
-                                        ),
-                                        B(
-                                          hex"FFF701CED180A3FF681B7F00ED2915FFFF6F9D0101FF0000517F017FE6013B6A7FFF5B090B8000FF7F7F7FB680EA7B0080AC7FBF80AAFFFF00CEF8FFEC7319B701F30000FFDA010B"
-                                        )
-                                      )
-                                    )
-                                  )
-                                )
-                              )
-                            ),
-                            B(
-                              hex"0144B6807FDD800139577F7F8E7F7FA600007F7D0000206FE2FF80777FFFB20180FF99A6F92377AF38FF0177"
-                            )
-                          )
-                        )
-                      ),
-                      I(BigInt("9223372036854775807")),
-                      Data.Map(
-                        List(
-                          (
-                            I(1000),
-                            B(
-                              hex"FF41807F009606009900807F0080018000B101A61C474C01870100C11E8076C301F5FF017F807F540101BCEB03805B2CFA01E17D0199"
-                            )
-                          ),
-                          (
-                            Data.Map(
-                              List(
-                                (
-                                  Data.Map(
-                                    List(
-                                      (
-                                        B(
-                                          hex"007F807F80FF1B007B2AFF00013B0038800080FFEC7FC7D0FF3FAAFBD0E501040FFF41FF01"
-                                        ),
-                                        Constr(43, Nil)
-                                      )
-                                    )
-                                  ),
-                                  I(BigInt("2147483647"))
-                                ),
-                                (
-                                  I(-1000),
-                                  B(
-                                    hex"01FF58000A0001A5716F8A01490000680FC17FE101609EE2B68073C400FFFFB601F100130199017CFF300180BDFF80F58000017F01924500FF80DD77014C79FF011B7F807FF380A8FEFF0088FF1C22568070011C79006801B7FB5233"
-                                  )
-                                )
-                              )
-                            ),
-                            I(1)
-                          ),
-                          (
-                            B(
-                              hex"80000101C3B57FA3FE017F2F930EED490BFF0428007F01001C018080807FC27F91FF50817F016701807FFFFF1D00F2FF010AD500D97FA2"
-                            ),
-                            I(1)
-                          ),
-                          (
-                            I(BigInt("9223372036854775807")),
-                            B(hex"00FF2E800E010E720192B98000D31A7F0101802D80E38080")
-                          )
-                        )
-                      ),
-                      B(
-                        hex"00D600FF78E819007FFF3005017FEA0101008A9CB4D54601791A807F4671801BFF7F"
-                      )
-                    )
-                  ),
-                  Data.List(
-                    List(
-                      B(
-                        hex"B401957F01C2A47F7F22000100FF7F797F8032010116FFF7EBD3BD01B301800060FFE2E1D7BB010033337F7FFFDC7F00F1FF7F7F8082D658800D7F80AB20C539E5FF4800408D197F00300B7FFF0001B801C7FF"
-                      ),
-                      I(BigInt("9223372036854775807")),
-                      Data.List(
-                        List(
-                          Data.Map(
-                            List(
-                              (I(1000), I(BigInt("9223372036854775807"))),
-                              (Constr(27, Nil), Data.Map(List((Data.Map(Nil), I(-1000)))))
-                            )
-                          ),
-                          I(BigInt("-2147483648")),
-                          I(1),
-                          B(hex"FFFF51FF7F00FF8000FFE780910B80942C128000")
-                        )
-                      ),
-                      B(
-                        hex"997359FFFFF900AE0080E9B1802E7F0850803501807F01FF9103FF8001305119BF0161600100FFC6A17FDC007F8006010180013001AA1BFF42017FC001FF517F2149CD80FFE5CCFF4D"
-                      ),
-                      Data.Map(
-                        List(
-                          (
-                            Data.List(
-                              List(
-                                B(
-                                  hex"0063A6FF2D0101800900FFF5C47F4C01800080FFC9A13AFFBB017FB39AFFEF80FFFF1E007F012C0081D27F0E80277F80FAFF0142"
-                                )
-                              )
-                            ),
-                            B(
-                              hex"01CC012F0157807F8000B971C96BAA137F8E7F01FFFFE980FF593380F617E77F012D7F689502B9104B9EA472D94C"
-                            )
-                          ),
-                          (I(60), Data.Map(List((Data.Map(Nil), I(1000))))),
-                          (
-                            B(
-                              hex"BFA07F0EEA4C8109FFFF007F44FF017FFF0100DB7F807080A100147D1AFF447F7FE1F3398005F5C4C200ECFF7FC0801EB600"
-                            ),
-                            B(
-                              hex"0401FF12C04BFFD592FFF7DB6B7F7F69FFAA660A608C9ED3809C729A80992980C063A0808C27FF69007F3F0100FF587F5D007EA5EC5FFFFFE3007F01FFCA017F80017FE52AFFD6019F7F80DD4CD5E7807FD22001007EFF568022"
-                            )
-                          ),
-                          (
-                            Data.Map(
-                              List(
-                                (
-                                  B(
-                                    hex"643688412DD380FF7FC5F601017F5401AE7F801F800080767C574954D3807FD9B8CDF710BD7F90FFBBFF7E9B6B809BBB007F01117F7F00FFFF7F800000FF2CC71CB6800401"
-                                  ),
-                                  Constr(10, Nil)
-                                )
-                              )
-                            ),
-                            B(
-                              hex"C9C200807FC37FEDFF858051C4FF6E98CF31000193000E800040FF0000E8C492537F3A75EF49FF80017FFF7FBB0056C67F007FFF80805016800054FF0080927F80AF5B7F2DBF7FFF7F480079BBCF0000B7"
-                            )
-                          )
-                        )
-                      ),
-                      I(-1000),
-                      Data.List(List(I(-1), I(1000), I(-1), I(0))),
-                      Constr(
-                        15,
-                        List(
-                          Constr(
-                            42,
-                            List(
-                              Data.List(List()),
-                              B(
-                                hex"00FF0100AB80FF00CD7F01DA803C8000FFFFA47F0020DAFFCFCD2AB47FA6DE269980D17F7F5AEF7F805A2F458B7F807F7F80805A807F537F00197D0100E6"
-                              )
-                            )
-                          ),
-                          Data.List(
-                            List(I(-1000), Data.Map(List((B(hex"80FFC6"), Data.Map(Nil)))))
-                          ),
-                          B(
-                            hex"7F00CB010F7F8606002C6600803CFFFF88007D6F807FAC4F75FF009601FFBDFFCCFF3C00FF184C7FDBFF383C007FD200DB807F00FF7F7F368049310001E5AEE8DCFF100100013DFF659F4F7F8000FF80317CFFFF2480001AFFFFE36EFF807F7F7FFF"
-                          ),
-                          I(BigInt("-9223372036854775808")),
-                          B(hex"FFFF71002680802F4401017F300FF9FF")
-                        )
-                      )
-                    )
-                  ),
-                  B(
-                    hex"00F5737FFFA6DDFF0060D17F0D01C18045FF152B00C7FFD35688007FCEFFFC4F7F800100FF0000D77F1C806950D00180FF8001800100167F80007FFF0001D22780167FFF80FF"
                   )
                 )
               )
