@@ -5,6 +5,8 @@ import cats.syntax.group.*
 import scalus.builtin.ByteString
 import scalus.builtin.Data
 import scalus.builtin.PlatformSpecific
+import scalus.ledger.api.PlutusLedgerLanguage
+import scalus.ledger.babbage.*
 import scalus.uplc.DefaultUni.asConstant
 import scalus.uplc.Term.*
 
@@ -32,11 +34,93 @@ case class CekMachineCosts(
     builtinCost: ExBudget
 )
 
+object CekMachineCosts {
+    val defaultMachineCosts: CekMachineCosts = CekMachineCosts(
+      startupCost = ExBudget(ExCPU(100), ExMemory(100)),
+      varCost = ExBudget(ExCPU(23000), ExMemory(100)),
+      constCost = ExBudget(ExCPU(23000), ExMemory(100)),
+      lamCost = ExBudget(ExCPU(23000), ExMemory(100)),
+      delayCost = ExBudget(ExCPU(23000), ExMemory(100)),
+      forceCost = ExBudget(ExCPU(23000), ExMemory(100)),
+      applyCost = ExBudget(ExCPU(23000), ExMemory(100)),
+      builtinCost = ExBudget(ExCPU(23000), ExMemory(100))
+    )
+
+    def fromMap(map: Map[String, Int]): CekMachineCosts = {
+        def get(key: String) = {
+            val cpu = s"${key}-exBudgetCPU"
+            val memory = s"${key}-exBudgetMemory"
+            ExBudget.fromCpuAndMemory(
+              cpu = map.getOrElse(cpu, throw new IllegalArgumentException(s"Missing key: $cpu")),
+              memory =
+                  map.getOrElse(memory, throw new IllegalArgumentException(s"Missing key: $memory"))
+            )
+        }
+
+        CekMachineCosts(
+          startupCost = get("cekStartupCost"),
+          varCost = get("cekVarCost"),
+          constCost = get("cekConstCost"),
+          lamCost = get("cekLamCost"),
+          delayCost = get("cekDelayCost"),
+          forceCost = get("cekForceCost"),
+          applyCost = get("cekApplyCost"),
+          builtinCost = get("cekBuiltinCost")
+        )
+    }
+
+}
+
 case class MachineParams(
     machineCosts: CekMachineCosts,
     builtinMeanings: Map[DefaultFun, BuiltinRuntime],
     platformSpecific: PlatformSpecific
 )
+
+object MachineParams {
+    def default(using ps: PlatformSpecific) = MachineParams(
+      machineCosts = CekMachineCosts.defaultMachineCosts,
+      builtinMeanings = Meaning.defaultBuiltins.BuiltinMeanings,
+      platformSpecific = ps
+    )
+
+    /** Creates `MachineParams` from a Cardano CLI protocol parameters JSON.
+      *
+      * @param json
+      *   The Cardano CLI protocol parameters JSON
+      * @param plutus
+      *   The plutus version
+      * @return
+      *   The machine parameters
+      */
+    def fromCardanoCliProtocolParamsJson(json: String, plutus: PlutusLedgerLanguage)(using
+        ps: PlatformSpecific
+    ): MachineParams = {
+        import upickle.default.*
+        val pparams = read[ProtocolParams](json)
+        val paramsMap = plutus match
+            case PlutusLedgerLanguage.PlutusV1 =>
+                val costs = pparams.costModels("PlutusV1")
+                val params = PlutusV1Params.fromSeq(costs)
+                writeJs(params).obj.map { case (k, v) => (k, v.num.toInt) }.toMap
+            case PlutusLedgerLanguage.PlutusV2 =>
+                val costs = pparams.costModels("PlutusV2")
+                val params = PlutusV2Params.fromSeq(costs)
+                writeJs(params).obj.map { case (k, v) =>
+                    (k, v.num.toInt)
+                }.toMap
+            case PlutusLedgerLanguage.PlutusV3 =>
+                throw new NotImplementedError("PlutusV3 not supported yet")
+
+        val builtinCostModel = BuiltinCostModel.fromCostModelParams(paramsMap)
+        val machineCosts = CekMachineCosts.fromMap(paramsMap)
+        MachineParams(
+          machineCosts = machineCosts,
+          builtinMeanings = Meaning(builtinCostModel).BuiltinMeanings,
+          platformSpecific = ps
+        )
+    }
+}
 
 class MachineError(msg: String) extends RuntimeException(msg)
 
@@ -125,32 +209,12 @@ enum CekValue {
 object Cek {
     @deprecated("Use VM methods instead", "0.7.0")
     def evalUPLC(term: Term)(using ps: PlatformSpecific): Term = {
-        val params = plutusV2Params
+        val params = MachineParams.default
         val debruijnedTerm = DeBruijn.deBruijnTerm(term)
         new CekMachine(params).evaluateTerm(debruijnedTerm)
     }
 
     def evalUPLCProgram(p: Program)(using ps: PlatformSpecific): Term = evalUPLC(p.term)
-
-    val plutusV1MachineCosts: CekMachineCosts = CekMachineCosts(
-      startupCost = ExBudget(ExCPU(100), ExMemory(100)),
-      varCost = ExBudget(ExCPU(23000), ExMemory(100)),
-      constCost = ExBudget(ExCPU(23000), ExMemory(100)),
-      lamCost = ExBudget(ExCPU(23000), ExMemory(100)),
-      delayCost = ExBudget(ExCPU(23000), ExMemory(100)),
-      forceCost = ExBudget(ExCPU(23000), ExMemory(100)),
-      applyCost = ExBudget(ExCPU(23000), ExMemory(100)),
-      builtinCost = ExBudget(ExCPU(23000), ExMemory(100))
-    )
-
-    val plutusV2MachineCosts = plutusV1MachineCosts
-
-    def plutusV2Params(using ps: PlatformSpecific): MachineParams =
-        MachineParams(
-          machineCosts = plutusV2MachineCosts,
-          builtinMeanings = Meaning.plutusV2Builtins.BuiltinMeanings,
-          platformSpecific = ps
-        )
 }
 
 trait VMBase {

@@ -61,7 +61,7 @@ object OneArgument:
           case ConstantCost(cost) =>
               ujson.Obj("type" -> "constant_cost", "arguments" -> cost)
           case LinearCost(cost) =>
-              ujson.Obj("type" -> "linear_cost", "arguments" -> write(cost))
+              ujson.Obj("type" -> "linear_cost", "arguments" -> writeJs(cost))
       },
       json => {
           json.obj("type").str match
@@ -141,27 +141,27 @@ object TwoArguments {
           case ConstantCost(cost) =>
               ujson.Obj("type" -> "constant_cost", "arguments" -> cost)
           case LinearInX(costFun) =>
-              ujson.Obj("type" -> "linear_in_x", "arguments" -> write(costFun))
+              ujson.Obj("type" -> "linear_in_x", "arguments" -> writeJs(costFun))
           case LinearInY(costFun) =>
-              ujson.Obj("type" -> "linear_in_y", "arguments" -> write(costFun))
+              ujson.Obj("type" -> "linear_in_y", "arguments" -> writeJs(costFun))
           case LinearInXAndY(cost) =>
-              ujson.Obj("type" -> "linear_in_x_and_y", "arguments" -> write(cost))
+              ujson.Obj("type" -> "linear_in_x_and_y", "arguments" -> writeJs(cost))
           case AddedSizes(cost) =>
-              ujson.Obj("type" -> "added_sizes", "arguments" -> write(cost))
+              ujson.Obj("type" -> "added_sizes", "arguments" -> writeJs(cost))
           case SubtractedSizes(cost) =>
-              ujson.Obj("type" -> "subtracted_sizes", "arguments" -> write(cost))
+              ujson.Obj("type" -> "subtracted_sizes", "arguments" -> writeJs(cost))
           case MultipliedSizes(cost) =>
-              ujson.Obj("type" -> "multiplied_sizes", "arguments" -> write(cost))
+              ujson.Obj("type" -> "multiplied_sizes", "arguments" -> writeJs(cost))
           case MinSize(cost) =>
-              ujson.Obj("type" -> "min_size", "arguments" -> write(cost))
+              ujson.Obj("type" -> "min_size", "arguments" -> writeJs(cost))
           case MaxSize(cost) =>
-              ujson.Obj("type" -> "max_size", "arguments" -> write(cost))
+              ujson.Obj("type" -> "max_size", "arguments" -> writeJs(cost))
           case LinearOnDiagonal(cost) =>
-              ujson.Obj("type" -> "linear_on_diagonal", "arguments" -> write(cost))
+              ujson.Obj("type" -> "linear_on_diagonal", "arguments" -> writeJs(cost))
           case ConstAboveDiagonal(cost) =>
-              ujson.Obj("type" -> "const_above_diagonal", "arguments" -> write(cost))
+              ujson.Obj("type" -> "const_above_diagonal", "arguments" -> writeJs(cost))
           case ConstBelowDiagonal(cost) =>
-              ujson.Obj("type" -> "const_below_diagonal", "arguments" -> write(cost))
+              ujson.Obj("type" -> "const_below_diagonal", "arguments" -> writeJs(cost))
       },
       json => {
           json.obj("type").str match
@@ -248,13 +248,13 @@ object ThreeArguments {
           case ConstantCost(cost) =>
               ujson.Obj("type" -> "constant_cost", "arguments" -> cost)
           case AddedSizes(cost) =>
-              ujson.Obj("type" -> "added_sizes", "arguments" -> write(cost))
+              ujson.Obj("type" -> "added_sizes", "arguments" -> writeJs(cost))
           case LinearInX(costFun) =>
-              ujson.Obj("type" -> "linear_in_x", "arguments" -> write(costFun))
+              ujson.Obj("type" -> "linear_in_x", "arguments" -> writeJs(costFun))
           case LinearInY(costFun) =>
-              ujson.Obj("type" -> "linear_in_y", "arguments" -> write(costFun))
+              ujson.Obj("type" -> "linear_in_y", "arguments" -> writeJs(costFun))
           case LinearInZ(costFun) =>
-              ujson.Obj("type" -> "linear_in_z", "arguments" -> write(costFun))
+              ujson.Obj("type" -> "linear_in_z", "arguments" -> writeJs(costFun))
       },
       json => {
           json.obj("type").str match

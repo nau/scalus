@@ -2,28 +2,24 @@ package scalus.uplc
 package eval
 
 import org.scalatest.funsuite.AnyFunSuite
-import scalus.Compiler.compile
 import scalus.*
-import scalus.builtin.Builtins
-import scalus.builtin.ByteString
 import scalus.builtin.given
+import scalus.ledger.babbage.*
 import scalus.uplc.DefaultUni.asConstant
 import scalus.uplc.Term.*
-import scalus.uplc.eval.CekValue.VCon
 
 class CekBudgetJVMSpec extends AnyFunSuite:
     test("Check machine budget for terms is correct") {
         import cats.syntax.all.*
-        import Cek.plutusV2MachineCosts.*
+        import CekMachineCosts.defaultMachineCosts.*
         def check(term: Term, expected: ExBudget) = {
             val debruijnedTerm = DeBruijn.deBruijnTerm(term)
-            val cek =
-                CekMachine(Cek.plutusV2Params)
+            val cek = CekMachine(MachineParams.default)
             val res = UplcCli.evalFlat(Program((1, 0, 0), term))
             (cek.runCek(debruijnedTerm), res) match
                 case (CekResult.Success(t1, _, budget), UplcEvalResult.Success(t2, budget2)) =>
                     assert(
-                      budget == (expected |+| Cek.plutusV2MachineCosts.startupCost),
+                      budget == (expected |+| cek.params.machineCosts.startupCost),
                       s"for term $term"
                     )
                     assert(budget == budget2)
@@ -45,32 +41,34 @@ class CekBudgetJVMSpec extends AnyFunSuite:
         check(builtin, builtinCost)
     }
 
-    test("Check builtinCostModel.json == defaultBuiltinCostModel") {
-        val input = this.getClass().getResourceAsStream("/builtinCostModel.json")
-        val costModel = BuiltinCostModel.fromInputStream(input)
-        assert(costModel == BuiltinCostModel.plutusV2BuiltinCostModel)
+    test("BuiltinCostModel JSON reader from Cardano Protocol Parameters") {
+        import upickle.default.*
+        val input = this.getClass().getResourceAsStream("/protocol-params.json")
+        val pparams = read[ProtocolParams](input)
+        val v1 = pparams.costModels("PlutusV1")
+        val v2 = pparams.costModels("PlutusV2")
+        val paramsV1 = PlutusV1Params.fromSeq(v1)
+        val paramsV2 = PlutusV2Params.fromSeq(v2)
+        val paramsV1Map = writeJs(paramsV1).obj.map { case (k, v) => (k, v.num.toInt) }.toMap
+        val paramsV2Map = writeJs(paramsV2).obj.map { case (k, v) => (k, v.num.toInt) }.toMap
+        val modelV1 = BuiltinCostModel.fromCostModelParams(paramsV1Map)
+        val modelV2 = BuiltinCostModel.fromCostModelParams(paramsV2Map)
+        assert(modelV1.flattenCostModel.keySet == BuiltinCostModel.default.flattenCostModel.keySet)
+        assert(modelV2.flattenCostModel.keySet == BuiltinCostModel.default.flattenCostModel.keySet)
     }
 
-    ignore("Check jvm/src/main/resources/cekMachineCosts.json.json == defaultMachineCosts") {
-        val input = this.getClass().getResourceAsStream("/cekMachineCosts.json")
-        val costModel = BuiltinCostModel.fromInputStream(input)
-        assert(costModel == BuiltinCostModel.plutusV2BuiltinCostModel)
-    }
-
-    test("Run") {
-        // val program = compile(()).toPlutusProgram((1, 0, 0), false)
-        val program = compile(Builtins.sha2_256(ByteString.empty)).toPlutusProgram((1, 0, 0), false)
-        // val program = compile(Builtins.addInteger(1, 2)).toPlutusProgram((1, 0, 0), false)
-        println(program.pretty.render(80))
-        val res = UplcCli.evalFlat(program)
-        println(res)
-
-        val r = CostingFun(
-          OneArgument.LinearCost(OneVariableLinearFunction(806990, 30482)),
-          OneArgument.ConstantCost(4)
-        ).calculateCost(VCon(Constant.Integer(3)))
-        println(r)
-        val cek = CekMachine(Cek.plutusV2Params)
-        cek.evaluateTerm(program.term)
-        println(s"${cek.getExBudget}")
+    test("BuiltinCostModel JSON reader from Blockfrost Protocol Parameters") {
+        import upickle.default.*
+        val input = this.getClass().getResourceAsStream("/blockfrost-params-epoch-471.json")
+        val pparams = read[ProtocolParams](input)(using ProtocolParams.blockfrostParamsRW)
+        val v1 = pparams.costModels("PlutusV1")
+        val v2 = pparams.costModels("PlutusV2")
+        val paramsV1 = PlutusV1Params.fromSeq(v1)
+        val paramsV2 = PlutusV2Params.fromSeq(v2)
+        val paramsV1Map = writeJs(paramsV1).obj.map { case (k, v) => (k, v.num.toInt) }.toMap
+        val paramsV2Map = writeJs(paramsV2).obj.map { case (k, v) => (k, v.num.toInt) }.toMap
+        val modelV1 = BuiltinCostModel.fromCostModelParams(paramsV1Map)
+        val modelV2 = BuiltinCostModel.fromCostModelParams(paramsV2Map)
+        assert(modelV1.flattenCostModel.keySet == BuiltinCostModel.default.flattenCostModel.keySet)
+        assert(modelV2.flattenCostModel.keySet == BuiltinCostModel.default.flattenCostModel.keySet)
     }

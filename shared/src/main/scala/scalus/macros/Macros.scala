@@ -10,6 +10,7 @@ import scalus.uplc.{Term => Trm}
 
 import scala.collection.immutable
 import scala.quoted.*
+import scalus.uplc.eval.BuiltinCostModel
 object Macros {
     def lamMacro[A: Type, B: Type](f: Expr[Exp[A] => Exp[B]])(using Quotes): Expr[Exp[A => B]] =
         import quotes.reflect.*
@@ -154,4 +155,80 @@ object Macros {
                         )
                 composeGetters(select)
             case x => report.errorAndAbort(x.toString)
+
+    import upickle.default.*
+    def mkReadWriterImpl[A: Type](using Quotes): Expr[ReadWriter[A]] = {
+        import scala.quoted.*
+        import quotes.reflect.*
+        val tpe = TypeTree.of[A]
+        val fields = tpe.symbol.caseFields
+        val fieldNames = fields.map(_.name)
+        val impl = '{
+            upickle.default
+                .readwriter[ujson.Value]
+                .bimap[A](
+                  m =>
+                      ujson.Obj.from(${
+                          Expr.ofList(
+                            fields.map(name =>
+                                '{
+                                    (
+                                      ${ Expr(name.name) },
+                                      writeJs[Int](${ Select('{ m }.asTerm, name).asExprOf[Int] })
+                                    )
+                                }
+                            )
+                          )
+                      }),
+                  json =>
+                      ${
+                          New(tpe)
+                              .select(tpe.symbol.primaryConstructor)
+                              .appliedToArgs(fields.map { field =>
+                                  NamedArg(
+                                    field.name.toString,
+                                    '{ read[Int](json.obj(${ Expr(field.name.toString) })) }.asTerm
+                                  )
+                              })
+                              .asExprOf[A]
+                      }
+                )
+        }
+        // println(impl.asTerm.show(using Printer.TreeShortCode))
+        impl
+    }
+
+    def mkSeqRWImpl[A: Type](using Quotes): Expr[(A => Seq[Int], Seq[Int] => A)] = {
+        import scala.quoted.*
+        import quotes.reflect.*
+        val tpe = TypeTree.of[A]
+        val fields = tpe.symbol.caseFields
+        val fieldNames = fields.map(_.name)
+        val impl = '{
+            (
+              (m: A) =>
+                  Seq.from(${ Expr.ofSeq(fields.map(name => Select('{ m }.asTerm, name).asExprOf[Int])) }),
+              (seq: Seq[Int]) =>
+                  ${
+                      New(tpe)
+                          .select(tpe.symbol.primaryConstructor)
+                          .appliedToArgs(fields.zipWithIndex.map:
+                              case (field: Symbol, idx: Int) =>
+                                  NamedArg(field.name.toString, '{ seq(${ Expr(idx) }) }.asTerm)
+                          )
+                          .asExprOf[A]
+                  }
+            )
+        }
+        // println(impl.asTerm.show(using Printer.TreeShortCode))
+        impl
+    }
+
+    def inlineBuiltinCostModelJsonImpl(using Quotes): Expr[String] = {
+        import scala.quoted.*
+        import quotes.reflect.*
+        val input = this.getClass().getResourceAsStream("/builtinCostModel.json")
+        val string = scala.io.Source.fromInputStream(input).mkString
+        Expr(string)
+    }
 }

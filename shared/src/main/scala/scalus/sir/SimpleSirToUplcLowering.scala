@@ -20,7 +20,7 @@ class SimpleSirToUplcLowering(sir: SIR, generateErrorTraces: Boolean = false) {
             case TypeScheme.All(_, t) => Term.Force(forceBuiltin(t, term))
             case _                    => term
 
-        Meaning.plutusV2Builtins.BuiltinMeanings.map((bi, rt) =>
+        Meaning.defaultBuiltins.BuiltinMeanings.map((bi, rt) =>
             bi -> forceBuiltin(rt.typeScheme, Term.Builtin(bi))
         )
     }
