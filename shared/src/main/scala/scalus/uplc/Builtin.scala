@@ -49,11 +49,7 @@ case class BuiltinRuntime(
     def calculateCost: ExBudget = costFunction.calculateCost(args: _*)
 }
 
-object Meaning {
-    val defaultBuiltins = Meaning(BuiltinCostModel.default)
-}
-
-class Meaning(builtinCostModel: BuiltinCostModel):
+trait BuitlinsMeaning(builtinCostModel: BuiltinCostModel) extends PlatformSpecific:
     // local extension used to create a TypeScheme from a DefaultUni
     extension (x: DefaultUni)
         def ->:(t: TypeScheme): TypeScheme = TypeScheme.Arrow(t, TypeScheme.Type(x))
@@ -273,7 +269,7 @@ class Meaning(builtinCostModel: BuiltinCostModel):
           DefaultUni.ByteString ->: DefaultUni.ByteString,
           (m: CekMachine, args: Seq[CekValue]) =>
               val aa = args(0).asByteString
-              VCon(asConstant(sha2_256(using m.params.platformSpecific)(aa)))
+              VCon(asConstant(sha2_256(aa)))
           ,
           builtinCostModel.sha2_256
         )
@@ -283,7 +279,7 @@ class Meaning(builtinCostModel: BuiltinCostModel):
           DefaultUni.ByteString ->: DefaultUni.ByteString,
           (m: CekMachine, args: Seq[CekValue]) =>
               val aa = args(0).asByteString
-              VCon(asConstant(sha3_256(using m.params.platformSpecific)(aa)))
+              VCon(asConstant(sha3_256(aa)))
           ,
           builtinCostModel.sha3_256
         )
@@ -293,7 +289,7 @@ class Meaning(builtinCostModel: BuiltinCostModel):
           DefaultUni.ByteString ->: DefaultUni.ByteString,
           (m: CekMachine, args: Seq[CekValue]) =>
               val aa = args(0).asByteString
-              VCon(asConstant(blake2b_256(using m.params.platformSpecific)(aa)))
+              VCon(asConstant(blake2b_256(aa)))
           ,
           builtinCostModel.blake2b_256
         )
@@ -305,9 +301,7 @@ class Meaning(builtinCostModel: BuiltinCostModel):
               val pk = args(0).asByteString
               val msg = args(1).asByteString
               val sig = args(2).asByteString
-              VCon(
-                asConstant(verifyEd25519Signature(using m.params.platformSpecific)(pk, msg, sig))
-              )
+              VCon(asConstant(verifyEd25519Signature(pk, msg, sig)))
           ,
           builtinCostModel.verifyEd25519Signature
         )
@@ -319,11 +313,7 @@ class Meaning(builtinCostModel: BuiltinCostModel):
               val pk = args(0).asByteString
               val msg = args(1).asByteString
               val sig = args(2).asByteString
-              VCon(
-                asConstant(
-                  verifyEcdsaSecp256k1Signature(using m.params.platformSpecific)(pk, msg, sig)
-                )
-              )
+              VCon(asConstant(verifyEcdsaSecp256k1Signature(pk, msg, sig)))
           ,
           builtinCostModel.verifyEcdsaSecp256k1Signature
         )
@@ -335,11 +325,7 @@ class Meaning(builtinCostModel: BuiltinCostModel):
               val pk = args(0).asByteString
               val msg = args(1).asByteString
               val sig = args(2).asByteString
-              VCon(
-                asConstant(
-                  verifySchnorrSecp256k1Signature(using m.params.platformSpecific)(pk, msg, sig)
-                )
-              )
+              VCon(asConstant(verifySchnorrSecp256k1Signature(pk, msg, sig)))
           ,
           builtinCostModel.verifySchnorrSecp256k1Signature
         )

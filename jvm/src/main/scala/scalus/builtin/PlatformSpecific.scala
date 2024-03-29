@@ -11,7 +11,8 @@ import org.bouncycastle.jcajce.provider.digest.SHA3
 import scalus.utils.Utils
 import scodec.bits.ByteVector
 
-class JVMPlatformSpecific extends PlatformSpecific {
+object JVMPlatformSpecific extends JVMPlatformSpecific
+trait JVMPlatformSpecific extends PlatformSpecific {
     override def sha2_256(bs: ByteString): ByteString =
         ByteString.unsafeFromArray(Utils.sha2_256(bs.bytes))
 
@@ -67,4 +68,4 @@ class JVMPlatformSpecific extends PlatformSpecific {
         ECPublicKey(ByteVector(pk.bytes)).verify(ByteVector(msg.bytes), signature)
 }
 
-given PlatformSpecific = JVMPlatformSpecific()
+given PlatformSpecific = JVMPlatformSpecific

@@ -68,20 +68,17 @@ object CekMachineCosts {
           builtinCost = get("cekBuiltinCost")
         )
     }
-
 }
 
 case class MachineParams(
     machineCosts: CekMachineCosts,
-    builtinMeanings: Map[DefaultFun, BuiltinRuntime],
-    platformSpecific: PlatformSpecific
+    builtinMeanings: Map[DefaultFun, BuiltinRuntime]
 )
 
 object MachineParams {
-    def default(using ps: PlatformSpecific) = MachineParams(
+    val default = MachineParams(
       machineCosts = CekMachineCosts.defaultMachineCosts,
-      builtinMeanings = Meaning.defaultBuiltins.BuiltinMeanings,
-      platformSpecific = ps
+      builtinMeanings = Meaning.defaultBuiltins.BuiltinMeanings
     )
 
     /** Creates `MachineParams` from a Cardano CLI protocol parameters JSON.
@@ -93,8 +90,9 @@ object MachineParams {
       * @return
       *   The machine parameters
       */
-    def fromCardanoCliProtocolParamsJson(json: String, plutus: PlutusLedgerLanguage)(using
-        ps: PlatformSpecific
+    def fromCardanoCliProtocolParamsJson(
+        json: String,
+        plutus: PlutusLedgerLanguage
     ): MachineParams = {
         import upickle.default.*
         val pparams = read[ProtocolParams](json)
@@ -116,8 +114,7 @@ object MachineParams {
         val machineCosts = CekMachineCosts.fromMap(paramsMap)
         MachineParams(
           machineCosts = machineCosts,
-          builtinMeanings = Meaning(builtinCostModel).BuiltinMeanings,
-          platformSpecific = ps
+          builtinMeanings = Meaning(builtinCostModel).BuiltinMeanings
         )
     }
 }

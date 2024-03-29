@@ -10,7 +10,6 @@ import scalus.uplc.{Term => Trm}
 
 import scala.collection.immutable
 import scala.quoted.*
-import scalus.uplc.eval.BuiltinCostModel
 object Macros {
     def lamMacro[A: Type, B: Type](f: Expr[Exp[A] => Exp[B]])(using Quotes): Expr[Exp[A => B]] =
         import quotes.reflect.*

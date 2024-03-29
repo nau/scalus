@@ -1,6 +1,6 @@
 package scalus.ledger.api
 
-enum PlutusLedgerLanguage:
+enum PlutusLedgerLanguage extends java.lang.Enum[PlutusLedgerLanguage]:
     case PlutusV1, PlutusV2, PlutusV3
 
 case class ProtocolVersion(major: Int, minor: Int) extends Ordered[ProtocolVersion] {

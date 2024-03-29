@@ -3,7 +3,6 @@ package eval
 
 import org.scalatest.funsuite.AnyFunSuite
 import scalus.*
-import scalus.builtin.given
 import scalus.ledger.babbage.*
 import scalus.uplc.DefaultUni.asConstant
 import scalus.uplc.Term.*

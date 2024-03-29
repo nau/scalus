@@ -1,6 +1,7 @@
 package scalus.builtin
 
-class JSPlatformSpecific extends PlatformSpecific {
+object JSPlatformSpecific extends JSPlatformSpecific
+trait JSPlatformSpecific extends PlatformSpecific {
     override def sha2_256(bs: ByteString): ByteString = ???
 
     override def sha3_256(bs: ByteString): ByteString = ???
@@ -25,4 +26,4 @@ class JSPlatformSpecific extends PlatformSpecific {
 
 }
 
-given PlatformSpecific = JSPlatformSpecific()
+given PlatformSpecific = JSPlatformSpecific
