@@ -87,7 +87,7 @@ object ProtocolParams {
               ProtocolParams(
                 collateralPercentage = json("collateral_percent").num.toLong,
                 costModels = json("cost_models").obj.map { case (k, v) =>
-                  k -> v.obj.values.map(_.num.toInt).toSeq
+                    k -> v.obj.values.map(_.num.toInt).toSeq
                 }.toMap,
                 decentralization = None,
                 executionUnitPrices = ExecutionUnitPrices(

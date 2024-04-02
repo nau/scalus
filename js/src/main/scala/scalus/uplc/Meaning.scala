@@ -6,4 +6,8 @@ object Meaning {
     val defaultBuiltins = Meaning(eval.BuiltinCostModel.default)
 }
 
-class Meaning(builtinCostModel: eval.BuiltinCostModel) extends BuitlinsMeaning(builtinCostModel) with JSPlatformSpecific
+class Meaning(builtinCostModel: eval.BuiltinCostModel)
+    extends BuiltinsMeaning(builtinCostModel)
+    with JSPlatformSpecific {
+    protected def log(msg: String): Unit = ()
+}

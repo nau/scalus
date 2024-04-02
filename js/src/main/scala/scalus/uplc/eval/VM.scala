@@ -10,10 +10,9 @@ object VM extends VMBase {
     }
 }
 
-/** @inheritdoc */
 final class CekMachine(params: MachineParams)
     extends AbstractCekMachine(params)
-    with JVMPlatformSpecific
+    with JSPlatformSpecific
 
 @deprecated("Use VM instead", "0.7.0")
 object Cek {

@@ -4,7 +4,6 @@ package eval
 import cats.syntax.group.*
 import scalus.builtin.ByteString
 import scalus.builtin.Data
-import scalus.builtin.PlatformSpecific
 import scalus.ledger.api.PlutusLedgerLanguage
 import scalus.ledger.babbage.*
 import scalus.uplc.DefaultUni.asConstant
@@ -70,15 +69,29 @@ object CekMachineCosts {
     }
 }
 
+/** The Plutus CEK machine parameters.
+  *
+  * @param machineCosts
+  *   The machine costs
+  * @param builtinCostModel
+  *   The builtin cost model
+  */
 case class MachineParams(
     machineCosts: CekMachineCosts,
-    builtinMeanings: Map[DefaultFun, BuiltinRuntime]
+    builtinCostModel: BuiltinCostModel
 )
 
 object MachineParams {
-    val default = MachineParams(
+
+    /** The default machine parameters.
+      * @note
+      *   The default machine parameters use machine costs and builtin cost model that may be
+      *   outdated, making budget calculation not precise. Please use
+      *   `fromCardanoCliProtocolParamsJson` etc to create machine parameters with the latest costs.
+      */
+    val defaultParams: MachineParams = MachineParams(
       machineCosts = CekMachineCosts.defaultMachineCosts,
-      builtinMeanings = Meaning.defaultBuiltins.BuiltinMeanings
+      builtinCostModel = BuiltinCostModel.default
     )
 
     /** Creates `MachineParams` from a Cardano CLI protocol parameters JSON.
@@ -96,6 +109,31 @@ object MachineParams {
     ): MachineParams = {
         import upickle.default.*
         val pparams = read[ProtocolParams](json)
+        fromProtocolParams(pparams, plutus)
+    }
+
+    /** Creates `MachineParams` from a Blockfrost protocol parameters JSON.
+      *
+      * @param json
+      *   The Blockfrost protocol parameters JSON
+      * @param plutus
+      *   The plutus version
+      * @return
+      *   The machine parameters
+      */
+    def fromBlockfrostProtocolParamsJson(
+        json: String,
+        plutus: PlutusLedgerLanguage
+    ): MachineParams = {
+        import upickle.default.*
+        val pparams = read[ProtocolParams](json)(using ProtocolParams.blockfrostParamsRW)
+        fromProtocolParams(pparams, plutus)
+    }
+
+    /** Creates [[MachineParams]] from a [[ProtocolParams]] and a [[PlutusLedgerLanguage]]
+      */
+    def fromProtocolParams(pparams: ProtocolParams, plutus: PlutusLedgerLanguage): MachineParams = {
+        import upickle.default.*
         val paramsMap = plutus match
             case PlutusLedgerLanguage.PlutusV1 =>
                 val costs = pparams.costModels("PlutusV1")
@@ -112,10 +150,7 @@ object MachineParams {
 
         val builtinCostModel = BuiltinCostModel.fromCostModelParams(paramsMap)
         val machineCosts = CekMachineCosts.fromMap(paramsMap)
-        MachineParams(
-          machineCosts = machineCosts,
-          builtinMeanings = Meaning(builtinCostModel).BuiltinMeanings
-        )
+        MachineParams(machineCosts = machineCosts, builtinCostModel = builtinCostModel)
     }
 }
 
@@ -202,18 +237,6 @@ enum CekValue {
     }
 }
 
-@deprecated("Use VM instead", "0.7.0")
-object Cek {
-    @deprecated("Use VM methods instead", "0.7.0")
-    def evalUPLC(term: Term)(using ps: PlatformSpecific): Term = {
-        val params = MachineParams.default
-        val debruijnedTerm = DeBruijn.deBruijnTerm(term)
-        new CekMachine(params).evaluateTerm(debruijnedTerm)
-    }
-
-    def evalUPLCProgram(p: Program)(using ps: PlatformSpecific): Term = evalUPLC(p.term)
-}
-
 trait VMBase {
     type ScriptForEvaluation = Array[Byte]
 
@@ -257,10 +280,7 @@ trait VMBase {
       *   [[CekResult]], either a success with the resulting term and the execution budget, or a
       *   failure with an error message and the execution budget.
       */
-    def evaluateTerm(params: MachineParams, term: Term): CekResult = {
-        val cek = new CekMachine(params)
-        cek.runCek(term)
-    }
+    def evaluateTerm(params: MachineParams, term: Term): CekResult
 }
 
 sealed trait CekResult {
@@ -314,13 +334,12 @@ private enum CekState {
   * @example
   *   {{{
   *   val term = LamAbs("x", Apply(Var(NamedDeBruijn("x", 0)), Var(NamedDeBruijn("x", 0))))
-  *   val cek = new CekMachine(Cek.plutusV2Params)
+  *   val cek = new CekMachine(MachineParams.defaultParams)
   *   val res = cek.runCek(term)
   *   }}}
   */
-class CekMachine(
-    val params: MachineParams
-) {
+abstract class AbstractCekMachine(val params: MachineParams)
+    extends BuiltinsMeaning(params.builtinCostModel) {
     import CekState.*
     import CekValue.*
     import Context.*
@@ -389,7 +408,7 @@ class CekMachine(
             case Builtin(bn) =>
                 spendBudget(ExBudgetCategory.Step, costs.builtinCost)
                 // The @term@ is a 'Builtin', so it's fully discharged.
-                params.builtinMeanings.get(bn) match
+                BuiltinMeanings.get(bn) match
                     case Some(meaning) => Return(ctx, env, VBuiltin(bn, () => term, meaning))
                     case None          => throw new UnknownBuiltin(bn, env)
             case Error => throw new EvaluationFailure(env)
@@ -467,7 +486,7 @@ class CekMachine(
                 // eval the builtin and return result
                 try
                     // eval builtin when it's fully saturated, i.e. when all arguments were applied
-                    runtime.apply(this)
+                    runtime.apply()
                 catch case NonFatal(e) => throw new BuiltinError(builtinName, term(), e, env)
             case _ => VBuiltin(builtinName, term, runtime)
     }

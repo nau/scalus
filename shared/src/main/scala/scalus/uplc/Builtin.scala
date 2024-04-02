@@ -19,7 +19,6 @@ import scala.collection.immutable
 import scala.collection.immutable.ArraySeq
 import scalus.uplc.eval.DeserializationError
 import scalus.uplc.eval.ExBudget
-import scalus.uplc.eval.CekMachine
 
 enum TypeScheme:
     case Type(argType: DefaultUni)
@@ -40,16 +39,17 @@ enum TypeScheme:
 
 case class BuiltinRuntime(
     typeScheme: TypeScheme,
-    f: (CekMachine, Seq[CekValue]) => CekValue,
+    f: (Seq[CekValue]) => CekValue,
     args: Seq[CekValue],
     costFunction: CostingFun[CostModel]
 ) {
-    def apply(m: CekMachine) = f(m, args)
+    def apply() = f(args)
 
     def calculateCost: ExBudget = costFunction.calculateCost(args: _*)
 }
 
-trait BuitlinsMeaning(builtinCostModel: BuiltinCostModel) extends PlatformSpecific:
+trait BuiltinsMeaning(builtinCostModel: BuiltinCostModel) extends PlatformSpecific:
+    protected def log(msg: String): Unit
     // local extension used to create a TypeScheme from a DefaultUni
     extension (x: DefaultUni)
         def ->:(t: TypeScheme): TypeScheme = TypeScheme.Arrow(t, TypeScheme.Type(x))
@@ -60,7 +60,7 @@ trait BuitlinsMeaning(builtinCostModel: BuiltinCostModel) extends PlatformSpecif
 
     def mkMeaning(
         t: TypeScheme,
-        f: (m: CekMachine, args: Seq[CekValue]) => CekValue,
+        f: (args: Seq[CekValue]) => CekValue,
         costFunction: CostingFun[CostModel]
     ) =
         BuiltinRuntime(t, f, ArraySeq.empty, costFunction)
@@ -69,7 +69,7 @@ trait BuitlinsMeaning(builtinCostModel: BuiltinCostModel) extends PlatformSpecif
     val AddInteger =
         mkMeaning(
           Integer ->: Integer ->: Integer,
-          (m: CekMachine, args: Seq[CekValue]) =>
+          (args: Seq[CekValue]) =>
               val a = args(0).asInteger
               val b = args(1).asInteger
               VCon(asConstant(addInteger(a, b)))
@@ -80,7 +80,7 @@ trait BuitlinsMeaning(builtinCostModel: BuiltinCostModel) extends PlatformSpecif
     val SubtractInteger =
         mkMeaning(
           Integer ->: Integer ->: Integer,
-          (m: CekMachine, args: Seq[CekValue]) =>
+          (args: Seq[CekValue]) =>
               val a = args(0).asInteger
               val b = args(1).asInteger
               VCon(asConstant(subtractInteger(a, b)))
@@ -91,7 +91,7 @@ trait BuitlinsMeaning(builtinCostModel: BuiltinCostModel) extends PlatformSpecif
     val MultiplyInteger =
         mkMeaning(
           Integer ->: Integer ->: Integer,
-          (m: CekMachine, args: Seq[CekValue]) =>
+          (args: Seq[CekValue]) =>
               val a = args(0).asInteger
               val b = args(1).asInteger
               VCon(asConstant(multiplyInteger(a, b)))
@@ -102,7 +102,7 @@ trait BuitlinsMeaning(builtinCostModel: BuiltinCostModel) extends PlatformSpecif
     val DivideInteger =
         mkMeaning(
           Integer ->: Integer ->: Integer,
-          (m: CekMachine, args: Seq[CekValue]) =>
+          (args: Seq[CekValue]) =>
               val a = args(0).asInteger
               val b = args(1).asInteger
               VCon(asConstant(divideInteger(a, b)))
@@ -113,7 +113,7 @@ trait BuitlinsMeaning(builtinCostModel: BuiltinCostModel) extends PlatformSpecif
     val QuotientInteger =
         mkMeaning(
           Integer ->: Integer ->: Integer,
-          (m: CekMachine, args: Seq[CekValue]) =>
+          (args: Seq[CekValue]) =>
               val a = args(0).asInteger
               val b = args(1).asInteger
               VCon(asConstant(quotientInteger(a, b)))
@@ -124,7 +124,7 @@ trait BuitlinsMeaning(builtinCostModel: BuiltinCostModel) extends PlatformSpecif
     val RemainderInteger =
         mkMeaning(
           Integer ->: Integer ->: Integer,
-          (m: CekMachine, args: Seq[CekValue]) =>
+          (args: Seq[CekValue]) =>
               val a = args(0).asInteger
               val b = args(1).asInteger
               VCon(asConstant(remainderInteger(a, b)))
@@ -135,7 +135,7 @@ trait BuitlinsMeaning(builtinCostModel: BuiltinCostModel) extends PlatformSpecif
     val ModInteger =
         mkMeaning(
           Integer ->: Integer ->: Integer,
-          (m: CekMachine, args: Seq[CekValue]) =>
+          (args: Seq[CekValue]) =>
               val a = args(0).asInteger
               val b = args(1).asInteger
               VCon(asConstant(modInteger(a, b)))
@@ -146,7 +146,7 @@ trait BuitlinsMeaning(builtinCostModel: BuiltinCostModel) extends PlatformSpecif
     val EqualsInteger =
         mkMeaning(
           Integer ->: Integer ->: Bool,
-          (m: CekMachine, args: Seq[CekValue]) =>
+          (args: Seq[CekValue]) =>
               val a = args(0).asInteger
               val b = args(1).asInteger
               VCon(asConstant(equalsInteger(a, b)))
@@ -157,7 +157,7 @@ trait BuitlinsMeaning(builtinCostModel: BuiltinCostModel) extends PlatformSpecif
     val LessThanEqualsInteger =
         mkMeaning(
           Integer ->: Integer ->: Bool,
-          (m: CekMachine, args: Seq[CekValue]) =>
+          (args: Seq[CekValue]) =>
               val aa = args(0).asInteger
               val bb = args(1).asInteger
               VCon(asConstant(lessThanEqualsInteger(aa, bb)))
@@ -168,7 +168,7 @@ trait BuitlinsMeaning(builtinCostModel: BuiltinCostModel) extends PlatformSpecif
     val LessThanInteger =
         mkMeaning(
           Integer ->: Integer ->: Bool,
-          (m: CekMachine, args: Seq[CekValue]) =>
+          (args: Seq[CekValue]) =>
               val a = args(0).asInteger
               val b = args(1).asInteger
               VCon(asConstant(lessThanInteger(a, b)))
@@ -179,7 +179,7 @@ trait BuitlinsMeaning(builtinCostModel: BuiltinCostModel) extends PlatformSpecif
     val AppendByteString =
         mkMeaning(
           DefaultUni.ByteString ->: DefaultUni.ByteString ->: DefaultUni.ByteString,
-          (m: CekMachine, args: Seq[CekValue]) =>
+          (args: Seq[CekValue]) =>
               val a = args(0).asByteString
               val b = args(1).asByteString
               VCon(asConstant(appendByteString(a, b)))
@@ -190,7 +190,7 @@ trait BuitlinsMeaning(builtinCostModel: BuiltinCostModel) extends PlatformSpecif
     val ConsByteString =
         mkMeaning(
           DefaultUni.Integer ->: DefaultUni.ByteString ->: DefaultUni.ByteString,
-          (m: CekMachine, args: Seq[CekValue]) =>
+          (args: Seq[CekValue]) =>
               val a = args(0).asInteger
               val b = args(1).asByteString
               VCon(asConstant(consByteString(a, b)))
@@ -201,7 +201,7 @@ trait BuitlinsMeaning(builtinCostModel: BuiltinCostModel) extends PlatformSpecif
     val SliceByteString =
         mkMeaning(
           DefaultUni.ByteString ->: DefaultUni.Integer ->: DefaultUni.Integer ->: DefaultUni.ByteString,
-          (m: CekMachine, args: Seq[CekValue]) =>
+          (args: Seq[CekValue]) =>
               val bs = args(0).asByteString
               val start = args(1).asInteger
               val end = args(2).asInteger
@@ -213,7 +213,7 @@ trait BuitlinsMeaning(builtinCostModel: BuiltinCostModel) extends PlatformSpecif
     val IndexByteString =
         mkMeaning(
           DefaultUni.ByteString ->: DefaultUni.Integer ->: DefaultUni.Integer,
-          (m: CekMachine, args: Seq[CekValue]) =>
+          (args: Seq[CekValue]) =>
               val aa = args(0).asByteString
               val bb = args(1).asInteger
               VCon(asConstant(indexByteString(aa, bb)))
@@ -224,7 +224,7 @@ trait BuitlinsMeaning(builtinCostModel: BuiltinCostModel) extends PlatformSpecif
     val LengthOfByteString =
         mkMeaning(
           DefaultUni.ByteString ->: DefaultUni.Integer,
-          (m: CekMachine, args: Seq[CekValue]) =>
+          (args: Seq[CekValue]) =>
               val aa = args(0).asByteString
               VCon(asConstant(lengthOfByteString(aa)))
           ,
@@ -234,7 +234,7 @@ trait BuitlinsMeaning(builtinCostModel: BuiltinCostModel) extends PlatformSpecif
     val EqualsByteString =
         mkMeaning(
           DefaultUni.ByteString ->: DefaultUni.ByteString ->: Bool,
-          (m: CekMachine, args: Seq[CekValue]) =>
+          (args: Seq[CekValue]) =>
               val aa = args(0).asByteString
               val bb = args(1).asByteString
               VCon(asConstant(aa == bb))
@@ -245,7 +245,7 @@ trait BuitlinsMeaning(builtinCostModel: BuiltinCostModel) extends PlatformSpecif
     val LessThanByteString =
         mkMeaning(
           DefaultUni.ByteString ->: DefaultUni.ByteString ->: Bool,
-          (m: CekMachine, args: Seq[CekValue]) =>
+          (args: Seq[CekValue]) =>
               val aa = args(0).asByteString
               val bb = args(1).asByteString
               VCon(asConstant(lessThanByteString(aa, bb)))
@@ -256,7 +256,7 @@ trait BuitlinsMeaning(builtinCostModel: BuiltinCostModel) extends PlatformSpecif
     val LessThanEqualsByteString =
         mkMeaning(
           DefaultUni.ByteString ->: DefaultUni.ByteString ->: Bool,
-          (m: CekMachine, args: Seq[CekValue]) =>
+          (args: Seq[CekValue]) =>
               val aa = args(0).asByteString
               val bb = args(1).asByteString
               VCon(asConstant(lessThanEqualsByteString(aa, bb)))
@@ -267,7 +267,7 @@ trait BuitlinsMeaning(builtinCostModel: BuiltinCostModel) extends PlatformSpecif
     val Sha2_256 =
         mkMeaning(
           DefaultUni.ByteString ->: DefaultUni.ByteString,
-          (m: CekMachine, args: Seq[CekValue]) =>
+          (args: Seq[CekValue]) =>
               val aa = args(0).asByteString
               VCon(asConstant(sha2_256(aa)))
           ,
@@ -277,7 +277,7 @@ trait BuitlinsMeaning(builtinCostModel: BuiltinCostModel) extends PlatformSpecif
     val Sha3_256 =
         mkMeaning(
           DefaultUni.ByteString ->: DefaultUni.ByteString,
-          (m: CekMachine, args: Seq[CekValue]) =>
+          (args: Seq[CekValue]) =>
               val aa = args(0).asByteString
               VCon(asConstant(sha3_256(aa)))
           ,
@@ -287,7 +287,7 @@ trait BuitlinsMeaning(builtinCostModel: BuiltinCostModel) extends PlatformSpecif
     val Blake2b_256 =
         mkMeaning(
           DefaultUni.ByteString ->: DefaultUni.ByteString,
-          (m: CekMachine, args: Seq[CekValue]) =>
+          (args: Seq[CekValue]) =>
               val aa = args(0).asByteString
               VCon(asConstant(blake2b_256(aa)))
           ,
@@ -297,7 +297,7 @@ trait BuitlinsMeaning(builtinCostModel: BuiltinCostModel) extends PlatformSpecif
     val VerifyEd25519Signature =
         mkMeaning(
           DefaultUni.ByteString ->: DefaultUni.ByteString ->: DefaultUni.ByteString ->: DefaultUni.Bool,
-          (m: CekMachine, args: Seq[CekValue]) =>
+          (args: Seq[CekValue]) =>
               val pk = args(0).asByteString
               val msg = args(1).asByteString
               val sig = args(2).asByteString
@@ -309,7 +309,7 @@ trait BuitlinsMeaning(builtinCostModel: BuiltinCostModel) extends PlatformSpecif
     val VerifyEcdsaSecp256k1Signature =
         mkMeaning(
           DefaultUni.ByteString ->: DefaultUni.ByteString ->: DefaultUni.ByteString ->: DefaultUni.Bool,
-          (m: CekMachine, args: Seq[CekValue]) =>
+          (args: Seq[CekValue]) =>
               val pk = args(0).asByteString
               val msg = args(1).asByteString
               val sig = args(2).asByteString
@@ -321,7 +321,7 @@ trait BuitlinsMeaning(builtinCostModel: BuiltinCostModel) extends PlatformSpecif
     val VerifySchnorrSecp256k1Signature =
         mkMeaning(
           DefaultUni.ByteString ->: DefaultUni.ByteString ->: DefaultUni.ByteString ->: DefaultUni.Bool,
-          (m: CekMachine, args: Seq[CekValue]) =>
+          (args: Seq[CekValue]) =>
               val pk = args(0).asByteString
               val msg = args(1).asByteString
               val sig = args(2).asByteString
@@ -333,7 +333,7 @@ trait BuitlinsMeaning(builtinCostModel: BuiltinCostModel) extends PlatformSpecif
     val AppendString =
         mkMeaning(
           DefaultUni.String ->: DefaultUni.String ->: DefaultUni.String,
-          (m: CekMachine, args: Seq[CekValue]) =>
+          (args: Seq[CekValue]) =>
               val aa = args(0).asString
               val bb = args(1).asString
               VCon(asConstant(appendString(aa, bb)))
@@ -344,7 +344,7 @@ trait BuitlinsMeaning(builtinCostModel: BuiltinCostModel) extends PlatformSpecif
     val EqualsString =
         mkMeaning(
           DefaultUni.String ->: DefaultUni.String ->: Bool,
-          (m: CekMachine, args: Seq[CekValue]) =>
+          (args: Seq[CekValue]) =>
               val aa = args(0).asString
               val bb = args(1).asString
               VCon(asConstant(equalsString(aa, bb)))
@@ -355,7 +355,7 @@ trait BuitlinsMeaning(builtinCostModel: BuiltinCostModel) extends PlatformSpecif
     val EncodeUtf8 =
         mkMeaning(
           DefaultUni.String ->: DefaultUni.ByteString,
-          (m: CekMachine, args: Seq[CekValue]) =>
+          (args: Seq[CekValue]) =>
               val aa = args(0).asString
               VCon(asConstant(encodeUtf8(aa)))
           ,
@@ -365,7 +365,7 @@ trait BuitlinsMeaning(builtinCostModel: BuiltinCostModel) extends PlatformSpecif
     val DecodeUtf8 =
         mkMeaning(
           DefaultUni.ByteString ->: DefaultUni.String,
-          (m: CekMachine, args: Seq[CekValue]) =>
+          (args: Seq[CekValue]) =>
               val aa = args(0).asByteString
               VCon(asConstant(decodeUtf8(aa)))
           ,
@@ -375,7 +375,7 @@ trait BuitlinsMeaning(builtinCostModel: BuiltinCostModel) extends PlatformSpecif
     val IfThenElse =
         mkMeaning(
           All("a", Bool ->: TVar("a") ->: TVar("a") ->: TVar("a")),
-          (m: CekMachine, args: Seq[CekValue]) =>
+          (args: Seq[CekValue]) =>
               val bb = args(0).asBool
               val t = args(1)
               val f = args(2)
@@ -387,7 +387,7 @@ trait BuitlinsMeaning(builtinCostModel: BuiltinCostModel) extends PlatformSpecif
     val ChooseUnit =
         mkMeaning(
           All("a", DefaultUni.Unit ->: TVar("a") ->: TVar("a")),
-          (m: CekMachine, args: Seq[CekValue]) =>
+          (args: Seq[CekValue]) =>
               args(0) match
                   case VCon(Constant.Unit) => args(1)
                   case _ => throw new DeserializationError(DefaultFun.ChooseUnit, args(0))
@@ -398,9 +398,9 @@ trait BuitlinsMeaning(builtinCostModel: BuiltinCostModel) extends PlatformSpecif
     val Trace =
         mkMeaning(
           All("a", DefaultUni.String ->: TVar("a") ->: TVar("a")),
-          (m: CekMachine, args: Seq[CekValue]) =>
+          (args: Seq[CekValue]) =>
               val aa = args(0).asString
-              m.log(aa)
+              log(aa)
               args(1)
           ,
           builtinCostModel.trace
@@ -410,7 +410,7 @@ trait BuitlinsMeaning(builtinCostModel: BuiltinCostModel) extends PlatformSpecif
     val FstPair =
         mkMeaning(
           All("a", All("b", (DefaultUni.ProtoPair $ "a" $ "b") ->: TVar("a"))),
-          (m: CekMachine, args: Seq[CekValue]) =>
+          (args: Seq[CekValue]) =>
               val (fst, _) = args(0).asPair
               VCon(fst)
           ,
@@ -421,7 +421,7 @@ trait BuitlinsMeaning(builtinCostModel: BuiltinCostModel) extends PlatformSpecif
     val SndPair =
         mkMeaning(
           All("a", All("b", (DefaultUni.ProtoPair $ "a" $ "b") ->: TVar("b"))),
-          (m: CekMachine, args: Seq[CekValue]) =>
+          (args: Seq[CekValue]) =>
               val (_, snd) = args(0).asPair
               VCon(snd)
           ,
@@ -435,7 +435,7 @@ trait BuitlinsMeaning(builtinCostModel: BuiltinCostModel) extends PlatformSpecif
             "a",
             All("b", (DefaultUni.ProtoList $ "a") ->: TVar("b") ->: TVar("b") ->: TVar("b"))
           ),
-          (m: CekMachine, args: Seq[CekValue]) =>
+          (args: Seq[CekValue]) =>
               val ls = args(0).asList
               if ls.isEmpty then args(1) else args(2)
           ,
@@ -446,7 +446,7 @@ trait BuitlinsMeaning(builtinCostModel: BuiltinCostModel) extends PlatformSpecif
     val MkCons =
         mkMeaning(
           All("a", TVar("a") ->: (DefaultUni.ProtoList $ "a") ->: (DefaultUni.ProtoList $ "a")),
-          (m: CekMachine, args: Seq[CekValue]) =>
+          (args: Seq[CekValue]) =>
               (args(0), args(1)) match
                   // Checking that the type of the constant is the same as the type of the elements
                   // of the unlifted list. Note that there's no way we could enforce this statically
@@ -464,7 +464,7 @@ trait BuitlinsMeaning(builtinCostModel: BuiltinCostModel) extends PlatformSpecif
     val HeadList =
         mkMeaning(
           All("a", (DefaultUni.ProtoList $ "a") ->: TVar("a")),
-          (m: CekMachine, args: Seq[CekValue]) => VCon(args(0).asList.head),
+          (args: Seq[CekValue]) => VCon(args(0).asList.head),
           builtinCostModel.headList
         )
 
@@ -472,7 +472,7 @@ trait BuitlinsMeaning(builtinCostModel: BuiltinCostModel) extends PlatformSpecif
     val TailList =
         mkMeaning(
           All("a", (DefaultUni.ProtoList $ "a") ->: (DefaultUni.ProtoList $ "a")),
-          (m: CekMachine, args: Seq[CekValue]) =>
+          (args: Seq[CekValue]) =>
               args(0) match
                   case VCon(Constant.List(tpe, ls)) => VCon(Constant.List(tpe, ls.tail))
                   case _ => throw new DeserializationError(DefaultFun.TailList, args(0))
@@ -484,7 +484,7 @@ trait BuitlinsMeaning(builtinCostModel: BuiltinCostModel) extends PlatformSpecif
     val NullList =
         mkMeaning(
           All("a", (DefaultUni.ProtoList $ "a") ->: Type(Bool)),
-          (m: CekMachine, args: Seq[CekValue]) => VCon(asConstant(args(0).asList.isEmpty)),
+          (args: Seq[CekValue]) => VCon(asConstant(args(0).asList.isEmpty)),
           builtinCostModel.nullList
         )
 
@@ -496,7 +496,7 @@ trait BuitlinsMeaning(builtinCostModel: BuiltinCostModel) extends PlatformSpecif
               "a"
             ) ->: TVar("a")
           ),
-          (m: CekMachine, args: Seq[CekValue]) =>
+          (args: Seq[CekValue]) =>
               val aa = args(0).asData
               chooseData(aa, args(1), args(2), args(3), args(4), args(5))
           ,
@@ -506,7 +506,7 @@ trait BuitlinsMeaning(builtinCostModel: BuiltinCostModel) extends PlatformSpecif
     val ConstrData =
         mkMeaning(
           Integer ->: DefaultUni.List(DefaultUni.Data) ->: DefaultUni.Data,
-          (m: CekMachine, args: Seq[CekValue]) =>
+          (args: Seq[CekValue]) =>
               val i = args(0).asInteger
               val argsList = args(1).asList.map {
                   case Constant.Data(d) => d
@@ -520,7 +520,7 @@ trait BuitlinsMeaning(builtinCostModel: BuiltinCostModel) extends PlatformSpecif
     val MapData =
         mkMeaning(
           DefaultUni.List(DefaultUni.Pair(DefaultUni.Data, DefaultUni.Data)) ->: DefaultUni.Data,
-          (m: CekMachine, args: Seq[CekValue]) =>
+          (args: Seq[CekValue]) =>
               val aa = args(0).asList
               VCon(
                 Constant.Data(Data.Map(aa.map {
@@ -539,7 +539,7 @@ trait BuitlinsMeaning(builtinCostModel: BuiltinCostModel) extends PlatformSpecif
     val ListData =
         mkMeaning(
           DefaultUni.List(DefaultUni.Data) ->: DefaultUni.Data,
-          (m: CekMachine, args: Seq[CekValue]) =>
+          (args: Seq[CekValue]) =>
               val aa = args(0).asList
               VCon(Constant.Data(Data.List(aa.map {
                   case Constant.Data(value) => value
@@ -552,7 +552,7 @@ trait BuitlinsMeaning(builtinCostModel: BuiltinCostModel) extends PlatformSpecif
     val IData =
         mkMeaning(
           Integer ->: DefaultUni.Data,
-          (m: CekMachine, args: Seq[CekValue]) =>
+          (args: Seq[CekValue]) =>
               val aa = args(0).asInteger
               VCon(Constant.Data(Data.I(aa)))
           ,
@@ -562,7 +562,7 @@ trait BuitlinsMeaning(builtinCostModel: BuiltinCostModel) extends PlatformSpecif
     val BData =
         mkMeaning(
           DefaultUni.ByteString ->: DefaultUni.Data,
-          (m: CekMachine, args: Seq[CekValue]) =>
+          (args: Seq[CekValue]) =>
               val aa = args(0).asByteString
               VCon(Constant.Data(Data.B(aa)))
           ,
@@ -575,7 +575,7 @@ trait BuitlinsMeaning(builtinCostModel: BuiltinCostModel) extends PlatformSpecif
     val UnConstrData =
         mkMeaning(
           DefaultUni.Data ->: DefaultUni.Pair(Integer, DefaultUni.List(DefaultUni.Data)),
-          (m: CekMachine, args: Seq[CekValue]) =>
+          (args: Seq[CekValue]) =>
               args(0) match
                   case VCon(Constant.Data(Data.Constr(i, ls))) =>
                       VCon(Constant.Pair(asConstant(i), asConstant(ls)))
@@ -587,7 +587,7 @@ trait BuitlinsMeaning(builtinCostModel: BuiltinCostModel) extends PlatformSpecif
     val UnMapData =
         mkMeaning(
           DefaultUni.Data ->: DefaultUni.List(DefaultUni.Pair(DefaultUni.Data, DefaultUni.Data)),
-          (m: CekMachine, args: Seq[CekValue]) =>
+          (args: Seq[CekValue]) =>
               args(0) match
                   case VCon(Constant.Data(Data.Map(values))) =>
                       VCon(
@@ -606,7 +606,7 @@ trait BuitlinsMeaning(builtinCostModel: BuiltinCostModel) extends PlatformSpecif
     val UnListData =
         mkMeaning(
           DefaultUni.Data ->: DefaultUni.List(DefaultUni.Data),
-          (m: CekMachine, args: Seq[CekValue]) =>
+          (args: Seq[CekValue]) =>
               args(0) match
                   case VCon(Constant.Data(Data.List(values))) =>
                       VCon(Constant.List(DefaultUni.Data, values.map(asConstant)))
@@ -618,7 +618,7 @@ trait BuitlinsMeaning(builtinCostModel: BuiltinCostModel) extends PlatformSpecif
     val UnIData =
         mkMeaning(
           DefaultUni.Data ->: DefaultUni.Integer,
-          (m: CekMachine, args: Seq[CekValue]) =>
+          (args: Seq[CekValue]) =>
               args(0) match
                   case VCon(Constant.Data(Data.I(i))) =>
                       VCon(asConstant(i))
@@ -630,7 +630,7 @@ trait BuitlinsMeaning(builtinCostModel: BuiltinCostModel) extends PlatformSpecif
     val UnBData =
         mkMeaning(
           DefaultUni.Data ->: DefaultUni.ByteString,
-          (m: CekMachine, args: Seq[CekValue]) =>
+          (args: Seq[CekValue]) =>
               args(0) match
                   case VCon(Constant.Data(Data.B(b))) =>
                       VCon(asConstant(b))
@@ -642,7 +642,7 @@ trait BuitlinsMeaning(builtinCostModel: BuiltinCostModel) extends PlatformSpecif
     val EqualsData =
         mkMeaning(
           DefaultUni.Data ->: DefaultUni.Data ->: DefaultUni.Bool,
-          (m: CekMachine, args: Seq[CekValue]) =>
+          (args: Seq[CekValue]) =>
               args(0) match
                   case VCon(Constant.Data(aa)) =>
                       args(1) match
@@ -658,7 +658,7 @@ trait BuitlinsMeaning(builtinCostModel: BuiltinCostModel) extends PlatformSpecif
     val SerialiseData =
         mkMeaning(
           DefaultUni.Data ->: DefaultUni.ByteString,
-          (m: CekMachine, args: Seq[CekValue]) =>
+          (args: Seq[CekValue]) =>
               args(0) match
                   case VCon(Constant.Data(data)) =>
                       VCon(Constant.ByteString(serialiseData(data)))
@@ -670,7 +670,7 @@ trait BuitlinsMeaning(builtinCostModel: BuiltinCostModel) extends PlatformSpecif
     val MkPairData =
         mkMeaning(
           DefaultUni.Data ->: DefaultUni.Data ->: DefaultUni.Pair(DefaultUni.Data, DefaultUni.Data),
-          (m: CekMachine, args: Seq[CekValue]) =>
+          (args: Seq[CekValue]) =>
               val aa = args(0).asData
               val bb = args(1).asData
               VCon(Constant.Pair(asConstant(aa), asConstant(bb)))
@@ -681,7 +681,7 @@ trait BuitlinsMeaning(builtinCostModel: BuiltinCostModel) extends PlatformSpecif
     val MkNilData =
         mkMeaning(
           DefaultUni.Unit ->: DefaultUni.List(DefaultUni.Data),
-          (m: CekMachine, args: Seq[CekValue]) =>
+          (args: Seq[CekValue]) =>
               val _ = args(0).asUnit
               VCon(Constant.List(DefaultUni.Data, Nil))
           ,
@@ -690,7 +690,7 @@ trait BuitlinsMeaning(builtinCostModel: BuiltinCostModel) extends PlatformSpecif
 
     val MkNilPairData = mkMeaning(
       DefaultUni.Unit ->: DefaultUni.Pair(DefaultUni.Data, DefaultUni.Data),
-      (m: CekMachine, args: Seq[CekValue]) =>
+      (args: Seq[CekValue]) =>
           val _ = args(0).asUnit
           VCon(Constant.List(DefaultUni.Pair(DefaultUni.Data, DefaultUni.Data), Nil))
       ,

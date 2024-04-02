@@ -206,7 +206,9 @@ object Macros {
         val impl = '{
             (
               (m: A) =>
-                  Seq.from(${ Expr.ofSeq(fields.map(name => Select('{ m }.asTerm, name).asExprOf[Int])) }),
+                  Seq.from(${
+                      Expr.ofSeq(fields.map(name => Select('{ m }.asTerm, name).asExprOf[Int]))
+                  }),
               (seq: Seq[Int]) =>
                   ${
                       New(tpe)

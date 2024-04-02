@@ -38,7 +38,7 @@ class CekJVMBenchmark:
     )
     private var file: String = ""
     private var program: Program = null
-    val cek = CekMachine(MachineParams.default)
+    val cek = CekMachine(MachineParams.defaultParams)
 
     @Setup
     def readProgram() = {
