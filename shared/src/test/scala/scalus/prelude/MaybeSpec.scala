@@ -4,7 +4,6 @@ import org.scalatest.funsuite.AnyFunSuite
 import org.scalatestplus.scalacheck.ScalaCheckPropertyChecks
 import scalus.Compiler.compile
 import scalus.*
-import scalus.builtin.given
 import scalus.prelude.Maybe.*
 import scalus.prelude.Prelude.{_, given}
 import scalus.sir.SIR

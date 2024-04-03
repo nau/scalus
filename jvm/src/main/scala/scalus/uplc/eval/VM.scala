@@ -18,11 +18,12 @@ final class CekMachine(params: MachineParams)
 @deprecated("Use VM instead", "0.7.0")
 object Cek {
     @deprecated("Use VM methods instead", "0.7.0")
-    def evalUPLC(term: Term)(using ps: PlatformSpecific): Term = {
+    def evalUPLC(term: Term): Term = {
         val params = MachineParams.defaultParams
         val debruijnedTerm = DeBruijn.deBruijnTerm(term)
         new CekMachine(params).evaluateTerm(debruijnedTerm)
     }
 
-    def evalUPLCProgram(p: Program)(using ps: PlatformSpecific): Term = evalUPLC(p.term)
+    @deprecated("Use VM methods instead", "0.7.0")
+    def evalUPLCProgram(p: Program): Term = evalUPLC(p.term)
 }

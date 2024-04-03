@@ -17,8 +17,11 @@ import scala.collection.mutable.ArrayBuffer
 import scala.collection.mutable.HashMap
 import scala.util.control.NonFatal
 
+enum StepKind:
+    case Const, Var, LamAbs, Apply, Delay, Force, Builtin
+
 enum ExBudgetCategory:
-    case Step
+    case Step(kind: StepKind)
     case Startup
     case BuiltinApp(bi: DefaultFun)
 
@@ -91,7 +94,7 @@ object MachineParams {
       */
     val defaultParams: MachineParams = MachineParams(
       machineCosts = CekMachineCosts.defaultMachineCosts,
-      builtinCostModel = BuiltinCostModel.default
+      builtinCostModel = BuiltinCostModel.defaultCostModel
     )
 
     /** Creates `MachineParams` from a Cardano CLI protocol parameters JSON.
@@ -388,25 +391,25 @@ abstract class AbstractCekMachine(val params: MachineParams)
         val costs = params.machineCosts
         term match
             case Var(name) =>
-                spendBudget(ExBudgetCategory.Step, costs.varCost)
+                spendBudget(ExBudgetCategory.Step(StepKind.Var), costs.varCost)
                 Return(ctx, env, lookupVarName(env, name))
             case LamAbs(name, term) =>
-                spendBudget(ExBudgetCategory.Step, costs.lamCost)
+                spendBudget(ExBudgetCategory.Step(StepKind.LamAbs), costs.lamCost)
                 Return(ctx, env, VLamAbs(name, term, env))
             case Apply(fun, arg) =>
-                spendBudget(ExBudgetCategory.Step, costs.applyCost)
+                spendBudget(ExBudgetCategory.Step(StepKind.Apply), costs.applyCost)
                 Compute(FrameApplyArg(env, arg, ctx), env, fun)
             case Force(term) =>
-                spendBudget(ExBudgetCategory.Step, costs.forceCost)
+                spendBudget(ExBudgetCategory.Step(StepKind.Force), costs.forceCost)
                 Compute(FrameForce(ctx), env, term)
             case Delay(term) =>
-                spendBudget(ExBudgetCategory.Step, costs.delayCost)
+                spendBudget(ExBudgetCategory.Step(StepKind.Delay), costs.delayCost)
                 Return(ctx, env, VDelay(term, env))
             case Const(const) =>
-                spendBudget(ExBudgetCategory.Step, costs.constCost)
+                spendBudget(ExBudgetCategory.Step(StepKind.Const), costs.constCost)
                 Return(ctx, env, VCon(const))
             case Builtin(bn) =>
-                spendBudget(ExBudgetCategory.Step, costs.builtinCost)
+                spendBudget(ExBudgetCategory.Step(StepKind.Builtin), costs.builtinCost)
                 // The @term@ is a 'Builtin', so it's fully discharged.
                 BuiltinMeanings.get(bn) match
                     case Some(meaning) => Return(ctx, env, VBuiltin(bn, () => term, meaning))

@@ -6,7 +6,7 @@ import scalus.*
 import scalus.Compiler.compile
 import scalus.builtin.ByteString.given
 import scalus.builtin.Data.{fromData, toData}
-import scalus.builtin.{ByteString, Data, given}
+import scalus.builtin.{ByteString, Data}
 import scalus.prelude.Prelude.{*, given}
 import scalus.sir.SIR
 import scalus.uplc.{ArbitraryInstances, Constant, Term}

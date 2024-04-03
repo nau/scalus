@@ -3,7 +3,7 @@ package scalus.uplc
 import scalus.builtin.JSPlatformSpecific
 
 object Meaning {
-    val defaultBuiltins = Meaning(eval.BuiltinCostModel.default)
+    val defaultBuiltins = Meaning(eval.BuiltinCostModel.defaultCostModel)
 }
 
 class Meaning(builtinCostModel: eval.BuiltinCostModel)

@@ -5,7 +5,6 @@ import scalus.Compiler.compile
 import scalus.builtin.ByteString
 import scalus.builtin.ByteString.given
 import scalus.builtin.Data
-import scalus.builtin.given
 import scalus.ledger.api.v1.ToDataInstances.given
 import scalus.ledger.api.v1.*
 import scalus.ledger.api.v2

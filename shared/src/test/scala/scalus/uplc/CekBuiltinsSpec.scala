@@ -5,7 +5,6 @@ import org.scalatestplus.scalacheck.ScalaCheckPropertyChecks
 import scalus.builtin.ByteString.given
 import scalus.builtin.Data
 import scalus.builtin.ToDataInstances.given
-import scalus.builtin.given
 import scalus.uplc.Constant.Pair
 import scalus.uplc.DefaultFun.*
 import scalus.uplc.DefaultUni.asConstant

@@ -108,7 +108,7 @@ object BuiltinCostModel {
       * @return
       *   a [[BuiltinCostModel]]
       */
-    val default = BuiltinCostModel.fromJsonString(inlineBuiltinCostModelJson)
+    val defaultCostModel = BuiltinCostModel.fromJsonString(inlineBuiltinCostModelJson)
 
     given ReadWriter[BuiltinCostModel] = readwriter[ujson.Value].bimap(
       model =>

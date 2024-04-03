@@ -52,8 +52,12 @@ class CekBudgetJVMSpec extends AnyFunSuite:
         val paramsV2Map = writeJs(paramsV2).obj.map { case (k, v) => (k, v.num.toInt) }.toMap
         val modelV1 = BuiltinCostModel.fromCostModelParams(paramsV1Map)
         val modelV2 = BuiltinCostModel.fromCostModelParams(paramsV2Map)
-        assert(modelV1.flattenCostModel.keySet == BuiltinCostModel.default.flattenCostModel.keySet)
-        assert(modelV2.flattenCostModel.keySet == BuiltinCostModel.default.flattenCostModel.keySet)
+        assert(
+          modelV1.flattenCostModel.keySet == BuiltinCostModel.defaultCostModel.flattenCostModel.keySet
+        )
+        assert(
+          modelV2.flattenCostModel.keySet == BuiltinCostModel.defaultCostModel.flattenCostModel.keySet
+        )
     }
 
     test("BuiltinCostModel JSON reader from Blockfrost Protocol Parameters") {
@@ -68,6 +72,10 @@ class CekBudgetJVMSpec extends AnyFunSuite:
         val paramsV2Map = writeJs(paramsV2).obj.map { case (k, v) => (k, v.num.toInt) }.toMap
         val modelV1 = BuiltinCostModel.fromCostModelParams(paramsV1Map)
         val modelV2 = BuiltinCostModel.fromCostModelParams(paramsV2Map)
-        assert(modelV1.flattenCostModel.keySet == BuiltinCostModel.default.flattenCostModel.keySet)
-        assert(modelV2.flattenCostModel.keySet == BuiltinCostModel.default.flattenCostModel.keySet)
+        assert(
+          modelV1.flattenCostModel.keySet == BuiltinCostModel.defaultCostModel.flattenCostModel.keySet
+        )
+        assert(
+          modelV2.flattenCostModel.keySet == BuiltinCostModel.defaultCostModel.flattenCostModel.keySet
+        )
     }
