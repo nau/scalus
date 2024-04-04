@@ -41,7 +41,7 @@
           buildInputs = [ pkgs.bashInteractive ];
           packages = with pkgs; [
             git
-            openjdk11
+            openjdk21
             sbt
             mill
             scalafmt
