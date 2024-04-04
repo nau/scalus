@@ -14,7 +14,7 @@ import scalus.prelude.Maybe.*
 import scalus.{toUplc, BaseValidatorSpec, Expected}
 import scalus.builtin.Data.*
 import scalus.uplc.*
-import scalus.uplc.eval.Cek
+import scalus.uplc.eval.VM
 import scalus.utils.Utils
 
 class ScriptContextV1DataSerializationSpec extends BaseValidatorSpec:
@@ -132,13 +132,13 @@ class ScriptContextV1DataSerializationSpec extends BaseValidatorSpec:
         val applied = Program((1, 0, 0), namedTerm $ scriptContextV1.toData)
 
         assertSameResult(Expected.SuccessSame)(applied)
-        try Cek.evalUPLCProgram(applied)
+        try VM.evaluateProgram(applied)
         catch {
             case e: Throwable => fail(e)
         }
         import scalus.ledger.api.v2.ToDataInstances.given
         assertThrows[Exception](
-          Cek.evalUPLCProgram(Program((1, 0, 0), namedTerm $ scriptContextV2.toData))
+          VM.evaluateProgram(Program((1, 0, 0), namedTerm $ scriptContextV2.toData))
         )
     }
 
@@ -148,13 +148,13 @@ class ScriptContextV1DataSerializationSpec extends BaseValidatorSpec:
         val applied = Program((1, 0, 0), scalusDeserializerV1 $ scriptContextV1.toData)
 
         assertSameResult(Expected.SuccessSame)(applied)
-        try Cek.evalUPLCProgram(applied)
+        try VM.evaluateProgram(applied)
         catch {
             case e: Throwable => fail(e)
         }
         import scalus.ledger.api.v2.ToDataInstances.given
         assertThrows[Exception](
-          Cek.evalUPLCProgram(Program((1, 0, 0), scalusDeserializerV1 $ scriptContextV2.toData))
+          VM.evaluateProgram(Program((1, 0, 0), scalusDeserializerV1 $ scriptContextV2.toData))
         )
     }
 
@@ -165,14 +165,14 @@ class ScriptContextV1DataSerializationSpec extends BaseValidatorSpec:
         val program = ProgramFlatCodec.decodeFlat(scriptFlat)
         val namedTerm = DeBruijn.fromDeBruijnTerm(program.term)
         val applied = Program((1, 0, 0), namedTerm $ scriptContextV2.toData)
-        try Cek.evalUPLCProgram(applied)
+        try VM.evaluateProgram(applied)
         catch {
             case e: Throwable => fail(e)
         }
 
         import scalus.ledger.api.v1.ToDataInstances.given
         assertThrows[Exception](
-          Cek.evalUPLCProgram(Program((1, 0, 0), namedTerm $ scriptContextV1.toData))
+          VM.evaluateProgram(Program((1, 0, 0), namedTerm $ scriptContextV1.toData))
         )
     }
 
@@ -182,12 +182,12 @@ class ScriptContextV1DataSerializationSpec extends BaseValidatorSpec:
         val applied = Program((1, 0, 0), scalusDeserializerV2 $ scriptContextV2.toData)
 
         assertSameResult(Expected.SuccessSame)(applied)
-        try Cek.evalUPLCProgram(applied)
+        try VM.evaluateProgram(applied)
         catch {
             case e: Throwable => fail(e)
         }
         import scalus.ledger.api.v1.ToDataInstances.given
         assertThrows[Exception](
-          Cek.evalUPLCProgram(Program((1, 0, 0), scalusDeserializerV2 $ scriptContextV1.toData))
+          VM.evaluateProgram(Program((1, 0, 0), scalusDeserializerV2 $ scriptContextV1.toData))
         )
     }

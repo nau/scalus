@@ -17,10 +17,10 @@ import scala.reflect.ClassTag
 class CekBuiltinsSpec extends AnyFunSuite with ScalaCheckPropertyChecks with ArbitraryInstances:
 
     def assertEvalEq(a: Term, b: Term): Unit =
-        assert(Cek.evalUPLC(a) == b, s"$a != $b")
+        assert(VM.evaluateTerm(a) == b, s"$a != $b")
 
     def assertEvalThrows[A <: AnyRef: ClassTag](a: Term): Unit =
-        assertThrows[A](Cek.evalUPLC(a))
+        assertThrows[A](VM.evaluateTerm(a))
 
     test("Lazy builtin evaluation") {
         assertEvalEq(AddInteger $ "wrong", Apply(Builtin(AddInteger), "wrong"))
@@ -122,7 +122,7 @@ class CekBuiltinsSpec extends AnyFunSuite with ScalaCheckPropertyChecks with Arb
 
     test("UnConstrData") {
         assert(
-          Cek.evalUPLC(UnConstrData $ Data.Constr(12, 1 :: Nil)) ==
+          VM.evaluateTerm(UnConstrData $ Data.Constr(12, 1 :: Nil)) ==
               Const(
                 Pair(asConstant(12), Constant.List(DefaultUni.Data, List(Constant.Data(Data.I(1)))))
               )
@@ -131,7 +131,7 @@ class CekBuiltinsSpec extends AnyFunSuite with ScalaCheckPropertyChecks with Arb
 
     test("UnMapData") {
         assert(
-          Cek.evalUPLC(UnMapData $ Data.Map((12, 1) :: Nil)) ==
+          VM.evaluateTerm(UnMapData $ Data.Map((12, 1) :: Nil)) ==
               Const(
                 Constant.List(
                   DefaultUni.Pair(DefaultUni.Data, DefaultUni.Data),
@@ -143,19 +143,19 @@ class CekBuiltinsSpec extends AnyFunSuite with ScalaCheckPropertyChecks with Arb
 
     test("UnListData") {
         assert(
-          Cek.evalUPLC(UnListData $ Data.List(Data.I(12) :: Data.I(1) :: Nil)) ==
+          VM.evaluateTerm(UnListData $ Data.List(Data.I(12) :: Data.I(1) :: Nil)) ==
               Const(Constant.List(DefaultUni.Data, Constant.Data(12) :: Constant.Data(1) :: Nil))
         )
     }
 
     test("UnIData") {
-        assert(Cek.evalUPLC(UnIData $ Data.I(12)) == Const(Constant.Integer(12)))
+        assert(VM.evaluateTerm(UnIData $ Data.I(12)) == Const(Constant.Integer(12)))
     }
 
     test("UnBData") {
         import scalus.utils.Utils.*
         assert(
-          Cek.evalUPLC(UnBData $ Data.B(hex"deadbeef")) ==
+          VM.evaluateTerm(UnBData $ Data.B(hex"deadbeef")) ==
               Const(Constant.ByteString(hex"deadbeef"))
         )
     }

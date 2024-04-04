@@ -203,5 +203,5 @@ object Example:
       }
     )
 
-    println(Cek.evalUPLC(asdf(BigInt(-3)).term).pretty.render(80))*/
+    println(VM.evaluateTerm(asdf(BigInt(-3)).term).pretty.render(80))*/
     }

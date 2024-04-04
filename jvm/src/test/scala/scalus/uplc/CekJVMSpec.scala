@@ -30,13 +30,13 @@ class CekJVMSpec extends BaseValidatorSpec:
         val parser = UplcParser
         for
             program <- parser.parseProgram(code)
-            evaled = Cek.evalUPLCProgram(program)
+            evaled = VM.evaluateProgram(program)
         do println(evaled.pretty.render(80))
     }
 
     def eval(code: String): Term = {
         val parser = UplcParser
-        parser.parseProgram(code).map(Cek.evalUPLCProgram).getOrElse(sys.error("Parse error"))
+        parser.parseProgram(code).map(VM.evaluateProgram).getOrElse(sys.error("Parse error"))
     }
 
     // Apparently plutus-conformance doesn't exist on the Plutus V2 commit we're using
@@ -105,7 +105,7 @@ class CekJVMSpec extends BaseValidatorSpec:
               ScriptPurpose.Spending(TxOutRef(TxId(hex"deadbeef"), 0))
             )
         val appliedScript = Program((1, 0, 0), validator $ () $ () $ scriptContext.toData)
-        assert(Cek.evalUPLCProgram(appliedScript) == Const(asConstant(())))
+        assert(VM.evaluateProgram(appliedScript) == Const(asConstant(())))
     }
 
     test("PubKey Validator example") {
@@ -138,7 +138,7 @@ class CekJVMSpec extends BaseValidatorSpec:
             Program((1, 0, 0), validator.term $ () $ () $ ctx.toData)
 
         assert(
-          Cek.evalUPLCProgram(
+          VM.evaluateProgram(
             appliedScript(
               scriptContext(Cons(PubKeyHash(hex"000000"), Cons(PubKeyHash(hex"deadbeef"), Nil)))
             )
@@ -148,7 +148,7 @@ class CekJVMSpec extends BaseValidatorSpec:
         )
 
         assertThrows[EvaluationFailure](
-          Cek.evalUPLCProgram(
+          VM.evaluateProgram(
             appliedScript(scriptContext(Cons(PubKeyHash(hex"000000"), Nil)))
           ) == Const(
             asConstant(())
@@ -156,7 +156,7 @@ class CekJVMSpec extends BaseValidatorSpec:
         )
 
         assertThrows[EvaluationFailure](
-          Cek.evalUPLCProgram(appliedScript(scriptContext(Nil))) == Const(
+          VM.evaluateProgram(appliedScript(scriptContext(Nil))) == Const(
             asConstant(())
           )
         )
@@ -184,10 +184,10 @@ class CekJVMSpec extends BaseValidatorSpec:
         import ExprBuilder.*
         val fee = unIData(fieldAsData[TxInfo](_.fee).apply(Expr(txInfo.toData)))
         val txId = unBData(fieldAsData[TxInfo](_.id).apply(Expr(txInfo.toData)))
-        assert(Cek.evalUPLC(fee.term) == Const(asConstant(BigInt(123))))
-        assert(Cek.evalUPLC(txId.term) == Const(asConstant(hex"bb")))
+        assert(VM.evaluateTerm(fee.term) == Const(asConstant(BigInt(123))))
+        assert(VM.evaluateTerm(txId.term) == Const(asConstant(hex"bb")))
         println(txId)
-        println(Cek.evalUPLC(txId.term))
+        println(VM.evaluateTerm(txId.term))
 
     }
 

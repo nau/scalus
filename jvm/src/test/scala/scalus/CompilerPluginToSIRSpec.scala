@@ -23,7 +23,7 @@ import scalus.sir.SIR.*
 import scalus.sir.SirDSL.{*, given}
 import scalus.uplc.DefaultFun.*
 import scalus.uplc.*
-import scalus.uplc.eval.Cek
+import scalus.uplc.eval.VM
 
 import scala.collection.immutable
 
@@ -170,7 +170,7 @@ class CompilerPluginToSIRSpec extends AnyFunSuite with ScalaCheckPropertyChecks:
           )
         )
         //    val term = compiled.toUplc()
-        //    assert(Cek.evalUPLC(term) == Data.I(22))
+        //    assert(VM.evaluateTerm(term) == Data.I(22))
     }
 
     test("compile chooseList builtins") {
@@ -683,7 +683,7 @@ class CompilerPluginToSIRSpec extends AnyFunSuite with ScalaCheckPropertyChecks:
         )
         // println(compiled.pretty.render(80))
         val term = compiled.toUplc()
-        val evaled = Cek.evalUPLC(term)
+        val evaled = VM.evaluateTerm(term)
         // println(evaled.pretty.render(80))
         assert(evaled == scalus.uplc.Term.Const(Constant.Bool(true)))
     }
@@ -699,7 +699,7 @@ class CompilerPluginToSIRSpec extends AnyFunSuite with ScalaCheckPropertyChecks:
         // println(compiled.pretty.render(80))
         val term = compiled.toUplc()
         // println(term.pretty.render(80))
-        val evaled = Cek.evalUPLC(term)
+        val evaled = VM.evaluateTerm(term)
         assert(evaled == scalus.uplc.Term.Const(Constant.Bool(true)))
     }
 
@@ -760,7 +760,7 @@ class CompilerPluginToSIRSpec extends AnyFunSuite with ScalaCheckPropertyChecks:
         }
         // println(compiled.pretty.render(80))
         val term = compiled.toUplc()
-        val evaled = Cek.evalUPLC(term)
+        val evaled = VM.evaluateTerm(term)
         assert(evaled == scalus.uplc.Term.Const(Constant.Bool(false)))
     }
 
@@ -773,7 +773,7 @@ class CompilerPluginToSIRSpec extends AnyFunSuite with ScalaCheckPropertyChecks:
         // println(compiled.pretty.render(80))
         val term = compiled.toUplc()
         // println(term.pretty.render(80))
-        val evaled = Cek.evalUPLC(term)
+        val evaled = VM.evaluateTerm(term)
         assert(evaled == scalus.uplc.Term.Const(Constant.ByteString(hex"deadbeef")))
     }
 
@@ -788,7 +788,7 @@ class CompilerPluginToSIRSpec extends AnyFunSuite with ScalaCheckPropertyChecks:
         }
         // println(compiled.pretty.render(80))
         val term = compiled.toUplc()
-        val evaled = Cek.evalUPLC(term)
+        val evaled = VM.evaluateTerm(term)
         // println(evaled.pretty.render(80))
         assert(evaled == scalus.uplc.Term.Const(Constant.Integer(1)))
     }
@@ -802,7 +802,7 @@ class CompilerPluginToSIRSpec extends AnyFunSuite with ScalaCheckPropertyChecks:
                 case _             => BigInt(0)
         }
         val term = compiled.toUplc()
-        val evaled = Cek.evalUPLC(term)
+        val evaled = VM.evaluateTerm(term)
         assert(evaled == scalus.uplc.Term.Const(Constant.Integer(1)))
     }
 
@@ -818,7 +818,7 @@ class CompilerPluginToSIRSpec extends AnyFunSuite with ScalaCheckPropertyChecks:
         }
         // println(compiled.pretty.render(80))
         val term = compiled.toUplc()
-        val evaled = Cek.evalUPLC(term)
+        val evaled = VM.evaluateTerm(term)
         // println(evaled.pretty.render(80))
         assert(evaled == scalus.uplc.Term.Const(Constant.Integer(3)))
     }
@@ -855,7 +855,7 @@ class CompilerPluginToSIRSpec extends AnyFunSuite with ScalaCheckPropertyChecks:
         import scalus.builtin.Data.{*}
         import DefaultUni.asConstant
         val appliedScript = Program(version = (1, 0, 0), term = term $ scriptContext.toData)
-        val evaled = Cek.evalUPLCProgram(appliedScript)
+        val evaled = VM.evaluateProgram(appliedScript)
         // println(evaled.pretty.render(80))
         assert(evaled == scalus.uplc.Term.Const(asConstant(hex"deadbeef")))
         val flatBytesLength = appliedScript.flatEncoded.length

@@ -4,25 +4,25 @@ import org.scalatest.funsuite.AnyFunSuite
 import scalus.*
 import scalus.uplc.DefaultUni.asConstant
 import scalus.uplc.Term.*
-import scalus.uplc.eval.Cek
+import scalus.uplc.eval.VM
 
 class CekSpec extends AnyFunSuite:
     test("Scalus") {
         val h = Const(asConstant("Hello"))
         val id = LamAbs("x", Var(NamedDeBruijn("x")))
         val app = Apply(id, h)
-        assert(Cek.evalUPLC(app) == h)
+        assert(VM.evaluateTerm(app) == h)
     }
 
     def run(code: String) = {
         for
             program <- UplcParser.parseProgram(code)
-            evaled = Cek.evalUPLCProgram(program)
+            evaled = VM.evaluateProgram(program)
         do println(evaled.pretty.render(80))
     }
 
     def eval(code: String): Term = {
-        UplcParser.parseProgram(code).map(Cek.evalUPLCProgram).getOrElse(sys.error("Parse error"))
+        UplcParser.parseProgram(code).map(VM.evaluateProgram).getOrElse(sys.error("Parse error"))
     }
 
     test("EqualsInteger") {

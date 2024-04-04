@@ -38,7 +38,7 @@ class AssocMapSpec extends AnyFunSuite with ScalaCheckPropertyChecks with Arbitr
         }
         // println(compiled.pretty.render(100))
         val term = compiled.toUplc()
-        // println(Cek.evalUPLC(term).pretty.render(100))
+        // println(VM.evaluateTerm(term).pretty.render(100))
         assert(
           AssocMap.toList(m3) == List(
             (BigInt(1), These(2, 3)),
@@ -65,14 +65,14 @@ class AssocMapSpec extends AnyFunSuite with ScalaCheckPropertyChecks with Arbitr
             }
             // println(compiled.pretty.render(100))
             val term = compiled.toUplc()
-            // println(Cek.evalUPLC(term).pretty.render(100))
+            // println(VM.evaluateTerm(term).pretty.render(100))
         }
         {
             val compiled = Compiler.compile {
                 equalsAssets(m1, m1)
             }
             val term = compiled.toUplc()
-            // println(Cek.evalUPLC(term).pretty.render(100))
+            // println(VM.evaluateTerm(term).pretty.render(100))
         }
     }
 

@@ -10,7 +10,7 @@ import scalus.prelude.*
 import scalus.uplc.ArbitraryInstances
 import scalus.uplc.DeBruijn
 import scalus.uplc.*
-import scalus.uplc.eval.Cek
+import scalus.uplc.eval.VM
 
 import scala.util.Failure
 import scala.util.Success
@@ -28,7 +28,7 @@ abstract class BaseValidatorSpec
 
     protected final def assertSameResult(expected: Expected)(program: Program) = {
         val result1 = UplcCli.evalFlat(program)
-        val result2 = Try(Cek.evalUPLCProgram(program))
+        val result2 = Try(VM.evaluateProgram(program))
         // println(s"$result1 == $result2")
         (expected, result1, result2) match
             case (Expected.SuccessSame, UplcEvalResult.Success(term1, _), Success(term2)) =>

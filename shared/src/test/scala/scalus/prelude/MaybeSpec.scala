@@ -10,7 +10,7 @@ import scalus.sir.SIR
 import scalus.uplc.ArbitraryInstances
 import scalus.uplc.Term
 import scalus.uplc.TermDSL.given
-import scalus.uplc.eval.Cek
+import scalus.uplc.eval.VM
 
 class MaybeSpec extends AnyFunSuite with ScalaCheckPropertyChecks with ArbitraryInstances {
     test("eq") {
@@ -24,6 +24,6 @@ class MaybeSpec extends AnyFunSuite with ScalaCheckPropertyChecks with Arbitrary
 
     private def assertEval(sir: SIR, expected: Term) = {
         val term = sir.toUplc()
-        assert(Cek.evalUPLC(term) == expected)
+        assert(VM.evaluateTerm(term) == expected)
     }
 }

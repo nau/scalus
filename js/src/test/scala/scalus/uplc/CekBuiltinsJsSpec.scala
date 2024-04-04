@@ -2,7 +2,7 @@ package scalus.uplc
 
 import scalus.*
 import scalus.uplc.TermDSL.*
-import scalus.uplc.eval.Cek
+import scalus.uplc.eval.VM
 
 import scala.reflect.ClassTag
 import scala.scalajs.js
@@ -36,7 +36,7 @@ class CekBuiltinsJsSpec extends CekBuiltinsSpec:
 
     override def assertEvalEq(a: Term, b: Term): Unit =
         assert(eval(a) == b, s"$a != $b")
-        assert(Cek.evalUPLC(a) == b, s"$a != $b")
+        assert(VM.evaluateTerm(a) == b, s"$a != $b")
 
     override def assertEvalThrows[A <: AnyRef: ClassTag](a: Term): Unit =
-        assertThrows[A](Cek.evalUPLC(a))
+        assertThrows[A](VM.evaluateTerm(a))

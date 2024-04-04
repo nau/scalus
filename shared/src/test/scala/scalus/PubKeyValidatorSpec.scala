@@ -14,7 +14,7 @@ import scalus.prelude.List.Nil
 import scalus.prelude.Prelude.===
 import scalus.prelude.Prelude.given
 import scalus.uplc.*
-import scalus.uplc.eval.Cek
+import scalus.uplc.eval.VM
 
 @Compile
 object PubKeyValidator {
@@ -65,7 +65,7 @@ class PubKeyValidatorSpec extends AnyFunSuite with ScalaCheckPropertyChecks:
 //    println(scriptContext.toData)
         val appliedValidator = term $ asConstant(()) $ asConstant(()) $ scriptContext.toData
         assert(
-          Cek.evalUPLC(appliedValidator) == Term.Const(asConstant(()))
+          VM.evaluateTerm(appliedValidator) == Term.Const(asConstant(()))
         )
         assert(
           PubKeyValidator.validator((), (), scriptContext.toData) == ()

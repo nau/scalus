@@ -11,7 +11,7 @@ import scalus.prelude.Prelude.{*, given}
 import scalus.sir.SIR
 import scalus.uplc.{ArbitraryInstances, Constant, Term}
 import scalus.uplc.TermDSL.given
-import scalus.uplc.eval.Cek
+import scalus.uplc.eval.VM
 
 class ContextSpec
     extends AnyFunSuite
@@ -58,6 +58,6 @@ class ContextSpec
 
     private def assertEval(sir: SIR, expected: Term) = {
         val term = sir.toUplc()
-        assert(Cek.evalUPLC(term) == expected)
+        assert(VM.evaluateTerm(term) == expected)
     }
 }

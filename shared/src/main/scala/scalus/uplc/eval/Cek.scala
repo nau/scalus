@@ -244,16 +244,17 @@ enum CekValue {
     }
 }
 
-trait VMBase(platformSpecific: PlatformSpecific) {
+/** Plutus VM facade.
+  *
+  * @param platformSpecific
+  *   The platform specific implementation of certain functions used by VM builtins
+  */
+class PlutusVM(platformSpecific: PlatformSpecific) {
     type ScriptForEvaluation = Array[Byte]
 
     /** Evaluates a script, returning the minimum budget that the script would need to evaluate.
-      * This will take as long as the script takes, if you need to limit the execution time of the
-      * script also, you can use 'evaluateScriptRestricting', which also returns the used budget.
+      * This will take as long as the script takes.
       *
-      * @note:
-      *   Parameterized over the ledger-plutus-version since the builtins allowed (during decoding)
-      *   differs.
       * @param params
       *   The machine parameters
       * @param script
@@ -274,23 +275,32 @@ trait VMBase(platformSpecific: PlatformSpecific) {
         val applied = args.foldLeft(namedProgram.term) { (acc, arg) =>
             Apply(acc, Const(asConstant(arg)))
         }
-        evaluateTerm(params, applied)
+        val cek = new CekMachine(params, CountingBudgetSpender(), platformSpecific)
+        cek.runCek(applied)
     }
 
-    /** Evaluates a UPLC term.
+    /** Evaluates a UPLC term using default CEK machine parameters and no budget calculation.
       *
-      * @param params
-      *   The machine parameters
+      * Useful for testing and debugging.
+      *
       * @param term
       *   The debruijned term to evaluate
       * @return
-      *   [[CekResult]], either a success with the resulting term and the execution budget, or a
-      *   failure with an error message and the execution budget.
+      *   The resulting term
+      * @throws StackTraceMachineError
+      *   subtypes if the evaluation fails
       */
-    def evaluateTerm(params: MachineParams, term: Term): CekResult = {
-        val cek = new CekMachine(params, NoBudgetSpender, platformSpecific)
-        cek.runCek(term)
+    def evaluateTerm(term: Term): Term = {
+        val cek = new CekMachine(MachineParams.defaultParams, NoBudgetSpender, platformSpecific)
+        val debruijnedTerm = DeBruijn.deBruijnTerm(term)
+        cek.evaluateTerm(debruijnedTerm)
     }
+
+    /** Evaluates a UPLC Program using default CEK machine parameters and no budget calculation.
+      *
+      * Useful for testing and debugging.
+      */
+    def evaluateProgram(p: Program): Term = evaluateTerm(p.term)
 }
 
 sealed trait CekResult {

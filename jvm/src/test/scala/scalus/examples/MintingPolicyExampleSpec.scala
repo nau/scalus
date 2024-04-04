@@ -16,7 +16,7 @@ import scalus.prelude.*
 import scalus.uplc.Term.*
 import scalus.uplc.TermDSL.{_, given}
 import scalus.uplc.*
-import scalus.uplc.eval.Cek
+import scalus.uplc.eval.VM
 
 class MintingPolicyExampleSpec extends BaseValidatorSpec {
 
@@ -167,7 +167,7 @@ class MintingPolicyExampleSpec extends BaseValidatorSpec {
         val tokensSIR =
             compile(AssocMap.singleton(hex"484f534b59", BigInt("1000000000000000")))
         val tokens = tokensSIR.toUplc()
-        Cek.evalUPLC(tokens)
+        VM.evaluateTerm(tokens)
 
     test("Minting Policy Validator") {
         val validator = MintingPolicy.compiledMintingPolicyScript.toUplc(generateErrorTraces = true)

@@ -3,16 +3,12 @@ package eval
 
 import scalus.builtin.*
 
-object VM extends VMBase(JSPlatformSpecific)
+object VM extends PlutusVM(JSPlatformSpecific)
 
 @deprecated("Use VM instead", "0.7.0")
 object Cek {
     @deprecated("Use VM methods instead", "0.7.0")
-    def evalUPLC(term: Term): Term = {
-        val params = MachineParams.defaultParams
-        val debruijnedTerm = DeBruijn.deBruijnTerm(term)
-        new CekMachine(params, NoBudgetSpender, JSPlatformSpecific).evaluateTerm(debruijnedTerm)
-    }
+    def evalUPLC(term: Term): Term = VM.evaluateTerm(term)
 
-    def evalUPLCProgram(p: Program): Term = evalUPLC(p.term)
+    def evalUPLCProgram(p: Program): Term = VM.evaluateProgram(p)
 }

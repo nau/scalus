@@ -11,7 +11,7 @@ import scalus.builtin.Builtins.*
 import scalus.builtin.Data.*
 import scalus.builtin.FromDataInstances.given
 import scalus.uplc.*
-import scalus.uplc.eval.Cek
+import scalus.uplc.eval.VM
 
 import scala.annotation.nowarn
 
@@ -129,7 +129,7 @@ class FromDataDerivationSpec
                 case UplcEvalResult.UplcFailure(errorCode, error) => fail(error)
                 case UplcEvalResult.TermParsingError(error)       => fail(error)
 
-            assert(Cek.evalUPLC(term $ d) == Term.Const(Constant.Data(d)))
+            assert(VM.evaluateTerm(term $ d) == Term.Const(Constant.Data(d)))
         }
     }
 
@@ -149,7 +149,7 @@ class FromDataDerivationSpec
                 case UplcEvalResult.UplcFailure(errorCode, error) => fail(error)
                 case UplcEvalResult.TermParsingError(error)       => fail(error)
 
-            assert(Cek.evalUPLC(term $ d) == Term.Const(Constant.Data(d)))
+            assert(VM.evaluateTerm(term $ d) == Term.Const(Constant.Data(d)))
         }
     }
 }
