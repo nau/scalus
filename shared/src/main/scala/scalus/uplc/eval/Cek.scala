@@ -4,6 +4,7 @@ package eval
 import cats.syntax.group.*
 import scalus.builtin.ByteString
 import scalus.builtin.Data
+import scalus.builtin.PlatformSpecific
 import scalus.ledger.api.PlutusLedgerLanguage
 import scalus.ledger.babbage.*
 import scalus.uplc.DefaultUni.asConstant
@@ -243,7 +244,7 @@ enum CekValue {
     }
 }
 
-trait VMBase {
+trait VMBase(platformSpecific: PlatformSpecific) {
     type ScriptForEvaluation = Array[Byte]
 
     /** Evaluates a script, returning the minimum budget that the script would need to evaluate.
@@ -286,7 +287,10 @@ trait VMBase {
       *   [[CekResult]], either a success with the resulting term and the execution budget, or a
       *   failure with an error message and the execution budget.
       */
-    def evaluateTerm(params: MachineParams, term: Term): CekResult
+    def evaluateTerm(params: MachineParams, term: Term): CekResult = {
+        val cek = new CekMachine(params, NoBudgetSpender, platformSpecific)
+        cek.runCek(term)
+    }
 }
 
 sealed trait CekResult {
@@ -385,17 +389,24 @@ final class CountingBudgetSpender extends BudgetSpender {
   *
   * @param params
   *   The machine parameters [[MachineParams]]
+  * @param budgetSpender
+  *   The budget spender implementation
+  * @param platformSpecific
+  *   The platform specific implementation of certain functions used by builtins
   * @see
   *   https://github.com/input-output-hk/plutus/blob/41a7afebc4cee277bab702ee1678c070e5e38810/plutus-core/untyped-plutus-core/src/UntypedPlutusCore/Evaluation/Machine/Cek/Internal.hs
   * @example
   *   {{{
   *   val term = LamAbs("x", Apply(Var(NamedDeBruijn("x", 0)), Var(NamedDeBruijn("x", 0))))
-  *   val cek = new CekMachine(MachineParams.defaultParams)
+  *   val cek = new CekMachine(MachineParams.defaultParams, NoBudgetSpender, JVMPlatformSpecific)
   *   val res = cek.runCek(term)
   *   }}}
   */
-abstract class AbstractCekMachine(val params: MachineParams, budgetSpender: BudgetSpender)
-    extends BuiltinsMeaning(params.builtinCostModel) {
+class CekMachine(
+    val params: MachineParams,
+    budgetSpender: BudgetSpender,
+    platformSpecific: PlatformSpecific
+) extends BuiltinsMeaning(params.builtinCostModel, platformSpecific) {
     import CekState.*
     import CekValue.*
     import Context.*

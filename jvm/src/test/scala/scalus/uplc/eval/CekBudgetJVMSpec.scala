@@ -3,6 +3,7 @@ package eval
 
 import org.scalatest.funsuite.AnyFunSuite
 import scalus.*
+import scalus.builtin.JVMPlatformSpecific
 import scalus.ledger.babbage.*
 import scalus.uplc.DefaultUni.asConstant
 import scalus.uplc.Term.*
@@ -13,7 +14,11 @@ class CekBudgetJVMSpec extends AnyFunSuite:
         import CekMachineCosts.defaultMachineCosts.*
         def check(term: Term, expected: ExBudget) = {
             val debruijnedTerm = DeBruijn.deBruijnTerm(term)
-            val cek = CekMachine(MachineParams.defaultParams, CountingBudgetSpender())
+            val cek = CekMachine(
+              MachineParams.defaultParams,
+              CountingBudgetSpender(),
+              JVMPlatformSpecific
+            )
             val res = UplcCli.evalFlat(Program((1, 0, 0), term))
             (cek.runCek(debruijnedTerm), res) match
                 case (CekResult.Success(t1, _, budget), UplcEvalResult.Success(t2, budget2)) =>

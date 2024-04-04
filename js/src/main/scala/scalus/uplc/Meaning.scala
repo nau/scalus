@@ -7,7 +7,6 @@ object Meaning {
 }
 
 class Meaning(builtinCostModel: eval.BuiltinCostModel)
-    extends BuiltinsMeaning(builtinCostModel)
-    with JSPlatformSpecific {
+    extends BuiltinsMeaning(builtinCostModel, JSPlatformSpecific) {
     protected def log(msg: String): Unit = ()
 }

@@ -1,15 +1,19 @@
 package scalus.uplc.eval
 
 import org.openjdk.jmh.annotations.Benchmark
+import org.openjdk.jmh.annotations.BenchmarkMode
+import org.openjdk.jmh.annotations.Mode
+import org.openjdk.jmh.annotations.OutputTimeUnit
 import org.openjdk.jmh.annotations.Param
 import org.openjdk.jmh.annotations.Scope
 import org.openjdk.jmh.annotations.Setup
 import org.openjdk.jmh.annotations.State
 import scalus.*
-import scalus.builtin.given
+import scalus.builtin.*
 import scalus.uplc.DeBruijn
 import scalus.uplc.DefaultFun.*
 import scalus.uplc.DefaultUni.asConstant
+import scalus.uplc.Meaning
 import scalus.uplc.Program
 import scalus.uplc.ProgramFlatCodec
 import scalus.uplc.Term.*
@@ -19,12 +23,8 @@ import scalus.utils.Utils
 
 import java.nio.file.Files
 import java.nio.file.Paths
-import scala.io.Source.fromFile
-import org.openjdk.jmh.annotations.BenchmarkMode
-import org.openjdk.jmh.annotations.Mode
-import org.openjdk.jmh.annotations.OutputTimeUnit
 import java.util.concurrent.TimeUnit
-import scalus.uplc.Meaning
+import scala.io.Source.fromFile
 
 @State(Scope.Benchmark)
 class CekJVMBenchmark:
@@ -38,7 +38,11 @@ class CekJVMBenchmark:
     )
     private var file: String = ""
     private var program: Program = null
-    val cek = CekMachine(MachineParams.defaultParams, RestrictingBudgetSpender(ExBudget.enormous))
+    val cek = CekMachine(
+      MachineParams.defaultParams,
+      RestrictingBudgetSpender(ExBudget.enormous),
+      JVMPlatformSpecific
+    )
 
     @Setup
     def readProgram() = {

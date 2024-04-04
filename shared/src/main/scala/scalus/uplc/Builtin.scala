@@ -48,7 +48,7 @@ case class BuiltinRuntime(
     def calculateCost: ExBudget = costFunction.calculateCost(args: _*)
 }
 
-trait BuiltinsMeaning(builtinCostModel: BuiltinCostModel) extends PlatformSpecific:
+trait BuiltinsMeaning(builtinCostModel: BuiltinCostModel, platformSpecific: PlatformSpecific):
     protected def log(msg: String): Unit
     // local extension used to create a TypeScheme from a DefaultUni
     extension (x: DefaultUni)
@@ -269,7 +269,7 @@ trait BuiltinsMeaning(builtinCostModel: BuiltinCostModel) extends PlatformSpecif
           DefaultUni.ByteString ->: DefaultUni.ByteString,
           (args: Seq[CekValue]) =>
               val aa = args(0).asByteString
-              VCon(asConstant(sha2_256(aa)))
+              VCon(asConstant(platformSpecific.sha2_256(aa)))
           ,
           builtinCostModel.sha2_256
         )
@@ -279,7 +279,7 @@ trait BuiltinsMeaning(builtinCostModel: BuiltinCostModel) extends PlatformSpecif
           DefaultUni.ByteString ->: DefaultUni.ByteString,
           (args: Seq[CekValue]) =>
               val aa = args(0).asByteString
-              VCon(asConstant(sha3_256(aa)))
+              VCon(asConstant(platformSpecific.sha3_256(aa)))
           ,
           builtinCostModel.sha3_256
         )
@@ -289,7 +289,7 @@ trait BuiltinsMeaning(builtinCostModel: BuiltinCostModel) extends PlatformSpecif
           DefaultUni.ByteString ->: DefaultUni.ByteString,
           (args: Seq[CekValue]) =>
               val aa = args(0).asByteString
-              VCon(asConstant(blake2b_256(aa)))
+              VCon(asConstant(platformSpecific.blake2b_256(aa)))
           ,
           builtinCostModel.blake2b_256
         )
@@ -301,7 +301,7 @@ trait BuiltinsMeaning(builtinCostModel: BuiltinCostModel) extends PlatformSpecif
               val pk = args(0).asByteString
               val msg = args(1).asByteString
               val sig = args(2).asByteString
-              VCon(asConstant(verifyEd25519Signature(pk, msg, sig)))
+              VCon(asConstant(platformSpecific.verifyEd25519Signature(pk, msg, sig)))
           ,
           builtinCostModel.verifyEd25519Signature
         )
@@ -313,7 +313,7 @@ trait BuiltinsMeaning(builtinCostModel: BuiltinCostModel) extends PlatformSpecif
               val pk = args(0).asByteString
               val msg = args(1).asByteString
               val sig = args(2).asByteString
-              VCon(asConstant(verifyEcdsaSecp256k1Signature(pk, msg, sig)))
+              VCon(asConstant(platformSpecific.verifyEcdsaSecp256k1Signature(pk, msg, sig)))
           ,
           builtinCostModel.verifyEcdsaSecp256k1Signature
         )
@@ -325,7 +325,7 @@ trait BuiltinsMeaning(builtinCostModel: BuiltinCostModel) extends PlatformSpecif
               val pk = args(0).asByteString
               val msg = args(1).asByteString
               val sig = args(2).asByteString
-              VCon(asConstant(verifySchnorrSecp256k1Signature(pk, msg, sig)))
+              VCon(asConstant(platformSpecific.verifySchnorrSecp256k1Signature(pk, msg, sig)))
           ,
           builtinCostModel.verifySchnorrSecp256k1Signature
         )
