@@ -197,6 +197,9 @@ class KnownTypeUnliftingError(expected: DefaultUni, actual: CekValue)
 class BuiltinError(builtin: DefaultFun, term: Term, cause: Throwable, env: CekValEnv)
     extends StackTraceMachineError(s"Builtin error: $builtin $term, caused by $cause", env)
 
+class OutOfExBudgetError(budget: ExBudget, env: CekValEnv)
+    extends StackTraceMachineError(s"Out of budget: $budget", env)
+
 type CekValEnv = immutable.ArraySeq[(String, CekValue)]
 
 // 'Values' for the modified CEK machine.
@@ -322,6 +325,56 @@ private enum CekState {
     case Done(term: Term)
 }
 
+trait BudgetSpender {
+    def spendBudget(cat: ExBudgetCategory, budget: ExBudget, env: CekValEnv): Unit
+    def getSpentBudget: ExBudget
+}
+
+object NoBudgetSpender extends BudgetSpender {
+    def spendBudget(cat: ExBudgetCategory, budget: ExBudget, env: CekValEnv): Unit = ()
+    def getSpentBudget: ExBudget = ExBudget.zero
+}
+
+final class RestrictingBudgetSpender(val maxBudget: ExBudget) extends BudgetSpender {
+    private var cpuLeft: Long = maxBudget.cpu
+    private var memoryLeft: Long = maxBudget.memory
+
+    def spendBudget(cat: ExBudgetCategory, budget: ExBudget, env: CekValEnv): Unit = {
+        cpuLeft -= budget.cpu
+        memoryLeft -= budget.memory
+        if cpuLeft < 0 || memoryLeft < 0 then throw new OutOfExBudgetError(maxBudget, env)
+    }
+
+    def getSpentBudget: ExBudget =
+        ExBudget.fromCpuAndMemory(maxBudget.cpu - cpuLeft, maxBudget.memory - memoryLeft)
+}
+
+final class TallyingBudgetSpender(val budgetSpender: BudgetSpender) extends BudgetSpender {
+    val costs: HashMap[ExBudgetCategory, ExBudget] = HashMap.empty
+
+    def spendBudget(cat: ExBudgetCategory, budget: ExBudget, env: CekValEnv): Unit = {
+        budgetSpender.spendBudget(cat, budget, env)
+        costs.updateWith(cat) {
+            case Some(b) => Some(b |+| budget)
+            case None    => Some(budget)
+        }
+    }
+
+    def getSpentBudget: ExBudget = budgetSpender.getSpentBudget
+}
+
+final class CountingBudgetSpender extends BudgetSpender {
+    private var cpu: Long = 0
+    private var memory: Long = 0
+
+    def spendBudget(cat: ExBudgetCategory, budget: ExBudget, env: CekValEnv): Unit = {
+        cpu += budget.cpu
+        memory += budget.memory
+    }
+
+    def getSpentBudget: ExBudget = ExBudget.fromCpuAndMemory(cpu, memory)
+}
+
 /** CEK machine implementation based on Cardano Plutus CEK machine.
   *
   * The CEK machine is a stack-based abstract machine that is used to evaluate UPLC terms.
@@ -341,7 +394,7 @@ private enum CekState {
   *   val res = cek.runCek(term)
   *   }}}
   */
-abstract class AbstractCekMachine(val params: MachineParams)
+abstract class AbstractCekMachine(val params: MachineParams, budgetSpender: BudgetSpender)
     extends BuiltinsMeaning(params.builtinCostModel) {
     import CekState.*
     import CekValue.*
@@ -366,7 +419,7 @@ abstract class AbstractCekMachine(val params: MachineParams)
                 case Return(ctx, env, value) => loop(returnCek(ctx, env, value))
                 case Done(term)              => term
         }
-        spendBudget(ExBudgetCategory.Startup, params.machineCosts.startupCost)
+        spendBudget(ExBudgetCategory.Startup, params.machineCosts.startupCost, ArraySeq.empty)
         loop(Compute(NoFrame, ArraySeq.empty, term))
     }
 
@@ -381,35 +434,35 @@ abstract class AbstractCekMachine(val params: MachineParams)
     def runCek(term: Term): CekResult = {
         try
             val res = DeBruijn.fromDeBruijnTerm(evaluateTerm(term))
-            CekResult.Success(res, getLogs, getExBudget)
+            CekResult.Success(res, getLogs, budgetSpender.getSpentBudget)
         catch
             case e: StackTraceMachineError =>
-                CekResult.Failure(e.getMessage, e.env, getLogs, getExBudget)
+                CekResult.Failure(e.getMessage, e.env, getLogs, budgetSpender.getSpentBudget)
     }
 
     private final def computeCek(ctx: Context, env: CekValEnv, term: Term): CekState = {
         val costs = params.machineCosts
         term match
             case Var(name) =>
-                spendBudget(ExBudgetCategory.Step(StepKind.Var), costs.varCost)
+                spendBudget(ExBudgetCategory.Step(StepKind.Var), costs.varCost, env)
                 Return(ctx, env, lookupVarName(env, name))
             case LamAbs(name, term) =>
-                spendBudget(ExBudgetCategory.Step(StepKind.LamAbs), costs.lamCost)
+                spendBudget(ExBudgetCategory.Step(StepKind.LamAbs), costs.lamCost, env)
                 Return(ctx, env, VLamAbs(name, term, env))
             case Apply(fun, arg) =>
-                spendBudget(ExBudgetCategory.Step(StepKind.Apply), costs.applyCost)
+                spendBudget(ExBudgetCategory.Step(StepKind.Apply), costs.applyCost, env)
                 Compute(FrameApplyArg(env, arg, ctx), env, fun)
             case Force(term) =>
-                spendBudget(ExBudgetCategory.Step(StepKind.Force), costs.forceCost)
+                spendBudget(ExBudgetCategory.Step(StepKind.Force), costs.forceCost, env)
                 Compute(FrameForce(ctx), env, term)
             case Delay(term) =>
-                spendBudget(ExBudgetCategory.Step(StepKind.Delay), costs.delayCost)
+                spendBudget(ExBudgetCategory.Step(StepKind.Delay), costs.delayCost, env)
                 Return(ctx, env, VDelay(term, env))
             case Const(const) =>
-                spendBudget(ExBudgetCategory.Step(StepKind.Const), costs.constCost)
+                spendBudget(ExBudgetCategory.Step(StepKind.Const), costs.constCost, env)
                 Return(ctx, env, VCon(const))
             case Builtin(bn) =>
-                spendBudget(ExBudgetCategory.Step(StepKind.Builtin), costs.builtinCost)
+                spendBudget(ExBudgetCategory.Step(StepKind.Builtin), costs.builtinCost, env)
                 // The @term@ is a 'Builtin', so it's fully discharged.
                 BuiltinMeanings.get(bn) match
                     case Some(meaning) => Return(ctx, env, VBuiltin(bn, () => term, meaning))
@@ -485,7 +538,7 @@ abstract class AbstractCekMachine(val params: MachineParams)
     ): CekValue = {
         runtime.typeScheme match
             case TypeScheme.Type(_) | TypeScheme.TVar(_) | TypeScheme.App(_, _) =>
-                spendBudget(ExBudgetCategory.BuiltinApp(builtinName), runtime.calculateCost)
+                spendBudget(ExBudgetCategory.BuiltinApp(builtinName), runtime.calculateCost, env)
                 // eval the builtin and return result
                 try
                     // eval builtin when it's fully saturated, i.e. when all arguments were applied
@@ -536,22 +589,7 @@ abstract class AbstractCekMachine(val params: MachineParams)
             case VBuiltin(_, term, _)     => term()
     }
 
-    private var budgetCPU = 0L
-    private var budgetMemory = 0L
-
-    val builtinBudgetCosts: HashMap[DefaultFun, ExBudget] = HashMap.empty
-
-    def getExBudget: ExBudget = ExBudget(ExCPU(budgetCPU), ExMemory(budgetMemory))
-
-    private def spendBudget(cat: ExBudgetCategory, budget: ExBudget): Unit = {
-        budgetCPU += budget.cpu
-        budgetMemory += budget.memory
-        cat match
-            case ExBudgetCategory.BuiltinApp(builtin) =>
-                builtinBudgetCosts.updateWith(builtin) {
-                    case Some(b) => Some(b |+| budget)
-                    case None    => Some(budget)
-                }
-            case _ =>
+    private def spendBudget(cat: ExBudgetCategory, budget: ExBudget, env: CekValEnv): Unit = {
+        budgetSpender.spendBudget(cat, budget, env)
     }
 }

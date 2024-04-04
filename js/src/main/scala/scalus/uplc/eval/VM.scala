@@ -5,13 +5,13 @@ import scalus.builtin.*
 
 object VM extends VMBase {
     def evaluateTerm(params: MachineParams, term: Term): CekResult = {
-        val cek = new CekMachine(params)
+        val cek = new CekMachine(params, NoBudgetSpender)
         cek.runCek(term)
     }
 }
 
-final class CekMachine(params: MachineParams)
-    extends AbstractCekMachine(params)
+final class CekMachine(params: MachineParams, budgetSpender: BudgetSpender)
+    extends AbstractCekMachine(params, budgetSpender)
     with JSPlatformSpecific
 
 @deprecated("Use VM instead", "0.7.0")
@@ -20,7 +20,7 @@ object Cek {
     def evalUPLC(term: Term): Term = {
         val params = MachineParams.defaultParams
         val debruijnedTerm = DeBruijn.deBruijnTerm(term)
-        new CekMachine(params).evaluateTerm(debruijnedTerm)
+        new CekMachine(params, NoBudgetSpender).evaluateTerm(debruijnedTerm)
     }
 
     def evalUPLCProgram(p: Program): Term = evalUPLC(p.term)

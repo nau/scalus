@@ -17,6 +17,7 @@ object ExBudget {
 
     /** The zero budget */
     val zero: ExBudget = ExBudget(ExCPU(0), ExMemory(0))
+    val enormous: ExBudget = ExBudget(ExCPU(Long.MaxValue), ExMemory(Long.MaxValue))
 
     /** Constructs an 'ExBudget' from CPU and memory components. */
     def fromCpuAndMemory(cpu: Long, memory: Long): ExBudget = ExBudget(ExCPU(cpu), ExMemory(memory))
