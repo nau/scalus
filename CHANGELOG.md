@@ -1,5 +1,20 @@
 # Changelog
 
+## 0.6.0 (2024-04-05)
+
+### Added
+
+- fast debruijned CEK machine implementation
+- CEK machine benchmarking, runs on par with high performance Haskell implementation
+- CEK machine execution budget calculation
+- cost model for CEK machine loading from Cardano CLI and Blockfrost API JSONs
+- updated to Scala 3.3.3
+- updated to Scala.js 1.16.0, 3x reduction in JS bundle size
+
+### Changed
+
+- lots of internal refactoring
+
 ## 0.5.0 (2024-02-17)
 
 ### Added
