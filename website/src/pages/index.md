@@ -28,7 +28,7 @@ Write efficient and compact smart contracts and squeeze the most out of the Card
 * Scala 3 to Cardano Plutus Core compiler
 * Standard library for Plutus contracts development
 * Plutus V1 and V2 support
-* Plutus VM Interpreter
+* fast Plutus VM Interpreter with execution cost calculation
 * Property-based testing library
 * Untyped Plutus Core (UPLC) data types and functions
 * Flat, CBOR, JSON serialization
@@ -48,20 +48,20 @@ Here is a simple validator that checks that an signer of `pkh` PubKeyHash provid
 Below example is taken from [`PreImageExampleSpec.scala`](https://github.com/nau/scalus/blob/master/jvm/src/test/scala/scalus/PreImageExampleSpec.scala)
 
 ```scala
-def preimageValidator(datum: Data, redeemer: Data, ctxData: Data): Unit = {
-  // deserialize from Data
-  val (hash, pkh) = fromData[(ByteString, ByteString)](datum)
-  val preimage = fromData[ByteString](redeemer)
-  val ctx = fromData[ScriptContext](ctxData)
-  // get the transaction signatories
-  val signatories = ctx.txInfo.signatories
-  // check that the transaction is signed by the public key hash
-  List.findOrFail(signatories) { sig => sig.hash === pkh }
-  // check that the preimage hashes to the hash
-  if Builtins.sha2_256(preimage) === hash then ()
-  else throw new RuntimeException("Wrong preimage")
-  // throwing an exception compiles to UPLC error
-}
+def preimageValidator(datum: Data, redeemer: Data, ctxData: Data): Unit =
+    // deserialize from Data
+    val (hash, pkh) = fromData[(ByteString, ByteString)](datum)
+    val preimage = fromData[ByteString](redeemer)
+    val ctx = fromData[ScriptContext](ctxData)
+    // get the transaction signatories
+    val signatories = ctx.txInfo.signatories
+    // check that the transaction is signed by the public key hash
+    List.findOrFail(signatories) { sig => sig.hash === pkh }
+    // check that the preimage hashes to the hash
+    if Builtins.sha2_256(preimage) === hash then ()
+    else throw new RuntimeException("Wrong preimage")
+    // throwing an exception compiles to UPLC error
+
 // compile to Scalus Intermediate Representation, SIR
 val compiled = compile(preimageValidator)
 // convert SIR to UPLC
@@ -82,7 +82,7 @@ PlutusTx compiles almost any Haskell program to UPLC.
 Cons are that you can barely understand how the UPLC is generated and how to make it smaller.
 
 Aiken is a new and young programming language which is a pro and a con. Can only be used for smart contracts.
-Lacks property-based testing.
+Lacks low-level control over the generated UPLC which is crucial for efficient smart contracts.
 
 Plutarch is very low-level. Use it when you need precise control over a script generation.
 
@@ -90,7 +90,7 @@ Scalus aimes to be a better version of all the above.
 
 * You can actually reuse Scala code for your validator, frontend and backend! The goal that PlutusTx failed to achieve.
 
-* You can use existing Scala libraries for testing, including ScalaCheck and ScalaTest.
+* You can use existing Scala libraries for testing, including ScalaCheck for property-based testing.
 
 * Scala has a powerful type system that helps you write correct code. Check out [Stainless – Formal Verification for Scala](https://stainless.epfl.ch/) for formal verification.
 
