@@ -271,12 +271,15 @@ class PlutusVM(platformSpecific: PlatformSpecific) {
         script: ScriptForEvaluation,
         args: Data*
     ): CekResult = {
-        val namedProgram = DeBruijn.fromDeBruijnProgram(ProgramFlatCodec.decodeFlat(script))
-        val applied = args.foldLeft(namedProgram.term) { (acc, arg) =>
+        val program = ProgramFlatCodec.decodeFlat(script)
+        val applied = args.foldLeft(program.term) { (acc, arg) =>
             Apply(acc, Const(asConstant(arg)))
         }
-        val cek = new CekMachine(params, CountingBudgetSpender(), platformSpecific)
-        cek.runCek(applied)
+        val spender = CountingBudgetSpender()
+        val logger = Log()
+        val cek = new CekMachine(params, spender, logger, platformSpecific)
+        val resultTerm = cek.evaluateTerm(applied)
+        CekResult(resultTerm, spender.getSpentBudget, logger.getLogs)
     }
 
     /** Evaluates a UPLC term using default CEK machine parameters and no budget calculation.
@@ -291,7 +294,8 @@ class PlutusVM(platformSpecific: PlatformSpecific) {
       *   subtypes if the evaluation fails
       */
     def evaluateTerm(term: Term): Term = {
-        val cek = new CekMachine(MachineParams.defaultParams, NoBudgetSpender, platformSpecific)
+        val cek =
+            new CekMachine(MachineParams.defaultParams, NoBudgetSpender, NoLogger, platformSpecific)
         val debruijnedTerm = DeBruijn.deBruijnTerm(term)
         cek.evaluateTerm(debruijnedTerm)
     }
@@ -303,27 +307,9 @@ class PlutusVM(platformSpecific: PlatformSpecific) {
     def evaluateProgram(p: Program): Term = evaluateTerm(p.term)
 }
 
-sealed trait CekResult {
-    def budget: ExBudget
-    def logs: Array[String]
-    def isSuccess: Boolean
-    def isFailure: Boolean
-}
-
-object CekResult {
-    case class Success(term: Term, logs: Array[String], budget: ExBudget) extends CekResult {
-        def isSuccess: Boolean = true
-        def isFailure: Boolean = false
-
-        override def toString(): String =
-            s"Success($term, ${logs.mkString("[", "\n", "]")}, $budget)"
-    }
-    case class Failure(msg: String, env: CekValEnv, logs: Array[String], budget: ExBudget)
-        extends CekResult {
-        def getCekStack: Array[String] = env.view.reverse.map(_._1).toArray
-        def isSuccess: Boolean = false
-        def isFailure: Boolean = true
-    }
+class CekResult(t: Term, val budget: ExBudget, val logs: Array[String]) {
+    lazy val term = DeBruijn.fromDeBruijnTerm(t)
+    override def toString(): String = s"CekResult($term, $budget, ${logs.mkString(", ")})"
 }
 
 private enum Context {
@@ -337,6 +323,21 @@ private enum CekState {
     case Return(ctx: Context, env: CekValEnv, value: CekValue)
     case Compute(ctx: Context, env: CekValEnv, term: Term)
     case Done(term: Term)
+}
+
+trait Logger {
+    def log(msg: String): Unit
+}
+
+object NoLogger extends Logger {
+    def log(msg: String): Unit = ()
+}
+
+class Log extends Logger {
+    private val logs: ArrayBuffer[String] = ArrayBuffer.empty[String]
+    def getLogs: Array[String] = logs.toArray
+    def log(msg: String): Unit = logs.append(msg)
+    def clear(): Unit = logs.clear()
 }
 
 trait BudgetSpender {
@@ -361,6 +362,11 @@ final class RestrictingBudgetSpender(val maxBudget: ExBudget) extends BudgetSpen
 
     def getSpentBudget: ExBudget =
         ExBudget.fromCpuAndMemory(maxBudget.cpu - cpuLeft, maxBudget.memory - memoryLeft)
+
+    def reset(): Unit = {
+        cpuLeft = maxBudget.cpu
+        memoryLeft = maxBudget.memory
+    }
 }
 
 final class TallyingBudgetSpender(val budgetSpender: BudgetSpender) extends BudgetSpender {
@@ -394,13 +400,15 @@ final class CountingBudgetSpender extends BudgetSpender {
   * The CEK machine is a stack-based abstract machine that is used to evaluate UPLC terms.
   *
   * @note
-  *   The machine is statuful and should not be shared between threads. It stores the logs and the
-  *   budget spent during the evaluation.
+  *   The machine is stateless and can be reused for multiple evaluations. All the state is expected
+  *   to be in the `budgetSpender` and `logger` implementations.
   *
   * @param params
   *   The machine parameters [[MachineParams]]
   * @param budgetSpender
   *   The budget spender implementation
+  * @param logger
+  *   The logger implementation
   * @param platformSpecific
   *   The platform specific implementation of certain functions used by builtins
   * @see
@@ -408,13 +416,14 @@ final class CountingBudgetSpender extends BudgetSpender {
   * @example
   *   {{{
   *   val term = LamAbs("x", Apply(Var(NamedDeBruijn("x", 0)), Var(NamedDeBruijn("x", 0))))
-  *   val cek = new CekMachine(MachineParams.defaultParams, NoBudgetSpender, JVMPlatformSpecific)
+  *   val cek = new CekMachine(MachineParams.defaultParams, NoBudgetSpender, NoLogger, JVMPlatformSpecific)
   *   val res = cek.runCek(term)
   *   }}}
   */
 class CekMachine(
     val params: MachineParams,
     budgetSpender: BudgetSpender,
+    logger: Logger,
     platformSpecific: PlatformSpecific
 ) extends BuiltinsMeaning(params.builtinCostModel, platformSpecific) {
     import CekState.*
@@ -422,8 +431,6 @@ class CekMachine(
     import Context.*
 
     private[uplc] val logs: ArrayBuffer[String] = ArrayBuffer.empty[String]
-    def getLogs: Array[String] = logs.toArray
-    def log(msg: String): Unit = logs.append(msg)
 
     /** Evaluates a UPLC term.
       *
@@ -442,23 +449,6 @@ class CekMachine(
         }
         spendBudget(ExBudgetCategory.Startup, params.machineCosts.startupCost, ArraySeq.empty)
         loop(Compute(NoFrame, ArraySeq.empty, term))
-    }
-
-    /** Evaluate a UPLC term.
-      *
-      * @param term
-      *   The debruijned term to evaluate
-      * @return
-      *   [[CekResult]], either a success with the resulting term and the execution budget, or a
-      *   failure with an error message and the execution budget.
-      */
-    def runCek(term: Term): CekResult = {
-        try
-            val res = DeBruijn.fromDeBruijnTerm(evaluateTerm(term))
-            CekResult.Success(res, getLogs, budgetSpender.getSpentBudget)
-        catch
-            case e: StackTraceMachineError =>
-                CekResult.Failure(e.getMessage, e.env, getLogs, budgetSpender.getSpentBudget)
     }
 
     private final def computeCek(ctx: Context, env: CekValEnv, term: Term): CekState = {
@@ -563,7 +553,7 @@ class CekMachine(
                 // eval the builtin and return result
                 try
                     // eval builtin when it's fully saturated, i.e. when all arguments were applied
-                    runtime.apply()
+                    runtime.apply(logger)
                 catch case NonFatal(e) => throw new BuiltinError(builtinName, term(), e, env)
             case _ => VBuiltin(builtinName, term, runtime)
     }

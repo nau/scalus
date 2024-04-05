@@ -41,6 +41,7 @@ class CekJVMBenchmark:
     val cek = CekMachine(
       MachineParams.defaultParams,
       RestrictingBudgetSpender(ExBudget.enormous),
+      NoLogger,
       JVMPlatformSpecific
     )
 

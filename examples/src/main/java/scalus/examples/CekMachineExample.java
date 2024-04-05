@@ -4,6 +4,7 @@ import scalus.builtin.Data;
 import scalus.ledger.api.PlutusLedgerLanguage;
 import scalus.uplc.eval.CekResult;
 import scalus.uplc.eval.MachineParams;
+import scalus.uplc.eval.StackTraceMachineError;
 import scalus.uplc.eval.VM;
 
 import java.nio.file.Files;
@@ -16,14 +17,12 @@ class CekMachineExample {
         var script = Files.readAllBytes(Paths.get("bench/src/main/resources/data/auction_1-1.flat"));
         // Evaluate the script
         var machineParams = MachineParams.defaultParams();
-        var result = VM.evaluateScriptCounting(machineParams, script);
-        System.out.println(result);
-        if (result.isSuccess()) {
-            System.out.println(result.budget());
-        } else {
-            var failure = (CekResult.Failure) result;
-            String stacktrace = Arrays.stream(failure.getCekStack()).map(Object::toString).reduce("", (a, b) -> a + "\n" + b);
-            failure.env().foreach((t) -> {
+        try {
+            var result = VM.evaluateScriptCounting(machineParams, script);
+            System.out.println(result);
+        } catch (StackTraceMachineError e) {
+            String stacktrace = Arrays.stream(e.getCekStack()).map(Object::toString).reduce("", (a, b) -> a + "\n" + b);
+            e.env().foreach((t) -> {
                 System.out.println(t._1() + " -> " + t._2());
                 return null;
             });

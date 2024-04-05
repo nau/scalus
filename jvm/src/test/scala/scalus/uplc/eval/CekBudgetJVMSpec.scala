@@ -7,6 +7,8 @@ import scalus.builtin.JVMPlatformSpecific
 import scalus.ledger.babbage.*
 import scalus.uplc.DefaultUni.asConstant
 import scalus.uplc.Term.*
+import scala.util.Try
+import scala.util.Success
 
 class CekBudgetJVMSpec extends AnyFunSuite:
     test("Check machine budget for terms is correct") {
@@ -14,14 +16,17 @@ class CekBudgetJVMSpec extends AnyFunSuite:
         import CekMachineCosts.defaultMachineCosts.*
         def check(term: Term, expected: ExBudget) = {
             val debruijnedTerm = DeBruijn.deBruijnTerm(term)
+            val spender = CountingBudgetSpender()
             val cek = CekMachine(
               MachineParams.defaultParams,
-              CountingBudgetSpender(),
+              spender,
+              NoLogger,
               JVMPlatformSpecific
             )
             val res = UplcCli.evalFlat(Program((1, 0, 0), term))
-            (cek.runCek(debruijnedTerm), res) match
-                case (CekResult.Success(t1, _, budget), UplcEvalResult.Success(t2, budget2)) =>
+            (Try(cek.evaluateTerm(debruijnedTerm)), res) match
+                case (Success(t1), UplcEvalResult.Success(t2, budget2)) =>
+                    val budget = spender.getSpentBudget
                     assert(
                       budget == (expected |+| cek.params.machineCosts.startupCost),
                       s"for term $term"
