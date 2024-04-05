@@ -206,8 +206,8 @@ val fromDataExample = compile {
 Here is a simple example of a Plutus V1 validator written in Scalus.
 
 ```scala mdoc:compile-only
-import scalus.ledger.api.v1.*
-import scalus.ledger.api.v1.FromDataInstances.given
+import scalus.ledger.api.v2.*
+import scalus.ledger.api.v2.FromDataInstances.given
 import scalus.builtin.ByteString.given
 import scalus.prelude.List
 import scalus.prelude.Prelude.===
@@ -230,8 +230,8 @@ Many APIs require the HEX encoded string of double CBOR encoded Flat encoded UPL
 like `Hex(CborEncode(CborEncode(FlatEncode(Program(version, uplc)))))`.
 
 ```scala mdoc:compile-only
-import scalus.ledger.api.v1.*
-import scalus.ledger.api.v1.FromDataInstances.given
+import scalus.ledger.api.v2.*
+import scalus.ledger.api.v2.FromDataInstances.given
 import scalus.builtin.ByteString.given
 import scalus.prelude.List
 import scalus.prelude.Prelude.===
@@ -259,11 +259,73 @@ val serializeToDoubleCborHex = {
   program.doubleCborHex
   // also you can produce a pubKeyValidator.plutus file for use with cardano-cli
   import scalus.utils.Utils
-  Utils.writePlutusFile("pubKeyValidator.plutus", program, PlutusLedgerLanguage.PlutusV1)
+  Utils.writePlutusFile("pubKeyValidator.plutus", program, PlutusLedgerLanguage.PlutusV2)
   // or simply
-  program.writePlutusFile("pubKeyValidator.plutus", PlutusLedgerLanguage.PlutusV1)
+  program.writePlutusFile("pubKeyValidator.plutus", PlutusLedgerLanguage.PlutusV2)
 }
 
+```
+
+## Evaluating scripts
+
+```scala mdoc:compile-only
+import scalus.builtin.{*, given}
+import scalus.ledger.api.*
+import scalus.uplc.*, eval.*
+def evaluation() = {
+    val sir = compile {
+        def usefulFunction(a: BigInt): BigInt = a + 1
+        usefulFunction(1)
+    }
+    val term = sir.toUplc()
+    // simply evaluate the term
+    VM.evaluateTerm(term).pretty.render(80) // (con integer 2)
+    // evaluate a flat encoded script and calculate the execution budget and logs
+    val result =
+        VM.evaluateScriptCounting(MachineParams.defaultParams, Program((1, 0, 0), term).flatEncoded)
+    println(s"Execution budget: ${result.budget}")
+    println(s"Evaluated term: ${result.term.pretty.render(80)}")
+    println(s"Logs: ${result.logs.mkString("\n")}")
+
+    // you can get the actual execution costs from protocol parameters JSON from cardano-cli
+    lazy val machineParams = MachineParams.fromCardanoCliProtocolParamsJson(
+      "JSON with protocol parameters",
+      PlutusLedgerLanguage.PlutusV2
+    )
+    // or from blockfrost API
+    lazy val machineParams2 = MachineParams.fromBlockfrostProtocolParamsJson(
+      "JSON with protocol parameters",
+      PlutusLedgerLanguage.PlutusV2
+    )
+
+    // TallyingBudgetSpender is a budget spender that counts the costs of each operation
+    val tallyingBudgetSpender = TallyingBudgetSpender(CountingBudgetSpender())
+    val logger = Log()
+    // use NoLogger to disable logging
+    val noopLogger = NoLogger
+    val cekMachine = CekMachine(
+      MachineParams.defaultParams,
+      tallyingBudgetSpender,
+      logger,
+      JVMPlatformSpecific
+    )
+    val debruijnedTerm = DeBruijn.deBruijnTerm(term)
+    try {
+        cekMachine.evaluateTerm(debruijnedTerm)
+    } catch {
+        case e: StackTraceMachineError =>
+            println(s"Error: ${e.getMessage}")
+            println(s"Stacktrace: ${e.getCekStack}")
+            println(s"Env: ${e.env}")
+    }
+    println(s"Execution budget: ${tallyingBudgetSpender.budgetSpender.getSpentBudget}")
+    println(s"Logs: ${logger.getLogs.mkString("\n")}")
+    println(
+      s"Execution stats:\n${tallyingBudgetSpender.costs.toArray.sortBy(_._1.toString()).map {
+        case (k, v) => s"$k: $v"
+      }.mkString("\n")}"
+    )
+}
 ```
 
 ## Validator examples
