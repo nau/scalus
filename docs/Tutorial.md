@@ -72,6 +72,8 @@ compile {
   val eq = Builtins.equalsByteString(hex"deadbeef", ByteString.empty)
   val a = BigInt(1)
   val sum = a + 1 - a * 3 / 4 // arithmetic operators
+  val intEquality = a == sum
+  val bool = !true || (false == true) != false && true // boolean operators
   val equals = a === sum // comparison operators
 }
 ```

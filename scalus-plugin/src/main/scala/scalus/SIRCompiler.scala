@@ -757,6 +757,32 @@ final class SIRCompiler(mode: scalus.Mode)(using ctx: Context) {
                 val lhsExpr = compileExpr(env, lhs)
                 val rhsExpr = compileExpr(env, rhs)
                 SIR.Or(lhsExpr, rhsExpr)
+            case Apply(Select(lhs, op), List(rhs))
+                if lhs.tpe.widen =:= defn.BooleanType && op == nme.EQ =>
+                val lhsExpr = compileExpr(env, lhs)
+                val rhsExpr = compileExpr(env, rhs)
+                SIR.IfThenElse(
+                  lhsExpr,
+                  rhsExpr,
+                  SIR.IfThenElse(
+                    rhsExpr,
+                    SIR.Const(scalus.uplc.Constant.Bool(false)),
+                    SIR.Const(scalus.uplc.Constant.Bool(true))
+                  )
+                )
+            case Apply(Select(lhs, op), List(rhs))
+                if lhs.tpe.widen =:= defn.BooleanType && op == nme.NE =>
+                val lhsExpr = compileExpr(env, lhs)
+                val rhsExpr = compileExpr(env, rhs)
+                SIR.IfThenElse(
+                  lhsExpr,
+                  SIR.IfThenElse(
+                    rhsExpr,
+                    SIR.Const(scalus.uplc.Constant.Bool(false)),
+                    SIR.Const(scalus.uplc.Constant.Bool(true))
+                  ),
+                  rhsExpr
+                )
             // BUILTINS
             case bi: Select if builtinsHelper.builtinFun(bi.symbol).isDefined =>
                 builtinsHelper.builtinFun(bi.symbol).get

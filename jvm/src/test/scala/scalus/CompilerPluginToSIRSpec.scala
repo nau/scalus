@@ -22,6 +22,7 @@ import scalus.sir.SIR
 import scalus.sir.SIR.*
 import scalus.sir.SirDSL.{*, given}
 import scalus.uplc.DefaultFun.*
+import scalus.uplc.DefaultUni.asConstant
 import scalus.uplc.*
 import scalus.uplc.eval.VM
 
@@ -686,6 +687,57 @@ class CompilerPluginToSIRSpec extends AnyFunSuite with ScalaCheckPropertyChecks:
         val evaled = VM.evaluateTerm(term)
         // println(evaled.pretty.render(80))
         assert(evaled == scalus.uplc.Term.Const(Constant.Bool(true)))
+    }
+
+    test("compile Boolean equality") {
+        import Constant.Bool
+        val eq = compile { def check(a: Boolean) = a == false; check }
+        val ne = compile { def check(a: Boolean) = a != false; check }
+        assert(
+          eq == Let(
+            Rec,
+            List(
+              Binding(
+                "check",
+                LamAbs(
+                  "a",
+                  SIR.IfThenElse(
+                    Var("a"),
+                    Const(Bool(false)),
+                    SIR.IfThenElse(Const(Bool(false)), Const(Bool(false)), Const(Bool(true)))
+                  )
+                )
+              )
+            ),
+            LamAbs("a", Apply(Var("check"), Var("a")))
+          )
+        )
+        assert(
+          ne == Let(
+            Rec,
+            List(
+              Binding(
+                "check",
+                LamAbs(
+                  "a",
+                  SIR.IfThenElse(
+                    Var("a"),
+                    SIR.IfThenElse(Const(Bool(false)), Const(Bool(false)), Const(Bool(true))),
+                    Const(Bool(false))
+                  )
+                )
+              )
+            ),
+            LamAbs("a", Apply(Var("check"), Var("a")))
+          )
+        )
+        val eqterm = eq.toUplc()
+        val neterm = ne.toUplc()
+        import scalus.uplc.TermDSL.{*, given}
+        assert(VM.evaluateTerm(eqterm $ true) == scalus.uplc.Term.Const(asConstant(false)))
+        assert(VM.evaluateTerm(eqterm $ false) == scalus.uplc.Term.Const(asConstant(true)))
+        assert(VM.evaluateTerm(neterm $ true) == scalus.uplc.Term.Const(asConstant(true)))
+        assert(VM.evaluateTerm(neterm $ false) == scalus.uplc.Term.Const(asConstant(false)))
     }
 
     test("compile type-safe equality") {
