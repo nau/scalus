@@ -800,6 +800,14 @@ final class SIRCompiler(mode: scalus.Mode)(using ctx: Context) {
                       rhsExpr
                     )
                     if op == nme.EQ then eq else SIR.Not(eq)
+            // String equality
+            case Apply(Select(lhs, op), List(rhs))
+                if lhs.tpe.widen =:= defn.StringClass.typeRef && (op == nme.EQ || op == nme.NE) =>
+                val lhsExpr = compileExpr(env, lhs)
+                val rhsExpr = compileExpr(env, rhs)
+                val eq =
+                    SIR.Apply(SIR.Apply(SIR.Builtin(DefaultFun.EqualsString), lhsExpr), rhsExpr)
+                if op == nme.EQ then eq else SIR.Not(eq)
             // BUILTINS
             case bi: Select if builtinsHelper.builtinFun(bi.symbol).isDefined =>
                 builtinsHelper.builtinFun(bi.symbol).get

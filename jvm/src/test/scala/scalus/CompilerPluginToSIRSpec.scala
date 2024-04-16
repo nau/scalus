@@ -798,6 +798,64 @@ class CompilerPluginToSIRSpec extends AnyFunSuite with ScalaCheckPropertyChecks:
         )
     }
 
+    test("compile String equality") {
+        val eq = compile { def check(a: String, b: String) = a == b; check }
+        val ne = compile { def check(a: String, b: String) = a != b; check }
+        assert(
+          eq == Let(
+            Rec,
+            List(
+              Binding(
+                "check",
+                LamAbs(
+                  "a",
+                  LamAbs("b", Apply(Apply(Builtin(EqualsString), Var("a")), Var("b")))
+                )
+              )
+            ),
+            LamAbs("a", LamAbs("b", Apply(Apply(Var("check"), Var("a")), Var("b"))))
+          )
+        )
+        assert(
+          ne == Let(
+            Rec,
+            List(
+              Binding(
+                "check",
+                LamAbs(
+                  "a",
+                  LamAbs("b", Not(Apply(Apply(Builtin(EqualsString), Var("a")), Var("b"))))
+                )
+              )
+            ),
+            LamAbs("a", LamAbs("b", Apply(Apply(Var("check"), Var("a")), Var("b"))))
+          )
+        )
+        val eqterm = eq.toUplc()
+        val neterm = ne.toUplc()
+        import scalus.uplc.TermDSL.{*, given}
+        assert(
+          VM.evaluateTerm(eqterm $ "" $ "") == scalus.uplc.Term.Const(
+            asConstant(true)
+          )
+        )
+        assert(
+          VM.evaluateTerm(eqterm $ "" $ "deadbeef") == scalus.uplc.Term.Const(
+            asConstant(false)
+          )
+        )
+        assert(
+          VM.evaluateTerm(neterm $ "" $ "") == scalus.uplc.Term.Const(
+            asConstant(false)
+          )
+        )
+        assert(
+          VM.evaluateTerm(neterm $ "" $ "deadbeef") == scalus.uplc.Term.Const(
+            asConstant(true)
+          )
+        )
+    }
+
     test("compile type-safe equality") {
         import scalus.prelude.Prelude.*
         val compiled = compile {
