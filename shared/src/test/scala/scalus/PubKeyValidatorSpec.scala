@@ -11,8 +11,6 @@ import scalus.ledger.api.v1.ToDataInstances.given
 import scalus.ledger.api.v1.*
 import scalus.prelude.List.Cons
 import scalus.prelude.List.Nil
-import scalus.prelude.Prelude.===
-import scalus.prelude.Prelude.given
 import scalus.uplc.*
 import scalus.uplc.eval.VM
 
@@ -24,7 +22,7 @@ object PubKeyValidator {
 
         def findSignatureOrFail(sigs: builtin.List[Data]): Unit =
             if signatories.isEmpty then throw new RuntimeException("Signature not found")
-            else if unBData(signatories.head) === hex"deadbeef"
+            else if unBData(signatories.head) == hex"deadbeef"
             then ()
             else findSignatureOrFail(signatories.tail)
 
@@ -58,7 +56,7 @@ class PubKeyValidatorSpec extends AnyFunSuite with ScalaCheckPropertyChecks:
         val flatBytesLen = Program(version = (1, 0, 0), term = term).flatEncoded.length
 //    println(Utils.bytesToHex(flatBytes))
         // println(term.pretty.render(80))
-        assert(flatBytesLen == 131)
+        assert(flatBytesLen == 119)
         import Data.*
         import DefaultUni.asConstant
         import TermDSL.{*, given}

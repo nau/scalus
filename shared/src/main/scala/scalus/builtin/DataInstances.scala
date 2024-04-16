@@ -1,8 +1,7 @@
 package scalus.builtin
 
 import scalus.{builtin, prelude, Compile}
-import scalus.prelude.{AssocMap, Maybe, Prelude}
-import scalus.prelude.Prelude.{===, given}
+import scalus.prelude.{AssocMap, Maybe}
 import scalus.builtin.Data.*
 
 @Compile
@@ -16,14 +15,14 @@ object FromDataInstances {
 
     given FromData[Unit] = (d: Data) =>
         val pair = unConstrData(d)
-        if pair.fst === BigInt(0) then ()
+        if pair.fst == BigInt(0) then ()
         else throw new RuntimeException("Not a unit")
 
     given FromData[Boolean] = (d: Data) =>
         val pair = unConstrData(d)
         val constr = pair.fst
-        if constr === BigInt(0) then false
-        else if constr === BigInt(1) then true
+        if constr == BigInt(0) then false
+        else if constr == BigInt(1) then true
         else throw new RuntimeException("Not a boolean")
 
     given ListFromData[A: FromData]: FromData[scalus.prelude.List[A]] = (d: Data) =>
@@ -48,7 +47,7 @@ object FromDataInstances {
 
     given MaybeFromData[A: FromData]: FromData[scalus.prelude.Maybe[A]] = (d: Data) =>
         val pair = unConstrData(d)
-        if pair.fst === BigInt(0) then new scalus.prelude.Maybe.Just(fromData[A](pair.snd.head))
+        if pair.fst == BigInt(0) then new scalus.prelude.Maybe.Just(fromData[A](pair.snd.head))
         else scalus.prelude.Maybe.Nothing
 
     given unsafeTupleFromData[A, B](using

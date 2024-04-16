@@ -10,7 +10,6 @@ import scalus.ledger.api.v1.FromDataInstances.given
 import scalus.ledger.api.v1.*
 import scalus.prelude.List
 import scalus.prelude.Maybe.*
-import scalus.prelude.Prelude.===
 import scalus.prelude.Prelude.given
 import scalus.prelude.*
 import scalus.builtin.Data
@@ -106,7 +105,7 @@ object MintingPolicy {
 
                 val checkSpendsTxOut = List.find(txOutRefs) {
                     case TxOutRef(txOutRefTxId, txOutRefIdx) =>
-                        txOutRefTxId.hash === txId && txOutRefIdx === txOutIdx
+                        txOutRefTxId.hash == txId && txOutRefIdx == txOutIdx
                 }
 
                 val check = (b: Boolean, msg: String) => if b then () else throw new Exception(msg)

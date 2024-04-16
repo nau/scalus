@@ -10,9 +10,7 @@ import scalus.builtin.Data.fromData
 import scalus.prelude.AssocMap
 import scalus.prelude.List
 import scalus.prelude.Maybe
-import scalus.prelude.Prelude.===
 import scalus.prelude.Prelude.Eq
-import scalus.prelude.Prelude.given
 
 @Compile
 object FromDataInstances {
@@ -23,10 +21,10 @@ object FromDataInstances {
         val pair = unConstrData(d)
         val tag = pair.fst
         val args = pair.snd
-        if tag === BigInt(0) then OutputDatum.NoOutputDatum
-        else if tag === BigInt(1) then
+        if tag == BigInt(0) then OutputDatum.NoOutputDatum
+        else if tag == BigInt(1) then
             new OutputDatum.OutputDatumHash(fromData[DatumHash](args.head))
-        else if tag === BigInt(2) then new OutputDatum.OutputDatum(fromData[Datum](args.head))
+        else if tag == BigInt(2) then new OutputDatum.OutputDatum(fromData[Datum](args.head))
         else throw new Exception("PT1")
 
     given FromData[TxOut] = (d: Data) =>
@@ -95,11 +93,11 @@ object OutputDatum {
                         case _             => false
                 case OutputDatumHash(datumHash) =>
                     b match
-                        case OutputDatumHash(datumHash2) => datumHash === datumHash2
+                        case OutputDatumHash(datumHash2) => datumHash == datumHash2
                         case _                           => false
                 case OutputDatum(datum) =>
                     b match
-                        case OutputDatum(datum2) => datum === datum2
+                        case OutputDatum(datum2) => datum == datum2
                         case _                   => false
 }
 

@@ -7,7 +7,6 @@ import scalus.builtin.FromDataInstances.given
 import scalus.builtin.{Builtins, ByteString, Data, given}
 import scalus.ledger.api.v1.*
 import scalus.ledger.api.v1.FromDataInstances.given
-import scalus.prelude.Prelude.{===, given}
 import scalus.prelude.{List, *}
 import scalus.sir.SIR
 import scalus.uplc.*
@@ -24,8 +23,8 @@ object OptimizedPreimageValidator {
                   fieldAsData[ScriptContext](_.txInfo.signatories)(ctxData)
                 )
 
-                List.findOrFail(signatories) { sig => sig.hash === pkh }
-                if Builtins.sha2_256(preimage) === hash then ()
+                List.findOrFail(signatories) { sig => sig.hash == pkh }
+                if Builtins.sha2_256(preimage) == hash then ()
                 else throw new RuntimeException("Wrong preimage")
     }
 }

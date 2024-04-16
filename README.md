@@ -56,9 +56,9 @@ def preimageValidator(datum: Data, redeemer: Data, ctxData: Data): Unit = {
     // get the transaction signatories
     val signatories = ctx.txInfo.signatories
     // check that the transaction is signed by the public key hash
-    List.findOrFail(signatories) { sig => sig.hash === pkh }
+    List.findOrFail(signatories) { sig => sig.hash == pkh }
     // check that the preimage hashes to the hash
-    if Builtins.sha2_256(preimage) === hash then ()
+    if Builtins.sha2_256(preimage) == hash then ()
     else throw new RuntimeException("Wrong preimage")
     // throwing an exception compiles to UPLC error
 }

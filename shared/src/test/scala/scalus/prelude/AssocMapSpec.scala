@@ -8,7 +8,6 @@ import org.scalatestplus.scalacheck.ScalaCheckPropertyChecks
 import scalus.Compiler
 import scalus.*
 import scalus.prelude.List.*
-import scalus.prelude.Prelude.===
 import scalus.prelude.Prelude.given
 import scalus.prelude.These.*
 import scalus.uplc.ArbitraryInstances
@@ -54,9 +53,9 @@ class AssocMapSpec extends AnyFunSuite with ScalaCheckPropertyChecks with Arbitr
             // all values are equal, absent values are 0
             List.foldLeft(combined, true) { case (acc, pair) =>
                 pair._2 match
-                    case These(v1, v2) => acc && v1 === v2
-                    case This(v1)      => acc && v1 === BigInt(0)
-                    case That(v2)      => acc && v2 === BigInt(0)
+                    case These(v1, v2) => acc && v1 == v2
+                    case This(v1)      => acc && v1 == BigInt(0)
+                    case That(v2)      => acc && v2 == BigInt(0)
             }
         }
         {

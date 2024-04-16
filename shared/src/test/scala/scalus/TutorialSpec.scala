@@ -46,11 +46,15 @@ val constants = compile {
 val builtinFunctions = compile {
     // See scalus.builtin.Builtins for what is available
     val data = Builtins.iData(123)
+    val eqData = data == Builtins.iData(123) || data != Builtins.iData(123)
     val eq = Builtins.equalsByteString(hex"deadbeef", ByteString.empty)
+    val byteStringEq = hex"deadbeef" == ByteString.empty || hex"deadbeef" != ByteString.empty
+    val stringEq = "deadbeef" == "" || "deadbeef" != ""
     val a = BigInt(1)
     val sum = a + 1 - a * 3 / 4 // arithmetic operators
-    val equals1 = a == sum // comparison operators
-    val equals2 = a === sum // comparison operators
+    val intEquality = a == sum || a != sum
+    val bool = !true || (false == true) != false && true // boolean operators
+    val equals = a === sum // comparison operators
 }
 
 case class Account(hash: ByteString, balance: BigInt)
@@ -74,7 +78,7 @@ val dataTypes = compile {
     // Wildcard patterns are supported
     active match
         case Empty                                 => true
-        case Active(account @ Account(_, balance)) => balance === BigInt(123)
+        case Active(account @ Account(_, balance)) => balance == BigInt(123)
     // all cases must be covered or there must be a default case
     val isEmpty = active match
         case Empty => true
@@ -84,7 +88,7 @@ val dataTypes = compile {
 val controlFlow = compile {
     val a = BigInt(1)
     // if-then-else
-    if a === BigInt(2) then ()
+    if a == BigInt(2) then ()
     // throwing an exception compiles to Plutus ERROR,
     // which aborts the evaluation of the script
     // the exception message can be translated to a trace message
@@ -95,7 +99,7 @@ val controlFlow = compile {
 val functions = compile {
     val nonRecursiveLambda = (a: BigInt) => a + 1
     def recursive(a: BigInt): BigInt =
-        if a === BigInt(0) then 0
+        if a == BigInt(0) then 0
         else recursive(a - 1)
 }
 

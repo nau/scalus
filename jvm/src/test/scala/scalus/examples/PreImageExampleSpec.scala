@@ -14,9 +14,7 @@ import scalus.ledger.api.v1.ToDataInstances.given
 import scalus.ledger.api.v1.*
 import scalus.prelude.List
 import scalus.prelude.List.Nil
-import scalus.prelude.Prelude.===
-import scalus.prelude.Prelude.given
-import scalus.prelude._
+import scalus.prelude.*
 import scalus.uplc.Term.*
 import scalus.uplc.TermDSL.{*, given}
 import scalus.uplc.*
@@ -98,9 +96,9 @@ class PreImageExampleSpec extends BaseValidatorSpec {
             // get the transaction signatories
             val signatories = ctx.txInfo.signatories
             // check that the transaction is signed by the public key hash
-            List.findOrFail(signatories) { sig => sig.hash === pkh }
+            List.findOrFail(signatories) { sig => sig.hash == pkh }
             // check that the preimage hashes to the hash
-            if Builtins.sha2_256(preimage) === hash then ()
+            if Builtins.sha2_256(preimage) == hash then ()
             else throw new RuntimeException("Wrong preimage")
             // throwing an exception compiles to UPLC error
         }
@@ -109,14 +107,14 @@ class PreImageExampleSpec extends BaseValidatorSpec {
         // convert SIR to UPLC
         val validator = compiled.toUplc()
         val flatSize = Program((1, 0, 0), validator).flatEncoded.length
-        assert(flatSize == 1586)
+        assert(flatSize == 1561)
 
         performChecks(validator)
     }
 
     test("Preimage Validator Optimized") {
         val flatSize = OptimizedPreimage.programV1.flatEncoded.length
-        assert(flatSize == 254)
+        assert(flatSize == 242)
         performChecks(OptimizedPreimage.validator)
     }
 }

@@ -109,7 +109,7 @@ compile {
   // Wildcard patterns are supported
   active match
     case Empty                                 => true
-    case Active(account @ Account(_, balance)) => balance === BigInt(123)
+    case Active(account @ Account(_, balance)) => balance == BigInt(123)
   // all cases must be covered or there must be a default case
   val isEmpty = active match
     case Empty => true
@@ -124,7 +124,7 @@ import scalus.prelude.Prelude.{*, given}
 compile {
   val a = BigInt(1)
   // if-then-else
-  if a === BigInt(2) then ()
+  if a == BigInt(2) then ()
   // throwing an exception compiles to Plutus ERROR,
   // which aborts the evaluation of the script
   // the exception message can be translated to a trace message
@@ -136,11 +136,10 @@ compile {
 ## Functions
 
 ```scala mdoc:compile-only
-import scalus.prelude.Prelude.{*, given}
 compile {
   val nonRecursiveLambda = (a: BigInt) => a + 1
   def recursive(a: BigInt): BigInt =
-    if a === BigInt(0) then 0
+    if a == BigInt(0) then 0
     else recursive(a - 1)
 }
 ```
@@ -215,13 +214,11 @@ import scalus.ledger.api.v2.*
 import scalus.ledger.api.v2.FromDataInstances.given
 import scalus.builtin.ByteString.given
 import scalus.prelude.List
-import scalus.prelude.Prelude.===
-import scalus.prelude.Prelude.given
 import scalus.builtin.Data.fromData
 val pubKeyValidator = compile {
   def validator(datum: Data, redeamder: Data, ctxData: Data) = {
     val ctx = fromData[ScriptContext](ctxData)
-    List.findOrFail[PubKeyHash](ctx.txInfo.signatories)(sig => sig.hash === hex"deadbeef")
+    List.findOrFail[PubKeyHash](ctx.txInfo.signatories)(sig => sig.hash == hex"deadbeef")
   }
 }
 ```
@@ -239,8 +236,6 @@ import scalus.ledger.api.v2.*
 import scalus.ledger.api.v2.FromDataInstances.given
 import scalus.builtin.ByteString.given
 import scalus.prelude.List
-import scalus.prelude.Prelude.===
-import scalus.prelude.Prelude.given
 import scalus.builtin.Data.fromData
 import scalus.ledger.api.PlutusLedgerLanguage
 import scalus.*
@@ -250,7 +245,7 @@ val serializeToDoubleCborHex = {
   val pubKeyValidator = compile {
     def validator(datum: Data, redeamder: Data, ctxData: Data) = {
       val ctx = fromData[ScriptContext](ctxData)
-      List.findOrFail[PubKeyHash](ctx.txInfo.signatories)(sig => sig.hash === hex"deadbeef")
+      List.findOrFail[PubKeyHash](ctx.txInfo.signatories)(sig => sig.hash == hex"deadbeef")
     }
   }
   // convert to UPLC

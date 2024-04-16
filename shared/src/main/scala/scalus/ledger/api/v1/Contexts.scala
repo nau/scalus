@@ -12,7 +12,6 @@ import scalus.prelude.List
 import scalus.prelude.Maybe
 import scalus.prelude.Prelude.===
 import scalus.prelude.Prelude.Eq
-import scalus.prelude.Prelude.given
 
 type ValidatorHash = ByteString
 type Datum = Data
@@ -50,43 +49,43 @@ object FromDataInstances {
         val pair = unConstrData(d)
         val tag = pair.fst
         val args = pair.snd
-        if tag === BigInt(0) then new DCert.DelegRegKey(fromData[StakingCredential](args.head))
-        else if tag === BigInt(1) then
+        if tag == BigInt(0) then new DCert.DelegRegKey(fromData[StakingCredential](args.head))
+        else if tag == BigInt(1) then
             new DCert.DelegDeRegKey(fromData[StakingCredential](args.head))
-        else if tag === BigInt(2) then
+        else if tag == BigInt(2) then
             new DCert.DelegDelegate(
               fromData[StakingCredential](args.head),
               fromData[PubKeyHash](args.tail.head)
             )
-        else if tag === BigInt(3) then
+        else if tag == BigInt(3) then
             new DCert.PoolRegister(
               fromData[PubKeyHash](args.head),
               fromData[PubKeyHash](args.tail.head)
             )
-        else if tag === BigInt(4) then
+        else if tag == BigInt(4) then
             new DCert.PoolRetire(
               fromData[PubKeyHash](args.head),
               fromData[BigInt](args.tail.head)
             )
-        else if tag === BigInt(5) then DCert.Genesis
-        else if tag === BigInt(6) then DCert.Mir
+        else if tag == BigInt(5) then DCert.Genesis
+        else if tag == BigInt(6) then DCert.Mir
         else throw new Exception(s"Unknown DCert tag: $tag")
 
     given ExtendedFromData[A: FromData]: FromData[Extended[A]] = (d: Data) =>
         val pair = unConstrData(d)
         val tag = pair.fst
         val args = pair.snd
-        if tag === BigInt(0) then Extended.NegInf
-        else if tag === BigInt(1) then new Extended.Finite(fromData[A](args.head))
-        else if tag === BigInt(2) then Extended.PosInf
+        if tag == BigInt(0) then Extended.NegInf
+        else if tag == BigInt(1) then new Extended.Finite(fromData[A](args.head))
+        else if tag == BigInt(2) then Extended.PosInf
         else throw new Exception(s"Unknown Extended tag: $tag")
 
     given FromData[Credential] = (d: Data) =>
         val pair = unConstrData(d)
         val tag = pair.fst
         val args = pair.snd
-        if tag === BigInt(0) then new Credential.PubKeyCredential(fromData[PubKeyHash](args.head))
-        else if tag === BigInt(1) then
+        if tag == BigInt(0) then new Credential.PubKeyCredential(fromData[PubKeyHash](args.head))
+        else if tag == BigInt(1) then
             new Credential.ScriptCredential(fromData[ByteString](args.head))
         else throw new Exception(s"Unknown Credential tag: $tag")
 
@@ -94,9 +93,9 @@ object FromDataInstances {
         (d: Data) =>
             val pair = unConstrData(d)
             val tag = pair.fst
-            if tag === BigInt(0) then
+            if tag == BigInt(0) then
                 new StakingCredential.StakingHash(fromData[Credential](pair.snd.head))
-            else if tag === BigInt(1) then
+            else if tag == BigInt(1) then
                 val fromBI = summon[FromData[BigInt]]
                 val ptrs = pair.snd
                 new StakingCredential.StakingPtr(
@@ -110,11 +109,11 @@ object FromDataInstances {
         val pair = unConstrData(d)
         val tag = pair.fst
         val args = pair.snd
-        if tag === BigInt(0) then new ScriptPurpose.Minting(fromData[TokenName](args.head))
-        else if tag === BigInt(1) then new ScriptPurpose.Spending(fromData[TxOutRef](args.head))
-        else if tag === BigInt(2) then
+        if tag == BigInt(0) then new ScriptPurpose.Minting(fromData[TokenName](args.head))
+        else if tag == BigInt(1) then new ScriptPurpose.Spending(fromData[TxOutRef](args.head))
+        else if tag == BigInt(2) then
             new ScriptPurpose.Rewarding(fromData[StakingCredential](args.head))
-        else if tag === BigInt(3) then new ScriptPurpose.Certifying(fromData[DCert](args.head))
+        else if tag == BigInt(3) then new ScriptPurpose.Certifying(fromData[DCert](args.head))
         else throw new Exception(s"Unknown ScriptPurpose tag: $tag")
 
     given FromData[Address] = (d: Data) =>
@@ -224,7 +223,7 @@ object UpperBound:
             case UpperBound(upper1, closure1) =>
                 y match
                     case UpperBound(upper2, closure2) =>
-                        upper1 === upper2 && closure1 === closure2
+                        upper1 === upper2 && closure1 == closure2
 
 case class LowerBound[A](extended: Extended[A], closure: Closure)
 @Compile
@@ -234,7 +233,7 @@ object LowerBound:
             case LowerBound(extended1, closure1) =>
                 y match
                     case LowerBound(extended2, closure2) =>
-                        extended1 === extended2 && closure1 === closure2
+                        extended1 === extended2 && closure1 == closure2
 
 case class Interval[A](from: LowerBound[A], to: UpperBound[A])
 
@@ -292,7 +291,7 @@ object DCert {
                     case _                               => false
             case DCert.PoolRetire(poolId, epoch) =>
                 y match
-                    case DCert.PoolRetire(poolId, epoch) => poolId === poolId && epoch === epoch
+                    case DCert.PoolRetire(poolId, epoch) => poolId === poolId && epoch == epoch
                     case _                               => false
             case DCert.Genesis =>
                 y match
@@ -320,7 +319,7 @@ object TxOutRef {
             case TxOutRef(aTxId, aTxOutIndex) =>
                 b match
                     case TxOutRef(bTxId, bTxOutIndex) =>
-                        aTxOutIndex === bTxOutIndex && aTxId === bTxId
+                        aTxOutIndex == bTxOutIndex && aTxId === bTxId
 }
 
 case class PubKeyHash(hash: ByteString) {
@@ -342,12 +341,12 @@ object Credential {
         a match
             case Credential.PubKeyCredential(hash) =>
                 b match
-                    case Credential.PubKeyCredential(hash2) => hash === hash2
+                    case Credential.PubKeyCredential(hash2) => hash.hash == hash2.hash
                     case Credential.ScriptCredential(hash)  => false
             case Credential.ScriptCredential(hash) =>
                 b match
                     case Credential.PubKeyCredential(hash2) => false
-                    case Credential.ScriptCredential(hash2) => hash === hash2
+                    case Credential.ScriptCredential(hash2) => hash == hash2
 }
 
 enum StakingCredential:
@@ -366,7 +365,7 @@ object StakingCredential {
                 rhs match
                     case StakingCredential.StakingHash(cred2) => false
                     case StakingCredential.StakingPtr(a2, b2, c2) =>
-                        a === a2 && b === b2 && c === c2
+                        a == a2 && b == b2 && c == c2
 }
 
 case class Address(
@@ -416,7 +415,7 @@ object ScriptPurpose {
         x match
             case ScriptPurpose.Minting(curSymbol) =>
                 y match
-                    case ScriptPurpose.Minting(curSymbol) => curSymbol === curSymbol
+                    case ScriptPurpose.Minting(curSymbol) => curSymbol == curSymbol
                     case _                                => false
             case ScriptPurpose.Spending(txOutRef) =>
                 y match
