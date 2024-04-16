@@ -127,13 +127,13 @@ object TwoArguments {
         def apply(arg1: CostingInteger, arg2: CostingInteger): CostingInteger =
             cost(arg1, arg2)
     }
-    case class ConstAboveDiagonal(cost: ConstantOrTwoArguments) extends TwoArguments {
-        def apply(arg1: CostingInteger, arg2: CostingInteger): CostingInteger =
-            if arg1 < arg2 then cost.model(arg1, arg2) else cost.constant
-    }
     case class ConstBelowDiagonal(cost: ConstantOrTwoArguments) extends TwoArguments {
         def apply(arg1: CostingInteger, arg2: CostingInteger): CostingInteger =
-            if arg1 > arg2 then cost.model(arg1, arg2) else cost.constant
+            if arg1 > arg2 then cost.constant else cost.model(arg1, arg2)
+    }
+    case class ConstAboveDiagonal(cost: ConstantOrTwoArguments) extends TwoArguments {
+        def apply(arg1: CostingInteger, arg2: CostingInteger): CostingInteger =
+            if arg1 < arg2 then cost.constant else cost.model(arg1, arg2)
     }
 
     given ReadWriter[TwoArguments] = readwriter[ujson.Value].bimap(
