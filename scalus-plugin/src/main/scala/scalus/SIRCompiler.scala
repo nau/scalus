@@ -783,6 +783,23 @@ final class SIRCompiler(mode: scalus.Mode)(using ctx: Context) {
                   ),
                   rhsExpr
                 )
+            // ByteString equality
+            case Apply(Select(lhs, op), List(rhs))
+                if lhs.tpe.widen =:= converter.ByteStringClassSymbol.typeRef && (op == nme.EQ || op == nme.NE) =>
+                if !(rhs.tpe.widen =:= converter.ByteStringClassSymbol.typeRef) then
+                    report.error(
+                      s"""Equality is only allowed between the same types but here we have ${lhs.tpe.widen.show} == ${rhs.tpe.widen.show}
+                         |Make sure you compare values of the same type""".stripMargin
+                    )
+                    SIR.Error("Equality is only allowed between the same types")
+                else
+                    val lhsExpr = compileExpr(env, lhs)
+                    val rhsExpr = compileExpr(env, rhs)
+                    val eq = SIR.Apply(
+                      SIR.Apply(SIR.Builtin(DefaultFun.EqualsByteString), lhsExpr),
+                      rhsExpr
+                    )
+                    if op == nme.EQ then eq else SIR.Not(eq)
             // BUILTINS
             case bi: Select if builtinsHelper.builtinFun(bi.symbol).isDefined =>
                 builtinsHelper.builtinFun(bi.symbol).get

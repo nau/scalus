@@ -70,9 +70,10 @@ compile {
   // See scalus.builtin.Builtins for what is available
   val data = Builtins.iData(123)
   val eq = Builtins.equalsByteString(hex"deadbeef", ByteString.empty)
+  val byteStringEq = hex"deadbeef" == ByteString.empty || hex"deadbeef" != ByteString.empty
   val a = BigInt(1)
   val sum = a + 1 - a * 3 / 4 // arithmetic operators
-  val intEquality = a == sum
+  val intEquality = a == sum || a != sum
   val bool = !true || (false == true) != false && true // boolean operators
   val equals = a === sum // comparison operators
 }
