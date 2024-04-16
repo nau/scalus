@@ -856,6 +856,67 @@ class CompilerPluginToSIRSpec extends AnyFunSuite with ScalaCheckPropertyChecks:
         )
     }
 
+    test("compile Data equality") {
+        val eq = compile { def check(a: Data, b: Data) = a == b; check }
+        val ne = compile { def check(a: Data, b: Data) = a != b; check }
+        assert(
+          eq == Let(
+            Rec,
+            List(
+              Binding(
+                "check",
+                LamAbs(
+                  "a",
+                  LamAbs("b", Apply(Apply(Builtin(EqualsData), Var("a")), Var("b")))
+                )
+              )
+            ),
+            LamAbs("a", LamAbs("b", Apply(Apply(Var("check"), Var("a")), Var("b"))))
+          )
+        )
+        assert(
+          ne == Let(
+            Rec,
+            List(
+              Binding(
+                "check",
+                LamAbs(
+                  "a",
+                  LamAbs("b", Not(Apply(Apply(Builtin(EqualsData), Var("a")), Var("b"))))
+                )
+              )
+            ),
+            LamAbs("a", LamAbs("b", Apply(Apply(Var("check"), Var("a")), Var("b"))))
+          )
+        )
+        val eqterm = eq.toUplc()
+        val neterm = ne.toUplc()
+        import scalus.uplc.TermDSL.{*, given}
+        import scalus.builtin.Data.toData
+        import scalus.builtin.ToDataInstances.given
+
+        assert(
+          VM.evaluateTerm(eqterm $ 1.toData $ 1.toData) == scalus.uplc.Term.Const(
+            asConstant(true)
+          )
+        )
+        assert(
+          VM.evaluateTerm(eqterm $ "".toData $ "deadbeef".toData) == scalus.uplc.Term.Const(
+            asConstant(false)
+          )
+        )
+        assert(
+          VM.evaluateTerm(neterm $ 1.toData $ 1.toData) == scalus.uplc.Term.Const(
+            asConstant(false)
+          )
+        )
+        assert(
+          VM.evaluateTerm(neterm $ "".toData $ "deadbeef".toData) == scalus.uplc.Term.Const(
+            asConstant(true)
+          )
+        )
+    }
+
     test("compile type-safe equality") {
         import scalus.prelude.Prelude.*
         val compiled = compile {

@@ -69,6 +69,7 @@ import scalus.prelude.Prelude.{*, given}
 compile {
   // See scalus.builtin.Builtins for what is available
   val data = Builtins.iData(123)
+  val eqData = data == Builtins.iData(123) || data != Builtins.iData(123)
   val eq = Builtins.equalsByteString(hex"deadbeef", ByteString.empty)
   val byteStringEq = hex"deadbeef" == ByteString.empty || hex"deadbeef" != ByteString.empty
   val stringEq = "deadbeef" == "" || "deadbeef" != ""
