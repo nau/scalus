@@ -1,5 +1,16 @@
 # Changelog
 
+## 0.6.1 (2024-04-18)
+
+### Added
+
+- compile `==`, `!=` operators as Plutus builtins for `Boolean`, `ByteString`, `String` and `Data` types
+- `++` operator for `ByteString`
+
+### Fixed
+
+- wrong `ConstAboveDiagonal` cost calculation used in division
+
 ## 0.6.0 (2024-04-05)
 
 ### Added

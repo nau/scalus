@@ -88,8 +88,7 @@ object Builtins:
     def lessThanInteger(i1: BigInt, i2: BigInt): Boolean = i1 < i2
     def lessThanEqualsInteger(i1: BigInt, i2: BigInt): Boolean = i1 <= i2
     // Bytestrings
-    def appendByteString(a: ByteString, b: ByteString): ByteString =
-        ByteString.fromArray(a.bytes ++ b.bytes)
+    def appendByteString(a: ByteString, b: ByteString): ByteString = a ++ b
     def consByteString(char: BigInt, byteString: ByteString): ByteString =
         ByteString.fromArray(char.toByte +: byteString.bytes)
     def sliceByteString(bs: ByteString, start: BigInt, end: BigInt): ByteString =

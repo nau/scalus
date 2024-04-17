@@ -1,6 +1,7 @@
 package scalus.builtin
 
 import scalus.utils.Hex
+import scala.annotation.targetName
 
 class ByteString private (val bytes: Array[Byte]) {
     override def toString: String = "\"" + toHex + "\""
@@ -14,6 +15,9 @@ class ByteString private (val bytes: Array[Byte]) {
 
     lazy val toHex: String = Hex.bytesToHex(bytes)
 
+    /** Concatenates two ByteStrings and returns a new ByteString */
+    @targetName("concat")
+    infix def ++(that: ByteString): ByteString = new ByteString(bytes ++ that.bytes)
 }
 
 object ByteString {
