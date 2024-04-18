@@ -92,23 +92,23 @@ object Builtins:
     def consByteString(char: BigInt, byteString: ByteString): ByteString =
         ByteString.fromArray(char.toByte +: byteString.bytes)
     def sliceByteString(bs: ByteString, start: BigInt, end: BigInt): ByteString =
-        if start < 0 || end < 0 || start > end || end > bs.bytes.length then
+        if start < 0 || end < 0 || start > end || end > bs.length then
             throw new Exception(
-              s"slice $start $end out of bounds for bytestring of length ${bs.bytes.length}"
+              s"slice $start $end out of bounds for bytestring of length ${bs.length}"
             )
         else ByteString.fromArray(bs.bytes.slice(start.toInt, end.toInt))
 
-    def lengthOfByteString(bs: ByteString): BigInt = bs.bytes.length
+    def lengthOfByteString(bs: ByteString): BigInt = bs.length
     def indexByteString(bs: ByteString, i: BigInt): BigInt =
-        if i < 0 || i >= bs.bytes.length then
+        if i < 0 || i >= bs.length then
             throw new Exception(
-              s"index $i out of bounds for bytestring of length ${bs.bytes.length}"
+              s"index $i out of bounds for bytestring of length ${bs.length}"
             )
         else BigInt(bs.bytes(i.toInt) & 0xff)
 
     def equalsByteString(a: ByteString, b: ByteString): Boolean = a == b
     def lessThanByteString(a: ByteString, b: ByteString): Boolean =
-        val minLen = math.min(a.bytes.length, b.bytes.length)
+        val minLen = math.min(a.length, b.length)
         var i = 0
         while i < minLen do
             val ai = a.bytes(i) & 0xff
@@ -116,10 +116,10 @@ object Builtins:
             if ai < bi then return true
             else if ai > bi then return false
             i += 1
-        if a.bytes.length < b.bytes.length then true
+        if a.length < b.length then true
         else false
     def lessThanEqualsByteString(a: ByteString, b: ByteString): Boolean =
-        val minLen = math.min(a.bytes.length, b.bytes.length)
+        val minLen = math.min(a.length, b.length)
         var i = 0
         while i < minLen do
             val ai = a.bytes(i) & 0xff
@@ -127,7 +127,7 @@ object Builtins:
             if ai < bi then return true
             else if ai > bi then return false
             i += 1
-        if a.bytes.length <= b.bytes.length then true
+        if a.length <= b.length then true
         else false
     // Cryptography and hashes
     def sha2_256(using ps: PlatformSpecific)(bs: ByteString): ByteString = ps.sha2_256(bs)

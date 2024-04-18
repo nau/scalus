@@ -18,6 +18,12 @@ class ByteString private (val bytes: Array[Byte]) {
     /** Concatenates two ByteStrings and returns a new ByteString */
     @targetName("concat")
     infix def ++(that: ByteString): ByteString = new ByteString(bytes ++ that.bytes)
+
+    /** The length of the ByteString */
+    def size: Int = bytes.length
+
+    /** The length of the ByteString */
+    def length: Int = bytes.length
 }
 
 object ByteString {

@@ -11,7 +11,7 @@ trait MemoryUsage[A]:
 object MemoryUsage {
     def memoryUsageInteger(i: BigInt): CostingInteger = i.bitLength / 64 + 1
 
-    def memoryUsageByteString(bs: ByteString): CostingInteger = (bs.bytes.length - 1) / 8 + 1
+    def memoryUsageByteString(bs: ByteString): CostingInteger = (bs.length - 1) / 8 + 1
 
     def memoryUsageString(s: String): CostingInteger = s.length
 

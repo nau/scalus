@@ -5,7 +5,7 @@
 ### Added
 
 - compile `==`, `!=` operators as Plutus builtins for `Boolean`, `ByteString`, `String` and `Data` types
-- `++` operator for `ByteString`
+- `++` operator, `size` and `length` functions for `ByteString`
 
 ### Fixed
 

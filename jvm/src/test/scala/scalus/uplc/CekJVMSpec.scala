@@ -242,7 +242,7 @@ class CekJVMSpec extends BaseValidatorSpec:
             Gen
                 .containerOf[Array, Byte](Arbitrary.arbitrary[Byte])
                 .map(ByteString.unsafeFromArray)
-                .suchThat(_.bytes.length != 32)
+                .suchThat(_.length != 32)
 
         val verify = sir.toUplc()
         forAll(messageGen, wrongMessageGen) { (message, wrongMessage) =>
@@ -303,7 +303,7 @@ class CekJVMSpec extends BaseValidatorSpec:
             Gen
                 .containerOf[Array, Byte](Arbitrary.arbitrary[Byte])
                 .map(ByteString.unsafeFromArray)
-                .suchThat(_.bytes.length != 32)
+                .suchThat(_.length != 32)
 
         val verify = sir.toUplc()
         forAll(messageGen, wrongMessageGen) { (message, wrongMessage) =>

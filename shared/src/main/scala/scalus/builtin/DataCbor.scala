@@ -28,7 +28,7 @@ object PlutusDataCborEncoder extends Encoder[Data]:
             case Data.List(values) => writer.writeLinearSeq(values)
             case I(value)          => writer.write(value)
             case B(value) =>
-                if value.bytes.length <= 64
+                if value.length <= 64
                 then writer.write(value.bytes)
                 else
                     def to64ByteChunks(bytes: Array[Byte]): List[Array[Byte]] =

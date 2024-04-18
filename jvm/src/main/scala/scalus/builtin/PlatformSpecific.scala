@@ -22,14 +22,14 @@ trait JVMPlatformSpecific extends PlatformSpecific {
 
     override def blake2b_224(bs: ByteString): ByteString =
         val digest = new Blake2bDigest(224)
-        digest.update(bs.bytes, 0, bs.bytes.length)
+        digest.update(bs.bytes, 0, bs.length)
         val hash = new Array[Byte](digest.getDigestSize)
         digest.doFinal(hash, 0)
         ByteString.unsafeFromArray(hash)
 
     override def blake2b_256(bs: ByteString): ByteString =
         val digest = new Blake2bDigest(256)
-        digest.update(bs.bytes, 0, bs.bytes.length)
+        digest.update(bs.bytes, 0, bs.length)
         val hash = new Array[Byte](digest.getDigestSize)
         digest.doFinal(hash, 0)
         ByteString.unsafeFromArray(hash)
@@ -39,10 +39,10 @@ trait JVMPlatformSpecific extends PlatformSpecific {
         msg: ByteString,
         sig: ByteString
     ): Boolean = {
-        if pk.bytes.length != 32 then
-            throw new IllegalArgumentException(s"Invalid public key length ${pk.bytes.length}")
-        if sig.bytes.length != 64 then
-            throw new IllegalArgumentException(s"Invalid signature length ${sig.bytes.length}")
+        if pk.length != 32 then
+            throw new IllegalArgumentException(s"Invalid public key length ${pk.length}")
+        if sig.length != 64 then
+            throw new IllegalArgumentException(s"Invalid signature length ${sig.length}")
         val signature = SchnorrDigitalSignature(ByteVector(sig.bytes))
         SchnorrPublicKey(ByteVector(pk.bytes)).verify(ByteVector(msg.bytes), signature)
     }
@@ -50,7 +50,7 @@ trait JVMPlatformSpecific extends PlatformSpecific {
     override def verifyEd25519Signature(pk: ByteString, msg: ByteString, sig: ByteString): Boolean =
         val verifier = new Ed25519Signer()
         verifier.init(false, new Ed25519PublicKeyParameters(pk.bytes, 0))
-        verifier.update(msg.bytes, 0, msg.bytes.length)
+        verifier.update(msg.bytes, 0, msg.length)
         verifier.verifySignature(sig.bytes)
 
     override def verifyEcdsaSecp256k1Signature(
@@ -58,12 +58,12 @@ trait JVMPlatformSpecific extends PlatformSpecific {
         msg: ByteString,
         sig: ByteString
     ): Boolean =
-        if pk.bytes.length != 33 then
-            throw new IllegalArgumentException(s"Invalid public key length ${pk.bytes.length}")
-        if msg.bytes.length != 32 then
-            throw new IllegalArgumentException(s"Invalid message length ${msg.bytes.length}")
-        if sig.bytes.length != 64 then
-            throw new IllegalArgumentException(s"Invalid signature length ${sig.bytes.length}")
+        if pk.length != 33 then
+            throw new IllegalArgumentException(s"Invalid public key length ${pk.length}")
+        if msg.length != 32 then
+            throw new IllegalArgumentException(s"Invalid message length ${msg.length}")
+        if sig.length != 64 then
+            throw new IllegalArgumentException(s"Invalid signature length ${sig.length}")
         val signature = ECDigitalSignature.fromRS(ByteVector(sig.bytes))
         ECPublicKey(ByteVector(pk.bytes)).verify(ByteVector(msg.bytes), signature)
 }
