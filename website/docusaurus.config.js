@@ -133,7 +133,7 @@ const config = {
             ],
           },
         ],
-        copyright: `Copyright © ${new Date().getFullYear()} Atlanter Labs. Built with Docusaurus.`,
+        copyright: `Copyright © ${new Date().getFullYear()} Lantr Labs. Built with Docusaurus.`,
       },
       prism: {
         theme: prismThemes.github,

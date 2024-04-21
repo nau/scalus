@@ -163,7 +163,7 @@ lazy val docs = project // documentation project
       publish / skip := true,
       moduleName := "scalus-docs",
       mdocVariables := Map(
-        "VERSION" -> version.value,
+        "VERSION" -> "0.6.1",
         "SCALA3_VERSION" -> scalaVersion.value
       ),
       PluginDependency
