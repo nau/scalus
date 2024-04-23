@@ -88,23 +88,23 @@ from [`PreImageExampleSpec.scala`](https://github.com/nau/scalus/blob/master/jvm
 
 ```scala 3
 def preimageValidator(datum: Data, redeemer: Data, ctxData: Data): Unit =
-  // deserialize from Data
-  val (hash, pkh) = fromData[(ByteString, ByteString)](datum)
-  val preimage = fromData[ByteString](redeemer)
-  val ctx = fromData[ScriptContext](ctxData)
-  // get the transaction signatories
-  val signatories = ctx.txInfo.signatories
-  // check that the transaction is signed by the public key hash
-  List.findOrFail(signatories) { sig => sig.hash == pkh }
-  // check that the preimage hashes to the hash
-  if sha2_256(preimage) == hash then ()
-  else throw new RuntimeException("Wrong preimage")
-// throwing an exception compiles to UPLC error
+    // deserialize from Data
+    val (hash, pkh) = fromData[(ByteString, ByteString)](datum)
+    val preimage = fromData[ByteString](redeemer)
+    val ctx = fromData[ScriptContext](ctxData)
+    // get the transaction signatories
+    val signatories = ctx.txInfo.signatories
+    // check that the transaction is signed by the public key hash
+    List.findOrFail(signatories) { sig => sig.hash == pkh }
+    // check that the preimage hashes to the hash
+    if sha2_256(preimage) == hash then ()
+    else throw new RuntimeException("Wrong preimage")
+    // throwing an exception compiles to UPLC error
 
 // compile to Untyped Plutus Core (UPLC)
 val compiled = compile(preimageValidator).toUplc()
 // create a validator script, Plutus program version 1.0.0
-val validator = Program((1, 0, 0), compiled.toUplc())
+val validator = Program((1, 0, 0), compiled)
 // HEX encoded Plutus script, ready to be used in with cardano-cli or Blockfrost
 val plutusScript = validator.doubleCborHex
 // Create a Cardano .plutus file for this validator

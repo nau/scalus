@@ -73,8 +73,7 @@ val constants = compile {
 ## Builtin Functions
 
 ```scala mdoc:compile-only
-import scalus.builtin.Builtins
-import scalus.builtin.ByteString
+import scalus.builtin.*
 import scalus.builtin.ByteString.given
 import scalus.prelude.Prelude.{*, given}
 compile {
@@ -99,6 +98,7 @@ You can define your own data types using Scala case classes and enums.
 ```scala mdoc:compile-only
 import scalus.builtin.ByteString
 import scalus.prelude.Prelude.{*, given}
+
 case class Account(hash: ByteString, balance: BigInt)
 
 enum State:
@@ -149,9 +149,10 @@ compile {
 ```scala mdoc:compile-only
 compile {
     val nonRecursiveLambda = (a: BigInt) => a + 1
+
     def recursive(a: BigInt): BigInt =
-      if a == BigInt(0) then 0
-      else recursive(a - 1)
+        if a == BigInt(0) then 0
+        else recursive(a - 1)
 }
 ```
 
@@ -184,14 +185,20 @@ val modules = compile {
 
 FromData type class is used to convert a Data value to a Scalus value.
 
-```scala
-import scalus.builtin.Data
-import scalus.builtin.Data.FromData
-import scalus.builtin.Data.fromData
-import scalus.uplc.FromData
+```scala mdoc:compile-only
+import scalus.builtin.*, Builtins.*, Data.*
+import scalus.builtin.FromDataInstances.given
+
+case class Account(hash: ByteString, balance: BigInt)
+
+enum State:
+    case Empty
+    case Active(account: Account)
+
+
 val fromDataExample = compile {
     // The `fromData` function is used to convert a `Data` value to a Scalus value.
-    val data = Builtins.iData(123)
+    val data = iData(123)
     // fromData is a summoner method for the `FromData` type class
     // there are instances for all built-in types
     val a = fromData[BigInt](data)
@@ -199,20 +206,20 @@ val fromDataExample = compile {
     // you can define your own `FromData` instances
     {
         given FromData[Account] = (d: Data) => {
-            val args = Builtins.unConstrData(d).snd
+            val args = unConstrData(d).snd
             new Account(fromData[ByteString](args.head), fromData[BigInt](args.tail.head))
         }
         val account = fromData[Account](data)
     }
 
-  // or your can you a macro to derive the FromData instance
-  {
-      given FromData[Account] = FromData.deriveCaseClass
-      given FromData[State] = FromData.deriveEnum[State] {
-          case 0 => d => Empty
-          case 1 => FromData.deriveConstructor[State.Active]
-      }
-  }
+    // or your can you a macro to derive the FromData instance
+    {
+        given FromData[Account] = FromData.deriveCaseClass
+        given FromData[State] = FromData.deriveEnum[State] {
+            case 0 => d => State.Empty
+            case 1 => FromData.deriveConstructor[State.Active]
+        }
+    }
 }
 ```
 
@@ -224,8 +231,9 @@ Here is a simple example of a PlutusV2 validator written in Scalus.
 import scalus.ledger.api.v2.*
 import scalus.ledger.api.v2.FromDataInstances.given
 import scalus.builtin.ByteString.given
-import scalus.prelude.List
 import scalus.builtin.Data.fromData
+import scalus.prelude.List
+
 // Use Scala 3 indentation syntax. Look ma, no braces! Like Python!
 val pubKeyValidator = compile:
     def validator(datum: Data, redeamder: Data, ctxData: Data) =
@@ -243,13 +251,13 @@ Many APIs require the HEX encoded string of double CBOR encoded Flat encoded UPL
 like `Hex(CborEncode(CborEncode(FlatEncode(Program(version, uplc)))))`.
 
 ```scala mdoc:compile-only
-import scalus.ledger.api.v2.*
-import scalus.ledger.api.v2.FromDataInstances.given
+import scalus.*
 import scalus.builtin.ByteString.given
-import scalus.prelude.List
 import scalus.builtin.Data.fromData
 import scalus.ledger.api.PlutusLedgerLanguage
-import scalus.*
+import scalus.ledger.api.v2.*
+import scalus.ledger.api.v2.FromDataInstances.given
+import scalus.prelude.List
 import scalus.uplc.Program
 
 val serializeToDoubleCborHex = {
@@ -283,6 +291,7 @@ val serializeToDoubleCborHex = {
 import scalus.builtin.{*, given}
 import scalus.ledger.api.*
 import scalus.uplc.*, eval.*
+
 def evaluation() = {
     val sir = compile {
         def usefulFunction(a: BigInt): BigInt = a + 1
@@ -309,16 +318,18 @@ def evaluation() = {
       PlutusLedgerLanguage.PlutusV2
     )
 
+    // CountingBudgetSpender is a budget spender that counts the total cost of the evaluation
+    val countingBudgetSpender = CountingBudgetSpender()
     // TallyingBudgetSpender is a budget spender that counts the costs of each operation
-    val tallyingBudgetSpender = TallyingBudgetSpender(CountingBudgetSpender())
+    val tallyingBudgetSpender = TallyingBudgetSpender(countingBudgetSpender)
     val logger = Log()
     // use NoLogger to disable logging
     val noopLogger = NoLogger
     val cekMachine = CekMachine(
-      MachineParams.defaultParams,
+      MachineParams.defaultParams, // or use default params
       tallyingBudgetSpender,
       logger,
-      JVMPlatformSpecific
+      JVMPlatformSpecific // platform specific functions. Use JSPlatformSpecific for Scala.js
     )
     val debruijnedTerm = DeBruijn.deBruijnTerm(term)
     try {
