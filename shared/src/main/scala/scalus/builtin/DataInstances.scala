@@ -14,13 +14,11 @@ object FromDataInstances {
     given FromData[Data] = (d: Data) => d
 
     given FromData[Unit] = (d: Data) =>
-        val pair = unConstrData(d)
-        if pair.fst == BigInt(0) then ()
+        if unConstrData(d).fst == BigInt(0) then ()
         else throw new RuntimeException("Not a unit")
 
     given FromData[Boolean] = (d: Data) =>
-        val pair = unConstrData(d)
-        val constr = pair.fst
+        val constr = unConstrData(d).fst
         if constr == BigInt(0) then false
         else if constr == BigInt(1) then true
         else throw new RuntimeException("Not a boolean")
@@ -55,8 +53,7 @@ object FromDataInstances {
         fromB: FromData[B]
     ): FromData[(A, B)] =
         (d: Data) =>
-            val pair = unConstrData(d)
-            val args = pair.snd
+            val args = unConstrData(d).snd
             (fromA(args.head), fromB(args.tail.head))
 }
 

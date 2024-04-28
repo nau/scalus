@@ -13,9 +13,16 @@ import scalus.uplc.TypeScheme
 
 import scala.collection.mutable.HashMap
 
-class SimpleSirToUplcLowering(sir: SIR, generateErrorTraces: Boolean = false) {
+/** Lowering from Scalus Intermediate Representation [[SIR]] to UPLC [[Term]].
+  *
+  * @param sir
+  *   the Scalus Intermediate Representation to lower
+  * @param generateErrorTraces
+  *   whether to generate error traces
+  */
+class SimpleSirToUplcLowering(sir: SIR, generateErrorTraces: Boolean = false):
 
-    val builtinTerms = {
+    private val builtinTerms =
         def forceBuiltin(scheme: TypeScheme, term: Term): Term = scheme match
             case TypeScheme.All(_, t) => Term.Force(forceBuiltin(t, term))
             case _                    => term
@@ -23,7 +30,6 @@ class SimpleSirToUplcLowering(sir: SIR, generateErrorTraces: Boolean = false) {
         Meaning.defaultBuiltins.BuiltinMeanings.map((bi, rt) =>
             bi -> forceBuiltin(rt.typeScheme, Term.Builtin(bi))
         )
-    }
 
     private var zCombinatorNeeded: Boolean = false
     private val decls = HashMap.empty[String, DataDecl]
@@ -41,8 +47,8 @@ class SimpleSirToUplcLowering(sir: SIR, generateErrorTraces: Boolean = false) {
                 lowerInner(body)
             case SIR.Constr(name, data, args) =>
                 /* data List a = Nil | Cons a (List a)
-           Nil is represented as \Nil Cons -> force Nil
-           Cons is represented as (\head tail Nil Cons -> Cons head tail) h tl
+                    Nil is represented as \Nil Cons -> force Nil
+                    Cons is represented as (\head tail Nil Cons -> Cons head tail) h tl
                  */
                 val constrs = data.constructors.map(_.name)
                 val ctorParams = data.constructors.find(_.name == name) match
@@ -71,10 +77,10 @@ class SimpleSirToUplcLowering(sir: SIR, generateErrorTraces: Boolean = false) {
                 }
             case SIR.Match(scrutinee, cases) =>
                 /* list match
-          case Nil -> 1
-          case Cons(h, tl) -> 2
+                    case Nil -> 1
+                    case Cons(h, tl) -> 2
 
-          lowers to list (delay 1) (\h tl -> 2)
+                    lowers to list (delay 1) (\h tl -> 2)
                  */
                 val scrutineeTerm = lowerInner(scrutinee)
                 val casesTerms = cases.map { case Case(constr, bindings, body) =>
@@ -93,9 +99,9 @@ class SimpleSirToUplcLowering(sir: SIR, generateErrorTraces: Boolean = false) {
                     Term.Apply(Term.LamAbs(name, body), lowerInner(rhs))
                 }
             case SIR.Let(Rec, Binding(name, rhs) :: Nil, body) =>
-                /* let rec f x = f (x + 1)
-           in f 0
-           (\f -> f 0) (Z (\f. \x. f (x + 1)))
+                /*  let rec f x = f (x + 1)
+                    in f 0
+                    (\f -> f 0) (Z (\f. \x. f (x + 1)))
                  */
                 zCombinatorNeeded = true
                 val fixed =
@@ -105,6 +111,7 @@ class SimpleSirToUplcLowering(sir: SIR, generateErrorTraces: Boolean = false) {
                     )
                 Term.Apply(Term.LamAbs(name, lowerInner(body)), fixed)
             case SIR.Let(Rec, bindings, body) =>
+                // TODO: implement mutual recursion
                 sys.error(s"Mutually recursive bindings are not supported: $bindings")
             case SIR.LamAbs(name, term) => Term.LamAbs(name, lowerInner(term))
             case SIR.Apply(f, arg)      => Term.Apply(lowerInner(f), lowerInner(arg))
@@ -121,11 +128,6 @@ class SimpleSirToUplcLowering(sir: SIR, generateErrorTraces: Boolean = false) {
                     SIR.Const(Constant.Bool(true))
                   )
                 )
-            /* TODO: enable this small optimization at some point
-      case SIR.IfThenElse(cond, t, f) if noEval(t) && noEval(f) =>
-        import scalus.pretty
-        println(s"ifThenElse without force/delay: ${sir.pretty.render(80)}")
-        builtinTerms(DefaultFun.IfThenElse) $ lowerInner(cond) $ lowerInner(t) $ lowerInner(f) */
             case SIR.IfThenElse(cond, t, f) =>
                 !(builtinTerms(DefaultFun.IfThenElse) $ lowerInner(cond) $ ~lowerInner(
                   t
@@ -138,68 +140,3 @@ class SimpleSirToUplcLowering(sir: SIR, generateErrorTraces: Boolean = false) {
                       Constant.String(msg)
                     ) $ ~Term.Error)
                 else Term.Error
-
-    def noEval(term: SIR): Boolean =
-        import SIR.*
-        term match
-            case Var(name)                        => true
-            case ExternalVar(moduleName, name)    => true
-            case Let(recursivity, bindings, body) => false
-            case LamAbs(name, term)               => true
-            case Apply(f, arg)                    => false
-            case Const(const)                     => true
-            case And(a, b)                        => false
-            case Or(a, b)                         => false
-            case Not(a)                           => false
-            case IfThenElse(cond, t, f)           => false
-            case Builtin(bn)                      => true
-            case Error(msg)                       => false
-            case Decl(data, term)                 => false
-            case Constr(name, data, args)         => false
-            case Match(scrutinee, cases)          => false
-}
-
-object EtaReduce {
-    def etaReduce(term: Term): Term =
-        import Term.*
-        term match
-            case LamAbs(name1, Term.Apply(f, Term.Var(name2)))
-                if name1 == name2.name && !freeNames(f, List.empty).contains(name1) && notError(
-                  f
-                ) =>
-                /* println(
-          s"etaReducing ${term.pretty.render(80).take(50)} to ${f.pretty.render(80).take(50)}"
-        ) */
-                etaReduce(f)
-            case LamAbs(name, body) =>
-                val body1 = etaReduce(body)
-                if body != body1 then etaReduce(LamAbs(name, body1)) else term
-            case Apply(f, arg) => Apply(etaReduce(f), etaReduce(arg))
-            case Force(term)   => Force(etaReduce(term))
-            case Delay(term)   => Delay(etaReduce(term))
-            case _             => term
-
-    def freeNames(term: Term, env: List[String]): Set[String] =
-        import Term.*
-        term match
-            case Var(NamedDeBruijn(name, _)) => if env.contains(name) then Set.empty else Set(name)
-            case LamAbs(name, body)          => freeNames(body, name :: env)
-            case Apply(f, arg)               => freeNames(f, env) ++ freeNames(arg, env)
-            case Force(term)                 => freeNames(term, env)
-            case Delay(term)                 => freeNames(term, env)
-            case Const(_)                    => Set.empty
-            case Error                       => Set.empty
-            case Builtin(bn)                 => Set.empty
-
-    def notError(term: Term): Boolean =
-        import Term.*
-        term match
-            case Error           => false
-            case Apply(f, a)     => notError(f) && notError(a)
-            case LamAbs(_, body) => notError(body)
-            case Force(term)     => notError(term)
-            case Delay(term)     => notError(term)
-            case Const(_)        => true
-            case Builtin(_)      => true
-            case Var(_)          => true
-}
