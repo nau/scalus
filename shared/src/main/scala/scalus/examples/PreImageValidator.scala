@@ -1,31 +1,38 @@
 package scalus.examples
 
 import scalus.*
-import scalus.Compiler.{compile, fieldAsData}
-import scalus.builtin.Data.fromData
-import scalus.builtin.FromDataInstances.given
-import scalus.builtin.{Builtins, ByteString, Data, given}
+import scalus.Compiler.compile
+import scalus.Compiler.fieldAsData
+import scalus.builtin.Builtins
+import scalus.builtin.Data
+import scalus.builtin.given
 import scalus.ledger.api.v1.*
-import scalus.ledger.api.v1.FromDataInstances.given
-import scalus.prelude.{List, *}
 import scalus.sir.SIR
 import scalus.uplc.*
 
 @Compile
 object OptimizedPreimageValidator {
 
+    /** Validates that the preimage is correct for the given hash and public key hash. The public
+      * key hash must be a signatory of the transaction.
+      */
     def preimageValidator(datum: Data, redeemer: Data, ctxData: Data): Unit = {
-        fromData[(ByteString, ByteString)](datum) match
-            case (hash, pkh) =>
-                val preimage = fromData[ByteString](redeemer)
-                val signatories = fromData[List[PubKeyHash]](
-                  // deserialize only the signatories from the ScriptContext
-                  fieldAsData[ScriptContext](_.txInfo.signatories)(ctxData)
-                )
-
-                List.findOrFail(signatories) { sig => sig.hash == pkh }
-                if Builtins.sha2_256(preimage) == hash then ()
-                else throw new RuntimeException("Wrong preimage")
+        // datum is a pair of 2 bytestrings: sha2_256(preimage) and public key hash
+        val pair = Builtins.unConstrData(datum).snd
+        // get the hash
+        inline def hash = Builtins.unBData(pair.head)
+        // get the public key hash
+        val pkh = Builtins.unBData(pair.tail.head)
+        // get the preimage
+        inline def preimage = Builtins.unBData(redeemer)
+        val checkPubKeyHash = (s: Data) => Builtins.unBData(s) == pkh
+        def checkSignatories(sigs: builtin.List[Data]): Unit =
+            if checkPubKeyHash(sigs.head) then () else checkSignatories(sigs.tail)
+        // get the signatories of the transaction
+        inline def sigs =
+            Builtins.unListData(fieldAsData[ScriptContext](_.txInfo.signatories)(ctxData))
+        checkSignatories(sigs)
+        Builtins.sha2_256(preimage) == hash || (throw new RuntimeException("Wrong preimage"))
     }
 }
 

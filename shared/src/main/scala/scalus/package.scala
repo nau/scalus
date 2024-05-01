@@ -10,6 +10,10 @@ import scalus.uplc.Term
 import scalus.ledger.api.PlutusLedgerLanguage
 import scalus.utils.Utils
 package object scalus {
+
+    /** Pipe operator */
+    extension [A](inline a: A) inline infix def |>[B](inline f: A => B): B = f(a)
+
     extension (sir: SIR)
         def pretty: Doc = PrettyPrinter.pretty(sir, Style.Normal)
         def prettyXTerm: Doc = PrettyPrinter.pretty(sir, Style.XTerm)

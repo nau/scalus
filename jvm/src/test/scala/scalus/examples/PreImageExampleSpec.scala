@@ -9,15 +9,16 @@ import scalus.builtin.Data
 import scalus.builtin.Data.toData
 import scalus.builtin.FromDataInstances.given
 import scalus.builtin.given
+import scalus.ledger.api.v1.*
 import scalus.ledger.api.v1.FromDataInstances.given
 import scalus.ledger.api.v1.ToDataInstances.given
-import scalus.ledger.api.v1.*
+import scalus.prelude.*
 import scalus.prelude.List
 import scalus.prelude.List.Nil
-import scalus.prelude.*
+import scalus.sir.RemoveRecursivity.removeRecursivity
+import scalus.uplc.*
 import scalus.uplc.Term.*
 import scalus.uplc.TermDSL.{*, given}
-import scalus.uplc.*
 
 class PreImageExampleSpec extends BaseValidatorSpec {
     import scalus.builtin.ToDataInstances.given
@@ -113,8 +114,11 @@ class PreImageExampleSpec extends BaseValidatorSpec {
     }
 
     test("Preimage Validator Optimized") {
-        val flatSize = OptimizedPreimage.programV1.flatEncoded.length
-        assert(flatSize == 234)
-        performChecks(OptimizedPreimage.validator)
+        val optV = OptimizedPreimage.compiledOptimizedPreimageValidator |> removeRecursivity
+        val uplc = optV.toUplc()
+        val program = Program((1, 0, 0), uplc)
+        val flatSize = program.flatEncoded.length
+        assert(flatSize == 136)
+        performChecks(uplc)
     }
 }
