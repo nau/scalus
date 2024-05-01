@@ -457,7 +457,15 @@ final class SIRCompiler(mode: scalus.Mode)(using ctx: Context) {
         stmt match
             case vd: ValDef => compileValDef(env, vd)
             case dd: DefDef => compileDefDef(env, dd, isGlobalDef)
-            case x          => Some(B("_", NoSymbol, Recursivity.NonRec, compileExpr(env, x)))
+            case x =>
+                Some(
+                  B(
+                    s"__${stmt.source.file.name.takeWhile(_.isLetterOrDigit)}_line_${stmt.srcPos.line}",
+                    NoSymbol,
+                    Recursivity.NonRec,
+                    compileExpr(env, x)
+                  )
+                )
     }
 
     private def compileBlock(env: Env, stmts: immutable.List[Tree], expr: Tree): SIR = {
