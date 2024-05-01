@@ -29,21 +29,13 @@ type Value = AssocMap[CurrencySymbol, AssocMap[TokenName, BigInt]]
 object FromDataInstances {
     import scalus.builtin.FromDataInstances.given
 
-    given FromData[TxId] = (d: Data) =>
-        val hash = fromData[ByteString](unConstrData(d).snd.head)
-        new TxId(hash)
+    given FromData[TxId] = (d: Data) => new TxId(unBData(unConstrData(d).snd.head))
 
-    given FromData[PubKeyHash] = (d: Data) =>
-        val hash = fromData[ByteString](d)
-        new PubKeyHash(hash)
+    given FromData[PubKeyHash] = (d: Data) => new PubKeyHash(unBData(d))
 
     given FromData[TxOutRef] = (d: Data) =>
         val args = unConstrData(d).snd
-        val txidx = args.tail
-        new TxOutRef(
-          fromData[TxId](args.head),
-          fromData[BigInt](txidx.head)
-        )
+        new TxOutRef(fromData[TxId](args.head), unIData(args.tail.head))
 
     given FromData[DCert] = (d: Data) =>
         val pair = unConstrData(d)
@@ -65,7 +57,7 @@ object FromDataInstances {
         else if tag == BigInt(4) then
             new DCert.PoolRetire(
               fromData[PubKeyHash](args.head),
-              fromData[BigInt](args.tail.head)
+              unIData(args.tail.head)
             )
         else if tag == BigInt(5) then DCert.Genesis
         else if tag == BigInt(6) then DCert.Mir
@@ -74,9 +66,8 @@ object FromDataInstances {
     given ExtendedFromData[A: FromData]: FromData[Extended[A]] = (d: Data) =>
         val pair = unConstrData(d)
         val tag = pair.fst
-        val args = pair.snd
         if tag == BigInt(0) then Extended.NegInf
-        else if tag == BigInt(1) then new Extended.Finite(fromData[A](args.head))
+        else if tag == BigInt(1) then new Extended.Finite(fromData[A](pair.snd.head))
         else if tag == BigInt(2) then Extended.PosInf
         else throw new Exception(s"Unknown Extended tag: $tag")
 
@@ -85,23 +76,21 @@ object FromDataInstances {
         val tag = pair.fst
         val args = pair.snd
         if tag == BigInt(0) then new Credential.PubKeyCredential(fromData[PubKeyHash](args.head))
-        else if tag == BigInt(1) then
-            new Credential.ScriptCredential(fromData[ByteString](args.head))
+        else if tag == BigInt(1) then new Credential.ScriptCredential(unBData(args.head))
         else throw new Exception(s"Unknown Credential tag: $tag")
 
     given FromData[StakingCredential] =
         (d: Data) =>
             val pair = unConstrData(d)
             val tag = pair.fst
+            val args = pair.snd
             if tag == BigInt(0) then
-                new StakingCredential.StakingHash(fromData[Credential](pair.snd.head))
+                new StakingCredential.StakingHash(fromData[Credential](args.head))
             else if tag == BigInt(1) then
-                val fromBI = summon[FromData[BigInt]]
-                val ptrs = pair.snd
                 new StakingCredential.StakingPtr(
-                  fromBI(ptrs.head),
-                  fromBI(ptrs.tail.head),
-                  fromBI(ptrs.tail.tail.head)
+                  unIData(args.head),
+                  unIData(args.tail.head),
+                  unIData(args.tail.tail.head)
                 )
             else throw new RuntimeException("Invalid tag")
 
@@ -117,15 +106,14 @@ object FromDataInstances {
         else throw new Exception(s"Unknown ScriptPurpose tag: $tag")
 
     given FromData[Address] = (d: Data) =>
-        val pair = unConstrData(d)
+        val args = unConstrData(d).snd
         new Address(
-          fromData[Credential](pair.snd.head),
-          fromData[Maybe[StakingCredential]](pair.snd.tail.head)
+          fromData[Credential](args.head),
+          fromData[Maybe[StakingCredential]](args.tail.head)
         )
 
     given FromData[TxOut] = (d: Data) =>
-        val pair = unConstrData(d)
-        val args = pair.snd
+        val args = unConstrData(d).snd
         new TxOut(
           fromData[Address](args.head),
           fromData[Value](args.tail.head),
@@ -133,40 +121,35 @@ object FromDataInstances {
         )
 
     given FromData[TxInInfo] = (d: Data) =>
-        val pair = unConstrData(d)
-        val args = pair.snd
+        val args = unConstrData(d).snd
         new TxInInfo(
           fromData[TxOutRef](args.head),
           fromData[TxOut](args.tail.head)
         )
 
     given UpperBoundFromData[A: FromData]: FromData[UpperBound[A]] = (d: Data) =>
-        val pair = unConstrData(d)
-        val args = pair.snd
+        val args = unConstrData(d).snd
         new UpperBound(
           fromData[Extended[A]](args.head),
           fromData[Closure](args.tail.head)
         )
 
     given LowerBoundFromData[A: FromData]: FromData[LowerBound[A]] = (d: Data) =>
-        val pair = unConstrData(d)
-        val args = pair.snd
+        val args = unConstrData(d).snd
         new LowerBound(
           fromData[Extended[A]](args.head),
           fromData[Closure](args.tail.head)
         )
 
     given IntervalFromData[A: FromData]: FromData[Interval[A]] = (d: Data) =>
-        val pair = unConstrData(d)
-        val args = pair.snd
+        val args = unConstrData(d).snd
         new Interval(
           fromData[LowerBound[A]](args.head),
           fromData[UpperBound[A]](args.tail.head)
         )
 
     given FromData[TxInfo] = (d: Data) =>
-        val pair = unConstrData(d)
-        val args = pair.snd
+        val args = unConstrData(d).snd
         val fromValue = summon[FromData[Value]]
         new TxInfo(
           fromData[List[TxInInfo]](args.head),
@@ -182,8 +165,7 @@ object FromDataInstances {
         )
 
     given FromData[ScriptContext] = (d: Data) =>
-        val pair = unConstrData(d)
-        val args = pair.snd
+        val args = unConstrData(d).snd
         new ScriptContext(
           fromData[TxInfo](args.head),
           fromData[ScriptPurpose](args.tail.head)

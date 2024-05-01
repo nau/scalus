@@ -24,15 +24,13 @@ object FromDataInstances {
         else throw new RuntimeException("Not a boolean")
 
     given ListFromData[A: FromData]: FromData[scalus.prelude.List[A]] = (d: Data) =>
-        val ls = unListData(d)
         def loop(ls: scalus.builtin.List[Data]): scalus.prelude.List[A] =
             if ls.isEmpty then prelude.List.Nil
             else new prelude.List.Cons(fromData[A](ls.head), loop(ls.tail))
-        loop(ls)
+        loop(unListData(d))
 
     given AssocMapFromData[A: FromData, B: FromData]: FromData[AssocMap[A, B]] =
         (d: Data) =>
-            val ls = unMapData(d)
             def loop(ls: scalus.builtin.List[Pair[Data, Data]]): prelude.List[(A, B)] =
                 if ls.isEmpty then prelude.List.Nil
                 else
@@ -41,7 +39,7 @@ object FromDataInstances {
                       (fromData[A](pair.fst), fromData[B](pair.snd)),
                       loop(ls.tail)
                     )
-            AssocMap.fromList(loop(ls))
+            AssocMap.fromList(loop(unMapData(d)))
 
     given MaybeFromData[A: FromData]: FromData[scalus.prelude.Maybe[A]] = (d: Data) =>
         val pair = unConstrData(d)
