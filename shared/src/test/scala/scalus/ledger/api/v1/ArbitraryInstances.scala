@@ -8,33 +8,26 @@ import scalus.builtin
 import scalus.builtin.ByteString
 
 trait ArbitraryInstances extends scalus.uplc.ArbitraryInstances:
-    given Arbitrary[Extended[POSIXTime]] = Arbitrary {
+    given Arbitrary[IntervalBoundType] = Arbitrary {
         Gen.frequency(
-          (1, Gen.const(Extended.NegInf)),
-          (1, Gen.const(Extended.PosInf)),
-          (8, Arbitrary.arbitrary[POSIXTime].map(Extended.Finite(_)))
+          (1, Gen.const(IntervalBoundType.NegInf)),
+          (1, Gen.const(IntervalBoundType.PosInf)),
+          (8, Arbitrary.arbitrary[PosixTime].map(IntervalBoundType.Finite(_)))
         )
     }
 
-    given Arbitrary[LowerBound[POSIXTime]] = Arbitrary {
+    given Arbitrary[IntervalBound] = Arbitrary {
         for
-            time <- Arbitrary.arbitrary[Extended[POSIXTime]]
+            time <- Arbitrary.arbitrary[IntervalBoundType]
             closure <- Arbitrary.arbitrary[Boolean]
-        yield LowerBound(time, closure)
+        yield IntervalBound(time, closure)
     }
 
-    given Arbitrary[UpperBound[POSIXTime]] = Arbitrary {
+    given Arbitrary[Interval] = Arbitrary {
         for
-            time <- Arbitrary.arbitrary[Extended[POSIXTime]]
-            closure <- Arbitrary.arbitrary[Boolean]
-        yield UpperBound(time, closure)
-    }
-
-    given Arbitrary[Interval[POSIXTime]] = Arbitrary {
-        for
-            lower <- Arbitrary.arbitrary[LowerBound[POSIXTime]]
-            upper <- Arbitrary.arbitrary[UpperBound[POSIXTime]]
-        yield Interval[POSIXTime](lower, upper)
+            lower <- Arbitrary.arbitrary[IntervalBound]
+            upper <- Arbitrary.arbitrary[IntervalBound]
+        yield Interval(lower, upper)
     }
 
     given Arbitrary[TxId] = Arbitrary {

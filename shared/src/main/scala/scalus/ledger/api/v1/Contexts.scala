@@ -11,6 +11,7 @@ import scalus.prelude.AssocMap
 import scalus.prelude.List
 import scalus.prelude.Maybe
 import scalus.prelude.Prelude.===
+import scalus.prelude.Prelude.given
 import scalus.prelude.Prelude.Eq
 
 type ValidatorHash = ByteString
@@ -21,8 +22,12 @@ type ScriptHash = ByteString
 type RedeemerHash = ByteString
 type CurrencySymbol = ByteString
 type TokenName = ByteString
+@deprecated("Use `PosixTime` instead", "0.7.0")
 type POSIXTime = BigInt
-type POSIXTimeRange = Interval[POSIXTime]
+type PosixTime = BigInt
+@deprecated("Use `Interval` instead", "0.7.0")
+type POSIXTimeRange = Interval
+type PosixTimeRange = Interval
 type Value = AssocMap[CurrencySymbol, AssocMap[TokenName, BigInt]]
 
 @Compile
@@ -63,13 +68,13 @@ object FromDataInstances {
         else if tag == BigInt(6) then DCert.Mir
         else throw new Exception(s"Unknown DCert tag: $tag")
 
-    given ExtendedFromData[A: FromData]: FromData[Extended[A]] = (d: Data) =>
+    given FromData[IntervalBoundType] = (d: Data) =>
         val pair = unConstrData(d)
         val tag = pair.fst
-        if tag == BigInt(0) then Extended.NegInf
-        else if tag == BigInt(1) then new Extended.Finite(fromData[A](pair.snd.head))
-        else if tag == BigInt(2) then Extended.PosInf
-        else throw new Exception(s"Unknown Extended tag: $tag")
+        if tag == BigInt(0) then IntervalBoundType.NegInf
+        else if tag == BigInt(1) then new IntervalBoundType.Finite(unIData(pair.snd.head))
+        else if tag == BigInt(2) then IntervalBoundType.PosInf
+        else throw new Exception(s"Unknown IntervalBoundType tag: $tag")
 
     given FromData[Credential] = (d: Data) =>
         val pair = unConstrData(d)
@@ -127,25 +132,18 @@ object FromDataInstances {
           fromData[TxOut](args.tail.head)
         )
 
-    given UpperBoundFromData[A: FromData]: FromData[UpperBound[A]] = (d: Data) =>
+    given FromData[IntervalBound] = (d: Data) =>
         val args = unConstrData(d).snd
-        new UpperBound(
-          fromData[Extended[A]](args.head),
+        new IntervalBound(
+          fromData[IntervalBoundType](args.head),
           fromData[Closure](args.tail.head)
         )
 
-    given LowerBoundFromData[A: FromData]: FromData[LowerBound[A]] = (d: Data) =>
-        val args = unConstrData(d).snd
-        new LowerBound(
-          fromData[Extended[A]](args.head),
-          fromData[Closure](args.tail.head)
-        )
-
-    given IntervalFromData[A: FromData]: FromData[Interval[A]] = (d: Data) =>
+    given FromData[Interval] = (d: Data) =>
         val args = unConstrData(d).snd
         new Interval(
-          fromData[LowerBound[A]](args.head),
-          fromData[UpperBound[A]](args.tail.head)
+          fromData[IntervalBound](args.head),
+          fromData[IntervalBound](args.tail.head)
         )
 
     given FromData[TxInfo] = (d: Data) =>
@@ -158,7 +156,7 @@ object FromDataInstances {
           fromValue(args.tail.tail.tail.head),
           fromData[List[DCert]](args.tail.tail.tail.tail.head),
           fromData[List[(StakingCredential, BigInt)]](args.tail.tail.tail.tail.tail.head),
-          fromData[Interval[POSIXTime]](args.tail.tail.tail.tail.tail.tail.head),
+          fromData[Interval](args.tail.tail.tail.tail.tail.tail.head),
           fromData[List[PubKeyHash]](args.tail.tail.tail.tail.tail.tail.tail.head),
           fromData[List[(DatumHash, Datum)]](args.tail.tail.tail.tail.tail.tail.tail.tail.head),
           fromData[TxId](args.tail.tail.tail.tail.tail.tail.tail.tail.tail.head)
@@ -174,14 +172,23 @@ object FromDataInstances {
 }
 
 type Closure = Boolean
-enum Extended[+A]:
-    case NegInf extends Extended[Nothing]
-    case Finite(a: A)
-    case PosInf extends Extended[Nothing]
+
+/** A type to represent the bounds of an interval.
+  *   - `NegInf` represents negative infinity
+  *   - `Finite(time)` represents a finite bound
+  *   - `PosInf` represents positive infinity
+  */
+enum IntervalBoundType:
+    case NegInf
+    case Finite(time: PosixTime)
+    case PosInf
+
+@deprecated("Use `IntervalBoundType` instead", "0.7.0")
+type Extended[T] = IntervalBoundType
 
 @Compile
-object Extended {
-    given Eq[A: Eq]: Eq[Extended[A]] = (x: Extended[A], y: Extended[A]) =>
+object IntervalBoundType {
+    given Eq[IntervalBoundType] = (x: IntervalBoundType, y: IntervalBoundType) =>
         x match
             case NegInf =>
                 y match
@@ -197,48 +204,87 @@ object Extended {
                     case _      => false
 }
 
-case class UpperBound[A](upper: Extended[A], closure: Closure)
+/** An interval bound, either inclusive or exclusive.
+  * @param boundType
+  *   the type of the bound
+  * @param isInclusive
+  *   whether the bound is inclusive or not
+  */
+case class IntervalBound(boundType: IntervalBoundType, isInclusive: Closure)
+@deprecated("Use `IntervalBound` instead", "0.7.0")
+type UpperBound[A] = IntervalBound
+@deprecated("Use `IntervalBound` instead", "0.7.0")
+type LowerBound[A] = IntervalBound
 @Compile
-object UpperBound:
-    given Eq[A: Eq]: Eq[UpperBound[A]] = (x: UpperBound[A], y: UpperBound[A]) =>
+object IntervalBound:
+    given Eq[IntervalBound] = (x: IntervalBound, y: IntervalBound) =>
         x match
-            case UpperBound(upper1, closure1) =>
+            case IntervalBound(bound, closure1) =>
                 y match
-                    case UpperBound(upper2, closure2) =>
-                        upper1 === upper2 && closure1 == closure2
+                    case IntervalBound(bound2, closure2) =>
+                        bound === bound2 && closure1 == closure2
 
-case class LowerBound[A](extended: Extended[A], closure: Closure)
-@Compile
-object LowerBound:
-    given Eq[A: Eq]: Eq[LowerBound[A]] = (x: LowerBound[A], y: LowerBound[A]) =>
-        x match
-            case LowerBound(extended1, closure1) =>
-                y match
-                    case LowerBound(extended2, closure2) =>
-                        extended1 === extended2 && closure1 == closure2
-
-case class Interval[A](from: LowerBound[A], to: UpperBound[A])
+/** A type to represent time intervals.
+  * @param from
+  *   the lower bound of the interval
+  * @param to
+  *   the upper bound of the interval
+  */
+case class Interval(from: IntervalBound, to: IntervalBound)
 
 @Compile
 object Interval:
-    given Eq[A: Eq]: Eq[Interval[A]] = (x: Interval[A], y: Interval[A]) =>
+    given Eq[Interval] = (x: Interval, y: Interval) =>
         x match
             case Interval(from1, to1) =>
                 y match
                     case Interval(from2, to2) =>
                         from1 === from2 && to1 === to2
 
-    def always[A]: Interval[A] =
-        new Interval(new LowerBound(Extended.NegInf, true), new UpperBound(Extended.PosInf, true))
+    /** Non-inclusive -∞ interval bound */
+    val negInf: IntervalBound = new IntervalBound(IntervalBoundType.NegInf, false)
 
-    def lowerBound[A](a: A): LowerBound[A] = new LowerBound(new Extended.Finite(a), true)
-    def upperBound[A](a: A): UpperBound[A] = new UpperBound(new Extended.Finite(a), true)
+    /** Non-inclusive +∞ interval bound */
+    val posInf: IntervalBound = new IntervalBound(IntervalBoundType.PosInf, false)
 
-    def from[A](a: A): Interval[A] =
-        new Interval(lowerBound(a), new UpperBound(Extended.PosInf, true))
+    /** Non-inclusive -∞ to +∞ interval */
+    val always: Interval = new Interval(negInf, posInf)
 
-    def to[A](a: A): Interval[A] =
-        new Interval(new LowerBound(Extended.NegInf, true), upperBound(a))
+    @deprecated("Use `finite` instead", "0.7.0")
+    def lowerBound[A](a: PosixTime): LowerBound[A] =
+        new IntervalBound(new IntervalBoundType.Finite(a), true)
+    @deprecated("Use `finite` instead", "0.7.0")
+    def upperBound[A](a: PosixTime): UpperBound[A] =
+        new IntervalBound(new IntervalBoundType.Finite(a), true)
+
+    /** Create a finite interval bound */
+    def finite(time: PosixTime): IntervalBound =
+        new IntervalBound(IntervalBoundType.Finite(time), true)
+
+    @deprecated("Use `after` instead", "0.7.0")
+    def from[A](a: PosixTime): Interval =
+        new Interval(finite(a), posInf)
+
+    @deprecated("Use `before` instead", "0.7.0")
+    def to[A](a: PosixTime): Interval =
+        new Interval(negInf, finite(a))
+
+    /** Creates an interval that includes all values greater than the given bound. i.e
+      * [lower_bound,+∞)
+      */
+    def after(time: PosixTime): Interval =
+        new Interval(finite(time), posInf)
+
+    /** Creates an interval that includes all values less than the given bound. i.e (-∞,upper_bound]
+      */
+    def before(time: PosixTime): Interval =
+        new Interval(negInf, finite(time))
+
+    /** Creates an interval that includes all values between the given bounds. i.e [lower_bound,
+      * upper_bound]
+      */
+    def between(from: PosixTime, to: PosixTime): Interval =
+        new Interval(finite(from), finite(to))
 
 enum DCert:
     case DelegRegKey(cred: StakingCredential)
@@ -379,7 +425,7 @@ case class TxInfo(
     mint: Value,
     dcert: List[DCert],
     withdrawals: List[(StakingCredential, BigInt)],
-    validRange: POSIXTimeRange,
+    validRange: PosixTimeRange,
     signatories: List[PubKeyHash],
     data: List[(DatumHash, Datum)],
     id: TxId

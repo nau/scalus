@@ -57,7 +57,7 @@ object FromDataInstances {
           fromValue(args.tail.tail.tail.tail.head),
           fromData[List[DCert]](args.tail.tail.tail.tail.tail.head),
           fromData[AssocMap[StakingCredential, BigInt]](args.tail.tail.tail.tail.tail.tail.head),
-          fromData[POSIXTimeRange](args.tail.tail.tail.tail.tail.tail.tail.head),
+          fromData[PosixTimeRange](args.tail.tail.tail.tail.tail.tail.tail.head),
           fromData[List[PubKeyHash]](args.tail.tail.tail.tail.tail.tail.tail.tail.head),
           fromData[AssocMap[ScriptPurpose, Redeemer]](
             args.tail.tail.tail.tail.tail.tail.tail.tail.tail.head
@@ -120,7 +120,7 @@ case class TxInfo(
     mint: Value,
     dcert: List[DCert],
     withdrawals: AssocMap[StakingCredential, BigInt],
-    validRange: POSIXTimeRange,
+    validRange: PosixTimeRange,
     signatories: List[PubKeyHash],
     redeemers: AssocMap[ScriptPurpose, Redeemer],
     data: AssocMap[DatumHash, Datum],

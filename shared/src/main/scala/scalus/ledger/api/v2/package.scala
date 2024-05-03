@@ -15,7 +15,9 @@ package object v2 {
     export scalus.ledger.api.v1.Interval
     export scalus.ledger.api.v1.LowerBound
     export scalus.ledger.api.v1.POSIXTime
+    export scalus.ledger.api.v1.PosixTime
     export scalus.ledger.api.v1.POSIXTimeRange
+    export scalus.ledger.api.v1.PosixTimeRange
     export scalus.ledger.api.v1.PubKeyHash
     export scalus.ledger.api.v1.Redeemer
     export scalus.ledger.api.v1.RedeemerHash

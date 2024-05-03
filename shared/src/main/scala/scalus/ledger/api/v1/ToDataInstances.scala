@@ -50,11 +50,11 @@ object ToDataInstances {
             case DCert.Genesis => constrData(5, mkNilData())
             case DCert.Mir     => constrData(6, mkNilData())
 
-    given ExtendedLift[A: ToData, T[A] <: Extended[A]]: ToData[T[A]] = (a: T[A]) =>
+    given IntervalBoundTypeLift[T <: IntervalBoundType]: ToData[T] = (a: T) =>
         a match
-            case Extended.NegInf    => constrData(0, mkNilData())
-            case Extended.Finite(a) => constrData(1, a.toData :: mkNilData())
-            case Extended.PosInf    => constrData(2, mkNilData())
+            case IntervalBoundType.NegInf    => constrData(0, mkNilData())
+            case IntervalBoundType.Finite(a) => constrData(1, iData(a) :: mkNilData())
+            case IntervalBoundType.PosInf    => constrData(2, mkNilData())
 
     given CredentialToData[T <: Credential]: ToData[T] = (a: T) =>
         a match
@@ -93,19 +93,9 @@ object ToDataInstances {
 
     given ToData[TxInInfo] = ToData.deriveCaseClass[TxInInfo](0)
 
-    given LowerBoundToData[A: ToData]: ToData[LowerBound[A]] = (a: LowerBound[A]) =>
+    given ToData[IntervalBound] = (a: IntervalBound) =>
         a match
-            case LowerBound(a, b) =>
-                constrData(
-                  0,
-                  mkCons(
-                    a.toData,
-                    mkCons(b.toData, mkNilData())
-                  )
-                )
-    given UpperBoundToData[A: ToData]: ToData[UpperBound[A]] = (a: UpperBound[A]) =>
-        a match
-            case UpperBound(a, b) =>
+            case IntervalBound(a, b) =>
                 constrData(
                   0,
                   mkCons(
@@ -114,7 +104,7 @@ object ToDataInstances {
                   )
                 )
 
-    given intervalToData[A: ToData]: ToData[Interval[A]] = (a: Interval[A]) =>
+    given ToData[Interval] = (a: Interval) =>
         a match
             case Interval(a, b) =>
                 constrData(

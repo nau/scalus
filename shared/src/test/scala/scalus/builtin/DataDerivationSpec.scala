@@ -37,8 +37,8 @@ class DataDerivationSpec extends AnyFunSuite with ScalaCheckPropertyChecks with 
               Constr(
                 0,
                 immutable.List(
-                  Constr(0, immutable.List(Constr(0, Nil), Constr(1, Nil))),
-                  Constr(0, immutable.List(Constr(2, Nil), Constr(1, Nil)))
+                  Constr(0, immutable.List(Constr(0, Nil), Constr(0, Nil))),
+                  Constr(0, immutable.List(Constr(2, Nil), Constr(0, Nil)))
                 )
               ),
               List(Nil),

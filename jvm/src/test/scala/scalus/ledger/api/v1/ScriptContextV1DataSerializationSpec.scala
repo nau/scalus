@@ -39,7 +39,7 @@ class ScriptContextV1DataSerializationSpec extends BaseValidatorSpec:
   print (bs2Hex (Builtins.serialiseData (toBuiltinData sc)))
      */
     val plutusSerializedData =
-        "d8799fd8799f809fd8799fd8799fd8799f420001ffd8799fd8799fd8799f4461613031ffffffffa141aaa142626203d8799f4464616461ffffffa141aaa14355534401a141aaa143455552028080d8799fd8799fd87980d87a80ffd8799fd87b80d87a80ffff9f497369676e61746f7279ff80d8799f423131ffffd87a9fd8799fd8799f486465616462656566ff02ffffff"
+        "d8799fd8799f809fd8799fd8799fd8799f420001ffd8799fd8799fd8799f4461613031ffffffffa141aaa142626203d8799f4464616461ffffffa141aaa14355534401a141aaa143455552028080d8799fd8799fd87980d87980ffd8799fd87b80d87980ffff9f497369676e61746f7279ff80d8799f423131ffffd87a9fd8799fd8799f486465616462656566ff02ffffff"
 
     /*
   serialisedDeserialiserV1 = B16.encode . Serialise.serialise . fromCompiledCode $ $$(PlutusTx.compile [||unsafeFromBuiltinData @V1.ScriptContext||])
