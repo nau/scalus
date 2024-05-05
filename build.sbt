@@ -152,8 +152,8 @@ lazy val `examples-js` = project
       PluginDependency
     )
 
-lazy val bloxbeanTxEval = project
-    .in(file("bloxbean-tx-eval"))
+lazy val scalusBloxbeanCardanoClientLib = project
+    .in(file("bloxbean-cardano-client-lib"))
     .dependsOn(scalus.jvm)
     .settings(
       publish / skip := true,

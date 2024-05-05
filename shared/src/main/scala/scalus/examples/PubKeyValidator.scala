@@ -23,15 +23,21 @@ object PubKeyValidator {
         findSignatureOrFail(signatories)
     }
 
-    def validatorV2(datum: Unit, redeemer: Unit, ctx: Data) = {
+    inline def validatorV2(inline pubKey: ByteString)(datum: Unit, redeemer: Unit, ctx: Data) = {
         import scalus.ledger.api.v2.ScriptContext
         val signatories = unListData(fieldAsData[ScriptContext](_.txInfo.signatories)(ctx))
+        trace("got signatories")(())
 
         def findSignatureOrFail(sigs: builtin.List[Data]): Unit =
+            trace("check sigs")(())
             if signatories.isEmpty then throw new RuntimeException("Signature not found")
-            else if unBData(signatories.head) == hex"deadbeef"
-            then ()
-            else findSignatureOrFail(signatories.tail)
+            else if unBData(signatories.head) == pubKey
+            then
+                trace("found!")(())
+                ()
+            else
+                trace("nope")(())
+                findSignatureOrFail(signatories.tail)
 
         findSignatureOrFail(signatories)
     }

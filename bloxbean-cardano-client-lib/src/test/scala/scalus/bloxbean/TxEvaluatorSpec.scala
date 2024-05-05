@@ -55,6 +55,7 @@ import com.bloxbean.cardano.client.address.Address
 import com.bloxbean.cardano.client.address.AddressProvider
 import com.bloxbean.cardano.client.spec.Script
 import scalus.builtin.Data
+import com.bloxbean.cardano.client.plutus.spec.ExUnits
 
 class TxEvaluatorSpec extends AnyFunSuite:
     val senderMnemonic =
@@ -68,7 +69,8 @@ class TxEvaluatorSpec extends AnyFunSuite:
           SlotConfig.default,
           initialBudgetConfig = ExBudget.fromCpuAndMemory(10_000000000L, 10_000000L)
         )
-        val pubKeyValidator = compile(PubKeyValidator.validatorV2).toPlutusProgram((1, 0, 0))
+        val pubKeyValidator = compile(PubKeyValidator.validatorV2(hex"deadbeef")).toPlutusProgram((1, 0, 0))
+        println(pubKeyValidator.prettyXTerm.render(80))
         val s: PlutusV2Script =
             PlutusV2Script
                 .builder()
@@ -77,7 +79,9 @@ class TxEvaluatorSpec extends AnyFunSuite:
                 .asInstanceOf[PlutusV2Script]
         val scripts: List[PlutusScript] = List.of(s)
         val pubKeyScriptAddress = AddressProvider.getEntAddress(s, Networks.testnet())
-        println(s"Pubkey script address: ${pubKeyScriptAddress.getAddress()}, type hash: ${pubKeyScriptAddress.getPaymentCredentialHash().map(ByteString.fromArray)}")
+        println(
+          s"Pubkey script address: ${pubKeyScriptAddress.getAddress()}, type hash: ${pubKeyScriptAddress.getPaymentCredentialHash().map(ByteString.fromArray)}"
+        )
         val utxo = Set.of(
           Utxo.builder
               .txHash("deadbeef")
@@ -93,6 +97,13 @@ class TxEvaluatorSpec extends AnyFunSuite:
             .tag(RedeemerTag.Spend)
             .data(PlutusData.unit())
             .index(BigInteger.ZERO)
+            .exUnits(
+              ExUnits
+                  .builder()
+                  .mem(BigInteger.valueOf(1000000L))
+                  .steps(BigInteger.valueOf(1000000L))
+                  .build()
+            )
             .build()
         val tx = Transaction
             .builder()
@@ -102,6 +113,7 @@ class TxEvaluatorSpec extends AnyFunSuite:
                   .fee(ADAConversionUtil.adaToLovelace(0.2))
                   .ttl(1000)
                   .inputs(inputs)
+                  .requiredSigners(List.of(hex"deadbeef".bytes))
                   .build()
             )
             .witnessSet(
