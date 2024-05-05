@@ -51,8 +51,17 @@ import com.bloxbean.cardano.client.transaction.spec.TransactionBody
 import com.bloxbean.cardano.client.transaction.spec.TransactionInput
 import com.bloxbean.cardano.client.api.model.Utxo
 import com.bloxbean.cardano.client.api.model.Amount
+import com.bloxbean.cardano.client.address.Address
+import com.bloxbean.cardano.client.address.AddressProvider
+import com.bloxbean.cardano.client.spec.Script
+import scalus.builtin.Data
 
 class TxEvaluatorSpec extends AnyFunSuite:
+    val senderMnemonic =
+        "drive useless envelope shine range ability time copper alarm museum near flee wrist live type device meadow allow churn purity wisdom praise drop code";
+    val sender1 = new Account(Networks.testnet(), senderMnemonic);
+    val sender1Addr = sender1.baseAddress();
+
     test("TxEvaluator ") {
         import scala.jdk.CollectionConverters.*
         val evaluator = TxEvaluator(
@@ -67,11 +76,15 @@ class TxEvaluatorSpec extends AnyFunSuite:
                 .build()
                 .asInstanceOf[PlutusV2Script]
         val scripts: List[PlutusScript] = List.of(s)
+        val pubKeyScriptAddress = AddressProvider.getEntAddress(s, Networks.testnet())
+        println(s"Pubkey script address: ${pubKeyScriptAddress.getAddress()}, type hash: ${pubKeyScriptAddress.getPaymentCredentialHash().map(ByteString.fromArray)}")
         val utxo = Set.of(
           Utxo.builder
               .txHash("deadbeef")
               .outputIndex(0)
               .amount(List.of(Amount.ada(20)))
+              .address(pubKeyScriptAddress.getAddress())
+              .dataHash(PlutusData.unit().getDatumHash())
               .build()
         )
         val inputs = List.of(TransactionInput.builder().transactionId("deadbeef").index(0).build())
@@ -96,6 +109,7 @@ class TxEvaluatorSpec extends AnyFunSuite:
                   .builder()
                   .plutusV2Scripts(List.of(s))
                   .redeemers(List.of(redeemer))
+                  .plutusDataList(List.of(PlutusData.unit()))
                   .build()
             )
             .build()
@@ -111,10 +125,7 @@ class TxEvaluatorSpec extends AnyFunSuite:
             new DefaultProtocolParamsSupplier(backendService.getEpochService)
         val evaluator = ScalusTransactionEvaluator(utxoSupplier, protocolParamsSupplier)
         // addr_test1qp73ljurtknpm5fgey5r2y9aympd33ksgw0f8rc5khheg83y35rncur9mjvs665cg4052985ry9rzzmqend9sqw0cdksxvefah
-        val senderMnemonic =
-            "drive useless envelope shine range ability time copper alarm museum near flee wrist live type device meadow allow churn purity wisdom praise drop code";
-        val sender1 = new Account(Networks.testnet(), senderMnemonic);
-        val sender1Addr = sender1.baseAddress();
+
         val utxoSelector = new DefaultUtxoSelector(utxoSupplier);
         val utxoOptional = utxoSelector.findFirst(
           sender1Addr,

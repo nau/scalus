@@ -28,6 +28,12 @@ import java.math.BigInteger
 import java.awt.image.LookupTable
 import scala.collection.Map
 import com.bloxbean.cardano.client.address.Address
+import io.bullet.borer.Cbor
+import org.checkerframework.checker.units.qual.s
+import scalus.prelude.AssocMap
+import scalus.ledger.api.v1.Interval
+import scalus.builtin.ByteString.given
+import scalus.ledger.api.v2.TxOut
 
 case class SlotConfig(zero_time: Long, zero_slot: Long, slot_length: Long)
 object SlotConfig {
@@ -124,7 +130,7 @@ class TxEvaluator(private val slotConfig: SlotConfig, private val initialBudgetC
             .collect(Collectors.toList())
     }
 
-    type Hash = String
+    type Hash = ByteString
     case class LookupTable(
         scripts: scala.collection.Map[Hash, (Language, Array[Byte])],
         datums: scala.collection.Map[Hash, PlutusData]
@@ -134,7 +140,25 @@ class TxEvaluator(private val slotConfig: SlotConfig, private val initialBudgetC
         tx: Transaction,
         utxos: Set[Utxo]
     ): LookupTable = {
-        LookupTable(Map.empty, Map.empty)
+        val datum = tx
+            .getWitnessSet()
+            .getPlutusDataList()
+            .asScala
+            .map: data =>
+                ByteString.fromArray(data.getDatumHashAsBytes()) -> data
+            .toMap
+        // FIXME: implement data in reference inputs
+        // FIXME: implement other script types
+        val scripts = tx
+            .getWitnessSet()
+            .getPlutusV2Scripts()
+            .asScala
+            .map: script =>
+                val decoded = Cbor.decode(Hex.hexToBytes(script.getCborHex())).to[Array[Byte]].value
+                val flatScript = Cbor.decode(decoded).to[Array[Byte]].value
+                ByteString.fromArray(script.getScriptHash) -> (Language.PLUTUS_V2, flatScript)
+            .toMap
+        LookupTable(scripts, datum)
         /*Map<Hash, PlutusData> datum = new HashMap<>();
         Map<Hash, ScriptVersion> scripts = new HashMap<>();
 
@@ -292,7 +316,7 @@ class TxEvaluator(private val slotConfig: SlotConfig, private val initialBudgetC
     ): Unit = {
         // TODO:
         for (script <- scripts.asScala) {
-            if (!lookupTable.scripts.contains(Hex.bytesToHex(script.getScriptHash))) {
+            if (!lookupTable.scripts.contains(ByteString.fromArray(script.getScriptHash))) {
                 throw new IllegalStateException(s"Missing script: ${script.getScriptHash}")
             }
         }
@@ -582,6 +606,8 @@ class TxEvaluator(private val slotConfig: SlotConfig, private val initialBudgetC
           tx.getBody.getWithdrawals
         )
 
+        println(s"Eval redeemer: $purpose")
+
         val executionPurpose = getExecutionPurpose(utxos, purpose, lookupTable)
 
         executionPurpose match
@@ -613,19 +639,36 @@ class TxEvaluator(private val slotConfig: SlotConfig, private val initialBudgetC
                             )
                         catch
                             case e: StackTraceMachineError =>
-                                throw new IllegalStateException("MachineError")
+                                println(e.getCekStack.map(_.toString).mkString("\n"))
+                                throw new IllegalStateException("MachineError", e)
 
             case _ => ???
 
     }
+
+    def getTxInInfo() = {}
+
+    // def getTxOut(): TxOut = {}
 
     def getTxInfoV2(
         tx: Transaction,
         utxos: Set[Utxo],
         slotConfig: SlotConfig
     ): TxInfo = {
-        // implementation goes here
-        null
+        TxInfo(
+          inputs = scalus.prelude.List.Nil,
+          referenceInputs = scalus.prelude.List.Nil,
+          outputs = scalus.prelude.List.Nil,
+          fee = scalus.ledger.api.v1.Value.lovelace(BigInt("188021")),
+          mint = scalus.ledger.api.v1.Value.lovelace(BigInt("188021")),
+          dcert = scalus.prelude.List.Nil,
+          withdrawals = AssocMap.empty,
+          validRange = Interval.always,
+          signatories = scalus.prelude.List.Nil,
+          redeemers = AssocMap.empty,
+          data = AssocMap.empty,
+          id = TxId(hex"deadbeef"),
+        )
     }
 
     enum ExecutionPurpose:
@@ -815,25 +858,27 @@ class TxEvaluator(private val slotConfig: SlotConfig, private val initialBudgetC
         purpose: ScriptPurpose,
         lookupTable: LookupTable
     ): ExecutionPurpose = {
+        println(s"Get execution purpose: $purpose, $lookupTable, $utxos")
         purpose match
             case ScriptPurpose.Minting(curSymbol) =>
                 ???
             case ScriptPurpose.Spending(txOutRef) =>
                 val utxo = utxos.asScala
                     .find(utxo =>
-                        utxo.getTxHash() == txOutRef.id.hash.toHex && utxo
+                        ByteString.fromHex(utxo.getTxHash) == txOutRef.id.hash && utxo
                             .getOutputIndex() == txOutRef.idx.toInt
                     )
                     .getOrElse(
                       throw new IllegalStateException("Input Not Found: " + txOutRef)
                     )
                 val address = Address(utxo.getAddress())
-                val hash = Hex.bytesToHex(address.getPaymentCredentialHash().orElseThrow())
+                println(s"Address: ${address.getPaymentCredential().get().getType()}")
+                val hash = ByteString.fromArray(address.getPaymentCredentialHash().orElseThrow())
                 val (version, script) = lookupTable.scripts.getOrElse(
                   hash,
                   throw new IllegalStateException("Script Not Found")
                 )
-                val datumHash = utxo.getDataHash().nn
+                val datumHash = ByteString.fromHex(utxo.getDataHash().nn)
                 val datum = lookupTable.datums.getOrElse(
                   datumHash,
                   throw new IllegalStateException("Datum Not Found")
@@ -856,6 +901,7 @@ class TxEvaluator(private val slotConfig: SlotConfig, private val initialBudgetC
         println(s"Eval phase two $tx, $utxos, $costMdls, $initialBudget, $slotConfig, $runPhaseOne")
         val redeemers = tx.getWitnessSet.getRedeemers
         val lookupTable = getScriptAndDatumLookupTable(tx, utxos)
+        println(s"Lookup table: $lookupTable")
 
         if runPhaseOne then
             // Subset of phase 1 check on redeemers and scripts
