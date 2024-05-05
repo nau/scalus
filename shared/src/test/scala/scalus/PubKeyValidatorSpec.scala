@@ -3,32 +3,16 @@ package scalus
 import org.scalatest.funsuite.AnyFunSuite
 import org.scalatestplus.scalacheck.ScalaCheckPropertyChecks
 import scalus.Compiler.compile
-import scalus.builtin.Builtins.*
 import scalus.builtin.ByteString
 import scalus.builtin.ByteString.given
 import scalus.builtin.Data
-import scalus.ledger.api.v1.ToDataInstances.given
+import scalus.examples.PubKeyValidator
 import scalus.ledger.api.v1.*
+import scalus.ledger.api.v1.ToDataInstances.given
 import scalus.prelude.List.Cons
 import scalus.prelude.List.Nil
 import scalus.uplc.*
 import scalus.uplc.eval.VM
-
-@Compile
-object PubKeyValidator {
-    def validator(redeemer: Unit, datum: Unit, ctx: Data) = {
-        val txinfo = unConstrData(unConstrData(ctx).snd.head).snd
-        val signatories = unListData(txinfo.tail.tail.tail.tail.tail.tail.tail.head)
-
-        def findSignatureOrFail(sigs: builtin.List[Data]): Unit =
-            if signatories.isEmpty then throw new RuntimeException("Signature not found")
-            else if unBData(signatories.head) == hex"deadbeef"
-            then ()
-            else findSignatureOrFail(signatories.tail)
-
-        findSignatureOrFail(signatories)
-    }
-}
 
 class PubKeyValidatorSpec extends AnyFunSuite with ScalaCheckPropertyChecks:
     test("PubKey Validator example") {
