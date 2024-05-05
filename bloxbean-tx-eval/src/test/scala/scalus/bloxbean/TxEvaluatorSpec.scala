@@ -14,6 +14,8 @@ import com.bloxbean.cardano.client.plutus.spec.CostMdls
 import com.bloxbean.cardano.client.plutus.spec.PlutusData
 import com.bloxbean.cardano.client.plutus.spec.PlutusScript
 import com.bloxbean.cardano.client.plutus.spec.PlutusV2Script
+import com.bloxbean.cardano.client.plutus.spec.Redeemer
+import com.bloxbean.cardano.client.plutus.spec.RedeemerTag
 import com.bloxbean.cardano.client.quicktx.QuickTxBuilder
 import com.bloxbean.cardano.client.quicktx.ScriptTx
 import com.bloxbean.cardano.client.transaction.spec.Asset
@@ -45,8 +47,12 @@ import java.math.BigInteger
 import java.util.List
 import java.util.Set
 import scala.util.Random
+import com.bloxbean.cardano.client.transaction.spec.TransactionBody
+import com.bloxbean.cardano.client.transaction.spec.TransactionInput
+import com.bloxbean.cardano.client.api.model.Utxo
+import com.bloxbean.cardano.client.api.model.Amount
 
-class FlatSpec extends AnyFunSuite:
+class TxEvaluatorSpec extends AnyFunSuite:
     test("TxEvaluator ") {
         import scala.jdk.CollectionConverters.*
         val evaluator = TxEvaluator(
@@ -61,17 +67,40 @@ class FlatSpec extends AnyFunSuite:
                 .build()
                 .asInstanceOf[PlutusV2Script]
         val scripts: List[PlutusScript] = List.of(s)
+        val utxo = Set.of(
+          Utxo.builder
+              .txHash("deadbeef")
+              .outputIndex(0)
+              .amount(List.of(Amount.ada(20)))
+              .build()
+        )
+        val inputs = List.of(TransactionInput.builder().transactionId("deadbeef").index(0).build())
+        val redeemer = Redeemer
+            .builder()
+            .tag(RedeemerTag.Spend)
+            .data(PlutusData.unit())
+            .index(BigInteger.ZERO)
+            .build()
         val tx = Transaction
             .builder()
+            .body(
+              TransactionBody
+                  .builder()
+                  .fee(ADAConversionUtil.adaToLovelace(0.2))
+                  .ttl(1000)
+                  .inputs(inputs)
+                  .build()
+            )
             .witnessSet(
               TransactionWitnessSet
                   .builder()
                   .plutusV2Scripts(List.of(s))
+                  .redeemers(List.of(redeemer))
                   .build()
             )
             .build()
         val costMdls = CostMdls()
-        evaluator.evaluateTx(tx, Set.of(), scripts, costMdls)
+        evaluator.evaluateTx(tx, utxo, scripts, costMdls)
     }
 
     ignore("Blockfrost testnet evaluate tx with minting policy v2") {
