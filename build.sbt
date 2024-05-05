@@ -152,6 +152,18 @@ lazy val `examples-js` = project
       PluginDependency
     )
 
+lazy val bloxbeanTxEval = project
+    .in(file("bloxbean-tx-eval"))
+    .dependsOn(scalus.jvm)
+    .settings(
+      publish / skip := true,
+      libraryDependencies += "com.bloxbean.cardano" % "cardano-client-lib" % "0.5.1",
+      libraryDependencies += "org.slf4j" % "slf4j-simple" % "2.0.13",
+      libraryDependencies += "org.scalatest" %%% "scalatest" % "3.2.18" % "test",
+      libraryDependencies += "com.bloxbean.cardano" % "cardano-client-backend-blockfrost" % "0.5.1" % "test",
+      inConfig(Test)(PluginDependency)
+    )
+
 // Documentation
 // We use Docusaurus for documentation
 // and Mdoc for Scala code examples

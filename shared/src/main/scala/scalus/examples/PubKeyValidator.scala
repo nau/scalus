@@ -10,7 +10,7 @@ import scalus.builtin.Data
 
 @Compile
 object PubKeyValidator {
-    def validator(redeemer: Unit, datum: Unit, ctx: Data) = {
+    def validator(datum: Unit, redeemer: Unit, ctx: Data) = {
         val txinfo = unConstrData(unConstrData(ctx).snd.head).snd
         val signatories = unListData(txinfo.tail.tail.tail.tail.tail.tail.tail.head)
 
@@ -23,7 +23,7 @@ object PubKeyValidator {
         findSignatureOrFail(signatories)
     }
 
-    def validatorV2(redeemer: Unit, datum: Unit, ctx: Data) = {
+    def validatorV2(datum: Unit, redeemer: Unit, ctx: Data) = {
         import scalus.ledger.api.v2.ScriptContext
         val signatories = unListData(fieldAsData[ScriptContext](_.txInfo.signatories)(ctx))
 
