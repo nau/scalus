@@ -1,5 +1,5 @@
 import org.scalajs.linker.interface.OutputPatterns
-import sbtwelcome._
+import sbtwelcome.*
 
 Global / onChangedBuildSource := ReloadOnSourceChanges
 autoCompilerPlugins := true
@@ -29,7 +29,16 @@ Test / publishArtifact := false
 
 lazy val root: Project = project
     .in(file("."))
-    .aggregate(scalusPlugin, scalus.js, scalus.jvm, `examples-js`, examples, bench)
+    .aggregate(
+      scalusPlugin,
+      scalus.js,
+      scalus.jvm,
+      `examples-js`,
+      examples,
+      bench,
+      scalusBloxbeanCardanoClientLib,
+      docs
+    )
     .settings(
       publish / skip := true
     )
@@ -132,11 +141,10 @@ lazy val scalus = crossProject(JSPlatform, JVMPlatform)
 
 lazy val examples = project
     .in(file("examples"))
-    .dependsOn(scalus.jvm)
+    .dependsOn(scalus.jvm, scalusBloxbeanCardanoClientLib)
     .settings(
       PluginDependency,
       publish / skip := true,
-      libraryDependencies += "com.bloxbean.cardano" % "cardano-client-lib" % "0.5.1",
       libraryDependencies += "com.bloxbean.cardano" % "cardano-client-backend-blockfrost" % "0.5.1"
     )
 

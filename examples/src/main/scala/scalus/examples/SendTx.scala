@@ -3,7 +3,8 @@ package scalus.examples
 import com.bloxbean.cardano.client.account.Account
 import com.bloxbean.cardano.client.address.AddressProvider
 import com.bloxbean.cardano.client.api.model.Amount
-import com.bloxbean.cardano.client.backend.api.{DefaultProtocolParamsSupplier, DefaultUtxoSupplier}
+import com.bloxbean.cardano.client.backend.api.DefaultProtocolParamsSupplier
+import com.bloxbean.cardano.client.backend.api.DefaultUtxoSupplier
 import com.bloxbean.cardano.client.backend.blockfrost.common.Constants
 import com.bloxbean.cardano.client.backend.blockfrost.service.BFBackendService
 import com.bloxbean.cardano.client.coinselection.impl.LargestFirstUtxoSelectionStrategy
@@ -12,57 +13,27 @@ import com.bloxbean.cardano.client.common.CardanoConstants
 import com.bloxbean.cardano.client.common.CardanoConstants.LOVELACE
 import com.bloxbean.cardano.client.common.model.Networks
 import com.bloxbean.cardano.client.crypto.Blake2bUtil
+import com.bloxbean.cardano.client.function.Output
+import com.bloxbean.cardano.client.function.TxBuilder
+import com.bloxbean.cardano.client.function.TxBuilderContext
 import com.bloxbean.cardano.client.function.helper.*
 import com.bloxbean.cardano.client.function.helper.SignerProviders.signerFrom
 import com.bloxbean.cardano.client.function.helper.model.ScriptCallContext
-import com.bloxbean.cardano.client.function.{Output, TxBuilder, TxBuilderContext}
 import com.bloxbean.cardano.client.plutus.spec.*
 import com.google.common.collect.Lists
-import io.bullet.borer.{Cbor, Encoder}
+import io.bullet.borer.Cbor
+import io.bullet.borer.Encoder
 import scalus.*
+import scalus.builtin.ByteString
+import scalus.builtin.Data
 import scalus.builtin.ToDataInstances.given
-import scalus.builtin.{ByteString, Data}
 import scalus.utils.Utils
+import scalus.bloxbean.Interop.toPlutusData
 
 import java.math.BigInteger
 import java.util.Collections
 
 object SendTx:
-
-    def dataToCardanoClientPlutusData(data: Data): PlutusData =
-        import scala.jdk.CollectionConverters.*
-        data match
-            case Data.Constr(tag, args) =>
-                val convertedArgs = ListPlutusData
-                    .builder()
-                    .plutusDataList(args.map(dataToCardanoClientPlutusData).asJava)
-                    .build()
-                ConstrPlutusData
-                    .builder()
-                    .alternative(tag)
-                    .data(convertedArgs)
-                    .build()
-            case Data.Map(items) =>
-                MapPlutusData
-                    .builder()
-                    .map(
-                      items
-                          .map { case (k, v) =>
-                              (dataToCardanoClientPlutusData(k), dataToCardanoClientPlutusData(v))
-                          }
-                          .toMap
-                          .asJava
-                    )
-                    .build()
-            case Data.List(items) =>
-                ListPlutusData
-                    .builder()
-                    .plutusDataList(items.map(dataToCardanoClientPlutusData).asJava)
-                    .build()
-            case Data.I(i) =>
-                BigIntPlutusData.of(i.bigInteger)
-            case Data.B(b) =>
-                BytesPlutusData.of(b.bytes)
 
     def readFromFile(file: String): String =
         val source = scala.io.Source.fromFile(file)
@@ -89,7 +60,7 @@ object SendTx:
             .address(scriptAddressBech32)
             .assetName(LOVELACE)
             .qty(adaToLovelace(2))
-            .datum(dataToCardanoClientPlutusData(datum))
+            .datum(toPlutusData(datum))
             .build();
 
         val lockFundTxBuilder = lockOutput
@@ -118,7 +89,7 @@ object SendTx:
             .findFirstByDatumHashUsingDatum(
               utxoSupplier,
               scriptAddressBech32,
-              dataToCardanoClientPlutusData(datum)
+              toPlutusData(datum)
             )
             .orElseThrow
         val claimAmount = scriptUtxo.getAmount.stream
@@ -132,7 +103,7 @@ object SendTx:
 
         val scriptCallContext = ScriptCallContext.builder
             .script(script)
-            .datum(dataToCardanoClientPlutusData(datum))
+            .datum(toPlutusData(datum))
             .exUnits(
               ExUnits.builder
                   .mem // Exact exUnits will be calculated later
@@ -140,7 +111,7 @@ object SendTx:
                   .steps(BigInteger.valueOf(0))
                   .build
             )
-            .redeemer(dataToCardanoClientPlutusData(redeemer))
+            .redeemer(toPlutusData(redeemer))
             .redeemerTag(RedeemerTag.Spend)
             .build
 

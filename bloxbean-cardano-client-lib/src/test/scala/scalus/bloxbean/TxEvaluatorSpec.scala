@@ -1,6 +1,10 @@
 package scalus.flat
 
 import com.bloxbean.cardano.client.account.Account
+import com.bloxbean.cardano.client.address.Address
+import com.bloxbean.cardano.client.address.AddressProvider
+import com.bloxbean.cardano.client.api.model.Amount
+import com.bloxbean.cardano.client.api.model.Utxo
 import com.bloxbean.cardano.client.backend.api.DefaultProtocolParamsSupplier
 import com.bloxbean.cardano.client.backend.api.DefaultUtxoSupplier
 import com.bloxbean.cardano.client.backend.blockfrost.common.Constants
@@ -11,6 +15,7 @@ import com.bloxbean.cardano.client.common.CardanoConstants
 import com.bloxbean.cardano.client.common.model.Networks
 import com.bloxbean.cardano.client.function.helper.SignerProviders
 import com.bloxbean.cardano.client.plutus.spec.CostMdls
+import com.bloxbean.cardano.client.plutus.spec.ExUnits
 import com.bloxbean.cardano.client.plutus.spec.PlutusData
 import com.bloxbean.cardano.client.plutus.spec.PlutusScript
 import com.bloxbean.cardano.client.plutus.spec.PlutusV2Script
@@ -18,9 +23,12 @@ import com.bloxbean.cardano.client.plutus.spec.Redeemer
 import com.bloxbean.cardano.client.plutus.spec.RedeemerTag
 import com.bloxbean.cardano.client.quicktx.QuickTxBuilder
 import com.bloxbean.cardano.client.quicktx.ScriptTx
+import com.bloxbean.cardano.client.spec.Script
 import com.bloxbean.cardano.client.transaction.spec.Asset
 import com.bloxbean.cardano.client.transaction.spec.Transaction
 import com.bloxbean.cardano.client.transaction.spec.Transaction.TransactionBuilder
+import com.bloxbean.cardano.client.transaction.spec.TransactionBody
+import com.bloxbean.cardano.client.transaction.spec.TransactionInput
 import com.bloxbean.cardano.client.transaction.spec.TransactionWitnessSet
 import com.bloxbean.cardano.client.transaction.spec.TransactionWitnessSet.TransactionWitnessSetBuilder
 import org.scalatest.funsuite.AnyFunSuite
@@ -32,6 +40,7 @@ import scalus.bloxbean.TxEvaluator
 import scalus.builtin
 import scalus.builtin.ByteString
 import scalus.builtin.ByteString.given
+import scalus.builtin.Data
 import scalus.builtin.ToDataInstances.given
 import scalus.examples.MintingPolicy
 import scalus.examples.MintingPolicyV2
@@ -47,15 +56,6 @@ import java.math.BigInteger
 import java.util.List
 import java.util.Set
 import scala.util.Random
-import com.bloxbean.cardano.client.transaction.spec.TransactionBody
-import com.bloxbean.cardano.client.transaction.spec.TransactionInput
-import com.bloxbean.cardano.client.api.model.Utxo
-import com.bloxbean.cardano.client.api.model.Amount
-import com.bloxbean.cardano.client.address.Address
-import com.bloxbean.cardano.client.address.AddressProvider
-import com.bloxbean.cardano.client.spec.Script
-import scalus.builtin.Data
-import com.bloxbean.cardano.client.plutus.spec.ExUnits
 
 class TxEvaluatorSpec extends AnyFunSuite:
     val senderMnemonic =
@@ -69,8 +69,8 @@ class TxEvaluatorSpec extends AnyFunSuite:
           SlotConfig.default,
           initialBudgetConfig = ExBudget.fromCpuAndMemory(10_000000000L, 10_000000L)
         )
-        val pubKeyValidator = compile(PubKeyValidator.validatorV2(hex"deadbeef")).toPlutusProgram((1, 0, 0))
-        println(pubKeyValidator.prettyXTerm.render(80))
+        val pubKeyValidator =
+            compile(PubKeyValidator.validatorV2(hex"deadbeef")).toPlutusProgram((1, 0, 0))
         val s: PlutusV2Script =
             PlutusV2Script
                 .builder()
