@@ -431,6 +431,7 @@ class TxEvaluator(private val slotConfig: SlotConfig, private val initialBudgetC
     ): v2.TxInfo = {
         val body = tx.getBody
         val certs = body.getCerts ?? List.of()
+        val rdmrs = tx.getWitnessSet.getRedeemers ?? List.of()
         v2.TxInfo(
           inputs = prelude.List.from(body.getInputs.asScala.map(getTxInInfoV2(_, utxos))),
           referenceInputs = prelude.List.from(body.getReferenceInputs.asScala.map { input =>
@@ -447,7 +448,16 @@ class TxEvaluator(private val slotConfig: SlotConfig, private val initialBudgetC
                 v1.PubKeyHash(ByteString.fromArray(signer))
             }
           ),
-          redeemers = AssocMap.empty, // FIXME: Implement redeemers
+          redeemers = AssocMap(prelude.List.from(rdmrs.asScala.map { redeemer =>
+              val purpose = getScriptPurpose(
+                redeemer,
+                body.getInputs,
+                body.getMint,
+                body.getCerts,
+                body.getWithdrawals
+              )
+              purpose -> toScalusData(redeemer.getData)
+          })),
           data = AssocMap.empty, // FIXME: Implement data
           id = v1.TxId(ByteString.fromHex(TransactionUtil.getTxHash(tx)))
         )
