@@ -18,10 +18,7 @@ import scalus.builtin.Data
 import scalus.builtin.JVMPlatformSpecific
 import scalus.builtin.JVMPlatformSpecific$
 import scalus.ledger.api.v1
-import scalus.ledger.api.v1.Interval
-import scalus.ledger.api.v1.ScriptPurpose
-import scalus.ledger.api.v1.TxId
-import scalus.ledger.api.v1.TxOutRef
+import scalus.ledger.api.v1.{Interval, LowerBound, ScriptPurpose, TxId, TxOutRef}
 import scalus.ledger.api.v2
 import scalus.prelude
 import scalus.prelude.AssocMap
@@ -42,6 +39,7 @@ import scalus.bloxbean.Interop.toScalusData
 import scalus.uplc.UplcParser.dataTerm
 import scalus.builtin.PlutusDataCborDecoder
 import io.bullet.borer.Decoder
+import scalus.ledger.api.v1.Extended.NegInf
 
 case class SlotConfig(zero_time: Long, zero_slot: Long, slot_length: Long)
 object SlotConfig {
@@ -365,31 +363,44 @@ class TxEvaluator(private val slotConfig: SlotConfig, private val initialBudgetC
 
     extension [A](inline a: A) inline infix def ??(b: A): A = if a != null then a else b
 
+    def slotToBeginPosixTime(slot: Long, sc: SlotConfig): Long = {
+        val msAfterBegin = (slot - sc.zero_slot) * sc.slot_length
+        sc.zero_time + msAfterBegin
+    }
+
+    def getInterval(tx: Transaction, slotConfig: SlotConfig): v1.Interval[v1.POSIXTime] = {
+        val validFrom = tx.getBody.getValidityStartInterval
+        val lower =
+            if validFrom == 0 then v1.LowerBound(NegInf, false)
+            else v1.Interval.lowerBound(BigInt(slotToBeginPosixTime(validFrom, slotConfig)))
+        val validTo = tx.getBody.getTtl
+        val upper =
+            if validTo == 0 then v1.UpperBound(NegInf, false)
+            else v1.Interval.upperBound(BigInt(slotToBeginPosixTime(validTo, slotConfig)))
+        v1.Interval(lower, upper)
+    }
+
     def getTxInfoV2(
         tx: Transaction,
         utxos: Set[Utxo],
         slotConfig: SlotConfig
     ): v2.TxInfo = {
+        val body = tx.getBody
         v2.TxInfo(
           inputs = prelude.List(
-            tx.getBody().getInputs().asScala.map { input => getTxInInfoV2(input, utxos) }.toSeq: _*
+            body.getInputs.asScala.map { input => getTxInInfoV2(input, utxos) }.toSeq: _*
           ),
           referenceInputs = scalus.prelude.List.Nil, // FIXME: Implement reference inputs
-          outputs = prelude.List(tx.getBody().getOutputs().asScala.map(getTxOutV2).toSeq: _*),
-          fee =
-              scalus.ledger.api.v1.Value.lovelace(BigInt(tx.getBody().getFee() ?? BigInteger.ZERO)),
-          mint = cclMultiAssetToScalusValue(tx.getBody().getMint() ?? List.of()),
+          outputs = prelude.List(body.getOutputs.asScala.map(getTxOutV2).toSeq: _*),
+          fee = scalus.ledger.api.v1.Value.lovelace(BigInt(body.getFee ?? BigInteger.ZERO)),
+          mint = cclMultiAssetToScalusValue(body.getMint ?? List.of()),
           dcert = scalus.prelude.List.Nil, // FIXME: Implement dcert
           withdrawals = AssocMap.empty, // FIXME: Implement withdrawals
-          validRange = Interval.always, // FIXME: Implement valid range
+          validRange = getInterval(tx, slotConfig),
           signatories = prelude.List(
-            tx.getBody()
-                .getRequiredSigners()
-                .asScala
-                .map { signer =>
-                    v1.PubKeyHash(ByteString.fromArray(signer))
-                }
-                .toList: _*
+            body.getRequiredSigners.asScala.map { signer =>
+                v1.PubKeyHash(ByteString.fromArray(signer))
+            }.toList: _*
           ),
           redeemers = AssocMap.empty, // FIXME: Implement redeemers
           data = AssocMap.empty, // FIXME: Implement data
