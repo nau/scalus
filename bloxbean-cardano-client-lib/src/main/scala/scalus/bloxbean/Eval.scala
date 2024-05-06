@@ -12,6 +12,7 @@ import com.bloxbean.cardano.client.transaction.util.TransactionUtil
 import com.bloxbean.cardano.client.util.HexUtil
 import io.bullet.borer.Cbor
 import org.checkerframework.checker.units.qual.s
+import scalus.builtin.given
 import scalus.builtin.ByteString
 import scalus.builtin.ByteString.given
 import scalus.builtin.Data
@@ -31,7 +32,7 @@ import java.math.BigInteger
 import java.util.*
 import java.util.stream.Collectors
 import java.util.stream.Stream
-import scala.collection.Map
+import scala.collection.{mutable, Map}
 import scala.collection.mutable.ArrayBuffer
 import scala.jdk.CollectionConverters.*
 import scala.math.BigInt
@@ -312,25 +313,32 @@ class TxEvaluator(private val slotConfig: SlotConfig, private val initialBudgetC
     }
 
     def cclValueToScalusValue(value: Value): v1.Value = {
-        val lovelace = BigInt(value.getCoin ?? BigInteger.ZERO)
-        val v =
-            for multi <- value.getMultiAssets.asScala
-            yield
-                val pairs =
-                    for asset <- multi.getAssets.asScala
-                    yield ByteString.fromArray(asset.getNameAsBytes) -> BigInt(asset.getValue)
-                val as = prelude.List(pairs.toSeq: _*)
-                ByteString.fromHex(multi.getPolicyId) -> AssocMap(as)
-        AssocMap(
-          prelude.List.Cons(
-            (ByteString.empty, AssocMap.singleton(ByteString.empty, lovelace)),
-            prelude.List(v.toSeq: _*)
-          )
-        )
+        val ma = cclMultiAssetToScalusValue(value.getMultiAssets)
+        if value.getCoin != null then
+            val lovelace = v1.Value.lovelace(BigInt(value.getCoin))
+            prelude.AssocMap(
+              prelude.List.Cons(
+                (ByteString.empty, AssocMap.singleton(ByteString.empty, BigInt(value.getCoin))),
+                ma.inner
+              )
+            )
+        else ma
     }
 
     def cclMultiAssetToScalusValue(value: List[MultiAsset]): v1.Value = {
-        cclValueToScalusValue(Value.builder().multiAssets(value).build())
+        // get sorted multi assets
+        val multi = mutable.TreeMap.empty[ByteString, mutable.TreeMap[ByteString, BigInt]]
+        for m <- value.asScala do
+            val assets = mutable.TreeMap.empty[ByteString, BigInt]
+            for asset <- m.getAssets.asScala do
+                assets.put(ByteString.fromArray(asset.getNameAsBytes), BigInt(asset.getValue))
+            multi.put(ByteString.fromHex(m.getPolicyId), assets)
+        // convert to AssocMap
+        val am =
+            for (policyId, assets) <- multi.iterator
+            yield policyId -> AssocMap(prelude.List(assets.toSeq: _*))
+
+        prelude.AssocMap(prelude.List(am.toSeq: _*))
     }
 
     def getTxOutV2(out: TransactionOutput): v2.TxOut = {
@@ -391,7 +399,7 @@ class TxEvaluator(private val slotConfig: SlotConfig, private val initialBudgetC
             body.getInputs.asScala.map { input => getTxInInfoV2(input, utxos) }.toSeq: _*
           ),
           referenceInputs = prelude.List(
-              body.getReferenceInputs.asScala.map { input => getTxInInfoV2(input, utxos) }.toSeq: _*
+            body.getReferenceInputs.asScala.map { input => getTxInInfoV2(input, utxos) }.toSeq: _*
           ),
           outputs = prelude.List(body.getOutputs.asScala.map(getTxOutV2).toSeq: _*),
           fee = scalus.ledger.api.v1.Value.lovelace(BigInt(body.getFee ?? BigInteger.ZERO)),
