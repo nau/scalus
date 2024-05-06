@@ -38,6 +38,10 @@ import scala.collection.Map
 import scala.collection.mutable.ArrayBuffer
 import scala.jdk.CollectionConverters.*
 import scala.math.BigInt
+import scalus.bloxbean.Interop.toScalusData
+import scalus.uplc.UplcParser.dataTerm
+import scalus.builtin.PlutusDataCborDecoder
+import io.bullet.borer.Decoder
 
 case class SlotConfig(zero_time: Long, zero_slot: Long, slot_length: Long)
 object SlotConfig {
@@ -288,7 +292,7 @@ class TxEvaluator(private val slotConfig: SlotConfig, private val initialBudgetC
         v1.Address(cred, prelude.Maybe.Nothing) // FIXME: Implement staking credential
     }
 
-    def getTxInInfo(input: TransactionInput, utxos: Set[Utxo]) = {
+    def getTxInInfoV2(input: TransactionInput, utxos: Set[Utxo]): v2.TxInInfo = {
         val out = utxos.asScala
             .find(utxo =>
                 utxo.getTxHash == input.getTransactionId && utxo.getOutputIndex() == input.getIndex
@@ -302,16 +306,64 @@ class TxEvaluator(private val slotConfig: SlotConfig, private val initialBudgetC
           ),
           v2.TxOut(
             getAddress(addr),
-            v1.Value.lovelace(
-              BigInt(out.getAmount().get(0).getQuantity())
-            ), // FIXME: Handle multiple assets
-            v2.OutputDatum.NoOutputDatum, // FIXME: Implement output datum
+            cclValueToScalusValue(out.toValue()),
+            getOutputDatum(out),
             prelude.Maybe.Nothing
           )
         )
     }
 
-    // def getTxOut(): TxOut = {}
+    def cclValueToScalusValue(value: Value): v1.Value = {
+        val lovelace = BigInt(value.getCoin ?? BigInteger.ZERO)
+        val v =
+            for multi <- value.getMultiAssets.asScala
+            yield
+                val pairs =
+                    for asset <- multi.getAssets.asScala
+                    yield ByteString.fromArray(asset.getNameAsBytes) -> BigInt(asset.getValue)
+                val as = prelude.List(pairs.toSeq: _*)
+                ByteString.fromHex(multi.getPolicyId) -> AssocMap(as)
+        AssocMap(
+          prelude.List.Cons(
+            (ByteString.empty, AssocMap.singleton(ByteString.empty, lovelace)),
+            prelude.List(v.toSeq: _*)
+          )
+        )
+    }
+
+    def cclMultiAssetToScalusValue(value: List[MultiAsset]): v1.Value = {
+        cclValueToScalusValue(Value.builder().multiAssets(value).build())
+    }
+
+    def getTxOutV2(out: TransactionOutput): v2.TxOut = {
+        val addr = Address(out.getAddress())
+        v2.TxOut(
+          getAddress(addr),
+          cclValueToScalusValue(out.getValue()),
+          getOutputDatum(out),
+          prelude.Maybe.Nothing
+        )
+    }
+
+    def getOutputDatum(out: TransactionOutput): v2.OutputDatum = {
+        if out.getDatumHash != null then
+            v2.OutputDatum.OutputDatumHash(ByteString.fromArray(out.getDatumHash))
+        else if out.getInlineDatum != null then
+            v2.OutputDatum.OutputDatum(toScalusData(out.getInlineDatum))
+        else v2.OutputDatum.NoOutputDatum
+    }
+
+    def getOutputDatum(out: Utxo): v2.OutputDatum = {
+        if out.getDataHash() != null then
+            v2.OutputDatum.OutputDatumHash(ByteString.fromHex(out.getDataHash))
+        else if out.getInlineDatum != null then
+            given Decoder[Data] = PlutusDataCborDecoder
+            val data = Cbor.decode(Hex.hexToBytes(out.getInlineDatum)).to[Data].value
+            v2.OutputDatum.OutputDatum(data)
+        else v2.OutputDatum.NoOutputDatum
+    }
+
+    extension [A](inline a: A) inline infix def ??(b: A): A = if a != null then a else b
 
     def getTxInfoV2(
         tx: Transaction,
@@ -320,12 +372,13 @@ class TxEvaluator(private val slotConfig: SlotConfig, private val initialBudgetC
     ): v2.TxInfo = {
         v2.TxInfo(
           inputs = prelude.List(
-            tx.getBody().getInputs().asScala.map { input => getTxInInfo(input, utxos) }.toSeq: _*
+            tx.getBody().getInputs().asScala.map { input => getTxInInfoV2(input, utxos) }.toSeq: _*
           ),
           referenceInputs = scalus.prelude.List.Nil, // FIXME: Implement reference inputs
-          outputs = scalus.prelude.List.Nil, // FIXME: Implement outputs
-          fee = scalus.ledger.api.v1.Value.lovelace(BigInt("188021")), // FIXME: Implement fee
-          mint = scalus.ledger.api.v1.Value.lovelace(BigInt("188021")), // FIXME: Implement mint
+          outputs = prelude.List(tx.getBody().getOutputs().asScala.map(getTxOutV2).toSeq: _*),
+          fee =
+              scalus.ledger.api.v1.Value.lovelace(BigInt(tx.getBody().getFee() ?? BigInteger.ZERO)),
+          mint = cclMultiAssetToScalusValue(tx.getBody().getMint() ?? List.of()),
           dcert = scalus.prelude.List.Nil, // FIXME: Implement dcert
           withdrawals = AssocMap.empty, // FIXME: Implement withdrawals
           validRange = Interval.always, // FIXME: Implement valid range
@@ -381,7 +434,7 @@ class TxEvaluator(private val slotConfig: SlotConfig, private val initialBudgetC
         println(s"Get execution purpose: $purpose, $lookupTable, $utxos")
         purpose match
             case ScriptPurpose.Minting(curSymbol) =>
-                ???
+                ??? // FIXME: Implement minting
             case ScriptPurpose.Spending(txOutRef) =>
                 val utxo = utxos.asScala
                     .find(utxo =>
@@ -405,9 +458,9 @@ class TxEvaluator(private val slotConfig: SlotConfig, private val initialBudgetC
                 )
                 ExecutionPurpose.WithDatum(version, script, datum)
             case ScriptPurpose.Rewarding(stakingCred) =>
-                ???
+                ??? // FIXME: Implement rewarding
             case ScriptPurpose.Certifying(cert) =>
-                ???
+                ??? // FIXME: Implement certifying
     }
 
     def evalPhaseTwo(
