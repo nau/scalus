@@ -200,29 +200,6 @@ class TxEvaluator(private val slotConfig: SlotConfig, private val initialBudgetC
         // Method body goes here
     }
 
-    def toScalusData(datum: PlutusData): Data = {
-        datum match
-            case c: ConstrPlutusData =>
-                val constr = c.getAlternative()
-                val args = c.getData().getPlutusDataList().asScala.map(toScalusData).toList
-                Data.Constr(c.getAlternative(), args)
-            case m: MapPlutusData =>
-                val values = m
-                    .getMap()
-                    .asScala
-                    .map { case (k, v) => (toScalusData(k), toScalusData(v)) }
-                    .toList
-                Data.Map(values)
-            case l: ListPlutusData =>
-                val values = l.getPlutusDataList().asScala.map(toScalusData).toList
-                Data.List(values)
-            case i: BigIntPlutusData =>
-                Data.I(i.getValue())
-            case b: BytesPlutusData =>
-                Data.B(ByteString.fromArray(b.getValue()))
-
-    }
-
     def evalRedeemer(
         tx: Transaction,
         utxos: Set[Utxo],
@@ -264,6 +241,8 @@ class TxEvaluator(private val slotConfig: SlotConfig, private val initialBudgetC
                             import scalus.builtin.Data.toData
                             import scalus.ledger.api.v2.ToDataInstances.given
                             import scalus.uplc.TermDSL.{*, given}
+                            import scalus.bloxbean.Interop.toScalusData
+
                             val program = ProgramFlatCodec.decodeFlat(script)
                             val applied = program.term $ toScalusData(datum) $ toScalusData(
                               redeemer.getData
