@@ -1,7 +1,6 @@
 package scalus.bloxbean
 
-import com.bloxbean.cardano.client.address.Address
-import com.bloxbean.cardano.client.address.CredentialType
+import com.bloxbean.cardano.client.address.{Address, Credential, CredentialType}
 import com.bloxbean.cardano.client.api.model.Utxo
 import com.bloxbean.cardano.client.exception.CborDeserializationException
 import com.bloxbean.cardano.client.exception.CborSerializationException
@@ -41,6 +40,8 @@ import scalus.uplc.UplcParser.dataTerm
 import scalus.builtin.PlutusDataCborDecoder
 import io.bullet.borer.Decoder
 import scalus.ledger.api.v1.Extended.NegInf
+
+import java.util
 
 case class SlotConfig(zero_time: Long, zero_slot: Long, slot_length: Long)
 object SlotConfig {
@@ -274,20 +275,21 @@ class TxEvaluator(private val slotConfig: SlotConfig, private val initialBudgetC
 
     }
 
+    def getCredential(cred: Credential): v1.Credential = {
+        cred.getType match
+            case CredentialType.Key =>
+                v1.Credential.PubKeyCredential(
+                  v1.PubKeyHash(ByteString.fromArray(cred.getBytes))
+                )
+            case CredentialType.Script =>
+                v1.Credential.ScriptCredential(
+                  ByteString.fromArray(cred.getBytes)
+                )
+    }
+
     def getAddress(address: Address): v1.Address = {
         println(s"Get address: ${address.getPaymentCredential().get().getType()}")
-        val cred = address.getPaymentCredential.map { cred =>
-            cred.getType match
-                case CredentialType.Key =>
-                    v1.Credential.PubKeyCredential(
-                      v1.PubKeyHash(ByteString.fromArray(cred.getBytes()))
-                    )
-                case CredentialType.Script =>
-                    v1.Credential.ScriptCredential(
-                      ByteString.fromArray(cred.getBytes())
-                    )
-        }.get
-
+        val cred = address.getPaymentCredential.map(getCredential).get
         v1.Address(cred, prelude.Maybe.Nothing) // FIXME: Implement staking credential
     }
 
@@ -388,6 +390,20 @@ class TxEvaluator(private val slotConfig: SlotConfig, private val initialBudgetC
         v1.Interval(lower, upper)
     }
 
+    def getWithdrawals(withdrawals: List[Withdrawal]): AssocMap[v1.StakingCredential, BigInt] = {
+        // get sorted withdrawals
+        given Ordering[v1.StakingCredential.StakingHash] = Ordering.by { cred =>
+            cred.cred match
+                case v1.Credential.PubKeyCredential(pkh)  => pkh.hash
+                case v1.Credential.ScriptCredential(hash) => hash
+        }
+        val wdwls = mutable.TreeMap.empty[v1.StakingCredential.StakingHash, BigInt]
+        for w <- withdrawals.asScala do
+            val cred = Address(w.getRewardAddress).getPaymentCredential.map(getCredential).get
+            wdwls.put(v1.StakingCredential.StakingHash(cred), BigInt(w.getCoin))
+        AssocMap(prelude.List(wdwls.toSeq: _*))
+    }
+
     def getTxInfoV2(
         tx: Transaction,
         utxos: Set[Utxo],
@@ -405,7 +421,7 @@ class TxEvaluator(private val slotConfig: SlotConfig, private val initialBudgetC
           fee = scalus.ledger.api.v1.Value.lovelace(BigInt(body.getFee ?? BigInteger.ZERO)),
           mint = cclMultiAssetToScalusValue(body.getMint ?? List.of()),
           dcert = scalus.prelude.List.Nil, // FIXME: Implement dcert
-          withdrawals = AssocMap.empty, // FIXME: Implement withdrawals
+          withdrawals = getWithdrawals(body.getWithdrawals ?? List.of()),
           validRange = getInterval(tx, slotConfig),
           signatories = prelude.List(
             body.getRequiredSigners.asScala.map { signer =>
