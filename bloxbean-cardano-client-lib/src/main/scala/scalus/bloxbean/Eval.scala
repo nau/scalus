@@ -390,7 +390,9 @@ class TxEvaluator(private val slotConfig: SlotConfig, private val initialBudgetC
           inputs = prelude.List(
             body.getInputs.asScala.map { input => getTxInInfoV2(input, utxos) }.toSeq: _*
           ),
-          referenceInputs = scalus.prelude.List.Nil, // FIXME: Implement reference inputs
+          referenceInputs = prelude.List(
+              body.getReferenceInputs.asScala.map { input => getTxInInfoV2(input, utxos) }.toSeq: _*
+          ),
           outputs = prelude.List(body.getOutputs.asScala.map(getTxOutV2).toSeq: _*),
           fee = scalus.ledger.api.v1.Value.lovelace(BigInt(body.getFee ?? BigInteger.ZERO)),
           mint = cclMultiAssetToScalusValue(body.getMint ?? List.of()),
