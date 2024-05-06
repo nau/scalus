@@ -2,46 +2,29 @@ package scalus.bloxbean
 
 import com.bloxbean.cardano.client.address.{Address, Credential, CredentialType}
 import com.bloxbean.cardano.client.api.model.Utxo
-import com.bloxbean.cardano.client.exception.CborDeserializationException
-import com.bloxbean.cardano.client.exception.CborSerializationException
+import com.bloxbean.cardano.client.exception.{CborDeserializationException, CborSerializationException}
 import com.bloxbean.cardano.client.plutus.spec.*
 import com.bloxbean.cardano.client.transaction.spec.*
-import com.bloxbean.cardano.client.transaction.spec.cert.Certificate
+import com.bloxbean.cardano.client.transaction.spec.cert.*
 import com.bloxbean.cardano.client.transaction.util.TransactionUtil
-import com.bloxbean.cardano.client.util.HexUtil
-import io.bullet.borer.Cbor
-import org.checkerframework.checker.units.qual.s
-import scalus.builtin.given
-import scalus.builtin.ByteString
-import scalus.builtin.ByteString.given
-import scalus.builtin.Data
-import scalus.builtin.JVMPlatformSpecific
-import scalus.builtin.JVMPlatformSpecific$
-import scalus.ledger.api.v1
-import scalus.ledger.api.v1.{Interval, LowerBound, ScriptPurpose, TxId, TxOutRef}
-import scalus.ledger.api.v2
+import io.bullet.borer.{Cbor, Decoder}
+import scalus.bloxbean.Interop.toScalusData
+import scalus.builtin.{ByteString, Data, JVMPlatformSpecific, PlutusDataCborDecoder, given}
+import scalus.ledger.api.v1.Extended.NegInf
+import scalus.ledger.api.{v1, v2}
 import scalus.prelude
 import scalus.prelude.AssocMap
 import scalus.uplc.ProgramFlatCodec
 import scalus.uplc.eval.*
 import scalus.utils.Hex
 
-import java.awt.image.LookupTable
 import java.math.BigInteger
+import java.util
 import java.util.*
 import java.util.stream.Collectors
-import java.util.stream.Stream
-import scala.collection.{mutable, Map}
-import scala.collection.mutable.ArrayBuffer
+import scala.collection.{Map, mutable}
 import scala.jdk.CollectionConverters.*
 import scala.math.BigInt
-import scalus.bloxbean.Interop.toScalusData
-import scalus.uplc.UplcParser.dataTerm
-import scalus.builtin.PlutusDataCborDecoder
-import io.bullet.borer.Decoder
-import scalus.ledger.api.v1.Extended.NegInf
-
-import java.util
 
 case class SlotConfig(zero_time: Long, zero_slot: Long, slot_length: Long)
 object SlotConfig {
@@ -242,10 +225,10 @@ class TxEvaluator(private val slotConfig: SlotConfig, private val initialBudgetC
                           JVMPlatformSpecific
                         )
                         try
+                            import scalus.bloxbean.Interop.toScalusData
                             import scalus.builtin.Data.toData
                             import scalus.ledger.api.v2.ToDataInstances.given
                             import scalus.uplc.TermDSL.{*, given}
-                            import scalus.bloxbean.Interop.toScalusData
 
                             val program = ProgramFlatCodec.decodeFlat(script)
                             val applied = program.term $ toScalusData(datum) $ toScalusData(
@@ -287,6 +270,18 @@ class TxEvaluator(private val slotConfig: SlotConfig, private val initialBudgetC
                 )
     }
 
+    def getStakingCredential(cred: StakeCredential): v1.StakingCredential = {
+        cred.getType match
+            case StakeCredType.ADDR_KEYHASH =>
+                v1.StakingCredential.StakingHash(
+                  v1.Credential.PubKeyCredential(v1.PubKeyHash(ByteString.fromArray(cred.getHash)))
+                )
+            case StakeCredType.SCRIPTHASH =>
+                v1.StakingCredential.StakingHash(
+                  v1.Credential.ScriptCredential(ByteString.fromArray(cred.getHash))
+                )
+    }
+
     def getAddress(address: Address): v1.Address = {
         println(s"Get address: ${address.getPaymentCredential().get().getType()}")
         val cred = address.getPaymentCredential.map(getCredential).get
@@ -301,8 +296,8 @@ class TxEvaluator(private val slotConfig: SlotConfig, private val initialBudgetC
             .getOrElse(throw new IllegalStateException("Input Not Found"))
         val addr = Address(out.getAddress())
         v2.TxInInfo(
-          TxOutRef(
-            TxId(ByteString.fromHex(input.getTransactionId)),
+          v1.TxOutRef(
+            v1.TxId(ByteString.fromHex(input.getTransactionId)),
             input.getIndex
           ),
           v2.TxOut(
@@ -404,12 +399,38 @@ class TxEvaluator(private val slotConfig: SlotConfig, private val initialBudgetC
         AssocMap(prelude.List(wdwls.toSeq: _*))
     }
 
+    def getDCert(cert: Certificate): v1.DCert = {
+        cert match
+            case c: StakeRegistration =>
+                v1.DCert.DelegRegKey(getStakingCredential(c.getStakeCredential))
+            case c: StakeDeregistration =>
+                v1.DCert.DelegDeRegKey(getStakingCredential(c.getStakeCredential))
+            case c: StakeDelegation =>
+                v1.DCert.DelegDelegate(
+                  getStakingCredential(c.getStakeCredential),
+                  v1.PubKeyHash(ByteString.fromArray(c.getStakePoolId.getPoolKeyHash))
+                )
+            case c: PoolRegistration =>
+                v1.DCert.PoolRegister(
+                  v1.PubKeyHash(ByteString.fromArray(c.getOperator)),
+                  v1.PubKeyHash(ByteString.fromArray(c.getVrfKeyHash))
+                )
+            case c: PoolRetirement =>
+                v1.DCert.PoolRetire(
+                  v1.PubKeyHash(ByteString.fromArray(c.getPoolKeyHash)),
+                  BigInt(c.getEpoch)
+                )
+            case c: GenesisKeyDelegation => v1.DCert.Genesis
+            case c: MoveInstataneous     => v1.DCert.Mir
+    }
+
     def getTxInfoV2(
         tx: Transaction,
         utxos: Set[Utxo],
         slotConfig: SlotConfig
     ): v2.TxInfo = {
         val body = tx.getBody
+        val certs = body.getCerts ?? List.of()
         v2.TxInfo(
           inputs = prelude.List(
             body.getInputs.asScala.map { input => getTxInInfoV2(input, utxos) }.toSeq: _*
@@ -420,7 +441,7 @@ class TxEvaluator(private val slotConfig: SlotConfig, private val initialBudgetC
           outputs = prelude.List(body.getOutputs.asScala.map(getTxOutV2).toSeq: _*),
           fee = scalus.ledger.api.v1.Value.lovelace(BigInt(body.getFee ?? BigInteger.ZERO)),
           mint = cclMultiAssetToScalusValue(body.getMint ?? List.of()),
-          dcert = scalus.prelude.List.Nil, // FIXME: Implement dcert
+          dcert = prelude.List(certs.asScala.map(getDCert).toSeq: _*),
           withdrawals = getWithdrawals(body.getWithdrawals ?? List.of()),
           validRange = getInterval(tx, slotConfig),
           signatories = prelude.List(
@@ -430,7 +451,7 @@ class TxEvaluator(private val slotConfig: SlotConfig, private val initialBudgetC
           ),
           redeemers = AssocMap.empty, // FIXME: Implement redeemers
           data = AssocMap.empty, // FIXME: Implement data
-          id = TxId(ByteString.fromHex(TransactionUtil.getTxHash(tx)))
+          id = v1.TxId(ByteString.fromHex(TransactionUtil.getTxHash(tx)))
         )
     }
 
@@ -446,15 +467,15 @@ class TxEvaluator(private val slotConfig: SlotConfig, private val initialBudgetC
         mint: List[MultiAsset],
         certificates: List[Certificate],
         withdrawals: List[Withdrawal]
-    ): ScriptPurpose =
+    ): v1.ScriptPurpose =
         redeemer.getTag match
             case RedeemerTag.Spend =>
                 val ins = inputs.asScala.sortBy(_.getIndex)
                 val input = ins(redeemer.getIndex.intValue)
                 if input != null then
-                    ScriptPurpose.Spending(
-                      TxOutRef(
-                        TxId(ByteString.fromHex(input.getTransactionId)),
+                    v1.ScriptPurpose.Spending(
+                      v1.TxOutRef(
+                        v1.TxId(ByteString.fromHex(input.getTransactionId)),
                         BigInt(input.getIndex)
                       )
                     )
@@ -465,14 +486,14 @@ class TxEvaluator(private val slotConfig: SlotConfig, private val initialBudgetC
 
     def getExecutionPurpose(
         utxos: Set[Utxo],
-        purpose: ScriptPurpose,
+        purpose: v1.ScriptPurpose,
         lookupTable: LookupTable
     ): ExecutionPurpose = {
         println(s"Get execution purpose: $purpose, $lookupTable, $utxos")
         purpose match
-            case ScriptPurpose.Minting(curSymbol) =>
+            case v1.ScriptPurpose.Minting(curSymbol) =>
                 ??? // FIXME: Implement minting
-            case ScriptPurpose.Spending(txOutRef) =>
+            case v1.ScriptPurpose.Spending(txOutRef) =>
                 val utxo = utxos.asScala
                     .find(utxo =>
                         ByteString.fromHex(utxo.getTxHash) == txOutRef.id.hash && utxo
@@ -494,9 +515,9 @@ class TxEvaluator(private val slotConfig: SlotConfig, private val initialBudgetC
                   throw new IllegalStateException("Datum Not Found")
                 )
                 ExecutionPurpose.WithDatum(version, script, datum)
-            case ScriptPurpose.Rewarding(stakingCred) =>
+            case v1.ScriptPurpose.Rewarding(stakingCred) =>
                 ??? // FIXME: Implement rewarding
-            case ScriptPurpose.Certifying(cert) =>
+            case v1.ScriptPurpose.Certifying(cert) =>
                 ??? // FIXME: Implement certifying
     }
 
