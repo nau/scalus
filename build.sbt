@@ -86,7 +86,10 @@ lazy val PluginDependency: List[Def.Setting[_]] = List(scalacOptions ++= {
     val jar = (scalusPlugin / Compile / packageBin).value
     // add plugin timestamp to compiler options to trigger recompile of
     // main after editing the plugin. (Otherwise a 'clean' is needed.)
-    Seq(s"-Xplugin:${jar.getAbsolutePath}", s"-Jdummy=${jar.lastModified}")
+
+    // NOTE: uncomment for faster Scalus Plugin development
+    // Seq(s"-Xplugin:${jar.getAbsolutePath}", s"-Jdummy=${jar.lastModified}")
+    Seq(s"-Xplugin:${jar.getAbsolutePath}")
 })
 
 // Scalus Core and Standard Library for JVM and JS
