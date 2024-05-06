@@ -244,17 +244,17 @@ class TxEvaluator(private val slotConfig: SlotConfig, private val initialBudgetC
                               redeemer.getIndex,
                               redeemer.getData,
                               ExUnits(
-                                BigInteger.valueOf(cost.cpu.toLong),
-                                BigInteger.valueOf(cost.memory.toLong)
+                                BigInteger.valueOf(cost.cpu),
+                                BigInteger.valueOf(cost.memory)
                               )
                             )
                         catch
                             case e: StackTraceMachineError =>
-                                println(s"logs: ${logger.getLogs.map(_.toString).mkString("\n")}")
-                                println(e.getCekStack.map(_.toString).mkString("\n"))
+                                println(s"logs: ${logger.getLogs.mkString("\n")}")
+                                println(e.getCekStack.mkString("\n"))
                                 throw new IllegalStateException("MachineError", e)
 
-            case _ => ???
+            case _ => ??? // FIXME: Implement the rest of the cases
 
     }
 
@@ -432,6 +432,7 @@ class TxEvaluator(private val slotConfig: SlotConfig, private val initialBudgetC
         val body = tx.getBody
         val certs = body.getCerts ?? List.of()
         val rdmrs = tx.getWitnessSet.getRedeemers ?? List.of()
+        val datums = tx.getWitnessSet.getPlutusDataList ?? List.of()
         v2.TxInfo(
           inputs = prelude.List.from(body.getInputs.asScala.map(getTxInInfoV2(_, utxos))),
           referenceInputs = prelude.List.from(body.getReferenceInputs.asScala.map { input =>
@@ -458,7 +459,10 @@ class TxEvaluator(private val slotConfig: SlotConfig, private val initialBudgetC
               )
               purpose -> toScalusData(redeemer.getData)
           })),
-          data = AssocMap.empty, // FIXME: Implement data
+          data = AssocMap(prelude.List.from(datums.asScala.map { data =>
+              val hash = ByteString.fromArray(data.getDatumHashAsBytes)
+              hash -> toScalusData(data)
+          })),
           id = v1.TxId(ByteString.fromHex(TransactionUtil.getTxHash(tx)))
         )
     }
@@ -536,9 +540,9 @@ class TxEvaluator(private val slotConfig: SlotConfig, private val initialBudgetC
         initialBudget: ExBudget,
         slotConfig: SlotConfig,
         runPhaseOne: Boolean
-    ): List[Redeemer] =
+    ): List[Redeemer] = {
         println(s"Eval phase two $tx, $utxos, $costMdls, $initialBudget, $slotConfig, $runPhaseOne")
-        val redeemers = tx.getWitnessSet.getRedeemers
+        val redeemers = tx.getWitnessSet.getRedeemers ?? List.of()
         val lookupTable = getScriptAndDatumLookupTable(tx, utxos)
         println(s"Lookup table: $lookupTable")
 
@@ -546,29 +550,28 @@ class TxEvaluator(private val slotConfig: SlotConfig, private val initialBudgetC
             // Subset of phase 1 check on redeemers and scripts
             evalPhaseOne(tx, utxos, lookupTable)
 
-        if redeemers != null && !redeemers.isEmpty() then
-            var remainingBudget = initialBudget
-            val collectedRedeemers = redeemers.asScala.map { redeemer =>
-                val evaluatedRedeemer = evalRedeemer(
-                  tx,
-                  utxos,
-                  slotConfig,
-                  redeemer,
-                  lookupTable,
-                  costMdls,
-                  remainingBudget
-                )
+        var remainingBudget = initialBudget
+        val collectedRedeemers = redeemers.asScala.map { redeemer =>
+            val evaluatedRedeemer = evalRedeemer(
+              tx,
+              utxos,
+              slotConfig,
+              redeemer,
+              lookupTable,
+              costMdls,
+              remainingBudget
+            )
 
-                // The subtraction is safe here as ex units counting is done during evaluation.
-                // Redeemer would fail already if budget was negative.
-                remainingBudget = ExBudget.fromCpuAndMemory(
-                  remainingBudget.cpu - evaluatedRedeemer.getExUnits.getSteps.longValue,
-                  remainingBudget.memory - evaluatedRedeemer.getExUnits.getMem.longValue
-                )
+            // The subtraction is safe here as ex units counting is done during evaluation.
+            // Redeemer would fail already if budget was negative.
+            remainingBudget = ExBudget.fromCpuAndMemory(
+              remainingBudget.cpu - evaluatedRedeemer.getExUnits.getSteps.longValue,
+              remainingBudget.memory - evaluatedRedeemer.getExUnits.getMem.longValue
+            )
 
-                evaluatedRedeemer
-            }.asJava
+            evaluatedRedeemer
+        }
 
-            collectedRedeemers
-        else List.of()
+        collectedRedeemers.asJava
+    }
 }
