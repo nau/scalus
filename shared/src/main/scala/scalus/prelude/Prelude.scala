@@ -61,6 +61,11 @@ object List:
     @Ignore
     def apply[A](args: A*): List[A] = args.foldRight(empty[A]) { case (a, b) => new Cons(a, b) }
 
+    @Ignore
+    def from[A](i: IterableOnce[A]): List[A] = i.iterator.foldRight(empty[A]) { case (a, b) =>
+        new Cons(a, b)
+    }
+
     def isEmpty[A](lst: List[A]): Boolean = lst match
         case Nil        => true
         case Cons(_, _) => false

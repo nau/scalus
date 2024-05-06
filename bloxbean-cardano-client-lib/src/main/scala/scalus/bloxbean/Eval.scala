@@ -22,7 +22,7 @@ import java.math.BigInteger
 import java.util
 import java.util.*
 import java.util.stream.Collectors
-import scala.collection.{Map, mutable}
+import scala.collection.{mutable, Map}
 import scala.jdk.CollectionConverters.*
 import scala.math.BigInt
 
@@ -333,9 +333,9 @@ class TxEvaluator(private val slotConfig: SlotConfig, private val initialBudgetC
         // convert to AssocMap
         val am =
             for (policyId, assets) <- multi.iterator
-            yield policyId -> AssocMap(prelude.List(assets.toSeq: _*))
+            yield policyId -> AssocMap(prelude.List.from(assets))
 
-        prelude.AssocMap(prelude.List(am.toSeq: _*))
+        prelude.AssocMap(prelude.List.from(am))
     }
 
     def getTxOutV2(out: TransactionOutput): v2.TxOut = {
@@ -396,7 +396,7 @@ class TxEvaluator(private val slotConfig: SlotConfig, private val initialBudgetC
         for w <- withdrawals.asScala do
             val cred = Address(w.getRewardAddress).getPaymentCredential.map(getCredential).get
             wdwls.put(v1.StakingCredential.StakingHash(cred), BigInt(w.getCoin))
-        AssocMap(prelude.List(wdwls.toSeq: _*))
+        AssocMap(prelude.List.from(wdwls))
     }
 
     def getDCert(cert: Certificate): v1.DCert = {
@@ -432,22 +432,20 @@ class TxEvaluator(private val slotConfig: SlotConfig, private val initialBudgetC
         val body = tx.getBody
         val certs = body.getCerts ?? List.of()
         v2.TxInfo(
-          inputs = prelude.List(
-            body.getInputs.asScala.map { input => getTxInInfoV2(input, utxos) }.toSeq: _*
-          ),
-          referenceInputs = prelude.List(
-            body.getReferenceInputs.asScala.map { input => getTxInInfoV2(input, utxos) }.toSeq: _*
-          ),
-          outputs = prelude.List(body.getOutputs.asScala.map(getTxOutV2).toSeq: _*),
-          fee = scalus.ledger.api.v1.Value.lovelace(BigInt(body.getFee ?? BigInteger.ZERO)),
+          inputs = prelude.List.from(body.getInputs.asScala.map(getTxInInfoV2(_, utxos))),
+          referenceInputs = prelude.List.from(body.getReferenceInputs.asScala.map { input =>
+              getTxInInfoV2(input, utxos)
+          }),
+          outputs = prelude.List.from(body.getOutputs.asScala.map(getTxOutV2)),
+          fee = v1.Value.lovelace(body.getFee ?? BigInteger.ZERO),
           mint = cclMultiAssetToScalusValue(body.getMint ?? List.of()),
-          dcert = prelude.List(certs.asScala.map(getDCert).toSeq: _*),
+          dcert = prelude.List.from(certs.asScala.map(getDCert)),
           withdrawals = getWithdrawals(body.getWithdrawals ?? List.of()),
           validRange = getInterval(tx, slotConfig),
-          signatories = prelude.List(
+          signatories = prelude.List.from(
             body.getRequiredSigners.asScala.map { signer =>
                 v1.PubKeyHash(ByteString.fromArray(signer))
-            }.toList: _*
+            }
           ),
           redeemers = AssocMap.empty, // FIXME: Implement redeemers
           data = AssocMap.empty, // FIXME: Implement data
