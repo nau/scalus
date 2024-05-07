@@ -1,7 +1,8 @@
 package scalus.bloxbean
 
-import com.bloxbean.cardano.client.address.{Address, Credential, CredentialType}
+import com.bloxbean.cardano.client.address.{Address, AddressProvider, Credential, CredentialType}
 import com.bloxbean.cardano.client.api.model.Utxo
+import com.bloxbean.cardano.client.backend.api.AddressService
 import com.bloxbean.cardano.client.exception.{CborDeserializationException, CborSerializationException}
 import com.bloxbean.cardano.client.plutus.spec.*
 import com.bloxbean.cardano.client.transaction.spec.*
@@ -35,6 +36,8 @@ object SlotConfig {
 class TxEvaluationException(message: String, cause: Throwable) extends Exception(message, cause)
 
 /** Evaluate script costs for a transaction using two phase eval.
+  * @note
+  *   This is experimental API and subject to change
   */
 class TxEvaluator(private val slotConfig: SlotConfig, private val initialBudgetConfig: ExBudget) {
 
@@ -157,13 +160,13 @@ class TxEvaluator(private val slotConfig: SlotConfig, private val initialBudgetC
         utxos: Set[Utxo],
         lookupTable: LookupTable
     ): Unit = {
-        var scripts = scriptsNeeded(tx, utxos);
+        val scripts = scriptsNeeded(tx, utxos);
         validateMissingScripts(scripts, lookupTable);
         hasExactSetOfRedeemers(tx, scripts, lookupTable);
     }
 
     def scriptsNeeded(tx: Transaction, utxos: Set[Utxo]): List[PlutusScript] = {
-        // TODO:
+        // FIXME: Implement the method
         return List.of();
     }
 
@@ -473,6 +476,12 @@ class TxEvaluator(private val slotConfig: SlotConfig, private val initialBudgetC
 
         case NoDatum(scriptVersion: Language, script: Array[Byte])
 
+    given Ordering[TransactionInput] with
+        def compare(x: TransactionInput, y: TransactionInput): Int =
+            x.getTransactionId.compareTo(y.getTransactionId) match
+                case 0 => x.getIndex.compareTo(y.getIndex)
+                case c => c
+
     def getScriptPurpose(
         redeemer: Redeemer,
         inputs: List[TransactionInput],
@@ -480,21 +489,43 @@ class TxEvaluator(private val slotConfig: SlotConfig, private val initialBudgetC
         certificates: List[Certificate],
         withdrawals: List[Withdrawal]
     ): v1.ScriptPurpose =
+        // Cardano Ledger code is stupidly complex and unreadable. We need to make sure this is correct
+        val index = redeemer.getIndex.intValue
         redeemer.getTag match
             case RedeemerTag.Spend =>
-                val ins = inputs.asScala.sortBy(_.getIndex)
-                val input = ins(redeemer.getIndex.intValue)
-                if input != null then
+                val ins = inputs.asScala.sorted
+                if ins.isDefinedAt(index) then
+                    val input = ins(index)
                     v1.ScriptPurpose.Spending(
                       v1.TxOutRef(
                         v1.TxId(ByteString.fromHex(input.getTransactionId)),
-                        BigInt(input.getIndex)
+                        input.getIndex
                       )
                     )
-                else throw new IllegalStateException("ExtraneousRedeemer")
-            // FIXME: Implement the rest of the cases
-            case _ =>
-                throw new IllegalStateException("ExtraneousRedeemer")
+                else throw new IllegalStateException(s"Input not found: $index in $inputs")
+            case RedeemerTag.Mint =>
+                val policyIds = mint.asScala.map(_.getPolicyId).sorted
+                if policyIds.isDefinedAt(index) then
+                    v1.ScriptPurpose.Minting(ByteString.fromHex(policyIds(index)))
+                else throw new IllegalStateException(s"Wrong mint index: $index in $mint")
+            case RedeemerTag.Cert =>
+                val certs = certificates.asScala
+                if certs.isDefinedAt(index) then v1.ScriptPurpose.Certifying(getDCert(certs(index)))
+                else throw new IllegalStateException(s"Wrong cert index: $index in $certificates")
+            case RedeemerTag.Reward =>
+                val rewardAccounts = withdrawals.asScala
+                    .map(ra => Address(ra.getRewardAddress))
+                    .sortBy(a => a.getBytes)
+                if rewardAccounts.isDefinedAt(index) then
+                    val address = rewardAccounts(index)
+                    if address.getAddressType == AddressType.Reward then
+                        val cred = getCredential(address.getDelegationCredential.get)
+                        v1.ScriptPurpose.Rewarding(v1.StakingCredential.StakingHash(cred))
+                    else
+                        throw new IllegalStateException(
+                          s"Wrong reward address type: $address in $withdrawals"
+                        )
+                else throw new IllegalStateException(s"Wrong reward index: $index in $withdrawals")
 
     def getExecutionPurpose(
         utxos: Set[Utxo],
