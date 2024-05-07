@@ -13,6 +13,7 @@ import scalus.bloxbean.Interop.toScalusData
 import scalus.builtin.{ByteString, Data, JVMPlatformSpecific, PlutusDataCborDecoder, given}
 import scalus.ledger.api.PlutusLedgerLanguage.{PlutusV1, PlutusV2}
 import scalus.ledger.api.v1.Extended.NegInf
+import scalus.ledger.api.v1.{DCert, StakingCredential}
 import scalus.ledger.api.{v1, v2, PlutusLedgerLanguage}
 import scalus.prelude
 import scalus.prelude.AssocMap
@@ -27,6 +28,7 @@ import java.util.stream.Collectors
 import scala.collection.{mutable, Map}
 import scala.jdk.CollectionConverters.*
 import scala.math.BigInt
+import scalus.ledger.api.v1.ScriptPurpose
 
 case class SlotConfig(zero_time: Long, zero_slot: Long, slot_length: Long)
 object SlotConfig {
@@ -231,13 +233,13 @@ class TxEvaluator(private val slotConfig: SlotConfig, private val initialBudgetC
                         val result = evalScript(redeemer, script, datum, rdmr, ctxData)
                         val cost = result.budget
                         Redeemer(
-                            redeemer.getTag,
-                            redeemer.getIndex,
-                            redeemer.getData,
-                            ExUnits(
-                                BigInteger.valueOf(cost.cpu),
-                                BigInteger.valueOf(cost.memory)
-                            )
+                          redeemer.getTag,
+                          redeemer.getIndex,
+                          redeemer.getData,
+                          ExUnits(
+                            BigInteger.valueOf(cost.cpu),
+                            BigInteger.valueOf(cost.memory)
+                          )
                         )
             case _ => ??? // FIXME: Implement the rest of the cases
 
@@ -550,34 +552,68 @@ class TxEvaluator(private val slotConfig: SlotConfig, private val initialBudgetC
     ): ExecutionPurpose = {
         println(s"Get execution purpose: $purpose, $lookupTable, $utxos")
         purpose match
-            case v1.ScriptPurpose.Minting(curSymbol) =>
-                ??? // FIXME: Implement minting
+            case v1.ScriptPurpose.Minting(policyId) =>
+                val (lang, script) = lookupTable.scripts.getOrElse(
+                  policyId,
+                  throw new IllegalStateException("Script Not Found")
+                )
+                ExecutionPurpose.NoDatum(lang, script)
             case v1.ScriptPurpose.Spending(txOutRef) =>
                 val utxo = utxos.asScala
                     .find(utxo =>
-                        ByteString.fromHex(utxo.getTxHash) == txOutRef.id.hash && utxo
-                            .getOutputIndex() == txOutRef.idx.toInt
+                        ByteString.fromHex(
+                          utxo.getTxHash
+                        ) == txOutRef.id.hash && utxo.getOutputIndex == txOutRef.idx.toInt
                     )
                     .getOrElse(
                       throw new IllegalStateException("Input Not Found: " + txOutRef)
                     )
-                val address = Address(utxo.getAddress())
-                println(s"Address: ${address.getPaymentCredential().get().getType()}")
-                val hash = ByteString.fromArray(address.getPaymentCredentialHash().orElseThrow())
+                val address = Address(utxo.getAddress)
+                println(s"Address: ${address.getPaymentCredential.get().getType}")
+                val hash = ByteString.fromArray(address.getPaymentCredentialHash.orElseThrow())
                 val (version, script) = lookupTable.scripts.getOrElse(
                   hash,
                   throw new IllegalStateException("Script Not Found")
                 )
-                val datumHash = ByteString.fromHex(utxo.getDataHash().nn)
+                val datumHash = ByteString.fromHex(utxo.getDataHash.nn)
                 val datum = lookupTable.datums.getOrElse(
                   datumHash,
                   throw new IllegalStateException("Datum Not Found")
                 )
                 ExecutionPurpose.WithDatum(version, script, toScalusData(datum))
-            case v1.ScriptPurpose.Rewarding(stakingCred) =>
-                ??? // FIXME: Implement rewarding
+            case v1.ScriptPurpose.Rewarding(
+                  StakingCredential.StakingHash(v1.Credential.ScriptCredential(hash))
+                ) =>
+                val (version, script) = lookupTable.scripts.getOrElse(
+                  hash,
+                  throw new IllegalStateException("Script Not Found")
+                )
+                ExecutionPurpose.NoDatum(version, script)
+            case ScriptPurpose.Rewarding(stakingCred) =>
+                throw new IllegalStateException("OnlyStakeDeregAndDelegAllowed")
             case v1.ScriptPurpose.Certifying(cert) =>
-                ??? // FIXME: Implement certifying
+                cert match
+                    case v1.DCert.DelegDeRegKey(v1.StakingCredential.StakingHash(cred)) =>
+                        val hash = cred match
+                            case v1.Credential.ScriptCredential(hash) => hash
+                            case _ =>
+                                throw new IllegalStateException("OnlyStakeDeregAndDelegAllowed")
+                        val (version, script) = lookupTable.scripts.getOrElse(
+                          hash,
+                          throw new IllegalStateException("Script Not Found")
+                        )
+                        ExecutionPurpose.NoDatum(version, script)
+                    case DCert.DelegDelegate(v1.StakingCredential.StakingHash(cred), _) =>
+                        val hash = cred match
+                            case v1.Credential.ScriptCredential(hash) => hash
+                            case _ =>
+                                throw new IllegalStateException("OnlyStakeDeregAndDelegAllowed")
+                        val (version, script) = lookupTable.scripts.getOrElse(
+                          hash,
+                          throw new IllegalStateException("Script Not Found")
+                        )
+                        ExecutionPurpose.NoDatum(version, script)
+                    case _ => throw new IllegalStateException("OnlyStakeDeregAndDelegAllowed")
     }
 
     def evalPhaseTwo(
