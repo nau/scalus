@@ -1,6 +1,6 @@
 package scalus.bloxbean
 
-import com.bloxbean.cardano.client.address.{Address, AddressProvider, Credential, CredentialType}
+import com.bloxbean.cardano.client.address.{Address, AddressProvider, AddressType, Credential, CredentialType}
 import com.bloxbean.cardano.client.api.model.Utxo
 import com.bloxbean.cardano.client.backend.api.AddressService
 import com.bloxbean.cardano.client.exception.{CborDeserializationException, CborSerializationException}
@@ -11,12 +11,13 @@ import com.bloxbean.cardano.client.transaction.util.TransactionUtil
 import io.bullet.borer.{Cbor, Decoder}
 import scalus.bloxbean.Interop.toScalusData
 import scalus.builtin.{ByteString, Data, JVMPlatformSpecific, PlutusDataCborDecoder, given}
+import scalus.ledger.api.PlutusLedgerLanguage.{PlutusV1, PlutusV2}
 import scalus.ledger.api.v1.Extended.NegInf
-import scalus.ledger.api.{v1, v2}
+import scalus.ledger.api.{v1, v2, PlutusLedgerLanguage}
 import scalus.prelude
 import scalus.prelude.AssocMap
 import scalus.uplc.ProgramFlatCodec
-import scalus.uplc.eval.*
+import scalus.uplc.eval.{VM, *}
 import scalus.utils.Hex
 
 import java.math.BigInteger
@@ -126,7 +127,7 @@ class TxEvaluator(private val slotConfig: SlotConfig, private val initialBudgetC
 
     type Hash = ByteString
     case class LookupTable(
-        scripts: scala.collection.Map[Hash, (Language, Array[Byte])],
+        scripts: scala.collection.Map[Hash, (PlutusLedgerLanguage, Array[Byte])],
         datums: scala.collection.Map[Hash, PlutusData]
     )
 
@@ -150,7 +151,9 @@ class TxEvaluator(private val slotConfig: SlotConfig, private val initialBudgetC
             .map: script =>
                 val decoded = Cbor.decode(Hex.hexToBytes(script.getCborHex())).to[Array[Byte]].value
                 val flatScript = Cbor.decode(decoded).to[Array[Byte]].value
-                ByteString.fromArray(script.getScriptHash) -> (Language.PLUTUS_V2, flatScript)
+                ByteString.fromArray(
+                  script.getScriptHash
+                ) -> (PlutusLedgerLanguage.PlutusV2, flatScript)
             .toMap
         LookupTable(scripts, datum)
     }
@@ -214,51 +217,60 @@ class TxEvaluator(private val slotConfig: SlotConfig, private val initialBudgetC
         executionPurpose match
             case ExecutionPurpose.WithDatum(scriptVersion, script, datum) =>
                 scriptVersion match
-                    case Language.PLUTUS_V1 => throw new IllegalStateException("MachineError")
-                    case Language.PLUTUS_V2 =>
+                    case PlutusV1 => throw new IllegalStateException("MachineError")
+                    case PlutusV2 =>
+                        import scalus.bloxbean.Interop.toScalusData
+                        import scalus.builtin.Data.toData
+                        import scalus.ledger.api.v2.ToDataInstances.given
+
+                        val rdmr = toScalusData(redeemer.getData)
                         val txInfo = getTxInfoV2(tx, utxos, slotConfig)
                         val scriptContext = v2.ScriptContext(txInfo, purpose)
+                        val ctxData = scriptContext.toData
                         println(s"Script context: $scriptContext")
-                        val spender = CountingBudgetSpender()
-                        val logger = Log()
-                        val cek = new CekMachine(
-                          MachineParams.defaultParams,
-                          spender,
-                          logger,
-                          JVMPlatformSpecific
-                        )
-                        try
-                            import scalus.bloxbean.Interop.toScalusData
-                            import scalus.builtin.Data.toData
-                            import scalus.ledger.api.v2.ToDataInstances.given
-                            import scalus.uplc.TermDSL.{*, given}
-
-                            val program = ProgramFlatCodec.decodeFlat(script)
-                            val applied = program.term $ toScalusData(datum) $ toScalusData(
-                              redeemer.getData
-                            ) $ scriptContext.toData
-
-                            val resultTerm = cek.evaluateTerm(applied)
-                            val evalResult =
-                                CekResult(resultTerm, spender.getSpentBudget, logger.getLogs)
-                            val cost = evalResult.budget
-                            Redeemer(
-                              redeemer.getTag,
-                              redeemer.getIndex,
-                              redeemer.getData,
-                              ExUnits(
+                        val result = evalScript(redeemer, script, datum, rdmr, ctxData)
+                        val cost = result.budget
+                        Redeemer(
+                            redeemer.getTag,
+                            redeemer.getIndex,
+                            redeemer.getData,
+                            ExUnits(
                                 BigInteger.valueOf(cost.cpu),
                                 BigInteger.valueOf(cost.memory)
-                              )
                             )
-                        catch
-                            case e: StackTraceMachineError =>
-                                println(s"logs: ${logger.getLogs.mkString("\n")}")
-                                println(e.getCekStack.mkString("\n"))
-                                throw new IllegalStateException("MachineError", e)
-
+                        )
             case _ => ??? // FIXME: Implement the rest of the cases
 
+    }
+
+    private def evalScript(
+        redeemer: Redeemer,
+        script: VM.ScriptForEvaluation,
+        datum: Data,
+        rdmr: Data,
+        ctxData: Data
+    ) = {
+        val spender = CountingBudgetSpender()
+        val logger = Log()
+        val cek = new CekMachine(
+          MachineParams.defaultParams,
+          spender,
+          logger,
+          JVMPlatformSpecific
+        )
+        try
+            import scalus.uplc.TermDSL.{*, given}
+            val program = ProgramFlatCodec.decodeFlat(script)
+
+            val applied = program.term $ datum $ rdmr $ ctxData
+
+            val resultTerm = cek.evaluateTerm(applied)
+            CekResult(resultTerm, spender.getSpentBudget, logger.getLogs)
+        catch
+            case e: StackTraceMachineError =>
+                println(s"logs: ${logger.getLogs.mkString("\n")}")
+                println(e.getCekStack.mkString("\n"))
+                throw new IllegalStateException("MachineError", e)
     }
 
     def getCredential(cred: Credential): v1.Credential = {
@@ -472,9 +484,13 @@ class TxEvaluator(private val slotConfig: SlotConfig, private val initialBudgetC
 
     enum ExecutionPurpose:
 
-        case WithDatum(scriptVersion: Language, script: Array[Byte], datum: PlutusData)
+        case WithDatum(
+            scriptVersion: PlutusLedgerLanguage,
+            script: VM.ScriptForEvaluation,
+            datum: Data
+        )
 
-        case NoDatum(scriptVersion: Language, script: Array[Byte])
+        case NoDatum(scriptVersion: PlutusLedgerLanguage, script: VM.ScriptForEvaluation)
 
     given Ordering[TransactionInput] with
         def compare(x: TransactionInput, y: TransactionInput): Int =
@@ -515,7 +531,7 @@ class TxEvaluator(private val slotConfig: SlotConfig, private val initialBudgetC
             case RedeemerTag.Reward =>
                 val rewardAccounts = withdrawals.asScala
                     .map(ra => Address(ra.getRewardAddress))
-                    .sortBy(a => a.getBytes)
+                    .sortBy(a => ByteString.fromArray(a.getBytes)) // for ordering
                 if rewardAccounts.isDefinedAt(index) then
                     val address = rewardAccounts(index)
                     if address.getAddressType == AddressType.Reward then
@@ -557,7 +573,7 @@ class TxEvaluator(private val slotConfig: SlotConfig, private val initialBudgetC
                   datumHash,
                   throw new IllegalStateException("Datum Not Found")
                 )
-                ExecutionPurpose.WithDatum(version, script, datum)
+                ExecutionPurpose.WithDatum(version, script, toScalusData(datum))
             case v1.ScriptPurpose.Rewarding(stakingCred) =>
                 ??? // FIXME: Implement rewarding
             case v1.ScriptPurpose.Certifying(cert) =>
