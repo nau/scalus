@@ -27,7 +27,7 @@ import java.util
 import java.util.*
 import java.util.stream.Collectors
 import java.util.stream.Stream
-import scala.collection.{mutable, Map}
+import scala.collection.{mutable, Map, immutable}
 import scala.jdk.CollectionConverters.*
 import scala.math.BigInt
 
@@ -109,8 +109,8 @@ class TxEvaluator(private val slotConfig: SlotConfig, private val initialBudgetC
         transactionInputs.stream
             .map { input =>
                 val utxo = utxos.asScala
-                    .find(_utxo =>
-                        input.getTransactionId == _utxo.getTxHash && input.getIndex == _utxo.getOutputIndex
+                    .find(utxo =>
+                        input.getTransactionId == utxo.getTxHash && input.getIndex == utxo.getOutputIndex
                     )
                     .getOrElse(throw new IllegalStateException())
 
@@ -139,6 +139,7 @@ class TxEvaluator(private val slotConfig: SlotConfig, private val initialBudgetC
             .collect(Collectors.toList)
     }
 
+    private type ScriptHash = ByteString
     private type Hash = ByteString
     private case class LookupTable(
         scripts: scala.collection.Map[Hash, (PlutusLedgerLanguage, Array[Byte])],
@@ -172,6 +173,8 @@ class TxEvaluator(private val slotConfig: SlotConfig, private val initialBudgetC
                     ) -> (PlutusLedgerLanguage.PlutusV2, flatScript)
             (v1 ++ v2).toMap
 
+        //FIXME: implement
+
         /*
          * // discovery in utxos (script ref)
 
@@ -204,37 +207,41 @@ class TxEvaluator(private val slotConfig: SlotConfig, private val initialBudgetC
         utxos: util.Set[ResolvedInput],
         lookupTable: LookupTable
     ): Unit = {
-        val scripts = scriptsNeeded(tx, utxos)
+        val scripts = scriptsNeeded(tx, utxos.asScala)
         validateMissingScripts(scripts, lookupTable)
         verifyExactSetOfRedeemers(tx, scripts, lookupTable)
     }
 
+    private type AlonzoScriptsNeeded = immutable.Vector[(v1.ScriptPurpose, ScriptHash)]
+
     private def scriptsNeeded(
         tx: Transaction,
-        utxos: util.Set[ResolvedInput]
-    ): util.List[PlutusScript] = {
+        utxos: collection.Set[ResolvedInput]
+    ): AlonzoScriptsNeeded = {
         val txb = tx.getBody
-        util.List.of()
+
+        immutable.Vector.empty
     }
 
     private def validateMissingScripts(
-        scripts: util.List[PlutusScript],
+        scripts: AlonzoScriptsNeeded,
         lookupTable: LookupTable
     ): Unit = {
-        // TODO:
-        for (script <- scripts.asScala) {
-            if (!lookupTable.scripts.contains(ByteString.fromArray(script.getScriptHash))) {
-                throw new IllegalStateException(s"Missing script: ${script.getScriptHash}")
+        // FIXME:
+        for (script <- scripts) {
+            if (!lookupTable.scripts.contains(script._2)) {
+                throw new IllegalStateException(s"Missing script: ${script._2}")
             }
         }
     }
 
     private def verifyExactSetOfRedeemers(
         tx: Transaction,
-        scripts: util.List[PlutusScript],
+        scripts: AlonzoScriptsNeeded,
         lookupTable: LookupTable
     ): Unit = {
         // Method body goes here
+        ??? // not implemented //FIXME: Implement
     }
 
     private def evalRedeemer(
