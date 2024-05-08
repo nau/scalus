@@ -355,7 +355,7 @@ class TxEvaluator(private val slotConfig: SlotConfig, private val initialBudgetC
           ),
           v1.TxOut(
             getAddress(addr),
-            cclValueToScalusValue(out.toValue),
+            getValue(out.toValue),
             maybeDatumHash
           )
         )
@@ -375,7 +375,7 @@ class TxEvaluator(private val slotConfig: SlotConfig, private val initialBudgetC
           ),
           v2.TxOut(
             getAddress(addr),
-            cclValueToScalusValue(out.toValue),
+            getValue(out.toValue),
             getOutputDatum(out),
             if out.getReferenceScriptHash != null
             then prelude.Maybe.Just(ByteString.fromHex(out.getReferenceScriptHash))
@@ -384,10 +384,10 @@ class TxEvaluator(private val slotConfig: SlotConfig, private val initialBudgetC
         )
     }
 
-    private def cclValueToScalusValue(value: Value): v1.Value = {
-        val ma = cclMultiAssetToScalusValue(value.getMultiAssets)
+    private def getValue(value: Value): v1.Value = {
+        val ma = getValue(value.getMultiAssets)
         if value.getCoin != null then
-            val lovelace = v1.Value.lovelace(BigInt(value.getCoin))
+            val lovelace = v1.Value.lovelace(value.getCoin)
             prelude.AssocMap(
               prelude.List.Cons(
                 (ByteString.empty, AssocMap.singleton(ByteString.empty, BigInt(value.getCoin))),
@@ -397,13 +397,13 @@ class TxEvaluator(private val slotConfig: SlotConfig, private val initialBudgetC
         else ma
     }
 
-    private def cclMultiAssetToScalusValue(value: util.List[MultiAsset]): v1.Value = {
+    private def getValue(value: util.List[MultiAsset]): v1.Value = {
         // get sorted multi assets
         val multi = mutable.TreeMap.empty[ByteString, mutable.TreeMap[ByteString, BigInt]]
         for m <- value.asScala do
             val assets = mutable.TreeMap.empty[ByteString, BigInt]
             for asset <- m.getAssets.asScala do
-                assets.put(ByteString.fromArray(asset.getNameAsBytes), BigInt(asset.getValue))
+                assets.put(ByteString.fromArray(asset.getNameAsBytes), asset.getValue)
             multi.put(ByteString.fromHex(m.getPolicyId), assets)
         // convert to AssocMap
         val am =
@@ -421,7 +421,7 @@ class TxEvaluator(private val slotConfig: SlotConfig, private val initialBudgetC
             else prelude.Maybe.Nothing
         v1.TxOut(
           getAddress(addr),
-          cclValueToScalusValue(out.getValue),
+          getValue(out.getValue),
           maybeDatumHash
         )
     }
@@ -430,7 +430,7 @@ class TxEvaluator(private val slotConfig: SlotConfig, private val initialBudgetC
         val addr = Address(out.getAddress)
         v2.TxOut(
           getAddress(addr),
-          cclValueToScalusValue(out.getValue),
+          getValue(out.getValue),
           getOutputDatum(out),
           if out.getScriptRef != null then
               prelude.Maybe.Just(ByteString.fromArray(out.getScriptRef))
@@ -529,7 +529,7 @@ class TxEvaluator(private val slotConfig: SlotConfig, private val initialBudgetC
           inputs = prelude.List.from(body.getInputs.asScala.map(getTxInInfoV1(_, utxos))),
           outputs = prelude.List.from(body.getOutputs.asScala.map(getTxOutV1)),
           fee = v1.Value.lovelace(body.getFee ?? BigInteger.ZERO),
-          mint = cclMultiAssetToScalusValue(body.getMint ?? util.List.of()),
+          mint = getValue(body.getMint ?? util.List.of()),
           dcert = prelude.List.from(certs.asScala.map(getDCert)),
           withdrawals = getWithdrawals(body.getWithdrawals ?? util.List.of()),
           validRange = getInterval(tx, slotConfig),
@@ -562,7 +562,7 @@ class TxEvaluator(private val slotConfig: SlotConfig, private val initialBudgetC
           }),
           outputs = prelude.List.from(body.getOutputs.asScala.map(getTxOutV2)),
           fee = v1.Value.lovelace(body.getFee ?? BigInteger.ZERO),
-          mint = cclMultiAssetToScalusValue(body.getMint ?? util.List.of()),
+          mint = getValue(body.getMint ?? util.List.of()),
           dcert = prelude.List.from(certs.asScala.map(getDCert)),
           withdrawals = AssocMap(getWithdrawals(body.getWithdrawals ?? util.List.of())),
           validRange = getInterval(tx, slotConfig),
