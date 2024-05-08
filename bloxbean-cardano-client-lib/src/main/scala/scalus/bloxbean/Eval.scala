@@ -14,6 +14,7 @@ import scalus.ledger.api.PlutusLedgerLanguage.*
 import scalus.ledger.api.v1.Extended.NegInf
 import scalus.ledger.api.v1.{DCert, ScriptPurpose, StakingCredential}
 import scalus.ledger.api.{v1, v2, PlutusLedgerLanguage}
+import scalus.ledger.babbage.{PlutusV1Params, PlutusV2Params, ProtocolParams}
 import scalus.prelude
 import scalus.prelude.AssocMap
 import scalus.uplc.{Constant, ProgramFlatCodec, Term}
@@ -205,33 +206,37 @@ class TxEvaluator(private val slotConfig: SlotConfig, private val initialBudgetC
         import scalus.ledger.api.v2.ToDataInstances.given
         val result = executionPurpose match
             case ExecutionPurpose.WithDatum(PlutusV1, script, datum) =>
+                val machineParams = translateMachineParamsFromCostMdls(costMdls, PlutusV1)
                 val rdmr = toScalusData(redeemer.getData)
                 val txInfo = getTxInfoV1(tx, utxos, slotConfig)
                 val scriptContext = v1.ScriptContext(txInfo, purpose)
                 val ctxData = scriptContext.toData
                 println(s"Script context: $scriptContext")
-                evalScript(redeemer, script, datum, rdmr, ctxData)
+                evalScript(machineParams, script, datum, rdmr, ctxData)
             case ExecutionPurpose.WithDatum(PlutusV2, script, datum) =>
+                val machineParams = translateMachineParamsFromCostMdls(costMdls, PlutusV2)
                 val rdmr = toScalusData(redeemer.getData)
                 val txInfo = getTxInfoV2(tx, utxos, slotConfig)
                 val scriptContext = v2.ScriptContext(txInfo, purpose)
                 val ctxData = scriptContext.toData
                 println(s"Script context: $scriptContext")
-                evalScript(redeemer, script, datum, rdmr, ctxData)
+                evalScript(machineParams, script, datum, rdmr, ctxData)
             case ExecutionPurpose.NoDatum(PlutusV1, script) =>
+                val machineParams = translateMachineParamsFromCostMdls(costMdls, PlutusV1)
                 val rdmr = toScalusData(redeemer.getData)
                 val txInfo = getTxInfoV1(tx, utxos, slotConfig)
                 val scriptContext = v1.ScriptContext(txInfo, purpose)
                 val ctxData = scriptContext.toData
                 println(s"Script context: $scriptContext")
-                evalScript(redeemer, script, rdmr, ctxData)
+                evalScript(machineParams, script, rdmr, ctxData)
             case ExecutionPurpose.NoDatum(PlutusV2, script) =>
+                val machineParams = translateMachineParamsFromCostMdls(costMdls, PlutusV2)
                 val rdmr = toScalusData(redeemer.getData)
                 val txInfo = getTxInfoV2(tx, utxos, slotConfig)
                 val scriptContext = v2.ScriptContext(txInfo, purpose)
                 val ctxData = scriptContext.toData
                 println(s"Script context: $scriptContext")
-                evalScript(redeemer, script, rdmr, ctxData)
+                evalScript(machineParams, script, rdmr, ctxData)
             case _ =>
                 throw new IllegalStateException(s"Unsupported execution purpose $executionPurpose")
 
@@ -249,21 +254,20 @@ class TxEvaluator(private val slotConfig: SlotConfig, private val initialBudgetC
     }
 
     private def evalScript(
-        redeemer: Redeemer,
+        machineParams: MachineParams,
         script: VM.ScriptForEvaluation,
         args: Data*
     ) = {
         val spender = CountingBudgetSpender()
         val logger = Log()
         val cek = new CekMachine(
-          MachineParams.defaultParams,
+          machineParams,
           spender,
           logger,
           JVMPlatformSpecific
         )
         try
             val program = ProgramFlatCodec.decodeFlat(script)
-
             val applied = args.foldLeft(program.term) { (acc, arg) =>
                 Term.Apply(acc, Term.Const(Constant.Data(arg)))
             }
@@ -276,16 +280,35 @@ class TxEvaluator(private val slotConfig: SlotConfig, private val initialBudgetC
                 throw new IllegalStateException("MachineError", e)
     }
 
+    /** Creates [[MachineParams]] from a [[CostMdls]] and a [[PlutusLedgerLanguage]] */
+    def translateMachineParamsFromCostMdls(
+        costMdls: CostMdls,
+        plutus: PlutusLedgerLanguage
+    ): MachineParams = {
+        import upickle.default.*
+        val paramsMap = plutus match
+            case PlutusLedgerLanguage.PlutusV1 =>
+                val costs = costMdls.get(Language.PLUTUS_V1)
+                val params = PlutusV1Params.fromSeq(costs.getCosts.map(_.toInt).toSeq)
+                writeJs(params).obj.map { case (k, v) => (k, v.num.toInt) }.toMap
+            case PlutusLedgerLanguage.PlutusV2 =>
+                val costs = costMdls.get(Language.PLUTUS_V2)
+                val params = PlutusV2Params.fromSeq(costs.getCosts.map(_.toInt).toSeq)
+                writeJs(params).obj.map { case (k, v) => (k, v.num.toInt) }.toMap
+            case PlutusLedgerLanguage.PlutusV3 =>
+                throw new NotImplementedError("PlutusV3 not supported yet")
+
+        val builtinCostModel = BuiltinCostModel.fromCostModelParams(paramsMap)
+        val machineCosts = CekMachineCosts.fromMap(paramsMap)
+        MachineParams(machineCosts = machineCosts, builtinCostModel = builtinCostModel)
+    }
+
     private def getCredential(cred: Credential): v1.Credential = {
         cred.getType match
             case CredentialType.Key =>
-                v1.Credential.PubKeyCredential(
-                  v1.PubKeyHash(ByteString.fromArray(cred.getBytes))
-                )
+                v1.Credential.PubKeyCredential(v1.PubKeyHash(ByteString.fromArray(cred.getBytes)))
             case CredentialType.Script =>
-                v1.Credential.ScriptCredential(
-                  ByteString.fromArray(cred.getBytes)
-                )
+                v1.Credential.ScriptCredential(ByteString.fromArray(cred.getBytes))
     }
 
     private def getStakingCredential(cred: StakeCredential): v1.StakingCredential = {
