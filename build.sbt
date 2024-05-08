@@ -98,7 +98,7 @@ lazy val scalusPluginTests = project
       libraryDependencies += "org.scalatestplus" %%% "scalacheck-1-16" % "3.2.12.0" % "test"
     )
 
-lazy val PluginDependency: List[Def.Setting[_]] = List(scalacOptions ++= {
+lazy val PluginDependency: List[Def.Setting[?]] = List(scalacOptions ++= {
     val jar = (scalusPlugin / Compile / packageBin).value
     // add plugin timestamp to compiler options to trigger recompile of
     // main after editing the plugin. (Otherwise a 'clean' is needed.)

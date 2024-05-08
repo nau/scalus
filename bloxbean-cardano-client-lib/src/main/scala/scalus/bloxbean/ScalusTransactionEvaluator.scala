@@ -5,28 +5,20 @@ import com.bloxbean.cardano.client.api.TransactionEvaluator
 import com.bloxbean.cardano.client.api.UtxoSupplier
 import com.bloxbean.cardano.client.api.exception.ApiException
 import com.bloxbean.cardano.client.api.model.EvaluationResult
-import com.bloxbean.cardano.client.api.model.ProtocolParams
 import com.bloxbean.cardano.client.api.model.Result
 import com.bloxbean.cardano.client.api.model.Utxo
 import com.bloxbean.cardano.client.api.util.CostModelUtil
-import com.bloxbean.cardano.client.backend.api.BackendService
-import com.bloxbean.cardano.client.backend.api.DefaultProtocolParamsSupplier
-import com.bloxbean.cardano.client.backend.api.DefaultUtxoSupplier
 import com.bloxbean.cardano.client.plutus.spec.*
 import com.bloxbean.cardano.client.transaction.spec.Transaction
-import com.bloxbean.cardano.client.transaction.spec.TransactionInput
 import com.bloxbean.cardano.client.transaction.spec.TransactionWitnessSet
 import com.bloxbean.cardano.client.util.JsonUtil
 import scalus.uplc.eval.ExBudget
-import scalus.uplc.eval.MemoryUsage.memoryUsage
 
 import java.util
 import java.util.ArrayList
 import java.util.HashSet
 import java.util.List
 import java.util.Set
-import java.util.stream.Collectors
-import scala.collection.mutable
 import scala.jdk.CollectionConverters.*
 
 trait ScriptSupplier {
@@ -57,7 +49,7 @@ class ScalusTransactionEvaluator(
                 utxos.add(utxo)
 
 
-            val additionalScripts: List[PlutusScript] = new ArrayList[PlutusScript]
+            val additionalScripts: util.List[PlutusScript] = new util.ArrayList[PlutusScript]
             //reference inputs//reference inputs
 
 
