@@ -17,6 +17,26 @@ nix develop
 sbt precommit
 ```
 
+## Scalus Plugin Development
+
+During compiler plugin development you want to automatically recompile the dependencies of the plugin.
+
+For faster development make sure that in `build.sbt`:
+
+1. `scalacOptions` contains `-Xplugin` with the path to the plugin jar with the dummy argument.
+
+```scala
+Seq(s"-Xplugin:${jar.getAbsolutePath}", s"-Jdummy=${jar.lastModified}")
+```
+
+1. scalusPlugin project version is not manually set
+
+This line should be commented out in scalusPlugin project settings:
+
+```scala
+version := "0.6.2-SNAPSHOT",
+```
+
 ## Docusaurus
 
 Run locally

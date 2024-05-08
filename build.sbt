@@ -49,6 +49,11 @@ lazy val scalusPlugin = project
     .settings(
       name := "scalus-plugin",
       scalacOptions += "-Wunused:all",
+      // Manually set a fixed version to avoid recompilation on every commit
+      // as sbt-ci-release plugin increments the version on every commit
+      // thus recompiling the plugin and all dependent projects
+      // COMMENT THIS LINE TO ENABLE VERSION INCREMENT during Scalus plugin development
+      version := "0.6.2-SNAPSHOT",
       libraryDependencies += "org.scalatest" %%% "scalatest" % "3.2.18" % "test",
       libraryDependencies += "org.scalatestplus" %%% "scalacheck-1-16" % "3.2.14.0" % "test",
       libraryDependencies += "org.scala-lang" %% "scala3-compiler" % scalaVersion.value // % "provided"
@@ -97,6 +102,7 @@ lazy val PluginDependency: List[Def.Setting[_]] = List(scalacOptions ++= {
     // main after editing the plugin. (Otherwise a 'clean' is needed.)
 
     // NOTE: uncomment for faster Scalus Plugin development
+    // this will recompile the plugin when the jar is modified
     // Seq(s"-Xplugin:${jar.getAbsolutePath}", s"-Jdummy=${jar.lastModified}")
     Seq(s"-Xplugin:${jar.getAbsolutePath}")
 })
