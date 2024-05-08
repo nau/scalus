@@ -1,49 +1,30 @@
 package scalus.bloxbean
 
-import com.bloxbean.cardano.client.address.Address
-import com.bloxbean.cardano.client.address.AddressProvider
-import com.bloxbean.cardano.client.address.AddressType
-import com.bloxbean.cardano.client.address.Credential
-import com.bloxbean.cardano.client.address.CredentialType
+import com.bloxbean.cardano.client.address.{Address, AddressType, Credential, CredentialType}
 import com.bloxbean.cardano.client.api.model.Utxo
-import com.bloxbean.cardano.client.backend.api.AddressService
-import com.bloxbean.cardano.client.exception.CborDeserializationException
-import com.bloxbean.cardano.client.exception.CborSerializationException
+import com.bloxbean.cardano.client.exception.{CborDeserializationException, CborSerializationException}
 import com.bloxbean.cardano.client.plutus.spec.*
 import com.bloxbean.cardano.client.transaction.spec.*
 import com.bloxbean.cardano.client.transaction.spec.cert.*
 import com.bloxbean.cardano.client.transaction.util.TransactionUtil
-import io.bullet.borer.Cbor
-import io.bullet.borer.Decoder
+import io.bullet.borer.{Cbor, Decoder}
 import scalus.bloxbean.Interop.toScalusData
-import scalus.builtin.ByteString
-import scalus.builtin.Data
-import scalus.builtin.JVMPlatformSpecific
-import scalus.builtin.PlutusDataCborDecoder
-import scalus.builtin.given
-import scalus.ledger.api.PlutusLedgerLanguage
+import scalus.builtin.{ByteString, Data, JVMPlatformSpecific, PlutusDataCborDecoder, given}
 import scalus.ledger.api.PlutusLedgerLanguage.*
-import scalus.ledger.api.v1
-import scalus.ledger.api.v1.DCert
 import scalus.ledger.api.v1.Extended.NegInf
-import scalus.ledger.api.v1.ScriptPurpose
-import scalus.ledger.api.v1.StakingCredential
-import scalus.ledger.api.v2
+import scalus.ledger.api.v1.{DCert, ScriptPurpose, StakingCredential}
+import scalus.ledger.api.{v1, v2, PlutusLedgerLanguage}
 import scalus.prelude
 import scalus.prelude.AssocMap
-import scalus.uplc.Constant
-import scalus.uplc.ProgramFlatCodec
-import scalus.uplc.Term
+import scalus.uplc.{Constant, ProgramFlatCodec, Term}
 import scalus.uplc.eval.*
-import scalus.uplc.eval.VM
 import scalus.utils.Hex
 
 import java.math.BigInteger
 import java.util
 import java.util.*
 import java.util.stream.Collectors
-import scala.collection.Map
-import scala.collection.mutable
+import scala.collection.{mutable, Map}
 import scala.jdk.CollectionConverters.*
 import scala.math.BigInt
 
@@ -72,41 +53,37 @@ class TxEvaluator(private val slotConfig: SlotConfig, private val initialBudgetC
       * @param costMdls
       *   Cost models
       * @return
-      *   List of {@link Redeemer} with estimated script costs as {@link
-      *   com.bloxbean.cardano.client.plutus.spec.ExUnits}
+      *   List of [[Redeemer]] with estimated script costs as
+      *   [[com.bloxbean.cardano.client.plutus.spec.ExUnits]]
       * @throws TxEvaluationException
       *   if script evaluation fails
       */
     def evaluateTx(
         transaction: Transaction,
-        inputUtxos: Set[Utxo],
-        scripts: List[PlutusScript],
+        inputUtxos: util.Set[Utxo],
+        scripts: util.List[PlutusScript],
         costMdls: CostMdls
-    ): List[Redeemer] = {
-        val witnessScripts = new ArrayList[PlutusScript]()
+    ): util.List[Redeemer] = {
+        val witnessScripts = new util.ArrayList[PlutusScript]()
         witnessScripts.addAll(transaction.getWitnessSet.getPlutusV1Scripts)
         witnessScripts.addAll(transaction.getWitnessSet.getPlutusV2Scripts)
 
         val allScripts = if scripts != null && !scripts.isEmpty then
-            val all = new ArrayList[PlutusScript]()
+            val all = new util.ArrayList[PlutusScript]()
             all.addAll(scripts)
             all.addAll(witnessScripts)
             all
         else witnessScripts
-        try {
-            evalPhaseTwo(transaction, inputUtxos, costMdls, initialBudgetConfig, slotConfig, true)
-        } catch {
-            case e: Exception => throw new TxEvaluationException("TxEvaluation failed", e)
-        }
+        try evalPhaseTwo(transaction, inputUtxos, costMdls, initialBudgetConfig, slotConfig, true)
+        catch case e: Exception => throw new TxEvaluationException("TxEvaluation failed", e)
     }
 
     private def resolveTxInputs(
-        transactionInputs: List[TransactionInput],
-        utxos: Set[Utxo],
-        plutusScripts: List[PlutusScript]
-    ): List[TransactionOutput] = {
-        transactionInputs
-            .stream
+        transactionInputs: util.List[TransactionInput],
+        utxos: util.Set[Utxo],
+        plutusScripts: util.List[PlutusScript]
+    ): util.List[TransactionOutput] = {
+        transactionInputs.stream
             .map { input =>
                 val utxo = utxos.asScala
                     .find(_utxo =>
@@ -117,11 +94,8 @@ class TxEvaluator(private val slotConfig: SlotConfig, private val initialBudgetC
                 val address = utxo.getAddress
 
                 val plutusScript = plutusScripts.asScala.find { script =>
-                    try {
-                        Hex.bytesToHex(script.getScriptHash) == utxo.getReferenceScriptHash
-                    } catch {
-                        case e: CborSerializationException => throw new IllegalStateException(e)
-                    }
+                    try Hex.bytesToHex(script.getScriptHash) == utxo.getReferenceScriptHash
+                    catch case e: CborSerializationException => throw new IllegalStateException(e)
                 }
 
                 val inlineDatum = Option(utxo.getInlineDatum).map(hex =>
@@ -129,7 +103,7 @@ class TxEvaluator(private val slotConfig: SlotConfig, private val initialBudgetC
                 )
                 val datumHash = Option(utxo.getDataHash).map(Hex.hexToBytes)
 
-                try {
+                try
                     TransactionOutput.builder
                         .address(address)
                         .value(utxo.toValue)
@@ -137,36 +111,28 @@ class TxEvaluator(private val slotConfig: SlotConfig, private val initialBudgetC
                         .inlineDatum(inlineDatum.orNull)
                         .scriptRef(plutusScript.orNull)
                         .build
-                } catch {
-                    case e: CborDeserializationException => throw new IllegalStateException(e)
-                }
+                catch case e: CborDeserializationException => throw new IllegalStateException(e)
             }
             .collect(Collectors.toList)
     }
 
-    type Hash = ByteString
-    case class LookupTable(
+    private type Hash = ByteString
+    private case class LookupTable(
         scripts: scala.collection.Map[Hash, (PlutusLedgerLanguage, Array[Byte])],
         datums: scala.collection.Map[Hash, PlutusData]
     )
 
-    def getScriptAndDatumLookupTable(
+    private def getScriptAndDatumLookupTable(
         tx: Transaction,
-        utxos: Set[Utxo]
+        utxos: util.Set[Utxo]
     ): LookupTable = {
-        val datum = tx
-            .getWitnessSet
-            .getPlutusDataList
-            .asScala
+        val datum = tx.getWitnessSet.getPlutusDataList.asScala
             .map: data =>
                 ByteString.fromArray(data.getDatumHashAsBytes) -> data
             .toMap
         // FIXME: implement data in reference inputs
         // FIXME: implement other script types
-        val scripts = tx
-            .getWitnessSet
-            .getPlutusV2Scripts
-            .asScala
+        val scripts = tx.getWitnessSet.getPlutusV2Scripts.asScala
             .map: script =>
                 val decoded = Cbor.decode(Hex.hexToBytes(script.getCborHex)).to[Array[Byte]].value
                 val flatScript = Cbor.decode(decoded).to[Array[Byte]].value
@@ -177,23 +143,23 @@ class TxEvaluator(private val slotConfig: SlotConfig, private val initialBudgetC
         LookupTable(scripts, datum)
     }
 
-    def evalPhaseOne(
+    private def evalPhaseOne(
         tx: Transaction,
-        utxos: Set[Utxo],
+        utxos: util.Set[Utxo],
         lookupTable: LookupTable
     ): Unit = {
-        val scripts = scriptsNeeded(tx, utxos);
-        validateMissingScripts(scripts, lookupTable);
-        hasExactSetOfRedeemers(tx, scripts, lookupTable);
+        val scripts = scriptsNeeded(tx, utxos)
+        validateMissingScripts(scripts, lookupTable)
+        verifyExactSetOfRedeemers(tx, scripts, lookupTable)
     }
 
-    def scriptsNeeded(tx: Transaction, utxos: Set[Utxo]): List[PlutusScript] = {
+    private def scriptsNeeded(tx: Transaction, utxos: util.Set[Utxo]): util.List[PlutusScript] = {
         // FIXME: Implement the method
-        return List.of;
+        util.List.of
     }
 
-    def validateMissingScripts(
-        scripts: List[PlutusScript],
+    private def validateMissingScripts(
+        scripts: util.List[PlutusScript],
         lookupTable: LookupTable
     ): Unit = {
         // TODO:
@@ -204,17 +170,17 @@ class TxEvaluator(private val slotConfig: SlotConfig, private val initialBudgetC
         }
     }
 
-    def hasExactSetOfRedeemers(
+    private def verifyExactSetOfRedeemers(
         tx: Transaction,
-        scripts: List[PlutusScript],
+        scripts: util.List[PlutusScript],
         lookupTable: LookupTable
     ): Unit = {
         // Method body goes here
     }
 
-    def evalRedeemer(
+    private def evalRedeemer(
         tx: Transaction,
-        utxos: Set[Utxo],
+        utxos: util.Set[Utxo],
         slotConfig: SlotConfig,
         redeemer: Redeemer,
         lookupTable: LookupTable,
@@ -296,7 +262,6 @@ class TxEvaluator(private val slotConfig: SlotConfig, private val initialBudgetC
           JVMPlatformSpecific
         )
         try
-            import scalus.uplc.TermDSL.{*, given}
             val program = ProgramFlatCodec.decodeFlat(script)
 
             val applied = args.foldLeft(program.term) { (acc, arg) =>
@@ -311,7 +276,7 @@ class TxEvaluator(private val slotConfig: SlotConfig, private val initialBudgetC
                 throw new IllegalStateException("MachineError", e)
     }
 
-    def getCredential(cred: Credential): v1.Credential = {
+    private def getCredential(cred: Credential): v1.Credential = {
         cred.getType match
             case CredentialType.Key =>
                 v1.Credential.PubKeyCredential(
@@ -323,7 +288,7 @@ class TxEvaluator(private val slotConfig: SlotConfig, private val initialBudgetC
                 )
     }
 
-    def getStakingCredential(cred: StakeCredential): v1.StakingCredential = {
+    private def getStakingCredential(cred: StakeCredential): v1.StakingCredential = {
         cred.getType match
             case StakeCredType.ADDR_KEYHASH =>
                 v1.StakingCredential.StakingHash(
@@ -335,7 +300,7 @@ class TxEvaluator(private val slotConfig: SlotConfig, private val initialBudgetC
                 )
     }
 
-    def getStakingCredential(cred: Credential): v1.StakingCredential = {
+    private def getStakingCredential(cred: Credential): v1.StakingCredential = {
         v1.StakingCredential.StakingHash(
           getCredential(cred)
         )
@@ -350,7 +315,7 @@ class TxEvaluator(private val slotConfig: SlotConfig, private val initialBudgetC
         v1.Address(cred, staking)
     }
 
-    def getTxInInfoV1(input: TransactionInput, utxos: Set[Utxo]): v1.TxInInfo = {
+    private def getTxInInfoV1(input: TransactionInput, utxos: util.Set[Utxo]): v1.TxInInfo = {
         val out = utxos.asScala
             .find(utxo =>
                 utxo.getTxHash == input.getTransactionId && utxo.getOutputIndex == input.getIndex
@@ -358,8 +323,7 @@ class TxEvaluator(private val slotConfig: SlotConfig, private val initialBudgetC
             .getOrElse(throw new IllegalStateException("Input Not Found"))
         val addr = Address(out.getAddress)
         val maybeDatumHash =
-            if out.getDataHash != null then
-                prelude.Maybe.Just(ByteString.fromHex(out.getDataHash))
+            if out.getDataHash != null then prelude.Maybe.Just(ByteString.fromHex(out.getDataHash))
             else prelude.Maybe.Nothing
         v1.TxInInfo(
           v1.TxOutRef(
@@ -374,7 +338,7 @@ class TxEvaluator(private val slotConfig: SlotConfig, private val initialBudgetC
         )
     }
 
-    def getTxInInfoV2(input: TransactionInput, utxos: Set[Utxo]): v2.TxInInfo = {
+    private def getTxInInfoV2(input: TransactionInput, utxos: util.Set[Utxo]): v2.TxInInfo = {
         val out = utxos.asScala
             .find(utxo =>
                 utxo.getTxHash == input.getTransactionId && utxo.getOutputIndex == input.getIndex
@@ -397,7 +361,7 @@ class TxEvaluator(private val slotConfig: SlotConfig, private val initialBudgetC
         )
     }
 
-    def cclValueToScalusValue(value: Value): v1.Value = {
+    private def cclValueToScalusValue(value: Value): v1.Value = {
         val ma = cclMultiAssetToScalusValue(value.getMultiAssets)
         if value.getCoin != null then
             val lovelace = v1.Value.lovelace(BigInt(value.getCoin))
@@ -410,7 +374,7 @@ class TxEvaluator(private val slotConfig: SlotConfig, private val initialBudgetC
         else ma
     }
 
-    def cclMultiAssetToScalusValue(value: List[MultiAsset]): v1.Value = {
+    private def cclMultiAssetToScalusValue(value: util.List[MultiAsset]): v1.Value = {
         // get sorted multi assets
         val multi = mutable.TreeMap.empty[ByteString, mutable.TreeMap[ByteString, BigInt]]
         for m <- value.asScala do
@@ -426,7 +390,7 @@ class TxEvaluator(private val slotConfig: SlotConfig, private val initialBudgetC
         prelude.AssocMap(prelude.List.from(am))
     }
 
-    def getTxOutV1(out: TransactionOutput): v1.TxOut = {
+    private def getTxOutV1(out: TransactionOutput): v1.TxOut = {
         val addr = Address(out.getAddress)
         val maybeDatumHash =
             if out.getDatumHash != null then
@@ -439,7 +403,7 @@ class TxEvaluator(private val slotConfig: SlotConfig, private val initialBudgetC
         )
     }
 
-    def getTxOutV2(out: TransactionOutput): v2.TxOut = {
+    private def getTxOutV2(out: TransactionOutput): v2.TxOut = {
         val addr = Address(out.getAddress)
         v2.TxOut(
           getAddress(addr),
@@ -451,7 +415,7 @@ class TxEvaluator(private val slotConfig: SlotConfig, private val initialBudgetC
         )
     }
 
-    def getOutputDatum(out: TransactionOutput): v2.OutputDatum = {
+    private def getOutputDatum(out: TransactionOutput): v2.OutputDatum = {
         if out.getDatumHash != null then
             v2.OutputDatum.OutputDatumHash(ByteString.fromArray(out.getDatumHash))
         else if out.getInlineDatum != null then
@@ -459,7 +423,7 @@ class TxEvaluator(private val slotConfig: SlotConfig, private val initialBudgetC
         else v2.OutputDatum.NoOutputDatum
     }
 
-    def getOutputDatum(out: Utxo): v2.OutputDatum = {
+    private def getOutputDatum(out: Utxo): v2.OutputDatum = {
         if out.getDataHash != null then
             v2.OutputDatum.OutputDatumHash(ByteString.fromHex(out.getDataHash))
         else if out.getInlineDatum != null then
@@ -469,14 +433,14 @@ class TxEvaluator(private val slotConfig: SlotConfig, private val initialBudgetC
         else v2.OutputDatum.NoOutputDatum
     }
 
-    extension [A](inline a: A) inline infix def ??(b: A): A = if a != null then a else b
+    extension [A](inline a: A) private inline infix def ??(b: A): A = if a != null then a else b
 
-    def slotToBeginPosixTime(slot: Long, sc: SlotConfig): Long = {
+    private def slotToBeginPosixTime(slot: Long, sc: SlotConfig): Long = {
         val msAfterBegin = (slot - sc.zero_slot) * sc.slot_length
         sc.zero_time + msAfterBegin
     }
 
-    def getInterval(tx: Transaction, slotConfig: SlotConfig): v1.Interval[v1.POSIXTime] = {
+    private def getInterval(tx: Transaction, slotConfig: SlotConfig): v1.Interval[v1.POSIXTime] = {
         val validFrom = tx.getBody.getValidityStartInterval
         val lower =
             if validFrom == 0 then v1.LowerBound(NegInf, false)
@@ -488,8 +452,8 @@ class TxEvaluator(private val slotConfig: SlotConfig, private val initialBudgetC
         v1.Interval(lower, upper)
     }
 
-    def getWithdrawals(
-        withdrawals: List[Withdrawal]
+    private def getWithdrawals(
+        withdrawals: util.List[Withdrawal]
     ): prelude.List[(v1.StakingCredential, BigInt)] = {
         // get sorted withdrawals
         given Ordering[v1.StakingCredential.StakingHash] = Ordering.by { cred =>
@@ -504,7 +468,7 @@ class TxEvaluator(private val slotConfig: SlotConfig, private val initialBudgetC
         prelude.List.from(wdwls)
     }
 
-    def getDCert(cert: Certificate): v1.DCert = {
+    private def getDCert(cert: Certificate): v1.DCert = {
         cert match
             case c: StakeRegistration =>
                 v1.DCert.DelegRegKey(getStakingCredential(c.getStakeCredential))
@@ -529,22 +493,22 @@ class TxEvaluator(private val slotConfig: SlotConfig, private val initialBudgetC
             case c: MoveInstataneous     => v1.DCert.Mir
     }
 
-    def getTxInfoV1(
+    private def getTxInfoV1(
         tx: Transaction,
-        utxos: Set[Utxo],
+        utxos: util.Set[Utxo],
         slotConfig: SlotConfig
     ): v1.TxInfo = {
         val body = tx.getBody
-        val certs = body.getCerts ?? List.of()
-        val rdmrs = tx.getWitnessSet.getRedeemers ?? List.of()
-        val datums = tx.getWitnessSet.getPlutusDataList ?? List.of()
+        val certs = body.getCerts ?? util.List.of()
+        val rdmrs = tx.getWitnessSet.getRedeemers ?? util.List.of()
+        val datums = tx.getWitnessSet.getPlutusDataList ?? util.List.of()
         v1.TxInfo(
           inputs = prelude.List.from(body.getInputs.asScala.map(getTxInInfoV1(_, utxos))),
           outputs = prelude.List.from(body.getOutputs.asScala.map(getTxOutV1)),
           fee = v1.Value.lovelace(body.getFee ?? BigInteger.ZERO),
-          mint = cclMultiAssetToScalusValue(body.getMint ?? List.of()),
+          mint = cclMultiAssetToScalusValue(body.getMint ?? util.List.of()),
           dcert = prelude.List.from(certs.asScala.map(getDCert)),
-          withdrawals = getWithdrawals(body.getWithdrawals ?? List.of()),
+          withdrawals = getWithdrawals(body.getWithdrawals ?? util.List.of()),
           validRange = getInterval(tx, slotConfig),
           signatories = prelude.List.from(
             body.getRequiredSigners.asScala.map { signer =>
@@ -559,15 +523,15 @@ class TxEvaluator(private val slotConfig: SlotConfig, private val initialBudgetC
         )
     }
 
-    def getTxInfoV2(
+    private def getTxInfoV2(
         tx: Transaction,
-        utxos: Set[Utxo],
+        utxos: util.Set[Utxo],
         slotConfig: SlotConfig
     ): v2.TxInfo = {
         val body = tx.getBody
-        val certs = body.getCerts ?? List.of()
-        val rdmrs = tx.getWitnessSet.getRedeemers ?? List.of()
-        val datums = tx.getWitnessSet.getPlutusDataList ?? List.of()
+        val certs = body.getCerts ?? util.List.of()
+        val rdmrs = tx.getWitnessSet.getRedeemers ?? util.List.of()
+        val datums = tx.getWitnessSet.getPlutusDataList ?? util.List.of()
         v2.TxInfo(
           inputs = prelude.List.from(body.getInputs.asScala.map(getTxInInfoV2(_, utxos))),
           referenceInputs = prelude.List.from(body.getReferenceInputs.asScala.map { input =>
@@ -575,9 +539,9 @@ class TxEvaluator(private val slotConfig: SlotConfig, private val initialBudgetC
           }),
           outputs = prelude.List.from(body.getOutputs.asScala.map(getTxOutV2)),
           fee = v1.Value.lovelace(body.getFee ?? BigInteger.ZERO),
-          mint = cclMultiAssetToScalusValue(body.getMint ?? List.of()),
+          mint = cclMultiAssetToScalusValue(body.getMint ?? util.List.of()),
           dcert = prelude.List.from(certs.asScala.map(getDCert)),
-          withdrawals = AssocMap(getWithdrawals(body.getWithdrawals ?? List.of())),
+          withdrawals = AssocMap(getWithdrawals(body.getWithdrawals ?? util.List.of())),
           validRange = getInterval(tx, slotConfig),
           signatories = prelude.List.from(
             body.getRequiredSigners.asScala.map { signer =>
@@ -602,7 +566,7 @@ class TxEvaluator(private val slotConfig: SlotConfig, private val initialBudgetC
         )
     }
 
-    enum ExecutionPurpose:
+    private enum ExecutionPurpose:
 
         case WithDatum(
             scriptVersion: PlutusLedgerLanguage,
@@ -618,12 +582,12 @@ class TxEvaluator(private val slotConfig: SlotConfig, private val initialBudgetC
                 case 0 => x.getIndex.compareTo(y.getIndex)
                 case c => c
 
-    def getScriptPurpose(
+    private def getScriptPurpose(
         redeemer: Redeemer,
-        inputs: List[TransactionInput],
-        mint: List[MultiAsset],
-        certificates: List[Certificate],
-        withdrawals: List[Withdrawal]
+        inputs: util.List[TransactionInput],
+        mint: util.List[MultiAsset],
+        certificates: util.List[Certificate],
+        withdrawals: util.List[Withdrawal]
     ): v1.ScriptPurpose =
         // Cardano Ledger code is stupidly complex and unreadable. We need to make sure this is correct
         val index = redeemer.getIndex.intValue
@@ -663,8 +627,8 @@ class TxEvaluator(private val slotConfig: SlotConfig, private val initialBudgetC
                         )
                 else throw new IllegalStateException(s"Wrong reward index: $index in $withdrawals")
 
-    def getExecutionPurpose(
-        utxos: Set[Utxo],
+    private def getExecutionPurpose(
+        utxos: util.Set[Utxo],
         purpose: v1.ScriptPurpose,
         lookupTable: LookupTable
     ): ExecutionPurpose = {
@@ -734,16 +698,16 @@ class TxEvaluator(private val slotConfig: SlotConfig, private val initialBudgetC
                     case _ => throw new IllegalStateException("OnlyStakeDeregAndDelegAllowed")
     }
 
-    def evalPhaseTwo(
+    private def evalPhaseTwo(
         tx: Transaction,
-        utxos: Set[Utxo],
+        utxos: util.Set[Utxo],
         costMdls: CostMdls,
         initialBudget: ExBudget,
         slotConfig: SlotConfig,
         runPhaseOne: Boolean
-    ): List[Redeemer] = {
+    ): util.List[Redeemer] = {
         println(s"Eval phase two $tx, $utxos, $costMdls, $initialBudget, $slotConfig, $runPhaseOne")
-        val redeemers = tx.getWitnessSet.getRedeemers ?? List.of()
+        val redeemers = tx.getWitnessSet.getRedeemers ?? util.List.of()
         val lookupTable = getScriptAndDatumLookupTable(tx, utxos)
         println(s"Lookup table: $lookupTable")
 
