@@ -1,6 +1,8 @@
 import org.scalajs.linker.interface.OutputPatterns
 import sbtwelcome.*
 
+import java.net.URI
+
 Global / onChangedBuildSource := ReloadOnSourceChanges
 autoCompilerPlugins := true
 
@@ -19,7 +21,7 @@ ThisBuild / developers := List(
 
 ThisBuild / description := "Scalus is a Scala library for writing Plutus smart contracts."
 ThisBuild / licenses := List(
-  "Apache 2" -> new URL("http://www.apache.org/licenses/LICENSE-2.0.txt")
+  "Apache 2" -> new URI("http://www.apache.org/licenses/LICENSE-2.0.txt").toURL
 )
 ThisBuild / homepage := Some(url("https://github.com/nau/scalus"))
 

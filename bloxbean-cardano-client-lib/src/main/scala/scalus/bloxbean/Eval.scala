@@ -25,6 +25,7 @@ import java.math.BigInteger
 import java.util
 import java.util.*
 import java.util.stream.Collectors
+import java.util.stream.Stream
 import scala.collection.{mutable, Map}
 import scala.jdk.CollectionConverters.*
 import scala.math.BigInt
@@ -65,17 +66,20 @@ class TxEvaluator(private val slotConfig: SlotConfig, private val initialBudgetC
         scripts: util.List[PlutusScript],
         costMdls: CostMdls
     ): util.List[Redeemer] = {
-        val witnessScripts = new util.ArrayList[PlutusScript]()
+        val witnessScripts = new util.ArrayList[PlutusScript]
         witnessScripts.addAll(transaction.getWitnessSet.getPlutusV1Scripts)
         witnessScripts.addAll(transaction.getWitnessSet.getPlutusV2Scripts)
 
-        val allScripts = if scripts != null && !scripts.isEmpty then
-            val all = new util.ArrayList[PlutusScript]()
-            all.addAll(scripts)
-            all.addAll(witnessScripts)
-            all
-        else witnessScripts
-        try evalPhaseTwo(transaction, inputUtxos, costMdls, initialBudgetConfig, slotConfig, true)
+        val allScripts =
+            Stream.concat(scripts.stream, witnessScripts.stream).collect(Collectors.toList)
+
+        val txInputs = transaction.getBody.getInputs
+        val refTxInputs = transaction.getBody.getReferenceInputs
+        val allInputs =
+            Stream.concat(txInputs.stream, refTxInputs.stream).collect(Collectors.toList)
+        val txOutputs = resolveTxInputs(allInputs, inputUtxos, allScripts)
+
+        try evalPhaseTwo(transaction, inputUtxos, costMdls, initialBudgetConfig, slotConfig, runPhaseOne = true)
         catch case e: Exception => throw new TxEvaluationException("TxEvaluation failed", e)
     }
 
@@ -125,22 +129,55 @@ class TxEvaluator(private val slotConfig: SlotConfig, private val initialBudgetC
 
     private def getScriptAndDatumLookupTable(
         tx: Transaction,
-        utxos: util.Set[Utxo]
+        utxos: util.Set[Utxo],
     ): LookupTable = {
         val datum = tx.getWitnessSet.getPlutusDataList.asScala
             .map: data =>
                 ByteString.fromArray(data.getDatumHashAsBytes) -> data
             .toMap
-        // FIXME: implement data in reference inputs
-        // FIXME: implement other script types
-        val scripts = tx.getWitnessSet.getPlutusV2Scripts.asScala
-            .map: script =>
+        val scripts =
+            def decodeToFlat(script: PlutusScript) =
                 val decoded = Cbor.decode(Hex.hexToBytes(script.getCborHex)).to[Array[Byte]].value
-                val flatScript = Cbor.decode(decoded).to[Array[Byte]].value
-                ByteString.fromArray(
-                  script.getScriptHash
-                ) -> (PlutusLedgerLanguage.PlutusV2, flatScript)
-            .toMap
+                Cbor.decode(decoded).to[Array[Byte]].value
+            // FIXME: add native scripts
+            val v1 = tx.getWitnessSet.getPlutusV1Scripts.asScala
+                .map: script =>
+                    val flatScript = decodeToFlat(script)
+                    ByteString.fromArray(
+                      script.getScriptHash
+                    ) -> (PlutusLedgerLanguage.PlutusV1, flatScript)
+            val v2 = tx.getWitnessSet.getPlutusV2Scripts.asScala
+                .map: script =>
+                    val flatScript = decodeToFlat(script)
+                    ByteString.fromArray(
+                      script.getScriptHash
+                    ) -> (PlutusLedgerLanguage.PlutusV2, flatScript)
+            (v1 ++ v2).toMap
+
+        /*
+         * // discovery in utxos (script ref)
+
+    for utxo in utxos.iter() {
+        match &utxo.output {
+            TransactionOutput::Legacy(_) => {}
+            TransactionOutput::PostAlonzo(output) => {
+                if let Some(script) = &output.script_ref {
+                    match &script.0 {
+                        PseudoScript::NativeScript(ns) => {
+                            scripts.insert(ns.compute_hash(), ScriptVersion::Native(ns.clone()));
+                        }
+                        PseudoScript::PlutusV1Script(v1) => {
+                            scripts.insert(v1.compute_hash(), ScriptVersion::V1(v1.clone()));
+                        }
+                        PseudoScript::PlutusV2Script(v2) => {
+                            scripts.insert(v2.compute_hash(), ScriptVersion::V2(v2.clone()));
+                        }
+                    }
+                }
+            }
+        }
+    }
+         */
         LookupTable(scripts, datum)
     }
 

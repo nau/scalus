@@ -110,7 +110,7 @@ class TxEvaluatorSpec extends AnyFunSuite:
         val utxoSupplier = new DefaultUtxoSupplier(backendService.getUtxoService)
         val protocolParamsSupplier =
             new DefaultProtocolParamsSupplier(backendService.getEpochService)
-        val evaluator = ScalusTransactionEvaluator(utxoSupplier, protocolParamsSupplier)
+        val evaluator = ScalusTransactionEvaluator(utxoSupplier, protocolParamsSupplier, scriptSupplier = null)
         val utxoSelector = new DefaultUtxoSelector(utxoSupplier);
         val utxoOptional = utxoSelector.findFirst(
           sender1Addr,
