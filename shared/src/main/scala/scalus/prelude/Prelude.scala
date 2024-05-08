@@ -66,6 +66,12 @@ object List:
         new Cons(a, b)
     }
 
+    @Ignore
+    def from[A](i: java.lang.Iterable[A]): List[A] = {
+        import scala.jdk.CollectionConverters.*
+        from(i.asScala)
+    }
+
     def isEmpty[A](lst: List[A]): Boolean = lst match
         case Nil        => true
         case Cons(_, _) => false

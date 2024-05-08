@@ -220,9 +220,16 @@ class TxEvaluator(private val slotConfig: SlotConfig, private val initialBudgetC
 
         import scalus.bloxbean.Interop.toScalusData
         import scalus.builtin.Data.toData
+        import scalus.ledger.api.v1.ToDataInstances.given
         import scalus.ledger.api.v2.ToDataInstances.given
         val result = executionPurpose match
-            case ExecutionPurpose.WithDatum(PlutusV1, script, datum) => ???
+            case ExecutionPurpose.WithDatum(PlutusV1, script, datum) =>
+                val rdmr = toScalusData(redeemer.getData)
+                val txInfo = getTxInfoV1(tx, utxos, slotConfig)
+                val scriptContext = v1.ScriptContext(txInfo, purpose)
+                val ctxData = scriptContext.toData
+                println(s"Script context: $scriptContext")
+                evalScript(redeemer, script, datum, rdmr, ctxData)
             case ExecutionPurpose.WithDatum(PlutusV2, script, datum) =>
                 val rdmr = toScalusData(redeemer.getData)
                 val txInfo = getTxInfoV2(tx, utxos, slotConfig)
@@ -230,6 +237,13 @@ class TxEvaluator(private val slotConfig: SlotConfig, private val initialBudgetC
                 val ctxData = scriptContext.toData
                 println(s"Script context: $scriptContext")
                 evalScript(redeemer, script, datum, rdmr, ctxData)
+            case ExecutionPurpose.NoDatum(PlutusV1, script) =>
+                val rdmr = toScalusData(redeemer.getData)
+                val txInfo = getTxInfoV1(tx, utxos, slotConfig)
+                val scriptContext = v1.ScriptContext(txInfo, purpose)
+                val ctxData = scriptContext.toData
+                println(s"Script context: $scriptContext")
+                evalScript(redeemer, script, rdmr, ctxData)
             case ExecutionPurpose.NoDatum(PlutusV2, script) =>
                 val rdmr = toScalusData(redeemer.getData)
                 val txInfo = getTxInfoV2(tx, utxos, slotConfig)
@@ -237,7 +251,8 @@ class TxEvaluator(private val slotConfig: SlotConfig, private val initialBudgetC
                 val ctxData = scriptContext.toData
                 println(s"Script context: $scriptContext")
                 evalScript(redeemer, script, rdmr, ctxData)
-            case _ => ???
+            case _ =>
+                throw new IllegalStateException(s"Unsupported execution purpose $executionPurpose")
 
         val cost = result.budget
         println(s"Eval result: $result")
@@ -320,6 +335,30 @@ class TxEvaluator(private val slotConfig: SlotConfig, private val initialBudgetC
         v1.Address(cred, staking)
     }
 
+    def getTxInInfoV1(input: TransactionInput, utxos: Set[Utxo]): v1.TxInInfo = {
+        val out = utxos.asScala
+            .find(utxo =>
+                utxo.getTxHash == input.getTransactionId && utxo.getOutputIndex() == input.getIndex
+            )
+            .getOrElse(throw new IllegalStateException("Input Not Found"))
+        val addr = Address(out.getAddress())
+        val maybeDatumHash =
+            if out.getDataHash() != null then
+                prelude.Maybe.Just(ByteString.fromHex(out.getDataHash))
+            else prelude.Maybe.Nothing
+        v1.TxInInfo(
+          v1.TxOutRef(
+            v1.TxId(ByteString.fromHex(input.getTransactionId)),
+            input.getIndex
+          ),
+          v1.TxOut(
+            getAddress(addr),
+            cclValueToScalusValue(out.toValue()),
+            maybeDatumHash
+          )
+        )
+    }
+
     def getTxInInfoV2(input: TransactionInput, utxos: Set[Utxo]): v2.TxInInfo = {
         val out = utxos.asScala
             .find(utxo =>
@@ -336,7 +375,9 @@ class TxEvaluator(private val slotConfig: SlotConfig, private val initialBudgetC
             getAddress(addr),
             cclValueToScalusValue(out.toValue()),
             getOutputDatum(out),
-            prelude.Maybe.Nothing
+            if out.getReferenceScriptHash != null
+            then prelude.Maybe.Just(ByteString.fromHex(out.getReferenceScriptHash))
+            else prelude.Maybe.Nothing
           )
         )
     }
@@ -370,13 +411,28 @@ class TxEvaluator(private val slotConfig: SlotConfig, private val initialBudgetC
         prelude.AssocMap(prelude.List.from(am))
     }
 
+    def getTxOutV1(out: TransactionOutput): v1.TxOut = {
+        val addr = Address(out.getAddress)
+        val maybeDatumHash =
+            if out.getDatumHash != null then
+                prelude.Maybe.Just(ByteString.fromArray(out.getDatumHash))
+            else prelude.Maybe.Nothing
+        v1.TxOut(
+          getAddress(addr),
+          cclValueToScalusValue(out.getValue),
+          maybeDatumHash
+        )
+    }
+
     def getTxOutV2(out: TransactionOutput): v2.TxOut = {
-        val addr = Address(out.getAddress())
+        val addr = Address(out.getAddress)
         v2.TxOut(
           getAddress(addr),
-          cclValueToScalusValue(out.getValue()),
+          cclValueToScalusValue(out.getValue),
           getOutputDatum(out),
-          prelude.Maybe.Nothing
+          if out.getScriptRef != null then
+              prelude.Maybe.Just(ByteString.fromArray(out.getScriptRef))
+          else prelude.Maybe.Nothing
         )
     }
 
@@ -417,7 +473,9 @@ class TxEvaluator(private val slotConfig: SlotConfig, private val initialBudgetC
         v1.Interval(lower, upper)
     }
 
-    def getWithdrawals(withdrawals: List[Withdrawal]): AssocMap[v1.StakingCredential, BigInt] = {
+    def getWithdrawals(
+        withdrawals: List[Withdrawal]
+    ): prelude.List[(v1.StakingCredential, BigInt)] = {
         // get sorted withdrawals
         given Ordering[v1.StakingCredential.StakingHash] = Ordering.by { cred =>
             cred.cred match
@@ -428,7 +486,7 @@ class TxEvaluator(private val slotConfig: SlotConfig, private val initialBudgetC
         for w <- withdrawals.asScala do
             val cred = Address(w.getRewardAddress).getPaymentCredential.map(getCredential).get
             wdwls.put(v1.StakingCredential.StakingHash(cred), BigInt(w.getCoin))
-        AssocMap(prelude.List.from(wdwls))
+        prelude.List.from(wdwls)
     }
 
     def getDCert(cert: Certificate): v1.DCert = {
@@ -456,6 +514,36 @@ class TxEvaluator(private val slotConfig: SlotConfig, private val initialBudgetC
             case c: MoveInstataneous     => v1.DCert.Mir
     }
 
+    def getTxInfoV1(
+        tx: Transaction,
+        utxos: Set[Utxo],
+        slotConfig: SlotConfig
+    ): v1.TxInfo = {
+        val body = tx.getBody
+        val certs = body.getCerts ?? List.of()
+        val rdmrs = tx.getWitnessSet.getRedeemers ?? List.of()
+        val datums = tx.getWitnessSet.getPlutusDataList ?? List.of()
+        v1.TxInfo(
+          inputs = prelude.List.from(body.getInputs.asScala.map(getTxInInfoV1(_, utxos))),
+          outputs = prelude.List.from(body.getOutputs.asScala.map(getTxOutV1)),
+          fee = v1.Value.lovelace(body.getFee ?? BigInteger.ZERO),
+          mint = cclMultiAssetToScalusValue(body.getMint ?? List.of()),
+          dcert = prelude.List.from(certs.asScala.map(getDCert)),
+          withdrawals = getWithdrawals(body.getWithdrawals ?? List.of()),
+          validRange = getInterval(tx, slotConfig),
+          signatories = prelude.List.from(
+            body.getRequiredSigners.asScala.map { signer =>
+                v1.PubKeyHash(ByteString.fromArray(signer))
+            }
+          ),
+          data = prelude.List.from(datums.asScala.map { data =>
+              val hash = ByteString.fromArray(data.getDatumHashAsBytes)
+              hash -> toScalusData(data)
+          }),
+          id = v1.TxId(ByteString.fromHex(TransactionUtil.getTxHash(tx)))
+        )
+    }
+
     def getTxInfoV2(
         tx: Transaction,
         utxos: Set[Utxo],
@@ -474,7 +562,7 @@ class TxEvaluator(private val slotConfig: SlotConfig, private val initialBudgetC
           fee = v1.Value.lovelace(body.getFee ?? BigInteger.ZERO),
           mint = cclMultiAssetToScalusValue(body.getMint ?? List.of()),
           dcert = prelude.List.from(certs.asScala.map(getDCert)),
-          withdrawals = getWithdrawals(body.getWithdrawals ?? List.of()),
+          withdrawals = AssocMap(getWithdrawals(body.getWithdrawals ?? List.of())),
           validRange = getInterval(tx, slotConfig),
           signatories = prelude.List.from(
             body.getRequiredSigners.asScala.map { signer =>
