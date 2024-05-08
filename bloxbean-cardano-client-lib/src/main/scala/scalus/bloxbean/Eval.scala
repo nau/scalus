@@ -14,7 +14,7 @@ import scalus.builtin.{ByteString, Data, JVMPlatformSpecific, PlutusDataCborDeco
 import scalus.ledger.api.PlutusLedgerLanguage.*
 import scalus.ledger.api.v1.Extended.NegInf
 import scalus.ledger.api.v1.{DCert, ScriptPurpose, StakingCredential}
-import scalus.ledger.api.{PlutusLedgerLanguage, v1, v2}
+import scalus.ledger.api.{v1, v2, PlutusLedgerLanguage}
 import scalus.ledger.babbage.{PlutusV1Params, PlutusV2Params, ProtocolParams}
 import scalus.prelude
 import scalus.prelude.AssocMap
@@ -27,7 +27,7 @@ import java.util
 import java.util.*
 import java.util.stream.Collectors
 import java.util.stream.Stream
-import scala.collection.{Map, mutable}
+import scala.collection.{mutable, Map}
 import scala.jdk.CollectionConverters.*
 import scala.math.BigInt
 
@@ -213,8 +213,8 @@ class TxEvaluator(private val slotConfig: SlotConfig, private val initialBudgetC
         tx: Transaction,
         utxos: util.Set[ResolvedInput]
     ): util.List[PlutusScript] = {
-        // FIXME: Implement the method
-        util.List.of
+        val txb = tx.getBody
+        util.List.of()
     }
 
     private def validateMissingScripts(
