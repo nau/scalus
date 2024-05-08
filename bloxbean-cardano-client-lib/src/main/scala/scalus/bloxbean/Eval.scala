@@ -145,8 +145,8 @@ class TxEvaluator(private val slotConfig: SlotConfig, private val initialBudgetC
     private type ScriptHash = ByteString
     private type Hash = ByteString
     private case class LookupTable(
-        scripts: scala.collection.Map[Hash, (PlutusLedgerLanguage, Array[Byte])],
-        datums: scala.collection.Map[Hash, PlutusData]
+        scripts: collection.Map[ScriptHash, (PlutusLedgerLanguage, Array[Byte])],
+        datums: collection.Map[Hash, PlutusData]
     )
 
     private def getScriptAndDatumLookupTable(
@@ -211,7 +211,8 @@ class TxEvaluator(private val slotConfig: SlotConfig, private val initialBudgetC
         lookupTable: LookupTable
     ): Unit = {
         val scripts = scriptsNeeded(tx, utxos.asScala)
-        validateMissingScripts(scripts, lookupTable)
+        println(s"Scrips needed: $scripts")
+        validateMissingScripts(scripts, lookupTable.scripts)
         verifyExactSetOfRedeemers(tx, scripts, lookupTable)
     }
 
@@ -272,14 +273,13 @@ class TxEvaluator(private val slotConfig: SlotConfig, private val initialBudgetC
 
     private def validateMissingScripts(
         scripts: AlonzoScriptsNeeded,
-        lookupTable: LookupTable
+        txScripts: collection.Map[ScriptHash, (PlutusLedgerLanguage, Array[Byte])]
     ): Unit = {
-        // FIXME:
-        for (script <- scripts) {
-            if (!lookupTable.scripts.contains(script._2)) {
-                throw new IllegalStateException(s"Missing script: ${script._2}")
-            }
-        }
+        val received = txScripts.keySet
+        val needed = scripts.map(_._2).toSet
+        val missing = needed.diff(received)
+        if missing.nonEmpty then
+            throw new IllegalStateException(s"Missing scripts: $missing")
     }
 
     private def verifyExactSetOfRedeemers(
