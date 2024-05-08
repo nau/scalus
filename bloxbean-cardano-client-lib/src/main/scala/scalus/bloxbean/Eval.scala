@@ -91,7 +91,7 @@ class TxEvaluator(private val slotConfig: SlotConfig, private val initialBudgetC
         plutusScripts: List[PlutusScript]
     ): List[TransactionOutput] = {
         transactionInputs
-            .stream()
+            .stream
             .map { input =>
                 val utxo = utxos.asScala
                     .find(_utxo =>
@@ -121,12 +121,12 @@ class TxEvaluator(private val slotConfig: SlotConfig, private val initialBudgetC
                         .datumHash(if inlineDatum.isEmpty then datumHash.orNull else null)
                         .inlineDatum(inlineDatum.orNull)
                         .scriptRef(plutusScript.orNull)
-                        .build()
+                        .build
                 } catch {
                     case e: CborDeserializationException => throw new IllegalStateException(e)
                 }
             }
-            .collect(Collectors.toList())
+            .collect(Collectors.toList)
     }
 
     type Hash = ByteString
@@ -140,20 +140,20 @@ class TxEvaluator(private val slotConfig: SlotConfig, private val initialBudgetC
         utxos: Set[Utxo]
     ): LookupTable = {
         val datum = tx
-            .getWitnessSet()
-            .getPlutusDataList()
+            .getWitnessSet
+            .getPlutusDataList
             .asScala
             .map: data =>
-                ByteString.fromArray(data.getDatumHashAsBytes()) -> data
+                ByteString.fromArray(data.getDatumHashAsBytes) -> data
             .toMap
         // FIXME: implement data in reference inputs
         // FIXME: implement other script types
         val scripts = tx
-            .getWitnessSet()
-            .getPlutusV2Scripts()
+            .getWitnessSet
+            .getPlutusV2Scripts
             .asScala
             .map: script =>
-                val decoded = Cbor.decode(Hex.hexToBytes(script.getCborHex())).to[Array[Byte]].value
+                val decoded = Cbor.decode(Hex.hexToBytes(script.getCborHex)).to[Array[Byte]].value
                 val flatScript = Cbor.decode(decoded).to[Array[Byte]].value
                 ByteString.fromArray(
                   script.getScriptHash
@@ -174,7 +174,7 @@ class TxEvaluator(private val slotConfig: SlotConfig, private val initialBudgetC
 
     def scriptsNeeded(tx: Transaction, utxos: Set[Utxo]): List[PlutusScript] = {
         // FIXME: Implement the method
-        return List.of();
+        return List.of;
     }
 
     def validateMissingScripts(
@@ -327,7 +327,7 @@ class TxEvaluator(private val slotConfig: SlotConfig, private val initialBudgetC
     }
 
     def getAddress(address: Address): v1.Address = {
-        println(s"Get address: ${address.getPaymentCredential().get().getType()}")
+        println(s"Get address: ${address.getPaymentCredential.get.getType}")
         val cred = address.getPaymentCredential.map(getCredential).get
         val staking = address.getDelegationCredential
             .map(cred => prelude.Maybe.Just(getStakingCredential(cred)))
@@ -338,12 +338,12 @@ class TxEvaluator(private val slotConfig: SlotConfig, private val initialBudgetC
     def getTxInInfoV1(input: TransactionInput, utxos: Set[Utxo]): v1.TxInInfo = {
         val out = utxos.asScala
             .find(utxo =>
-                utxo.getTxHash == input.getTransactionId && utxo.getOutputIndex() == input.getIndex
+                utxo.getTxHash == input.getTransactionId && utxo.getOutputIndex == input.getIndex
             )
             .getOrElse(throw new IllegalStateException("Input Not Found"))
-        val addr = Address(out.getAddress())
+        val addr = Address(out.getAddress)
         val maybeDatumHash =
-            if out.getDataHash() != null then
+            if out.getDataHash != null then
                 prelude.Maybe.Just(ByteString.fromHex(out.getDataHash))
             else prelude.Maybe.Nothing
         v1.TxInInfo(
@@ -353,7 +353,7 @@ class TxEvaluator(private val slotConfig: SlotConfig, private val initialBudgetC
           ),
           v1.TxOut(
             getAddress(addr),
-            cclValueToScalusValue(out.toValue()),
+            cclValueToScalusValue(out.toValue),
             maybeDatumHash
           )
         )
@@ -362,10 +362,10 @@ class TxEvaluator(private val slotConfig: SlotConfig, private val initialBudgetC
     def getTxInInfoV2(input: TransactionInput, utxos: Set[Utxo]): v2.TxInInfo = {
         val out = utxos.asScala
             .find(utxo =>
-                utxo.getTxHash == input.getTransactionId && utxo.getOutputIndex() == input.getIndex
+                utxo.getTxHash == input.getTransactionId && utxo.getOutputIndex == input.getIndex
             )
             .getOrElse(throw new IllegalStateException("Input Not Found"))
-        val addr = Address(out.getAddress())
+        val addr = Address(out.getAddress)
         v2.TxInInfo(
           v1.TxOutRef(
             v1.TxId(ByteString.fromHex(input.getTransactionId)),
@@ -373,7 +373,7 @@ class TxEvaluator(private val slotConfig: SlotConfig, private val initialBudgetC
           ),
           v2.TxOut(
             getAddress(addr),
-            cclValueToScalusValue(out.toValue()),
+            cclValueToScalusValue(out.toValue),
             getOutputDatum(out),
             if out.getReferenceScriptHash != null
             then prelude.Maybe.Just(ByteString.fromHex(out.getReferenceScriptHash))
@@ -445,7 +445,7 @@ class TxEvaluator(private val slotConfig: SlotConfig, private val initialBudgetC
     }
 
     def getOutputDatum(out: Utxo): v2.OutputDatum = {
-        if out.getDataHash() != null then
+        if out.getDataHash != null then
             v2.OutputDatum.OutputDatumHash(ByteString.fromHex(out.getDataHash))
         else if out.getInlineDatum != null then
             given Decoder[Data] = PlutusDataCborDecoder
@@ -672,7 +672,7 @@ class TxEvaluator(private val slotConfig: SlotConfig, private val initialBudgetC
                       throw new IllegalStateException("Input Not Found: " + txOutRef)
                     )
                 val address = Address(utxo.getAddress)
-                println(s"Address: ${address.getPaymentCredential.get().getType}")
+                println(s"Address: ${address.getPaymentCredential.get.getType}")
                 val hash = ByteString.fromArray(address.getPaymentCredentialHash.orElseThrow())
                 val (version, script) = lookupTable.scripts.getOrElse(
                   hash,
