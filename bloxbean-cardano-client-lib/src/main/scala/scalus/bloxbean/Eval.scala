@@ -213,7 +213,7 @@ class TxEvaluator(private val slotConfig: SlotConfig, private val initialBudgetC
         val scripts = scriptsNeeded(tx, utxos.asScala)
         println(s"Scrips needed: $scripts")
         validateMissingScripts(scripts, lookupTable.scripts)
-        verifyExactSetOfRedeemers(tx, scripts, lookupTable)
+        verifyExactSetOfRedeemers(tx, scripts, lookupTable.scripts)
     }
 
     private type AlonzoScriptsNeeded = immutable.Seq[(v1.ScriptPurpose, ScriptHash)]
@@ -285,10 +285,19 @@ class TxEvaluator(private val slotConfig: SlotConfig, private val initialBudgetC
     private def verifyExactSetOfRedeemers(
         tx: Transaction,
         scripts: AlonzoScriptsNeeded,
-        lookupTable: LookupTable
+        txScripts: collection.Map[ScriptHash, (PlutusLedgerLanguage, Array[Byte])]
     ): Unit = {
-        // Method body goes here
-        ??? // not implemented //FIXME: Implement
+        // FIXME: implement
+    }
+
+    /// builds a redeemer pointer (tag, index) from a script purpose by setting the tag
+    /// according to the type of the script purpose, and the index according to the
+    /// placement of script purpose inside its container.
+    private def buildRedeemerPtr(
+        tx: Transaction,
+        purpose: v1.ScriptPurpose
+    ): Option[Redeemer] = {
+        ???  // FIXME: implement
     }
 
     private def evalRedeemer(
@@ -442,7 +451,6 @@ class TxEvaluator(private val slotConfig: SlotConfig, private val initialBudgetC
     }
 
     def getAddress(address: Address): v1.Address = {
-        println(s"Get address: ${address.getPaymentCredential.get.getType}")
         val cred = address.getPaymentCredential.map(getCredential).get
         val staking = address.getDelegationCredential
             .map(cred => prelude.Maybe.Just(getStakingCredential(cred)))
@@ -787,7 +795,6 @@ class TxEvaluator(private val slotConfig: SlotConfig, private val initialBudgetC
                       throw new IllegalStateException("Input Not Found: " + txOutRef)
                     )
                 val address = Address(utxo.output.getAddress)
-                println(s"Address: ${address.getPaymentCredential.get.getType}")
                 val hash = ByteString.fromArray(address.getPaymentCredentialHash.orElseThrow())
                 val (version, script) = lookupTable.scripts.getOrElse(
                   hash,
