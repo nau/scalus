@@ -299,10 +299,19 @@ class TxEvaluator(private val slotConfig: SlotConfig, private val initialBudgetC
                 )
     }
 
+    def getStakingCredential(cred: Credential): v1.StakingCredential = {
+        v1.StakingCredential.StakingHash(
+          getCredential(cred)
+        )
+    }
+
     def getAddress(address: Address): v1.Address = {
         println(s"Get address: ${address.getPaymentCredential().get().getType()}")
         val cred = address.getPaymentCredential.map(getCredential).get
-        v1.Address(cred, prelude.Maybe.Nothing) // FIXME: Implement staking credential
+        val staking = address.getDelegationCredential
+            .map(cred => prelude.Maybe.Just(getStakingCredential(cred)))
+            .orElse(prelude.Maybe.Nothing)
+        v1.Address(cred, staking)
     }
 
     def getTxInInfoV2(input: TransactionInput, utxos: Set[Utxo]): v2.TxInInfo = {
