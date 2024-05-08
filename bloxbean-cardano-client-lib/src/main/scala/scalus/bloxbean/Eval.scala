@@ -11,7 +11,7 @@ import com.bloxbean.cardano.client.transaction.util.TransactionUtil
 import io.bullet.borer.{Cbor, Decoder}
 import scalus.bloxbean.Interop.toScalusData
 import scalus.builtin.{ByteString, Data, JVMPlatformSpecific, PlutusDataCborDecoder, given}
-import scalus.ledger.api.PlutusLedgerLanguage.{PlutusV1, PlutusV2}
+import scalus.ledger.api.PlutusLedgerLanguage.*
 import scalus.ledger.api.v1.Extended.NegInf
 import scalus.ledger.api.v1.{DCert, StakingCredential}
 import scalus.ledger.api.{v1, v2, PlutusLedgerLanguage}
@@ -29,6 +29,8 @@ import scala.collection.{mutable, Map}
 import scala.jdk.CollectionConverters.*
 import scala.math.BigInt
 import scalus.ledger.api.v1.ScriptPurpose
+import scalus.uplc.Term
+import scalus.uplc.Constant
 
 case class SlotConfig(zero_time: Long, zero_slot: Long, slot_length: Long)
 object SlotConfig {
@@ -216,41 +218,44 @@ class TxEvaluator(private val slotConfig: SlotConfig, private val initialBudgetC
 
         val executionPurpose = getExecutionPurpose(utxos, purpose, lookupTable)
 
-        executionPurpose match
-            case ExecutionPurpose.WithDatum(scriptVersion, script, datum) =>
-                scriptVersion match
-                    case PlutusV1 => throw new IllegalStateException("MachineError")
-                    case PlutusV2 =>
-                        import scalus.bloxbean.Interop.toScalusData
-                        import scalus.builtin.Data.toData
-                        import scalus.ledger.api.v2.ToDataInstances.given
+        import scalus.bloxbean.Interop.toScalusData
+        import scalus.builtin.Data.toData
+        import scalus.ledger.api.v2.ToDataInstances.given
+        val result = executionPurpose match
+            case ExecutionPurpose.WithDatum(PlutusV1, script, datum) => ???
+            case ExecutionPurpose.WithDatum(PlutusV2, script, datum) =>
+                val rdmr = toScalusData(redeemer.getData)
+                val txInfo = getTxInfoV2(tx, utxos, slotConfig)
+                val scriptContext = v2.ScriptContext(txInfo, purpose)
+                val ctxData = scriptContext.toData
+                println(s"Script context: $scriptContext")
+                evalScript(redeemer, script, datum, rdmr, ctxData)
+            case ExecutionPurpose.NoDatum(PlutusV2, script) =>
+                val rdmr = toScalusData(redeemer.getData)
+                val txInfo = getTxInfoV2(tx, utxos, slotConfig)
+                val scriptContext = v2.ScriptContext(txInfo, purpose)
+                val ctxData = scriptContext.toData
+                println(s"Script context: $scriptContext")
+                evalScript(redeemer, script, rdmr, ctxData)
+            case _ => ???
 
-                        val rdmr = toScalusData(redeemer.getData)
-                        val txInfo = getTxInfoV2(tx, utxos, slotConfig)
-                        val scriptContext = v2.ScriptContext(txInfo, purpose)
-                        val ctxData = scriptContext.toData
-                        println(s"Script context: $scriptContext")
-                        val result = evalScript(redeemer, script, datum, rdmr, ctxData)
-                        val cost = result.budget
-                        Redeemer(
-                          redeemer.getTag,
-                          redeemer.getIndex,
-                          redeemer.getData,
-                          ExUnits(
-                            BigInteger.valueOf(cost.cpu),
-                            BigInteger.valueOf(cost.memory)
-                          )
-                        )
-            case _ => ??? // FIXME: Implement the rest of the cases
-
+        val cost = result.budget
+        println(s"Eval result: $result")
+        Redeemer(
+          redeemer.getTag,
+          redeemer.getIndex,
+          redeemer.getData,
+          ExUnits(
+            BigInteger.valueOf(cost.cpu),
+            BigInteger.valueOf(cost.memory)
+          )
+        )
     }
 
     private def evalScript(
         redeemer: Redeemer,
         script: VM.ScriptForEvaluation,
-        datum: Data,
-        rdmr: Data,
-        ctxData: Data
+        args: Data*
     ) = {
         val spender = CountingBudgetSpender()
         val logger = Log()
@@ -264,8 +269,9 @@ class TxEvaluator(private val slotConfig: SlotConfig, private val initialBudgetC
             import scalus.uplc.TermDSL.{*, given}
             val program = ProgramFlatCodec.decodeFlat(script)
 
-            val applied = program.term $ datum $ rdmr $ ctxData
-
+            val applied = args.foldLeft(program.term) { (acc, arg) =>
+                Term.Apply(acc, Term.Const(Constant.Data(arg)))
+            }
             val resultTerm = cek.evaluateTerm(applied)
             CekResult(resultTerm, spender.getSpentBudget, logger.getLogs)
         catch
