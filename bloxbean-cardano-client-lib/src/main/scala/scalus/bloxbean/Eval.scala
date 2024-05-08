@@ -11,6 +11,8 @@ import com.bloxbean.cardano.client.transaction.util.TransactionUtil
 import io.bullet.borer.{Cbor, Decoder}
 import scalus.bloxbean.Interop.toScalusData
 import scalus.builtin.{ByteString, Data, JVMPlatformSpecific, PlutusDataCborDecoder, given}
+import scalus.ledger
+import scalus.ledger.api
 import scalus.ledger.api.PlutusLedgerLanguage.*
 import scalus.ledger.api.v1.Extended.NegInf
 import scalus.ledger.api.v1.{DCert, ScriptPurpose, StakingCredential}
@@ -27,7 +29,8 @@ import java.util
 import java.util.*
 import java.util.stream.Collectors
 import java.util.stream.Stream
-import scala.collection.{mutable, Map, immutable}
+import scala.collection.mutable.ArrayBuffer
+import scala.collection.{immutable, mutable, Map}
 import scala.jdk.CollectionConverters.*
 import scala.math.BigInt
 
@@ -173,7 +176,7 @@ class TxEvaluator(private val slotConfig: SlotConfig, private val initialBudgetC
                     ) -> (PlutusLedgerLanguage.PlutusV2, flatScript)
             (v1 ++ v2).toMap
 
-        //FIXME: implement
+        // FIXME: implement
 
         /*
          * // discovery in utxos (script ref)
@@ -212,15 +215,59 @@ class TxEvaluator(private val slotConfig: SlotConfig, private val initialBudgetC
         verifyExactSetOfRedeemers(tx, scripts, lookupTable)
     }
 
-    private type AlonzoScriptsNeeded = immutable.Vector[(v1.ScriptPurpose, ScriptHash)]
+    private type AlonzoScriptsNeeded = immutable.Seq[(v1.ScriptPurpose, ScriptHash)]
 
     private def scriptsNeeded(
         tx: Transaction,
         utxos: collection.Set[ResolvedInput]
     ): AlonzoScriptsNeeded = {
+        val needed = ArrayBuffer.empty[(v1.ScriptPurpose, ScriptHash)]
         val txb = tx.getBody
 
-        immutable.Vector.empty
+        for input <- txb.getInputs.asScala do
+            // TODO: refoactor utxos ot Map?
+            val utxo = utxos
+                .find(_.input == input)
+                .getOrElse(
+                  throw new IllegalStateException("Input not found")
+                )
+            val address = Address(utxo.output.getAddress)
+
+            // if we spend a script output, we need the script
+            if address.getPaymentCredential.get.getType == CredentialType.Script then
+                needed += v1.ScriptPurpose.Spending(getTxOutRefV1(input)) -> ByteString.fromArray(
+                  address.getPaymentCredentialHash.orElseThrow()
+                )
+
+        for withdrawal <- txb.getWithdrawals.asScala do
+            val address = Address(withdrawal.getRewardAddress)
+            if address.getAddressType == AddressType.Reward then
+                getCredential(address.getDelegationCredential.get) match
+                    case cred @ api.v1.Credential.ScriptCredential(hash) =>
+                        needed += v1.ScriptPurpose.Rewarding(
+                          v1.StakingCredential.StakingHash(cred)
+                        ) -> hash
+                    case _ =>
+
+        for cert <- txb.getCerts.asScala do
+            val c = getDCert(cert)
+            c match
+                case v1.DCert.DelegDeRegKey(
+                      v1.StakingCredential.StakingHash(v1.Credential.ScriptCredential(hash))
+                    ) =>
+                    needed += v1.ScriptPurpose.Certifying(c) -> hash
+                case v1.DCert.DelegDelegate(
+                      v1.StakingCredential.StakingHash(v1.Credential.ScriptCredential(hash)),
+                      _
+                    ) =>
+                    needed += v1.ScriptPurpose.Certifying(c) -> hash
+                case _ =>
+
+        for mint <- txb.getMint.asScala do
+            val policyId = ByteString.fromHex(mint.getPolicyId)
+            needed += v1.ScriptPurpose.Minting(policyId) -> policyId
+
+        needed.toSeq
     }
 
     private def validateMissingScripts(
@@ -669,6 +716,13 @@ class TxEvaluator(private val slotConfig: SlotConfig, private val initialBudgetC
                 case 0 => x.getIndex.compareTo(y.getIndex)
                 case c => c
 
+    private def getTxOutRefV1(input: TransactionInput) = {
+        v1.TxOutRef(
+          v1.TxId(ByteString.fromHex(input.getTransactionId)),
+          input.getIndex
+        )
+    }
+
     private def getScriptPurpose(
         redeemer: Redeemer,
         inputs: util.List[TransactionInput],
@@ -683,12 +737,7 @@ class TxEvaluator(private val slotConfig: SlotConfig, private val initialBudgetC
                 val ins = inputs.asScala.sorted
                 if ins.isDefinedAt(index) then
                     val input = ins(index)
-                    v1.ScriptPurpose.Spending(
-                      v1.TxOutRef(
-                        v1.TxId(ByteString.fromHex(input.getTransactionId)),
-                        input.getIndex
-                      )
-                    )
+                    v1.ScriptPurpose.Spending(getTxOutRefV1(input))
                 else throw new IllegalStateException(s"Input not found: $index in $inputs")
             case RedeemerTag.Mint =>
                 val policyIds = mint.asScala.map(_.getPolicyId).sorted
