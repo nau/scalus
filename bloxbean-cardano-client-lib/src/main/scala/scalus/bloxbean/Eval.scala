@@ -13,7 +13,8 @@ import scalus.ledger
 import scalus.ledger.api
 import scalus.ledger.api.PlutusLedgerLanguage.*
 import scalus.ledger.api.v1.{DCert, ScriptPurpose, StakingCredential}
-import scalus.ledger.api.{v1, v2, PlutusLedgerLanguage}
+import scalus.ledger.api.{PlutusLedgerLanguage, v1, v2}
+import scalus.sir.PrettyPrinter
 import scalus.uplc.{Constant, ProgramFlatCodec, Term}
 import scalus.uplc.eval.*
 import scalus.utils.Hex
@@ -24,7 +25,7 @@ import java.util.*
 import java.util.stream.Collectors
 import java.util.stream.Stream
 import scala.collection.mutable.ArrayBuffer
-import scala.collection.{immutable, mutable, Map}
+import scala.collection.{Map, immutable, mutable}
 import scala.jdk.CollectionConverters.*
 
 case class SlotConfig(zero_time: Long, zero_slot: Long, slot_length: Long)
@@ -163,13 +164,13 @@ class TxEvaluator(private val slotConfig: SlotConfig, private val initialBudgetC
                 .map: script =>
                     val flatScript = decodeToFlat(script)
                     ByteString.fromArray(
-                        script.getScriptHash
+                      script.getScriptHash
                     ) -> (PlutusLedgerLanguage.PlutusV1, flatScript)
             val v2 = tx.getWitnessSet.getPlutusV2Scripts.asScala
                 .map: script =>
                     val flatScript = decodeToFlat(script)
                     ByteString.fromArray(
-                        script.getScriptHash
+                      script.getScriptHash
                     ) -> (PlutusLedgerLanguage.PlutusV2, flatScript)
             v1 ++ v2
         }
@@ -184,11 +185,13 @@ class TxEvaluator(private val slotConfig: SlotConfig, private val initialBudgetC
                         // FIXME: implement Timelock script
                         ???
                     case 1 => // Plutus V1
-                        val script = utxo.output.getScriptRef.slice(1, utxo.output.getScriptRef.length)
+                        val script =
+                            utxo.output.getScriptRef.slice(1, utxo.output.getScriptRef.length)
                         val hash = ByteString.fromArray(blake2bHash224(script))
                         referenceScripts += hash -> (PlutusLedgerLanguage.PlutusV1, script)
                     case 2 => // Plutus V2
-                        val script = utxo.output.getScriptRef.slice(1, utxo.output.getScriptRef.length)
+                        val script =
+                            utxo.output.getScriptRef.slice(1, utxo.output.getScriptRef.length)
                         val hash = ByteString.fromArray(blake2bHash224(script))
                         referenceScripts += hash -> (PlutusLedgerLanguage.PlutusV2, script)
 
@@ -364,7 +367,8 @@ class TxEvaluator(private val slotConfig: SlotConfig, private val initialBudgetC
         )
     }
 
-    /** FIXME: refactor VM.evaluateScriptCounting to return logs on error, then remove this method */
+    /** FIXME: refactor VM.evaluateScriptCounting to return logs on error, then remove this method
+      */
     private def evalScript(
         machineParams: MachineParams,
         script: VM.ScriptForEvaluation,
@@ -387,12 +391,20 @@ class TxEvaluator(private val slotConfig: SlotConfig, private val initialBudgetC
             CekResult(resultTerm, spender.getSpentBudget, logger.getLogs)
         catch
             case e: StackTraceMachineError =>
+                println(s"Machine Error: ${e.getMessage}")
+                println(
+                  e.env
+                      .map({
+                          case (k, v @ CekValue.VCon(c))            => s"$k -> ${PrettyPrinter.pretty(c).render(80)}"
+                          case (k, v: CekValue.VDelay)              => s"$k -> delay"
+                          case (k, v: CekValue.VLamAbs)             => s"$k -> lam"
+                          case (k, v @ CekValue.VBuiltin(bi, _, _)) => s"$k -> $bi"
+                      })
+                      .mkString("\n")
+                )
                 println(s"logs: ${logger.getLogs.mkString("\n")}")
-                println(e.getCekStack.mkString("\n"))
                 throw new IllegalStateException("MachineError", e)
     }
-
-
 
     private def getExecutionPurpose(
         utxos: util.Set[ResolvedInput],

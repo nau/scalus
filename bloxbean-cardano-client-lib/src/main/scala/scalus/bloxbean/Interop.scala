@@ -35,8 +35,38 @@ import scala.collection.mutable
 import scala.jdk.CollectionConverters.*
 import scala.math.BigInt
 
+given Ordering[TransactionInput] with
+    def compare(x: TransactionInput, y: TransactionInput): Int =
+        x.getTransactionId.compareTo(y.getTransactionId) match
+            case 0 => x.getIndex.compareTo(y.getIndex)
+            case c => c
+
+given Ordering[v1.StakingCredential.StakingHash] = Ordering.by { cred =>
+    cred.cred match
+        case v1.Credential.PubKeyCredential(pkh)  => pkh.hash
+        case v1.Credential.ScriptCredential(hash) => hash
+}
+
+given Ordering[Redeemer] with
+    def compare(x: Redeemer, y: Redeemer): Int =
+        x.getTag.value.compareTo(y.getTag.value) match
+            case 0 => x.getIndex.compareTo(y.getIndex)
+            case c => c
+
+enum ExecutionPurpose:
+
+    case WithDatum(
+        scriptVersion: PlutusLedgerLanguage,
+        script: VM.ScriptForEvaluation,
+        datum: Data
+    )
+
+    case NoDatum(scriptVersion: PlutusLedgerLanguage, script: VM.ScriptForEvaluation)
+
 /** Interoperability between Cardano Client Lib and Scalus */
 object Interop {
+    /// Helper for null check
+    extension [A](inline a: A) inline infix def ??(b: A): A = if a != null then a else b
 
     /** Converts Cardano Client Lib's [[PlutusData]] to Scalus' [[Data]] */
     def toScalusData(datum: PlutusData): Data = {
@@ -46,11 +76,9 @@ object Interop {
                 val args = c.getData.getPlutusDataList.asScala.map(toScalusData).toList
                 Data.Constr(c.getAlternative, args)
             case m: MapPlutusData =>
-                val values = m
-                    .getMap
-                    .asScala
-                    .map { case (k, v) => (toScalusData(k), toScalusData(v)) }
-                    .toList
+                val values = m.getMap.asScala.map { case (k, v) =>
+                    (toScalusData(k), toScalusData(v))
+                }.toList
                 Data.Map(values)
             case l: ListPlutusData =>
                 val values = l.getPlutusDataList.asScala.map(toScalusData).toList
@@ -120,7 +148,7 @@ object Interop {
         MachineParams(machineCosts = machineCosts, builtinCostModel = builtinCostModel)
     }
 
-     def getCredential(cred: Credential): v1.Credential = {
+    def getCredential(cred: Credential): v1.Credential = {
         cred.getType match
             case CredentialType.Key =>
                 v1.Credential.PubKeyCredential(v1.PubKeyHash(ByteString.fromArray(cred.getBytes)))
@@ -128,7 +156,7 @@ object Interop {
                 v1.Credential.ScriptCredential(ByteString.fromArray(cred.getBytes))
     }
 
-     def getStakingCredential(cred: StakeCredential): v1.StakingCredential = {
+    def getStakingCredential(cred: StakeCredential): v1.StakingCredential = {
         cred.getType match
             case StakeCredType.ADDR_KEYHASH =>
                 v1.StakingCredential.StakingHash(
@@ -140,10 +168,8 @@ object Interop {
                 )
     }
 
-     def getStakingCredential(cred: Credential): v1.StakingCredential = {
-        v1.StakingCredential.StakingHash(
-          getCredential(cred)
-        )
+    def getStakingCredential(cred: Credential): v1.StakingCredential = {
+        v1.StakingCredential.StakingHash(getCredential(cred))
     }
 
     def getAddress(address: Address): v1.Address = {
@@ -154,7 +180,7 @@ object Interop {
         v1.Address(cred, staking)
     }
 
-     def getTxInInfoV1(
+    def getTxInInfoV1(
         input: TransactionInput,
         utxos: util.Set[ResolvedInput]
     ): v1.TxInInfo = {
@@ -182,7 +208,7 @@ object Interop {
         )
     }
 
-     def getTxInInfoV2(
+    def getTxInInfoV2(
         input: TransactionInput,
         utxos: util.Set[ResolvedInput]
     ): v2.TxInInfo = {
@@ -209,7 +235,7 @@ object Interop {
         )
     }
 
-     def getValue(value: Value): v1.Value = {
+    def getValue(value: Value): v1.Value = {
         val ma = getValue(value.getMultiAssets)
         if value.getCoin != null then
             val lovelace = v1.Value.lovelace(value.getCoin)
@@ -222,7 +248,7 @@ object Interop {
         else ma
     }
 
-     def getValue(value: util.List[MultiAsset]): v1.Value = {
+    def getValue(value: util.List[MultiAsset]): v1.Value = {
         // get sorted multi assets
         val multi = mutable.TreeMap.empty[ByteString, mutable.TreeMap[ByteString, BigInt]]
         for m <- value.asScala do
@@ -238,7 +264,7 @@ object Interop {
         prelude.AssocMap(prelude.List.from(am))
     }
 
-     def getTxOutV1(out: TransactionOutput): v1.TxOut = {
+    def getTxOutV1(out: TransactionOutput): v1.TxOut = {
         val addr = Address(out.getAddress)
         val maybeDatumHash =
             if out.getDatumHash != null then
@@ -251,7 +277,7 @@ object Interop {
         )
     }
 
-     def getTxOutV2(out: TransactionOutput): v2.TxOut = {
+    def getTxOutV2(out: TransactionOutput): v2.TxOut = {
         val addr = Address(out.getAddress)
         v2.TxOut(
           getAddress(addr),
@@ -263,7 +289,7 @@ object Interop {
         )
     }
 
-     def getOutputDatum(out: TransactionOutput): v2.OutputDatum = {
+    def getOutputDatum(out: TransactionOutput): v2.OutputDatum = {
         if out.getDatumHash != null then
             v2.OutputDatum.OutputDatumHash(ByteString.fromArray(out.getDatumHash))
         else if out.getInlineDatum != null then
@@ -271,14 +297,12 @@ object Interop {
         else v2.OutputDatum.NoOutputDatum
     }
 
-    extension [A](inline a: A)  inline infix def ??(b: A): A = if a != null then a else b
-
-     def slotToBeginPosixTime(slot: Long, sc: SlotConfig): Long = {
+    def slotToBeginPosixTime(slot: Long, sc: SlotConfig): Long = {
         val msAfterBegin = (slot - sc.zero_slot) * sc.slot_length
         sc.zero_time + msAfterBegin
     }
 
-     def getInterval(tx: Transaction, slotConfig: SlotConfig): v1.Interval[v1.POSIXTime] = {
+    def getInterval(tx: Transaction, slotConfig: SlotConfig): v1.Interval[v1.POSIXTime] = {
         val validFrom = tx.getBody.getValidityStartInterval
         val lower =
             if validFrom == 0 then v1.LowerBound(NegInf, false)
@@ -290,16 +314,10 @@ object Interop {
         v1.Interval(lower, upper)
     }
 
-     def getWithdrawals(
+    def getWithdrawals(
         withdrawals: util.List[Withdrawal]
     ): prelude.List[(v1.StakingCredential, BigInt)] = {
         // get sorted withdrawals
-        given Ordering[v1.StakingCredential.StakingHash] = Ordering.by { cred =>
-            cred.cred match
-                case v1.Credential.PubKeyCredential(pkh)  => pkh.hash
-                case v1.Credential.ScriptCredential(hash) => hash
-        }
-
         val wdwls = mutable.TreeMap.empty[v1.StakingCredential.StakingHash, BigInt]
         for w <- withdrawals.asScala do
             val cred = Address(w.getRewardAddress).getPaymentCredential.map(getCredential).get
@@ -307,7 +325,7 @@ object Interop {
         prelude.List.from(wdwls)
     }
 
-     def getDCert(cert: Certificate): v1.DCert = {
+    def getDCert(cert: Certificate): v1.DCert = {
         cert match
             case c: StakeRegistration =>
                 v1.DCert.DelegRegKey(getStakingCredential(c.getStakeCredential))
@@ -332,7 +350,7 @@ object Interop {
             case c: MoveInstataneous     => v1.DCert.Mir
     }
 
-     def getTxInfoV1(
+    def getTxInfoV1(
         tx: Transaction,
         utxos: util.Set[ResolvedInput],
         slotConfig: SlotConfig
@@ -342,27 +360,37 @@ object Interop {
         val rdmrs = tx.getWitnessSet.getRedeemers ?? util.List.of()
         val datums = tx.getWitnessSet.getPlutusDataList ?? util.List.of()
         v1.TxInfo(
-          inputs = prelude.List.from(body.getInputs.asScala.map(getTxInInfoV1(_, utxos))),
+          // sorted inputs
+          inputs = prelude.List.from(body.getInputs.asScala.sorted.map(getTxInInfoV1(_, utxos))),
+          // outputs as in the transaction
           outputs = prelude.List.from(body.getOutputs.asScala.map(getTxOutV1)),
           fee = v1.Value.lovelace(body.getFee ?? BigInteger.ZERO),
+          // sorted mint values
           mint = getValue(body.getMint ?? util.List.of()),
+          // certificates as is
           dcert = prelude.List.from(certs.asScala.map(getDCert)),
           withdrawals = getWithdrawals(body.getWithdrawals ?? util.List.of()),
           validRange = getInterval(tx, slotConfig),
           signatories = prelude.List.from(
-            body.getRequiredSigners.asScala.map { signer =>
-                v1.PubKeyHash(ByteString.fromArray(signer))
-            }
+            body.getRequiredSigners.asScala
+                .map(ByteString.fromArray)
+                .sorted
+                .map(v1.PubKeyHash.apply)
+                .toSeq
           ),
-          data = prelude.List.from(datums.asScala.map { data =>
-              val hash = ByteString.fromArray(data.getDatumHashAsBytes)
-              hash -> toScalusData(data)
-          }),
+          data = prelude.List.from(
+            datums.asScala
+                .map { data =>
+                    val hash = ByteString.fromArray(data.getDatumHashAsBytes)
+                    hash -> toScalusData(data)
+                }
+                .sortBy(_._1)
+          ),
           id = v1.TxId(ByteString.fromHex(TransactionUtil.getTxHash(tx)))
         )
     }
 
-     def getTxInfoV2(
+    def getTxInfoV2(
         tx: Transaction,
         utxos: util.Set[ResolvedInput],
         slotConfig: SlotConfig
@@ -372,10 +400,10 @@ object Interop {
         val rdmrs = tx.getWitnessSet.getRedeemers ?? util.List.of()
         val datums = tx.getWitnessSet.getPlutusDataList ?? util.List.of()
         v2.TxInfo(
-          inputs = prelude.List.from(body.getInputs.asScala.map(getTxInInfoV2(_, utxos))),
-          referenceInputs = prelude.List.from(body.getReferenceInputs.asScala.map { input =>
-              getTxInInfoV2(input, utxos)
-          }),
+          inputs = prelude.List.from(body.getInputs.asScala.sorted.map(getTxInInfoV2(_, utxos))),
+          referenceInputs = prelude.List.from(
+            body.getReferenceInputs.asScala.sorted.map(getTxInInfoV2(_, utxos))
+          ),
           outputs = prelude.List.from(body.getOutputs.asScala.map(getTxOutV2)),
           fee = v1.Value.lovelace(body.getFee ?? BigInteger.ZERO),
           mint = getValue(body.getMint ?? util.List.of()),
@@ -383,11 +411,13 @@ object Interop {
           withdrawals = AssocMap(getWithdrawals(body.getWithdrawals ?? util.List.of())),
           validRange = getInterval(tx, slotConfig),
           signatories = prelude.List.from(
-            body.getRequiredSigners.asScala.map { signer =>
-                v1.PubKeyHash(ByteString.fromArray(signer))
-            }
+            body.getRequiredSigners.asScala
+                .map(ByteString.fromArray)
+                .sorted
+                .map(v1.PubKeyHash.apply)
+                .toSeq
           ),
-          redeemers = AssocMap(prelude.List.from(rdmrs.asScala.map { redeemer =>
+          redeemers = AssocMap(prelude.List.from(rdmrs.asScala.sorted.map { redeemer =>
               val purpose = getScriptPurpose(
                 redeemer,
                 body.getInputs,
@@ -397,38 +427,28 @@ object Interop {
               )
               purpose -> toScalusData(redeemer.getData)
           })),
-          data = AssocMap(prelude.List.from(datums.asScala.map { data =>
-              val hash = ByteString.fromArray(data.getDatumHashAsBytes)
-              hash -> toScalusData(data)
-          })),
+          data = AssocMap(
+            prelude.List.from(
+              datums.asScala
+                  .map { data =>
+                      val hash = ByteString.fromArray(data.getDatumHashAsBytes)
+                      hash -> toScalusData(data)
+                  }
+                  .sortBy(_._1)
+            )
+          ),
           id = v1.TxId(ByteString.fromHex(TransactionUtil.getTxHash(tx)))
         )
     }
 
-     enum ExecutionPurpose:
-
-        case WithDatum(
-            scriptVersion: PlutusLedgerLanguage,
-            script: VM.ScriptForEvaluation,
-            datum: Data
-        )
-
-        case NoDatum(scriptVersion: PlutusLedgerLanguage, script: VM.ScriptForEvaluation)
-
-    given Ordering[TransactionInput] with
-        def compare(x: TransactionInput, y: TransactionInput): Int =
-            x.getTransactionId.compareTo(y.getTransactionId) match
-                case 0 => x.getIndex.compareTo(y.getIndex)
-                case c => c
-
-     def getTxOutRefV1(input: TransactionInput) = {
+    def getTxOutRefV1(input: TransactionInput) = {
         v1.TxOutRef(
           v1.TxId(ByteString.fromHex(input.getTransactionId)),
           input.getIndex
         )
     }
 
-     def getScriptPurpose(
+    def getScriptPurpose(
         redeemer: Redeemer,
         inputs: util.List[TransactionInput],
         mint: util.List[MultiAsset],

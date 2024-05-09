@@ -13,7 +13,7 @@ object Hex:
         new String(hexChars)
 
     def hexToBytes(hex: String): Array[Byte] =
-        val hexString = hex.replace(" ", "")
+        val hexString = hex.replaceAll("\\s+", "")
         try
             if (hexString.length & 1) != 0 then sys.error("string length is not even")
             hexString.grouped(2).map(Integer.parseInt(_, 16).toByte).toArray

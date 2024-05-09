@@ -44,4 +44,5 @@ object ByteString {
 }
 
 given Ordering[ByteString] with
-    def compare(x: ByteString, y: ByteString): Int = java.util.Arrays.compare(x.bytes, y.bytes)
+    def compare(x: ByteString, y: ByteString): Int =
+        java.util.Arrays.compareUnsigned(x.bytes, y.bytes)

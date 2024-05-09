@@ -18,11 +18,16 @@ import com.bloxbean.cardano.client.plutus.spec.*
 import com.bloxbean.cardano.client.quicktx.QuickTxBuilder
 import com.bloxbean.cardano.client.quicktx.ScriptTx
 import com.bloxbean.cardano.client.transaction.spec.*
+import com.bloxbean.cardano.client.transaction.util.TransactionUtil
+import com.bloxbean.cardano.yaci.core.model.Era
+import com.bloxbean.cardano.yaci.core.model.serializers.TransactionBodyExtractor
+import com.bloxbean.cardano.yaci.core.util.CborSerializationUtil
+import io.bullet.borer.Cbor
 import org.scalatest.funsuite.AnyFunSuite
 import scalus.*
 import scalus.Compiler.compile
 import scalus.builtin.ByteString
-import scalus.builtin.ByteString.StringInterpolators
+import scalus.builtin.ByteString.given
 import scalus.builtin.Data
 import scalus.examples.MintingPolicyV2
 import scalus.examples.PubKeyValidator
@@ -30,9 +35,11 @@ import scalus.prelude.AssocMap
 import scalus.uplc.*
 import scalus.uplc.TermDSL.{*, given}
 import scalus.uplc.eval.ExBudget
+import scalus.utils.Utils
 
 import java.math.BigInteger
 import java.util
+import scala.collection.mutable
 
 class TxEvaluatorSpec extends AnyFunSuite:
     val senderMnemonic: String =
@@ -111,9 +118,64 @@ class TxEvaluatorSpec extends AnyFunSuite:
         println(redeemers)
     }
 
+    test("asdf") {
+        val scriptcbor =
+            "59014f59014c01000032323232323232322223232325333009300e30070021323233533300b3370e9000180480109118011bae30100031225001232533300d3300e22533301300114a02a66601e66ebcc04800400c5288980118070009bac3010300c300c300c300c300c300c300c007149858dd48008b18060009baa300c300b3754601860166ea80184ccccc0288894ccc04000440084c8c94ccc038cd4ccc038c04cc030008488c008dd718098018912800919b8f0014891ce1317b152faac13426e6a83e06ff88a4d62cce3c1634ab0a5ec133090014a0266008444a00226600a446004602600a601a00626600a008601a006601e0026ea8c03cc038dd5180798071baa300f300b300e3754601e00244a0026eb0c03000c92616300a001375400660106ea8c024c020dd5000aab9d5744ae688c8c0088cc0080080048c0088cc00800800555cf2ba15573e6e1d200201"
+        val scriptFlat = Cbor.decode(Cbor.decode(Utils.hexToBytes(scriptcbor)).to[Array[Byte]].value).to[Array[Byte]].value
+        val program = ProgramFlatCodec.decodeFlat(scriptFlat)
+        val namedTerm = DeBruijn.fromDeBruijnTerm(program.term)
+        println(namedTerm.prettyXTerm.render(120))
+    }
+    
+    test("Validate blocks of epoch 484") {
+        import com.bloxbean.cardano.yaci.core.config.YaciConfig
+        import com.bloxbean.cardano.yaci.core.model as yaki
+        import com.bloxbean.cardano.yaci.core.protocol.chainsync.messages.Point
+        import com.bloxbean.cardano.yaci.core.protocol.chainsync.messages.Tip
+        import com.bloxbean.cardano.yaci.helper.BlockRangeSync
+        import com.bloxbean.cardano.yaci.helper.listener.BlockChainDataListener
+        import com.bloxbean.cardano.yaci.helper.model
+        import scala.jdk.CollectionConverters.*
+        import co.nstant.in.cbor.model as cbor
+
+        YaciConfig.INSTANCE.setReturnBlockCbor(true) // needed to get the block cbor
+        YaciConfig.INSTANCE.setReturnTxBodyCbor(true) // needed to get the tx body cbor
+        val apiKey = System.getenv("BLOCKFROST_API_KEY")
+        val backendService = new BFBackendService(Constants.BLOCKFROST_MAINNET_URL, apiKey)
+        val utxoSupplier = new DefaultUtxoSupplier(backendService.getUtxoService)
+        val protocolParamsSupplier =
+            new DefaultProtocolParamsSupplier(backendService.getEpochService)
+        val evaluator =
+            ScalusTransactionEvaluator(utxoSupplier, protocolParamsSupplier, scriptSupplier = null)
+
+        def readTransactionsFromBlockCbor(blockCbor: Array[Byte]): collection.Seq[Transaction] = {
+            val array = CborSerializationUtil.deserializeOne(blockCbor).asInstanceOf[cbor.Array]
+            val blockArray = array.getDataItems.get(1).asInstanceOf[cbor.Array]
+            val witnessesListArr = blockArray.getDataItems.get(2).asInstanceOf[cbor.Array]
+            val txBodyTuples = TransactionBodyExtractor.getTxBodiesFromBlock(blockCbor)
+            for (tuple, idx) <- txBodyTuples.asScala.zipWithIndex yield
+                val txbody = TransactionBody.deserialize(tuple._1.asInstanceOf[cbor.Map])
+                val witnessSet = TransactionWitnessSet.deserialize(
+                  witnessesListArr.getDataItems.get(idx).asInstanceOf[cbor.Map]
+                )
+                Transaction.builder().body(txbody).witnessSet(witnessSet).build()
+        }
+        val blockis = this.getClass.getResourceAsStream("/blocks/block-10296197.cbor")
+        val blockCbor = new String(blockis.readAllBytes())
+        val blockBytes = Utils.hexToBytes(blockCbor)
+        val txs = readTransactionsFromBlockCbor(blockBytes)
+        val withScriptTxs = txs.filter(tx => tx.getWitnessSet.getPlutusV1Scripts != null)
+        for tx <- withScriptTxs do
+            val result = evaluator.evaluateTx(tx, util.Set.of())
+            println(result)
+            println(result.getValue.get(0).getExUnits)
+            println(tx.getWitnessSet.getRedeemers.asScala.map(_.getExUnits))
+
+    }
+
     ignore("Blockfrost testnet evaluate tx with minting policy v2") {
         val apiKey = System.getenv("BLOCKFROST_API_KEY")
-        val backendService = new BFBackendService(Constants.BLOCKFROST_TESTNET_URL, apiKey)
+        val backendService = new BFBackendService(Constants.BLOCKFROST_MAINNET_URL, apiKey)
         val utxoSupplier = new DefaultUtxoSupplier(backendService.getUtxoService)
         val protocolParamsSupplier =
             new DefaultProtocolParamsSupplier(backendService.getEpochService)

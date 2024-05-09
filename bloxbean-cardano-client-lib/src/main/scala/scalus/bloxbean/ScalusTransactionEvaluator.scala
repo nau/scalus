@@ -22,7 +22,7 @@ import java.util.Set
 import scala.jdk.CollectionConverters.*
 
 trait ScriptSupplier {
-    def getScript ( scriptHash:String): PlutusScript
+    def getScript(scriptHash: String): PlutusScript
 }
 
 /** Implements [[TransactionEvaluator]] to evaluate a transaction to get script costs using Scalus
@@ -31,35 +31,31 @@ trait ScriptSupplier {
 class ScalusTransactionEvaluator(
     val utxoSupplier: UtxoSupplier,
     val protocolParamsSupplier: ProtocolParamsSupplier,
-    val  scriptSupplier: ScriptSupplier
-) extends TransactionEvaluator:
+    val scriptSupplier: ScriptSupplier
+) extends TransactionEvaluator {
 
     override def evaluateTx(
         cbor: Array[Byte],
         inputUtxos: util.Set[Utxo]
-    ): Result[util.List[EvaluationResult]] =
-        try
+    ): Result[util.List[EvaluationResult]] = {
+        try {
             val transaction = Transaction.deserialize(cbor)
-
             val utxos = new util.HashSet[Utxo]()
-            //inputs//inputs
+            // inputs//inputs
 
             for input <- transaction.getBody.getInputs.asScala do
                 val utxo = utxoSupplier.getTxOutput(input.getTransactionId, input.getIndex).get
                 utxos.add(utxo)
 
-
             val additionalScripts: util.List[PlutusScript] = new util.ArrayList[PlutusScript]
-            //reference inputs//reference inputs
-
+            // reference inputs//reference inputs
 
             for input <- transaction.getBody.getReferenceInputs.asScala do
                 val utxo = utxoSupplier.getTxOutput(input.getTransactionId, input.getIndex).get
                 utxos.add(utxo)
-                //Get reference input script
+                // Get reference input script
                 if utxo.getReferenceScriptHash != null && scriptSupplier != null then
                     additionalScripts.add(scriptSupplier.getScript(utxo.getReferenceScriptHash))
-
 
             if transaction.getWitnessSet == null then
                 transaction.setWitnessSet(new TransactionWitnessSet)
@@ -93,20 +89,28 @@ class ScalusTransactionEvaluator(
             )
             val txEvaluator = TxEvaluator(SlotConfig.default, txBudget)
             try
-                val redeemers = txEvaluator.evaluateTx(transaction, utxos, additionalScripts, costMdls)
-                val evaluationResults = redeemers.asScala.map { redeemer =>
+                val redeemers =
+                    txEvaluator.evaluateTx(transaction, utxos, additionalScripts, costMdls)
+                val evaluationResults = redeemers.stream.map { redeemer =>
                     EvaluationResult.builder
                         .redeemerTag(redeemer.getTag)
                         .index(redeemer.getIndex.intValue)
                         .exUnits(redeemer.getExUnits)
                         .build
-                }.asJava
+                }.toList
 
                 Result
                     .success(JsonUtil.getPrettyJson(evaluationResults))
                     .asInstanceOf[Result[util.List[EvaluationResult]]]
                     .withValue(evaluationResults)
                     .asInstanceOf[Result[util.List[EvaluationResult]]]
-            catch case e: Exception =>
-                Result.error(s"Error evaluating transaction: ${e.getMessage}").asInstanceOf[Result[util.List[EvaluationResult]]]
-        catch case e: Exception => throw ApiException("Error evaluating transaction", e)
+            catch
+                case e: Exception =>
+                    Result
+                        .error(s"Error evaluating transaction: ${e.getMessage}")
+                        .asInstanceOf[Result[util.List[EvaluationResult]]]
+        } catch {
+            case e: Exception => throw ApiException("Error evaluating transaction", e)
+        }
+    }
+}
