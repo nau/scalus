@@ -157,52 +157,49 @@ class TxEvaluator(private val slotConfig: SlotConfig, private val initialBudgetC
             .map: data =>
                 ByteString.fromArray(data.getDatumHashAsBytes) -> data
             .toMap
-        val scripts =
+        val scripts = {
             def decodeToFlat(script: PlutusScript) =
+                // unwrap the outer CBOR encoding
                 val decoded = Cbor.decode(Hex.hexToBytes(script.getCborHex)).to[Array[Byte]].value
+                // and decode the inner CBOR encoding. Don't ask me why.
                 Cbor.decode(decoded).to[Array[Byte]].value
+
             // FIXME: add native scripts
             val v1 = tx.getWitnessSet.getPlutusV1Scripts.asScala
                 .map: script =>
                     val flatScript = decodeToFlat(script)
                     ByteString.fromArray(
-                      script.getScriptHash
+                        script.getScriptHash
                     ) -> (PlutusLedgerLanguage.PlutusV1, flatScript)
             val v2 = tx.getWitnessSet.getPlutusV2Scripts.asScala
                 .map: script =>
                     val flatScript = decodeToFlat(script)
                     ByteString.fromArray(
-                      script.getScriptHash
+                        script.getScriptHash
                     ) -> (PlutusLedgerLanguage.PlutusV2, flatScript)
-            (v1 ++ v2).toMap
-
-        // FIXME: implement
-
-        /*
-         * // discovery in utxos (script ref)
-
-    for utxo in utxos.iter() {
-        match &utxo.output {
-            TransactionOutput::Legacy(_) => {}
-            TransactionOutput::PostAlonzo(output) => {
-                if let Some(script) = &output.script_ref {
-                    match &script.0 {
-                        PseudoScript::NativeScript(ns) => {
-                            scripts.insert(ns.compute_hash(), ScriptVersion::Native(ns.clone()));
-                        }
-                        PseudoScript::PlutusV1Script(v1) => {
-                            scripts.insert(v1.compute_hash(), ScriptVersion::V1(v1.clone()));
-                        }
-                        PseudoScript::PlutusV2Script(v2) => {
-                            scripts.insert(v2.compute_hash(), ScriptVersion::V2(v2.clone()));
-                        }
-                    }
-                }
-            }
+            v1 ++ v2
         }
-    }
-         */
-        LookupTable(scripts, datum)
+
+        val referenceScripts = ArrayBuffer.empty[(ScriptHash, (PlutusLedgerLanguage, Array[Byte]))]
+
+        for utxo <- utxos.asScala do
+            if utxo.output.getScriptRef != null then
+                val scriptType = utxo.output.getScriptRef()(0)
+                scriptType match
+                    case 0 =>
+                        // FIXME: implement Timelock script
+                        ???
+                    case 1 => // Plutus V1
+                        val script = utxo.output.getScriptRef.slice(1, utxo.output.getScriptRef.length)
+                        val hash = ByteString.fromArray(blake2bHash224(script))
+                        referenceScripts += hash -> (PlutusLedgerLanguage.PlutusV1, script)
+                    case 2 => // Plutus V2
+                        val script = utxo.output.getScriptRef.slice(1, utxo.output.getScriptRef.length)
+                        val hash = ByteString.fromArray(blake2bHash224(script))
+                        referenceScripts += hash -> (PlutusLedgerLanguage.PlutusV2, script)
+
+        val allScripts = (scripts ++ referenceScripts).toMap
+        LookupTable(allScripts, datum)
     }
 
     private def evalPhaseOne(
