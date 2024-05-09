@@ -57,7 +57,8 @@ class TxEvaluatorSpec extends AnyFunSuite:
         val scripts: util.List[PlutusScript] = util.List.of(s)
         val pubKeyScriptAddress = AddressProvider.getEntAddress(s, Networks.testnet())
         println(
-          s"Pubkey script address: ${pubKeyScriptAddress.getAddress}, type hash: ${pubKeyScriptAddress.getPaymentCredentialHash.map(ByteString.fromArray)}"
+          s"Pubkey script address: ${pubKeyScriptAddress.getAddress}, type hash: ${pubKeyScriptAddress.getPaymentCredentialHash
+                  .map(ByteString.fromArray)}"
         )
         val utxo = util.Set.of(
           Utxo.builder
@@ -68,7 +69,8 @@ class TxEvaluatorSpec extends AnyFunSuite:
               .dataHash(PlutusData.unit().getDatumHash)
               .build()
         )
-        val inputs = util.List.of(TransactionInput.builder().transactionId("deadbeef").index(0).build())
+        val inputs =
+            util.List.of(TransactionInput.builder().transactionId("deadbeef").index(0).build())
         val redeemer = Redeemer
             .builder()
             .tag(RedeemerTag.Spend)
@@ -115,17 +117,16 @@ class TxEvaluatorSpec extends AnyFunSuite:
         val utxoSupplier = new DefaultUtxoSupplier(backendService.getUtxoService)
         val protocolParamsSupplier =
             new DefaultProtocolParamsSupplier(backendService.getEpochService)
-        val evaluator = ScalusTransactionEvaluator(utxoSupplier, protocolParamsSupplier, scriptSupplier = null)
+        val evaluator =
+            ScalusTransactionEvaluator(utxoSupplier, protocolParamsSupplier, scriptSupplier = null)
         val utxoSelector = new DefaultUtxoSelector(utxoSupplier)
         val utxoOptional = utxoSelector.findFirst(
           sender1Addr,
           utxo =>
-              utxo
-                .getAmount
+              utxo.getAmount
                   .stream()
                   .anyMatch(a =>
-                      CardanoConstants.LOVELACE.equals(a.getUnit) && a
-                        .getQuantity
+                      CardanoConstants.LOVELACE.equals(a.getUnit) && a.getQuantity
                           .compareTo(ADAConversionUtil.adaToLovelace(2)) >= 0
                   )
         ); // Find an utxo with at least 2 ADA

@@ -10,14 +10,14 @@ import com.bloxbean.cardano.client.transaction.spec.cert.*
 import com.bloxbean.cardano.client.transaction.util.TransactionUtil
 import io.bullet.borer.{Cbor, Decoder}
 import scalus.bloxbean.Interop.toScalusData
-import scalus.builtin.{ByteString, Data, JVMPlatformSpecific, PlutusDataCborDecoder, given}
+import scalus.builtin.{ByteString, Data, JVMPlatformSpecific, given}
 import scalus.ledger
 import scalus.ledger.api
 import scalus.ledger.api.PlutusLedgerLanguage.*
 import scalus.ledger.api.v1.Extended.NegInf
 import scalus.ledger.api.v1.{DCert, ScriptPurpose, StakingCredential}
 import scalus.ledger.api.{v1, v2, PlutusLedgerLanguage}
-import scalus.ledger.babbage.{PlutusV1Params, PlutusV2Params, ProtocolParams}
+import scalus.ledger.babbage.{PlutusV1Params, PlutusV2Params}
 import scalus.prelude
 import scalus.prelude.AssocMap
 import scalus.uplc.{Constant, ProgramFlatCodec, Term}
@@ -105,11 +105,11 @@ class TxEvaluator(private val slotConfig: SlotConfig, private val initialBudgetC
     }
 
     private def resolveTxInputs(
-        transactionInputs: util.List[TransactionInput],
+        inputs: util.List[TransactionInput],
         utxos: util.Set[Utxo],
         plutusScripts: util.List[PlutusScript]
     ): util.List[TransactionOutput] = {
-        transactionInputs.stream
+        inputs.stream
             .map { input =>
                 val utxo = utxos.asScala
                     .find(utxo =>
@@ -278,8 +278,7 @@ class TxEvaluator(private val slotConfig: SlotConfig, private val initialBudgetC
         val received = txScripts.keySet
         val needed = scripts.map(_._2).toSet
         val missing = needed.diff(received)
-        if missing.nonEmpty then
-            throw new IllegalStateException(s"Missing scripts: $missing")
+        if missing.nonEmpty then throw new IllegalStateException(s"Missing scripts: $missing")
     }
 
     private def verifyExactSetOfRedeemers(
@@ -297,7 +296,7 @@ class TxEvaluator(private val slotConfig: SlotConfig, private val initialBudgetC
         tx: Transaction,
         purpose: v1.ScriptPurpose
     ): Option[Redeemer] = {
-        ???  // FIXME: implement
+        ??? // FIXME: implement
     }
 
     private def evalRedeemer(

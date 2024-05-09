@@ -19,7 +19,7 @@ ThisBuild / developers := List(
   )
 )
 
-ThisBuild / description := "Scalus is a Scala library for writing Plutus smart contracts."
+ThisBuild / description := "Scalus - DApps Development Platform for Cardano"
 ThisBuild / licenses := List(
   "Apache 2" -> new URI("http://www.apache.org/licenses/LICENSE-2.0.txt").toURL
 )
@@ -38,7 +38,7 @@ lazy val root: Project = project
       `examples-js`,
       examples,
       bench,
-      scalusBloxbeanCardanoClientLib,
+      `scalus-bloxbean-cardano-client-lib`,
       docs
     )
     .settings(
@@ -85,7 +85,8 @@ lazy val scalusPlugin = project
       }
     )
 
-// Used only for development
+// Used only for Scalus compiler plugin development
+// I use it to not recompile all the tests in the main project
 // TODO remove or comment out
 lazy val scalusPluginTests = project
     .in(file("scalus-plugin-tests"))
@@ -98,6 +99,7 @@ lazy val scalusPluginTests = project
       libraryDependencies += "org.scalatestplus" %%% "scalacheck-1-16" % "3.2.12.0" % "test"
     )
 
+// Scalus Compiler Plugin Dependency
 lazy val PluginDependency: List[Def.Setting[?]] = List(scalacOptions ++= {
     val jar = (scalusPlugin / Compile / packageBin).value
     // add plugin timestamp to compiler options to trigger recompile of
@@ -149,7 +151,7 @@ lazy val scalus = crossProject(JSPlatform, JVMPlatform)
 
 lazy val examples = project
     .in(file("examples"))
-    .dependsOn(scalus.jvm, scalusBloxbeanCardanoClientLib)
+    .dependsOn(scalus.jvm, `scalus-bloxbean-cardano-client-lib`)
     .settings(
       PluginDependency,
       publish / skip := true,
@@ -171,7 +173,8 @@ lazy val `examples-js` = project
       PluginDependency
     )
 
-lazy val scalusBloxbeanCardanoClientLib = project
+// Bloxbean Cardano Client Lib integration and Tx Evaluator implementation
+lazy val `scalus-bloxbean-cardano-client-lib` = project
     .in(file("bloxbean-cardano-client-lib"))
     .dependsOn(scalus.jvm)
     .settings(
@@ -200,6 +203,7 @@ lazy val docs = project // documentation project
       PluginDependency
     )
 
+// Benchmarks for Cardano Plutus VM Evaluator
 lazy val bench = project
     .in(file("bench"))
     .dependsOn(scalus.jvm)
