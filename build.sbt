@@ -3,13 +3,6 @@ import sbtwelcome.*
 
 import java.net.URI
 
-/** Scalus Plugin Development Mode When set to true, the Scalus plugin will be recompiled on every
-  * change This is useful when developing the Scalus plugin itself
-  */
-val ScalusPluginDevelopmentMode: Boolean = true
-// Scalus plugin version to use when ScalusPluginDevelopmentMode is false
-val ScalusPluginStableVersion: String = "0.6.1"
-
 Global / onChangedBuildSource := ReloadOnSourceChanges
 autoCompilerPlugins := true
 
@@ -101,25 +94,22 @@ lazy val scalusPluginTests = project
     .settings(
       name := "scalus-plugin-tests",
       publish / skip := true,
-      ScalusPluginDependency,
+      PluginDependency,
       libraryDependencies += "org.scalatest" %%% "scalatest" % "3.2.18" % "test",
       libraryDependencies += "org.scalatestplus" %%% "scalacheck-1-16" % "3.2.12.0" % "test"
     )
 
 // Scalus Compiler Plugin Dependency
-lazy val ScalusPluginDependency: List[Def.Setting[?]] = {
-    if (ScalusPluginDevelopmentMode) {
-        // This is useful when developing the Scalus plugin itself
-        // This will recompile the plugin when the jar is modified
-        List(
-          scalacOptions ++= {
-              val jar = (scalusPlugin / Compile / packageBin).value
-              Seq(s"-Xplugin:${jar.getAbsolutePath}", s"-Jdummy=${jar.lastModified}")
-          }
-        )
-    } else
-    List(addCompilerPlugin("org.scalus" %% "scalus-plugin" % ScalusPluginStableVersion))
-}
+lazy val PluginDependency: List[Def.Setting[?]] = List(scalacOptions ++= {
+    val jar = (scalusPlugin / Compile / packageBin).value
+    // add plugin timestamp to compiler options to trigger recompile of
+    // main after editing the plugin. (Otherwise a 'clean' is needed.)
+
+    // NOTE: uncomment for faster Scalus Plugin development
+    // this will recompile the plugin when the jar is modified
+    // Seq(s"-Xplugin:${jar.getAbsolutePath}", s"-Jdummy=${jar.lastModified}")
+    Seq(s"-Xplugin:${jar.getAbsolutePath}")
+})
 
 // Scalus Core and Standard Library for JVM and JS
 lazy val scalus = crossProject(JSPlatform, JVMPlatform)
@@ -141,7 +131,7 @@ lazy val scalus = crossProject(JSPlatform, JVMPlatform)
         "io.bullet" %%% "borer-core" % "1.14.0",
         "io.bullet" %%% "borer-derivation" % "1.14.0"
       ),
-      ScalusPluginDependency,
+      PluginDependency,
       libraryDependencies += "org.scalatest" %%% "scalatest" % "3.2.18" % "test",
       libraryDependencies += "org.scalatestplus" %%% "scalacheck-1-16" % "3.2.14.0" % "test"
     )
@@ -163,7 +153,7 @@ lazy val examples = project
     .in(file("examples"))
     .dependsOn(scalus.jvm, `scalus-bloxbean-cardano-client-lib`)
     .settings(
-      ScalusPluginDependency,
+      PluginDependency,
       publish / skip := true,
       libraryDependencies += "com.bloxbean.cardano" % "cardano-client-backend-blockfrost" % "0.5.1"
     )
@@ -180,7 +170,7 @@ lazy val `examples-js` = project
               // Use .mjs extension.
               .withOutputPatterns(OutputPatterns.fromJSFile("%s.mjs"))
       },
-      ScalusPluginDependency
+      PluginDependency
     )
 
 // Bloxbean Cardano Client Lib integration and Tx Evaluator implementation
@@ -193,7 +183,7 @@ lazy val `scalus-bloxbean-cardano-client-lib` = project
       libraryDependencies += "org.slf4j" % "slf4j-simple" % "2.0.13",
       libraryDependencies += "org.scalatest" %%% "scalatest" % "3.2.18" % "test",
       libraryDependencies += "com.bloxbean.cardano" % "cardano-client-backend-blockfrost" % "0.5.1" % "test",
-      inConfig(Test)(ScalusPluginDependency)
+      inConfig(Test)(PluginDependency)
     )
 
 // Documentation
@@ -207,10 +197,10 @@ lazy val docs = project // documentation project
       publish / skip := true,
       moduleName := "scalus-docs",
       mdocVariables := Map(
-        "VERSION" -> ScalusPluginStableVersion,
+        "VERSION" -> "0.6.1",
         "SCALA3_VERSION" -> scalaVersion.value
       ),
-      ScalusPluginDependency
+      PluginDependency
     )
 
 // Benchmarks for Cardano Plutus VM Evaluator
@@ -220,7 +210,7 @@ lazy val bench = project
     .enablePlugins(JmhPlugin)
     .settings(
       name := "scalus-bench",
-      ScalusPluginDependency,
+      PluginDependency,
       publish / skip := true
     )
 

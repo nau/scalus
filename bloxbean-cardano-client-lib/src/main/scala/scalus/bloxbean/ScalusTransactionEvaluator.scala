@@ -37,7 +37,7 @@ class ScalusTransactionEvaluator(
     override def evaluateTx(
         cbor: Array[Byte],
         inputUtxos: util.Set[Utxo]
-    ): Result[util.List[EvaluationResult]] = {
+    ): Result[util.List[EvaluationResult]] =
         try
             val transaction = Transaction.deserialize(cbor)
 
@@ -110,4 +110,3 @@ class ScalusTransactionEvaluator(
             catch case e: Exception =>
                 Result.error(s"Error evaluating transaction: ${e.getMessage}").asInstanceOf[Result[util.List[EvaluationResult]]]
         catch case e: Exception => throw ApiException("Error evaluating transaction", e)
-    }
