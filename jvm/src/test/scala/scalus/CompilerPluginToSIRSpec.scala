@@ -527,8 +527,8 @@ class CompilerPluginToSIRSpec extends AnyFunSuite with ScalaCheckPropertyChecks:
 
         assert(
           compile(
-            Builtins.sliceByteString(hex"dead", 1, 2)
-          ) == (SliceByteString $ hex"dead" $ 1 $ 2)
+            Builtins.sliceByteString(1, 2, hex"dead")
+          ) == (SliceByteString $ 1 $ 2 $ hex"dead")
         )
 
         assert(

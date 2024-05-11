@@ -91,7 +91,7 @@ object Builtins:
     def appendByteString(a: ByteString, b: ByteString): ByteString = a ++ b
     def consByteString(char: BigInt, byteString: ByteString): ByteString =
         ByteString.fromArray(char.toByte +: byteString.bytes)
-    def sliceByteString(bs: ByteString, start: BigInt, end: BigInt): ByteString =
+    def sliceByteString(start: BigInt, end: BigInt, bs: ByteString): ByteString =
         if start < 0 || end < 0 || start > end || end > bs.length then
             throw new Exception(
               s"slice $start $end out of bounds for bytestring of length ${bs.length}"
