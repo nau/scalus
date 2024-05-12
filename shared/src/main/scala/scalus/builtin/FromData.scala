@@ -4,6 +4,8 @@ import scala.collection.immutable.List
 
 import scala.quoted.*
 
+
+
 /** FromData[A] derivation
   */
 object FromData {
@@ -110,4 +112,10 @@ object FromData {
                 }
             }
         }
+
+
+    inline def lense[A, B](inline f: A => B): Data => Data = ${
+        FromDataLense.make('f)
+    }
+
 }

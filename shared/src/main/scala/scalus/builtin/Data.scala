@@ -12,6 +12,14 @@ object Data:
     type FromData[A] = Data => A
     // fromData extension method
     inline def fromData[A](inline data: Data)(using inline ev: FromData[A]): A = ev(data)
+    
+    inline def fromDataLensed[A, B](inline data: Data, f: A => B)(using inline ev:FromData[B]): B = 
+       ev(makeLense[A,B](f)(data))
+    
+    
+    inline def makeLense[A, B](inline f: A => B): Data => Data = ${
+        FromDataLense.make[A,B]('f)
+    }
 
     case class Constr(constr: Long, args: immutable.List[Data]) extends Data {
         assert(constr >= 0, s"Constructor must be non-negative, got $constr")
@@ -32,3 +40,4 @@ object Data:
 
     case class B(value: ByteString) extends Data:
         override def toString: String = s"B(\"${value.toHex}\")"
+
