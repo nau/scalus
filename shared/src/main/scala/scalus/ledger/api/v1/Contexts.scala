@@ -241,13 +241,13 @@ object Interval:
                     case Interval(from2, to2) =>
                         from1 === from2 && to1 === to2
 
-    /** Non-inclusive -∞ interval bound */
-    val negInf: IntervalBound = new IntervalBound(IntervalBoundType.NegInf, false)
+    /** Inclusive -∞ interval bound */
+    val negInf: IntervalBound = new IntervalBound(IntervalBoundType.NegInf, true)
 
-    /** Non-inclusive +∞ interval bound */
-    val posInf: IntervalBound = new IntervalBound(IntervalBoundType.PosInf, false)
+    /** Inclusive +∞ interval bound */
+    val posInf: IntervalBound = new IntervalBound(IntervalBoundType.PosInf, true)
 
-    /** Non-inclusive -∞ to +∞ interval */
+    /** Inclusive -∞ to +∞ interval */
     val always: Interval = new Interval(negInf, posInf)
 
     @deprecated("Use `finite` instead", "0.7.0")
@@ -257,7 +257,7 @@ object Interval:
     def upperBound[A](a: PosixTime): UpperBound[A] =
         new IntervalBound(new IntervalBoundType.Finite(a), true)
 
-    /** Create a finite interval bound */
+    /** Create a finite inclusive interval bound */
     def finite(time: PosixTime): IntervalBound =
         new IntervalBound(IntervalBoundType.Finite(time), true)
 
