@@ -300,3 +300,19 @@ class CekBuiltinsSpec extends AnyFunSuite with ScalaCheckPropertyChecks with Arb
                     assertEvalThrows[Exception](EqualsByteString $ t $ t)
         }
     }
+
+    test("SliceByteString") {
+        assertEvalEq(
+          SliceByteString $ asConstant(1) $ asConstant(3) $ Const(
+            Constant.ByteString(hex"deadbeef")
+          ),
+          Const(Constant.ByteString(hex"adbeef"))
+        )
+
+        assertEvalEq(
+          SliceByteString $ asConstant(1) $ asConstant(5) $ Const(
+            Constant.ByteString(hex"deadbeef")
+          ),
+          Const(Constant.ByteString(hex"adbeef"))
+        )
+    }

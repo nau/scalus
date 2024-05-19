@@ -30,6 +30,17 @@ type POSIXTimeRange = Interval
 type PosixTimeRange = Interval
 type Value = AssocMap[CurrencySymbol, AssocMap[TokenName, BigInt]]
 
+def debugToString(v: Value): String = {
+    val pairs = v.inner.toList.map { case (cs, tokens) =>
+      val tokenPairs = tokens.inner.toList.map { case (tn, amount) =>
+        s"#${tn.toHex}: $amount"
+      }
+      s"policy#${cs.toHex} -> { ${tokenPairs.mkString(", ")} }"
+    }
+    s"{ ${pairs.mkString(", ")} }"
+
+}
+
 @Compile
 object FromDataInstances {
     import scalus.builtin.FromDataInstances.given
@@ -351,7 +362,7 @@ object TxOutRef {
 }
 
 case class PubKeyHash(hash: ByteString) {
-    override def toString = s"PubKeyHash(${hash})"
+    override def toString = s"pkh#${hash}"
 }
 
 @Compile
@@ -411,7 +422,16 @@ object Address {
                         aCredential === bCredential && aStakingCredential === bStakingCredential
 }
 
-case class TxOut(address: Address, value: Value, datumHash: Maybe[DatumHash])
+case class TxOut(address: Address, value: Value, datumHash: Maybe[DatumHash]) {
+    override def toString: String = {
+        s"""TxOut(
+           |  address: $address,
+           |  value: ${debugToString(value)},
+           |  datumHash: $datumHash
+           |)""".stripMargin
+    }
+
+}
 
 case class TxInInfo(
     outRef: TxOutRef,
@@ -429,7 +449,23 @@ case class TxInfo(
     signatories: List[PubKeyHash],
     data: List[(DatumHash, Datum)],
     id: TxId
-)
+) {
+    override def toString: String = {
+        s"""TxInfo(
+           |  inputs: ${inputs.toList.mkString("[", ", ", "]")},
+           |  outputs: ${outputs.toList.mkString("[", ", ", "]")},
+           |  fee: ${debugToString(fee)},
+           |  mint: ${debugToString(mint)},
+           |  dcert: $dcert,
+           |  withdrawals: $withdrawals,
+           |  validRange: $validRange,
+           |  signatories: $signatories,
+           |  data: $data,
+           |  id: $id
+           |)""".stripMargin
+    }
+    
+}
 
 enum ScriptPurpose:
     case Minting(curSymbol: ByteString)

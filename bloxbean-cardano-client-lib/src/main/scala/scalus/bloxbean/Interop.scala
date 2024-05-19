@@ -15,7 +15,6 @@ import scalus.builtin.Data
 import scalus.ledger
 import scalus.ledger.api
 import scalus.ledger.api.PlutusLedgerLanguage.*
-import scalus.ledger.api.v1.Extended.NegInf
 import scalus.ledger.api.v1.DCert
 import scalus.ledger.api.v1.ScriptPurpose
 import scalus.ledger.api.v1.StakingCredential
@@ -54,14 +53,19 @@ given Ordering[Redeemer] with
             case c => c
 
 enum ExecutionPurpose:
-
+    def scriptHash: ByteString
     case WithDatum(
         scriptVersion: PlutusLedgerLanguage,
+        scriptHash: ByteString,
         script: VM.ScriptForEvaluation,
         datum: Data
     )
 
-    case NoDatum(scriptVersion: PlutusLedgerLanguage, script: VM.ScriptForEvaluation)
+    case NoDatum(
+        scriptVersion: PlutusLedgerLanguage,
+        scriptHash: ByteString,
+        script: VM.ScriptForEvaluation
+    )
 
 /** Interoperability between Cardano Client Lib and Scalus */
 object Interop {
@@ -302,15 +306,19 @@ object Interop {
         sc.zero_time + msAfterBegin
     }
 
-    def getInterval(tx: Transaction, slotConfig: SlotConfig): v1.Interval[v1.POSIXTime] = {
+    def getInterval(tx: Transaction, slotConfig: SlotConfig): v1.Interval = {
         val validFrom = tx.getBody.getValidityStartInterval
         val lower =
-            if validFrom == 0 then v1.LowerBound(NegInf, false)
-            else v1.Interval.lowerBound(BigInt(slotToBeginPosixTime(validFrom, slotConfig)))
+            if validFrom == 0 then v1.Interval.negInf
+            else v1.Interval.finite(BigInt(slotToBeginPosixTime(validFrom, slotConfig)))
         val validTo = tx.getBody.getTtl
         val upper =
-            if validTo == 0 then v1.UpperBound(NegInf, false)
-            else v1.Interval.upperBound(BigInt(slotToBeginPosixTime(validTo, slotConfig)))
+            if validTo == 0 then v1.Interval.posInf
+            else
+                v1.IntervalBound(
+                  v1.IntervalBoundType.Finite(BigInt(slotToBeginPosixTime(validTo, slotConfig))),
+                  false // Closure is false here, this is how Cardano Ledger does it for upper bound
+                )
         v1.Interval(lower, upper)
     }
 
@@ -320,7 +328,8 @@ object Interop {
         // get sorted withdrawals
         val wdwls = mutable.TreeMap.empty[v1.StakingCredential.StakingHash, BigInt]
         for w <- withdrawals.asScala do
-            val cred = Address(w.getRewardAddress).getPaymentCredential.map(getCredential).get
+            val addr = Address(w.getRewardAddress)
+            val cred = addr.getDelegationCredential.map(getCredential).get
             wdwls.put(v1.StakingCredential.StakingHash(cred), BigInt(w.getCoin))
         prelude.List.from(wdwls)
     }

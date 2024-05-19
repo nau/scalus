@@ -19,3 +19,6 @@ mnemonic.txt
 cardano-cli
 cardano-address
 blockfrost_api_key.txt
+scripts/
+blocks/
+utxos

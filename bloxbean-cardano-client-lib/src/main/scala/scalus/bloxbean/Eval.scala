@@ -13,11 +13,13 @@ import scalus.ledger
 import scalus.ledger.api
 import scalus.ledger.api.PlutusLedgerLanguage.*
 import scalus.ledger.api.v1.{DCert, ScriptPurpose, StakingCredential}
-import scalus.ledger.api.{PlutusLedgerLanguage, v1, v2}
+import scalus.ledger.api.{v1, v2, PlutusLedgerLanguage}
 import scalus.sir.PrettyPrinter
 import scalus.uplc.{Constant, ProgramFlatCodec, Term}
 import scalus.uplc.eval.*
 import scalus.utils.Hex
+import scalus.utils.Utils
+import upickle.default.*
 
 import java.math.BigInteger
 import java.util
@@ -25,18 +27,58 @@ import java.util.*
 import java.util.stream.Collectors
 import java.util.stream.Stream
 import scala.collection.mutable.ArrayBuffer
-import scala.collection.{Map, immutable, mutable}
+import scala.collection.{immutable, mutable, Map}
 import scala.jdk.CollectionConverters.*
 
 case class SlotConfig(zero_time: Long, zero_slot: Long, slot_length: Long)
 object SlotConfig {
     def default: SlotConfig =
-        SlotConfig(zero_time = 1660003200000L, zero_slot = 0, slot_length = 1000)
+        SlotConfig(zero_time = 1596059091000L, zero_slot = 4492800, slot_length = 1000)
 }
 
 class TxEvaluationException(message: String, cause: Throwable) extends Exception(message, cause)
 
 case class ResolvedInput(input: TransactionInput, output: TransactionOutput)
+
+given ReadWriter[Data] = readwriter[ujson.Value].bimap(
+  {
+      case Data.Constr(constr, args) =>
+          ujson.Obj(
+            "constructor" -> ujson.Num(constr),
+            "fields" -> ujson.Arr(ArrayBuffer.from(args.map(writeJs)))
+          )
+      case Data.Map(values) =>
+          ujson.Obj("map" -> ujson.Arr(ArrayBuffer.from(values.map { case (k, v) =>
+              ujson.Obj("k" -> writeJs(k), "v" -> writeJs(v))
+          })))
+      case Data.List(values) =>
+          ujson.Obj("list" -> ujson.Arr(ArrayBuffer.from(values.map(writeJs))))
+      case Data.I(value) => ujson.Obj("int" -> writeJs(value))
+      case Data.B(value) => ujson.Obj("bytes" -> writeJs(value.toHex))
+  },
+  json =>
+      if json.obj.get("constructor").isDefined then
+          Data.Constr(
+            json.obj("constructor").num.toLong,
+            json.obj("fields").arr.map(f => read[Data](f)).toList
+          )
+      else if json.obj.get("map").isDefined then
+          Data.Map(
+            json.obj("map")
+                .arr
+                .map { obj =>
+                    val k = read[Data](obj.obj("k"))
+                    val v = read[Data](obj.obj("v"))
+                    k -> v
+                }
+                .toList
+          )
+      else if json.obj.get("list").isDefined then
+          Data.List(json.obj("list").arr.map(e => read[Data](e)).toList)
+      else if json.obj.get("int").isDefined then Data.I(json.obj("int").num.toLong)
+      else if json.obj.get("bytes").isDefined then Data.B(ByteString.fromHex(json.obj("bytes").str))
+      else throw new Exception("Invalid Data")
+)
 
 /** Evaluate script costs for a transaction using two phase eval.
   * @note
@@ -44,6 +86,8 @@ case class ResolvedInput(input: TransactionInput, output: TransactionOutput)
   */
 class TxEvaluator(private val slotConfig: SlotConfig, private val initialBudgetConfig: ExBudget) {
     // TODO: implement proper error handling, exceptions, logging etc
+    val failedScripts = mutable.Set[String]()
+    val succScripts = mutable.Set[String]()
 
     /** Evaluate script costs for a transaction
       *
@@ -96,7 +140,11 @@ class TxEvaluator(private val slotConfig: SlotConfig, private val initialBudgetC
               slotConfig,
               runPhaseOne = true
             )
-        catch case e: Exception => throw new TxEvaluationException("TxEvaluation failed", e)
+        catch
+            case e: Exception =>
+                println(s"Error evaluating transaction: ${e.getMessage}")
+                e.printStackTrace()
+                throw new TxEvaluationException("TxEvaluation failed", e)
     }
 
     private def resolveTxInputs(
@@ -179,20 +227,21 @@ class TxEvaluator(private val slotConfig: SlotConfig, private val initialBudgetC
 
         for utxo <- utxos.asScala do
             if utxo.output.getScriptRef != null then
-                val scriptType = utxo.output.getScriptRef()(0)
+                // script_ref is incoded as CBOR Array
+                val (scriptType, scriptCbor) =
+                    Cbor.decode(utxo.output.getScriptRef).to[(Byte, Array[Byte])].value
+                // and script hash is calculated from the script type byte and the scriptCbor
+                val scriptBytesForScriptHash = Array(scriptType) ++ scriptCbor
+                val hash = ByteString.fromArray(blake2bHash224(scriptBytesForScriptHash))
                 scriptType match
                     case 0 =>
                         // FIXME: implement Timelock script
                         ???
                     case 1 => // Plutus V1
-                        val script =
-                            utxo.output.getScriptRef.slice(1, utxo.output.getScriptRef.length)
-                        val hash = ByteString.fromArray(blake2bHash224(script))
+                        val script = Cbor.decode(scriptCbor).to[Array[Byte]].value
                         referenceScripts += hash -> (PlutusLedgerLanguage.PlutusV1, script)
                     case 2 => // Plutus V2
-                        val script =
-                            utxo.output.getScriptRef.slice(1, utxo.output.getScriptRef.length)
-                        val hash = ByteString.fromArray(blake2bHash224(script))
+                        val script = Cbor.decode(scriptCbor).to[Array[Byte]].value
                         referenceScripts += hash -> (PlutusLedgerLanguage.PlutusV2, script)
 
         val allScripts = (scripts ++ referenceScripts).toMap
@@ -205,7 +254,7 @@ class TxEvaluator(private val slotConfig: SlotConfig, private val initialBudgetC
         lookupTable: LookupTable
     ): Unit = {
         val scripts = scriptsNeeded(tx, utxos.asScala)
-        println(s"Scrips needed: $scripts")
+//        println(s"Scrips needed: $scripts")
         validateMissingScripts(scripts, lookupTable.scripts)
         verifyExactSetOfRedeemers(tx, scripts, lookupTable.scripts)
     }
@@ -310,7 +359,7 @@ class TxEvaluator(private val slotConfig: SlotConfig, private val initialBudgetC
           tx.getBody.getWithdrawals
         )
 
-        println(s"Eval redeemer: $purpose")
+//        println(s"Eval redeemer: $purpose")
 
         val executionPurpose = getExecutionPurpose(utxos, purpose, lookupTable)
 
@@ -319,50 +368,58 @@ class TxEvaluator(private val slotConfig: SlotConfig, private val initialBudgetC
         import scalus.ledger.api.v1.ToDataInstances.given
         import scalus.ledger.api.v2.ToDataInstances.given
         val result = executionPurpose match
-            case ExecutionPurpose.WithDatum(PlutusV1, script, datum) =>
+            case ExecutionPurpose.WithDatum(PlutusV1, scriptHash, script, datum) =>
+//                println(
+//                  s"eval: PlutusV1, $scriptHash ${purpose}: ${PrettyPrinter.pretty(datum).render(100)}"
+//                )
                 val machineParams = translateMachineParamsFromCostMdls(costMdls, PlutusV1)
                 val rdmr = toScalusData(redeemer.getData)
                 val txInfo = getTxInfoV1(tx, utxos, slotConfig)
                 val scriptContext = v1.ScriptContext(txInfo, purpose)
                 val ctxData = scriptContext.toData
-                println(s"Script context: $scriptContext")
+//                println(s"Script context: ${write(ctxData)}")
                 evalScript(machineParams, script, datum, rdmr, ctxData)
-            case ExecutionPurpose.WithDatum(PlutusV2, script, datum) =>
+            case ExecutionPurpose.WithDatum(PlutusV2, scriptHash, script, datum) =>
+//                println(
+//                  s"eval: PlutusV2, $scriptHash ${purpose}: ${PrettyPrinter.pretty(datum).render(100)}"
+//                )
                 val machineParams = translateMachineParamsFromCostMdls(costMdls, PlutusV2)
                 val rdmr = toScalusData(redeemer.getData)
                 val txInfo = getTxInfoV2(tx, utxos, slotConfig)
                 val scriptContext = v2.ScriptContext(txInfo, purpose)
                 val ctxData = scriptContext.toData
-                println(s"Script context: $scriptContext")
+//                println(s"Script context: $scriptContext")
                 evalScript(machineParams, script, datum, rdmr, ctxData)
-            case ExecutionPurpose.NoDatum(PlutusV1, script) =>
+            case ExecutionPurpose.NoDatum(PlutusV1, scriptHash, script) =>
+//                println(s"eval: PlutusV1, $scriptHash ${purpose}")
                 val machineParams = translateMachineParamsFromCostMdls(costMdls, PlutusV1)
                 val rdmr = toScalusData(redeemer.getData)
                 val txInfo = getTxInfoV1(tx, utxos, slotConfig)
                 val scriptContext = v1.ScriptContext(txInfo, purpose)
                 val ctxData = scriptContext.toData
-                println(s"Script context: $scriptContext")
+//                println(s"Script context: $scriptContext")
                 evalScript(machineParams, script, rdmr, ctxData)
-            case ExecutionPurpose.NoDatum(PlutusV2, script) =>
+            case ExecutionPurpose.NoDatum(PlutusV2, scriptHash, script) =>
+//                println(s"eval: PlutusV2, $scriptHash ${purpose}")
                 val machineParams = translateMachineParamsFromCostMdls(costMdls, PlutusV2)
                 val rdmr = toScalusData(redeemer.getData)
                 val txInfo = getTxInfoV2(tx, utxos, slotConfig)
                 val scriptContext = v2.ScriptContext(txInfo, purpose)
                 val ctxData = scriptContext.toData
-                println(s"Script context: $scriptContext")
+//                println(s"Script context: $scriptContext")
                 evalScript(machineParams, script, rdmr, ctxData)
             case _ =>
                 throw new IllegalStateException(s"Unsupported execution purpose $executionPurpose")
 
         val cost = result.budget
-        println(s"Eval result: $result")
+        println(s"${Console.GREEN}Eval result: $result${Console.RESET}")
         Redeemer(
           redeemer.getTag,
           redeemer.getIndex,
           redeemer.getData,
           ExUnits(
-            BigInteger.valueOf(cost.cpu),
-            BigInteger.valueOf(cost.memory)
+            BigInteger.valueOf(cost.memory),
+            BigInteger.valueOf(cost.cpu)
           )
         )
     }
@@ -391,17 +448,18 @@ class TxEvaluator(private val slotConfig: SlotConfig, private val initialBudgetC
             CekResult(resultTerm, spender.getSpentBudget, logger.getLogs)
         catch
             case e: StackTraceMachineError =>
-                println(s"Machine Error: ${e.getMessage}")
-                println(
+                println(s"${Console.RED}Machine Error: ${e.getMessage}${Console.RESET}")
+                /*println(
                   e.env
                       .map({
-                          case (k, v @ CekValue.VCon(c))            => s"$k -> ${PrettyPrinter.pretty(c).render(80)}"
+                          case (k, v @ CekValue.VCon(c)) =>
+                              s"$k -> ${PrettyPrinter.pretty(c).render(80)}"
                           case (k, v: CekValue.VDelay)              => s"$k -> delay"
                           case (k, v: CekValue.VLamAbs)             => s"$k -> lam"
                           case (k, v @ CekValue.VBuiltin(bi, _, _)) => s"$k -> $bi"
                       })
                       .mkString("\n")
-                )
+                )*/
                 println(s"logs: ${logger.getLogs.mkString("\n")}")
                 throw new IllegalStateException("MachineError", e)
     }
@@ -411,14 +469,14 @@ class TxEvaluator(private val slotConfig: SlotConfig, private val initialBudgetC
         purpose: v1.ScriptPurpose,
         lookupTable: LookupTable
     ): ExecutionPurpose = {
-        println(s"Get execution purpose: $purpose, $lookupTable, $utxos")
+//        println(s"Get execution purpose: $purpose, $lookupTable, $utxos")
         purpose match
             case v1.ScriptPurpose.Minting(policyId) =>
                 val (lang, script) = lookupTable.scripts.getOrElse(
                   policyId,
                   throw new IllegalStateException("Script Not Found")
                 )
-                ExecutionPurpose.NoDatum(lang, script)
+                ExecutionPurpose.NoDatum(lang, policyId, script)
             case v1.ScriptPurpose.Spending(txOutRef) =>
                 val utxo = utxos.asScala
                     .find(utxo =>
@@ -435,12 +493,23 @@ class TxEvaluator(private val slotConfig: SlotConfig, private val initialBudgetC
                   hash,
                   throw new IllegalStateException("Script Not Found")
                 )
-                val datumHash = ByteString.fromArray(utxo.output.getDatumHash)
-                val datum = lookupTable.datums.getOrElse(
-                  datumHash,
-                  throw new IllegalStateException("Datum Not Found")
-                )
-                ExecutionPurpose.WithDatum(version, script, toScalusData(datum))
+                (utxo.output.getDatumHash, utxo.output.getInlineDatum) match
+                    case (null, null) =>
+                        throw new IllegalStateException("Datum Not Found")
+                    case (datumHash, null) =>
+                        val datum = lookupTable.datums.getOrElse(
+                          ByteString.fromArray(datumHash),
+                          throw new IllegalStateException(
+                            s"Datum Hash Not Found ${Utils.bytesToHex(datumHash)}"
+                          )
+                        )
+                        ExecutionPurpose.WithDatum(version, hash, script, toScalusData(datum))
+                    case (null, inlineDatum) =>
+                        ExecutionPurpose.WithDatum(version, hash, script, toScalusData(inlineDatum))
+                    case _ =>
+                        throw new IllegalStateException(
+                          "Output can't have both inline datum and datum hash"
+                        )
             case v1.ScriptPurpose.Rewarding(
                   StakingCredential.StakingHash(v1.Credential.ScriptCredential(hash))
                 ) =>
@@ -448,7 +517,7 @@ class TxEvaluator(private val slotConfig: SlotConfig, private val initialBudgetC
                   hash,
                   throw new IllegalStateException("Script Not Found")
                 )
-                ExecutionPurpose.NoDatum(version, script)
+                ExecutionPurpose.NoDatum(version, hash, script)
             case ScriptPurpose.Rewarding(stakingCred) =>
                 throw new IllegalStateException("OnlyStakeDeregAndDelegAllowed")
             case v1.ScriptPurpose.Certifying(cert) =>
@@ -462,7 +531,7 @@ class TxEvaluator(private val slotConfig: SlotConfig, private val initialBudgetC
                           hash,
                           throw new IllegalStateException("Script Not Found")
                         )
-                        ExecutionPurpose.NoDatum(version, script)
+                        ExecutionPurpose.NoDatum(version, hash, script)
                     case DCert.DelegDelegate(v1.StakingCredential.StakingHash(cred), _) =>
                         val hash = cred match
                             case v1.Credential.ScriptCredential(hash) => hash
@@ -472,7 +541,7 @@ class TxEvaluator(private val slotConfig: SlotConfig, private val initialBudgetC
                           hash,
                           throw new IllegalStateException("Script Not Found")
                         )
-                        ExecutionPurpose.NoDatum(version, script)
+                        ExecutionPurpose.NoDatum(version, hash, script)
                     case _ => throw new IllegalStateException("OnlyStakeDeregAndDelegAllowed")
     }
 
@@ -484,10 +553,10 @@ class TxEvaluator(private val slotConfig: SlotConfig, private val initialBudgetC
         slotConfig: SlotConfig,
         runPhaseOne: Boolean
     ): util.List[Redeemer] = {
-        println(s"Eval phase two $tx, $utxos, $costMdls, $initialBudget, $slotConfig, $runPhaseOne")
+//        println(s"Eval phase two $tx, $utxos, $costMdls, $initialBudget, $slotConfig, $runPhaseOne")
         val redeemers = tx.getWitnessSet.getRedeemers ?? util.List.of()
         val lookupTable = getScriptAndDatumLookupTable(tx, utxos)
-        println(s"Lookup table: $lookupTable")
+//        println(s"Lookup table: $lookupTable")
 
         if runPhaseOne then
             // Subset of phase 1 check on redeemers and scripts
@@ -495,6 +564,7 @@ class TxEvaluator(private val slotConfig: SlotConfig, private val initialBudgetC
 
         var remainingBudget = initialBudget
         val collectedRedeemers = redeemers.asScala.map { redeemer =>
+//            println(PrettyPrinter.pretty(Interop.toScalusData(redeemer.getData)).render(100))
             val evaluatedRedeemer = evalRedeemer(
               tx,
               utxos,
@@ -504,6 +574,12 @@ class TxEvaluator(private val slotConfig: SlotConfig, private val initialBudgetC
               costMdls,
               remainingBudget
             )
+
+            if evaluatedRedeemer.getExUnits.getSteps != redeemer.getExUnits.getSteps || evaluatedRedeemer.getExUnits.getMem != redeemer.getExUnits.getMem
+            then
+                println(
+                  s"ExUnits: ${redeemer.getExUnits} - Evaluated: ${evaluatedRedeemer.getExUnits}"
+                )
 
             // The subtraction is safe here as ex units counting is done during evaluation.
             // Redeemer would fail already if budget was negative.

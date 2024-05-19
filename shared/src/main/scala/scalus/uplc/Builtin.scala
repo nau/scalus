@@ -207,9 +207,9 @@ class BuiltinsMeaning(builtinCostModel: BuiltinCostModel, platformSpecific: Plat
           DefaultUni.Integer ->: DefaultUni.Integer ->: DefaultUni.ByteString ->: DefaultUni.ByteString,
           (logger: Logger, args: Seq[CekValue]) =>
               val start = args(0).asInteger
-              val end = args(1).asInteger
+              val n = args(1).asInteger
               val bs = args(2).asByteString
-              VCon(asConstant(sliceByteString(start, end, bs)))
+              VCon(asConstant(sliceByteString(start, n, bs)))
           ,
           builtinCostModel.sliceByteString
         )

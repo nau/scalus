@@ -66,13 +66,13 @@ class ScriptContextV1DataSerializationSpec extends BaseValidatorSpec:
         StakingCredential.StakingHash(PubKeyCredential(PubKeyHash(hex"61613031")))
       )
     )
-    val signatories = Cons(PubKeyHash(hex"7369676E61746F7279"), Nil)
+    val signatories = Cons(PubKeyHash(hex"7369676e61746f7279"), Nil)
     val txInfo = TxInfo(
       inputs = Nil,
       outputs = Cons(
         TxOut(
           address,
-          Value(hex"AA", hex"6262", 3),
+          Value(hex"aa", hex"6262", 3),
           Just(hex"64616461")
         ),
         Nil
@@ -120,7 +120,7 @@ class ScriptContextV1DataSerializationSpec extends BaseValidatorSpec:
         val plutusScriptContext = fromData[ScriptContext](plutusData)
         assert(plutusScriptContext == scriptContextV1)
         assert(plutusData == scriptContextV1.toData)
-        assert(encodeAsHexString(scriptContextV1.toData) == plutusSerializedData.toUpperCase())
+        assert(encodeAsHexString(scriptContextV1.toData) == plutusSerializedData)
     }
 
     test("deserialize ScriptContext V1 using Plutus") {

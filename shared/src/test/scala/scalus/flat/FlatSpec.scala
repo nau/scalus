@@ -70,9 +70,9 @@ class FlatSpec extends AnyFunSuite with ScalaCheckPropertyChecks with ArbitraryI
             assert(fl.bitSize(arr) == 6 * 8)
             val enc = EncoderState(6)
             fl.encode(arr, enc)
-            assert(Utils.bytesToHex(enc.result) == "01030B162100")
+            assert(Utils.bytesToHex(enc.result) == "01030b162100")
             val dec = DecoderState(enc.result)
-            assert(Utils.bytesToHex(fl.decode(dec)) == "0B1621")
+            assert(Utils.bytesToHex(fl.decode(dec)) == "0b1621")
         }
 
         def check(n: Int) =
@@ -160,7 +160,7 @@ class FlatSpec extends AnyFunSuite with ScalaCheckPropertyChecks with ArbitraryI
         check(BigInt(1), "02")
         check(BigInt(-1), "01")
         check(BigInt(64), "8001")
-        check(BigInt(-80), "9F01")
+        check(BigInt(-80), "9f01")
 
         forAll { (n: BigInt) =>
             val enc = EncoderState(fl.bitSize(n) / 8 + 1)
@@ -186,7 +186,7 @@ class FlatSpec extends AnyFunSuite with ScalaCheckPropertyChecks with ArbitraryI
 
         check("", "0100")
         check("a", "01016100")
-        check("Ї", "0102D08700")
+        check("Ї", "0102d08700")
 
         forAll { (n: String) =>
             val enc = EncoderState(fl.bitSize(n) / 8 + 1)
@@ -212,7 +212,7 @@ class FlatSpec extends AnyFunSuite with ScalaCheckPropertyChecks with ArbitraryI
             assert(fl.decode(dec) == n)
 
         check(List.empty[Boolean], "00")
-        check(List(true, false, true), "EC")
+        check(List(true, false, true), "ec")
 
         forAll { (n: List[Boolean]) =>
             val enc = EncoderState(fl.bitSize(n) / 8 + 1)
