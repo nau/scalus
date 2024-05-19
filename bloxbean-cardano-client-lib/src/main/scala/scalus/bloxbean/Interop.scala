@@ -55,16 +55,14 @@ given Ordering[Redeemer] with
 enum ExecutionPurpose:
     def scriptHash: ByteString
     case WithDatum(
-        scriptVersion: PlutusLedgerLanguage,
+        scriptVersion: ScriptVersion,
         scriptHash: ByteString,
-        script: VM.ScriptForEvaluation,
         datum: Data
     )
 
     case NoDatum(
-        scriptVersion: PlutusLedgerLanguage,
+        scriptVersion: ScriptVersion,
         scriptHash: ByteString,
-        script: VM.ScriptForEvaluation
     )
 
 /** Interoperability between Cardano Client Lib and Scalus */

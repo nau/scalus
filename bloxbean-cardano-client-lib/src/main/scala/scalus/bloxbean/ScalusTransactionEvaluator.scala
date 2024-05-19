@@ -39,6 +39,20 @@ class ScalusTransactionEvaluator(
     val scriptSupplier: ScriptSupplier
 ) extends TransactionEvaluator {
     var txEvaluator: TxEvaluator = null
+    lazy val protocolParams = protocolParamsSupplier.getProtocolParams
+
+    lazy val costMdls = {
+        val costModelV1 = CostModelUtil
+            .getCostModelFromProtocolParams(protocolParams, Language.PLUTUS_V1)
+            .get()
+        val costModelV2 = CostModelUtil
+            .getCostModelFromProtocolParams(protocolParams, Language.PLUTUS_V2)
+            .get()
+        val cm = CostMdls()
+        cm.add(costModelV1)
+        cm.add(costModelV2)
+        cm
+    }
 
     override def evaluateTx(
         cbor: Array[Byte],
@@ -55,29 +69,9 @@ class ScalusTransactionEvaluator(
 
             val ins = co.nstant.in.cbor.model.Array()
             val outs = co.nstant.in.cbor.model.Array()
-            for utxo <- utxos.asScala.toSeq do
-                ins.add(
-                  TransactionInput
-                      .builder()
-                      .index(utxo.getOutputIndex)
-                      .transactionId(utxo.getTxHash)
-                      .build()
-                      .serialize()
-                )
-                outs.add(
-                  TransactionOutput
-                      .builder()
-                      .value(utxo.toValue)
-                      .address(utxo.getAddress)
-                      .datumHash(Option(utxo.getDataHash).map(Utils.hexToBytes).orNull)
-                      .build()
-                      .serialize()
-                )
-
-//            Files.write(java.nio.file.Path.of("ins.cbor"), CborSerializationUtil.serialize(ins));
-//            Files.write(java.nio.file.Path.of("outs.cbor"), CborSerializationUtil.serialize(outs));
 
             val additionalScripts: util.List[PlutusScript] = new util.ArrayList[PlutusScript]
+            val scripts: util.Map[String, PlutusScript] = new util.HashMap[String, PlutusScript]()
             // reference inputs//reference inputs
 
             for input <- transaction.getBody.getReferenceInputs.asScala do
@@ -86,10 +80,43 @@ class ScalusTransactionEvaluator(
                 // Get reference input script
 //                println(s"Reference input: ${utxo.getReferenceScriptHash}")
                 if utxo.getReferenceScriptHash != null && scriptSupplier != null then
-                    additionalScripts.add(scriptSupplier.getScript(utxo.getReferenceScriptHash))
+                    val script = scriptSupplier.getScript(utxo.getReferenceScriptHash)
+                    additionalScripts.add(script)
+                    scripts.put(utxo.getReferenceScriptHash, script)
+
+            for utxo <- utxos.asScala.toSeq do
+                ins.add(
+                    TransactionInput
+                        .builder()
+                        .index(utxo.getOutputIndex)
+                        .transactionId(utxo.getTxHash)
+                        .build()
+                        .serialize()
+                )
+                val inlineDatum = Option(utxo.getInlineDatum).map(hex =>
+                    PlutusData.deserialize(Utils.hexToBytes(hex))
+                )
+                val datumHash = Option(utxo.getDataHash).map(Utils.hexToBytes)
+                outs.add(
+                    TransactionOutput
+                        .builder()
+                        .value(utxo.toValue)
+                        .address(utxo.getAddress)
+                        .inlineDatum(inlineDatum.orNull)
+                        .datumHash(if inlineDatum.isEmpty then datumHash.orNull else null)
+                        .scriptRef(Option(scripts.get(utxo.getReferenceScriptHash)).orNull)
+                        .build()
+                        .serialize()
+                )
+
+            Files.write(java.nio.file.Path.of("ins.cbor"), CborSerializationUtil.serialize(ins));
+            Files.write(java.nio.file.Path.of("outs.cbor"), CborSerializationUtil.serialize(outs));                    
 
             if transaction.getWitnessSet == null then
                 transaction.setWitnessSet(new TransactionWitnessSet)
+                
+            if transaction.getWitnessSet.getNativeScripts == null then
+                transaction.getWitnessSet.setNativeScripts(new util.ArrayList)
 
             if transaction.getWitnessSet.getPlutusV1Scripts == null then
                 transaction.getWitnessSet.setPlutusV1Scripts(new util.ArrayList)
@@ -99,18 +126,6 @@ class ScalusTransactionEvaluator(
 
             if transaction.getWitnessSet.getPlutusDataList == null then
                 transaction.getWitnessSet.setPlutusDataList(new util.ArrayList)
-
-            val protocolParams = protocolParamsSupplier.getProtocolParams
-            val costModelV1 = CostModelUtil
-                .getCostModelFromProtocolParams(protocolParams, Language.PLUTUS_V1)
-                .get()
-            val costModelV2 = CostModelUtil
-                .getCostModelFromProtocolParams(protocolParams, Language.PLUTUS_V2)
-                .get()
-
-            val costMdls = CostMdls()
-            costMdls.add(costModelV1)
-            costMdls.add(costModelV2)
 
             val txBudget = ExBudget.fromCpuAndMemory(
               cpu = protocolParams.getMaxTxExSteps.toLong,

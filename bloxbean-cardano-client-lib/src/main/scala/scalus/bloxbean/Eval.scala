@@ -3,18 +3,21 @@ package scalus.bloxbean
 import com.bloxbean.cardano.client.address.{Address, AddressType, CredentialType}
 import com.bloxbean.cardano.client.api.model.Utxo
 import com.bloxbean.cardano.client.crypto.Blake2bUtil.blake2bHash224
+import com.bloxbean.cardano.client.crypto.Blake2bUtil.blake2bHash256
 import com.bloxbean.cardano.client.exception.{CborDeserializationException, CborSerializationException}
 import com.bloxbean.cardano.client.plutus.spec.*
 import com.bloxbean.cardano.client.transaction.spec.*
 import io.bullet.borer.{Cbor, Decoder}
 import scalus.bloxbean.Interop.*
+import scalus.builtin.PlutusDataCborEncoder
 import scalus.builtin.{ByteString, Data, JVMPlatformSpecific, given}
 import scalus.ledger
 import scalus.ledger.api
 import scalus.ledger.api.PlutusLedgerLanguage.*
 import scalus.ledger.api.v1.{DCert, ScriptPurpose, StakingCredential}
-import scalus.ledger.api.{v1, v2, PlutusLedgerLanguage}
-import scalus.sir.PrettyPrinter
+import scalus.ledger.api.{PlutusLedgerLanguage, v1, v2}
+import scalus.uplc.DeBruijn
+import scalus.uplc.Program
 import scalus.uplc.{Constant, ProgramFlatCodec, Term}
 import scalus.uplc.eval.*
 import scalus.utils.Hex
@@ -22,12 +25,13 @@ import scalus.utils.Utils
 import upickle.default.*
 
 import java.math.BigInteger
+import java.nio.file.Files
 import java.util
 import java.util.*
 import java.util.stream.Collectors
 import java.util.stream.Stream
 import scala.collection.mutable.ArrayBuffer
-import scala.collection.{immutable, mutable, Map}
+import scala.collection.{Map, immutable, mutable}
 import scala.jdk.CollectionConverters.*
 
 case class SlotConfig(zero_time: Long, zero_slot: Long, slot_length: Long)
@@ -79,6 +83,11 @@ given ReadWriter[Data] = readwriter[ujson.Value].bimap(
       else if json.obj.get("bytes").isDefined then Data.B(ByteString.fromHex(json.obj("bytes").str))
       else throw new Exception("Invalid Data")
 )
+
+enum ScriptVersion:
+    case Native
+    case PlutusV1(flatScript: ByteString)
+    case PlutusV2(flatScript: ByteString)
 
 /** Evaluate script costs for a transaction using two phase eval.
   * @note
@@ -171,6 +180,7 @@ class TxEvaluator(private val slotConfig: SlotConfig, private val initialBudgetC
                     PlutusData.deserialize(Hex.hexToBytes(hex))
                 )
                 val datumHash = Option(utxo.getDataHash).map(Hex.hexToBytes)
+//                println(s"datumHash: $datumHash, inlineDatum: $inlineDatum, utxo: $utxo")
 
                 try
                     TransactionOutput.builder
@@ -188,7 +198,7 @@ class TxEvaluator(private val slotConfig: SlotConfig, private val initialBudgetC
     private type ScriptHash = ByteString
     private type Hash = ByteString
     private case class LookupTable(
-        scripts: collection.Map[ScriptHash, (PlutusLedgerLanguage, Array[Byte])],
+        scripts: collection.Map[ScriptHash, ScriptVersion],
         datums: collection.Map[Hash, PlutusData]
     )
 
@@ -200,30 +210,30 @@ class TxEvaluator(private val slotConfig: SlotConfig, private val initialBudgetC
             .map: data =>
                 ByteString.fromArray(data.getDatumHashAsBytes) -> data
             .toMap
+
         val scripts = {
             def decodeToFlat(script: PlutusScript) =
                 // unwrap the outer CBOR encoding
                 val decoded = Cbor.decode(Hex.hexToBytes(script.getCborHex)).to[Array[Byte]].value
                 // and decode the inner CBOR encoding. Don't ask me why.
-                Cbor.decode(decoded).to[Array[Byte]].value
+                ByteString.fromArray(Cbor.decode(decoded).to[Array[Byte]].value)
 
-            // FIXME: add native scripts
+            val native = tx.getWitnessSet.getNativeScripts.asScala
+                .map: script =>
+                    ByteString.fromArray(script.getScriptHash) -> ScriptVersion.Native
+
             val v1 = tx.getWitnessSet.getPlutusV1Scripts.asScala
                 .map: script =>
                     val flatScript = decodeToFlat(script)
-                    ByteString.fromArray(
-                      script.getScriptHash
-                    ) -> (PlutusLedgerLanguage.PlutusV1, flatScript)
+                    ByteString.fromArray(script.getScriptHash) -> ScriptVersion.PlutusV1(flatScript)
             val v2 = tx.getWitnessSet.getPlutusV2Scripts.asScala
                 .map: script =>
                     val flatScript = decodeToFlat(script)
-                    ByteString.fromArray(
-                      script.getScriptHash
-                    ) -> (PlutusLedgerLanguage.PlutusV2, flatScript)
-            v1 ++ v2
+                    ByteString.fromArray(script.getScriptHash) -> ScriptVersion.PlutusV2(flatScript)
+            native ++ v1 ++ v2
         }
 
-        val referenceScripts = ArrayBuffer.empty[(ScriptHash, (PlutusLedgerLanguage, Array[Byte]))]
+        val referenceScripts = ArrayBuffer.empty[(ScriptHash, ScriptVersion)]
 
         for utxo <- utxos.asScala do
             if utxo.output.getScriptRef != null then
@@ -235,14 +245,15 @@ class TxEvaluator(private val slotConfig: SlotConfig, private val initialBudgetC
                 val hash = ByteString.fromArray(blake2bHash224(scriptBytesForScriptHash))
                 scriptType match
                     case 0 =>
-                        // FIXME: implement Timelock script
-                        ???
+                        referenceScripts += hash -> ScriptVersion.Native
                     case 1 => // Plutus V1
-                        val script = Cbor.decode(scriptCbor).to[Array[Byte]].value
-                        referenceScripts += hash -> (PlutusLedgerLanguage.PlutusV1, script)
+                        val script =
+                            ByteString.fromArray(Cbor.decode(scriptCbor).to[Array[Byte]].value)
+                        referenceScripts += hash -> ScriptVersion.PlutusV1(script)
                     case 2 => // Plutus V2
-                        val script = Cbor.decode(scriptCbor).to[Array[Byte]].value
-                        referenceScripts += hash -> (PlutusLedgerLanguage.PlutusV2, script)
+                        val script =
+                            ByteString.fromArray(Cbor.decode(scriptCbor).to[Array[Byte]].value)
+                        referenceScripts += hash -> ScriptVersion.PlutusV2(script)
 
         val allScripts = (scripts ++ referenceScripts).toMap
         LookupTable(allScripts, datum)
@@ -316,7 +327,7 @@ class TxEvaluator(private val slotConfig: SlotConfig, private val initialBudgetC
 
     private def validateMissingScripts(
         scripts: AlonzoScriptsNeeded,
-        txScripts: collection.Map[ScriptHash, (PlutusLedgerLanguage, Array[Byte])]
+        txScripts: collection.Map[ScriptHash, ScriptVersion]
     ): Unit = {
         val received = txScripts.keySet
         val needed = scripts.map(_._2).toSet
@@ -327,7 +338,7 @@ class TxEvaluator(private val slotConfig: SlotConfig, private val initialBudgetC
     private def verifyExactSetOfRedeemers(
         tx: Transaction,
         scripts: AlonzoScriptsNeeded,
-        txScripts: collection.Map[ScriptHash, (PlutusLedgerLanguage, Array[Byte])]
+        txScripts: collection.Map[ScriptHash, ScriptVersion]
     ): Unit = {
         // FIXME: implement
     }
@@ -368,7 +379,7 @@ class TxEvaluator(private val slotConfig: SlotConfig, private val initialBudgetC
         import scalus.ledger.api.v1.ToDataInstances.given
         import scalus.ledger.api.v2.ToDataInstances.given
         val result = executionPurpose match
-            case ExecutionPurpose.WithDatum(PlutusV1, scriptHash, script, datum) =>
+            case ExecutionPurpose.WithDatum(ScriptVersion.PlutusV1(script), scriptHash, datum) =>
 //                println(
 //                  s"eval: PlutusV1, $scriptHash ${purpose}: ${PrettyPrinter.pretty(datum).render(100)}"
 //                )
@@ -378,8 +389,8 @@ class TxEvaluator(private val slotConfig: SlotConfig, private val initialBudgetC
                 val scriptContext = v1.ScriptContext(txInfo, purpose)
                 val ctxData = scriptContext.toData
 //                println(s"Script context: ${write(ctxData)}")
-                evalScript(machineParams, script, datum, rdmr, ctxData)
-            case ExecutionPurpose.WithDatum(PlutusV2, scriptHash, script, datum) =>
+                evalScript(machineParams, script.bytes, datum, rdmr, ctxData)
+            case ExecutionPurpose.WithDatum(ScriptVersion.PlutusV2(script), scriptHash, datum) =>
 //                println(
 //                  s"eval: PlutusV2, $scriptHash ${purpose}: ${PrettyPrinter.pretty(datum).render(100)}"
 //                )
@@ -389,8 +400,8 @@ class TxEvaluator(private val slotConfig: SlotConfig, private val initialBudgetC
                 val scriptContext = v2.ScriptContext(txInfo, purpose)
                 val ctxData = scriptContext.toData
 //                println(s"Script context: $scriptContext")
-                evalScript(machineParams, script, datum, rdmr, ctxData)
-            case ExecutionPurpose.NoDatum(PlutusV1, scriptHash, script) =>
+                evalScript(machineParams, script.bytes, datum, rdmr, ctxData)
+            case ExecutionPurpose.NoDatum(ScriptVersion.PlutusV1(script), scriptHash) =>
 //                println(s"eval: PlutusV1, $scriptHash ${purpose}")
                 val machineParams = translateMachineParamsFromCostMdls(costMdls, PlutusV1)
                 val rdmr = toScalusData(redeemer.getData)
@@ -398,8 +409,8 @@ class TxEvaluator(private val slotConfig: SlotConfig, private val initialBudgetC
                 val scriptContext = v1.ScriptContext(txInfo, purpose)
                 val ctxData = scriptContext.toData
 //                println(s"Script context: $scriptContext")
-                evalScript(machineParams, script, rdmr, ctxData)
-            case ExecutionPurpose.NoDatum(PlutusV2, scriptHash, script) =>
+                evalScript(machineParams, script.bytes, rdmr, ctxData)
+            case ExecutionPurpose.NoDatum(ScriptVersion.PlutusV2(script), scriptHash) =>
 //                println(s"eval: PlutusV2, $scriptHash ${purpose}")
                 val machineParams = translateMachineParamsFromCostMdls(costMdls, PlutusV2)
                 val rdmr = toScalusData(redeemer.getData)
@@ -407,7 +418,7 @@ class TxEvaluator(private val slotConfig: SlotConfig, private val initialBudgetC
                 val scriptContext = v2.ScriptContext(txInfo, purpose)
                 val ctxData = scriptContext.toData
 //                println(s"Script context: $scriptContext")
-                evalScript(machineParams, script, rdmr, ctxData)
+                evalScript(machineParams, script.bytes, rdmr, ctxData)
             case _ =>
                 throw new IllegalStateException(s"Unsupported execution purpose $executionPurpose")
 
@@ -444,6 +455,8 @@ class TxEvaluator(private val slotConfig: SlotConfig, private val initialBudgetC
             val applied = args.foldLeft(program.term) { (acc, arg) =>
                 Term.Apply(acc, Term.Const(Constant.Data(arg)))
             }
+//            val appliedProgram = Program((1, 0, 0), applied)
+//            Files.write(java.nio.file.Path.of("script.flat"), ProgramFlatCodec.unsafeEncodeFlat(appliedProgram))
             val resultTerm = cek.evaluateTerm(applied)
             CekResult(resultTerm, spender.getSpentBudget, logger.getLogs)
         catch
@@ -472,11 +485,11 @@ class TxEvaluator(private val slotConfig: SlotConfig, private val initialBudgetC
 //        println(s"Get execution purpose: $purpose, $lookupTable, $utxos")
         purpose match
             case v1.ScriptPurpose.Minting(policyId) =>
-                val (lang, script) = lookupTable.scripts.getOrElse(
+                val scriptVersion = lookupTable.scripts.getOrElse(
                   policyId,
                   throw new IllegalStateException("Script Not Found")
                 )
-                ExecutionPurpose.NoDatum(lang, policyId, script)
+                ExecutionPurpose.NoDatum(scriptVersion, policyId)
             case v1.ScriptPurpose.Spending(txOutRef) =>
                 val utxo = utxos.asScala
                     .find(utxo =>
@@ -489,7 +502,7 @@ class TxEvaluator(private val slotConfig: SlotConfig, private val initialBudgetC
                     )
                 val address = Address(utxo.output.getAddress)
                 val hash = ByteString.fromArray(address.getPaymentCredentialHash.orElseThrow())
-                val (version, script) = lookupTable.scripts.getOrElse(
+                val scriptVersion = lookupTable.scripts.getOrElse(
                   hash,
                   throw new IllegalStateException("Script Not Found")
                 )
@@ -503,9 +516,9 @@ class TxEvaluator(private val slotConfig: SlotConfig, private val initialBudgetC
                             s"Datum Hash Not Found ${Utils.bytesToHex(datumHash)}"
                           )
                         )
-                        ExecutionPurpose.WithDatum(version, hash, script, toScalusData(datum))
+                        ExecutionPurpose.WithDatum(scriptVersion, hash, toScalusData(datum))
                     case (null, inlineDatum) =>
-                        ExecutionPurpose.WithDatum(version, hash, script, toScalusData(inlineDatum))
+                        ExecutionPurpose.WithDatum(scriptVersion, hash, toScalusData(inlineDatum))
                     case _ =>
                         throw new IllegalStateException(
                           "Output can't have both inline datum and datum hash"
@@ -513,11 +526,11 @@ class TxEvaluator(private val slotConfig: SlotConfig, private val initialBudgetC
             case v1.ScriptPurpose.Rewarding(
                   StakingCredential.StakingHash(v1.Credential.ScriptCredential(hash))
                 ) =>
-                val (version, script) = lookupTable.scripts.getOrElse(
+                val scriptVersion = lookupTable.scripts.getOrElse(
                   hash,
                   throw new IllegalStateException("Script Not Found")
                 )
-                ExecutionPurpose.NoDatum(version, hash, script)
+                ExecutionPurpose.NoDatum(scriptVersion, hash)
             case ScriptPurpose.Rewarding(stakingCred) =>
                 throw new IllegalStateException("OnlyStakeDeregAndDelegAllowed")
             case v1.ScriptPurpose.Certifying(cert) =>
@@ -527,21 +540,21 @@ class TxEvaluator(private val slotConfig: SlotConfig, private val initialBudgetC
                             case v1.Credential.ScriptCredential(hash) => hash
                             case _ =>
                                 throw new IllegalStateException("OnlyStakeDeregAndDelegAllowed")
-                        val (version, script) = lookupTable.scripts.getOrElse(
+                        val scriptVersion = lookupTable.scripts.getOrElse(
                           hash,
                           throw new IllegalStateException("Script Not Found")
                         )
-                        ExecutionPurpose.NoDatum(version, hash, script)
+                        ExecutionPurpose.NoDatum(scriptVersion, hash)
                     case DCert.DelegDelegate(v1.StakingCredential.StakingHash(cred), _) =>
                         val hash = cred match
                             case v1.Credential.ScriptCredential(hash) => hash
                             case _ =>
                                 throw new IllegalStateException("OnlyStakeDeregAndDelegAllowed")
-                        val (version, script) = lookupTable.scripts.getOrElse(
+                        val scriptVersion = lookupTable.scripts.getOrElse(
                           hash,
                           throw new IllegalStateException("Script Not Found")
                         )
-                        ExecutionPurpose.NoDatum(version, hash, script)
+                        ExecutionPurpose.NoDatum(scriptVersion, hash)
                     case _ => throw new IllegalStateException("OnlyStakeDeregAndDelegAllowed")
     }
 

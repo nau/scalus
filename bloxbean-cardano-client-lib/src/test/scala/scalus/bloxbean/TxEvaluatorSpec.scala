@@ -1,5 +1,6 @@
 package scalus.bloxbean
 
+import co.nstant.in.cbor.model.UnsignedInteger
 import com.bloxbean.cardano.client.account.Account
 import com.bloxbean.cardano.client.address.AddressProvider
 import com.bloxbean.cardano.client.api.UtxoSupplier
@@ -156,7 +157,7 @@ class TxEvaluatorSpec extends AnyFunSuite:
         ): Optional[Utxo] = {
             if cache.contains((txHash, outputIndex)) then Optional.of(cache((txHash, outputIndex)))
             else if Files.exists(Paths.get(s"utxos/$txHash-$outputIndex")) then
-//                println(s"found $txHash-$outputIndex in utxos folder")
+                println(s"found $txHash-$outputIndex in utxos folder")
                 val utxo =
                     objectMapper.readValue(new File(s"utxos/$txHash-$outputIndex"), classOf[Utxo])
                 cache.put((txHash, outputIndex), utxo)
@@ -227,6 +228,16 @@ class TxEvaluatorSpec extends AnyFunSuite:
                 val witnessSet = TransactionWitnessSet.deserialize(
                   witnessesListArr.getDataItems.get(idx).asInstanceOf[cbor.Map]
                 )
+                /*val witnessMap = witnessesListArr.getDataItems.get(idx).asInstanceOf[cbor.Map]
+                val plutusDataArray = witnessMap.get(new UnsignedInteger(4))
+                if plutusDataArray != null then
+                    val plutusData = plutusDataArray.asInstanceOf[cbor.Array]
+//                    println(s"size ${plutusData.getDataItems.size()}")
+                    plutusData.getDataItems.asScala.foreach { item =>
+                        // get cbor hex
+//                        println(s"${Utils.bytesToHex(CborSerializationUtil.serialize(item))}")
+                    }*/
+
                 Transaction.builder().body(txbody).witnessSet(witnessSet).build()
         }
         var totalTx = 0
@@ -234,20 +245,21 @@ class TxEvaluatorSpec extends AnyFunSuite:
         var v1Scripts = 0
         var v2Scripts = 0
 
-        for blockNum <- 10294923 to 10294923 do
-            val blockCbor = new String(Files.readAllBytes(Paths.get(s"blocks/block-$blockNum.cbor")))
+        for blockNum <- 10294631 to 10294631 do
+            val blockCbor =
+                new String(Files.readAllBytes(Paths.get(s"blocks/block-$blockNum.cbor")))
             val blockBytes = Utils.hexToBytes(blockCbor)
             val txs = readTransactionsFromBlockCbor(blockBytes)
             val withScriptTxs =
-                txs.filter(tx => tx.getWitnessSet.getPlutusV1Scripts != null).take(1)
+                txs.filter(tx =>
+                    tx.getWitnessSet.getPlutusV1Scripts != null || tx.getWitnessSet.getPlutusV2Scripts != null
+                )
             println(s"Block $blockNum, num txs to validate: ${withScriptTxs.size}")
             for tx <- withScriptTxs do
                 println(s"Validating tx ${TransactionUtil.getTxHash(tx)}")
-//                println(tx)
-//                Files.write(
-//                  Paths.get(s"tx-${TransactionUtil.getTxHash(tx)}.cbor"),
-//                  tx.serialize()
-//                )
+//                tx.getWitnessSet.getPlutusDataList.get(0).getDatumHash
+                println(tx)
+                Files.write(Paths.get(s"tx-${TransactionUtil.getTxHash(tx)}.cbor"), tx.serialize())
                 Option(tx.getWitnessSet.getPlutusV1Scripts).foreach { scripts =>
                     v1Scripts += scripts.size()
                 }
