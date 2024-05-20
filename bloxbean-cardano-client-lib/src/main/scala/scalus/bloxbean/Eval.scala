@@ -1,21 +1,16 @@
 package scalus.bloxbean
 
 import com.bloxbean.cardano.client.address.{Address, AddressType, CredentialType}
-import com.bloxbean.cardano.client.api.model.Utxo
-import com.bloxbean.cardano.client.exception.{CborDeserializationException, CborSerializationException}
 import com.bloxbean.cardano.client.plutus.spec.*
 import com.bloxbean.cardano.client.transaction.spec.*
 import io.bullet.borer.{Cbor, Decoder}
 import scalus.bloxbean.Interop.*
-import scalus.builtin.PlutusDataCborEncoder
 import scalus.builtin.{ByteString, Data, JVMPlatformSpecific, given}
 import scalus.ledger
 import scalus.ledger.api
 import scalus.ledger.api.PlutusLedgerLanguage.*
 import scalus.ledger.api.v1.{DCert, ScriptPurpose, StakingCredential}
 import scalus.ledger.api.{v1, v2, PlutusLedgerLanguage}
-import scalus.uplc.DeBruijn
-import scalus.uplc.Program
 import scalus.uplc.{Constant, ProgramFlatCodec, Term}
 import scalus.uplc.eval.*
 import scalus.utils.Hex
@@ -23,10 +18,7 @@ import scalus.utils.Utils
 import upickle.default.*
 
 import java.math.BigInteger
-import java.nio.file.Files
 import java.util
-import java.util.stream.Collectors
-import java.util.stream.Stream
 import scala.collection.mutable.ArrayBuffer
 import scala.collection.{immutable, mutable}
 import scala.jdk.CollectionConverters.*
@@ -101,7 +93,7 @@ class TxEvaluator(
     def evaluateTx(
         transaction: Transaction,
         inputUtxos: Map[TransactionInput, TransactionOutput]
-    ): util.List[Redeemer] = {
+    ): collection.Seq[Redeemer] = {
         evalPhaseTwo(
           transaction,
           inputUtxos,
@@ -166,7 +158,6 @@ class TxEvaluator(
         lookupTable: LookupTable
     ): Unit = {
         val scripts = scriptsNeeded(tx, utxos)
-//        println(s"Scrips needed: $scripts")
         validateMissingScripts(scripts, lookupTable.scripts)
         verifyExactSetOfRedeemers(tx, scripts, lookupTable.scripts)
     }
@@ -352,7 +343,7 @@ class TxEvaluator(
                 Term.Apply(acc, Term.Const(Constant.Data(arg)))
             }
 //            val appliedProgram = Program((1, 0, 0), applied)
-//            Files.write(java.nio.file.Path.of("script.flat"), ProgramFlatCodec.unsafeEncodeFlat(appliedProgram))
+//            java.nio.file.Files.write(java.nio.file.Path.of("script.flat"), ProgramFlatCodec.unsafeEncodeFlat(appliedProgram))
             val resultTerm = cek.evaluateTerm(applied)
             CekResult(resultTerm, spender.getSpentBudget, logger.getLogs)
         catch
@@ -461,7 +452,7 @@ class TxEvaluator(
         initialBudget: ExBudget,
         slotConfig: SlotConfig,
         runPhaseOne: Boolean
-    ): util.List[Redeemer] = {
+    ): collection.Seq[Redeemer] = {
 //        println(s"Eval phase two $tx, $utxos, $costMdls, $initialBudget, $slotConfig, $runPhaseOne")
         val redeemers = tx.getWitnessSet.getRedeemers ?? util.List.of()
         val lookupTable = getScriptAndDatumLookupTable(tx, utxos)
@@ -500,6 +491,6 @@ class TxEvaluator(
             evaluatedRedeemer
         }
 
-        collectedRedeemers.asJava
+        collectedRedeemers
     }
 }
