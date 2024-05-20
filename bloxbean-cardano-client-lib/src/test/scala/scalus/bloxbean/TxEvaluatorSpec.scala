@@ -62,7 +62,8 @@ class TxEvaluatorSpec extends AnyFunSuite:
         import scala.jdk.CollectionConverters.*
         val evaluator = TxEvaluator(
           SlotConfig.default,
-          initialBudgetConfig = ExBudget.fromCpuAndMemory(10_000000000L, 10_000000L)
+          initialBudgetConfig = ExBudget.fromCpuAndMemory(10_000000000L, 10_000000L),
+          protocolMajorVersion = 8
         )
         val pubKeyValidator =
             compile(PubKeyValidator.validatorV2(hex"deadbeef")).toPlutusProgram((1, 0, 0))
@@ -245,7 +246,7 @@ class TxEvaluatorSpec extends AnyFunSuite:
         var v1Scripts = 0
         var v2Scripts = 0
 
-        for blockNum <- 10294631 to 10294631 do
+        for blockNum <- 10294631 to 10295000 do
             val blockCbor =
                 new String(Files.readAllBytes(Paths.get(s"blocks/block-$blockNum.cbor")))
             val blockBytes = Utils.hexToBytes(blockCbor)
@@ -255,11 +256,16 @@ class TxEvaluatorSpec extends AnyFunSuite:
                     tx.getWitnessSet.getPlutusV1Scripts != null || tx.getWitnessSet.getPlutusV2Scripts != null
                 )
             println(s"Block $blockNum, num txs to validate: ${withScriptTxs.size}")
+
+            /*
+             * Run cargo run -- tx simulate --cbor ~/projects/scalus/bloxbean-cardano-client-lib/tx-483883b7eb7b90dac614993a9e73bc5c6d9a8c375739629eb1f733b0774289ba.cbor ~/projects/scalus/bloxbean-cardano-client-lib/ins.cbor ~/projects/scalus/bloxbean-cardano-client-lib/outs.cbor
+             */
+
             for tx <- withScriptTxs do
                 println(s"Validating tx ${TransactionUtil.getTxHash(tx)}")
 //                tx.getWitnessSet.getPlutusDataList.get(0).getDatumHash
-                println(tx)
-                Files.write(Paths.get(s"tx-${TransactionUtil.getTxHash(tx)}.cbor"), tx.serialize())
+//                println(tx)
+//                Files.write(Paths.get(s"tx-${TransactionUtil.getTxHash(tx)}.cbor"), tx.serialize())
                 Option(tx.getWitnessSet.getPlutusV1Scripts).foreach { scripts =>
                     v1Scripts += scripts.size()
                 }

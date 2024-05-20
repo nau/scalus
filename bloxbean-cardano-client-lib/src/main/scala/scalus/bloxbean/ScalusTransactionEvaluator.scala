@@ -86,35 +86,35 @@ class ScalusTransactionEvaluator(
 
             for utxo <- utxos.asScala.toSeq do
                 ins.add(
-                    TransactionInput
-                        .builder()
-                        .index(utxo.getOutputIndex)
-                        .transactionId(utxo.getTxHash)
-                        .build()
-                        .serialize()
+                  TransactionInput
+                      .builder()
+                      .index(utxo.getOutputIndex)
+                      .transactionId(utxo.getTxHash)
+                      .build()
+                      .serialize()
                 )
                 val inlineDatum = Option(utxo.getInlineDatum).map(hex =>
                     PlutusData.deserialize(Utils.hexToBytes(hex))
                 )
                 val datumHash = Option(utxo.getDataHash).map(Utils.hexToBytes)
                 outs.add(
-                    TransactionOutput
-                        .builder()
-                        .value(utxo.toValue)
-                        .address(utxo.getAddress)
-                        .inlineDatum(inlineDatum.orNull)
-                        .datumHash(if inlineDatum.isEmpty then datumHash.orNull else null)
-                        .scriptRef(Option(scripts.get(utxo.getReferenceScriptHash)).orNull)
-                        .build()
-                        .serialize()
+                  TransactionOutput
+                      .builder()
+                      .value(utxo.toValue)
+                      .address(utxo.getAddress)
+                      .inlineDatum(inlineDatum.orNull)
+                      .datumHash(if inlineDatum.isEmpty then datumHash.orNull else null)
+                      .scriptRef(Option(scripts.get(utxo.getReferenceScriptHash)).orNull)
+                      .build()
+                      .serialize()
                 )
 
-            Files.write(java.nio.file.Path.of("ins.cbor"), CborSerializationUtil.serialize(ins));
-            Files.write(java.nio.file.Path.of("outs.cbor"), CborSerializationUtil.serialize(outs));                    
+//            Files.write(java.nio.file.Path.of("ins.cbor"), CborSerializationUtil.serialize(ins));
+//            Files.write(java.nio.file.Path.of("outs.cbor"), CborSerializationUtil.serialize(outs));
 
             if transaction.getWitnessSet == null then
                 transaction.setWitnessSet(new TransactionWitnessSet)
-                
+
             if transaction.getWitnessSet.getNativeScripts == null then
                 transaction.getWitnessSet.setNativeScripts(new util.ArrayList)
 
@@ -131,7 +131,11 @@ class ScalusTransactionEvaluator(
               cpu = protocolParams.getMaxTxExSteps.toLong,
               memory = protocolParams.getMaxTxExMem.toLong
             )
-            txEvaluator = TxEvaluator(SlotConfig.default, txBudget)
+            txEvaluator = TxEvaluator(
+              SlotConfig.default,
+              txBudget,
+              protocolParams.getProtocolMajorVer.intValue()
+            )
             try
                 val redeemers =
                     txEvaluator.evaluateTx(transaction, utxos, additionalScripts, costMdls)

@@ -9,6 +9,7 @@ import com.bloxbean.cardano.client.plutus.spec.*
 import com.bloxbean.cardano.client.transaction.spec.*
 import com.bloxbean.cardano.client.transaction.spec.cert.*
 import com.bloxbean.cardano.client.transaction.util.TransactionUtil
+import io.bullet.borer.Cbor
 import scalus.builtin.ByteString
 import scalus.builtin.given
 import scalus.builtin.Data
@@ -50,7 +51,7 @@ given Ordering[Redeemer] with
     def compare(x: Redeemer, y: Redeemer): Int =
         x.getTag.value.compareTo(y.getTag.value) match
             case 0 => x.getIndex.compareTo(y.getIndex)
-            case c => c
+            case c => -c // reverse order, I'm not sure why
 
 enum ExecutionPurpose:
     def scriptHash: ByteString
@@ -62,13 +63,32 @@ enum ExecutionPurpose:
 
     case NoDatum(
         scriptVersion: ScriptVersion,
-        scriptHash: ByteString,
+        scriptHash: ByteString
     )
+
+case class ScriptInfo(hash: ByteString, scriptVersion: ScriptVersion)
 
 /** Interoperability between Cardano Client Lib and Scalus */
 object Interop {
     /// Helper for null check
     extension [A](inline a: A) inline infix def ??(b: A): A = if a != null then a else b
+
+    def getScriptInfoFromScriptRef(scriptRef: Array[Byte]): ScriptInfo = {
+        // script_ref is incoded as CBOR Array
+        val (scriptType, scriptCbor) = Cbor.decode(scriptRef).to[(Byte, Array[Byte])].value
+        // and script hash is calculated from the script type byte and the scriptCbor
+        val scriptBytesForScriptHash = Array(scriptType) ++ scriptCbor
+        val hash = ByteString.fromArray(blake2bHash224(scriptBytesForScriptHash))
+        scriptType match
+            case 0 =>
+                ScriptInfo(hash, ScriptVersion.Native)
+            case 1 => // Plutus V1
+                val script = ByteString.fromArray(Cbor.decode(scriptCbor).to[Array[Byte]].value)
+                ScriptInfo(hash, ScriptVersion.PlutusV1(script))
+            case 2 => // Plutus V2
+                val script = ByteString.fromArray(Cbor.decode(scriptCbor).to[Array[Byte]].value)
+                ScriptInfo(hash, ScriptVersion.PlutusV2(script))
+    }
 
     /** Converts Cardano Client Lib's [[PlutusData]] to Scalus' [[Data]] */
     def toScalusData(datum: PlutusData): Data = {
@@ -231,7 +251,7 @@ object Interop {
             getValue(out.getValue),
             getOutputDatum(out),
             if out.getScriptRef != null
-            then prelude.Maybe.Just(ByteString.fromArray(blake2bHash224(out.getScriptRef)))
+            then prelude.Maybe.Just(getScriptInfoFromScriptRef(out.getScriptRef).hash)
             else prelude.Maybe.Nothing
           )
         )
@@ -286,7 +306,7 @@ object Interop {
           getValue(out.getValue),
           getOutputDatum(out),
           if out.getScriptRef != null then
-              prelude.Maybe.Just(ByteString.fromArray(out.getScriptRef))
+              prelude.Maybe.Just(getScriptInfoFromScriptRef(out.getScriptRef).hash)
           else prelude.Maybe.Nothing
         )
     }
@@ -304,20 +324,29 @@ object Interop {
         sc.zero_time + msAfterBegin
     }
 
-    def getInterval(tx: Transaction, slotConfig: SlotConfig): v1.Interval = {
+    // https://github.com/IntersectMBO/cardano-ledger/blob/28ab3884cac8edbb7270fd4b8628a16429d2ec9e/eras/alonzo/impl/src/Cardano/Ledger/Alonzo/Plutus/TxInfo.hs#L186
+    def getInterval(tx: Transaction, slotConfig: SlotConfig, protocolVersion: Int): v1.Interval = {
         val validFrom = tx.getBody.getValidityStartInterval
-        val lower =
-            if validFrom == 0 then v1.Interval.negInf
-            else v1.Interval.finite(BigInt(slotToBeginPosixTime(validFrom, slotConfig)))
-        val validTo = tx.getBody.getTtl
-        val upper =
-            if validTo == 0 then v1.Interval.posInf
-            else
-                v1.IntervalBound(
+        (validFrom, tx.getBody.getTtl) match
+            case (0, 0) => v1.Interval.always
+            case (0, validTo) =>
+                val closure =
+                    if protocolVersion > 8 then false
+                    else true // don't ask me why, I know it's stupid
+                val upper = v1.IntervalBound(
                   v1.IntervalBoundType.Finite(BigInt(slotToBeginPosixTime(validTo, slotConfig))),
-                  false // Closure is false here, this is how Cardano Ledger does it for upper bound
+                  closure
                 )
-        v1.Interval(lower, upper)
+                v1.Interval(v1.Interval.negInf, upper)
+            case (validFrom, 0) =>
+                v1.Interval(
+                  v1.Interval.finite(BigInt(slotToBeginPosixTime(validFrom, slotConfig))),
+                  v1.Interval.posInf
+                )
+            case (validFrom, validTo) =>
+                val lower = v1.Interval.finite(BigInt(slotToBeginPosixTime(validFrom, slotConfig)))
+                val upper = v1.Interval.finite(BigInt(slotToBeginPosixTime(validTo, slotConfig)))
+                v1.Interval(lower, upper)
     }
 
     def getWithdrawals(
@@ -360,7 +389,8 @@ object Interop {
     def getTxInfoV1(
         tx: Transaction,
         utxos: util.Set[ResolvedInput],
-        slotConfig: SlotConfig
+        slotConfig: SlotConfig,
+        protocolVersion: Int
     ): v1.TxInfo = {
         val body = tx.getBody
         val certs = body.getCerts ?? util.List.of()
@@ -377,7 +407,7 @@ object Interop {
           // certificates as is
           dcert = prelude.List.from(certs.asScala.map(getDCert)),
           withdrawals = getWithdrawals(body.getWithdrawals ?? util.List.of()),
-          validRange = getInterval(tx, slotConfig),
+          validRange = getInterval(tx, slotConfig, protocolVersion),
           signatories = prelude.List.from(
             body.getRequiredSigners.asScala
                 .map(ByteString.fromArray)
@@ -400,7 +430,8 @@ object Interop {
     def getTxInfoV2(
         tx: Transaction,
         utxos: util.Set[ResolvedInput],
-        slotConfig: SlotConfig
+        slotConfig: SlotConfig,
+        protocolVersion: Int
     ): v2.TxInfo = {
         val body = tx.getBody
         val certs = body.getCerts ?? util.List.of()
@@ -416,7 +447,7 @@ object Interop {
           mint = getValue(body.getMint ?? util.List.of()),
           dcert = prelude.List.from(certs.asScala.map(getDCert)),
           withdrawals = AssocMap(getWithdrawals(body.getWithdrawals ?? util.List.of())),
-          validRange = getInterval(tx, slotConfig),
+          validRange = getInterval(tx, slotConfig, protocolVersion),
           signatories = prelude.List.from(
             body.getRequiredSigners.asScala
                 .map(ByteString.fromArray)

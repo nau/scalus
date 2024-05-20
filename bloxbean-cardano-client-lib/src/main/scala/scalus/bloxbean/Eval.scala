@@ -15,7 +15,7 @@ import scalus.ledger
 import scalus.ledger.api
 import scalus.ledger.api.PlutusLedgerLanguage.*
 import scalus.ledger.api.v1.{DCert, ScriptPurpose, StakingCredential}
-import scalus.ledger.api.{PlutusLedgerLanguage, v1, v2}
+import scalus.ledger.api.{v1, v2, PlutusLedgerLanguage}
 import scalus.uplc.DeBruijn
 import scalus.uplc.Program
 import scalus.uplc.{Constant, ProgramFlatCodec, Term}
@@ -31,7 +31,7 @@ import java.util.*
 import java.util.stream.Collectors
 import java.util.stream.Stream
 import scala.collection.mutable.ArrayBuffer
-import scala.collection.{Map, immutable, mutable}
+import scala.collection.{immutable, mutable, Map}
 import scala.jdk.CollectionConverters.*
 
 case class SlotConfig(zero_time: Long, zero_slot: Long, slot_length: Long)
@@ -93,7 +93,11 @@ enum ScriptVersion:
   * @note
   *   This is experimental API and subject to change
   */
-class TxEvaluator(private val slotConfig: SlotConfig, private val initialBudgetConfig: ExBudget) {
+class TxEvaluator(
+    private val slotConfig: SlotConfig,
+    private val initialBudgetConfig: ExBudget,
+    val protocolMajorVersion: Int 
+) {
     // TODO: implement proper error handling, exceptions, logging etc
     val failedScripts = mutable.Set[String]()
     val succScripts = mutable.Set[String]()
@@ -237,23 +241,8 @@ class TxEvaluator(private val slotConfig: SlotConfig, private val initialBudgetC
 
         for utxo <- utxos.asScala do
             if utxo.output.getScriptRef != null then
-                // script_ref is incoded as CBOR Array
-                val (scriptType, scriptCbor) =
-                    Cbor.decode(utxo.output.getScriptRef).to[(Byte, Array[Byte])].value
-                // and script hash is calculated from the script type byte and the scriptCbor
-                val scriptBytesForScriptHash = Array(scriptType) ++ scriptCbor
-                val hash = ByteString.fromArray(blake2bHash224(scriptBytesForScriptHash))
-                scriptType match
-                    case 0 =>
-                        referenceScripts += hash -> ScriptVersion.Native
-                    case 1 => // Plutus V1
-                        val script =
-                            ByteString.fromArray(Cbor.decode(scriptCbor).to[Array[Byte]].value)
-                        referenceScripts += hash -> ScriptVersion.PlutusV1(script)
-                    case 2 => // Plutus V2
-                        val script =
-                            ByteString.fromArray(Cbor.decode(scriptCbor).to[Array[Byte]].value)
-                        referenceScripts += hash -> ScriptVersion.PlutusV2(script)
+                val scriptInfo = Interop.getScriptInfoFromScriptRef(utxo.output.getScriptRef)
+                referenceScripts += scriptInfo.hash -> scriptInfo.scriptVersion
 
         val allScripts = (scripts ++ referenceScripts).toMap
         LookupTable(allScripts, datum)
@@ -385,7 +374,7 @@ class TxEvaluator(private val slotConfig: SlotConfig, private val initialBudgetC
 //                )
                 val machineParams = translateMachineParamsFromCostMdls(costMdls, PlutusV1)
                 val rdmr = toScalusData(redeemer.getData)
-                val txInfo = getTxInfoV1(tx, utxos, slotConfig)
+                val txInfo = getTxInfoV1(tx, utxos, slotConfig, protocolMajorVersion)
                 val scriptContext = v1.ScriptContext(txInfo, purpose)
                 val ctxData = scriptContext.toData
 //                println(s"Script context: ${write(ctxData)}")
@@ -396,16 +385,16 @@ class TxEvaluator(private val slotConfig: SlotConfig, private val initialBudgetC
 //                )
                 val machineParams = translateMachineParamsFromCostMdls(costMdls, PlutusV2)
                 val rdmr = toScalusData(redeemer.getData)
-                val txInfo = getTxInfoV2(tx, utxos, slotConfig)
+                val txInfo = getTxInfoV2(tx, utxos, slotConfig, protocolMajorVersion)
                 val scriptContext = v2.ScriptContext(txInfo, purpose)
                 val ctxData = scriptContext.toData
-//                println(s"Script context: $scriptContext")
+//                println(s"Script context: ${write(ctxData)}")
                 evalScript(machineParams, script.bytes, datum, rdmr, ctxData)
             case ExecutionPurpose.NoDatum(ScriptVersion.PlutusV1(script), scriptHash) =>
 //                println(s"eval: PlutusV1, $scriptHash ${purpose}")
                 val machineParams = translateMachineParamsFromCostMdls(costMdls, PlutusV1)
                 val rdmr = toScalusData(redeemer.getData)
-                val txInfo = getTxInfoV1(tx, utxos, slotConfig)
+                val txInfo = getTxInfoV1(tx, utxos, slotConfig, protocolMajorVersion)
                 val scriptContext = v1.ScriptContext(txInfo, purpose)
                 val ctxData = scriptContext.toData
 //                println(s"Script context: $scriptContext")
@@ -414,7 +403,7 @@ class TxEvaluator(private val slotConfig: SlotConfig, private val initialBudgetC
 //                println(s"eval: PlutusV2, $scriptHash ${purpose}")
                 val machineParams = translateMachineParamsFromCostMdls(costMdls, PlutusV2)
                 val rdmr = toScalusData(redeemer.getData)
-                val txInfo = getTxInfoV2(tx, utxos, slotConfig)
+                val txInfo = getTxInfoV2(tx, utxos, slotConfig, protocolMajorVersion)
                 val scriptContext = v2.ScriptContext(txInfo, purpose)
                 val ctxData = scriptContext.toData
 //                println(s"Script context: $scriptContext")
