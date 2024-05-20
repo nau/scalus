@@ -30,7 +30,6 @@ import scalus.uplc.eval.*
 
 import java.math.BigInteger
 import java.util
-import java.util.*
 import scala.collection.mutable
 import scala.jdk.CollectionConverters.*
 import scala.math.BigInt
@@ -204,14 +203,9 @@ object Interop {
 
     def getTxInInfoV1(
         input: TransactionInput,
-        utxos: util.Set[ResolvedInput]
+        utxos: Map[TransactionInput, TransactionOutput]
     ): v1.TxInInfo = {
-        val out = utxos.asScala
-            .find(utxo =>
-                utxo.input.getTransactionId == input.getTransactionId && utxo.input.getIndex == input.getIndex
-            )
-            .map(_.output)
-            .getOrElse(throw new IllegalStateException("Input Not Found"))
+        val out = utxos.getOrElse(input, throw new IllegalStateException("Input Not Found"))
         val addr = Address(out.getAddress)
         val maybeDatumHash =
             if out.getDatumHash != null then
@@ -232,14 +226,9 @@ object Interop {
 
     def getTxInInfoV2(
         input: TransactionInput,
-        utxos: util.Set[ResolvedInput]
+        utxos: Map[TransactionInput, TransactionOutput]
     ): v2.TxInInfo = {
-        val out = utxos.asScala
-            .find(utxo =>
-                utxo.input.getTransactionId == input.getTransactionId && utxo.input.getIndex == input.getIndex
-            )
-            .map(_.output)
-            .getOrElse(throw new IllegalStateException("Input Not Found"))
+        val out = utxos.getOrElse(input, throw new IllegalStateException("Input Not Found"))
         val addr = Address(out.getAddress)
         v2.TxInInfo(
           v1.TxOutRef(
@@ -388,7 +377,7 @@ object Interop {
 
     def getTxInfoV1(
         tx: Transaction,
-        utxos: util.Set[ResolvedInput],
+        utxos: Map[TransactionInput, TransactionOutput],
         slotConfig: SlotConfig,
         protocolVersion: Int
     ): v1.TxInfo = {
@@ -429,7 +418,7 @@ object Interop {
 
     def getTxInfoV2(
         tx: Transaction,
-        utxos: util.Set[ResolvedInput],
+        utxos: Map[TransactionInput, TransactionOutput],
         slotConfig: SlotConfig,
         protocolVersion: Int
     ): v2.TxInfo = {

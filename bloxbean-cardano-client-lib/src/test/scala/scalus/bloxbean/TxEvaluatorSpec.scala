@@ -60,10 +60,14 @@ class TxEvaluatorSpec extends AnyFunSuite:
 
     test("TxEvaluator ") {
         import scala.jdk.CollectionConverters.*
+        val costMdls = CostMdls()
+        costMdls.add(CostModelUtil.PlutusV1CostModel)
+        costMdls.add(CostModelUtil.PlutusV2CostModel)
         val evaluator = TxEvaluator(
           SlotConfig.default,
           initialBudgetConfig = ExBudget.fromCpuAndMemory(10_000000000L, 10_000000L),
-          protocolMajorVersion = 8
+          protocolMajorVersion = 8,
+          costMdls = costMdls
         )
         val pubKeyValidator =
             compile(PubKeyValidator.validatorV2(hex"deadbeef")).toPlutusProgram((1, 0, 0))
@@ -79,17 +83,18 @@ class TxEvaluatorSpec extends AnyFunSuite:
           s"Pubkey script address: ${pubKeyScriptAddress.getAddress}, type hash: ${pubKeyScriptAddress.getPaymentCredentialHash
                   .map(ByteString.fromArray)}"
         )
-        val utxo = util.Set.of(
-          Utxo.builder
-              .txHash("deadbeef")
-              .outputIndex(0)
-              .amount(util.List.of(Amount.ada(20)))
+
+        val input = TransactionInput.builder().transactionId("deadbeef").index(0).build()
+        val inputs = util.List.of(input)
+
+        val utxo = Map(
+          input -> TransactionOutput
+              .builder()
+              .value(Value.builder().coin(BigInteger.valueOf(20)).build())
               .address(pubKeyScriptAddress.getAddress)
-              .dataHash(PlutusData.unit().getDatumHash)
+              .datumHash(Utils.hexToBytes(PlutusData.unit().getDatumHash))
               .build()
         )
-        val inputs =
-            util.List.of(TransactionInput.builder().transactionId("deadbeef").index(0).build())
         val redeemer = Redeemer
             .builder()
             .tag(RedeemerTag.Spend)
@@ -123,10 +128,7 @@ class TxEvaluatorSpec extends AnyFunSuite:
                   .build()
             )
             .build()
-        val costMdls = CostMdls()
-        costMdls.add(CostModelUtil.PlutusV1CostModel)
-        costMdls.add(CostModelUtil.PlutusV2CostModel)
-        val redeemers = evaluator.evaluateTx(tx, utxo, scripts, costMdls)
+        val redeemers = evaluator.evaluateTx(tx, utxo)
         println(redeemers)
     }
 
@@ -158,7 +160,7 @@ class TxEvaluatorSpec extends AnyFunSuite:
         ): Optional[Utxo] = {
             if cache.contains((txHash, outputIndex)) then Optional.of(cache((txHash, outputIndex)))
             else if Files.exists(Paths.get(s"utxos/$txHash-$outputIndex")) then
-                println(s"found $txHash-$outputIndex in utxos folder")
+//                println(s"found $txHash-$outputIndex in utxos folder")
                 val utxo =
                     objectMapper.readValue(new File(s"utxos/$txHash-$outputIndex"), classOf[Utxo])
                 cache.put((txHash, outputIndex), utxo)
@@ -168,7 +170,7 @@ class TxEvaluatorSpec extends AnyFunSuite:
                 utxo.ifPresent({ u =>
                     cache.put((txHash, outputIndex), u)
                     objectMapper.writeValue(new File(s"utxos/$txHash-$outputIndex"), u)
-                    println(s"queried $txHash-$outputIndex in blockfrost and saved to utxos folder")
+//                    println(s"queried $txHash-$outputIndex in blockfrost and saved to utxos folder")
                 })
                 utxo
         }
@@ -192,7 +194,7 @@ class TxEvaluatorSpec extends AnyFunSuite:
                     val s = script.getValue
                     cache.put(scriptHash, s)
                     Files.write(Paths.get(s"scripts/$scriptHash"), Utils.hexToBytes(s.getCborHex))
-                    println(s"queried $scriptHash in blockfrost and saved to scripts folder")
+//                    println(s"queried $scriptHash in blockfrost and saved to scripts folder")
                     s
                 else throw new RuntimeException(s"Script not found $scriptHash")
         }
@@ -242,11 +244,11 @@ class TxEvaluatorSpec extends AnyFunSuite:
                 Transaction.builder().body(txbody).witnessSet(witnessSet).build()
         }
         var totalTx = 0
-        var errors = 0
-        var v1Scripts = 0
-        var v2Scripts = 0
+        var errors = mutable.ArrayBuffer[String]()
+        var v1Scripts = mutable.HashSet.empty[String]
+        var v2Scripts = mutable.HashSet.empty[String]
 
-        for blockNum <- 10294631 to 10295000 do
+        for blockNum <- 10295000 to 10296000 do
             val blockCbor =
                 new String(Files.readAllBytes(Paths.get(s"blocks/block-$blockNum.cbor")))
             val blockBytes = Utils.hexToBytes(blockCbor)
@@ -262,26 +264,32 @@ class TxEvaluatorSpec extends AnyFunSuite:
              */
 
             for tx <- withScriptTxs do
-                println(s"Validating tx ${TransactionUtil.getTxHash(tx)}")
+//                println(s"Validating tx ${TransactionUtil.getTxHash(tx)}")
 //                tx.getWitnessSet.getPlutusDataList.get(0).getDatumHash
 //                println(tx)
 //                Files.write(Paths.get(s"tx-${TransactionUtil.getTxHash(tx)}.cbor"), tx.serialize())
                 Option(tx.getWitnessSet.getPlutusV1Scripts).foreach { scripts =>
-                    v1Scripts += scripts.size()
+                    v1Scripts ++= scripts.asScala.map(s => Utils.bytesToHex(s.getScriptHash))
                 }
                 Option(tx.getWitnessSet.getPlutusV2Scripts).foreach { scripts =>
-                    v2Scripts += scripts.size()
+                    v2Scripts ++= scripts.asScala.map(s => Utils.bytesToHex(s.getScriptHash))
                 }
-                if !tx.isValid then println(s"${Console.RED}AAAAA invalid!!!${Console.RESET}")
+                if !tx.isValid then
+                    println(
+                      s"${Console.RED}AAAAA invalid!!! ${TransactionUtil.getTxHash(tx)} ${Console.RESET}"
+                    )
                 val result = evaluator.evaluateTx(tx, util.Set.of())
                 totalTx += 1
                 if !result.isSuccessful then
-                    errors += 1
-                    println(s"${Console.RED}AAAA!!!!${result.getResponse}${Console.RESET}")
+                    errors += result.getResponse
+                    println(s"${Console.RED}AAAA!!!! ${TransactionUtil
+                            .getTxHash(tx)} ${result.getResponse}${Console.RESET}")
 //                println(tx.getWitnessSet.getRedeemers)
-                println("----------------------------------------------------")
-            println(s"=======================================")
-        println(s"Total txs: $totalTx, errors: $errors, v1: $v1Scripts, v2: $v2Scripts")
+//                println("----------------------------------------------------")
+//            println(s"=======================================")
+        println(
+          s"Total txs: $totalTx, errors: $errors, v1: ${v1Scripts.size}, v2: ${v2Scripts.size}"
+        )
 
     }
 

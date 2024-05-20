@@ -2,8 +2,6 @@ package scalus.bloxbean
 
 import com.bloxbean.cardano.client.address.{Address, AddressType, CredentialType}
 import com.bloxbean.cardano.client.api.model.Utxo
-import com.bloxbean.cardano.client.crypto.Blake2bUtil.blake2bHash224
-import com.bloxbean.cardano.client.crypto.Blake2bUtil.blake2bHash256
 import com.bloxbean.cardano.client.exception.{CborDeserializationException, CborSerializationException}
 import com.bloxbean.cardano.client.plutus.spec.*
 import com.bloxbean.cardano.client.transaction.spec.*
@@ -27,11 +25,10 @@ import upickle.default.*
 import java.math.BigInteger
 import java.nio.file.Files
 import java.util
-import java.util.*
 import java.util.stream.Collectors
 import java.util.stream.Stream
 import scala.collection.mutable.ArrayBuffer
-import scala.collection.{immutable, mutable, Map}
+import scala.collection.{immutable, mutable}
 import scala.jdk.CollectionConverters.*
 
 case class SlotConfig(zero_time: Long, zero_slot: Long, slot_length: Long)
@@ -41,8 +38,6 @@ object SlotConfig {
 }
 
 class TxEvaluationException(message: String, cause: Throwable) extends Exception(message, cause)
-
-case class ResolvedInput(input: TransactionInput, output: TransactionOutput)
 
 given ReadWriter[Data] = readwriter[ujson.Value].bimap(
   {
@@ -94,109 +89,27 @@ enum ScriptVersion:
   *   This is experimental API and subject to change
   */
 class TxEvaluator(
-    private val slotConfig: SlotConfig,
-    private val initialBudgetConfig: ExBudget,
-    val protocolMajorVersion: Int 
+    val slotConfig: SlotConfig,
+    val initialBudgetConfig: ExBudget,
+    val protocolMajorVersion: Int,
+    val costMdls: CostMdls
 ) {
     // TODO: implement proper error handling, exceptions, logging etc
-    val failedScripts = mutable.Set[String]()
-    val succScripts = mutable.Set[String]()
 
-    /** Evaluate script costs for a transaction
-      *
-      * @param transaction
-      *   Transaction
-      * @param inputUtxos
-      *   List utxos used in transaction inputs
-      * @param scripts
-      *   Plutus Scripts in transaction
-      * @param costMdls
-      *   Cost models
-      * @return
-      *   List of [[Redeemer]] with estimated script costs as
-      *   [[com.bloxbean.cardano.client.plutus.spec.ExUnits]]
-      * @throws TxEvaluationException
-      *   if script evaluation fails
+    /** Phase 2 validation and execution of the transaction
       */
     def evaluateTx(
         transaction: Transaction,
-        inputUtxos: util.Set[Utxo],
-        scripts: util.List[PlutusScript],
-        costMdls: CostMdls
+        inputUtxos: Map[TransactionInput, TransactionOutput]
     ): util.List[Redeemer] = {
-        val witnessScripts = new util.ArrayList[PlutusScript]
-        witnessScripts.addAll(transaction.getWitnessSet.getPlutusV1Scripts)
-        witnessScripts.addAll(transaction.getWitnessSet.getPlutusV2Scripts)
-
-        val allScripts =
-            Stream.concat(scripts.stream, witnessScripts.stream).collect(Collectors.toList)
-
-        val txInputs = transaction.getBody.getInputs
-        val refTxInputs = transaction.getBody.getReferenceInputs
-        val allInputs =
-            Stream.concat(txInputs.stream, refTxInputs.stream).collect(Collectors.toList)
-        val txOutputs = resolveTxInputs(allInputs, inputUtxos, allScripts)
-        val utxo = allInputs.asScala
-            .zip(txOutputs.asScala)
-            .map { case (input, output) =>
-                ResolvedInput(input, output)
-            }
-            .toSet
-            .asJava
-
-        try
-            evalPhaseTwo(
-              transaction,
-              utxo,
-              costMdls,
-              initialBudgetConfig,
-              slotConfig,
-              runPhaseOne = true
-            )
-        catch
-            case e: Exception =>
-                println(s"Error evaluating transaction: ${e.getMessage}")
-                e.printStackTrace()
-                throw new TxEvaluationException("TxEvaluation failed", e)
-    }
-
-    private def resolveTxInputs(
-        inputs: util.List[TransactionInput],
-        utxos: util.Set[Utxo],
-        plutusScripts: util.List[PlutusScript]
-    ): util.List[TransactionOutput] = {
-        inputs.stream
-            .map { input =>
-                val utxo = utxos.asScala
-                    .find(utxo =>
-                        input.getTransactionId == utxo.getTxHash && input.getIndex == utxo.getOutputIndex
-                    )
-                    .getOrElse(throw new IllegalStateException())
-
-                val address = utxo.getAddress
-
-                val plutusScript = plutusScripts.asScala.find { script =>
-                    try Hex.bytesToHex(script.getScriptHash) == utxo.getReferenceScriptHash
-                    catch case e: CborSerializationException => throw new IllegalStateException(e)
-                }
-
-                val inlineDatum = Option(utxo.getInlineDatum).map(hex =>
-                    PlutusData.deserialize(Hex.hexToBytes(hex))
-                )
-                val datumHash = Option(utxo.getDataHash).map(Hex.hexToBytes)
-//                println(s"datumHash: $datumHash, inlineDatum: $inlineDatum, utxo: $utxo")
-
-                try
-                    TransactionOutput.builder
-                        .address(address)
-                        .value(utxo.toValue)
-                        .datumHash(if inlineDatum.isEmpty then datumHash.orNull else null)
-                        .inlineDatum(inlineDatum.orNull)
-                        .scriptRef(plutusScript.orNull)
-                        .build
-                catch case e: CborDeserializationException => throw new IllegalStateException(e)
-            }
-            .collect(Collectors.toList)
+        evalPhaseTwo(
+          transaction,
+          inputUtxos,
+          costMdls,
+          initialBudgetConfig,
+          slotConfig,
+          runPhaseOne = true
+        )
     }
 
     private type ScriptHash = ByteString
@@ -208,7 +121,7 @@ class TxEvaluator(
 
     private def getScriptAndDatumLookupTable(
         tx: Transaction,
-        utxos: util.Set[ResolvedInput]
+        utxos: Map[TransactionInput, TransactionOutput]
     ): LookupTable = {
         val datum = tx.getWitnessSet.getPlutusDataList.asScala
             .map: data =>
@@ -238,10 +151,9 @@ class TxEvaluator(
         }
 
         val referenceScripts = ArrayBuffer.empty[(ScriptHash, ScriptVersion)]
-
-        for utxo <- utxos.asScala do
-            if utxo.output.getScriptRef != null then
-                val scriptInfo = Interop.getScriptInfoFromScriptRef(utxo.output.getScriptRef)
+        for output <- utxos.values do
+            if output.getScriptRef != null then
+                val scriptInfo = Interop.getScriptInfoFromScriptRef(output.getScriptRef)
                 referenceScripts += scriptInfo.hash -> scriptInfo.scriptVersion
 
         val allScripts = (scripts ++ referenceScripts).toMap
@@ -250,10 +162,10 @@ class TxEvaluator(
 
     private def evalPhaseOne(
         tx: Transaction,
-        utxos: util.Set[ResolvedInput],
+        utxos: Map[TransactionInput, TransactionOutput],
         lookupTable: LookupTable
     ): Unit = {
-        val scripts = scriptsNeeded(tx, utxos.asScala)
+        val scripts = scriptsNeeded(tx, utxos)
 //        println(s"Scrips needed: $scripts")
         validateMissingScripts(scripts, lookupTable.scripts)
         verifyExactSetOfRedeemers(tx, scripts, lookupTable.scripts)
@@ -263,19 +175,14 @@ class TxEvaluator(
 
     private def scriptsNeeded(
         tx: Transaction,
-        utxos: collection.Set[ResolvedInput]
+        utxos: Map[TransactionInput, TransactionOutput]
     ): AlonzoScriptsNeeded = {
         val needed = ArrayBuffer.empty[(v1.ScriptPurpose, ScriptHash)]
         val txb = tx.getBody
 
         for input <- txb.getInputs.asScala do
-            // TODO: refoactor utxos ot Map?
-            val utxo = utxos
-                .find(_.input == input)
-                .getOrElse(
-                  throw new IllegalStateException("Input not found")
-                )
-            val address = Address(utxo.output.getAddress)
+            val output = utxos.getOrElse(input, throw new IllegalStateException("Input not found"))
+            val address = Address(output.getAddress)
 
             // if we spend a script output, we need the script
             if address.getPaymentCredential.get.getType == CredentialType.Script then
@@ -344,7 +251,7 @@ class TxEvaluator(
 
     private def evalRedeemer(
         tx: Transaction,
-        utxos: util.Set[ResolvedInput],
+        utxos: Map[TransactionInput, TransactionOutput],
         slotConfig: SlotConfig,
         redeemer: Redeemer,
         lookupTable: LookupTable,
@@ -412,7 +319,7 @@ class TxEvaluator(
                 throw new IllegalStateException(s"Unsupported execution purpose $executionPurpose")
 
         val cost = result.budget
-        println(s"${Console.GREEN}Eval result: $result${Console.RESET}")
+//        println(s"${Console.GREEN}Eval result: $result${Console.RESET}")
         Redeemer(
           redeemer.getTag,
           redeemer.getIndex,
@@ -467,7 +374,7 @@ class TxEvaluator(
     }
 
     private def getExecutionPurpose(
-        utxos: util.Set[ResolvedInput],
+        utxos: Map[TransactionInput, TransactionOutput],
         purpose: v1.ScriptPurpose,
         lookupTable: LookupTable
     ): ExecutionPurpose = {
@@ -480,22 +387,22 @@ class TxEvaluator(
                 )
                 ExecutionPurpose.NoDatum(scriptVersion, policyId)
             case v1.ScriptPurpose.Spending(txOutRef) =>
-                val utxo = utxos.asScala
-                    .find(utxo =>
-                        ByteString.fromHex(
-                          utxo.input.getTransactionId
-                        ) == txOutRef.id.hash && utxo.input.getIndex == txOutRef.idx.toInt
-                    )
+                val output = utxos
                     .getOrElse(
+                      TransactionInput
+                          .builder()
+                          .transactionId(txOutRef.id.hash.toHex)
+                          .index(txOutRef.idx.toInt)
+                          .build(),
                       throw new IllegalStateException("Input Not Found: " + txOutRef)
                     )
-                val address = Address(utxo.output.getAddress)
+                val address = Address(output.getAddress)
                 val hash = ByteString.fromArray(address.getPaymentCredentialHash.orElseThrow())
                 val scriptVersion = lookupTable.scripts.getOrElse(
                   hash,
                   throw new IllegalStateException("Script Not Found")
                 )
-                (utxo.output.getDatumHash, utxo.output.getInlineDatum) match
+                (output.getDatumHash, output.getInlineDatum) match
                     case (null, null) =>
                         throw new IllegalStateException("Datum Not Found")
                     case (datumHash, null) =>
@@ -549,7 +456,7 @@ class TxEvaluator(
 
     private def evalPhaseTwo(
         tx: Transaction,
-        utxos: util.Set[ResolvedInput],
+        utxos: Map[TransactionInput, TransactionOutput],
         costMdls: CostMdls,
         initialBudget: ExBudget,
         slotConfig: SlotConfig,
@@ -579,16 +486,16 @@ class TxEvaluator(
 
             if evaluatedRedeemer.getExUnits.getSteps != redeemer.getExUnits.getSteps || evaluatedRedeemer.getExUnits.getMem != redeemer.getExUnits.getMem
             then
-                println(
-                  s"ExUnits: ${redeemer.getExUnits} - Evaluated: ${evaluatedRedeemer.getExUnits}"
-                )
+//                println(
+//                  s"ExUnits: ${redeemer.getExUnits} - Evaluated: ${evaluatedRedeemer.getExUnits}"
+//                )
 
-            // The subtraction is safe here as ex units counting is done during evaluation.
-            // Redeemer would fail already if budget was negative.
-            remainingBudget = ExBudget.fromCpuAndMemory(
-              remainingBudget.cpu - evaluatedRedeemer.getExUnits.getSteps.longValue,
-              remainingBudget.memory - evaluatedRedeemer.getExUnits.getMem.longValue
-            )
+                // The subtraction is safe here as ex units counting is done during evaluation.
+                // Redeemer would fail already if budget was negative.
+                remainingBudget = ExBudget.fromCpuAndMemory(
+                  remainingBudget.cpu - evaluatedRedeemer.getExUnits.getSteps.longValue,
+                  remainingBudget.memory - evaluatedRedeemer.getExUnits.getMem.longValue
+                )
 
             evaluatedRedeemer
         }

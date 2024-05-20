@@ -9,6 +9,8 @@ import com.bloxbean.cardano.client.api.model.Result
 import com.bloxbean.cardano.client.api.model.Utxo
 import com.bloxbean.cardano.client.api.util.CostModelUtil
 import com.bloxbean.cardano.client.common.cbor.CborSerializationUtil
+import com.bloxbean.cardano.client.exception.CborDeserializationException
+import com.bloxbean.cardano.client.exception.CborSerializationException
 import com.bloxbean.cardano.client.plutus.spec.*
 import com.bloxbean.cardano.client.transaction.spec.Transaction
 import com.bloxbean.cardano.client.transaction.spec.TransactionInput
@@ -24,6 +26,7 @@ import java.util.ArrayList
 import java.util.HashSet
 import java.util.List
 import java.util.Set
+import java.util.stream.Collectors
 import scala.jdk.CollectionConverters.*
 
 trait ScriptSupplier {
@@ -38,7 +41,6 @@ class ScalusTransactionEvaluator(
     val protocolParamsSupplier: ProtocolParamsSupplier,
     val scriptSupplier: ScriptSupplier
 ) extends TransactionEvaluator {
-    var txEvaluator: TxEvaluator = null
     lazy val protocolParams = protocolParamsSupplier.getProtocolParams
 
     lazy val costMdls = {
@@ -55,11 +57,10 @@ class ScalusTransactionEvaluator(
     }
 
     override def evaluateTx(
-        cbor: Array[Byte],
+        transaction: Transaction,
         inputUtxos: util.Set[Utxo]
     ): Result[util.List[EvaluationResult]] = {
         try {
-            val transaction = Transaction.deserialize(cbor)
             val utxos = new util.HashSet[Utxo]()
             // inputs//inputs
 
@@ -78,7 +79,7 @@ class ScalusTransactionEvaluator(
                 val utxo = utxoSupplier.getTxOutput(input.getTransactionId, input.getIndex).get
                 utxos.add(utxo)
                 // Get reference input script
-//                println(s"Reference input: ${utxo.getReferenceScriptHash}")
+                //                println(s"Reference input: ${resolvedUtxos.getReferenceScriptHash}")
                 if utxo.getReferenceScriptHash != null && scriptSupplier != null then
                     val script = scriptSupplier.getScript(utxo.getReferenceScriptHash)
                     additionalScripts.add(script)
@@ -109,8 +110,8 @@ class ScalusTransactionEvaluator(
                       .serialize()
                 )
 
-//            Files.write(java.nio.file.Path.of("ins.cbor"), CborSerializationUtil.serialize(ins));
-//            Files.write(java.nio.file.Path.of("outs.cbor"), CborSerializationUtil.serialize(outs));
+            //            Files.write(java.nio.file.Path.of("ins.cbor"), CborSerializationUtil.serialize(ins));
+            //            Files.write(java.nio.file.Path.of("outs.cbor"), CborSerializationUtil.serialize(outs));
 
             if transaction.getWitnessSet == null then
                 transaction.setWitnessSet(new TransactionWitnessSet)
@@ -127,18 +128,41 @@ class ScalusTransactionEvaluator(
             if transaction.getWitnessSet.getPlutusDataList == null then
                 transaction.getWitnessSet.setPlutusDataList(new util.ArrayList)
 
-            val txBudget = ExBudget.fromCpuAndMemory(
-              cpu = protocolParams.getMaxTxExSteps.toLong,
-              memory = protocolParams.getMaxTxExMem.toLong
-            )
-            txEvaluator = TxEvaluator(
-              SlotConfig.default,
-              txBudget,
-              protocolParams.getProtocolMajorVer.intValue()
-            )
+            val witnessScripts = new util.ArrayList[PlutusScript]
+            witnessScripts.addAll(transaction.getWitnessSet.getPlutusV1Scripts)
+            witnessScripts.addAll(transaction.getWitnessSet.getPlutusV2Scripts)
+
+            val allScripts =
+                util.stream.Stream
+                    .concat(additionalScripts.stream, witnessScripts.stream)
+                    .collect(Collectors.toList)
+
+            val txInputs = transaction.getBody.getInputs
+            val refTxInputs = transaction.getBody.getReferenceInputs
+            val allInputs =
+                util.stream.Stream
+                    .concat(txInputs.stream, refTxInputs.stream)
+                    .collect(Collectors.toList)
+            val txOutputs = resolveTxInputs(allInputs, utxos, allScripts)
+            val resolvedUtxos = allInputs.asScala
+                .zip(txOutputs.asScala)
+                .toMap
+
+            val txEvaluator =
+                val txBudget = ExBudget.fromCpuAndMemory(
+                  cpu = protocolParams.getMaxTxExSteps.toLong,
+                  memory = protocolParams.getMaxTxExMem.toLong
+                )
+                
+                TxEvaluator(
+                  SlotConfig.default,
+                  txBudget,
+                  protocolParams.getProtocolMajorVer.intValue(),
+                  costMdls
+                )
             try
                 val redeemers =
-                    txEvaluator.evaluateTx(transaction, utxos, additionalScripts, costMdls)
+                    txEvaluator.evaluateTx(transaction, resolvedUtxos)
                 val evaluationResults = redeemers.stream.map { redeemer =>
                     EvaluationResult.builder
                         .redeemerTag(redeemer.getTag)
@@ -160,5 +184,51 @@ class ScalusTransactionEvaluator(
         } catch {
             case e: Exception => throw ApiException("Error evaluating transaction", e)
         }
+    }
+
+    override def evaluateTx(
+        cbor: Array[Byte],
+        inputUtxos: util.Set[Utxo]
+    ): Result[util.List[EvaluationResult]] = {
+        evaluateTx(Transaction.deserialize(cbor), inputUtxos)
+    }
+
+    private def resolveTxInputs(
+        inputs: util.List[TransactionInput],
+        utxos: util.Set[Utxo],
+        plutusScripts: util.List[PlutusScript]
+    ): util.List[TransactionOutput] = {
+        inputs.stream
+            .map { input =>
+                val utxo = utxos.asScala
+                    .find(utxo =>
+                        input.getTransactionId == utxo.getTxHash && input.getIndex == utxo.getOutputIndex
+                    )
+                    .getOrElse(throw new IllegalStateException())
+
+                val address = utxo.getAddress
+
+                val plutusScript = plutusScripts.asScala.find { script =>
+                    try Utils.bytesToHex(script.getScriptHash) == utxo.getReferenceScriptHash
+                    catch case e: CborSerializationException => throw new IllegalStateException(e)
+                }
+
+                val inlineDatum = Option(utxo.getInlineDatum).map(hex =>
+                    PlutusData.deserialize(Utils.hexToBytes(hex))
+                )
+                val datumHash = Option(utxo.getDataHash).map(Utils.hexToBytes)
+                //                println(s"datumHash: $datumHash, inlineDatum: $inlineDatum, utxo: $utxo")
+
+                try
+                    TransactionOutput.builder
+                        .address(address)
+                        .value(utxo.toValue)
+                        .datumHash(if inlineDatum.isEmpty then datumHash.orNull else null)
+                        .inlineDatum(inlineDatum.orNull)
+                        .scriptRef(plutusScript.orNull)
+                        .build
+                catch case e: CborDeserializationException => throw new IllegalStateException(e)
+            }
+            .collect(Collectors.toList)
     }
 }
