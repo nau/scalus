@@ -276,7 +276,7 @@ class TxEvaluator(
                 val scriptContext = v1.ScriptContext(txInfo, purpose)
                 val ctxData = scriptContext.toData
 //                println(s"Script context: ${write(ctxData)}")
-                evalScript(machineParams, script.bytes, datum, rdmr, ctxData)
+                evalScript(redeemer, machineParams, script.bytes, datum, rdmr, ctxData)
             case ExecutionPurpose.WithDatum(ScriptVersion.PlutusV2(script), scriptHash, datum) =>
 //                println(
 //                  s"eval: PlutusV2, $scriptHash ${purpose}: ${PrettyPrinter.pretty(datum).render(100)}"
@@ -287,7 +287,7 @@ class TxEvaluator(
                 val scriptContext = v2.ScriptContext(txInfo, purpose)
                 val ctxData = scriptContext.toData
 //                println(s"Script context: ${write(ctxData)}")
-                evalScript(machineParams, script.bytes, datum, rdmr, ctxData)
+                evalScript(redeemer, machineParams, script.bytes, datum, rdmr, ctxData)
             case ExecutionPurpose.NoDatum(ScriptVersion.PlutusV1(script), scriptHash) =>
 //                println(s"eval: PlutusV1, $scriptHash ${purpose}")
                 val machineParams = translateMachineParamsFromCostMdls(costMdls, PlutusV1)
@@ -296,7 +296,7 @@ class TxEvaluator(
                 val scriptContext = v1.ScriptContext(txInfo, purpose)
                 val ctxData = scriptContext.toData
 //                println(s"Script context: $scriptContext")
-                evalScript(machineParams, script.bytes, rdmr, ctxData)
+                evalScript(redeemer, machineParams, script.bytes, rdmr, ctxData)
             case ExecutionPurpose.NoDatum(ScriptVersion.PlutusV2(script), scriptHash) =>
 //                println(s"eval: PlutusV2, $scriptHash ${purpose}")
                 val machineParams = translateMachineParamsFromCostMdls(costMdls, PlutusV2)
@@ -305,7 +305,7 @@ class TxEvaluator(
                 val scriptContext = v2.ScriptContext(txInfo, purpose)
                 val ctxData = scriptContext.toData
 //                println(s"Script context: $scriptContext")
-                evalScript(machineParams, script.bytes, rdmr, ctxData)
+                evalScript(redeemer, machineParams, script.bytes, rdmr, ctxData)
             case _ =>
                 throw new IllegalStateException(s"Unsupported execution purpose $executionPurpose")
 
@@ -322,46 +322,22 @@ class TxEvaluator(
         )
     }
 
-    /** FIXME: refactor VM.evaluateScriptCounting to return logs on error, then remove this method
-      */
     private def evalScript(
+        redeemer: Redeemer,
         machineParams: MachineParams,
         script: VM.ScriptForEvaluation,
         args: Data*
     ) = {
-        val spender = CountingBudgetSpender()
-        val logger = Log()
-        val cek = new CekMachine(
-          machineParams,
-          spender,
-          logger,
-          JVMPlatformSpecific
+        val budget = ExBudget.fromCpuAndMemory(
+          cpu = redeemer.getExUnits.getSteps.longValue,
+          memory = redeemer.getExUnits.getMem.longValue
         )
-        try
-            val program = ProgramFlatCodec.decodeFlat(script)
-            val applied = args.foldLeft(program.term) { (acc, arg) =>
-                Term.Apply(acc, Term.Const(Constant.Data(arg)))
-            }
-//            val appliedProgram = Program((1, 0, 0), applied)
-//            java.nio.file.Files.write(java.nio.file.Path.of("script.flat"), ProgramFlatCodec.unsafeEncodeFlat(appliedProgram))
-            val resultTerm = cek.evaluateTerm(applied)
-            CekResult(resultTerm, spender.getSpentBudget, logger.getLogs)
-        catch
-            case e: StackTraceMachineError =>
-                println(s"${Console.RED}Machine Error: ${e.getMessage}${Console.RESET}")
-                /*println(
-                  e.env
-                      .map({
-                          case (k, v @ CekValue.VCon(c)) =>
-                              s"$k -> ${PrettyPrinter.pretty(c).render(80)}"
-                          case (k, v: CekValue.VDelay)              => s"$k -> delay"
-                          case (k, v: CekValue.VLamAbs)             => s"$k -> lam"
-                          case (k, v @ CekValue.VBuiltin(bi, _, _)) => s"$k -> $bi"
-                      })
-                      .mkString("\n")
-                )*/
-                println(s"logs: ${logger.getLogs.mkString("\n")}")
-                throw new IllegalStateException("MachineError", e)
+        VM.evaluateScriptRestricting(
+          machineParams,
+          budget,
+          script,
+          args: _*
+        )
     }
 
     private def getExecutionPurpose(

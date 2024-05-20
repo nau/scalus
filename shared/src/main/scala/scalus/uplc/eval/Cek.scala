@@ -262,8 +262,8 @@ class PlutusVM(platformSpecific: PlatformSpecific) {
       * @param args
       *   The arguments to the script
       * @return
-      *   [[CekResult]], either a success with the resulting term and the execution budget, or a
-      *   failure with an error message and the execution budget.
+      *   [[CekResult]] with the resulting term and the execution budget
+      * @throws MachineError
       */
     @varargs
     def evaluateScriptCounting(
@@ -276,6 +276,38 @@ class PlutusVM(platformSpecific: PlatformSpecific) {
             Apply(acc, Const(asConstant(arg)))
         }
         val spender = CountingBudgetSpender()
+        val logger = Log()
+        val cek = new CekMachine(params, spender, logger, platformSpecific)
+        val resultTerm = cek.evaluateTerm(applied)
+        CekResult(resultTerm, spender.getSpentBudget, logger.getLogs)
+    }
+
+    /** Evaluates a script, returning the execution budget and logs.
+      *
+      * @param params
+      *   The machine parameters
+      * @param budget
+      *   The budget to restrict the evaluation
+      * @param script
+      *   Flat encoded script to evaluate
+      * @param args
+      *   The arguments to the script
+      * @return
+      *   [[CekResult]] with the resulting term and the execution budget
+      * @throws MachineError
+      */
+    @varargs
+    def evaluateScriptRestricting(
+        params: MachineParams,
+        budget: ExBudget,
+        script: ScriptForEvaluation,
+        args: Data*
+    ): CekResult = {
+        val program = ProgramFlatCodec.decodeFlat(script)
+        val applied = args.foldLeft(program.term) { (acc, arg) =>
+            Apply(acc, Const(asConstant(arg)))
+        }
+        val spender = RestrictingBudgetSpender(budget)
         val logger = Log()
         val cek = new CekMachine(params, spender, logger, platformSpecific)
         val resultTerm = cek.evaluateTerm(applied)
