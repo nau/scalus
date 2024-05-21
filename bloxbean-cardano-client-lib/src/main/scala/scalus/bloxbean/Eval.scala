@@ -295,7 +295,7 @@ class TxEvaluator(
                 val txInfo = getTxInfoV1(tx, utxos, slotConfig, protocolMajorVersion)
                 val scriptContext = v1.ScriptContext(txInfo, purpose)
                 val ctxData = scriptContext.toData
-//                println(s"Script context: $scriptContext")
+//                println(s"Script context: ${write(ctxData)}")
                 evalScript(redeemer, machineParams, script.bytes, rdmr, ctxData)
             case ExecutionPurpose.NoDatum(ScriptVersion.PlutusV2(script), scriptHash) =>
 //                println(s"eval: PlutusV2, $scriptHash ${purpose}")
@@ -304,7 +304,8 @@ class TxEvaluator(
                 val txInfo = getTxInfoV2(tx, utxos, slotConfig, protocolMajorVersion)
                 val scriptContext = v2.ScriptContext(txInfo, purpose)
                 val ctxData = scriptContext.toData
-//                println(s"Script context: $scriptContext")
+//                println(s"Script context: ${write(ctxData)}")
+                evalScript(redeemer, machineParams, script.bytes, rdmr, ctxData)
                 evalScript(redeemer, machineParams, script.bytes, rdmr, ctxData)
             case _ =>
                 throw new IllegalStateException(s"Unsupported execution purpose $executionPurpose")

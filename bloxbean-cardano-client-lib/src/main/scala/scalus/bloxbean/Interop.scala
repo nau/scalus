@@ -275,6 +275,21 @@ object Interop {
         prelude.AssocMap(prelude.List.from(am))
     }
 
+    def getMintValue(value: util.List[MultiAsset]): v1.Value = {
+        getValue(
+          // add Lovelace asset if not present, don't ask me why :(
+          value.asScala.toSeq
+              .appended(
+                MultiAsset
+                    .builder()
+                    .policyId("")
+                    .assets(util.List.of(Asset.builder().name("").value(BigInteger.ZERO).build()))
+                    .build()
+              )
+              .asJava
+        )
+    }
+
     def getTxOutV1(out: TransactionOutput): v1.TxOut = {
         val addr = Address(out.getAddress)
         val maybeDatumHash =
@@ -392,7 +407,7 @@ object Interop {
           outputs = prelude.List.from(body.getOutputs.asScala.map(getTxOutV1)),
           fee = v1.Value.lovelace(body.getFee ?? BigInteger.ZERO),
           // sorted mint values
-          mint = getValue(body.getMint ?? util.List.of()),
+          mint = getMintValue(body.getMint ?? util.List.of()),
           // certificates as is
           dcert = prelude.List.from(certs.asScala.map(getDCert)),
           withdrawals = getWithdrawals(body.getWithdrawals ?? util.List.of()),
@@ -433,7 +448,7 @@ object Interop {
           ),
           outputs = prelude.List.from(body.getOutputs.asScala.map(getTxOutV2)),
           fee = v1.Value.lovelace(body.getFee ?? BigInteger.ZERO),
-          mint = getValue(body.getMint ?? util.List.of()),
+          mint = getMintValue(body.getMint ?? util.List.of()),
           dcert = prelude.List.from(certs.asScala.map(getDCert)),
           withdrawals = AssocMap(getWithdrawals(body.getWithdrawals ?? util.List.of())),
           validRange = getInterval(tx, slotConfig, protocolVersion),

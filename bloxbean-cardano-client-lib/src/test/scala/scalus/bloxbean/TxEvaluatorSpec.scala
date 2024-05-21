@@ -218,7 +218,8 @@ class TxEvaluatorSpec extends AnyFunSuite:
             ScalusTransactionEvaluator(
               utxoSupplier,
               protocolParamsSupplier,
-              scriptSupplier
+              scriptSupplier,
+              debugStoreInsOuts = false
             )
 
         def readTransactionsFromBlockCbor(blockCbor: Array[Byte]): collection.Seq[Transaction] = {
@@ -248,7 +249,7 @@ class TxEvaluatorSpec extends AnyFunSuite:
         var v1Scripts = mutable.HashSet.empty[String]
         var v2Scripts = mutable.HashSet.empty[String]
 
-        for blockNum <- 10295000 to 10296000 do
+        for blockNum <- 10295004 to 10295004 do
             val blockCbor =
                 new String(Files.readAllBytes(Paths.get(s"blocks/block-$blockNum.cbor")))
             val blockBytes = Utils.hexToBytes(blockCbor)
@@ -260,11 +261,11 @@ class TxEvaluatorSpec extends AnyFunSuite:
             println(s"Block $blockNum, num txs to validate: ${withScriptTxs.size}")
 
             /*
-             * Run cargo run -- tx simulate --cbor ~/projects/scalus/bloxbean-cardano-client-lib/tx-483883b7eb7b90dac614993a9e73bc5c6d9a8c375739629eb1f733b0774289ba.cbor ~/projects/scalus/bloxbean-cardano-client-lib/ins.cbor ~/projects/scalus/bloxbean-cardano-client-lib/outs.cbor
+             * Run cargo run -- tx simulate --cbor ~/projects/scalus/bloxbean-cardano-client-lib/tx-e1d7afe71bfb3716916889e8c4946c5aa5b9151ca8d0baadc38f3c780d813d22.cbor ~/projects/scalus/bloxbean-cardano-client-lib/ins.cbor ~/projects/scalus/bloxbean-cardano-client-lib/outs.cbor
              */
 
             for tx <- withScriptTxs do
-//                println(s"Validating tx ${TransactionUtil.getTxHash(tx)}")
+                println(s"Validating tx ${TransactionUtil.getTxHash(tx)}")
 //                tx.getWitnessSet.getPlutusDataList.get(0).getDatumHash
 //                println(tx)
 //                Files.write(Paths.get(s"tx-${TransactionUtil.getTxHash(tx)}.cbor"), tx.serialize())
