@@ -26,7 +26,6 @@ import com.bloxbean.cardano.client.quicktx.ScriptTx
 import com.bloxbean.cardano.client.spec.Script
 import com.bloxbean.cardano.client.transaction.spec.*
 import com.bloxbean.cardano.client.transaction.util.TransactionUtil
-import com.bloxbean.cardano.yaci.core.model.serializers.TransactionBodyExtractor
 import com.bloxbean.cardano.yaci.core.util.CborSerializationUtil
 import com.fasterxml.jackson.databind.ObjectMapper
 import io.bullet.borer.Cbor

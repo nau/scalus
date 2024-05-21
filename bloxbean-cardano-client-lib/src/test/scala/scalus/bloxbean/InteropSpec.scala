@@ -20,7 +20,6 @@ import com.bloxbean.cardano.client.quicktx.ScriptTx
 import com.bloxbean.cardano.client.transaction.spec.*
 import com.bloxbean.cardano.client.transaction.util.TransactionUtil
 import com.bloxbean.cardano.yaci.core.model.Era
-import com.bloxbean.cardano.yaci.core.model.serializers.TransactionBodyExtractor
 import com.bloxbean.cardano.yaci.core.util.CborSerializationUtil
 import io.bullet.borer.Cbor
 import org.scalatest.funsuite.AnyFunSuite

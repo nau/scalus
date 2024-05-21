@@ -104,9 +104,21 @@ class TxEvaluator(
 
     /** Phase 2 validation and execution of the transaction
       */
+
     def evaluateTx(
         transaction: Transaction,
         inputUtxos: Map[TransactionInput, TransactionOutput]
+    ): collection.Seq[Redeemer] = {
+        val datumHashes = transaction.getWitnessSet.getPlutusDataList.asScala
+            .map(data => ByteString.fromArray(data.getDatumHashAsBytes))
+            .toSeq
+        evaluateTx(transaction, inputUtxos, datumHashes)
+    }
+
+    def evaluateTx(
+        transaction: Transaction,
+        inputUtxos: Map[TransactionInput, TransactionOutput],
+        originalDatumHashes: collection.Seq[ByteString]
     ): collection.Seq[Redeemer] = {
 
         // For debugging, store ins and outs in cbor format
@@ -123,6 +135,7 @@ class TxEvaluator(
 
         evalPhaseTwo(
           transaction,
+          originalDatumHashes,
           inputUtxos,
           runPhaseOne = true
         )
@@ -151,12 +164,10 @@ class TxEvaluator(
 
     private def getScriptAndDatumLookupTable(
         tx: Transaction,
+        originalDatumHashes: collection.Seq[ByteString],
         utxos: Map[TransactionInput, TransactionOutput]
     ): LookupTable = {
-        val datum = tx.getWitnessSet.getPlutusDataList.asScala
-            .map: data =>
-                ByteString.fromArray(data.getDatumHashAsBytes) -> data
-            .toMap
+        val datums = originalDatumHashes.zip(tx.getWitnessSet.getPlutusDataList.asScala).toMap
 
         val scripts = {
             def decodeToFlat(script: PlutusScript) =
@@ -187,7 +198,7 @@ class TxEvaluator(
                 referenceScripts += scriptInfo.hash -> scriptInfo.scriptVersion
 
         val allScripts = (scripts ++ referenceScripts).toMap
-        LookupTable(allScripts, datum)
+        LookupTable(allScripts, datums)
     }
 
     private def evalPhaseOne(
@@ -505,6 +516,7 @@ class TxEvaluator(
 
     private def evalPhaseTwo(
         tx: Transaction,
+        originalDatumHashes: collection.Seq[ByteString],
         utxos: Map[TransactionInput, TransactionOutput],
         runPhaseOne: Boolean
     ): collection.Seq[Redeemer] = {
@@ -512,7 +524,7 @@ class TxEvaluator(
           s"Eval phase two $tx, $utxos, $costMdls, $initialBudget, $slotConfig, $runPhaseOne"
         )
         val redeemers = tx.getWitnessSet.getRedeemers ?? util.List.of()
-        val lookupTable = getScriptAndDatumLookupTable(tx, utxos)
+        val lookupTable = getScriptAndDatumLookupTable(tx, originalDatumHashes, utxos)
         log.debug(s"Lookup table: $lookupTable")
 
         if runPhaseOne then

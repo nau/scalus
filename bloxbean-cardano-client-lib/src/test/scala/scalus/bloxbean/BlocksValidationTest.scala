@@ -1,5 +1,6 @@
 package scalus.bloxbean
 
+import co.nstant.in.cbor.CborException
 import co.nstant.in.cbor.model as cbor
 import co.nstant.in.cbor.model.UnsignedInteger
 import com.bloxbean.cardano.client.account.Account
@@ -19,6 +20,7 @@ import com.bloxbean.cardano.client.coinselection.impl.DefaultUtxoSelector
 import com.bloxbean.cardano.client.common.ADAConversionUtil
 import com.bloxbean.cardano.client.common.CardanoConstants
 import com.bloxbean.cardano.client.common.model.Networks
+import com.bloxbean.cardano.client.crypto.Blake2bUtil
 import com.bloxbean.cardano.client.function.helper.SignerProviders
 import com.bloxbean.cardano.client.plutus.spec.*
 import com.bloxbean.cardano.client.plutus.util.PlutusUtil
@@ -27,7 +29,9 @@ import com.bloxbean.cardano.client.quicktx.ScriptTx
 import com.bloxbean.cardano.client.spec.Script
 import com.bloxbean.cardano.client.transaction.spec.*
 import com.bloxbean.cardano.client.transaction.util.TransactionUtil
-import com.bloxbean.cardano.yaci.core.model.serializers.TransactionBodyExtractor
+import com.bloxbean.cardano.yaci.core.model.serializers.util.TransactionBodyExtractor
+import com.bloxbean.cardano.yaci.core.model.serializers.util.WitnessUtil
+import com.bloxbean.cardano.yaci.core.model.serializers.util.WitnessUtil.getArrayBytes
 import com.bloxbean.cardano.yaci.core.util.CborSerializationUtil
 import com.fasterxml.jackson.databind.ObjectMapper
 import io.bullet.borer.Cbor
@@ -50,6 +54,7 @@ import java.nio.file.Files
 import java.nio.file.Paths
 import java.util
 import java.util.Optional
+import java.util.stream.Collectors
 import scala.collection.mutable
 import scala.jdk.CollectionConverters.*
 
@@ -89,7 +94,7 @@ class BlocksValidationTest extends AnyFunSuite:
             val withScriptTxs = txsToEvaluate(txs)
             println(s"Block $blockNum, num txs to validate: ${withScriptTxs.size}")
 
-            for tx <- withScriptTxs do {
+            for (tx, datumHashes) <- withScriptTxs do {
                 val txhash = TransactionUtil.getTxHash(tx)
                 println(s"Validating tx $txhash")
                 //                println(tx)
@@ -106,7 +111,7 @@ class BlocksValidationTest extends AnyFunSuite:
                     println(
                       s"${Console.RED}AAAAA invalid!!! $txhash ${Console.RESET}"
                     )
-                val result = evaluator.evaluateTx(tx, util.Set.of())
+                val result = evaluator.evaluateTx(tx, util.Set.of(), datumHashes)
                 totalTx += 1
                 if !result.isSuccessful then
                     errors += result.getResponse
@@ -122,23 +127,44 @@ class BlocksValidationTest extends AnyFunSuite:
 
     }
 
-    private def txsToEvaluate(txs: collection.Seq[Transaction]) = {
-        txs.filter(tx =>
+    private def txsToEvaluate(txs: collection.Seq[(Transaction, util.List[ByteString])]) = {
+        txs.filter { case (tx, _) =>
             tx.getWitnessSet.getPlutusV1Scripts != null || tx.getWitnessSet.getPlutusV2Scripts != null
-        )
+        }
     }
 
-    def readTransactionsFromBlockCbor(filename: String): collection.Seq[Transaction] = {
+    def readTransactionsFromBlockCbor(
+        filename: String
+    ): collection.Seq[(Transaction, util.List[ByteString])] = {
         val blockBytes = Utils.hexToBytes(new String(Files.readAllBytes(Paths.get(filename))))
         readTransactionsFromBlockCbor(blockBytes)
     }
 
-    def readTransactionsFromBlockCbor(blockCbor: Array[Byte]): collection.Seq[Transaction] = {
+    def readTransactionsFromBlockCbor(blockCbor: Array[Byte]): collection.Seq[(Transaction, util.List[ByteString])] = {
         val array = CborSerializationUtil.deserializeOne(blockCbor).asInstanceOf[cbor.Array]
         val blockArray = array.getDataItems.get(1).asInstanceOf[cbor.Array]
         val witnessesListArr = blockArray.getDataItems.get(2).asInstanceOf[cbor.Array]
         val txBodyTuples = TransactionBodyExtractor.getTxBodiesFromBlock(blockCbor)
-        for (tuple, idx) <- txBodyTuples.asScala.zipWithIndex yield
+        val witnesses = WitnessUtil.getWitnessRawData(blockCbor)
+        val datumHashes = witnesses.asScala
+            .map { witness =>
+                try
+                    val fields = WitnessUtil.getWitnessFields(witness)
+                    val datums = fields.get(BigInteger.valueOf(4L))
+                    if datums != null then
+                        val ds = getArrayBytes(datums) 
+                        val hashes = ds
+                            .stream()
+                            .map(bytes => ByteString.fromArray(Blake2bUtil.blake2bHash256(bytes)))
+                            .toList
+                        hashes
+                    else util.Collections.emptyList()
+                catch
+                    case e: CborException =>
+                        e.printStackTrace();
+                        util.Collections.emptyList();
+            }
+        for ((tuple, datumHashes), idx) <- txBodyTuples.asScala.zip(datumHashes).zipWithIndex yield
             val txbody = TransactionBody.deserialize(tuple._1.asInstanceOf[cbor.Map])
             val witnessSet = TransactionWitnessSet.deserialize(
               witnessesListArr.getDataItems.get(idx).asInstanceOf[cbor.Map]
@@ -153,7 +179,7 @@ class BlocksValidationTest extends AnyFunSuite:
 //                        println(s"${Utils.bytesToHex(CborSerializationUtil.serialize(item))}")
                 }*/
 
-            Transaction.builder().body(txbody).witnessSet(witnessSet).build()
+            (Transaction.builder().body(txbody).witnessSet(witnessSet).build(), datumHashes)
     }
 
     def validateTransaction(tx: Transaction, evaluator: ScalusTransactionEvaluator): Unit = {}

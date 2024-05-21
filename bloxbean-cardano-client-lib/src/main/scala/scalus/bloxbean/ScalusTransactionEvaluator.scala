@@ -45,7 +45,7 @@ trait ScriptSupplier {
 class ScalusTransactionEvaluator(
     val utxoSupplier: UtxoSupplier,
     val protocolParamsSupplier: ProtocolParamsSupplier,
-    val scriptSupplier: ScriptSupplier,
+    val scriptSupplier: ScriptSupplier
 ) extends TransactionEvaluator {
     @BeanProperty
     lazy val protocolParams: ProtocolParams = protocolParamsSupplier.getProtocolParams
@@ -81,7 +81,15 @@ class ScalusTransactionEvaluator(
 
     override def evaluateTx(
         transaction: Transaction,
-        inputUtxos: util.Set[Utxo]
+        inputUtxos: util.Set[Utxo],
+    ): Result[util.List[EvaluationResult]] = {
+        evaluateTx(transaction, inputUtxos, new util.ArrayList())
+    }
+
+    def evaluateTx(
+        transaction: Transaction,
+        inputUtxos: util.Set[Utxo],
+        originalDatumHashes: util.List[scalus.builtin.ByteString]
     ): Result[util.List[EvaluationResult]] = {
         try {
             // initialize utxos with inputUtxos
@@ -143,9 +151,9 @@ class ScalusTransactionEvaluator(
                         transaction.getBody.getReferenceInputs.asScala
 
                 resolveTxInputs(allInputs, utxos, scripts)
-            
+
             try
-                val redeemers = txEvaluator.evaluateTx(transaction, resolvedUtxos)
+                val redeemers = txEvaluator.evaluateTx(transaction, resolvedUtxos, originalDatumHashes.asScala)
                 val evaluationResults = redeemers.map { redeemer =>
                     EvaluationResult.builder
                         .redeemerTag(redeemer.getTag)
