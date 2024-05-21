@@ -32,10 +32,10 @@ type Value = AssocMap[CurrencySymbol, AssocMap[TokenName, BigInt]]
 
 def debugToString(v: Value): String = {
     val pairs = v.inner.toList.map { case (cs, tokens) =>
-      val tokenPairs = tokens.inner.toList.map { case (tn, amount) =>
-        s"#${tn.toHex}: $amount"
-      }
-      s"policy#${cs.toHex} -> { ${tokenPairs.mkString(", ")} }"
+        val tokenPairs = tokens.inner.toList.map { case (tn, amount) =>
+            s"#${tn.toHex}: $amount"
+        }
+        s"policy#${cs.toHex} -> { ${tokenPairs.mkString(", ")} }"
     }
     s"{ ${pairs.mkString(", ")} }"
 
@@ -464,7 +464,7 @@ case class TxInfo(
            |  id: $id
            |)""".stripMargin
     }
-    
+
 }
 
 enum ScriptPurpose:

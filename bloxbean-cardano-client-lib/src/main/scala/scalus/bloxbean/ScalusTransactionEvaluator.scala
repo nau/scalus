@@ -46,7 +46,6 @@ class ScalusTransactionEvaluator(
     val utxoSupplier: UtxoSupplier,
     val protocolParamsSupplier: ProtocolParamsSupplier,
     val scriptSupplier: ScriptSupplier,
-    val debugStoreInsOuts: Boolean = false
 ) extends TransactionEvaluator {
     @BeanProperty
     lazy val protocolParams: ProtocolParams = protocolParamsSupplier.getProtocolParams
@@ -76,7 +75,8 @@ class ScalusTransactionEvaluator(
           SlotConfig.default,
           txBudget,
           protocolParams.getProtocolMajorVer.intValue(),
-          costMdls
+          costMdls,
+          failOnBudgetMismatch = false
         )
 
     override def evaluateTx(
@@ -109,7 +109,6 @@ class ScalusTransactionEvaluator(
                     val utxo = utxoSupplier.getTxOutput(input.getTransactionId, input.getIndex).get
                     utxos.put(input, utxo)
                     // Get reference input script
-//                    println(s"Reference input: ${resolvedUtxos.getReferenceScriptHash}")
                     if utxo.getReferenceScriptHash != null && scriptSupplier != null then
                         val script = scriptSupplier.getScript(utxo.getReferenceScriptHash)
                         scripts.put(utxo.getReferenceScriptHash, script)
@@ -117,7 +116,7 @@ class ScalusTransactionEvaluator(
             // Initialize witness set to avoid null pointer exceptions
             if transaction.getWitnessSet == null then
                 transaction.setWitnessSet(new TransactionWitnessSet)
-            
+
             val witnessSet = transaction.getWitnessSet
             if witnessSet.getNativeScripts == null then
                 witnessSet.setNativeScripts(new util.ArrayList)
@@ -134,7 +133,7 @@ class ScalusTransactionEvaluator(
             // Resolve Utxos
             val resolvedUtxos =
                 val witnessScripts = transaction.getWitnessSet.getPlutusV1Scripts.asScala
-                    ++ transaction.getWitnessSet.getPlutusV2Scripts.asScala 
+                    ++ transaction.getWitnessSet.getPlutusV2Scripts.asScala
                     ++ transaction.getWitnessSet.getNativeScripts.asScala
 
                 for s <- witnessScripts do scripts.put(Utils.bytesToHex(s.getScriptHash), s)
@@ -144,11 +143,7 @@ class ScalusTransactionEvaluator(
                         transaction.getBody.getReferenceInputs.asScala
 
                 resolveTxInputs(allInputs, utxos, scripts)
-
-            // For debugging, store ins and outs in cbor format
-            // to run aiken simulator
-            if debugStoreInsOuts then storeInsOutsInCborFiles(resolvedUtxos, scripts)
-
+            
             try
                 val redeemers = txEvaluator.evaluateTx(transaction, resolvedUtxos)
                 val evaluationResults = redeemers.map { redeemer =>
@@ -172,21 +167,6 @@ class ScalusTransactionEvaluator(
         } catch {
             case e: Exception => throw ApiException("Error evaluating transaction", e)
         }
-    }
-
-    private def storeInsOutsInCborFiles(
-        utxos: Map[TransactionInput, TransactionOutput],
-        scripts: collection.Map[String, Script]
-    ): Unit = {
-        val ins = co.nstant.in.cbor.model.Array()
-        val outs = co.nstant.in.cbor.model.Array()
-
-        for (in, out) <- utxos do
-            ins.add(in.serialize())
-            outs.add(out.serialize())
-
-        Files.write(java.nio.file.Path.of("ins.cbor"), CborSerializationUtil.serialize(ins));
-        Files.write(java.nio.file.Path.of("outs.cbor"), CborSerializationUtil.serialize(outs));
     }
 
     override def evaluateTx(

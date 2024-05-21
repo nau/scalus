@@ -45,5 +45,3 @@ class InteropSpec extends AnyFunSuite:
         // TODO: write isomorphism test
         // refactor to use ArbitraryInstances
     }
-
-    

@@ -420,18 +420,6 @@ final class CountingBudgetSpender extends BudgetSpender {
     private var memory: Long = 0
 
     def spendBudget(cat: ExBudgetCategory, budget: ExBudget, env: CekValEnv): Unit = {
-        /*cat match
-            case ExBudgetCategory.BuiltinApp(fun) =>
-                import java.nio.file.Files
-                import java.nio.file.Paths
-                import java.nio.file.StandardOpenOption
-                Files.write(
-                  Paths.get("scalus.log"),
-                  s"fun $$${fun}, cost: ExBudget { mem: ${budget.memory}, cpu: ${budget.cpu} }\n".getBytes,
-                  StandardOpenOption.CREATE,
-                  StandardOpenOption.APPEND
-                )
-            case _ =>*/
         cpu += budget.cpu
         memory += budget.memory
     }
