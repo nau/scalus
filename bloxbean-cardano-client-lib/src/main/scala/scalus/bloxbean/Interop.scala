@@ -395,6 +395,7 @@ object Interop {
 
     def getTxInfoV1(
         tx: Transaction,
+        datums: collection.Seq[(ByteString, Data)],
         utxos: Map[TransactionInput, TransactionOutput],
         slotConfig: SlotConfig,
         protocolVersion: Int
@@ -402,7 +403,6 @@ object Interop {
         val body = tx.getBody
         val certs = body.getCerts ?? util.List.of()
         val rdmrs = tx.getWitnessSet.getRedeemers ?? util.List.of()
-        val datums = tx.getWitnessSet.getPlutusDataList ?? util.List.of()
         v1.TxInfo(
           // sorted inputs
           inputs = prelude.List.from(body.getInputs.asScala.sorted.map(getTxInInfoV1(_, utxos))),
@@ -422,20 +422,14 @@ object Interop {
                 .map(v1.PubKeyHash.apply)
                 .toSeq
           ),
-          data = prelude.List.from(
-            datums.asScala
-                .map { data =>
-                    val hash = ByteString.fromArray(data.getDatumHashAsBytes)
-                    hash -> toScalusData(data)
-                }
-                .sortBy(_._1)
-          ),
+          data = prelude.List.from(datums.sortBy(_._1)),
           id = v1.TxId(ByteString.fromHex(TransactionUtil.getTxHash(tx)))
         )
     }
 
     def getTxInfoV2(
         tx: Transaction,
+        datums: collection.Seq[(ByteString, Data)],
         utxos: Map[TransactionInput, TransactionOutput],
         slotConfig: SlotConfig,
         protocolVersion: Int
@@ -443,7 +437,6 @@ object Interop {
         val body = tx.getBody
         val certs = body.getCerts ?? util.List.of()
         val rdmrs = tx.getWitnessSet.getRedeemers ?? util.List.of()
-        val datums = tx.getWitnessSet.getPlutusDataList ?? util.List.of()
         v2.TxInfo(
           inputs = prelude.List.from(body.getInputs.asScala.sorted.map(getTxInInfoV2(_, utxos))),
           referenceInputs = prelude.List.from(
@@ -472,16 +465,7 @@ object Interop {
               )
               purpose -> toScalusData(redeemer.getData)
           })),
-          data = AssocMap(
-            prelude.List.from(
-              datums.asScala
-                  .map { data =>
-                      val hash = ByteString.fromArray(data.getDatumHashAsBytes)
-                      hash -> toScalusData(data)
-                  }
-                  .sortBy(_._1)
-            )
-          ),
+          data = AssocMap(prelude.List.from(datums.sortBy(_._1))),
           id = v1.TxId(ByteString.fromHex(TransactionUtil.getTxHash(tx)))
         )
     }

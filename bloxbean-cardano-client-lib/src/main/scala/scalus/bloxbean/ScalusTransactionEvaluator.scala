@@ -20,6 +20,7 @@ import com.bloxbean.cardano.client.transaction.spec.TransactionInput
 import com.bloxbean.cardano.client.transaction.spec.TransactionOutput
 import com.bloxbean.cardano.client.transaction.spec.TransactionWitnessSet
 import com.bloxbean.cardano.client.util.JsonUtil
+import scalus.builtin.ByteString
 import scalus.uplc.eval.ExBudget
 import scalus.utils.Utils
 
@@ -76,20 +77,24 @@ class ScalusTransactionEvaluator(
           txBudget,
           protocolParams.getProtocolMajorVer.intValue(),
           costMdls,
-          failOnBudgetMismatch = false
+          failOnBudgetMismatch = false,
+          debugDumpFilesForTesting = false
         )
 
     override def evaluateTx(
         transaction: Transaction,
-        inputUtxos: util.Set[Utxo],
+        inputUtxos: util.Set[Utxo]
     ): Result[util.List[EvaluationResult]] = {
-        evaluateTx(transaction, inputUtxos, new util.ArrayList())
+        val datumHashes = transaction.getWitnessSet.getPlutusDataList.asScala
+            .map(data => ByteString.fromArray(data.getDatumHashAsBytes))
+            .asJava
+        evaluateTx(transaction, inputUtxos, datumHashes)
     }
 
     def evaluateTx(
         transaction: Transaction,
         inputUtxos: util.Set[Utxo],
-        originalDatumHashes: util.List[scalus.builtin.ByteString]
+        datums: util.List[scalus.builtin.ByteString]
     ): Result[util.List[EvaluationResult]] = {
         try {
             // initialize utxos with inputUtxos
@@ -153,7 +158,8 @@ class ScalusTransactionEvaluator(
                 resolveTxInputs(allInputs, utxos, scripts)
 
             try
-                val redeemers = txEvaluator.evaluateTx(transaction, resolvedUtxos, originalDatumHashes.asScala)
+                val redeemers =
+                    txEvaluator.evaluateTx(transaction, resolvedUtxos, datums.asScala)
                 val evaluationResults = redeemers.map { redeemer =>
                     EvaluationResult.builder
                         .redeemerTag(redeemer.getTag)
@@ -169,6 +175,7 @@ class ScalusTransactionEvaluator(
                     .asInstanceOf[Result[util.List[EvaluationResult]]]
             catch
                 case e: Exception =>
+                    e.printStackTrace()
                     Result
                         .error(s"Error evaluating transaction: ${e.getMessage}")
                         .asInstanceOf[Result[util.List[EvaluationResult]]]

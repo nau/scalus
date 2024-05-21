@@ -61,11 +61,7 @@ object PlutusDataCborDecoder extends Decoder[Data]:
         val maxCborByteArraySize = 64
         def fromByteArray() =
             val byteArray = r.readByteArray()
-            if byteArray.length > maxCborByteArraySize then
-                r.overflow(
-                  "ByteArray for decoding JBigInteger is longer than the configured max of " + maxCborByteArraySize + " bytes"
-                )
-            else new java.math.BigInteger(1, byteArray)
+            new java.math.BigInteger(1, byteArray)
 
         r.dataItem() match
             case DI.Int | DI.Long | DI.OverLong => I(Decoder.forBigInt.read(r))

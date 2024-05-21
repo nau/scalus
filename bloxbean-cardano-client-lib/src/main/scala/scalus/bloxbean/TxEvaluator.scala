@@ -2,12 +2,15 @@ package scalus.bloxbean
 
 import com.bloxbean.cardano.client.address.{Address, AddressType, CredentialType}
 import com.bloxbean.cardano.client.common.cbor.CborSerializationUtil
+import com.bloxbean.cardano.client.crypto.Blake2bUtil
 import com.bloxbean.cardano.client.plutus.spec.*
 import com.bloxbean.cardano.client.transaction.spec.*
 import com.bloxbean.cardano.client.transaction.util.TransactionUtil
 import io.bullet.borer.{Cbor, Decoder}
+import org.bouncycastle.jcajce.provider.digest.Blake2b.Blake2b256
 import org.slf4j.LoggerFactory
 import scalus.bloxbean.Interop.*
+import scalus.builtin.PlutusDataCborDecoder
 import scalus.builtin.{ByteString, Data, JVMPlatformSpecific, given}
 import scalus.ledger
 import scalus.ledger.api
@@ -118,14 +121,18 @@ class TxEvaluator(
     def evaluateTx(
         transaction: Transaction,
         inputUtxos: Map[TransactionInput, TransactionOutput],
-        originalDatumHashes: collection.Seq[ByteString]
+        datums: collection.Seq[ByteString]
     ): collection.Seq[Redeemer] = {
+        assert(
+          transaction.getWitnessSet.getPlutusDataList.size == datums.size,
+          "Datum size mismatch"
+        )
 
         // For debugging, store ins and outs in cbor format
         // to run aiken simulator
         if debugDumpFilesForTesting then
             val txhash = TransactionUtil.getTxHash(transaction)
-            Files.write(Paths.get(s"tx-$txhash.cbor"), transaction.serialize())
+//            Files.write(Paths.get(s"tx-$txhash.cbor"), transaction.serialize())
             Files.deleteIfExists(java.nio.file.Paths.get("scalus.log"))
             storeInsOutsInCborFiles(inputUtxos)
             // run modified aiken for testing
@@ -135,7 +142,7 @@ class TxEvaluator(
 
         evalPhaseTwo(
           transaction,
-          originalDatumHashes,
+          datums,
           inputUtxos,
           runPhaseOne = true
         )
@@ -159,16 +166,14 @@ class TxEvaluator(
     private type Hash = ByteString
     private case class LookupTable(
         scripts: collection.Map[ScriptHash, ScriptVersion],
-        datums: collection.Map[Hash, PlutusData]
+        datums: collection.Map[Hash, Data]
     )
 
     private def getScriptAndDatumLookupTable(
         tx: Transaction,
-        originalDatumHashes: collection.Seq[ByteString],
+        datums: collection.Seq[(ByteString, Data)],
         utxos: Map[TransactionInput, TransactionOutput]
     ): LookupTable = {
-        val datums = originalDatumHashes.zip(tx.getWitnessSet.getPlutusDataList.asScala).toMap
-
         val scripts = {
             def decodeToFlat(script: PlutusScript) =
                 // unwrap the outer CBOR encoding
@@ -198,7 +203,7 @@ class TxEvaluator(
                 referenceScripts += scriptInfo.hash -> scriptInfo.scriptVersion
 
         val allScripts = (scripts ++ referenceScripts).toMap
-        LookupTable(allScripts, datums)
+        LookupTable(allScripts, datums.toMap)
     }
 
     private def evalPhaseOne(
@@ -291,6 +296,7 @@ class TxEvaluator(
 
     private def evalRedeemer(
         tx: Transaction,
+        datums: collection.Seq[(ByteString, Data)],
         utxos: Map[TransactionInput, TransactionOutput],
         redeemer: Redeemer,
         lookupTable: LookupTable,
@@ -318,18 +324,18 @@ class TxEvaluator(
                 val machineParams = translateMachineParamsFromCostMdls(costMdls, PlutusV1)
                 val rdmr = toScalusData(redeemer.getData)
                 log.debug(s"Redeemer: ${write(rdmr)}")
-                val txInfo = getTxInfoV1(tx, utxos, slotConfig, protocolMajorVersion)
+                val txInfo = getTxInfoV1(tx, datums, utxos, slotConfig, protocolMajorVersion)
                 val scriptContext = v1.ScriptContext(txInfo, purpose)
                 val ctxData = scriptContext.toData
                 log.debug(s"Script context: ${write(ctxData)}")
                 evalScript(redeemer, machineParams, script.bytes, datum, rdmr, ctxData)
             case ExecutionPurpose.WithDatum(ScriptVersion.PlutusV2(script), scriptHash, datum) =>
-//                log.debug(
-//                  s"eval: PlutusV2, $scriptHash ${purpose}: ${PrettyPrinter.pretty(datum).render(100)}"
-//                )
+                log.debug(
+                  s"eval: PlutusV2, $scriptHash ${purpose}: ${write(datum)}"
+                )
                 val machineParams = translateMachineParamsFromCostMdls(costMdls, PlutusV2)
                 val rdmr = toScalusData(redeemer.getData)
-                val txInfo = getTxInfoV2(tx, utxos, slotConfig, protocolMajorVersion)
+                val txInfo = getTxInfoV2(tx, datums, utxos, slotConfig, protocolMajorVersion)
                 val scriptContext = v2.ScriptContext(txInfo, purpose)
                 val ctxData = scriptContext.toData
                 log.debug(s"Script context: ${write(ctxData)}")
@@ -338,7 +344,7 @@ class TxEvaluator(
                 log.debug(s"eval: PlutusV1, $scriptHash ${purpose}")
                 val machineParams = translateMachineParamsFromCostMdls(costMdls, PlutusV1)
                 val rdmr = toScalusData(redeemer.getData)
-                val txInfo = getTxInfoV1(tx, utxos, slotConfig, protocolMajorVersion)
+                val txInfo = getTxInfoV1(tx, datums, utxos, slotConfig, protocolMajorVersion)
                 val scriptContext = v1.ScriptContext(txInfo, purpose)
                 val ctxData = scriptContext.toData
                 log.debug(s"Script context: ${write(ctxData)}")
@@ -347,7 +353,7 @@ class TxEvaluator(
                 log.debug(s"eval: PlutusV2, $scriptHash ${purpose}")
                 val machineParams = translateMachineParamsFromCostMdls(costMdls, PlutusV2)
                 val rdmr = toScalusData(redeemer.getData)
-                val txInfo = getTxInfoV2(tx, utxos, slotConfig, protocolMajorVersion)
+                val txInfo = getTxInfoV2(tx, datums, utxos, slotConfig, protocolMajorVersion)
                 val scriptContext = v2.ScriptContext(txInfo, purpose)
                 val ctxData = scriptContext.toData
                 log.debug(s"Script context: ${write(ctxData)}")
@@ -472,7 +478,7 @@ class TxEvaluator(
                             s"Datum Hash Not Found ${Utils.bytesToHex(datumHash)}"
                           )
                         )
-                        ExecutionPurpose.WithDatum(scriptVersion, hash, toScalusData(datum))
+                        ExecutionPurpose.WithDatum(scriptVersion, hash, datum)
                     case (null, inlineDatum) =>
                         ExecutionPurpose.WithDatum(scriptVersion, hash, toScalusData(inlineDatum))
                     case _ =>
@@ -516,7 +522,7 @@ class TxEvaluator(
 
     private def evalPhaseTwo(
         tx: Transaction,
-        originalDatumHashes: collection.Seq[ByteString],
+        datums: collection.Seq[ByteString],
         utxos: Map[TransactionInput, TransactionOutput],
         runPhaseOne: Boolean
     ): collection.Seq[Redeemer] = {
@@ -524,7 +530,14 @@ class TxEvaluator(
           s"Eval phase two $tx, $utxos, $costMdls, $initialBudget, $slotConfig, $runPhaseOne"
         )
         val redeemers = tx.getWitnessSet.getRedeemers ?? util.List.of()
-        val lookupTable = getScriptAndDatumLookupTable(tx, originalDatumHashes, utxos)
+        val datumsMapping = datums.zipWithIndex
+            .map: (datum, idx) =>
+                val datumHash = ByteString.fromArray(Blake2bUtil.blake2bHash256(datum.bytes))
+                println(s"datum hash: ${datumHash.toHex} at $idx")
+                implicit val d = PlutusDataCborDecoder
+                val data = Cbor.decode(datum.bytes).to[Data].value
+                datumHash -> data
+        val lookupTable = getScriptAndDatumLookupTable(tx, datumsMapping, utxos)
         log.debug(s"Lookup table: $lookupTable")
 
         if runPhaseOne then
@@ -535,6 +548,7 @@ class TxEvaluator(
         val collectedRedeemers = for redeemer <- redeemers.asScala yield {
             val evaluatedRedeemer = evalRedeemer(
               tx,
+              datumsMapping,
               utxos,
               redeemer,
               lookupTable,
