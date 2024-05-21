@@ -349,7 +349,10 @@ object Interop {
                 )
             case (validFrom, validTo) =>
                 val lower = v1.Interval.finite(BigInt(slotToBeginPosixTime(validFrom, slotConfig)))
-                val upper = v1.Interval.finite(BigInt(slotToBeginPosixTime(validTo, slotConfig)))
+                val upper = v1.IntervalBound(
+                  v1.IntervalBoundType.Finite(BigInt(slotToBeginPosixTime(validTo, slotConfig))),
+                  false // Closure is false here, this is how Cardano Ledger does it for upper bound
+                )
                 v1.Interval(lower, upper)
     }
 
