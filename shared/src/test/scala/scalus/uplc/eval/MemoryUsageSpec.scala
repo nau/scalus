@@ -1,13 +1,9 @@
 package scalus.uplc.eval
 
-import org.scalacheck.Gen
 import org.scalatest.funsuite.AnyFunSuite
 import org.scalatestplus.scalacheck.ScalaCheckPropertyChecks
 import scalus.*
 import scalus.uplc.ArbitraryInstances
-import scalus.uplc.DefaultUni.asConstant
-import scalus.uplc.Term.*
-import scalus.uplc.eval.VM
 
 class MemoryUsageSpec extends AnyFunSuite with ScalaCheckPropertyChecks with ArbitraryInstances {
     test("memoryUsageInteger(0) == 1") {
@@ -26,7 +22,6 @@ class MemoryUsageSpec extends AnyFunSuite with ScalaCheckPropertyChecks with Arb
 
     test("MemoryUsage.memoryUsageInteger(x) == MemoryUsage.memoryUsageInteger2(x)") {
         forAll { (x: BigInt) =>
-            println(x)
             assert(MemoryUsage.memoryUsageInteger(x) == MemoryUsage.memoryUsageInteger2(x))
             assert(MemoryUsage.memoryUsageInteger(-x) == MemoryUsage.memoryUsageInteger2(-x))
         }

@@ -44,13 +44,10 @@ trait ScriptSupplier {
   * evaluator. This is a wrapper around [[TxEvaluator]].
   */
 class ScalusTransactionEvaluator(
-    val utxoSupplier: UtxoSupplier,
-    val protocolParamsSupplier: ProtocolParamsSupplier,
-    val scriptSupplier: ScriptSupplier
+    @BeanProperty val protocolParams: ProtocolParams,
+    @BeanProperty val utxoSupplier: UtxoSupplier,
+    @BeanProperty val scriptSupplier: ScriptSupplier
 ) extends TransactionEvaluator {
-    @BeanProperty
-    lazy val protocolParams: ProtocolParams = protocolParamsSupplier.getProtocolParams
-
     @BeanProperty
     lazy val costMdls: CostMdls = {
         val costModelV1 = CostModelUtil
@@ -98,17 +95,15 @@ class ScalusTransactionEvaluator(
     ): Result[util.List[EvaluationResult]] = {
         try {
             // initialize utxos with inputUtxos
-            val utxos =
-                val utxos = new mutable.HashMap[TransactionInput, Utxo]()
-                for utxo <- inputUtxos.asScala do
-                    val input = TransactionInput.builder
-                        .transactionId(utxo.getTxHash)
-                        .index(utxo.getOutputIndex)
-                        .build
-                    utxos.put(input, utxo)
-                utxos
+            val utxos = new mutable.HashMap[TransactionInput, Utxo]()
+            for utxo <- inputUtxos.asScala do
+                val input = TransactionInput.builder
+                    .transactionId(utxo.getTxHash)
+                    .index(utxo.getOutputIndex)
+                    .build
+                utxos.put(input, utxo)
 
-            // Get all input utxos
+            // Get all input utxos using utxoSupplier
             for input <- transaction.getBody.getInputs.asScala do
                 if !utxos.contains(input) then
                     val utxo = utxoSupplier.getTxOutput(input.getTransactionId, input.getIndex).get
@@ -118,13 +113,14 @@ class ScalusTransactionEvaluator(
 
             // Get all reference inputs utxos including scripts
             for input <- transaction.getBody.getReferenceInputs.asScala do
-                if !utxos.contains(input) then
-                    val utxo = utxoSupplier.getTxOutput(input.getTransactionId, input.getIndex).get
-                    utxos.put(input, utxo)
-                    // Get reference input script
-                    if utxo.getReferenceScriptHash != null && scriptSupplier != null then
-                        val script = scriptSupplier.getScript(utxo.getReferenceScriptHash)
-                        scripts.put(utxo.getReferenceScriptHash, script)
+                val utxo = utxos.getOrElseUpdate(
+                  input,
+                  utxoSupplier.getTxOutput(input.getTransactionId, input.getIndex).get
+                )
+                // Get reference input script
+                if utxo.getReferenceScriptHash != null && scriptSupplier != null then
+                    val script = scriptSupplier.getScript(utxo.getReferenceScriptHash)
+                    scripts.put(utxo.getReferenceScriptHash, script)
 
             // Initialize witness set to avoid null pointer exceptions
             if transaction.getWitnessSet == null then
@@ -175,7 +171,6 @@ class ScalusTransactionEvaluator(
                     .asInstanceOf[Result[util.List[EvaluationResult]]]
             catch
                 case e: Exception =>
-                    e.printStackTrace()
                     Result
                         .error(s"Error evaluating transaction: ${e.getMessage}")
                         .asInstanceOf[Result[util.List[EvaluationResult]]]
@@ -197,7 +192,10 @@ class ScalusTransactionEvaluator(
         plutusScripts: collection.Map[String, Script]
     ): Map[TransactionInput, TransactionOutput] = {
         inputs.map { input =>
-            val utxo = utxos.getOrElse(input, throw new IllegalStateException())
+            val utxo = utxos.getOrElse(
+              input,
+              throw new IllegalStateException(s"Utxo not found for input $input")
+            )
             val scriptOpt = plutusScripts.get(utxo.getReferenceScriptHash)
             val inlineDatum = Option(utxo.getInlineDatum).map(hex =>
                 PlutusData.deserialize(Utils.hexToBytes(hex))

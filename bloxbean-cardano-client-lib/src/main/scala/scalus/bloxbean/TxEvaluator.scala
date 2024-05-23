@@ -1,26 +1,38 @@
 package scalus.bloxbean
 
-import com.bloxbean.cardano.client.address.{Address, AddressType, CredentialType}
+import com.bloxbean.cardano.client.address.Address
+import com.bloxbean.cardano.client.address.AddressType
+import com.bloxbean.cardano.client.address.CredentialType
 import com.bloxbean.cardano.client.common.cbor.CborSerializationUtil
 import com.bloxbean.cardano.client.crypto.Blake2bUtil
 import com.bloxbean.cardano.client.plutus.spec.*
 import com.bloxbean.cardano.client.transaction.spec.*
 import com.bloxbean.cardano.client.transaction.util.TransactionUtil
-import io.bullet.borer.{Cbor, Decoder}
-import org.bouncycastle.jcajce.provider.digest.Blake2b.Blake2b256
+import io.bullet.borer.Cbor
+import io.bullet.borer.Decoder
+import org.slf4j.LoggerFactory
 import org.slf4j.LoggerFactory
 import scalus.bloxbean.Interop.*
+import scalus.builtin.ByteString
+import scalus.builtin.Data
+import scalus.builtin.JVMPlatformSpecific
 import scalus.builtin.PlutusDataCborDecoder
-import scalus.builtin.{ByteString, Data, JVMPlatformSpecific, given}
+import scalus.builtin.given
 import scalus.ledger
 import scalus.ledger.api
+import scalus.ledger.api.PlutusLedgerLanguage
 import scalus.ledger.api.PlutusLedgerLanguage.*
-import scalus.ledger.api.v1.{DCert, ScriptPurpose, StakingCredential}
-import scalus.ledger.api.{v1, v2, PlutusLedgerLanguage}
+import scalus.ledger.api.v1
+import scalus.ledger.api.v1.DCert
+import scalus.ledger.api.v1.ScriptPurpose
+import scalus.ledger.api.v1.StakingCredential
+import scalus.ledger.api.v2
+import scalus.uplc.Constant
 import scalus.uplc.Program
+import scalus.uplc.ProgramFlatCodec
+import scalus.uplc.Term
 import scalus.uplc.Term.Apply
 import scalus.uplc.Term.Const
-import scalus.uplc.{Constant, ProgramFlatCodec, Term}
 import scalus.uplc.eval.*
 import scalus.utils.Hex
 import scalus.utils.Utils
@@ -31,8 +43,9 @@ import java.nio.file.Files
 import java.nio.file.Path
 import java.nio.file.Paths
 import java.util
+import scala.collection.immutable
+import scala.collection.mutable
 import scala.collection.mutable.ArrayBuffer
-import scala.collection.{immutable, mutable}
 import scala.jdk.CollectionConverters.*
 
 case class SlotConfig(zero_time: Long, zero_slot: Long, slot_length: Long)
@@ -103,21 +116,28 @@ class TxEvaluator(
     val debugDumpFilesForTesting: Boolean = false
 ) {
     private val log = LoggerFactory.getLogger(getClass.getName)
-    // TODO: implement proper error handling, exceptions, logging etc
 
     /** Phase 2 validation and execution of the transaction
       */
-
     def evaluateTx(
         transaction: Transaction,
         inputUtxos: Map[TransactionInput, TransactionOutput]
     ): collection.Seq[Redeemer] = {
-        val datumHashes = transaction.getWitnessSet.getPlutusDataList.asScala
-            .map(data => ByteString.fromArray(data.getDatumHashAsBytes))
+        val datums = transaction.getWitnessSet.getPlutusDataList.asScala
+            .map(data => ByteString.fromArray(data.serializeToBytes()))
             .toSeq
-        evaluateTx(transaction, inputUtxos, datumHashes)
+        evaluateTx(transaction, inputUtxos, datums)
     }
 
+    /** Phase 2 validation and execution of the transaction
+      *
+      * @param transaction
+      * @param inputUtxos
+      * @param datums
+      *   \- Exact CBOR datums from Transaction Witness Set. This is to compute correct datum hash
+      * @return
+      *   Redeemers
+      */
     def evaluateTx(
         transaction: Transaction,
         inputUtxos: Map[TransactionInput, TransactionOutput],
@@ -130,27 +150,18 @@ class TxEvaluator(
 
         // For debugging, store ins and outs in cbor format
         // to run aiken simulator
+        // like this:
+        // aiken tx simulate --cbor tx-$txhash.cbor ins.cbor outs.cbor > aiken.log"
         if debugDumpFilesForTesting then
             val txhash = TransactionUtil.getTxHash(transaction)
-//            Files.write(Paths.get(s"tx-$txhash.cbor"), transaction.serialize())
+            Files.write(Paths.get(s"tx-$txhash.cbor"), transaction.serialize())
             Files.deleteIfExists(java.nio.file.Paths.get("scalus.log"))
             storeInsOutsInCborFiles(inputUtxos)
-            // run modified aiken for testing
-            println(
-              s"cargo run -- tx simulate --cbor ~/projects/scalus/bloxbean-cardano-client-lib/tx-$txhash.cbor ~/projects/scalus/bloxbean-cardano-client-lib/ins.cbor ~/projects/scalus/bloxbean-cardano-client-lib/outs.cbor > ~/projects/scalus/bloxbean-cardano-client-lib/aiken.log"
-            )
 
-        evalPhaseTwo(
-          transaction,
-          datums,
-          inputUtxos,
-          runPhaseOne = true
-        )
+        evalPhaseTwo(transaction, datums, inputUtxos, runPhaseOne = true)
     }
 
-    private def storeInsOutsInCborFiles(
-        utxos: Map[TransactionInput, TransactionOutput]
-    ): Unit = {
+    private def storeInsOutsInCborFiles(utxos: Map[TransactionInput, TransactionOutput]): Unit = {
         val ins = co.nstant.in.cbor.model.Array()
         val outs = co.nstant.in.cbor.model.Array()
 
@@ -310,8 +321,6 @@ class TxEvaluator(
           tx.getBody.getWithdrawals
         )
 
-//        log.debug(s"Eval redeemer: $purpose")
-
         val executionPurpose = getExecutionPurpose(utxos, purpose, lookupTable)
 
         import scalus.bloxbean.Interop.toScalusData
@@ -320,43 +329,50 @@ class TxEvaluator(
         import scalus.ledger.api.v2.ToDataInstances.given
         val result = executionPurpose match
             case ExecutionPurpose.WithDatum(ScriptVersion.PlutusV1(script), scriptHash, datum) =>
-                log.debug(s"eval: PlutusV1, $scriptHash ${purpose}: ${write(datum)}")
                 val machineParams = translateMachineParamsFromCostMdls(costMdls, PlutusV1)
                 val rdmr = toScalusData(redeemer.getData)
-                log.debug(s"Redeemer: ${write(rdmr)}")
                 val txInfo = getTxInfoV1(tx, datums, utxos, slotConfig, protocolMajorVersion)
                 val scriptContext = v1.ScriptContext(txInfo, purpose)
                 val ctxData = scriptContext.toData
-                log.debug(s"Script context: ${write(ctxData)}")
+                if log.isDebugEnabled() then
+                    log.debug(s"eval: PlutusV1, $scriptHash ${purpose}")
+                    log.debug(s"Datum: ${write(datum)}")
+                    log.debug(s"Redeemer: ${write(rdmr)}")
+                    log.debug(s"Script context: ${write(ctxData)}")
                 evalScript(redeemer, machineParams, script.bytes, datum, rdmr, ctxData)
             case ExecutionPurpose.WithDatum(ScriptVersion.PlutusV2(script), scriptHash, datum) =>
-                log.debug(
-                  s"eval: PlutusV2, $scriptHash ${purpose}: ${write(datum)}"
-                )
                 val machineParams = translateMachineParamsFromCostMdls(costMdls, PlutusV2)
                 val rdmr = toScalusData(redeemer.getData)
                 val txInfo = getTxInfoV2(tx, datums, utxos, slotConfig, protocolMajorVersion)
                 val scriptContext = v2.ScriptContext(txInfo, purpose)
                 val ctxData = scriptContext.toData
-                log.debug(s"Script context: ${write(ctxData)}")
+                if log.isDebugEnabled() then
+                    log.debug(s"eval: PlutusV2, $scriptHash ${purpose}")
+                    log.debug(s"Datum: ${write(datum)}")
+                    log.debug(s"Redeemer: ${write(rdmr)}")
+                    log.debug(s"Script context: ${write(ctxData)}")
                 evalScript(redeemer, machineParams, script.bytes, datum, rdmr, ctxData)
             case ExecutionPurpose.NoDatum(ScriptVersion.PlutusV1(script), scriptHash) =>
-                log.debug(s"eval: PlutusV1, $scriptHash ${purpose}")
                 val machineParams = translateMachineParamsFromCostMdls(costMdls, PlutusV1)
                 val rdmr = toScalusData(redeemer.getData)
                 val txInfo = getTxInfoV1(tx, datums, utxos, slotConfig, protocolMajorVersion)
                 val scriptContext = v1.ScriptContext(txInfo, purpose)
                 val ctxData = scriptContext.toData
-                log.debug(s"Script context: ${write(ctxData)}")
+                if log.isDebugEnabled() then
+                    log.debug(s"eval: PlutusV1, $scriptHash ${purpose}")
+                    log.debug(s"Redeemer: ${write(rdmr)}")
+                    log.debug(s"Script context: ${write(ctxData)}")
                 evalScript(redeemer, machineParams, script.bytes, rdmr, ctxData)
             case ExecutionPurpose.NoDatum(ScriptVersion.PlutusV2(script), scriptHash) =>
-                log.debug(s"eval: PlutusV2, $scriptHash ${purpose}")
                 val machineParams = translateMachineParamsFromCostMdls(costMdls, PlutusV2)
                 val rdmr = toScalusData(redeemer.getData)
                 val txInfo = getTxInfoV2(tx, datums, utxos, slotConfig, protocolMajorVersion)
                 val scriptContext = v2.ScriptContext(txInfo, purpose)
                 val ctxData = scriptContext.toData
-                log.debug(s"Script context: ${write(ctxData)}")
+                if log.isDebugEnabled() then
+                    log.debug(s"eval: PlutusV2, $scriptHash ${purpose}")
+                    log.debug(s"Redeemer: ${write(rdmr)}")
+                    log.debug(s"Script context: ${write(ctxData)}")
                 evalScript(redeemer, machineParams, script.bytes, rdmr, ctxData)
             case _ =>
                 throw new IllegalStateException(s"Unsupported execution purpose $executionPurpose")
@@ -372,35 +388,6 @@ class TxEvaluator(
             BigInteger.valueOf(cost.cpu)
           )
         )
-    }
-
-    final class RestrictingBudgetSpender2(val maxBudget: ExBudget) extends BudgetSpender {
-        private var cpuLeft: Long = maxBudget.cpu
-        private var memoryLeft: Long = maxBudget.memory
-
-        def spendBudget(cat: ExBudgetCategory, budget: ExBudget, env: CekValEnv): Unit = {
-            if debugDumpFilesForTesting then
-                cat match
-                    case ExBudgetCategory.BuiltinApp(fun) =>
-                        Files.write(
-                          java.nio.file.Paths.get("scalus.log"),
-                          s"fun $$${fun}, cost: ExBudget { mem: ${budget.memory}, cpu: ${budget.cpu} }\n".getBytes,
-                          java.nio.file.StandardOpenOption.CREATE,
-                          java.nio.file.StandardOpenOption.APPEND
-                        )
-                    case _ =>
-            cpuLeft -= budget.cpu
-            memoryLeft -= budget.memory
-            if cpuLeft < 0 || memoryLeft < 0 then throw new OutOfExBudgetError(maxBudget, env)
-        }
-
-        def getSpentBudget: ExBudget =
-            ExBudget.fromCpuAndMemory(maxBudget.cpu - cpuLeft, maxBudget.memory - memoryLeft)
-
-        def reset(): Unit = {
-            cpuLeft = maxBudget.cpu
-            memoryLeft = maxBudget.memory
-        }
     }
 
     private def evalScript(
@@ -422,9 +409,10 @@ class TxEvaluator(
             Files.write(
               java.nio.file.Paths.get("script.flat"),
               flat,
-              java.nio.file.StandardOpenOption.CREATE
+              java.nio.file.StandardOpenOption.CREATE,
+              java.nio.file.StandardOpenOption.TRUNCATE_EXISTING
             )
-        val spender = RestrictingBudgetSpender2(budget)
+        val spender = RestrictingBudgetSpenderWithScripDump(budget)
         val logger = Log()
         val cek = new CekMachine(machineParams, spender, logger, JVMPlatformSpecific)
         val resultTerm = cek.evaluateTerm(applied)
@@ -449,7 +437,7 @@ class TxEvaluator(
             case v1.ScriptPurpose.Minting(policyId) =>
                 val scriptVersion = lookupTable.scripts.getOrElse(
                   policyId,
-                  throw new IllegalStateException("Script Not Found")
+                  throw new IllegalStateException(s"Script Not Found for policyId: $policyId")
                 )
                 ExecutionPurpose.NoDatum(scriptVersion, policyId)
             case v1.ScriptPurpose.Spending(txOutRef) =>
@@ -460,23 +448,22 @@ class TxEvaluator(
                           .transactionId(txOutRef.id.hash.toHex)
                           .index(txOutRef.idx.toInt)
                           .build(),
-                      throw new IllegalStateException("Input Not Found: " + txOutRef)
+                      throw new IllegalStateException(s"Input Not Found: $txOutRef")
                     )
                 val address = Address(output.getAddress)
                 val hash = ByteString.fromArray(address.getPaymentCredentialHash.orElseThrow())
                 val scriptVersion = lookupTable.scripts.getOrElse(
                   hash,
-                  throw new IllegalStateException("Script Not Found")
+                  throw new IllegalStateException(s"Spending Script Not Found: $hash")
                 )
                 (output.getDatumHash, output.getInlineDatum) match
                     case (null, null) =>
                         throw new IllegalStateException("Datum Not Found")
                     case (datumHash, null) =>
+                        val hash = ByteString.fromArray(datumHash)
                         val datum = lookupTable.datums.getOrElse(
-                          ByteString.fromArray(datumHash),
-                          throw new IllegalStateException(
-                            s"Datum Hash Not Found ${Utils.bytesToHex(datumHash)}"
-                          )
+                          hash,
+                          throw new IllegalStateException(s"Datum Hash Not Found ${hash.toHex}")
                         )
                         ExecutionPurpose.WithDatum(scriptVersion, hash, datum)
                     case (null, inlineDatum) =>
@@ -490,7 +477,7 @@ class TxEvaluator(
                 ) =>
                 val scriptVersion = lookupTable.scripts.getOrElse(
                   hash,
-                  throw new IllegalStateException("Script Not Found")
+                  throw new IllegalStateException(s"Rewarding Script Not Found: $hash")
                 )
                 ExecutionPurpose.NoDatum(scriptVersion, hash)
             case ScriptPurpose.Rewarding(stakingCred) =>
@@ -533,9 +520,7 @@ class TxEvaluator(
         val datumsMapping = datums.zipWithIndex
             .map: (datum, idx) =>
                 val datumHash = ByteString.fromArray(Blake2bUtil.blake2bHash256(datum.bytes))
-                println(s"datum hash: ${datumHash.toHex} at $idx")
-                implicit val d = PlutusDataCborDecoder
-                val data = Cbor.decode(datum.bytes).to[Data].value
+                val data = Cbor.decode(datum.bytes).to[Data](using PlutusDataCborDecoder).value
                 datumHash -> data
         val lookupTable = getScriptAndDatumLookupTable(tx, datumsMapping, utxos)
         log.debug(s"Lookup table: $lookupTable")
@@ -573,4 +558,35 @@ class TxEvaluator(
         }
         collectedRedeemers
     }
+
+    final class RestrictingBudgetSpenderWithScripDump(val maxBudget: ExBudget)
+        extends BudgetSpender {
+        private var cpuLeft: Long = maxBudget.cpu
+        private var memoryLeft: Long = maxBudget.memory
+
+        def spendBudget(cat: ExBudgetCategory, budget: ExBudget, env: CekValEnv): Unit = {
+            if debugDumpFilesForTesting then
+                cat match
+                    case ExBudgetCategory.BuiltinApp(fun) =>
+                        Files.write(
+                          java.nio.file.Paths.get("scalus.log"),
+                          s"fun $$${fun}, cost: ExBudget { mem: ${budget.memory}, cpu: ${budget.cpu} }\n".getBytes,
+                          java.nio.file.StandardOpenOption.CREATE,
+                          java.nio.file.StandardOpenOption.APPEND
+                        )
+                    case _ =>
+            cpuLeft -= budget.cpu
+            memoryLeft -= budget.memory
+            if cpuLeft < 0 || memoryLeft < 0 then throw new OutOfExBudgetError(maxBudget, env)
+        }
+
+        def getSpentBudget: ExBudget =
+            ExBudget.fromCpuAndMemory(maxBudget.cpu - cpuLeft, maxBudget.memory - memoryLeft)
+
+        def reset(): Unit = {
+            cpuLeft = maxBudget.cpu
+            memoryLeft = maxBudget.memory
+        }
+    }
+
 }
