@@ -9,9 +9,12 @@ import scalus.builtin.Data
 import scalus.builtin.Data.toData
 import scalus.builtin.FromDataInstances.given
 import scalus.builtin.given
-import scalus.ledger.api.v1.*
-import scalus.ledger.api.v1.FromDataInstances.given
+import scalus.ledger.api.v1
+import scalus.ledger.api.v1.{PubKeyHash, TxId}
+import scalus.ledger.api.v2.*
+import scalus.ledger.api.v2.FromDataInstances.given
 import scalus.ledger.api.v1.ToDataInstances.given
+import scalus.ledger.api.v2.ToDataInstances.given
 import scalus.prelude.*
 import scalus.prelude.List
 import scalus.prelude.List.Nil
@@ -27,14 +30,16 @@ class PreImageExampleSpec extends BaseValidatorSpec {
         ScriptContext(
           TxInfo(
             inputs = scalus.prelude.List.Nil,
+            referenceInputs = scalus.prelude.List.Nil,
             outputs = scalus.prelude.List.Nil,
             fee = Value.lovelace(BigInt("188021")),
             mint = Value.lovelace(BigInt("188021")),
             dcert = scalus.prelude.List.Nil,
-            withdrawals = scalus.prelude.List.Nil,
+            withdrawals = scalus.prelude.AssocMap.empty,
             validRange = Interval.always,
             signatories = signatories,
-            data = scalus.prelude.List.Nil,
+            redeemers = scalus.prelude.AssocMap.empty,
+            data = scalus.prelude.AssocMap.empty,
             id = TxId(hex"1e0612fbd127baddfcd555706de96b46c4d4363ac78c73ab4dee6e6a7bf61fe9")
           ),
           ScriptPurpose.Spending(hoskyMintTxOutRef)
@@ -108,7 +113,7 @@ class PreImageExampleSpec extends BaseValidatorSpec {
         // convert SIR to UPLC
         val validator = compiled.toUplc()
         val flatSize = Program((1, 0, 0), validator).flatEncoded.length
-        assert(flatSize == 1468)
+        assert(flatSize == 1645)
 
         performChecks(validator)
     }
@@ -118,7 +123,7 @@ class PreImageExampleSpec extends BaseValidatorSpec {
         val uplc = optV.toUplc()
         val program = Program((1, 0, 0), uplc)
         val flatSize = program.flatEncoded.length
-        assert(flatSize == 136)
+        assert(flatSize == 157)
         performChecks(uplc)
     }
 }

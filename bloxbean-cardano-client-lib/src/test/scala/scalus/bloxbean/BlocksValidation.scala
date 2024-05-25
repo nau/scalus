@@ -83,7 +83,12 @@ object BlocksValidation:
           )
         )
         val protocolParams = backendService.getEpochService.getProtocolParameters(epoch).getValue
-        val evaluator = ScalusTransactionEvaluator(protocolParams, utxoSupplier, scriptSupplier)
+        val evaluator = ScalusTransactionEvaluator(
+          protocolParams,
+          utxoSupplier,
+          scriptSupplier,
+          EvaluatorMode.VALIDATE
+        )
 
         var totalTx = 0
         val errors = mutable.ArrayBuffer[(String, Int, String)]()

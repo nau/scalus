@@ -11,7 +11,6 @@ import com.bloxbean.cardano.client.transaction.util.TransactionUtil
 import io.bullet.borer.Cbor
 import io.bullet.borer.Decoder
 import org.slf4j.LoggerFactory
-import org.slf4j.LoggerFactory
 import scalus.bloxbean.Interop.*
 import scalus.builtin.ByteString
 import scalus.builtin.Data
@@ -34,7 +33,6 @@ import scalus.uplc.Term.Apply
 import scalus.uplc.Term.Const
 import scalus.uplc.eval.*
 import scalus.utils.Hex
-import scalus.utils.Utils
 import upickle.default.*
 
 import java.math.BigInteger
@@ -42,6 +40,7 @@ import java.nio.file.Files
 import java.nio.file.Path
 import java.nio.file.Paths
 import java.util
+import scala.beans.BeanProperty
 import scala.collection.immutable
 import scala.collection.mutable
 import scala.collection.mutable.ArrayBuffer
@@ -53,7 +52,11 @@ object SlotConfig {
         SlotConfig(zero_time = 1596059091000L, zero_slot = 4492800, slot_length = 1000)
 }
 
-class TxEvaluationException(message: String, cause: Throwable) extends Exception(message, cause)
+class TxEvaluationException(
+    message: String,
+    cause: Throwable,
+    @BeanProperty val logs: Array[String]
+) extends Exception(message, cause)
 
 given ReadWriter[Data] = readwriter[ujson.Value].bimap(
   {
@@ -111,7 +114,7 @@ class TxEvaluator(
     val initialBudget: ExBudget,
     val protocolMajorVersion: Int,
     val costMdls: CostMdls,
-    val failOnBudgetMismatch: Boolean = false,
+    val mode: EvaluatorMode = EvaluatorMode.EVALUATE_AND_COMPUTE_COST,
     val debugDumpFilesForTesting: Boolean = false
 ) {
     private val log = LoggerFactory.getLogger(getClass.getName)
@@ -411,12 +414,21 @@ class TxEvaluator(
               java.nio.file.StandardOpenOption.CREATE,
               java.nio.file.StandardOpenOption.TRUNCATE_EXISTING
             )
-        val spender = RestrictingBudgetSpenderWithScripDump(budget)
+        val spender = mode match
+            case EvaluatorMode.EVALUATE_AND_COMPUTE_COST => CountingBudgetSpender()
+            case EvaluatorMode.VALIDATE => RestrictingBudgetSpenderWithScripDump(budget)
+
         val logger = Log()
         val cek = new CekMachine(machineParams, spender, logger, JVMPlatformSpecific)
-        val resultTerm = cek.evaluateTerm(applied)
-        val r = CekResult(resultTerm, spender.getSpentBudget, logger.getLogs)
-        if failOnBudgetMismatch && r.budget != budget then
+        val r =
+            try
+                val resultTerm = cek.evaluateTerm(applied)
+                CekResult(resultTerm, spender.getSpentBudget, logger.getLogs)
+            catch
+                case e: MachineError =>
+                    throw new TxEvaluationException(e.getMessage, e, logger.getLogs)
+
+        if mode == EvaluatorMode.VALIDATE && r.budget != budget then
             log.warn(
               s"Budget mismatch: expected $budget, got ${r.budget}"
             )
@@ -542,7 +554,7 @@ class TxEvaluator(
             if evaluatedRedeemer.getExUnits.getSteps != redeemer.getExUnits.getSteps
                 || evaluatedRedeemer.getExUnits.getMem != redeemer.getExUnits.getMem
             then
-                log.warn(
+                log.debug(
                   s"ExUnits: ${redeemer.getExUnits} - Evaluated: ${evaluatedRedeemer.getExUnits}"
                 )
 

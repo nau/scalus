@@ -36,14 +36,46 @@ import scala.collection.mutable
 import scala.collection.mutable.ArrayBuffer
 import scala.jdk.CollectionConverters.*
 
+enum EvaluatorMode extends Enum[EvaluatorMode]:
+    case EVALUATE_AND_COMPUTE_COST, VALIDATE
+
 /** Implements [[TransactionEvaluator]] to evaluate a transaction to get script costs using Scalus
   * evaluator. This is a wrapper around [[TxEvaluator]].
+  * @param protocolParams
+  *   Protocol parameters
+  * @param utxoSupplier
+  *   Utxo supplier
+  * @param scriptSupplier
+  *   Additional script supplier
+  * @param mode
+  *   Evaluator mode.
+  *   - [[EvaluatorMode.EVALUATE_AND_COMPUTE_COST]] will evaluate the transaction and compute the
+  *     cost
+  *   - [[EvaluatorMode.VALIDATE]] will validate the transaction and fail if execution budget
+  *     exceeds
   */
 class ScalusTransactionEvaluator(
     @BeanProperty val protocolParams: ProtocolParams,
     @BeanProperty val utxoSupplier: UtxoSupplier,
-    @BeanProperty val scriptSupplier: ScriptSupplier
+    @BeanProperty val scriptSupplier: ScriptSupplier,
+    @BeanProperty val mode: EvaluatorMode
 ) extends TransactionEvaluator {
+
+    /** Constructor with protocol params and utxo supplier. Uses
+      * [[EvaluatorMode.EVALUATE_AND_COMPUTE_COST]] mode.
+      * @param protocolParams
+      *   Protocol parameters
+      * @param utxoSupplier
+      *   Utxo supplier
+      */
+    def this(protocolParams: ProtocolParams, utxoSupplier: UtxoSupplier) =
+        this(
+          protocolParams,
+          utxoSupplier,
+          NoScriptSupplier(),
+          EvaluatorMode.EVALUATE_AND_COMPUTE_COST
+        )
+
     @BeanProperty
     lazy val costMdls: CostMdls = {
         val costModelV1 = CostModelUtil
@@ -70,7 +102,7 @@ class ScalusTransactionEvaluator(
           txBudget,
           protocolParams.getProtocolMajorVer.intValue(),
           costMdls,
-          failOnBudgetMismatch = false,
+          mode,
           debugDumpFilesForTesting = false
         )
 
@@ -81,7 +113,8 @@ class ScalusTransactionEvaluator(
         val datumHashes = for
             ws <- Option(transaction.getWitnessSet)
             dataList <- Option(ws.getPlutusDataList)
-        yield dataList.stream()
+        yield dataList
+            .stream()
             .map(data => ByteString.fromArray(data.getDatumHashAsBytes))
             .toList()
         evaluateTx(transaction, inputUtxos, datumHashes.getOrElse(util.List.of()))
@@ -169,6 +202,13 @@ class ScalusTransactionEvaluator(
                     .withValue(evaluationResults)
                     .asInstanceOf[Result[util.List[EvaluationResult]]]
             catch
+                case e: TxEvaluationException =>
+                    Result
+                        .error(s"""Error evaluating transaction: ${e.getMessage}
+                               |Evaluation logs: ${e.logs.mkString("\n")}
+                               |===========================
+                               |""".stripMargin)
+                        .asInstanceOf[Result[util.List[EvaluationResult]]]
                 case e: Exception =>
                     Result
                         .error(s"Error evaluating transaction: ${e.getMessage}")
