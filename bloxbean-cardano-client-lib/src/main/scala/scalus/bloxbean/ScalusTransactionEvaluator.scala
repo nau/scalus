@@ -78,10 +78,13 @@ class ScalusTransactionEvaluator(
         transaction: Transaction,
         inputUtxos: util.Set[Utxo]
     ): Result[util.List[EvaluationResult]] = {
-        val datumHashes = transaction.getWitnessSet.getPlutusDataList.asScala
+        val datumHashes = for
+            ws <- Option(transaction.getWitnessSet)
+            dataList <- Option(ws.getPlutusDataList)
+        yield dataList.stream()
             .map(data => ByteString.fromArray(data.getDatumHashAsBytes))
-            .asJava
-        evaluateTx(transaction, inputUtxos, datumHashes)
+            .toList()
+        evaluateTx(transaction, inputUtxos, datumHashes.getOrElse(util.List.of()))
     }
 
     def evaluateTx(
