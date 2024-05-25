@@ -36,10 +36,6 @@ import scala.collection.mutable
 import scala.collection.mutable.ArrayBuffer
 import scala.jdk.CollectionConverters.*
 
-trait ScriptSupplier {
-    def getScript(scriptHash: String): PlutusScript
-}
-
 /** Implements [[TransactionEvaluator]] to evaluate a transaction to get script costs using Scalus
   * evaluator. This is a wrapper around [[TxEvaluator]].
   */

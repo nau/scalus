@@ -75,7 +75,13 @@ object BlocksValidation:
 
         val backendService = new BFBackendService(Constants.BLOCKFROST_MAINNET_URL, apiKey)
         val utxoSupplier = CachedUtxoSupplier(DefaultUtxoSupplier(backendService.getUtxoService))
-        val scriptSupplier = CachedScriptSupplier(backendService.getScriptService)
+        // memory and file cached script supplier using the script service
+        val scriptSupplier = InMemoryCachedScriptSupplier(
+          FileScriptSupplier(
+            Paths.get("scripts"),
+            ScriptServiceSupplier(backendService.getScriptService)
+          )
+        )
         val protocolParams = backendService.getEpochService.getProtocolParameters(epoch).getValue
         val evaluator = ScalusTransactionEvaluator(protocolParams, utxoSupplier, scriptSupplier)
 
@@ -121,9 +127,9 @@ object BlocksValidation:
 //                println(tx.getWitnessSet.getRedeemers)
 //                println("----------------------------------------------------")
             println(s"=======================================")
-        println(s"""Total txs: $totalTx, 
-               |errors: $errors, 
-               |v1: $v1ScriptsExecuted of ${v1Scripts.size}, 
+        println(s"""Total txs: $totalTx,
+               |errors: $errors,
+               |v1: $v1ScriptsExecuted of ${v1Scripts.size},
                |v2: $v2ScriptsExecuted of ${v2Scripts.size}""".stripMargin)
 
     }

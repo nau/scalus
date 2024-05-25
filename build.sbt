@@ -178,7 +178,7 @@ lazy val `scalus-bloxbean-cardano-client-lib` = project
     .in(file("bloxbean-cardano-client-lib"))
     .dependsOn(scalus.jvm)
     .settings(
-      publish / skip := true,
+      publish / skip := false,
       libraryDependencies += "com.bloxbean.cardano" % "cardano-client-lib" % "0.5.1",
       libraryDependencies += "org.slf4j" % "slf4j-simple" % "2.0.13",
       libraryDependencies += "org.scalatest" %%% "scalatest" % "3.2.18" % "test",
