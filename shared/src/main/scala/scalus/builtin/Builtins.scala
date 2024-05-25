@@ -240,7 +240,6 @@ object Builtins:
     def equalsData(d1: Data, d2: Data): Boolean = d1 == d2
 
     def serialiseData(d: Data): ByteString =
-        import scalus.uplc.FlatInstantces.given_Flat_Data.plutusDataCborEncoder
         ByteString.fromArray(Cbor.encode(d).toByteArray)
 
     // Misc monomorphized constructors.

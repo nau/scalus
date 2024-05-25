@@ -1,6 +1,6 @@
 package scalus.builtin
 
-import io.bullet.borer.{Cbor, Decoder, Encoder}
+import io.bullet.borer.Cbor
 import org.scalatest.funsuite.AnyFunSuite
 import org.scalatestplus.scalacheck.ScalaCheckPropertyChecks
 import scalus.builtin
@@ -12,10 +12,6 @@ import scalus.utils.Utils
 import scala.collection.immutable
 
 class DataCborCodecSpec extends AnyFunSuite with ScalaCheckPropertyChecks with ArbitraryInstances:
-
-    given Encoder[Data] = PlutusDataCborEncoder
-    given Decoder[Data] = PlutusDataCborDecoder
-
     private def encodeHex(d: Data) = Utils.bytesToHex(Cbor.encode(d).toByteArray)
     private def decodeHex(d: String) = Cbor.decode(Utils.hexToBytes(d)).to[Data].value
 

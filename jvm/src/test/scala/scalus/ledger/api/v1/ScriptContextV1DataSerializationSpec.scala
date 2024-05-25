@@ -1,9 +1,10 @@
 package scalus.ledger.api.v1
 
-import io.bullet.borer.{Cbor, Decoder, Encoder}
+import io.bullet.borer.{Cbor, Decoder}
 import scalus.Compiler.compile
 import scalus.builtin.ByteString.StringInterpolators
-import scalus.builtin.{Data, PlutusDataCborDecoder, PlutusDataCborEncoder}
+import scalus.builtin.Data
+import scalus.builtin.given
 import scalus.ledger.api.v1.*
 import scalus.ledger.api.v1.Credential.*
 import scalus.ledger.api.v1.FromDataInstances.given
@@ -56,9 +57,6 @@ class ScriptContextV1DataSerializationSpec extends BaseValidatorSpec:
     }
     val scalusDeserializerV1 = scalusDeserializerV1SIR.toUplc(generateErrorTraces = false)
     val scalusDeserializerV2 = scalusDeserializerV2SIR.toUplc(generateErrorTraces = false)
-
-    implicit val plutusDataCborEncoder: Encoder[Data] = PlutusDataCborEncoder
-    implicit val plutusDataCborDecoder: Decoder[Data] = PlutusDataCborDecoder
 
     val address = Address(
       PubKeyCredential(PubKeyHash(hex"0001")),

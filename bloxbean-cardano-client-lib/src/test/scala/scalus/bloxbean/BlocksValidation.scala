@@ -43,7 +43,6 @@ import scalus.*
 import scalus.Compiler.compile
 import scalus.builtin.ByteString
 import scalus.builtin.Data
-import scalus.builtin.PlutusDataCborDecoder
 import scalus.examples.MintingPolicyV2
 import scalus.examples.PubKeyValidator
 import scalus.prelude.AssocMap

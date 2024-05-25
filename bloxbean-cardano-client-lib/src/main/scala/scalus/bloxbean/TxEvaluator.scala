@@ -16,7 +16,6 @@ import scalus.bloxbean.Interop.*
 import scalus.builtin.ByteString
 import scalus.builtin.Data
 import scalus.builtin.JVMPlatformSpecific
-import scalus.builtin.PlutusDataCborDecoder
 import scalus.builtin.given
 import scalus.ledger
 import scalus.ledger.api
@@ -520,7 +519,7 @@ class TxEvaluator(
         val datumsMapping = datums.zipWithIndex
             .map: (datum, idx) =>
                 val datumHash = ByteString.fromArray(Blake2bUtil.blake2bHash256(datum.bytes))
-                val data = Cbor.decode(datum.bytes).to[Data](using PlutusDataCborDecoder).value
+                val data = Cbor.decode(datum.bytes).to[Data].value
                 datumHash -> data
         val lookupTable = getScriptAndDatumLookupTable(tx, datumsMapping, utxos)
         log.debug(s"Lookup table: $lookupTable")

@@ -13,7 +13,7 @@ import scala.collection.mutable.{ArrayBuffer, ListBuffer}
 /** CBOR encoder for the [[Data]] type. The encoding and decoding logic is based on the
   * [[https://github.com/IntersectMBO/plutus/blob/441b76d9e9745dfedb2afc29920498bdf632f162/plutus-core/plutus-core/src/PlutusCore/Data.hs#L72 Cardano node implementation]].
   */
-object PlutusDataCborEncoder extends Encoder[Data]:
+given Encoder[Data] with
     override def write(writer: Writer, data: Data): Writer =
         given Encoder[Data] = this
 
@@ -70,7 +70,7 @@ object PlutusDataCborEncoder extends Encoder[Data]:
 /** CBOR decoder for the [[Data]] type. The encoding and decoding logic is based on the
   * [[https://github.com/IntersectMBO/plutus/blob/441b76d9e9745dfedb2afc29920498bdf632f162/plutus-core/plutus-core/src/PlutusCore/Data.hs#L72 Cardano node implementation]].
   */
-object PlutusDataCborDecoder extends Decoder[Data]:
+given Decoder[Data] with
 
     override def read(r: Reader): Data =
         given Decoder[Data] = this

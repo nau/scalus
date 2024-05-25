@@ -26,6 +26,7 @@ import io.bullet.borer.Encoder
 import scalus.*
 import scalus.builtin.ByteString
 import scalus.builtin.Data
+import scalus.builtin.given
 import scalus.builtin.ToDataInstances.given
 import scalus.utils.Utils
 import scalus.bloxbean.Interop.toPlutusData
@@ -163,7 +164,6 @@ object SendTx:
         val pubKeyHashBytes = sender.hdKeyPair().getPublicKey.getKeyHash
         val pubKeyHash = Utils.bytesToHex(pubKeyHashBytes)
         import scalus.builtin.Data.toData
-        given Encoder[Data] = scalus.builtin.PlutusDataCborEncoder
         val datum =
             (ByteString.fromArray(preimageBytes), ByteString.fromArray(pubKeyHashBytes)).toData
         val datumCbor = Cbor.encode(datum).toByteArray
