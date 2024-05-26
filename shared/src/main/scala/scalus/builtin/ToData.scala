@@ -1,4 +1,6 @@
 package scalus.builtin
+
+import Data.ToData
 import scala.collection.immutable.List
 
 import scala.quoted.*
@@ -6,8 +8,6 @@ import scala.quoted.*
 /** ToData[A] derivation macros.
   */
 object ToData {
-    type ToData[A] = A => Data
-
     inline def deriveCaseClass[T](inline constrIdx: Int): ToData[T] = ${
         deriveCaseClassMacro[T]('{ constrIdx })
     }
