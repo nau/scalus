@@ -2,17 +2,13 @@ package scalus
 package examples
 
 import scalus.Compiler.compile
-import scalus.builtin.Builtins
 import scalus.builtin.ByteString
 import scalus.builtin.ByteString.given
 import scalus.builtin.Data
 import scalus.builtin.Data.toData
-import scalus.builtin.FromDataInstances.given
-import scalus.builtin.given
 import scalus.ledger.api.v1
 import scalus.ledger.api.v1.{PubKeyHash, TxId}
 import scalus.ledger.api.v2.*
-import scalus.ledger.api.v2.FromDataInstances.given
 import scalus.ledger.api.v1.ToDataInstances.given
 import scalus.ledger.api.v2.ToDataInstances.given
 import scalus.prelude.*
@@ -23,10 +19,10 @@ import scalus.uplc.*
 import scalus.uplc.Term.*
 import scalus.uplc.TermDSL.{*, given}
 
-class PreImageExampleSpec extends BaseValidatorSpec {
+class PreimageExampleSpec extends BaseValidatorSpec {
     import scalus.builtin.ToDataInstances.given
 
-    def scriptContext(signatories: scalus.prelude.List[PubKeyHash]) =
+    private def scriptContext(signatories: scalus.prelude.List[PubKeyHash]) =
         ScriptContext(
           TxInfo(
             inputs = scalus.prelude.List.Nil,
@@ -45,7 +41,7 @@ class PreImageExampleSpec extends BaseValidatorSpec {
           ScriptPurpose.Spending(hoskyMintTxOutRef)
         )
 
-    def performChecks(validator: Term) = {
+    private def performChecks(validator: Term) = {
         def appliedScript(
             preimage: ByteString,
             pubKeyHash: PubKeyHash,
@@ -92,24 +88,8 @@ class PreImageExampleSpec extends BaseValidatorSpec {
     }
 
     test("Preimage Validator") {
-        import Data.fromData
-
-        def preimageValidator(datum: Data, redeemer: Data, ctxData: Data): Unit = {
-            // deserialize from Data
-            val (hash, pkh) = fromData[(ByteString, ByteString)](datum)
-            val preimage = fromData[ByteString](redeemer)
-            val ctx = fromData[ScriptContext](ctxData)
-            // get the transaction signatories
-            val signatories = ctx.txInfo.signatories
-            // check that the transaction is signed by the public key hash
-            List.findOrFail(signatories) { sig => sig.hash == pkh }
-            // check that the preimage hashes to the hash
-            if Builtins.sha2_256(preimage) == hash then ()
-            else throw new RuntimeException("Wrong preimage")
-            // throwing an exception compiles to UPLC error
-        }
         // compile to Scalus Intermediate Representation, SIR
-        val compiled = compile(preimageValidator)
+        val compiled = compile(PreimageValidator.preimageValidator)
         // convert SIR to UPLC
         val validator = compiled.toUplc()
         val flatSize = Program((1, 0, 0), validator).flatEncoded.length
@@ -118,7 +98,7 @@ class PreImageExampleSpec extends BaseValidatorSpec {
         performChecks(validator)
     }
 
-    test("Preimage Validator Optimized") {
+    test("Optimized Preimage Validator") {
         val optV = OptimizedPreimage.compiledOptimizedPreimageValidator |> removeRecursivity
         val uplc = optV.toUplc()
         val program = Program((1, 0, 0), uplc)
