@@ -58,48 +58,6 @@ class TxEvaluationException(
     @BeanProperty val logs: Array[String]
 ) extends Exception(message, cause)
 
-given ReadWriter[Data] = readwriter[ujson.Value].bimap(
-  {
-      case Data.Constr(constr, args) =>
-          ujson.Obj(
-            "constructor" -> ujson.Num(constr),
-            "fields" -> ujson.Arr(ArrayBuffer.from(args.map(writeJs)))
-          )
-      case Data.Map(values) =>
-          ujson.Obj("map" -> ujson.Arr(ArrayBuffer.from(values.map { case (k, v) =>
-              ujson.Obj("k" -> writeJs(k), "v" -> writeJs(v))
-          })))
-      case Data.List(values) =>
-          ujson.Obj("list" -> ujson.Arr(ArrayBuffer.from(values.map(writeJs))))
-      case Data.I(value) =>
-          val v = if value.isValidLong then writeJs(value.toLong) else writeJs(value)
-          ujson.Obj("int" -> v)
-      case Data.B(value) => ujson.Obj("bytes" -> writeJs(value.toHex))
-  },
-  json =>
-      if json.obj.get("constructor").isDefined then
-          Data.Constr(
-            json.obj("constructor").num.toLong,
-            json.obj("fields").arr.map(f => read[Data](f)).toList
-          )
-      else if json.obj.get("map").isDefined then
-          Data.Map(
-            json.obj("map")
-                .arr
-                .map { obj =>
-                    val k = read[Data](obj.obj("k"))
-                    val v = read[Data](obj.obj("v"))
-                    k -> v
-                }
-                .toList
-          )
-      else if json.obj.get("list").isDefined then
-          Data.List(json.obj("list").arr.map(e => read[Data](e)).toList)
-      else if json.obj.get("int").isDefined then Data.I(json.obj("int").num.toLong)
-      else if json.obj.get("bytes").isDefined then Data.B(ByteString.fromHex(json.obj("bytes").str))
-      else throw new Exception("Invalid Data")
-)
-
 enum ScriptVersion:
     case Native
     case PlutusV1(flatScript: ByteString)
@@ -338,9 +296,9 @@ class TxEvaluator(
                 val ctxData = scriptContext.toData
                 if log.isDebugEnabled() then
                     log.debug(s"eval: PlutusV1, $scriptHash ${purpose}")
-                    log.debug(s"Datum: ${write(datum)}")
-                    log.debug(s"Redeemer: ${write(rdmr)}")
-                    log.debug(s"Script context: ${write(ctxData)}")
+                    log.debug(s"Datum: ${datum.toJson}")
+                    log.debug(s"Redeemer: ${rdmr.toJson}")
+                    log.debug(s"Script context: ${ctxData.toJson}")
                 evalScript(redeemer, machineParams, script.bytes, datum, rdmr, ctxData)
             case ExecutionPurpose.WithDatum(ScriptVersion.PlutusV2(script), scriptHash, datum) =>
                 val machineParams = translateMachineParamsFromCostMdls(costMdls, PlutusV2)
@@ -350,9 +308,9 @@ class TxEvaluator(
                 val ctxData = scriptContext.toData
                 if log.isDebugEnabled() then
                     log.debug(s"eval: PlutusV2, $scriptHash ${purpose}")
-                    log.debug(s"Datum: ${write(datum)}")
-                    log.debug(s"Redeemer: ${write(rdmr)}")
-                    log.debug(s"Script context: ${write(ctxData)}")
+                    log.debug(s"Datum: ${datum.toJson}")
+                    log.debug(s"Redeemer: ${rdmr.toJson}")
+                    log.debug(s"Script context: ${ctxData.toJson}")
                 evalScript(redeemer, machineParams, script.bytes, datum, rdmr, ctxData)
             case ExecutionPurpose.NoDatum(ScriptVersion.PlutusV1(script), scriptHash) =>
                 val machineParams = translateMachineParamsFromCostMdls(costMdls, PlutusV1)
@@ -362,8 +320,8 @@ class TxEvaluator(
                 val ctxData = scriptContext.toData
                 if log.isDebugEnabled() then
                     log.debug(s"eval: PlutusV1, $scriptHash ${purpose}")
-                    log.debug(s"Redeemer: ${write(rdmr)}")
-                    log.debug(s"Script context: ${write(ctxData)}")
+                    log.debug(s"Redeemer: ${rdmr.toJson}")
+                    log.debug(s"Script context: ${ctxData.toJson}")
                 evalScript(redeemer, machineParams, script.bytes, rdmr, ctxData)
             case ExecutionPurpose.NoDatum(ScriptVersion.PlutusV2(script), scriptHash) =>
                 val machineParams = translateMachineParamsFromCostMdls(costMdls, PlutusV2)
@@ -373,8 +331,8 @@ class TxEvaluator(
                 val ctxData = scriptContext.toData
                 if log.isDebugEnabled() then
                     log.debug(s"eval: PlutusV2, $scriptHash ${purpose}")
-                    log.debug(s"Redeemer: ${write(rdmr)}")
-                    log.debug(s"Script context: ${write(ctxData)}")
+                    log.debug(s"Redeemer: ${rdmr.toJson}")
+                    log.debug(s"Script context: ${ctxData.toJson}")
                 evalScript(redeemer, machineParams, script.bytes, rdmr, ctxData)
             case _ =>
                 throw new IllegalStateException(s"Unsupported execution purpose $executionPurpose")
