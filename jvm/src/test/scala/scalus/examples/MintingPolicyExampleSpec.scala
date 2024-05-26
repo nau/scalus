@@ -18,6 +18,8 @@ import scalus.uplc.TermDSL.{_, given}
 import scalus.uplc.*
 import scalus.uplc.eval.VM
 
+import scala.language.implicitConversions
+
 class MintingPolicyExampleSpec extends BaseValidatorSpec {
 
     private def scriptContextV1(txInfoInputs: scalus.prelude.List[TxInInfo], value: Value) =

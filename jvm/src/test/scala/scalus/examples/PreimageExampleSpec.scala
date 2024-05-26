@@ -18,6 +18,7 @@ import scalus.sir.RemoveRecursivity.removeRecursivity
 import scalus.uplc.*
 import scalus.uplc.Term.*
 import scalus.uplc.TermDSL.{*, given}
+import scala.language.implicitConversions
 
 class PreimageExampleSpec extends BaseValidatorSpec {
     import scalus.builtin.ToDataInstances.given

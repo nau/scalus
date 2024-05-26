@@ -17,6 +17,7 @@ import scalus.builtin.Data.*
 import scalus.uplc.*
 import scalus.uplc.eval.VM
 import scalus.utils.Utils
+import scala.language.implicitConversions
 
 class ScriptContextV1DataSerializationSpec extends BaseValidatorSpec:
     /*

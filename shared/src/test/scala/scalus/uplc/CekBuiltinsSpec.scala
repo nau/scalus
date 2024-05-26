@@ -12,6 +12,7 @@ import scalus.uplc.Term.*
 import scalus.uplc.TermDSL.{*, given}
 import scalus.uplc.eval.*
 
+import scala.language.implicitConversions
 import scala.reflect.ClassTag
 
 class CekBuiltinsSpec extends AnyFunSuite with ScalaCheckPropertyChecks with ArbitraryInstances:

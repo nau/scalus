@@ -45,6 +45,7 @@ import scala.collection.immutable
 import scala.collection.mutable
 import scala.collection.mutable.ArrayBuffer
 import scala.jdk.CollectionConverters.*
+import scala.annotation.unused
 
 case class SlotConfig(zero_time: Long, zero_slot: Long, slot_length: Long)
 object SlotConfig {
@@ -248,9 +249,9 @@ class TxEvaluator(
     }
 
     private def verifyExactSetOfRedeemers(
-        tx: Transaction,
-        scripts: AlonzoScriptsNeeded,
-        txScripts: collection.Map[ScriptHash, ScriptVersion]
+        @unused tx: Transaction,
+        @unused scripts: AlonzoScriptsNeeded,
+        @unused txScripts: collection.Map[ScriptHash, ScriptVersion]
     ): Unit = {
         // FIXME: implement
     }
@@ -270,8 +271,7 @@ class TxEvaluator(
         datums: collection.Seq[(ByteString, Data)],
         utxos: Map[TransactionInput, TransactionOutput],
         redeemer: Redeemer,
-        lookupTable: LookupTable,
-        remainingBudget: ExBudget
+        lookupTable: LookupTable
     ): Redeemer = {
         val purpose = getScriptPurpose(
           redeemer,
@@ -505,8 +505,7 @@ class TxEvaluator(
               datumsMapping,
               utxos,
               redeemer,
-              lookupTable,
-              remainingBudget
+              lookupTable
             )
 
             if evaluatedRedeemer.getExUnits.getSteps != redeemer.getExUnits.getSteps

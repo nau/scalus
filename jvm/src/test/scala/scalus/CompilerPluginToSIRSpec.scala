@@ -27,6 +27,7 @@ import scalus.uplc.*
 import scalus.uplc.eval.VM
 
 import scala.collection.immutable
+import scala.language.implicitConversions
 
 class CompilerPluginToSIRSpec extends AnyFunSuite with ScalaCheckPropertyChecks:
     val deadbeef = Constant.ByteString(hex"deadbeef")

@@ -3,60 +3,23 @@ package scalus.bloxbean
 import co.nstant.in.cbor.CborException
 import co.nstant.in.cbor.model as cbor
 import co.nstant.in.cbor.model.SimpleValue
-import co.nstant.in.cbor.model.UnsignedInteger
-import com.bloxbean.cardano.client.account.Account
-import com.bloxbean.cardano.client.address.AddressProvider
-import com.bloxbean.cardano.client.api.ProtocolParamsSupplier
-import com.bloxbean.cardano.client.api.UtxoSupplier
-import com.bloxbean.cardano.client.api.common.OrderEnum
-import com.bloxbean.cardano.client.api.model.Amount
-import com.bloxbean.cardano.client.api.model.ProtocolParams
-import com.bloxbean.cardano.client.api.model.Utxo
-import com.bloxbean.cardano.client.api.util.CostModelUtil
-import com.bloxbean.cardano.client.backend.api.DefaultProtocolParamsSupplier
 import com.bloxbean.cardano.client.backend.api.DefaultUtxoSupplier
-import com.bloxbean.cardano.client.backend.api.ScriptService
 import com.bloxbean.cardano.client.backend.blockfrost.common.Constants
 import com.bloxbean.cardano.client.backend.blockfrost.service.BFBackendService
-import com.bloxbean.cardano.client.backend.blockfrost.service.http.ScriptApi
-import com.bloxbean.cardano.client.coinselection.impl.DefaultUtxoSelector
-import com.bloxbean.cardano.client.common.ADAConversionUtil
-import com.bloxbean.cardano.client.common.CardanoConstants
-import com.bloxbean.cardano.client.common.model.Networks
-import com.bloxbean.cardano.client.crypto.Blake2bUtil
-import com.bloxbean.cardano.client.function.helper.SignerProviders
-import com.bloxbean.cardano.client.plutus.spec.*
-import com.bloxbean.cardano.client.plutus.util.PlutusUtil
-import com.bloxbean.cardano.client.quicktx.QuickTxBuilder
-import com.bloxbean.cardano.client.quicktx.ScriptTx
-import com.bloxbean.cardano.client.spec.Script
 import com.bloxbean.cardano.client.transaction.spec.*
 import com.bloxbean.cardano.client.transaction.util.TransactionUtil
 import com.bloxbean.cardano.yaci.core.model.serializers.util.TransactionBodyExtractor
 import com.bloxbean.cardano.yaci.core.model.serializers.util.WitnessUtil
 import com.bloxbean.cardano.yaci.core.model.serializers.util.WitnessUtil.getArrayBytes
 import com.bloxbean.cardano.yaci.core.util.CborSerializationUtil
-import com.fasterxml.jackson.databind.ObjectMapper
-import io.bullet.borer.Cbor
-import org.scalatest.funsuite.AnyFunSuite
 import scalus.*
-import scalus.Compiler.compile
 import scalus.builtin.ByteString
-import scalus.builtin.Data
-import scalus.examples.MintingPolicyV2
-import scalus.examples.PubKeyValidator
-import scalus.prelude.AssocMap
-import scalus.uplc.*
-import scalus.uplc.TermDSL.*
-import scalus.uplc.eval.ExBudget
 import scalus.utils.Utils
 
-import java.io.File
 import java.math.BigInteger
 import java.nio.file.Files
 import java.nio.file.Paths
 import java.util
-import java.util.Optional
 import java.util.stream.Collectors
 import scala.collection.mutable
 import scala.jdk.CollectionConverters.*
@@ -69,7 +32,6 @@ object BlocksValidation:
 
     private def validateBlocksOfEpoch(epoch: Int): Unit = {
         import com.bloxbean.cardano.yaci.core.config.YaciConfig
-        import com.bloxbean.cardano.yaci.core.model as yaki
         YaciConfig.INSTANCE.setReturnBlockCbor(true) // needed to get the block cbor
         YaciConfig.INSTANCE.setReturnTxBodyCbor(true) // needed to get the tx body cbor
 

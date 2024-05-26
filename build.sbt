@@ -45,11 +45,21 @@ lazy val root: Project = project
       publish / skip := true
     )
 
+lazy val commonScalacOptions = Seq(
+  "-deprecation",
+  "-feature",
+  "-explain",
+  "-Wunused:imports",
+  "-Wunused:params",
+  "-Xcheck-macros"
+)
+
 // Scala 3 Compiler Plugin for Scalus
 lazy val scalusPlugin = project
     .in(file("scalus-plugin"))
     .settings(
       name := "scalus-plugin",
+      scalacOptions ++= commonScalacOptions,
       scalacOptions += "-Wunused:all",
       // Manually set a fixed version to avoid recompilation on every commit
       // as sbt-ci-release plugin increments the version on every commit
@@ -117,10 +127,7 @@ lazy val scalus = crossProject(JSPlatform, JVMPlatform)
     .settings(
       name := "scalus",
       scalaVersion := scalaVersion.value,
-      scalacOptions += "-Xcheck-macros",
-      scalacOptions += "-explain",
-      scalacOptions += "-Wunused:imports",
-      scalacOptions += "-Wunused:params",
+      scalacOptions ++= commonScalacOptions,
       scalacOptions += "-Xmax-inlines:100", // needed for upickle derivation of CostModel
       // scalacOptions += "-Yretain-trees",
       libraryDependencies += "org.typelevel" %%% "cats-core" % "2.10.0",
@@ -154,6 +161,7 @@ lazy val examples = project
     .dependsOn(scalus.jvm, `scalus-bloxbean-cardano-client-lib`)
     .settings(
       PluginDependency,
+      scalacOptions ++= commonScalacOptions,
       publish / skip := true,
       libraryDependencies += "com.bloxbean.cardano" % "cardano-client-backend-blockfrost" % "0.5.1"
     )
@@ -164,6 +172,7 @@ lazy val `examples-js` = project
     .dependsOn(scalus.js)
     .settings(
       publish / skip := true,
+      scalacOptions ++= commonScalacOptions,
       scalaJSUseMainModuleInitializer := false,
       scalaJSLinkerConfig ~= {
           _.withModuleKind(ModuleKind.ESModule)
@@ -179,6 +188,7 @@ lazy val `scalus-bloxbean-cardano-client-lib` = project
     .dependsOn(scalus.jvm)
     .settings(
       publish / skip := false,
+      scalacOptions ++= commonScalacOptions,
       libraryDependencies += "com.bloxbean.cardano" % "cardano-client-lib" % "0.5.1",
       libraryDependencies += "org.slf4j" % "slf4j-api" % "2.0.13",
       libraryDependencies += "org.slf4j" % "slf4j-simple" % "2.0.13" % "test",
@@ -218,7 +228,7 @@ lazy val bench = project
 
 addCommandAlias(
   "precommit",
-  "clean;docs/clean;scalafmtAll;scalafmtSbt;Test/compile;test;docs/mdoc"
+  "clean;docs/clean;scalusPluginTests/clean;scalafmtAll;scalafmtSbt;Test/compile;scalusPluginTests/Test/compile;test;docs/mdoc"
 )
 
 logo :=

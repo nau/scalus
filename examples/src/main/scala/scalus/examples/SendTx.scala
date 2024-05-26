@@ -7,31 +7,19 @@ import com.bloxbean.cardano.client.backend.api.DefaultProtocolParamsSupplier
 import com.bloxbean.cardano.client.backend.api.DefaultUtxoSupplier
 import com.bloxbean.cardano.client.backend.blockfrost.common.Constants
 import com.bloxbean.cardano.client.backend.blockfrost.service.BFBackendService
-import com.bloxbean.cardano.client.coinselection.impl.LargestFirstUtxoSelectionStrategy
-import com.bloxbean.cardano.client.common.ADAConversionUtil.adaToLovelace
 import com.bloxbean.cardano.client.common.CardanoConstants
 import com.bloxbean.cardano.client.common.CardanoConstants.LOVELACE
 import com.bloxbean.cardano.client.common.model.Network
 import com.bloxbean.cardano.client.common.model.Networks
-import com.bloxbean.cardano.client.crypto.Blake2bUtil
-import com.bloxbean.cardano.client.function.Output
-import com.bloxbean.cardano.client.function.TxBuilder
-import com.bloxbean.cardano.client.function.TxBuilderContext
 import com.bloxbean.cardano.client.function.helper.*
 import com.bloxbean.cardano.client.function.helper.SignerProviders.signerFrom
-import com.bloxbean.cardano.client.function.helper.model.ScriptCallContext
 import com.bloxbean.cardano.client.plutus.spec.*
 import com.bloxbean.cardano.client.quicktx.QuickTxBuilder
 import com.bloxbean.cardano.client.quicktx.ScriptTx
 import com.bloxbean.cardano.client.quicktx.Tx
-import com.google.common.collect.Lists
 import io.bullet.borer.Cbor
-import io.bullet.borer.Encoder
 import scalus.*
-import scalus.bloxbean.EvaluatorMode.EVALUATE_AND_COMPUTE_COST
-import scalus.bloxbean.EvaluatorMode.VALIDATE
 import scalus.bloxbean.Interop.toPlutusData
-import scalus.bloxbean.NoScriptSupplier
 import scalus.bloxbean.ScalusTransactionEvaluator
 import scalus.builtin.ByteString
 import scalus.builtin.Data
@@ -39,9 +27,6 @@ import scalus.builtin.given
 import scalus.builtin.PlatformSpecific
 import scalus.builtin.ToDataInstances.given
 import scalus.utils.Utils
-
-import java.math.BigInteger
-import java.util.Collections
 
 object SendTx:
 

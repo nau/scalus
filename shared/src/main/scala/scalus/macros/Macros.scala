@@ -10,7 +10,9 @@ import scalus.uplc.{Term => Trm}
 
 import scala.collection.immutable
 import scala.quoted.*
+import scala.annotation.nowarn
 object Macros {
+    @nowarn
     def lamMacro[A: Type, B: Type](f: Expr[Exp[A] => Exp[B]])(using Quotes): Expr[Exp[A => B]] =
         import quotes.reflect.*
         val name = f.asTerm match

@@ -17,7 +17,7 @@ given dataReadWriter: ReadWriter[Data] = readwriter[ujson.Value].bimap(
   {
       case Data.Constr(constr, args) =>
           ujson.Obj(
-            "constructor" -> ujson.Num(constr),
+            "constructor" -> writeJs(constr),
             "fields" -> ujson.Arr(ArrayBuffer.from(args.map(writeJs)))
           )
       case Data.Map(values) =>

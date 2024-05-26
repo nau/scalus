@@ -13,6 +13,7 @@ import scalus.prelude.List.Cons
 import scalus.prelude.List.Nil
 import scalus.uplc.*
 import scalus.uplc.eval.VM
+import scala.language.implicitConversions
 
 class PubKeyValidatorSpec extends AnyFunSuite with ScalaCheckPropertyChecks:
     test("PubKey Validator example") {

@@ -5,7 +5,6 @@ import com.bloxbean.cardano.client.plutus.util.PlutusUtil
 import scalus.utils.Utils
 
 import java.nio.file.Files
-import java.nio.file.Paths
 import java.util
 import scala.collection.mutable
 import scala.jdk.CollectionConverters.*

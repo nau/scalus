@@ -12,6 +12,8 @@ import scalus.uplc.DefaultUni.asConstant
 import scalus.uplc.Term
 import scalus.uplc.TermDSL.{_, given}
 
+import scala.language.implicitConversions
+
 class SimpleSirToUplcLoweringSpec
     extends AnyFunSuite
     with ScalaCheckPropertyChecks

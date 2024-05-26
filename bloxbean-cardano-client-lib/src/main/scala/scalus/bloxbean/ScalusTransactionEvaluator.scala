@@ -1,7 +1,5 @@
 package scalus.bloxbean
 
-import co.nstant.in.cbor.model
-import com.bloxbean.cardano.client.api.ProtocolParamsSupplier
 import com.bloxbean.cardano.client.api.TransactionEvaluator
 import com.bloxbean.cardano.client.api.UtxoSupplier
 import com.bloxbean.cardano.client.api.exception.ApiException
@@ -10,9 +8,7 @@ import com.bloxbean.cardano.client.api.model.ProtocolParams
 import com.bloxbean.cardano.client.api.model.Result
 import com.bloxbean.cardano.client.api.model.Utxo
 import com.bloxbean.cardano.client.api.util.CostModelUtil
-import com.bloxbean.cardano.client.common.cbor.CborSerializationUtil
 import com.bloxbean.cardano.client.exception.CborDeserializationException
-import com.bloxbean.cardano.client.exception.CborSerializationException
 import com.bloxbean.cardano.client.plutus.spec.*
 import com.bloxbean.cardano.client.spec.Script
 import com.bloxbean.cardano.client.transaction.spec.Transaction
@@ -24,16 +20,12 @@ import scalus.builtin.ByteString
 import scalus.uplc.eval.ExBudget
 import scalus.utils.Utils
 
-import java.nio.file.Files
 import java.util
 import java.util.ArrayList
-import java.util.HashSet
 import java.util.List
 import java.util.Set
-import java.util.stream.Collectors
 import scala.beans.BeanProperty
 import scala.collection.mutable
-import scala.collection.mutable.ArrayBuffer
 import scala.jdk.CollectionConverters.*
 
 enum EvaluatorMode extends Enum[EvaluatorMode]:
