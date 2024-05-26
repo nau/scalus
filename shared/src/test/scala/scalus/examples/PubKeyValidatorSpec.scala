@@ -1,12 +1,12 @@
-package scalus
+package scalus.examples
 
 import org.scalatest.funsuite.AnyFunSuite
 import org.scalatestplus.scalacheck.ScalaCheckPropertyChecks
 import scalus.Compiler.compile
+import scalus.*
 import scalus.builtin.ByteString
 import scalus.builtin.ByteString.given
 import scalus.builtin.Data
-import scalus.examples.PubKeyValidator
 import scalus.ledger.api.v1.*
 import scalus.ledger.api.v1.ToDataInstances.given
 import scalus.prelude.List.Cons
