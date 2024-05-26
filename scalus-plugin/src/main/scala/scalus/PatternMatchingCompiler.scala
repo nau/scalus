@@ -17,8 +17,10 @@ import scala.collection.immutable.HashSet
 import scala.collection.mutable
 import scala.language.implicitConversions
 
+
+
 enum SirBinding:
-    case Name(name: String)
+    case Name(name: String, tp: SIRType )
     case CaseClass(name: String, constructorSymbol: Symbol, bindings: List[SirBinding])
     case Error(error: CompilationError)
 
@@ -65,12 +67,15 @@ class PatternMatchingCompiler(val compiler: SIRCompiler)(using Context) {
     private def constructCase(
         constrSymbol: Symbol,
         bindings: List[String],
-        rhs: SIR
-    ): scalus.sir.Case = {
-        val params = compiler.primaryConstructorParams(constrSymbol).map(_.name.show)
-        val constrDecl = scalus.sir.ConstrDecl(constrSymbol.name.show, params)
+        rhs: SIRExpr
+    ): scalus.sir.SIR.Case = {
+        val params = compiler.primaryConstructorParams(constrSymbol).zip(bindings).map {
+            case (param, name) => (param.name.toSimpleName.debugString, varType)
+        }
+        val constrDecl = scalus.sir.ConstrDecl(constrSymbol.name.show, SIRVarStorage.DEFAULT, params)
 
-        scalus.sir.Case(constrDecl, bindings, rhs)
+        // TODO: check types
+        scalus.sir.SIR.Case(constrDecl, bindings.map(_._1), rhs)
     }
 
     private def compileBinding(pat: Tree): SirBinding = {
@@ -106,7 +111,7 @@ class PatternMatchingCompiler(val compiler: SIRCompiler)(using Context) {
             case (e: SirBinding.Error, Left(errors)) => Left(e :: errors)
             case (_, Left(errors))                   => Left(errors)
             case (e: SirBinding.Error, Right(_))     => Left(e :: Nil)
-            case (SirBinding.Name(name), Right(PatternInfo(bindings, generator, names))) =>
+            case (SirBinding.Name(name, tp), Right(PatternInfo(bindings, generator, names))) =>
                 Right(PatternInfo(bindings + name, generator, name :: names))
             case (
                   SirBinding.CaseClass(name, constructorSymbol, sirBindings),

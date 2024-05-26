@@ -5,13 +5,7 @@ import scalus.flat.DecoderState
 import scalus.flat.EncoderState
 import scalus.flat.Flat
 import scalus.flat.given
-import scalus.sir.Binding
-import scalus.sir.Case
-import scalus.sir.ConstrDecl
-import scalus.sir.DataDecl
-import scalus.sir.Module
-import scalus.sir.Recursivity
-import scalus.sir.SIR
+import scalus.sir.{Binding, Case, ConstrDecl, DataDecl, Module, Recursivity, SIR, SIRType, StorageType, TypeBinding}
 import scalus.uplc.CommonFlatInstances.*
 import scalus.uplc.CommonFlatInstances.given
 import scalus.builtin.Data
@@ -80,7 +74,8 @@ object FlatInstantces:
         def decode(decode: DecoderState): Recursivity =
             if decode.bits8(1) == 1 then Recursivity.Rec else Recursivity.NonRec
 
-    given Flat[Binding] with
+
+    given flatBinding: Flat[Binding] with
         def bitSize(a: Binding): Int =
             val nameSize = summon[Flat[String]].bitSize(a.name)
             val termSize = summon[Flat[SIR]].bitSize(a.value)
@@ -93,58 +88,94 @@ object FlatInstantces:
             val term = summon[Flat[SIR]].decode(decode)
             Binding(name, term)
 
-    given Flat[ConstrDecl] with
+    given flatConstrDecl:  Flat[ConstrDecl] with
         def bitSize(a: ConstrDecl): Int =
             val nameSize = summon[Flat[String]].bitSize(a.name)
-            val paramsSize = summon[Flat[List[String]]].bitSize(a.params)
+            val tpSize = summon[Flat[SIRType]].bitSize(a.tp)
+            val paramsSize = summon[Flat[List[TypeBinding]]].bitSize(a.params)
             nameSize + paramsSize
         def encode(a: ConstrDecl, encode: EncoderState): Unit = {
             summon[Flat[String]].encode(a.name, encode)
-            summon[Flat[List[String]]].encode(a.params, encode)
+            summon[Flat[List[(String,SIRType)]]].encode(a.params, encode)
         }
-        def decode(decode: DecoderState): ConstrDecl = {
+        def decode(decode: DecoderState): ConstrDecl[T] = {
             val name = summon[Flat[String]].decode(decode)
-            val params = summon[Flat[List[String]]].decode(decode)
-            ConstrDecl(name, params)
+            val tp  = summon[Flat[SIRType]].decode(decode)
+            val params = summon[Flat[List[TypeBinding]]].decode(decode)
+            ConstrDecl(name, tp, params)
         }
 
-    given Flat[DataDecl] with
+    given flatDataDecl: Flat[DataDecl] with
         def bitSize(a: DataDecl): Int =
             val nameSize = summon[Flat[String]].bitSize(a.name)
+            val storageType = summon[StorageType].bitSize(a.storageType)
             val constrSize = listFlat[ConstrDecl].bitSize(a.constructors)
-            nameSize + constrSize
+            nameSize + storageType + constrSize
         def encode(a: DataDecl, encode: EncoderState): Unit =
             summon[Flat[String]].encode(a.name, encode)
+            summon[Flat[StorageType]].encode(a.storageType, encode)
             listFlat[ConstrDecl].encode(a.constructors, encode)
         def decode(decode: DecoderState): DataDecl =
             val name = summon[Flat[String]].decode(decode)
+            val storageType = summon[Flat[StorageType]].decode(decode)
             val constr = listFlat[ConstrDecl].decode(decode)
-            DataDecl(name, constr)
+            DataDecl(name, storageType, constr)
 
-    given Flat[Case] with {
-        def bitSize(a: Case): Int =
+    given flatCase: Flat[SIR.Case] with {
+        def bitSize(a: SIR.Case): Int =
             val constrSize = summon[Flat[ConstrDecl]].bitSize(a.constr)
             val bindings = summon[Flat[List[String]]].bitSize(a.bindings)
             val bodySize = summon[Flat[SIR]].bitSize(a.body)
             constrSize + bindings + bodySize
-        def encode(a: Case, encode: EncoderState): Unit = {
+        def encode(a: SIR.Case, encode: EncoderState): Unit = {
             summon[Flat[ConstrDecl]].encode(a.constr, encode)
             summon[Flat[List[String]]].encode(a.bindings, encode)
             summon[Flat[SIR]].encode(a.body, encode)
         }
-        def decode(decode: DecoderState): Case = {
+        def decode(decode: DecoderState): SIR.Case = {
             val constr = summon[Flat[ConstrDecl]].decode(decode)
             val bindings = summon[Flat[List[String]]].decode(decode)
             val body = summon[Flat[SIR]].decode(decode)
-            Case(constr, bindings, body)
+            SIR.Case(constr, bindings, body)
         }
     }
+
+    given Flat[SIRType] with
+
+        override def bitSize(a: SIRType): Int =
+            a match
+                case SIRType.Primitive => 4
+                case SIRType.MappedBuiltin => 4
+                case SIRType.Sum(_, childs) =>
+                        4 + childs.map(bitSize).sum
+                case SIRType.CaseClass =>
+                        ???
+
+
+    given Flat[TypeBinding] with
+
+        override def bitSize(a: TypeBinding): Int =
+            val nameSize = summon[Flat[String]].bitSize(a.name)
+            val tpSize = summon[Flat[SIRType]].bitSize(a.tp)
+            nameSize + tpSize
+
+        override def encode(a: TypeBinding, encode: EncoderState): Unit = {
+            summon[Flat[String]].encode(a.name, encode)
+            summon[Flat[SIRType]].encode(a.tp, encode)
+        }
+
+        override def decode(decode: DecoderState): TypeBinding = {
+            val name = summon[Flat[String]].decode(decode)
+            val tp = summon[Flat[SIRType]].decode(decode)
+            TypeBinding(name, tp)
+        }
+
 
     given Flat[SIR] with
         import SIR.*
 
         def bitSize(a: SIR): Int = a match
-            case Var(name) =>
+            case Var(name, storage) =>
                 termTagWidth + summon[Flat[String]].bitSize(name)
             case ExternalVar(modName, name) =>
                 termTagWidth + summon[Flat[String]].bitSize(modName) + summon[Flat[String]].bitSize(

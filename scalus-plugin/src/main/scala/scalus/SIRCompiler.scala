@@ -24,6 +24,8 @@ import scalus.sir.DataDecl
 import scalus.sir.Module
 import scalus.sir.Recursivity
 import scalus.sir.SIR
+import scalus.sir.SIRExpr
+import scalus.sir.SIRType
 import scalus.uplc.DefaultFun
 import scalus.uplc.DefaultUni
 
@@ -594,12 +596,12 @@ final class SIRCompiler(mode: scalus.Mode)(using ctx: Context) {
                 )
             case nme.LT =>
                 SIR.Apply(
-                  SIR.Apply(SIR.Builtin(DefaultFun.LessThanInteger), compileExpr(env, lhs)),
+                  SIR.Apply(SIRBuiltins.lessThenInteger, compileExpr(env, lhs)),
                   compileExpr(env, rhs)
                 )
             case nme.LE =>
                 SIR.Apply(
-                  SIR.Apply(SIR.Builtin(DefaultFun.LessThanEqualsInteger), compileExpr(env, lhs)),
+                  SIR.Apply(SIRBuiltins.lessThanEqualsInteger, compileExpr(env, lhs)),
                   compileExpr(env, rhs)
                 )
             case nme.GT =>
@@ -713,13 +715,13 @@ final class SIRCompiler(mode: scalus.Mode)(using ctx: Context) {
             case _ =>
                 error(UnsupportedListApplyInvocation(tree, tpe, tree.srcPos), SIR.Error(""))
 
-    private def compileApply(env: Env, f: Tree, args: List[Tree]): SIR =
+    private def compileApply(env: Env, f: Tree, args: List[Tree]): SIRExpr =
         val fE = compileExpr(env, f)
         val argsE = args.map(compileExpr(env, _))
         if argsE.isEmpty then SIR.Apply(fE, SIR.Const(scalus.uplc.Constant.Unit))
         else argsE.foldLeft(fE)((acc, arg) => SIR.Apply(acc, arg))
 
-    private def compileThrowException(ex: Tree): SIR =
+    private def compileThrowException(ex: Tree): SIRExpr =
         val msg = ex match
             case Apply(Select(New(tpt), nme.CONSTRUCTOR), immutable.List(Literal(msg), _*))
                 if tpt.tpe <:< defn.ExceptionClass.typeRef =>
@@ -727,7 +729,7 @@ final class SIRCompiler(mode: scalus.Mode)(using ctx: Context) {
             case term => "error"
         SIR.Error(msg)
 
-    def compileExpr(env: Env, tree: Tree)(using Context): SIR = {
+    def compileExpr[T](env: Env, tree: Tree)(using Context): SIRExpr = {
         // println(s"compileExpr: ${tree.showIndented(2)}, env: $env")
         if compileConstant.isDefinedAt(tree) then
             val const = compileConstant(tree)
@@ -735,9 +737,10 @@ final class SIRCompiler(mode: scalus.Mode)(using ctx: Context) {
         else compileExpr2(env, tree)
     }
 
-    private def compileExpr2(env: Env, tree: Tree)(using Context): SIR = {
+    private def compileExpr2(env: Env, tree: Tree)(using Context): SIRExpr = {
         tree match
             case If(cond, t, f) =>
+                val t = compileExpr(env, t)
                 SIR.IfThenElse(compileExpr(env, cond), compileExpr(env, t), compileExpr(env, f))
             case m: Match => compileMatch(m, env)
             // throw new Exception("error msg")
@@ -786,8 +789,8 @@ final class SIRCompiler(mode: scalus.Mode)(using ctx: Context) {
                   lhsExpr,
                   SIR.IfThenElse(
                     rhsExpr,
-                    SIR.Const(scalus.uplc.Constant.Bool(false)),
-                    SIR.Const(scalus.uplc.Constant.Bool(true))
+                    SIR.Const(scalus.uplc.Constant.Bool(false),SIRType.BoolPrimitive),
+                    SIR.Const(scalus.uplc.Constant.Bool(true),SIRType.BoolPrimitive)
                   ),
                   rhsExpr
                 )

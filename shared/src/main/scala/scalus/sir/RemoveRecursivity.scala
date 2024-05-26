@@ -9,7 +9,7 @@ object RemoveRecursivity:
     def apply(sir: SIR): SIR = removeRecursivity(sir)
 
     /** Makes a let expression non-recursive if its bindings are non-recursive */
-    def removeRecursivity(sir: SIR): SIR =
+    def removeRecursivityExpr(sir: SIR): SIR =
         sir match
             case Let(Rec, List(Binding(name, binding)), body) if !isRecursive(name, binding) =>
                 removeRecursivity(Let(NonRec, List(Binding(name, binding)), body))

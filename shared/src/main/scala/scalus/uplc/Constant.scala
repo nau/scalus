@@ -1,6 +1,7 @@
 package scalus.uplc
 
 import scalus.builtin
+import scalus.sir.SIRType
 
 import scala.collection.immutable
 
