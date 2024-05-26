@@ -4,11 +4,34 @@ import scalus.*
 import scalus.Compiler.compile
 import scalus.Compiler.fieldAsData
 import scalus.builtin.Builtins.*
+import scalus.builtin.ByteString
+import scalus.builtin.FromDataInstances.given
 import scalus.builtin.Data
+import scalus.builtin.Data.fromData
 import scalus.builtin.given
 import scalus.ledger.api.v2.*
+import scalus.ledger.api.v2.FromDataInstances.given
+import scalus.prelude.List
 import scalus.sir.SIR
 import scalus.uplc.*
+
+@Compile
+object PreimageValidator {
+    def preimageValidator(datum: Data, redeemer: Data, ctxData: Data): Unit = {
+        // deserialize from Data
+        val (hash, pkh) = fromData[(ByteString, ByteString)](datum)
+        val preimage = fromData[ByteString](redeemer)
+        val ctx = fromData[ScriptContext](ctxData)
+        // get the transaction signatories
+        val signatories = ctx.txInfo.signatories
+        // check that the transaction is signed by the public key hash
+        List.findOrFail(signatories) { sig => sig.hash == pkh }
+        // check that the preimage hashes to the hash
+        if sha2_256(preimage) == hash then ()
+        else throw new RuntimeException("Wrong preimage")
+        // throwing an exception compiles to UPLC error
+    }
+}
 
 @Compile
 object OptimizedPreimageValidator {
