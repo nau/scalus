@@ -30,17 +30,6 @@ type POSIXTimeRange = Interval
 type PosixTimeRange = Interval
 type Value = AssocMap[CurrencySymbol, AssocMap[TokenName, BigInt]]
 
-def debugToString(v: Value): String = {
-    val pairs = v.inner.toList.map { case (cs, tokens) =>
-        val tokenPairs = tokens.inner.toList.map { case (tn, amount) =>
-            s"#${tn.toHex}: $amount"
-        }
-        s"policy#${cs.toHex} -> { ${tokenPairs.mkString(", ")} }"
-    }
-    s"{ ${pairs.mkString(", ")} }"
-
-}
-
 @Compile
 object FromDataInstances {
     import scalus.builtin.FromDataInstances.given
@@ -426,7 +415,7 @@ case class TxOut(address: Address, value: Value, datumHash: Maybe[DatumHash]) {
     override def toString: String = {
         s"""TxOut(
            |  address: $address,
-           |  value: ${debugToString(value)},
+           |  value: ${Value.debugToString(value)},
            |  datumHash: $datumHash
            |)""".stripMargin
     }
@@ -454,8 +443,8 @@ case class TxInfo(
         s"""TxInfo(
            |  inputs: ${inputs.toList.mkString("[", ", ", "]")},
            |  outputs: ${outputs.toList.mkString("[", ", ", "]")},
-           |  fee: ${debugToString(fee)},
-           |  mint: ${debugToString(mint)},
+           |  fee: ${Value.debugToString(fee)},
+           |  mint: ${Value.debugToString(mint)},
            |  dcert: $dcert,
            |  withdrawals: $withdrawals,
            |  validRange: $validRange,

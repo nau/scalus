@@ -1,6 +1,7 @@
 package scalus.ledger.api.v1
 
 import scalus.Compile
+import scalus.Ignore
 import scalus.prelude.AssocMap
 import scalus.builtin.ByteString
 import scalus.builtin.Builtins.*
@@ -94,6 +95,17 @@ object Value:
     val multiply: (a: Value, b: Value) => Value = unionWith(multiplyInteger)
     val divide: (a: Value, b: Value) => Value = unionWith(divideInteger)
 
+    @Ignore
+    def debugToString(v: Value): String = {
+        val pairs = v.inner.toList.map { case (cs, tokens) =>
+            val tokenPairs = tokens.inner.toList.map { case (tn, amount) =>
+                s"#${tn.toHex}: $amount"
+            }
+            s"policy#${cs.toHex} -> { ${tokenPairs.mkString(", ")} }"
+        }
+        s"{ ${pairs.mkString(", ")} }"
+    }
+
     given Prelude.Eq[Value] = (a, b) => eq(a, b)
 
     extension (v: Value)
@@ -105,3 +117,5 @@ object Value:
         inline def <=(other: Value): Boolean = Value.lte(v, other)
         inline def >(other: Value): Boolean = Value.gt(v, other)
         inline def >=(other: Value): Boolean = Value.gte(v, other)
+        @Ignore
+        inline def showDebug: String = debugToString(v)

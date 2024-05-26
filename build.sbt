@@ -180,7 +180,8 @@ lazy val `scalus-bloxbean-cardano-client-lib` = project
     .settings(
       publish / skip := false,
       libraryDependencies += "com.bloxbean.cardano" % "cardano-client-lib" % "0.5.1",
-      libraryDependencies += "org.slf4j" % "slf4j-simple" % "2.0.13",
+      libraryDependencies += "org.slf4j" % "slf4j-api" % "2.0.13",
+      libraryDependencies += "org.slf4j" % "slf4j-simple" % "2.0.13" % "test",
       libraryDependencies += "org.scalatest" %%% "scalatest" % "3.2.18" % "test",
       libraryDependencies += "com.bloxbean.cardano" % "cardano-client-backend-blockfrost" % "0.5.1" % "test",
       libraryDependencies += "com.bloxbean.cardano" % "yaci" % "0.3.0-beta14" % "test",
