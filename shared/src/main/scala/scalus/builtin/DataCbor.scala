@@ -13,9 +13,8 @@ import scala.collection.mutable.{ArrayBuffer, ListBuffer}
 /** CBOR encoder for the [[Data]] type. The encoding and decoding logic is based on the
   * [[https://github.com/IntersectMBO/plutus/blob/441b76d9e9745dfedb2afc29920498bdf632f162/plutus-core/plutus-core/src/PlutusCore/Data.hs#L72 Cardano node implementation]].
   */
-given Encoder[Data] with
+given dataCborEncoder: Encoder[Data] with
     override def write(writer: Writer, data: Data): Writer =
-        given Encoder[Data] = this
 
         def writeChunkedByteArray(value: Array[Byte]) = {
             if value.length <= 64 then writer.writeBytes(value)
@@ -70,10 +69,9 @@ given Encoder[Data] with
 /** CBOR decoder for the [[Data]] type. The encoding and decoding logic is based on the
   * [[https://github.com/IntersectMBO/plutus/blob/441b76d9e9745dfedb2afc29920498bdf632f162/plutus-core/plutus-core/src/PlutusCore/Data.hs#L72 Cardano node implementation]].
   */
-given Decoder[Data] with
+given dataCborDecoder: Decoder[Data] with
 
     override def read(r: Reader): Data =
-        given Decoder[Data] = this
 
         val maxCborByteArraySize = 64
 
