@@ -126,7 +126,7 @@ lazy val scalus = crossProject(JSPlatform, JVMPlatform)
       libraryDependencies += "org.typelevel" %%% "cats-core" % "2.10.0",
       libraryDependencies += "org.typelevel" %%% "cats-parse" % "1.0.0",
       libraryDependencies += "org.typelevel" %%% "paiges-core" % "0.4.3",
-      libraryDependencies += "com.lihaoyi" %%% "upickle" % "3.3.0",
+      libraryDependencies += "com.lihaoyi" %%% "upickle" % "3.3.1",
       libraryDependencies ++= Seq(
         "io.bullet" %%% "borer-core" % "1.14.0",
         "io.bullet" %%% "borer-derivation" % "1.14.0"
@@ -140,9 +140,9 @@ lazy val scalus = crossProject(JSPlatform, JVMPlatform)
       // Test / testOptions += Tests.Argument(TestFrameworks.ScalaTest, "-S", "-8077211454138081902"),
       libraryDependencies += "org.scala-lang" %% "scala3-compiler" % scalaVersion.value,
       libraryDependencies += "org.slf4j" % "slf4j-simple" % "2.0.13" % "provided",
-      libraryDependencies += "org.bouncycastle" % "bcprov-jdk18on" % "1.78",
-      libraryDependencies += "org.bitcoin-s" % "bitcoin-s-crypto_2.13" % "1.9.8",
-      libraryDependencies += "org.bitcoin-s" % "bitcoin-s-secp256k1jni" % "1.9.8"
+      libraryDependencies += "org.bouncycastle" % "bcprov-jdk18on" % "1.78.1",
+      libraryDependencies += "org.bitcoin-s" % "bitcoin-s-crypto_2.13" % "1.9.9",
+      libraryDependencies += "org.bitcoin-s" % "bitcoin-s-secp256k1jni" % "1.9.9"
     )
     .jsSettings(
       // Add JS-specific settings here
