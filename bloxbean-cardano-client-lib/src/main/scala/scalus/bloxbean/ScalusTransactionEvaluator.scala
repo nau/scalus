@@ -28,9 +28,6 @@ import scala.beans.BeanProperty
 import scala.collection.mutable
 import scala.jdk.CollectionConverters.*
 
-enum EvaluatorMode extends Enum[EvaluatorMode]:
-    case EVALUATE_AND_COMPUTE_COST, VALIDATE
-
 /** Implements [[TransactionEvaluator]] to evaluate a transaction to get script costs using Scalus
   * evaluator. This is a wrapper around [[TxEvaluator]].
   * @param protocolParams
