@@ -121,7 +121,7 @@ class ScalusTransactionEvaluator(
         yield dataList
             .stream()
             .map(data => ByteString.fromArray(data.getDatumHashAsBytes))
-            .toList()
+            .collect(util.stream.Collectors.toList())
         evaluateTx(transaction, inputUtxos, datumHashes.getOrElse(util.List.of()))
     }
 
