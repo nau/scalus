@@ -68,6 +68,22 @@ class ScalusTransactionEvaluator(
           EvaluatorMode.EVALUATE_AND_COMPUTE_COST
         )
 
+    /** Constructor with protocol params, utxo supplier and script supplier. Uses
+      * [[EvaluatorMode.EVALUATE_AND_COMPUTE_COST]] mode.
+      * @param protocolParams
+      *   Protocol parameters
+      * @param utxoSupplier
+      *   Utxo supplier
+      * @param scriptSupplier
+      *   Additional script supplier
+      */
+    def this(
+        protocolParams: ProtocolParams,
+        utxoSupplier: UtxoSupplier,
+        scriptSupplier: ScriptSupplier
+    ) =
+        this(protocolParams, utxoSupplier, scriptSupplier, EvaluatorMode.EVALUATE_AND_COMPUTE_COST)
+
     @BeanProperty
     lazy val costMdls: CostMdls = {
         val costModelV1 = CostModelUtil
