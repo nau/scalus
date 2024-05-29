@@ -19,7 +19,7 @@ case class ExecutionUnitPrices(priceMemory: Double, priceSteps: Double) derives 
   */
 case class ProtocolParams(
     collateralPercentage: Long,
-    costModels: Map[String, Seq[Int]],
+    costModels: Map[String, Seq[Long]],
     decentralization: Option[Double],
     executionUnitPrices: ExecutionUnitPrices,
     extraPraosEntropy: Option[String],
@@ -87,7 +87,7 @@ object ProtocolParams {
               ProtocolParams(
                 collateralPercentage = json("collateral_percent").num.toLong,
                 costModels = json("cost_models").obj.map { case (k, v) =>
-                    k -> v.obj.values.map(_.num.toInt).toSeq
+                    k -> v.obj.values.map(_.num.toLong).toSeq
                 }.toMap,
                 decentralization = None,
                 executionUnitPrices = ExecutionUnitPrices(
@@ -135,365 +135,390 @@ object ProtocolParams {
   And we can't generate a constructor call for `PlutusV1Params` or `PlutusV2Params`
   which has more than 127 parameters.
   So I'm using Ints here, and that should be enough for the protocol parameters.
+  Then, I've changed the `PlutusV1Params` and `PlutusV2Params` to have Longs
+  and be a class with public fields.
+  I also added a `JsonUtils` object to generate a `ReadWriter` for these classes.
  */
+class PlutusV1Params {
+    var `addInteger-cpu-arguments-intercept`: Long = 0L
+    var `addInteger-cpu-arguments-slope`: Long = 0L
+    var `addInteger-memory-arguments-intercept`: Long = 0L
+    var `addInteger-memory-arguments-slope`: Long = 0L
+    var `appendByteString-cpu-arguments-intercept`: Long = 0L
+    var `appendByteString-cpu-arguments-slope`: Long = 0L
+    var `appendByteString-memory-arguments-intercept`: Long = 0L
+    var `appendByteString-memory-arguments-slope`: Long = 0L
+    var `appendString-cpu-arguments-intercept`: Long = 0L
+    var `appendString-cpu-arguments-slope`: Long = 0L
+    var `appendString-memory-arguments-intercept`: Long = 0L
+    var `appendString-memory-arguments-slope`: Long = 0L
+    var `bData-cpu-arguments`: Long = 0L
+    var `bData-memory-arguments`: Long = 0L
+    var `blake2b_256-cpu-arguments-intercept`: Long = 0L
+    var `blake2b_256-cpu-arguments-slope`: Long = 0L
+    var `blake2b_256-memory-arguments`: Long = 0L
+    var `cekApplyCost-exBudgetCPU`: Long = 0L
+    var `cekApplyCost-exBudgetMemory`: Long = 0L
+    var `cekBuiltinCost-exBudgetCPU`: Long = 0L
+    var `cekBuiltinCost-exBudgetMemory`: Long = 0L
+    var `cekConstCost-exBudgetCPU`: Long = 0L
+    var `cekConstCost-exBudgetMemory`: Long = 0L
+    var `cekDelayCost-exBudgetCPU`: Long = 0L
+    var `cekDelayCost-exBudgetMemory`: Long = 0L
+    var `cekForceCost-exBudgetCPU`: Long = 0L
+    var `cekForceCost-exBudgetMemory`: Long = 0L
+    var `cekLamCost-exBudgetCPU`: Long = 0L
+    var `cekLamCost-exBudgetMemory`: Long = 0L
+    var `cekStartupCost-exBudgetCPU`: Long = 0L
+    var `cekStartupCost-exBudgetMemory`: Long = 0L
+    var `cekVarCost-exBudgetCPU`: Long = 0L
+    var `cekVarCost-exBudgetMemory`: Long = 0L
+    var `chooseData-cpu-arguments`: Long = 0L
+    var `chooseData-memory-arguments`: Long = 0L
+    var `chooseList-cpu-arguments`: Long = 0L
+    var `chooseList-memory-arguments`: Long = 0L
+    var `chooseUnit-cpu-arguments`: Long = 0L
+    var `chooseUnit-memory-arguments`: Long = 0L
+    var `consByteString-cpu-arguments-intercept`: Long = 0L
+    var `consByteString-cpu-arguments-slope`: Long = 0L
+    var `consByteString-memory-arguments-intercept`: Long = 0L
+    var `consByteString-memory-arguments-slope`: Long = 0L
+    var `constrData-cpu-arguments`: Long = 0L
+    var `constrData-memory-arguments`: Long = 0L
+    var `decodeUtf8-cpu-arguments-intercept`: Long = 0L
+    var `decodeUtf8-cpu-arguments-slope`: Long = 0L
+    var `decodeUtf8-memory-arguments-intercept`: Long = 0L
+    var `decodeUtf8-memory-arguments-slope`: Long = 0L
+    var `divideInteger-cpu-arguments-constant`: Long = 0L
+    var `divideInteger-cpu-arguments-model-arguments-intercept`: Long = 0L
+    var `divideInteger-cpu-arguments-model-arguments-slope`: Long = 0L
+    var `divideInteger-memory-arguments-intercept`: Long = 0L
+    var `divideInteger-memory-arguments-minimum`: Long = 0L
+    var `divideInteger-memory-arguments-slope`: Long = 0L
+    var `encodeUtf8-cpu-arguments-intercept`: Long = 0L
+    var `encodeUtf8-cpu-arguments-slope`: Long = 0L
+    var `encodeUtf8-memory-arguments-intercept`: Long = 0L
+    var `encodeUtf8-memory-arguments-slope`: Long = 0L
+    var `equalsByteString-cpu-arguments-constant`: Long = 0L
+    var `equalsByteString-cpu-arguments-intercept`: Long = 0L
+    var `equalsByteString-cpu-arguments-slope`: Long = 0L
+    var `equalsByteString-memory-arguments`: Long = 0L
+    var `equalsData-cpu-arguments-intercept`: Long = 0L
+    var `equalsData-cpu-arguments-slope`: Long = 0L
+    var `equalsData-memory-arguments`: Long = 0L
+    var `equalsInteger-cpu-arguments-intercept`: Long = 0L
+    var `equalsInteger-cpu-arguments-slope`: Long = 0L
+    var `equalsInteger-memory-arguments`: Long = 0L
+    var `equalsString-cpu-arguments-constant`: Long = 0L
+    var `equalsString-cpu-arguments-intercept`: Long = 0L
+    var `equalsString-cpu-arguments-slope`: Long = 0L
+    var `equalsString-memory-arguments`: Long = 0L
+    var `fstPair-cpu-arguments`: Long = 0L
+    var `fstPair-memory-arguments`: Long = 0L
+    var `headList-cpu-arguments`: Long = 0L
+    var `headList-memory-arguments`: Long = 0L
+    var `iData-cpu-arguments`: Long = 0L
+    var `iData-memory-arguments`: Long = 0L
+    var `ifThenElse-cpu-arguments`: Long = 0L
+    var `ifThenElse-memory-arguments`: Long = 0L
+    var `indexByteString-cpu-arguments`: Long = 0L
+    var `indexByteString-memory-arguments`: Long = 0L
+    var `lengthOfByteString-cpu-arguments`: Long = 0L
+    var `lengthOfByteString-memory-arguments`: Long = 0L
+    var `lessThanByteString-cpu-arguments-intercept`: Long = 0L
+    var `lessThanByteString-cpu-arguments-slope`: Long = 0L
+    var `lessThanByteString-memory-arguments`: Long = 0L
+    var `lessThanEqualsByteString-cpu-arguments-intercept`: Long = 0L
+    var `lessThanEqualsByteString-cpu-arguments-slope`: Long = 0L
+    var `lessThanEqualsByteString-memory-arguments`: Long = 0L
+    var `lessThanEqualsInteger-cpu-arguments-intercept`: Long = 0L
+    var `lessThanEqualsInteger-cpu-arguments-slope`: Long = 0L
+    var `lessThanEqualsInteger-memory-arguments`: Long = 0L
+    var `lessThanInteger-cpu-arguments-intercept`: Long = 0L
+    var `lessThanInteger-cpu-arguments-slope`: Long = 0L
+    var `lessThanInteger-memory-arguments`: Long = 0L
+    var `listData-cpu-arguments`: Long = 0L
+    var `listData-memory-arguments`: Long = 0L
+    var `mapData-cpu-arguments`: Long = 0L
+    var `mapData-memory-arguments`: Long = 0L
+    var `mkCons-cpu-arguments`: Long = 0L
+    var `mkCons-memory-arguments`: Long = 0L
+    var `mkNilData-cpu-arguments`: Long = 0L
+    var `mkNilData-memory-arguments`: Long = 0L
+    var `mkNilPairData-cpu-arguments`: Long = 0L
+    var `mkNilPairData-memory-arguments`: Long = 0L
+    var `mkPairData-cpu-arguments`: Long = 0L
+    var `mkPairData-memory-arguments`: Long = 0L
+    var `modInteger-cpu-arguments-constant`: Long = 0L
+    var `modInteger-cpu-arguments-model-arguments-intercept`: Long = 0L
+    var `modInteger-cpu-arguments-model-arguments-slope`: Long = 0L
+    var `modInteger-memory-arguments-intercept`: Long = 0L
+    var `modInteger-memory-arguments-minimum`: Long = 0L
+    var `modInteger-memory-arguments-slope`: Long = 0L
+    var `multiplyInteger-cpu-arguments-intercept`: Long = 0L
+    var `multiplyInteger-cpu-arguments-slope`: Long = 0L
+    var `multiplyInteger-memory-arguments-intercept`: Long = 0L
+    var `multiplyInteger-memory-arguments-slope`: Long = 0L
+    var `nullList-cpu-arguments`: Long = 0L
+    var `nullList-memory-arguments`: Long = 0L
+    var `quotientInteger-cpu-arguments-constant`: Long = 0L
+    var `quotientInteger-cpu-arguments-model-arguments-intercept`: Long = 0L
+    var `quotientInteger-cpu-arguments-model-arguments-slope`: Long = 0L
+    var `quotientInteger-memory-arguments-intercept`: Long = 0L
+    var `quotientInteger-memory-arguments-minimum`: Long = 0L
+    var `quotientInteger-memory-arguments-slope`: Long = 0L
+    var `remainderInteger-cpu-arguments-constant`: Long = 0L
+    var `remainderInteger-cpu-arguments-model-arguments-intercept`: Long = 0L
+    var `remainderInteger-cpu-arguments-model-arguments-slope`: Long = 0L
+    var `remainderInteger-memory-arguments-intercept`: Long = 0L
+    var `remainderInteger-memory-arguments-minimum`: Long = 0L
+    var `remainderInteger-memory-arguments-slope`: Long = 0L
+    var `sha2_256-cpu-arguments-intercept`: Long = 0L
+    var `sha2_256-cpu-arguments-slope`: Long = 0L
+    var `sha2_256-memory-arguments`: Long = 0L
+    var `sha3_256-cpu-arguments-intercept`: Long = 0L
+    var `sha3_256-cpu-arguments-slope`: Long = 0L
+    var `sha3_256-memory-arguments`: Long = 0L
+    var `sliceByteString-cpu-arguments-intercept`: Long = 0L
+    var `sliceByteString-cpu-arguments-slope`: Long = 0L
+    var `sliceByteString-memory-arguments-intercept`: Long = 0L
+    var `sliceByteString-memory-arguments-slope`: Long = 0L
+    var `sndPair-cpu-arguments`: Long = 0L
+    var `sndPair-memory-arguments`: Long = 0L
+    var `subtractInteger-cpu-arguments-intercept`: Long = 0L
+    var `subtractInteger-cpu-arguments-slope`: Long = 0L
+    var `subtractInteger-memory-arguments-intercept`: Long = 0L
+    var `subtractInteger-memory-arguments-slope`: Long = 0L
+    var `tailList-cpu-arguments`: Long = 0L
+    var `tailList-memory-arguments`: Long = 0L
+    var `trace-cpu-arguments`: Long = 0L
+    var `trace-memory-arguments`: Long = 0L
+    var `unBData-cpu-arguments`: Long = 0L
+    var `unBData-memory-arguments`: Long = 0L
+    var `unConstrData-cpu-arguments`: Long = 0L
+    var `unConstrData-memory-arguments`: Long = 0L
+    var `unIData-cpu-arguments`: Long = 0L
+    var `unIData-memory-arguments`: Long = 0L
+    var `unListData-cpu-arguments`: Long = 0L
+    var `unListData-memory-arguments`: Long = 0L
+    var `unMapData-cpu-arguments`: Long = 0L
+    var `unMapData-memory-arguments`: Long = 0L
+    var `verifyEd25519Signature-cpu-arguments-intercept`: Long = 0L
+    var `verifyEd25519Signature-cpu-arguments-slope`: Long = 0L
+    var `verifyEd25519Signature-memory-arguments`: Long = 0L
+}
 
-case class PlutusV1Params(
-    `addInteger-cpu-arguments-intercept`: Int,
-    `addInteger-cpu-arguments-slope`: Int,
-    `addInteger-memory-arguments-intercept`: Int,
-    `addInteger-memory-arguments-slope`: Int,
-    `appendByteString-cpu-arguments-intercept`: Int,
-    `appendByteString-cpu-arguments-slope`: Int,
-    `appendByteString-memory-arguments-intercept`: Int,
-    `appendByteString-memory-arguments-slope`: Int,
-    `appendString-cpu-arguments-intercept`: Int,
-    `appendString-cpu-arguments-slope`: Int,
-    `appendString-memory-arguments-intercept`: Int,
-    `appendString-memory-arguments-slope`: Int,
-    `bData-cpu-arguments`: Int,
-    `bData-memory-arguments`: Int,
-    `blake2b_256-cpu-arguments-intercept`: Int,
-    `blake2b_256-cpu-arguments-slope`: Int,
-    `blake2b_256-memory-arguments`: Int,
-    `cekApplyCost-exBudgetCPU`: Int,
-    `cekApplyCost-exBudgetMemory`: Int,
-    `cekBuiltinCost-exBudgetCPU`: Int,
-    `cekBuiltinCost-exBudgetMemory`: Int,
-    `cekConstCost-exBudgetCPU`: Int,
-    `cekConstCost-exBudgetMemory`: Int,
-    `cekDelayCost-exBudgetCPU`: Int,
-    `cekDelayCost-exBudgetMemory`: Int,
-    `cekForceCost-exBudgetCPU`: Int,
-    `cekForceCost-exBudgetMemory`: Int,
-    `cekLamCost-exBudgetCPU`: Int,
-    `cekLamCost-exBudgetMemory`: Int,
-    `cekStartupCost-exBudgetCPU`: Int,
-    `cekStartupCost-exBudgetMemory`: Int,
-    `cekVarCost-exBudgetCPU`: Int,
-    `cekVarCost-exBudgetMemory`: Int,
-    `chooseData-cpu-arguments`: Int,
-    `chooseData-memory-arguments`: Int,
-    `chooseList-cpu-arguments`: Int,
-    `chooseList-memory-arguments`: Int,
-    `chooseUnit-cpu-arguments`: Int,
-    `chooseUnit-memory-arguments`: Int,
-    `consByteString-cpu-arguments-intercept`: Int,
-    `consByteString-cpu-arguments-slope`: Int,
-    `consByteString-memory-arguments-intercept`: Int,
-    `consByteString-memory-arguments-slope`: Int,
-    `constrData-cpu-arguments`: Int,
-    `constrData-memory-arguments`: Int,
-    `decodeUtf8-cpu-arguments-intercept`: Int,
-    `decodeUtf8-cpu-arguments-slope`: Int,
-    `decodeUtf8-memory-arguments-intercept`: Int,
-    `decodeUtf8-memory-arguments-slope`: Int,
-    `divideInteger-cpu-arguments-constant`: Int,
-    `divideInteger-cpu-arguments-model-arguments-intercept`: Int,
-    `divideInteger-cpu-arguments-model-arguments-slope`: Int,
-    `divideInteger-memory-arguments-intercept`: Int,
-    `divideInteger-memory-arguments-minimum`: Int,
-    `divideInteger-memory-arguments-slope`: Int,
-    `encodeUtf8-cpu-arguments-intercept`: Int,
-    `encodeUtf8-cpu-arguments-slope`: Int,
-    `encodeUtf8-memory-arguments-intercept`: Int,
-    `encodeUtf8-memory-arguments-slope`: Int,
-    `equalsByteString-cpu-arguments-constant`: Int,
-    `equalsByteString-cpu-arguments-intercept`: Int,
-    `equalsByteString-cpu-arguments-slope`: Int,
-    `equalsByteString-memory-arguments`: Int,
-    `equalsData-cpu-arguments-intercept`: Int,
-    `equalsData-cpu-arguments-slope`: Int,
-    `equalsData-memory-arguments`: Int,
-    `equalsInteger-cpu-arguments-intercept`: Int,
-    `equalsInteger-cpu-arguments-slope`: Int,
-    `equalsInteger-memory-arguments`: Int,
-    `equalsString-cpu-arguments-constant`: Int,
-    `equalsString-cpu-arguments-intercept`: Int,
-    `equalsString-cpu-arguments-slope`: Int,
-    `equalsString-memory-arguments`: Int,
-    `fstPair-cpu-arguments`: Int,
-    `fstPair-memory-arguments`: Int,
-    `headList-cpu-arguments`: Int,
-    `headList-memory-arguments`: Int,
-    `iData-cpu-arguments`: Int,
-    `iData-memory-arguments`: Int,
-    `ifThenElse-cpu-arguments`: Int,
-    `ifThenElse-memory-arguments`: Int,
-    `indexByteString-cpu-arguments`: Int,
-    `indexByteString-memory-arguments`: Int,
-    `lengthOfByteString-cpu-arguments`: Int,
-    `lengthOfByteString-memory-arguments`: Int,
-    `lessThanByteString-cpu-arguments-intercept`: Int,
-    `lessThanByteString-cpu-arguments-slope`: Int,
-    `lessThanByteString-memory-arguments`: Int,
-    `lessThanEqualsByteString-cpu-arguments-intercept`: Int,
-    `lessThanEqualsByteString-cpu-arguments-slope`: Int,
-    `lessThanEqualsByteString-memory-arguments`: Int,
-    `lessThanEqualsInteger-cpu-arguments-intercept`: Int,
-    `lessThanEqualsInteger-cpu-arguments-slope`: Int,
-    `lessThanEqualsInteger-memory-arguments`: Int,
-    `lessThanInteger-cpu-arguments-intercept`: Int,
-    `lessThanInteger-cpu-arguments-slope`: Int,
-    `lessThanInteger-memory-arguments`: Int,
-    `listData-cpu-arguments`: Int,
-    `listData-memory-arguments`: Int,
-    `mapData-cpu-arguments`: Int,
-    `mapData-memory-arguments`: Int,
-    `mkCons-cpu-arguments`: Int,
-    `mkCons-memory-arguments`: Int,
-    `mkNilData-cpu-arguments`: Int,
-    `mkNilData-memory-arguments`: Int,
-    `mkNilPairData-cpu-arguments`: Int,
-    `mkNilPairData-memory-arguments`: Int,
-    `mkPairData-cpu-arguments`: Int,
-    `mkPairData-memory-arguments`: Int,
-    `modInteger-cpu-arguments-constant`: Int,
-    `modInteger-cpu-arguments-model-arguments-intercept`: Int,
-    `modInteger-cpu-arguments-model-arguments-slope`: Int,
-    `modInteger-memory-arguments-intercept`: Int,
-    `modInteger-memory-arguments-minimum`: Int,
-    `modInteger-memory-arguments-slope`: Int,
-    `multiplyInteger-cpu-arguments-intercept`: Int,
-    `multiplyInteger-cpu-arguments-slope`: Int,
-    `multiplyInteger-memory-arguments-intercept`: Int,
-    `multiplyInteger-memory-arguments-slope`: Int,
-    `nullList-cpu-arguments`: Int,
-    `nullList-memory-arguments`: Int,
-    `quotientInteger-cpu-arguments-constant`: Int,
-    `quotientInteger-cpu-arguments-model-arguments-intercept`: Int,
-    `quotientInteger-cpu-arguments-model-arguments-slope`: Int,
-    `quotientInteger-memory-arguments-intercept`: Int,
-    `quotientInteger-memory-arguments-minimum`: Int,
-    `quotientInteger-memory-arguments-slope`: Int,
-    `remainderInteger-cpu-arguments-constant`: Int,
-    `remainderInteger-cpu-arguments-model-arguments-intercept`: Int,
-    `remainderInteger-cpu-arguments-model-arguments-slope`: Int,
-    `remainderInteger-memory-arguments-intercept`: Int,
-    `remainderInteger-memory-arguments-minimum`: Int,
-    `remainderInteger-memory-arguments-slope`: Int,
-    `sha2_256-cpu-arguments-intercept`: Int,
-    `sha2_256-cpu-arguments-slope`: Int,
-    `sha2_256-memory-arguments`: Int,
-    `sha3_256-cpu-arguments-intercept`: Int,
-    `sha3_256-cpu-arguments-slope`: Int,
-    `sha3_256-memory-arguments`: Int,
-    `sliceByteString-cpu-arguments-intercept`: Int,
-    `sliceByteString-cpu-arguments-slope`: Int,
-    `sliceByteString-memory-arguments-intercept`: Int,
-    `sliceByteString-memory-arguments-slope`: Int,
-    `sndPair-cpu-arguments`: Int,
-    `sndPair-memory-arguments`: Int,
-    `subtractInteger-cpu-arguments-intercept`: Int,
-    `subtractInteger-cpu-arguments-slope`: Int,
-    `subtractInteger-memory-arguments-intercept`: Int,
-    `subtractInteger-memory-arguments-slope`: Int,
-    `tailList-cpu-arguments`: Int,
-    `tailList-memory-arguments`: Int,
-    `trace-cpu-arguments`: Int,
-    `trace-memory-arguments`: Int,
-    `unBData-cpu-arguments`: Int,
-    `unBData-memory-arguments`: Int,
-    `unConstrData-cpu-arguments`: Int,
-    `unConstrData-memory-arguments`: Int,
-    `unIData-cpu-arguments`: Int,
-    `unIData-memory-arguments`: Int,
-    `unListData-cpu-arguments`: Int,
-    `unListData-memory-arguments`: Int,
-    `unMapData-cpu-arguments`: Int,
-    `unMapData-memory-arguments`: Int,
-    `verifyEd25519Signature-cpu-arguments-intercept`: Int,
-    `verifyEd25519Signature-cpu-arguments-slope`: Int,
-    `verifyEd25519Signature-memory-arguments`: Int
-)
+class PlutusV2Params {
+    var `addInteger-cpu-arguments-intercept`: Long = 0L
+    var `addInteger-cpu-arguments-slope`: Long = 0L
+    var `addInteger-memory-arguments-intercept`: Long = 0L
+    var `addInteger-memory-arguments-slope`: Long = 0L
+    var `appendByteString-cpu-arguments-intercept`: Long = 0L
+    var `appendByteString-cpu-arguments-slope`: Long = 0L
+    var `appendByteString-memory-arguments-intercept`: Long = 0L
+    var `appendByteString-memory-arguments-slope`: Long = 0L
+    var `appendString-cpu-arguments-intercept`: Long = 0L
+    var `appendString-cpu-arguments-slope`: Long = 0L
+    var `appendString-memory-arguments-intercept`: Long = 0L
+    var `appendString-memory-arguments-slope`: Long = 0L
+    var `bData-cpu-arguments`: Long = 0L
+    var `bData-memory-arguments`: Long = 0L
+    var `blake2b_256-cpu-arguments-intercept`: Long = 0L
+    var `blake2b_256-cpu-arguments-slope`: Long = 0L
+    var `blake2b_256-memory-arguments`: Long = 0L
+    var `cekApplyCost-exBudgetCPU`: Long = 0L
+    var `cekApplyCost-exBudgetMemory`: Long = 0L
+    var `cekBuiltinCost-exBudgetCPU`: Long = 0L
+    var `cekBuiltinCost-exBudgetMemory`: Long = 0L
+    var `cekConstCost-exBudgetCPU`: Long = 0L
+    var `cekConstCost-exBudgetMemory`: Long = 0L
+    var `cekDelayCost-exBudgetCPU`: Long = 0L
+    var `cekDelayCost-exBudgetMemory`: Long = 0L
+    var `cekForceCost-exBudgetCPU`: Long = 0L
+    var `cekForceCost-exBudgetMemory`: Long = 0L
+    var `cekLamCost-exBudgetCPU`: Long = 0L
+    var `cekLamCost-exBudgetMemory`: Long = 0L
+    var `cekStartupCost-exBudgetCPU`: Long = 0L
+    var `cekStartupCost-exBudgetMemory`: Long = 0L
+    var `cekVarCost-exBudgetCPU`: Long = 0L
+    var `cekVarCost-exBudgetMemory`: Long = 0L
+    var `chooseData-cpu-arguments`: Long = 0L
+    var `chooseData-memory-arguments`: Long = 0L
+    var `chooseList-cpu-arguments`: Long = 0L
+    var `chooseList-memory-arguments`: Long = 0L
+    var `chooseUnit-cpu-arguments`: Long = 0L
+    var `chooseUnit-memory-arguments`: Long = 0L
+    var `consByteString-cpu-arguments-intercept`: Long = 0L
+    var `consByteString-cpu-arguments-slope`: Long = 0L
+    var `consByteString-memory-arguments-intercept`: Long = 0L
+    var `consByteString-memory-arguments-slope`: Long = 0L
+    var `constrData-cpu-arguments`: Long = 0L
+    var `constrData-memory-arguments`: Long = 0L
+    var `decodeUtf8-cpu-arguments-intercept`: Long = 0L
+    var `decodeUtf8-cpu-arguments-slope`: Long = 0L
+    var `decodeUtf8-memory-arguments-intercept`: Long = 0L
+    var `decodeUtf8-memory-arguments-slope`: Long = 0L
+    var `divideInteger-cpu-arguments-constant`: Long = 0L
+    var `divideInteger-cpu-arguments-model-arguments-intercept`: Long = 0L
+    var `divideInteger-cpu-arguments-model-arguments-slope`: Long = 0L
+    var `divideInteger-memory-arguments-intercept`: Long = 0L
+    var `divideInteger-memory-arguments-minimum`: Long = 0L
+    var `divideInteger-memory-arguments-slope`: Long = 0L
+    var `encodeUtf8-cpu-arguments-intercept`: Long = 0L
+    var `encodeUtf8-cpu-arguments-slope`: Long = 0L
+    var `encodeUtf8-memory-arguments-intercept`: Long = 0L
+    var `encodeUtf8-memory-arguments-slope`: Long = 0L
+    var `equalsByteString-cpu-arguments-constant`: Long = 0L
+    var `equalsByteString-cpu-arguments-intercept`: Long = 0L
+    var `equalsByteString-cpu-arguments-slope`: Long = 0L
+    var `equalsByteString-memory-arguments`: Long = 0L
+    var `equalsData-cpu-arguments-intercept`: Long = 0L
+    var `equalsData-cpu-arguments-slope`: Long = 0L
+    var `equalsData-memory-arguments`: Long = 0L
+    var `equalsInteger-cpu-arguments-intercept`: Long = 0L
+    var `equalsInteger-cpu-arguments-slope`: Long = 0L
+    var `equalsInteger-memory-arguments`: Long = 0L
+    var `equalsString-cpu-arguments-constant`: Long = 0L
+    var `equalsString-cpu-arguments-intercept`: Long = 0L
+    var `equalsString-cpu-arguments-slope`: Long = 0L
+    var `equalsString-memory-arguments`: Long = 0L
+    var `fstPair-cpu-arguments`: Long = 0L
+    var `fstPair-memory-arguments`: Long = 0L
+    var `headList-cpu-arguments`: Long = 0L
+    var `headList-memory-arguments`: Long = 0L
+    var `iData-cpu-arguments`: Long = 0L
+    var `iData-memory-arguments`: Long = 0L
+    var `ifThenElse-cpu-arguments`: Long = 0L
+    var `ifThenElse-memory-arguments`: Long = 0L
+    var `indexByteString-cpu-arguments`: Long = 0L
+    var `indexByteString-memory-arguments`: Long = 0L
+    var `lengthOfByteString-cpu-arguments`: Long = 0L
+    var `lengthOfByteString-memory-arguments`: Long = 0L
+    var `lessThanByteString-cpu-arguments-intercept`: Long = 0L
+    var `lessThanByteString-cpu-arguments-slope`: Long = 0L
+    var `lessThanByteString-memory-arguments`: Long = 0L
+    var `lessThanEqualsByteString-cpu-arguments-intercept`: Long = 0L
+    var `lessThanEqualsByteString-cpu-arguments-slope`: Long = 0L
+    var `lessThanEqualsByteString-memory-arguments`: Long = 0L
+    var `lessThanEqualsInteger-cpu-arguments-intercept`: Long = 0L
+    var `lessThanEqualsInteger-cpu-arguments-slope`: Long = 0L
+    var `lessThanEqualsInteger-memory-arguments`: Long = 0L
+    var `lessThanInteger-cpu-arguments-intercept`: Long = 0L
+    var `lessThanInteger-cpu-arguments-slope`: Long = 0L
+    var `lessThanInteger-memory-arguments`: Long = 0L
+    var `listData-cpu-arguments`: Long = 0L
+    var `listData-memory-arguments`: Long = 0L
+    var `mapData-cpu-arguments`: Long = 0L
+    var `mapData-memory-arguments`: Long = 0L
+    var `mkCons-cpu-arguments`: Long = 0L
+    var `mkCons-memory-arguments`: Long = 0L
+    var `mkNilData-cpu-arguments`: Long = 0L
+    var `mkNilData-memory-arguments`: Long = 0L
+    var `mkNilPairData-cpu-arguments`: Long = 0L
+    var `mkNilPairData-memory-arguments`: Long = 0L
+    var `mkPairData-cpu-arguments`: Long = 0L
+    var `mkPairData-memory-arguments`: Long = 0L
+    var `modInteger-cpu-arguments-constant`: Long = 0L
+    var `modInteger-cpu-arguments-model-arguments-intercept`: Long = 0L
+    var `modInteger-cpu-arguments-model-arguments-slope`: Long = 0L
+    var `modInteger-memory-arguments-intercept`: Long = 0L
+    var `modInteger-memory-arguments-minimum`: Long = 0L
+    var `modInteger-memory-arguments-slope`: Long = 0L
+    var `multiplyInteger-cpu-arguments-intercept`: Long = 0L
+    var `multiplyInteger-cpu-arguments-slope`: Long = 0L
+    var `multiplyInteger-memory-arguments-intercept`: Long = 0L
+    var `multiplyInteger-memory-arguments-slope`: Long = 0L
+    var `nullList-cpu-arguments`: Long = 0L
+    var `nullList-memory-arguments`: Long = 0L
+    var `quotientInteger-cpu-arguments-constant`: Long = 0L
+    var `quotientInteger-cpu-arguments-model-arguments-intercept`: Long = 0L
+    var `quotientInteger-cpu-arguments-model-arguments-slope`: Long = 0L
+    var `quotientInteger-memory-arguments-intercept`: Long = 0L
+    var `quotientInteger-memory-arguments-minimum`: Long = 0L
+    var `quotientInteger-memory-arguments-slope`: Long = 0L
+    var `remainderInteger-cpu-arguments-constant`: Long = 0L
+    var `remainderInteger-cpu-arguments-model-arguments-intercept`: Long = 0L
+    var `remainderInteger-cpu-arguments-model-arguments-slope`: Long = 0L
+    var `remainderInteger-memory-arguments-intercept`: Long = 0L
+    var `remainderInteger-memory-arguments-minimum`: Long = 0L
+    var `remainderInteger-memory-arguments-slope`: Long = 0L
+    var `serialiseData-cpu-arguments-intercept`: Long = 0L
+    var `serialiseData-cpu-arguments-slope`: Long = 0L
+    var `serialiseData-memory-arguments-intercept`: Long = 0L
+    var `serialiseData-memory-arguments-slope`: Long = 0L
+    var `sha2_256-cpu-arguments-intercept`: Long = 0L
+    var `sha2_256-cpu-arguments-slope`: Long = 0L
+    var `sha2_256-memory-arguments`: Long = 0L
+    var `sha3_256-cpu-arguments-intercept`: Long = 0L
+    var `sha3_256-cpu-arguments-slope`: Long = 0L
+    var `sha3_256-memory-arguments`: Long = 0L
+    var `sliceByteString-cpu-arguments-intercept`: Long = 0L
+    var `sliceByteString-cpu-arguments-slope`: Long = 0L
+    var `sliceByteString-memory-arguments-intercept`: Long = 0L
+    var `sliceByteString-memory-arguments-slope`: Long = 0L
+    var `sndPair-cpu-arguments`: Long = 0L
+    var `sndPair-memory-arguments`: Long = 0L
+    var `subtractInteger-cpu-arguments-intercept`: Long = 0L
+    var `subtractInteger-cpu-arguments-slope`: Long = 0L
+    var `subtractInteger-memory-arguments-intercept`: Long = 0L
+    var `subtractInteger-memory-arguments-slope`: Long = 0L
+    var `tailList-cpu-arguments`: Long = 0L
+    var `tailList-memory-arguments`: Long = 0L
+    var `trace-cpu-arguments`: Long = 0L
+    var `trace-memory-arguments`: Long = 0L
+    var `unBData-cpu-arguments`: Long = 0L
+    var `unBData-memory-arguments`: Long = 0L
+    var `unConstrData-cpu-arguments`: Long = 0L
+    var `unConstrData-memory-arguments`: Long = 0L
+    var `unIData-cpu-arguments`: Long = 0L
+    var `unIData-memory-arguments`: Long = 0L
+    var `unListData-cpu-arguments`: Long = 0L
+    var `unListData-memory-arguments`: Long = 0L
+    var `unMapData-cpu-arguments`: Long = 0L
+    var `unMapData-memory-arguments`: Long = 0L
+    var `verifyEcdsaSecp256k1Signature-cpu-arguments`: Long = 0L
+    var `verifyEcdsaSecp256k1Signature-memory-arguments`: Long = 0L
+    var `verifyEd25519Signature-cpu-arguments-intercept`: Long = 0L
+    var `verifyEd25519Signature-cpu-arguments-slope`: Long = 0L
+    var `verifyEd25519Signature-memory-arguments`: Long = 0L
+    var `verifySchnorrSecp256k1Signature-cpu-arguments-intercept`: Long = 0L
+    var `verifySchnorrSecp256k1Signature-cpu-arguments-slope`: Long = 0L
+    var `verifySchnorrSecp256k1Signature-memory-arguments`: Long = 0L
+}
 
-case class PlutusV2Params(
-    `addInteger-cpu-arguments-intercept`: Int,
-    `addInteger-cpu-arguments-slope`: Int,
-    `addInteger-memory-arguments-intercept`: Int,
-    `addInteger-memory-arguments-slope`: Int,
-    `appendByteString-cpu-arguments-intercept`: Int,
-    `appendByteString-cpu-arguments-slope`: Int,
-    `appendByteString-memory-arguments-intercept`: Int,
-    `appendByteString-memory-arguments-slope`: Int,
-    `appendString-cpu-arguments-intercept`: Int,
-    `appendString-cpu-arguments-slope`: Int,
-    `appendString-memory-arguments-intercept`: Int,
-    `appendString-memory-arguments-slope`: Int,
-    `bData-cpu-arguments`: Int,
-    `bData-memory-arguments`: Int,
-    `blake2b_256-cpu-arguments-intercept`: Int,
-    `blake2b_256-cpu-arguments-slope`: Int,
-    `blake2b_256-memory-arguments`: Int,
-    `cekApplyCost-exBudgetCPU`: Int,
-    `cekApplyCost-exBudgetMemory`: Int,
-    `cekBuiltinCost-exBudgetCPU`: Int,
-    `cekBuiltinCost-exBudgetMemory`: Int,
-    `cekConstCost-exBudgetCPU`: Int,
-    `cekConstCost-exBudgetMemory`: Int,
-    `cekDelayCost-exBudgetCPU`: Int,
-    `cekDelayCost-exBudgetMemory`: Int,
-    `cekForceCost-exBudgetCPU`: Int,
-    `cekForceCost-exBudgetMemory`: Int,
-    `cekLamCost-exBudgetCPU`: Int,
-    `cekLamCost-exBudgetMemory`: Int,
-    `cekStartupCost-exBudgetCPU`: Int,
-    `cekStartupCost-exBudgetMemory`: Int,
-    `cekVarCost-exBudgetCPU`: Int,
-    `cekVarCost-exBudgetMemory`: Int,
-    `chooseData-cpu-arguments`: Int,
-    `chooseData-memory-arguments`: Int,
-    `chooseList-cpu-arguments`: Int,
-    `chooseList-memory-arguments`: Int,
-    `chooseUnit-cpu-arguments`: Int,
-    `chooseUnit-memory-arguments`: Int,
-    `consByteString-cpu-arguments-intercept`: Int,
-    `consByteString-cpu-arguments-slope`: Int,
-    `consByteString-memory-arguments-intercept`: Int,
-    `consByteString-memory-arguments-slope`: Int,
-    `constrData-cpu-arguments`: Int,
-    `constrData-memory-arguments`: Int,
-    `decodeUtf8-cpu-arguments-intercept`: Int,
-    `decodeUtf8-cpu-arguments-slope`: Int,
-    `decodeUtf8-memory-arguments-intercept`: Int,
-    `decodeUtf8-memory-arguments-slope`: Int,
-    `divideInteger-cpu-arguments-constant`: Int,
-    `divideInteger-cpu-arguments-model-arguments-intercept`: Int,
-    `divideInteger-cpu-arguments-model-arguments-slope`: Int,
-    `divideInteger-memory-arguments-intercept`: Int,
-    `divideInteger-memory-arguments-minimum`: Int,
-    `divideInteger-memory-arguments-slope`: Int,
-    `encodeUtf8-cpu-arguments-intercept`: Int,
-    `encodeUtf8-cpu-arguments-slope`: Int,
-    `encodeUtf8-memory-arguments-intercept`: Int,
-    `encodeUtf8-memory-arguments-slope`: Int,
-    `equalsByteString-cpu-arguments-constant`: Int,
-    `equalsByteString-cpu-arguments-intercept`: Int,
-    `equalsByteString-cpu-arguments-slope`: Int,
-    `equalsByteString-memory-arguments`: Int,
-    `equalsData-cpu-arguments-intercept`: Int,
-    `equalsData-cpu-arguments-slope`: Int,
-    `equalsData-memory-arguments`: Int,
-    `equalsInteger-cpu-arguments-intercept`: Int,
-    `equalsInteger-cpu-arguments-slope`: Int,
-    `equalsInteger-memory-arguments`: Int,
-    `equalsString-cpu-arguments-constant`: Int,
-    `equalsString-cpu-arguments-intercept`: Int,
-    `equalsString-cpu-arguments-slope`: Int,
-    `equalsString-memory-arguments`: Int,
-    `fstPair-cpu-arguments`: Int,
-    `fstPair-memory-arguments`: Int,
-    `headList-cpu-arguments`: Int,
-    `headList-memory-arguments`: Int,
-    `iData-cpu-arguments`: Int,
-    `iData-memory-arguments`: Int,
-    `ifThenElse-cpu-arguments`: Int,
-    `ifThenElse-memory-arguments`: Int,
-    `indexByteString-cpu-arguments`: Int,
-    `indexByteString-memory-arguments`: Int,
-    `lengthOfByteString-cpu-arguments`: Int,
-    `lengthOfByteString-memory-arguments`: Int,
-    `lessThanByteString-cpu-arguments-intercept`: Int,
-    `lessThanByteString-cpu-arguments-slope`: Int,
-    `lessThanByteString-memory-arguments`: Int,
-    `lessThanEqualsByteString-cpu-arguments-intercept`: Int,
-    `lessThanEqualsByteString-cpu-arguments-slope`: Int,
-    `lessThanEqualsByteString-memory-arguments`: Int,
-    `lessThanEqualsInteger-cpu-arguments-intercept`: Int,
-    `lessThanEqualsInteger-cpu-arguments-slope`: Int,
-    `lessThanEqualsInteger-memory-arguments`: Int,
-    `lessThanInteger-cpu-arguments-intercept`: Int,
-    `lessThanInteger-cpu-arguments-slope`: Int,
-    `lessThanInteger-memory-arguments`: Int,
-    `listData-cpu-arguments`: Int,
-    `listData-memory-arguments`: Int,
-    `mapData-cpu-arguments`: Int,
-    `mapData-memory-arguments`: Int,
-    `mkCons-cpu-arguments`: Int,
-    `mkCons-memory-arguments`: Int,
-    `mkNilData-cpu-arguments`: Int,
-    `mkNilData-memory-arguments`: Int,
-    `mkNilPairData-cpu-arguments`: Int,
-    `mkNilPairData-memory-arguments`: Int,
-    `mkPairData-cpu-arguments`: Int,
-    `mkPairData-memory-arguments`: Int,
-    `modInteger-cpu-arguments-constant`: Int,
-    `modInteger-cpu-arguments-model-arguments-intercept`: Int,
-    `modInteger-cpu-arguments-model-arguments-slope`: Int,
-    `modInteger-memory-arguments-intercept`: Int,
-    `modInteger-memory-arguments-minimum`: Int,
-    `modInteger-memory-arguments-slope`: Int,
-    `multiplyInteger-cpu-arguments-intercept`: Int,
-    `multiplyInteger-cpu-arguments-slope`: Int,
-    `multiplyInteger-memory-arguments-intercept`: Int,
-    `multiplyInteger-memory-arguments-slope`: Int,
-    `nullList-cpu-arguments`: Int,
-    `nullList-memory-arguments`: Int,
-    `quotientInteger-cpu-arguments-constant`: Int,
-    `quotientInteger-cpu-arguments-model-arguments-intercept`: Int,
-    `quotientInteger-cpu-arguments-model-arguments-slope`: Int,
-    `quotientInteger-memory-arguments-intercept`: Int,
-    `quotientInteger-memory-arguments-minimum`: Int,
-    `quotientInteger-memory-arguments-slope`: Int,
-    `remainderInteger-cpu-arguments-constant`: Int,
-    `remainderInteger-cpu-arguments-model-arguments-intercept`: Int,
-    `remainderInteger-cpu-arguments-model-arguments-slope`: Int,
-    `remainderInteger-memory-arguments-intercept`: Int,
-    `remainderInteger-memory-arguments-minimum`: Int,
-    `remainderInteger-memory-arguments-slope`: Int,
-    `serialiseData-cpu-arguments-intercept`: Int,
-    `serialiseData-cpu-arguments-slope`: Int,
-    `serialiseData-memory-arguments-intercept`: Int,
-    `serialiseData-memory-arguments-slope`: Int,
-    `sha2_256-cpu-arguments-intercept`: Int,
-    `sha2_256-cpu-arguments-slope`: Int,
-    `sha2_256-memory-arguments`: Int,
-    `sha3_256-cpu-arguments-intercept`: Int,
-    `sha3_256-cpu-arguments-slope`: Int,
-    `sha3_256-memory-arguments`: Int,
-    `sliceByteString-cpu-arguments-intercept`: Int,
-    `sliceByteString-cpu-arguments-slope`: Int,
-    `sliceByteString-memory-arguments-intercept`: Int,
-    `sliceByteString-memory-arguments-slope`: Int,
-    `sndPair-cpu-arguments`: Int,
-    `sndPair-memory-arguments`: Int,
-    `subtractInteger-cpu-arguments-intercept`: Int,
-    `subtractInteger-cpu-arguments-slope`: Int,
-    `subtractInteger-memory-arguments-intercept`: Int,
-    `subtractInteger-memory-arguments-slope`: Int,
-    `tailList-cpu-arguments`: Int,
-    `tailList-memory-arguments`: Int,
-    `trace-cpu-arguments`: Int,
-    `trace-memory-arguments`: Int,
-    `unBData-cpu-arguments`: Int,
-    `unBData-memory-arguments`: Int,
-    `unConstrData-cpu-arguments`: Int,
-    `unConstrData-memory-arguments`: Int,
-    `unIData-cpu-arguments`: Int,
-    `unIData-memory-arguments`: Int,
-    `unListData-cpu-arguments`: Int,
-    `unListData-memory-arguments`: Int,
-    `unMapData-cpu-arguments`: Int,
-    `unMapData-memory-arguments`: Int,
-    `verifyEcdsaSecp256k1Signature-cpu-arguments`: Int,
-    `verifyEcdsaSecp256k1Signature-memory-arguments`: Int,
-    `verifyEd25519Signature-cpu-arguments-intercept`: Int,
-    `verifyEd25519Signature-cpu-arguments-slope`: Int,
-    `verifyEd25519Signature-memory-arguments`: Int,
-    `verifySchnorrSecp256k1Signature-cpu-arguments-intercept`: Int,
-    `verifySchnorrSecp256k1Signature-cpu-arguments-slope`: Int,
-    `verifySchnorrSecp256k1Signature-memory-arguments`: Int
-)
+private object JsonUtils {
 
-object PlutusV1Params:
-    inline def mkReadWriter[A]: ReadWriter[A] = ${ scalus.macros.Macros.mkReadWriterImpl[A] }
-    inline def mkSeqRW[A]: (A => Seq[Int], Seq[Int] => A) = ${
-        scalus.macros.Macros.mkSeqRWImpl[A]
+    /** Generates a [[ReadWriter]] for a class with fields that are not private
+      *
+      * @tparam A
+      *   the type of the class
+      *
+      * @example
+      *   {{{
+      *  class Foo {
+      *   var a: Int = 0
+      *  }
+      *  given rw = mkClassFieldsReadWriter[Foo]
+      *   }}}
+      */
+    inline def mkClassFieldsReadWriter[A]: ReadWriter[A] = ${
+        scalus.macros.Macros.mkReadWriterImpl[A]
     }
 
-    given ReadWriter[PlutusV1Params] = mkReadWriter[PlutusV1Params]
-    val (toSeq, fromSeq) = mkSeqRW[PlutusV1Params]
+    /** Generates a pair of functions to convert a class with fields to a sequence of longs and back
+      */
+    inline def mkClassFieldsFromSeqIso[A]: (A => Seq[Long], Seq[Long] => A) = ${
+        scalus.macros.Macros.mkClassFieldsFromSeqIsoImpl[A]
+    }
+}
+
+object PlutusV1Params:
+
+    given ReadWriter[PlutusV1Params] = JsonUtils.mkClassFieldsReadWriter[PlutusV1Params]
+    // given ReadWriter[PlutusV1Params] = readwriter[ujson.Value].bimap(params => ujson.Obj(), json => new PlutusV1Params)
+
+    val (toSeq, fromSeq) = JsonUtils.mkClassFieldsFromSeqIso[PlutusV1Params]
 
 object PlutusV2Params:
-
-    given ReadWriter[PlutusV2Params] = PlutusV1Params.mkReadWriter[PlutusV2Params]
-    val (toSeq, fromSeq) = PlutusV1Params.mkSeqRW[PlutusV2Params]
+    given ReadWriter[PlutusV2Params] = JsonUtils.mkClassFieldsReadWriter[PlutusV2Params]
+    val (toSeq, fromSeq) = JsonUtils.mkClassFieldsFromSeqIso[PlutusV2Params]
