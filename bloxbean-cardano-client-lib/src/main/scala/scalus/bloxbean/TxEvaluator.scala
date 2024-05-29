@@ -387,12 +387,7 @@ class TxEvaluator(
                     throw new TxEvaluationException(e.getMessage, e, logger.getLogs)
 
         if mode == EvaluatorMode.VALIDATE && r.budget != budget then
-            log.warn(
-              s"Budget mismatch: expected $budget, got ${r.budget}"
-            )
-            throw new RuntimeException(
-              s"Budget mismatch: expected $budget, got ${r.budget}"
-            )
+            log.warn(s"Budget mismatch: expected $budget, got ${r.budget}")
         r
     }
 

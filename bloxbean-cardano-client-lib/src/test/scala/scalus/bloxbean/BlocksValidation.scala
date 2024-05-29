@@ -13,11 +13,13 @@ import com.bloxbean.cardano.yaci.core.model.serializers.util.WitnessUtil
 import com.bloxbean.cardano.yaci.core.model.serializers.util.WitnessUtil.getArrayBytes
 import com.bloxbean.cardano.yaci.core.util.CborSerializationUtil
 import scalus.*
+import scalus.bloxbean.Interop.??
 import scalus.builtin.ByteString
 import scalus.utils.Utils
 
 import java.math.BigInteger
 import java.nio.file.Files
+import java.nio.file.Path
 import java.nio.file.Paths
 import java.util
 import java.util.stream.Collectors
@@ -28,19 +30,25 @@ import scala.jdk.CollectionConverters.*
   */
 object BlocksValidation:
 
-    lazy val apiKey = System.getenv("BLOCKFROST_API_KEY")
+    lazy val apiKey = System.getenv("BLOCKFROST_API_KEY") ?? sys.error(
+      "BLOCKFROST_API_KEY is not set, please set it before running the test"
+    )
 
     private def validateBlocksOfEpoch(epoch: Int): Unit = {
         import com.bloxbean.cardano.yaci.core.config.YaciConfig
         YaciConfig.INSTANCE.setReturnBlockCbor(true) // needed to get the block cbor
         YaciConfig.INSTANCE.setReturnTxBodyCbor(true) // needed to get the tx body cbor
 
+        val cwd = Paths.get("bloxbean-cardano-client-lib")
         val backendService = new BFBackendService(Constants.BLOCKFROST_MAINNET_URL, apiKey)
-        val utxoSupplier = CachedUtxoSupplier(DefaultUtxoSupplier(backendService.getUtxoService))
+        val utxoSupplier = CachedUtxoSupplier(
+          cwd.resolve("utxos"),
+          DefaultUtxoSupplier(backendService.getUtxoService)
+        )
         // memory and file cached script supplier using the script service
         val scriptSupplier = InMemoryCachedScriptSupplier(
           FileScriptSupplier(
-            Paths.get("scripts"),
+            cwd.resolve("scripts"),
             ScriptServiceSupplier(backendService.getScriptService)
           )
         )
@@ -60,7 +68,7 @@ object BlocksValidation:
         var v2ScriptsExecuted = 0
 
         for blockNum <- 10294189 to 10315649 do
-            val txs = readTransactionsFromBlockCbor(s"blocks/block-$blockNum.cbor")
+            val txs = readTransactionsFromBlockCbor(cwd.resolve(s"blocks/block-$blockNum.cbor"))
             val withScriptTxs = txsToEvaluate(txs)
             println(s"Block $blockNum, num txs to validate: ${withScriptTxs.size}")
 
@@ -108,9 +116,9 @@ object BlocksValidation:
     }
 
     def readTransactionsFromBlockCbor(
-        filename: String
+        path: Path
     ): collection.Seq[(Transaction, util.List[ByteString])] = {
-        val blockBytes = Utils.hexToBytes(new String(Files.readAllBytes(Paths.get(filename))))
+        val blockBytes = Utils.hexToBytes(new String(Files.readAllBytes(path)))
         readTransactionsFromBlockCbor(blockBytes)
     }
 
