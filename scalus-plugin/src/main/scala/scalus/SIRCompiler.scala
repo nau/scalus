@@ -427,6 +427,8 @@ final class SIRCompiler(mode: scalus.Mode)(using ctx: Context) {
             // println(s"Ignore PlatformSpecific: ${vd.symbol.fullName}")
             None
         else
+            // TODO store comments in the SIR
+            // vd.rawComment
             val bodyExpr = compileExpr(env, vd.rhs)
             Some(B(name.show, vd.symbol, Recursivity.NonRec, bodyExpr))
     }
@@ -437,6 +439,8 @@ final class SIRCompiler(mode: scalus.Mode)(using ctx: Context) {
         // ignore PlatformSpecific statements
         // NOTE: check ps.tpe is not Nothing, as Nothing is a subtype of everything
         else
+            // TODO store comments in the SIR
+            // dd.rawComment
             val params = dd.paramss.flatten.collect({ case vd: ValDef => vd })
             val names =
                 if params.isEmpty then List("_") /* Param for () argument */
