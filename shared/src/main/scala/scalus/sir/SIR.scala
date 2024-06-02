@@ -21,6 +21,7 @@ enum Recursivity:
 
 case class ConstrDecl(name: String, storageType: SIRVarStorage, params: List[TypeBinding])
 case class DataDecl(name: String, storageType: SIRVarStorage, constructors: List[ConstrDecl])
+case class ExternalDataDecl(module: String, name: String)
 
 sealed trait SIR
 
@@ -31,6 +32,20 @@ sealed trait SIRExpr extends SIR {
 sealed trait SIRDef extends SIR
 
 object SIR:
+
+    //  Module A:
+    //   case class AClass(x:Int, y: String)
+    //  Module b:
+    //    val x = A.AClass(1, "hello")
+    //    val y = A.AClass(2, "world")
+
+    // Mole b SIR:  (var1)
+    //  Var(x,  SumType("AClass", List(("x", Int), ("y", String))))
+    //  Var(y,  SumType("AClass", List(("x", Int), ("y", String))))
+
+    // Module b SIR:
+    //  TypeAlias(1, SumType("AClass", List(("x", Int), ("y", String))))
+    //  Var(x,  TypeRef(1))
 
     case class Var(name: String, tp: SIRType) extends SIRExpr  //TODO: add sieStorage parameter.
     case class ExternalVar(moduleName: String, name: String, tp: SIRType) extends SIRExpr
@@ -63,7 +78,7 @@ object SIR:
      * @param cases
      * @param tp - resulting type of Match expression, can be calculated as max(tp of all cases)
      */
-    case class Match(scrutinee: SIRExpr, cases: List[Case], tp: SIRType[?])
+    case class Match(scrutinee: SIRExpr, cases: List[Case], tp: SIRType) extends SIRExpr
 
     case class Decl(data: DataDecl, term: SIRExpr) extends SIRDef
 

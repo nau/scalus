@@ -98,7 +98,7 @@ object FlatInstantces:
             summon[Flat[String]].encode(a.name, encode)
             summon[Flat[List[(String,SIRType)]]].encode(a.params, encode)
         }
-        def decode(decode: DecoderState): ConstrDecl[T] = {
+        def decode(decode: DecoderState): ConstrDecl = {
             val name = summon[Flat[String]].decode(decode)
             val tp  = summon[Flat[SIRType]].decode(decode)
             val params = summon[Flat[List[TypeBinding]]].decode(decode)

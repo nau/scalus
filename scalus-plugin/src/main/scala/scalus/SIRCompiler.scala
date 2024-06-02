@@ -26,6 +26,8 @@ import scalus.sir.Recursivity
 import scalus.sir.SIR
 import scalus.sir.SIRExpr
 import scalus.sir.SIRType
+import scalus.sir.SIRVarStorage
+import scalus.sir.TypeBinding
 import scalus.uplc.DefaultFun
 import scalus.uplc.DefaultUni
 
@@ -41,9 +43,9 @@ case class FullName(name: String)
 object FullName:
     def apply(sym: Symbol)(using Context): FullName = FullName(sym.fullName.toString())
 
-case class TopLevelBinding(fullName: FullName, recursivity: Recursivity, body: SIR)
+case class TopLevelBinding(fullName: FullName, recursivity: Recursivity, body: SIRExpr)
 
-case class B(name: String, symbol: Symbol, recursivity: Recursivity, body: SIR):
+case class B(name: String, symbol: Symbol, recursivity: Recursivity, body: SIRExpr):
     def fullName(using Context) = FullName(symbol)
 
 case class AdtTypeInfo(
@@ -54,7 +56,7 @@ case class AdtTypeInfo(
 
 final class SIRCompiler(mode: scalus.Mode)(using ctx: Context) {
     import tpd.*
-    type Env = HashSet[String]
+    type Env = Map[String, SIRType]
 
     val SirVersion = (0, 0)
 
@@ -99,7 +101,7 @@ final class SIRCompiler(mode: scalus.Mode)(using ctx: Context) {
         mutable.LinkedHashMap.empty
     private val globalDataDecls: mutable.LinkedHashMap[FullName, DataDecl] =
         mutable.LinkedHashMap.empty
-    private val moduleDefsCache: mutable.Map[String, mutable.LinkedHashMap[FullName, SIR]] =
+    private val moduleDefsCache: mutable.Map[String, mutable.LinkedHashMap[FullName, SIRExpr]] =
         mutable.LinkedHashMap.empty.withDefaultValue(mutable.LinkedHashMap.empty)
 
     private val CompileAnnot = requiredClassRef("scalus.Compile").symbol.asClass
@@ -148,14 +150,14 @@ final class SIRCompiler(mode: scalus.Mode)(using ctx: Context) {
                 // uncomment to ignore derived methods
                 // && !dd.symbol.name.startsWith("derived")
                     && !dd.symbol.hasAnnotation(IgnoreAnnot) =>
-                compileStmt(HashSet.empty, dd, isGlobalDef = true)
+                compileStmt(Map.empty, dd, isGlobalDef = true)
             case vd: ValDef
                 if !vd.symbol.flags.isOneOf(Flags.Synthetic | Flags.Case)
                 // uncomment to ignore derived methods
                 // && !vd.symbol.name.startsWith("derived")
                     && !vd.symbol.hasAnnotation(IgnoreAnnot) =>
                 // println(s"valdef: ${vd.symbol.fullName}")
-                compileStmt(HashSet.empty, vd, isGlobalDef = true)
+                compileStmt(Map.empty, vd, isGlobalDef = true)
             case _ => None
         }
         val module = Module(SirVersion, bindings.map(b => Binding(b.fullName.name, b.body)))
@@ -258,15 +260,15 @@ final class SIRCompiler(mode: scalus.Mode)(using ctx: Context) {
         // sort by name to get a stable order
         val sortedConstructors = adtInfo.constructors.sortBy(_.name.show)
         val constrDecls = sortedConstructors.map { sym =>
-            val params = primaryConstructorParams(sym).map(_.name.show)
-            scalus.sir.ConstrDecl(sym.name.show, params)
+            val params = primaryConstructorParams(sym).map(p => TypeBinding(p.name.show, SIRTypesHelper.sirType(p.info)))
+            scalus.sir.ConstrDecl(sym.name.show, SIRVarStorage.DEFAULT ,  params)
         }
         val dataName = adtInfo.dataTypeSymbol.name.show
         // debugInfo(s"compileNewConstructor2: dataTypeSymbol $dataTypeSymbol, dataName $dataName, constrName $constrName, children ${constructors}")
         val dataDecl = globalDataDecls.get(FullName(adtInfo.dataTypeSymbol)) match
             case Some(decl) => decl
             case None =>
-                val decl = scalus.sir.DataDecl(dataName, constrDecls)
+                val decl = scalus.sir.DataDecl(dataName, SIRVarStorage.DEFAULT, constrDecls)
                 globalDataDecls.addOne(FullName(adtInfo.dataTypeSymbol) -> decl)
                 decl
         // constructor body as: constr arg1 arg2 ...
@@ -281,7 +283,7 @@ final class SIRCompiler(mode: scalus.Mode)(using ctx: Context) {
         symbol.flags.isAllOf(Flags.EnumCase)
 
     def traverseAndLink(sir: SIR, srcPos: SrcPos): Unit = sir match
-        case SIR.ExternalVar(moduleName, name) if !globalDefs.contains(FullName(name)) =>
+        case SIR.ExternalVar(moduleName, name, tp) if !globalDefs.contains(FullName(name)) =>
             linkDefinition(moduleName, FullName(name), srcPos)
         case SIR.Let(recursivity, bindings, body) =>
             bindings.foreach(b => traverseAndLink(b.value, srcPos))
@@ -297,7 +299,7 @@ final class SIRCompiler(mode: scalus.Mode)(using ctx: Context) {
             traverseAndLink(lhs, srcPos)
             traverseAndLink(rhs, srcPos)
         case SIR.Not(term) => traverseAndLink(term, srcPos)
-        case SIR.IfThenElse(cond, t, f) =>
+        case SIR.IfThenElse(cond, t, f, tp) =>
             traverseAndLink(cond, srcPos)
             traverseAndLink(t, srcPos)
             traverseAndLink(f, srcPos)
@@ -305,16 +307,16 @@ final class SIRCompiler(mode: scalus.Mode)(using ctx: Context) {
         case SIR.Constr(name, data, args) =>
             globalDataDecls.put(FullName(data.name), data)
             args.foreach(a => traverseAndLink(a, srcPos))
-        case SIR.Match(scrutinee, cases) =>
+        case SIR.Match(scrutinee, cases, rhsType) =>
             traverseAndLink(scrutinee, srcPos)
             cases.foreach(c => traverseAndLink(c.body, srcPos))
         case _ => ()
 
     private def findAndLinkDefinition(
-        defs: collection.Map[FullName, SIR],
+        defs: collection.Map[FullName, SIRExpr],
         fullName: FullName,
         srcPos: SrcPos
-    ): Option[SIR] = {
+    ): Option[SIRExpr] = {
         // println(s"findAndLinkDefinition: looking for ${fullName.name}")
         defs.get(fullName).map { sir =>
             globalDefs.update(fullName, CompileDef.Compiling)
@@ -328,7 +330,7 @@ final class SIRCompiler(mode: scalus.Mode)(using ctx: Context) {
         }
     }
 
-    private def linkDefinition(moduleName: String, fullName: FullName, srcPos: SrcPos): SIR = {
+    private def linkDefinition(moduleName: String, fullName: FullName,  srcPos: SrcPos): SIRExpr = {
         // println(s"linkDefinition: ${fullName}")
         val defn = moduleDefsCache.get(moduleName) match
             case Some(defs) =>
@@ -344,7 +346,7 @@ final class SIRCompiler(mode: scalus.Mode)(using ctx: Context) {
         defn match
             case Some(d) =>
                 // println(s"Found definition of ${fullName.name}")
-                SIR.Var(fullName.name)
+                SIR.Var(fullName.name, d.tp)
             case None =>
                 error(SymbolNotFound(fullName.name, srcPos), SIR.Error("Symbol not found"))
     }
@@ -362,18 +364,37 @@ final class SIRCompiler(mode: scalus.Mode)(using ctx: Context) {
         // println( s"compileIdentOrQualifiedSelect1: ${e.symbol} $name $fullName, term: ${e.show}, loc/glob: $isInLocalEnv/$isInGlobalEnv, env: ${env}" )
         (isInLocalEnv, isInGlobalEnv) match
             // global def, self reference, use the name
-            case (true, true) => SIR.Var(e.symbol.fullName.toString())
+            case (true, true) =>
+                val localType = env(name)
+                globalDefs(fullName) match
+                    case CompileDef.Compiled(TopLevelBinding(_, _, body)) =>
+                        val globalType = body.tp
+                        if globalType != localType then
+                            error(
+                              TypeMismatch(
+                                e.symbol.fullName.toString(),
+                                localType,
+                                globalType,
+                                e.srcPos
+                              ),
+                              SIR.Var(e.symbol.fullName.toString(), localType)
+                            )
+                    case _ =>
+                SIR.Var(e.symbol.fullName.toString(), localType)
             // local def, use the name
-            case (true, false) => SIR.Var(e.symbol.name.show)
+            case (true, false) =>
+                SIR.Var(e.symbol.name.show, env(name))
             // global def, use full name
-            case (false, true) => SIR.Var(e.symbol.fullName.toString())
+            case (false, true) =>
+                SIR.Var(e.symbol.fullName.toString(), SIRTypesHelper.sirType(e.tpe.widen))
             case (false, false) =>
                 mode match
                     case scalus.Mode.Compile =>
                         // println( s"external var: module ${e.symbol.owner.fullName.toString()}, ${e.symbol.fullName.toString()}" )
                         SIR.ExternalVar(
                           e.symbol.owner.fullName.toString(),
-                          e.symbol.fullName.toString()
+                          e.symbol.fullName.toString(),
+                          SIRTypesHelper.sirType(e.tpe.widen)
                         )
                     case scalus.Mode.Link =>
                         if e.symbol.defTree == EmptyTree then
@@ -388,7 +409,7 @@ final class SIRCompiler(mode: scalus.Mode)(using ctx: Context) {
                             globalDefs.update(fullName, CompileDef.Compiling)
                             // println(s"Tree of ${e}: ${e.tpe} isList: ${e.isList}")
                             // debugInfo(s"Tree of ${e.symbol}: ${e.symbol.tree.show}\n${e.symbol.tree}")
-                            val b = compileStmt(HashSet.empty, e.symbol.defTree, isGlobalDef = true)
+                            val b = compileStmt(Map.empty, e.symbol.defTree, isGlobalDef = true)
                             // remove the symbol from the linked hash map so the order of the definitions is preserved
                             globalDefs.remove(fullName)
                             b match
@@ -404,12 +425,19 @@ final class SIRCompiler(mode: scalus.Mode)(using ctx: Context) {
                             SIR.Var(e.symbol.fullName.toString())
     }
 
-    private def compileValDef(env: Env, vd: ValDef): Option[B] = {
+    enum CompileMemberDefResult {
+        case Compiled(b:B)
+        case Builtin(name:String, tp: SIRType)
+        case Ignored(tp: SIRType)
+        case NotSupported
+    }
+
+    private def compileValDef(env: Env, vd: ValDef): CompileMemberDefResult = {
         val name = vd.name
         // vars are not supported
         if vd.symbol.flags.is(Flags.Mutable) then
             error(VarNotSupported(vd, vd.srcPos), None)
-            None
+            CompileMemberDefResult.NotSupported
         /*
             lazy vals are not supported
             but we use givens for To/FromData instances
@@ -419,14 +447,16 @@ final class SIRCompiler(mode: scalus.Mode)(using ctx: Context) {
          */
         else if vd.symbol.flags.isAllOf(Flags.Lazy, Flags.Given) then
             error(LazyValNotSupported(vd, vd.srcPos), None)
-            None
+            CompileMemberDefResult.NotSupported
         // ignore @Ignore annotated statements
-        else if vd.symbol.hasAnnotation(IgnoreAnnot) then None
+        else if vd.symbol.hasAnnotation(IgnoreAnnot) then 
+            CompileMemberDefResult.Ignored(SIRTypesHelper.sirType(vd.tpe))
         // ignore PlatformSpecific statements
         // NOTE: check ps.tpe is not Nothing, as Nothing is a subtype of everything
         else if vd.tpe <:< PlatformSpecificClassSymbol.typeRef && !(vd.tpe =:= NothingSymbol.typeRef)
         then
             // println(s"Ignore PlatformSpecific: ${vd.symbol.fullName}")
+            
             None
         else
             val bodyExpr = compileExpr(env, vd.rhs)
