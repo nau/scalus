@@ -82,3 +82,6 @@ enum DefaultFun:
     case MkPairData
     case MkNilData
     case MkNilPairData
+
+given DefaultFunOrdering: Ordering[DefaultFun] with
+    def compare(x: DefaultFun, y: DefaultFun): Int = x.ordinal - y.ordinal

@@ -4,6 +4,7 @@ out
 .bloop/
 .direnv
 .direnv
+.history
 /.idea
 /.idea_modules
 /.classpath
