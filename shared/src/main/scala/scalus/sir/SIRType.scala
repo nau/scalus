@@ -120,7 +120,9 @@ object SIRType {
     given liftTuple4[A,B,C,D](using a: SIRType.Aux[A], b: SIRType.Aux[B], c: SIRType.Aux[C], d: SIRType.Aux[D]): SIRType.Aux[(A, B, C, D)] =
         Tuple(List(a, b, c, d)).asInstanceOf[SIRType.Aux[(A, B, C, D)]]
 
-
+    object Pair {
+        def apply(a: SIRType, b: SIRType): SIRType = Tuple(List(a, b))
+    }
 
     case class TypeVar(name: String) extends SIRType {
 
@@ -133,14 +135,26 @@ object SIRType {
         override def show: String = s" [${param.show}] =>> ${body}"
 
     }
-    given liftLambda1List: SIRType.Aux[[A] =>> List[A]] = ???
+    //given liftLambda1List: SIRType.Aux[[A] =>> List[A]] = ???
        // TypeLambda(List(TypeVar("A")), (a: Seq[SIRType]) => scalus.list(a.head)).asInstanceOf[SIRType.Aux[[A] =>> List[A]]]
        //  TODO: implement predefined constants and type cache.
-    given liftBoolAA: SIRType.Aux[[A] =>> (Boolean,A,A)] = ???
+    //given liftBoolAA: SIRType.Aux[[A] =>> (Boolean,A,A)] = ???
          // TypeLambda(List(TypeVar("A")), (a: Seq[SIRType]) => Tuple(List(a.head, a.head, a.head))).asInstanceOf[SIRType.Aux[[A] =>> (Boolean,A,A)]]
 
+    object Const {
+        def apply(a: SIRType): SIRType = CaseClass()
+    }
+    
+    object List {
+        
+        def apply(a: SIRType): SIRType = Sum("List"  List(
+            
+        ))
+        
+    }
+    
     def lift[T](implicit ev: SIRType.Aux[T]): SIRType.Aux[T] = ev
-
+    
     inline def liftM[T]: SIRType.Aux[T] = ${liftMImpl[T]}
 
     def liftMImpl[T:Type](using Quotes): Expr[SIRType.Aux[T]] = {

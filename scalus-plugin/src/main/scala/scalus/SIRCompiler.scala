@@ -27,6 +27,7 @@ import scalus.sir.SIR
 import scalus.sir.SIRExpr
 import scalus.sir.SIRType
 import scalus.sir.SIRVarStorage
+import scalus.sir.SIRBuiltins
 import scalus.sir.TypeBinding
 import scalus.uplc.DefaultFun
 import scalus.uplc.DefaultUni
@@ -150,14 +151,18 @@ final class SIRCompiler(mode: scalus.Mode)(using ctx: Context) {
                 // uncomment to ignore derived methods
                 // && !dd.symbol.name.startsWith("derived")
                     && !dd.symbol.hasAnnotation(IgnoreAnnot) =>
-                compileStmt(Map.empty, dd, isGlobalDef = true)
+                compileStmt(Map.empty, dd, isGlobalDef = true) match
+                    case CompileMemberDefResult.Compiled(b) => Some(b)
+                    case _                                  => None
             case vd: ValDef
                 if !vd.symbol.flags.isOneOf(Flags.Synthetic | Flags.Case)
                 // uncomment to ignore derived methods
                 // && !vd.symbol.name.startsWith("derived")
                     && !vd.symbol.hasAnnotation(IgnoreAnnot) =>
                 // println(s"valdef: ${vd.symbol.fullName}")
-                compileStmt(Map.empty, vd, isGlobalDef = true)
+                compileStmt(Map.empty, vd, isGlobalDef = true) match
+                    case CompileMemberDefResult.Compiled(b) => Some(b)
+                    case _                                  => None
             case _ => None
         }
         val module = Module(SirVersion, bindings.map(b => Binding(b.fullName.name, b.body)))
@@ -412,9 +417,8 @@ final class SIRCompiler(mode: scalus.Mode)(using ctx: Context) {
                             val b = compileStmt(Map.empty, e.symbol.defTree, isGlobalDef = true)
                             // remove the symbol from the linked hash map so the order of the definitions is preserved
                             globalDefs.remove(fullName)
-                            b match
-                                case None =>
-                                case Some(b) =>
+                            val tp = b match
+                                case CompileMemberDefResult.Compiled(b) =>
                                     traverseAndLink(b.body, e.symbol.sourcePos)
                                     globalDefs.update(
                                       fullName,
@@ -422,7 +426,14 @@ final class SIRCompiler(mode: scalus.Mode)(using ctx: Context) {
                                         TopLevelBinding(fullName, b.recursivity, b.body)
                                       )
                                     )
-                            SIR.Var(e.symbol.fullName.toString())
+                                    b.body.tp
+                                case CompileMemberDefResult.Ignored(tp) =>
+                                    tp
+                                case CompileMemberDefResult.Builtin(name, tp) =>
+                                    tp
+                                case _ =>
+                                    SIRTypesHelper.sirType(e.tpe.widen)
+                            SIR.Var(e.symbol.fullName.toString(), tp)
     }
 
     enum CompileMemberDefResult {
@@ -456,41 +467,40 @@ final class SIRCompiler(mode: scalus.Mode)(using ctx: Context) {
         else if vd.tpe <:< PlatformSpecificClassSymbol.typeRef && !(vd.tpe =:= NothingSymbol.typeRef)
         then
             // println(s"Ignore PlatformSpecific: ${vd.symbol.fullName}")
-            
-            None
+            CompileMemberDefResult.Builtin(name.show, SIRTypesHelper.sirType(vd.tpe))
         else
             val bodyExpr = compileExpr(env, vd.rhs)
-            Some(B(name.show, vd.symbol, Recursivity.NonRec, bodyExpr))
+            CompileMemberDefResult.Compiled(B(name.show, vd.symbol, Recursivity.NonRec, bodyExpr))
     }
 
-    private def compileDefDef(env: Env, dd: DefDef, isGlobalDef: Boolean): Option[B] = {
+    private def compileDefDef(env: Env, dd: DefDef, isGlobalDef: Boolean): CompileMemberDefResult = {
         // ignore inline defs and @Ignore annotated statements
-        if dd.symbol.flags.is(Flags.Inline) || dd.symbol.hasAnnotation(IgnoreAnnot) then None
-        // ignore PlatformSpecific statements
-        // NOTE: check ps.tpe is not Nothing, as Nothing is a subtype of everything
+        if dd.symbol.flags.is(Flags.Inline) || dd.symbol.hasAnnotation(IgnoreAnnot) then
+            CompileMemberDefResult.Ignored(SIRTypesHelper.sirType(dd.tpe))
+            // ignore PlatformSpecific statements
+            // NOTE: check ps.tpe is not Nothing, as Nothing is a subtype of everything
         else
             val params = dd.paramss.flatten.collect({ case vd: ValDef => vd })
-            val names =
-                if params.isEmpty then List("_") /* Param for () argument */
-                else params.map { case v: ValDef => v.symbol.name.show }
+            val paramNameTypes =
+                if params.isEmpty then List(("_" -> SIRType.VoidPrimitive)) /* Param for () argument */
+                else params.map { case v: ValDef => (v.symbol.name.show, SIRTypesHelper.sirType(v.tpe)) }
             val body = dd.rhs
             val selfName = if isGlobalDef then FullName(dd.symbol).name else dd.symbol.name.show
-            val bE = compileExpr(env ++ names + selfName, body)
-            val bodyExpr: scalus.sir.SIR =
-                names.foldRight(bE) { (name, acc) =>
-                    SIR.LamAbs(name, acc)
+            val bE = compileExpr(env ++ paramNameTypes + (selfName -> SIRTypesHelper.sirType(dd.tpe)) , body)
+            val bodyExpr: scalus.sir.SIRExpr =
+                paramNameTypes.foldRight(bE) { (nameType, acc) =>
+                    SIR.LamAbs(SIR.Var(nameType._1, nameType._2), acc)
                 }
-
-            Some(B(dd.name.show, dd.symbol, Recursivity.Rec, bodyExpr))
+            CompileMemberDefResult.Compiled(B(dd.name.show, dd.symbol, Recursivity.Rec, bodyExpr))
     }
 
-    private def compileStmt(env: Env, stmt: Tree, isGlobalDef: Boolean = false): Option[B] = {
+    private def compileStmt(env: Env, stmt: Tree, isGlobalDef: Boolean = false): CompileMemberDefResult = {
         // report.echo(s"compileStmt  ${stmt.show} in ${env}")
         stmt match
             case vd: ValDef => compileValDef(env, vd)
             case dd: DefDef => compileDefDef(env, dd, isGlobalDef)
             case x =>
-                Some(
+                CompileMemberDefResult.Compiled(
                   B(
                     s"__${stmt.source.file.name.takeWhile(_.isLetterOrDigit)}_line_${stmt.srcPos.line}",
                     NoSymbol,
@@ -500,17 +510,18 @@ final class SIRCompiler(mode: scalus.Mode)(using ctx: Context) {
                 )
     }
 
-    private def compileBlock(env: Env, stmts: immutable.List[Tree], expr: Tree): SIR = {
+    private def compileBlock(env: Env, stmts: immutable.List[Tree], expr: Tree): SIRExpr = {
         val exprs = ListBuffer.empty[B]
         val exprEnv = stmts.foldLeft(env) {
             case (env, _: Import)  => env // ignore local imports
             case (env, _: TypeDef) => env // ignore local type definitions
             case (env, stmt) =>
                 compileStmt(env, stmt) match
-                    case None => env
-                    case Some(bind) =>
+                    case CompileMemberDefResult.Compiled(bind) =>
                         exprs += bind
-                        env + bind.name
+                        env + (bind.name -> bind.body.tp)
+                    case _ => env
+
         }
         val exprExpr = compileExpr(exprEnv, expr)
         exprs.foldRight(exprExpr) { (bind, expr) =>
@@ -601,32 +612,32 @@ final class SIRCompiler(mode: scalus.Mode)(using ctx: Context) {
         op match
             case nme.PLUS =>
                 SIR.Apply(
-                  SIR.Apply(SIR.Builtin(DefaultFun.AddInteger), compileExpr(env, lhs)),
+                  SIR.Apply(SIRBuiltins.addInteger, compileExpr(env, lhs)),
                   compileExpr(env, rhs)
                 )
             case nme.MINUS =>
                 SIR.Apply(
-                  SIR.Apply(SIR.Builtin(DefaultFun.SubtractInteger), compileExpr(env, lhs)),
+                  SIR.Apply(SIRBuiltins.subtractInteger, compileExpr(env, lhs)),
                   compileExpr(env, rhs)
                 )
             case nme.MUL =>
                 SIR.Apply(
-                  SIR.Apply(SIR.Builtin(DefaultFun.MultiplyInteger), compileExpr(env, lhs)),
+                  SIR.Apply(SIRBuiltins.multiplyInteger, compileExpr(env, lhs)),
                   compileExpr(env, rhs)
                 )
             case nme.DIV =>
                 SIR.Apply(
-                  SIR.Apply(SIR.Builtin(DefaultFun.DivideInteger), compileExpr(env, lhs)),
+                  SIR.Apply(SIRBuiltins.divideInteger, compileExpr(env, lhs)),
                   compileExpr(env, rhs)
                 )
             case nme.MOD =>
                 SIR.Apply(
-                  SIR.Apply(SIR.Builtin(DefaultFun.RemainderInteger), compileExpr(env, lhs)),
+                  SIR.Apply(SIRBuiltins.remainderInteger, compileExpr(env, lhs)),
                   compileExpr(env, rhs)
                 )
             case nme.LT =>
                 SIR.Apply(
-                  SIR.Apply(SIRBuiltins.lessThenInteger, compileExpr(env, lhs)),
+                  SIR.Apply(SIRBuiltins.lessThanInteger, compileExpr(env, lhs)),
                   compileExpr(env, rhs)
                 )
             case nme.LE =>
@@ -636,23 +647,23 @@ final class SIRCompiler(mode: scalus.Mode)(using ctx: Context) {
                 )
             case nme.GT =>
                 SIR.Apply(
-                  SIR.Apply(SIR.Builtin(DefaultFun.LessThanInteger), compileExpr(env, rhs)),
+                  SIR.Apply(SIRBuiltins.lessThanInteger, compileExpr(env, rhs)),
                   compileExpr(env, lhs)
                 )
             case nme.GE =>
                 SIR.Apply(
-                  (SIR.Apply(SIR.Builtin(DefaultFun.LessThanEqualsInteger), compileExpr(env, rhs))),
+                  (SIR.Apply(SIRBuiltins.lessThanEqualsInteger, compileExpr(env, rhs))),
                   compileExpr(env, lhs)
                 )
             case nme.EQ =>
                 SIR.Apply(
-                  SIR.Apply(SIR.Builtin(DefaultFun.EqualsInteger), compileExpr(env, lhs)),
+                  SIR.Apply(SIRBuiltins.equalsInteger, compileExpr(env, lhs)),
                   compileExpr(env, rhs)
                 )
             case nme.NE =>
                 SIR.Not(
                   SIR.Apply(
-                    SIR.Apply(SIR.Builtin(DefaultFun.EqualsInteger), compileExpr(env, lhs)),
+                    SIR.Apply(SIRBuiltins.equalsInteger, compileExpr(env, lhs)),
                     compileExpr(env, rhs)
                   )
                 )
@@ -669,9 +680,9 @@ final class SIRCompiler(mode: scalus.Mode)(using ctx: Context) {
     private def compileBuiltinPairMethods(env: Env, fun: Name, pair: Tree, tree: Tree): SIR =
         fun.show match
             case "fst" =>
-                SIR.Apply(SIR.Builtin(DefaultFun.FstPair), compileExpr(env, pair))
+                SIR.Apply(SIRBuiltins.fstPair, compileExpr(env, pair))
             case "snd" =>
-                SIR.Apply(SIR.Builtin(DefaultFun.SndPair), compileExpr(env, pair))
+                SIR.Apply(SIRBuiltins.sndPair, compileExpr(env, pair))
             case _ => error(UnsupportedPairFunction(fun.toString, tree.srcPos), SIR.Error(""))
 
     private def compileBuiltinPairConstructor(
@@ -686,11 +697,12 @@ final class SIRCompiler(mode: scalus.Mode)(using ctx: Context) {
         // or 2 Data variables using MkPairData builtin
         if a.isLiteral && b.isLiteral then
             SIR.Const(
-              scalus.uplc.Constant.Pair(compileConstant(a), compileConstant(b))
+              scalus.uplc.Constant.Pair(compileConstant(a), compileConstant(b)),
+              SIRType.Pair(SIRTypesHelper.sirType(a.tpe),SIRTypesHelper.sirType(b.tpe))
             )
         else if a.isData && b.isData then
             SIR.Apply(
-              SIR.Apply(SIR.Builtin(DefaultFun.MkPairData), compileExpr(env, a)),
+              SIR.Apply(SIRBuiltins.mkPairData, compileExpr(env, a)),
               compileExpr(env, b)
             )
         else
@@ -712,11 +724,11 @@ final class SIRCompiler(mode: scalus.Mode)(using ctx: Context) {
     private def compileBuiltinListMethods(env: Env, lst: Tree, fun: Name): SIR =
         fun.show match
             case "head" =>
-                SIR.Apply(SIR.Builtin(DefaultFun.HeadList), compileExpr(env, lst))
+                SIR.Apply(SIRBuiltins.headList, compileExpr(env, lst))
             case "tail" =>
-                SIR.Apply(SIR.Builtin(DefaultFun.TailList), compileExpr(env, lst))
+                SIR.Apply(SIRBuiltins.tailList, compileExpr(env, lst))
             case "isEmpty" =>
-                SIR.Apply(SIR.Builtin(DefaultFun.NullList), compileExpr(env, lst))
+                SIR.Apply(SIRBuiltins.nullList, compileExpr(env, lst))
             case _ =>
                 error(UnsupportedListFunction(fun.toString, lst.srcPos), SIR.Error(""))
 
@@ -733,7 +745,7 @@ final class SIRCompiler(mode: scalus.Mode)(using ctx: Context) {
                 val allLiterals = args.forall(arg => compileConstant.isDefinedAt(arg))
                 if allLiterals then
                     val lits = args.map(compileConstant)
-                    SIR.Const(scalus.uplc.Constant.List(tpeE, lits))
+                    SIR.Const(scalus.uplc.Constant.List(tpeE, lits), SIRType.List(SIRTypesHelper.sirType(tpe.tpe)))
                 else
                     val nil = SIR.Const(scalus.uplc.Constant.List(tpeE, Nil))
                     args.foldRight(nil) { (arg, acc) =>
