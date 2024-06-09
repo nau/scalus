@@ -223,5 +223,14 @@ case class TypeMismatch(name:String, expected: SIRType, actual: SIRType, srcPos:
            |Actual: ${actual.show}""".stripMargin
 }
 
+case class ExpectedTypeLambda(name: String, actual: SIRType, srcPos: SrcPos)(using Context)
+    extends CompilationError {
+    def message: String =
+        s"""Type of expression should be type-lambda, but it's not.
+           |symbol: $name
+           |Actual: ${actual.show}""".stripMargin
+}
+
+
 case class GenericError(message: String, srcPos: SrcPos) extends CompilationError
 

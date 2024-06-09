@@ -51,7 +51,23 @@ object SIR:
     case class ExternalVar(moduleName: String, name: String, tp: SIRType) extends SIRExpr
     case class Let(recursivity: Recursivity, bindings: List[Binding], body: SIRExpr) extends SIRExpr
     case class LamAbs(param: Var, term: SIRExpr) extends SIRExpr
-    case class Apply(f: SIRExpr, arg: SIRExpr) extends SIRExpr
+    case class Apply(f: SIRExpr, arg: SIRExpr, tp: SIRType) extends SIRExpr {
+
+        // TODO: makr tp computable, not stored.  (implement subst at first).
+        /*
+        def recheckTp: SIRType = f.tp match {
+            case SIRType.Fun(in, out) => out
+            case SIRType.TypeLambda(tp1, tpexpr) =>
+                val sftp = tpexpr.subst(tp1,arg.tp)
+                sftp match {
+                    case SIRType.Fun(in, out) => out
+                    case _ => throw new Exception("Apply: f is not a function")
+                }
+            case _ => throw new Exception("Apply: f is not a function")
+        }
+        */
+
+    }
     case class Const(uplcConst: Constant, tp: SIRType) extends SIRExpr
     case class And(a: SIRExpr, b: SIRExpr) extends SIRExpr {
         override def tp: SIRType = SIRType.BoolPrimitive

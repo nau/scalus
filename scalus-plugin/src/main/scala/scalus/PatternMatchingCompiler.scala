@@ -147,7 +147,7 @@ class PatternMatchingCompiler(val compiler: SIRCompiler)(using Context) {
     }
 
     private def compileConstructorPatterns(
-        env: compiler.Env,
+        env: SIRCompiler.Env,
         constrTypeSymbol: Symbol,
         patterns: List[Tree],
         rhs: Tree
@@ -161,7 +161,7 @@ class PatternMatchingCompiler(val compiler: SIRCompiler)(using Context) {
     }
 
     private def scalaCaseDefToSirCase(
-        env: compiler.Env,
+        env: SIRCompiler.Env,
         typeSymbol: Symbol,
         c: CaseDef
     ): List[SirCase] = c match
@@ -189,7 +189,7 @@ class PatternMatchingCompiler(val compiler: SIRCompiler)(using Context) {
         case a =>
             SirCase.Error(UnsupportedMatchExpression(a, a.srcPos)) :: Nil
 
-    def compileMatch(tree: Match, env: compiler.Env): SIRExpr = {
+    def compileMatch(tree: Match, env: SIRCompiler.Env): SIRExpr = {
         val Match(matchTree, cases) = tree
         val typeSymbol = matchTree.tpe.widen.dealias.typeSymbol
         val adtInfo = compiler.getAdtInfoFromConstroctorType(matchTree.tpe)

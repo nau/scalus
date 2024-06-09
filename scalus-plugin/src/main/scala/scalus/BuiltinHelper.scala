@@ -78,7 +78,7 @@ class BuiltinHelper(using Context) {
       "mkNilPairData" -> SIRBuiltins.mkNilPairData
     )
 
-    def builtinFun[A:SIRType.Aux,B:SIRType.Aux](s: Symbol)(using Context): Option[SIR.Builtin] = {
+    def builtinFun(s: Symbol)(using Context): Option[SIR.Builtin] = {
         DefaultFunSIRBuildins.get(s.name.toSimpleName.debugString)
     }
 }

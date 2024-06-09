@@ -120,17 +120,43 @@ object SIRType {
     given liftTuple4[A,B,C,D](using a: SIRType.Aux[A], b: SIRType.Aux[B], c: SIRType.Aux[C], d: SIRType.Aux[D]): SIRType.Aux[(A, B, C, D)] =
         Tuple(List(a, b, c, d)).asInstanceOf[SIRType.Aux[(A, B, C, D)]]
 
+
+
     object Pair {
-        def apply(a: SIRType, b: SIRType): SIRType = Tuple(List(a, b))
+        def apply(a: SIRType, b: SIRType): SIRType = CaseClass(
+            ConstrDecl("Pair", SIRVarStorage.LocalUPLC,
+                scala.List(TypeBinding("fst", a),
+                           TypeBinding("snd", b)
+                )
+            )
+        )
+        def unapply(x:SIRType): Option[(SIRType, SIRType)] = x match {
+            case CaseClass(ConstrDecl("Pair", SIRVarStorage.LocalUPLC, scala.List(TypeBinding("fst", a), TypeBinding("snd", b))) ) => Some((a,b))
+            case _ => None
+        }
     }
 
-    case class TypeVar(name: String) extends SIRType {
+    /**
+     * Type variable have two forms:
+     *   when id is not set,  that means that for each instantiation of type-lambda,
+     *   a new set of type-variables with fresh id-s are created.
+     *   when id is set, that means that computations are situated in the process of instantiation
+     *   of some type-lambda,
+     * @param name
+     * @param id
+     */
+    case class TypeVar(name: String, id: Option[Long] = None) extends SIRType {
 
         override def show: String = name
 
     }
 
-    case class TypeLambda(params: List[TypeVar], body: Seq[SIRType] => SIRType) extends SIRType {
+    /**
+     * Type lamnda (always carried).
+     * @param param
+     * @param body
+     */
+    case class TypeLambda(param: TypeVar, body: SIRType) extends SIRType {
 
         override def show: String = s" [${param.show}] =>> ${body}"
 
@@ -141,15 +167,39 @@ object SIRType {
     //given liftBoolAA: SIRType.Aux[[A] =>> (Boolean,A,A)] = ???
          // TypeLambda(List(TypeVar("A")), (a: Seq[SIRType]) => Tuple(List(a.head, a.head, a.head))).asInstanceOf[SIRType.Aux[[A] =>> (Boolean,A,A)]]
 
-    object Const {
-        def apply(a: SIRType): SIRType = CaseClass()
-    }
-    
+
+
+
     object List {
         
-        def apply(a: SIRType): SIRType = Sum("List"  List(
+        def apply(a: SIRType): SIRType = Sum("List",  scala.List(this.Cons(a), this.Nil))
+
+        def unapply(l: SIRType): Option[SIRType] = l match {
+            case Sum("List", scala.List(this.Cons(a),this.Nil)) => Some(a)
+            case this.Cons(a) => Some(a)
+            case this.Nil => Some(VoidPrimitive)
+            case _ => None
+        }
+        
+        object Cons {
+            def apply(a: SIRType): SIRType = CaseClass(
+              ConstrDecl("Cons", SIRVarStorage.LocalUPLC,
+                  scala.List(TypeBinding("head", a),
+                             TypeBinding("tail", List(a))
+                  )
+              )
+            )
             
-        ))
+            def unapply(x:SIRType): Option[SIRType] = x match {
+                case CaseClass(ConstrDecl("Cons", SIRVarStorage.LocalUPLC, scala.List(TypeBinding("head", a), TypeBinding("tail", this.List(b))) ) ) => Some(a)
+                case _ => None
+            }
+            
+        }
+
+        val Nil = CaseClass(ConstrDecl("Nil", SIRVarStorage.LocalUPLC, scala.Nil))
+
+
         
     }
     

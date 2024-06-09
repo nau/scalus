@@ -6,16 +6,16 @@ import scalus.uplc.DefaultFun
 
 object SIRBuiltins {
 
-    val addInteger: SIR.Builtin = SIR.Builtin(DefaultFun.AddInteger, SIRType.lift[(BigInt,BigInt)=>BigInt])
-    val subtractInteger: SIR.Builtin = SIR.Builtin(DefaultFun.SubtractInteger, SIRType.lift[(BigInt, BigInt) => BigInt])
-    val multiplyInteger = SIR.Builtin(DefaultFun.MultiplyInteger, SIRType.lift[(BigInt,BigInt)=>BigInt])
-    val divideInteger  = SIR.Builtin(DefaultFun.DivideInteger, SIRType.lift[(BigInt,BigInt)=>BigInt])
-    val quotientInteger = SIR.Builtin(DefaultFun.QuotientInteger, SIRType.lift[(BigInt,BigInt)=>BigInt])
-    val remainderInteger = SIR.Builtin(DefaultFun.RemainderInteger, SIRType.lift[(BigInt,BigInt)=>BigInt])
-    val modInteger = SIR.Builtin(DefaultFun.ModInteger, SIRType.lift[(BigInt,BigInt)=>BigInt])
-    val equalsInteger = SIR.Builtin(DefaultFun.EqualsInteger, SIRType.lift[(BigInt,BigInt)=>Boolean])
-    val lessThanInteger = SIR.Builtin(DefaultFun.LessThanInteger, SIRType.lift[(BigInt,BigInt)=>Boolean])
-    val lessThanEqualsInteger = SIR.Builtin(DefaultFun.LessThanEqualsInteger, SIRType.lift[(BigInt,BigInt)=>Boolean])
+    val addInteger: SIR.Builtin = SIR.Builtin(DefaultFun.AddInteger, SIRType.liftM[BigInt=>BigInt=>BigInt])
+    val subtractInteger: SIR.Builtin = SIR.Builtin(DefaultFun.SubtractInteger, SIRType.liftM[BigInt => BigInt => BigInt])
+    val multiplyInteger = SIR.Builtin(DefaultFun.MultiplyInteger, SIRType.lift[BigInt=>BigInt=>BigInt])
+    val divideInteger  = SIR.Builtin(DefaultFun.DivideInteger, SIRType.lift[BigInt=>BigInt=>BigInt])
+    val quotientInteger = SIR.Builtin(DefaultFun.QuotientInteger, SIRType.lift[BigInt=>BigInt=>BigInt])
+    val remainderInteger = SIR.Builtin(DefaultFun.RemainderInteger, SIRType.lift[BigInt=>BigInt=>BigInt])
+    val modInteger = SIR.Builtin(DefaultFun.ModInteger, SIRType.lift[BigInt=>BigInt=>BigInt])
+    val equalsInteger = SIR.Builtin(DefaultFun.EqualsInteger, SIRType.lift[BigInt=>BigInt=>Boolean])
+    val lessThanInteger = SIR.Builtin(DefaultFun.LessThanInteger, SIRType.lift[BigInt=>BigInt=>Boolean])
+    val lessThanEqualsInteger = SIR.Builtin(DefaultFun.LessThanEqualsInteger, SIRType.lift[BigInt=>BigInt=>Boolean])
 
     // Bytestrings
     val appendByteString = SIR.Builtin(DefaultFun.AppendByteString, SIRType.lift[(ByteString,ByteString)=>ByteString])
