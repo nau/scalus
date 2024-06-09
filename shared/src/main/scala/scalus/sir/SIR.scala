@@ -96,7 +96,7 @@ object SIR:
      */
     case class Match(scrutinee: SIRExpr, cases: List[Case], tp: SIRType) extends SIRExpr
 
-    case class Decl(data: DataDecl, term: SIRExpr) extends SIRDef
+    case class Decl(data: DataDecl, term: SIR) extends SIRDef
 
 
 case class Program(version: (Int, Int, Int), term: SIR)

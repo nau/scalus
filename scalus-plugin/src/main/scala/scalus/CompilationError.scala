@@ -232,5 +232,6 @@ case class ExpectedTypeLambda(name: String, actual: SIRType, srcPos: SrcPos)(usi
 }
 
 
+
 case class GenericError(message: String, srcPos: SrcPos) extends CompilationError
 
