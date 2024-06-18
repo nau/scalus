@@ -1,6 +1,7 @@
 package scalus
 
 import scala.collection.mutable.ListBuffer
+import scalus.utils.HashConsed
 
 package object flat:
     case class Natural(n: BigInt)
@@ -12,17 +13,17 @@ package object flat:
     def decode[A: Flat](dec: DecoderState): A = summon[Flat[A]].decode(dec)
 
     trait Flat[A]:
-        def bitSize(a: A): Int
+        def bitSize(a: A, hashConsed: HashConsed.Map): Int
         def encode(a: A, encode: EncoderState): Unit
         def decode(decode: DecoderState): A
 
     given Flat[Unit] with
-        def bitSize(a: Unit): Int = 0
+        def bitSize(a: Unit, hashConsed: HashConsed.Map): Int = 0
         def encode(a: Unit, encode: EncoderState): Unit = {}
         def decode(decode: DecoderState): Unit = ()
 
     given Flat[Boolean] with
-        def bitSize(a: Boolean): Int = 1
+        def bitSize(a: Boolean, hashConsed: HashConsed.Map): Int = 1
         def encode(a: Boolean, encode: EncoderState): Unit = encode.bits(1, if a then 1 else 0)
         def decode(decode: DecoderState): Boolean =
             decode.bits8(1) match
@@ -38,7 +39,7 @@ package object flat:
       * Array v = A0 \| A1 v (Array v) \| A2 v v (Array v) ... \| A255 ... (Array v)
       */
     class ArrayByteFlat extends Flat[Array[Byte]]:
-        def bitSize(a: Array[Byte]): Int = byteArraySize(a)
+        def bitSize(a: Array[Byte], hashConsed: HashConsed.Map): Int = byteArraySize(a)
         def encode(a: Array[Byte], enc: EncoderState): Unit =
             enc.filler() // pre-align
             var numElems = a.length
@@ -84,7 +85,7 @@ package object flat:
     given Flat[Array[Byte]] = ArrayByteFlat()
 
     given Flat[Int] with
-        def bitSize(a: Int): Int =
+        def bitSize(a: Int, hashConsed: HashConsed.Map): Int =
             val vs = w7l(zigZag(a))
             vs.length * 8
 
@@ -109,7 +110,7 @@ package object flat:
             zagZig(r)
 
     given Flat[Long] with
-        def bitSize(a: Long): Int =
+        def bitSize(a: Long, hashConsed: HashConsed.Map): Int =
             val vs = w7l(zigZag(a))
             vs.length * 8
 
@@ -133,7 +134,7 @@ package object flat:
             zagZig(r)
 
     given Flat[BigInt] with
-        def bitSize(a: BigInt): Int =
+        def bitSize(a: BigInt, hashConsed: HashConsed.Map): Int =
             val vs = w7l(zigZag(a))
             vs.length * 8
 
@@ -157,7 +158,7 @@ package object flat:
             zagZig(r)
 
     given Flat[Natural] with
-        def bitSize(a: Natural): Int =
+        def bitSize(a: Natural, hashConsed: HashConsed.Map): Int =
             val vs = w7l(a.n)
             vs.length * 8
 
@@ -182,7 +183,7 @@ package object flat:
             Natural(r)
 
     given Flat[String] with
-        def bitSize(a: String): Int = byteArraySize(a.getBytes("UTF-8"))
+        def bitSize(a: String, hashConsed: HashConsed.Map): Int = byteArraySize(a.getBytes("UTF-8"))
         def encode(a: String, encode: EncoderState): Unit =
             summon[Flat[Array[Byte]]].encode(a.getBytes("UTF-8"), encode)
 
@@ -192,9 +193,9 @@ package object flat:
             new String(bytes, "UTF-8")
 
     given listFlat[A: Flat]: Flat[List[A]] with
-        def bitSize(a: List[A]): Int =
+        def bitSize(a: List[A], hashConsed: HashConsed.Map): Int =
             val flat = summon[Flat[A]]
-            a.foldLeft(1)((acc, elem) => acc + flat.bitSize(elem) + 1)
+            a.foldLeft(1)((acc, elem) => acc + flat.bitSize(elem, hashConsed) + 1)
 
         def encode(a: List[A], encode: EncoderState): Unit =
             val flat = summon[Flat[A]]
@@ -214,8 +215,8 @@ package object flat:
             result.toList
 
     given pairFlat[A: Flat, B: Flat]: Flat[(A, B)] with
-        def bitSize(a: (A, B)): Int =
-            summon[Flat[A]].bitSize(a._1) + summon[Flat[B]].bitSize(a._2)
+        def bitSize(a: (A, B), hashConsed: HashConsed.Map): Int =
+            summon[Flat[A]].bitSize(a._1, hashConsed) + summon[Flat[B]].bitSize(a._2,hashConsed)
 
         def encode(a: (A, B), encode: EncoderState): Unit =
             summon[Flat[A]].encode(a._1, encode)
@@ -265,6 +266,7 @@ package object flat:
         var nextPtr: Int = 0
         var usedBits: Int = 0
         var currentByte: Int = 0
+        val hashConsed: HashConsed.Map = HashConsed.empty
 
         def result: Array[Byte] =
             val len = if usedBits == 0 then nextPtr else nextPtr + 1
@@ -302,6 +304,8 @@ package object flat:
             this.currentByte |= 1;
             nextWord()
 
+
+
     class DecoderState(
         /** The buffer that contains a sequence of flat-encoded values */
         val buffer: Uint8Array
@@ -313,6 +317,8 @@ package object flat:
         /** Number of already decoded bits in the current byte (0..7) */
         var usedBits: Int = 0
 
+        val hashConsed: HashConsed.Map = HashConsed.empty
+
         override def toString: String =
             s"""DecoderState(currPtr:$currPtr,usedBits:$usedBits,buffer:${buffer
                     .map(byteAsBitString)
@@ -322,7 +328,7 @@ package object flat:
           * @param numBits
           *   the Int of bits to decode (0..8)
           */
-        def bits8(numBits: Int): Byte =
+        def lookupBits8(numBits: Int): Byte =
             if numBits < 0 || numBits > 8 then
                 throw new RuntimeException("Decoder.bits8: incorrect value of numBits " + numBits)
 
@@ -338,9 +344,13 @@ package object flat:
                 val lowerBits = (nextByte & 255) >>> (unusedBits + leadingZeros)
                 r = r | lowerBits
 
-            this.dropBits(numBits)
-
             return (r & 255).toByte
+
+        def bits8(numBits: Int): Byte =
+            val r = lookupBits8(numBits)
+            this.dropBits(numBits)
+            return r
+
 
         def filler(): Unit =
             while this.bits8(1) == 0 do ()

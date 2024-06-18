@@ -2,7 +2,6 @@ package scalus
 
 import dotty.tools.dotc.*
 import dotty.tools.dotc.core.Contexts.Context
-import dotty.tools.dotc.core.Symbols.*
 import dotty.tools.dotc.core.Types.*
 
 import scalus.sir.*

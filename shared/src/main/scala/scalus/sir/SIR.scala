@@ -7,12 +7,11 @@ case class Module(version: (Int, Int), defs: List[Binding])
 
 case class Binding(name: String, value: SIRExpr) {
 
-    override def toString: String = s"Binding(\"$name\" : ${tp.show},  $value)"
+    override def toString: String = s"Binding(\"$name\" : $value)"
 }
 
 case class TypeBinding(name: String, tp: SIRType) {
-
-    override def toString: String = s"TypeBinding(\"$name\" : ${value.show})"
+    override def toString: String = s"TypeBinding(\"$name\" : ${tp.show})"
 }
 
 enum Recursivity:
@@ -20,7 +19,11 @@ enum Recursivity:
 
 
 case class ConstrDecl(name: String, storageType: SIRVarStorage, params: List[TypeBinding])
-case class DataDecl(name: String, storageType: SIRVarStorage, constructors: List[ConstrDecl])
+
+case class DataDecl(name: String, constructors: List[ConstrDecl]) {
+    def tp: SIRType = SIRType.SumCaseClass(this)
+}
+
 case class ExternalDataDecl(module: String, name: String)
 
 sealed trait SIR
@@ -49,8 +52,12 @@ object SIR:
 
     case class Var(name: String, tp: SIRType) extends SIRExpr  //TODO: add sieStorage parameter.
     case class ExternalVar(moduleName: String, name: String, tp: SIRType) extends SIRExpr
-    case class Let(recursivity: Recursivity, bindings: List[Binding], body: SIRExpr) extends SIRExpr
-    case class LamAbs(param: Var, term: SIRExpr) extends SIRExpr
+    case class Let(recursivity: Recursivity, bindings: List[Binding], body: SIRExpr) extends SIRExpr {
+        override def tp: SIRType = body.tp
+    }
+    case class LamAbs(param: Var, term: SIRExpr) extends SIRExpr  {
+        override def tp: SIRType = SIRType.Fun(param.tp, term.tp)
+    }
     case class Apply(f: SIRExpr, arg: SIRExpr, tp: SIRType) extends SIRExpr {
 
         // TODO: makr tp computable, not stored.  (implement subst at first).
@@ -70,18 +77,20 @@ object SIR:
     }
     case class Const(uplcConst: Constant, tp: SIRType) extends SIRExpr
     case class And(a: SIRExpr, b: SIRExpr) extends SIRExpr {
-        override def tp: SIRType = SIRType.BoolPrimitive
+        override def tp: SIRType = SIRType.BooleanPrimitive
     }
     case class Or(a: SIRExpr, b: SIRExpr) extends SIRExpr {
-        override def tp: SIRType = SIRType.BoolPrimitive
+        override def tp: SIRType = SIRType.BooleanPrimitive
     }
     case class Not(a: SIRExpr) extends SIRExpr {
-        override def tp: SIRType = SIRType.BoolPrimitive
+        override def tp: SIRType = SIRType.BooleanPrimitive
     }
 
     case class IfThenElse(cond: SIRExpr, t: SIRExpr, f: SIRExpr, tp: SIRType) extends SIRExpr
     case class Builtin(bn: DefaultFun, tp: SIRType) extends SIRExpr
-    case class Error(msg: String) extends SIRExpr
+    case class Error(msg: String) extends SIRExpr {
+        override def tp: SIRType = SIRType.TypeError(msg)
+    }
     case class Constr(name: String, data: DataDecl, args: List[SIRExpr]) extends SIRExpr {
         override def tp: SIRType = data.tp
     }

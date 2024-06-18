@@ -17,11 +17,12 @@ import dotty.tools.dotc.core.*
 import scalus.builtin.ByteString
 import scalus.builtin.Data
 import scalus.sir.Binding
-import scalus.sir.Case
 import scalus.sir.ConstrDecl
 import scalus.sir.DataDecl
 import scalus.sir.Recursivity
 import scalus.sir.SIR
+import scalus.sir.SIR.Case
+import scalus.sir.SIRType
 import scalus.uplc.DefaultFun
 import scalus.uplc.DefaultUni
 
@@ -89,20 +90,24 @@ class SIRConverter(using Context) {
             .appliedToTypeTree(tpt)
             .appliedTo(ctx.typeAssigner.seqToRepeated(SeqLiteral(trees, tpt)))
 
-    def mkApply(f: SIR, arg: SIR) =
-        ref(ApplySymbol.requiredMethod("apply")).appliedToArgs(List(convert(f), convert(arg)))
-    def mkLamAbs(name: String, term: SIR) =
+    def mkApply(f: SIR, arg: SIR, tp: SIRType) =
+        ref(ApplySymbol.requiredMethod("apply")).appliedToArgs(List(convert(f), convert(arg), mkSIRType(tp)))
+    def mkLamAbs(param: SIR.Var, term: SIR) =
         ref(LamAbsSymbol.requiredMethod("apply"))
-            .appliedToArgs(List(Literal(Constant(name)), convert(term)))
-    def mkVar(name: String) =
-        ref(VarSymbol.requiredMethod("apply")).appliedTo(mkString(name))
-    def mkExternalVar(modName: String, name: String) =
-        ref(ExternalVarSymbol.requiredMethod("apply")).appliedTo(mkString(modName), mkString(name))
-    def mkConst(const: scalus.uplc.Constant) =
-        ref(ConstSymbol.requiredMethod("apply")).appliedTo(convert(const))
-    def mkBuiltin(bn: DefaultFun) =
-        ref(BuiltinSymbol.requiredMethod("apply")).appliedTo(convert(bn))
+            .appliedToArgs(List(mkVar(param.name, param.tp), convert(term)))
+    def mkVar(name: String, tp: SIRType) =
+        ref(VarSymbol.requiredMethod("apply")).appliedTo(mkString(name), mkSIRType(tp))
+    def mkExternalVar(modName: String, name: String, tp: SIRType) =
+        ref(ExternalVarSymbol.requiredMethod("apply")).appliedTo(mkString(modName), mkString(name), mkSIRType(tp))
+    def mkConst(const: scalus.uplc.Constant, tp: SIRType) =
+        ref(ConstSymbol.requiredMethod("apply")).appliedTo(convert(const), mkSIRType(tp))
+    def mkBuiltin(bn: DefaultFun, tp: SIRType) =
+        ref(BuiltinSymbol.requiredMethod("apply")).appliedTo(convert(bn), mkSIRType(tp))
     def mkDefaultFun(fun: DefaultFun) = ref(requiredModule(s"scalus.uplc.DefaultFun.$fun"))
+
+    def mkSIRType(tp: SIRType): Tree = {
+        ???
+    }
 
     /*  Generate a method for each let binding to avoid a Java limit on the size of a method of 64KB
       which arises when scripts are too large
@@ -129,12 +134,13 @@ class SIRConverter(using Context) {
               )
             )
 
-    def mkMatch(scrutinee: SIR, cases: List[Case]) =
+    def mkMatch(scrutinee: SIR, cases: List[Case], tp: SIRType) =
         ref(MatchSymbol.requiredMethod("apply"))
             .appliedToArgs(
               List(
                 convert(scrutinee),
-                mkList(cases.map(convert), TypeTree(CaseClassSymbol.typeRef))
+                mkList(cases.map(convert), TypeTree(CaseClassSymbol.typeRef)),
+                mkSIRType(tp)
               )
             )
 
@@ -152,7 +158,7 @@ class SIRConverter(using Context) {
         ref(ConstrDeclSymbol.requiredMethod("apply")).appliedToArgs(
           List(
             mkString(constr.name),
-            mkList(constr.params.map(mkString), TypeTree(defn.StringClass.typeRef))
+            mkList(constr.params.map(b => mkString(b.name)), TypeTree(defn.StringClass.typeRef))
           )
         )
 
@@ -176,9 +182,9 @@ class SIRConverter(using Context) {
         ref(DeclSymbol.requiredMethod("apply"))
             .appliedToArgs(List(mkDataDecl(data), convert(term)))
 
-    def mkIfThenElse(cond: SIR, thenp: SIR, elsep: SIR) =
+    def mkIfThenElse(cond: SIR, thenp: SIR, elsep: SIR, tp: SIRType) =
         ref(IfThenElseSymbol.requiredMethod("apply"))
-            .appliedToArgs(List(convert(cond), convert(thenp), convert(elsep)))
+            .appliedToArgs(List(convert(cond), convert(thenp), convert(elsep), mkSIRType(tp)))
 
     def mkString(s: String) = Literal(Constant(s))
     def mkError(msg: String) =
@@ -309,20 +315,20 @@ class SIRConverter(using Context) {
         import SIR.*
         val res = sir match
             case Error(msg)                 => mkError(msg)
-            case Var(name)                  => mkVar(name)
-            case ExternalVar(modName, name) => mkExternalVar(modName, name)
-            case Const(const)               => mkConst(const)
-            case Apply(f, arg)              => mkApply(f, arg)
+            case Var(name, tp)              => mkVar(name, tp)
+            case ExternalVar(modName, name, tp) => mkExternalVar(modName, name, tp)
+            case Const(const,tp)            => mkConst(const, tp)
+            case Apply(f, arg, tp)          => mkApply(f, arg, tp)
             case LamAbs(name, term)         => mkLamAbs(name, term)
-            case Builtin(bn)                => mkBuiltin(bn)
+            case Builtin(bn, tp)            => mkBuiltin(bn, tp)
             case Let(rec, bindings, body)   => mkLetDef(rec, bindings, body)
-            case Match(scrutinee, cases)    => mkMatch(scrutinee, cases)
+            case Match(scrutinee, cases,tp) => mkMatch(scrutinee, cases, tp)
             case Constr(name, data, args)   => mkConstr(name, data, args)
             case Decl(data, term)           => mkDecl(data, term)
             case And(t1, t2)                => mkAnd(t1, t2)
             case Or(t1, t2)                 => mkOr(t1, t2)
             case Not(t)                     => mkNot(t)
-            case IfThenElse(cond, t, f)     => mkIfThenElse(cond, t, f)
+            case IfThenElse(cond, t, f, tp) => mkIfThenElse(cond, t, f, tp)
         // println(res)
         // println(res.showIndented(2))
         res

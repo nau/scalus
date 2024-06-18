@@ -57,19 +57,19 @@ object SIRType {
     }
     given StringPrimitive.type = StringPrimitive
 
-    case object BoolPrimitive extends Primitive[Boolean] {
+    case object BooleanPrimitive extends Primitive[Boolean] {
         override def uplcTpe: DefaultUni = DefaultUni.Bool
-        override def show: String = "Bool"
+        override def show: String = "Boolean"
     }
-    given BoolPrimitive.type = BoolPrimitive
+    given BooleanPrimitive.type = BooleanPrimitive
     case object VoidPrimitive extends Primitive[Unit] {
         override def uplcTpe: DefaultUni = DefaultUni.Unit
         override def show: String = "Unit"
     }
 
-    sealed trait MappedBuiltin[T] extends Lifted[T] with ULPCMapped
+    //sealed trait MappedBuiltin[T] extends Lifted[T] with ULPCMapped
 
-    case object Data extends MappedBuiltin[scalus.builtin.Data] {
+    case object Data extends SIRType with Lifted[scalus.builtin.Data] with ULPCMapped {
         type Carrier = scalus.builtin.Data
 
         override def uplcTpe: DefaultUni = DefaultUni.Data
@@ -77,18 +77,14 @@ object SIRType {
     }
     given Data.type = Data
 
-    case class Sum(name: String, childs: List[SIRType]) extends SIRType {
-        override def show: String = s"Sum($name, ${childs.map(_.show).mkString(", ")})"
+    case class CaseClass(constrDecl: ConstrDecl) extends SIRType {
+
+            override def show: String = constrDecl.name
+
     }
 
-
-    case class CaseClass(constrDecl: ConstrDecl) extends SIRType
-
-    case class SumCaseClass(decl: DataDecl) extends SIRType
-
-    case class Ref(i: Int) extends SIRType {
-        // TODO: add type-environment for show
-        override def show: String = s"Ref($i)"
+    case class SumCaseClass(decl: DataDecl) extends SIRType {
+        override def show: String = decl.name
     }
 
     case class Fun(in:SIRType, out: SIRType) extends SIRType {
@@ -99,15 +95,18 @@ object SIRType {
 
     }
 
+
     given liftFun1[A,B](using a: SIRType.Aux[A], b: SIRType.Aux[B]): SIRType.Aux[A => B] =
         Fun(a, b).asInstanceOf[SIRType.Aux[A => B]]
-    given liftFun2[A,B,C](using a: SIRType.Aux[A], b: SIRType.Aux[B], c: SIRType.Aux[C]): SIRType.Aux[(A, B) => C] =
-        Fun(Tuple(List(a, b)), c).asInstanceOf[SIRType.Aux[(A, B) => C]]
-    given liftFun3[A,B,C,D](using a: SIRType.Aux[A], b: SIRType.Aux[B], c: SIRType.Aux[C], d: SIRType.Aux[D]): SIRType.Aux[(A, B, C) => D] =
-        Fun(Tuple(List(a, b, c)), d).asInstanceOf[SIRType.Aux[(A, B, C) => D]]
-    given liftFun4[A,B,C,D,E](using a: SIRType.Aux[A], b: SIRType.Aux[B], c: SIRType.Aux[C], d: SIRType.Aux[D], e: SIRType.Aux[E]): SIRType.Aux[(A, B, C, D) => E] =
-        Fun(Tuple(List(a, b, c, d)), e).asInstanceOf[SIRType.Aux[(A, B, C, D) => E]]
+    //given liftFun2[A,B,C](using a: SIRType.Aux[A], b: SIRType.Aux[B], c: SIRType.Aux[C]): SIRType.Aux[(A, B) => C] =
+    //    Fun(Tuple(List(a, b)), c).asInstanceOf[SIRType.Aux[(A, B) => C]]
+    //given liftFun3[A,B,C,D](using a: SIRType.Aux[A], b: SIRType.Aux[B], c: SIRType.Aux[C], d: SIRType.Aux[D]): SIRType.Aux[(A, B, C) => D] =
+    //    Fun(Tuple(List(a, b, c)), d).asInstanceOf[SIRType.Aux[(A, B, C) => D]]
+    //given liftFun4[A,B,C,D,E](using a: SIRType.Aux[A], b: SIRType.Aux[B], c: SIRType.Aux[C], d: SIRType.Aux[D], e: SIRType.Aux[E]): SIRType.Aux[(A, B, C, D) => E] =
+    //    Fun(Tuple(List(a, b, c, d)), e).asInstanceOf[SIRType.Aux[(A, B, C, D) => E]]
 
+
+    /*
     case class Tuple(fields: List[SIRType]) extends SIRType {
 
         override def show: String = s"(${fields.map(_.show).mkString(", ")})"
@@ -119,7 +118,7 @@ object SIRType {
         Tuple(List(a, b, c)).asInstanceOf[SIRType.Aux[(A, B, C)]]
     given liftTuple4[A,B,C,D](using a: SIRType.Aux[A], b: SIRType.Aux[B], c: SIRType.Aux[C], d: SIRType.Aux[D]): SIRType.Aux[(A, B, C, D)] =
         Tuple(List(a, b, c, d)).asInstanceOf[SIRType.Aux[(A, B, C, D)]]
-
+    */
 
 
     object Pair {
@@ -161,6 +160,10 @@ object SIRType {
         override def show: String = s" [${param.show}] =>> ${body}"
 
     }
+
+    case class TypeError(msg: String) extends SIRType {
+        override def show: String = s"Error: $msg"
+    }
     //given liftLambda1List: SIRType.Aux[[A] =>> List[A]] = ???
        // TypeLambda(List(TypeVar("A")), (a: Seq[SIRType]) => scalus.list(a.head)).asInstanceOf[SIRType.Aux[[A] =>> List[A]]]
        //  TODO: implement predefined constants and type cache.
@@ -168,47 +171,56 @@ object SIRType {
          // TypeLambda(List(TypeVar("A")), (a: Seq[SIRType]) => Tuple(List(a.head, a.head, a.head))).asInstanceOf[SIRType.Aux[[A] =>> (Boolean,A,A)]]
 
 
-
-
     object List {
         
-        def apply(a: SIRType): SIRType = Sum("List",  scala.List(this.Cons(a), this.Nil))
+        def apply(a: SIRType): SIRType =
+            SumCaseClass(DataDecl("List",  scala.List(this.Cons.constr(a), this.NilConstr)))
 
         def unapply(l: SIRType): Option[SIRType] = l match {
-            case Sum("List", scala.List(this.Cons(a),this.Nil)) => Some(a)
+            case SumCaseClass(DataDecl("List", scala.List(
+                      ConstrDecl("Cons",_,scala.List(TypeBinding("head",a),la)),
+                      ConstrDecl("Nil", SIRVarStorage.LocalUPLC, scala.Nil )))
+                  ) => Some(a)
             case this.Cons(a) => Some(a)
             case this.Nil => Some(VoidPrimitive)
             case _ => None
         }
         
         object Cons {
-            def apply(a: SIRType): SIRType = CaseClass(
+
+            def apply(a: SIRType) = CaseClass(constr(a))
+
+            def constr(a: SIRType) =
               ConstrDecl("Cons", SIRVarStorage.LocalUPLC,
                   scala.List(TypeBinding("head", a),
                              TypeBinding("tail", List(a))
                   )
               )
-            )
-            
+
             def unapply(x:SIRType): Option[SIRType] = x match {
-                case CaseClass(ConstrDecl("Cons", SIRVarStorage.LocalUPLC, scala.List(TypeBinding("head", a), TypeBinding("tail", this.List(b))) ) ) => Some(a)
+                case CaseClass(ConstrDecl("Cons",
+                                 _,
+                                 scala.List(TypeBinding("head", a), TypeBinding("tail", List(b))) ) ) => Some(a)
                 case _ => None
             }
             
         }
 
-        val Nil = CaseClass(ConstrDecl("Nil", SIRVarStorage.LocalUPLC, scala.Nil))
+        val NilConstr = ConstrDecl("Nil", SIRVarStorage.LocalUPLC, scala.Nil)
+
+        val Nil = CaseClass(NilConstr)
+
 
 
         
     }
     
-    def lift[T](implicit ev: SIRType.Aux[T]): SIRType.Aux[T] = ev
+    //def lift[T](implicit ev: SIRType.Aux[T]): SIRType.Aux[T] = ev
     
-    inline def liftM[T]: SIRType.Aux[T] = ${liftMImpl[T]}
+    inline def liftM[T <: AnyKind]: SIRType.Aux[T] = ${liftMImpl[T]}
 
-    def liftMImpl[T:Type](using Quotes): Expr[SIRType.Aux[T]] = {
-        import quotes.reflect.*
+    def liftMImpl[T<:AnyKind:Type](using Quotes): Expr[SIRType.Aux[T]] = {
+        //import quotes.reflect.*
 
         ???
     }

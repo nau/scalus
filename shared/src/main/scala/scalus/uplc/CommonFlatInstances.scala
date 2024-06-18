@@ -7,13 +7,16 @@ import scalus.flat.EncoderState
 import scalus.flat.Flat
 import scalus.flat.given
 import scalus.uplc.DefaultFun.*
+import scalus.utils.HashConsed
 
 object CommonFlatInstances:
     val constantWidth = 4
 
     given Flat[builtin.ByteString] with
         val flatArray = summon[Flat[Array[Byte]]]
-        def bitSize(a: builtin.ByteString): Int = flatArray.bitSize(a.bytes)
+
+        def bitSize(a: builtin.ByteString, hashCons: HashConsed.Map): Int =
+            flatArray.bitSize(a.bytes, hashCons)
 
         def encode(a: builtin.ByteString, encode: EncoderState): Unit =
             flatArray.encode(a.bytes, encode)
@@ -64,7 +67,7 @@ object CommonFlatInstances:
             case _         => throw new Exception(s"Invalid uni: $state")
 
     given Flat[DefaultFun] with
-        def bitSize(a: DefaultFun): Int = 7
+        def bitSize(a: DefaultFun, hashConsed: HashConsed.Map): Int = 7
 
         def encode(a: DefaultFun, encode: EncoderState): Unit =
             val code = a match
@@ -194,17 +197,17 @@ object CommonFlatInstances:
     def flatConstant(using Flat[builtin.Data]): Flat[Constant] = new Flat[Constant]:
 
         val constantTypeTagFlat = new Flat[Int]:
-            def bitSize(a: Int): Int = constantWidth
+            def bitSize(a: Int, hashConsed: HashConsed.Map): Int = constantWidth
 
             def encode(a: Int, encode: EncoderState): Unit = encode.bits(constantWidth, a.toByte)
 
             def decode(decode: DecoderState): Int = decode.bits8(constantWidth)
 
-        def bitSize(a: Constant): Int =
+        def bitSize(a: Constant, hashCons: HashConsed.Map): Int =
             val uniSize = encodeUni(
               a.tpe
             ).length * (1 + constantWidth) + 1 // List Cons (1 bit) + constant + List Nil (1 bit)
-            val valueSize = flatForUni(a.tpe).bitSize(Constant.toValue(a))
+            val valueSize = flatForUni(a.tpe).bitSize(Constant.toValue(a), hashCons)
             uniSize + valueSize
 
         def encode(a: Constant, encoder: EncoderState): Unit =

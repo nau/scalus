@@ -13,7 +13,6 @@ import dotty.tools.dotc.core.Symbols.*
 import dotty.tools.dotc.util.SrcPos
 import scalus.sir.*
 
-import scala.collection.immutable.HashSet
 import scala.collection.mutable
 import scala.language.implicitConversions
 

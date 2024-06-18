@@ -10,6 +10,7 @@ object scalusPlugin extends RootModule with SbtModule {
           PathRef(millSourcePath / "scalus-plugin" / "src" / "main" / "scala")
         ) ++ Seq(
           PathRef(baseDir / "scalus" / "utils" / "Hex.scala"),
+          PathRef(baseDir / "scalus" / "utils" / "HashConsed.scala"),
           PathRef(baseDir / "scalus" / "builtin" / "ByteString.scala"),
           PathRef(baseDir / "scalus" / "builtin" / "Data.scala"),
           PathRef(baseDir / "scalus" / "builtin" / "List.scala"),

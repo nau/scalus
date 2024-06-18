@@ -3,9 +3,8 @@ import dotty.tools.dotc.*
 import dotty.tools.dotc.core.Contexts.Context
 import dotty.tools.dotc.core.Symbols.*
 import scalus.sir.SIR
-import scalus.sir.SIRType
 import scalus.sir.SIRBuiltins
-import scalus.uplc.DefaultFun
+
 
 class BuiltinHelper(using Context) {
     val BuiltinsClass = requiredModule("scalus.builtin.Builtins")
