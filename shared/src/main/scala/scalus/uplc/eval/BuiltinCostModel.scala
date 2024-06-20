@@ -77,10 +77,10 @@ case class BuiltinCostModel(
       *   a flat map of cost parameters, like Map("addInteger-cpu-arguments-intercept" -> 205665,
       *   ...)
       */
-    def flattenCostModel: Map[String, Int] = {
+    def flattenCostModel: Map[String, Long] = {
         val obj = writeJs(this).obj
         // recursively flatten the object
-        def flatten(obj: ujson.Obj, prefix: Option[String] = None): Map[String, Int] = {
+        def flatten(obj: ujson.Obj, prefix: Option[String] = None): Map[String, Long] = {
             obj.value.flatMap {
                 case (k, v: ujson.Obj) =>
                     prefix match
@@ -88,8 +88,8 @@ case class BuiltinCostModel(
                         case None    => flatten(v, Some(k))
                 case (k, v: ujson.Num) =>
                     prefix match
-                        case Some(p) => Map(s"$p-$k" -> v.num.toInt)
-                        case None    => Map(s"$k" -> v.num.toInt)
+                        case Some(p) => Map(s"$p-$k" -> v.num.toLong)
+                        case None    => Map(s"$k" -> v.num.toLong)
                 case (k, v) => Map.empty
             }.toMap
         }
@@ -231,8 +231,8 @@ object BuiltinCostModel {
           )
     )
 
-    def fromCostModelParams(costModelParams: Map[String, Int]): BuiltinCostModel =
-        val params = costModelParams.withDefaultValue(300_000_000)
+    def fromCostModelParams(costModelParams: Map[String, Long]): BuiltinCostModel =
+        val params = costModelParams.withDefaultValue(300_000_000L)
         BuiltinCostModel(
           addInteger = CostingFun(
             cpu = TwoArguments.MaxSize(

@@ -18,7 +18,7 @@ import scalus.uplc.Term.*
 import scalus.uplc.TermDSL.{*, given}
 
 class UplcParserSpec extends AnyFunSuite with ScalaCheckPropertyChecks with ArbitraryInstances:
-    val parser = UplcParser
+    def parser = UplcParser()
     test("Parse program version") {
         def p(input: String) = parser.programVersion.parse(input)
         def check(input: String, expected: (Int, Int, Int)) =
@@ -63,6 +63,45 @@ class UplcParserSpec extends AnyFunSuite with ScalaCheckPropertyChecks with Arbi
             )
           )
         )
+    }
+
+    test("Parse constr/case") {
+        val r = parser.parseProgram("(program 1.1.0 (case (constr 0) (con bool True)))")
+        assert(
+          r == Right(
+            Program((1, 1, 0), Case(Constr(0, List()), List(Const(Constant.Bool(true)))))
+          )
+        )
+    }
+
+    test("Parse constr/case with arguments") {
+        val r = parser.parseProgram(
+          "(program 1.1.0 (case (constr 0 (con integer 0)) (lam x (con integer 1)) (lam x (con integer 2))))"
+        )
+        assert(
+          r == Right(
+            Program(
+              (1, 1, 0),
+              Case(
+                Constr(0, List(Const(Constant.Integer(0)))),
+                List(
+                  LamAbs("x", Const(Constant.Integer(1))),
+                  LamAbs("x", Const(Constant.Integer(2)))
+                )
+              )
+            )
+          )
+        )
+    }
+
+    test("Fail to parse constr before 1.1.0") {
+        val r = parser.parseProgram("(program 1.0.0 (constr 0))")
+        assert(r.swap.getOrElse("").contains("'constr' is not allowed before version 1.1.0"))
+    }
+
+    test("Fail to parse case before 1.1.0") {
+        val r = parser.parseProgram("(program 1.0.0 (case (con bool True)))")
+        assert(r.swap.getOrElse("").contains("'case' is not allowed before version 1.1.0"))
     }
 
     test("Parse constant types") {
