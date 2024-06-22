@@ -1,5 +1,6 @@
 package scalus.sir
 
+import scalus.sir.SIRType.CaseClass
 import scalus.uplc.Constant
 import scalus.uplc.DefaultFun
 
@@ -18,10 +19,39 @@ enum Recursivity:
     case NonRec, Rec
 
 
-case class ConstrDecl(name: String, storageType: SIRVarStorage, params: List[TypeBinding])
+case class ConstrDecl(name: String, 
+                      
+                      storageType: SIRVarStorage, 
+                      
+                      params: List[TypeBinding], 
+    
+                        /**
+                         * Type parameters of this type.
+                         */
+                      typeParams: List[SIRType.TypeVar],
 
-case class DataDecl(name: String, constructors: List[ConstrDecl]) {
-    def tp: SIRType = SIRType.SumCaseClass(this)
+                     ) {
+    
+    def tp: SIRType = generateType(typeParams, typeParams)
+
+    def generateType(tps: List[SIRType.TypeVar], originTps: List[SIRType.TypeVar]): SIRType = {
+        tps match {
+            case Nil => SIRType.CaseClass(this, originTps)
+            case tp::tail => SIRType.TypeLambda(tp, generateType(tail, originTps))
+        }
+    }
+}
+
+case class DataDecl(name: String, constructors: List[ConstrDecl], typeParams: List[SIRType.TypeVar]) {
+
+    def tp: SIRType = generateType(typeParams, typeParams)
+
+    def generateType(tps: List[SIRType.TypeVar], originTps: List[SIRType.TypeVar]): SIRType = {
+        tps match {
+            case Nil => SIRType.SumCaseClass(this, originTps)
+            case tp::tail => SIRType.TypeLambda(tp, generateType(tail, originTps))
+        }
+    }
 }
 
 case class ExternalDataDecl(module: String, name: String)
@@ -95,7 +125,7 @@ object SIR:
         override def tp: SIRType = data.tp
     }
 
-    case class Case(constr: ConstrDecl, bindings: List[String], body: SIRExpr)
+    case class Case(constr: ConstrDecl, bindings: List[String], typeBindings: List[SIRType], body: SIRExpr)
 
     /**
      * Match expression.  

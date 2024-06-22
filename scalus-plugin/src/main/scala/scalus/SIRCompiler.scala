@@ -50,10 +50,26 @@ case class TopLevelBinding(fullName: FullName, recursivity: Recursivity, body: S
 case class B(name: String, symbol: Symbol, recursivity: Recursivity, body: SIRExpr):
     def fullName(using Context) = FullName(symbol)
 
+
 case class AdtTypeInfo(
+                          dataTypeSymbol: Symbol,
+                          dataTypeParams: List[Type],
+                          childrenSymbols: List[Symbol]
+                      )
+
+case class AdtConstructorCallInfo(
     constructorTypeSymbol: Symbol,
-    dataTypeSymbol: Symbol,
-    constructors: List[Symbol]
+
+    /**
+     * Type information of the base data type.
+     */
+    dataInfo: AdtTypeInfo,
+
+    /**
+     * Type parameters of this type.
+     */
+    typeParams: List[Type],
+
 )
 
 final class SIRCompiler(mode: scalus.Mode)(using ctx: Context) {
@@ -191,7 +207,16 @@ final class SIRCompiler(mode: scalus.Mode)(using ctx: Context) {
         output.close()
     }
 
-    def getAdtInfoFromConstroctorType(constrTpe: Type): AdtTypeInfo = {
+    def getAdtTypeInfo(dataType: Type): AdtTypeInfo = {
+        val dataTypeParams = dataType match
+            case TypeApply(tp, params) => params.map(_.tpe)
+            case _                     => Nil
+        val dataTypeSymbol = dataType.typeSymbol
+        val constructorSymbols = dataTypeSymbol.children
+        AdtTypeInfo(dataTypeSymbol, dataTypeParams, constructorSymbols)
+    }
+
+    def getAdtConstructorCallInfo(constrTpe: Type): AdtConstructorCallInfo = {
         /* We support these cases:
         1. case class Foo(a: Int, b: String)
         2. case object Bar
@@ -202,33 +227,51 @@ final class SIRCompiler(mode: scalus.Mode)(using ctx: Context) {
         7. scala.Tuple2
 
          */
+
         val typeSymbol = constrTpe.widen.dealias.typeSymbol
         // println(s"getAdtInfoFromConstroctorType: ${typeSymbol.showFullName}, $constrTpe")
         // look for a base `sealed abstract class`. If it exists, we are in case 5 or 6
-        val adtBaseType = constrTpe.baseClasses.find(b =>
+        val optAdtBaseTypeSymbol = constrTpe.baseClasses.find(b =>
             // println(s"base class: ${b.show} ${b.flags.flagsString}")
+            // TODO:  recheck.  Why ! trait ?
             b.flags.isAllOf(Flags.Sealed | Flags.Abstract) && !b.flags.is(Flags.Trait)
         )
 
+        val typeArgs = constrTpe match
+            case TypeApply(_, args) => args.map(_.tpe)
+            case _ => Nil
+
         val info =
             if constrTpe.typeConstructor =:= Tuple2Symbol.typeRef
-            then AdtTypeInfo(typeSymbol, typeSymbol, List(typeSymbol))
+            then
+                val typeArgs = constrTpe match
+                    case TypeApply(_, args) => args.map(_.tpe)
+                    case _                  => Nil
+                AdtConstructorCallInfo(typeSymbol, AdtTypeInfo(typeSymbol, typeArgs, List(typeSymbol)), typeArgs)
             else
-                adtBaseType match
+                optAdtBaseTypeSymbol match
                     case None => // case 1 or 2
-                        AdtTypeInfo(typeSymbol, typeSymbol, List(typeSymbol))
-                    case Some(baseClassSymbol) if constrTpe.isSingleton => // case 3, 5
-                        AdtTypeInfo(constrTpe.termSymbol, baseClassSymbol, baseClassSymbol.children)
-                    case Some(baseClassSymbol) => // case 4, 6
-                        AdtTypeInfo(typeSymbol, baseClassSymbol, baseClassSymbol.children)
+                        val typeInfo = AdtTypeInfo(typeSymbol, typeArgs, List(typeSymbol))
+                        AdtConstructorCallInfo(typeSymbol, typeInfo, typeArgs)
+                    case Some(baseClassSymbol) =>
+                        val adtBaseType = constrTpe.baseType(baseClassSymbol)
+                        val baseDataParams = adtBaseType match
+                            case TypeApply(_, args) => args.map(_.tpe)
+                            case _                  => Nil
+                        if constrTpe.isSingleton then // case 3, 5
+                            val typeInfo = AdtTypeInfo(baseClassSymbol, baseDataParams,  baseClassSymbol.children)
+                            AdtConstructorCallInfo(constrTpe.termSymbol, typeInfo, typeArgs)
+                        else  // case 4, 6
+                            val typeInfo = AdtTypeInfo(baseClassSymbol, baseDataParams,  baseClassSymbol.children)
+                            AdtConstructorCallInfo(typeSymbol, typeInfo, typeArgs)
         /* report.echo(
       s"getAdtInfoFromConstroctorType: ${constrTpe.show}: ${typeSymbol.showFullName} ${adtBaseType} $info"
     ) */
         info
     }
 
+
     def primaryConstructorParams(typeSymbol: Symbol): List[Symbol] = {
-        // TODO: raise error if we have type parameters.
         val fields = typeSymbol.primaryConstructor.paramSymss.flatten.filter(s => s.isTerm)
         // debugInfo(s"caseFields: ${typeSymbol.fullName} $fields")
         fields
@@ -261,24 +304,31 @@ final class SIRCompiler(mode: scalus.Mode)(using ctx: Context) {
       s"${typeSymbol.children} widen: ${tpe.widen.typeSymbol}, widen.children: ${tpe.widen.typeSymbol.children} ${typeSymbol.maybeOwner.companionClass.children}"
       ) */
 
-        val adtInfo = getAdtInfoFromConstroctorType(tpe)
+        val adtCallInfo = getAdtConstructorCallInfo(tpe)
         // report.echo(s"compileNewConstructor1 ${tpe.show} base type: ${adtInfo}")
 
         val argsE = args.map(compileExpr(env, _))
-        val constrName = adtInfo.constructorTypeSymbol.name.show
+        val constrName = adtCallInfo.constructorTypeSymbol.name.show
         // sort by name to get a stable order
-        val sortedConstructors = adtInfo.constructors.sortBy(_.name.show)
-        val constrDecls = sortedConstructors.map { sym =>
-            val params = primaryConstructorParams(sym).map(p => TypeBinding(p.name.show, SIRTypesHelper.sirType(p.info)))
-            scalus.sir.ConstrDecl(sym.name.show, SIRVarStorage.DEFAULT ,  params)
-        }
-        val dataName = adtInfo.dataTypeSymbol.name.show
+        val sortedConstructors = adtCallInfo.dataInfo.childrenSymbols.sortBy(_.name.show)
+        
+        val dataTypeSymbol = adtCallInfo.dataInfo.dataTypeSymbol
+        val dataName = dataTypeSymbol.name.show
         // debugInfo(s"compileNewConstructor2: dataTypeSymbol $dataTypeSymbol, dataName $dataName, constrName $constrName, children ${constructors}")
-        val dataDecl = globalDataDecls.get(FullName(adtInfo.dataTypeSymbol)) match
+        val dataDecl = globalDataDecls.get(FullName(dataTypeSymbol)) match
             case Some(decl) => decl
             case None =>
-                val decl = scalus.sir.DataDecl(dataName, constrDecls)
-                globalDataDecls.addOne(FullName(adtInfo.dataTypeSymbol) -> decl)
+                val dataTypeParams = adtCallInfo.dataInfo.dataTypeParams.map{ tp =>
+                    SIRType.TypeVar(tp.typeSymbol.name.show)
+                }
+                val constrDecls = sortedConstructors.map { sym =>
+                    val params = primaryConstructorParams(sym).map(p => TypeBinding(p.name.show, SIRTypesHelper.sirType(p.info)))
+                    val typeParams = sym.typeParams.map(tp => SIRType.TypeVar(tp.name.show))
+                    // TODO: add substoitution for parent type params
+                    scalus.sir.ConstrDecl(sym.name.show, SIRVarStorage.DEFAULT, params, typeParams)
+                }
+                val decl = scalus.sir.DataDecl(dataName, constrDecls, dataTypeParams)
+                globalDataDecls.addOne(FullName(dataTypeSymbol) -> decl)
                 decl
         // constructor body as: constr arg1 arg2 ...
         SIR.Constr(constrName, dataDecl, argsE)

@@ -77,14 +77,22 @@ object SIRType {
     }
     given Data.type = Data
 
-    case class CaseClass(constrDecl: ConstrDecl) extends SIRType {
+    case class CaseClass(constrDecl: ConstrDecl, typeParams: scala.List[SIRType]) extends SIRType {
 
-            override def show: String = constrDecl.name
+            override def show: String =
+                if (typeParams.isEmpty) then
+                    constrDecl.name
+                else
+                    s"${constrDecl.name}[${typeParams.map(_.show).mkString(", ")}]"
 
     }
 
-    case class SumCaseClass(decl: DataDecl) extends SIRType {
-        override def show: String = decl.name
+    case class SumCaseClass(decl: DataDecl, typeParams: scala.List[SIRType]) extends SIRType {
+        override def show: String =
+            if (typeParams.isEmpty) then
+                decl.name
+            else
+                s"${decl.name}[${typeParams.map(_.show).mkString(", ")}]"
     }
 
     case class Fun(in:SIRType, out: SIRType) extends SIRType {
@@ -122,17 +130,25 @@ object SIRType {
 
 
     object Pair {
-        def apply(a: SIRType, b: SIRType): SIRType = CaseClass(
-            ConstrDecl("Pair", SIRVarStorage.LocalUPLC,
-                scala.List(TypeBinding("fst", a),
-                           TypeBinding("snd", b)
-                )
+        
+        val constrDecl = {
+            val A = TypeVar("A")
+            val B = TypeVar("B")
+            ConstrDecl("Pair", SIRVarStorage.LocalUPLC, 
+                scala.List(TypeBinding("fst",A),TypeBinding("snd",B)), 
+                scala.List(A,B)
             )
-        )
+        }
+        
+        def apply(a: SIRType, b: SIRType): SIRType = 
+            CaseClass(constrDecl, scala.List(a,b))
+            
+            
         def unapply(x:SIRType): Option[(SIRType, SIRType)] = x match {
-            case CaseClass(ConstrDecl("Pair", SIRVarStorage.LocalUPLC, scala.List(TypeBinding("fst", a), TypeBinding("snd", b))) ) => Some((a,b))
+            case CaseClass(`constrDecl`,scala.List(a,b)) => Some((a,b))
             case _ => None
         }
+        
     }
 
     /**
@@ -173,14 +189,16 @@ object SIRType {
 
     object List {
         
+        lazy val dataDecl = DataDecl("List", 
+            scala.List(Cons.constr, NilConstr), 
+            scala.List(TypeVar("A"))
+        )
+        
         def apply(a: SIRType): SIRType =
-            SumCaseClass(DataDecl("List",  scala.List(this.Cons.constr(a), this.NilConstr)))
+            SumCaseClass(dataDecl, scala.List(a))
 
         def unapply(l: SIRType): Option[SIRType] = l match {
-            case SumCaseClass(DataDecl("List", scala.List(
-                      ConstrDecl("Cons",_,scala.List(TypeBinding("head",a),la)),
-                      ConstrDecl("Nil", SIRVarStorage.LocalUPLC, scala.Nil )))
-                  ) => Some(a)
+            case SumCaseClass(`dataDecl`,List(a)) => Some(a)
             case this.Cons(a) => Some(a)
             case this.Nil => Some(VoidPrimitive)
             case _ => None
@@ -188,27 +206,28 @@ object SIRType {
         
         object Cons {
 
-            def apply(a: SIRType) = CaseClass(constr(a))
+            lazy val constr = {
+                val a = TypeVar("A")
+                ConstrDecl("Cons", SIRVarStorage.LocalUPLC,
+                    scala.List(TypeBinding("head", a), TypeBinding("tail", List(a))),
+                    scala.List(a)
+                )
+            }
 
-            def constr(a: SIRType) =
-              ConstrDecl("Cons", SIRVarStorage.LocalUPLC,
-                  scala.List(TypeBinding("head", a),
-                             TypeBinding("tail", List(a))
-                  )
-              )
 
+            def apply(a: SIRType) = CaseClass(constr, scala.List(a))
+            
+            
             def unapply(x:SIRType): Option[SIRType] = x match {
-                case CaseClass(ConstrDecl("Cons",
-                                 _,
-                                 scala.List(TypeBinding("head", a), TypeBinding("tail", List(b))) ) ) => Some(a)
+                case CaseClass(`constr`,scala.List(a)) => Some(a)
                 case _ => None
             }
             
         }
 
-        val NilConstr = ConstrDecl("Nil", SIRVarStorage.LocalUPLC, scala.Nil)
+        val NilConstr = ConstrDecl("Nil", SIRVarStorage.LocalUPLC, scala.Nil, scala.Nil)
 
-        val Nil = CaseClass(NilConstr)
+        val Nil = CaseClass(NilConstr, scala.Nil)
 
 
 
