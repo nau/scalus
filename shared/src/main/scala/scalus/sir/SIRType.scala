@@ -1,5 +1,7 @@
 package scalus.sir
 
+import scalus.sir.SIRType.TypeVar
+
 import scala.quoted.*
 import scalus.uplc.DefaultUni
 
@@ -130,25 +132,25 @@ object SIRType {
 
 
     object Pair {
-        
+
         val constrDecl = {
             val A = TypeVar("A")
             val B = TypeVar("B")
-            ConstrDecl("Pair", SIRVarStorage.LocalUPLC, 
-                scala.List(TypeBinding("fst",A),TypeBinding("snd",B)), 
+            ConstrDecl("Pair", SIRVarStorage.LocalUPLC,
+                scala.List(TypeBinding("fst",A),TypeBinding("snd",B)),
                 scala.List(A,B)
             )
         }
-        
-        def apply(a: SIRType, b: SIRType): SIRType = 
+
+        def apply(a: SIRType, b: SIRType): SIRType =
             CaseClass(constrDecl, scala.List(a,b))
-            
-            
+
+
         def unapply(x:SIRType): Option[(SIRType, SIRType)] = x match {
             case CaseClass(`constrDecl`,scala.List(a,b)) => Some((a,b))
             case _ => None
         }
-        
+
     }
 
     /**
@@ -171,9 +173,9 @@ object SIRType {
      * @param param
      * @param body
      */
-    case class TypeLambda(param: TypeVar, body: SIRType) extends SIRType {
+    case class TypeLambda(params: scala.List[TypeVar], body: SIRType) extends SIRType {
 
-        override def show: String = s" [${param.show}] =>> ${body}"
+        override def show: String = s" [${params.map(_.show).mkString(",")}] =>> ${body}"
 
     }
 
@@ -188,12 +190,12 @@ object SIRType {
 
 
     object List {
-        
-        lazy val dataDecl = DataDecl("List", 
-            scala.List(Cons.constr, NilConstr), 
+
+        lazy val dataDecl = DataDecl("List",
+            scala.List(Cons.constr, NilConstr),
             scala.List(TypeVar("A"))
         )
-        
+
         def apply(a: SIRType): SIRType =
             SumCaseClass(dataDecl, scala.List(a))
 
@@ -216,8 +218,8 @@ object SIRType {
 
 
             def apply(a: SIRType) = CaseClass(constr, scala.List(a))
-            
-            
+
+
             def unapply(x:SIRType): Option[SIRType] = x match {
                 case CaseClass(`constr`,scala.List(a)) => Some(a)
                 case _ => None
@@ -239,9 +241,95 @@ object SIRType {
     inline def liftM[T <: AnyKind]: SIRType.Aux[T] = ${liftMImpl[T]}
 
     def liftMImpl[T<:AnyKind:Type](using Quotes): Expr[SIRType.Aux[T]] = {
-        //import quotes.reflect.*
+        import quotes.reflect.*
 
-        ???
+        def liftRepr(tp: TypeRepr, enclosingLambdas: Map[Symbol,LambdaType]): Expr[SIRType] = {
+            //println(s"liftRepr: ${tp.show}")
+            tp match
+                case typeLambda@quotes.reflect.TypeLambda(paramNames, paramBounds, resType) =>
+                    println(s"type-lambda detected, tp.symbol = ${tp.typeSymbol}, tp.symbol.hashCode=${tp.typeSymbol.hashCode}, Type: ${tp.show}")
+                    // we need to generate param names with unique ids.
+                    println(s"tp.hashCode = ${tp.hashCode}")
+                    println(s"resType = ${resType.show}")
+                    val paramBase = (0L + tp.typeSymbol.hashCode) << 32
+                    val sirParamExprs = paramNames.zipWithIndex.map {
+                        case (name, idx) =>
+                            val id = paramBase + idx
+                            '{ TypeVar(${ Expr(name) }, Some(${ Expr(id) })) }
+                    }
+                    val nEnclosedLamda = enclosingLambdas + (tp.typeSymbol -> typeLambda)
+                    '{ SIRType.TypeLambda(${ Expr.ofList(sirParamExprs) }, ${ liftRepr(resType, nEnclosedLamda) }) }
+                case quotes.reflect.ParamRef(p, n) =>
+                    println(s"ParamRef detected,  Type: ${tp.show}, p=$p, p.typeSymbol.hashCode = ${p.typeSymbol.hashCode} n=$n")
+                    val paramBase = (0L + p.typeSymbol.hashCode) << 32
+                    val id = paramBase + n
+                    val name = tp.show // TODO: get from enclosing lambda.
+                    enclosingLambdas.get(p.typeSymbol) match
+                        case Some(value) =>
+                        case None =>
+                            report.error(s"No enclosing lambda found for typevar ${tp.show}", Position.ofMacroExpansion)
+                    '{ TypeVar(${ Expr(name) }, Some(${ Expr(id) })) }
+                case other =>
+                    tp.asType match {
+                        case '[scalus.builtin.ByteString] =>
+                            '{ByteStringPrimitive}.asExprOf[SIRType.Aux[scalus.builtin.ByteString]]
+                        case '[BigInt] =>
+                            '{IntegerPrimitive}.asExprOf[SIRType.Aux[BigInt]]
+                        case '[String] => '{StringPrimitive}.asExprOf[SIRType.Aux[String]]
+                        case '[Boolean] => '{BooleanPrimitive}.asExprOf[SIRType.Aux[Boolean]]
+                        case '[Unit] => '{VoidPrimitive}.asExprOf[SIRType.Aux[Unit]]
+                        case '[scalus.builtin.Data] => '{Data}.asExprOf[SIRType.Aux[scalus.builtin.Data]]
+                        case '[a => b] =>
+                            //println(s"Fun detected,  Type: ${tp.show}")
+                            val in = TypeRepr.of[a]
+                            val out = TypeRepr.of[b]
+                            '{Fun(${liftRepr(in,enclosingLambdas)}, ${liftRepr(out, enclosingLambdas)}) }
+                        case '[(a,b)=>c] =>
+                            println(s"Fun2 detected,  Type: ${tp.show}")
+                            //report.error(s"Uncarried function types are not supported: ${tp.show}", Position.ofMacroExpansion)
+                            '{ Fun(${ liftRepr(TypeRepr.of[a], enclosingLambdas) },
+                                Fun(${ liftRepr(TypeRepr.of[b], enclosingLambdas) },
+                                    ${ liftRepr(TypeRepr.of[c], enclosingLambdas)}) ) }
+                        case '[(a,b,c)=>d] =>
+                            println(s"Fun3 detected,  Type: ${tp.show}")
+                            //report.error(s"Uncarried function types are not supported: ${tp.show}", Position.ofMacroExpansion)
+                            '{ Fun(${ liftRepr(TypeRepr.of[a], enclosingLambdas) },
+                                Fun(${ liftRepr(TypeRepr.of[b], enclosingLambdas) },
+                                 Fun( ${ liftRepr(TypeRepr.of[c], enclosingLambdas) },
+                                     ${ liftRepr(TypeRepr.of[d], enclosingLambdas) })))
+                            }
+                        case '[(a,b,c,d)=>e] =>
+                            println(s"Fun4 detected,  Type: ${tp.show}")
+                            '{ Fun(${ liftRepr(TypeRepr.of[a], enclosingLambdas) },
+                                Fun(${ liftRepr(TypeRepr.of[b], enclosingLambdas) },
+                                    Fun( ${ liftRepr(TypeRepr.of[c], enclosingLambdas) },
+                                        Fun( ${ liftRepr(TypeRepr.of[d], enclosingLambdas) },
+                                            ${ liftRepr(TypeRepr.of[e], enclosingLambdas) }))))
+                            }
+                        case '[scalus.builtin.Pair[a,b]] =>
+                            println(s"Builtin pair detected,  Type: ${tp.show}")
+                            val a = TypeRepr.of[a]
+                            val b = TypeRepr.of[b]
+                            '{SIRType.Pair(${liftRepr(a, enclosingLambdas)}, ${liftRepr(b, enclosingLambdas)})}
+                        case '[(a,b)] =>
+                            println(s"Tuple detected,  Type: ${tp.show}")
+                            val a = TypeRepr.of[a]
+                            val b = TypeRepr.of[b]
+                            '{SIRType.Pair(${liftRepr(a, enclosingLambdas)}, ${liftRepr(b, enclosingLambdas)})}
+                        case '[List[a]] =>
+                            println(s"List detected,  Type: ${tp.show}")
+                            val a = TypeRepr.of[a]
+                            '{SIRType.List(${liftRepr(a, enclosingLambdas)})}
+                        case '[Option[a]] =>
+                            ???
+                        case other =>
+                            println(s"Unrecognized type: ${tp.show} tree: $other")
+                            report.error(s"Unsupported type: ${tp.show}", Position.ofMacroExpansion)
+                            ???
+            }
+        }
+
+        '{  ${liftRepr(TypeRepr.of[T], Map.empty)}.asInstanceOf[SIRType.Aux[T]] }.asExprOf[SIRType.Aux[T]]
     }
 
     

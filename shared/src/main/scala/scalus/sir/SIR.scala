@@ -32,26 +32,21 @@ case class ConstrDecl(name: String,
 
                      ) {
     
-    def tp: SIRType = generateType(typeParams, typeParams)
+    def tp: SIRType =
+        typeParams match
+            case Nil => SIRType.CaseClass(this, typeParams)
+            case tp::tail => SIRType.TypeLambda(typeParams, SIRType.CaseClass(this, typeParams))
 
-    def generateType(tps: List[SIRType.TypeVar], originTps: List[SIRType.TypeVar]): SIRType = {
-        tps match {
-            case Nil => SIRType.CaseClass(this, originTps)
-            case tp::tail => SIRType.TypeLambda(tp, generateType(tail, originTps))
-        }
-    }
 }
 
 case class DataDecl(name: String, constructors: List[ConstrDecl], typeParams: List[SIRType.TypeVar]) {
 
-    def tp: SIRType = generateType(typeParams, typeParams)
+    def tp: SIRType =
+        typeParams match
+            case Nil => SIRType.SumCaseClass(this, Nil)
+            case _ => SIRType.TypeLambda(typeParams, SIRType.SumCaseClass(this, typeParams))
 
-    def generateType(tps: List[SIRType.TypeVar], originTps: List[SIRType.TypeVar]): SIRType = {
-        tps match {
-            case Nil => SIRType.SumCaseClass(this, originTps)
-            case tp::tail => SIRType.TypeLambda(tp, generateType(tail, originTps))
-        }
-    }
+
 }
 
 case class ExternalDataDecl(module: String, name: String)

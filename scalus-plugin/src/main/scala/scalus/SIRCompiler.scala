@@ -311,7 +311,7 @@ final class SIRCompiler(mode: scalus.Mode)(using ctx: Context) {
         val constrName = adtCallInfo.constructorTypeSymbol.name.show
         // sort by name to get a stable order
         val sortedConstructors = adtCallInfo.dataInfo.childrenSymbols.sortBy(_.name.show)
-        
+
         val dataTypeSymbol = adtCallInfo.dataInfo.dataTypeSymbol
         val dataName = dataTypeSymbol.name.show
         // debugInfo(s"compileNewConstructor2: dataTypeSymbol $dataTypeSymbol, dataName $dataName, constrName $constrName, children ${constructors}")
@@ -666,58 +666,58 @@ final class SIRCompiler(mode: scalus.Mode)(using ctx: Context) {
         op match
             case nme.PLUS =>
                 SIR.Apply(
-                  SIR.Apply(SIRBuiltins.addInteger, compileExpr(env, lhs), SIRType.liftM[Int=>Int]),
-                  compileExpr(env, rhs), SIRType.liftM[Int]
+                  SIR.Apply(SIRBuiltins.addInteger, compileExpr(env, lhs), SIRType.liftM[BigInt=>BigInt]),
+                  compileExpr(env, rhs), SIRType.liftM[BigInt]
                 )
             case nme.MINUS =>
                 SIR.Apply(
-                  SIR.Apply(SIRBuiltins.subtractInteger, compileExpr(env, lhs), SIRType.liftM[Int=>Int]),
-                  compileExpr(env, rhs), SIRType.liftM[Int]
+                  SIR.Apply(SIRBuiltins.subtractInteger, compileExpr(env, lhs), SIRType.liftM[BigInt=>BigInt]),
+                  compileExpr(env, rhs), SIRType.liftM[BigInt]
                 )
             case nme.MUL =>
                 SIR.Apply(
-                  SIR.Apply(SIRBuiltins.multiplyInteger, compileExpr(env, lhs), SIRType.liftM[Int=>Int]),
-                  compileExpr(env, rhs), SIRType.liftM[Int]
+                  SIR.Apply(SIRBuiltins.multiplyInteger, compileExpr(env, lhs), SIRType.liftM[BigInt=>BigInt]),
+                  compileExpr(env, rhs), SIRType.liftM[BigInt]
                 )
             case nme.DIV =>
                 SIR.Apply(
-                  SIR.Apply(SIRBuiltins.divideInteger, compileExpr(env, lhs), SIRType.liftM[Int=>Int]),
-                  compileExpr(env, rhs), SIRType.liftM[Int]
+                  SIR.Apply(SIRBuiltins.divideInteger, compileExpr(env, lhs), SIRType.liftM[BigInt=>BigInt]),
+                  compileExpr(env, rhs), SIRType.liftM[BigInt]
                 )
             case nme.MOD =>
                 SIR.Apply(
-                  SIR.Apply(SIRBuiltins.remainderInteger, compileExpr(env, lhs), SIRType.liftM[Int=>Int]),
-                  compileExpr(env, rhs), SIRType.liftM[Int]
+                  SIR.Apply(SIRBuiltins.remainderInteger, compileExpr(env, lhs), SIRType.liftM[BigInt=>BigInt]),
+                  compileExpr(env, rhs), SIRType.liftM[BigInt]
                 )
             case nme.LT =>
                 SIR.Apply(
-                  SIR.Apply(SIRBuiltins.lessThanInteger, compileExpr(env, lhs), SIRType.liftM[Int=>Boolean]),
+                  SIR.Apply(SIRBuiltins.lessThanInteger, compileExpr(env, lhs), SIRType.liftM[BigInt=>Boolean]),
                   compileExpr(env, rhs), SIRType.liftM[Boolean]
                 )
             case nme.LE =>
                 SIR.Apply(
-                  SIR.Apply(SIRBuiltins.lessThanEqualsInteger, compileExpr(env, lhs), SIRType.liftM[Int=>Boolean]),
+                  SIR.Apply(SIRBuiltins.lessThanEqualsInteger, compileExpr(env, lhs), SIRType.liftM[BigInt=>Boolean]),
                   compileExpr(env, rhs), SIRType.liftM[Boolean]
                 )
             case nme.GT =>
                 SIR.Apply(
-                  SIR.Apply(SIRBuiltins.lessThanInteger, compileExpr(env, rhs), SIRType.liftM[Int=>Boolean]),
+                  SIR.Apply(SIRBuiltins.lessThanInteger, compileExpr(env, rhs), SIRType.liftM[BigInt=>Boolean]),
                   compileExpr(env, lhs), SIRType.liftM[Boolean]
                 )
             case nme.GE =>
                 SIR.Apply(
-                  SIR.Apply(SIRBuiltins.lessThanEqualsInteger, compileExpr(env, rhs), SIRType.liftM[Int=>Boolean]),
+                  SIR.Apply(SIRBuiltins.lessThanEqualsInteger, compileExpr(env, rhs), SIRType.liftM[BigInt=>Boolean]),
                   compileExpr(env, lhs), SIRType.liftM[Boolean]
                 )
             case nme.EQ =>
                 SIR.Apply(
-                  SIR.Apply(SIRBuiltins.equalsInteger, compileExpr(env, lhs), SIRType.liftM[Int=>Boolean]),
+                  SIR.Apply(SIRBuiltins.equalsInteger, compileExpr(env, lhs), SIRType.liftM[BigInt=>Boolean]),
                   compileExpr(env, rhs), SIRType.liftM[Boolean]
                 )
             case nme.NE =>
                 SIR.Not(
                   SIR.Apply(
-                    SIR.Apply(SIRBuiltins.equalsInteger, compileExpr(env, lhs), SIRType.liftM[Int=>Boolean]),
+                    SIR.Apply(SIRBuiltins.equalsInteger, compileExpr(env, lhs), SIRType.liftM[BigInt=>Boolean]),
                     compileExpr(env, rhs), SIRType.liftM[Boolean]
                   )
                 )
@@ -770,7 +770,7 @@ final class SIRCompiler(mode: scalus.Mode)(using ctx: Context) {
             val typeB = SIRType.TypeVar("B")
             SIR.Apply(
               SIR.Apply(SIRBuiltins.mkPairData, exprA,
-                  SIRType.TypeLambda(typeB, SIRType.Pair(exprA.tp,typeB))
+                  SIRType.TypeLambda(List(typeB), SIRType.Pair(exprA.tp,typeB))
               ),
               exprB, SIRType.Pair(exprA.tp, exprB.tp)
             )
@@ -996,7 +996,7 @@ final class SIRCompiler(mode: scalus.Mode)(using ctx: Context) {
                   SIR.Apply(
                     SIRBuiltins.subtractInteger,
                     SIR.Const(scalus.uplc.Constant.Integer(BigInt(0)), SIRType.IntegerPrimitive),
-                    SIRType.liftM[Int=>Int]
+                    SIRType.liftM[BigInt=>BigInt]
                   ),
                   compileExpr(env, expr),
                   SIRType.IntegerPrimitive

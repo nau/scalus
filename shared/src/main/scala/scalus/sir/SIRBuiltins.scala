@@ -18,21 +18,21 @@ object SIRBuiltins {
     val lessThanEqualsInteger = SIR.Builtin(DefaultFun.LessThanEqualsInteger, SIRType.liftM[BigInt=>BigInt=>Boolean])
 
     // Bytestrings
-    val appendByteString = SIR.Builtin(DefaultFun.AppendByteString, SIRType.liftM[(ByteString,ByteString)=>ByteString])
-    val consByteString = SIR.Builtin(DefaultFun.ConsByteString, SIRType.liftM[(BigInt,ByteString)=>ByteString])
-    val sliceByteString = SIR.Builtin(DefaultFun.SliceByteString, SIRType.liftM[(BigInt,BigInt,ByteString)=>ByteString])
+    val appendByteString = SIR.Builtin(DefaultFun.AppendByteString, SIRType.liftM[ByteString=>ByteString=>ByteString])
+    val consByteString = SIR.Builtin(DefaultFun.ConsByteString, SIRType.liftM[BigInt=>ByteString=>ByteString])
+    val sliceByteString = SIR.Builtin(DefaultFun.SliceByteString, SIRType.liftM[BigInt=>BigInt=>ByteString=>ByteString])
     val lengthOfByteString  = SIR.Builtin(DefaultFun.LengthOfByteString, SIRType.liftM[ByteString=>BigInt])
-    val indexByteString  = SIR.Builtin(DefaultFun.IndexByteString, SIRType.liftM[(BigInt,ByteString)=>BigInt])
-    val equalsByteString = SIR.Builtin(DefaultFun.EqualsByteString, SIRType.liftM[(ByteString,ByteString)=>Boolean])
-    val lessThanByteString = SIR.Builtin(DefaultFun.LessThanByteString, SIRType.liftM[(ByteString,ByteString)=>Boolean])
-    val lessThanEqualsByteString = SIR.Builtin(DefaultFun.LessThanEqualsByteString, SIRType.liftM[(ByteString,ByteString)=>Boolean])
+    val indexByteString  = SIR.Builtin(DefaultFun.IndexByteString, SIRType.liftM[BigInt=>ByteString=>BigInt])
+    val equalsByteString = SIR.Builtin(DefaultFun.EqualsByteString, SIRType.liftM[ByteString=>ByteString=>Boolean])
+    val lessThanByteString = SIR.Builtin(DefaultFun.LessThanByteString, SIRType.liftM[ByteString=>ByteString=>Boolean])
+    val lessThanEqualsByteString = SIR.Builtin(DefaultFun.LessThanEqualsByteString, SIRType.liftM[ByteString=>ByteString=>Boolean])
 
     // Cryptography and hashes
     val sha2_256 = SIR.Builtin(DefaultFun.Sha2_256, SIRType.liftM[ByteString=>ByteString])
     val sha3_256 = SIR.Builtin(DefaultFun.Sha3_256, SIRType.liftM[ByteString=>ByteString])
     val blake2b_256 = SIR.Builtin(DefaultFun.Blake2b_256, SIRType.liftM[ByteString=>ByteString])
-    val verifyEd25519Signature = SIR.Builtin(DefaultFun.VerifyEd25519Signature, SIRType.liftM[(ByteString,ByteString,ByteString)=>Boolean])
-    val verifyEcdsaSecp256k1Signature = SIR.Builtin(DefaultFun.VerifyEcdsaSecp256k1Signature, SIRType.liftM[(ByteString,ByteString,ByteString)=>Boolean])
+    val verifyEd25519Signature = SIR.Builtin(DefaultFun.VerifyEd25519Signature, SIRType.liftM[ByteString=>ByteString=>ByteString=>Boolean])
+    val verifyEcdsaSecp256k1Signature = SIR.Builtin(DefaultFun.VerifyEcdsaSecp256k1Signature, SIRType.liftM[ByteString=>ByteString=>ByteString=>Boolean])
     val verifySchnorrSecp256k1Signature = SIR.Builtin(DefaultFun.VerifySchnorrSecp256k1Signature, SIRType.liftM[(ByteString,ByteString,ByteString)=>Boolean])
 
     // Strings
