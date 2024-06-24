@@ -56,22 +56,22 @@ object SIRBuiltins {
     val sndPair = SIR.Builtin(DefaultFun.SndPair, SIRType.liftM[[A,B]=>>(A,B)=>B])
 
     // Lists
-    val chooseList = SIR.Builtin(DefaultFun.ChooseList, SIRType.liftM[[A,B]=>>(List[A],B,B)=>B])
-    val mkCons = SIR.Builtin(DefaultFun.MkCons, SIRType.liftM[[A] =>> (A,List[A])=>List[A]])
-    val headList = SIR.Builtin(DefaultFun.HeadList, SIRType.liftM[[A] =>> List[A]=>A])
-    val tailList = SIR.Builtin(DefaultFun.TailList, SIRType.liftM[[A] =>> List[A]=>List[A]])
-    val nullList = SIR.Builtin(DefaultFun.NullList, SIRType.liftM[[A] =>> List[A]=>Boolean])
+    val chooseList = SIR.Builtin(DefaultFun.ChooseList, SIRType.liftM[[A,B]=>>(scalus.builtin.List[A],B,B)=>B])
+    val mkCons = SIR.Builtin(DefaultFun.MkCons, SIRType.liftM[[A] =>> (A, scalus.builtin.List[A])=> scalus.builtin.List[A]])
+    val headList = SIR.Builtin(DefaultFun.HeadList, SIRType.liftM[[A] =>> scalus.builtin.List[A]=>A])
+    val tailList = SIR.Builtin(DefaultFun.TailList, SIRType.liftM[[A] =>> scalus.builtin.List[A]=> scalus.builtin.List[A]])
+    val nullList = SIR.Builtin(DefaultFun.NullList, SIRType.liftM[[A] =>> scalus.builtin.List[A]=>Boolean])
 
     // Data
     val chooseData = SIR.Builtin(DefaultFun.ChooseData, SIRType.liftM[[A]=>>(Data,A,A,A,A,A)=>A])
-    val constrData = SIR.Builtin(DefaultFun.ConstrData, SIRType.liftM[(BigInt, List[Data])=>Data])
+    val constrData = SIR.Builtin(DefaultFun.ConstrData, SIRType.liftM[(BigInt, scalus.builtin.List[Data])=>Data])
     val mapData = SIR.Builtin(DefaultFun.MapData, SIRType.liftM[(Map[BigInt,Data])=>Data])
-    val listData = SIR.Builtin(DefaultFun.ListData, SIRType.liftM[List[Data]=>Data])
+    val listData = SIR.Builtin(DefaultFun.ListData, SIRType.liftM[scalus.builtin.List[Data]=>Data])
     val iData = SIR.Builtin(DefaultFun.IData, SIRType.liftM[BigInt=>Data])
     val bData = SIR.Builtin(DefaultFun.BData, SIRType.liftM[Boolean=>Data])
-    val unConstrData = SIR.Builtin(DefaultFun.UnConstrData, SIRType.liftM[Data=>(BigInt, List[Data])])
-    val unMapData = SIR.Builtin(DefaultFun.UnMapData, SIRType.liftM[Data=>List[(BigInt,Data)]])
-    val unListData = SIR.Builtin(DefaultFun.UnListData, SIRType.liftM[Data=>List[Data]])
+    val unConstrData = SIR.Builtin(DefaultFun.UnConstrData, SIRType.liftM[Data=>(BigInt, scalus.builtin.List[Data])])
+    val unMapData = SIR.Builtin(DefaultFun.UnMapData, SIRType.liftM[Data=> scalus.builtin.List[(BigInt,Data)]])
+    val unListData = SIR.Builtin(DefaultFun.UnListData, SIRType.liftM[Data=>scalus.builtin.List[Data]])
     val unIData = SIR.Builtin(DefaultFun.UnIData, SIRType.liftM[Data=>BigInt])
     val unBData = SIR.Builtin(DefaultFun.UnBData, SIRType.liftM[Data=>Boolean])
     val equalsData = SIR.Builtin(DefaultFun.EqualsData, SIRType.liftM[(Data,Data)=>Boolean])
@@ -79,7 +79,7 @@ object SIRBuiltins {
 
     //   TODO: think about pair
     val mkPairData = SIR.Builtin(DefaultFun.MkPairData, SIRType.liftM[(Data,Data)=>(Data,Data)])
-    val mkNilData = SIR.Builtin(DefaultFun.MkNilData, SIRType.liftM[Unit => List[Data]])
+    val mkNilData = SIR.Builtin(DefaultFun.MkNilData, SIRType.liftM[Unit => scalus.builtin.List[Data]])
     val mkNilPairData = SIR.Builtin(DefaultFun.MkNilPairData, SIRType.liftM[Unit => (Data,Data)])
 
 

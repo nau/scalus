@@ -243,28 +243,29 @@ object SIRType {
     def liftMImpl[T<:AnyKind:Type](using Quotes): Expr[SIRType.Aux[T]] = {
         import quotes.reflect.*
 
-        def liftRepr(tp: TypeRepr, enclosingLambdas: Map[Symbol,LambdaType]): Expr[SIRType] = {
-            //println(s"liftRepr: ${tp.show}")
+        println(s"liftM: ${TypeRepr.of[T].show}")
+
+        def liftRepr(tp: TypeRepr, enclosingBounds: Map[Int,TypeVar]): Expr[SIRType] = {
+            println(s"liftRepr: ${tp.show}")
             tp match
                 case typeLambda@quotes.reflect.TypeLambda(paramNames, paramBounds, resType) =>
                     println(s"type-lambda detected, tp.symbol = ${tp.typeSymbol}, tp.symbol.hashCode=${tp.typeSymbol.hashCode}, Type: ${tp.show}")
                     // we need to generate param names with unique ids.
-                    println(s"tp.hashCode = ${tp.hashCode}")
-                    println(s"resType = ${resType.show}")
-                    val paramBase = (0L + tp.typeSymbol.hashCode) << 32
+                    //println(s"tp.hashCode = ${tp.hashCode}")
+                    //println(s"resType = ${resType.show}")
+                    var newEnclosingBounds = enclosingBounds
                     val sirParamExprs = paramNames.zipWithIndex.map {
                         case (name, idx) =>
-                            val id = paramBase + idx
+                            val id = typeLambda.param(idx).typeSymbol.hashCode
+                            newEnclosingBounds = newEnclosingBounds + (id -> TypeVar(name, Some(id)))
                             '{ TypeVar(${ Expr(name) }, Some(${ Expr(id) })) }
                     }
-                    val nEnclosedLamda = enclosingLambdas + (tp.typeSymbol -> typeLambda)
-                    '{ SIRType.TypeLambda(${ Expr.ofList(sirParamExprs) }, ${ liftRepr(resType, nEnclosedLamda) }) }
-                case quotes.reflect.ParamRef(p, n) =>
+                    '{ SIRType.TypeLambda(${ Expr.ofList(sirParamExprs) }, ${ liftRepr(resType, newEnclosingBounds) }) }
+                case pr@quotes.reflect.ParamRef(p, n) =>
                     println(s"ParamRef detected,  Type: ${tp.show}, p=$p, p.typeSymbol.hashCode = ${p.typeSymbol.hashCode} n=$n")
-                    val paramBase = (0L + p.typeSymbol.hashCode) << 32
-                    val id = paramBase + n
                     val name = tp.show // TODO: get from enclosing lambda.
-                    enclosingLambdas.get(p.typeSymbol) match
+                    val id = pr.typeSymbol.hashCode
+                    enclosingBounds.get(id) match
                         case Some(value) =>
                         case None =>
                             report.error(s"No enclosing lambda found for typevar ${tp.show}", Position.ofMacroExpansion)
@@ -283,48 +284,53 @@ object SIRType {
                             //println(s"Fun detected,  Type: ${tp.show}")
                             val in = TypeRepr.of[a]
                             val out = TypeRepr.of[b]
-                            '{Fun(${liftRepr(in,enclosingLambdas)}, ${liftRepr(out, enclosingLambdas)}) }
+                            '{Fun(${liftRepr(in,enclosingBounds)}, ${liftRepr(out, enclosingBounds)}) }
                         case '[(a,b)=>c] =>
                             println(s"Fun2 detected,  Type: ${tp.show}")
                             //report.error(s"Uncarried function types are not supported: ${tp.show}", Position.ofMacroExpansion)
-                            '{ Fun(${ liftRepr(TypeRepr.of[a], enclosingLambdas) },
-                                Fun(${ liftRepr(TypeRepr.of[b], enclosingLambdas) },
-                                    ${ liftRepr(TypeRepr.of[c], enclosingLambdas)}) ) }
+                            '{ Fun(${ liftRepr(TypeRepr.of[a], enclosingBounds) },
+                                Fun(${ liftRepr(TypeRepr.of[b], enclosingBounds) },
+                                    ${ liftRepr(TypeRepr.of[c], enclosingBounds)}) ) }
                         case '[(a,b,c)=>d] =>
                             println(s"Fun3 detected,  Type: ${tp.show}")
+                            val ta = TypeRepr.of[a]
+                            val tb = TypeRepr.of[b]
+                            val tc = TypeRepr.of[c]
+                            val td = TypeRepr.of[d]
+                            println(s"ta: ${ta.show}, tb: ${tb.show}, tc: ${tc.show}, td: ${td.show}")
                             //report.error(s"Uncarried function types are not supported: ${tp.show}", Position.ofMacroExpansion)
-                            '{ Fun(${ liftRepr(TypeRepr.of[a], enclosingLambdas) },
-                                Fun(${ liftRepr(TypeRepr.of[b], enclosingLambdas) },
-                                 Fun( ${ liftRepr(TypeRepr.of[c], enclosingLambdas) },
-                                     ${ liftRepr(TypeRepr.of[d], enclosingLambdas) })))
+                            '{ Fun(${ liftRepr(TypeRepr.of[a], enclosingBounds) },
+                                Fun(${ liftRepr(TypeRepr.of[b], enclosingBounds) },
+                                 Fun( ${ liftRepr(TypeRepr.of[c], enclosingBounds) },
+                                     ${ liftRepr(TypeRepr.of[d], enclosingBounds) })))
                             }
                         case '[(a,b,c,d)=>e] =>
                             println(s"Fun4 detected,  Type: ${tp.show}")
-                            '{ Fun(${ liftRepr(TypeRepr.of[a], enclosingLambdas) },
-                                Fun(${ liftRepr(TypeRepr.of[b], enclosingLambdas) },
-                                    Fun( ${ liftRepr(TypeRepr.of[c], enclosingLambdas) },
-                                        Fun( ${ liftRepr(TypeRepr.of[d], enclosingLambdas) },
-                                            ${ liftRepr(TypeRepr.of[e], enclosingLambdas) }))))
+                            '{ Fun(${ liftRepr(TypeRepr.of[a], enclosingBounds) },
+                                Fun(${ liftRepr(TypeRepr.of[b], enclosingBounds) },
+                                    Fun( ${ liftRepr(TypeRepr.of[c], enclosingBounds) },
+                                        Fun( ${ liftRepr(TypeRepr.of[d], enclosingBounds) },
+                                            ${ liftRepr(TypeRepr.of[e], enclosingBounds) }))))
                             }
                         case '[scalus.builtin.Pair[a,b]] =>
                             println(s"Builtin pair detected,  Type: ${tp.show}")
                             val a = TypeRepr.of[a]
                             val b = TypeRepr.of[b]
-                            '{SIRType.Pair(${liftRepr(a, enclosingLambdas)}, ${liftRepr(b, enclosingLambdas)})}
+                            '{SIRType.Pair(${liftRepr(a, enclosingBounds)}, ${liftRepr(b, enclosingBounds)})}
                         case '[(a,b)] =>
                             println(s"Tuple detected,  Type: ${tp.show}")
                             val a = TypeRepr.of[a]
                             val b = TypeRepr.of[b]
-                            '{SIRType.Pair(${liftRepr(a, enclosingLambdas)}, ${liftRepr(b, enclosingLambdas)})}
+                            '{SIRType.Pair(${liftRepr(a, enclosingBounds)}, ${liftRepr(b, enclosingBounds)})}
                         case '[List[a]] =>
                             println(s"List detected,  Type: ${tp.show}")
                             val a = TypeRepr.of[a]
-                            '{SIRType.List(${liftRepr(a, enclosingLambdas)})}
+                            '{SIRType.List(${liftRepr(a, enclosingBounds)})}
                         case '[Option[a]] =>
                             ???
                         case other =>
                             println(s"Unrecognized type: ${tp.show} tree: $other")
-                            report.error(s"Unsupported type: ${tp.show}", Position.ofMacroExpansion)
+                            report.error(s"Unsupported type [1]: ${tp.show} in ${TypeRepr.of[T].show}", Position.ofMacroExpansion)
                             ???
             }
         }
