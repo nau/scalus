@@ -1,12 +1,25 @@
 package scalus.builtin
 
+import scalus.Compiler
 import upickle.default.*
+
 import scala.collection.mutable.ArrayBuffer
 
 trait DataApi {
     extension [A <: Data: Writer](a: A)
         inline def toJson: String = write(a)
         inline def toJsonIndented(indent: Int): String = write(a, indent)
+
+    extension (inline data: Data)
+        inline def field[A](inline expr: A => Any): Data = Compiler.fieldAsData(expr)(data)
+        inline def toConstr: Pair[BigInt, scalus.builtin.List[Data]] = Builtins.unConstrData(data)
+        inline def toMap: List[Pair[Data, Data]] = Builtins.unMapData(data)
+        inline def toList: List[Data] = Builtins.unListData(data)
+        inline def toI: BigInt = Builtins.unIData(data)
+        inline def toBigInt: BigInt = Builtins.unIData(data)
+        inline def toB: ByteString = Builtins.unBData(data)
+        inline def toByteString: ByteString = Builtins.unBData(data)
+
     def fromJson(json: String): Data = read[Data](json)
     def toJson(data: Data, indent: Int = -1): String = write(data, indent)
 }

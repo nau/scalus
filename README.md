@@ -59,9 +59,9 @@ Below example is taken from [PreimageValidator](https://github.com/nau/scalus/bl
 ```scala 3
 def preimageValidator(datum: Data, redeemer: Data, ctxData: Data): Unit =
     // deserialize from Data
-    val (hash, pkh) = fromData[(ByteString, ByteString)](datum)
-    val preimage = fromData[ByteString](redeemer)
-    val ctx = fromData[ScriptContext](ctxData)
+    val (hash, pkh) = datum.to[(ByteString, ByteString)]
+    val preimage = redeemer.toByteString
+    val ctx = ctxData.to[ScriptContext]
     // get the transaction signatories
     val signatories = ctx.txInfo.signatories
     // check that the transaction is signed by the public key hash

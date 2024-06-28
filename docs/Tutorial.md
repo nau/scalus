@@ -11,7 +11,6 @@ similar to how PlutuxTx works.
 You can store the Plutus script in a `*.plutus` file and use it with the Cardano CLI.
 Or use one of the Java/JavaScript libraries to construct transactions with the script.
 
-
 [This example](https://github.com/nau/scalus/blob/d42d24385666efdb2690321958aa4fb8108e2db5/examples/src/main/scala/scalus/SendTx.scala) shows how to use the [cardano-client-lib](https://github.com/bloxbean/cardano-client-lib) to send transactions.
 
 You write a script using a small subset of Scala,
@@ -202,14 +201,16 @@ val fromDataExample = compile {
     // fromData is a summoner method for the `FromData` type class
     // there are instances for all built-in types
     val a = fromData[BigInt](data)
+    // also you can use extension method `to` on Data
+    val b = data.to[BigInt]
 
     // you can define your own `FromData` instances
     {
         given FromData[Account] = (d: Data) => {
             val args = unConstrData(d).snd
-            new Account(fromData[ByteString](args.head), fromData[BigInt](args.tail.head))
+            new Account(args.head.to[ByteString], args.tail.head.to[BigInt])
         }
-        val account = fromData[Account](data)
+        val account = data.to[Account]
     }
 
     // or your can you a macro to derive the FromData instance
@@ -231,13 +232,12 @@ Here is a simple example of a PlutusV2 validator written in Scalus.
 import scalus.ledger.api.v2.*
 import scalus.ledger.api.v2.FromDataInstances.given
 import scalus.builtin.ByteString.given
-import scalus.builtin.Data.fromData
 import scalus.prelude.List
 
 // Use Scala 3 indentation syntax. Look ma, no braces! Like Python!
 val pubKeyValidator = compile:
     def validator(datum: Data, redeamder: Data, ctxData: Data) =
-        val ctx = fromData[ScriptContext](ctxData)
+        val ctx = ctxData.to[ScriptContext]
         List.findOrFail[PubKeyHash](ctx.txInfo.signatories):
             sig => sig.hash == hex"deadbeef"
 ```
@@ -253,7 +253,6 @@ like `Hex(CborEncode(CborEncode(FlatEncode(Program(version, uplc)))))`.
 ```scala mdoc:compile-only
 import scalus.*
 import scalus.builtin.ByteString.given
-import scalus.builtin.Data.fromData
 import scalus.ledger.api.PlutusLedgerLanguage
 import scalus.ledger.api.v2.*
 import scalus.ledger.api.v2.FromDataInstances.given
@@ -263,7 +262,7 @@ import scalus.uplc.Program
 val serializeToDoubleCborHex = {
     val pubKeyValidator = compile {
         def validator(datum: Data, redeamder: Data, ctxData: Data) = {
-            val ctx = fromData[ScriptContext](ctxData)
+            val ctx = ctxData.to[ScriptContext]
             List.findOrFail[PubKeyHash](ctx.txInfo.signatories)(sig => sig.hash == hex"deadbeef")
         }
     }
