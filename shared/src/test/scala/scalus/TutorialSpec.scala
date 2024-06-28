@@ -121,14 +121,16 @@ val fromDataExample = compile {
     // fromData is a summoner method for the `FromData` type class
     // there are instances for all built-in types
     val a = fromData[BigInt](data)
+    // also you can use extension method `to` on Data
+    val b = data.to[BigInt]
 
     // you can define your own `FromData` instances
     {
         given FromData[Account] = (d: Data) => {
             val args = Builtins.unConstrData(d).snd
-            new Account(fromData[ByteString](args.head), fromData[BigInt](args.tail.head))
+            new Account(args.head.to[ByteString], args.tail.head.to[BigInt])
         }
-        val account = fromData[Account](data)
+        val account = data.to[Account]
     }
 
     // or your can you a macro to derive the FromData instance
@@ -146,7 +148,7 @@ import scalus.ledger.api.v2.FromDataInstances.given
 import scalus.prelude.List
 val pubKeyValidator = compile {
     def validator(datum: Data, redeamder: Data, ctxData: Data) = {
-        val ctx = fromData[ScriptContext](ctxData)
+        val ctx = ctxData.to[ScriptContext]
         List.findOrFail[PubKeyHash](ctx.txInfo.signatories)(sig => sig.hash === hex"deadbeef")
     }
 }

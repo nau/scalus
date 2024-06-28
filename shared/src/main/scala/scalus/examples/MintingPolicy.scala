@@ -27,8 +27,7 @@ object MintingPolicy {
     import ScriptPurpose.*
 
     given Data.FromData[TxInInfoTxOutRefOnly] = (d: Data) =>
-        val pair = unConstrData(d)
-        new TxInInfoTxOutRefOnly(fromData[TxOutRef](pair.snd.head))
+        new TxInInfoTxOutRefOnly(d.toConstr.snd.head.to[TxOutRef])
 
     protected final val hoskyMintTxOutRef = TxOutRef(
       TxId(hex"1ab6879fc08345f51dc9571ac4f530bf8673e0d798758c470f9af6f98e2f3982"),
@@ -48,7 +47,7 @@ object MintingPolicy {
     )
 
     val simpleCtxDeserializer: Data => MintingContext = (ctxData: Data) => {
-        val ctx = fromData[ScriptContext](ctxData)
+        val ctx = ctxData.to[ScriptContext]
         val txInfo = ctx.txInfo
         val txInfoInputs = txInfo.inputs
         val minted = txInfo.mint
@@ -67,19 +66,15 @@ object MintingPolicy {
     }
 
     val optimizedCtxDeserializer: Data => MintingContext = (ctxData: Data) => {
-        val txInfoData = fieldAsData[ScriptContext](_.txInfo)(ctxData)
-        val txInfoInputs =
-            fromData[List[TxInInfoTxOutRefOnly]](
-              fieldAsData[TxInfo](_.inputs)(txInfoData)
-            )
-        val minted =
-            fromData[Value](fieldAsData[TxInfo](_.mint).apply(txInfoData))
+        val txInfoData = ctxData.field[ScriptContext](_.txInfo)
+        val txInfoInputs = txInfoData.field[TxInfo](_.inputs).to[List[TxInInfoTxOutRefOnly]]
+        val minted = txInfoData.field[TxInfo](_.mint).to[Value]
         val ownSymbol =
-            val purpose = fieldAsData[ScriptContext](_.purpose)(ctxData)
-            val pair = unConstrData(purpose)
+            val purpose = ctxData.field[ScriptContext](_.purpose)
+            val pair = purpose.toConstr
             val tag = pair.fst
             val args = pair.snd
-            if equalsInteger(tag, BigInt(0)) then unBData(args.head)
+            if tag == BigInt(0) then args.head.toByteString
             else throw new Exception("P")
         new MintingContext(
           List.map(txInfoInputs)(_.txInInfoOutRef),

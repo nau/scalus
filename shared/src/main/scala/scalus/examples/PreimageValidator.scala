@@ -7,7 +7,6 @@ import scalus.builtin.Builtins.*
 import scalus.builtin.ByteString
 import scalus.builtin.FromDataInstances.given
 import scalus.builtin.Data
-import scalus.builtin.Data.fromData
 import scalus.builtin.given
 import scalus.ledger.api.v2.*
 import scalus.ledger.api.v2.FromDataInstances.given
@@ -19,9 +18,9 @@ import scalus.uplc.*
 object PreimageValidator {
     def preimageValidator(datum: Data, redeemer: Data, ctxData: Data): Unit = {
         // deserialize from Data
-        val (hash, pkh) = fromData[(ByteString, ByteString)](datum)
-        val preimage = fromData[ByteString](redeemer)
-        val ctx = fromData[ScriptContext](ctxData)
+        val (hash, pkh) = datum.to[(ByteString, ByteString)]
+        val preimage = redeemer.toByteString
+        val ctx = ctxData.to[ScriptContext]
         // get the transaction signatories
         val signatories = ctx.txInfo.signatories
         // check that the transaction is signed by the public key hash
@@ -41,18 +40,18 @@ object OptimizedPreimageValidator {
       */
     def preimageValidator(datum: Data, redeemer: Data, ctxData: Data): Unit = {
         // datum is a pair of 2 bytestrings: sha2_256(preimage) and public key hash
-        val pair = unConstrData(datum).snd
+        val pair = datum.toConstr.snd
         // get the hash
-        inline def hash = unBData(pair.head)
+        inline def hash = pair.head.toByteString
         // get the public key hash
         val pkh = pair.tail.head
         // get the preimage
-        inline def preimage = unBData(redeemer)
+        inline def preimage = redeemer.toByteString
         def checkSignatories(sigs: builtin.List[Data]): Unit =
             if trace("sig.head")(sigs.head) == pkh then trace("signed")(())
             else checkSignatories(sigs.tail)
         // get the signatories of the transaction
-        inline def sigs = unListData(fieldAsData[ScriptContext](_.txInfo.signatories)(ctxData))
+        inline def sigs = ctxData.field[ScriptContext](_.txInfo.signatories).toList
         checkSignatories(sigs)
         sha2_256(preimage) == hash || (throw new RuntimeException("Wrong"))
     }
