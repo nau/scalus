@@ -3,17 +3,17 @@ package scalus.uplc
 import org.bitcoins.crypto.ECPrivateKey
 import org.scalacheck.Arbitrary
 import org.scalacheck.Gen
+import scalus.*
 import scalus.BaseValidatorSpec
 import scalus.Compiler.compile
 import scalus.Expected
-import scalus.*
 import scalus.builtin.Builtins
 import scalus.builtin.ByteString
 import scalus.builtin.ByteString.given
 import scalus.builtin.Data
 import scalus.builtin.given
-import scalus.ledger.api.v1.ToDataInstances.given
 import scalus.ledger.api.v1.*
+import scalus.ledger.api.v1.ToDataInstances.given
 import scalus.prelude.List.Cons
 import scalus.prelude.List.Nil
 import scalus.uplc.DefaultFun.*
@@ -24,41 +24,8 @@ import scalus.uplc.eval.*
 import scodec.bits.ByteVector
 
 import scala.language.implicitConversions
-import scala.io.Source.fromFile
 
 class CekJVMSpec extends BaseValidatorSpec:
-    def run(code: String) = {
-        val parser = UplcParser
-        for
-            program <- parser.parseProgram(code)
-            evaled = VM.evaluateProgram(program)
-        do println(evaled.pretty.render(80))
-    }
-
-    def eval(code: String): Term = {
-        val parser = UplcParser
-        parser.parseProgram(code).map(VM.evaluateProgram).getOrElse(sys.error("Parse error"))
-    }
-
-    // Apparently plutus-conformance doesn't exist on the Plutus V2 commit we're using
-    test("conformance") {
-        def check(name: String) =
-            val path =
-                s"../plutus-conformance/test-cases/uplc/evaluation"
-            val code = fromFile(s"$path/$name.uplc").mkString
-            val expected = fromFile(s"$path/$name.uplc.expected").mkString
-            // println(eval(code).pretty.render(80))
-            assert(eval(code) == eval(expected))
-
-        check("builtin/semantics/addInteger/addInteger1/addInteger1")
-        check("builtin/semantics/addInteger/addInteger-uncurried/addInteger-uncurried")
-        check("builtin/semantics/equalsInteger/equalsInteger1/equalsInteger1")
-        check("builtin/semantics/ifThenElse/ifThenElse-1/ifThenElse-1")
-
-        // Examples
-        check("example/factorial/factorial")
-        check("example/fibonacci/fibonacci")
-    }
 
     test("simple validator example") {
         import TermDSL.*

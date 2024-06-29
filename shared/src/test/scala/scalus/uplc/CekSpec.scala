@@ -14,15 +14,8 @@ class CekSpec extends AnyFunSuite:
         assert(VM.evaluateTerm(app) == h)
     }
 
-    def run(code: String) = {
-        for
-            program <- UplcParser.parseProgram(code)
-            evaled = VM.evaluateProgram(program)
-        do println(evaled.pretty.render(80))
-    }
-
     def eval(code: String): Term = {
-        UplcParser.parseProgram(code).map(VM.evaluateProgram).getOrElse(sys.error("Parse error"))
+        UplcParser().parseProgram(code).map(VM.evaluateProgram).getOrElse(sys.error("Parse error"))
     }
 
     test("EqualsInteger") {

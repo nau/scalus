@@ -12,9 +12,22 @@ import scalus.utils.Utils
 
 import scala.collection.immutable
 
-object UplcParser:
-    private[this] val whitespace: P[Unit] = P.charIn(" \t\r\n").void
-    private[this] val whitespaces0: Parser0[Unit] = whitespace.rep0.void
+/** UPLC parsers.
+  *
+  * It's a collection of parsers for the UPLC language. `Term` and `Program` parsers are statefull
+  * and are program version dependent, that's why this is a class and not an object.
+  */
+class UplcParser:
+    private var version = (1, 1, 0) // use latest version by default
+
+    // TODO and FIXME:
+    // - string escape sequences are not as in the Haskell parser, fix that
+    // - support nested block comments as in the Haskell parser
+    // - con/constr/case/lam... expect a whitespaces0 but it must be whitespace, refactor
+    val lineComment = P.string("--") *> P.charsWhile(_ != '\n').void
+    val whitespace: P[Unit] = P.charIn(" \t\r\n").void | lineComment
+    val whitespaces0: Parser0[Unit] = whitespace.rep0.void
+
     private lazy val cached: immutable.Map[String, DefaultFun] =
         DefaultFun.values.map(v => Utils.lowerFirst(v.toString) -> v).toMap
 
@@ -128,7 +141,9 @@ object UplcParser:
 
     def programVersion: P[(Int, Int, Int)] =
         lexeme((number <* P.char('.')) ~ (number <* P.char('.')) ~ number) map {
-            case ((major, minor), patch) => (major, minor, patch)
+            case ((major, minor), patch) =>
+                version = (major, minor, patch)
+                version
         }
 
     def varTerm: P[Var] = lexeme(name).map(n => Var(NamedDeBruijn(n)))
@@ -143,8 +158,27 @@ object UplcParser:
         def forceTerm = inParens(symbol("force") *> self).map(Force.apply)
         def delayTerm = inParens(symbol("delay") *> self).map(Delay.apply)
         def errorTerm = inParens(symbol("error")).map(_ => Error)
+        def constrTerm: P[Term] =
+            inParens(symbol("constr") *> lexeme(long) ~ self.rep0).map((tag, args) =>
+                Constr(tag, args)
+            ) <* (P.defer0(
+              if 1 <= version._1 && 1 <= version._2 then P.unit
+              else P.failWith[Unit]("'constr' is not allowed before version 1.1.0")
+            ))
+        def caseTerm: P[Term] =
+            inParens(symbol("case") *> self ~ self.rep0).map { (scrutinee, cases) =>
+                Case(scrutinee, cases.toList)
+            } <* (
+              P.defer0(
+                if 1 <= version._1 && 1 <= version._2 then P.unit
+                else P.failWith[Unit]("'case' is not allowed before version 1.1.0")
+              )
+            )
+
         varTerm.backtrack
             | builtinTerm.backtrack
+            | caseTerm.backtrack
+            | constrTerm.backtrack
             | conTerm.backtrack
             | lamTerm.backtrack
             | appTerm.backtrack
@@ -159,6 +193,7 @@ object UplcParser:
     }
 
     def parseProgram(s: String): Either[String, Program] =
-        program.parse(s) match
+        val parser = program.surroundedBy(whitespaces0) <* P.end
+        parser.parse(s) match
             case Right((_, result)) => Right(result)
             case Left(f)            => Left(f.show)

@@ -16,10 +16,11 @@ import scala.collection.immutable
 import scala.collection.immutable.ArraySeq
 import scala.collection.mutable.ArrayBuffer
 import scala.collection.mutable.HashMap
+import scala.util.Try
 import scala.util.control.NonFatal
 
 enum StepKind:
-    case Const, Var, LamAbs, Apply, Delay, Force, Builtin
+    case Const, Var, LamAbs, Apply, Delay, Force, Builtin, Constr, Case
 
 enum ExBudgetCategory:
     case Step(kind: StepKind)
@@ -34,7 +35,9 @@ case class CekMachineCosts(
     delayCost: ExBudget,
     forceCost: ExBudget,
     applyCost: ExBudget,
-    builtinCost: ExBudget
+    builtinCost: ExBudget,
+    constrCost: ExBudget,
+    caseCost: ExBudget
 )
 
 object CekMachineCosts {
@@ -46,10 +49,12 @@ object CekMachineCosts {
       delayCost = ExBudget(ExCPU(23000), ExMemory(100)),
       forceCost = ExBudget(ExCPU(23000), ExMemory(100)),
       applyCost = ExBudget(ExCPU(23000), ExMemory(100)),
-      builtinCost = ExBudget(ExCPU(23000), ExMemory(100))
+      builtinCost = ExBudget(ExCPU(23000), ExMemory(100)),
+      constrCost = ExBudget(ExCPU(23000), ExMemory(100)),
+      caseCost = ExBudget(ExCPU(23000), ExMemory(100))
     )
 
-    def fromMap(map: Map[String, Int]): CekMachineCosts = {
+    def fromMap(map: Map[String, Long]): CekMachineCosts = {
         def get(key: String) = {
             val cpu = s"${key}-exBudgetCPU"
             val memory = s"${key}-exBudgetMemory"
@@ -68,7 +73,9 @@ object CekMachineCosts {
           delayCost = get("cekDelayCost"),
           forceCost = get("cekForceCost"),
           applyCost = get("cekApplyCost"),
-          builtinCost = get("cekBuiltinCost")
+          builtinCost = get("cekBuiltinCost"),
+          constrCost = Try(get("cekConstrCost")).getOrElse(defaultMachineCosts.constrCost),
+          caseCost = Try(get("cekCaseCost")).getOrElse(defaultMachineCosts.caseCost)
         )
     }
 }
@@ -142,12 +149,12 @@ object MachineParams {
             case PlutusLedgerLanguage.PlutusV1 =>
                 val costs = pparams.costModels("PlutusV1")
                 val params = PlutusV1Params.fromSeq(costs)
-                writeJs(params).obj.map { case (k, v) => (k, v.num.toInt) }.toMap
+                writeJs(params).obj.map { case (k, v) => (k, v.num.toLong) }.toMap
             case PlutusLedgerLanguage.PlutusV2 =>
                 val costs = pparams.costModels("PlutusV2")
                 val params = PlutusV2Params.fromSeq(costs)
                 writeJs(params).obj.map { case (k, v) =>
-                    (k, v.num.toInt)
+                    (k, v.num.toLong)
                 }.toMap
             case PlutusLedgerLanguage.PlutusV3 =>
                 throw new NotImplementedError("PlutusV3 not supported yet")
@@ -187,6 +194,17 @@ class UnknownBuiltin(builtin: DefaultFun, env: CekValEnv)
 
 class EvaluationFailure(env: CekValEnv) extends StackTraceMachineError("Error evaluated", env)
 
+class MissingCaseBranch(val tag: Long, env: CekValEnv)
+    extends StackTraceMachineError(
+      s"Case expression missing the branch required by the scrutinee tag: $tag",
+      env
+    )
+class NonConstrScrutinized(val value: CekValue, env: CekValEnv)
+    extends StackTraceMachineError(
+      s"A non-constructor value was scrutinized in a case expression: $value",
+      env
+    )
+
 class BuiltinException(msg: String) extends MachineError(msg)
 
 class DeserializationError(fun: DefaultFun, value: CekValue)
@@ -201,7 +219,7 @@ class BuiltinError(builtin: DefaultFun, term: Term, cause: Throwable, env: CekVa
 class OutOfExBudgetError(budget: ExBudget, env: CekValEnv)
     extends StackTraceMachineError(s"Out of budget: $budget", env)
 
-type CekValEnv = immutable.ArraySeq[(String, CekValue)]
+type CekValEnv = immutable.Seq[(String, CekValue)]
 
 // 'Values' for the modified CEK machine.
 enum CekValue {
@@ -209,6 +227,7 @@ enum CekValue {
     case VDelay(term: Term, env: CekValEnv)
     case VLamAbs(name: String, term: Term, env: CekValEnv)
     case VBuiltin(bn: DefaultFun, term: () => Term, runtime: BuiltinRuntime)
+    case VConstr(tag: Long, args: Seq[CekValue])
 
     def asUnit: Unit = this match {
         case VCon(Constant.Unit) => ()
@@ -344,10 +363,15 @@ class CekResult(t: Term, val budget: ExBudget, val logs: Array[String]) {
     override def toString(): String = s"CekResult($term, $budget, ${logs.mkString(", ")})"
 }
 
+type ArgStack = Seq[CekValue]
+
 private enum Context {
-    case FrameApplyFun(f: CekValue, ctx: Context)
-    case FrameApplyArg(env: CekValEnv, arg: Term, ctx: Context)
+    case FrameAwaitArg(f: CekValue, ctx: Context)
+    case FrameAwaitFunTerm(env: CekValEnv, term: Term, ctx: Context)
+    case FrameAwaitFunValue(value: CekValue, ctx: Context)
     case FrameForce(ctx: Context)
+    case FrameConstr(env: CekValEnv, tag: Long, rest: Seq[Term], args: ArgStack, ctx: Context)
+    case FrameCases(env: CekValEnv, cases: Seq[Term], ctx: Context)
     case NoFrame
 }
 
@@ -494,7 +518,7 @@ class CekMachine(
                 Return(ctx, env, VLamAbs(name, term, env))
             case Apply(fun, arg) =>
                 spendBudget(ExBudgetCategory.Step(StepKind.Apply), costs.applyCost, env)
-                Compute(FrameApplyArg(env, arg, ctx), env, fun)
+                Compute(FrameAwaitFunTerm(env, arg, ctx), env, fun)
             case Force(term) =>
                 spendBudget(ExBudgetCategory.Step(StepKind.Force), costs.forceCost, env)
                 Compute(FrameForce(ctx), env, term)
@@ -511,14 +535,41 @@ class CekMachine(
                     case Some(meaning) => Return(ctx, env, VBuiltin(bn, () => term, meaning))
                     case None          => throw new UnknownBuiltin(bn, env)
             case Error => throw new EvaluationFailure(env)
+            case Constr(tag, args) =>
+                spendBudget(ExBudgetCategory.Step(StepKind.Constr), costs.constrCost, env)
+                args match
+                    case arg :: rest =>
+                        Compute(FrameConstr(env, tag, rest, ArraySeq.empty, ctx), env, arg)
+                    case Nil => returnCek(ctx, env, VConstr(tag, Nil))
+            case Case(scrut, cases) =>
+                spendBudget(ExBudgetCategory.Step(StepKind.Case), costs.caseCost, env)
+                Compute(FrameCases(env, cases, ctx), env, scrut)
     }
 
     private def returnCek(ctx: Context, env: CekValEnv, value: CekValue): CekState = {
         ctx match
-            case FrameApplyArg(env, arg, ctx) => Compute(FrameApplyFun(value, ctx), env, arg)
-            case FrameApplyFun(fun, ctx)      => applyEvaluate(ctx, env, fun, value)
-            case FrameForce(ctx)              => forceEvaluate(ctx, env, value)
-            case NoFrame                      => Done(dischargeCekValue(value))
+            case NoFrame                          => Done(dischargeCekValue(value))
+            case FrameForce(ctx)                  => forceEvaluate(ctx, env, value)
+            case FrameAwaitFunTerm(env, arg, ctx) => Compute(FrameAwaitArg(value, ctx), env, arg)
+            case FrameAwaitArg(fun, ctx)          => applyEvaluate(ctx, env, fun, value)
+            case FrameAwaitFunValue(arg, ctx)     => applyEvaluate(ctx, env, value, arg)
+            case FrameConstr(env, tag, todo, evaled, ctx) =>
+                val newEvaled = evaled :+ value
+                todo match
+                    case arg :: rest =>
+                        Compute(FrameConstr(env, tag, rest, newEvaled, ctx), env, arg)
+                    case Nil => returnCek(ctx, env, VConstr(tag, newEvaled))
+            case FrameCases(env, cases, ctx) =>
+                value match
+                    case VConstr(tag, args) =>
+                        if 0 <= tag && tag < cases.size then
+                            Compute(transferArgStack(args, ctx), env, cases(tag.toInt))
+                        else throw new MissingCaseBranch(tag, env)
+                    case _ => throw new EvaluationFailure(env)
+    }
+
+    private def transferArgStack(args: ArgStack, ctx: Context): Context = {
+        args.foldRight(ctx) { (arg, c) => FrameAwaitFunValue(arg, c) }
     }
 
     private def lookupVarName(env: CekValEnv, name: NamedDeBruijn): CekValue = {
@@ -630,6 +681,7 @@ class CekMachine(
             // lambda, otherwise @name@ could clash with the names that we have in @env@.
             case VLamAbs(name, term, env) => dischargeCekValEnv(env, LamAbs(name, term))
             case VBuiltin(_, term, _)     => term()
+            case VConstr(tag, args)       => Constr(tag, args.map(dischargeCekValue).toList)
     }
 
     private def spendBudget(cat: ExBudgetCategory, budget: ExBudget, env: CekValEnv): Unit = {

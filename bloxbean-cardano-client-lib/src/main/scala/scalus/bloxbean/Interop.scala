@@ -156,11 +156,11 @@ object Interop {
             case PlutusLedgerLanguage.PlutusV1 =>
                 val costs = costMdls.get(Language.PLUTUS_V1)
                 val params = PlutusV1Params.fromSeq(costs.getCosts.toSeq)
-                writeJs(params).obj.map { case (k, v) => (k, v.num.toInt) }.toMap
+                writeJs(params).obj.map { case (k, v) => (k, v.num.toLong) }.toMap
             case PlutusLedgerLanguage.PlutusV2 =>
                 val costs = costMdls.get(Language.PLUTUS_V2)
                 val params = PlutusV2Params.fromSeq(costs.getCosts.toSeq)
-                writeJs(params).obj.map { case (k, v) => (k, v.num.toInt) }.toMap
+                writeJs(params).obj.map { case (k, v) => (k, v.num.toLong) }.toMap
             case PlutusLedgerLanguage.PlutusV3 =>
                 throw new NotImplementedError("PlutusV3 not supported yet")
 
