@@ -27,6 +27,7 @@ import scalus.uplc.*
 import scalus.uplc.eval.VM
 
 import scala.collection.immutable
+import scala.language.implicitConversions
 
 class CompilerPluginToSIRSpec extends AnyFunSuite with ScalaCheckPropertyChecks:
     val deadbeef = Constant.ByteString(hex"deadbeef")
@@ -527,8 +528,8 @@ class CompilerPluginToSIRSpec extends AnyFunSuite with ScalaCheckPropertyChecks:
 
         assert(
           compile(
-            Builtins.sliceByteString(hex"dead", 1, 2)
-          ) == (SliceByteString $ hex"dead" $ 1 $ 2)
+            Builtins.sliceByteString(1, 2, hex"dead")
+          ) == (SliceByteString $ 1 $ 2 $ hex"dead")
         )
 
         assert(

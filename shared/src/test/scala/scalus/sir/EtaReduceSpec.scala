@@ -8,6 +8,8 @@ import scalus.uplc.Term
 import scalus.uplc.Term.*
 import scalus.uplc.TermDSL.{*, given}
 
+import scala.language.implicitConversions
+
 import EtaReduce.etaReduce
 
 class EtaReduceSpec extends AnyFunSuite with ScalaCheckPropertyChecks with ArbitraryInstances:

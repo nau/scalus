@@ -4,7 +4,7 @@ import scala.collection.immutable
 
 sealed abstract class Data
 
-object Data:
+object Data extends DataApi:
     type ToData[A] = A => Data
 
     extension [A: ToData](a: A) inline def toData: Data = summon[ToData[A]](a)
@@ -32,3 +32,5 @@ object Data:
 
     case class B(value: ByteString) extends Data:
         override def toString: String = s"B(\"${value.toHex}\")"
+
+    val unit = Constr(0, immutable.Nil)

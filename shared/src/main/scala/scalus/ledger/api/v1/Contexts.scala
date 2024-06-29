@@ -351,7 +351,7 @@ object TxOutRef {
 }
 
 case class PubKeyHash(hash: ByteString) {
-    override def toString = s"PubKeyHash(${hash})"
+    override def toString = s"pkh#${hash}"
 }
 
 @Compile
@@ -411,7 +411,16 @@ object Address {
                         aCredential === bCredential && aStakingCredential === bStakingCredential
 }
 
-case class TxOut(address: Address, value: Value, datumHash: Maybe[DatumHash])
+case class TxOut(address: Address, value: Value, datumHash: Maybe[DatumHash]) {
+    override def toString: String = {
+        s"""TxOut(
+           |  address: $address,
+           |  value: ${Value.debugToString(value)},
+           |  datumHash: $datumHash
+           |)""".stripMargin
+    }
+
+}
 
 case class TxInInfo(
     outRef: TxOutRef,
@@ -429,7 +438,23 @@ case class TxInfo(
     signatories: List[PubKeyHash],
     data: List[(DatumHash, Datum)],
     id: TxId
-)
+) {
+    override def toString: String = {
+        s"""TxInfo(
+           |  inputs: ${inputs.toList.mkString("[", ", ", "]")},
+           |  outputs: ${outputs.toList.mkString("[", ", ", "]")},
+           |  fee: ${Value.debugToString(fee)},
+           |  mint: ${Value.debugToString(mint)},
+           |  dcert: $dcert,
+           |  withdrawals: $withdrawals,
+           |  validRange: $validRange,
+           |  signatories: $signatories,
+           |  data: $data,
+           |  id: $id
+           |)""".stripMargin
+    }
+
+}
 
 enum ScriptPurpose:
     case Minting(curSymbol: ByteString)

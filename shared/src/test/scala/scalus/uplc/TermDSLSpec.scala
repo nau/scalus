@@ -9,6 +9,8 @@ import scalus.builtin.ByteString
 import scalus.uplc.DefaultUni.asConstant
 import scalus.uplc.TermDSL.{_, given}
 
+import scala.language.implicitConversions
+
 object ScalaJSExampleSpec extends Properties("ScalaCheck-scalajs") with ArbitraryInstances {
 
     property("dummy") = Prop.forAll { (t: Term) =>

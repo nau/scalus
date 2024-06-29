@@ -1,9 +1,10 @@
 package scalus.ledger.api.v1
 
-import io.bullet.borer.{Cbor, Decoder, Encoder}
+import io.bullet.borer.{Cbor, Decoder}
 import scalus.Compiler.compile
 import scalus.builtin.ByteString.StringInterpolators
-import scalus.builtin.{Data, PlutusDataCborDecoder, PlutusDataCborEncoder}
+import scalus.builtin.Data
+import scalus.builtin.given
 import scalus.ledger.api.v1.*
 import scalus.ledger.api.v1.Credential.*
 import scalus.ledger.api.v1.FromDataInstances.given
@@ -16,6 +17,7 @@ import scalus.builtin.Data.*
 import scalus.uplc.*
 import scalus.uplc.eval.VM
 import scalus.utils.Utils
+import scala.language.implicitConversions
 
 class ScriptContextV1DataSerializationSpec extends BaseValidatorSpec:
     /*
@@ -57,22 +59,19 @@ class ScriptContextV1DataSerializationSpec extends BaseValidatorSpec:
     val scalusDeserializerV1 = scalusDeserializerV1SIR.toUplc(generateErrorTraces = false)
     val scalusDeserializerV2 = scalusDeserializerV2SIR.toUplc(generateErrorTraces = false)
 
-    implicit val plutusDataCborEncoder: Encoder[Data] = PlutusDataCborEncoder
-    implicit val plutusDataCborDecoder: Decoder[Data] = PlutusDataCborDecoder
-
     val address = Address(
       PubKeyCredential(PubKeyHash(hex"0001")),
       Just(
         StakingCredential.StakingHash(PubKeyCredential(PubKeyHash(hex"61613031")))
       )
     )
-    val signatories = Cons(PubKeyHash(hex"7369676E61746F7279"), Nil)
+    val signatories = Cons(PubKeyHash(hex"7369676e61746f7279"), Nil)
     val txInfo = TxInfo(
       inputs = Nil,
       outputs = Cons(
         TxOut(
           address,
-          Value(hex"AA", hex"6262", 3),
+          Value(hex"aa", hex"6262", 3),
           Just(hex"64616461")
         ),
         Nil
@@ -120,7 +119,7 @@ class ScriptContextV1DataSerializationSpec extends BaseValidatorSpec:
         val plutusScriptContext = fromData[ScriptContext](plutusData)
         assert(plutusScriptContext == scriptContextV1)
         assert(plutusData == scriptContextV1.toData)
-        assert(encodeAsHexString(scriptContextV1.toData) == plutusSerializedData.toUpperCase())
+        assert(encodeAsHexString(scriptContextV1.toData) == plutusSerializedData)
     }
 
     test("deserialize ScriptContext V1 using Plutus") {

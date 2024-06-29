@@ -42,3 +42,7 @@ object ByteString {
             val hexString = sc.s(args: _*).replace(" ", "")
             fromHex(hexString)
 }
+
+given Ordering[ByteString] with
+    def compare(x: ByteString, y: ByteString): Int =
+        java.util.Arrays.compareUnsigned(x.bytes, y.bytes)

@@ -1,8 +1,8 @@
 package scalus
 
 import org.scalatest.funsuite.AnyFunSuite
-import scalus.Compiler.compile
 import scalus.*
+import scalus.Compiler.compile
 import scalus.builtin.Builtins
 import scalus.builtin.ByteString
 import scalus.builtin.ByteString.given
@@ -22,10 +22,10 @@ import scalus.uplc.eval.CekMachine
 import scalus.uplc.eval.CountingBudgetSpender
 import scalus.uplc.eval.Log
 import scalus.uplc.eval.MachineParams
+import scalus.uplc.eval.NoLogger
 import scalus.uplc.eval.StackTraceMachineError
 import scalus.uplc.eval.TallyingBudgetSpender
 import scalus.uplc.eval.VM
-import scalus.uplc.eval.NoLogger
 
 val constants = compile {
     val unit = ()
@@ -224,6 +224,42 @@ def evaluation() = {
     )
 }
 
+def fieldAsDataExample() = {
+    import Compiler.*, builtin.{Data, Builtins}, Builtins.*
+    import scalus.ledger.api.v2.*
+    val pubKeyValidator = compile:
+        def validator(datum: Data, redeemer: Data, ctxData: Data) =
+            // this generates headList(...headList(sndPair(unConstrData(ctxData)))) code
+            // to extract the signatories field from the ScriptContext
+            val signatories = fieldAsData[ScriptContext](_.txInfo.signatories)(ctxData)
+            val sigs = unListData(signatories)
+            unBData(sigs.head) == hex"deadbeef"
+    println(pubKeyValidator.prettyXTerm.render(80))
+}
+
+def inlineExample() = {
+    import Compiler.*, builtin.{Data, Builtins}, Builtins.*
+    inline def validator(
+        inline pubKeyHash: ByteString
+    )(datum: Data, redeemer: Data, ctxData: Data) =
+        verifyEd25519Signature(pubKeyHash, unBData(datum), unBData(redeemer))
+    val script = compile:
+        validator(hex"deadbeef")
+    println(script.prettyXTerm.render(80))
+}
+
+def debugFlatExample() = {
+    import Compiler.*, builtin.{Data, Builtins}, Builtins.*
+    inline def dbg[A](msg: String)(a: A)(using debug: Boolean): A =
+        inline if debug then trace(msg)(a) else a
+    inline def validator(using debug: Boolean)(datum: Data, redeemer: Data, ctxData: Data) =
+        dbg("datum")(datum)
+    val releaseScript = compile(validator(using false))
+    val debugScript = compile(validator(using true))
+    println(releaseScript.prettyXTerm.render(80))
+    println(debugScript.prettyXTerm.render(80))
+}
+
 class TutorialSpec extends AnyFunSuite {
     test("pretty print") {
         // println(constants.prettyXTerm.render(80))
@@ -235,5 +271,8 @@ class TutorialSpec extends AnyFunSuite {
         // println(fromDataExample.prettyXTerm.render(80))
         // println(pubKeyValidator.prettyXTerm.render(80))
         // evaluation()
+        // fieldAsDataExample()
+        // inlineExample()
+        // debugFlatExample()
     }
 }

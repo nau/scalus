@@ -4,6 +4,7 @@ out
 .bloop/
 .direnv
 .direnv
+.history
 /.idea
 /.idea_modules
 /.classpath
@@ -19,3 +20,6 @@ mnemonic.txt
 cardano-cli
 cardano-address
 blockfrost_api_key.txt
+scripts/
+blocks/
+utxos

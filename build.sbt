@@ -1,5 +1,7 @@
 import org.scalajs.linker.interface.OutputPatterns
-import sbtwelcome._
+import sbtwelcome.*
+
+import java.net.URI
 
 Global / onChangedBuildSource := ReloadOnSourceChanges
 autoCompilerPlugins := true
@@ -17,9 +19,9 @@ ThisBuild / developers := List(
   )
 )
 
-ThisBuild / description := "Scalus is a Scala library for writing Plutus smart contracts."
+ThisBuild / description := "Scalus - DApps Development Platform for Cardano"
 ThisBuild / licenses := List(
-  "Apache 2" -> new URL("http://www.apache.org/licenses/LICENSE-2.0.txt")
+  "Apache 2" -> new URI("http://www.apache.org/licenses/LICENSE-2.0.txt").toURL
 )
 ThisBuild / homepage := Some(url("https://github.com/nau/scalus"))
 
@@ -29,17 +31,41 @@ Test / publishArtifact := false
 
 lazy val root: Project = project
     .in(file("."))
-    .aggregate(scalusPlugin, scalus.js, scalus.jvm, `examples-js`, examples, bench)
+    .aggregate(
+      scalusPlugin,
+      scalus.js,
+      scalus.jvm,
+      `examples-js`,
+      examples,
+      bench,
+      `scalus-bloxbean-cardano-client-lib`,
+      docs
+    )
     .settings(
       publish / skip := true
     )
+
+lazy val commonScalacOptions = Seq(
+  "-deprecation",
+  "-feature",
+  "-explain",
+  "-Wunused:imports",
+  "-Wunused:params",
+  "-Xcheck-macros"
+)
 
 // Scala 3 Compiler Plugin for Scalus
 lazy val scalusPlugin = project
     .in(file("scalus-plugin"))
     .settings(
       name := "scalus-plugin",
+      scalacOptions ++= commonScalacOptions,
       scalacOptions += "-Wunused:all",
+      // Manually set a fixed version to avoid recompilation on every commit
+      // as sbt-ci-release plugin increments the version on every commit
+      // thus recompiling the plugin and all dependent projects
+      // COMMENT THIS LINE TO ENABLE VERSION INCREMENT during Scalus plugin development
+      // version := "0.6.2-SNAPSHOT",
       libraryDependencies += "org.scalatest" %%% "scalatest" % "3.2.18" % "test",
       libraryDependencies += "org.scalatestplus" %%% "scalacheck-1-16" % "3.2.14.0" % "test",
       libraryDependencies += "org.scala-lang" %% "scala3-compiler" % scalaVersion.value // % "provided"
@@ -72,7 +98,8 @@ lazy val scalusPlugin = project
       }
     )
 
-// Used only for development
+// Used only for Scalus compiler plugin development
+// I use it to not recompile all the tests in the main project
 // TODO remove or comment out
 lazy val scalusPluginTests = project
     .in(file("scalus-plugin-tests"))
@@ -85,11 +112,16 @@ lazy val scalusPluginTests = project
       libraryDependencies += "org.scalatestplus" %%% "scalacheck-1-16" % "3.2.12.0" % "test"
     )
 
-lazy val PluginDependency: List[Def.Setting[_]] = List(scalacOptions ++= {
+// Scalus Compiler Plugin Dependency
+lazy val PluginDependency: List[Def.Setting[?]] = List(scalacOptions ++= {
     val jar = (scalusPlugin / Compile / packageBin).value
     // add plugin timestamp to compiler options to trigger recompile of
     // main after editing the plugin. (Otherwise a 'clean' is needed.)
-    Seq(s"-Xplugin:${jar.getAbsolutePath}", s"-Jdummy=${jar.lastModified}")
+
+    // NOTE: uncomment for faster Scalus Plugin development
+    // this will recompile the plugin when the jar is modified
+    // Seq(s"-Xplugin:${jar.getAbsolutePath}", s"-Jdummy=${jar.lastModified}")
+    Seq(s"-Xplugin:${jar.getAbsolutePath}")
 })
 
 // Scalus Core and Standard Library for JVM and JS
@@ -98,16 +130,13 @@ lazy val scalus = crossProject(JSPlatform, JVMPlatform)
     .settings(
       name := "scalus",
       scalaVersion := scalaVersion.value,
-      scalacOptions += "-Xcheck-macros",
-      scalacOptions += "-explain",
-      scalacOptions += "-Wunused:imports",
-      scalacOptions += "-Wunused:params",
+      scalacOptions ++= commonScalacOptions,
       scalacOptions += "-Xmax-inlines:100", // needed for upickle derivation of CostModel
       // scalacOptions += "-Yretain-trees",
       libraryDependencies += "org.typelevel" %%% "cats-core" % "2.10.0",
       libraryDependencies += "org.typelevel" %%% "cats-parse" % "1.0.0",
       libraryDependencies += "org.typelevel" %%% "paiges-core" % "0.4.3",
-      libraryDependencies += "com.lihaoyi" %%% "upickle" % "3.3.0",
+      libraryDependencies += "com.lihaoyi" %%% "upickle" % "3.3.1",
       libraryDependencies ++= Seq(
         "io.bullet" %%% "borer-core" % "1.14.0",
         "io.bullet" %%% "borer-derivation" % "1.14.0"
@@ -121,9 +150,9 @@ lazy val scalus = crossProject(JSPlatform, JVMPlatform)
       // Test / testOptions += Tests.Argument(TestFrameworks.ScalaTest, "-S", "-8077211454138081902"),
       libraryDependencies += "org.scala-lang" %% "scala3-compiler" % scalaVersion.value,
       libraryDependencies += "org.slf4j" % "slf4j-simple" % "2.0.13" % "provided",
-      libraryDependencies += "org.bouncycastle" % "bcprov-jdk18on" % "1.78",
-      libraryDependencies += "org.bitcoin-s" % "bitcoin-s-crypto_2.13" % "1.9.8",
-      libraryDependencies += "org.bitcoin-s" % "bitcoin-s-secp256k1jni" % "1.9.8"
+      libraryDependencies += "org.bouncycastle" % "bcprov-jdk18on" % "1.78.1",
+      libraryDependencies += "org.bitcoin-s" % "bitcoin-s-crypto_2.13" % "1.9.9",
+      libraryDependencies += "org.bitcoin-s" % "bitcoin-s-secp256k1jni" % "1.9.9"
     )
     .jsSettings(
       // Add JS-specific settings here
@@ -132,11 +161,11 @@ lazy val scalus = crossProject(JSPlatform, JVMPlatform)
 
 lazy val examples = project
     .in(file("examples"))
-    .dependsOn(scalus.jvm)
+    .dependsOn(scalus.jvm, `scalus-bloxbean-cardano-client-lib`)
     .settings(
       PluginDependency,
+      scalacOptions ++= commonScalacOptions,
       publish / skip := true,
-      libraryDependencies += "com.bloxbean.cardano" % "cardano-client-lib" % "0.5.1",
       libraryDependencies += "com.bloxbean.cardano" % "cardano-client-backend-blockfrost" % "0.5.1"
     )
 
@@ -146,6 +175,7 @@ lazy val `examples-js` = project
     .dependsOn(scalus.js)
     .settings(
       publish / skip := true,
+      scalacOptions ++= commonScalacOptions,
       scalaJSUseMainModuleInitializer := false,
       scalaJSLinkerConfig ~= {
           _.withModuleKind(ModuleKind.ESModule)
@@ -153,6 +183,23 @@ lazy val `examples-js` = project
               .withOutputPatterns(OutputPatterns.fromJSFile("%s.mjs"))
       },
       PluginDependency
+    )
+
+// Bloxbean Cardano Client Lib integration and Tx Evaluator implementation
+lazy val `scalus-bloxbean-cardano-client-lib` = project
+    .in(file("bloxbean-cardano-client-lib"))
+    .dependsOn(scalus.jvm)
+    .settings(
+      publish / skip := false,
+      scalacOptions ++= commonScalacOptions,
+      libraryDependencies += "com.bloxbean.cardano" % "cardano-client-lib" % "0.5.1",
+      libraryDependencies += "org.slf4j" % "slf4j-api" % "2.0.13",
+      libraryDependencies += "org.slf4j" % "slf4j-simple" % "2.0.13" % "test",
+      libraryDependencies += "org.scalatest" %%% "scalatest" % "3.2.18" % "test",
+      libraryDependencies += "com.bloxbean.cardano" % "cardano-client-backend-blockfrost" % "0.5.1" % "test",
+      libraryDependencies += "com.bloxbean.cardano" % "yaci" % "0.3.0-beta14" % "test",
+      Test / fork := true, // needed for BlocksValidation to run in sbt
+      inConfig(Test)(PluginDependency)
     )
 
 // Documentation
@@ -172,6 +219,7 @@ lazy val docs = project // documentation project
       PluginDependency
     )
 
+// Benchmarks for Cardano Plutus VM Evaluator
 lazy val bench = project
     .in(file("bench"))
     .dependsOn(scalus.jvm)
@@ -184,7 +232,7 @@ lazy val bench = project
 
 addCommandAlias(
   "precommit",
-  "clean;docs/clean;scalafmtAll;scalafmtSbt;Test/compile;test;docs/mdoc"
+  "clean;docs/clean;scalusPluginTests/clean;scalafmtAll;scalafmtSbt;Test/compile;scalusPluginTests/Test/compile;test;docs/mdoc"
 )
 
 logo :=

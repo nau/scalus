@@ -10,7 +10,10 @@ import scalus.uplc.{Term => Trm}
 
 import scala.collection.immutable
 import scala.quoted.*
+import scala.annotation.nowarn
+import scala.collection.mutable.ListBuffer
 object Macros {
+    @nowarn
     def lamMacro[A: Type, B: Type](f: Expr[Exp[A] => Exp[B]])(using Quotes): Expr[Exp[A => B]] =
         import quotes.reflect.*
         val name = f.asTerm match
@@ -160,7 +163,7 @@ object Macros {
         import scala.quoted.*
         import quotes.reflect.*
         val tpe = TypeTree.of[A]
-        val fields = tpe.symbol.caseFields
+        val fields = tpe.symbol.declaredFields
         val fieldNames = fields.map(_.name)
         val impl = '{
             upickle.default
@@ -173,7 +176,7 @@ object Macros {
                                 '{
                                     (
                                       ${ Expr(name.name) },
-                                      writeJs[Int](${ Select('{ m }.asTerm, name).asExprOf[Int] })
+                                      writeJs[Long](${ Select('{ m }.asTerm, name).asExprOf[Long] })
                                     )
                                 }
                             )
@@ -181,15 +184,30 @@ object Macros {
                       }),
                   json =>
                       ${
-                          New(tpe)
-                              .select(tpe.symbol.primaryConstructor)
-                              .appliedToArgs(fields.map { field =>
-                                  NamedArg(
-                                    field.name.toString,
-                                    '{ read[Int](json.obj(${ Expr(field.name.toString) })) }.asTerm
-                                  )
-                              })
-                              .asExprOf[A]
+                          val stats = ListBuffer[Statement]()
+                          // val params = new A()
+                          val value = ValDef(
+                            Symbol.newVal(
+                              Symbol.spliceOwner,
+                              "params",
+                              tpe.tpe.widen,
+                              Flags.EmptyFlags,
+                              Symbol.noSymbol
+                            ),
+                            Some(New(tpe).select(tpe.symbol.primaryConstructor).appliedToNone)
+                          )
+                          val ref = Ref(value.symbol)
+                          stats += value
+                          // params.field1 = read[Long](json.obj("field1"))
+                          // ...
+                          fields.foreach { field =>
+                              stats += Assign(
+                                ref.select(field),
+                                '{ read[Long](json.obj(${ Expr(field.name.toString) })) }.asTerm
+                              )
+                          }
+                          // { val params = new A(); params.field1 = read[Long](json.obj("field1")); ...; params }
+                          Block(stats.toList, ref).asExprOf[A]
                       }
                 )
         }
@@ -197,27 +215,41 @@ object Macros {
         impl
     }
 
-    def mkSeqRWImpl[A: Type](using Quotes): Expr[(A => Seq[Int], Seq[Int] => A)] = {
+    def mkClassFieldsFromSeqIsoImpl[A: Type](using
+        Quotes
+    ): Expr[(A => Seq[Long], Seq[Long] => A)] = {
         import scala.quoted.*
         import quotes.reflect.*
         val tpe = TypeTree.of[A]
-        val fields = tpe.symbol.caseFields
+        val fields = tpe.symbol.declaredFields
         val fieldNames = fields.map(_.name)
         val impl = '{
             (
               (m: A) =>
-                  Seq.from(${
-                      Expr.ofSeq(fields.map(name => Select('{ m }.asTerm, name).asExprOf[Int]))
-                  }),
-              (seq: Seq[Int]) =>
+                  ${ Expr.ofSeq(fields.map(name => '{ m }.asTerm.select(name).asExprOf[Long])) },
+              (seq: Seq[Long]) =>
                   ${
-                      New(tpe)
-                          .select(tpe.symbol.primaryConstructor)
-                          .appliedToArgs(fields.zipWithIndex.map:
-                              case (field: Symbol, idx: Int) =>
-                                  NamedArg(field.name.toString, '{ seq(${ Expr(idx) }) }.asTerm)
-                          )
-                          .asExprOf[A]
+                      val stats = ListBuffer[Statement]()
+                      // val params = new A()
+                      val value = ValDef(
+                        Symbol.newVal(
+                          Symbol.spliceOwner,
+                          "params",
+                          tpe.tpe.widen,
+                          Flags.EmptyFlags,
+                          Symbol.noSymbol
+                        ),
+                        Some(New(tpe).select(tpe.symbol.primaryConstructor).appliedToNone)
+                      )
+                      val ref = Ref(value.symbol)
+                      stats += value
+                      // params.field1 = seq(0)
+                      // ...
+                      for (field, idx) <- fields.zipWithIndex do
+                          stats += Assign(ref.select(field), '{ seq(${ Expr(idx) }) }.asTerm)
+
+                      // { val params = new A(); params.field1 =...; params }
+                      Block(stats.toList, ref).asExprOf[A]
                   }
             )
         }

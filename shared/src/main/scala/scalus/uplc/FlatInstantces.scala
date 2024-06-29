@@ -1,6 +1,6 @@
 package scalus.uplc
 
-import io.bullet.borer.{Cbor, Decoder, Encoder}
+import io.bullet.borer.Cbor
 import scalus.builtin.Data
 import scalus.flat
 import scalus.flat.{DecoderState, EncoderState, Flat, Natural, given}
@@ -9,15 +9,17 @@ import scalus.uplc.CommonFlatInstances.given
 import scalus.builtin.{PlutusDataCborDecoder, PlutusDataCborEncoder}
 import scalus.utils.*
 
+
 object FlatInstantces:
     val termTagWidth = 4
 
     given Flat[Data] with
-        implicit val plutusDataCborEncoder: Encoder[Data] = PlutusDataCborEncoder
-        implicit val plutusDataCborDecoder: Decoder[Data] = PlutusDataCborDecoder
 
-        def bitSize(a: Data, hashCons: HashConsed.Map): Int =
-            summon[Flat[Array[Byte]]].bitSize(Cbor.encode(a).toByteArray, hashCons)
+        def bitSize(a: Data): Int =
+            bitSizeHashConsed(a, HashConsed.Map.empty)
+
+        def bitSizeHashConsed(a: Data, hashConsed: HashConsed.Map): Int =
+            summon[Flat[Array[Byte]]].bitSize(Cbor.encode(a).toByteArray)
 
         def encode(a: Data, encode: EncoderState): Unit =
             flat.encode(Cbor.encode(a).toByteArray, encode)

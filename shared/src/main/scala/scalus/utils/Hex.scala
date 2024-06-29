@@ -3,7 +3,7 @@ package scalus.utils
 import scala.util.control.NonFatal
 
 object Hex:
-    private val HEX_ARRAY = "0123456789ABCDEF".toCharArray
+    private val HEX_ARRAY = "0123456789abcdef".toCharArray
     def bytesToHex(bytes: Array[Byte]): String =
         val hexChars = new Array[Char](bytes.length * 2)
         for j <- bytes.indices do
@@ -13,7 +13,7 @@ object Hex:
         new String(hexChars)
 
     def hexToBytes(hex: String): Array[Byte] =
-        val hexString = hex.replace(" ", "")
+        val hexString = hex.replaceAll("\\s+", "")
         try
             if (hexString.length & 1) != 0 then sys.error("string length is not even")
             hexString.grouped(2).map(Integer.parseInt(_, 16).toByte).toArray

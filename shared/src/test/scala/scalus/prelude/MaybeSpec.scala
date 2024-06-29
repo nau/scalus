@@ -11,6 +11,7 @@ import scalus.uplc.ArbitraryInstances
 import scalus.uplc.Term
 import scalus.uplc.TermDSL.given
 import scalus.uplc.eval.VM
+import scala.language.implicitConversions
 
 class MaybeSpec extends AnyFunSuite with ScalaCheckPropertyChecks with ArbitraryInstances {
     test("eq") {

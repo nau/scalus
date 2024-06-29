@@ -1,19 +1,16 @@
 package scalus
 
-import io.bullet.borer.Cbor
 import scalus.Compiler.compile
 import scalus.builtin.ByteString
 import scalus.builtin.Data
-import scalus.builtin.given
 import scalus.examples.MintingPolicy
 import scalus.prelude.AssocMap
 import scalus.uplc.Program
 import scalus.uplc.TermDSL.{_, given}
 import scalus.uplc.eval.VM
-import scalus.utils.Utils
 
+import scala.language.implicitConversions
 import scala.scalajs.js.annotation.JSExport
-import scala.scalajs.js.annotation.JSExportAll
 import scala.scalajs.js.annotation.JSExportTopLevel
 
 @JSExportTopLevel("MintingPolicyJS")

@@ -156,6 +156,19 @@ object FlatInstantces:
         }
     }
 
+    //  sealed trait Tree[A]
+    //  case class Leaf[A](a:A) extends Tree[A]
+    //  case class Node(left: Tree[A], right: Tree[A])
+    
+    //
+    //  DataDecl(
+    //     "Tree"
+    //     List(
+    //        ConsDecl("Leaf",  List(TypeBinding("a", SIRType.TypeVar("A")))), List(TypeVar(Ä"))),
+    //        ConsDecl("Node", List(TypeBinding("left", SIRType.SumCaseClass(DataDecl(***), List(TypeVar[A]))
+    //                         List(TypeBinding("right", SIRType.SumCaseClass(DataDecl(***), .List(TypeVar("A")))))
+    //                         )
+    
     given Flat[SIRType] with
 
         final val tagWidth = 4

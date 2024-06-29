@@ -23,6 +23,7 @@ import scalus.uplc.TermDSL.{*, given}
 import scalus.uplc.eval.*
 import scodec.bits.ByteVector
 
+import scala.language.implicitConversions
 import scala.io.Source.fromFile
 
 class CekJVMSpec extends BaseValidatorSpec:

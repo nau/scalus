@@ -12,6 +12,7 @@ import scalus.uplc.Term.*
 import scalus.uplc.TermDSL.{*, given}
 import scalus.uplc.eval.*
 
+import scala.language.implicitConversions
 import scala.reflect.ClassTag
 
 class CekBuiltinsSpec extends AnyFunSuite with ScalaCheckPropertyChecks with ArbitraryInstances:
@@ -299,4 +300,20 @@ class CekBuiltinsSpec extends AnyFunSuite with ScalaCheckPropertyChecks with Arb
                 case _ =>
                     assertEvalThrows[Exception](EqualsByteString $ t $ t)
         }
+    }
+
+    test("SliceByteString") {
+        assertEvalEq(
+          SliceByteString $ asConstant(1) $ asConstant(3) $ Const(
+            Constant.ByteString(hex"deadbeef")
+          ),
+          Const(Constant.ByteString(hex"adbeef"))
+        )
+
+        assertEvalEq(
+          SliceByteString $ asConstant(1) $ asConstant(5) $ Const(
+            Constant.ByteString(hex"deadbeef")
+          ),
+          Const(Constant.ByteString(hex"adbeef"))
+        )
     }

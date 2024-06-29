@@ -91,12 +91,8 @@ object Builtins:
     def appendByteString(a: ByteString, b: ByteString): ByteString = a ++ b
     def consByteString(char: BigInt, byteString: ByteString): ByteString =
         ByteString.fromArray(char.toByte +: byteString.bytes)
-    def sliceByteString(bs: ByteString, start: BigInt, end: BigInt): ByteString =
-        if start < 0 || end < 0 || start > end || end > bs.length then
-            throw new Exception(
-              s"slice $start $end out of bounds for bytestring of length ${bs.length}"
-            )
-        else ByteString.fromArray(bs.bytes.slice(start.toInt, end.toInt))
+    def sliceByteString(start: BigInt, n: BigInt, bs: ByteString): ByteString =
+        ByteString.fromArray(bs.bytes.drop(start.toInt).take(n.toInt))
 
     def lengthOfByteString(bs: ByteString): BigInt = bs.length
     def indexByteString(bs: ByteString, i: BigInt): BigInt =
@@ -244,7 +240,6 @@ object Builtins:
     def equalsData(d1: Data, d2: Data): Boolean = d1 == d2
 
     def serialiseData(d: Data): ByteString =
-        import scalus.uplc.FlatInstantces.given_Flat_Data.plutusDataCborEncoder
         ByteString.fromArray(Cbor.encode(d).toByteArray)
 
     // Misc monomorphized constructors.

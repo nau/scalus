@@ -1,17 +1,39 @@
 package scalus.builtin
+import io.bullet.borer.Tag
 import io.bullet.borer.Tag.{NegativeBigNum, Other, PositiveBigNum}
-import io.bullet.borer.encodings.BaseEncoding
 import io.bullet.borer.{ByteAccess, DataItem as DI, Decoder, Encoder, Reader, Writer}
 import scalus.builtin.Data.{B, Constr, I, Map}
 
+import java.math.BigInteger
 import scala.annotation.tailrec
 import scala.collection.immutable.List
 import scala.collection.mutable
 import scala.collection.mutable.{ArrayBuffer, ListBuffer}
 
-object PlutusDataCborEncoder extends Encoder[Data]:
+/** CBOR encoder for the [[Data]] type. The encoding and decoding logic is based on the
+  * [[https://github.com/IntersectMBO/plutus/blob/441b76d9e9745dfedb2afc29920498bdf632f162/plutus-core/plutus-core/src/PlutusCore/Data.hs#L72 Cardano node implementation]].
+  */
+given dataCborEncoder: Encoder[Data] with
     override def write(writer: Writer, data: Data): Writer =
-        implicit val selfEncoder: Encoder[Data] = this
+
+        def writeChunkedByteArray(value: Array[Byte]) = {
+            if value.length <= 64 then writer.writeBytes(value)
+            else writer.writeBytesIterator(value.grouped(64))
+        }
+
+        def writeChunkedBigInt(x: BigInt) = {
+            // use the default BigInt serialization, it works same as in the Cardano node
+            if x.bitLength <= 64 then writer.write(x)
+            else
+                // otherwise, chunk the bytes
+                val bytes = x.toByteArray
+                if x.signum < 0 then
+                    bytes.mapInPlace(b => (~b.toInt).toByte) // basically, -1 - x
+                    writer.writeTag(Tag.NegativeBigNum)
+                else writer.writeTag(Tag.PositiveBigNum)
+                writeChunkedByteArray(bytes)
+        }
+
         data match
             case Constr(constr, args) if 0 <= constr && constr < 7 =>
                 writer.writeTag(Other(121 + constr))
@@ -26,66 +48,60 @@ object PlutusDataCborEncoder extends Encoder[Data]:
                 writer.writeLinearSeq(args)
             case Map(values)       => writeMap(writer, values)
             case Data.List(values) => writer.writeLinearSeq(values)
-            case I(value)          => writer.write(value)
-            case B(value) =>
-                if value.length <= 64
-                then writer.write(value.bytes)
-                else
-                    def to64ByteChunks(bytes: Array[Byte]): List[Array[Byte]] =
-                        if bytes.length <= 64 then List(bytes)
-                        else bytes.take(64) :: to64ByteChunks(bytes.drop(64))
-                    writer.writeBytesIterator(to64ByteChunks(value.bytes).iterator)
+            case I(value)          => writeChunkedBigInt(value)
+            case B(value)          => writeChunkedByteArray(value.bytes)
     /*
      * Cardano stores maps as a list of key-value pairs
      * Note, that it allows duplicate keys!
      * This is why we don't use the `writeMap` method from `Writer` here
      */
     private def writeMap[A: Encoder, B: Encoder](writer: Writer, x: Iterable[(A, B)]): Writer =
-        if (x.nonEmpty)
+        if x.nonEmpty then
             val iterator = x.iterator
-            def writeEntries(): Unit =
-                while (iterator.hasNext)
-                    val (k, v) = iterator.next()
-                    writer.write(k)
-                    writer.write(v)
             writer.writeMapHeader(x.size)
-            writeEntries()
+            while (iterator.hasNext)
+                val (k, v) = iterator.next()
+                writer.write(k)
+                writer.write(v)
         else writer.writeEmptyMap()
         writer
 
-object PlutusDataCborDecoder extends Decoder[Data]:
+/** CBOR decoder for the [[Data]] type. The encoding and decoding logic is based on the
+  * [[https://github.com/IntersectMBO/plutus/blob/441b76d9e9745dfedb2afc29920498bdf632f162/plutus-core/plutus-core/src/PlutusCore/Data.hs#L72 Cardano node implementation]].
+  */
+given dataCborDecoder: Decoder[Data] with
 
     override def read(r: Reader): Data =
-        implicit val selfDecoder: Decoder[Data] = this
 
         val maxCborByteArraySize = 64
-        def fromByteArray() =
-            val byteArray = r.readByteArray()
-            if byteArray.length > maxCborByteArraySize then
-                r.overflow(
-                  "ByteArray for decoding JBigInteger is longer than the configured max of " + maxCborByteArraySize + " bytes"
-                )
-            else new java.math.BigInteger(1, byteArray)
+
+        // read sized bytes bounded by 64 bytes
+        def readBoundedSizedBytes(): Array[Byte] =
+            val bytes = r.readSizedBytes()(using ByteAccess.ForByteArray)
+            if bytes.length > maxCborByteArraySize then
+                r.overflow(s"Bytes chunk ${bytes.length} must be <= 64 bytes")
+            bytes
+
+        // read chunks of 64 bytes
+        def readBoundedBytesIndef(): Array[Byte] =
+            val acc = new ArrayBuffer[Byte](64)
+            while !r.tryReadBreak() do acc ++= readBoundedSizedBytes()
+            acc.toArray
+
+        // read bytes (sized or indefinite) where chunks are bounded by 64 bytes
+        def readBoundedBytes(): Array[Byte] =
+            r.dataItem() match
+                case DI.Bytes => readBoundedSizedBytes()
+                case DI.BytesStart =>
+                    r.readBytesStart()
+                    readBoundedBytesIndef()
+                case _ => r.unexpectedDataItem(expected = "Bytes or BytesStart")
 
         r.dataItem() match
             case DI.Int | DI.Long | DI.OverLong => I(Decoder.forBigInt.read(r))
-            case DI.MapHeader                   => Map(readMap.read(r))
+            case DI.MapHeader | DI.MapStart     => Map(readMap.read(r))
             case DI.ArrayStart | DI.ArrayHeader => Data.List(Decoder.forArray[Data].read(r).toList)
-            case DI.Bytes =>
-                B(
-                  ByteString.unsafeFromArray(Decoder.forByteArray(BaseEncoding.base16).read(r))
-                )
-            case DI.BytesStart =>
-                // read chunks of 64 bytes
-                def readChunks(): Array[Byte] =
-                    val acc = new ArrayBuffer[Byte](64)
-                    while !r.tryReadBreak() do
-                        val bytes = r.readBytes()(using ByteAccess.ForByteArray)
-                        if bytes.length > 64 then r.overflow("ByteString chunk is not 64 bytes")
-                        acc ++= bytes
-                    acc.toArray
-                r.readBytesStart()
-                B(ByteString.unsafeFromArray(readChunks()))
+            case DI.Bytes | DI.BytesStart       => B(ByteString.unsafeFromArray(readBoundedBytes()))
             case DI.Tag =>
                 r.readTag() match
                     case Other(102) =>
@@ -97,18 +113,17 @@ object PlutusDataCborDecoder extends Decoder[Data]:
                         Constr(value - 121, Decoder.forArray[Data].read(r).toList)
                     case Other(value) if 1280 <= value && value < 1401 =>
                         Constr(value - 1280 + 7, Decoder.forArray[Data].read(r).toList)
-                    case PositiveBigNum => I(fromByteArray())
-                    case NegativeBigNum => I(fromByteArray().not)
-                    case _              => sys.error("Unsupported") // TODO proper exception
-            case i =>
-                sys.error(s"Unsupported data item $i ${DI.stringify(i)}") // TODO proper exception
+                    case PositiveBigNum => I(BigInteger(1, readBoundedBytes()))
+                    case NegativeBigNum => I(BigInteger(1, readBoundedBytes()).not)
+                    case _ => r.unexpectedDataItem("Allowed Data Constr Tag or CBOR BigNum Tag")
+            case i => r.unexpectedDataItem(s"Allowed Data Item")
 
     /*
      * Cardano stores maps as a list of key-value pairs
      * Note, that it allows duplicate keys!
      * This is why we don't use the `readMap` method from `Reader` here
      */
-    def readMap[A: Decoder, B: Decoder]: Decoder[List[(A, B)]] =
+    private def readMap[A: Decoder, B: Decoder]: Decoder[List[(A, B)]] =
         Decoder { r =>
             if (r.hasMapHeader)
                 @tailrec def rec(remaining: Int, map: ListBuffer[(A, B)]): ListBuffer[(A, B)] =
@@ -118,12 +133,10 @@ object PlutusDataCborDecoder extends Decoder[Data]:
                 val size = r.readMapHeader()
                 if (size <= Int.MaxValue) rec(size.toInt, ListBuffer.empty).toList
                 else r.overflow(s"Cannot deserialize Map with size $size (> Int.MaxValue)")
-            else if (r.hasMapStart)
+            else if r.hasMapStart then
                 r.readMapStart()
-
-                @tailrec def rec(map: ListBuffer[(A, B)]): ListBuffer[(A, B)] =
-                    if (r.tryReadBreak()) map else rec(map.append((r[A], r[B])))
-
-                rec(ListBuffer.empty).toList
+                val map = ListBuffer.empty[(A, B)]
+                while !r.tryReadBreak() do map.append((r[A], r[B]))
+                map.toList
             else r.unexpectedDataItem(expected = "Map")
         }

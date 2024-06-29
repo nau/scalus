@@ -20,34 +20,9 @@ Using the same language, tools and code for frontend, backend and smart contract
 * Benefit from a huge ecosystem of libraries and tools.
 * Utilize testing frameworks like ScalaTest and ScalaCheck
   for [property-based testing](https://en.wikipedia.org/wiki/Property-based_testing).
-* Enjoy comprehensive IDE support: IntelliJ IDEA, VSCode.
+* Enjoy comprehensive IDE support: IntelliJ IDEA, VSCode and syntax highlighting on GitHub.
 * Advanced debugging support.
 * Enhanced code formatting and linting, navigation, and refactoring.
-
-## Roadmap
-
-### Efficiently convert user defined data types from/to Plutus Data
-
-Now, Scalus takes the same approach as PlutusTx.
-This change makes it similar to Aiken, which will result in smaller and more efficient Plutus scripts in most cases.
-
-### Support for Plutus V3
-
-Plutus V3 is coming soon. Scalus will support all new built-ins and features.
-
-### Single transaction building and signing API for backend and frontend
-
-This will allow you to build and sign transactions in Scala and JavaScript using the same code.
-
-### DApp development framework
-
-A framework that will help you build DApps faster and easier.
-
-You define your smart contracts, data types, and interaction endpoints in Scala.
-The framework will generate the frontend and backend code for you.
-
-Yes, your REST API, WebSocket, and GraphQL endpoints for your DApp.
-And the JavaScript code to interact with your DApp from the browser.
 
 ## How It Works
 
@@ -67,6 +42,7 @@ Write efficient and compact smart contracts and squeeze the most out of the Card
 * Flat, CBOR, JSON serialization
 * UPLC parser and pretty printer
 * Type safe UPLC expression builder, think of Plutarch
+* Bloxbean [Cardano Client Lib](https://cardano-client.dev) integration
 
 ## Scalus Starter Project
 
@@ -77,10 +53,8 @@ Clone the repository and follow the instructions in the README.
 
 ### Preimage Validator Example
 
-Here is a simple validator that checks that an signer of `pkh` PubKeyHash provided a preimage of a `hash` in
-a `redeemer`.
-Below example is taken
-from [`PreImageExampleSpec.scala`](https://github.com/nau/scalus/blob/master/jvm/src/test/scala/scalus/PreImageExampleSpec.scala)
+Here is a simple validator that checks that an signer of `pkh` PubKeyHash provided a preimage of a `hash` in a `redeemer`.
+Below example is taken from [PreimageValidator](https://github.com/nau/scalus/blob/master/shared/src/main/scala/scalus/examples/PreimageValidator.scala#L19)
 
 ```scala 3
 def preimageValidator(datum: Data, redeemer: Data, ctxData: Data): Unit =
@@ -107,12 +81,27 @@ val plutusScript = validator.doubleCborHex
 validator.writePlutusFile(path, PlutusLedgerLanguage.PlutusV2)
 ```
 
+Look at [SendTx](https://github.com/nau/scalus/blob/master/examples/src/main/scala/scalus/examples/SendTx.scala#L31) example for a full example of how to create a transaction with this validator.
+
+### Scalus for budget calculation with Cardano Client Lib
+
+Scalus can calculate the execution budget for your validator using the Cardano Client Lib. Just provide `ScalusTransactionEvaluator` to your `QuickTxBuilder`:
+
+```scala 3
+val signedTx = quickTxBuilder
+  .compose(scriptTx)
+  .withTxEvaluator(ScalusTransactionEvaluator(protocolParams, utxoSupplier))
+  // build your transaction
+  .buildAndSign()
+```
+
+This will calculate the execution budget for your validator and add it to the redeemer of the transaction.
+
 ### AdaStream Example
 
 Sources: [AdaStream Contract](https://github.com/nau/adastream/blob/main/contract.scala)
 
-This project is a Cardano implementation of the [BitStream](https://github.com/RobinLinus/BitStream) protocol by Robin
-Linus.
+This project is a Cardano implementation of the [BitStream](https://github.com/RobinLinus/BitStream) protocol by Robin Linus, inventor of [BitVM](https://bitvm.org/)
 
 Original paper: [BitStream: Decentralized File Hosting Incentivised via Bitcoin Payments
 ](https://robinlinus.com/bitstream.pdf)
@@ -122,12 +111,12 @@ Original paper: [BitStream: Decentralized File Hosting Incentivised via Bitcoin 
 * Alice wants to buy a file from Bob.
 * Bob encrypts the file with a random key and sends it to Alice.
 * Bob creates a bond contract on Cardano with a collateral and a commitment to the key and the file.
-* Alice pays Bob for the file via a HTLC (Hash Time Lock Contract), using Cardano or Bitcoin Lightning Network.
+* Alice pays Bob for the file via a HTLC (Hashed Timelock Contract), using Cardano or Bitcoin Lightning Network.
 * Alice decrypts the file with the key from the HTLC or takes the money back after the timeout.
 * If Bob cheats, Alice can prove it and get the collateral from the bond contract.
 * Bob can withdraw the collateral by revealing the key.
 
-The project includes a bond contract and a HTLC contract for a fair exchange of files for ADA.
+The project includes a bond contract and a HTLC contract for a fair exchange of files for ADA or other Cardano Native Tokens.
 
 It's a CLI tool and a REST API server that allows you to create a bond contract, pay for a file, and decrypt it.
 
@@ -148,6 +137,43 @@ The challenge was to create the smallest possible validator that checks a certai
 
 [The result is 92 bytes long script](https://gist.github.com/nau/b8996fe3e51b0e21c20479c5d8548ec7)
 
+```scala 3
+val validator = compile:
+    (script_withdrawal_credential: Data, datum: Data, redeemer: Data, ctx: Data) =>
+        def list_has(list: List[Pair[Data, Data]]): Unit =
+            if list.head.fst == script_withdrawal_credential then ()
+            else list_has(list.tail) // fails on empty list
+
+        inline def withdrawal_from_ctx =
+            unMapData(fieldAsData[ScriptContext](_.txInfo.withdrawals)(ctx))
+        list_has(withdrawal_from_ctx)
+```
+
+## Roadmap
+
+### Efficiently convert user defined data types from/to Plutus Data
+
+Now, Scalus takes the same approach as PlutusTx.
+This change makes it similar to Aiken, which will result in smaller and more efficient Plutus scripts in most cases.
+
+### Support for Plutus V3
+
+Plutus V3 is coming soon. Scalus will support all new built-ins and features.
+
+### Single transaction building and signing API for backend and frontend
+
+This will allow you to build and sign transactions in Scala and JavaScript using the same code.
+
+### DApp development framework
+
+A framework that will help you build DApps faster and easier.
+
+You define your smart contracts, data types, and interaction endpoints in Scala.
+The framework will generate the frontend and backend code for you.
+
+Yes, your REST API, WebSocket, and GraphQL endpoints for your DApp.
+And the JavaScript code to interact with your DApp from the browser.
+
 ## Comparison to PlutusTx, Aiken, Plutarch
 
 ### PlutusTx
@@ -159,8 +185,8 @@ PlutusTx also tends to generate a lot of boilerplate code making the final scrip
 ### Aiken
 
 Aiken is a new and young programming language which is a pro and a con.
-Can only be used for writing smart contracts.
-Has limited support of property-based testing as you need to define custom generators in Rust.
+Can only be used for writing on-chain smart contracts.
+Doesn't have macros.
 
 ### Plutarch
 

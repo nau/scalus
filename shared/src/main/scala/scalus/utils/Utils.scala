@@ -21,7 +21,9 @@ object Utils:
     export Hex.bytesToHex
     export Hex.hexToBytes
     // First character to lowercase
-    def lowerFirst(s: String): String = s.head.toLower + s.tail
+    def lowerFirst(s: String): String =
+        if s == null || s.length == 0 || !s.charAt(0).isUpper then s
+        else s.updated(0, s.charAt(0).toLower)
 
     def sha2_256(bytes: Array[Byte]): Array[Byte] =
         val digest = java.security.MessageDigest.getInstance("SHA-256")

@@ -36,12 +36,12 @@
       in
       rec {
         devShell = pkgs.mkShell {
-          JAVA_OPTS="-Xmx2g -XX:+UseG1GC";
+          JAVA_OPTS="-Xmx4g -XX:+UseG1GC";
           # This fixes bash prompt/autocomplete issues with subshells (i.e. in VSCode) under `nix develop`/direnv
           buildInputs = [ pkgs.bashInteractive ];
           packages = with pkgs; [
             git
-            openjdk21
+            openjdk11
             sbt
             mill
             scalafmt

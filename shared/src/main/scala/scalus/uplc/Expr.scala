@@ -9,6 +9,7 @@ import scalus.uplc.Constant.LiftValue
 import scalus.*
 import scalus.utils.Utils
 import scalus.utils.Utils.bytesToHex
+import scala.language.implicitConversions
 
 import scala.annotation.targetName
 

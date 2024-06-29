@@ -9,7 +9,31 @@ trait MemoryUsage[A]:
     def memoryUsage(a: A): CostingInteger
 
 object MemoryUsage {
-    def memoryUsageInteger(i: BigInt): CostingInteger = i.bitLength / 64 + 1
+    def integerLog2(i: BigInt): Long = {
+        if i == 0 then return 0L
+        // in Java first byte CAN be zero, in Haskell it can not
+        val bytes =
+            val bytes = i.toByteArray
+            if bytes.head == 0 then bytes.tail else bytes
+        bytes.headOption match {
+            case None => throw new IllegalStateException("empty number?")
+            case Some(u) =>
+                val unsigned = java.lang.Byte.toUnsignedInt(u)
+                val log2 = 32 - 1 - java.lang.Integer.numberOfLeadingZeros(unsigned)
+                val r = log2.toLong + 8 * (bytes.length - 1)
+                r
+        }
+    }
+
+    def memoryUsageInteger(i: BigInt): CostingInteger =
+        if i == 0 then 1
+        else
+            val ceilLog2 = i.abs.bitLength - 1
+            ceilLog2 / 64 + 1
+
+    // this mimics the Haskell implementation
+    def memoryUsageInteger2(i: BigInt): CostingInteger =
+        if i == 0 then 1 else (integerLog2(i.abs) / 64) + 1
 
     def memoryUsageByteString(bs: ByteString): CostingInteger = (bs.length - 1) / 8 + 1
 

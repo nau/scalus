@@ -14,6 +14,7 @@ import scalus.uplc.*
 import scalus.uplc.eval.VM
 
 import scala.annotation.nowarn
+import scala.language.implicitConversions
 
 enum Adt:
     case A
@@ -66,7 +67,7 @@ object ToDataBigRecord:
           0,
           scalus.builtin.List(a.toData, b.toData, bs.toData, s.toData, d, ls.toData, m.toData)
         ) */
-    given ToData[BigRecord] = ToData.deriveCaseClass[BigRecord](0)
+    given ToData[BigRecord] = ToData.deriveCaseClass[BigRecord](0): @unchecked
 
 class FromDataDerivationSpec
     extends AnyFunSuite
