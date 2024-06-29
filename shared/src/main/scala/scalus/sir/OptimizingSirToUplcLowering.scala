@@ -79,9 +79,9 @@ class OptimizingSirToUplcLowering(
                 analizeSir(body)
             case SIR.Constr(name, data, args) =>
                 args.foreach(analizeSir)
-            case SIR.Match(scrutinee, cases) =>
+            case SIR.Match(scrutinee, cases, tp) =>
                 analizeSir(scrutinee)
-                cases.foreach { case Case(_, _, body) =>
+                cases.foreach { case SIR.Case(_, _, _, body) =>
                     analizeSir(body)
                 }
             case SIR.Let(_, bindings, body) =>
@@ -91,10 +91,10 @@ class OptimizingSirToUplcLowering(
                 analizeSir(body)
             case SIR.LamAbs(_, term) =>
                 analizeSir(term)
-            case SIR.Apply(f, arg) =>
+            case SIR.Apply(f, arg, tp) =>
                 analizeSir(f)
                 analizeSir(arg)
-            case SIR.IfThenElse(cond, t, f) =>
+            case SIR.IfThenElse(cond, t, f, tp) =>
                 usedBuiltins += DefaultFun.IfThenElse
                 analizeSir(cond)
                 analizeSir(t)
@@ -110,11 +110,11 @@ class OptimizingSirToUplcLowering(
             case SIR.Not(term) =>
                 usedBuiltins += DefaultFun.IfThenElse
                 analizeSir(term)
-            case SIR.Builtin(bi)       => usedBuiltins += bi
-            case SIR.Error(_)          =>
-            case SIR.Var(_)            =>
-            case SIR.ExternalVar(_, _) =>
-            case SIR.Const(_)          =>
+            case SIR.Builtin(bi, _)       => usedBuiltins += bi
+            case SIR.Error(_)             =>
+            case SIR.Var(_, _)            =>
+            case SIR.ExternalVar(_, _, _) =>
+            case SIR.Const(_, _)          =>
     }
 
     def lower(): Term =
@@ -159,7 +159,7 @@ class OptimizingSirToUplcLowering(
                     case Nil => Term.Force(Term.Var(NamedDeBruijn(name)))
                     case _ =>
                         ctorParams.foldLeft(Term.Var(NamedDeBruijn(name)))((acc, param) =>
-                            acc $ Term.Var(NamedDeBruijn(param))
+                            acc $ Term.Var(NamedDeBruijn(param.name))
                         )
                 // \Nil Cons -> ...
                 val ctor = constrs.foldRight(appInner) { (constr, acc) =>
@@ -167,13 +167,13 @@ class OptimizingSirToUplcLowering(
                 }
                 // \head tail Nil Cons -> ...
                 val ctorParamsLambda = ctorParams.foldRight(ctor) { (param, acc) =>
-                    Term.LamAbs(param, acc)
+                    Term.LamAbs(param.name, acc)
                 }
                 // (\Nil Cons -> force Nil) | (\head tail Nil Cons -> ...) h tl
                 args.foldLeft(ctorParamsLambda) { (acc, arg) =>
                     Term.Apply(acc, lowerInner(arg))
                 }
-            case SIR.Match(scrutinee, cases) =>
+            case SIR.Match(scrutinee, cases, tp) =>
                 /* list match
                     case Nil -> 1
                     case Cons(h, tl) -> 2
@@ -181,7 +181,7 @@ class OptimizingSirToUplcLowering(
                     lowers to list (delay 1) (\h tl -> 2)
                  */
                 val scrutineeTerm = lowerInner(scrutinee)
-                val casesTerms = cases.map { case Case(constr, bindings, body) =>
+                val casesTerms = cases.map { case SIR.Case(constr, bindings, typeBindings, body) =>
                     constr.params match
                         case Nil => ~lowerInner(body)
                         case _ =>
@@ -190,8 +190,8 @@ class OptimizingSirToUplcLowering(
                             }
                 }
                 casesTerms.foldLeft(scrutineeTerm) { (acc, caseTerm) => Term.Apply(acc, caseTerm) }
-            case SIR.Var(name)            => Term.Var(NamedDeBruijn(name))
-            case SIR.ExternalVar(_, name) => Term.Var(NamedDeBruijn(name))
+            case SIR.Var(name, _)            => Term.Var(NamedDeBruijn(name))
+            case SIR.ExternalVar(_, name, _) => Term.Var(NamedDeBruijn(name))
             case SIR.Let(NonRec, bindings, body) =>
                 bindings.foldRight(lowerInner(body)) { case (Binding(name, rhs), body) =>
                     Term.Apply(Term.LamAbs(name, body), lowerInner(rhs))
@@ -211,26 +211,27 @@ class OptimizingSirToUplcLowering(
             case SIR.Let(Rec, bindings, body) =>
                 // TODO: implement mutual recursion
                 sys.error(s"Mutually recursive bindings are not supported: $bindings")
-            case SIR.LamAbs(name, term) => Term.LamAbs(name, lowerInner(term))
-            case SIR.Apply(f, arg)      => Term.Apply(lowerInner(f), lowerInner(arg))
-            case SIR.Const(const)       => Term.Const(const)
+            case SIR.LamAbs(sirVar, term) => Term.LamAbs(sirVar.name, lowerInner(term))
+            case SIR.Apply(f, arg, tp)    => Term.Apply(lowerInner(f), lowerInner(arg))
+            case SIR.Const(const, tp)       => Term.Const(const)
             case SIR.And(lhs, rhs) =>
-                lowerInner(SIR.IfThenElse(lhs, rhs, SIR.Const(Constant.Bool(false))))
+                lowerInner(SIR.IfThenElse(lhs, rhs, SIR.Const(Constant.Bool(false),SIRType.BooleanPrimitive), SIRType.BooleanPrimitive))
             case SIR.Or(lhs, rhs) =>
-                lowerInner(SIR.IfThenElse(lhs, SIR.Const(Constant.Bool(true)), rhs))
+                lowerInner(SIR.IfThenElse(lhs, SIR.Const(Constant.Bool(true), SIRType.BooleanPrimitive), rhs, SIRType.BooleanPrimitive))
             case SIR.Not(term) =>
                 lowerInner(
                   SIR.IfThenElse(
                     term,
-                    SIR.Const(Constant.Bool(false)),
-                    SIR.Const(Constant.Bool(true))
+                    SIR.Const(Constant.Bool(false), SIRType.BooleanPrimitive),
+                    SIR.Const(Constant.Bool(true), SIRType.BooleanPrimitive),
+                    SIRType.BooleanPrimitive
                   )
                 )
-            case SIR.IfThenElse(cond, t, f) =>
+            case SIR.IfThenElse(cond, t, f, tp) =>
                 !(builtinTerms(DefaultFun.IfThenElse) $ lowerInner(cond) $ ~lowerInner(
                   t
                 ) $ ~lowerInner(f))
-            case SIR.Builtin(bn) => builtinTerms(bn)
+            case SIR.Builtin(bn, _) => builtinTerms(bn)
             case SIR.Error(msg) =>
                 if generateErrorTraces
                 then

@@ -21,7 +21,7 @@ object SirDSL:
 
     def λ(names: String*)(term: SIR): SIR = lam(names: _*)(term)
     def lam(names: String*)(term: SIR): SIR = names.foldRight(term)(SIR.LamAbs(_, _))
-    extension (term: SIR) def $(rhs: SIR) = SIR.Apply(term, rhs)
+    extension (term: SIR) def $(rhs: SIR) = SIR.Apply(term, rhs, SIRType.calculateApplyType(term.tp, rhs.tp))
 
     given Conversion[DefaultFun, SIR] with
         def apply(bn: DefaultFun): SIR = SIR.Builtin(bn)

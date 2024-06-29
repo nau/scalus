@@ -189,6 +189,10 @@ object SIRType {
          // TypeLambda(List(TypeVar("A")), (a: Seq[SIRType]) => Tuple(List(a.head, a.head, a.head))).asInstanceOf[SIRType.Aux[[A] =>> (Boolean,A,A)]]
 
 
+    case object FreeUnificator extends SIRType {
+        override def show: String = "*"
+    }
+
     object List {
 
         lazy val dataDecl = DataDecl("List",
@@ -236,17 +240,66 @@ object SIRType {
         
     }
     
-    //def lift[T](implicit ev: SIRType.Aux[T]): SIRType.Aux[T] = ev
-    
+    def calculateApplyType(f: SIRType, arg: SIRType, env: Map[TypeVar,SIRType]): SIRType = f match {
+        case Fun(in, out) =>
+            if (in == arg) then out
+            else in match
+                case TypeVar(name, _) =>
+                    env.get(in) match
+                        case Some(arg1) =>
+                            calculateApplyType(f, arg1, env)
+                        case None =>
+                            TypeError(s"Unbound type variable $name")
+        case TypeVar(name, _) =>
+            env.get(f) match
+                case Some(f1) => calculateApplyType(f1, arg, env)
+                case None => TypeError(s"Unbound type variable $name")
+        case TypeLambda(params, body) =>
+            val newEnv = params.foldLeft(env) {
+                case (acc, tv) => acc + (tv -> FreeUnificator)
+            }
+            calculateApplyType(body, arg, newEnv)        
+        case other => TypeError(s"Expected function type, got $other")
+    }
+
+    def unify(left: SIRType, right: SIRType, env: Map[TypeVar,SIRType]): LazyList[SIRType,Map[TypeVar,SIRType]] = {
+        
+    }
+
+
+    def calculateAssignableNoEnv(to: SIRType, from: SIRType, env: Map[TypeVar,SIRType]): Boolean =
+        to match
+            case p: SIRType.Primitive[?] =>
+                from match
+                    case p1: SIRType.Primitive[?] => p == p1
+                    case tvFrom: TypeVar => env.get(tvFrom) match
+                        case Some(tvFrom1) => calculateAssignableNoEnv(to, tvFrom1, env)
+                        case None => false
+                    case _ => false
+            case tvTo: TypeVar =>
+                env.get(tvTo) match
+                    case Some(tvTo1) => calculateAssignableNoEnv(tvTo1, from, env)
+                    case None => true
+            case Data =>
+                from match
+                    case Data => true
+                    case tvFrom: TypeVar => env.get(tvFrom) match
+                        case Some(tvFrom1) => calculateAssignableNoEnv(to, tvFrom1, env)
+                        case None => false
+                    case _ => false
+            case CaseClass(constrDecl, typeParams) =>
+                val nEnv = constrDecl.typeParams.zip(typeParams).foldLeft(env) {
+                    case (acc, (tv,ts)) => acc + (tv -> ts)
+                }
+
+
+
     inline def liftM[T <: AnyKind]: SIRType.Aux[T] = ${liftMImpl[T]}
 
     def liftMImpl[T<:AnyKind:Type](using Quotes): Expr[SIRType.Aux[T]] = {
         import quotes.reflect.*
 
-        println(s"liftM: ${TypeRepr.of[T].show}")
-
         def liftRepr(tp: TypeRepr, enclosingBounds: Map[Int,TypeVar]): Expr[SIRType] = {
-            println(s"liftRepr: ${tp.show}")
             tp match
                 case typeLambda@quotes.reflect.TypeLambda(paramNames, paramBounds, resType) =>
                     println(s"type-lambda detected, tp.symbol = ${tp.typeSymbol}, tp.symbol.hashCode=${tp.typeSymbol.hashCode}, Type: ${tp.show}")
@@ -312,6 +365,25 @@ object SIRType {
                                         Fun( ${ liftRepr(TypeRepr.of[d], enclosingBounds) },
                                             ${ liftRepr(TypeRepr.of[e], enclosingBounds) }))))
                             }
+                        case '[(a,b,c,d,e)=>f] =>
+                            println(s"Fun5 detected,  Type: ${tp.show}")
+                            '{ Fun(${ liftRepr(TypeRepr.of[a], enclosingBounds) },
+                                Fun(${ liftRepr(TypeRepr.of[b], enclosingBounds) },
+                                    Fun( ${ liftRepr(TypeRepr.of[c], enclosingBounds) },
+                                        Fun( ${ liftRepr(TypeRepr.of[d], enclosingBounds) },
+                                            Fun( ${ liftRepr(TypeRepr.of[e], enclosingBounds) },
+                                                ${ liftRepr(TypeRepr.of[f], enclosingBounds) })))))
+                            }
+                        case '[(a,b,c,d,e,f)=>g] =>
+                            println(s"Fun6 detected,  Type: ${tp.show}")
+                            '{ Fun(${ liftRepr(TypeRepr.of[a], enclosingBounds) },
+                                Fun(${ liftRepr(TypeRepr.of[b], enclosingBounds) },
+                                    Fun( ${ liftRepr(TypeRepr.of[c], enclosingBounds) },
+                                        Fun( ${ liftRepr(TypeRepr.of[d], enclosingBounds) },
+                                            Fun( ${ liftRepr(TypeRepr.of[e], enclosingBounds) },
+                                                Fun( ${ liftRepr(TypeRepr.of[f], enclosingBounds) },
+                                                    ${ liftRepr(TypeRepr.of[g], enclosingBounds) }))))))
+                            }
                         case '[scalus.builtin.Pair[a,b]] =>
                             println(s"Builtin pair detected,  Type: ${tp.show}")
                             val a = TypeRepr.of[a]
@@ -322,7 +394,7 @@ object SIRType {
                             val a = TypeRepr.of[a]
                             val b = TypeRepr.of[b]
                             '{SIRType.Pair(${liftRepr(a, enclosingBounds)}, ${liftRepr(b, enclosingBounds)})}
-                        case '[List[a]] =>
+                        case '[scalus.builtin.List[a]] =>
                             println(s"List detected,  Type: ${tp.show}")
                             val a = TypeRepr.of[a]
                             '{SIRType.List(${liftRepr(a, enclosingBounds)})}

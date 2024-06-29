@@ -9,7 +9,7 @@ import dotty.tools.dotc.core.Flags.*
 import dotty.tools.dotc.core.Names.*
 import dotty.tools.dotc.core.StdNames.nme
 import dotty.tools.dotc.core.Symbols.*
-import dotty.tools.dotc.core.Types.{MethodType, Type}
+import dotty.tools.dotc.core.Types.*
 import dotty.tools.dotc.core.*
 import dotty.tools.dotc.util.SrcPos
 import dotty.tools.io.ClassPath
@@ -29,13 +29,11 @@ import scalus.sir.SIRType
 import scalus.sir.SIRVarStorage
 import scalus.sir.SIRBuiltins
 import scalus.sir.TypeBinding
-import scalus.uplc.DefaultFun
 import scalus.uplc.DefaultUni
 import scalus.utils.HashConsed
 
 import java.net.URL
 import scala.collection.immutable
-import scala.collection.immutable.HashSet
 import scala.collection.mutable
 import scala.collection.mutable.ListBuffer
 import scala.language.implicitConversions
@@ -127,8 +125,6 @@ final class SIRCompiler(mode: scalus.Mode)(using ctx: Context) {
 
     private lazy val classLoader = makeClassLoader
 
-    private val typeVarCounter = new java.util.concurrent.atomic.AtomicLong(0)
-
     private def makeClassLoader(using Context): ClassLoader = {
         import scala.language.unsafeNulls
 
@@ -209,7 +205,7 @@ final class SIRCompiler(mode: scalus.Mode)(using ctx: Context) {
 
     def getAdtTypeInfo(dataType: Type): AdtTypeInfo = {
         val dataTypeParams = dataType match
-            case TypeApply(tp, params) => params.map(_.tpe)
+            case AppliedType(tp, params) => params
             case _                     => Nil
         val dataTypeSymbol = dataType.typeSymbol
         val constructorSymbols = dataTypeSymbol.children
@@ -238,14 +234,14 @@ final class SIRCompiler(mode: scalus.Mode)(using ctx: Context) {
         )
 
         val typeArgs = constrTpe match
-            case TypeApply(_, args) => args.map(_.tpe)
+            case AppliedType(_, args) => args
             case _ => Nil
 
         val info =
             if constrTpe.typeConstructor =:= Tuple2Symbol.typeRef
             then
                 val typeArgs = constrTpe match
-                    case TypeApply(_, args) => args.map(_.tpe)
+                    case AppliedType(_, args) => args
                     case _                  => Nil
                 AdtConstructorCallInfo(typeSymbol, AdtTypeInfo(typeSymbol, typeArgs, List(typeSymbol)), typeArgs)
             else
@@ -256,7 +252,7 @@ final class SIRCompiler(mode: scalus.Mode)(using ctx: Context) {
                     case Some(baseClassSymbol) =>
                         val adtBaseType = constrTpe.baseType(baseClassSymbol)
                         val baseDataParams = adtBaseType match
-                            case TypeApply(_, args) => args.map(_.tpe)
+                            case AppliedType(_, args) => args
                             case _                  => Nil
                         if constrTpe.isSingleton then // case 3, 5
                             val typeInfo = AdtTypeInfo(baseClassSymbol, baseDataParams,  baseClassSymbol.children)
