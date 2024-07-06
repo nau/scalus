@@ -319,9 +319,17 @@ final class SIRCompiler(mode: scalus.Mode)(using ctx: Context) {
                 }
                 val constrDecls = sortedConstructors.map { sym =>
                     val params = primaryConstructorParams(sym).map(p => TypeBinding(p.name.show, SIRTypesHelper.sirType(p.info)))
-                    val typeParams = sym.typeParams.map(tp => SIRType.TypeVar(tp.name.show))
+                    val typeParams = sym.typeParams.map(tp => SIRType.TypeVar(tp.name.show, Some(tp.hashCode)))
+                    val optBaseClass = sym.info.baseClasses.find{
+                        b => b.flags.is(Flags.Sealed) && b.children.contains(sym)
+                    }
+                    val baseTypeArgs = optBaseClass.flatMap{ bs =>
+                        sym.info.baseType(bs) match
+                            case AppliedType(_, args) => Some(args.map(a => SIRTypesHelper.sirType(a)))
+                            case _ => None
+                    }.getOrElse(Nil)
                     // TODO: add substoitution for parent type params
-                    scalus.sir.ConstrDecl(sym.name.show, SIRVarStorage.DEFAULT, params, typeParams)
+                    scalus.sir.ConstrDecl(sym.name.show, SIRVarStorage.DEFAULT, params, typeParams, baseTypeArgs)
                 }
                 val decl = scalus.sir.DataDecl(dataName, constrDecls, dataTypeParams)
                 globalDataDecls.addOne(FullName(dataTypeSymbol) -> decl)

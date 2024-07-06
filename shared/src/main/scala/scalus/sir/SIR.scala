@@ -21,15 +21,23 @@ enum Recursivity:
 
 case class ConstrDecl(name: String, 
                       
-                      storageType: SIRVarStorage, 
-                      
+                      storageType: SIRVarStorage,
+
+                      /**
+                       * Parameters of the constructor.
+                       */
                       params: List[TypeBinding], 
     
-                        /**
-                         * Type parameters of this type.
-                         */
+                      /**
+                      * Type parameters of this type.
+                      */
                       typeParams: List[SIRType.TypeVar],
 
+                      /**
+                      * Type of the constructor.
+                      */
+                      parentTypeArgs: List[SIRType]
+    
                      ) {
     
     def tp: SIRType =

@@ -105,6 +105,7 @@ object FlatInstantces:
             summon[Flat[SIRVarStorage]].encode(a.storageType, encode)
             summon[Flat[List[TypeBinding]]].encode(a.params, encode)
             summon[Flat[List[SIRType.TypeVar]]].encode(a.typeParams, encode)
+            summon[Flat[List[SIRType]]].encode(a.parentTypeArgs, encode)
             // TODO: chek and resolve forward references to a
             val _ = encode.hashConsed.putRef(a)
         }
@@ -114,7 +115,8 @@ object FlatInstantces:
             val storageType  = summon[Flat[SIRVarStorage]].decode(decode)
             val params = summon[Flat[List[TypeBinding]]].decode(decode)
             val typeParams = summon[Flat[List[SIRType.TypeVar]]].decode(decode)
-            ConstrDecl(name, storageType, params, typeParams)
+            val parentTypeArgs = summon[Flat[List[SIRType]]].decode(decode)
+            ConstrDecl(name, storageType, params, typeParams, parentTypeArgs)
         }
 
     given flatDataDecl: Flat[DataDecl] with

@@ -79,22 +79,22 @@ object SIRType {
     }
     given Data.type = Data
 
-    case class CaseClass(constrDecl: ConstrDecl, typeParams: scala.List[SIRType]) extends SIRType {
+    case class CaseClass(constrDecl: ConstrDecl, typeArgs: scala.List[SIRType]) extends SIRType {
 
             override def show: String =
-                if (typeParams.isEmpty) then
+                if (typeArgs.isEmpty) then
                     constrDecl.name
                 else
-                    s"${constrDecl.name}[${typeParams.map(_.show).mkString(", ")}]"
+                    s"${constrDecl.name}[${typeArgs.map(_.show).mkString(", ")}]"
 
     }
 
-    case class SumCaseClass(decl: DataDecl, typeParams: scala.List[SIRType]) extends SIRType {
+    case class SumCaseClass(decl: DataDecl, typeArgs: scala.List[SIRType]) extends SIRType {
         override def show: String =
-            if (typeParams.isEmpty) then
+            if (typeArgs.isEmpty) then
                 decl.name
             else
-                s"${decl.name}[${typeParams.map(_.show).mkString(", ")}]"
+                s"${decl.name}[${typeArgs.map(_.show).mkString(", ")}]"
     }
 
     case class Fun(in:SIRType, out: SIRType) extends SIRType {
@@ -138,7 +138,8 @@ object SIRType {
             val B = TypeVar("B")
             ConstrDecl("Pair", SIRVarStorage.LocalUPLC,
                 scala.List(TypeBinding("fst",A),TypeBinding("snd",B)),
-                scala.List(A,B)
+                scala.List(A,B),
+                scala.Nil
             )
         }
 
@@ -216,6 +217,7 @@ object SIRType {
                 val a = TypeVar("A")
                 ConstrDecl("Cons", SIRVarStorage.LocalUPLC,
                     scala.List(TypeBinding("head", a), TypeBinding("tail", List(a))),
+                    scala.List(a),
                     scala.List(a)
                 )
             }
@@ -231,7 +233,7 @@ object SIRType {
             
         }
 
-        val NilConstr = ConstrDecl("Nil", SIRVarStorage.LocalUPLC, scala.Nil, scala.Nil)
+        val NilConstr = ConstrDecl("Nil", SIRVarStorage.LocalUPLC, scala.Nil, scala.Nil, scala.Nil)
 
         val Nil = CaseClass(NilConstr, scala.Nil)
 
@@ -242,128 +244,183 @@ object SIRType {
     
     def calculateApplyType(f: SIRType, arg: SIRType, env: Map[TypeVar,SIRType]): SIRType = f match {
         case Fun(in, out) =>
-            if (in == arg) then out
-            else in match
-                case TypeVar(name, _) =>
-                    env.get(in) match
-                        case Some(arg1) =>
-                            calculateApplyType(f, arg1, env)
-                        case None =>
-                            TypeError(s"Unbound type variable $name")
-        case TypeVar(name, _) =>
-            env.get(f) match
-                case Some(f1) => calculateApplyType(f1, arg, env)
+            unify(in, arg, env) match
+                case Some(r) => substitute(out,r.env)
+                case None => TypeError(s"Cannot unify $in with $arg")
+        case tvF@TypeVar(name, _) =>
+            env.get(tvF) match
+                case Some(f1) => calculateApplyType(tvF, arg, env)
                 case None => TypeError(s"Unbound type variable $name")
         case TypeLambda(params, body) =>
             val newEnv = params.foldLeft(env) {
                 case (acc, tv) => acc + (tv -> FreeUnificator)
             }
             calculateApplyType(body, arg, newEnv)        
-        case other => TypeError(s"Expected function type, got $other")
+        case other =>
+            TypeError(s"Expected function type, got $other")
     }
     
-    case class TypeUnificationResult(unificator: SIRType, subst: Map[TypeVar,SIRType], constraints: List[(SIRType,SIRType)]) {
-        def addConstraint(left: SIRType, right: SIRType): TypeUnificationResult =
-            copy(constraints = (left,right) :: constraints)
+    case class TypeUnificationResult[T](unificator: T, env: Map[TypeVar,SIRType]) {
+        def map[S](f: T => S): TypeUnificationResult[S] = TypeUnificationResult(f(unificator), env)
     }
 
-    def unify(left: SIRType, right: SIRType, env: Map[TypeVar,SIRType], constraints: Map[TypeVar,TypeVar]): Option[TypeUnificationResult] = {
+    def unify(left: SIRType, right: SIRType, env: Map[TypeVar,SIRType]): Option[TypeUnificationResult[SIRType]] = {
         
-        def checkLeftTypeVar(tv: TypeVar): Option[TypeUnificationResult] =
+        def checkLeftTypeVar(tv: TypeVar): Option[TypeUnificationResult[SIRType]] =
             env.get(tv) match
                 case Some(tv1) =>
-                    if (tv1 === FreeUnificator) then
-                        Some(TypeUnificationResult(right, env + (tv -> t), Nil))
+                    if (tv1 == FreeUnificator) then
+                        Some(TypeUnificationResult(right, env + (tv -> right)))
                     else
                         unify(tv1, right, env)
                 case None =>
                     throw new IllegalArgumentException(s"Unbound type variable $tv")
                         
-        def checkRightTypeVar(tv: TypeVar): Option[TypeUnificationResult] =
+        def checkRightTypeVar(tv: TypeVar): Option[TypeUnificationResult[SIRType]] =
             env.get(tv) match
-                case Some(t1) =>
-                    if t1 === FreeUnificator then
-                        Some(TypeUnificationResult(t, env + (tv -> t), Nil))
+                case Some(t) =>
+                    if t == FreeUnificator then
+                        Some(TypeUnificationResult(left, env + (tv -> left)))
                     else
-                        unify(left, t1, env)
+                        unify(left, t, env)
                 case None =>
                     throw new IllegalArgumentException(s"Unbound type variable $tv")
                         
-        def checkLeftTypeLambda(tl: TypeLambda): Option[TypeUnificationResult] =
-            left match
-                case TypeLambda(params, body) =>
-                    if params.length != tl.params.length then
-                        None
-                    else
-                        val newEnv = params.zip(tl.params).foldLeft(env) {
-                            case (acc, (tv1,tv2)) => acc + (tv1 -> tv2)
-                        }
-                        unify(body, tl.body, newEnv)
-                case _ => None            
-        
+        def checkLeftTypeLambda(tl: TypeLambda): Option[TypeUnificationResult[SIRType]] =
+            val newEnv = tl.params.foldLeft(env) {
+                case (acc, tv) => acc + (tv -> FreeUnificator)
+            }
+            unify(tl.body, right, newEnv)
+
+        def checkRightTypeLambda(tl: TypeLambda): Option[TypeUnificationResult[SIRType]] =
+            val newEnv = tl.params.foldLeft(env) {
+                case (acc, tv) => acc + (tv -> FreeUnificator)
+            }
+            unify(left, tl.body, newEnv)
+
+        def unifyList(left: List[SIRType], right: List[SIRType], env: Map[TypeVar,SIRType]): Option[TypeUnificationResult[List[SIRType]]] = {
+           val s0: Option[TypeUnificationResult[List[SIRType]]] = Some(TypeUnificationResult(scala.List.empty, env))
+           val r = left.zip(right).foldLeft(s0) {
+               case (Some(acc), (l, r)) =>
+                   unify(l, r, acc.env).map { tpr =>
+                       TypeUnificationResult(tpr.unificator :: acc.unificator, tpr.env)
+                   }
+               case (None, _) =>
+                   None
+           }
+           r.map{ _.map { _.reverse } }
+        }
+
         left match
-            case leftP: TypePrimitive =>
+            case leftP: Primitive[?] =>
                 right match
-                    case rightP: TypePrimitive =>
+                    case rightP: Primitive[?] =>
                         if leftP == rightP then
-                            Some(TypeUnificationResult(leftP, env, Nil))
+                            Some(TypeUnificationResult(leftP, env))
                         else
                             None
                     case tv@TypeVar(name, _) =>
                         checkRightTypeVar(tv)
                     case TypeLambda(params, body) =>
-                        val newEnv = params.foldLeft(env) {
-                            case (acc, tv) => acc + (tv -> FreeUnificator)
-                        }
-                        unify(left, body, newEnv)
+                        checkRightTypeLambda(TypeLambda(params, body))
+                    case FreeUnificator =>
+                        Some(TypeUnificationResult(left, env))
                     case _ => None
             case Data =>
                 right match
-                    case Data => Some(TypeUnificationResult(Data, env, Nil))
+                    case Data => Some(TypeUnificationResult(Data, env))
                     case TypeVar(name, _) =>
-                        env.get(right) match
-                            case Some(right1) =>
-                                right1 match
-                                    case FreeUnificator => 
-                                        Some(TypeUnificationResult(right1, env + (right -> left), Nil))
-                                    case other => 
-                                        unify(left, right1, env)    
-                            case None => 
-                                throw new IllegalArgumentException(s"Unbound type variable $name")
-                    case TypeLambda(params, body) =>
-                        val newEnv = params.foldLeft(env) {
-                            case (acc, tv) => acc + (tv -> FreeUnificator)
-                        }
-                        unify(left, body, newEnv)
+                        checkRightTypeVar(TypeVar(name))
+                    case tlr@TypeLambda(params, body) =>
+                        checkRightTypeLambda(tlr)
+                    case FreeUnificator =>
+                        Some(TypeUnificationResult(Data, env))
                     case _ => None
-                    
+            case ccl@CaseClass(constrDecl, typeArgs) =>
+                right match
+                    case rrl@CaseClass(constrDeclRight, typeArgsRight) =>
+                        if constrDecl == constrDeclRight then
+                            unifyList(typeArgs,typeArgsRight, env).map(_.map(CaseClass(constrDecl, _)))
+                        else
+                            None
+                    case SumCaseClass(decl, typeArgsRight) =>
+                        decl.constructors.find(_ == constrDecl) match
+                            case Some(_) =>
+                                val nEnv = constrDecl.typeParams.zip(typeArgs).foldLeft(env) {
+                                    case (acc, (tv,t)) => acc + (tv -> t)
+                                }
+                                unifyList(constrDecl.parentTypeArgs, typeArgsRight, nEnv).map(_.map(SumCaseClass(decl, _)))
+                            case None => None
+                    case TypeVar(name, _) =>
+                        checkRightTypeVar(TypeVar(name))
+                    case tlr@TypeLambda(params, body) =>
+                        checkRightTypeLambda(tlr)
+                    case FreeUnificator =>
+                        Some(TypeUnificationResult(left, env))
+                    case _ => None
+            case SumCaseClass(declLeft, typeArgsLeft) =>
+                right match
+                    case SumCaseClass(declRight, typeArgsRight) =>
+                        if declLeft == declRight then
+                            unifyList(typeArgsLeft, typeArgsRight, env).map(_.map(SumCaseClass(declLeft, _)))
+                        else
+                            None
+                    case ccr@CaseClass(constrDeclRight, typeArgsRight) =>
+                        declLeft.constructors.find(_ == constrDeclRight) match
+                            case Some(_) =>
+                                val nEnv = constrDeclRight.typeParams.zip(typeArgsRight).foldLeft(env) {
+                                    case (acc, (tv,t)) => acc + (tv -> t)
+                                }
+                                unifyList(typeArgsLeft, constrDeclRight.parentTypeArgs, nEnv).map(_.map(CaseClass(constrDeclRight, _)))
+                            case None => None
+                    case TypeVar(name, _) =>
+                        checkRightTypeVar(TypeVar(name))
+                    case tlr@TypeLambda(params, body) =>
+                        checkRightTypeLambda(tlr)
+                    case FreeUnificator =>
+                        Some(TypeUnificationResult(left, env))
+                    case _ => None
+            case Fun(inLeft,outLeft) =>
+                right match
+                    case Fun(inRight, outRight) =>
+                        unify(inLeft, inRight, env).flatMap { tpr =>
+                            unify(outLeft, outRight, tpr.env).map(_.map(Fun(tpr.unificator, _)))
+                        }
+                    case TypeVar(name, _) =>
+                        checkRightTypeVar(TypeVar(name))
+                    case tlr@TypeLambda(params, body) =>
+                        checkRightTypeLambda(tlr)
+                    case FreeUnificator =>
+                        Some(TypeUnificationResult(left, env))
+                    case _ => None
+            case tvl@TypeVar(name, _) =>
+                checkLeftTypeVar(tvl)
+            case tll@TypeLambda(params, body) =>
+                checkLeftTypeLambda(tll)
+            case TypeError(msg) =>
+                Some(TypeUnificationResult(TypeError(msg), env))
+            case FreeUnificator =>
+                Some(TypeUnificationResult(right, env))
     }
 
 
-    def calculateAssignableNoEnv(to: SIRType, from: SIRType, env: Map[TypeVar,SIRType]): Boolean =
-        to match
-            case p: SIRType.Primitive[?] =>
-                from match
-                    case p1: SIRType.Primitive[?] => p == p1
-                    case tvFrom: TypeVar => env.get(tvFrom) match
-                        case Some(tvFrom1) => calculateAssignableNoEnv(to, tvFrom1, env)
-                        case None => false
-                    case _ => false
-            case tvTo: TypeVar =>
-                env.get(tvTo) match
-                    case Some(tvTo1) => calculateAssignableNoEnv(tvTo1, from, env)
-                    case None => true
-            case Data =>
-                from match
-                    case Data => true
-                    case tvFrom: TypeVar => env.get(tvFrom) match
-                        case Some(tvFrom1) => calculateAssignableNoEnv(to, tvFrom1, env)
-                        case None => false
-                    case _ => false
-            case CaseClass(constrDecl, typeParams) =>
-                val nEnv = constrDecl.typeParams.zip(typeParams).foldLeft(env) {
-                    case (acc, (tv,ts)) => acc + (tv -> ts)
-                }
+    def substitute(rType: SIRType, env: Map[SIRType.TypeVar, SIRType]): SIRType = {
+        rType match
+            case tv@TypeVar(name, _) =>
+                env.get(tv) match
+                    case Some(t) => t
+                    case None => tv
+            case TypeLambda(params, body) =>
+                TypeLambda(params, substitute(body, env))
+            case CaseClass(constrDecl, typeArgs) =>
+                CaseClass(constrDecl, typeArgs.map(substitute(_, env)))
+            case SumCaseClass(decl, typeArgs) =>
+                SumCaseClass(decl, typeArgs.map(substitute(_, env)))
+            case Fun(in, out) =>
+                Fun(substitute(in, env), substitute(out, env))
+            case other =>
+                other
+    }
 
 
 

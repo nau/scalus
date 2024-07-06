@@ -282,9 +282,26 @@ class PatternMatchingCompiler(val compiler: SIRCompiler)(using Context) {
         val params = constructorSymbol.primaryConstructor.paramSymss.flatten.filterNot(_.isTypeParam).map{ paramSym =>
             TypeBinding(paramSym.name.show, SIRTypesHelper.sirType(paramSym.info.widen))
         }
-        val typeParams = constructorSymbol.typeParams.map(tp => SIRType.TypeVar(tp.name.show))
+        val typeParams = constructorSymbol.typeParams.map(tp => SIRType.TypeVar(tp.name.show, Some(tp.hashCode)))
         //  TODO:  define mapping of names into constructor.
-        val constrDecl = scalus.sir.ConstrDecl(constructorSymbol.show, SIRVarStorage.DEFAULT, params, typeParams)
+        // trying to find decl.
+        val optParent = constructorSymbol.info.baseClasses.find{ base =>
+            base.children.nonEmpty && base.children.exists{ child =>
+                child.isConstructor && child  == constructorSymbol
+            }
+        }
+        val revTypes = constructorSymbol.typeParams.foldLeft(Map.empty[Symbol, SIRType.TypeVar])((acc, tp) =>
+            acc + (tp -> SIRType.TypeVar(tp.name.show, Some(tp.hashCode)))
+        )
+        val parentTypeArgs = optParent.map{ parent =>
+            val tpArgs = constructorSymbol.info.baseType(parent) match {
+                case AppliedType(tpe, args) => args
+                case _ => Nil
+            }
+            tpArgs.map(t => SIRTypesHelper.sirTypeInEnv(t,revTypes))
+        }.getOrElse(Nil)
+
+        val constrDecl = scalus.sir.ConstrDecl(constructorSymbol.show, SIRVarStorage.DEFAULT, params, typeParams, parentTypeArgs)
         constrDecl
     }
 
