@@ -261,9 +261,82 @@ object SIRType {
             calculateApplyType(body, arg, newEnv)        
         case other => TypeError(s"Expected function type, got $other")
     }
+    
+    case class TypeUnificationResult(unificator: SIRType, subst: Map[TypeVar,SIRType], constraints: List[(SIRType,SIRType)]) {
+        def addConstraint(left: SIRType, right: SIRType): TypeUnificationResult =
+            copy(constraints = (left,right) :: constraints)
+    }
 
-    def unify(left: SIRType, right: SIRType, env: Map[TypeVar,SIRType]): LazyList[SIRType,Map[TypeVar,SIRType]] = {
+    def unify(left: SIRType, right: SIRType, env: Map[TypeVar,SIRType], constraints: Map[TypeVar,TypeVar]): Option[TypeUnificationResult] = {
         
+        def checkLeftTypeVar(tv: TypeVar): Option[TypeUnificationResult] =
+            env.get(tv) match
+                case Some(tv1) =>
+                    if (tv1 === FreeUnificator) then
+                        Some(TypeUnificationResult(right, env + (tv -> t), Nil))
+                    else
+                        unify(tv1, right, env)
+                case None =>
+                    throw new IllegalArgumentException(s"Unbound type variable $tv")
+                        
+        def checkRightTypeVar(tv: TypeVar): Option[TypeUnificationResult] =
+            env.get(tv) match
+                case Some(t1) =>
+                    if t1 === FreeUnificator then
+                        Some(TypeUnificationResult(t, env + (tv -> t), Nil))
+                    else
+                        unify(left, t1, env)
+                case None =>
+                    throw new IllegalArgumentException(s"Unbound type variable $tv")
+                        
+        def checkLeftTypeLambda(tl: TypeLambda): Option[TypeUnificationResult] =
+            left match
+                case TypeLambda(params, body) =>
+                    if params.length != tl.params.length then
+                        None
+                    else
+                        val newEnv = params.zip(tl.params).foldLeft(env) {
+                            case (acc, (tv1,tv2)) => acc + (tv1 -> tv2)
+                        }
+                        unify(body, tl.body, newEnv)
+                case _ => None            
+        
+        left match
+            case leftP: TypePrimitive =>
+                right match
+                    case rightP: TypePrimitive =>
+                        if leftP == rightP then
+                            Some(TypeUnificationResult(leftP, env, Nil))
+                        else
+                            None
+                    case tv@TypeVar(name, _) =>
+                        checkRightTypeVar(tv)
+                    case TypeLambda(params, body) =>
+                        val newEnv = params.foldLeft(env) {
+                            case (acc, tv) => acc + (tv -> FreeUnificator)
+                        }
+                        unify(left, body, newEnv)
+                    case _ => None
+            case Data =>
+                right match
+                    case Data => Some(TypeUnificationResult(Data, env, Nil))
+                    case TypeVar(name, _) =>
+                        env.get(right) match
+                            case Some(right1) =>
+                                right1 match
+                                    case FreeUnificator => 
+                                        Some(TypeUnificationResult(right1, env + (right -> left), Nil))
+                                    case other => 
+                                        unify(left, right1, env)    
+                            case None => 
+                                throw new IllegalArgumentException(s"Unbound type variable $name")
+                    case TypeLambda(params, body) =>
+                        val newEnv = params.foldLeft(env) {
+                            case (acc, tv) => acc + (tv -> FreeUnificator)
+                        }
+                        unify(left, body, newEnv)
+                    case _ => None
+                    
     }
 
 
