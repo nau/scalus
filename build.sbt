@@ -6,6 +6,7 @@ import java.net.URI
 Global / onChangedBuildSource := ReloadOnSourceChanges
 autoCompilerPlugins := true
 
+val scalusStableVersion = "0.7.0"
 ThisBuild / scalaVersion := "3.3.3"
 ThisBuild / organization := "org.scalus"
 ThisBuild / organizationName := "Scalus"
@@ -213,7 +214,7 @@ lazy val docs = project // documentation project
       publish / skip := true,
       moduleName := "scalus-docs",
       mdocVariables := Map(
-        "VERSION" -> "0.6.1",
+        "VERSION" -> scalusStableVersion,
         "SCALA3_VERSION" -> scalaVersion.value
       ),
       PluginDependency
