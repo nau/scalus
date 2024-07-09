@@ -44,7 +44,7 @@ object UplcCli:
         var out = ""
         val retCode = cmd.#<(new ByteArrayInputStream(flat)).!(ProcessLogger(o => out += o))
         if retCode == 0 then
-            UplcParser.term.parse(out) match
+            UplcParser().term.parse(out) match
                 case Right(budget(cpu, mem), term) =>
                     UplcEvalResult.Success(term, ExBudget(ExCPU(cpu.toLong), ExMemory(mem.toLong)))
                 case Right(left, term) =>

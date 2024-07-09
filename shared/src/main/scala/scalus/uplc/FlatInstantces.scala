@@ -35,6 +35,11 @@ object FlatInstantces:
             case Delay(term)  => termTagWidth + bitSize(term)
             case Builtin(bn)  => termTagWidth + summon[Flat[DefaultFun]].bitSize(bn)
             case Error        => termTagWidth
+            case Constr(tag, args) =>
+                termTagWidth + summon[Flat[Long]].bitSize(tag) + summon[Flat[List[Term]]]
+                    .bitSize(args)
+            case Case(arg, cases) =>
+                termTagWidth + bitSize(arg) + summon[Flat[List[Term]]].bitSize(cases)
 
         def encode(a: Term, enc: EncoderState): Unit =
             a match
@@ -61,6 +66,14 @@ object FlatInstantces:
                 case Term.Builtin(bn) =>
                     enc.bits(termTagWidth, 7)
                     flat.encode(bn, enc)
+                case Constr(tag, args) =>
+                    enc.bits(termTagWidth, 8)
+                    flat.encode(tag, enc)
+                    flat.encode(args, enc)
+                case Case(arg, cases) =>
+                    enc.bits(termTagWidth, 9)
+                    flat.encode(arg, enc)
+                    flat.encode(cases, enc)
 
         def decode(decoder: DecoderState): Term =
             val tag = decoder.bits8(termTagWidth)
@@ -90,6 +103,10 @@ object FlatInstantces:
                     Term.Error
                 case 7 =>
                     Term.Builtin(flat.decode(decoder))
+                case 8 =>
+                    Term.Constr(tag = flat.decode(decoder), args = flat.decode(decoder))
+                case 9 =>
+                    Term.Case(arg = decode(decoder), cases = flat.decode(decoder))
 
     given Flat[DeBruijnedProgram] with
         val fn = summon[Flat[Natural]]

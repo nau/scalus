@@ -1,21 +1,17 @@
 package scalus.utils
 
 import io.bullet.borer.Cbor
-import io.bullet.borer.Codec
-import io.bullet.borer.Json
 import scalus.ledger.api.PlutusLedgerLanguage
 import scalus.ledger.api.PlutusLedgerLanguage.*
 import scalus.uplc.DeBruijn
 import scalus.uplc.Program
 import scalus.uplc.ProgramFlatCodec
+import upickle.default.*
 
 import java.nio.file.*
 
 case class PlutusTextEnvelope(`type`: String, description: String, cborHex: String)
-object PlutusTextEnvelope {
-    import io.bullet.borer.derivation.MapBasedCodecs._
-    given Codec[PlutusTextEnvelope] = deriveCodec[PlutusTextEnvelope]
-}
+    derives ReadWriter
 
 object Utils:
     export Hex.bytesToHex
@@ -32,20 +28,20 @@ object Utils:
 
     def writePlutusFile(path: String, program: Program, plutusVersion: PlutusLedgerLanguage): Unit =
         val content = programToPlutusFileContent(program, plutusVersion)
-        Files.write(Paths.get(path), content)
+        Files.write(Paths.get(path), content.getBytes("UTF-8"))
 
     def programToPlutusFileContent(
         program: Program,
         plutusVersion: PlutusLedgerLanguage
-    ): Array[Byte] =
+    ): String =
         val `type` = plutusVersion match
             case PlutusV1 => "PlutusScriptV1"
             case PlutusV2 => "PlutusScriptV2"
             case _        => throw new Exception(s"Unsupported Plutus version: ${plutusVersion}")
-        Json.encode(PlutusTextEnvelope(`type`, "", program.doubleCborHex)).toByteArray
+        write(PlutusTextEnvelope(`type`, "", program.doubleCborHex))
 
-    def readPlutusFileContent(content: Array[Byte]): Program =
-        val envelope = Json.decode(content).to[PlutusTextEnvelope].value
+    def readPlutusFileContent(content: String): Program =
+        val envelope = read[PlutusTextEnvelope](content)
         // TODO: check that the version is supported, validate builtins etc
         val doubleCborHex = envelope.cborHex
         val cbor = Cbor.decode(Utils.hexToBytes(doubleCborHex)).to[Array[Byte]].value
@@ -55,5 +51,5 @@ object Utils:
         program
 
     def readPlutusFile(path: String): Program =
-        val content = Files.readAllBytes(Paths.get(path))
+        val content = new String(Files.readAllBytes(Paths.get(path)), "UTF-8")
         readPlutusFileContent(content)

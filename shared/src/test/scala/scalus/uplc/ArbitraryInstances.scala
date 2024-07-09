@@ -193,10 +193,14 @@ trait ArbitraryInstances:
             )
             if sz <= 0 then simple
             else
-                Gen.frequency(
-                  (1, simple),
-                  (2, Gen.oneOf(forceGen(sz, env), delayGen(sz, env))),
-                  (3, Gen.oneOf(lamGen(sz, env), appGen(sz, env)))
+                Gen.oneOf(
+                  simple,
+                  forceGen(sz, env),
+                  delayGen(sz, env),
+                  lamGen(sz, env),
+                  appGen(sz, env),
+                  constrGen(sz, env),
+                  caseGen(sz, env)
                 )
 
         def forceGen(sz: Int, env: immutable.List[String]): Gen[Term] =
@@ -213,6 +217,16 @@ trait ArbitraryInstances:
             t1 <- sizedTermGen(sz / 2, env)
             t2 <- sizedTermGen(sz / 2, env)
         yield Term.Apply(t1, t2)
+
+        def constrGen(sz: Int, env: immutable.List[String]): Gen[Term] = for
+            tag <- Gen.choose(0, 10)
+            args <- Gen.listOfN(3, sizedTermGen(sz / 2, env))
+        yield Term.Constr(tag, args)
+
+        def caseGen(sz: Int, env: immutable.List[String]): Gen[Term] = for
+            arg <- sizedTermGen(sz / 2, env)
+            cases <- Gen.listOfN(3, sizedTermGen(sz / 2, env))
+        yield Term.Case(arg, cases)
 
         Gen.sized(sizedTermGen(_, Nil))
     }
@@ -231,12 +245,20 @@ trait ArbitraryInstances:
             val t1Shrunk = Shrink.shrink(t1).map(Term.Apply(_, t2))
             val t2Shrunk = Shrink.shrink(t2).map(Term.Apply(t1, _))
             t1Shrunk ++ t2Shrunk
+        // case Term.Constr(tag, args) => Shrink.shrink(args).map(Term.Constr(tag, _))
+        // case Term.Case(arg, cases) =>
+        // Shrink.shrink(arg) ++ Shrink.shrink(cases).map(Term.Case(arg, _))
+        case _ => Stream.empty
     }
 
     given Arbitrary[Program] = Arbitrary {
         for
-            maj <- Gen.posNum[Int]
-            min <- Gen.posNum[Int]
+            // The parser will reject uses of new constructs if the version is not high enough
+            // In order to keep our lives simple, we just generate a version that is always high
+            // enough to support everything. That gives us less coverage of parsing versions, but
+            // that's not likely to be the place where things go wrong
+            maj <- Gen.choose(1, 100)
+            min <- Gen.choose(1, 100)
             patch <- Gen.posNum[Int]
             term <- Arbitrary.arbitrary[Term]
         yield Program((maj, min, patch), term)

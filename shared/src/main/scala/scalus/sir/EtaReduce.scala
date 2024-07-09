@@ -94,4 +94,6 @@ object EtaReduce:
         // because (force (error)) will halt the evaluation and (lam x [(force (error)) x]) will not
         case Force(_) => false
         // (lam x [(builtin ..) x]) can be eta-reduced to (builtin ..)
-        case Builtin(_) => true
+        case Builtin(_)         => true
+        case Constr(_, args)    => args.forall(isPure)
+        case Case(scrut, cases) => isPure(scrut) && cases.forall(isPure)
