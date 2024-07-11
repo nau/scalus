@@ -30,7 +30,7 @@ class CekBuiltinsJsSpec extends CekBuiltinsSpec:
         )
         if (r.status.asInstanceOf[Int] != 0) throw new Exception(r.stderr.toString)
 //    println(r.stdout.toString())
-        UplcParser.term.parse(r.stdout.toString()) match
+        UplcParser().term.parse(r.stdout.toString()) match
             case Left(value)       => throw new Exception(s"Parse error: $value")
             case Right((_, value)) => value
 

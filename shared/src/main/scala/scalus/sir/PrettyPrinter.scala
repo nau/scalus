@@ -282,6 +282,15 @@ object PrettyPrinter:
             case Builtin(bn) =>
                 inParens(kw("builtin") & pretty(bn).styled(Fg.colorCode(176)))
             case Error => kw("(error)")
+            case Constr(tag, args) =>
+                val prettyArgs = intercalate(
+                  lineOrSpace,
+                  args.map(pretty(_, style))
+                )
+                inParens(kw("constr") & str(tag) & prettyArgs)
+            case Case(arg, cases) =>
+                val prettyCases = stack(cases.map(pretty(_, style)))
+                inParens(kw("case") & pretty(arg, style) / prettyCases.indent(2))
 
     def pretty(program: uplc.Program, style: Style): Doc =
         val (major, minor, patch) = program.version

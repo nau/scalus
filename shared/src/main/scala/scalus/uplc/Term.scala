@@ -1,10 +1,12 @@
 package scalus.uplc
 
+import io.bullet.borer.Cbor
 import org.typelevel.paiges.Doc
 import scalus.*
 import scalus.builtin.Data.*
-import io.bullet.borer.Cbor
 import scalus.utils.Hex
+
+import scala.collection.immutable
 
 case class NamedDeBruijn(name: String, index: Int = 0):
     assert(index >= 0)
@@ -21,6 +23,8 @@ enum Term:
     case Const(const: Constant) extends Term
     case Builtin(bn: DefaultFun) extends Term
     case Error extends Term
+    case Constr(tag: Long, args: immutable.List[Term])
+    case Case(arg: Term, cases: immutable.List[Term])
 
     override def toString: String = this match
         case Var(name)          => s"Var(NamedDeBruijn(\"${name.name}\"))"
@@ -31,6 +35,8 @@ enum Term:
         case Const(const)       => s"Const($const)"
         case Builtin(bn)        => s"Builtin($bn)"
         case Error              => "Error"
+        case Constr(tag, args)  => s"Constr($tag, ${args.mkString(", ")})"
+        case Case(arg, cases)   => s"Case($arg, ${cases.mkString(", ")})"
 
 case class Program(version: (Int, Int, Int), term: Term):
     lazy val flatEncoded = ProgramFlatCodec.encodeFlat(this)

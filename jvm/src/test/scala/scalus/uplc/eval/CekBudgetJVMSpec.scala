@@ -58,8 +58,8 @@ class CekBudgetJVMSpec extends AnyFunSuite:
         val v2 = pparams.costModels("PlutusV2")
         val paramsV1 = PlutusV1Params.fromSeq(v1)
         val paramsV2 = PlutusV2Params.fromSeq(v2)
-        val paramsV1Map = writeJs(paramsV1).obj.map { case (k, v) => (k, v.num.toInt) }.toMap
-        val paramsV2Map = writeJs(paramsV2).obj.map { case (k, v) => (k, v.num.toInt) }.toMap
+        val paramsV1Map = writeJs(paramsV1).obj.map { case (k, v) => (k, v.num.toLong) }.toMap
+        val paramsV2Map = writeJs(paramsV2).obj.map { case (k, v) => (k, v.num.toLong) }.toMap
         val modelV1 = BuiltinCostModel.fromCostModelParams(paramsV1Map)
         val modelV2 = BuiltinCostModel.fromCostModelParams(paramsV2Map)
         assert(
@@ -78,8 +78,8 @@ class CekBudgetJVMSpec extends AnyFunSuite:
         val v2 = pparams.costModels("PlutusV2")
         val paramsV1 = PlutusV1Params.fromSeq(v1)
         val paramsV2 = PlutusV2Params.fromSeq(v2)
-        val paramsV1Map = writeJs(paramsV1).obj.map { case (k, v) => (k, v.num.toInt) }.toMap
-        val paramsV2Map = writeJs(paramsV2).obj.map { case (k, v) => (k, v.num.toInt) }.toMap
+        val paramsV1Map = writeJs(paramsV1).obj.map { case (k, v) => (k, v.num.toLong) }.toMap
+        val paramsV2Map = writeJs(paramsV2).obj.map { case (k, v) => (k, v.num.toLong) }.toMap
         val modelV1 = BuiltinCostModel.fromCostModelParams(paramsV1Map)
         val modelV2 = BuiltinCostModel.fromCostModelParams(paramsV2Map)
         assert(
