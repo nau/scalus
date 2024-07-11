@@ -422,6 +422,19 @@ object SIRType {
                 other
     }
 
+    def fromDefaultUni(uplcType: DefaultUni): SIRType = {
+        uplcType match
+            case DefaultUni.ByteString => ByteStringPrimitive
+            case DefaultUni.Integer => IntegerPrimitive
+            case DefaultUni.String => StringPrimitive
+            case DefaultUni.Bool => BooleanPrimitive
+            case DefaultUni.Unit => VoidPrimitive
+            case DefaultUni.Data => Data
+            case DefaultUni.ProtoList => List(FreeUnificator)
+            case DefaultUni.ProtoPair => Pair(FreeUnificator, FreeUnificator)
+            case DefaultUni.Apply(f, arg) =>
+                SIRType.Fun(fromDefaultUni(f), fromDefaultUni(arg))
+    }
 
 
     inline def liftM[T <: AnyKind]: SIRType.Aux[T] = ${liftMImpl[T]}
