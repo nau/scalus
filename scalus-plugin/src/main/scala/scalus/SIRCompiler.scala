@@ -30,7 +30,6 @@ import scalus.sir.SIRVarStorage
 import scalus.sir.SIRBuiltins
 import scalus.sir.TypeBinding
 import scalus.uplc.DefaultUni
-import scalus.utils.HashConsed
 
 import java.net.URL
 import scala.collection.immutable
@@ -196,7 +195,7 @@ final class SIRCompiler(mode: scalus.Mode)(using ctx: Context) {
         val filename = pathParts.last
         val output = dir.fileNamed(filename + suffix).bufferedOutput
         val fl = summon[Flat[Module]]
-        val enc = EncoderState(fl.bitSize(module, HashConsed.empty) / 8 + 1)
+        val enc = EncoderState(fl.bitSize(module) / 8 + 1)
         flat.encode(module, enc)
         enc.filler()
         output.write(enc.buffer)
