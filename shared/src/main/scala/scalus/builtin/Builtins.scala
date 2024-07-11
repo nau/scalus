@@ -6,6 +6,7 @@ import java.nio.CharBuffer
 import java.nio.charset.CharsetDecoder
 import java.nio.charset.CodingErrorAction
 import java.nio.charset.StandardCharsets
+import scalus.uplc.eval.BuiltinException
 
 /** This is the platform specific part of the builtins. This is mostly cryptographic primitives that
   * have different implementations on different platforms.
@@ -96,6 +97,8 @@ object Builtins:
     // Bytestrings
     def appendByteString(a: ByteString, b: ByteString): ByteString = a ++ b
     def consByteString(char: BigInt, byteString: ByteString): ByteString =
+        if char < 0 || char > 255 then
+            throw new BuiltinException(s"consByteString: invalid byte value: $char")
         ByteString.fromArray(char.toByte +: byteString.bytes)
     def sliceByteString(start: BigInt, n: BigInt, bs: ByteString): ByteString =
         ByteString.fromArray(bs.bytes.drop(start.toInt).take(n.toInt))
@@ -103,7 +106,7 @@ object Builtins:
     def lengthOfByteString(bs: ByteString): BigInt = bs.length
     def indexByteString(bs: ByteString, i: BigInt): BigInt =
         if i < 0 || i >= bs.length then
-            throw new Exception(
+            throw new BuiltinException(
               s"index $i out of bounds for bytestring of length ${bs.length}"
             )
         else BigInt(bs.bytes(i.toInt) & 0xff)
