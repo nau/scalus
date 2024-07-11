@@ -27,7 +27,6 @@ class UplcParser:
     private var version = (1, 1, 0) // use latest version by default
 
     // TODO and FIXME:
-    // - string escape sequences are not as in the Haskell parser, fix that
     // - support nested block comments as in the Haskell parser
     // - con/constr/case/lam... expect a whitespaces0 but it must be whitespace, refactor
     val lineComment = P.string("--") *> P.charsWhile(_ != '\n').void
@@ -77,12 +76,53 @@ class UplcParser:
     }
 
     def stringChars(c: Char): Boolean = c != '\"' && c != '\\'
-    // TODO check this is the same as in the Haskell parser
-    def escape: P[String] = (P.char('\\') *> P.charIn("\"/\\\\bfnrt")).map(_.toString)
-    def strChars: P[String] = P.charsWhile(stringChars)
-    def string: P[String] = P.char('\"') *> (strChars | escape).rep0 <* P.char('\"') map {
-        _.mkString
-    }
+    def isAllowedChar(c: Char): Boolean = c >= 32 && c != '"' && c != '\\'
+
+    val regularChar: P[Char] = P.charWhere(isAllowedChar)
+
+    val escapeMap: Map[Char, Char] = Map(
+      'a' -> 7.toChar, // Bell
+      'b' -> '\b', // Backspace
+      'f' -> '\f', // Form feed
+      'n' -> '\n', // Line feed
+      'r' -> '\r', // Carriage return
+      't' -> '\t', // Tab
+      'v' -> 11.toChar, // Vertical tab
+      '\\' -> '\\',
+      '"' -> '"',
+      '\'' -> '\'',
+      '&' -> '\u0000' // Null character (used in Haskell for string gaps)
+    )
+
+    val escapedChar: P[Char] = P.charIn(escapeMap.keys).map(escapeMap)
+
+    val decimalChar: P[Char] = digit.rep(1).map(digits => digits.toList.mkString.toInt.toChar)
+
+    val octalChar: P[Char] = P.char('o') *> P
+        .charIn('0' to '7')
+        .rep(1, 3)
+        .map(digits => Integer.parseInt(digits.toList.mkString, 8).toChar)
+
+    val hexChar: P[Char] = P.char('x') *> hexdig
+        .rep(1)
+        .map(digits => Integer.parseInt(digits.toList.mkString, 16).toChar)
+
+    val unicodeChar: P[Char] = (
+      (P.string("u{") *> hexdig.rep(1, 6) <* P.char('}')) |
+          (P.char('u') *> hexdig.rep(4, 4))
+    ).map(digits => Integer.parseInt(digits.toList.mkString, 16).toChar)
+
+    val controlChar: P[Char] = P.char('^') *> P.charIn('@'.to('_')).map(c => (c - '@').toChar)
+
+    val escapeSequence: P[Char] = P.char('\\') *> (
+      escapedChar | decimalChar | octalChar | hexChar | unicodeChar | controlChar
+    )
+
+    val stringChar: P[Char] = regularChar | escapeSequence
+
+    // Main string literal parser
+    val stringLiteral: P[String] =
+        P.char('"') *> stringChar.rep0.map(_.toList.mkString) <* P.char('"')
 
     def conListOf(t: DefaultUni): P[Constant] =
         symbol("[") *> constantOf(t).repSep0(symbol(",")) <* symbol("]") map { ls =>
@@ -106,7 +146,7 @@ class UplcParser:
         case DefaultUni.ByteString =>
             lexeme(bytestring.map(asConstant))
         case DefaultUni.String =>
-            lexeme(string).map(s => asConstant(s)) // TODO validate escape sequences
+            lexeme(stringLiteral).map(s => asConstant(s)) // TODO validate escape sequences
         case DefaultUni.Data =>
             (if expectDataParens then inParens(dataTerm) else dataTerm).map(asConstant)
         case DefaultUni.Apply(ProtoList, t)                      => conListOf(t)

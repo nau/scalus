@@ -158,7 +158,9 @@ class UplcParserSpec extends AnyFunSuite with ScalaCheckPropertyChecks with Arbi
         import cats.implicits.toShow
         def p(input: String) = parser.conTerm.parse(input).map(_._2).left.map(e => e.show)
         assert(
-          p("(con (list integer) [1,2, 000000000000000000000000000000000000012345])") == Right(Seq(1, 2, 12345): Term)
+          p("(con (list integer) [1,2, 000000000000000000000000000000000000012345])") == Right(
+            Seq(1, 2, 12345): Term
+          )
         )
 
         assert(
@@ -183,13 +185,15 @@ class UplcParserSpec extends AnyFunSuite with ScalaCheckPropertyChecks with Arbi
         |  (con bool True)
         |  (con bool False)
         |  (con unit () )
-        |  (con string "Hello")
+        |  (con string "x \8712 \8477 \8658 x\178 \8805 0; z \8712 \8450\\\8477 \8658 z\178 \8713 {x \8712 \8477: x \8805 0}.")
         |  ])""".stripMargin)
         assert(
           r == Right(
             Program(
               version = (1, 0, 0),
-              term = builtin.ByteString.fromHex("001234ff") $ true $ false $ () $ "Hello"
+              term = builtin.ByteString.fromHex(
+                "001234ff"
+              ) $ true $ false $ () $ "x ∈ ℝ ⇒ x² ≥ 0; z ∈ ℂ\\ℝ ⇒ z² ∉ {x ∈ ℝ: x ≥ 0}."
             )
           )
         )
