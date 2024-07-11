@@ -158,7 +158,7 @@ class UplcParserSpec extends AnyFunSuite with ScalaCheckPropertyChecks with Arbi
         import cats.implicits.toShow
         def p(input: String) = parser.conTerm.parse(input).map(_._2).left.map(e => e.show)
         assert(
-          p("(con (list integer) [1,2, 3333])") == Right(Seq(1, 2, 3333): Term)
+          p("(con (list integer) [1,2, 000000000000000000000000000000000000012345])") == Right(Seq(1, 2, 12345): Term)
         )
 
         assert(

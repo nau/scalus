@@ -1,12 +1,18 @@
 package scalus.uplc
 
 import cats.implicits.toShow
-import cats.parse.Numbers.{bigInt, digits}
-import cats.parse.Rfc5234.{alpha, digit, hexdig}
-import cats.parse.{Numbers, Parser as P, Parser0}
+import cats.parse.Numbers
+import cats.parse.Numbers.digits
+import cats.parse.Parser as P
+import cats.parse.Parser0
+import cats.parse.Rfc5234.alpha
+import cats.parse.Rfc5234.digit
+import cats.parse.Rfc5234.hexdig
 import scalus.builtin.ByteString
 import scalus.builtin.Data
-import scalus.uplc.DefaultUni.{asConstant, ProtoList, ProtoPair}
+import scalus.uplc.DefaultUni.ProtoList
+import scalus.uplc.DefaultUni.ProtoPair
+import scalus.uplc.DefaultUni.asConstant
 import scalus.uplc.Term.*
 import scalus.utils.Utils
 
@@ -33,7 +39,10 @@ class UplcParser:
 
     def number: P[Int] = digits.map(_.toList.mkString.toInt)
     def long: P[Long] = digits.map(_.toList.mkString.toLong)
-    def bigint: P[String] = Numbers.bigInt.map(_.toString)
+    def bigint: P[String] = (P.charIn('+', '-').?.with1 ~ digits).map { case (s, d) =>
+        s.map(_.toString).getOrElse("") + d
+    }
+    def integer: P[BigInt] = bigint.map(BigInt(_))
     def inParens[A](p: P[A]): P[A] = p.between(symbol("("), symbol(")"))
     def inBrackets[A](p: P[A]): P[A] = p.between(symbol("["), symbol("]"))
     def lexeme[A](p: P[A]): P[A] = p <* whitespaces0
@@ -87,7 +96,7 @@ class UplcParser:
 
     def bytestring: P[ByteString] = P.char('#') *> hexByte.rep0.map(bs => ByteString(bs: _*))
     def constantOf(t: DefaultUni, expectDataParens: Boolean = false): P[Constant] = t match
-        case DefaultUni.Integer => lexeme(bigInt).map(i => Constant.Integer(i))
+        case DefaultUni.Integer => lexeme(integer).map(i => Constant.Integer(i))
         case DefaultUni.Unit    => symbol("()").map(_ => Constant.Unit)
         case DefaultUni.Bool =>
             lexeme(P.stringIn(Seq("True", "False"))).map {
