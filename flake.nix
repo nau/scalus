@@ -24,7 +24,7 @@
     , plutus
     , ...
     } @ inputs:
-    (flake-utils.lib.eachSystem [ "x86_64-darwin" "x86_64-linux" ]
+    (flake-utils.lib.eachSystem [ "x86_64-darwin" "x86_64-linux" "aarch64-darwin" "aarch64-linux" ]
       (system:
       let
         pkgs = import nixpkgs { inherit system; };
@@ -41,7 +41,7 @@
           buildInputs = [ pkgs.bashInteractive ];
           packages = with pkgs; [
             git
-            openjdk11
+            openjdk21
             sbt
             mill
             scalafmt
