@@ -43,7 +43,11 @@ class PlutusConformanceSpec extends BaseValidatorSpec:
         val expected = fromFile(s"$path/$name.uplc.expected").mkString
         test(name) {
             // println(eval(code).pretty.render(80))
-            assert(eval(code) == parseExpected(expected))
+            (eval(code), parseExpected(expected)) match
+                case (Right(actual), Right(expected)) =>
+                    assert(actual alphaEq expected)
+                case (Left(e1), Left(e2)) => assert(e1 == e2)
+                case (a, b)               => fail(s"Expected $b but got $a")
         }
 
     // builtins
@@ -115,7 +119,9 @@ class PlutusConformanceSpec extends BaseValidatorSpec:
     check("builtin/interleaving/ite/ite")
     check("builtin/interleaving/iteAtIntegerArrowIntegerApplied1/iteAtIntegerArrowIntegerApplied1")
     check("builtin/interleaving/iteAtIntegerArrowIntegerApplied2/iteAtIntegerArrowIntegerApplied2")
-    check("builtin/interleaving/iteAtIntegerArrowIntegerAppliedApplied/iteAtIntegerArrowIntegerAppliedApplied")
+    check(
+      "builtin/interleaving/iteAtIntegerArrowIntegerAppliedApplied/iteAtIntegerArrowIntegerAppliedApplied"
+    )
     check("builtin/interleaving/iteAtIntegerArrowIntegerWithCond/iteAtIntegerArrowIntegerWithCond")
     check("builtin/interleaving/iteForceAppForce/iteForceAppForce")
     check("builtin/interleaving/iteForced/iteForced")
@@ -300,10 +306,18 @@ class PlutusConformanceSpec extends BaseValidatorSpec:
     check("builtin/semantics/lessThanByteString/lessThanByteString3/lessThanByteString3")
     check("builtin/semantics/lessThanByteString/lessThanByteString4/lessThanByteString4")
     check("builtin/semantics/lessThanByteString/lessThanByteString5/lessThanByteString5")
-    check("builtin/semantics/lessThanEqualsByteString/lessThanEqualsByteString0/lessThanEqualsByteString0")
-    check("builtin/semantics/lessThanEqualsByteString/lessThanEqualsByteString1/lessThanEqualsByteString1")
-    check("builtin/semantics/lessThanEqualsByteString/lessThanEqualsByteString2/lessThanEqualsByteString2")
-    check("builtin/semantics/lessThanEqualsByteString/lessThanEqualsByteString3/lessThanEqualsByteString3")
+    check(
+      "builtin/semantics/lessThanEqualsByteString/lessThanEqualsByteString0/lessThanEqualsByteString0"
+    )
+    check(
+      "builtin/semantics/lessThanEqualsByteString/lessThanEqualsByteString1/lessThanEqualsByteString1"
+    )
+    check(
+      "builtin/semantics/lessThanEqualsByteString/lessThanEqualsByteString2/lessThanEqualsByteString2"
+    )
+    check(
+      "builtin/semantics/lessThanEqualsByteString/lessThanEqualsByteString3/lessThanEqualsByteString3"
+    )
     check("builtin/semantics/lessThanEqualsInteger/lessThanEqualsInteger1/lessThanEqualsInteger1")
     check("builtin/semantics/lessThanEqualsInteger/lessThanEqualsInteger2/lessThanEqualsInteger2")
     check("builtin/semantics/lessThanEqualsInteger/lessThanEqualsInteger3/lessThanEqualsInteger3")
@@ -380,53 +394,144 @@ class PlutusConformanceSpec extends BaseValidatorSpec:
     check("builtin/semantics/unListData/unListData1/unListData1")
     check("builtin/semantics/unMapData/unMapData-fail/unMapData-fail")
     check("builtin/semantics/unMapData/unMapData1/unMapData1")
-    check("builtin/semantics/verifyEcdsaSecp256k1Signature/verifyEcdsaSecp256k1Signature-invalid-key/verifyEcdsaSecp256k1Signature-invalid-key")
-    check("builtin/semantics/verifyEcdsaSecp256k1Signature/verifyEcdsaSecp256k1Signature-long-key/verifyEcdsaSecp256k1Signature-long-key")
-    check("builtin/semantics/verifyEcdsaSecp256k1Signature/verifyEcdsaSecp256k1Signature-long-msg/verifyEcdsaSecp256k1Signature-long-msg")
-    check("builtin/semantics/verifyEcdsaSecp256k1Signature/verifyEcdsaSecp256k1Signature-long-sig/verifyEcdsaSecp256k1Signature-long-sig")
-    check("builtin/semantics/verifyEcdsaSecp256k1Signature/verifyEcdsaSecp256k1Signature-short-key/verifyEcdsaSecp256k1Signature-short-key")
-    check("builtin/semantics/verifyEcdsaSecp256k1Signature/verifyEcdsaSecp256k1Signature-short-msg/verifyEcdsaSecp256k1Signature-short-msg")
-    check("builtin/semantics/verifyEcdsaSecp256k1Signature/verifyEcdsaSecp256k1Signature-short-sig/verifyEcdsaSecp256k1Signature-short-sig")
-    check("builtin/semantics/verifyEd25519Signature/verifyEd25519Signature1/verifyEd25519Signature1")
-    check("builtin/semantics/verifyEd25519Signature/verifyEd25519Signature10/verifyEd25519Signature10")
-    check("builtin/semantics/verifyEd25519Signature/verifyEd25519Signature11/verifyEd25519Signature11")
-    check("builtin/semantics/verifyEd25519Signature/verifyEd25519Signature12/verifyEd25519Signature12")
-    check("builtin/semantics/verifyEd25519Signature/verifyEd25519Signature13/verifyEd25519Signature13")
-    check("builtin/semantics/verifyEd25519Signature/verifyEd25519Signature14/verifyEd25519Signature14")
-    check("builtin/semantics/verifyEd25519Signature/verifyEd25519Signature15/verifyEd25519Signature15")
-    check("builtin/semantics/verifyEd25519Signature/verifyEd25519Signature16/verifyEd25519Signature16")
-    check("builtin/semantics/verifyEd25519Signature/verifyEd25519Signature17/verifyEd25519Signature17")
-    check("builtin/semantics/verifyEd25519Signature/verifyEd25519Signature18/verifyEd25519Signature18")
-    check("builtin/semantics/verifyEd25519Signature/verifyEd25519Signature19/verifyEd25519Signature19")
-    check("builtin/semantics/verifyEd25519Signature/verifyEd25519Signature2/verifyEd25519Signature2")
-    check("builtin/semantics/verifyEd25519Signature/verifyEd25519Signature20/verifyEd25519Signature20")
-    check("builtin/semantics/verifyEd25519Signature/verifyEd25519Signature21/verifyEd25519Signature21")
-    check("builtin/semantics/verifyEd25519Signature/verifyEd25519Signature22/verifyEd25519Signature22")
-    check("builtin/semantics/verifyEd25519Signature/verifyEd25519Signature23/verifyEd25519Signature23")
-    check("builtin/semantics/verifyEd25519Signature/verifyEd25519Signature24/verifyEd25519Signature24")
-    check("builtin/semantics/verifyEd25519Signature/verifyEd25519Signature25/verifyEd25519Signature25")
-    check("builtin/semantics/verifyEd25519Signature/verifyEd25519Signature26/verifyEd25519Signature26")
-    check("builtin/semantics/verifyEd25519Signature/verifyEd25519Signature27/verifyEd25519Signature27")
-    check("builtin/semantics/verifyEd25519Signature/verifyEd25519Signature28/verifyEd25519Signature28")
-    check("builtin/semantics/verifyEd25519Signature/verifyEd25519Signature29/verifyEd25519Signature29")
-    check("builtin/semantics/verifyEd25519Signature/verifyEd25519Signature3/verifyEd25519Signature3")
-    check("builtin/semantics/verifyEd25519Signature/verifyEd25519Signature30/verifyEd25519Signature30")
-    check("builtin/semantics/verifyEd25519Signature/verifyEd25519Signature31/verifyEd25519Signature31")
-    check("builtin/semantics/verifyEd25519Signature/verifyEd25519Signature4/verifyEd25519Signature4")
-    check("builtin/semantics/verifyEd25519Signature/verifyEd25519Signature5/verifyEd25519Signature5")
-    check("builtin/semantics/verifyEd25519Signature/verifyEd25519Signature6/verifyEd25519Signature6")
-    check("builtin/semantics/verifyEd25519Signature/verifyEd25519Signature7/verifyEd25519Signature7")
-    check("builtin/semantics/verifyEd25519Signature/verifyEd25519Signature8/verifyEd25519Signature8")
-    check("builtin/semantics/verifyEd25519Signature/verifyEd25519Signature9/verifyEd25519Signature9")
-    check("builtin/semantics/verifyEd25519Signature/verifyEd25519SignatureLongKey/verifyEd25519SignatureLongKey")
-    check("builtin/semantics/verifyEd25519Signature/verifyEd25519SignatureLongSig/verifyEd25519SignatureLongSig")
-    check("builtin/semantics/verifyEd25519Signature/verifyEd25519SignatureShortKey/verifyEd25519SignatureShortKey")
-    check("builtin/semantics/verifyEd25519Signature/verifyEd25519SignatureShortSig/verifyEd25519SignatureShortSig")
-    check("builtin/semantics/verifySchnorrSecp256k1Signature/verifySchnorrSecp256k1Signature-long-key/verifySchnorrSecp256k1Signature-long-key")
-    check("builtin/semantics/verifySchnorrSecp256k1Signature/verifySchnorrSecp256k1Signature-long-sig/verifySchnorrSecp256k1Signature-long-sig")
-    check("builtin/semantics/verifySchnorrSecp256k1Signature/verifySchnorrSecp256k1Signature-short-key/verifySchnorrSecp256k1Signature-short-key")
-    check("builtin/semantics/verifySchnorrSecp256k1Signature/verifySchnorrSecp256k1Signature-short-sig/verifySchnorrSecp256k1Signature-short-sig")
-
+    check(
+      "builtin/semantics/verifyEcdsaSecp256k1Signature/verifyEcdsaSecp256k1Signature-invalid-key/verifyEcdsaSecp256k1Signature-invalid-key"
+    )
+    check(
+      "builtin/semantics/verifyEcdsaSecp256k1Signature/verifyEcdsaSecp256k1Signature-long-key/verifyEcdsaSecp256k1Signature-long-key"
+    )
+    check(
+      "builtin/semantics/verifyEcdsaSecp256k1Signature/verifyEcdsaSecp256k1Signature-long-msg/verifyEcdsaSecp256k1Signature-long-msg"
+    )
+    check(
+      "builtin/semantics/verifyEcdsaSecp256k1Signature/verifyEcdsaSecp256k1Signature-long-sig/verifyEcdsaSecp256k1Signature-long-sig"
+    )
+    check(
+      "builtin/semantics/verifyEcdsaSecp256k1Signature/verifyEcdsaSecp256k1Signature-short-key/verifyEcdsaSecp256k1Signature-short-key"
+    )
+    check(
+      "builtin/semantics/verifyEcdsaSecp256k1Signature/verifyEcdsaSecp256k1Signature-short-msg/verifyEcdsaSecp256k1Signature-short-msg"
+    )
+    check(
+      "builtin/semantics/verifyEcdsaSecp256k1Signature/verifyEcdsaSecp256k1Signature-short-sig/verifyEcdsaSecp256k1Signature-short-sig"
+    )
+    check(
+      "builtin/semantics/verifyEd25519Signature/verifyEd25519Signature1/verifyEd25519Signature1"
+    )
+    check(
+      "builtin/semantics/verifyEd25519Signature/verifyEd25519Signature10/verifyEd25519Signature10"
+    )
+    check(
+      "builtin/semantics/verifyEd25519Signature/verifyEd25519Signature11/verifyEd25519Signature11"
+    )
+    check(
+      "builtin/semantics/verifyEd25519Signature/verifyEd25519Signature12/verifyEd25519Signature12"
+    )
+    check(
+      "builtin/semantics/verifyEd25519Signature/verifyEd25519Signature13/verifyEd25519Signature13"
+    )
+    check(
+      "builtin/semantics/verifyEd25519Signature/verifyEd25519Signature14/verifyEd25519Signature14"
+    )
+    check(
+      "builtin/semantics/verifyEd25519Signature/verifyEd25519Signature15/verifyEd25519Signature15"
+    )
+    check(
+      "builtin/semantics/verifyEd25519Signature/verifyEd25519Signature16/verifyEd25519Signature16"
+    )
+    check(
+      "builtin/semantics/verifyEd25519Signature/verifyEd25519Signature17/verifyEd25519Signature17"
+    )
+    check(
+      "builtin/semantics/verifyEd25519Signature/verifyEd25519Signature18/verifyEd25519Signature18"
+    )
+    check(
+      "builtin/semantics/verifyEd25519Signature/verifyEd25519Signature19/verifyEd25519Signature19"
+    )
+    check(
+      "builtin/semantics/verifyEd25519Signature/verifyEd25519Signature2/verifyEd25519Signature2"
+    )
+    check(
+      "builtin/semantics/verifyEd25519Signature/verifyEd25519Signature20/verifyEd25519Signature20"
+    )
+    check(
+      "builtin/semantics/verifyEd25519Signature/verifyEd25519Signature21/verifyEd25519Signature21"
+    )
+    check(
+      "builtin/semantics/verifyEd25519Signature/verifyEd25519Signature22/verifyEd25519Signature22"
+    )
+    check(
+      "builtin/semantics/verifyEd25519Signature/verifyEd25519Signature23/verifyEd25519Signature23"
+    )
+    check(
+      "builtin/semantics/verifyEd25519Signature/verifyEd25519Signature24/verifyEd25519Signature24"
+    )
+    check(
+      "builtin/semantics/verifyEd25519Signature/verifyEd25519Signature25/verifyEd25519Signature25"
+    )
+    check(
+      "builtin/semantics/verifyEd25519Signature/verifyEd25519Signature26/verifyEd25519Signature26"
+    )
+    check(
+      "builtin/semantics/verifyEd25519Signature/verifyEd25519Signature27/verifyEd25519Signature27"
+    )
+    check(
+      "builtin/semantics/verifyEd25519Signature/verifyEd25519Signature28/verifyEd25519Signature28"
+    )
+    check(
+      "builtin/semantics/verifyEd25519Signature/verifyEd25519Signature29/verifyEd25519Signature29"
+    )
+    check(
+      "builtin/semantics/verifyEd25519Signature/verifyEd25519Signature3/verifyEd25519Signature3"
+    )
+    check(
+      "builtin/semantics/verifyEd25519Signature/verifyEd25519Signature30/verifyEd25519Signature30"
+    )
+    check(
+      "builtin/semantics/verifyEd25519Signature/verifyEd25519Signature31/verifyEd25519Signature31"
+    )
+    check(
+      "builtin/semantics/verifyEd25519Signature/verifyEd25519Signature4/verifyEd25519Signature4"
+    )
+    check(
+      "builtin/semantics/verifyEd25519Signature/verifyEd25519Signature5/verifyEd25519Signature5"
+    )
+    check(
+      "builtin/semantics/verifyEd25519Signature/verifyEd25519Signature6/verifyEd25519Signature6"
+    )
+    check(
+      "builtin/semantics/verifyEd25519Signature/verifyEd25519Signature7/verifyEd25519Signature7"
+    )
+    check(
+      "builtin/semantics/verifyEd25519Signature/verifyEd25519Signature8/verifyEd25519Signature8"
+    )
+    check(
+      "builtin/semantics/verifyEd25519Signature/verifyEd25519Signature9/verifyEd25519Signature9"
+    )
+    check(
+      "builtin/semantics/verifyEd25519Signature/verifyEd25519SignatureLongKey/verifyEd25519SignatureLongKey"
+    )
+    check(
+      "builtin/semantics/verifyEd25519Signature/verifyEd25519SignatureLongSig/verifyEd25519SignatureLongSig"
+    )
+    check(
+      "builtin/semantics/verifyEd25519Signature/verifyEd25519SignatureShortKey/verifyEd25519SignatureShortKey"
+    )
+    check(
+      "builtin/semantics/verifyEd25519Signature/verifyEd25519SignatureShortSig/verifyEd25519SignatureShortSig"
+    )
+    check(
+      "builtin/semantics/verifySchnorrSecp256k1Signature/verifySchnorrSecp256k1Signature-long-key/verifySchnorrSecp256k1Signature-long-key"
+    )
+    check(
+      "builtin/semantics/verifySchnorrSecp256k1Signature/verifySchnorrSecp256k1Signature-long-sig/verifySchnorrSecp256k1Signature-long-sig"
+    )
+    check(
+      "builtin/semantics/verifySchnorrSecp256k1Signature/verifySchnorrSecp256k1Signature-short-key/verifySchnorrSecp256k1Signature-short-key"
+    )
+    check(
+      "builtin/semantics/verifySchnorrSecp256k1Signature/verifySchnorrSecp256k1Signature-short-sig/verifySchnorrSecp256k1Signature-short-sig"
+    )
 
     // constr/case
     check("term/app/app-1/app-1")
@@ -448,9 +553,7 @@ class PlutusConformanceSpec extends BaseValidatorSpec:
     check("term/case/case-7/case-7")
     check("term/case/case-8/case-8")
     check("term/case/case-9/case-9")
-    // TODO: FIXME:
-    // Plutus expects (program 1.0.0 (lam j_0 (con integer 1))), which is incorrect, should be (program 1.0.0 (lam j_1 (con integer 1))) as in Scalus
-    // check("term/closure/closure")
+    check("term/closure/closure")
     check("term/constr/constr-1/constr-1")
     check("term/constr/constr-2/constr-2")
     check("term/constr/constr-3/constr-3")
