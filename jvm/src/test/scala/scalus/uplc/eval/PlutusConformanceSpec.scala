@@ -2,6 +2,8 @@ package scalus
 package uplc
 package eval
 
+import org.scalatest.funsuite.AnyFunSuite
+
 import scala.io.Source.fromFile
 import scala.language.implicitConversions
 
@@ -10,73 +12,38 @@ import scala.language.implicitConversions
   * @note
   *   This tests run only on JVM right now.
   */
-class PlutusConformanceSpec extends BaseValidatorSpec:
+class PlutusConformanceSpec extends AnyFunSuite:
+    // Run this command in plutus-conformance to generate the test cases
+    // find . -name "*.uplc" -print0 | sort -zf | xargs -0 -I {} bash -c 'file="{}"; rel_path="${file#./}"; without_ext="${rel_path%.uplc}"; echo "check(\"$without_ext\")"'
 
-    private type EvalFailure = "evaluation failure"
-    private type ParseError = "parse error"
-    private type Error = EvalFailure | ParseError
-    private def parseExpected(code: String): Either[Error, Program] = {
-        code match
-            case "evaluation failure" => Left("evaluation failure")
-            case "parse error"        => Left("parse error")
-            case _ =>
-                UplcParser().parseProgram(code) match
-                    case Left(value) => fail(s"Unexpected parse error: $value")
-                    case Right(program) =>
-                        Right(program.copy(term = DeBruijn.deBruijnTerm(program.term)))
-
-    }
-
-    private def eval(code: String): Either[Error, Program] = {
-        UplcParser().parseProgram(code) match
-            case Right(program) =>
-                try Right(program.copy(term = VM.evaluateProgram(program)))
-                catch case e: Exception => Left("evaluation failure")
-            case Left(e) =>
-                Left("parse error")
-    }
-
-    private def check(name: String) =
-        val path =
-            s"../plutus-conformance/test-cases/uplc/evaluation"
-        val code = fromFile(s"$path/$name.uplc").mkString
-        val expected = fromFile(s"$path/$name.uplc.expected").mkString
-        test(name) {
-            // println(eval(code).pretty.render(80))
-            (eval(code), parseExpected(expected)) match
-                case (Right(actual), Right(expected)) =>
-                    assert(actual alphaEq expected)
-                case (Left(e1), Left(e2)) => assert(e1 == e2)
-                case (a, b)               => fail(s"Expected $b but got $a")
-        }
-
-    // builtins
-    // check("builtin/constant/bls12-381/G1/bad-syntax-1/bad-syntax-1")
-    // check("builtin/constant/bls12-381/G1/bad-syntax-2/bad-syntax-2")
-    // check("builtin/constant/bls12-381/G1/bad-zero-1/bad-zero-1")
-    // check("builtin/constant/bls12-381/G1/bad-zero-2/bad-zero-2")
-    // check("builtin/constant/bls12-381/G1/bad-zero-3/bad-zero-3")
-    // check("builtin/constant/bls12-381/G1/off-curve/off-curve")
-    // check("builtin/constant/bls12-381/G1/on-curve-bit3-clear/on-curve-bit3-clear")
-    // check("builtin/constant/bls12-381/G1/on-curve-bit3-set/on-curve-bit3-set")
-    // check("builtin/constant/bls12-381/G1/on-curve-serialised-not-compressed/on-curve-serialised-not-compressed")
-    // check("builtin/constant/bls12-381/G1/out-of-group/out-of-group")
-    // check("builtin/constant/bls12-381/G1/too-long/too-long")
-    // check("builtin/constant/bls12-381/G1/too-short/too-short")
-    // check("builtin/constant/bls12-381/G1/zero/zero")
-    // check("builtin/constant/bls12-381/G2/bad-syntax-1/bad-syntax-1")
-    // check("builtin/constant/bls12-381/G2/bad-syntax-2/bad-syntax-2")
-    // check("builtin/constant/bls12-381/G2/bad-zero-1/bad-zero-1")
-    // check("builtin/constant/bls12-381/G2/bad-zero-2/bad-zero-2")
-    // check("builtin/constant/bls12-381/G2/bad-zero-3/bad-zero-3")
-    // check("builtin/constant/bls12-381/G2/off-curve/off-curve")
-    // check("builtin/constant/bls12-381/G2/on-curve-bit3-clear/on-curve-bit3-clear")
-    // check("builtin/constant/bls12-381/G2/on-curve-bit3-set/on-curve-bit3-set")
-    // check("builtin/constant/bls12-381/G2/on-curve-serialised-not-compressed/on-curve-serialised-not-compressed")
-    // check("builtin/constant/bls12-381/G2/out-of-group/out-of-group")
-    // check("builtin/constant/bls12-381/G2/too-long/too-long")
-    // check("builtin/constant/bls12-381/G2/too-short/too-short")
-    // check("builtin/constant/bls12-381/G2/zero/zero")
+    // disable scalafmt for the following block
+    // format: off
+//    check("builtin/constant/bls12-381/G1/bad-syntax-1/bad-syntax-1")
+//    check("builtin/constant/bls12-381/G1/bad-syntax-2/bad-syntax-2")
+//    check("builtin/constant/bls12-381/G1/bad-zero-1/bad-zero-1")
+//    check("builtin/constant/bls12-381/G1/bad-zero-2/bad-zero-2")
+//    check("builtin/constant/bls12-381/G1/bad-zero-3/bad-zero-3")
+//    check("builtin/constant/bls12-381/G1/off-curve/off-curve")
+//    check("builtin/constant/bls12-381/G1/on-curve-bit3-clear/on-curve-bit3-clear")
+//    check("builtin/constant/bls12-381/G1/on-curve-bit3-set/on-curve-bit3-set")
+//    check("builtin/constant/bls12-381/G1/on-curve-serialised-not-compressed/on-curve-serialised-not-compressed")
+//    check("builtin/constant/bls12-381/G1/out-of-group/out-of-group")
+//    check("builtin/constant/bls12-381/G1/too-long/too-long")
+//    check("builtin/constant/bls12-381/G1/too-short/too-short")
+//    check("builtin/constant/bls12-381/G1/zero/zero")
+//    check("builtin/constant/bls12-381/G2/bad-syntax-1/bad-syntax-1")
+//    check("builtin/constant/bls12-381/G2/bad-syntax-2/bad-syntax-2")
+//    check("builtin/constant/bls12-381/G2/bad-zero-1/bad-zero-1")
+//    check("builtin/constant/bls12-381/G2/bad-zero-2/bad-zero-2")
+//    check("builtin/constant/bls12-381/G2/bad-zero-3/bad-zero-3")
+//    check("builtin/constant/bls12-381/G2/off-curve/off-curve")
+//    check("builtin/constant/bls12-381/G2/on-curve-bit3-clear/on-curve-bit3-clear")
+//    check("builtin/constant/bls12-381/G2/on-curve-bit3-set/on-curve-bit3-set")
+//    check("builtin/constant/bls12-381/G2/on-curve-serialised-not-compressed/on-curve-serialised-not-compressed")
+//    check("builtin/constant/bls12-381/G2/out-of-group/out-of-group")
+//    check("builtin/constant/bls12-381/G2/too-long/too-long")
+//    check("builtin/constant/bls12-381/G2/too-short/too-short")
+//    check("builtin/constant/bls12-381/G2/zero/zero")
     check("builtin/constant/bool/False/False")
     check("builtin/constant/bool/True/True")
     check("builtin/constant/bytestring/bytestring1/bytestring1")
@@ -104,9 +71,13 @@ class PlutusConformanceSpec extends BaseValidatorSpec:
     check("builtin/constant/integer/integer8/integer8")
     check("builtin/constant/integer/integer9/integer9")
     check("builtin/constant/list/emptyList/emptyList")
+    check("builtin/constant/list/illTypedList1/illTypedList1")
+    check("builtin/constant/list/illTypedList2/illTypedList2")
     check("builtin/constant/list/simpleList/simpleList")
     check("builtin/constant/list/unitList/unitList")
     check("builtin/constant/pair/illTypedNestedPair/illTypedNestedPair")
+    check("builtin/constant/pair/illTypedPair1/illTypedPair1")
+    check("builtin/constant/pair/illTypedPair2/illTypedPair2")
     check("builtin/constant/pair/nestedPair/nestedPair")
     check("builtin/constant/pair/simplePair/simplePair")
     check("builtin/constant/string/string1/string1")
@@ -119,9 +90,7 @@ class PlutusConformanceSpec extends BaseValidatorSpec:
     check("builtin/interleaving/ite/ite")
     check("builtin/interleaving/iteAtIntegerArrowIntegerApplied1/iteAtIntegerArrowIntegerApplied1")
     check("builtin/interleaving/iteAtIntegerArrowIntegerApplied2/iteAtIntegerArrowIntegerApplied2")
-    check(
-      "builtin/interleaving/iteAtIntegerArrowIntegerAppliedApplied/iteAtIntegerArrowIntegerAppliedApplied"
-    )
+    check("builtin/interleaving/iteAtIntegerArrowIntegerAppliedApplied/iteAtIntegerArrowIntegerAppliedApplied")
     check("builtin/interleaving/iteAtIntegerArrowIntegerWithCond/iteAtIntegerArrowIntegerWithCond")
     check("builtin/interleaving/iteForceAppForce/iteForceAppForce")
     check("builtin/interleaving/iteForced/iteForced")
@@ -146,113 +115,124 @@ class PlutusConformanceSpec extends BaseValidatorSpec:
     check("builtin/semantics/appendByteString/appendByteString3/appendByteString3")
     check("builtin/semantics/appendString/appendString")
     check("builtin/semantics/bData/bData")
-    // check("builtin/semantics/blake2b_224/blake2b_224-empty/blake2b_224-empty")
-    // check("builtin/semantics/blake2b_224/blake2b_224-length-200/blake2b_224-length-200")
+//    check("builtin/semantics/blake2b_224/blake2b_224-empty/blake2b_224-empty")
+//    check("builtin/semantics/blake2b_224/blake2b_224-length-200/blake2b_224-length-200")
     check("builtin/semantics/blake2b_256/blake2b_256-empty/blake2b_256-empty")
     check("builtin/semantics/blake2b_256/blake2b_256-length-200/blake2b_256-length-200")
-    // check("builtin/semantics/bls12_381-cardano-crypto-tests/G1/arith/add/add")
-    // check("builtin/semantics/bls12_381-cardano-crypto-tests/G1/arith/neg/neg")
-    // check("builtin/semantics/bls12_381-cardano-crypto-tests/G1/arith/scalarMul/scalarMul")
-    // check("builtin/semantics/bls12_381-cardano-crypto-tests/G1/uncompress/off-curve/off-curve")
-    // check("builtin/semantics/bls12_381-cardano-crypto-tests/G1/uncompress/out-of-group/out-of-group")
-    // check("builtin/semantics/bls12_381-cardano-crypto-tests/G2/arith/add/add")
-    // check("builtin/semantics/bls12_381-cardano-crypto-tests/G2/arith/neg/neg")
-    // check("builtin/semantics/bls12_381-cardano-crypto-tests/G2/arith/scalarMul/scalarMul")
-    // check("builtin/semantics/bls12_381-cardano-crypto-tests/G2/uncompress/off-curve/off-curve")
-    // check("builtin/semantics/bls12_381-cardano-crypto-tests/G2/uncompress/out-of-group/out-of-group")
-    // check("builtin/semantics/bls12_381-cardano-crypto-tests/pairing/balanced/balanced")
-    // check("builtin/semantics/bls12_381-cardano-crypto-tests/pairing/left-additive/left-additive")
-    // check("builtin/semantics/bls12_381-cardano-crypto-tests/pairing/left-multiplicative/left-multiplicative")
-    // check("builtin/semantics/bls12_381-cardano-crypto-tests/pairing/right-additive/right-additive")
-    // check("builtin/semantics/bls12_381-cardano-crypto-tests/pairing/right-multiplicative/right-multiplicative")
-    // check("builtin/semantics/bls12_381-cardano-crypto-tests/pairing/swap-scalars/swap-scalars")
-    // check("builtin/semantics/bls12_381-cardano-crypto-tests/signature/augmented/augmented")
-    // check("builtin/semantics/bls12_381-cardano-crypto-tests/signature/large-dst/large-dst")
-    // check("builtin/semantics/bls12_381_G1_add/add-associative/add-associative")
-    // check("builtin/semantics/bls12_381_G1_add/add-commutative/add-commutative")
-    // check("builtin/semantics/bls12_381_G1_add/add-zero/add-zero")
-    // check("builtin/semantics/bls12_381_G1_add/add/add")
-    // check("builtin/semantics/bls12_381_G1_compress/compress/compress")
-    // check("builtin/semantics/bls12_381_G1_equal/equal-false/equal-false")
-    // check("builtin/semantics/bls12_381_G1_equal/equal-true/equal-true")
-    // check("builtin/semantics/bls12_381_G1_hashToGroup/hash-different-msg-same-dst/hash-different-msg-same-dst")
-    // check("builtin/semantics/bls12_381_G1_hashToGroup/hash-dst-len-255/hash-dst-len-255")
-    // check("builtin/semantics/bls12_381_G1_hashToGroup/hash-dst-len-256/hash-dst-len-256")
-    // check("builtin/semantics/bls12_381_G1_hashToGroup/hash-empty-dst/hash-empty-dst")
-    // check("builtin/semantics/bls12_381_G1_hashToGroup/hash-same-msg-different-dst/hash-same-msg-different-dst")
-    // check("builtin/semantics/bls12_381_G1_hashToGroup/hash/hash")
-    // check("builtin/semantics/bls12_381_G1_neg/add-neg/add-neg")
-    // check("builtin/semantics/bls12_381_G1_neg/neg-zero/neg-zero")
-    // check("builtin/semantics/bls12_381_G1_neg/neg/neg")
-    // check("builtin/semantics/bls12_381_G1_scalarMul/addmul/addmul")
-    // check("builtin/semantics/bls12_381_G1_scalarMul/mul0/mul0")
-    // check("builtin/semantics/bls12_381_G1_scalarMul/mul1/mul1")
-    // check("builtin/semantics/bls12_381_G1_scalarMul/mul19+25/mul19+25")
-    // check("builtin/semantics/bls12_381_G1_scalarMul/mul44/mul44")
-    // check("builtin/semantics/bls12_381_G1_scalarMul/mul4x11/mul4x11")
-    // check("builtin/semantics/bls12_381_G1_scalarMul/muladd/muladd")
-    // check("builtin/semantics/bls12_381_G1_scalarMul/mulneg1/mulneg1")
-    // check("builtin/semantics/bls12_381_G1_scalarMul/mulneg44/mulneg44")
-    // check("builtin/semantics/bls12_381_G1_scalarMul/mulperiodic1/mulperiodic1")
-    // check("builtin/semantics/bls12_381_G1_scalarMul/mulperiodic2/mulperiodic2")
-    // check("builtin/semantics/bls12_381_G1_scalarMul/mulperiodic3/mulperiodic3")
-    // check("builtin/semantics/bls12_381_G1_scalarMul/mulperiodic4/mulperiodic4")
-    // check("builtin/semantics/bls12_381_G1_uncompress/bad-zero-1/bad-zero-1")
-    // check("builtin/semantics/bls12_381_G1_uncompress/bad-zero-2/bad-zero-2")
-    // check("builtin/semantics/bls12_381_G1_uncompress/bad-zero-3/bad-zero-3")
-    // check("builtin/semantics/bls12_381_G1_uncompress/off-curve/off-curve")
-    // check("builtin/semantics/bls12_381_G1_uncompress/on-curve-bit3-clear/on-curve-bit3-clear")
-    // check("builtin/semantics/bls12_381_G1_uncompress/on-curve-bit3-set/on-curve-bit3-set")
-    // check("builtin/semantics/bls12_381_G1_uncompress/on-curve-serialised-not-compressed/on-curve-serialised-not-compressed")
-    // check("builtin/semantics/bls12_381_G1_uncompress/out-of-group/out-of-group")
-    // check("builtin/semantics/bls12_381_G1_uncompress/too-long/too-long")
-    // check("builtin/semantics/bls12_381_G1_uncompress/too-short/too-short")
-    // check("builtin/semantics/bls12_381_G1_uncompress/zero/zero")
-    // check("builtin/semantics/bls12_381_G2_add/add-associative/add-associative")
-    // check("builtin/semantics/bls12_381_G2_add/add-commutative/add-commutative")
-    // check("builtin/semantics/bls12_381_G2_add/add-zero/add-zero")
-    // check("builtin/semantics/bls12_381_G2_add/add/add")
-    // check("builtin/semantics/bls12_381_G2_compress/compress/compress")
-    // check("builtin/semantics/bls12_381_G2_equal/equal-false/equal-false")
-    // check("builtin/semantics/bls12_381_G2_equal/equal-true/equal-true")
-    // check("builtin/semantics/bls12_381_G2_hashToGroup/hash-different-msg-same-dst/hash-different-msg-same-dst")
-    // check("builtin/semantics/bls12_381_G2_hashToGroup/hash-dst-len-255/hash-dst-len-255")
-    // check("builtin/semantics/bls12_381_G2_hashToGroup/hash-dst-len-256/hash-dst-len-256")
-    // check("builtin/semantics/bls12_381_G2_hashToGroup/hash-empty-dst/hash-empty-dst")
-    // check("builtin/semantics/bls12_381_G2_hashToGroup/hash-same-msg-different-dst/hash-same-msg-different-dst")
-    // check("builtin/semantics/bls12_381_G2_hashToGroup/hash/hash")
-    // check("builtin/semantics/bls12_381_G2_neg/add-neg/add-neg")
-    // check("builtin/semantics/bls12_381_G2_neg/neg-zero/neg-zero")
-    // check("builtin/semantics/bls12_381_G2_neg/neg/neg")
-    // check("builtin/semantics/bls12_381_G2_scalarMul/addmul/addmul")
-    // check("builtin/semantics/bls12_381_G2_scalarMul/mul0/mul0")
-    // check("builtin/semantics/bls12_381_G2_scalarMul/mul1/mul1")
-    // check("builtin/semantics/bls12_381_G2_scalarMul/mul19+25/mul19+25")
-    // check("builtin/semantics/bls12_381_G2_scalarMul/mul44/mul44")
-    // check("builtin/semantics/bls12_381_G2_scalarMul/mul4x11/mul4x11")
-    // check("builtin/semantics/bls12_381_G2_scalarMul/muladd/muladd")
-    // check("builtin/semantics/bls12_381_G2_scalarMul/mulneg1/mulneg1")
-    // check("builtin/semantics/bls12_381_G2_scalarMul/mulneg44/mulneg44")
-    // check("builtin/semantics/bls12_381_G2_scalarMul/mulperiodic1/mulperiodic1")
-    // check("builtin/semantics/bls12_381_G2_scalarMul/mulperiodic2/mulperiodic2")
-    // check("builtin/semantics/bls12_381_G2_scalarMul/mulperiodic3/mulperiodic3")
-    // check("builtin/semantics/bls12_381_G2_scalarMul/mulperiodic4/mulperiodic4")
-    // check("builtin/semantics/bls12_381_G2_uncompress/bad-zero-1/bad-zero-1")
-    // check("builtin/semantics/bls12_381_G2_uncompress/bad-zero-2/bad-zero-2")
-    // check("builtin/semantics/bls12_381_G2_uncompress/bad-zero-3/bad-zero-3")
-    // check("builtin/semantics/bls12_381_G2_uncompress/off-curve/off-curve")
-    // check("builtin/semantics/bls12_381_G2_uncompress/on-curve-bit3-clear/on-curve-bit3-clear")
-    // check("builtin/semantics/bls12_381_G2_uncompress/on-curve-bit3-set/on-curve-bit3-set")
-    // check("builtin/semantics/bls12_381_G2_uncompress/on-curve-serialised-not-compressed/on-curve-serialised-not-compressed")
-    // check("builtin/semantics/bls12_381_G2_uncompress/out-of-group/out-of-group")
-    // check("builtin/semantics/bls12_381_G2_uncompress/too-long/too-long")
-    // check("builtin/semantics/bls12_381_G2_uncompress/too-short/too-short")
-    // check("builtin/semantics/bls12_381_G2_uncompress/zero/zero")
-    // check("builtin/semantics/bls12_381_millerLoop/balanced/balanced")
-    // check("builtin/semantics/bls12_381_millerLoop/equal-pairing/equal-pairing")
-    // check("builtin/semantics/bls12_381_millerLoop/left-additive/left-additive")
-    // check("builtin/semantics/bls12_381_millerLoop/random-pairing/random-pairing")
-    // check("builtin/semantics/bls12_381_millerLoop/right-additive/right-additive")
+//    check("builtin/semantics/bls12_381-cardano-crypto-tests/G1/arith/add/add")
+//    check("builtin/semantics/bls12_381-cardano-crypto-tests/G1/arith/neg/neg")
+//    check("builtin/semantics/bls12_381-cardano-crypto-tests/G1/arith/scalarMul/scalarMul")
+//    check("builtin/semantics/bls12_381-cardano-crypto-tests/G1/uncompress/off-curve/off-curve")
+//    check("builtin/semantics/bls12_381-cardano-crypto-tests/G1/uncompress/out-of-group/out-of-group")
+//    check("builtin/semantics/bls12_381-cardano-crypto-tests/G2/arith/add/add")
+//    check("builtin/semantics/bls12_381-cardano-crypto-tests/G2/arith/neg/neg")
+//    check("builtin/semantics/bls12_381-cardano-crypto-tests/G2/arith/scalarMul/scalarMul")
+//    check("builtin/semantics/bls12_381-cardano-crypto-tests/G2/uncompress/off-curve/off-curve")
+//    check("builtin/semantics/bls12_381-cardano-crypto-tests/G2/uncompress/out-of-group/out-of-group")
+//    check("builtin/semantics/bls12_381-cardano-crypto-tests/pairing/balanced/balanced")
+//    check("builtin/semantics/bls12_381-cardano-crypto-tests/pairing/left-additive/left-additive")
+//    check("builtin/semantics/bls12_381-cardano-crypto-tests/pairing/left-multiplicative/left-multiplicative")
+//    check("builtin/semantics/bls12_381-cardano-crypto-tests/pairing/right-additive/right-additive")
+//    check("builtin/semantics/bls12_381-cardano-crypto-tests/pairing/right-multiplicative/right-multiplicative")
+//    check("builtin/semantics/bls12_381-cardano-crypto-tests/pairing/swap-scalars/swap-scalars")
+//    check("builtin/semantics/bls12_381-cardano-crypto-tests/signature/augmented/augmented")
+//    check("builtin/semantics/bls12_381-cardano-crypto-tests/signature/large-dst/large-dst")
+//    check("builtin/semantics/bls12_381_G1_add/add-associative/add-associative")
+//    check("builtin/semantics/bls12_381_G1_add/add-commutative/add-commutative")
+//    check("builtin/semantics/bls12_381_G1_add/add-zero/add-zero")
+//    check("builtin/semantics/bls12_381_G1_add/add/add")
+//    check("builtin/semantics/bls12_381_G1_compress/compress/compress")
+//    check("builtin/semantics/bls12_381_G1_equal/equal-false/equal-false")
+//    check("builtin/semantics/bls12_381_G1_equal/equal-true/equal-true")
+//    check("builtin/semantics/bls12_381_G1_hashToGroup/hash-different-msg-same-dst/hash-different-msg-same-dst")
+//    check("builtin/semantics/bls12_381_G1_hashToGroup/hash-dst-len-255/hash-dst-len-255")
+//    check("builtin/semantics/bls12_381_G1_hashToGroup/hash-dst-len-256/hash-dst-len-256")
+//    check("builtin/semantics/bls12_381_G1_hashToGroup/hash-empty-dst/hash-empty-dst")
+//    check("builtin/semantics/bls12_381_G1_hashToGroup/hash-same-msg-different-dst/hash-same-msg-different-dst")
+//    check("builtin/semantics/bls12_381_G1_hashToGroup/hash/hash")
+//    check("builtin/semantics/bls12_381_G1_neg/add-neg/add-neg")
+//    check("builtin/semantics/bls12_381_G1_neg/neg-zero/neg-zero")
+//    check("builtin/semantics/bls12_381_G1_neg/neg/neg")
+//    check("builtin/semantics/bls12_381_G1_scalarMul/addmul/addmul")
+//    check("builtin/semantics/bls12_381_G1_scalarMul/mul0/mul0")
+//    check("builtin/semantics/bls12_381_G1_scalarMul/mul1/mul1")
+//    check("builtin/semantics/bls12_381_G1_scalarMul/mul19+25/mul19+25")
+//    check("builtin/semantics/bls12_381_G1_scalarMul/mul44/mul44")
+//    check("builtin/semantics/bls12_381_G1_scalarMul/mul4x11/mul4x11")
+//    check("builtin/semantics/bls12_381_G1_scalarMul/muladd/muladd")
+//    check("builtin/semantics/bls12_381_G1_scalarMul/mulneg1/mulneg1")
+//    check("builtin/semantics/bls12_381_G1_scalarMul/mulneg44/mulneg44")
+//    check("builtin/semantics/bls12_381_G1_scalarMul/mulperiodic1/mulperiodic1")
+//    check("builtin/semantics/bls12_381_G1_scalarMul/mulperiodic2/mulperiodic2")
+//    check("builtin/semantics/bls12_381_G1_scalarMul/mulperiodic3/mulperiodic3")
+//    check("builtin/semantics/bls12_381_G1_scalarMul/mulperiodic4/mulperiodic4")
+//    check("builtin/semantics/bls12_381_G1_uncompress/bad-zero-1/bad-zero-1")
+//    check("builtin/semantics/bls12_381_G1_uncompress/bad-zero-2/bad-zero-2")
+//    check("builtin/semantics/bls12_381_G1_uncompress/bad-zero-3/bad-zero-3")
+//    check("builtin/semantics/bls12_381_G1_uncompress/off-curve/off-curve")
+//    check("builtin/semantics/bls12_381_G1_uncompress/on-curve-bit1-clear/on-curve-bit1-clear")
+//    check("builtin/semantics/bls12_381_G1_uncompress/on-curve-bit3-clear/on-curve-bit3-clear")
+//    check("builtin/semantics/bls12_381_G1_uncompress/on-curve-bit3-set/on-curve-bit3-set")
+//    check("builtin/semantics/bls12_381_G1_uncompress/on-curve-serialised-not-compressed/on-curve-serialised-not-compressed")
+//    check("builtin/semantics/bls12_381_G1_uncompress/out-of-group/out-of-group")
+//    check("builtin/semantics/bls12_381_G1_uncompress/too-long/too-long")
+//    check("builtin/semantics/bls12_381_G1_uncompress/too-short/too-short")
+//    check("builtin/semantics/bls12_381_G1_uncompress/zero/zero")
+//    check("builtin/semantics/bls12_381_G2_add/add-associative/add-associative")
+//    check("builtin/semantics/bls12_381_G2_add/add-commutative/add-commutative")
+//    check("builtin/semantics/bls12_381_G2_add/add-zero/add-zero")
+//    check("builtin/semantics/bls12_381_G2_add/add/add")
+//    check("builtin/semantics/bls12_381_G2_compress/compress/compress")
+//    check("builtin/semantics/bls12_381_G2_equal/equal-false/equal-false")
+//    check("builtin/semantics/bls12_381_G2_equal/equal-true/equal-true")
+//    check("builtin/semantics/bls12_381_G2_hashToGroup/hash-different-msg-same-dst/hash-different-msg-same-dst")
+//    check("builtin/semantics/bls12_381_G2_hashToGroup/hash-dst-len-255/hash-dst-len-255")
+//    check("builtin/semantics/bls12_381_G2_hashToGroup/hash-dst-len-256/hash-dst-len-256")
+//    check("builtin/semantics/bls12_381_G2_hashToGroup/hash-empty-dst/hash-empty-dst")
+//    check("builtin/semantics/bls12_381_G2_hashToGroup/hash-same-msg-different-dst/hash-same-msg-different-dst")
+//    check("builtin/semantics/bls12_381_G2_hashToGroup/hash/hash")
+//    check("builtin/semantics/bls12_381_G2_neg/add-neg/add-neg")
+//    check("builtin/semantics/bls12_381_G2_neg/neg-zero/neg-zero")
+//    check("builtin/semantics/bls12_381_G2_neg/neg/neg")
+//    check("builtin/semantics/bls12_381_G2_scalarMul/addmul/addmul")
+//    check("builtin/semantics/bls12_381_G2_scalarMul/mul0/mul0")
+//    check("builtin/semantics/bls12_381_G2_scalarMul/mul1/mul1")
+//    check("builtin/semantics/bls12_381_G2_scalarMul/mul19+25/mul19+25")
+//    check("builtin/semantics/bls12_381_G2_scalarMul/mul44/mul44")
+//    check("builtin/semantics/bls12_381_G2_scalarMul/mul4x11/mul4x11")
+//    check("builtin/semantics/bls12_381_G2_scalarMul/muladd/muladd")
+//    check("builtin/semantics/bls12_381_G2_scalarMul/mulneg1/mulneg1")
+//    check("builtin/semantics/bls12_381_G2_scalarMul/mulneg44/mulneg44")
+//    check("builtin/semantics/bls12_381_G2_scalarMul/mulperiodic1/mulperiodic1")
+//    check("builtin/semantics/bls12_381_G2_scalarMul/mulperiodic2/mulperiodic2")
+//    check("builtin/semantics/bls12_381_G2_scalarMul/mulperiodic3/mulperiodic3")
+//    check("builtin/semantics/bls12_381_G2_scalarMul/mulperiodic4/mulperiodic4")
+//    check("builtin/semantics/bls12_381_G2_uncompress/bad-zero-1/bad-zero-1")
+//    check("builtin/semantics/bls12_381_G2_uncompress/bad-zero-2/bad-zero-2")
+//    check("builtin/semantics/bls12_381_G2_uncompress/bad-zero-3/bad-zero-3")
+//    check("builtin/semantics/bls12_381_G2_uncompress/off-curve/off-curve")
+//    check("builtin/semantics/bls12_381_G2_uncompress/on-curve-bit1-clear/on-curve-bit1-clear")
+//    check("builtin/semantics/bls12_381_G2_uncompress/on-curve-bit3-clear/on-curve-bit3-clear")
+//    check("builtin/semantics/bls12_381_G2_uncompress/on-curve-bit3-set/on-curve-bit3-set")
+//    check("builtin/semantics/bls12_381_G2_uncompress/on-curve-serialised-not-compressed/on-curve-serialised-not-compressed")
+//    check("builtin/semantics/bls12_381_G2_uncompress/out-of-group/out-of-group")
+//    check("builtin/semantics/bls12_381_G2_uncompress/too-long/too-long")
+//    check("builtin/semantics/bls12_381_G2_uncompress/too-short/too-short")
+//    check("builtin/semantics/bls12_381_G2_uncompress/zero/zero")
+//    check("builtin/semantics/bls12_381_millerLoop/balanced/balanced")
+//    check("builtin/semantics/bls12_381_millerLoop/equal-pairing/equal-pairing")
+//    check("builtin/semantics/bls12_381_millerLoop/left-additive/left-additive")
+//    check("builtin/semantics/bls12_381_millerLoop/random-pairing/random-pairing")
+//    check("builtin/semantics/bls12_381_millerLoop/right-additive/right-additive")
+//    check("builtin/semantics/byteStringToInteger/big-endian/all-zeros/all-zeros")
+//    check("builtin/semantics/byteStringToInteger/big-endian/correct-output/correct-output")
+//    check("builtin/semantics/byteStringToInteger/big-endian/empty/empty")
+//    check("builtin/semantics/byteStringToInteger/big-endian/leading-zeros/leading-zeros")
+//    check("builtin/semantics/byteStringToInteger/both-endian/both-endian")
+//    check("builtin/semantics/byteStringToInteger/little-endian/all-zeros/all-zeros")
+//    check("builtin/semantics/byteStringToInteger/little-endian/correct-output/correct-output")
+//    check("builtin/semantics/byteStringToInteger/little-endian/empty/empty")
+//    check("builtin/semantics/byteStringToInteger/little-endian/trailing-zeros/trailing-zeros")
     check("builtin/semantics/chooseDataByteString/chooseDataByteString")
     check("builtin/semantics/chooseDataConstr/chooseDataConstr")
     check("builtin/semantics/chooseDataInteger/chooseDataInteger")
@@ -260,7 +240,10 @@ class PlutusConformanceSpec extends BaseValidatorSpec:
     check("builtin/semantics/chooseDataMap/chooseDataMap")
     check("builtin/semantics/chooseList/chooseList1/chooseList1")
     check("builtin/semantics/chooseList/chooseList2/chooseList2")
+    check("builtin/semantics/chooseList/chooseList3/chooseList3")
+    check("builtin/semantics/chooseList/chooseList4/chooseList4")
     check("builtin/semantics/chooseUnit/chooseUnit")
+    check("builtin/semantics/chooseUnit2/chooseUnit2")
     check("builtin/semantics/consByteString/consByteString1/consByteString1")
     check("builtin/semantics/consByteString/consByteString2/consByteString2")
     check("builtin/semantics/consByteString/consByteString3/consByteString3")
@@ -293,12 +276,46 @@ class PlutusConformanceSpec extends BaseValidatorSpec:
     check("builtin/semantics/ifThenElse/ifThenElse-2/ifThenElse-2")
     check("builtin/semantics/ifThenElse/ifThenElse-3/ifThenElse-3")
     check("builtin/semantics/ifThenElse/ifThenElse-4/ifThenElse-4")
+    check("builtin/semantics/ifThenElse/ifThenElse-bad-cond-1/ifThenElse-bad-cond-1")
+    check("builtin/semantics/ifThenElse/ifThenElse-bad-cond-2/ifThenElse-bad-cond-2")
     check("builtin/semantics/ifThenElse/ifThenElse-no-force/ifThenElse-no-force")
     check("builtin/semantics/indexByteString/indexByteString1/indexByteString1")
     check("builtin/semantics/indexByteString/indexByteStringOOB/indexByteStringOOB")
     check("builtin/semantics/indexByteString/indexByteStringOverflow/indexByteStringOverflow")
-    // check("builtin/semantics/keccak_256/keccak_256-empty/keccak_256-empty")
-    // check("builtin/semantics/keccak_256/keccak_256-length-200/keccak_256-length-200")
+//    check("builtin/semantics/integerToByteString/big-endian/bounded/correct-output-exact-width/correct-output-exact-width")
+//    check("builtin/semantics/integerToByteString/big-endian/bounded/correct-output-extra-width/correct-output-extra-width")
+//    check("builtin/semantics/integerToByteString/big-endian/bounded/max-input-fits-max-width/max-input-fits-max-width")
+//    check("builtin/semantics/integerToByteString/big-endian/bounded/max-input-width-too-small/max-input-width-too-small")
+//    check("builtin/semantics/integerToByteString/big-endian/bounded/max-width-input-too-big/max-width-input-too-big")
+//    check("builtin/semantics/integerToByteString/big-endian/bounded/maximum-width-zero/maximum-width-zero")
+//    check("builtin/semantics/integerToByteString/big-endian/bounded/negative-input/negative-input")
+//    check("builtin/semantics/integerToByteString/big-endian/bounded/negative-width/negative-width")
+//    check("builtin/semantics/integerToByteString/big-endian/bounded/too-narrow/too-narrow")
+//    check("builtin/semantics/integerToByteString/big-endian/bounded/width-too-big-zero/width-too-big-zero")
+//    check("builtin/semantics/integerToByteString/big-endian/bounded/zero/zero")
+//    check("builtin/semantics/integerToByteString/big-endian/unbounded/correct-output/correct-output")
+//    check("builtin/semantics/integerToByteString/big-endian/unbounded/input-too-big/input-too-big")
+//    check("builtin/semantics/integerToByteString/big-endian/unbounded/maximum-input/maximum-input")
+//    check("builtin/semantics/integerToByteString/big-endian/unbounded/negative-input/negative-input")
+//    check("builtin/semantics/integerToByteString/big-endian/unbounded/zero/zero")
+//    check("builtin/semantics/integerToByteString/little-endian/bounded/correct-output-exact-width/correct-output-exact-width")
+//    check("builtin/semantics/integerToByteString/little-endian/bounded/correct-output-extra-width/correct-output-extra-width")
+//    check("builtin/semantics/integerToByteString/little-endian/bounded/max-input-fits-max-width/max-input-fits-max-width")
+//    check("builtin/semantics/integerToByteString/little-endian/bounded/max-input-width-too-small/max-input-width-too-small")
+//    check("builtin/semantics/integerToByteString/little-endian/bounded/max-width-input-too-big/max-width-input-too-big")
+//    check("builtin/semantics/integerToByteString/little-endian/bounded/maximum-width-zero/maximum-width-zero")
+//    check("builtin/semantics/integerToByteString/little-endian/bounded/negative-input/negative-input")
+//    check("builtin/semantics/integerToByteString/little-endian/bounded/negative-width/negative-width")
+//    check("builtin/semantics/integerToByteString/little-endian/bounded/too-narrow/too-narrow")
+//    check("builtin/semantics/integerToByteString/little-endian/bounded/width-too-big-zero/width-too-big-zero")
+//    check("builtin/semantics/integerToByteString/little-endian/bounded/zero/zero")
+//    check("builtin/semantics/integerToByteString/little-endian/unbounded/correct-output/correct-output")
+//    check("builtin/semantics/integerToByteString/little-endian/unbounded/input-too-big/input-too-big")
+//    check("builtin/semantics/integerToByteString/little-endian/unbounded/maximum-input/maximum-input")
+//    check("builtin/semantics/integerToByteString/little-endian/unbounded/negative-input/negative-input")
+//    check("builtin/semantics/integerToByteString/little-endian/unbounded/zero/zero")
+//    check("builtin/semantics/keccak_256/keccak_256-empty/keccak_256-empty")
+//    check("builtin/semantics/keccak_256/keccak_256-length-200/keccak_256-length-200")
     check("builtin/semantics/lengthOfByteString/lengthOfByteString")
     check("builtin/semantics/lessThanByteString/lessThanByteString0/lessThanByteString0")
     check("builtin/semantics/lessThanByteString/lessThanByteString1/lessThanByteString1")
@@ -306,18 +323,10 @@ class PlutusConformanceSpec extends BaseValidatorSpec:
     check("builtin/semantics/lessThanByteString/lessThanByteString3/lessThanByteString3")
     check("builtin/semantics/lessThanByteString/lessThanByteString4/lessThanByteString4")
     check("builtin/semantics/lessThanByteString/lessThanByteString5/lessThanByteString5")
-    check(
-      "builtin/semantics/lessThanEqualsByteString/lessThanEqualsByteString0/lessThanEqualsByteString0"
-    )
-    check(
-      "builtin/semantics/lessThanEqualsByteString/lessThanEqualsByteString1/lessThanEqualsByteString1"
-    )
-    check(
-      "builtin/semantics/lessThanEqualsByteString/lessThanEqualsByteString2/lessThanEqualsByteString2"
-    )
-    check(
-      "builtin/semantics/lessThanEqualsByteString/lessThanEqualsByteString3/lessThanEqualsByteString3"
-    )
+    check("builtin/semantics/lessThanEqualsByteString/lessThanEqualsByteString0/lessThanEqualsByteString0")
+    check("builtin/semantics/lessThanEqualsByteString/lessThanEqualsByteString1/lessThanEqualsByteString1")
+    check("builtin/semantics/lessThanEqualsByteString/lessThanEqualsByteString2/lessThanEqualsByteString2")
+    check("builtin/semantics/lessThanEqualsByteString/lessThanEqualsByteString3/lessThanEqualsByteString3")
     check("builtin/semantics/lessThanEqualsInteger/lessThanEqualsInteger1/lessThanEqualsInteger1")
     check("builtin/semantics/lessThanEqualsInteger/lessThanEqualsInteger2/lessThanEqualsInteger2")
     check("builtin/semantics/lessThanEqualsInteger/lessThanEqualsInteger3/lessThanEqualsInteger3")
@@ -394,146 +403,69 @@ class PlutusConformanceSpec extends BaseValidatorSpec:
     check("builtin/semantics/unListData/unListData1/unListData1")
     check("builtin/semantics/unMapData/unMapData-fail/unMapData-fail")
     check("builtin/semantics/unMapData/unMapData1/unMapData1")
-    check(
-      "builtin/semantics/verifyEcdsaSecp256k1Signature/verifyEcdsaSecp256k1Signature-invalid-key/verifyEcdsaSecp256k1Signature-invalid-key"
-    )
-    check(
-      "builtin/semantics/verifyEcdsaSecp256k1Signature/verifyEcdsaSecp256k1Signature-long-key/verifyEcdsaSecp256k1Signature-long-key"
-    )
-    check(
-      "builtin/semantics/verifyEcdsaSecp256k1Signature/verifyEcdsaSecp256k1Signature-long-msg/verifyEcdsaSecp256k1Signature-long-msg"
-    )
-    check(
-      "builtin/semantics/verifyEcdsaSecp256k1Signature/verifyEcdsaSecp256k1Signature-long-sig/verifyEcdsaSecp256k1Signature-long-sig"
-    )
-    check(
-      "builtin/semantics/verifyEcdsaSecp256k1Signature/verifyEcdsaSecp256k1Signature-short-key/verifyEcdsaSecp256k1Signature-short-key"
-    )
-    check(
-      "builtin/semantics/verifyEcdsaSecp256k1Signature/verifyEcdsaSecp256k1Signature-short-msg/verifyEcdsaSecp256k1Signature-short-msg"
-    )
-    check(
-      "builtin/semantics/verifyEcdsaSecp256k1Signature/verifyEcdsaSecp256k1Signature-short-sig/verifyEcdsaSecp256k1Signature-short-sig"
-    )
-    check(
-      "builtin/semantics/verifyEd25519Signature/verifyEd25519Signature1/verifyEd25519Signature1"
-    )
-    check(
-      "builtin/semantics/verifyEd25519Signature/verifyEd25519Signature10/verifyEd25519Signature10"
-    )
-    check(
-      "builtin/semantics/verifyEd25519Signature/verifyEd25519Signature11/verifyEd25519Signature11"
-    )
-    check(
-      "builtin/semantics/verifyEd25519Signature/verifyEd25519Signature12/verifyEd25519Signature12"
-    )
-    check(
-      "builtin/semantics/verifyEd25519Signature/verifyEd25519Signature13/verifyEd25519Signature13"
-    )
-    check(
-      "builtin/semantics/verifyEd25519Signature/verifyEd25519Signature14/verifyEd25519Signature14"
-    )
-    check(
-      "builtin/semantics/verifyEd25519Signature/verifyEd25519Signature15/verifyEd25519Signature15"
-    )
-    check(
-      "builtin/semantics/verifyEd25519Signature/verifyEd25519Signature16/verifyEd25519Signature16"
-    )
-    check(
-      "builtin/semantics/verifyEd25519Signature/verifyEd25519Signature17/verifyEd25519Signature17"
-    )
-    check(
-      "builtin/semantics/verifyEd25519Signature/verifyEd25519Signature18/verifyEd25519Signature18"
-    )
-    check(
-      "builtin/semantics/verifyEd25519Signature/verifyEd25519Signature19/verifyEd25519Signature19"
-    )
-    check(
-      "builtin/semantics/verifyEd25519Signature/verifyEd25519Signature2/verifyEd25519Signature2"
-    )
-    check(
-      "builtin/semantics/verifyEd25519Signature/verifyEd25519Signature20/verifyEd25519Signature20"
-    )
-    check(
-      "builtin/semantics/verifyEd25519Signature/verifyEd25519Signature21/verifyEd25519Signature21"
-    )
-    check(
-      "builtin/semantics/verifyEd25519Signature/verifyEd25519Signature22/verifyEd25519Signature22"
-    )
-    check(
-      "builtin/semantics/verifyEd25519Signature/verifyEd25519Signature23/verifyEd25519Signature23"
-    )
-    check(
-      "builtin/semantics/verifyEd25519Signature/verifyEd25519Signature24/verifyEd25519Signature24"
-    )
-    check(
-      "builtin/semantics/verifyEd25519Signature/verifyEd25519Signature25/verifyEd25519Signature25"
-    )
-    check(
-      "builtin/semantics/verifyEd25519Signature/verifyEd25519Signature26/verifyEd25519Signature26"
-    )
-    check(
-      "builtin/semantics/verifyEd25519Signature/verifyEd25519Signature27/verifyEd25519Signature27"
-    )
-    check(
-      "builtin/semantics/verifyEd25519Signature/verifyEd25519Signature28/verifyEd25519Signature28"
-    )
-    check(
-      "builtin/semantics/verifyEd25519Signature/verifyEd25519Signature29/verifyEd25519Signature29"
-    )
-    check(
-      "builtin/semantics/verifyEd25519Signature/verifyEd25519Signature3/verifyEd25519Signature3"
-    )
-    check(
-      "builtin/semantics/verifyEd25519Signature/verifyEd25519Signature30/verifyEd25519Signature30"
-    )
-    check(
-      "builtin/semantics/verifyEd25519Signature/verifyEd25519Signature31/verifyEd25519Signature31"
-    )
-    check(
-      "builtin/semantics/verifyEd25519Signature/verifyEd25519Signature4/verifyEd25519Signature4"
-    )
-    check(
-      "builtin/semantics/verifyEd25519Signature/verifyEd25519Signature5/verifyEd25519Signature5"
-    )
-    check(
-      "builtin/semantics/verifyEd25519Signature/verifyEd25519Signature6/verifyEd25519Signature6"
-    )
-    check(
-      "builtin/semantics/verifyEd25519Signature/verifyEd25519Signature7/verifyEd25519Signature7"
-    )
-    check(
-      "builtin/semantics/verifyEd25519Signature/verifyEd25519Signature8/verifyEd25519Signature8"
-    )
-    check(
-      "builtin/semantics/verifyEd25519Signature/verifyEd25519Signature9/verifyEd25519Signature9"
-    )
-    check(
-      "builtin/semantics/verifyEd25519Signature/verifyEd25519SignatureLongKey/verifyEd25519SignatureLongKey"
-    )
-    check(
-      "builtin/semantics/verifyEd25519Signature/verifyEd25519SignatureLongSig/verifyEd25519SignatureLongSig"
-    )
-    check(
-      "builtin/semantics/verifyEd25519Signature/verifyEd25519SignatureShortKey/verifyEd25519SignatureShortKey"
-    )
-    check(
-      "builtin/semantics/verifyEd25519Signature/verifyEd25519SignatureShortSig/verifyEd25519SignatureShortSig"
-    )
-    check(
-      "builtin/semantics/verifySchnorrSecp256k1Signature/verifySchnorrSecp256k1Signature-long-key/verifySchnorrSecp256k1Signature-long-key"
-    )
-    check(
-      "builtin/semantics/verifySchnorrSecp256k1Signature/verifySchnorrSecp256k1Signature-long-sig/verifySchnorrSecp256k1Signature-long-sig"
-    )
-    check(
-      "builtin/semantics/verifySchnorrSecp256k1Signature/verifySchnorrSecp256k1Signature-short-key/verifySchnorrSecp256k1Signature-short-key"
-    )
-    check(
-      "builtin/semantics/verifySchnorrSecp256k1Signature/verifySchnorrSecp256k1Signature-short-sig/verifySchnorrSecp256k1Signature-short-sig"
-    )
-
-    // constr/case
+    check("builtin/semantics/verifyEcdsaSecp256k1Signature/invalid-key/invalid-key")
+    check("builtin/semantics/verifyEcdsaSecp256k1Signature/long-key/long-key")
+    check("builtin/semantics/verifyEcdsaSecp256k1Signature/long-msg/long-msg")
+    check("builtin/semantics/verifyEcdsaSecp256k1Signature/long-sig/long-sig")
+    check("builtin/semantics/verifyEcdsaSecp256k1Signature/short-key/short-key")
+    check("builtin/semantics/verifyEcdsaSecp256k1Signature/short-msg/short-msg")
+    check("builtin/semantics/verifyEcdsaSecp256k1Signature/short-sig/short-sig")
+    check("builtin/semantics/verifyEd25519Signature/long-key/long-key")
+    check("builtin/semantics/verifyEd25519Signature/long-sig/long-sig")
+    check("builtin/semantics/verifyEd25519Signature/short-key/short-key")
+    check("builtin/semantics/verifyEd25519Signature/short-sig/short-sig")
+    check("builtin/semantics/verifyEd25519Signature/test01/test01")
+    check("builtin/semantics/verifyEd25519Signature/test02/test02")
+    check("builtin/semantics/verifyEd25519Signature/test03/test03")
+    check("builtin/semantics/verifyEd25519Signature/test04/test04")
+    check("builtin/semantics/verifyEd25519Signature/test05/test05")
+    check("builtin/semantics/verifyEd25519Signature/test06/test06")
+    check("builtin/semantics/verifyEd25519Signature/test07/test07")
+    check("builtin/semantics/verifyEd25519Signature/test08/test08")
+    check("builtin/semantics/verifyEd25519Signature/test09/test09")
+    check("builtin/semantics/verifyEd25519Signature/test10/test10")
+    check("builtin/semantics/verifyEd25519Signature/test11/test11")
+    check("builtin/semantics/verifyEd25519Signature/test12/test12")
+    check("builtin/semantics/verifyEd25519Signature/test13/test13")
+    check("builtin/semantics/verifyEd25519Signature/test14/test14")
+    check("builtin/semantics/verifyEd25519Signature/test15/test15")
+    check("builtin/semantics/verifyEd25519Signature/test16/test16")
+    check("builtin/semantics/verifyEd25519Signature/test17/test17")
+    check("builtin/semantics/verifyEd25519Signature/test18/test18")
+    check("builtin/semantics/verifyEd25519Signature/test19/test19")
+    check("builtin/semantics/verifyEd25519Signature/test20/test20")
+    check("builtin/semantics/verifyEd25519Signature/test21/test21")
+    check("builtin/semantics/verifyEd25519Signature/test22/test22")
+    check("builtin/semantics/verifyEd25519Signature/test23/test23")
+    check("builtin/semantics/verifyEd25519Signature/test24/test24")
+    check("builtin/semantics/verifyEd25519Signature/test25/test25")
+    check("builtin/semantics/verifyEd25519Signature/test26/test26")
+    check("builtin/semantics/verifyEd25519Signature/test27/test27")
+    check("builtin/semantics/verifyEd25519Signature/test28/test28")
+    check("builtin/semantics/verifyEd25519Signature/test29/test29")
+    check("builtin/semantics/verifyEd25519Signature/test30/test30")
+    check("builtin/semantics/verifyEd25519Signature/test31/test31")
+    check("builtin/semantics/verifySchnorrSecp256k1Signature/long-key/long-key")
+    check("builtin/semantics/verifySchnorrSecp256k1Signature/long-sig/long-sig")
+    check("builtin/semantics/verifySchnorrSecp256k1Signature/short-key/short-key")
+    check("builtin/semantics/verifySchnorrSecp256k1Signature/short-sig/short-sig")
+    check("example/ApplyAdd1/ApplyAdd1")
+    check("example/ApplyAdd2/ApplyAdd2")
+    check("example/churchSucc/churchSucc")
+    check("example/churchZero/churchZero")
+    check("example/DivideByZero/DivideByZero")
+    check("example/DivideByZeroDrop/DivideByZeroDrop")
+    check("example/even2/even2")
+    check("example/even3/even3")
+    check("example/evenList/evenList")
+    check("example/factorial/factorial")
+    check("example/fibonacci/fibonacci")
+    check("example/force-lam/force-lam")
+    check("example/IfIntegers/IfIntegers")
+    check("example/NatRoundTrip/NatRoundTrip")
+    check("example/overapplication/overapplication")
+    check("example/ScottListSum/ScottListSum")
+    check("example/succInteger/succInteger")
     check("term/app/app-1/app-1")
     check("term/app/app-2/app-2")
     check("term/app/app-3/app-3")
@@ -574,21 +506,41 @@ class PlutusConformanceSpec extends BaseValidatorSpec:
     check("term/unlifting-unsat/unlifting-unsat")
     check("term/var/var")
 
-    // Examples
-    check("example/ApplyAdd1/ApplyAdd1")
-    check("example/ApplyAdd2/ApplyAdd2")
-    check("example/DivideByZero/DivideByZero")
-    check("example/DivideByZeroDrop/DivideByZeroDrop")
-    check("example/IfIntegers/IfIntegers")
-    check("example/NatRoundTrip/NatRoundTrip")
-    check("example/ScottListSum/ScottListSum")
-    check("example/churchSucc/churchSucc")
-    check("example/churchZero/churchZero")
-    check("example/even2/even2")
-    check("example/even3/even3")
-    check("example/evenList/evenList")
-    check("example/factorial/factorial")
-    check("example/fibonacci/fibonacci")
-    check("example/force-lam/force-lam")
-    check("example/overapplication/overapplication")
-    check("example/succInteger/succInteger")
+
+    private type EvalFailure = "evaluation failure"
+    private type ParseError = "parse error"
+    private type Error = EvalFailure | ParseError
+    private def parseExpected(code: String): Either[Error, Program] = {
+        code match
+            case "evaluation failure" => Left("evaluation failure")
+            case "parse error"        => Left("parse error")
+            case _ =>
+                UplcParser().parseProgram(code) match
+                    case Left(value) => fail(s"Unexpected parse error: $value")
+                    case Right(program) =>
+                        Right(program.copy(term = DeBruijn.deBruijnTerm(program.term)))
+
+    }
+
+    private def eval(code: String): Either[Error, Program] = {
+        UplcParser().parseProgram(code) match
+            case Right(program) =>
+                try Right(program.copy(term = VM.evaluateProgram(program)))
+                catch case e: Exception => Left("evaluation failure")
+            case Left(e) =>
+                Left("parse error")
+    }
+
+    private def check(name: String): Unit =
+        val path =
+            s"../plutus-conformance/test-cases/uplc/evaluation"
+        val code = fromFile(s"$path/$name.uplc").mkString
+        val expected = fromFile(s"$path/$name.uplc.expected").mkString
+        test(name) {
+            // println(eval(code).pretty.render(80))
+            (eval(code), parseExpected(expected)) match
+                case (Right(actual), Right(expected)) =>
+                    assert(actual alphaEq expected)
+                case (Left(e1), Left(e2)) => assert(e1 == e2)
+                case (a, b)               => fail(s"Expected $b but got $a")
+        }
