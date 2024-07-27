@@ -13,6 +13,12 @@ private object Crypto extends js.Object {
     def createVerify(algorithm: String): Verify = js.native
 }
 
+@JSImport("blake2b", JSImport.Namespace)
+@js.native
+private object Blake2b extends js.Object {
+    def apply(outputLength: Int): Hash = js.native
+}
+
 @js.native
 private trait Hash extends js.Object {
     def update(data: Uint8Array): Hash = js.native
@@ -28,6 +34,8 @@ private trait Verify extends js.Object {
 @JSImport("secp256k1", JSImport.Namespace)
 @js.native
 private object Secp256k1 extends js.Object {
+    def ecdsaVerify(message: Uint8Array, signature: Uint8Array, publicKey: Uint8Array): Boolean =
+        js.native
     def schnorrVerify(message: Uint8Array, signature: Uint8Array, publicKey: Uint8Array): Boolean =
         js.native
 }
@@ -60,20 +68,12 @@ trait NodeJsPlatformSpecific extends PlatformSpecific {
         val hash = Crypto.createHash("sha3-256")
         hash.update(bs.toUint8Array).digest().toByteString
 
-    override def verifySchnorrSecp256k1Signature(
-        pk: ByteString,
-        msg: ByteString,
-        sig: ByteString
-    ): Boolean =
-//        Secp256k1.schnorrVerify(msg.toUint8Array, sig.toUint8Array, pk.toUint8Array)
-        ???
-
     override def blake2b_224(bs: ByteString): ByteString =
         val hash = Crypto.createHash("blake2b224")
         hash.update(bs.toUint8Array).digest().toByteString
 
     override def blake2b_256(bs: ByteString): ByteString =
-        val hash = Crypto.createHash("blake2b256")
+        val hash = Blake2b(32)
         hash.update(bs.toUint8Array).digest().toByteString
 
     override def verifyEd25519Signature(pk: ByteString, msg: ByteString, sig: ByteString): Boolean =
@@ -91,7 +91,14 @@ trait NodeJsPlatformSpecific extends PlatformSpecific {
         msg: ByteString,
         sig: ByteString
     ): Boolean =
-        ???
+        Secp256k1.ecdsaVerify(msg.toUint8Array, sig.toUint8Array, pk.toUint8Array)
+
+    override def verifySchnorrSecp256k1Signature(
+        pk: ByteString,
+        msg: ByteString,
+        sig: ByteString
+    ): Boolean =
+        Secp256k1.schnorrVerify(msg.toUint8Array, sig.toUint8Array, pk.toUint8Array)
 }
 
 object NodeJsPlatformSpecific extends NodeJsPlatformSpecific
