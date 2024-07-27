@@ -10,7 +10,6 @@ import js.JSConverters.*
 @js.native
 private object Crypto extends js.Object {
     def createHash(algorithm: String): Hash = js.native
-    def createVerify(algorithm: String): Verify = js.native
 }
 
 @JSImport("blake2b", JSImport.Namespace)
@@ -25,13 +24,7 @@ private trait Hash extends js.Object {
     def digest(): Uint8Array = js.native
 }
 
-@js.native
-private trait Verify extends js.Object {
-    def update(data: Uint8Array): Verify = js.native
-    def verify(publicKey: String, signature: Uint8Array): Boolean = js.native
-}
-
-@JSImport("secp256k1", JSImport.Namespace)
+@JSImport("@noble/curves/secp256k1", JSImport.Namespace)
 @js.native
 private object Secp256k1 extends js.Object {
     def ecdsaVerify(message: Uint8Array, signature: Uint8Array, publicKey: Uint8Array): Boolean =
@@ -40,14 +33,16 @@ private object Secp256k1 extends js.Object {
         js.native
 }
 
-@JSImport("noble-ed25519", JSImport.Namespace)
+@JSImport("@noble/curves/ed25519", JSImport.Namespace)
 @js.native
-private object Ed25519 extends js.Object {
-    def verify(
-        signature: Uint8Array,
-        message: Uint8Array,
-        publicKey: Uint8Array
-    ): js.Promise[Boolean] = js.native
+private object Ed25519Curves extends js.Object {
+    val ed25519: Ed25519 = js.native
+}
+
+@js.native
+private trait Ed25519 extends js.Object {
+    def verify(signature: Uint8Array, message: Uint8Array, publicKey: Uint8Array): Boolean =
+        js.native
 }
 
 trait NodeJsPlatformSpecific extends PlatformSpecific {
@@ -77,14 +72,11 @@ trait NodeJsPlatformSpecific extends PlatformSpecific {
         hash.update(bs.toUint8Array).digest().toByteString
 
     override def verifyEd25519Signature(pk: ByteString, msg: ByteString, sig: ByteString): Boolean =
-        /*import scala.concurrent.ExecutionContext.Implicits.global
-        import scala.concurrent.Await
-        import scala.concurrent.duration._
-
-        val futureResult =
-            Ed25519.verify(sig.toUint8Array, msg.toUint8Array, pk.toUint8Array).toFuture
-        Await.result(futureResult, 5.seconds)*/
-        ???
+        if pk.length != 32 then
+            throw new IllegalArgumentException(s"Invalid public key length ${pk.length}")
+        if sig.length != 64 then
+            throw new IllegalArgumentException(s"Invalid signature length ${sig.length}")
+        Ed25519Curves.ed25519.verify(sig.toUint8Array, msg.toUint8Array, pk.toUint8Array)
 
     override def verifyEcdsaSecp256k1Signature(
         pk: ByteString,

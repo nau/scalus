@@ -154,13 +154,11 @@ lazy val scalus = crossProject(JSPlatform, JVMPlatform)
     )
     .jsSettings(
       // Add JS-specific settings here
-      libraryDependencies += "org.webjars.npm" % "secp256k1" % "4.0.2",
-      libraryDependencies += "org.webjars.npm" % "blake2b" % "2.1.4",
-      npmDependencies in Compile += "blake2b" -> "2.1.4",
-      npmDependencies in Compile += "secp256k1" -> "5.0.0",
+      Compile / npmDependencies += "blake2b" -> "2.1.4",
+      Compile / npmDependencies += "@noble/curves" -> "1.4.2",
       scalaJSLinkerConfig ~= {
           _.withModuleKind(ModuleKind.CommonJSModule)
-              // Use .mjs extension.
+          // Use .mjs extension.
 //              .withOutputPatterns(OutputPatterns.fromJSFile("%s.mjs"))
       },
       scalaJSUseMainModuleInitializer := false
@@ -178,17 +176,17 @@ lazy val examples = project
     )
 
 lazy val `examples-js` = project
-    .enablePlugins(ScalaJSPlugin)
+    .enablePlugins(ScalaJSPlugin, ScalaJSBundlerPlugin)
     .in(file("examples-js"))
     .dependsOn(scalus.js)
     .settings(
       publish / skip := true,
       scalacOptions ++= commonScalacOptions,
+      Compile / npmDependencies += "blake2b" -> "2.1.4",
+      Compile / npmDependencies += "@noble/curves" -> "1.4.2",
       scalaJSUseMainModuleInitializer := false,
       scalaJSLinkerConfig ~= {
-          _.withModuleKind(ModuleKind.ESModule)
-              // Use .mjs extension.
-              .withOutputPatterns(OutputPatterns.fromJSFile("%s.mjs"))
+          _.withModuleKind(ModuleKind.CommonJSModule)
       },
       PluginDependency
     )
