@@ -40,7 +40,8 @@ object UplcCli:
     def evalFlat(program: Program): UplcEvalResult =
         import cats.implicits.toShow
         val flat = program.flatEncoded
-        val cmd = "uplc evaluate --input-format flat --counting --trace-mode LogsWithBudgets"
+        val cmd =
+            "uplc evaluate --input-format flat --counting --trace-mode LogsWithBudgets --builtin-semantics-variant A"
         var out = ""
         val retCode = cmd.#<(new ByteArrayInputStream(flat)).!(ProcessLogger(o => out += o))
         if retCode == 0 then

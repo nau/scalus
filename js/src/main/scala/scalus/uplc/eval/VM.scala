@@ -3,7 +3,7 @@ package eval
 
 import scalus.builtin.*
 
-object VM extends PlutusVM(JSPlatformSpecific)
+object VM extends PlutusVM(NodeJsPlatformSpecific)
 
 @deprecated("Use VM instead", "0.7.0")
 object Cek {

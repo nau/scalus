@@ -179,7 +179,7 @@ class NonFunctionalApplicationMachineError(arg: CekValue, env: CekValEnv)
 
 class OpenTermEvaluatedMachineError(name: NamedDeBruijn, env: CekValEnv)
     extends StackTraceMachineError(
-      s"Variable ${name.name} not found in environment: ${env.reverse.map(_._1).mkString(", ")}",
+      s"Variable ${name.name}@${name.index} not found in environment: ${env.reverse.map(_._1).mkString(", ")}",
       env
     )
 
@@ -573,7 +573,12 @@ class CekMachine(
     }
 
     private def lookupVarName(env: CekValEnv, name: NamedDeBruijn): CekValue = {
-        if name.index > env.size then throw new OpenTermEvaluatedMachineError(name, env)
+        if name.index == 0 then
+            throw MachineError(
+              s"Got a de Bruijn index 0: $name, it should be > 0. Run `DeBruijn.deBruijnTerm(term)` first."
+            )
+        if name.index <= 0 || env.size < name.index then
+            throw new OpenTermEvaluatedMachineError(name, env)
         else env(env.size - name.index)._2
     }
 

@@ -154,6 +154,12 @@ lazy val scalus = crossProject(JSPlatform, JVMPlatform)
     )
     .jsSettings(
       // Add JS-specific settings here
+      libraryDependencies += "org.webjars.npm" % "secp256k1" % "4.0.2",
+      scalaJSLinkerConfig ~= {
+          _.withModuleKind(ModuleKind.ESModule)
+              // Use .mjs extension.
+              .withOutputPatterns(OutputPatterns.fromJSFile("%s.mjs"))
+      },
       scalaJSUseMainModuleInitializer := false
     )
 
