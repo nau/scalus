@@ -1,6 +1,13 @@
 package scalus.builtin
 import io.bullet.borer.Cbor
 
+import java.nio.ByteBuffer
+import java.nio.CharBuffer
+import java.nio.charset.CharsetDecoder
+import java.nio.charset.CodingErrorAction
+import java.nio.charset.StandardCharsets
+import scalus.uplc.eval.BuiltinException
+
 /** This is the platform specific part of the builtins. This is mostly cryptographic primitives that
   * have different implementations on different platforms.
   */
@@ -90,6 +97,8 @@ object Builtins:
     // Bytestrings
     def appendByteString(a: ByteString, b: ByteString): ByteString = a ++ b
     def consByteString(char: BigInt, byteString: ByteString): ByteString =
+        if char < 0 || char > 255 then
+            throw new BuiltinException(s"consByteString: invalid byte value: $char")
         ByteString.fromArray(char.toByte +: byteString.bytes)
     def sliceByteString(start: BigInt, n: BigInt, bs: ByteString): ByteString =
         ByteString.fromArray(bs.bytes.drop(start.toInt).take(n.toInt))
@@ -97,7 +106,7 @@ object Builtins:
     def lengthOfByteString(bs: ByteString): BigInt = bs.length
     def indexByteString(bs: ByteString, i: BigInt): BigInt =
         if i < 0 || i >= bs.length then
-            throw new Exception(
+            throw new BuiltinException(
               s"index $i out of bounds for bytestring of length ${bs.length}"
             )
         else BigInt(bs.bytes(i.toInt) & 0xff)
@@ -147,7 +156,8 @@ object Builtins:
     def appendString(s1: String, s2: String): String = s1 + s2
     def equalsString(s1: String, s2: String): Boolean = s1 == s2
     def encodeUtf8(s: String): ByteString = ByteString.fromArray(s.getBytes("UTF-8"))
-    def decodeUtf8(bs: ByteString): String = new String(bs.bytes, "UTF-8")
+    def decodeUtf8(bs: ByteString): String =
+        UTF8Decoder.decode(bs.bytes)
 
     // Bool
     def ifThenElse[A](cond: Boolean, a: A, b: A): A =
@@ -249,3 +259,24 @@ object Builtins:
     def mkPairData(fst: Data, snd: Data): Pair[Data, Data] = Pair(fst, snd)
     def mkNilData(): List[Data] = List.empty
     def mkNilPairData(): List[Pair[Data, Data]] = List.empty
+
+private object UTF8Decoder {
+    def decode(bytes: Array[Byte]): String = {
+        val decoder: CharsetDecoder = StandardCharsets.UTF_8.newDecoder()
+        decoder.onMalformedInput(CodingErrorAction.REPORT)
+        decoder.onUnmappableCharacter(CodingErrorAction.REPORT)
+
+        val inputBuffer: ByteBuffer = ByteBuffer.wrap(bytes)
+        val outputBuffer: CharBuffer = CharBuffer.allocate(bytes.length)
+
+        try
+            val result = decoder.decode(inputBuffer, outputBuffer, true)
+            if result.isUnderflow then
+                outputBuffer.flip()
+                outputBuffer.toString
+            else throw new IllegalArgumentException("Invalid UTF-8 sequence")
+        catch
+            case e: java.nio.charset.CharacterCodingException =>
+                throw new IllegalArgumentException("Invalid UTF-8 sequence", e)
+    }
+}

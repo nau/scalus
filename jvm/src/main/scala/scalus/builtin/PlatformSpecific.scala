@@ -48,8 +48,17 @@ trait JVMPlatformSpecific extends PlatformSpecific {
     }
 
     override def verifyEd25519Signature(pk: ByteString, msg: ByteString, sig: ByteString): Boolean =
+        if pk.length != 32 then
+            throw new IllegalArgumentException(s"Invalid public key length ${pk.length}")
+        if sig.length != 64 then
+            throw new IllegalArgumentException(s"Invalid signature length ${sig.length}")
+        val pubKeyParams =
+            try new Ed25519PublicKeyParameters(pk.bytes, 0)
+            catch
+                case e: IllegalArgumentException =>
+                    return false
         val verifier = new Ed25519Signer()
-        verifier.init(false, new Ed25519PublicKeyParameters(pk.bytes, 0))
+        verifier.init(false, pubKeyParams)
         verifier.update(msg.bytes, 0, msg.length)
         verifier.verifySignature(sig.bytes)
 

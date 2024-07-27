@@ -9,7 +9,6 @@ import scalus.utils.Hex
 import scala.collection.immutable
 
 case class NamedDeBruijn(name: String, index: Int = 0):
-    assert(index >= 0)
     override def toString: String =
         if index == 0 then s"NamedDeBruijn(\"$name\")"
         else s"NamedDeBruijn(\"$name\", $index)"
@@ -38,7 +37,48 @@ enum Term:
         case Constr(tag, args)  => s"Constr($tag, ${args.mkString(", ")})"
         case Case(arg, cases)   => s"Case($arg, ${cases.mkString(", ")})"
 
+object Term:
+    def alphaEq(t1: Term, t2: Term): Boolean =
+        import Term.*
+
+        def eqName(n1: NamedDeBruijn, n2: NamedDeBruijn): Boolean =
+            assert(n1.index != 0)
+            assert(n2.index != 0)
+            n1.index == n2.index
+
+        def equals(self: Term, other: Term): Boolean = (self, other) match
+            case (Var(n1), Var(n2))               => eqName(n1, n2)
+            case (LamAbs(n1, t1), LamAbs(n2, t2)) => equals(t1, t2)
+            case (Apply(f1, a1), Apply(f2, a2))   => equals(f1, f2) && equals(a1, a2)
+            case (Force(t1), Force(t2))           => equals(t1, t2)
+            case (Delay(t1), Delay(t2))           => equals(t1, t2)
+            case (Const(c1), Const(c2))           => c1 == c2
+            case (Builtin(b1), Builtin(b2))       => b1 == b2
+            case (Error, Error)                   => true
+            case (Constr(tag1, args1), Constr(tag2, args2)) =>
+                tag1 == tag2 && args1.size == args2.size && args1
+                    .zip(args2)
+                    .forall((t1, t2) => equals(t1, t2))
+            case (Case(arg1, cases1), Case(arg2, cases2)) =>
+                arg1 == arg2 && cases1.size == cases2.size && cases1
+                    .zip(cases2)
+                    .forall((t1, t2) => equals(t1, t2))
+            case _ => false
+
+        equals(t1, t2)
+
 case class Program(version: (Int, Int, Int), term: Term):
+    /** Checks if two programs are equal.
+      *
+      * Two programs are equal if their versions are equal and their terms are alpha-equivalent.
+      * This means that the names of the variables are not important, only their De Bruijn indices.
+      * We use unique negative indices to represent free variables.
+      *
+      * @param that
+      * @return
+      */
+    infix def alphaEq(that: Program): Boolean =
+        version == that.version && Term.alphaEq(this.term, that.term)
     lazy val flatEncoded = ProgramFlatCodec.encodeFlat(this)
     lazy val cborEncoded = Cbor.encode(flatEncoded).toByteArray
     lazy val doubleCborEncoded = Cbor.encode(cborEncoded).toByteArray
