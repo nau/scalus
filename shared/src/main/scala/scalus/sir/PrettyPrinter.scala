@@ -229,7 +229,7 @@ object PrettyPrinter:
                       4
                     )).grouped).aligned
             case Builtin(bn, _) => pretty(bn).styled(Fg.colorCode(176))
-            case Error(msg)  => text(s"ERROR '$msg'").styled(Fg.colorCode(124))
+            case Error(msg, _)  => text(s"ERROR '$msg'").styled(Fg.colorCode(124))
 
     def pretty(sirType: SIRType): Doc =
         sirType match
@@ -239,7 +239,7 @@ object PrettyPrinter:
             case SIRType.TypeLambda(params, body) =>
                 inParens(text("λ.") + intercalate(text(",")+space,params.map(p => text(p.show))) + text(" =>> ") + pretty(body))
             case p: SIRType.Primitive[?] => text(p.show)
-            case SIRType.TypeError(msg)   => text(s"Error '$msg'")
+            case SIRType.TypeError(msg,_)   => text(s"Error '$msg'")
             case SIRType.CaseClass(constrDecl, typeParams) =>
                 text(constrDecl.name) + inOptBrackets(
                     intercalate(text(",") + space, typeParams.map(pretty))

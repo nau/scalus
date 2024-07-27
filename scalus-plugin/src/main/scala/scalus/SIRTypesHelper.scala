@@ -5,26 +5,36 @@ import dotty.tools.dotc.core.*
 import dotty.tools.dotc.core.Contexts.Context
 import dotty.tools.dotc.core.Types.*
 import dotty.tools.dotc.core.Symbols.*
-
+import dotty.tools.dotc.util.{SourcePosition, SrcPos}
 import scalus.sir.*
 
 
 object SIRTypesHelper {
 
-    // same as liftM
-    def sirType(tp: Type)(using Context): SIRType =
-        sirTypeInEnv(tp, Map.empty)
 
-    def sirTypeInEnv(tp: Type, env: Map[Symbol, SIRType])(using Context): SIRType =
+
+    case class SIRTypeEnv(pos: SrcPos, vars: Map[Symbol, SIRType])
+
+    // same as liftM
+    def sirType(tp: Type, pos: SrcPos)(using Context): SIRType =
+        sirTypeInEnv(tp, SIRTypeEnv(pos, Map.empty))
+
+    def sirTypeInEnv(tp: Type, env: SIRTypeEnv)(using Context): SIRType =
         tp.dealias.widen match
             case tpc: TermRef =>
-                SIRType.TypeError(s"TermRef  ${tpc.show} not supported")
+                if (tpc.typeSymbol.isTypeParam) then
+                    println("type parameter detected: " + tpc.show)
+                    unsupportedType(tp, s"TermRef ${tpc.show}", env)
+                else
+                    unsupportedType(tp, s"TermRef ${tpc.show}", env)
             case tpc: TypeRef =>
                 val sym = tpc.typeSymbol
                 if (sym.isClass) then
-                    makeSIRNonFunClassType(sym, Nil)
+                    makeSIRNonFunClassType(tpc, Nil, env)
+                else if (sym.isTypeParam) then
+                    ???
                 else
-                    SIRType.TypeError(s"TypeRef ${tpc.show} not supported")
+                    unsupportedType(tpc, "TypeRef", env)
             case tpc: ConstantType =>
                 // hmm, widen should have taken care of this
                 ???
@@ -34,7 +44,7 @@ object SIRTypesHelper {
                 sirTypeInEnv(tpc.parent, env)
             case tp: AppliedType =>
                 if (tp.tycon.isRef(defn.MatchCaseClass)) then
-                    SIRType.TypeError("MatchCaseClass not supported")
+                    unsupportedType(tp,"MatchCaseClass",env)
                 else
                     tp.tycon match
                         case tpc: TypeRef =>
@@ -42,21 +52,24 @@ object SIRTypesHelper {
                                 makeSIRFunType(tp, env)
                             else
                                 val sym = tpc.typeSymbol
-                                makeSIRNonFunClassType(tpc.typeSymbol, tp.args.map(sirTypeInEnv(_, env)))
+                                makeSIRNonFunClassType(tpc, tp.args.map(sirTypeInEnv(_, env)), env)
+                        case tpc: TypeLambda =>
+                            unsupportedType(tp, s"TypeLambda ${tpc.show}", env)
                         case tpc: TermRef =>
-                            SIRType.TypeError(s"TermRef  ${tpc.show} not supported")
+                            unsupportedType(tp, s"TermRef ${tpc.show}", env)
                         case other =>
-                            SIRType.TypeError(s"AppliedType ${tp.show} not supported")
+                            unsupportedType(tp, s"AppliedType ${tp.show}", env)
             case tp: AnnotatedType =>
                 sirTypeInEnv(tp.underlying, env)
             case tp: AndType =>
                 findClassInAndType(tp) match
-                    case Some(tpf) => makeSIRClassTypeNoTypeArgs(tpf)
-                    case None => SIRType.TypeError(s"AndType ${tp.show} not supported")
-            case tp: OrType =>
-                SIRType.TypeError(s"OrType ${tp.show} not supported")
+                    case Some(tpf) => makeSIRClassTypeNoTypeArgs(tpf, env)
+                    case None =>
+                        unsupportedType(tp, s"AndType", env)
+            case orTp: OrType =>
+                sirTypeInEnv(orTp.join, env)
             case tp: MatchType =>
-                SIRType.TypeError(s"MatchType ${tp.show} not supported")
+                unsupportedType(tp, s"MatchType", env)
             case tp: ExprType =>
                 sirTypeInEnv(tp.underlying, env)
             case tp: ParamRef =>
@@ -68,7 +81,7 @@ object SIRTypesHelper {
             case tpc: RecThis =>
                 sirTypeInEnv(tpc.underlying, env)
             case tpc: RecType =>
-                SIRType.TypeError(s"RecType ${tpc.show} not supported")
+                unsupportedType(tp, s"RecType", env)
             case tpm: MethodType =>
                 makeSIRFunType(tpm, env)
             case tpp: PolyType =>
@@ -84,41 +97,42 @@ object SIRTypesHelper {
             case tpp: TypeBounds =>
                 SIRType.FreeUnificator
             case NoPrefix =>
-                SIRType.TypeError(s"NoPrefix type is not supported")
+                unsupportedType(tp, "NoPrefix", env)
             //case tpf: FlexibleType =>
             //    sirTypeInEnv(tpf.underlying, env)
             case other =>
-                SIRType.TypeError(s"Not supported type ${other.show}")
+                unsupportedType(tp, s"$tp", env)
 
-    def makeSIRClassTypeNoTypeArgs(tp: Type)(using Context): SIRType = {
+    def makeSIRClassTypeNoTypeArgs(tp: Type, env: SIRTypeEnv)(using Context): SIRType = {
         if (defn.isFunctionType(tp)) then
             makeFunTypeLambda(tp)
         else
-            makeSIRNonFunClassType(tp.typeSymbol, Nil)
+            makeSIRNonFunClassType(tp, Nil, env)
     }
 
-    def makeSIRNonFunClassType(sym: Symbol, types: List[SIRType])(using Context): SIRType = {
+    def makeSIRNonFunClassType(tp: Type, types: List[SIRType], env: SIRTypeEnv)(using Context): SIRType = {
+        val sym = tp.typeSymbol
         println(s"makeSIRNonFumClassType ${sym.showFullName} ${types.map(_.show)}")
         (tryMakePrimitivePrimitive(sym, types) orElse
-          tryMakeBuildinType(sym, types) orElse
-          tryMakeCaseClassType(sym, types)
+          tryMakeBuildinType(sym, types, env) orElse
+          tryMakeCaseClassType(sym, types, env)
         ).getOrElse{
             val name = sym.showFullName
             val typeArgs = types.map(_.show)
             println(s"makeSIRClassType ${name} ${typeArgs}")
-            SIRType.TypeError(s"Class $name with type args $typeArgs not supported")
+            unsupportedType(tp,"", env)
         }
     }
 
-    def makeSIRFunType(tp: Type, env: Map[Symbol, SIRType])(using Context): SIRType = {
+    def makeSIRFunType(tp: Type, env: SIRTypeEnv)(using Context): SIRType = {
         tp match
             case mt:MethodType =>
-                makeSIRMethodType(mt)
+                makeSIRMethodType(mt, env)
             case AppliedType(tycon, args) =>
                 if (defn.isFunctionType(tycon)) then
-                    makeFunctionClassType(tycon.typeSymbol, args.map(sirTypeInEnv(_, env)))
+                    makeFunctionClassType(tycon.typeSymbol, args.map(sirTypeInEnv(_, env)), env)
                 else
-                    SIRType.TypeError(s"AppliedType ${tycon.show} not supported")
+                    unsupportedType(tp, "AppliedType as function", env)
             case _ =>
                 ???
     }
@@ -144,19 +158,25 @@ object SIRTypesHelper {
             None
     }
 
-    def tryMakeBuildinType(symbol: Symbol, tpArgs: List[SIRType])(using Context): Option[SIRType] = {
+    def tryMakeBuildinType(symbol: Symbol, tpArgs: List[SIRType], env: SIRTypeEnv)(using Context): Option[SIRType] = {
         if (symbol == Symbols.requiredClass("scalus.builtin.Data")) then
             Some(SIRType.Data)
         else if (symbol == Symbols.requiredClass("scalus.builtin.List")) then
             tpArgs match
                 case List(elemType) => Some(SIRType.List(elemType))
                 case _ =>
-                    Some(SIRType.TypeError(s"List type should have one type argument, found ${tpArgs.length}"))
+                    val err = SIRType.TypeError(s"List type should have one type argument, found ${tpArgs.length}", null)
+                    Some(err)
+        else if (symbol == Symbols.requiredClass("scalus.builtin.Pair")) then
+            tpArgs match
+                case List(a1,a2) => Some(SIRType.Pair(a1,a2))
+                case _ =>
+                    Some(SIRType.TypeError(s"Pair type should have two type arguments, found ${tpArgs.length}", null))
         else
             None
     }
 
-    def makeFunctionClassType(symbol: Symbols.Symbol, list: List[SIRType])(using Context): SIRType = {
+    def makeFunctionClassType(symbol: Symbols.Symbol, list: List[SIRType], env: SIRTypeEnv)(using Context): SIRType = {
         val args = list.init
         val res = list.last
         makeUnaryFun(args, res)
@@ -170,7 +190,8 @@ object SIRTypesHelper {
      * @param x$3
      * @return
      */
-    def tryMakeCaseClassType(symbol: Symbol, tpArgs: List[SIRType])(using Context): Option[SIRType] = {
+    def tryMakeCaseClassType(symbol: Symbol, tpArgs: List[SIRType], env: SIRTypeEnv)(using Context): Option[SIRType] = {
+        println(s"tryMakeCaseClassType ${symbol.showFullName} ${tpArgs.map(_.show)}")
         ???
     }
 
@@ -181,16 +202,26 @@ object SIRTypesHelper {
             case head::tail => SIRType.Fun(head, makeUnaryFun(tail, res))
     }
 
-    def makeSIRMethodType(mt: MethodType)(using Context): SIRType = {
+    def makeSIRMethodType(mt: MethodType, env: SIRTypeEnv)(using Context): SIRType = {
         val params = mt.paramNames.zip(mt.paramInfos).map{
-            (name, tp) => sirType(tp)
+            (name, tp) => sirTypeInEnv(tp, env)
         }
-        val res = sirType(mt.resultType)
+        val res = sirTypeInEnv(mt.resultType, env)
         makeUnaryFun(params,res)
     }
 
     def makeFunTypeLambda(fn: Type): SIRType = ???
 
+    def typeError(tpe: Type, msg: String, env: SIRTypeEnv, throwError: Boolean = false)(using Context): SIRType = {
+        if (throwError) then
+            throw RuntimeException(UnsupportedType(tpe, env.pos, msg).message)
+        else
+            SIRType.TypeError(msg, null)
+    }
 
+
+    def unsupportedType(tpe: Type, msg: String, env: SIRTypeEnv, throwError: Boolean = true)(using Context): SIRType = {
+        typeError(tpe, s"unsupported type: ${tpe.show} $msg", env, throwError)
+    }
 
 }

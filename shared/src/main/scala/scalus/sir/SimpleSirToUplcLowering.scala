@@ -137,7 +137,7 @@ class SimpleSirToUplcLowering(sir: SIR, generateErrorTraces: Boolean = false):
                   t
                 ) $ ~lowerInner(f))
             case SIR.Builtin(bn, _) => builtinTerms(bn)
-            case SIR.Error(msg) =>
+            case SIR.Error(msg, _) =>
                 if generateErrorTraces
                 then
                     !(builtinTerms(DefaultFun.Trace) $ Term.Const(

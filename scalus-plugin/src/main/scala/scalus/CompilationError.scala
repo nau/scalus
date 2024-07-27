@@ -231,7 +231,11 @@ case class ExpectedTypeLambda(name: String, actual: SIRType, srcPos: SrcPos)(usi
            |Actual: ${actual.show}""".stripMargin
 }
 
-
+case class UnsupportedType(tp: Type, srcPos: SrcPos, msg: String="")(using Context) extends CompilationError {
+    def message: String =
+        s"""Unsupported type ${tp.show} ${msg}
+           |Try rewriting your program without using it""".stripMargin
+}
 
 case class GenericError(message: String, srcPos: SrcPos) extends CompilationError
 

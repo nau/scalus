@@ -296,7 +296,7 @@ object FlatInstantces:
                 termTagWidth + bitSizeHC(c, hashCons) + bitSizeHC(t, hashCons) + bitSizeHC(f, hashCons) +
                     summon[HashConsedFlat[SIRType]].bitSizeHC(tp, hashCons)
             case Builtin(bn, tp)     => termTagWidth + summon[Flat[DefaultFun]].bitSize(bn)
-            case Error(msg)          => termTagWidth + summon[Flat[String]].bitSize(msg)
+            case Error(msg, cause)   => termTagWidth + summon[Flat[String]].bitSize(msg)
             case Constr(name, data, args) =>
                 termTagWidth + summon[Flat[String]].bitSize(name)
                               + summon[HashConsedFlat[DataDecl]].bitSizeHC(data, hashCons)
@@ -337,7 +337,7 @@ object FlatInstantces:
                 case Builtin(bn, tp) =>
                     enc.encode.bits(termTagWidth, tagBuiltin)
                     summon[Flat[DefaultFun]].encode(bn, enc.encode)
-                case Error(msg) =>
+                case Error(msg, _) =>
                     enc.encode.bits(termTagWidth, tagError)
                     summon[Flat[String]].encode(msg, enc.encode)
                 case Constr(name, data, args) =>

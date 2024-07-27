@@ -111,7 +111,7 @@ class OptimizingSirToUplcLowering(
                 usedBuiltins += DefaultFun.IfThenElse
                 analizeSir(term)
             case SIR.Builtin(bi, _)       => usedBuiltins += bi
-            case SIR.Error(_)             =>
+            case SIR.Error(_, _)             =>
             case SIR.Var(_, _)            =>
             case SIR.ExternalVar(_, _, _) =>
             case SIR.Const(_, _)          =>
@@ -232,7 +232,7 @@ class OptimizingSirToUplcLowering(
                   t
                 ) $ ~lowerInner(f))
             case SIR.Builtin(bn, _) => builtinTerms(bn)
-            case SIR.Error(msg) =>
+            case SIR.Error(msg, _) =>
                 if generateErrorTraces
                 then
                     !(builtinTerms(DefaultFun.Trace) $ Term.Const(

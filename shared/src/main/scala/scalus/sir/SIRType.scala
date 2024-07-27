@@ -180,9 +180,14 @@ object SIRType {
 
     }
 
-    case class TypeError(msg: String) extends SIRType {
-        override def show: String = s"Error: $msg"
+    case class TypeError(msg: String, cause: Throwable|Null) extends SIRType {
+        override def show: String =
+           if (cause eq null) then
+               s"Error: $msg"
+           else
+               s"Error: $msg\nCause: ${cause.getMessage}"
     }
+
     //given liftLambda1List: SIRType.Aux[[A] =>> List[A]] = ???
        // TypeLambda(List(TypeVar("A")), (a: Seq[SIRType]) => scalus.list(a.head)).asInstanceOf[SIRType.Aux[[A] =>> List[A]]]
        //  TODO: implement predefined constants and type cache.
@@ -263,12 +268,12 @@ object SIRType {
         case Fun(in, out) =>
             unify(in, arg, env) match
                 case r: SuccessfulTypeUnificationResult[?] => substitute(out,r.env, Map.empty)
-                case e: ErroredTypeUnificationResult => TypeError(e.msg)
-                case EmptyTypeUnificationResult => TypeError(s"Cannot unify $in with $arg")
+                case e: ErroredTypeUnificationResult => TypeError(e.msg, null)
+                case EmptyTypeUnificationResult => TypeError(s"Cannot unify $in with $arg", null)
         case tvF@TypeVar(name, _) =>
             env.get(tvF) match
                 case Some(f1) => calculateApplyType(tvF, arg, env)
-                case None => TypeError(s"Unbound type variable $name")
+                case None => TypeError(s"Unbound type variable $name", null)
         case TypeLambda(params, body) =>
             val newEnv = params.foldLeft(env) {
                 case (acc, tv) => acc + (tv -> FreeUnificator)
@@ -276,11 +281,11 @@ object SIRType {
             calculateApplyType(body, arg, newEnv)
         case TypeProxy(next) =>
             if (next == null) then
-                TypeError(s"TypeProxy is not resolved: $f")
+                TypeError(s"TypeProxy is not resolved: $f", null)
             else
                 calculateApplyType(next, arg, env)
         case other =>
-            TypeError(s"Expected function type, got $other")
+            TypeError(s"Expected function type, got $other", null)
     }
 
     sealed trait TypeUnificationResult[+T] {
@@ -459,7 +464,8 @@ object SIRType {
                 checkLeftTypeVar(tvl)
             case tll@TypeLambda(params, body) =>
                 checkLeftTypeLambda(tll)
-            case TypeError(msg) =>
+            case TypeError(msg, _) =>
+                // TODO: propagate cause
                 TypeUnificationResult.error(msg)
             case FreeUnificator =>
                 TypeUnificationResult.success(right, env)

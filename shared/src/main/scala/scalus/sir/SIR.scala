@@ -121,8 +121,8 @@ object SIR:
 
     case class IfThenElse(cond: SIRExpr, t: SIRExpr, f: SIRExpr, tp: SIRType) extends SIRExpr
     case class Builtin(bn: DefaultFun, tp: SIRType) extends SIRExpr
-    case class Error(msg: String) extends SIRExpr {
-        override def tp: SIRType = SIRType.TypeError(msg)
+    case class Error(msg: String, cause: Throwable|Null = null) extends SIRExpr {
+        override def tp: SIRType = SIRType.TypeError(msg, cause)
     }
     case class Constr(name: String, data: DataDecl, args: List[SIRExpr]) extends SIRExpr {
         override def tp: SIRType = data.tp
