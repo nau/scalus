@@ -154,7 +154,6 @@ lazy val scalus = crossProject(JSPlatform, JVMPlatform)
     )
     .jsSettings(
       // Add JS-specific settings here
-      Compile / npmDependencies += "blake2b" -> "2.1.4",
       Compile / npmDependencies += "@noble/curves" -> "1.4.2",
       scalaJSLinkerConfig ~= {
           _.withModuleKind(ModuleKind.CommonJSModule)
@@ -182,7 +181,6 @@ lazy val `examples-js` = project
     .settings(
       publish / skip := true,
       scalacOptions ++= commonScalacOptions,
-      Compile / npmDependencies += "blake2b" -> "2.1.4",
       Compile / npmDependencies += "@noble/curves" -> "1.4.2",
       scalaJSUseMainModuleInitializer := false,
       scalaJSLinkerConfig ~= {

@@ -1,15 +1,21 @@
 package scalus.builtin
 
 import scala.scalajs.js
+import scala.scalajs.js.JSConverters.*
 import scala.scalajs.js.annotation.*
 import scala.scalajs.js.typedarray.Int8Array
 import scala.scalajs.js.typedarray.Uint8Array
-import js.JSConverters.*
 
-@JSImport("crypto", JSImport.Namespace)
+@JSImport("@noble/hashes/sha2", JSImport.Namespace)
 @js.native
-private object Crypto extends js.Object {
-    def createHash(algorithm: String): Hash = js.native
+private object Sha2 extends js.Object {
+    def sha256(msg: Uint8Array): Uint8Array = js.native
+}
+
+@JSImport("@noble/hashes/sha3", JSImport.Namespace)
+@js.native
+private object Sha3 extends js.Object {
+    def sha3_256(msg: Uint8Array): Uint8Array = js.native
 }
 
 @JSImport("@noble/hashes/blake2b", "blake2b")
@@ -17,8 +23,6 @@ private object Crypto extends js.Object {
 private object Blake2b extends js.Object {
     def create(opts: BlakeOpts): Hash = js.native
 }
-
-private type Input = Uint8Array | Null
 
 private class BlakeOpts(val dkLen: Int) extends js.Object
 
@@ -60,12 +64,10 @@ trait NodeJsPlatformSpecific extends PlatformSpecific {
             ByteString.fromArray(new Int8Array(arr.buffer, arr.byteOffset, arr.length).toArray)
 
     override def sha2_256(bs: ByteString): ByteString =
-        val hash = Crypto.createHash("sha256")
-        hash.update(bs.toUint8Array).digest().toByteString
+        Sha2.sha256(bs.toUint8Array).toByteString
 
     override def sha3_256(bs: ByteString): ByteString =
-        val hash = Crypto.createHash("sha3-256")
-        hash.update(bs.toUint8Array).digest().toByteString
+        Sha3.sha3_256(bs.toUint8Array).toByteString
 
     override def blake2b_224(bs: ByteString): ByteString =
         val hash = Blake2b.create(BlakeOpts(dkLen = 28))
@@ -93,8 +95,7 @@ trait NodeJsPlatformSpecific extends PlatformSpecific {
         pk: ByteString,
         msg: ByteString,
         sig: ByteString
-    ): Boolean =
-        Secp256k1.schnorrVerify(msg.toUint8Array, sig.toUint8Array, pk.toUint8Array)
+    ): Boolean = Secp256k1.schnorrVerify(msg.toUint8Array, sig.toUint8Array, pk.toUint8Array)
 }
 
 object NodeJsPlatformSpecific extends NodeJsPlatformSpecific
