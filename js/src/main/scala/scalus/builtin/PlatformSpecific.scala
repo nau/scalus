@@ -12,11 +12,15 @@ private object Crypto extends js.Object {
     def createHash(algorithm: String): Hash = js.native
 }
 
-@JSImport("blake2b", JSImport.Namespace)
+@JSImport("@noble/hashes/blake2b", "blake2b")
 @js.native
 private object Blake2b extends js.Object {
-    def apply(outputLength: Int): Hash = js.native
+    def create(opts: BlakeOpts): Hash = js.native
 }
+
+private type Input = Uint8Array | Null
+
+private class BlakeOpts(val dkLen: Int) extends js.Object
 
 @js.native
 private trait Hash extends js.Object {
@@ -64,11 +68,11 @@ trait NodeJsPlatformSpecific extends PlatformSpecific {
         hash.update(bs.toUint8Array).digest().toByteString
 
     override def blake2b_224(bs: ByteString): ByteString =
-        val hash = Crypto.createHash("blake2b224")
+        val hash = Blake2b.create(BlakeOpts(dkLen = 28))
         hash.update(bs.toUint8Array).digest().toByteString
 
     override def blake2b_256(bs: ByteString): ByteString =
-        val hash = Blake2b(32)
+        val hash = Blake2b.create(BlakeOpts(dkLen = 32))
         hash.update(bs.toUint8Array).digest().toByteString
 
     override def verifyEd25519Signature(pk: ByteString, msg: ByteString, sig: ByteString): Boolean =
