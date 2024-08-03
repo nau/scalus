@@ -25,7 +25,7 @@ ThisBuild / licenses := List(
   "Apache 2" -> new URI("http://www.apache.org/licenses/LICENSE-2.0.txt").toURL
 )
 ThisBuild / homepage := Some(url("https://github.com/nau/scalus"))
-
+ThisBuild / versionScheme := Some("early-semver")
 ThisBuild / sonatypeCredentialHost := "s01.oss.sonatype.org"
 sonatypeRepository := "https://s01.oss.sonatype.org/service/local"
 Test / publishArtifact := false
