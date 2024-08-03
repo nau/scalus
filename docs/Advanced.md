@@ -16,8 +16,14 @@ val sir = compile:
         // this generates headList(...headList(sndPair(unConstrData(ctxData)))) code
         // to extract the signatories field from the ScriptContext
         val signatories = fieldAsData[ScriptContext](_.txInfo.signatories)(ctxData)
+        // or like this, which is equivalent
+        val signatories2 = ctxData.field[ScriptContext](_.txInfo.signatories)
         val sigs = unListData(signatories)
+        // or like this, which is equivalent
+        val sigs2 = signatories2.toList
         unBData(sigs.head) == hex"deadbeef"
+        // same as above
+        sigs2.head.toByteString == hex"deadbeef"
 ```
 
 ## Inlining constants
@@ -28,7 +34,7 @@ Scalus can inline constants in the script.
 import scalus.*, Compiler.*, builtin.{Data, Builtins, ByteString, given}, Builtins.*, ByteString.given
 
 inline def validator(inline pubKeyHash: ByteString)(datum: Data, redeemer: Data, ctxData: Data) =
-    verifyEd25519Signature(pubKeyHash, unBData(datum), unBData(redeemer))
+    verifyEd25519Signature(pubKeyHash, datum.toByteString, redeemer.toByteString)
 val script = compile:
     validator(hex"deadbeef")
 ```

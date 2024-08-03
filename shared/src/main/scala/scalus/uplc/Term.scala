@@ -6,6 +6,7 @@ import scalus.*
 import scalus.builtin.Data.*
 import scalus.utils.Hex
 
+import scala.annotation.targetName
 import scala.collection.immutable
 
 case class NamedDeBruijn(name: String, index: Int = 0):
@@ -83,6 +84,8 @@ case class Program(version: (Int, Int, Int), term: Term):
     lazy val cborEncoded = Cbor.encode(flatEncoded).toByteArray
     lazy val doubleCborEncoded = Cbor.encode(cborEncoded).toByteArray
     lazy val doubleCborHex = Hex.bytesToHex(doubleCborEncoded)
+    @targetName("applyArg")
+    infix def $(arg: Term): Program = Program(version, Term.Apply(term, arg))
 
 case class DeBruijnedProgram private[uplc] (version: (Int, Int, Int), term: Term):
     def pretty: Doc =
