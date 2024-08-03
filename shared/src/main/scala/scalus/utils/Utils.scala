@@ -1,11 +1,8 @@
 package scalus.utils
 
-import io.bullet.borer.Cbor
 import scalus.ledger.api.PlutusLedgerLanguage
 import scalus.ledger.api.PlutusLedgerLanguage.*
-import scalus.uplc.DeBruijn
 import scalus.uplc.Program
-import scalus.uplc.ProgramFlatCodec
 import upickle.default.*
 
 import java.nio.file.*
@@ -44,11 +41,7 @@ object Utils:
         val envelope = read[PlutusTextEnvelope](content)
         // TODO: check that the version is supported, validate builtins etc
         val doubleCborHex = envelope.cborHex
-        val cbor = Cbor.decode(Utils.hexToBytes(doubleCborHex)).to[Array[Byte]].value
-        val scriptFlat = Cbor.decode(cbor).to[Array[Byte]].value
-        val debruijnedProgram = ProgramFlatCodec.decodeFlat(scriptFlat)
-        val program = DeBruijn.fromDeBruijnProgram(debruijnedProgram)
-        program
+        Program.fromDoubleCborHex(doubleCborHex)
 
     def readPlutusFile(path: String): Program =
         val content = new String(Files.readAllBytes(Paths.get(path)), "UTF-8")

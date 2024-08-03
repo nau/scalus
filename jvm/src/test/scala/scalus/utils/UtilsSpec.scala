@@ -23,7 +23,7 @@ class UtilsSpec
         val term = Arbitrary.arbitrary[Term].sample.get
         val program = Program((1, 0, 0), term)
         val debruijnedProgram = DeBruijn.deBruijnProgram(program)
-        val undebuijnedProgram = DeBruijn.fromDeBruijnProgram(debruijnedProgram)
+        val undebuijnedProgram = debruijnedProgram.toProgram
         val f = Files.createTempFile("test", ".plutus").toFile()
         val path = f.getAbsolutePath()
         f.deleteOnExit()
