@@ -203,8 +203,14 @@ class SIRConverter(using Context) {
             case DefaultUni.Unit       => ref(requiredModule("scalus.uplc.DefaultUni.Unit"))
             case DefaultUni.Bool       => ref(requiredModule("scalus.uplc.DefaultUni.Bool"))
             case DefaultUni.Data       => ref(requiredModule("scalus.uplc.DefaultUni.Data"))
-            case DefaultUni.ProtoList  => ref(requiredModule("scalus.uplc.DefaultUni.ProtoList"))
-            case DefaultUni.ProtoPair  => ref(requiredModule("scalus.uplc.DefaultUni.ProtoPair"))
+            case DefaultUni.DefaultUniBLS12_381_G1_Element =>
+                ref(requiredModule("scalus.uplc.DefaultUni.DefaultUniBLS12_381_G1_Element"))
+            case DefaultUni.DefaultUniBLS12_381_G2_Element =>
+                ref(requiredModule("scalus.uplc.DefaultUni.DefaultUniBLS12_381_G2_Element"))
+            case DefaultUni.DefaultUniBLS12_381_MlResult =>
+                ref(requiredModule("scalus.uplc.DefaultUni.DefaultUniBLS12_381_MlResult"))
+            case DefaultUni.ProtoList => ref(requiredModule("scalus.uplc.DefaultUni.ProtoList"))
+            case DefaultUni.ProtoPair => ref(requiredModule("scalus.uplc.DefaultUni.ProtoPair"))
             case DefaultUni.Apply(f, arg) =>
                 ref(requiredModule("scalus.uplc.DefaultUni.Apply").requiredMethod("apply"))
                     .appliedToArgs(

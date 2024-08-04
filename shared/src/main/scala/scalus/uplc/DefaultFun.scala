@@ -82,6 +82,37 @@ enum DefaultFun:
     case MkPairData
     case MkNilData
     case MkNilPairData
+    // BLS12_381 operations
+    // G1 operations
+    case Bls12_381_G1_add
+    case Bls12_381_G1_neg
+    case Bls12_381_G1_scalarMul
+    case Bls12_381_G1_equal
+    case Bls12_381_G1_hashToGroup
+    case Bls12_381_G1_compress
+    case Bls12_381_G1_uncompress
+
+    // G2 operations
+    case Bls12_381_G2_add
+    case Bls12_381_G2_neg
+    case Bls12_381_G2_scalarMul
+    case Bls12_381_G2_equal
+    case Bls12_381_G2_hashToGroup
+    case Bls12_381_G2_compress
+    case Bls12_381_G2_uncompress
+
+    // Pairing operations
+    case Bls12_381_millerLoop
+    case Bls12_381_mulMlResult
+    case Bls12_381_finalVerify
+
+    // Hash functions
+    case Keccak_256
+    case Blake2b_224
+
+    // Conversions
+    case IntegerToByteString
+    case ByteStringToInteger
 
 given DefaultFunOrdering: Ordering[DefaultFun] with
     def compare(x: DefaultFun, y: DefaultFun): Int = x.ordinal - y.ordinal
