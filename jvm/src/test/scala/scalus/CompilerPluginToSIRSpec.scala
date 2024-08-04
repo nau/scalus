@@ -485,10 +485,127 @@ class CompilerPluginToSIRSpec extends AnyFunSuite with ScalaCheckPropertyChecks:
     }
 
     test("compile serialiseData builtins") {
+        assert(compile { Builtins.serialiseData } == Builtin(DefaultFun.SerialiseData))
+    }
+
+    test("compile BLS12_381_G1 builtins") {
         assert(
-          compile {
-              Builtins.serialiseData
-          } == LamAbs("d", Apply(Builtin(SerialiseData), Var("d")))
+          compile(Builtins.bls12_381_G1_add) == LamAbs(
+            "p1",
+            LamAbs("p2", Apply(Apply(Builtin(Bls12_381_G1_add), Var("p1")), Var("p2")))
+          )
+        )
+        assert(
+          compile(Builtins.bls12_381_G1_neg) == LamAbs(
+            "p",
+            Apply(Builtin(Bls12_381_G1_neg), Var("p"))
+          )
+        )
+        assert(
+          compile(Builtins.bls12_381_G1_scalarMul) == LamAbs(
+            "s",
+            LamAbs("p", Apply(Apply(Builtin(Bls12_381_G1_scalarMul), Var("s")), Var("p")))
+          )
+        )
+        assert(
+          compile(Builtins.bls12_381_G1_equal) == LamAbs(
+            "p1",
+            LamAbs("p2", Apply(Apply(Builtin(Bls12_381_G1_equal), Var("p1")), Var("p2")))
+          )
+        )
+        assert(
+          compile(Builtins.bls12_381_G1_hashToGroup) == LamAbs(
+            "bs",
+            LamAbs("dst", Apply(Apply(Builtin(Bls12_381_G1_hashToGroup), Var("bs")), Var("dst")))
+          )
+        )
+        assert(
+          compile(Builtins.bls12_381_G1_compress) == LamAbs(
+            "p",
+            Apply(Builtin(Bls12_381_G1_compress), Var("p"))
+          )
+        )
+        assert(
+          compile(Builtins.bls12_381_G1_uncompress) == LamAbs(
+            "bs",
+            Apply(Builtin(Bls12_381_G1_uncompress), Var("bs"))
+          )
+        )
+    }
+
+    test("compile BLS12_381_G2 builtins") {
+        assert(
+          compile(Builtins.bls12_381_G2_add) == LamAbs(
+            "p1",
+            LamAbs("p2", Apply(Apply(Builtin(Bls12_381_G2_add), Var("p1")), Var("p2")))
+          )
+        )
+        assert(
+          compile(Builtins.bls12_381_G2_neg) == LamAbs(
+            "p",
+            Apply(Builtin(Bls12_381_G2_neg), Var("p"))
+          )
+        )
+        assert(
+          compile(Builtins.bls12_381_G2_scalarMul) == LamAbs(
+            "s",
+            LamAbs("p", Apply(Apply(Builtin(Bls12_381_G2_scalarMul), Var("s")), Var("p")))
+          )
+        )
+        assert(
+          compile(Builtins.bls12_381_G2_equal) == LamAbs(
+            "p1",
+            LamAbs("p2", Apply(Apply(Builtin(Bls12_381_G2_equal), Var("p1")), Var("p2")))
+          )
+        )
+        assert(
+          compile(Builtins.bls12_381_G2_hashToGroup) == LamAbs(
+            "bs",
+            LamAbs("dst", Apply(Apply(Builtin(Bls12_381_G2_hashToGroup), Var("bs")), Var("dst")))
+          )
+        )
+        assert(
+          compile(Builtins.bls12_381_G2_compress) == LamAbs(
+            "p",
+            Apply(Builtin(Bls12_381_G2_compress), Var("p"))
+          )
+        )
+        assert(
+          compile(Builtins.bls12_381_G2_uncompress) == LamAbs(
+            "bs",
+            Apply(Builtin(Bls12_381_G2_uncompress), Var("bs"))
+          )
+        )
+    }
+
+    test("compile BLS12_381 pairing operations builtins") {
+        assert(
+          compile(Builtins.bls12_381_millerLoop) == LamAbs(
+            "p1",
+            LamAbs("p2", Apply(Apply(Builtin(Bls12_381_millerLoop), Var("p1")), Var("p2")))
+          )
+        )
+        assert(
+          compile(Builtins.bls12_381_mulMlResult) == LamAbs(
+            "r1",
+            LamAbs("r2", Apply(Apply(Builtin(Bls12_381_mulMlResult), Var("r1")), Var("r2")))
+          )
+        )
+        assert(
+          compile(Builtins.bls12_381_finalVerify) == LamAbs(
+            "r",
+            Apply(Builtin(Bls12_381_finalVerify), Var("r"))
+          )
+        )
+    }
+
+    test("compile Keccak_256 builtin") {
+        assert(compile(Builtins.keccak_256) == LamAbs("bs", Apply(Builtin(Keccak_256), Var("bs"))))
+    }
+
+    test("compile Blake2b_224 builtin") {
+        assert(
+          compile(Builtins.blake2b_224) == LamAbs("bs", Apply(Builtin(Blake2b_224), Var("bs")))
         )
     }
 

@@ -260,6 +260,66 @@ object Builtins:
     def mkNilData(): List[Data] = List.empty
     def mkNilPairData(): List[Pair[Data, Data]] = List.empty
 
+    // BLS12_381 operations
+    def bls12_381_G1_equal(using
+        ps: PlatformSpecific
+    )(p1: BLS12_381_G1_Element, p2: BLS12_381_G1_Element): Boolean =
+        ???
+    def bls12_381_G1_add(using
+        ps: PlatformSpecific
+    )(p1: BLS12_381_G1_Element, p2: BLS12_381_G1_Element): BLS12_381_G1_Element =
+        ???
+    def bls12_381_G1_scalarMul(using
+        ps: PlatformSpecific
+    )(s: BigInt, p: BLS12_381_G1_Element): BLS12_381_G1_Element = ???
+    def bls12_381_G1_neg(using ps: PlatformSpecific)(
+        p: BLS12_381_G1_Element
+    ): BLS12_381_G1_Element = ???
+    def bls12_381_G1_compress(using ps: PlatformSpecific)(p: BLS12_381_G1_Element): ByteString = ???
+    def bls12_381_G1_uncompress(using ps: PlatformSpecific)(bs: ByteString): BLS12_381_G1_Element =
+        ???
+    def bls12_381_G1_hashToGroup(using
+        ps: PlatformSpecific
+    )(bs: ByteString, dst: ByteString): BLS12_381_G1_Element = ???
+    def bls12_381_G1_compressed_zero: ByteString = ???
+    def bls12_381_G1_compressed_generator: ByteString = ???
+    def bls12_381_G2_equal(using
+        ps: PlatformSpecific
+    )(p1: BLS12_381_G2_Element, p2: BLS12_381_G2_Element): Boolean =
+        ???
+    def bls12_381_G2_add(using
+        ps: PlatformSpecific
+    )(p1: BLS12_381_G2_Element, p2: BLS12_381_G2_Element): BLS12_381_G2_Element =
+        ???
+    def bls12_381_G2_scalarMul(using
+        ps: PlatformSpecific
+    )(s: BigInt, p: BLS12_381_G2_Element): BLS12_381_G2_Element = ???
+    def bls12_381_G2_neg(using ps: PlatformSpecific)(
+        p: BLS12_381_G2_Element
+    ): BLS12_381_G2_Element = ???
+    def bls12_381_G2_compress(using ps: PlatformSpecific)(p: BLS12_381_G2_Element): ByteString = ???
+    def bls12_381_G2_uncompress(using ps: PlatformSpecific)(bs: ByteString): BLS12_381_G2_Element =
+        ???
+    def bls12_381_G2_hashToGroup(using
+        ps: PlatformSpecific
+    )(bs: ByteString, dst: ByteString): BLS12_381_G2_Element = ???
+    def bls12_381_G2_compressed_zero: ByteString = ???
+    def bls12_381_G2_compressed_generator: ByteString = ???
+    def bls12_381_millerLoop(using ps: PlatformSpecific)(
+        p1: BLS12_381_G1_Element,
+        p2: BLS12_381_G2_Element
+    ): BLS12_381_MlResult =
+        ???
+    def bls12_381_mulMlResult(using
+        ps: PlatformSpecific
+    )(r1: BLS12_381_MlResult, r2: BLS12_381_MlResult): BLS12_381_MlResult =
+        ???
+    def bls12_381_finalVerify(using ps: PlatformSpecific)(r: BLS12_381_MlResult): Boolean = ???
+    def blake2b_224(using ps: PlatformSpecific)(bs: ByteString): ByteString = ps.blake2b_224(bs)
+    def keccak_256(using ps: PlatformSpecific)(bs: ByteString): ByteString = ???
+    def integerToByteString(endianness: ByteOrder, n: BigInt, len: BigInt): ByteString = ???
+    def byteStringToInteger(endianness: ByteOrder, bs: ByteString): BigInt = ???
+
 private object UTF8Decoder {
     def decode(bytes: Array[Byte]): String = {
         val decoder: CharsetDecoder = StandardCharsets.UTF_8.newDecoder()
