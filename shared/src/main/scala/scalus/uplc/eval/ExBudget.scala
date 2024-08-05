@@ -1,6 +1,7 @@
 package scalus.uplc.eval
 
 import cats.kernel.Group
+import java.text.DecimalFormat
 
 opaque type ExCPU <: Long = Long
 object ExCPU {
@@ -11,7 +12,11 @@ object ExMemory {
     inline def apply(l: Long): ExMemory = l
 }
 
-case class ExBudget(cpu: ExCPU, memory: ExMemory)
+case class ExBudget(cpu: ExCPU, memory: ExMemory) {
+    def showJson: String =
+        val df = new DecimalFormat("0.000000");
+        s"{ mem: ${df.format(memory / 1000000d)}, cpu: ${df.format(cpu / 1000000d)} }"
+}
 
 object ExBudget {
 

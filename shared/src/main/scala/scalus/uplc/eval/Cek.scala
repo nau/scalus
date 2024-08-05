@@ -18,13 +18,14 @@ import scala.collection.mutable.ArrayBuffer
 import scala.collection.mutable.HashMap
 import scala.util.Try
 import scala.util.control.NonFatal
+import scala.collection.mutable.Buffer
 
 enum StepKind:
     case Const, Var, LamAbs, Apply, Delay, Force, Builtin, Constr, Case
 
 enum ExBudgetCategory:
-    case Step(kind: StepKind)
     case Startup
+    case Step(kind: StepKind)
     case BuiltinApp(bi: DefaultFun)
 
 case class CekMachineCosts(
@@ -351,12 +352,90 @@ class PlutusVM(platformSpecific: PlatformSpecific) {
         cek.evaluateTerm(debruijnedTerm)
     }
 
+    def evaluateDebug(term: Term): Result = {
+        val spenderLogger = TallyingBudgetSpenderLogger(CountingBudgetSpender())
+        val cekMachine = CekMachine(
+          MachineParams.defaultParams,
+          spenderLogger,
+          spenderLogger,
+          platformSpecific
+        )
+        val debruijnedTerm = DeBruijn.deBruijnTerm(term)
+        try
+            Result.Success(
+              DeBruijn.fromDeBruijnTerm(cekMachine.evaluateTerm(debruijnedTerm)),
+              spenderLogger.getSpentBudget,
+              spenderLogger.costs.toMap,
+              spenderLogger.getLogsWithBudget
+            )
+        catch
+            case e: Exception =>
+                Result.Failure(
+                  e,
+                  spenderLogger.getSpentBudget,
+                  spenderLogger.costs.toMap,
+                  spenderLogger.getLogsWithBudget
+                )
+    }
+
     /** Evaluates a UPLC Program using default CEK machine parameters and no budget calculation.
       *
       * Useful for testing and debugging.
       */
     def evaluateProgram(p: Program): Term = evaluateTerm(p.term)
 }
+
+enum Result:
+    val budget: ExBudget
+    val logs: Seq[String]
+    val costs: collection.Map[ExBudgetCategory, collection.Seq[ExBudget]]
+    case Success(
+        term: Term,
+        budget: ExBudget,
+        costs: Map[ExBudgetCategory, collection.Seq[ExBudget]],
+        logs: Seq[String]
+    )
+    case Failure(
+        exception: Exception,
+        budget: ExBudget,
+        costs: Map[ExBudgetCategory, collection.Seq[ExBudget]],
+        logs: Seq[String]
+    )
+
+    override def toString(): String =
+        import scalus.*
+
+        def sumBudget(budgets: collection.Seq[ExBudget]): ExBudget =
+            budgets.foldLeft(ExBudget.zero)(_ |+| _)
+
+        def showCosts = costs.toArray
+            .sortWith:
+                case (
+                      (ExBudgetCategory.BuiltinApp(bn1), _),
+                      (ExBudgetCategory.BuiltinApp(bn2), _)
+                    ) =>
+                    bn1.ordinal < bn2.ordinal
+                case ((k1, _), (k2, _)) => k1.ordinal < k2.ordinal
+            .map:
+                case (ExBudgetCategory.Startup, v) =>
+                    s"Startup: ${v.length} ${sumBudget(v).showJson}"
+                case (ExBudgetCategory.Step(kind), v)     => s"$kind: ${v.length} ${sumBudget(v).showJson}"
+                case (ExBudgetCategory.BuiltinApp(bn), v) => s"$bn: ${v.length} ${sumBudget(v).showJson}"
+            .mkString("\n")
+
+        this match
+            case Success(term, budget, costs, logs) =>
+                s"""Success executing script:
+              | term: ${term.pretty.render(80)}
+              | budget: ${budget.showJson}
+              | costs:\n${showCosts}
+              | logs: ${logs.mkString("\n")}""".stripMargin
+            case Failure(exception, budget, costs, logs) =>
+                s"""Failure executing script:
+              | exception: ${exception.getMessage()}
+              | budget: ${budget.showJson}
+              | costs:\n${showCosts}
+              | logs: ${logs.mkString("\n")}""".stripMargin
 
 class CekResult(t: Term, val budget: ExBudget, val logs: Array[String]) {
     lazy val term = DeBruijn.fromDeBruijnTerm(t)
@@ -437,6 +516,27 @@ final class TallyingBudgetSpender(val budgetSpender: BudgetSpender) extends Budg
     }
 
     def getSpentBudget: ExBudget = budgetSpender.getSpentBudget
+}
+
+final class TallyingBudgetSpenderLogger(val budgetSpender: BudgetSpender)
+    extends BudgetSpender
+    with Logger {
+    val costs: collection.mutable.Map[ExBudgetCategory, Buffer[ExBudget]] =
+        HashMap[ExBudgetCategory, Buffer[ExBudget]]().withDefault(_ => ArrayBuffer.empty[ExBudget])
+
+    def spendBudget(cat: ExBudgetCategory, budget: ExBudget, env: CekValEnv): Unit = {
+        budgetSpender.spendBudget(cat, budget, env)
+        costs.update(cat, costs(cat) += budget)
+    }
+
+    def getSpentBudget: ExBudget = budgetSpender.getSpentBudget
+
+    private val _logs: ArrayBuffer[(String, ExBudget)] = ArrayBuffer.empty
+    val logs: collection.IndexedSeq[(String, ExBudget)] = _logs
+    def getLogs: Array[String] = _logs.map(_._1).toArray
+    def getLogsWithBudget: Seq[String] =
+        _logs.map((log, budget) => s"$log: ${budget.showJson}").toSeq
+    def log(msg: String): Unit = _logs.append((msg, getSpentBudget))
 }
 
 final class CountingBudgetSpender extends BudgetSpender {

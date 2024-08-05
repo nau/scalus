@@ -1099,6 +1099,42 @@ class CompilerPluginToSIRSpec extends AnyFunSuite with ScalaCheckPropertyChecks:
         assert(flatBytesLength == 340)
     }
 
+    test("fieldAsData macro budget") {
+        import scalus.ledger.api.v1.*
+        import scalus.ledger.api.v1.FromDataInstances.given
+        import scalus.ledger.api.v1.ToDataInstances.given
+
+        val compiled = compile { (ctx: scalus.builtin.Data) =>
+            // check multiple nested fields
+            val id = fieldAsData[ScriptContext](_.txInfo.id)(ctx)
+            id
+        }
+        // println(compiled.pretty.render(80))
+        val term = compiled.toUplc()
+
+        val scriptContext =
+            ScriptContext(
+              TxInfo(
+                Nil,
+                Nil,
+                Value.zero,
+                Value.zero,
+                Nil,
+                Nil,
+                Interval.always,
+                Cons(PubKeyHash(hex"deadbeef"), Nil),
+                Nil,
+                TxId(hex"bb")
+              ),
+              ScriptPurpose.Spending(TxOutRef(TxId(hex"deadbeef"), 0))
+            )
+        import scalus.uplc.TermDSL.{*, given}
+        import scalus.builtin.Data.{*}
+        val appliedScript = term $ scriptContext.toData
+        val evaled = VM.evaluateDebug(appliedScript)
+        println(evaled)
+    }
+
     test("@Ignore annotation") {
         @Ignore
         def foo() = 1
