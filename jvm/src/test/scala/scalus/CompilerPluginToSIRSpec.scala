@@ -1055,10 +1055,16 @@ class CompilerPluginToSIRSpec extends AnyFunSuite with ScalaCheckPropertyChecks:
 
     test("compile fieldAsData macro") {
         import scalus.ledger.api.v1.*
+        import scalus.ledger.api.v1.FromDataInstances.given
         import scalus.ledger.api.v1.ToDataInstances.given
 
         val compiled = compile { (ctx: scalus.builtin.Data) =>
+            // check multiple nested fields
             val sigsData = fieldAsData[ScriptContext](_.txInfo.signatories)(ctx)
+            // check type aliased fields
+            val from = ctx.field[ScriptContext](_.txInfo.validRange.from).to[IntervalBound]
+            // check tuples
+            val data = ctx.field[(ByteString, Data)](_._2)
             val sigs = Builtins.unListData(sigsData)
             Builtins.unBData(sigs.head)
         }
@@ -1090,7 +1096,7 @@ class CompilerPluginToSIRSpec extends AnyFunSuite with ScalaCheckPropertyChecks:
         assert(evaled == scalus.uplc.Term.Const(asConstant(hex"deadbeef")))
         val flatBytesLength = appliedScript.flatEncoded.length
         // println(Utils.bytesToHex(flatBytes))
-        assert(flatBytesLength == 125)
+        assert(flatBytesLength == 340)
     }
 
     test("@Ignore annotation") {
