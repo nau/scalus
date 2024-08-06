@@ -24,34 +24,93 @@ import scala.collection.immutable
   * and are program version dependent, that's why this is a class and not an object.
   */
 class UplcParser:
+    import UplcParser.*
     private var version = (1, 1, 0) // use latest version by default
 
     // TODO and FIXME:
     // - support nested block comments as in the Haskell parser
     // - con/constr/case/lam... expect a whitespaces0 but it must be whitespace, refactor
-    val lineComment = P.string("--") *> P.charsWhile(_ != '\n').void
-    val whitespace: P[Unit] = P.charIn(" \t\r\n").void | lineComment
-    val whitespaces0: Parser0[Unit] = whitespace.rep0.void
 
+    val programVersion: P[(Int, Int, Int)] =
+        lexeme((number <* P.char('.')) ~ (number <* P.char('.')) ~ number) map {
+            case ((major, minor), patch) =>
+                version = (major, minor, patch)
+                version
+        }
+
+    val term: P[Term] = P.recursive { self =>
+        def lamTerm = inParens(symbol("lam") ~ lexeme(name) ~ self) map { case ((_, name), term) =>
+            LamAbs(name, term)
+        }
+        def appTerm = inBrackets(self ~ self.rep).map { case (f, args) =>
+            args.foldLeft(f) { case (acc, arg) => Apply(acc, arg) }
+        }
+        def forceTerm = inParens(symbol("force") *> self).map(Force.apply)
+        def delayTerm = inParens(symbol("delay") *> self).map(Delay.apply)
+        def errorTerm = inParens(symbol("error")).map(_ => Error)
+        def constrTerm: P[Term] =
+            inParens(symbol("constr") *> lexeme(long) ~ self.rep0).map((tag, args) =>
+                Constr(tag, args)
+            ) <* (P.defer0(
+              if 1 <= version._1 && 1 <= version._2 then P.unit
+              else P.failWith[Unit]("'constr' is not allowed before version 1.1.0")
+            ))
+        def caseTerm: P[Term] =
+            inParens(symbol("case") *> self ~ self.rep0).map { (scrutinee, cases) =>
+                Case(scrutinee, cases.toList)
+            } <* (
+              P.defer0(
+                if 1 <= version._1 && 1 <= version._2 then P.unit
+                else P.failWith[Unit]("'case' is not allowed before version 1.1.0")
+              )
+            )
+
+        appTerm.backtrack
+            | builtinTerm.backtrack
+            | caseTerm.backtrack
+            | constrTerm.backtrack
+            | conTerm.backtrack
+            | lamTerm.backtrack
+            | forceTerm.backtrack
+            | delayTerm.backtrack
+            | errorTerm.backtrack
+            | varTerm.backtrack
+    }
+
+    val program: P[Program] = inParens(symbol("program") *> programVersion ~ term) map {
+        case (v, term) =>
+            Program(v, term)
+    }
+
+    def parseProgram(s: String): Either[String, Program] =
+        val parser = program.surroundedBy(whitespaces0) <* P.end
+        parser.parse(s) match
+            case Right((_, result)) => Right(result)
+            case Left(f)            => Left(f.show)
+
+object UplcParser:
     private lazy val cached: immutable.Map[String, DefaultFun] =
         DefaultFun.values.map(v => Utils.lowerFirst(v.toString) -> v).toMap
 
-    def number: P[Int] = digits.map(_.toList.mkString.toInt)
-    def long: P[Long] = digits.map(_.toList.mkString.toLong)
-    def bigint: P[String] = (P.charIn('+', '-').?.with1 ~ digits).map { case (s, d) =>
+    val lineComment = P.string("--") *> P.charsWhile(_ != '\n').void
+    val whitespace: P[Unit] = P.charIn(" \t\r\n").void | lineComment
+    val whitespaces0: Parser0[Unit] = whitespace.rep0.void
+    val number: P[Int] = digits.map(_.toList.mkString.toInt)
+    val long: P[Long] = digits.map(_.toList.mkString.toLong)
+    val bigint: P[String] = (P.charIn('+', '-').?.with1 ~ digits).map { case (s, d) =>
         s.map(_.toString).getOrElse("") + d
     }
-    def integer: P[BigInt] = bigint.map(BigInt(_))
+    val integer: P[BigInt] = bigint.map(BigInt(_))
     def inParens[A](p: P[A]): P[A] = p.between(symbol("("), symbol(")"))
     def inBrackets[A](p: P[A]): P[A] = p.between(symbol("["), symbol("]"))
     def lexeme[A](p: P[A]): P[A] = p <* whitespaces0
     def symbol(s: String): P[Unit] = P.string(s).void <* whitespaces0
 
-    def name: P[String] = alpha ~ (alpha | digit | P.charIn("_'")).rep0 map { case (a, b) =>
+    val name: P[String] = alpha ~ (alpha | digit | P.charIn("_'")).rep0 map { case (a, b) =>
         (a :: b).mkString
     }
 
-    def defaultUni: P[DefaultUni] = P.recursive { self =>
+    val defaultUni: P[DefaultUni] = P.recursive { self =>
         def star = lexeme(
           P.stringIn(Seq("integer", "bytestring", "string", "unit", "bool", "data"))
         ).map {
@@ -71,7 +130,7 @@ class UplcParser:
         star.backtrack | list.backtrack | pair
     }
 
-    def hexByte: P[Byte] = hexdig ~ hexdig map { case (a, b) =>
+    val hexByte: P[Byte] = hexdig ~ hexdig map { case (a, b) =>
         java.lang.Integer.valueOf(Array(a, b).mkString, 16).toByte
     }
 
@@ -134,7 +193,7 @@ class UplcParser:
             Constant.Pair(p._1, p._2)
         }
 
-    def bytestring: P[ByteString] = P.char('#') *> hexByte.rep0.map(bs => ByteString(bs: _*))
+    val bytestring: P[ByteString] = P.char('#') *> hexByte.rep0.map(bs => ByteString(bs: _*))
     def constantOf(t: DefaultUni, expectDataParens: Boolean = false): P[Constant] = t match
         case DefaultUni.Integer => lexeme(integer).map(i => Constant.Integer(i))
         case DefaultUni.Unit    => symbol("()").map(_ => Constant.Unit)
@@ -153,7 +212,7 @@ class UplcParser:
         case DefaultUni.Apply(DefaultUni.Apply(ProtoPair, a), b) => conPairOf(a, b)
         case _                                                   => sys.error("not implemented")
 
-    def dataTerm: P[Data] = P.recursive { self =>
+    val dataTerm: P[Data] = P.recursive { self =>
         def args: P[List[Data]] =
             symbol("[") *> lexeme(self).repSep0(symbol(",")) <* symbol("]")
         def dataConstr: P[Data] =
@@ -170,79 +229,22 @@ class UplcParser:
         dataConstr | dataMap | dataList | dataB | dataI
     }
 
-    def constant: P[Constant] = for
+    val constant: P[Constant] = for
         uni <- defaultUni
         const <- constantOf(uni, expectDataParens = true)
     yield const
 
-    def conTerm: P[Term] = inParens(symbol("con") *> constant).map(c => Const(c))
+    val conTerm: P[Term] = inParens(symbol("con") *> constant).map(c => Const(c))
 
-    def builtinFunction: P[DefaultFun] = lexeme(
+    val builtinFunction: P[DefaultFun] = lexeme(
       name.flatMap(name =>
-          cached.get(name) match
+          UplcParser.cached.get(name) match
               case Some(f) => P.pure(f)
               case None    => P.failWith(s"unknown builtin function: $name")
       )
     )
 
-    def builtinTerm: P[Builtin] =
+    val builtinTerm: P[Builtin] =
         inParens(symbol("builtin") *> builtinFunction).map(n => Builtin(n))
 
-    def programVersion: P[(Int, Int, Int)] =
-        lexeme((number <* P.char('.')) ~ (number <* P.char('.')) ~ number) map {
-            case ((major, minor), patch) =>
-                version = (major, minor, patch)
-                version
-        }
-
-    def varTerm: P[Var] = lexeme(name).map(n => Var(NamedDeBruijn(n)))
-
-    def term: P[Term] = P.recursive { self =>
-        def lamTerm = inParens(symbol("lam") ~ lexeme(name) ~ self) map { case ((_, name), term) =>
-            LamAbs(name, term)
-        }
-        def appTerm = inBrackets(self ~ self.rep).map { case (f, args) =>
-            args.foldLeft(f) { case (acc, arg) => Apply(acc, arg) }
-        }
-        def forceTerm = inParens(symbol("force") *> self).map(Force.apply)
-        def delayTerm = inParens(symbol("delay") *> self).map(Delay.apply)
-        def errorTerm = inParens(symbol("error")).map(_ => Error)
-        def constrTerm: P[Term] =
-            inParens(symbol("constr") *> lexeme(long) ~ self.rep0).map((tag, args) =>
-                Constr(tag, args)
-            ) <* (P.defer0(
-              if 1 <= version._1 && 1 <= version._2 then P.unit
-              else P.failWith[Unit]("'constr' is not allowed before version 1.1.0")
-            ))
-        def caseTerm: P[Term] =
-            inParens(symbol("case") *> self ~ self.rep0).map { (scrutinee, cases) =>
-                Case(scrutinee, cases.toList)
-            } <* (
-              P.defer0(
-                if 1 <= version._1 && 1 <= version._2 then P.unit
-                else P.failWith[Unit]("'case' is not allowed before version 1.1.0")
-              )
-            )
-
-        varTerm.backtrack
-            | builtinTerm.backtrack
-            | caseTerm.backtrack
-            | constrTerm.backtrack
-            | conTerm.backtrack
-            | lamTerm.backtrack
-            | appTerm.backtrack
-            | forceTerm.backtrack
-            | delayTerm.backtrack
-            | errorTerm.backtrack
-    }
-
-    def program: P[Program] = inParens(symbol("program") *> programVersion ~ term) map {
-        case (v, term) =>
-            Program(v, term)
-    }
-
-    def parseProgram(s: String): Either[String, Program] =
-        val parser = program.surroundedBy(whitespaces0) <* P.end
-        parser.parse(s) match
-            case Right((_, result)) => Right(result)
-            case Left(f)            => Left(f.show)
+    val varTerm: P[Var] = lexeme(name).map(n => Var(NamedDeBruijn(n)))

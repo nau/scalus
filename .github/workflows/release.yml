@@ -17,7 +17,7 @@ jobs:
               trusted-public-keys = hydra.iohk.io:f/Ea+s+dFdN+3Y/G+FDgSq+a5NEWhJGzdjvKNGv0/EQ= cache.nixos.org-1:6NCHdD59X431o0gWypbMrAURkbJ16ZPMQFGspcDShjY=
               substituters = https://cache.iog.io https://cache.nixos.org/
         # - name: Build and test in Nix devshell
-      - run: nix develop --command bash -c "sbt ci-release"
+      - run: nix develop .#ci --command bash -c "sbt ci-release"
         env:
           PGP_PASSPHRASE: ${{ secrets.PGP_PASSPHRASE }}
           PGP_SECRET: ${{ secrets.PGP_SECRET }}

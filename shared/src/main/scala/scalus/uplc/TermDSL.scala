@@ -17,9 +17,9 @@ object TermDSL:
     def lam(names: String*)(term: Term): Term = names.foldRight(term)(Term.LamAbs(_, _))
     def vr(name: String): Term = Term.Var(NamedDeBruijn(name))
     extension (term: Term)
-        def $(rhs: Term) = Term.Apply(term, rhs)
-        def unary_! = Term.Force(term)
-        def unary_~ = Term.Delay(term)
+        infix def $(rhs: Term): Term = Term.Apply(term, rhs)
+        def unary_! : Term = Term.Force(term)
+        def unary_~ : Term = Term.Delay(term)
 
     extension (sc: StringContext) def vr(args: Any*): Term = Term.Var(NamedDeBruijn(sc.parts.head))
 

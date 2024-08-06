@@ -105,7 +105,7 @@ class UplcParserSpec extends AnyFunSuite with ScalaCheckPropertyChecks with Arbi
     }
 
     test("Parse constant types") {
-        def p(input: String) = parser.defaultUni.parse(input).map(_._2)
+        def p(input: String) = UplcParser.defaultUni.parse(input).map(_._2)
         assert(p("bool") == Right(DefaultUni.Bool))
         assert(p("bytestring") == Right(DefaultUni.ByteString))
         assert(p("data") == Right(DefaultUni.Data))
@@ -148,7 +148,7 @@ class UplcParserSpec extends AnyFunSuite with ScalaCheckPropertyChecks with Arbi
     }
 
     test("Parse data") {
-        def p(input: String) = parser.dataTerm.parse(input).map(_._2).left.map(e => e.show)
+        def p(input: String) = UplcParser.dataTerm.parse(input).map(_._2).left.map(e => e.show)
         assert(p("B #  ") == Right(Data.B(scalus.builtin.ByteString.empty)))
         assert(p("I 123 ") == Right(Data.I(123)))
         assert(p("Constr 0 [Constr 1 []] ") == Right(Data.Constr(0, List(Data.Constr(1, Nil)))))
@@ -156,7 +156,7 @@ class UplcParserSpec extends AnyFunSuite with ScalaCheckPropertyChecks with Arbi
 
     test("Parse constants") {
         import cats.implicits.toShow
-        def p(input: String) = parser.conTerm.parse(input).map(_._2).left.map(e => e.show)
+        def p(input: String) = UplcParser.conTerm.parse(input).map(_._2).left.map(e => e.show)
         assert(
           p("(con (list integer) [1,2, 000000000000000000000000000000000000012345])") == Right(
             Seq(1, 2, 12345): Term
@@ -210,7 +210,7 @@ class UplcParserSpec extends AnyFunSuite with ScalaCheckPropertyChecks with Arbi
 
     test("Parse builtins") {
         import cats.implicits.toShow
-        def p(input: String) = parser.builtinTerm.parse(input).map(_._2).left.map(e => e.show)
+        def p(input: String) = UplcParser.builtinTerm.parse(input).map(_._2).left.map(e => e.show)
 
         assert(p("(builtin addInteger)") == Right(Builtin(DefaultFun.AddInteger)))
         assert(p("(builtin appendByteString)") == Right(Builtin(DefaultFun.AppendByteString)))
@@ -237,13 +237,13 @@ class UplcParserSpec extends AnyFunSuite with ScalaCheckPropertyChecks with Arbi
 
         forAll { (t: DefaultUni) =>
             val pretty = t.pretty.render(80)
-            val parsed = parser.defaultUni.parse(pretty).map(_._2).left.map(e => e.show)
+            val parsed = UplcParser.defaultUni.parse(pretty).map(_._2).left.map(e => e.show)
             assert(parsed == Right(t))
         }
 
         forAll { (t: Constant) =>
             val pretty = t.pretty.render(80)
-            val parsed = parser.constant.parse(pretty).map(_._2).left.map(e => e.show)
+            val parsed = UplcParser.constant.parse(pretty).map(_._2).left.map(e => e.show)
             assert(parsed == Right(t))
         }
 

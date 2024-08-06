@@ -4,15 +4,12 @@ package eval
 
 import org.scalatest.funsuite.AnyFunSuite
 
-import scala.io.Source.fromFile
-import scala.language.implicitConversions
-
 /** Tests for the Plutus Conformance Test Suite.
   *
   * @note
   *   This tests run only on JVM right now.
   */
-class PlutusConformanceSpec extends AnyFunSuite:
+abstract class PlutusConformanceSpec extends AnyFunSuite:
     // Run this command in plutus-conformance to generate the test cases
     // find . -name "*.uplc" -print0 | sort -zf | xargs -0 -I {} bash -c 'file="{}"; rel_path="${file#./}"; without_ext="${rel_path%.uplc}"; echo "check(\"$without_ext\")"'
 
@@ -403,52 +400,52 @@ class PlutusConformanceSpec extends AnyFunSuite:
     check("builtin/semantics/unListData/unListData1/unListData1")
     check("builtin/semantics/unMapData/unMapData-fail/unMapData-fail")
     check("builtin/semantics/unMapData/unMapData1/unMapData1")
-    check("builtin/semantics/verifyEcdsaSecp256k1Signature/invalid-key/invalid-key")
-    check("builtin/semantics/verifyEcdsaSecp256k1Signature/long-key/long-key")
-    check("builtin/semantics/verifyEcdsaSecp256k1Signature/long-msg/long-msg")
-    check("builtin/semantics/verifyEcdsaSecp256k1Signature/long-sig/long-sig")
-    check("builtin/semantics/verifyEcdsaSecp256k1Signature/short-key/short-key")
-    check("builtin/semantics/verifyEcdsaSecp256k1Signature/short-msg/short-msg")
-    check("builtin/semantics/verifyEcdsaSecp256k1Signature/short-sig/short-sig")
-    check("builtin/semantics/verifyEd25519Signature/long-key/long-key")
-    check("builtin/semantics/verifyEd25519Signature/long-sig/long-sig")
-    check("builtin/semantics/verifyEd25519Signature/short-key/short-key")
-    check("builtin/semantics/verifyEd25519Signature/short-sig/short-sig")
-    check("builtin/semantics/verifyEd25519Signature/test01/test01")
-    check("builtin/semantics/verifyEd25519Signature/test02/test02")
-    check("builtin/semantics/verifyEd25519Signature/test03/test03")
-    check("builtin/semantics/verifyEd25519Signature/test04/test04")
-    check("builtin/semantics/verifyEd25519Signature/test05/test05")
-    check("builtin/semantics/verifyEd25519Signature/test06/test06")
-    check("builtin/semantics/verifyEd25519Signature/test07/test07")
-    check("builtin/semantics/verifyEd25519Signature/test08/test08")
-    check("builtin/semantics/verifyEd25519Signature/test09/test09")
-    check("builtin/semantics/verifyEd25519Signature/test10/test10")
-    check("builtin/semantics/verifyEd25519Signature/test11/test11")
-    check("builtin/semantics/verifyEd25519Signature/test12/test12")
-    check("builtin/semantics/verifyEd25519Signature/test13/test13")
-    check("builtin/semantics/verifyEd25519Signature/test14/test14")
-    check("builtin/semantics/verifyEd25519Signature/test15/test15")
-    check("builtin/semantics/verifyEd25519Signature/test16/test16")
-    check("builtin/semantics/verifyEd25519Signature/test17/test17")
-    check("builtin/semantics/verifyEd25519Signature/test18/test18")
-    check("builtin/semantics/verifyEd25519Signature/test19/test19")
-    check("builtin/semantics/verifyEd25519Signature/test20/test20")
-    check("builtin/semantics/verifyEd25519Signature/test21/test21")
-    check("builtin/semantics/verifyEd25519Signature/test22/test22")
-    check("builtin/semantics/verifyEd25519Signature/test23/test23")
-    check("builtin/semantics/verifyEd25519Signature/test24/test24")
-    check("builtin/semantics/verifyEd25519Signature/test25/test25")
-    check("builtin/semantics/verifyEd25519Signature/test26/test26")
-    check("builtin/semantics/verifyEd25519Signature/test27/test27")
-    check("builtin/semantics/verifyEd25519Signature/test28/test28")
-    check("builtin/semantics/verifyEd25519Signature/test29/test29")
-    check("builtin/semantics/verifyEd25519Signature/test30/test30")
-    check("builtin/semantics/verifyEd25519Signature/test31/test31")
-    check("builtin/semantics/verifySchnorrSecp256k1Signature/long-key/long-key")
-    check("builtin/semantics/verifySchnorrSecp256k1Signature/long-sig/long-sig")
-    check("builtin/semantics/verifySchnorrSecp256k1Signature/short-key/short-key")
-    check("builtin/semantics/verifySchnorrSecp256k1Signature/short-sig/short-sig")
+    check("builtin/semantics/verifyEcdsaSecp256k1Signature/verifyEcdsaSecp256k1Signature-invalid-key/verifyEcdsaSecp256k1Signature-invalid-key")
+    check("builtin/semantics/verifyEcdsaSecp256k1Signature/verifyEcdsaSecp256k1Signature-long-key/verifyEcdsaSecp256k1Signature-long-key")
+    check("builtin/semantics/verifyEcdsaSecp256k1Signature/verifyEcdsaSecp256k1Signature-long-msg/verifyEcdsaSecp256k1Signature-long-msg")
+    check("builtin/semantics/verifyEcdsaSecp256k1Signature/verifyEcdsaSecp256k1Signature-long-sig/verifyEcdsaSecp256k1Signature-long-sig")
+    check("builtin/semantics/verifyEcdsaSecp256k1Signature/verifyEcdsaSecp256k1Signature-short-key/verifyEcdsaSecp256k1Signature-short-key")
+    check("builtin/semantics/verifyEcdsaSecp256k1Signature/verifyEcdsaSecp256k1Signature-short-msg/verifyEcdsaSecp256k1Signature-short-msg")
+    check("builtin/semantics/verifyEcdsaSecp256k1Signature/verifyEcdsaSecp256k1Signature-short-sig/verifyEcdsaSecp256k1Signature-short-sig")
+    check("builtin/semantics/verifyEd25519Signature/verifyEd25519Signature1/verifyEd25519Signature1")
+    check("builtin/semantics/verifyEd25519Signature/verifyEd25519Signature10/verifyEd25519Signature10")
+    check("builtin/semantics/verifyEd25519Signature/verifyEd25519Signature11/verifyEd25519Signature11")
+    check("builtin/semantics/verifyEd25519Signature/verifyEd25519Signature12/verifyEd25519Signature12")
+    check("builtin/semantics/verifyEd25519Signature/verifyEd25519Signature13/verifyEd25519Signature13")
+    check("builtin/semantics/verifyEd25519Signature/verifyEd25519Signature14/verifyEd25519Signature14")
+    check("builtin/semantics/verifyEd25519Signature/verifyEd25519Signature15/verifyEd25519Signature15")
+    check("builtin/semantics/verifyEd25519Signature/verifyEd25519Signature16/verifyEd25519Signature16")
+    check("builtin/semantics/verifyEd25519Signature/verifyEd25519Signature17/verifyEd25519Signature17")
+    check("builtin/semantics/verifyEd25519Signature/verifyEd25519Signature18/verifyEd25519Signature18")
+    check("builtin/semantics/verifyEd25519Signature/verifyEd25519Signature19/verifyEd25519Signature19")
+    check("builtin/semantics/verifyEd25519Signature/verifyEd25519Signature2/verifyEd25519Signature2")
+    check("builtin/semantics/verifyEd25519Signature/verifyEd25519Signature20/verifyEd25519Signature20")
+    check("builtin/semantics/verifyEd25519Signature/verifyEd25519Signature21/verifyEd25519Signature21")
+    check("builtin/semantics/verifyEd25519Signature/verifyEd25519Signature22/verifyEd25519Signature22")
+    check("builtin/semantics/verifyEd25519Signature/verifyEd25519Signature23/verifyEd25519Signature23")
+    check("builtin/semantics/verifyEd25519Signature/verifyEd25519Signature24/verifyEd25519Signature24")
+    check("builtin/semantics/verifyEd25519Signature/verifyEd25519Signature25/verifyEd25519Signature25")
+    check("builtin/semantics/verifyEd25519Signature/verifyEd25519Signature26/verifyEd25519Signature26")
+    check("builtin/semantics/verifyEd25519Signature/verifyEd25519Signature27/verifyEd25519Signature27")
+    check("builtin/semantics/verifyEd25519Signature/verifyEd25519Signature28/verifyEd25519Signature28")
+    check("builtin/semantics/verifyEd25519Signature/verifyEd25519Signature29/verifyEd25519Signature29")
+    check("builtin/semantics/verifyEd25519Signature/verifyEd25519Signature3/verifyEd25519Signature3")
+    check("builtin/semantics/verifyEd25519Signature/verifyEd25519Signature30/verifyEd25519Signature30")
+    check("builtin/semantics/verifyEd25519Signature/verifyEd25519Signature31/verifyEd25519Signature31")
+    check("builtin/semantics/verifyEd25519Signature/verifyEd25519Signature4/verifyEd25519Signature4")
+    check("builtin/semantics/verifyEd25519Signature/verifyEd25519Signature5/verifyEd25519Signature5")
+    check("builtin/semantics/verifyEd25519Signature/verifyEd25519Signature6/verifyEd25519Signature6")
+    check("builtin/semantics/verifyEd25519Signature/verifyEd25519Signature7/verifyEd25519Signature7")
+    check("builtin/semantics/verifyEd25519Signature/verifyEd25519Signature8/verifyEd25519Signature8")
+    check("builtin/semantics/verifyEd25519Signature/verifyEd25519Signature9/verifyEd25519Signature9")
+    check("builtin/semantics/verifyEd25519Signature/verifyEd25519SignatureLongKey/verifyEd25519SignatureLongKey")
+    check("builtin/semantics/verifyEd25519Signature/verifyEd25519SignatureLongSig/verifyEd25519SignatureLongSig")
+    check("builtin/semantics/verifyEd25519Signature/verifyEd25519SignatureShortKey/verifyEd25519SignatureShortKey")
+    check("builtin/semantics/verifyEd25519Signature/verifyEd25519SignatureShortSig/verifyEd25519SignatureShortSig")
+    check("builtin/semantics/verifySchnorrSecp256k1Signature/verifySchnorrSecp256k1Signature-long-key/verifySchnorrSecp256k1Signature-long-key")
+    check("builtin/semantics/verifySchnorrSecp256k1Signature/verifySchnorrSecp256k1Signature-long-sig/verifySchnorrSecp256k1Signature-long-sig")
+    check("builtin/semantics/verifySchnorrSecp256k1Signature/verifySchnorrSecp256k1Signature-short-key/verifySchnorrSecp256k1Signature-short-key")
+    check("builtin/semantics/verifySchnorrSecp256k1Signature/verifySchnorrSecp256k1Signature-short-sig/verifySchnorrSecp256k1Signature-short-sig")
     check("example/ApplyAdd1/ApplyAdd1")
     check("example/ApplyAdd2/ApplyAdd2")
     check("example/churchSucc/churchSucc")
@@ -522,25 +519,27 @@ class PlutusConformanceSpec extends AnyFunSuite:
 
     }
 
-    private def eval(code: String): Either[Error, Program] = {
+    private def eval(code: String): Either[(Error, Exception), Program] = {
         UplcParser().parseProgram(code) match
             case Right(program) =>
                 try Right(program.copy(term = VM.evaluateProgram(program)))
-                catch case e: Exception => Left("evaluation failure")
+                catch case e: Exception => Left("evaluation failure" -> e)
             case Left(e) =>
-                Left("parse error")
+                Left("parse error" -> RuntimeException(e))
     }
 
-    private def check(name: String): Unit =
-        val path =
-            s"../plutus-conformance/test-cases/uplc/evaluation"
-        val code = fromFile(s"$path/$name.uplc").mkString
-        val expected = fromFile(s"$path/$name.uplc.expected").mkString
+    protected def readFile(path: String): String
+
+    protected def path = s"plutus-conformance/test-cases/uplc/evaluation"
+
+    protected def check(name: String): Unit =
         test(name) {
+            val code = readFile(s"$path/$name.uplc")
+            val expected = readFile(s"$path/$name.uplc.expected")
             // println(eval(code).pretty.render(80))
             (eval(code), parseExpected(expected)) match
                 case (Right(actual), Right(expected)) =>
                     assert(actual alphaEq expected)
-                case (Left(e1), Left(e2)) => assert(e1 == e2)
+                case (Left((e1, _)), Left(e2)) => assert(e1 == e2)
                 case (a, b)               => fail(s"Expected $b but got $a")
         }

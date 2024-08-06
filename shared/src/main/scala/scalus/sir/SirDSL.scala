@@ -20,10 +20,8 @@ object SirDSL:
             case body => (Nil, body)
 
     def λ(names: String*)(term: SIRExpr): SIRExpr = lam(names: _*)(term)
-    def lam(names: String*)(term: SIRExpr): SIRExpr = names.foldRight(term){
-        case (name, body) => SIR.LamAbs(SIR.Var(name, body.tp), body)
-    }
-    extension (term: SIRExpr) def $(rhs: SIRExpr) = SIR.Apply(term, rhs, SIRType.calculateApplyType(term.tp, rhs.tp, Map.empty))
+    def lam(names: String*)(term: SIRExpr): SIRExpr = names.foldRight(term)(SIR.LamAbs(_, _))
+    extension (term: SIRExpr) infix def $(rhs: SIRExpr): SIRExpr = SIR.Apply(term, rhs)
 
     given Conversion[DefaultFun, SIRExpr] with
         def apply(bn: DefaultFun): SIRExpr = SIRBuiltins.fromUplc(bn)

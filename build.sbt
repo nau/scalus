@@ -25,7 +25,7 @@ ThisBuild / licenses := List(
   "Apache 2" -> new URI("http://www.apache.org/licenses/LICENSE-2.0.txt").toURL
 )
 ThisBuild / homepage := Some(url("https://github.com/nau/scalus"))
-
+ThisBuild / versionScheme := Some("early-semver")
 ThisBuild / sonatypeCredentialHost := "s01.oss.sonatype.org"
 sonatypeRepository := "https://s01.oss.sonatype.org/service/local"
 Test / publishArtifact := false
@@ -67,7 +67,7 @@ lazy val scalusPlugin = project
       // thus recompiling the plugin and all dependent projects
       // COMMENT THIS LINE TO ENABLE VERSION INCREMENT during Scalus plugin development
       // version := "0.6.2-SNAPSHOT",
-      libraryDependencies += "org.scalatest" %%% "scalatest" % "3.2.18" % "test",
+      libraryDependencies += "org.scalatest" %%% "scalatest" % "3.2.19" % "test",
       libraryDependencies += "org.scalatestplus" %%% "scalacheck-1-16" % "3.2.14.0" % "test",
       libraryDependencies += "org.scala-lang" %% "scala3-compiler" % scalaVersion.value // % "provided"
     )
@@ -110,7 +110,7 @@ lazy val scalusPluginTests = project
       name := "scalus-plugin-tests",
       publish / skip := true,
       PluginDependency,
-      libraryDependencies += "org.scalatest" %%% "scalatest" % "3.2.18" % "test",
+      libraryDependencies += "org.scalatest" %%% "scalatest" % "3.2.19" % "test",
       libraryDependencies += "org.scalatestplus" %%% "scalacheck-1-16" % "3.2.12.0" % "test"
     )
 
@@ -135,16 +135,16 @@ lazy val scalus = crossProject(JSPlatform, JVMPlatform)
       scalacOptions ++= commonScalacOptions,
       scalacOptions += "-Xmax-inlines:100", // needed for upickle derivation of CostModel
       // scalacOptions += "-Yretain-trees",
-      libraryDependencies += "org.typelevel" %%% "cats-core" % "2.10.0",
+      libraryDependencies += "org.typelevel" %%% "cats-core" % "2.12.0",
       libraryDependencies += "org.typelevel" %%% "cats-parse" % "1.0.0",
-      libraryDependencies += "org.typelevel" %%% "paiges-core" % "0.4.3",
+      libraryDependencies += "org.typelevel" %%% "paiges-core" % "0.4.4",
       libraryDependencies += "com.lihaoyi" %%% "upickle" % "3.3.1",
       libraryDependencies ++= Seq(
-        "io.bullet" %%% "borer-core" % "1.14.0",
-        "io.bullet" %%% "borer-derivation" % "1.14.0"
+        "io.bullet" %%% "borer-core" % "1.14.1",
+        "io.bullet" %%% "borer-derivation" % "1.14.1"
       ),
       PluginDependency,
-      libraryDependencies += "org.scalatest" %%% "scalatest" % "3.2.18" % "test",
+      libraryDependencies += "org.scalatest" %%% "scalatest" % "3.2.19" % "test",
       libraryDependencies += "org.scalatestplus" %%% "scalacheck-1-16" % "3.2.14.0" % "test"
     )
     .jvmSettings(
@@ -158,8 +158,15 @@ lazy val scalus = crossProject(JSPlatform, JVMPlatform)
     )
     .jsSettings(
       // Add JS-specific settings here
+      Compile / npmDependencies += "@noble/curves" -> "1.4.2",
+      scalaJSLinkerConfig ~= {
+          _.withModuleKind(ModuleKind.CommonJSModule)
+          // Use .mjs extension.
+//              .withOutputPatterns(OutputPatterns.fromJSFile("%s.mjs"))
+      },
       scalaJSUseMainModuleInitializer := false
     )
+    .jsConfigure { project => project.enablePlugins(ScalaJSBundlerPlugin) }
 
 lazy val examples = project
     .in(file("examples"))
@@ -172,17 +179,16 @@ lazy val examples = project
     )
 
 lazy val `examples-js` = project
-    .enablePlugins(ScalaJSPlugin)
+    .enablePlugins(ScalaJSPlugin, ScalaJSBundlerPlugin)
     .in(file("examples-js"))
     .dependsOn(scalus.js)
     .settings(
       publish / skip := true,
       scalacOptions ++= commonScalacOptions,
+      Compile / npmDependencies += "@noble/curves" -> "1.4.2",
       scalaJSUseMainModuleInitializer := false,
       scalaJSLinkerConfig ~= {
-          _.withModuleKind(ModuleKind.ESModule)
-              // Use .mjs extension.
-              .withOutputPatterns(OutputPatterns.fromJSFile("%s.mjs"))
+          _.withModuleKind(ModuleKind.CommonJSModule)
       },
       PluginDependency
     )
@@ -197,7 +203,7 @@ lazy val `scalus-bloxbean-cardano-client-lib` = project
       libraryDependencies += "com.bloxbean.cardano" % "cardano-client-lib" % "0.5.1",
       libraryDependencies += "org.slf4j" % "slf4j-api" % "2.0.13",
       libraryDependencies += "org.slf4j" % "slf4j-simple" % "2.0.13" % "test",
-      libraryDependencies += "org.scalatest" %%% "scalatest" % "3.2.18" % "test",
+      libraryDependencies += "org.scalatest" %%% "scalatest" % "3.2.19" % "test",
       libraryDependencies += "com.bloxbean.cardano" % "cardano-client-backend-blockfrost" % "0.5.1" % "test",
       libraryDependencies += "com.bloxbean.cardano" % "yaci" % "0.3.0-beta14" % "test",
       Test / fork := true, // needed for BlocksValidation to run in sbt

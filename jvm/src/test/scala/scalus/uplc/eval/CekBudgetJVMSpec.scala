@@ -1,20 +1,24 @@
 package scalus.uplc
 package eval
 
+import cats.syntax.all.*
 import org.scalatest.funsuite.AnyFunSuite
 import scalus.*
 import scalus.builtin.JVMPlatformSpecific
 import scalus.ledger.babbage.*
 import scalus.uplc.DefaultUni.asConstant
 import scalus.uplc.Term.*
-import scala.util.Try
+import scalus.uplc.eval.CekMachineCosts.defaultMachineCosts.*
+
 import scala.util.Success
+import scala.util.Try
 
 class CekBudgetJVMSpec extends AnyFunSuite:
-    test("Check machine budget for terms is correct") {
-        import cats.syntax.all.*
-        import CekMachineCosts.defaultMachineCosts.*
-        def check(term: Term, expected: ExBudget) = {
+    private def check(term: Term, expected: ExBudget): Unit = {
+        val expectedBudget = expected |+| startupCost
+        test(
+          s"Check machine budget for terms ${term.pretty.flatten.render(100)} is $expectedBudget"
+        ) {
             val debruijnedTerm = DeBruijn.deBruijnTerm(term)
             val spender = CountingBudgetSpender()
             val cek = CekMachine(
@@ -28,27 +32,27 @@ class CekBudgetJVMSpec extends AnyFunSuite:
                 case (Success(t1), UplcEvalResult.Success(t2, budget2)) =>
                     val budget = spender.getSpentBudget
                     assert(
-                      budget == (expected |+| cek.params.machineCosts.startupCost),
+                      budget == expectedBudget,
                       s"for term $term"
                     )
-                    assert(budget == budget2)
+                    assert(budget == budget2, "Budgets should match with cardano uplc eval")
                 case r => fail(s"Unexpected result for term $term: $r")
         }
-
-        val h = Const(asConstant("Hello"))
-        val id = LamAbs("x", Var(NamedDeBruijn("x")))
-        val app = Apply(id, h)
-        val delay = Delay(h)
-        val force = Force(delay)
-        val builtin = Builtin(DefaultFun.MkNilData)
-
-        check(h, constCost)
-        check(id, lamCost)
-        check(app, applyCost |+| lamCost |+| varCost |+| constCost)
-        check(delay, delayCost)
-        check(force, forceCost |+| delayCost |+| constCost)
-        check(builtin, builtinCost)
     }
+
+    val h = Const(asConstant("Hello"))
+    val id = LamAbs("x", Var(NamedDeBruijn("x")))
+    val app = Apply(id, h)
+    val delay = Delay(h)
+    val force = Force(delay)
+    val builtin = Builtin(DefaultFun.MkNilData)
+
+    check(h, constCost)
+    check(id, lamCost)
+    check(app, applyCost |+| lamCost |+| varCost |+| constCost)
+    check(delay, delayCost)
+    check(force, forceCost |+| delayCost |+| constCost)
+    check(builtin, builtinCost)
 
     test("BuiltinCostModel JSON reader from Cardano Protocol Parameters") {
         import upickle.default.*

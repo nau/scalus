@@ -1,5 +1,23 @@
 # Changelog
 
+## 0.7.1 (2024-08-04)
+
+### Added
+
+- implemented all Plutus V1/V2 builtins on JVM and JavaScript platforms
+- passing all Plutus Conformance Tests on JVM and JavaScript platforms
+- `OptimizingSirToUplcLowering` SIR to UPLC lowering with built-in optimizations
+- PlutusV3 constr/case support
+- `Data.to*` extension methods
+
+### Changed
+
+- speedup `UplcParser` by 10x
+
+### Fixed
+
+- use Java 11 on Github CI and release builds
+
 ## 0.7.0 (2024-05-29)
 
 Scalus CEK and cost calculation implementation is now feature complete.
