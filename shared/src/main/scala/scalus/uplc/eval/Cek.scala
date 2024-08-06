@@ -419,8 +419,10 @@ enum Result:
             .map:
                 case (ExBudgetCategory.Startup, v) =>
                     s"Startup: ${v.length} ${sumBudget(v).showJson}"
-                case (ExBudgetCategory.Step(kind), v)     => s"$kind: ${v.length} ${sumBudget(v).showJson}"
-                case (ExBudgetCategory.BuiltinApp(bn), v) => s"$bn: ${v.length} ${sumBudget(v).showJson}"
+                case (ExBudgetCategory.Step(kind), v) =>
+                    s"$kind: ${v.length} ${sumBudget(v).showJson}"
+                case (ExBudgetCategory.BuiltinApp(bn), v) =>
+                    s"$bn: ${v.length} ${sumBudget(v).showJson}"
             .mkString("\n")
 
         this match

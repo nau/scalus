@@ -104,7 +104,7 @@ class PreimageExampleSpec extends BaseValidatorSpec {
         val uplc = optV.toUplc()
         val program = Program((1, 0, 0), uplc)
         val flatSize = program.flatEncoded.length
-        assert(flatSize == 157)
+        assert(flatSize == 155)
         performChecks(uplc)
     }
 }
