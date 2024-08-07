@@ -37,18 +37,18 @@ object CommonFlatInstances:
 
     def encodeUni(uni: DefaultUni): List[Int] =
         uni match
-            case DefaultUni.Integer           => List(0)
-            case DefaultUni.ByteString        => List(1)
-            case DefaultUni.String            => List(2)
-            case DefaultUni.Unit              => List(3)
-            case DefaultUni.Bool              => List(4)
-            case DefaultUni.ProtoList         => List(5)
-            case DefaultUni.ProtoPair         => List(6)
-            case DefaultUni.Apply(uniF, uniA) => 7 :: encodeUni(uniF) ++ encodeUni(uniA)
-            case DefaultUni.Data              => List(8)
-            case DefaultUni.DefaultUniBLS12_381_G1_Element => List(9)
-            case DefaultUni.DefaultUniBLS12_381_G2_Element => List(10)
-            case DefaultUni.DefaultUniBLS12_381_MlResult   => List(11)
+            case DefaultUni.Integer              => List(0)
+            case DefaultUni.ByteString           => List(1)
+            case DefaultUni.String               => List(2)
+            case DefaultUni.Unit                 => List(3)
+            case DefaultUni.Bool                 => List(4)
+            case DefaultUni.ProtoList            => List(5)
+            case DefaultUni.ProtoPair            => List(6)
+            case DefaultUni.Apply(uniF, uniA)    => 7 :: encodeUni(uniF) ++ encodeUni(uniA)
+            case DefaultUni.Data                 => List(8)
+            case DefaultUni.BLS12_381_G1_Element => List(9)
+            case DefaultUni.BLS12_381_G2_Element => List(10)
+            case DefaultUni.BLS12_381_MlResult   => List(11)
 
     def decodeUni(state: List[Int]): (DefaultUni, List[Int]) =
         state match
@@ -64,9 +64,9 @@ object CommonFlatInstances:
                 val (uniA, tail2) = decodeUni(tail1)
                 (DefaultUni.Apply(uniF, uniA), tail2)
             case 8 :: tail  => (DefaultUni.Data, tail)
-            case 9 :: tail  => (DefaultUni.DefaultUniBLS12_381_G1_Element, tail)
-            case 10 :: tail => (DefaultUni.DefaultUniBLS12_381_G2_Element, tail)
-            case 11 :: tail => (DefaultUni.DefaultUniBLS12_381_MlResult, tail)
+            case 9 :: tail  => (DefaultUni.BLS12_381_G1_Element, tail)
+            case 10 :: tail => (DefaultUni.BLS12_381_G2_Element, tail)
+            case 11 :: tail => (DefaultUni.BLS12_381_MlResult, tail)
             case _          => throw new Exception(s"Invalid uni: $state")
 
     given Flat[DefaultFun] with

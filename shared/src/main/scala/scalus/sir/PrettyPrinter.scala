@@ -50,6 +50,8 @@ object PrettyPrinter:
                   text(", ") + space,
                   values.map(v => prettyValue(v))
                 ) + text("]")
+            case BLS12_381_G1_Element(value) => text(s"0x${value.value.toHex}")
+            case BLS12_381_G2_Element(value) => text(s"0x${value.value.toHex}")
 
     def pretty(d: Data): Doc =
         d match
@@ -86,8 +88,10 @@ object PrettyPrinter:
             inParens(text("list") & pretty(arg))
         case DefaultUni.Apply(DefaultUni.Apply(DefaultUni.ProtoPair, a), b) =>
             inParens(text("pair") & pretty(a) & pretty(b))
-        case DefaultUni.Data => text("data")
-        case _               => sys.error(s"Unexpected default uni: $du")
+        case DefaultUni.Data                 => text("data")
+        case DefaultUni.BLS12_381_G1_Element => text("bls12_381_G1_element")
+        case DefaultUni.BLS12_381_G2_Element => text("bls12_381_G2_element")
+        case _                               => sys.error(s"Unexpected default uni: $du")
 
     def pretty(sir: SIR, style: Style): Doc =
         import SIR.*

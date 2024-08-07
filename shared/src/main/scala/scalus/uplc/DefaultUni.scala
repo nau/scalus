@@ -33,9 +33,9 @@ object DefaultUni:
     implicit case object String extends LiftedUni[String]
     implicit case object Unit extends LiftedUni[Unit]
     implicit case object Bool extends LiftedUni[Boolean]
-    case object DefaultUniBLS12_381_G1_Element extends DefaultUni
-    case object DefaultUniBLS12_381_G2_Element extends DefaultUni
-    case object DefaultUniBLS12_381_MlResult extends DefaultUni
+    case object BLS12_381_G1_Element extends DefaultUni
+    case object BLS12_381_G2_Element extends DefaultUni
+    case object BLS12_381_MlResult extends DefaultUni
 
     case object Data extends DefaultUni:
         type Unlifted = Data

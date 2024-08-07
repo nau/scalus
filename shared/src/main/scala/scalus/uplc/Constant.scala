@@ -61,6 +61,12 @@ object Constant:
     case class Pair(a: Constant, b: Constant) extends Constant:
         def tpe = DefaultUni.Apply(DefaultUni.Apply(DefaultUni.ProtoPair, a.tpe), b.tpe)
 
+    case class BLS12_381_G1_Element(value: builtin.BLS12_381_G1_Element) extends Constant:
+        def tpe = DefaultUni.BLS12_381_G1_Element
+
+    case class BLS12_381_G2_Element(value: builtin.BLS12_381_G2_Element) extends Constant:
+        def tpe = DefaultUni.BLS12_381_G2_Element
+
     def fromValue(tpe: DefaultUni, a: Any): Constant = tpe match {
         case DefaultUni.Integer    => Integer(a.asInstanceOf[BigInt])
         case DefaultUni.ByteString => ByteString(a.asInstanceOf[builtin.ByteString])
@@ -76,15 +82,21 @@ object Constant:
               fromValue(aType, a.asInstanceOf[(Any, Any)]._1),
               fromValue(bType, a.asInstanceOf[(Any, Any)]._2)
             )
+        case DefaultUni.BLS12_381_G1_Element =>
+            BLS12_381_G1_Element(a.asInstanceOf[builtin.BLS12_381_G1_Element])
+        case DefaultUni.BLS12_381_G2_Element =>
+            BLS12_381_G2_Element(a.asInstanceOf[builtin.BLS12_381_G2_Element])
         case _ => throw new IllegalArgumentException(s"Cannot convert $a to $tpe")
     }
 
     def toValue(c: Constant): Any = c match
-        case Integer(value)    => value
-        case ByteString(value) => value
-        case String(value)     => value
-        case Unit              => ()
-        case Bool(value)       => value
-        case Data(value)       => value
-        case List(_, value)    => value.map(toValue)
-        case Pair(a, b)        => (toValue(a), toValue(b))
+        case Integer(value)              => value
+        case ByteString(value)           => value
+        case String(value)               => value
+        case Unit                        => ()
+        case Bool(value)                 => value
+        case Data(value)                 => value
+        case List(_, value)              => value.map(toValue)
+        case Pair(a, b)                  => (toValue(a), toValue(b))
+        case BLS12_381_G1_Element(value) => value
+        case BLS12_381_G2_Element(value) => value

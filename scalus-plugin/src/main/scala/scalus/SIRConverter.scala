@@ -27,6 +27,8 @@ import scalus.uplc.DefaultUni
 
 import scala.collection.immutable
 import scala.language.implicitConversions
+import scalus.builtin.BLS12_381_G1_Element
+import scalus.builtin.BLS12_381_G2_Element
 
 class SIRConverter(using Context) {
     import tpd.*
@@ -50,8 +52,16 @@ class SIRConverter(using Context) {
     val ConstantDataSymbol = requiredModule("scalus.uplc.Constant.Data")
     val ConstantListSymbol = requiredModule("scalus.uplc.Constant.List")
     val ConstantPairSymbol = requiredModule("scalus.uplc.Constant.Pair")
+    val ConstantBLS12_381_G1_ElementSymbol = requiredModule(
+      "scalus.uplc.Constant.BLS12_381_G1_Element"
+    )
+    val ConstantBLS12_381_G2_ElementSymbol = requiredModule(
+      "scalus.uplc.Constant.BLS12_381_G2_Element"
+    )
     val ByteStringSymbol = requiredModule("scalus.builtin.ByteString")
     val ByteStringClassSymbol = requiredClass("scalus.builtin.ByteString")
+    val BLS12_381_G1_ElementSymbol = requiredModule("scalus.builtin.BLS12_381_G1_Element")
+    val BLS12_381_G2_ElementSymbol = requiredModule("scalus.builtin.BLS12_381_G2_Element")
     val VarSymbol = requiredModule("scalus.sir.SIR.Var")
     val ExternalVarSymbol = requiredModule("scalus.sir.SIR.ExternalVar")
     val LetSymbol = requiredModule("scalus.sir.SIR.Let")
@@ -203,12 +213,12 @@ class SIRConverter(using Context) {
             case DefaultUni.Unit       => ref(requiredModule("scalus.uplc.DefaultUni.Unit"))
             case DefaultUni.Bool       => ref(requiredModule("scalus.uplc.DefaultUni.Bool"))
             case DefaultUni.Data       => ref(requiredModule("scalus.uplc.DefaultUni.Data"))
-            case DefaultUni.DefaultUniBLS12_381_G1_Element =>
-                ref(requiredModule("scalus.uplc.DefaultUni.DefaultUniBLS12_381_G1_Element"))
-            case DefaultUni.DefaultUniBLS12_381_G2_Element =>
-                ref(requiredModule("scalus.uplc.DefaultUni.DefaultUniBLS12_381_G2_Element"))
-            case DefaultUni.DefaultUniBLS12_381_MlResult =>
-                ref(requiredModule("scalus.uplc.DefaultUni.DefaultUniBLS12_381_MlResult"))
+            case DefaultUni.BLS12_381_G1_Element =>
+                ref(requiredModule("scalus.uplc.DefaultUni.BLS12_381_G1_Element"))
+            case DefaultUni.BLS12_381_G2_Element =>
+                ref(requiredModule("scalus.uplc.DefaultUni.BLS12_381_G2_Element"))
+            case DefaultUni.BLS12_381_MlResult =>
+                ref(requiredModule("scalus.uplc.DefaultUni.BLS12_381_MlResult"))
             case DefaultUni.ProtoList => ref(requiredModule("scalus.uplc.DefaultUni.ProtoList"))
             case DefaultUni.ProtoPair => ref(requiredModule("scalus.uplc.DefaultUni.ProtoPair"))
             case DefaultUni.Apply(f, arg) =>
@@ -252,6 +262,12 @@ class SIRConverter(using Context) {
             case uplc.Constant.Pair(fst, snd) =>
                 ref(ConstantPairSymbol.requiredMethod("apply"))
                     .appliedToArgs(List(convert(fst), convert(snd)))
+            case uplc.Constant.BLS12_381_G1_Element(value) =>
+                ref(ConstantBLS12_381_G1_ElementSymbol.requiredMethod("apply"))
+                    .appliedTo(convert(value))
+            case uplc.Constant.BLS12_381_G2_Element(value) =>
+                ref(ConstantBLS12_381_G2_ElementSymbol.requiredMethod("apply"))
+                    .appliedTo(convert(value))
     }
 
     def mkBigInt(i: BigInt): Tree =
@@ -309,6 +325,14 @@ class SIRConverter(using Context) {
         else
             val byteArr = ByteArrayLiteral(bs.bytes.toList.map(b => Literal(Constant(b))))
             ref(ByteStringSymbol.requiredMethod("fromArray")).appliedTo(byteArr)
+    }
+
+    def convert(bs: BLS12_381_G1_Element): Tree = {
+        ref(BLS12_381_G1_ElementSymbol.requiredMethod("apply")).appliedTo(convert(bs.value))
+    }
+
+    def convert(bs: BLS12_381_G2_Element): Tree = {
+        ref(BLS12_381_G2_ElementSymbol.requiredMethod("apply")).appliedTo(convert(bs.value))
     }
 
     def convert(sir: SIR): Tree = {

@@ -1,8 +1,8 @@
 package scalus.builtin
 
-class BLS12_381_G1_Element
-class BLS12_381_G2_Element
-class BLS12_381_MlResult
+case class BLS12_381_G1_Element(value: ByteString)
+case class BLS12_381_G2_Element(value: ByteString)
+case class BLS12_381_MlResult(value: ByteString)
 
 enum ByteOrder extends Enum[ByteOrder]:
     case BigEndian, LittleEndian
