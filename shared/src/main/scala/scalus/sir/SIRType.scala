@@ -1,3 +1,4 @@
+
 package scalus.sir
 
 import scalus.sir.SIRType.TypeVar
@@ -200,7 +201,18 @@ object SIRType {
     }
 
     case class TypeProxy(var ref: SIRType|Null) extends SIRType {
-        override def show: String = s"Proxy(${ref.show})"
+        override def hashCode(): Int = {
+            // do not call ref.hashCode because it will be recursively called
+            //  TODO: actually this beeak case-class contract
+            //    (equal recursive base-classes become unequal)
+            //    (maybe pass some hashcode to the constructor)
+            java.lang.System.identityHashCode(ref)
+        }
+        override def show: String = s"Proxy(${ref.hashCode()})"
+    }
+
+    case object TypeNothing extends SIRType {
+        override def show: String = "Nothing"
     }
 
     object List {

@@ -89,7 +89,12 @@ object SIR:
         override def tp: SIRType = body.tp
     }
     case class LamAbs(param: Var, term: SIRExpr) extends SIRExpr  {
-        override def tp: SIRType = SIRType.Fun(param.tp, term.tp)
+        override def tp: SIRType =
+            term.tp match
+                case SIRType.TypeLambda(tvars, tpexpr) =>
+                    SIRType.TypeLambda(tvars, SIRType.Fun(param.tp, tpexpr))
+                case _ =>   
+                    SIRType.Fun(param.tp, term.tp)
     }
     case class Apply(f: SIRExpr, arg: SIRExpr, tp: SIRType) extends SIRExpr {
 
