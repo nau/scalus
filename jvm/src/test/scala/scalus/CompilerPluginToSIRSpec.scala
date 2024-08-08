@@ -488,7 +488,7 @@ class CompilerPluginToSIRSpec extends AnyFunSuite with ScalaCheckPropertyChecks:
         assert(
           compile {
               Builtins.serialiseData
-          } == Builtin(DefaultFun.SerialiseData)
+          } == LamAbs("d", Apply(Builtin(SerialiseData), Var("d")))
         )
     }
 
@@ -625,7 +625,12 @@ class CompilerPluginToSIRSpec extends AnyFunSuite with ScalaCheckPropertyChecks:
     }
 
     test("compile Pair builtins") {
-        assert(compile(Builtins.mkPairData) == (Builtin(MkPairData)))
+        assert(
+          compile(Builtins.mkPairData) == LamAbs(
+            "fst",
+            LamAbs("snd", Apply(Apply(Builtin(MkPairData), Var("fst")), Var("snd")))
+          )
+        )
         assert(
           compile {
               def swap(p: builtin.Pair[Data, Data]) =
