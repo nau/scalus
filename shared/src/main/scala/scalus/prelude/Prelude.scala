@@ -1,11 +1,27 @@
 package scalus.prelude
 
-import scala.collection.immutable
-import scalus.builtin.ByteString
-import scalus.builtin.Builtins.*
 import scalus.Compile
 import scalus.Ignore
+import scalus.builtin.Builtins.*
+import scalus.builtin.ByteString
 import scalus.builtin.Data
+import scalus.macros.Macros
+
+import scala.collection.immutable
+
+extension (x: Boolean)
+    /** Trace the expression only if it evaluates to `false`. This is useful to trace an entire
+      * evaluation path that led to a final expression being `false`.
+      * @example
+      *   {{{mustBeAfter.? && mustSpendToken.?}}}
+      *
+      * will trace "mustSpendToken ? False" if `mustBeAfter` is `true` and `mustSpendToken` is
+      * `false`.
+      *
+      * @return
+      *   the value of the expression
+      */
+    inline def ? : Boolean = ${ Macros.questionMark('x) }
 
 @Compile
 object Prelude {
@@ -40,6 +56,7 @@ object Prelude {
         decodeUtf8(go(0))
     }
 
+    inline def log(msg: String): Unit = trace(msg)(())
 }
 
 import Prelude.*

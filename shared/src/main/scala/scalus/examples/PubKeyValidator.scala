@@ -1,12 +1,12 @@
 package scalus.examples
 
 import scalus.Compile
-import scalus.Compiler.fieldAsData
 import scalus.builtin
 import scalus.builtin.Builtins.*
 import scalus.builtin.ByteString
 import scalus.builtin.ByteString.given
 import scalus.builtin.Data
+import scalus.prelude.Prelude.log
 
 @Compile
 object PubKeyValidator {
@@ -25,19 +25,15 @@ object PubKeyValidator {
 
     inline def validatorV2(inline pubKey: ByteString)(datum: Unit, redeemer: Unit, ctx: Data) = {
         import scalus.ledger.api.v2.ScriptContext
-        val signatories = unListData(fieldAsData[ScriptContext](_.txInfo.signatories)(ctx))
-        trace("got signatories")(())
+        val signatories = ctx.field[ScriptContext](_.txInfo.signatories).toList
+        log("got signatories")
 
         def findSignatureOrFail(sigs: builtin.List[Data]): Unit =
-            trace("check sigs")(())
+            log("check sigs")
             if signatories.isEmpty then throw new RuntimeException("Signature not found")
-            else if unBData(signatories.head) == pubKey
-            then
-                trace("found!")(())
-                ()
-            else
-                trace("nope")(())
-                findSignatureOrFail(signatories.tail)
+            else if signatories.head.toByteString == pubKey
+            then log("found!")
+            else trace("nope")(findSignatureOrFail(signatories.tail))
 
         findSignatureOrFail(signatories)
     }

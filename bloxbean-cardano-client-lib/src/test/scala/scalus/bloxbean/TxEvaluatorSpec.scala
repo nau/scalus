@@ -95,6 +95,6 @@ class TxEvaluatorSpec extends AnyFunSuite:
         val redeemers = evaluator.evaluateTx(tx, utxo)
         assert(redeemers.size == 1)
         val redeemerResult = redeemers.head
-        assert(redeemerResult.getExUnits.getMem.longValue == 13675L)
-        assert(redeemerResult.getExUnits.getSteps.longValue == 4802088L)
+        assert(redeemerResult.getExUnits.getMem.longValue == 13375L)
+        assert(redeemerResult.getExUnits.getSteps.longValue == 4733088L)
     }

@@ -286,4 +286,9 @@ object Macros {
         val string = scala.io.Source.fromInputStream(input).mkString
         Expr(string)
     }
+
+    def questionMark(using Quotes)(x: Expr[Boolean]): Expr[Boolean] = {
+        import scala.quoted.*
+        '{ if $x then true else Builtins.trace(${ Expr(x.show + " ? False") })(false) }
+    }
 }

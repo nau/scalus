@@ -299,6 +299,7 @@ def evaluation() = {
     val term = sir.toUplc()
     // simply evaluate the term
     VM.evaluateTerm(term).pretty.render(80) // (con integer 2)
+
     // evaluate a flat encoded script and calculate the execution budget and logs
     val result =
         VM.evaluateScriptCounting(MachineParams.defaultParams, Program((1, 0, 0), term).flatEncoded)
@@ -316,6 +317,16 @@ def evaluation() = {
       "JSON with protocol parameters",
       PlutusLedgerLanguage.PlutusV2
     )
+
+    // evaluate the term with debug information
+    // the `Result` type has a readable `toString` method
+    VM.evaluateDebug(term) match
+        case r @ Result.Success(evaled, budget, costs, logs) =>
+            println(r)
+        case r @ Result.Failure(exception, budget, costs, logs) =>
+            println(r)
+
+    // Low-level evaluation API:
 
     // CountingBudgetSpender is a budget spender that counts the total cost of the evaluation
     val countingBudgetSpender = CountingBudgetSpender()

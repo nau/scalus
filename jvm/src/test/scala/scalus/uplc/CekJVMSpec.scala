@@ -133,32 +133,6 @@ class CekJVMSpec extends BaseValidatorSpec:
         assert(flatValidator.length == 95)
     }
 
-    ignore("fieldAsData macro test") {
-        import Data.*
-        import scalus.ledger.api.v1.*
-
-        val txInfo = TxInfo(
-          Nil,
-          Nil,
-          Value.zero,
-          Value.zero,
-          Nil,
-          Nil,
-          Interval.always,
-          Nil,
-          Nil,
-          TxId(hex"bb")
-        )
-        import ExprBuilder.*
-        val fee = unIData(fieldAsData[TxInfo](_.fee).apply(Expr(txInfo.toData)))
-        val txId = unBData(fieldAsData[TxInfo](_.id).apply(Expr(txInfo.toData)))
-        assert(VM.evaluateTerm(fee.term) == Const(asConstant(BigInt(123))))
-        assert(VM.evaluateTerm(txId.term) == Const(asConstant(hex"bb")))
-        println(txId)
-        println(VM.evaluateTerm(txId.term))
-
-    }
-
     test("verifyEd25519Signature") {
         val sir = compile { scalus.builtin.Builtins.verifyEd25519Signature }
         val verify = sir.toUplc()

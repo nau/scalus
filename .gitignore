@@ -16,10 +16,9 @@ out
 .direnv
 metals.sbt
 /plutus-conformance
-mnemonic.txt
 cardano-cli
 cardano-address
-blockfrost_api_key.txt
 scripts/
 blocks/
 utxos
+package-lock.json

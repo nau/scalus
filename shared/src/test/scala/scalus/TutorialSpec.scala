@@ -26,6 +26,7 @@ import scalus.uplc.eval.NoLogger
 import scalus.uplc.eval.StackTraceMachineError
 import scalus.uplc.eval.TallyingBudgetSpender
 import scalus.uplc.eval.VM
+import scalus.uplc.eval.Result
 
 val constants = compile {
     val unit = ()
@@ -194,6 +195,14 @@ def evaluation() = {
       PlutusLedgerLanguage.PlutusV2
     )
 
+    // evaluate the term with debug information
+    // the `Result` type has a readable `toString` method
+    VM.evaluateDebug(term) match
+        case r @ Result.Success(evaled, budget, costs, logs) =>
+            println(r)
+        case r @ Result.Failure(exception, budget, costs, logs) =>
+            println(r)
+
     // TallyingBudgetSpender is a budget spender that counts the costs of each operation
     val tallyingBudgetSpender = TallyingBudgetSpender(CountingBudgetSpender())
     val logger = Log()
@@ -256,7 +265,7 @@ def inlineExample() = {
     println(script.prettyXTerm.render(80))
 }
 
-def debugFlatExample() = {
+def debugFlagExample() = {
     import Compiler.*, builtin.{Data, Builtins}, Builtins.*
     inline def dbg[A](msg: String)(a: A)(using debug: Boolean): A =
         inline if debug then trace(msg)(a) else a
@@ -281,6 +290,6 @@ class TutorialSpec extends AnyFunSuite {
         // evaluation()
         // fieldAsDataExample()
         // inlineExample()
-        // debugFlatExample()
+        // debugFlagExample()
     }
 }

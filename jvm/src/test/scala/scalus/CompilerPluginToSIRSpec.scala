@@ -1115,3 +1115,17 @@ class CompilerPluginToSIRSpec extends AnyFunSuite with ScalaCheckPropertyChecks:
         // Make sure that the implicit PlatformSpecific argument is not generated
         assert(compile(Builtins.sha2_256) == (lam("bs")(Sha2_256 $ Var("bs"))))
     }
+
+    test("? operator produces a debug log") {
+        import scalus.prelude.?
+        val compiled = compile {
+            val oneEqualsTwo = BigInt(1) == BigInt(2)
+            oneEqualsTwo.?
+        }
+        val term = compiled.toUplc()
+        VM.evaluateDebug(term) match
+            case Result.Success(evaled, _, _, logs) =>
+                assert(evaled == scalus.uplc.Term.Const(Constant.Bool(false)))
+                assert(logs == List("oneEqualsTwo ? False: { mem: 0.002334, cpu: 1.007931 }"))
+            case Result.Failure(exception, _, _, _) => fail(exception)
+    }
