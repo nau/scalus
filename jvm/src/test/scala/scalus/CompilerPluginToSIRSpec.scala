@@ -1059,6 +1059,20 @@ class CompilerPluginToSIRSpec extends AnyFunSuite with ScalaCheckPropertyChecks:
         assert(evaled == scalus.uplc.Term.Const(Constant.Integer(3)))
     }
 
+    test("compile multiple inner matches") {
+        import scalus.prelude.List
+        import scalus.prelude.List.*
+        val compiled = compile {
+            ((true, "test"), (false, "test")) match
+                case ((a, _), (b, _)) => a == b
+        }
+        // println(compiled.pretty.render(80))
+        val term = compiled.toUplc()
+        val evaled = VM.evaluateTerm(term)
+        // println(evaled.pretty.render(80))
+        assert(evaled == scalus.uplc.Term.Const(Constant.Bool(false)))
+    }
+
     test("compile fieldAsData macro") {
         import scalus.ledger.api.v1.*
         import scalus.ledger.api.v1.FromDataInstances.given

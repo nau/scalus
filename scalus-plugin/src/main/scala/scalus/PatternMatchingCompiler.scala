@@ -114,7 +114,7 @@ class PatternMatchingCompiler(val compiler: SIRCompiler)(using Context) {
                 ) =>
                 compileBindings(sirBindings) match
                     case Left(errors) => Left(errors)
-                    case Right(PatternInfo(bindings2, generator, innerNames)) =>
+                    case Right(PatternInfo(bindings2, generator2, innerNames)) =>
                         Right(
                           PatternInfo(
                             (bindings ++ bindings2) + name,
@@ -125,7 +125,7 @@ class PatternMatchingCompiler(val compiler: SIRCompiler)(using Context) {
                                     constructCase(
                                       constructorSymbol,
                                       innerNames,
-                                      generator(cont)
+                                      generator(generator2(cont))
                                     )
                                   )
                                 ),
