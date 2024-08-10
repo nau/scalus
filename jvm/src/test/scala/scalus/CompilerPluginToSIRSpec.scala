@@ -689,10 +689,10 @@ class CompilerPluginToSIRSpec extends AnyFunSuite with ScalaCheckPropertyChecks:
                 Or(And(Not(Var("a")), Const(Bool(false))), Const(Bool(true)))
               )
         )
-        // println(compiled.pretty.render(80))
+        // println(compiled.show)
         val term = compiled.toUplc()
         val evaled = VM.evaluateTerm(term)
-        // println(evaled.pretty.render(80))
+        // println(evaled.show)
         assert(evaled == scalus.uplc.Term.Const(Constant.Bool(true)))
     }
 
@@ -932,9 +932,9 @@ class CompilerPluginToSIRSpec extends AnyFunSuite with ScalaCheckPropertyChecks:
             val s = "string"
             a === a && bs === bs && s === s
         }
-        // println(compiled.pretty.render(80))
+        // println(compiled.show)
         val term = compiled.toUplc()
-        // println(term.pretty.render(80))
+        // println(term.show)
         val evaled = VM.evaluateTerm(term)
         assert(evaled == scalus.uplc.Term.Const(Constant.Bool(true)))
     }
@@ -994,7 +994,7 @@ class CompilerPluginToSIRSpec extends AnyFunSuite with ScalaCheckPropertyChecks:
             t match
                 case (a, _) => a && t._2
         }
-        // println(compiled.pretty.render(80))
+        // println(compiled.show)
         val term = compiled.toUplc()
         val evaled = VM.evaluateTerm(term)
         assert(evaled == scalus.uplc.Term.Const(Constant.Bool(false)))
@@ -1006,9 +1006,9 @@ class CompilerPluginToSIRSpec extends AnyFunSuite with ScalaCheckPropertyChecks:
             pkh match
                 case PubKeyHash(hash) => hash
         }
-        // println(compiled.pretty.render(80))
+        // println(compiled.show)
         val term = compiled.toUplc()
-        // println(term.pretty.render(80))
+        // println(term.show)
         val evaled = VM.evaluateTerm(term)
         assert(evaled == scalus.uplc.Term.Const(Constant.ByteString(hex"deadbeef")))
     }
@@ -1022,10 +1022,10 @@ class CompilerPluginToSIRSpec extends AnyFunSuite with ScalaCheckPropertyChecks:
                 case Cons(h, tl) => h
                 case Nil         => BigInt(0)
         }
-        // println(compiled.pretty.render(80))
+        // println(compiled.show)
         val term = compiled.toUplc()
         val evaled = VM.evaluateTerm(term)
-        // println(evaled.pretty.render(80))
+        // println(evaled.show)
         assert(evaled == scalus.uplc.Term.Const(Constant.Integer(1)))
     }
 
@@ -1052,10 +1052,10 @@ class CompilerPluginToSIRSpec extends AnyFunSuite with ScalaCheckPropertyChecks:
                 case Cons(h @ (a, TxOutRef(TxId(_), idx)), _) => a + idx
                 case Nil                                      => BigInt(0)
         }
-        // println(compiled.pretty.render(80))
+        // println(compiled.show)
         val term = compiled.toUplc()
         val evaled = VM.evaluateTerm(term)
-        // println(evaled.pretty.render(80))
+        // println(evaled.show)
         assert(evaled == scalus.uplc.Term.Const(Constant.Integer(3)))
     }
 
@@ -1066,10 +1066,10 @@ class CompilerPluginToSIRSpec extends AnyFunSuite with ScalaCheckPropertyChecks:
             ((true, "test"), (false, "test")) match
                 case ((a, _), (b, _)) => a == b
         }
-        // println(compiled.pretty.render(80))
+        // println(compiled.show)
         val term = compiled.toUplc()
         val evaled = VM.evaluateTerm(term)
-        // println(evaled.pretty.render(80))
+        // println(evaled.show)
         assert(evaled == scalus.uplc.Term.Const(Constant.Bool(false)))
     }
 
@@ -1088,7 +1088,7 @@ class CompilerPluginToSIRSpec extends AnyFunSuite with ScalaCheckPropertyChecks:
             val sigs = Builtins.unListData(sigsData)
             Builtins.unBData(sigs.head)
         }
-        // println(compiled.pretty.render(80))
+        // println(compiled.show)
         val term = compiled.toUplc()
 
         val scriptContext =

@@ -32,7 +32,7 @@ object MintingPolicyJS:
         val tokensSIR = compile((tokenNameHex: ByteString, amount: BigInt) =>
             AssocMap.singleton(tokenNameHex, amount)
         )
-        val evaledTokens = VM.evaluateTerm(tokensSIR.toUplc())
+        val evaledTokens = tokensSIR.toUplc().eval
         val txId = ByteString.fromHex(txIdHex)
         val tokens = evaledTokens $ ByteString.fromHex(tokenNameHex) $ amount
         // val appliedValidator = alwaysokTerm

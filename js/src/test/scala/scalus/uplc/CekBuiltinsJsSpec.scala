@@ -26,7 +26,7 @@ class CekBuiltinsJsSpec extends CekBuiltinsSpec:
         val r = cp.spawnSync(
           "uplc",
           js.Array("evaluate"),
-          js.Dynamic.literal(input = program.pretty.render(80))
+          js.Dynamic.literal(input = program.show)
         )
         if (r.status.asInstanceOf[Int] != 0) throw new Exception(r.stderr.toString)
 //    println(r.stdout.toString())

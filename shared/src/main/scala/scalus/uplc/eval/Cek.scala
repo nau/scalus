@@ -352,7 +352,15 @@ class PlutusVM(platformSpecific: PlatformSpecific) {
         cek.evaluateTerm(debruijnedTerm)
     }
 
-    def evaluateDebug(term: Term): Result = {
+    /** Evaluates a UPLC term, capturing the execution budget, evaluation logs and costs.
+      *
+      * @param term
+      * @param params
+      * @return
+      *   [[Result]] with the resulting term, the execution budget, evaluation logs and costs, and
+      *   an exception if the evaluation failed
+      */
+    def evaluateDebug(term: Term, params: MachineParams = MachineParams.defaultParams): Result = {
         val spenderLogger = TallyingBudgetSpenderLogger(CountingBudgetSpender())
         val cekMachine = CekMachine(
           MachineParams.defaultParams,
@@ -428,7 +436,7 @@ enum Result:
         this match
             case Success(term, budget, costs, logs) =>
                 s"""Success executing script:
-              | term: ${term.pretty.render(80)}
+              | term: ${term.show}
               | budget: ${budget.showJson}
               | costs:\n${showCosts}
               | logs: ${logs.mkString("\n")}""".stripMargin

@@ -298,13 +298,15 @@ def evaluation() = {
     }
     val term = sir.toUplc()
     // simply evaluate the term
-    VM.evaluateTerm(term).pretty.render(80) // (con integer 2)
+    VM.evaluateTerm(term).show // (con integer 2)
+    // or
+    term.eval.show // (con integer 2)
 
     // evaluate a flat encoded script and calculate the execution budget and logs
     val result =
         VM.evaluateScriptCounting(MachineParams.defaultParams, Program((1, 0, 0), term).flatEncoded)
     println(s"Execution budget: ${result.budget}")
-    println(s"Evaluated term: ${result.term.pretty.render(80)}")
+    println(s"Evaluated term: ${result.term.show}")
     println(s"Logs: ${result.logs.mkString("\n")}")
 
     // you can get the actual execution costs from protocol parameters JSON from cardano-cli
