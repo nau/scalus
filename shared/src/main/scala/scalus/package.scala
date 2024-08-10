@@ -1,7 +1,10 @@
 import org.typelevel.paiges.Doc
 import scalus.ledger.api.PlutusLedgerLanguage
+import scalus.sir.EtaReduce
+import scalus.sir.OptimizingSirToUplcLowering
 import scalus.sir.PrettyPrinter
 import scalus.sir.PrettyPrinter.Style
+import scalus.sir.RemoveRecursivity
 import scalus.sir.SIR
 import scalus.sir.SimpleSirToUplcLowering
 import scalus.uplc.Constant
@@ -27,6 +30,9 @@ package object scalus {
 
         def toUplc(generateErrorTraces: Boolean = false): Term =
             SimpleSirToUplcLowering(sir, generateErrorTraces).lower()
+        def toUplcOptimized(generateErrorTraces: Boolean = false): Term =
+            OptimizingSirToUplcLowering(sir |> RemoveRecursivity.apply, generateErrorTraces)
+                .lower() |> EtaReduce.apply
 
         def toPlutusProgram(
             version: (Int, Int, Int),

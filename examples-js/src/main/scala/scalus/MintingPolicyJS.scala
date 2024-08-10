@@ -6,8 +6,7 @@ import scalus.builtin.Data
 import scalus.examples.MintingPolicy
 import scalus.prelude.AssocMap
 import scalus.uplc.Program
-import scalus.uplc.TermDSL.{_, given}
-import scalus.uplc.eval.VM
+import scalus.uplc.TermDSL.{*, given}
 
 import scala.language.implicitConversions
 import scala.scalajs.js.annotation.JSExport
