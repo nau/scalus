@@ -1,5 +1,24 @@
 # Changelog
 
+## 0.7.2 (2024-08-11)
+
+### Added
+
+- `VM.evaluateDebug` with useful info about the execution: budget, costs, builtins, logs
+- `eval`, `evalDebug`, `show`, `showHightlighted` extensions for `Term` and `Program`
+- `toUplcOptimized` extension for `SIR` to generate optimized UPLC code
+- `?` tracing operator and `log` function similar to Aiken's `?` operator
+
+### Changed
+
+- don't remove top-level eta-expansions in `compile` method
+
+### Fixed
+
+- fieldAsData/field didn't work for aliaed types
+- small fix in `OptimizingSirToUplcLowering` with tracing errors
+- multiple inner matches in pattern matching code generation
+
 ## 0.7.1 (2024-08-04)
 
 ### Added

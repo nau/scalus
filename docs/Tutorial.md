@@ -26,15 +26,19 @@ The SIR is then compiled to Untyped Plutus Core (UPLC) that can be executed on t
 import scalus.Compiler.compile
 import scalus.*
 import scalus.builtin.Data
+import scalus.uplc.Program
 
 // Compile Scala code to Scalus Intermediate Representation (SIR)
 val validator = compile {
     // A simple validator that always succeeds
     (datum: Data, redeemer: Data, context: Data) => ()
 }
-validator.pretty.render(80)
-validator.toUplc().pretty.render(80)
-validator.doubleCborHex(version = (1, 0, 0))
+// pretty print the SIR
+validator.show
+// convert the SIR to UPLC and pretty print it with colorized syntax highlighting
+validator.toUplc().showHighlighted
+// get a double CBOR encoded optimized UPLC program as HEX formatted string
+Program(version = (1, 0, 0), term = validator.toUplcOptimized()).doubleCborHex
 ```
 
 ## Constans and primitives
@@ -242,6 +246,27 @@ val pubKeyValidator = compile:
             sig => sig.hash == hex"deadbeef"
 ```
 
+## Troubleshooting
+
+Firstly, you can use a debugger and debug the Scala code.
+
+You can use `log` and `trace` functions to log messages to the execution log.
+
+And there is a `?` operator that can be used to log the value of a boolean expression when it is false.
+
+```scala mdoc
+import scalus.builtin.Builtins.trace
+import scalus.prelude.*
+import scalus.prelude.Prelude.log
+val sir = compile {
+    val a = trace("a")(BigInt(1))
+    val b = BigInt(2)
+    log("Checking if a == b")
+    val areEqual = a == b
+    areEqual.? // logs "areEqual ? False"
+}.toUplc().evalDebug.toString
+```
+
 ## Converting the Scalus code to Flat/CBOR encoded UPLC
 
 The `compile` function converts the Scalus code to a `SIR` value, Scalus Intermediate Representation.
@@ -285,6 +310,16 @@ val serializeToDoubleCborHex = {
 ```
 
 ## Evaluating scripts
+
+Scalus provides a high-level API to evaluate UPLC scripts.
+
+```scala mdoc
+compile(BigInt(2) + 2).toUplc().evalDebug.toString
+```
+
+You get a `Result` object that contains the result of the evaluation, the execution budget, the execution costs, and the logs.
+
+You can also use the low-level API to evaluate scripts.
 
 ```scala mdoc:compile-only
 import scalus.builtin.{*, given}
