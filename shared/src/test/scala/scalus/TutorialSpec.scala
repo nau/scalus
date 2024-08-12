@@ -137,10 +137,7 @@ val fromDataExample = compile {
     // or your can you a macro to derive the FromData instance
     {
         given FromData[Account] = FromData.deriveCaseClass
-        given FromData[State] = FromData.deriveEnum[State] {
-            case 0 => d => Empty
-            case 1 => FromData.deriveConstructor[State.Active]
-        }
+        given FromData[State] = FromData.deriveEnum[State]
     }
 }
 

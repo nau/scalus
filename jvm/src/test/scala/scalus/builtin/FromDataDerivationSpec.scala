@@ -28,6 +28,7 @@ object Adt:
         case 1 => FromData.deriveConstructor[Adt.B]
         case 2 => FromData.deriveConstructor[Adt.C]
     }
+    val derivedFromData: FromData[Adt] = FromData.deriveEnum[Adt]
 
 @Compile
 object ToDataAdt:
@@ -138,6 +139,26 @@ class FromDataDerivationSpec
         import ToDataAdt.given
         import scalus.uplc.TermDSL.{*, given}
         val sir = compile { (d: Data) => fromData[Adt](d).toData }
+        val term = sir.toUplc()
+        // println(sir.pretty.render(100))
+        forAll { (r: Adt) =>
+            val d = r.toData
+            assert(fromData[Adt](d) == r)
+            val out = UplcCli.evalFlat(Program((1, 0, 0), term $ d))
+            out match
+                case UplcEvalResult.Success(term, _) =>
+                    assert(term == Term.Const(Constant.Data(d)))
+                case UplcEvalResult.UplcFailure(errorCode, error) => fail(error)
+                case UplcEvalResult.TermParsingError(error)       => fail(error)
+
+            assert(VM.evaluateTerm(term $ d) == Term.Const(Constant.Data(d)))
+        }
+    }
+
+    test("derived FromData.deriveEnum") {
+        import ToDataAdt.given
+        import scalus.uplc.TermDSL.{*, given}
+        val sir = compile { (d: Data) => Adt.derivedFromData(d).toData }
         val term = sir.toUplc()
         // println(sir.pretty.render(100))
         forAll { (r: Adt) =>
