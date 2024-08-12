@@ -1,17 +1,25 @@
 package scalus.builtin
 
-import scalus.{builtin, prelude, Compile}
-import scalus.prelude.{AssocMap, Maybe}
+import scalus.Compile
+import scalus.builtin
 import scalus.builtin.Data.*
+import scalus.prelude
+import scalus.prelude.AssocMap
+import scalus.prelude.Maybe
+
+import scala.annotation.nowarn
 
 @Compile
 object FromDataInstances {
     import scalus.builtin.Builtins.*
 
-    given FromData[BigInt] = (d: Data) => unIData(d)
-    given FromData[ByteString] = (d: Data) => unBData(d)
+    inline given FromData[BigInt] = unIData
+    inline given FromData[ByteString] = unBData
     given FromData[String] = (d: Data) => decodeUtf8(unBData(d))
-    given FromData[Data] = (d: Data) => d
+    @nowarn // disable warning:
+    // "An inline given alias with a function value as right-hand side can
+    // significantly increase generated code size."
+    inline given FromData[Data] = (d: Data) => d
 
     given FromData[Unit] = (d: Data) =>
         if unConstrData(d).fst == BigInt(0) then ()
