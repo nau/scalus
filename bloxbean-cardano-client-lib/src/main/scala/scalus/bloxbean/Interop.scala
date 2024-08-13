@@ -11,6 +11,7 @@ import com.bloxbean.cardano.client.transaction.spec.cert.*
 import com.bloxbean.cardano.client.transaction.util.TransactionUtil
 import io.bullet.borer.Cbor
 import scalus.builtin.ByteString
+import scalus.builtin.ByteString
 import scalus.builtin.given
 import scalus.builtin.Data
 import scalus.ledger
@@ -22,6 +23,7 @@ import scalus.ledger.api.v1.StakingCredential
 import scalus.ledger.api.PlutusLedgerLanguage
 import scalus.ledger.api.v1
 import scalus.ledger.api.v2
+import scalus.ledger.api.v2.ScriptContext
 import scalus.ledger.babbage.PlutusV1Params
 import scalus.ledger.babbage.PlutusV2Params
 import scalus.prelude
@@ -516,4 +518,26 @@ object Interop {
                           s"Wrong reward address type: $address in $withdrawals"
                         )
                 else throw new IllegalStateException(s"Wrong reward index: $index in $withdrawals")
+
+    def getScriptContextV2(
+        redeemer: Redeemer,
+        tx: Transaction,
+        utxos: Map[TransactionInput, TransactionOutput],
+        protocolVersion: Int
+    ): ScriptContext = {
+        import scala.jdk.CollectionConverters.*
+        val purpose = getScriptPurpose(
+          redeemer,
+          tx.getBody.getInputs,
+          tx.getBody.getMint,
+          tx.getBody.getCerts,
+          tx.getBody.getWithdrawals
+        )
+        val datums = tx.getWitnessSet.getPlutusDataList.asScala.map { plutusData =>
+            ByteString.fromArray(plutusData.getDatumHashAsBytes) -> Interop.toScalusData(plutusData)
+        }
+        val txInfo = getTxInfoV2(tx, datums, utxos, SlotConfig.default, protocolVersion)
+        val scriptContext = ScriptContext(txInfo, purpose)
+        scriptContext
+    }
 }
