@@ -72,6 +72,62 @@ trait PlatformSpecific:
       *   Signature (64 bytes)
       */
     def verifySchnorrSecp256k1Signature(pk: ByteString, msg: ByteString, sig: ByteString): Boolean
+    // BLS12_381 operations
+    def bls12_381_G1_equal(using
+        ps: PlatformSpecific
+    )(p1: BLS12_381_G1_Element, p2: BLS12_381_G1_Element): Boolean =
+        ???
+    def bls12_381_G1_add(using
+        ps: PlatformSpecific
+    )(p1: BLS12_381_G1_Element, p2: BLS12_381_G1_Element): BLS12_381_G1_Element =
+        ???
+    def bls12_381_G1_scalarMul(using
+        ps: PlatformSpecific
+    )(s: BigInt, p: BLS12_381_G1_Element): BLS12_381_G1_Element = ???
+    def bls12_381_G1_neg(using ps: PlatformSpecific)(
+        p: BLS12_381_G1_Element
+    ): BLS12_381_G1_Element = ???
+    def bls12_381_G1_compress(using ps: PlatformSpecific)(p: BLS12_381_G1_Element): ByteString = ???
+    def bls12_381_G1_uncompress(using ps: PlatformSpecific)(bs: ByteString): BLS12_381_G1_Element =
+        ???
+    def bls12_381_G1_hashToGroup(using
+        ps: PlatformSpecific
+    )(bs: ByteString, dst: ByteString): BLS12_381_G1_Element = ???
+    def bls12_381_G1_compressed_zero: ByteString = ???
+    def bls12_381_G1_compressed_generator: ByteString = ???
+    def bls12_381_G2_equal(using
+        ps: PlatformSpecific
+    )(p1: BLS12_381_G2_Element, p2: BLS12_381_G2_Element): Boolean =
+        ???
+    def bls12_381_G2_add(using
+        ps: PlatformSpecific
+    )(p1: BLS12_381_G2_Element, p2: BLS12_381_G2_Element): BLS12_381_G2_Element =
+        ???
+    def bls12_381_G2_scalarMul(using
+        ps: PlatformSpecific
+    )(s: BigInt, p: BLS12_381_G2_Element): BLS12_381_G2_Element = ???
+    def bls12_381_G2_neg(using ps: PlatformSpecific)(
+        p: BLS12_381_G2_Element
+    ): BLS12_381_G2_Element = ???
+    def bls12_381_G2_compress(using ps: PlatformSpecific)(p: BLS12_381_G2_Element): ByteString = ???
+    def bls12_381_G2_uncompress(using ps: PlatformSpecific)(bs: ByteString): BLS12_381_G2_Element =
+        ???
+    def bls12_381_G2_hashToGroup(using
+        ps: PlatformSpecific
+    )(bs: ByteString, dst: ByteString): BLS12_381_G2_Element = ???
+    def bls12_381_G2_compressed_zero: ByteString = ???
+    def bls12_381_G2_compressed_generator: ByteString = ???
+    def bls12_381_millerLoop(using ps: PlatformSpecific)(
+        p1: BLS12_381_G1_Element,
+        p2: BLS12_381_G2_Element
+    ): BLS12_381_MlResult =
+        ???
+    def bls12_381_mulMlResult(using
+        ps: PlatformSpecific
+    )(r1: BLS12_381_MlResult, r2: BLS12_381_MlResult): BLS12_381_MlResult =
+        ???
+    def bls12_381_finalVerify(using ps: PlatformSpecific)(r: BLS12_381_MlResult): Boolean = ???
+    def keccak_256(using ps: PlatformSpecific)(bs: ByteString): ByteString = ???
 
 object Builtins:
     // Integers
@@ -138,6 +194,7 @@ object Builtins:
     def sha2_256(using ps: PlatformSpecific)(bs: ByteString): ByteString = ps.sha2_256(bs)
     def sha3_256(using ps: PlatformSpecific)(bs: ByteString): ByteString = ps.sha3_256(bs)
     def blake2b_256(using ps: PlatformSpecific)(bs: ByteString): ByteString = ps.blake2b_256(bs)
+    def blake2b_224(using ps: PlatformSpecific)(bs: ByteString): ByteString = ps.blake2b_224(bs)
     def verifyEd25519Signature(using ps: PlatformSpecific)(
         pk: ByteString,
         msg: ByteString,
@@ -259,66 +316,90 @@ object Builtins:
     def mkPairData(fst: Data, snd: Data): Pair[Data, Data] = Pair(fst, snd)
     def mkNilData(): List[Data] = List.empty
     def mkNilPairData(): List[Pair[Data, Data]] = List.empty
+    def integerToByteString(endianness: ByteOrder, n: BigInt, len: BigInt): ByteString = ???
+    def byteStringToInteger(endianness: ByteOrder, bs: ByteString): BigInt = ???
 
-    // BLS12_381 operations
     def bls12_381_G1_equal(using
         ps: PlatformSpecific
     )(p1: BLS12_381_G1_Element, p2: BLS12_381_G1_Element): Boolean =
-        ???
+        ps.bls12_381_G1_equal(p1, p2)
+
     def bls12_381_G1_add(using
         ps: PlatformSpecific
     )(p1: BLS12_381_G1_Element, p2: BLS12_381_G1_Element): BLS12_381_G1_Element =
-        ???
+        ps.bls12_381_G1_add(p1, p2)
+
     def bls12_381_G1_scalarMul(using
         ps: PlatformSpecific
-    )(s: BigInt, p: BLS12_381_G1_Element): BLS12_381_G1_Element = ???
+    )(s: BigInt, p: BLS12_381_G1_Element): BLS12_381_G1_Element = ps.bls12_381_G1_scalarMul(s, p)
+
     def bls12_381_G1_neg(using ps: PlatformSpecific)(
         p: BLS12_381_G1_Element
-    ): BLS12_381_G1_Element = ???
-    def bls12_381_G1_compress(using ps: PlatformSpecific)(p: BLS12_381_G1_Element): ByteString = ???
+    ): BLS12_381_G1_Element = ps.bls12_381_G1_neg(p)
+
+    def bls12_381_G1_compress(using ps: PlatformSpecific)(p: BLS12_381_G1_Element): ByteString =
+        ps.bls12_381_G1_compress(p)
+
     def bls12_381_G1_uncompress(using ps: PlatformSpecific)(bs: ByteString): BLS12_381_G1_Element =
-        ???
+        ps.bls12_381_G1_uncompress(bs)
+
     def bls12_381_G1_hashToGroup(using
         ps: PlatformSpecific
-    )(bs: ByteString, dst: ByteString): BLS12_381_G1_Element = ???
-    def bls12_381_G1_compressed_zero: ByteString = ???
+    )(bs: ByteString, dst: ByteString): BLS12_381_G1_Element =
+        ps.bls12_381_G1_hashToGroup(bs, dst)
+
+    def bls12_381_G1_compressed_zero: ByteString =
+        ???
+
     def bls12_381_G1_compressed_generator: ByteString = ???
+
     def bls12_381_G2_equal(using
         ps: PlatformSpecific
     )(p1: BLS12_381_G2_Element, p2: BLS12_381_G2_Element): Boolean =
-        ???
+        ps.bls12_381_G2_equal(p1, p2)
+
     def bls12_381_G2_add(using
         ps: PlatformSpecific
     )(p1: BLS12_381_G2_Element, p2: BLS12_381_G2_Element): BLS12_381_G2_Element =
-        ???
+        ps.bls12_381_G2_add(p1, p2)
+
     def bls12_381_G2_scalarMul(using
         ps: PlatformSpecific
-    )(s: BigInt, p: BLS12_381_G2_Element): BLS12_381_G2_Element = ???
+    )(s: BigInt, p: BLS12_381_G2_Element): BLS12_381_G2_Element = ps.bls12_381_G2_scalarMul(s, p)
+
     def bls12_381_G2_neg(using ps: PlatformSpecific)(
         p: BLS12_381_G2_Element
-    ): BLS12_381_G2_Element = ???
-    def bls12_381_G2_compress(using ps: PlatformSpecific)(p: BLS12_381_G2_Element): ByteString = ???
+    ): BLS12_381_G2_Element = ps.bls12_381_G2_neg(p)
+
+    def bls12_381_G2_compress(using ps: PlatformSpecific)(p: BLS12_381_G2_Element): ByteString =
+        ps.bls12_381_G2_compress(p)
+
     def bls12_381_G2_uncompress(using ps: PlatformSpecific)(bs: ByteString): BLS12_381_G2_Element =
-        ???
+        ps.bls12_381_G2_uncompress(bs)
+
     def bls12_381_G2_hashToGroup(using
         ps: PlatformSpecific
-    )(bs: ByteString, dst: ByteString): BLS12_381_G2_Element = ???
+    )(bs: ByteString, dst: ByteString): BLS12_381_G2_Element = ps.bls12_381_G2_hashToGroup(bs, dst)
+
     def bls12_381_G2_compressed_zero: ByteString = ???
     def bls12_381_G2_compressed_generator: ByteString = ???
+
     def bls12_381_millerLoop(using ps: PlatformSpecific)(
         p1: BLS12_381_G1_Element,
         p2: BLS12_381_G2_Element
     ): BLS12_381_MlResult =
-        ???
+        ps.bls12_381_millerLoop(p1, p2)
+
     def bls12_381_mulMlResult(using
         ps: PlatformSpecific
     )(r1: BLS12_381_MlResult, r2: BLS12_381_MlResult): BLS12_381_MlResult =
-        ???
-    def bls12_381_finalVerify(using ps: PlatformSpecific)(r: BLS12_381_MlResult): Boolean = ???
-    def blake2b_224(using ps: PlatformSpecific)(bs: ByteString): ByteString = ps.blake2b_224(bs)
-    def keccak_256(using ps: PlatformSpecific)(bs: ByteString): ByteString = ???
-    def integerToByteString(endianness: ByteOrder, n: BigInt, len: BigInt): ByteString = ???
-    def byteStringToInteger(endianness: ByteOrder, bs: ByteString): BigInt = ???
+        ps.bls12_381_mulMlResult(r1, r2)
+
+    def bls12_381_finalVerify(using ps: PlatformSpecific)(r: BLS12_381_MlResult): Boolean =
+        ps.bls12_381_finalVerify(r)
+
+    def keccak_256(using ps: PlatformSpecific)(bs: ByteString): ByteString =
+        ps.keccak_256(bs)
 
 private object UTF8Decoder {
     def decode(bytes: Array[Byte]): String = {

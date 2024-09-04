@@ -40,7 +40,8 @@ lazy val root: Project = project
       examples,
       bench,
       `scalus-bloxbean-cardano-client-lib`,
-      docs
+      docs,
+      blst
     )
     .settings(
       publish / skip := true
@@ -81,7 +82,6 @@ lazy val scalusPlugin = project
           val baseDir = baseDirectory.value / ".." / "shared" / "src" / "main" / "scala"
           val files = Seq(
             baseDir / "scalus/utils/Hex.scala",
-            baseDir / "scalus/builtin/BLS12_381.scala",
             baseDir / "scalus/builtin/ByteString.scala",
             baseDir / "scalus/builtin/Data.scala",
             baseDir / "scalus/builtin/List.scala",
@@ -119,8 +119,8 @@ lazy val PluginDependency: List[Def.Setting[?]] = List(scalacOptions ++= {
 
     // NOTE: uncomment for faster Scalus Plugin development
     // this will recompile the plugin when the jar is modified
-    // Seq(s"-Xplugin:${jar.getAbsolutePath}", s"-Jdummy=${jar.lastModified}")
-    Seq(s"-Xplugin:${jar.getAbsolutePath}")
+    Seq(s"-Xplugin:${jar.getAbsolutePath}", s"-Jdummy=${jar.lastModified}")
+    // Seq(s"-Xplugin:${jar.getAbsolutePath}")
 })
 
 // Scalus Core and Standard Library for JVM and JS
@@ -154,6 +154,7 @@ lazy val scalus = crossProject(JSPlatform, JVMPlatform)
       libraryDependencies += "org.bitcoin-s" % "bitcoin-s-crypto_2.13" % "1.9.9",
       libraryDependencies += "org.bitcoin-s" % "bitcoin-s-secp256k1jni" % "1.9.9"
     )
+    .jvmConfigure(_.dependsOn(blst))
     .jsSettings(
       // Add JS-specific settings here
       Compile / npmDependencies += "@noble/curves" -> "1.4.2",
@@ -234,6 +235,14 @@ lazy val bench = project
       name := "scalus-bench",
       PluginDependency,
       publish / skip := true
+    )
+
+// Benchmarks for Cardano Plutus VM Evaluator
+lazy val blst = project
+    .in(file("blst-jni"))
+    .settings(
+      name := "blst-jni",
+      version := "0.3.12" // FIXME: this is not 0.3.12
     )
 
 addCommandAlias(
