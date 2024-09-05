@@ -89,4 +89,8 @@ public class P1 {
     return new P1(blstJNI.P1_generator());
 }
 
+  public static P1_Affine uncompress(byte[] in) {
+    return new P1_Affine(blstJNI.P1_uncompress(in));
+}
+
 }

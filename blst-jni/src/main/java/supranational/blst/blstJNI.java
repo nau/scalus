@@ -120,6 +120,7 @@ public class blstJNI {
   public final static native void P1_add__SWIG_1(long[] jarg1, long[] jarg2);
   public final static native void P1_dbl(long[] jarg1);
   public final static native long[] P1_generator();
+  public final static native long[] P1_uncompress(byte[] jarg1);
   public final static native long[] new_P2_Affine__SWIG_0();
   public final static native long[] new_P2_Affine__SWIG_1(byte[] jarg1);
   public final static native long[] new_P2_Affine__SWIG_2(long[] jarg1);

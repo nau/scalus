@@ -12,6 +12,8 @@ import scalus.builtin.BLS12_381_G1_Element
 import scalus.builtin.BLS12_381_G2_Element
 import scalus.builtin.ByteString
 import scalus.builtin.Data
+import scalus.builtin.PlatformSpecific
+import scalus.builtin.given
 import scalus.uplc.DefaultUni.ProtoList
 import scalus.uplc.DefaultUni.ProtoPair
 import scalus.uplc.DefaultUni.asConstant
@@ -212,7 +214,7 @@ object UplcParser:
 
     val conBLS12_381_G1_Element: P[BLS12_381_G1_Element] =
         con0xBS.flatMap { s =>
-            try P.pure(BLS12_381_G1_Element(s))
+            try P.pure(summon[PlatformSpecific].bls12_381_G1_uncompress(s))
             catch case e: Exception => P.failWith(e.getMessage)
         }
 

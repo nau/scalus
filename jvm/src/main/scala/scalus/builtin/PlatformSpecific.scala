@@ -112,7 +112,10 @@ trait JVMPlatformSpecific extends PlatformSpecific {
         ByteString.fromArray(p.p.compress())
     }
 
-    override def bls12_381_G1_uncompress(bs: ByteString): BLS12_381_G1_Element = ???
+    override def bls12_381_G1_uncompress(bs: ByteString): BLS12_381_G1_Element = {
+        val p = blst.P1.uncompress(bs.bytes)
+        BLS12_381_G1_Element(p.to_jacobian())
+    }
 
     override def bls12_381_G1_hashToGroup(bs: ByteString, dst: ByteString): BLS12_381_G1_Element =
         ???
