@@ -1,8 +1,8 @@
 package scalus.uplc
 
+import scalus.builtin.*
 import scalus.builtin.Builtins.*
 import scalus.builtin.Data
-import scalus.builtin.*
 import scalus.uplc.Constant.given
 import scalus.uplc.DefaultUni.Bool
 import scalus.uplc.DefaultUni.Integer
@@ -13,13 +13,13 @@ import scalus.uplc.eval.CekValue
 import scalus.uplc.eval.CekValue.*
 import scalus.uplc.eval.CostModel
 import scalus.uplc.eval.CostingFun
+import scalus.uplc.eval.DeserializationError
+import scalus.uplc.eval.ExBudget
 import scalus.uplc.eval.KnownTypeUnliftingError
+import scalus.uplc.eval.Logger
 
 import scala.collection.immutable
 import scala.collection.immutable.ArraySeq
-import scalus.uplc.eval.DeserializationError
-import scalus.uplc.eval.ExBudget
-import scalus.uplc.eval.Logger
 
 enum TypeScheme:
     case Type(argType: DefaultUni)
@@ -721,6 +721,15 @@ class BuiltinsMeaning(builtinCostModel: BuiltinCostModel, platformSpecific: Plat
           builtinCostModel.keccak_256
         )
 
+    val Bls12_381_G1_uncompress = mkMeaning(
+      DefaultUni.ByteString ->: DefaultUni.BLS12_381_G1_Element,
+      (logger: Logger, args: Seq[CekValue]) =>
+          val aa = args(0).asByteString
+          VCon(Constant.BLS12_381_G1_Element(platformSpecific.bls12_381_G1_uncompress(aa)))
+      ,
+      builtinCostModel.bls12_381_G1_uncompress
+    )
+
     val BuiltinMeanings: immutable.Map[DefaultFun, BuiltinRuntime] = immutable.Map.apply(
       (DefaultFun.AddInteger, AddInteger),
       (DefaultFun.SubtractInteger, SubtractInteger),
@@ -777,5 +786,6 @@ class BuiltinsMeaning(builtinCostModel: BuiltinCostModel, platformSpecific: Plat
       (DefaultFun.MkNilData, MkNilData),
       (DefaultFun.MkNilPairData, MkNilPairData),
       (DefaultFun.Blake2b_224, Blake2b_224),
-      (DefaultFun.Keccak_256, Keccak_256)
+      (DefaultFun.Keccak_256, Keccak_256),
+      (DefaultFun.Bls12_381_G1_uncompress, Bls12_381_G1_uncompress)
     )
