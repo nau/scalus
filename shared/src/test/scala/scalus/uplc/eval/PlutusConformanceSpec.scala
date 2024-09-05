@@ -116,7 +116,7 @@ abstract class PlutusConformanceSpec extends AnyFunSuite:
     check("builtin/semantics/blake2b_224/blake2b_224-length-200/blake2b_224-length-200")
     check("builtin/semantics/blake2b_256/blake2b_256-empty/blake2b_256-empty")
     check("builtin/semantics/blake2b_256/blake2b_256-length-200/blake2b_256-length-200")
-//    check("builtin/semantics/bls12_381-cardano-crypto-tests/G1/arith/add/add")
+    // check("builtin/semantics/bls12_381-cardano-crypto-tests/G1/arith/add/add")
 //    check("builtin/semantics/bls12_381-cardano-crypto-tests/G1/arith/neg/neg")
 //    check("builtin/semantics/bls12_381-cardano-crypto-tests/G1/arith/scalarMul/scalarMul")
     check("builtin/semantics/bls12_381-cardano-crypto-tests/G1/uncompress/off-curve/off-curve")
@@ -136,8 +136,8 @@ abstract class PlutusConformanceSpec extends AnyFunSuite:
 //    check("builtin/semantics/bls12_381-cardano-crypto-tests/signature/large-dst/large-dst")
 //    check("builtin/semantics/bls12_381_G1_add/add-associative/add-associative")
 //    check("builtin/semantics/bls12_381_G1_add/add-commutative/add-commutative")
-//    check("builtin/semantics/bls12_381_G1_add/add-zero/add-zero")
-//    check("builtin/semantics/bls12_381_G1_add/add/add")
+      check("builtin/semantics/bls12_381_G1_add/add-zero/add-zero")
+      check("builtin/semantics/bls12_381_G1_add/add/add")
 //    check("builtin/semantics/bls12_381_G1_compress/compress/compress")
 //    check("builtin/semantics/bls12_381_G1_equal/equal-false/equal-false")
 //    check("builtin/semantics/bls12_381_G1_equal/equal-true/equal-true")
@@ -523,7 +523,14 @@ abstract class PlutusConformanceSpec extends AnyFunSuite:
         UplcParser().parseProgram(code) match
             case Right(program) =>
                 try Right(program.copy(term = VM.evaluateProgram(program)))
-                catch case e: Exception => Left("evaluation failure" -> e)
+                catch
+                  case e: MatchError =>
+                    e.printStackTrace()
+                    import scalus.*
+                    println(program.prettyXTerm.render(100))
+                    Left("evaluation failure" -> e)
+                  case e: Exception =>
+                    Left("evaluation failure" -> e)
             case Left(e) =>
                 Left("parse error" -> RuntimeException(e))
     }

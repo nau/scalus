@@ -85,8 +85,7 @@ trait JVMPlatformSpecific extends PlatformSpecific {
     override def bls12_381_G1_add(
         p1: BLS12_381_G1_Element,
         p2: BLS12_381_G1_Element
-    ): BLS12_381_G1_Element =
-        ???
+    ): BLS12_381_G1_Element = BLS12_381_G1_Element(p1.p.add(p2.p))
 
     override def bls12_381_G1_scalarMul(s: BigInt, p: BLS12_381_G1_Element): BLS12_381_G1_Element =
         ???

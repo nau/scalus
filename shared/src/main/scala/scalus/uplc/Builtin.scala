@@ -721,6 +721,22 @@ class BuiltinsMeaning(builtinCostModel: BuiltinCostModel, platformSpecific: Plat
           builtinCostModel.keccak_256
         )
 
+    val Bls12_381_G1_add = mkMeaning(
+      DefaultUni.BLS12_381_G1_Element ->: DefaultUni.BLS12_381_G1_Element ->: DefaultUni.BLS12_381_G1_Element,
+      (logger: Logger, args: Seq[CekValue]) =>
+          val aa = args(0) match {
+              case VCon(Constant.BLS12_381_G1_Element(p)) => p
+              case _ => throw new KnownTypeUnliftingError(DefaultUni.BLS12_381_G1_Element, args(0))
+          }
+          val bb = args(1) match {
+              case VCon(Constant.BLS12_381_G1_Element(p)) => p
+              case _ => throw new KnownTypeUnliftingError(DefaultUni.BLS12_381_G1_Element, args(1))
+          }
+          VCon(Constant.BLS12_381_G1_Element(platformSpecific.bls12_381_G1_add(aa, bb)))
+      ,
+      builtinCostModel.bls12_381_G1_add
+    )
+
     val Bls12_381_G1_uncompress = mkMeaning(
       DefaultUni.ByteString ->: DefaultUni.BLS12_381_G1_Element,
       (logger: Logger, args: Seq[CekValue]) =>
@@ -796,6 +812,7 @@ class BuiltinsMeaning(builtinCostModel: BuiltinCostModel, platformSpecific: Plat
       (DefaultFun.MkNilPairData, MkNilPairData),
       (DefaultFun.Blake2b_224, Blake2b_224),
       (DefaultFun.Keccak_256, Keccak_256),
+      (DefaultFun.Bls12_381_G1_add, Bls12_381_G1_add),
       (DefaultFun.Bls12_381_G1_uncompress, Bls12_381_G1_uncompress),
       (DefaultFun.Bls12_381_G2_uncompress, Bls12_381_G2_uncompress)
     )

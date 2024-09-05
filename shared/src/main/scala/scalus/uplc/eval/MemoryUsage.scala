@@ -77,5 +77,8 @@ object MemoryUsage {
             var acc = 0L
             for d <- l do acc += memoryUsage(d)
             acc
-        case Constant.Pair(a, b) => 1 + memoryUsage(a) + memoryUsage(b)
+        case Constant.Pair(a, b)              => 1 + memoryUsage(a) + memoryUsage(b)
+        case Constant.BLS12_381_G1_Element(_) => 18
+        case Constant.BLS12_381_G2_Element(_) => 36
+        // case Constant.BLS12_381_MlResult   => 72
 }
