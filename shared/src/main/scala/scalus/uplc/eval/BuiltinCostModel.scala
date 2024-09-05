@@ -73,6 +73,7 @@ case class BuiltinCostModel(
     keccak_256: CostingFun[OneArgument],
     // BLS
     bls12_381_G1_add: CostingFun[TwoArguments],
+    bls12_381_G1_neg: CostingFun[OneArgument],
     bls12_381_G1_uncompress: CostingFun[OneArgument],
     bls12_381_G2_uncompress: CostingFun[OneArgument]
 ) {
@@ -176,6 +177,7 @@ object BuiltinCostModel {
             "blake2b_224" -> writeJs(model.blake2b_224),
             "keccak_256" -> writeJs(model.keccak_256),
             "bls12_381_G1_add" -> writeJs(model.bls12_381_G1_add),
+            "bls12_381_G1_neg" -> writeJs(model.bls12_381_G1_neg),
             "bls12_381_G1_uncompress" -> writeJs(model.bls12_381_G1_uncompress),
             "bls12_381_G2_uncompress" -> writeJs(model.bls12_381_G2_uncompress)
           ),
@@ -242,6 +244,7 @@ object BuiltinCostModel {
             blake2b_224 = read[CostingFun[OneArgument]](json("blake2b_224")),
             keccak_256 = read[CostingFun[OneArgument]](json("keccak_256")),
             bls12_381_G1_add = read[CostingFun[TwoArguments]](json("bls12_381_G1_add")),
+            bls12_381_G1_neg = read[CostingFun[OneArgument]](json("bls12_381_G1_neg")),
             bls12_381_G1_uncompress =
                 read[CostingFun[OneArgument]](json("bls12_381_G1_uncompress")),
             bls12_381_G2_uncompress = read[CostingFun[OneArgument]](json("bls12_381_G2_uncompress"))
@@ -851,6 +854,17 @@ object BuiltinCostModel {
             ),
             memory = TwoArguments.ConstantCost(
               cost = params("bls12_381_G1_add-memory-arguments")
+            )
+          ),
+          bls12_381_G1_neg = CostingFun(
+            cpu = OneArgument.LinearCost(
+              OneVariableLinearFunction(
+                intercept = params("bls12_381_G1_neg-cpu-arguments-intercept"),
+                slope = params("bls12_381_G1_neg-cpu-arguments-slope")
+              )
+            ),
+            memory = OneArgument.ConstantCost(
+              cost = params("bls12_381_G1_neg-memory-arguments")
             )
           ),
           bls12_381_G1_uncompress = CostingFun(

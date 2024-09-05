@@ -92,7 +92,9 @@ trait JVMPlatformSpecific extends PlatformSpecific {
 
     override def bls12_381_G1_neg(
         p: BLS12_381_G1_Element
-    ): BLS12_381_G1_Element = ???
+    ): BLS12_381_G1_Element = {
+        BLS12_381_G1_Element(p.p.neg())
+    }
 
     /** Compress a G1 element to a bytestring. This serialises a curve point to its x coordinate
       * only. The compressed bytestring is 48 bytes long, with three spare bits used to convey extra
