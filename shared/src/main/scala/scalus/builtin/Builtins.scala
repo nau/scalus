@@ -72,6 +72,7 @@ trait PlatformSpecific:
       *   Signature (64 bytes)
       */
     def verifySchnorrSecp256k1Signature(pk: ByteString, msg: ByteString, sig: ByteString): Boolean
+    // TODO FIXME: remove `???` default implementations
     // BLS12_381 operations
     def bls12_381_G1_equal(p1: BLS12_381_G1_Element, p2: BLS12_381_G1_Element): Boolean =
         ???

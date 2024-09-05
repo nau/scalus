@@ -27,7 +27,7 @@ abstract class PlutusConformanceSpec extends AnyFunSuite:
     // check("builtin/constant/bls12-381/G1/out-of-group/out-of-group")
     // check("builtin/constant/bls12-381/G1/too-long/too-long")
     // check("builtin/constant/bls12-381/G1/too-short/too-short")
-    // check("builtin/constant/bls12-381/G1/zero/zero")
+    check("builtin/constant/bls12-381/G1/zero/zero")
     // check("builtin/constant/bls12-381/G2/bad-syntax-1/bad-syntax-1")
     // check("builtin/constant/bls12-381/G2/bad-syntax-2/bad-syntax-2")
     // check("builtin/constant/bls12-381/G2/bad-zero-1/bad-zero-1")
@@ -539,7 +539,7 @@ abstract class PlutusConformanceSpec extends AnyFunSuite:
             // println(eval(code).show)
             (eval(code), parseExpected(expected)) match
                 case (Right(actual), Right(expected)) =>
-                    assert(actual alphaEq expected)
+                    assert(actual alphaEq expected, s"Expected $expected but got $actual")
                 case (Left((e1, _)), Left(e2)) => assert(e1 == e2)
                 case (a, b)               => fail(s"Expected $b but got $a")
         }
