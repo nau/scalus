@@ -79,7 +79,13 @@ case class BuiltinCostModel(
     bls12_381_G1_compress: CostingFun[OneArgument],
     bls12_381_G1_uncompress: CostingFun[OneArgument],
     bls12_381_G1_hashToGroup: CostingFun[TwoArguments],
-    bls12_381_G2_uncompress: CostingFun[OneArgument]
+    bls12_381_G2_add: CostingFun[TwoArguments],
+    bls12_381_G2_neg: CostingFun[OneArgument],
+    bls12_381_G2_scalarMul: CostingFun[TwoArguments],
+    bls12_381_G2_equal: CostingFun[TwoArguments],
+    bls12_381_G2_compress: CostingFun[OneArgument],
+    bls12_381_G2_uncompress: CostingFun[OneArgument],
+    bls12_381_G2_hashToGroup: CostingFun[TwoArguments]
 ) {
 
     /** Convert a [[BuiltinCostModel]] to a flat map of cost parameters
@@ -187,7 +193,13 @@ object BuiltinCostModel {
             "bls12_381_G1_compress" -> writeJs(model.bls12_381_G1_compress),
             "bls12_381_G1_uncompress" -> writeJs(model.bls12_381_G1_uncompress),
             "bls12_381_G1_hashToGroup" -> writeJs(model.bls12_381_G1_hashToGroup),
-            "bls12_381_G2_uncompress" -> writeJs(model.bls12_381_G2_uncompress)
+            "bls12_381_G2_add" -> writeJs(model.bls12_381_G2_add),
+            "bls12_381_G2_neg" -> writeJs(model.bls12_381_G2_neg),
+            "bls12_381_G2_scalarMul" -> writeJs(model.bls12_381_G2_scalarMul),
+            "bls12_381_G2_equal" -> writeJs(model.bls12_381_G2_equal),
+            "bls12_381_G2_compress" -> writeJs(model.bls12_381_G2_compress),
+            "bls12_381_G2_uncompress" -> writeJs(model.bls12_381_G2_uncompress),
+            "bls12_381_G2_hashToGroup" -> writeJs(model.bls12_381_G2_hashToGroup)
           ),
       json =>
           BuiltinCostModel(
@@ -258,8 +270,17 @@ object BuiltinCostModel {
             bls12_381_G1_compress = read[CostingFun[OneArgument]](json("bls12_381_G1_compress")),
             bls12_381_G1_uncompress =
                 read[CostingFun[OneArgument]](json("bls12_381_G1_uncompress")),
-            bls12_381_G1_hashToGroup = read[CostingFun[TwoArguments]](json("bls12_381_G1_hashToGroup")),
-            bls12_381_G2_uncompress = read[CostingFun[OneArgument]](json("bls12_381_G2_uncompress"))
+            bls12_381_G1_hashToGroup =
+                read[CostingFun[TwoArguments]](json("bls12_381_G1_hashToGroup")),
+            bls12_381_G2_add = read[CostingFun[TwoArguments]](json("bls12_381_G2_add")),
+            bls12_381_G2_neg = read[CostingFun[OneArgument]](json("bls12_381_G2_neg")),
+            bls12_381_G2_scalarMul = read[CostingFun[TwoArguments]](json("bls12_381_G2_scalarMul")),
+            bls12_381_G2_equal = read[CostingFun[TwoArguments]](json("bls12_381_G2_equal")),
+            bls12_381_G2_compress = read[CostingFun[OneArgument]](json("bls12_381_G2_compress")),
+            bls12_381_G2_uncompress =
+                read[CostingFun[OneArgument]](json("bls12_381_G2_uncompress")),
+            bls12_381_G2_hashToGroup =
+                read[CostingFun[TwoArguments]](json("bls12_381_G2_hashToGroup"))
           )
     )
 
@@ -934,6 +955,61 @@ object BuiltinCostModel {
               cost = params("bls12_381_G1_hashToGroup-memory-arguments")
             )
           ),
+          bls12_381_G2_add = CostingFun(
+            cpu = TwoArguments.LinearInY(
+              OneVariableLinearFunction(
+                intercept = params("bls12_381_G2_add-cpu-arguments-intercept"),
+                slope = params("bls12_381_G2_add-cpu-arguments-slope")
+              )
+            ),
+            memory = TwoArguments.ConstantCost(
+              cost = params("bls12_381_G2_add-memory-arguments")
+            )
+          ),
+          bls12_381_G2_neg = CostingFun(
+            cpu = OneArgument.LinearCost(
+              OneVariableLinearFunction(
+                intercept = params("bls12_381_G2_neg-cpu-arguments-intercept"),
+                slope = params("bls12_381_G2_neg-cpu-arguments-slope")
+              )
+            ),
+            memory = OneArgument.ConstantCost(
+              cost = params("bls12_381_G2_neg-memory-arguments")
+            )
+          ),
+          bls12_381_G2_scalarMul = CostingFun(
+            cpu = TwoArguments.LinearInY(
+              OneVariableLinearFunction(
+                intercept = params("bls12_381_G2_scalarMul-cpu-arguments-intercept"),
+                slope = params("bls12_381_G2_scalarMul-cpu-arguments-slope")
+              )
+            ),
+            memory = TwoArguments.ConstantCost(
+              cost = params("bls12_381_G2_scalarMul-memory-arguments")
+            )
+          ),
+          bls12_381_G2_equal = CostingFun(
+            cpu = TwoArguments.MinSize(
+              OneVariableLinearFunction(
+                intercept = params("bls12_381_G2_equal-cpu-arguments-intercept"),
+                slope = params("bls12_381_G2_equal-cpu-arguments-slope")
+              )
+            ),
+            memory = TwoArguments.ConstantCost(
+              cost = params("bls12_381_G2_equal-memory-arguments")
+            )
+          ),
+          bls12_381_G2_compress = CostingFun(
+            cpu = OneArgument.LinearCost(
+              OneVariableLinearFunction(
+                intercept = params("bls12_381_G2_compress-cpu-arguments-intercept"),
+                slope = params("bls12_381_G2_compress-cpu-arguments-slope")
+              )
+            ),
+            memory = OneArgument.ConstantCost(
+              cost = params("bls12_381_G2_compress-memory-arguments")
+            )
+          ),
           bls12_381_G2_uncompress = CostingFun(
             cpu = OneArgument.LinearCost(
               OneVariableLinearFunction(
@@ -943,6 +1019,17 @@ object BuiltinCostModel {
             ),
             memory = OneArgument.ConstantCost(
               cost = params("bls12_381_G2_uncompress-memory-arguments")
+            )
+          ),
+          bls12_381_G2_hashToGroup = CostingFun(
+            cpu = TwoArguments.LinearInY(
+              OneVariableLinearFunction(
+                intercept = params("bls12_381_G2_hashToGroup-cpu-arguments-intercept"),
+                slope = params("bls12_381_G2_hashToGroup-cpu-arguments-slope")
+              )
+            ),
+            memory = TwoArguments.ConstantCost(
+              cost = params("bls12_381_G2_hashToGroup-memory-arguments")
             )
           )
         )

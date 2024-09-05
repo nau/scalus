@@ -809,6 +809,75 @@ class BuiltinsMeaning(builtinCostModel: BuiltinCostModel, platformSpecific: Plat
       builtinCostModel.bls12_381_G1_hashToGroup
     )
 
+    val Bls12_381_G2_add = mkMeaning(
+      DefaultUni.BLS12_381_G2_Element ->: DefaultUni.BLS12_381_G2_Element ->: DefaultUni.BLS12_381_G2_Element,
+      (logger: Logger, args: Seq[CekValue]) =>
+          val aa = args(0) match {
+              case VCon(Constant.BLS12_381_G2_Element(p)) => p
+              case _ => throw new KnownTypeUnliftingError(DefaultUni.BLS12_381_G2_Element, args(0))
+          }
+          val bb = args(1) match {
+              case VCon(Constant.BLS12_381_G2_Element(p)) => p
+              case _ => throw new KnownTypeUnliftingError(DefaultUni.BLS12_381_G2_Element, args(1))
+          }
+          VCon(Constant.BLS12_381_G2_Element(platformSpecific.bls12_381_G2_add(aa, bb)))
+      ,
+      builtinCostModel.bls12_381_G2_add
+    )
+
+    val Bls12_381_G2_neg = mkMeaning(
+      DefaultUni.BLS12_381_G2_Element ->: DefaultUni.BLS12_381_G2_Element,
+      (logger: Logger, args: Seq[CekValue]) =>
+          val aa = args(0) match {
+              case VCon(Constant.BLS12_381_G2_Element(p)) => p
+              case _ => throw new KnownTypeUnliftingError(DefaultUni.BLS12_381_G2_Element, args(0))
+          }
+          VCon(Constant.BLS12_381_G2_Element(platformSpecific.bls12_381_G2_neg(aa)))
+      ,
+      builtinCostModel.bls12_381_G2_neg
+    )
+
+    val Bls12_381_G2_scalarMul = mkMeaning(
+      DefaultUni.Integer ->: DefaultUni.BLS12_381_G2_Element ->: DefaultUni.BLS12_381_G2_Element,
+      (logger: Logger, args: Seq[CekValue]) =>
+          val aa = args(0).asInteger
+          val bb = args(1) match {
+              case VCon(Constant.BLS12_381_G2_Element(p)) => p
+              case _ => throw new KnownTypeUnliftingError(DefaultUni.BLS12_381_G2_Element, args(1))
+          }
+          VCon(Constant.BLS12_381_G2_Element(platformSpecific.bls12_381_G2_scalarMul(aa, bb)))
+      ,
+      builtinCostModel.bls12_381_G2_scalarMul
+    )
+
+    val Bls12_381_G2_equal = mkMeaning(
+      DefaultUni.BLS12_381_G2_Element ->: DefaultUni.BLS12_381_G2_Element ->: DefaultUni.Bool,
+      (logger: Logger, args: Seq[CekValue]) =>
+          val aa = args(0) match {
+              case VCon(Constant.BLS12_381_G2_Element(p)) => p
+              case _ => throw new KnownTypeUnliftingError(DefaultUni.BLS12_381_G2_Element, args(0))
+          }
+          val bb = args(1) match {
+              case VCon(Constant.BLS12_381_G2_Element(p)) => p
+              case _ => throw new KnownTypeUnliftingError(DefaultUni.BLS12_381_G2_Element, args(1))
+          }
+          VCon(asConstant(platformSpecific.bls12_381_G2_equal(aa, bb)))
+      ,
+      builtinCostModel.bls12_381_G2_equal
+    )
+
+    val Bls12_381_G2_compress = mkMeaning(
+      DefaultUni.BLS12_381_G2_Element ->: DefaultUni.ByteString,
+      (logger: Logger, args: Seq[CekValue]) =>
+          val aa = args(0) match {
+              case VCon(Constant.BLS12_381_G2_Element(p)) => p
+              case _ => throw new KnownTypeUnliftingError(DefaultUni.BLS12_381_G2_Element, args(0))
+          }
+          VCon(Constant.ByteString(platformSpecific.bls12_381_G2_compress(aa)))
+      ,
+      builtinCostModel.bls12_381_G2_compress
+    )
+
     val Bls12_381_G2_uncompress = mkMeaning(
       DefaultUni.ByteString ->: DefaultUni.BLS12_381_G2_Element,
       (logger: Logger, args: Seq[CekValue]) =>
@@ -816,6 +885,16 @@ class BuiltinsMeaning(builtinCostModel: BuiltinCostModel, platformSpecific: Plat
           VCon(Constant.BLS12_381_G2_Element(platformSpecific.bls12_381_G2_uncompress(aa)))
       ,
       builtinCostModel.bls12_381_G2_uncompress
+    )
+
+    val Bls12_381_G2_hashToGroup = mkMeaning(
+      DefaultUni.ByteString ->: DefaultUni.ByteString ->: DefaultUni.BLS12_381_G2_Element,
+      (logger: Logger, args: Seq[CekValue]) =>
+          val aa = args(0).asByteString
+          val bb = args(1).asByteString
+          VCon(Constant.BLS12_381_G2_Element(platformSpecific.bls12_381_G2_hashToGroup(aa, bb)))
+      ,
+      builtinCostModel.bls12_381_G2_hashToGroup
     )
 
     val BuiltinMeanings: immutable.Map[DefaultFun, BuiltinRuntime] = immutable.Map.apply(
@@ -882,5 +961,12 @@ class BuiltinsMeaning(builtinCostModel: BuiltinCostModel, platformSpecific: Plat
       (DefaultFun.Bls12_381_G1_compress, Bls12_381_G1_compress),
       (DefaultFun.Bls12_381_G1_uncompress, Bls12_381_G1_uncompress),
       (DefaultFun.Bls12_381_G1_hashToGroup, Bls12_381_G1_hashToGroup),
-      (DefaultFun.Bls12_381_G2_uncompress, Bls12_381_G2_uncompress)
+      (DefaultFun.Bls12_381_G2_uncompress, Bls12_381_G2_uncompress),
+      (DefaultFun.Bls12_381_G2_add, Bls12_381_G2_add),
+      (DefaultFun.Bls12_381_G2_neg, Bls12_381_G2_neg),
+      (DefaultFun.Bls12_381_G2_scalarMul, Bls12_381_G2_scalarMul),
+      (DefaultFun.Bls12_381_G2_equal, Bls12_381_G2_equal),
+      (DefaultFun.Bls12_381_G2_compress, Bls12_381_G2_compress),
+      (DefaultFun.Bls12_381_G2_uncompress, Bls12_381_G2_uncompress),
+      (DefaultFun.Bls12_381_G2_hashToGroup, Bls12_381_G2_hashToGroup)
     )
