@@ -73,6 +73,7 @@ case class BuiltinCostModel(
     keccak_256: CostingFun[OneArgument],
     // BLS
     bls12_381_G1_uncompress: CostingFun[OneArgument],
+    bls12_381_G2_uncompress: CostingFun[OneArgument]
 ) {
 
     /** Convert a [[BuiltinCostModel]] to a flat map of cost parameters
@@ -170,7 +171,11 @@ object BuiltinCostModel {
             "mkPairData" -> writeJs(model.mkPairData),
             "mkNilData" -> writeJs(model.mkNilData),
             "mkNilPairData" -> writeJs(model.mkNilPairData),
-            "serialiseData" -> writeJs(model.serialiseData)
+            "serialiseData" -> writeJs(model.serialiseData),
+            "blake2b_224" -> writeJs(model.blake2b_224),
+            "keccak_256" -> writeJs(model.keccak_256),
+            "bls12_381_G1_uncompress" -> writeJs(model.bls12_381_G1_uncompress),
+            "bls12_381_G2_uncompress" -> writeJs(model.bls12_381_G2_uncompress)
           ),
       json =>
           BuiltinCostModel(
@@ -234,7 +239,8 @@ object BuiltinCostModel {
             serialiseData = read[CostingFun[OneArgument]](json("serialiseData")),
             blake2b_224 = read[CostingFun[OneArgument]](json("blake2b_224")),
             keccak_256 = read[CostingFun[OneArgument]](json("keccak_256")),
-            bls12_381_G1_uncompress = read[CostingFun[OneArgument]](json("bls12_381_G1_uncompress"))
+            bls12_381_G1_uncompress = read[CostingFun[OneArgument]](json("bls12_381_G1_uncompress")),
+            bls12_381_G2_uncompress = read[CostingFun[OneArgument]](json("bls12_381_G2_uncompress"))
           )
     )
 
@@ -842,7 +848,18 @@ object BuiltinCostModel {
             memory = OneArgument.ConstantCost(
               cost = params("bls12_381_G1_uncompress-memory-arguments")
             )
-          )
+          ),
+          bls12_381_G2_uncompress = CostingFun(
+            cpu = OneArgument.LinearCost(
+              OneVariableLinearFunction(
+                intercept = params("bls12_381_G2_uncompress-cpu-arguments-intercept"),
+                slope = params("bls12_381_G2_uncompress-cpu-arguments-slope")
+              )
+            ),
+            memory = OneArgument.ConstantCost(
+              cost = params("bls12_381_G2_uncompress-memory-arguments")
+            )
+          ),
         )
 
     /** Read a BuiltinCostModel from an input stream of JSON

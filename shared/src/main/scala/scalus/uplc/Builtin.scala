@@ -730,6 +730,15 @@ class BuiltinsMeaning(builtinCostModel: BuiltinCostModel, platformSpecific: Plat
       builtinCostModel.bls12_381_G1_uncompress
     )
 
+    val Bls12_381_G2_uncompress = mkMeaning(
+      DefaultUni.ByteString ->: DefaultUni.BLS12_381_G2_Element,
+      (logger: Logger, args: Seq[CekValue]) =>
+          val aa = args(0).asByteString
+          VCon(Constant.BLS12_381_G2_Element(platformSpecific.bls12_381_G2_uncompress(aa)))
+      ,
+      builtinCostModel.bls12_381_G2_uncompress
+    )
+
     val BuiltinMeanings: immutable.Map[DefaultFun, BuiltinRuntime] = immutable.Map.apply(
       (DefaultFun.AddInteger, AddInteger),
       (DefaultFun.SubtractInteger, SubtractInteger),
@@ -787,5 +796,6 @@ class BuiltinsMeaning(builtinCostModel: BuiltinCostModel, platformSpecific: Plat
       (DefaultFun.MkNilPairData, MkNilPairData),
       (DefaultFun.Blake2b_224, Blake2b_224),
       (DefaultFun.Keccak_256, Keccak_256),
-      (DefaultFun.Bls12_381_G1_uncompress, Bls12_381_G1_uncompress)
+      (DefaultFun.Bls12_381_G1_uncompress, Bls12_381_G1_uncompress),
+      (DefaultFun.Bls12_381_G2_uncompress, Bls12_381_G2_uncompress)
     )
