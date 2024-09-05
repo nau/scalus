@@ -68,7 +68,8 @@ case class BuiltinCostModel(
     mkPairData: CostingFun[TwoArguments],
     mkNilData: CostingFun[OneArgument],
     mkNilPairData: CostingFun[OneArgument],
-    serialiseData: CostingFun[OneArgument]
+    serialiseData: CostingFun[OneArgument],
+    blake2b_224: CostingFun[OneArgument],
 ) {
 
     /** Convert a [[BuiltinCostModel]] to a flat map of cost parameters
@@ -227,7 +228,8 @@ object BuiltinCostModel {
             mkPairData = read[CostingFun[TwoArguments]](json("mkPairData")),
             mkNilData = read[CostingFun[OneArgument]](json("mkNilData")),
             mkNilPairData = read[CostingFun[OneArgument]](json("mkNilPairData")),
-            serialiseData = read[CostingFun[OneArgument]](json("serialiseData"))
+            serialiseData = read[CostingFun[OneArgument]](json("serialiseData")),
+            blake2b_224 = read[CostingFun[OneArgument]](json("blake2b_224"))
           )
     )
 
@@ -801,6 +803,17 @@ object BuiltinCostModel {
                 intercept = params("serialiseData-memory-arguments-intercept"),
                 slope = params("serialiseData-memory-arguments-slope")
               )
+            )
+          ),
+          blake2b_224 = CostingFun(
+            cpu = OneArgument.LinearCost(
+              OneVariableLinearFunction(
+                intercept = params("blake2b_224-cpu-arguments-intercept"),
+                slope = params("blake2b_224-cpu-arguments-slope")
+              )
+            ),
+            memory = OneArgument.ConstantCost(
+              cost = params("blake2b_224-memory-arguments")
             )
           )
         )

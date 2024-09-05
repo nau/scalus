@@ -298,6 +298,16 @@ class BuiltinsMeaning(builtinCostModel: BuiltinCostModel, platformSpecific: Plat
           builtinCostModel.blake2b_256
         )
 
+    val Blake2b_224 =
+        mkMeaning(
+          DefaultUni.ByteString ->: DefaultUni.ByteString,
+          (logger: Logger, args: Seq[CekValue]) =>
+              val aa = args(0).asByteString
+              VCon(asConstant(platformSpecific.blake2b_224(aa)))
+          ,
+          builtinCostModel.blake2b_224
+        )
+
     val VerifyEd25519Signature =
         mkMeaning(
           DefaultUni.ByteString ->: DefaultUni.ByteString ->: DefaultUni.ByteString ->: DefaultUni.Bool,
@@ -755,5 +765,6 @@ class BuiltinsMeaning(builtinCostModel: BuiltinCostModel, platformSpecific: Plat
       (DefaultFun.SerialiseData, SerialiseData),
       (DefaultFun.MkPairData, MkPairData),
       (DefaultFun.MkNilData, MkNilData),
-      (DefaultFun.MkNilPairData, MkNilPairData)
+      (DefaultFun.MkNilPairData, MkNilPairData),
+      (DefaultFun.Blake2b_224, Blake2b_224)
     )
