@@ -70,6 +70,7 @@ case class BuiltinCostModel(
     mkNilPairData: CostingFun[OneArgument],
     serialiseData: CostingFun[OneArgument],
     blake2b_224: CostingFun[OneArgument],
+    keccak_256: CostingFun[OneArgument]
 ) {
 
     /** Convert a [[BuiltinCostModel]] to a flat map of cost parameters
@@ -229,7 +230,8 @@ object BuiltinCostModel {
             mkNilData = read[CostingFun[OneArgument]](json("mkNilData")),
             mkNilPairData = read[CostingFun[OneArgument]](json("mkNilPairData")),
             serialiseData = read[CostingFun[OneArgument]](json("serialiseData")),
-            blake2b_224 = read[CostingFun[OneArgument]](json("blake2b_224"))
+            blake2b_224 = read[CostingFun[OneArgument]](json("blake2b_224")),
+            keccak_256 = read[CostingFun[OneArgument]](json("keccak_256"))
           )
     )
 
@@ -814,6 +816,17 @@ object BuiltinCostModel {
             ),
             memory = OneArgument.ConstantCost(
               cost = params("blake2b_224-memory-arguments")
+            )
+          ),
+          keccak_256 = CostingFun(
+            cpu = OneArgument.LinearCost(
+              OneVariableLinearFunction(
+                intercept = params("keccak_256-cpu-arguments-intercept"),
+                slope = params("keccak_256-cpu-arguments-slope")
+              )
+            ),
+            memory = OneArgument.ConstantCost(
+              cost = params("keccak_256-memory-arguments")
             )
           )
         )

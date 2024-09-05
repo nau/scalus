@@ -711,6 +711,16 @@ class BuiltinsMeaning(builtinCostModel: BuiltinCostModel, platformSpecific: Plat
       builtinCostModel.mkNilPairData
     )
 
+    val Keccak_256 =
+        mkMeaning(
+          DefaultUni.ByteString ->: DefaultUni.ByteString,
+          (logger: Logger, args: Seq[CekValue]) =>
+              val aa = args(0).asByteString
+              VCon(asConstant(platformSpecific.keccak_256(aa)))
+          ,
+          builtinCostModel.keccak_256
+        )
+
     val BuiltinMeanings: immutable.Map[DefaultFun, BuiltinRuntime] = immutable.Map.apply(
       (DefaultFun.AddInteger, AddInteger),
       (DefaultFun.SubtractInteger, SubtractInteger),
@@ -766,5 +776,6 @@ class BuiltinsMeaning(builtinCostModel: BuiltinCostModel, platformSpecific: Plat
       (DefaultFun.MkPairData, MkPairData),
       (DefaultFun.MkNilData, MkNilData),
       (DefaultFun.MkNilPairData, MkNilPairData),
-      (DefaultFun.Blake2b_224, Blake2b_224)
+      (DefaultFun.Blake2b_224, Blake2b_224),
+      (DefaultFun.Keccak_256, Keccak_256)
     )
