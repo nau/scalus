@@ -136,22 +136,27 @@ trait PlatformSpecific:
     def bls12_381_G1_uncompress(bs: ByteString): BLS12_381_G1_Element
 
     def bls12_381_G1_hashToGroup(bs: ByteString, dst: ByteString): BLS12_381_G1_Element
-    def bls12_381_G1_compressed_zero: ByteString
+
     def bls12_381_G1_compressed_generator: ByteString
+
     def bls12_381_G2_equal(p1: BLS12_381_G2_Element, p2: BLS12_381_G2_Element): Boolean
 
     def bls12_381_G2_add(p1: BLS12_381_G2_Element, p2: BLS12_381_G2_Element): BLS12_381_G2_Element
 
     def bls12_381_G2_scalarMul(s: BigInt, p: BLS12_381_G2_Element): BLS12_381_G2_Element
+
     def bls12_381_G2_neg(
         p: BLS12_381_G2_Element
     ): BLS12_381_G2_Element
+
     def bls12_381_G2_compress(p: BLS12_381_G2_Element): ByteString
+
     def bls12_381_G2_uncompress(bs: ByteString): BLS12_381_G2_Element
 
     def bls12_381_G2_hashToGroup(bs: ByteString, dst: ByteString): BLS12_381_G2_Element
-    def bls12_381_G2_compressed_zero: ByteString
+
     def bls12_381_G2_compressed_generator: ByteString
+
     def bls12_381_millerLoop(
         p1: BLS12_381_G1_Element,
         p2: BLS12_381_G2_Element
@@ -160,6 +165,7 @@ trait PlatformSpecific:
     def bls12_381_mulMlResult(r1: BLS12_381_MlResult, r2: BLS12_381_MlResult): BLS12_381_MlResult
 
     def bls12_381_finalVerify(r: BLS12_381_MlResult): Boolean
+
     def keccak_256(bs: ByteString): ByteString
 
 object Builtins:
@@ -381,10 +387,11 @@ object Builtins:
     )(bs: ByteString, dst: ByteString): BLS12_381_G1_Element =
         ps.bls12_381_G1_hashToGroup(bs, dst)
 
-    def bls12_381_G1_compressed_zero: ByteString =
-        ???
+    val bls12_381_G1_compressed_zero: ByteString =
+        ByteString.fromArray(Array(0x0c.toByte) ++ Array.fill(47)(0.toByte))
 
-    def bls12_381_G1_compressed_generator: ByteString = ???
+    def bls12_381_G1_compressed_generator(using ps: PlatformSpecific): ByteString =
+        ps.bls12_381_G1_compressed_generator
 
     def bls12_381_G2_equal(using
         ps: PlatformSpecific
@@ -414,8 +421,11 @@ object Builtins:
         ps: PlatformSpecific
     )(bs: ByteString, dst: ByteString): BLS12_381_G2_Element = ps.bls12_381_G2_hashToGroup(bs, dst)
 
-    def bls12_381_G2_compressed_zero: ByteString = ???
-    def bls12_381_G2_compressed_generator: ByteString = ???
+    def bls12_381_G2_compressed_zero: ByteString =
+        ByteString.fromArray(Array(0x0c.toByte) ++ Array.fill(95)(0.toByte))
+
+    def bls12_381_G2_compressed_generator(using ps: PlatformSpecific): ByteString =
+        ps.bls12_381_G2_compressed_generator
 
     def bls12_381_millerLoop(using ps: PlatformSpecific)(
         p1: BLS12_381_G1_Element,

@@ -7,11 +7,12 @@ import org.bitcoins.crypto.SchnorrPublicKey
 import org.bouncycastle.crypto.digests.Blake2bDigest
 import org.bouncycastle.crypto.params.Ed25519PublicKeyParameters
 import org.bouncycastle.crypto.signers.Ed25519Signer
-import org.bouncycastle.jcajce.provider.digest.SHA3
 import org.bouncycastle.jcajce.provider.digest.Keccak
+import org.bouncycastle.jcajce.provider.digest.SHA3
 import scalus.utils.Utils
 import scodec.bits.ByteVector
-import supranational.blst
+import supranational.blst.P1
+import supranational.blst.P2
 
 object JVMPlatformSpecific extends JVMPlatformSpecific
 trait JVMPlatformSpecific extends PlatformSpecific {
@@ -109,7 +110,7 @@ trait JVMPlatformSpecific extends PlatformSpecific {
     }
 
     override def bls12_381_G1_uncompress(bs: ByteString): BLS12_381_G1_Element = {
-        val p = blst.P1.uncompress(bs.bytes)
+        val p = P1.uncompress(bs.bytes)
         if !p.in_group() then throw new IllegalArgumentException("Invalid point")
         BLS12_381_G1_Element(p.to_jacobian())
     }
@@ -117,14 +118,14 @@ trait JVMPlatformSpecific extends PlatformSpecific {
     override def bls12_381_G1_hashToGroup(bs: ByteString, dst: ByteString): BLS12_381_G1_Element = {
         if dst.length > 255 then throw RuntimeException(s"HashToCurveDstTooBig: ${dst.length}")
         else
-            val p = new blst.P1()
+            val p = new P1()
             p.hash_to(bs.bytes, dst.bytes)
             BLS12_381_G1_Element(p)
     }
 
-    override def bls12_381_G1_compressed_zero: ByteString = ???
-
-    override def bls12_381_G1_compressed_generator: ByteString = ???
+    override val bls12_381_G1_compressed_generator: ByteString = {
+        ByteString.fromArray(P1.generator().compress())
+    }
 
     override def bls12_381_G2_equal(p1: BLS12_381_G2_Element, p2: BLS12_381_G2_Element): Boolean = {
         p1.p.is_equal(p2.p)
@@ -154,7 +155,7 @@ trait JVMPlatformSpecific extends PlatformSpecific {
     }
 
     override def bls12_381_G2_uncompress(bs: ByteString): BLS12_381_G2_Element = {
-        val p = blst.P2.uncompress(bs.bytes)
+        val p = P2.uncompress(bs.bytes)
         if !p.in_group() then throw new IllegalArgumentException("Invalid point")
         BLS12_381_G2_Element(p.to_jacobian())
     }
@@ -162,14 +163,14 @@ trait JVMPlatformSpecific extends PlatformSpecific {
     override def bls12_381_G2_hashToGroup(bs: ByteString, dst: ByteString): BLS12_381_G2_Element = {
         if dst.length > 255 then throw RuntimeException(s"HashToCurveDstTooBig: ${dst.length}")
         else
-            val p = new blst.P2()
+            val p = new P2()
             p.hash_to(bs.bytes, dst.bytes)
             BLS12_381_G2_Element(p)
     }
 
-    override def bls12_381_G2_compressed_zero: ByteString = ???
-
-    override def bls12_381_G2_compressed_generator: ByteString = ???
+    override def bls12_381_G2_compressed_generator: ByteString = {
+        ByteString.fromArray(P2.generator().compress())
+    }
 
     override def bls12_381_millerLoop(
         p1: BLS12_381_G1_Element,
