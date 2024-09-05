@@ -72,45 +72,95 @@ trait PlatformSpecific:
       *   Signature (64 bytes)
       */
     def verifySchnorrSecp256k1Signature(pk: ByteString, msg: ByteString, sig: ByteString): Boolean
-    // TODO FIXME: remove `???` default implementations
+
     // BLS12_381 operations
-    def bls12_381_G1_equal(p1: BLS12_381_G1_Element, p2: BLS12_381_G1_Element): Boolean =
-        ???
-    def bls12_381_G1_add(p1: BLS12_381_G1_Element, p2: BLS12_381_G1_Element): BLS12_381_G1_Element =
-        ???
-    def bls12_381_G1_scalarMul(s: BigInt, p: BLS12_381_G1_Element): BLS12_381_G1_Element = ???
+
+    def bls12_381_G1_equal(p1: BLS12_381_G1_Element, p2: BLS12_381_G1_Element): Boolean
+
+    /** Adds two G1 group elements
+      * @param p1
+      *   G1 element
+      * @param p2
+      *   G1 element
+      * @return
+      *   p1 + p2
+      */
+    def bls12_381_G1_add(p1: BLS12_381_G1_Element, p2: BLS12_381_G1_Element): BLS12_381_G1_Element
+
+    /** Multiplication of group elements by scalars. In the blst library the arguments are the other
+      * way round, but scalars acting on the left is more consistent with standard mathematical
+      * practice.
+      *
+      * @param s
+      *   scalar
+      * @param p
+      *   group element
+      * @return
+      *   s * p
+      */
+    def bls12_381_G1_scalarMul(s: BigInt, p: BLS12_381_G1_Element): BLS12_381_G1_Element
+
+    /** Negates a G1 group element
+      *
+      * @param p
+      *   G1 element
+      * @return
+      *   -p
+      */
     def bls12_381_G1_neg(
         p: BLS12_381_G1_Element
-    ): BLS12_381_G1_Element = ???
-    def bls12_381_G1_compress(p: BLS12_381_G1_Element): ByteString = ???
-    def bls12_381_G1_uncompress(bs: ByteString): BLS12_381_G1_Element =
-        ???
-    def bls12_381_G1_hashToGroup(bs: ByteString, dst: ByteString): BLS12_381_G1_Element = ???
-    def bls12_381_G1_compressed_zero: ByteString = ???
-    def bls12_381_G1_compressed_generator: ByteString = ???
-    def bls12_381_G2_equal(p1: BLS12_381_G2_Element, p2: BLS12_381_G2_Element): Boolean =
-        ???
-    def bls12_381_G2_add(p1: BLS12_381_G2_Element, p2: BLS12_381_G2_Element): BLS12_381_G2_Element =
-        ???
-    def bls12_381_G2_scalarMul(s: BigInt, p: BLS12_381_G2_Element): BLS12_381_G2_Element = ???
+    ): BLS12_381_G1_Element
+
+    /** Compress a G1 element to a bytestring. This serialises a curve point to its x coordinate
+      * only. The compressed bytestring is 48 bytes long, with three spare bits used to convey extra
+      * information about the point, including determining which of two possible y coordinates the
+      * point has and whether the point is the point at infinity.
+      * @see
+      *   https://github.com/supranational/blst#serialization-format
+      *
+      * @param p
+      *   G1 element to compress
+      * @return
+      *   Compressed bytestring
+      */
+    def bls12_381_G1_compress(p: BLS12_381_G1_Element): ByteString
+
+    /** Uncompress a bytestring to get a G1 point. This will fail if any of the following are true.
+      *   - The bytestring is not exactly 48 bytes long.
+      *   - The most significant three bits are used incorrectly.
+      *   - The bytestring encodes a field element which is not the x coordinate of a point on the
+      *     E1 curve.
+      *   - The bytestring does represent a point on the E1 curve, but the point is not in the G1
+      *     subgroup.
+      */
+    def bls12_381_G1_uncompress(bs: ByteString): BLS12_381_G1_Element
+
+    def bls12_381_G1_hashToGroup(bs: ByteString, dst: ByteString): BLS12_381_G1_Element
+    def bls12_381_G1_compressed_zero: ByteString
+    def bls12_381_G1_compressed_generator: ByteString
+    def bls12_381_G2_equal(p1: BLS12_381_G2_Element, p2: BLS12_381_G2_Element): Boolean
+
+    def bls12_381_G2_add(p1: BLS12_381_G2_Element, p2: BLS12_381_G2_Element): BLS12_381_G2_Element
+
+    def bls12_381_G2_scalarMul(s: BigInt, p: BLS12_381_G2_Element): BLS12_381_G2_Element
     def bls12_381_G2_neg(
         p: BLS12_381_G2_Element
-    ): BLS12_381_G2_Element = ???
-    def bls12_381_G2_compress(p: BLS12_381_G2_Element): ByteString = ???
-    def bls12_381_G2_uncompress(bs: ByteString): BLS12_381_G2_Element =
-        ???
-    def bls12_381_G2_hashToGroup(bs: ByteString, dst: ByteString): BLS12_381_G2_Element = ???
-    def bls12_381_G2_compressed_zero: ByteString = ???
-    def bls12_381_G2_compressed_generator: ByteString = ???
+    ): BLS12_381_G2_Element
+    def bls12_381_G2_compress(p: BLS12_381_G2_Element): ByteString
+    def bls12_381_G2_uncompress(bs: ByteString): BLS12_381_G2_Element
+
+    def bls12_381_G2_hashToGroup(bs: ByteString, dst: ByteString): BLS12_381_G2_Element
+    def bls12_381_G2_compressed_zero: ByteString
+    def bls12_381_G2_compressed_generator: ByteString
     def bls12_381_millerLoop(
         p1: BLS12_381_G1_Element,
         p2: BLS12_381_G2_Element
-    ): BLS12_381_MlResult =
-        ???
-    def bls12_381_mulMlResult(r1: BLS12_381_MlResult, r2: BLS12_381_MlResult): BLS12_381_MlResult =
-        ???
-    def bls12_381_finalVerify(r: BLS12_381_MlResult): Boolean = ???
-    def keccak_256(bs: ByteString): ByteString = ???
+    ): BLS12_381_MlResult
+
+    def bls12_381_mulMlResult(r1: BLS12_381_MlResult, r2: BLS12_381_MlResult): BLS12_381_MlResult
+
+    def bls12_381_finalVerify(r: BLS12_381_MlResult): Boolean
+    def keccak_256(bs: ByteString): ByteString
 
 object Builtins:
     // Integers

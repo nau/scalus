@@ -87,8 +87,12 @@ trait JVMPlatformSpecific extends PlatformSpecific {
         p2: BLS12_381_G1_Element
     ): BLS12_381_G1_Element = BLS12_381_G1_Element(p1.p.add(p2.p))
 
-    override def bls12_381_G1_scalarMul(s: BigInt, p: BLS12_381_G1_Element): BLS12_381_G1_Element =
-        ???
+    override def bls12_381_G1_scalarMul(
+        s: BigInt,
+        p: BLS12_381_G1_Element
+    ): BLS12_381_G1_Element = {
+        BLS12_381_G1_Element(p.p.mult(s.bigInteger))
+    }
 
     override def bls12_381_G1_neg(
         p: BLS12_381_G1_Element
@@ -96,18 +100,6 @@ trait JVMPlatformSpecific extends PlatformSpecific {
         BLS12_381_G1_Element(p.p.neg())
     }
 
-    /** Compress a G1 element to a bytestring. This serialises a curve point to its x coordinate
-      * only. The compressed bytestring is 48 bytes long, with three spare bits used to convey extra
-      * information about the point, including determining which of two possible y coordinates the
-      * point has and whether the point is the point at infinity.
-      * @see
-      *   https://github.com/supranational/blst#serialization-format
-      *
-      * @param p
-      *   G1 element to compress
-      * @return
-      *   Compressed bytestring
-      */
     override def bls12_381_G1_compress(p: BLS12_381_G1_Element): ByteString = {
         val compressed = new Array[Byte](48)
         ByteString.fromArray(p.p.compress())
