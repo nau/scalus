@@ -220,7 +220,7 @@ object UplcParser:
 
     val conBLS12_381_G2_Element: P[BLS12_381_G2_Element] =
         con0xBS.flatMap { s =>
-            try P.pure(BLS12_381_G2_Element(s))
+            try P.pure(summon[PlatformSpecific].bls12_381_G2_uncompress(s))
             catch case e: Exception => P.failWith(e.getMessage)
         }
 

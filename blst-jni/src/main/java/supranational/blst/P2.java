@@ -89,4 +89,8 @@ public class P2 {
     return new P2(blstJNI.P2_generator());
 }
 
+  public static P2_Affine uncompress(byte[] in) {
+    return new P2_Affine(blstJNI.P2_uncompress(in));
+}
+
 }
