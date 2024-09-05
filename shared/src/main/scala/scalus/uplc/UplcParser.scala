@@ -211,20 +211,16 @@ object UplcParser:
     val con0xBS: P[ByteString] = P.string("0x") *> hexByte.rep0.map(bs => ByteString(bs: _*))
 
     val conBLS12_381_G1_Element: P[BLS12_381_G1_Element] =
-        for s <- con0xBS
-            // FIXME:
-            /*case BLS12_381.G1.uncompress s of
-      Left err -> fail $ "Failed to decode value of type bls12_381_G2_element: " ++ show err
-      Right e  -> pure e*/
-        yield BLS12_381_G1_Element(s)
+        con0xBS.flatMap { s =>
+            try P.pure(BLS12_381_G1_Element(s))
+            catch case e: Exception => P.failWith(e.getMessage)
+        }
 
     val conBLS12_381_G2_Element: P[BLS12_381_G2_Element] =
-        for s <- con0xBS
-            // FIXME:
-            /*case BLS12_381.G1.uncompress s of
- Left err -> fail $ "Failed to decode value of type bls12_381_G2_element: " ++ show err
- Right e  -> pure e*/
-        yield BLS12_381_G2_Element(s)
+        con0xBS.flatMap { s =>
+            try P.pure(BLS12_381_G2_Element(s))
+            catch case e: Exception => P.failWith(e.getMessage)
+        }
 
     val bytestring: P[ByteString] = P.char('#') *> hexByte.rep0.map(bs => ByteString(bs: _*))
 

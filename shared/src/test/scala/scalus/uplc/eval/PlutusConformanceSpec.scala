@@ -15,9 +15,9 @@ abstract class PlutusConformanceSpec extends AnyFunSuite:
 
     // disable scalafmt for the following block
     // format: off
-    // check("builtin/constant/bls12-381/G1/bad-syntax-1/bad-syntax-1")
-    // check("builtin/constant/bls12-381/G1/bad-syntax-2/bad-syntax-2")
-    // check("builtin/constant/bls12-381/G1/bad-zero-1/bad-zero-1")
+    check("builtin/constant/bls12-381/G1/bad-syntax-1/bad-syntax-1")
+    check("builtin/constant/bls12-381/G1/bad-syntax-2/bad-syntax-2")
+    check("builtin/constant/bls12-381/G1/bad-zero-1/bad-zero-1")
     // check("builtin/constant/bls12-381/G1/bad-zero-2/bad-zero-2")
     // check("builtin/constant/bls12-381/G1/bad-zero-3/bad-zero-3")
     // check("builtin/constant/bls12-381/G1/off-curve/off-curve")
