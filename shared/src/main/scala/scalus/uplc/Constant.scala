@@ -67,6 +67,9 @@ object Constant:
     case class BLS12_381_G2_Element(value: builtin.BLS12_381_G2_Element) extends Constant:
         def tpe = DefaultUni.BLS12_381_G2_Element
 
+    case class BLS12_381_MlResult(value: builtin.BLS12_381_MlResult) extends Constant:
+        def tpe = DefaultUni.BLS12_381_MlResult
+
     def fromValue(tpe: DefaultUni, a: Any): Constant = tpe match {
         case DefaultUni.Integer    => Integer(a.asInstanceOf[BigInt])
         case DefaultUni.ByteString => ByteString(a.asInstanceOf[builtin.ByteString])
@@ -86,6 +89,8 @@ object Constant:
             BLS12_381_G1_Element(a.asInstanceOf[builtin.BLS12_381_G1_Element])
         case DefaultUni.BLS12_381_G2_Element =>
             BLS12_381_G2_Element(a.asInstanceOf[builtin.BLS12_381_G2_Element])
+        case DefaultUni.BLS12_381_MlResult =>
+            throw new IllegalArgumentException("Cannot convert to BLS12_381_MlResult")
         case _ => throw new IllegalArgumentException(s"Cannot convert $a to $tpe")
     }
 

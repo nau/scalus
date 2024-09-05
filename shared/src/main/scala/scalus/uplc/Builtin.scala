@@ -897,6 +897,54 @@ class BuiltinsMeaning(builtinCostModel: BuiltinCostModel, platformSpecific: Plat
       builtinCostModel.bls12_381_G2_hashToGroup
     )
 
+    val Bls12_381_millerLoop = mkMeaning(
+      DefaultUni.BLS12_381_G1_Element ->: DefaultUni.BLS12_381_G2_Element ->: DefaultUni.BLS12_381_MlResult,
+      (logger: Logger, args: Seq[CekValue]) =>
+          val aa = args(0) match {
+              case VCon(Constant.BLS12_381_G1_Element(p)) => p
+              case _ => throw new KnownTypeUnliftingError(DefaultUni.BLS12_381_G1_Element, args(0))
+          }
+          val bb = args(1) match {
+              case VCon(Constant.BLS12_381_G2_Element(p)) => p
+              case _ => throw new KnownTypeUnliftingError(DefaultUni.BLS12_381_G2_Element, args(1))
+          }
+          VCon(Constant.BLS12_381_MlResult(platformSpecific.bls12_381_millerLoop(aa, bb)))
+      ,
+      builtinCostModel.bls12_381_millerLoop
+    )
+
+    val Bls12_381_mulMlResult = mkMeaning(
+      DefaultUni.BLS12_381_MlResult ->: DefaultUni.BLS12_381_MlResult ->: DefaultUni.BLS12_381_MlResult,
+      (logger: Logger, args: Seq[CekValue]) =>
+          val aa = args(0) match {
+              case VCon(Constant.BLS12_381_MlResult(p)) => p
+              case _ => throw new KnownTypeUnliftingError(DefaultUni.BLS12_381_MlResult, args(0))
+          }
+          val bb = args(1) match {
+              case VCon(Constant.BLS12_381_MlResult(p)) => p
+              case _ => throw new KnownTypeUnliftingError(DefaultUni.BLS12_381_MlResult, args(1))
+          }
+          VCon(Constant.BLS12_381_MlResult(platformSpecific.bls12_381_mulMlResult(aa, bb)))
+      ,
+      builtinCostModel.bls12_381_mulMlResult
+    )
+
+    val Bls12_381_finalVerify = mkMeaning(
+      DefaultUni.BLS12_381_MlResult ->: DefaultUni.BLS12_381_MlResult ->: DefaultUni.Bool,
+      (logger: Logger, args: Seq[CekValue]) =>
+          val aa = args(0) match {
+              case VCon(Constant.BLS12_381_MlResult(p)) => p
+              case _ => throw new KnownTypeUnliftingError(DefaultUni.BLS12_381_MlResult, args(0))
+          }
+          val bb = args(1) match {
+              case VCon(Constant.BLS12_381_MlResult(p)) => p
+              case _ => throw new KnownTypeUnliftingError(DefaultUni.BLS12_381_MlResult, args(1))
+          }
+          VCon(asConstant(platformSpecific.bls12_381_finalVerify(aa, bb)))
+      ,
+      builtinCostModel.bls12_381_finalVerify
+    )
+
     val BuiltinMeanings: immutable.Map[DefaultFun, BuiltinRuntime] = immutable.Map.apply(
       (DefaultFun.AddInteger, AddInteger),
       (DefaultFun.SubtractInteger, SubtractInteger),
@@ -968,5 +1016,8 @@ class BuiltinsMeaning(builtinCostModel: BuiltinCostModel, platformSpecific: Plat
       (DefaultFun.Bls12_381_G2_equal, Bls12_381_G2_equal),
       (DefaultFun.Bls12_381_G2_compress, Bls12_381_G2_compress),
       (DefaultFun.Bls12_381_G2_uncompress, Bls12_381_G2_uncompress),
-      (DefaultFun.Bls12_381_G2_hashToGroup, Bls12_381_G2_hashToGroup)
+      (DefaultFun.Bls12_381_G2_hashToGroup, Bls12_381_G2_hashToGroup),
+      (DefaultFun.Bls12_381_millerLoop, Bls12_381_millerLoop),
+      (DefaultFun.Bls12_381_mulMlResult, Bls12_381_mulMlResult),
+      (DefaultFun.Bls12_381_finalVerify, Bls12_381_finalVerify)
     )

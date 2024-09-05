@@ -80,5 +80,5 @@ object MemoryUsage {
         case Constant.Pair(a, b)              => 1 + memoryUsage(a) + memoryUsage(b)
         case Constant.BLS12_381_G1_Element(_) => 18
         case Constant.BLS12_381_G2_Element(_) => 36
-        // case Constant.BLS12_381_MlResult   => 72
+        case Constant.BLS12_381_MlResult(_)   => 72
 }

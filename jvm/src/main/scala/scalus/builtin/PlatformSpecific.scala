@@ -13,6 +13,7 @@ import scalus.utils.Utils
 import scodec.bits.ByteVector
 import supranational.blst.P1
 import supranational.blst.P2
+import supranational.blst.PT
 
 object JVMPlatformSpecific extends JVMPlatformSpecific
 trait JVMPlatformSpecific extends PlatformSpecific {
@@ -175,17 +176,22 @@ trait JVMPlatformSpecific extends PlatformSpecific {
     override def bls12_381_millerLoop(
         p1: BLS12_381_G1_Element,
         p2: BLS12_381_G2_Element
-    ): BLS12_381_MlResult =
-        ???
+    ): BLS12_381_MlResult = {
+        val pt = new PT(p1.p, p2.p)
+        BLS12_381_MlResult(pt)
+    }
 
     override def bls12_381_mulMlResult(
         r1: BLS12_381_MlResult,
         r2: BLS12_381_MlResult
-    ): BLS12_381_MlResult =
-        ???
+    ): BLS12_381_MlResult = {
+        val pt = r1.p.mul(r2.p)
+        BLS12_381_MlResult(pt)
+    }
 
-    override def bls12_381_finalVerify(r: BLS12_381_MlResult): Boolean =
-        ???
+    override def bls12_381_finalVerify(p1: BLS12_381_MlResult, p2: BLS12_381_MlResult): Boolean = {
+        PT.finalverify(p1.p, p2.p)
+    }
 
     override def keccak_256(bs: ByteString): ByteString = {
         val digest = new Keccak.Digest256()

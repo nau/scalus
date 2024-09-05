@@ -593,8 +593,8 @@ class CompilerPluginToSIRSpec extends AnyFunSuite with ScalaCheckPropertyChecks:
         )
         assert(
           compile(Builtins.bls12_381_finalVerify) == LamAbs(
-            "r",
-            Apply(Builtin(Bls12_381_finalVerify), Var("r"))
+            "p1",
+            LamAbs("p2", Apply(Apply(Builtin(Bls12_381_finalVerify), Var("p1")), Var("p2")))
           )
         )
     }

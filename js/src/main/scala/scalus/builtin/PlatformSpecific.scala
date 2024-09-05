@@ -120,7 +120,6 @@ trait NodeJsPlatformSpecific extends PlatformSpecific {
         ???
     override def bls12_381_G1_hashToGroup(bs: ByteString, dst: ByteString): BLS12_381_G1_Element =
         ???
-    override def bls12_381_G1_compressed_zero: ByteString = ???
     override def bls12_381_G1_compressed_generator: ByteString = ???
     override def bls12_381_G2_equal(p1: BLS12_381_G2_Element, p2: BLS12_381_G2_Element): Boolean =
         ???
@@ -139,7 +138,6 @@ trait NodeJsPlatformSpecific extends PlatformSpecific {
         ???
     override def bls12_381_G2_hashToGroup(bs: ByteString, dst: ByteString): BLS12_381_G2_Element =
         ???
-    override def bls12_381_G2_compressed_zero: ByteString = ???
     override def bls12_381_G2_compressed_generator: ByteString = ???
     override def bls12_381_millerLoop(
         p1: BLS12_381_G1_Element,
@@ -151,7 +149,8 @@ trait NodeJsPlatformSpecific extends PlatformSpecific {
         r2: BLS12_381_MlResult
     ): BLS12_381_MlResult =
         ???
-    override def bls12_381_finalVerify(r: BLS12_381_MlResult): Boolean = ???
+    override def bls12_381_finalVerify(p1: BLS12_381_MlResult, p2: BLS12_381_MlResult): Boolean =
+        ???
     override def keccak_256(bs: ByteString): ByteString = ???
 }
 

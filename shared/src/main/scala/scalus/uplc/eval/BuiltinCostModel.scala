@@ -85,7 +85,10 @@ case class BuiltinCostModel(
     bls12_381_G2_equal: CostingFun[TwoArguments],
     bls12_381_G2_compress: CostingFun[OneArgument],
     bls12_381_G2_uncompress: CostingFun[OneArgument],
-    bls12_381_G2_hashToGroup: CostingFun[TwoArguments]
+    bls12_381_G2_hashToGroup: CostingFun[TwoArguments],
+    bls12_381_millerLoop: CostingFun[TwoArguments],
+    bls12_381_mulMlResult: CostingFun[TwoArguments],
+    bls12_381_finalVerify: CostingFun[TwoArguments]
 ) {
 
     /** Convert a [[BuiltinCostModel]] to a flat map of cost parameters
@@ -199,7 +202,10 @@ object BuiltinCostModel {
             "bls12_381_G2_equal" -> writeJs(model.bls12_381_G2_equal),
             "bls12_381_G2_compress" -> writeJs(model.bls12_381_G2_compress),
             "bls12_381_G2_uncompress" -> writeJs(model.bls12_381_G2_uncompress),
-            "bls12_381_G2_hashToGroup" -> writeJs(model.bls12_381_G2_hashToGroup)
+            "bls12_381_G2_hashToGroup" -> writeJs(model.bls12_381_G2_hashToGroup),
+            "bls12_381_millerLoop" -> writeJs(model.bls12_381_millerLoop),
+            "bls12_381_mulMlResult" -> writeJs(model.bls12_381_mulMlResult),
+            "bls12_381_finalVerify" -> writeJs(model.bls12_381_finalVerify)
           ),
       json =>
           BuiltinCostModel(
@@ -280,7 +286,10 @@ object BuiltinCostModel {
             bls12_381_G2_uncompress =
                 read[CostingFun[OneArgument]](json("bls12_381_G2_uncompress")),
             bls12_381_G2_hashToGroup =
-                read[CostingFun[TwoArguments]](json("bls12_381_G2_hashToGroup"))
+                read[CostingFun[TwoArguments]](json("bls12_381_G2_hashToGroup")),
+            bls12_381_millerLoop = read[CostingFun[TwoArguments]](json("bls12_381_millerLoop")),
+            bls12_381_mulMlResult = read[CostingFun[TwoArguments]](json("bls12_381_mulMlResult")),
+            bls12_381_finalVerify = read[CostingFun[TwoArguments]](json("bls12_381_finalVerify"))
           )
     )
 
@@ -1030,6 +1039,39 @@ object BuiltinCostModel {
             ),
             memory = TwoArguments.ConstantCost(
               cost = params("bls12_381_G2_hashToGroup-memory-arguments")
+            )
+          ),
+          bls12_381_millerLoop = CostingFun(
+            cpu = TwoArguments.LinearInY(
+              OneVariableLinearFunction(
+                intercept = params("bls12_381_millerLoop-cpu-arguments-intercept"),
+                slope = params("bls12_381_millerLoop-cpu-arguments-slope")
+              )
+            ),
+            memory = TwoArguments.ConstantCost(
+              cost = params("bls12_381_millerLoop-memory-arguments")
+            )
+          ),
+          bls12_381_mulMlResult = CostingFun(
+            cpu = TwoArguments.LinearInY(
+              OneVariableLinearFunction(
+                intercept = params("bls12_381_mulMlResult-cpu-arguments-intercept"),
+                slope = params("bls12_381_mulMlResult-cpu-arguments-slope")
+              )
+            ),
+            memory = TwoArguments.ConstantCost(
+              cost = params("bls12_381_mulMlResult-memory-arguments")
+            )
+          ),
+          bls12_381_finalVerify = CostingFun(
+            cpu = TwoArguments.LinearInY(
+              OneVariableLinearFunction(
+                intercept = params("bls12_381_finalVerify-cpu-arguments-intercept"),
+                slope = params("bls12_381_finalVerify-cpu-arguments-slope")
+              )
+            ),
+            memory = TwoArguments.ConstantCost(
+              cost = params("bls12_381_finalVerify-memory-arguments")
             )
           )
         )

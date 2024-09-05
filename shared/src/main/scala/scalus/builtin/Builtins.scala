@@ -164,7 +164,7 @@ trait PlatformSpecific:
 
     def bls12_381_mulMlResult(r1: BLS12_381_MlResult, r2: BLS12_381_MlResult): BLS12_381_MlResult
 
-    def bls12_381_finalVerify(r: BLS12_381_MlResult): Boolean
+    def bls12_381_finalVerify(p1: BLS12_381_MlResult, p2: BLS12_381_MlResult): Boolean
 
     def keccak_256(bs: ByteString): ByteString
 
@@ -438,8 +438,10 @@ object Builtins:
     )(r1: BLS12_381_MlResult, r2: BLS12_381_MlResult): BLS12_381_MlResult =
         ps.bls12_381_mulMlResult(r1, r2)
 
-    def bls12_381_finalVerify(using ps: PlatformSpecific)(r: BLS12_381_MlResult): Boolean =
-        ps.bls12_381_finalVerify(r)
+    def bls12_381_finalVerify(using
+        ps: PlatformSpecific
+    )(p1: BLS12_381_MlResult, p2: BLS12_381_MlResult): Boolean =
+        ps.bls12_381_finalVerify(p1, p2)
 
     def keccak_256(using ps: PlatformSpecific)(bs: ByteString): ByteString =
         ps.keccak_256(bs)
