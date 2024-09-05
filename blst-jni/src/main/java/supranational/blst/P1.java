@@ -59,11 +59,15 @@ public class P1 {
 
   public P1 sign_with(Scalar scalar) { blstJNI.P1_sign_with__SWIG_1(swigCPtr, Scalar.getCPtr(scalar)); return this; }
 
-  public P1 hash_to(byte[] msg, String DST, byte[] aug) { blstJNI.P1_hash_to__SWIG_0(swigCPtr, msg, DST, aug); return this; }
+  public P1 hash_to(byte[] msg, byte[] DST, byte[] aug) { blstJNI.P1_hash_to__SWIG_0(swigCPtr, msg, DST, aug); return this; }
 
-  public P1 hash_to(byte[] msg, String DST) { blstJNI.P1_hash_to__SWIG_2(swigCPtr, msg, DST); return this; }
+  public P1 hash_to(byte[] msg, byte[] DST) { blstJNI.P1_hash_to__SWIG_2(swigCPtr, msg, DST); return this; }
 
-  public P1 hash_to(byte[] msg) { blstJNI.P1_hash_to__SWIG_3(swigCPtr, msg); return this; }
+  public P1 hash_to(byte[] msg, String DST, byte[] aug) { blstJNI.P1_hash_to__SWIG_3(swigCPtr, msg, DST, aug); return this; }
+
+  public P1 hash_to(byte[] msg, String DST) { blstJNI.P1_hash_to__SWIG_5(swigCPtr, msg, DST); return this; }
+
+  public P1 hash_to(byte[] msg) { blstJNI.P1_hash_to__SWIG_6(swigCPtr, msg); return this; }
 
   public P1 encode_to(byte[] msg, String DST, byte[] aug) { blstJNI.P1_encode_to__SWIG_0(swigCPtr, msg, DST, aug); return this; }
 

@@ -799,6 +799,16 @@ class BuiltinsMeaning(builtinCostModel: BuiltinCostModel, platformSpecific: Plat
       builtinCostModel.bls12_381_G1_uncompress
     )
 
+    val Bls12_381_G1_hashToGroup = mkMeaning(
+      DefaultUni.ByteString ->: DefaultUni.ByteString ->: DefaultUni.BLS12_381_G1_Element,
+      (logger: Logger, args: Seq[CekValue]) =>
+          val aa = args(0).asByteString
+          val bb = args(1).asByteString
+          VCon(Constant.BLS12_381_G1_Element(platformSpecific.bls12_381_G1_hashToGroup(aa, bb)))
+      ,
+      builtinCostModel.bls12_381_G1_hashToGroup
+    )
+
     val Bls12_381_G2_uncompress = mkMeaning(
       DefaultUni.ByteString ->: DefaultUni.BLS12_381_G2_Element,
       (logger: Logger, args: Seq[CekValue]) =>
@@ -871,5 +881,6 @@ class BuiltinsMeaning(builtinCostModel: BuiltinCostModel, platformSpecific: Plat
       (DefaultFun.Bls12_381_G1_equal, Bls12_381_G1_equal),
       (DefaultFun.Bls12_381_G1_compress, Bls12_381_G1_compress),
       (DefaultFun.Bls12_381_G1_uncompress, Bls12_381_G1_uncompress),
+      (DefaultFun.Bls12_381_G1_hashToGroup, Bls12_381_G1_hashToGroup),
       (DefaultFun.Bls12_381_G2_uncompress, Bls12_381_G2_uncompress)
     )

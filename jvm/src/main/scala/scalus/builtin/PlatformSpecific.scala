@@ -111,8 +111,13 @@ trait JVMPlatformSpecific extends PlatformSpecific {
         BLS12_381_G1_Element(p.to_jacobian())
     }
 
-    override def bls12_381_G1_hashToGroup(bs: ByteString, dst: ByteString): BLS12_381_G1_Element =
-        ???
+    override def bls12_381_G1_hashToGroup(bs: ByteString, dst: ByteString): BLS12_381_G1_Element = {
+        if dst.length > 255 then throw RuntimeException(s"HashToCurveDstTooBig: ${dst.length}")
+        else
+            val p = new blst.P1()
+            p.hash_to(bs.bytes, dst.bytes)
+            BLS12_381_G1_Element(p)
+    }
 
     override def bls12_381_G1_compressed_zero: ByteString = ???
 

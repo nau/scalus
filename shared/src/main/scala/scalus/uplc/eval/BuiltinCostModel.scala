@@ -78,6 +78,7 @@ case class BuiltinCostModel(
     bls12_381_G1_equal: CostingFun[TwoArguments],
     bls12_381_G1_compress: CostingFun[OneArgument],
     bls12_381_G1_uncompress: CostingFun[OneArgument],
+    bls12_381_G1_hashToGroup: CostingFun[TwoArguments],
     bls12_381_G2_uncompress: CostingFun[OneArgument]
 ) {
 
@@ -185,6 +186,7 @@ object BuiltinCostModel {
             "bls12_381_G1_equal" -> writeJs(model.bls12_381_G1_equal),
             "bls12_381_G1_compress" -> writeJs(model.bls12_381_G1_compress),
             "bls12_381_G1_uncompress" -> writeJs(model.bls12_381_G1_uncompress),
+            "bls12_381_G1_hashToGroup" -> writeJs(model.bls12_381_G1_hashToGroup),
             "bls12_381_G2_uncompress" -> writeJs(model.bls12_381_G2_uncompress)
           ),
       json =>
@@ -256,6 +258,7 @@ object BuiltinCostModel {
             bls12_381_G1_compress = read[CostingFun[OneArgument]](json("bls12_381_G1_compress")),
             bls12_381_G1_uncompress =
                 read[CostingFun[OneArgument]](json("bls12_381_G1_uncompress")),
+            bls12_381_G1_hashToGroup = read[CostingFun[TwoArguments]](json("bls12_381_G1_hashToGroup")),
             bls12_381_G2_uncompress = read[CostingFun[OneArgument]](json("bls12_381_G2_uncompress"))
           )
     )
@@ -918,6 +921,17 @@ object BuiltinCostModel {
             ),
             memory = OneArgument.ConstantCost(
               cost = params("bls12_381_G1_uncompress-memory-arguments")
+            )
+          ),
+          bls12_381_G1_hashToGroup = CostingFun(
+            cpu = TwoArguments.LinearInY(
+              OneVariableLinearFunction(
+                intercept = params("bls12_381_G1_hashToGroup-cpu-arguments-intercept"),
+                slope = params("bls12_381_G1_hashToGroup-cpu-arguments-slope")
+              )
+            ),
+            memory = TwoArguments.ConstantCost(
+              cost = params("bls12_381_G1_hashToGroup-memory-arguments")
             )
           ),
           bls12_381_G2_uncompress = CostingFun(
