@@ -138,7 +138,7 @@ abstract class PlutusConformanceSpec extends AnyFunSuite:
     check("builtin/semantics/bls12_381_G1_add/add-commutative/add-commutative")
     check("builtin/semantics/bls12_381_G1_add/add-zero/add-zero")
     check("builtin/semantics/bls12_381_G1_add/add/add")
-//    check("builtin/semantics/bls12_381_G1_compress/compress/compress")
+    check("builtin/semantics/bls12_381_G1_compress/compress/compress")
     check("builtin/semantics/bls12_381_G1_equal/equal-false/equal-false")
     check("builtin/semantics/bls12_381_G1_equal/equal-true/equal-true")
 //    check("builtin/semantics/bls12_381_G1_hashToGroup/hash-different-msg-same-dst/hash-different-msg-same-dst")
