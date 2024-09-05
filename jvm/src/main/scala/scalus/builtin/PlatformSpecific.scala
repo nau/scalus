@@ -114,6 +114,7 @@ trait JVMPlatformSpecific extends PlatformSpecific {
 
     override def bls12_381_G1_uncompress(bs: ByteString): BLS12_381_G1_Element = {
         val p = blst.P1.uncompress(bs.bytes)
+        if !p.in_group() then throw new IllegalArgumentException("Invalid point")
         BLS12_381_G1_Element(p.to_jacobian())
     }
 
