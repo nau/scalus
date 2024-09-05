@@ -79,8 +79,9 @@ trait JVMPlatformSpecific extends PlatformSpecific {
         ECPublicKey(ByteVector(pk.bytes)).verify(ByteVector(msg.bytes), signature)
 
     // BLS12_381 operations
-    override def bls12_381_G1_equal(p1: BLS12_381_G1_Element, p2: BLS12_381_G1_Element): Boolean =
-        ???
+    override def bls12_381_G1_equal(p1: BLS12_381_G1_Element, p2: BLS12_381_G1_Element): Boolean = {
+        p1.p.is_equal(p2.p)
+    }
 
     override def bls12_381_G1_add(
         p1: BLS12_381_G1_Element,
@@ -101,7 +102,6 @@ trait JVMPlatformSpecific extends PlatformSpecific {
     }
 
     override def bls12_381_G1_compress(p: BLS12_381_G1_Element): ByteString = {
-        val compressed = new Array[Byte](48)
         ByteString.fromArray(p.p.compress())
     }
 
