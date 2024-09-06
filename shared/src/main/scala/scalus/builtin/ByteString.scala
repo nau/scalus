@@ -24,6 +24,8 @@ class ByteString private (val bytes: Array[Byte]) {
 
     /** The length of the ByteString */
     def length: Int = bytes.length
+
+    def isEmpty: Boolean = bytes.isEmpty
 }
 
 object ByteString {

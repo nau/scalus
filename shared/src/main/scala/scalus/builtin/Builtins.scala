@@ -355,8 +355,20 @@ object Builtins:
     def mkPairData(fst: Data, snd: Data): Pair[Data, Data] = Pair(fst, snd)
     def mkNilData(): List[Data] = List.empty
     def mkNilPairData(): List[Pair[Data, Data]] = List.empty
-    def integerToByteString(endianness: ByteOrder, n: BigInt, len: BigInt): ByteString = ???
-    def byteStringToInteger(endianness: ByteOrder, bs: ByteString): BigInt = ???
+
+    /** Conversion from [[BigInt]] to [[ByteString]], as per
+      * [CIP-121](https://github.com/cardano-foundation/CIPs/tree/master/CIP-0121).
+      */
+    def integerToByteString(endianness: Boolean, length: BigInt, input: BigInt): ByteString = {
+        IntegerToByteString.integerToByteString(endianness, length, input)
+    }
+
+    /** Conversion from [[ByteString]] to [[BigInt]], as per
+      * [CIP-121](https://github.com/cardano-foundation/CIPs/tree/master/CIP-0121).
+      */
+    def byteStringToInteger(endianness: Boolean, input: ByteString): BigInt = {
+        ByteStringToInteger.byteStringToInteger(endianness, input)
+    }
 
     def bls12_381_G1_equal(using
         ps: PlatformSpecific

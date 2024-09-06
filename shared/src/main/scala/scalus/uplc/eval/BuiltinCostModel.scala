@@ -88,7 +88,10 @@ case class BuiltinCostModel(
     bls12_381_G2_hashToGroup: CostingFun[TwoArguments],
     bls12_381_millerLoop: CostingFun[TwoArguments],
     bls12_381_mulMlResult: CostingFun[TwoArguments],
-    bls12_381_finalVerify: CostingFun[TwoArguments]
+    bls12_381_finalVerify: CostingFun[TwoArguments],
+
+    integerToByteString: CostingFun[ThreeArguments],
+    byteStringToInteger: CostingFun[TwoArguments]
 ) {
 
     /** Convert a [[BuiltinCostModel]] to a flat map of cost parameters
@@ -205,7 +208,9 @@ object BuiltinCostModel {
             "bls12_381_G2_hashToGroup" -> writeJs(model.bls12_381_G2_hashToGroup),
             "bls12_381_millerLoop" -> writeJs(model.bls12_381_millerLoop),
             "bls12_381_mulMlResult" -> writeJs(model.bls12_381_mulMlResult),
-            "bls12_381_finalVerify" -> writeJs(model.bls12_381_finalVerify)
+            "bls12_381_finalVerify" -> writeJs(model.bls12_381_finalVerify),
+            "integerToByteString" -> writeJs(model.integerToByteString),
+            "byteStringToInteger" -> writeJs(model.byteStringToInteger)
           ),
       json =>
           BuiltinCostModel(
@@ -289,7 +294,9 @@ object BuiltinCostModel {
                 read[CostingFun[TwoArguments]](json("bls12_381_G2_hashToGroup")),
             bls12_381_millerLoop = read[CostingFun[TwoArguments]](json("bls12_381_millerLoop")),
             bls12_381_mulMlResult = read[CostingFun[TwoArguments]](json("bls12_381_mulMlResult")),
-            bls12_381_finalVerify = read[CostingFun[TwoArguments]](json("bls12_381_finalVerify"))
+            bls12_381_finalVerify = read[CostingFun[TwoArguments]](json("bls12_381_finalVerify")),
+            integerToByteString = read[CostingFun[ThreeArguments]](json("integerToByteString")),
+            byteStringToInteger = read[CostingFun[TwoArguments]](json("byteStringToInteger"))
           )
     )
 
@@ -503,7 +510,7 @@ object BuiltinCostModel {
           ),
           equalsByteString = CostingFun(
             cpu = TwoArguments.LinearOnDiagonal(
-              ModelConstantOrLinear(
+              ConstantOrLinear(
                 constant = params("equalsByteString-cpu-arguments-constant"),
                 intercept = params("equalsByteString-cpu-arguments-intercept"),
                 slope = params("equalsByteString-cpu-arguments-slope")
@@ -532,7 +539,7 @@ object BuiltinCostModel {
             )
           ),
           sha2_256 = CostingFun(
-            cpu = OneArgument.LinearCost(
+            cpu = OneArgument.LinearInX(
               OneVariableLinearFunction(
                 intercept = params("sha2_256-cpu-arguments-intercept"),
                 slope = params("sha2_256-cpu-arguments-slope")
@@ -543,7 +550,7 @@ object BuiltinCostModel {
             )
           ),
           sha3_256 = CostingFun(
-            cpu = OneArgument.LinearCost(
+            cpu = OneArgument.LinearInX(
               OneVariableLinearFunction(
                 intercept = params("sha3_256-cpu-arguments-intercept"),
                 slope = params("sha3_256-cpu-arguments-slope")
@@ -554,7 +561,7 @@ object BuiltinCostModel {
             )
           ),
           blake2b_256 = CostingFun(
-            cpu = OneArgument.LinearCost(
+            cpu = OneArgument.LinearInX(
               OneVariableLinearFunction(
                 intercept = params("blake2b_256-cpu-arguments-intercept"),
                 slope = params("blake2b_256-cpu-arguments-slope")
@@ -610,7 +617,7 @@ object BuiltinCostModel {
           ),
           equalsString = CostingFun(
             cpu = TwoArguments.LinearOnDiagonal(
-              ModelConstantOrLinear(
+              ConstantOrLinear(
                 constant = params("equalsString-cpu-arguments-constant"),
                 intercept = params("equalsString-cpu-arguments-intercept"),
                 slope = params("equalsString-cpu-arguments-slope")
@@ -621,13 +628,13 @@ object BuiltinCostModel {
             )
           ),
           encodeUtf8 = CostingFun(
-            cpu = OneArgument.LinearCost(
+            cpu = OneArgument.LinearInX(
               OneVariableLinearFunction(
                 intercept = params("encodeUtf8-cpu-arguments-intercept"),
                 slope = params("encodeUtf8-cpu-arguments-slope")
               )
             ),
-            memory = OneArgument.LinearCost(
+            memory = OneArgument.LinearInX(
               OneVariableLinearFunction(
                 intercept = params("encodeUtf8-memory-arguments-intercept"),
                 slope = params("encodeUtf8-memory-arguments-slope")
@@ -635,13 +642,13 @@ object BuiltinCostModel {
             )
           ),
           decodeUtf8 = CostingFun(
-            cpu = OneArgument.LinearCost(
+            cpu = OneArgument.LinearInX(
               OneVariableLinearFunction(
                 intercept = params("decodeUtf8-cpu-arguments-intercept"),
                 slope = params("decodeUtf8-cpu-arguments-slope")
               )
             ),
-            memory = OneArgument.LinearCost(
+            memory = OneArgument.LinearInX(
               OneVariableLinearFunction(
                 intercept = params("decodeUtf8-memory-arguments-intercept"),
                 slope = params("decodeUtf8-memory-arguments-slope")
@@ -852,13 +859,13 @@ object BuiltinCostModel {
             )
           ),
           serialiseData = CostingFun(
-            cpu = OneArgument.LinearCost(
+            cpu = OneArgument.LinearInX(
               OneVariableLinearFunction(
                 intercept = params("serialiseData-cpu-arguments-intercept"),
                 slope = params("serialiseData-cpu-arguments-slope")
               )
             ),
-            memory = OneArgument.LinearCost(
+            memory = OneArgument.LinearInX(
               OneVariableLinearFunction(
                 intercept = params("serialiseData-memory-arguments-intercept"),
                 slope = params("serialiseData-memory-arguments-slope")
@@ -866,7 +873,7 @@ object BuiltinCostModel {
             )
           ),
           blake2b_224 = CostingFun(
-            cpu = OneArgument.LinearCost(
+            cpu = OneArgument.LinearInX(
               OneVariableLinearFunction(
                 intercept = params("blake2b_224-cpu-arguments-intercept"),
                 slope = params("blake2b_224-cpu-arguments-slope")
@@ -877,7 +884,7 @@ object BuiltinCostModel {
             )
           ),
           keccak_256 = CostingFun(
-            cpu = OneArgument.LinearCost(
+            cpu = OneArgument.LinearInX(
               OneVariableLinearFunction(
                 intercept = params("keccak_256-cpu-arguments-intercept"),
                 slope = params("keccak_256-cpu-arguments-slope")
@@ -899,7 +906,7 @@ object BuiltinCostModel {
             )
           ),
           bls12_381_G1_neg = CostingFun(
-            cpu = OneArgument.LinearCost(
+            cpu = OneArgument.LinearInX(
               OneVariableLinearFunction(
                 intercept = params("bls12_381_G1_neg-cpu-arguments-intercept"),
                 slope = params("bls12_381_G1_neg-cpu-arguments-slope")
@@ -932,7 +939,7 @@ object BuiltinCostModel {
             )
           ),
           bls12_381_G1_compress = CostingFun(
-            cpu = OneArgument.LinearCost(
+            cpu = OneArgument.LinearInX(
               OneVariableLinearFunction(
                 intercept = params("bls12_381_G1_compress-cpu-arguments-intercept"),
                 slope = params("bls12_381_G1_compress-cpu-arguments-slope")
@@ -943,7 +950,7 @@ object BuiltinCostModel {
             )
           ),
           bls12_381_G1_uncompress = CostingFun(
-            cpu = OneArgument.LinearCost(
+            cpu = OneArgument.LinearInX(
               OneVariableLinearFunction(
                 intercept = params("bls12_381_G1_uncompress-cpu-arguments-intercept"),
                 slope = params("bls12_381_G1_uncompress-cpu-arguments-slope")
@@ -976,7 +983,7 @@ object BuiltinCostModel {
             )
           ),
           bls12_381_G2_neg = CostingFun(
-            cpu = OneArgument.LinearCost(
+            cpu = OneArgument.LinearInX(
               OneVariableLinearFunction(
                 intercept = params("bls12_381_G2_neg-cpu-arguments-intercept"),
                 slope = params("bls12_381_G2_neg-cpu-arguments-slope")
@@ -1009,7 +1016,7 @@ object BuiltinCostModel {
             )
           ),
           bls12_381_G2_compress = CostingFun(
-            cpu = OneArgument.LinearCost(
+            cpu = OneArgument.LinearInX(
               OneVariableLinearFunction(
                 intercept = params("bls12_381_G2_compress-cpu-arguments-intercept"),
                 slope = params("bls12_381_G2_compress-cpu-arguments-slope")
@@ -1020,7 +1027,7 @@ object BuiltinCostModel {
             )
           ),
           bls12_381_G2_uncompress = CostingFun(
-            cpu = OneArgument.LinearCost(
+            cpu = OneArgument.LinearInX(
               OneVariableLinearFunction(
                 intercept = params("bls12_381_G2_uncompress-cpu-arguments-intercept"),
                 slope = params("bls12_381_G2_uncompress-cpu-arguments-slope")
@@ -1072,6 +1079,34 @@ object BuiltinCostModel {
             ),
             memory = TwoArguments.ConstantCost(
               cost = params("bls12_381_finalVerify-memory-arguments")
+            )
+          ),
+          integerToByteString = CostingFun(
+            cpu = ThreeArguments.LinearInZ(
+              OneVariableLinearFunction(
+                intercept = params("integerToByteString-cpu-arguments-intercept"),
+                slope = params("integerToByteString-cpu-arguments-slope")
+              )
+            ),
+            memory = ThreeArguments.LinearInZ(
+              OneVariableLinearFunction(
+                intercept = params("integerToByteString-memory-arguments-intercept"),
+                slope = params("integerToByteString-memory-arguments-slope")
+              )
+            )
+          ),
+          byteStringToInteger = CostingFun(
+            cpu = TwoArguments.LinearInY(
+              OneVariableLinearFunction(
+                intercept = params("byteStringToInteger-cpu-arguments-intercept"),
+                slope = params("byteStringToInteger-cpu-arguments-slope")
+              )
+            ),
+            memory = TwoArguments.LinearInY(
+              OneVariableLinearFunction(
+                intercept = params("byteStringToInteger-memory-arguments-intercept"),
+                slope = params("byteStringToInteger-memory-arguments-slope")
+              )
             )
           )
         )

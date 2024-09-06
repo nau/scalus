@@ -945,6 +945,29 @@ class BuiltinsMeaning(builtinCostModel: BuiltinCostModel, platformSpecific: Plat
       builtinCostModel.bls12_381_finalVerify
     )
 
+    val IntegerToByteString =
+        mkMeaning(
+          Bool ->: Integer ->: Integer ->: DefaultUni.ByteString,
+          (logger: Logger, args: Seq[CekValue]) =>
+              val endianness = args(0).asBool
+              val length = args(1).asInteger
+              val input = args(2).asInteger
+              VCon(asConstant(integerToByteString(endianness, length, input)))
+          ,
+          builtinCostModel.integerToByteString
+        )
+
+    val ByteStringToInteger =
+        mkMeaning(
+          Bool ->: DefaultUni.ByteString ->: Integer,
+          (logger: Logger, args: Seq[CekValue]) =>
+              val endianness = args(0).asBool
+              val input = args(1).asByteString
+              VCon(asConstant(byteStringToInteger(endianness, input)))
+          ,
+          builtinCostModel.byteStringToInteger
+        )
+
     val BuiltinMeanings: immutable.Map[DefaultFun, BuiltinRuntime] = immutable.Map.apply(
       (DefaultFun.AddInteger, AddInteger),
       (DefaultFun.SubtractInteger, SubtractInteger),
@@ -1019,5 +1042,7 @@ class BuiltinsMeaning(builtinCostModel: BuiltinCostModel, platformSpecific: Plat
       (DefaultFun.Bls12_381_G2_hashToGroup, Bls12_381_G2_hashToGroup),
       (DefaultFun.Bls12_381_millerLoop, Bls12_381_millerLoop),
       (DefaultFun.Bls12_381_mulMlResult, Bls12_381_mulMlResult),
-      (DefaultFun.Bls12_381_finalVerify, Bls12_381_finalVerify)
+      (DefaultFun.Bls12_381_finalVerify, Bls12_381_finalVerify),
+      (DefaultFun.IntegerToByteString, IntegerToByteString),
+      (DefaultFun.ByteStringToInteger, ByteStringToInteger)
     )

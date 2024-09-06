@@ -1628,10 +1628,7 @@
         ],
         "iogx-template-haskell": "iogx-template-haskell",
         "iogx-template-vanilla": "iogx-template-vanilla",
-        "iohk-nix": [
-          "plutus",
-          "iohk-nix"
-        ],
+        "iohk-nix": "iohk-nix_3",
         "nix2container": "nix2container_3",
         "nixpkgs": [
           "plutus",
@@ -1822,16 +1819,20 @@
     "iohk-nix_3": {
       "inputs": {
         "blst": "blst_3",
-        "nixpkgs": "nixpkgs_11",
+        "nixpkgs": [
+          "plutus",
+          "iogx",
+          "nixpkgs"
+        ],
         "secp256k1": "secp256k1_3",
         "sodium": "sodium_3"
       },
       "locked": {
-        "lastModified": 1709083850,
-        "narHash": "sha256-6DQ89ktt8rRVV1pXEyX2JwPjaqS0mQkelkmJmka04rg=",
+        "lastModified": 1721825987,
+        "narHash": "sha256-PPcma4tjozwXJAWf+YtHUQUulmxwulVlwSQzKItx/n8=",
         "owner": "input-output-hk",
         "repo": "iohk-nix",
-        "rev": "1c793a53ac0bd99b795c2180eb23d37e8389a74b",
+        "rev": "eb61f2c14e1f610ec59117ad40f8690cddbf80cb",
         "type": "github"
       },
       "original": {
@@ -2634,22 +2635,6 @@
         "type": "github"
       }
     },
-    "nixpkgs_11": {
-      "locked": {
-        "lastModified": 1684171562,
-        "narHash": "sha256-BMUWjVWAUdyMWKk0ATMC9H0Bv4qAV/TXwwPUvTiC5IQ=",
-        "owner": "nixos",
-        "repo": "nixpkgs",
-        "rev": "55af203d468a6f5032a519cba4f41acf5a74b638",
-        "type": "github"
-      },
-      "original": {
-        "owner": "nixos",
-        "ref": "release-22.11",
-        "repo": "nixpkgs",
-        "type": "github"
-      }
-    },
     "nixpkgs_2": {
       "locked": {
         "lastModified": 1657693803,
@@ -2832,7 +2817,6 @@
         "hackage": "hackage",
         "haskell-nix": "haskell-nix",
         "iogx": "iogx",
-        "iohk-nix": "iohk-nix_3",
         "nixpkgs": [
           "plutus",
           "haskell-nix",
@@ -2840,16 +2824,16 @@
         ]
       },
       "locked": {
-        "lastModified": 1717507381,
-        "narHash": "sha256-/2deMcew/qCvUOiSZJ18/K9naULu2Px7KemTSmwnz4A=",
+        "lastModified": 1721724553,
+        "narHash": "sha256-EaephFxHcKlQbh9cA2FkOeSgIbYioPMB5HoSDI/9aW8=",
         "owner": "input-output-hk",
         "repo": "plutus",
-        "rev": "c013014ca30e9d058c3c0b8075087e32b31dd3de",
+        "rev": "65f67148ecbb08124b2afe67d03efc0a779e01f9",
         "type": "github"
       },
       "original": {
         "owner": "input-output-hk",
-        "ref": "1.29.0.0",
+        "ref": "1.31.0.0",
         "repo": "plutus",
         "type": "github"
       }
