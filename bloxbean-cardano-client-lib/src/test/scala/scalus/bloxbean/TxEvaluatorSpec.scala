@@ -33,7 +33,7 @@ class TxEvaluatorSpec extends AnyFunSuite:
         costMdls.add(CostModelUtil.PlutusV1CostModel)
         costMdls.add(CostModelUtil.PlutusV2CostModel)
         val evaluator = TxEvaluator(
-          SlotConfig.default,
+          SlotConfig.Mainnet,
           initialBudget = ExBudget.fromCpuAndMemory(10_000000000L, 10_000000L),
           protocolMajorVersion = 8,
           costMdls = costMdls

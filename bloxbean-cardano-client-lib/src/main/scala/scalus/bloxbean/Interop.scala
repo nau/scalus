@@ -326,8 +326,8 @@ object Interop {
     }
 
     def slotToBeginPosixTime(slot: Long, sc: SlotConfig): Long = {
-        val msAfterBegin = (slot - sc.zero_slot) * sc.slot_length
-        sc.zero_time + msAfterBegin
+        val msAfterBegin = (slot - sc.zeroSlot) * sc.slotLength
+        sc.zeroTime + msAfterBegin
     }
 
     // https://github.com/IntersectMBO/cardano-ledger/blob/28ab3884cac8edbb7270fd4b8628a16429d2ec9e/eras/alonzo/impl/src/Cardano/Ledger/Alonzo/Plutus/TxInfo.hs#L186
@@ -523,6 +523,7 @@ object Interop {
         redeemer: Redeemer,
         tx: Transaction,
         utxos: Map[TransactionInput, TransactionOutput],
+        slotConfig: SlotConfig,
         protocolVersion: Int
     ): ScriptContext = {
         import scala.jdk.CollectionConverters.*
@@ -536,7 +537,7 @@ object Interop {
         val datums = tx.getWitnessSet.getPlutusDataList.asScala.map { plutusData =>
             ByteString.fromArray(plutusData.getDatumHashAsBytes) -> Interop.toScalusData(plutusData)
         }
-        val txInfo = getTxInfoV2(tx, datums, utxos, SlotConfig.default, protocolVersion)
+        val txInfo = getTxInfoV2(tx, datums, utxos, slotConfig, protocolVersion)
         val scriptContext = ScriptContext(txInfo, purpose)
         scriptContext
     }
