@@ -486,6 +486,68 @@ class PlutusV2Params {
     var `verifySchnorrSecp256k1Signature-memory-arguments`: Long = 0L
 }
 
+class PlutusV3Params extends PlutusV2Params {
+    var cekConstrCost_exBudgetCPU: Long = 0L
+    var cekConstrCost_exBudgetMemory: Long = 0L
+    var cekCaseCost_exBudgetCPU: Long = 0L
+    var cekCaseCost_exBudgetMemory: Long = 0L
+    var bls12_381_G1_add_cpu_arguments: Long = 0L
+    var bls12_381_G1_add_memory_arguments: Long = 0L
+    var bls12_381_G1_compress_cpu_arguments: Long = 0L
+    var bls12_381_G1_compress_memory_arguments: Long = 0L
+    var bls12_381_G1_equal_cpu_arguments: Long = 0L
+
+    var bls12_381_G1_equal_memory_arguments: Long = 0L
+    var bls12_381_G1_hashToGroup_cpu_arguments_intercept: Long = 0L
+    var bls12_381_G1_hashToGroup_cpu_arguments_slope: Long = 0L
+    var bls12_381_G1_hashToGroup_memory_arguments: Long = 0L
+    var bls12_381_G1_neg_cpu_arguments: Long = 0L
+    var bls12_381_G1_neg_memory_arguments: Long = 0L
+    var bls12_381_G1_scalarMul_cpu_arguments_intercept: Long = 0L
+    var bls12_381_G1_scalarMul_cpu_arguments_slope: Long = 0L
+    var bls12_381_G1_scalarMul_memory_arguments: Long = 0L
+    var bls12_381_G1_uncompress_cpu_arguments: Long = 0L
+    var bls12_381_G1_uncompress_memory_arguments: Long = 0L
+    var bls12_381_G2_add_cpu_arguments: Long = 0L
+    var bls12_381_G2_add_memory_arguments: Long = 0L
+    var bls12_381_G2_compress_cpu_arguments: Long = 0L
+    var bls12_381_G2_compress_memory_arguments: Long = 0L
+    var bls12_381_G2_equal_cpu_arguments: Long = 0L
+    var bls12_381_G2_equal_memory_arguments: Long = 0L
+    var bls12_381_G2_hashToGroup_cpu_arguments_intercept: Long = 0L
+    var bls12_381_G2_hashToGroup_cpu_arguments_slope: Long = 0L
+    var bls12_381_G2_hashToGroup_memory_arguments: Long = 0L
+    var bls12_381_G2_neg_cpu_arguments: Long = 0L
+    var bls12_381_G2_neg_memory_arguments: Long = 0L
+    var bls12_381_G2_scalarMul_cpu_arguments_intercept: Long = 0L
+    var bls12_381_G2_scalarMul_cpu_arguments_slope: Long = 0L
+    var bls12_381_G2_scalarMul_memory_arguments: Long = 0L
+    var bls12_381_G2_uncompress_cpu_arguments: Long = 0L
+    var bls12_381_G2_uncompress_memory_arguments: Long = 0L
+    var bls12_381_finalVerify_cpu_arguments: Long = 0L
+    var bls12_381_finalVerify_memory_arguments: Long = 0L
+    var bls12_381_millerLoop_cpu_arguments: Long = 0L
+    var bls12_381_millerLoop_memory_arguments: Long = 0L
+    var bls12_381_mulMlResult_cpu_arguments: Long = 0L
+    var bls12_381_mulMlResult_memory_arguments: Long = 0L
+    var keccak_256_cpu_arguments_intercept: Long = 0L
+    var keccak_256_cpu_arguments_slope: Long = 0L
+    var keccak_256_memory_arguments: Long = 0L
+    var blake2b_224_cpu_arguments_intercept: Long = 0L
+    var blake2b_224_cpu_arguments_slope: Long = 0L
+    var blake2b_224_memory_arguments: Long = 0L
+    var integerToByteString_cpu_arguments_c0: Long = 0L
+    var integerToByteString_cpu_arguments_c1: Long = 0L
+    var integerToByteString_cpu_arguments_c2: Long = 0L
+    var integerToByteString_memory_arguments_intercept: Long = 0L
+    var integerToByteString_memory_arguments_slope: Long = 0L
+    var byteStringToInteger_cpu_arguments_c0: Long = 0L
+    var byteStringToInteger_cpu_arguments_c1: Long = 0L
+    var byteStringToInteger_cpu_arguments_c2: Long = 0L
+    var byteStringToInteger_memory_arguments_intercept: Long = 0L
+    var byteStringToInteger_memory_arguments_slope: Long = 0L
+}
+
 private object JsonUtils {
 
     /** Generates a [[ReadWriter]] for a class with fields that are not private
@@ -522,3 +584,7 @@ object PlutusV1Params:
 object PlutusV2Params:
     given ReadWriter[PlutusV2Params] = JsonUtils.mkClassFieldsReadWriter[PlutusV2Params]
     val (toSeq, fromSeq) = JsonUtils.mkClassFieldsFromSeqIso[PlutusV2Params]
+
+object PlutusV3Params:
+    given ReadWriter[PlutusV3Params] = JsonUtils.mkClassFieldsReadWriter[PlutusV3Params]
+    val (toSeq, fromSeq) = JsonUtils.mkClassFieldsFromSeqIso[PlutusV3Params]

@@ -119,8 +119,8 @@ lazy val PluginDependency: List[Def.Setting[?]] = List(scalacOptions ++= {
 
     // NOTE: uncomment for faster Scalus Plugin development
     // this will recompile the plugin when the jar is modified
-    Seq(s"-Xplugin:${jar.getAbsolutePath}", s"-Jdummy=${jar.lastModified}")
-    // Seq(s"-Xplugin:${jar.getAbsolutePath}")
+    // Seq(s"-Xplugin:${jar.getAbsolutePath}", s"-Jdummy=${jar.lastModified}")
+    Seq(s"-Xplugin:${jar.getAbsolutePath}")
 })
 
 // Scalus Core and Standard Library for JVM and JS
@@ -174,7 +174,7 @@ lazy val examples = project
       PluginDependency,
       scalacOptions ++= commonScalacOptions,
       publish / skip := true,
-      libraryDependencies += "com.bloxbean.cardano" % "cardano-client-backend-blockfrost" % "0.5.1"
+      libraryDependencies += "com.bloxbean.cardano" % "cardano-client-backend-blockfrost" % "0.6.0-beta1"
     )
 
 lazy val `examples-js` = project
@@ -199,7 +199,7 @@ lazy val `scalus-bloxbean-cardano-client-lib` = project
     .settings(
       publish / skip := false,
       scalacOptions ++= commonScalacOptions,
-      libraryDependencies += "com.bloxbean.cardano" % "cardano-client-lib" % "0.5.1",
+      libraryDependencies += "com.bloxbean.cardano" % "cardano-client-lib" % "0.6.0-beta1",
       libraryDependencies += "org.slf4j" % "slf4j-api" % "2.0.13",
       libraryDependencies += "org.slf4j" % "slf4j-simple" % "2.0.16" % "test",
       libraryDependencies += "org.scalatest" %%% "scalatest" % "3.2.19" % "test",

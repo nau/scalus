@@ -2,6 +2,7 @@ package scalus.uplc.eval
 
 import upickle.default.*
 import scalus.macros.Macros
+import scalus.ledger.api.PlutusLedgerLanguage
 
 case class BuiltinCostModel(
     // Integers
@@ -89,7 +90,6 @@ case class BuiltinCostModel(
     bls12_381_millerLoop: CostingFun[TwoArguments],
     bls12_381_mulMlResult: CostingFun[TwoArguments],
     bls12_381_finalVerify: CostingFun[TwoArguments],
-
     integerToByteString: CostingFun[ThreeArguments],
     byteStringToInteger: CostingFun[TwoArguments]
 ) {
@@ -300,8 +300,13 @@ object BuiltinCostModel {
           )
     )
 
-    def fromCostModelParams(costModelParams: Map[String, Long]): BuiltinCostModel =
-        val params = costModelParams.withDefaultValue(300_000_000L)
+    protected[eval] val defaultValue = 300_000_000L
+
+    def fromCostModelParams(
+        plutus: PlutusLedgerLanguage,
+        costModelParams: Map[String, Long]
+    ): BuiltinCostModel =
+        val params = costModelParams.withDefaultValue(defaultValue)
         BuiltinCostModel(
           addInteger = CostingFun(
             cpu = TwoArguments.MaxSize(
@@ -345,86 +350,207 @@ object BuiltinCostModel {
               )
             )
           ),
-          divideInteger = CostingFun(
-            cpu = TwoArguments.ConstAboveDiagonal(
-              ConstantOrTwoArguments(
-                constant = params("divideInteger-cpu-arguments-constant"),
-                model = TwoArguments.MultipliedSizes(
-                  OneVariableLinearFunction(
-                    intercept = params("divideInteger-cpu-arguments-model-arguments-intercept"),
-                    slope = params("divideInteger-cpu-arguments-model-arguments-slope")
+          divideInteger = plutus match
+              case PlutusLedgerLanguage.PlutusV1 | PlutusLedgerLanguage.PlutusV2 =>
+                  CostingFun(
+                    cpu = TwoArguments.ConstAboveDiagonal(
+                      ConstantOrTwoArguments(
+                        constant = params("divideInteger-cpu-arguments-constant"),
+                        model = TwoArguments.MultipliedSizes(
+                          OneVariableLinearFunction(
+                            intercept =
+                                params("divideInteger-cpu-arguments-model-arguments-intercept"),
+                            slope = params("divideInteger-cpu-arguments-model-arguments-slope")
+                          )
+                        )
+                      )
+                    ),
+                    memory = TwoArguments.SubtractedSizes(
+                      SubtractedSizesLinearFunction(
+                        intercept = params("divideInteger-memory-arguments-intercept"),
+                        slope = params("divideInteger-memory-arguments-slope"),
+                        minimum = params("divideInteger-memory-arguments-minimum")
+                      )
+                    )
                   )
-                )
-              )
-            ),
-            memory = TwoArguments.SubtractedSizes(
-              SubtractedSizesLinearFunction(
-                intercept = params("divideInteger-memory-arguments-intercept"),
-                slope = params("divideInteger-memory-arguments-slope"),
-                minimum = params("divideInteger-memory-arguments-minimum")
-              )
-            )
-          ),
-          quotientInteger = CostingFun(
-            cpu = TwoArguments.ConstAboveDiagonal(
-              ConstantOrTwoArguments(
-                constant = params("quotientInteger-cpu-arguments-constant"),
-                model = TwoArguments.MultipliedSizes(
-                  OneVariableLinearFunction(
-                    intercept = params("quotientInteger-cpu-arguments-model-arguments-intercept"),
-                    slope = params("quotientInteger-cpu-arguments-model-arguments-slope")
+              case PlutusLedgerLanguage.PlutusV3 =>
+                  CostingFun(
+                    cpu = TwoArguments.ConstAboveDiagonal(
+                      ConstantOrTwoArguments(
+                        constant = params("divideInteger-cpu-arguments-constant"),
+                        model = TwoArguments.QuadraticInXAndY(
+                          TwoVariableQuadraticFunction(
+                            minimum = params("divideInteger-cpu-arguments-minimum"),
+                            c00 = params("divideInteger-cpu-arguments-c00"),
+                            c10 = params("divideInteger-cpu-arguments-c10"),
+                            c01 = params("divideInteger-cpu-arguments-c01"),
+                            c20 = params("divideInteger-cpu-arguments-c20"),
+                            c11 = params("divideInteger-cpu-arguments-c11"),
+                            c02 = params("divideInteger-cpu-arguments-c02")
+                          )
+                        )
+                      )
+                    ),
+                    memory = TwoArguments.SubtractedSizes(
+                      SubtractedSizesLinearFunction(
+                        intercept = params("divideInteger-memory-arguments-intercept"),
+                        slope = params("divideInteger-memory-arguments-slope"),
+                        minimum = params("divideInteger-memory-arguments-minimum")
+                      )
+                    )
                   )
-                )
-              )
-            ),
-            memory = TwoArguments.SubtractedSizes(
-              SubtractedSizesLinearFunction(
-                intercept = params("quotientInteger-memory-arguments-intercept"),
-                slope = params("quotientInteger-memory-arguments-slope"),
-                minimum = params("quotientInteger-memory-arguments-minimum")
-              )
-            )
-          ),
-          remainderInteger = CostingFun(
-            cpu = TwoArguments.ConstAboveDiagonal(
-              ConstantOrTwoArguments(
-                constant = params("remainderInteger-cpu-arguments-constant"),
-                model = TwoArguments.MultipliedSizes(
-                  OneVariableLinearFunction(
-                    intercept = params("remainderInteger-cpu-arguments-model-arguments-intercept"),
-                    slope = params("remainderInteger-cpu-arguments-model-arguments-slope")
+          ,
+          quotientInteger = plutus match
+              case PlutusLedgerLanguage.PlutusV1 | PlutusLedgerLanguage.PlutusV2 =>
+                  CostingFun(
+                    cpu = TwoArguments.ConstAboveDiagonal(
+                      ConstantOrTwoArguments(
+                        constant = params("quotientInteger-cpu-arguments-constant"),
+                        model = TwoArguments.MultipliedSizes(
+                          OneVariableLinearFunction(
+                            intercept =
+                                params("quotientInteger-cpu-arguments-model-arguments-intercept"),
+                            slope = params("quotientInteger-cpu-arguments-model-arguments-slope")
+                          )
+                        )
+                      )
+                    ),
+                    memory = TwoArguments.SubtractedSizes(
+                      SubtractedSizesLinearFunction(
+                        intercept = params("quotientInteger-memory-arguments-intercept"),
+                        slope = params("quotientInteger-memory-arguments-slope"),
+                        minimum = params("quotientInteger-memory-arguments-minimum")
+                      )
+                    )
                   )
-                )
-              )
-            ),
-            memory = TwoArguments.SubtractedSizes(
-              SubtractedSizesLinearFunction(
-                intercept = params("remainderInteger-memory-arguments-intercept"),
-                slope = params("remainderInteger-memory-arguments-slope"),
-                minimum = params("remainderInteger-memory-arguments-minimum")
-              )
-            )
-          ),
-          modInteger = CostingFun(
-            cpu = TwoArguments.ConstAboveDiagonal(
-              ConstantOrTwoArguments(
-                constant = params("modInteger-cpu-arguments-constant"),
-                model = TwoArguments.MultipliedSizes(
-                  OneVariableLinearFunction(
-                    intercept = params("modInteger-cpu-arguments-model-arguments-intercept"),
-                    slope = params("modInteger-cpu-arguments-model-arguments-slope")
+              case PlutusLedgerLanguage.PlutusV3 =>
+                  CostingFun(
+                    cpu = TwoArguments.ConstAboveDiagonal(
+                      ConstantOrTwoArguments(
+                        constant = params("quotientInteger-cpu-arguments-constant"),
+                        model = TwoArguments.QuadraticInXAndY(
+                          TwoVariableQuadraticFunction(
+                            minimum =
+                                params("quotientInteger-cpu-arguments-model-arguments-minimum"),
+                            c00 = params("quotientInteger-cpu-arguments-model-arguments-c00"),
+                            c10 = params("quotientInteger-cpu-arguments-model-arguments-c10"),
+                            c01 = params("quotientInteger-cpu-arguments-model-arguments-c01"),
+                            c20 = params("quotientInteger-cpu-arguments-model-arguments-c20"),
+                            c11 = params("quotientInteger-cpu-arguments-model-arguments-c11"),
+                            c02 = params("quotientInteger-cpu-arguments-model-arguments-c02")
+                          )
+                        )
+                      )
+                    ),
+                    memory = TwoArguments.SubtractedSizes(
+                      SubtractedSizesLinearFunction(
+                        intercept = params("quotientInteger-memory-arguments-intercept"),
+                        slope = params("quotientInteger-memory-arguments-slope"),
+                        minimum = params("quotientInteger-memory-arguments-minimum")
+                      )
+                    )
                   )
-                )
-              )
-            ),
-            memory = TwoArguments.SubtractedSizes(
-              SubtractedSizesLinearFunction(
-                intercept = params("modInteger-memory-arguments-intercept"),
-                slope = params("modInteger-memory-arguments-slope"),
-                minimum = params("modInteger-memory-arguments-minimum")
-              )
-            )
-          ),
+          ,
+          remainderInteger = plutus match
+              case PlutusLedgerLanguage.PlutusV1 | PlutusLedgerLanguage.PlutusV2 =>
+                  CostingFun(
+                    cpu = TwoArguments.ConstAboveDiagonal(
+                      ConstantOrTwoArguments(
+                        constant = params("remainderInteger-cpu-arguments-constant"),
+                        model = TwoArguments.MultipliedSizes(
+                          OneVariableLinearFunction(
+                            intercept =
+                                params("remainderInteger-cpu-arguments-model-arguments-intercept"),
+                            slope = params("remainderInteger-cpu-arguments-model-arguments-slope")
+                          )
+                        )
+                      )
+                    ),
+                    memory = TwoArguments.SubtractedSizes(
+                      SubtractedSizesLinearFunction(
+                        intercept = params("remainderInteger-memory-arguments-intercept"),
+                        slope = params("remainderInteger-memory-arguments-slope"),
+                        minimum = params("remainderInteger-memory-arguments-minimum")
+                      )
+                    )
+                  )
+              case PlutusLedgerLanguage.PlutusV3 =>
+                  // same as modInteger
+                  CostingFun(
+                    cpu = TwoArguments.ConstAboveDiagonal(
+                      ConstantOrTwoArguments(
+                        constant = params("remainderInteger-cpu-arguments-constant"),
+                        model = TwoArguments.QuadraticInXAndY(
+                          TwoVariableQuadraticFunction(
+                            minimum =
+                                params("remainderInteger-cpu-arguments-model-arguments-minimum"),
+                            c00 = params("remainderInteger-cpu-arguments-model-arguments-c00"),
+                            c10 = params("remainderInteger-cpu-arguments-model-arguments-c10"),
+                            c01 = params("remainderInteger-cpu-arguments-model-arguments-c01"),
+                            c20 = params("remainderInteger-cpu-arguments-model-arguments-c20"),
+                            c11 = params("remainderInteger-cpu-arguments-model-arguments-c11"),
+                            c02 = params("remainderInteger-cpu-arguments-model-arguments-c02")
+                          )
+                        )
+                      )
+                    ),
+                    memory = TwoArguments.LinearInY(
+                      OneVariableLinearFunction(
+                        intercept = params("remainderInteger-memory-arguments-intercept"),
+                        slope = params("remainderInteger-memory-arguments-slope")
+                      )
+                    )
+                  )
+          ,
+          modInteger = plutus match
+              case PlutusLedgerLanguage.PlutusV1 | PlutusLedgerLanguage.PlutusV2 =>
+                  CostingFun(
+                    cpu = TwoArguments.ConstAboveDiagonal(
+                      ConstantOrTwoArguments(
+                        constant = params("modInteger-cpu-arguments-constant"),
+                        model = TwoArguments.MultipliedSizes(
+                          OneVariableLinearFunction(
+                            intercept =
+                                params("modInteger-cpu-arguments-model-arguments-intercept"),
+                            slope = params("modInteger-cpu-arguments-model-arguments-slope")
+                          )
+                        )
+                      )
+                    ),
+                    memory = TwoArguments.SubtractedSizes(
+                      SubtractedSizesLinearFunction(
+                        intercept = params("modInteger-memory-arguments-intercept"),
+                        slope = params("modInteger-memory-arguments-slope"),
+                        minimum = params("modInteger-memory-arguments-minimum")
+                      )
+                    )
+                  )
+              case PlutusLedgerLanguage.PlutusV3 =>
+                  CostingFun(
+                    cpu = TwoArguments.ConstAboveDiagonal(
+                      ConstantOrTwoArguments(
+                        constant = params("modInteger-cpu-arguments-constant"),
+                        model = TwoArguments.QuadraticInXAndY(
+                          TwoVariableQuadraticFunction(
+                            minimum = params("modInteger-cpu-arguments-model-arguments-minimum"),
+                            c00 = params("modInteger-cpu-arguments-model-arguments-c00"),
+                            c10 = params("modInteger-cpu-arguments-model-arguments-c10"),
+                            c01 = params("modInteger-cpu-arguments-model-arguments-c01"),
+                            c20 = params("modInteger-cpu-arguments-model-arguments-c20"),
+                            c11 = params("modInteger-cpu-arguments-model-arguments-c11"),
+                            c02 = params("modInteger-cpu-arguments-model-arguments-c02")
+                          )
+                        )
+                      )
+                    ),
+                    memory = TwoArguments.LinearInY(
+                      OneVariableLinearFunction(
+                        intercept = params("modInteger-memory-arguments-intercept"),
+                        slope = params("modInteger-memory-arguments-slope")
+                      )
+                    )
+                  )
+          ,
           equalsInteger = CostingFun(
             cpu = TwoArguments.MinSize(
               OneVariableLinearFunction(
@@ -895,29 +1021,23 @@ object BuiltinCostModel {
             )
           ),
           bls12_381_G1_add = CostingFun(
-            cpu = TwoArguments.LinearInY(
-              OneVariableLinearFunction(
-                intercept = params("bls12_381_G1_add-cpu-arguments-intercept"),
-                slope = params("bls12_381_G1_add-cpu-arguments-slope")
-              )
+            cpu = TwoArguments.ConstantCost(
+              cost = params("bls12_381_G1_add-cpu-arguments")
             ),
             memory = TwoArguments.ConstantCost(
               cost = params("bls12_381_G1_add-memory-arguments")
             )
           ),
           bls12_381_G1_neg = CostingFun(
-            cpu = OneArgument.LinearInX(
-              OneVariableLinearFunction(
-                intercept = params("bls12_381_G1_neg-cpu-arguments-intercept"),
-                slope = params("bls12_381_G1_neg-cpu-arguments-slope")
-              )
+            cpu = OneArgument.ConstantCost(
+              cost = params("bls12_381_G1_neg-cpu-arguments")
             ),
             memory = OneArgument.ConstantCost(
               cost = params("bls12_381_G1_neg-memory-arguments")
             )
           ),
           bls12_381_G1_scalarMul = CostingFun(
-            cpu = TwoArguments.LinearInY(
+            cpu = TwoArguments.LinearInX(
               OneVariableLinearFunction(
                 intercept = params("bls12_381_G1_scalarMul-cpu-arguments-intercept"),
                 slope = params("bls12_381_G1_scalarMul-cpu-arguments-slope")
@@ -928,40 +1048,31 @@ object BuiltinCostModel {
             )
           ),
           bls12_381_G1_equal = CostingFun(
-            cpu = TwoArguments.MinSize(
-              OneVariableLinearFunction(
-                intercept = params("bls12_381_G1_equal-cpu-arguments-intercept"),
-                slope = params("bls12_381_G1_equal-cpu-arguments-slope")
-              )
+            cpu = TwoArguments.ConstantCost(
+              cost = params("bls12_381_G1_equal-cpu-arguments")
             ),
             memory = TwoArguments.ConstantCost(
               cost = params("bls12_381_G1_equal-memory-arguments")
             )
           ),
           bls12_381_G1_compress = CostingFun(
-            cpu = OneArgument.LinearInX(
-              OneVariableLinearFunction(
-                intercept = params("bls12_381_G1_compress-cpu-arguments-intercept"),
-                slope = params("bls12_381_G1_compress-cpu-arguments-slope")
-              )
+            cpu = OneArgument.ConstantCost(
+              cost = params("bls12_381_G1_compress-cpu-arguments")
             ),
             memory = OneArgument.ConstantCost(
               cost = params("bls12_381_G1_compress-memory-arguments")
             )
           ),
           bls12_381_G1_uncompress = CostingFun(
-            cpu = OneArgument.LinearInX(
-              OneVariableLinearFunction(
-                intercept = params("bls12_381_G1_uncompress-cpu-arguments-intercept"),
-                slope = params("bls12_381_G1_uncompress-cpu-arguments-slope")
-              )
+            cpu = OneArgument.ConstantCost(
+              cost = params("bls12_381_G1_uncompress-cpu-arguments")
             ),
             memory = OneArgument.ConstantCost(
               cost = params("bls12_381_G1_uncompress-memory-arguments")
             )
           ),
           bls12_381_G1_hashToGroup = CostingFun(
-            cpu = TwoArguments.LinearInY(
+            cpu = TwoArguments.LinearInX(
               OneVariableLinearFunction(
                 intercept = params("bls12_381_G1_hashToGroup-cpu-arguments-intercept"),
                 slope = params("bls12_381_G1_hashToGroup-cpu-arguments-slope")
@@ -972,29 +1083,23 @@ object BuiltinCostModel {
             )
           ),
           bls12_381_G2_add = CostingFun(
-            cpu = TwoArguments.LinearInY(
-              OneVariableLinearFunction(
-                intercept = params("bls12_381_G2_add-cpu-arguments-intercept"),
-                slope = params("bls12_381_G2_add-cpu-arguments-slope")
-              )
+            cpu = TwoArguments.ConstantCost(
+              cost = params("bls12_381_G2_add-cpu-arguments")
             ),
             memory = TwoArguments.ConstantCost(
               cost = params("bls12_381_G2_add-memory-arguments")
             )
           ),
           bls12_381_G2_neg = CostingFun(
-            cpu = OneArgument.LinearInX(
-              OneVariableLinearFunction(
-                intercept = params("bls12_381_G2_neg-cpu-arguments-intercept"),
-                slope = params("bls12_381_G2_neg-cpu-arguments-slope")
-              )
+            cpu = OneArgument.ConstantCost(
+              cost = params("bls12_381_G2_neg-cpu-arguments")
             ),
             memory = OneArgument.ConstantCost(
               cost = params("bls12_381_G2_neg-memory-arguments")
             )
           ),
           bls12_381_G2_scalarMul = CostingFun(
-            cpu = TwoArguments.LinearInY(
+            cpu = TwoArguments.LinearInX(
               OneVariableLinearFunction(
                 intercept = params("bls12_381_G2_scalarMul-cpu-arguments-intercept"),
                 slope = params("bls12_381_G2_scalarMul-cpu-arguments-slope")
@@ -1005,40 +1110,31 @@ object BuiltinCostModel {
             )
           ),
           bls12_381_G2_equal = CostingFun(
-            cpu = TwoArguments.MinSize(
-              OneVariableLinearFunction(
-                intercept = params("bls12_381_G2_equal-cpu-arguments-intercept"),
-                slope = params("bls12_381_G2_equal-cpu-arguments-slope")
-              )
+            cpu = TwoArguments.ConstantCost(
+              cost = params("bls12_381_G2_equal-cpu-arguments")
             ),
             memory = TwoArguments.ConstantCost(
               cost = params("bls12_381_G2_equal-memory-arguments")
             )
           ),
           bls12_381_G2_compress = CostingFun(
-            cpu = OneArgument.LinearInX(
-              OneVariableLinearFunction(
-                intercept = params("bls12_381_G2_compress-cpu-arguments-intercept"),
-                slope = params("bls12_381_G2_compress-cpu-arguments-slope")
-              )
+            cpu = OneArgument.ConstantCost(
+              cost = params("bls12_381_G2_compress-cpu-arguments")
             ),
             memory = OneArgument.ConstantCost(
               cost = params("bls12_381_G2_compress-memory-arguments")
             )
           ),
           bls12_381_G2_uncompress = CostingFun(
-            cpu = OneArgument.LinearInX(
-              OneVariableLinearFunction(
-                intercept = params("bls12_381_G2_uncompress-cpu-arguments-intercept"),
-                slope = params("bls12_381_G2_uncompress-cpu-arguments-slope")
-              )
+            cpu = OneArgument.ConstantCost(
+              cost = params("bls12_381_G2_uncompress-cpu-arguments")
             ),
             memory = OneArgument.ConstantCost(
               cost = params("bls12_381_G2_uncompress-memory-arguments")
             )
           ),
           bls12_381_G2_hashToGroup = CostingFun(
-            cpu = TwoArguments.LinearInY(
+            cpu = TwoArguments.LinearInX(
               OneVariableLinearFunction(
                 intercept = params("bls12_381_G2_hashToGroup-cpu-arguments-intercept"),
                 slope = params("bls12_381_G2_hashToGroup-cpu-arguments-slope")
@@ -1049,46 +1145,38 @@ object BuiltinCostModel {
             )
           ),
           bls12_381_millerLoop = CostingFun(
-            cpu = TwoArguments.LinearInY(
-              OneVariableLinearFunction(
-                intercept = params("bls12_381_millerLoop-cpu-arguments-intercept"),
-                slope = params("bls12_381_millerLoop-cpu-arguments-slope")
-              )
+            cpu = TwoArguments.ConstantCost(
+              cost = params("bls12_381_millerLoop-cpu-arguments")
             ),
             memory = TwoArguments.ConstantCost(
               cost = params("bls12_381_millerLoop-memory-arguments")
             )
           ),
           bls12_381_mulMlResult = CostingFun(
-            cpu = TwoArguments.LinearInY(
-              OneVariableLinearFunction(
-                intercept = params("bls12_381_mulMlResult-cpu-arguments-intercept"),
-                slope = params("bls12_381_mulMlResult-cpu-arguments-slope")
-              )
+            cpu = TwoArguments.ConstantCost(
+              cost = params("bls12_381_mulMlResult-cpu-arguments")
             ),
             memory = TwoArguments.ConstantCost(
               cost = params("bls12_381_mulMlResult-memory-arguments")
             )
           ),
           bls12_381_finalVerify = CostingFun(
-            cpu = TwoArguments.LinearInY(
-              OneVariableLinearFunction(
-                intercept = params("bls12_381_finalVerify-cpu-arguments-intercept"),
-                slope = params("bls12_381_finalVerify-cpu-arguments-slope")
-              )
+            cpu = TwoArguments.ConstantCost(
+              cost = params("bls12_381_finalVerify-cpu-arguments")
             ),
             memory = TwoArguments.ConstantCost(
               cost = params("bls12_381_finalVerify-memory-arguments")
             )
           ),
           integerToByteString = CostingFun(
-            cpu = ThreeArguments.LinearInZ(
-              OneVariableLinearFunction(
-                intercept = params("integerToByteString-cpu-arguments-intercept"),
-                slope = params("integerToByteString-cpu-arguments-slope")
+            cpu = ThreeArguments.QuadraticInZ(
+              OneVariableQuadraticFunction(
+                c0 = params("integerToByteString-cpu-arguments-c0"),
+                c1 = params("integerToByteString-cpu-arguments-c1"),
+                c2 = params("integerToByteString-cpu-arguments-c2")
               )
             ),
-            memory = ThreeArguments.LinearInZ(
+            memory = ThreeArguments.LiteralInYOrLinearInZ(
               OneVariableLinearFunction(
                 intercept = params("integerToByteString-memory-arguments-intercept"),
                 slope = params("integerToByteString-memory-arguments-slope")
@@ -1096,10 +1184,11 @@ object BuiltinCostModel {
             )
           ),
           byteStringToInteger = CostingFun(
-            cpu = TwoArguments.LinearInY(
-              OneVariableLinearFunction(
-                intercept = params("byteStringToInteger-cpu-arguments-intercept"),
-                slope = params("byteStringToInteger-cpu-arguments-slope")
+            cpu = TwoArguments.QuadraticInY(
+              OneVariableQuadraticFunction(
+                c0 = params("byteStringToInteger-cpu-arguments-c0"),
+                c1 = params("byteStringToInteger-cpu-arguments-c1"),
+                c2 = params("byteStringToInteger-cpu-arguments-c2")
               )
             ),
             memory = TwoArguments.LinearInY(

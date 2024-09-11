@@ -2,6 +2,7 @@
   inputs = {
     flake-utils.url = "github:numtide/flake-utils";
     plutus.url = "github:input-output-hk/plutus/1.31.0.0";
+    # cardano-node-flake.url = "github:input-output-hk/cardano-node/9.1.1";
   };
 
   outputs =
@@ -9,6 +10,7 @@
     , flake-utils
     , nixpkgs
     , plutus
+    # , cardano-node-flake
     , ...
     } @ inputs:
     (flake-utils.lib.eachSystem [ "x86_64-darwin" "x86_64-linux" "aarch64-darwin" ]
@@ -16,6 +18,7 @@
       let
         pkgs = import nixpkgs { inherit system; };
         uplc = plutus.cabalProject.${system}.hsPkgs.plutus-core.components.exes.uplc;
+        # cardano-cli = cardano-node-flake.packages.${system}.cardano-cli;
       in
       {
         devShells = {
@@ -38,6 +41,7 @@
                 nixpkgs-fmt
                 nodejs
                 uplc
+                # cardano-cli
               ];
               shellHook = ''
                 ln -s ${plutus}/plutus-conformance plutus-conformance

@@ -15,10 +15,10 @@ import scala.annotation.varargs
 import scala.collection.immutable
 import scala.collection.immutable.ArraySeq
 import scala.collection.mutable.ArrayBuffer
+import scala.collection.mutable.Buffer
 import scala.collection.mutable.HashMap
 import scala.util.Try
 import scala.util.control.NonFatal
-import scala.collection.mutable.Buffer
 
 enum StepKind:
     case Const, Var, LamAbs, Apply, Delay, Force, Builtin, Constr, Case
@@ -150,17 +150,17 @@ object MachineParams {
             case PlutusLedgerLanguage.PlutusV1 =>
                 val costs = pparams.costModels("PlutusV1")
                 val params = PlutusV1Params.fromSeq(costs)
-                writeJs(params).obj.map { case (k, v) => (k, v.num.toLong) }.toMap
+                writeJs(params).obj.map { (k, v) => (k, v.num.toLong) }.toMap
             case PlutusLedgerLanguage.PlutusV2 =>
                 val costs = pparams.costModels("PlutusV2")
                 val params = PlutusV2Params.fromSeq(costs)
-                writeJs(params).obj.map { case (k, v) =>
-                    (k, v.num.toLong)
-                }.toMap
+                writeJs(params).obj.map { (k, v) => (k, v.num.toLong) }.toMap
             case PlutusLedgerLanguage.PlutusV3 =>
-                throw new NotImplementedError("PlutusV3 not supported yet")
+                val costs = pparams.costModels("PlutusV3")
+                val params = PlutusV3Params.fromSeq(costs)
+                writeJs(params).obj.map { (k, v) => (k, v.num.toLong) }.toMap
 
-        val builtinCostModel = BuiltinCostModel.fromCostModelParams(paramsMap)
+        val builtinCostModel = BuiltinCostModel.fromCostModelParams(plutus, paramsMap)
         val machineCosts = CekMachineCosts.fromMap(paramsMap)
         MachineParams(machineCosts = machineCosts, builtinCostModel = builtinCostModel)
     }
