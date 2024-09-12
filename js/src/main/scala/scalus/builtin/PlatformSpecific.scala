@@ -16,6 +16,7 @@ private object Sha2 extends js.Object {
 @js.native
 private object Sha3 extends js.Object {
     def sha3_256(msg: Uint8Array): Uint8Array = js.native
+    def keccak_256(msg: Uint8Array): Uint8Array = js.native
 }
 
 @JSImport("@noble/hashes/blake2b", "blake2b")
@@ -151,7 +152,8 @@ trait NodeJsPlatformSpecific extends PlatformSpecific {
         ???
     override def bls12_381_finalVerify(p1: BLS12_381_MlResult, p2: BLS12_381_MlResult): Boolean =
         ???
-    override def keccak_256(bs: ByteString): ByteString = ???
+    override def keccak_256(bs: ByteString): ByteString =
+        Sha3.keccak_256(bs.toUint8Array).toByteString
 }
 
 object NodeJsPlatformSpecific extends NodeJsPlatformSpecific
