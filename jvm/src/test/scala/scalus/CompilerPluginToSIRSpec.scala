@@ -485,7 +485,9 @@ class CompilerPluginToSIRSpec extends AnyFunSuite with ScalaCheckPropertyChecks:
     }
 
     test("compile serialiseData builtins") {
-        assert(compile { Builtins.serialiseData } == Builtin(DefaultFun.SerialiseData))
+        assert(compile {
+            Builtins.serialiseData
+        } == LamAbs("d", Apply(Builtin(SerialiseData), Var("d"))))
     }
 
     test("compile BLS12_381_G1 builtins") {
@@ -1262,6 +1264,6 @@ class CompilerPluginToSIRSpec extends AnyFunSuite with ScalaCheckPropertyChecks:
         VM.evaluateDebug(term) match
             case Result.Success(evaled, _, _, logs) =>
                 assert(evaled == scalus.uplc.Term.Const(Constant.Bool(false)))
-                assert(logs == List("oneEqualsTwo ? False: { mem: 0.002334, cpu: 1.007931 }"))
+                assert(logs == List("oneEqualsTwo ? False: { mem: 0.002334, cpu: 0.693980 }"))
             case Result.Failure(exception, _, _, _) => fail(exception)
     }
