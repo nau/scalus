@@ -48,6 +48,32 @@ private object Ed25519Curves extends js.Object {
     val ed25519: Ed25519 = js.native
 }
 
+//import { bls12_381 as bls } from '@noble/curves/bls12-381
+@JSImport("@noble/curves/bls12-381", JSImport.Namespace)
+@js.native
+private object BLS12_381 extends js.Object {
+    val bls12_381: BLS12_381 = js.native
+}
+
+@js.native
+private trait BLS12_381 extends js.Object {
+    def getPublicKey(privateKey: Uint8Array): Uint8Array = js.native
+}
+
+@js.native
+private trait BLS12_381_G1 extends js.Object {}
+
+@js.native
+private trait BLS12_381_G2 extends js.Object {}
+
+@js.native
+private trait BLS12_381_GT extends js.Object {
+    def equal(p1: Uint8Array, p2: Uint8Array): Boolean = js.native
+    def add(p1: Uint8Array, p2: Uint8Array): Uint8Array = js.native
+    def mul(p1: Uint8Array, p2: Uint8Array): Uint8Array = js.native
+    def finalExp(p: Uint8Array): Uint8Array = js.native
+}
+
 @js.native
 private trait Ed25519 extends js.Object {
     def verify(signature: Uint8Array, message: Uint8Array, publicKey: Uint8Array): Boolean =
