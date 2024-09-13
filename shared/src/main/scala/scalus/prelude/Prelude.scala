@@ -139,6 +139,8 @@ enum Maybe[+A]:
 
 @Compile
 object Maybe {
+    @Ignore
+    inline def apply[A](x: A): Maybe[A] = if x == null then Nothing else Just(x)
     given maybeEq[A](using eq: Eq[A]): Eq[Maybe[A]] = (a: Maybe[A], b: Maybe[A]) =>
         a match
             case Nothing =>

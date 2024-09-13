@@ -8,26 +8,39 @@ import com.bloxbean.cardano.client.crypto.Blake2bUtil.blake2bHash224
 import com.bloxbean.cardano.client.plutus.spec.*
 import com.bloxbean.cardano.client.transaction.spec.*
 import com.bloxbean.cardano.client.transaction.spec.cert.*
+import com.bloxbean.cardano.client.transaction.spec.governance.DRep
+import com.bloxbean.cardano.client.transaction.spec.governance.DRepType
+import com.bloxbean.cardano.client.transaction.spec.governance.ProposalProcedure
+import com.bloxbean.cardano.client.transaction.spec.governance.Voter
+import com.bloxbean.cardano.client.transaction.spec.governance.VoterType
+import com.bloxbean.cardano.client.transaction.spec.governance.actions.GovAction
+import com.bloxbean.cardano.client.transaction.spec.governance.actions.GovActionId
+import com.bloxbean.cardano.client.transaction.spec.governance.actions.HardForkInitiationAction
+import com.bloxbean.cardano.client.transaction.spec.governance.actions.ParameterChangeAction
+import com.bloxbean.cardano.client.transaction.spec.governance.actions.TreasuryWithdrawalsAction
 import com.bloxbean.cardano.client.transaction.util.TransactionUtil
 import io.bullet.borer.Cbor
-import scalus.builtin.ByteString
 import scalus.builtin.ByteString
 import scalus.builtin.given
 import scalus.builtin.Data
 import scalus.ledger
 import scalus.ledger.api
+import scalus.ledger.api.PlutusLedgerLanguage
 import scalus.ledger.api.PlutusLedgerLanguage.*
+import scalus.ledger.api.v1
 import scalus.ledger.api.v1.DCert
 import scalus.ledger.api.v1.ScriptPurpose
 import scalus.ledger.api.v1.StakingCredential
-import scalus.ledger.api.PlutusLedgerLanguage
-import scalus.ledger.api.v1
 import scalus.ledger.api.v2
-import scalus.ledger.api.v2.ScriptContext
+import scalus.ledger.api.v3
 import scalus.ledger.babbage.PlutusV1Params
 import scalus.ledger.babbage.PlutusV2Params
+import scalus.ledger.babbage.PlutusV3Params
 import scalus.prelude
 import scalus.prelude.AssocMap
+import scalus.prelude.List
+import scalus.prelude.Maybe
+import scalus.prelude.Maybe.Nothing
 import scalus.uplc.eval.*
 
 import java.math.BigInteger
@@ -35,7 +48,6 @@ import java.util
 import scala.collection.mutable
 import scala.jdk.CollectionConverters.*
 import scala.math.BigInt
-import scalus.ledger.babbage.PlutusV3Params
 
 given Ordering[TransactionInput] with
     def compare(x: TransactionInput, y: TransactionInput): Int =
@@ -67,6 +79,7 @@ enum ExecutionPurpose:
         scriptVersion: ScriptVersion,
         scriptHash: ByteString
     )
+
 
 case class ScriptInfo(hash: ByteString, scriptVersion: ScriptVersion)
 
@@ -180,6 +193,14 @@ object Interop {
                 v1.Credential.PubKeyCredential(v1.PubKeyHash(ByteString.fromArray(cred.getBytes)))
             case CredentialType.Script =>
                 v1.Credential.ScriptCredential(ByteString.fromArray(cred.getBytes))
+    }
+
+    def getCredential(cred: StakeCredential): v1.Credential = {
+        cred.getType match
+            case StakeCredType.ADDR_KEYHASH =>
+                v1.Credential.PubKeyCredential(v1.PubKeyHash(ByteString.fromArray(cred.getHash)))
+            case StakeCredType.SCRIPTHASH =>
+                v1.Credential.ScriptCredential(ByteString.fromArray(cred.getHash))
     }
 
     def getStakingCredential(cred: StakeCredential): v1.StakingCredential = {
@@ -398,6 +419,106 @@ object Interop {
             case c: MoveInstataneous     => v1.DCert.Mir
     }
 
+    def getTxCertV3(cert: Certificate): v3.TxCert = {
+        cert match
+            case c: AuthCommitteeHotCert =>
+                v3.TxCert.AuthHotCommittee(
+                  getCredential(c.getCommitteeColdCredential),
+                  getCredential(c.getCommitteeHotCredential)
+                )
+            case c: GenesisKeyDelegation =>
+                throw new IllegalArgumentException("GenesisKeyDelegation not supported in V3")
+            case c: MoveInstataneous =>
+                throw new IllegalArgumentException("MoveInstantaneous not supported in V3")
+            case c: PoolRegistration =>
+                v3.TxCert.PoolRegister(
+                  v1.PubKeyHash(ByteString.fromArray(c.getOperator)),
+                  v1.PubKeyHash(ByteString.fromArray(c.getVrfKeyHash))
+                )
+            case c: PoolRetirement =>
+                v3.TxCert.PoolRetire(
+                  v1.PubKeyHash(ByteString.fromArray(c.getPoolKeyHash)),
+                  BigInt(c.getEpoch)
+                )
+            case c: RegCert =>
+                v3.TxCert.RegStaking(getCredential(c.getStakeCredential), Nothing)
+            case c: RegDRepCert =>
+                v3.TxCert.RegDRep(getCredential(c.getDrepCredential), BigInt(c.getCoin))
+            case c: ResignCommitteeColdCert =>
+                v3.TxCert.ResignColdCommittee(getCredential(c.getCommitteeColdCredential))
+            case c: StakeDelegation =>
+                v3.TxCert.DelegStaking(
+                  getCredential(c.getStakeCredential),
+                  v3.Delegatee.Stake(
+                    v1.PubKeyHash(ByteString.fromArray(c.getStakePoolId.getPoolKeyHash))
+                  )
+                )
+            case c: StakeDeregistration =>
+                throw new IllegalArgumentException("StakeDeregistration not supported in V3")
+            case c: StakeRegDelegCert =>
+                v3.TxCert.RegDeleg(
+                  getCredential(c.getStakeCredential),
+                  v3.Delegatee.Stake(v1.PubKeyHash(ByteString.fromHex(c.getPoolKeyHash))),
+                  BigInt(c.getCoin)
+                )
+            case c: StakeRegistration =>
+                throw new IllegalArgumentException("StakeRegistration not supported in V3")
+            case c: StakeVoteDelegCert =>
+                v3.TxCert.DelegStaking(
+                  getCredential(c.getStakeCredential),
+                  v3.Delegatee.StakeVote(
+                    v1.PubKeyHash(ByteString.fromHex(c.getPoolKeyHash)),
+                    getDRep(c.getDrep)
+                  )
+                )
+            case c: StakeVoteRegDelegCert =>
+                v3.TxCert.RegDeleg(
+                  getCredential(c.getStakeCredential),
+                  v3.Delegatee.StakeVote(
+                    v1.PubKeyHash(ByteString.fromHex(c.getPoolKeyHash)),
+                    getDRep(c.getDrep)
+                  ),
+                  BigInt(c.getCoin)
+                )
+            case c: UnregCert =>
+                v3.TxCert.UnRegStaking(getCredential(c.getStakeCredential), Nothing)
+            case c: UnregDRepCert =>
+                v3.TxCert.UnRegDRep(getCredential(c.getDrepCredential), BigInt(c.getCoin))
+            case c: UpdateDRepCert =>
+                v3.TxCert.UpdateDRep(getCredential(c.getDrepCredential))
+            case c: VoteDelegCert =>
+                val dRep = getDRep(c.getDrep)
+                v3.TxCert.DelegStaking(
+                  getCredential(c.getStakeCredential),
+                  v3.Delegatee.Vote(dRep)
+                )
+            case c: VoteRegDelegCert =>
+                val dRep = getDRep(c.getDrep)
+                v3.TxCert.RegDeleg(
+                  getCredential(c.getStakeCredential),
+                  v3.Delegatee.Vote(dRep),
+                  BigInt(c.getCoin)
+                )
+    }
+
+    private def getDRep(drep: DRep): v3.DRep = {
+        drep.getType match
+            case DRepType.ADDR_KEYHASH =>
+                v3.DRep.DRep(
+                  v1.Credential.PubKeyCredential(
+                    v1.PubKeyHash(ByteString.fromHex(drep.getHash))
+                  )
+                )
+            case DRepType.SCRIPTHASH =>
+                v3.DRep.DRep(
+                  v1.Credential.ScriptCredential(ByteString.fromHex(drep.getHash))
+                )
+            case DRepType.ABSTAIN =>
+                v3.DRep.AlwaysAbstain
+            case DRepType.NO_CONFIDENCE =>
+                v3.DRep.AlwaysNoConfidence
+    }
+
     def getTxInfoV1(
         tx: Transaction,
         datums: collection.Seq[(ByteString, Data)],
@@ -461,7 +582,7 @@ object Interop {
                 .toSeq
           ),
           redeemers = AssocMap(prelude.List.from(rdmrs.asScala.sorted.map { redeemer =>
-              val purpose = getScriptPurpose(
+              val purpose = getScriptPurposeV2(
                 redeemer,
                 body.getInputs,
                 body.getMint,
@@ -475,14 +596,21 @@ object Interop {
         )
     }
 
-    def getTxOutRefV1(input: TransactionInput) = {
+    def getTxOutRefV1(input: TransactionInput): v1.TxOutRef = {
         v1.TxOutRef(
           v1.TxId(ByteString.fromHex(input.getTransactionId)),
           input.getIndex
         )
     }
 
-    def getScriptPurpose(
+    def getTxOutRefV3(input: TransactionInput): v3.TxOutRef = {
+        v3.TxOutRef(
+          v3.TxId(ByteString.fromHex(input.getTransactionId)),
+          input.getIndex
+        )
+    }
+
+    def getScriptPurposeV1(
         redeemer: Redeemer,
         inputs: util.List[TransactionInput],
         mint: util.List[MultiAsset],
@@ -522,15 +650,118 @@ object Interop {
                         )
                 else throw new IllegalStateException(s"Wrong reward index: $index in $withdrawals")
 
+    @deprecated("Use getScriptPurposeV1 or getScriptPurposeV2", "0.8.0")
+    def getScriptPurpose(
+        redeemer: Redeemer,
+        inputs: util.List[TransactionInput],
+        mint: util.List[MultiAsset],
+        certificates: util.List[Certificate],
+        withdrawals: util.List[Withdrawal]
+    ): v1.ScriptPurpose = getScriptPurposeV1(redeemer, inputs, mint, certificates, withdrawals)
+
+    def getScriptPurposeV2(
+        redeemer: Redeemer,
+        inputs: util.List[TransactionInput],
+        mint: util.List[MultiAsset],
+        certificates: util.List[Certificate],
+        withdrawals: util.List[Withdrawal]
+    ): v1.ScriptPurpose = getScriptPurposeV1(redeemer, inputs, mint, certificates, withdrawals)
+
+    def getScriptPurposeV3(
+        redeemer: Redeemer,
+        inputs: util.List[TransactionInput],
+        mint: util.List[MultiAsset],
+        certificates: util.List[Certificate],
+        withdrawals: util.List[Withdrawal]
+    ): v3.ScriptPurpose = {
+        // Cardano Ledger code is stupidly complex and unreadable. We need to make sure this is correct
+        val index = redeemer.getIndex.intValue
+        redeemer.getTag match
+            case RedeemerTag.Spend =>
+                val ins = inputs.asScala.sorted
+                if ins.isDefinedAt(index) then
+                    val input = ins(index)
+                    v3.ScriptPurpose.Spending(getTxOutRefV3(input))
+                else throw new IllegalStateException(s"Input not found: $index in $inputs")
+            case RedeemerTag.Mint =>
+                val policyIds = mint.asScala.map(_.getPolicyId).sorted
+                if policyIds.isDefinedAt(index) then
+                    v3.ScriptPurpose.Minting(ByteString.fromHex(policyIds(index)))
+                else throw new IllegalStateException(s"Wrong mint index: $index in $mint")
+            case RedeemerTag.Cert =>
+                val certs = certificates.asScala
+                if certs.isDefinedAt(index) then
+                    v3.ScriptPurpose.Certifying(index, getTxCertV3(certs(index)))
+                else throw new IllegalStateException(s"Wrong cert index: $index in $certificates")
+            case RedeemerTag.Reward =>
+                val rewardAccounts = withdrawals.asScala
+                    .map(ra => Address(ra.getRewardAddress))
+                    .sortBy(a => ByteString.fromArray(a.getBytes)) // for ordering
+                if rewardAccounts.isDefinedAt(index) then
+                    val address = rewardAccounts(index)
+                    if address.getAddressType == AddressType.Reward then
+                        val cred = getCredential(address.getDelegationCredential.get)
+                        v3.ScriptPurpose.Rewarding(cred)
+                    else
+                        throw new IllegalStateException(
+                          s"Wrong reward address type: $address in $withdrawals"
+                        )
+                else throw new IllegalStateException(s"Wrong reward index: $index in $withdrawals")
+    }
+
+    def getScriptInfoV3(
+        redeemer: Redeemer,
+        inputs: util.List[TransactionInput],
+        mint: util.List[MultiAsset],
+        certificates: util.List[Certificate],
+        withdrawals: util.List[Withdrawal]
+    ): v3.ScriptInfo = {
+        // Cardano Ledger code is stupidly complex and unreadable. We need to make sure this is correct
+        val index = redeemer.getIndex.intValue
+        redeemer.getTag match
+            case RedeemerTag.Spend =>
+                val ins = inputs.asScala.sorted
+                if ins.isDefinedAt(index) then
+                    val input = ins(index)
+                    v3.ScriptInfo.SpendingScript(getTxOutRefV3(input), Maybe.Nothing) // FIXME: Implement this
+                else throw new IllegalStateException(s"Input not found: $index in $inputs")
+            case RedeemerTag.Mint =>
+                val policyIds = mint.asScala.map(_.getPolicyId).sorted
+                if policyIds.isDefinedAt(index) then
+                    v3.ScriptInfo.MintingScript(ByteString.fromHex(policyIds(index)))
+                else throw new IllegalStateException(s"Wrong mint index: $index in $mint")
+            case RedeemerTag.Cert =>
+                val certs = certificates.asScala
+                if certs.isDefinedAt(index) then
+                    v3.ScriptInfo.CertifyingScript(index, getTxCertV3(certs(index)))
+                else throw new IllegalStateException(s"Wrong cert index: $index in $certificates")
+            case RedeemerTag.Reward =>
+                val rewardAccounts = withdrawals.asScala
+                    .map(ra => Address(ra.getRewardAddress))
+                    .sortBy(a => ByteString.fromArray(a.getBytes)) // for ordering
+                if rewardAccounts.isDefinedAt(index) then
+                    val address = rewardAccounts(index)
+                    if address.getAddressType == AddressType.Reward then
+                        val cred = getCredential(address.getDelegationCredential.get)
+                        v3.ScriptInfo.RewardingScript(cred)
+                    else
+                        throw new IllegalStateException(
+                          s"Wrong reward address type: $address in $withdrawals"
+                        )
+                else throw new IllegalStateException(s"Wrong reward index: $index in $withdrawals")
+
+                // FIXME: Implement other cases
+    }
+
     def getScriptContextV2(
         redeemer: Redeemer,
         tx: Transaction,
         utxos: Map[TransactionInput, TransactionOutput],
         slotConfig: SlotConfig,
         protocolVersion: Int
-    ): ScriptContext = {
+    ): v2.ScriptContext = {
         import scala.jdk.CollectionConverters.*
-        val purpose = getScriptPurpose(
+        val purpose = getScriptPurposeV2(
           redeemer,
           tx.getBody.getInputs,
           tx.getBody.getMint,
@@ -541,7 +772,138 @@ object Interop {
             ByteString.fromArray(plutusData.getDatumHashAsBytes) -> Interop.toScalusData(plutusData)
         }
         val txInfo = getTxInfoV2(tx, datums, utxos, slotConfig, protocolVersion)
-        val scriptContext = ScriptContext(txInfo, purpose)
+        val scriptContext = v2.ScriptContext(txInfo, purpose)
         scriptContext
     }
+
+    def getProposalProcedureV3(proposal: ProposalProcedure): v3.ProposalProcedure = {
+        v3.ProposalProcedure(
+          proposal.getDeposit,
+          getCredential(Address(proposal.getRewardAccount).getPaymentCredential.get),
+          getGovernanceActionV3(proposal.getGovAction)
+        )
+    }
+
+    def getGovernanceActionV3(action: GovAction): v3.GovernanceAction = {
+        action match
+            case a: ParameterChangeAction =>
+                v3.GovernanceAction.ParameterChange(
+                  id =
+                      if a.getPrevGovActionId == null then Maybe.Nothing
+                      else Maybe.Just(getGovActionId(a.getPrevGovActionId)),
+                  parameters = ???, // FIXME: a.getProtocolParamUpdate.toData,
+                  constitutionScript = ??? // TODO: Implement this
+                )
+            case a: TreasuryWithdrawalsAction =>
+                v3.GovernanceAction.TreasuryWithdrawals(
+                  withdrawals = AssocMap(prelude.List.from(a.getWithdrawals.asScala.map { w =>
+                      getCredential(Address(w.getRewardAddress).getPaymentCredential.get) -> BigInt(
+                        w.getCoin
+                      )
+
+                  }.toList)),
+                  constitutionScript = Maybe(ByteString.fromArray(a.getPolicyHash))
+                )
+            case a: HardForkInitiationAction =>
+                v3.GovernanceAction.HardForkInitiation(
+                  id =
+                      if a.getPrevGovActionId == null then Maybe.Nothing
+                      else Maybe.Just(getGovActionId(a.getPrevGovActionId)),
+                  protocolVersion = getProtocolVersion(a.getProtocolVersion)
+                )
+            case _ => ??? // FIXME: Implement other actions
+
+    }
+
+    def getProtocolVersion(version: ProtocolVersion): v3.ProtocolVersion = {
+        v3.ProtocolVersion(version.getMajor, version.getMinor)
+    }
+
+    def getGovActionId(id: GovActionId): v3.GovernanceActionId = {
+        v3.GovernanceActionId(
+          v3.TxId(ByteString.fromHex(id.getTransactionId)),
+          id.getGovActionIndex
+        )
+    }
+
+    def getVoterV3(voter: Voter): v3.Voter = {
+        voter.getType match
+            case VoterType.CONSTITUTIONAL_COMMITTEE_HOT_KEY_HASH =>
+                v3.Voter.CommitteeVoter(getCredential(voter.getCredential))
+            case VoterType.CONSTITUTIONAL_COMMITTEE_HOT_SCRIPT_HASH =>
+                v3.Voter.CommitteeVoter(getCredential(voter.getCredential))
+            case VoterType.DREP_KEY_HASH =>
+                v3.Voter.DRepVoter(getCredential(voter.getCredential))
+            case VoterType.DREP_SCRIPT_HASH =>
+                v3.Voter.DRepVoter(getCredential(voter.getCredential))
+            case VoterType.STAKING_POOL_KEY_HASH =>
+                val v1.Credential.PubKeyCredential(pkh) = getCredential(
+                  voter.getCredential
+                ): @unchecked
+                v3.Voter.StakePoolVoter(pkh)
+    }
+
+    def getTxInInfoV3(
+        input: TransactionInput,
+        utxos: Map[TransactionInput, TransactionOutput]
+    ): v3.TxInInfo = {
+        val txInInfoV2 = getTxInInfoV2(input, utxos)
+        v3.TxInInfo(
+          outRef = v3.TxOutRef(v3.TxId(txInInfoV2.outRef.id.hash), txInInfoV2.outRef.idx),
+          resolved = txInInfoV2.resolved
+        )
+    }
+
+    def getTxInfoV3(
+        tx: Transaction,
+        datums: collection.Seq[(ByteString, Data)],
+        utxos: Map[TransactionInput, TransactionOutput],
+        slotConfig: SlotConfig,
+        protocolVersion: Int
+    ): v3.TxInfo = {
+        val body = tx.getBody
+        val certs = body.getCerts ?? util.List.of()
+        val rdmrs = tx.getWitnessSet.getRedeemers ?? util.List.of()
+        val withdrawals =
+            val wdvls = getWithdrawals(body.getWithdrawals ?? util.List.of())
+            prelude.List.map(wdvls) { case (v1.StakingCredential.StakingHash(cred), coin) =>
+                cred -> coin
+            }
+        v3.TxInfo(
+          inputs = prelude.List.from(body.getInputs.asScala.sorted.map(getTxInInfoV3(_, utxos))),
+          referenceInputs = prelude.List.from(
+            body.getReferenceInputs.asScala.sorted.map(getTxInInfoV3(_, utxos))
+          ),
+          outputs = prelude.List.from(body.getOutputs.asScala.map(getTxOutV2)),
+          fee = body.getFee ?? BigInteger.ZERO,
+          mint = getMintValue(body.getMint ?? util.List.of()),
+          certificates = prelude.List.from(certs.asScala.map(getTxCertV3)),
+          withdrawals = AssocMap(withdrawals),
+          validRange = getInterval(tx, slotConfig, protocolVersion),
+          signatories = prelude.List.from(
+            body.getRequiredSigners.asScala
+                .map(ByteString.fromArray)
+                .sorted
+                .map(v1.PubKeyHash.apply)
+                .toSeq
+          ),
+          redeemers = AssocMap(prelude.List.from(rdmrs.asScala.sorted.map { redeemer =>
+              val purpose = getScriptPurposeV3(
+                redeemer,
+                body.getInputs,
+                body.getMint,
+                body.getCerts,
+                body.getWithdrawals
+              )
+              purpose -> toScalusData(redeemer.getData)
+          })),
+          data = AssocMap(prelude.List.from(datums.sortBy(_._1))),
+          id = v3.TxId(ByteString.fromHex(TransactionUtil.getTxHash(tx))),
+          votes = AssocMap.empty, // FIXME: Implement this
+          proposalProcedures = prelude.List.empty, // FIXME: Implement this
+          currentTreasuryAmount = Maybe.Nothing, // FIXME: Implement this
+          treasuryDonation = Maybe.Nothing // FIXME: Implement this
+        )
+    }
+
 }

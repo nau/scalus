@@ -46,7 +46,7 @@ object ToDataInstances {
     import scalus.ledger.api.v1.ToDataInstances.given
     import scalus.ledger.api.v2.ToDataInstances.given
 
-    given ToData[TxId] = (x: TxId) => bData(x.txId)
+    given ToData[TxId] = (x: TxId) => bData(x.hash)
     given ToData[TxOutRef] = ToData.deriveCaseClass[TxOutRef](0)
     given ToData[DRep] = ToData.deriveEnum
     given ToData[Delegatee] = ToData.deriveEnum
@@ -65,11 +65,11 @@ object ToDataInstances {
     given ToData[ScriptContext] = ToData.deriveCaseClass[ScriptContext](0)
 }
 
-case class TxId(txId: ByteString)
+case class TxId(hash: ByteString)
 
 case class TxOutRef(
-    txOutRefId: TxId,
-    txOutRefIdx: BigInt
+    id: TxId,
+    idx: BigInt
 )
 
 type Lovelace = BigInt
@@ -145,9 +145,9 @@ enum GovernanceAction:
     case InfoAction
 
 case class ProposalProcedure(
-    ppDeposit: Lovelace,
-    ppReturnAddr: Credential,
-    ppGovernanceAction: GovernanceAction
+    deposit: Lovelace,
+    returnAddress: Credential,
+    governanceAction: GovernanceAction
 )
 
 enum ScriptPurpose:
@@ -177,7 +177,7 @@ case class TxInfo(
     outputs: List[v2.TxOut],
     fee: Lovelace,
     mint: Value,
-    txCerts: List[TxCert],
+    certificates: List[TxCert],
     withdrawals: AssocMap[Credential, Lovelace],
     validRange: Interval,
     signatories: List[PubKeyHash],

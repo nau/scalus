@@ -3,10 +3,12 @@ package scalus.bloxbean
 import com.bloxbean.cardano.client.address.Address
 import com.bloxbean.cardano.client.address.AddressType
 import com.bloxbean.cardano.client.address.CredentialType
+import com.bloxbean.cardano.client.address.Credential
 import com.bloxbean.cardano.client.common.cbor.CborSerializationUtil
 import com.bloxbean.cardano.client.crypto.Blake2bUtil
 import com.bloxbean.cardano.client.plutus.spec.*
 import com.bloxbean.cardano.client.transaction.spec.*
+import com.bloxbean.cardano.client.transaction.spec.cert.*
 import com.bloxbean.cardano.client.transaction.util.TransactionUtil
 import io.bullet.borer.Cbor
 import io.bullet.borer.Decoder
@@ -25,6 +27,11 @@ import scalus.ledger.api.v1.DCert
 import scalus.ledger.api.v1.ScriptPurpose
 import scalus.ledger.api.v1.StakingCredential
 import scalus.ledger.api.v2
+import scalus.ledger.api.v2.OutputDatum
+import scalus.ledger.api.v3
+import scalus.ledger.api.v3.TxCert.AuthHotCommittee
+import scalus.ledger.api.v3.Voter
+import scalus.prelude.Maybe
 import scalus.uplc.Constant
 import scalus.uplc.Program
 import scalus.uplc.ProgramFlatCodec
@@ -80,6 +87,7 @@ enum ScriptVersion:
     case Native
     case PlutusV1(flatScript: ByteString)
     case PlutusV2(flatScript: ByteString)
+    case PlutusV3(flatScript: ByteString)
 
 /** Evaluate script costs for a transaction using two phase eval.
   * @note
@@ -182,7 +190,11 @@ class TxEvaluator(
                 .map: script =>
                     val flatScript = decodeToFlat(script)
                     ByteString.fromArray(script.getScriptHash) -> ScriptVersion.PlutusV2(flatScript)
-            native ++ v1 ++ v2
+            val v3 = tx.getWitnessSet.getPlutusV3Scripts.asScala
+                .map: script =>
+                    val flatScript = decodeToFlat(script)
+                    ByteString.fromArray(script.getScriptHash) -> ScriptVersion.PlutusV3(flatScript)
+            native ++ v1 ++ v2 ++ v3
         }
 
         val referenceScripts = ArrayBuffer.empty[(ScriptHash, ScriptVersion)]
@@ -205,13 +217,13 @@ class TxEvaluator(
         verifyExactSetOfRedeemers(tx, scripts, lookupTable.scripts)
     }
 
-    private type AlonzoScriptsNeeded = immutable.Seq[(v1.ScriptPurpose, ScriptHash)]
+    private type AlonzoScriptsNeeded = immutable.Seq[(v3.ScriptPurpose, ScriptHash)]
 
     private def scriptsNeeded(
         tx: Transaction,
         utxos: Map[TransactionInput, TransactionOutput]
     ): AlonzoScriptsNeeded = {
-        val needed = ArrayBuffer.empty[(v1.ScriptPurpose, ScriptHash)]
+        val needed = ArrayBuffer.empty[(v3.ScriptPurpose, ScriptHash)]
         val txb = tx.getBody
 
         for input <- txb.getInputs.asScala do
@@ -220,7 +232,7 @@ class TxEvaluator(
 
             // if we spend a script output, we need the script
             if address.getPaymentCredential.get.getType == CredentialType.Script then
-                needed += v1.ScriptPurpose.Spending(getTxOutRefV1(input)) -> ByteString.fromArray(
+                needed += v3.ScriptPurpose.Spending(getTxOutRefV3(input)) -> ByteString.fromArray(
                   address.getPaymentCredentialHash.orElseThrow()
                 )
 
@@ -229,30 +241,65 @@ class TxEvaluator(
             if address.getAddressType == AddressType.Reward then
                 getCredential(address.getDelegationCredential.get) match
                     case cred @ api.v1.Credential.ScriptCredential(hash) =>
-                        needed += v1.ScriptPurpose.Rewarding(
-                          v1.StakingCredential.StakingHash(cred)
-                        ) -> hash
+                        needed += v3.ScriptPurpose.Rewarding(cred) -> hash
                     case _ =>
 
-        for cert <- txb.getCerts.asScala do
-            val c = getDCert(cert)
-            c match
-                case v1.DCert.DelegDeRegKey(
-                      v1.StakingCredential.StakingHash(v1.Credential.ScriptCredential(hash))
-                    ) =>
-                    needed += v1.ScriptPurpose.Certifying(c) -> hash
-                case v1.DCert.DelegDelegate(
-                      v1.StakingCredential.StakingHash(v1.Credential.ScriptCredential(hash)),
-                      _
-                    ) =>
-                    needed += v1.ScriptPurpose.Certifying(c) -> hash
-                case _ =>
+        for (cert, idx) <- txb.getCerts.asScala.zipWithIndex do
+            val txCert = getTxCertV3(cert)
+            val maybeHash = cert match
+                case c: UnregCert               => credScriptHash(c.getStakeCredential)
+                case c: StakeDelegation         => credScriptHash(c.getStakeCredential)
+                case c: StakeDeregistration     => credScriptHash(c.getStakeCredential)
+                case c: StakeRegDelegCert       => credScriptHash(c.getStakeCredential)
+                case c: StakeVoteDelegCert      => credScriptHash(c.getStakeCredential)
+                case c: StakeVoteRegDelegCert   => credScriptHash(c.getStakeCredential)
+                case c: VoteDelegCert           => credScriptHash(c.getStakeCredential)
+                case c: VoteRegDelegCert        => credScriptHash(c.getStakeCredential)
+                case c: AuthCommitteeHotCert    => credScriptHash(c.getCommitteeColdCredential)
+                case c: ResignCommitteeColdCert => credScriptHash(c.getCommitteeColdCredential)
+                case c: RegDRepCert             => credScriptHash(c.getDrepCredential)
+                case c: UnregDRepCert           => credScriptHash(c.getDrepCredential)
+                case c: UpdateDRepCert          => credScriptHash(c.getDrepCredential)
+
+            maybeHash.foreach: hash =>
+                needed += v3.ScriptPurpose.Certifying(idx, txCert) -> hash
 
         for mint <- txb.getMint.asScala do
             val policyId = ByteString.fromHex(mint.getPolicyId)
-            needed += v1.ScriptPurpose.Minting(policyId) -> policyId
+            needed += v3.ScriptPurpose.Minting(policyId) -> policyId
 
+        for voter <- txb.getVotingProcedures.getVoting.keySet.asScala do
+            val v = Interop.getVoterV3(voter)
+            val purpose = v3.ScriptPurpose.Voting(v)
+            v match
+                case Voter.CommitteeVoter(v1.Credential.ScriptCredential(hash)) =>
+                    needed += purpose -> hash
+                case Voter.DRepVoter(v1.Credential.ScriptCredential(hash)) =>
+                    needed += purpose -> hash
+                case Voter.StakePoolVoter(pubKeyHash) => // no script needed
+                    ()
+
+        for (propose, idx) <- txb.getProposalProcedures.asScala.zipWithIndex do
+            val procedure = Interop.getProposalProcedureV3(propose)
+            val purpose = v3.ScriptPurpose.Proposing(idx, procedure)
+            procedure.governanceAction match
+                case v3.GovernanceAction.ParameterChange(_, _, Maybe.Just(constitution)) =>
+                    needed += purpose -> constitution
+                case v3.GovernanceAction.TreasuryWithdrawals(_, Maybe.Just(constitution)) =>
+                    needed += purpose -> constitution
         needed.toSeq
+    }
+
+    private def credScriptHash(cred: Credential): Option[ScriptHash] = {
+        cred.getType match
+            case CredentialType.Key    => None
+            case CredentialType.Script => Some(ByteString.fromArray(cred.getBytes))
+    }
+
+    private def credScriptHash(cred: StakeCredential): Option[ScriptHash] = {
+        cred.getType match
+            case StakeCredType.ADDR_KEYHASH => None
+            case StakeCredType.SCRIPTHASH   => Some(ByteString.fromArray(cred.getHash))
     }
 
     private def validateMissingScripts(
@@ -290,7 +337,8 @@ class TxEvaluator(
         redeemer: Redeemer,
         lookupTable: LookupTable
     ): Redeemer = {
-        val purpose = getScriptPurpose(
+
+        val purpose = getScriptPurposeV3(
           redeemer,
           tx.getBody.getInputs,
           tx.getBody.getMint,
@@ -298,61 +346,127 @@ class TxEvaluator(
           tx.getBody.getWithdrawals
         )
 
-        val executionPurpose = getExecutionPurpose(utxos, purpose, lookupTable)
+        def findScript(redeemer: Redeemer): (ScriptVersion, Option[Data]) = {
+            val index = redeemer.getIndex.intValue
+            val inputs = tx.getBody.getInputs
+            redeemer.getTag match
+                case RedeemerTag.Spend =>
+                    val ins = inputs.asScala.sorted
+                    if ins.isDefinedAt(index) then
+                        val input = ins(index)
+                        val txInInfo = getTxInInfoV2(input, utxos)
+                        val script = txInInfo.resolved.address match
+                            case v1.Address(v1.Credential.ScriptCredential(hash), _) =>
+                                val script = lookupTable.scripts.getOrElse(
+                                  hash,
+                                  throw new IllegalStateException(s"Script not found: $hash")
+                                )
+                                script
+
+                        val datum: Option[Data] = txInInfo.resolved.datum match
+                            case OutputDatum.NoOutputDatum => None
+                            case OutputDatum.OutputDatumHash(datumHash) =>
+                                lookupTable.datums.get(datumHash)
+                            case OutputDatum.OutputDatum(datum) => Some(datum)
+
+                        script match
+                            case ScriptVersion.PlutusV1(_) | ScriptVersion.PlutusV2(_) =>
+                                datum match
+                                    case None =>
+                                        throw new IllegalStateException(
+                                          s"Missing required datum for script: $script"
+                                        )
+                                    case Some(_) => ()
+                            case _ => ()
+                        script -> datum
+                    else throw new IllegalStateException(s"Input not found: $index in $inputs")
+
+        }
 
         import scalus.bloxbean.Interop.toScalusData
         import scalus.builtin.Data.toData
         import scalus.ledger.api.v1.ToDataInstances.given
         import scalus.ledger.api.v2.ToDataInstances.given
-        val result = executionPurpose match
-            case ExecutionPurpose.WithDatum(ScriptVersion.PlutusV1(script), scriptHash, datum) =>
+        import scalus.ledger.api.v3.ToDataInstances.given
+
+        val result = findScript(redeemer) match
+            case (ScriptVersion.Native, _) =>
+                throw new IllegalStateException("Native script not supported")
+            case (ScriptVersion.PlutusV1(script), datum) =>
                 val machineParams = translateMachineParamsFromCostMdls(costMdls, PlutusV1)
                 val rdmr = toScalusData(redeemer.getData)
                 val txInfo = getTxInfoV1(tx, datums, utxos, slotConfig, protocolMajorVersion)
+                val purpose = getScriptPurposeV1(
+                  redeemer,
+                  tx.getBody.getInputs,
+                  tx.getBody.getMint,
+                  tx.getBody.getCerts,
+                  tx.getBody.getWithdrawals
+                )
                 val scriptContext = v1.ScriptContext(txInfo, purpose)
                 val ctxData = scriptContext.toData
                 if log.isDebugEnabled() then
-                    log.debug(s"eval: PlutusV1, $scriptHash ${purpose}")
-                    log.debug(s"Datum: ${datum.toJson}")
+                    log.debug(s"eval: PlutusV1, ${purpose}")
+                    log.debug(s"Datum: ${datum.map(_.toJson)}")
                     log.debug(s"Redeemer: ${rdmr.toJson}")
                     log.debug(s"Script context: ${ctxData.toJson}")
-                evalScript(redeemer, machineParams, script.bytes, datum, rdmr, ctxData)
-            case ExecutionPurpose.WithDatum(ScriptVersion.PlutusV2(script), scriptHash, datum) =>
+                datum match
+                    case Some(datum) =>
+                        evalScript(redeemer, machineParams, script.bytes, datum, rdmr, ctxData)
+                    case None => evalScript(redeemer, machineParams, script.bytes, rdmr, ctxData)
+
+            case (ScriptVersion.PlutusV2(script), datum) =>
                 val machineParams = translateMachineParamsFromCostMdls(costMdls, PlutusV2)
                 val rdmr = toScalusData(redeemer.getData)
                 val txInfo = getTxInfoV2(tx, datums, utxos, slotConfig, protocolMajorVersion)
+                val purpose = getScriptPurposeV2(
+                  redeemer,
+                  tx.getBody.getInputs,
+                  tx.getBody.getMint,
+                  tx.getBody.getCerts,
+                  tx.getBody.getWithdrawals
+                )
                 val scriptContext = v2.ScriptContext(txInfo, purpose)
                 val ctxData = scriptContext.toData
                 if log.isDebugEnabled() then
-                    log.debug(s"eval: PlutusV2, $scriptHash ${purpose}")
-                    log.debug(s"Datum: ${datum.toJson}")
+                    log.debug(s"eval: PlutusV2, ${purpose}")
+                    log.debug(s"Datum: ${datum.map(_.toJson)}")
                     log.debug(s"Redeemer: ${rdmr.toJson}")
                     log.debug(s"Script context: ${ctxData.toJson}")
-                evalScript(redeemer, machineParams, script.bytes, datum, rdmr, ctxData)
-            case ExecutionPurpose.NoDatum(ScriptVersion.PlutusV1(script), scriptHash) =>
-                val machineParams = translateMachineParamsFromCostMdls(costMdls, PlutusV1)
+                datum match
+                    case Some(datum) =>
+                        evalScript(redeemer, machineParams, script.bytes, datum, rdmr, ctxData)
+                    case None => evalScript(redeemer, machineParams, script.bytes, rdmr, ctxData)
+
+            case (ScriptVersion.PlutusV3(script), datum) =>
+                val machineParams = translateMachineParamsFromCostMdls(costMdls, PlutusV3)
                 val rdmr = toScalusData(redeemer.getData)
-                val txInfo = getTxInfoV1(tx, datums, utxos, slotConfig, protocolMajorVersion)
-                val scriptContext = v1.ScriptContext(txInfo, purpose)
+                val txInfo = getTxInfoV3(tx, datums, utxos, slotConfig, protocolMajorVersion)
+                val purpose = getScriptPurposeV3(
+                  redeemer,
+                  tx.getBody.getInputs,
+                  tx.getBody.getMint,
+                  tx.getBody.getCerts,
+                  tx.getBody.getWithdrawals
+                )
+                val scriptInfo = getScriptInfoV3(
+                  redeemer,
+                  tx.getBody.getInputs,
+                  tx.getBody.getMint,
+                  tx.getBody.getCerts,
+                  tx.getBody.getWithdrawals
+                )
+                val scriptContext = v3.ScriptContext(txInfo, rdmr, scriptInfo)
                 val ctxData = scriptContext.toData
                 if log.isDebugEnabled() then
-                    log.debug(s"eval: PlutusV1, $scriptHash ${purpose}")
+                    log.debug(s"eval: PlutusV3, ${purpose}")
+                    log.debug(s"Datum: ${datum.map(_.toJson)}")
                     log.debug(s"Redeemer: ${rdmr.toJson}")
                     log.debug(s"Script context: ${ctxData.toJson}")
-                evalScript(redeemer, machineParams, script.bytes, rdmr, ctxData)
-            case ExecutionPurpose.NoDatum(ScriptVersion.PlutusV2(script), scriptHash) =>
-                val machineParams = translateMachineParamsFromCostMdls(costMdls, PlutusV2)
-                val rdmr = toScalusData(redeemer.getData)
-                val txInfo = getTxInfoV2(tx, datums, utxos, slotConfig, protocolMajorVersion)
-                val scriptContext = v2.ScriptContext(txInfo, purpose)
-                val ctxData = scriptContext.toData
-                if log.isDebugEnabled() then
-                    log.debug(s"eval: PlutusV2, $scriptHash ${purpose}")
-                    log.debug(s"Redeemer: ${rdmr.toJson}")
-                    log.debug(s"Script context: ${ctxData.toJson}")
-                evalScript(redeemer, machineParams, script.bytes, rdmr, ctxData)
-            case _ =>
-                throw new IllegalStateException(s"Unsupported execution purpose $executionPurpose")
+                datum match
+                    case Some(datum) =>
+                        evalScript(redeemer, machineParams, script.bytes, datum, rdmr, ctxData)
+                    case None => evalScript(redeemer, machineParams, script.bytes, rdmr, ctxData)
 
         val cost = result.budget
         log.debug(s"Eval result: $result")
@@ -406,86 +520,6 @@ class TxEvaluator(
         if mode == EvaluatorMode.VALIDATE && r.budget != budget then
             log.warn(s"Budget mismatch: expected $budget, got ${r.budget}")
         r
-    }
-
-    private def getExecutionPurpose(
-        utxos: Map[TransactionInput, TransactionOutput],
-        purpose: v1.ScriptPurpose,
-        lookupTable: LookupTable
-    ): ExecutionPurpose = {
-//        log.debug(s"Get execution purpose: $purpose, $lookupTable, $utxos")
-        purpose match
-            case v1.ScriptPurpose.Minting(policyId) =>
-                val scriptVersion = lookupTable.scripts.getOrElse(
-                  policyId,
-                  throw new IllegalStateException(s"Script Not Found for policyId: $policyId")
-                )
-                ExecutionPurpose.NoDatum(scriptVersion, policyId)
-            case v1.ScriptPurpose.Spending(txOutRef) =>
-                val output = utxos
-                    .getOrElse(
-                      TransactionInput
-                          .builder()
-                          .transactionId(txOutRef.id.hash.toHex)
-                          .index(txOutRef.idx.toInt)
-                          .build(),
-                      throw new IllegalStateException(s"Input Not Found: $txOutRef")
-                    )
-                val address = Address(output.getAddress)
-                val hash = ByteString.fromArray(address.getPaymentCredentialHash.orElseThrow())
-                val scriptVersion = lookupTable.scripts.getOrElse(
-                  hash,
-                  throw new IllegalStateException(s"Spending Script Not Found: $hash")
-                )
-                (output.getDatumHash, output.getInlineDatum) match
-                    case (null, null) =>
-                        throw new IllegalStateException("Datum Not Found")
-                    case (datumHash, null) =>
-                        val hash = ByteString.fromArray(datumHash)
-                        val datum = lookupTable.datums.getOrElse(
-                          hash,
-                          throw new IllegalStateException(s"Datum Hash Not Found ${hash.toHex}")
-                        )
-                        ExecutionPurpose.WithDatum(scriptVersion, hash, datum)
-                    case (null, inlineDatum) =>
-                        ExecutionPurpose.WithDatum(scriptVersion, hash, toScalusData(inlineDatum))
-                    case _ =>
-                        throw new IllegalStateException(
-                          "Output can't have both inline datum and datum hash"
-                        )
-            case v1.ScriptPurpose.Rewarding(
-                  StakingCredential.StakingHash(v1.Credential.ScriptCredential(hash))
-                ) =>
-                val scriptVersion = lookupTable.scripts.getOrElse(
-                  hash,
-                  throw new IllegalStateException(s"Rewarding Script Not Found: $hash")
-                )
-                ExecutionPurpose.NoDatum(scriptVersion, hash)
-            case ScriptPurpose.Rewarding(stakingCred) =>
-                throw new IllegalStateException("OnlyStakeDeregAndDelegAllowed")
-            case v1.ScriptPurpose.Certifying(cert) =>
-                cert match
-                    case v1.DCert.DelegDeRegKey(v1.StakingCredential.StakingHash(cred)) =>
-                        val hash = cred match
-                            case v1.Credential.ScriptCredential(hash) => hash
-                            case _ =>
-                                throw new IllegalStateException("OnlyStakeDeregAndDelegAllowed")
-                        val scriptVersion = lookupTable.scripts.getOrElse(
-                          hash,
-                          throw new IllegalStateException("Script Not Found")
-                        )
-                        ExecutionPurpose.NoDatum(scriptVersion, hash)
-                    case DCert.DelegDelegate(v1.StakingCredential.StakingHash(cred), _) =>
-                        val hash = cred match
-                            case v1.Credential.ScriptCredential(hash) => hash
-                            case _ =>
-                                throw new IllegalStateException("OnlyStakeDeregAndDelegAllowed")
-                        val scriptVersion = lookupTable.scripts.getOrElse(
-                          hash,
-                          throw new IllegalStateException("Script Not Found")
-                        )
-                        ExecutionPurpose.NoDatum(scriptVersion, hash)
-                    case _ => throw new IllegalStateException("OnlyStakeDeregAndDelegAllowed")
     }
 
     private def evalPhaseTwo(
