@@ -14,6 +14,7 @@ import scalus.ledger.api.v2
 import scalus.prelude.AssocMap
 import scalus.prelude.List
 import scalus.prelude.Maybe
+import scalus.prelude.Rational
 
 @Compile
 object FromDataInstances {
@@ -139,7 +140,7 @@ enum GovernanceAction:
         id: Maybe[GovernanceActionId],
         removedMembers: List[ColdCommitteeCredential],
         addedMembers: AssocMap[ColdCommitteeCredential, BigInt],
-        newQuorum: BigInt
+        newQuorum: Rational
     )
     case NewConstitution(id: Maybe[GovernanceActionId], constitution: Constitution)
     case InfoAction

@@ -153,6 +153,10 @@ object Maybe {
             case Nothing => None
             case Just(a) => Some(a)
 
+        def map[B](f: A => B): Maybe[B] = m match
+            case Nothing => Nothing
+            case Just(a) => Just(f(a))
+
     /** Converts an [[Option]] to a `Maybe` */
     @Ignore
     def fromOption[A](o: Option[A]): Maybe[A] = o match
@@ -244,3 +248,5 @@ object AssocMap {
     def all[A, B](map: AssocMap[A, B])(f: ((A, B)) => Boolean): Boolean =
         List.all(map.inner)(f)
 }
+
+case class Rational(numerator: BigInt, denominator: BigInt)

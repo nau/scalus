@@ -19,8 +19,12 @@ import com.bloxbean.cardano.client.transaction.spec.governance.VotingProcedures
 import com.bloxbean.cardano.client.transaction.spec.governance.actions.GovAction
 import com.bloxbean.cardano.client.transaction.spec.governance.actions.GovActionId
 import com.bloxbean.cardano.client.transaction.spec.governance.actions.HardForkInitiationAction
+import com.bloxbean.cardano.client.transaction.spec.governance.actions.InfoAction
+import com.bloxbean.cardano.client.transaction.spec.governance.actions.NewConstitution
+import com.bloxbean.cardano.client.transaction.spec.governance.actions.NoConfidence
 import com.bloxbean.cardano.client.transaction.spec.governance.actions.ParameterChangeAction
 import com.bloxbean.cardano.client.transaction.spec.governance.actions.TreasuryWithdrawalsAction
+import com.bloxbean.cardano.client.transaction.spec.governance.actions.UpdateCommittee
 import com.bloxbean.cardano.client.transaction.util.TransactionUtil
 import io.bullet.borer.Cbor
 import scalus.builtin.ByteString
@@ -800,7 +804,7 @@ object Interop {
                       if a.getPrevGovActionId == null then Maybe.Nothing
                       else Maybe.Just(getGovActionId(a.getPrevGovActionId)),
                   parameters = ???, // FIXME: a.getProtocolParamUpdate.toData,
-                  constitutionScript = ??? // TODO: Implement this
+                  constitutionScript = Maybe(a.getPolicyHash).map(ByteString.fromArray)
                 )
             case a: TreasuryWithdrawalsAction =>
                 v3.GovernanceAction.TreasuryWithdrawals(
@@ -819,7 +823,40 @@ object Interop {
                       else Maybe.Just(getGovActionId(a.getPrevGovActionId)),
                   protocolVersion = getProtocolVersion(a.getProtocolVersion)
                 )
-            case _ => ??? // FIXME: Implement other actions
+            case _: InfoAction => v3.GovernanceAction.InfoAction
+            case a: NewConstitution =>
+                v3.GovernanceAction.NewConstitution(
+                  id =
+                      if a.getPrevGovActionId == null then Maybe.Nothing
+                      else Maybe.Just(getGovActionId(a.getPrevGovActionId)),
+                  constitution =
+                      if a.getConstitution.getScripthash != null then
+                          Maybe.Just(ByteString.fromHex(a.getConstitution.getScripthash))
+                      else Maybe.Nothing
+                )
+            case a: NoConfidence =>
+                v3.GovernanceAction.NoConfidence(
+                  id =
+                      if a.getPrevGovActionId == null then Maybe.Nothing
+                      else Maybe.Just(getGovActionId(a.getPrevGovActionId))
+                )
+            case a: UpdateCommittee =>
+                v3.GovernanceAction.UpdateCommittee(
+                  id =
+                      if a.getPrevGovActionId == null then Maybe.Nothing
+                      else Maybe.Just(getGovActionId(a.getPrevGovActionId)),
+                  removedMembers = prelude.List.from(a.getMembersForRemoval.asScala.map { m =>
+                      getCredential(m)
+                  }),
+                  addedMembers =
+                      AssocMap(prelude.List.from(a.getNewMembersAndTerms.asScala.map { (c, t) =>
+                          getCredential(c) -> BigInt(t)
+                      })),
+                  newQuorum = prelude.Rational(
+                    BigInt(a.getQuorumThreshold.getNumerator),
+                    BigInt(a.getQuorumThreshold.getDenominator)
+                  )
+                )
 
     }
 
