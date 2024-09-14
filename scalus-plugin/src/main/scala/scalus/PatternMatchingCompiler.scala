@@ -83,22 +83,22 @@ class PatternMatchingCompiler(val compiler: SIRCompiler)(using Context) {
         scalus.sir.SIR.Case(constrDecl, bindings, typeArgs, rhs)
     }
 
-    private def compileBinding(pat: Tree): SirBinding = {
+    private def compileBinding(env: SIRCompiler.Env, pat: Tree): SirBinding = {
         pat match
             // this is case Constr(name @ _) or Constr(name)
-            case Bind(name, id@Ident(nme.WILDCARD)) => SirBinding.Name(name.show, sirType(id.tpe, pat.srcPos))
+            case Bind(name, id@Ident(nme.WILDCARD)) => SirBinding.Name(name.show, sirTypeInEnv(id.tpe, pat.srcPos, env))
             // this is case Constr(name @ Constr2(_))
             case Bind(name, body @ UnApply(fun, _, pats)) =>
                 val typeSymbol = pat.tpe.widen.dealias.typeSymbol
-                SirBinding.CaseClass(name.show, typeSymbol, pats.map(compileBinding), sirType(pat.tpe, pat.srcPos))
+                SirBinding.CaseClass(name.show, typeSymbol, pats.map(compileBinding(env,_)), sirTypeInEnv(pat.tpe, pat.srcPos, env))
             case Bind(name, body) =>
                 SirBinding.Error(UnsupportedBinding(name.show, pat.srcPos))
             // this is case _ =>
-            case Ident(nme.WILDCARD) => SirBinding.Name(bindingName.fresh().show, sirType(pat.tpe, pat.srcPos))
+            case Ident(nme.WILDCARD) => SirBinding.Name(bindingName.fresh().show, sirTypeInEnv(pat.tpe, pat.srcPos, env))
             case UnApply(fun, _, pats) =>
                 val typeSymbol = pat.tpe.widen.dealias.typeSymbol
                 val name = patternName.fresh()
-                SirBinding.CaseClass(name.show, typeSymbol, pats.map(compileBinding), sirType(pat.tpe, pat.srcPos))
+                SirBinding.CaseClass(name.show, typeSymbol, pats.map(compileBinding(env,_)), sirTypeInEnv(pat.tpe, pat.srcPos, env))
             case Literal(_) =>
                 SirBinding.Error(LiteralPattern(pat.srcPos))
             case p =>
@@ -159,7 +159,7 @@ class PatternMatchingCompiler(val compiler: SIRCompiler)(using Context) {
         rhs: Tree,
         srcPos: SrcPos
     ): List[SirCase] = {
-        val sirBindings = patterns.map(compileBinding)
+        val sirBindings = patterns.map(compileBinding(env,_))
         compileBindings(sirBindings) match
             case Left(errors) => errors.map(e => SirCase.Error(e.error))
             case Right(PatternInfo(bindings, generateSir, names)) =>
@@ -168,7 +168,7 @@ class PatternMatchingCompiler(val compiler: SIRCompiler)(using Context) {
                     case AppliedType(tpe, args) => args
                     case _ => Nil
                 val rhsE = compiler.compileExpr(env ++ bindings, rhs)
-                SirCase.Case(constrTypeSymbol, constrTypeArgs.map(t => sirType(t, srcPos)), names, generateSir(rhsE), rhs.srcPos) :: Nil
+                SirCase.Case(constrTypeSymbol, constrTypeArgs.map(t => sirTypeInEnv(t, srcPos, env)), names, generateSir(rhsE), rhs.srcPos) :: Nil
     }
 
     private def scalaCaseDefToSirCase(
@@ -223,7 +223,7 @@ class PatternMatchingCompiler(val compiler: SIRCompiler)(using Context) {
             iter.next() match
                 case SirCase.Case(constructorSymbol, typeParams, bindings, rhs, srcPos) =>
                     matchedConstructors += constructorSymbol // collect all matched constructors
-                    val constrDecl = retrieveConstrDecl(constructorSymbol, srcPos)
+                    val constrDecl = retrieveConstrDecl(env, constructorSymbol, srcPos)
                     expandedCases += constructCase(constrDecl, bindings, typeParams, rhs)
                 case SirCase.Wildcard(rhs, srcPos) =>
                     // If we have a wildcard case, it must be the last one
@@ -244,7 +244,7 @@ class PatternMatchingCompiler(val compiler: SIRCompiler)(using Context) {
                                 .map(_ => bindingName.fresh().show)
                             // TODO: extract rhs to a let binding before the match
                             // so we don't have to repeat it for each case
-                            val constrDecl = retrieveConstrDecl(constr, srcPos)
+                            val constrDecl = retrieveConstrDecl(env, constr, srcPos)
                             if (constr.typeParams.nonEmpty) then
                                 compiler.error(
                                   GenericError(
@@ -276,12 +276,12 @@ class PatternMatchingCompiler(val compiler: SIRCompiler)(using Context) {
 
         // Sort the cases by constructor name to ensure we have a deterministic order
         val sortedCases = expandedCases.sortBy(_.constr.name).toList
-        SIR.Match(matchExpr, sortedCases, sirType(tree.tpe, tree.srcPos))
+        SIR.Match(matchExpr, sortedCases, sirTypeInEnv(tree.tpe, tree.srcPos, env))
     }
 
-    private def retrieveConstrDecl(constructorSymbol: Symbol, srcPos: SrcPos): ConstrDecl = {
+    private def retrieveConstrDecl(env: SIRCompiler.Env, constructorSymbol: Symbol, srcPos: SrcPos): ConstrDecl = {
         val params = constructorSymbol.primaryConstructor.paramSymss.flatten.filterNot(_.isTypeParam).map{ paramSym =>
-            TypeBinding(paramSym.name.show, sirType(paramSym.info.widen, srcPos))
+            TypeBinding(paramSym.name.show, sirTypeInEnv(paramSym.info.widen, srcPos, env))
         }
         val typeParams = constructorSymbol.typeParams.map(tp => SIRType.TypeVar(tp.name.show, Some(tp.hashCode)))
         //  TODO:  define mapping of names into constructor.
@@ -299,15 +299,15 @@ class PatternMatchingCompiler(val compiler: SIRCompiler)(using Context) {
                 case AppliedType(tpe, args) => args
                 case _ => Nil
             }
-            tpArgs.map(t => SIRTypesHelper.sirTypeInEnv(t, SIRTypesHelper.SIRTypeEnv(srcPos,revTypes)))
+            tpArgs.map(t => SIRTypesHelper.sirTypeInEnv(t, SIRTypesHelper.SIRTypeEnv(srcPos, env.typeVars ++ revTypes)))
         }.getOrElse(Nil)
 
         val constrDecl = scalus.sir.ConstrDecl(constructorSymbol.show, SIRVarStorage.DEFAULT, params, typeParams, parentTypeArgs)
         constrDecl
     }
 
-    private def sirType(tpe: Type, srcPos: SrcPos): SIRType = {
-       compiler.sirType(tpe, srcPos)
+    private def sirTypeInEnv(tpe: Type, srcPos: SrcPos, env: SIRCompiler.Env): SIRType = {
+       compiler.sirTypeInEnv(tpe, srcPos, env)
     }
 
 }

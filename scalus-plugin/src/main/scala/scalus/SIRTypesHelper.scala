@@ -21,13 +21,20 @@ object SIRTypesHelper {
 
 
     def sirTypeInEnv(tp: Type, env: SIRTypeEnv)(using Context): SIRType = {
-        try {
-            sirTypeInEnvWithErr(tp, env)
-        } catch {
-            case e: TypingException =>
-                println(s"typing exception during sirTypeInEnv(${tp.show})")
-                throw e
-        }
+        env.forwardRefs.get(tp.typeSymbol) match
+            case Some(proxy) => proxy
+            case None =>
+                val proxy = new SIRType.TypeProxy(null)
+                try {
+                    val retval = sirTypeInEnvWithErr(tp, env.copy(forwardRefs = env.forwardRefs.updated(tp.typeSymbol, proxy)))
+                    proxy.ref = retval
+                    println(s"sirTypeInEnv for ${tp.show} return, retval=${retval}")
+                    retval
+                } catch {
+                    case e: TypingException =>
+                        println(s"typing exception during sirTypeInEnv(${tp.show}), tp tree: ${tp}")
+                        throw e
+                }
     }
 
     def sirTypeInEnvWithErr(tp: Type, env: SIRTypeEnv)(using Context): SIRType =
@@ -120,7 +127,6 @@ object SIRTypesHelper {
             //    sirTypeInEnv(tpf.underlying, env)
             case other =>
                 unsupportedType(tp, s"${tp.show}, tree=${tp}", env)
-        println(s"sirTypeInEnv for ${tp.show} return, retval=${retval}")
         retval
 
     def makeSIRClassTypeNoTypeArgs(tp: Type, env: SIRTypeEnv)(using Context): SIRType = {
