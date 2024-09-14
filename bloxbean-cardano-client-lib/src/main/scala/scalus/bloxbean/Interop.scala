@@ -846,13 +846,21 @@ object Interop {
     }
 
     def getVotingProcedures(voting: VotingProcedures) = {
-        voting.getVoting.asScala.toSeq
-            .sortBy(_._1)
-            .map: (voter, procedures) =>
-                getVoterV3(voter) -> procedures.asScala.toSeq
-                    .sortBy(_._1)
-                    .map: (govActionId, procedure) =>
-                        getGovActionId(govActionId) -> getVoteV3(procedure)
+        AssocMap(
+          prelude.List.from(
+            voting.getVoting.asScala.toSeq
+                .sortBy(_._1)
+                .map: (voter, procedures) =>
+                    getVoterV3(voter) -> AssocMap(
+                      prelude.List.from(
+                        procedures.asScala.toSeq
+                            .sortBy(_._1)
+                            .map: (govActionId, procedure) =>
+                                getGovActionId(govActionId) -> getVoteV3(procedure)
+                      )
+                    )
+          )
+        )
     }
 
     def getVoteV3(procedure: VotingProcedure): v3.Vote = {
@@ -912,10 +920,22 @@ object Interop {
           })),
           data = AssocMap(prelude.List.from(datums.sortBy(_._1))),
           id = v3.TxId(ByteString.fromHex(TransactionUtil.getTxHash(tx))),
-          votes = AssocMap.empty, // FIXME: Implement this
-          proposalProcedures = prelude.List.empty, // FIXME: Implement this
-          currentTreasuryAmount = Maybe.Nothing, // FIXME: Implement this
-          treasuryDonation = Maybe.Nothing // FIXME: Implement this
+          votes = getVotingProcedures(body.getVotingProcedures),
+          proposalProcedures = prelude.List
+              .from(
+                (body.getProposalProcedures ?? util.List.of()).asScala
+                    .map(getProposalProcedureV3)
+              ),
+          currentTreasuryAmount =
+              if tx.getBody.getCurrentTreasuryValue != null then
+                  prelude.Maybe.Just(
+                    BigInt(tx.getBody.getCurrentTreasuryValue)
+                  )
+              else prelude.Maybe.Nothing,
+          treasuryDonation =
+              if tx.getBody.getDonation != null then
+                  prelude.Maybe.Just(BigInt(tx.getBody.getDonation))
+              else prelude.Maybe.Nothing
         )
     }
 
