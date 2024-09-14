@@ -9,6 +9,9 @@ import com.bloxbean.cardano.client.crypto.Blake2bUtil
 import com.bloxbean.cardano.client.plutus.spec.*
 import com.bloxbean.cardano.client.transaction.spec.*
 import com.bloxbean.cardano.client.transaction.spec.cert.*
+import com.bloxbean.cardano.client.transaction.spec.governance.ProposalProcedure
+import com.bloxbean.cardano.client.transaction.spec.governance.Voter
+import com.bloxbean.cardano.client.transaction.spec.governance.VoterType
 import com.bloxbean.cardano.client.transaction.util.TransactionUtil
 import io.bullet.borer.Cbor
 import io.bullet.borer.Decoder
@@ -30,7 +33,6 @@ import scalus.ledger.api.v2
 import scalus.ledger.api.v2.OutputDatum
 import scalus.ledger.api.v3
 import scalus.ledger.api.v3.TxCert.AuthHotCommittee
-import scalus.ledger.api.v3.Voter
 import scalus.prelude.Maybe
 import scalus.uplc.Constant
 import scalus.uplc.Program
@@ -217,13 +219,13 @@ class TxEvaluator(
         verifyExactSetOfRedeemers(tx, scripts, lookupTable.scripts)
     }
 
-    private type AlonzoScriptsNeeded = immutable.Seq[(v3.ScriptPurpose, ScriptHash)]
+    private type AlonzoScriptsNeeded = immutable.Seq[ScriptHash]
 
     private def scriptsNeeded(
         tx: Transaction,
         utxos: Map[TransactionInput, TransactionOutput]
     ): AlonzoScriptsNeeded = {
-        val needed = ArrayBuffer.empty[(v3.ScriptPurpose, ScriptHash)]
+        val needed = ArrayBuffer.empty[ScriptHash]
         val txb = tx.getBody
 
         for input <- txb.getInputs.asScala do
@@ -232,62 +234,66 @@ class TxEvaluator(
 
             // if we spend a script output, we need the script
             if address.getPaymentCredential.get.getType == CredentialType.Script then
-                needed += v3.ScriptPurpose.Spending(getTxOutRefV3(input)) -> ByteString.fromArray(
-                  address.getPaymentCredentialHash.orElseThrow()
-                )
+                needed += ByteString.fromArray(address.getPaymentCredentialHash.orElseThrow())
 
         for withdrawal <- txb.getWithdrawals.asScala do
             val address = Address(withdrawal.getRewardAddress)
             if address.getAddressType == AddressType.Reward then
                 getCredential(address.getDelegationCredential.get) match
-                    case cred @ api.v1.Credential.ScriptCredential(hash) =>
-                        needed += v3.ScriptPurpose.Rewarding(cred) -> hash
+                    case api.v1.Credential.ScriptCredential(hash) =>
+                        needed += hash
                     case _ =>
 
-        for (cert, idx) <- txb.getCerts.asScala.zipWithIndex do
-            val txCert = getTxCertV3(cert)
-            val maybeHash = cert match
-                case c: UnregCert               => credScriptHash(c.getStakeCredential)
-                case c: StakeDelegation         => credScriptHash(c.getStakeCredential)
-                case c: StakeDeregistration     => credScriptHash(c.getStakeCredential)
-                case c: StakeRegDelegCert       => credScriptHash(c.getStakeCredential)
-                case c: StakeVoteDelegCert      => credScriptHash(c.getStakeCredential)
-                case c: StakeVoteRegDelegCert   => credScriptHash(c.getStakeCredential)
-                case c: VoteDelegCert           => credScriptHash(c.getStakeCredential)
-                case c: VoteRegDelegCert        => credScriptHash(c.getStakeCredential)
-                case c: AuthCommitteeHotCert    => credScriptHash(c.getCommitteeColdCredential)
-                case c: ResignCommitteeColdCert => credScriptHash(c.getCommitteeColdCredential)
-                case c: RegDRepCert             => credScriptHash(c.getDrepCredential)
-                case c: UnregDRepCert           => credScriptHash(c.getDrepCredential)
-                case c: UpdateDRepCert          => credScriptHash(c.getDrepCredential)
-
+        for cert <- txb.getCerts.asScala do
+            val maybeHash = getCertScript(cert)
             maybeHash.foreach: hash =>
-                needed += v3.ScriptPurpose.Certifying(idx, txCert) -> hash
+                needed += hash
 
         for mint <- txb.getMint.asScala do
             val policyId = ByteString.fromHex(mint.getPolicyId)
-            needed += v3.ScriptPurpose.Minting(policyId) -> policyId
+            needed += policyId
 
         for voter <- txb.getVotingProcedures.getVoting.keySet.asScala do
             val v = Interop.getVoterV3(voter)
-            val purpose = v3.ScriptPurpose.Voting(v)
             v match
-                case Voter.CommitteeVoter(v1.Credential.ScriptCredential(hash)) =>
-                    needed += purpose -> hash
-                case Voter.DRepVoter(v1.Credential.ScriptCredential(hash)) =>
-                    needed += purpose -> hash
-                case Voter.StakePoolVoter(pubKeyHash) => // no script needed
+                case v3.Voter.CommitteeVoter(v1.Credential.ScriptCredential(hash)) =>
+                    needed += hash
+                case v3.Voter.DRepVoter(v1.Credential.ScriptCredential(hash)) =>
+                    needed += hash
+                case v3.Voter.StakePoolVoter(pubKeyHash) => // no script needed
                     ()
 
-        for (propose, idx) <- txb.getProposalProcedures.asScala.zipWithIndex do
-            val procedure = Interop.getProposalProcedureV3(propose)
-            val purpose = v3.ScriptPurpose.Proposing(idx, procedure)
-            procedure.governanceAction match
-                case v3.GovernanceAction.ParameterChange(_, _, Maybe.Just(constitution)) =>
-                    needed += purpose -> constitution
-                case v3.GovernanceAction.TreasuryWithdrawals(_, Maybe.Just(constitution)) =>
-                    needed += purpose -> constitution
+        for propose <- txb.getProposalProcedures.asScala do
+            getProposalScriptHash(propose).foreach: hash =>
+                needed += hash
         needed.toSeq
+    }
+
+    private def getProposalScriptHash(propose: ProposalProcedure): Option[ScriptHash] = {
+        val procedure = Interop.getProposalProcedureV3(propose)
+        procedure.governanceAction match
+            case v3.GovernanceAction.ParameterChange(_, _, constitutionScript) =>
+                constitutionScript.toOption
+            case v3.GovernanceAction.TreasuryWithdrawals(_, constitutionScript) =>
+                constitutionScript.toOption
+    }
+
+    private def getCertScript(cert: Certificate): Option[ScriptHash] = {
+        cert match
+            case c: UnregCert               => credScriptHash(c.getStakeCredential)
+            case c: StakeDelegation         => credScriptHash(c.getStakeCredential)
+            case c: StakeDeregistration     => credScriptHash(c.getStakeCredential)
+            case c: StakeRegDelegCert       => credScriptHash(c.getStakeCredential)
+            case c: StakeVoteDelegCert      => credScriptHash(c.getStakeCredential)
+            case c: StakeVoteRegDelegCert   => credScriptHash(c.getStakeCredential)
+            case c: VoteDelegCert           => credScriptHash(c.getStakeCredential)
+            case c: VoteRegDelegCert        => credScriptHash(c.getStakeCredential)
+            case c: AuthCommitteeHotCert    => credScriptHash(c.getCommitteeColdCredential)
+            case c: ResignCommitteeColdCert => credScriptHash(c.getCommitteeColdCredential)
+            case c: RegDRepCert             => credScriptHash(c.getDrepCredential)
+            case c: UnregDRepCert           => credScriptHash(c.getDrepCredential)
+            case c: UpdateDRepCert          => credScriptHash(c.getDrepCredential)
+            case _                          => None
     }
 
     private def credScriptHash(cred: Credential): Option[ScriptHash] = {
@@ -307,7 +313,7 @@ class TxEvaluator(
         txScripts: collection.Map[ScriptHash, ScriptVersion]
     ): Unit = {
         val received = txScripts.keySet
-        val needed = scripts.map(_._2).toSet
+        val needed = scripts.toSet
         val missing = needed.diff(received)
         if missing.nonEmpty then throw new IllegalStateException(s"Missing scripts: $missing")
     }
@@ -338,14 +344,6 @@ class TxEvaluator(
         lookupTable: LookupTable
     ): Redeemer = {
 
-        val purpose = getScriptPurposeV3(
-          redeemer,
-          tx.getBody.getInputs,
-          tx.getBody.getMint,
-          tx.getBody.getCerts,
-          tx.getBody.getWithdrawals
-        )
-
         def findScript(redeemer: Redeemer): (ScriptVersion, Option[Data]) = {
             val index = redeemer.getIndex.intValue
             val inputs = tx.getBody.getInputs
@@ -362,6 +360,7 @@ class TxEvaluator(
                                   throw new IllegalStateException(s"Script not found: $hash")
                                 )
                                 script
+                            case _ => throw new IllegalStateException(s"impossible: $input")
 
                         val datum: Option[Data] = txInInfo.resolved.datum match
                             case OutputDatum.NoOutputDatum => None
@@ -380,7 +379,89 @@ class TxEvaluator(
                             case _ => ()
                         script -> datum
                     else throw new IllegalStateException(s"Input not found: $index in $inputs")
+                case RedeemerTag.Mint =>
+                    val minted = getMintValue(tx.getBody.getMint).inner.toList
+                    if minted.isDefinedAt(index) then
+                        val (policyId, _) = minted(index)
+                        val script = lookupTable.scripts.getOrElse(
+                          policyId,
+                          throw new IllegalStateException(s"Script not found: $policyId")
+                        )
+                        script -> None
+                    else throw new IllegalStateException(s"Mint not found: $index in $minted")
+                case RedeemerTag.Cert =>
+                    val certs = tx.getBody.getCerts.asScala
+                    if certs.isDefinedAt(index) then
+                        val cert = certs(index)
+                        val script = getCertScript(cert)
+                        script match
+                            case Some(hash) =>
+                                val script = lookupTable.scripts.getOrElse(
+                                  hash,
+                                  throw new IllegalStateException(s"Script not found: $hash")
+                                )
+                                script -> None
+                            case None =>
+                                throw new IllegalStateException(
+                                  s"Missing required script for cert: $cert"
+                                )
+                    else throw new IllegalStateException(s"Cert not found: $index in $certs")
 
+                case RedeemerTag.Reward =>
+                    val withdrawals = getWithdrawals(tx.getBody.getWithdrawals).toList
+                    if withdrawals.isDefinedAt(index) then
+                        withdrawals(index) match
+                            case (
+                                  v1.StakingCredential.StakingHash(
+                                    v1.Credential.ScriptCredential(hash)
+                                  ),
+                                  _
+                                ) =>
+                                val script = lookupTable.scripts.getOrElse(
+                                  hash,
+                                  throw new IllegalStateException(s"Script not found: $hash")
+                                )
+                                script -> None
+                            case withdrawal =>
+                                throw new IllegalStateException(
+                                  s"Invalid withdrawal: $withdrawal @ $index in $withdrawals"
+                                )
+                    else throw new IllegalStateException(s"Cert not found: $index in $withdrawals")
+
+                case RedeemerTag.Proposing =>
+                    val proposals = tx.getBody.getProposalProcedures.asScala
+                    if proposals.isDefinedAt(index) then
+                        val proposal = proposals(index)
+                        getProposalScriptHash(proposal) match
+                            case Some(hash) =>
+                                val script = lookupTable.scripts.getOrElse(
+                                  hash,
+                                  throw new IllegalStateException(s"Script not found: $hash")
+                                )
+                                script -> None
+                            case None =>
+                                throw new IllegalStateException(
+                                  s"Missing required script for proposal: $proposal"
+                                )
+                    else
+                        throw new IllegalStateException(s"Proposal not found: $index in $proposals")
+
+                case RedeemerTag.Voting =>
+                    import Interop.given // for Ordering instances
+                    val voting = tx.getBody.getVotingProcedures.getVoting.asScala.toSeq.sortBy(_._1)
+                    if voting.isDefinedAt(index) then
+                        val (voter, _) = voting(index)
+                        voter.getType match
+                            case VoterType.CONSTITUTIONAL_COMMITTEE_HOT_SCRIPT_HASH |
+                                VoterType.DREP_SCRIPT_HASH =>
+                                val script = lookupTable.scripts.getOrElse(
+                                  ByteString.fromArray(voter.getCredential.getBytes),
+                                  throw new IllegalStateException(s"Script not found: $voter")
+                                )
+                                script -> None
+                            case _ =>
+                                throw new IllegalStateException(s"Invalid voter: $voter")
+                    else throw new IllegalStateException(s"Voting not found: $index in $voting")
         }
 
         import scalus.bloxbean.Interop.toScalusData
@@ -442,31 +523,15 @@ class TxEvaluator(
                 val machineParams = translateMachineParamsFromCostMdls(costMdls, PlutusV3)
                 val rdmr = toScalusData(redeemer.getData)
                 val txInfo = getTxInfoV3(tx, datums, utxos, slotConfig, protocolMajorVersion)
-                val purpose = getScriptPurposeV3(
-                  redeemer,
-                  tx.getBody.getInputs,
-                  tx.getBody.getMint,
-                  tx.getBody.getCerts,
-                  tx.getBody.getWithdrawals
-                )
-                val scriptInfo = getScriptInfoV3(
-                  redeemer,
-                  tx.getBody.getInputs,
-                  tx.getBody.getMint,
-                  tx.getBody.getCerts,
-                  tx.getBody.getWithdrawals
-                )
+                val scriptInfo = getScriptInfoV3(tx, redeemer)
                 val scriptContext = v3.ScriptContext(txInfo, rdmr, scriptInfo)
                 val ctxData = scriptContext.toData
                 if log.isDebugEnabled() then
-                    log.debug(s"eval: PlutusV3, ${purpose}")
+                    log.debug(s"eval: PlutusV3, ${scriptInfo}")
                     log.debug(s"Datum: ${datum.map(_.toJson)}")
                     log.debug(s"Redeemer: ${rdmr.toJson}")
                     log.debug(s"Script context: ${ctxData.toJson}")
-                datum match
-                    case Some(datum) =>
-                        evalScript(redeemer, machineParams, script.bytes, datum, rdmr, ctxData)
-                    case None => evalScript(redeemer, machineParams, script.bytes, rdmr, ctxData)
+                evalScript(redeemer, machineParams, script.bytes, ctxData)
 
         val cost = result.budget
         log.debug(s"Eval result: $result")
@@ -532,11 +597,12 @@ class TxEvaluator(
           s"Eval phase two $tx, $utxos, $costMdls, $initialBudget, $slotConfig, $runPhaseOne"
         )
         val redeemers = tx.getWitnessSet.getRedeemers ?? util.List.of()
-        val datumsMapping = datums.zipWithIndex
-            .map: (datum, idx) =>
-                val datumHash = ByteString.fromArray(Blake2bUtil.blake2bHash256(datum.bytes))
-                val data = Cbor.decode(datum.bytes).to[Data].value
-                datumHash -> data
+        // compute Datum hashes from the original datum CBORs
+        // because if we re-serialize Data, the hash may be different
+        val datumsMapping = datums.map: datum =>
+            val datumHash = ByteString.fromArray(Blake2bUtil.blake2bHash256(datum.bytes))
+            val data = Cbor.decode(datum.bytes).to[Data].value
+            datumHash -> data
         val lookupTable = getScriptAndDatumLookupTable(tx, datumsMapping, utxos)
         log.debug(s"Lookup table: $lookupTable")
 

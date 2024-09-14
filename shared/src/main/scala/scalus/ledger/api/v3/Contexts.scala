@@ -108,7 +108,7 @@ enum Voter:
     case StakePoolVoter(pubKeyHash: PubKeyHash)
 
 enum Vote:
-    case VoteNo, VoteYes, Abstain
+    case No, Yes, Abstain
 
 case class GovernanceActionId(txId: TxId, govActionIx: BigInt)
 

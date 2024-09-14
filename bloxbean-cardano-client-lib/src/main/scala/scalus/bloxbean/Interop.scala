@@ -11,8 +11,11 @@ import com.bloxbean.cardano.client.transaction.spec.cert.*
 import com.bloxbean.cardano.client.transaction.spec.governance.DRep
 import com.bloxbean.cardano.client.transaction.spec.governance.DRepType
 import com.bloxbean.cardano.client.transaction.spec.governance.ProposalProcedure
+import com.bloxbean.cardano.client.transaction.spec.governance.Vote
 import com.bloxbean.cardano.client.transaction.spec.governance.Voter
 import com.bloxbean.cardano.client.transaction.spec.governance.VoterType
+import com.bloxbean.cardano.client.transaction.spec.governance.VotingProcedure
+import com.bloxbean.cardano.client.transaction.spec.governance.VotingProcedures
 import com.bloxbean.cardano.client.transaction.spec.governance.actions.GovAction
 import com.bloxbean.cardano.client.transaction.spec.governance.actions.GovActionId
 import com.bloxbean.cardano.client.transaction.spec.governance.actions.HardForkInitiationAction
@@ -44,6 +47,7 @@ import scalus.prelude.Maybe.Nothing
 import scalus.uplc.eval.*
 
 import java.math.BigInteger
+import java.util
 import java.util
 import scala.collection.mutable
 import scala.jdk.CollectionConverters.*
@@ -80,16 +84,32 @@ enum ExecutionPurpose:
         scriptHash: ByteString
     )
 
-
 case class ScriptInfo(hash: ByteString, scriptVersion: ScriptVersion)
 
 /** Interoperability between Cardano Client Lib and Scalus */
 object Interop {
+    given Ordering[Voter] with {
+        def compare(x: Voter, y: Voter): Int =
+            x.getType.compareTo(y.getType) match
+                case 0 =>
+                    util.Arrays.compareUnsigned(
+                      x.getCredential.getBytes,
+                      y.getCredential.getBytes
+                    )
+                case c => c
+    }
+
+    given Ordering[GovActionId] with {
+        def compare(x: GovActionId, y: GovActionId): Int =
+            x.getTransactionId.compareTo(y.getTransactionId) match
+                case 0 => x.getGovActionIndex.compareTo(y.getGovActionIndex)
+                case c => c
+    }
     /// Helper for null check
     extension [A](inline a: A) inline infix def ??(b: A): A = if a != null then a else b
 
     def getScriptInfoFromScriptRef(scriptRef: Array[Byte]): ScriptInfo = {
-        // script_ref is incoded as CBOR Array
+        // script_ref is encoded as CBOR Array
         val (scriptType, scriptCbor) = Cbor.decode(scriptRef).to[(Byte, Array[Byte])].value
         // and script hash is calculated from the script type byte and the scriptCbor
         val scriptBytesForScriptHash = Array(scriptType) ++ scriptCbor
@@ -667,55 +687,27 @@ object Interop {
         withdrawals: util.List[Withdrawal]
     ): v1.ScriptPurpose = getScriptPurposeV1(redeemer, inputs, mint, certificates, withdrawals)
 
-    def getScriptPurposeV3(
-        redeemer: Redeemer,
-        inputs: util.List[TransactionInput],
-        mint: util.List[MultiAsset],
-        certificates: util.List[Certificate],
-        withdrawals: util.List[Withdrawal]
-    ): v3.ScriptPurpose = {
-        // Cardano Ledger code is stupidly complex and unreadable. We need to make sure this is correct
-        val index = redeemer.getIndex.intValue
-        redeemer.getTag match
-            case RedeemerTag.Spend =>
-                val ins = inputs.asScala.sorted
-                if ins.isDefinedAt(index) then
-                    val input = ins(index)
-                    v3.ScriptPurpose.Spending(getTxOutRefV3(input))
-                else throw new IllegalStateException(s"Input not found: $index in $inputs")
-            case RedeemerTag.Mint =>
-                val policyIds = mint.asScala.map(_.getPolicyId).sorted
-                if policyIds.isDefinedAt(index) then
-                    v3.ScriptPurpose.Minting(ByteString.fromHex(policyIds(index)))
-                else throw new IllegalStateException(s"Wrong mint index: $index in $mint")
-            case RedeemerTag.Cert =>
-                val certs = certificates.asScala
-                if certs.isDefinedAt(index) then
-                    v3.ScriptPurpose.Certifying(index, getTxCertV3(certs(index)))
-                else throw new IllegalStateException(s"Wrong cert index: $index in $certificates")
-            case RedeemerTag.Reward =>
-                val rewardAccounts = withdrawals.asScala
-                    .map(ra => Address(ra.getRewardAddress))
-                    .sortBy(a => ByteString.fromArray(a.getBytes)) // for ordering
-                if rewardAccounts.isDefinedAt(index) then
-                    val address = rewardAccounts(index)
-                    if address.getAddressType == AddressType.Reward then
-                        val cred = getCredential(address.getDelegationCredential.get)
-                        v3.ScriptPurpose.Rewarding(cred)
-                    else
-                        throw new IllegalStateException(
-                          s"Wrong reward address type: $address in $withdrawals"
-                        )
-                else throw new IllegalStateException(s"Wrong reward index: $index in $withdrawals")
+    def getScriptPurposeV3(tx: Transaction, redeemer: Redeemer): v3.ScriptPurpose = {
+        getScriptInfoV3(tx, redeemer) match
+            case v3.ScriptInfo.SpendingScript(ref, _) =>
+                v3.ScriptPurpose.Spending(ref)
+            case v3.ScriptInfo.MintingScript(policyId) =>
+                v3.ScriptPurpose.Minting(policyId)
+            case v3.ScriptInfo.CertifyingScript(index, cert) =>
+                v3.ScriptPurpose.Certifying(index, cert)
+            case v3.ScriptInfo.RewardingScript(cred) =>
+                v3.ScriptPurpose.Rewarding(cred)
+            case v3.ScriptInfo.ProposingScript(index, proposal) =>
+                v3.ScriptPurpose.Proposing(index, proposal)
+            case v3.ScriptInfo.VotingScript(voter) =>
+                v3.ScriptPurpose.Voting(voter)
     }
 
-    def getScriptInfoV3(
-        redeemer: Redeemer,
-        inputs: util.List[TransactionInput],
-        mint: util.List[MultiAsset],
-        certificates: util.List[Certificate],
-        withdrawals: util.List[Withdrawal]
-    ): v3.ScriptInfo = {
+    def getScriptInfoV3(tx: Transaction, redeemer: Redeemer): v3.ScriptInfo = {
+        val inputs = tx.getBody.getInputs
+        val mint = tx.getBody.getMint
+        val certificates = tx.getBody.getCerts
+        val withdrawals = tx.getBody.getWithdrawals
         // Cardano Ledger code is stupidly complex and unreadable. We need to make sure this is correct
         val index = redeemer.getIndex.intValue
         redeemer.getTag match
@@ -723,7 +715,10 @@ object Interop {
                 val ins = inputs.asScala.sorted
                 if ins.isDefinedAt(index) then
                     val input = ins(index)
-                    v3.ScriptInfo.SpendingScript(getTxOutRefV3(input), Maybe.Nothing) // FIXME: Implement this
+                    v3.ScriptInfo.SpendingScript(
+                      getTxOutRefV3(input),
+                      Maybe.Nothing
+                    ) // FIXME: Implement this
                 else throw new IllegalStateException(s"Input not found: $index in $inputs")
             case RedeemerTag.Mint =>
                 val policyIds = mint.asScala.map(_.getPolicyId).sorted
@@ -750,7 +745,14 @@ object Interop {
                         )
                 else throw new IllegalStateException(s"Wrong reward index: $index in $withdrawals")
 
-                // FIXME: Implement other cases
+            case RedeemerTag.Proposing =>
+                val proposals = certificates.asScala.collect { case p: ProposalProcedure => p }
+                if proposals.isDefinedAt(index) then
+                    v3.ScriptInfo.ProposingScript(index, getProposalProcedureV3(proposals(index)))
+                else
+                    throw new IllegalStateException(
+                      s"Wrong proposal index: $index in $certificates"
+                    )
     }
 
     def getScriptContextV2(
@@ -843,6 +845,23 @@ object Interop {
                 v3.Voter.StakePoolVoter(pkh)
     }
 
+    def getVotingProcedures(voting: VotingProcedures) = {
+        voting.getVoting.asScala.toSeq
+            .sortBy(_._1)
+            .map: (voter, procedures) =>
+                getVoterV3(voter) -> procedures.asScala.toSeq
+                    .sortBy(_._1)
+                    .map: (govActionId, procedure) =>
+                        getGovActionId(govActionId) -> getVoteV3(procedure)
+    }
+
+    def getVoteV3(procedure: VotingProcedure): v3.Vote = {
+        procedure.getVote match
+            case Vote.YES     => v3.Vote.Yes
+            case Vote.NO      => v3.Vote.No
+            case Vote.ABSTAIN => v3.Vote.Abstain
+    }
+
     def getTxInInfoV3(
         input: TransactionInput,
         utxos: Map[TransactionInput, TransactionOutput]
@@ -888,13 +907,7 @@ object Interop {
                 .toSeq
           ),
           redeemers = AssocMap(prelude.List.from(rdmrs.asScala.sorted.map { redeemer =>
-              val purpose = getScriptPurposeV3(
-                redeemer,
-                body.getInputs,
-                body.getMint,
-                body.getCerts,
-                body.getWithdrawals
-              )
+              val purpose = getScriptPurposeV3(tx, redeemer)
               purpose -> toScalusData(redeemer.getData)
           })),
           data = AssocMap(prelude.List.from(datums.sortBy(_._1))),
