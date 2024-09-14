@@ -8,7 +8,7 @@ import scalus.utils.Utils
 class ProgramFlatSpec extends AnyFunSuite with ScalaCheckPropertyChecks with ArbitraryInstances {
     ignore("Program flat encoding is identical to Plutus") {
         forAll { (p: Program) =>
-            val str = p.pretty.render(80)
+            val str = p.show
             val bytes = UplcCli.uplcToFlat(str)
             assert(Utils.bytesToHex(bytes) == Utils.bytesToHex(p.flatEncoded))
         }

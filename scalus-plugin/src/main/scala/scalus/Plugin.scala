@@ -1,11 +1,9 @@
 package scalus
 
 import dotty.tools.dotc.*
-import dotty.tools.dotc.ast.Trees.*
 import dotty.tools.dotc.ast.tpd
 import dotty.tools.dotc.core.Contexts.Context
 import dotty.tools.dotc.core.Contexts.*
-import dotty.tools.dotc.core.Names.*
 import dotty.tools.dotc.core.Symbols.*
 import dotty.tools.dotc.core.*
 import dotty.tools.dotc.plugins.*
@@ -43,18 +41,9 @@ class ScalusPhase extends PluginPhase {
         val compileSymbol = requiredModule("scalus.Compiler").requiredMethod("compile")
         if tree.fun.symbol == compileSymbol then
             // report.echo(tree.showIndented(2))
-            val arg = tree.args.head
+            val code = tree.args.head
             val compiler = new SIRCompiler(Mode.Link)
-            val result = arg match
-                case Block(
-                      List(DefDef(_, _, _, Apply(code, _))),
-                      Closure(Nil, Ident(_), EmptyTree)
-                    ) =>
-                    // report.echo(s"compile: ${code.show}")
-                    compiler.compileToSIR(code.asInstanceOf[Tree])
-                case code =>
-                    // report.echo(s"compile: ${arg.show}")
-                    compiler.compileToSIR(code)
+            val result = compiler.compileToSIR(code)
             val converter = new SIRConverter
             converter.convertSIRToTree(result)
         else tree

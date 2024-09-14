@@ -536,7 +536,7 @@ abstract class PlutusConformanceSpec extends AnyFunSuite:
         test(name) {
             val code = readFile(s"$path/$name.uplc")
             val expected = readFile(s"$path/$name.uplc.expected")
-            // println(eval(code).pretty.render(80))
+            // println(eval(code).show)
             (eval(code), parseExpected(expected)) match
                 case (Right(actual), Right(expected)) =>
                     assert(actual alphaEq expected)

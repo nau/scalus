@@ -28,6 +28,7 @@ import scalus.uplc.eval.VM
 
 import scala.collection.immutable
 import scala.language.implicitConversions
+import scalus.uplc.eval.Result
 
 class CompilerPluginToSIRSpec extends AnyFunSuite with ScalaCheckPropertyChecks:
     val deadbeef = Constant.ByteString(hex"deadbeef")
@@ -487,7 +488,7 @@ class CompilerPluginToSIRSpec extends AnyFunSuite with ScalaCheckPropertyChecks:
         assert(
           compile {
               Builtins.serialiseData
-          } == Builtin(DefaultFun.SerialiseData)
+          } == LamAbs("d", Apply(Builtin(SerialiseData), Var("d")))
         )
     }
 
@@ -624,7 +625,12 @@ class CompilerPluginToSIRSpec extends AnyFunSuite with ScalaCheckPropertyChecks:
     }
 
     test("compile Pair builtins") {
-        assert(compile(Builtins.mkPairData) == (Builtin(MkPairData)))
+        assert(
+          compile(Builtins.mkPairData) == LamAbs(
+            "fst",
+            LamAbs("snd", Apply(Apply(Builtin(MkPairData), Var("fst")), Var("snd")))
+          )
+        )
         assert(
           compile {
               def swap(p: builtin.Pair[Data, Data]) =
@@ -683,10 +689,10 @@ class CompilerPluginToSIRSpec extends AnyFunSuite with ScalaCheckPropertyChecks:
                 Or(And(Not(Var("a")), Const(Bool(false))), Const(Bool(true)))
               )
         )
-        // println(compiled.pretty.render(80))
+        // println(compiled.show)
         val term = compiled.toUplc()
         val evaled = VM.evaluateTerm(term)
-        // println(evaled.pretty.render(80))
+        // println(evaled.show)
         assert(evaled == scalus.uplc.Term.Const(Constant.Bool(true)))
     }
 
@@ -926,9 +932,9 @@ class CompilerPluginToSIRSpec extends AnyFunSuite with ScalaCheckPropertyChecks:
             val s = "string"
             a === a && bs === bs && s === s
         }
-        // println(compiled.pretty.render(80))
+        // println(compiled.show)
         val term = compiled.toUplc()
-        // println(term.pretty.render(80))
+        // println(term.show)
         val evaled = VM.evaluateTerm(term)
         assert(evaled == scalus.uplc.Term.Const(Constant.Bool(true)))
     }
@@ -988,7 +994,7 @@ class CompilerPluginToSIRSpec extends AnyFunSuite with ScalaCheckPropertyChecks:
             t match
                 case (a, _) => a && t._2
         }
-        // println(compiled.pretty.render(80))
+        // println(compiled.show)
         val term = compiled.toUplc()
         val evaled = VM.evaluateTerm(term)
         assert(evaled == scalus.uplc.Term.Const(Constant.Bool(false)))
@@ -1000,9 +1006,9 @@ class CompilerPluginToSIRSpec extends AnyFunSuite with ScalaCheckPropertyChecks:
             pkh match
                 case PubKeyHash(hash) => hash
         }
-        // println(compiled.pretty.render(80))
+        // println(compiled.show)
         val term = compiled.toUplc()
-        // println(term.pretty.render(80))
+        // println(term.show)
         val evaled = VM.evaluateTerm(term)
         assert(evaled == scalus.uplc.Term.Const(Constant.ByteString(hex"deadbeef")))
     }
@@ -1016,10 +1022,10 @@ class CompilerPluginToSIRSpec extends AnyFunSuite with ScalaCheckPropertyChecks:
                 case Cons(h, tl) => h
                 case Nil         => BigInt(0)
         }
-        // println(compiled.pretty.render(80))
+        // println(compiled.show)
         val term = compiled.toUplc()
         val evaled = VM.evaluateTerm(term)
-        // println(evaled.pretty.render(80))
+        // println(evaled.show)
         assert(evaled == scalus.uplc.Term.Const(Constant.Integer(1)))
     }
 
@@ -1046,23 +1052,43 @@ class CompilerPluginToSIRSpec extends AnyFunSuite with ScalaCheckPropertyChecks:
                 case Cons(h @ (a, TxOutRef(TxId(_), idx)), _) => a + idx
                 case Nil                                      => BigInt(0)
         }
-        // println(compiled.pretty.render(80))
+        // println(compiled.show)
         val term = compiled.toUplc()
         val evaled = VM.evaluateTerm(term)
-        // println(evaled.pretty.render(80))
+        // println(evaled.show)
         assert(evaled == scalus.uplc.Term.Const(Constant.Integer(3)))
+    }
+
+    test("compile multiple inner matches") {
+        import scalus.prelude.List
+        import scalus.prelude.List.*
+        val compiled = compile {
+            ((true, "test"), (false, "test")) match
+                case ((a, _), (b, _)) => a == b
+        }
+        // println(compiled.show)
+        val term = compiled.toUplc()
+        val evaled = VM.evaluateTerm(term)
+        // println(evaled.show)
+        assert(evaled == scalus.uplc.Term.Const(Constant.Bool(false)))
     }
 
     test("compile fieldAsData macro") {
         import scalus.ledger.api.v1.*
+        import scalus.ledger.api.v1.FromDataInstances.given
         import scalus.ledger.api.v1.ToDataInstances.given
 
         val compiled = compile { (ctx: scalus.builtin.Data) =>
+            // check multiple nested fields
             val sigsData = fieldAsData[ScriptContext](_.txInfo.signatories)(ctx)
+            // check type aliased fields
+            val from = ctx.field[ScriptContext](_.txInfo.validRange.from).to[IntervalBound]
+            // check tuples
+            val data = ctx.field[(ByteString, Data)](_._2)
             val sigs = Builtins.unListData(sigsData)
             Builtins.unBData(sigs.head)
         }
-        // println(compiled.pretty.render(80))
+        // println(compiled.show)
         val term = compiled.toUplc()
 
         val scriptContext =
@@ -1085,12 +1111,12 @@ class CompilerPluginToSIRSpec extends AnyFunSuite with ScalaCheckPropertyChecks:
         import scalus.builtin.Data.{*}
         import DefaultUni.asConstant
         val appliedScript = Program(version = (1, 0, 0), term = term $ scriptContext.toData)
-        val evaled = VM.evaluateProgram(appliedScript)
-        // println(evaled.pretty.render(80))
+        val r @ Result.Success(evaled, budget, costs, logs) =
+            VM.evaluateDebug(appliedScript.term): @unchecked
         assert(evaled == scalus.uplc.Term.Const(asConstant(hex"deadbeef")))
         val flatBytesLength = appliedScript.flatEncoded.length
         // println(Utils.bytesToHex(flatBytes))
-        assert(flatBytesLength == 125)
+        assert(flatBytesLength == 332)
     }
 
     test("@Ignore annotation") {
@@ -1107,4 +1133,18 @@ class CompilerPluginToSIRSpec extends AnyFunSuite with ScalaCheckPropertyChecks:
     test("Ignore PlatformSpecific arguments") {
         // Make sure that the implicit PlatformSpecific argument is not generated
         assert(compile(Builtins.sha2_256) == (lam("bs")(Sha2_256 $ Var("bs"))))
+    }
+
+    test("? operator produces a debug log") {
+        import scalus.prelude.?
+        val compiled = compile {
+            val oneEqualsTwo = BigInt(1) == BigInt(2)
+            oneEqualsTwo.?
+        }
+        val term = compiled.toUplc()
+        VM.evaluateDebug(term) match
+            case Result.Success(evaled, _, _, logs) =>
+                assert(evaled == scalus.uplc.Term.Const(Constant.Bool(false)))
+                assert(logs == List("oneEqualsTwo ? False: { mem: 0.002334, cpu: 1.007931 }"))
+            case Result.Failure(exception, _, _, _) => fail(exception)
     }

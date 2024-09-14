@@ -11,6 +11,7 @@ import com.bloxbean.cardano.client.transaction.spec.cert.*
 import com.bloxbean.cardano.client.transaction.util.TransactionUtil
 import io.bullet.borer.Cbor
 import scalus.builtin.ByteString
+import scalus.builtin.ByteString
 import scalus.builtin.given
 import scalus.builtin.Data
 import scalus.ledger
@@ -22,6 +23,7 @@ import scalus.ledger.api.v1.StakingCredential
 import scalus.ledger.api.PlutusLedgerLanguage
 import scalus.ledger.api.v1
 import scalus.ledger.api.v2
+import scalus.ledger.api.v2.ScriptContext
 import scalus.ledger.babbage.PlutusV1Params
 import scalus.ledger.babbage.PlutusV2Params
 import scalus.prelude
@@ -324,8 +326,8 @@ object Interop {
     }
 
     def slotToBeginPosixTime(slot: Long, sc: SlotConfig): Long = {
-        val msAfterBegin = (slot - sc.zero_slot) * sc.slot_length
-        sc.zero_time + msAfterBegin
+        val msAfterBegin = (slot - sc.zeroSlot) * sc.slotLength
+        sc.zeroTime + msAfterBegin
     }
 
     // https://github.com/IntersectMBO/cardano-ledger/blob/28ab3884cac8edbb7270fd4b8628a16429d2ec9e/eras/alonzo/impl/src/Cardano/Ledger/Alonzo/Plutus/TxInfo.hs#L186
@@ -516,4 +518,27 @@ object Interop {
                           s"Wrong reward address type: $address in $withdrawals"
                         )
                 else throw new IllegalStateException(s"Wrong reward index: $index in $withdrawals")
+
+    def getScriptContextV2(
+        redeemer: Redeemer,
+        tx: Transaction,
+        utxos: Map[TransactionInput, TransactionOutput],
+        slotConfig: SlotConfig,
+        protocolVersion: Int
+    ): ScriptContext = {
+        import scala.jdk.CollectionConverters.*
+        val purpose = getScriptPurpose(
+          redeemer,
+          tx.getBody.getInputs,
+          tx.getBody.getMint,
+          tx.getBody.getCerts,
+          tx.getBody.getWithdrawals
+        )
+        val datums = tx.getWitnessSet.getPlutusDataList.asScala.map { plutusData =>
+            ByteString.fromArray(plutusData.getDatumHashAsBytes) -> Interop.toScalusData(plutusData)
+        }
+        val txInfo = getTxInfoV2(tx, datums, utxos, slotConfig, protocolVersion)
+        val scriptContext = ScriptContext(txInfo, purpose)
+        scriptContext
+    }
 }

@@ -248,13 +248,13 @@ class UplcParserSpec extends AnyFunSuite with ScalaCheckPropertyChecks with Arbi
         }
 
         forAll { (t: Term) =>
-            val pretty = t.pretty.render(80)
+            val pretty = t.show
             val parsed = parser.term.parse(pretty).map(_._2).left.map(e => e.show)
             assert(parsed == Right(t))
         }
 
         forAll { (t: Program) =>
-            val pretty = t.pretty.render(80)
+            val pretty = t.show
             val parsed = parser.parseProgram(pretty)
             assert(parsed == Right(t))
         }

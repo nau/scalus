@@ -35,11 +35,30 @@ object FromData {
         inline conf: PartialFunction[Int, scalus.builtin.List[Data] => T]
     ): FromData[T] = ${ deriveEnumMacro[T]('{ conf }) }
 
+    /** Derive FromData for an enum type
+      *
+      * @return
+      *   a FromData instance
+      *
+      * @example
+      *   {{{
+      *   enum Adt:
+      *     case A
+      *     case B(b: Boolean)
+      *     case C(a: Adt, b: Adt)
+      *
+      *   given FromData[Adt] = FromData.deriveEnum[Adt]
+      *   }}}
+      */
+    inline def deriveEnum[T]: FromData[T] = ${ deriveEnumMacro2[T] }
+
     inline def deriveConstructor[T]: scalus.builtin.List[Data] => T = ${
         deriveConstructorMacro[T]
     }
 
-    def deriveConstructorMacro[T: Type](using Quotes): Expr[scalus.builtin.List[Data] => T] =
+    private def deriveConstructorMacro[T: Type](using
+        Quotes
+    ): Expr[scalus.builtin.List[Data] => T] =
         import quotes.reflect.*
         val classSym = TypeTree.of[T].symbol
         val constr = classSym.primaryConstructor
@@ -76,7 +95,7 @@ object FromData {
         }
         '{ (args: scalus.builtin.List[scalus.builtin.Data]) => ${ genConstructorCall('{ args }) } }
 
-    def deriveCaseClassMacro[T: Type](using Quotes): Expr[FromData[T]] =
+    private def deriveCaseClassMacro[T: Type](using Quotes): Expr[FromData[T]] =
         '{ (d: Data) =>
             val args = scalus.builtin.Builtins.unConstrData(d).snd
 
@@ -86,8 +105,10 @@ object FromData {
             ${ Expr.betaReduce('{ ${ deriveConstructorMacro[T] }(args) }) }
         }
 
-    def deriveEnumMacro[T: Type](conf: Expr[PartialFunction[Int, scalus.builtin.List[Data] => T]])(
-        using Quotes
+    private def deriveEnumMacro[T: Type](
+        conf: Expr[PartialFunction[Int, scalus.builtin.List[Data] => T]]
+    )(using
+        Quotes
     ): Expr[FromData[T]] =
         import quotes.reflect.*
         val mapping = conf.asTerm match
@@ -104,10 +125,51 @@ object FromData {
                 mapping.foldRight('{ throw new Exception("Invalid tag") }.asExprOf[T]) {
                     case ((t, code), acc) =>
                         '{
+                            if Builtins.equalsInteger(tag, BigInt(${ Expr(t) })) then
+                                ${ Expr.betaReduce('{ $code(args) }) }
+                            else $acc
+                        }
+                }
+            }
+        }
+
+    private def deriveEnumMacro2[T: Type](using Quotes): Expr[FromData[T]] = {
+        import quotes.reflect.*
+        val constrTpe = TypeRepr.of[T]
+        val typeSymbol = TypeRepr.of[T].widen.dealias.typeSymbol
+        if !typeSymbol.flags.is(Flags.Enum) then
+            report.errorAndAbort(
+              s"deriveEnum can only be used with enums, got ${typeSymbol.fullName}"
+            )
+
+        val mapping = typeSymbol.children
+            .map { child =>
+                child.typeRef.asType match
+                    case '[t] =>
+                        // println(s"child: ${child}, ${child.flags.show} ${child.caseFields}")
+                        if child.caseFields.isEmpty then
+                            '{ (_: scalus.builtin.List[Data]) =>
+                                ${ Ident(child.termRef).asExprOf[t] }
+                            }
+                        else deriveConstructorMacro[t]
+            }
+            .zipWithIndex
+            .asInstanceOf[List[(Expr[scalus.builtin.List[Data] => T], Int)]]
+
+        // stage programming is cool, but it's hard to comprehend what's going on
+        '{ (d: Data) =>
+            val pair = Builtins.unConstrData(d)
+            val tag = pair.fst
+            val args = pair.snd
+            ${
+                mapping.foldRight('{ throw new Exception("Invalid tag") }.asExprOf[T]) {
+                    case ((code, t), acc) =>
+                        '{
                             if Builtins.equalsInteger(tag, BigInt(${ Expr(t) })) then $code(args)
                             else $acc
                         }
                 }
             }
         }
+    }
 }

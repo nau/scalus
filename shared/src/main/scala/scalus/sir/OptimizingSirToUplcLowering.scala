@@ -235,6 +235,7 @@ class OptimizingSirToUplcLowering(
             case SIR.Error(msg, _) =>
                 if generateErrorTraces
                 then
+                    usedBuiltins += DefaultFun.Trace
                     !(builtinTerms(DefaultFun.Trace) $ Term.Const(
                       Constant.String(msg)
                     ) $ ~Term.Error)

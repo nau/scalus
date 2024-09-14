@@ -26,6 +26,7 @@ import scalus.uplc.eval.NoLogger
 import scalus.uplc.eval.StackTraceMachineError
 import scalus.uplc.eval.TallyingBudgetSpender
 import scalus.uplc.eval.VM
+import scalus.uplc.eval.Result
 
 val constants = compile {
     val unit = ()
@@ -136,10 +137,7 @@ val fromDataExample = compile {
     // or your can you a macro to derive the FromData instance
     {
         given FromData[Account] = FromData.deriveCaseClass
-        given FromData[State] = FromData.deriveEnum[State] {
-            case 0 => d => Empty
-            case 1 => FromData.deriveConstructor[State.Active]
-        }
+        given FromData[State] = FromData.deriveEnum[State]
     }
 }
 
@@ -175,12 +173,14 @@ val serializeToDoubleCborHex = {
 def evaluation() = {
     val term = modules.toUplc()
     // simply evaluate the term
-    VM.evaluateTerm(term).pretty.render(80) // (con integer 2)
+    VM.evaluateTerm(term).show // (con integer 2)
+    // or
+    term.eval.show // (con integer 2)
     // evaluate a flat encoded script and calculate the execution budget and logs
     val result =
         VM.evaluateScriptCounting(MachineParams.defaultParams, Program((1, 0, 0), term).flatEncoded)
     println(s"Execution budget: ${result.budget}")
-    println(s"Evaluated term: ${result.term.pretty.render(80)}")
+    println(s"Evaluated term: ${result.term.show}")
     println(s"Logs: ${result.logs.mkString("\n")}")
 
     // you can get the actual execution costs from protocol parameters JSON from cardano-cli
@@ -193,6 +193,14 @@ def evaluation() = {
       "JSON with protocol parameters",
       PlutusLedgerLanguage.PlutusV2
     )
+
+    // evaluate the term with debug information
+    // the `Result` type has a readable `toString` method
+    VM.evaluateDebug(term) match
+        case r @ Result.Success(evaled, budget, costs, logs) =>
+            println(r)
+        case r @ Result.Failure(exception, budget, costs, logs) =>
+            println(r)
 
     // TallyingBudgetSpender is a budget spender that counts the costs of each operation
     val tallyingBudgetSpender = TallyingBudgetSpender(CountingBudgetSpender())
@@ -242,7 +250,7 @@ def fieldAsDataExample() = {
             unBData(sigs.head) == hex"deadbeef"
             // same as above
             sigs2.head.toByteString == hex"deadbeef"
-    println(pubKeyValidator.prettyXTerm.render(80))
+    println(pubKeyValidator.showHighlighted)
 }
 
 def inlineExample() = {
@@ -253,10 +261,10 @@ def inlineExample() = {
         verifyEd25519Signature(pubKeyHash, datum.toByteString, redeemer.toByteString)
     val script = compile:
         validator(hex"deadbeef")
-    println(script.prettyXTerm.render(80))
+    println(script.showHighlighted)
 }
 
-def debugFlatExample() = {
+def debugFlagExample() = {
     import Compiler.*, builtin.{Data, Builtins}, Builtins.*
     inline def dbg[A](msg: String)(a: A)(using debug: Boolean): A =
         inline if debug then trace(msg)(a) else a
@@ -264,23 +272,23 @@ def debugFlatExample() = {
         dbg("datum")(datum)
     val releaseScript = compile(validator(using false))
     val debugScript = compile(validator(using true))
-    println(releaseScript.prettyXTerm.render(80))
-    println(debugScript.prettyXTerm.render(80))
+    println(releaseScript.showHighlighted)
+    println(debugScript.showHighlighted)
 }
 
 class TutorialSpec extends AnyFunSuite {
     test("pretty print") {
-        // println(constants.prettyXTerm.render(80))
-        // println(builtinFunctions.prettyXTerm.render(80))
-        // println(dataTypes.prettyXTerm.render(80))
-        // println(controlFlow.prettyXTerm.render(80))
-        // println(functions.prettyXTerm.render(80))
-        // println(modules.prettyXTerm.render(80))
-        // println(fromDataExample.prettyXTerm.render(80))
-        // println(pubKeyValidator.prettyXTerm.render(80))
+        // println(constants.showHighlighted)
+        // println(builtinFunctions.showHighlighted)
+        // println(dataTypes.showHighlighted)
+        // println(controlFlow.showHighlighted)
+        // println(functions.showHighlighted)
+        // println(modules.showHighlighted)
+        // println(fromDataExample.showHighlighted)
+        // println(pubKeyValidator.showHighlighted)
         // evaluation()
         // fieldAsDataExample()
         // inlineExample()
-        // debugFlatExample()
+        // debugFlagExample()
     }
 }

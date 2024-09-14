@@ -191,9 +191,9 @@ object Example:
         }
 
     def main(args: Array[String]): Unit = {
-//    println(giftValidator.term.pretty.render(80))
+//    println(giftValidator.term.show)
         val pubKeyProgram =
-            Program((1, 0, 0), pubKeyValidator(PubKeyHash(hex"deadbeef")).term).pretty.render(80)
+            Program((1, 0, 0), pubKeyValidator(PubKeyHash(hex"deadbeef")).term).show
         println(pubKeyProgram)
         val flat = UplcCli.uplcToFlat(pubKeyProgram)
         println(s"${flat.length} ${bytesToHex(flat)}")
@@ -204,5 +204,5 @@ object Example:
       }
     )
 
-    println(VM.evaluateTerm(asdf(BigInt(-3)).term).pretty.render(80))*/
+    println(VM.evaluateTerm(asdf(BigInt(-3)).term).show)*/
     }

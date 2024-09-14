@@ -109,5 +109,5 @@ class TermDSLSpec extends AnyFunSuite with ScalaCheckPropertyChecks with Arbitra
 
     test("pretty Apply") {
         val t = vr"f" $ vr"x" $ vr"y" $ vr"z"
-        assert(t.pretty.render(80) == "[f x y z]")
+        assert(t.show == "[f x y z]")
     }

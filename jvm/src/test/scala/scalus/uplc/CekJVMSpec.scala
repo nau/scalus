@@ -48,7 +48,7 @@ class CekJVMSpec extends BaseValidatorSpec:
         }
         assert(validator == Example.giftValidator.term)
 
-        val program = Program((1, 0, 0), validator).pretty.render(80)
+        val program = Program((1, 0, 0), validator).show
 
         val bytes = UplcCli.uplcToFlat(program)
 //    println(s"${bytes.length} bytes: ${bytesToHex(bytes)}")
@@ -82,7 +82,7 @@ class CekJVMSpec extends BaseValidatorSpec:
         // has a signature of the given public key hash
         val validator = Example.pubKeyValidator(PubKeyHash(hex"deadbeef"))
 
-//    println(validator.term.pretty.render(80))
+//    println(validator.term.show)
 
         import Data.*
 
@@ -129,34 +129,8 @@ class CekJVMSpec extends BaseValidatorSpec:
           )
         )
 
-        val flatValidator = UplcCli.uplcToFlat(Program((1, 0, 0), validator.term).pretty.render(80))
+        val flatValidator = UplcCli.uplcToFlat(Program((1, 0, 0), validator.term).show)
         assert(flatValidator.length == 95)
-    }
-
-    ignore("fieldAsData macro test") {
-        import Data.*
-        import scalus.ledger.api.v1.*
-
-        val txInfo = TxInfo(
-          Nil,
-          Nil,
-          Value.zero,
-          Value.zero,
-          Nil,
-          Nil,
-          Interval.always,
-          Nil,
-          Nil,
-          TxId(hex"bb")
-        )
-        import ExprBuilder.*
-        val fee = unIData(fieldAsData[TxInfo](_.fee).apply(Expr(txInfo.toData)))
-        val txId = unBData(fieldAsData[TxInfo](_.id).apply(Expr(txInfo.toData)))
-        assert(VM.evaluateTerm(fee.term) == Const(asConstant(BigInt(123))))
-        assert(VM.evaluateTerm(txId.term) == Const(asConstant(hex"bb")))
-        println(txId)
-        println(VM.evaluateTerm(txId.term))
-
     }
 
     test("verifyEd25519Signature") {

@@ -190,7 +190,9 @@ PlutusTx also tends to generate a lot of boilerplate code making the final scrip
 
 Aiken is a new and young programming language which is a pro and a con.
 Can only be used for writing on-chain smart contracts.
+Can't reuse code for on-chain and off-chain parts.
 Doesn't have macros.
+Doesn't allow a low-level control over the generated UPLC code.
 
 ### Plutarch
 

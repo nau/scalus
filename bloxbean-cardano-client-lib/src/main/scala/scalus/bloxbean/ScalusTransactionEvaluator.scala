@@ -30,6 +30,8 @@ import scala.jdk.CollectionConverters.*
 
 /** Implements [[TransactionEvaluator]] to evaluate a transaction to get script costs using Scalus
   * evaluator. This is a wrapper around [[TxEvaluator]].
+  * @param slotConfig
+  *   Slot configuration
   * @param protocolParams
   *   Protocol parameters
   * @param utxoSupplier
@@ -44,14 +46,30 @@ import scala.jdk.CollectionConverters.*
   *     exceeds
   */
 class ScalusTransactionEvaluator(
+    @BeanProperty val slotConfig: SlotConfig,
     @BeanProperty val protocolParams: ProtocolParams,
     @BeanProperty val utxoSupplier: UtxoSupplier,
     @BeanProperty val scriptSupplier: ScriptSupplier,
     @BeanProperty val mode: EvaluatorMode
 ) extends TransactionEvaluator {
 
+    /** Constructor with protocol params, utxo supplier, script supplier and mode. Uses
+      * [[SlotConfig.Mainnet]].
+      *
+      * @param protocolParams
+      * @param utxoSupplier
+      * @param scriptSupplier
+      * @param mode
+      */
+    def this(
+        protocolParams: ProtocolParams,
+        utxoSupplier: UtxoSupplier,
+        scriptSupplier: ScriptSupplier,
+        mode: EvaluatorMode
+    ) = this(SlotConfig.Mainnet, protocolParams, utxoSupplier, scriptSupplier, mode)
+
     /** Constructor with protocol params and utxo supplier. Uses
-      * [[EvaluatorMode.EVALUATE_AND_COMPUTE_COST]] mode.
+      * [[EvaluatorMode.EVALUATE_AND_COMPUTE_COST]] mode and [[SlotConfig.Mainnet]].
       * @param protocolParams
       *   Protocol parameters
       * @param utxoSupplier
@@ -59,6 +77,7 @@ class ScalusTransactionEvaluator(
       */
     def this(protocolParams: ProtocolParams, utxoSupplier: UtxoSupplier) =
         this(
+          SlotConfig.Mainnet,
           protocolParams,
           utxoSupplier,
           NoScriptSupplier(),
@@ -66,7 +85,7 @@ class ScalusTransactionEvaluator(
         )
 
     /** Constructor with protocol params, utxo supplier and script supplier. Uses
-      * [[EvaluatorMode.EVALUATE_AND_COMPUTE_COST]] mode.
+      * [[SlotConfig.Mainnet]] and [[EvaluatorMode.EVALUATE_AND_COMPUTE_COST]] mode.
       * @param protocolParams
       *   Protocol parameters
       * @param utxoSupplier
@@ -79,7 +98,13 @@ class ScalusTransactionEvaluator(
         utxoSupplier: UtxoSupplier,
         scriptSupplier: ScriptSupplier
     ) =
-        this(protocolParams, utxoSupplier, scriptSupplier, EvaluatorMode.EVALUATE_AND_COMPUTE_COST)
+        this(
+          SlotConfig.Mainnet,
+          protocolParams,
+          utxoSupplier,
+          scriptSupplier,
+          EvaluatorMode.EVALUATE_AND_COMPUTE_COST
+        )
 
     @BeanProperty
     lazy val costMdls: CostMdls = {
@@ -103,7 +128,7 @@ class ScalusTransactionEvaluator(
         )
 
         TxEvaluator(
-          SlotConfig.default,
+          slotConfig,
           txBudget,
           protocolParams.getProtocolMajorVer.intValue(),
           costMdls,

@@ -33,7 +33,7 @@ class TxEvaluatorSpec extends AnyFunSuite:
         costMdls.add(CostModelUtil.PlutusV1CostModel)
         costMdls.add(CostModelUtil.PlutusV2CostModel)
         val evaluator = TxEvaluator(
-          SlotConfig.default,
+          SlotConfig.Mainnet,
           initialBudget = ExBudget.fromCpuAndMemory(10_000000000L, 10_000000L),
           protocolMajorVersion = 8,
           costMdls = costMdls
@@ -95,6 +95,6 @@ class TxEvaluatorSpec extends AnyFunSuite:
         val redeemers = evaluator.evaluateTx(tx, utxo)
         assert(redeemers.size == 1)
         val redeemerResult = redeemers.head
-        assert(redeemerResult.getExUnits.getMem.longValue == 13975L)
-        assert(redeemerResult.getExUnits.getSteps.longValue == 4871088L)
+        assert(redeemerResult.getExUnits.getMem.longValue == 13375L)
+        assert(redeemerResult.getExUnits.getSteps.longValue == 4733088L)
     }

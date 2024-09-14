@@ -124,7 +124,7 @@ class PatternMatchingCompiler(val compiler: SIRCompiler)(using Context) {
                 ) =>
                 compileBindings(sirBindings) match
                     case Left(errors) => Left(errors)
-                    case Right(PatternInfo(bindings2, generator, innerNames)) =>
+                    case Right(PatternInfo(bindings2, generator2, innerNames)) =>
                         Right(
                           PatternInfo(
                             (enclosingBindings ++ bindings2) + (name ->  constrSirType),
@@ -132,7 +132,7 @@ class PatternMatchingCompiler(val compiler: SIRCompiler)(using Context) {
                                 val (constrDecl, typeParams) = constrSirType match
                                     case SIRType.CaseClass(decl, typeArgs) => (decl, typeArgs)
                                     case _ => ???
-                                val contExpr = generator(cont)
+                                val contExpr = generator(generator2(cont))
                                 SIR.Match(
                                   SIR.Var(name, constrSirType),
                                   List(

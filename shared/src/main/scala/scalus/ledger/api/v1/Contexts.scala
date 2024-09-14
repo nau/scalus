@@ -259,7 +259,7 @@ object Interval:
 
     /** Create a finite inclusive interval bound */
     def finite(time: PosixTime): IntervalBound =
-        new IntervalBound(IntervalBoundType.Finite(time), true)
+        new IntervalBound(new IntervalBoundType.Finite(time), true)
 
     @deprecated("Use `after` instead", "0.7.0")
     def from[A](a: PosixTime): Interval =

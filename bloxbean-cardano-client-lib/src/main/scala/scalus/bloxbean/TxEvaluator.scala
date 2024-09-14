@@ -47,10 +47,27 @@ import scala.collection.mutable.ArrayBuffer
 import scala.jdk.CollectionConverters.*
 import scala.annotation.unused
 
-case class SlotConfig(zero_time: Long, zero_slot: Long, slot_length: Long)
+case class SlotConfig(zeroTime: Long, zeroSlot: Long, slotLength: Long)
+
 object SlotConfig {
-    def default: SlotConfig =
-        SlotConfig(zero_time = 1596059091000L, zero_slot = 4492800, slot_length = 1000)
+    // taken from https://github.com/spacebudz/lucid/blob/main/src/plutus/time.ts
+    val Mainnet: SlotConfig = SlotConfig(
+      zeroTime = 1596059091000L,
+      zeroSlot = 4492800,
+      slotLength = 1000
+    ) // Starting at Shelley era
+    val Preview: SlotConfig = SlotConfig(
+      zeroTime = 1666656000000L,
+      zeroSlot = 0,
+      slotLength = 1000
+    ) // Starting at Shelley era
+    val Preprod: SlotConfig = SlotConfig(
+      zeroTime = 1654041600000L + 1728000000L,
+      zeroSlot = 86400,
+      slotLength = 1000
+    )
+    @deprecated("Use Mainnet", "0.8.0")
+    val default: SlotConfig = Mainnet
 }
 
 class TxEvaluationException(

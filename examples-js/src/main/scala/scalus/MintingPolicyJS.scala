@@ -6,8 +6,7 @@ import scalus.builtin.Data
 import scalus.examples.MintingPolicy
 import scalus.prelude.AssocMap
 import scalus.uplc.Program
-import scalus.uplc.TermDSL.{_, given}
-import scalus.uplc.eval.VM
+import scalus.uplc.TermDSL.{*, given}
 
 import scala.language.implicitConversions
 import scala.scalajs.js.annotation.JSExport
@@ -32,7 +31,7 @@ object MintingPolicyJS:
         val tokensSIR = compile((tokenNameHex: ByteString, amount: BigInt) =>
             AssocMap.singleton(tokenNameHex, amount)
         )
-        val evaledTokens = VM.evaluateTerm(tokensSIR.toUplc())
+        val evaledTokens = tokensSIR.toUplc().eval
         val txId = ByteString.fromHex(txIdHex)
         val tokens = evaledTokens $ ByteString.fromHex(tokenNameHex) $ amount
         // val appliedValidator = alwaysokTerm

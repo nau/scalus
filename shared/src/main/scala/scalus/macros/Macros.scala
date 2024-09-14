@@ -47,25 +47,13 @@ object Macros {
                   Block(List(DefDef(_, _, _, Some(select @ Select(_, fieldName)))), _)
                 ) =>
                 def genGetter(
-                    typeSymbolOfA: Symbol,
+                    typeSymbol: Symbol,
                     fieldName: String
                 ): Expr[Exp[Data] => Exp[Data]] =
+                    val typeSymbolOfA = typeSymbol.typeRef.dealias.typeSymbol
+                    val fields = typeSymbolOfA.caseFields.filter(_.isValDef)
                     val fieldOpt: Option[(Symbol, Int)] =
-                        if typeSymbolOfA == TypeRepr.of[Tuple2].typeSymbol then
-                            fieldName match
-                                case "_1" =>
-                                    typeSymbolOfA.caseFields
-                                        .find(_.name == fieldName)
-                                        .map(s => (s, 0))
-                                case "_2" =>
-                                    typeSymbolOfA.caseFields
-                                        .find(_.name == fieldName)
-                                        .map(s => (s, 1))
-                                case _ =>
-                                    report.errorAndAbort(
-                                      "Unexpected field name for Tuple2 type: " + fieldName
-                                    )
-                        else typeSymbolOfA.caseFields.zipWithIndex.find(_._1.name == fieldName)
+                        fields.zipWithIndex.find(_._1.name.stripTrailing() == fieldName)
 //          report.info(s"$typeSymbolOfA => fieldOpt: $fieldOpt")
                     fieldOpt match
                         case Some((fieldSym: Symbol, idx)) =>
@@ -82,7 +70,10 @@ object Macros {
                                 d => headList(expr(d))
                             }
                         case None =>
-                            report.errorAndAbort("fieldMacro: " + fieldName)
+                            report.errorAndAbort(
+                              s"fieldAsData: can't find a field `$fieldName` in $typeSymbolOfA. Available fields: ${fields
+                                      .map(_.name)}"
+                            )
 
                 def composeGetters(tree: Tree): Expr[Exp[Data] => Exp[Data]] = tree match
                     case Select(select @ Select(_, _), fieldName) =>
@@ -107,55 +98,86 @@ object Macros {
         e match
             case Inlined(_, _, block) => fieldAsDataMacroTerm(block)
             case Block(List(DefDef(_, _, _, Some(select @ Select(_, fieldName)))), _) =>
-                def genGetter(typeSymbolOfA: Symbol, fieldName: String): Expr[Data => Data] =
-                    val fieldOpt: Option[(Symbol, Int)] =
-                        if typeSymbolOfA == TypeRepr.of[Tuple2].typeSymbol then
-                            fieldName match
-                                case "_1" =>
-                                    typeSymbolOfA.caseFields
-                                        .find(_.name == fieldName)
-                                        .map(s => (s, 0))
-                                case "_2" =>
-                                    typeSymbolOfA.caseFields
-                                        .find(_.name == fieldName)
-                                        .map(s => (s, 1))
-                                case _ =>
-                                    report.errorAndAbort(
-                                      "Unexpected field name for Tuple2 type: " + fieldName
-                                    )
-                        else typeSymbolOfA.caseFields.zipWithIndex.find(_._1.name == fieldName)
-//          report.info(s"$typeSymbolOfA => fieldOpt: $fieldOpt")
-                    fieldOpt match
-                        case Some((fieldSym: Symbol, idx)) =>
-                            '{ d =>
-                                // a bit of staged programming here
-                                ${
-                                    var expr = '{ Builtins.unConstrData(d).snd }
-                                    var i = 0
-                                    while i < idx do
-                                        val exp =
-                                            expr // save the current expr, otherwise it will loop forever
-                                        expr = '{ $exp.tail }
-                                        i += 1
-                                    expr
-                                }.head
-                            }
-
-                        case None =>
-                            report.errorAndAbort("fieldMacro: " + fieldName)
-
-                def composeGetters(tree: Tree): Expr[Data => Data] = tree match
+                def collectSymbolsAndFields(tree: Tree): List[(Symbol, String)] = tree match
                     case Select(select @ Select(_, _), fieldName) =>
-                        val a = genGetter(select.tpe.typeSymbol, fieldName)
-                        val b = composeGetters(select)
-                        '{ ddd => ${ Expr.betaReduce('{ $a($b(ddd)) }) } }
+                        collectSymbolsAndFields(
+                          select
+                        ) :+ (select.tpe.widen.dealias.typeSymbol, fieldName)
                     case Select(ident @ Ident(_), fieldName) =>
-                        genGetter(ident.tpe.typeSymbol, fieldName)
+                        List((ident.tpe.widen.dealias.typeSymbol, fieldName))
                     case _ =>
                         report.errorAndAbort(
                           s"field macro supports only this form: _.caseClassField1.field2, but got " + tree.show
                         )
-                composeGetters(select)
+
+                /* I tried to optimize the code below, but it's not worth it.
+                  1. Reuse val double = (d: builtin.List[Data]) => d.tail.tail.tail.tail (2,3,4,5,6,7 tails)
+                  Expression: _.txInfo.id
+                  Simple
+                  tail 1 budget: { mem: 0.005780, cpu: 1.890490 }
+                  tail 2 budget: { mem: 0.007280, cpu: 2.235490 }
+                  tail 3 budget: { mem: 0.006980, cpu: 2.166490 }
+                  tail 4 budget: { mem: 0.006680, cpu: 2.097490 }
+                  tail 5 budget: { mem: 0.006380, cpu: 2.028490 }
+                  tail 6 budget: { mem: 0.006380, cpu: 2.028490 }
+                  tail 7 budget: { mem: 0.006380, cpu: 2.028490 }
+                  Optimized:
+                  tail 1 budget: { mem: 0.005580, cpu: 1.844490 }
+                  tail 2 budget: { mem: 0.007080, cpu: 2.189490 }
+                  tail 4 budget: { mem: 0.006480, cpu: 2.051490 }
+                  Optimized & eta-reduced:
+                  tail 1 budget: { mem: 0.005580, cpu: 1.844490 }
+                  2. Reuse val getargs = (d: Data) => Builtins.unConstrData(d).snd
+                  Expression: _.txInfo.id
+                  getargs 2 usages
+                  Optimized: budget: { mem: 0.006480, cpu: 2.051490 }
+                  Expression: _.txInfo.id.hash
+                  getargs 0 usages
+                  Optimized: budget: { mem: 0.006276, cpu: 2.144366 }
+                  getargs 3 usages
+                  Optimized: budget: { mem: 0.007476, cpu: 2.420366 }
+
+                  Conclusion: it's not worth it to abstract and reuse. Inlining is better.
+                 */
+
+                '{ d =>
+                    ${
+                        def getField(idx: Int, d: Expr[Data]): Expr[Data] = {
+                            var expr = '{ Builtins.unConstrData($d).snd }
+                            var i = 0
+                            while i < idx do
+                                // save the current expr, otherwise it will loop forever
+                                val exp = expr
+                                expr = '{ $exp.tail }
+                                i += 1
+                            '{ $expr.head }
+                        }
+
+                        var ddd = '{ d }
+                        for (typeSymbolOfA, fieldName) <- collectSymbolsAndFields(select) do {
+                            val fields = typeSymbolOfA.caseFields.filter(_.isValDef)
+                            val fieldOpt: Option[(Symbol, Int)] =
+                                // OMG, don't ask me why, but Scala 3.3.3 adds a trailing space to the field name
+                                // specifically in the case _1, _2, etc in Tuples.
+                                // it's fixed in 3.4.2
+                                // FIXME: remove stripTrailing when we upgrade to 3.4.2
+                                fields.zipWithIndex.find(_._1.name.stripTrailing == fieldName)
+                            // report.info(s"$typeSymbolOfA => ${fields.map(s => s"'${s.name}'")}")
+                            fieldOpt match
+                                case Some((_: Symbol, idx)) =>
+                                    ddd = getField(idx, ddd)
+                                case None =>
+                                    report.errorAndAbort(
+                                      s"""fieldAsData: can't find a field `$fieldName` in $typeSymbolOfA.
+                                      |Available fields: ${fields.map(s =>
+                                            s"'${s.name}'"
+                                        )}""".stripMargin
+                                    )
+                        }
+                        ddd
+                    }
+                }
+
             case x => report.errorAndAbort(x.toString)
 
     import upickle.default.*
@@ -263,5 +285,10 @@ object Macros {
         val input = this.getClass().getResourceAsStream("/builtinCostModel.json")
         val string = scala.io.Source.fromInputStream(input).mkString
         Expr(string)
+    }
+
+    def questionMark(using Quotes)(x: Expr[Boolean]): Expr[Boolean] = {
+        import scala.quoted.*
+        '{ if $x then true else Builtins.trace(${ Expr(x.show + " ? False") })(false) }
     }
 }
