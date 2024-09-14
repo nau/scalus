@@ -523,7 +523,7 @@ class TxEvaluator(
                 val machineParams = translateMachineParamsFromCostMdls(costMdls, PlutusV3)
                 val rdmr = toScalusData(redeemer.getData)
                 val txInfo = getTxInfoV3(tx, datums, utxos, slotConfig, protocolMajorVersion)
-                val scriptInfo = getScriptInfoV3(tx, redeemer)
+                val scriptInfo = getScriptInfoV3(tx, redeemer, datum)
                 val scriptContext = v3.ScriptContext(txInfo, rdmr, scriptInfo)
                 val ctxData = scriptContext.toData
                 if log.isDebugEnabled() then

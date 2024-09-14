@@ -36,6 +36,7 @@ import scalus.ledger.api.v1.ScriptPurpose
 import scalus.ledger.api.v1.StakingCredential
 import scalus.ledger.api.v2
 import scalus.ledger.api.v3
+import scalus.ledger.api.v3.GovernanceActionId
 import scalus.ledger.babbage.PlutusV1Params
 import scalus.ledger.babbage.PlutusV2Params
 import scalus.ledger.babbage.PlutusV3Params
@@ -688,22 +689,6 @@ object Interop {
     ): v1.ScriptPurpose = getScriptPurposeV1(redeemer, inputs, mint, certificates, withdrawals)
 
     def getScriptPurposeV3(tx: Transaction, redeemer: Redeemer): v3.ScriptPurpose = {
-        getScriptInfoV3(tx, redeemer) match
-            case v3.ScriptInfo.SpendingScript(ref, _) =>
-                v3.ScriptPurpose.Spending(ref)
-            case v3.ScriptInfo.MintingScript(policyId) =>
-                v3.ScriptPurpose.Minting(policyId)
-            case v3.ScriptInfo.CertifyingScript(index, cert) =>
-                v3.ScriptPurpose.Certifying(index, cert)
-            case v3.ScriptInfo.RewardingScript(cred) =>
-                v3.ScriptPurpose.Rewarding(cred)
-            case v3.ScriptInfo.ProposingScript(index, proposal) =>
-                v3.ScriptPurpose.Proposing(index, proposal)
-            case v3.ScriptInfo.VotingScript(voter) =>
-                v3.ScriptPurpose.Voting(voter)
-    }
-
-    def getScriptInfoV3(tx: Transaction, redeemer: Redeemer): v3.ScriptInfo = {
         val inputs = tx.getBody.getInputs
         val mint = tx.getBody.getMint
         val certificates = tx.getBody.getCerts
@@ -715,20 +700,17 @@ object Interop {
                 val ins = inputs.asScala.sorted
                 if ins.isDefinedAt(index) then
                     val input = ins(index)
-                    v3.ScriptInfo.SpendingScript(
-                      getTxOutRefV3(input),
-                      Maybe.Nothing
-                    ) // FIXME: Implement this
+                    v3.ScriptPurpose.Spending(getTxOutRefV3(input))
                 else throw new IllegalStateException(s"Input not found: $index in $inputs")
             case RedeemerTag.Mint =>
                 val policyIds = mint.asScala.map(_.getPolicyId).sorted
                 if policyIds.isDefinedAt(index) then
-                    v3.ScriptInfo.MintingScript(ByteString.fromHex(policyIds(index)))
+                    v3.ScriptPurpose.Minting(ByteString.fromHex(policyIds(index)))
                 else throw new IllegalStateException(s"Wrong mint index: $index in $mint")
             case RedeemerTag.Cert =>
                 val certs = certificates.asScala
                 if certs.isDefinedAt(index) then
-                    v3.ScriptInfo.CertifyingScript(index, getTxCertV3(certs(index)))
+                    v3.ScriptPurpose.Certifying(index, getTxCertV3(certs(index)))
                 else throw new IllegalStateException(s"Wrong cert index: $index in $certificates")
             case RedeemerTag.Reward =>
                 val rewardAccounts = withdrawals.asScala
@@ -738,7 +720,7 @@ object Interop {
                     val address = rewardAccounts(index)
                     if address.getAddressType == AddressType.Reward then
                         val cred = getCredential(address.getDelegationCredential.get)
-                        v3.ScriptInfo.RewardingScript(cred)
+                        v3.ScriptPurpose.Rewarding(cred)
                     else
                         throw new IllegalStateException(
                           s"Wrong reward address type: $address in $withdrawals"
@@ -748,11 +730,35 @@ object Interop {
             case RedeemerTag.Proposing =>
                 val proposals = certificates.asScala.collect { case p: ProposalProcedure => p }
                 if proposals.isDefinedAt(index) then
-                    v3.ScriptInfo.ProposingScript(index, getProposalProcedureV3(proposals(index)))
+                    v3.ScriptPurpose.Proposing(index, getProposalProcedureV3(proposals(index)))
                 else
                     throw new IllegalStateException(
                       s"Wrong proposal index: $index in $certificates"
                     )
+            case RedeemerTag.Voting =>
+                val voting = tx.getBody.getVotingProcedures.getVoting.asScala.toSeq.sortBy(_._1)
+                if voting.isDefinedAt(index) then
+                    v3.ScriptPurpose.Voting(getVoterV3(voting(index)._1))
+                else
+                    throw new IllegalStateException(
+                      s"Wrong voter index: $index in $certificates"
+                    )
+    }
+
+    def getScriptInfoV3(tx: Transaction, redeemer: Redeemer, datum: Option[Data]): v3.ScriptInfo = {
+        getScriptPurposeV3(tx, redeemer) match
+            case v3.ScriptPurpose.Spending(ref) =>
+                v3.ScriptInfo.SpendingScript(ref, prelude.Maybe.fromOption(datum))
+            case v3.ScriptPurpose.Minting(policyId) =>
+                v3.ScriptInfo.MintingScript(policyId)
+            case v3.ScriptPurpose.Certifying(index, cert) =>
+                v3.ScriptInfo.CertifyingScript(index, cert)
+            case v3.ScriptPurpose.Rewarding(cred) =>
+                v3.ScriptInfo.RewardingScript(cred)
+            case v3.ScriptPurpose.Proposing(index, proposal) =>
+                v3.ScriptInfo.ProposingScript(index, proposal)
+            case v3.ScriptPurpose.Voting(voter) =>
+                v3.ScriptInfo.VotingScript(voter)
     }
 
     def getScriptContextV2(
@@ -830,22 +836,20 @@ object Interop {
 
     def getVoterV3(voter: Voter): v3.Voter = {
         voter.getType match
-            case VoterType.CONSTITUTIONAL_COMMITTEE_HOT_KEY_HASH =>
+            case VoterType.CONSTITUTIONAL_COMMITTEE_HOT_KEY_HASH |
+                VoterType.CONSTITUTIONAL_COMMITTEE_HOT_SCRIPT_HASH =>
                 v3.Voter.CommitteeVoter(getCredential(voter.getCredential))
-            case VoterType.CONSTITUTIONAL_COMMITTEE_HOT_SCRIPT_HASH =>
-                v3.Voter.CommitteeVoter(getCredential(voter.getCredential))
-            case VoterType.DREP_KEY_HASH =>
-                v3.Voter.DRepVoter(getCredential(voter.getCredential))
-            case VoterType.DREP_SCRIPT_HASH =>
+            case VoterType.DREP_KEY_HASH | VoterType.DREP_SCRIPT_HASH =>
                 v3.Voter.DRepVoter(getCredential(voter.getCredential))
             case VoterType.STAKING_POOL_KEY_HASH =>
-                val v1.Credential.PubKeyCredential(pkh) = getCredential(
-                  voter.getCredential
-                ): @unchecked
-                v3.Voter.StakePoolVoter(pkh)
+                v3.Voter.StakePoolVoter(
+                  v1.PubKeyHash(ByteString.fromArray(voter.getCredential.getBytes))
+                )
     }
 
-    def getVotingProcedures(voting: VotingProcedures) = {
+    def getVotingProcedures(
+        voting: VotingProcedures
+    ): AssocMap[v3.Voter, AssocMap[GovernanceActionId, v3.Vote]] = {
         AssocMap(
           prelude.List.from(
             voting.getVoting.asScala.toSeq
@@ -938,5 +942,4 @@ object Interop {
               else prelude.Maybe.Nothing
         )
     }
-
 }
