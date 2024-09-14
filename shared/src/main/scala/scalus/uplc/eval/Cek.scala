@@ -60,9 +60,9 @@ object CekMachineCosts {
             val cpu = s"${key}-exBudgetCPU"
             val memory = s"${key}-exBudgetMemory"
             ExBudget.fromCpuAndMemory(
-              cpu = map.getOrElse(cpu, throw new IllegalArgumentException(s"Missing key: $cpu")),
+              cpu = map.getOrElse(cpu, throw new IllegalArgumentException(s"Missing key: $cpu in $map")),
               memory =
-                  map.getOrElse(memory, throw new IllegalArgumentException(s"Missing key: $memory"))
+                  map.getOrElse(memory, throw new IllegalArgumentException(s"Missing key: $memory in $map"))
             )
         }
 

@@ -198,6 +198,9 @@ class ScalusTransactionEvaluator(
             if witnessSet.getPlutusV2Scripts == null then
                 witnessSet.setPlutusV2Scripts(new util.ArrayList)
 
+            if witnessSet.getPlutusV3Scripts == null then
+                witnessSet.setPlutusV3Scripts(new util.ArrayList)
+
             if witnessSet.getPlutusDataList == null then
                 witnessSet.setPlutusDataList(new util.ArrayList)
 
@@ -205,6 +208,7 @@ class ScalusTransactionEvaluator(
             val resolvedUtxos =
                 val witnessScripts = transaction.getWitnessSet.getPlutusV1Scripts.asScala
                     ++ transaction.getWitnessSet.getPlutusV2Scripts.asScala
+                    ++ transaction.getWitnessSet.getPlutusV3Scripts.asScala
                     ++ transaction.getWitnessSet.getNativeScripts.asScala
 
                 for s <- witnessScripts do scripts.put(Utils.bytesToHex(s.getScriptHash), s)

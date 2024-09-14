@@ -119,34 +119,34 @@ object Interop {
             listData(builtin.List(x.getMem.toData, x.getSteps.toData))
 
         (x: ProtocolParamUpdate) => {
-                val params = mutable.ArrayBuffer.empty[Pair[Data, Data]]
-                def add[A: ToData](idx: Int, value: A): Unit =
-                    if value != null then params.append(Pair(iData(idx), value.toData))
+            val params = mutable.ArrayBuffer.empty[Pair[Data, Data]]
+            def add[A: ToData](idx: Int, value: A): Unit =
+                if value != null then params.append(Pair(iData(idx), value.toData))
 
-                add(0, x.getMinFeeA)
-                add(1, x.getMinFeeB)
-                add(2, x.getMaxBlockSize)
-                add(3, x.getMaxTxSize)
-                add(4, x.getMaxBlockHeaderSize)
-                add(5, x.getKeyDeposit)
-                add(6, x.getPoolDeposit)
-                add(7, x.getMaxEpoch)
-                add(8, x.getNOpt)
-                add(9, x.getPoolPledgeInfluence)
-                add(10, x.getExpansionRate)
-                add(11, x.getTreasuryGrowthRate)
-                add(16, x.getMinPoolCost)
-                add(17, x.getAdaPerUtxoByte)
-                // FIXME: implement 18 x.getCostModels
-                add(19, x.getExecutionCosts)
-                add(20, x.getMaxTxExUnits)
-                add(21, x.getMaxBlockExUnits)
-                add(22, x.getMaxValSize)
-                add(23, x.getCollateralPercent)
-                add(24, x.getMaxCollateralInputs)
-                // FIXME: add missing fields when they are implemented in the client lib
-                mapData(builtin.List.from(params))
-            }
+            add(0, x.getMinFeeA)
+            add(1, x.getMinFeeB)
+            add(2, x.getMaxBlockSize)
+            add(3, x.getMaxTxSize)
+            add(4, x.getMaxBlockHeaderSize)
+            add(5, x.getKeyDeposit)
+            add(6, x.getPoolDeposit)
+            add(7, x.getMaxEpoch)
+            add(8, x.getNOpt)
+            add(9, x.getPoolPledgeInfluence)
+            add(10, x.getExpansionRate)
+            add(11, x.getTreasuryGrowthRate)
+            add(16, x.getMinPoolCost)
+            add(17, x.getAdaPerUtxoByte)
+            // FIXME: implement 18 x.getCostModels
+            add(19, x.getExecutionCosts)
+            add(20, x.getMaxTxExUnits)
+            add(21, x.getMaxBlockExUnits)
+            add(22, x.getMaxValSize)
+            add(23, x.getCollateralPercent)
+            add(24, x.getMaxCollateralInputs)
+            // FIXME: add missing fields when they are implemented in the client lib
+            mapData(builtin.List.from(params))
+        }
 
     /// Helper for null check
     extension [A](inline a: A) inline infix def ??(b: A): A = if a != null then a else b
@@ -925,6 +925,7 @@ object Interop {
     def getVotingProcedures(
         voting: VotingProcedures
     ): AssocMap[v3.Voter, AssocMap[GovernanceActionId, v3.Vote]] = {
+        if voting == null then return AssocMap.empty
         AssocMap(
           prelude.List.from(
             voting.getVoting.asScala.toSeq

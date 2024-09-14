@@ -253,7 +253,10 @@ class TxEvaluator(
             val policyId = ByteString.fromHex(mint.getPolicyId)
             needed += policyId
 
-        for voter <- txb.getVotingProcedures.getVoting.keySet.asScala do
+        for
+            vp <- Option(txb.getVotingProcedures)
+            voter <- vp.getVoting.keySet.asScala
+        do
             val v = Interop.getVoterV3(voter)
             v match
                 case v3.Voter.CommitteeVoter(v1.Credential.ScriptCredential(hash)) =>
@@ -263,7 +266,10 @@ class TxEvaluator(
                 case v3.Voter.StakePoolVoter(pubKeyHash) => // no script needed
                     ()
 
-        for propose <- txb.getProposalProcedures.asScala do
+        for
+            proposals <- Option(txb.getProposalProcedures)
+            propose <- proposals.asScala
+        do
             getProposalScriptHash(propose).foreach: hash =>
                 needed += hash
         needed.toSeq
@@ -276,6 +282,7 @@ class TxEvaluator(
                 constitutionScript.toOption
             case v3.GovernanceAction.TreasuryWithdrawals(_, constitutionScript) =>
                 constitutionScript.toOption
+            case _ => None
     }
 
     private def getCertScript(cert: Certificate): Option[ScriptHash] = {
@@ -380,11 +387,11 @@ class TxEvaluator(
                         script -> datum
                     else throw new IllegalStateException(s"Input not found: $index in $inputs")
                 case RedeemerTag.Mint =>
-                    val minted = getMintValue(tx.getBody.getMint).inner.toList
+                    val minted = (tx.getBody.getMint ?? util.List.of()).asScala.map(_.getPolicyId).sorted
                     if minted.isDefinedAt(index) then
-                        val (policyId, _) = minted(index)
+                        val policyId = minted(index)
                         val script = lookupTable.scripts.getOrElse(
-                          policyId,
+                          ByteString.fromHex(policyId),
                           throw new IllegalStateException(s"Script not found: $policyId")
                         )
                         script -> None

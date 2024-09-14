@@ -118,7 +118,6 @@ class TxEvaluatorSpec extends AnyFunSuite:
                 .cborHex(pubKeyValidator.doubleCborHex)
                 .build()
                 .asInstanceOf[PlutusV3Script]
-        println(Utils.bytesToHex(s.getScriptHash))
         val pubKeyScriptAddress = AddressProvider.getEntAddress(s, Networks.testnet())
         val input = TransactionInput.builder().transactionId("deadbeef").index(0).build()
         val inputs = util.List.of(input)
@@ -167,6 +166,6 @@ class TxEvaluatorSpec extends AnyFunSuite:
         val redeemers = evaluator.evaluateTx(tx, utxo)
         assert(redeemers.size == 1)
         val redeemerResult = redeemers.head
-        assert(redeemerResult.getExUnits.getMem.longValue == 13375L)
-        assert(redeemerResult.getExUnits.getSteps.longValue == 4733088L)
+        assert(redeemerResult.getExUnits.getMem.longValue == 12775L)
+        assert(redeemerResult.getExUnits.getSteps.longValue == 4595088L)
     }
