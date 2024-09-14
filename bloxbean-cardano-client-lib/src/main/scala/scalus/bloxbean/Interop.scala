@@ -6,6 +6,8 @@ import com.bloxbean.cardano.client.address.Credential
 import com.bloxbean.cardano.client.address.CredentialType
 import com.bloxbean.cardano.client.crypto.Blake2bUtil.blake2bHash224
 import com.bloxbean.cardano.client.plutus.spec.*
+import com.bloxbean.cardano.client.spec.Rational
+import com.bloxbean.cardano.client.spec.UnitInterval
 import com.bloxbean.cardano.client.transaction.spec.*
 import com.bloxbean.cardano.client.transaction.spec.cert.*
 import com.bloxbean.cardano.client.transaction.spec.governance.DRep
@@ -27,9 +29,14 @@ import com.bloxbean.cardano.client.transaction.spec.governance.actions.TreasuryW
 import com.bloxbean.cardano.client.transaction.spec.governance.actions.UpdateCommittee
 import com.bloxbean.cardano.client.transaction.util.TransactionUtil
 import io.bullet.borer.Cbor
+import scalus.builtin
 import scalus.builtin.ByteString
 import scalus.builtin.given
+import scalus.builtin.Builtins.*
 import scalus.builtin.Data
+import scalus.builtin.Data.ToData
+import scalus.builtin.Data.toData
+import scalus.builtin.Pair
 import scalus.ledger
 import scalus.ledger.api
 import scalus.ledger.api.PlutusLedgerLanguage
@@ -53,7 +60,6 @@ import scalus.uplc.eval.*
 
 import java.math.BigInteger
 import java.util
-import java.util
 import scala.collection.mutable
 import scala.jdk.CollectionConverters.*
 import scala.math.BigInt
@@ -76,19 +82,6 @@ given Ordering[Redeemer] with
             case 0 => x.getIndex.compareTo(y.getIndex)
             case c => -c // reverse order, I'm not sure why
 
-enum ExecutionPurpose:
-    def scriptHash: ByteString
-    case WithDatum(
-        scriptVersion: ScriptVersion,
-        scriptHash: ByteString,
-        datum: Data
-    )
-
-    case NoDatum(
-        scriptVersion: ScriptVersion,
-        scriptHash: ByteString
-    )
-
 case class ScriptInfo(hash: ByteString, scriptVersion: ScriptVersion)
 
 /** Interoperability between Cardano Client Lib and Scalus */
@@ -110,6 +103,51 @@ object Interop {
                 case 0 => x.getGovActionIndex.compareTo(y.getGovActionIndex)
                 case c => c
     }
+
+    given ToData[BigInteger] = (x: BigInteger) => iData(x)
+    given ToData[Integer] = (x: Integer) => iData(BigInt(x))
+    given ToData[java.lang.Long] = (x: java.lang.Long) => iData(BigInt(x))
+
+    given ToData[ProtocolParamUpdate] =
+        given ToData[Rational] = (x: Rational) =>
+            listData(builtin.List(x.getNumerator.toData, x.getDenominator.toData))
+        given ToData[UnitInterval] = (x: UnitInterval) =>
+            listData(builtin.List(x.getNumerator.toData, x.getDenominator.toData))
+        given ToData[ExUnitPrices] = (x: ExUnitPrices) =>
+            listData(builtin.List(x.getMemPrice.toData, x.getStepPrice.toData))
+        given ToData[ExUnits] = (x: ExUnits) =>
+            listData(builtin.List(x.getMem.toData, x.getSteps.toData))
+
+        (x: ProtocolParamUpdate) => {
+                val params = mutable.ArrayBuffer.empty[Pair[Data, Data]]
+                def add[A: ToData](idx: Int, value: A): Unit =
+                    if value != null then params.append(Pair(iData(idx), value.toData))
+
+                add(0, x.getMinFeeA)
+                add(1, x.getMinFeeB)
+                add(2, x.getMaxBlockSize)
+                add(3, x.getMaxTxSize)
+                add(4, x.getMaxBlockHeaderSize)
+                add(5, x.getKeyDeposit)
+                add(6, x.getPoolDeposit)
+                add(7, x.getMaxEpoch)
+                add(8, x.getNOpt)
+                add(9, x.getPoolPledgeInfluence)
+                add(10, x.getExpansionRate)
+                add(11, x.getTreasuryGrowthRate)
+                add(16, x.getMinPoolCost)
+                add(17, x.getAdaPerUtxoByte)
+                // FIXME: implement 18 x.getCostModels
+                add(19, x.getExecutionCosts)
+                add(20, x.getMaxTxExUnits)
+                add(21, x.getMaxBlockExUnits)
+                add(22, x.getMaxValSize)
+                add(23, x.getCollateralPercent)
+                add(24, x.getMaxCollateralInputs)
+                // FIXME: add missing fields when they are implemented in the client lib
+                mapData(builtin.List.from(params))
+            }
+
     /// Helper for null check
     extension [A](inline a: A) inline infix def ??(b: A): A = if a != null then a else b
 
@@ -803,7 +841,7 @@ object Interop {
                   id =
                       if a.getPrevGovActionId == null then Maybe.Nothing
                       else Maybe.Just(getGovActionId(a.getPrevGovActionId)),
-                  parameters = ???, // FIXME: a.getProtocolParamUpdate.toData,
+                  parameters = a.getProtocolParamUpdate.toData,
                   constitutionScript = Maybe(a.getPolicyHash).map(ByteString.fromArray)
                 )
             case a: TreasuryWithdrawalsAction =>
