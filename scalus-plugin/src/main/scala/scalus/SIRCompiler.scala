@@ -55,6 +55,21 @@ case class AdtTypeInfo(
                           childrenSymbols: List[Symbol]
                       )
 
+//sealed trait AdtTypeInfo
+//
+//case class AdtTypeInfoChildrenRecord(
+//    childrenTypeSymbol: Symbol,
+//    childrenTypeParams: List[Type],
+//    data
+//                            )
+
+//case class AdtHierarchyTypeInfo(
+//    dataTypeSymbol: Symbol,
+//    dataTypeParams: List[Type],
+//    childrenSymbols: List[Symbol]
+//) extends AdtTypeInfo
+
+
 case class AdtConstructorCallInfo(
     constructorTypeSymbol: Symbol,
 
@@ -273,6 +288,12 @@ final class SIRCompiler(mode: scalus.Mode)(using ctx: Context) {
         // debugInfo(s"caseFields: ${typeSymbol.fullName} $fields")
         fields
     }
+    
+    def primaryConstructorTypeParams(typeSymbol: Symbol): List[Symbol] = {
+        val fields = typeSymbol.primaryConstructor.paramSymss.flatten.filter(s => s.isType)
+        // debugInfo(s"caseFields: ${typeSymbol.fullName} $fields")
+        fields
+    }
 
     private def findAndReadModuleOfSymbol(moduleName: String): Option[Module] = {
         val filename = moduleName.replace('.', '/') + ".sir"
@@ -319,15 +340,28 @@ final class SIRCompiler(mode: scalus.Mode)(using ctx: Context) {
                 val dataTypeParams = adtCallInfo.dataInfo.dataTypeParams.map{ tp =>
                     SIRType.TypeVar(tp.typeSymbol.name.show)
                 }
+                println(s"dataTypeParams = ${dataTypeParams}")
                 val constrDecls = sortedConstructors.map { sym =>
-                    val params = primaryConstructorParams(sym).map(p => TypeBinding(p.name.show, sirTypeInEnv(p.info, srcPos, env)))
                     val typeParams = sym.typeParams.map(tp => SIRType.TypeVar(tp.name.show, Some(tp.hashCode)))
+                    val envTypeVars1 = sym.typeParams.foldLeft(env.typeVars) {
+                        case (acc, tp) =>
+                            acc + (tp -> SIRType.TypeVar(tp.name.show, Some(tp.hashCode)))
+                    }
+                    val envTypeVars2 = primaryConstructorTypeParams(sym).foldLeft(envTypeVars1) {
+                        case (acc, tp) =>
+                            acc + (tp -> SIRType.TypeVar(tp.name.show, Some(tp.hashCode)))
+                    }
+                    val nEnv = env.copy(typeVars = envTypeVars2)
+                    val params =  primaryConstructorParams(sym).map { p =>
+                        val pType = sirTypeInEnv(p.info, srcPos, nEnv)
+                        TypeBinding(p.name.show, pType)
+                    }
                     val optBaseClass = sym.info.baseClasses.find{
                         b => b.flags.is(Flags.Sealed) && b.children.contains(sym)
                     }
                     val baseTypeArgs = optBaseClass.flatMap{ bs =>
                         sym.info.baseType(bs) match
-                            case AppliedType(_, args) => Some(args.map(a => sirTypeInEnv(a, srcPos, env)))
+                            case AppliedType(_, args) => Some(args.map(a => sirTypeInEnv(a, srcPos, nEnv)))
                             case _ => None
                     }.getOrElse(Nil)
                     // TODO: add substoitution for parent type params
