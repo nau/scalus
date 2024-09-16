@@ -122,7 +122,15 @@ case class BuiltinCostModel(
 
 object BuiltinCostModel {
 
-    private inline def inlineBuiltinCostModelJson = ${ Macros.inlineBuiltinCostModelJsonImpl }
+    private inline def inlineBuiltinCostModelJson(name: String) = ${
+        Macros.inlineBuiltinCostModelJsonImpl('name)
+    }
+
+    val defaultCostModelB: BuiltinCostModel =
+        BuiltinCostModel.fromJsonString(inlineBuiltinCostModelJson("/builtinCostModelB.json"))
+
+    val defaultCostModelC: BuiltinCostModel =
+        BuiltinCostModel.fromJsonString(inlineBuiltinCostModelJson("/builtinCostModelC.json"))
 
     /** Default [[BuiltinCostModel]] taken from [Plutus builtinCostModel.json
       * file](https://github.com/input-output-hk/plutus/blob/e3de8270c3c9248f2462c6b85fe7b0b31fda6b1f/plutus-core/cost-model/data/builtinCostModel.json)
@@ -131,7 +139,7 @@ object BuiltinCostModel {
       * @return
       *   a [[BuiltinCostModel]]
       */
-    val defaultCostModel = BuiltinCostModel.fromJsonString(inlineBuiltinCostModelJson)
+    val defaultCostModel: BuiltinCostModel = defaultCostModelC
 
     given ReadWriter[BuiltinCostModel] = readwriter[ujson.Value].bimap(
       model =>
@@ -336,20 +344,38 @@ object BuiltinCostModel {
               )
             )
           ),
-          multiplyInteger = CostingFun(
-            cpu = TwoArguments.AddedSizes(
-              OneVariableLinearFunction(
-                intercept = params("multiplyInteger-cpu-arguments-intercept"),
-                slope = params("multiplyInteger-cpu-arguments-slope")
-              )
-            ),
-            memory = TwoArguments.AddedSizes(
-              OneVariableLinearFunction(
-                intercept = params("multiplyInteger-memory-arguments-intercept"),
-                slope = params("multiplyInteger-memory-arguments-slope")
-              )
-            )
-          ),
+          multiplyInteger = plutus match
+              case PlutusLedgerLanguage.PlutusV1 =>
+                  CostingFun(
+                    cpu = TwoArguments.AddedSizes(
+                      OneVariableLinearFunction(
+                        intercept = params("multiplyInteger-cpu-arguments-intercept"),
+                        slope = params("multiplyInteger-cpu-arguments-slope")
+                      )
+                    ),
+                    memory = TwoArguments.AddedSizes(
+                      OneVariableLinearFunction(
+                        intercept = params("multiplyInteger-memory-arguments-intercept"),
+                        slope = params("multiplyInteger-memory-arguments-slope")
+                      )
+                    )
+                  )
+              case PlutusLedgerLanguage.PlutusV2 | PlutusLedgerLanguage.PlutusV3 =>
+                  CostingFun(
+                    cpu = TwoArguments.MultipliedSizes(
+                      OneVariableLinearFunction(
+                        intercept = params("multiplyInteger-cpu-arguments-intercept"),
+                        slope = params("multiplyInteger-cpu-arguments-slope")
+                      )
+                    ),
+                    memory = TwoArguments.AddedSizes(
+                      OneVariableLinearFunction(
+                        intercept = params("multiplyInteger-memory-arguments-intercept"),
+                        slope = params("multiplyInteger-memory-arguments-slope")
+                      )
+                    )
+                  )
+          ,
           divideInteger = plutus match
               case PlutusLedgerLanguage.PlutusV1 | PlutusLedgerLanguage.PlutusV2 =>
                   CostingFun(

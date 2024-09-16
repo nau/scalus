@@ -174,7 +174,8 @@ lazy val examples = project
       PluginDependency,
       scalacOptions ++= commonScalacOptions,
       publish / skip := true,
-      libraryDependencies += "com.bloxbean.cardano" % "cardano-client-backend-blockfrost" % "0.6.0-beta1"
+      libraryDependencies += "com.bloxbean.cardano" % "cardano-client-backend-blockfrost" % "0.6.0"
+      libraryDependencies += "com.bloxbean.cardano" % "cardano-client-backend-blockfrost" % "0.6.0"
     )
 
 lazy val `examples-js` = project
@@ -199,12 +200,12 @@ lazy val `scalus-bloxbean-cardano-client-lib` = project
     .settings(
       publish / skip := false,
       scalacOptions ++= commonScalacOptions,
-      libraryDependencies += "com.bloxbean.cardano" % "cardano-client-lib" % "0.6.0-beta1",
+      libraryDependencies += "com.bloxbean.cardano" % "cardano-client-lib" % "0.6.0",
       libraryDependencies += "org.slf4j" % "slf4j-api" % "2.0.13",
       libraryDependencies += "org.slf4j" % "slf4j-simple" % "2.0.16" % "test",
       libraryDependencies += "org.scalatest" %%% "scalatest" % "3.2.19" % "test",
-      libraryDependencies += "com.bloxbean.cardano" % "cardano-client-backend-blockfrost" % "0.5.1" % "test",
-      libraryDependencies += "com.bloxbean.cardano" % "yaci" % "0.3.0-beta14" % "test",
+      libraryDependencies += "com.bloxbean.cardano" % "cardano-client-backend-blockfrost" % "0.6.0" % "test",
+      libraryDependencies += "com.bloxbean.cardano" % "yaci" % "0.3.0-beta15" % "test",
       Test / fork := true, // needed for BlocksValidation to run in sbt
       inConfig(Test)(PluginDependency)
     )

@@ -1,5 +1,24 @@
 package scalus.ledger.api
 
+enum BuiltinSemanticsVariant:
+    case A, B, C
+
+object BuiltinSemanticsVariant:
+    def fromProtocolAndPlutusVersion(
+        protocolVersion: ProtocolVersion,
+        plutusLedgerLanguage: PlutusLedgerLanguage
+    ): BuiltinSemanticsVariant =
+        (protocolVersion, plutusLedgerLanguage) match
+            case (pv, PlutusLedgerLanguage.PlutusV1 | PlutusLedgerLanguage.PlutusV2) =>
+                if pv < ProtocolVersion.conwayPV then BuiltinSemanticsVariant.A
+                else BuiltinSemanticsVariant.B
+            case (pv, PlutusLedgerLanguage.PlutusV3) if pv >= ProtocolVersion.conwayPV =>
+                BuiltinSemanticsVariant.C
+            case _ =>
+                throw new IllegalArgumentException(
+                  s"Unsupported protocol version and Plutus language combination $protocolVersion $plutusLedgerLanguage"
+                )
+
 enum PlutusLedgerLanguage extends java.lang.Enum[PlutusLedgerLanguage]:
     case PlutusV1, PlutusV2, PlutusV3
 
