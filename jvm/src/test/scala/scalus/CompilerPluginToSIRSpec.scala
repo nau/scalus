@@ -1264,6 +1264,6 @@ class CompilerPluginToSIRSpec extends AnyFunSuite with ScalaCheckPropertyChecks:
         VM.evaluateDebug(term) match
             case Result.Success(evaled, _, _, logs) =>
                 assert(evaled == scalus.uplc.Term.Const(Constant.Bool(false)))
-                assert(logs == List("oneEqualsTwo ? False: { mem: 0.002334, cpu: 0.693980 }"))
+                assert(logs == List("oneEqualsTwo ? False: { mem: 0.002334, cpu: 0.539980 }"))
             case Result.Failure(exception, _, _, _) => fail(exception)
     }

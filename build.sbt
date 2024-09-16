@@ -175,7 +175,6 @@ lazy val examples = project
       scalacOptions ++= commonScalacOptions,
       publish / skip := true,
       libraryDependencies += "com.bloxbean.cardano" % "cardano-client-backend-blockfrost" % "0.6.0"
-      libraryDependencies += "com.bloxbean.cardano" % "cardano-client-backend-blockfrost" % "0.6.0"
     )
 
 lazy val `examples-js` = project
