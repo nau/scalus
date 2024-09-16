@@ -7,6 +7,8 @@ import com.bloxbean.cardano.client.common.ADAConversionUtil
 import com.bloxbean.cardano.client.common.model.Networks
 import com.bloxbean.cardano.client.plutus.spec.*
 import com.bloxbean.cardano.client.transaction.spec.*
+import com.bloxbean.cardano.yaci.core.model.serializers.util.WitnessUtil.getArrayBytes
+import io.bullet.borer.Cbor
 import org.scalatest.funsuite.AnyFunSuite
 import scalus.*
 import scalus.Compiler.compile

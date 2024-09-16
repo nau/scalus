@@ -103,6 +103,7 @@ class TxEvaluator(
     val mode: EvaluatorMode = EvaluatorMode.EVALUATE_AND_COMPUTE_COST,
     val debugDumpFilesForTesting: Boolean = false
 ) {
+    import TxEvaluator.*
     private val log = LoggerFactory.getLogger(getClass.getName)
 
     /** Phase 2 validation and execution of the transaction
@@ -133,7 +134,7 @@ class TxEvaluator(
     ): collection.Seq[Redeemer] = {
         assert(
           transaction.getWitnessSet.getPlutusDataList.size == datums.size,
-          "Datum size mismatch"
+          s"Datum size mismatch, expected: ${transaction.getWitnessSet.getPlutusDataList.size}, actual: ${datums.size}"
         )
 
         // For debugging, store ins and outs in cbor format
@@ -159,188 +160,6 @@ class TxEvaluator(
 
         Files.write(Path.of("ins.cbor"), CborSerializationUtil.serialize(ins));
         Files.write(Path.of("outs.cbor"), CborSerializationUtil.serialize(outs));
-    }
-
-    private type ScriptHash = ByteString
-    private type Hash = ByteString
-    private case class LookupTable(
-        scripts: collection.Map[ScriptHash, ScriptVersion],
-        datums: collection.Map[Hash, Data]
-    )
-
-    private def getScriptAndDatumLookupTable(
-        tx: Transaction,
-        datums: collection.Seq[(ByteString, Data)],
-        utxos: Map[TransactionInput, TransactionOutput]
-    ): LookupTable = {
-        val scripts = {
-            def decodeToFlat(script: PlutusScript) =
-                // unwrap the outer CBOR encoding
-                val decoded = Cbor.decode(Hex.hexToBytes(script.getCborHex)).to[Array[Byte]].value
-                // and decode the inner CBOR encoding. Don't ask me why.
-                ByteString.fromArray(Cbor.decode(decoded).to[Array[Byte]].value)
-
-            val native = tx.getWitnessSet.getNativeScripts.asScala
-                .map: script =>
-                    ByteString.fromArray(script.getScriptHash) -> ScriptVersion.Native
-
-            val v1 = tx.getWitnessSet.getPlutusV1Scripts.asScala
-                .map: script =>
-                    val flatScript = decodeToFlat(script)
-                    ByteString.fromArray(script.getScriptHash) -> ScriptVersion.PlutusV1(flatScript)
-            val v2 = tx.getWitnessSet.getPlutusV2Scripts.asScala
-                .map: script =>
-                    val flatScript = decodeToFlat(script)
-                    ByteString.fromArray(script.getScriptHash) -> ScriptVersion.PlutusV2(flatScript)
-            val v3 = tx.getWitnessSet.getPlutusV3Scripts.asScala
-                .map: script =>
-                    val flatScript = decodeToFlat(script)
-                    ByteString.fromArray(script.getScriptHash) -> ScriptVersion.PlutusV3(flatScript)
-            native ++ v1 ++ v2 ++ v3
-        }
-
-        val referenceScripts = ArrayBuffer.empty[(ScriptHash, ScriptVersion)]
-        for output <- utxos.values do
-            if output.getScriptRef != null then
-                val scriptInfo = Interop.getScriptInfoFromScriptRef(output.getScriptRef)
-                referenceScripts += scriptInfo.hash -> scriptInfo.scriptVersion
-
-        val allScripts = (scripts ++ referenceScripts).toMap
-        LookupTable(allScripts, datums.toMap)
-    }
-
-    private def evalPhaseOne(
-        tx: Transaction,
-        utxos: Map[TransactionInput, TransactionOutput],
-        lookupTable: LookupTable
-    ): Unit = {
-        val scripts = scriptsNeeded(tx, utxos)
-        validateMissingScripts(scripts, lookupTable.scripts)
-        verifyExactSetOfRedeemers(tx, scripts, lookupTable.scripts)
-    }
-
-    private type AlonzoScriptsNeeded = immutable.Seq[ScriptHash]
-
-    private def scriptsNeeded(
-        tx: Transaction,
-        utxos: Map[TransactionInput, TransactionOutput]
-    ): AlonzoScriptsNeeded = {
-        val needed = ArrayBuffer.empty[ScriptHash]
-        val txb = tx.getBody
-
-        for input <- txb.getInputs.asScala do
-            val output = utxos.getOrElse(input, throw new IllegalStateException("Input not found"))
-            val address = Address(output.getAddress)
-
-            // if we spend a script output, we need the script
-            if address.getPaymentCredential.get.getType == CredentialType.Script then
-                needed += ByteString.fromArray(address.getPaymentCredentialHash.orElseThrow())
-
-        for withdrawal <- txb.getWithdrawals.asScala do
-            val address = Address(withdrawal.getRewardAddress)
-            if address.getAddressType == AddressType.Reward then
-                getCredential(address.getDelegationCredential.get) match
-                    case api.v1.Credential.ScriptCredential(hash) =>
-                        needed += hash
-                    case _ =>
-
-        for cert <- txb.getCerts.asScala do
-            val maybeHash = getCertScript(cert)
-            maybeHash.foreach: hash =>
-                needed += hash
-
-        for mint <- txb.getMint.asScala do
-            val policyId = ByteString.fromHex(mint.getPolicyId)
-            needed += policyId
-
-        for
-            vp <- Option(txb.getVotingProcedures)
-            voter <- vp.getVoting.keySet.asScala
-        do
-            val v = Interop.getVoterV3(voter)
-            v match
-                case v3.Voter.CommitteeVoter(v1.Credential.ScriptCredential(hash)) =>
-                    needed += hash
-                case v3.Voter.DRepVoter(v1.Credential.ScriptCredential(hash)) =>
-                    needed += hash
-                case v3.Voter.StakePoolVoter(pubKeyHash) => // no script needed
-                    ()
-
-        for
-            proposals <- Option(txb.getProposalProcedures)
-            propose <- proposals.asScala
-        do
-            getProposalScriptHash(propose).foreach: hash =>
-                needed += hash
-        needed.toSeq
-    }
-
-    private def getProposalScriptHash(propose: ProposalProcedure): Option[ScriptHash] = {
-        val procedure = Interop.getProposalProcedureV3(propose)
-        procedure.governanceAction match
-            case v3.GovernanceAction.ParameterChange(_, _, constitutionScript) =>
-                constitutionScript.toOption
-            case v3.GovernanceAction.TreasuryWithdrawals(_, constitutionScript) =>
-                constitutionScript.toOption
-            case _ => None
-    }
-
-    private def getCertScript(cert: Certificate): Option[ScriptHash] = {
-        cert match
-            case c: UnregCert               => credScriptHash(c.getStakeCredential)
-            case c: StakeDelegation         => credScriptHash(c.getStakeCredential)
-            case c: StakeDeregistration     => credScriptHash(c.getStakeCredential)
-            case c: StakeRegDelegCert       => credScriptHash(c.getStakeCredential)
-            case c: StakeVoteDelegCert      => credScriptHash(c.getStakeCredential)
-            case c: StakeVoteRegDelegCert   => credScriptHash(c.getStakeCredential)
-            case c: VoteDelegCert           => credScriptHash(c.getStakeCredential)
-            case c: VoteRegDelegCert        => credScriptHash(c.getStakeCredential)
-            case c: AuthCommitteeHotCert    => credScriptHash(c.getCommitteeColdCredential)
-            case c: ResignCommitteeColdCert => credScriptHash(c.getCommitteeColdCredential)
-            case c: RegDRepCert             => credScriptHash(c.getDrepCredential)
-            case c: UnregDRepCert           => credScriptHash(c.getDrepCredential)
-            case c: UpdateDRepCert          => credScriptHash(c.getDrepCredential)
-            case _                          => None
-    }
-
-    private def credScriptHash(cred: Credential): Option[ScriptHash] = {
-        cred.getType match
-            case CredentialType.Key    => None
-            case CredentialType.Script => Some(ByteString.fromArray(cred.getBytes))
-    }
-
-    private def credScriptHash(cred: StakeCredential): Option[ScriptHash] = {
-        cred.getType match
-            case StakeCredType.ADDR_KEYHASH => None
-            case StakeCredType.SCRIPTHASH   => Some(ByteString.fromArray(cred.getHash))
-    }
-
-    private def validateMissingScripts(
-        scripts: AlonzoScriptsNeeded,
-        txScripts: collection.Map[ScriptHash, ScriptVersion]
-    ): Unit = {
-        val received = txScripts.keySet
-        val needed = scripts.toSet
-        val missing = needed.diff(received)
-        if missing.nonEmpty then throw new IllegalStateException(s"Missing scripts: $missing")
-    }
-
-    private def verifyExactSetOfRedeemers(
-        @unused tx: Transaction,
-        @unused scripts: AlonzoScriptsNeeded,
-        @unused txScripts: collection.Map[ScriptHash, ScriptVersion]
-    ): Unit = {
-        // FIXME: implement
-    }
-
-    /// builds a redeemer pointer (tag, index) from a script purpose by setting the tag
-    /// according to the type of the script purpose, and the index according to the
-    /// placement of script purpose inside its container.
-    private def buildRedeemerPtr(
-        tx: Transaction,
-        purpose: v1.ScriptPurpose
-    ): Option[Redeemer] = {
-        ??? // FIXME: implement
     }
 
     private def evalRedeemer(
@@ -387,7 +206,8 @@ class TxEvaluator(
                         script -> datum
                     else throw new IllegalStateException(s"Input not found: $index in $inputs")
                 case RedeemerTag.Mint =>
-                    val minted = (tx.getBody.getMint ?? util.List.of()).asScala.map(_.getPolicyId).sorted
+                    val minted =
+                        (tx.getBody.getMint ?? util.List.of()).asScala.map(_.getPolicyId).sorted
                     if minted.isDefinedAt(index) then
                         val policyId = minted(index)
                         val script = lookupTable.scripts.getOrElse(
@@ -676,4 +496,196 @@ class TxEvaluator(
         }
     }
 
+}
+
+object TxEvaluator {
+    type ScriptHash = ByteString
+    type Hash = ByteString
+
+    case class LookupTable(
+        scripts: collection.Map[ScriptHash, ScriptVersion],
+        datums: collection.Map[Hash, Data]
+    )
+
+    def getAllResolvedScripts(
+        tx: Transaction,
+        utxos: Map[TransactionInput, TransactionOutput]
+    ): Map[ScriptHash, ScriptVersion] = {
+        val scripts =
+            def decodeToFlat(script: PlutusScript) =
+                // unwrap the outer CBOR encoding
+                val decoded = Cbor.decode(Hex.hexToBytes(script.getCborHex)).to[Array[Byte]].value
+                // and decode the inner CBOR encoding. Don't ask me why.
+                ByteString.fromArray(Cbor.decode(decoded).to[Array[Byte]].value)
+
+            val native = tx.getWitnessSet.getNativeScripts.asScala
+                .map: script =>
+                    ByteString.fromArray(script.getScriptHash) -> ScriptVersion.Native
+
+            val v1 = tx.getWitnessSet.getPlutusV1Scripts.asScala
+                .map: script =>
+                    val flatScript = decodeToFlat(script)
+                    ByteString.fromArray(script.getScriptHash) -> ScriptVersion.PlutusV1(flatScript)
+            val v2 = tx.getWitnessSet.getPlutusV2Scripts.asScala
+                .map: script =>
+                    val flatScript = decodeToFlat(script)
+                    ByteString.fromArray(script.getScriptHash) -> ScriptVersion.PlutusV2(flatScript)
+            val v3 = tx.getWitnessSet.getPlutusV3Scripts.asScala
+                .map: script =>
+                    val flatScript = decodeToFlat(script)
+                    ByteString.fromArray(script.getScriptHash) -> ScriptVersion.PlutusV3(flatScript)
+            native ++ v1 ++ v2 ++ v3
+
+        val referenceScripts = ArrayBuffer.empty[(ScriptHash, ScriptVersion)]
+
+        for output <- utxos.values do
+            if output.getScriptRef != null then
+                val scriptInfo = Interop.getScriptInfoFromScriptRef(output.getScriptRef)
+                referenceScripts += scriptInfo.hash -> scriptInfo.scriptVersion
+
+        (scripts ++ referenceScripts).toMap
+    }
+
+    private def getScriptAndDatumLookupTable(
+        tx: Transaction,
+        datums: collection.Seq[(ByteString, Data)],
+        utxos: Map[TransactionInput, TransactionOutput]
+    ): LookupTable = {
+        val allScripts = getAllResolvedScripts(tx, utxos)
+        LookupTable(allScripts, datums.toMap)
+    }
+
+    private def evalPhaseOne(
+        tx: Transaction,
+        utxos: Map[TransactionInput, TransactionOutput],
+        lookupTable: LookupTable
+    ): Unit = {
+        val scripts = scriptsNeeded(tx, utxos)
+        validateMissingScripts(scripts, lookupTable.scripts)
+        verifyExactSetOfRedeemers(tx, scripts, lookupTable.scripts)
+    }
+
+    type AlonzoScriptsNeeded = immutable.Seq[ScriptHash]
+
+    def scriptsNeeded(
+        tx: Transaction,
+        utxos: Map[TransactionInput, TransactionOutput]
+    ): AlonzoScriptsNeeded = {
+        val needed = ArrayBuffer.empty[ScriptHash]
+        val txb = tx.getBody
+
+        for input <- txb.getInputs.asScala do
+            val output = utxos.getOrElse(input, throw new IllegalStateException("Input not found"))
+            val address = Address(output.getAddress)
+
+            // if we spend a script output, we need the script
+            if address.getPaymentCredential.get.getType == CredentialType.Script then
+                needed += ByteString.fromArray(address.getPaymentCredentialHash.orElseThrow())
+
+        for withdrawal <- txb.getWithdrawals.asScala do
+            val address = Address(withdrawal.getRewardAddress)
+            if address.getAddressType == AddressType.Reward then
+                getCredential(address.getDelegationCredential.get) match
+                    case api.v1.Credential.ScriptCredential(hash) =>
+                        needed += hash
+                    case _ =>
+
+        for cert <- txb.getCerts.asScala do
+            val maybeHash = getCertScript(cert)
+            maybeHash.foreach: hash =>
+                needed += hash
+
+        for mint <- txb.getMint.asScala do
+            val policyId = ByteString.fromHex(mint.getPolicyId)
+            needed += policyId
+
+        for
+            vp <- Option(txb.getVotingProcedures)
+            voter <- vp.getVoting.keySet.asScala
+        do
+            val v = Interop.getVoterV3(voter)
+            v match
+                case v3.Voter.CommitteeVoter(v1.Credential.ScriptCredential(hash)) =>
+                    needed += hash
+                case v3.Voter.DRepVoter(v1.Credential.ScriptCredential(hash)) =>
+                    needed += hash
+                case _ => // no script needed
+                    ()
+
+        for
+            proposals <- Option(txb.getProposalProcedures)
+            propose <- proposals.asScala
+        do
+            getProposalScriptHash(propose).foreach: hash =>
+                needed += hash
+        needed.toSeq
+    }
+
+    private def getProposalScriptHash(propose: ProposalProcedure): Option[ScriptHash] = {
+        val procedure = Interop.getProposalProcedureV3(propose)
+        procedure.governanceAction match
+            case v3.GovernanceAction.ParameterChange(_, _, constitutionScript) =>
+                constitutionScript.toOption
+            case v3.GovernanceAction.TreasuryWithdrawals(_, constitutionScript) =>
+                constitutionScript.toOption
+            case _ => None
+    }
+
+    private def getCertScript(cert: Certificate): Option[ScriptHash] = {
+        cert match
+            case c: UnregCert               => credScriptHash(c.getStakeCredential)
+            case c: StakeDelegation         => credScriptHash(c.getStakeCredential)
+            case c: StakeDeregistration     => credScriptHash(c.getStakeCredential)
+            case c: StakeRegDelegCert       => credScriptHash(c.getStakeCredential)
+            case c: StakeVoteDelegCert      => credScriptHash(c.getStakeCredential)
+            case c: StakeVoteRegDelegCert   => credScriptHash(c.getStakeCredential)
+            case c: VoteDelegCert           => credScriptHash(c.getStakeCredential)
+            case c: VoteRegDelegCert        => credScriptHash(c.getStakeCredential)
+            case c: AuthCommitteeHotCert    => credScriptHash(c.getCommitteeColdCredential)
+            case c: ResignCommitteeColdCert => credScriptHash(c.getCommitteeColdCredential)
+            case c: RegDRepCert             => credScriptHash(c.getDrepCredential)
+            case c: UnregDRepCert           => credScriptHash(c.getDrepCredential)
+            case c: UpdateDRepCert          => credScriptHash(c.getDrepCredential)
+            case _                          => None
+    }
+
+    private def credScriptHash(cred: Credential): Option[ScriptHash] = {
+        cred.getType match
+            case CredentialType.Key    => None
+            case CredentialType.Script => Some(ByteString.fromArray(cred.getBytes))
+    }
+
+    private def credScriptHash(cred: StakeCredential): Option[ScriptHash] = {
+        cred.getType match
+            case StakeCredType.ADDR_KEYHASH => None
+            case StakeCredType.SCRIPTHASH   => Some(ByteString.fromArray(cred.getHash))
+    }
+
+    private def validateMissingScripts(
+        scripts: AlonzoScriptsNeeded,
+        txScripts: collection.Map[ScriptHash, ScriptVersion]
+    ): Unit = {
+        val received = txScripts.keySet
+        val needed = scripts.toSet
+        val missing = needed.diff(received)
+        if missing.nonEmpty then throw new IllegalStateException(s"Missing scripts: $missing")
+    }
+
+    private def verifyExactSetOfRedeemers(
+        @unused tx: Transaction,
+        @unused scripts: AlonzoScriptsNeeded,
+        @unused txScripts: collection.Map[ScriptHash, ScriptVersion]
+    ): Unit = {
+        // FIXME: implement
+    }
+
+    /// builds a redeemer pointer (tag, index) from a script purpose by setting the tag
+    /// according to the type of the script purpose, and the index according to the
+    /// placement of script purpose inside its container.
+    private def buildRedeemerPtr(
+        tx: Transaction,
+        purpose: v1.ScriptPurpose
+    ): Option[Redeemer] = {
+        ??? // FIXME: implement
+    }
 }
