@@ -1,7 +1,7 @@
 package scalus
 
 import scala.collection.mutable.ListBuffer
-import scalus.utils.HashConsed
+import scalus.utils.HashConsedRead
 
 package object flat:
     case class Natural(n: BigInt)
@@ -316,7 +316,7 @@ package object flat:
         /** Number of already decoded bits in the current byte (0..7) */
         var usedBits: Int = 0
 
-        val hashConsed: HashConsed.Map = HashConsed.empty
+        val hashConsed: HashConsedRead.State = HashConsedRead.State.empty
 
         override def toString: String =
             s"""DecoderState(currPtr:$currPtr,usedBits:$usedBits,buffer:${buffer

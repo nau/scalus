@@ -12,7 +12,7 @@ sealed trait SIRType {
     type Carrier
 
     def show: String
-    
+
     //def recursiveHashCode(env: Map[Int, SIRType]): Int
 
 }
@@ -166,7 +166,7 @@ object SIRType {
      * @param name
      * @param id
      */
-    case class TypeVar(name: String, id: Option[Long] = None) extends SIRType {
+    case class TypeVar(name: String, optId: Option[Long] = None) extends SIRType {
 
         override def show: String = name
 
@@ -203,18 +203,18 @@ object SIRType {
     }
 
     class TypeProxy(var ref: SIRType|Null) extends SIRType {
-    
+
         override def hashCode(): Int = {
-            if (ref==null) then 
+            if (ref==null) then
                 0
-            else    
+            else
                 // do not call ref.hashCode because it will be recursively called
                 //  TODO: actually this beeak case-class contract
                 //    (equal recursive base-classes become unequal)
                 //    (maybe pass some hashcode to the constructor)
                 java.lang.System.identityHashCode(ref)
         }
-        
+
         override def show: String = {
             val internal = if (ref eq null) then "null" else java.lang.System.identityHashCode(ref).toString
             s"Proxy($internal)"
@@ -231,14 +231,14 @@ object SIRType {
             }
             proxy
         }
-        
+
         def unapply(tp: SIRType): Option[SIRType|Null] = tp match {
             case tp: TypeProxy => Some(tp.ref)
             case _ => None
         }
-        
+
     }
-    
+
     case object TypeNothing extends SIRType {
         override def show: String = "Nothing"
     }

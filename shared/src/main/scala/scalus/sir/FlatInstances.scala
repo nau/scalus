@@ -12,11 +12,29 @@ import scalus.uplc.CommonFlatInstances.given
 import scalus.builtin.Data
 import scalus.uplc.DefaultFun
 import scalus.utils.*
+import scalus.utils.HashConsedRead.Tag
 
 object FlatInstantces:
     val termTagWidth = 4
 
     final val tagDecl = 0x08
+    
+    //  Types
+    val tagPrimitiveByteString = 0x00
+    val tagPrimitiveInteger = 0x01
+    val tagPrimitiveString = 0x02
+    val tagPrimitiveBoolean = 0x03
+    val tagPrimitiveUnit = 0x04
+    val tagPrimitiveData = 0x05
+    val tagCaseClass = 0x06
+    val tagSumCaseClass = 0x07
+    val tagFun = 0x08
+    val tagTypeVar = 0x09
+    val tagTypeLambda = 0x0A
+    val tagTypeFreeUnificator = 0x0B
+    val tagTypeProxy = 0x0C
+    val tagTypeError = 0x0E
+
 
     given Flat[Data] with
         private val width = 3
@@ -80,7 +98,8 @@ object FlatInstantces:
 
 
     given flatBinding: HashConsedFlat[Binding] with
-        def bitSizeHC(a: Binding, hashConsed: HashConsed.Map): Int =
+
+        def bitSizeHC(a: Binding, hashConsed: HashConsedRead.State): Int =
             val nameSize = summon[Flat[String]].bitSize(a.name)
             val termSize = summon[HashConsedFlat[SIR]].bitSizeHC(a.value, hashConsed)
             nameSize + termSize
@@ -93,7 +112,7 @@ object FlatInstantces:
             Binding(name, term)
 
     given flatConstrDecl:  HashConsedFlat[ConstrDecl] with
-        def bitSizeHC(a: ConstrDecl, hashConsed: HashConsed.Map): Int =
+        def bitSizeHC(a: ConstrDecl, hashConsed: HashConsedRead.State): Int =
             val nameSize = summon[Flat[String]].bitSize(a.name)
             val storageTypeSize = summon[Flat[SIRVarStorage]].bitSize(a.storageType)
             val paramsSize = summon[HashConsedFlat[List[TypeBinding]]].bitSizeHC(a.params, hashConsed)
@@ -106,8 +125,6 @@ object FlatInstantces:
             summon[HashConsedFlat[List[TypeBinding]]].encodeHC(a.params, encode)
             summon[HashConsedFlat[List[SIRType.TypeVar]]].encodeHC(a.typeParams, encode)
             summon[HashConsedFlat[List[SIRType]]].encodeHC(a.parentTypeArgs, encode)
-            // TODO: chek and resolve forward references to a
-            val _ = encode.hashConsed.putRef(a)
         }
 
         def decodeHC(decode: HashConsedDecoderState): ConstrDecl = {
@@ -119,36 +136,45 @@ object FlatInstantces:
             ConstrDecl(name, storageType, params, typeParams, parentTypeArgs)
         }
 
-    given flatDataDecl: HashConsedFlat[DataDecl] with
-        def bitSizeHC(a: DataDecl, hashConsed: HashConsed.Map): Int =
-            val nameSize = summon[Flat[String]].bitSize(a.name)
-            val constrSize = HashConsedFlat.listHashConsedFlat[ConstrDecl].bitSizeHC(a.constructors, hashConsed)
-            val typeParamsSize = HashConsedFlat.listHashConsedFlat[SIRType.TypeVar].bitSizeHC(a.typeParams, hashConsed)
-            nameSize + constrSize + typeParamsSize
-        def encodeHC(a: DataDecl, encode: HashConsedEncoderState): Unit =
+
+
+    given flatDataDecl: HashConsedReferencedFlat[DataDecl] with
+        
+        def tag = HashConsedRead.tag(tagDecl)
+
+        def bitSizeHCNew(a: DataDecl, encoderState: HashConsedRead.State): Int =
+              val nameSize = summon[Flat[String]].bitSize(a.name)
+              val constrSize = HashConsedFlat.listHashConsedFlat[ConstrDecl].bitSizeHC(a.constructors, encoderState)
+              val typeParamsSize = HashConsedFlat.listHashConsedFlat[SIRType.TypeVar].bitSizeHC(a.typeParams, encoderState)
+              nameSize + constrSize + typeParamsSize
+
+        def encodeHCNew(a: DataDecl, encode: HashConsedEncoderState): Unit =
             summon[Flat[String]].encode(a.name, encode.encode)
             HashConsedFlat.listHashConsedFlat[ConstrDecl].encodeHC(a.constructors, encode)
             HashConsedFlat.listHashConsedFlat[SIRType.TypeVar].encodeHC(a.typeParams, encode)
-            encode.hashConsed.putRef(a)
-        def decodeHC(decode: HashConsedDecoderState): DataDecl =
+
+        def decodeHCNew(decode: HashConsedDecoderState): DataDecl =
             val name = summon[Flat[String]].decode(decode.decode)
             val constr = HashConsedFlat.listHashConsedFlat[ConstrDecl].decodeHC(decode)
             val typeParams = HashConsedFlat.listHashConsedFlat[SIRType.TypeVar].decodeHC(decode)
             DataDecl(name, constr, typeParams)
 
     given flatCase: HashConsedFlat[SIR.Case] with {
-        def bitSizeHC(a: SIR.Case, hashConsed: HashConsed.Map): Int =
+
+        def bitSizeHC(a: SIR.Case, hashConsed: HashConsedRead.State): Int =
             val constrSize = summon[HashConsedFlat[ConstrDecl]].bitSizeHC(a.constr, hashConsed)
             val bindings = summon[Flat[List[String]]].bitSize(a.bindings)
             val typeBindings = summon[HashConsedFlat[List[SIRType]]].bitSizeHC(a.typeBindings, hashConsed)
             val bodySize = summon[HashConsedFlat[SIR]].bitSizeHC(a.body, hashConsed)
             constrSize + bindings + typeBindings + bodySize
+
         def encodeHC(a: SIR.Case, encode: HashConsedEncoderState): Unit = {
             summon[HashConsedFlat[ConstrDecl]].encodeHC(a.constr, encode)
             summon[Flat[List[String]]].encode(a.bindings, encode.encode)
             summon[HashConsedFlat[List[SIRType]]].encodeHC(a.typeBindings, encode)
             summon[HashConsedFlat[SIRExpr]].encodeHC(a.body, encode)
         }
+
         def decodeHC(decode: HashConsedDecoderState): SIR.Case = {
             val constr = summon[HashConsedFlat[ConstrDecl]].decodeHC(decode)
             val bindings = summon[Flat[List[String]]].decode(decode.decode)
@@ -175,49 +201,30 @@ object FlatInstantces:
 
         final val tagWidth = 4
 
-        val tagPrimitiveByteString = 0x00
-        val tagPrimitiveInteger = 0x01
-        val tagPrimitiveString = 0x02
-        val tagPrimitiveBoolean = 0x03
-        val tagPrimitiveUnit = 0x04
-        val tagPrimitiveData = 0x05
-        val tagCaseClass = 0x06
-        val tagSumCaseClass = 0x07
-        val tagFun = 0x08
-        val tagTypeVar = 0x09
-        val tagTypeLambda = 0x0A
-        val tagHashConsedType = 0x0B
-        val tagHashCondedDataDecl = 0x0C
-        val tagHashCondedConstrDecl = 0x0D
-
+        
         //
 
-        override def bitSizeHC(a: SIRType, hashConsed: HashConsed.Map): Int =
+        override def bitSizeHC(a: SIRType, hashConsed: HashConsedRead.State): Int =
             a match
                 case _: SIRType.Primitive[?] => tagWidth
                 case SIRType.Data => tagWidth
-                case SIRType.CaseClass(constrDecl, typeParams) =>
-                    hashConsed.lookup(a) match
-                        case Some(ref) =>
-                            tagWidth + summon[HashConsedFlat[HashConsed.Ref]].bitSizeHC(ref, hashConsed)
-                        case None =>
-                            hashConsed.lookup(constrDecl) match
-                                case Some(ref) =>
-                                    tagWidth + summon[HashConsedFlat[HashConsed.Ref]].bitSizeHC(ref, hashConsed)
-                                case None =>
-                                    val constrSize = summon[HashConsedFlat[ConstrDecl]].bitSizeHC(constrDecl, hashConsed)
-                                    tagWidth + constrSize
-                case SIRType.SumCaseClass(dataDecl, typeParams) =>
-                    hashConsed.lookup(a) match
-                        case Some(ref) =>
-                            tagWidth + summon[Flat[HashConsed.Ref]].bitSizeHC(ref, hashConsed)
-                        case None =>
-                            hashConsed.lookup(dataDecl) match
-                                case Some(ref) =>
-                                    tagWidth + summon[Flat[HashConsed.Ref]].bitSizeHC(ref, hashConsed)
-                                case None =>
-                                    val dataDeclSize = summon[Flat[DataDecl]].bitSizeHC(dataDecl, hashConsed)
-                                    tagWidth + dataDeclSize
+                case cc: SIRType.CaseClass =>
+                    tagWidth + summon[HashConsedFlat[SIRType.CaseClass]].bitSize(cc)
+                case scc:SIRType.SumCaseClass =>
+                    tagWidth + summon[HashConsedFlat[SIRType.SumCaseClass]].bitSize(scc)
+                case SIRType.Fun(from, to) =>
+                    tagWidth + bitSizeHC(from, hashConsed) + bitSizeHC(to, hashConsed)
+                case SIRType.TypeVar(name, optId) =>
+                    tagWidth + summon[HashConsedFlat[SIRType.TypeVar]].bitSizeHC(a.asInstanceOf[SIRType.TypeVar], hashConsed)
+                case SIRType.TypeLambda(params, body) =>
+                    tagWidth + summon[HashConsedFlat[List[SIRType.TypeVar]]].bitSizeHC(params, hashConsed) +
+                        bitSizeHC(body, hashConsed)
+                case SIRType.FreeUnificator =>
+                    tagWidth
+                case SIRType.TypeProxy(id) =>
+                    ???
+
+
 
         override def encodeHC(a: SIRType, encode: HashConsedEncoderState): Unit = ???
 
@@ -227,7 +234,7 @@ object FlatInstantces:
 
     given HashConsedFlat[TypeBinding] with
 
-        override def bitSizeHC(a: TypeBinding, hashCons: HashConsed.Map): Int =
+        override def bitSizeHC(a: TypeBinding, hashCons: HashConsedRead.State): Int =
             val nameSize = summon[Flat[String]].bitSize(a.name)
             val tpSize = summon[HashConsedFlat[SIRType]].bitSizeHC(a.tp, hashCons)
             nameSize + tpSize
@@ -244,15 +251,43 @@ object FlatInstantces:
         }
 
     given HashConsedFlat[SIRType.TypeVar] with
-        override def bitSizeHC(a: SIRType.TypeVar, hashCons: HashConsed.Map): Int =
-            summon[Flat[String]].bitSize(a.name)
+
+        override def bitSizeHC(a: SIRType.TypeVar, hashCons: HashConsedRead.State): Int =
+            summon[Flat[String]].bitSize(a.name) + summon[Flat[Long]].bitSize(a.optId.getOrElse(0))
 
         override def encodeHC(a: SIRType.TypeVar, encode: HashConsedEncoderState): Unit =
             summon[Flat[String]].encode(a.name, encode.encode)
+            summon[Flat[Long]].encode(a.optId.getOrElse(0L), encode.encode)
 
         override def decodeHC(decode: HashConsedDecoderState): SIRType.TypeVar =
             val name = summon[Flat[String]].decode(decode.decode)
-            SIRType.TypeVar(name)
+            val optId = summon[Flat[Long]].decode(decode.decode) match
+                case 0 => None
+                case id => Some(id)
+            SIRType.TypeVar(name, optId)
+
+    given HashConsedReferencedFlat[SIRType.CaseClass] with
+
+        override def tag: Tag = HashConsedRead.tag(tagCaseClass)
+
+        override def bitSizeHCNew(a: SIRType.CaseClass, encode: HashConsedRead.State): Int = ???
+
+        override def encodeHCNew(a: SIRType.CaseClass, encode: HashConsedEncoderState): Unit = ???
+
+        override def decodeHCNew(decode: HashConsedDecoderState): SIRType.CaseClass = ???
+
+
+    given HashConsedReferencedFlat[SIRType.SumCaseClass] with
+        
+        override def tag: Tag = HashConsedRead.tag(tagSumCaseClass)
+
+        override def bitSizeHCNew(a: SIRType.SumCaseClass, encode: HashConsedRead.State): Int = ???
+
+        override def encodeHCNew(a: SIRType.SumCaseClass, encode: HashConsedEncoderState): Unit = ???
+
+        override def decodeHCNew(decode: HashConsedDecoderState): SIRType.SumCaseClass = ???
+
+
 
     given HashConsedFlat[SIRExpr] with
         import SIR.*
@@ -272,7 +307,7 @@ object FlatInstantces:
         final val tagOr = 0x0D
         final val tagNot = 0x0E
 
-        def bitSizeHC(a: SIRExpr, hashCons: HashConsed.Map): Int = a match
+        def bitSizeHC(a: SIRExpr, hashCons: HashConsedRead.State): Int = a match
             case Var(name, tp) =>
                 termTagWidth + summon[Flat[String]].bitSize(name)
             case ExternalVar(modName, name, tp) =>
@@ -429,7 +464,7 @@ object FlatInstantces:
 
     given HashConsedFlat[SIR.Var] with
         
-        override def bitSizeHC(a: SIR.Var, hashCons: HashConsed.Map): Int =
+        override def bitSizeHC(a: SIR.Var, hashCons: HashConsedRead.State): Int =
             val nameSize = summon[Flat[String]].bitSize(a.name)
             val tpSize = summon[HashConsedFlat[SIRType]].bitSizeHC(a.tp, hashCons)
             nameSize + tpSize
@@ -459,7 +494,7 @@ object FlatInstantces:
 
     given HashConsedFlat[SIR.Const] with
 
-        override def bitSizeHC(a: SIR.Const, hashCons: HashConsed.Map): Int =
+        override def bitSizeHC(a: SIR.Const, hashCons: HashConsedRead.State): Int =
             val constSize = flatConstant.bitSize(a.uplcConst)
             val tpSize = summon[HashConsedFlat[SIRType]].bitSizeHC(a.tp, hashCons)
             tpSize + constSize
@@ -476,7 +511,7 @@ object FlatInstantces:
 
     given HashConsedFlat[SIRDef] with
 
-        override def bitSizeHC(a: SIRDef, hashCons: HashConsed.Map): Int =
+        override def bitSizeHC(a: SIRDef, hashCons: HashConsedRead.State): Int =
             a match
                 case SIR.Decl(data, term) =>
                   termTagWidth + summon[HashConsedFlat[DataDecl]].bitSizeHC(data, hashCons) +
@@ -500,7 +535,7 @@ object FlatInstantces:
 
     given HashConsedFlat[SIR] with
 
-        override def bitSizeHC(a: SIR, hashCons: HashConsed.Map): Int =
+        override def bitSizeHC(a: SIR, hashCons: HashConsedRead.State): Int =
             a match
                 case sdf: SIRDef =>
                     summon[HashConsedFlat[SIRDef]].bitSizeHC(sdf, hashCons)
@@ -520,21 +555,9 @@ object FlatInstantces:
                 summon[HashConsedFlat[SIRDef]].decodeHC(decode)
             else summon[HashConsedFlat[SIRExpr]].decodeHC(decode)
 
-    given HashConsedFlat[HashConsed.Ref] with
-        def bitSizeHC(a: HashConsed.Ref, hashConsed: HashConsed.Map): Int =
-            summon[Flat[Int]].bitSize(a.hc)+summon[Flat[Int]].bitSize(a.i)
-
-        def encodeHC(a: HashConsed.Ref, encode: HashConsedEncoderState): Unit =
-            summon[Flat[Int]].encode(a.hc, encode.encode)
-            summon[Flat[Int]].encode(a.i, encode.encode)
-
-        def decodeHC(decoder: HashConsedDecoderState): HashConsed.Ref =
-            val hc = summon[Flat[Int]].decode(decoder.decode)
-            val i = summon[Flat[Int]].decode(decoder.decode)
-            HashConsed.Ref(hc,i)
 
     given HashConsedFlat[Module] with
-        def bitSizeHC(a: Module, hs: HashConsed.Map): Int = a match
+        def bitSizeHC(a: Module, hs: HashConsedRead.State): Int = a match
             case Module(version, defs) =>
                 summon[Flat[(Int, Int)]].bitSize(version) +
                     summon[HashConsedFlat[List[Binding]]].bitSizeHC(defs, hs)
