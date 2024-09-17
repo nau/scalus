@@ -162,6 +162,131 @@ class TxEvaluator(
         Files.write(Path.of("outs.cbor"), CborSerializationUtil.serialize(outs));
     }
 
+    private def findScript(
+        tx: Transaction,
+        redeemer: Redeemer,
+        lookupTable: LookupTable,
+        utxos: Map[TransactionInput, TransactionOutput]
+    ): (ScriptVersion, Option[Data]) = {
+        val index = redeemer.getIndex.intValue
+        val inputs = tx.getBody.getInputs
+        redeemer.getTag match
+            case RedeemerTag.Spend =>
+                val ins = inputs.asScala.sorted
+                if ins.isDefinedAt(index) then
+                    val input = ins(index)
+                    val txInInfo = getTxInInfoV2(input, utxos)
+                    val script = txInInfo.resolved.address match
+                        case v1.Address(v1.Credential.ScriptCredential(hash), _) =>
+                            val script = lookupTable.scripts.getOrElse(
+                              hash,
+                              throw new IllegalStateException(s"Script not found: $hash")
+                            )
+                            script
+                        case _ => throw new IllegalStateException(s"impossible: $input")
+
+                    val datum: Option[Data] = txInInfo.resolved.datum match
+                        case OutputDatum.NoOutputDatum => None
+                        case OutputDatum.OutputDatumHash(datumHash) =>
+                            lookupTable.datums.get(datumHash)
+                        case OutputDatum.OutputDatum(datum) => Some(datum)
+
+                    script match
+                        case ScriptVersion.PlutusV1(_) | ScriptVersion.PlutusV2(_) =>
+                            datum match
+                                case None =>
+                                    throw new IllegalStateException(
+                                      s"Missing required datum for script: $script"
+                                    )
+                                case Some(_) => ()
+                        case _ => ()
+                    script -> datum
+                else throw new IllegalStateException(s"Input not found: $index in $inputs")
+            case RedeemerTag.Mint =>
+                val minted =
+                    (tx.getBody.getMint ?? util.List.of()).asScala.map(_.getPolicyId).sorted
+                if minted.isDefinedAt(index) then
+                    val policyId = minted(index)
+                    val script = lookupTable.scripts.getOrElse(
+                      ByteString.fromHex(policyId),
+                      throw new IllegalStateException(s"Script not found: $policyId")
+                    )
+                    script -> None
+                else throw new IllegalStateException(s"Mint not found: $index in $minted")
+            case RedeemerTag.Cert =>
+                val certs = tx.getBody.getCerts.asScala
+                if certs.isDefinedAt(index) then
+                    val cert = certs(index)
+                    val script = getCertScript(cert)
+                    script match
+                        case Some(hash) =>
+                            val script = lookupTable.scripts.getOrElse(
+                              hash,
+                              throw new IllegalStateException(s"Script not found: $hash")
+                            )
+                            script -> None
+                        case None =>
+                            throw new IllegalStateException(
+                              s"Missing required script for cert: $cert"
+                            )
+                else throw new IllegalStateException(s"Cert not found: $index in $certs")
+
+            case RedeemerTag.Reward =>
+                val withdrawals = getWithdrawals(tx.getBody.getWithdrawals).toList
+                if withdrawals.isDefinedAt(index) then
+                    withdrawals(index) match
+                        case (
+                              v1.StakingCredential.StakingHash(
+                                v1.Credential.ScriptCredential(hash)
+                              ),
+                              _
+                            ) =>
+                            val script = lookupTable.scripts.getOrElse(
+                              hash,
+                              throw new IllegalStateException(s"Script not found: $hash")
+                            )
+                            script -> None
+                        case withdrawal =>
+                            throw new IllegalStateException(
+                              s"Invalid withdrawal: $withdrawal @ $index in $withdrawals"
+                            )
+                else throw new IllegalStateException(s"Cert not found: $index in $withdrawals")
+
+            case RedeemerTag.Proposing =>
+                val proposals = tx.getBody.getProposalProcedures.asScala
+                if proposals.isDefinedAt(index) then
+                    val proposal = proposals(index)
+                    getProposalScriptHash(proposal) match
+                        case Some(hash) =>
+                            val script = lookupTable.scripts.getOrElse(
+                              hash,
+                              throw new IllegalStateException(s"Script not found: $hash")
+                            )
+                            script -> None
+                        case None =>
+                            throw new IllegalStateException(
+                              s"Missing required script for proposal: $proposal"
+                            )
+                else throw new IllegalStateException(s"Proposal not found: $index in $proposals")
+
+            case RedeemerTag.Voting =>
+                import Interop.given // for Ordering instances
+                val voting = tx.getBody.getVotingProcedures.getVoting.asScala.toSeq.sortBy(_._1)
+                if voting.isDefinedAt(index) then
+                    val (voter, _) = voting(index)
+                    voter.getType match
+                        case VoterType.CONSTITUTIONAL_COMMITTEE_HOT_SCRIPT_HASH |
+                            VoterType.DREP_SCRIPT_HASH =>
+                            val script = lookupTable.scripts.getOrElse(
+                              ByteString.fromArray(voter.getCredential.getBytes),
+                              throw new IllegalStateException(s"Script not found: $voter")
+                            )
+                            script -> None
+                        case _ =>
+                            throw new IllegalStateException(s"Invalid voter: $voter")
+                else throw new IllegalStateException(s"Voting not found: $index in $voting")
+    }
+
     private def evalRedeemer(
         tx: Transaction,
         datums: collection.Seq[(ByteString, Data)],
@@ -169,135 +294,13 @@ class TxEvaluator(
         redeemer: Redeemer,
         lookupTable: LookupTable
     ): Redeemer = {
-
-        def findScript(redeemer: Redeemer): (ScriptVersion, Option[Data]) = {
-            val index = redeemer.getIndex.intValue
-            val inputs = tx.getBody.getInputs
-            redeemer.getTag match
-                case RedeemerTag.Spend =>
-                    val ins = inputs.asScala.sorted
-                    if ins.isDefinedAt(index) then
-                        val input = ins(index)
-                        val txInInfo = getTxInInfoV2(input, utxos)
-                        val script = txInInfo.resolved.address match
-                            case v1.Address(v1.Credential.ScriptCredential(hash), _) =>
-                                val script = lookupTable.scripts.getOrElse(
-                                  hash,
-                                  throw new IllegalStateException(s"Script not found: $hash")
-                                )
-                                script
-                            case _ => throw new IllegalStateException(s"impossible: $input")
-
-                        val datum: Option[Data] = txInInfo.resolved.datum match
-                            case OutputDatum.NoOutputDatum => None
-                            case OutputDatum.OutputDatumHash(datumHash) =>
-                                lookupTable.datums.get(datumHash)
-                            case OutputDatum.OutputDatum(datum) => Some(datum)
-
-                        script match
-                            case ScriptVersion.PlutusV1(_) | ScriptVersion.PlutusV2(_) =>
-                                datum match
-                                    case None =>
-                                        throw new IllegalStateException(
-                                          s"Missing required datum for script: $script"
-                                        )
-                                    case Some(_) => ()
-                            case _ => ()
-                        script -> datum
-                    else throw new IllegalStateException(s"Input not found: $index in $inputs")
-                case RedeemerTag.Mint =>
-                    val minted =
-                        (tx.getBody.getMint ?? util.List.of()).asScala.map(_.getPolicyId).sorted
-                    if minted.isDefinedAt(index) then
-                        val policyId = minted(index)
-                        val script = lookupTable.scripts.getOrElse(
-                          ByteString.fromHex(policyId),
-                          throw new IllegalStateException(s"Script not found: $policyId")
-                        )
-                        script -> None
-                    else throw new IllegalStateException(s"Mint not found: $index in $minted")
-                case RedeemerTag.Cert =>
-                    val certs = tx.getBody.getCerts.asScala
-                    if certs.isDefinedAt(index) then
-                        val cert = certs(index)
-                        val script = getCertScript(cert)
-                        script match
-                            case Some(hash) =>
-                                val script = lookupTable.scripts.getOrElse(
-                                  hash,
-                                  throw new IllegalStateException(s"Script not found: $hash")
-                                )
-                                script -> None
-                            case None =>
-                                throw new IllegalStateException(
-                                  s"Missing required script for cert: $cert"
-                                )
-                    else throw new IllegalStateException(s"Cert not found: $index in $certs")
-
-                case RedeemerTag.Reward =>
-                    val withdrawals = getWithdrawals(tx.getBody.getWithdrawals).toList
-                    if withdrawals.isDefinedAt(index) then
-                        withdrawals(index) match
-                            case (
-                                  v1.StakingCredential.StakingHash(
-                                    v1.Credential.ScriptCredential(hash)
-                                  ),
-                                  _
-                                ) =>
-                                val script = lookupTable.scripts.getOrElse(
-                                  hash,
-                                  throw new IllegalStateException(s"Script not found: $hash")
-                                )
-                                script -> None
-                            case withdrawal =>
-                                throw new IllegalStateException(
-                                  s"Invalid withdrawal: $withdrawal @ $index in $withdrawals"
-                                )
-                    else throw new IllegalStateException(s"Cert not found: $index in $withdrawals")
-
-                case RedeemerTag.Proposing =>
-                    val proposals = tx.getBody.getProposalProcedures.asScala
-                    if proposals.isDefinedAt(index) then
-                        val proposal = proposals(index)
-                        getProposalScriptHash(proposal) match
-                            case Some(hash) =>
-                                val script = lookupTable.scripts.getOrElse(
-                                  hash,
-                                  throw new IllegalStateException(s"Script not found: $hash")
-                                )
-                                script -> None
-                            case None =>
-                                throw new IllegalStateException(
-                                  s"Missing required script for proposal: $proposal"
-                                )
-                    else
-                        throw new IllegalStateException(s"Proposal not found: $index in $proposals")
-
-                case RedeemerTag.Voting =>
-                    import Interop.given // for Ordering instances
-                    val voting = tx.getBody.getVotingProcedures.getVoting.asScala.toSeq.sortBy(_._1)
-                    if voting.isDefinedAt(index) then
-                        val (voter, _) = voting(index)
-                        voter.getType match
-                            case VoterType.CONSTITUTIONAL_COMMITTEE_HOT_SCRIPT_HASH |
-                                VoterType.DREP_SCRIPT_HASH =>
-                                val script = lookupTable.scripts.getOrElse(
-                                  ByteString.fromArray(voter.getCredential.getBytes),
-                                  throw new IllegalStateException(s"Script not found: $voter")
-                                )
-                                script -> None
-                            case _ =>
-                                throw new IllegalStateException(s"Invalid voter: $voter")
-                    else throw new IllegalStateException(s"Voting not found: $index in $voting")
-        }
-
         import scalus.bloxbean.Interop.toScalusData
         import scalus.builtin.Data.toData
         import scalus.ledger.api.v1.ToDataInstances.given
         import scalus.ledger.api.v2.ToDataInstances.given
         import scalus.ledger.api.v3.ToDataInstances.given
 
-        val result = findScript(redeemer) match
+        val result = findScript(tx, redeemer, lookupTable, utxos) match
             case (ScriptVersion.Native, _) =>
                 throw new IllegalStateException("Native script not supported")
             case (ScriptVersion.PlutusV1(script), datum) =>
@@ -388,9 +391,10 @@ class TxEvaluator(
             Apply(acc, Const(scalus.uplc.DefaultUni.asConstant(arg)))
         }
         if debugDumpFilesForTesting then
-            val flat = ProgramFlatCodec.unsafeEncodeFlat(Program((1, 0, 0), applied))
+            val flat =
+                ProgramFlatCodec.unsafeEncodeFlat(Program(version = program.version, applied))
             Files.write(
-              java.nio.file.Paths.get("script.flat"),
+              java.nio.file.Paths.get(s"script-${redeemer.getIndex}.flat"),
               flat,
               java.nio.file.StandardOpenOption.CREATE,
               java.nio.file.StandardOpenOption.TRUNCATE_EXISTING

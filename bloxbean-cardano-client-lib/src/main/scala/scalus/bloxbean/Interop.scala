@@ -149,7 +149,7 @@ object Interop {
         }
 
     /// Helper for null check
-    extension [A](inline a: A) inline infix def ??(b: A): A = if a != null then a else b
+    extension [A](inline a: A) inline infix def ??(b: => A): A = if a != null then a else b
 
     def getScriptInfoFromScriptRef(scriptRef: Array[Byte]): ScriptInfo = {
         // script_ref is encoded as CBOR Array
