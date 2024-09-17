@@ -522,7 +522,7 @@ abstract class PlutusConformanceSpec extends AnyFunSuite:
     private def eval(code: String): Either[(Error, Exception), Program] = {
         UplcParser().parseProgram(code) match
             case Right(program) =>
-                try Right(program.copy(term = VM.evaluateProgram(program)))
+                try Right(program.copy(term = VM.evaluateProgram(program, MachineParams.defaultPlutusV3Params)))
                 catch
                   case e: MatchError =>
                     e.printStackTrace()

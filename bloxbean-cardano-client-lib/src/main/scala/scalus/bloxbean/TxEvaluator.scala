@@ -2,8 +2,8 @@ package scalus.bloxbean
 
 import com.bloxbean.cardano.client.address.Address
 import com.bloxbean.cardano.client.address.AddressType
-import com.bloxbean.cardano.client.address.CredentialType
 import com.bloxbean.cardano.client.address.Credential
+import com.bloxbean.cardano.client.address.CredentialType
 import com.bloxbean.cardano.client.common.cbor.CborSerializationUtil
 import com.bloxbean.cardano.client.crypto.Blake2bUtil
 import com.bloxbean.cardano.client.plutus.spec.*
@@ -26,13 +26,11 @@ import scalus.ledger.api
 import scalus.ledger.api.PlutusLedgerLanguage
 import scalus.ledger.api.PlutusLedgerLanguage.*
 import scalus.ledger.api.v1
-import scalus.ledger.api.v1.DCert
 import scalus.ledger.api.v1.ScriptPurpose
 import scalus.ledger.api.v1.StakingCredential
 import scalus.ledger.api.v2
 import scalus.ledger.api.v2.OutputDatum
 import scalus.ledger.api.v3
-import scalus.ledger.api.v3.TxCert.AuthHotCommittee
 import scalus.prelude.Maybe
 import scalus.uplc.Constant
 import scalus.uplc.Program
@@ -49,12 +47,12 @@ import java.nio.file.Files
 import java.nio.file.Path
 import java.nio.file.Paths
 import java.util
+import scala.annotation.unused
 import scala.beans.BeanProperty
 import scala.collection.immutable
 import scala.collection.mutable
 import scala.collection.mutable.ArrayBuffer
 import scala.jdk.CollectionConverters.*
-import scala.annotation.unused
 
 case class SlotConfig(zeroTime: Long, zeroSlot: Long, slotLength: Long)
 
@@ -304,7 +302,11 @@ class TxEvaluator(
             case (ScriptVersion.Native, _) =>
                 throw new IllegalStateException("Native script not supported")
             case (ScriptVersion.PlutusV1(script), datum) =>
-                val machineParams = translateMachineParamsFromCostMdls(costMdls, PlutusV1)
+                val machineParams = translateMachineParamsFromCostMdls(
+                  costMdls,
+                  PlutusV1,
+                  api.ProtocolVersion(protocolMajorVersion, 0)
+                )
                 val rdmr = toScalusData(redeemer.getData)
                 val txInfo = getTxInfoV1(tx, datums, utxos, slotConfig, protocolMajorVersion)
                 val purpose = getScriptPurposeV1(
@@ -327,7 +329,11 @@ class TxEvaluator(
                     case None => evalScript(redeemer, machineParams, script.bytes, rdmr, ctxData)
 
             case (ScriptVersion.PlutusV2(script), datum) =>
-                val machineParams = translateMachineParamsFromCostMdls(costMdls, PlutusV2)
+                val machineParams = translateMachineParamsFromCostMdls(
+                  costMdls,
+                  PlutusV2,
+                  api.ProtocolVersion(protocolMajorVersion, 0)
+                )
                 val rdmr = toScalusData(redeemer.getData)
                 val txInfo = getTxInfoV2(tx, datums, utxos, slotConfig, protocolMajorVersion)
                 val purpose = getScriptPurposeV2(
@@ -350,7 +356,11 @@ class TxEvaluator(
                     case None => evalScript(redeemer, machineParams, script.bytes, rdmr, ctxData)
 
             case (ScriptVersion.PlutusV3(script), datum) =>
-                val machineParams = translateMachineParamsFromCostMdls(costMdls, PlutusV3)
+                val machineParams = translateMachineParamsFromCostMdls(
+                  costMdls,
+                  PlutusV3,
+                  api.ProtocolVersion(protocolMajorVersion, 0)
+                )
                 val rdmr = toScalusData(redeemer.getData)
                 val txInfo = getTxInfoV3(tx, datums, utxos, slotConfig, protocolMajorVersion)
                 val scriptInfo = getScriptInfoV3(tx, redeemer, datum)

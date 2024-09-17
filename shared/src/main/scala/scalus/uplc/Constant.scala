@@ -105,3 +105,5 @@ object Constant:
         case Pair(a, b)                  => (toValue(a), toValue(b))
         case BLS12_381_G1_Element(value) => value
         case BLS12_381_G2_Element(value) => value
+        case BLS12_381_MlResult(value) =>
+            throw new IllegalArgumentException("Cannot convert BLS12_381_MlResult")

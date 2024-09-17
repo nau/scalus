@@ -1,10 +1,15 @@
 package scalus.ledger.api.v1
 
 import io.bullet.borer.Cbor
+import scalus.BaseValidatorSpec
 import scalus.Compiler.compile
+import scalus.Expected
 import scalus.builtin.ByteString.StringInterpolators
 import scalus.builtin.Data
+import scalus.builtin.Data.*
 import scalus.builtin.given
+import scalus.ledger.api.PlutusLedgerLanguage
+import scalus.ledger.api.ProtocolVersion
 import scalus.ledger.api.v1.*
 import scalus.ledger.api.v1.Credential.*
 import scalus.ledger.api.v1.FromDataInstances.given
@@ -12,11 +17,12 @@ import scalus.ledger.api.v2
 import scalus.prelude.AssocMap
 import scalus.prelude.List.*
 import scalus.prelude.Maybe.*
-import scalus.{toUplc, BaseValidatorSpec, Expected}
-import scalus.builtin.Data.*
+import scalus.toUplc
 import scalus.uplc.*
+import scalus.uplc.eval.MachineParams
 import scalus.uplc.eval.VM
 import scalus.utils.Utils
+
 import scala.language.implicitConversions
 
 class ScriptContextV1DataSerializationSpec extends BaseValidatorSpec:
@@ -108,6 +114,11 @@ class ScriptContextV1DataSerializationSpec extends BaseValidatorSpec:
       ScriptPurpose.Spending(TxOutRef(TxId(hex"6465616462656566"), 2))
     )
 
+    val machineParamsV1 =
+        MachineParams.defaultParamsFor(PlutusLedgerLanguage.PlutusV1, ProtocolVersion.vasilPV)
+    val machineParamsV2 =
+        MachineParams.defaultParamsFor(PlutusLedgerLanguage.PlutusV2, ProtocolVersion.vasilPV)
+
     test("ScriptContext is the same as in Plutus") {
         import scalus.ledger.api.v1.ToDataInstances.given
 
@@ -129,7 +140,8 @@ class ScriptContextV1DataSerializationSpec extends BaseValidatorSpec:
         val applied = program $ scriptContextV1.toData
 
         assertSameResult(Expected.SuccessSame)(applied)
-        try VM.evaluateProgram(applied)
+        try
+            VM.evaluateProgram(applied, machineParamsV1)
         catch {
             case e: Throwable => fail(e)
         }
@@ -145,13 +157,16 @@ class ScriptContextV1DataSerializationSpec extends BaseValidatorSpec:
         val applied = Program((1, 0, 0), scalusDeserializerV1 $ scriptContextV1.toData)
 
         assertSameResult(Expected.SuccessSame)(applied)
-        try VM.evaluateProgram(applied)
+        try VM.evaluateProgram(applied, machineParamsV1)
         catch {
             case e: Throwable => fail(e)
         }
         import scalus.ledger.api.v2.ToDataInstances.given
         assertThrows[Exception](
-          VM.evaluateProgram(Program((1, 0, 0), scalusDeserializerV1 $ scriptContextV2.toData))
+          VM.evaluateProgram(
+            Program((1, 0, 0), scalusDeserializerV1 $ scriptContextV2.toData),
+            machineParamsV1
+          )
         )
     }
 
@@ -160,14 +175,14 @@ class ScriptContextV1DataSerializationSpec extends BaseValidatorSpec:
         import scalus.uplc.TermDSL.given
         val program = Program.fromCborHex(deserializeContractV2)
         val applied = program $ scriptContextV2.toData
-        try VM.evaluateProgram(applied)
+        try VM.evaluateProgram(applied, machineParamsV2)
         catch {
             case e: Throwable => fail(e)
         }
 
         import scalus.ledger.api.v1.ToDataInstances.given
         assertThrows[Exception](
-          VM.evaluateProgram(program $ scriptContextV1.toData)
+          VM.evaluateProgram(program $ scriptContextV1.toData, machineParamsV2)
         )
     }
 
@@ -177,12 +192,15 @@ class ScriptContextV1DataSerializationSpec extends BaseValidatorSpec:
         val applied = Program((1, 0, 0), scalusDeserializerV2 $ scriptContextV2.toData)
 
         assertSameResult(Expected.SuccessSame)(applied)
-        try VM.evaluateProgram(applied)
+        try VM.evaluateProgram(applied, machineParamsV2)
         catch {
             case e: Throwable => fail(e)
         }
         import scalus.ledger.api.v1.ToDataInstances.given
         assertThrows[Exception](
-          VM.evaluateProgram(Program((1, 0, 0), scalusDeserializerV2 $ scriptContextV1.toData))
+          VM.evaluateProgram(
+            Program((1, 0, 0), scalusDeserializerV2 $ scriptContextV1.toData),
+            machineParamsV2
+          )
         )
     }

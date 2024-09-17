@@ -1,4 +1,5 @@
 package scalus.ledger.api
+import upickle.default.ReadWriter
 
 enum BuiltinSemanticsVariant:
     case A, B, C
@@ -22,7 +23,8 @@ object BuiltinSemanticsVariant:
 enum PlutusLedgerLanguage extends java.lang.Enum[PlutusLedgerLanguage]:
     case PlutusV1, PlutusV2, PlutusV3
 
-case class ProtocolVersion(major: Int, minor: Int) extends Ordered[ProtocolVersion] {
+case class ProtocolVersion(major: Int, minor: Int) extends Ordered[ProtocolVersion]
+    derives ReadWriter {
     def compare(that: ProtocolVersion): Int = {
         val majorComp = this.major.compareTo(that.major)
         if (majorComp != 0) majorComp else this.minor.compareTo(that.minor)

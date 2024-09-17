@@ -3,12 +3,14 @@ package scalus.uplc
 import scalus.builtin.*
 import scalus.builtin.Builtins.*
 import scalus.builtin.Data
+import scalus.ledger.api.BuiltinSemanticsVariant
 import scalus.uplc.Constant.given
 import scalus.uplc.DefaultUni.Bool
 import scalus.uplc.DefaultUni.Integer
 import scalus.uplc.DefaultUni.asConstant
 import scalus.uplc.DefaultUni.given
 import scalus.uplc.eval.BuiltinCostModel
+import scalus.uplc.eval.BuiltinException
 import scalus.uplc.eval.CekValue
 import scalus.uplc.eval.CekValue.*
 import scalus.uplc.eval.CostModel
@@ -53,7 +55,11 @@ case class BuiltinRuntime(
     def calculateCost: ExBudget = costFunction.calculateCost(args: _*)
 }
 
-class BuiltinsMeaning(builtinCostModel: BuiltinCostModel, platformSpecific: PlatformSpecific):
+class BuiltinsMeaning(
+    builtinCostModel: BuiltinCostModel,
+    platformSpecific: PlatformSpecific,
+    semanticVariant: BuiltinSemanticsVariant
+):
     // local extension used to create a TypeScheme from a DefaultUni
     extension (x: DefaultUni)
         def ->:(t: TypeScheme): TypeScheme = TypeScheme.Arrow(t, TypeScheme.Type(x))
@@ -195,9 +201,17 @@ class BuiltinsMeaning(builtinCostModel: BuiltinCostModel, platformSpecific: Plat
         mkMeaning(
           DefaultUni.Integer ->: DefaultUni.ByteString ->: DefaultUni.ByteString,
           (logger: Logger, args: Seq[CekValue]) =>
-              val a = args(0).asInteger
-              val b = args(1).asByteString
-              VCon(asConstant(consByteString(a, b)))
+              val char = args(0).asInteger
+              val byteString = args(1).asByteString
+              val result = semanticVariant match
+                  case BuiltinSemanticsVariant.A | BuiltinSemanticsVariant.B =>
+                      // essentially, char % 256
+                      ByteString.unsafeFromArray(char.toByte +: byteString.bytes)
+                  case BuiltinSemanticsVariant.C =>
+                      if char < 0 || char > 255 then
+                          throw new BuiltinException(s"consByteString: invalid byte value: $char")
+                      ByteString.unsafeFromArray(char.toByte +: byteString.bytes)
+              VCon(asConstant(result))
           ,
           builtinCostModel.consByteString
         )

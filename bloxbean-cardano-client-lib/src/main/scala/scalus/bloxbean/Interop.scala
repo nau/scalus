@@ -30,15 +30,16 @@ import com.bloxbean.cardano.client.transaction.spec.governance.actions.UpdateCom
 import com.bloxbean.cardano.client.transaction.util.TransactionUtil
 import io.bullet.borer.Cbor
 import scalus.builtin
-import scalus.builtin.ByteString
-import scalus.builtin.given
 import scalus.builtin.Builtins.*
+import scalus.builtin.ByteString
 import scalus.builtin.Data
 import scalus.builtin.Data.ToData
 import scalus.builtin.Data.toData
 import scalus.builtin.Pair
+import scalus.builtin.given
 import scalus.ledger
 import scalus.ledger.api
+import scalus.ledger.api.BuiltinSemanticsVariant
 import scalus.ledger.api.PlutusLedgerLanguage
 import scalus.ledger.api.PlutusLedgerLanguage.*
 import scalus.ledger.api.v1
@@ -228,7 +229,8 @@ object Interop {
     /** Creates [[MachineParams]] from a [[CostMdls]] and a [[PlutusLedgerLanguage]] */
     def translateMachineParamsFromCostMdls(
         costMdls: CostMdls,
-        plutus: PlutusLedgerLanguage
+        plutus: PlutusLedgerLanguage,
+        protocolVersion: api.ProtocolVersion
     ): MachineParams = {
         import upickle.default.*
         val paramsMap = plutus match
@@ -247,7 +249,15 @@ object Interop {
 
         val builtinCostModel = BuiltinCostModel.fromCostModelParams(plutus, paramsMap)
         val machineCosts = CekMachineCosts.fromMap(paramsMap)
-        MachineParams(machineCosts = machineCosts, builtinCostModel = builtinCostModel)
+        val semvar = BuiltinSemanticsVariant.fromProtocolAndPlutusVersion(
+          protocolVersion,
+          plutus
+        )
+        MachineParams(
+          machineCosts = machineCosts,
+          builtinCostModel = builtinCostModel,
+          semanticVariant = semvar
+        )
     }
 
     def getCredential(cred: Credential): v1.Credential = {
@@ -712,6 +722,10 @@ object Interop {
                           s"Wrong reward address type: $address in $withdrawals"
                         )
                 else throw new IllegalStateException(s"Wrong reward index: $index in $withdrawals")
+            case _ =>
+                throw new IllegalStateException(
+                  s"Unsupported redeemer tag: ${redeemer.getTag} in PlutusV1/V2"
+                )
 
     @deprecated("Use getScriptPurposeV1 or getScriptPurposeV2", "0.8.0")
     def getScriptPurpose(
@@ -973,8 +987,9 @@ object Interop {
         val rdmrs = tx.getWitnessSet.getRedeemers ?? util.List.of()
         val withdrawals =
             val wdvls = getWithdrawals(body.getWithdrawals ?? util.List.of())
-            prelude.List.map(wdvls) { case (v1.StakingCredential.StakingHash(cred), coin) =>
-                cred -> coin
+            prelude.List.map(wdvls) {
+                case (v1.StakingCredential.StakingHash(cred), coin) => cred -> coin
+                case w => throw new IllegalStateException(s"Invalid withdrawal: $w")
             }
         v3.TxInfo(
           inputs = prelude.List.from(body.getInputs.asScala.sorted.map(getTxInInfoV3(_, utxos))),

@@ -25,7 +25,8 @@ class ScalusScriptUtilsSpec extends AnyFunSuite:
           BigIntPlutusData(BigInteger.TWO)
         )
         val script = Program.fromDoubleCborHex(applied).flatEncoded
-        val result = VM.evaluateScriptCounting(MachineParams.defaultParams, script)
+        val result =
+            VM.evaluateScriptCounting(MachineParams.defaultPlutusV2PostConwayParams, script)
         assert(result.term == Term.Const(Constant.Integer(3)))
     }
 
@@ -40,6 +41,7 @@ class ScalusScriptUtilsSpec extends AnyFunSuite:
                 .build();
         val applied = ScalusScriptUtils.applyParamsToScript(program, params)
         val script = Program.fromDoubleCborHex(applied).flatEncoded
-        val result = VM.evaluateScriptCounting(MachineParams.defaultParams, script)
+        val result =
+            VM.evaluateScriptCounting(MachineParams.defaultPlutusV2PostConwayParams, script)
         assert(result.term == Term.Const(Constant.Integer(3)))
     }

@@ -1,10 +1,9 @@
 package scalus.ledger.babbage
+import scalus.ledger.api.ProtocolVersion
 import upickle.default.*
-import scala.quoted.Quotes
-
 import upickle.default.ReadWriter
 
-case class ProtocolVersion(major: Int, minor: Int) derives ReadWriter
+import scala.quoted.Quotes
 
 case class MaxTxExecutionUnits(memory: Long, steps: Long) derives ReadWriter
 

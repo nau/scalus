@@ -1,13 +1,11 @@
 package scalus.uplc
 
 import scalus.ledger.api.BuiltinSemanticsVariant
-import scalus.ledger.api.PlutusLedgerLanguage
+import scalus.uplc.eval.ExBudget
+import scalus.uplc.eval.ExCPU
+import scalus.uplc.eval.ExMemory
 
 import java.io.ByteArrayInputStream
-import scalus.uplc.eval.ExBudget
-import scalus.uplc.eval.ExMemory
-import scalus.uplc.eval.ExCPU
-
 import java.io.ByteArrayOutputStream
 import scala.sys.process.*
 

@@ -24,7 +24,7 @@ class CekBudgetJVMSpec extends AnyFunSuite:
             val debruijnedTerm = DeBruijn.deBruijnTerm(term)
             val spender = CountingBudgetSpender()
             val cek = CekMachine(
-              MachineParams.defaultParams,
+              MachineParams.defaultPlutusV2PostConwayParams,
               spender,
               NoLogger,
               JVMPlatformSpecific
