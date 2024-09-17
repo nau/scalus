@@ -44,15 +44,15 @@ case class CekMachineCosts(
 object CekMachineCosts {
     val defaultMachineCosts: CekMachineCosts = CekMachineCosts(
       startupCost = ExBudget(ExCPU(100), ExMemory(100)),
-      varCost = ExBudget(ExCPU(23000), ExMemory(100)),
-      constCost = ExBudget(ExCPU(23000), ExMemory(100)),
-      lamCost = ExBudget(ExCPU(23000), ExMemory(100)),
-      delayCost = ExBudget(ExCPU(23000), ExMemory(100)),
-      forceCost = ExBudget(ExCPU(23000), ExMemory(100)),
-      applyCost = ExBudget(ExCPU(23000), ExMemory(100)),
-      builtinCost = ExBudget(ExCPU(23000), ExMemory(100)),
-      constrCost = ExBudget(ExCPU(23000), ExMemory(100)),
-      caseCost = ExBudget(ExCPU(23000), ExMemory(100))
+      varCost = ExBudget(ExCPU(16000), ExMemory(100)),
+      constCost = ExBudget(ExCPU(16000), ExMemory(100)),
+      lamCost = ExBudget(ExCPU(16000), ExMemory(100)),
+      delayCost = ExBudget(ExCPU(16000), ExMemory(100)),
+      forceCost = ExBudget(ExCPU(16000), ExMemory(100)),
+      applyCost = ExBudget(ExCPU(16000), ExMemory(100)),
+      builtinCost = ExBudget(ExCPU(16000), ExMemory(100)),
+      constrCost = ExBudget(ExCPU(16000), ExMemory(100)),
+      caseCost = ExBudget(ExCPU(16000), ExMemory(100))
     )
 
     def fromMap(map: Map[String, Long]): CekMachineCosts = {
