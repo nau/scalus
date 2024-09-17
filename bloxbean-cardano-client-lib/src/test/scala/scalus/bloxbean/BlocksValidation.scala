@@ -2,10 +2,11 @@ package scalus.bloxbean
 
 import co.nstant.in.cbor.CborException
 import co.nstant.in.cbor.model as cbor
-import co.nstant.in.cbor.model.SimpleValue
+import co.nstant.in.cbor.model.UnsignedInteger
 import com.bloxbean.cardano.client.backend.api.DefaultUtxoSupplier
 import com.bloxbean.cardano.client.backend.blockfrost.common.Constants
 import com.bloxbean.cardano.client.backend.blockfrost.service.BFBackendService
+import com.bloxbean.cardano.client.spec.Era
 import com.bloxbean.cardano.client.transaction.spec.*
 import com.bloxbean.cardano.client.transaction.util.TransactionUtil
 import com.bloxbean.cardano.yaci.core.model.serializers.util.TransactionBodyExtractor
@@ -66,27 +67,34 @@ object BlocksValidation:
         var v1ScriptsExecuted = 0
         val v2Scripts = mutable.HashSet.empty[String]
         var v2ScriptsExecuted = 0
+        val v3Scripts = mutable.HashSet.empty[String]
+        var v3ScriptsExecuted = 0
 
-        for blockNum <- 10294189 to 10315649 do
-            val txs = readTransactionsFromBlockCbor(cwd.resolve(s"blocks/block-$blockNum.cbor"))
-            val withScriptTxs = txsToEvaluate(txs)
-            println(s"Block $blockNum, num txs to validate: ${withScriptTxs.size}")
+        for blockNum <- 10802134 to 10823158 do
+            val txs = readTransactionsFromBlockCbor(
+              cwd.resolve(
+                s"blocks/block-$blockNum.cbor"
+              )
+            )
+//            println(s"Tx hashes: ${txs.map(t => TransactionUtil.getTxHash(t._1)).sorted}")
+            val txsWithScripts =
+                txs.zipWithIndex
+                    .map { case ((tx, datums), idx) =>
+                        val utxos = evaluator.resolveUtxos(tx, util.Set.of())
+                        val scripts = TxEvaluator.getAllResolvedScripts(tx, utxos)
+                        (tx, datums, scripts)
+                    }
+                    .filter(_._3.nonEmpty)
+            println(s"Block $blockNum, num txs to validate: ${txsWithScripts.size}")
 
-            for (tx, datums) <- withScriptTxs do {
+            for (tx, datums, scripts) <- txsWithScripts.drop(1).take(1) do {
                 val txhash = TransactionUtil.getTxHash(tx)
 //                println(s"Validating tx $txhash")
                 //                println(tx)
-
-                for scripts <- Option(tx.getWitnessSet.getPlutusV1Scripts) do
-                    v1Scripts ++= scripts.asScala.map(s => Utils.bytesToHex(s.getScriptHash))
-                    v1ScriptsExecuted += 1
-
-                for scripts <- Option(tx.getWitnessSet.getPlutusV2Scripts) do
-                    v2Scripts ++= scripts.asScala.map(s => Utils.bytesToHex(s.getScriptHash))
-                    v2ScriptsExecuted += 1
-
-                if tx.isValid then
-//                println(s"datum hashes ${datumHashes.asScala.map(_.toHex)}")
+                if tx.isValid
+                    && (datums.size() == tx.getWitnessSet.getPlutusDataList
+                        .size()) // FIXME: remove this check when we have the correct datums
+                then
                     val result = evaluator.evaluateTx(tx, util.Set.of(), datums)
                     totalTx += 1
                     if !result.isSuccessful then
@@ -94,25 +102,34 @@ object BlocksValidation:
                         println(
                           s"${Console.RED}AAAA!!!! $txhash ${result.getResponse}${Console.RESET}"
                         )
+                    else
+                        println(result.getResponse)
+                        for script <- scripts.values do
+                            script match
+                                case ScriptVersion.PlutusV1(scriptHash) =>
+                                    v1Scripts += scriptHash.toHex
+                                    v1ScriptsExecuted += 1
+                                case ScriptVersion.PlutusV2(scriptHash) =>
+                                    v2Scripts += scriptHash.toHex
+                                    v2ScriptsExecuted += 1
+                                case ScriptVersion.PlutusV3(scriptHash) =>
+                                    v3Scripts += scriptHash.toHex
+                                    v3ScriptsExecuted += 1
+                                case _ =>
                 else
                     println(s"${Console.RED}AAAAA invalid!!! $txhash ${Console.RESET}")
                     errors += (("Invalid tx", blockNum, txhash))
             }
 
-//                println(tx.getWitnessSet.getRedeemers)
 //                println("----------------------------------------------------")
             println(s"=======================================")
         println(s"""Total txs: $totalTx,
                |errors: $errors,
                |v1: $v1ScriptsExecuted of ${v1Scripts.size},
-               |v2: $v2ScriptsExecuted of ${v2Scripts.size}""".stripMargin)
+               |v2: $v2ScriptsExecuted of ${v2Scripts.size}
+               |v3: $v3ScriptsExecuted of ${v3Scripts.size}
+               |""".stripMargin)
 
-    }
-
-    private def txsToEvaluate(txs: collection.Seq[(Transaction, util.List[ByteString])]) = {
-        txs.filter { case (tx, _) =>
-            tx.getWitnessSet.getPlutusV1Scripts != null || tx.getWitnessSet.getPlutusV2Scripts != null
-        }
     }
 
     def readTransactionsFromBlockCbor(
@@ -128,6 +145,7 @@ object BlocksValidation:
         val array = CborSerializationUtil.deserializeOne(blockCbor).asInstanceOf[cbor.Array]
         val blockArray = array.getDataItems.get(1).asInstanceOf[cbor.Array]
         val witnessesListArr = blockArray.getDataItems.get(2).asInstanceOf[cbor.Array]
+        val auxiliaryDataMap = blockArray.getDataItems.get(3).asInstanceOf[cbor.Map]
         val invalidTxs = blockArray.getDataItems
             .get(4)
             .asInstanceOf[cbor.Array]
@@ -158,14 +176,20 @@ object BlocksValidation:
             val txbody = TransactionBody.deserialize(tuple._1.asInstanceOf[cbor.Map])
             val witnessSetDataItem = witnessesListArr.getDataItems.get(idx).asInstanceOf[cbor.Map]
             val witnessSet = TransactionWitnessSet.deserialize(witnessSetDataItem)
+            val auxiliaryData =
+                if auxiliaryDataMap.get(new UnsignedInteger(idx)) != null then
+                    AuxiliaryData.deserialize(
+                      auxiliaryDataMap.get(new UnsignedInteger(idx)).asInstanceOf[cbor.Map]
+                    )
+                else null
             val isValid = !invalidTxs.contains(idx)
-            val txbytes =
-                val array = new cbor.Array()
-                array.add(tuple._1)
-                array.add(witnessSetDataItem)
-                array.add(if isValid then SimpleValue.TRUE else SimpleValue.FALSE)
-                array.add(SimpleValue.NULL)
-                CborSerializationUtil.serialize(array)
+//            val txbytes =
+//                val array = new cbor.Array()
+//                array.add(tuple._1)
+//                array.add(witnessSetDataItem)
+//                array.add(if isValid then SimpleValue.TRUE else SimpleValue.FALSE)
+//                array.add(SimpleValue.NULL)
+//                CborSerializationUtil.serialize(array)
 //            Files.write(Paths.get(s"tx-${TransactionUtil.getTxHash(txbytes)}.cbor"), txbytes)
 //            println(Utils.bytesToHex(txbytes))
             /*val witnessMap = witnessesListArr.getDataItems.get(idx).asInstanceOf[cbor.Map]
@@ -179,7 +203,15 @@ object BlocksValidation:
                 }*/
 
             val transaction =
-                Transaction.builder().body(txbody).witnessSet(witnessSet).isValid(isValid).build()
+                Transaction
+                    .builder()
+                    .era(Era.Conway)
+                    .body(txbody)
+                    .witnessSet(witnessSet)
+                    .auxiliaryData(auxiliaryData)
+                    .isValid(isValid)
+                    .build()
+//            println(s"tx: ${transaction.toJson()}")
 //            println(
 //              s"txhash ${TransactionUtil.getTxHash(transaction)} ${TransactionUtil.getTxHash(txbytes)}"
 //            )
@@ -188,5 +220,5 @@ object BlocksValidation:
     }
 
     def main(args: Array[String]): Unit = {
-        validateBlocksOfEpoch(484)
+        validateBlocksOfEpoch(508)
     }
