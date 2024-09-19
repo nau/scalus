@@ -2824,16 +2824,16 @@
         ]
       },
       "locked": {
-        "lastModified": 1721724553,
-        "narHash": "sha256-EaephFxHcKlQbh9cA2FkOeSgIbYioPMB5HoSDI/9aW8=",
+        "lastModified": 1718624044,
+        "narHash": "sha256-HtlYPoUMFCxCVyXL7+OSx21sxXjoTcmMOaZjcaXpWwg=",
         "owner": "input-output-hk",
         "repo": "plutus",
-        "rev": "65f67148ecbb08124b2afe67d03efc0a779e01f9",
+        "rev": "bc8c3a765769d2c0cd41c43278f5954cfdfd9b15",
         "type": "github"
       },
       "original": {
         "owner": "input-output-hk",
-        "ref": "1.31.0.0",
+        "ref": "1.30.0.0",
         "repo": "plutus",
         "type": "github"
       }

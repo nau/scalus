@@ -1,7 +1,7 @@
 {
   inputs = {
     flake-utils.url = "github:numtide/flake-utils";
-    plutus.url = "github:input-output-hk/plutus/1.31.0.0";
+    plutus.url = "github:input-output-hk/plutus/1.30.0.0";
     # cardano-node-flake.url = "github:input-output-hk/cardano-node/9.1.1";
   };
 
