@@ -119,16 +119,6 @@ case class BuiltinCostModel(
         }
         flatten(obj)
     }
-
-    override def toString: String =
-        val fields = this.getClass.getDeclaredFields
-        fields.foreach(_.setAccessible(true))
-        val fieldStrings = fields.map { field =>
-            val name = field.getName
-            val value = field.get(this)
-            s"$name: $value"
-        }
-        s"BuiltinCostModel(${fieldStrings.mkString(", ")})"
 }
 
 object BuiltinCostModel {
@@ -146,13 +136,6 @@ object BuiltinCostModel {
     val defaultCostModelC: BuiltinCostModel =
         BuiltinCostModel.fromJsonString(inlineBuiltinCostModelJson("/builtinCostModelC.json"))
 
-    /** Default [[BuiltinCostModel]] taken from [Plutus builtinCostModel.json
-      * file](https://github.com/input-output-hk/plutus/blob/e3de8270c3c9248f2462c6b85fe7b0b31fda6b1f/plutus-core/cost-model/data/builtinCostModel.json)
-      *
-      * @param json
-      * @return
-      *   a [[BuiltinCostModel]]
-      */
     @deprecated("Use defaultCostModelA, defaultCostModelB or defaultCostModelC instead", "0.1.0")
     val defaultCostModel: BuiltinCostModel = defaultCostModelC
 
@@ -1255,6 +1238,7 @@ object BuiltinCostModel {
     /** Read a BuiltinCostModel from an input stream of JSON
       *
       * @param input
+      *   the input stream
       * @return
       *   a BuiltinCostModel
       */
@@ -1264,6 +1248,7 @@ object BuiltinCostModel {
 
     /** Read a BuiltinCostModel from a string of JSON
       * @param json
+      *   the JSON string
       * @return
       *   a BuiltinCostModel
       */

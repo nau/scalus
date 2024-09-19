@@ -7,7 +7,7 @@ object Meaning {
     @deprecated("Will be removed", "0.8.0")
     val defaultBuiltins =
         BuiltinsMeaning(
-          eval.BuiltinCostModel.defaultCostModel,
+          eval.BuiltinCostModel.defaultCostModelC,
           JVMPlatformSpecific,
           BuiltinSemanticsVariant.C
         )
