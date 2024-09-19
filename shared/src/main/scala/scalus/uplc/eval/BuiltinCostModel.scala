@@ -736,7 +736,7 @@ object BuiltinCostModel {
             )
           ),
           verifyEd25519Signature = CostingFun(
-            cpu = ThreeArguments.LinearInZ(
+            cpu = ThreeArguments.LinearInY(
               OneVariableLinearFunction(
                 intercept = params("verifyEd25519Signature-cpu-arguments-intercept"),
                 slope = params("verifyEd25519Signature-cpu-arguments-slope")
