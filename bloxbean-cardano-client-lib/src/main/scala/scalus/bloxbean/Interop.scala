@@ -601,7 +601,6 @@ object Interop {
     ): v1.TxInfo = {
         val body = tx.getBody
         val certs = body.getCerts ?? util.List.of()
-        val rdmrs = tx.getWitnessSet.getRedeemers ?? util.List.of()
         v1.TxInfo(
           // sorted inputs
           inputs = prelude.List.from(body.getInputs.asScala.sorted.map(getTxInInfoV1(_, utxos))),
@@ -685,6 +684,18 @@ object Interop {
 
     def getScriptPurposeV1(
         redeemer: Redeemer,
+        tx: Transaction
+    ): v1.ScriptPurpose =
+        getScriptPurposeV1(
+          redeemer,
+          tx.getBody.getInputs,
+          tx.getBody.getMint,
+          tx.getBody.getCerts,
+          tx.getBody.getWithdrawals
+        )
+
+    def getScriptPurposeV1(
+        redeemer: Redeemer,
         inputs: util.List[TransactionInput],
         mint: util.List[MultiAsset],
         certificates: util.List[Certificate],
@@ -743,6 +754,16 @@ object Interop {
         certificates: util.List[Certificate],
         withdrawals: util.List[Withdrawal]
     ): v1.ScriptPurpose = getScriptPurposeV1(redeemer, inputs, mint, certificates, withdrawals)
+
+    def getScriptPurposeV2(redeemer: Redeemer, tx: Transaction): v2.ScriptPurpose = {
+        getScriptPurposeV2(
+          redeemer,
+          tx.getBody.getInputs,
+          tx.getBody.getMint,
+          tx.getBody.getCerts,
+          tx.getBody.getWithdrawals
+        )
+    }
 
     def getScriptPurposeV3(tx: Transaction, redeemer: Redeemer): v3.ScriptPurpose = {
         val inputs = tx.getBody.getInputs

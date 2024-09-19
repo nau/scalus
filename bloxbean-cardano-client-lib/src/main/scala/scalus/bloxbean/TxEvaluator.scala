@@ -103,6 +103,21 @@ class TxEvaluator(
 ) {
     import TxEvaluator.*
     private val log = LoggerFactory.getLogger(getClass.getName)
+    private lazy val machineParamsPlutusV1 = translateMachineParamsFromCostMdls(
+      costMdls,
+      PlutusV1,
+      api.ProtocolVersion(protocolMajorVersion, 0)
+    )
+    private lazy val machineParamsPlutusV2 = translateMachineParamsFromCostMdls(
+      costMdls,
+      PlutusV2,
+      api.ProtocolVersion(protocolMajorVersion, 0)
+    )
+    private lazy val machineParamsPlutusV3 = translateMachineParamsFromCostMdls(
+      costMdls,
+      PlutusV3,
+      api.ProtocolVersion(protocolMajorVersion, 0)
+    )
 
     /** Phase 2 validation and execution of the transaction
       */
@@ -302,21 +317,10 @@ class TxEvaluator(
             case (ScriptVersion.Native, _) =>
                 throw new IllegalStateException("Native script not supported")
             case (ScriptVersion.PlutusV1(script), datum) =>
-                val machineParams = translateMachineParamsFromCostMdls(
-                  costMdls,
-                  PlutusV1,
-                  api.ProtocolVersion(protocolMajorVersion, 0)
-                )
                 val rdmr = toScalusData(redeemer.getData)
-                val txInfo = getTxInfoV1(tx, datums, utxos, slotConfig, protocolMajorVersion)
-                val purpose = getScriptPurposeV1(
-                  redeemer,
-                  tx.getBody.getInputs,
-                  tx.getBody.getMint,
-                  tx.getBody.getCerts,
-                  tx.getBody.getWithdrawals
-                )
-                val scriptContext = v1.ScriptContext(txInfo, purpose)
+                val txInfoV1 = getTxInfoV1(tx, datums, utxos, slotConfig, protocolMajorVersion)
+                val purpose = getScriptPurposeV1(redeemer, tx)
+                val scriptContext = v1.ScriptContext(txInfoV1, purpose)
                 val ctxData = scriptContext.toData
                 if log.isDebugEnabled() then
                     log.debug(s"eval: PlutusV1, ${purpose}")
@@ -325,24 +329,21 @@ class TxEvaluator(
                     log.debug(s"Script context: ${ctxData.toJson}")
                 datum match
                     case Some(datum) =>
-                        evalScript(redeemer, machineParams, script.bytes, datum, rdmr, ctxData)
-                    case None => evalScript(redeemer, machineParams, script.bytes, rdmr, ctxData)
+                        evalScript(
+                          redeemer,
+                          machineParamsPlutusV1,
+                          script.bytes,
+                          datum,
+                          rdmr,
+                          ctxData
+                        )
+                    case None =>
+                        evalScript(redeemer, machineParamsPlutusV1, script.bytes, rdmr, ctxData)
 
             case (ScriptVersion.PlutusV2(script), datum) =>
-                val machineParams = translateMachineParamsFromCostMdls(
-                  costMdls,
-                  PlutusV2,
-                  api.ProtocolVersion(protocolMajorVersion, 0)
-                )
                 val rdmr = toScalusData(redeemer.getData)
                 val txInfo = getTxInfoV2(tx, datums, utxos, slotConfig, protocolMajorVersion)
-                val purpose = getScriptPurposeV2(
-                  redeemer,
-                  tx.getBody.getInputs,
-                  tx.getBody.getMint,
-                  tx.getBody.getCerts,
-                  tx.getBody.getWithdrawals
-                )
+                val purpose = getScriptPurposeV2(redeemer, tx)
                 val scriptContext = v2.ScriptContext(txInfo, purpose)
                 val ctxData = scriptContext.toData
                 if log.isDebugEnabled() then
@@ -352,15 +353,18 @@ class TxEvaluator(
                     log.debug(s"Script context: ${ctxData.toJson}")
                 datum match
                     case Some(datum) =>
-                        evalScript(redeemer, machineParams, script.bytes, datum, rdmr, ctxData)
-                    case None => evalScript(redeemer, machineParams, script.bytes, rdmr, ctxData)
+                        evalScript(
+                          redeemer,
+                          machineParamsPlutusV2,
+                          script.bytes,
+                          datum,
+                          rdmr,
+                          ctxData
+                        )
+                    case None =>
+                        evalScript(redeemer, machineParamsPlutusV2, script.bytes, rdmr, ctxData)
 
             case (ScriptVersion.PlutusV3(script), datum) =>
-                val machineParams = translateMachineParamsFromCostMdls(
-                  costMdls,
-                  PlutusV3,
-                  api.ProtocolVersion(protocolMajorVersion, 0)
-                )
                 val rdmr = toScalusData(redeemer.getData)
                 val txInfo = getTxInfoV3(tx, datums, utxos, slotConfig, protocolMajorVersion)
                 val scriptInfo = getScriptInfoV3(tx, redeemer, datum)
@@ -371,7 +375,7 @@ class TxEvaluator(
                     log.debug(s"Datum: ${datum.map(_.toJson)}")
                     log.debug(s"Redeemer: ${rdmr.toJson}")
                     log.debug(s"Script context: ${ctxData.toJson}")
-                evalScript(redeemer, machineParams, script.bytes, ctxData)
+                evalScript(redeemer, machineParamsPlutusV3, script.bytes, ctxData)
 
         val cost = result.budget
         log.debug(s"Eval result: $result")
@@ -404,7 +408,7 @@ class TxEvaluator(
             val flat =
                 ProgramFlatCodec.unsafeEncodeFlat(Program(version = program.version, applied))
             Files.write(
-              java.nio.file.Paths.get(s"script-${redeemer.getIndex}.flat"),
+              java.nio.file.Paths.get(s"script-${redeemer.getTag}-${redeemer.getIndex}.flat"),
               flat,
               java.nio.file.StandardOpenOption.CREATE,
               java.nio.file.StandardOpenOption.TRUNCATE_EXISTING
