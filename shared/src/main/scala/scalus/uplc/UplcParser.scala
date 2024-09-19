@@ -5,6 +5,7 @@ import cats.parse.Numbers
 import cats.parse.Numbers.digits
 import cats.parse.Parser as P
 import cats.parse.Parser0
+import cats.parse.Rfc5234.alpha
 import cats.parse.Rfc5234.digit
 import cats.parse.Rfc5234.hexdig
 import scalus.builtin.BLS12_381_G1_Element
@@ -109,15 +110,9 @@ object UplcParser:
     def lexeme[A](p: P[A]): P[A] = p <* whitespaces0
     def symbol(s: String): P[Unit] = P.string(s).void <* whitespaces0
 
-    val name: P[String] =
-        // isIdentifierStartingChar c = isAscii c && isAlpha c || c == '_'
-        inline def isIdentifierStartingChar(c: Char) = c.isLetter || c == '_'
-        // isIdentifierChar c = isIdentifierStartingChar c || isDigit c || c == '\''
-        inline def isIdentifierChar(c: Char) = isIdentifierStartingChar(c) || c.isDigit || c == '\''
-
-        P.charWhere(isIdentifierStartingChar) ~ P.charsWhile(isIdentifierChar) map { case (a, b) =>
-            (a +: b).mkString
-        }
+    val name: P[String] = alpha ~ (alpha | digit | P.charIn("_'")).rep0 map { case (a, b) =>
+        (a :: b).mkString
+    }
 
     val defaultUni: P[DefaultUni] = P.recursive { self =>
         def star = lexeme(
