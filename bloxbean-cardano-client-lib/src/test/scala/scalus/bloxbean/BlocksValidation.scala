@@ -2,7 +2,6 @@ package scalus.bloxbean
 
 import co.nstant.in.cbor.CborException
 import co.nstant.in.cbor.model as cbor
-import co.nstant.in.cbor.model.UnsignedInteger
 import com.bloxbean.cardano.client.backend.api.DefaultUtxoSupplier
 import com.bloxbean.cardano.client.backend.blockfrost.common.Constants
 import com.bloxbean.cardano.client.backend.blockfrost.service.BFBackendService
@@ -27,7 +26,12 @@ import java.util.stream.Collectors
 import scala.collection.mutable
 import scala.jdk.CollectionConverters.*
 
-/** Setup BLOCKFROST_API_KEY environment variable before running this test
+/** Setup BLOCKFROST_API_KEY environment variable before running this test. In SBT shell:
+  *   - set `scalus-bloxbean-cardano-client-lib`/envVars := Map("BLOCKFROST_API_KEY" -> "apikey")
+  *   - scalus-bloxbean-cardano-client-lib/Test/runMain scalus.bloxbean.BlocksValidation
+  *
+  *   - cat script-1.flat | uplc evaluate --input-format flat --counting --trace-mode
+  *     LogsWithBudgets --builtin-semantics-variant B
   */
 object BlocksValidation:
 
@@ -40,7 +44,7 @@ object BlocksValidation:
         YaciConfig.INSTANCE.setReturnBlockCbor(true) // needed to get the block cbor
         YaciConfig.INSTANCE.setReturnTxBodyCbor(true) // needed to get the tx body cbor
 
-        val cwd = Paths.get("bloxbean-cardano-client-lib")
+        val cwd = Paths.get(".")
         val backendService = new BFBackendService(Constants.BLOCKFROST_MAINNET_URL, apiKey)
         val utxoSupplier = CachedUtxoSupplier(
           cwd.resolve("utxos"),
@@ -71,11 +75,7 @@ object BlocksValidation:
         var v3ScriptsExecuted = 0
 
         for blockNum <- 10802134 to 10823158 do
-            val txs = readTransactionsFromBlockCbor(
-              cwd.resolve(
-                s"blocks/block-$blockNum.cbor"
-              )
-            )
+            val txs = readTransactionsFromBlockCbor(cwd.resolve(s"blocks/block-$blockNum.cbor"))
 //            println(s"Tx hashes: ${txs.map(t => TransactionUtil.getTxHash(t._1)).sorted}")
             val txsWithScripts =
                 txs.zipWithIndex
@@ -100,7 +100,7 @@ object BlocksValidation:
                     if !result.isSuccessful then
                         errors += ((result.getResponse, blockNum, txhash))
                         println(
-                          s"${Console.RED}AAAA!!!! $txhash ${result.getResponse}${Console.RESET}"
+                          s"${Console.RED}AAAA!!!! block $blockNum $txhash ${result.getResponse}${Console.RESET}"
                         )
                     else
                         println(result.getResponse)
@@ -176,12 +176,12 @@ object BlocksValidation:
             val txbody = TransactionBody.deserialize(tuple._1.asInstanceOf[cbor.Map])
             val witnessSetDataItem = witnessesListArr.getDataItems.get(idx).asInstanceOf[cbor.Map]
             val witnessSet = TransactionWitnessSet.deserialize(witnessSetDataItem)
-            val auxiliaryData =
-                if auxiliaryDataMap.get(new UnsignedInteger(idx)) != null then
-                    AuxiliaryData.deserialize(
-                      auxiliaryDataMap.get(new UnsignedInteger(idx)).asInstanceOf[cbor.Map]
-                    )
-                else null
+            // val auxiliaryData =
+            //     if auxiliaryDataMap.get(new UnsignedInteger(idx)) != null then
+            //         AuxiliaryData.deserialize(
+            //           auxiliaryDataMap.get(new UnsignedInteger(idx)).asInstanceOf[cbor.Map]
+            //         )
+            //     else null
             val isValid = !invalidTxs.contains(idx)
 //            val txbytes =
 //                val array = new cbor.Array()
@@ -208,7 +208,7 @@ object BlocksValidation:
                     .era(Era.Conway)
                     .body(txbody)
                     .witnessSet(witnessSet)
-                    .auxiliaryData(auxiliaryData)
+                    // .auxiliaryData(auxiliaryData)
                     .isValid(isValid)
                     .build()
 //            println(s"tx: ${transaction.toJson()}")
