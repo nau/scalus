@@ -1,8 +1,9 @@
 package scalus.uplc.eval
 
-import upickle.default.*
-import scalus.macros.Macros
+import scalus.ledger.api.BuiltinSemanticsVariant
 import scalus.ledger.api.PlutusLedgerLanguage
+import scalus.macros.Macros
+import upickle.default.*
 
 case class BuiltinCostModel(
     // Integers
@@ -312,6 +313,7 @@ object BuiltinCostModel {
 
     def fromCostModelParams(
         plutus: PlutusLedgerLanguage,
+        semvar: BuiltinSemanticsVariant,
         costModelParams: Map[String, Long]
     ): BuiltinCostModel =
         val params = costModelParams.withDefaultValue(defaultValue)
@@ -344,8 +346,11 @@ object BuiltinCostModel {
               )
             )
           ),
-          multiplyInteger = plutus match
-              case PlutusLedgerLanguage.PlutusV1 =>
+          multiplyInteger = (plutus, semvar) match
+              case (
+                    PlutusLedgerLanguage.PlutusV1 | PlutusLedgerLanguage.PlutusV2,
+                    BuiltinSemanticsVariant.A
+                  ) =>
                   CostingFun(
                     cpu = TwoArguments.AddedSizes(
                       OneVariableLinearFunction(
@@ -360,7 +365,10 @@ object BuiltinCostModel {
                       )
                     )
                   )
-              case PlutusLedgerLanguage.PlutusV2 | PlutusLedgerLanguage.PlutusV3 =>
+              case (
+                    PlutusLedgerLanguage.PlutusV1 | PlutusLedgerLanguage.PlutusV2,
+                    BuiltinSemanticsVariant.B
+                  ) | (PlutusLedgerLanguage.PlutusV3, BuiltinSemanticsVariant.C) =>
                   CostingFun(
                     cpu = TwoArguments.MultipliedSizes(
                       OneVariableLinearFunction(
@@ -374,6 +382,10 @@ object BuiltinCostModel {
                         slope = params("multiplyInteger-memory-arguments-slope")
                       )
                     )
+                  )
+              case _ =>
+                  throw new IllegalArgumentException(
+                    s"Unsupported combination of Plutus version $plutus and semantics variant $semvar for multiplyInteger"
                   )
           ,
           divideInteger = plutus match

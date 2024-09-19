@@ -247,12 +247,12 @@ object Interop {
                 val params = PlutusV3Params.fromSeq(costs.getCosts.toSeq)
                 writeJs(params).obj.map { (k, v) => (k, v.num.toLong) }.toMap
 
-        val builtinCostModel = BuiltinCostModel.fromCostModelParams(plutus, paramsMap)
-        val machineCosts = CekMachineCosts.fromMap(paramsMap)
         val semvar = BuiltinSemanticsVariant.fromProtocolAndPlutusVersion(
           protocolVersion,
           plutus
         )
+        val builtinCostModel = BuiltinCostModel.fromCostModelParams(plutus, semvar, paramsMap)
+        val machineCosts = CekMachineCosts.fromMap(paramsMap)
         MachineParams(
           machineCosts = machineCosts,
           builtinCostModel = builtinCostModel,
