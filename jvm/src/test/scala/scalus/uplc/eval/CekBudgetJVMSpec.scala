@@ -5,6 +5,7 @@ import cats.syntax.all.*
 import org.scalatest.funsuite.AnyFunSuite
 import scalus.*
 import scalus.builtin.JVMPlatformSpecific
+import scalus.ledger.api.BuiltinSemanticsVariant
 import scalus.ledger.api.PlutusLedgerLanguage.*
 import scalus.ledger.babbage.*
 import scalus.uplc.DefaultUni.asConstant
@@ -79,7 +80,7 @@ class CekBudgetJVMSpec extends AnyFunSuite:
         val paramsV2Map = writeJs(paramsV2).obj.map { case (k, v) => (k, v.num.toLong) }.toMap
         val paramsV3Map = writeJs(paramsV3).obj.map { case (k, v) => (k, v.num.toLong) }.toMap
         // check that we can read the parameters
-        BuiltinCostModel.fromCostModelParams(PlutusV1, paramsV1Map)
-        BuiltinCostModel.fromCostModelParams(PlutusV2, paramsV2Map)
-        BuiltinCostModel.fromCostModelParams(PlutusV3, paramsV3Map)
+        BuiltinCostModel.fromCostModelParams(PlutusV1, BuiltinSemanticsVariant.B, paramsV1Map)
+        BuiltinCostModel.fromCostModelParams(PlutusV2, BuiltinSemanticsVariant.B, paramsV2Map)
+        BuiltinCostModel.fromCostModelParams(PlutusV3, BuiltinSemanticsVariant.C, paramsV3Map)
     }
