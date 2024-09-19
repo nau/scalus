@@ -373,6 +373,16 @@ class PlutusV1Params {
     var `verifyEd25519Signature-cpu-arguments-intercept`: Long = 0L
     var `verifyEd25519Signature-cpu-arguments-slope`: Long = 0L
     var `verifyEd25519Signature-memory-arguments`: Long = 0L
+
+    override def toString: String =
+        val fields = this.getClass.getDeclaredFields
+        fields.foreach(_.setAccessible(true))
+        val fieldStrings = fields.map { field =>
+            val name = field.getName
+            val value = field.get(this)
+            s"$name: $value"
+        }
+        s"PlutusV1Params(${fieldStrings.mkString(", ")})"
 }
 
 class PlutusV2Params {
@@ -551,6 +561,16 @@ class PlutusV2Params {
     var `verifySchnorrSecp256k1Signature-cpu-arguments-intercept`: Long = 0L
     var `verifySchnorrSecp256k1Signature-cpu-arguments-slope`: Long = 0L
     var `verifySchnorrSecp256k1Signature-memory-arguments`: Long = 0L
+
+    override def toString: String =
+        val fields = this.getClass.getDeclaredFields
+        fields.foreach(_.setAccessible(true))
+        val fieldStrings = fields.map { field =>
+            val name = field.getName
+            val value = field.get(this)
+            s"$name: $value"
+        }
+        s"PlutusV2Params(${fieldStrings.mkString(", ")})"
 }
 
 class PlutusV3Params {
@@ -787,6 +807,16 @@ class PlutusV3Params {
     var byteStringToInteger_cpu_arguments_c2: Long = 0L
     var byteStringToInteger_memory_arguments_intercept: Long = 0L
     var byteStringToInteger_memory_arguments_slope: Long = 0L
+
+    override def toString: String =
+        val fields = this.getClass.getDeclaredFields
+        fields.foreach(_.setAccessible(true))
+        val fieldStrings = fields.map { field =>
+            val name = field.getName
+            val value = field.get(this)
+            s"$name: $value"
+        }
+        s"PlutusV3Params(${fieldStrings.mkString(", ")})"
 }
 
 private object JsonUtils {
