@@ -119,6 +119,16 @@ case class BuiltinCostModel(
         }
         flatten(obj)
     }
+
+    override def toString: String =
+        val fields = this.getClass.getDeclaredFields
+        fields.foreach(_.setAccessible(true))
+        val fieldStrings = fields.map { field =>
+            val name = field.getName
+            val value = field.get(this)
+            s"$name: $value"
+        }
+        s"BuiltinCostModel(${fieldStrings.mkString(", ")})"
 }
 
 object BuiltinCostModel {
@@ -126,6 +136,9 @@ object BuiltinCostModel {
     private inline def inlineBuiltinCostModelJson(name: String) = ${
         Macros.inlineBuiltinCostModelJsonImpl('name)
     }
+
+    val defaultCostModelA: BuiltinCostModel =
+        BuiltinCostModel.fromJsonString(inlineBuiltinCostModelJson("/builtinCostModelA.json"))
 
     val defaultCostModelB: BuiltinCostModel =
         BuiltinCostModel.fromJsonString(inlineBuiltinCostModelJson("/builtinCostModelB.json"))
@@ -140,6 +153,7 @@ object BuiltinCostModel {
       * @return
       *   a [[BuiltinCostModel]]
       */
+    @deprecated("Use defaultCostModelA, defaultCostModelB or defaultCostModelC instead", "0.1.0")
     val defaultCostModel: BuiltinCostModel = defaultCostModelC
 
     given ReadWriter[BuiltinCostModel] = readwriter[ujson.Value].bimap(

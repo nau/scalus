@@ -44,7 +44,20 @@ case class CekMachineCosts(
 )
 
 object CekMachineCosts {
-    val defaultMachineCosts: CekMachineCosts = CekMachineCosts(
+    val defaultMachineCostsA: CekMachineCosts = CekMachineCosts(
+      startupCost = ExBudget(ExCPU(100), ExMemory(100)),
+      varCost = ExBudget(ExCPU(23000), ExMemory(100)),
+      constCost = ExBudget(ExCPU(23000), ExMemory(100)),
+      lamCost = ExBudget(ExCPU(23000), ExMemory(100)),
+      delayCost = ExBudget(ExCPU(23000), ExMemory(100)),
+      forceCost = ExBudget(ExCPU(23000), ExMemory(100)),
+      applyCost = ExBudget(ExCPU(23000), ExMemory(100)),
+      builtinCost = ExBudget(ExCPU(23000), ExMemory(100)),
+      constrCost = ExBudget(ExCPU(23000), ExMemory(100)),
+      caseCost = ExBudget(ExCPU(23000), ExMemory(100))
+    )
+
+    val defaultMachineCostsB: CekMachineCosts = CekMachineCosts(
       startupCost = ExBudget(ExCPU(100), ExMemory(100)),
       varCost = ExBudget(ExCPU(16000), ExMemory(100)),
       constCost = ExBudget(ExCPU(16000), ExMemory(100)),
@@ -56,6 +69,9 @@ object CekMachineCosts {
       constrCost = ExBudget(ExCPU(16000), ExMemory(100)),
       caseCost = ExBudget(ExCPU(16000), ExMemory(100))
     )
+
+    val defaultMachineCostsC: CekMachineCosts = defaultMachineCostsB
+    val defaultMachineCosts: CekMachineCosts = defaultMachineCostsC
 
     def fromMap(map: Map[String, Long]): CekMachineCosts = {
         def get(key: String) = {
@@ -133,11 +149,25 @@ object MachineParams {
         protocolVersion: ProtocolVersion
     ): MachineParams = {
         val variant = BuiltinSemanticsVariant.fromProtocolAndPlutusVersion(protocolVersion, plutus)
-        MachineParams(
-          machineCosts = CekMachineCosts.defaultMachineCosts,
-          builtinCostModel = BuiltinCostModel.defaultCostModel,
-          semanticVariant = variant
-        )
+        variant match
+            case BuiltinSemanticsVariant.A =>
+                MachineParams(
+                  machineCosts = CekMachineCosts.defaultMachineCostsA,
+                  builtinCostModel = BuiltinCostModel.defaultCostModelA,
+                  semanticVariant = variant
+                )
+            case BuiltinSemanticsVariant.B =>
+                MachineParams(
+                  machineCosts = CekMachineCosts.defaultMachineCostsB,
+                  builtinCostModel = BuiltinCostModel.defaultCostModelB,
+                  semanticVariant = variant
+                )
+            case BuiltinSemanticsVariant.C =>
+                MachineParams(
+                  machineCosts = CekMachineCosts.defaultMachineCostsC,
+                  builtinCostModel = BuiltinCostModel.defaultCostModelC,
+                  semanticVariant = variant
+                )
     }
 
     /** Creates `MachineParams` from a Cardano CLI protocol parameters JSON.
