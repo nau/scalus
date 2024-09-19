@@ -227,8 +227,15 @@ class ScalusTransactionEvaluator(
             )
             // Get reference input script
             if utxo.getReferenceScriptHash != null && scriptSupplier != null then
-                val script = scriptSupplier.getScript(utxo.getReferenceScriptHash)
-                scripts.put(utxo.getReferenceScriptHash, script)
+                try
+                    val script = scriptSupplier.getScript(utxo.getReferenceScriptHash)
+                    scripts.put(utxo.getReferenceScriptHash, script)
+                catch
+                    case _: Exception =>
+                        // this can happen if the Plutus script is not found
+                        // usually this is the case for native scripts
+                        // we can ignore this
+                        ()
 
         // Initialize witness set to avoid null pointer exceptions
         if transaction.getWitnessSet == null then
