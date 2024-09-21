@@ -21,7 +21,8 @@ object SIRTypesHelper {
 
 
     def sirTypeInEnv(tp: Type, env: SIRTypeEnv)(using Context): SIRType = {
-        env.forwardRefs.get(tp.typeSymbol) match
+        val wtp = tp.dealias.widen
+        env.forwardRefs.get(wtp.typeSymbol) match
             case Some(proxy) => proxy
             case None =>
                 val proxy = new SIRType.TypeProxy(null)
@@ -56,9 +57,24 @@ object SIRTypesHelper {
                         case Some(t) => t
                         case None =>
                             val name = sym.showFullName
-                            println(s"makeSIRClassType ${name}")
+                            println(s"before unsupported type, sym=${sym}, sym.hashCode=${sym.hashCode()} name=${name}, env=${env}")
                             unsupportedType(tp, s"TypeRef ${tpc.show}", env)
+                else if (tpc.isTypeAlias) then
+                    println(s"before unsupportedType, typeRef.isClass=${sym.isClass},  fullName=${sym.fullName}, show=${tpc.show}, isAliasType=${sym.isAliasType}, tree=${tpc}")
+                    unsupportedType(tpc, "TypeRef,TypeAlias", env)
+                else if (sym.isAliasType) then
+                    println(s"before unsupportedType, typeRef.isClass=${sym.isClass},  fullName=${sym.fullName}, show=${tpc.show}, tree=${tpc}")
+                    println(s"sym.info=${sym.info.show}, tpc.underlying=${tpc.underlying.show}")
+                    sirTypeInEnvWithErr(tpc.underlying, env)
+                else if (tpc.isValueType) then
+                    println(s"before makeSIRTypeRefValueType, typeRef.isClass=${sym.isClass},  fullName=${sym.fullName}, show=${tpc.show}, sym.isAliasType=${sym.isAliasType}, tree=${tpc}")
+                    println(s"tpc.isTypeAlias=${tpc.isTypeAlias}, sym.isAlias=${sym.isAliasType}, tpc.isSingleton=${tpc.isSingleton}")
+                    println(s"tpc.symbol=${tpc.symbol}, underlying = ${tpc.underlying.show}, underlayin fullName=${tpc.underlying.typeSymbol.fullName}")
+                    println(s"tpfname=${tpc.typeSymbol.fullName}, ${tpc.underlying}")
+                    makeSIRNonFunValueType(tpc, Nil, env)
                 else
+                    println(s"before unsupportedType, sym.isClass=${sym.isClass},  fullName=${sym.fullName}, show=${tpc.show}, sym.isAliasType=${sym.isAliasType}, tpc.isTypeAlias=${tpc.isTypeAlias}. tree=${tpc}")
+                    println(s"tpc.dealias=${tpc.dealias.show}, tpc.dealias =:= tpc = ${tpc.dealias =:= tpc}, tps.isSingleton=${tpc.isSingleton}")
                     unsupportedType(tpc, "TypeRef", env)
             case tpc: ConstantType =>
                 // hmm, widen should have taken care of this
@@ -148,6 +164,14 @@ object SIRTypesHelper {
             println(s"makeSIRClassType ${name} ${typeArgs}")
             unsupportedType(tp,s"tree=${tp}, isClass=${sym.isClass} isAliasType=${sym.isAliasType}", env)
         }
+    }
+
+    def makeSIRNonFunValueType(tpc: TypeRef, params: List[Type], env: SIRTypeEnv)(using Context): SIRType = {
+        val sym = tpc.typeSymbol
+        if (sym == Symbols.requiredClass("scala.math.BigInt")) then
+           SIRType.IntegerPrimitive
+        else
+          unsupportedType(tpc, "ValueType", env)
     }
 
     def makeSIRFunType(tp: Type, env: SIRTypeEnv)(using Context): SIRType = {

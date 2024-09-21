@@ -103,6 +103,9 @@ object HashConsedRead {
 
 extension (s: HashConsedRead.State)
 
+    def putForwardRef(ihc: Int, tag: HashConsedRead.Tag, action: AnyRef => Unit): Boolean =
+        HashConsedRead.putForwardRef(s, HashConsedRead.ForwardRef(ihc, tag, List(action)))
+    
     def putForwardRef(fw: HashConsedRead.ForwardRef): Boolean =
         HashConsedRead.putForwardRef(s, fw)
 
