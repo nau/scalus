@@ -302,6 +302,8 @@ package object flat:
         def filler(): Unit =
             this.currentByte |= 1;
             nextWord()
+            
+        def bitPosition(): Int = this.nextPtr * 8 + this.usedBits    
 
 
 

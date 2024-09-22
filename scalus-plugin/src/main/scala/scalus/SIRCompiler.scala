@@ -353,7 +353,15 @@ final class SIRCompiler(mode: scalus.Mode)(using ctx: Context) {
                     }
                     val nEnv = env.copy(typeVars = envTypeVars2)
                     val params =  primaryConstructorParams(sym).map { p =>
-                        val pType = sirTypeInEnv(p.info, srcPos, nEnv)
+                        val pType =
+                            try
+                                sirTypeInEnv(p.info, srcPos, nEnv)
+                            catch
+                                case NonFatal(e) =>
+                                    println(s"Error in sirTypeInEnv: ${p.info.show} ${p.info.widen.show}")
+                                    println(s"PrimaryConstructorParams: ${primaryConstructorParams(sym)}")
+                                    println(s"PrimaryConstructorTypeParams: ${primaryConstructorTypeParams(sym)}")
+                                    throw e
                         TypeBinding(p.name.show, pType)
                     }
                     val optBaseClass = sym.info.baseClasses.find{
@@ -452,6 +460,9 @@ final class SIRCompiler(mode: scalus.Mode)(using ctx: Context) {
 
     def error[A](error: CompilationError, defaultValue: A): A = {
         report.error(error.message, error.srcPos)
+        if (true) {
+            Thread.dumpStack()
+        }
         defaultValue
     }
 
@@ -856,7 +867,11 @@ final class SIRCompiler(mode: scalus.Mode)(using ctx: Context) {
                     case SIRType.List(t) =>
                         SIR.Apply(SIRBuiltins.headList, exprA, t)
                     case other =>
-                        error(TypeMismatch(fun.toString,SIRType.List(SIRType.TypeVar("A")),other,lst.srcPos), SIR.Error(""))
+                        println(s"expected that exprA.tp ${exprA} is List, but got: ${other}")
+                        throw new Exception("expected that exprA.tp is List")
+                        error(
+                            TypeMismatch(fun.toString,SIRType.List(SIRType.TypeVar("A")),other,lst.srcPos), SIR.Error("")
+                        )
             case "tail" =>
                 val exprArg = compileExpr(env, lst)
                 SIR.Apply(SIRBuiltins.tailList, exprArg, exprArg.tp)
@@ -1135,9 +1150,22 @@ final class SIRCompiler(mode: scalus.Mode)(using ctx: Context) {
                     val lhs = compileExpr(env, obj)
                     val selType = sirTypeInEnv(sel.tpe, sel, env)
                     val s0: SIRExpr = SIR.Var(ident.show, selType)
+                    val tps = primaryConstructorTypeParams(ts)
+
+                    // TODO: support of dependend types (i.e. fold instead map)
+                    val nTypeVars = obj.tpe.widen.dealias match
+                        case AppliedType(t, args) => tps.zip(args).map{ case(tp, v) =>
+                              val vSirType = sirTypeInEnv(v, sel.srcPos, env)
+                              tp -> vSirType
+                           }.toMap
+                        case _ => tps.map { tp =>
+                               tp -> SIRType.TypeVar(tp.name.show, Some(tp.hashCode))
+                           }.toMap
+                    val env1 = env.copy(typeVars = env.typeVars ++ nTypeVars)
                     val lam = primaryConstructorParams(ts).foldRight(s0) {
                         case (f, acc) =>
-                            SIR.LamAbs(SIR.Var(f.name.show, sirTypeInEnv(f.paramInfo, sel, env)), acc)
+                            val fType = sirTypeInEnv(f.paramInfo, f.srcPos, env1)
+                            SIR.LamAbs(SIR.Var(f.name.show, fType), acc)
                     }
                     SIR.Apply(lhs, lam, selType)
                 // else if obj.symbol.isPackageDef then
@@ -1148,7 +1176,9 @@ final class SIRCompiler(mode: scalus.Mode)(using ctx: Context) {
             // ignore asInstanceOf
             case TypeApply(Select(e, nme.asInstanceOf_), _) => compileExpr(env, e)
             // Ignore type application
-            case TypeApply(f, args) => compileExpr(env, f)
+            case TypeApply(f, args) =>
+                //???
+                compileExpr(env, f)
             // Generic Apply
             case app@Apply(f, args) => compileApply(env, f, args, tree.tpe, app)
             // (x: T) => body
@@ -1249,7 +1279,7 @@ object SIRCompiler {
 
     case class Env(
                       vars: Map[String, SIRType],
-                      typeVars: Map[Symbol, SIRType]
+                      typeVars: Map[Symbol, SIRType],
                   ) {
 
 

@@ -211,7 +211,7 @@ object FlatInstantces:
         //
 
         override def bitSizeHC(a: SIRType, hashConsed: HashConsedRead.State): Int =
-            a match
+            val retval = a match
                 case _: SIRType.Primitive[?] => tagWidth
                 case SIRType.Data => tagWidth
                 case cc: SIRType.CaseClass =>
@@ -230,13 +230,17 @@ object FlatInstantces:
                 case SIRType.TypeProxy(ref) =>
                     if (ref == null) 
                         throw new IllegalStateException("TypeProxy id is null, looks lise save or restore is invalid")
+                    println(s"encode proxy, ref=${ref}")
                     tagWidth + PlainIntFlat.bitSize(ref.hashCode())
                 case err:SIRType.TypeError =>
                     tagWidth + summon[Flat[String]].bitSize(err.msg)
-                case SIRType.TypeNothing => tagWidth    
+                case SIRType.TypeNothing => tagWidth
+            println(s"bisSizeHC($a)=${retval}")
+            retval
 
-        
+
         override def encodeHC(a: SIRType, encode: HashConsedEncoderState): Unit =
+            val startPos = encode.encode.bitPosition()
             a match
                 case SIRType.ByteStringPrimitive => encode.encode.bits(tagWidth, tagPrimitiveByteString)
                 case SIRType.IntegerPrimitive => encode.encode.bits(tagWidth, tagPrimitiveInteger)
@@ -271,6 +275,8 @@ object FlatInstantces:
                     summon[Flat[String]].encode(err.msg, encode.encode)
                 case SIRType.TypeNothing =>
                     encode.encode.bits(tagWidth, tagTypeNothing)
+            val endPos = encode.encode.bitPosition()
+            println(s"encode $a,  size=${endPos-startPos}")
                     
                 
 
@@ -308,7 +314,7 @@ object FlatInstantces:
                 case `tagTypeError` =>
                     val msg = summon[Flat[String]].decode(decode.decode)
                     SIRType.TypeError(msg, null)
-                case `tagTypeNothing` => SIRType.TypeNothing    
+                case `tagTypeNothing` => SIRType.TypeNothing
                 case _ => throw new IllegalStateException(s"Invalid SIRType tag: $tag")
                 
 

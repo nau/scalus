@@ -202,7 +202,7 @@ object SIRType {
         override def show: String = "*"
     }
 
-    class TypeProxy(var ref: SIRType|Null) extends SIRType {
+    class TypeProxy(private var _ref: SIRType|Null) extends SIRType {
 
         override def hashCode(): Int = {
             if (ref==null) then
@@ -219,10 +219,28 @@ object SIRType {
             val internal = if (ref eq null) then "null" else java.lang.System.identityHashCode(ref).toString
             s"Proxy($internal)"
         }
+        
+        def ref: SIRType|Null = _ref
+        
+        def ref_=(value: SIRType|Null): Unit = {
+            value match
+                case tp: TypeProxy =>
+                    throw new IllegalArgumentException(s"TypeProxy cannot be assigned to TypeProxy: $tp, tp.ref=${tp.ref}")
+                case _ =>    
+            _ref = value
+        }
+        
     }
 
     object TypeProxy {
+        
         def apply(ref: SIRType|Null): TypeProxy = {
+            ref match
+                case TypeProxy(ref1) => 
+                    throw new IllegalArgumentException(s"TypeProxy cannot be created from another TypeProxy: $ref1")
+                case _ : Primitive[?] =>
+                    throw new IllegalArgumentException(s"TypeProxy cannot be created from Primitive: $ref")    
+                case _ =>    
             val proxy = new TypeProxy(ref)
             ref match {
                 case tp: TypeProxy =>
@@ -236,7 +254,8 @@ object SIRType {
             case tp: TypeProxy => Some(tp.ref)
             case _ => None
         }
-
+        
+        
     }
 
     case object TypeNothing extends SIRType {
@@ -261,7 +280,11 @@ object SIRType {
             SumCaseClass(dataDecl, scala.List(a))
 
         def unapply(l: SIRType): Option[SIRType] = l match {
-            case SumCaseClass(`dataDecl`,List(a)) => Some(a)
+            case SumCaseClass(dataDecl,scala.List(a)) =>
+                if (dataDecl.name == "List") then
+                    Some(a)
+                else
+                    None
             case this.Cons(a) => Some(a)
             case this.Nil => Some(VoidPrimitive)
             case _ => None
@@ -284,20 +307,22 @@ object SIRType {
                 )
             }
 
-
-
-
+            
             def apply(a: SIRType) = CaseClass(constr, scala.List(a))
 
 
             def unapply(x:SIRType): Option[SIRType] = x match {
-                case CaseClass(`constr`,scala.List(a)) => Some(a)
+                case CaseClass(constr,scala.List(a)) =>
+                    if (constr.name == "Cons") then
+                        Some(a)
+                    else
+                        None
                 case _ => None
             }
             
         }
 
-        val NilConstr = ConstrDecl("Nil", SIRVarStorage.LocalUPLC, scala.Nil, scala.Nil, scala.Nil)
+        val NilConstr = ConstrDecl("Nil", SIRVarStorage.DEFAULT, scala.Nil, scala.Nil, scala.Nil)
 
         val Nil = CaseClass(NilConstr, scala.Nil)
 

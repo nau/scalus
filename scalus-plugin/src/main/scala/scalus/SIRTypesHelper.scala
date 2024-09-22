@@ -17,17 +17,24 @@ object SIRTypesHelper {
                           vars: Map[Symbol, SIRType],
                           forwardRefs : Map[Symbol,SIRType.TypeProxy] = Map.empty)
 
-    case class TypingException(tpe: Type, pos: SrcPos, msg: String) extends RuntimeException(msg)
+    case class TypingException(tpe: Type, pos: SrcPos, msg: String, cause: Throwable = null) extends RuntimeException(msg, cause)
 
 
     def sirTypeInEnv(tp: Type, env: SIRTypeEnv)(using Context): SIRType = {
-        val wtp = tp.dealias.widen
+        val retval =
+            try
+                sirTypeInEnvWithErr(tp, env)
+            catch
+                case e: TypingException =>
+                    println(s"typing exception during sirTypeInEnv(${tp.show}), tp tree: ${tp}")
+                    throw e
+        /*
         env.forwardRefs.get(wtp.typeSymbol) match
             case Some(proxy) => proxy
             case None =>
                 val proxy = new SIRType.TypeProxy(null)
                 try {
-                    val retval = sirTypeInEnvWithErr(tp, env.copy(forwardRefs = env.forwardRefs.updated(tp.typeSymbol, proxy)))
+                    val retval = sirTypeInEnvWithErr(tp, env.copy(forwardRefs = env.forwardRefs.updated(wtp.typeSymbol, proxy)))
                     proxy.ref = retval
                     println(s"sirTypeInEnv for ${tp.show} return, retval=${retval}")
                     retval
@@ -36,14 +43,19 @@ object SIRTypesHelper {
                         println(s"typing exception during sirTypeInEnv(${tp.show}), tp tree: ${tp}")
                         throw e
                 }
+
+         */
+        retval
     }
 
     def sirTypeInEnvWithErr(tp: Type, env: SIRTypeEnv)(using Context): SIRType =
-        val retval = tp.dealias.widen match
+        val retval = tp match
             case tpc: TermRef =>
                 if (tpc.typeSymbol.isTypeParam) then
                     println("type parameter detected: " + tpc.show)
                     unsupportedType(tp, s"TermRef ${tpc.show}", env)
+                else if !(tpc.widen =:= tpc) then
+                    sirTypeInEnvWithErr(tp.widen, env)
                 else
                     unsupportedType(tp, s"TermRef ${tpc.show}", env)
             case tpc: TypeRef =>
@@ -78,11 +90,12 @@ object SIRTypesHelper {
                     unsupportedType(tpc, "TypeRef", env)
             case tpc: ConstantType =>
                 // hmm, widen should have taken care of this
-                ???
+                println(s"ConstantType ${tpc.show}")
+                sirTypeInEnvWithErr(tpc.widen, env)
             case tpc: SuperType =>
                 ???
             case tpc: RefinedType =>
-                sirTypeInEnv(tpc.parent, env)
+                sirTypeInEnvWithErr(tpc.parent, env)
             case tp: AppliedType =>
                 if (tp.tycon.isRef(defn.MatchCaseClass)) then
                     unsupportedType(tp,"MatchCaseClass",env)
@@ -141,6 +154,8 @@ object SIRTypesHelper {
                 unsupportedType(tp, "NoPrefix", env)
             //case tpf: FlexibleType =>
             //    sirTypeInEnv(tpf.underlying, env)
+            case classInfo: ClassInfo =>
+                makeSIRNonFunClassType(classInfo.appliedRef, Nil, env)
             case other =>
                 unsupportedType(tp, s"${tp.show}, tree=${tp}", env)
         retval
@@ -155,7 +170,7 @@ object SIRTypesHelper {
     def makeSIRNonFunClassType(tp: Type, types: List[SIRType], env: SIRTypeEnv)(using Context): SIRType = {
         val sym = tp.typeSymbol
         println(s"makeSIRNonFumClassType ${sym.showFullName} ${types.map(_.show)}, isFunctionType=${defn.isFunctionType(tp)}")
-        (tryMakePrimitivePrimitive(sym, types) orElse
+        val retval = (tryMakePrimitivePrimitive(sym, types) orElse
           tryMakeBuildinType(sym, types, env) orElse
           tryMakeCaseClassOrCaseParent(sym, types, env)
         ).getOrElse{
@@ -164,6 +179,8 @@ object SIRTypesHelper {
             println(s"makeSIRClassType ${name} ${typeArgs}")
             unsupportedType(tp,s"tree=${tp}, isClass=${sym.isClass} isAliasType=${sym.isAliasType}", env)
         }
+        println("nakeSIRNonFunClassType return " + retval)
+        retval
     }
 
     def makeSIRNonFunValueType(tpc: TypeRef, params: List[Type], env: SIRTypeEnv)(using Context): SIRType = {
@@ -239,7 +256,14 @@ object SIRTypesHelper {
             case Some(proxy) =>
                 Some(proxy)
             case None =>
-                tryMakeCaseClassOrCaseParentTypeNoRec(typeSymbol, tpArgs, env)
+                val proxy = new SIRType.TypeProxy(null)
+                val retval = tryMakeCaseClassOrCaseParentTypeNoRec(typeSymbol, tpArgs, env.copy(forwardRefs = env.forwardRefs.updated(typeSymbol, proxy)), proxy)
+                retval match
+                    case Some(t) =>
+                        proxy.ref = t
+                        Some(t)
+                    case None =>
+                        None
     }
 
 
@@ -250,19 +274,17 @@ object SIRTypesHelper {
      * @param x$3
      * @return
      */
-    def tryMakeCaseClassOrCaseParentTypeNoRec(typeSymbol:Symbol, tpArgs: List[SIRType], env: SIRTypeEnv)(using Context): Option[SIRType] = {
-        println(s"tryMakeCaseClassOrCaseParentType ${typeSymbol.showFullName} ${tpArgs.map(_.show)}")
+    def tryMakeCaseClassOrCaseParentTypeNoRec(typeSymbol:Symbol, tpArgs: List[SIRType], env: SIRTypeEnv, thisProxy: SIRType.TypeProxy)(using Context): Option[SIRType] = {
+        println(s"tryMakeCaseClassOrCaseParentTypeNoRec ${typeSymbol.showFullName} ${tpArgs.map(_.show)}")
         if (typeSymbol.flags.is(Flags.Case)) {
                 // case class, can do constrdecl
-                val thisProxy = SIRType.TypeProxy(null)
-                val nEnv1 = env.copy(forwardRefs = env.forwardRefs.updated(typeSymbol, thisProxy))
                 val name = typeSymbol.fullName.show
-                val params = typeSymbol.info.fields.map(f => TypeBinding(f.name.show, sirTypeInEnv(f.info, env))).toList
                 val tparams = typeSymbol.info.typeParamSymbols.map(s => SIRType.TypeVar(s.name.show, Some(s.hashCode)))
                 val nVars = typeSymbol.info.typeParamSymbols.zip(tparams).foldLeft(env.vars) {
                     case (acc, (sym, tvar)) => acc.updated(sym, tvar)
                 }
                 val nEnv = env.copy(vars = nVars)
+                val params = typeSymbol.info.fields.map(f => TypeBinding(f.name.show, sirTypeInEnv(f.info, nEnv))).toList
                 val optBaseSymbol = typeSymbol.info.baseClasses.find(bc => bc.children.nonEmpty)
                 val constrDecl = optBaseSymbol match
                     case Some(baseSymbol) =>
@@ -274,17 +296,27 @@ object SIRTypesHelper {
                     case None =>
                         ConstrDecl(name, SIRVarStorage.Data, params, tparams, Nil)
                 val nType = SIRType.CaseClass(constrDecl, tpArgs)
-                thisProxy.ref = nType
                 Some(nType)
         } else {
+                // TODO: keep in env mapSymbol => SumCaseClass to prevent duplication
                 if (typeSymbol.children.nonEmpty) {
-                    val thisProxy = SIRType.TypeProxy(null)
                     val childrenSymbols = typeSymbol.children
-                    val childrenTypes = childrenSymbols.map(s => sirTypeInEnv(s.info, env))
+                    val childrenTypes = childrenSymbols.map(s =>
+                        println(s"run childrenTypr for $s, s.info=${s.info.show}, s.isType=${s.isType}, s.isTerm = ${s.isTerm}")
+                        if (s.isType) then
+                            sirTypeInEnv(s.info, env)
+                        else
+                            val parentTpArgs = s.info.baseType(typeSymbol) match
+                                case AppliedType(tycon, args) => args.map(sirTypeInEnv(_, env))
+                                case _ => Nil
+                            val constrDecl = ConstrDecl(s.name.show, SIRVarStorage.DEFAULT, Nil, Nil, parentTpArgs)
+                            SIRType.CaseClass(constrDecl, Nil)
+                    )
                     childrenTypes.find{ chtp =>
                         ! chtp.isInstanceOf[SIRType.CaseClass] &&
                         ! chtp.isInstanceOf[SIRType.SumCaseClass] &&
-                        ! chtp.isInstanceOf[SIRType.TypeLambda]
+                        ! chtp.isInstanceOf[SIRType.TypeLambda] &&
+                        ! chtp.isInstanceOf[SIRType.TypeProxy]
                     } match
                         case Some(errType) =>
                             val msg = s"Case parent type ${typeSymbol.showFullName} has children that are not case classes or case parent types: ${errType.show}"
@@ -298,11 +330,31 @@ object SIRTypesHelper {
                                 thisProxy.ref = SIRType.TypeError(msg, null)
                                 Some(typeError(typeSymbol.info, msg, env, throwError = true))
                             } else {
+                                val unfinishedConstr = childrenTypes.filter{
+                                        case SIRType.TypeProxy(ref) => ref == null
+                                        case _ => false
+                                }
+                                if (unfinishedConstr.nonEmpty) {
+                                    val unfinishedSymbols = env.forwardRefs.flatMap{ case (k,v) =>
+                                        if (unfinishedConstr.contains(v)) {
+                                            Some(k)
+                                        } else {
+                                            None
+                                        }
+                                    }
+                                    println(s"thisType = ${typeSymbol} (${typeSymbol.hashCode()}) , unfinishedSymbols=${unfinishedSymbols.map(s => (s.hashCode(), s.fullName))}")
+                                    println(s"childrenSymbols= ${childrenSymbols.map(s => (s.hashCode(), s.fullName))}")
+                                    println(s"childrenTypes= ${childrenTypes.map(_.show)}")
+                                    ???
+                                }
                                 val nType =
                                     try
                                         val constrDecls = childrenTypes.map {
                                             case chtp: SIRType.CaseClass => chtp.constrDecl
                                             case tpr: SIRType.TypeProxy if (tpr.ref.isInstanceOf[SIRType.CaseClass]) => tpr.ref.asInstanceOf[SIRType.CaseClass].constrDecl
+                                            case nullProxy: SIRType.TypeProxy if (nullProxy.ref == null) =>
+                                                // tpr
+                                                ???
                                             case other =>
                                                 throw TypingException(typeSymbol.info, env.pos, s"Case parent type ${typeSymbol.showFullName} has children that are not case classes or case parent types: ${other.show}")
                                                 //typeError(typeSymbol.info, s"Case parent type ${typeSymbol.showFullName} has children that are not case classes or case parent types: ${other.show}", env, throwError = true)
@@ -310,8 +362,9 @@ object SIRTypesHelper {
                                         SIRType.SumCaseClass(DataDecl(name, constrDecls, tparams), tpArgs)
                                     catch
                                         case e: TypingException =>
-                                            thisProxy.ref = SIRType.TypeError(e.msg, null)
-                                            typeError(typeSymbol.info, e.msg, env, throwError = true)
+                                            thisProxy.ref = SIRType.TypeError(e.msg, e)
+                                            typeError(typeSymbol.info, e.msg, env, throwError = true, e)
+                                            throw e;
                                 thisProxy.ref = nType
                                 Some(nType)
                             }
@@ -334,7 +387,7 @@ object SIRTypesHelper {
             val params = mt.paramNames.zip(mt.paramInfos).map {
                 (name, tp) => sirTypeInEnv(tp, env)
             }
-            val res = sirTypeInEnv(mt.resultType, env)
+            val res = sirTypeInEnvWithErr(mt.resultType, env)
             makeUnaryFun(params, res)
         }catch{
             case e: TypingException =>
@@ -346,7 +399,7 @@ object SIRTypesHelper {
 
     def makeFunTypeLambda(fn: Type): SIRType = ???
 
-    def typeError(tpe: Type, msg: String, env: SIRTypeEnv, throwError: Boolean = false)(using Context): SIRType = {
+    def typeError(tpe: Type, msg: String, env: SIRTypeEnv, throwError: Boolean = false, cause: Throwable = null)(using Context): SIRType = {
         if (throwError) then
             throw TypingException(tpe, env.pos, msg)
         else

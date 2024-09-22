@@ -10,7 +10,7 @@ import dotty.tools.dotc.core.NameKinds.UniqueNameKind
 import dotty.tools.dotc.core.Names.*
 import dotty.tools.dotc.core.StdNames.nme
 import dotty.tools.dotc.core.Symbols.*
-import dotty.tools.dotc.core.Types.{AppliedType, Type}
+import dotty.tools.dotc.core.Types.{AppliedType, Type, TypeVar}
 import dotty.tools.dotc.util.SrcPos
 import scalus.sir.*
 
@@ -244,6 +244,8 @@ class PatternMatchingCompiler(val compiler: SIRCompiler)(using Context) {
                                 .map(_ => bindingName.fresh().show)
                             // TODO: extract rhs to a let binding before the match
                             // so we don't have to repeat it for each case
+                            // also we have no way toknowtype-arameters, so use abstract type-vars (will use FreeUnificator))
+                            val typeArgs = constr.typeParams.map(tp => SIRType.TypeVar(tp.name.show, Some(tp.hashCode)))
                             val constrDecl = retrieveConstrDecl(env, constr, srcPos)
                             if (constr.typeParams.nonEmpty) then
                                 compiler.error(
@@ -279,11 +281,28 @@ class PatternMatchingCompiler(val compiler: SIRCompiler)(using Context) {
         SIR.Match(matchExpr, sortedCases, sirTypeInEnv(tree.tpe, tree.srcPos, env))
     }
 
-    private def retrieveConstrDecl(env: SIRCompiler.Env, constructorSymbol: Symbol, srcPos: SrcPos): ConstrDecl = {
-        val params = constructorSymbol.primaryConstructor.paramSymss.flatten.filterNot(_.isTypeParam).map{ paramSym =>
-            TypeBinding(paramSym.name.show, sirTypeInEnv(paramSym.info.widen, srcPos, env))
+    // here we assume that match is work over case classes without custom unapply.
+    // TODO: extend to generic unapply calls ?
+    private def retrieveConstrDecl(env: SIRCompiler.Env, constructorSymbol: Symbol,  srcPos: SrcPos): ConstrDecl = {
+        //In scala, symbols of type-parameters of primary constructor and type parameters of the class are different.
+        // (but structure is identical)
+        // so we need to translate constructir type-parameters to class type-parameters.
+        //  (to have type-variables like in constructor class, not like in constructor <init>?)
+        // to have correnct mapping of base types.
+        val primaryConstructorTypeParamsSymbols = constructorSymbol.primaryConstructor.paramSymss.flatten.filter(_.isTypeParam)
+        val primaryConstructorTypeParams = primaryConstructorTypeParamsSymbols.zip(constructorSymbol.typeParams).map{
+            case (tpInit, tpClass) =>
+                tpInit -> SIRType.TypeVar(tpClass.name.show, Some(tpClass.hashCode))
+        }.toMap
+        val constrTypeParamsList =  constructorSymbol.typeParams.map(tp => SIRType.TypeVar(tp.name.show, Some(tp.hashCode)))
+        val constrTypeParams = constructorSymbol.typeParams.zip(constrTypeParamsList).map((tp, tv) => tp -> tv).toMap
+        val env1 = env.copy(typeVars = env.typeVars ++ primaryConstructorTypeParams ++ constrTypeParams)
+        val primaryConstructorParams = constructorSymbol.primaryConstructor.paramSymss.flatten.filterNot(_.isTypeParam).map{ paramSym =>
+            val paramInfo = paramSym.info.widen
+            val paramSirType = sirTypeInEnv(paramInfo, srcPos, env1)
+            TypeBinding(paramSym.name.show, paramSirType)
         }
-        val typeParams = constructorSymbol.typeParams.map(tp => SIRType.TypeVar(tp.name.show, Some(tp.hashCode)))
+        
         //  TODO:  define mapping of names into constructor.
         // trying to find decl.
         val optParent = constructorSymbol.info.baseClasses.find{ base =>
@@ -291,18 +310,14 @@ class PatternMatchingCompiler(val compiler: SIRCompiler)(using Context) {
                 child.isConstructor && child  == constructorSymbol
             }
         }
-        val revTypes = constructorSymbol.typeParams.foldLeft(Map.empty[Symbol, SIRType.TypeVar])((acc, tp) =>
-            acc + (tp -> SIRType.TypeVar(tp.name.show, Some(tp.hashCode)))
-        )
         val parentTypeArgs = optParent.map{ parent =>
             val tpArgs = constructorSymbol.info.baseType(parent) match {
                 case AppliedType(tpe, args) => args
                 case _ => Nil
             }
-            tpArgs.map(t => SIRTypesHelper.sirTypeInEnv(t, SIRTypesHelper.SIRTypeEnv(srcPos, env.typeVars ++ revTypes)))
+            tpArgs.map(t => SIRTypesHelper.sirTypeInEnv(t, SIRTypesHelper.SIRTypeEnv(srcPos, env1.typeVars)))
         }.getOrElse(Nil)
-
-        val constrDecl = scalus.sir.ConstrDecl(constructorSymbol.show, SIRVarStorage.DEFAULT, params, typeParams, parentTypeArgs)
+        val constrDecl = scalus.sir.ConstrDecl(constructorSymbol.show, SIRVarStorage.DEFAULT, primaryConstructorParams, constrTypeParamsList, parentTypeArgs)
         constrDecl
     }
 
