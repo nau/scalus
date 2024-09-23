@@ -91,7 +91,14 @@ object PlainIntFlat extends HashConsedFlat[Int] {
 
 }
 
-trait HashConsedReferencedFlat[A <: AnyRef] extends HashConsedFlat[A] with HashConsedTagged[A] {
+
+trait HashConsedReferencedFlat[A <: B, P <: B, B <: AnyRef] extends HashConsedFlat[A|P] with HashConsedTagged[B] {
+
+    type Proxy = P
+
+    def makeProxy(): Proxy
+
+    def setRef(proxy: Proxy, a: A): Unit
 
     def tag: HashConsedRead.Tag
 
@@ -103,41 +110,111 @@ trait HashConsedReferencedFlat[A <: AnyRef] extends HashConsedFlat[A] with HashC
 
     override def bitSizeHC(a: A, hashConsed: HashConsedRead.State): Int = {
         val ihc = a.hashCode
-        hashConsed.lookupValue(ihc, tag) match {
+        var retval = PlainIntFlat.bitSize(ihc)
+        hashConsed.lookup(ihc, tag) match
             case None =>
-                val size = 4*8 + bitSizeHCNew(a, hashConsed)
                 hashConsed.putForwardRef(HashConsedRead.ForwardRef(ihc, tag, Nil))
-                size
+                retval  += bitSizeHCNew(a, hashConsed)
+                hsahConsed.setRef(ihc, tag, a)
             case Some(_) =>
-                4*8
-        }
+        retval
     }
 
     override def encodeHC(a: A, encoderState: HashConsedEncoderState): Unit =
         val ihc = a.hashCode
-        encoderState.hashConsed.lookupValue(ihc, tag) match {
+        PlainIntFlat.encode(ihc, encoderState.encode)
+        encoderState.hashConsed.lookup(ihc, tag) match
             case None =>
-                PlainIntFlat.encode(ihc, encoderState.encode)
                 encoderState.hashConsed.putForwardRef(HashConsedRead.ForwardRef(ihc, tag, Nil))
                 encodeHCNew(a, encoderState)
                 encoderState.hashConsed.setRef(ihc, tag, a)
             case Some(_) =>
-                PlainIntFlat.encode(ihc, encoderState.encode)
-        }
 
-    override def decodeHC(decoderState: HashConsedDecoderState): A = {
+
+    override def decodeHC(decoderState: HashConsedDecoderState): B = {
         val ihc = PlainIntFlat.decode(decoderState.decode)
-        decoderState.hashConsed.lookupValue(ihc, tag) match {
+        decoderState.hashConsed.lookup(ihc, tag) match
             case None =>
                 decoderState.hashConsed.putForwardRef(HashConsedRead.ForwardRef(ihc, tag, Nil))
                 val a = decodeHCNew(decoderState)
                 decoderState.hashConsed.setRef(ihc, tag, a)
                 a
-            case Some(a) =>
-                a.asInstanceOf[A]
-        }
+            case Some(Left(fw)) =>
+                val proxy = makeProxy()
+                fw.addAction(setRef(proxy,_))
+                proxy
+            case Some(Right(a)) =>
+                a.asInstanceOf[B]
     }
 
+
+
+}
+
+
+
+/**
+ * Here we assume, that A can participate in the recursive structures, but
+ *  assumes, that A does not contaoins forward references to A.
+ *  (note, that subpart of A, which readed separately, can contain forward references to A)
+ *
+ * @tparam A
+ */
+trait HashConsedRefFlat[A]  extends HashConsedFlat[HashConsedRead.MutRef[A]] with HashConsedTagged[A] {
+
+    def tag: HashConsedRead.Tag
+
+    def bitSizeHCNew(a: A, encode: HashConsedRead.State): Int
+
+    def encodeHCNew(a: A, encode: HashConsedEncoderState): Unit
+
+    def decodeHCNew(decoderState: HashConsedDecoderState): A
+
+    override def bitSizeHC(refA: MutRef[A], hashConsed: HashConsedRead.State): Int = {
+        val a = refA.get
+        if (a == null) {
+            throw IllegalStateException("Null reference during writing")
+        }
+        val ihc = a.hashCode
+        var retval = PlainIntFlat.bitSize(ihc)
+        hashConsed.lookup(ihc, tag) match
+            case None =>
+                hashConsed.putForwardRef(HashConsedRead.ForwardRef(ihc, tag, Nil))
+                retval += bitSizeHCNew(a, hashConsed)
+                hsahConsed.setRef(ihc, tag, a)
+            case Some(_) =>
+        retval
+    }
+
+    override def encodeHC(refA: MutRef[A], encoderState: HashConsedEncoderState): Unit =
+        val a = refA.get
+        val ihc = a.hashCode
+        PlainIntFlat.encode(ihc, encoderState.encode)
+        encoderState.hashConsed.lookup(ihc, tag) match
+            case None =>
+                encoderState.hashConsed.putForwardRef(HashConsedRead.ForwardRef(ihc, tag, Nil))
+                encodeHCNew(a, encoderState)
+                encoderState.hashConsed.setRef(ihc, tag, a)
+            case Some(_) =>
+
+    override def decodeHC(decoderState: HashConsedDecoderState): MutRef[A] = {
+        val ihc = PlainIntFlat.decode(decoderState.decode)
+        decoderState.hashConsed.lookup(ihc, tag) match
+            case None =>
+                val retval = HashConsedRead.MutRef(null)
+                decoderState.hashConsed.putForwardRef(HashConsedRead.ForwardRef(ihc, tag, Nil))
+                val a = decodeHCNew(decoderState)
+                decoderState.hashConsed.setRef(ihc, tag, a)
+                retval.set(a)
+                retval
+            case Some(Left(fw)) =>
+                val retval = HashConsedRead.MutRef(null)
+                fw.addAction(retval.set)
+                retval
+            case Some(Right(a)) =>
+                val a = a.asInstanceOf[A]
+                HashConsedRead.MutRef(a)
+    }
 
 
 }

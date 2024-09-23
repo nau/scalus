@@ -1148,7 +1148,7 @@ final class SIRCompiler(mode: scalus.Mode)(using ctx: Context) {
                 lazy val fieldIdx = ts.caseFields.indexOf(sel.symbol)
                 if ts.isClass && fieldIdx >= 0 then
                     val lhs = compileExpr(env, obj)
-                    val selType = sirTypeInEnv(sel.tpe, sel, env)
+                    val selType = sirTypeInEnv(sel.tpe.widen.dealias, sel, env)
                     val s0: SIRExpr = SIR.Var(ident.show, selType)
                     val tps = primaryConstructorTypeParams(ts)
 

@@ -14,10 +14,17 @@ object HashConsedRead {
 
    def tag(value:Int): Tag = value
 
-   case class ForwardRef(ihc: Int, tag:Tag, setActions: List[AnyRef=>Unit])
+   class ForwardRef(val ihc: Int, val tag:Tag, var setActions: List[AnyRef=>Unit]) {
+         def addAction(action: AnyRef => Unit): Unit =
+              setActions = action :: setActions
+   }
 
-   case class TaggedRef(tag: Tag, ref: AnyRef)
+   class MutRef[A](var value: A) 
+    
+   private case class TaggedAnyRef(tag: Tag, ref: AnyRef)
 
+   
+    
     /**
      *
       * @param forwardRefs  - set of forward references, which are not yet resolved from hashConded
@@ -25,7 +32,7 @@ object HashConsedRead {
      */
    case class State(
                     forwardRefs: MutableMap[Int, List[ForwardRef]],
-                    map: MutableMap[Int, List[TaggedRef]]
+                    map: MutableMap[Int, List[TaggedAnyRef]]
                    )
 
    object State:
@@ -55,10 +62,10 @@ object HashConsedRead {
 
    def setRef(state: State,  ihc: Int, tag: Tag, a: AnyRef): Boolean =
        val retval = state.map.get(ihc) match
-           case None => state.map.put(ihc, List(TaggedRef(tag, a)))
+           case None => state.map.put(ihc, List(TaggedAnyRef(tag, a)))
                          true
            case Some(l) => l.find(_.tag == tag) match
-               case None => state.map.put(ihc, TaggedRef(tag, a) :: l)
+               case None => state.map.put(ihc, TaggedAnyRef(tag, a) :: l)
                             true
                case Some(_) => false
        if retval then
@@ -78,8 +85,19 @@ object HashConsedRead {
              case Some(l) => l.find(_.tag == tag) match
                  case None => None
                  case Some(r) => Some(r.ref)
+                 
+   def lookup(s: State, ihc: Int, tag:Tag): Option[Either[ForwardRef,AnyRef]] =
+       lookupValue(s, ihc, tag) match
+           case None =>
+               s.forwardRefs.get(ihc) match
+                   case None => None
+                   case Some(l) =>
+                       l.find(_.tag == tag) match
+                           case None => None
+                           case Some(fw) => Some(Left(fw))
+           case Some(r) => Some(Right(r))
 
-   def lookupForwardRef(s: State, ihc: Int, tag:Tag, setRef: AnyRef => Unit ): Boolean =
+   def setForwardRefCallback(s: State, ihc: Int, tag:Tag, setRef: AnyRef => Unit ): Boolean =
 
        //TODO: introduct accumilatror and make tailRec
        def addSetRef(l:List[ForwardRef]): List[ForwardRef] =
@@ -99,6 +117,13 @@ object HashConsedRead {
                     true
 
 
+   def upsertForwardRefCallback(s: State, ihc: Int, tag:Tag, setRef: AnyRef => Unit ): Boolean =
+       val alredyExists = setForwardRefCallback(s, ihc, tag, setRef)
+       if (!alredyExists) then   
+           putForwardRef(s, ForwardRef(ihc, tag, List(setRef)))
+       else
+           false
+    
 }
 
 extension (s: HashConsedRead.State)
@@ -111,9 +136,12 @@ extension (s: HashConsedRead.State)
 
     def setRef(ihc:Int, tag: HashConsedRead.Tag, a: AnyRef): Boolean =
         HashConsedRead.setRef(s, ihc, tag, a)
-
+    
     def lookupValue(ihc: Int, tag: HashConsedRead.Tag): Option[AnyRef] =
         HashConsedRead.lookupValue(s, ihc, tag)
-
-    def lookupForwardRef(ihc: Int, tag: HashConsedRead.Tag, setRef: AnyRef => Unit): Boolean =
-        HashConsedRead.lookupForwardRef(s, ihc, tag, setRef)
+    
+    def lookup(ihc: Int, tag: HashConsedRead.Tag): Option[Either[HashConsedRead.ForwardRef, AnyRef]] =
+        HashConsedRead.lookup(s, ihc, tag)
+    
+    def upsertForwardRefCallback(ihc: Int, tag: HashConsedRead.Tag, setRef: AnyRef => Unit): Boolean =
+        HashConsedRead.upsertForwardRefCallback(s, ihc, tag, setRef)

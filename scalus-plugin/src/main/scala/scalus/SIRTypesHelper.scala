@@ -23,7 +23,7 @@ object SIRTypesHelper {
     def sirTypeInEnv(tp: Type, env: SIRTypeEnv)(using Context): SIRType = {
         val retval =
             try
-                sirTypeInEnvWithErr(tp, env)
+                sirTypeInEnvWithErr(tp.widen, env)
             catch
                 case e: TypingException =>
                     println(s"typing exception during sirTypeInEnv(${tp.show}), tp tree: ${tp}")
@@ -49,6 +49,7 @@ object SIRTypesHelper {
     }
 
     def sirTypeInEnvWithErr(tp: Type, env: SIRTypeEnv)(using Context): SIRType =
+        //println(s"sirTypeInEnvWithErr ${tp.show},  env=${env}")
         val retval = tp match
             case tpc: TermRef =>
                 if (tpc.typeSymbol.isTypeParam) then
@@ -62,6 +63,8 @@ object SIRTypesHelper {
                 val sym = tpc.typeSymbol
                 if (tpc =:= defn.NothingType) then
                     SIRType.TypeNothing
+                else if (tpc.isTypeAlias) then
+                    sirTypeInEnvWithErr(tpc.dealias, env)
                 else if (sym.isClass) then
                     makeSIRNonFunClassType(tpc, Nil, env)
                 else if (sym.isTypeParam) then
@@ -71,13 +74,12 @@ object SIRTypesHelper {
                             val name = sym.showFullName
                             println(s"before unsupported type, sym=${sym}, sym.hashCode=${sym.hashCode()} name=${name}, env=${env}")
                             unsupportedType(tp, s"TypeRef ${tpc.show}", env)
-                else if (tpc.isTypeAlias) then
-                    println(s"before unsupportedType, typeRef.isClass=${sym.isClass},  fullName=${sym.fullName}, show=${tpc.show}, isAliasType=${sym.isAliasType}, tree=${tpc}")
-                    unsupportedType(tpc, "TypeRef,TypeAlias", env)
                 else if (sym.isAliasType) then
-                    println(s"before unsupportedType, typeRef.isClass=${sym.isClass},  fullName=${sym.fullName}, show=${tpc.show}, tree=${tpc}")
-                    println(s"sym.info=${sym.info.show}, tpc.underlying=${tpc.underlying.show}")
-                    sirTypeInEnvWithErr(tpc.underlying, env)
+                    // looks like bug in a compiler
+                    //println(s"stragen alias: ${tpc.show}, tpc.isTypeAlias=${tpc.isTypeAlias}, tp.isTypeAlias=${tp.isTypeAlias} sym.isAlias=${sym.isAliasType}, tpc.isSingleton=${tpc.isSingleton}")
+                    //println(s"strange aliase: tree=${tpc}, symFullName=${sym.fullName}, dealias=${tpc.dealias.show}, deaslias.fullName=${tpc.dealias.typeSymbol.fullName}")
+                    //throw new Exception("alias type")
+                    sirTypeInEnvWithErr(tpc.dealias, env)
                 else if (tpc.isValueType) then
                     println(s"before makeSIRTypeRefValueType, typeRef.isClass=${sym.isClass},  fullName=${sym.fullName}, show=${tpc.show}, sym.isAliasType=${sym.isAliasType}, tree=${tpc}")
                     println(s"tpc.isTypeAlias=${tpc.isTypeAlias}, sym.isAlias=${sym.isAliasType}, tpc.isSingleton=${tpc.isSingleton}")
@@ -105,8 +107,10 @@ object SIRTypesHelper {
                     else
                         tp.tycon match
                             case tpc: TypeRef =>
-                                val sym = tpc.typeSymbol
-                                makeSIRNonFunClassType(tpc, tp.args.map(sirTypeInEnv(_, env)), env)
+                                if (tpc.isTypeAlias || tpc.symbol.isAliasType) then
+                                    sirTypeInEnvWithErr(tpc.dealias.appliedTo(tp.args), env)
+                                else
+                                    makeSIRNonFunClassType(tpc, tp.args.map(sirTypeInEnv(_, env)), env)
                             case tpc: TypeLambda =>
                                 unsupportedType(tp, s"TypeLambda ${tpc.show}", env)
                             case tpc: TermRef =>
@@ -114,18 +118,18 @@ object SIRTypesHelper {
                             case other =>
                                 unsupportedType(tp, s"AppliedType ${tp.show}", env)
             case tp: AnnotatedType =>
-                sirTypeInEnv(tp.underlying, env)
+                sirTypeInEnvWithErr(tp.underlying, env)
             case tp: AndType =>
                 findClassInAndType(tp) match
                     case Some(tpf) => makeSIRClassTypeNoTypeArgs(tpf, env)
                     case None =>
                         unsupportedType(tp, s"AndType", env)
             case orTp: OrType =>
-                sirTypeInEnv(orTp.join, env)
+                sirTypeInEnvWithErr(orTp.join, env)
             case tp: MatchType =>
                 unsupportedType(tp, s"MatchType", env)
             case tp: ExprType =>
-                sirTypeInEnv(tp.underlying, env)
+                sirTypeInEnvWithErr(tp.underlying, env)
             case tp: ParamRef =>
                 val binder = tp.binder
                 val paramName = binder.paramNames(tp.paramNum).show //TODO: better way to get the name as string
@@ -133,7 +137,7 @@ object SIRTypesHelper {
             case tpc: ThisType =>
                 sirTypeInEnv(tpc.underlying, env)
             case tpc: RecThis =>
-                sirTypeInEnv(tpc.underlying, env)
+                sirTypeInEnvWithErr(tpc.underlying, env)
             case tpc: RecType =>
                 unsupportedType(tp, s"RecType", env)
             case tpm: MethodType =>
@@ -142,12 +146,12 @@ object SIRTypesHelper {
                 val params = (tpp.paramNames zip tpp.paramRefs).map{ (name, ref) =>
                     SIRType.TypeVar(name.show, Some(ref.typeSymbol.hashCode()))
                 }
-                SIRType.TypeLambda(params, sirTypeInEnv(tpp.resultType, env))
+                SIRType.TypeLambda(params, sirTypeInEnvWithErr(tpp.resultType, env))
             case tpl: HKTypeLambda =>
                 val params = (tpl.paramNames zip tpl.paramRefs).map{
                     (name, ref) => SIRType.TypeVar(name.show, Some(ref.typeSymbol.hashCode()))
                 }
-                SIRType.TypeLambda(params, sirTypeInEnv(tpl.resType, env))
+                SIRType.TypeLambda(params, sirTypeInEnvWithErr(tpl.resType, env))
             case tpp: TypeBounds =>
                 SIRType.FreeUnificator
             case NoPrefix =>
@@ -177,7 +181,7 @@ object SIRTypesHelper {
             val name = sym.showFullName
             val typeArgs = types.map(_.show)
             println(s"makeSIRClassType ${name} ${typeArgs}")
-            unsupportedType(tp,s"tree=${tp}, isClass=${sym.isClass} isAliasType=${sym.isAliasType}", env)
+            unsupportedType(tp,s"tree=${tp}, isClass=${sym.isClass} isAliasType=${sym.isAliasType}, info:${sym.info}", env)
         }
         println("nakeSIRNonFunClassType return " + retval)
         retval
@@ -198,7 +202,7 @@ object SIRTypesHelper {
             case AppliedType(tycon, args) =>
                 if (defn.isFunctionType(tp)) then
                     println(s"makeSIRFunType AppliedType for ${tycon.show} ${args.map(_.show)}")
-                    val retval = makeFunctionClassType(tycon.typeSymbol, args.map(sirTypeInEnv(_, env)), env)
+                    val retval = makeFunctionClassType(tycon.typeSymbol, args.map(sirTypeInEnvWithErr(_, env)), env)
                     retval
                 else
                     unsupportedType(tp, "AppliedType as function", env)
@@ -218,6 +222,10 @@ object SIRTypesHelper {
         else if (symbol ==  Symbols.requiredClass("scalus.builtin.ByteString") ) then
             Some(SIRType.ByteStringPrimitive)
         else if (symbol == Symbols.requiredClass("scala.math.BigInt") ) then
+            Some(SIRType.IntegerPrimitive)
+        else if (symbol == defn.IntType.typeSymbol || symbol == defn.BoxedIntClass) then
+            Some(SIRType.IntegerPrimitive)
+        else if (symbol == defn.LongType.typeSymbol || symbol == defn.BoxedLongClass) then
             Some(SIRType.IntegerPrimitive)
         else if (symbol == defn.StringType.typeSymbol) then
             Some(SIRType.StringPrimitive)
@@ -385,7 +393,7 @@ object SIRTypesHelper {
         println(s"makeSIRMethodType ${mt.show}")
         try {
             val params = mt.paramNames.zip(mt.paramInfos).map {
-                (name, tp) => sirTypeInEnv(tp, env)
+                (name, tp) => sirTypeInEnvWithErr(tp, env)
             }
             val res = sirTypeInEnvWithErr(mt.resultType, env)
             makeUnaryFun(params, res)
