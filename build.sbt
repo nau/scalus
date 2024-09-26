@@ -40,8 +40,7 @@ lazy val root: Project = project
       examples,
       bench,
       `scalus-bloxbean-cardano-client-lib`,
-      docs,
-      blst
+      docs
     )
     .settings(
       publish / skip := true
@@ -151,10 +150,10 @@ lazy val scalus = crossProject(JSPlatform, JVMPlatform)
       libraryDependencies += "org.slf4j" % "slf4j-simple" % "2.0.16" % "provided",
       libraryDependencies += "org.bouncycastle" % "bcprov-jdk18on" % "1.78.1",
       libraryDependencies += "org.chiachat" % "kbls" % "1.0.3",
+      libraryDependencies += "foundation.icon" % "blst-java" % "0.3.2",
       libraryDependencies += "org.bitcoin-s" % "bitcoin-s-crypto_2.13" % "1.9.9",
       libraryDependencies += "org.bitcoin-s" % "bitcoin-s-secp256k1jni" % "1.9.9"
     )
-    .jvmConfigure(_.dependsOn(blst))
     .jsSettings(
       // Add JS-specific settings here
       Compile / npmDependencies += "@noble/curves" -> "1.4.2",
@@ -235,14 +234,6 @@ lazy val bench = project
       name := "scalus-bench",
       PluginDependency,
       publish / skip := true
-    )
-
-// Benchmarks for Cardano Plutus VM Evaluator
-lazy val blst = project
-    .in(file("blst-jni"))
-    .settings(
-      name := "blst-jni",
-      version := "0.3.12" // FIXME: this is not 0.3.12
     )
 
 addCommandAlias(

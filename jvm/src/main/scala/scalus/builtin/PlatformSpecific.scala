@@ -17,7 +17,7 @@ import supranational.blst.PT
 
 object JVMPlatformSpecific extends JVMPlatformSpecific
 trait JVMPlatformSpecific extends PlatformSpecific {
-    val scalarPeriod =
+    val scalarPeriod: BigInt =
         BigInt("73eda753299d7d483339d80809a1d80553bda402fffe5bfeffffffff00000001", 16)
     override def sha2_256(bs: ByteString): ByteString =
         ByteString.unsafeFromArray(Utils.sha2_256(bs.bytes))
@@ -111,16 +111,19 @@ trait JVMPlatformSpecific extends PlatformSpecific {
     }
 
     override def bls12_381_G1_uncompress(bs: ByteString): BLS12_381_G1_Element = {
-        val p = P1.uncompress(bs.bytes)
+        if bs.length != 48 then throw new IllegalArgumentException("Not a compressed point")
+        if (bs.bytes(0) & 0x80) == 0 then // compressed bit not set
+            throw new IllegalArgumentException(s"BSL point not compressed: $bs")
+        val p = new P1(bs.bytes)
         if !p.in_group() then throw new IllegalArgumentException("Invalid point")
-        BLS12_381_G1_Element(p.to_jacobian())
+        BLS12_381_G1_Element(p)
     }
 
     override def bls12_381_G1_hashToGroup(bs: ByteString, dst: ByteString): BLS12_381_G1_Element = {
         if dst.length > 255 then throw RuntimeException(s"HashToCurveDstTooBig: ${dst.length}")
         else
             val p = new P1()
-            p.hash_to(bs.bytes, dst.bytes)
+            p.hash_to(bs.bytes, new String(dst.bytes, "Latin1"))
             BLS12_381_G1_Element(p)
     }
 
@@ -156,16 +159,19 @@ trait JVMPlatformSpecific extends PlatformSpecific {
     }
 
     override def bls12_381_G2_uncompress(bs: ByteString): BLS12_381_G2_Element = {
-        val p = P2.uncompress(bs.bytes)
+        if bs.length != 96 then throw new IllegalArgumentException("Not a compressed point")
+        if (bs.bytes(0) & 0x80) == 0 then // compressed bit not set
+            throw new IllegalArgumentException(s"BSL point not compressed: $bs")
+        val p = new P2(bs.bytes)
         if !p.in_group() then throw new IllegalArgumentException("Invalid point")
-        BLS12_381_G2_Element(p.to_jacobian())
+        BLS12_381_G2_Element(p)
     }
 
     override def bls12_381_G2_hashToGroup(bs: ByteString, dst: ByteString): BLS12_381_G2_Element = {
         if dst.length > 255 then throw RuntimeException(s"HashToCurveDstTooBig: ${dst.length}")
         else
             val p = new P2()
-            p.hash_to(bs.bytes, dst.bytes)
+            p.hash_to(bs.bytes, new String(dst.bytes, "Latin1"))
             BLS12_381_G2_Element(p)
     }
 
