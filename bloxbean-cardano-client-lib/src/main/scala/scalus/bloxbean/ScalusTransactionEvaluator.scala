@@ -181,7 +181,6 @@ class ScalusTransactionEvaluator(
                     .asInstanceOf[Result[util.List[EvaluationResult]]]
             catch
                 case e: TxEvaluationException =>
-                    e.printStackTrace()
                     Result
                         .error(s"""Error evaluating transaction: ${e.getMessage}
                                |Evaluation logs: ${e.logs.mkString("\n")}
@@ -189,7 +188,6 @@ class ScalusTransactionEvaluator(
                                |""".stripMargin)
                         .asInstanceOf[Result[util.List[EvaluationResult]]]
                 case e: Exception =>
-                    e.printStackTrace()
                     Result
                         .error(s"Error evaluating transaction: ${e.getMessage}")
                         .asInstanceOf[Result[util.List[EvaluationResult]]]

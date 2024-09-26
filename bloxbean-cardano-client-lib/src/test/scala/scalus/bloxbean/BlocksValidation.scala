@@ -87,7 +87,7 @@ object BlocksValidation:
                     .filter(_._3.nonEmpty)
             println(s"Block $blockNum, num txs to validate: ${txsWithScripts.size}")
 
-            for (tx, datums, scripts) <- txsWithScripts.drop(1).take(1) do {
+            for (tx, datums, scripts) <- txsWithScripts do {
                 val txhash = TransactionUtil.getTxHash(tx)
 //                println(s"Validating tx $txhash")
                 //                println(tx)
