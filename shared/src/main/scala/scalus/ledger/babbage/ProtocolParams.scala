@@ -373,6 +373,8 @@ class PlutusV1Params {
     var `verifyEd25519Signature-cpu-arguments-intercept`: Long = 0L
     var `verifyEd25519Signature-cpu-arguments-slope`: Long = 0L
     var `verifyEd25519Signature-memory-arguments`: Long = 0L
+
+    def toJson: String = write(this)
 }
 
 class PlutusV2Params {
@@ -551,6 +553,8 @@ class PlutusV2Params {
     var `verifySchnorrSecp256k1Signature-cpu-arguments-intercept`: Long = 0L
     var `verifySchnorrSecp256k1Signature-cpu-arguments-slope`: Long = 0L
     var `verifySchnorrSecp256k1Signature-memory-arguments`: Long = 0L
+
+    def toJson: String = write(this)
 }
 
 class PlutusV3Params {
