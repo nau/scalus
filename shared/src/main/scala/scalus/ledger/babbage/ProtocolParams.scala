@@ -604,11 +604,16 @@ class PlutusV3Params {
     var `decodeUtf8-memory-arguments-intercept`: Long = 0L
     var `decodeUtf8-memory-arguments-slope`: Long = 0L
     var `divideInteger-cpu-arguments-constant`: Long = 0L
-    var `divideInteger-cpu-arguments-model-arguments-intercept`: Long = 0L
-    var `divideInteger-cpu-arguments-model-arguments-slope`: Long = 0L
+    var `divideInteger-cpu-arguments-minimum`: Long = 0L
+    var `divideInteger-cpu-arguments-c00`: Long = 0L
+    var `divideInteger-cpu-arguments-c10`: Long = 0L
+    var `divideInteger-cpu-arguments-c01`: Long = 0L
+    var `divideInteger-cpu-arguments-c20`: Long = 0L
+    var `divideInteger-cpu-arguments-c11`: Long = 0L
+    var `divideInteger-cpu-arguments-c02`: Long = 0L
     var `divideInteger-memory-arguments-intercept`: Long = 0L
-    var `divideInteger-memory-arguments-minimum`: Long = 0L
     var `divideInteger-memory-arguments-slope`: Long = 0L
+    var `divideInteger-memory-arguments-minimum`: Long = 0L
     var `encodeUtf8-cpu-arguments-intercept`: Long = 0L
     var `encodeUtf8-cpu-arguments-slope`: Long = 0L
     var `encodeUtf8-memory-arguments-intercept`: Long = 0L
@@ -664,10 +669,14 @@ class PlutusV3Params {
     var `mkPairData-cpu-arguments`: Long = 0L
     var `mkPairData-memory-arguments`: Long = 0L
     var `modInteger-cpu-arguments-constant`: Long = 0L
-    var `modInteger-cpu-arguments-model-arguments-intercept`: Long = 0L
-    var `modInteger-cpu-arguments-model-arguments-slope`: Long = 0L
+    var `modInteger-cpu-arguments-model-arguments-minimum`: Long = 0L
+    var `modInteger-cpu-arguments-model-arguments-c00`: Long = 0L
+    var `modInteger-cpu-arguments-model-arguments-c10`: Long = 0L
+    var `modInteger-cpu-arguments-model-arguments-c01`: Long = 0L
+    var `modInteger-cpu-arguments-model-arguments-c20`: Long = 0L
+    var `modInteger-cpu-arguments-model-arguments-c11`: Long = 0L
+    var `modInteger-cpu-arguments-model-arguments-c02`: Long = 0L
     var `modInteger-memory-arguments-intercept`: Long = 0L
-    var `modInteger-memory-arguments-minimum`: Long = 0L
     var `modInteger-memory-arguments-slope`: Long = 0L
     var `multiplyInteger-cpu-arguments-intercept`: Long = 0L
     var `multiplyInteger-cpu-arguments-slope`: Long = 0L
@@ -676,16 +685,25 @@ class PlutusV3Params {
     var `nullList-cpu-arguments`: Long = 0L
     var `nullList-memory-arguments`: Long = 0L
     var `quotientInteger-cpu-arguments-constant`: Long = 0L
-    var `quotientInteger-cpu-arguments-model-arguments-intercept`: Long = 0L
-    var `quotientInteger-cpu-arguments-model-arguments-slope`: Long = 0L
+    var `quotientInteger-cpu-arguments-model-arguments-minimum`: Long = 0L
+    var `quotientInteger-cpu-arguments-model-arguments-c00`: Long = 0L
+    var `quotientInteger-cpu-arguments-model-arguments-c10`: Long = 0L
+    var `quotientInteger-cpu-arguments-model-arguments-c01`: Long = 0L
+    var `quotientInteger-cpu-arguments-model-arguments-c20`: Long = 0L
+    var `quotientInteger-cpu-arguments-model-arguments-c11`: Long = 0L
+    var `quotientInteger-cpu-arguments-model-arguments-c02`: Long = 0L
     var `quotientInteger-memory-arguments-intercept`: Long = 0L
-    var `quotientInteger-memory-arguments-minimum`: Long = 0L
     var `quotientInteger-memory-arguments-slope`: Long = 0L
+    var `quotientInteger-memory-arguments-minimum`: Long = 0L
     var `remainderInteger-cpu-arguments-constant`: Long = 0L
-    var `remainderInteger-cpu-arguments-model-arguments-intercept`: Long = 0L
-    var `remainderInteger-cpu-arguments-model-arguments-slope`: Long = 0L
+    var `remainderInteger-cpu-arguments-model-arguments-minimum`: Long = 0L
+    var `remainderInteger-cpu-arguments-model-arguments-c00`: Long = 0L
+    var `remainderInteger-cpu-arguments-model-arguments-c10`: Long = 0L
+    var `remainderInteger-cpu-arguments-model-arguments-c01`: Long = 0L
+    var `remainderInteger-cpu-arguments-model-arguments-c20`: Long = 0L
+    var `remainderInteger-cpu-arguments-model-arguments-c11`: Long = 0L
+    var `remainderInteger-cpu-arguments-model-arguments-c02`: Long = 0L
     var `remainderInteger-memory-arguments-intercept`: Long = 0L
-    var `remainderInteger-memory-arguments-minimum`: Long = 0L
     var `remainderInteger-memory-arguments-slope`: Long = 0L
     var `serialiseData-cpu-arguments-intercept`: Long = 0L
     var `serialiseData-cpu-arguments-slope`: Long = 0L
@@ -787,6 +805,8 @@ class PlutusV3Params {
     var byteStringToInteger_cpu_arguments_c2: Long = 0L
     var byteStringToInteger_memory_arguments_intercept: Long = 0L
     var byteStringToInteger_memory_arguments_slope: Long = 0L
+
+    def toJson: String = write(this)
 }
 
 private object JsonUtils {

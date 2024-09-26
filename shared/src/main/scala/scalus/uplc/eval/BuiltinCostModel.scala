@@ -119,6 +119,8 @@ case class BuiltinCostModel(
         }
         flatten(obj)
     }
+
+    def toJsonString: String = write(this)
 }
 
 object BuiltinCostModel {

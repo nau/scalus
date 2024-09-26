@@ -95,7 +95,7 @@ class TxEvaluatorSpec extends AnyFunSuite:
         assert(redeemers.size == 1)
         val redeemerResult = redeemers.head
         assert(redeemerResult.getExUnits.getMem.longValue == 13375L)
-        assert(redeemerResult.getExUnits.getSteps.longValue == 4733088L)
+        assert(redeemerResult.getExUnits.getSteps.longValue == 3732650L)
     }
 
     test("TxEvaluator PlutusV3") {
@@ -111,7 +111,7 @@ class TxEvaluatorSpec extends AnyFunSuite:
           costMdls = costMdls
         )
         val pubKeyValidator =
-            compile(PubKeyValidator.validatorV3(hex"deadbeef")).toPlutusProgram((1, 0, 0))
+            compile(PubKeyValidator.validatorV3(hex"deadbeef")).toPlutusProgram((1, 1, 0))
         val s: PlutusV3Script =
             PlutusV3Script
                 .builder()
@@ -167,5 +167,5 @@ class TxEvaluatorSpec extends AnyFunSuite:
         assert(redeemers.size == 1)
         val redeemerResult = redeemers.head
         assert(redeemerResult.getExUnits.getMem.longValue == 12775L)
-        assert(redeemerResult.getExUnits.getSteps.longValue == 4595088L)
+        assert(redeemerResult.getExUnits.getSteps.longValue == 3636650L)
     }
