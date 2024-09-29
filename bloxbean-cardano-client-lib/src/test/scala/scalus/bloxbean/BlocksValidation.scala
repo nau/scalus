@@ -5,9 +5,9 @@ import co.nstant.in.cbor.model as cbor
 import com.bloxbean.cardano.client.backend.api.DefaultUtxoSupplier
 import com.bloxbean.cardano.client.backend.blockfrost.common.Constants
 import com.bloxbean.cardano.client.backend.blockfrost.service.BFBackendService
+import com.bloxbean.cardano.client.crypto.Blake2bUtil
 import com.bloxbean.cardano.client.spec.Era
 import com.bloxbean.cardano.client.transaction.spec.*
-import com.bloxbean.cardano.client.transaction.util.TransactionUtil
 import com.bloxbean.cardano.yaci.core.model.serializers.util.TransactionBodyExtractor
 import com.bloxbean.cardano.yaci.core.model.serializers.util.WitnessUtil
 import com.bloxbean.cardano.yaci.core.model.serializers.util.WitnessUtil.getArrayBytes
@@ -34,6 +34,8 @@ import scala.jdk.CollectionConverters.*
   *     LogsWithBudgets --builtin-semantics-variant B
   */
 object BlocksValidation:
+
+    case class BlockTx(tx: Transaction, datums: util.List[ByteString], txHash: String)
 
     lazy val apiKey = System.getenv("BLOCKFROST_API_KEY") ?? sys.error(
       "BLOCKFROST_API_KEY is not set, please set it before running the test"
@@ -76,26 +78,22 @@ object BlocksValidation:
 
         for blockNum <- 10802134 to 10823158 do
             val txs = readTransactionsFromBlockCbor(cwd.resolve(s"blocks/block-$blockNum.cbor"))
-//            println(s"Tx hashes: ${txs.map(t => TransactionUtil.getTxHash(t._1)).sorted}")
             val txsWithScripts =
-                txs.zipWithIndex
-                    .map { case ((tx, datums), idx) =>
-                        val utxos = evaluator.resolveUtxos(tx, util.Set.of())
-                        val scripts = TxEvaluator.getAllResolvedScripts(tx, utxos)
-                        (tx, datums, scripts)
-                    }
-                    .filter(_._3.nonEmpty)
+                txs.map { case BlockTx(tx, datums, txhash) =>
+                    val utxos = evaluator.resolveUtxos(tx, util.Set.of())
+                    val scripts = TxEvaluator.getAllResolvedScripts(tx, utxos)
+                    (tx, datums, txhash, scripts)
+                }.filter(_._4.nonEmpty)
             println(s"Block $blockNum, num txs to validate: ${txsWithScripts.size}")
 
-            for (tx, datums, scripts) <- txsWithScripts do {
-                val txhash = TransactionUtil.getTxHash(tx)
+            for (tx, datums, txhash, scripts) <- txsWithScripts do {
 //                println(s"Validating tx $txhash")
                 //                println(tx)
                 if tx.isValid
                     && (datums.size() == tx.getWitnessSet.getPlutusDataList
                         .size()) // FIXME: remove this check when we have the correct datums
                 then
-                    val result = evaluator.evaluateTx(tx, util.Set.of(), datums)
+                    val result = evaluator.evaluateTx(tx, util.Set.of(), datums, txhash)
                     totalTx += 1
                     if !result.isSuccessful then
                         errors += ((result.getResponse, blockNum, txhash))
@@ -103,7 +101,7 @@ object BlocksValidation:
                           s"${Console.RED}AAAA!!!! block $blockNum $txhash ${result.getResponse}${Console.RESET}"
                         )
                     else
-                        println(result.getResponse)
+//                        println(result.getResponse)
                         for script <- scripts.values do
                             script match
                                 case ScriptVersion.PlutusV1(scriptHash) =>
@@ -134,14 +132,14 @@ object BlocksValidation:
 
     def readTransactionsFromBlockCbor(
         path: Path
-    ): collection.Seq[(Transaction, util.List[ByteString])] = {
+    ): collection.Seq[BlockTx] = {
         val blockBytes = Utils.hexToBytes(new String(Files.readAllBytes(path)))
         readTransactionsFromBlockCbor(blockBytes)
     }
 
     def readTransactionsFromBlockCbor(
         blockCbor: Array[Byte]
-    ): collection.Seq[(Transaction, util.List[ByteString])] = {
+    ): collection.Seq[BlockTx] = {
         val array = CborSerializationUtil.deserializeOne(blockCbor).asInstanceOf[cbor.Array]
         val blockArray = array.getDataItems.get(1).asInstanceOf[cbor.Array]
         val witnessesListArr = blockArray.getDataItems.get(2).asInstanceOf[cbor.Array]
@@ -155,8 +153,8 @@ object BlocksValidation:
             .collect(Collectors.toSet())
         val txBodyTuples = TransactionBodyExtractor.getTxBodiesFromBlock(blockCbor)
         val witnesses = WitnessUtil.getWitnessRawData(blockCbor)
-        val txBodyDatumsCbor = witnesses.asScala.zipWithIndex
-            .map { case (witness, idx) =>
+        val txBodyDatumsCbor = witnesses.asScala
+            .map { witness =>
                 try
                     val fields = WitnessUtil.getWitnessFields(witness)
                     val datums = fields.get(BigInteger.valueOf(4L))
@@ -212,11 +210,11 @@ object BlocksValidation:
                     .isValid(isValid)
                     .build()
 //            println(s"tx: ${transaction.toJson()}")
-//            println(
-//              s"txhash ${TransactionUtil.getTxHash(transaction)} ${TransactionUtil.getTxHash(txbytes)}"
-//            )
-//            println(s"tx ${Utils.bytesToHex(transaction.serialize())}")
-            (transaction, datumsCbor)
+            val txBodyBytes = tuple._2
+            // get tx hash from bytes
+            // because Cardano changed TxBody serialization in Conway era, hash(tx.serialized) != hash(txBodyBytes)
+            val txHashFromBytes = Utils.bytesToHex(Blake2bUtil.blake2bHash256(txBodyBytes))
+            BlockTx(transaction, datumsCbor, txHashFromBytes)
     }
 
     def main(args: Array[String]): Unit = {

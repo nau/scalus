@@ -27,7 +27,6 @@ import com.bloxbean.cardano.client.transaction.spec.governance.actions.NoConfide
 import com.bloxbean.cardano.client.transaction.spec.governance.actions.ParameterChangeAction
 import com.bloxbean.cardano.client.transaction.spec.governance.actions.TreasuryWithdrawalsAction
 import com.bloxbean.cardano.client.transaction.spec.governance.actions.UpdateCommittee
-import com.bloxbean.cardano.client.transaction.util.TransactionUtil
 import io.bullet.borer.Cbor
 import scalus.builtin
 import scalus.builtin.Builtins.*
@@ -594,6 +593,7 @@ object Interop {
 
     def getTxInfoV1(
         tx: Transaction,
+        txhash: String,
         datums: collection.Seq[(ByteString, Data)],
         utxos: Map[TransactionInput, TransactionOutput],
         slotConfig: SlotConfig,
@@ -621,12 +621,13 @@ object Interop {
                 .toSeq
           ),
           data = prelude.List.from(datums.sortBy(_._1)),
-          id = v1.TxId(ByteString.fromHex(TransactionUtil.getTxHash(tx)))
+          id = v1.TxId(ByteString.fromHex(txhash))
         )
     }
 
     def getTxInfoV2(
         tx: Transaction,
+        txhash: String,
         datums: collection.Seq[(ByteString, Data)],
         utxos: Map[TransactionInput, TransactionOutput],
         slotConfig: SlotConfig,
@@ -664,7 +665,7 @@ object Interop {
               purpose -> toScalusData(redeemer.getData)
           })),
           data = AssocMap(prelude.List.from(datums.sortBy(_._1))),
-          id = v1.TxId(ByteString.fromHex(TransactionUtil.getTxHash(tx)))
+          id = v1.TxId(ByteString.fromHex(txhash))
         )
     }
 
@@ -841,6 +842,7 @@ object Interop {
     def getScriptContextV2(
         redeemer: Redeemer,
         tx: Transaction,
+        txhash: String,
         utxos: Map[TransactionInput, TransactionOutput],
         slotConfig: SlotConfig,
         protocolVersion: Int
@@ -856,7 +858,7 @@ object Interop {
         val datums = tx.getWitnessSet.getPlutusDataList.asScala.map { plutusData =>
             ByteString.fromArray(plutusData.getDatumHashAsBytes) -> Interop.toScalusData(plutusData)
         }
-        val txInfo = getTxInfoV2(tx, datums, utxos, slotConfig, protocolVersion)
+        val txInfo = getTxInfoV2(tx, txhash, datums, utxos, slotConfig, protocolVersion)
         val scriptContext = v2.ScriptContext(txInfo, purpose)
         scriptContext
     }
@@ -998,6 +1000,7 @@ object Interop {
 
     def getTxInfoV3(
         tx: Transaction,
+        txhash: String,
         datums: collection.Seq[(ByteString, Data)],
         utxos: Map[TransactionInput, TransactionOutput],
         slotConfig: SlotConfig,
@@ -1035,7 +1038,7 @@ object Interop {
               purpose -> toScalusData(redeemer.getData)
           })),
           data = AssocMap(prelude.List.from(datums.sortBy(_._1))),
-          id = v3.TxId(ByteString.fromHex(TransactionUtil.getTxHash(tx))),
+          id = v3.TxId(ByteString.fromHex(txhash)),
           votes = getVotingProcedures(body.getVotingProcedures),
           proposalProcedures = prelude.List
               .from(

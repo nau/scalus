@@ -128,7 +128,7 @@ class TxEvaluator(
         val datums = transaction.getWitnessSet.getPlutusDataList.asScala
             .map(data => ByteString.fromArray(data.serializeToBytes()))
             .toSeq
-        evaluateTx(transaction, inputUtxos, datums)
+        evaluateTx(transaction, inputUtxos, datums, TransactionUtil.getTxHash(transaction))
     }
 
     /** Phase 2 validation and execution of the transaction
@@ -143,7 +143,8 @@ class TxEvaluator(
     def evaluateTx(
         transaction: Transaction,
         inputUtxos: Map[TransactionInput, TransactionOutput],
-        datums: collection.Seq[ByteString]
+        datums: collection.Seq[ByteString],
+        txhash: String
     ): collection.Seq[Redeemer] = {
         assert(
           transaction.getWitnessSet.getPlutusDataList.size == datums.size,
@@ -155,12 +156,11 @@ class TxEvaluator(
         // like this:
         // aiken tx simulate --cbor tx-$txhash.cbor ins.cbor outs.cbor > aiken.log"
         if debugDumpFilesForTesting then
-            val txhash = TransactionUtil.getTxHash(transaction)
             Files.write(Paths.get(s"tx-$txhash.cbor"), transaction.serialize())
             Files.deleteIfExists(java.nio.file.Paths.get("scalus.log"))
             storeInsOutsInCborFiles(inputUtxos, txhash)
 
-        evalPhaseTwo(transaction, datums, inputUtxos, runPhaseOne = true)
+        evalPhaseTwo(transaction, txhash, datums, inputUtxos, runPhaseOne = true)
     }
 
     private def storeInsOutsInCborFiles(
@@ -305,6 +305,7 @@ class TxEvaluator(
 
     private def evalRedeemer(
         tx: Transaction,
+        txhash: String,
         datums: collection.Seq[(ByteString, Data)],
         utxos: Map[TransactionInput, TransactionOutput],
         redeemer: Redeemer,
@@ -321,7 +322,8 @@ class TxEvaluator(
                 throw new IllegalStateException("Native script not supported")
             case (ScriptVersion.PlutusV1(script), datum) =>
                 val rdmr = toScalusData(redeemer.getData)
-                val txInfoV1 = getTxInfoV1(tx, datums, utxos, slotConfig, protocolMajorVersion)
+                val txInfoV1 =
+                    getTxInfoV1(tx, txhash, datums, utxos, slotConfig, protocolMajorVersion)
                 val purpose = getScriptPurposeV1(redeemer, tx)
                 val scriptContext = v1.ScriptContext(txInfoV1, purpose)
                 val ctxData = scriptContext.toData
@@ -345,7 +347,8 @@ class TxEvaluator(
 
             case (ScriptVersion.PlutusV2(script), datum) =>
                 val rdmr = toScalusData(redeemer.getData)
-                val txInfo = getTxInfoV2(tx, datums, utxos, slotConfig, protocolMajorVersion)
+                val txInfo =
+                    getTxInfoV2(tx, txhash, datums, utxos, slotConfig, protocolMajorVersion)
                 val purpose = getScriptPurposeV2(redeemer, tx)
                 val scriptContext = v2.ScriptContext(txInfo, purpose)
                 val ctxData = scriptContext.toData
@@ -369,7 +372,8 @@ class TxEvaluator(
 
             case (ScriptVersion.PlutusV3(script), datum) =>
                 val rdmr = toScalusData(redeemer.getData)
-                val txInfo = getTxInfoV3(tx, datums, utxos, slotConfig, protocolMajorVersion)
+                val txInfo =
+                    getTxInfoV3(tx, txhash, datums, utxos, slotConfig, protocolMajorVersion)
                 val scriptInfo = getScriptInfoV3(tx, redeemer, datum)
                 val scriptContext = v3.ScriptContext(txInfo, rdmr, scriptInfo)
                 val ctxData = scriptContext.toData
@@ -437,6 +441,7 @@ class TxEvaluator(
 
     private def evalPhaseTwo(
         tx: Transaction,
+        txhash: String,
         datums: collection.Seq[ByteString],
         utxos: Map[TransactionInput, TransactionOutput],
         runPhaseOne: Boolean
@@ -462,6 +467,7 @@ class TxEvaluator(
         val collectedRedeemers = for redeemer <- redeemers.asScala yield {
             val evaluatedRedeemer = evalRedeemer(
               tx,
+              txhash,
               datumsMapping,
               utxos,
               redeemer,

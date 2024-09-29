@@ -15,6 +15,7 @@ import com.bloxbean.cardano.client.transaction.spec.Transaction
 import com.bloxbean.cardano.client.transaction.spec.TransactionInput
 import com.bloxbean.cardano.client.transaction.spec.TransactionOutput
 import com.bloxbean.cardano.client.transaction.spec.TransactionWitnessSet
+import com.bloxbean.cardano.client.transaction.util.TransactionUtil
 import com.bloxbean.cardano.client.util.JsonUtil
 import scalus.builtin.ByteString
 import scalus.uplc.eval.ExBudget
@@ -151,13 +152,19 @@ class ScalusTransactionEvaluator(
             .stream()
             .map(data => ByteString.fromArray(data.getDatumHashAsBytes))
             .collect(util.stream.Collectors.toList())
-        evaluateTx(transaction, inputUtxos, datumHashes.getOrElse(util.List.of()))
+        evaluateTx(
+          transaction,
+          inputUtxos,
+          datumHashes.getOrElse(util.List.of()),
+          TransactionUtil.getTxHash(transaction)
+        )
     }
 
     def evaluateTx(
         transaction: Transaction,
         inputUtxos: util.Set[Utxo],
-        datums: util.List[scalus.builtin.ByteString]
+        datums: util.List[scalus.builtin.ByteString],
+        txhash: String
     ): Result[util.List[EvaluationResult]] = {
         try {
             val resolvedUtxos: Map[TransactionInput, TransactionOutput] =
@@ -165,7 +172,7 @@ class ScalusTransactionEvaluator(
 
             try
                 val redeemers =
-                    txEvaluator.evaluateTx(transaction, resolvedUtxos, datums.asScala)
+                    txEvaluator.evaluateTx(transaction, resolvedUtxos, datums.asScala, txhash)
                 val evaluationResults = redeemers.map { redeemer =>
                     EvaluationResult.builder
                         .redeemerTag(redeemer.getTag)
