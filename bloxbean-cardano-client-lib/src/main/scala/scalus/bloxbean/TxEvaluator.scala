@@ -158,12 +158,15 @@ class TxEvaluator(
             val txhash = TransactionUtil.getTxHash(transaction)
             Files.write(Paths.get(s"tx-$txhash.cbor"), transaction.serialize())
             Files.deleteIfExists(java.nio.file.Paths.get("scalus.log"))
-            storeInsOutsInCborFiles(inputUtxos)
+            storeInsOutsInCborFiles(inputUtxos, txhash)
 
         evalPhaseTwo(transaction, datums, inputUtxos, runPhaseOne = true)
     }
 
-    private def storeInsOutsInCborFiles(utxos: Map[TransactionInput, TransactionOutput]): Unit = {
+    private def storeInsOutsInCborFiles(
+        utxos: Map[TransactionInput, TransactionOutput],
+        txhash: String
+    ): Unit = {
         val ins = co.nstant.in.cbor.model.Array()
         val outs = co.nstant.in.cbor.model.Array()
 
@@ -171,8 +174,8 @@ class TxEvaluator(
             ins.add(in.serialize())
             outs.add(out.serialize())
 
-        Files.write(Path.of("ins.cbor"), CborSerializationUtil.serialize(ins));
-        Files.write(Path.of("outs.cbor"), CborSerializationUtil.serialize(outs));
+        Files.write(Path.of(s"ins-$txhash.cbor"), CborSerializationUtil.serialize(ins));
+        Files.write(Path.of(s"outs-$txhash.cbor"), CborSerializationUtil.serialize(outs));
     }
 
     private def findScript(
