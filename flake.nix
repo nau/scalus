@@ -64,6 +64,7 @@
               ];
               shellHook = ''
                 ln -s ${plutus}/plutus-conformance plutus-conformance
+                export SBT_OPTS="-Xss64m $SBT_OPTS"
               '';
             };
         };
