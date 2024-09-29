@@ -61,10 +61,12 @@ object BlocksValidation:
         )
         val protocolParams = backendService.getEpochService.getProtocolParameters(epoch).getValue
         val evaluator = ScalusTransactionEvaluator(
+          SlotConfig.Mainnet,
           protocolParams,
           utxoSupplier,
           scriptSupplier,
-          EvaluatorMode.VALIDATE
+          EvaluatorMode.VALIDATE,
+          debugDumpFilesForTesting = false
         )
 
         var totalTx = 0
@@ -85,6 +87,7 @@ object BlocksValidation:
                     (tx, datums, txhash, scripts)
                 }.filter(_._4.nonEmpty)
             println(s"Block $blockNum, num txs to validate: ${txsWithScripts.size}")
+//            println(s"Block txs:\n${txsWithScripts.map(_._3).sorted.mkString("\n")}")
 
             for (tx, datums, txhash, scripts) <- txsWithScripts do {
 //                println(s"Validating tx $txhash")

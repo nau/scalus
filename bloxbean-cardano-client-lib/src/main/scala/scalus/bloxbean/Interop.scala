@@ -80,7 +80,7 @@ given Ordering[Redeemer] with
     def compare(x: Redeemer, y: Redeemer): Int =
         x.getTag.value.compareTo(y.getTag.value) match
             case 0 => x.getIndex.compareTo(y.getIndex)
-            case c => -c // reverse order, I'm not sure why
+            case c => c
 
 case class ScriptInfo(hash: ByteString, scriptVersion: ScriptVersion)
 

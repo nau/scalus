@@ -51,7 +51,8 @@ class ScalusTransactionEvaluator(
     @BeanProperty val protocolParams: ProtocolParams,
     @BeanProperty val utxoSupplier: UtxoSupplier,
     @BeanProperty val scriptSupplier: ScriptSupplier,
-    @BeanProperty val mode: EvaluatorMode
+    @BeanProperty val mode: EvaluatorMode,
+    @BeanProperty val debugDumpFilesForTesting: Boolean = false
 ) extends TransactionEvaluator {
 
     /** Constructor with protocol params, utxo supplier, script supplier and mode. Uses
@@ -138,7 +139,7 @@ class ScalusTransactionEvaluator(
           protocolParams.getProtocolMajorVer.intValue(),
           costMdls,
           mode,
-          debugDumpFilesForTesting = false
+          debugDumpFilesForTesting
         )
 
     override def evaluateTx(
