@@ -166,13 +166,15 @@ object Interop {
             case 2 => // Plutus V2
                 val script = ByteString.fromArray(Cbor.decode(scriptCbor).to[Array[Byte]].value)
                 ScriptInfo(hash, ScriptVersion.PlutusV2(script))
+            case 3 => // Plutus V3
+                val script = ByteString.fromArray(Cbor.decode(scriptCbor).to[Array[Byte]].value)
+                ScriptInfo(hash, ScriptVersion.PlutusV3(script))
     }
 
     /** Converts Cardano Client Lib's [[PlutusData]] to Scalus' [[Data]] */
     def toScalusData(datum: PlutusData): Data = {
         datum match
             case c: ConstrPlutusData =>
-                val constr = c.getAlternative
                 val args = c.getData.getPlutusDataList.asScala.map(toScalusData).toList
                 Data.Constr(c.getAlternative, args)
             case m: MapPlutusData =>
