@@ -268,6 +268,7 @@ class SIRConverter(using Context) {
             case uplc.Constant.BLS12_381_G2_Element(value) =>
                 ref(ConstantBLS12_381_G2_ElementSymbol.requiredMethod("apply"))
                     .appliedTo(convert(value))
+            case uplc.Constant.BLS12_381_MlResult(value) => ??? // should not happen
     }
 
     def mkBigInt(i: BigInt): Tree =
