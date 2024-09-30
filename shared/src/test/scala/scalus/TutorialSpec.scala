@@ -141,13 +141,15 @@ val fromDataExample = compile {
     }
 }
 
-import scalus.ledger.api.v2.*
-import scalus.ledger.api.v2.FromDataInstances.given
+import scalus.ledger.api.v1.PubKeyHash
+import scalus.ledger.api.v3.*
+import scalus.ledger.api.v3.FromDataInstances.given
 import scalus.prelude.List
 val pubKeyValidator = compile {
-    def validator(datum: Data, redeamder: Data, ctxData: Data) = {
+    def validator(ctxData: Data) = {
         val ctx = ctxData.to[ScriptContext]
-        List.findOrFail[PubKeyHash](ctx.txInfo.signatories)(sig => sig.hash === hex"deadbeef")
+        List.findOrFail[PubKeyHash](ctx.txInfo.signatories): sig =>
+            sig.hash === hex"deadbeef"
     }
 }
 
@@ -157,7 +159,7 @@ val serializeToDoubleCborHex = {
     // convert to UPLC
     // generateErrorTraces = true will add trace messages to the UPLC program
     val uplc = pubKeyValidator.toUplc(generateErrorTraces = true)
-    val program = Program((1, 0, 0), uplc)
+    val program = Program((1, 1, 0), uplc)
     val flatEncoded = program.flatEncoded // if needed
     val cbor = program.cborEncoded // if needed
     val doubleEncoded = program.doubleCborEncoded // if needed
@@ -188,12 +190,12 @@ def evaluation() = {
     // you can get the actual execution costs from protocol parameters JSON from cardano-cli
     lazy val machineParams = MachineParams.fromCardanoCliProtocolParamsJson(
       "JSON with protocol parameters",
-      PlutusLedgerLanguage.PlutusV2
+      PlutusLedgerLanguage.PlutusV3
     )
     // or from blockfrost API
     lazy val machineParams2 = MachineParams.fromBlockfrostProtocolParamsJson(
       "JSON with protocol parameters",
-      PlutusLedgerLanguage.PlutusV2
+      PlutusLedgerLanguage.PlutusV3
     )
 
     // evaluate the term with debug information
@@ -238,9 +240,9 @@ def evaluation() = {
 
 def fieldAsDataExample() = {
     import Compiler.*, builtin.{Data, Builtins}, Builtins.*
-    import scalus.ledger.api.v2.*
+    import scalus.ledger.api.v3.*
     val pubKeyValidator = compile:
-        def validator(datum: Data, redeemer: Data, ctxData: Data) =
+        def validator(ctxData: Data) =
             // this generates headList(...headList(sndPair(unConstrData(ctxData)))) code
             // to extract the signatories field from the ScriptContext
             val signatories = fieldAsData[ScriptContext](_.txInfo.signatories)(ctxData)

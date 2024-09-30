@@ -31,14 +31,14 @@ import scalus.uplc.Program
 // Compile Scala code to Scalus Intermediate Representation (SIR)
 val validator = compile {
     // A simple validator that always succeeds
-    (datum: Data, redeemer: Data, context: Data) => ()
+    (context: Data) => ()
 }
 // pretty print the SIR
 validator.show
 // convert the SIR to UPLC and pretty print it with colorized syntax highlighting
 validator.toUplc().showHighlighted
 // get a double CBOR encoded optimized UPLC program as HEX formatted string
-Program(version = (1, 0, 0), term = validator.toUplcOptimized()).doubleCborHex
+Program(version = (1, 1, 0), term = validator.toUplcOptimized()).doubleCborHex
 ```
 
 ## Constans and primitives
@@ -233,17 +233,19 @@ val fromDataExample = compile {
 Here is a simple example of a PlutusV2 validator written in Scalus.
 
 ```scala mdoc:compile-only
-import scalus.ledger.api.v2.*
-import scalus.ledger.api.v2.FromDataInstances.given
+import scalus.ledger.api.v1.PubKeyHash
+import scalus.ledger.api.v3.*
+import scalus.ledger.api.v3.FromDataInstances.given
 import scalus.builtin.ByteString.given
 import scalus.prelude.List
 
 // Use Scala 3 indentation syntax. Look ma, no braces! Like Python!
 val pubKeyValidator = compile:
-    def validator(datum: Data, redeamder: Data, ctxData: Data) =
+    def validator(ctxData: Data) = {
         val ctx = ctxData.to[ScriptContext]
-        List.findOrFail[PubKeyHash](ctx.txInfo.signatories):
-            sig => sig.hash == hex"deadbeef"
+        List.findOrFail[PubKeyHash](ctx.txInfo.signatories): sig =>
+            sig.hash == hex"deadbeef"
+    }
 ```
 
 ## Troubleshooting
@@ -279,8 +281,9 @@ like `Hex(CborEncode(CborEncode(FlatEncode(Program(version, uplc)))))`.
 import scalus.*
 import scalus.builtin.ByteString.given
 import scalus.ledger.api.PlutusLedgerLanguage
-import scalus.ledger.api.v2.*
-import scalus.ledger.api.v2.FromDataInstances.given
+import scalus.ledger.api.v1.PubKeyHash
+import scalus.ledger.api.v3.*
+import scalus.ledger.api.v3.FromDataInstances.given
 import scalus.prelude.List
 import scalus.uplc.Program
 
@@ -294,7 +297,7 @@ val serializeToDoubleCborHex = {
     // convert to UPLC
     // generateErrorTraces = true will add trace messages to the UPLC program
     val uplc = pubKeyValidator.toUplc(generateErrorTraces = true)
-    val program = Program((1, 0, 0), uplc)
+    val program = Program((1, 1, 0), uplc)
     val flatEncoded = program.flatEncoded // if needed
     val cbor = program.cborEncoded // if needed
     val doubleEncoded = program.doubleCborEncoded // if needed
@@ -334,12 +337,14 @@ def evaluation() = {
     val term = sir.toUplc()
     // simply evaluate the term
     VM.evaluateTerm(term).show // (con integer 2)
+    // get default MachineParams for PlutusV3 in Conway era
+    val defaultMachineParams = MachineParams.defaultPlutusV3Params
     // or
     term.eval.show // (con integer 2)
 
     // evaluate a flat encoded script and calculate the execution budget and logs
     val result =
-        VM.evaluateScriptCounting(MachineParams.defaultParams, Program((1, 0, 0), term).flatEncoded)
+        VM.evaluateScriptCounting(defaultMachineParams, Program((1, 1, 0), term).flatEncoded)
     println(s"Execution budget: ${result.budget}")
     println(s"Evaluated term: ${result.term.show}")
     println(s"Logs: ${result.logs.mkString("\n")}")
@@ -347,12 +352,12 @@ def evaluation() = {
     // you can get the actual execution costs from protocol parameters JSON from cardano-cli
     lazy val machineParams = MachineParams.fromCardanoCliProtocolParamsJson(
       "JSON with protocol parameters",
-      PlutusLedgerLanguage.PlutusV2
+      PlutusLedgerLanguage.PlutusV3
     )
     // or from blockfrost API
     lazy val machineParams2 = MachineParams.fromBlockfrostProtocolParamsJson(
       "JSON with protocol parameters",
-      PlutusLedgerLanguage.PlutusV2
+      PlutusLedgerLanguage.PlutusV3
     )
 
     // evaluate the term with debug information
@@ -373,7 +378,7 @@ def evaluation() = {
     // use NoLogger to disable logging
     val noopLogger = NoLogger
     val cekMachine = CekMachine(
-      MachineParams.defaultParams, // or use default params
+      defaultMachineParams, // or use default params
       tallyingBudgetSpender,
       logger,
       JVMPlatformSpecific // platform specific functions. Use JSPlatformSpecific for Scala.js
