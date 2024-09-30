@@ -14,6 +14,7 @@ import com.bloxbean.cardano.yaci.core.model.serializers.util.WitnessUtil.getArra
 import com.bloxbean.cardano.yaci.core.util.CborSerializationUtil
 import scalus.*
 import scalus.bloxbean.Interop.??
+import scalus.bloxbean.TxEvaluator.ScriptHash
 import scalus.builtin.ByteString
 import scalus.utils.Utils
 
@@ -81,11 +82,18 @@ object BlocksValidation:
         for blockNum <- 10802134 to 10823158 do
             val txs = readTransactionsFromBlockCbor(cwd.resolve(s"blocks/block-$blockNum.cbor"))
             val txsWithScripts =
-                txs.map { case BlockTx(tx, datums, txhash) =>
-                    val utxos = evaluator.resolveUtxos(tx, util.Set.of())
-                    val scripts = TxEvaluator.getAllResolvedScripts(tx, utxos)
-                    (tx, datums, txhash, scripts)
-                }.filter(_._4.nonEmpty)
+                val r = mutable.Buffer.empty[
+                  (Transaction, util.List[ByteString], String, Map[ScriptHash, ScriptVersion])
+                ]
+                for BlockTx(tx, datums, txhash) <- txs do
+                    try
+                        val utxos = evaluator.resolveUtxos(tx, util.Set.of())
+                        val scripts = TxEvaluator.getAllResolvedScripts(tx, utxos)
+                        if scripts.nonEmpty then r.addOne((tx, datums, txhash, scripts))
+                    catch
+                        case e: Exception =>
+                            println(s"Error in block $blockNum, tx $txhash: ${e.getMessage}")
+                r.toSeq
             println(s"Block $blockNum, num txs to validate: ${txsWithScripts.size}")
 //            println(s"Block txs:\n${txsWithScripts.map(_._3).sorted.mkString("\n")}")
 
