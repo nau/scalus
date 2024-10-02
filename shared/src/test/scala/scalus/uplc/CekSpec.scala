@@ -15,7 +15,10 @@ class CekSpec extends AnyFunSuite:
     }
 
     def eval(code: String): Term = {
-        UplcParser().parseProgram(code).map(VM.evaluateProgram).getOrElse(sys.error("Parse error"))
+        UplcParser()
+            .parseProgram(code)
+            .map(p => VM.evaluateProgram(p))
+            .getOrElse(sys.error("Parse error"))
     }
 
     test("EqualsInteger") {

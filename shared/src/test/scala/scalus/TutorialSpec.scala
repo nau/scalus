@@ -23,10 +23,10 @@ import scalus.uplc.eval.CountingBudgetSpender
 import scalus.uplc.eval.Log
 import scalus.uplc.eval.MachineParams
 import scalus.uplc.eval.NoLogger
+import scalus.uplc.eval.Result
 import scalus.uplc.eval.StackTraceMachineError
 import scalus.uplc.eval.TallyingBudgetSpender
 import scalus.uplc.eval.VM
-import scalus.uplc.eval.Result
 
 val constants = compile {
     val unit = ()
@@ -141,13 +141,15 @@ val fromDataExample = compile {
     }
 }
 
-import scalus.ledger.api.v2.*
-import scalus.ledger.api.v2.FromDataInstances.given
+import scalus.ledger.api.v1.PubKeyHash
+import scalus.ledger.api.v3.*
+import scalus.ledger.api.v3.FromDataInstances.given
 import scalus.prelude.List
 val pubKeyValidator = compile {
-    def validator(datum: Data, redeamder: Data, ctxData: Data) = {
+    def validator(ctxData: Data) = {
         val ctx = ctxData.to[ScriptContext]
-        List.findOrFail[PubKeyHash](ctx.txInfo.signatories)(sig => sig.hash === hex"deadbeef")
+        List.findOrFail[PubKeyHash](ctx.txInfo.signatories): sig =>
+            sig.hash === hex"deadbeef"
     }
 }
 
@@ -157,7 +159,7 @@ val serializeToDoubleCborHex = {
     // convert to UPLC
     // generateErrorTraces = true will add trace messages to the UPLC program
     val uplc = pubKeyValidator.toUplc(generateErrorTraces = true)
-    val program = Program((1, 0, 0), uplc)
+    val program = Program((1, 1, 0), uplc)
     val flatEncoded = program.flatEncoded // if needed
     val cbor = program.cborEncoded // if needed
     val doubleEncoded = program.doubleCborEncoded // if needed
@@ -176,9 +178,11 @@ def evaluation() = {
     VM.evaluateTerm(term).show // (con integer 2)
     // or
     term.eval.show // (con integer 2)
+    // get default MachineParams for PlutusV3 in Conway era
+    val defaultMachineParams = MachineParams.defaultPlutusV3Params
     // evaluate a flat encoded script and calculate the execution budget and logs
     val result =
-        VM.evaluateScriptCounting(MachineParams.defaultParams, Program((1, 0, 0), term).flatEncoded)
+        VM.evaluateScriptCounting(defaultMachineParams, Program((1, 1, 0), term).flatEncoded)
     println(s"Execution budget: ${result.budget}")
     println(s"Evaluated term: ${result.term.show}")
     println(s"Logs: ${result.logs.mkString("\n")}")
@@ -186,12 +190,12 @@ def evaluation() = {
     // you can get the actual execution costs from protocol parameters JSON from cardano-cli
     lazy val machineParams = MachineParams.fromCardanoCliProtocolParamsJson(
       "JSON with protocol parameters",
-      PlutusLedgerLanguage.PlutusV2
+      PlutusLedgerLanguage.PlutusV3
     )
     // or from blockfrost API
     lazy val machineParams2 = MachineParams.fromBlockfrostProtocolParamsJson(
       "JSON with protocol parameters",
-      PlutusLedgerLanguage.PlutusV2
+      PlutusLedgerLanguage.PlutusV3
     )
 
     // evaluate the term with debug information
@@ -208,7 +212,7 @@ def evaluation() = {
     // use NoLogger to disable logging
     val noopLogger = NoLogger
     val cekMachine = CekMachine(
-      MachineParams.defaultParams,
+      defaultMachineParams,
       tallyingBudgetSpender,
       logger,
       summon[PlatformSpecific]
@@ -236,9 +240,9 @@ def evaluation() = {
 
 def fieldAsDataExample() = {
     import Compiler.*, builtin.{Data, Builtins}, Builtins.*
-    import scalus.ledger.api.v2.*
+    import scalus.ledger.api.v3.*
     val pubKeyValidator = compile:
-        def validator(datum: Data, redeemer: Data, ctxData: Data) =
+        def validator(ctxData: Data) =
             // this generates headList(...headList(sndPair(unConstrData(ctxData)))) code
             // to extract the signatories field from the ScriptContext
             val signatories = fieldAsData[ScriptContext](_.txInfo.signatories)(ctxData)

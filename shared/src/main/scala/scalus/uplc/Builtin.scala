@@ -1,25 +1,27 @@
 package scalus.uplc
 
+import scalus.builtin.*
 import scalus.builtin.Builtins.*
 import scalus.builtin.Data
-import scalus.builtin.*
+import scalus.ledger.api.BuiltinSemanticsVariant
 import scalus.uplc.Constant.given
 import scalus.uplc.DefaultUni.Bool
 import scalus.uplc.DefaultUni.Integer
 import scalus.uplc.DefaultUni.asConstant
 import scalus.uplc.DefaultUni.given
 import scalus.uplc.eval.BuiltinCostModel
+import scalus.uplc.eval.BuiltinException
 import scalus.uplc.eval.CekValue
 import scalus.uplc.eval.CekValue.*
 import scalus.uplc.eval.CostModel
 import scalus.uplc.eval.CostingFun
+import scalus.uplc.eval.DeserializationError
+import scalus.uplc.eval.ExBudget
 import scalus.uplc.eval.KnownTypeUnliftingError
+import scalus.uplc.eval.Logger
 
 import scala.collection.immutable
 import scala.collection.immutable.ArraySeq
-import scalus.uplc.eval.DeserializationError
-import scalus.uplc.eval.ExBudget
-import scalus.uplc.eval.Logger
 
 enum TypeScheme:
     case Type(argType: DefaultUni)
@@ -53,7 +55,11 @@ case class BuiltinRuntime(
     def calculateCost: ExBudget = costFunction.calculateCost(args: _*)
 }
 
-class BuiltinsMeaning(builtinCostModel: BuiltinCostModel, platformSpecific: PlatformSpecific):
+class BuiltinsMeaning(
+    builtinCostModel: BuiltinCostModel,
+    platformSpecific: PlatformSpecific,
+    semanticVariant: BuiltinSemanticsVariant
+):
     // local extension used to create a TypeScheme from a DefaultUni
     extension (x: DefaultUni)
         def ->:(t: TypeScheme): TypeScheme = TypeScheme.Arrow(t, TypeScheme.Type(x))
@@ -195,9 +201,17 @@ class BuiltinsMeaning(builtinCostModel: BuiltinCostModel, platformSpecific: Plat
         mkMeaning(
           DefaultUni.Integer ->: DefaultUni.ByteString ->: DefaultUni.ByteString,
           (logger: Logger, args: Seq[CekValue]) =>
-              val a = args(0).asInteger
-              val b = args(1).asByteString
-              VCon(asConstant(consByteString(a, b)))
+              val char = args(0).asInteger
+              val byteString = args(1).asByteString
+              val result = semanticVariant match
+                  case BuiltinSemanticsVariant.A | BuiltinSemanticsVariant.B =>
+                      // essentially, char % 256
+                      ByteString.unsafeFromArray(char.toByte +: byteString.bytes)
+                  case BuiltinSemanticsVariant.C =>
+                      if char < 0 || char > 255 then
+                          throw new BuiltinException(s"consByteString: invalid byte value: $char")
+                      ByteString.unsafeFromArray(char.toByte +: byteString.bytes)
+              VCon(asConstant(result))
           ,
           builtinCostModel.consByteString
         )
@@ -296,6 +310,16 @@ class BuiltinsMeaning(builtinCostModel: BuiltinCostModel, platformSpecific: Plat
               VCon(asConstant(platformSpecific.blake2b_256(aa)))
           ,
           builtinCostModel.blake2b_256
+        )
+
+    val Blake2b_224 =
+        mkMeaning(
+          DefaultUni.ByteString ->: DefaultUni.ByteString,
+          (logger: Logger, args: Seq[CekValue]) =>
+              val aa = args(0).asByteString
+              VCon(asConstant(platformSpecific.blake2b_224(aa)))
+          ,
+          builtinCostModel.blake2b_224
         )
 
     val VerifyEd25519Signature =
@@ -701,6 +725,263 @@ class BuiltinsMeaning(builtinCostModel: BuiltinCostModel, platformSpecific: Plat
       builtinCostModel.mkNilPairData
     )
 
+    val Keccak_256 =
+        mkMeaning(
+          DefaultUni.ByteString ->: DefaultUni.ByteString,
+          (logger: Logger, args: Seq[CekValue]) =>
+              val aa = args(0).asByteString
+              VCon(asConstant(platformSpecific.keccak_256(aa)))
+          ,
+          builtinCostModel.keccak_256
+        )
+
+    val Bls12_381_G1_add = mkMeaning(
+      DefaultUni.BLS12_381_G1_Element ->: DefaultUni.BLS12_381_G1_Element ->: DefaultUni.BLS12_381_G1_Element,
+      (logger: Logger, args: Seq[CekValue]) =>
+          val aa = args(0) match {
+              case VCon(Constant.BLS12_381_G1_Element(p)) => p
+              case _ => throw new KnownTypeUnliftingError(DefaultUni.BLS12_381_G1_Element, args(0))
+          }
+          val bb = args(1) match {
+              case VCon(Constant.BLS12_381_G1_Element(p)) => p
+              case _ => throw new KnownTypeUnliftingError(DefaultUni.BLS12_381_G1_Element, args(1))
+          }
+          VCon(Constant.BLS12_381_G1_Element(platformSpecific.bls12_381_G1_add(aa, bb)))
+      ,
+      builtinCostModel.bls12_381_G1_add
+    )
+
+    val Bls12_381_G1_neg = mkMeaning(
+      DefaultUni.BLS12_381_G1_Element ->: DefaultUni.BLS12_381_G1_Element,
+      (logger: Logger, args: Seq[CekValue]) =>
+          val aa = args(0) match {
+              case VCon(Constant.BLS12_381_G1_Element(p)) => p
+              case _ => throw new KnownTypeUnliftingError(DefaultUni.BLS12_381_G1_Element, args(0))
+          }
+          VCon(Constant.BLS12_381_G1_Element(platformSpecific.bls12_381_G1_neg(aa)))
+      ,
+      builtinCostModel.bls12_381_G1_neg
+    )
+
+    val Bls12_381_G1_scalarMul = mkMeaning(
+      DefaultUni.Integer ->: DefaultUni.BLS12_381_G1_Element ->: DefaultUni.BLS12_381_G1_Element,
+      (logger: Logger, args: Seq[CekValue]) =>
+          val aa = args(0).asInteger
+          val bb = args(1) match {
+              case VCon(Constant.BLS12_381_G1_Element(p)) => p
+              case _ => throw new KnownTypeUnliftingError(DefaultUni.BLS12_381_G1_Element, args(1))
+          }
+          VCon(Constant.BLS12_381_G1_Element(platformSpecific.bls12_381_G1_scalarMul(aa, bb)))
+      ,
+      builtinCostModel.bls12_381_G1_scalarMul
+    )
+
+    val Bls12_381_G1_equal = mkMeaning(
+      DefaultUni.BLS12_381_G1_Element ->: DefaultUni.BLS12_381_G1_Element ->: DefaultUni.Bool,
+      (logger: Logger, args: Seq[CekValue]) =>
+          val aa = args(0) match {
+              case VCon(Constant.BLS12_381_G1_Element(p)) => p
+              case _ => throw new KnownTypeUnliftingError(DefaultUni.BLS12_381_G1_Element, args(0))
+          }
+          val bb = args(1) match {
+              case VCon(Constant.BLS12_381_G1_Element(p)) => p
+              case _ => throw new KnownTypeUnliftingError(DefaultUni.BLS12_381_G1_Element, args(1))
+          }
+          VCon(asConstant(platformSpecific.bls12_381_G1_equal(aa, bb)))
+      ,
+      builtinCostModel.bls12_381_G1_equal
+    )
+
+    val Bls12_381_G1_compress = mkMeaning(
+      DefaultUni.BLS12_381_G1_Element ->: DefaultUni.ByteString,
+      (logger: Logger, args: Seq[CekValue]) =>
+          val aa = args(0) match {
+              case VCon(Constant.BLS12_381_G1_Element(p)) => p
+              case _ => throw new KnownTypeUnliftingError(DefaultUni.BLS12_381_G1_Element, args(0))
+          }
+          VCon(Constant.ByteString(platformSpecific.bls12_381_G1_compress(aa)))
+      ,
+      builtinCostModel.bls12_381_G1_compress
+    )
+
+    val Bls12_381_G1_uncompress = mkMeaning(
+      DefaultUni.ByteString ->: DefaultUni.BLS12_381_G1_Element,
+      (logger: Logger, args: Seq[CekValue]) =>
+          val aa = args(0).asByteString
+          VCon(Constant.BLS12_381_G1_Element(platformSpecific.bls12_381_G1_uncompress(aa)))
+      ,
+      builtinCostModel.bls12_381_G1_uncompress
+    )
+
+    val Bls12_381_G1_hashToGroup = mkMeaning(
+      DefaultUni.ByteString ->: DefaultUni.ByteString ->: DefaultUni.BLS12_381_G1_Element,
+      (logger: Logger, args: Seq[CekValue]) =>
+          val aa = args(0).asByteString
+          val bb = args(1).asByteString
+          VCon(Constant.BLS12_381_G1_Element(platformSpecific.bls12_381_G1_hashToGroup(aa, bb)))
+      ,
+      builtinCostModel.bls12_381_G1_hashToGroup
+    )
+
+    val Bls12_381_G2_add = mkMeaning(
+      DefaultUni.BLS12_381_G2_Element ->: DefaultUni.BLS12_381_G2_Element ->: DefaultUni.BLS12_381_G2_Element,
+      (logger: Logger, args: Seq[CekValue]) =>
+          val aa = args(0) match {
+              case VCon(Constant.BLS12_381_G2_Element(p)) => p
+              case _ => throw new KnownTypeUnliftingError(DefaultUni.BLS12_381_G2_Element, args(0))
+          }
+          val bb = args(1) match {
+              case VCon(Constant.BLS12_381_G2_Element(p)) => p
+              case _ => throw new KnownTypeUnliftingError(DefaultUni.BLS12_381_G2_Element, args(1))
+          }
+          VCon(Constant.BLS12_381_G2_Element(platformSpecific.bls12_381_G2_add(aa, bb)))
+      ,
+      builtinCostModel.bls12_381_G2_add
+    )
+
+    val Bls12_381_G2_neg = mkMeaning(
+      DefaultUni.BLS12_381_G2_Element ->: DefaultUni.BLS12_381_G2_Element,
+      (logger: Logger, args: Seq[CekValue]) =>
+          val aa = args(0) match {
+              case VCon(Constant.BLS12_381_G2_Element(p)) => p
+              case _ => throw new KnownTypeUnliftingError(DefaultUni.BLS12_381_G2_Element, args(0))
+          }
+          VCon(Constant.BLS12_381_G2_Element(platformSpecific.bls12_381_G2_neg(aa)))
+      ,
+      builtinCostModel.bls12_381_G2_neg
+    )
+
+    val Bls12_381_G2_scalarMul = mkMeaning(
+      DefaultUni.Integer ->: DefaultUni.BLS12_381_G2_Element ->: DefaultUni.BLS12_381_G2_Element,
+      (logger: Logger, args: Seq[CekValue]) =>
+          val aa = args(0).asInteger
+          val bb = args(1) match {
+              case VCon(Constant.BLS12_381_G2_Element(p)) => p
+              case _ => throw new KnownTypeUnliftingError(DefaultUni.BLS12_381_G2_Element, args(1))
+          }
+          VCon(Constant.BLS12_381_G2_Element(platformSpecific.bls12_381_G2_scalarMul(aa, bb)))
+      ,
+      builtinCostModel.bls12_381_G2_scalarMul
+    )
+
+    val Bls12_381_G2_equal = mkMeaning(
+      DefaultUni.BLS12_381_G2_Element ->: DefaultUni.BLS12_381_G2_Element ->: DefaultUni.Bool,
+      (logger: Logger, args: Seq[CekValue]) =>
+          val aa = args(0) match {
+              case VCon(Constant.BLS12_381_G2_Element(p)) => p
+              case _ => throw new KnownTypeUnliftingError(DefaultUni.BLS12_381_G2_Element, args(0))
+          }
+          val bb = args(1) match {
+              case VCon(Constant.BLS12_381_G2_Element(p)) => p
+              case _ => throw new KnownTypeUnliftingError(DefaultUni.BLS12_381_G2_Element, args(1))
+          }
+          VCon(asConstant(platformSpecific.bls12_381_G2_equal(aa, bb)))
+      ,
+      builtinCostModel.bls12_381_G2_equal
+    )
+
+    val Bls12_381_G2_compress = mkMeaning(
+      DefaultUni.BLS12_381_G2_Element ->: DefaultUni.ByteString,
+      (logger: Logger, args: Seq[CekValue]) =>
+          val aa = args(0) match {
+              case VCon(Constant.BLS12_381_G2_Element(p)) => p
+              case _ => throw new KnownTypeUnliftingError(DefaultUni.BLS12_381_G2_Element, args(0))
+          }
+          VCon(Constant.ByteString(platformSpecific.bls12_381_G2_compress(aa)))
+      ,
+      builtinCostModel.bls12_381_G2_compress
+    )
+
+    val Bls12_381_G2_uncompress = mkMeaning(
+      DefaultUni.ByteString ->: DefaultUni.BLS12_381_G2_Element,
+      (logger: Logger, args: Seq[CekValue]) =>
+          val aa = args(0).asByteString
+          VCon(Constant.BLS12_381_G2_Element(platformSpecific.bls12_381_G2_uncompress(aa)))
+      ,
+      builtinCostModel.bls12_381_G2_uncompress
+    )
+
+    val Bls12_381_G2_hashToGroup = mkMeaning(
+      DefaultUni.ByteString ->: DefaultUni.ByteString ->: DefaultUni.BLS12_381_G2_Element,
+      (logger: Logger, args: Seq[CekValue]) =>
+          val aa = args(0).asByteString
+          val bb = args(1).asByteString
+          VCon(Constant.BLS12_381_G2_Element(platformSpecific.bls12_381_G2_hashToGroup(aa, bb)))
+      ,
+      builtinCostModel.bls12_381_G2_hashToGroup
+    )
+
+    val Bls12_381_millerLoop = mkMeaning(
+      DefaultUni.BLS12_381_G1_Element ->: DefaultUni.BLS12_381_G2_Element ->: DefaultUni.BLS12_381_MlResult,
+      (logger: Logger, args: Seq[CekValue]) =>
+          val aa = args(0) match {
+              case VCon(Constant.BLS12_381_G1_Element(p)) => p
+              case _ => throw new KnownTypeUnliftingError(DefaultUni.BLS12_381_G1_Element, args(0))
+          }
+          val bb = args(1) match {
+              case VCon(Constant.BLS12_381_G2_Element(p)) => p
+              case _ => throw new KnownTypeUnliftingError(DefaultUni.BLS12_381_G2_Element, args(1))
+          }
+          VCon(Constant.BLS12_381_MlResult(platformSpecific.bls12_381_millerLoop(aa, bb)))
+      ,
+      builtinCostModel.bls12_381_millerLoop
+    )
+
+    val Bls12_381_mulMlResult = mkMeaning(
+      DefaultUni.BLS12_381_MlResult ->: DefaultUni.BLS12_381_MlResult ->: DefaultUni.BLS12_381_MlResult,
+      (logger: Logger, args: Seq[CekValue]) =>
+          val aa = args(0) match {
+              case VCon(Constant.BLS12_381_MlResult(p)) => p
+              case _ => throw new KnownTypeUnliftingError(DefaultUni.BLS12_381_MlResult, args(0))
+          }
+          val bb = args(1) match {
+              case VCon(Constant.BLS12_381_MlResult(p)) => p
+              case _ => throw new KnownTypeUnliftingError(DefaultUni.BLS12_381_MlResult, args(1))
+          }
+          VCon(Constant.BLS12_381_MlResult(platformSpecific.bls12_381_mulMlResult(aa, bb)))
+      ,
+      builtinCostModel.bls12_381_mulMlResult
+    )
+
+    val Bls12_381_finalVerify = mkMeaning(
+      DefaultUni.BLS12_381_MlResult ->: DefaultUni.BLS12_381_MlResult ->: DefaultUni.Bool,
+      (logger: Logger, args: Seq[CekValue]) =>
+          val aa = args(0) match {
+              case VCon(Constant.BLS12_381_MlResult(p)) => p
+              case _ => throw new KnownTypeUnliftingError(DefaultUni.BLS12_381_MlResult, args(0))
+          }
+          val bb = args(1) match {
+              case VCon(Constant.BLS12_381_MlResult(p)) => p
+              case _ => throw new KnownTypeUnliftingError(DefaultUni.BLS12_381_MlResult, args(1))
+          }
+          VCon(asConstant(platformSpecific.bls12_381_finalVerify(aa, bb)))
+      ,
+      builtinCostModel.bls12_381_finalVerify
+    )
+
+    val IntegerToByteString =
+        mkMeaning(
+          Bool ->: Integer ->: Integer ->: DefaultUni.ByteString,
+          (logger: Logger, args: Seq[CekValue]) =>
+              val endianness = args(0).asBool
+              val length = args(1).asInteger
+              val input = args(2).asInteger
+              VCon(asConstant(integerToByteString(endianness, length, input)))
+          ,
+          builtinCostModel.integerToByteString
+        )
+
+    val ByteStringToInteger =
+        mkMeaning(
+          Bool ->: DefaultUni.ByteString ->: Integer,
+          (logger: Logger, args: Seq[CekValue]) =>
+              val endianness = args(0).asBool
+              val input = args(1).asByteString
+              VCon(asConstant(byteStringToInteger(endianness, input)))
+          ,
+          builtinCostModel.byteStringToInteger
+        )
+
     val BuiltinMeanings: immutable.Map[DefaultFun, BuiltinRuntime] = immutable.Map.apply(
       (DefaultFun.AddInteger, AddInteger),
       (DefaultFun.SubtractInteger, SubtractInteger),
@@ -755,5 +1036,27 @@ class BuiltinsMeaning(builtinCostModel: BuiltinCostModel, platformSpecific: Plat
       (DefaultFun.SerialiseData, SerialiseData),
       (DefaultFun.MkPairData, MkPairData),
       (DefaultFun.MkNilData, MkNilData),
-      (DefaultFun.MkNilPairData, MkNilPairData)
+      (DefaultFun.MkNilPairData, MkNilPairData),
+      (DefaultFun.Blake2b_224, Blake2b_224),
+      (DefaultFun.Keccak_256, Keccak_256),
+      (DefaultFun.Bls12_381_G1_add, Bls12_381_G1_add),
+      (DefaultFun.Bls12_381_G1_neg, Bls12_381_G1_neg),
+      (DefaultFun.Bls12_381_G1_scalarMul, Bls12_381_G1_scalarMul),
+      (DefaultFun.Bls12_381_G1_equal, Bls12_381_G1_equal),
+      (DefaultFun.Bls12_381_G1_compress, Bls12_381_G1_compress),
+      (DefaultFun.Bls12_381_G1_uncompress, Bls12_381_G1_uncompress),
+      (DefaultFun.Bls12_381_G1_hashToGroup, Bls12_381_G1_hashToGroup),
+      (DefaultFun.Bls12_381_G2_uncompress, Bls12_381_G2_uncompress),
+      (DefaultFun.Bls12_381_G2_add, Bls12_381_G2_add),
+      (DefaultFun.Bls12_381_G2_neg, Bls12_381_G2_neg),
+      (DefaultFun.Bls12_381_G2_scalarMul, Bls12_381_G2_scalarMul),
+      (DefaultFun.Bls12_381_G2_equal, Bls12_381_G2_equal),
+      (DefaultFun.Bls12_381_G2_compress, Bls12_381_G2_compress),
+      (DefaultFun.Bls12_381_G2_uncompress, Bls12_381_G2_uncompress),
+      (DefaultFun.Bls12_381_G2_hashToGroup, Bls12_381_G2_hashToGroup),
+      (DefaultFun.Bls12_381_millerLoop, Bls12_381_millerLoop),
+      (DefaultFun.Bls12_381_mulMlResult, Bls12_381_mulMlResult),
+      (DefaultFun.Bls12_381_finalVerify, Bls12_381_finalVerify),
+      (DefaultFun.IntegerToByteString, IntegerToByteString),
+      (DefaultFun.ByteStringToInteger, ByteStringToInteger)
     )

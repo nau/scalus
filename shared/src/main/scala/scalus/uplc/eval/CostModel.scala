@@ -28,12 +28,56 @@ case class TwoVariableLinearFunction(intercept: Intercept, slopeX: Slope, slopeY
     }
 }
 
-case class ModelConstantOrLinear(constant: CostingInteger, intercept: Intercept, slope: Slope)
+case class OneVariableQuadraticFunction(
+    c0: CostingInteger,
+    c1: CostingInteger,
+    c2: CostingInteger
+) derives ReadWriter {
+    def apply(x: CostingInteger): CostingInteger = {
+        c0 + c1 * x + c2 * x * x
+    }
+}
+
+/** c00 + c10*x + c01*y + c20*x^2 + c11*c*y + c02*y^2
+  *
+  * @note
+  *   Minimum values for two-variable quadratic costing functions. Unlike most of our other costing
+  *   functions our use cases for two-variable quadratic costing functions may require one or more
+  *   negative coefficients, so there's a danger that we could return a negative cost. This is
+  *   unlikely, but we make certain that it never happens by returning a result that is at never
+  *   smaller than a minimum value that is stored along with the coefficients of the function.
+  *
+  * @param minimum
+  * @param c00
+  * @param c10
+  * @param c01
+  * @param c20
+  * @param c11
+  * @param c02
+  */
+case class TwoVariableQuadraticFunction(
+    minimum: CostingInteger,
+    c00: CostingInteger,
+    c10: CostingInteger,
+    c01: CostingInteger,
+    c20: CostingInteger,
+    c11: CostingInteger,
+    c02: CostingInteger
+) derives ReadWriter {
+    def apply(x: CostingInteger, y: CostingInteger): CostingInteger = {
+        val result = c00 + c10 * x + c01 * y + c20 * x * x + c11 * x * y + c02 * y * y
+        Math.max(minimum, result)
+    }
+}
+
+case class ConstantOrLinear(constant: CostingInteger, intercept: Intercept, slope: Slope)
     derives ReadWriter {
     def apply(arg1: CostingInteger, arg2: CostingInteger): CostingInteger = {
         if arg1 == arg2 then intercept + arg1 * slope else constant
     }
 }
+
+case class ConstantOrOneArgument(constant: CostingInteger, model: OneArgument) derives ReadWriter
 
 case class ConstantOrTwoArguments(constant: CostingInteger, model: TwoArguments) derives ReadWriter
 
@@ -51,7 +95,7 @@ object OneArgument:
         def apply(arg: CostingInteger): CostingInteger = cost
     }
 
-    case class LinearCost(costFun: OneVariableLinearFunction) extends OneArgument {
+    case class LinearInX(costFun: OneVariableLinearFunction) extends OneArgument {
         def apply(arg: CostingInteger): CostingInteger =
             costFun(arg)
     }
@@ -60,15 +104,15 @@ object OneArgument:
       {
           case ConstantCost(cost) =>
               ujson.Obj("type" -> "constant_cost", "arguments" -> cost)
-          case LinearCost(cost) =>
-              ujson.Obj("type" -> "linear_cost", "arguments" -> writeJs(cost))
+          case LinearInX(cost) =>
+              ujson.Obj("type" -> "linear_in_x", "arguments" -> writeJs(cost))
       },
       json => {
           json.obj("type").str match
               case "constant_cost" =>
                   ConstantCost(json.obj("arguments").num.toLong)
-              case "linear_cost" =>
-                  LinearCost(read[OneVariableLinearFunction](json.obj("arguments")))
+              case "linear_in_x" =>
+                  LinearInX(read[OneVariableLinearFunction](json.obj("arguments")))
               case other => throw new RuntimeException(s"Unexpected type ${other}")
       }
     )
@@ -123,7 +167,7 @@ object TwoArguments {
             cost(Math.max(arg1, arg2))
     }
 
-    case class LinearOnDiagonal(cost: ModelConstantOrLinear) extends TwoArguments {
+    case class LinearOnDiagonal(cost: ConstantOrLinear) extends TwoArguments {
         def apply(arg1: CostingInteger, arg2: CostingInteger): CostingInteger =
             cost(arg1, arg2)
     }
@@ -134,6 +178,21 @@ object TwoArguments {
     case class ConstAboveDiagonal(cost: ConstantOrTwoArguments) extends TwoArguments {
         def apply(arg1: CostingInteger, arg2: CostingInteger): CostingInteger =
             if arg1 < arg2 then cost.constant else cost.model(arg1, arg2)
+    }
+
+    case class ConstOffDiagonal(cost: ConstantOrOneArgument) extends TwoArguments {
+        def apply(arg1: CostingInteger, arg2: CostingInteger): CostingInteger =
+            if arg1 != arg2 then cost.constant else cost.model(arg1)
+    }
+
+    case class QuadraticInY(cost: OneVariableQuadraticFunction) extends TwoArguments {
+        def apply(arg1: CostingInteger, arg2: CostingInteger): CostingInteger =
+            cost(arg1)
+    }
+
+    case class QuadraticInXAndY(cost: TwoVariableQuadraticFunction) extends TwoArguments {
+        def apply(arg1: CostingInteger, arg2: CostingInteger): CostingInteger =
+            cost(arg1, arg2)
     }
 
     given ReadWriter[TwoArguments] = readwriter[ujson.Value].bimap(
@@ -162,6 +221,12 @@ object TwoArguments {
               ujson.Obj("type" -> "const_above_diagonal", "arguments" -> writeJs(cost))
           case ConstBelowDiagonal(cost) =>
               ujson.Obj("type" -> "const_below_diagonal", "arguments" -> writeJs(cost))
+          case QuadraticInY(cost) =>
+              ujson.Obj("type" -> "quadratic_in_y", "arguments" -> writeJs(cost))
+          case QuadraticInXAndY(cost) =>
+              ujson.Obj("type" -> "quadratic_in_x_and_y", "arguments" -> writeJs(cost))
+          case ConstOffDiagonal(cost) =>
+              ujson.Obj("type" -> "const_off_diagonal", "arguments" -> writeJs(cost))
       },
       json => {
           json.obj("type").str match
@@ -172,6 +237,10 @@ object TwoArguments {
                   LinearInY(read[OneVariableLinearFunction](json.obj("arguments")))
               case "linear_in_x_and_y" =>
                   LinearInXAndY(read[TwoVariableLinearFunction](json.obj("arguments")))
+              case "quadratic_in_y" =>
+                  QuadraticInY(read[OneVariableQuadraticFunction](json.obj("arguments")))
+              case "quadratic_in_x_and_y" =>
+                  QuadraticInXAndY(read[TwoVariableQuadraticFunction](json.obj("arguments")))
               case "added_sizes" =>
                   AddedSizes(read[OneVariableLinearFunction](json.obj("arguments")))
               case "subtracted_sizes" =>
@@ -183,11 +252,13 @@ object TwoArguments {
               case "max_size" =>
                   MaxSize(read[OneVariableLinearFunction](json.obj("arguments")))
               case "linear_on_diagonal" =>
-                  LinearOnDiagonal(read[ModelConstantOrLinear](json.obj("arguments")))
+                  LinearOnDiagonal(read[ConstantOrLinear](json.obj("arguments")))
               case "const_above_diagonal" =>
                   ConstAboveDiagonal(read[ConstantOrTwoArguments](json.obj("arguments")))
               case "const_below_diagonal" =>
                   ConstBelowDiagonal(read[ConstantOrTwoArguments](json.obj("arguments")))
+              case "const_off_diagonal" =>
+                  ConstOffDiagonal(read[ConstantOrOneArgument](json.obj("arguments")))
               case other => throw new RuntimeException(s"Unexpected type ${other}")
       }
     )
@@ -205,15 +276,6 @@ object ThreeArguments {
             arg2: CostingInteger,
             arg3: CostingInteger
         ): CostingInteger = cost
-    }
-
-    case class AddedSizes(cost: OneVariableLinearFunction) extends ThreeArguments {
-        def apply(
-            arg1: CostingInteger,
-            arg2: CostingInteger,
-            arg3: CostingInteger
-        ): CostingInteger =
-            cost(arg1 + arg2 + arg3)
     }
 
     case class LinearInX(costFun: OneVariableLinearFunction) extends ThreeArguments {
@@ -243,31 +305,147 @@ object ThreeArguments {
             costFun(arg3)
     }
 
+    case class QuadraticInZ(costFun: OneVariableQuadraticFunction) extends ThreeArguments {
+        def apply(
+            arg1: CostingInteger,
+            arg2: CostingInteger,
+            arg3: CostingInteger
+        ): CostingInteger =
+            costFun(arg3)
+    }
+
+    case class LiteralInYOrLinearInZ(costFun: OneVariableLinearFunction) extends ThreeArguments {
+        def apply(
+            arg1: CostingInteger,
+            arg2: CostingInteger,
+            arg3: CostingInteger
+        ): CostingInteger =
+            if arg2 == 0 then costFun(arg3) else arg2
+    }
+
+    case class LinearInMaxYZ(costFun: OneVariableLinearFunction) extends ThreeArguments {
+        def apply(
+            arg1: CostingInteger,
+            arg2: CostingInteger,
+            arg3: CostingInteger
+        ): CostingInteger =
+            costFun(Math.max(arg2, arg3))
+    }
+
+    case class LinearInYAndZ(costFun: TwoVariableLinearFunction) extends ThreeArguments {
+        def apply(
+            arg1: CostingInteger,
+            arg2: CostingInteger,
+            arg3: CostingInteger
+        ): CostingInteger =
+            costFun(arg2, arg3)
+    }
+
     given ReadWriter[ThreeArguments] = readwriter[ujson.Value].bimap(
       {
           case ConstantCost(cost) =>
               ujson.Obj("type" -> "constant_cost", "arguments" -> cost)
-          case AddedSizes(cost) =>
-              ujson.Obj("type" -> "added_sizes", "arguments" -> writeJs(cost))
           case LinearInX(costFun) =>
               ujson.Obj("type" -> "linear_in_x", "arguments" -> writeJs(costFun))
           case LinearInY(costFun) =>
               ujson.Obj("type" -> "linear_in_y", "arguments" -> writeJs(costFun))
           case LinearInZ(costFun) =>
               ujson.Obj("type" -> "linear_in_z", "arguments" -> writeJs(costFun))
+          case QuadraticInZ(costFun) =>
+              ujson.Obj("type" -> "quadratic_in_z", "arguments" -> writeJs(costFun))
+          case LiteralInYOrLinearInZ(costFun) =>
+              ujson.Obj("type" -> "literal_in_y_or_linear_in_z", "arguments" -> writeJs(costFun))
+          case LinearInMaxYZ(costFun) =>
+              ujson.Obj("type" -> "linear_in_max_yz", "arguments" -> writeJs(costFun))
+          case LinearInYAndZ(costFun) =>
+              ujson.Obj("type" -> "linear_in_y_and_z", "arguments" -> writeJs(costFun))
       },
       json => {
           json.obj("type").str match
               case "constant_cost" => ConstantCost(json.obj("arguments").num.toLong)
-              case "added_sizes" =>
-                  AddedSizes(read[OneVariableLinearFunction](json.obj("arguments")))
               case "linear_in_x" =>
                   LinearInX(read[OneVariableLinearFunction](json.obj("arguments")))
               case "linear_in_y" =>
                   LinearInY(read[OneVariableLinearFunction](json.obj("arguments")))
               case "linear_in_z" =>
                   LinearInZ(read[OneVariableLinearFunction](json.obj("arguments")))
+              case "quadratic_in_z" =>
+                  QuadraticInZ(read[OneVariableQuadraticFunction](json.obj("arguments")))
+              case "literal_in_y_or_linear_in_z" =>
+                  LiteralInYOrLinearInZ(read[OneVariableLinearFunction](json.obj("arguments")))
+              case "linear_in_max_yz" =>
+                  LinearInMaxYZ(read[OneVariableLinearFunction](json.obj("arguments")))
+              case "linear_in_y_and_z" =>
+                  LinearInYAndZ(read[TwoVariableLinearFunction](json.obj("arguments")))
               case other => throw new RuntimeException(s"Unexpected type ${other}")
+      }
+    )
+}
+
+trait FourArguments extends CostModel {
+    def apply(
+        arg1: CostingInteger,
+        arg2: CostingInteger,
+        arg3: CostingInteger,
+        arg4: CostingInteger
+    ): CostingInteger
+    def calculateCost(args: Seq[CostingInteger]) =
+        apply(args(0), args(1), args(2), args(3))
+}
+
+object FourArguments {
+    case class ConstantCost(cost: CostingInteger) extends FourArguments {
+        def apply(
+            arg1: CostingInteger,
+            arg2: CostingInteger,
+            arg3: CostingInteger,
+            arg4: CostingInteger
+        ): CostingInteger = cost
+    }
+
+    given ReadWriter[FourArguments] = readwriter[ujson.Value].bimap(
+      { case ConstantCost(cost) =>
+          ujson.Obj("type" -> "constant_cost", "arguments" -> cost)
+      },
+      json => {
+          json.obj("type").str match
+              case "constant_cost" => ConstantCost(json.obj("arguments").num.toLong)
+              case other           => throw new RuntimeException(s"Unexpected type ${other}")
+      }
+    )
+}
+
+trait FiveArguments extends CostModel {
+    def apply(
+        arg1: CostingInteger,
+        arg2: CostingInteger,
+        arg3: CostingInteger,
+        arg4: CostingInteger,
+        arg5: CostingInteger
+    ): CostingInteger
+    def calculateCost(args: Seq[CostingInteger]) =
+        apply(args(0), args(1), args(2), args(3), args(4))
+}
+
+object FiveArguments {
+    case class ConstantCost(cost: CostingInteger) extends FiveArguments {
+        def apply(
+            arg1: CostingInteger,
+            arg2: CostingInteger,
+            arg3: CostingInteger,
+            arg4: CostingInteger,
+            arg5: CostingInteger
+        ): CostingInteger = cost
+    }
+
+    given ReadWriter[FiveArguments] = readwriter[ujson.Value].bimap(
+      { case ConstantCost(cost) =>
+          ujson.Obj("type" -> "constant_cost", "arguments" -> cost)
+      },
+      json => {
+          json.obj("type").str match
+              case "constant_cost" => ConstantCost(json.obj("arguments").num.toLong)
+              case other           => throw new RuntimeException(s"Unexpected type ${other}")
       }
     )
 }

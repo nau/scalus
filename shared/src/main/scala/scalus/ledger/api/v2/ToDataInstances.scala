@@ -20,7 +20,7 @@ object ToDataInstances {
             case OutputDatum.OutputDatumHash(datumHash) =>
                 constrData(1, builtin.List(datumHash.toData))
             case OutputDatum.OutputDatum(datum) =>
-                constrData(2, builtin.List(datum.toData))
+                constrData(2, builtin.List(datum))
 
     given ToData[TxOut] = ToData.deriveCaseClass[TxOut](0)
 

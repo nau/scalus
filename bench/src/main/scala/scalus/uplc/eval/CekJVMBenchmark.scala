@@ -39,7 +39,7 @@ class CekJVMBenchmark:
     private var file: String = ""
     private var program: Program = null
     val cek = CekMachine(
-      MachineParams.defaultParams,
+      MachineParams.defaultPlutusV2PostConwayParams,
       RestrictingBudgetSpender(ExBudget.enormous),
       NoLogger,
       JVMPlatformSpecific

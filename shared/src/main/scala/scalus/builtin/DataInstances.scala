@@ -6,6 +6,7 @@ import scalus.builtin.Data.*
 import scalus.prelude
 import scalus.prelude.AssocMap
 import scalus.prelude.Maybe
+import scalus.prelude.Rational
 
 import scala.annotation.nowarn
 
@@ -61,6 +62,8 @@ object FromDataInstances {
         (d: Data) =>
             val args = unConstrData(d).snd
             (fromA(args.head), fromB(args.tail.head))
+
+    given RationalFromData: FromData[Rational] = FromData.deriveCaseClass[Rational]
 }
 
 @Compile
@@ -129,4 +132,6 @@ object ToDataInstances {
                 case Left(v)  => constrData(0, mkCons(v.toData, mkNilData()))
                 case Right(v) => constrData(1, mkCons(v.toData, mkNilData()))
 
+    given RationalToData: ToData[Rational] =
+        ToData.deriveCaseClass[Rational](0)
 }

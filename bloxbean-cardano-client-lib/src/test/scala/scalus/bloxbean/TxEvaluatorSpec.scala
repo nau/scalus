@@ -27,7 +27,7 @@ class TxEvaluatorSpec extends AnyFunSuite:
     val sender1 = new Account(Networks.testnet(), senderMnemonic)
     val sender1Addr: String = sender1.baseAddress()
 
-    test("TxEvaluator ") {
+    test("TxEvaluator PlutusV2") {
         import scala.jdk.CollectionConverters.*
         val costMdls = CostMdls()
         costMdls.add(CostModelUtil.PlutusV1CostModel)
@@ -46,7 +46,6 @@ class TxEvaluatorSpec extends AnyFunSuite:
                 .cborHex(pubKeyValidator.doubleCborHex)
                 .build()
                 .asInstanceOf[PlutusV2Script]
-        val scripts: util.List[PlutusScript] = util.List.of(s)
         val pubKeyScriptAddress = AddressProvider.getEntAddress(s, Networks.testnet())
         val input = TransactionInput.builder().transactionId("deadbeef").index(0).build()
         val inputs = util.List.of(input)
@@ -63,7 +62,7 @@ class TxEvaluatorSpec extends AnyFunSuite:
             .builder()
             .tag(RedeemerTag.Spend)
             .data(PlutusData.unit())
-            .index(BigInteger.ZERO)
+            .index(0)
             .exUnits(
               ExUnits
                   .builder()
@@ -96,5 +95,77 @@ class TxEvaluatorSpec extends AnyFunSuite:
         assert(redeemers.size == 1)
         val redeemerResult = redeemers.head
         assert(redeemerResult.getExUnits.getMem.longValue == 13375L)
-        assert(redeemerResult.getExUnits.getSteps.longValue == 4733088L)
+        assert(redeemerResult.getExUnits.getSteps.longValue == 3732650L)
+    }
+
+    test("TxEvaluator PlutusV3") {
+        import scala.jdk.CollectionConverters.*
+        val costMdls = CostMdls()
+        costMdls.add(CostModelUtil.PlutusV1CostModel)
+        costMdls.add(CostModelUtil.PlutusV2CostModel)
+        costMdls.add(CostModelUtil.PlutusV3CostModel)
+        val evaluator = TxEvaluator(
+          SlotConfig.Mainnet,
+          initialBudget = ExBudget.fromCpuAndMemory(10_000000000L, 10_000000L),
+          protocolMajorVersion = 9,
+          costMdls = costMdls
+        )
+        val pubKeyValidator =
+            compile(PubKeyValidator.validatorV3(hex"deadbeef")).toPlutusProgram((1, 1, 0))
+        val s: PlutusV3Script =
+            PlutusV3Script
+                .builder()
+                .cborHex(pubKeyValidator.doubleCborHex)
+                .build()
+                .asInstanceOf[PlutusV3Script]
+        val pubKeyScriptAddress = AddressProvider.getEntAddress(s, Networks.testnet())
+        val input = TransactionInput.builder().transactionId("deadbeef").index(0).build()
+        val inputs = util.List.of(input)
+
+        val utxo = Map(
+          input -> TransactionOutput
+              .builder()
+              .value(Value.builder().coin(BigInteger.valueOf(20)).build())
+              .address(pubKeyScriptAddress.getAddress)
+              .datumHash(Utils.hexToBytes(PlutusData.unit().getDatumHash))
+              .build()
+        )
+        val redeemer = Redeemer
+            .builder()
+            .tag(RedeemerTag.Spend)
+            .data(PlutusData.unit())
+            .index(0)
+            .exUnits(
+              ExUnits
+                  .builder()
+                  .mem(BigInteger.valueOf(10_000_000L))
+                  .steps(BigInteger.valueOf(10_000_000_000L))
+                  .build()
+            )
+            .build()
+        val tx = Transaction
+            .builder()
+            .body(
+              TransactionBody
+                  .builder()
+                  .fee(ADAConversionUtil.adaToLovelace(0.2))
+                  .ttl(1000)
+                  .inputs(inputs)
+                  .requiredSigners(util.List.of(hex"deadbeef".bytes))
+                  .build()
+            )
+            .witnessSet(
+              TransactionWitnessSet
+                  .builder()
+                  .plutusV3Scripts(util.List.of(s))
+                  .redeemers(util.List.of(redeemer))
+                  .plutusDataList(util.List.of(PlutusData.unit()))
+                  .build()
+            )
+            .build()
+        val redeemers = evaluator.evaluateTx(tx, utxo)
+        assert(redeemers.size == 1)
+        val redeemerResult = redeemers.head
+        assert(redeemerResult.getExUnits.getMem.longValue == 12775L)
+        assert(redeemerResult.getExUnits.getSteps.longValue == 3636650L)
     }

@@ -6,28 +6,56 @@ import com.bloxbean.cardano.client.address.Credential
 import com.bloxbean.cardano.client.address.CredentialType
 import com.bloxbean.cardano.client.crypto.Blake2bUtil.blake2bHash224
 import com.bloxbean.cardano.client.plutus.spec.*
+import com.bloxbean.cardano.client.spec.Rational
+import com.bloxbean.cardano.client.spec.UnitInterval
 import com.bloxbean.cardano.client.transaction.spec.*
 import com.bloxbean.cardano.client.transaction.spec.cert.*
-import com.bloxbean.cardano.client.transaction.util.TransactionUtil
+import com.bloxbean.cardano.client.transaction.spec.governance.DRep
+import com.bloxbean.cardano.client.transaction.spec.governance.DRepType
+import com.bloxbean.cardano.client.transaction.spec.governance.ProposalProcedure
+import com.bloxbean.cardano.client.transaction.spec.governance.Vote
+import com.bloxbean.cardano.client.transaction.spec.governance.Voter
+import com.bloxbean.cardano.client.transaction.spec.governance.VoterType
+import com.bloxbean.cardano.client.transaction.spec.governance.VotingProcedure
+import com.bloxbean.cardano.client.transaction.spec.governance.VotingProcedures
+import com.bloxbean.cardano.client.transaction.spec.governance.actions.GovAction
+import com.bloxbean.cardano.client.transaction.spec.governance.actions.GovActionId
+import com.bloxbean.cardano.client.transaction.spec.governance.actions.HardForkInitiationAction
+import com.bloxbean.cardano.client.transaction.spec.governance.actions.InfoAction
+import com.bloxbean.cardano.client.transaction.spec.governance.actions.NewConstitution
+import com.bloxbean.cardano.client.transaction.spec.governance.actions.NoConfidence
+import com.bloxbean.cardano.client.transaction.spec.governance.actions.ParameterChangeAction
+import com.bloxbean.cardano.client.transaction.spec.governance.actions.TreasuryWithdrawalsAction
+import com.bloxbean.cardano.client.transaction.spec.governance.actions.UpdateCommittee
 import io.bullet.borer.Cbor
+import scalus.builtin
+import scalus.builtin.Builtins.*
 import scalus.builtin.ByteString
-import scalus.builtin.ByteString
-import scalus.builtin.given
 import scalus.builtin.Data
+import scalus.builtin.Data.ToData
+import scalus.builtin.Data.toData
+import scalus.builtin.Pair
+import scalus.builtin.given
 import scalus.ledger
 import scalus.ledger.api
+import scalus.ledger.api.BuiltinSemanticsVariant
+import scalus.ledger.api.PlutusLedgerLanguage
 import scalus.ledger.api.PlutusLedgerLanguage.*
+import scalus.ledger.api.v1
 import scalus.ledger.api.v1.DCert
 import scalus.ledger.api.v1.ScriptPurpose
 import scalus.ledger.api.v1.StakingCredential
-import scalus.ledger.api.PlutusLedgerLanguage
-import scalus.ledger.api.v1
 import scalus.ledger.api.v2
-import scalus.ledger.api.v2.ScriptContext
+import scalus.ledger.api.v3
+import scalus.ledger.api.v3.GovernanceActionId
 import scalus.ledger.babbage.PlutusV1Params
 import scalus.ledger.babbage.PlutusV2Params
+import scalus.ledger.babbage.PlutusV3Params
 import scalus.prelude
 import scalus.prelude.AssocMap
+import scalus.prelude.List
+import scalus.prelude.Maybe
+import scalus.prelude.Maybe.Nothing
 import scalus.uplc.eval.*
 
 import java.math.BigInteger
@@ -52,30 +80,79 @@ given Ordering[Redeemer] with
     def compare(x: Redeemer, y: Redeemer): Int =
         x.getTag.value.compareTo(y.getTag.value) match
             case 0 => x.getIndex.compareTo(y.getIndex)
-            case c => -c // reverse order, I'm not sure why
-
-enum ExecutionPurpose:
-    def scriptHash: ByteString
-    case WithDatum(
-        scriptVersion: ScriptVersion,
-        scriptHash: ByteString,
-        datum: Data
-    )
-
-    case NoDatum(
-        scriptVersion: ScriptVersion,
-        scriptHash: ByteString
-    )
+            case c => c
 
 case class ScriptInfo(hash: ByteString, scriptVersion: ScriptVersion)
 
 /** Interoperability between Cardano Client Lib and Scalus */
 object Interop {
+    given Ordering[Voter] with {
+        def compare(x: Voter, y: Voter): Int =
+            x.getType.compareTo(y.getType) match
+                case 0 =>
+                    util.Arrays.compareUnsigned(
+                      x.getCredential.getBytes,
+                      y.getCredential.getBytes
+                    )
+                case c => c
+    }
+
+    given Ordering[GovActionId] with {
+        def compare(x: GovActionId, y: GovActionId): Int =
+            x.getTransactionId.compareTo(y.getTransactionId) match
+                case 0 => x.getGovActionIndex.compareTo(y.getGovActionIndex)
+                case c => c
+    }
+
+    given ToData[BigInteger] = (x: BigInteger) => iData(x)
+    given ToData[Integer] = (x: Integer) => iData(BigInt(x))
+    given ToData[java.lang.Long] = (x: java.lang.Long) => iData(BigInt(x))
+
+    given ToData[ProtocolParamUpdate] =
+        given ToData[Rational] = (x: Rational) =>
+            listData(builtin.List(x.getNumerator.toData, x.getDenominator.toData))
+        given ToData[UnitInterval] = (x: UnitInterval) =>
+            listData(builtin.List(x.getNumerator.toData, x.getDenominator.toData))
+        given ToData[ExUnitPrices] = (x: ExUnitPrices) =>
+            listData(builtin.List(x.getMemPrice.toData, x.getStepPrice.toData))
+        given ToData[ExUnits] = (x: ExUnits) =>
+            listData(builtin.List(x.getMem.toData, x.getSteps.toData))
+
+        (x: ProtocolParamUpdate) => {
+            val params = mutable.ArrayBuffer.empty[Pair[Data, Data]]
+            def add[A: ToData](idx: Int, value: A): Unit =
+                if value != null then params.append(Pair(iData(idx), value.toData))
+
+            add(0, x.getMinFeeA)
+            add(1, x.getMinFeeB)
+            add(2, x.getMaxBlockSize)
+            add(3, x.getMaxTxSize)
+            add(4, x.getMaxBlockHeaderSize)
+            add(5, x.getKeyDeposit)
+            add(6, x.getPoolDeposit)
+            add(7, x.getMaxEpoch)
+            add(8, x.getNOpt)
+            add(9, x.getPoolPledgeInfluence)
+            add(10, x.getExpansionRate)
+            add(11, x.getTreasuryGrowthRate)
+            add(16, x.getMinPoolCost)
+            add(17, x.getAdaPerUtxoByte)
+            // FIXME: implement 18 x.getCostModels
+            add(19, x.getExecutionCosts)
+            add(20, x.getMaxTxExUnits)
+            add(21, x.getMaxBlockExUnits)
+            add(22, x.getMaxValSize)
+            add(23, x.getCollateralPercent)
+            add(24, x.getMaxCollateralInputs)
+            // FIXME: add missing fields when they are implemented in the client lib
+            mapData(builtin.List.from(params))
+        }
+
     /// Helper for null check
-    extension [A](inline a: A) inline infix def ??(b: A): A = if a != null then a else b
+    extension [A](inline a: A) inline infix def ??(b: => A): A = if a != null then a else b
 
     def getScriptInfoFromScriptRef(scriptRef: Array[Byte]): ScriptInfo = {
-        // script_ref is incoded as CBOR Array
+        // script_ref is encoded as CBOR Array
         val (scriptType, scriptCbor) = Cbor.decode(scriptRef).to[(Byte, Array[Byte])].value
         // and script hash is calculated from the script type byte and the scriptCbor
         val scriptBytesForScriptHash = Array(scriptType) ++ scriptCbor
@@ -89,13 +166,15 @@ object Interop {
             case 2 => // Plutus V2
                 val script = ByteString.fromArray(Cbor.decode(scriptCbor).to[Array[Byte]].value)
                 ScriptInfo(hash, ScriptVersion.PlutusV2(script))
+            case 3 => // Plutus V3
+                val script = ByteString.fromArray(Cbor.decode(scriptCbor).to[Array[Byte]].value)
+                ScriptInfo(hash, ScriptVersion.PlutusV3(script))
     }
 
     /** Converts Cardano Client Lib's [[PlutusData]] to Scalus' [[Data]] */
     def toScalusData(datum: PlutusData): Data = {
         datum match
             case c: ConstrPlutusData =>
-                val constr = c.getAlternative
                 val args = c.getData.getPlutusDataList.asScala.map(toScalusData).toList
                 Data.Constr(c.getAlternative, args)
             case m: MapPlutusData =>
@@ -151,24 +230,35 @@ object Interop {
     /** Creates [[MachineParams]] from a [[CostMdls]] and a [[PlutusLedgerLanguage]] */
     def translateMachineParamsFromCostMdls(
         costMdls: CostMdls,
-        plutus: PlutusLedgerLanguage
+        plutus: PlutusLedgerLanguage,
+        protocolVersion: api.ProtocolVersion
     ): MachineParams = {
         import upickle.default.*
         val paramsMap = plutus match
             case PlutusLedgerLanguage.PlutusV1 =>
                 val costs = costMdls.get(Language.PLUTUS_V1)
                 val params = PlutusV1Params.fromSeq(costs.getCosts.toSeq)
-                writeJs(params).obj.map { case (k, v) => (k, v.num.toLong) }.toMap
+                writeJs(params).obj.map { (k, v) => (k, v.num.toLong) }.toMap
             case PlutusLedgerLanguage.PlutusV2 =>
                 val costs = costMdls.get(Language.PLUTUS_V2)
                 val params = PlutusV2Params.fromSeq(costs.getCosts.toSeq)
-                writeJs(params).obj.map { case (k, v) => (k, v.num.toLong) }.toMap
+                writeJs(params).obj.map { (k, v) => (k, v.num.toLong) }.toMap
             case PlutusLedgerLanguage.PlutusV3 =>
-                throw new NotImplementedError("PlutusV3 not supported yet")
+                val costs = costMdls.get(Language.PLUTUS_V3)
+                val params = PlutusV3Params.fromSeq(costs.getCosts.toSeq)
+                writeJs(params).obj.map { (k, v) => (k, v.num.toLong) }.toMap
 
-        val builtinCostModel = BuiltinCostModel.fromCostModelParams(paramsMap)
+        val semvar = BuiltinSemanticsVariant.fromProtocolAndPlutusVersion(
+          protocolVersion,
+          plutus
+        )
+        val builtinCostModel = BuiltinCostModel.fromCostModelParams(plutus, semvar, paramsMap)
         val machineCosts = CekMachineCosts.fromMap(paramsMap)
-        MachineParams(machineCosts = machineCosts, builtinCostModel = builtinCostModel)
+        MachineParams(
+          machineCosts = machineCosts,
+          builtinCostModel = builtinCostModel,
+          semanticVariant = semvar
+        )
     }
 
     def getCredential(cred: Credential): v1.Credential = {
@@ -177,6 +267,14 @@ object Interop {
                 v1.Credential.PubKeyCredential(v1.PubKeyHash(ByteString.fromArray(cred.getBytes)))
             case CredentialType.Script =>
                 v1.Credential.ScriptCredential(ByteString.fromArray(cred.getBytes))
+    }
+
+    def getCredential(cred: StakeCredential): v1.Credential = {
+        cred.getType match
+            case StakeCredType.ADDR_KEYHASH =>
+                v1.Credential.PubKeyCredential(v1.PubKeyHash(ByteString.fromArray(cred.getHash)))
+            case StakeCredType.SCRIPTHASH =>
+                v1.Credential.ScriptCredential(ByteString.fromArray(cred.getHash))
     }
 
     def getStakingCredential(cred: StakeCredential): v1.StakingCredential = {
@@ -395,8 +493,109 @@ object Interop {
             case c: MoveInstataneous     => v1.DCert.Mir
     }
 
+    def getTxCertV3(cert: Certificate): v3.TxCert = {
+        cert match
+            case c: AuthCommitteeHotCert =>
+                v3.TxCert.AuthHotCommittee(
+                  getCredential(c.getCommitteeColdCredential),
+                  getCredential(c.getCommitteeHotCredential)
+                )
+            case c: GenesisKeyDelegation =>
+                throw new IllegalArgumentException("GenesisKeyDelegation not supported in V3")
+            case c: MoveInstataneous =>
+                throw new IllegalArgumentException("MoveInstantaneous not supported in V3")
+            case c: PoolRegistration =>
+                v3.TxCert.PoolRegister(
+                  v1.PubKeyHash(ByteString.fromArray(c.getOperator)),
+                  v1.PubKeyHash(ByteString.fromArray(c.getVrfKeyHash))
+                )
+            case c: PoolRetirement =>
+                v3.TxCert.PoolRetire(
+                  v1.PubKeyHash(ByteString.fromArray(c.getPoolKeyHash)),
+                  BigInt(c.getEpoch)
+                )
+            case c: RegCert =>
+                v3.TxCert.RegStaking(getCredential(c.getStakeCredential), Nothing)
+            case c: RegDRepCert =>
+                v3.TxCert.RegDRep(getCredential(c.getDrepCredential), BigInt(c.getCoin))
+            case c: ResignCommitteeColdCert =>
+                v3.TxCert.ResignColdCommittee(getCredential(c.getCommitteeColdCredential))
+            case c: StakeDelegation =>
+                v3.TxCert.DelegStaking(
+                  getCredential(c.getStakeCredential),
+                  v3.Delegatee.Stake(
+                    v1.PubKeyHash(ByteString.fromArray(c.getStakePoolId.getPoolKeyHash))
+                  )
+                )
+            case c: StakeDeregistration =>
+                throw new IllegalArgumentException("StakeDeregistration not supported in V3")
+            case c: StakeRegDelegCert =>
+                v3.TxCert.RegDeleg(
+                  getCredential(c.getStakeCredential),
+                  v3.Delegatee.Stake(v1.PubKeyHash(ByteString.fromHex(c.getPoolKeyHash))),
+                  BigInt(c.getCoin)
+                )
+            case c: StakeRegistration =>
+                throw new IllegalArgumentException("StakeRegistration not supported in V3")
+            case c: StakeVoteDelegCert =>
+                v3.TxCert.DelegStaking(
+                  getCredential(c.getStakeCredential),
+                  v3.Delegatee.StakeVote(
+                    v1.PubKeyHash(ByteString.fromHex(c.getPoolKeyHash)),
+                    getDRep(c.getDrep)
+                  )
+                )
+            case c: StakeVoteRegDelegCert =>
+                v3.TxCert.RegDeleg(
+                  getCredential(c.getStakeCredential),
+                  v3.Delegatee.StakeVote(
+                    v1.PubKeyHash(ByteString.fromHex(c.getPoolKeyHash)),
+                    getDRep(c.getDrep)
+                  ),
+                  BigInt(c.getCoin)
+                )
+            case c: UnregCert =>
+                v3.TxCert.UnRegStaking(getCredential(c.getStakeCredential), Nothing)
+            case c: UnregDRepCert =>
+                v3.TxCert.UnRegDRep(getCredential(c.getDrepCredential), BigInt(c.getCoin))
+            case c: UpdateDRepCert =>
+                v3.TxCert.UpdateDRep(getCredential(c.getDrepCredential))
+            case c: VoteDelegCert =>
+                val dRep = getDRep(c.getDrep)
+                v3.TxCert.DelegStaking(
+                  getCredential(c.getStakeCredential),
+                  v3.Delegatee.Vote(dRep)
+                )
+            case c: VoteRegDelegCert =>
+                val dRep = getDRep(c.getDrep)
+                v3.TxCert.RegDeleg(
+                  getCredential(c.getStakeCredential),
+                  v3.Delegatee.Vote(dRep),
+                  BigInt(c.getCoin)
+                )
+    }
+
+    private def getDRep(drep: DRep): v3.DRep = {
+        drep.getType match
+            case DRepType.ADDR_KEYHASH =>
+                v3.DRep.DRep(
+                  v1.Credential.PubKeyCredential(
+                    v1.PubKeyHash(ByteString.fromHex(drep.getHash))
+                  )
+                )
+            case DRepType.SCRIPTHASH =>
+                v3.DRep.DRep(
+                  v1.Credential.ScriptCredential(ByteString.fromHex(drep.getHash))
+                )
+            case DRepType.ABSTAIN =>
+                v3.DRep.AlwaysAbstain
+            case DRepType.NO_CONFIDENCE =>
+                v3.DRep.AlwaysNoConfidence
+    }
+
     def getTxInfoV1(
         tx: Transaction,
+        txhash: String,
         datums: collection.Seq[(ByteString, Data)],
         utxos: Map[TransactionInput, TransactionOutput],
         slotConfig: SlotConfig,
@@ -404,7 +603,6 @@ object Interop {
     ): v1.TxInfo = {
         val body = tx.getBody
         val certs = body.getCerts ?? util.List.of()
-        val rdmrs = tx.getWitnessSet.getRedeemers ?? util.List.of()
         v1.TxInfo(
           // sorted inputs
           inputs = prelude.List.from(body.getInputs.asScala.sorted.map(getTxInInfoV1(_, utxos))),
@@ -425,12 +623,13 @@ object Interop {
                 .toSeq
           ),
           data = prelude.List.from(datums.sortBy(_._1)),
-          id = v1.TxId(ByteString.fromHex(TransactionUtil.getTxHash(tx)))
+          id = v1.TxId(ByteString.fromHex(txhash))
         )
     }
 
     def getTxInfoV2(
         tx: Transaction,
+        txhash: String,
         datums: collection.Seq[(ByteString, Data)],
         utxos: Map[TransactionInput, TransactionOutput],
         slotConfig: SlotConfig,
@@ -458,7 +657,7 @@ object Interop {
                 .toSeq
           ),
           redeemers = AssocMap(prelude.List.from(rdmrs.asScala.sorted.map { redeemer =>
-              val purpose = getScriptPurpose(
+              val purpose = getScriptPurposeV2(
                 redeemer,
                 body.getInputs,
                 body.getMint,
@@ -468,18 +667,37 @@ object Interop {
               purpose -> toScalusData(redeemer.getData)
           })),
           data = AssocMap(prelude.List.from(datums.sortBy(_._1))),
-          id = v1.TxId(ByteString.fromHex(TransactionUtil.getTxHash(tx)))
+          id = v1.TxId(ByteString.fromHex(txhash))
         )
     }
 
-    def getTxOutRefV1(input: TransactionInput) = {
+    def getTxOutRefV1(input: TransactionInput): v1.TxOutRef = {
         v1.TxOutRef(
           v1.TxId(ByteString.fromHex(input.getTransactionId)),
           input.getIndex
         )
     }
 
-    def getScriptPurpose(
+    def getTxOutRefV3(input: TransactionInput): v3.TxOutRef = {
+        v3.TxOutRef(
+          v3.TxId(ByteString.fromHex(input.getTransactionId)),
+          input.getIndex
+        )
+    }
+
+    def getScriptPurposeV1(
+        redeemer: Redeemer,
+        tx: Transaction
+    ): v1.ScriptPurpose =
+        getScriptPurposeV1(
+          redeemer,
+          tx.getBody.getInputs,
+          tx.getBody.getMint,
+          tx.getBody.getCerts,
+          tx.getBody.getWithdrawals
+        )
+
+    def getScriptPurposeV1(
         redeemer: Redeemer,
         inputs: util.List[TransactionInput],
         mint: util.List[MultiAsset],
@@ -518,16 +736,121 @@ object Interop {
                           s"Wrong reward address type: $address in $withdrawals"
                         )
                 else throw new IllegalStateException(s"Wrong reward index: $index in $withdrawals")
+            case _ =>
+                throw new IllegalStateException(
+                  s"Unsupported redeemer tag: ${redeemer.getTag} in PlutusV1/V2"
+                )
+
+    @deprecated("Use getScriptPurposeV1 or getScriptPurposeV2", "0.8.0")
+    def getScriptPurpose(
+        redeemer: Redeemer,
+        inputs: util.List[TransactionInput],
+        mint: util.List[MultiAsset],
+        certificates: util.List[Certificate],
+        withdrawals: util.List[Withdrawal]
+    ): v1.ScriptPurpose = getScriptPurposeV1(redeemer, inputs, mint, certificates, withdrawals)
+
+    def getScriptPurposeV2(
+        redeemer: Redeemer,
+        inputs: util.List[TransactionInput],
+        mint: util.List[MultiAsset],
+        certificates: util.List[Certificate],
+        withdrawals: util.List[Withdrawal]
+    ): v1.ScriptPurpose = getScriptPurposeV1(redeemer, inputs, mint, certificates, withdrawals)
+
+    def getScriptPurposeV2(redeemer: Redeemer, tx: Transaction): v2.ScriptPurpose = {
+        getScriptPurposeV2(
+          redeemer,
+          tx.getBody.getInputs,
+          tx.getBody.getMint,
+          tx.getBody.getCerts,
+          tx.getBody.getWithdrawals
+        )
+    }
+
+    def getScriptPurposeV3(tx: Transaction, redeemer: Redeemer): v3.ScriptPurpose = {
+        val inputs = tx.getBody.getInputs
+        val mint = tx.getBody.getMint
+        val certificates = tx.getBody.getCerts
+        val withdrawals = tx.getBody.getWithdrawals
+        // Cardano Ledger code is stupidly complex and unreadable. We need to make sure this is correct
+        val index = redeemer.getIndex.intValue
+        redeemer.getTag match
+            case RedeemerTag.Spend =>
+                val ins = inputs.asScala.sorted
+                if ins.isDefinedAt(index) then
+                    val input = ins(index)
+                    v3.ScriptPurpose.Spending(getTxOutRefV3(input))
+                else throw new IllegalStateException(s"Input not found: $index in $inputs")
+            case RedeemerTag.Mint =>
+                val policyIds = mint.asScala.map(_.getPolicyId).sorted
+                if policyIds.isDefinedAt(index) then
+                    v3.ScriptPurpose.Minting(ByteString.fromHex(policyIds(index)))
+                else throw new IllegalStateException(s"Wrong mint index: $index in $mint")
+            case RedeemerTag.Cert =>
+                val certs = certificates.asScala
+                if certs.isDefinedAt(index) then
+                    v3.ScriptPurpose.Certifying(index, getTxCertV3(certs(index)))
+                else throw new IllegalStateException(s"Wrong cert index: $index in $certificates")
+            case RedeemerTag.Reward =>
+                val rewardAccounts = withdrawals.asScala
+                    .map(ra => Address(ra.getRewardAddress))
+                    .sortBy(a => ByteString.fromArray(a.getBytes)) // for ordering
+                if rewardAccounts.isDefinedAt(index) then
+                    val address = rewardAccounts(index)
+                    if address.getAddressType == AddressType.Reward then
+                        val cred = getCredential(address.getDelegationCredential.get)
+                        v3.ScriptPurpose.Rewarding(cred)
+                    else
+                        throw new IllegalStateException(
+                          s"Wrong reward address type: $address in $withdrawals"
+                        )
+                else throw new IllegalStateException(s"Wrong reward index: $index in $withdrawals")
+
+            case RedeemerTag.Proposing =>
+                val proposals = certificates.asScala.collect { case p: ProposalProcedure => p }
+                if proposals.isDefinedAt(index) then
+                    v3.ScriptPurpose.Proposing(index, getProposalProcedureV3(proposals(index)))
+                else
+                    throw new IllegalStateException(
+                      s"Wrong proposal index: $index in $certificates"
+                    )
+            case RedeemerTag.Voting =>
+                val voting = tx.getBody.getVotingProcedures.getVoting.asScala.toSeq.sortBy(_._1)
+                if voting.isDefinedAt(index) then
+                    v3.ScriptPurpose.Voting(getVoterV3(voting(index)._1))
+                else
+                    throw new IllegalStateException(
+                      s"Wrong voter index: $index in $certificates"
+                    )
+    }
+
+    def getScriptInfoV3(tx: Transaction, redeemer: Redeemer, datum: Option[Data]): v3.ScriptInfo = {
+        getScriptPurposeV3(tx, redeemer) match
+            case v3.ScriptPurpose.Spending(ref) =>
+                v3.ScriptInfo.SpendingScript(ref, prelude.Maybe.fromOption(datum))
+            case v3.ScriptPurpose.Minting(policyId) =>
+                v3.ScriptInfo.MintingScript(policyId)
+            case v3.ScriptPurpose.Certifying(index, cert) =>
+                v3.ScriptInfo.CertifyingScript(index, cert)
+            case v3.ScriptPurpose.Rewarding(cred) =>
+                v3.ScriptInfo.RewardingScript(cred)
+            case v3.ScriptPurpose.Proposing(index, proposal) =>
+                v3.ScriptInfo.ProposingScript(index, proposal)
+            case v3.ScriptPurpose.Voting(voter) =>
+                v3.ScriptInfo.VotingScript(voter)
+    }
 
     def getScriptContextV2(
         redeemer: Redeemer,
         tx: Transaction,
+        txhash: String,
         utxos: Map[TransactionInput, TransactionOutput],
         slotConfig: SlotConfig,
         protocolVersion: Int
-    ): ScriptContext = {
+    ): v2.ScriptContext = {
         import scala.jdk.CollectionConverters.*
-        val purpose = getScriptPurpose(
+        val purpose = getScriptPurposeV2(
           redeemer,
           tx.getBody.getInputs,
           tx.getBody.getMint,
@@ -537,8 +860,203 @@ object Interop {
         val datums = tx.getWitnessSet.getPlutusDataList.asScala.map { plutusData =>
             ByteString.fromArray(plutusData.getDatumHashAsBytes) -> Interop.toScalusData(plutusData)
         }
-        val txInfo = getTxInfoV2(tx, datums, utxos, slotConfig, protocolVersion)
-        val scriptContext = ScriptContext(txInfo, purpose)
+        val txInfo = getTxInfoV2(tx, txhash, datums, utxos, slotConfig, protocolVersion)
+        val scriptContext = v2.ScriptContext(txInfo, purpose)
         scriptContext
+    }
+
+    def getProposalProcedureV3(proposal: ProposalProcedure): v3.ProposalProcedure = {
+        v3.ProposalProcedure(
+          proposal.getDeposit,
+          getCredential(Address(proposal.getRewardAccount).getPaymentCredential.get),
+          getGovernanceActionV3(proposal.getGovAction)
+        )
+    }
+
+    def getGovernanceActionV3(action: GovAction): v3.GovernanceAction = {
+        action match
+            case a: ParameterChangeAction =>
+                v3.GovernanceAction.ParameterChange(
+                  id =
+                      if a.getPrevGovActionId == null then Maybe.Nothing
+                      else Maybe.Just(getGovActionId(a.getPrevGovActionId)),
+                  parameters = a.getProtocolParamUpdate.toData,
+                  constitutionScript = Maybe(a.getPolicyHash).map(ByteString.fromArray)
+                )
+            case a: TreasuryWithdrawalsAction =>
+                v3.GovernanceAction.TreasuryWithdrawals(
+                  withdrawals = AssocMap(prelude.List.from(a.getWithdrawals.asScala.map { w =>
+                      getCredential(Address(w.getRewardAddress).getPaymentCredential.get) -> BigInt(
+                        w.getCoin
+                      )
+
+                  }.toList)),
+                  constitutionScript = Maybe(ByteString.fromArray(a.getPolicyHash))
+                )
+            case a: HardForkInitiationAction =>
+                v3.GovernanceAction.HardForkInitiation(
+                  id =
+                      if a.getPrevGovActionId == null then Maybe.Nothing
+                      else Maybe.Just(getGovActionId(a.getPrevGovActionId)),
+                  protocolVersion = getProtocolVersion(a.getProtocolVersion)
+                )
+            case _: InfoAction => v3.GovernanceAction.InfoAction
+            case a: NewConstitution =>
+                v3.GovernanceAction.NewConstitution(
+                  id =
+                      if a.getPrevGovActionId == null then Maybe.Nothing
+                      else Maybe.Just(getGovActionId(a.getPrevGovActionId)),
+                  constitution =
+                      if a.getConstitution.getScripthash != null then
+                          Maybe.Just(ByteString.fromHex(a.getConstitution.getScripthash))
+                      else Maybe.Nothing
+                )
+            case a: NoConfidence =>
+                v3.GovernanceAction.NoConfidence(
+                  id =
+                      if a.getPrevGovActionId == null then Maybe.Nothing
+                      else Maybe.Just(getGovActionId(a.getPrevGovActionId))
+                )
+            case a: UpdateCommittee =>
+                v3.GovernanceAction.UpdateCommittee(
+                  id =
+                      if a.getPrevGovActionId == null then Maybe.Nothing
+                      else Maybe.Just(getGovActionId(a.getPrevGovActionId)),
+                  removedMembers = prelude.List.from(a.getMembersForRemoval.asScala.map { m =>
+                      getCredential(m)
+                  }),
+                  addedMembers =
+                      AssocMap(prelude.List.from(a.getNewMembersAndTerms.asScala.map { (c, t) =>
+                          getCredential(c) -> BigInt(t)
+                      })),
+                  newQuorum = prelude.Rational(
+                    BigInt(a.getQuorumThreshold.getNumerator),
+                    BigInt(a.getQuorumThreshold.getDenominator)
+                  )
+                )
+
+    }
+
+    def getProtocolVersion(version: ProtocolVersion): v3.ProtocolVersion = {
+        v3.ProtocolVersion(version.getMajor, version.getMinor)
+    }
+
+    def getGovActionId(id: GovActionId): v3.GovernanceActionId = {
+        v3.GovernanceActionId(
+          v3.TxId(ByteString.fromHex(id.getTransactionId)),
+          id.getGovActionIndex
+        )
+    }
+
+    def getVoterV3(voter: Voter): v3.Voter = {
+        voter.getType match
+            case VoterType.CONSTITUTIONAL_COMMITTEE_HOT_KEY_HASH |
+                VoterType.CONSTITUTIONAL_COMMITTEE_HOT_SCRIPT_HASH =>
+                v3.Voter.CommitteeVoter(getCredential(voter.getCredential))
+            case VoterType.DREP_KEY_HASH | VoterType.DREP_SCRIPT_HASH =>
+                v3.Voter.DRepVoter(getCredential(voter.getCredential))
+            case VoterType.STAKING_POOL_KEY_HASH =>
+                v3.Voter.StakePoolVoter(
+                  v1.PubKeyHash(ByteString.fromArray(voter.getCredential.getBytes))
+                )
+    }
+
+    def getVotingProcedures(
+        voting: VotingProcedures
+    ): AssocMap[v3.Voter, AssocMap[GovernanceActionId, v3.Vote]] = {
+        if voting == null then return AssocMap.empty
+        AssocMap(
+          prelude.List.from(
+            voting.getVoting.asScala.toSeq
+                .sortBy(_._1)
+                .map: (voter, procedures) =>
+                    getVoterV3(voter) -> AssocMap(
+                      prelude.List.from(
+                        procedures.asScala.toSeq
+                            .sortBy(_._1)
+                            .map: (govActionId, procedure) =>
+                                getGovActionId(govActionId) -> getVoteV3(procedure)
+                      )
+                    )
+          )
+        )
+    }
+
+    def getVoteV3(procedure: VotingProcedure): v3.Vote = {
+        procedure.getVote match
+            case Vote.YES     => v3.Vote.Yes
+            case Vote.NO      => v3.Vote.No
+            case Vote.ABSTAIN => v3.Vote.Abstain
+    }
+
+    def getTxInInfoV3(
+        input: TransactionInput,
+        utxos: Map[TransactionInput, TransactionOutput]
+    ): v3.TxInInfo = {
+        val txInInfoV2 = getTxInInfoV2(input, utxos)
+        v3.TxInInfo(
+          outRef = v3.TxOutRef(v3.TxId(txInInfoV2.outRef.id.hash), txInInfoV2.outRef.idx),
+          resolved = txInInfoV2.resolved
+        )
+    }
+
+    def getTxInfoV3(
+        tx: Transaction,
+        txhash: String,
+        datums: collection.Seq[(ByteString, Data)],
+        utxos: Map[TransactionInput, TransactionOutput],
+        slotConfig: SlotConfig,
+        protocolVersion: Int
+    ): v3.TxInfo = {
+        val body = tx.getBody
+        val certs = body.getCerts ?? util.List.of()
+        val rdmrs = tx.getWitnessSet.getRedeemers ?? util.List.of()
+        val withdrawals =
+            val wdvls = getWithdrawals(body.getWithdrawals ?? util.List.of())
+            prelude.List.map(wdvls) {
+                case (v1.StakingCredential.StakingHash(cred), coin) => cred -> coin
+                case w => throw new IllegalStateException(s"Invalid withdrawal: $w")
+            }
+        v3.TxInfo(
+          inputs = prelude.List.from(body.getInputs.asScala.sorted.map(getTxInInfoV3(_, utxos))),
+          referenceInputs = prelude.List.from(
+            body.getReferenceInputs.asScala.sorted.map(getTxInInfoV3(_, utxos))
+          ),
+          outputs = prelude.List.from(body.getOutputs.asScala.map(getTxOutV2)),
+          fee = body.getFee ?? BigInteger.ZERO,
+          mint = getMintValue(body.getMint ?? util.List.of()),
+          certificates = prelude.List.from(certs.asScala.map(getTxCertV3)),
+          withdrawals = AssocMap(withdrawals),
+          validRange = getInterval(tx, slotConfig, protocolVersion),
+          signatories = prelude.List.from(
+            body.getRequiredSigners.asScala
+                .map(ByteString.fromArray)
+                .sorted
+                .map(v1.PubKeyHash.apply)
+                .toSeq
+          ),
+          redeemers = AssocMap(prelude.List.from(rdmrs.asScala.sorted.map { redeemer =>
+              val purpose = getScriptPurposeV3(tx, redeemer)
+              purpose -> toScalusData(redeemer.getData)
+          })),
+          data = AssocMap(prelude.List.from(datums.sortBy(_._1))),
+          id = v3.TxId(ByteString.fromHex(txhash)),
+          votes = getVotingProcedures(body.getVotingProcedures),
+          proposalProcedures = prelude.List
+              .from(
+                (body.getProposalProcedures ?? util.List.of()).asScala
+                    .map(getProposalProcedureV3)
+              ),
+          currentTreasuryAmount =
+              if tx.getBody.getCurrentTreasuryValue != null then
+                  prelude.Maybe.Just(
+                    BigInt(tx.getBody.getCurrentTreasuryValue)
+                  )
+              else prelude.Maybe.Nothing,
+          treasuryDonation =
+              if tx.getBody.getDonation != null then
+                  prelude.Maybe.Just(BigInt(tx.getBody.getDonation))
+              else prelude.Maybe.Nothing
+        )
     }
 }
