@@ -156,10 +156,6 @@ val validator = compile:
 Now, Scalus takes the same approach as PlutusTx.
 This change makes it similar to Aiken, which will result in smaller and more efficient Plutus scripts in most cases.
 
-### Support for Plutus V3
-
-Plutus V3 is coming soon. Scalus will support all new built-ins and features.
-
 ### Single transaction building and signing API for backend and frontend
 
 This will allow you to build and sign transactions in Scala and JavaScript using the same code.

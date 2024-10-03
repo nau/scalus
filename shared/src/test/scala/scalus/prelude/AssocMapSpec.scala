@@ -5,7 +5,6 @@ import org.scalacheck.Prop
 import org.scalatest.funsuite.AnyFunSuite
 import org.scalatestplus.scalacheck.Checkers._
 import org.scalatestplus.scalacheck.ScalaCheckPropertyChecks
-import scalus.Compiler
 import scalus.*
 import scalus.prelude.List.*
 import scalus.prelude.Prelude.given

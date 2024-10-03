@@ -10,7 +10,6 @@ import scalus.uplc.eval.MachineParams
 import scalus.uplc.eval.VM
 
 import java.math.BigInteger
-import java.util
 
 class ScalusScriptUtilsSpec extends AnyFunSuite:
     private val program = Program(

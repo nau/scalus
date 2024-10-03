@@ -26,8 +26,6 @@ import scalus.ledger.api
 import scalus.ledger.api.PlutusLedgerLanguage
 import scalus.ledger.api.PlutusLedgerLanguage.*
 import scalus.ledger.api.v1
-import scalus.ledger.api.v1.ScriptPurpose
-import scalus.ledger.api.v1.StakingCredential
 import scalus.ledger.api.v2
 import scalus.ledger.api.v2.OutputDatum
 import scalus.ledger.api.v3

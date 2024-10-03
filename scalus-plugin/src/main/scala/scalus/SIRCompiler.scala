@@ -13,13 +13,11 @@ import dotty.tools.dotc.core.Types.{MethodType, Type}
 import dotty.tools.dotc.core.*
 import dotty.tools.dotc.util.SrcPos
 import dotty.tools.io.ClassPath
-import scalus.builtin.ByteString
 import scalus.flat.DecoderState
 import scalus.flat.EncoderState
 import scalus.flat.Flat
 import scalus.flat.FlatInstantces.given
 import scalus.sir.Binding
-import scalus.sir.ConstrDecl
 import scalus.sir.DataDecl
 import scalus.sir.Module
 import scalus.sir.Recursivity

@@ -19,7 +19,6 @@ object ChildProcess extends js.Object {
 class CekBuiltinsJsSpec extends CekBuiltinsSpec:
     def eval(t: Term): Term =
         import js.Dynamic.global as g
-        import js.DynamicImplicits.*
 
         val program = Program((1, 0, 0), t)
         val cp = g.require("child_process")

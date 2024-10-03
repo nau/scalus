@@ -36,7 +36,6 @@ enum Term:
 
 object Term:
     def alphaEq(t1: Term, t2: Term): Boolean =
-        import Term.*
 
         def eqName(n1: NamedDeBruijn, n2: NamedDeBruijn): Boolean =
             assert(n1.index != 0)

@@ -24,7 +24,6 @@ import scalus.utils.Utils
 import java.util
 import java.util.ArrayList
 import java.util.List
-import java.util.Set
 import scala.beans.BeanProperty
 import scala.collection.mutable
 import scala.jdk.CollectionConverters.*

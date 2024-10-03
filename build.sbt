@@ -7,7 +7,7 @@ Global / onChangedBuildSource := ReloadOnSourceChanges
 autoCompilerPlugins := true
 
 val scalusStableVersion = "0.8.0"
-ThisBuild / scalaVersion := "3.3.3"
+ThisBuild / scalaVersion := "3.3.4"
 ThisBuild / organization := "org.scalus"
 ThisBuild / organizationName := "Scalus"
 ThisBuild / organizationHomepage := Some(url("https://scalus.org/"))

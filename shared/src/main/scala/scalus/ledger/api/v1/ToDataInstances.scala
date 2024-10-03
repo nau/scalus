@@ -1,10 +1,8 @@
 package scalus.ledger.api.v1
 
 import scalus.Compile
-import scalus.builtin.Builtins
 import scalus.builtin.Builtins.*
 import scalus.builtin.Data.ToData
-import scalus.builtin.ToData
 import scalus.builtin.*
 
 @Compile

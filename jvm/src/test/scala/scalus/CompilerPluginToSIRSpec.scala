@@ -258,43 +258,20 @@ class CompilerPluginToSIRSpec extends AnyFunSuite with ScalaCheckPropertyChecks:
 
     test("compile head function") {
         assert(
-          compile {
-              def head(l: builtin.List[BigInt]) = l.head
-          } == Let(
-            Rec,
-            List(
-              Binding("head", LamAbs("l", Apply(Builtin(HeadList), Var("l"))))
-            ),
-            Const(Constant.Unit)
-          )
+          compile { (l: builtin.List[BigInt]) => l.head }
+              == LamAbs("l", Apply(Builtin(HeadList), Var("l")))
         )
     }
 
     test("compile tail function") {
-        assert(
-          compile {
-              def tail(l: builtin.List[BigInt]) = l.tail
-          } == Let(
-            Rec,
-            List(
-              Binding("tail", LamAbs("l", Apply(Builtin(TailList), Var("l"))))
-            ),
-            Const(Constant.Unit)
-          )
-        )
+        assert(compile { (l: builtin.List[BigInt]) => l.tail }
+            == LamAbs("l", Apply(Builtin(TailList), Var("l"))))
     }
 
     test("compile isEmpty function") {
         assert(
-          compile {
-              def isEmpty(l: builtin.List[BigInt]) = l.isEmpty
-          } == Let(
-            Rec,
-            List(
-              Binding("isEmpty", LamAbs("l", Apply(Builtin(NullList), Var("l"))))
-            ),
-            Const(Constant.Unit)
-          )
+          compile { (l: builtin.List[BigInt]) => l.isEmpty }
+              == LamAbs("l", Apply(Builtin(NullList), Var("l")))
         )
     }
 
@@ -367,120 +344,50 @@ class CompilerPluginToSIRSpec extends AnyFunSuite with ScalaCheckPropertyChecks:
 
     test("compile unsafeDataAsConstr function") {
         assert(
-          compile {
-              def unb(d: Data) = Builtins.unConstrData(d)
-          } == Let(
-            Rec,
-            List(
-              Binding(
-                "unb",
-                LamAbs("d", Apply(Builtin(DefaultFun.UnConstrData), Var("d")))
-              )
-            ),
-            Const(Constant.Unit)
-          )
+          compile { (d: Data) => Builtins.unConstrData(d) }
+              == LamAbs("d", Apply(Builtin(DefaultFun.UnConstrData), Var("d")))
         )
     }
 
     test("compile unsafeDataAsList function") {
         assert(
-          compile {
-              def unb(d: Data) = Builtins.unListData(d)
-          } == Let(
-            Rec,
-            List(
-              Binding(
-                "unb",
-                LamAbs("d", Apply(Builtin(DefaultFun.UnListData), Var("d")))
-              )
-            ),
-            Const(Constant.Unit)
-          )
+          compile { (d: Data) => Builtins.unListData(d) }
+              == LamAbs("d", Apply(Builtin(DefaultFun.UnListData), Var("d")))
         )
     }
 
     test("compile unsafeDataAsMap function") {
         assert(
-          compile {
-              def unb(d: Data) = Builtins.unMapData(d)
-          } == Let(
-            Rec,
-            List(
-              Binding(
-                "unb",
-                LamAbs("d", Apply(Builtin(DefaultFun.UnMapData), Var("d")))
-              )
-            ),
-            Const(Constant.Unit)
-          )
+          compile { (d: Data) => Builtins.unMapData(d) }
+              == LamAbs("d", Apply(Builtin(DefaultFun.UnMapData), Var("d")))
         )
     }
 
     test("compile unsafeDataAsB function") {
         assert(
-          compile {
-              def unb(d: Data) = Builtins.unBData(d)
-          } == Let(
-            Rec,
-            List(
-              Binding(
-                "unb",
-                LamAbs("d", Apply(Builtin(DefaultFun.UnBData), Var("d")))
-              )
-            ),
-            Const(Constant.Unit)
-          )
+          compile { (d: Data) => Builtins.unBData(d) }
+              == LamAbs("d", Apply(Builtin(DefaultFun.UnBData), Var("d")))
         )
     }
 
     test("compile unsafeDataAsI function") {
         assert(
-          compile {
-              def unb(d: Data) = Builtins.unIData(d)
-          } == Let(
-            Rec,
-            List(
-              Binding(
-                "unb",
-                LamAbs("d", Apply(Builtin(DefaultFun.UnIData), Var("d")))
-              )
-            ),
-            Const(Constant.Unit)
-          )
+          compile { (d: Data) => Builtins.unIData(d) } ==
+              LamAbs("d", Apply(Builtin(DefaultFun.UnIData), Var("d")))
         )
     }
 
     test("compile chooseData function") {
         assert(
-          compile {
-              def cd(d: Data) = Builtins.chooseData[BigInt](d, 1, 2, 3, 4, 5)
-          } == Let(
-            Rec,
-            List(
-              Binding(
-                "cd",
-                LamAbs(
-                  "d",
-                  ChooseData $ Var("d") $ 1 $ 2 $ 3 $ 4 $ 5
-                )
-              )
-            ),
-            Const(Constant.Unit)
-          )
+          compile { (d: Data) => Builtins.chooseData[BigInt](d, 1, 2, 3, 4, 5) }
+              == LamAbs("d", ChooseData $ Var("d") $ 1 $ 2 $ 3 $ 4 $ 5)
         )
     }
 
     test("compile equalsData function") {
         assert(
-          compile {
-              def ed(d1: Data, d2: Data) = Builtins.equalsData(d1, d2)
-          } == Let(
-            Rec,
-            List(
-              Binding("ed", LamAbs("d1", LamAbs("d2", EqualsData $ Var("d1") $ Var("d2"))))
-            ),
-            Const(Constant.Unit)
-          )
+          compile { (d1: Data, d2: Data) => Builtins.equalsData(d1, d2) }
+              == LamAbs("d1", LamAbs("d2", EqualsData $ Var("d1") $ Var("d2")))
         )
     }
 
@@ -751,46 +658,21 @@ class CompilerPluginToSIRSpec extends AnyFunSuite with ScalaCheckPropertyChecks:
           )
         )
         assert(
-          compile {
-              def swap(p: builtin.Pair[Data, Data]) =
-                  builtin.Pair(Builtins.sndPair(p), Builtins.fstPair(p))
-          } == (
-            Let(
-              Rec,
-              List(
-                Binding(
-                  "swap",
-                  LamAbs("p", MkPairData $ (SndPair $ Var("p")) $ (FstPair $ Var("p")))
-                )
-              ),
-              Const(Constant.Unit)
-            )
-          )
+          compile { (p: builtin.Pair[Data, Data]) =>
+              builtin.Pair(Builtins.sndPair(p), Builtins.fstPair(p))
+          } == LamAbs("p", MkPairData $ (SndPair $ Var("p")) $ (FstPair $ Var("p")))
         )
-        assert(compile {
-            builtin.Pair(BigInt(1), hex"deadbeef")
-        } == (Const(Constant.Pair(Constant.Integer(1), deadbeef))))
+        assert(compile { builtin.Pair(BigInt(1), hex"deadbeef") }
+            == Const(Constant.Pair(Constant.Integer(1), deadbeef)))
         assert(
-          compile {
-              def swap(p: builtin.Pair[Data, Data]) = builtin.Pair(p.snd, p.fst)
-          } == (
-            Let(
-              Rec,
-              List(
-                Binding(
-                  "swap",
-                  LamAbs(
-                    "p",
-                    Apply(
-                      Apply(Builtin(MkPairData), Apply(Builtin(SndPair), Var("p"))),
-                      Apply(Builtin(FstPair), Var("p"))
-                    )
-                  )
+          compile { (p: builtin.Pair[Data, Data]) => builtin.Pair(p.snd, p.fst) }
+              == LamAbs(
+                "p",
+                Apply(
+                  Apply(Builtin(MkPairData), Apply(Builtin(SndPair), Var("p"))),
+                  Apply(Builtin(FstPair), Var("p"))
                 )
-              ),
-              Const(Constant.Unit)
-            )
-          )
+              )
         )
     }
 
@@ -1179,7 +1061,6 @@ class CompilerPluginToSIRSpec extends AnyFunSuite with ScalaCheckPropertyChecks:
     }
 
     test("compile multiple inner matches") {
-        import scalus.prelude.List
         import scalus.prelude.List.*
         val compiled = compile {
             ((true, "test"), (false, "test")) match

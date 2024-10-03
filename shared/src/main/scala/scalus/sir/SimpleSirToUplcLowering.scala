@@ -3,7 +3,6 @@ package scalus.sir
 import scalus.sir.Recursivity.*
 import scalus.uplc.Constant
 import scalus.uplc.DefaultFun
-import scalus.uplc.DefaultFun.*
 import scalus.uplc.ExprBuilder
 import scalus.uplc.Meaning
 import scalus.uplc.NamedDeBruijn
@@ -27,7 +26,7 @@ class SimpleSirToUplcLowering(sir: SIR, generateErrorTraces: Boolean = false):
             case TypeScheme.All(_, t) => Term.Force(forceBuiltin(t, term))
             case _                    => term
 
-        Meaning.defaultBuiltins.BuiltinMeanings.map((bi, rt) =>
+        Meaning.allBuiltins.BuiltinMeanings.map((bi, rt) =>
             bi -> forceBuiltin(rt.typeScheme, Term.Builtin(bi))
         )
 

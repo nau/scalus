@@ -2,7 +2,6 @@ package scalus
 package uplc
 package eval
 
-import scala.io.Source.fromFile
 import scala.language.implicitConversions
 import scala.util.Using
 

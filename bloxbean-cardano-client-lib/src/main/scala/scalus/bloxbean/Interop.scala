@@ -27,6 +27,7 @@ import com.bloxbean.cardano.client.transaction.spec.governance.actions.NoConfide
 import com.bloxbean.cardano.client.transaction.spec.governance.actions.ParameterChangeAction
 import com.bloxbean.cardano.client.transaction.spec.governance.actions.TreasuryWithdrawalsAction
 import com.bloxbean.cardano.client.transaction.spec.governance.actions.UpdateCommittee
+import com.bloxbean.cardano.client.transaction.util.TransactionUtil
 import io.bullet.borer.Cbor
 import scalus.builtin
 import scalus.builtin.Builtins.*
@@ -40,7 +41,6 @@ import scalus.ledger
 import scalus.ledger.api
 import scalus.ledger.api.BuiltinSemanticsVariant
 import scalus.ledger.api.PlutusLedgerLanguage
-import scalus.ledger.api.PlutusLedgerLanguage.*
 import scalus.ledger.api.v1
 import scalus.ledger.api.v1.DCert
 import scalus.ledger.api.v1.ScriptPurpose
@@ -595,6 +595,21 @@ object Interop {
 
     def getTxInfoV1(
         tx: Transaction,
+        datums: collection.Seq[(ByteString, Data)],
+        utxos: Map[TransactionInput, TransactionOutput],
+        slotConfig: SlotConfig,
+        protocolVersion: Int
+    ): v1.TxInfo = getTxInfoV1(
+      tx,
+      TransactionUtil.getTxHash(tx),
+      datums,
+      utxos,
+      slotConfig,
+      protocolVersion
+    )
+
+    def getTxInfoV1(
+        tx: Transaction,
         txhash: String,
         datums: collection.Seq[(ByteString, Data)],
         utxos: Map[TransactionInput, TransactionOutput],
@@ -626,6 +641,21 @@ object Interop {
           id = v1.TxId(ByteString.fromHex(txhash))
         )
     }
+
+    def getTxInfoV2(
+        tx: Transaction,
+        datums: collection.Seq[(ByteString, Data)],
+        utxos: Map[TransactionInput, TransactionOutput],
+        slotConfig: SlotConfig,
+        protocolVersion: Int
+    ): v2.TxInfo = getTxInfoV2(
+      tx,
+      TransactionUtil.getTxHash(tx),
+      datums,
+      utxos,
+      slotConfig,
+      protocolVersion
+    )
 
     def getTxInfoV2(
         tx: Transaction,
@@ -844,6 +874,21 @@ object Interop {
     def getScriptContextV2(
         redeemer: Redeemer,
         tx: Transaction,
+        utxos: Map[TransactionInput, TransactionOutput],
+        slotConfig: SlotConfig,
+        protocolVersion: Int
+    ): v2.ScriptContext = getScriptContextV2(
+      redeemer,
+      tx,
+      TransactionUtil.getTxHash(tx),
+      utxos,
+      slotConfig,
+      protocolVersion
+    )
+
+    def getScriptContextV2(
+        redeemer: Redeemer,
+        tx: Transaction,
         txhash: String,
         utxos: Map[TransactionInput, TransactionOutput],
         slotConfig: SlotConfig,
@@ -999,6 +1044,15 @@ object Interop {
           resolved = txInInfoV2.resolved
         )
     }
+
+    def getTxInfoV3(
+        tx: Transaction,
+        datums: collection.Seq[(ByteString, Data)],
+        utxos: Map[TransactionInput, TransactionOutput],
+        slotConfig: SlotConfig,
+        protocolVersion: Int
+    ): v3.TxInfo =
+        getTxInfoV3(tx, TransactionUtil.getTxHash(tx), datums, utxos, slotConfig, protocolVersion)
 
     def getTxInfoV3(
         tx: Transaction,

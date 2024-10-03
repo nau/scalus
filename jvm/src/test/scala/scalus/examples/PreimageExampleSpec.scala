@@ -11,9 +11,7 @@ import scalus.ledger.api.v1.{PubKeyHash, TxId}
 import scalus.ledger.api.v2.*
 import scalus.ledger.api.v1.ToDataInstances.given
 import scalus.ledger.api.v2.ToDataInstances.given
-import scalus.prelude.*
 import scalus.prelude.List
-import scalus.prelude.List.Nil
 import scalus.sir.RemoveRecursivity.removeRecursivity
 import scalus.uplc.*
 import scalus.uplc.Term.*

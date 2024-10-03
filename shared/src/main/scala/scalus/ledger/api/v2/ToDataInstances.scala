@@ -3,8 +3,6 @@ package scalus.ledger.api.v2
 import scalus.Compile
 import scalus.builtin
 import scalus.builtin.Builtins.*
-import scalus.ledger.api.v1.Datum
-import scalus.ledger.api.v1.DatumHash
 import scalus.builtin.Data
 import scalus.builtin.Data.ToData
 import scalus.builtin.ToData

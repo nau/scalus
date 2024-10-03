@@ -10,7 +10,6 @@ import scalus.builtin.Data.*
 import scalus.builtin.given
 import scalus.ledger.api.PlutusLedgerLanguage
 import scalus.ledger.api.ProtocolVersion
-import scalus.ledger.api.v1.*
 import scalus.ledger.api.v1.Credential.*
 import scalus.ledger.api.v1.FromDataInstances.given
 import scalus.ledger.api.v2

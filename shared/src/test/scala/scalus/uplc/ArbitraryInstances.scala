@@ -5,7 +5,7 @@ import scalus.*
 import scalus.builtin.ByteString
 import scalus.builtin.Data
 import scalus.builtin.Data.{B, Constr, I, List, Map}
-import scalus.uplc.DefaultUni.{Bool, ByteString, Integer, ProtoList, ProtoPair}
+import scalus.uplc.DefaultUni.{ProtoList, ProtoPair}
 import scalus.uplc.Term.*
 
 import scala.collection.immutable
