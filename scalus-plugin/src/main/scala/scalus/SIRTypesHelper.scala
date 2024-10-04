@@ -5,7 +5,7 @@ import dotty.tools.dotc.core.*
 import dotty.tools.dotc.core.Contexts.Context
 import dotty.tools.dotc.core.Types.*
 import dotty.tools.dotc.core.Symbols.*
-import dotty.tools.dotc.util.{SourcePosition, SrcPos}
+import dotty.tools.dotc.util.{SrcPos}
 import scalus.sir.*
 
 
@@ -393,7 +393,7 @@ object SIRTypesHelper {
         println(s"makeSIRMethodType ${mt.show}")
         try {
             val params = mt.paramNames.zip(mt.paramInfos).map {
-                (name, tp) => sirTypeInEnvWithErr(tp, env)
+                (_, tp) => sirTypeInEnvWithErr(tp, env)
             }
             val res = sirTypeInEnvWithErr(mt.resultType, env)
             makeUnaryFun(params, res)

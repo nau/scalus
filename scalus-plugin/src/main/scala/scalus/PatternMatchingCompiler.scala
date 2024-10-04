@@ -10,7 +10,7 @@ import dotty.tools.dotc.core.NameKinds.UniqueNameKind
 import dotty.tools.dotc.core.Names.*
 import dotty.tools.dotc.core.StdNames.nme
 import dotty.tools.dotc.core.Symbols.*
-import dotty.tools.dotc.core.Types.{AppliedType, Type, TypeVar}
+import dotty.tools.dotc.core.Types.{AppliedType, Type}
 import dotty.tools.dotc.util.SrcPos
 import scalus.sir.*
 
@@ -245,7 +245,7 @@ class PatternMatchingCompiler(val compiler: SIRCompiler)(using Context) {
                             // TODO: extract rhs to a let binding before the match
                             // so we don't have to repeat it for each case
                             // also we have no way toknowtype-arameters, so use abstract type-vars (will use FreeUnificator))
-                            val typeArgs = constr.typeParams.map(tp => SIRType.TypeVar(tp.name.show, Some(tp.hashCode)))
+                            //val typeArgs = constr.typeParams.map(tp => SIRType.TypeVar(tp.name.show, Some(tp.hashCode)))
                             val constrDecl = retrieveConstrDecl(env, constr, srcPos)
                             if (constr.typeParams.nonEmpty) then
                                 compiler.error(

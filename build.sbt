@@ -81,7 +81,7 @@ lazy val scalusPlugin = project
           val baseDir = baseDirectory.value / ".." / "shared" / "src" / "main" / "scala"
           val files = Seq(
             baseDir / "scalus/utils/Hex.scala",
-            baseDir / "scalus/utils/HashConsedRead.scala",
+            baseDir / "scalus/utils/HashConsed.scala",
             baseDir / "scalus/utils/HashConsedFlat.scala",
             baseDir / "scalus/builtin/ByteString.scala",
             baseDir / "scalus/builtin/Data.scala",

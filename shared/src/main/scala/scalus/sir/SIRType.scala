@@ -1,4 +1,3 @@
-
 package scalus.sir
 
 import scalus.sir.SIRType.TypeVar
@@ -229,6 +228,7 @@ object SIRType {
                 case _ =>    
             _ref = value
         }
+        
         
     }
 
