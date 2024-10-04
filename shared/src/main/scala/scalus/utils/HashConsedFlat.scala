@@ -171,74 +171,6 @@ object PlainIntFlat extends HashConsedFlat[Int] {
 }
 
 
-/**
- * Here we assume, that A can participate in the recursive structures, but
- *  assumes, that A does not contaoins forward references to A.
- *  (note, that subpart of A, which readed separately, can contain forward references to A)
- *
- * TODO: check, are we used one.
- * @tparam A
- */
-trait HashConsedRefFlat[A <: AnyRef]  extends HashConsedFlat[HashConsedRef[A]] with HashConsedTagged[A] {
-
-    def tag: HashConsed.Tag
-
-    def bitSizeHCNew(a: A, encode: HashConsed.State): Int
-
-    def encodeHCNew(a: A, encode: HashConsedEncoderState): Unit
-
-    def decodeHCNew(decoderState: HashConsedDecoderState): A
-
-    override def bitSizeHC(refA: HashConsedRef[A], hashConsed: HashConsed.State): Int = {
-        if (!refA.isComplete(hashConsed)) then
-            throw IllegalStateException("Incomplete reference during writing")
-        val a = refA.finValue(hashConsed)
-        if (a == null) {
-            throw IllegalStateException("Null reference during writing")
-        }
-        val ihc = a.hashCode
-        var retval = PlainIntFlat.bitSize(ihc)
-        hashConsed.lookup(ihc, tag) match
-            case None =>
-                hashConsed.putForwardRef(HashConsed.ForwardRefAcceptor(ihc, tag, Nil))
-                retval += bitSizeHCNew(a, hashConsed)
-                hashConsed.setRef(ihc, tag, HashConsedRef.fromData(a))
-            case Some(_) =>
-        retval
-    }
-
-    override def encodeHC(refA: HashConsedRef[A], encoderState: HashConsedEncoderState): Unit =
-        if (!refA.isComplete(encoderState.hashConsed)) then
-            throw IllegalStateException("Incomplete reference during writing")
-        val a = refA.finValue(encoderState.hashConsed)
-        val ihc = a.hashCode
-        PlainIntFlat.encode(ihc, encoderState.encode)
-        encoderState.hashConsed.lookup(ihc, tag) match
-            case None =>
-                encoderState.hashConsed.putForwardRef(HashConsed.ForwardRefAcceptor(ihc, tag, Nil))
-                encodeHCNew(a, encoderState)
-                encoderState.hashConsed.setRef(ihc, tag, HashConsedRef.fromData(a))
-            case Some(_) =>
-
-    override def decodeHC(decoderState: HashConsedDecoderState): HashConsedRef[A] = {
-        val ihc = PlainIntFlat.decode(decoderState.decode)
-        decoderState.hashConsed.lookup(ihc, tag) match
-            case None =>
-                val refAcceptor = HashConsed.ForwardRefAcceptor(ihc, tag, Nil)
-                decoderState.hashConsed.putForwardRef(refAcceptor)
-                val a = decodeHCNew(decoderState)
-                val retval = HashConsedRef.fromData(a)
-                decoderState.hashConsed.setRef(ihc, tag, retval)
-                retval
-            case Some(Left(fw)) =>
-                val retval = HashConsed.MutRef[A](null)
-                fw.addAction(a => retval.value = a.asInstanceOf[A])
-                retval
-            case Some(Right(ra)) => ra.asInstanceOf[HashConsedRef[A]]
-    }
-
-}
-
 trait HashConsedMutRefReprFlat[A <: AnyRef]  extends HashConsedReprFlat[A, HashConsedRef[A]] {
 
     def tag: HashConsed.Tag
@@ -284,7 +216,7 @@ trait HashConsedMutRefReprFlat[A <: AnyRef]  extends HashConsedReprFlat[A, HashC
                 HashConsedRef.fromForward[A](decoderState.hashConsed, ihc, tag)
             case Some(Right(sa)) => sa.asInstanceOf[HashConsedRef[A]]
     }
-    
+
 }
 
 

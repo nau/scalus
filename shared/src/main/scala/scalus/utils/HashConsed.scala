@@ -39,16 +39,6 @@ object HashConsedRef {
                          HashConsed.ForwardRef.create(state, ihc, tag)
             case Some(Right(a)) => a.asInstanceOf[HashConsedRef[A]]
 
-    /*
-    def fromForwardTransformed[A,B](state: HashConsed.State, ihc: Int, tag: HashConsed.Tag, fin: (A, HashConsed.State) => B): HashConsedRef[B] =
-        state.lookup(ihc, tag) match
-            case None => HashConsed.ForwardRef.createTransformed[A,B](state, ihc, tag, fin)
-            case Some(Left(fw)) => 
-                         HashConsed.ForwardRef.createTransformed[A,B](state, ihc, tag, fin)
-            case Some(Right(a)) =>
-                     HashConsedRef.deferred(hs => a.isComplete(hs), hs => fin(a.asInstanceOf[HashConsedRef[A]].finValue(hs), hs))
-
-     */
 
     def deferred[A<:AnyRef](complete: HashConsed.State => Boolean,  op: HashConsed.State => A): HashConsedRef[A] =
         new HashConsedRef[A] {
