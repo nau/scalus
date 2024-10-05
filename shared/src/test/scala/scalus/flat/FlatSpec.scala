@@ -129,6 +129,40 @@ class FlatSpec extends AnyFunSuite with ScalaCheckPropertyChecks with ArbitraryI
         }
     }
 
+    test("encode/decode Long 58003") {
+        val l0 = 58003L
+        val l1 = 489L
+        val bitSizel0 = summon[Flat[Long]].bitSize(l0)
+        val bitSizel1 = summon[Flat[Long]].bitSize(l1)
+        val encoderState = EncoderState((bitSizel0+bitSizel1) / 8 + 1)
+        summon[Flat[Long]].encode(l0, encoderState)
+        summon[Flat[Long]].encode(l1, encoderState)
+        val bytes = encoderState.result
+        val decoderState = DecoderState(bytes)
+        val lout0 = summon[Flat[Long]].decode(decoderState)
+        assert(l0 == lout0)
+        val lout1 = summon[Flat[Long]].decode(decoderState)
+        assert(l1 == lout1)
+    }
+
+    test("encode/decode two strings sequence") {
+        val s1 = "A"
+        val s2 = "B"
+        val bitSizes1 = summon[Flat[String]].bitSize(s1)
+        val bitSizes2 = summon[Flat[String]].bitSize(s2)
+        val encoderState = EncoderState((bitSizes1+bitSizes2) / 8 + 1)
+        summon[Flat[String]].encode(s1, encoderState)
+        summon[Flat[String]].encode(s2, encoderState)
+        val bytes = encoderState.result
+        val decoderState = DecoderState(bytes)
+        val sout1 = summon[Flat[String]].decode(decoderState)
+        assert(s1 == sout1)
+        val sout2 = summon[Flat[String]].decode(decoderState)
+        assert(s2 == sout2)
+
+    }
+
+
     test("Zagzig/zigZag Long") {
         forAll { (nn: Long) =>
             val n = nn >> 1 // to avoid overflow
