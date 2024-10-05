@@ -25,10 +25,10 @@ object FlatInstantces:
 
         def bitSize(a: Data): Int = a match
             case Data.Constr(constr, args) =>
-                width + summon[Flat[Long]].bitSize(constr) + args.map(bitSize).sum
+                width + summon[Flat[Long]].bitSize(constr) + summon[Flat[List[Data]]].bitSize(args)
             case Data.Map(values) =>
-                width + values.map { case (k, v) => bitSize(k) + bitSize(v) }.sum
-            case Data.List(values) => width + values.map(bitSize).sum
+                width + summom[Flat[List[(Data,Data)]]].bitSize(values)
+            case Data.List(values) => width + summon[Flat[List[Data]]].bitSize(values)
             case Data.I(value)     => width + summon[Flat[BigInt]].bitSize(value)
             case Data.B(value)     => width + summon[Flat[builtin.ByteString]].bitSize(value)
 
@@ -37,13 +37,13 @@ object FlatInstantces:
                 case Data.Constr(constr, args) =>
                     enc.bits(width, 0)
                     summon[Flat[Long]].encode(constr, enc)
-                    args.foreach(a => encode(a, enc))
+                    summon[Flat[List[Data]]].encode(args, enc)
                 case Data.Map(values) =>
                     enc.bits(width, 1)
-                    values.foreach { case (k, v) => encode(k, enc); encode(v, enc) }
+                    summon[Flat[List[(Data, Data)]].encode(values, enc)
                 case Data.List(values) =>
                     enc.bits(width, 2)
-                    values.foreach(a => encode(a, enc))
+                    summon[Flat[List[Data]]].encode(values, enc)
                 case Data.I(value) =>
                     enc.bits(width, 3)
                     summon[Flat[BigInt]].encode(value, enc)
