@@ -1,5 +1,20 @@
 # Changelog
 
+## 0.8.0 (2024-10-03)
+
+### Added
+
+- initial Plutus V3 support:
+    - all builtins work on JVM
+    - V3 `ScriptContext` etc for script compilation
+    - V3 script evaluation and cost calculation
+- Cardano Client Lib can use `ScalusTransactionEvaluator` for V3 script evaluation
+- improved `deriveEnum` for `ToData` and `FromData` (see Tutorial)
+
+### Changed
+
+- few renames and API changes in `scalus-bloxbean-cardano-client-lib` `Interop` module
+
 ## 0.7.2 (2024-08-11)
 
 ### Added
@@ -45,7 +60,8 @@ We were able to validate transactions from whole Cardano Epoch 484 using Scalus 
 
 ### Added
 
-- `ScalusTransactionEvaluator` - Cardano Client Lib (CCL) `TransactionEvaluator` implementation. You can now use Scalus to evaluate scripts and their costs off-chain during transaction building.
+- `ScalusTransactionEvaluator` - Cardano Client Lib (CCL) `TransactionEvaluator` implementation. You can now use Scalus
+  to evaluate scripts and their costs off-chain during transaction building.
 - SIR and UPLC optimizations: `RemoveRecursivity`, `EtaReduce`
 - `evaluateScriptRestricting` mode
 - Advanced documentation

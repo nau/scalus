@@ -279,10 +279,9 @@ object Macros {
         impl
     }
 
-    def inlineBuiltinCostModelJsonImpl(using Quotes): Expr[String] = {
+    def inlineBuiltinCostModelJsonImpl(using Quotes)(name: Expr[String]): Expr[String] = {
         import scala.quoted.*
-        import quotes.reflect.*
-        val input = this.getClass().getResourceAsStream("/builtinCostModel.json")
+        val input = this.getClass.getResourceAsStream(name.value.get)
         val string = scala.io.Source.fromInputStream(input).mkString
         Expr(string)
     }

@@ -16,6 +16,7 @@ private object Sha2 extends js.Object {
 @js.native
 private object Sha3 extends js.Object {
     def sha3_256(msg: Uint8Array): Uint8Array = js.native
+    def keccak_256(msg: Uint8Array): Uint8Array = js.native
 }
 
 @JSImport("@noble/hashes/blake2b", "blake2b")
@@ -45,6 +46,32 @@ private object Secp256k1 extends js.Object {
 @js.native
 private object Ed25519Curves extends js.Object {
     val ed25519: Ed25519 = js.native
+}
+
+//import { bls12_381 as bls } from '@noble/curves/bls12-381
+@JSImport("@noble/curves/bls12-381", JSImport.Namespace)
+@js.native
+private object BLS12_381 extends js.Object {
+    val bls12_381: BLS12_381 = js.native
+}
+
+@js.native
+private trait BLS12_381 extends js.Object {
+    def getPublicKey(privateKey: Uint8Array): Uint8Array = js.native
+}
+
+@js.native
+private trait BLS12_381_G1 extends js.Object {}
+
+@js.native
+private trait BLS12_381_G2 extends js.Object {}
+
+@js.native
+private trait BLS12_381_GT extends js.Object {
+    def equal(p1: Uint8Array, p2: Uint8Array): Boolean = js.native
+    def add(p1: Uint8Array, p2: Uint8Array): Uint8Array = js.native
+    def mul(p1: Uint8Array, p2: Uint8Array): Uint8Array = js.native
+    def finalExp(p: Uint8Array): Uint8Array = js.native
 }
 
 @js.native
@@ -96,6 +123,63 @@ trait NodeJsPlatformSpecific extends PlatformSpecific {
         msg: ByteString,
         sig: ByteString
     ): Boolean = Secp256k1.schnorrVerify(msg.toUint8Array, sig.toUint8Array, pk.toUint8Array)
+
+    // BLS12_381 operations
+    override def bls12_381_G1_equal(p1: BLS12_381_G1_Element, p2: BLS12_381_G1_Element): Boolean =
+        ???
+
+    override def bls12_381_G1_add(
+        p1: BLS12_381_G1_Element,
+        p2: BLS12_381_G1_Element
+    ): BLS12_381_G1_Element =
+        ???
+
+    override def bls12_381_G1_scalarMul(s: BigInt, p: BLS12_381_G1_Element): BLS12_381_G1_Element =
+        ???
+
+    override def bls12_381_G1_neg(
+        p: BLS12_381_G1_Element
+    ): BLS12_381_G1_Element = ???
+
+    override def bls12_381_G1_compress(p: BLS12_381_G1_Element): ByteString = ???
+
+    override def bls12_381_G1_uncompress(bs: ByteString): BLS12_381_G1_Element =
+        ???
+    override def bls12_381_G1_hashToGroup(bs: ByteString, dst: ByteString): BLS12_381_G1_Element =
+        ???
+    override def bls12_381_G1_compressed_generator: ByteString = ???
+    override def bls12_381_G2_equal(p1: BLS12_381_G2_Element, p2: BLS12_381_G2_Element): Boolean =
+        ???
+    override def bls12_381_G2_add(
+        p1: BLS12_381_G2_Element,
+        p2: BLS12_381_G2_Element
+    ): BLS12_381_G2_Element =
+        ???
+    override def bls12_381_G2_scalarMul(s: BigInt, p: BLS12_381_G2_Element): BLS12_381_G2_Element =
+        ???
+    override def bls12_381_G2_neg(
+        p: BLS12_381_G2_Element
+    ): BLS12_381_G2_Element = ???
+    override def bls12_381_G2_compress(p: BLS12_381_G2_Element): ByteString = ???
+    override def bls12_381_G2_uncompress(bs: ByteString): BLS12_381_G2_Element =
+        ???
+    override def bls12_381_G2_hashToGroup(bs: ByteString, dst: ByteString): BLS12_381_G2_Element =
+        ???
+    override def bls12_381_G2_compressed_generator: ByteString = ???
+    override def bls12_381_millerLoop(
+        p1: BLS12_381_G1_Element,
+        p2: BLS12_381_G2_Element
+    ): BLS12_381_MlResult =
+        ???
+    override def bls12_381_mulMlResult(
+        r1: BLS12_381_MlResult,
+        r2: BLS12_381_MlResult
+    ): BLS12_381_MlResult =
+        ???
+    override def bls12_381_finalVerify(p1: BLS12_381_MlResult, p2: BLS12_381_MlResult): Boolean =
+        ???
+    override def keccak_256(bs: ByteString): ByteString =
+        Sha3.keccak_256(bs.toUint8Array).toByteString
 }
 
 object NodeJsPlatformSpecific extends NodeJsPlatformSpecific

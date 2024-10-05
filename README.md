@@ -35,8 +35,8 @@ Write efficient and compact smart contracts and squeeze the most out of the Card
 
 * Scala 3 to Cardano Plutus Core compiler
 * Standard library for Plutus contracts development
-* Plutus V1 and V2 support
-* Plutus VM Interpreter and execution budget calculation
+* Plutus V1, V2 and V3 support
+* Plutus VM Interpreter and execution budget calculation for Plutus V1, V2 and V3, pre and post Chang Hard Fork
 * Property-based testing library
 * Untyped Plutus Core (UPLC) data types and functions
 * Flat, CBOR, JSON serialization
@@ -156,10 +156,6 @@ val validator = compile:
 Now, Scalus takes the same approach as PlutusTx.
 This change makes it similar to Aiken, which will result in smaller and more efficient Plutus scripts in most cases.
 
-### Support for Plutus V3
-
-Plutus V3 is coming soon. Scalus will support all new built-ins and features.
-
 ### Single transaction building and signing API for backend and frontend
 
 This will allow you to build and sign transactions in Scala and JavaScript using the same code.
@@ -186,7 +182,9 @@ PlutusTx also tends to generate a lot of boilerplate code making the final scrip
 
 Aiken is a new and young programming language which is a pro and a con.
 Can only be used for writing on-chain smart contracts.
+Can't reuse code for on-chain and off-chain parts.
 Doesn't have macros.
+Doesn't allow a low-level control over the generated UPLC code.
 
 ### Plutarch
 
@@ -234,8 +232,6 @@ Follow the official Scalus Twitter account: [@Scalus3](https://twitter.com/Scalu
 You can support the project by donating ADA or BTC to the following addresses:
 
 ADA: addr1qxwg0u9fpl8dac9rkramkcgzerjsfdlqgkw0q8hy5vwk8tzk5pgcmdpe5jeh92guy4mke4zdmagv228nucldzxv95clqe35r3m
-
-BTC: bc1qzefh9we0frls8ktm0dx428v2dx3wtp6xu4hd8k
 
 Please, consider becoming a sponsor on GitHub.
 

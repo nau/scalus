@@ -242,7 +242,6 @@ class FlatSpec extends AnyFunSuite with ScalaCheckPropertyChecks with ArbitraryI
     }
 
     test("encode/decode Constant") {
-        import scalus.uplc.Constant.*
         import scalus.builtin.Data.*
         import scalus.uplc.CommonFlatInstances.*
         import scalus.uplc.FlatInstantces.given

@@ -5,11 +5,14 @@ import scalus.*
 import scalus.builtin.ByteString
 import scalus.builtin.Data
 import scalus.builtin.Data.{B, Constr, I, List, Map}
-import scalus.uplc.DefaultUni.{Bool, ByteString, Integer, ProtoList, ProtoPair}
+import scalus.uplc.DefaultUni.{ProtoList, ProtoPair}
 import scalus.uplc.Term.*
 
 import scala.collection.immutable
 import scala.annotation.nowarn
+import scalus.uplc.Constant.BLS12_381_G1_Element
+import scalus.uplc.Constant.BLS12_381_G2_Element
+import scalus.uplc.Constant.BLS12_381_MlResult
 
 // ScalaCheck uses Stream for shrinking, which is deprecated
 // Remove the deprecation warning for now
@@ -168,6 +171,9 @@ trait ArbitraryInstances:
             val aShrunk = Shrink.shrink(a).map(Constant.Pair(_, b))
             val bShrunk = Shrink.shrink(b).map(Constant.Pair(a, _))
             aShrunk ++ bShrunk
+        case BLS12_381_G1_Element(value) => Stream.empty
+        case BLS12_381_G2_Element(value) => Stream.empty
+        case BLS12_381_MlResult(value)   => Stream.empty
     }
 
     implicit lazy val arbitraryTerm: Arbitrary[Term] = Arbitrary {

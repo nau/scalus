@@ -258,43 +258,20 @@ class CompilerPluginToSIRSpec extends AnyFunSuite with ScalaCheckPropertyChecks:
 
     test("compile head function") {
         assert(
-          compile {
-              def head(l: builtin.List[BigInt]) = l.head
-          } == Let(
-            Rec,
-            List(
-              Binding("head", LamAbs("l", Apply(Builtin(HeadList), Var("l"))))
-            ),
-            Const(Constant.Unit)
-          )
+          compile { (l: builtin.List[BigInt]) => l.head }
+              == LamAbs("l", Apply(Builtin(HeadList), Var("l")))
         )
     }
 
     test("compile tail function") {
-        assert(
-          compile {
-              def tail(l: builtin.List[BigInt]) = l.tail
-          } == Let(
-            Rec,
-            List(
-              Binding("tail", LamAbs("l", Apply(Builtin(TailList), Var("l"))))
-            ),
-            Const(Constant.Unit)
-          )
-        )
+        assert(compile { (l: builtin.List[BigInt]) => l.tail }
+            == LamAbs("l", Apply(Builtin(TailList), Var("l"))))
     }
 
     test("compile isEmpty function") {
         assert(
-          compile {
-              def isEmpty(l: builtin.List[BigInt]) = l.isEmpty
-          } == Let(
-            Rec,
-            List(
-              Binding("isEmpty", LamAbs("l", Apply(Builtin(NullList), Var("l"))))
-            ),
-            Const(Constant.Unit)
-          )
+          compile { (l: builtin.List[BigInt]) => l.isEmpty }
+              == LamAbs("l", Apply(Builtin(NullList), Var("l")))
         )
     }
 
@@ -367,128 +344,177 @@ class CompilerPluginToSIRSpec extends AnyFunSuite with ScalaCheckPropertyChecks:
 
     test("compile unsafeDataAsConstr function") {
         assert(
-          compile {
-              def unb(d: Data) = Builtins.unConstrData(d)
-          } == Let(
-            Rec,
-            List(
-              Binding(
-                "unb",
-                LamAbs("d", Apply(Builtin(DefaultFun.UnConstrData), Var("d")))
-              )
-            ),
-            Const(Constant.Unit)
-          )
+          compile { (d: Data) => Builtins.unConstrData(d) }
+              == LamAbs("d", Apply(Builtin(DefaultFun.UnConstrData), Var("d")))
         )
     }
 
     test("compile unsafeDataAsList function") {
         assert(
-          compile {
-              def unb(d: Data) = Builtins.unListData(d)
-          } == Let(
-            Rec,
-            List(
-              Binding(
-                "unb",
-                LamAbs("d", Apply(Builtin(DefaultFun.UnListData), Var("d")))
-              )
-            ),
-            Const(Constant.Unit)
-          )
+          compile { (d: Data) => Builtins.unListData(d) }
+              == LamAbs("d", Apply(Builtin(DefaultFun.UnListData), Var("d")))
         )
     }
 
     test("compile unsafeDataAsMap function") {
         assert(
-          compile {
-              def unb(d: Data) = Builtins.unMapData(d)
-          } == Let(
-            Rec,
-            List(
-              Binding(
-                "unb",
-                LamAbs("d", Apply(Builtin(DefaultFun.UnMapData), Var("d")))
-              )
-            ),
-            Const(Constant.Unit)
-          )
+          compile { (d: Data) => Builtins.unMapData(d) }
+              == LamAbs("d", Apply(Builtin(DefaultFun.UnMapData), Var("d")))
         )
     }
 
     test("compile unsafeDataAsB function") {
         assert(
-          compile {
-              def unb(d: Data) = Builtins.unBData(d)
-          } == Let(
-            Rec,
-            List(
-              Binding(
-                "unb",
-                LamAbs("d", Apply(Builtin(DefaultFun.UnBData), Var("d")))
-              )
-            ),
-            Const(Constant.Unit)
-          )
+          compile { (d: Data) => Builtins.unBData(d) }
+              == LamAbs("d", Apply(Builtin(DefaultFun.UnBData), Var("d")))
         )
     }
 
     test("compile unsafeDataAsI function") {
         assert(
-          compile {
-              def unb(d: Data) = Builtins.unIData(d)
-          } == Let(
-            Rec,
-            List(
-              Binding(
-                "unb",
-                LamAbs("d", Apply(Builtin(DefaultFun.UnIData), Var("d")))
-              )
-            ),
-            Const(Constant.Unit)
-          )
+          compile { (d: Data) => Builtins.unIData(d) } ==
+              LamAbs("d", Apply(Builtin(DefaultFun.UnIData), Var("d")))
         )
     }
 
     test("compile chooseData function") {
         assert(
-          compile {
-              def cd(d: Data) = Builtins.chooseData[BigInt](d, 1, 2, 3, 4, 5)
-          } == Let(
-            Rec,
-            List(
-              Binding(
-                "cd",
-                LamAbs(
-                  "d",
-                  ChooseData $ Var("d") $ 1 $ 2 $ 3 $ 4 $ 5
-                )
-              )
-            ),
-            Const(Constant.Unit)
-          )
+          compile { (d: Data) => Builtins.chooseData[BigInt](d, 1, 2, 3, 4, 5) }
+              == LamAbs("d", ChooseData $ Var("d") $ 1 $ 2 $ 3 $ 4 $ 5)
         )
     }
 
     test("compile equalsData function") {
         assert(
-          compile {
-              def ed(d1: Data, d2: Data) = Builtins.equalsData(d1, d2)
-          } == Let(
-            Rec,
-            List(
-              Binding("ed", LamAbs("d1", LamAbs("d2", EqualsData $ Var("d1") $ Var("d2"))))
-            ),
-            Const(Constant.Unit)
-          )
+          compile { (d1: Data, d2: Data) => Builtins.equalsData(d1, d2) }
+              == LamAbs("d1", LamAbs("d2", EqualsData $ Var("d1") $ Var("d2")))
         )
     }
 
     test("compile serialiseData builtins") {
+        assert(compile {
+            Builtins.serialiseData
+        } == LamAbs("d", Apply(Builtin(SerialiseData), Var("d"))))
+    }
+
+    test("compile BLS12_381_G1 builtins") {
         assert(
-          compile {
-              Builtins.serialiseData
-          } == LamAbs("d", Apply(Builtin(SerialiseData), Var("d")))
+          compile(Builtins.bls12_381_G1_add) == LamAbs(
+            "p1",
+            LamAbs("p2", Apply(Apply(Builtin(Bls12_381_G1_add), Var("p1")), Var("p2")))
+          )
+        )
+        assert(
+          compile(Builtins.bls12_381_G1_neg) == LamAbs(
+            "p",
+            Apply(Builtin(Bls12_381_G1_neg), Var("p"))
+          )
+        )
+        assert(
+          compile(Builtins.bls12_381_G1_scalarMul) == LamAbs(
+            "s",
+            LamAbs("p", Apply(Apply(Builtin(Bls12_381_G1_scalarMul), Var("s")), Var("p")))
+          )
+        )
+        assert(
+          compile(Builtins.bls12_381_G1_equal) == LamAbs(
+            "p1",
+            LamAbs("p2", Apply(Apply(Builtin(Bls12_381_G1_equal), Var("p1")), Var("p2")))
+          )
+        )
+        assert(
+          compile(Builtins.bls12_381_G1_hashToGroup) == LamAbs(
+            "bs",
+            LamAbs("dst", Apply(Apply(Builtin(Bls12_381_G1_hashToGroup), Var("bs")), Var("dst")))
+          )
+        )
+        assert(
+          compile(Builtins.bls12_381_G1_compress) == LamAbs(
+            "p",
+            Apply(Builtin(Bls12_381_G1_compress), Var("p"))
+          )
+        )
+        assert(
+          compile(Builtins.bls12_381_G1_uncompress) == LamAbs(
+            "bs",
+            Apply(Builtin(Bls12_381_G1_uncompress), Var("bs"))
+          )
+        )
+    }
+
+    test("compile BLS12_381_G2 builtins") {
+        assert(
+          compile(Builtins.bls12_381_G2_add) == LamAbs(
+            "p1",
+            LamAbs("p2", Apply(Apply(Builtin(Bls12_381_G2_add), Var("p1")), Var("p2")))
+          )
+        )
+        assert(
+          compile(Builtins.bls12_381_G2_neg) == LamAbs(
+            "p",
+            Apply(Builtin(Bls12_381_G2_neg), Var("p"))
+          )
+        )
+        assert(
+          compile(Builtins.bls12_381_G2_scalarMul) == LamAbs(
+            "s",
+            LamAbs("p", Apply(Apply(Builtin(Bls12_381_G2_scalarMul), Var("s")), Var("p")))
+          )
+        )
+        assert(
+          compile(Builtins.bls12_381_G2_equal) == LamAbs(
+            "p1",
+            LamAbs("p2", Apply(Apply(Builtin(Bls12_381_G2_equal), Var("p1")), Var("p2")))
+          )
+        )
+        assert(
+          compile(Builtins.bls12_381_G2_hashToGroup) == LamAbs(
+            "bs",
+            LamAbs("dst", Apply(Apply(Builtin(Bls12_381_G2_hashToGroup), Var("bs")), Var("dst")))
+          )
+        )
+        assert(
+          compile(Builtins.bls12_381_G2_compress) == LamAbs(
+            "p",
+            Apply(Builtin(Bls12_381_G2_compress), Var("p"))
+          )
+        )
+        assert(
+          compile(Builtins.bls12_381_G2_uncompress) == LamAbs(
+            "bs",
+            Apply(Builtin(Bls12_381_G2_uncompress), Var("bs"))
+          )
+        )
+    }
+
+    test("compile BLS12_381 pairing operations builtins") {
+        assert(
+          compile(Builtins.bls12_381_millerLoop) == LamAbs(
+            "p1",
+            LamAbs("p2", Apply(Apply(Builtin(Bls12_381_millerLoop), Var("p1")), Var("p2")))
+          )
+        )
+        assert(
+          compile(Builtins.bls12_381_mulMlResult) == LamAbs(
+            "r1",
+            LamAbs("r2", Apply(Apply(Builtin(Bls12_381_mulMlResult), Var("r1")), Var("r2")))
+          )
+        )
+        assert(
+          compile(Builtins.bls12_381_finalVerify) == LamAbs(
+            "p1",
+            LamAbs("p2", Apply(Apply(Builtin(Bls12_381_finalVerify), Var("p1")), Var("p2")))
+          )
+        )
+    }
+
+    test("compile Keccak_256 builtin") {
+        assert(compile(Builtins.keccak_256) == LamAbs("bs", Apply(Builtin(Keccak_256), Var("bs"))))
+    }
+
+    test("compile Blake2b_224 builtin") {
+        assert(
+          compile(Builtins.blake2b_224) == LamAbs("bs", Apply(Builtin(Blake2b_224), Var("bs")))
         )
     }
 
@@ -632,46 +658,21 @@ class CompilerPluginToSIRSpec extends AnyFunSuite with ScalaCheckPropertyChecks:
           )
         )
         assert(
-          compile {
-              def swap(p: builtin.Pair[Data, Data]) =
-                  builtin.Pair(Builtins.sndPair(p), Builtins.fstPair(p))
-          } == (
-            Let(
-              Rec,
-              List(
-                Binding(
-                  "swap",
-                  LamAbs("p", MkPairData $ (SndPair $ Var("p")) $ (FstPair $ Var("p")))
-                )
-              ),
-              Const(Constant.Unit)
-            )
-          )
+          compile { (p: builtin.Pair[Data, Data]) =>
+              builtin.Pair(Builtins.sndPair(p), Builtins.fstPair(p))
+          } == LamAbs("p", MkPairData $ (SndPair $ Var("p")) $ (FstPair $ Var("p")))
         )
-        assert(compile {
-            builtin.Pair(BigInt(1), hex"deadbeef")
-        } == (Const(Constant.Pair(Constant.Integer(1), deadbeef))))
+        assert(compile { builtin.Pair(BigInt(1), hex"deadbeef") }
+            == Const(Constant.Pair(Constant.Integer(1), deadbeef)))
         assert(
-          compile {
-              def swap(p: builtin.Pair[Data, Data]) = builtin.Pair(p.snd, p.fst)
-          } == (
-            Let(
-              Rec,
-              List(
-                Binding(
-                  "swap",
-                  LamAbs(
-                    "p",
-                    Apply(
-                      Apply(Builtin(MkPairData), Apply(Builtin(SndPair), Var("p"))),
-                      Apply(Builtin(FstPair), Var("p"))
-                    )
-                  )
+          compile { (p: builtin.Pair[Data, Data]) => builtin.Pair(p.snd, p.fst) }
+              == LamAbs(
+                "p",
+                Apply(
+                  Apply(Builtin(MkPairData), Apply(Builtin(SndPair), Var("p"))),
+                  Apply(Builtin(FstPair), Var("p"))
                 )
-              ),
-              Const(Constant.Unit)
-            )
-          )
+              )
         )
     }
 
@@ -1060,7 +1061,6 @@ class CompilerPluginToSIRSpec extends AnyFunSuite with ScalaCheckPropertyChecks:
     }
 
     test("compile multiple inner matches") {
-        import scalus.prelude.List
         import scalus.prelude.List.*
         val compiled = compile {
             ((true, "test"), (false, "test")) match
@@ -1145,6 +1145,6 @@ class CompilerPluginToSIRSpec extends AnyFunSuite with ScalaCheckPropertyChecks:
         VM.evaluateDebug(term) match
             case Result.Success(evaled, _, _, logs) =>
                 assert(evaled == scalus.uplc.Term.Const(Constant.Bool(false)))
-                assert(logs == List("oneEqualsTwo ? False: { mem: 0.002334, cpu: 1.007931 }"))
+                assert(logs == List("oneEqualsTwo ? False: { mem: 0.002334, cpu: 0.539980 }"))
             case Result.Failure(exception, _, _, _) => fail(exception)
     }

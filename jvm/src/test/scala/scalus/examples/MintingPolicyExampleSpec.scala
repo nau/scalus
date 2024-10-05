@@ -8,9 +8,6 @@ import scalus.builtin.Data
 import scalus.ledger.api.v1.ToDataInstances.given
 import scalus.ledger.api.v1.*
 import scalus.ledger.api.v2
-import scalus.prelude.List
-import scalus.prelude.List.Cons
-import scalus.prelude.List.Nil
 import scalus.prelude.Maybe.*
 import scalus.prelude.*
 import scalus.uplc.Term.*

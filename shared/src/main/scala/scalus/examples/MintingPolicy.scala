@@ -2,13 +2,11 @@ package scalus.examples
 
 import scalus.Compile
 import scalus.Compiler.compile
-import scalus.Compiler.fieldAsData
 import scalus.builtin.Builtins.*
 import scalus.builtin.ByteString
 import scalus.builtin.ByteString.given
 import scalus.ledger.api.v1.FromDataInstances.given
 import scalus.ledger.api.v1.*
-import scalus.prelude.List
 import scalus.prelude.Maybe.*
 import scalus.prelude.Prelude.given
 import scalus.prelude.*
@@ -23,7 +21,6 @@ case class MintingContext(inputs: List[TxOutRef], minted: Value, ownSymbol: Curr
 
 @Compile
 object MintingPolicy {
-    import List.*
     import ScriptPurpose.*
 
     given Data.FromData[TxInInfoTxOutRefOnly] = (d: Data) =>

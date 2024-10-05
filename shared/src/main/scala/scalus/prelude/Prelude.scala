@@ -139,6 +139,30 @@ enum Maybe[+A]:
 
 @Compile
 object Maybe {
+
+    /** Constructs a `Maybe` from a value. If the value is `null`, it returns `Nothing`, otherwise
+      * `Just(value)`.
+      */
+    @Ignore
+    inline def apply[A](x: A): Maybe[A] = if x == null then Nothing else Just(x)
+
+    extension [A](m: Maybe[A])
+        /** Converts a `Maybe` to an [[Option]] */
+        @Ignore
+        def toOption: Option[A] = m match
+            case Nothing => None
+            case Just(a) => Some(a)
+
+        def map[B](f: A => B): Maybe[B] = m match
+            case Nothing => Nothing
+            case Just(a) => Just(f(a))
+
+    /** Converts an [[Option]] to a `Maybe` */
+    @Ignore
+    def fromOption[A](o: Option[A]): Maybe[A] = o match
+        case None    => Nothing
+        case Some(a) => Just(a)
+
     given maybeEq[A](using eq: Eq[A]): Eq[Maybe[A]] = (a: Maybe[A], b: Maybe[A]) =>
         a match
             case Nothing =>
@@ -224,3 +248,5 @@ object AssocMap {
     def all[A, B](map: AssocMap[A, B])(f: ((A, B)) => Boolean): Boolean =
         List.all(map.inner)(f)
 }
+
+case class Rational(numerator: BigInt, denominator: BigInt)

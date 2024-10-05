@@ -5,7 +5,6 @@ import dotty.tools.dotc.ast.Trees.*
 import dotty.tools.dotc.ast.tpd
 import dotty.tools.dotc.core.*
 import dotty.tools.dotc.core.Contexts.Context
-import dotty.tools.dotc.core.Flags.*
 import dotty.tools.dotc.core.NameKinds.UniqueNameKind
 import dotty.tools.dotc.core.Names.*
 import dotty.tools.dotc.core.StdNames.nme

@@ -9,10 +9,10 @@ Converting full `ScriptContext` to Scott-encoded lambdas is not always necessary
 
 ```scala mdoc:compile-only
 import scalus.*, Compiler.*, builtin.{Data, Builtins, ByteString}, Builtins.*, ByteString.given
-import scalus.ledger.api.v2.*
+import scalus.ledger.api.v3.*
 
 val sir = compile:
-    def validator(datum: Data, redeemer: Data, ctxData: Data) =
+    def validator(ctxData: Data) =
         // this generates headList(...headList(sndPair(unConstrData(ctxData)))) code
         // to extract the signatories field from the ScriptContext
         val signatories = fieldAsData[ScriptContext](_.txInfo.signatories)(ctxData)
@@ -74,8 +74,8 @@ It's a good idea to print the SIR to understand what the compiler has generated.
 ```scala mdoc:compile-only
 import scalus.*, scalus.sir.SIR
 val sir: SIR = ??? // from the previous example
-println(sir.pretty.render(100)) // pretty-print the SIR
-println(sir.prettyXTerm.render(100)) // pretty-print the SIR with colorized syntax highlighting
+println(sir.show) // pretty-print the SIR
+println(sir.showHighlighted) // pretty-print the SIR with colorized syntax highlighting
 ```
 
 ## SIR optimizations

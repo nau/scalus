@@ -15,6 +15,7 @@ import com.bloxbean.cardano.client.transaction.spec.Transaction
 import com.bloxbean.cardano.client.transaction.spec.TransactionInput
 import com.bloxbean.cardano.client.transaction.spec.TransactionOutput
 import com.bloxbean.cardano.client.transaction.spec.TransactionWitnessSet
+import com.bloxbean.cardano.client.transaction.util.TransactionUtil
 import com.bloxbean.cardano.client.util.JsonUtil
 import scalus.builtin.ByteString
 import scalus.uplc.eval.ExBudget
@@ -23,7 +24,6 @@ import scalus.utils.Utils
 import java.util
 import java.util.ArrayList
 import java.util.List
-import java.util.Set
 import scala.beans.BeanProperty
 import scala.collection.mutable
 import scala.jdk.CollectionConverters.*
@@ -50,7 +50,8 @@ class ScalusTransactionEvaluator(
     @BeanProperty val protocolParams: ProtocolParams,
     @BeanProperty val utxoSupplier: UtxoSupplier,
     @BeanProperty val scriptSupplier: ScriptSupplier,
-    @BeanProperty val mode: EvaluatorMode
+    @BeanProperty val mode: EvaluatorMode,
+    @BeanProperty val debugDumpFilesForTesting: Boolean = false
 ) extends TransactionEvaluator {
 
     /** Constructor with protocol params, utxo supplier, script supplier and mode. Uses
@@ -114,9 +115,13 @@ class ScalusTransactionEvaluator(
         val costModelV2 = CostModelUtil
             .getCostModelFromProtocolParams(protocolParams, Language.PLUTUS_V2)
             .get()
+        val costModelV3 = CostModelUtil
+            .getCostModelFromProtocolParams(protocolParams, Language.PLUTUS_V3)
+            .get()
         val cm = CostMdls()
         cm.add(costModelV1)
         cm.add(costModelV2)
+        cm.add(costModelV3)
         cm
     }
 
@@ -133,7 +138,7 @@ class ScalusTransactionEvaluator(
           protocolParams.getProtocolMajorVer.intValue(),
           costMdls,
           mode,
-          debugDumpFilesForTesting = false
+          debugDumpFilesForTesting
         )
 
     override def evaluateTx(
@@ -147,77 +152,27 @@ class ScalusTransactionEvaluator(
             .stream()
             .map(data => ByteString.fromArray(data.getDatumHashAsBytes))
             .collect(util.stream.Collectors.toList())
-        evaluateTx(transaction, inputUtxos, datumHashes.getOrElse(util.List.of()))
+        evaluateTx(
+          transaction,
+          inputUtxos,
+          datumHashes.getOrElse(util.List.of()),
+          TransactionUtil.getTxHash(transaction)
+        )
     }
 
     def evaluateTx(
         transaction: Transaction,
         inputUtxos: util.Set[Utxo],
-        datums: util.List[scalus.builtin.ByteString]
+        datums: util.List[scalus.builtin.ByteString],
+        txhash: String
     ): Result[util.List[EvaluationResult]] = {
         try {
-            // initialize utxos with inputUtxos
-            val utxos = new mutable.HashMap[TransactionInput, Utxo]()
-            for utxo <- inputUtxos.asScala do
-                val input = TransactionInput.builder
-                    .transactionId(utxo.getTxHash)
-                    .index(utxo.getOutputIndex)
-                    .build
-                utxos.put(input, utxo)
-
-            // Get all input utxos using utxoSupplier
-            for input <- transaction.getBody.getInputs.asScala do
-                if !utxos.contains(input) then
-                    val utxo = utxoSupplier.getTxOutput(input.getTransactionId, input.getIndex).get
-                    utxos.put(input, utxo)
-
-            val scripts = new mutable.HashMap[String, Script]()
-
-            // Get all reference inputs utxos including scripts
-            for input <- transaction.getBody.getReferenceInputs.asScala do
-                val utxo = utxos.getOrElseUpdate(
-                  input,
-                  utxoSupplier.getTxOutput(input.getTransactionId, input.getIndex).get
-                )
-                // Get reference input script
-                if utxo.getReferenceScriptHash != null && scriptSupplier != null then
-                    val script = scriptSupplier.getScript(utxo.getReferenceScriptHash)
-                    scripts.put(utxo.getReferenceScriptHash, script)
-
-            // Initialize witness set to avoid null pointer exceptions
-            if transaction.getWitnessSet == null then
-                transaction.setWitnessSet(new TransactionWitnessSet)
-
-            val witnessSet = transaction.getWitnessSet
-            if witnessSet.getNativeScripts == null then
-                witnessSet.setNativeScripts(new util.ArrayList)
-
-            if witnessSet.getPlutusV1Scripts == null then
-                witnessSet.setPlutusV1Scripts(new util.ArrayList)
-
-            if witnessSet.getPlutusV2Scripts == null then
-                witnessSet.setPlutusV2Scripts(new util.ArrayList)
-
-            if witnessSet.getPlutusDataList == null then
-                witnessSet.setPlutusDataList(new util.ArrayList)
-
-            // Resolve Utxos
-            val resolvedUtxos =
-                val witnessScripts = transaction.getWitnessSet.getPlutusV1Scripts.asScala
-                    ++ transaction.getWitnessSet.getPlutusV2Scripts.asScala
-                    ++ transaction.getWitnessSet.getNativeScripts.asScala
-
-                for s <- witnessScripts do scripts.put(Utils.bytesToHex(s.getScriptHash), s)
-
-                val allInputs =
-                    transaction.getBody.getInputs.asScala ++
-                        transaction.getBody.getReferenceInputs.asScala
-
-                resolveTxInputs(allInputs, utxos, scripts)
+            val resolvedUtxos: Map[TransactionInput, TransactionOutput] =
+                resolveUtxos(transaction, inputUtxos)
 
             try
                 val redeemers =
-                    txEvaluator.evaluateTx(transaction, resolvedUtxos, datums.asScala)
+                    txEvaluator.evaluateTx(transaction, resolvedUtxos, datums.asScala, txhash)
                 val evaluationResults = redeemers.map { redeemer =>
                     EvaluationResult.builder
                         .redeemerTag(redeemer.getTag)
@@ -246,6 +201,81 @@ class ScalusTransactionEvaluator(
         } catch {
             case e: Exception => throw ApiException("Error evaluating transaction", e)
         }
+    }
+
+    private[bloxbean] def resolveUtxos(
+        transaction: Transaction,
+        inputUtxos: util.Set[Utxo]
+    ): Map[TransactionInput, TransactionOutput] = {
+        // initialize utxos with inputUtxos
+        val utxos = new mutable.HashMap[TransactionInput, Utxo]()
+        for utxo <- inputUtxos.asScala do
+            val input = TransactionInput.builder
+                .transactionId(utxo.getTxHash)
+                .index(utxo.getOutputIndex)
+                .build
+            utxos.put(input, utxo)
+
+        // Get all input utxos using utxoSupplier
+        for input <- transaction.getBody.getInputs.asScala do
+            if !utxos.contains(input) then
+                val utxo = utxoSupplier.getTxOutput(input.getTransactionId, input.getIndex).get
+                utxos.put(input, utxo)
+
+        val scripts = new mutable.HashMap[String, Script]()
+
+        // Get all reference inputs utxos including scripts
+        for input <- transaction.getBody.getReferenceInputs.asScala do
+            val utxo = utxos.getOrElseUpdate(
+              input,
+              utxoSupplier.getTxOutput(input.getTransactionId, input.getIndex).get
+            )
+            // Get reference input script
+            if utxo.getReferenceScriptHash != null && scriptSupplier != null then
+                try
+                    val script = scriptSupplier.getScript(utxo.getReferenceScriptHash)
+                    scripts.put(utxo.getReferenceScriptHash, script)
+                catch
+                    case _: Exception =>
+                        // this can happen if the Plutus script is not found
+                        // usually this is the case for native scripts
+                        // we can ignore this
+                        ()
+
+        // Initialize witness set to avoid null pointer exceptions
+        if transaction.getWitnessSet == null then
+            transaction.setWitnessSet(new TransactionWitnessSet)
+
+        val witnessSet = transaction.getWitnessSet
+        if witnessSet.getNativeScripts == null then witnessSet.setNativeScripts(new util.ArrayList)
+
+        if witnessSet.getPlutusV1Scripts == null then
+            witnessSet.setPlutusV1Scripts(new util.ArrayList)
+
+        if witnessSet.getPlutusV2Scripts == null then
+            witnessSet.setPlutusV2Scripts(new util.ArrayList)
+
+        if witnessSet.getPlutusV3Scripts == null then
+            witnessSet.setPlutusV3Scripts(new util.ArrayList)
+
+        if witnessSet.getPlutusDataList == null then
+            witnessSet.setPlutusDataList(new util.ArrayList)
+
+        // Resolve Utxos
+        val resolvedUtxos =
+            val witnessScripts = transaction.getWitnessSet.getPlutusV1Scripts.asScala
+                ++ transaction.getWitnessSet.getPlutusV2Scripts.asScala
+                ++ transaction.getWitnessSet.getPlutusV3Scripts.asScala
+                ++ transaction.getWitnessSet.getNativeScripts.asScala
+
+            for s <- witnessScripts do scripts.put(Utils.bytesToHex(s.getScriptHash), s)
+
+            val allInputs =
+                transaction.getBody.getInputs.asScala ++
+                    transaction.getBody.getReferenceInputs.asScala
+
+            resolveTxInputs(allInputs, utxos, scripts)
+        resolvedUtxos
     }
 
     override def evaluateTx(

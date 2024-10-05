@@ -1,9 +1,11 @@
 package scalus.uplc
 
-import java.io.ByteArrayInputStream
+import scalus.ledger.api.BuiltinSemanticsVariant
 import scalus.uplc.eval.ExBudget
-import scalus.uplc.eval.ExMemory
 import scalus.uplc.eval.ExCPU
+import scalus.uplc.eval.ExMemory
+
+import java.io.ByteArrayInputStream
 import java.io.ByteArrayOutputStream
 import scala.sys.process.*
 
@@ -32,16 +34,25 @@ enum UplcEvalResult:
 object UplcCli:
     private val budget = raw"""\s*CPU budget:\s+(\d+)\s*Memory budget:\s+(\d+)""".r
 
-    /** Evaluates a UPLC program using the Cardano `uplc` CLI
+    /** Evaluates a UPLC program using the Cardano `uplc` CLI using the builtin semantics variant
+      * 'B'.
       *
       * @param program
       *   the UPLC program
       */
     def evalFlat(program: Program): UplcEvalResult =
+        evalFlat(program, BuiltinSemanticsVariant.B)
+
+    /** Evaluates a UPLC program using the Cardano `uplc` CLI
+      *
+      * @param program
+      *   the UPLC program
+      */
+    def evalFlat(program: Program, semanticsVariant: BuiltinSemanticsVariant): UplcEvalResult =
         import cats.implicits.toShow
         val flat = program.flatEncoded
         val cmd =
-            "uplc evaluate --input-format flat --counting --trace-mode LogsWithBudgets --builtin-semantics-variant A"
+            s"uplc evaluate --input-format flat --counting --trace-mode LogsWithBudgets --builtin-semantics-variant $semanticsVariant"
         var out = ""
         val retCode = cmd.#<(new ByteArrayInputStream(flat)).!(ProcessLogger(o => out += o))
         if retCode == 0 then

@@ -5,7 +5,9 @@ import cats.syntax.group.*
 import scalus.builtin.ByteString
 import scalus.builtin.Data
 import scalus.builtin.PlatformSpecific
+import scalus.ledger.api.BuiltinSemanticsVariant
 import scalus.ledger.api.PlutusLedgerLanguage
+import scalus.ledger.api.ProtocolVersion
 import scalus.ledger.babbage.*
 import scalus.uplc.DefaultUni.asConstant
 import scalus.uplc.Term.*
@@ -15,10 +17,10 @@ import scala.annotation.varargs
 import scala.collection.immutable
 import scala.collection.immutable.ArraySeq
 import scala.collection.mutable.ArrayBuffer
+import scala.collection.mutable.Buffer
 import scala.collection.mutable.HashMap
 import scala.util.Try
 import scala.util.control.NonFatal
-import scala.collection.mutable.Buffer
 
 enum StepKind:
     case Const, Var, LamAbs, Apply, Delay, Force, Builtin, Constr, Case
@@ -42,7 +44,7 @@ case class CekMachineCosts(
 )
 
 object CekMachineCosts {
-    val defaultMachineCosts: CekMachineCosts = CekMachineCosts(
+    val defaultMachineCostsA: CekMachineCosts = CekMachineCosts(
       startupCost = ExBudget(ExCPU(100), ExMemory(100)),
       varCost = ExBudget(ExCPU(23000), ExMemory(100)),
       constCost = ExBudget(ExCPU(23000), ExMemory(100)),
@@ -55,14 +57,33 @@ object CekMachineCosts {
       caseCost = ExBudget(ExCPU(23000), ExMemory(100))
     )
 
+    val defaultMachineCostsB: CekMachineCosts = CekMachineCosts(
+      startupCost = ExBudget(ExCPU(100), ExMemory(100)),
+      varCost = ExBudget(ExCPU(16000), ExMemory(100)),
+      constCost = ExBudget(ExCPU(16000), ExMemory(100)),
+      lamCost = ExBudget(ExCPU(16000), ExMemory(100)),
+      delayCost = ExBudget(ExCPU(16000), ExMemory(100)),
+      forceCost = ExBudget(ExCPU(16000), ExMemory(100)),
+      applyCost = ExBudget(ExCPU(16000), ExMemory(100)),
+      builtinCost = ExBudget(ExCPU(16000), ExMemory(100)),
+      constrCost = ExBudget(ExCPU(16000), ExMemory(100)),
+      caseCost = ExBudget(ExCPU(16000), ExMemory(100))
+    )
+
+    val defaultMachineCostsC: CekMachineCosts = defaultMachineCostsB
+    val defaultMachineCosts: CekMachineCosts = defaultMachineCostsC
+
     def fromMap(map: Map[String, Long]): CekMachineCosts = {
         def get(key: String) = {
             val cpu = s"${key}-exBudgetCPU"
             val memory = s"${key}-exBudgetMemory"
             ExBudget.fromCpuAndMemory(
-              cpu = map.getOrElse(cpu, throw new IllegalArgumentException(s"Missing key: $cpu")),
-              memory =
-                  map.getOrElse(memory, throw new IllegalArgumentException(s"Missing key: $memory"))
+              cpu = map
+                  .getOrElse(cpu, throw new IllegalArgumentException(s"Missing key: $cpu in $map")),
+              memory = map.getOrElse(
+                memory,
+                throw new IllegalArgumentException(s"Missing key: $memory in $map")
+              )
             )
         }
 
@@ -90,21 +111,64 @@ object CekMachineCosts {
   */
 case class MachineParams(
     machineCosts: CekMachineCosts,
-    builtinCostModel: BuiltinCostModel
+    builtinCostModel: BuiltinCostModel,
+    semanticVariant: BuiltinSemanticsVariant
 )
 
 object MachineParams {
 
-    /** The default machine parameters.
+    val defaultPlutusV1PostConwayParams: MachineParams =
+        defaultParamsFor(PlutusLedgerLanguage.PlutusV1, ProtocolVersion.conwayPV)
+
+    val defaultPlutusV2PostConwayParams: MachineParams =
+        defaultParamsFor(PlutusLedgerLanguage.PlutusV2, ProtocolVersion.conwayPV)
+
+    val defaultPlutusV3Params: MachineParams =
+        defaultParamsFor(PlutusLedgerLanguage.PlutusV3, ProtocolVersion.conwayPV)
+
+    /** The default machine parameters. Uses [[BuiltinSemanticsVariant.B]]
       * @note
       *   The default machine parameters use machine costs and builtin cost model that may be
       *   outdated, making budget calculation not precise. Please use
       *   `fromCardanoCliProtocolParamsJson` etc to create machine parameters with the latest costs.
       */
-    val defaultParams: MachineParams = MachineParams(
-      machineCosts = CekMachineCosts.defaultMachineCosts,
-      builtinCostModel = BuiltinCostModel.defaultCostModel
-    )
+    @deprecated("Use defaultPlutusV2PostConwayParams or defaultParamsFor", "0.8.0")
+    val defaultParams: MachineParams = defaultPlutusV2PostConwayParams
+
+    /** Creates default machine parameters for a given Plutus version and protocol version.
+      *
+      * @param plutus
+      *   The plutus version
+      * @param protocolVersion
+      *   The protocol version
+      * @return
+      *   The machine parameters
+      */
+    def defaultParamsFor(
+        plutus: PlutusLedgerLanguage,
+        protocolVersion: ProtocolVersion
+    ): MachineParams = {
+        val variant = BuiltinSemanticsVariant.fromProtocolAndPlutusVersion(protocolVersion, plutus)
+        variant match
+            case BuiltinSemanticsVariant.A =>
+                MachineParams(
+                  machineCosts = CekMachineCosts.defaultMachineCostsA,
+                  builtinCostModel = BuiltinCostModel.defaultCostModelA,
+                  semanticVariant = variant
+                )
+            case BuiltinSemanticsVariant.B =>
+                MachineParams(
+                  machineCosts = CekMachineCosts.defaultMachineCostsB,
+                  builtinCostModel = BuiltinCostModel.defaultCostModelB,
+                  semanticVariant = variant
+                )
+            case BuiltinSemanticsVariant.C =>
+                MachineParams(
+                  machineCosts = CekMachineCosts.defaultMachineCostsC,
+                  builtinCostModel = BuiltinCostModel.defaultCostModelC,
+                  semanticVariant = variant
+                )
+    }
 
     /** Creates `MachineParams` from a Cardano CLI protocol parameters JSON.
       *
@@ -150,19 +214,25 @@ object MachineParams {
             case PlutusLedgerLanguage.PlutusV1 =>
                 val costs = pparams.costModels("PlutusV1")
                 val params = PlutusV1Params.fromSeq(costs)
-                writeJs(params).obj.map { case (k, v) => (k, v.num.toLong) }.toMap
+                writeJs(params).obj.map { (k, v) => (k, v.num.toLong) }.toMap
             case PlutusLedgerLanguage.PlutusV2 =>
                 val costs = pparams.costModels("PlutusV2")
                 val params = PlutusV2Params.fromSeq(costs)
-                writeJs(params).obj.map { case (k, v) =>
-                    (k, v.num.toLong)
-                }.toMap
+                writeJs(params).obj.map { (k, v) => (k, v.num.toLong) }.toMap
             case PlutusLedgerLanguage.PlutusV3 =>
-                throw new NotImplementedError("PlutusV3 not supported yet")
+                val costs = pparams.costModels("PlutusV3")
+                val params = PlutusV3Params.fromSeq(costs)
+                writeJs(params).obj.map { (k, v) => (k, v.num.toLong) }.toMap
 
-        val builtinCostModel = BuiltinCostModel.fromCostModelParams(paramsMap)
+        val semvar =
+            BuiltinSemanticsVariant.fromProtocolAndPlutusVersion(pparams.protocolVersion, plutus)
+        val builtinCostModel = BuiltinCostModel.fromCostModelParams(plutus, semvar, paramsMap)
         val machineCosts = CekMachineCosts.fromMap(paramsMap)
-        MachineParams(machineCosts = machineCosts, builtinCostModel = builtinCostModel)
+        MachineParams(
+          machineCosts = machineCosts,
+          builtinCostModel = builtinCostModel,
+          semanticVariant = semvar
+        )
     }
 }
 
@@ -345,9 +415,11 @@ class PlutusVM(platformSpecific: PlatformSpecific) {
       * @throws StackTraceMachineError
       *   subtypes if the evaluation fails
       */
-    def evaluateTerm(term: Term): Term = {
-        val cek =
-            new CekMachine(MachineParams.defaultParams, NoBudgetSpender, NoLogger, platformSpecific)
+    def evaluateTerm(
+        term: Term,
+        params: MachineParams = MachineParams.defaultPlutusV2PostConwayParams
+    ): Term = {
+        val cek = new CekMachine(params, NoBudgetSpender, NoLogger, platformSpecific)
         val debruijnedTerm = DeBruijn.deBruijnTerm(term)
         cek.evaluateTerm(debruijnedTerm)
     }
@@ -360,14 +432,12 @@ class PlutusVM(platformSpecific: PlatformSpecific) {
       *   [[Result]] with the resulting term, the execution budget, evaluation logs and costs, and
       *   an exception if the evaluation failed
       */
-    def evaluateDebug(term: Term, params: MachineParams = MachineParams.defaultParams): Result = {
+    def evaluateDebug(
+        term: Term,
+        params: MachineParams = MachineParams.defaultPlutusV2PostConwayParams
+    ): Result = {
         val spenderLogger = TallyingBudgetSpenderLogger(CountingBudgetSpender())
-        val cekMachine = CekMachine(
-          MachineParams.defaultParams,
-          spenderLogger,
-          spenderLogger,
-          platformSpecific
-        )
+        val cekMachine = CekMachine(params, spenderLogger, spenderLogger, platformSpecific)
         val debruijnedTerm = DeBruijn.deBruijnTerm(term)
         try
             Result.Success(
@@ -390,7 +460,10 @@ class PlutusVM(platformSpecific: PlatformSpecific) {
       *
       * Useful for testing and debugging.
       */
-    def evaluateProgram(p: Program): Term = evaluateTerm(p.term)
+    def evaluateProgram(
+        p: Program,
+        params: MachineParams = MachineParams.defaultPlutusV2PostConwayParams
+    ): Term = evaluateTerm(p.term, params)
 }
 
 enum Result:
@@ -591,7 +664,7 @@ class CekMachine(
     budgetSpender: BudgetSpender,
     logger: Logger,
     platformSpecific: PlatformSpecific
-) extends BuiltinsMeaning(params.builtinCostModel, platformSpecific) {
+) extends BuiltinsMeaning(params.builtinCostModel, platformSpecific, params.semanticVariant) {
     import CekState.*
     import CekValue.*
     import Context.*

@@ -8,7 +8,6 @@ import scalus.ledger.api.v1.*
 import scalus.prelude.Maybe.*
 import scalus.prelude.*
 import scalus.uplc.ArbitraryInstances
-import scalus.uplc.DeBruijn
 import scalus.uplc.*
 import scalus.uplc.eval.VM
 

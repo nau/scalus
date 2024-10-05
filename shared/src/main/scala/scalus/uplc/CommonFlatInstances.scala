@@ -39,15 +39,18 @@ object CommonFlatInstances:
 
     def encodeUni(uni: DefaultUni): List[Int] =
         uni match
-            case DefaultUni.Integer           => List(0)
-            case DefaultUni.ByteString        => List(1)
-            case DefaultUni.String            => List(2)
-            case DefaultUni.Unit              => List(3)
-            case DefaultUni.Bool              => List(4)
-            case DefaultUni.ProtoList         => List(5)
-            case DefaultUni.ProtoPair         => List(6)
-            case DefaultUni.Apply(uniF, uniA) => 7 :: encodeUni(uniF) ++ encodeUni(uniA)
-            case DefaultUni.Data              => List(8)
+            case DefaultUni.Integer              => List(0)
+            case DefaultUni.ByteString           => List(1)
+            case DefaultUni.String               => List(2)
+            case DefaultUni.Unit                 => List(3)
+            case DefaultUni.Bool                 => List(4)
+            case DefaultUni.ProtoList            => List(5)
+            case DefaultUni.ProtoPair            => List(6)
+            case DefaultUni.Apply(uniF, uniA)    => 7 :: encodeUni(uniF) ++ encodeUni(uniA)
+            case DefaultUni.Data                 => List(8)
+            case DefaultUni.BLS12_381_G1_Element => List(9)
+            case DefaultUni.BLS12_381_G2_Element => List(10)
+            case DefaultUni.BLS12_381_MlResult   => List(11)
 
     def decodeUni(state: List[Int]): (DefaultUni, List[Int]) =
         state match
@@ -62,8 +65,11 @@ object CommonFlatInstances:
                 val (uniF, tail1) = decodeUni(tail)
                 val (uniA, tail2) = decodeUni(tail1)
                 (DefaultUni.Apply(uniF, uniA), tail2)
-            case 8 :: tail => (DefaultUni.Data, tail)
-            case _         => throw new Exception(s"Invalid uni: $state")
+            case 8 :: tail  => (DefaultUni.Data, tail)
+            case 9 :: tail  => (DefaultUni.BLS12_381_G1_Element, tail)
+            case 10 :: tail => (DefaultUni.BLS12_381_G2_Element, tail)
+            case 11 :: tail => (DefaultUni.BLS12_381_MlResult, tail)
+            case _          => throw new Exception(s"Invalid uni: $state")
 
     given Flat[DefaultFun] with
         def bitSize(a: DefaultFun): Int = 7
@@ -117,22 +123,44 @@ object CommonFlatInstances:
                 case TailList   => 34
                 case NullList   => 35
 
-                case ChooseData    => 36
-                case ConstrData    => 37
-                case MapData       => 38
-                case ListData      => 39
-                case IData         => 40
-                case BData         => 41
-                case UnConstrData  => 42
-                case UnMapData     => 43
-                case UnListData    => 44
-                case UnIData       => 45
-                case UnBData       => 46
-                case EqualsData    => 47
-                case MkPairData    => 48
-                case MkNilData     => 49
-                case MkNilPairData => 50
-                case SerialiseData => 51
+                case ChooseData               => 36
+                case ConstrData               => 37
+                case MapData                  => 38
+                case ListData                 => 39
+                case IData                    => 40
+                case BData                    => 41
+                case UnConstrData             => 42
+                case UnMapData                => 43
+                case UnListData               => 44
+                case UnIData                  => 45
+                case UnBData                  => 46
+                case EqualsData               => 47
+                case MkPairData               => 48
+                case MkNilData                => 49
+                case MkNilPairData            => 50
+                case SerialiseData            => 51
+                case Bls12_381_G1_add         => 54
+                case Bls12_381_G1_neg         => 55
+                case Bls12_381_G1_scalarMul   => 56
+                case Bls12_381_G1_equal       => 57
+                case Bls12_381_G1_hashToGroup => 58
+                case Bls12_381_G1_compress    => 59
+                case Bls12_381_G1_uncompress  => 60
+                case Bls12_381_G2_add         => 61
+                case Bls12_381_G2_neg         => 62
+                case Bls12_381_G2_scalarMul   => 63
+                case Bls12_381_G2_equal       => 64
+                case Bls12_381_G2_hashToGroup => 65
+                case Bls12_381_G2_compress    => 66
+                case Bls12_381_G2_uncompress  => 67
+                case Bls12_381_millerLoop     => 68
+                case Bls12_381_mulMlResult    => 69
+                case Bls12_381_finalVerify    => 70
+                case Keccak_256               => 71
+                case Blake2b_224              => 72
+                case IntegerToByteString      => 73
+                case ByteStringToInteger      => 74
+
             encode.bits(7, code.toByte)
 
         def decode(decode: DecoderState): DefaultFun =
@@ -191,6 +219,27 @@ object CommonFlatInstances:
                 case 51 => SerialiseData
                 case 52 => VerifyEcdsaSecp256k1Signature
                 case 53 => VerifySchnorrSecp256k1Signature
+                case 54 => Bls12_381_G1_add
+                case 55 => Bls12_381_G1_neg
+                case 56 => Bls12_381_G1_scalarMul
+                case 57 => Bls12_381_G1_equal
+                case 58 => Bls12_381_G1_hashToGroup
+                case 59 => Bls12_381_G1_compress
+                case 60 => Bls12_381_G1_uncompress
+                case 61 => Bls12_381_G2_add
+                case 62 => Bls12_381_G2_neg
+                case 63 => Bls12_381_G2_scalarMul
+                case 64 => Bls12_381_G2_equal
+                case 65 => Bls12_381_G2_hashToGroup
+                case 66 => Bls12_381_G2_compress
+                case 67 => Bls12_381_G2_uncompress
+                case 68 => Bls12_381_millerLoop
+                case 69 => Bls12_381_mulMlResult
+                case 70 => Bls12_381_finalVerify
+                case 71 => Keccak_256
+                case 72 => Blake2b_224
+                case 73 => IntegerToByteString
+                case 74 => ByteStringToInteger
                 case c  => throw new Exception(s"Invalid builtin function code: $c")
 
     def flatConstant(using Flat[builtin.Data]): Flat[Constant] = new Flat[Constant]:

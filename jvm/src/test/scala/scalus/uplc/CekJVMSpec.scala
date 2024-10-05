@@ -7,7 +7,6 @@ import scalus.*
 import scalus.BaseValidatorSpec
 import scalus.Compiler.compile
 import scalus.Expected
-import scalus.builtin.Builtins
 import scalus.builtin.ByteString
 import scalus.builtin.ByteString.given
 import scalus.builtin.Data
@@ -16,7 +15,6 @@ import scalus.ledger.api.v1.*
 import scalus.ledger.api.v1.ToDataInstances.given
 import scalus.prelude.List.Cons
 import scalus.prelude.List.Nil
-import scalus.uplc.DefaultFun.*
 import scalus.uplc.DefaultUni.asConstant
 import scalus.uplc.Term.*
 import scalus.uplc.TermDSL.{*, given}

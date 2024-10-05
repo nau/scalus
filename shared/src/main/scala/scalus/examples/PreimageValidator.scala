@@ -2,7 +2,6 @@ package scalus.examples
 
 import scalus.*
 import scalus.Compiler.compile
-import scalus.Compiler.fieldAsData
 import scalus.builtin.Builtins.*
 import scalus.builtin.ByteString
 import scalus.builtin.FromDataInstances.given

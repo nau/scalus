@@ -28,6 +28,7 @@ enum List[+A]:
 object List:
     def empty[A]: List[A] = Nil
     def apply[A](xs: A*): List[A] = xs.foldRight(empty[A])(_ :: _)
+    def from[A](xs: IterableOnce[A]): List[A] = xs.iterator.foldRight(empty[A])(_ :: _)
 
 case class Pair[A, B](fst: A, snd: B):
     override def toString = "(" + fst + ", " + snd + ")"

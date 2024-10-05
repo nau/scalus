@@ -8,6 +8,7 @@ import scalus.sir.SIRBuiltins
 
 class BuiltinHelper(using Context) {
     val BuiltinsClass = requiredModule("scalus.builtin.Builtins")
+
     val DefaultFunSIRBuildins: Map[String, SIR.Builtin] = Map(
       "addInteger" -> SIRBuiltins.addInteger,
       "subtractInteger" -> SIRBuiltins.subtractInteger,
@@ -77,7 +78,16 @@ class BuiltinHelper(using Context) {
       "mkNilPairData" -> SIRBuiltins.mkNilPairData
     )
 
+    val DefaultFunValues: Map[Symbol, DefaultFun] = DefaultFun.values
+        .map(v => lowerFirst(v.toString) -> v)
+        .toMap
+        .map { (k, v) => BuiltinsClass.requiredMethod(k) -> v }
+
     def builtinFun(s: Symbol)(using Context): Option[SIR.Builtin] = {
         DefaultFunSIRBuildins.get(s.name.toSimpleName.debugString)
     }
+
+    private def lowerFirst(s: String): String =
+        if s == null || s.isEmpty || !s.charAt(0).isUpper then s
+        else s.updated(0, s.charAt(0).toLower)
 }

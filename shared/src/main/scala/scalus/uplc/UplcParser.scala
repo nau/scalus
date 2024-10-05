@@ -8,8 +8,12 @@ import cats.parse.Parser0
 import cats.parse.Rfc5234.alpha
 import cats.parse.Rfc5234.digit
 import cats.parse.Rfc5234.hexdig
+import scalus.builtin.BLS12_381_G1_Element
+import scalus.builtin.BLS12_381_G2_Element
 import scalus.builtin.ByteString
 import scalus.builtin.Data
+import scalus.builtin.PlatformSpecific
+import scalus.builtin.given
 import scalus.uplc.DefaultUni.ProtoList
 import scalus.uplc.DefaultUni.ProtoPair
 import scalus.uplc.DefaultUni.asConstant
@@ -112,15 +116,28 @@ object UplcParser:
 
     val defaultUni: P[DefaultUni] = P.recursive { self =>
         def star = lexeme(
-          P.stringIn(Seq("integer", "bytestring", "string", "unit", "bool", "data"))
+          P.stringIn(
+            Seq(
+              "integer",
+              "bytestring",
+              "string",
+              "unit",
+              "bool",
+              "data",
+              "bls12_381_G1_element",
+              "bls12_381_G2_element"
+            )
+          )
         ).map {
-            case "integer"    => DefaultUni.Integer
-            case "bytestring" => DefaultUni.ByteString
-            case "string"     => DefaultUni.String
-            case "unit"       => DefaultUni.Unit
-            case "bool"       => DefaultUni.Bool
-            case "data"       => DefaultUni.Data
-            case _            => sys.error("unexpected default uni")
+            case "integer"              => DefaultUni.Integer
+            case "bytestring"           => DefaultUni.ByteString
+            case "string"               => DefaultUni.String
+            case "unit"                 => DefaultUni.Unit
+            case "bool"                 => DefaultUni.Bool
+            case "data"                 => DefaultUni.Data
+            case "bls12_381_G1_element" => DefaultUni.BLS12_381_G1_Element
+            case "bls12_381_G2_element" => DefaultUni.BLS12_381_G2_Element
+            case _                      => sys.error("unexpected default uni")
         }
         def list =
             inParens(symbol("list") *> self) map (in => DefaultUni.Apply(ProtoList, in))
@@ -193,7 +210,22 @@ object UplcParser:
             Constant.Pair(p._1, p._2)
         }
 
+    val con0xBS: P[ByteString] = P.string("0x") *> hexByte.rep0.map(bs => ByteString(bs: _*))
+
+    val conBLS12_381_G1_Element: P[BLS12_381_G1_Element] =
+        con0xBS.flatMap { s =>
+            try P.pure(summon[PlatformSpecific].bls12_381_G1_uncompress(s))
+            catch case e: Exception => P.failWith(e.getMessage)
+        }
+
+    val conBLS12_381_G2_Element: P[BLS12_381_G2_Element] =
+        con0xBS.flatMap { s =>
+            try P.pure(summon[PlatformSpecific].bls12_381_G2_uncompress(s))
+            catch case e: Exception => P.failWith(e.getMessage)
+        }
+
     val bytestring: P[ByteString] = P.char('#') *> hexByte.rep0.map(bs => ByteString(bs: _*))
+
     def constantOf(t: DefaultUni, expectDataParens: Boolean = false): P[Constant] = t match
         case DefaultUni.Integer => lexeme(integer).map(i => Constant.Integer(i))
         case DefaultUni.Unit    => symbol("()").map(_ => Constant.Unit)
@@ -210,7 +242,13 @@ object UplcParser:
             (if expectDataParens then inParens(dataTerm) else dataTerm).map(asConstant)
         case DefaultUni.Apply(ProtoList, t)                      => conListOf(t)
         case DefaultUni.Apply(DefaultUni.Apply(ProtoPair, a), b) => conPairOf(a, b)
-        case _                                                   => sys.error("not implemented")
+        case DefaultUni.BLS12_381_G1_Element =>
+            lexeme(conBLS12_381_G1_Element.map(bs => Constant.BLS12_381_G1_Element(bs)))
+        case DefaultUni.BLS12_381_G2_Element =>
+            lexeme(conBLS12_381_G2_Element.map(bs => Constant.BLS12_381_G2_Element(bs)))
+        case DefaultUni.BLS12_381_MlResult =>
+            sys.error("Constants of type bls12_381_mlresult are not supported")
+        case _ => sys.error("not implemented")
 
     val dataTerm: P[Data] = P.recursive { self =>
         def args: P[List[Data]] =

@@ -7,12 +7,18 @@ import org.bitcoins.crypto.SchnorrPublicKey
 import org.bouncycastle.crypto.digests.Blake2bDigest
 import org.bouncycastle.crypto.params.Ed25519PublicKeyParameters
 import org.bouncycastle.crypto.signers.Ed25519Signer
+import org.bouncycastle.jcajce.provider.digest.Keccak
 import org.bouncycastle.jcajce.provider.digest.SHA3
 import scalus.utils.Utils
 import scodec.bits.ByteVector
+import supranational.blst.P1
+import supranational.blst.P2
+import supranational.blst.PT
 
 object JVMPlatformSpecific extends JVMPlatformSpecific
 trait JVMPlatformSpecific extends PlatformSpecific {
+    val scalarPeriod: BigInt =
+        BigInt("73eda753299d7d483339d80809a1d80553bda402fffe5bfeffffffff00000001", 16)
     override def sha2_256(bs: ByteString): ByteString =
         ByteString.unsafeFromArray(Utils.sha2_256(bs.bytes))
 
@@ -75,6 +81,128 @@ trait JVMPlatformSpecific extends PlatformSpecific {
             throw new IllegalArgumentException(s"Invalid signature length ${sig.length}")
         val signature = ECDigitalSignature.fromRS(ByteVector(sig.bytes))
         ECPublicKey(ByteVector(pk.bytes)).verify(ByteVector(msg.bytes), signature)
+
+    // BLS12_381 operations
+    override def bls12_381_G1_equal(p1: BLS12_381_G1_Element, p2: BLS12_381_G1_Element): Boolean = {
+        p1.p.is_equal(p2.p)
+    }
+
+    override def bls12_381_G1_add(
+        p1: BLS12_381_G1_Element,
+        p2: BLS12_381_G1_Element
+    ): BLS12_381_G1_Element = BLS12_381_G1_Element(p1.p.add(p2.p))
+
+    override def bls12_381_G1_scalarMul(
+        s: BigInt,
+        p: BLS12_381_G1_Element
+    ): BLS12_381_G1_Element = {
+        val scalar = s.bigInteger.mod(scalarPeriod.bigInteger)
+        BLS12_381_G1_Element(p.p.mult(scalar))
+    }
+
+    override def bls12_381_G1_neg(
+        p: BLS12_381_G1_Element
+    ): BLS12_381_G1_Element = {
+        BLS12_381_G1_Element(p.p.neg())
+    }
+
+    override def bls12_381_G1_compress(p: BLS12_381_G1_Element): ByteString = {
+        ByteString.fromArray(p.p.compress())
+    }
+
+    override def bls12_381_G1_uncompress(bs: ByteString): BLS12_381_G1_Element = {
+        if bs.length != 48 then throw new IllegalArgumentException("Not a compressed point")
+        if (bs.bytes(0) & 0x80) == 0 then // compressed bit not set
+            throw new IllegalArgumentException(s"BSL point not compressed: $bs")
+        val p = new P1(bs.bytes)
+        if !p.in_group() then throw new IllegalArgumentException("Invalid point")
+        BLS12_381_G1_Element(p)
+    }
+
+    override def bls12_381_G1_hashToGroup(bs: ByteString, dst: ByteString): BLS12_381_G1_Element = {
+        if dst.length > 255 then throw RuntimeException(s"HashToCurveDstTooBig: ${dst.length}")
+        else
+            val p = new P1()
+            p.hash_to(bs.bytes, new String(dst.bytes, "Latin1"))
+            BLS12_381_G1_Element(p)
+    }
+
+    override val bls12_381_G1_compressed_generator: ByteString = {
+        ByteString.fromArray(P1.generator().compress())
+    }
+
+    override def bls12_381_G2_equal(p1: BLS12_381_G2_Element, p2: BLS12_381_G2_Element): Boolean = {
+        p1.p.is_equal(p2.p)
+    }
+
+    override def bls12_381_G2_add(
+        p1: BLS12_381_G2_Element,
+        p2: BLS12_381_G2_Element
+    ): BLS12_381_G2_Element = BLS12_381_G2_Element(p1.p.add(p2.p))
+
+    override def bls12_381_G2_scalarMul(
+        s: BigInt,
+        p: BLS12_381_G2_Element
+    ): BLS12_381_G2_Element = {
+        val scalar = s.bigInteger.mod(scalarPeriod.bigInteger)
+        BLS12_381_G2_Element(p.p.mult(scalar))
+    }
+
+    override def bls12_381_G2_neg(
+        p: BLS12_381_G2_Element
+    ): BLS12_381_G2_Element = {
+        BLS12_381_G2_Element(p.p.neg())
+    }
+
+    override def bls12_381_G2_compress(p: BLS12_381_G2_Element): ByteString = {
+        ByteString.fromArray(p.p.compress())
+    }
+
+    override def bls12_381_G2_uncompress(bs: ByteString): BLS12_381_G2_Element = {
+        if bs.length != 96 then throw new IllegalArgumentException("Not a compressed point")
+        if (bs.bytes(0) & 0x80) == 0 then // compressed bit not set
+            throw new IllegalArgumentException(s"BSL point not compressed: $bs")
+        val p = new P2(bs.bytes)
+        if !p.in_group() then throw new IllegalArgumentException("Invalid point")
+        BLS12_381_G2_Element(p)
+    }
+
+    override def bls12_381_G2_hashToGroup(bs: ByteString, dst: ByteString): BLS12_381_G2_Element = {
+        if dst.length > 255 then throw RuntimeException(s"HashToCurveDstTooBig: ${dst.length}")
+        else
+            val p = new P2()
+            p.hash_to(bs.bytes, new String(dst.bytes, "Latin1"))
+            BLS12_381_G2_Element(p)
+    }
+
+    override def bls12_381_G2_compressed_generator: ByteString = {
+        ByteString.fromArray(P2.generator().compress())
+    }
+
+    override def bls12_381_millerLoop(
+        p1: BLS12_381_G1_Element,
+        p2: BLS12_381_G2_Element
+    ): BLS12_381_MlResult = {
+        val pt = new PT(p1.p, p2.p)
+        BLS12_381_MlResult(pt)
+    }
+
+    override def bls12_381_mulMlResult(
+        r1: BLS12_381_MlResult,
+        r2: BLS12_381_MlResult
+    ): BLS12_381_MlResult = {
+        val pt = r1.p.mul(r2.p)
+        BLS12_381_MlResult(pt)
+    }
+
+    override def bls12_381_finalVerify(p1: BLS12_381_MlResult, p2: BLS12_381_MlResult): Boolean = {
+        PT.finalverify(p1.p, p2.p)
+    }
+
+    override def keccak_256(bs: ByteString): ByteString = {
+        val digest = new Keccak.Digest256()
+        ByteString.unsafeFromArray(digest.digest(bs.bytes))
+    }
 }
 
 given PlatformSpecific = JVMPlatformSpecific

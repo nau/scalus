@@ -4,7 +4,6 @@ package sir
 import scalus.sir.Recursivity.*
 import scalus.uplc.Constant
 import scalus.uplc.DefaultFun
-import scalus.uplc.DefaultFun.*
 import scalus.uplc.ExprBuilder
 import scalus.uplc.Meaning
 import scalus.uplc.NamedDeBruijn
@@ -43,7 +42,7 @@ class OptimizingSirToUplcLowering(
     private val usedBuiltins = TreeSet.empty[DefaultFun]
 
     private def isPoly(bi: DefaultFun): Boolean =
-        Meaning.defaultBuiltins.BuiltinMeanings(bi).typeScheme.numTypeVars > 0
+        Meaning.allBuiltins.BuiltinMeanings(bi).typeScheme.numTypeVars > 0
 
     analizeSir(sir)
 
@@ -63,7 +62,7 @@ class OptimizingSirToUplcLowering(
                 else
                     bi ->
                         forceBuiltin(
-                          Meaning.defaultBuiltins.BuiltinMeanings(bi).typeScheme,
+                          Meaning.allBuiltins.BuiltinMeanings(bi).typeScheme,
                           Term.Builtin(bi)
                         )
             .toMap
@@ -131,7 +130,7 @@ class OptimizingSirToUplcLowering(
 
     private def addForcedBuiltins(toForce: collection.Set[DefaultFun])(term: Term): Term =
         usedBuiltins.filter(isPoly).foldLeft(term) { (acc, bi) =>
-            val scheme = Meaning.defaultBuiltins.BuiltinMeanings(bi).typeScheme
+            val scheme = Meaning.allBuiltins.BuiltinMeanings(bi).typeScheme
             if toForce.contains(bi) then
                 val forced = forceBuiltin(scheme, Term.Builtin(bi))
                 Term.Apply(Term.LamAbs(s"__builtin_${bi}", acc), forced)
