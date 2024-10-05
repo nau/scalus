@@ -69,9 +69,6 @@ trait HashConsedReprFlat[A<:AnyRef, SA <: HashConsedRef[A]]  {
 
     def decodeHC(decode: HashConsedDecoderState): SA
     
-    def finDecodeHC(hashConsed: HashConsed.State, sa: SA): A =
-        sa.finValue(hashConsed)
-
 }
 
 object HashConsedReprFlat {

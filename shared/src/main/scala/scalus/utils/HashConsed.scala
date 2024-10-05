@@ -62,8 +62,11 @@ object HashConsed {
    def tag(value:Int): Tag = value
 
    class ForwardRefAcceptor(val ihc: Int, val tag:Tag, var setActions: List[HashConsedRef[?]=>Unit]) {
-         def addAction(action: HashConsedRef[?] => Unit): Unit =
+         
+       def addAction(action: HashConsedRef[?] => Unit): Unit =
               setActions = action :: setActions
+       
+
    }
 
     
@@ -78,6 +81,7 @@ object HashConsed {
             if (data == null) then
                 data = ref.finValue(hashConsed)
             data.asInstanceOf[A]
+       
    }
 
    class MutRef[A<:AnyRef](var value: A | Null) extends HashConsedRef[A] {
@@ -156,7 +160,9 @@ object HashConsed {
    case class State(
                        forwardRefAcceptors: MutableMap[Int, List[ForwardRefAcceptor]],
                        map: MutableMap[Int, List[CachedTaggedRef[?]]]
-                   )
+                   )  
+
+       
 
    object State:
        def empty = State(MutableMap.empty, MutableMap.empty)

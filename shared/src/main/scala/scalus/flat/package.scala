@@ -183,7 +183,9 @@ package object flat:
             Natural(r)
 
     given Flat[String] with
-        def bitSize(a: String): Int = byteArraySize(a.getBytes("UTF-8"))
+        def bitSize(a: String): Int = 
+            summon[Flat[Array[Byte]]].bitSize(a.getBytes("UTF-8"))
+            
         def encode(a: String, encode: EncoderState): Unit =
             summon[Flat[Array[Byte]]].encode(a.getBytes("UTF-8"), encode)
 
@@ -303,7 +305,8 @@ package object flat:
             this.currentByte |= 1;
             nextWord()
             
-        def bitPosition(): Int = this.nextPtr * 8 + this.usedBits    
+        def bitPosition(): Int =
+            this.nextPtr * 8 + this.usedBits    
 
 
 
