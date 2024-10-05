@@ -32,7 +32,8 @@ object FlatInstantces:
 
         def bitSize(a: Data): Int = a match
             case Data.Constr(constr, args) =>
-                width + summon[Flat[Long]].bitSize(constr) + args.map(bitSize(_)).sum
+                width + summon[Flat[Long]].bitSize(constr) + 
+                    args.map(bitSize(_)).sum
             case Data.Map(values) =>
                 width + values.map { case (k, v) => bitSize(k) + bitSize(v) }.sum
             case Data.List(values) => width + values.map(bitSize).sum
@@ -275,7 +276,6 @@ object FlatInstantces:
                 case SIRType.TypeProxy(ref) =>
                     if (ref == null) 
                         throw new IllegalStateException("TypeProxy id is null, looks lise save or restore is invalid")
-                    println(s"encode proxy, ref=${ref}")
                     hashConsed.lookup(ref.hashCode(), tag) match
                         case None => tagWidth + PlainIntFlat.bitSize(ref.hashCode()) + bitSizeHC(ref, hashConsed)
                         case Some(_) => tagWidth + PlainIntFlat.bitSize(ref.hashCode())
@@ -912,14 +912,22 @@ object FlatInstantces:
 
     given HashConsedFlat[Module] with
         def bitSizeHC(a: Module, hs: HashConsed.State): Int =
-            ModuleHashSetReprFlat.bitSizeHC(a, hs)
+            println(s"before bitSizeHC Module ${a.version}, head-name = ${a.defs.head.name}")
+            val retval = ModuleHashSetReprFlat.bitSizeHC(a, hs)
+            println(s"after bitSizeHC module ${a.version}, heed=name = ${a.defs.head.name} retval =${retval}")
+            retval
 
         def encodeHC(a: Module, enc: HashConsedEncoderState): Unit =
+            println(s"before encoding Module ${a.version}, head-name = ${a.defs.head.name}")
             ModuleHashSetReprFlat.encodeHC(a, enc)
+            println(s"after encoding Module , count=${enc.encode.bitPosition()}")
 
         def decodeHC(decoder: HashConsedDecoderState): Module =
             // here we know that Module is the whole data, so decondign is finished
+            println(s"before decoding Module")
             val repr = ModuleHashSetReprFlat.decodeHC(decoder)
             decoder.runFinCallbacks()
-            repr.finValue(decoder.hashConsed)
+            val retval = repr.finValue(decoder.hashConsed)
+            println(s"after decoding Module, head-name = ${retval.defs.head.name}")
+            retval
 
