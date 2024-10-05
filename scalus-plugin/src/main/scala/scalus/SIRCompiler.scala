@@ -36,6 +36,7 @@ import scala.collection.mutable.ListBuffer
 import scala.language.implicitConversions
 import scala.annotation.unused
 import scala.util.control.NonFatal
+import scalus.builtin.ByteString
 
 case class FullName(name: String)
 object FullName:

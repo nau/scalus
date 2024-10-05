@@ -91,7 +91,7 @@ object HashConsedReprFlat {
             def toRepr(a: List[A]): ListRepl[A,SA] = ListRepl[A,SA](a.map(flatA.toRepr))
 
             def bitSizeHC(a: List[A], hashConsed: HashConsed.State): Int = {
-                a.foldLeft(1)((acc, elem) => acc + flatA.bitSizeHC(elem, hashConsed)+1)
+                a.foldLeft(1)((acc, elem) => acc + 1 + flatA.bitSizeHC(elem, hashConsed))
             }
 
             def encodeHC(a: List[A], encode: HashConsedEncoderState): Unit = {
@@ -105,8 +105,7 @@ object HashConsedReprFlat {
             def decodeHC(decode: HashConsedDecoderState): ListRepl[A,SA] = {
                 val builder = List.newBuilder[SA]
                 while
-                    val tag = decode.decode.bits8(1)
-                    tag == 1
+                    decode.decode.bits8(1) == 1.toByte
                   do
                     val elem = flatA.decodeHC(decode)
                     builder += elem

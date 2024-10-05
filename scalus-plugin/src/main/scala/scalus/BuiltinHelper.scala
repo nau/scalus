@@ -78,10 +78,10 @@ class BuiltinHelper(using Context) {
       "mkNilPairData" -> SIRBuiltins.mkNilPairData
     )
 
-    val DefaultFunValues: Map[Symbol, DefaultFun] = DefaultFun.values
-        .map(v => lowerFirst(v.toString) -> v)
-        .toMap
-        .map { (k, v) => BuiltinsClass.requiredMethod(k) -> v }
+    //val DefaultFunValues: Map[Symbol, DefaultFun] = DefaultFun.values
+    //    .map(v => lowerFirst(v.toString) -> v)
+    //    .toMap
+    //    .map { (k, v) => BuiltinsClass.requiredMethod(k) -> v }
 
     def builtinFun(s: Symbol)(using Context): Option[SIR.Builtin] = {
         DefaultFunSIRBuildins.get(s.name.toSimpleName.debugString)
