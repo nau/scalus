@@ -4,6 +4,10 @@ package eval
 
 import org.scalatest.funsuite.AnyFunSuite
 
+import scala.util.Failure
+import scala.util.Success
+import scala.util.Try
+
 /** Tests for the Plutus Conformance Test Suite.
   *
   * @note
@@ -378,7 +382,7 @@ abstract class PlutusConformanceSpec extends AnyFunSuite:
     private type EvalFailure = "evaluation failure"
     private type ParseError = "parse error"
     private type Error = EvalFailure | ParseError
-    private def parseExpected(code: String): Either[Error, Program] = {
+    private def parseExpected(code: String): Either[Error, Term] = {
         code match
             case "evaluation failure" => Left("evaluation failure")
             case "parse error"        => Left("parse error")
@@ -386,38 +390,49 @@ abstract class PlutusConformanceSpec extends AnyFunSuite:
                 UplcParser().parseProgram(code) match
                     case Left(value) => fail(s"Unexpected parse error: $value")
                     case Right(program) =>
-                        Right(program.copy(term = DeBruijn.deBruijnTerm(program.term)))
+                        Right(DeBruijn.deBruijnTerm(program.term))
 
     }
 
-    private def eval(code: String): Either[(Error, Exception), Program] = {
+    private def eval(code: String): Either[Error, Result] = {
         UplcParser().parseProgram(code) match
             case Right(program) =>
-                try Right(program.copy(term = VM.evaluateProgram(program, MachineParams.defaultPlutusV3Params)))
-                catch
-                  case e: MatchError =>
-                    e.printStackTrace()
-                    import scalus.*
-                    println(program.prettyXTerm.render(100))
-                    Left("evaluation failure" -> e)
-                  case e: Exception =>
-                    Left("evaluation failure" -> e)
-            case Left(e) =>
-                Left("parse error" -> RuntimeException(e))
+                Right(VM.evaluateDebug(program.term, MachineParams.defaultPlutusV3Params))
+            case Left(_) =>
+                Left("parse error")
     }
 
     protected def readFile(path: String): String
 
     protected def path = s"plutus-conformance/test-cases/uplc/evaluation"
 
+    private val BudgetRegex = """\(\{cpu:\s(\d+)\n\|\smem:\s(\d+)\}\)""".r
+
     protected def check(name: String): Unit =
         test(name) {
             val code = readFile(s"$path/$name.uplc")
             val expected = readFile(s"$path/$name.uplc.expected")
+            val expectedBudget =
+                val budget = Try(readFile(s"$path/$name.uplc.budget.expected"))
+                budget match
+                    case Success(BudgetRegex(cpu, mem)) =>
+                        Right(ExBudget.fromCpuAndMemory(cpu.toInt, mem.toInt))
+                    case Success("parse error") => Left("parse error")
+                    case Success("evaluation failure") => Left("evaluation failure")
+                    case Failure(_) => Left("no file")
+                    case _ => fail(s"Unexpected budget format:\n$budget")
+            
             // println(eval(code).show)
-            (eval(code), parseExpected(expected)) match
-                case (Right(actual), Right(expected)) =>
-                    assert(actual alphaEq expected, s"Expected $expected but got $actual")
-                case (Left((e1, _)), Left(e2)) => assert(e1 == e2)
-                case (a, b)               => fail(s"Expected $b but got $a")
+            (eval(code), parseExpected(expected), expectedBudget) match
+                case (Right(Result.Success(actualTerm, budget, _, _)), Right(expectedTerm), expectedBudget) =>
+                    assert(Term.alphaEq(actualTerm, expectedTerm), s"Expected $expectedTerm but got $actualTerm")
+                    expectedBudget match
+                        case Right(expectedBudget) =>
+                            assert(budget == expectedBudget, s"Expected $expectedBudget but got $budget")
+                        case Left("no file") => // ignore
+                        case Left(e) => fail(s"Expected $e but got $budget")
+                case (Right(Result.Failure(actualTerm, _, _, _)), Left("evaluation failure"), Left("evaluation failure")) =>
+                    assert(true)
+                case (Left(e1), Left(e2), Left(_)) => assert(e1 == e2)
+                case (a, b, c)               => fail(s"Expected $b but got $a and budget $c")
         }

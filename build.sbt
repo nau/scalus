@@ -139,7 +139,7 @@ lazy val scalus = crossProject(JSPlatform, JVMPlatform)
       libraryDependencies += "com.lihaoyi" %%% "upickle" % "4.0.2",
       libraryDependencies ++= Seq(
         "io.bullet" %%% "borer-core" % "1.14.1",
-        "io.bullet" %%% "borer-derivation" % "1.14.1"
+        "io.bullet" %%% "borer-derivation" % "1.14.1" % "provided"
       ),
       PluginDependency,
       libraryDependencies += "org.scalatest" %%% "scalatest" % "3.2.19" % "test",

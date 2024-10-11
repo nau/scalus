@@ -27,7 +27,7 @@ object FlatInstantces:
             case Data.Constr(constr, args) =>
                 width + summon[Flat[Long]].bitSize(constr) + summon[Flat[List[Data]]].bitSize(args)
             case Data.Map(values) =>
-                width + summon[Flat[List[(Data,Data)]]].bitSize(values)
+                width + summon[Flat[List[(Data, Data)]]].bitSize(values)
             case Data.List(values) => width + summon[Flat[List[Data]]].bitSize(values)
             case Data.I(value)     => width + summon[Flat[BigInt]].bitSize(value)
             case Data.B(value)     => width + summon[Flat[builtin.ByteString]].bitSize(value)

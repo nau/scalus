@@ -13,7 +13,6 @@ import scalus.uplc.eval.BuiltinCostModel
 import scalus.uplc.eval.BuiltinException
 import scalus.uplc.eval.CekValue
 import scalus.uplc.eval.CekValue.*
-import scalus.uplc.eval.CostModel
 import scalus.uplc.eval.CostingFun
 import scalus.uplc.eval.DeserializationError
 import scalus.uplc.eval.ExBudget
@@ -48,7 +47,7 @@ case class BuiltinRuntime(
     typeScheme: TypeScheme,
     f: (Logger, Seq[CekValue]) => CekValue,
     args: Seq[CekValue],
-    costFunction: CostingFun[CostModel]
+    costFunction: CostingFun
 ) {
     def apply(logger: Logger) = f(logger, args)
 
@@ -70,7 +69,7 @@ class BuiltinsMeaning(
     def mkMeaning(
         t: TypeScheme,
         f: (logger: Logger, args: Seq[CekValue]) => CekValue,
-        costFunction: CostingFun[CostModel]
+        costFunction: CostingFun
     ) =
         BuiltinRuntime(t, f, ArraySeq.empty, costFunction)
     import TypeScheme.*
