@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.8.2 (2024-10-11)
+
+Nothing changed, just pushed the wrong commit under 0.8.1.
+
 ## 0.8.1 (2024-10-11)
 
 ### Fixed
