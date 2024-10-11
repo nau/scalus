@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.8.1 (2024-10-11)
+
+### Fixed
+
+- cost model for `integerToBytestring` and `bytestringToInteger`
+
 ## 0.8.0 (2024-10-03)
 
 ### Added
