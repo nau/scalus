@@ -237,25 +237,27 @@ trait ArbitraryInstances:
         Gen.sized(sizedTermGen(_, Nil))
     }
 
-    given Shrink[Term] = Shrink {
-        case Term.Error        => Stream.empty
-        case Term.Builtin(_)   => Stream.empty
-        case Term.Const(const) => Shrink.shrink(const).map(Term.Const.apply)
-        case Term.Var(_)       => Stream.empty
-        case Term.Force(t)     => Shrink.shrink(t).map(Term.Force.apply)
-        case Term.Delay(t)     => Shrink.shrink(t).map(Term.Delay.apply)
-        case Term.LamAbs(n, t) =>
-            val tShrunk = Shrink.shrink(t).map(Term.LamAbs(n, _))
-            tShrunk
-        case Term.Apply(t1, t2) =>
-            val t1Shrunk = Shrink.shrink(t1).map(Term.Apply(_, t2))
-            val t2Shrunk = Shrink.shrink(t2).map(Term.Apply(t1, _))
-            t1Shrunk ++ t2Shrunk
-        // case Term.Constr(tag, args) => Shrink.shrink(args).map(Term.Constr(tag, _))
-        // case Term.Case(arg, cases) =>
-        // Shrink.shrink(arg) ++ Shrink.shrink(cases).map(Term.Case(arg, _))
-        case _ => Stream.empty
-    }
+    given TermShrink: Shrink[Term] =
+        given Shrink[Term] = TermShrink
+        Shrink {
+            case Term.Error        => Stream.empty
+            case Term.Builtin(_)   => Stream.empty
+            case Term.Const(const) => Shrink.shrink(const).map(Term.Const.apply)
+            case Term.Var(_)       => Stream.empty
+            case Term.Force(t)     => Shrink.shrink(t).map(Term.Force.apply)
+            case Term.Delay(t)     => Shrink.shrink(t).map(Term.Delay.apply)
+            case Term.LamAbs(n, t) =>
+                val tShrunk = Shrink.shrink(t).map(Term.LamAbs(n, _))
+                tShrunk
+            case Term.Apply(t1, t2) =>
+                val t1Shrunk = Shrink.shrink(t1).map(Term.Apply(_, t2))
+                val t2Shrunk = Shrink.shrink(t2).map(Term.Apply(t1, _))
+                t1Shrunk ++ t2Shrunk
+            // case Term.Constr(tag, args) => Shrink.shrink(args).map(Term.Constr(tag, _))
+            // case Term.Case(arg, cases) =>
+            // Shrink.shrink(arg) ++ Shrink.shrink(cases).map(Term.Case(arg, _))
+            case _ => Stream.empty
+        }
 
     given Arbitrary[Program] = Arbitrary {
         for

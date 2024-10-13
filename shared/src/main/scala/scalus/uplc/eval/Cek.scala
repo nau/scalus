@@ -339,7 +339,7 @@ enum CekValue {
   * @param platformSpecific
   *   The platform specific implementation of certain functions used by VM builtins
   */
-class PlutusVM(platformSpecific: PlatformSpecific) {
+open class PlutusVM(platformSpecific: PlatformSpecific) {
     type ScriptForEvaluation = Array[Byte]
 
     /** Evaluates a script, returning the minimum budget that the script would need to evaluate.

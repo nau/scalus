@@ -1,11 +1,13 @@
 package scalus.builtin
-import supranational.blst.*
 import scalus.utils.Hex
+import supranational.blst.*
+
+import scala.compiletime.asMatchable
 
 case class BLS12_381_G1_Element(p: P1):
     def value: ByteString = ByteString.fromArray(p.compress())
 
-    override def equals(that: Any): Boolean = that match
+    override def equals(that: Any): Boolean = that.asMatchable match
         case that: BLS12_381_G1_Element => p.is_equal(that.p)
         case _                          => false
 
@@ -18,7 +20,7 @@ object BLS12_381_G1_Element:
 case class BLS12_381_G2_Element(p: P2):
     def value: ByteString = ByteString.fromArray(p.compress())
 
-    override def equals(that: Any): Boolean = that match
+    override def equals(that: Any): Boolean = that.asMatchable match
         case that: BLS12_381_G2_Element => p.is_equal(that.p)
         case _                          => false
 

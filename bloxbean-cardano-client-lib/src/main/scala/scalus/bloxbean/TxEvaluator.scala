@@ -10,7 +10,6 @@ import com.bloxbean.cardano.client.plutus.spec.*
 import com.bloxbean.cardano.client.transaction.spec.*
 import com.bloxbean.cardano.client.transaction.spec.cert.*
 import com.bloxbean.cardano.client.transaction.spec.governance.ProposalProcedure
-import com.bloxbean.cardano.client.transaction.spec.governance.Voter
 import com.bloxbean.cardano.client.transaction.spec.governance.VoterType
 import com.bloxbean.cardano.client.transaction.util.TransactionUtil
 import io.bullet.borer.Cbor

@@ -54,7 +54,7 @@ case class BuiltinRuntime(
     def calculateCost: ExBudget = costFunction.calculateCost(args*)
 }
 
-class BuiltinsMeaning(
+open class BuiltinsMeaning(
     builtinCostModel: BuiltinCostModel,
     platformSpecific: PlatformSpecific,
     semanticVariant: BuiltinSemanticsVariant
