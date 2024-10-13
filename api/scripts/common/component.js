@@ -1,0 +1,1 @@
+class Component{constructor(t={}){this.props=t,this.prevProps={},this.state={}}setState(t,s=()=>{}){this.state="function"==typeof t?{...this.state,...t(this.state)}:{...this.state,...t},s(),this.render&&this.render()}}
