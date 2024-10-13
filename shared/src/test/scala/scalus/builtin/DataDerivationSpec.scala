@@ -2,7 +2,7 @@ package scalus.builtin
 
 import org.scalatest.funsuite.AnyFunSuite
 import org.scalatestplus.scalacheck.ScalaCheckPropertyChecks
-import scalus.builtin.ByteString.given
+import scalus.builtin.ByteString.*
 import scalus.builtin.Data.*
 import scalus.builtin.ToDataInstances.given
 import scalus.ledger.api.v1.*

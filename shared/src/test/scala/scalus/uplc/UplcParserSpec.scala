@@ -6,7 +6,7 @@ import org.scalatestplus.scalacheck.ScalaCheckPropertyChecks
 import scala.language.implicitConversions
 import scalus.*
 import scalus.builtin
-import scalus.builtin.ByteString.StringInterpolators
+import scalus.builtin.ByteString.*
 import scalus.builtin.Data
 import scalus.uplc.Constant.given
 import scalus.uplc.DefaultUni.Bool

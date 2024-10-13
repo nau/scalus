@@ -54,7 +54,7 @@ Here is an example of how to define constants and use built-in types.
 import scalus.Compiler.compile
 import scalus.*
 import scalus.builtin.*
-import scalus.builtin.ByteString.given
+import scalus.builtin.ByteString.*
 
 val constants = compile {
     val unit = () // unit type
@@ -77,7 +77,7 @@ val constants = compile {
 
 ```scala mdoc:compile-only
 import scalus.builtin.*
-import scalus.builtin.ByteString.given
+import scalus.builtin.ByteString.*
 import scalus.prelude.Prelude.{*, given}
 compile {
     // See scalus.builtin.Builtins for what is available
@@ -236,7 +236,7 @@ Here is a simple example of a PlutusV2 validator written in Scalus.
 import scalus.ledger.api.v1.PubKeyHash
 import scalus.ledger.api.v3.*
 import scalus.ledger.api.v3.FromDataInstances.given
-import scalus.builtin.ByteString.given
+import scalus.builtin.ByteString.*
 import scalus.prelude.List
 
 // Use Scala 3 indentation syntax. Look ma, no braces! Like Python!
@@ -279,7 +279,7 @@ like `Hex(CborEncode(CborEncode(FlatEncode(Program(version, uplc)))))`.
 
 ```scala mdoc:compile-only
 import scalus.*
-import scalus.builtin.ByteString.given
+import scalus.builtin.ByteString.*
 import scalus.ledger.api.PlutusLedgerLanguage
 import scalus.ledger.api.v1.PubKeyHash
 import scalus.ledger.api.v3.*

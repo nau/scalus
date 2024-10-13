@@ -1,7 +1,7 @@
 package scalus.uplc
 
 import scalus.builtin.ByteString
-import scalus.builtin.ByteString.given
+import scalus.builtin.ByteString.*
 import scalus.builtin.Data
 import scalus.ledger.api.v1.*
 import scalus.macros.Macros
