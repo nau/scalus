@@ -51,7 +51,7 @@ case class BuiltinRuntime(
 ) {
     def apply(logger: Logger) = f(logger, args)
 
-    def calculateCost: ExBudget = costFunction.calculateCost(args: _*)
+    def calculateCost: ExBudget = costFunction.calculateCost(args *)
 }
 
 class BuiltinsMeaning(

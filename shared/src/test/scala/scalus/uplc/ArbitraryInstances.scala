@@ -195,7 +195,7 @@ trait ArbitraryInstances:
             val simple = Gen.oneOf(
               Gen.const(Term.Error),
               builtinGen,
-              (Seq(constGen) ++ maybeVarTerm): _*
+              Seq(constGen) ++ maybeVarTerm *
             )
             if sz <= 0 then simple
             else
@@ -277,7 +277,7 @@ trait ArbitraryInstances:
 
     given arbList[A: Arbitrary]: Arbitrary[scalus.prelude.List[A]] = Arbitrary {
         for lst <- Arbitrary.arbitrary[immutable.List[A]]
-        yield scalus.prelude.List(lst: _*)
+        yield scalus.prelude.List(lst *)
     }
 
     given arbMaybe[A: Arbitrary]: Arbitrary[scalus.prelude.Maybe[A]] = Arbitrary {
@@ -290,5 +290,5 @@ trait ArbitraryInstances:
     given arbAssocMap[A: Arbitrary, B: Arbitrary]: Arbitrary[scalus.prelude.AssocMap[A, B]] =
         Arbitrary {
             for map <- Arbitrary.arbitrary[immutable.Map[A, B]]
-            yield scalus.prelude.AssocMap.fromList(scalus.prelude.List(map.toSeq: _*))
+            yield scalus.prelude.AssocMap.fromList(scalus.prelude.List(map.toSeq *))
         }

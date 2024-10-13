@@ -5,8 +5,8 @@ import scalus.builtin.Builtins
 import scalus.builtin.Data
 import scalus.uplc.ExprBuilder
 import scalus.uplc.ExprBuilder.*
-import scalus.uplc.{Expr => Exp}
-import scalus.uplc.{Term => Trm}
+import scalus.uplc.Expr as Exp
+import scalus.uplc.Term as Trm
 
 import scala.collection.immutable
 import scala.quoted.*
