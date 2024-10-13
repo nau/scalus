@@ -6,7 +6,7 @@ import java.net.URI
 Global / onChangedBuildSource := ReloadOnSourceChanges
 autoCompilerPlugins := true
 
-val scalusStableVersion = "0.8.0"
+val scalusStableVersion = "0.8.2"
 ThisBuild / scalaVersion := "3.3.4"
 ThisBuild / organization := "org.scalus"
 ThisBuild / organizationName := "Scalus"
@@ -31,6 +31,14 @@ sonatypeRepository := "https://s01.oss.sonatype.org/service/local"
 Test / publishArtifact := false
 
 ThisBuild / javaOptions += "-Xss64m"
+
+Compile / doc / scalacOptions ++= Seq(
+  "-groups",
+  "-project-version",
+  scalusStableVersion,
+  "-project-footer",
+  "Lantr.io"
+)
 
 lazy val root: Project = project
     .in(file("."))
@@ -215,7 +223,7 @@ lazy val `scalus-bloxbean-cardano-client-lib` = project
 lazy val docs = project // documentation project
     .in(file("scalus-docs")) // important: it must not be docs/
     .dependsOn(scalus.jvm)
-    .enablePlugins(MdocPlugin, DocusaurusPlugin)
+    .enablePlugins(MdocPlugin, DocusaurusPlugin, ScalaUnidocPlugin)
     .settings(
       publish / skip := true,
       moduleName := "scalus-docs",
@@ -223,6 +231,11 @@ lazy val docs = project // documentation project
         "VERSION" -> scalusStableVersion,
         "SCALA3_VERSION" -> scalaVersion.value
       ),
+      ScalaUnidoc / unidoc / unidocProjectFilter := inProjects(scalus.jvm),
+      ScalaUnidoc / unidoc / target := (LocalRootProject / baseDirectory).value / "website" / "static" / "api",
+      cleanFiles += (ScalaUnidoc / unidoc / target).value,
+      docusaurusCreateSite := docusaurusCreateSite.dependsOn(Compile / unidoc).value,
+      docusaurusPublishGhpages := docusaurusPublishGhpages.dependsOn(Compile / unidoc).value,
       PluginDependency
     )
 
@@ -257,5 +270,6 @@ logo :=
 
 usefulTasks := Seq(
   UsefulTask("~compile", "Compile with file-watch enabled"),
-  UsefulTask("precommit", "Format all, clean compile and test everything")
+  UsefulTask("precommit", "Format all, clean compile and test everything"),
+  UsefulTask("docs/docusaurusCreateSite", "Generate Scalus documentation website")
 )
