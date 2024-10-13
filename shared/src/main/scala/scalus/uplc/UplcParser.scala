@@ -210,7 +210,7 @@ object UplcParser:
             Constant.Pair(p._1, p._2)
         }
 
-    val con0xBS: P[ByteString] = P.string("0x") *> hexByte.rep0.map(bs => ByteString(bs *))
+    val con0xBS: P[ByteString] = P.string("0x") *> hexByte.rep0.map(bs => ByteString(bs*))
 
     val conBLS12_381_G1_Element: P[BLS12_381_G1_Element] =
         con0xBS.flatMap { s =>
@@ -224,7 +224,7 @@ object UplcParser:
             catch case e: Exception => P.failWith(e.getMessage)
         }
 
-    val bytestring: P[ByteString] = P.char('#') *> hexByte.rep0.map(bs => ByteString(bs *))
+    val bytestring: P[ByteString] = P.char('#') *> hexByte.rep0.map(bs => ByteString(bs*))
 
     def constantOf(t: DefaultUni, expectDataParens: Boolean = false): P[Constant] = t match
         case DefaultUni.Integer => lexeme(integer).map(i => Constant.Integer(i))

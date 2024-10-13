@@ -21,7 +21,7 @@ object Constant:
     given LiftValue[java.lang.String] with { def lift(a: java.lang.String): Constant = String(a) }
     given LiftValue[Boolean] with { def lift(a: Boolean): Constant = Bool(a) }
     given LiftValue[Unit] with { def lift(a: Unit): Constant = Unit }
-    implicit def LiftValueData[A <: scalus.builtin.Data]: LiftValue[A] = new LiftValue[A] {
+    given LiftValueData[A <: scalus.builtin.Data]: LiftValue[A] = new LiftValue[A] {
         def lift(a: A): Constant = Data(a)
     }
     given seqLiftValue[A: LiftValue: DefaultUni.Lift]: LiftValue[Seq[A]] with {
@@ -29,7 +29,7 @@ object Constant:
             List(summon[DefaultUni.Lift[A]].defaultUni, a.map(summon[LiftValue[A]].lift).toList)
     }
 
-    implicit def tupleLiftValue[A: LiftValue: DefaultUni.Lift, B: LiftValue: DefaultUni.Lift]
+    given tupleLiftValue[A: LiftValue: DefaultUni.Lift, B: LiftValue: DefaultUni.Lift]
         : LiftValue[(A, B)] = new LiftValue[(A, B)] {
         def lift(a: (A, B)): Constant = Pair(
           summon[LiftValue[A]].lift(a._1),
