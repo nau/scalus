@@ -4,7 +4,7 @@ import scalus.Compile
 import scalus.builtin
 import scalus.builtin.Builtins.*
 import scalus.builtin.ByteString
-import scalus.builtin.ByteString.given
+import scalus.builtin.ByteString.*
 import scalus.builtin.Data
 import scalus.prelude.Prelude.log
 
