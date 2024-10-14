@@ -42,7 +42,7 @@ object ToData {
                                   Expr.summon[ToData[t]] match
                                       case None =>
                                           report.errorAndAbort(
-                                            s"Could not find implicit for ToData[${tpe.widen.show}]"
+                                            s"Could not find given ToData[${tpe.widen.show}]"
                                           )
                                       case Some(toData) =>
                                           val arg = Ident(binding.termRef).asExprOf[t]
@@ -141,7 +141,7 @@ object ToData {
                                   Expr.summon[ToData[t]] match
                                       case None =>
                                           report.errorAndAbort(
-                                            s"Could not find implicit for ToData[${tpe.widen.show}]"
+                                            s"Could not find given ToData[${tpe.widen.show}]"
                                           )
                                       case Some(toData) =>
                                           val arg = Ident(binding.termRef).asExprOf[t]

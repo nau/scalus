@@ -63,6 +63,8 @@ lazy val commonScalacOptions = Seq(
   "-Wunused:imports",
   "-Wunused:params",
   "-Xcheck-macros"
+//  "-rewrite",
+//  "-source:future-migration"
 )
 
 // Scala 3 Compiler Plugin for Scalus

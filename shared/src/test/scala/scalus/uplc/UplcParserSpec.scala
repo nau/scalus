@@ -9,7 +9,6 @@ import scalus.builtin
 import scalus.builtin.ByteString.*
 import scalus.builtin.Data
 import scalus.uplc.Constant.given
-import scalus.uplc.DefaultUni.Bool
 import scalus.uplc.DefaultUni.ProtoList
 import scalus.uplc.DefaultUni.ProtoPair
 import scalus.uplc.Term.*

@@ -308,25 +308,25 @@ object Builtins:
     def bData(value: ByteString): Data = Data.B(value)
     @deprecated("use unConstrData", "0.6")
     def unsafeDataAsConstr(d: Data): Pair[BigInt, List[Data]] = d match
-        case Data.Constr(constr, args) => Pair(constr: BigInt, List(args: _*))
+        case Data.Constr(constr, args) => Pair(constr: BigInt, List(args*))
         case _                         => throw new Exception(s"not a constructor but $d")
     def unConstrData(d: Data): Pair[BigInt, List[Data]] = d match
-        case Data.Constr(constr, args) => Pair(constr: BigInt, List(args: _*))
+        case Data.Constr(constr, args) => Pair(constr: BigInt, List(args*))
         case _                         => throw new Exception(s"not a constructor but $d")
     @deprecated("use unListData", "0.6")
     def unsafeDataAsList(d: Data): List[Data] = d match
-        case Data.List(values) => List(values: _*)
+        case Data.List(values) => List(values*)
         case _                 => throw new Exception(s"not a list but $d")
     def unListData(d: Data): List[Data] = d match
-        case Data.List(values) => List(values: _*)
+        case Data.List(values) => List(values*)
         case _                 => throw new Exception(s"not a list but $d")
     @deprecated("use unMapData", "0.6")
     def unsafeDataAsMap(d: Data): List[Pair[Data, Data]] = d match
-        case Data.Map(values) => List(values.map(Pair.apply): _*)
+        case Data.Map(values) => List(values.map(Pair.apply)*)
         case _                => throw new Exception(s"not a list but $d")
 
     def unMapData(d: Data): List[Pair[Data, Data]] = d match
-        case Data.Map(values) => List(values.map(Pair.apply): _*)
+        case Data.Map(values) => List(values.map(Pair.apply)*)
         case _                => throw new Exception(s"not a list but $d")
     @deprecated("use unIData", "0.6")
     def unsafeDataAsI(d: Data): BigInt = d match

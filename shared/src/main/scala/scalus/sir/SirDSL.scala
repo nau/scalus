@@ -19,7 +19,7 @@ object SirDSL:
                 (name :: names, body1)
             case body => (Nil, body)
 
-    def λ(names: String*)(term: SIR): SIR = lam(names: _*)(term)
+    def λ(names: String*)(term: SIR): SIR = lam(names*)(term)
     def lam(names: String*)(term: SIR): SIR = names.foldRight(term)(SIR.LamAbs(_, _))
     extension (term: SIR) infix def $(rhs: SIR): SIR = SIR.Apply(term, rhs)
 

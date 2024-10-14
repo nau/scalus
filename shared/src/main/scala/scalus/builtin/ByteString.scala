@@ -1,14 +1,16 @@
 package scalus.builtin
 
 import scalus.utils.Hex
+
 import scala.annotation.targetName
+import scala.compiletime.asMatchable
 
 class ByteString private (val bytes: Array[Byte]) {
     override def toString: String = "\"" + toHex + "\""
 
     override def hashCode(): Int = java.util.Arrays.hashCode(bytes)
 
-    override def equals(obj: Any): Boolean = obj match {
+    override def equals(obj: Any): Boolean = obj.asMatchable match {
         case that: ByteString => java.util.Arrays.equals(this.bytes, that.bytes)
         case _                => false
     }
@@ -42,7 +44,7 @@ object ByteString {
     implicit class StringInterpolators(val sc: StringContext) extends AnyVal:
 
         def hex(args: Any*): ByteString =
-            val hexString = sc.s(args: _*).replace(" ", "")
+            val hexString = sc.s(args*).replace(" ", "")
             fromHex(hexString)
 
     extension (sc: StringContext)

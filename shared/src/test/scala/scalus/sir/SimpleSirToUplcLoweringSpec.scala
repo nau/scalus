@@ -10,7 +10,7 @@ import scalus.uplc.DefaultFun
 import scalus.uplc.DefaultFun.*
 import scalus.uplc.DefaultUni.asConstant
 import scalus.uplc.Term
-import scalus.uplc.TermDSL.{_, given}
+import scalus.uplc.TermDSL.{*, given}
 
 import scala.language.implicitConversions
 

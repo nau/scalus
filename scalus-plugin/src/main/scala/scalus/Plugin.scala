@@ -2,9 +2,10 @@ package scalus
 
 import dotty.tools.dotc.*
 import dotty.tools.dotc.ast.tpd
-import dotty.tools.dotc.core.Contexts.*
-import dotty.tools.dotc.core.Symbols.*
 import dotty.tools.dotc.core.*
+import dotty.tools.dotc.core.Contexts.*
+import dotty.tools.dotc.core.Contexts.Context
+import dotty.tools.dotc.core.Symbols.*
 import dotty.tools.dotc.plugins.*
 
 import scala.collection.immutable
@@ -17,7 +18,7 @@ class Plugin extends StandardPlugin {
     val name: String = "scalus"
     override val description: String = "Compile Scala to Scalus IR"
 
-    def init(options: List[String]): List[PluginPhase] =
+    override def init(options: List[String]): List[PluginPhase] =
         new ScalusPhase :: Nil
 }
 

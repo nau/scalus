@@ -1,6 +1,7 @@
 package scalus.builtin
 
 import scala.collection.immutable
+import scala.compiletime.asMatchable
 
 sealed abstract class Data
 
@@ -21,7 +22,7 @@ object Data extends DataApi:
 
     case class Map(values: immutable.List[(Data, Data)]) extends Data {
         override def hashCode(): Int = values.toSet.hashCode()
-        override def equals(x: Any): Boolean = x match {
+        override def equals(x: Any): Boolean = x.asMatchable match {
             case Map(otherValues) => values.toSet == otherValues.toSet
             case _                => false
         }
