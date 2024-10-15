@@ -1,8 +1,10 @@
 package scalus.builtin
 
+import io.bullet.borer.Cbor
 import scalus.Compiler
 import upickle.default.*
 
+import java.io.InputStream
 import scala.collection.mutable.ArrayBuffer
 
 /** JSON ReadWriter for the [[Data]] type.
@@ -54,8 +56,20 @@ given DataReadWriter: ReadWriter[Data] =
 
 trait DataApi {
     extension [A <: Data: Writer](a: A)
+        /** Encode a [[Data]] value to JSON */
         inline def toJson: String = write(a)
+
+        /** Encode a [[Data]] value to indented JSON */
         inline def toJsonIndented(indent: Int): String = write(a, indent)
+
+    extension [A <: Data](a: A)
+        /** Encode a [[Data]] value to CBOR.
+          */
+        def toCbor: Array[Byte] = Cbor.encode(a)(using dataCborEncoder).toByteArray
+
+        /** Encode a [[Data]] value to CBOR [[ByteString]]
+          */
+        def toCborByteString: ByteString = ByteString.fromArray(toCbor)
 
     extension (inline data: Data)
         inline def field[A](inline expr: A => Any): Data = Compiler.fieldAsData(expr)(data)
@@ -67,6 +81,18 @@ trait DataApi {
         inline def toB: ByteString = Builtins.unBData(data)
         inline def toByteString: ByteString = Builtins.unBData(data)
 
+    /** Decode a [[Data]] value from JSON */
     def fromJson(json: String): Data = read[Data](json)
+
+    /** Encode a [[Data]] value to JSON */
     def toJson(data: Data, indent: Int = -1): String = write(data, indent)
+
+    /** Decode a [[Data]] value from CBOR */
+    def fromCbor(bytes: Array[Byte]): Data = Cbor.decode(bytes).to[Data].value
+
+    /** Decode a [[Data]] value from CBOR */
+    def fromCbor(is: InputStream): Data = Cbor.decode(is).to[Data].value
+
+    /** Decode a [[Data]] value from CBOR */
+    def fromCbor(bs: ByteString): Data = Cbor.decode(bs.bytes).to[Data].value
 }

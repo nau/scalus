@@ -16,8 +16,8 @@ class DataCborCodecSpec extends AnyFunSuite with ScalaCheckPropertyChecks with A
     private def decodeHex(d: String) = Cbor.decode(Utils.hexToBytes(d)).to[Data].value
 
     private def roundtrip(d: Data): Unit =
-        val ba = Cbor.encode(d).toByteArray
-        val dd = Cbor.decode(ba).to[Data].value
+        val ba = d.toCbor
+        val dd = Data.fromCbor(ba)
         assert(d == dd)
 
     test("BigInt encoding/decoding of < 64 bits") {
