@@ -18,8 +18,14 @@ class HashConsedEncoderState(val encode: EncoderState,
     inline def putForwardRef(fw: HashConsed.ForwardRefAcceptor): Boolean = {
         hashConsed.putForwardRef(fw)
     }
+    
+}
 
-
+object HashConsedEncoderState {
+    
+    def withSize(size: Int): HashConsedEncoderState = 
+        HashConsedEncoderState(EncoderState(size), HashConsed.State.empty)
+    
 }
 
 class HashConsedDecoderState(val decode: DecoderState,

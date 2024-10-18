@@ -237,6 +237,7 @@ object FlatInstantces:
         val tagTypeProxy: Byte = 0x0C
         val tagTypeError: Byte = 0x0D
         val tagTypeNothing: Byte = 0x0E
+        val tagNonCaseModule: Byte = 0x0F
 
         //
         def tag = hashConsTagSIRType
@@ -284,9 +285,12 @@ object FlatInstantces:
                             hashConsed.setRef(ihc, tag, HashConsedRef.fromData(ref))
                             tagWidth + preSize + restSize
                         case Some(_) => tagWidth + PlainIntFlat.bitSize(ref.hashCode())
+                case a: SIRType.TypeNonCaseModule =>
+                    tagWidth + SIRTypeNonCaseModuleFlat.bitSizeHC(a, hashConsed)
                 case err:SIRType.TypeError =>
                     tagWidth + summon[Flat[String]].bitSize(err.msg)
                 case SIRType.TypeNothing => tagWidth
+
             if !mute then    
                 println(s"bisSizeHC ${a.hashCode()} $a =${retval}")
             retval
@@ -346,6 +350,9 @@ object FlatInstantces:
                             encodeHC(ref, encode)
                             encode.hashConsed.setRef(ihc, tag, HashConsedRef.fromData(ref))
                         case Some(_) =>
+                case a: SIRType.TypeNonCaseModule =>
+                    encode.encode.bits(tagWidth, tagNonCaseModule)
+                    SIRTypeNonCaseModuleFlat.encodeHC(a, encode)
                 case err: SIRType.TypeError =>
                     encode.encode.bits(tagWidth, tagTypeError)
                     summon[Flat[String]].encode(err.msg, encode.encode)
@@ -422,6 +429,8 @@ object FlatInstantces:
                     val msg = summon[Flat[String]].decode(decode.decode)
                     HashConsedRef.fromData(SIRType.TypeError(msg, null))
                 case `tagTypeNothing` => HashConsedRef.fromData(SIRType.TypeNothing)
+                case `tagNonCaseModule` =>
+                    SIRTypeNonCaseModuleFlat.decodeHC(decode)
                 case _ => throw new IllegalStateException(s"Invalid SIRType tag: $tag")
                 
 
@@ -501,6 +510,26 @@ object FlatInstantces:
                 hs => declReprRef.isComplete(hs) && typeArgs.isComplete(hs),
                 hs => SIRType.SumCaseClass(declReprRef.finValue(hs), typeArgs.finValue(hs))
             )
+
+    }
+
+    object SIRTypeNonCaseModuleFlat extends HashConsedMutRefReprFlat[SIRType.TypeNonCaseModule] {
+
+        override def tag = hashConsTagSIRType
+
+        override def toRepr(a: SIRType.TypeNonCaseModule): HashConsedRef[SIRType.TypeNonCaseModule] = {
+            HashConsedRef.fromData(a)
+        }
+
+        override def bitSizeHCNew(a: SIRType.TypeNonCaseModule, state: HashConsed.State): Int =
+            summon[Flat[String]].bitSize(a.name)
+
+        override def encodeHCNew(a: SIRType.TypeNonCaseModule, encode: HashConsedEncoderState): Unit =
+            summon[Flat[String]].encode(a.name, encode.encode)
+
+        override def decodeHCNew(decode: HashConsedDecoderState): HashConsedRef[SIRType.TypeNonCaseModule] =
+            val name = summon[Flat[String]].decode(decode.decode)
+            HashConsedRef.fromData(SIRType.TypeNonCaseModule(name))
 
     }
 

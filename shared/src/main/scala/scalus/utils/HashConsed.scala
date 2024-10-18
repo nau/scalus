@@ -109,9 +109,10 @@ object HashConsed {
 
         // not thread-safe, but we are in single-threaded mode
         //  mb later use AtomicReference
-        var ref: HashConsedRef[?] | Null = null
+        private var ref: HashConsedRef[?] | Null = null
         //var finRef: A | Null = null
-
+        
+   
         override def isComplete(hashConsed: State): Boolean =
             ref != null && ref.isComplete(hashConsed)
 

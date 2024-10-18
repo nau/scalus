@@ -1,6 +1,5 @@
 package scalus.sir
 
-import scalus.sir.SIRType.CaseClass
 import scalus.uplc.Constant
 import scalus.uplc.DefaultFun
 

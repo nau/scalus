@@ -90,6 +90,7 @@ lazy val scalusPlugin = project
             baseDir / "scalus/builtin/List.scala",
             baseDir / "scalus/sir/SIR.scala",
             baseDir / "scalus/sir/SIRType.scala",
+            baseDir / "scalus/sir/SIRToExpr.scala",
             baseDir / "scalus/sir/SIRBuiltins.scala",
             baseDir / "scalus/sir/FlatInstances.scala",
             baseDir / "scalus/uplc/Constant.scala",

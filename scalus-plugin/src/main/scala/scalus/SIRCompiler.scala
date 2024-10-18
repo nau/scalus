@@ -503,7 +503,7 @@ final class SIRCompiler(mode: scalus.Mode)(using ctx: Context) {
                         SIR.ExternalVar(
                           e.symbol.owner.fullName.toString(),
                           e.symbol.fullName.toString(),
-                          sirTypeInEnv(e.tpe.widen, e.srcPos, env)
+                           sirTypeInEnv(e.tpe.widen, e.srcPos, env)
                         )
                     case scalus.Mode.Link =>
                         if e.symbol.defTree == EmptyTree then
