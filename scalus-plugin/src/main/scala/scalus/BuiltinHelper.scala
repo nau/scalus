@@ -1,4 +1,6 @@
 package scalus
+
+import scala.util.control.NonFatal
 import dotty.tools.dotc.*
 import dotty.tools.dotc.core.Contexts.Context
 import dotty.tools.dotc.core.Symbols.*
@@ -10,7 +12,19 @@ class BuiltinHelper(using Context) {
     val BuiltinsClass = requiredModule("scalus.builtin.Builtins")
 
     val DefaultFunSIRBuildins: Map[String, SIR.Builtin] = Map(
-      "addInteger" -> SIRBuiltins.addInteger,
+      "addInteger" -> {
+          try
+              SIRBuiltins.addInteger
+          catch
+              case NonFatal(ex) =>
+                  println(s"NonFatal Error in addInteger:  ${ex.getMessage}")
+                  ex.printStackTrace()
+                  throw ex
+              case ex: Throwable =>
+                  println(s"Fatal Error in addInteger:  ${ex.getMessage}")
+                  ex.printStackTrace()
+                  throw ex
+      },
       "subtractInteger" -> SIRBuiltins.subtractInteger,
       "multiplyInteger" -> SIRBuiltins.multiplyInteger,
       "divideInteger" -> SIRBuiltins.divideInteger,

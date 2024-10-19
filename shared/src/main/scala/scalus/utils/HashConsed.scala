@@ -1,6 +1,9 @@
 package scalus.utils
 
+import java.util.IdentityHashMap
 import scala.collection.mutable.Map as MutableMap
+
+type HSRIdentityHashMap = IdentityHashMap[HashConsedRef[?],HashConsedRef[?]]
 
 /**
  * When we read from the HashConsedRead.State, we can have forward references, which will
@@ -11,6 +14,8 @@ import scala.collection.mutable.Map as MutableMap
  * @tparam A
  */
 trait HashConsedRef[+A <: AnyRef] {
+
+    def isForward: Boolean = false
 
     /**
      * @return true if we have fully data object here and finValue can be called regradless of the state.
@@ -23,7 +28,8 @@ trait HashConsedRef[+A <: AnyRef] {
      *
      * @return valua of A
      */
-    def finValue(hashConsed: HashConsed.State): A
+    def finValue(hashConsed: HashConsed.State, level: Int, parents: HSRIdentityHashMap): A
+
 
 }
 
@@ -40,10 +46,16 @@ object HashConsedRef {
             case Some(Right(a)) => a.asInstanceOf[HashConsedRef[A]]
 
 
-    def deferred[A<:AnyRef](complete: HashConsed.State => Boolean,  op: HashConsed.State => A): HashConsedRef[A] =
+    def deferred[A<:AnyRef](complete: HashConsed.State => Boolean,  op: (HashConsed.State, Int, HSRIdentityHashMap) => A): HashConsedRef[A] =
         new HashConsedRef[A] {
             def isComplete(hashConsed: HashConsed.State) = complete(hashConsed)
-            def finValue(hashConsed: HashConsed.State): A = op(hashConsed)
+            def finValue(hashConsed: HashConsed.State, level: Int, parents: IdentityHashMap[HashConsedRef[?],HashConsedRef[?]]): A =
+                if (parents.get(this) != null) then
+                    throw IllegalStateException("Cyclic reference")
+                parents.put(this, this)
+                val retval = op(hashConsed, level+1, parents)
+                parents.remove(this)
+                retval
         }
 
 }
@@ -63,8 +75,16 @@ object HashConsed {
 
    class ForwardRefAcceptor(val ihc: Int, val tag:Tag, var setActions: List[HashConsedRef[?]=>Unit]) {
          
-       def addAction(action: HashConsedRef[?] => Unit): Unit =
-              setActions = action :: setActions
+       def addAction(state: HashConsed.State, action: HashConsedRef[?] => Unit): Unit =
+              state.map.get(ihc) match
+                  case None =>
+                      setActions = action :: setActions
+                  case Some(l) =>
+                      l.find(_.tag == tag) match
+                          case None =>
+                              setActions = action :: setActions
+                          case Some(v) =>
+                              action(v)    
        
 
    }
@@ -73,13 +93,17 @@ object HashConsed {
    class CachedTaggedRef[A<:AnyRef](val tag: Tag, ref: HashConsedRef[A]) extends HashConsedRef[A] {
 
         private var data: A | Null = null
-       
+
         override def isComplete(hashConsed: State): Boolean =
             data != null ||  ref.isComplete(hashConsed)
 
-        override def finValue(hashConsed:State): A =
+        override def finValue(hashConsed:State, level: Int, parents: HSRIdentityHashMap): A =
             if (data == null) then
-                data = ref.finValue(hashConsed)
+                if (parents.get(this) != null) then
+                    throw IllegalStateException("Cyclic reference")
+                parents.put(this, this)
+                data = ref.finValue(hashConsed, level+1, parents)
+                parents.remove(this)
             data.asInstanceOf[A]
        
    }
@@ -88,7 +112,7 @@ object HashConsed {
 
         override def isComplete(hashConsed: State): Boolean = (value != null)
 
-        override def finValue(hashConsed: State): A =
+        override def finValue(hashConsed: State, level: Int, parents: HSRIdentityHashMap): A =
             if (value == null) then
                 throw IllegalStateException("Null reference during reading")
             value.asInstanceOf[A]
@@ -111,12 +135,13 @@ object HashConsed {
         //  mb later use AtomicReference
         private var ref: HashConsedRef[?] | Null = null
         //var finRef: A | Null = null
-        
+
+        override def isForward: Boolean = true
    
         override def isComplete(hashConsed: State): Boolean =
             ref != null && ref.isComplete(hashConsed)
 
-        override def finValue(hashConsed: State): A =
+        override def finValue(hashConsed: State, level:Int, parents: HSRIdentityHashMap): A =
             if (ref == null) then
                 ref = hashConsed.lookup(ihc, tag) match
                     case None =>
@@ -124,32 +149,27 @@ object HashConsed {
                     case Some(Left(fw)) =>
                         throw IllegalStateException(s"Forward reference not resolved: $ihc, $tag")
                     case Some(Right(a)) =>
+                        if (parents.get(a) != null) then
+                            throw IllegalStateException(s"Cycled forward referenc: $ihc, $tag")
+                        if (a eq this) then
+                            throw IllegalStateException(s"Forward reference not non-rec resolved: $ihc, $tag")
                         a
-            ref.finValue(hashConsed).asInstanceOf[A]
+            parents.put(this, this)
+            val retval = ref.finValue(hashConsed, level+1, parents).asInstanceOf[A]
+            parents.remove(this)
+            retval
 
    }
     
 
    object ForwardRef {
+       
        def create[A <: AnyRef](state: State, ihc: Int, tag: Tag): HashConsedRef[A] =
            val retval = new ForwardRef[A](ihc, tag)
            val acceptor = new ForwardRefAcceptor(ihc,tag,List((a: HashConsedRef[?]) => retval.ref = a))
            state.putForwardRef(acceptor)
            retval
-
-       /*
-       def createTransformed[A, B](state: State, ihc: Int, tag: Tag, fin: (A, State) => B): HashConsedRef[B] =
-              var ref: HashConsedRef[A] | Null = null
-              val acceptor = new ForwardRefAcceptor(ihc,tag,List(a => ref = a.asInstanceOf[HashConsedRef[A]]))
-              state.putForwardRef(acceptor)
-              new HashConsedRef[B]:
-                  def isComplete = false
-                  def finValue(hashConsed: State): B =
-                        if ref == null then
-                            throw IllegalStateException(s"Forward reference not creaded: $ihc, $tag")
-                        fin(ref.finValue(hashConsed), hashConsed)
-
-        */
+       
    }
 
 
@@ -169,44 +189,43 @@ object HashConsed {
        def empty = State(MutableMap.empty, MutableMap.empty)
 
 
-   def putForwardRefAcceptor(state: State, fw: ForwardRefAcceptor): Boolean =
-       val retval = state.forwardRefAcceptors.get(fw.ihc) match
-           case None => state.forwardRefAcceptors.put(fw.ihc, List(fw))
-                         true
-           case Some(l) => l.find(_.tag == fw.tag) match
-               case None => state.forwardRefAcceptors.put(fw.ihc, fw :: l)
-                            true
-               case Some(_) =>
-                     false
-       //actuall it cna be not forward
-       if retval then
-              state.map.get(fw.ihc) match
-                case None =>
-                case Some(l) =>
-                     l.find(_.tag == fw.tag) match
-                         case None =>
-                         case Some(r) =>
-                             fw.setActions.foreach(_(r))
-       retval
+   def putForwardRefAcceptor(state: State, fw: ForwardRefAcceptor): Unit =
+       state.map.get(fw.ihc) match
+           case None =>
+               state.forwardRefAcceptors.get(fw.ihc) match
+                   case None =>
+                       state.forwardRefAcceptors.put(fw.ihc, List(fw))
+                   case Some(l) =>
+                       l.find(_.tag == fw.tag) match
+                           case None =>
+                               state.forwardRefAcceptors.put(fw.ihc, fw :: l)
+                           case Some(v) =>
+                               v.setActions = fw.setActions ++ v.setActions
+           case Some(l) =>
+               l.find(_.tag == fw.tag) match
+                   case None =>
+                   case Some(v) =>
+                       fw.setActions.foreach(_(v))
+                       fw.setActions = Nil
 
 
-   def setRef[A<:AnyRef](state: State,  ihc: Int, tag: Tag, ra: HashConsedRef[A]): Boolean =
-       val retval = state.map.get(ihc) match
+   def setRef[A<:AnyRef](state: State,  ihc: Int, tag: Tag, ra: HashConsedRef[A]): Unit =
+       if (ra.isForward) then
+           throw IllegalStateException("Forward reference in setRef")
+       state.map.get(ihc) match
            case None => state.map.put(ihc, List(CachedTaggedRef(tag, ra)))
-                         true
            case Some(l) => l.find(_.tag == tag) match
                case None => state.map.put(ihc, CachedTaggedRef(tag, ra) :: l)
-                            true
-               case Some(_) => false
-       if retval then
-              state.forwardRefAcceptors.get(ihc) match
-                case None =>
-                case Some(l) =>
-                        l.find(_.tag == tag) match
-                            case None =>
-                            case Some(fw) =>
-                                fw.setActions.foreach(_(ra))
-       retval
+               case Some(_) => //double setRef
+                   throw IllegalStateException("Double setRef")
+       state.forwardRefAcceptors.get(ihc) match
+          case None =>
+          case Some(l) =>
+                   l.find(_.tag == tag) match
+                      case None =>
+                      case Some(fw) =>
+                             fw.setActions.foreach(_(ra))
+                             fw.setActions = Nil
 
 
    def lookupValue(s: State, ihc: Int, tag:Tag): Option[HashConsedRef[?]] =
@@ -225,6 +244,7 @@ object HashConsed {
                            case Some(fw) => Some(Left(fw))
            case Some(r) => Some(Right(r))
 
+   /* 
    def setForwardRefCallback(s: State, ihc: Int, tag:Tag, setRef: AnyRef => Unit ): Boolean =
 
        //TODO: introduct accumilatror and make tailRec
@@ -234,7 +254,7 @@ object HashConsed {
                   ForwardRefAcceptor(ihc,tag,List(setRef))::Nil
              case h::t =>
                   if h.tag == tag then
-                     h.addAction(setRef)
+                     h.addAction(s, setRef)
                      h::t
                   else
                      h::addSetRef(t)
@@ -244,26 +264,21 @@ object HashConsed {
              case Some(l) =>
                     s.forwardRefAcceptors.put(ihc,addSetRef(l))
                     true
+                    
+    */
 
 
-   def upsertForwardRefCallback(s: State, ihc: Int, tag:Tag, setRef: AnyRef => Unit ): Boolean =
-       val alredyExists = setForwardRefCallback(s, ihc, tag, setRef)
-       if (!alredyExists) then   
-           putForwardRefAcceptor(s, ForwardRefAcceptor(ihc, tag, List(setRef)))
-       else
-           false
-    
 }
 
 extension (s: HashConsed.State)
 
-    def putForwardRef(ihc: Int, tag: HashConsed.Tag, action: AnyRef => Unit): Boolean =
+    def putForwardRef(ihc: Int, tag: HashConsed.Tag, action: AnyRef => Unit): Unit =
         HashConsed.putForwardRefAcceptor(s, HashConsed.ForwardRefAcceptor(ihc, tag, List(action)))
     
-    def putForwardRef(fw: HashConsed.ForwardRefAcceptor): Boolean =
+    def putForwardRef(fw: HashConsed.ForwardRefAcceptor): Unit =
         HashConsed.putForwardRefAcceptor(s, fw)
 
-    def setRef[A<:AnyRef](ihc:Int, tag: HashConsed.Tag, a: HashConsedRef[A]): Boolean =
+    def setRef[A<:AnyRef](ihc:Int, tag: HashConsed.Tag, a: HashConsedRef[A]): Unit =
         HashConsed.setRef(s, ihc, tag, a)
     
     def lookupValue(ihc: Int, tag: HashConsed.Tag): Option[HashConsedRef[?]] =
@@ -272,5 +287,3 @@ extension (s: HashConsed.State)
     def lookup(ihc: Int, tag: HashConsed.Tag): Option[Either[HashConsed.ForwardRefAcceptor, HashConsedRef[?]]] =
         HashConsed.lookup(s, ihc, tag)
     
-    def upsertForwardRefCallback(ihc: Int, tag: HashConsed.Tag, setRef: AnyRef => Unit): Boolean =
-        HashConsed.upsertForwardRefCallback(s, ihc, tag, setRef)

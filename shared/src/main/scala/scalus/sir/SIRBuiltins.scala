@@ -4,9 +4,23 @@ import scalus.builtin.ByteString
 import scalus.builtin.Data
 import scalus.uplc.DefaultFun
 
+import scala.util.control.NonFatal
+
 object SIRBuiltins {
 
-    val addInteger: SIR.Builtin = SIR.Builtin(DefaultFun.AddInteger, SIRType.liftM[BigInt=>BigInt=>BigInt])
+    val addInteger: SIR.Builtin = SIR.Builtin(DefaultFun.AddInteger,
+                       try
+                           SIRType.liftM[BigInt=>BigInt=>BigInt]
+                       catch
+                           case NonFatal(ex) =>
+                               println(s"NonFatal Error in addInteger:  ${ex.getMessage}")
+                               ex.printStackTrace()
+                               throw ex
+                           case ex: Throwable =>
+                               println(s"Fatal Error in addInteger:  ${ex.getMessage}")
+                               ex.printStackTrace()
+                               throw ex
+                   )
     val subtractInteger: SIR.Builtin = SIR.Builtin(DefaultFun.SubtractInteger, SIRType.liftM[BigInt => BigInt => BigInt])
     val multiplyInteger = SIR.Builtin(DefaultFun.MultiplyInteger, SIRType.liftM[BigInt=>BigInt=>BigInt])
     val divideInteger  = SIR.Builtin(DefaultFun.DivideInteger, SIRType.liftM[BigInt=>BigInt=>BigInt])

@@ -1,5 +1,6 @@
 package scalus.flat
 
+import scala.util.control.NonFatal
 import scalus.{builtin, flat}
 import scalus.flat.DecoderState
 import scalus.flat.EncoderState
@@ -111,7 +112,7 @@ object FlatInstantces:
             val termRef = SIRExprHashConsedFlat.decodeHC(decode)
             HashConsedRef.deferred(
                 hs => termRef.isComplete(hs),
-                hs => Binding(name, termRef.finValue(hs))
+                (hs, level, parents) => Binding(name, termRef.finValue(hs, level, parents))
             )
 
     end BindingFlat
@@ -149,7 +150,9 @@ object FlatInstantces:
             val parentTypeArgs = HashConsedReprFlat.listRepr(SIRTypeHashConsedFlat).decodeHC(decode)
             HashConsedRef.deferred(
                 hs => params.isComplete(hs) && parentTypeArgs.isComplete(hs),
-                hs => ConstrDecl(name, storageType, params.finValue(hs), typeParams, parentTypeArgs.finValue(hs))
+                (hs, level, parents) =>
+                    ConstrDecl(name, storageType, params.finValue(hs, level, parents), typeParams,
+                        parentTypeArgs.finValue(hs, level, parents))
             )
         }
 
@@ -179,7 +182,7 @@ object FlatInstantces:
             val typeParams = HashConsedFlat.listHashConsedFlat[SIRType.TypeVar].decodeHC(decode)
             HashConsedRef.deferred(
                 hs => constr.isComplete(hs),
-                hs => DataDecl(name, constr.finValue(hs), typeParams)
+                (hs, level, parents) => DataDecl(name, constr.finValue(hs,level,parents), typeParams)
             )
 
     end DataDeclFlat
@@ -210,7 +213,7 @@ object FlatInstantces:
             val typeArgs = HashConsedReprFlat.listRepr(SIRTypeHashConsedFlat).decodeHC(decode)
             HashConsedRef.deferred(
                 hs => constrDecl.isComplete(hs) && typeArgs.isComplete(hs),
-                hs => SIRType.CaseClass(constrDecl.finValue(hs), typeArgs.finValue(hs))
+                (hs,level, parents) => SIRType.CaseClass(constrDecl.finValue(hs,level,parents), typeArgs.finValue(hs,level,parents))
             )
         }
 
@@ -251,7 +254,7 @@ object FlatInstantces:
             val retval = a match
                 case _: SIRType.Primitive[?] => 
                     mute = true
-                    tagWidth
+                     tagWidth
                 case SIRType.Data =>
                     mute = true
                     tagWidth
@@ -284,7 +287,8 @@ object FlatInstantces:
                             val restSize = bitSizeHC(ref, hashConsed)
                             hashConsed.setRef(ihc, tag, HashConsedRef.fromData(ref))
                             tagWidth + preSize + restSize
-                        case Some(_) => tagWidth + PlainIntFlat.bitSize(ref.hashCode())
+                        case Some(_) =>
+                            tagWidth + PlainIntFlat.bitSize(ref.hashCode())
                 case a: SIRType.TypeNonCaseModule =>
                     tagWidth + SIRTypeNonCaseModuleFlat.bitSizeHC(a, hashConsed)
                 case err:SIRType.TypeError =>
@@ -297,7 +301,7 @@ object FlatInstantces:
 
 
         override def encodeHC(a: SIRType, encode: HashConsedEncoderState): Unit =
-            println(s"encodeHC:start ${a.hashCode()} $a")
+            println(s"encodeHC:start ${a.hashCode()} $a, pos=${encode.encode.bitPosition()}")
             var mute = false
             val startPos = encode.encode.bitPosition()
             a match
@@ -365,7 +369,9 @@ object FlatInstantces:
                 
 
         override def decodeHC(decode: HashConsedDecoderState): HashConsedRef[SIRType] =
-            decode.decode.bits8(tagWidth) match
+            val ctag = decode.decode.bits8(tagWidth)
+            println(s"SIRTypeHashConsedFlat.decodeHC: ctag=${ctag}, pos=${decode.decode.currPtr*8 + decode.decode.usedBits}")
+            ctag match
                 case `tagPrimitiveByteString` => HashConsedRef.fromData(SIRType.ByteStringPrimitive)
                 case `tagPrimitiveInteger` => HashConsedRef.fromData(SIRType.IntegerPrimitive)
                 case `tagPrimitiveString` => HashConsedRef.fromData(SIRType.StringPrimitive)
@@ -381,7 +387,7 @@ object FlatInstantces:
                     val to = decodeHC(decode)
                     HashConsedRef.deferred(
                         hs => from.isComplete(hs) && to.isComplete(hs),
-                        hs => SIRType.Fun(from.finValue(hs), to.finValue(hs))
+                        (hs, level, parents) => SIRType.Fun(from.finValue(hs, level, parents), to.finValue(hs, level, parents))
                     )
                 case `tagTypeVar` =>
                     HashConsedRef.fromData(summon[HashConsedFlat[SIRType.TypeVar]].decodeHC(decode))
@@ -390,7 +396,7 @@ object FlatInstantces:
                     val body = decodeHC(decode)
                     HashConsedRef.deferred(
                         hs => body.isComplete(hs),
-                        hs => SIRType.TypeLambda(params, body.finValue(hs))
+                        (hs, level, parents) => SIRType.TypeLambda(params, body.finValue(hs, level, parents))
                     )
                 case `tagTypeFreeUnificator` => HashConsedRef.fromData(SIRType.FreeUnificator)
                 case `tagTypeProxy` =>
@@ -399,28 +405,41 @@ object FlatInstantces:
                     decode.hashConsed.lookup(ihc, tag) match
                         case None =>
                             decode.hashConsed.putForwardRef(HashConsed.ForwardRefAcceptor(ihc,tag, Nil))
+                            println(s"SIRType::decodeHC:1 TypeProxy: ihc=${ihc}, putForwardRef")
                             val ref = decodeHC(decode)
-                            decode.hashConsed.setRef(ihc, tag, ref)
-                            new HashConsedRef[SIRType]:
-                                override def isComplete(hashConsed: HashConsed.State): Boolean =
-                                    ref.isComplete(hashConsed)
-                                override def finValue(hashConsed: HashConsed.State): SIRType = {
-                                    SIRType.TypeProxy(ref.finValue(hashConsed))
+                            println(s"SIRType::decodeHC:2 TypeProxy: ref=${ref}")
+                            if (!ref.isForward) then
+                                decode.hashConsed.setRef(ihc, tag, ref)
+                            HashConsedRef.deferred[SIRType](
+                                hs => ref.isComplete(hs),
+                                (hs, level, parents) => {
+                                    println(s"SIRType::decodeHC:3 TypeProxy: ref=${ref}, me=${this}")
+                                    if (parents.get(this) != null) then
+                                        println(s"SIRType::decodeHC, cycle detected in TypeProxy: this in parents")
+                                    if (parents.get(ref) != null) then
+                                        println(s"SIRType::decodeHC, cycle detected in TypeProxy: ref in parents")
+                                    SIRType.TypeProxy(ref.finValue(hs, level, parents))
                                 }
+                           )
                         case Some(Left(fw)) =>
                             val newRef = new HashConsed.MutRef[HashConsedRef[SIRType]](null)
-                            fw.addAction((a: HashConsedRef[?]) =>
+                            fw.addAction(decode.hashConsed, (a: HashConsedRef[?]) =>
                                 newRef.value = a.asInstanceOf[HashConsedRef[SIRType]]
                             )
                             new HashConsedRef[SIRType] {
                                 override def isComplete(hashConsed: HashConsed.State): Boolean =
                                     val ref = newRef.value
                                     ref != null && ref.isComplete(hashConsed)
-                                override def finValue(hashConsed: HashConsed.State): SIRType = {
+                                override def finValue(hashConsed: HashConsed.State, level: Int, parent: HSRIdentityHashMap): SIRType = {
                                     val ref = newRef.value
                                     if (ref == null)
                                         throw new IllegalStateException("TypeProxy is not resolved")
-                                    SIRType.TypeProxy(ref.finValue(hashConsed))
+                                    if (parent.get(this) != null)
+                                        throw new IllegalStateException("Cycle detected in TypeProxy")
+                                    parent.put(this, this)
+                                    val retval = SIRType.TypeProxy(ref.finValue(hashConsed, level+1, parent))
+                                    parent.remove(this)
+                                    retval
                                 }
                             }
                         case Some(Right(a)) =>
@@ -458,7 +477,7 @@ object FlatInstantces:
             val tp = SIRTypeHashConsedFlat.decodeHC(decode)
             HashConsedRef.deferred(
                 hs => tp.isComplete(hs),
-                hs => TypeBinding(name, tp.finValue(hs))
+                (hs,l,p) => TypeBinding(name, tp.finValue(hs,l,p))
             )
         }
 
@@ -493,7 +512,6 @@ object FlatInstantces:
             HashConsedRef.fromData(a)
         }
 
-
         override def bitSizeHCNew(a: SIRType.SumCaseClass, state: HashConsed.State): Int =
             val declSize = DataDeclFlat.bitSizeHC(a.decl, state)
             val typeArgsSize = HashConsedReprFlat.listRepr(SIRTypeHashConsedFlat).bitSizeHC(a.typeArgs, state)
@@ -508,7 +526,7 @@ object FlatInstantces:
             val typeArgs = HashConsedReprFlat.listRepr(SIRTypeHashConsedFlat).decodeHC(decode)
             HashConsedRef.deferred(
                 hs => declReprRef.isComplete(hs) && typeArgs.isComplete(hs),
-                hs => SIRType.SumCaseClass(declReprRef.finValue(hs), typeArgs.finValue(hs))
+                (hs,l,p) => SIRType.SumCaseClass(declReprRef.finValue(hs,l,p), typeArgs.finValue(hs,l,p))
             )
 
     }
@@ -557,7 +575,7 @@ object FlatInstantces:
             val body = SIRExprHashConsedFlat.decodeHC(decode)
             HashConsedRef.deferred(
                 hs => bindings.isComplete(hs) && body.isComplete(hs),
-                hs => SIR.Let(rec, bindings.finValue(hs), body.finValue(hs))
+                (hs,l,p) => SIR.Let(rec, bindings.finValue(hs,l,p), body.finValue(hs,l,p))
             )
         }
     }
@@ -589,7 +607,7 @@ object FlatInstantces:
             val body = SIRExprHashConsedFlat.decodeHC(decode)
             HashConsedRef.deferred(
                 hs => constr.isComplete(hs) && typeBindings.isComplete(hs) && body.isComplete(hs),
-                hs => SIR.Case(constr.finValue(hs), bindings, typeBindings.finValue(hs), body.finValue(hs))
+                (hs,l,p) => SIR.Case(constr.finValue(hs,l,p), bindings, typeBindings.finValue(hs,l,p), body.finValue(hs,l,p))
             )
         }
     }
@@ -723,7 +741,7 @@ object FlatInstantces:
                     val tp = SIRTypeHashConsedFlat.decodeHC(decoder)
                     HashConsedRef.deferred(
                         hs => tp.isComplete(hs),
-                        hs => Var(name, tp.finValue(hs))
+                        (hs,l,p) => Var(name, tp.finValue(hs,l,p))
                     )
                 case `tagLet` =>
                     SIRLetHashConsedFlat.decodeHC(decoder)
@@ -732,7 +750,7 @@ object FlatInstantces:
                     val t = decodeHC(decoder)
                     HashConsedRef.deferred(
                         hs => x.isComplete(hs) && t.isComplete(hs),
-                        hs => LamAbs(x.finValue(hs), t.finValue(hs))
+                        (hs,l,p) => LamAbs(x.finValue(hs,l,p), t.finValue(hs,l,p))
                     )
                 case `tagApply` =>
                     val f = decodeHC(decoder)
@@ -740,7 +758,7 @@ object FlatInstantces:
                     val tp = SIRTypeHashConsedFlat.decodeHC(decoder)
                     HashConsedRef.deferred(
                         hs => f.isComplete(hs) && x.isComplete(hs) && tp.isComplete(hs),
-                        hs => Apply(f.finValue(hs), x.finValue(hs), tp.finValue(hs))
+                        (hs,l,p) => Apply(f.finValue(hs,l,p), x.finValue(hs,l,p), tp.finValue(hs,l,p))
                     )
                 case `tagConst` =>
                     SIRConstHashConsedFlat.decodeHC(decoder)
@@ -751,7 +769,7 @@ object FlatInstantces:
                     val tp = SIRTypeHashConsedFlat.decodeHC(decoder)
                     HashConsedRef.deferred(
                         hs => c.isComplete(hs) && t.isComplete(hs) && f.isComplete(hs) && tp.isComplete(hs),
-                        hs => IfThenElse(c.finValue(hs), t.finValue(hs), f.finValue(hs), tp.finValue(hs))
+                        (hs,l,p) => IfThenElse(c.finValue(hs,l,p), t.finValue(hs,l,p), f.finValue(hs,l,p), tp.finValue(hs,l,p))
                     )
                 case `tagBuiltin` =>
                     val bn = summon[Flat[DefaultFun]].decode(decoder.decode)
@@ -765,7 +783,7 @@ object FlatInstantces:
                     val args = HashConsedReprFlat.listRepr(SIRExprHashConsedFlat).decodeHC(decoder)
                     HashConsedRef.deferred(
                         hs => data.isComplete(hs) && args.isComplete(hs),
-                        hs => Constr(name, data.finValue(hs), args.finValue(hs))
+                        (hs,l,p) => Constr(name, data.finValue(hs,l,p), args.finValue(hs,l,p))
                     )
                 case `tagMatch` =>
                     val scrutinee = decodeHC(decoder)
@@ -773,7 +791,7 @@ object FlatInstantces:
                     val tp = SIRTypeHashConsedFlat.decodeHC(decoder)
                     HashConsedRef.deferred(
                         hs => scrutinee.isComplete(hs) && cases.isComplete(hs) && tp.isComplete(hs),
-                        hs => Match(scrutinee.finValue(hs), cases.finValue(hs), tp.finValue(hs))
+                        (hs,l,p) => Match(scrutinee.finValue(hs,l,p), cases.finValue(hs,l,p), tp.finValue(hs,l,p))
                     )
                 case `tagExternalVar` =>
                     val modName = summon[Flat[String]].decode(decoder.decode)
@@ -781,27 +799,27 @@ object FlatInstantces:
                     val tp = SIRTypeHashConsedFlat.decodeHC(decoder)
                     HashConsedRef.deferred(
                         hs => tp.isComplete(hs),
-                        hs => ExternalVar(modName, name, tp.finValue(hs))
+                        (hs,l,p) => ExternalVar(modName, name, tp.finValue(hs,l,p))
                     )
                 case `tagAnd` =>
                     val x = decodeHC(decoder)
                     val y = decodeHC(decoder)
                     HashConsedRef.deferred(
                         hs => x.isComplete(hs) && y.isComplete(hs),
-                        hs => And(x.finValue(hs), y.finValue(hs))
+                        (hs,l,p) => And(x.finValue(hs,l,p), y.finValue(hs,l,p))
                     )
                 case `tagOr` =>
                     val x = decodeHC(decoder)
                     val y = decodeHC(decoder)
                     HashConsedRef.deferred(
                         hs => x.isComplete(hs) && y.isComplete(hs),
-                        hs => Or(x.finValue(hs), y.finValue(hs))
+                        (hs,l,p) => Or(x.finValue(hs,l,p), y.finValue(hs,l,p))
                     )
                 case `tagNot` =>
                     val x = decodeHC(decoder)
                     HashConsedRef.deferred(
                         hs => x.isComplete(hs),
-                        hs => Not(x.finValue(hs))
+                        (hs,l,p) => Not(x.finValue(hs,l,p))
                     )
 
                     
@@ -826,7 +844,7 @@ object FlatInstantces:
             val tp = SIRTypeHashConsedFlat.decodeHC(decode)
             HashConsedRef.deferred(
                 hs => tp.isComplete(hs),
-                hs => SIR.Var(name, tp.finValue(hs))
+                (hs, l, p) => SIR.Var(name, tp.finValue(hs,l,p))
             )
             
     
@@ -861,7 +879,7 @@ object FlatInstantces:
             val tp = SIRTypeHashConsedFlat.decodeHC(decode)
             HashConsedRef.deferred(
                 hs => tp.isComplete(hs),
-                hs => SIR.Const(uplcConst, tp.finValue(hs))
+                (hs,l,p) => SIR.Const(uplcConst, tp.finValue(hs,l,p))
             )
 
 
@@ -881,13 +899,10 @@ object FlatInstantces:
         override def decodeHC(decoder: HashConsedDecoderState): HashConsedRef[SIR.Decl] =
              val data = DataDeclFlat.decodeHC(decoder)
              val term = SIRHashConsedFlat.decodeHC(decoder)
-             new HashConsedRef[SIR.Decl] {
-                 override def isComplete(hashConsed: HashConsed.State): Boolean =
-                     data.isComplete(hashConsed) && term.isComplete(hashConsed)
-                 override def finValue(hashConsed: HashConsed.State): SIR.Decl = {
-                     SIR.Decl(data.finValue(hashConsed), term.finValue(hashConsed))
-                 }
-             }
+             HashConsedRef.deferred(
+                    hs => data.isComplete(hs) && term.isComplete(hs),
+                    (hs,l,p) => SIR.Decl(data.finValue(hs,l,p), term.finValue(hs,l,p))
+             )
 
 
     object SIRHashConsedFlat extends HashConsedReprFlat[SIR, HashConsedRef[SIR]]:
@@ -936,8 +951,8 @@ object FlatInstantces:
 
         override def isComplete(hs: HashConsed.State): Boolean = defs.isComplete(hs)
 
-        override def finValue(hc: HashConsed.State): Module = {
-            Module(version, defs.finValue(hc))
+        override def finValue(hc: HashConsed.State, level: Int, parents: HSRIdentityHashMap): Module = {
+            Module(version, defs.finValue(hc, level+1, parents))
         }
 
     }
@@ -977,7 +992,8 @@ object FlatInstantces:
             println(s"before decoding Module")
             val repr = ModuleHashSetReprFlat.decodeHC(decoder)
             decoder.runFinCallbacks()
-            val retval = repr.finValue(decoder.hashConsed)
+            val parents = new HSRIdentityHashMap
+            val retval = repr.finValue(decoder.hashConsed, 0, parents)
             println(s"after decoding Module, head-name = ${retval.defs.head.name}")
             retval
 

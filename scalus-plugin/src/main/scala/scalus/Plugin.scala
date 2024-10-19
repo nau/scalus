@@ -9,6 +9,7 @@ import dotty.tools.dotc.plugins.*
 
 import scala.collection.immutable
 import scala.language.implicitConversions
+import scala.util.control.NonFatal
 
 enum Mode:
     case Compile, Link
@@ -32,7 +33,14 @@ class ScalusPhase extends PluginPhase {
 
     override def prepareForUnit(tree: Tree)(using Context): Context =
         // report.echo(s"Scalus: ${ctx.compilationUnit.source.file.name}")
-        val compiler = new SIRCompiler(Mode.Compile)
+        val compiler =
+            try
+                new SIRCompiler(Mode.Compile)
+            catch
+                case NonFatal(e) =>
+                    report.error(s"Failed to initialize Scalus compiler: ${e.getMessage}")
+                    e.printStackTrace()
+                    throw e
         compiler.compileModule(tree)
         ctx
 

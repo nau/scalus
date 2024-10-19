@@ -1,12 +1,11 @@
 package scalus.sir
 
 
-import scalus.sir.SIRType.TypeVar
-
+import scala.util.control.NonFatal
 import scala.quoted.*
 import scalus.uplc.DefaultUni
+import scalus.sir.SIRType.TypeVar
 
-import java.lang.reflect.UndeclaredThrowableException
 
 
 sealed trait SIRType {
@@ -366,6 +365,7 @@ object SIRType {
     }
 
     sealed trait TypeUnificationResult[+T] {
+        def isDefined: Boolean
         def map[S](f: T => S): TypeUnificationResult[S]
         def flatMap[S](f: T=> TypeUnificationResult[S]): TypeUnificationResult[S]
     }
@@ -382,6 +382,9 @@ object SIRType {
     }
 
     object EmptyTypeUnificationResult extends TypeUnificationResult[Nothing] {
+        
+        override def isDefined: Boolean = false
+        
         def map[S](f: Nothing => S): TypeUnificationResult[S] = this.asInstanceOf[TypeUnificationResult[S]]
 
         override def flatMap[S](f: Nothing => TypeUnificationResult[S]): TypeUnificationResult[S] =
@@ -389,6 +392,9 @@ object SIRType {
     }
 
     case class ErroredTypeUnificationResult(msg: String) extends TypeUnificationResult[Nothing] {
+        
+        override def isDefined: Boolean = false
+        
         override def map[S](f: Nothing => S): TypeUnificationResult[S] =
             this.asInstanceOf[TypeUnificationResult[S]]
 
@@ -397,6 +403,9 @@ object SIRType {
     }
 
     case class SuccessfulTypeUnificationResult[T](unificator: T, env: Map[TypeVar,SIRType]) extends TypeUnificationResult[T] {
+        
+        override def isDefined: Boolean = true
+        
         def map[S](f: T => S): TypeUnificationResult[S] =
                 SuccessfulTypeUnificationResult(f(unificator), env)
         override def flatMap[S](f: T => TypeUnificationResult[S]): TypeUnificationResult[S] =
@@ -597,6 +606,8 @@ object SIRType {
 
     def liftMImpl[T<:AnyKind:Type](using Quotes): Expr[SIRType] = {
         import quotes.reflect.*
+
+        println(s"liftMImpl: ${TypeRepr.of[T].show}")
 
         case class Env(
             val forwardRefs: Map[Symbol, TypeProxy] = Map.empty,
@@ -820,8 +831,14 @@ object SIRType {
             SIRType.TypeError(fullMessage, null)
         }
 
-        val sirType = liftRepr(TypeRepr.of[T], Env())
-        SIRTypeToExpr.apply(sirType)
+        try
+            val sirType = liftRepr(TypeRepr.of[T], Env())
+            SIRTypeToExpr.apply(sirType)
+        catch
+            case NonFatal(ex) =>
+                println(s"Error: during lifting ${TypeRepr.of[T].show}: ${ex.getMessage}")
+                ex.printStackTrace()
+                throw ex
     }
 
     

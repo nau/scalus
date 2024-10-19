@@ -54,7 +54,8 @@ lazy val commonScalacOptions = Seq(
   "-explain",
   "-Wunused:imports",
   "-Wunused:params",
-  "-Xcheck-macros"
+  "-Xcheck-macros",
+  "-Xprint-suspension"
 )
 
 // Scala 3 Compiler Plugin for Scalus
