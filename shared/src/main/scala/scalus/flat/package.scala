@@ -365,6 +365,9 @@ package object flat:
                   "DecoderState: Not enough data available: " + this.toString
                 )
 
+        def bitPosition(): Int =
+            this.currPtr * 8 + this.usedBits
+        
         private def availableBits(): Int =
             return 8 * this.availableBytes() - this.usedBits
 

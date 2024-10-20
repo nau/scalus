@@ -350,9 +350,9 @@ object FlatInstantces:
                     PlainIntFlat.encode(ihc, encode.encode)
                     encode.hashConsed.lookup(ihc, tag) match
                         case None =>
-                            encode.hashConsed.putForwardRef(HashConsed.ForwardRefAcceptor(ihc, tag, Nil))
+                            //encode.hashConsed.putForwardRef(HashConsed.ForwardRefAcceptor(ihc, tag, Nil))
                             encodeHC(ref, encode)
-                            encode.hashConsed.setRef(ihc, tag, HashConsedRef.fromData(ref))
+                            //encode.hashConsed.setRef(ihc, tag, HashConsedRef.fromData(ref))
                         case Some(_) =>
                 case a: SIRType.TypeNonCaseModule =>
                     encode.encode.bits(tagWidth, tagNonCaseModule)
@@ -404,12 +404,12 @@ object FlatInstantces:
                     val ihc = PlainIntFlat.decode(decode.decode)
                     decode.hashConsed.lookup(ihc, tag) match
                         case None =>
-                            decode.hashConsed.putForwardRef(HashConsed.ForwardRefAcceptor(ihc,tag, Nil))
+                            //decode.hashConsed.putForwardRef(HashConsed.ForwardRefAcceptor(ihc,tag, Nil))
                             println(s"SIRType::decodeHC:1 TypeProxy: ihc=${ihc}, putForwardRef")
                             val ref = decodeHC(decode)
                             println(s"SIRType::decodeHC:2 TypeProxy: ref=${ref}")
-                            if (!ref.isForward) then
-                                decode.hashConsed.setRef(ihc, tag, ref)
+                            //if (!ref.isForward) then
+                            //    decode.hashConsed.setRef(ihc, tag, ref)
                             HashConsedRef.deferred[SIRType](
                                 hs => ref.isComplete(hs),
                                 (hs, level, parents) => {
@@ -985,6 +985,7 @@ object FlatInstantces:
         def encodeHC(a: Module, enc: HashConsedEncoderState): Unit =
             println(s"before encoding Module ${a.version}, head-name = ${a.defs.head.name}")
             ModuleHashSetReprFlat.encodeHC(a, enc)
+            enc.encode.filler()
             println(s"after encoding Module , count=${enc.encode.bitPosition()}")
 
         def decodeHC(decoder: HashConsedDecoderState): Module =

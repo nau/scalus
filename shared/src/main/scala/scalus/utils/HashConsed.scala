@@ -51,7 +51,7 @@ object HashConsedRef {
             def isComplete(hashConsed: HashConsed.State) = complete(hashConsed)
             def finValue(hashConsed: HashConsed.State, level: Int, parents: IdentityHashMap[HashConsedRef[?],HashConsedRef[?]]): A =
                 if (parents.get(this) != null) then
-                    throw IllegalStateException("Cyclic reference")
+                    throw IllegalStateException(s"Cyclic reference, this= $this, parents=$parents")
                 parents.put(this, this)
                 val retval = op(hashConsed, level+1, parents)
                 parents.remove(this)
@@ -243,29 +243,6 @@ object HashConsed {
                            case None => None
                            case Some(fw) => Some(Left(fw))
            case Some(r) => Some(Right(r))
-
-   /* 
-   def setForwardRefCallback(s: State, ihc: Int, tag:Tag, setRef: AnyRef => Unit ): Boolean =
-
-       //TODO: introduct accumilatror and make tailRec
-       def addSetRef(l:List[ForwardRefAcceptor]): List[ForwardRefAcceptor] =
-           l match
-             case Nil =>
-                  ForwardRefAcceptor(ihc,tag,List(setRef))::Nil
-             case h::t =>
-                  if h.tag == tag then
-                     h.addAction(s, setRef)
-                     h::t
-                  else
-                     h::addSetRef(t)
-
-       s.forwardRefAcceptors.get(ihc) match
-             case None => false
-             case Some(l) =>
-                    s.forwardRefAcceptors.put(ihc,addSetRef(l))
-                    true
-                    
-    */
 
 
 }
