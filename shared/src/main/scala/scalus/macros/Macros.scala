@@ -8,6 +8,8 @@ import scalus.uplc.ExprBuilder.*
 import scalus.uplc.Expr as Exp
 import scalus.uplc.Term as Trm
 
+import java.nio.file.Files
+import java.nio.file.Paths
 import scala.collection.immutable
 import scala.quoted.*
 import scala.annotation.nowarn
@@ -281,8 +283,7 @@ object Macros {
 
     def inlineBuiltinCostModelJsonImpl(using Quotes)(name: Expr[String]): Expr[String] = {
         import scala.quoted.*
-        val input = this.getClass.getResourceAsStream(name.value.get)
-        val string = scala.io.Source.fromInputStream(input).mkString
+        val string = Files.readString(Paths.get("shared/src/main/resources", name.value.get))
         Expr(string)
     }
 

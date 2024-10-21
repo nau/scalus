@@ -130,13 +130,13 @@ object BuiltinCostModel {
     }
 
     val defaultCostModelA: BuiltinCostModel =
-        BuiltinCostModel.fromJsonString(inlineBuiltinCostModelJson("/builtinCostModelA.json"))
+        BuiltinCostModel.fromJsonString(inlineBuiltinCostModelJson("builtinCostModelA.json"))
 
     val defaultCostModelB: BuiltinCostModel =
-        BuiltinCostModel.fromJsonString(inlineBuiltinCostModelJson("/builtinCostModelB.json"))
+        BuiltinCostModel.fromJsonString(inlineBuiltinCostModelJson("builtinCostModelB.json"))
 
     val defaultCostModelC: BuiltinCostModel =
-        BuiltinCostModel.fromJsonString(inlineBuiltinCostModelJson("/builtinCostModelC.json"))
+        BuiltinCostModel.fromJsonString(inlineBuiltinCostModelJson("builtinCostModelC.json"))
 
     @deprecated("Use defaultCostModelA, defaultCostModelB or defaultCostModelC instead", "0.1.0")
     val defaultCostModel: BuiltinCostModel = defaultCostModelC
