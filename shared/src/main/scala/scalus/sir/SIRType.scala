@@ -343,9 +343,9 @@ object SIRType {
     def calculateApplyType(f: SIRType, arg: SIRType, env: Map[TypeVar,SIRType]): SIRType = f match {
         case Fun(in, out) =>
             unify(in, arg, env) match
-                case r: SuccessfulTypeUnificationResult[?] => substitute(out,r.env, Map.empty)
-                case e: ErroredTypeUnificationResult => TypeError(e.msg, null)
-                case EmptyTypeUnificationResult => TypeError(s"Cannot unify $in with $arg", null)
+                case r: SuccessfulUnificationResult[?] => substitute(out,r.env, Map.empty)
+                case e: ErroredUnificationResult => TypeError(e.msg, null)
+                case EmptyUnificationResult => TypeError(s"Cannot unify $in with $arg", null)
         case tvF@TypeVar(name, _) =>
             env.get(tvF) match
                 case Some(f1) => calculateApplyType(tvF, arg, env)
@@ -364,102 +364,108 @@ object SIRType {
             TypeError(s"Expected function type, got $other", null)
     }
 
-    sealed trait TypeUnificationResult[+T] {
+    sealed trait UnificationResult[+T] {
         def isDefined: Boolean
-        def map[S](f: T => S): TypeUnificationResult[S]
-        def flatMap[S](f: T=> TypeUnificationResult[S]): TypeUnificationResult[S]
+        def map[S](f: T => S): UnificationResult[S]
+        def flatMap[S](f: T=> UnificationResult[S]): UnificationResult[S]
     }
 
-    object TypeUnificationResult {
+    object UnificationResult {
 
-      def empty: EmptyTypeUnificationResult.type = EmptyTypeUnificationResult
+      def empty: EmptyUnificationResult.type = EmptyUnificationResult
 
-      def error(msg: String): ErroredTypeUnificationResult = ErroredTypeUnificationResult(msg)
+      def error(msg: String): ErroredUnificationResult = ErroredUnificationResult(msg)
 
-      def success[T](unificator: T, env: Map[TypeVar,SIRType]): SuccessfulTypeUnificationResult[T] =
-          SuccessfulTypeUnificationResult(unificator, env)
+      def success[T](unificator: T, env: Map[TypeVar,SIRType]): SuccessfulUnificationResult[T] =
+          SuccessfulUnificationResult(unificator, env)
 
     }
 
-    object EmptyTypeUnificationResult extends TypeUnificationResult[Nothing] {
+    object EmptyUnificationResult extends UnificationResult[Nothing] {
         
         override def isDefined: Boolean = false
         
-        def map[S](f: Nothing => S): TypeUnificationResult[S] = this.asInstanceOf[TypeUnificationResult[S]]
+        def map[S](f: Nothing => S): UnificationResult[S] = this.asInstanceOf[UnificationResult[S]]
 
-        override def flatMap[S](f: Nothing => TypeUnificationResult[S]): TypeUnificationResult[S] =
-            this.asInstanceOf[TypeUnificationResult[S]]
+        override def flatMap[S](f: Nothing => UnificationResult[S]): UnificationResult[S] =
+            this.asInstanceOf[UnificationResult[S]]
     }
 
-    case class ErroredTypeUnificationResult(msg: String) extends TypeUnificationResult[Nothing] {
+    case class ErroredUnificationResult(msg: String) extends UnificationResult[Nothing] {
         
         override def isDefined: Boolean = false
         
-        override def map[S](f: Nothing => S): TypeUnificationResult[S] =
-            this.asInstanceOf[TypeUnificationResult[S]]
+        override def map[S](f: Nothing => S): UnificationResult[S] =
+            this.asInstanceOf[UnificationResult[S]]
 
-        override def flatMap[S](f: Nothing => TypeUnificationResult[S]): TypeUnificationResult[S] =
-            this.asInstanceOf[TypeUnificationResult[S]]
+        override def flatMap[S](f: Nothing => UnificationResult[S]): UnificationResult[S] =
+            this.asInstanceOf[UnificationResult[S]]
     }
 
-    case class SuccessfulTypeUnificationResult[T](unificator: T, env: Map[TypeVar,SIRType]) extends TypeUnificationResult[T] {
+    case class SuccessfulUnificationResult[T](unificator: T, env: Map[TypeVar,SIRType]) extends UnificationResult[T] {
         
         override def isDefined: Boolean = true
         
-        def map[S](f: T => S): TypeUnificationResult[S] =
-                SuccessfulTypeUnificationResult(f(unificator), env)
-        override def flatMap[S](f: T => TypeUnificationResult[S]): TypeUnificationResult[S] =
+        def map[S](f: T => S): UnificationResult[S] =
+                SuccessfulUnificationResult(f(unificator), env)
+        override def flatMap[S](f: T => UnificationResult[S]): UnificationResult[S] =
             f(unificator)
     }
 
-    def unify(left: SIRType, right: SIRType, env: Map[TypeVar,SIRType]): TypeUnificationResult[SIRType] = {
-        
-        def checkLeftTypeVar(tv: TypeVar): TypeUnificationResult[SIRType] =
-            env.get(tv) match
-                case Some(tv1) =>
-                    if (tv1 == FreeUnificator) then
-                        SuccessfulTypeUnificationResult(right, env + (tv -> right))
-                    else
-                        unify(tv1, right, env)
-                case None =>
-                    TypeUnificationResult.error(s"Unbound type variable $tv")
+    def unify(left: SIRType, right: SIRType, env: Map[TypeVar,SIRType]): UnificationResult[SIRType] = {
 
-        def checkRightTypeVar(tv: TypeVar): TypeUnificationResult[SIRType] =
+        println(s"unify: left: ${left.show}, right: ${right.show}, env: $env")
+
+        def checkLeftTypeVar(tv: TypeVar): UnificationResult[SIRType] =
+            right match
+                case tvRight: TypeVar if (tv == tvRight) =>
+                    SuccessfulUnificationResult(right, env)
+                case _ =>
+                    env.get(tv) match
+                        case Some(tv1) =>
+                            if (tv1 == FreeUnificator) then
+                                SuccessfulUnificationResult(right, env + (tv -> right))
+                            else
+                                unify(tv1, right, env)
+                        case None =>
+                            UnificationResult.error(s"Unbound type variable $tv")
+
+        def checkRightTypeVar(tv: TypeVar): UnificationResult[SIRType] =
             env.get(tv) match
                 case Some(t) =>
                     if t == FreeUnificator then
-                        TypeUnificationResult.success(left, env + (tv -> left))
+                        UnificationResult.success(left, env + (tv -> left))
                     else
                         unify(left, t, env)
                 case None =>
-                    TypeUnificationResult.error(s"Unbound type variable $tv")
+                    UnificationResult.error(s"Unbound type variable $tv")
 
 
-        def checkLeftTypeLambda(tl: TypeLambda): TypeUnificationResult[SIRType] =
+        def checkLeftTypeLambda(tl: TypeLambda): UnificationResult[SIRType] =
             val newEnv = tl.params.foldLeft(env) {
                 case (acc, tv) => acc + (tv -> FreeUnificator)
             }
             unify(tl.body, right, newEnv)
 
-        def checkRightTypeLambda(tl: TypeLambda): TypeUnificationResult[SIRType] =
+        def checkRightTypeLambda(tl: TypeLambda): UnificationResult[SIRType] =
             val newEnv = tl.params.foldLeft(env) {
                 case (acc, tv) => acc + (tv -> FreeUnificator)
             }
             unify(left, tl.body, newEnv)
 
-        def checkLeftProxy(ltp: TypeProxy): TypeUnificationResult[SIRType] =
+        def checkLeftProxy(ltp: TypeProxy): UnificationResult[SIRType] =
             if ltp.ref == null then
-                ErroredTypeUnificationResult(s"Unresolved type proxy $ltp")
+                ErroredUnificationResult(s"Unresolved type proxy $ltp")
             else
                 unify(ltp.ref, right, env)
 
-        def checkRightProxy(rtp: TypeProxy): TypeUnificationResult[SIRType] =
+        def checkRightProxy(rtp: TypeProxy): UnificationResult[SIRType] =
             if rtp.ref == null then
-                ErroredTypeUnificationResult(s"Unresolved type proxy $rtp")
+                ErroredUnificationResult(s"Unresolved type proxy $rtp")
             else
                 unify(left, rtp.ref, env)
 
-        def checkRightNoSame: TypeUnificationResult[SIRType] =
+        def checkRightNoSame: UnificationResult[SIRType] =
             right match
                 case tv: TypeVar =>
                     checkRightTypeVar(tv)
@@ -468,82 +474,108 @@ object SIRType {
                 case tp: TypeProxy =>
                     checkRightProxy(tp)
                 case FreeUnificator =>
-                    TypeUnificationResult.success(left, env)
+                    UnificationResult.success(left, env)
                 case te: TypeError =>
-                    TypeUnificationResult.error(te.msg)
-                case _ => TypeUnificationResult.empty
+                    UnificationResult.error(te.msg)
+                case _ => UnificationResult.empty
 
-        def unifyList(left: List[SIRType], right: List[SIRType], env: Map[TypeVar,SIRType]): TypeUnificationResult[List[SIRType]] = {
-           val s0: TypeUnificationResult[scala.List[SIRType]] = TypeUnificationResult.success(scala.List.empty, env)
+        def unifyListOfTypes(left: List[SIRType], right: List[SIRType], env: Map[TypeVar,SIRType]): UnificationResult[List[SIRType]] = {
+           val s0: UnificationResult[scala.List[SIRType]] = UnificationResult.success(scala.List.empty, env)
            val r = left.zip(right).foldLeft(s0) {
-               case (SuccessfulTypeUnificationResult(accUnificator, env), (l, r)) =>
+               case (SuccessfulUnificationResult(accUnificator, env), (l, r)) =>
                    unify(l, r, env) match
-                       case SuccessfulTypeUnificationResult(unificator, env) =>
-                           SuccessfulTypeUnificationResult(unificator :: accUnificator, env)
-                       case e@ErroredTypeUnificationResult(msg) => e
-                       case EmptyTypeUnificationResult => EmptyTypeUnificationResult
-               case (e@ErroredTypeUnificationResult(msg), _) => e
-               case (e@EmptyTypeUnificationResult, _) => e
+                       case SuccessfulUnificationResult(unificator, env) =>
+                           SuccessfulUnificationResult(unificator :: accUnificator, env)
+                       case e@ErroredUnificationResult(msg) => e
+                       case EmptyUnificationResult => EmptyUnificationResult
+               case (e@ErroredUnificationResult(msg), _) => e
+               case (e@EmptyUnificationResult, _) => e
            }
            r.map(_.reverse)
         }
 
-        left match
+        def unifyDecl(left: DataDecl, right: DataDecl, env: Map[TypeVar,SIRType]): UnificationResult[DataDecl] = {
+            if left.name != right.name then
+                UnificationResult.empty
+            else
+                // we think that if name are equals then constructors are also equals.
+                //TODO:  need check: are names here full-names.
+                val s0: UnificationResult[List[TypeVar]] = SuccessfulUnificationResult(scala.List.empty, env)
+                left.typeParams.zip(right.typeParams).foldLeft(s0) {
+                    case (SuccessfulUnificationResult(accUnificator, env), (l, r)) =>
+                        unify(l, r, env) match
+                            case SuccessfulUnificationResult(unificator, env) =>
+                                SuccessfulUnificationResult(l :: accUnificator, env)
+                            case ErroredUnificationResult(msg) => ErroredUnificationResult(msg)
+                            case EmptyUnificationResult => EmptyUnificationResult
+                    case (e@ErroredUnificationResult(msg), _) => ErroredUnificationResult(msg)
+                    case (e@EmptyUnificationResult, _) => e
+                }.map{ rTypeArgs =>
+                    DataDecl(left.name, left.constructors, rTypeArgs.reverse)
+                }
+        }
+
+        val retval: UnificationResult[SIRType] = left match
             case leftP: Primitive[?] =>
                 right match
                     case rightP: Primitive[?] =>
                         if leftP == rightP then
-                            TypeUnificationResult.success(leftP, env)
+                            UnificationResult.success(leftP, env)
                         else
-                            TypeUnificationResult.empty
+                            UnificationResult.empty
+                    case tp: TypeProxy =>
+                        checkRightProxy(tp)
                     case _ =>
                         checkRightNoSame
             case Data =>
                 right match
-                    case Data => TypeUnificationResult.success(Data, env)
+                    case Data => UnificationResult.success(Data, env)
                     case other => checkRightNoSame
             case ccl@CaseClass(constrDecl, typeArgs) =>
                 right match
                     case rrl@CaseClass(constrDeclRight, typeArgsRight) =>
+                        println(s"CaseClass: constrDecl: $constrDecl, constrDeclRight: $constrDeclRight, same=${constrDecl == constrDeclRight}")
                         if constrDecl == constrDeclRight then
-                            unifyList(typeArgs,typeArgsRight, env).map(CaseClass(constrDecl, _))
+                            unifyListOfTypes(typeArgs,typeArgsRight, env).map(CaseClass(constrDecl, _))
                         else
-                            TypeUnificationResult.empty
+                            UnificationResult.empty
                     case SumCaseClass(decl, typeArgsRight) =>
                         decl.constructors.find(_ == constrDecl) match
                             case Some(_) =>
                                 val nEnv = constrDecl.typeParams.zip(typeArgs).foldLeft(env) {
                                     case (acc, (tv,t)) => acc + (tv -> t)
                                 }
-                                unifyList(constrDecl.parentTypeArgs, typeArgsRight, nEnv).map(SumCaseClass(decl, _))
-                            case None => TypeUnificationResult.empty
+                                unifyListOfTypes(constrDecl.parentTypeArgs, typeArgsRight, nEnv).map(SumCaseClass(decl, _))
+                            case None => UnificationResult.empty
                     case _ =>
                         checkRightNoSame
             case SumCaseClass(declLeft, typeArgsLeft) =>
                 right match
                     case SumCaseClass(declRight, typeArgsRight) =>
-                        if declLeft == declRight then
-                            unifyList(typeArgsLeft, typeArgsRight, env).map(SumCaseClass(declLeft, _))
-                        else
-                            TypeUnificationResult.empty
+                        println(s"SumCaseClass: declLeft: $declLeft, declRight: $declRight, same=${declLeft == declRight}")
+                        unifyDecl(declLeft,declRight, env) match
+                            case SuccessfulUnificationResult(declUnificator,env) =>
+                                unifyListOfTypes(typeArgsLeft, typeArgsRight, env).map(SumCaseClass(declUnificator, _))
+                            case ErroredUnificationResult(msg) => ErroredUnificationResult(msg)
+                            case EmptyUnificationResult => EmptyUnificationResult
                     case ccr@CaseClass(constrDeclRight, typeArgsRight) =>
                         declLeft.constructors.find(_ == constrDeclRight) match
                             case Some(_) =>
                                 val nEnv = constrDeclRight.typeParams.zip(typeArgsRight).foldLeft(env) {
                                     case (acc, (tv,t)) => acc + (tv -> t)
                                 }
-                                unifyList(typeArgsLeft, constrDeclRight.parentTypeArgs, nEnv).map(CaseClass(constrDeclRight, _))
-                            case None => TypeUnificationResult.empty
+                                unifyListOfTypes(typeArgsLeft, constrDeclRight.parentTypeArgs, nEnv).map(CaseClass(constrDeclRight, _))
+                            case None => UnificationResult.empty
                     case _ =>
                         checkRightNoSame
             case Fun(inLeft,outLeft) =>
                 right match
                     case Fun(inRight, outRight) =>
                         unify(inLeft, inRight, env) match
-                            case SuccessfulTypeUnificationResult(unificator, env) =>
-                                unify(outLeft, outRight, env).map(Fun(inLeft, _))
-                            case e@ErroredTypeUnificationResult(msg) => e
-                            case EmptyTypeUnificationResult => EmptyTypeUnificationResult
+                            case SuccessfulUnificationResult(unificator, env) =>
+                                unify(outLeft, outRight, env).map(Fun(unificator, _))
+                            case e@ErroredUnificationResult(msg) => e
+                            case EmptyUnificationResult => EmptyUnificationResult
                     case _ =>
                         checkRightNoSame
             case tvl@TypeVar(name, _) =>
@@ -552,11 +584,14 @@ object SIRType {
                 checkLeftTypeLambda(tll)
             case TypeError(msg, _) =>
                 // TODO: propagate cause
-                TypeUnificationResult.error(msg)
+                UnificationResult.error(msg)
             case FreeUnificator =>
-                TypeUnificationResult.success(right, env)
+                UnificationResult.success(right, env)
             case tp: TypeProxy =>
                 checkLeftProxy(tp)
+
+        println(s"unify: left: ${left.show}, right: ${right.show}, env: $env, retval: $retval")
+        retval
     }
 
 

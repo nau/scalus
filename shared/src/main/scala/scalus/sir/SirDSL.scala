@@ -29,7 +29,10 @@ object SirDSL:
         def apply(bn: DefaultFun): SIRExpr = SIRBuiltins.fromUplc(bn)
 
     given constantAsTerm[A: Constant.LiftValue]: Conversion[A, SIRExpr] with
-        def apply(c: A): SIRExpr = SIR.Const(summon[Constant.LiftValue[A]].lift(c),SIRType.liftM[A])
+        def apply(c: A): SIRExpr = {
+            val lifted = summon[Constant.LiftValue[A]].lift(c)
+            SIR.Const(lifted, SIRType.fromDefaultUni(lifted.tpe))
+        }
 
     given Conversion[Constant, SIRExpr] with
         def apply(c: Constant): SIRExpr =

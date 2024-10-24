@@ -45,10 +45,14 @@ object ToExpHSSIRTypeFlat extends HashConsedFlat[SIRType] {
         val decoderState = HashConsedDecoderState(DecoderState(encoderState.encode.buffer), HashConsed.State.empty)
         val ref = SIRTypeHashConsedFlat.decodeHC(decoderState)
         val sirType1 = ref.finValue(decoderState.hashConsed, 0, new HSRIdentityHashMap)
-        if (! unify(a, sirType1, Map.empty).isDefined ) {
+        decoderState.runFinCallbacks()
+        val unifyResult = unify(a, sirType1, Map.empty)
+        if (! unifyResult.isDefined ) {
             println("unification for encoding/decoding failed")
             println(s"original: ${a.show}")
             println(s"decoded: ${sirType1.show}")
+            println(s"unification result: $unifyResult")
+
             //
             val encoderState = HashConsedEncoderState.withSize(1000)
             

@@ -29,14 +29,10 @@ object HashConsedEncoderState {
 }
 
 class HashConsedDecoderState(val decode: DecoderState,
-                             val hashConsed: HashConsed.State,
-                             var finCallbacks: List[(HashConsed.State) => Unit] = Nil) {
-
-    def addFinCallback(callback: (HashConsed.State) => Unit): Unit =
-        this.finCallbacks = callback :: finCallbacks
-
+                             val hashConsed: HashConsed.State) {
+    
     def runFinCallbacks(): Unit =
-        finCallbacks.foreach(_(hashConsed))
+        hashConsed.finishCallbacks()
 
 }
 
@@ -83,7 +79,7 @@ object HashConsedReprFlat {
 
         def isComplete(hashConsed: HashConsed.State): Boolean = elems.forall(_.isComplete(hashConsed))
 
-        def finValue(hashConsed: HashConsed.State, level: Int, parents: HSRIdentityHashMap): List[A] =
+        override def finValue(hashConsed: HashConsed.State, level: Int, parents: HSRIdentityHashMap): List[A] =
             if (parents.get(this) != null)
                 throw new Exception("Cycle detected")
             parents.put(this, this)

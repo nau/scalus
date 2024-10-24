@@ -30,13 +30,12 @@ trait HashConsedRef[+A <: AnyRef] {
      */
     def finValue(hashConsed: HashConsed.State, level: Int, parents: HSRIdentityHashMap): A
 
-
 }
 
 object HashConsedRef {
     
     def fromData[A<:AnyRef](a:A): HashConsedRef[A] =
-        HashConsed.MutRef.fromData(a)
+        HashConsed.ConstRef.fromData(a)
         
     def fromForward[A<:AnyRef](state: HashConsed.State, ihc: Int, tag: HashConsed.Tag): HashConsedRef[A] =
         state.lookup(ihc, tag) match
@@ -48,14 +47,17 @@ object HashConsedRef {
 
     def deferred[A<:AnyRef](complete: HashConsed.State => Boolean,  op: (HashConsed.State, Int, HSRIdentityHashMap) => A): HashConsedRef[A] =
         new HashConsedRef[A] {
-            def isComplete(hashConsed: HashConsed.State) = complete(hashConsed)
-            def finValue(hashConsed: HashConsed.State, level: Int, parents: IdentityHashMap[HashConsedRef[?],HashConsedRef[?]]): A =
+
+            override def isComplete(hashConsed: HashConsed.State) = complete(hashConsed)
+
+            override def finValue(hashConsed: HashConsed.State, level: Int, parents: IdentityHashMap[HashConsedRef[?],HashConsedRef[?]]): A =
                 if (parents.get(this) != null) then
                     throw IllegalStateException(s"Cyclic reference, this= $this, parents=$parents")
                 parents.put(this, this)
                 val retval = op(hashConsed, level+1, parents)
                 parents.remove(this)
                 retval
+
         }
 
 }
@@ -73,24 +75,20 @@ object HashConsed {
 
    def tag(value:Int): Tag = value
 
-   class ForwardRefAcceptor(val ihc: Int, val tag:Tag, var setActions: List[HashConsedRef[?]=>Unit]) {
+   class ForwardRefAcceptor(val ihc: Int, val tag:Tag, var setRefActions: List[HashConsedRef[?]=>Unit]) {
          
        def addAction(state: HashConsed.State, action: HashConsedRef[?] => Unit): Unit =
-              state.map.get(ihc) match
+              state.refs.get((ihc, tag)) match
                   case None =>
-                      setActions = action :: setActions
-                  case Some(l) =>
-                      l.find(_.tag == tag) match
-                          case None =>
-                              setActions = action :: setActions
-                          case Some(v) =>
-                              action(v)    
+                      setRefActions = action :: setRefActions
+                  case Some(v) =>
+                      action(v)
        
 
    }
 
     
-   class CachedTaggedRef[A<:AnyRef](val tag: Tag, ref: HashConsedRef[A]) extends HashConsedRef[A] {
+   class CachedTaggedRef[A<:AnyRef](val tag: Tag, val ref: HashConsedRef[A]) extends HashConsedRef[A] {
 
         private var data: A | Null = null
 
@@ -107,6 +105,9 @@ object HashConsed {
             data.asInstanceOf[A]
        
    }
+
+   class ForwardValueAcceptor(var setValueActions: List[AnyRef => Unit])
+
 
    class MutRef[A<:AnyRef](var value: A | Null) extends HashConsedRef[A] {
 
@@ -172,78 +173,98 @@ object HashConsed {
        
    }
 
+   case class ConstRef[A <: AnyRef](value:A) extends HashConsedRef[A] {
+
+       override def isComplete(hashConsed: State): Boolean = true
+
+       override def finValue(hashConsed: State, level: Int, parents: HSRIdentityHashMap): A = value
+
+   }
+
+   object ConstRef {
+       
+       def fromData[A <: AnyRef](value:A): ConstRef[A] =
+           new ConstRef(value)
+
+   }
+
 
    /**
     *
     * @param forwardRefAcceptors  - set of forward references, which are not yet resolved from hashConded
-    *  @param map  - set of values,
+    * @param refs  - set of references
+    * @param forwardValueAcceptors - set of callbacks, which should be called after the value is readed.
     */
    case class State(
-                       forwardRefAcceptors: MutableMap[Int, List[ForwardRefAcceptor]],
-                       map: MutableMap[Int, List[CachedTaggedRef[?]]]
+                       forwardRefAcceptors: MutableMap[(Int,Int), ForwardRefAcceptor],
+                       refs: MutableMap[(Int, Int), CachedTaggedRef[?]],
+                       forwardValueAcceptors: MutableMap[(Int,Int), ForwardValueAcceptor]
                    )  
 
        
 
    object State:
-       def empty = State(MutableMap.empty, MutableMap.empty)
+       def empty = State(MutableMap.empty, MutableMap.empty, MutableMap.empty)
 
 
    def putForwardRefAcceptor(state: State, fw: ForwardRefAcceptor): Unit =
-       state.map.get(fw.ihc) match
+       state.refs.get((fw.ihc, fw.tag)) match
            case None =>
-               state.forwardRefAcceptors.get(fw.ihc) match
+               state.forwardRefAcceptors.get((fw.ihc, fw.tag)) match
                    case None =>
-                       state.forwardRefAcceptors.put(fw.ihc, List(fw))
-                   case Some(l) =>
-                       l.find(_.tag == fw.tag) match
-                           case None =>
-                               state.forwardRefAcceptors.put(fw.ihc, fw :: l)
-                           case Some(v) =>
-                               v.setActions = fw.setActions ++ v.setActions
-           case Some(l) =>
-               l.find(_.tag == fw.tag) match
-                   case None =>
+                       state.forwardRefAcceptors.put((fw.ihc, fw.tag), fw)
                    case Some(v) =>
-                       fw.setActions.foreach(_(v))
-                       fw.setActions = Nil
+                       v.setRefActions = fw.setRefActions ++ v.setRefActions
+           case Some(ref) =>
+               fw.setRefActions.foreach(_(ref))
+               fw.setRefActions = Nil
+
+    def putForwadValueAcceptor[A<:AnyRef](state: State, ihc: Int, tag: Tag, acceptor: A => Unit): Unit =
+        state.forwardValueAcceptors.get((ihc, tag)) match
+            case None =>
+                state.forwardValueAcceptors.put((ihc, tag), ForwardValueAcceptor(List(acceptor.asInstanceOf[AnyRef => Unit])))
+            case Some(v) =>
+                v.setValueActions = acceptor.asInstanceOf[AnyRef=>Unit] :: v.setValueActions
 
 
    def setRef[A<:AnyRef](state: State,  ihc: Int, tag: Tag, ra: HashConsedRef[A]): Unit =
        if (ra.isForward) then
            throw IllegalStateException("Forward reference in setRef")
-       state.map.get(ihc) match
-           case None => state.map.put(ihc, List(CachedTaggedRef(tag, ra)))
-           case Some(l) => l.find(_.tag == tag) match
-               case None => state.map.put(ihc, CachedTaggedRef(tag, ra) :: l)
-               case Some(_) => //double setRef
-                   throw IllegalStateException("Double setRef")
-       state.forwardRefAcceptors.get(ihc) match
+       val key = (ihc, tag)
+       state.refs.get(key) match
+           case None => state.refs.put(key, CachedTaggedRef(tag, ra))
+           case Some(ref) =>
+               throw IllegalStateException(s"Double setRef for $key")
+       state.forwardRefAcceptors.get(key) match
           case None =>
-          case Some(l) =>
-                   l.find(_.tag == tag) match
-                      case None =>
-                      case Some(fw) =>
-                             fw.setActions.foreach(_(ra))
-                             fw.setActions = Nil
+          case Some(fw) =>
+                 fw.setRefActions.foreach(_(ra))
+                 fw.setRefActions = Nil
 
 
    def lookupValue(s: State, ihc: Int, tag:Tag): Option[HashConsedRef[?]] =
-         s.map.get(ihc) match
-             case None => None
-             case Some(l) => l.find(_.tag == tag) 
+         s.refs.get((ihc,tag))
                  
    def lookup(s: State, ihc: Int, tag:Tag): Option[Either[ForwardRefAcceptor,HashConsedRef[?]]] =
        lookupValue(s, ihc, tag) match
            case None =>
-               s.forwardRefAcceptors.get(ihc) match
+               s.forwardRefAcceptors.get((ihc,tag)) match
                    case None => None
-                   case Some(l) =>
-                       l.find(_.tag == tag) match
-                           case None => None
-                           case Some(fw) => Some(Left(fw))
+                   case Some(fw) =>
+                       Some(Left(fw))
            case Some(r) => Some(Right(r))
 
+
+   def finishCallbacks(s: State): Unit =
+       for {(k,v) <- s.forwardValueAcceptors} {
+           s.refs.get(k) match
+               case None =>
+                   throw IllegalStateException(s"Forward value acceptor without value: $k")
+               case Some(ref) =>
+                   val a = ref.finValue(s, 0, new HSRIdentityHashMap)
+                   v.setValueActions.foreach(_(a))
+                   v.setValueActions = Nil
+       }
 
 }
 
@@ -264,3 +285,8 @@ extension (s: HashConsed.State)
     def lookup(ihc: Int, tag: HashConsed.Tag): Option[Either[HashConsed.ForwardRefAcceptor, HashConsedRef[?]]] =
         HashConsed.lookup(s, ihc, tag)
     
+    def putForwardValueAcceptor[A<:AnyRef](ihc: Int, tag: HashConsed.Tag, acceptor: A => Unit): Unit =
+        HashConsed.putForwadValueAcceptor(s, ihc, tag, acceptor)
+        
+    def finishCallbacks(): Unit =
+        HashConsed.finishCallbacks(s)    

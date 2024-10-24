@@ -410,17 +410,25 @@ object FlatInstantces:
                             println(s"SIRType::decodeHC:2 TypeProxy: ref=${ref}")
                             //if (!ref.isForward) then
                             //    decode.hashConsed.setRef(ihc, tag, ref)
-                            HashConsedRef.deferred[SIRType](
-                                hs => ref.isComplete(hs),
-                                (hs, level, parents) => {
-                                    println(s"SIRType::decodeHC:3 TypeProxy: ref=${ref}, me=${this}")
-                                    if (parents.get(this) != null) then
-                                        println(s"SIRType::decodeHC, cycle detected in TypeProxy: this in parents")
-                                    if (parents.get(ref) != null) then
-                                        println(s"SIRType::decodeHC, cycle detected in TypeProxy: ref in parents")
-                                    SIRType.TypeProxy(ref.finValue(hs, level, parents))
-                                }
-                           )
+                            //HashConsedRef.deferred[SIRType](
+                            //    hs => ref.isComplete(hs),
+                            //    (hs, level, parents) => {
+                            //        println(s"SIRType::decodeHC:3 TypeProxy: ref=${ref}, me=${this}")
+                            //        if (parents.get(this) != null) then
+                            //            println(s"SIRType::decodeHC, cycle detected in TypeProxy: this in parents")
+                            //        if (parents.get(ref) != null) then
+                            //            println(s"SIRType::decodeHC, cycle detected in TypeProxy: ref in parents")
+                            //        SIRType.TypeProxy(ref.finValue(hs, level, parents))
+                            //    }
+                            //)
+                            val typeProxy = new SIRType.TypeProxy(null)
+                            decode.hashConsed.putForwardValueAcceptor(ihc, tag,
+                                {x =>
+                                    println(s"SIRType::decodeHC:4 TypeProxy: ihc=${ihc}, x=${x}")
+                                    typeProxy.ref = x.asInstanceOf[SIRType]}
+                            )
+                            HashConsed.ConstRef(typeProxy)
+
                         case Some(Left(fw)) =>
                             val newRef = new HashConsed.MutRef[HashConsedRef[SIRType]](null)
                             fw.addAction(decode.hashConsed, (a: HashConsedRef[?]) =>
