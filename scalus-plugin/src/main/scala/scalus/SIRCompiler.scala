@@ -500,10 +500,17 @@ final class SIRCompiler(mode: scalus.Mode)(using ctx: Context) {
                 mode match
                     case scalus.Mode.Compile =>
                         // println( s"external var: module ${e.symbol.owner.fullName.toString()}, ${e.symbol.fullName.toString()}" )
+                        val valType =
+                            try
+                                sirTypeInEnv(e.tpe.widen, e.srcPos, env)
+                            catch
+                                case NonFatal(ex) =>
+                                    println(s"Error in sirTypeInEnv:  ${e.tpe.show} ${e.tpe.widen.show}, e=${e.show} ex.message: ${ex.getMessage}")
+                                    throw ex
                         SIR.ExternalVar(
                           e.symbol.owner.fullName.toString(),
                           e.symbol.fullName.toString(),
-                           sirTypeInEnv(e.tpe.widen, e.srcPos, env)
+                          valType
                         )
                     case scalus.Mode.Link =>
                         if e.symbol.defTree == EmptyTree then
