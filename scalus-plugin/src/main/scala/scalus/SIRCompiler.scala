@@ -914,7 +914,8 @@ final class SIRCompiler(mode: scalus.Mode)(using ctx: Context) {
             case _ =>
                 error(UnsupportedListApplyInvocation(tree, tpe, tree.srcPos), SIR.Error(""))
 
-    private def compileApply(env: Env, f: Tree, args: List[Tree], applyTpe: Type, applyTree: Apply): SIRExpr = {
+    private def compileApply(env0: Env, f: Tree, targs: List[Tree], args: List[Tree], applyTpe: Type, applyTree: Apply): SIRExpr = {
+        val env = fillTypeParamInTypeApply(f.symbol, targs, env0) 
         val fE = compileExpr(env, f)
         val applySirType = sirTypeInEnv(applyTpe, applyTree.srcPos, env)
         val argsE = args.map(compileExpr(env, _))
@@ -1132,12 +1133,12 @@ final class SIRCompiler(mode: scalus.Mode)(using ctx: Context) {
              * (f: [A] => List[A] => A, a: A) => f[Data](a)
              * f.tpe will be a MethodType
              */
-            case a@Apply(applied @ TypeApply(fun @ Select(f, nme.apply), _), args)
+            case a@Apply(applied @ TypeApply(fun @ Select(f, nme.apply), targs), args)
                 if defn.isFunctionType(f.tpe.widen) || applied.tpe.isMethodType =>
-                compileApply(env, f, args, tree.tpe, a)
+                compileApply(env, f, targs, args, tree.tpe, a)
             // f.apply(arg) => Apply(f, arg)
             case a@Apply(Select(f, nme.apply), args) if defn.isFunctionType(f.tpe.widen) =>
-                compileApply(env, f, args, tree.tpe, a)
+                compileApply(env, f, Nil, args, tree.tpe, a)
             case Ident(a) =>
                 if isConstructorVal(tree.symbol, tree.tpe) then
                     compileNewConstructor(env, tree.tpe, Nil, tree)
@@ -1182,11 +1183,16 @@ final class SIRCompiler(mode: scalus.Mode)(using ctx: Context) {
             // ignore asInstanceOf
             case TypeApply(Select(e, nme.asInstanceOf_), _) => compileExpr(env, e)
             // Ignore type application
-            case TypeApply(f, args) =>
-                //???
+            case TypeApply(f, targs) =>
+                println(s"TypeApply: ${f.show}, ${targs}")
+                println(s"TypeApply: tree=${tree.show}")
+
                 compileExpr(env, f)
             // Generic Apply
-            case app@Apply(f, args) => compileApply(env, f, args, tree.tpe, app)
+            case a@Apply(pf@TypeApply(f,targs),args) =>
+                compileApply(env, f, targs, args, tree.tpe, a)
+            case app@Apply(f, args) => 
+                compileApply(env, f, Nil, args, tree.tpe, app)
             // (x: T) => body
             case Block(
                   immutable.List(dd @ DefDef(nme.ANON_FUN, _, _, _)),
@@ -1231,6 +1237,17 @@ final class SIRCompiler(mode: scalus.Mode)(using ctx: Context) {
                   SIR.Error("Unsupported expression")
                 )
     }
+    
+    private def fillTypeParamInTypeApply(sym: Symbol, targs: List[Tree], env: Env): Env = {
+        val tparams = sym.typeParams
+        val targsTypes = targs.map(_.tpe)
+        val targsSirTypes = targs.map(t => sirTypeInEnv(t.tpe, t.srcPos, env))
+        val nTypeVars = tparams.zip(targsSirTypes).map{ case(tp, v) =>
+            tp -> v
+        }.toMap
+        env.copy(typeVars = env.typeVars ++ nTypeVars)
+    }
+    
 
     def compileToSIR(tree: Tree)(using Context): SIR = {
         // println(s"compileToSIR: ${tree}")

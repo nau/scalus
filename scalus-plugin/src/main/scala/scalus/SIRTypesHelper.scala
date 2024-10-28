@@ -338,6 +338,9 @@ object SIRTypesHelper {
                             val name = typeSymbol.fullName.show
                             val tparams = typeSymbol.info.typeParamSymbols.map(s => SIRType.TypeVar(s.name.show, Some(s.hashCode)))
                             if (tparams.length != tpArgs.length) {
+                                println(s"Case parent type ${typeSymbol.showFullName} has ${tparams.length} type parameters, but ${tpArgs.length} were provided")
+                                println(s"Children types: ${childrenTypes.map(_.show)}")
+                                println(s"Children symbols: ${childrenSymbols.map(_.showFullName)}")
                                 val msg = s"Case parent type ${typeSymbol.showFullName} has ${tparams.length} type parameters, but ${tpArgs.length} were provided"
                                 thisProxy.ref = SIRType.TypeError(msg, null)
                                 Some(typeError(typeSymbol.info, msg, env, throwError = true))
