@@ -142,8 +142,8 @@ object SIRType {
             val B = TypeVar("B")
             ConstrDecl("Pair", SIRVarStorage.LocalUPLC,
                 scala.List(TypeBinding("fst",A),TypeBinding("snd",B)),
-                scala.List(A,B),
-                scala.Nil
+                scala.List(A,B) //,
+                //scala.Nil
             )
         }
 
@@ -307,7 +307,7 @@ object SIRType {
                 ConstrDecl("Cons", SIRVarStorage.LocalUPLC,
                     scala.List(TypeBinding("head", a), TypeBinding("tail", listSum)),
                     scala.List(a),
-                    scala.List(a)
+                    //scala.List(a)
                 )
             }
 
@@ -333,7 +333,9 @@ object SIRType {
             
         }
 
-        val NilConstr = ConstrDecl("Nil", SIRVarStorage.DEFAULT, scala.Nil, scala.Nil, scala.Nil)
+        //val NilConstr = ConstrDecl("Nil", SIRVarStorage.DEFAULT, scala.Nil, scala.Nil, scala.Nil)
+        val NilConstr = ConstrDecl("Nil", SIRVarStorage.DEFAULT, scala.Nil, scala.Nil)
+
 
         val Nil = CaseClass(NilConstr, scala.Nil)
 
@@ -542,10 +544,11 @@ object SIRType {
                     case SumCaseClass(decl, typeArgsRight) =>
                         decl.constructors.find(_ == constrDecl) match
                             case Some(_) =>
-                                val nEnv = constrDecl.typeParams.zip(typeArgs).foldLeft(env) {
-                                    case (acc, (tv,t)) => acc + (tv -> t)
-                                }
-                                unifyListOfTypes(constrDecl.parentTypeArgs, typeArgsRight, nEnv).map(SumCaseClass(decl, _))
+                                //val nEnv = constrDecl.typeParams.zip(typeArgs).foldLeft(env) {
+                                //    case (acc, (tv,t)) => acc + (tv -> t)
+                                //}
+                                //unifyListOfTypes(constrDecl.parentTypeArgs, typeArgsRight, nEnv).map(SumCaseClass(decl, _))
+                                UnificationResult.success(right, env)
                             case None => UnificationResult.empty
                     case _ =>
                         checkRightNoSame
@@ -561,10 +564,11 @@ object SIRType {
                     case ccr@CaseClass(constrDeclRight, typeArgsRight) =>
                         declLeft.constructors.find(_ == constrDeclRight) match
                             case Some(_) =>
-                                val nEnv = constrDeclRight.typeParams.zip(typeArgsRight).foldLeft(env) {
-                                    case (acc, (tv,t)) => acc + (tv -> t)
-                                }
-                                unifyListOfTypes(typeArgsLeft, constrDeclRight.parentTypeArgs, nEnv).map(CaseClass(constrDeclRight, _))
+                                //val nEnv = constrDeclRight.typeParams.zip(typeArgsRight).foldLeft(env) {
+                                //    case (acc, (tv,t)) => acc + (tv -> t)
+                                //}
+                                //unifyListOfTypes(typeArgsLeft, constrDeclRight.parentTypeArgs, nEnv).map(CaseClass(constrDeclRight, _))
+                                UnificationResult.success(left, env)
                             case None => UnificationResult.empty
                     case _ =>
                         checkRightNoSame

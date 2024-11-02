@@ -211,9 +211,25 @@ final class SIRCompiler(mode: scalus.Mode)(using ctx: Context) {
         val filename = pathParts.last
         val output = dir.fileNamed(filename + suffix).bufferedOutput
         val fl = summon[Flat[Module]]
-        val enc = EncoderState(fl.bitSize(module) / 8 + 1)
-        flat.encode(module, enc)
-        enc.filler()
+        val bitSize = fl.bitSize(module)
+        val enc = EncoderState(bitSize / 8 + 1)
+        fl.encode(module, enc)
+        try {
+            enc.filler()
+        } catch {
+            case ex:ArrayIndexOutOfBoundsException =>
+                println("Catched ArrayIndexOutOfBoundsException during encoding in filler()")
+                println(s"module: ${module.defs(0).name}, number of defs: ${module.defs.size}, bitSize: ${bitSize}")
+
+                val hs0 = scalus.utils.HashConsed.State.empty
+                val hsc1 = scalus.utils.HashConsedEncoderState.withSize(1000)
+                for(b <- module.defs) {
+                    println(s"def: ${b}")
+                    //val bindingBitSize = scalus.flat.FlatInstantces.BindingFlat.bitSizeHC(b,hs0)
+                }
+
+                throw ex
+        }
         output.write(enc.buffer)
         output.close()
     }
@@ -372,7 +388,8 @@ final class SIRCompiler(mode: scalus.Mode)(using ctx: Context) {
                             case _ => None
                     }.getOrElse(Nil)
                     // TODO: add substoitution for parent type params
-                    scalus.sir.ConstrDecl(sym.name.show, SIRVarStorage.DEFAULT, params, typeParams, baseTypeArgs)
+                    //scalus.sir.ConstrDecl(sym.name.show, SIRVarStorage.DEFAULT, params, typeParams, baseTypeArgs)
+                    scalus.sir.ConstrDecl(sym.name.show, SIRVarStorage.DEFAULT, params, typeParams)
                 }
                 val decl = scalus.sir.DataDecl(dataName, constrDecls, dataTypeParams)
                 globalDataDecls.addOne(FullName(dataTypeSymbol) -> decl)
@@ -499,7 +516,7 @@ final class SIRCompiler(mode: scalus.Mode)(using ctx: Context) {
             case (false, false) =>
                 mode match
                     case scalus.Mode.Compile =>
-                        // println( s"external var: module ${e.symbol.owner.fullName.toString()}, ${e.symbol.fullName.toString()}" )
+                        println( s"external var: module ${e.symbol.owner.fullName.toString()}, ${e.symbol.fullName.toString()}" )
                         val valType =
                             try
                                 sirTypeInEnv(e.tpe.widen, e.srcPos, env)
@@ -915,7 +932,7 @@ final class SIRCompiler(mode: scalus.Mode)(using ctx: Context) {
                 error(UnsupportedListApplyInvocation(tree, tpe, tree.srcPos), SIR.Error(""))
 
     private def compileApply(env0: Env, f: Tree, targs: List[Tree], args: List[Tree], applyTpe: Type, applyTree: Apply): SIRExpr = {
-        val env = fillTypeParamInTypeApply(f.symbol, targs, env0) 
+        val env = fillTypeParamInTypeApply(f.symbol, targs, env0)
         val fE = compileExpr(env, f)
         val applySirType = sirTypeInEnv(applyTpe, applyTree.srcPos, env)
         val argsE = args.map(compileExpr(env, _))
@@ -1191,7 +1208,7 @@ final class SIRCompiler(mode: scalus.Mode)(using ctx: Context) {
             // Generic Apply
             case a@Apply(pf@TypeApply(f,targs),args) =>
                 compileApply(env, f, targs, args, tree.tpe, a)
-            case app@Apply(f, args) => 
+            case app@Apply(f, args) =>
                 compileApply(env, f, Nil, args, tree.tpe, app)
             // (x: T) => body
             case Block(
@@ -1237,17 +1254,20 @@ final class SIRCompiler(mode: scalus.Mode)(using ctx: Context) {
                   SIR.Error("Unsupported expression")
                 )
     }
-    
+
     private def fillTypeParamInTypeApply(sym: Symbol, targs: List[Tree], env: Env): Env = {
         val tparams = sym.typeParams
         val targsTypes = targs.map(_.tpe)
-        val targsSirTypes = targs.map(t => sirTypeInEnv(t.tpe, t.srcPos, env))
+        val targsSirTypes = targs.map(t =>
+            val wt = t.tpe.widen
+            sirTypeInEnv(t.tpe.widen, t.srcPos, env)
+        )
         val nTypeVars = tparams.zip(targsSirTypes).map{ case(tp, v) =>
             tp -> v
         }.toMap
         env.copy(typeVars = env.typeVars ++ nTypeVars)
     }
-    
+
 
     def compileToSIR(tree: Tree)(using Context): SIR = {
         // println(s"compileToSIR: ${tree}")

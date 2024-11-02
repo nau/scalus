@@ -381,7 +381,8 @@ class PatternMatchingCompiler(val compiler: SIRCompiler)(using Context) {
             }
             tpArgs.map(t => SIRTypesHelper.sirTypeInEnv(t, SIRTypesHelper.SIRTypeEnv(srcPos, env1.typeVars)))
         }.getOrElse(Nil)
-        val constrDecl = scalus.sir.ConstrDecl(constructorSymbol.show, SIRVarStorage.DEFAULT, primaryConstructorParams, constrTypeParamsList, parentTypeArgs)
+        //val constrDecl = scalus.sir.ConstrDecl(constructorSymbol.show, SIRVarStorage.DEFAULT, primaryConstructorParams, constrTypeParamsList, parentTypeArgs)
+        val constrDecl = scalus.sir.ConstrDecl(constructorSymbol.show, SIRVarStorage.DEFAULT, primaryConstructorParams, constrTypeParamsList)
         constrDecl
     }
 

@@ -131,15 +131,16 @@ object FlatInstantces:
             val storageTypeSize = summon[Flat[SIRVarStorage]].bitSize(a.storageType)
             val paramsSize = HashConsedReprFlat.listRepr(TypeBindingFlat).bitSizeHC(a.params, hashConsed)
             val typeParamsSize = summon[HashConsedFlat[List[SIRType.TypeVar]]].bitSizeHC(a.typeParams, hashConsed)
-            val parentTypeArgsSize = HashConsedReprFlat.listRepr(SIRTypeHashConsedFlat).bitSizeHC(a.parentTypeArgs, hashConsed)
-            nameSize +  storageTypeSize + paramsSize + typeParamsSize + parentTypeArgsSize
+            //val parentTypeArgsSize = HashConsedReprFlat.listRepr(SIRTypeHashConsedFlat).bitSizeHC(a.parentTypeArgs, hashConsed)
+            //nameSize +  storageTypeSize + paramsSize + typeParamsSize + parentTypeArgsSize
+            nameSize +  storageTypeSize + paramsSize + typeParamsSize
 
         def encodeHCNew(a: ConstrDecl, encode: HashConsedEncoderState): Unit = {
             summon[Flat[String]].encode(a.name, encode.encode)
             summon[Flat[SIRVarStorage]].encode(a.storageType, encode.encode)
             HashConsedReprFlat.listRepr(TypeBindingFlat).encodeHC(a.params, encode)
             summon[HashConsedFlat[List[SIRType.TypeVar]]].encodeHC(a.typeParams, encode)
-            HashConsedReprFlat.listRepr(SIRTypeHashConsedFlat).encodeHC(a.parentTypeArgs, encode)
+            //HashConsedReprFlat.listRepr(SIRTypeHashConsedFlat).encodeHC(a.parentTypeArgs, encode)
         }
 
         def decodeHCNew(decode: HashConsedDecoderState): HashConsedRef[ConstrDecl] = {
@@ -147,12 +148,17 @@ object FlatInstantces:
             val storageType  = summon[Flat[SIRVarStorage]].decode(decode.decode)
             val params = HashConsedReprFlat.listRepr(TypeBindingFlat).decodeHC(decode)
             val typeParams = summon[HashConsedFlat[List[SIRType.TypeVar]]].decodeHC(decode)
-            val parentTypeArgs = HashConsedReprFlat.listRepr(SIRTypeHashConsedFlat).decodeHC(decode)
+            //val parentTypeArgs = HashConsedReprFlat.listRepr(SIRTypeHashConsedFlat).decodeHC(decode)
+            //HashConsedRef.deferred(
+            //    hs => params.isComplete(hs) && parentTypeArgs.isComplete(hs),
+            //    (hs, level, parents) =>
+            //        ConstrDecl(name, storageType, params.finValue(hs, level, parents), typeParams,
+            //            parentTypeArgs.finValue(hs, level, parents))
+            //)
             HashConsedRef.deferred(
-                hs => params.isComplete(hs) && parentTypeArgs.isComplete(hs),
+                hs => params.isComplete(hs),
                 (hs, level, parents) =>
-                    ConstrDecl(name, storageType, params.finValue(hs, level, parents), typeParams,
-                        parentTypeArgs.finValue(hs, level, parents))
+                      ConstrDecl(name, storageType, params.finValue(hs, level, parents), typeParams)
             )
         }
 
@@ -250,6 +256,7 @@ object FlatInstantces:
         }
 
         override def bitSizeHC(a: SIRType, hashConsed: HashConsed.State): Int =
+            println(s"bisSizeHC start ${a.hashCode()}")
             var mute = false
             val retval = a match
                 case _: SIRType.Primitive[?] => 
@@ -296,7 +303,7 @@ object FlatInstantces:
                 case SIRType.TypeNothing => tagWidth
 
             if !mute then    
-                println(s"bisSizeHC ${a.hashCode()} $a =${retval}")
+                println(s"bisSizeHC end ${a.hashCode()} $a =${retval}")
             retval
 
 
@@ -658,7 +665,7 @@ object FlatInstantces:
                 termTagWidth +
                   SIRLetHashConsedFlat.bitSizeHC(aLet, hashCons)
             case LamAbs(x, t)        =>
-                termTagWidth + bitSizeHC(x,hashCons) + bitSizeHC(t, hashCons)
+                termTagWidth + SIRVarHashConsedFlat.bitSizeHC(x,hashCons) + bitSizeHC(t, hashCons)
             case Apply(f, x, tp)     =>
                 termTagWidth + bitSizeHC(f,hashCons) + bitSizeHC(x, hashCons) +
                     SIRTypeHashConsedFlat.bitSizeHC(tp, hashCons)

@@ -8,7 +8,9 @@ case class Module(version: (Int, Int), defs: List[Binding])
 case class Binding(name: String, value: SIRExpr) {
 
     override def toString: String = s"Binding(\"$name\" : $value)"
+
 }
+
 
 case class TypeBinding(name: String, tp: SIRType) {
     override def toString: String = s"TypeBinding(\"$name\" : ${tp.show})"
@@ -30,12 +32,14 @@ case class ConstrDecl(name: String,
                       /**
                       * Type parameters of this type.
                       */
-                      typeParams: List[SIRType.TypeVar],
+                      typeParams: List[SIRType.TypeVar]
 
-                      /**
-                      * Type of the constructor.
-                      */
-                      parentTypeArgs: List[SIRType]
+                      ///**
+                      //* Type of the constructor.
+                      // (moved to DataDecl,  since when we have a hierarchy with more than one level,
+                      //  then we map this to few DataDecl, and each DataDecl has its own constructor type).
+                      //*/
+                      //parentTypeArgs: List[SIRType]
     
                      ) {
     
@@ -46,7 +50,10 @@ case class ConstrDecl(name: String,
 
 }
 
-case class DataDecl(name: String, constructors: List[ConstrDecl], typeParams: List[SIRType.TypeVar]) {
+case class DataDecl(name: String,
+                    constructors: List[ConstrDecl],
+                    typeParams: List[SIRType.TypeVar],
+                    /*constructorTypeMapping: Map[String, List[SIRType]]*/) {
 
     def tp: SIRType =
         typeParams match
