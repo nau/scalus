@@ -67,6 +67,8 @@ lazy val commonScalacOptions = Seq(
 //  "-source:future-migration"
 )
 
+lazy val copySharedFiles = taskKey[Unit]("Copy shared files")
+
 // Scala 3 Compiler Plugin for Scalus
 lazy val scalusPlugin = project
     .in(file("scalus-plugin"))
@@ -84,28 +86,50 @@ lazy val scalusPlugin = project
       libraryDependencies += "org.scala-lang" %% "scala3-compiler" % scalaVersion.value // % "provided"
     )
     .settings(
-      // Include common sources in the plugin
-      // we can't add the scalus project as a dependency because this is a Scala compiler plugin
-      // and apparently it's not supported
-      // Another option is to use sbt-assembly to create a fat jar with all the dependencies
-      // This is a simpler solution
-      Compile / managedSources ++= {
-          val baseDir = baseDirectory.value / ".." / "shared" / "src" / "main" / "scala"
-          val files = Seq(
-            baseDir / "scalus/utils/Hex.scala",
-            baseDir / "scalus/builtin/ByteString.scala",
-            baseDir / "scalus/builtin/Data.scala",
-            baseDir / "scalus/builtin/List.scala",
-            baseDir / "scalus/sir/SIR.scala",
-            baseDir / "scalus/sir/FlatInstances.scala",
-            baseDir / "scalus/uplc/Constant.scala",
-            baseDir / "scalus/uplc/DefaultFun.scala",
-            baseDir / "scalus/uplc/DefaultUni.scala",
-            baseDir / "scalus/uplc/CommonFlatInstances.scala",
-            baseDir / "scalus/flat/package.scala"
-          )
-          files
-      }
+      /*
+       Include common sources in the plugin
+       we can't add the scalus project as a dependency because this is a Scala compiler plugin
+       and apparently it's not supported
+       Another option is to use sbt-assembly to create a fat jar with all the dependencies
+       I copy the shared files to the plugin project because when I use managedSources in the plugin
+       IntelliJ IDEA only sees these files being used in the plugin project and not in the main project
+       This breaks navigation and refactoring in the main project.
+       By copying the shared files to the plugin project, IntelliJ IDEA sees them as used in the plugin project
+       */
+      copySharedFiles := {
+          val targetDir = (Compile / sourceDirectory).value / "shared" / "scala"
+          val log = streams.value.log
+
+          val sharedFiles =
+              Seq(
+                "scalus/utils/Hex.scala",
+                "scalus/builtin/ByteString.scala",
+                "scalus/builtin/Data.scala",
+                "scalus/builtin/List.scala",
+                "scalus/sir/SIR.scala",
+                "scalus/sir/FlatInstances.scala",
+                "scalus/uplc/Constant.scala",
+                "scalus/uplc/DefaultFun.scala",
+                "scalus/uplc/DefaultUni.scala",
+                "scalus/uplc/CommonFlatInstances.scala",
+                "scalus/flat/package.scala"
+              )
+
+          sharedFiles.foreach { file =>
+              val baseDir = baseDirectory.value / ".." / "shared" / "src" / "main" / "scala"
+              val source = baseDir / file
+              val target = targetDir / file
+
+              if (source.exists) {
+                  IO.copyFile(source, target)
+                  log.info(s"Copied $file to target $target")
+              } else {
+                  log.error(s"Source file not found: $file")
+              }
+          }
+      },
+      Compile / unmanagedSourceDirectories += (Compile / sourceDirectory).value / "shared" / "scala",
+      Compile / compile := (Compile / compile).dependsOn(copySharedFiles).value
     )
 
 // Used only for Scalus compiler plugin development
