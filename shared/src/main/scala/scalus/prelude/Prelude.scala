@@ -115,6 +115,15 @@ object List:
         case Nil              => List.Nil
         case Cons(head, tail) => new Cons(f(head), List.map(tail)(f))
 
+    def map2[A, B, C](a: List[A], b: List[B])(f: (A, B) => C): List[C] = {
+        a match
+            case List.Cons(h1, t1) =>
+                b match
+                    case List.Cons(h2, t2) => new List.Cons(f(h1, h2), map2(t1, t2)(f))
+                    case _                 => List.Nil
+            case _ => List.Nil
+    }
+
     def filter[A](lst: List[A])(p: A => Boolean): List[A] = lst match
         case Nil => List.Nil
         case Cons(head, tail) =>
