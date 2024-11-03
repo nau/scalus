@@ -399,8 +399,10 @@ object Builtins:
     )(bs: ByteString, dst: ByteString): BLS12_381_G1_Element =
         ps.bls12_381_G1_hashToGroup(bs, dst)
 
+    /** The compressed form of the point at infinity in G1, 48 bytes long.
+      */
     val bls12_381_G1_compressed_zero: ByteString =
-        ByteString.fromArray(Array(0x0c.toByte) ++ Array.fill(47)(0.toByte))
+        ByteString.unsafeFromArray(Array(0xc0.toByte) ++ Array.fill(47)(0.toByte))
 
     def bls12_381_G1_compressed_generator(using ps: PlatformSpecific): ByteString =
         ps.bls12_381_G1_compressed_generator
@@ -433,8 +435,10 @@ object Builtins:
         ps: PlatformSpecific
     )(bs: ByteString, dst: ByteString): BLS12_381_G2_Element = ps.bls12_381_G2_hashToGroup(bs, dst)
 
-    def bls12_381_G2_compressed_zero: ByteString =
-        ByteString.fromArray(Array(0x0c.toByte) ++ Array.fill(95)(0.toByte))
+    /** The compressed form of the point at infinity in G2, 96 bytes long.
+      */
+    val bls12_381_G2_compressed_zero: ByteString =
+        ByteString.unsafeFromArray(Array(0xc0.toByte) ++ Array.fill(95)(0.toByte))
 
     def bls12_381_G2_compressed_generator(using ps: PlatformSpecific): ByteString =
         ps.bls12_381_G2_compressed_generator
