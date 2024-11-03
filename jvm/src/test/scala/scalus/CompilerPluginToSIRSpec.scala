@@ -1018,10 +1018,10 @@ class CompilerPluginToSIRSpec extends AnyFunSuite with ScalaCheckPropertyChecks:
         import scalus.prelude.List
         import scalus.prelude.List.*
         val compiled = compile {
-            val ls: List[BigInt] = new Cons(BigInt(1), Nil)
+            val ls: List[BigInt] = single(BigInt(1))
             ls match
-                case Cons(h, tl) => h
-                case Nil         => BigInt(0)
+                case Cons(h, _) => h
+                case Nil        => BigInt(0)
         }
         // println(compiled.show)
         val term = compiled.toUplc()
@@ -1048,7 +1048,7 @@ class CompilerPluginToSIRSpec extends AnyFunSuite with ScalaCheckPropertyChecks:
         import scalus.prelude.List.*
         val compiled = compile {
             val ls: List[(BigInt, TxOutRef)] =
-                new Cons((1, new TxOutRef(new TxId(hex"deadbeef"), 2)), Nil)
+                cons((1, new TxOutRef(new TxId(hex"deadbeef"), 2)), Nil)
             ls match
                 case Cons(h @ (a, TxOutRef(TxId(_), idx)), _) => a + idx
                 case Nil                                      => BigInt(0)
