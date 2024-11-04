@@ -101,10 +101,10 @@ object HashConsedReprFlat {
             }
 
             def encodeHC(a: List[A], encode: HashConsedEncoderState): Unit = {
-                a.foreach( elem =>
+                a.foreach { elem =>
                     encode.encode.bits(1, 1)
                     flatA.encodeHC(elem, encode)
-                )
+                }
                 encode.encode.bits(1, 0)
             }
 
@@ -140,17 +140,21 @@ object HashConsedFlat {
     given listHashConsedFlat[A](using flatA: HashConsedFlat[A]): HashConsedFlat[List[A]] with
 
         def bitSizeHC(a: List[A], hashConsed: HashConsed.State): Int = {
-            val size = a.foldLeft(0)((acc, elem) => acc + flatA.bitSizeHC(elem, hashConsed))
-            size
+            val elemsSize = a.foldLeft(0)((acc, elem) => acc + 1 + flatA.bitSizeHC(elem, hashConsed))
+            elemsSize + 1
         }
         def encodeHC(a: List[A], encode: HashConsedEncoderState): Unit = {
-            val nElements = a.size
-            summon[Flat[Int]].encode(nElements, encode.encode)
-            a.foreach(elem => flatA.encodeHC(elem,encode))
+            a.foreach{ elem =>
+                encode.encode.bits(1, 1)
+                flatA.encodeHC(elem, encode)
+            }
+            encode.encode.bits(1, 0)
         }
         def decodeHC(decode: HashConsedDecoderState): List[A] = {
-            val size = summon[Flat[Int]].decode(decode.decode)
-            (0 until size).map(_ => flatA.decodeHC(decode)).toList
+            val builder = List.newBuilder[A]
+            while decode.decode.bits8(1) == 1.toByte do
+                builder += flatA.decodeHC(decode)
+            builder.result()
         }
 
 }
@@ -201,16 +205,16 @@ trait HashConsedMutRefReprFlat[A <: AnyRef]  extends HashConsedReprFlat[A, HashC
     override def encodeHC(a: A, encoderState: HashConsedEncoderState): Unit = {
         val ihc = a.hashCode
         PlainIntFlat.encode(ihc, encoderState.encode)
-        println(s"Encoding HashConsedMutRefReprFlat: ${a}, hc=${ihc}")
+        //println(s"Encoding HashConsedMutRefReprFlat: ${a}, hc=${ihc}")
         encoderState.hashConsed.lookup(ihc, tag) match
             case None =>
-                println(s"Encoding HashConsedMutRefReprFlat: lookup failed, encoding new ihc=${ihc}, bitpos = ${encoderState.encode.bitPosition()}")
+                //println(s"Encoding HashConsedMutRefReprFlat: lookup failed, encoding new ihc=${ihc}, bitpos = ${encoderState.encode.bitPosition()}")
                 encoderState.putForwardRefAcceptor(HashConsed.ForwardRefAcceptor(ihc, tag, Nil))
                 encodeHCNew(a, encoderState)
-                println(s"Encoded HashConsedMutRefReprFlat: encoded new ihc=${ihc}, bitpos = ${encoderState.encode.bitPosition()}")
+                //println(s"Encoded HashConsedMutRefReprFlat: encoded new ihc=${ihc}, bitpos = ${encoderState.encode.bitPosition()}")
                 encoderState.setRef(ihc, tag, HashConsedRef.fromData(a))
             case Some(ref) =>
-                println(s"Encoded HashConsedMutRefReprFlat: lookup succeeded, ihc=${ihc}, ref=${ref}, bitpos = ${encoderState.encode.bitPosition()}")
+                //println(s"Encoded HashConsedMutRefReprFlat: lookup succeeded, ihc=${ihc}, ref=${ref}, bitpos = ${encoderState.encode.bitPosition()}")
 
     }
 

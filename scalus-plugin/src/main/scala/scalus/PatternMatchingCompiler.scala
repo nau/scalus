@@ -12,7 +12,6 @@ import dotty.tools.dotc.core.Symbols.*
 import dotty.tools.dotc.core.Types.*
 import dotty.tools.dotc.util.SrcPos
 import scalus.sir.*
-
 import scala.collection.mutable
 import scala.language.implicitConversions
 import scala.util.control.NonFatal

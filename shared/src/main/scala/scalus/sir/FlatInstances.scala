@@ -730,7 +730,7 @@ object FlatInstantces:
                     enc.encode.bits(termTagWidth, tagConstr)
                     summon[Flat[String]].encode(name, enc.encode)
                     DataDeclFlat.encodeHC(data, enc)
-                    HashConsedReprFlat.listRepr(SIRHashConsedFlat).encodeHC(args, enc)
+                    HashConsedReprFlat.listRepr(SIRExprHashConsedFlat).encodeHC(args, enc)
                 case Match(scrutinee, cases, tp) =>
                     enc.encode.bits(termTagWidth, tagMatch)
                     encodeHC(scrutinee, enc)
