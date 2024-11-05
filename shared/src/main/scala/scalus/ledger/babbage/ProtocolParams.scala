@@ -3,8 +3,6 @@ import scalus.ledger.api.ProtocolVersion
 import upickle.default.*
 import upickle.default.ReadWriter
 
-import scala.quoted.Quotes
-
 case class MaxTxExecutionUnits(memory: Long, steps: Long) derives ReadWriter
 
 case class MaxBlockExecutionUnits(memory: Long, steps: Long) derives ReadWriter

@@ -2,7 +2,7 @@ package scalus.sir
 import org.scalatest.funsuite.AnyFunSuite
 import org.scalatestplus.scalacheck.ScalaCheckPropertyChecks
 import scalus.*
-import scalus.builtin.ByteString.StringInterpolators
+import scalus.builtin.ByteString.*
 import scalus.sir.Recursivity.NonRec
 import scalus.uplc.ArbitraryInstances
 import scalus.uplc.Constant
@@ -10,7 +10,7 @@ import scalus.uplc.DefaultFun
 import scalus.uplc.DefaultFun.*
 import scalus.uplc.DefaultUni.asConstant
 import scalus.uplc.Term
-import scalus.uplc.TermDSL.{_, given}
+import scalus.uplc.TermDSL.{*, given}
 
 import scala.language.implicitConversions
 

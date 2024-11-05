@@ -16,6 +16,30 @@ import scalus.prelude.List
 import scalus.prelude.Maybe
 import scalus.prelude.Rational
 
+export scalus.ledger.api.v1.Address
+export scalus.ledger.api.v1.Closure
+export scalus.ledger.api.v1.Credential
+export scalus.ledger.api.v1.CurrencySymbol
+export scalus.ledger.api.v1.DCert
+export scalus.ledger.api.v1.Datum
+export scalus.ledger.api.v1.DatumHash
+export scalus.ledger.api.v1.IntervalBoundType
+export scalus.ledger.api.v1.FromDataInstances.given
+export scalus.ledger.api.v1.Interval
+export scalus.ledger.api.v1.IntervalBound
+export scalus.ledger.api.v1.PosixTime
+export scalus.ledger.api.v1.PosixTimeRange
+export scalus.ledger.api.v1.PubKeyHash
+export scalus.ledger.api.v1.Redeemer
+export scalus.ledger.api.v1.RedeemerHash
+export scalus.ledger.api.v1.ScriptHash
+export scalus.ledger.api.v1.StakingCredential
+export scalus.ledger.api.v1.ToDataInstances.given
+export scalus.ledger.api.v1.TokenName
+export scalus.ledger.api.v1.ValidatorHash
+export scalus.ledger.api.v1.Value
+export scalus.ledger.api.v2.TxOut
+
 @Compile
 object FromDataInstances {
     import scalus.builtin.FromDataInstances.given
@@ -39,6 +63,13 @@ object FromDataInstances {
     given FromData[TxInInfo] = FromData.deriveCaseClass
     given FromData[TxInfo] = FromData.deriveCaseClass
     given FromData[ScriptContext] = FromData.deriveCaseClass
+    given FromData[SpendingScriptInfo] = (d: Data) =>
+        val pair = d.toConstr
+        if pair.fst == BigInt(1) then
+            val args = pair.snd
+            new SpendingScriptInfo(args.head.to[TxOutRef], args.tail.head.to[Maybe[Datum]])
+        else throw new Exception("Invalid SpendingScriptInfo")
+    given FromData[SpendingScriptContext] = FromData.deriveCaseClass
 }
 
 @Compile
@@ -167,6 +198,10 @@ enum ScriptInfo:
     case VotingScript(voter: Voter)
     case ProposingScript(index: BigInt, procedure: ProposalProcedure)
 
+case class SpendingScriptInfo(txOutRef: TxOutRef, datum: Maybe[Datum])
+case class MintingScriptInfo(currencySymbol: CurrencySymbol)
+case class RewardingScriptInfo(credential: Credential)
+
 case class TxInInfo(
     outRef: TxOutRef,
     resolved: v2.TxOut
@@ -195,4 +230,10 @@ case class ScriptContext(
     txInfo: TxInfo,
     redeemer: Redeemer,
     scriptInfo: ScriptInfo
+)
+
+case class SpendingScriptContext(
+    txInfo: TxInfo,
+    redeemer: Redeemer,
+    scriptInfo: SpendingScriptInfo
 )

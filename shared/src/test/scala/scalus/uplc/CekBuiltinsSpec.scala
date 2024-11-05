@@ -2,7 +2,7 @@ package scalus.uplc
 
 import org.scalatest.funsuite.AnyFunSuite
 import org.scalatestplus.scalacheck.ScalaCheckPropertyChecks
-import scalus.builtin.ByteString.given
+import scalus.builtin.ByteString.*
 import scalus.builtin.Data
 import scalus.builtin.ToDataInstances.given
 import scalus.uplc.Constant.Pair
@@ -15,7 +15,10 @@ import scalus.uplc.eval.*
 import scala.language.implicitConversions
 import scala.reflect.ClassTag
 
-class CekBuiltinsSpec extends AnyFunSuite with ScalaCheckPropertyChecks with ArbitraryInstances:
+open class CekBuiltinsSpec
+    extends AnyFunSuite
+    with ScalaCheckPropertyChecks
+    with ArbitraryInstances:
 
     def assertEvalEq(a: Term, b: Term): Unit =
         assert(VM.evaluateTerm(a) == b, s"$a != $b")

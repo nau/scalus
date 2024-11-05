@@ -4,7 +4,7 @@ import io.bullet.borer.Cbor
 import scalus.BaseValidatorSpec
 import scalus.Compiler.compile
 import scalus.Expected
-import scalus.builtin.ByteString.StringInterpolators
+import scalus.builtin.ByteString.*
 import scalus.builtin.Data
 import scalus.builtin.Data.*
 import scalus.builtin.given

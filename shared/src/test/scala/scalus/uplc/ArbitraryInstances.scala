@@ -19,13 +19,13 @@ import scalus.uplc.Constant.BLS12_381_MlResult
 @nowarn("cat=deprecation")
 trait ArbitraryInstances:
 
-    implicit val byteStringArb: Arbitrary[builtin.ByteString] = Arbitrary(
+    given byteStringArb: Arbitrary[builtin.ByteString] = Arbitrary(
       for
           sz <- Gen.frequency((0, Gen.choose(1000, 10000)), (10, Gen.choose(0, 100)))
           bytes <- Gen.containerOfN[Array, Byte](sz, Arbitrary.arbitrary)
       yield builtin.ByteString.unsafeFromArray(bytes)
     )
-    implicit val iArb: Arbitrary[I] = Arbitrary(
+    given iArb: Arbitrary[I] = Arbitrary(
       for n <- Gen.oneOf[BigInt](
             Gen.const[BigInt](0),
             Gen.const[BigInt](-1),
@@ -40,7 +40,7 @@ trait ArbitraryInstances:
           )
       yield I(n)
     )
-    implicit val bArb: Arbitrary[B] = Arbitrary(
+    given bArb: Arbitrary[B] = Arbitrary(
       Arbitrary.arbitrary[builtin.ByteString].map(B.apply)
     )
 
@@ -69,7 +69,7 @@ trait ArbitraryInstances:
                 else Shrink.shrink(args).map(Map.apply)
         }
 
-    implicit val arbData: Arbitrary[Data] = Arbitrary {
+    given arbData: Arbitrary[Data] = Arbitrary {
         def constrGen(sz: Int): Gen[Constr] = for
             c <- Gen.posNum[Long]
             n <- Gen.choose(sz / 3, sz / 2)
@@ -99,7 +99,7 @@ trait ArbitraryInstances:
         Gen.sized(sizedTree)
     }
 
-    implicit lazy val arbitraryDefaultUni: Arbitrary[DefaultUni] = Arbitrary {
+    given arbitraryDefaultUni: Arbitrary[DefaultUni] = Arbitrary {
         def listGen(sz: Int): Gen[DefaultUni] = for a <- sizedTree(sz / 2)
         yield DefaultUni.Apply(ProtoList, a)
 
@@ -149,7 +149,7 @@ trait ArbitraryInstances:
                 yield Constant.Pair(vala, valb)
             case _ => sys.error(s"unsupported type: $t")
 
-    implicit lazy val arbitraryConstant: Arbitrary[Constant] = Arbitrary(
+    given arbitraryConstant: Arbitrary[Constant] = Arbitrary(
       for
           a <- arbitraryDefaultUni.arbitrary
           value <- arbConstantByType(a)
@@ -176,7 +176,7 @@ trait ArbitraryInstances:
         case BLS12_381_MlResult(value)   => Stream.empty
     }
 
-    implicit lazy val arbitraryTerm: Arbitrary[Term] = Arbitrary {
+    given arbitraryTerm: Arbitrary[Term] = Arbitrary {
         val nameGen = for
             alpha <- Gen.alphaChar
             n <- Gen.choose(0, 10)
@@ -195,7 +195,7 @@ trait ArbitraryInstances:
             val simple = Gen.oneOf(
               Gen.const(Term.Error),
               builtinGen,
-              (Seq(constGen) ++ maybeVarTerm): _*
+              Seq(constGen) ++ maybeVarTerm*
             )
             if sz <= 0 then simple
             else
@@ -237,25 +237,27 @@ trait ArbitraryInstances:
         Gen.sized(sizedTermGen(_, Nil))
     }
 
-    given Shrink[Term] = Shrink {
-        case Term.Error        => Stream.empty
-        case Term.Builtin(_)   => Stream.empty
-        case Term.Const(const) => Shrink.shrink(const).map(Term.Const.apply)
-        case Term.Var(_)       => Stream.empty
-        case Term.Force(t)     => Shrink.shrink(t).map(Term.Force.apply)
-        case Term.Delay(t)     => Shrink.shrink(t).map(Term.Delay.apply)
-        case Term.LamAbs(n, t) =>
-            val tShrunk = Shrink.shrink(t).map(Term.LamAbs(n, _))
-            tShrunk
-        case Term.Apply(t1, t2) =>
-            val t1Shrunk = Shrink.shrink(t1).map(Term.Apply(_, t2))
-            val t2Shrunk = Shrink.shrink(t2).map(Term.Apply(t1, _))
-            t1Shrunk ++ t2Shrunk
-        // case Term.Constr(tag, args) => Shrink.shrink(args).map(Term.Constr(tag, _))
-        // case Term.Case(arg, cases) =>
-        // Shrink.shrink(arg) ++ Shrink.shrink(cases).map(Term.Case(arg, _))
-        case _ => Stream.empty
-    }
+    given TermShrink: Shrink[Term] =
+        given Shrink[Term] = TermShrink
+        Shrink {
+            case Term.Error        => Stream.empty
+            case Term.Builtin(_)   => Stream.empty
+            case Term.Const(const) => Shrink.shrink(const).map(Term.Const.apply)
+            case Term.Var(_)       => Stream.empty
+            case Term.Force(t)     => Shrink.shrink(t).map(Term.Force.apply)
+            case Term.Delay(t)     => Shrink.shrink(t).map(Term.Delay.apply)
+            case Term.LamAbs(n, t) =>
+                val tShrunk = Shrink.shrink(t).map(Term.LamAbs(n, _))
+                tShrunk
+            case Term.Apply(t1, t2) =>
+                val t1Shrunk = Shrink.shrink(t1).map(Term.Apply(_, t2))
+                val t2Shrunk = Shrink.shrink(t2).map(Term.Apply(t1, _))
+                t1Shrunk ++ t2Shrunk
+            // case Term.Constr(tag, args) => Shrink.shrink(args).map(Term.Constr(tag, _))
+            // case Term.Case(arg, cases) =>
+            // Shrink.shrink(arg) ++ Shrink.shrink(cases).map(Term.Case(arg, _))
+            case _ => Stream.empty
+        }
 
     given Arbitrary[Program] = Arbitrary {
         for
@@ -277,7 +279,7 @@ trait ArbitraryInstances:
 
     given arbList[A: Arbitrary]: Arbitrary[scalus.prelude.List[A]] = Arbitrary {
         for lst <- Arbitrary.arbitrary[immutable.List[A]]
-        yield scalus.prelude.List(lst: _*)
+        yield scalus.prelude.List(lst*)
     }
 
     given arbMaybe[A: Arbitrary]: Arbitrary[scalus.prelude.Maybe[A]] = Arbitrary {
@@ -290,5 +292,5 @@ trait ArbitraryInstances:
     given arbAssocMap[A: Arbitrary, B: Arbitrary]: Arbitrary[scalus.prelude.AssocMap[A, B]] =
         Arbitrary {
             for map <- Arbitrary.arbitrary[immutable.Map[A, B]]
-            yield scalus.prelude.AssocMap.fromList(scalus.prelude.List(map.toSeq: _*))
+            yield scalus.prelude.AssocMap.fromList(scalus.prelude.List(map.toSeq*))
         }

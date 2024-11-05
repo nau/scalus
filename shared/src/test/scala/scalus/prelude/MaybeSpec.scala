@@ -5,7 +5,7 @@ import org.scalatestplus.scalacheck.ScalaCheckPropertyChecks
 import scalus.Compiler.compile
 import scalus.*
 import scalus.prelude.Maybe.*
-import scalus.prelude.Prelude.{_, given}
+import scalus.prelude.Prelude.{*, given}
 import scalus.sir.SIR
 import scalus.uplc.ArbitraryInstances
 import scalus.uplc.Term

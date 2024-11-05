@@ -4,7 +4,7 @@ import io.bullet.borer.Cbor
 import org.scalatest.funsuite.AnyFunSuite
 import org.scalatestplus.scalacheck.ScalaCheckPropertyChecks
 import scalus.builtin
-import scalus.builtin.ByteString.given
+import scalus.builtin.ByteString.*
 import scalus.builtin.Data.*
 import scalus.uplc.ArbitraryInstances
 import scalus.utils.Utils
@@ -16,8 +16,8 @@ class DataCborCodecSpec extends AnyFunSuite with ScalaCheckPropertyChecks with A
     private def decodeHex(d: String) = Cbor.decode(Utils.hexToBytes(d)).to[Data].value
 
     private def roundtrip(d: Data): Unit =
-        val ba = Cbor.encode(d).toByteArray
-        val dd = Cbor.decode(ba).to[Data].value
+        val ba = d.toCbor
+        val dd = Data.fromCbor(ba)
         assert(d == dd)
 
     test("BigInt encoding/decoding of < 64 bits") {

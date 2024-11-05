@@ -101,6 +101,12 @@ object List:
         go(0, lst)
     }
 
+    /** Creates a list with a single element */
+    def single[A](a: A): List[A] = new Cons(a, List.Nil)
+
+    /** Adds an element at the beginning of this list */
+    def cons[A](head: A, tail: List[A]): List[A] = new Cons(head, tail)
+
     def append[A](lst1: List[A], lst2: List[A]): List[A] = lst1 match
         case Nil              => lst2
         case Cons(head, tail) => new Cons(head, append(tail, lst2))
@@ -108,6 +114,15 @@ object List:
     def map[A, B](lst: List[A])(f: A => B): List[B] = lst match
         case Nil              => List.Nil
         case Cons(head, tail) => new Cons(f(head), List.map(tail)(f))
+
+    def map2[A, B, C](a: List[A], b: List[B])(f: (A, B) => C): List[C] = {
+        a match
+            case List.Cons(h1, t1) =>
+                b match
+                    case List.Cons(h2, t2) => new List.Cons(f(h1, h2), map2(t1, t2)(f))
+                    case _                 => List.Nil
+            case _ => List.Nil
+    }
 
     def filter[A](lst: List[A])(p: A => Boolean): List[A] = lst match
         case Nil => List.Nil
@@ -132,6 +147,9 @@ object List:
 
     def all[A, B](lst: List[A])(f: A => Boolean): Boolean =
         foldLeft(lst, true)((acc, x) => acc && f(x))
+
+    /** Returns the length of the list */
+    def length[A](lst: List[A]): BigInt = foldLeft(lst, BigInt(0))((acc, _) => acc + 1)
 
 enum Maybe[+A]:
     case Nothing extends Maybe[Nothing]
@@ -188,7 +206,7 @@ object AssocMap {
     import Maybe.*
     def empty[A, B]: AssocMap[A, B] = new AssocMap(List.empty[(A, B)])
     def singleton[A, B](key: A, value: B): AssocMap[A, B] = new AssocMap(
-      new List.Cons((key, value), List.Nil)
+      List.cons((key, value), List.Nil)
     )
     def fromList[A, B](lst: List[(A, B)]): AssocMap[A, B] = new AssocMap(lst)
     def toList[A, B](map: AssocMap[A, B]): List[(A, B)] = map.inner

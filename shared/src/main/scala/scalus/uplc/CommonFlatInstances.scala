@@ -30,9 +30,9 @@ object CommonFlatInstances:
             case Unit                => summon[Flat[Unit]].asInstanceOf[Flat[Any]]
             case Bool                => summon[Flat[Boolean]].asInstanceOf[Flat[Any]]
             case Data                => summon[Flat[builtin.Data]].asInstanceOf[Flat[Any]]
-            case Apply(ProtoList, a) => listFlat(flatForUni(a)).asInstanceOf[Flat[Any]]
+            case Apply(ProtoList, a) => listFlat(using flatForUni(a)).asInstanceOf[Flat[Any]]
             case Apply(Apply(ProtoPair, a), b) =>
-                pairFlat(flatForUni(a), flatForUni(b)).asInstanceOf[Flat[Any]]
+                pairFlat(using flatForUni(a), flatForUni(b)).asInstanceOf[Flat[Any]]
             case _ => throw new Exception(s"Unsupported uni: $uni")
 
     def encodeUni(uni: DefaultUni): List[Int] =
@@ -258,11 +258,11 @@ object CommonFlatInstances:
 
         def encode(a: Constant, encoder: EncoderState): Unit =
             val tags = encodeUni(a.tpe)
-            listFlat[Int](constantTypeTagFlat).encode(tags, encoder)
+            listFlat[Int](using constantTypeTagFlat).encode(tags, encoder)
             flatForUni(a.tpe).encode(Constant.toValue(a), encoder)
 
         def decode(decoder: DecoderState): Constant =
-            val tags = listFlat[Int](constantTypeTagFlat).decode(decoder)
+            val tags = listFlat[Int](using constantTypeTagFlat).decode(decoder)
             val (tpe, _) = decodeUni(tags)
             val uniDecoder = flatForUni(tpe)
             val decoded = uniDecoder.decode(decoder)

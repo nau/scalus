@@ -4,7 +4,7 @@ import scalus.Compile
 import scalus.Compiler.compile
 import scalus.builtin.Builtins.*
 import scalus.builtin.ByteString
-import scalus.builtin.ByteString.given
+import scalus.builtin.ByteString.*
 import scalus.ledger.api.v1.FromDataInstances.given
 import scalus.ledger.api.v1.*
 import scalus.prelude.Maybe.*
