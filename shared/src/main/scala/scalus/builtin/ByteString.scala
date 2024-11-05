@@ -1,14 +1,16 @@
 package scalus.builtin
 
 import scalus.utils.Hex
+
 import scala.annotation.targetName
+import scala.compiletime.asMatchable
 
 class ByteString private (val bytes: Array[Byte]) {
     override def toString: String = "\"" + toHex + "\""
 
     override def hashCode(): Int = java.util.Arrays.hashCode(bytes)
 
-    override def equals(obj: Any): Boolean = obj match {
+    override def equals(obj: Any): Boolean = obj.asMatchable match {
         case that: ByteString => java.util.Arrays.equals(this.bytes, that.bytes)
         case _                => false
     }
@@ -38,8 +40,23 @@ object ByteString {
     def fromHex(bytes: String): ByteString = new ByteString(Hex.hexToBytes(bytes))
     def fromString(s: String): ByteString = new ByteString(s.getBytes("UTF-8"))
 
+    @deprecated("Use `hex` extension instead. import scalus.builtin.ByteString.hex", "0.8.0")
     implicit class StringInterpolators(val sc: StringContext) extends AnyVal:
 
+        def hex(args: Any*): ByteString =
+            val hexString = sc.s(args*).replace(" ", "")
+            fromHex(hexString)
+
+    extension (sc: StringContext)
+        /** Hex string interpolator
+          *
+          * @example
+          *   {{{
+          * val hexString = hex"deadbeef"
+          * val withSpaces = hex"de ad be ef"
+          * val upperCase = hex"DEADBEEF"
+          *   }}}
+          */
         def hex(args: Any*): ByteString =
             val hexString = sc.s(args: _*).replace(" ", "")
             fromHex(hexString)

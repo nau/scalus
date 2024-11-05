@@ -32,8 +32,9 @@ object Adt:
 
 @Compile
 object ToDataAdt:
-    given ToData[Adt] = (a: Adt) =>
+    given AdtToData: ToData[Adt] = (a: Adt) =>
         import ToDataInstances.given
+        given ToData[Adt] = AdtToData
         a match
             case Adt.A => constrData(0, mkNilData())
             case Adt.B(bs) =>

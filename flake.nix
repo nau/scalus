@@ -40,6 +40,7 @@
                 niv
                 nixpkgs-fmt
                 nodejs
+                yarn
                 uplc
                 # cardano-cli
               ];

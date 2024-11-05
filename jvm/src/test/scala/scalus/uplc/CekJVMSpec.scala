@@ -8,7 +8,7 @@ import scalus.BaseValidatorSpec
 import scalus.Compiler.compile
 import scalus.Expected
 import scalus.builtin.ByteString
-import scalus.builtin.ByteString.given
+import scalus.builtin.ByteString.*
 import scalus.builtin.Data
 import scalus.builtin.given
 import scalus.ledger.api.v1.*

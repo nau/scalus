@@ -3,7 +3,7 @@ import org.scalatest.funsuite.AnyFunSuite
 import org.scalatestplus.scalacheck.ScalaCheckPropertyChecks
 import scalus.*
 import scalus.builtin.Builtins.*
-import scalus.builtin.ByteString.StringInterpolators
+import scalus.builtin.ByteString.*
 import scalus.builtin.Data
 import scalus.sir.Recursivity.NonRec
 import scalus.uplc.ArbitraryInstances

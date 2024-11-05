@@ -42,32 +42,6 @@ object FromDataInstances {
         val args = unConstrData(d).snd
         new TxOutRef(fromData[TxId](args.head), unIData(args.tail.head))
 
-    given FromData[DCert] = (d: Data) =>
-        val pair = unConstrData(d)
-        val tag = pair.fst
-        val args = pair.snd
-        if tag == BigInt(0) then new DCert.DelegRegKey(fromData[StakingCredential](args.head))
-        else if tag == BigInt(1) then
-            new DCert.DelegDeRegKey(fromData[StakingCredential](args.head))
-        else if tag == BigInt(2) then
-            new DCert.DelegDelegate(
-              fromData[StakingCredential](args.head),
-              fromData[PubKeyHash](args.tail.head)
-            )
-        else if tag == BigInt(3) then
-            new DCert.PoolRegister(
-              fromData[PubKeyHash](args.head),
-              fromData[PubKeyHash](args.tail.head)
-            )
-        else if tag == BigInt(4) then
-            new DCert.PoolRetire(
-              fromData[PubKeyHash](args.head),
-              unIData(args.tail.head)
-            )
-        else if tag == BigInt(5) then DCert.Genesis
-        else if tag == BigInt(6) then DCert.Mir
-        else throw new Exception(s"Unknown DCert tag: $tag")
-
     given FromData[IntervalBoundType] = (d: Data) =>
         val pair = unConstrData(d)
         val tag = pair.fst
@@ -98,6 +72,32 @@ object FromDataInstances {
                   unIData(args.tail.tail.head)
                 )
             else throw new RuntimeException("Invalid tag")
+
+    given FromData[DCert] = (d: Data) =>
+        val pair = unConstrData(d)
+        val tag = pair.fst
+        val args = pair.snd
+        if tag == BigInt(0) then new DCert.DelegRegKey(fromData[StakingCredential](args.head))
+        else if tag == BigInt(1) then
+            new DCert.DelegDeRegKey(fromData[StakingCredential](args.head))
+        else if tag == BigInt(2) then
+            new DCert.DelegDelegate(
+              fromData[StakingCredential](args.head),
+              fromData[PubKeyHash](args.tail.head)
+            )
+        else if tag == BigInt(3) then
+            new DCert.PoolRegister(
+              fromData[PubKeyHash](args.head),
+              fromData[PubKeyHash](args.tail.head)
+            )
+        else if tag == BigInt(4) then
+            new DCert.PoolRetire(
+              fromData[PubKeyHash](args.head),
+              unIData(args.tail.head)
+            )
+        else if tag == BigInt(5) then DCert.Genesis
+        else if tag == BigInt(6) then DCert.Mir
+        else throw new Exception(s"Unknown DCert tag: $tag")
 
     given FromData[ScriptPurpose] = (d: Data) =>
         val pair = unConstrData(d)

@@ -29,7 +29,7 @@ class FlatSpec extends AnyFunSuite with ScalaCheckPropertyChecks with ArbitraryI
 
     test("encode/decode random bytes") {
         val gen = Gen.nonEmptyListOf(Arbitrary.arbitrary[Byte])
-        implicit def noShrink[T]: Shrink[T] = Shrink.shrinkAny
+        given noShrink[T]: Shrink[T] = Shrink.shrinkAny
 
         forAll(gen) { bs =>
             val bitlens =

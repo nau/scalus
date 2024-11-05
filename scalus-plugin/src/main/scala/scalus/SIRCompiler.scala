@@ -97,9 +97,11 @@ final class SIRCompiler(mode: scalus.Mode)(using ctx: Context) {
     private val ScalusBuiltinListClassSymbol = requiredClass("scalus.builtin.List")
     private val PlatformSpecificClassSymbol = requiredClass("scalus.builtin.PlatformSpecific")
     private val StringContextSymbol = requiredModule("scala.StringContext")
+    private val StringContextApplySymbol = StringContextSymbol.requiredMethod("apply")
     private val Tuple2Symbol = requiredClass("scala.Tuple2")
     private val NothingSymbol = requiredClass("scala.Nothing")
-    private val ByteStringModuleSymbol = requiredModule("scalus.builtin.ByteString")
+    private val ByteStringModuleSymbol = converter.ByteStringSymbol
+    private val ByteStringSymbolHex = ByteStringModuleSymbol.requiredMethod("hex")
     private val ByteStringStringInterpolatorsMethodSymbol =
         ByteStringModuleSymbol.requiredMethod("StringInterpolators")
     private val pmCompiler = new PatternMatchingCompiler(this)
@@ -718,7 +720,18 @@ final class SIRCompiler(mode: scalus.Mode)(using ctx: Context) {
         case Apply(expr, List(Literal(c)))
             if expr.symbol == converter.ByteStringSymbol.requiredMethod("fromString") =>
             scalus.uplc.Constant.ByteString(scalus.builtin.ByteString.fromString(c.stringValue))
-        // hex"deadbeef" as ByteString
+        // hex"deadbeef" as ByteString using Scala 3 StringContext extension
+        case Apply(
+              Apply(
+                byteStringHex,
+                List(Apply(stringContextApply, List(SeqLiteral(List(Literal(c)), _))))
+              ),
+              List(SeqLiteral(List(), _))
+            )
+            if byteStringHex.symbol == ByteStringSymbolHex
+                && stringContextApply.symbol == StringContextApplySymbol =>
+            scalus.uplc.Constant.ByteString(scalus.builtin.ByteString.fromHex(c.stringValue))
+        // hex"deadbeef" as ByteString for Scala 2 implicit StringInterpolators
         case Apply(
               Select(
                 Apply(

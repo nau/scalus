@@ -1,4 +1,5 @@
-package scalus.uplc.eval
+package scalus.uplc
+package eval
 import upickle.default.*
 
 type CostingInteger = Long
@@ -81,7 +82,7 @@ case class ConstantOrOneArgument(constant: CostingInteger, model: OneArgument) d
 
 case class ConstantOrTwoArguments(constant: CostingInteger, model: TwoArguments) derives ReadWriter
 
-trait CostModel {
+sealed trait CostModel {
     def calculateCost(args: Seq[CostingInteger]): CostingInteger
 }
 
@@ -187,7 +188,7 @@ object TwoArguments {
 
     case class QuadraticInY(cost: OneVariableQuadraticFunction) extends TwoArguments {
         def apply(arg1: CostingInteger, arg2: CostingInteger): CostingInteger =
-            cost(arg1)
+            cost(arg2)
     }
 
     case class QuadraticInXAndY(cost: TwoVariableQuadraticFunction) extends TwoArguments {
@@ -487,9 +488,39 @@ object SixArguments {
     )
 }
 
-case class CostingFun[+M <: CostModel](cpu: M, memory: M) derives ReadWriter {
+trait CostingFun {
+    def calculateCost(args: CekValue*): ExBudget
+}
+
+case class DefaultCostingFun[+M <: CostModel](cpu: M, memory: M) extends CostingFun
+    derives ReadWriter {
     def calculateCost(args: CekValue*): ExBudget = {
         val argsMem = args.map(MemoryUsage.memoryUsage)
+        val cpu = ExCPU(this.cpu.calculateCost(argsMem))
+        val mem = ExMemory(this.memory.calculateCost(argsMem))
+        ExBudget(cpu, mem)
+    }
+}
+
+/** When invoking `integerToByteString` built-in function, its second argument is a built-in Integer
+  * but with a different size measure, specifying the width (in bytes) of the output bytestring
+  * (zero-padded to the desired size). The memory consumed by the function is given by `w`, not the
+  * size of `w`. Its `MemoryUsage` is equal to the number of eight-byte words required to contain
+  * `w` bytes, allowing its costing function to work properly.
+  *
+  * @see
+  *   Plutus implementation
+  *   https://github.com/IntersectMBO/plutus/blob/bc8c3a765769d2c0cd41c43278f5954cfdfd9b15/plutus-core/plutus-core/src/PlutusCore/Evaluation/Machine/ExMemoryUsage.hs#L171
+  */
+case class IntegerToByteStringCostingFun(cpu: ThreeArguments, memory: ThreeArguments)
+    extends CostingFun derives ReadWriter {
+    def calculateCost(args: CekValue*): ExBudget = {
+        val Seq(arg0, CekValue.VCon(Constant.Integer(size)), arg2) = args.toSeq: @unchecked
+        val argsMem = Seq(
+          MemoryUsage.memoryUsage(arg0),
+          MemoryUsage.memoryUsageLiteralByteSize(size),
+          MemoryUsage.memoryUsage(arg2)
+        )
         val cpu = ExCPU(this.cpu.calculateCost(argsMem))
         val mem = ExMemory(this.memory.calculateCost(argsMem))
         ExBudget(cpu, mem)

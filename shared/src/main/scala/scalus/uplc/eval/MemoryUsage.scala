@@ -25,6 +25,11 @@ object MemoryUsage {
         }
     }
 
+    def memoryUsageLiteralByteSize(i: BigInt): CostingInteger =
+        val l = i.toLong
+        if l == 0 then 0
+        else (l - 1) / 8 + 1
+
     def memoryUsageInteger(i: BigInt): CostingInteger =
         if i == 0 then 1
         else

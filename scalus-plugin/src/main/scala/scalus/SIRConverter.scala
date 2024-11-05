@@ -3,7 +3,7 @@ package scalus
 import dotty.tools.dotc.*
 import dotty.tools.dotc.ast.tpd
 import dotty.tools.dotc.core.Constants.Constant
-import dotty.tools.dotc.core.Contexts._
+import dotty.tools.dotc.core.Contexts.*
 import dotty.tools.dotc.core.Decorators.*
 import dotty.tools.dotc.core.Flags.*
 import dotty.tools.dotc.core.NameKinds.UniqueNameKind

@@ -70,7 +70,7 @@ object FromData {
                     Expr.summon[FromData[t]] match
                         case None =>
                             report.errorAndAbort(
-                              s"Could not find implicit for FromData[${tpe.show}]"
+                              s"Could not find given FromData[${tpe.show}]"
                             )
                         case Some(value) => value
         }

@@ -140,7 +140,7 @@ object UplcParser:
             case _                      => sys.error("unexpected default uni")
         }
         def list =
-            inParens(symbol("list") *> self) map (in => DefaultUni.Apply(ProtoList, in))
+            inParens(symbol("list") *> self) `map` (in => DefaultUni.Apply(ProtoList, in))
         def pair = inParens(symbol("pair") *> self ~ self) map { case (a, b) =>
             DefaultUni.Apply(DefaultUni.Apply(ProtoPair, a), b)
         }
@@ -210,7 +210,7 @@ object UplcParser:
             Constant.Pair(p._1, p._2)
         }
 
-    val con0xBS: P[ByteString] = P.string("0x") *> hexByte.rep0.map(bs => ByteString(bs: _*))
+    val con0xBS: P[ByteString] = P.string("0x") *> hexByte.rep0.map(bs => ByteString(bs*))
 
     val conBLS12_381_G1_Element: P[BLS12_381_G1_Element] =
         con0xBS.flatMap { s =>
@@ -224,7 +224,7 @@ object UplcParser:
             catch case e: Exception => P.failWith(e.getMessage)
         }
 
-    val bytestring: P[ByteString] = P.char('#') *> hexByte.rep0.map(bs => ByteString(bs: _*))
+    val bytestring: P[ByteString] = P.char('#') *> hexByte.rep0.map(bs => ByteString(bs*))
 
     def constantOf(t: DefaultUni, expectDataParens: Boolean = false): P[Constant] = t match
         case DefaultUni.Integer => lexeme(integer).map(i => Constant.Integer(i))
@@ -254,14 +254,14 @@ object UplcParser:
         def args: P[List[Data]] =
             symbol("[") *> lexeme(self).repSep0(symbol(",")) <* symbol("]")
         def dataConstr: P[Data] =
-            symbol("Constr") *> lexeme(long) ~ args map Data.Constr.apply
+            symbol("Constr") *> lexeme(long) ~ args `map` Data.Constr.apply
 
-        def dataList: P[Data] = symbol("List") *> args map Data.List.apply
+        def dataList: P[Data] = symbol("List") *> args `map` Data.List.apply
         def dataMap: P[Data] = symbol("Map") *>
-            symbol("[") *> dataPair.repSep0(symbol(",")) <* symbol("]") map Data.Map.apply
+            symbol("[") *> dataPair.repSep0(symbol(",")) <* symbol("]") `map` Data.Map.apply
 
-        def dataB: P[Data] = symbol("B") *> lexeme(bytestring) map Data.B.apply
-        def dataI: P[Data] = symbol("I") *> lexeme(Numbers.bigInt) map Data.I.apply
+        def dataB: P[Data] = symbol("B") *> lexeme(bytestring) `map` Data.B.apply
+        def dataI: P[Data] = symbol("I") *> lexeme(Numbers.bigInt) `map` Data.I.apply
         def dataPair: P[(Data, Data)] = inParens((self <* symbol(",")) ~ self)
 
         dataConstr | dataMap | dataList | dataB | dataI

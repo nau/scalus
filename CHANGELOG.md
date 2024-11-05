@@ -1,5 +1,16 @@
 # Changelog
 
+## 0.8.2 (2024-10-11)
+
+Nothing changed, just pushed the wrong commit under 0.8.1.
+
+## 0.8.1 (2024-10-11)
+
+### Fixed
+
+- cost model for `integerToBytestring` and `bytestringToInteger`
+- flat encoding of SIR `Data` was wrong for `Map` and `List` types
+
 ## 0.8.0 (2024-10-03)
 
 ### Added

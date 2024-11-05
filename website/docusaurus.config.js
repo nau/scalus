@@ -6,6 +6,9 @@
 
 import {themes as prismThemes} from 'prism-react-renderer';
 
+//let url = 'http://localhost:3000';
+let url = 'https://scalus.org';
+
 /** @type {import('@docusaurus/types').Config} */
 const config = {
   title: 'Scalus',
@@ -13,7 +16,7 @@ const config = {
   favicon: 'img/scalus-logo-32.png',
 
   // Set the production url of your site here
-  url: 'https://scalus.org',
+  url: url,
   // Set the /<baseUrl>/ pathname under which your site is served
   // For GitHub pages deployment, it is often '/<projectName>/'
   baseUrl: '/',
@@ -63,14 +66,14 @@ const config = {
   themeConfig:
     /** @type {import('@docusaurus/preset-classic').ThemeConfig} */
     ({
-      /* announcementBar: {
+      announcementBar: {
         id: 'support_us',
         content:
-          'Support us! Vote for Cardano Catalyst Fund 11 <a target="_blank" rel="noopener noreferrer" href="https://cardano.ideascale.com/c/idea/112174">Scalus proposal</a>',
+          'Support us! Vote for Cardano Catalyst Fund 13 <a target="_blank" rel="noopener noreferrer" href="https://cardano.ideascale.com/c/idea/130517">Scalus proposal</a>',
         backgroundColor: '#fafbfc',
         textColor: '#091E42',
         isCloseable: false,
-      }, */
+      },
       colorMode: {
         defaultMode: 'dark',
         disableSwitch: true,
@@ -90,6 +93,11 @@ const config = {
             sidebarId: 'tutorialSidebar',
             position: 'left',
             label: 'Documentation',
+          },
+          {
+            position: 'left',
+            label: 'API Reference',
+            href: `${url}/api/index.html`,
           },
           {
             href: 'https://github.com/nau/scalus',

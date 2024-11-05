@@ -16,9 +16,11 @@ out
 .direnv
 metals.sbt
 /plutus-conformance
+scalus-plugin/src/main/shared
 cardano-cli
 cardano-address
 scripts/
 blocks/
 utxos
 package-lock.json
+website/static/api

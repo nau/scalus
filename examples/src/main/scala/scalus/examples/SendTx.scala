@@ -16,7 +16,6 @@ import com.bloxbean.cardano.client.plutus.spec.*
 import com.bloxbean.cardano.client.quicktx.QuickTxBuilder
 import com.bloxbean.cardano.client.quicktx.ScriptTx
 import com.bloxbean.cardano.client.quicktx.Tx
-import io.bullet.borer.Cbor
 import scalus.*
 import scalus.bloxbean.Interop.toPlutusData
 import scalus.bloxbean.ScalusTransactionEvaluator
@@ -112,7 +111,7 @@ object SendTx:
         val pubKeyHash = pubKeyHashBytes.toHex
         import scalus.builtin.Data.toData
         val datum = (preimageHash, pubKeyHashBytes).toData
-        val datumCbor = ByteString.fromArray(Cbor.encode(datum).toByteArray)
+        val datumCbor = datum.toCborByteString
         val datumHash = crypto.blake2b_256(datumCbor)
         val datumHashHex = datumHash.toHex
         val redeemer = preimageBytes.toData
