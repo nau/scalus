@@ -13,8 +13,10 @@ import dotty.tools.dotc.core.Types.MethodType
 import dotty.tools.dotc.core.Types.Type
 import dotty.tools.dotc.core.Types.TypeRef
 import dotty.tools.dotc.core.*
+import dotty.tools.dotc.util.Spans
 import scalus.builtin.ByteString
 import scalus.builtin.Data
+import scalus.flat.FlatInstantces
 import scalus.sir.Binding
 import scalus.sir.ConstrDecl
 import scalus.sir.DataDecl
@@ -24,11 +26,16 @@ import scalus.sir.SIR.Case
 import scalus.sir.SIRType
 import scalus.uplc.DefaultFun
 import scalus.uplc.DefaultUni
+import scalus.utils.HashConsed
+import scalus.utils.HashConsedEncoderState
+import scalus.utils.HashConsedDecoderState
+import scalus.utils.HashConsedFlat
 
 import scala.collection.immutable
 import scala.language.implicitConversions
 import scalus.builtin.BLS12_381_G1_Element
 import scalus.builtin.BLS12_381_G2_Element
+
 
 class SIRConverter(using Context) {
     import tpd.*
@@ -364,8 +371,25 @@ class SIRConverter(using Context) {
         res
     }
 
-    def convertSIRToTree(sir: SIR): Tree = {
-        val res = convert(sir)
+
+    def convertViaSerialization(sir: SIR, span: Spans.Span): Tree = {
+        val bitSize = scalus.flat.FlatInstantces.SIRHashConsedFlat.bitSizeHC(sir, HashConsed.State.empty)
+        val encodedState = HashConsedEncoderState.withSize(bitSize)
+        FlatInstantces.SIRHashConsedFlat.encodeHC(sir, encodedState)
+        encodedState.encode.filler()
+        val bytes = encodedState.encode.result
+        val base64 = java.util.Base64.getEncoder.encodeToString(bytes)
+        // TODO: set pos.
+        val stringLiteral = Literal(Constant(base64)).withSpan(span)
+        //val byteArr = ByteArrayLiteral(bytes.toList.map(b => Literal(Constant(b))))
+        val sirToExprFlat = requiredModule("scalus.sir.ToExprHSSIRFlat")
+        val decodeBase64SIR = sirToExprFlat.requiredMethod("decodeBase64")
+        ref(sirToExprFlat).select(decodeBase64SIR).appliedTo(stringLiteral).withSpan(span)
+    }
+
+    def convertSIRToTree(sir: SIR, span: Spans.Span): Tree = {
+        //val res = convert(sir)
+        val res = convertViaSerialization(sir, span)
         // println(res)
         // println(s"convertSIRToTree: ${ctx.source} ${ctx.phase}")
         // println(res.showIndented(2))

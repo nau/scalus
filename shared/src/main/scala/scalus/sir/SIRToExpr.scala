@@ -1,6 +1,7 @@
 package scalus.sir
 
 import scalus.flat.FlatInstantces.SIRTypeHashConsedFlat
+import scalus.flat.FlatInstantces.SIRHashConsedFlat
 
 import scala.quoted.*
 import scalus.sir.SIRType.{TypeVar, unify}
@@ -42,24 +43,21 @@ object ToExpHSSIRTypeFlat extends HashConsedFlat[SIRType] {
         encoderState.encode.filler()
 
         // not check that it is decoded correctly
-        val decoderState = HashConsedDecoderState(DecoderState(encoderState.encode.buffer), HashConsed.State.empty)
-        val ref = SIRTypeHashConsedFlat.decodeHC(decoderState)
-        val sirType1 = ref.finValue(decoderState.hashConsed, 0, new HSRIdentityHashMap)
-        decoderState.runFinCallbacks()
-        val unifyResult = unify(a, sirType1, Map.empty)
-        if (! unifyResult.isDefined ) {
-            println("unification for encoding/decoding failed")
-            println(s"original: ${a.show}")
-            println(s"decoded: ${sirType1.show}")
-            println(s"unification result: $unifyResult")
+        if (false) then
+            val decoderState = HashConsedDecoderState(DecoderState(encoderState.encode.buffer), HashConsed.State.empty)
+            val ref = SIRTypeHashConsedFlat.decodeHC(decoderState)
+            val sirType1 = ref.finValue(decoderState.hashConsed, 0, new HSRIdentityHashMap)
+            decoderState.runFinCallbacks()
+            val unifyResult = unify(a, sirType1, Map.empty)
+            if (! unifyResult.isDefined ) then
+                println("unification for encoding/decoding failed")
+                println(s"original: ${a.show}")
+                println(s"decoded: ${sirType1.show}")
+                println(s"unification result: $unifyResult")
+                //
+                //
+                throw new IllegalStateException("unification for encoding/decoding failed")
 
-            //
-            val encoderState = HashConsedEncoderState.withSize(1000)
-            
-            
-            //
-            throw new IllegalStateException("unification for encoding/decoding failed")
-        }
     }
 
     override def decodeHC(decoderState: HashConsedDecoderState): SIRType = {
@@ -73,4 +71,34 @@ object ToExpHSSIRTypeFlat extends HashConsedFlat[SIRType] {
 
 object SIRTypeToExpr extends ToExprHS[SIRType](ToExpHSSIRTypeFlat, '{ ToExpHSSIRTypeFlat }, summon[Type[SIRType]] )
 given ToExprHS[SIRType] = SIRTypeToExpr
+
+/**
+ * Called from SIRConverter via reflection.
+ */
+object ToExprHSSIRFlat extends HashConsedFlat[SIR]  {
+
+     override def bitSizeHC(a: SIR, encoderState: HashConsed.State): Int = {
+         SIRHashConsedFlat.bitSizeHC(a, encoderState)
+     }
+
+     override def encodeHC(a: SIR, encoderState: HashConsedEncoderState): Unit = {
+         SIRHashConsedFlat.encodeHC(a, encoderState)
+         encoderState.encode.filler()
+     }
+
+     override def decodeHC(decoderState: HashConsedDecoderState): SIR = {
+         val ref = SIRHashConsedFlat.decodeHC(decoderState)
+         ref.finValue(decoderState.hashConsed, 0, new HSRIdentityHashMap)
+     }
+
+     def decodeBase64(base64: String): SIR = {
+         val bytes = java.util.Base64.getDecoder.decode(base64)
+         val decoderState = HashConsedDecoderState(DecoderState(bytes), HashConsed.State.empty)
+         decodeHC(decoderState)
+     }
+
+}
+
+
+object SIRToExpr extends ToExprHS[SIR](ToExprHSSIRFlat, '{ ToExprHSSIRFlat }, summon[Type[SIR]])
 

@@ -256,7 +256,7 @@ object FlatInstantces:
         }
 
         override def bitSizeHC(a: SIRType, hashConsed: HashConsed.State): Int =
-            println(s"bisSizeHC start ${a.hashCode()}")
+            //println(s"SIRTypeHashConsedFlat.bisSizeHC start ${a.hashCode()}")
             var mute = false
             val retval = a match
                 case _: SIRType.Primitive[?] => 
@@ -302,13 +302,13 @@ object FlatInstantces:
                     tagWidth + summon[Flat[String]].bitSize(err.msg)
                 case SIRType.TypeNothing => tagWidth
 
-            if !mute then    
-                println(s"bisSizeHC end ${a.hashCode()} $a =${retval}")
+            //if !mute then    
+            //    //println(s"SIRTypeHashConsedFlat.bisSizeHC end ${a.hashCode()} $a =${retval}")
             retval
 
 
         override def encodeHC(a: SIRType, encode: HashConsedEncoderState): Unit =
-            println(s"encodeHC:start ${a.hashCode()} $a, pos=${encode.encode.bitPosition()}")
+            //println(s"SIRTypeHashConsedFlat.encodeHC:start ${a.hashCode()} $a, pos=${encode.encode.bitPosition()}")
             var mute = false
             val startPos = encode.encode.bitPosition()
             a match
@@ -369,15 +369,15 @@ object FlatInstantces:
                     summon[Flat[String]].encode(err.msg, encode.encode)
                 case SIRType.TypeNothing =>
                     encode.encode.bits(tagWidth, tagTypeNothing)
-            val endPos = encode.encode.bitPosition()
-            if !mute then
-                println(s"encode ${a.hashCode()} $a,  size=${endPos-startPos}")
+            //if !mute then
+            //    //val endPos = encode.encode.bitPosition()
+            //    //println(s"SIRTypeHashConsedFlat.encode ${a.hashCode()} $a,  size=${endPos-startPos}")
                     
                 
 
         override def decodeHC(decode: HashConsedDecoderState): HashConsedRef[SIRType] =
             val ctag = decode.decode.bits8(tagWidth)
-            println(s"SIRTypeHashConsedFlat.decodeHC: ctag=${ctag}, pos=${decode.decode.currPtr*8 + decode.decode.usedBits}")
+            //println(s"SIRTypeHashConsedFlat.decodeHC: ctag=${ctag}, pos=${decode.decode.currPtr*8 + decode.decode.usedBits}")
             ctag match
                 case `tagPrimitiveByteString` => HashConsedRef.fromData(SIRType.ByteStringPrimitive)
                 case `tagPrimitiveInteger` => HashConsedRef.fromData(SIRType.IntegerPrimitive)
@@ -412,9 +412,7 @@ object FlatInstantces:
                     decode.hashConsed.lookup(ihc, tag) match
                         case None =>
                             //decode.hashConsed.putForwardRef(HashConsed.ForwardRefAcceptor(ihc,tag, Nil))
-                            println(s"SIRType::decodeHC:1 TypeProxy: ihc=${ihc}, putForwardRef")
                             val ref = decodeHC(decode)
-                            println(s"SIRType::decodeHC:2 TypeProxy: ref=${ref}")
                             //if (!ref.isForward) then
                             //    decode.hashConsed.setRef(ihc, tag, ref)
                             //HashConsedRef.deferred[SIRType](
@@ -431,7 +429,6 @@ object FlatInstantces:
                             val typeProxy = new SIRType.TypeProxy(null)
                             decode.hashConsed.putForwardValueAcceptor(ihc, tag,
                                 {x =>
-                                    println(s"SIRType::decodeHC:4 TypeProxy: ihc=${ihc}, x=${x}")
                                     typeProxy.ref = x.asInstanceOf[SIRType]}
                             )
                             HashConsed.ConstRef(typeProxy)
@@ -992,24 +989,18 @@ object FlatInstantces:
 
     given HashConsedFlat[Module] with
         def bitSizeHC(a: Module, hs: HashConsed.State): Int =
-            println(s"before bitSizeHC Module ${a.version}, head-name = ${a.defs.head.name}")
             val retval = ModuleHashSetReprFlat.bitSizeHC(a, hs)
-            println(s"after bitSizeHC module ${a.version}, heed=name = ${a.defs.head.name} retval =${retval}")
             retval
 
         def encodeHC(a: Module, enc: HashConsedEncoderState): Unit =
-            println(s"before encoding Module ${a.version}, head-name = ${a.defs.head.name}")
             ModuleHashSetReprFlat.encodeHC(a, enc)
             enc.encode.filler()
-            println(s"after encoding Module , count=${enc.encode.bitPosition()}")
 
         def decodeHC(decoder: HashConsedDecoderState): Module =
             // here we know that Module is the whole data, so decondign is finished
-            println(s"before decoding Module")
             val repr = ModuleHashSetReprFlat.decodeHC(decoder)
             decoder.runFinCallbacks()
             val parents = new HSRIdentityHashMap
             val retval = repr.finValue(decoder.hashConsed, 0, parents)
-            println(s"after decoding Module, head-name = ${retval.defs.head.name}")
             retval
 

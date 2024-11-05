@@ -53,7 +53,7 @@ class ScalusPhase extends PluginPhase {
             val compiler = new SIRCompiler(Mode.Link)
             val result = compiler.compileToSIR(code)
             val converter = new SIRConverter
-            converter.convertSIRToTree(result)
+            converter.convertSIRToTree(result, tree.span)
         else tree
     end transformApply
 }

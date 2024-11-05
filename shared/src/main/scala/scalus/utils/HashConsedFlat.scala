@@ -205,31 +205,23 @@ trait HashConsedMutRefReprFlat[A <: AnyRef]  extends HashConsedReprFlat[A, HashC
     override def encodeHC(a: A, encoderState: HashConsedEncoderState): Unit = {
         val ihc = a.hashCode
         PlainIntFlat.encode(ihc, encoderState.encode)
-        //println(s"Encoding HashConsedMutRefReprFlat: ${a}, hc=${ihc}")
         encoderState.hashConsed.lookup(ihc, tag) match
             case None =>
-                //println(s"Encoding HashConsedMutRefReprFlat: lookup failed, encoding new ihc=${ihc}, bitpos = ${encoderState.encode.bitPosition()}")
                 encoderState.putForwardRefAcceptor(HashConsed.ForwardRefAcceptor(ihc, tag, Nil))
                 encodeHCNew(a, encoderState)
-                //println(s"Encoded HashConsedMutRefReprFlat: encoded new ihc=${ihc}, bitpos = ${encoderState.encode.bitPosition()}")
                 encoderState.setRef(ihc, tag, HashConsedRef.fromData(a))
             case Some(ref) =>
-                //println(s"Encoded HashConsedMutRefReprFlat: lookup succeeded, ihc=${ihc}, ref=${ref}, bitpos = ${encoderState.encode.bitPosition()}")
-
     }
 
     override def decodeHC(decoderState: HashConsedDecoderState): HashConsedRef[A] = {
         val ihc = PlainIntFlat.decode(decoderState.decode)
-        println(s"Decoding HashConsedMutRefReprFlat: ihc=${ihc}, pos=${decoderState.decode.bitPosition()}")
         decoderState.hashConsed.lookup(ihc, tag) match
             case None =>
                 decoderState.hashConsed.putForwardRef(HashConsed.ForwardRefAcceptor(ihc, tag, Nil))
-                println(s"Decoded HashConsedMutRefReprFlat: lookup failed, decoding new ihc=${ihc}")
                 val sa = decodeHCNew(decoderState)
                 if (sa.isForward) then
                     throw new IllegalStateException("decodeHCNew returned a forward reference")
                 decoderState.hashConsed.setRef(ihc, tag, sa)
-                println(s"Decoded HashConsedMutRefReprFlat: setRef, ihc=${ihc}")
                 sa
             case Some(Left(fw)) =>
                 HashConsedRef.fromForward[A](decoderState.hashConsed, ihc, tag)
