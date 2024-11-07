@@ -13,7 +13,7 @@ object SIRTypeMacros {
 
     def liftMImpl[T <: AnyKind : Type](using Quotes): Expr[SIRType] = {
         import quotes.reflect.*
-        
+
         case class Env(
                           val forwardRefs: Map[Symbol, TypeProxy] = Map.empty,
                           val vars: Map[Symbol, TypeVar] = Map.empty,
@@ -87,7 +87,7 @@ object SIRTypeMacros {
                             val out = TypeRepr.of[b]
                             Fun(liftRepr(in, env), liftRepr(out, env))
                         case '[(a, b) => c] =>
-                            println(s"Fun2 detected,  Type: ${tp.show}")
+                            //println(s"Fun2 detected,  Type: ${tp.show}")
                             //report.error(s"Uncarried function types are not supported: ${tp.show}", Position.ofMacroExpansion)
                             Fun(liftRepr(TypeRepr.of[a], env),
                                 Fun(liftRepr(TypeRepr.of[b], env),

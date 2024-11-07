@@ -64,7 +64,11 @@ object SIRTypesHelper {
                     //throw new Exception("alias type")
                     sirTypeInEnvWithErr(tpc.dealias, env)
                 else if (tpc.isValueType) then
-                    makeSIRNonFunValueType(tpc, Nil, env)
+                    val wtpc = tpc.widen
+                    if (wtpc != tpc) then
+                        sirTypeInEnvWithErr(wtpc, env)
+                    else
+                        makeSIRNonFunValueType(tpc, Nil, env)
                 else
                     unsupportedType(tpc, "TypeRef", env)
             case tpc: ConstantType =>
@@ -192,7 +196,18 @@ object SIRTypesHelper {
         if (sym == Symbols.requiredClass("scala.math.BigInt")) then
            SIRType.IntegerPrimitive
         else
-          unsupportedType(tpc, "ValueType", env)
+          // this is a custom value type,  check hidden val
+          println(s"custom value type:  sym = ${sym.showFullName}, params=${params.map(_.show)}")
+          println(s"primaryConstructor=${sym.primaryConstructor}, primaryConstructor.info=${sym.primaryConstructor.info}")
+          val argss = sym.primaryConstructor.paramSymss.filter(_.exists(!_.isTypeParam)).flatten
+          argss match
+                case Nil =>
+                   unsupportedType(tpc, "ValueType without fields", env)
+                case head::Nil =>
+                    val headType = head.info
+                    sirTypeInEnvWithErr(headType, env)
+                case _ =>
+                    unsupportedType(tpc, "ValueType with more that one argument to ptrimary constryctir", env)
     }
 
     def makeSIRFunType(tp: Type, env: SIRTypeEnv)(using Context): SIRType = {
