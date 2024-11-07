@@ -234,8 +234,6 @@ class PatternMatchingCompiler(val compiler: SIRCompiler)(using Context) {
         // this case is for matching on a case class
         case CaseDef(unapply@UnApply(fun, _, pats), _, rhs) =>
             // report.error(s"Case: ${fun}, pats: ${pats}, rhs: $rhs", t.pos)
-            println(s"unapply.tpe=${unapply.tpe.show}, fun=${fun.show}, pats=${pats}")
-            println(s"unapply=${unapply.show}")
             compileConstructorPatterns(env, unapply, unapply.tpe, fun, pats, rhs, c.srcPos)
         // this case is for matching on an enum
         case CaseDef(Typed(unapply@UnApply(fun, _, pats), constrTpe), _, rhs) =>
@@ -262,13 +260,7 @@ class PatternMatchingCompiler(val compiler: SIRCompiler)(using Context) {
         // report.echo(s"Match: ${typeSymbol} ${typeSymbol.children} $adtInfo", tree.srcPos)
         val matchExpr = compiler.compileExpr(env, matchTree)
         val sirCases =
-            try
                 cases.flatMap(cs => scalaCaseDefToSirCase(env, cs))
-            catch
-                case NonFatal(e) =>
-                    compiler.error(GenericError(e.getMessage, tree.srcPos), Nil)
-                    println(s"Error: tree=${tree.show}, msg=${e.getMessage}, matchTree.tpe=${matchTree.tpe.show}")
-                    throw e;
 
         // 1. If we have a wildcard case, it must be the last one
         // 2. Validate we don't have any errors

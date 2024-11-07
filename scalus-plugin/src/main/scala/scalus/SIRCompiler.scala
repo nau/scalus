@@ -358,7 +358,6 @@ final class SIRCompiler(mode: scalus.Mode)(using ctx: Context) {
                 val dataTypeParams = adtCallInfo.dataInfo.dataTypeParams.map{ tp =>
                     SIRType.TypeVar(tp.typeSymbol.name.show)
                 }
-                println(s"dataTypeParams = ${dataTypeParams}")
                 val constrDecls = sortedConstructors.map { sym =>
                     val typeParams = sym.typeParams.map(tp => SIRType.TypeVar(tp.name.show, Some(tp.hashCode)))
                     val envTypeVars1 = sym.typeParams.foldLeft(env.typeVars) {
@@ -1215,10 +1214,8 @@ final class SIRCompiler(mode: scalus.Mode)(using ctx: Context) {
             case TypeApply(Select(e, nme.asInstanceOf_), _) => compileExpr(env, e)
             // Ignore type application
             case TypeApply(f, targs) =>
-                println(s"TypeApply: ${f.show}, ${targs}")
-                println(s"TypeApply: tree=${tree.show}")
-
-                compileExpr(env, f)
+                val nEnv = fillTypeParamInTypeApply(f.symbol, targs, env)
+                compileExpr(nEnv, f)
             // Generic Apply
             case a@Apply(pf@TypeApply(f,targs),args) =>
                 compileApply(env, f, targs, args, tree.tpe, a)

@@ -38,7 +38,6 @@ object ToExpHSSIRTypeFlat extends HashConsedFlat[SIRType] {
     }
 
     override def encodeHC(a: SIRType, encoderState: HashConsedEncoderState): Unit = {
-        println(s"Encoding SIRType: ${a.show}")
         SIRTypeHashConsedFlat.encodeHC(a, encoderState)
         encoderState.encode.filler()
 
@@ -61,7 +60,6 @@ object ToExpHSSIRTypeFlat extends HashConsedFlat[SIRType] {
     }
 
     override def decodeHC(decoderState: HashConsedDecoderState): SIRType = {
-        println("Decoding SIRType")
         val ref = SIRTypeHashConsedFlat.decodeHC(decoderState)
         decoderState.runFinCallbacks()
         ref.finValue(decoderState.hashConsed, 0, new HSRIdentityHashMap)
