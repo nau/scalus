@@ -519,7 +519,7 @@ final class SIRCompiler(mode: scalus.Mode)(using ctx: Context) {
             case (false, false) =>
                 mode match
                     case scalus.Mode.Compile =>
-                        println( s"external var: module ${e.symbol.owner.fullName.toString()}, ${e.symbol.fullName.toString()}" )
+                        //println( s"external var: module ${e.symbol.owner.fullName.toString()}, ${e.symbol.fullName.toString()}" )
                         val valType =
                             try
                                 sirTypeInEnv(e.tpe.widen, e.srcPos, env)
