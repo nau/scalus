@@ -82,40 +82,6 @@ class PatternMatchingCompiler(val compiler: SIRCompiler)(using Context) {
         scalus.sir.SIR.Case(constrDecl, bindings, typeArgs, rhs)
     }
 
-    private def extractPatternTypesFromUnapply(unapply: UnApply, typeRestriction:Option[Type]): Either[SirCase.Error,List[Type]] = {
-        unapply.fun.tpe.widen match
-            case AppliedType(tycon, args) =>
-                Right(args)
-            case pt: PolyType =>
-                ???
-            case mt: MethodType =>
-                val resType = mt.resType.dealias
-                if (resType.typeSymbol == defn.BooleanType.typeSymbol) then
-                    Right(Nil)
-                else
-                    resType match
-                        case AppliedType(tycon, args) =>
-                            // TODO: check that tycon is option
-                            Right(args)
-                        case _ =>
-                            if (resType.typeSymbol.isClass) then
-                                val constrSymbol = resType.typeSymbol.primaryConstructor
-                                constrSymbol.paramSymss match
-                                    case Nil =>
-                                      //  object have no parameters
-                                        Right(Nil)
-                                    case List(params) =>
-                                        Right(params.map(_.info))
-                                    case _ =>
-                                        Left(SirCase.Error(GenericError("Multiple parameter list in constructor is not supported", unapply.srcPos)))
-                            else
-                                ???
-                                //SIRCase.Error(UnsupportedMatchExpression(p, p.srcPos)) :: Nil
-            case _ =>
-                ???
-
-    }
-
     private def compileBinding(env: SIRCompiler.Env, pat: Tree, tp: Type): SirBinding = {
         pat match
             // this is case Constr(name @ _) or Constr(name)
@@ -125,11 +91,7 @@ class PatternMatchingCompiler(val compiler: SIRCompiler)(using Context) {
             case Bind(name, body @ UnApply(fun, _, pats)) =>
                 // pattern Symbol probaly incorrect here (need to be tps,  can be Any).  TODO: write test
                 val typeSymbol = pat.tpe.widen.dealias.typeSymbol
-                extractPatternTypesFromUnapply(body, None) match
-                    case Left(err) => SirBinding.Error(err.error)
-                    case Right(params) =>
-                        val compiledPats = pats.zip(params).map{ case (p, tp) => compileBinding(env, p, tp) }
-                        SirBinding.CaseClass(name.show, typeSymbol, compiledPats, sirTypeInEnv(tp, pat.srcPos, env))
+                SirBinding.CaseClass(name.show, typeSymbol, pats.map(p => compileBinding(env, p, p.tpe)), sirTypeInEnv(tp, pat.srcPos, env))
             case Bind(name, body) =>
                 SirBinding.Error(UnsupportedBinding(name.show, pat.srcPos))
             // this is case _ =>
@@ -137,12 +99,8 @@ class PatternMatchingCompiler(val compiler: SIRCompiler)(using Context) {
             case UnApply(fun, _, pats) =>
                 // pattern Symbol probaly incorrect here (need to be tps,  can be Any).  TODO: write test
                 val typeSymbol = pat.tpe.widen.dealias.typeSymbol
-                extractPatternTypesFromUnapply(pat.asInstanceOf[UnApply], None) match
-                    case Left(err) => SirBinding.Error(err.error)
-                    case Right(params) =>
-                        val name = patternName.fresh()
-                        val compiledPats = pats.zip(params).map{ case (p, tp) => compileBinding(env, p, tp) }
-                        SirBinding.CaseClass(name.show, typeSymbol, compiledPats, sirTypeInEnv(tp, pat.srcPos, env))
+                val name = patternName.fresh()
+                SirBinding.CaseClass(name.show, typeSymbol, pats.map(p => compileBinding(env, p, p.tpe)), sirTypeInEnv(tp, pat.srcPos, env))
             case Literal(_) =>
                 SirBinding.Error(LiteralPattern(pat.srcPos))
             case p =>
@@ -205,23 +163,21 @@ class PatternMatchingCompiler(val compiler: SIRCompiler)(using Context) {
         rhs: Tree,
         srcPos: SrcPos
     ): List[SirCase] = {
-        
-        extractPatternTypesFromUnapply(unapplyExpr, if (constrType=:=unapplyExpr.tpe) then None else Some(constrType)) match
-            case Left(err) => err :: Nil
-            case Right(paramTypes) =>
-                val sirBindings = patterns.zip(paramTypes).map{
-                    case (b, tp) => compileBinding(env,b, tp)
-                }
-                compileBindings(sirBindings) match
-                    case Left(errors) => errors.map(e => SirCase.Error(e.error))
-                    case Right(PatternInfo(bindings, generateSir, names)) =>
-                        val constrTypeSymbol = constrType.typeSymbol
-                        val constrTypeArgs = constrType match
-                            case AppliedType(tpe, args) => args
-                            case _ => Nil
-                        val rhsE = compiler.compileExpr(env ++ bindings, rhs)
-                        val sirConstrTypeArs = constrTypeArgs.map(t => sirTypeInEnv(t, srcPos, env))
-                        SirCase.Case(constrTypeSymbol, sirConstrTypeArs, names, generateSir(rhsE), rhs.srcPos) :: Nil
+
+        val sirBindings = patterns.zipWithIndex.map {
+            case (b, idx) => compileBinding(env, b, b.tpe)
+        }
+        compileBindings(sirBindings) match
+            case Left(errors) => errors.map(e => SirCase.Error(e.error))
+            case Right(PatternInfo(bindings, generateSir, names)) =>
+                val nEnv = env ++ bindings
+                val constrTypeSymbol = constrType.typeSymbol
+                val constrTypeArgs = constrType match
+                    case AppliedType(tpe, args) => args
+                    case _ => Nil
+                val sirConstrTypeArs = constrTypeArgs.map(t => sirTypeInEnv(t, srcPos, nEnv))
+                val rhsE = compiler.compileExpr(nEnv, rhs)
+                SirCase.Case(constrTypeSymbol, sirConstrTypeArs, names, generateSir(rhsE), rhs.srcPos) :: Nil
         
     }
 

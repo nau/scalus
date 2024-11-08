@@ -430,8 +430,14 @@ final class SIRCompiler(mode: scalus.Mode)(using ctx: Context) {
             traverseAndLink(f, srcPos)
         case SIR.Decl(data, term) => traverseAndLink(term, srcPos)
         case SIR.Constr(name, data, args) =>
-            globalDataDecls.put(FullName(data.name), data)
-            args.foreach(a => traverseAndLink(a, srcPos))
+            try
+                globalDataDecls.put(FullName(data.name), data)
+                args.foreach(a => traverseAndLink(a, srcPos))
+            catch
+                case NonFatal(e) =>
+                    println(s"Error in traverseAndLink: ${e.getMessage}")
+                    println(s"SIR= ${sir}")
+                    throw e
         case SIR.Match(scrutinee, cases, rhsType) =>
             traverseAndLink(scrutinee, srcPos)
             cases.foreach(c => traverseAndLink(c.body, srcPos))
@@ -479,7 +485,8 @@ final class SIRCompiler(mode: scalus.Mode)(using ctx: Context) {
     def error[A](error: CompilationError, defaultValue: A): A = {
         report.error(error.message, error.srcPos)
         if (true) {
-            Thread.dumpStack()
+            throw new RuntimeException(error.message)
+            //Thread.dumpStack()
         }
         defaultValue
     }
@@ -489,7 +496,7 @@ final class SIRCompiler(mode: scalus.Mode)(using ctx: Context) {
         val fullName = FullName(e.symbol)
         val isInLocalEnv = env.vars.contains(name)
         val isInGlobalEnv = globalDefs.contains(fullName)
-        // println( s"compileIdentOrQualifiedSelect1: ${e.symbol} $name $fullName, term: ${e.show}, loc/glob: $isInLocalEnv/$isInGlobalEnv, env: ${env}" )
+        //println( s"compileIdentOrQualifiedSelect1: ${e.symbol} $name $fullName, term: ${e.show}, loc/glob: $isInLocalEnv/$isInGlobalEnv, env: ${env}" )
         (isInLocalEnv, isInGlobalEnv) match
             // global def, self reference, use the name
             case (true, true) =>
@@ -519,18 +526,19 @@ final class SIRCompiler(mode: scalus.Mode)(using ctx: Context) {
                 mode match
                     case scalus.Mode.Compile =>
                         //println( s"external var: module ${e.symbol.owner.fullName.toString()}, ${e.symbol.fullName.toString()}" )
-                        val valType =
-                            try
-                                sirTypeInEnv(e.tpe.widen, e.srcPos, env)
-                            catch
-                                case NonFatal(ex) =>
-                                    println(s"Error in sirTypeInEnv:  ${e.tpe.show} ${e.tpe.widen.show}, e=${e.show} ex.message: ${ex.getMessage}")
-                                    throw ex
-                        SIR.ExternalVar(
-                          e.symbol.owner.fullName.toString(),
-                          e.symbol.fullName.toString(),
-                          valType
-                        )
+                        val valType = sirTypeInEnv(e.tpe.widen, e.srcPos, env)
+                        try
+                            SIR.ExternalVar(
+                                e.symbol.owner.fullName.toString(),
+                                e.symbol.fullName.toString(),
+                                valType
+                            )
+                        catch
+                            case NonFatal(ex) =>
+                                println(s"Error in compileIdentOrQualifiedSelect: ${ex.getMessage}")
+                                println(s"ExternalVar: ${e.symbol.fullName}")
+                                println(s"tree: ${e.show}")
+                                throw ex    
                     case scalus.Mode.Link =>
                         if e.symbol.defTree == EmptyTree then
                             linkDefinition(
@@ -1172,7 +1180,8 @@ final class SIRCompiler(mode: scalus.Mode)(using ctx: Context) {
             case Ident(a) =>
                 if isConstructorVal(tree.symbol, tree.tpe) then
                     compileNewConstructor(env, tree.tpe, Nil, tree)
-                else compileIdentOrQualifiedSelect(env, tree)
+                else 
+                    compileIdentOrQualifiedSelect(env, tree)
             // case class User(name: String, age: Int)
             // val user = User("John", 42) => \u - u "John" 42
             // user.name => \u name age -> name
@@ -1281,7 +1290,7 @@ final class SIRCompiler(mode: scalus.Mode)(using ctx: Context) {
 
 
     def compileToSIR(tree: Tree)(using Context): SIR = {
-        // println(s"compileToSIR: ${tree}")
+        println(s"compileToSIR: ${tree}")
         val result = compileExpr(Env.empty, tree)
         val full: SIRExpr = globalDefs.values.foldRight(result) {
             case (CompileDef.Compiled(b), acc) =>

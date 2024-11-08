@@ -90,7 +90,21 @@ object SIR:
     //  Var(x,  TypeRef(1))
 
     case class Var(name: String, tp: SIRType) extends SIRExpr  //TODO: add sieStorage parameter.
-    case class ExternalVar(moduleName: String, name: String, tp: SIRType) extends SIRExpr
+
+
+    case class ExternalVar(moduleName: String, name: String, tp: SIRType) extends SIRExpr {
+
+        if (name == "scalus.prelude.AssocMap$._$_$v") {
+            println("Catched external var")
+            throw new RuntimeException(s"ExternalVar  $name  in ExternalVar: $name, module: $moduleName")
+        }
+
+        override def toString: String = s"ExternalVar($moduleName, $name, ${tp.show})"
+
+
+    }
+
+
     case class Let(recursivity: Recursivity, bindings: List[Binding], body: SIRExpr) extends SIRExpr {
         override def tp: SIRType = body.tp
     }
@@ -136,6 +150,12 @@ object SIR:
         override def tp: SIRType = SIRType.TypeError(msg, cause)
     }
     case class Constr(name: String, data: DataDecl, args: List[SIRExpr]) extends SIRExpr {
+        args match
+            case ExternalVar(moduleName,name,tp)::tail if name == "scalus.prelude.AssocMap$._$_$v"  =>
+                println("Catched external var")
+                throw new RuntimeException(s"ExternalVar  $name  in Constr: $args")
+            case _ =>
+
         override def tp: SIRType = data.tp
     }
 
