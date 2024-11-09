@@ -11,29 +11,38 @@ import dotty.tools.dotc.core.StdNames.nme
 import dotty.tools.dotc.core.Symbols.*
 import dotty.tools.dotc.core.Types.*
 import dotty.tools.dotc.util.SrcPos
-import scalus.SIRTypesHelper.{TypingException, sirTypeInEnvWithErr, unsupportedType}
+import scalus.SIRTypesHelper.{sirTypeInEnvWithErr, unsupportedType, TypingException}
 import scalus.sir.*
 
 import scala.collection.mutable
 import scala.language.implicitConversions
 import scala.util.control.NonFatal
 
-
-
 enum SirBinding:
-    case Name(name: String, tp: SIRType )
-    case CaseClass(name: String, constructorSymbol: Symbol, bindings: List[SirBinding], constType: SIRType)
+    case Name(name: String, tp: SIRType)
+    case CaseClass(
+        name: String,
+        constructorSymbol: Symbol,
+        bindings: List[SirBinding],
+        constType: SIRType
+    )
     case Error(error: CompilationError)
 
 case class PatternInfo(
     allBindings: Map[String, SIRType],
     generator: SIRExpr => SIRExpr, /// generates inner Match for nested case classes
-    bindings: List[String], /// current level bindings to generate SirCase.Case
-    //rhsType: SIRType /// SIR type of the rhs expression in the match case
+    bindings: List[String] /// current level bindings to generate SirCase.Case
+    // rhsType: SIRType /// SIR type of the rhs expression in the match case
 )
 
 enum SirCase:
-    case Case(constructorSymbol: Symbol, typeParams: List[SIRType], bindings: List[String], rhs: SIRExpr, srcPos: SrcPos)
+    case Case(
+        constructorSymbol: Symbol,
+        typeParams: List[SIRType],
+        bindings: List[String],
+        rhs: SIRExpr,
+        srcPos: SrcPos
+    )
     case Wildcard(rhs: SIRExpr, srcPos: SrcPos)
     case Error(error: CompilationError)
 
@@ -73,13 +82,12 @@ class PatternMatchingCompiler(val compiler: SIRCompiler)(using Context) {
         rhs: SIRExpr
     ): scalus.sir.SIR.Case = {
 
-
-        //val params = compiler.primaryConstructorParams(constrSymbol).zip(bindings).map {
+        // val params = compiler.primaryConstructorParams(constrSymbol).zip(bindings).map {
         //    case (paramSym, name) =>
         //        TypeBinding(paramSym.name.show, SIRTypesHelper.sirType(paramSym.info.widen))
-        //}
-        //val typeVars = ???
-        //val constrDecl = scalus.sir.ConstrDecl(constrSymbol.name.show, SIRVarStorage.DEFAULT, params)
+        // }
+        // val typeVars = ???
+        // val constrDecl = scalus.sir.ConstrDecl(constrSymbol.name.show, SIRVarStorage.DEFAULT, params)
 
         scalus.sir.SIR.Case(constrDecl, bindings, typeArgs, rhs)
     }
@@ -87,22 +95,33 @@ class PatternMatchingCompiler(val compiler: SIRCompiler)(using Context) {
     private def compileBinding(env: SIRCompiler.Env, pat: Tree, tp: Type): SirBinding = {
         pat match
             // this is case Constr(name @ _) or Constr(name)
-            case Bind(name, id@Ident(nme.WILDCARD)) =>
+            case Bind(name, id @ Ident(nme.WILDCARD)) =>
                 SirBinding.Name(name.show, sirTypeInEnv(tp, pat.srcPos, env))
             // this is case Constr(name @ Constr2(_))
             case Bind(name, body @ UnApply(fun, _, pats)) =>
                 // pattern Symbol probaly incorrect here (need to be tps,  can be Any).  TODO: write test
                 val typeSymbol = pat.tpe.widen.dealias.typeSymbol
-                SirBinding.CaseClass(name.show, typeSymbol, pats.map(p => compileBinding(env, p, p.tpe)), sirTypeInEnv(tp, pat.srcPos, env))
+                SirBinding.CaseClass(
+                  name.show,
+                  typeSymbol,
+                  pats.map(p => compileBinding(env, p, p.tpe)),
+                  sirTypeInEnv(tp, pat.srcPos, env)
+                )
             case Bind(name, body) =>
                 SirBinding.Error(UnsupportedBinding(name.show, pat.srcPos))
             // this is case _ =>
-            case Ident(nme.WILDCARD) => SirBinding.Name(bindingName.fresh().show, sirTypeInEnv(tp, pat.srcPos, env))
+            case Ident(nme.WILDCARD) =>
+                SirBinding.Name(bindingName.fresh().show, sirTypeInEnv(tp, pat.srcPos, env))
             case UnApply(fun, _, pats) =>
                 // pattern Symbol probaly incorrect here (need to be tps,  can be Any).  TODO: write test
                 val typeSymbol = pat.tpe.widen.dealias.typeSymbol
                 val name = patternName.fresh()
-                SirBinding.CaseClass(name.show, typeSymbol, pats.map(p => compileBinding(env, p, p.tpe)), sirTypeInEnv(tp, pat.srcPos, env))
+                SirBinding.CaseClass(
+                  name.show,
+                  typeSymbol,
+                  pats.map(p => compileBinding(env, p, p.tpe)),
+                  sirTypeInEnv(tp, pat.srcPos, env)
+                )
             case Literal(_) =>
                 SirBinding.Error(LiteralPattern(pat.srcPos))
             case p =>
@@ -131,11 +150,11 @@ class PatternMatchingCompiler(val compiler: SIRCompiler)(using Context) {
                     case Right(PatternInfo(bindings2, generator2, innerNames)) =>
                         Right(
                           PatternInfo(
-                            (enclosingBindings ++ bindings2) + (name ->  constrSirType),
+                            (enclosingBindings ++ bindings2) + (name -> constrSirType),
                             cont =>
                                 val (constrDecl, typeParams) = constrSirType match
                                     case SIRType.CaseClass(decl, typeArgs) => (decl, typeArgs)
-                                    case _ => ???
+                                    case _                                 => ???
                                 val contExpr = enclosingGenerator(generator2(cont))
                                 SIR.Match(
                                   SIR.Var(name, constrSirType),
@@ -148,13 +167,13 @@ class PatternMatchingCompiler(val compiler: SIRCompiler)(using Context) {
                                     )
                                   ),
                                   contExpr.tp
-                                ),
+                                )
+                            ,
                             name :: enclosingNames
                           )
                         )
         }
     }
-
 
     private def compileConstructorPatterns(
         envIn: SIRCompiler.Env,
@@ -166,12 +185,11 @@ class PatternMatchingCompiler(val compiler: SIRCompiler)(using Context) {
         srcPos: SrcPos
     ): List[SirCase] = {
 
-
-        // typoes are extracted from unapply result type, because some strange behavior 
+        // typoes are extracted from unapply result type, because some strange behavior
         //  of dotty,  when types of patterns (i.e. pat.tpe) are not types.
         // we have other workaround for this case, TODO: check.
         val (patternTypes, env) = fun.tpe.widen match
-            case mt: MethodType  => 
+            case mt: MethodType =>
                 val unapplyResType = mt.resultType.dealias
                 val optionBase = unapplyResType.baseType(defn.OptionClass)
                 if (optionBase != NoType) then
@@ -183,44 +201,63 @@ class PatternMatchingCompiler(val compiler: SIRCompiler)(using Context) {
                                 case None =>
                                     (List(optArgType), envIn)
                         case _ =>
-                            throw TypingException(unapplyResType, srcPos, s"unapply result type is not applied type when type constructor of ${unapplyResType.classSymbol} have type params")
-                else if ( unapplyResType.baseType(defn.ProductClass) != NoType) then
+                            throw TypingException(
+                              unapplyResType,
+                              srcPos,
+                              s"unapply result type is not applied type when type constructor of ${unapplyResType.classSymbol} have type params"
+                            )
+                else if (unapplyResType.baseType(defn.ProductClass) != NoType) then
                     val unapplyPrimaryConstructor = unapplyResType.classSymbol.primaryConstructor
-                    val constrTypeParamss = unapplyPrimaryConstructor.paramSymss.filter(_.exists(_.isType))
+                    val constrTypeParamss =
+                        unapplyPrimaryConstructor.paramSymss.filter(_.exists(_.isType))
                     val nEnv =
                         if (!constrTypeParamss.isEmpty) then
                             unapplyResType match
                                 case AppliedType(tpe, args) =>
-                                    val newParams = (constrTypeParamss.head zip args).map{
-                                        (sym, t) => sym -> sirTypeInEnv(t, unapplyExpr.srcPos,  envIn)
+                                    val newParams = (constrTypeParamss.head zip args).map {
+                                        (sym, t) =>
+                                            sym -> sirTypeInEnv(t, unapplyExpr.srcPos, envIn)
                                     }.toMap
                                     envIn.copy(typeVars = envIn.typeVars ++ newParams)
                                 case _ =>
-                                    throw TypingException(unapplyResType, srcPos, s"unapply result type is not applied type when type constructor of ${unapplyResType.classSymbol} have type params")
-                        else
-                            envIn
-                    val constrParamss = unapplyPrimaryConstructor.paramSymss.filter(_.exists(_.isTerm))
-                    if (constrParamss.isEmpty) then
-                        (List.empty[Type], nEnv)
-                    else
-                        (constrParamss.head.map(_.info), nEnv)
-                else if (unapplyResType =:= defn.BooleanType) then
-                    (List.empty, envIn)
+                                    throw TypingException(
+                                      unapplyResType,
+                                      srcPos,
+                                      s"unapply result type is not applied type when type constructor of ${unapplyResType.classSymbol} have type params"
+                                    )
+                        else envIn
+                    val constrParamss =
+                        unapplyPrimaryConstructor.paramSymss.filter(_.exists(_.isTerm))
+                    if (constrParamss.isEmpty) then (List.empty[Type], nEnv)
+                    else (constrParamss.head.map(_.info), nEnv)
+                else if (unapplyResType =:= defn.BooleanType) then (List.empty, envIn)
                 else
-                    //constructor patterns have no special forms
-                    //TODO: get resuslt
-                    throw TypingException(unapplyResType, srcPos, s"unapply result type is not option or product type")
+                    // constructor patterns have no special forms
+                    // TODO: get resuslt
+                    throw TypingException(
+                      unapplyResType,
+                      srcPos,
+                      s"unapply result type is not option or product type"
+                    )
             case _ =>
-                throw TypingException(fun.tpe.widen, srcPos, "type of unapply fun is not a method type")
+                throw TypingException(
+                  fun.tpe.widen,
+                  srcPos,
+                  "type of unapply fun is not a method type"
+                )
 
         if (patternTypes.length != patterns.length) then
-            throw TypingException(fun.tpe.widen, srcPos, s"we determinate ${patternTypes.length} types (${patterns}, but have ${patterns.length} patterns ${patterns.map(_.symbol.name)}")
+            throw TypingException(
+              fun.tpe.widen,
+              srcPos,
+              s"we determinate ${patternTypes.length} types (${patterns}, but have ${patterns.length} patterns ${patterns
+                      .map(_.symbol.name)}"
+            )
 
-        val sirBindings = patterns.zip(patternTypes).map {
-            case (b, bt) => compileBinding(env, b, bt)
+        val sirBindings = patterns.zip(patternTypes).map { case (b, bt) =>
+            compileBinding(env, b, bt)
         }
-        
-        
+
         compileBindings(sirBindings) match
             case Left(errors) => errors.map(e => SirCase.Error(e.error))
             case Right(PatternInfo(bindings, generateSir, names)) =>
@@ -228,10 +265,16 @@ class PatternMatchingCompiler(val compiler: SIRCompiler)(using Context) {
                 val constrTypeSymbol = constrType.typeSymbol
                 val constrTypeArgs = constrType match
                     case AppliedType(tpe, args) => args
-                    case _ => Nil
+                    case _                      => Nil
                 val sirConstrTypeArs = constrTypeArgs.map(t => sirTypeInEnv(t, srcPos, nEnv))
                 val rhsE = compiler.compileExpr(nEnv, rhs)
-                SirCase.Case(constrTypeSymbol, sirConstrTypeArs, names, generateSir(rhsE), rhs.srcPos) :: Nil
+                SirCase.Case(
+                  constrTypeSymbol,
+                  sirConstrTypeArs,
+                  names,
+                  generateSir(rhsE),
+                  rhs.srcPos
+                ) :: Nil
 
     }
 
@@ -242,23 +285,34 @@ class PatternMatchingCompiler(val compiler: SIRCompiler)(using Context) {
         case CaseDef(_, guard, _) if !guard.isEmpty =>
             SirCase.Error(GuardsNotSupported(guard.srcPos)) :: Nil
         // this case is for matching on a case class
-        case CaseDef(unapply@UnApply(fun, _, pats), _, rhs) =>
+        case CaseDef(unapply @ UnApply(fun, _, pats), _, rhs) =>
             // report.error(s"Case: ${fun}, pats: ${pats}, rhs: $rhs", t.pos)
             if (unapply.tpe == defn.NothingType) then
                 // need to restore constructor, maybe from fun
                 fun.tpe.widen match
-                    case mt:MethodType =>
+                    case mt: MethodType =>
                         val constrType = mt.paramInfos.head
-                        compileConstructorPatterns(env, unapply, constrType, fun, pats, rhs, c.srcPos)
+                        compileConstructorPatterns(
+                          env,
+                          unapply,
+                          constrType,
+                          fun,
+                          pats,
+                          rhs,
+                          c.srcPos
+                        )
                     case _ =>
                         // TODO: check PolyType
-                        throw TypingException(fun.tpe.widen, c.srcPos, "type of unapply fun is not a method type")
-            else
-                compileConstructorPatterns(env, unapply, unapply.tpe, fun, pats, rhs, c.srcPos)
+                        throw TypingException(
+                          fun.tpe.widen,
+                          c.srcPos,
+                          "type of unapply fun is not a method type"
+                        )
+            else compileConstructorPatterns(env, unapply, unapply.tpe, fun, pats, rhs, c.srcPos)
         // this case is for matching on an enum
-        case CaseDef(Typed(unapply@UnApply(fun, _, pats), constrTpe), _, rhs) =>
+        case CaseDef(Typed(unapply @ UnApply(fun, _, pats), constrTpe), _, rhs) =>
             // report.info(s"Case: ${inner}, tpe ${constrTpe.tpe.widen.show}", t.pos)
-            compileConstructorPatterns(env, unapply, constrTpe.tpe, fun,  pats, rhs, c.srcPos)
+            compileConstructorPatterns(env, unapply, constrTpe.tpe, fun, pats, rhs, c.srcPos)
         // case _ => rhs, wildcard pattern, must be the last case
         case CaseDef(Ident(nme.WILDCARD), _, rhs) =>
             val rhsE = compiler.compileExpr(env, rhs)
@@ -275,12 +329,12 @@ class PatternMatchingCompiler(val compiler: SIRCompiler)(using Context) {
 
     def compileMatch(tree: Match, env: SIRCompiler.Env): SIRExpr = {
         val Match(matchTree, cases) = tree
-        //val typeSymbol = matchTree.tpe.widen.dealias.typeSymbol
+        // val typeSymbol = matchTree.tpe.widen.dealias.typeSymbol
         val adtInfo = compiler.getAdtTypeInfo(matchTree.tpe)
         // report.echo(s"Match: ${typeSymbol} ${typeSymbol.children} $adtInfo", tree.srcPos)
         val matchExpr = compiler.compileExpr(env, matchTree)
         val sirCases =
-                cases.flatMap(cs => scalaCaseDefToSirCase(env, cs))
+            cases.flatMap(cs => scalaCaseDefToSirCase(env, cs))
 
         // 1. If we have a wildcard case, it must be the last one
         // 2. Validate we don't have any errors
@@ -320,7 +374,7 @@ class PatternMatchingCompiler(val compiler: SIRCompiler)(using Context) {
                             // TODO: extract rhs to a let binding before the match
                             // so we don't have to repeat it for each case
                             // also we have no way toknowtype-arameters, so use abstract type-vars (will use FreeUnificator))
-                            //val typeArgs = constr.typeParams.map(tp => SIRType.TypeVar(tp.name.show, Some(tp.hashCode)))
+                            // val typeArgs = constr.typeParams.map(tp => SIRType.TypeVar(tp.name.show, Some(tp.hashCode)))
                             val constrDecl = retrieveConstrDecl(env, constr, srcPos)
                             if (constr.typeParams.nonEmpty) then
                                 compiler.error(
@@ -330,8 +384,7 @@ class PatternMatchingCompiler(val compiler: SIRCompiler)(using Context) {
                                   ),
                                   ()
                                 )
-                            else
-                                expandedCases += constructCase(constrDecl, bindings, Nil, rhs)
+                            else expandedCases += constructCase(constrDecl, bindings, Nil, rhs)
                             expandedCases += constructCase(constrDecl, bindings, Nil, rhs)
                             matchedConstructors += constr // collect all matched constructors
                         }
@@ -358,47 +411,68 @@ class PatternMatchingCompiler(val compiler: SIRCompiler)(using Context) {
 
     // here we assume that match is work over case classes without custom unapply.
     // TODO: extend to generic unapply calls ?
-    private def retrieveConstrDecl(env: SIRCompiler.Env, constructorSymbol: Symbol,  srcPos: SrcPos): ConstrDecl = {
-        //In scala, symbols of type-parameters of primary constructor and type parameters of the class are different.
+    private def retrieveConstrDecl(
+        env: SIRCompiler.Env,
+        constructorSymbol: Symbol,
+        srcPos: SrcPos
+    ): ConstrDecl = {
+        // In scala, symbols of type-parameters of primary constructor and type parameters of the class are different.
         // (but structure is identical)
         // so we need to translate constructir type-parameters to class type-parameters.
         //  (to have type-variables like in constructor class, not like in constructor <init>?)
         // to have correnct mapping of base types.
-        val primaryConstructorTypeParamsSymbols = constructorSymbol.primaryConstructor.paramSymss.flatten.filter(_.isTypeParam)
-        val primaryConstructorTypeParams = primaryConstructorTypeParamsSymbols.zip(constructorSymbol.typeParams).map{
-            case (tpInit, tpClass) =>
+        val primaryConstructorTypeParamsSymbols =
+            constructorSymbol.primaryConstructor.paramSymss.flatten.filter(_.isTypeParam)
+        val primaryConstructorTypeParams = primaryConstructorTypeParamsSymbols
+            .zip(constructorSymbol.typeParams)
+            .map { case (tpInit, tpClass) =>
                 tpInit -> SIRType.TypeVar(tpClass.name.show, Some(tpClass.hashCode))
-        }.toMap
-        val constrTypeParamsList =  constructorSymbol.typeParams.map(tp => SIRType.TypeVar(tp.name.show, Some(tp.hashCode)))
-        val constrTypeParams = constructorSymbol.typeParams.zip(constrTypeParamsList).map((tp, tv) => tp -> tv).toMap
-        val env1 = env.copy(typeVars = env.typeVars ++ primaryConstructorTypeParams ++ constrTypeParams)
-        val primaryConstructorParams = constructorSymbol.primaryConstructor.paramSymss.flatten.filterNot(_.isTypeParam).map{ paramSym =>
-            val paramInfo = paramSym.info.widen
-            val paramSirType = sirTypeInEnv(paramInfo, srcPos, env1)
-            TypeBinding(paramSym.name.show, paramSirType)
-        }
-        
+            }
+            .toMap
+        val constrTypeParamsList =
+            constructorSymbol.typeParams.map(tp => SIRType.TypeVar(tp.name.show, Some(tp.hashCode)))
+        val constrTypeParams =
+            constructorSymbol.typeParams.zip(constrTypeParamsList).map((tp, tv) => tp -> tv).toMap
+        val env1 =
+            env.copy(typeVars = env.typeVars ++ primaryConstructorTypeParams ++ constrTypeParams)
+        val primaryConstructorParams =
+            constructorSymbol.primaryConstructor.paramSymss.flatten.filterNot(_.isTypeParam).map {
+                paramSym =>
+                    val paramInfo = paramSym.info.widen
+                    val paramSirType = sirTypeInEnv(paramInfo, srcPos, env1)
+                    TypeBinding(paramSym.name.show, paramSirType)
+            }
+
         //  TODO:  define mapping of names into constructor.
         // trying to find decl.
-        val optParent = constructorSymbol.info.baseClasses.find{ base =>
-            base.children.nonEmpty && base.children.exists{ child =>
-                child.isConstructor && child  == constructorSymbol
+        val optParent = constructorSymbol.info.baseClasses.find { base =>
+            base.children.nonEmpty && base.children.exists { child =>
+                child.isConstructor && child == constructorSymbol
             }
         }
-        val parentTypeArgs = optParent.map{ parent =>
-            val tpArgs = constructorSymbol.info.baseType(parent) match {
-                case AppliedType(tpe, args) => args
-                case _ => Nil
+        val parentTypeArgs = optParent
+            .map { parent =>
+                val tpArgs = constructorSymbol.info.baseType(parent) match {
+                    case AppliedType(tpe, args) => args
+                    case _                      => Nil
+                }
+                tpArgs.map(t =>
+                    SIRTypesHelper.sirTypeInEnv(t, SIRTypesHelper.SIRTypeEnv(srcPos, env1.typeVars))
+                )
             }
-            tpArgs.map(t => SIRTypesHelper.sirTypeInEnv(t, SIRTypesHelper.SIRTypeEnv(srcPos, env1.typeVars)))
-        }.getOrElse(Nil)
-        //val constrDecl = scalus.sir.ConstrDecl(constructorSymbol.show, SIRVarStorage.DEFAULT, primaryConstructorParams, constrTypeParamsList, parentTypeArgs)
-        val constrDecl = scalus.sir.ConstrDecl(constructorSymbol.show, SIRVarStorage.DEFAULT, primaryConstructorParams, constrTypeParamsList)
+            .getOrElse(Nil)
+        // val constrDecl = scalus.sir.ConstrDecl(constructorSymbol.show, SIRVarStorage.DEFAULT, primaryConstructorParams, constrTypeParamsList, parentTypeArgs)
+        val constrDecl = scalus.sir.ConstrDecl(
+          constructorSymbol.show,
+          SIRVarStorage.DEFAULT,
+          primaryConstructorParams,
+          constrTypeParamsList
+        )
         constrDecl
     }
 
     private def sirTypeInEnv(tpe: Type, srcPos: SrcPos, env: SIRCompiler.Env): SIRType = {
-       compiler.sirTypeInEnv(tpe, srcPos, env)
+        compiler.sirTypeInEnv(tpe, srcPos, env)
     }
 
 }

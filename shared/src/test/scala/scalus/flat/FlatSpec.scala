@@ -121,7 +121,7 @@ class FlatSpec extends AnyFunSuite with ScalaCheckPropertyChecks with ArbitraryI
             })
         }
     }
-    
+
     test("encode/decode Long 58003") {
         val l = 58003L
         val bitSize = summon[Flat[Long]].bitSize(l)
@@ -143,7 +143,7 @@ class FlatSpec extends AnyFunSuite with ScalaCheckPropertyChecks with ArbitraryI
         val l1 = 489L
         val bitSizel0 = summon[Flat[Long]].bitSize(l0)
         val bitSizel1 = summon[Flat[Long]].bitSize(l1)
-        val encoderState = EncoderState((bitSizel0+bitSizel1) / 8 + 1)
+        val encoderState = EncoderState((bitSizel0 + bitSizel1) / 8 + 1)
         summon[Flat[Long]].encode(l0, encoderState)
         summon[Flat[Long]].encode(l1, encoderState)
         val bytes = encoderState.result
@@ -159,7 +159,7 @@ class FlatSpec extends AnyFunSuite with ScalaCheckPropertyChecks with ArbitraryI
         val s2 = "B"
         val bitSizes1 = summon[Flat[String]].bitSize(s1)
         val bitSizes2 = summon[Flat[String]].bitSize(s2)
-        val encoderState = EncoderState((bitSizes1+bitSizes2) / 8 + 1)
+        val encoderState = EncoderState((bitSizes1 + bitSizes2) / 8 + 1)
         summon[Flat[String]].encode(s1, encoderState)
         summon[Flat[String]].encode(s2, encoderState)
         val bytes = encoderState.result
@@ -170,7 +170,6 @@ class FlatSpec extends AnyFunSuite with ScalaCheckPropertyChecks with ArbitraryI
         assert(s2 == sout2)
 
     }
-
 
     test("Zagzig/zigZag Long") {
         forAll { (nn: Long) =>

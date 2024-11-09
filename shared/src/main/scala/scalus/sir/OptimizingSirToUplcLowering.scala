@@ -110,7 +110,7 @@ class OptimizingSirToUplcLowering(
                 usedBuiltins += DefaultFun.IfThenElse
                 analizeSir(term)
             case SIR.Builtin(bi, _)       => usedBuiltins += bi
-            case SIR.Error(_, _)             =>
+            case SIR.Error(_, _)          =>
             case SIR.Var(_, _)            =>
             case SIR.ExternalVar(_, _, _) =>
             case SIR.Const(_, _)          =>
@@ -212,11 +212,25 @@ class OptimizingSirToUplcLowering(
                 sys.error(s"Mutually recursive bindings are not supported: $bindings")
             case SIR.LamAbs(sirVar, term) => Term.LamAbs(sirVar.name, lowerInner(term))
             case SIR.Apply(f, arg, tp)    => Term.Apply(lowerInner(f), lowerInner(arg))
-            case SIR.Const(const, tp)       => Term.Const(const)
+            case SIR.Const(const, tp)     => Term.Const(const)
             case SIR.And(lhs, rhs) =>
-                lowerInner(SIR.IfThenElse(lhs, rhs, SIR.Const(Constant.Bool(false),SIRType.BooleanPrimitive), SIRType.BooleanPrimitive))
+                lowerInner(
+                  SIR.IfThenElse(
+                    lhs,
+                    rhs,
+                    SIR.Const(Constant.Bool(false), SIRType.BooleanPrimitive),
+                    SIRType.BooleanPrimitive
+                  )
+                )
             case SIR.Or(lhs, rhs) =>
-                lowerInner(SIR.IfThenElse(lhs, SIR.Const(Constant.Bool(true), SIRType.BooleanPrimitive), rhs, SIRType.BooleanPrimitive))
+                lowerInner(
+                  SIR.IfThenElse(
+                    lhs,
+                    SIR.Const(Constant.Bool(true), SIRType.BooleanPrimitive),
+                    rhs,
+                    SIRType.BooleanPrimitive
+                  )
+                )
             case SIR.Not(term) =>
                 lowerInner(
                   SIR.IfThenElse(

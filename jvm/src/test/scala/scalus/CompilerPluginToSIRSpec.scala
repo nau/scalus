@@ -39,7 +39,7 @@ class CompilerPluginToSIRSpec extends AnyFunSuite with ScalaCheckPropertyChecks:
     test("compile literals") {
         assert(compile(false) == Const(Constant.Bool(false), SIRType.BooleanPrimitive))
         assert(compile(true) == Const(Constant.Bool(true), SIRType.BooleanPrimitive))
-        assert(compile(()) == Const(Constant.Unit,SIRType.VoidPrimitive))
+        assert(compile(()) == Const(Constant.Unit, SIRType.VoidPrimitive))
         assert(compile("foo") == Const(Constant.String("foo"), SIRType.StringPrimitive))
         assert(
           compile(BigInt("15511210043330985984000000")) == Const(
@@ -47,8 +47,15 @@ class CompilerPluginToSIRSpec extends AnyFunSuite with ScalaCheckPropertyChecks:
             SIRType.IntegerPrimitive
           )
         )
-        assert(compile(12: BigInt) == Const(Constant.Integer(BigInt("12")), SIRType.IntegerPrimitive))
-        assert(compile(scala.math.BigInt.int2bigInt(12)) == Const(Constant.Integer(BigInt("12")), SIRType.IntegerPrimitive))
+        assert(
+          compile(12: BigInt) == Const(Constant.Integer(BigInt("12")), SIRType.IntegerPrimitive)
+        )
+        assert(
+          compile(scala.math.BigInt.int2bigInt(12)) == Const(
+            Constant.Integer(BigInt("12")),
+            SIRType.IntegerPrimitive
+          )
+        )
 
         // ByteStrings
         assert(
@@ -58,7 +65,12 @@ class CompilerPluginToSIRSpec extends AnyFunSuite with ScalaCheckPropertyChecks:
           )
         )
 
-        assert(compile(builtin.ByteString.fromHex("deadbeef")) == Const(deadbeef, SIRType.ByteStringPrimitive))
+        assert(
+          compile(builtin.ByteString.fromHex("deadbeef")) == Const(
+            deadbeef,
+            SIRType.ByteStringPrimitive
+          )
+        )
         assert(compile(hex"deadbeef") == Const(deadbeef, SIRType.ByteStringPrimitive))
         assert(
           compile(builtin.ByteString.fromString("deadbeef")) == Const(
@@ -74,9 +86,10 @@ class CompilerPluginToSIRSpec extends AnyFunSuite with ScalaCheckPropertyChecks:
               if Builtins.equalsInteger(1, 2) then () else ()
           } == SIR.IfThenElse(
             Apply(
-              Apply(SIRBuiltins.equalsInteger,
-                    Const(Constant.Integer(1), SIRType.IntegerPrimitive),
-                    SIRType.Fun(SIRType.IntegerPrimitive, SIRType.BooleanPrimitive)
+              Apply(
+                SIRBuiltins.equalsInteger,
+                Const(Constant.Integer(1), SIRType.IntegerPrimitive),
+                SIRType.Fun(SIRType.IntegerPrimitive, SIRType.BooleanPrimitive)
               ),
               Const(Constant.Integer(2), SIRType.IntegerPrimitive),
               SIRType.BooleanPrimitive
@@ -111,19 +124,31 @@ class CompilerPluginToSIRSpec extends AnyFunSuite with ScalaCheckPropertyChecks:
               c(b())
           } == Let(
             Recursivity.Rec,
-            immutable.List(Binding("b", 
-                           LamAbs(Var("_", SIRType.VoidPrimitive),
-                               Const(Constant.Bool(true), SIRType.BooleanPrimitive)))),
+            immutable.List(
+              Binding(
+                "b",
+                LamAbs(
+                  Var("_", SIRType.VoidPrimitive),
+                  Const(Constant.Bool(true), SIRType.BooleanPrimitive)
+                )
+              )
+            ),
             Let(
               Recursivity.Rec,
-              immutable.List(Binding("c", LamAbs(Var("x", SIRType.BooleanPrimitive), Var("x", SIRType.BooleanPrimitive)))),
+              immutable.List(
+                Binding(
+                  "c",
+                  LamAbs(Var("x", SIRType.BooleanPrimitive), Var("x", SIRType.BooleanPrimitive))
+                )
+              ),
               Apply(
-                  Var("c", SIRType.Fun(BooleanPrimitive,SIRType.BooleanPrimitive)), 
-                  Apply(Var("b", SIRType.Fun(SIRType.VoidPrimitive,SIRType.BooleanPrimitive)), 
-                       Const(Constant.Unit, SIRType.VoidPrimitive),
-                       SIRType.BooleanPrimitive
-                  ),
+                Var("c", SIRType.Fun(BooleanPrimitive, SIRType.BooleanPrimitive)),
+                Apply(
+                  Var("b", SIRType.Fun(SIRType.VoidPrimitive, SIRType.BooleanPrimitive)),
+                  Const(Constant.Unit, SIRType.VoidPrimitive),
                   SIRType.BooleanPrimitive
+                ),
+                SIRType.BooleanPrimitive
               )
             )
           )

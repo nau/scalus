@@ -117,11 +117,22 @@ class SimpleSirToUplcLowering(sir: SIR, generateErrorTraces: Boolean = false):
             case SIR.Const(const, _)    => Term.Const(const)
             case SIR.And(lhs, rhs) =>
                 lowerInner(
-                    SIR.IfThenElse(lhs, rhs, 
-                        SIR.Const(Constant.Bool(false), SIRType.BooleanPrimitive), 
-                        SIRType.BooleanPrimitive))
+                  SIR.IfThenElse(
+                    lhs,
+                    rhs,
+                    SIR.Const(Constant.Bool(false), SIRType.BooleanPrimitive),
+                    SIRType.BooleanPrimitive
+                  )
+                )
             case SIR.Or(lhs, rhs) =>
-                lowerInner(SIR.IfThenElse(lhs, SIR.Const(Constant.Bool(true),SIRType.BooleanPrimitive), rhs, SIRType.BooleanPrimitive))
+                lowerInner(
+                  SIR.IfThenElse(
+                    lhs,
+                    SIR.Const(Constant.Bool(true), SIRType.BooleanPrimitive),
+                    rhs,
+                    SIRType.BooleanPrimitive
+                  )
+                )
             case SIR.Not(term) =>
                 lowerInner(
                   SIR.IfThenElse(

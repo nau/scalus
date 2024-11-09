@@ -7,14 +7,12 @@ import dotty.tools.dotc.core.Symbols.*
 import scalus.sir.SIR
 import scalus.sir.SIRBuiltins
 
-
 class BuiltinHelper(using Context) {
     val BuiltinsClass = requiredModule("scalus.builtin.Builtins")
 
     val DefaultFunSIRBuildins: Map[String, SIR.Builtin] = Map(
       "addInteger" -> {
-          try
-              SIRBuiltins.addInteger
+          try SIRBuiltins.addInteger
           catch
               case NonFatal(ex) =>
                   println(s"NonFatal Error in addInteger:  ${ex.getMessage}")
@@ -92,7 +90,7 @@ class BuiltinHelper(using Context) {
       "mkNilPairData" -> SIRBuiltins.mkNilPairData
     )
 
-    //val DefaultFunValues: Map[Symbol, DefaultFun] = DefaultFun.values
+    // val DefaultFunValues: Map[Symbol, DefaultFun] = DefaultFun.values
     //    .map(v => lowerFirst(v.toString) -> v)
     //    .toMap
     //    .map { (k, v) => BuiltinsClass.requiredMethod(k) -> v }

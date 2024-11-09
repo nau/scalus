@@ -183,9 +183,9 @@ package object flat:
             Natural(r)
 
     given Flat[String] with
-        def bitSize(a: String): Int = 
+        def bitSize(a: String): Int =
             summon[Flat[Array[Byte]]].bitSize(a.getBytes("UTF-8"))
-            
+
         def encode(a: String, encode: EncoderState): Unit =
             summon[Flat[Array[Byte]]].encode(a.getBytes("UTF-8"), encode)
 
@@ -304,11 +304,9 @@ package object flat:
         def filler(): Unit =
             this.currentByte |= 1;
             nextWord()
-            
+
         def bitPosition(): Int =
-            this.nextPtr * 8 + this.usedBits    
-
-
+            this.nextPtr * 8 + this.usedBits
 
     class DecoderState(
         /** The buffer that contains a sequence of flat-encoded values */
@@ -355,7 +353,6 @@ package object flat:
             this.dropBits(numBits)
             return r
 
-
         def filler(): Unit =
             while this.bits8(1) == 0 do ()
 
@@ -367,7 +364,7 @@ package object flat:
 
         def bitPosition(): Int =
             this.currPtr * 8 + this.usedBits
-        
+
         private def availableBits(): Int =
             return 8 * this.availableBytes() - this.usedBits
 

@@ -36,11 +36,9 @@ import scala.language.implicitConversions
 import scalus.builtin.BLS12_381_G1_Element
 import scalus.builtin.BLS12_381_G2_Element
 
-
 class SIRConverter(using Context) {
     import tpd.*
-    
-    
+
     val ErrorSymbol = requiredModule("scalus.sir.SIR.Error")
     val ConstSymbol = requiredModule("scalus.sir.SIR.Const")
     val ApplySymbol = requiredModule("scalus.sir.SIR.Apply")
@@ -372,12 +370,12 @@ class SIRConverter(using Context) {
         // println(res.showIndented(2))
         res
     }
-    
+
      */
 
-
     def convertViaSerialization(sir: SIR, span: Spans.Span): Tree = {
-        val bitSize = scalus.flat.FlatInstantces.SIRHashConsedFlat.bitSizeHC(sir, HashConsed.State.empty)
+        val bitSize =
+            scalus.flat.FlatInstantces.SIRHashConsedFlat.bitSizeHC(sir, HashConsed.State.empty)
         val encodedState = HashConsedEncoderState.withSize(bitSize)
         FlatInstantces.SIRHashConsedFlat.encodeHC(sir, encodedState)
         encodedState.encode.filler()
@@ -390,7 +388,7 @@ class SIRConverter(using Context) {
     }
 
     def convertSIRToTree(sir: SIR, span: Spans.Span): Tree = {
-        //val res = convert(sir)
+        // val res = convert(sir)
         val res = convertViaSerialization(sir, span)
         // println(res.showIndented(2))
         res

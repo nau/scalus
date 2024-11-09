@@ -11,7 +11,6 @@ case class Binding(name: String, value: SIRExpr) {
 
 }
 
-
 case class TypeBinding(name: String, tp: SIRType) {
     override def toString: String = s"TypeBinding(\"$name\" : ${tp.show})"
 }
@@ -19,47 +18,45 @@ case class TypeBinding(name: String, tp: SIRType) {
 enum Recursivity:
     case NonRec, Rec
 
+case class ConstrDecl(
+    name: String,
+    storageType: SIRVarStorage,
 
-case class ConstrDecl(name: String, 
-                      
-                      storageType: SIRVarStorage,
+    /** Parameters of the constructor.
+      */
+    params: List[TypeBinding],
 
-                      /**
-                       * Parameters of the constructor.
-                       */
-                      params: List[TypeBinding], 
-    
-                      /**
-                      * Type parameters of this type.
-                      */
-                      typeParams: List[SIRType.TypeVar]
+    /** Type parameters of this type.
+      */
+    typeParams: List[SIRType.TypeVar]
 
-                      ///**
-                      //* Type of the constructor.
-                      // (moved to DataDecl,  since when we have a hierarchy with more than one level,
-                      //  then we map this to few DataDecl, and each DataDecl has its own constructor type).
-                      //*/
-                      //parentTypeArgs: List[SIRType]
-    
-                     ) {
-    
+    /// **
+    // * Type of the constructor.
+    // (moved to DataDecl,  since when we have a hierarchy with more than one level,
+    //  then we map this to few DataDecl, and each DataDecl has its own constructor type).
+    // */
+    // parentTypeArgs: List[SIRType]
+
+) {
+
     def tp: SIRType =
         typeParams match
-            case Nil => SIRType.CaseClass(this, typeParams)
-            case tp::tail => SIRType.TypeLambda(typeParams, SIRType.CaseClass(this, typeParams))
+            case Nil        => SIRType.CaseClass(this, typeParams)
+            case tp :: tail => SIRType.TypeLambda(typeParams, SIRType.CaseClass(this, typeParams))
 
 }
 
-case class DataDecl(name: String,
-                    constructors: List[ConstrDecl],
-                    typeParams: List[SIRType.TypeVar],
-                    /*constructorTypeMapping: Map[String, List[SIRType]]*/) {
+case class DataDecl(
+    name: String,
+    constructors: List[ConstrDecl],
+    typeParams: List[SIRType.TypeVar]
+    /*constructorTypeMapping: Map[String, List[SIRType]]*/
+) {
 
     def tp: SIRType =
         typeParams match
             case Nil => SIRType.SumCaseClass(this, Nil)
-            case _ => SIRType.TypeLambda(typeParams, SIRType.SumCaseClass(this, typeParams))
-
+            case _   => SIRType.TypeLambda(typeParams, SIRType.SumCaseClass(this, typeParams))
 
 }
 
@@ -89,31 +86,31 @@ object SIR:
     //  TypeAlias(1, SumType("AClass", List(("x", Int), ("y", String))))
     //  Var(x,  TypeRef(1))
 
-    case class Var(name: String, tp: SIRType) extends SIRExpr  //TODO: add sieStorage parameter.
-
+    case class Var(name: String, tp: SIRType) extends SIRExpr // TODO: add sieStorage parameter.
 
     case class ExternalVar(moduleName: String, name: String, tp: SIRType) extends SIRExpr {
 
         if (name == "scalus.prelude.AssocMap$._$_$v") {
             println("Catched external var")
-            throw new RuntimeException(s"ExternalVar  $name  in ExternalVar: $name, module: $moduleName")
+            throw new RuntimeException(
+              s"ExternalVar  $name  in ExternalVar: $name, module: $moduleName"
+            )
         }
 
         override def toString: String = s"ExternalVar($moduleName, $name, ${tp.show})"
 
-
     }
 
-
-    case class Let(recursivity: Recursivity, bindings: List[Binding], body: SIRExpr) extends SIRExpr {
+    case class Let(recursivity: Recursivity, bindings: List[Binding], body: SIRExpr)
+        extends SIRExpr {
         override def tp: SIRType = body.tp
     }
-    case class LamAbs(param: Var, term: SIRExpr) extends SIRExpr  {
+    case class LamAbs(param: Var, term: SIRExpr) extends SIRExpr {
         override def tp: SIRType =
             term.tp match
                 case SIRType.TypeLambda(tvars, tpexpr) =>
                     SIRType.TypeLambda(tvars, SIRType.Fun(param.tp, tpexpr))
-                case _ =>   
+                case _ =>
                     SIRType.Fun(param.tp, term.tp)
     }
     case class Apply(f: SIRExpr, arg: SIRExpr, tp: SIRType) extends SIRExpr {
@@ -130,7 +127,7 @@ object SIR:
                 }
             case _ => throw new Exception("Apply: f is not a function")
         }
-        */
+         */
 
     }
     case class Const(uplcConst: Constant, tp: SIRType) extends SIRExpr
@@ -146,12 +143,13 @@ object SIR:
 
     case class IfThenElse(cond: SIRExpr, t: SIRExpr, f: SIRExpr, tp: SIRType) extends SIRExpr
     case class Builtin(bn: DefaultFun, tp: SIRType) extends SIRExpr
-    case class Error(msg: String, cause: Throwable|Null = null) extends SIRExpr {
+    case class Error(msg: String, cause: Throwable | Null = null) extends SIRExpr {
         override def tp: SIRType = SIRType.TypeError(msg, cause)
     }
     case class Constr(name: String, data: DataDecl, args: List[SIRExpr]) extends SIRExpr {
         args match
-            case ExternalVar(moduleName,name,tp)::tail if name == "scalus.prelude.AssocMap$._$_$v"  =>
+            case ExternalVar(moduleName, name, tp) :: tail
+                if name == "scalus.prelude.AssocMap$._$_$v" =>
                 println("Catched external var")
                 throw new RuntimeException(s"ExternalVar  $name  in Constr: $args")
             case _ =>
@@ -159,17 +157,21 @@ object SIR:
         override def tp: SIRType = data.tp
     }
 
-    case class Case(constr: ConstrDecl, bindings: List[String], typeBindings: List[SIRType], body: SIRExpr)
+    case class Case(
+        constr: ConstrDecl,
+        bindings: List[String],
+        typeBindings: List[SIRType],
+        body: SIRExpr
+    )
 
-    /**
-     * Match expression.  
-     * @param scrutinee
-     * @param cases
-     * @param tp - resulting type of Match expression, can be calculated as max(tp of all cases)
-     */
+    /** Match expression.
+      * @param scrutinee
+      * @param cases
+      * @param tp
+      *   \- resulting type of Match expression, can be calculated as max(tp of all cases)
+      */
     case class Match(scrutinee: SIRExpr, cases: List[Case], tp: SIRType) extends SIRExpr
 
     case class Decl(data: DataDecl, term: SIR) extends SIRDef
-
 
 case class Program(version: (Int, Int, Int), term: SIR)

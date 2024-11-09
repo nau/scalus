@@ -33,7 +33,7 @@ object PrettyPrinter:
     def inParens(d: Doc): Doc = char('(') + d + char(')')
     def inBraces(d: Doc): Doc = char('{') + d + char('}')
     def inBrackets(d: Doc): Doc = char('[') + d + char(']')
-    def inOptBrackets(d:Doc): Doc = if (d.isEmpty) empty else inBrackets(d)
+    def inOptBrackets(d: Doc): Doc = if (d.isEmpty) empty else inBrackets(d)
 
     def typedName(name: String, tp: SIRType): Doc = text(name) + text(":") + pretty(tp)
 
@@ -121,8 +121,8 @@ object PrettyPrinter:
                     (ctr(constr.name) + params).aligned
                 }
                 val prettyGenDecl = typeParams match
-                    case Nil => empty
-                    case other => intercalate(text(","), typeParams.map(x=>text(x.name)))
+                    case Nil   => empty
+                    case other => intercalate(text(","), typeParams.map(x => text(x.name)))
                 kw("data") & text(name) & prettyGenDecl &
                     (text("=") & intercalate(
                       line + text("|") + space,
@@ -139,14 +139,14 @@ object PrettyPrinter:
                 val prettyCases =
                     stack(cases.map { case SIR.Case(constr, bindings, typeBindings, body) =>
                         val typedConst = inOptBrackets(
-                                  intercalate(text(",") + space, typeBindings.map(pretty))
-                                )
+                          intercalate(text(",") + space, typeBindings.map(pretty))
+                        )
                         val params = bindings match
                             case Nil => empty
                             case _ =>
                                 intercalate(text(",") + line, bindings.map(text))
                                     .tightBracketBy(text("("), text(")"))
-                        (kw("case") & ctr(constr.name)+typedConst + params & text(
+                        (kw("case") & ctr(constr.name) + typedConst + params & text(
                           "->"
                         ) + (line + pretty(body, style))
                             .nested(2)).grouped.aligned
@@ -195,7 +195,7 @@ object PrettyPrinter:
 
                 pretty(t, style) + prettyArgs
             case Const(const, _) => prettyValue(const).styled(Fg.colorCode(64))
-            case And(a, b)    =>
+            case And(a, b)       =>
                 // We don't add parentheses for nested Ands, because they are associative.
                 // But we add parentheses for nested Ors and Nots.
                 val docA = a match {
@@ -243,20 +243,22 @@ object PrettyPrinter:
             case SIRType.Fun(in, out) =>
                 inParens(pretty(in) + text(" -> ") + pretty(out))
             case SIRType.TypeLambda(params, body) =>
-                inParens(text("λ.") + intercalate(text(",")+space,params.map(p => text(p.show))) + text(" =>> ") + pretty(body))
-            case p: SIRType.Primitive[?] => text(p.show)
-            case SIRType.TypeError(msg,_)   => text(s"Error '$msg'")
+                inParens(
+                  text("λ.") + intercalate(text(",") + space, params.map(p => text(p.show))) + text(
+                    " =>> "
+                  ) + pretty(body)
+                )
+            case p: SIRType.Primitive[?]   => text(p.show)
+            case SIRType.TypeError(msg, _) => text(s"Error '$msg'")
             case SIRType.CaseClass(constrDecl, typeParams) =>
                 text(constrDecl.name) + inOptBrackets(
-                    intercalate(text(",") + space, typeParams.map(pretty))
+                  intercalate(text(",") + space, typeParams.map(pretty))
                 )
-            case SIRType.SumCaseClass(decl,typeParams) =>
+            case SIRType.SumCaseClass(decl, typeParams) =>
                 text(decl.name) + inOptBrackets(
-                    intercalate(text(",") + space, typeParams.map(pretty))
+                  intercalate(text(",") + space, typeParams.map(pretty))
                 )
             case SIRType.Data => text("Data")
-
-
 
     def pretty(p: Program): Doc =
         val (major, minor, patch) = p.version

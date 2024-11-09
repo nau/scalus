@@ -11,7 +11,6 @@ import dotty.tools.dotc.ast.tpd.ValDef
 
 import scalus.sir.SIRType
 
-
 sealed trait CompilationError {
     def message: String
     def srcPos: SrcPos
@@ -214,8 +213,9 @@ case class LazyValNotSupported(vd: ValDef, srcPos: SrcPos)(using Context) extend
            |Try 'val ${vd.symbol.name} = ...' instead""".stripMargin
 }
 
-case class TypeMismatch(name:String, expected: SIRType, actual: SIRType, srcPos: SrcPos)(using Context)
-    extends CompilationError {
+case class TypeMismatch(name: String, expected: SIRType, actual: SIRType, srcPos: SrcPos)(using
+    Context
+) extends CompilationError {
     def message: String =
         s"""Type mismatch.
            |symbol: $name
@@ -231,11 +231,11 @@ case class ExpectedTypeLambda(name: String, actual: SIRType, srcPos: SrcPos)(usi
            |Actual: ${actual.show}""".stripMargin
 }
 
-case class UnsupportedType(tp: Type, srcPos: SrcPos, msg: String="")(using Context) extends CompilationError {
+case class UnsupportedType(tp: Type, srcPos: SrcPos, msg: String = "")(using Context)
+    extends CompilationError {
     def message: String =
         s"""Unsupported type ${tp.show} ${msg}
            |Try rewriting your program without using it""".stripMargin
 }
 
 case class GenericError(message: String, srcPos: SrcPos) extends CompilationError
-

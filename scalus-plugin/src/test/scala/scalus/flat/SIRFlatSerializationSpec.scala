@@ -23,4 +23,3 @@ class SIRFlatSerializationSpec extends AnyFunSuite with ScalaCheckPropertyChecks
         val module2 = flat.decode[Module](dec)
         assert(module == module2)
     }
-

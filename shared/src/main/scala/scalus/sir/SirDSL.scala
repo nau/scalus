@@ -20,10 +20,11 @@ object SirDSL:
             case body => (Nil, body)
 
     def λ(names: String*)(term: SIRExpr): SIRExpr = lam(names*)(term)
-    def lam(names: String*)(term: SIRExpr): SIRExpr = 
-      names.foldRight(term)((e,s) => SIR.LamAbs(SIR.Var(e, s.tp), s))
-    extension (term: SIRExpr) infix def $(rhs: SIRExpr): SIRExpr = 
-      SIR.Apply(term, rhs, SIRType.calculateApplyType(term.tp, rhs.tp, Map.empty))
+    def lam(names: String*)(term: SIRExpr): SIRExpr =
+        names.foldRight(term)((e, s) => SIR.LamAbs(SIR.Var(e, s.tp), s))
+    extension (term: SIRExpr)
+        infix def $(rhs: SIRExpr): SIRExpr =
+            SIR.Apply(term, rhs, SIRType.calculateApplyType(term.tp, rhs.tp, Map.empty))
 
     given Conversion[DefaultFun, SIRExpr] with
         def apply(bn: DefaultFun): SIRExpr = SIRBuiltins.fromUplc(bn)
@@ -37,10 +38,11 @@ object SirDSL:
     given Conversion[Constant, SIRExpr] with
         def apply(c: Constant): SIRExpr =
             c match
-                case Constant.Integer(value) => SIR.Const(c, SIRType.IntegerPrimitive)
+                case Constant.Integer(value)    => SIR.Const(c, SIRType.IntegerPrimitive)
                 case Constant.ByteString(value) => SIR.Const(c, SIRType.ByteStringPrimitive)
-                case Constant.String(value) => SIR.Const(c, SIRType.StringPrimitive)
-                case Constant.Unit => SIR.Const(c, SIRType.VoidPrimitive)
-                case Constant.Bool(value) => SIR.Const(c, SIRType.BooleanPrimitive)
-                case Constant.Data(value) => SIR.Const(c, SIRType.Data)
-                case Constant.List(elemType, value) => SIR.Const(c, SIRType.List(SIRType.fromDefaultUni(elemType)))
+                case Constant.String(value)     => SIR.Const(c, SIRType.StringPrimitive)
+                case Constant.Unit              => SIR.Const(c, SIRType.VoidPrimitive)
+                case Constant.Bool(value)       => SIR.Const(c, SIRType.BooleanPrimitive)
+                case Constant.Data(value)       => SIR.Const(c, SIRType.Data)
+                case Constant.List(elemType, value) =>
+                    SIR.Const(c, SIRType.List(SIRType.fromDefaultUni(elemType)))

@@ -9,12 +9,11 @@ import scalus.uplc.CommonFlatInstances.*
 import scalus.uplc.CommonFlatInstances.given
 import scalus.utils.*
 
-
 object FlatInstantces:
     val termTagWidth = 4
 
     given Flat[Data] with
-        
+
         def bitSize(a: Data): Int =
             summon[Flat[Array[Byte]]].bitSize(Cbor.encode(a).toByteArray)
 

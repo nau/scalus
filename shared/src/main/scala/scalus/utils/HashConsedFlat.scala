@@ -1,43 +1,36 @@
-
 package scalus.utils
 
 import scalus.flat.{*, given}
 
-
-class HashConsedEncoderState(val encode: EncoderState,
-                             val hashConsed: HashConsed.State)  {
+class HashConsedEncoderState(val encode: EncoderState, val hashConsed: HashConsed.State) {
 
     inline def lookupValue(ihc: Int, tag: HashConsed.Tag): Option[HashConsedRef[?]] = {
         hashConsed.lookupValue(ihc, tag)
     }
 
-    inline def setRef[A<:AnyRef](ihc: Int, tag: HashConsed.Tag, a: HashConsedRef[A]): Unit = {
+    inline def setRef[A <: AnyRef](ihc: Int, tag: HashConsed.Tag, a: HashConsedRef[A]): Unit = {
         hashConsed.setRef(ihc, tag, a)
     }
 
     inline def putForwardRefAcceptor(fw: HashConsed.ForwardRefAcceptor): Unit = {
         hashConsed.putForwardRef(fw)
     }
-    
+
 }
 
 object HashConsedEncoderState {
-    
-    def withSize(size: Int): HashConsedEncoderState = 
+
+    def withSize(size: Int): HashConsedEncoderState =
         HashConsedEncoderState(EncoderState(size), HashConsed.State.empty)
-    
+
 }
 
-class HashConsedDecoderState(val decode: DecoderState,
-                             val hashConsed: HashConsed.State) {
-    
+class HashConsedDecoderState(val decode: DecoderState, val hashConsed: HashConsed.State) {
+
     def runFinCallbacks(): Unit =
         hashConsed.finishCallbacks()
 
 }
-
-
-
 
 trait HashConsedFlat[A] extends Flat[A] {
 
@@ -58,8 +51,7 @@ trait HashConsedFlat[A] extends Flat[A] {
 
 }
 
-
-trait HashConsedReprFlat[A<:AnyRef, SA <: HashConsedRef[A]]  {
+trait HashConsedReprFlat[A <: AnyRef, SA <: HashConsedRef[A]] {
 
     type Repr = SA
 
@@ -70,31 +62,38 @@ trait HashConsedReprFlat[A<:AnyRef, SA <: HashConsedRef[A]]  {
     def encodeHC(a: A, encode: HashConsedEncoderState): Unit
 
     def decodeHC(decode: HashConsedDecoderState): SA
-    
+
 }
 
 object HashConsedReprFlat {
 
-    case class ListRepl[A <: AnyRef, SA <: HashConsedRef[A]](elems: List[SA]) extends HashConsedRef[List[A]] {
+    case class ListRepl[A <: AnyRef, SA <: HashConsedRef[A]](elems: List[SA])
+        extends HashConsedRef[List[A]] {
 
-        def isComplete(hashConsed: HashConsed.State): Boolean = elems.forall(_.isComplete(hashConsed))
+        def isComplete(hashConsed: HashConsed.State): Boolean =
+            elems.forall(_.isComplete(hashConsed))
 
-        override def finValue(hashConsed: HashConsed.State, level: Int, parents: HSRIdentityHashMap): List[A] =
+        override def finValue(
+            hashConsed: HashConsed.State,
+            level: Int,
+            parents: HSRIdentityHashMap
+        ): List[A] =
             if (parents.get(this) != null)
                 throw new Exception("Cycle detected")
             parents.put(this, this)
             val nextLevel = level + 1
-            val retval = elems.map(_.finValue(hashConsed,nextLevel,parents))
+            val retval = elems.map(_.finValue(hashConsed, nextLevel, parents))
             parents.remove(this)
             retval
 
     }
 
-
-    implicit def listHashConsedRepr[A<:AnyRef,SA<:HashConsedRef[A]](using flatA: HashConsedReprFlat[A, SA]): HashConsedReprFlat[List[A], ListRepl[A, SA]] =
+    implicit def listHashConsedRepr[A <: AnyRef, SA <: HashConsedRef[A]](using
+        flatA: HashConsedReprFlat[A, SA]
+    ): HashConsedReprFlat[List[A], ListRepl[A, SA]] =
         new HashConsedReprFlat[List[A], ListRepl[A, SA]] {
 
-            def toRepr(a: List[A]): ListRepl[A,SA] = ListRepl[A,SA](a.map(flatA.toRepr))
+            def toRepr(a: List[A]): ListRepl[A, SA] = ListRepl[A, SA](a.map(flatA.toRepr))
 
             def bitSizeHC(a: List[A], hashConsed: HashConsed.State): Int = {
                 a.foldLeft(1)((acc, elem) => acc + 1 + flatA.bitSizeHC(elem, hashConsed))
@@ -108,11 +107,10 @@ object HashConsedReprFlat {
                 encode.encode.bits(1, 0)
             }
 
-            def decodeHC(decode: HashConsedDecoderState): ListRepl[A,SA] = {
+            def decodeHC(decode: HashConsedDecoderState): ListRepl[A, SA] = {
                 val builder = List.newBuilder[SA]
-                while
-                    decode.decode.bits8(1) == 1.toByte
-                  do
+                while decode.decode.bits8(1) == 1.toByte
+                do
                     val elem = flatA.decodeHC(decode)
                     builder += elem
                 ListRepl(builder.result())
@@ -120,12 +118,12 @@ object HashConsedReprFlat {
 
         }
 
-    def listRepr[A<:AnyRef,SA<:HashConsedRef[A]](flatRepr: HashConsedReprFlat[A,SA]): HashConsedReprFlat[List[A], ListRepl[A, SA]] =
-        listHashConsedRepr[A,SA](using flatRepr)
-
+    def listRepr[A <: AnyRef, SA <: HashConsedRef[A]](
+        flatRepr: HashConsedReprFlat[A, SA]
+    ): HashConsedReprFlat[List[A], ListRepl[A, SA]] =
+        listHashConsedRepr[A, SA](using flatRepr)
 
 }
-
 
 /*
 trait HashConsedTagged[A] {
@@ -133,18 +131,19 @@ trait HashConsedTagged[A] {
     def tag: HashConsed.Tag
 
 }
-*/
+ */
 
 object HashConsedFlat {
 
     given listHashConsedFlat[A](using flatA: HashConsedFlat[A]): HashConsedFlat[List[A]] with
 
         def bitSizeHC(a: List[A], hashConsed: HashConsed.State): Int = {
-            val elemsSize = a.foldLeft(0)((acc, elem) => acc + 1 + flatA.bitSizeHC(elem, hashConsed))
+            val elemsSize =
+                a.foldLeft(0)((acc, elem) => acc + 1 + flatA.bitSizeHC(elem, hashConsed))
             elemsSize + 1
         }
         def encodeHC(a: List[A], encode: HashConsedEncoderState): Unit = {
-            a.foreach{ elem =>
+            a.foreach { elem =>
                 encode.encode.bits(1, 1)
                 flatA.encodeHC(elem, encode)
             }
@@ -152,8 +151,7 @@ object HashConsedFlat {
         }
         def decodeHC(decode: HashConsedDecoderState): List[A] = {
             val builder = List.newBuilder[A]
-            while decode.decode.bits8(1) == 1.toByte do
-                builder += flatA.decodeHC(decode)
+            while decode.decode.bits8(1) == 1.toByte do builder += flatA.decodeHC(decode)
             builder.result()
         }
 
@@ -161,7 +159,7 @@ object HashConsedFlat {
 
 object PlainIntFlat extends HashConsedFlat[Int] {
 
-    def bitSizeHC(a: Int, hashConsed: HashConsed.State): Int = 4*8
+    def bitSizeHC(a: Int, hashConsed: HashConsed.State): Int = 4 * 8
 
     def encodeHC(a: Int, encoderState: HashConsedEncoderState): Unit =
         encoderState.encode.bits(8, (a >>> 24).toByte)
@@ -171,16 +169,15 @@ object PlainIntFlat extends HashConsedFlat[Int] {
 
     def decodeHC(decoderState: HashConsedDecoderState): Int =
         var retval = 0
-        retval |= ((decoderState.decode.bits8(8) << 24) & 0xFF000000)
-        retval |= ((decoderState.decode.bits8(8) << 16) & 0x00FF0000)
-        retval |= ((decoderState.decode.bits8(8) << 8)  & 0x0000FF00)
-        retval |= (decoderState.decode.bits8(8) & 0x000000FF)
+        retval |= ((decoderState.decode.bits8(8) << 24) & 0xff000000)
+        retval |= ((decoderState.decode.bits8(8) << 16) & 0x00ff0000)
+        retval |= ((decoderState.decode.bits8(8) << 8) & 0x0000ff00)
+        retval |= (decoderState.decode.bits8(8) & 0x000000ff)
         retval
 
 }
 
-
-trait HashConsedMutRefReprFlat[A <: AnyRef]  extends HashConsedReprFlat[A, HashConsedRef[A]] {
+trait HashConsedMutRefReprFlat[A <: AnyRef] extends HashConsedReprFlat[A, HashConsedRef[A]] {
 
     def tag: HashConsed.Tag
 
@@ -230,5 +227,3 @@ trait HashConsedMutRefReprFlat[A <: AnyRef]  extends HashConsedReprFlat[A, HashC
     }
 
 }
-
-
