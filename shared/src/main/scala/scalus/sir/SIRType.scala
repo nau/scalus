@@ -11,6 +11,13 @@ sealed trait SIRType {
 
     def show: String
 
+    def unifyEq(that: SIRType): Boolean =
+        SIRType.unify(this, that, Map.empty) match
+            case SIRType.SuccessfulUnificationResult(_, _) => true
+            case _                                         => false
+
+    def ~=~(that: SIRType): Boolean = unifyEq(that)
+
     // def recursiveHashCode(env: Map[Int, SIRType]): Int
 
 }

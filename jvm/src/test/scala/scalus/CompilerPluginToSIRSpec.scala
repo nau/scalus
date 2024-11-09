@@ -162,7 +162,8 @@ class CompilerPluginToSIRSpec extends AnyFunSuite with ScalaCheckPropertyChecks:
                 tail[Data](ctx)
         }
         assert(
-          sir == LamAbs("tail", LamAbs("ctx", Apply(Var("tail"), Var("ctx"))))
+          sir == LamAbs(Var("tail",SIRType.TypeLambda()), 
+                       LamAbs("ctx", Apply(Var("tail"), Var("ctx"))))
         )
     }
 
@@ -184,7 +185,7 @@ class CompilerPluginToSIRSpec extends AnyFunSuite with ScalaCheckPropertyChecks:
           } == Let(
             NonRec,
             List(Binding("a", LamAbs("x", Var("x")))),
-            Apply(Var("a"), Const(Constant.Bool(true)))
+            Apply(Var("a"), Const(Constant.Bool(true), SIRType.BooleanPrimitive))
           )
         )
     }
