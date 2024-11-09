@@ -39,7 +39,8 @@ import scalus.builtin.BLS12_381_G2_Element
 
 class SIRConverter(using Context) {
     import tpd.*
-
+    
+    
     val ErrorSymbol = requiredModule("scalus.sir.SIR.Error")
     val ConstSymbol = requiredModule("scalus.sir.SIR.Const")
     val ApplySymbol = requiredModule("scalus.sir.SIR.Apply")
@@ -95,6 +96,7 @@ class SIRConverter(using Context) {
     val letDefName: UniqueNameKind = new UniqueNameKind("$letDef")
     val letDefFlags: FlagSet = Synthetic | Method
 
+    /*
     /*
     This is a modification of Dotty mkList method.
     The original method generates JavaSeqLiteral, which doesn't work for some reason.
@@ -370,6 +372,8 @@ class SIRConverter(using Context) {
         // println(res.showIndented(2))
         res
     }
+    
+     */
 
 
     def convertViaSerialization(sir: SIR, span: Spans.Span): Tree = {
@@ -379,9 +383,7 @@ class SIRConverter(using Context) {
         encodedState.encode.filler()
         val bytes = encodedState.encode.result
         val base64 = java.util.Base64.getEncoder.encodeToString(bytes)
-        // TODO: set pos.
         val stringLiteral = Literal(Constant(base64)).withSpan(span)
-        //val byteArr = ByteArrayLiteral(bytes.toList.map(b => Literal(Constant(b))))
         val sirToExprFlat = requiredModule("scalus.sir.ToExprHSSIRFlat")
         val decodeBase64SIR = sirToExprFlat.requiredMethod("decodeBase64")
         ref(sirToExprFlat).select(decodeBase64SIR).appliedTo(stringLiteral).withSpan(span)
@@ -390,8 +392,6 @@ class SIRConverter(using Context) {
     def convertSIRToTree(sir: SIR, span: Spans.Span): Tree = {
         //val res = convert(sir)
         val res = convertViaSerialization(sir, span)
-        // println(res)
-        // println(s"convertSIRToTree: ${ctx.source} ${ctx.phase}")
         // println(res.showIndented(2))
         res
     }

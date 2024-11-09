@@ -11,7 +11,9 @@ import dotty.tools.dotc.core.StdNames.nme
 import dotty.tools.dotc.core.Symbols.*
 import dotty.tools.dotc.core.Types.*
 import dotty.tools.dotc.util.SrcPos
+import scalus.SIRTypesHelper.{TypingException, sirTypeInEnvWithErr, unsupportedType}
 import scalus.sir.*
+
 import scala.collection.mutable
 import scala.language.implicitConversions
 import scala.util.control.NonFatal
@@ -155,7 +157,7 @@ class PatternMatchingCompiler(val compiler: SIRCompiler)(using Context) {
 
 
     private def compileConstructorPatterns(
-        env: SIRCompiler.Env,
+        envIn: SIRCompiler.Env,
         unapplyExpr: UnApply,
         constrType: Type,
         fun: Tree,
@@ -164,9 +166,61 @@ class PatternMatchingCompiler(val compiler: SIRCompiler)(using Context) {
         srcPos: SrcPos
     ): List[SirCase] = {
 
-        val sirBindings = patterns.zipWithIndex.map {
-            case (b, idx) => compileBinding(env, b, b.tpe)
+
+        // typoes are extracted from unapply result type, because some strange behavior 
+        //  of dotty,  when types of patterns (i.e. pat.tpe) are not types.
+        // we have other workaround for this case, TODO: check.
+        val (patternTypes, env) = fun.tpe.widen match
+            case mt: MethodType  => 
+                val unapplyResType = mt.resultType.dealias
+                val optionBase = unapplyResType.baseType(defn.OptionClass)
+                if (optionBase != NoType) then
+                    optionBase match
+                        case AppliedType(tpe, List(optArgType)) =>
+                            optArgType.tupleElementTypes match
+                                case Some(tupleArgs) =>
+                                    (tupleArgs, envIn)
+                                case None =>
+                                    (List(optArgType), envIn)
+                        case _ =>
+                            throw TypingException(unapplyResType, srcPos, s"unapply result type is not applied type when type constructor of ${unapplyResType.classSymbol} have type params")
+                else if ( unapplyResType.baseType(defn.ProductClass) != NoType) then
+                    val unapplyPrimaryConstructor = unapplyResType.classSymbol.primaryConstructor
+                    val constrTypeParamss = unapplyPrimaryConstructor.paramSymss.filter(_.exists(_.isType))
+                    val nEnv =
+                        if (!constrTypeParamss.isEmpty) then
+                            unapplyResType match
+                                case AppliedType(tpe, args) =>
+                                    val newParams = (constrTypeParamss.head zip args).map{
+                                        (sym, t) => sym -> sirTypeInEnv(t, unapplyExpr.srcPos,  envIn)
+                                    }.toMap
+                                    envIn.copy(typeVars = envIn.typeVars ++ newParams)
+                                case _ =>
+                                    throw TypingException(unapplyResType, srcPos, s"unapply result type is not applied type when type constructor of ${unapplyResType.classSymbol} have type params")
+                        else
+                            envIn
+                    val constrParamss = unapplyPrimaryConstructor.paramSymss.filter(_.exists(_.isTerm))
+                    if (constrParamss.isEmpty) then
+                        (List.empty[Type], nEnv)
+                    else
+                        (constrParamss.head.map(_.info), nEnv)
+                else if (unapplyResType =:= defn.BooleanType) then
+                    (List.empty, envIn)
+                else
+                    //constructor patterns have no special forms
+                    //TODO: get resuslt
+                    throw TypingException(unapplyResType, srcPos, s"unapply result type is not option or product type")
+            case _ =>
+                throw TypingException(fun.tpe.widen, srcPos, "type of unapply fun is not a method type")
+
+        if (patternTypes.length != patterns.length) then
+            throw TypingException(fun.tpe.widen, srcPos, s"we determinate ${patternTypes.length} types (${patterns}, but have ${patterns.length} patterns ${patterns.map(_.symbol.name)}")
+
+        val sirBindings = patterns.zip(patternTypes).map {
+            case (b, bt) => compileBinding(env, b, bt)
         }
+        
+        
         compileBindings(sirBindings) match
             case Left(errors) => errors.map(e => SirCase.Error(e.error))
             case Right(PatternInfo(bindings, generateSir, names)) =>
@@ -178,7 +232,7 @@ class PatternMatchingCompiler(val compiler: SIRCompiler)(using Context) {
                 val sirConstrTypeArs = constrTypeArgs.map(t => sirTypeInEnv(t, srcPos, nEnv))
                 val rhsE = compiler.compileExpr(nEnv, rhs)
                 SirCase.Case(constrTypeSymbol, sirConstrTypeArs, names, generateSir(rhsE), rhs.srcPos) :: Nil
-        
+
     }
 
     private def scalaCaseDefToSirCase(
@@ -190,7 +244,17 @@ class PatternMatchingCompiler(val compiler: SIRCompiler)(using Context) {
         // this case is for matching on a case class
         case CaseDef(unapply@UnApply(fun, _, pats), _, rhs) =>
             // report.error(s"Case: ${fun}, pats: ${pats}, rhs: $rhs", t.pos)
-            compileConstructorPatterns(env, unapply, unapply.tpe, fun, pats, rhs, c.srcPos)
+            if (unapply.tpe == defn.NothingType) then
+                // need to restore constructor, maybe from fun
+                fun.tpe.widen match
+                    case mt:MethodType =>
+                        val constrType = mt.paramInfos.head
+                        compileConstructorPatterns(env, unapply, constrType, fun, pats, rhs, c.srcPos)
+                    case _ =>
+                        // TODO: check PolyType
+                        throw TypingException(fun.tpe.widen, c.srcPos, "type of unapply fun is not a method type")
+            else
+                compileConstructorPatterns(env, unapply, unapply.tpe, fun, pats, rhs, c.srcPos)
         // this case is for matching on an enum
         case CaseDef(Typed(unapply@UnApply(fun, _, pats), constrTpe), _, rhs) =>
             // report.info(s"Case: ${inner}, tpe ${constrTpe.tpe.widen.show}", t.pos)

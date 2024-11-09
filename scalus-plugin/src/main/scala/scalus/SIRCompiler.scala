@@ -538,7 +538,7 @@ final class SIRCompiler(mode: scalus.Mode)(using ctx: Context) {
                                 println(s"Error in compileIdentOrQualifiedSelect: ${ex.getMessage}")
                                 println(s"ExternalVar: ${e.symbol.fullName}")
                                 println(s"tree: ${e.show}")
-                                throw ex    
+                                throw ex
                     case scalus.Mode.Link =>
                         if e.symbol.defTree == EmptyTree then
                             linkDefinition(
@@ -1180,7 +1180,7 @@ final class SIRCompiler(mode: scalus.Mode)(using ctx: Context) {
             case Ident(a) =>
                 if isConstructorVal(tree.symbol, tree.tpe) then
                     compileNewConstructor(env, tree.tpe, Nil, tree)
-                else 
+                else
                     compileIdentOrQualifiedSelect(env, tree)
             // case class User(name: String, age: Int)
             // val user = User("John", 42) => \u - u "John" 42
@@ -1277,10 +1277,9 @@ final class SIRCompiler(mode: scalus.Mode)(using ctx: Context) {
 
     private def fillTypeParamInTypeApply(sym: Symbol, targs: List[Tree], env: Env): Env = {
         val tparams = sym.typeParams
-        val targsTypes = targs.map(_.tpe)
         val targsSirTypes = targs.map(t =>
             val wt = t.tpe.widen
-            sirTypeInEnv(t.tpe.widen, t.srcPos, env)
+            sirTypeInEnv(wt, t.srcPos, env)
         )
         val nTypeVars = tparams.zip(targsSirTypes).map{ case(tp, v) =>
             tp -> v
@@ -1290,7 +1289,6 @@ final class SIRCompiler(mode: scalus.Mode)(using ctx: Context) {
 
 
     def compileToSIR(tree: Tree)(using Context): SIR = {
-        println(s"compileToSIR: ${tree}")
         val result = compileExpr(Env.empty, tree)
         val full: SIRExpr = globalDefs.values.foldRight(result) {
             case (CompileDef.Compiled(b), acc) =>
@@ -1329,10 +1327,10 @@ final class SIRCompiler(mode: scalus.Mode)(using ctx: Context) {
             case e: SIRTypesHelper.TypingException =>
                 println(s"Error wjile typing: ${tp.show}: ${e.msg},")
                 println(s"env.vars=${env.vars}");
-                val retval = error(GenericError(e.msg, e.pos), SIRType.TypeError(s"tp: ${tp.show}, ${e.msg}", e))
                 if (true) {
                     throw e;
                 }
+                val retval = error(GenericError(e.msg, e.pos), SIRType.TypeError(s"tp: ${tp.show}, ${e.msg}", e))
                 retval
     }
 

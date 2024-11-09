@@ -1,6 +1,5 @@
 package scalus.flat
 
-import scala.util.control.NonFatal
 import scalus.{builtin, flat}
 import scalus.flat.DecoderState
 import scalus.flat.EncoderState

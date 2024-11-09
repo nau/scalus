@@ -197,10 +197,14 @@ object SIRTypesHelper {
            SIRType.IntegerPrimitive
         else
           // this is a custom value type,  check hidden val
-          println(s"custom value type:  sym = ${sym.showFullName}, params=${params.map(_.show)}")
-          println(s"primaryConstructor=${sym.primaryConstructor}, primaryConstructor.info=${sym.primaryConstructor.info}")
-          val argss = sym.primaryConstructor.paramSymss.filter(_.exists(!_.isTypeParam)).flatten
-          argss match
+          if (tpc.typeSymbol.isTerm && !tpc.typeSymbol.isType) then
+              // sone strange type, which should be a TermRef,  not TypeRef
+              //  (error in dotty  ???)
+              val termSym = tpc.typeSymbol.asTerm
+              sirTypeInEnvWithErr(termSym.info, env)
+          else 
+            val argss = sym.primaryConstructor.paramSymss.filter(_.exists(!_.isTypeParam)).flatten
+            argss match
                 case Nil =>
                    unsupportedType(tpc, "ValueType without fields", env)
                 case head::Nil =>
