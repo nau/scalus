@@ -96,17 +96,19 @@ object Inliner:
                 val inlinedArg = go(arg, env)
                 // Try beta reduction if possible
                 inlinedF match
+                    // Inline identity functions
+                    case LamAbs(name, Var(NamedDeBruijn(vname, _))) if name == vname =>
+                        inlinedArg
                     case LamAbs(name, body) =>
                         // Count occurrences to decide if we should inline
                         val occurrences = countOccurrences(body, name)
                         if occurrences == 0 then
                             // Dead code elimination - variable is never used
                             go(body, env)
-                        else if occurrences == 1 || isSafeToInline(inlinedArg) then
-                            // Single use or safe to duplicate - perform substitution
+                        else if isSafeToInline(inlinedArg) then
                             go(substitute(body, name, inlinedArg), env)
                         else
-                            // Multiple uses of non-safe term - keep the lambda
+                            // non-safe term - keep the lambda
                             Apply(inlinedF, inlinedArg)
                     case _ =>
                         Apply(inlinedF, inlinedArg)
