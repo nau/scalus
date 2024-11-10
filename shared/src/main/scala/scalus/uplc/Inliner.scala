@@ -1,10 +1,26 @@
 package scalus.uplc
 import scalus.uplc.Term.*
 
-/** Inlines identity function application */
 object Inliner:
-    /** Inlines identity function application */
-    def apply(term: Term): Term = inlinePass(term)
+    /** Counts number of occurrences of a variable in a term */
+    private def countOccurrences(term: Term, name: String): Int = term match
+        case Var(NamedDeBruijn(n, _)) => if n == name then 1 else 0
+        case LamAbs(n, body) =>
+            if n == name then 0 // Stop counting if shadowed
+            else countOccurrences(body, name)
+        case Apply(f, arg)   => countOccurrences(f, name) + countOccurrences(arg, name)
+        case Force(t)        => countOccurrences(t, name)
+        case Delay(t)        => countOccurrences(t, name)
+        case Constr(_, args) => args.map(countOccurrences(_, name)).sum
+        case Case(scrutinee, cases) =>
+            countOccurrences(scrutinee, name) + cases.map(countOccurrences(_, name)).sum
+        case Const(_) | Builtin(_) | Error => 0
+
+    /** Checks if a term is safe to inline multiple times */
+    private def isSafeToInline(term: Term): Boolean = term match
+        case Const(_) => true
+        case Var(_)   => true // Variables are safe to duplicate
+        case _        => false
 
     /** Implements capture-avoiding substitution [x -> s]t */
     private def substitute(term: Term, name: String, replacement: Term): Term =
@@ -31,34 +47,25 @@ object Inliner:
                     fresh = s"${base}_$i"
                 fresh
 
+        // Compute free variables of replacement term once
+        lazy val replacementFreeVars = freeVars(replacement)
+
         def go(t: Term, boundVars: Set[String]): Term = t match
             case Var(NamedDeBruijn(n, _)) =>
-                if n == name && !boundVars.contains(n) then
-                    // Only substitute if the variable is free (not bound)
-                    replacement
+                if n == name && !boundVars.contains(n) then replacement
                 else t
 
             case LamAbs(n, body) =>
-                if n == name then
-                    // Variable is shadowed, don't substitute in body
-                    t
-                else
-                    // Check if we need to alpha-rename to avoid capture
-                    val replacementFreeVars = freeVars(replacement)
-                    if n != name && replacementFreeVars.contains(n) then
-                        // Need to alpha-rename to avoid capture
-                        val freshN = freshName(n, boundVars ++ replacementFreeVars)
-                        // Recursively substitute in the alpha-renamed body
-                        LamAbs(
-                          freshN,
-                          go(substitute(body, n, Var(NamedDeBruijn(freshN))), boundVars + freshN)
-                        )
-                    else
-                        // No capture possible, just recurse
-                        LamAbs(n, go(body, boundVars + n))
+                if n == name then t
+                else if replacementFreeVars.contains(n) then
+                    val freshN = freshName(n, boundVars ++ replacementFreeVars)
+                    LamAbs(
+                      freshN,
+                      go(substitute(body, n, Var(NamedDeBruijn(freshN))), boundVars + freshN)
+                    )
+                else LamAbs(n, go(body, boundVars + n))
 
-            case Apply(f, arg) =>
-                Apply(go(f, boundVars), go(arg, boundVars))
+            case Apply(f, arg) => Apply(go(f, boundVars), go(arg, boundVars))
 
             case Force(t) => Force(go(t, boundVars))
             case Delay(t) => Delay(go(t, boundVars))
@@ -81,33 +88,33 @@ object Inliner:
         def go(term: Term, env: Map[String, Term]): Term = term match
             case Var(NamedDeBruijn(name, _)) =>
                 env.get(name) match
-                    case Some(value) if canInline(value) => value
-                    case _                               => term
+                    case Some(value) => value
+                    case _           => term
 
             case Apply(f, arg) =>
                 val inlinedF = go(f, env)
                 val inlinedArg = go(arg, env)
-
-                // Handle identity function application
-                if isIdentityFn(inlinedF) then inlinedArg
-                else
-                    // Try beta reduction if possible
-                    inlinedF match
-                        case LamAbs(name, body) if canInline(inlinedArg) =>
-                            // Perform capture-avoiding substitution
+                // Try beta reduction if possible
+                inlinedF match
+                    case LamAbs(name, body) =>
+                        // Count occurrences to decide if we should inline
+                        val occurrences = countOccurrences(body, name)
+                        if occurrences == 0 then
+                            // Dead code elimination - variable is never used
+                            go(body, env)
+                        else if occurrences == 1 || isSafeToInline(inlinedArg) then
+                            // Single use or safe to duplicate - perform substitution
                             go(substitute(body, name, inlinedArg), env)
-                        case _ =>
+                        else
+                            // Multiple uses of non-safe term - keep the lambda
                             Apply(inlinedF, inlinedArg)
+                    case _ =>
+                        Apply(inlinedF, inlinedArg)
 
-            case LamAbs(name, body) =>
-                // Don't substitute in the lambda's body if name is in env
-                LamAbs(name, go(body, env - name))
-
-            case Force(t) => Force(go(t, env))
-            case Delay(t) => Delay(go(t, env))
-
-            case Constr(tag, args) =>
-                Constr(tag, args.map(arg => go(arg, env)))
+            case LamAbs(name, body) => LamAbs(name, go(body, env - name))
+            case Force(t)           => Force(go(t, env))
+            case Delay(t)           => Delay(go(t, env))
+            case Constr(tag, args)  => Constr(tag, args.map(arg => go(arg, env)))
 
             case Case(scrutinee, cases) =>
                 Case(
@@ -115,16 +122,9 @@ object Inliner:
                   cases.map(c => go(c, env))
                 )
 
-            // Leave other terms unchanged
             case t @ (Const(_) | Builtin(_) | Error) => t
 
         go(term, Map.empty)
-
-    /** Check if a term is a pure value that can be inlined */
-    private def canInline(term: Term): Boolean = term match
-        case Const(_) => true
-        case Var(_)   => true
-        case _        => false
 
     /** Check if a term is an identity function */
     private def isIdentityFn(term: Term): Boolean = term match

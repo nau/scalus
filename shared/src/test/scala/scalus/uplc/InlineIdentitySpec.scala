@@ -155,6 +155,25 @@ class InlineIdentitySpec extends AnyFunSuite {
         ) // The inner x shadows outer x, so y shouldn't be substituted
     }
 
+    test("should inline single-use variables") {
+        // (λx. x) 42  =>  42   (single use)
+        val singleUse = λ("x")(vr"x") $ 42
+        assert(Inliner.inlinePass(singleUse) == Const(Constant.Integer(42)))
+
+        // (λx. x + x) 42  =>  42 + 42   (multiple uses but safe to inline)
+        val multiUseSafe = λ("x")(AddInteger $ vr"x" $ vr"x") $ 42
+        val expected: Term = AddInteger $ 42 $ 42
+        assert(Inliner.inlinePass(multiUseSafe) == expected)
+
+        // (λx. x + x) Error  =>  (λx. x + x) Error   (multiple uses of unsafe term)
+        val multiUseUnsafe = λ("x")(AddInteger $ vr"x" $ vr"x") $ Error
+        assert(Inliner.inlinePass(multiUseUnsafe) == multiUseUnsafe)
+
+        // Dead code elimination: (λx. 42) y  =>  42
+        val deadCode = λ("x")(42) $ vr"y"
+        assert(Inliner.inlinePass(deadCode) == Const(Constant.Integer(42)))
+    }
+
     test("should handle multiple variable references") {
         // (λx. x + (x * x)) 42 => 42 + (42 * 42)
         val term = λ("x")(
