@@ -32,9 +32,27 @@ import scalus.uplc.eval.VM
 import scala.collection.immutable
 import scala.language.implicitConversions
 import scalus.uplc.eval.Result
+import SIRType.Fun
+import SIRType.TypeVar
+import SIRType.TypeLambda
 
 class CompilerPluginToSIRSpec extends AnyFunSuite with ScalaCheckPropertyChecks:
     val deadbeef = Constant.ByteString(hex"deadbeef")
+
+    val sirData = SIRType.Data
+    val sirBool = SIRType.BooleanPrimitive
+    val sirInt = SIRType.IntegerPrimitive
+    val sirString = SIRType.StringPrimitive
+    val sirByteString = SIRType.ByteStringPrimitive
+    val sirVoid = SIRType.VoidPrimitive
+    def sirList(tpe: SIRType) = SIRType.List(tpe)
+    
+    def sirConst(x:Int) = Const(Constant.Integer(x), SIRType.IntegerPrimitive)
+    def sirConst(x:BigInt) = Const(Constant.Integer(x), SIRType.IntegerPrimitive)
+    def sirConst(x:Boolean) = Const(Constant.Bool(x), SIRType.BooleanPrimitive)
+    def sirConst(x:ByteString) = Const(Constant.ByteString(x), SIRType.ByteStringPrimitive)
+    def sirConst(x:Data) = Const(Constant.Data(x), SIRType.Data)
+    def sirConstUnit = Const(Constant.Unit, SIRType.VoidPrimitive)
 
     test("compile literals") {
         assert(compile(false) == Const(Constant.Bool(false), SIRType.BooleanPrimitive))
@@ -161,10 +179,24 @@ class CompilerPluginToSIRSpec extends AnyFunSuite with ScalaCheckPropertyChecks:
             (tail: [A] => builtin.List[A] => builtin.List[A], ctx: builtin.List[Data]) =>
                 tail[Data](ctx)
         }
+
+        val a = TypeVar("A", Some(1))
+        val listA = SIRType.List(TypeVar("A", Some(1)))
+        val listData = SIRType.List(SIRType.Data)
+        val tailType = SIRType.TypeLambda(List(a), Fun(listA, listA))
         assert(
-          sir == LamAbs(Var("tail",SIRType.TypeLambda()), 
-                       LamAbs("ctx", Apply(Var("tail"), Var("ctx"))))
+          sir ~=~ LamAbs(
+            Var("tail", tailType),
+            LamAbs(Var("ctx", listData),
+                Apply(Var("tail",tailType),
+                      Var("ctx", listData),
+                      listData
+                )
+            )
+          )
         )
+
+
     }
 
     test("compile inline def") {
@@ -173,7 +205,7 @@ class CompilerPluginToSIRSpec extends AnyFunSuite with ScalaCheckPropertyChecks:
               inline def b = true
 
               b
-          } == Const(Constant.Bool(true))
+          } == Const(Constant.Bool(true),sirBool)
         )
     }
 
@@ -182,10 +214,13 @@ class CompilerPluginToSIRSpec extends AnyFunSuite with ScalaCheckPropertyChecks:
           compile {
               val a = (x: Boolean) => x
               a(true)
-          } == Let(
+          } ~=~ Let(
             NonRec,
-            List(Binding("a", LamAbs("x", Var("x")))),
-            Apply(Var("a"), Const(Constant.Bool(true), SIRType.BooleanPrimitive))
+            List(Binding("a", LamAbs(Var("x",sirBool), Var("x", sirBool)))),
+            Apply(Var("a", SIRType.Fun(sirBool,sirBool)),
+                  Const(Constant.Bool(true), sirBool),
+                  sirBool
+            )
           )
         )
     }
@@ -193,7 +228,7 @@ class CompilerPluginToSIRSpec extends AnyFunSuite with ScalaCheckPropertyChecks:
     test("compile throw") {
         assert(compile {
             throw new RuntimeException("foo")
-        } == Error("foo"))
+        } ~=~ Error("foo"))
     }
 
     test("compile ToData") {
@@ -203,18 +238,18 @@ class CompilerPluginToSIRSpec extends AnyFunSuite with ScalaCheckPropertyChecks:
             BigInt(1).toData
         }
         assert(
-          compiled == Let(
+          compiled ~=~ Let(
             Rec,
             immutable.List(
               Binding(
                 "scalus.builtin.ToDataInstances$.given_ToData_BigInt",
-                LamAbs("a", Apply(Builtin(IData), Var("a")))
+                LamAbs(Var("a",sirInt), Apply(SIRBuiltins.iData , Var("a",sirInt), sirData))
               )
             ),
             Let(
               NonRec,
-              immutable.List(Binding("a$proxy1", Const(Constant.Integer(1)))),
-              Apply(Var("scalus.builtin.ToDataInstances$.given_ToData_BigInt"), Var("a$proxy1"))
+              immutable.List(Binding("a$proxy1", Const(Constant.Integer(1), sirInt))),
+              Apply(Var("scalus.builtin.ToDataInstances$.given_ToData_BigInt", Fun(sirInt,sirData)), Var("a$proxy1",sirInt), sirData)
             )
           )
         )
@@ -266,7 +301,7 @@ class CompilerPluginToSIRSpec extends AnyFunSuite with ScalaCheckPropertyChecks:
         assert(
           compile {
               builtin.List.empty[BigInt]
-          } == Const(Constant.List(DefaultUni.Integer, List()))
+          } ~=~ Const(Constant.List(DefaultUni.Integer, List()), SIRType.List(SIRType.IntegerPrimitive))
         )
     }
 
@@ -274,11 +309,12 @@ class CompilerPluginToSIRSpec extends AnyFunSuite with ScalaCheckPropertyChecks:
         assert(
           compile {
               builtin.List[BigInt](1, 2, 3)
-          } == Const(
+          } ~=~ Const(
             Constant.List(
               DefaultUni.Integer,
               List(Constant.Integer(1), Constant.Integer(2), Constant.Integer(3))
-            )
+            ),
+            SIRType.List(SIRType.IntegerPrimitive)
           )
         )
     }
@@ -288,15 +324,17 @@ class CompilerPluginToSIRSpec extends AnyFunSuite with ScalaCheckPropertyChecks:
           compile {
               val a = "foo"
               "bar" :: builtin.List(a)
-          } == Let(
+          } ~=~ Let(
             NonRec,
-            List(Binding("a", Const(Constant.String("foo")))),
+            List(Binding("a", Const(Constant.String("foo"), sirString))),
             Apply(
-              Apply(Builtin(MkCons), Const(Constant.String("bar"))),
+              Apply(SIRBuiltins.mkCons, Const(Constant.String("bar"), sirString), Fun(SIRType.List(sirString), SIRType.List(sirString))),
               Apply(
-                Apply(Builtin(MkCons), Var("a")),
-                Const(Constant.List(DefaultUni.String, List()))
-              )
+                Apply(SIRBuiltins.mkCons, Var("a", sirString), Fun(SIRType.List(sirString), SIRType.List(sirString))),
+                Const(Constant.List(DefaultUni.String, List()), SIRType.List(sirString)),
+                SIRType.List(sirString)
+              ),
+              SIRType.List(sirString)
             )
           )
         )
@@ -305,46 +343,54 @@ class CompilerPluginToSIRSpec extends AnyFunSuite with ScalaCheckPropertyChecks:
     test("compile head function") {
         assert(
           compile { (l: builtin.List[BigInt]) => l.head }
-              == LamAbs("l", Apply(Builtin(HeadList), Var("l")))
+              ~=~ LamAbs(Var("l",sirList(sirInt)), Apply(SIRBuiltins.headList, Var("l",sirList(sirInt)), sirInt))
         )
     }
 
     test("compile tail function") {
         assert(compile { (l: builtin.List[BigInt]) => l.tail }
-            == LamAbs("l", Apply(Builtin(TailList), Var("l"))))
+            ~=~ LamAbs(Var("l",sirList(sirInt)), Apply(SIRBuiltins.tailList, Var("l",sirList(sirInt)), sirList(sirInt)))
+        )
     }
 
     test("compile isEmpty function") {
         assert(
           compile { (l: builtin.List[BigInt]) => l.isEmpty }
-              == LamAbs("l", Apply(Builtin(NullList), Var("l")))
+              ~=~ LamAbs(Var("l",sirList(sirInt)), Apply(SIRBuiltins.nullList, Var("l",sirList(sirInt)), sirBool))
         )
     }
 
     test("compile mkNilData") {
-        assert(compile(Builtins.mkNilData()) == (Apply(Builtin(MkNilData), Const(Constant.Unit))))
+        assert(compile(Builtins.mkNilData())
+            ~=~
+            (Apply(SIRBuiltins.mkNilData, Const(Constant.Unit, sirVoid), sirData))
+        )
     }
 
     test("compile mkNilPairData") {
         assert(
-          compile(Builtins.mkNilPairData()) == (Apply(Builtin(MkNilPairData), Const(Constant.Unit)))
+          compile(Builtins.mkNilPairData())
+              ~=~
+              (Apply(SIRBuiltins.mkNilPairData, Const(Constant.Unit, sirVoid), SIRType.Pair(sirData, sirData)))
         )
     }
 
     test("compile mkConstr builtins") {
-        val nilData = Const(Constant.List(DefaultUni.Data, immutable.Nil))
+        val nilData = Const(Constant.List(DefaultUni.Data, immutable.Nil), SIRType.List(sirData))
         assert(
           compile(
             Builtins.constrData(
               1,
               builtin.List(Builtins.iData(2))
             )
-          ) == Apply(
-            Apply(Builtin(ConstrData), Const(Constant.Integer(1))),
+          ) ~=~ Apply(
+            Apply(SIRBuiltins.constrData, sirConst(1), Fun(sirList(sirData), sirData)),
             Apply(
-              Apply(Builtin(MkCons), Apply(Builtin(IData), Const(Constant.Integer(2)))),
-              nilData
-            )
+              Apply(SIRBuiltins.mkCons, Apply(SIRBuiltins.iData, sirConst(2), sirData), Fun(sirList(sirData), sirList(sirData))),
+              nilData,
+              sirList(sirData)
+            ),
+            sirData  
           )
         )
     }
@@ -446,7 +492,7 @@ class CompilerPluginToSIRSpec extends AnyFunSuite with ScalaCheckPropertyChecks:
     test("compile BLS12_381_G1 builtins") {
         assert(
           compile(Builtins.bls12_381_G1_add) == LamAbs(
-            "p1",
+            Var("p1"),
             LamAbs("p2", Apply(Apply(Builtin(Bls12_381_G1_add), Var("p1")), Var("p2")))
           )
         )
