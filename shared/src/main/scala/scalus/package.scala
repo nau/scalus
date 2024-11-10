@@ -9,7 +9,6 @@ import scalus.sir.SIR
 import scalus.sir.SimpleSirToUplcLowering
 import scalus.uplc.Constant
 import scalus.uplc.DefaultUni
-import scalus.uplc.Inliner
 import scalus.uplc.Program
 import scalus.uplc.Term
 import scalus.uplc.eval.Result
@@ -33,7 +32,7 @@ package object scalus {
             SimpleSirToUplcLowering(sir, generateErrorTraces).lower()
         def toUplcOptimized(generateErrorTraces: Boolean = false): Term =
             OptimizingSirToUplcLowering(sir |> RemoveRecursivity.apply, generateErrorTraces)
-                .lower() |> EtaReduce.apply |> Inliner.inlinePass
+                .lower() |> EtaReduce.apply
 
         def toPlutusProgram(
             version: (Int, Int, Int),

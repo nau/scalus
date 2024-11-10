@@ -1,7 +1,14 @@
 package scalus.uplc
+import scalus.*
 import scalus.uplc.Term.*
 
+import scala.collection.mutable.ArrayBuffer
+
 object Inliner:
+    def apply(term: Term): Term =
+        val (inlined, logs) = inlinePass(inlineConstAndVar)(term)
+        inlined
+
     /** Counts number of occurrences of a variable in a term */
     private def countOccurrences(term: Term, name: String): Int = term match
         case Var(NamedDeBruijn(n, _)) => if n == name then 1 else 0
@@ -17,13 +24,14 @@ object Inliner:
         case Const(_) | Builtin(_) | Error => 0
 
     /** Checks if a term is safe to inline multiple times */
-    private def isSafeToInline(term: Term): Boolean = term match
-        case Const(_) => true
-        case Var(_)   => true // Variables are safe to duplicate
-        case _        => false
+    def inlineConstAndVar(name: String, body: Term, inlining: Term, occurances: Int): Boolean =
+        inlining match
+            case Const(_) => true
+            case Var(_)   => true // Variables are safe to duplicate
+            case _        => false
 
     /** Implements capture-avoiding substitution [x -> s]t */
-    private def substitute(term: Term, name: String, replacement: Term): Term =
+    def substitute(term: Term, name: String, replacement: Term): Term =
         // Get all free variables in the replacement term
         def freeVars(t: Term): Set[String] = t match
             case Var(NamedDeBruijn(n, _)) => Set(n)
@@ -83,8 +91,17 @@ object Inliner:
 
         go(term, Set.empty)
 
+    def isPure(t: Term): Boolean = t match
+        case _: Var | _: Const | _: Builtin | _: LamAbs | _: Delay => true
+        case Force(t)                                              => isPure(t)
+        case _: Apply | _: Case | Error                            => false
+        case Constr(_, args)                                       => args.forall(isPure)
+
     /** Main inlining function */
-    def inlinePass(term: Term): Term =
+    def inlinePass(shouldInline: (String, Term, Term, Int) => Boolean)(
+        term: Term
+    ): (Term, collection.Seq[String]) =
+        val logs = ArrayBuffer.empty[String]
         def go(term: Term, env: Map[String, Term]): Term = term match
             case Var(NamedDeBruijn(name, _)) =>
                 env.get(name) match
@@ -98,14 +115,17 @@ object Inliner:
                 inlinedF match
                     // Inline identity functions
                     case LamAbs(name, Var(NamedDeBruijn(vname, _))) if name == vname =>
+                        logs += s"Inlining identity function: $name"
                         inlinedArg
                     case LamAbs(name, body) =>
                         // Count occurrences to decide if we should inline
                         val occurrences = countOccurrences(body, name)
-                        if occurrences == 0 then
+                        if occurrences == 0 && isPure(inlinedArg) then
                             // Dead code elimination - variable is never used
+                            logs += s"Eliminating dead code: $name"
                             go(body, env)
-                        else if isSafeToInline(inlinedArg) then
+                        else if shouldInline(name, body, inlinedArg, occurrences) then
+                            logs += s"Inlining $name with ${inlinedArg.show}"
                             go(substitute(body, name, inlinedArg), env)
                         else
                             // non-safe term - keep the lambda
@@ -114,9 +134,12 @@ object Inliner:
                         Apply(inlinedF, inlinedArg)
 
             case LamAbs(name, body) => LamAbs(name, go(body, env - name))
-            case Force(t)           => Force(go(t, env))
-            case Delay(t)           => Delay(go(t, env))
-            case Constr(tag, args)  => Constr(tag, args.map(arg => go(arg, env)))
+            case Force(Delay(t)) =>
+                logs += s"Eliminating Force(Delay(t)), t: ${t.showHighlighted}"
+                go(t, env)
+            case Force(t)          => Force(go(t, env))
+            case Delay(t)          => Delay(go(t, env))
+            case Constr(tag, args) => Constr(tag, args.map(arg => go(arg, env)))
 
             case Case(scrutinee, cases) =>
                 Case(
@@ -126,9 +149,4 @@ object Inliner:
 
             case t @ (Const(_) | Builtin(_) | Error) => t
 
-        go(term, Map.empty)
-
-    /** Check if a term is an identity function */
-    private def isIdentityFn(term: Term): Boolean = term match
-        case LamAbs(name, Var(NamedDeBruijn(vname, _))) => name == vname
-        case _                                          => false
+        (go(term, Map.empty), logs)
