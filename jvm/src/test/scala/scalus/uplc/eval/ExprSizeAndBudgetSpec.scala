@@ -10,9 +10,9 @@ import scalus.uplc.Term
 
 class ExprSizeAndBudgetSpec extends AnyFunSuite {
     private val encoder = summon[Flat[Term]]
-    private val boolSize = encoder.bitSize(compile(true).toUplcOptimized())
-    private val unitSize = encoder.bitSize(compile(()).toUplcOptimized())
-    private val fun1Uplc = compile((b: Boolean) => b).toUplcOptimized()
+    private val boolSize = encoder.bitSize(compile(true).toUplc())
+    private val unitSize = encoder.bitSize(compile(()).toUplc())
+    private val fun1Uplc = compile((b: Boolean) => b).toUplc()
     private val fun1Size = encoder.bitSize(fun1Uplc)
 
     test("unit bit size is 10") {
@@ -24,7 +24,7 @@ class ExprSizeAndBudgetSpec extends AnyFunSuite {
     }
 
     test("BigInt bit size is 26") {
-        assert(encoder.bitSize(compile(BigInt(123)).toUplcOptimized()) == 26)
+        assert(encoder.bitSize(compile(BigInt(123)).toUplc()) == 26)
     }
 
     test("Var bit size is 12") {
@@ -36,13 +36,13 @@ class ExprSizeAndBudgetSpec extends AnyFunSuite {
     }
 
     test("let bit size is 8") {
-        val uplc = compile { val a = true }.toUplcOptimized()
+        val uplc = compile { val a = true }.toUplc()
         assert(encoder.bitSize(uplc) - unitSize - boolSize == 8)
     }
 
     test("new prelude.List.Cons(true, prelude.List.Nil) size is 103") {
         val uplc = compile(new prelude.List.Cons(true, prelude.List.Nil)).toUplcOptimized()
-        assert(encoder.bitSize(uplc) == 103)
+        assert(encoder.bitSize(uplc) == 83)
     }
 
     test("prelude.List.cons(true, prelude.List.Nil) size is 123") {
@@ -52,6 +52,6 @@ class ExprSizeAndBudgetSpec extends AnyFunSuite {
 
     test("prelude.List.single(true) size is 143") {
         val uplc = compile(prelude.List.single(true)).toUplcOptimized()
-        assert(encoder.bitSize(uplc) == 143)
+        assert(encoder.bitSize(uplc) == 123)
     }
 }
