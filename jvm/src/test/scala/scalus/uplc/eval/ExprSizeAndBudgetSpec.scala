@@ -42,16 +42,16 @@ class ExprSizeAndBudgetSpec extends AnyFunSuite {
 
     test("new prelude.List.Cons(true, prelude.List.Nil) size is 103") {
         val uplc = compile(new prelude.List.Cons(true, prelude.List.Nil)).toUplcOptimized()
-        assert(encoder.bitSize(uplc) == 83)
+        assert(encoder.bitSize(uplc) == 63)
     }
 
     test("prelude.List.cons(true, prelude.List.Nil) size is 123") {
         val uplc = compile(prelude.List.cons(true, prelude.List.Nil)).toUplcOptimized()
-        assert(encoder.bitSize(uplc) == 123)
+        assert(encoder.bitSize(uplc) == 63)
     }
 
     test("prelude.List.single(true) size is 143") {
         val uplc = compile(prelude.List.single(true)).toUplcOptimized()
-        assert(encoder.bitSize(uplc) == 123)
+        assert(encoder.bitSize(uplc) == 63)
     }
 }
