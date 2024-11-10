@@ -99,10 +99,10 @@ class PreimageExampleSpec extends BaseValidatorSpec {
 
     test("Optimized Preimage Validator") {
         val optV = OptimizedPreimage.compiledOptimizedPreimageValidator |> removeRecursivity
-        val uplc = optV.toUplc()
+        val uplc = optV.toUplcOptimized()
         val program = Program((1, 0, 0), uplc)
         val flatSize = program.flatEncoded.length
-        assert(flatSize == 162)
+        assert(flatSize == 167)
         performChecks(uplc)
     }
 }
