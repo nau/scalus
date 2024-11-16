@@ -10,12 +10,13 @@ import scalus.builtin.Data
 import scalus.builtin.Data.fromData
 import scalus.builtin.Data.toData
 import scalus.prelude.Prelude.*
-import scalus.sir.SIR
+import scalus.sir.{SIR, SIRType, SIRExpr}
 import scalus.uplc.ArbitraryInstances
 import scalus.uplc.Constant
 import scalus.uplc.Term
 import scalus.uplc.TermDSL.given
 import scalus.uplc.eval.VM
+
 import scala.language.implicitConversions
 
 class ContextSpec
@@ -50,11 +51,15 @@ class ContextSpec
             i === i
         }
 
+        val sirExpr = sir match
+            case x: SIRExpr => x
+            case _ => throw new Exception("Expected result of this sompilation will be SIRExpr")
+
         forAll { (i: Interval) =>
             import scalus.ledger.api.v1.ToDataInstances.given
             assert(i === i)
             val d = i.toData
-            val applied = sir $ SIR.Const(Constant.Data(d))
+            val applied = sirExpr $ SIR.Const(Constant.Data(d), SIRType.Data)
             assertEval(applied, true)
         }
     }

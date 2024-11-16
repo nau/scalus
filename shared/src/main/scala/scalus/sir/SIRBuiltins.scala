@@ -234,6 +234,11 @@ object SIRBuiltins {
       DefaultFun.Bls12_381_G2_uncompress,
       SIRTypeMacros.liftM[ByteString => BLS12_381_G2_Element]
     )
+    
+    val bls12_381_mulMlResult = SIR.Builtin(
+      DefaultFun.Bls12_381_mulMlResult,
+      SIRTypeMacros.liftM[(BLS12_381_MlResult, BLS12_381_MlResult) => BLS12_381_MlResult]
+    )
 
     // Miller loop
     val bls12_381_millerLoop = SIR.Builtin(
@@ -244,6 +249,17 @@ object SIRBuiltins {
     val bls12_381_finalVerify = SIR.Builtin(
       DefaultFun.Bls12_381_finalVerify,
       SIRTypeMacros.liftM[BLS12_381_MlResult => BLS12_381_MlResult => Boolean]
+    )
+    
+    // keccak_256
+    val keccak_256 = SIR.Builtin(
+      DefaultFun.Keccak_256,
+      SIRTypeMacros.liftM[ByteString => ByteString]
+    )
+    //blake
+    val blake2b_224 = SIR.Builtin(
+      DefaultFun.Blake2b_224,
+      SIRTypeMacros.liftM[ByteString => ByteString]
     )
 
 
