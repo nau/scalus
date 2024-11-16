@@ -46,10 +46,12 @@ class CompilerPluginToSIRSpec extends AnyFunSuite with ScalaCheckPropertyChecks:
     val sirByteString = SIRType.ByteStringPrimitive
     val sirVoid = SIRType.VoidPrimitive
     def sirList(tpe: SIRType) = SIRType.List(tpe)
-    
+    def sirPair(t1: SIRType, t2: SIRType) = SIRType.Pair(t1, t2)
+
     def sirConst(x:Int) = Const(Constant.Integer(x), SIRType.IntegerPrimitive)
     def sirConst(x:BigInt) = Const(Constant.Integer(x), SIRType.IntegerPrimitive)
     def sirConst(x:Boolean) = Const(Constant.Bool(x), SIRType.BooleanPrimitive)
+    def sirConst(x:String) = Const(Constant.String(x), SIRType.StringPrimitive)
     def sirConst(x:ByteString) = Const(Constant.ByteString(x), SIRType.ByteStringPrimitive)
     def sirConst(x:Data) = Const(Constant.Data(x), SIRType.Data)
     def sirConstUnit = Const(Constant.Unit, SIRType.VoidPrimitive)
@@ -390,22 +392,26 @@ class CompilerPluginToSIRSpec extends AnyFunSuite with ScalaCheckPropertyChecks:
               nilData,
               sirList(sirData)
             ),
-            sirData  
+            sirData
           )
         )
     }
 
     test("compile mkList builtins") {
-        val nilData = Const(Constant.List(DefaultUni.Data, immutable.Nil))
+        val nilData = Const(Constant.List(DefaultUni.Data, immutable.Nil), SIRType.List(sirData))
         assert(
           compile(
             Builtins.listData(builtin.List(Builtins.iData(1)))
-          ) == Apply(
-            Builtin(ListData),
+          )
+              ~=~
+          Apply(
+            SIRBuiltins.listData,
             Apply(
-              Apply(Builtin(MkCons), Apply(Builtin(IData), Const(Constant.Integer(1)))),
-              nilData
-            )
+              Apply(SIRBuiltins.mkCons, Apply(SIRBuiltins.iData, sirConst(1), sirData), Fun(sirList(sirData), sirList(sirData))),
+              nilData,
+              sirList(sirData)
+            ),
+            sirData
           )
         )
     }
@@ -418,18 +424,26 @@ class CompilerPluginToSIRSpec extends AnyFunSuite with ScalaCheckPropertyChecks:
                 builtin.Pair(Builtins.bData(hex"deadbeef"), Builtins.iData(1))
               )
             )
-          ) == Apply(
-            Builtin(MapData),
+          ) ~=~ Apply(
+            SIRBuiltins.mapData,
             Apply(
               Apply(
-                Builtin(MkCons),
+                SIRBuiltins.mkCons,
                 Apply(
-                  Apply(Builtin(MkPairData), Apply(Builtin(BData), Const(deadbeef))),
-                  Apply(Builtin(IData), Const(Constant.Integer(1)))
-                )
+                  Apply(SIRBuiltins.mkPairData,
+                      Apply(SIRBuiltins.bData, Const(deadbeef, sirByteString), sirData),
+                      Fun(sirData, sirPair(sirData,sirData)) ),
+                  Apply(SIRBuiltins.iData, sirConst(1), sirInt),
+                  sirPair(sirData,sirData)
+                ),
+                Fun(sirList(sirPair(sirData,sirData)), sirList(sirPair(sirData,sirData)))
               ),
-              Const(Constant.List(DefaultUni.Pair(DefaultUni.Data, DefaultUni.Data), immutable.Nil))
-            )
+              Const(Constant.List(DefaultUni.Pair(DefaultUni.Data, DefaultUni.Data), immutable.Nil),
+                    SIRType.List(sirPair(sirData,sirData))
+              ),
+              sirList(sirPair(sirData,sirData))
+            ),
+            sirData
           )
         )
     }
@@ -437,61 +451,62 @@ class CompilerPluginToSIRSpec extends AnyFunSuite with ScalaCheckPropertyChecks:
     test("compile unsafeDataAsConstr function") {
         assert(
           compile { (d: Data) => Builtins.unConstrData(d) }
-              == LamAbs("d", Apply(Builtin(DefaultFun.UnConstrData), Var("d")))
+              ~=~ LamAbs(Var("d",sirData), Apply(SIRBuiltins.unConstrData, Var("d",sirData), sirPair(sirInt,sirList(sirData))))
         )
     }
 
     test("compile unsafeDataAsList function") {
         assert(
           compile { (d: Data) => Builtins.unListData(d) }
-              == LamAbs("d", Apply(Builtin(DefaultFun.UnListData), Var("d")))
+              ~=~ LamAbs(Var("d",sirData), Apply(SIRBuiltins.unListData, Var("d",sirData), sirList(sirData)))
         )
     }
 
     test("compile unsafeDataAsMap function") {
         assert(
           compile { (d: Data) => Builtins.unMapData(d) }
-              == LamAbs("d", Apply(Builtin(DefaultFun.UnMapData), Var("d")))
+              ~=~ LamAbs(Var("d",sirData), Apply(SIRBuiltins.unMapData, Var("d",sirData), sirList(sirPair(sirData,sirData))))
         )
     }
 
     test("compile unsafeDataAsB function") {
         assert(
           compile { (d: Data) => Builtins.unBData(d) }
-              == LamAbs("d", Apply(Builtin(DefaultFun.UnBData), Var("d")))
+              ~=~ LamAbs(Var("d",sirData), Apply(SIRBuiltins.unBData, Var("d",sirData), sirByteString))
         )
     }
 
     test("compile unsafeDataAsI function") {
         assert(
-          compile { (d: Data) => Builtins.unIData(d) } ==
-              LamAbs("d", Apply(Builtin(DefaultFun.UnIData), Var("d")))
+          compile { (d: Data) => Builtins.unIData(d) } ~=~
+              LamAbs(Var("d",sirData), Apply(SIRBuiltins.unIData, Var("d",sirData), sirInt))
         )
     }
 
     test("compile chooseData function") {
         assert(
           compile { (d: Data) => Builtins.chooseData[BigInt](d, 1, 2, 3, 4, 5) }
-              == LamAbs("d", ChooseData $ Var("d") $ 1 $ 2 $ 3 $ 4 $ 5)
+              ~=~ LamAbs(Var("d",sirData), ChooseData $ Var("d", sirData) $ 1 $ 2 $ 3 $ 4 $ 5)
         )
     }
 
     test("compile equalsData function") {
         assert(
           compile { (d1: Data, d2: Data) => Builtins.equalsData(d1, d2) }
-              == LamAbs("d1", LamAbs("d2", EqualsData $ Var("d1") $ Var("d2")))
+              ~=~ LamAbs(Var("d1",sirData), LamAbs(Var("d2",sirData), SIRBuiltins.equalsData $ Var("d1", sirData) $ Var("d2", sirData)))
         )
     }
 
     test("compile serialiseData builtins") {
         assert(compile {
             Builtins.serialiseData
-        } == LamAbs("d", Apply(Builtin(SerialiseData), Var("d"))))
+        } ~=~ LamAbs(Var("d",sirData), Apply(SIRBuiltins.serialiseData, Var("d",sirData), sirByteString))
+        )
     }
 
     test("compile BLS12_381_G1 builtins") {
         assert(
-          compile(Builtins.bls12_381_G1_add) == LamAbs(
+          compile(Builtins.bls12_381_G1_add) ~=~ LamAbs(
             Var("p1"),
             LamAbs("p2", Apply(Apply(Builtin(Bls12_381_G1_add), Var("p1")), Var("p2")))
           )

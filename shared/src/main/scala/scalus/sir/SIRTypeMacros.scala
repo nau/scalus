@@ -220,6 +220,12 @@ object SIRTypeMacros {
                 Some(SIRType.List(types.head))
             else if (sym == Symbol.requiredClass("scalus.builtin.Pair")) then
                 Some(SIRType.Pair(types.head, types(1)))
+            else if (sym == Symbol.requiredClass("scalus.builtin.BLS12_381_G1_Element")) then
+                Some(BLS12_381_G1_Element)
+            else if (sym == Symbol.requiredClass("scalus.builtin.BLS12_381_G2_Element")) then
+                Some(BLS12_381_G2_Element)
+            else if (sym == Symbol.requiredClass("scalus.builtin.BLS12_381_MlResult")) then
+                Some(BLS12_381_MlResult)
             else None
         }
 

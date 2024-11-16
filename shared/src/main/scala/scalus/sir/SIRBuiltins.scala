@@ -2,6 +2,9 @@ package scalus.sir
 
 import scalus.builtin.ByteString
 import scalus.builtin.Data
+import scalus.builtin.BLS12_381_G1_Element
+import scalus.builtin.BLS12_381_G2_Element
+import scalus.builtin.BLS12_381_MlResult
 import scalus.uplc.DefaultFun
 
 import scala.util.control.NonFatal
@@ -171,6 +174,79 @@ object SIRBuiltins {
     val mkNilPairData =
         SIR.Builtin(DefaultFun.MkNilPairData, SIRTypeMacros.liftM[Unit => (Data, Data)])
 
+    // BLS12_381 operations
+    // G1 operations
+    val bls12_381_G1_add = SIR.Builtin(
+      DefaultFun.Bls12_381_G1_add,
+      SIRTypeMacros.liftM[(BLS12_381_G1_Element, BLS12_381_G1_Element) => BLS12_381_G1_Element]
+    )
+    val bls12_381_G1_neg = SIR.Builtin(
+      DefaultFun.Bls12_381_G1_neg,
+      SIRTypeMacros.liftM[BLS12_381_G1_Element => BLS12_381_G1_Element]
+    )
+    val bls12_381_G1_scalarMul = SIR.Builtin(
+      DefaultFun.Bls12_381_G1_scalarMul,
+      SIRTypeMacros.liftM[(BigInt, BLS12_381_G1_Element) => BLS12_381_G1_Element]
+    )
+    val bls12_381_G1_equal = SIR.Builtin(
+      DefaultFun.Bls12_381_G1_equal,
+      SIRTypeMacros.liftM[(BLS12_381_G1_Element, BLS12_381_G1_Element) => Boolean]
+    )
+    val bls12_381_G1_hashToGroup = SIR.Builtin(
+      DefaultFun.Bls12_381_G1_hashToGroup,
+      SIRTypeMacros.liftM[(ByteString, ByteString) => BLS12_381_G1_Element]
+    )
+    val bls12_381_G1_compress = SIR.Builtin(
+      DefaultFun.Bls12_381_G1_compress,
+      SIRTypeMacros.liftM[BLS12_381_G1_Element => ByteString]
+    )
+    val bls12_381_G1_uncompress = SIR.Builtin(
+      DefaultFun.Bls12_381_G1_uncompress,
+      SIRTypeMacros.liftM[ByteString => BLS12_381_G1_Element]
+    )
+
+    // G2 operations
+    val bls12_381_G2_add = SIR.Builtin(
+      DefaultFun.Bls12_381_G2_add,
+      SIRTypeMacros.liftM[(BLS12_381_G2_Element, BLS12_381_G2_Element) => BLS12_381_G2_Element]
+    )
+    val bls12_381_G2_neg = SIR.Builtin(
+      DefaultFun.Bls12_381_G2_neg,
+      SIRTypeMacros.liftM[BLS12_381_G2_Element => BLS12_381_G2_Element]
+    )
+    val bls12_381_G2_scalarMul = SIR.Builtin(
+      DefaultFun.Bls12_381_G2_scalarMul,
+      SIRTypeMacros.liftM[(BigInt, BLS12_381_G2_Element) => BLS12_381_G2_Element]
+    )
+    val bls12_381_G2_equal = SIR.Builtin(
+      DefaultFun.Bls12_381_G2_equal,
+      SIRTypeMacros.liftM[(BLS12_381_G2_Element, BLS12_381_G2_Element) => Boolean]
+    )
+    val bls12_381_G2_hashToGroup = SIR.Builtin(
+      DefaultFun.Bls12_381_G2_hashToGroup,
+      SIRTypeMacros.liftM[(ByteString, ByteString) => BLS12_381_G2_Element]
+    )
+    val bls12_381_G2_compress = SIR.Builtin(
+      DefaultFun.Bls12_381_G2_compress,
+      SIRTypeMacros.liftM[BLS12_381_G2_Element => ByteString]
+    )
+    val bls12_381_G2_uncompress = SIR.Builtin(
+      DefaultFun.Bls12_381_G2_uncompress,
+      SIRTypeMacros.liftM[ByteString => BLS12_381_G2_Element]
+    )
+
+    // Miller loop
+    val bls12_381_millerLoop = SIR.Builtin(
+      DefaultFun.Bls12_381_millerLoop,
+      SIRTypeMacros.liftM[(BLS12_381_G1_Element, BLS12_381_G2_Element) => BLS12_381_MlResult]
+    )
+    // Final verification
+    val bls12_381_finalVerify = SIR.Builtin(
+      DefaultFun.Bls12_381_finalVerify,
+      SIRTypeMacros.liftM[BLS12_381_MlResult => BLS12_381_MlResult => Boolean]
+    )
+
+
     def fromUplc(uplcFun: DefaultFun): SIR.Builtin =
         uplcFun match
             case DefaultFun.AddInteger                      => addInteger
@@ -227,5 +303,20 @@ object SIRBuiltins {
             case DefaultFun.MkPairData                      => mkPairData
             case DefaultFun.MkNilData                       => mkNilData
             case DefaultFun.MkNilPairData                   => mkNilPairData
-
+            case DefaultFun.Bls12_381_G1_add                => bls12_381_G1_add
+            case DefaultFun.Bls12_381_G1_neg                => bls12_381_G1_neg
+            case DefaultFun.Bls12_381_G1_scalarMul          => bls12_381_G1_scalarMul
+            case DefaultFun.Bls12_381_G1_equal              => bls12_381_G1_equal
+            case DefaultFun.Bls12_381_G1_hashToGroup        => bls12_381_G1_hashToGroup
+            case DefaultFun.Bls12_381_G1_compress           => bls12_381_G1_compress
+            case DefaultFun.Bls12_381_G1_uncompress         => bls12_381_G1_uncompress
+            case DefaultFun.Bls12_381_G2_add                => bls12_381_G2_add
+            case DefaultFun.Bls12_381_G2_neg                => bls12_381_G2_neg
+            case DefaultFun.Bls12_381_G2_scalarMul          => bls12_381_G2_scalarMul
+            case DefaultFun.Bls12_381_G2_equal              => bls12_381_G2_equal
+            case DefaultFun.Bls12_381_G2_hashToGroup        => bls12_381_G2_hashToGroup
+            case DefaultFun.Bls12_381_G2_compress           => bls12_381_G2_compress
+            case DefaultFun.Bls12_381_G2_uncompress         => bls12_381_G2_uncompress
+            case DefaultFun.Bls12_381_millerLoop            => bls12_381_millerLoop
+            case DefaultFun.Bls12_381_finalVerify           => bls12_381_finalVerify
 }
