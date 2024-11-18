@@ -374,18 +374,9 @@ class PatternMatchingCompiler(val compiler: SIRCompiler)(using Context) {
                             // TODO: extract rhs to a let binding before the match
                             // so we don't have to repeat it for each case
                             // also we have no way toknowtype-arameters, so use abstract type-vars (will use FreeUnificator))
-                            // val typeArgs = constr.typeParams.map(tp => SIRType.TypeVar(tp.name.show, Some(tp.hashCode)))
+                            val typeArgs = constr.typeParams.map(tp => SIRType.FreeUnificator)
                             val constrDecl = retrieveConstrDecl(env, constr, srcPos)
-                            if (constr.typeParams.nonEmpty) then
-                                compiler.error(
-                                  GenericError(
-                                    s"Wildcard case can't be used with type parameters",
-                                    srcPos
-                                  ),
-                                  ()
-                                )
-                            else expandedCases += constructCase(constrDecl, bindings, Nil, rhs)
-                            expandedCases += constructCase(constrDecl, bindings, Nil, rhs)
+                            expandedCases += constructCase(constrDecl, bindings, typeArgs, rhs)
                             matchedConstructors += constr // collect all matched constructors
                         }
                 case SirCase.Error(err) => compiler.error(err, ())

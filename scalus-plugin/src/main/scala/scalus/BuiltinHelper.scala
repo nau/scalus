@@ -87,7 +87,26 @@ class BuiltinHelper(using Context) {
       "serialiseData" -> SIRBuiltins.serialiseData,
       "mkPairData" -> SIRBuiltins.mkPairData,
       "mkNilData" -> SIRBuiltins.mkNilData,
-      "mkNilPairData" -> SIRBuiltins.mkNilPairData
+      "mkNilPairData" -> SIRBuiltins.mkNilPairData,
+      "bls12_381_G1_add" -> SIRBuiltins.bls12_381_G1_add,
+      "bls12_381_G1_neg" -> SIRBuiltins.bls12_381_G1_neg,
+      "bls12_381_G1_scalarMul" -> SIRBuiltins.bls12_381_G1_scalarMul,
+      "bls12_381_G1_equal" -> SIRBuiltins.bls12_381_G1_equal,
+      "bls12_381_G1_hashToGroup" -> SIRBuiltins.bls12_381_G1_hashToGroup,
+      "bls12_381_G1_compress" -> SIRBuiltins.bls12_381_G1_compress,
+      "bls12_381_G1_uncompress" -> SIRBuiltins.bls12_381_G1_uncompress,
+      "bls12_381_G2_add" -> SIRBuiltins.bls12_381_G2_add,
+      "bls12_381_G2_neg" -> SIRBuiltins.bls12_381_G2_neg,
+      "bls12_381_G2_scalarMul" -> SIRBuiltins.bls12_381_G2_scalarMul,
+      "bls12_381_G2_equal" -> SIRBuiltins.bls12_381_G2_equal,
+      "bls12_381_G2_hashToGroup" -> SIRBuiltins.bls12_381_G2_hashToGroup,
+      "bls12_381_G2_compress" -> SIRBuiltins.bls12_381_G2_compress,
+      "bls12_381_G2_uncompress" -> SIRBuiltins.bls12_381_G2_uncompress,
+      "bls12_381_mulMlResult" -> SIRBuiltins.bls12_381_mulMlResult,
+      "bls12_381_millerLoop" -> SIRBuiltins.bls12_381_millerLoop,
+      "bls12_381_finalVerify" -> SIRBuiltins.bls12_381_finalVerify,
+      "keccak_256" -> SIRBuiltins.keccak_256,
+      "blake2b_224" -> SIRBuiltins.blake2b_224,
     )
 
     // val DefaultFunValues: Map[Symbol, DefaultFun] = DefaultFun.values
