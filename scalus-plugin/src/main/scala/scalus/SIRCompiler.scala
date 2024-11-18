@@ -619,8 +619,7 @@ final class SIRCompiler(mode: scalus.Mode)(using ctx: Context) {
         // NOTE: check ps.tpe is not Nothing, as Nothing is a subtype of everything
         else if vd.tpe <:< PlatformSpecificClassSymbol.typeRef && !(vd.tpe =:= NothingSymbol.typeRef)
         then
-            // println(s"Ignore PlatformSpecific: ${vd.symbol.fullName}")
-            CompileMemberDefResult.Builtin(name.show, sirTypeInEnv(vd.tpe, vd.srcPos, env))
+            CompileMemberDefResult.Builtin(name.show, SIRType.FreeUnificator)
         else
             // TODO store comments in the SIR
             // vd.rawComment
@@ -651,9 +650,18 @@ final class SIRCompiler(mode: scalus.Mode)(using ctx: Context) {
                     List(("_" -> SIRType.VoidPrimitive)) /* Param for () argument */
                 else
                     params.map { case v: ValDef =>
-                        val tEnv =
-                            SIRTypesHelper.SIRTypeEnv(v.srcPos, env.typeVars ++ typeParamsMap)
-                        val vType = sirTypeInEnv(v.tpe, tEnv)
+                        val tEnv = SIRTypesHelper.SIRTypeEnv(v.srcPos, env.typeVars ++ typeParamsMap)
+                        val vType =
+                            try
+                                sirTypeInEnv(v.tpe, tEnv)
+                            catch
+                                case NonFatal(e) =>
+                                    println(
+                                      s"Error in sirTypeInEnv: ${v.tpe.show} ${v.tpe.widen.show}"
+                                    )
+                                    println(s"Params: ${params}")
+                                    println(s"TypeParams: ${typeParams}")
+                                    throw e
                         (v.symbol.name.show, vType)
                     }
             val body = dd.rhs

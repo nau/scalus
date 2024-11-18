@@ -2,6 +2,8 @@ package scalus
 
 import dotty.tools.dotc.*
 import dotty.tools.dotc.core.*
+import dotty.tools.dotc.core.Names.*
+import dotty.tools.dotc.core.StdNames.*
 import dotty.tools.dotc.core.Contexts.Context
 import dotty.tools.dotc.core.Types.*
 import dotty.tools.dotc.core.Symbols.*
@@ -13,7 +15,8 @@ object SIRTypesHelper {
     case class SIRTypeEnv(
         pos: SrcPos,
         vars: Map[Symbol, SIRType],
-        forwardRefs: Map[Symbol, SIRType.TypeProxy] = Map.empty
+        forwardRefs: Map[Symbol, SIRType.TypeProxy] = Map.empty,
+        trace: Boolean = false
     )
 
     case class TypingException(tpe: Type, pos: SrcPos, msg: String, cause: Throwable = null)
@@ -30,7 +33,8 @@ object SIRTypesHelper {
     }
 
     def sirTypeInEnvWithErr(tp: Type, env: SIRTypeEnv)(using Context): SIRType =
-        // println(s"sirTypeInEnvWithErr ${tp.show},  env=${env}")
+        if (env.trace) then
+            println(s"sirTypeInEnvWithErr ${tp.show},  env=${env}")
         val retval = tp match
             case tpc: TermRef =>
                 if (tpc.typeSymbol.isTypeParam) then
@@ -66,7 +70,14 @@ object SIRTypesHelper {
             case tpc: SuperType =>
                 ???
             case tpc: RefinedType =>
-                sirTypeInEnvWithErr(tpc.parent, env)
+                println(s"RefinedType ${tpc.show}")
+                if (tpc <:< defn.PolyFunctionType) {
+                    // then this is a type of applyMethod
+                    val applyTpe = tpc.member(nme.apply).info
+                    sirTypeInEnvWithErr(applyTpe, env)
+                } else {
+                    sirTypeInEnvWithErr(tpc.parent, env)
+                }
             case tp: AppliedType =>
                 if (tp.tycon.isRef(defn.MatchCaseClass)) then
                     unsupportedType(tp, "MatchCaseClass", env)
@@ -128,7 +139,6 @@ object SIRTypesHelper {
             // case tpf: FlexibleType =>
             //    sirTypeInEnv(tpf.underlying, env)
             case classInfo: ClassInfo =>
-                ???
                 makeSIRNonFunClassType(classInfo.appliedRef, Nil, env)
             case typeVar: TypeVar =>
                 env.vars.get(typeVar.typeSymbol) match
@@ -273,6 +283,12 @@ object SIRTypesHelper {
                         null
                       )
                     )
+        else if ( symbol == Symbols.requiredClass("scalus.builtin.BLS12_381_G1_Element") ) then
+            Some(SIRType.BLS12_381_G1_Element)
+        else if ( symbol == Symbols.requiredClass("scalus.builtin.BLS12_381_G2_Element") ) then
+            Some(SIRType.BLS12_381_G2_Element)
+        else if ( symbol == Symbols.requiredClass("scalus.builtin.BLS12_381_MlResult") ) then
+            Some(SIRType.BLS12_381_MlResult)
         else None
     }
 
