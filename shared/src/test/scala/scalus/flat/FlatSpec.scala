@@ -52,6 +52,26 @@ class FlatSpec extends AnyFunSuite with ScalaCheckPropertyChecks with ArbitraryI
         }
     }
 
+    test("encode/decode numeric analog of SIRType Fun[Int,Fun[Int,Int]]") {
+        val enc = new EncoderState(20)
+        enc.bits(4,8)
+        enc.bits(4,1)
+        enc.bits(4,8)
+        enc.bits(4,1)
+        enc.bits(4,1)
+        val decoder = new DecoderState(enc.buffer)
+        val t1 = decoder.bits8(4)
+        assert(t1 == 8)
+        val t2 = decoder.bits8(4)
+        assert(t2 == 1)
+        val t3 = decoder.bits8(4)
+        assert(t3 == 8)
+        val t4 = decoder.bits8(4)
+        assert(t4 == 1)
+        val t5 = decoder.bits8(4)
+        assert(t5 == 1)
+    }
+
     test("encode/decode Array[Byte]") {
         val fl = summon[Flat[Array[Byte]]]
 
