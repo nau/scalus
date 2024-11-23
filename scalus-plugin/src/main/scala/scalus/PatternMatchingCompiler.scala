@@ -454,7 +454,7 @@ class PatternMatchingCompiler(val compiler: SIRCompiler)(using Context) {
             .getOrElse(Nil)
         // val constrDecl = scalus.sir.ConstrDecl(constructorSymbol.show, SIRVarStorage.DEFAULT, primaryConstructorParams, constrTypeParamsList, parentTypeArgs)
         val constrDecl = scalus.sir.ConstrDecl(
-          constructorSymbol.show,
+          constructorSymbol.name.show,
           SIRVarStorage.DEFAULT,
           primaryConstructorParams,
           constrTypeParamsList

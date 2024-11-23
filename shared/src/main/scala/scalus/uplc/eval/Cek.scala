@@ -809,6 +809,12 @@ class CekMachine(
                         Return(ctx, env, res)
                     case _ => throw new BuiltinTermArgumentExpectedMachineError(term1(), env)
             case _ =>
+                value match
+                    case VLamAbs(name, term, env) =>
+                        import scalus.pretty
+                        println(s"non-plymorhic lambda beofre force, name=${name}")
+                        println(term.pretty.render(100))
+                    case _ =>
                 throw new NonPolymorphicInstantiationMachineError(value, env)
     }
 

@@ -39,6 +39,10 @@ case class ConstrDecl(
 
 ) {
 
+    if (name.contains(" ") || name.contains("\u0021")) {
+        throw new RuntimeException("Invalud name in constructor: " + name)
+    }
+
     def tp: SIRType =
         typeParams match
             case Nil        => SIRType.CaseClass(this, typeParams)
