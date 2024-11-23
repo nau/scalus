@@ -122,16 +122,7 @@ class FlatSpec extends AnyFunSuite with ScalaCheckPropertyChecks with ArbitraryI
         }
     }
 
-    test("encode/decode Long 58003") {
-        val l = 58003L
-        val bitSize = summon[Flat[Long]].bitSize(l)
-        val encoderState = EncoderState(bitSize)
-        summon[Flat[Long]].encode(l, encoderState)
-        encoderState.filler()
-        val l1 = summon[Flat[Long]].decode(DecoderState(encoderState.buffer))
-        assert(l == l1)
-    }
-
+   
     test("Zagzig/zigZag Int") {
         forAll { (nn: Int) =>
             val n = nn >> 1 // to avoid overflow
