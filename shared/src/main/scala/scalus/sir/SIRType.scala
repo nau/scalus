@@ -12,7 +12,7 @@ sealed trait SIRType {
     def show: String
 
     def unifyEq(that: SIRType): Boolean =
-        SIRType.unify(this, that, Map.empty) match
+        SIRType.unify(this, that, Map.empty, false) match
             case SIRType.SuccessfulUnificationResult(_, _) => true
             case _                                         => false
 
@@ -352,10 +352,10 @@ object SIRType {
 
     }
 
-    def calculateApplyType(f: SIRType, arg: SIRType, env: Map[TypeVar, SIRType]): SIRType =
+    def calculateApplyType(f: SIRType, arg: SIRType, env: Map[TypeVar, SIRType], debug: Boolean = false): SIRType =
         f match {
             case Fun(in, out) =>
-                unify(in, arg, env) match
+                unify(in, arg, env, debug) match
                     case r: SuccessfulUnificationResult[?] => substitute(out, r.env, Map.empty)
                     case e: ErroredUnificationResult       => TypeError(e.msg, null)
                     case EmptyUnificationResult => TypeError(s"Cannot unify $in with $arg", null)
@@ -367,10 +367,10 @@ object SIRType {
                 val newEnv = params.foldLeft(env) { case (acc, tv) =>
                     acc + (tv -> FreeUnificator)
                 }
-                calculateApplyType(body, arg, newEnv)
+                calculateApplyType(body, arg, newEnv, debug)
             case TypeProxy(next) =>
                 if (next == null) then TypeError(s"TypeProxy is not resolved: $f", null)
-                else calculateApplyType(next, arg, env)
+                else calculateApplyType(next, arg, env, debug)
             case other =>
                 TypeError(s"Expected function type, got $other", null)
         }
@@ -427,10 +427,13 @@ object SIRType {
     def unify(
         left: SIRType,
         right: SIRType,
-        env: Map[TypeVar, SIRType]
+        env: Map[TypeVar, SIRType],
+        debug: Boolean
     ): UnificationResult[SIRType] = {
 
-        println(s"unify: left: ${left.show}, right: ${right.show}, env: $env")
+        if (debug) {
+            println(s"unify: left: ${left.show}, right: ${right.show}, env: $env")
+        }
 
         def checkLeftTypeVar(tv: TypeVar): UnificationResult[SIRType] =
             right match
@@ -441,7 +444,7 @@ object SIRType {
                         case Some(tv1) =>
                             if (tv1 == FreeUnificator) then
                                 SuccessfulUnificationResult(right, env + (tv -> right))
-                            else unify(tv1, right, env)
+                            else unify(tv1, right, env, debug)
                         case None =>
                             UnificationResult.error(s"Unbound type variable $tv")
 
@@ -449,7 +452,7 @@ object SIRType {
             env.get(tv) match
                 case Some(t) =>
                     if t == FreeUnificator then UnificationResult.success(left, env + (tv -> left))
-                    else unify(left, t, env)
+                    else unify(left, t, env, debug)
                 case None =>
                     UnificationResult.error(s"Unbound type variable $tv")
 
@@ -457,21 +460,21 @@ object SIRType {
             val newEnv = tl.params.foldLeft(env) { case (acc, tv) =>
                 acc + (tv -> FreeUnificator)
             }
-            unify(tl.body, right, newEnv)
+            unify(tl.body, right, newEnv, debug)
 
         def checkRightTypeLambda(tl: TypeLambda): UnificationResult[SIRType] =
             val newEnv = tl.params.foldLeft(env) { case (acc, tv) =>
                 acc + (tv -> FreeUnificator)
             }
-            unify(left, tl.body, newEnv)
+            unify(left, tl.body, newEnv, debug)
 
         def checkLeftProxy(ltp: TypeProxy): UnificationResult[SIRType] =
             if ltp.ref == null then ErroredUnificationResult(s"Unresolved type proxy $ltp")
-            else unify(ltp.ref, right, env)
+            else unify(ltp.ref, right, env, debug)
 
         def checkRightProxy(rtp: TypeProxy): UnificationResult[SIRType] =
             if rtp.ref == null then ErroredUnificationResult(s"Unresolved type proxy $rtp")
-            else unify(left, rtp.ref, env)
+            else unify(left, rtp.ref, env, debug)
 
         def checkRightNoSame: UnificationResult[SIRType] =
             right match
@@ -496,7 +499,7 @@ object SIRType {
                 UnificationResult.success(scala.List.empty, env)
             val r = left.zip(right).foldLeft(s0) {
                 case (SuccessfulUnificationResult(accUnificator, env), (l, r)) =>
-                    unify(l, r, env) match
+                    unify(l, r, env, debug) match
                         case SuccessfulUnificationResult(unificator, env) =>
                             SuccessfulUnificationResult(unificator :: accUnificator, env)
                         case e @ ErroredUnificationResult(msg) => e
@@ -522,7 +525,7 @@ object SIRType {
                     .zip(right.typeParams)
                     .foldLeft(s0) {
                         case (SuccessfulUnificationResult(accUnificator, env), (l, r)) =>
-                            unify(l, r, env) match
+                            unify(l, r, env, debug) match
                                 case SuccessfulUnificationResult(unificator, env) =>
                                     SuccessfulUnificationResult(l :: accUnificator, env)
                                 case ErroredUnificationResult(msg) => ErroredUnificationResult(msg)
@@ -552,9 +555,10 @@ object SIRType {
             case ccl @ CaseClass(constrDecl, typeArgs) =>
                 right match
                     case rrl @ CaseClass(constrDeclRight, typeArgsRight) =>
-                        println(
-                          s"CaseClass: constrDecl: $constrDecl, constrDeclRight: $constrDeclRight, same=${constrDecl == constrDeclRight}"
-                        )
+                        if (debug) then
+                            println(
+                                s"CaseClass: constrDecl: $constrDecl, constrDeclRight: $constrDeclRight, same=${constrDecl == constrDeclRight}"
+                            )
                         if constrDecl == constrDeclRight then
                             unifyListOfTypes(typeArgs, typeArgsRight, env).map(
                               CaseClass(constrDecl, _)
@@ -574,9 +578,10 @@ object SIRType {
             case SumCaseClass(declLeft, typeArgsLeft) =>
                 right match
                     case SumCaseClass(declRight, typeArgsRight) =>
-                        println(
-                          s"SumCaseClass: declLeft: $declLeft, declRight: $declRight, same=${declLeft == declRight}"
-                        )
+                        if (debug) then
+                            println(
+                                s"SumCaseClass: declLeft: $declLeft, declRight: $declRight, same=${declLeft == declRight}"
+                            )
                         unifyDecl(declLeft, declRight, env) match
                             case SuccessfulUnificationResult(declUnificator, env) =>
                                 unifyListOfTypes(typeArgsLeft, typeArgsRight, env).map(
@@ -598,9 +603,9 @@ object SIRType {
             case Fun(inLeft, outLeft) =>
                 right match
                     case Fun(inRight, outRight) =>
-                        unify(inLeft, inRight, env) match
+                        unify(inLeft, inRight, env, debug) match
                             case SuccessfulUnificationResult(unificator, env) =>
-                                unify(outLeft, outRight, env).map(Fun(unificator, _))
+                                unify(outLeft, outRight, env, debug).map(Fun(unificator, _))
                             case e @ ErroredUnificationResult(msg) => e
                             case EmptyUnificationResult            => EmptyUnificationResult
                     case _ =>
@@ -617,7 +622,8 @@ object SIRType {
             case tp: TypeProxy =>
                 checkLeftProxy(tp)
 
-        println(s"unify: left: ${left.show}, right: ${right.show}, env: $env, retval: $retval")
+        if debug then
+            println(s"unify: left: ${left.show}, right: ${right.show}, env: $env, retval: $retval")
         retval
     }
 
