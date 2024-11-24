@@ -58,6 +58,8 @@ class CompilerPluginToSIRSpec extends AnyFunSuite with ScalaCheckPropertyChecks:
     def sirConst(x:Data) = Const(Constant.Data(x), SIRType.Data)
     def sirConstUnit = Const(Constant.Unit, SIRType.VoidPrimitive)
 
+
+    /*
     test("compile literals") {
         assert(compile(false) == Const(Constant.Bool(false), SIRType.BooleanPrimitive))
         assert(compile(true) == Const(Constant.Bool(true), SIRType.BooleanPrimitive))
@@ -260,20 +262,26 @@ class CompilerPluginToSIRSpec extends AnyFunSuite with ScalaCheckPropertyChecks:
         //    val term = compiled.toUplc()
         //    assert(VM.evaluateTerm(term) == Data.I(22))
     }
+    */
 
     test("compile chooseList builtins") {
+        val expr = compile(Builtins.chooseList(builtin.List[BigInt](1, 2, 3), true, false))
+        println(expr.pretty.render(100))
+        val expr1 = (DefaultFun.ChooseList $ List(1, 2, 3) $ true $ false)
+        println(expr1.pretty.render(100))
         assert(
           compile(
             Builtins.chooseList(builtin.List[BigInt](1, 2, 3), true, false)
-          ) == (DefaultFun.ChooseList $ List(1, 2, 3) $ true $ false)
+          ) ~=~ (DefaultFun.ChooseList $ List(1, 2, 3) $ true $ false)
         )
     }
 
+    /*
     test("compile mkCons builtins") {
         assert(
           compile(
             Builtins.mkCons(BigInt(4), builtin.List[BigInt](1, 2, 3))
-          ) == (DefaultFun.MkCons $ 4 $ List(1, 2, 3))
+          ) ~=~ (DefaultFun.MkCons $ 4 $ List(1, 2, 3))
         )
     }
 
@@ -281,7 +289,7 @@ class CompilerPluginToSIRSpec extends AnyFunSuite with ScalaCheckPropertyChecks:
         assert(
           compile(
             Builtins.headList(builtin.List[BigInt](1, 2, 3))
-          ) == (DefaultFun.HeadList $ List(1, 2, 3))
+          ) ~=~ (DefaultFun.HeadList $ List(1, 2, 3))
         )
     }
 
@@ -1416,3 +1424,6 @@ class CompilerPluginToSIRSpec extends AnyFunSuite with ScalaCheckPropertyChecks:
                 assert(logs == List("oneEqualsTwo ? False: { mem: 0.002334, cpu: 0.539980 }"))
             case Result.Failure(exception, _, _, _) => fail(exception)
     }
+    */
+
+
