@@ -4,7 +4,7 @@ import scalus.flat.FlatInstantces.SIRTypeHashConsedFlat
 import scalus.flat.FlatInstantces.SIRHashConsedFlat
 
 import scala.quoted.*
-import scalus.sir.SIRType.{unify, TypeVar}
+import scalus.sir.SIRType.TypeVar
 import scalus.utils.*
 import scalus.flat.*
 
@@ -55,8 +55,8 @@ object ToExpHSSIRTypeFlat extends HashConsedFlat[SIRType] {
             val ref = SIRTypeHashConsedFlat.decodeHC(decoderState)
             val sirType1 = ref.finValue(decoderState.hashConsed, 0, new HSRIdentityHashMap)
             decoderState.runFinCallbacks()
-            val unifyResult = unify(a, sirType1, Map.empty, false)
-            if (!unifyResult.isDefined) then
+            val unifyResult = SIRUnify.unifyType(a, sirType1, SIRUnify.Env.empty)
+            if (!unifyResult.isSuccess) then
                 println("unification for encoding/decoding failed")
                 println(s"original: ${a.show}")
                 println(s"decoded: ${sirType1.show}")

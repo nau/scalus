@@ -1,7 +1,7 @@
 package scalus.sir
 
 
-import scalus.sir.SIRType.{TypeVar, unify}
+
 
 import java.util
 import java.util.IdentityHashMap
@@ -23,6 +23,13 @@ object SIRUnify {
 
 
     sealed trait UnificationResult[+T] {
+
+           def isSuccess: Boolean = this match {
+                case UnificationSuccess(_, _) => true
+                case UnificationFailure(_, _, _) => false
+           }
+
+           def isFailure: Boolean = !isSuccess
 
            def map[U](f: T => U): UnificationResult[U] = this match {
                 case UnificationSuccess(env, unificator) => UnificationSuccess(env, f(unificator))
@@ -572,13 +579,13 @@ object SIRUnify {
 
     // should not be given,  because this contradict with using type-vars in type unification.
     //  This unification is ised when we check - are two ContrDecl or DataDecl are the same
-    object TypeVarSyntaxUnify extends Unify[TypeVar] {
-        def apply(left: TypeVar, right: TypeVar, env: Env): UnificationResult[TypeVar] = {
+    object TypeVarSyntaxUnify extends Unify[SIRType.TypeVar] {
+        def apply(left: SIRType.TypeVar, right: SIRType.TypeVar, env: Env): UnificationResult[SIRType.TypeVar] = {
             unifyTypeVarSyntaxically(left, right, env)
         }
     }
 
-    def unifyTypeVarSyntaxically(v1: TypeVar, v2: TypeVar, env: Env): UnificationResult[TypeVar] = {
+    def unifyTypeVarSyntaxically(v1: SIRType.TypeVar, v2: SIRType.TypeVar, env: Env): UnificationResult[SIRType.TypeVar] = {
         if (v1 == v2) then
             UnificationSuccess(env, v1)
         else
