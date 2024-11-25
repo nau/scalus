@@ -2,8 +2,10 @@ package scalus.sir
 
 import scalus.uplc.Constant
 import scalus.uplc.DefaultFun
+import scalus.pretty
 
 object SirDSL:
+    
     def applyToList(app: SIRExpr): (SIRExpr, List[SIRExpr]) =
         app match
             case SIR.Apply(f, arg, tp) =>
@@ -24,6 +26,11 @@ object SirDSL:
         names.foldRight(term)((e, s) => SIR.LamAbs(SIR.Var(e, s.tp), s))
     extension (term: SIRExpr)
         infix def $(rhs: SIRExpr): SIRExpr =
+            println(s"Applying $term to $rhs")
+            println(s"fun: ${term.pretty.render(100)}")
+            println(s"fun.tp: ${term.tp.show}")
+            println(s"arg: ${rhs.pretty.render(100)}")
+            println(s"arg.tp: ${rhs.tp.show}")
             SIR.Apply(term, rhs, SIRType.calculateApplyType(term.tp, rhs.tp, Map.empty))
 
     given Conversion[DefaultFun, SIRExpr] with

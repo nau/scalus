@@ -22,9 +22,11 @@ import scalus.sir.Recursivity.*
 import scalus.sir.SIR
 import scalus.sir.SIR.*
 import scalus.sir.SIRBuiltins
+import scalus.sir.SIRExpr
 import scalus.sir.SIRType
 import scalus.sir.SIRType.{BooleanPrimitive, TypeVar}
 import scalus.sir.SIRVarStorage
+import scalus.sir.SIRUnify
 import scalus.sir.SirDSL.{*, given}
 import scalus.uplc.DefaultFun.*
 import scalus.uplc.DefaultUni.asConstant
@@ -267,8 +269,25 @@ class CompilerPluginToSIRSpec extends AnyFunSuite with ScalaCheckPropertyChecks:
     test("compile chooseList builtins") {
         val expr = compile(Builtins.chooseList(builtin.List[BigInt](1, 2, 3), true, false))
         println(expr.pretty.render(100))
-        val expr1 = (DefaultFun.ChooseList $ List(1, 2, 3) $ true $ false)
+
+
+
+        val expr1 = (DefaultFun.ChooseList $ scala.collection.immutable.List(1, 2, 3) $ true $ false)
         println(expr1.pretty.render(100))
+
+
+
+        val unifyResult = SIRUnify.unifySIR(expr, expr1, SIRUnify.Env.empty)
+
+        println(s"unifyResult = ${unifyResult}")
+
+        (expr, expr1) match {
+            case (expr0: SIRExpr, expr1: SIRExpr) =>
+                println(s"tp0=${expr0.tp.show},  tp1=${expr1.tp.show}")
+            case _ =>
+                println("result of compile is not SIRExpr")
+        }
+
         assert(
           compile(
             Builtins.chooseList(builtin.List[BigInt](1, 2, 3), true, false)

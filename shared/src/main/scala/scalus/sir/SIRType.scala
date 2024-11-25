@@ -10,7 +10,7 @@ sealed trait SIRType {
     type Carrier
 
     def show: String
-    
+
     def ~=~(that: SIRType): Boolean =
         SIRUnify.unifyType(this, that, SIRUnify.Env.empty).isSuccess
 
@@ -112,9 +112,11 @@ object SIRType {
     }
 
     case class SumCaseClass(decl: DataDecl, typeArgs: scala.List[SIRType]) extends SIRType {
+
         override def show: String =
             if (typeArgs.isEmpty) then decl.name
             else s"${decl.name}[${typeArgs.map(_.show).mkString(", ")}]"
+
     }
 
     case class Fun(in: SIRType, out: SIRType) extends SIRType {
@@ -190,7 +192,7 @@ object SIRType {
       */
     case class TypeLambda(params: scala.List[TypeVar], body: SIRType) extends SIRType {
 
-        override def show: String = s" [${params.map(_.show).mkString(",")}] =>> ${body}"
+        override def show: String = s" [${params.map(_.show).mkString(",")}] =>> ${body.show}"
 
     }
 
@@ -348,30 +350,39 @@ object SIRType {
 
     }
 
+    case class TypingException(msg: String, cause: Throwable | Null = null) extends RuntimeException(msg, cause)
+
+
     def calculateApplyType(f: SIRType, arg: SIRType, env: Map[TypeVar, SIRType], debug: Boolean = false): SIRType =
         f match {
             case Fun(in, out) =>
                 // TODO: check unification exceptions and rethrow as type exception
                 SIRUnify.unifyType(in, arg, SIRUnify.Env.empty.copy(filledTypes = env, debug=debug)) match
                     case r: SIRUnify.UnificationSuccess[?] => substitute(out, r.env.filledTypes, Map.empty)
-                    case e: SIRUnify.UnificationFailure[?] => 
-                                                TypeError(s"Cannot unify $in with $arg, difference at path ${e.path}", null)
+                    case e: SIRUnify.UnificationFailure[?] =>
+                          val message = s"Cannot unify $in with $arg, difference at path ${e.path}"
+                          println(s"fun=$f")
+                          println(s"in=$in")
+                          println(s"arg=$arg")
+                          throw new TypingException(message)
+                          //TypeError(s"Cannot unify $in with $arg, difference at path ${e.path}", null)
             case tvF @ TypeVar(name, _) =>
                 env.get(tvF) match
                     case Some(f1) => calculateApplyType(tvF, arg, env)
-                    case None     => TypeError(s"Unbound type variable $name", null)
+                    case None     =>
+                        throw new TypingException(s"Unbound type variable $name")
             case TypeLambda(params, body) =>
                 val newEnv = params.foldLeft(env) { case (acc, tv) =>
                     acc + (tv -> FreeUnificator)
                 }
                 calculateApplyType(body, arg, newEnv, debug)
             case TypeProxy(next) =>
-                if (next == null) then TypeError(s"TypeProxy is not resolved: $f", null)
+                if (next == null) then throw TypingException(s"TypeProxy is not resolved: $f")
                 else calculateApplyType(next, arg, env, debug)
             case other =>
-                TypeError(s"Expected function type, got $other", null)
+                throw TypingException(s"Expected function type, got $other", null)
         }
-    
+
     def substitute(
         rType: SIRType,
         env: Map[SIRType.TypeVar, SIRType],
@@ -409,10 +420,24 @@ object SIRType {
             case DefaultUni.Bool       => BooleanPrimitive
             case DefaultUni.Unit       => VoidPrimitive
             case DefaultUni.Data       => Data
-            case DefaultUni.ProtoList  => List(FreeUnificator)
-            case DefaultUni.ProtoPair  => Pair(FreeUnificator, FreeUnificator)
+            case DefaultUni.ProtoList  => 
+                         val a = TypeVar("A", Some(DefaultUni.ProtoList.hashCode()))
+                         TypeLambda(scala.List(a), SumCaseClass(List.dataDecl, scala.List(a)))
+            case DefaultUni.ProtoPair  => Pair
+                         val a = TypeVar("A", Some(DefaultUni.ProtoPair.hashCode()))
+                         val b = TypeVar("B", Some(DefaultUni.ProtoPair.hashCode()+1))
+                         TypeLambda(scala.List(a, b), Pair(a, b))
             case DefaultUni.Apply(f, arg) =>
-                SIRType.Fun(fromDefaultUni(f), fromDefaultUni(arg))
+                f match
+                    case DefaultUni.ProtoList =>
+                        List(fromDefaultUni(arg))
+                    case  DefaultUni.Apply(DefaultUni.ProtoPair, a) =>
+                        Pair(fromDefaultUni(a), fromDefaultUni(arg))
+                    case DefaultUni.ProtoPair =>
+                        val a = TypeVar("A", Some(DefaultUni.ProtoPair.hashCode()))
+                        TypeLambda(scala.List(a), Pair(a, fromDefaultUni(arg)))
+                    case _ =>    
+                        SIRType.Fun(fromDefaultUni(f), fromDefaultUni(arg))
     }
 
 }

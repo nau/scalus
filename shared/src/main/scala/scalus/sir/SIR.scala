@@ -74,7 +74,7 @@ sealed trait SIR {
             case SIRUnify.UnificationSuccess(_, _) => true
             case SIRUnify.UnificationFailure(_,_,_)  => false
         }
-    
+
 }
 
 sealed trait SIRExpr extends SIR {
@@ -122,7 +122,7 @@ object SIR:
                     SIRType.TypeLambda(tvars, SIRType.Fun(param.tp, tpexpr))
                 case _ =>
                     SIRType.Fun(param.tp, term.tp)
-        
+
     }
 
 
@@ -141,10 +141,10 @@ object SIR:
             case _ => throw new Exception("Apply: f is not a function")
         }
          */
-        
+
     }
 
-    case class Const(uplcConst: Constant, tp: SIRType) extends SIRExpr 
+    case class Const(uplcConst: Constant, tp: SIRType) extends SIRExpr
 
 
     case class And(a: SIRExpr, b: SIRExpr) extends SIRExpr {
@@ -170,7 +170,7 @@ object SIR:
         override def tp: SIRType = SIRType.TypeError(msg, cause)
     }
 
-    
+
     // TODO: unify data-decl.
     case class Constr(name: String, data: DataDecl, args: List[SIRExpr]) extends SIRExpr {
         override def tp: SIRType = data.tp
@@ -181,7 +181,7 @@ object SIR:
         bindings: List[String],
         typeBindings: List[SIRType],
         body: SIRExpr
-    ) 
+    )
 
     /** Match expression.
       * @param scrutinee
@@ -189,10 +189,10 @@ object SIR:
       * @param tp
       *   \- resulting type of Match expression, can be calculated as max(tp of all cases)
       */
-    case class Match(scrutinee: SIRExpr, cases: List[Case], tp: SIRType) extends SIRExpr 
+    case class Match(scrutinee: SIRExpr, cases: List[Case], tp: SIRType) extends SIRExpr
 
-    case class Hole(name: String, override val tp: SIRType = FreeUnificator) extends SIRExpr 
-    
+    case class Hole(name: String, override val tp: SIRType = FreeUnificator) extends SIRExpr
+
     case class Decl(data: DataDecl, term: SIR) extends SIRDef
 
 
