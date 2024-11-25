@@ -44,10 +44,10 @@ case class ConstrDecl(
         throw new RuntimeException("Invalud name in constructor: " + name)
     }
 
-    def tp: SIRType =
-        typeParams match
-            case Nil        => SIRType.CaseClass(this, typeParams)
-            case tp :: tail => SIRType.TypeLambda(typeParams, SIRType.CaseClass(this, typeParams))
+    val tp: SIRType = typeParams match
+                case Nil => SIRType.CaseClass(this, typeParams)
+                case tp :: tail => SIRType.TypeLambda(typeParams, SIRType.CaseClass(this, typeParams))
+    
 
 }
 
@@ -57,11 +57,10 @@ case class DataDecl(
     typeParams: List[SIRType.TypeVar]
     /*constructorTypeMapping: Map[String, List[SIRType]]*/
 ) {
-
-    def tp: SIRType =
-        typeParams match
-            case Nil => SIRType.SumCaseClass(this, Nil)
-            case _   => SIRType.TypeLambda(typeParams, SIRType.SumCaseClass(this, typeParams))
+    
+    val tp: SIRType = typeParams match
+                    case Nil => SIRType.SumCaseClass(this, Nil)
+                    case _   => SIRType.TypeLambda(typeParams, SIRType.SumCaseClass(this, typeParams))
 
 }
 
