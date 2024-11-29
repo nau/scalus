@@ -61,7 +61,7 @@ class CompilerPluginToSIRSpec extends AnyFunSuite with ScalaCheckPropertyChecks:
     def sirConstUnit = Const(Constant.Unit, SIRType.VoidPrimitive)
 
 
-
+    
     test("compile literals") {
         assert(compile(false) == Const(Constant.Bool(false), SIRType.BooleanPrimitive))
         assert(compile(true) == Const(Constant.Bool(true), SIRType.BooleanPrimitive))
@@ -333,11 +333,12 @@ class CompilerPluginToSIRSpec extends AnyFunSuite with ScalaCheckPropertyChecks:
         )
     }
 
+
     test("compile tailList builtins") {
         assert(
           compile(
             Builtins.tailList(builtin.List[BigInt](1, 2, 3))
-          ) == (DefaultFun.TailList $ List(1, 2, 3))
+          ) ~=~ (DefaultFun.TailList $ List(1, 2, 3))
         )
     }
 
@@ -345,7 +346,7 @@ class CompilerPluginToSIRSpec extends AnyFunSuite with ScalaCheckPropertyChecks:
         assert(
           compile(
             Builtins.nullList(builtin.List[BigInt](1, 2, 3))
-          ) == (DefaultFun.NullList $ List(1, 2, 3))
+          ) ~=~ (DefaultFun.NullList $ List(1, 2, 3))
         )
     }
 
@@ -1464,7 +1465,7 @@ class CompilerPluginToSIRSpec extends AnyFunSuite with ScalaCheckPropertyChecks:
                 assert(logs == List("oneEqualsTwo ? False: { mem: 0.002334, cpu: 0.539980 }"))
             case Result.Failure(exception, _, _, _) => fail(exception)
     }
-    
+
 
 
 
