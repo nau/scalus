@@ -140,7 +140,8 @@ object HashConsedFlat {
         def bitSizeHC(a: List[A], hashConsed: HashConsed.State): Int = {
             val elemsSize =
                 a.foldLeft(0)((acc, elem) => acc + 1 + flatA.bitSizeHC(elem, hashConsed))
-            elemsSize + 1
+            val retval = elemsSize + 1
+            retval
         }
         def encodeHC(a: List[A], encode: HashConsedEncoderState): Unit = {
             a.foreach { elem =>

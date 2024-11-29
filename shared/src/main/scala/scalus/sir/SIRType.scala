@@ -5,6 +5,8 @@ import scala.quoted.*
 import scalus.uplc.DefaultUni
 import scalus.sir.SIRType.TypeVar
 
+import java.util
+
 sealed trait SIRType {
 
     type Carrier
@@ -214,6 +216,8 @@ object SIRType {
 
     class TypeProxy(private var _ref: SIRType | Null) extends SIRType {
 
+        val ex = new RuntimeException("type-proxy-created")
+
         override def hashCode(): Int = {
             if (ref == null) then 0
             else
@@ -296,6 +300,8 @@ object SIRType {
               scala.List(TypeVar("A", Some(2)))
             )
             proxy.ref = SumCaseClass(retval, scala.List(TypeVar("A", Some(1))))
+            if (!checkAllProxiesFilled(retval.tp)) then
+                throw new IllegalStateException(s"List dataDecl has unfilled proxies: ${retval.tp}")
             retval
         }
 
@@ -322,6 +328,8 @@ object SIRType {
                   // scala.List(a)
                 )
             }
+
+
 
             // TODO:  remove duplication via cache
             lazy val constr = {
@@ -420,7 +428,7 @@ object SIRType {
             case DefaultUni.Bool       => BooleanPrimitive
             case DefaultUni.Unit       => VoidPrimitive
             case DefaultUni.Data       => Data
-            case DefaultUni.ProtoList  => 
+            case DefaultUni.ProtoList  =>
                          val a = TypeVar("A", Some(DefaultUni.ProtoList.hashCode()))
                          TypeLambda(scala.List(a), SumCaseClass(List.dataDecl, scala.List(a)))
             case DefaultUni.ProtoPair  => Pair
@@ -436,8 +444,45 @@ object SIRType {
                     case DefaultUni.ProtoPair =>
                         val a = TypeVar("A", Some(DefaultUni.ProtoPair.hashCode()))
                         TypeLambda(scala.List(a), Pair(a, fromDefaultUni(arg)))
-                    case _ =>    
+                    case _ =>
                         SIRType.Fun(fromDefaultUni(f), fromDefaultUni(arg))
+    }
+
+    def checkAllProxiesFilled(tp: SIRType): Boolean = {
+        checkAllProxiesFilledTraced(tp, new util.IdentityHashMap[SIRType,SIRType], Nil)
+    }
+
+    def checkAllProxiesFilledTraced(tp: SIRType, traceloops: java.util.IdentityHashMap[SIRType,SIRType], log:List[String]): Boolean = {
+        if (traceloops.get(tp) != null) then true
+        else
+            traceloops.put(tp, tp)
+            tp match
+                case tp: TypeProxy =>
+                    if (tp.ref == null) then
+                        println("Found null typeproxe, created at: ")
+                        tp.ex.printStackTrace()
+                        false
+                    else
+                        if (traceloops.get(tp.ref) != null) then
+                             checkAllProxiesFilledTraced(tp.ref, traceloops, log)
+                        else
+                            true
+                case Fun(in, out) =>
+                    checkAllProxiesFilledTraced(in,traceloops, "in"::log) &&
+                        checkAllProxiesFilledTraced(out, traceloops, "out"::log)
+                case CaseClass(constrDecl, typeArgs) =>
+                    checkAllProxiesFilledTraced(constrDecl.tp, traceloops, s"constrDecl ${constrDecl.name}"::log) &&
+                    constrDecl.params.forall(x => checkAllProxiesFilledTraced(x.tp, traceloops, s"${constrDecl.name} param"::log)) &&
+                    typeArgs.forall(x => checkAllProxiesFilledTraced(x,traceloops, "typeArgs"::log))
+                case SumCaseClass(dataDecl: DataDecl, typeArgs) =>
+                    checkAllProxiesFilledTraced(dataDecl.tp, traceloops, s"dataDecl ${dataDecl.name}"::log) &&
+                     dataDecl.constructors.forall{ constrDecl =>
+                         constrDecl.params.forall(x => checkAllProxiesFilledTraced(x.tp, traceloops, s"${constrDecl.name}"::log))
+                     } &&
+                    typeArgs.forall(x => checkAllProxiesFilledTraced(x, traceloops, "typeArgs"::log))
+                case TypeLambda(params, body) =>
+                    checkAllProxiesFilledTraced(body, traceloops, "type-lambda bofy"::log)
+                case _ => true
     }
 
 }

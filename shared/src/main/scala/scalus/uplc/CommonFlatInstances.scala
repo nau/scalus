@@ -256,7 +256,8 @@ object CommonFlatInstances:
               a.tpe
             ).length * (1 + constantWidth) + 1 // List Cons (1 bit) + constant + List Nil (1 bit)
             val valueSize = flatForUni(a.tpe).bitSize(Constant.toValue(a))
-            uniSize + valueSize
+            val retval = uniSize + valueSize
+            retval
 
         def encode(a: Constant, encoder: EncoderState): Unit =
             val tags = encodeUni(a.tpe)

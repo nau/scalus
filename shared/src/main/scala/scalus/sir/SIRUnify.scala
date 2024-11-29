@@ -288,21 +288,27 @@ object SIRUnify {
     }
 
     def unifyType(left: SIRType, right: SIRType, env: Env): UnificationResult[SIRType] = {
-        if (left eq right) then
-            UnificationSuccess(env, left)
-        else
-            env.parentTypes.get(left) match
-                case Some(parentsRight) =>
-                    if (parentsRight.contains(right)) then
-                        // Too optimistics ?
-                        //    
-                        UnificationSuccess(env, right)
-                    else
-                        val nEnv = env.copy(parentTypes = env.parentTypes.updated(left, parentsRight + right))
+        if (env.debug) then
+            println(s"unifyType: \nleft=$left\nright=$right")
+        val retval =
+            if (left eq right) then
+                UnificationSuccess(env, left)
+            else
+                env.parentTypes.get(left) match
+                    case Some(parentsRight) =>
+                        if (parentsRight.contains(right)) then
+                            // Too optimistics ?
+                            //
+                            UnificationSuccess(env, right)
+                        else
+                            val nEnv = env.copy(parentTypes = env.parentTypes.updated(left, parentsRight + right))
+                            unifyTypeNoRec(left, right, nEnv)
+                    case None =>
+                        val nEnv = env.copy(parentTypes = env.parentTypes.updated(left, Set(right)))
                         unifyTypeNoRec(left, right, nEnv)
-                case None =>
-                    val nEnv = env.copy(parentTypes = env.parentTypes.updated(left, Set(right)))
-                    unifyTypeNoRec(left, right, nEnv)
+        if (env.debug) then
+            println(s"return unifyType\nleft=$left\nright=$right\nretval=$retval")
+        retval
     }
 
     def unifyTypeNoRec(left: SIRType, right: SIRType, env: Env): UnificationResult[SIRType] = {

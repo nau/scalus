@@ -4,7 +4,7 @@ import scalus.flat.FlatInstantces.SIRTypeHashConsedFlat
 import scalus.flat.FlatInstantces.SIRHashConsedFlat
 
 import scala.quoted.*
-import scalus.sir.SIRType.TypeVar
+import scalus.sir.SIRType.{TypeVar, checkAllProxiesFilled}
 import scalus.utils.*
 import scalus.flat.*
 
@@ -36,9 +36,14 @@ class ToExprHS[T](
 /** Note, that this hashconsedflat should not be resolved as given. It is used only as parameter to
   * ToExprHS. Given HashConsedFlat[(something other then Module)] is a no-no.
   */
-object ToExpHSSIRTypeFlat extends HashConsedFlat[SIRType] {
+object ToExprHSSIRTypeFlat extends HashConsedFlat[SIRType] {
+
+    val paranoid = true
 
     override def bitSizeHC(a: SIRType, encoderState: HashConsed.State): Int = {
+        if (paranoid) then
+            if (!SIRType.checkAllProxiesFilled(a)) then
+                throw new IllegalStateException("proxy not filled in $a")
         SIRTypeHashConsedFlat.bitSizeHC(a, encoderState)
     }
 
@@ -47,7 +52,7 @@ object ToExpHSSIRTypeFlat extends HashConsedFlat[SIRType] {
         encoderState.encode.filler()
 
         // not check that it is decoded correctly
-        if (false) then
+        if (paranoid) then
             val decoderState = HashConsedDecoderState(
               DecoderState(encoderState.encode.buffer),
               HashConsed.State.empty
@@ -65,36 +70,66 @@ object ToExpHSSIRTypeFlat extends HashConsedFlat[SIRType] {
                 //
                 throw new IllegalStateException("unification for encoding/decoding failed")
 
+
     }
 
     override def decodeHC(decoderState: HashConsedDecoderState): SIRType = {
         val ref = SIRTypeHashConsedFlat.decodeHC(decoderState)
         decoderState.runFinCallbacks()
-        ref.finValue(decoderState.hashConsed, 0, new HSRIdentityHashMap)
+        val retval = ref.finValue(decoderState.hashConsed, 0, new HSRIdentityHashMap)
+        if (paranoid) then
+            if (!checkAllProxiesFilled(retval)) then
+                throw new IllegalStateException("proxy not filled in $retval")
+        retval
     }
 
 }
 
 object SIRTypeToExpr
-    extends ToExprHS[SIRType](ToExpHSSIRTypeFlat, '{ ToExpHSSIRTypeFlat }, summon[Type[SIRType]])
+    extends ToExprHS[SIRType](ToExprHSSIRTypeFlat, '{ ToExprHSSIRTypeFlat }, summon[Type[SIRType]])
 given ToExprHS[SIRType] = SIRTypeToExpr
 
 /** Called from SIRConverter via reflection.
   */
 object ToExprHSSIRFlat extends HashConsedFlat[SIR] {
 
+    val paranoid = true
+
     override def bitSizeHC(a: SIR, encoderState: HashConsed.State): Int = {
         SIRHashConsedFlat.bitSizeHC(a, encoderState)
     }
 
     override def encodeHC(a: SIR, encoderState: HashConsedEncoderState): Unit = {
+        if (paranoid) {
+            SIRChecker.checkAndThrow(a)
+        }
         SIRHashConsedFlat.encodeHC(a, encoderState)
         encoderState.encode.filler()
+        //if (paranoid) {
+        //    val decoderState = HashConsedDecoderState(
+        //      DecoderState(encoderState.encode.buffer),
+        //      HashConsed.State.empty
+        //    )
+        //    val ref = SIRHashConsedFlat.decodeHC(decoderState)
+        //    val sir1 = ref.finValue(decoderState.hashConsed, 0, new HSRIdentityHashMap)
+        //    decoderState.runFinCallbacks()
+        //    if (!a.~=~(sir1)) {
+        //        println("unification for encoding/decoding failed")
+        //        println(s"original: ${a}")
+        //        println(s"decoded: ${sir1}")
+        //        throw new IllegalStateException("unification for encoding/decoding failed")
+        //    }
+        //}
     }
 
     override def decodeHC(decoderState: HashConsedDecoderState): SIR = {
         val ref = SIRHashConsedFlat.decodeHC(decoderState)
-        ref.finValue(decoderState.hashConsed, 0, new HSRIdentityHashMap)
+        decoderState.runFinCallbacks()
+        val retval = ref.finValue(decoderState.hashConsed, 0, new HSRIdentityHashMap)
+        if (paranoid) {
+            SIRChecker.checkAndThrow(retval)
+        }
+        retval
     }
 
     def decodeBase64(base64: String): SIR = {

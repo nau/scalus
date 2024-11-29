@@ -29,6 +29,9 @@ object SIRTypesHelper {
                 case e: TypingException =>
                     println(s"typing exception during sirTypeInEnv(${tp.show}), tp tree: ${tp}")
                     throw e
+        if (true) then
+           if (!SIRType.checkAllProxiesFilled(retval)) then
+               throw new TypingException(tp, env.pos, s"Unfilled proxies in ${retval.show}")
         retval
     }
 

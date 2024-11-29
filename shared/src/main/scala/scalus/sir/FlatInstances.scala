@@ -96,7 +96,8 @@ object FlatInstantces:
         def bitSizeHC(a: Binding, hashConsed: HashConsed.State): Int =
             val nameSize = summon[Flat[String]].bitSize(a.name)
             val termSize = SIRExprHashConsedFlat.bitSizeHC(a.value, hashConsed)
-            nameSize + termSize
+            val retval = nameSize + termSize
+            retval
 
         def encodeHC(a: Binding, encode: HashConsedEncoderState): Unit =
             summon[Flat[String]].encode(a.name, encode.encode)
@@ -262,14 +263,12 @@ object FlatInstantces:
         }
 
         override def bitSizeHC(a: SIRType, hashConsed: HashConsed.State): Int =
-            // println(s"SIRTypeHashConsedFlat.bisSizeHC start ${a.hashCode()}")
-            var mute = false
+            //println(s"SIRTypeHashConsedFlat.bisSizeHC start ${a.hashCode()} ${a}")
+            var mute = true
             val retval = a match
                 case _: SIRType.Primitive[?] =>
-                    mute = true
                     tagWidth
                 case SIRType.Data =>
-                    mute = true
                     tagWidth
                 case cc: SIRType.CaseClass =>
                     tagWidth + SIRTypeCaseClassFlat.bitSizeHC(cc, hashConsed)
@@ -290,21 +289,8 @@ object FlatInstantces:
                 case SIRType.FreeUnificator =>
                     mute = true
                     tagWidth
-                case SIRType.TypeProxy(ref) =>
-                    if (ref == null)
-                        throw new IllegalStateException(
-                          "TypeProxy id is null, looks lise save or restore is invalid"
-                        )
-                    val ihc = ref.hashCode()
-                    hashConsed.lookup(ihc, tag) match
-                        case None =>
-                            val preSize = PlainIntFlat.bitSize(ihc)
-                            hashConsed.putForwardRef(HashConsed.ForwardRefAcceptor(ihc, tag, Nil))
-                            val restSize = bitSizeHC(ref, hashConsed)
-                            hashConsed.setRef(ihc, tag, HashConsedRef.fromData(ref))
-                            tagWidth + preSize + restSize
-                        case Some(_) =>
-                            tagWidth + PlainIntFlat.bitSize(ref.hashCode())
+                case tp:SIRType.TypeProxy =>
+                    tagWidth + SIRTypeTypeProxyFlat.bitSizeHC(tp, hashConsed)
                 case a: SIRType.TypeNonCaseModule =>
                     tagWidth + SIRTypeNonCaseModuleFlat.bitSizeHC(a, hashConsed)
                 case err: SIRType.TypeError =>
@@ -317,32 +303,26 @@ object FlatInstantces:
                 case SIRType.BLS12_381_MlResult =>
                     tagWidth
 
-            // if !mute then
-            //    //println(s"SIRTypeHashConsedFlat.bisSizeHC end ${a.hashCode()} $a =${retval}")
+            if !mute then
+                println(s"SIRTypeHashConsedFlat.bisSizeHC end ${a.hashCode()} $a =${retval}")
             retval
 
         override def encodeHC(a: SIRType, encode: HashConsedEncoderState): Unit =
-            // println(s"SIRTypeHashConsedFlat.encodeHC:start ${a.hashCode()} $a, pos=${encode.encode.bitPosition()}")
+            //println(s"SIRTypeHashConsedFlat.encodeHC:start ${a.hashCode()} $a, pos=${encode.encode.bitPosition()}")
             var mute = false
             val startPos = encode.encode.bitPosition()
             a match
                 case SIRType.ByteStringPrimitive =>
-                    mute = true
                     encode.encode.bits(tagWidth, tagPrimitiveByteString)
                 case SIRType.IntegerPrimitive =>
-                    mute = true
                     encode.encode.bits(tagWidth, tagPrimitiveInteger)
                 case SIRType.StringPrimitive =>
-                    mute = true
                     encode.encode.bits(tagWidth, tagPrimitiveString)
                 case SIRType.BooleanPrimitive =>
-                    mute = true
                     encode.encode.bits(tagWidth, tagPrimitiveBoolean)
                 case SIRType.VoidPrimitive =>
-                    mute = true
                     encode.encode.bits(tagWidth, tagPrimitiveVoid)
                 case SIRType.Data =>
-                    mute = true
                     encode.encode.bits(tagWidth, tagPrimitiveData)
                 case cc: SIRType.CaseClass =>
                     encode.encode.bits(tagWidth, tagCaseClass)
@@ -355,7 +335,6 @@ object FlatInstantces:
                     SIRTypeHashConsedFlat.encodeHC(from, encode)
                     SIRTypeHashConsedFlat.encodeHC(to, encode)
                 case tv: SIRType.TypeVar =>
-                    mute = true
                     encode.encode.bits(tagWidth, tagTypeVar)
                     summon[HashConsedFlat[SIRType.TypeVar]].encodeHC(tv, encode)
                 case SIRType.TypeLambda(params, body) =>
@@ -363,18 +342,10 @@ object FlatInstantces:
                     summon[HashConsedFlat[List[SIRType.TypeVar]]].encodeHC(params, encode)
                     encodeHC(body, encode)
                 case SIRType.FreeUnificator =>
-                    mute = true
                     encode.encode.bits(tagWidth, tagTypeFreeUnificator)
-                case SIRType.TypeProxy(ref) =>
+                case tp: SIRType.TypeProxy =>
                     encode.encode.bits(tagWidth, tagTypeProxy)
-                    val ihc = ref.hashCode()
-                    PlainIntFlat.encode(ihc, encode.encode)
-                    encode.hashConsed.lookup(ihc, tag) match
-                        case None =>
-                            // encode.hashConsed.putForwardRef(HashConsed.ForwardRefAcceptor(ihc, tag, Nil))
-                            encodeHC(ref, encode)
-                        // encode.hashConsed.setRef(ihc, tag, HashConsedRef.fromData(ref))
-                        case Some(_) =>
+                    SIRTypeTypeProxyFlat.encodeHC(tp, encode)
                 case a: SIRType.TypeNonCaseModule =>
                     encode.encode.bits(tagWidth, tagNonCaseModule)
                     SIRTypeNonCaseModuleFlat.encodeHC(a, encode)
@@ -389,7 +360,7 @@ object FlatInstantces:
                     encode.encode.bits(tagWidth, tagBls12_381_G2_Element)
                 case SIRType.BLS12_381_MlResult =>
                     encode.encode.bits(tagWidth, tagBls12_381_MlResult)
-            // if !mute then
+            //if !mute then
             //    //val endPos = encode.encode.bitPosition()
             //    //println(s"SIRTypeHashConsedFlat.encode ${a.hashCode()} $a,  size=${endPos-startPos}")
 
@@ -430,68 +401,7 @@ object FlatInstantces:
                     )
                 case `tagTypeFreeUnificator` => HashConsedRef.fromData(SIRType.FreeUnificator)
                 case `tagTypeProxy`          =>
-                    // val ihc = summon[Flat[Int]].decode(decode.decode)
-                    val ihc = PlainIntFlat.decode(decode.decode)
-                    decode.hashConsed.lookup(ihc, tag) match
-                        case None =>
-                            // decode.hashConsed.putForwardRef(HashConsed.ForwardRefAcceptor(ihc,tag, Nil))
-                            val ref = decodeHC(decode)
-                            // if (!ref.isForward) then
-                            //    decode.hashConsed.setRef(ihc, tag, ref)
-                            // HashConsedRef.deferred[SIRType](
-                            //    hs => ref.isComplete(hs),
-                            //    (hs, level, parents) => {
-                            //        println(s"SIRType::decodeHC:3 TypeProxy: ref=${ref}, me=${this}")
-                            //        if (parents.get(this) != null) then
-                            //            println(s"SIRType::decodeHC, cycle detected in TypeProxy: this in parents")
-                            //        if (parents.get(ref) != null) then
-                            //            println(s"SIRType::decodeHC, cycle detected in TypeProxy: ref in parents")
-                            //        SIRType.TypeProxy(ref.finValue(hs, level, parents))
-                            //    }
-                            // )
-                            val typeProxy = new SIRType.TypeProxy(null)
-                            decode.hashConsed.putForwardValueAcceptor(
-                              ihc,
-                              tag,
-                              { x =>
-                                  typeProxy.ref = x.asInstanceOf[SIRType]
-                              }
-                            )
-                            HashConsed.ConstRef(typeProxy)
-
-                        case Some(Left(fw)) =>
-                            val newRef = new HashConsed.MutRef[HashConsedRef[SIRType]](null)
-                            fw.addAction(
-                              decode.hashConsed,
-                              (a: HashConsedRef[?]) =>
-                                  newRef.value = a.asInstanceOf[HashConsedRef[SIRType]]
-                            )
-                            new HashConsedRef[SIRType] {
-                                override def isComplete(hashConsed: HashConsed.State): Boolean =
-                                    val ref = newRef.value
-                                    ref != null && ref.isComplete(hashConsed)
-                                override def finValue(
-                                    hashConsed: HashConsed.State,
-                                    level: Int,
-                                    parent: HSRIdentityHashMap
-                                ): SIRType = {
-                                    val ref = newRef.value
-                                    if (ref == null)
-                                        throw new IllegalStateException("TypeProxy is not resolved")
-                                    if (parent.get(this) != null)
-                                        throw new IllegalStateException(
-                                          "Cycle detected in TypeProxy"
-                                        )
-                                    parent.put(this, this)
-                                    val retval = SIRType.TypeProxy(
-                                      ref.finValue(hashConsed, level + 1, parent)
-                                    )
-                                    parent.remove(this)
-                                    retval
-                                }
-                            }
-                        case Some(Right(a)) =>
-                            a.asInstanceOf[HashConsedRef[SIRType.TypeProxy]]
+                    SIRTypeTypeProxyFlat.decodeHC(decode)
                 case `tagTypeError` =>
                     val msg = summon[Flat[String]].decode(decode.decode)
                     HashConsedRef.fromData(SIRType.TypeError(msg, null))
@@ -603,6 +513,128 @@ object FlatInstantces:
         ): HashConsedRef[SIRType.TypeNonCaseModule] =
             val name = summon[Flat[String]].decode(decode.decode)
             HashConsedRef.fromData(SIRType.TypeNonCaseModule(name))
+
+    }
+
+    object SIRTypeTypeProxyFlat extends HashConsedReprFlat[SIRType.TypeProxy, HashConsedRef[SIRType.TypeProxy]] {
+
+        def tag = hashConsTagSIRType
+
+        override def toRepr(a: SIRType.TypeProxy): HashConsedRef[SIRType.TypeProxy] = {
+            HashConsedRef.fromData(a)
+        }
+
+
+        override def bitSizeHC(a: SIRType.TypeProxy, hashConsed: HashConsed.State): Int =
+            val ref = a.ref
+            if (ref == null)
+                throw new IllegalStateException(
+                    "TypeProxy id is null, looks lise save or restore is invalid"
+                )
+            val ihc = ref.hashCode()
+            hashConsed.lookup(ihc, tag) match
+                case None =>
+                    val preSize = PlainIntFlat.bitSize(ihc)
+                    //hashConsed.putForwardRef(HashConsed.ForwardRefAcceptor(ihc, tag, Nil))
+                    val restSize = SIRTypeHashConsedFlat.bitSizeHC(ref, hashConsed)
+                    hashConsed.lookup(ihc, tag) match
+                        case None =>
+                            hashConsed.setRef(ihc, tag, HashConsedRef.fromData(ref))
+                        case Some(_) =>
+                    preSize + restSize
+                case Some(_) =>
+                    PlainIntFlat.bitSize(a.ref.hashCode())
+
+        override def encodeHC(a: SIRType.TypeProxy, encode: HashConsedEncoderState): Unit =
+            val ref = a.ref
+            if (ref == null)
+                throw new IllegalStateException(
+                    "TypeProxy id is null, looks lise save or restore is invalid"
+                )
+            val ihc = ref.hashCode()
+            PlainIntFlat.encode(ihc, encode.encode)
+            encode.hashConsed.lookup(ihc, tag) match
+                case None =>
+                    // we don't know - are we have such ref. If ref is not known, then
+                    //encode.hashConsed.putForwardRef(HashConsed.ForwardRefAcceptor(ihc, tag, Nil))
+                    SIRTypeHashConsedFlat.encodeHC(ref, encode)
+                    encode.hashConsed.lookup(ihc, tag) match
+                        case None =>
+                            encode.hashConsed.setRef(ihc, tag, HashConsedRef.fromData(ref))
+                        case Some(_) =>
+                case Some(_) =>
+
+        override def decodeHC(decode: HashConsedDecoderState): HashConsedRef[SIRType.TypeProxy] =
+            val ihc = PlainIntFlat.decode(decode.decode)
+            decode.hashConsed.lookup(ihc, tag) match
+                case None =>
+                    val ref = SIRTypeHashConsedFlat.decodeHC(decode)
+                    decode.hashConsed.lookup(ihc, tag) match
+                        case None =>
+                            decode.hashConsed.setRef(ihc, tag, ref)
+                        case Some(_) =>
+                    val typeProxy = new SIRType.TypeProxy(null)
+                    decode.hashConsed.putForwardValueAcceptor(
+                        ihc,
+                        tag,
+                        { x =>
+                            typeProxy.ref = x.asInstanceOf[SIRType]
+                        }
+                    )
+                    HashConsed.ConstRef(typeProxy)
+                case Some(Left(fw)) =>
+                    val newRef = new HashConsed.MutRef[HashConsedRef[SIRType]](null)
+                    fw.addAction(
+                        decode.hashConsed,
+                        (a: HashConsedRef[?]) =>
+                            newRef.value = a.asInstanceOf[HashConsedRef[SIRType]]
+                    )
+
+                    new HashConsedRef[SIRType.TypeProxy] {
+                        override def isComplete(hashConsed: HashConsed.State): Boolean =
+                            val ref = newRef.value
+                            ref != null && ref.isComplete(hashConsed)
+
+                        override def finValue(
+                                                 hashConsed: HashConsed.State,
+                                                 level: Int,
+                                                 parent: HSRIdentityHashMap
+                                             ): SIRType.TypeProxy = {
+                            val ref = newRef.value
+                            if (ref == null)
+                                throw new IllegalStateException("TypeProxy is not resolved")
+                            if (parent.get(this) != null)
+                                throw new IllegalStateException(
+                                    "Cycle detected in TypeProxy"
+                                )
+                            parent.put(this, this)
+                            val retval = SIRType.TypeProxy(
+                                ref.finValue(hashConsed, level + 1, parent)
+                            )
+                            parent.remove(this)
+                            retval
+                        }
+                    }
+                case Some(Right(a)) =>
+                    new HashConsedRef[SIRType.TypeProxy] {
+                        override def isComplete(hashConsed: HashConsed.State): Boolean =
+                            a.isComplete(hashConsed)
+
+                        override def finValue(
+                                                 hashConsed: HashConsed.State,
+                                                 level: Int,
+                                                 parent: HSRIdentityHashMap
+                                             ): SIRType.TypeProxy =
+                            if (parent.get(this) != null)
+                                throw new IllegalStateException(
+                                    "Cycle detected in TypeProxy"
+                                )
+                            parent.put(this, this)
+                            val finA = a.finValue(hashConsed, level + 1, parent).asInstanceOf[SIRType]
+                            val retval = SIRType.TypeProxy(finA)
+                            parent.remove(this)
+                            retval
+                    }
 
     }
 

@@ -14,13 +14,14 @@ object SIRTypeMacros {
         case class Env(
             val forwardRefs: Map[Symbol, TypeProxy] = Map.empty,
             val vars: Map[Symbol, TypeVar] = Map.empty,
-            filledVars: Map[TypeVar, SIRType] = Map.empty
+            filledVars: Map[TypeVar, SIRType] = Map.empty,
             // var enclosingBounds = Map.empty[Int,TypeVar]
+            debug: Boolean = false
         )
 
         def liftRepr(tp: TypeRepr, env: Env): SIRType = {
-            tp match
-                case typeLambda @ quotes.reflect.TypeLambda(paramNames, paramBounds, resType) =>
+            val retval = tp match
+                case typeLambda@quotes.reflect.TypeLambda(paramNames, paramBounds, resType) =>
                     // println(s"type-lambda detected, tp.symbol = ${tp.typeSymbol}, tp.symbol.hashCode=${tp.typeSymbol.hashCode}, Type: ${tp.show}")
                     // we need to generate param names with unique ids.
                     var newVars = env.vars
@@ -33,7 +34,7 @@ object SIRTypeMacros {
                     }
                     val nEnv = env.copy(vars = newVars)
                     SIRType.TypeLambda(sirParamExprs, liftRepr(resType, nEnv))
-                case pr @ quotes.reflect.ParamRef(p, n) =>
+                case pr@quotes.reflect.ParamRef(p, n) =>
                     // println(s"ParamRef detected,  Type: ${tp.show}, p=$p, p.typeSymbol.hashCode = ${p.typeSymbol.hashCode} n=$n")
                     val name = tp.show // TODO: get from enclosing lambda.
                     val id = pr.typeSymbol.hashCode
@@ -41,16 +42,16 @@ object SIRTypeMacros {
                         case Some(value) =>
                         case None =>
                             report.error(
-                              s"No enclosing lambda found for typevar ${tp.show}",
-                              Position.ofMacroExpansion
+                                s"No enclosing lambda found for typevar ${tp.show}",
+                                Position.ofMacroExpansion
                             )
                     TypeVar(name, Some(id))
                 case tr: TermRef =>
                     if !(tr.widen =:= tr) then liftRepr(tp.widen, env)
                     else
                         report.error(
-                          s"TermRef is unsupported,  Type: ${tp.show}",
-                          Position.ofMacroExpansion
+                            s"TermRef is unsupported,  Type: ${tp.show}",
+                            Position.ofMacroExpansion
                         )
                         SIRType.TypeError(s"TermRef ${tp.show} is unsupported", null)
                 case tpc: TypeRef =>
@@ -63,8 +64,8 @@ object SIRTypeMacros {
                             case Some(tv) => tv
                             case None =>
                                 report.error(
-                                  s"Unbound type variable ${tpc.show}",
-                                  Position.ofMacroExpansion
+                                    s"Unbound type variable ${tpc.show}",
+                                    Position.ofMacroExpansion
                                 )
                                 SIRType.TypeError(s"Unbound type variable ${tpc.show}", null)
                     else
@@ -78,11 +79,11 @@ object SIRTypeMacros {
                             ByteStringPrimitive
                         case '[BigInt] =>
                             IntegerPrimitive
-                        case '[String]              => StringPrimitive
-                        case '[Boolean]             => BooleanPrimitive
-                        case '[Unit]                => VoidPrimitive
+                        case '[String] => StringPrimitive
+                        case '[Boolean] => BooleanPrimitive
+                        case '[Unit] => VoidPrimitive
                         case '[scalus.builtin.Data] => Data
-                        case '[a => b]              =>
+                        case '[a => b] =>
                             // println(s"Fun detected,  Type: ${tp.show}")
                             val in = TypeRepr.of[a]
                             val out = TypeRepr.of[b]
@@ -91,8 +92,8 @@ object SIRTypeMacros {
                             // println(s"Fun2 detected,  Type: ${tp.show}")
                             // report.error(s"Uncarried function types are not supported: ${tp.show}", Position.ofMacroExpansion)
                             Fun(
-                              liftRepr(TypeRepr.of[a], env),
-                              Fun(liftRepr(TypeRepr.of[b], env), liftRepr(TypeRepr.of[c], env))
+                                liftRepr(TypeRepr.of[a], env),
+                                Fun(liftRepr(TypeRepr.of[b], env), liftRepr(TypeRepr.of[c], env))
                             )
                         case '[(a, b, c) => d] =>
                             // println(s"Fun3 detected,  Type: ${tp.show}")
@@ -103,62 +104,62 @@ object SIRTypeMacros {
                             // println(s"ta: ${ta.show}, tb: ${tb.show}, tc: ${tc.show}, td: ${td.show}")
                             // report.error(s"Uncarried function types are not supported: ${tp.show}", Position.ofMacroExpansion)
                             Fun(
-                              liftRepr(TypeRepr.of[a], env),
-                              Fun(
-                                liftRepr(TypeRepr.of[b], env),
-                                Fun(liftRepr(TypeRepr.of[c], env), liftRepr(TypeRepr.of[d], env))
-                              )
+                                liftRepr(TypeRepr.of[a], env),
+                                Fun(
+                                    liftRepr(TypeRepr.of[b], env),
+                                    Fun(liftRepr(TypeRepr.of[c], env), liftRepr(TypeRepr.of[d], env))
+                                )
                             )
                         case '[(a, b, c, d) => e] =>
                             // println(s"Fun4 detected,  Type: ${tp.show}")
                             Fun(
-                              liftRepr(TypeRepr.of[a], env),
-                              Fun(
-                                liftRepr(TypeRepr.of[b], env),
+                                liftRepr(TypeRepr.of[a], env),
                                 Fun(
-                                  liftRepr(TypeRepr.of[c], env),
-                                  Fun(liftRepr(TypeRepr.of[d], env), liftRepr(TypeRepr.of[e], env))
+                                    liftRepr(TypeRepr.of[b], env),
+                                    Fun(
+                                        liftRepr(TypeRepr.of[c], env),
+                                        Fun(liftRepr(TypeRepr.of[d], env), liftRepr(TypeRepr.of[e], env))
+                                    )
                                 )
-                              )
                             )
                         case '[(a, b, c, d, e) => f] =>
                             // println(s"Fun5 detected,  Type: ${tp.show}")
                             Fun(
-                              liftRepr(TypeRepr.of[a], env),
-                              Fun(
-                                liftRepr(TypeRepr.of[b], env),
+                                liftRepr(TypeRepr.of[a], env),
                                 Fun(
-                                  liftRepr(TypeRepr.of[c], env),
-                                  Fun(
-                                    liftRepr(TypeRepr.of[d], env),
+                                    liftRepr(TypeRepr.of[b], env),
                                     Fun(
-                                      liftRepr(TypeRepr.of[e], env),
-                                      liftRepr(TypeRepr.of[f], env)
+                                        liftRepr(TypeRepr.of[c], env),
+                                        Fun(
+                                            liftRepr(TypeRepr.of[d], env),
+                                            Fun(
+                                                liftRepr(TypeRepr.of[e], env),
+                                                liftRepr(TypeRepr.of[f], env)
+                                            )
+                                        )
                                     )
-                                  )
                                 )
-                              )
                             )
                         case '[(a, b, c, d, e, f) => g] =>
                             // println(s"Fun6 detected,  Type: ${tp.show}")
                             Fun(
-                              liftRepr(TypeRepr.of[a], env),
-                              Fun(
-                                liftRepr(TypeRepr.of[b], env),
+                                liftRepr(TypeRepr.of[a], env),
                                 Fun(
-                                  liftRepr(TypeRepr.of[c], env),
-                                  Fun(
-                                    liftRepr(TypeRepr.of[d], env),
+                                    liftRepr(TypeRepr.of[b], env),
                                     Fun(
-                                      liftRepr(TypeRepr.of[e], env),
-                                      Fun(
-                                        liftRepr(TypeRepr.of[f], env),
-                                        liftRepr(TypeRepr.of[g], env)
-                                      )
+                                        liftRepr(TypeRepr.of[c], env),
+                                        Fun(
+                                            liftRepr(TypeRepr.of[d], env),
+                                            Fun(
+                                                liftRepr(TypeRepr.of[e], env),
+                                                Fun(
+                                                    liftRepr(TypeRepr.of[f], env),
+                                                    liftRepr(TypeRepr.of[g], env)
+                                                )
+                                            )
+                                        )
                                     )
-                                  )
                                 )
-                              )
                             )
                         case '[scalus.builtin.Pair[a, b]] =>
                             // println(s"Builtin pair detected,  Type: ${tp.show}")
@@ -179,11 +180,17 @@ object SIRTypeMacros {
                         case other =>
                             println(s"Unrecognized type: ${tp.show} tree: ${other}, tp=${tp}")
                             report.error(
-                              s"Unsupported type [1]: ${tp.show} in ${TypeRepr.of[T].show}",
-                              Position.ofMacroExpansion
+                                s"Unsupported type [1]: ${tp.show} in ${TypeRepr.of[T].show}",
+                                Position.ofMacroExpansion
                             )
                             ???
                     }
+            if (env.debug) then
+                println(s"liftRepr: ${tp.show} -> ${retval.show}")
+                if (!SIRType.checkAllProxiesFilled(retval)) then
+                    println(s"Unfilled proxies in ${retval.show}")
+                    throw new IllegalStateException(s"Unfilled proxies in ${retval.show}")
+            retval
         }
 
         def liftClassType(tp: TypeRepr, typeArgs: List[SIRType], env: Env): SIRType = {

@@ -18,7 +18,9 @@ class SIRFlatSerializationSpec extends AnyFunSuite with ScalaCheckPropertyChecks
         val module = Module((1, 0), List(binding))
         val enc = EncoderState(fl.bitSize(module) / 8 + 1)
         flat.encode(module, enc)
-        enc.filler()
+        // now filler inside the encoder.
+        //  TODO: rethink.
+        //enc.filler()
         val dec = DecoderState(enc.buffer)
         val module2 = flat.decode[Module](dec)
         assert(module == module2)

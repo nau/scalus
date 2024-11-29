@@ -61,7 +61,7 @@ class CompilerPluginToSIRSpec extends AnyFunSuite with ScalaCheckPropertyChecks:
     def sirConstUnit = Const(Constant.Unit, SIRType.VoidPrimitive)
 
 
-    /*
+
     test("compile literals") {
         assert(compile(false) == Const(Constant.Bool(false), SIRType.BooleanPrimitive))
         assert(compile(true) == Const(Constant.Bool(true), SIRType.BooleanPrimitive))
@@ -181,6 +181,7 @@ class CompilerPluginToSIRSpec extends AnyFunSuite with ScalaCheckPropertyChecks:
         )
     }
 
+
     test("compile lambda with args with type parameters") {
         // tail has a MethodType, check if it compiles
         val sir = compile {
@@ -188,10 +189,29 @@ class CompilerPluginToSIRSpec extends AnyFunSuite with ScalaCheckPropertyChecks:
                 tail[Data](ctx)
         }
 
+        val compiledTp = sir.asInstanceOf[SIRExpr].tp
+
         val a = TypeVar("A", Some(1))
         val listA = SIRType.List(TypeVar("A", Some(1)))
         val listData = SIRType.List(SIRType.Data)
         val tailType = SIRType.TypeLambda(List(a), Fun(listA, listA))
+
+        val constructedExpr = LamAbs(
+          Var("tail", tailType),
+          LamAbs(Var("ctx", listData),
+              Apply(Var("tail",tailType),
+                    Var("ctx", listData),
+                    listData
+              )
+          )
+        )
+
+
+        //SIRUnify.unifyType(sir.asInstanceOf[SIRExpr].tp, constructedExpr.tp, SIRUnify.Env.empty.copy(debug = true)) match {
+        //    case success@SIRUnify.UnificationSuccess(env,tp) => println("unifyType success")
+        //    case failure@SIRUnify.UnificationFailure(path, left, right) => println(s"unifyType failure: ${failure}")
+        //}
+
         assert(
           sir ~=~ LamAbs(
             Var("tail", tailType),
@@ -206,6 +226,7 @@ class CompilerPluginToSIRSpec extends AnyFunSuite with ScalaCheckPropertyChecks:
 
 
     }
+
 
     test("compile inline def") {
         assert(
@@ -264,7 +285,7 @@ class CompilerPluginToSIRSpec extends AnyFunSuite with ScalaCheckPropertyChecks:
         //    val term = compiled.toUplc()
         //    assert(VM.evaluateTerm(term) == Data.I(22))
     }
-    */
+
 
     test("compile chooseList builtins") {
         val expr = compile(Builtins.chooseList(builtin.List[BigInt](1, 2, 3), true, false))
@@ -295,7 +316,7 @@ class CompilerPluginToSIRSpec extends AnyFunSuite with ScalaCheckPropertyChecks:
         )
     }
 
-    /*
+
     test("compile mkCons builtins") {
         assert(
           compile(
@@ -1443,6 +1464,7 @@ class CompilerPluginToSIRSpec extends AnyFunSuite with ScalaCheckPropertyChecks:
                 assert(logs == List("oneEqualsTwo ? False: { mem: 0.002334, cpu: 0.539980 }"))
             case Result.Failure(exception, _, _, _) => fail(exception)
     }
-    */
+    
+
 
 

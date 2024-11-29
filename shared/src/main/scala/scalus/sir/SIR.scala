@@ -1,6 +1,6 @@
 package scalus.sir
 
-import scalus.sir.SIRType.FreeUnificator
+import scalus.sir.SIRType.{FreeUnificator, checkAllProxiesFilled}
 import scalus.uplc.Constant
 import scalus.uplc.DefaultFun
 
@@ -44,10 +44,16 @@ case class ConstrDecl(
         throw new RuntimeException("Invalud name in constructor: " + name)
     }
 
-    val tp: SIRType = typeParams match
+    private var _tp: SIRType = null
+
+
+    def tp: SIRType =
+        if (_tp == null) then
+            _tp = typeParams match
                 case Nil => SIRType.CaseClass(this, typeParams)
                 case tp :: tail => SIRType.TypeLambda(typeParams, SIRType.CaseClass(this, typeParams))
-    
+        _tp
+
 
 }
 
@@ -57,10 +63,16 @@ case class DataDecl(
     typeParams: List[SIRType.TypeVar]
     /*constructorTypeMapping: Map[String, List[SIRType]]*/
 ) {
-    
-    val tp: SIRType = typeParams match
+
+    private var _tp: SIRType = null
+
+
+    def tp: SIRType =
+        if _tp == null then
+            _tp = typeParams match
                     case Nil => SIRType.SumCaseClass(this, Nil)
                     case _   => SIRType.TypeLambda(typeParams, SIRType.SumCaseClass(this, typeParams))
+        _tp
 
 }
 
@@ -196,3 +208,89 @@ object SIR:
 
 
 case class Program(version: (Int, Int, Int), term: SIR)
+
+
+object SIRChecker {
+
+    case class CheckException(msg: String, cause: Throwable | Null = null) extends RuntimeException(msg, cause)
+
+    def checkAndThrow(SIR:SIR, throwOnFirst: Boolean = true): Unit = {
+        val errors = checkSIR(SIR, throwOnFirst)
+        if errors.nonEmpty then
+            throw new CheckException(errors.mkString("\n"))
+    }
+
+    def checkSIR(sir: SIR, throwOnFirst: Boolean): Seq[String] = sir match {
+        case e: SIRExpr => checkExpr(e, throwOnFirst)
+        case d: SIRDef => checkDef(d, throwOnFirst)
+    }
+
+    def checkDef(rDef: SIRDef, throwOnFirst: Boolean): Seq[String] = rDef match {
+        case SIR.Decl(data, term) =>
+            checkData(data, throwOnFirst) ++ checkSIR(term, throwOnFirst)
+    }
+
+    def checkData(data: DataDecl, throwOnFirst: Boolean): Seq[String] = {
+        val checkConstrs = data.constructors.flatMap(c => checkConstr(c, throwOnFirst))
+        val checkTp = checkType(data.tp, throwOnFirst)
+        checkConstrs ++ checkTp
+    }
+
+    def checkConstr(constr: ConstrDecl, throwOnFirst: Boolean): Seq[String] = {
+        val checkParams = constr.params.flatMap(b => checkTypeBinding(b, throwOnFirst))
+        val checkTp = checkType(constr.tp, throwOnFirst)
+        checkParams ++ checkTp
+    }
+
+    def checkTypeBinding(tpb: TypeBinding, throwOnFirst: Boolean): Seq[String] =
+        checkType(tpb.tp, throwOnFirst)
+
+
+    def checkExpr(expr: SIRExpr, throwOnFirst: Boolean): Seq[String] = {
+        val checkTp = checkType(expr.tp, throwOnFirst)
+        expr match {
+            case SIR.Var(_, tp) => checkTp
+            case SIR.ExternalVar(_, _, tp) => checkTp
+            case SIR.Let(_, bindings, body) =>
+                val checkBindings = bindings.flatMap(b => checkExpr(b.value, throwOnFirst))
+                checkBindings ++ checkSIR(body, throwOnFirst) ++ checkTp
+            case SIR.LamAbs(param, term) =>
+                checkType(param.tp, throwOnFirst) ++ checkSIR(term, throwOnFirst) ++ checkTp
+            case SIR.Apply(f, arg, tp) =>
+                checkSIR(f, throwOnFirst) ++ checkSIR(arg, throwOnFirst) ++ checkTp
+            case SIR.Const(_, tp) => checkTp
+            case SIR.And(a, b) => checkSIR(a, throwOnFirst) ++ checkSIR(b, throwOnFirst) ++ checkTp
+            case SIR.Or(a, b) => checkSIR(a, throwOnFirst) ++ checkSIR(b, throwOnFirst) ++ checkTp
+            case SIR.Not(a) => checkSIR(a, throwOnFirst) ++ checkTp
+            case SIR.IfThenElse(cond, t, f, tp) =>
+                checkSIR(cond, throwOnFirst) ++ checkSIR(t, throwOnFirst) ++ checkSIR(f, throwOnFirst) ++ checkTp
+            case SIR.Builtin(_, tp) => checkTp
+            case SIR.Error(_, _) => checkTp
+            case SIR.Constr(_, data, args) =>
+                val checkArgs = args.flatMap(a => checkSIR(a, throwOnFirst))
+                checkData(data, throwOnFirst) ++ checkArgs ++ checkTp
+            case SIR.Match(scrutinee, cases, tp) =>
+                val checkCases = cases.flatMap(c => checkCase(c, throwOnFirst))
+                checkSIR(scrutinee, throwOnFirst) ++ checkCases ++ checkTp
+            case SIR.Hole(_, _) => checkTp
+        }
+    }
+
+
+    def checkCase(c: SIR.Case, throwOnFirst: Boolean): Seq[String] = {
+        c.typeBindings.flatMap(x => checkType(x, throwOnFirst)) ++
+            checkConstr(c.constr, throwOnFirst) ++ checkSIR(c.body, throwOnFirst)
+    }
+
+    def checkType(tp: SIRType, throwOnFirst: Boolean): Seq[String] =
+        if (SIRType.checkAllProxiesFilled(tp)) then
+            Nil
+        else
+            val msg = s"Type has unfilled proxies. (tp=${tp})"
+            if throwOnFirst then
+                throw CheckException(msg)
+            else
+                Seq(msg)
+
+
+}
