@@ -981,6 +981,8 @@ final class SIRCompiler(mode: scalus.Mode)(using ctx: Context) {
         tpe2: Tree,
         tree: Tree
     ): SIRExpr =
+        if (env.debug) then
+            println(s"compileBuiltinPairConstructor: ${a.show}, ${b.show}, tpe1: $tpe1, tpe2: $tpe2")
         // We can create a Pair by either 2 literals as (con pair...)
         // or 2 Data variables using MkPairData builtin
         if a.isLiteral && b.isLiteral then
@@ -991,17 +993,18 @@ final class SIRCompiler(mode: scalus.Mode)(using ctx: Context) {
         else if a.isData && b.isData then
             val exprA = compileExpr(env, a)
             val exprB = compileExpr(env, b)
-            val typeB = SIRType.TypeVar("B")
+            //val typeB = SIRType.TypeVar("B")
             SIR.Apply(
               SIR.Apply(
                 SIRBuiltins.mkPairData,
                 exprA,
-                SIRType.TypeLambda(List(typeB), SIRType.Pair(exprA.tp, typeB))
+                SIRType.Fun(exprB.tp, SIRType.Pair(exprA.tp, exprB.tp))
               ),
               exprB,
               SIRType.Pair(exprA.tp, exprB.tp)
             )
         else
+            //  TODO: implement generic mkPair ?
             error(
               PairConstructionError(
                 a,
@@ -1148,10 +1151,13 @@ final class SIRCompiler(mode: scalus.Mode)(using ctx: Context) {
     private def compileExpr2(env: Env, tree: Tree)(using Context): SIRExpr = {
         tree match
             case If(cond, t, f) =>
-                val ct = compileExpr(env, t)
-                val cf = compileExpr(env, f)
+                if (env.debug) then
+                    println(s"compileExpr2: If ${cond.show}, ${t.show}, ${f.show}")
+                val nEnv = env.copy(level = env.level + 1)
+                val ct = compileExpr(nEnv, t)
+                val cf = compileExpr(nEnv, f)
                 val sirTp = sirTypeInEnv(tree.tpe, tree.srcPos, env)
-                SIR.IfThenElse(compileExpr(env, cond), ct, cf, sirTp)
+                SIR.IfThenElse(compileExpr(nEnv, cond), ct, cf, sirTp)
             case m: Match => compileMatch(m, env)
             // throw new Exception("error msg")
             // Supports any exception type that uses first argument as message

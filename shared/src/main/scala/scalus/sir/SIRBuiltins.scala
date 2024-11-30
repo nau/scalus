@@ -144,7 +144,7 @@ object SIRBuiltins {
       DefaultFun.ConstrData,
       SIRTypeMacros.liftM[(BigInt, scalus.builtin.List[Data]) => Data]
     )
-    val mapData = SIR.Builtin(DefaultFun.MapData, SIRTypeMacros.liftM[(Map[BigInt, Data]) => Data])
+    val mapData = SIR.Builtin(DefaultFun.MapData, SIRTypeMacros.liftM[(List[(Data, Data)]) => Data])
     val listData =
         SIR.Builtin(DefaultFun.ListData, SIRTypeMacros.liftM[scalus.builtin.List[Data] => Data])
     val iData = SIR.Builtin(DefaultFun.IData, SIRTypeMacros.liftM[BigInt => Data])

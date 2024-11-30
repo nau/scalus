@@ -449,7 +449,31 @@ class CompilerPluginToSIRSpec extends AnyFunSuite with ScalaCheckPropertyChecks:
         )
     }
 
+
+    test("compile mkPairData builtins") {
+
+        val compiled = compile(builtin.Pair(Builtins.bData(hex"deadbeef"), Builtins.iData(1)))
+
+        val expected =
+            Apply(
+                Apply(
+                    SIRBuiltins.mkPairData,
+                    Apply(SIRBuiltins.bData, sirConst(hex"deadbeef"), sirData),
+                    Fun(sirData, sirPair(sirData,sirData))
+                ),
+                Apply(SIRBuiltins.iData, sirConst(1), sirData),
+                sirPair(sirData,sirData)
+            )
+
+        assert(
+          compiled ~=~ expected
+        )
+
+    }
+
+
     test("compile mkMap builtins") {
+
         assert(
           compile(
             Builtins.mapData(
@@ -466,7 +490,7 @@ class CompilerPluginToSIRSpec extends AnyFunSuite with ScalaCheckPropertyChecks:
                   Apply(SIRBuiltins.mkPairData,
                       Apply(SIRBuiltins.bData, Const(deadbeef, sirByteString), sirData),
                       Fun(sirData, sirPair(sirData,sirData)) ),
-                  Apply(SIRBuiltins.iData, sirConst(1), sirInt),
+                  Apply(SIRBuiltins.iData, sirConst(1), sirData),
                   sirPair(sirData,sirData)
                 ),
                 Fun(sirList(sirPair(sirData,sirData)), sirList(sirPair(sirData,sirData)))
@@ -480,6 +504,8 @@ class CompilerPluginToSIRSpec extends AnyFunSuite with ScalaCheckPropertyChecks:
           )
         )
     }
+
+
 
     test("compile unsafeDataAsConstr function") {
         assert(
@@ -537,11 +563,13 @@ class CompilerPluginToSIRSpec extends AnyFunSuite with ScalaCheckPropertyChecks:
         )
     }
 
+
     test("compile BLS12_381_G1 builtins") {
         val p1Var = Var("p1", SIRType.BLS12_381_G1_Element)
         val p2Var = Var("p2", SIRType.BLS12_381_G1_Element)
         val bsVar = Var("bs", SIRType.ByteStringPrimitive)
         val dstVar = Var("dst", SIRType.ByteStringPrimitive)
+
         assert(
           compile(Builtins.bls12_381_G1_add) ~=~ LamAbs(
             Var("p1", SIRType.BLS12_381_G1_Element),
@@ -560,15 +588,18 @@ class CompilerPluginToSIRSpec extends AnyFunSuite with ScalaCheckPropertyChecks:
         )
         assert(
           compile(Builtins.bls12_381_G1_scalarMul) == LamAbs(
-            Var("s", SIRType.BLS12_381_G1_Element),
+            Var("s", SIRType.IntegerPrimitive),
             LamAbs(Var("p",SIRType.BLS12_381_G1_Element),
                   Apply(
-                      Apply(SIRBuiltins.bls12_381_G1_scalarMul, Var("s", SIRType.BLS12_381_G1_Element), Fun(SIRType.BLS12_381_G1_Element, SIRType.BLS12_381_G1_Element)),
+                      Apply(SIRBuiltins.bls12_381_G1_scalarMul,
+                            Var("s", SIRType.IntegerPrimitive),
+                            Fun(SIRType.BLS12_381_G1_Element, SIRType.BLS12_381_G1_Element)),
                       Var("p", SIRType.BLS12_381_G1_Element),
                       SIRType.BLS12_381_G1_Element)
             )
           )
         )
+
         assert(
           compile(Builtins.bls12_381_G1_equal) == LamAbs(
             p1Var,
@@ -578,6 +609,7 @@ class CompilerPluginToSIRSpec extends AnyFunSuite with ScalaCheckPropertyChecks:
                             SIRType.BooleanPrimitive))
           )
         )
+
         assert(
           compile(Builtins.bls12_381_G1_hashToGroup) == LamAbs(
             bsVar,
@@ -603,11 +635,13 @@ class CompilerPluginToSIRSpec extends AnyFunSuite with ScalaCheckPropertyChecks:
         )
     }
 
+
     test("compile BLS12_381_G2 builtins") {
         val p1Var = Var("p1", SIRType.BLS12_381_G2_Element)
         val p2Var = Var("p2", SIRType.BLS12_381_G2_Element)
         val pVar = Var("p", SIRType.BLS12_381_G2_Element)
-        val sVar = Var("s", SIRType.BLS12_381_G2_Element)
+        val sBlsVar = Var("s", SIRType.BLS12_381_G2_Element)
+        val sIntVar = Var("s", SIRType.IntegerPrimitive)
         val bsVar = Var("bs", SIRType.ByteStringPrimitive)
         val dstVar = Var("dst", SIRType.ByteStringPrimitive)
         assert(
@@ -630,10 +664,10 @@ class CompilerPluginToSIRSpec extends AnyFunSuite with ScalaCheckPropertyChecks:
         )
         assert(
           compile(Builtins.bls12_381_G2_scalarMul) ~=~ LamAbs(
-            sVar,
+            sIntVar,
             LamAbs(pVar,
                 Apply(
-                    Apply(SIRBuiltins.bls12_381_G2_scalarMul, sVar, Fun(SIRType.BLS12_381_G2_Element, SIRType.BLS12_381_G2_Element)),
+                    Apply(SIRBuiltins.bls12_381_G2_scalarMul, sIntVar, Fun(SIRType.BLS12_381_G2_Element, SIRType.BLS12_381_G2_Element)),
                     pVar,
                     SIRType.BLS12_381_G2_Element
                 )
@@ -676,6 +710,7 @@ class CompilerPluginToSIRSpec extends AnyFunSuite with ScalaCheckPropertyChecks:
           )
         )
     }
+
 
     test("compile BLS12_381 pairing operations builtins") {
         val p1Var = Var("p1", SIRType.BLS12_381_G1_Element)
@@ -1448,6 +1483,8 @@ class CompilerPluginToSIRSpec extends AnyFunSuite with ScalaCheckPropertyChecks:
             case Result.Failure(exception, _, _, _) => fail(exception)
     }
     
+
+
 
 
 
