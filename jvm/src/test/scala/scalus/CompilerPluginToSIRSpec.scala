@@ -279,26 +279,6 @@ class CompilerPluginToSIRSpec extends AnyFunSuite with ScalaCheckPropertyChecks:
 
 
     test("compile chooseList builtins") {
-        val expr = compile(Builtins.chooseList(builtin.List[BigInt](1, 2, 3), true, false))
-        println(expr.pretty.render(100))
-
-
-
-        val expr1 = (DefaultFun.ChooseList $ scala.collection.immutable.List(1, 2, 3) $ true $ false)
-        println(expr1.pretty.render(100))
-
-
-
-        val unifyResult = SIRUnify.unifySIR(expr, expr1, SIRUnify.Env.empty)
-
-        println(s"unifyResult = ${unifyResult}")
-
-        (expr, expr1) match {
-            case (expr0: SIRExpr, expr1: SIRExpr) =>
-                println(s"tp0=${expr0.tp.show},  tp1=${expr1.tp.show}")
-            case _ =>
-                println("result of compile is not SIRExpr")
-        }
 
         assert(
           compile(
@@ -415,7 +395,7 @@ class CompilerPluginToSIRSpec extends AnyFunSuite with ScalaCheckPropertyChecks:
     test("compile mkNilData") {
         assert(compile(Builtins.mkNilData())
             ~=~
-            (Apply(SIRBuiltins.mkNilData, Const(Constant.Unit, sirVoid), sirData))
+            (Apply(SIRBuiltins.mkNilData, Const(Constant.Unit, sirVoid), sirList(sirData)))
         )
     }
 
