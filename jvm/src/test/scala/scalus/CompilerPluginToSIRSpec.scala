@@ -3,6 +3,7 @@ package scalus
 import org.scalatest.funsuite.AnyFunSuite
 import org.scalatestplus.scalacheck.ScalaCheckPropertyChecks
 import scalus.Compiler.compile
+import scalus.Compiler.compileDebug
 import scalus.Compiler.fieldAsData
 import scalus.builtin.Builtins
 import scalus.builtin.ByteString
@@ -13,20 +14,10 @@ import scalus.ledger.api.v1.*
 import scalus.prelude.List.Cons
 import scalus.prelude.List.Nil
 import scalus.prelude.Prelude.given
-import scalus.sir.Binding
-import scalus.sir.TypeBinding
-import scalus.sir.ConstrDecl
-import scalus.sir.DataDecl
-import scalus.sir.Recursivity
+import scalus.sir.{Binding, ConstrDecl, DataDecl, Recursivity, SIR, SIRBuiltins, SIRExpr, SIRType, SIRUnify, SIRVarStorage, ToExprHSSIRFlat, TypeBinding}
 import scalus.sir.Recursivity.*
-import scalus.sir.SIR
 import scalus.sir.SIR.*
-import scalus.sir.SIRBuiltins
-import scalus.sir.SIRExpr
-import scalus.sir.SIRType
 import scalus.sir.SIRType.{BooleanPrimitive, TypeVar}
-import scalus.sir.SIRVarStorage
-import scalus.sir.SIRUnify
 import scalus.sir.SirDSL.{*, given}
 import scalus.uplc.DefaultFun.*
 import scalus.uplc.DefaultUni.asConstant
@@ -61,7 +52,7 @@ class CompilerPluginToSIRSpec extends AnyFunSuite with ScalaCheckPropertyChecks:
     def sirConstUnit = Const(Constant.Unit, SIRType.VoidPrimitive)
 
 
-    
+
     test("compile literals") {
         assert(compile(false) == Const(Constant.Bool(false), SIRType.BooleanPrimitive))
         assert(compile(true) == Const(Constant.Bool(true), SIRType.BooleanPrimitive))
@@ -372,12 +363,15 @@ class CompilerPluginToSIRSpec extends AnyFunSuite with ScalaCheckPropertyChecks:
         )
     }
 
+
     test("compile MkCons builtin") {
-        assert(
-          compile {
-              val a = "foo"
-              "bar" :: builtin.List(a)
-          } ~=~ Let(
+
+        val compiled = compile {
+            val a = "foo"
+            "bar" :: builtin.List(a)
+        }
+
+        val expected = Let(
             NonRec,
             List(Binding("a", Const(Constant.String("foo"), sirString))),
             Apply(
@@ -389,9 +383,14 @@ class CompilerPluginToSIRSpec extends AnyFunSuite with ScalaCheckPropertyChecks:
               ),
               SIRType.List(sirString)
             )
-          )
+        )
+
+
+        assert(
+          compiled ~=~ expected
         )
     }
+
 
     test("compile head function") {
         assert(
@@ -1465,6 +1464,7 @@ class CompilerPluginToSIRSpec extends AnyFunSuite with ScalaCheckPropertyChecks:
                 assert(logs == List("oneEqualsTwo ? False: { mem: 0.002334, cpu: 0.539980 }"))
             case Result.Failure(exception, _, _, _) => fail(exception)
     }
+
 
 
 

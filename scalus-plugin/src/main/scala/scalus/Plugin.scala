@@ -45,13 +45,15 @@ class ScalusPhase extends PluginPhase {
         ctx
 
     override def transformApply(tree: tpd.Apply)(using Context): tpd.Tree =
-        val compileSymbol = requiredModule("scalus.Compiler").requiredMethod("compile")
-        if tree.fun.symbol == compileSymbol then
-            println(s"Scalus: Found compile call:  ${tree.show}, code=${tree.args.head.show}")
+        val compilerModule = requiredModule("scalus.Compiler")
+        val compileSymbol = compilerModule.requiredMethod("compile")
+        val compileDebugSymbol = compilerModule.requiredMethod("compileDebug")
+        if tree.fun.symbol == compileSymbol || tree.fun.symbol == compileDebugSymbol then
+            println(s"Scalus: Found compile call:  ${tree.show}, code=${tree.args.head.show}, debug=${tree.fun.symbol == compileDebugSymbol}")
             // report.echo(tree.showIndented(2))
             val code = tree.args.head
             val compiler = new SIRCompiler(Mode.Link)
-            val result = compiler.compileToSIR(code)
+            val result = compiler.compileToSIR(code, tree.fun.symbol == compileDebugSymbol)
             val converter = new SIRConverter
             converter.convertSIRToTree(result, tree.span)
         else tree

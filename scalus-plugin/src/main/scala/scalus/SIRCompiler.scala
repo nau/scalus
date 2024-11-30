@@ -699,6 +699,8 @@ final class SIRCompiler(mode: scalus.Mode)(using ctx: Context) {
     }
 
     private def compileBlock(env: Env, stmts: immutable.List[Tree], expr: Tree): SIRExpr = {
+        if (env.debug) then
+            println(s"compileBlock: ${stmts.map(_.show).mkString("\n")}")
         val exprs = ListBuffer.empty[B]
         val exprEnv = stmts.foldLeft(env) {
             case (env, _: Import)  => env // ignore local imports
@@ -712,9 +714,15 @@ final class SIRCompiler(mode: scalus.Mode)(using ctx: Context) {
 
         }
         val exprExpr = compileExpr(exprEnv, expr)
-        exprs.foldRight(exprExpr) { (bind, expr) =>
+        if (env.debug) then
+            println(s"compileBlock: expr=${expr.show}")
+            println(s"compileBlock: exprExprs.tp=${exprExpr.tp.show}")
+        val retval = exprs.foldRight(exprExpr) { (bind, expr) =>
             SIR.Let(bind.recursivity, List(Binding(bind.name, bind.body)), expr)
         }
+        if (env.debug) then
+            println(s"compileBlock: retval.tp=${retval.tp.show}")
+        retval
     }
 
     /* Sometimes the compiler leaves Inlined nodes,
@@ -1009,7 +1017,9 @@ final class SIRCompiler(mode: scalus.Mode)(using ctx: Context) {
               SIR.Error("")
             )
 
-    private def compileBuiltinListMethods(env: Env, lst: Tree, fun: Name): SIRExpr =
+    private def compileBuiltinListMethods(env: Env, lst: Tree, fun: Name, targs: List[Tree]): SIRExpr =
+        if (env.debug) then
+            println(s"compileBuiltinListMethods: ${lst.show}, fun: $fun, targs: $targs")
         fun.show match
             case "head" =>
                 val exprA = compileExpr(env, lst)
@@ -1043,9 +1053,13 @@ final class SIRCompiler(mode: scalus.Mode)(using ctx: Context) {
         tpe: Tree,
         tree: Tree
     ): SIRExpr =
+        if (env.debug) then
+            println(s"compileBuiltinListConstructor: ${ex.show}, list: $list, tpe: $tpe")
         val tpeE = typeReprToDefaultUni(tpe.tpe, list)
         val tpeTp = sirTypeInEnv(tpe.tpe, tree.srcPos, env)
         val listTp = SIRType.List(tpeTp)
+        if (env.debug) then
+            println(s"compileBuiltinListConstructor: tpeE: $tpeE, tpeTp: $tpeTp, listTp: $listTp, listTp.show=${listTp.show}")
         ex match
             case SeqLiteral(args, _) =>
                 val allLiterals = args.forall(arg => compileConstant.isDefinedAt(arg))
@@ -1055,7 +1069,7 @@ final class SIRCompiler(mode: scalus.Mode)(using ctx: Context) {
                 else
                     val nil: SIRExpr =
                         SIR.Const(scalus.uplc.Constant.List(tpeE, Nil), SIRType.List.Nil)
-                    args.foldRight(nil) { (arg, acc) =>
+                    val retval = args.foldRight(nil) { (arg, acc) =>
                         SIR.Apply(
                           SIR.Apply(
                             SIRBuiltins.mkCons,
@@ -1066,6 +1080,10 @@ final class SIRCompiler(mode: scalus.Mode)(using ctx: Context) {
                           listTp
                         )
                     }
+                    if (env.debug) then
+                        println(s"compileBuiltinListConstructor: retval: $retval")
+                        println(s"compileBuiltinListConstructor: retval.tp: ${retval.tp.show}")
+                    retval
             case _ =>
                 error(UnsupportedListApplyInvocation(tree, tpe, tree.srcPos), SIR.Error(""))
 
@@ -1077,6 +1095,8 @@ final class SIRCompiler(mode: scalus.Mode)(using ctx: Context) {
         applyTpe: Type,
         applyTree: Apply
     ): SIRExpr = {
+        if (env0.debug) then
+              println(s"compileApply: ${f.show}, targs: $targs, args: $args, applyTpe: $applyTpe, applyTree: $applyTree")
         val env = fillTypeParamInTypeApply(f.symbol, targs, env0)
         val fE = compileExpr(env, f)
         val applySirType = sirTypeInEnv(applyTpe, applyTree.srcPos, env)
@@ -1117,7 +1137,8 @@ final class SIRCompiler(mode: scalus.Mode)(using ctx: Context) {
         SIR.Error(msg)
 
     def compileExpr[T](env: Env, tree: Tree)(using Context): SIRExpr = {
-        // println(s"compileExpr: ${tree.showIndented(2)}, env: $env")
+        if (env.debug) then
+           println(s"compileExpr: ${tree.showIndented(2)}, env: $env")
         if compileConstant.isDefinedAt(tree) then
             val const = compileConstant(tree)
             SIR.Const(const, sirTypeInEnv(tree.tpe, tree.srcPos, env))
@@ -1243,6 +1264,8 @@ final class SIRCompiler(mode: scalus.Mode)(using ctx: Context) {
                 if op == nme.EQ then eq else SIR.Not(eq)
             // BUILTINS
             case bi: Select if builtinsHelper.builtinFun(bi.symbol).isDefined =>
+                if (env.debug) then
+                    println(s"compileExpr: builtinFun: ${bi.symbol}")
                 builtinsHelper.builtinFun(bi.symbol).get
             case bi: Ident if builtinsHelper.builtinFun(bi.symbol).isDefined =>
                 builtinsHelper.builtinFun(bi.symbol).get
@@ -1262,7 +1285,9 @@ final class SIRCompiler(mode: scalus.Mode)(using ctx: Context) {
                   SIRType.IntegerPrimitive
                 )
             // List BUILTINS
-            case Select(lst, fun) if lst.isList => compileBuiltinListMethods(env, lst, fun)
+            case TypeApply(Select(lst, fun),targs) if lst.isList =>
+                compileBuiltinListMethods(env, lst, fun, targs)
+            case Select(lst, fun) if lst.isList => compileBuiltinListMethods(env, lst, fun, Nil)
             case tree @ TypeApply(Select(list, name), immutable.List(tpe))
                 if name == termName("empty") && list.tpe =:= requiredModule(
                   "scalus.builtin.List"
@@ -1277,17 +1302,17 @@ final class SIRCompiler(mode: scalus.Mode)(using ctx: Context) {
                   immutable.List(arg)
                 ) if name == termName("::") && list.isList =>
                 val argE = compileExpr(env, arg)
-                val exprType = sirTypeInEnv(tpe.tpe, tree.srcPos, env)
+                val exprType = sirTypeInEnv(tree.tpe, tree.srcPos, env)
                 SIR.Apply(
                   SIR.Apply(SIRBuiltins.mkCons, argE, SIRType.Fun(exprType, exprType)),
                   compileExpr(env, list),
                   exprType
                 )
             case tree @ Apply(
-                  TypeApply(Select(list, nme.apply), immutable.List(tpe)),
+                  TypeApply(Select(list, nme.apply), immutable.List(ltpe)),
                   immutable.List(ex)
                 ) if list.tpe =:= requiredModule("scalus.builtin.List").typeRef =>
-                compileBuiltinListConstructor(env, ex, list, tpe, tree)
+                compileBuiltinListConstructor(env, ex, list, ltpe, tree)
             // Pair BUILTINS
             // PAIR
             case Select(pair, fun) if pair.isPair =>
@@ -1443,8 +1468,8 @@ final class SIRCompiler(mode: scalus.Mode)(using ctx: Context) {
         env.copy(typeVars = env.typeVars ++ nTypeVars)
     }
 
-    def compileToSIR(tree: Tree)(using Context): SIR = {
-        val result = compileExpr(Env.empty, tree)
+    def compileToSIR(tree: Tree, debug: Boolean)(using Context): SIR = {
+        val result = compileExpr(Env.empty.copy(debug = debug), tree)
         val full: SIRExpr = globalDefs.values.foldRight(result) {
             case (CompileDef.Compiled(b), acc) =>
                 SIR.Let(b.recursivity, List(Binding(b.fullName.name, b.body)), acc)
@@ -1496,12 +1521,18 @@ object SIRCompiler {
 
     case class Env(
         vars: Map[String, SIRType],
-        typeVars: Map[Symbol, SIRType]
+        typeVars: Map[Symbol, SIRType],
+        debug: Boolean = false,
+        level: Int = 0
     ) {
 
-        def ++(bindings: Iterable[(String, SIRType)]): Env = Env(vars ++ bindings, typeVars)
+        def ++(bindings: Iterable[(String, SIRType)]): Env = copy(vars = vars ++ bindings)
 
-        def +(ntpe: (String, SIRType)): Env = Env(vars + ntpe, typeVars)
+        def +(ntpe: (String, SIRType)): Env = copy(vars = vars + ntpe)
+
+        def withDebug: Env = copy(debug = true)
+
+        def withoutDebug: Env = copy(debug = false)
 
     }
 
