@@ -399,13 +399,16 @@ class CompilerPluginToSIRSpec extends AnyFunSuite with ScalaCheckPropertyChecks:
         )
     }
 
+
     test("compile mkNilPairData") {
+
         assert(
           compile(Builtins.mkNilPairData())
               ~=~
-              (Apply(SIRBuiltins.mkNilPairData, Const(Constant.Unit, sirVoid), SIRType.Pair(sirData, sirData)))
+              (Apply(SIRBuiltins.mkNilPairData, Const(Constant.Unit, sirVoid), SIRType.List(SIRType.Pair(sirData, sirData))))
         )
     }
+
 
     test("compile mkConstr builtins") {
         val nilData = Const(Constant.List(DefaultUni.Data, immutable.Nil), SIRType.List(sirData))
@@ -1444,6 +1447,7 @@ class CompilerPluginToSIRSpec extends AnyFunSuite with ScalaCheckPropertyChecks:
                 assert(logs == List("oneEqualsTwo ? False: { mem: 0.002334, cpu: 0.539980 }"))
             case Result.Failure(exception, _, _, _) => fail(exception)
     }
+    
 
 
 

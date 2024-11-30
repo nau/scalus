@@ -172,7 +172,7 @@ object SIRBuiltins {
     val mkNilData =
         SIR.Builtin(DefaultFun.MkNilData, SIRTypeMacros.liftM[Unit => scalus.builtin.List[Data]])
     val mkNilPairData =
-        SIR.Builtin(DefaultFun.MkNilPairData, SIRTypeMacros.liftM[Unit => (Data, Data)])
+        SIR.Builtin(DefaultFun.MkNilPairData, SIRTypeMacros.liftM[Unit => List[(Data, Data)]])
 
     // BLS12_381 operations
     // G1 operations

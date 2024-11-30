@@ -36,3 +36,13 @@ class SirDSLTypingSpec extends AnyFunSuite:
         assert(SIRType.checkAllProxiesFilled(stp))
     }
 
+    test("tuple2 type from macro should be mapped to Pair") {
+        val stp = SIRTypeMacros.liftM[(Int, Boolean)]
+        assert(stp ~=~ SIRType.Pair(SIRType.IntegerPrimitive, SIRType.BooleanPrimitive))
+    }
+
+    test("fun from unit to tuple2 type should be mapped to FunPair") {
+        val stp = SIRTypeMacros.liftM[ Unit => (Int, Boolean)]
+        assert(stp ~=~ SIRType.Fun(SIRType.VoidPrimitive, SIRType.Pair(SIRType.IntegerPrimitive, SIRType.BooleanPrimitive)))
+    }
+
