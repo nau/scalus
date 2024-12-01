@@ -67,7 +67,7 @@ class SirToExprSpec extends AnyFunSuite {
 
     test("type of buildin fun application is serialized without unfilled proxies") {
         val fun = SIRBuiltins.tailList
-        val arg: SIRExpr = SIR.Const(scalus.uplc.Constant.List(scalus.uplc.DefaultUni.Integer,
+        val arg: SIR = SIR.Const(scalus.uplc.Constant.List(scalus.uplc.DefaultUni.Integer,
                                                                 List(scalus.uplc.Constant.Integer(1))),
                                       SIRType.List(SIRType.IntegerPrimitive))
         val fun1 = SIR.Apply(fun, arg, SIRType.calculateApplyType(fun.tp, arg.tp, Map.empty))
@@ -80,11 +80,11 @@ class SirToExprSpec extends AnyFunSuite {
         assert(tp ~=~ decoded)
     }
 
-     
-    
+
+
     test("buildin fun application is serialized without unfilled proxies") {
         val fun0 = SIRBuiltins.tailList
-        val arg: SIRExpr = SIR.Const(scalus.uplc.Constant.List(scalus.uplc.DefaultUni.Integer,
+        val arg: SIR = SIR.Const(scalus.uplc.Constant.List(scalus.uplc.DefaultUni.Integer,
             List(scalus.uplc.Constant.Integer(1))),
             SIRType.List(SIRType.IntegerPrimitive))
         val fun1 = SIR.Apply(fun0, arg, SIRType.calculateApplyType(fun0.tp, arg.tp, Map.empty))
@@ -92,7 +92,7 @@ class SirToExprSpec extends AnyFunSuite {
         val bitSize = ToExprHSSIRFlat.bitSize(fun1)
         val encoded = EncoderState(bitSize / 8 + 1)
         ToExprHSSIRFlat.encode(fun1, encoded)
-        val decoded = ToExprHSSIRFlat.decode(DecoderState(encoded.buffer)).asInstanceOf[SIRExpr]
+        val decoded = ToExprHSSIRFlat.decode(DecoderState(encoded.buffer))
         println(s"decoded: ${decoded}")
         assert(fun1 ~=~ decoded)
     }

@@ -9,12 +9,10 @@ import scalus.sir.SIRType.TypeVar
 class SirDSLTypingSpec extends AnyFunSuite:
 
     test("type list of ints moved to SIR via implicit conversion") {
-        val sir: SIRExpr = List(1,2,3)
-        if (sir.isInstanceOf[SIRExpr]) then
-            val expr = sir.asInstanceOf[SIRExpr]
-            assert(expr.tp == SIRType.List(SIRType.IntegerPrimitive))
-        else
-            fail("Expected SIRExpr")
+        val sir: SIR = List(1,2,3)
+        
+        assert(sir.tp == SIRType.List(SIRType.IntegerPrimitive))
+        
     }
 
     test("list type is created without unfilled proxies") {

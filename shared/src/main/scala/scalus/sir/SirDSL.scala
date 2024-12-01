@@ -6,7 +6,7 @@ import scalus.pretty
 
 object SirDSL:
 
-    def applyToList(app: SIRExpr): (SIRExpr, List[SIRExpr]) =
+    def applyToList(app: SIR): (SIR, List[SIR]) =
         app match
             case SIR.Apply(f, arg, tp) =>
                 val (f1, args) = applyToList(f)
@@ -21,24 +21,24 @@ object SirDSL:
                 (svar.name :: names, body1)
             case body => (Nil, body)
 
-    def λ(names: String*)(term: SIRExpr): SIRExpr = lam(names*)(term)
-    def lam(names: String*)(term: SIRExpr): SIRExpr =
+    def λ(names: String*)(term: SIR): SIR = lam(names*)(term)
+    def lam(names: String*)(term: SIR): SIR =
         names.foldRight(term)((e, s) => SIR.LamAbs(SIR.Var(e, s.tp), s))
-    extension (term: SIRExpr)
-        infix def $(rhs: SIRExpr): SIRExpr =
+    extension (term: SIR)
+        infix def $(rhs: SIR): SIR =
             SIR.Apply(term, rhs, SIRType.calculateApplyType(term.tp, rhs.tp, Map.empty))
 
-    given Conversion[DefaultFun, SIRExpr] with
-        def apply(bn: DefaultFun): SIRExpr = SIRBuiltins.fromUplc(bn)
+    given Conversion[DefaultFun, SIR] with
+        def apply(bn: DefaultFun): SIR = SIRBuiltins.fromUplc(bn)
 
-    given constantAsTerm[A: Constant.LiftValue]: Conversion[A, SIRExpr] with
-        def apply(c: A): SIRExpr = {
+    given constantAsTerm[A: Constant.LiftValue]: Conversion[A, SIR] with
+        def apply(c: A): SIR = {
             val lifted = summon[Constant.LiftValue[A]].lift(c)
             SIR.Const(lifted, SIRType.fromDefaultUni(lifted.tpe))
         }
 
-    given Conversion[Constant, SIRExpr] with
-        def apply(c: Constant): SIRExpr =
+    given Conversion[Constant, SIR] with
+        def apply(c: Constant): SIR =
             c match
                 case Constant.Integer(value)    => SIR.Const(c, SIRType.IntegerPrimitive)
                 case Constant.ByteString(value) => SIR.Const(c, SIRType.ByteStringPrimitive)

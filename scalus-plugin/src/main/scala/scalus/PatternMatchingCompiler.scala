@@ -30,7 +30,7 @@ enum SirBinding:
 
 case class PatternInfo(
     allBindings: Map[String, SIRType],
-    generator: SIRExpr => SIRExpr, /// generates inner Match for nested case classes
+    generator: SIR => SIR, /// generates inner Match for nested case classes
     bindings: List[String] /// current level bindings to generate SirCase.Case
     // rhsType: SIRType /// SIR type of the rhs expression in the match case
 )
@@ -40,10 +40,10 @@ enum SirCase:
         constructorSymbol: Symbol,
         typeParams: List[SIRType],
         bindings: List[String],
-        rhs: SIRExpr,
+        rhs: SIR,
         srcPos: SrcPos
     )
-    case Wildcard(rhs: SIRExpr, srcPos: SrcPos)
+    case Wildcard(rhs: SIR, srcPos: SrcPos)
     case Error(error: CompilationError)
 
 /*
@@ -79,7 +79,7 @@ class PatternMatchingCompiler(val compiler: SIRCompiler)(using Context) {
         constrDecl: ConstrDecl,
         bindings: List[String],
         typeArgs: List[SIRType],
-        rhs: SIRExpr
+        rhs: SIR
     ): scalus.sir.SIR.Case = {
 
         // val params = compiler.primaryConstructorParams(constrSymbol).zip(bindings).map {
@@ -332,7 +332,7 @@ class PatternMatchingCompiler(val compiler: SIRCompiler)(using Context) {
         case a =>
             SirCase.Error(UnsupportedMatchExpression(a, a.srcPos)) :: Nil
 
-    def compileMatch(tree: Match, env: SIRCompiler.Env): SIRExpr = {
+    def compileMatch(tree: Match, env: SIRCompiler.Env): SIR = {
         if (env.debug) then
             println(s"compileMatch: ${tree.show}")
         val Match(matchTree, cases) = tree

@@ -10,7 +10,7 @@ object SIRUnify {
 
     case class Env(
                       path: List[String] = List.empty,
-                      filledHoles:Map[String, SIRExpr] = Map.empty,
+                      filledHoles:Map[String, SIR] = Map.empty,
                       eqHoles: Map[String,SIR.Hole] = Map.empty,
                       filledTypes:Map[SIRType.TypeVar, SIRType] = Map.empty,
                       eqTypes: Map[SIRType.TypeVar, SIRType] = Map.empty,
@@ -77,41 +77,40 @@ object SIRUnify {
 
 
 
-    def checkEqHoles(env: Env, h: SIR.Hole, v: SIRExpr): UnificationResult[SIRExpr] = {
+    def checkEqHoles(env: Env, h: SIR.Hole, v: SIR): UnificationResult[SIR] = {
         env.eqHoles.get(h.name) match {
             case Some(h2) =>
                 val nEqHoles = env.eqHoles - h.name
-                unifySIRExpr(h2, v, env.copy(eqHoles = nEqHoles))
+                unifySIR(h2, v, env.copy(eqHoles = nEqHoles))
             case None =>
                 UnificationSuccess(env, v)
         }
     }
 
+    
     def unifySIR(left: SIR, right: SIR, env: Env): UnificationResult[SIR] = {
-        (left, right) match
-            case (expr1: SIRExpr, expr2: SIRExpr) =>
-                 unifySIRExpr(expr1, expr2, env)
-            case (expr1: SIRExpr, decl: SIR.Decl) =>
-                UnificationFailure(env.path, left, right)
-            case (decl: SIR.Decl, expr2: SIRExpr) =>
-                UnificationFailure(env.path, left, right)
-            case (decl1: SIR.Decl, decl2: SIR.Decl) =>
-                unifyDecl(decl1, decl2, env)
+        unifySIRExpr(left, right, env)
+        //(left, right) match
+        //    case (expr1: SIRExpr, expr2: SIRExpr) =>
+        //         unifySIRExpr(expr1, expr2, env)
+        //    case (expr1: SIRExpr, decl: SIR.Decl) =>
+        //        UnificationFailure(env.path, left, right)
+        //    case (decl: SIR.Decl, expr2: SIRExpr) =>
+        //        UnificationFailure(env.path, left, right)
+        //    case (decl1: SIR.Decl, decl2: SIR.Decl) =>
+        //        unifyDecl(decl1, decl2, env)
     }
+    
+    
 
+    
     given Unify[SIR] with {
         def apply(left: SIR, right: SIR, env: Env): UnificationResult[SIR] = {
-            unifySIR(left, right, env)
-        }
-    }
-
-    given Unify[SIRExpr] with {
-        def apply(left: SIRExpr, right: SIRExpr, env: Env): UnificationResult[SIRExpr] = {
             unifySIRExpr(left, right, env)
         }
     }
 
-    def unifySIRExpr(left: SIRExpr, right: SIRExpr, env: Env): UnificationResult[SIRExpr] = {
+    def unifySIRExpr(left: SIR, right: SIR, env: Env): UnificationResult[SIR] = {
         (left, right) match
             case (h1: SIR.Hole, h2: SIR.Hole) =>
                 env.filledHoles.get(h1.name) match
@@ -179,9 +178,9 @@ object SIRUnify {
                     case failure@UnificationFailure(path, paramLeft, paramRight) =>
                           failure
             case (app1: SIR.Apply, app2: SIR.Apply) =>
-                unifySIRExpr(app1.f, app2.f, env.copy(path="f"::env.path)) match
+                unifySIR(app1.f, app2.f, env.copy(path="f"::env.path)) match
                     case UnificationSuccess(env1, fun) =>
-                        unifySIRExpr(app1.arg, app2.arg, env1.copy(path="arg"::env.path)) match
+                        unifySIR(app1.arg, app2.arg, env1.copy(path="arg"::env.path)) match
                             case UnificationSuccess(env2, arg) =>
                                 unifyType(app1.tp, app2.tp, env2.copy(path="tp"::env.path)) match
                                     case UnificationSuccess(env3, tp) =>
@@ -196,32 +195,32 @@ object SIRUnify {
                 else
                     UnificationFailure(env.path, left, right)
             case (v1: SIR.And, v2: SIR.And) =>
-                unifySIRExpr(v1.a, v2.a, env.copy(path="a"::env.path)) match
+                unifySIR(v1.a, v2.a, env.copy(path="a"::env.path)) match
                     case UnificationSuccess(env1, a) =>
-                        unifySIRExpr(v1.b, v2.b, env1.copy(path="b"::env.path)) match
+                        unifySIR(v1.b, v2.b, env1.copy(path="b"::env.path)) match
                             case UnificationSuccess(env2, b) =>
                                 UnificationSuccess(env2, SIR.And(a, b))
                             case failure@UnificationFailure(path, rightLeft, rightRight) => failure
                     case failure@UnificationFailure(path, leftLeft, leftRight) => failure
             case (v1: SIR.Or, v2: SIR.Or) =>
-                unifySIRExpr(v1.a, v2.a, env.copy(path="a"::env.path)) match
+                unifySIR(v1.a, v2.a, env.copy(path="a"::env.path)) match
                     case UnificationSuccess(env1, a) =>
-                        unifySIRExpr(v1.b, v2.b, env1.copy(path="b"::env.path)) match
+                        unifySIR(v1.b, v2.b, env1.copy(path="b"::env.path)) match
                             case UnificationSuccess(env2, b) =>
                                 UnificationSuccess(env2, SIR.Or(a, b))
                             case failure: UnificationFailure[?] => failure
                     case failure: UnificationFailure[?] => failure
             case (v1: SIR.Not, v2: SIR.Not) =>
-                unifySIRExpr(v1.a, v2.a, env.copy(path="a"::env.path)) match
+                unifySIR(v1.a, v2.a, env.copy(path="a"::env.path)) match
                     case UnificationSuccess(env1, a) =>
                         UnificationSuccess(env1.copy(path=env.path), SIR.Not(a))
                     case failure: UnificationFailure[?] => failure
             case (v1: SIR.IfThenElse, v2: SIR.IfThenElse) =>
-                unifySIRExpr(v1.cond, v2.cond, env.copy(path="cond"::env.path)) match
+                unifySIR(v1.cond, v2.cond, env.copy(path="cond"::env.path)) match
                     case UnificationSuccess(env1, cond) =>
-                        unifySIRExpr(v1.t, v2.t, env1.copy(path="t"::env.path)) match
+                        unifySIR(v1.t, v2.t, env1.copy(path="t"::env.path)) match
                             case UnificationSuccess(env2, t) =>
-                                unifySIRExpr(v1.f, v2.f, env2.copy(path="f"::env.path)) match
+                                unifySIR(v1.f, v2.f, env2.copy(path="f"::env.path)) match
                                     case UnificationSuccess(env3, f) =>
                                         unifyType(v1.tp, v2.tp, env3.copy(path="tp"::env.path)) match
                                             case UnificationSuccess(env4, tp) =>
@@ -256,7 +255,7 @@ object SIRUnify {
                 else
                     UnificationFailure(env.path, left, right)
             case (m1: SIR.Match, m2: SIR.Match) =>
-                unifySIRExpr(m1.scrutinee, m2.scrutinee, env.copy(path="scrutinee"::env.path)) match
+                unifySIR(m1.scrutinee, m2.scrutinee, env.copy(path="scrutinee"::env.path)) match
                     case UnificationSuccess(env1, expr) =>
                         unifyCases(m1.cases, m2.cases, env1.copy(path="cases"::env.path)) match
                             case UnificationSuccess(env2, cases) =>
@@ -265,6 +264,14 @@ object SIRUnify {
                                         UnificationSuccess(env3.copy(path=env.path), SIR.Match(expr, cases, tp))
                                     case failure@UnificationFailure(path, left, right) =>
                                         failure
+                            case failure@UnificationFailure(path, left, right) => failure
+                    case failure@UnificationFailure(path, left, right) => failure
+            case (d1: SIR.Decl, d2: SIR.Decl) =>
+                unifyDataDecl(d1.data, d2.data, env.copy(path="data"::env.path)) match
+                    case UnificationSuccess(env1, data) =>
+                        unifySIR(d1.term, d2.term, env1.copy(path="term"::env.path)) match
+                            case UnificationSuccess(env2, term) =>
+                                UnificationSuccess(env2.copy(path=env.path), SIR.Decl(data, term))
                             case failure@UnificationFailure(path, left, right) => failure
                     case failure@UnificationFailure(path, left, right) => failure
             case _ =>
@@ -460,7 +467,7 @@ object SIRUnify {
 
     def unifyBinding(left: Binding, right: Binding, env: Env): UnificationResult[Binding] = {
         if (left.name == right.name) then
-            unifySIRExpr(left.value, right.value, env.copy(path="value"::env.path)) match
+            unifySIR(left.value, right.value, env.copy(path="value"::env.path)) match
                 case UnificationSuccess(env1, value) =>
                     UnificationSuccess(env1.copy(path=env.path), Binding(left.name, value))
                 case failure@UnificationFailure(path, left, right) => failure
@@ -517,7 +524,7 @@ object SIRUnify {
                     case UnificationSuccess(env2, bindings) =>
                        unifyList(left.typeBindings, right.typeBindings, env2.copy(path="typeBindings"::env.path)) match
                            case UnificationSuccess(env3, typeBindings) =>
-                               unifySIRExpr(left.body, right.body, env3.copy(path="body"::env.path)) match
+                               unifySIR(left.body, right.body, env3.copy(path="body"::env.path)) match
                                    case UnificationSuccess(env4, body) =>
                                       UnificationSuccess(env4.copy(path=env.path), SIR.Case(constrDecl, bindings, typeBindings, body))
                                    case failure@UnificationFailure(path, left, right) => failure

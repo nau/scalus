@@ -6,7 +6,7 @@ import scalus.uplc.DefaultFun
 
 case class Module(version: (Int, Int), defs: List[Binding])
 
-case class Binding(name: String, value: SIRExpr) {
+case class Binding(name: String, value: SIR) {
 
     override def toString: String = s"Binding(\"$name\" : $value)"
 
@@ -80,6 +80,8 @@ case class DataDecl(
 
 sealed trait SIR {
 
+    def tp: SIRType
+
     def ~=~(that: SIR): Boolean =
         SIRUnify.unifySIR(this, that, SIRUnify.Env.empty) match {
             case SIRUnify.UnificationSuccess(_, _) => true
@@ -88,11 +90,6 @@ sealed trait SIR {
 
 }
 
-sealed trait SIRExpr extends SIR {
-    def tp: SIRType
-}
-
-sealed trait SIRDef extends SIR
 
 object SIR:
 
@@ -110,22 +107,21 @@ object SIR:
     //  TypeAlias(1, SumType("AClass", List(("x", Int), ("y", String))))
     //  Var(x,  TypeRef(1))
 
-    case class Var(name: String, tp: SIRType) extends SIRExpr {
+    case class Var(name: String, tp: SIRType) extends SIR {
         override def toString: String = s"Var($name, ${tp.show})"
     }
 
-    case class ExternalVar(moduleName: String, name: String, tp: SIRType) extends SIRExpr {
+    case class ExternalVar(moduleName: String, name: String, tp: SIRType) extends SIR {
 
         override def toString: String = s"ExternalVar($moduleName, $name, ${tp.show})"
 
     }
 
-    case class Let(recursivity: Recursivity, bindings: List[Binding], body: SIRExpr)
-        extends SIRExpr {
+    case class Let(recursivity: Recursivity, bindings: List[Binding], body: SIR) extends SIR {
         override def tp: SIRType = body.tp
     }
 
-    case class LamAbs(param: Var, term: SIRExpr) extends SIRExpr {
+    case class LamAbs(param: Var, term: SIR) extends SIR {
 
         override def tp: SIRType =
             term.tp match
@@ -137,7 +133,7 @@ object SIR:
     }
 
 
-    case class Apply(f: SIRExpr, arg: SIRExpr, tp: SIRType) extends SIRExpr {
+    case class Apply(f: SIR, arg: SIR, tp: SIRType) extends SIR {
 
         // TODO: makr tp computable, not stored.  (implement subst at first).
         /*
@@ -155,35 +151,35 @@ object SIR:
 
     }
 
-    case class Const(uplcConst: Constant, tp: SIRType) extends SIRExpr
+    case class Const(uplcConst: Constant, tp: SIRType) extends SIR
 
 
-    case class And(a: SIRExpr, b: SIRExpr) extends SIRExpr {
+    case class And(a: SIR, b: SIR) extends SIR {
         override def tp: SIRType = SIRType.BooleanPrimitive
     }
 
 
-    case class Or(a: SIRExpr, b: SIRExpr) extends SIRExpr {
+    case class Or(a: SIR, b: SIR) extends SIR {
         override def tp: SIRType = SIRType.BooleanPrimitive
     }
 
-    case class Not(a: SIRExpr) extends SIRExpr {
+    case class Not(a: SIR) extends SIR {
         override def tp: SIRType = SIRType.BooleanPrimitive
     }
 
-    case class IfThenElse(cond: SIRExpr, t: SIRExpr, f: SIRExpr, tp: SIRType) extends SIRExpr
+    case class IfThenElse(cond: SIR, t: SIR, f: SIR, tp: SIRType) extends SIR
 
 
-    case class Builtin(bn: DefaultFun, tp: SIRType) extends SIRExpr
+    case class Builtin(bn: DefaultFun, tp: SIRType) extends SIR
 
 
-    case class Error(msg: String, cause: Throwable | Null = null) extends SIRExpr {
+    case class Error(msg: String, cause: Throwable | Null = null) extends SIR {
         override def tp: SIRType = SIRType.TypeError(msg, cause)
     }
 
 
     // TODO: unify data-decl.
-    case class Constr(name: String, data: DataDecl, args: List[SIRExpr]) extends SIRExpr {
+    case class Constr(name: String, data: DataDecl, args: List[SIR]) extends SIR {
         override def tp: SIRType = data.tp
     }
 
@@ -191,7 +187,7 @@ object SIR:
         constr: ConstrDecl,
         bindings: List[String],
         typeBindings: List[SIRType],
-        body: SIRExpr
+        body: SIR
     )
 
     /** Match expression.
@@ -200,11 +196,15 @@ object SIR:
       * @param tp
       *   \- resulting type of Match expression, can be calculated as max(tp of all cases)
       */
-    case class Match(scrutinee: SIRExpr, cases: List[Case], tp: SIRType) extends SIRExpr
+    case class Match(scrutinee: SIR, cases: List[Case], tp: SIRType) extends SIR
 
-    case class Hole(name: String, override val tp: SIRType = FreeUnificator) extends SIRExpr
+    case class Hole(name: String, override val tp: SIRType = FreeUnificator) extends SIR
 
-    case class Decl(data: DataDecl, term: SIR) extends SIRDef
+    case class Decl(data: DataDecl, term: SIR) extends SIR {
+
+        override def tp: SIRType = term.tp
+
+    }
 
 
 case class Program(version: (Int, Int, Int), term: SIR)
@@ -220,14 +220,8 @@ object SIRChecker {
             throw new CheckException(errors.mkString("\n"))
     }
 
-    def checkSIR(sir: SIR, throwOnFirst: Boolean): Seq[String] = sir match {
-        case e: SIRExpr => checkExpr(e, throwOnFirst)
-        case d: SIRDef => checkDef(d, throwOnFirst)
-    }
-
-    def checkDef(rDef: SIRDef, throwOnFirst: Boolean): Seq[String] = rDef match {
-        case SIR.Decl(data, term) =>
-            checkData(data, throwOnFirst) ++ checkSIR(term, throwOnFirst)
+    def checkSIR(sir: SIR, throwOnFirst: Boolean): Seq[String] = {
+           checkExpr(sir, throwOnFirst)
     }
 
     def checkData(data: DataDecl, throwOnFirst: Boolean): Seq[String] = {
@@ -246,7 +240,7 @@ object SIRChecker {
         checkType(tpb.tp, throwOnFirst)
 
 
-    def checkExpr(expr: SIRExpr, throwOnFirst: Boolean): Seq[String] = {
+    def checkExpr(expr: SIR, throwOnFirst: Boolean): Seq[String] = {
         val checkTp = checkType(expr.tp, throwOnFirst)
         expr match {
             case SIR.Var(_, tp) => checkTp
@@ -273,6 +267,8 @@ object SIRChecker {
                 val checkCases = cases.flatMap(c => checkCase(c, throwOnFirst))
                 checkSIR(scrutinee, throwOnFirst) ++ checkCases ++ checkTp
             case SIR.Hole(_, _) => checkTp
+            case SIR.Decl(data, term) =>
+                checkData(data, throwOnFirst) ++ checkSIR(term, throwOnFirst)
         }
     }
 

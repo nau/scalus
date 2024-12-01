@@ -22,7 +22,6 @@ import scalus.sir.DataDecl
 import scalus.sir.Module
 import scalus.sir.Recursivity
 import scalus.sir.SIR
-import scalus.sir.SIRExpr
 import scalus.sir.SIRType
 import scalus.sir.SIRTypeMacros
 import scalus.sir.SIRVarStorage
@@ -43,9 +42,9 @@ case class FullName(name: String)
 object FullName:
     def apply(sym: Symbol)(using Context): FullName = FullName(sym.fullName.toString())
 
-case class TopLevelBinding(fullName: FullName, recursivity: Recursivity, body: SIRExpr)
+case class TopLevelBinding(fullName: FullName, recursivity: Recursivity, body: SIR)
 
-case class B(name: String, symbol: Symbol, recursivity: Recursivity, body: SIRExpr):
+case class B(name: String, symbol: Symbol, recursivity: Recursivity, body: SIR):
     def fullName(using Context) = FullName(symbol)
 
 case class AdtTypeInfo(
@@ -129,7 +128,7 @@ final class SIRCompiler(mode: scalus.Mode)(using ctx: Context) {
         mutable.LinkedHashMap.empty
     private val globalDataDecls: mutable.LinkedHashMap[FullName, DataDecl] =
         mutable.LinkedHashMap.empty
-    private val moduleDefsCache: mutable.Map[String, mutable.LinkedHashMap[FullName, SIRExpr]] =
+    private val moduleDefsCache: mutable.Map[String, mutable.LinkedHashMap[FullName, SIR]] =
         mutable.LinkedHashMap.empty.withDefaultValue(mutable.LinkedHashMap.empty)
 
     private val CompileAnnot = requiredClassRef("scalus.Compile").symbol.asClass
@@ -339,7 +338,7 @@ final class SIRCompiler(mode: scalus.Mode)(using ctx: Context) {
         tpe: Type,
         args: immutable.List[Tree],
         srcPos: SrcPos
-    ): SIRExpr = {
+    ): SIR = {
 
         // val typeSymbol = tpe.typeSymbol
         // debugInfo(s"compileNewConstructor0")
@@ -459,10 +458,10 @@ final class SIRCompiler(mode: scalus.Mode)(using ctx: Context) {
         case _ => ()
 
     private def findAndLinkDefinition(
-        defs: collection.Map[FullName, SIRExpr],
+        defs: collection.Map[FullName, SIR],
         fullName: FullName,
         srcPos: SrcPos
-    ): Option[SIRExpr] = {
+    ): Option[SIR] = {
         // println(s"findAndLinkDefinition: looking for ${fullName.name}")
         defs.get(fullName).map { sir =>
             globalDefs.update(fullName, CompileDef.Compiling)
@@ -476,7 +475,7 @@ final class SIRCompiler(mode: scalus.Mode)(using ctx: Context) {
         }
     }
 
-    private def linkDefinition(moduleName: String, fullName: FullName, srcPos: SrcPos): SIRExpr = {
+    private def linkDefinition(moduleName: String, fullName: FullName, srcPos: SrcPos): SIR = {
         // println(s"linkDefinition: ${fullName}")
         val defn = moduleDefsCache.get(moduleName) match
             case Some(defs) =>
@@ -506,7 +505,7 @@ final class SIRCompiler(mode: scalus.Mode)(using ctx: Context) {
         defaultValue
     }
 
-    private def compileIdentOrQualifiedSelect(env: Env, e: Tree): SIRExpr = {
+    private def compileIdentOrQualifiedSelect(env: Env, e: Tree): SIR = {
         val name = e.symbol.name.show
         val fullName = FullName(e.symbol)
         val isInLocalEnv = env.vars.contains(name)
@@ -670,7 +669,7 @@ final class SIRCompiler(mode: scalus.Mode)(using ctx: Context) {
             val nTypeVars = env.typeVars ++ typeParamsMap
             val nVars = env.vars ++ paramNameTypes + (selfName -> selfType)
             val bE = compileExpr(env.copy(vars = nVars, typeVars = nTypeVars), body)
-            val bodyExpr: scalus.sir.SIRExpr =
+            val bodyExpr: scalus.sir.SIR =
                 paramNameTypes.foldRight(bE) { (nameType, acc) =>
                     SIR.LamAbs(SIR.Var(nameType._1, nameType._2), acc)
                 }
@@ -698,7 +697,7 @@ final class SIRCompiler(mode: scalus.Mode)(using ctx: Context) {
                 )
     }
 
-    private def compileBlock(env: Env, stmts: immutable.List[Tree], expr: Tree): SIRExpr = {
+    private def compileBlock(env: Env, stmts: immutable.List[Tree], expr: Tree): SIR = {
         if (env.debug) then
             println(s"compileBlock: ${stmts.map(_.show).mkString("\n")}")
         val exprs = ListBuffer.empty[B]
@@ -815,7 +814,7 @@ final class SIRCompiler(mode: scalus.Mode)(using ctx: Context) {
             DefaultUni.List(typeReprToDefaultUni(t1, list))
         else error(NotBuiltinTypeInBuiltinListConstruction(tpe, list), DefaultUni.Unit)
 
-    private def compileBigIntOps(env: Env, lhs: Tree, op: Name, rhs: Tree, optree: Tree): SIRExpr =
+    private def compileBigIntOps(env: Env, lhs: Tree, op: Name, rhs: Tree, optree: Tree): SIR =
         op match
             case nme.PLUS =>
                 SIR.Apply(
@@ -935,11 +934,11 @@ final class SIRCompiler(mode: scalus.Mode)(using ctx: Context) {
                   SIR.Error("Unsupported BigInt operation")
                 )
 
-    private def compileMatch(tree: Match, env: Env): SIRExpr = {
+    private def compileMatch(tree: Match, env: Env): SIR = {
         pmCompiler.compileMatch(tree, env)
     }
 
-    private def compileBuiltinPairMethods(env: Env, fun: Name, pair: Tree, tree: Tree): SIRExpr =
+    private def compileBuiltinPairMethods(env: Env, fun: Name, pair: Tree, tree: Tree): SIR =
         fun.show match
             case "fst" =>
                 val expr = compileExpr(env, pair)
@@ -980,7 +979,7 @@ final class SIRCompiler(mode: scalus.Mode)(using ctx: Context) {
         tpe1: Tree,
         tpe2: Tree,
         tree: Tree
-    ): SIRExpr =
+    ): SIR =
         if (env.debug) then
             println(s"compileBuiltinPairConstructor: ${a.show}, ${b.show}, tpe1: $tpe1, tpe2: $tpe2")
         // We can create a Pair by either 2 literals as (con pair...)
@@ -1020,7 +1019,7 @@ final class SIRCompiler(mode: scalus.Mode)(using ctx: Context) {
               SIR.Error("")
             )
 
-    private def compileBuiltinListMethods(env: Env, lst: Tree, fun: Name, targs: List[Tree]): SIRExpr =
+    private def compileBuiltinListMethods(env: Env, lst: Tree, fun: Name, targs: List[Tree]): SIR =
         if (env.debug) then
             println(s"compileBuiltinListMethods: ${lst.show}, fun: $fun, targs: $targs")
         fun.show match
@@ -1055,7 +1054,7 @@ final class SIRCompiler(mode: scalus.Mode)(using ctx: Context) {
         list: Tree,
         tpe: Tree,
         tree: Tree
-    ): SIRExpr =
+    ): SIR =
         if (env.debug) then
             println(s"compileBuiltinListConstructor: ${ex.show}, list: $list, tpe: $tpe")
         val tpeE = typeReprToDefaultUni(tpe.tpe, list)
@@ -1070,8 +1069,7 @@ final class SIRCompiler(mode: scalus.Mode)(using ctx: Context) {
                     val lits = args.map(compileConstant)
                     SIR.Const(scalus.uplc.Constant.List(tpeE, lits), listTp)
                 else
-                    val nil: SIRExpr =
-                        SIR.Const(scalus.uplc.Constant.List(tpeE, Nil), SIRType.List.Nil)
+                    val nil: SIR = SIR.Const(scalus.uplc.Constant.List(tpeE, Nil), SIRType.List.Nil)
                     val retval = args.foldRight(nil) { (arg, acc) =>
                         SIR.Apply(
                           SIR.Apply(
@@ -1097,7 +1095,7 @@ final class SIRCompiler(mode: scalus.Mode)(using ctx: Context) {
         args: List[Tree],
         applyTpe: Type,
         applyTree: Apply
-    ): SIRExpr = {
+    ): SIR = {
         if (env0.debug) then
               println(s"compileApply: ${f.show}, targs: $targs, args: $args, applyTpe: $applyTpe, applyTree: $applyTree")
         val env = fillTypeParamInTypeApply(f.symbol, targs, env0)
@@ -1131,7 +1129,7 @@ final class SIRCompiler(mode: scalus.Mode)(using ctx: Context) {
             applyExpr
     }
 
-    private def compileThrowException(ex: Tree): SIRExpr =
+    private def compileThrowException(ex: Tree): SIR =
         val msg = ex match
             case Apply(Select(New(tpt), nme.CONSTRUCTOR), immutable.List(Literal(msg), _*))
                 if tpt.tpe <:< defn.ExceptionClass.typeRef =>
@@ -1139,7 +1137,7 @@ final class SIRCompiler(mode: scalus.Mode)(using ctx: Context) {
             case term => "error"
         SIR.Error(msg)
 
-    def compileExpr[T](env: Env, tree: Tree)(using Context): SIRExpr = {
+    def compileExpr[T](env: Env, tree: Tree)(using Context): SIR = {
         if (env.debug) then
            println(s"compileExpr: ${tree.showIndented(2)}, env: $env")
         if compileConstant.isDefinedAt(tree) then
@@ -1148,7 +1146,7 @@ final class SIRCompiler(mode: scalus.Mode)(using ctx: Context) {
         else compileExpr2(env, tree)
     }
 
-    private def compileExpr2(env: Env, tree: Tree)(using Context): SIRExpr = {
+    private def compileExpr2(env: Env, tree: Tree)(using Context): SIR = {
         tree match
             case If(cond, t, f) =>
                 if (env.debug) then
@@ -1370,7 +1368,7 @@ final class SIRCompiler(mode: scalus.Mode)(using ctx: Context) {
                 if ts.isClass && fieldIdx >= 0 then
                     val lhs = compileExpr(env, obj)
                     val selType = sirTypeInEnv(sel.tpe.widen.dealias, sel, env)
-                    val s0: SIRExpr = SIR.Var(ident.show, selType)
+                    val s0: SIR = SIR.Var(ident.show, selType)
                     val tps = primaryConstructorTypeParams(ts)
 
                     // TODO: support of dependend types (i.e. fold instead map)
@@ -1476,7 +1474,7 @@ final class SIRCompiler(mode: scalus.Mode)(using ctx: Context) {
 
     def compileToSIR(tree: Tree, debug: Boolean)(using Context): SIR = {
         val result = compileExpr(Env.empty.copy(debug = debug), tree)
-        val full: SIRExpr = globalDefs.values.foldRight(result) {
+        val full: SIR = globalDefs.values.foldRight(result) {
             case (CompileDef.Compiled(b), acc) =>
                 SIR.Let(b.recursivity, List(Binding(b.fullName.name, b.body)), acc)
             case (d, acc) =>

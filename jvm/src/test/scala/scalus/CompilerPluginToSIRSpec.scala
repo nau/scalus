@@ -14,7 +14,7 @@ import scalus.ledger.api.v1.*
 import scalus.prelude.List.Cons
 import scalus.prelude.List.Nil
 import scalus.prelude.Prelude.given
-import scalus.sir.{Binding, ConstrDecl, DataDecl, Recursivity, SIR, SIRBuiltins, SIRExpr, SIRType, SIRUnify, SIRVarStorage, ToExprHSSIRFlat, TypeBinding}
+import scalus.sir.{Binding, ConstrDecl, DataDecl, Recursivity, SIR, SIRBuiltins,  SIRType, SIRUnify, SIRVarStorage, ToExprHSSIRFlat, TypeBinding}
 import scalus.sir.Recursivity.*
 import scalus.sir.SIR.*
 import scalus.sir.SIRType.{BooleanPrimitive, TypeVar}
@@ -180,7 +180,7 @@ class CompilerPluginToSIRSpec extends AnyFunSuite with ScalaCheckPropertyChecks:
                 tail[Data](ctx)
         }
 
-        val compiledTp = sir.asInstanceOf[SIRExpr].tp
+        val compiledTp = sir.tp
 
         val a = TypeVar("A", Some(1))
         val listA = SIRType.List(TypeVar("A", Some(1)))

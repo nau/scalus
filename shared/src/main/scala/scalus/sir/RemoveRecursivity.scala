@@ -8,52 +8,45 @@ object RemoveRecursivity:
     /** Makes a let expression non-recursive if its bindings are non-recursive */
     def apply(sir: SIR): SIR = removeRecursivity(sir)
 
+    
+    /** Makes a let expression non-recursive if its bindings are non-recursive */
     def removeRecursivity(sir: SIR): SIR =
         sir match
-            case decl: SIRDef  => removeRecursivityDecl(decl)
-            case term: SIRExpr => removeRecursivityExpr(term)
-
-    def removeRecursivityDecl(sir: SIRDef): SIRDef =
-        sir match
-            case SIR.Decl(name, term) => SIR.Decl(name, removeRecursivity(term))
-
-    /** Makes a let expression non-recursive if its bindings are non-recursive */
-    def removeRecursivityExpr(sir: SIRExpr): SIRExpr =
-        sir match
             case Let(Rec, List(Binding(name, binding)), body) if !isRecursive(name, binding) =>
-                removeRecursivityExpr(Let(NonRec, List(Binding(name, binding)), body))
+                removeRecursivity(Let(NonRec, List(Binding(name, binding)), body))
             case Let(rec, bindings, body) =>
                 Let(
                   rec,
                   bindings.map { case Binding(name, rhs) =>
-                      Binding(name, removeRecursivityExpr(rhs))
+                      Binding(name, removeRecursivity(rhs))
                   },
-                  removeRecursivityExpr(body)
+                  removeRecursivity(body)
                 )
-            case LamAbs(name, term) => LamAbs(name, removeRecursivityExpr(term))
+            case LamAbs(name, term) => LamAbs(name, removeRecursivity(term))
             case Apply(f, arg, tp) =>
-                Apply(removeRecursivityExpr(f), removeRecursivityExpr(arg), tp)
+                Apply(removeRecursivity(f), removeRecursivity(arg), tp)
             case IfThenElse(cond, t, f, tp) =>
                 IfThenElse(
-                  removeRecursivityExpr(cond),
-                  removeRecursivityExpr(t),
-                  removeRecursivityExpr(f),
+                  removeRecursivity(cond),
+                  removeRecursivity(t),
+                  removeRecursivity(f),
                   tp
                 )
-            case And(lhs, rhs) => And(removeRecursivityExpr(lhs), removeRecursivityExpr(rhs))
-            case Or(lhs, rhs)  => Or(removeRecursivityExpr(lhs), removeRecursivityExpr(rhs))
-            case Not(term)     => Not(removeRecursivityExpr(term))
+            case And(lhs, rhs) => And(removeRecursivity(lhs), removeRecursivity(rhs))
+            case Or(lhs, rhs)  => Or(removeRecursivity(lhs), removeRecursivity(rhs))
+            case Not(term)     => Not(removeRecursivity(term))
             case Match(scrutinee, cases, tp) =>
                 Match(
-                  removeRecursivityExpr(scrutinee),
+                  removeRecursivity(scrutinee),
                   cases.map { case SIR.Case(constr, bindings, typeBindings, body) =>
-                      Case(constr, bindings, typeBindings, removeRecursivityExpr(body))
+                      Case(constr, bindings, typeBindings, removeRecursivity(body))
                   },
                   tp
                 )
             case Constr(name, data, args) =>
-                Constr(name, data, args.map(removeRecursivityExpr))
-            case _: Builtin | _: Error | _: Var | _: ExternalVar | _: Const => sir
+                Constr(name, data, args.map(removeRecursivity))
+            case Decl(data, term) => Decl(data, removeRecursivity(term)) 
+            case _: Builtin | _: Error | _: Var | _: ExternalVar | _: Const | _: Hole => sir
 
     def isRecursive(name: String, term: SIR, env: List[String] = Nil): Boolean =
         term match
