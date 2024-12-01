@@ -103,7 +103,7 @@ object SIRBuiltins {
 
     // Bool
     val ifThenElse =
-        SIR.Builtin(DefaultFun.IfThenElse, SIRTypeMacros.liftM[[A] =>> ((Boolean, A, A) => A)])
+        SIR.Builtin(DefaultFun.IfThenElse, SIRTypeMacros.liftM[[A] =>> Boolean => A => A => A])
 
     // Unit
     val chooseUnit =

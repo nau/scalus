@@ -93,6 +93,8 @@ class PatternMatchingCompiler(val compiler: SIRCompiler)(using Context) {
     }
 
     private def compileBinding(env: SIRCompiler.Env, pat: Tree, tp: Type): SirBinding = {
+        if (env.debug) then
+            println(s"compileBinding: ${pat.show} ${tp.show}")
         pat match
             // this is case Constr(name @ _) or Constr(name)
             case Bind(name, id @ Ident(nme.WILDCARD)) =>
@@ -188,7 +190,7 @@ class PatternMatchingCompiler(val compiler: SIRCompiler)(using Context) {
         // typoes are extracted from unapply result type, because some strange behavior
         //  of dotty,  when types of patterns (i.e. pat.tpe) are not types.
         // we have other workaround for this case, TODO: check.
-        val (patternTypes, env) = fun.tpe.widen match
+        val (patternTypes, env) = fun.tpe.dealias.widen match
             case mt: MethodType =>
                 val unapplyResType = mt.resultType.dealias
                 val optionBase = unapplyResType.baseType(defn.OptionClass)
@@ -241,7 +243,7 @@ class PatternMatchingCompiler(val compiler: SIRCompiler)(using Context) {
                     )
             case _ =>
                 throw TypingException(
-                  fun.tpe.widen,
+                  fun.tpe.dealias.widen,
                   srcPos,
                   "type of unapply fun is not a method type"
                 )
@@ -286,12 +288,15 @@ class PatternMatchingCompiler(val compiler: SIRCompiler)(using Context) {
             SirCase.Error(GuardsNotSupported(guard.srcPos)) :: Nil
         // this case is for matching on a case class
         case CaseDef(unapply @ UnApply(fun, _, pats), _, rhs) =>
+            if (env.debug) then
+                println(s"Case: ${fun}, pats: ${pats}, rhs: $rhs")
+                report.debuglog(s"dl: Case: ${fun}, pats: ${pats}, rhs: $rhs")
             // report.error(s"Case: ${fun}, pats: ${pats}, rhs: $rhs", t.pos)
             if (unapply.tpe == defn.NothingType) then
                 // need to restore constructor, maybe from fun
                 fun.tpe.widen match
                     case mt: MethodType =>
-                        val constrType = mt.paramInfos.head
+                        val constrType = mt.paramInfos.head.dealias
                         compileConstructorPatterns(
                           env,
                           unapply,
@@ -308,11 +313,11 @@ class PatternMatchingCompiler(val compiler: SIRCompiler)(using Context) {
                           c.srcPos,
                           "type of unapply fun is not a method type"
                         )
-            else compileConstructorPatterns(env, unapply, unapply.tpe, fun, pats, rhs, c.srcPos)
+            else compileConstructorPatterns(env, unapply, unapply.tpe.dealias.widen, fun, pats, rhs, c.srcPos)
         // this case is for matching on an enum
         case CaseDef(Typed(unapply @ UnApply(fun, _, pats), constrTpe), _, rhs) =>
             // report.info(s"Case: ${inner}, tpe ${constrTpe.tpe.widen.show}", t.pos)
-            compileConstructorPatterns(env, unapply, constrTpe.tpe, fun, pats, rhs, c.srcPos)
+            compileConstructorPatterns(env, unapply, constrTpe.tpe.dealias.widen, fun, pats, rhs, c.srcPos)
         // case _ => rhs, wildcard pattern, must be the last case
         case CaseDef(Ident(nme.WILDCARD), _, rhs) =>
             val rhsE = compiler.compileExpr(env, rhs)
@@ -328,13 +333,16 @@ class PatternMatchingCompiler(val compiler: SIRCompiler)(using Context) {
             SirCase.Error(UnsupportedMatchExpression(a, a.srcPos)) :: Nil
 
     def compileMatch(tree: Match, env: SIRCompiler.Env): SIRExpr = {
+        if (env.debug) then
+            println(s"compileMatch: ${tree.show}")
         val Match(matchTree, cases) = tree
         // val typeSymbol = matchTree.tpe.widen.dealias.typeSymbol
         val adtInfo = compiler.getAdtTypeInfo(matchTree.tpe)
         // report.echo(s"Match: ${typeSymbol} ${typeSymbol.children} $adtInfo", tree.srcPos)
         val matchExpr = compiler.compileExpr(env, matchTree)
-        val sirCases =
-            cases.flatMap(cs => scalaCaseDefToSirCase(env, cs))
+        val sirCases = cases.flatMap(cs => scalaCaseDefToSirCase(env, cs))
+        if (env.debug) then
+            println(s"compileMatch cases: ${sirCases}")
 
         // 1. If we have a wildcard case, it must be the last one
         // 2. Validate we don't have any errors
@@ -397,7 +405,7 @@ class PatternMatchingCompiler(val compiler: SIRCompiler)(using Context) {
 
         // Sort the cases by constructor name to ensure we have a deterministic order
         val sortedCases = expandedCases.sortBy(_.constr.name).toList
-        SIR.Match(matchExpr, sortedCases, sirTypeInEnv(tree.tpe, tree.srcPos, env))
+        SIR.Match(matchExpr, sortedCases, sirTypeInEnv(tree.tpe.dealias.widen, tree.srcPos, env))
     }
 
     // here we assume that match is work over case classes without custom unapply.

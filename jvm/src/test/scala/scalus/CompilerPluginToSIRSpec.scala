@@ -52,7 +52,7 @@ class CompilerPluginToSIRSpec extends AnyFunSuite with ScalaCheckPropertyChecks:
     def sirConstUnit = Const(Constant.Unit, SIRType.VoidPrimitive)
 
 
-    /*
+
     test("compile literals") {
         assert(compile(false) == Const(Constant.Bool(false), SIRType.BooleanPrimitive))
         assert(compile(true) == Const(Constant.Bool(true), SIRType.BooleanPrimitive))
@@ -1356,7 +1356,7 @@ class CompilerPluginToSIRSpec extends AnyFunSuite with ScalaCheckPropertyChecks:
               )
         )
     }
-    */
+
 
     test("compile Tuple2 construction/matching") {
         val compiled = compile {
@@ -1365,13 +1365,13 @@ class CompilerPluginToSIRSpec extends AnyFunSuite with ScalaCheckPropertyChecks:
             t match
                 case (a, _) => a && t._2
         }
-        println(compiled.show)
+        //println(compiled.show)
         val term = compiled.toUplc()
         val evaled = VM.evaluateTerm(term)
         assert(evaled == scalus.uplc.Term.Const(Constant.Bool(false)))
     }
 
-    /*
+
     test("compile match on a case class") {
         val compiled = compile {
             val pkh = new scalus.ledger.api.v1.PubKeyHash(hex"deadbeef")
@@ -1519,7 +1519,7 @@ class CompilerPluginToSIRSpec extends AnyFunSuite with ScalaCheckPropertyChecks:
                 assert(logs == List("oneEqualsTwo ? False: { mem: 0.002334, cpu: 0.539980 }"))
             case Result.Failure(exception, _, _, _) => fail(exception)
     }
-    */
+
 
 
 
