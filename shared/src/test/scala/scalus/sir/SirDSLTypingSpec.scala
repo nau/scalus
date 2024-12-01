@@ -2,8 +2,9 @@ package scalus.sir
 
 import scala.language.implicitConversions
 import scalus.sir.SirDSL.{*, given}
-
 import org.scalatest.funsuite.AnyFunSuite
+import scalus.sir.SIR.LamAbs
+import scalus.sir.SIRType.TypeVar
 
 class SirDSLTypingSpec extends AnyFunSuite:
 
@@ -46,3 +47,13 @@ class SirDSLTypingSpec extends AnyFunSuite:
         assert(stp ~=~ SIRType.Fun(SIRType.VoidPrimitive, SIRType.Pair(SIRType.IntegerPrimitive, SIRType.BooleanPrimitive)))
     }
 
+
+
+    //test("calculate types extract pair types") {
+    //    val pv = SIR.Var("p", (Data,Data))
+    //
+    //    val k = LamAbs(pv, SIRBuiltins.sndPair $ pv)
+    //
+    //    println(s"k.tp: ${k.tp.show } ")
+    //
+    //}

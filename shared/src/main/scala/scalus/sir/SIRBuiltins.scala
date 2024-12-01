@@ -61,7 +61,7 @@ object SIRBuiltins {
     val lengthOfByteString =
         SIR.Builtin(DefaultFun.LengthOfByteString, SIRTypeMacros.liftM[ByteString => BigInt])
     val indexByteString =
-        SIR.Builtin(DefaultFun.IndexByteString, SIRTypeMacros.liftM[BigInt => ByteString => BigInt])
+        SIR.Builtin(DefaultFun.IndexByteString, SIRTypeMacros.liftM[ByteString => BigInt => BigInt])
     val equalsByteString = SIR.Builtin(
       DefaultFun.EqualsByteString,
       SIRTypeMacros.liftM[ByteString => ByteString => Boolean]
@@ -107,15 +107,15 @@ object SIRBuiltins {
 
     // Unit
     val chooseUnit =
-        SIR.Builtin(DefaultFun.ChooseUnit, SIRTypeMacros.liftM[[A] =>> (Unit, A) => Unit])
+        SIR.Builtin(DefaultFun.ChooseUnit, SIRTypeMacros.liftM[[A] =>> (Unit, A) => A])
 
     // Tracing
     //   TODO: move to SIR construction
-    val trace = SIR.Builtin(DefaultFun.Trace, SIRTypeMacros.liftM[[A] =>> (String, A) => Unit])
+    val trace = SIR.Builtin(DefaultFun.Trace, SIRTypeMacros.liftM[[A] =>> (String, A) => A])
 
     // Pairs
-    val fstPair = SIR.Builtin(DefaultFun.FstPair, SIRTypeMacros.liftM[[A, B] =>> (A, B) => A])
-    val sndPair = SIR.Builtin(DefaultFun.SndPair, SIRTypeMacros.liftM[[A, B] =>> (A, B) => B])
+    val fstPair = SIR.Builtin(DefaultFun.FstPair, SIRTypeMacros.liftM[[A, B] =>> scalus.builtin.Pair[A, B] => A])
+    val sndPair = SIR.Builtin(DefaultFun.SndPair, SIRTypeMacros.liftM[[A, B] =>> scalus.builtin.Pair[A, B] => B])
 
     // Lists
     val chooseList = SIR.Builtin(
@@ -168,7 +168,7 @@ object SIRBuiltins {
 
     //   TODO: think about pair
     val mkPairData =
-        SIR.Builtin(DefaultFun.MkPairData, SIRTypeMacros.liftM[(Data, Data) => (Data, Data)])
+        SIR.Builtin(DefaultFun.MkPairData, SIRTypeMacros.liftM[Data => Data => scalus.builtin.Pair[Data, Data]])
     val mkNilData =
         SIR.Builtin(DefaultFun.MkNilData, SIRTypeMacros.liftM[Unit => scalus.builtin.List[Data]])
     val mkNilPairData =
@@ -334,5 +334,8 @@ object SIRBuiltins {
             case DefaultFun.Bls12_381_G2_compress           => bls12_381_G2_compress
             case DefaultFun.Bls12_381_G2_uncompress         => bls12_381_G2_uncompress
             case DefaultFun.Bls12_381_millerLoop            => bls12_381_millerLoop
+            case DefaultFun.Bls12_381_mulMlResult           => bls12_381_mulMlResult
             case DefaultFun.Bls12_381_finalVerify           => bls12_381_finalVerify
+            case DefaultFun.Keccak_256                      => keccak_256
+            case DefaultFun.Blake2b_224                     => blake2b_224
 }
