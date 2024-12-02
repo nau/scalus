@@ -1,7 +1,5 @@
 package scalus.sir
 
-import scala.util.control.NonFatal
-import scala.quoted.*
 import scalus.uplc.DefaultUni
 import scalus.sir.SIRType.TypeVar
 
@@ -31,9 +29,6 @@ object SIRVarStorage {
 
 object SIRType {
 
-    type Aux[T <: AnyKind] = SIRType {
-        type Carrier = T
-    }
 
     trait ULPCMapped {
         this: SIRType =>
@@ -129,8 +124,8 @@ object SIRType {
 
     }
 
-    given liftFun1[A, B](using a: SIRType.Aux[A], b: SIRType.Aux[B]): SIRType.Aux[A => B] =
-        Fun(a, b).asInstanceOf[SIRType.Aux[A => B]]
+    //given liftFun1[A, B](using a: SIRType.Aux[A], b: SIRType.Aux[B]): SIRType.Aux[A => B] =
+    //    Fun(a, b).asInstanceOf[SIRType.Aux[A => B]]
     // given liftFun2[A,B,C](using a: SIRType.Aux[A], b: SIRType.Aux[B], c: SIRType.Aux[C]): SIRType.Aux[(A, B) => C] =
     //    Fun(Tuple(List(a, b)), c).asInstanceOf[SIRType.Aux[(A, B) => C]]
     // given liftFun3[A,B,C,D](using a: SIRType.Aux[A], b: SIRType.Aux[B], c: SIRType.Aux[C], d: SIRType.Aux[D]): SIRType.Aux[(A, B, C) => D] =
@@ -204,11 +199,6 @@ object SIRType {
             else s"Error: $msg\nCause: ${cause.getMessage}"
     }
 
-    // given liftLambda1List: SIRType.Aux[[A] =>> List[A]] = ???
-    // TypeLambda(List(TypeVar("A")), (a: Seq[SIRType]) => scalus.list(a.head)).asInstanceOf[SIRType.Aux[[A] =>> List[A]]]
-    //  TODO: implement predefined constants and type cache.
-    // given liftBoolAA: SIRType.Aux[[A] =>> (Boolean,A,A)] = ???
-    // TypeLambda(List(TypeVar("A")), (a: Seq[SIRType]) => Tuple(List(a.head, a.head, a.head))).asInstanceOf[SIRType.Aux[[A] =>> (Boolean,A,A)]]
 
     case object FreeUnificator extends SIRType {
         override def show: String = "*"

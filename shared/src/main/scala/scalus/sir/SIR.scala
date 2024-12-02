@@ -19,6 +19,8 @@ case class TypeBinding(name: String, tp: SIRType) {
 enum Recursivity:
     case NonRec, Rec
 
+
+
 case class ConstrDecl(
     name: String,
     storageType: SIRVarStorage,
@@ -56,6 +58,14 @@ case class ConstrDecl(
 
 
 }
+
+//  Data~ Lost(Const)    
+
+//  A -> B -> C1, C2
+//    -> B1 -> D
+
+//f:  B => Int   B = Data(C1,C2):     \lambda (c1,c2) => c2(x)  
+//f:  A => Int   A = Data(C1, C2, D)  
 
 case class DataDecl(
     name: String,

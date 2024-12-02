@@ -20,8 +20,8 @@ object SIRUnify {
     object Env {
         def empty: Env = Env()
     }
-
-
+    
+    
     sealed trait UnificationResult[+T] {
 
            def isSuccess: Boolean = this match {
