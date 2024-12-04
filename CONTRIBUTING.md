@@ -74,8 +74,22 @@ USE_SSH=true yarn deploy
 
 ## Run benchmarks
 
-In sbt shell
+Measurement of throughput:
 
 ```bash
-jmh:run -i 1 -wi 1 -f 1 -t 1
+sbt 'bench/jmh:run -i 1 -wi 1 -f 1 -t 1 .*'
 ```
+
+Where `.*` is a regexp for benchmark names.
+
+Profiling with [async-profiler](https://github.com/async-profiler/async-profiler) that should be downloaded from
+[nightly builds](https://github.com/async-profiler/async-profiler/releases/tag/nightly) and unpacked to some directory,
+like `/opt/async-profiler` for Linux in the command bellow:
+
+```bash
+sbt 'bench/jmh:run -prof "async:event=cycles;=dir=target/async-reports;interval=1000000;output=flamegraph;libPath=/opt/async-profiler/lib/libasyncProfiler.so" -jvmArgsAppend "-XX:+UnlockDiagnosticVMOptions -XX:+DebugNonSafepoints" -f 1 -wi 1 -i 1 -t 1 .*'
+```
+
+Resulting interactive flame graphs will be stored in the `bench/target/async-reports` subdirectory of the project.
+
+For benchmarking of allocations use `event=alloc` instead of `event=cycles` option in the command above.
