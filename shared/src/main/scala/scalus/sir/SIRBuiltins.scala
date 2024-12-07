@@ -6,260 +6,294 @@ import scalus.builtin.BLS12_381_G1_Element
 import scalus.builtin.BLS12_381_G2_Element
 import scalus.builtin.BLS12_381_MlResult
 import scalus.uplc.DefaultFun
+import scalus.uplc.TypeScheme.Type
 
 import scala.util.control.NonFatal
 
 object SIRBuiltins {
 
-    val addInteger: SIR.Builtin = SIR.Builtin(
-      DefaultFun.AddInteger,
-      try SIRTypeMacros.liftM[BigInt => BigInt => BigInt]
-      catch
-          case NonFatal(ex) =>
-              println(s"NonFatal Error in addInteger:  ${ex.getMessage}")
-              ex.printStackTrace()
-              throw ex
-          case ex: Throwable =>
-              println(s"Fatal Error in addInteger:  ${ex.getMessage}")
-              ex.printStackTrace()
-              throw ex
-    )
-    val subtractInteger: SIR.Builtin =
-        SIR.Builtin(DefaultFun.SubtractInteger, SIRTypeMacros.liftM[BigInt => BigInt => BigInt])
-    val multiplyInteger =
-        SIR.Builtin(DefaultFun.MultiplyInteger, SIRTypeMacros.liftM[BigInt => BigInt => BigInt])
-    val divideInteger =
-        SIR.Builtin(DefaultFun.DivideInteger, SIRTypeMacros.liftM[BigInt => BigInt => BigInt])
-    val quotientInteger =
-        SIR.Builtin(DefaultFun.QuotientInteger, SIRTypeMacros.liftM[BigInt => BigInt => BigInt])
-    val remainderInteger =
-        SIR.Builtin(DefaultFun.RemainderInteger, SIRTypeMacros.liftM[BigInt => BigInt => BigInt])
-    val modInteger =
-        SIR.Builtin(DefaultFun.ModInteger, SIRTypeMacros.liftM[BigInt => BigInt => BigInt])
-    val equalsInteger =
-        SIR.Builtin(DefaultFun.EqualsInteger, SIRTypeMacros.liftM[BigInt => BigInt => Boolean])
-    val lessThanInteger =
-        SIR.Builtin(DefaultFun.LessThanInteger, SIRTypeMacros.liftM[BigInt => BigInt => Boolean])
-    val lessThanEqualsInteger = SIR.Builtin(
-      DefaultFun.LessThanEqualsInteger,
-      SIRTypeMacros.liftM[BigInt => BigInt => Boolean]
-    )
+    val addInteger: SIR.Builtin = SIR.Builtin(DefaultFun.AddInteger,
+        SIRType.IntegerPrimitive ->: SIRType.IntegerPrimitive ->: SIRType.IntegerPrimitive)
+    val subtractInteger: SIR.Builtin = SIR.Builtin(DefaultFun.SubtractInteger,
+        SIRType.IntegerPrimitive ->: SIRType.IntegerPrimitive ->: SIRType.IntegerPrimitive)
+    val multiplyInteger = SIR.Builtin(DefaultFun.MultiplyInteger,
+        SIRType.IntegerPrimitive ->: SIRType.IntegerPrimitive ->: SIRType.IntegerPrimitive)
+    val divideInteger = SIR.Builtin(DefaultFun.DivideInteger,
+        SIRType.IntegerPrimitive ->: SIRType.IntegerPrimitive ->: SIRType.IntegerPrimitive)
+    val quotientInteger = SIR.Builtin(DefaultFun.QuotientInteger,
+        SIRType.IntegerPrimitive ->: SIRType.IntegerPrimitive ->: SIRType.IntegerPrimitive)
+    val remainderInteger = SIR.Builtin(DefaultFun.RemainderInteger,
+        SIRType.IntegerPrimitive ->: SIRType.IntegerPrimitive ->: SIRType.IntegerPrimitive)
+    val modInteger = SIR.Builtin(DefaultFun.ModInteger,
+        SIRType.IntegerPrimitive ->: SIRType.IntegerPrimitive ->: SIRType.IntegerPrimitive)
+    val equalsInteger = SIR.Builtin(DefaultFun.EqualsInteger,
+        SIRType.IntegerPrimitive ->: SIRType.IntegerPrimitive ->: SIRType.BooleanPrimitive)
+    val lessThanInteger = SIR.Builtin(DefaultFun.LessThanInteger,
+        SIRType.IntegerPrimitive ->: SIRType.IntegerPrimitive ->: SIRType.BooleanPrimitive)
+    val lessThanEqualsInteger = SIR.Builtin(DefaultFun.LessThanEqualsInteger,
+        SIRType.IntegerPrimitive ->: SIRType.IntegerPrimitive ->: SIRType.BooleanPrimitive)
+
 
     // Bytestrings
-    val appendByteString = SIR.Builtin(
-      DefaultFun.AppendByteString,
-      SIRTypeMacros.liftM[ByteString => ByteString => ByteString]
+    val appendByteString = SIR.Builtin(DefaultFun.AppendByteString,
+        SIRType.ByteStringPrimitive ->: SIRType.ByteStringPrimitive ->: SIRType.ByteStringPrimitive)
+    val consByteString = SIR.Builtin(DefaultFun.ConsByteString,
+      SIRType.IntegerPrimitive ->: SIRType.ByteStringPrimitive ->: SIRType.ByteStringPrimitive
     )
-    val consByteString = SIR.Builtin(
-      DefaultFun.ConsByteString,
-      SIRTypeMacros.liftM[BigInt => ByteString => ByteString]
+    val sliceByteString = SIR.Builtin(DefaultFun.SliceByteString,
+        SIRType.IntegerPrimitive ->: SIRType.IntegerPrimitive ->: SIRType.ByteStringPrimitive ->: SIRType.ByteStringPrimitive
     )
-    val sliceByteString = SIR.Builtin(
-      DefaultFun.SliceByteString,
-      SIRTypeMacros.liftM[BigInt => BigInt => ByteString => ByteString]
+    val lengthOfByteString = SIR.Builtin(DefaultFun.LengthOfByteString,
+            SIRType.ByteStringPrimitive ->: SIRType.IntegerPrimitive
+        )
+    val indexByteString = SIR.Builtin(DefaultFun.IndexByteString,
+        SIRType.ByteStringPrimitive ->: SIRType.IntegerPrimitive ->: SIRType.IntegerPrimitive
     )
-    val lengthOfByteString =
-        SIR.Builtin(DefaultFun.LengthOfByteString, SIRTypeMacros.liftM[ByteString => BigInt])
-    val indexByteString =
-        SIR.Builtin(DefaultFun.IndexByteString, SIRTypeMacros.liftM[ByteString => BigInt => BigInt])
     val equalsByteString = SIR.Builtin(
       DefaultFun.EqualsByteString,
-      SIRTypeMacros.liftM[ByteString => ByteString => Boolean]
+      SIRType.ByteStringPrimitive ->: SIRType.ByteStringPrimitive ->: SIRType.BooleanPrimitive
     )
     val lessThanByteString = SIR.Builtin(
       DefaultFun.LessThanByteString,
-      SIRTypeMacros.liftM[ByteString => ByteString => Boolean]
+      SIRType.ByteStringPrimitive ->: SIRType.ByteStringPrimitive ->: SIRType.BooleanPrimitive
     )
     val lessThanEqualsByteString = SIR.Builtin(
       DefaultFun.LessThanEqualsByteString,
-      SIRTypeMacros.liftM[ByteString => ByteString => Boolean]
+      SIRType.ByteStringPrimitive ->: SIRType.ByteStringPrimitive ->: SIRType.BooleanPrimitive
     )
 
     // Cryptography and hashes
-    val sha2_256 = SIR.Builtin(DefaultFun.Sha2_256, SIRTypeMacros.liftM[ByteString => ByteString])
-    val sha3_256 = SIR.Builtin(DefaultFun.Sha3_256, SIRTypeMacros.liftM[ByteString => ByteString])
-    val blake2b_256 =
-        SIR.Builtin(DefaultFun.Blake2b_256, SIRTypeMacros.liftM[ByteString => ByteString])
+    val sha2_256 = SIR.Builtin(DefaultFun.Sha2_256,
+        SIRType.ByteStringPrimitive ->: SIRType.ByteStringPrimitive
+    )
+    val sha3_256 = SIR.Builtin(DefaultFun.Sha3_256,
+        SIRType.ByteStringPrimitive ->: SIRType.ByteStringPrimitive
+    )
+    val blake2b_256 = SIR.Builtin(DefaultFun.Blake2b_256,
+        SIRType.ByteStringPrimitive ->: SIRType.ByteStringPrimitive
+    )
     val verifyEd25519Signature = SIR.Builtin(
       DefaultFun.VerifyEd25519Signature,
-      SIRTypeMacros.liftM[ByteString => ByteString => ByteString => Boolean]
+      SIRType.ByteStringPrimitive ->: SIRType.ByteStringPrimitive ->: SIRType.ByteStringPrimitive ->: SIRType.BooleanPrimitive
     )
     val verifyEcdsaSecp256k1Signature = SIR.Builtin(
       DefaultFun.VerifyEcdsaSecp256k1Signature,
-      SIRTypeMacros.liftM[ByteString => ByteString => ByteString => Boolean]
+      SIRType.ByteStringPrimitive ->: SIRType.ByteStringPrimitive ->: SIRType.ByteStringPrimitive ->: SIRType.BooleanPrimitive
     )
     val verifySchnorrSecp256k1Signature = SIR.Builtin(
       DefaultFun.VerifySchnorrSecp256k1Signature,
-      SIRTypeMacros.liftM[(ByteString, ByteString, ByteString) => Boolean]
+      SIRType.ByteStringPrimitive ->: SIRType.ByteStringPrimitive ->: SIRType.ByteStringPrimitive ->: SIRType.BooleanPrimitive
     )
 
     // Strings
-    val appendString =
-        SIR.Builtin(DefaultFun.AppendString, SIRTypeMacros.liftM[(String, String) => String])
-    val equalsString =
-        SIR.Builtin(DefaultFun.EqualsString, SIRTypeMacros.liftM[(String, String) => Boolean])
-    val encodeUtf8 = SIR.Builtin(DefaultFun.EncodeUtf8, SIRTypeMacros.liftM[String => ByteString])
-    val decodeUtf8 = SIR.Builtin(DefaultFun.DecodeUtf8, SIRTypeMacros.liftM[ByteString => String])
+    val appendString = SIR.Builtin(DefaultFun.AppendString,
+            SIRType.StringPrimitive ->: SIRType.StringPrimitive ->: SIRType.StringPrimitive
+        )
+    val equalsString = SIR.Builtin(
+        DefaultFun.EqualsString,
+        SIRType.StringPrimitive ->: SIRType.StringPrimitive ->: SIRType.BooleanPrimitive
+    )
+    val encodeUtf8 = SIR.Builtin(DefaultFun.EncodeUtf8,
+        SIRType.StringPrimitive ->: SIRType.ByteStringPrimitive
+    )
+    val decodeUtf8 = SIR.Builtin(DefaultFun.DecodeUtf8,
+        SIRType.ByteStringPrimitive ->: SIRType.StringPrimitive
+    )
 
     // Bool
-    val ifThenElse =
-        SIR.Builtin(DefaultFun.IfThenElse, SIRTypeMacros.liftM[[A] =>> Boolean => A => A => A])
+    val ifThenElse = SIR.Builtin(
+        DefaultFun.IfThenElse, {
+            val a = SIRType.TypeVar("A", Some("ifThenElse_A".hashCode))
+            a :=>> (SIRType.BooleanPrimitive ->: a ->: a ->: a)
+        })
 
     // Unit
     val chooseUnit =
-        SIR.Builtin(DefaultFun.ChooseUnit, SIRTypeMacros.liftM[[A] =>> (Unit, A) => A])
+        SIR.Builtin(DefaultFun.ChooseUnit,
+          { val a = SIRType.TypeVar("A", Some("chooseUnit_A".hashCode))
+            a :=>> (SIRType.VoidPrimitive ->: a ->: a)
+          }
+        )
 
     // Tracing
     //   TODO: move to SIR construction
-    val trace = SIR.Builtin(DefaultFun.Trace, SIRTypeMacros.liftM[[A] =>> (String, A) => A])
+    val trace = SIR.Builtin(DefaultFun.Trace,
+        SIRType.TypeLambda("trace_A", a => SIRType.StringPrimitive ->: a ->: a)
+    )
 
     // Pairs
-    val fstPair = SIR.Builtin(DefaultFun.FstPair, SIRTypeMacros.liftM[[A, B] =>> scalus.builtin.Pair[A, B] => A])
-    val sndPair = SIR.Builtin(DefaultFun.SndPair, SIRTypeMacros.liftM[[A, B] =>> scalus.builtin.Pair[A, B] => B])
+    val fstPair = SIR.Builtin(DefaultFun.FstPair,
+        SIRType.TypeLambda2("fstPair_A", "fstPair_B", (a, b) => SIRType.Pair(a, b) ->: a)
+    )
+    val sndPair = SIR.Builtin(DefaultFun.SndPair,
+        SIRType.TypeLambda2("sndPair_A", "sndPair_B", (a, b) => SIRType.Pair(a, b) ->: b)
+    )
 
     // Lists
     val chooseList = SIR.Builtin(
       DefaultFun.ChooseList,
-      SIRTypeMacros.liftM[[A, B] =>> (scalus.builtin.List[A], B, B) => B]
+      SIRType.TypeLambda2("chooseList_A", "chooseList_B", (a, b) => SIRType.List(a) ->: b ->: b ->: b)
     )
     val mkCons = SIR.Builtin(
       DefaultFun.MkCons,
-      SIRTypeMacros.liftM[[A] =>> (A, scalus.builtin.List[A]) => scalus.builtin.List[A]]
+      SIRType.TypeLambda("mkCons_A", a => a ->: SIRType.List(a) ->: SIRType.List(a))
     )
     val headList =
-        SIR.Builtin(DefaultFun.HeadList, SIRTypeMacros.liftM[[A] =>> scalus.builtin.List[A] => A])
+        SIR.Builtin(DefaultFun.HeadList,
+            SIRType.TypeLambda("headList_A", a => SIRType.List(a) ->: a)
+        )
     val tailList = SIR.Builtin(
       DefaultFun.TailList,
-      SIRTypeMacros.liftM[[A] =>> scalus.builtin.List[A] => scalus.builtin.List[A]]
+      SIRType.TypeLambda("tailList_A", a => SIRType.List(a) ->: SIRType.List(a))
     )
     val nullList = SIR.Builtin(
       DefaultFun.NullList,
-      SIRTypeMacros.liftM[[A] =>> scalus.builtin.List[A] => Boolean]
+      SIRType.TypeLambda("nullList_A", a => SIRType.List(a) ->: SIRType.BooleanPrimitive)
     )
 
     // Data
     val chooseData =
-        SIR.Builtin(DefaultFun.ChooseData, SIRTypeMacros.liftM[[A] =>> (Data, A, A, A, A, A) => A])
+        SIR.Builtin(DefaultFun.ChooseData,
+            SIRType.TypeLambda("chooseData_A", a => SIRType.Data ->: a ->: a ->: a ->: a ->: a ->: a)
+        )
     val constrData = SIR.Builtin(
       DefaultFun.ConstrData,
-      SIRTypeMacros.liftM[(BigInt, scalus.builtin.List[Data]) => Data]
+      SIRType.IntegerPrimitive ->: SIRType.List(SIRType.Data) ->: SIRType.Data
     )
-    val mapData = SIR.Builtin(DefaultFun.MapData, SIRTypeMacros.liftM[(List[(Data, Data)]) => Data])
+    val mapData = SIR.Builtin(DefaultFun.MapData,
+        SIRType.List(SIRType.Pair(SIRType.Data, SIRType.Data)) ->: SIRType.Data
+    )
     val listData =
-        SIR.Builtin(DefaultFun.ListData, SIRTypeMacros.liftM[scalus.builtin.List[Data] => Data])
-    val iData = SIR.Builtin(DefaultFun.IData, SIRTypeMacros.liftM[BigInt => Data])
-    val bData = SIR.Builtin(DefaultFun.BData, SIRTypeMacros.liftM[Boolean => Data])
+        SIR.Builtin(DefaultFun.ListData,
+            SIRType.List(SIRType.Data) ->: SIRType.Data
+        )
+    val iData = SIR.Builtin(DefaultFun.IData,
+        SIRType.IntegerPrimitive ->: SIRType.Data
+    )
+    val bData = SIR.Builtin(DefaultFun.BData,
+        SIRType.BooleanPrimitive ->: SIRType.Data
+    )
     val unConstrData = SIR.Builtin(
       DefaultFun.UnConstrData,
-      SIRTypeMacros.liftM[Data => (BigInt, scalus.builtin.List[Data])]
+      SIRType.Data ->: SIRType.Pair(SIRType.IntegerPrimitive, SIRType.List(SIRType.Data))
     )
     val unMapData = SIR.Builtin(
       DefaultFun.UnMapData,
-      SIRTypeMacros.liftM[Data => scalus.builtin.List[(BigInt, Data)]]
+        SIRType.Data ->: SIRType.List(SIRType.Pair(SIRType.Data, SIRType.Data))
     )
     val unListData =
-        SIR.Builtin(DefaultFun.UnListData, SIRTypeMacros.liftM[Data => scalus.builtin.List[Data]])
-    val unIData = SIR.Builtin(DefaultFun.UnIData, SIRTypeMacros.liftM[Data => BigInt])
-    val unBData = SIR.Builtin(DefaultFun.UnBData, SIRTypeMacros.liftM[Data => Boolean])
+        SIR.Builtin(DefaultFun.UnListData,
+            SIRType.Data ->: SIRType.List(SIRType.Data)
+        )
+    val unIData = SIR.Builtin(DefaultFun.UnIData, SIRType.Data ->: SIRType.IntegerPrimitive)
+    val unBData = SIR.Builtin(DefaultFun.UnBData, SIRType.Data ->: SIRType.BooleanPrimitive)
     val equalsData =
-        SIR.Builtin(DefaultFun.EqualsData, SIRTypeMacros.liftM[(Data, Data) => Boolean])
+        SIR.Builtin(DefaultFun.EqualsData,
+            SIRType.Data ->: SIRType.Data ->: SIRType.BooleanPrimitive
+        )
     val serialiseData =
-        SIR.Builtin(DefaultFun.SerialiseData, SIRTypeMacros.liftM[Data => ByteString])
+        SIR.Builtin(DefaultFun.SerialiseData, SIRType.Data ->: SIRType.ByteStringPrimitive)
 
     //   TODO: think about pair
     val mkPairData =
-        SIR.Builtin(DefaultFun.MkPairData, SIRTypeMacros.liftM[Data => Data => scalus.builtin.Pair[Data, Data]])
+        SIR.Builtin(DefaultFun.MkPairData,
+            SIRType.Data ->: SIRType.Data ->: SIRType.Pair(SIRType.Data, SIRType.Data)
+        )
     val mkNilData =
-        SIR.Builtin(DefaultFun.MkNilData, SIRTypeMacros.liftM[Unit => scalus.builtin.List[Data]])
+        SIR.Builtin(DefaultFun.MkNilData,
+            SIRType.VoidPrimitive ->: SIRType.List(SIRType.Data)
+        )
     val mkNilPairData =
-        SIR.Builtin(DefaultFun.MkNilPairData, SIRTypeMacros.liftM[Unit => List[(Data, Data)]])
+        SIR.Builtin(DefaultFun.MkNilPairData,
+            SIRType.VoidPrimitive ->: SIRType.List(SIRType.Pair(SIRType.Data, SIRType.Data))
+        )
 
     // BLS12_381 operations
     // G1 operations
     val bls12_381_G1_add = SIR.Builtin(
       DefaultFun.Bls12_381_G1_add,
-      SIRTypeMacros.liftM[(BLS12_381_G1_Element, BLS12_381_G1_Element) => BLS12_381_G1_Element]
+      SIRType.BLS12_381_G1_Element ->: SIRType.BLS12_381_G1_Element ->: SIRType.BLS12_381_G1_Element
     )
     val bls12_381_G1_neg = SIR.Builtin(
       DefaultFun.Bls12_381_G1_neg,
-      SIRTypeMacros.liftM[BLS12_381_G1_Element => BLS12_381_G1_Element]
+      SIRType.BLS12_381_G1_Element ->: SIRType.BLS12_381_G1_Element
     )
     val bls12_381_G1_scalarMul = SIR.Builtin(
       DefaultFun.Bls12_381_G1_scalarMul,
-      SIRTypeMacros.liftM[(BigInt, BLS12_381_G1_Element) => BLS12_381_G1_Element]
+      SIRType.IntegerPrimitive ->: SIRType.BLS12_381_G1_Element ->: SIRType.BLS12_381_G1_Element
     )
     val bls12_381_G1_equal = SIR.Builtin(
       DefaultFun.Bls12_381_G1_equal,
-      SIRTypeMacros.liftM[(BLS12_381_G1_Element, BLS12_381_G1_Element) => Boolean]
+      SIRType.BLS12_381_G1_Element ->: SIRType.BLS12_381_G1_Element ->: SIRType.BooleanPrimitive
     )
     val bls12_381_G1_hashToGroup = SIR.Builtin(
       DefaultFun.Bls12_381_G1_hashToGroup,
-      SIRTypeMacros.liftM[(ByteString, ByteString) => BLS12_381_G1_Element]
+      SIRType.ByteStringPrimitive ->: SIRType.ByteStringPrimitive ->: SIRType.BLS12_381_G1_Element
     )
     val bls12_381_G1_compress = SIR.Builtin(
       DefaultFun.Bls12_381_G1_compress,
-      SIRTypeMacros.liftM[BLS12_381_G1_Element => ByteString]
+      SIRType.BLS12_381_G1_Element ->: SIRType.ByteStringPrimitive
     )
     val bls12_381_G1_uncompress = SIR.Builtin(
       DefaultFun.Bls12_381_G1_uncompress,
-      SIRTypeMacros.liftM[ByteString => BLS12_381_G1_Element]
+      SIRType.ByteStringPrimitive ->: SIRType.BLS12_381_G1_Element
     )
 
     // G2 operations
     val bls12_381_G2_add = SIR.Builtin(
       DefaultFun.Bls12_381_G2_add,
-      SIRTypeMacros.liftM[(BLS12_381_G2_Element, BLS12_381_G2_Element) => BLS12_381_G2_Element]
+      SIRType.BLS12_381_G2_Element ->: SIRType.BLS12_381_G2_Element ->: SIRType.BLS12_381_G2_Element
     )
     val bls12_381_G2_neg = SIR.Builtin(
       DefaultFun.Bls12_381_G2_neg,
-      SIRTypeMacros.liftM[BLS12_381_G2_Element => BLS12_381_G2_Element]
+      SIRType.BLS12_381_G2_Element ->: SIRType.BLS12_381_G2_Element
     )
     val bls12_381_G2_scalarMul = SIR.Builtin(
       DefaultFun.Bls12_381_G2_scalarMul,
-      SIRTypeMacros.liftM[(BigInt, BLS12_381_G2_Element) => BLS12_381_G2_Element]
+        SIRType.IntegerPrimitive ->: SIRType.BLS12_381_G2_Element ->: SIRType.BLS12_381_G2_Element
     )
     val bls12_381_G2_equal = SIR.Builtin(
       DefaultFun.Bls12_381_G2_equal,
-      SIRTypeMacros.liftM[(BLS12_381_G2_Element, BLS12_381_G2_Element) => Boolean]
+      SIRType.BLS12_381_G2_Element ->: SIRType.BLS12_381_G2_Element ->: SIRType.BooleanPrimitive
     )
     val bls12_381_G2_hashToGroup = SIR.Builtin(
       DefaultFun.Bls12_381_G2_hashToGroup,
-      SIRTypeMacros.liftM[(ByteString, ByteString) => BLS12_381_G2_Element]
+      SIRType.ByteStringPrimitive ->: SIRType.ByteStringPrimitive ->: SIRType.BLS12_381_G2_Element
     )
     val bls12_381_G2_compress = SIR.Builtin(
       DefaultFun.Bls12_381_G2_compress,
-      SIRTypeMacros.liftM[BLS12_381_G2_Element => ByteString]
+      SIRType.BLS12_381_G2_Element ->: SIRType.ByteStringPrimitive
     )
     val bls12_381_G2_uncompress = SIR.Builtin(
       DefaultFun.Bls12_381_G2_uncompress,
-      SIRTypeMacros.liftM[ByteString => BLS12_381_G2_Element]
+      SIRType.ByteStringPrimitive ->: SIRType.BLS12_381_G2_Element
     )
     
     val bls12_381_mulMlResult = SIR.Builtin(
       DefaultFun.Bls12_381_mulMlResult,
-      SIRTypeMacros.liftM[(BLS12_381_MlResult, BLS12_381_MlResult) => BLS12_381_MlResult]
+      SIRType.BLS12_381_MlResult ->: SIRType.BLS12_381_MlResult ->: SIRType.BLS12_381_MlResult
     )
 
     // Miller loop
     val bls12_381_millerLoop = SIR.Builtin(
       DefaultFun.Bls12_381_millerLoop,
-      SIRTypeMacros.liftM[(BLS12_381_G1_Element, BLS12_381_G2_Element) => BLS12_381_MlResult]
+      SIRType.BLS12_381_G1_Element ->: SIRType.BLS12_381_G2_Element ->: SIRType.BLS12_381_MlResult
     )
     // Final verification
     val bls12_381_finalVerify = SIR.Builtin(
       DefaultFun.Bls12_381_finalVerify,
-      SIRTypeMacros.liftM[BLS12_381_MlResult => BLS12_381_MlResult => Boolean]
+      SIRType.BLS12_381_MlResult ->: SIRType.BLS12_381_MlResult ->: SIRType.BooleanPrimitive
     )
     
     // keccak_256
     val keccak_256 = SIR.Builtin(
       DefaultFun.Keccak_256,
-      SIRTypeMacros.liftM[ByteString => ByteString]
+      SIRType.ByteStringPrimitive ->: SIRType.ByteStringPrimitive
     )
     //blake
     val blake2b_224 = SIR.Builtin(
       DefaultFun.Blake2b_224,
-      SIRTypeMacros.liftM[ByteString => ByteString]
+      SIRType.ByteStringPrimitive ->: SIRType.ByteStringPrimitive
     )
 
 

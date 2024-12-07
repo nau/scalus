@@ -15,7 +15,14 @@ sealed trait SIRType {
     def ~=~(that: SIRType): Boolean =
         SIRUnify.unifyType(this, that, SIRUnify.Env.empty).isSuccess
 
-    // def recursiveHashCode(env: Map[Int, SIRType]): Int
+    def ->:(that: SIRType): SIRType.Fun =
+        SIRType.Fun(that, this)
+
+    inline def =>>: (that: SIRType): SIRType.TypeLambda =
+        this match
+            case x@SIRType.TypeVar(name, _) => SIRType.TypeLambda(scala.List(x), that)
+            case other => throw new IllegalArgumentException(s"Expected type variable at the left of =>>:, got $other")
+
 
 }
 
@@ -182,6 +189,8 @@ object SIRType {
 
         override def show: String = name
 
+        def :=>>(body: SIRType): TypeLambda = TypeLambda(scala.List(this), body)
+
     }
 
     /** Type lamnda (always carried).
@@ -192,6 +201,21 @@ object SIRType {
 
         override def show: String = s" [${params.map(_.show).mkString(",")}] =>> ${body.show}"
 
+    }
+
+    object TypeLambda {
+        def apply(param: String, body: TypeVar => SIRType): TypeLambda = {
+            val tv = TypeVar(param)
+            TypeLambda(scala.List(tv), body(tv))
+        }
+    }
+
+    object TypeLambda2 {
+        def apply(param1: String, param2: String, body: (TypeVar, TypeVar) => SIRType): TypeLambda = {
+            val tv1 = TypeVar(param1)
+            val tv2 = TypeVar(param2)
+            TypeLambda(scala.List(tv1, tv2), body(tv1, tv2))
+        }
     }
 
     case class TypeError(msg: String, cause: Throwable | Null) extends SIRType {
