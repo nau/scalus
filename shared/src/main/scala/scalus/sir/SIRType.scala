@@ -1,6 +1,7 @@
 package scalus.sir
 
 import scalus.uplc.DefaultUni
+import scalus.uplc.{TypeScheme => UplcTypeScheme}
 import scalus.sir.SIRType.TypeVar
 
 import java.util
@@ -436,6 +437,15 @@ object SIRType {
                         TypeLambda(scala.List(a), Pair(a, fromDefaultUni(arg)))
                     case _ =>
                         SIRType.Fun(fromDefaultUni(f), fromDefaultUni(arg))
+    }
+
+    def fromUplcTypeScheme(uplcTypeSchema: UplcTypeScheme): SIRType = {
+        uplcTypeSchema match
+            case UplcTypeScheme.Type(argType) => fromDefaultUni(argType)
+            case UplcTypeScheme.Arrow(argType, resType) => Fun(fromUplcTypeScheme(argType), fromUplcTypeScheme(resType))
+            case UplcTypeScheme.All(typeVar, body) => TypeLambda(scala.List(TypeVar(typeVar)), fromUplcTypeScheme(body))
+            case UplcTypeScheme.App(f, arg) => calculateApplyType(fromUplcTypeScheme(f), fromUplcTypeScheme(arg), Map.empty)
+            case UplcTypeScheme.TVar(name) => TypeVar(name)
     }
 
     def checkAllProxiesFilled(tp: SIRType): Boolean = {

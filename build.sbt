@@ -119,6 +119,7 @@ lazy val scalusPlugin = project
                 "scalus/uplc/DefaultFun.scala",
                 "scalus/uplc/DefaultUni.scala",
                 "scalus/uplc/CommonFlatInstances.scala",
+                "scalus/uplc/TypeScheme.scala",
                 "scalus/flat/package.scala"
               )
 
