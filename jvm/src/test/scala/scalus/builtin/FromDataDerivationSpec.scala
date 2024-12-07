@@ -115,6 +115,8 @@ class FromDataDerivationSpec
         aShrunk ++ bShrunk ++ bsShrunk ++ sShrunk ++ dShrunk ++ lsShrunk ++ mShrunk
     }
 
+
+
     test("derived FromData roundtrip works using Plutus uplc") {
         import ToDataBigRecord.given
         import scalus.uplc.TermDSL.{*, given}
@@ -136,12 +138,13 @@ class FromDataDerivationSpec
         }
     }
 
+
     test("FromData.deriveEnum") {
         import ToDataAdt.given
         import scalus.uplc.TermDSL.{*, given}
         val sir = compile { (d: Data) => fromData[Adt](d).toData }
         val term = sir.toUplc()
-        // println(sir.pretty.render(100))
+        println(sir.pretty.render(100))
         forAll { (r: Adt) =>
             val d = r.toData
             assert(fromData[Adt](d) == r)
@@ -155,13 +158,16 @@ class FromDataDerivationSpec
             assert(VM.evaluateTerm(term $ d) == Term.Const(Constant.Data(d)))
         }
     }
+
+
+
 
     test("derived FromData.deriveEnum") {
         import ToDataAdt.given
         import scalus.uplc.TermDSL.{*, given}
         val sir = compile { (d: Data) => Adt.derivedFromData(d).toData }
         val term = sir.toUplc()
-        // println(sir.pretty.render(100))
+        println(sir.pretty.render(100))
         forAll { (r: Adt) =>
             val d = r.toData
             assert(fromData[Adt](d) == r)
@@ -169,10 +175,62 @@ class FromDataDerivationSpec
             out match
                 case UplcEvalResult.Success(term, _) =>
                     assert(term == Term.Const(Constant.Data(d)))
-                case UplcEvalResult.UplcFailure(errorCode, error) => fail(error)
-                case UplcEvalResult.TermParsingError(error)       => fail(error)
+                case UplcEvalResult.UplcFailure(errorCode, error) =>
+                    println(s"UplcFailure: r=${r},  d=${d}")
+                    fail(error)
+                case UplcEvalResult.TermParsingError(error) =>
+                    fail(error)
 
             assert(VM.evaluateTerm(term $ d) == Term.Const(Constant.Data(d)))
         }
     }
+
+    /*
+    test("derived FromData.deriveEnum: concrete-case") {
+        import ToDataAdt.given
+        import scalus.uplc.TermDSL.{*, given}
+        val sir = compile { (d: Data) => Adt.derivedFromData(d).toData }
+        val term = sir.toUplc()
+        println(sir.pretty.render(100))
+        println("UPLC:")
+        println(term.pretty.render(100))
+        val r = Adt.A
+        //forAll { (r: Adt) =>
+            val d = r.toData
+            assert(fromData[Adt](d) == r)
+            println("applied term:"  )
+            println((term $ d).pretty.render(100))
+
+
+            val myOut = try
+                VM.evaluateProgram(Program((1, 0, 0), term $ d))
+            catch
+                case e: Throwable =>
+                    if (e.getMessage != null) {
+                        if (e.getMessage.length > 100) {
+                            val newMsg = e.getMessage.take(100) + "..."
+                            throw new RuntimeException(newMsg)
+                        }
+                    }
+                    println(s"VM.evaluateProgram failed: ${e}")
+                    throw e
+            println(s"myOut: ${myOut}")
+
+            val out = UplcCli.evalFlat(Program((1, 0, 0), term $ d))
+            out match
+                case UplcEvalResult.Success(term, _) =>
+                    assert(term == Term.Const(Constant.Data(d)))
+                case UplcEvalResult.UplcFailure(errorCode, error) =>
+                    println(s"UplcFailure: d=${d}")
+                    val errorMsg = if (error.length > 100) error.take(100)+"..." else error
+                    fail(errorMsg)
+                case UplcEvalResult.TermParsingError(error) =>
+                    fail(error)
+
+            assert(VM.evaluateTerm(term $ d) == Term.Const(Constant.Data(d)))
+        //}
+    }
+
+     */
+
 }

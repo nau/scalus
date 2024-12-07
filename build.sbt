@@ -62,7 +62,7 @@ lazy val commonScalacOptions = Seq(
   "-explain",
   "-Wunused:imports",
   "-Wunused:params",
-  "-Xcheck-macros"
+  "-Xcheck-macros",
 //  "-rewrite",
 //  "-source:future-migration"
 )
@@ -103,15 +103,22 @@ lazy val scalusPlugin = project
           val sharedFiles =
               Seq(
                 "scalus/utils/Hex.scala",
+                "scalus/utils/HashConsed.scala",
+                "scalus/utils/HashConsedFlat.scala",
                 "scalus/builtin/ByteString.scala",
                 "scalus/builtin/Data.scala",
                 "scalus/builtin/List.scala",
                 "scalus/sir/SIR.scala",
+                "scalus/sir/SIRType.scala",
+                "scalus/sir/SIRToExpr.scala",
+                "scalus/sir/SIRBuiltins.scala",
+                "scalus/sir/SIRUnify.scala",
                 "scalus/sir/FlatInstances.scala",
                 "scalus/uplc/Constant.scala",
                 "scalus/uplc/DefaultFun.scala",
                 "scalus/uplc/DefaultUni.scala",
                 "scalus/uplc/CommonFlatInstances.scala",
+                "scalus/uplc/TypeScheme.scala",
                 "scalus/flat/package.scala"
               )
 
@@ -167,6 +174,10 @@ lazy val scalus = crossProject(JSPlatform, JVMPlatform)
       scalacOptions ++= commonScalacOptions,
       scalacOptions += "-Xmax-inlines:100", // needed for upickle derivation of CostModel
       // scalacOptions += "-Yretain-trees",
+
+      // enable when debug compilation of tests
+      Test/scalacOptions += "-color:never",
+
       libraryDependencies += "org.typelevel" %%% "cats-core" % "2.12.0",
       libraryDependencies += "org.typelevel" %%% "cats-parse" % "1.0.0",
       libraryDependencies += "org.typelevel" %%% "paiges-core" % "0.4.4",

@@ -31,6 +31,12 @@ object PrettyPrinter:
         case Normal, XTerm
 
     def inParens(d: Doc): Doc = char('(') + d + char(')')
+    def inBraces(d: Doc): Doc = char('{') + d + char('}')
+    def inBrackets(d: Doc): Doc = char('[') + d + char(']')
+    def inOptBrackets(d: Doc): Doc = if (d.isEmpty) empty else inBrackets(d)
+
+    def typedName(name: String, tp: SIRType): Doc = text(name) + text(":") + pretty(tp)
+
     def pretty(df: DefaultFun): Doc = text(Utils.lowerFirst(df.toString))
 
     def prettyValue(c: Constant, dataParens: Boolean = false): Doc =
@@ -102,19 +108,22 @@ object PrettyPrinter:
         def kw(s: String): Doc = text(s).styled(Fg.colorCode(172))
         def ctr(s: String): Doc = text(s).styled(Fg.colorCode(21))
         sir match
-            case Decl(DataDecl(name, constructors), term) =>
+            case Decl(DataDecl(name, constructors, typeParams), term) =>
                 val prettyConstrs = constructors.map { constr =>
                     val params = constr.params match
                         case Nil => empty
                         case _ =>
                             intercalate(
                               text(",") + line,
-                              constr.params.map(text)
+                              constr.params.map(tb => typedName(tb.name, tb.tp))
                             )
                                 .tightBracketBy(text("("), text(")"))
                     (ctr(constr.name) + params).aligned
                 }
-                kw("data") & text(name) &
+                val prettyGenDecl = typeParams match
+                    case Nil   => empty
+                    case other => intercalate(text(","), typeParams.map(x => text(x.name)))
+                kw("data") & text(name) & prettyGenDecl &
                     (text("=") & intercalate(
                       line + text("|") + space,
                       prettyConstrs
@@ -126,15 +135,18 @@ object PrettyPrinter:
                   args.map(pretty(_, style))
                 )
                     .tightBracketBy(text("("), text(")"))
-            case Match(scrutinee, cases) =>
+            case Match(scrutinee, cases, tp) =>
                 val prettyCases =
-                    stack(cases.map { case Case(constr, bindings, body) =>
+                    stack(cases.map { case SIR.Case(constr, bindings, typeBindings, body) =>
+                        val typedConst = inOptBrackets(
+                          intercalate(text(",") + space, typeBindings.map(pretty))
+                        )
                         val params = bindings match
                             case Nil => empty
                             case _ =>
                                 intercalate(text(",") + line, bindings.map(text))
                                     .tightBracketBy(text("("), text(")"))
-                        (kw("case") & ctr(constr.name) + params & text(
+                        (kw("case") & ctr(constr.name) + typedConst + params & text(
                           "->"
                         ) + (line + pretty(body, style))
                             .nested(2)).grouped.aligned
@@ -146,8 +158,8 @@ object PrettyPrinter:
                       2
                     )).aligned
 
-            case Var(name)                     => text(name)
-            case ExternalVar(moduleName, name) => text(name)
+            case Var(name, tp)                     => typedName(name, tp)
+            case ExternalVar(moduleName, name, tp) => typedName(name, tp)
             case Let(Recursivity.NonRec, List(Binding(name, body)), inExpr) =>
                 pretty(body, style).bracketBy(
                   kw("let") & text(name) & text("="),
@@ -173,7 +185,7 @@ object PrettyPrinter:
                 ((decl + (line + pretty(body1, style)).nested(2)).grouped / text(
                   "}"
                 )).grouped.aligned
-            case a @ Apply(f, arg) =>
+            case a @ Apply(f, arg, tp) =>
                 val (t, args) = SirDSL.applyToList(a)
                 val prettyArgs = args match
                     case List() => text("()")
@@ -182,8 +194,8 @@ object PrettyPrinter:
                             .tightBracketBy(text("("), text(")"))
 
                 pretty(t, style) + prettyArgs
-            case Const(const) => prettyValue(const).styled(Fg.colorCode(64))
-            case And(a, b)    =>
+            case Const(const, _) => prettyValue(const).styled(Fg.colorCode(64))
+            case And(a, b)       =>
                 // We don't add parentheses for nested Ands, because they are associative.
                 // But we add parentheses for nested Ors and Nots.
                 val docA = a match {
@@ -216,14 +228,41 @@ object PrettyPrinter:
                 }
                 (kw("not") / docA).grouped.aligned
 
-            case IfThenElse(cond, t, f) =>
+            case IfThenElse(cond, t, f, tp) =>
                 ((kw("if") + (line + pretty(cond, style)).nested(4)).grouped
                     + (line + kw("then") + (line + pretty(t, style)).nested(4)).grouped
                     + (line + kw("else") + (line + pretty(f, style)).nested(
                       4
                     )).grouped).aligned
-            case Builtin(bn) => pretty(bn).styled(Fg.colorCode(176))
-            case Error(msg)  => text(s"ERROR '$msg'").styled(Fg.colorCode(124))
+            case Builtin(bn, _) => pretty(bn).styled(Fg.colorCode(176))
+            case Error(msg, _)  => text(s"ERROR '$msg'").styled(Fg.colorCode(124))
+
+    def pretty(sirType: SIRType): Doc =
+        sirType match
+            case SIRType.TypeVar(name, optId) => text(name + optId.fold("")(id => s"[$id]"))
+            case SIRType.Fun(in, out) =>
+                inParens(pretty(in) + text(" -> ") + pretty(out))
+            case SIRType.TypeLambda(params, body) =>
+                inParens(
+                  text("λ.") + intercalate(text(",") + space, params.map(p => text(p.show))) + text(
+                    " =>> "
+                  ) + pretty(body)
+                )
+            case p: SIRType.Primitive[?]   => text(p.show)
+            case SIRType.TypeError(msg, _) => text(s"Error '$msg'")
+            case SIRType.CaseClass(constrDecl, typeParams) =>
+                text(constrDecl.name) + inOptBrackets(
+                  intercalate(text(",") + space, typeParams.map(pretty))
+                )
+            case SIRType.SumCaseClass(decl, typeParams) =>
+                text(decl.name) + inOptBrackets(
+                  intercalate(text(",") + space, typeParams.map(pretty))
+                )
+            case SIRType.Data => text("Data")
+            case SIRType.BLS12_381_G1_Element => text("BLS12_381_G1_Element")
+            case SIRType.BLS12_381_G2_Element => text("BLS12_381_G2_Element")
+            case SIRType.BLS12_381_MlResult   => text("BLS12_381_MlResult")
+            
 
     def pretty(p: Program): Doc =
         val (major, minor, patch) = p.version
