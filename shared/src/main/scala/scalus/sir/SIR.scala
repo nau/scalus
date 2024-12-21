@@ -155,6 +155,8 @@ object SIR:
 
     }
 
+    case class Select(scrutinee: SIR, field: String, tp: SIRType) extends SIR
+
     case class Const(uplcConst: Constant, tp: SIRType) extends SIR
 
     case class And(a: SIR, b: SIR) extends SIR {
@@ -248,6 +250,7 @@ object SIRChecker {
                 checkType(param.tp, throwOnFirst) ++ checkSIR(term, throwOnFirst) ++ checkTp
             case SIR.Apply(f, arg, tp) =>
                 checkSIR(f, throwOnFirst) ++ checkSIR(arg, throwOnFirst) ++ checkTp
+            case SIR.Select(scrutinee, _, _) => checkSIR(scrutinee, throwOnFirst) ++ checkTp
             case SIR.Const(_, tp) => checkTp
             case SIR.And(a, b) => checkSIR(a, throwOnFirst) ++ checkSIR(b, throwOnFirst) ++ checkTp
             case SIR.Or(a, b)  => checkSIR(a, throwOnFirst) ++ checkSIR(b, throwOnFirst) ++ checkTp

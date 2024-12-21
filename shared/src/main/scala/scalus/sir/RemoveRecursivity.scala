@@ -24,6 +24,7 @@ object RemoveRecursivity:
             case LamAbs(name, term) => LamAbs(name, removeRecursivity(term))
             case Apply(f, arg, tp) =>
                 Apply(removeRecursivity(f), removeRecursivity(arg), tp)
+            case Select(s, field, tp) => Select(removeRecursivity(s), field, tp)
             case IfThenElse(cond, t, f, tp) =>
                 IfThenElse(
                   removeRecursivity(cond),
@@ -57,6 +58,7 @@ object RemoveRecursivity:
                 || isRecursive(name, body, newEnv)
             case LamAbs(n, t)    => isRecursive(name, t, n.name :: env)
             case Apply(f, a, tp) => isRecursive(name, f, env) || isRecursive(name, a, env)
+            case Select(s, _, _) => isRecursive(name, s, env)
             case And(a, b)       => isRecursive(name, a, env) || isRecursive(name, b, env)
             case Or(a, b)        => isRecursive(name, a, env) || isRecursive(name, b, env)
             case Not(a)          => isRecursive(name, a, env)

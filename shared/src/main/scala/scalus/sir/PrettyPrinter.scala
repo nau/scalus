@@ -194,6 +194,8 @@ object PrettyPrinter:
                             .tightBracketBy(text("("), text(")"))
 
                 pretty(t, style) + prettyArgs
+            case Select(scrutinee, field, tp) =>
+                pretty(scrutinee, style) + text("." + field)
             case Const(const, _) => prettyValue(const).styled(Fg.colorCode(64))
             case And(a, b)       =>
                 // We don't add parentheses for nested Ands, because they are associative.

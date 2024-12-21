@@ -1,4 +1,5 @@
-package scalus.sir
+package scalus
+package sir
 
 import scalus.sir.Recursivity.*
 import scalus.uplc.Constant
@@ -114,7 +115,26 @@ class SimpleSirToUplcLowering(sir: SIR, generateErrorTraces: Boolean = false):
                 sys.error(s"Mutually recursive bindings are not supported: $bindings")
             case SIR.LamAbs(name, term) => Term.LamAbs(name.name, lowerInner(term))
             case SIR.Apply(f, arg, _)   => Term.Apply(lowerInner(f), lowerInner(arg))
-            case SIR.Const(const, _)    => Term.Const(const)
+            case SIR.Select(scrutinee, field, _) =>
+                scrutinee.tp match
+                    case SIRType.SumCaseClass(decl, _) if decl.constructors.length == 1 =>
+                        val constrDecl = decl.constructors.head
+                        val fieldIndex = constrDecl.params.indexWhere(_.name == field)
+                        if fieldIndex == -1 then
+                            throw new IllegalArgumentException(
+                              s"Field $field not found in constructor ${constrDecl.name}"
+                            )
+                        val instance = lowerInner(scrutinee)
+                        val s0 = Term.Var(NamedDeBruijn(field))
+                        val lam = constrDecl.params.foldRight(s0) { case (f, acc) =>
+                            Term.LamAbs(f.name, acc)
+                        }
+                        Term.Apply(instance, lam)
+                    case _ =>
+                        throw new IllegalArgumentException(
+                          s"Expected case class type, got ${scrutinee.tp} in expression: ${sir.show}"
+                        )
+            case SIR.Const(const, _) => Term.Const(const)
             case SIR.And(lhs, rhs) =>
                 lowerInner(
                   SIR.IfThenElse(
