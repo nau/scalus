@@ -220,7 +220,7 @@ final class SIRCompiler(mode: scalus.Mode)(using ctx: Context) {
 
                 val hs0 = scalus.utils.HashConsed.State.empty
                 val hsc1 = scalus.utils.HashConsedEncoderState.withSize(1000)
-                for (b <- module.defs) {
+                for b <- module.defs do {
                     println(s"def: ${b}")
                     // val bindingBitSize = scalus.flat.FlatInstantces.BindingFlat.bitSizeHC(b,hs0)
                 }
@@ -497,7 +497,7 @@ final class SIRCompiler(mode: scalus.Mode)(using ctx: Context) {
 
     def error[A](error: CompilationError, defaultValue: A): A = {
         report.error(error.message, error.srcPos)
-        if (true) {
+        if true then {
             throw new RuntimeException(error.message)
             // Thread.dumpStack()
         }
@@ -1508,8 +1508,8 @@ final class SIRCompiler(mode: scalus.Mode)(using ctx: Context) {
             case e: SIRTypesHelper.TypingException =>
                 println(s"Error wjile typing: ${tp.show}: ${e.msg},")
                 println(s"env.vars=${env.vars}");
-                if (true) {
-                    throw e;
+                if true then {
+                    throw e
                 }
                 val retval = error(
                   GenericError(e.msg, e.pos),

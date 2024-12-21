@@ -40,7 +40,7 @@ case class ConstrDecl(
 
 ) {
 
-    if (name.contains(" ") || name.contains("\u0021")) {
+    if name.contains(" ") || name.contains("\u0021") then {
         throw new RuntimeException("Invalud name in constructor: " + name)
     }
 

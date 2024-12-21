@@ -1,7 +1,7 @@
 package scalus.sir
 
 import scalus.uplc.DefaultUni
-import scalus.uplc.{TypeScheme => UplcTypeScheme}
+import scalus.uplc.TypeScheme as UplcTypeScheme
 import scalus.sir.SIRType.TypeVar
 
 import java.util
@@ -409,7 +409,7 @@ object SIRType {
                         println(s"in=$in")
                         println(s"arg=$arg")
                         throw new TypingException(message)
-                // TypeError(s"Cannot unify $in with $arg, difference at path ${e.path}", null)
+            // TypeError(s"Cannot unify $in with $arg, difference at path ${e.path}", null)
             case tvF @ TypeVar(name, _) =>
                 env.get(tvF) match
                     case Some(f1) => calculateApplyType(tvF, arg, env)

@@ -73,7 +73,7 @@ object SIRTypesHelper {
                 ???
             case tpc: RefinedType =>
                 println(s"RefinedType ${tpc.show}")
-                if (tpc <:< defn.PolyFunctionType) {
+                if tpc <:< defn.PolyFunctionType then {
                     // then this is a type of applyMethod
                     val applyTpe = tpc.member(nme.apply).info
                     sirTypeInEnvWithErr(applyTpe, env)
@@ -333,7 +333,7 @@ object SIRTypesHelper {
             case SIRType.CaseClass(constrDecl, _)  => Some(constrDecl)
             case SIRType.SumCaseClass(dataDecl, _) => dataDecl.constructors
             case SIRType.TypeProxy(proxy) =>
-                if (proxy == null) {
+                if proxy == null then {
                     Nil
                 } else {
                     flatSealedTraitHierarchy(top, List(proxy), env)
@@ -361,7 +361,7 @@ object SIRTypesHelper {
     )(using Context): Option[SIRType] = {
         // println(s"tryMakeCaseClassOrCaseParentTypeNoRec ${typeSymbol.showFullName} ${tpArgs.map(_.show)}, isCase=${typeSymbol.flags.is(Flags.CaseClass)}, isEnum=${typeSymbol.flags.is(Flags.Enum)}, flags=${typeSymbol.flagsString}")
         // println(s"typeSymbol.isType=${typeSymbol.isType}, typeSymbol.isClass=${typeSymbol.isClass}, typeSymbol.isTerm=${typeSymbol.isTerm}")
-        if (typeSymbol.flags.is(Flags.Case) || typeSymbol.flags.is(Flags.Enum)) {
+        if typeSymbol.flags.is(Flags.Case) || typeSymbol.flags.is(Flags.Enum) then {
             // case class, can do constrdecl
             val name = typeSymbol.fullName.show
             val tparams = typeSymbol.info.typeParamSymbols.map(s =>
@@ -390,7 +390,7 @@ object SIRTypesHelper {
             Some(nType)
         } else {
             // TODO: keep in env mapSymbol => SumCaseClass to prevent duplication
-            if (typeSymbol.children.nonEmpty) {
+            if typeSymbol.children.nonEmpty then {
                 val childrenSymbols = typeSymbol.children
                 val childrenTypes = childrenSymbols.map(s =>
                     val typeParams = s.primaryConstructor.typeParams.map(s =>
@@ -401,7 +401,7 @@ object SIRTypesHelper {
                     // val parentTpArgs = s.info.baseType(typeSymbol) match
                     //        case AppliedType(tycon, args) => args.map(sirTypeInEnv(_, nEnv))
                     //        case _ => Nil
-                    if (s.children.isEmpty)
+                    if s.children.isEmpty then
                         // val constrDecl = ConstrDecl(s.name.show, SIRVarStorage.DEFAULT, Nil, typeParams, parentTpArgs)
                         val constrDecl =
                             ConstrDecl(s.name.show, SIRVarStorage.DEFAULT, Nil, typeParams)
@@ -450,7 +450,7 @@ object SIRTypesHelper {
                         val tparams = typeSymbol.info.typeParamSymbols.map(s =>
                             SIRType.TypeVar(s.name.show, Some(s.hashCode))
                         )
-                        if (tparams.length != tpArgs.length) {
+                        if tparams.length != tpArgs.length then {
                             // println(s"Children types: ${childrenTypes}")
                             // println(s"Children symbols: ${childrenSymbols.map(_.showFullName)}")
                             val msg =
@@ -474,9 +474,9 @@ object SIRTypesHelper {
     def tryMakeNonCaseModule(tp: Type, typeSymbol: Symbol, tpArgs: List[SIRType], env: SIRTypeEnv)(
         using Context
     ): Option[SIRType] = {
-        if (typeSymbol.flags.is(Flags.Module) || typeSymbol.flags.is(Flags.Package)) {
+        if typeSymbol.flags.is(Flags.Module) || typeSymbol.flags.is(Flags.Package) then {
             val name = typeSymbol.fullName.show
-            if (!tpArgs.isEmpty) {
+            if tpArgs.nonEmpty then {
                 val msg = s"Module type ${typeSymbol.showFullName} should not have type arguments"
                 Some(typeError(tp, msg, env, throwError = true))
             } else {

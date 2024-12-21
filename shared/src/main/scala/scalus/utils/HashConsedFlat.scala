@@ -78,8 +78,7 @@ object HashConsedReprFlat {
             level: Int,
             parents: HSRIdentityHashMap
         ): List[A] =
-            if (parents.get(this) != null)
-                throw new Exception("Cycle detected")
+            if parents.get(this) != null then throw new Exception("Cycle detected")
             parents.put(this, this)
             val nextLevel = level + 1
             val retval = elems.map(_.finValue(hashConsed, nextLevel, parents))

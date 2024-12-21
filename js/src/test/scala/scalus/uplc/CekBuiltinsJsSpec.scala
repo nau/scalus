@@ -27,7 +27,7 @@ class CekBuiltinsJsSpec extends CekBuiltinsSpec:
           js.Array("evaluate"),
           js.Dynamic.literal(input = program.show)
         )
-        if (r.status.asInstanceOf[Int] != 0) throw new Exception(r.stderr.toString)
+        if r.status.asInstanceOf[Int] != 0 then throw new Exception(r.stderr.toString)
 //    println(r.stdout.toString())
         UplcParser().term.parse(r.stdout.toString()) match
             case Left(value)       => throw new Exception(s"Parse error: $value")

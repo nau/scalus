@@ -99,7 +99,7 @@ object ToExprHSSIRFlat extends HashConsedFlat[SIR] {
     }
 
     override def encodeHC(a: SIR, encoderState: HashConsedEncoderState): Unit = {
-        if (paranoid) {
+        if paranoid then {
             SIRChecker.checkAndThrow(a)
         }
         SIRHashConsedFlat.encodeHC(a, encoderState)
@@ -125,7 +125,7 @@ object ToExprHSSIRFlat extends HashConsedFlat[SIR] {
         val ref = SIRHashConsedFlat.decodeHC(decoderState)
         decoderState.runFinCallbacks()
         val retval = ref.finValue(decoderState.hashConsed, 0, new HSRIdentityHashMap)
-        if (paranoid) {
+        if paranoid then {
             SIRChecker.checkAndThrow(retval)
         }
         retval

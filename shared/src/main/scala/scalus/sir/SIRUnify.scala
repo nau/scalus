@@ -123,7 +123,7 @@ object SIRUnify {
                 val nEnv = env.copy(filledHoles = env.filledHoles.updated(h.name, left))
                 checkEqHoles(nEnv, h, left)
             case (SIR.Var(name1, tp1), SIR.Var(name2, tp2)) =>
-                if (name1 == name2)
+                if name1 == name2 then
                     unifyType(tp1, tp2, env.copy(path = "tp" :: env.path)) match
                         case UnificationSuccess(env1, tp) =>
                             UnificationSuccess(
@@ -132,10 +132,9 @@ object SIRUnify {
                             )
                         case UnificationFailure(path, tpLeft, tpRight) =>
                             UnificationFailure(path, left, right)
-                else
-                    UnificationFailure("name" :: env.path, left, right)
+                else UnificationFailure("name" :: env.path, left, right)
             case (v1: SIR.ExternalVar, v2: SIR.ExternalVar) =>
-                if (v1.name == v2.name && v1.moduleName == v2.moduleName)
+                if v1.name == v2.name && v1.moduleName == v2.moduleName then
                     unifyType(v1.tp, v2.tp, env.copy(path = "tp" :: env.path)) match
                         case UnificationSuccess(env1, tp) =>
                             UnificationSuccess(
@@ -144,8 +143,7 @@ object SIRUnify {
                             )
                         case UnificationFailure(path, tpLeft, tpRight) =>
                             UnificationFailure(path, left, right)
-                else
-                    UnificationFailure(env.path, left, right)
+                else UnificationFailure(env.path, left, right)
             case (v1: SIR.Let, v2: SIR.Let) =>
                 if (v1.recursivity == v2.recursivity) then
                     unifyList(

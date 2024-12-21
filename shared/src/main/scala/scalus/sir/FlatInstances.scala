@@ -529,7 +529,7 @@ object FlatInstantces:
 
         override def bitSizeHC(a: SIRType.TypeProxy, hashConsed: HashConsed.State): Int =
             val ref = a.ref
-            if (ref == null)
+            if ref == null then
                 throw new IllegalStateException(
                   "TypeProxy id is null, looks lise save or restore is invalid"
                 )
@@ -549,7 +549,7 @@ object FlatInstantces:
 
         override def encodeHC(a: SIRType.TypeProxy, encode: HashConsedEncoderState): Unit =
             val ref = a.ref
-            if (ref == null)
+            if ref == null then
                 throw new IllegalStateException(
                   "TypeProxy id is null, looks lise save or restore is invalid"
                 )
@@ -602,9 +602,9 @@ object FlatInstantces:
                             parent: HSRIdentityHashMap
                         ): SIRType.TypeProxy = {
                             val ref = newRef.value
-                            if (ref == null)
+                            if ref == null then
                                 throw new IllegalStateException("TypeProxy is not resolved")
-                            if (parent.get(this) != null)
+                            if parent.get(this) != null then
                                 throw new IllegalStateException(
                                   "Cycle detected in TypeProxy"
                                 )
@@ -626,7 +626,7 @@ object FlatInstantces:
                             level: Int,
                             parent: HSRIdentityHashMap
                         ): SIRType.TypeProxy =
-                            if (parent.get(this) != null)
+                            if parent.get(this) != null then
                                 throw new IllegalStateException(
                                   "Cycle detected in TypeProxy"
                                 )
