@@ -106,7 +106,7 @@ class BuiltinHelper(using Context) {
       "bls12_381_millerLoop" -> SIRBuiltins.bls12_381_millerLoop,
       "bls12_381_finalVerify" -> SIRBuiltins.bls12_381_finalVerify,
       "keccak_256" -> SIRBuiltins.keccak_256,
-      "blake2b_224" -> SIRBuiltins.blake2b_224,
+      "blake2b_224" -> SIRBuiltins.blake2b_224
     )
 
     // val DefaultFunValues: Map[Symbol, DefaultFun] = DefaultFun.values

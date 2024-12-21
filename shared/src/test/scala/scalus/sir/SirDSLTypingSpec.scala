@@ -9,10 +9,10 @@ import scalus.sir.SIRType.TypeVar
 class SirDSLTypingSpec extends AnyFunSuite:
 
     test("type list of ints moved to SIR via implicit conversion") {
-        val sir: SIR = List(1,2,3)
-        
+        val sir: SIR = List(1, 2, 3)
+
         assert(sir.tp == SIRType.List(SIRType.IntegerPrimitive))
-        
+
     }
 
     test("list type is created without unfilled proxies") {
@@ -35,13 +35,11 @@ class SirDSLTypingSpec extends AnyFunSuite:
         assert(SIRType.checkAllProxiesFilled(stp))
     }
 
-
-
-    //test("calculate types extract pair types") {
+    // test("calculate types extract pair types") {
     //    val pv = SIR.Var("p", (Data,Data))
     //
     //    val k = LamAbs(pv, SIRBuiltins.sndPair $ pv)
     //
     //    println(s"k.tp: ${k.tp.show } ")
     //
-    //}
+    // }

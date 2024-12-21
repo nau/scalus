@@ -22,7 +22,6 @@ import scalus.uplc.eval.Logger
 import scala.collection.immutable
 import scala.collection.immutable.ArraySeq
 
-
 case class BuiltinRuntime(
     typeScheme: TypeScheme,
     f: (Logger, Seq[CekValue]) => CekValue,

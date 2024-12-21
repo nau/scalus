@@ -62,7 +62,7 @@ lazy val commonScalacOptions = Seq(
   "-explain",
   "-Wunused:imports",
   "-Wunused:params",
-  "-Xcheck-macros",
+  "-Xcheck-macros"
 //  "-rewrite",
 //  "-source:future-migration"
 )
@@ -176,8 +176,7 @@ lazy val scalus = crossProject(JSPlatform, JVMPlatform)
       // scalacOptions += "-Yretain-trees",
 
       // enable when debug compilation of tests
-      Test/scalacOptions += "-color:never",
-
+      Test / scalacOptions += "-color:never",
       libraryDependencies += "org.typelevel" %%% "cats-core" % "2.12.0",
       libraryDependencies += "org.typelevel" %%% "cats-parse" % "1.0.0",
       libraryDependencies += "org.typelevel" %%% "paiges-core" % "0.4.4",

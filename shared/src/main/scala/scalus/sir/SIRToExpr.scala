@@ -4,7 +4,7 @@ import scalus.flat.FlatInstantces.SIRTypeHashConsedFlat
 import scalus.flat.FlatInstantces.SIRHashConsedFlat
 
 import scala.quoted.*
-import scalus.sir.SIRType.{TypeVar, checkAllProxiesFilled}
+import scalus.sir.SIRType.{checkAllProxiesFilled, TypeVar}
 import scalus.utils.*
 import scalus.flat.*
 
@@ -70,7 +70,6 @@ object ToExprHSSIRTypeFlat extends HashConsedFlat[SIRType] {
                 //
                 throw new IllegalStateException("unification for encoding/decoding failed")
 
-
     }
 
     override def decodeHC(decoderState: HashConsedDecoderState): SIRType = {
@@ -105,7 +104,7 @@ object ToExprHSSIRFlat extends HashConsedFlat[SIR] {
         }
         SIRHashConsedFlat.encodeHC(a, encoderState)
         encoderState.encode.filler()
-        //if (paranoid) {
+        // if (paranoid) {
         //    val decoderState = HashConsedDecoderState(
         //      DecoderState(encoderState.encode.buffer),
         //      HashConsed.State.empty
@@ -119,7 +118,7 @@ object ToExprHSSIRFlat extends HashConsedFlat[SIR] {
         //        println(s"decoded: ${sir1}")
         //        throw new IllegalStateException("unification for encoding/decoding failed")
         //    }
-        //}
+        // }
     }
 
     override def decodeHC(decoderState: HashConsedDecoderState): SIR = {

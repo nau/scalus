@@ -49,7 +49,9 @@ class ScalusPhase extends PluginPhase {
         val compileSymbol = compilerModule.requiredMethod("compile")
         val compileDebugSymbol = compilerModule.requiredMethod("compileDebug")
         if tree.fun.symbol == compileSymbol || tree.fun.symbol == compileDebugSymbol then
-            println(s"Scalus: Found compile call:  ${tree.show}, code=${tree.args.head.show}, debug=${tree.fun.symbol == compileDebugSymbol}")
+            println(
+              s"Scalus: Found compile call:  ${tree.show}, code=${tree.args.head.show}, debug=${tree.fun.symbol == compileDebugSymbol}"
+            )
             // report.echo(tree.showIndented(2))
             val code = tree.args.head
             val compiler = new SIRCompiler(Mode.Link)

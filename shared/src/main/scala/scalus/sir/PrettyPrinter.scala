@@ -258,11 +258,10 @@ object PrettyPrinter:
                 text(decl.name) + inOptBrackets(
                   intercalate(text(",") + space, typeParams.map(pretty))
                 )
-            case SIRType.Data => text("Data")
+            case SIRType.Data                 => text("Data")
             case SIRType.BLS12_381_G1_Element => text("BLS12_381_G1_Element")
             case SIRType.BLS12_381_G2_Element => text("BLS12_381_G2_Element")
             case SIRType.BLS12_381_MlResult   => text("BLS12_381_MlResult")
-            
 
     def pretty(p: Program): Doc =
         val (major, minor, patch) = p.version

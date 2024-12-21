@@ -30,14 +30,13 @@ object SIRTypesHelper {
                     println(s"typing exception during sirTypeInEnv(${tp.show}), tp tree: ${tp}")
                     throw e
         if (true) then
-           if (!SIRType.checkAllProxiesFilled(retval)) then
-               throw new TypingException(tp, env.pos, s"Unfilled proxies in ${retval.show}")
+            if (!SIRType.checkAllProxiesFilled(retval)) then
+                throw new TypingException(tp, env.pos, s"Unfilled proxies in ${retval.show}")
         retval
     }
 
     def sirTypeInEnvWithErr(tp: Type, env: SIRTypeEnv)(using Context): SIRType =
-        if (env.trace) then
-            println(s"sirTypeInEnvWithErr ${tp.show},  env=${env}")
+        if (env.trace) then println(s"sirTypeInEnvWithErr ${tp.show},  env=${env}")
         val retval = tp match
             case tpc: TermRef =>
                 if (tpc.typeSymbol.isTypeParam) then
@@ -286,11 +285,11 @@ object SIRTypesHelper {
                         null
                       )
                     )
-        else if ( symbol == Symbols.requiredClass("scalus.builtin.BLS12_381_G1_Element") ) then
+        else if (symbol == Symbols.requiredClass("scalus.builtin.BLS12_381_G1_Element")) then
             Some(SIRType.BLS12_381_G1_Element)
-        else if ( symbol == Symbols.requiredClass("scalus.builtin.BLS12_381_G2_Element") ) then
+        else if (symbol == Symbols.requiredClass("scalus.builtin.BLS12_381_G2_Element")) then
             Some(SIRType.BLS12_381_G2_Element)
-        else if ( symbol == Symbols.requiredClass("scalus.builtin.BLS12_381_MlResult") ) then
+        else if (symbol == Symbols.requiredClass("scalus.builtin.BLS12_381_MlResult")) then
             Some(SIRType.BLS12_381_MlResult)
         else None
     }

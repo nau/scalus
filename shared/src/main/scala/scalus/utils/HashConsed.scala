@@ -67,7 +67,6 @@ object HashConsedRef {
                 retval
 
         }
-    
 
 }
 

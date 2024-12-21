@@ -115,8 +115,6 @@ class FromDataDerivationSpec
         aShrunk ++ bShrunk ++ bsShrunk ++ sShrunk ++ dShrunk ++ lsShrunk ++ mShrunk
     }
 
-
-
     test("derived FromData roundtrip works using Plutus uplc") {
         import ToDataBigRecord.given
         import scalus.uplc.TermDSL.{*, given}
@@ -138,7 +136,6 @@ class FromDataDerivationSpec
         }
     }
 
-
     test("FromData.deriveEnum") {
         import ToDataAdt.given
         import scalus.uplc.TermDSL.{*, given}
@@ -158,9 +155,6 @@ class FromDataDerivationSpec
             assert(VM.evaluateTerm(term $ d) == Term.Const(Constant.Data(d)))
         }
     }
-
-
-
 
     test("derived FromData.deriveEnum") {
         import ToDataAdt.given
