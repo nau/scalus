@@ -275,7 +275,14 @@ object PrettyPrinter:
           ) & pretty(p.term, Style.Normal)
         )
 
+    private var bracketColorIndex = 1
+    private def nextBracketColor(): Int =
+        val color = bracketColorIndex
+        bracketColorIndex = (bracketColorIndex + 1) % 15 + 1
+        color
+
     def pretty(term: Term, style: Style): Doc =
+
         import Term.*
         extension (d: Doc)
             def styled(s: paiges.Style): Doc = if style == Style.XTerm then d.style(s) else d
@@ -283,11 +290,18 @@ object PrettyPrinter:
         term match
             case Var(name) => text(name.name)
             case LamAbs(name, term) =>
-                inParens(kw("lam") & text(name) / pretty(term, style).indent(2))
+                val color = nextBracketColor()
+                char('(').styled(Fg.colorCode(color))
+                    + kw("lam") & text(name) / pretty(term, style).indent(2)
+                    + char(')').styled(Fg.colorCode(color))
             case a @ Apply(f, arg) =>
                 val (t, args) = TermDSL.applyToList(a)
+                val color = nextBracketColor()
                 intercalate(lineOrSpace, (t :: args).map(pretty(_, style)))
-                    .tightBracketBy(text("["), text("]"))
+                    .tightBracketBy(
+                      text("[").styled(Fg.colorCode(color)),
+                      text("]").styled(Fg.colorCode(color))
+                    )
             case Force(term) =>
                 inParens(kw("force") & pretty(term, style))
             case Delay(term) =>
