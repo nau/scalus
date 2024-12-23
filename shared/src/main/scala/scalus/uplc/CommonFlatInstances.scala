@@ -13,7 +13,9 @@ object CommonFlatInstances:
 
     given Flat[builtin.ByteString] with
         val flatArray = summon[Flat[Array[Byte]]]
-        def bitSize(a: builtin.ByteString): Int = flatArray.bitSize(a.bytes)
+
+        def bitSize(a: builtin.ByteString): Int =
+            flatArray.bitSize(a.bytes)
 
         def encode(a: builtin.ByteString, encode: EncoderState): Unit =
             flatArray.encode(a.bytes, encode)
@@ -254,7 +256,8 @@ object CommonFlatInstances:
               a.tpe
             ).length * (1 + constantWidth) + 1 // List Cons (1 bit) + constant + List Nil (1 bit)
             val valueSize = flatForUni(a.tpe).bitSize(Constant.toValue(a))
-            uniSize + valueSize
+            val retval = uniSize + valueSize
+            retval
 
         def encode(a: Constant, encoder: EncoderState): Unit =
             val tags = encodeUni(a.tpe)

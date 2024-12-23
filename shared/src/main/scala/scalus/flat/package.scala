@@ -1,6 +1,7 @@
 package scalus
 
 import scala.collection.mutable.ListBuffer
+import scalus.utils.HashConsed
 
 package object flat:
     case class Natural(n: BigInt)
@@ -182,7 +183,9 @@ package object flat:
             Natural(r)
 
     given Flat[String] with
-        def bitSize(a: String): Int = byteArraySize(a.getBytes("UTF-8"))
+        def bitSize(a: String): Int =
+            summon[Flat[Array[Byte]]].bitSize(a.getBytes("UTF-8"))
+
         def encode(a: String, encode: EncoderState): Unit =
             summon[Flat[Array[Byte]]].encode(a.getBytes("UTF-8"), encode)
 
@@ -302,6 +305,9 @@ package object flat:
             this.currentByte |= 1;
             nextWord()
 
+        def bitPosition(): Int =
+            this.nextPtr * 8 + this.usedBits
+
     class DecoderState(
         /** The buffer that contains a sequence of flat-encoded values */
         val buffer: Uint8Array
@@ -313,6 +319,8 @@ package object flat:
         /** Number of already decoded bits in the current byte (0..7) */
         var usedBits: Int = 0
 
+        val hashConsed: HashConsed.State = HashConsed.State.empty
+
         override def toString: String =
             s"""DecoderState(currPtr:$currPtr,usedBits:$usedBits,buffer:${buffer
                     .map(byteAsBitString)
@@ -322,7 +330,7 @@ package object flat:
           * @param numBits
           *   the Int of bits to decode (0..8)
           */
-        def bits8(numBits: Int): Byte =
+        def lookupBits8(numBits: Int): Byte =
             if numBits < 0 || numBits > 8 then
                 throw new RuntimeException("Decoder.bits8: incorrect value of numBits " + numBits)
 
@@ -338,9 +346,12 @@ package object flat:
                 val lowerBits = (nextByte & 255) >>> (unusedBits + leadingZeros)
                 r = r | lowerBits
 
-            this.dropBits(numBits)
-
             return (r & 255).toByte
+
+        def bits8(numBits: Int): Byte =
+            val r = lookupBits8(numBits)
+            this.dropBits(numBits)
+            return r
 
         def filler(): Unit =
             while this.bits8(1) == 0 do ()
@@ -350,6 +361,9 @@ package object flat:
                 throw new RuntimeException(
                   "DecoderState: Not enough data available: " + this.toString
                 )
+
+        def bitPosition(): Int =
+            this.currPtr * 8 + this.usedBits
 
         private def availableBits(): Int =
             return 8 * this.availableBytes() - this.usedBits
