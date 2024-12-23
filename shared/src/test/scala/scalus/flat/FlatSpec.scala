@@ -122,7 +122,6 @@ class FlatSpec extends AnyFunSuite with ScalaCheckPropertyChecks with ArbitraryI
         }
     }
 
-   
     test("Zagzig/zigZag Int") {
         forAll { (nn: Int) =>
             val n = nn >> 1 // to avoid overflow

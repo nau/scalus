@@ -37,17 +37,26 @@ class RemoveRecursivitySpec extends AnyFunSuite:
                           xVar,
                           IfThenElse(
                             Apply(
-                                Apply(SIRBuiltins.equalsInteger, xVar, Fun(IntegerPrimitive,BooleanPrimitive) ),
-                                Const(Integer(0), IntegerPrimitive),
-                                BooleanPrimitive
+                              Apply(
+                                SIRBuiltins.equalsInteger,
+                                xVar,
+                                Fun(IntegerPrimitive, BooleanPrimitive)
+                              ),
+                              Const(Integer(0), IntegerPrimitive),
+                              BooleanPrimitive
                             ),
                             Const(Integer(0), IntegerPrimitive),
                             Apply(
                               recursiveVar,
                               Apply(
-                                  Apply(SIRBuiltins.subtractInteger, xVar, Fun(IntegerPrimitive,IntegerPrimitive)),
-                                  Const(Integer(1), IntegerPrimitive),
-                                  IntegerPrimitive),
+                                Apply(
+                                  SIRBuiltins.subtractInteger,
+                                  xVar,
+                                  Fun(IntegerPrimitive, IntegerPrimitive)
+                                ),
+                                Const(Integer(1), IntegerPrimitive),
+                                IntegerPrimitive
+                              ),
                               IntegerPrimitive
                             ),
                             IntegerPrimitive

@@ -33,7 +33,7 @@ object PrettyPrinter:
     def inParens(d: Doc): Doc = char('(') + d + char(')')
     def inBraces(d: Doc): Doc = char('{') + d + char('}')
     def inBrackets(d: Doc): Doc = char('[') + d + char(']')
-    def inOptBrackets(d: Doc): Doc = if (d.isEmpty) empty else inBrackets(d)
+    def inOptBrackets(d: Doc): Doc = if d.isEmpty then empty else inBrackets(d)
 
     def typedName(name: String, tp: SIRType): Doc = text(name) + text(":") + pretty(tp)
 
@@ -258,11 +258,10 @@ object PrettyPrinter:
                 text(decl.name) + inOptBrackets(
                   intercalate(text(",") + space, typeParams.map(pretty))
                 )
-            case SIRType.Data => text("Data")
+            case SIRType.Data                 => text("Data")
             case SIRType.BLS12_381_G1_Element => text("BLS12_381_G1_Element")
             case SIRType.BLS12_381_G2_Element => text("BLS12_381_G2_Element")
             case SIRType.BLS12_381_MlResult   => text("BLS12_381_MlResult")
-            
 
     def pretty(p: Program): Doc =
         val (major, minor, patch) = p.version

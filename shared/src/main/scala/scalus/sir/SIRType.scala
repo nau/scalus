@@ -1,7 +1,7 @@
 package scalus.sir
 
 import scalus.uplc.DefaultUni
-import scalus.uplc.{TypeScheme => UplcTypeScheme}
+import scalus.uplc.TypeScheme as UplcTypeScheme
 import scalus.sir.SIRType.TypeVar
 
 import java.util
@@ -18,11 +18,13 @@ sealed trait SIRType {
     def ->:(that: SIRType): SIRType.Fun =
         SIRType.Fun(that, this)
 
-    inline def =>>: (that: SIRType): SIRType.TypeLambda =
+    inline def =>>:(that: SIRType): SIRType.TypeLambda =
         this match
-            case x@SIRType.TypeVar(name, _) => SIRType.TypeLambda(scala.List(x), that)
-            case other => throw new IllegalArgumentException(s"Expected type variable at the left of =>>:, got $other")
-
+            case x @ SIRType.TypeVar(name, _) => SIRType.TypeLambda(scala.List(x), that)
+            case other =>
+                throw new IllegalArgumentException(
+                  s"Expected type variable at the left of =>>:, got $other"
+                )
 
 }
 
@@ -36,7 +38,6 @@ object SIRVarStorage {
 }
 
 object SIRType {
-
 
     trait ULPCMapped {
         this: SIRType =>
@@ -86,28 +87,37 @@ object SIRType {
         override def show: String = "Data"
     }
     given Data.type = Data
-    
-    case object BLS12_381_G1_Element extends SIRType with Lifted[scalus.builtin.BLS12_381_G1_Element] with ULPCMapped {
+
+    case object BLS12_381_G1_Element
+        extends SIRType
+        with Lifted[scalus.builtin.BLS12_381_G1_Element]
+        with ULPCMapped {
         type Carrier = scalus.builtin.BLS12_381_G1_Element
 
         override def uplcTpe: DefaultUni = DefaultUni.BLS12_381_G1_Element
         override def show: String = "BLS12_381_G1_Element"
     }
-    
-    case object BLS12_381_G2_Element extends SIRType with Lifted[scalus.builtin.BLS12_381_G2_Element] with ULPCMapped {
+
+    case object BLS12_381_G2_Element
+        extends SIRType
+        with Lifted[scalus.builtin.BLS12_381_G2_Element]
+        with ULPCMapped {
         type Carrier = scalus.builtin.BLS12_381_G2_Element
 
         override def uplcTpe: DefaultUni = DefaultUni.BLS12_381_G2_Element
         override def show: String = "BLS12_381_G2_Element"
     }
-    
-    case object BLS12_381_MlResult extends SIRType with Lifted[scalus.builtin.BLS12_381_MlResult] with ULPCMapped {
+
+    case object BLS12_381_MlResult
+        extends SIRType
+        with Lifted[scalus.builtin.BLS12_381_MlResult]
+        with ULPCMapped {
         type Carrier = scalus.builtin.BLS12_381_MlResult
 
         override def uplcTpe: DefaultUni = DefaultUni.BLS12_381_MlResult
         override def show: String = "BLS12_381_MlResult"
     }
-    
+
     case class CaseClass(constrDecl: ConstrDecl, typeArgs: scala.List[SIRType]) extends SIRType {
 
         override def show: String =
@@ -132,7 +142,7 @@ object SIRType {
 
     }
 
-    //given liftFun1[A, B](using a: SIRType.Aux[A], b: SIRType.Aux[B]): SIRType.Aux[A => B] =
+    // given liftFun1[A, B](using a: SIRType.Aux[A], b: SIRType.Aux[B]): SIRType.Aux[A => B] =
     //    Fun(a, b).asInstanceOf[SIRType.Aux[A => B]]
     // given liftFun2[A,B,C](using a: SIRType.Aux[A], b: SIRType.Aux[B], c: SIRType.Aux[C]): SIRType.Aux[(A, B) => C] =
     //    Fun(Tuple(List(a, b)), c).asInstanceOf[SIRType.Aux[(A, B) => C]]
@@ -211,7 +221,11 @@ object SIRType {
     }
 
     object TypeLambda2 {
-        def apply(param1: String, param2: String, body: (TypeVar, TypeVar) => SIRType): TypeLambda = {
+        def apply(
+            param1: String,
+            param2: String,
+            body: (TypeVar, TypeVar) => SIRType
+        ): TypeLambda = {
             val tv1 = TypeVar(param1)
             val tv2 = TypeVar(param2)
             TypeLambda(scala.List(tv1, tv2), body(tv1, tv2))
@@ -223,7 +237,6 @@ object SIRType {
             if (cause eq null) then s"Error: $msg"
             else s"Error: $msg\nCause: ${cause.getMessage}"
     }
-
 
     case object FreeUnificator extends SIRType {
         override def show: String = "*"
@@ -344,8 +357,6 @@ object SIRType {
                 )
             }
 
-
-
             // TODO:  remove duplication via cache
             lazy val constr = {
                 dataDecl.constructors
@@ -373,26 +384,36 @@ object SIRType {
 
     }
 
-    case class TypingException(msg: String, cause: Throwable | Null = null) extends RuntimeException(msg, cause)
+    case class TypingException(msg: String, cause: Throwable | Null = null)
+        extends RuntimeException(msg, cause)
 
-
-    def calculateApplyType(f: SIRType, arg: SIRType, env: Map[TypeVar, SIRType], debug: Boolean = false): SIRType =
+    def calculateApplyType(
+        f: SIRType,
+        arg: SIRType,
+        env: Map[TypeVar, SIRType],
+        debug: Boolean = false
+    ): SIRType =
         f match {
             case Fun(in, out) =>
                 // TODO: check unification exceptions and rethrow as type exception
-                SIRUnify.unifyType(in, arg, SIRUnify.Env.empty.copy(filledTypes = env, debug=debug)) match
-                    case r: SIRUnify.UnificationSuccess[?] => substitute(out, r.env.filledTypes, Map.empty)
+                SIRUnify.unifyType(
+                  in,
+                  arg,
+                  SIRUnify.Env.empty.copy(filledTypes = env, debug = debug)
+                ) match
+                    case r: SIRUnify.UnificationSuccess[?] =>
+                        substitute(out, r.env.filledTypes, Map.empty)
                     case e: SIRUnify.UnificationFailure[?] =>
-                          val message = s"Cannot unify $in with $arg, difference at path ${e.path}"
-                          println(s"fun=$f")
-                          println(s"in=$in")
-                          println(s"arg=$arg")
-                          throw new TypingException(message)
-                          //TypeError(s"Cannot unify $in with $arg, difference at path ${e.path}", null)
+                        val message = s"Cannot unify $in with $arg, difference at path ${e.path}"
+                        println(s"fun=$f")
+                        println(s"in=$in")
+                        println(s"arg=$arg")
+                        throw new TypingException(message)
+            // TypeError(s"Cannot unify $in with $arg, difference at path ${e.path}", null)
             case tvF @ TypeVar(name, _) =>
                 env.get(tvF) match
                     case Some(f1) => calculateApplyType(tvF, arg, env)
-                    case None     =>
+                    case None =>
                         throw new TypingException(s"Unbound type variable $name")
             case TypeLambda(params, body) =>
                 val newEnv = params.foldLeft(env) { case (acc, tv) =>
@@ -443,18 +464,19 @@ object SIRType {
             case DefaultUni.Bool       => BooleanPrimitive
             case DefaultUni.Unit       => VoidPrimitive
             case DefaultUni.Data       => Data
-            case DefaultUni.ProtoList  =>
-                         val a = TypeVar("A", Some(DefaultUni.ProtoList.hashCode()))
-                         TypeLambda(scala.List(a), SumCaseClass(List.dataDecl, scala.List(a)))
-            case DefaultUni.ProtoPair  => Pair
-                         val a = TypeVar("A", Some(DefaultUni.ProtoPair.hashCode()))
-                         val b = TypeVar("B", Some(DefaultUni.ProtoPair.hashCode()+1))
-                         TypeLambda(scala.List(a, b), Pair(a, b))
+            case DefaultUni.ProtoList =>
+                val a = TypeVar("A", Some(DefaultUni.ProtoList.hashCode()))
+                TypeLambda(scala.List(a), SumCaseClass(List.dataDecl, scala.List(a)))
+            case DefaultUni.ProtoPair =>
+                Pair
+                val a = TypeVar("A", Some(DefaultUni.ProtoPair.hashCode()))
+                val b = TypeVar("B", Some(DefaultUni.ProtoPair.hashCode() + 1))
+                TypeLambda(scala.List(a, b), Pair(a, b))
             case DefaultUni.Apply(f, arg) =>
                 f match
                     case DefaultUni.ProtoList =>
                         List(fromDefaultUni(arg))
-                    case  DefaultUni.Apply(DefaultUni.ProtoPair, a) =>
+                    case DefaultUni.Apply(DefaultUni.ProtoPair, a) =>
                         Pair(fromDefaultUni(a), fromDefaultUni(arg))
                     case DefaultUni.ProtoPair =>
                         val a = TypeVar("A", Some(DefaultUni.ProtoPair.hashCode()))
@@ -466,17 +488,24 @@ object SIRType {
     def fromUplcTypeScheme(uplcTypeSchema: UplcTypeScheme): SIRType = {
         uplcTypeSchema match
             case UplcTypeScheme.Type(argType) => fromDefaultUni(argType)
-            case UplcTypeScheme.Arrow(argType, resType) => Fun(fromUplcTypeScheme(argType), fromUplcTypeScheme(resType))
-            case UplcTypeScheme.All(typeVar, body) => TypeLambda(scala.List(TypeVar(typeVar)), fromUplcTypeScheme(body))
-            case UplcTypeScheme.App(f, arg) => calculateApplyType(fromUplcTypeScheme(f), fromUplcTypeScheme(arg), Map.empty)
+            case UplcTypeScheme.Arrow(argType, resType) =>
+                Fun(fromUplcTypeScheme(argType), fromUplcTypeScheme(resType))
+            case UplcTypeScheme.All(typeVar, body) =>
+                TypeLambda(scala.List(TypeVar(typeVar)), fromUplcTypeScheme(body))
+            case UplcTypeScheme.App(f, arg) =>
+                calculateApplyType(fromUplcTypeScheme(f), fromUplcTypeScheme(arg), Map.empty)
             case UplcTypeScheme.TVar(name) => TypeVar(name)
     }
 
     def checkAllProxiesFilled(tp: SIRType): Boolean = {
-        checkAllProxiesFilledTraced(tp, new util.IdentityHashMap[SIRType,SIRType], Nil)
+        checkAllProxiesFilledTraced(tp, new util.IdentityHashMap[SIRType, SIRType], Nil)
     }
 
-    def checkAllProxiesFilledTraced(tp: SIRType, traceloops: java.util.IdentityHashMap[SIRType,SIRType], log:List[String]): Boolean = {
+    def checkAllProxiesFilledTraced(
+        tp: SIRType,
+        traceloops: java.util.IdentityHashMap[SIRType, SIRType],
+        log: List[String]
+    ): Boolean = {
         if (traceloops.get(tp) != null) then true
         else
             traceloops.put(tp, tp)
@@ -486,26 +515,48 @@ object SIRType {
                         println("Found null typeproxe, created at: ")
                         tp.ex.printStackTrace()
                         false
-                    else
-                        if (traceloops.get(tp.ref) != null) then
-                             checkAllProxiesFilledTraced(tp.ref, traceloops, log)
-                        else
-                            true
+                    else if (traceloops.get(tp.ref) != null) then
+                        checkAllProxiesFilledTraced(tp.ref, traceloops, log)
+                    else true
                 case Fun(in, out) =>
-                    checkAllProxiesFilledTraced(in,traceloops, "in"::log) &&
-                        checkAllProxiesFilledTraced(out, traceloops, "out"::log)
+                    checkAllProxiesFilledTraced(in, traceloops, "in" :: log) &&
+                    checkAllProxiesFilledTraced(out, traceloops, "out" :: log)
                 case CaseClass(constrDecl, typeArgs) =>
-                    checkAllProxiesFilledTraced(constrDecl.tp, traceloops, s"constrDecl ${constrDecl.name}"::log) &&
-                    constrDecl.params.forall(x => checkAllProxiesFilledTraced(x.tp, traceloops, s"${constrDecl.name} param"::log)) &&
-                    typeArgs.forall(x => checkAllProxiesFilledTraced(x,traceloops, "typeArgs"::log))
+                    checkAllProxiesFilledTraced(
+                      constrDecl.tp,
+                      traceloops,
+                      s"constrDecl ${constrDecl.name}" :: log
+                    ) &&
+                    constrDecl.params.forall(x =>
+                        checkAllProxiesFilledTraced(
+                          x.tp,
+                          traceloops,
+                          s"${constrDecl.name} param" :: log
+                        )
+                    ) &&
+                    typeArgs.forall(x =>
+                        checkAllProxiesFilledTraced(x, traceloops, "typeArgs" :: log)
+                    )
                 case SumCaseClass(dataDecl: DataDecl, typeArgs) =>
-                    checkAllProxiesFilledTraced(dataDecl.tp, traceloops, s"dataDecl ${dataDecl.name}"::log) &&
-                     dataDecl.constructors.forall{ constrDecl =>
-                         constrDecl.params.forall(x => checkAllProxiesFilledTraced(x.tp, traceloops, s"${constrDecl.name}"::log))
-                     } &&
-                    typeArgs.forall(x => checkAllProxiesFilledTraced(x, traceloops, "typeArgs"::log))
+                    checkAllProxiesFilledTraced(
+                      dataDecl.tp,
+                      traceloops,
+                      s"dataDecl ${dataDecl.name}" :: log
+                    ) &&
+                    dataDecl.constructors.forall { constrDecl =>
+                        constrDecl.params.forall(x =>
+                            checkAllProxiesFilledTraced(
+                              x.tp,
+                              traceloops,
+                              s"${constrDecl.name}" :: log
+                            )
+                        )
+                    } &&
+                    typeArgs.forall(x =>
+                        checkAllProxiesFilledTraced(x, traceloops, "typeArgs" :: log)
+                    )
                 case TypeLambda(params, body) =>
-                    checkAllProxiesFilledTraced(body, traceloops, "type-lambda bofy"::log)
+                    checkAllProxiesFilledTraced(body, traceloops, "type-lambda bofy" :: log)
                 case _ => true
     }
 

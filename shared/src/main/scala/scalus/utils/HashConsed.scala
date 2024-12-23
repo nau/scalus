@@ -67,7 +67,6 @@ object HashConsedRef {
                 retval
 
         }
-    
 
 }
 
@@ -266,7 +265,7 @@ object HashConsed {
             case Some(r) => Some(Right(r))
 
     def finishCallbacks(s: State): Unit =
-        for { (k, v) <- s.forwardValueAcceptors } {
+        for (k, v) <- s.forwardValueAcceptors do {
             s.refs.get(k) match
                 case None =>
                     throw IllegalStateException(s"Forward value acceptor without value: $k")

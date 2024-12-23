@@ -1,6 +1,6 @@
 package scalus.sir
 
-import scalus.sir.SIRType.{FreeUnificator, checkAllProxiesFilled}
+import scalus.sir.SIRType.{checkAllProxiesFilled, FreeUnificator}
 import scalus.uplc.Constant
 import scalus.uplc.DefaultFun
 
@@ -18,8 +18,6 @@ case class TypeBinding(name: String, tp: SIRType) {
 
 enum Recursivity:
     case NonRec, Rec
-
-
 
 case class ConstrDecl(
     name: String,
@@ -42,30 +40,29 @@ case class ConstrDecl(
 
 ) {
 
-    if (name.contains(" ") || name.contains("\u0021")) {
+    if name.contains(" ") || name.contains("\u0021") then {
         throw new RuntimeException("Invalud name in constructor: " + name)
     }
 
     private var _tp: SIRType = null
 
-
     def tp: SIRType =
         if (_tp == null) then
             _tp = typeParams match
                 case Nil => SIRType.CaseClass(this, typeParams)
-                case tp :: tail => SIRType.TypeLambda(typeParams, SIRType.CaseClass(this, typeParams))
+                case tp :: tail =>
+                    SIRType.TypeLambda(typeParams, SIRType.CaseClass(this, typeParams))
         _tp
-
 
 }
 
-//  Data~ Lost(Const)    
+//  Data~ Lost(Const)
 
 //  A -> B -> C1, C2
 //    -> B1 -> D
 
-//f:  B => Int   B = Data(C1,C2):     \lambda (c1,c2) => c2(x)  
-//f:  A => Int   A = Data(C1, C2, D)  
+//f:  B => Int   B = Data(C1,C2):     \lambda (c1,c2) => c2(x)
+//f:  A => Int   A = Data(C1, C2, D)
 
 case class DataDecl(
     name: String,
@@ -76,12 +73,11 @@ case class DataDecl(
 
     private var _tp: SIRType = null
 
-
     def tp: SIRType =
         if _tp == null then
             _tp = typeParams match
-                    case Nil => SIRType.SumCaseClass(this, Nil)
-                    case _   => SIRType.TypeLambda(typeParams, SIRType.SumCaseClass(this, typeParams))
+                case Nil => SIRType.SumCaseClass(this, Nil)
+                case _   => SIRType.TypeLambda(typeParams, SIRType.SumCaseClass(this, typeParams))
         _tp
 
 }
@@ -94,12 +90,11 @@ sealed trait SIR {
 
     def ~=~(that: SIR): Boolean =
         SIRUnify.unifySIR(this, that, SIRUnify.Env.empty) match {
-            case SIRUnify.UnificationSuccess(_, _) => true
-            case SIRUnify.UnificationFailure(_,_,_)  => false
+            case SIRUnify.UnificationSuccess(_, _)    => true
+            case SIRUnify.UnificationFailure(_, _, _) => false
         }
 
 }
-
 
 object SIR:
 
@@ -142,7 +137,6 @@ object SIR:
 
     }
 
-
     case class Apply(f: SIR, arg: SIR, tp: SIRType) extends SIR {
 
         // TODO: makr tp computable, not stored.  (implement subst at first).
@@ -163,11 +157,9 @@ object SIR:
 
     case class Const(uplcConst: Constant, tp: SIRType) extends SIR
 
-
     case class And(a: SIR, b: SIR) extends SIR {
         override def tp: SIRType = SIRType.BooleanPrimitive
     }
-
 
     case class Or(a: SIR, b: SIR) extends SIR {
         override def tp: SIRType = SIRType.BooleanPrimitive
@@ -179,14 +171,11 @@ object SIR:
 
     case class IfThenElse(cond: SIR, t: SIR, f: SIR, tp: SIRType) extends SIR
 
-
     case class Builtin(bn: DefaultFun, tp: SIRType) extends SIR
-
 
     case class Error(msg: String, cause: Throwable | Null = null) extends SIR {
         override def tp: SIRType = SIRType.TypeError(msg, cause)
     }
-
 
     // TODO: unify data-decl.
     case class Constr(name: String, data: DataDecl, args: List[SIR]) extends SIR {
@@ -216,22 +205,20 @@ object SIR:
 
     }
 
-
 case class Program(version: (Int, Int, Int), term: SIR)
-
 
 object SIRChecker {
 
-    case class CheckException(msg: String, cause: Throwable | Null = null) extends RuntimeException(msg, cause)
+    case class CheckException(msg: String, cause: Throwable | Null = null)
+        extends RuntimeException(msg, cause)
 
-    def checkAndThrow(SIR:SIR, throwOnFirst: Boolean = true): Unit = {
+    def checkAndThrow(SIR: SIR, throwOnFirst: Boolean = true): Unit = {
         val errors = checkSIR(SIR, throwOnFirst)
-        if errors.nonEmpty then
-            throw new CheckException(errors.mkString("\n"))
+        if errors.nonEmpty then throw new CheckException(errors.mkString("\n"))
     }
 
     def checkSIR(sir: SIR, throwOnFirst: Boolean): Seq[String] = {
-           checkExpr(sir, throwOnFirst)
+        checkExpr(sir, throwOnFirst)
     }
 
     def checkData(data: DataDecl, throwOnFirst: Boolean): Seq[String] = {
@@ -249,11 +236,10 @@ object SIRChecker {
     def checkTypeBinding(tpb: TypeBinding, throwOnFirst: Boolean): Seq[String] =
         checkType(tpb.tp, throwOnFirst)
 
-
     def checkExpr(expr: SIR, throwOnFirst: Boolean): Seq[String] = {
         val checkTp = checkType(expr.tp, throwOnFirst)
         expr match {
-            case SIR.Var(_, tp) => checkTp
+            case SIR.Var(_, tp)            => checkTp
             case SIR.ExternalVar(_, _, tp) => checkTp
             case SIR.Let(_, bindings, body) =>
                 val checkBindings = bindings.flatMap(b => checkExpr(b.value, throwOnFirst))
@@ -264,12 +250,15 @@ object SIRChecker {
                 checkSIR(f, throwOnFirst) ++ checkSIR(arg, throwOnFirst) ++ checkTp
             case SIR.Const(_, tp) => checkTp
             case SIR.And(a, b) => checkSIR(a, throwOnFirst) ++ checkSIR(b, throwOnFirst) ++ checkTp
-            case SIR.Or(a, b) => checkSIR(a, throwOnFirst) ++ checkSIR(b, throwOnFirst) ++ checkTp
-            case SIR.Not(a) => checkSIR(a, throwOnFirst) ++ checkTp
+            case SIR.Or(a, b)  => checkSIR(a, throwOnFirst) ++ checkSIR(b, throwOnFirst) ++ checkTp
+            case SIR.Not(a)    => checkSIR(a, throwOnFirst) ++ checkTp
             case SIR.IfThenElse(cond, t, f, tp) =>
-                checkSIR(cond, throwOnFirst) ++ checkSIR(t, throwOnFirst) ++ checkSIR(f, throwOnFirst) ++ checkTp
+                checkSIR(cond, throwOnFirst) ++ checkSIR(t, throwOnFirst) ++ checkSIR(
+                  f,
+                  throwOnFirst
+                ) ++ checkTp
             case SIR.Builtin(_, tp) => checkTp
-            case SIR.Error(_, _) => checkTp
+            case SIR.Error(_, _)    => checkTp
             case SIR.Constr(_, data, args) =>
                 val checkArgs = args.flatMap(a => checkSIR(a, throwOnFirst))
                 checkData(data, throwOnFirst) ++ checkArgs ++ checkTp
@@ -282,21 +271,16 @@ object SIRChecker {
         }
     }
 
-
     def checkCase(c: SIR.Case, throwOnFirst: Boolean): Seq[String] = {
         c.typeBindings.flatMap(x => checkType(x, throwOnFirst)) ++
             checkConstr(c.constr, throwOnFirst) ++ checkSIR(c.body, throwOnFirst)
     }
 
     def checkType(tp: SIRType, throwOnFirst: Boolean): Seq[String] =
-        if (SIRType.checkAllProxiesFilled(tp)) then
-            Nil
+        if (SIRType.checkAllProxiesFilled(tp)) then Nil
         else
             val msg = s"Type has unfilled proxies. (tp=${tp})"
-            if throwOnFirst then
-                throw CheckException(msg)
-            else
-                Seq(msg)
-
+            if throwOnFirst then throw CheckException(msg)
+            else Seq(msg)
 
 }

@@ -59,7 +59,7 @@ given dataCborEncoder: Encoder[Data] with
         if x.nonEmpty then
             val iterator = x.iterator
             writer.writeMapHeader(x.size)
-            while (iterator.hasNext)
+            while iterator.hasNext do
                 val (k, v) = iterator.next()
                 writer.write(k)
                 writer.write(v)
@@ -125,13 +125,13 @@ given dataCborDecoder: Decoder[Data] with
      */
     private def readMap[A: Decoder, B: Decoder]: Decoder[List[(A, B)]] =
         Decoder { r =>
-            if (r.hasMapHeader)
+            if r.hasMapHeader then
                 @tailrec def rec(remaining: Int, map: ListBuffer[(A, B)]): ListBuffer[(A, B)] =
-                    if (remaining > 0) rec(remaining - 1, map.append((r[A], r[B])))
+                    if remaining > 0 then rec(remaining - 1, map.append((r[A], r[B])))
                     else map
 
                 val size = r.readMapHeader()
-                if (size <= Int.MaxValue) rec(size.toInt, ListBuffer.empty).toList
+                if size <= Int.MaxValue then rec(size.toInt, ListBuffer.empty).toList
                 else r.overflow(s"Cannot deserialize Map with size $size (> Int.MaxValue)")
             else if r.hasMapStart then
                 r.readMapStart()

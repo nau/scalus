@@ -58,7 +58,7 @@ object ByteString {
           *   }}}
           */
         def hex(args: Any*): ByteString =
-            val hexString = sc.s(args: _*).replace(" ", "")
+            val hexString = sc.s(args*).replace(" ", "")
             fromHex(hexString)
 }
 
