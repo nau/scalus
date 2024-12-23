@@ -1,8 +1,5 @@
 package scalus.sir
 
-import java.util
-import java.util.IdentityHashMap
-
 object SIRUnify {
 
     case class Env(
@@ -58,7 +55,7 @@ object SIRUnify {
 
         given Unify[String] with {
             def apply(left: String, right: String, env: Env): UnificationResult[String] = {
-                if (left == right) then UnificationSuccess(env, left)
+                if left == right then UnificationSuccess(env, left)
                 else UnificationFailure(env.path, left, right)
             }
         }
@@ -145,7 +142,7 @@ object SIRUnify {
                             UnificationFailure(path, left, right)
                 else UnificationFailure(env.path, left, right)
             case (v1: SIR.Let, v2: SIR.Let) =>
-                if (v1.recursivity == v2.recursivity) then
+                if v1.recursivity == v2.recursivity then
                     unifyList(
                       v1.bindings,
                       v2.bindings,
@@ -202,8 +199,19 @@ object SIRUnify {
                                         UnificationFailure(path, left, right)
                             case failure @ UnificationFailure(path, argLeft, argRight) => failure
                     case failure @ UnificationFailure(path, funLeft, funRight) => failure
+            case (s1: SIR.Select, s2: SIR.Select) =>
+                unifySIR(s1.scrutinee, s2.scrutinee, env.copy(path = "scrutinee" :: env.path)) match
+                    case UnificationSuccess(env1, scrutinee) =>
+                        if s1.field == s2.field then
+                            unifyType(s1.tp, s2.tp, env.copy(path = "tp" :: env.path)) match
+                                case UnificationSuccess(env2, tp) =>
+                                    UnificationSuccess(env1, SIR.Select(scrutinee, s1.field, s1.tp))
+                                case UnificationFailure(path, tpLeft, tpRight) =>
+                                    UnificationFailure(path, left, right)
+                        else UnificationFailure(env.path, left, right)
+                    case failure @ UnificationFailure(path, leftLeft, leftRight) => failure
             case (c1: SIR.Const, c2: SIR.Const) =>
-                if (c1.uplcConst == c2.uplcConst) then UnificationSuccess(env, c1)
+                if c1.uplcConst == c2.uplcConst then UnificationSuccess(env, c1)
                 else UnificationFailure(env.path, left, right)
             case (v1: SIR.And, v2: SIR.And) =>
                 unifySIR(v1.a, v2.a, env.copy(path = "a" :: env.path)) match
@@ -257,14 +265,14 @@ object SIRUnify {
                                 failure
                     case failure @ UnificationFailure(path, leftLeft, leftRight) => failure
             case (v1: SIR.Builtin, v2: SIR.Builtin) =>
-                if (v1.bn == v2.bn) then UnificationSuccess(env, v1)
+                if v1.bn == v2.bn then UnificationSuccess(env, v1)
                 else UnificationFailure(env.path, left, right)
             case (e1: SIR.Error, e2: SIR.Error) =>
-                if (e1.msg == e2.msg) then UnificationSuccess(env, e1)
+                if e1.msg == e2.msg then UnificationSuccess(env, e1)
                 else UnificationFailure(env.path, left, right)
             case (c1: SIR.Constr, c2: SIR.Constr) =>
-                if (c1.name == c2.name) then
-                    if (c1.args.length != c2.args.length) then
+                if c1.name == c2.name then
+                    if c1.args.length != c2.args.length then
                         UnificationFailure(env.path, left, right)
                     else
                         val nEnv = env.copy(path = "args" :: env.path)
@@ -328,13 +336,13 @@ object SIRUnify {
     }
 
     def unifyType(left: SIRType, right: SIRType, env: Env): UnificationResult[SIRType] = {
-        if (env.debug) then println(s"unifyType: \nleft=$left\nright=$right")
+        if env.debug then println(s"unifyType: \nleft=$left\nright=$right")
         val retval =
-            if (left eq right) then UnificationSuccess(env, left)
+            if left eq right then UnificationSuccess(env, left)
             else
                 env.parentTypes.get(left) match
                     case Some(parentsRight) =>
-                        if (parentsRight.contains(right)) then
+                        if parentsRight.contains(right) then
                             // Too optimistics ?
                             //
                             UnificationSuccess(env, right)
@@ -346,7 +354,7 @@ object SIRUnify {
                     case None =>
                         val nEnv = env.copy(parentTypes = env.parentTypes.updated(left, Set(right)))
                         unifyTypeNoRec(left, right, nEnv)
-        if (env.debug) then println(s"return unifyType\nleft=$left\nright=$right\nretval=$retval")
+        if env.debug then println(s"return unifyType\nleft=$left\nright=$right\nretval=$retval")
         retval
     }
 
@@ -376,7 +384,7 @@ object SIRUnify {
                 val nEnv = env.copy(filledTypes = env.filledTypes.updated(v, left))
                 checkEqType(nEnv, v, left)
             case (pLeft: SIRType.Primitive[?], pRight: SIRType.Primitive[?]) =>
-                if (pLeft == pRight) then UnificationSuccess(env, pLeft)
+                if pLeft == pRight then UnificationSuccess(env, pLeft)
                 else UnificationFailure(env.path, left, right)
             case (SIRType.Data, SIRType.Data) =>
                 UnificationSuccess(env, SIRType.Data)
@@ -478,21 +486,21 @@ object SIRUnify {
                 )
                 unifyType(left, body, nEnv)
             case (errLeft: SIRType.TypeError, errRight: SIRType.TypeError) =>
-                if (errLeft.msg == errRight.msg) then UnificationSuccess(env, errLeft)
+                if errLeft.msg == errRight.msg then UnificationSuccess(env, errLeft)
                 else UnificationFailure(env.path, left, right)
             case (SIRType.FreeUnificator, right) =>
                 UnificationSuccess(env, right)
             case (left, SIRType.FreeUnificator) =>
                 UnificationSuccess(env, left)
             case (leftProxy: SIRType.TypeProxy, right) =>
-                if (leftProxy.ref == null) then
+                if leftProxy.ref == null then
                     // TODO: more appropriate erro class
                     throw new RuntimeException("TypeProxy should be resolved before unification")
                 else
                     env.parentTypes.get(leftProxy.ref) match
                         case Some(parentRight) =>
                             // we are in the cyclic loop.
-                            if (parentRight eq right) then UnificationSuccess(env, right)
+                            if parentRight eq right then UnificationSuccess(env, right)
                             else
                                 // can cause infinite loop. Mb add counter for max-level ?
                                 // UnificationFailure("proxy-loop"::env.path, left, right)
@@ -500,17 +508,17 @@ object SIRUnify {
                         case None =>
                             unifyType(leftProxy.ref, right, env)
             case (left, rightProxy: SIRType.TypeProxy) =>
-                if (rightProxy.ref == null) then
+                if rightProxy.ref == null then
                     throw new RuntimeException("TypeProxy should be resolved before unification")
                 else
                     env.parentTypes.get(rightProxy.ref) match
                         case Some(parentLeft) =>
-                            if (parentLeft eq left) then UnificationSuccess(env, left)
+                            if parentLeft eq left then UnificationSuccess(env, left)
                             else unifyType(left, rightProxy.ref, env)
                         case None =>
                             unifyType(left, rightProxy.ref, env)
             case (m1: SIRType.TypeNonCaseModule, m2: SIRType.TypeNonCaseModule) =>
-                if (m1.name == m2.name) then UnificationSuccess(env, m1)
+                if m1.name == m2.name then UnificationSuccess(env, m1)
                 else UnificationFailure(env.path, left, right)
             case (SIRType.TypeNothing, SIRType.TypeNothing) =>
                 UnificationSuccess(env, SIRType.TypeNothing)
@@ -525,7 +533,7 @@ object SIRUnify {
     }
 
     def unifyBinding(left: Binding, right: Binding, env: Env): UnificationResult[Binding] = {
-        if (left.name == right.name) then
+        if left.name == right.name then
             unifySIR(left.value, right.value, env.copy(path = "value" :: env.path)) match
                 case UnificationSuccess(env1, value) =>
                     UnificationSuccess(env1.copy(path = env.path), Binding(left.name, value))
@@ -564,7 +572,7 @@ object SIRUnify {
         right: TypeBinding,
         env: Env
     ): UnificationResult[TypeBinding] = {
-        if (left.name == right.name) then
+        if left.name == right.name then
             unifyType(left.tp, right.tp, env.copy(path = "tp" :: env.path)) match
                 case UnificationSuccess(env1, tp) =>
                     UnificationSuccess(env1.copy(path = env.path), TypeBinding(left.name, tp))
@@ -628,8 +636,8 @@ object SIRUnify {
         right: ConstrDecl,
         env: Env
     ): UnificationResult[ConstrDecl] = {
-        if (left eq right) then UnificationSuccess(env, left)
-        else if (left.name == right.name && left.storageType == right.storageType) then
+        if left eq right then UnificationSuccess(env, left)
+        else if left.name == right.name && left.storageType == right.storageType then
             unifyList(left.typeParams, right.typeParams, env.copy(path = "typeParams" :: env.path))(
               using TypeVarSyntaxUnify
             ) match
@@ -654,8 +662,8 @@ object SIRUnify {
     // for now we accept to different data-decls as unrealred.
     //  things can changed in future,  when DataDecl will be able contains not only constructors
     def unifyDataDecl(left: DataDecl, right: DataDecl, env: Env): UnificationResult[DataDecl] = {
-        if (left eq right) then UnificationSuccess(env, left)
-        else if (left.name == right.name) then
+        if left eq right then UnificationSuccess(env, left)
+        else if left.name == right.name then
             // is order of constructors determenistics (?)
             val sortedLeft = left.constructors.sortBy(_.name)
             val sortedRight = right.constructors.sortBy(_.name)
@@ -679,7 +687,7 @@ object SIRUnify {
     def unifyList[T](left: List[T], right: List[T], env: Env)(using
         Unify[T]
     ): UnificationResult[List[T]] = {
-        if (left.length != right.length) then UnificationFailure(env.path, left, right)
+        if left.length != right.length then UnificationFailure(env.path, left, right)
         else
             val res = left
                 .zip(right)
@@ -718,7 +726,7 @@ object SIRUnify {
         v2: SIRType.TypeVar,
         env: Env
     ): UnificationResult[SIRType.TypeVar] = {
-        if (v1 == v2) then UnificationSuccess(env, v1)
+        if v1 == v2 then UnificationSuccess(env, v1)
         else UnificationFailure(env.path, v1, v2)
     }
 

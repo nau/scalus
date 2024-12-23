@@ -93,6 +93,8 @@ class OptimizingSirToUplcLowering(
             case SIR.Apply(f, arg, tp) =>
                 analizeSir(f)
                 analizeSir(arg)
+            case SIR.Select(scrutinee, _, _) =>
+                analizeSir(scrutinee)
             case SIR.IfThenElse(cond, t, f, tp) =>
                 usedBuiltins += DefaultFun.IfThenElse
                 analizeSir(cond)
@@ -212,7 +214,36 @@ class OptimizingSirToUplcLowering(
                 sys.error(s"Mutually recursive bindings are not supported: $bindings")
             case SIR.LamAbs(sirVar, term) => Term.LamAbs(sirVar.name, lowerInner(term))
             case SIR.Apply(f, arg, tp)    => Term.Apply(lowerInner(f), lowerInner(arg))
-            case SIR.Const(const, tp)     => Term.Const(const)
+            case SIR.Select(scrutinee, field, _) =>
+                def find(sirType: SIRType): ConstrDecl =
+                    sirType match
+                        case SIRType.CaseClass(constrDecl, _) => constrDecl
+                        case SIRType.SumCaseClass(decl, _) =>
+                            if decl.constructors.length == 1 then decl.constructors.head
+                            else
+                                throw new IllegalArgumentException(
+                                  s"Expected case class type, got ${sirType} in expression: ${sir.show}"
+                                )
+                        case SIRType.TypeLambda(_, t) => find(t)
+                        case _ =>
+                            throw new IllegalArgumentException(
+                              s"Expected case class type, got ${sirType} in expression: ${sir.show}"
+                            )
+                def lowerSelect(constrDecl: ConstrDecl) = {
+                    val fieldIndex = constrDecl.params.indexWhere(_.name == field)
+                    if fieldIndex == -1 then
+                        throw new IllegalArgumentException(
+                          s"Field $field not found in constructor ${constrDecl.name}"
+                        )
+                    val instance = lowerInner(scrutinee)
+                    val s0 = Term.Var(NamedDeBruijn(field))
+                    val lam = constrDecl.params.foldRight(s0) { case (f, acc) =>
+                        Term.LamAbs(f.name, acc)
+                    }
+                    Term.Apply(instance, lam)
+                }
+                lowerSelect(find(scrutinee.tp))
+            case SIR.Const(const, tp) => Term.Const(const)
             case SIR.And(lhs, rhs) =>
                 lowerInner(
                   SIR.IfThenElse(

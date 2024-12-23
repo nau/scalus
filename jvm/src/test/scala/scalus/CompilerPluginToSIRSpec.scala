@@ -1556,11 +1556,7 @@ class CompilerPluginToSIRSpec extends AnyFunSuite with ScalaCheckPropertyChecks:
                       )
                     )
                   ),
-                  Apply(
-                    Var("pkh", pkhType),
-                    LamAbs(Var("hash", sirByteString), Var("hash", sirByteString)),
-                    sirByteString
-                  )
+                  Select(Var("pkh", pkhType), "hash", sirByteString)
                 )
               )
         )
@@ -1573,8 +1569,9 @@ class CompilerPluginToSIRSpec extends AnyFunSuite with ScalaCheckPropertyChecks:
             t match
                 case (a, _) => a && t._2
         }
-        // println(compiled.show)
+        println(compiled.showHighlighted)
         val term = compiled.toUplc()
+        println(term.showHighlighted)
         val evaled = VM.evaluateTerm(term)
         assert(evaled == scalus.uplc.Term.Const(Constant.Bool(false)))
     }

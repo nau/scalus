@@ -711,7 +711,7 @@ object FlatInstantces:
     object SIRHashConsedFlat extends HashConsedReprFlat[SIR, HashConsedRef[SIR]]:
         import SIR.*
 
-        final val termTagWidth = 4
+        final val termTagWidth = 5
 
         final val tagVar = 0x00
         final val tagLet = 0x01
@@ -729,6 +729,7 @@ object FlatInstantces:
         final val tagNot = 0x0d
         final val tagHole = 0x0e
         final val tagDecl = 0x0f
+        final val tagSelect = 0x10
 
         override def toRepr(a: SIR): HashConsedRef[SIR] = {
             HashConsedRef.fromData(a)
@@ -749,6 +750,9 @@ object FlatInstantces:
                 termTagWidth + SIRVarHashConsedFlat.bitSizeHC(x, hashCons) + bitSizeHC(t, hashCons)
             case Apply(f, x, tp) =>
                 termTagWidth + bitSizeHC(f, hashCons) + bitSizeHC(x, hashCons) +
+                    SIRTypeHashConsedFlat.bitSizeHC(tp, hashCons)
+            case Select(x, field, tp) =>
+                termTagWidth + bitSizeHC(x, hashCons) + summon[Flat[String]].bitSize(field) +
                     SIRTypeHashConsedFlat.bitSizeHC(tp, hashCons)
             case aConst: Const => termTagWidth + SIRConstHashConsedFlat.bitSizeHC(aConst, hashCons)
             case And(x, y)     => termTagWidth + bitSizeHC(x, hashCons) + bitSizeHC(y, hashCons)
@@ -798,6 +802,11 @@ object FlatInstantces:
                     enc.encode.bits(termTagWidth, tagApply)
                     encodeHC(f, enc)
                     encodeHC(x, enc)
+                    SIRTypeHashConsedFlat.encodeHC(tp, enc)
+                case Select(x, field, tp) =>
+                    enc.encode.bits(termTagWidth, tagSelect)
+                    encodeHC(x, enc)
+                    summon[Flat[String]].encode(field, enc.encode)
                     SIRTypeHashConsedFlat.encodeHC(tp, enc)
                 case cn @ Const(_, _) =>
                     enc.encode.bits(termTagWidth, tagConst)
@@ -871,6 +880,14 @@ object FlatInstantces:
                       hs => f.isComplete(hs) && x.isComplete(hs) && tp.isComplete(hs),
                       (hs, l, p) =>
                           Apply(f.finValue(hs, l, p), x.finValue(hs, l, p), tp.finValue(hs, l, p))
+                    )
+                case `tagSelect` =>
+                    val x = decodeHC(decoder)
+                    val field = summon[Flat[String]].decode(decoder.decode)
+                    val tp = SIRTypeHashConsedFlat.decodeHC(decoder)
+                    HashConsedRef.deferred(
+                      hs => x.isComplete(hs) && tp.isComplete(hs),
+                      (hs, l, p) => Select(x.finValue(hs, l, p), field, tp.finValue(hs, l, p))
                     )
                 case `tagConst` =>
                     SIRConstHashConsedFlat.decodeHC(decoder)
