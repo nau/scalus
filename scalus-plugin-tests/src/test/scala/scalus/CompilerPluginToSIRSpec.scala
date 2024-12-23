@@ -28,7 +28,7 @@ class CompilerPluginToSIRSpec extends AnyFunSuite with ScalaCheckPropertyChecks:
 
     test("compile literals") {
         val sir = compile {
-            new Test(1, "asdf").a
+            (new Test(1, "asdf"), false)._1.b
         }
         println(sir)
         println(sir.pretty.render(100))

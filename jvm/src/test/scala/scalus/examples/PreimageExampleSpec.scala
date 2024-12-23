@@ -89,8 +89,10 @@ class PreimageExampleSpec extends BaseValidatorSpec {
     test("Preimage Validator") {
         // compile to Scalus Intermediate Representation, SIR
         val compiled = compile(PreimageValidator.preimageValidator)
+//        println(compiled.showHighlighted)
         // convert SIR to UPLC
         val validator = compiled.toUplc()
+//        println(validator.showHighlighted)
         val flatSize = Program((1, 0, 0), validator).flatEncoded.length
         assert(flatSize == 1664)
 
