@@ -93,51 +93,10 @@ class PreimageExampleSpec extends BaseValidatorSpec {
     test("Preimage Validator") {
         // compile to Scalus Intermediate Representation, SIR
         val compiled = compile(PreimageValidator.preimageValidator)
-        def asdf(tp: SIRType): Unit = tp match
-            case SIRType.TypeLambda(params, body) =>
-                println(s"TypeLambda: ${params.map(_.show).mkString(", ")} -> ${body.show}")
-                asdf(body)
-            case SIRType.CaseClass(constrDecl, args) =>
-                println(s"CaseClass: ${constrDecl.name}, ${args.map(_.show).mkString(", ")}")
-            case SIRType.SumCaseClass(decl, args) =>
-                println(s"SumCaseClass: ${decl}, ${args.map(_.show).mkString(", ")}")
 //        println(compiled.showHighlighted)
-        def traverse(sir: SIR): Unit = sir match
-            case SIR.Decl(data, term) =>
-                traverse(term)
-            case SIR.Case(constr, bindings, typeBindings, body) =>
-                traverse(body)
-            case SIR.Match(scrutinee, cases, tp) =>
-                traverse(scrutinee)
-                cases.foreach(c => traverse(c.body))
-            case SIR.Constr(name, data, args) =>
-                println(s"Constr: $name, ${PrettyPrinter.pretty(data.tp).render(80)}")
-                println(asdf(data.tp))
-                args.foreach(traverse)
-            case SIR.IfThenElse(cond, t, f, tp) =>
-                traverse(cond)
-                traverse(t)
-                traverse(f)
-            case SIR.And(a, b) =>
-                traverse(a)
-                traverse(b)
-            case SIR.Or(a, b) =>
-                traverse(a)
-                traverse(b)
-            case SIR.Not(a) =>
-                traverse(a)
-            case SIR.Apply(f, arg, _) =>
-                traverse(f)
-                traverse(arg)
-            case SIR.LamAbs(param, term) =>
-                traverse(term)
-            case SIR.Let(_, bindings, body) =>
-                bindings.foreach(b => traverse(b.value))
-                traverse(body)
-            case _ =>
-        traverse(compiled)
         // convert SIR to UPLC
         val validator = compiled.toUplc()
+//        println(validator.showHighlighted)
         val flatSize = Program((1, 0, 0), validator).flatEncoded.length
         assert(flatSize == 1664)
 

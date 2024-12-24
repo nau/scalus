@@ -327,6 +327,16 @@ object SIRBuiltins {
       DefaultFun.Blake2b_224,
       SIRType.ByteStringPrimitive ->: SIRType.ByteStringPrimitive
     )
+    // IntegerToByteString
+    val integerToByteString = SIR.Builtin(
+      DefaultFun.IntegerToByteString,
+      SIRType.IntegerPrimitive ->: SIRType.ByteStringPrimitive
+    )
+    // ByteStringToInteger
+    val byteStringToInteger = SIR.Builtin(
+      DefaultFun.ByteStringToInteger,
+      SIRType.ByteStringPrimitive ->: SIRType.IntegerPrimitive
+    )
 
     def fromUplc(uplcFun: DefaultFun): SIR.Builtin =
         uplcFun match
@@ -403,4 +413,6 @@ object SIRBuiltins {
             case DefaultFun.Bls12_381_finalVerify           => bls12_381_finalVerify
             case DefaultFun.Keccak_256                      => keccak_256
             case DefaultFun.Blake2b_224                     => blake2b_224
+            case DefaultFun.IntegerToByteString             => integerToByteString
+            case DefaultFun.ByteStringToInteger             => byteStringToInteger
 }

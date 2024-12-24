@@ -80,39 +80,24 @@ object SIRType {
 
     // sealed trait MappedBuiltin[T] extends Lifted[T] with ULPCMapped
 
-    case object Data extends SIRType with Lifted[scalus.builtin.Data] with ULPCMapped {
-        type Carrier = scalus.builtin.Data
-
+    case object Data extends Primitive[scalus.builtin.Data] {
         override def uplcTpe: DefaultUni = DefaultUni.Data
         override def show: String = "Data"
     }
     given Data.type = Data
 
-    case object BLS12_381_G1_Element
-        extends SIRType
-        with Lifted[scalus.builtin.BLS12_381_G1_Element]
-        with ULPCMapped {
-        type Carrier = scalus.builtin.BLS12_381_G1_Element
-
+    case object BLS12_381_G1_Element extends Primitive[scalus.builtin.BLS12_381_G1_Element] {
         override def uplcTpe: DefaultUni = DefaultUni.BLS12_381_G1_Element
         override def show: String = "BLS12_381_G1_Element"
     }
 
-    case object BLS12_381_G2_Element
-        extends SIRType
-        with Lifted[scalus.builtin.BLS12_381_G2_Element]
-        with ULPCMapped {
-        type Carrier = scalus.builtin.BLS12_381_G2_Element
+    case object BLS12_381_G2_Element extends Primitive[scalus.builtin.BLS12_381_G2_Element] {
 
         override def uplcTpe: DefaultUni = DefaultUni.BLS12_381_G2_Element
         override def show: String = "BLS12_381_G2_Element"
     }
 
-    case object BLS12_381_MlResult
-        extends SIRType
-        with Lifted[scalus.builtin.BLS12_381_MlResult]
-        with ULPCMapped {
-        type Carrier = scalus.builtin.BLS12_381_MlResult
+    case object BLS12_381_MlResult extends Primitive[scalus.builtin.BLS12_381_MlResult] {
 
         override def uplcTpe: DefaultUni = DefaultUni.BLS12_381_MlResult
         override def show: String = "BLS12_381_MlResult"
@@ -253,7 +238,11 @@ object SIRType {
                 //  TODO: actually this beeak case-class contract
                 //    (equal recursive base-classes become unequal)
                 //    (maybe pass some hashcode to the constructor)
+
+                // in principle now we can change this to summon[SIRHashCodeInRec[TypeProxy]].newRec(ref)
+                //  but let's wait
                 java.lang.System.identityHashCode(ref)
+
         }
 
         override def show: String = {

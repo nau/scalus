@@ -1367,28 +1367,7 @@ final class SIRCompiler(mode: scalus.Mode)(using ctx: Context) {
                 if ts.isClass && fieldIdx >= 0 then
                     val lhs = compileExpr(env, obj)
                     val selType = sirTypeInEnv(sel.tpe.widen.dealias, sel, env)
-                    val s0: SIR = SIR.Var(ident.show, selType)
-                    val tps = primaryConstructorTypeParams(ts)
-
-                    // TODO: support of dependend types (i.e. fold instead map)
-                    val nTypeVars = obj.tpe.widen.dealias match
-                        case AppliedType(t, args) =>
-                            tps.zip(args)
-                                .map { case (tp, v) =>
-                                    val vSirType = sirTypeInEnv(v, sel.srcPos, env)
-                                    tp -> vSirType
-                                }
-                                .toMap
-                        case _ =>
-                            tps.map { tp =>
-                                tp -> SIRType.TypeVar(tp.name.show, Some(tp.hashCode))
-                            }.toMap
-                    val env1 = env.copy(typeVars = env.typeVars ++ nTypeVars)
-                    val lam = primaryConstructorParams(ts).foldRight(s0) { case (f, acc) =>
-                        val fType = sirTypeInEnv(f.paramInfo, f.srcPos, env1)
-                        SIR.LamAbs(SIR.Var(f.name.show, fType), acc)
-                    }
-                    SIR.Apply(lhs, lam, selType)
+                    SIR.Select(lhs, ident.show, selType)
                 // else if obj.symbol.isPackageDef then
                 // compileExpr(env, obj)
                 else if isConstructorVal(tree.symbol, tree.tpe) then
@@ -1526,7 +1505,8 @@ object SIRCompiler {
         vars: Map[String, SIRType],
         typeVars: Map[Symbol, SIRType],
         debug: Boolean = false,
-        level: Int = 0
+        level: Int = 0,
+        resolvedClasses: Map[Symbol, SIRType] = Map.empty
     ) {
 
         def ++(bindings: Iterable[(String, SIRType)]): Env = copy(vars = vars ++ bindings)

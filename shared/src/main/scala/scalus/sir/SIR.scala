@@ -4,6 +4,8 @@ import scalus.sir.SIRType.{checkAllProxiesFilled, FreeUnificator}
 import scalus.uplc.Constant
 import scalus.uplc.DefaultFun
 
+import scala.util.hashing.MurmurHash3
+
 case class Module(version: (Int, Int), defs: List[Binding])
 
 case class Binding(name: String, value: SIR) {
@@ -155,6 +157,8 @@ object SIR:
 
     }
 
+    case class Select(scrutinee: SIR, field: String, tp: SIRType) extends SIR
+
     case class Const(uplcConst: Constant, tp: SIRType) extends SIR
 
     case class And(a: SIR, b: SIR) extends SIR {
@@ -248,7 +252,8 @@ object SIRChecker {
                 checkType(param.tp, throwOnFirst) ++ checkSIR(term, throwOnFirst) ++ checkTp
             case SIR.Apply(f, arg, tp) =>
                 checkSIR(f, throwOnFirst) ++ checkSIR(arg, throwOnFirst) ++ checkTp
-            case SIR.Const(_, tp) => checkTp
+            case SIR.Select(scrutinee, _, _) => checkSIR(scrutinee, throwOnFirst) ++ checkTp
+            case SIR.Const(_, tp)            => checkTp
             case SIR.And(a, b) => checkSIR(a, throwOnFirst) ++ checkSIR(b, throwOnFirst) ++ checkTp
             case SIR.Or(a, b)  => checkSIR(a, throwOnFirst) ++ checkSIR(b, throwOnFirst) ++ checkTp
             case SIR.Not(a)    => checkSIR(a, throwOnFirst) ++ checkTp

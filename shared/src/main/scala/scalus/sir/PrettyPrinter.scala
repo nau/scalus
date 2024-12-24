@@ -35,8 +35,6 @@ object PrettyPrinter:
     def inBrackets(d: Doc): Doc = char('[') + d + char(']')
     def inOptBrackets(d: Doc): Doc = if d.isEmpty then empty else inBrackets(d)
 
-    def typedName(name: String, tp: SIRType): Doc = text(name) + text(":") + pretty(tp)
-
     def pretty(df: DefaultFun): Doc = text(Utils.lowerFirst(df.toString))
 
     def prettyValue(c: Constant, dataParens: Boolean = false): Doc =
@@ -106,7 +104,9 @@ object PrettyPrinter:
         extension (d: Doc)
             def styled(s: paiges.Style): Doc = if style == Style.XTerm then d.style(s) else d
         def kw(s: String): Doc = text(s).styled(Fg.colorCode(172))
-        def ctr(s: String): Doc = text(s).styled(Fg.colorCode(21))
+        def ctr(s: String): Doc = text(s).styled(Fg.colorCode(27))
+        def typ(s: Doc): Doc = s.styled(Fg.colorCode(55))
+        def typedName(name: String, tp: SIRType): Doc = text(name) + char(':') & typ(pretty(tp))
         sir match
             case Decl(DataDecl(name, constructors, typeParams), term) =>
                 val prettyConstrs = constructors.map { constr =>
@@ -158,18 +158,20 @@ object PrettyPrinter:
                       2
                     )).aligned
 
-            case Var(name, tp)                     => typedName(name, tp)
-            case ExternalVar(moduleName, name, tp) => typedName(name, tp)
+            case Var(name, tp)                     => text(name)
+            case ExternalVar(moduleName, name, tp) => text(name)
             case Let(Recursivity.NonRec, List(Binding(name, body)), inExpr) =>
                 pretty(body, style).bracketBy(
-                  kw("let") & text(name) & text("="),
+                  kw("let") & typedName(name, body.tp) & text("="),
                   kw("in")
                 ) / pretty(inExpr, style)
             case Let(Recursivity.Rec, List(Binding(name, body)), inExpr) =>
                 val (args, body1) = SirDSL.lamAbsToList(body)
-                val prettyArgs = stack(args.map(text))
+                val prettyArgs = inParens(intercalate(text(",") + space, args.map(text)))
                 val signatureLine =
-                    (kw("fun") & text(name) + (line + prettyArgs & char('=')).nested(2)).grouped
+                    (kw("fun") & text(name) + (prettyArgs + char(':') & typ(
+                      pretty(body.tp)
+                    ) & char('=')).nested(2)).grouped
                 (signatureLine + (line + pretty(body1, style))
                     .nested(4)
                     .grouped).grouped.aligned / kw(
@@ -194,6 +196,8 @@ object PrettyPrinter:
                             .tightBracketBy(text("("), text(")"))
 
                 pretty(t, style) + prettyArgs
+            case Select(scrutinee, field, tp) =>
+                pretty(scrutinee, style) + text("." + field)
             case Const(const, _) => prettyValue(const).styled(Fg.colorCode(64))
             case And(a, b)       =>
                 // We don't add parentheses for nested Ands, because they are associative.
@@ -271,7 +275,14 @@ object PrettyPrinter:
           ) & pretty(p.term, Style.Normal)
         )
 
+    private var bracketColorIndex = 1
+    private def nextBracketColor(): Int =
+        val color = bracketColorIndex
+        bracketColorIndex = (bracketColorIndex + 1) % 15 + 1
+        color
+
     def pretty(term: Term, style: Style): Doc =
+
         import Term.*
         extension (d: Doc)
             def styled(s: paiges.Style): Doc = if style == Style.XTerm then d.style(s) else d
@@ -279,11 +290,18 @@ object PrettyPrinter:
         term match
             case Var(name) => text(name.name)
             case LamAbs(name, term) =>
-                inParens(kw("lam") & text(name) / pretty(term, style).indent(2))
+                val color = nextBracketColor()
+                char('(').styled(Fg.colorCode(color))
+                    + kw("lam") & text(name) / pretty(term, style).indent(2)
+                    + char(')').styled(Fg.colorCode(color))
             case a @ Apply(f, arg) =>
                 val (t, args) = TermDSL.applyToList(a)
+                val color = nextBracketColor()
                 intercalate(lineOrSpace, (t :: args).map(pretty(_, style)))
-                    .tightBracketBy(text("["), text("]"))
+                    .tightBracketBy(
+                      text("[").styled(Fg.colorCode(color)),
+                      text("]").styled(Fg.colorCode(color))
+                    )
             case Force(term) =>
                 inParens(kw("force") & pretty(term, style))
             case Delay(term) =>
