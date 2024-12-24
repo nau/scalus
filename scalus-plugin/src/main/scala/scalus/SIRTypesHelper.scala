@@ -25,9 +25,8 @@ object SIRTypesHelper {
     def sirTypeInEnv(tp: Type, env0: SIRTypeEnv)(using Context): SIRType = {
         val env =
             if (tp =:= Symbols.requiredClass("scalus.ledger.api.v3.TxInfo").info) then
-                env0.copy(trace=true)
-            else
-                env0
+                env0.copy(trace = true)
+            else env0
         val retval =
             try sirTypeInEnvWithErr(tp.widen, env)
             catch
@@ -369,72 +368,71 @@ object SIRTypesHelper {
         if typeSymbol.flags.is(Flags.Case) || typeSymbol.flags.is(Flags.Enum) then {
             // case class, can do constrdecl
             val name = typeSymbol.fullName.show
-            //if (name=="")
+            // if (name=="")
 
             val (typeParamSymbols, paramSymbols) = typeSymbol.primaryConstructor.paramSymss match
                 case List(args) =>
-                    if (args.isEmpty) then (Nil,Nil)
-                    else if (args.exists(_.isTerm)) then
-                        (Nil, args)
-                    else if (args.exists(_.isType)) then
-                        (args, Nil)
+                    if (args.isEmpty) then (Nil, Nil)
+                    else if (args.exists(_.isTerm)) then (Nil, args)
+                    else if (args.exists(_.isType)) then (args, Nil)
                     else {
-                        val msg = s"Case class ${typeSymbol.showFullName} has strange primary constructor: ${args}"
+                        val msg =
+                            s"Case class ${typeSymbol.showFullName} has strange primary constructor: ${args}"
                         thisProxy.ref = SIRType.TypeError(msg, null)
                         throw TypingException(typeSymbol.info, env.pos, msg)
                     }
-                case List(frs,snd) =>
-                    if (frs.exists(_.isType) && snd.exists(_.isTerm)) then
-                        (frs, snd)
-                    else if (frs.exists(_.isTerm) && snd.exists(_.isType)) then
-                        (snd, frs)
+                case List(frs, snd) =>
+                    if (frs.exists(_.isType) && snd.exists(_.isTerm)) then (frs, snd)
+                    else if (frs.exists(_.isTerm) && snd.exists(_.isType)) then (snd, frs)
                     else if (frs.exists(_.isType) && snd.exists(_.isType)) then
-                        val msg = s"Case class ${typeSymbol.showFullName} has primary constructor with two type parametes list"
+                        val msg =
+                            s"Case class ${typeSymbol.showFullName} has primary constructor with two type parametes list"
                         thisProxy.ref = SIRType.TypeError(msg, null)
                         throw TypingException(typeSymbol.info, env.pos, msg)
                     else if (frs.exists(_.isTerm) && snd.exists(_.isTerm)) then
-                        val msg = s"Not supported ${typeSymbol.showFullName} has primary constructor with multiole parametes list"
+                        val msg =
+                            s"Not supported ${typeSymbol.showFullName} has primary constructor with multiole parametes list"
                         thisProxy.ref = SIRType.TypeError(msg, null)
                         throw TypingException(typeSymbol.info, env.pos, msg)
-                    else if (frs.exists(_.isType) && snd.isEmpty) then
-                        (frs, Nil)
-                    else if (frs.isEmpty && snd.exists(_.isType)) then
-                        (Nil, snd)
-                    else if (frs.exists(_.isTerm) && snd.isEmpty) then
-                        (Nil, frs)
-                    else if (frs.isEmpty && snd.exists(_.isTerm)) then
-                        (snd, Nil)
+                    else if (frs.exists(_.isType) && snd.isEmpty) then (frs, Nil)
+                    else if (frs.isEmpty && snd.exists(_.isType)) then (Nil, snd)
+                    else if (frs.exists(_.isTerm) && snd.isEmpty) then (Nil, frs)
+                    else if (frs.isEmpty && snd.exists(_.isTerm)) then (snd, Nil)
                     else {
-                        val msg = s"Case class ${typeSymbol.showFullName} has strange primary constructor: ${frs} ${snd}"
+                        val msg =
+                            s"Case class ${typeSymbol.showFullName} has strange primary constructor: ${frs} ${snd}"
                         thisProxy.ref = SIRType.TypeError(msg, null)
                         throw TypingException(typeSymbol.info, env.pos, msg)
                     }
-                case List(frs,snd,thr) =>
-                    if (frs.exists(_.isType) && snd.exists(_.isTerm) && thr.isEmpty) then
-                        (frs, snd)
-                    else 
-                        val msg = s"Not supported ${typeSymbol.showFullName} has primary constructor with multiole parametes list"
+                case List(frs, snd, thr) =>
+                    if (frs.exists(_.isType) && snd.exists(_.isTerm) && thr.isEmpty) then (frs, snd)
+                    else
+                        val msg =
+                            s"Not supported ${typeSymbol.showFullName} has primary constructor with multiole parametes list"
                         thisProxy.ref = SIRType.TypeError(msg, null)
                         throw TypingException(typeSymbol.info, env.pos, msg)
                 case _ =>
-                    val msg = s"Case class ${typeSymbol.showFullName} has primary constructor with multiply parameters list: ${typeSymbol.primaryConstructor.paramSymss}"
+                    val msg =
+                        s"Case class ${typeSymbol.showFullName} has primary constructor with multiply parameters list: ${typeSymbol.primaryConstructor.paramSymss}"
                     thisProxy.ref = SIRType.TypeError(msg, null)
                     throw TypingException(typeSymbol.info, env.pos, msg)
-                    
+
             val tparams = typeParamSymbols.map(s => SIRType.TypeVar(s.name.show, Some(s.hashCode)))
             val nVars = typeParamSymbols.zip(tparams).foldLeft(env.vars) {
                 case (acc, (sym, tvar)) => acc.updated(sym, tvar)
             }
             val nEnv = env.copy(vars = nVars)
-            //val params1 = typeSymbol.info.fields
+            // val params1 = typeSymbol.info.fields
             //    .map(f => TypeBinding(f.name.show, sirTypeInEnv(f.info, nEnv)))
             //    .toList
-            val params = paramSymbols.map(s =>
-                val t = sirTypeInEnv(s.info, nEnv)
-                // println(s"param ${s.show} -> ${t.show}")
-                TypeBinding(s.name.show, t)
-            ).toList
-            // TODO:  get 'most top?'    
+            val params = paramSymbols
+                .map(s =>
+                    val t = sirTypeInEnv(s.info, nEnv)
+                    // println(s"param ${s.show} -> ${t.show}")
+                    TypeBinding(s.name.show, t)
+                )
+                .toList
+            // TODO:  get 'most top?'
             val optBaseSymbol = typeSymbol.info.baseClasses.find(bc => bc.children.nonEmpty)
             val constrDecl = optBaseSymbol match
                 case Some(baseSymbol) =>

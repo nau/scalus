@@ -7,17 +7,17 @@ import scalus.flat.*
 
 class SirToExprSpec extends AnyFunSuite {
 
-
     test("serialize/deserialize List") {
         val sir = SIR.Const(
-            scalus.uplc.Constant.List(
-                scalus.uplc.DefaultUni.Integer,
-                List(
-                    scalus.uplc.Constant.Integer(1),
-                    scalus.uplc.Constant.Integer(2),
-                    scalus.uplc.Constant.Integer(3)
-                )),
-            SIRType.List(SIRType.IntegerPrimitive)
+          scalus.uplc.Constant.List(
+            scalus.uplc.DefaultUni.Integer,
+            List(
+              scalus.uplc.Constant.Integer(1),
+              scalus.uplc.Constant.Integer(2),
+              scalus.uplc.Constant.Integer(3)
+            )
+          ),
+          SIRType.List(SIRType.IntegerPrimitive)
         )
         println(s"sir:${sir}")
         val len = ToExprHSSIRFlat.bitSize(sir)
@@ -27,7 +27,6 @@ class SirToExprSpec extends AnyFunSuite {
         val decoded = ToExprHSSIRFlat.decode(DecoderState(encoded.buffer))
         assert(sir ~=~ decoded)
     }
-
 
     /*
     test("serialize/deserialize ListType") {

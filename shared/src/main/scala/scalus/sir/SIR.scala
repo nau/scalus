@@ -1,6 +1,6 @@
 package scalus.sir
 
-import scalus.sir.SIRType.{FreeUnificator, checkAllProxiesFilled}
+import scalus.sir.SIRType.{checkAllProxiesFilled, FreeUnificator}
 import scalus.uplc.Constant
 import scalus.uplc.DefaultFun
 
@@ -17,7 +17,6 @@ case class Binding(name: String, value: SIR) {
 case class TypeBinding(name: String, tp: SIRType) {
     override def toString: String = s"TypeBinding(\"$name\" : ${tp.show})"
 }
-
 
 enum Recursivity:
     case NonRec, Rec
@@ -58,7 +57,6 @@ case class ConstrDecl(
         _tp
 
 }
-
 
 //  Data~ Lost(Const)
 
@@ -255,7 +253,7 @@ object SIRChecker {
             case SIR.Apply(f, arg, tp) =>
                 checkSIR(f, throwOnFirst) ++ checkSIR(arg, throwOnFirst) ++ checkTp
             case SIR.Select(scrutinee, _, _) => checkSIR(scrutinee, throwOnFirst) ++ checkTp
-            case SIR.Const(_, tp) => checkTp
+            case SIR.Const(_, tp)            => checkTp
             case SIR.And(a, b) => checkSIR(a, throwOnFirst) ++ checkSIR(b, throwOnFirst) ++ checkTp
             case SIR.Or(a, b)  => checkSIR(a, throwOnFirst) ++ checkSIR(b, throwOnFirst) ++ checkTp
             case SIR.Not(a)    => checkSIR(a, throwOnFirst) ++ checkTp

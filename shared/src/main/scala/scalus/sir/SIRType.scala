@@ -26,7 +26,6 @@ sealed trait SIRType {
                   s"Expected type variable at the left of =>>:, got $other"
                 )
 
-
 }
 
 sealed trait SIRVarStorage
@@ -109,9 +108,7 @@ object SIRType {
         override def show: String =
             if (typeArgs.isEmpty) then constrDecl.name
             else s"${constrDecl.name}[${typeArgs.map(_.show).mkString(", ")}]"
-        
-        
-        
+
     }
 
     case class SumCaseClass(decl: DataDecl, typeArgs: scala.List[SIRType]) extends SIRType {
@@ -120,7 +117,6 @@ object SIRType {
             if (typeArgs.isEmpty) then decl.name
             else s"${decl.name}[${typeArgs.map(_.show).mkString(", ")}]"
 
-
     }
 
     case class Fun(in: SIRType, out: SIRType) extends SIRType {
@@ -128,7 +124,6 @@ object SIRType {
         override type Carrier = in.Carrier => out.Carrier
 
         override def show: String = s"${in.show} -> ${out.show}"
-
 
     }
 
@@ -267,7 +262,6 @@ object SIRType {
                 case _ =>
             _ref = value
         }
-
 
     }
 
