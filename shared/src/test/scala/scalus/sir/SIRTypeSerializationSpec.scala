@@ -123,8 +123,27 @@ class SIRTypeSerializationSpec extends AnyFunSuite {
         assert(params1(6).name == "withdrawals")
         assert(params1(7).name == "validRange")
         assert(params1(8).name == "signatories")
+
+        val sir2 = encodeDecodeSIR(sir)
+        val tpF2 = sir2.tp
+        val tp2 = tpF2 match
+            case SIRType.Fun(u,tp) if u == SIRType.VoidPrimitive => tp
+            case _ => fail(s"unexpected type ${tpF2.show}")
+        val constrDecl2 = tp2 match
+            case SIRType.CaseClass(constrDecl, typeArgs) => constrDecl
+            case SIRType.SumCaseClass(dataDecl, typeArgs) =>
+                if (dataDecl.constructors.length == 1) then
+                    val constrDecl = dataDecl.constructors.head
+                    constrDecl
+                else
+                    fail(s"expected single case class, we have ${dataDecl.constructors.length} case classes")
+            case _ => fail(s"case class expected, we have ${tp2.show}: ${tp2}")
+        val params2 = constrDecl2.params
+        // should be the same as in definition.
+        assert(params2(0).name == "inputs")
     }
 
+    //test("check order of parame")
 
 
 }
