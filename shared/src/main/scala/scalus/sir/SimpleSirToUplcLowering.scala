@@ -138,7 +138,7 @@ class SimpleSirToUplcLowering(sir: SIR, generateErrorTraces: Boolean = false):
                         )
                     val instance = lowerInner(scrutinee)
                     val s0 = Term.Var(NamedDeBruijn(field))
-                    println(s"AAAAA: params: ${constrDecl.params}")
+                    println(s"AAAAA: name=${constrDecl.name} params: ${constrDecl.params}")
                     val lam = constrDecl.params.foldRight(s0) { case (f, acc) =>
                         Term.LamAbs(f.name, acc)
                     }

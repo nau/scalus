@@ -1505,7 +1505,8 @@ object SIRCompiler {
         vars: Map[String, SIRType],
         typeVars: Map[Symbol, SIRType],
         debug: Boolean = false,
-        level: Int = 0
+        level: Int = 0,
+        resolvedClasses: Map[Symbol, SIRType] = Map.empty
     ) {
 
         def ++(bindings: Iterable[(String, SIRType)]): Env = copy(vars = vars ++ bindings)

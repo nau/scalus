@@ -19,6 +19,7 @@ object scalusPlugin extends RootModule with SbtModule {
           PathRef(baseDir / "scalus" / "sir" / "SIRToExpr.scala"),
           PathRef(baseDir / "scalus" / "sir" / "SIRBuiltins.scala"),
           PathRef(baseDir / "scalus" / "sir" / "SIRUnify.scala"),
+          PathRef(baseDir / "scalus" / "sir" / "SIRHashCodeInRec.scala"),
           PathRef(baseDir / "scalus" / "sir" / "FlatInstances.scala"),
           PathRef(baseDir / "scalus" / "uplc" / "Constant.scala"),
           PathRef(baseDir / "scalus" / "uplc" / "DefaultFun.scala"),

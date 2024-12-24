@@ -1,8 +1,10 @@
 package scalus.sir
 
-import scalus.sir.SIRType.{checkAllProxiesFilled, FreeUnificator}
+import scalus.sir.SIRType.{FreeUnificator, checkAllProxiesFilled}
 import scalus.uplc.Constant
 import scalus.uplc.DefaultFun
+
+import scala.util.hashing.MurmurHash3
 
 case class Module(version: (Int, Int), defs: List[Binding])
 
@@ -15,6 +17,7 @@ case class Binding(name: String, value: SIR) {
 case class TypeBinding(name: String, tp: SIRType) {
     override def toString: String = s"TypeBinding(\"$name\" : ${tp.show})"
 }
+
 
 enum Recursivity:
     case NonRec, Rec
@@ -55,6 +58,7 @@ case class ConstrDecl(
         _tp
 
 }
+
 
 //  Data~ Lost(Const)
 

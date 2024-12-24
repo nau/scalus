@@ -7,9 +7,9 @@ import scalus.flat.*
 
 class SirToExprSpec extends AnyFunSuite {
 
-    /*
+
     test("serialize/deserialize List") {
-        val sir: SIRExpr = SIR.Const(
+        val sir = SIR.Const(
             scalus.uplc.Constant.List(
                 scalus.uplc.DefaultUni.Integer,
                 List(
@@ -24,12 +24,12 @@ class SirToExprSpec extends AnyFunSuite {
         println(s"List bit size: $len")
         val encoded = EncoderState(len / 8 + 1)
         ToExprHSSIRFlat.encode(sir, encoded)
-        val decoded = ToExprHSSIRFlat.decode(DecoderState(encoded.buffer)).asInstanceOf[SIRExpr]
+        val decoded = ToExprHSSIRFlat.decode(DecoderState(encoded.buffer))
         assert(sir ~=~ decoded)
     }
 
 
-
+    /*
     test("serialize/deserialize ListType") {
         val tp = SIRType.List(SIRType.IntegerPrimitive)
         val bitSize = ToExprHSSIRTypeFlat.bitSize(tp)
