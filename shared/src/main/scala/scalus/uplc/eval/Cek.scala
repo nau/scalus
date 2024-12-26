@@ -276,6 +276,9 @@ class NonConstrScrutinized(val value: CekValue, env: CekValEnv)
       env
     )
 
+class InvalidReturnValue(val value: CekValue)
+    extends RuntimeException(s"Invalid return value: expected Unit, got $value")
+
 class BuiltinException(msg: String) extends MachineError(msg)
 
 class DeserializationError(fun: DefaultFun, value: CekValue)
@@ -404,16 +407,22 @@ open class PlutusVM(platformSpecific: PlatformSpecific) {
         CekResult(resultTerm, spender.getSpentBudget, logger.getLogs)
     }
 
-    /** Evaluates a UPLC term using default CEK machine parameters and no budget calculation.
+    /** Evaluates a UPLC [[Term]] using default [[MachinePrameter]]s and no budget calculation.
       *
       * Useful for testing and debugging.
       *
       * @param term
       *   The debruijned term to evaluate
+      * @param params
+      *   The machine parameters
       * @return
       *   The resulting term
       * @throws StackTraceMachineError
       *   subtypes if the evaluation fails
+      *
+      * @note
+      *   This method doesn't follow the [CIP-117](https://cips.cardano.org/cip/CIP-0117/), so it
+      *   can't be used to correctly evaluate Cardano validators.
       */
     def evaluateTerm(
         term: Term,
@@ -431,6 +440,10 @@ open class PlutusVM(platformSpecific: PlatformSpecific) {
       * @return
       *   [[Result]] with the resulting term, the execution budget, evaluation logs and costs, and
       *   an exception if the evaluation failed
+      *
+      * @note
+      *   This method doesn't follow the [CIP-117](https://cips.cardano.org/cip/CIP-0117/), so it
+      *   can't be used to correctly evaluate Cardano validators.
       */
     def evaluateDebug(
         term: Term,
@@ -459,11 +472,31 @@ open class PlutusVM(platformSpecific: PlatformSpecific) {
     /** Evaluates a UPLC Program using default CEK machine parameters and no budget calculation.
       *
       * Useful for testing and debugging.
+      *
+      * @note
+      *   This method doesn't follow the [CIP-117](https://cips.cardano.org/cip/CIP-0117/), so it
+      *   can't be used to correctly evaluate Cardano validators.
       */
     def evaluateProgram(
         p: Program,
         params: MachineParams = MachineParams.defaultPlutusV2PostConwayParams
     ): Term = evaluateTerm(p.term, params)
+
+    /** Plutus V3 requires the result to be `Unit` to be considered valid.
+      * @param ll
+      *   The Plutus ledger language version
+      * @param res
+      *   The result term
+      * @return
+      *   `true` if the result is valid, `false` otherwise
+      *
+      * @see
+      *   [CIP-117](https://cips.cardano.org/cip/CIP-0117/)
+      */
+    def isResultValid(ll: PlutusLedgerLanguage, res: Term): Boolean = (ll, res) match
+        case (PlutusLedgerLanguage.PlutusV1 | PlutusLedgerLanguage.PlutusV2, _) => true
+        case (PlutusLedgerLanguage.PlutusV3, Term.Const(Constant.Unit))         => true
+        case _                                                                  => false
 }
 
 enum Result:
@@ -656,20 +689,30 @@ final class CountingBudgetSpender extends BudgetSpender {
   *   {{{
   *   val term = LamAbs("x", Apply(Var(NamedDeBruijn("x", 0)), Var(NamedDeBruijn("x", 0))))
   *   val cek = new CekMachine(MachineParams.defaultParams, NoBudgetSpender, NoLogger, JVMPlatformSpecific)
-  *   val res = cek.runCek(term)
+  *   val res = cek.evaluateTerm(term)
   *   }}}
   */
 class CekMachine(
     val params: MachineParams,
     budgetSpender: BudgetSpender,
     logger: Logger,
-    platformSpecific: PlatformSpecific
-) extends BuiltinsMeaning(params.builtinCostModel, platformSpecific, params.semanticVariant) {
+    builtinsMeaning: BuiltinsMeaning
+) {
     import CekState.*
     import CekValue.*
     import Context.*
 
-    private[uplc] val logs: ArrayBuffer[String] = ArrayBuffer.empty[String]
+    def this(
+        params: MachineParams,
+        budgetSpender: BudgetSpender,
+        logger: Logger,
+        platformSpecific: PlatformSpecific
+    ) = this(
+      params,
+      budgetSpender,
+      logger,
+      new BuiltinsMeaning(params.builtinCostModel, platformSpecific, params.semanticVariant)
+    )
 
     /** Evaluates a UPLC term.
       *
@@ -714,9 +757,10 @@ class CekMachine(
             case Builtin(bn) =>
                 spendBudget(ExBudgetCategory.Step(StepKind.Builtin), costs.builtinCost, env)
                 // The @term@ is a 'Builtin', so it's fully discharged.
-                BuiltinMeanings.get(bn) match
-                    case Some(meaning) => Return(ctx, env, VBuiltin(bn, () => term, meaning))
-                    case None          => throw new UnknownBuiltin(bn, env)
+                try
+                    val meaning = builtinsMeaning.getBuiltinRuntime(bn)
+                    Return(ctx, env, VBuiltin(bn, () => term, meaning))
+                catch case _: Exception => throw new UnknownBuiltin(bn, env)
             case Error => throw new EvaluationFailure(env)
             case Constr(tag, args) =>
                 spendBudget(ExBudgetCategory.Step(StepKind.Constr), costs.constrCost, env)
@@ -748,7 +792,7 @@ class CekMachine(
                         if 0 <= tag && tag < cases.size then
                             Compute(transferArgStack(args, ctx), env, cases(tag.toInt))
                         else throw new MissingCaseBranch(tag, env)
-                    case _ => throw new EvaluationFailure(env)
+                    case _ => throw new NonConstrScrutinized(value, env)
     }
 
     private def transferArgStack(args: ArgStack, ctx: Context): Context = {

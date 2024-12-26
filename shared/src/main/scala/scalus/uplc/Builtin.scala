@@ -54,7 +54,7 @@ case class BuiltinRuntime(
     def calculateCost: ExBudget = costFunction.calculateCost(args*)
 }
 
-open class BuiltinsMeaning(
+class BuiltinsMeaning(
     builtinCostModel: BuiltinCostModel,
     platformSpecific: PlatformSpecific,
     semanticVariant: BuiltinSemanticsVariant
@@ -980,81 +980,12 @@ open class BuiltinsMeaning(
           builtinCostModel.byteStringToInteger
         )
 
-    val BuiltinMeanings: immutable.Map[DefaultFun, BuiltinRuntime] = immutable.Map.apply(
-      (DefaultFun.AddInteger, AddInteger),
-      (DefaultFun.SubtractInteger, SubtractInteger),
-      (DefaultFun.MultiplyInteger, MultiplyInteger),
-      (DefaultFun.DivideInteger, DivideInteger),
-      (DefaultFun.QuotientInteger, QuotientInteger),
-      (DefaultFun.RemainderInteger, RemainderInteger),
-      (DefaultFun.ModInteger, ModInteger),
-      (DefaultFun.EqualsInteger, EqualsInteger),
-      (DefaultFun.LessThanEqualsInteger, LessThanEqualsInteger),
-      (DefaultFun.LessThanInteger, LessThanInteger),
-      (DefaultFun.AppendByteString, AppendByteString),
-      (DefaultFun.ConsByteString, ConsByteString),
-      (DefaultFun.SliceByteString, SliceByteString),
-      (DefaultFun.LengthOfByteString, LengthOfByteString),
-      (DefaultFun.IndexByteString, IndexByteString),
-      (DefaultFun.EqualsByteString, EqualsByteString),
-      (DefaultFun.LessThanByteString, LessThanByteString),
-      (DefaultFun.LessThanEqualsByteString, LessThanEqualsByteString),
-      (DefaultFun.Sha2_256, Sha2_256),
-      (DefaultFun.Sha3_256, Sha3_256),
-      (DefaultFun.Blake2b_256, Blake2b_256),
-      (DefaultFun.VerifyEd25519Signature, VerifyEd25519Signature),
-      (DefaultFun.VerifyEcdsaSecp256k1Signature, VerifyEcdsaSecp256k1Signature),
-      (DefaultFun.VerifySchnorrSecp256k1Signature, VerifySchnorrSecp256k1Signature),
-      (DefaultFun.AppendString, AppendString),
-      (DefaultFun.EqualsString, EqualsString),
-      (DefaultFun.EncodeUtf8, EncodeUtf8),
-      (DefaultFun.DecodeUtf8, DecodeUtf8),
-      (DefaultFun.IfThenElse, IfThenElse),
-      (DefaultFun.ChooseUnit, ChooseUnit),
-      (DefaultFun.Trace, Trace),
-      (DefaultFun.FstPair, FstPair),
-      (DefaultFun.SndPair, SndPair),
-      (DefaultFun.ChooseList, ChooseList),
-      (DefaultFun.MkCons, MkCons),
-      (DefaultFun.HeadList, HeadList),
-      (DefaultFun.TailList, TailList),
-      (DefaultFun.NullList, NullList),
-      (DefaultFun.ChooseData, ChooseData),
-      (DefaultFun.ConstrData, ConstrData),
-      (DefaultFun.MapData, MapData),
-      (DefaultFun.ListData, ListData),
-      (DefaultFun.IData, IData),
-      (DefaultFun.BData, BData),
-      (DefaultFun.UnConstrData, UnConstrData),
-      (DefaultFun.UnMapData, UnMapData),
-      (DefaultFun.UnListData, UnListData),
-      (DefaultFun.UnIData, UnIData),
-      (DefaultFun.UnBData, UnBData),
-      (DefaultFun.EqualsData, EqualsData),
-      (DefaultFun.SerialiseData, SerialiseData),
-      (DefaultFun.MkPairData, MkPairData),
-      (DefaultFun.MkNilData, MkNilData),
-      (DefaultFun.MkNilPairData, MkNilPairData),
-      (DefaultFun.Blake2b_224, Blake2b_224),
-      (DefaultFun.Keccak_256, Keccak_256),
-      (DefaultFun.Bls12_381_G1_add, Bls12_381_G1_add),
-      (DefaultFun.Bls12_381_G1_neg, Bls12_381_G1_neg),
-      (DefaultFun.Bls12_381_G1_scalarMul, Bls12_381_G1_scalarMul),
-      (DefaultFun.Bls12_381_G1_equal, Bls12_381_G1_equal),
-      (DefaultFun.Bls12_381_G1_compress, Bls12_381_G1_compress),
-      (DefaultFun.Bls12_381_G1_uncompress, Bls12_381_G1_uncompress),
-      (DefaultFun.Bls12_381_G1_hashToGroup, Bls12_381_G1_hashToGroup),
-      (DefaultFun.Bls12_381_G2_uncompress, Bls12_381_G2_uncompress),
-      (DefaultFun.Bls12_381_G2_add, Bls12_381_G2_add),
-      (DefaultFun.Bls12_381_G2_neg, Bls12_381_G2_neg),
-      (DefaultFun.Bls12_381_G2_scalarMul, Bls12_381_G2_scalarMul),
-      (DefaultFun.Bls12_381_G2_equal, Bls12_381_G2_equal),
-      (DefaultFun.Bls12_381_G2_compress, Bls12_381_G2_compress),
-      (DefaultFun.Bls12_381_G2_uncompress, Bls12_381_G2_uncompress),
-      (DefaultFun.Bls12_381_G2_hashToGroup, Bls12_381_G2_hashToGroup),
-      (DefaultFun.Bls12_381_millerLoop, Bls12_381_millerLoop),
-      (DefaultFun.Bls12_381_mulMlResult, Bls12_381_mulMlResult),
-      (DefaultFun.Bls12_381_finalVerify, Bls12_381_finalVerify),
-      (DefaultFun.IntegerToByteString, IntegerToByteString),
-      (DefaultFun.ByteStringToInteger, ByteStringToInteger)
-    )
+    private inline def mkGetBuiltinRuntime: DefaultFun => BuiltinRuntime = ${
+        scalus.macros.Macros.mkGetBuiltinRuntime('this)
+    }
+
+    def getBuiltinRuntime(fun: DefaultFun): BuiltinRuntime = mkGetBuiltinRuntime(fun)
+
+    lazy val BuiltinMeanings: immutable.Map[DefaultFun, BuiltinRuntime] = DefaultFun.values.map {
+        fun => fun -> getBuiltinRuntime(fun)
+    }.toMap

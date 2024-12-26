@@ -3,6 +3,9 @@ package scalus.macros
 import scalus.builtin
 import scalus.builtin.Builtins
 import scalus.builtin.Data
+import scalus.uplc.BuiltinRuntime
+import scalus.uplc.BuiltinsMeaning
+import scalus.uplc.DefaultFun
 import scalus.uplc.ExprBuilder
 import scalus.uplc.ExprBuilder.*
 import scalus.uplc.Expr as Exp
@@ -290,5 +293,29 @@ object Macros {
     def questionMark(using Quotes)(x: Expr[Boolean]): Expr[Boolean] = {
         import scala.quoted.*
         '{ if $x then true else Builtins.trace(${ Expr(x.show + " ? False") })(false) }
+    }
+
+    /** Generates `match` expression on [[DefaultFun]] ordinals that should be efficiently compiled
+      * to table switch (and it is).
+      *
+      * {{{
+      *   fun.ordinal() match {
+      *     case 0 => bm.AddInteger
+      *     // ...
+      *   }
+      * }}}
+      */
+    def mkGetBuiltinRuntime(
+        bm: Expr[BuiltinsMeaning]
+    )(using Quotes): Expr[DefaultFun => BuiltinRuntime] = {
+        import quotes.reflect.*
+        val cases: List[CaseDef] = DefaultFun.values.toList.map { fun =>
+            val funOrdinal = Expr(fun.ordinal())
+            val funCase = CaseDef(funOrdinal.asTerm, None, Select.unique(bm.asTerm, fun.toString))
+            funCase
+        }
+        '{ (fun: DefaultFun) =>
+            ${ Match('{ fun.ordinal() }.asTerm, cases).asExprOf[BuiltinRuntime] }
+        }
     }
 }

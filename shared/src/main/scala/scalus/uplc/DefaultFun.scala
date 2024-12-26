@@ -1,6 +1,6 @@
 package scalus.uplc
 
-enum DefaultFun:
+enum DefaultFun extends Enum[DefaultFun]:
     // Integers
     case AddInteger
     case SubtractInteger
