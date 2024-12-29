@@ -2,14 +2,14 @@ package scalus
 
 import org.scalatest.funsuite.AnyFunSuite
 import org.scalatestplus.scalacheck.ScalaCheckPropertyChecks
+import scalus.builtin.given
 import scalus.builtin.ByteString
 import scalus.builtin.ByteString.*
-import scalus.ledger.api.v1.*
+import scalus.ledger.api.v1.{ArbitraryInstances as _, *}
 import scalus.prelude.Maybe.*
 import scalus.prelude.*
-import scalus.uplc.ArbitraryInstances
 import scalus.uplc.*
-import scalus.uplc.eval.VM
+import scalus.uplc.eval.PlutusVM
 
 import scala.util.Failure
 import scala.util.Success
@@ -25,9 +25,11 @@ abstract class BaseValidatorSpec
     with ScalaCheckPropertyChecks
     with ArbitraryInstances {
 
+    given PlutusVM = PlutusVM.makePlutusV2VM()
+
     protected final def assertSameResult(expected: Expected)(program: Program) = {
         val result1 = UplcCli.evalFlat(program)
-        val result2 = Try(VM.evaluateProgram(program))
+        val result2 = Try(program.deBruijnedProgram.evaluate)
         // println(s"$result1 == $result2")
         (expected, result1, result2) match
             case (Expected.SuccessSame, UplcEvalResult.Success(term1, _), Success(term2)) =>

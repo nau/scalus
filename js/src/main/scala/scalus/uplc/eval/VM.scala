@@ -3,9 +3,10 @@ package eval
 
 import scalus.builtin.*
 
-object VM extends PlutusVM(NodeJsPlatformSpecific)
+@deprecated("Use PlutusVM instead", "0.8.0")
+object VM extends PlutusVMBase(NodeJsPlatformSpecific)
 
-@deprecated("Use VM instead", "0.7.0")
+@deprecated("Use PlutusVM instead", "0.7.0")
 object Cek {
     @deprecated("Use VM methods instead", "0.7.0")
     def evalUPLC(term: Term): Term = VM.evaluateTerm(term)

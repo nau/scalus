@@ -5,17 +5,20 @@ import org.scalatest.funsuite.AnyFunSuite
 import scalus.*
 import scalus.Compiler.compile
 import scalus.builtin.Data
+import scalus.builtin.given
 import scalus.uplc.*
-import scalus.uplc.eval.MachineParams
-import scalus.uplc.eval.VM
+import scalus.uplc.eval.PlutusVM
 
 import java.math.BigInteger
 
 class ScalusScriptUtilsSpec extends AnyFunSuite:
-    private val program = Program(
-      (1, 0, 0),
-      compile((one: Data, two: Data) => one.toBigInt + two.toBigInt).toUplc()
-    ).doubleCborHex
+    private val program =
+        compile((one: Data, two: Data) => one.toBigInt + two.toBigInt)
+            .toUplc()
+            .plutusV2
+            .doubleCborHex
+
+    given PlutusVM = PlutusVM.makePlutusV2VM()
 
     test("applyParamsToScript with PlutusData varargs") {
         val applied = ScalusScriptUtils.applyParamsToScript(
@@ -23,10 +26,8 @@ class ScalusScriptUtilsSpec extends AnyFunSuite:
           BigIntPlutusData(BigInteger.ONE),
           BigIntPlutusData(BigInteger.TWO)
         )
-        val script = Program.fromDoubleCborHex(applied).flatEncoded
-        val result =
-            VM.evaluateScriptCounting(MachineParams.defaultPlutusV2PostConwayParams, script)
-        assert(result.term == Term.Const(Constant.Integer(3)))
+        val script = DeBruijnedProgram.fromDoubleCborHex(applied)
+        assert(script.evaluate == Term.Const(Constant.Integer(3)))
     }
 
     test("applyParamsToScript with ListPlutusData") {
@@ -39,8 +40,6 @@ class ScalusScriptUtilsSpec extends AnyFunSuite:
                 )
                 .build();
         val applied = ScalusScriptUtils.applyParamsToScript(program, params)
-        val script = Program.fromDoubleCborHex(applied).flatEncoded
-        val result =
-            VM.evaluateScriptCounting(MachineParams.defaultPlutusV2PostConwayParams, script)
-        assert(result.term == Term.Const(Constant.Integer(3)))
+        val script = DeBruijnedProgram.fromDoubleCborHex(applied)
+        assert(script.evaluate == Term.Const(Constant.Integer(3)))
     }

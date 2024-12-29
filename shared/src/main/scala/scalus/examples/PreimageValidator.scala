@@ -61,8 +61,8 @@ object OptimizedPreimage {
       OptimizedPreimageValidator.preimageValidator
     )
     val validator: Term = compiledOptimizedPreimageValidator.toUplc(generateErrorTraces = true)
-    val programV1: Program = Program((1, 0, 0), validator)
+    val programV1: Program = validator.plutusV1
     // val cbor = Cbor.encode(flatEncoded).toByteArray
     // val cborHex = Utils.bytesToHex(Cbor.encode(flatEncoded).toByteArray)
-    val doubleCborHex: String = Program((1, 0, 0), validator).doubleCborHex
+    val doubleCborHex: String = programV1.doubleCborHex
 }
