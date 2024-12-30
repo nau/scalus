@@ -38,8 +38,7 @@ class TxEvaluatorSpec extends AnyFunSuite:
           protocolMajorVersion = 8,
           costMdls = costMdls
         )
-        val pubKeyValidator =
-            compile(PubKeyValidator.validatorV2(hex"deadbeef")).toPlutusProgram((1, 0, 0))
+        val pubKeyValidator = compile(PubKeyValidator.validatorV2(hex"deadbeef")).toUplc().plutusV2
         val s: PlutusV2Script =
             PlutusV2Script
                 .builder()
@@ -111,7 +110,7 @@ class TxEvaluatorSpec extends AnyFunSuite:
           costMdls = costMdls
         )
         val pubKeyValidator =
-            compile(PubKeyValidator.validatorV3(hex"deadbeef")).toPlutusProgram((1, 1, 0))
+            compile(PubKeyValidator.validatorV3(hex"deadbeef")).toUplc().plutusV3
         val s: PlutusV3Script =
             PlutusV3Script
                 .builder()

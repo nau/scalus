@@ -192,8 +192,7 @@ object Example:
 
     def main(args: Array[String]): Unit = {
 //    println(giftValidator.term.show)
-        val pubKeyProgram =
-            Program((1, 0, 0), pubKeyValidator(PubKeyHash(hex"deadbeef")).term).show
+        val pubKeyProgram = pubKeyValidator(PubKeyHash(hex"deadbeef")).term.plutusV1.show
         println(pubKeyProgram)
         val flat = UplcCli.uplcToFlat(pubKeyProgram)
         println(s"${flat.length} ${bytesToHex(flat)}")

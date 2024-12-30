@@ -8,12 +8,20 @@ object BuiltinSemanticsVariant:
     def fromProtocolAndPlutusVersion(
         protocolVersion: ProtocolVersion,
         plutusLedgerLanguage: PlutusLedgerLanguage
+    ): BuiltinSemanticsVariant = fromProtocolAndPlutusVersion(
+      MajorProtocolVersion(protocolVersion.major),
+      plutusLedgerLanguage
+    )
+
+    def fromProtocolAndPlutusVersion(
+        protocolVersion: MajorProtocolVersion,
+        plutusLedgerLanguage: PlutusLedgerLanguage
     ): BuiltinSemanticsVariant =
         (protocolVersion, plutusLedgerLanguage) match
             case (pv, PlutusLedgerLanguage.PlutusV1 | PlutusLedgerLanguage.PlutusV2) =>
-                if pv < ProtocolVersion.conwayPV then BuiltinSemanticsVariant.A
+                if pv < MajorProtocolVersion.changPV then BuiltinSemanticsVariant.A
                 else BuiltinSemanticsVariant.B
-            case (pv, PlutusLedgerLanguage.PlutusV3) if pv >= ProtocolVersion.conwayPV =>
+            case (pv, PlutusLedgerLanguage.PlutusV3) if pv >= MajorProtocolVersion.changPV =>
                 BuiltinSemanticsVariant.C
             case _ =>
                 throw new IllegalArgumentException(
@@ -45,4 +53,26 @@ object ProtocolVersion {
     // Known protocol versions
     val knownPVs: Set[ProtocolVersion] =
         Set(shelleyPV, allegraPV, maryPV, alonzoPV, vasilPV, valentinePV, conwayPV)
+}
+
+case class MajorProtocolVersion(version: Int) extends Ordered[MajorProtocolVersion]
+    derives ReadWriter {
+    def compare(that: MajorProtocolVersion): Int = this.version.compareTo(that.version)
+}
+
+object MajorProtocolVersion {
+    // Constants
+    val shelleyPV = MajorProtocolVersion(2)
+    val allegraPV = MajorProtocolVersion(3)
+    val maryPV = MajorProtocolVersion(4)
+    val alonzoPV = MajorProtocolVersion(5)
+    val vasilPV = MajorProtocolVersion(7)
+    val valentinePV = MajorProtocolVersion(8)
+    val changPV = MajorProtocolVersion(9)
+    val plominPV = MajorProtocolVersion(10)
+    val futurePV = MajorProtocolVersion(Int.MaxValue)
+
+    // Known protocol versions
+    val knownPVs: Set[MajorProtocolVersion] =
+        Set(shelleyPV, allegraPV, maryPV, alonzoPV, vasilPV, valentinePV, changPV, plominPV)
 }

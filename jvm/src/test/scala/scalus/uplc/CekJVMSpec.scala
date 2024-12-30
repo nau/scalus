@@ -46,7 +46,7 @@ class CekJVMSpec extends BaseValidatorSpec:
         }
         assert(validator == Example.giftValidator.term)
 
-        val program = Program((1, 0, 0), validator).show
+        val program = validator.plutusV1.show
 
         val bytes = UplcCli.uplcToFlat(program)
 //    println(s"${bytes.length} bytes: ${bytesToHex(bytes)}")
@@ -70,8 +70,8 @@ class CekJVMSpec extends BaseValidatorSpec:
               ),
               ScriptPurpose.Spending(TxOutRef(TxId(hex"deadbeef"), 0))
             )
-        val appliedScript = Program((1, 0, 0), validator $ () $ () $ scriptContext.toData)
-        assert(VM.evaluateProgram(appliedScript) == Const(asConstant(())))
+        val appliedScript = validator.plutusV1 $ () $ () $ scriptContext.toData
+        assert(appliedScript.deBruijnedProgram.evaluate == Const(asConstant(())))
     }
 
     test("PubKey Validator example") {
@@ -104,27 +104,18 @@ class CekJVMSpec extends BaseValidatorSpec:
             Program((1, 0, 0), validator.term $ () $ () $ ctx.toData)
 
         assert(
-          VM.evaluateProgram(
-            appliedScript(
-              scriptContext(Cons(PubKeyHash(hex"000000"), Cons(PubKeyHash(hex"deadbeef"), Nil)))
-            )
-          ) == Const(
-            asConstant(())
-          )
+          appliedScript(
+            scriptContext(Cons(PubKeyHash(hex"000000"), Cons(PubKeyHash(hex"deadbeef"), Nil)))
+          ).evaluate == Const(asConstant(()))
         )
 
         assertThrows[EvaluationFailure](
-          VM.evaluateProgram(
-            appliedScript(scriptContext(Cons(PubKeyHash(hex"000000"), Nil)))
-          ) == Const(
-            asConstant(())
-          )
+          appliedScript(scriptContext(Cons(PubKeyHash(hex"000000"), Nil))).evaluate
+              == Const(asConstant(()))
         )
 
         assertThrows[EvaluationFailure](
-          VM.evaluateProgram(appliedScript(scriptContext(Nil))) == Const(
-            asConstant(())
-          )
+          appliedScript(scriptContext(Nil)).evaluate == Const(asConstant(()))
         )
 
         val flatValidator = UplcCli.uplcToFlat(Program((1, 0, 0), validator.term).show)

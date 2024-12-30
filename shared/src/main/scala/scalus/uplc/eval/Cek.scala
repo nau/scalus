@@ -6,6 +6,7 @@ import scalus.builtin.ByteString
 import scalus.builtin.Data
 import scalus.builtin.PlatformSpecific
 import scalus.ledger.api.BuiltinSemanticsVariant
+import scalus.ledger.api.MajorProtocolVersion
 import scalus.ledger.api.PlutusLedgerLanguage
 import scalus.ledger.api.ProtocolVersion
 import scalus.ledger.babbage.*
@@ -16,6 +17,7 @@ import scala.annotation.tailrec
 import scala.annotation.varargs
 import scala.collection.immutable
 import scala.collection.immutable.ArraySeq
+import scala.collection.mutable
 import scala.collection.mutable.ArrayBuffer
 import scala.collection.mutable.Buffer
 import scala.collection.mutable.HashMap
@@ -146,7 +148,7 @@ object MachineParams {
       */
     def defaultParamsFor(
         plutus: PlutusLedgerLanguage,
-        protocolVersion: ProtocolVersion
+        protocolVersion: MajorProtocolVersion
     ): MachineParams = {
         val variant = BuiltinSemanticsVariant.fromProtocolAndPlutusVersion(protocolVersion, plutus)
         variant match
@@ -169,6 +171,20 @@ object MachineParams {
                   semanticVariant = variant
                 )
     }
+
+    /** Creates default machine parameters for a given Plutus version and protocol version.
+      *
+      * @param plutus
+      *   The plutus version
+      * @param protocolVersion
+      *   The protocol version
+      * @return
+      *   The machine parameters
+      */
+    def defaultParamsFor(
+        plutus: PlutusLedgerLanguage,
+        protocolVersion: ProtocolVersion
+    ): MachineParams = defaultParamsFor(plutus, MajorProtocolVersion(protocolVersion.major))
 
     /** Creates `MachineParams` from a Cardano CLI protocol parameters JSON.
       *
@@ -276,6 +292,9 @@ class NonConstrScrutinized(val value: CekValue, env: CekValEnv)
       env
     )
 
+class InvalidReturnValue(val value: Term)
+    extends RuntimeException(s"Invalid return value: expected Unit, got $value")
+
 class BuiltinException(msg: String) extends MachineError(msg)
 
 class DeserializationError(fun: DefaultFun, value: CekValue)
@@ -339,7 +358,8 @@ enum CekValue {
   * @param platformSpecific
   *   The platform specific implementation of certain functions used by VM builtins
   */
-open class PlutusVM(platformSpecific: PlatformSpecific) {
+@deprecated("Use PlutusVM instead", "0.8.0")
+open class PlutusVMBase(platformSpecific: PlatformSpecific) {
     type ScriptForEvaluation = Array[Byte]
 
     /** Evaluates a script, returning the minimum budget that the script would need to evaluate.
@@ -404,16 +424,22 @@ open class PlutusVM(platformSpecific: PlatformSpecific) {
         CekResult(resultTerm, spender.getSpentBudget, logger.getLogs)
     }
 
-    /** Evaluates a UPLC term using default CEK machine parameters and no budget calculation.
+    /** Evaluates a UPLC [[Term]] using default [[MachinePrameter]]s and no budget calculation.
       *
       * Useful for testing and debugging.
       *
       * @param term
       *   The debruijned term to evaluate
+      * @param params
+      *   The machine parameters
       * @return
       *   The resulting term
       * @throws StackTraceMachineError
       *   subtypes if the evaluation fails
+      *
+      * @note
+      *   This method doesn't follow the [CIP-117](https://cips.cardano.org/cip/CIP-0117/), so it
+      *   can't be used to correctly evaluate Cardano validators.
       */
     def evaluateTerm(
         term: Term,
@@ -431,6 +457,10 @@ open class PlutusVM(platformSpecific: PlatformSpecific) {
       * @return
       *   [[Result]] with the resulting term, the execution budget, evaluation logs and costs, and
       *   an exception if the evaluation failed
+      *
+      * @note
+      *   This method doesn't follow the [CIP-117](https://cips.cardano.org/cip/CIP-0117/), so it
+      *   can't be used to correctly evaluate Cardano validators.
       */
     def evaluateDebug(
         term: Term,
@@ -459,11 +489,16 @@ open class PlutusVM(platformSpecific: PlatformSpecific) {
     /** Evaluates a UPLC Program using default CEK machine parameters and no budget calculation.
       *
       * Useful for testing and debugging.
+      *
+      * @note
+      *   This method doesn't follow the [CIP-117](https://cips.cardano.org/cip/CIP-0117/), so it
+      *   can't be used to correctly evaluate Cardano validators.
       */
     def evaluateProgram(
         p: Program,
         params: MachineParams = MachineParams.defaultPlutusV2PostConwayParams
     ): Term = evaluateTerm(p.term, params)
+
 }
 
 enum Result:
@@ -477,13 +512,17 @@ enum Result:
         logs: Seq[String]
     )
     case Failure(
-        exception: Exception,
+        exception: Throwable,
         budget: ExBudget,
         costs: Map[ExBudgetCategory, collection.Seq[ExBudget]],
         logs: Seq[String]
     )
 
-    override def toString(): String =
+    def isSuccess: Boolean = this match
+        case _: Success => true
+        case _          => false
+
+    override def toString: String =
         import scalus.*
 
         def sumBudget(budgets: collection.Seq[ExBudget]): ExBudget =
@@ -515,14 +554,14 @@ enum Result:
               | logs: ${logs.mkString("\n")}""".stripMargin
             case Failure(exception, budget, costs, logs) =>
                 s"""Failure executing script:
-              | exception: ${exception.getMessage()}
+              | exception: ${exception.getMessage}
               | budget: ${budget.showJson}
               | costs:\n${showCosts}
               | logs: ${logs.mkString("\n")}""".stripMargin
 
 class CekResult(t: Term, val budget: ExBudget, val logs: Array[String]) {
     lazy val term = DeBruijn.fromDeBruijnTerm(t)
-    override def toString(): String = s"CekResult($term, $budget, ${logs.mkString(", ")})"
+    override def toString: String = s"CekResult($term, $budget, ${logs.mkString(", ")})"
 }
 
 type ArgStack = Seq[CekValue]
@@ -545,10 +584,12 @@ private enum CekState {
 
 trait Logger {
     def log(msg: String): Unit
+    def getLogs: Array[String]
 }
 
 object NoLogger extends Logger {
     def log(msg: String): Unit = ()
+    val getLogs: Array[String] = Array.empty[String]
 }
 
 class Log extends Logger {
@@ -604,8 +645,10 @@ final class TallyingBudgetSpender(val budgetSpender: BudgetSpender) extends Budg
 final class TallyingBudgetSpenderLogger(val budgetSpender: BudgetSpender)
     extends BudgetSpender
     with Logger {
-    val costs: collection.mutable.Map[ExBudgetCategory, Buffer[ExBudget]] =
-        HashMap[ExBudgetCategory, Buffer[ExBudget]]().withDefault(_ => ArrayBuffer.empty[ExBudget])
+    val costs: collection.mutable.Map[ExBudgetCategory, mutable.Buffer[ExBudget]] =
+        mutable
+            .HashMap[ExBudgetCategory, mutable.Buffer[ExBudget]]()
+            .withDefault(_ => ArrayBuffer.empty[ExBudget])
 
     def spendBudget(cat: ExBudgetCategory, budget: ExBudget, env: CekValEnv): Unit = {
         budgetSpender.spendBudget(cat, budget, env)
@@ -656,20 +699,30 @@ final class CountingBudgetSpender extends BudgetSpender {
   *   {{{
   *   val term = LamAbs("x", Apply(Var(NamedDeBruijn("x", 0)), Var(NamedDeBruijn("x", 0))))
   *   val cek = new CekMachine(MachineParams.defaultParams, NoBudgetSpender, NoLogger, JVMPlatformSpecific)
-  *   val res = cek.runCek(term)
+  *   val res = cek.evaluateTerm(term)
   *   }}}
   */
 class CekMachine(
     val params: MachineParams,
     budgetSpender: BudgetSpender,
     logger: Logger,
-    platformSpecific: PlatformSpecific
-) extends BuiltinsMeaning(params.builtinCostModel, platformSpecific, params.semanticVariant) {
+    builtinsMeaning: BuiltinsMeaning
+) {
     import CekState.*
     import CekValue.*
     import Context.*
 
-    private[uplc] val logs: ArrayBuffer[String] = ArrayBuffer.empty[String]
+    def this(
+        params: MachineParams,
+        budgetSpender: BudgetSpender,
+        logger: Logger,
+        platformSpecific: PlatformSpecific
+    ) = this(
+      params,
+      budgetSpender,
+      logger,
+      new BuiltinsMeaning(params.builtinCostModel, platformSpecific, params.semanticVariant)
+    )
 
     /** Evaluates a UPLC term.
       *
@@ -714,9 +767,10 @@ class CekMachine(
             case Builtin(bn) =>
                 spendBudget(ExBudgetCategory.Step(StepKind.Builtin), costs.builtinCost, env)
                 // The @term@ is a 'Builtin', so it's fully discharged.
-                BuiltinMeanings.get(bn) match
-                    case Some(meaning) => Return(ctx, env, VBuiltin(bn, () => term, meaning))
-                    case None          => throw new UnknownBuiltin(bn, env)
+                try
+                    val meaning = builtinsMeaning.getBuiltinRuntime(bn)
+                    Return(ctx, env, VBuiltin(bn, () => term, meaning))
+                catch case _: Exception => throw new UnknownBuiltin(bn, env)
             case Error => throw new EvaluationFailure(env)
             case Constr(tag, args) =>
                 spendBudget(ExBudgetCategory.Step(StepKind.Constr), costs.constrCost, env)
@@ -748,7 +802,7 @@ class CekMachine(
                         if 0 <= tag && tag < cases.size then
                             Compute(transferArgStack(args, ctx), env, cases(tag.toInt))
                         else throw new MissingCaseBranch(tag, env)
-                    case _ => throw new EvaluationFailure(env)
+                    case _ => throw new NonConstrScrutinized(value, env)
     }
 
     private def transferArgStack(args: ArgStack, ctx: Context): Context = {

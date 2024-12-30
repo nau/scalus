@@ -2,6 +2,7 @@ package scalus.utils
 
 import scalus.ledger.api.PlutusLedgerLanguage
 import scalus.ledger.api.PlutusLedgerLanguage.*
+import scalus.uplc.DeBruijnedProgram
 import scalus.uplc.Program
 import upickle.default.*
 
@@ -23,18 +24,32 @@ object Utils:
         digest.update(bytes)
         digest.digest()
 
+    @deprecated("Use writePlutusFile with DeBruijnedProgram instead", "0.8.4")
     def writePlutusFile(path: String, program: Program, plutusVersion: PlutusLedgerLanguage): Unit =
+        writePlutusFile(path, program.deBruijnedProgram, plutusVersion)
+
+    def writePlutusFile(
+        path: String,
+        program: DeBruijnedProgram,
+        plutusVersion: PlutusLedgerLanguage
+    ): Unit =
         val content = programToPlutusFileContent(program, plutusVersion)
         Files.write(Paths.get(path), content.getBytes("UTF-8"))
 
+    @deprecated("Use programToPlutusFileContent with DeBruijnedProgram instead", "0.8.4")
     def programToPlutusFileContent(
         program: Program,
+        plutusVersion: PlutusLedgerLanguage
+    ): String = programToPlutusFileContent(program.deBruijnedProgram, plutusVersion)
+
+    def programToPlutusFileContent(
+        program: DeBruijnedProgram,
         plutusVersion: PlutusLedgerLanguage
     ): String =
         val `type` = plutusVersion match
             case PlutusV1 => "PlutusScriptV1"
             case PlutusV2 => "PlutusScriptV2"
-            case _        => throw new Exception(s"Unsupported Plutus version: ${plutusVersion}")
+            case PlutusV3 => "PlutusScriptV3"
         write(PlutusTextEnvelope(`type`, "", program.doubleCborHex))
 
     def readPlutusFileContent(content: String): Program =

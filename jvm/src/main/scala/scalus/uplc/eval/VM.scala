@@ -3,7 +3,8 @@ package eval
 
 import scalus.builtin.*
 
-object VM extends PlutusVM(JVMPlatformSpecific)
+@deprecated("Use PlutusVM instead", "0.8.4")
+object VM extends PlutusVMBase(JVMPlatformSpecific)
 
 @deprecated("Use VM instead", "0.7.0")
 object Cek {

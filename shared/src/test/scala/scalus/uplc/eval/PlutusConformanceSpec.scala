@@ -2,6 +2,7 @@ package scalus
 package uplc
 package eval
 
+import scalus.builtin.given
 import org.scalatest.funsuite.AnyFunSuite
 
 import scala.util.Failure
@@ -14,6 +15,7 @@ import scala.util.Try
   *   This tests run only on JVM right now.
   */
 abstract class PlutusConformanceSpec extends AnyFunSuite:
+    private given PlutusVM = PlutusVM.makePlutusV3VM()
     // Run this command in plutus-conformance to generate the test cases
     // find . -name "*.uplc" -print0 | sort -zf | xargs -0 -I {} bash -c 'file="{}"; rel_path="${file#./}"; without_ext="${rel_path%.uplc}"; echo "check(\"$without_ext\")"'
 
@@ -397,7 +399,7 @@ abstract class PlutusConformanceSpec extends AnyFunSuite:
     private def eval(code: String): Either[Error, Result] = {
         UplcParser().parseProgram(code) match
             case Right(program) =>
-                Right(VM.evaluateDebug(program.term, MachineParams.defaultPlutusV3Params))
+                Right(program.term.evaluateDebug)
             case Left(_) =>
                 Left("parse error")
     }

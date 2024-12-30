@@ -18,7 +18,6 @@ import org.slf4j.LoggerFactory
 import scalus.bloxbean.Interop.*
 import scalus.builtin.ByteString
 import scalus.builtin.Data
-import scalus.builtin.JVMPlatformSpecific
 import scalus.builtin.given
 import scalus.ledger
 import scalus.ledger.api
@@ -30,10 +29,8 @@ import scalus.ledger.api.v2.OutputDatum
 import scalus.ledger.api.v3
 import scalus.prelude.Maybe
 import scalus.uplc.Constant
-import scalus.uplc.Program
-import scalus.uplc.ProgramFlatCodec
+import scalus.uplc.DeBruijnedProgram
 import scalus.uplc.Term
-import scalus.uplc.Term.Apply
 import scalus.uplc.Term.Const
 import scalus.uplc.eval.*
 import scalus.utils.Hex
@@ -100,21 +97,30 @@ class TxEvaluator(
 ) {
     import TxEvaluator.*
     private val log = LoggerFactory.getLogger(getClass.getName)
-    private lazy val machineParamsPlutusV1 = translateMachineParamsFromCostMdls(
-      costMdls,
-      PlutusV1,
-      api.ProtocolVersion(protocolMajorVersion, 0)
-    )
-    private lazy val machineParamsPlutusV2 = translateMachineParamsFromCostMdls(
-      costMdls,
-      PlutusV2,
-      api.ProtocolVersion(protocolMajorVersion, 0)
-    )
-    private lazy val machineParamsPlutusV3 = translateMachineParamsFromCostMdls(
-      costMdls,
-      PlutusV3,
-      api.ProtocolVersion(protocolMajorVersion, 0)
-    )
+    private lazy val plutusV1VM =
+        PlutusVM.makePlutusV1VM(
+          translateMachineParamsFromCostMdls(
+            costMdls,
+            PlutusV1,
+            api.MajorProtocolVersion(protocolMajorVersion)
+          )
+        )
+    private lazy val plutusV2VM =
+        PlutusVM.makePlutusV2VM(
+          translateMachineParamsFromCostMdls(
+            costMdls,
+            PlutusV2,
+            api.MajorProtocolVersion(protocolMajorVersion)
+          )
+        )
+    private lazy val plutusV3VM =
+        PlutusVM.makePlutusV3VM(
+          translateMachineParamsFromCostMdls(
+            costMdls,
+            PlutusV3,
+            api.MajorProtocolVersion(protocolMajorVersion)
+          )
+        )
 
     /** Phase 2 validation and execution of the transaction
       */
@@ -333,14 +339,14 @@ class TxEvaluator(
                     case Some(datum) =>
                         evalScript(
                           redeemer,
-                          machineParamsPlutusV1,
-                          script.bytes,
+                          plutusV1VM,
+                          script,
                           datum,
                           rdmr,
                           ctxData
                         )
                     case None =>
-                        evalScript(redeemer, machineParamsPlutusV1, script.bytes, rdmr, ctxData)
+                        evalScript(redeemer, plutusV1VM, script, rdmr, ctxData)
 
             case (ScriptVersion.PlutusV2(script), datum) =>
                 val rdmr = toScalusData(redeemer.getData)
@@ -358,14 +364,14 @@ class TxEvaluator(
                     case Some(datum) =>
                         evalScript(
                           redeemer,
-                          machineParamsPlutusV2,
-                          script.bytes,
+                          plutusV2VM,
+                          script,
                           datum,
                           rdmr,
                           ctxData
                         )
                     case None =>
-                        evalScript(redeemer, machineParamsPlutusV2, script.bytes, rdmr, ctxData)
+                        evalScript(redeemer, plutusV2VM, script, rdmr, ctxData)
 
             case (ScriptVersion.PlutusV3(script), datum) =>
                 val rdmr = toScalusData(redeemer.getData)
@@ -379,7 +385,7 @@ class TxEvaluator(
                     log.debug(s"Datum: ${datum.map(_.toJson)}")
                     log.debug(s"Redeemer: ${rdmr.toJson}")
                     log.debug(s"Script context: ${ctxData.toJson}")
-                evalScript(redeemer, machineParamsPlutusV3, script.bytes, ctxData)
+                evalScript(redeemer, plutusV3VM, script, ctxData)
 
         val cost = result.budget
         log.debug(s"Eval result: $result")
@@ -396,24 +402,22 @@ class TxEvaluator(
 
     private def evalScript(
         redeemer: Redeemer,
-        machineParams: MachineParams,
-        script: VM.ScriptForEvaluation,
+        vm: PlutusVM,
+        script: ByteString,
         args: Data*
     ) = {
         val budget = ExBudget.fromCpuAndMemory(
           cpu = redeemer.getExUnits.getSteps.longValue,
           memory = redeemer.getExUnits.getMem.longValue
         )
-        val program = ProgramFlatCodec.decodeFlat(script)
-        val applied = args.foldLeft(program.term) { (acc, arg) =>
-            Apply(acc, Const(scalus.uplc.DefaultUni.asConstant(arg)))
+        val program = DeBruijnedProgram.fromFlatEncoded(script.bytes)
+        val applied = args.foldLeft(program) { (acc, arg) =>
+            acc $ Const(scalus.uplc.DefaultUni.asConstant(arg))
         }
         if debugDumpFilesForTesting then
-            val flat =
-                ProgramFlatCodec.unsafeEncodeFlat(Program(version = program.version, applied))
             Files.write(
               java.nio.file.Paths.get(s"script-${redeemer.getTag}-${redeemer.getIndex}.flat"),
-              flat,
+              applied.flatEncoded,
               java.nio.file.StandardOpenOption.CREATE,
               java.nio.file.StandardOpenOption.TRUNCATE_EXISTING
             )
@@ -422,13 +426,12 @@ class TxEvaluator(
             case EvaluatorMode.VALIDATE => RestrictingBudgetSpenderWithScripDump(budget)
 
         val logger = Log()
-        val cek = new CekMachine(machineParams, spender, logger, JVMPlatformSpecific)
         val r =
             try
-                val resultTerm = cek.evaluateTerm(applied)
+                val resultTerm = vm.evaluateScript(applied, spender, logger)
                 CekResult(resultTerm, spender.getSpentBudget, logger.getLogs)
             catch
-                case e: MachineError =>
+                case e: Exception =>
                     throw new TxEvaluationException(e.getMessage, e, logger.getLogs)
 
         if mode == EvaluatorMode.VALIDATE && r.budget != budget then

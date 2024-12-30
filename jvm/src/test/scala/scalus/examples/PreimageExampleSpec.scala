@@ -15,7 +15,7 @@ import scalus.prelude.List
 import scalus.sir.RemoveRecursivity.removeRecursivity
 import scalus.uplc.*
 import scalus.uplc.Term.*
-import scalus.uplc.TermDSL.{*, given}
+import scalus.uplc.TermDSL.given
 import scala.language.implicitConversions
 
 class PreimageExampleSpec extends BaseValidatorSpec {
@@ -40,7 +40,7 @@ class PreimageExampleSpec extends BaseValidatorSpec {
           ScriptPurpose.Spending(hoskyMintTxOutRef)
         )
 
-    private def performChecks(validator: Term) = {
+    private def performChecks(validator: Program) = {
         def appliedScript(
             preimage: ByteString,
             pubKeyHash: PubKeyHash,
@@ -50,7 +50,7 @@ class PreimageExampleSpec extends BaseValidatorSpec {
             val datum = (hash, pubKeyHash).toData
             val redeemer = preimage.toData
             val ctx = scriptContext(signatories)
-            Program((1, 0, 0), validator $ datum $ redeemer $ ctx.toData)
+            validator $ datum $ redeemer $ ctx.toData
 
         assertSameResult(Expected.Success(Const(Constant.Unit)))(
           appliedScript(
@@ -90,8 +90,8 @@ class PreimageExampleSpec extends BaseValidatorSpec {
         // compile to Scalus Intermediate Representation, SIR
         val compiled = compile(PreimageValidator.preimageValidator)
         // convert SIR to UPLC
-        val validator = compiled.toUplc()
-        val flatSize = Program((1, 0, 0), validator).flatEncoded.length
+        val validator = compiled.toUplc().plutusV2
+        val flatSize = validator.flatEncoded.length
         assert(flatSize == 1664)
 
         performChecks(validator)
@@ -100,9 +100,9 @@ class PreimageExampleSpec extends BaseValidatorSpec {
     test("Optimized Preimage Validator") {
         val optV = OptimizedPreimage.compiledOptimizedPreimageValidator |> removeRecursivity
         val uplc = optV.toUplcOptimized()
-        val program = Program((1, 0, 0), uplc)
+        val program = uplc.plutusV2
         val flatSize = program.flatEncoded.length
         assert(flatSize == 167)
-        performChecks(uplc)
+        performChecks(program)
     }
 }

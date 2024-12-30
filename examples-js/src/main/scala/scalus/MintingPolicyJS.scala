@@ -5,8 +5,11 @@ import scalus.builtin.ByteString
 import scalus.builtin.Data
 import scalus.examples.MintingPolicy
 import scalus.prelude.AssocMap
-import scalus.uplc.Program
+import scalus.sir.SIR
+import scalus.uplc.Term
 import scalus.uplc.TermDSL.{*, given}
+import scalus.uplc.eval.PlutusVM
+import scalus.builtin.given
 
 import scala.language.implicitConversions
 import scala.scalajs.js.annotation.JSExport
@@ -15,11 +18,13 @@ import scala.scalajs.js.annotation.JSExportTopLevel
 @JSExportTopLevel("MintingPolicyJS")
 object MintingPolicyJS:
 
-    val validatorSIR =
-        MintingPolicy.compiledOptimizedMintingPolicyScript.toUplc(generateErrorTraces = true)
+    private val validatorScript =
+        MintingPolicy.compiledOptimizedMintingPolicyScript
+            .toUplc(generateErrorTraces = true)
+            .plutusV1
 
-    val alwaysok = compile((redeemer: Data, ctx: Data) => ())
-    val alwaysokTerm = alwaysok.toUplc()
+    val alwaysok: SIR = compile((redeemer: Data, ctx: Data) => ())
+    val alwaysokTerm: Term = alwaysok.toUplc()
 
     @JSExport
     def getPlutusScriptCborFromTxOutRef(
@@ -28,15 +33,15 @@ object MintingPolicyJS:
         tokenNameHex: String,
         amount: Int
     ): String = {
+        given PlutusVM = PlutusVM.makePlutusV1VM()
         val tokensSIR = compile((tokenNameHex: ByteString, amount: BigInt) =>
             AssocMap.singleton(tokenNameHex, amount)
         )
-        val evaledTokens = tokensSIR.toUplc().eval
+        val evaledTokens = tokensSIR.toUplc().evaluate
         val txId = ByteString.fromHex(txIdHex)
         val tokens = evaledTokens $ ByteString.fromHex(tokenNameHex) $ amount
         // val appliedValidator = alwaysokTerm
-        val appliedValidator =
-            validatorSIR $ txId $ txOutIdx $ tokens
+        val appliedValidator = validatorScript $ txId $ txOutIdx $ tokens
 
-        Program((1, 0, 0), appliedValidator).doubleCborHex
+        appliedValidator.doubleCborHex
     }

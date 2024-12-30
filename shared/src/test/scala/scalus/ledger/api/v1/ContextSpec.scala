@@ -6,6 +6,7 @@ import scalus.*
 import scalus.Compiler.compile
 import scalus.builtin.ByteString
 import scalus.builtin.ByteString.*
+import scalus.builtin.given
 import scalus.builtin.Data
 import scalus.builtin.Data.fromData
 import scalus.builtin.Data.toData
@@ -15,7 +16,7 @@ import scalus.uplc.ArbitraryInstances
 import scalus.uplc.Constant
 import scalus.uplc.Term
 import scalus.uplc.TermDSL.given
-import scalus.uplc.eval.VM
+import scalus.uplc.eval.PlutusVM
 import scala.language.implicitConversions
 
 class ContextSpec
@@ -60,7 +61,8 @@ class ContextSpec
     }
 
     private def assertEval(sir: SIR, expected: Term) = {
+        given PlutusVM = PlutusVM.makePlutusV2VM()
         val term = sir.toUplc()
-        assert(VM.evaluateTerm(term) == expected)
+        assert(term.evaluate == expected)
     }
 }

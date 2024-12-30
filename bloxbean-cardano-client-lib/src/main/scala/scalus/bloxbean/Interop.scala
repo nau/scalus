@@ -228,10 +228,24 @@ object Interop {
     }
 
     /** Creates [[MachineParams]] from a [[CostMdls]] and a [[PlutusLedgerLanguage]] */
+    @deprecated("Use the version with MajorProtocolVersion", "0.9.0")
     def translateMachineParamsFromCostMdls(
         costMdls: CostMdls,
         plutus: PlutusLedgerLanguage,
         protocolVersion: api.ProtocolVersion
+    ): MachineParams = {
+        translateMachineParamsFromCostMdls(
+          costMdls,
+          plutus,
+          api.MajorProtocolVersion(protocolVersion.major)
+        )
+    }
+
+    /** Creates [[MachineParams]] from a [[CostMdls]] and a [[PlutusLedgerLanguage]] */
+    def translateMachineParamsFromCostMdls(
+        costMdls: CostMdls,
+        plutus: PlutusLedgerLanguage,
+        protocolVersion: api.MajorProtocolVersion
     ): MachineParams = {
         import upickle.default.*
         val paramsMap = plutus match

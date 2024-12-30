@@ -11,14 +11,10 @@ import scalus.builtin.Data.FromData
 import scalus.builtin.Data.fromData
 import scalus.builtin.FromData
 import scalus.builtin.FromDataInstances.given
-import scalus.builtin.PlatformSpecific
 import scalus.builtin.given
 import scalus.ledger.api.PlutusLedgerLanguage
 import scalus.prelude.Prelude.===
 import scalus.prelude.Prelude.given
-import scalus.uplc.DeBruijn
-import scalus.uplc.Program
-import scalus.uplc.eval.CekMachine
 import scalus.uplc.eval.CountingBudgetSpender
 import scalus.uplc.eval.Log
 import scalus.uplc.eval.MachineParams
@@ -26,7 +22,6 @@ import scalus.uplc.eval.NoLogger
 import scalus.uplc.eval.Result
 import scalus.uplc.eval.StackTraceMachineError
 import scalus.uplc.eval.TallyingBudgetSpender
-import scalus.uplc.eval.VM
 
 val constants = compile {
     val unit = ()
@@ -155,11 +150,10 @@ val pubKeyValidator = compile {
 
 val serializeToDoubleCborHex = {
     import scalus.*
-    import scalus.uplc.Program
     // convert to UPLC
     // generateErrorTraces = true will add trace messages to the UPLC program
     val uplc = pubKeyValidator.toUplc(generateErrorTraces = true)
-    val program = Program((1, 1, 0), uplc)
+    val program = uplc.plutusV3
     val flatEncoded = program.flatEncoded // if needed
     val cbor = program.cborEncoded // if needed
     val doubleEncoded = program.doubleCborEncoded // if needed
@@ -167,25 +161,24 @@ val serializeToDoubleCborHex = {
     program.doubleCborHex
     // also you can produce a pubKeyValidator.plutus file for use with cardano-cli
     import scalus.utils.Utils
-    Utils.writePlutusFile("pubKeyValidator.plutus", program, PlutusLedgerLanguage.PlutusV2)
+    Utils.writePlutusFile(
+      "pubKeyValidator.plutus",
+      program.deBruijnedProgram,
+      PlutusLedgerLanguage.PlutusV2
+    )
     // or simply
     program.writePlutusFile("pubKeyValidator.plutus", PlutusLedgerLanguage.PlutusV2)
 }
 
 def evaluation() = {
+    import scalus.*
+    import scalus.builtin.given // for PlatformSpecific implementation
+    import scalus.uplc.eval.PlutusVM
     val term = modules.toUplc()
-    // simply evaluate the term
-    VM.evaluateTerm(term).show // (con integer 2)
-    // or
-    term.eval.show // (con integer 2)
-    // get default MachineParams for PlutusV3 in Conway era
-    val defaultMachineParams = MachineParams.defaultPlutusV3Params
-    // evaluate a flat encoded script and calculate the execution budget and logs
-    val result =
-        VM.evaluateScriptCounting(defaultMachineParams, Program((1, 1, 0), term).flatEncoded)
-    println(s"Execution budget: ${result.budget}")
-    println(s"Evaluated term: ${result.term.show}")
-    println(s"Logs: ${result.logs.mkString("\n")}")
+    // setup a given PlutusVM for the PlutusV2 language and default parameters
+    given v2VM: PlutusVM = PlutusVM.makePlutusV2VM()
+    // simply evaluate the term with CEK machine
+    term.evaluate.show // (con integer 2)
 
     // you can get the actual execution costs from protocol parameters JSON from cardano-cli
     lazy val machineParams = MachineParams.fromCardanoCliProtocolParamsJson(
@@ -197,29 +190,26 @@ def evaluation() = {
       "JSON with protocol parameters",
       PlutusLedgerLanguage.PlutusV3
     )
-
-    // evaluate the term with debug information
-    // the `Result` type has a readable `toString` method
-    VM.evaluateDebug(term) match
+    // use latest PlutusV3 VM with explicit machine parameters
+    val v3vm: PlutusVM = PlutusVM.makePlutusV3VM(machineParams)
+    // evaluate a Plutus V3 script considering CIP-117
+    // calculate the execution budget, all builtins costs, and collect logs
+    val script = term.plutusV3.deBruijnedProgram
+    script.evaluateDebug(using v3vm) match
         case r @ Result.Success(evaled, budget, costs, logs) =>
             println(r)
-        case r @ Result.Failure(exception, budget, costs, logs) =>
-            println(r)
+        case Result.Failure(exception, budget, costs, logs) =>
+            println(s"Exception: $exception, logs: $logs")
+
+    // evaluate a flat encoded script and calculate the execution budget and logs
 
     // TallyingBudgetSpender is a budget spender that counts the costs of each operation
     val tallyingBudgetSpender = TallyingBudgetSpender(CountingBudgetSpender())
     val logger = Log()
     // use NoLogger to disable logging
     val noopLogger = NoLogger
-    val cekMachine = CekMachine(
-      defaultMachineParams,
-      tallyingBudgetSpender,
-      logger,
-      summon[PlatformSpecific]
-    )
-    val debruijnedTerm = DeBruijn.deBruijnTerm(term)
     try {
-        cekMachine.evaluateTerm(debruijnedTerm)
+        v3vm.evaluateScript(script, tallyingBudgetSpender, logger)
     } catch {
         case e: StackTraceMachineError =>
             println(s"Error: ${e.getMessage}")

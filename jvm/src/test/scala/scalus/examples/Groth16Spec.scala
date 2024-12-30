@@ -2,6 +2,7 @@ package scalus.examples
 import org.scalatest.funsuite.AnyFunSuite
 import scalus.*
 import scalus.Compiler.compile
+import scalus.builtin.given
 import scalus.builtin.ByteString
 import scalus.builtin.ByteString.given
 import scalus.builtin.Data
@@ -14,6 +15,7 @@ import scalus.uplc.Constant
 import scalus.uplc.Term
 import scalus.uplc.TermDSL.*
 import scalus.uplc.TermDSL.given
+import scalus.uplc.eval.PlutusVM
 
 import scala.language.implicitConversions
 
@@ -262,11 +264,12 @@ class Groth16Spec extends AnyFunSuite:
         proof: Proof,
         public: List[BigInt]
     ): Boolean =
+        given PlutusVM = PlutusVM.makePlutusV3VM()
         val offchainResult = grothVerify(vk, proof, public)
         val onchainResultTerm =
             val applied =
                 validator $ vk.toData $ proof.toData $ public.toData(using listToData[BigInt])
-            applied.eval
+            applied.evaluate
         val Term.Const(Constant.Bool(onchainResult)) = onchainResultTerm: @unchecked
         assert(
           onchainResult == offchainResult,
