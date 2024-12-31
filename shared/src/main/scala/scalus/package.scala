@@ -156,7 +156,7 @@ package object scalus {
                       spenderLogger.costs.toMap,
                       spenderLogger.getLogsWithBudget
                     )
-        def plutusV1: Program = Program((1, 0, 0), self)
-        def plutusV2: Program = Program((1, 0, 0), self)
-        def plutusV3: Program = Program((1, 1, 0), self)
+        def plutusV1: Program = Program.plutusV1(self)
+        def plutusV2: Program = Program.plutusV2(self)
+        def plutusV3: Program = Program.plutusV3(self)
 }

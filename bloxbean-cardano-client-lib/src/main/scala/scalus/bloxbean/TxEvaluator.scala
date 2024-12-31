@@ -429,7 +429,7 @@ class TxEvaluator(
         val r =
             try
                 val resultTerm = vm.evaluateScript(applied, spender, logger)
-                CekResult(resultTerm, spender.getSpentBudget, logger.getLogs)
+                Result.Success(resultTerm, spender.getSpentBudget, Map.empty, logger.getLogs.toSeq)
             catch
                 case e: Exception =>
                     throw new TxEvaluationException(e.getMessage, e, logger.getLogs)

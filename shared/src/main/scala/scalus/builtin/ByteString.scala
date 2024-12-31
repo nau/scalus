@@ -32,7 +32,7 @@ class ByteString private (val bytes: Array[Byte]) {
 
 object ByteString {
     val empty = new ByteString(Array.empty)
-    def fromArray(bytes: Array[Byte]): ByteString = new ByteString(bytes.toArray)
+    def fromArray(bytes: Array[Byte]): ByteString = new ByteString(bytes)
 
     def apply(bytes: Byte*): ByteString = new ByteString(bytes.toArray)
 
@@ -58,7 +58,7 @@ object ByteString {
           *   }}}
           */
         def hex(args: Any*): ByteString =
-            val hexString = sc.s(args: _*).replace(" ", "")
+            val hexString = sc.s(args*).replace(" ", "")
             fromHex(hexString)
 }
 

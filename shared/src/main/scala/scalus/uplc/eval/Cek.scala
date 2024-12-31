@@ -19,7 +19,6 @@ import scala.collection.immutable
 import scala.collection.immutable.ArraySeq
 import scala.collection.mutable
 import scala.collection.mutable.ArrayBuffer
-import scala.collection.mutable.Buffer
 import scala.collection.mutable.HashMap
 import scala.util.Try
 import scala.util.control.NonFatal
@@ -559,6 +558,7 @@ enum Result:
               | costs:\n${showCosts}
               | logs: ${logs.mkString("\n")}""".stripMargin
 
+@deprecated("Use Result instead", "0.8.4")
 class CekResult(t: Term, val budget: ExBudget, val logs: Array[String]) {
     lazy val term = DeBruijn.fromDeBruijnTerm(t)
     override def toString: String = s"CekResult($term, $budget, ${logs.mkString(", ")})"
