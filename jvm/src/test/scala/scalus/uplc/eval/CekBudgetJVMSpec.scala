@@ -5,6 +5,7 @@ import cats.syntax.all.*
 import org.scalatest.funsuite.AnyFunSuite
 import scalus.*
 import scalus.builtin.JVMPlatformSpecific
+import scalus.flat.Flat
 import scalus.ledger.api.BuiltinSemanticsVariant
 import scalus.ledger.api.PlutusLedgerLanguage.*
 import scalus.ledger.babbage.*
@@ -61,6 +62,42 @@ class CekBudgetJVMSpec extends AnyFunSuite:
         val input = this.getClass().getResourceAsStream("/protocol-params.json")
         val pparams = read[ProtocolParams](input)
         testReadingCostModelParams(pparams)
+    }
+
+    test("Plutus V3 SoP optimization evaluation") {
+        import scalus.uplc.TermDSL.{*, given}
+        import scalus.builtin.given
+        import scalus.uplc.FlatInstantces.given
+        given PlutusVM = PlutusVM.makePlutusV3VM()
+
+        // generate (\f -> f 1 ... N) (\a1... aN -> a1)
+        def genLamApplyTerm(n: Int): Term =
+            val lamN = λ((1 to n).map(i => s"a$i")*)(vr"a1")
+            val apply = (1 to n).foldLeft(vr"f")((acc, i) => acc $ i)
+            λ("f")(apply) $ lamN
+        // generate (\f -> (case (constr 0 [1 ... N]) f)) (\a1... aN -> a1)
+        def genSopTerm(n: Int): Term =
+            val lamN = λ((1 to n).map(i => s"a$i")*)(vr"a1")
+            val args: List[Term] = (1 to n).map(i => i: Term).toList
+            λ("f")(Case(Constr(0, args), List(vr"f"))) $ lamN
+        def compareN(n: Int): Unit =
+            val lamApply = genLamApplyTerm(n)
+            val sop = genSopTerm(n)
+            val termFlat = summon[Flat[Term]]
+            val lamApplySize = termFlat.bitSize(lamApply)
+            val sopSize = termFlat.bitSize(sop)
+            println(
+              s"n=$n, apply: ${lamApply.evaluateDebug.budget.showJson} $lamApplySize bits, " +
+                  s"sop: ${sop.evaluateDebug.budget.showJson}, size=${sopSize}"
+            )
+            println(
+              f"sop/apply: ${sopSize.toDouble / lamApplySize}%2.2f of size, " +
+                  f"${sop.evaluateDebug.budget.cpu.toDouble / lamApply.evaluateDebug.budget.cpu}%2.2f of cpu, " +
+                  f"${sop.evaluateDebug.budget.memory.toDouble / lamApply.evaluateDebug.budget.memory}%2.2f of memory"
+            )
+//        compareN(1) // apply is more efficient for n=1
+//        compareN(2) // same efficiency for n=2
+//        compareN(3) // sop is more efficient for n=3 and more
     }
 
     test("BuiltinCostModel JSON reader from Blockfrost Protocol Parameters") {
