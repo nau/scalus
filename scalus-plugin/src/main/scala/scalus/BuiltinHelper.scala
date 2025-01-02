@@ -11,18 +11,7 @@ class BuiltinHelper(using Context) {
     val BuiltinsClass = requiredModule("scalus.builtin.Builtins")
 
     val DefaultFunSIRBuildins: Map[String, SIR.Builtin] = Map(
-      "addInteger" -> {
-          try SIRBuiltins.addInteger
-          catch
-              case NonFatal(ex) =>
-                  println(s"NonFatal Error in addInteger:  ${ex.getMessage}")
-                  ex.printStackTrace()
-                  throw ex
-              case ex: Throwable =>
-                  println(s"Fatal Error in addInteger:  ${ex.getMessage}")
-                  ex.printStackTrace()
-                  throw ex
-      },
+      "addInteger" -> SIRBuiltins.addInteger,
       "subtractInteger" -> SIRBuiltins.subtractInteger,
       "multiplyInteger" -> SIRBuiltins.multiplyInteger,
       "divideInteger" -> SIRBuiltins.divideInteger,
@@ -106,7 +95,9 @@ class BuiltinHelper(using Context) {
       "bls12_381_millerLoop" -> SIRBuiltins.bls12_381_millerLoop,
       "bls12_381_finalVerify" -> SIRBuiltins.bls12_381_finalVerify,
       "keccak_256" -> SIRBuiltins.keccak_256,
-      "blake2b_224" -> SIRBuiltins.blake2b_224
+      "blake2b_224" -> SIRBuiltins.blake2b_224,
+      "integerToByteString" -> SIRBuiltins.integerToByteString,
+      "byteStringToInteger" -> SIRBuiltins.byteStringToInteger
     )
 
     // val DefaultFunValues: Map[Symbol, DefaultFun] = DefaultFun.values
