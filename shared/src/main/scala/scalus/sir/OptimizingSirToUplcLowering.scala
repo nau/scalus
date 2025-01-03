@@ -44,7 +44,7 @@ class OptimizingSirToUplcLowering(
     private def isPoly(bi: DefaultFun): Boolean =
         Meaning.allBuiltins.BuiltinMeanings(bi).typeScheme.numTypeVars > 0
 
-    analizeSir(sir)
+    analyzeSir(sir)
 
     private lazy val builtinTerms: Map[DefaultFun, Term] =
 
@@ -71,46 +71,47 @@ class OptimizingSirToUplcLowering(
         case TypeScheme.All(_, t) => Term.Force(forceBuiltin(t, term))
         case _                    => term
 
-    private def analizeSir(sir: SIR): Unit = {
+    private def analyzeSir(sir: SIR): Unit = {
         sir match
             case SIR.Decl(data, body) =>
                 decls(data.name) = data
-                analizeSir(body)
+                analyzeSir(body)
             case SIR.Constr(name, data, args) =>
-                args.foreach(analizeSir)
+                args.foreach(analyzeSir)
             case SIR.Match(scrutinee, cases) =>
-                analizeSir(scrutinee)
+                analyzeSir(scrutinee)
                 cases.foreach { case Case(_, _, body) =>
-                    analizeSir(body)
+                    analyzeSir(body)
                 }
             case SIR.Let(_, bindings, body) =>
                 bindings.foreach { case Binding(_, rhs) =>
-                    analizeSir(rhs)
+                    analyzeSir(rhs)
                 }
-                analizeSir(body)
+                analyzeSir(body)
             case SIR.LamAbs(_, term) =>
-                analizeSir(term)
+                analyzeSir(term)
             case SIR.Apply(f, arg) =>
-                analizeSir(f)
-                analizeSir(arg)
+                analyzeSir(f)
+                analyzeSir(arg)
             case SIR.IfThenElse(cond, t, f) =>
                 usedBuiltins += DefaultFun.IfThenElse
-                analizeSir(cond)
-                analizeSir(t)
-                analizeSir(f)
+                analyzeSir(cond)
+                analyzeSir(t)
+                analyzeSir(f)
             case SIR.And(lhs, rhs) =>
                 usedBuiltins += DefaultFun.IfThenElse
-                analizeSir(lhs)
-                analizeSir(rhs)
+                analyzeSir(lhs)
+                analyzeSir(rhs)
             case SIR.Or(lhs, rhs) =>
                 usedBuiltins += DefaultFun.IfThenElse
-                analizeSir(lhs)
-                analizeSir(rhs)
+                analyzeSir(lhs)
+                analyzeSir(rhs)
             case SIR.Not(term) =>
                 usedBuiltins += DefaultFun.IfThenElse
-                analizeSir(term)
-            case SIR.Builtin(bi)       => usedBuiltins += bi
-            case SIR.Error(_)          =>
+                analyzeSir(term)
+            case SIR.Builtin(bi) => usedBuiltins += bi
+            case SIR.Error(_) =>
+                if generateErrorTraces then usedBuiltins += DefaultFun.Trace
             case SIR.Var(_)            =>
             case SIR.ExternalVar(_, _) =>
             case SIR.Const(_)          =>

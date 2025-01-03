@@ -232,3 +232,30 @@ class OptimizingSirToUplcLoweringSpec
           )
         )
     }
+
+    test("when generateErrorTraces = true then Error is wrapped in a trace") {
+        val sir = Compiler.compile(throw new Exception("error"))
+
+        val lowering =
+            OptimizingSirToUplcLowering(
+              sir,
+              generateErrorTraces = true,
+              forceBuiltins = ForceBuiltins.AllUsed
+            )
+        val uplc = lowering.lower()
+        import Term.*, Constant.String
+        assert(
+          uplc == Apply(
+            LamAbs(
+              "__builtin_Trace",
+              Force(
+                Apply(
+                  Apply(Var(NamedDeBruijn("__builtin_Trace")), Const(String("error"))),
+                  Delay(Error)
+                )
+              )
+            ),
+            Force(Builtin(Trace))
+          )
+        )
+    }
