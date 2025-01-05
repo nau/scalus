@@ -1,5 +1,15 @@
 # Changelog
 
+## 0.8.4 (2025-01-05)
+
+### Added
+
+- CIP-117: fail on non-unit results in Plutus V3 scripts
+
+### Fixed
+
+- OptimizingSirToUplcLowering threw an exception when generateErrorTraces was enabled
+
 ## 0.8.3 (2024-12-20)
 
 ### Added

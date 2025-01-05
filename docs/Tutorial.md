@@ -11,16 +11,21 @@ similar to how PlutuxTx works.
 You can store the Plutus script in a `*.plutus` file and use it with the Cardano CLI.
 Or use one of the Java/JavaScript libraries to construct transactions with the script.
 
-[This example](https://github.com/nau/scalus/blob/d42d24385666efdb2690321958aa4fb8108e2db5/examples/src/main/scala/scalus/SendTx.scala) shows how to use the [cardano-client-lib](https://github.com/bloxbean/cardano-client-lib) to send transactions.
+[This example](https://github.com/nau/scalus/blob/master/examples/src/main/scala/scalus/examples/SendTx.scala) shows how
+to use the [Cardano Client Lib](https://github.com/bloxbean/cardano-client-lib) to send transactions.
 
-You write a script using a small subset of Scala,
+## How it works
+
+You write a script using a small subset of [Scala 3](https://scala-lang.org) language,
 which is then compiled to a Scalus Intermediate Representation (SIR) with `compile` function.
 
 The SIR can be pretty-printed and reviewed.
 
-The SIR is then compiled to Untyped Plutus Core (UPLC) that can be executed on the Cardano blockchain.
+The SIR is then compiled
+to [Untyped Plutus Core](https://plutus.cardano.intersectmbo.org/docs/essential-concepts/plutus-core-and-plutus-tx#untyped-plutus-core)
+(UPLC) that can be executed on the Cardano blockchain.
 
-## Simple validator
+## Simple validator example
 
 ```scala mdoc
 import scalus.Compiler.compile
@@ -38,13 +43,75 @@ validator.show
 // convert the SIR to UPLC and pretty print it with colorized syntax highlighting
 validator.toUplc().showHighlighted
 // get a double CBOR encoded optimized UPLC program as HEX formatted string
-Program(version = (1, 1, 0), term = validator.toUplcOptimized()).doubleCborHex
+validator.toUplcOptimized().plutusV3.doubleCborHex
 ```
+
+## What Scala features are supported?
+
+UPLC is a form of lambda calculus, so not all Scala features are supported.
+
+Supported:
+
+* simple `val`s and `def`s of supported built-in types or case classes/enums
+* lambda expressions
+* recursive functions
+* passing/returning functions as arguments (higher-order functions)
+* `if-then-else` expressions
+* simple `match` expressions on case classes and enums
+  * only simple bindings are supported like `case Costr(field, other) => ...`
+* `given` arguments and `using` clauses
+* `throw` expressions but no `try-catch` expressions
+* built-in functions and operators
+* simple data types: case classes and enums
+* `inline` vals, functions and macros in general
+* implicit conversions
+* opaque types (non top-level) and type aliases
+* extension methods
+
+## Scala features that are not supported
+
+* `var`s and `lazy val`s
+* `while` loops
+* classes, inheritance and polymorphism aka virtual dispatch
+  * you can't use `isInstanceOf`
+* pattern matching with guards
+* pattern matching on multiple constructors (`case A | B => ...`)
+* pattern matching using type ascriptions (`case x: BigInt => ...`)
+* `try-catch` expressions
+* overloaded functions
+* mutually recursive functions
 
 ## Constans and primitives
 
-Plutus supports the following primitive types: `unit`, `bool`, `integer`, `bytestring`, `string`, `data`,  `list`, `pair`.
-Those types are represented in Scalus as `Unit`, `Boolean`, `BigInt`, `ByteString`, `String`, `Data`, `List`, `Pair` respectively.
+Plutus V3 supports the following primitive types: 
+
+* `unit`
+* `bool`
+* `integer`
+* `bytestring`
+* `string`
+* `data`
+* `list`
+* `pair`
+* `BLS12_381_G1_Element`
+* `BLS12_381_G2_Element`
+* `BLS12_381_MlResult`
+
+Those types are represented in Scalus as:
+
+* `Unit`
+* `Boolean`
+* `BigInt`
+* `ByteString`
+* `String`
+* `Data`
+* `List`
+* `Pair` 
+* `BLS12_381_G1_Element`
+* `BLS12_381_G2_Element`
+* `BLS12_381_MlResult`
+
+respectively.
 
 We use Scala native types to represent `Unit`, `Boolean`, `BigInt`, and `String`.
 
@@ -243,7 +310,7 @@ import scalus.prelude.List
 val pubKeyValidator = compile:
     def validator(ctxData: Data) = {
         val ctx = ctxData.to[ScriptContext]
-        List.findOrFail[PubKeyHash](ctx.txInfo.signatories): sig =>
+        List.findOrFail(ctx.txInfo.signatories): sig =>
             sig.hash == hex"deadbeef"
     }
 ```
