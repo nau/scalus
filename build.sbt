@@ -6,7 +6,7 @@ import java.net.URI
 Global / onChangedBuildSource := ReloadOnSourceChanges
 autoCompilerPlugins := true
 
-val scalusStableVersion = "0.8.2"
+val scalusStableVersion = "0.8.4"
 ThisBuild / scalaVersion := "3.3.4"
 ThisBuild / organization := "org.scalus"
 ThisBuild / organizationName := "Scalus"
@@ -179,12 +179,12 @@ lazy val scalus = crossProject(JSPlatform, JVMPlatform)
       // enable when debug compilation of tests
       Test / scalacOptions += "-color:never",
       libraryDependencies += "org.typelevel" %%% "cats-core" % "2.12.0",
-      libraryDependencies += "org.typelevel" %%% "cats-parse" % "1.0.0",
+      libraryDependencies += "org.typelevel" %%% "cats-parse" % "1.1.0",
       libraryDependencies += "org.typelevel" %%% "paiges-core" % "0.4.4",
       libraryDependencies += "com.lihaoyi" %%% "upickle" % "4.0.2",
       libraryDependencies ++= Seq(
-        "io.bullet" %%% "borer-core" % "1.14.1",
-        "io.bullet" %%% "borer-derivation" % "1.14.1" % "provided"
+        "io.bullet" %%% "borer-core" % "1.15.0",
+        "io.bullet" %%% "borer-derivation" % "1.15.0" % "provided"
       ),
       PluginDependency,
       libraryDependencies += "org.scalatest" %%% "scalatest" % "3.2.19" % "test",
@@ -195,7 +195,7 @@ lazy val scalus = crossProject(JSPlatform, JVMPlatform)
       // Test / testOptions += Tests.Argument(TestFrameworks.ScalaTest, "-S", "-8077211454138081902"),
       libraryDependencies += "org.scala-lang" %% "scala3-compiler" % scalaVersion.value,
       libraryDependencies += "org.slf4j" % "slf4j-simple" % "2.0.16" % "provided",
-      libraryDependencies += "org.bouncycastle" % "bcprov-jdk18on" % "1.78.1",
+      libraryDependencies += "org.bouncycastle" % "bcprov-jdk18on" % "1.79",
       libraryDependencies += "foundation.icon" % "blst-java" % "0.3.2",
       libraryDependencies += "org.bitcoin-s" % "bitcoin-s-crypto_2.13" % "1.9.9",
       libraryDependencies += "org.bitcoin-s" % "bitcoin-s-secp256k1jni" % "1.9.9"
@@ -219,7 +219,7 @@ lazy val examples = project
       PluginDependency,
       scalacOptions ++= commonScalacOptions,
       publish / skip := true,
-      libraryDependencies += "com.bloxbean.cardano" % "cardano-client-backend-blockfrost" % "0.6.0"
+      libraryDependencies += "com.bloxbean.cardano" % "cardano-client-backend-blockfrost" % "0.6.3"
     )
 
 lazy val `examples-js` = project
@@ -244,12 +244,12 @@ lazy val `scalus-bloxbean-cardano-client-lib` = project
     .settings(
       publish / skip := false,
       scalacOptions ++= commonScalacOptions,
-      libraryDependencies += "com.bloxbean.cardano" % "cardano-client-lib" % "0.6.0",
+      libraryDependencies += "com.bloxbean.cardano" % "cardano-client-lib" % "0.6.3",
       libraryDependencies += "org.slf4j" % "slf4j-api" % "2.0.16",
       libraryDependencies += "org.slf4j" % "slf4j-simple" % "2.0.16" % "test",
       libraryDependencies += "org.scalatest" %%% "scalatest" % "3.2.19" % "test",
-      libraryDependencies += "com.bloxbean.cardano" % "cardano-client-backend-blockfrost" % "0.6.0" % "test",
-      libraryDependencies += "com.bloxbean.cardano" % "yaci" % "0.3.1" % "test",
+      libraryDependencies += "com.bloxbean.cardano" % "cardano-client-backend-blockfrost" % "0.6.3" % "test",
+      libraryDependencies += "com.bloxbean.cardano" % "yaci" % "0.3.4" % "test",
       Test / fork := true, // needed for BlocksValidation to run in sbt
       inConfig(Test)(PluginDependency)
     )

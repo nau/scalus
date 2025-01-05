@@ -18,8 +18,7 @@ import scalus.sir.SIR
 import scalus.sir.SIRType
 import scalus.uplc.*
 import scalus.uplc.Term.*
-import scalus.uplc.TermDSL.{*, given}
-
+import scalus.uplc.TermDSL.given
 import scala.language.implicitConversions
 
 class PreimageExampleSpec extends BaseValidatorSpec {
@@ -44,7 +43,7 @@ class PreimageExampleSpec extends BaseValidatorSpec {
           ScriptPurpose.Spending(hoskyMintTxOutRef)
         )
 
-    private def performChecks(validator: Term) = {
+    private def performChecks(validator: Program) = {
         def appliedScript(
             preimage: ByteString,
             pubKeyHash: PubKeyHash,
@@ -54,7 +53,7 @@ class PreimageExampleSpec extends BaseValidatorSpec {
             val datum = (hash, pubKeyHash).toData
             val redeemer = preimage.toData
             val ctx = scriptContext(signatories)
-            Program((1, 0, 0), validator $ datum $ redeemer $ ctx.toData)
+            validator $ datum $ redeemer $ ctx.toData
 
         assertSameResult(Expected.Success(Const(Constant.Unit)))(
           appliedScript(
@@ -95,9 +94,9 @@ class PreimageExampleSpec extends BaseValidatorSpec {
         val compiled = compile(PreimageValidator.preimageValidator)
 //        println(compiled.showHighlighted)
         // convert SIR to UPLC
-        val validator = compiled.toUplc()
+        val validator = compiled.toUplc().plutusV2
 //        println(validator.showHighlighted)
-        val flatSize = Program((1, 0, 0), validator).flatEncoded.length
+        val flatSize = validator.flatEncoded.length
         assert(flatSize == 1664)
 
 //        performChecks(validator)
@@ -105,10 +104,10 @@ class PreimageExampleSpec extends BaseValidatorSpec {
 
     test("Optimized Preimage Validator") {
         val optV = OptimizedPreimage.compiledOptimizedPreimageValidator |> removeRecursivity
-        val uplc = optV.toUplc()
-        val program = Program((1, 0, 0), uplc)
+        val uplc = optV.toUplcOptimized()
+        val program = uplc.plutusV2
         val flatSize = program.flatEncoded.length
-        assert(flatSize == 162)
-        performChecks(uplc)
+        assert(flatSize == 167)
+        performChecks(program)
     }
 }

@@ -22,7 +22,7 @@ import scalus.sir.SirDSL.{*, given}
 import scalus.uplc.DefaultFun.*
 import scalus.uplc.DefaultUni.asConstant
 import scalus.uplc.*
-import scalus.uplc.eval.VM
+import scalus.uplc.eval.PlutusVM
 
 import scala.collection.immutable
 import scala.language.implicitConversions
@@ -32,6 +32,7 @@ import SIRType.TypeVar
 import SIRType.TypeLambda
 
 class CompilerPluginToSIRSpec extends AnyFunSuite with ScalaCheckPropertyChecks:
+    private given PlutusVM = PlutusVM.makePlutusV2VM()
     val deadbeef = Constant.ByteString(hex"deadbeef")
 
     val sirData = SIRType.Data
@@ -1094,8 +1095,7 @@ class CompilerPluginToSIRSpec extends AnyFunSuite with ScalaCheckPropertyChecks:
               )
         )
         // println(compiled.show)
-        val term = compiled.toUplc()
-        val evaled = VM.evaluateTerm(term)
+        val evaled = compiled.toUplc().evaluate
         // println(evaled.show)
         assert(evaled == scalus.uplc.Term.Const(Constant.Bool(true)))
     }
@@ -1151,11 +1151,10 @@ class CompilerPluginToSIRSpec extends AnyFunSuite with ScalaCheckPropertyChecks:
         val eqterm = eq.toUplc()
         val neterm = ne.toUplc()
         import scalus.uplc.TermDSL.{*, given}
-        assert(VM.evaluateTerm(eqterm $ true) == scalus.uplc.Term.Const(asConstant(false)))
-        assert(VM.evaluateTerm(eqterm $ false) == scalus.uplc.Term.Const(asConstant(true)))
-        assert(VM.evaluateTerm(neterm $ true) == scalus.uplc.Term.Const(asConstant(true)))
-        assert(VM.evaluateTerm(neterm $ false) == scalus.uplc.Term.Const(asConstant(false)))
-
+        assert((eqterm $ true).evaluate == scalus.uplc.Term.Const(asConstant(false)))
+        assert((eqterm $ false).evaluate == scalus.uplc.Term.Const(asConstant(true)))
+        assert((neterm $ true).evaluate == scalus.uplc.Term.Const(asConstant(true)))
+        assert((neterm $ false).evaluate == scalus.uplc.Term.Const(asConstant(false)))
     }
 
     test("compile ByteString equality") {
@@ -1255,22 +1254,22 @@ class CompilerPluginToSIRSpec extends AnyFunSuite with ScalaCheckPropertyChecks:
         val neterm = ne.toUplc()
         import scalus.uplc.TermDSL.{*, given}
         assert(
-          VM.evaluateTerm(eqterm $ ByteString.empty $ ByteString.empty) == scalus.uplc.Term.Const(
+          (eqterm $ ByteString.empty $ ByteString.empty).evaluate == scalus.uplc.Term.Const(
             asConstant(true)
           )
         )
         assert(
-          VM.evaluateTerm(eqterm $ ByteString.empty $ hex"deadbeef") == scalus.uplc.Term.Const(
+          (eqterm $ ByteString.empty $ hex"deadbeef").evaluate == scalus.uplc.Term.Const(
             asConstant(false)
           )
         )
         assert(
-          VM.evaluateTerm(neterm $ ByteString.empty $ ByteString.empty) == scalus.uplc.Term.Const(
+          (neterm $ ByteString.empty $ ByteString.empty).evaluate == scalus.uplc.Term.Const(
             asConstant(false)
           )
         )
         assert(
-          VM.evaluateTerm(neterm $ ByteString.empty $ hex"deadbeef") == scalus.uplc.Term.Const(
+          (neterm $ ByteString.empty $ hex"deadbeef").evaluate == scalus.uplc.Term.Const(
             asConstant(true)
           )
         )
@@ -1368,22 +1367,22 @@ class CompilerPluginToSIRSpec extends AnyFunSuite with ScalaCheckPropertyChecks:
         val neterm = ne.toUplc()
         import scalus.uplc.TermDSL.{*, given}
         assert(
-          VM.evaluateTerm(eqterm $ "" $ "") == scalus.uplc.Term.Const(
+          (eqterm $ "" $ "").evaluate == scalus.uplc.Term.Const(
             asConstant(true)
           )
         )
         assert(
-          VM.evaluateTerm(eqterm $ "" $ "deadbeef") == scalus.uplc.Term.Const(
+          (eqterm $ "" $ "deadbeef").evaluate == scalus.uplc.Term.Const(
             asConstant(false)
           )
         )
         assert(
-          VM.evaluateTerm(neterm $ "" $ "") == scalus.uplc.Term.Const(
+          (neterm $ "" $ "").evaluate == scalus.uplc.Term.Const(
             asConstant(false)
           )
         )
         assert(
-          VM.evaluateTerm(neterm $ "" $ "deadbeef") == scalus.uplc.Term.Const(
+          (neterm $ "" $ "deadbeef").evaluate == scalus.uplc.Term.Const(
             asConstant(true)
           )
         )
@@ -1438,22 +1437,22 @@ class CompilerPluginToSIRSpec extends AnyFunSuite with ScalaCheckPropertyChecks:
         import scalus.builtin.ToDataInstances.given
 
         assert(
-          VM.evaluateTerm(eqterm $ 1.toData $ 1.toData) == scalus.uplc.Term.Const(
+          (eqterm $ 1.toData $ 1.toData).evaluate == scalus.uplc.Term.Const(
             asConstant(true)
           )
         )
         assert(
-          VM.evaluateTerm(eqterm $ "".toData $ "deadbeef".toData) == scalus.uplc.Term.Const(
+          (eqterm $ "".toData $ "deadbeef".toData).evaluate == scalus.uplc.Term.Const(
             asConstant(false)
           )
         )
         assert(
-          VM.evaluateTerm(neterm $ 1.toData $ 1.toData) == scalus.uplc.Term.Const(
+          (neterm $ 1.toData $ 1.toData).evaluate == scalus.uplc.Term.Const(
             asConstant(false)
           )
         )
         assert(
-          VM.evaluateTerm(neterm $ "".toData $ "deadbeef".toData) == scalus.uplc.Term.Const(
+          (neterm $ "".toData $ "deadbeef".toData).evaluate == scalus.uplc.Term.Const(
             asConstant(true)
           )
         )
@@ -1468,9 +1467,7 @@ class CompilerPluginToSIRSpec extends AnyFunSuite with ScalaCheckPropertyChecks:
             a === a && bs === bs && s === s
         }
         // println(compiled.show)
-        val term = compiled.toUplc()
-        // println(term.show)
-        val evaled = VM.evaluateTerm(term)
+        val evaled = compiled.toUplc().evaluate
         assert(evaled == scalus.uplc.Term.Const(Constant.Bool(true)))
     }
 
@@ -1569,10 +1566,8 @@ class CompilerPluginToSIRSpec extends AnyFunSuite with ScalaCheckPropertyChecks:
             t match
                 case (a, _) => a && t._2
         }
-        println(compiled.showHighlighted)
-        val term = compiled.toUplc()
-        println(term.showHighlighted)
-        val evaled = VM.evaluateTerm(term)
+        // println(compiled.show)
+        val evaled = compiled.toUplc().evaluate
         assert(evaled == scalus.uplc.Term.Const(Constant.Bool(false)))
     }
 
@@ -1583,9 +1578,7 @@ class CompilerPluginToSIRSpec extends AnyFunSuite with ScalaCheckPropertyChecks:
                 case PubKeyHash(hash) => hash
         }
         // println(compiled.show)
-        val term = compiled.toUplc()
-        // println(term.show)
-        val evaled = VM.evaluateTerm(term)
+        val evaled = compiled.toUplc().evaluate
         assert(evaled == scalus.uplc.Term.Const(Constant.ByteString(hex"deadbeef")))
     }
 
@@ -1599,8 +1592,7 @@ class CompilerPluginToSIRSpec extends AnyFunSuite with ScalaCheckPropertyChecks:
                 case Nil        => BigInt(0)
         }
         // println(compiled.show)
-        val term = compiled.toUplc()
-        val evaled = VM.evaluateTerm(term)
+        val evaled = compiled.toUplc().evaluate
         // println(evaled.show)
         assert(evaled == scalus.uplc.Term.Const(Constant.Integer(1)))
     }
@@ -1613,8 +1605,7 @@ class CompilerPluginToSIRSpec extends AnyFunSuite with ScalaCheckPropertyChecks:
                 case These.This(h) => h
                 case _             => BigInt(0)
         }
-        val term = compiled.toUplc()
-        val evaled = VM.evaluateTerm(term)
+        val evaled = compiled.toUplc().evaluate
         assert(evaled == scalus.uplc.Term.Const(Constant.Integer(1)))
     }
 
@@ -1629,8 +1620,7 @@ class CompilerPluginToSIRSpec extends AnyFunSuite with ScalaCheckPropertyChecks:
                 case Nil                                      => BigInt(0)
         }
         // println(compiled.show)
-        val term = compiled.toUplc()
-        val evaled = VM.evaluateTerm(term)
+        val evaled = compiled.toUplc().evaluate
         // println(evaled.show)
         assert(evaled == scalus.uplc.Term.Const(Constant.Integer(3)))
     }
@@ -1642,8 +1632,7 @@ class CompilerPluginToSIRSpec extends AnyFunSuite with ScalaCheckPropertyChecks:
                 case ((a, _), (b, _)) => a == b
         }
         // println(compiled.show)
-        val term = compiled.toUplc()
-        val evaled = VM.evaluateTerm(term)
+        val evaled = compiled.toUplc().evaluate
         // println(evaled.show)
         assert(evaled == scalus.uplc.Term.Const(Constant.Bool(false)))
     }
@@ -1682,15 +1671,12 @@ class CompilerPluginToSIRSpec extends AnyFunSuite with ScalaCheckPropertyChecks:
               ),
               ScriptPurpose.Spending(TxOutRef(TxId(hex"deadbeef"), 0))
             )
-        import scalus.uplc.TermDSL.{*, given}
-        import scalus.builtin.Data.{*}
+        import scalus.uplc.TermDSL.given
+        import scalus.builtin.Data.*
         import DefaultUni.asConstant
-        val appliedScript = Program(version = (1, 0, 0), term = term $ scriptContext.toData)
-        val r @ Result.Success(evaled, budget, costs, logs) =
-            VM.evaluateDebug(appliedScript.term): @unchecked
-        assert(evaled == scalus.uplc.Term.Const(asConstant(hex"deadbeef")))
+        val appliedScript = term.plutusV1 $ scriptContext.toData
+        assert(appliedScript.evaluate == scalus.uplc.Term.Const(asConstant(hex"deadbeef")))
         val flatBytesLength = appliedScript.flatEncoded.length
-        // println(Utils.bytesToHex(flatBytes))
         assert(flatBytesLength == 332)
     }
 
@@ -1716,8 +1702,8 @@ class CompilerPluginToSIRSpec extends AnyFunSuite with ScalaCheckPropertyChecks:
             val oneEqualsTwo = BigInt(1) == BigInt(2)
             oneEqualsTwo.?
         }
-        val term = compiled.toUplc()
-        VM.evaluateDebug(term) match
+        val script = compiled.toUplc().plutusV2
+        script.evaluateDebug match
             case Result.Success(evaled, _, _, logs) =>
                 assert(evaled == scalus.uplc.Term.Const(Constant.Bool(false)))
                 assert(logs == List("oneEqualsTwo ? False: { mem: 0.002334, cpu: 0.539980 }"))

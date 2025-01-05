@@ -2,6 +2,8 @@ package scalus.uplc
 
 import org.scalatest.funsuite.AnyFunSuite
 import org.scalatestplus.scalacheck.ScalaCheckPropertyChecks
+import scalus.*
+import scalus.builtin.given
 import scalus.builtin.ByteString.*
 import scalus.builtin.Data
 import scalus.builtin.ToDataInstances.given
@@ -20,11 +22,13 @@ open class CekBuiltinsSpec
     with ScalaCheckPropertyChecks
     with ArbitraryInstances:
 
+    protected given PlutusVM = PlutusVM.makePlutusV2VM()
+
     def assertEvalEq(a: Term, b: Term): Unit =
-        assert(VM.evaluateTerm(a) == b, s"$a != $b")
+        assert(a.evaluate == b, s"$a != $b")
 
     def assertEvalThrows[A <: AnyRef: ClassTag](a: Term): Unit =
-        assertThrows[A](VM.evaluateTerm(a))
+        assertThrows[A](a.evaluate)
 
     test("Lazy builtin evaluation") {
         assertEvalEq(AddInteger $ "wrong", Apply(Builtin(AddInteger), "wrong"))
@@ -126,7 +130,7 @@ open class CekBuiltinsSpec
 
     test("UnConstrData") {
         assert(
-          VM.evaluateTerm(UnConstrData $ Data.Constr(12, 1 :: Nil)) ==
+          (UnConstrData $ Data.Constr(12, 1 :: Nil)).evaluate ==
               Const(
                 Pair(asConstant(12), Constant.List(DefaultUni.Data, List(Constant.Data(Data.I(1)))))
               )
@@ -135,7 +139,7 @@ open class CekBuiltinsSpec
 
     test("UnMapData") {
         assert(
-          VM.evaluateTerm(UnMapData $ Data.Map((12, 1) :: Nil)) ==
+          (UnMapData $ Data.Map((12, 1) :: Nil)).evaluate ==
               Const(
                 Constant.List(
                   DefaultUni.Pair(DefaultUni.Data, DefaultUni.Data),
@@ -147,20 +151,19 @@ open class CekBuiltinsSpec
 
     test("UnListData") {
         assert(
-          VM.evaluateTerm(UnListData $ Data.List(Data.I(12) :: Data.I(1) :: Nil)) ==
+          (UnListData $ Data.List(Data.I(12) :: Data.I(1) :: Nil)).evaluate ==
               Const(Constant.List(DefaultUni.Data, Constant.Data(12) :: Constant.Data(1) :: Nil))
         )
     }
 
     test("UnIData") {
-        assert(VM.evaluateTerm(UnIData $ Data.I(12)) == Const(Constant.Integer(12)))
+        assert((UnIData $ Data.I(12)).evaluate == Const(Constant.Integer(12)))
     }
 
     test("UnBData") {
         import scalus.utils.Utils.*
         assert(
-          VM.evaluateTerm(UnBData $ Data.B(hex"deadbeef")) ==
-              Const(Constant.ByteString(hex"deadbeef"))
+          (UnBData $ Data.B(hex"deadbeef")).evaluate == Const(Constant.ByteString(hex"deadbeef"))
         )
     }
 

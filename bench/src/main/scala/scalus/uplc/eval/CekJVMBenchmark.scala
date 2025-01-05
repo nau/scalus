@@ -9,22 +9,12 @@ import org.openjdk.jmh.annotations.Scope
 import org.openjdk.jmh.annotations.Setup
 import org.openjdk.jmh.annotations.State
 import scalus.*
-import scalus.builtin.*
-import scalus.uplc.DeBruijn
-import scalus.uplc.DefaultFun.*
-import scalus.uplc.DefaultUni.asConstant
-import scalus.uplc.Meaning
-import scalus.uplc.Program
-import scalus.uplc.ProgramFlatCodec
-import scalus.uplc.Term.*
-import scalus.uplc.TermDSL.{*, given}
-import scalus.uplc.eval.*
-import scalus.utils.Utils
+import scalus.builtin.given
+import scalus.uplc.DeBruijnedProgram
 
 import java.nio.file.Files
 import java.nio.file.Paths
 import java.util.concurrent.TimeUnit
-import scala.io.Source.fromFile
 
 @State(Scope.Benchmark)
 class CekJVMBenchmark:
@@ -37,25 +27,18 @@ class CekJVMBenchmark:
       )
     )
     private var file: String = ""
-    private var program: Program = null
-    val cek = CekMachine(
-      MachineParams.defaultPlutusV2PostConwayParams,
-      RestrictingBudgetSpender(ExBudget.enormous),
-      NoLogger,
-      JVMPlatformSpecific
-    )
+    private var program: DeBruijnedProgram = null
+    private val vm = PlutusVM.makePlutusV2VM()
 
     @Setup
     def readProgram() = {
         val bytes = Files.readAllBytes(Paths.get(s"src/main/resources/data/$file"))
-        val prg = ProgramFlatCodec.decodeFlat(bytes)
-        val namedTerm = DeBruijn.fromDeBruijnTerm(prg.term)
-        program = Program((1, 0, 0), namedTerm)
+        program = DeBruijnedProgram.fromFlatEncoded(bytes)
     }
 
     @Benchmark
     @BenchmarkMode(Array(Mode.AverageTime))
     @OutputTimeUnit(TimeUnit.MICROSECONDS)
     def bench() = {
-        cek.evaluateTerm(program.term)
+        vm.evaluateScript(program, RestrictingBudgetSpender(ExBudget.enormous), NoLogger)
     }

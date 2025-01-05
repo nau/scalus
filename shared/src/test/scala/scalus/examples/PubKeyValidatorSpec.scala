@@ -4,6 +4,7 @@ import org.scalatest.funsuite.AnyFunSuite
 import org.scalatestplus.scalacheck.ScalaCheckPropertyChecks
 import scalus.Compiler.compile
 import scalus.*
+import scalus.builtin.given
 import scalus.builtin.ByteString
 import scalus.builtin.ByteString.*
 import scalus.builtin.Data
@@ -12,7 +13,7 @@ import scalus.ledger.api.v1.ToDataInstances.given
 import scalus.prelude.List.Cons
 import scalus.prelude.List.Nil
 import scalus.uplc.*
-import scalus.uplc.eval.VM
+import scalus.uplc.eval.PlutusVM
 import scala.language.implicitConversions
 
 class PubKeyValidatorSpec extends AnyFunSuite with ScalaCheckPropertyChecks:
@@ -38,19 +39,16 @@ class PubKeyValidatorSpec extends AnyFunSuite with ScalaCheckPropertyChecks:
 
         // println(compiled.show)
         val term = compiled.toUplc()
-        val flatBytesLen = Program(version = (1, 0, 0), term = term).flatEncoded.length
+        val script = term.plutusV1
+        val flatBytesLen = script.flatEncoded.length
 //    println(Utils.bytesToHex(flatBytes))
         // println(term.show)
         assert(flatBytesLen == 119)
         import Data.*
-        import DefaultUni.asConstant
         import TermDSL.{*, given}
 //    println(scriptContext.toData)
-        val appliedValidator = term $ asConstant(()) $ asConstant(()) $ scriptContext.toData
-        assert(
-          VM.evaluateTerm(appliedValidator) == Term.Const(asConstant(()))
-        )
-        assert(
-          PubKeyValidator.validator((), (), scriptContext.toData) == ()
-        )
+        val appliedValidator = script $ () $ () $ scriptContext.toData
+        given PlutusVM = PlutusVM.makePlutusV1VM()
+        assert(appliedValidator.deBruijnedProgram.evaluateDebug.isSuccess)
+        assert(PubKeyValidator.validator((), (), scriptContext.toData) == ())
     }

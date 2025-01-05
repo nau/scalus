@@ -11,6 +11,7 @@ object ProgramFlatCodec:
 
     /** Encodes [[Program]] as Flat encoded bytes after de-bruijning
       */
+    @deprecated("Use encodeFlat(deBruijned: DeBruijnedProgram) instead", "0.8.4")
     def encodeFlat(p: Program): Array[Byte] =
         val deBruijned = DeBruijn.deBruijnProgram(p)
         encodeFlat(deBruijned)

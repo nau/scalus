@@ -1,5 +1,33 @@
 # Changelog
 
+## 0.8.4 (2025-01-05)
+
+### Added
+
+- CIP-117: fail on non-unit results in Plutus V3 scripts
+
+### Fixed
+
+- OptimizingSirToUplcLowering threw an exception when generateErrorTraces was enabled
+
+## 0.8.3 (2024-12-20)
+
+### Added
+
+- customizable UPLC Inliner optimization pass 
+- Prelude List functions: single, cons, length, map2
+- experimental Groth16 SNARK implementation
+- Data `toCbor` and `fromCbor` extensions
+- add generated ScalaDocs to website
+
+### Changed
+- code is updated to Scala 3.5+
+- use latest dependencies
+
+### Fixed
+
+- BLS12-381 G1/G2 compressed zero points encoding
+
 ## 0.8.2 (2024-10-11)
 
 Nothing changed, just pushed the wrong commit under 0.8.1.
