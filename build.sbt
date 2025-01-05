@@ -6,7 +6,7 @@ import java.net.URI
 Global / onChangedBuildSource := ReloadOnSourceChanges
 autoCompilerPlugins := true
 
-val scalusStableVersion = "0.8.3"
+val scalusStableVersion = "0.8.4"
 ThisBuild / scalaVersion := "3.3.4"
 ThisBuild / organization := "org.scalus"
 ThisBuild / organizationName := "Scalus"
