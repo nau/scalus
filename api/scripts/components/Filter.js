@@ -1,1 +1,244 @@
-class Filter{constructor(e,t,s,i=!1){this._init=i,this._value=e,this._elementsRefs=s,this._filters=this._init?this._withNewFilters():t}static get defaultFilters(){return scaladocData.filterDefaults}get value(){return this._value}get filters(){return this._filters}get elementsRefs(){return this._elementsRefs}onFilterToggle(e,t){return new Filter(this.value,this._withToggledFilter(e,t),this.elementsRefs)}onGroupSelectionChange(e,t){return new Filter(this.value,this._withNewSelectionOfGroup(e,t),this.elementsRefs)}onInputValueChange(e){return new Filter(e,this._generateFiltersOnTyping(e),this.elementsRefs)}_generateFiltersOnTyping(e){const t=e.toLowerCase(),s=this.elementsRefs.filter((e=>{const s=getElementTextContent(getElementNameRef(e)).toLowerCase(),i=getElementTextContent(getElementDescription(e)).toLowerCase();return s.includes(t)||i.includes(t)})).map((e=>this._getDatasetWithKeywordData(e.dataset))).reduce(((e,t)=>(t.forEach((([t,s])=>{this._splitByComma(s).forEach((s=>{e[t]={...e[t],[s]:{...e[t][s],visible:!0}}}))})),e)),this._allFiltersAreHidden());return this._attachDefaultFilters(s)}_allFiltersAreHidden(){return Object.entries(this.filters).reduce(((e,[t,s])=>(e[t]=Object.keys(s).reduce(((e,t)=>(e[t]={...s[t],visible:!1},e)),{}),e)),{})}_withNewSelectionOfGroup(e,t){return{...this.filters,[e]:Object.keys(this.filters[e]).reduce(((s,i)=>(s[i]={...this.filters[e][i],...this.filters[e][i].visible&&{selected:t}},s)),{})}}_withNewFilters(){const e=this._elementsRefs.reduce(((e,t)=>(this._getDatasetWithKeywordData(t.dataset).forEach((([t,s])=>this._splitByComma(s).forEach((s=>{e[t]=e[t]?{...e[t],[s]:e[t][s]??new FilterItem}:{[s]:new FilterItem}})))),e)),{});return this._attachDefaultFilters(e)}_attachDefaultFilters(e){return Object.entries(Filter.defaultFilters).reduce(((e,[t,s])=>{const i=getFilterKey(t);return this._elementsRefs.some((e=>!!e.dataset[i]))?{...e,[i]:{...e[i],[s]:new FilterItem}}:e}),e)}_withToggledFilter(e,t){return{...this.filters,[e]:{...this.filters[e],[t]:{...this.filters[e][t],selected:!this.filters[e][t].selected}}}}_splitByComma=e=>e.split(",");_getDatasetWithKeywordData=e=>Object.entries(e).filter((([e])=>isFilterData(e)))}class FilterItem{constructor(e=!1,t=!0){this.selected=e,this.visible=t}}
+/**
+ * @typedef { Record<string, FilterItem> } FilterMap
+ * @typedef { "fKeywords" | "fInherited" | "fImplicitly" | "fExtension" | "fVisibility" } FilterAttributes
+ * @typedef { Record<FilterAttributes, FilterMap> } Filters
+ */
+
+ class Filter {
+   /**
+    * @param value { string }
+    * @param filters { Filters }
+    * @param elementsRefs { Element[] }
+    */
+   constructor(value, filters, elementsRefs, init = false) {
+     this._init = init;
+     this._value = value;
+     this._elementsRefs = elementsRefs;
+
+     this._filters = this._init ? this._withNewFilters() : filters;
+   }
+
+   static get defaultFilters() {
+     return scaladocData.filterDefaults;
+   }
+
+   get value() {
+     return this._value;
+   }
+
+   get filters() {
+     return this._filters;
+   }
+
+   get elementsRefs() {
+     return this._elementsRefs;
+   }
+
+   /**
+    * @param key { string }
+    * @param value { string }
+    */
+   onFilterToggle(key, value) {
+     return new Filter(
+       this.value,
+       this._withToggledFilter(key, value),
+       this.elementsRefs,
+     );
+   }
+
+   /**
+    * @param key { string }
+    * @param isActive { boolean }
+    */
+   onGroupSelectionChange(key, isActive) {
+     return new Filter(
+       this.value,
+       this._withNewSelectionOfGroup(key, isActive),
+       this.elementsRefs,
+     );
+   }
+
+   /**
+    * @param value { string }
+    */
+   onInputValueChange(value) {
+     return new Filter(
+       value,
+       this._generateFiltersOnTyping(value),
+       this.elementsRefs,
+     );
+   }
+
+   /**
+    * @private
+    * @param value { string }
+    * @returns { Filters }
+    */
+   _generateFiltersOnTyping(value) {
+     const lcValue = value.toLowerCase();
+
+     const elementsDatasets = this.elementsRefs
+       .filter((element) => {
+         const lcName = getElementTextContent(
+           getElementNameRef(element),
+         ).toLowerCase();
+         const lcDescription = getElementTextContent(
+           getElementDescription(element),
+         ).toLowerCase();
+
+         return lcName.includes(lcValue) || lcDescription.includes(lcValue);
+       })
+       .map((element) => this._getDatasetWithKeywordData(element.dataset));
+
+     const newFilters = elementsDatasets.reduce((filtersObject, datasets) => {
+       datasets.forEach(([key, value]) => {
+         this._splitByComma(value).forEach((val) => {
+           filtersObject[key] = {
+             ...filtersObject[key],
+             [val]: { ...filtersObject[key][val], visible: true },
+           };
+         });
+       });
+
+       return filtersObject;
+     }, this._allFiltersAreHidden());
+
+     return this._attachDefaultFilters(newFilters);
+   }
+
+   /**
+    * @private
+    * @returns { Filters }
+    */
+   _allFiltersAreHidden() {
+     return Object.entries(this.filters).reduce(
+       (filters, [key, filterGroup]) => {
+         filters[key] = Object.keys(filterGroup).reduce(
+           (group, key) => (
+             (group[key] = { ...filterGroup[key], visible: false }), group
+           ),
+           {},
+         );
+         return filters;
+       },
+       {},
+     );
+   }
+
+   /**
+    * @private
+    * @param key { string }
+    * @param isActive { boolean }
+    * @returns { Filters }
+    */
+   _withNewSelectionOfGroup(key, isActive) {
+     return {
+       ...this.filters,
+       [key]: Object.keys(this.filters[key]).reduce(
+         (obj, filterKey) => (
+           (obj[filterKey] = {
+             ...this.filters[key][filterKey],
+             ...(this.filters[key][filterKey].visible && {
+               selected: isActive,
+             }),
+           }),
+           obj
+         ),
+         {},
+       ),
+     };
+   }
+
+   /**
+    * @private
+    * @returns { Filters }
+    */
+   _withNewFilters() {
+     const newFilters = this._elementsRefs.reduce(
+       (filtersObject, elementRef) => {
+         this._getDatasetWithKeywordData(elementRef.dataset).forEach(
+           ([key, value]) =>
+             this._splitByComma(value).forEach((val) => {
+               filtersObject[key] = filtersObject[key]
+                 ? {
+                     ...filtersObject[key],
+                     [val]: filtersObject[key][val] ?? new FilterItem(),
+                   }
+                 : { [val]: new FilterItem() };
+             }),
+         );
+         return filtersObject;
+       },
+       {},
+     );
+
+     return this._attachDefaultFilters(newFilters);
+   }
+
+   /**
+    * @private
+    * @param {Filters} newFilters
+    * @returns {Filters}
+    */
+   _attachDefaultFilters(newFilters) {
+     return Object.entries(Filter.defaultFilters).reduce(
+       (acc, [key, defaultFilter]) => {
+         const filterKey = getFilterKey(key);
+         const shouldAddDefaultKeywordFilter = this._elementsRefs.some(
+           (ref) => !!ref.dataset[filterKey],
+         );
+
+         return shouldAddDefaultKeywordFilter
+           ? {
+               ...acc,
+               [filterKey]: {
+                 ...acc[filterKey],
+                 [defaultFilter]: new FilterItem(),
+               },
+             }
+           : acc;
+       },
+       newFilters,
+     );
+   }
+
+   /**
+    * @private
+    * @param key { string }
+    * @param value { string }
+    * @returns { Filters }
+    */
+   _withToggledFilter(key, value) {
+     return {
+       ...this.filters,
+       [key]: {
+         ...this.filters[key],
+         [value]: {
+           ...this.filters[key][value],
+           selected: !this.filters[key][value].selected,
+         },
+       },
+     };
+   }
+
+   /**
+    * @private
+    * @param str { string }
+    */
+   _splitByComma = (str) => str.split(",");
+
+   /**
+    * @private
+    * @param dataset { DOMStringMap }
+    * @returns { [key: string, value: string][] }
+    */
+   _getDatasetWithKeywordData = (dataset) =>
+     Object.entries(dataset).filter(([key]) => isFilterData(key));
+ }
+
+class FilterItem {
+  constructor(selected = false, visible = true) {
+    this.selected = selected
+    this.visible = visible
+  }
+}

@@ -1,1 +1,149 @@
-class FilterBar extends Component{constructor(e){super(e),this.refs={elements:findRefs(".documentableElement"),filterBar:findRef(".documentableFilter")},this.state={filter:new Filter("",{},this.refs.elements,!0),isVisible:!1,selectedPill:""},this.inputComp=new Input({onInputChange:this.onInputChange}),this.listComp=new DocumentableList({filter:this.state.filter}),this.filterGroupComp=new FilterGroup({filter:this.state.filter,onFilterToggle:this.onFilterToggle,onGroupSelectChange:this.onGroupSelectChange,onFilterVisibilityChange:this.onFilterVisibilityChange,onPillClick:this.onPillClick,onPillCollapse:this.onPillCollapse}),this.render()}onInputChange=e=>{this.setState((t=>({filter:t.filter.onInputValueChange(e)}))),this.onChangeDisplayedElements(),this.onDisplayClearButton()};onGroupSelectChange=(e,t)=>{this.setState((l=>({filter:l.filter.onGroupSelectionChange(e,t)})))};onClearFilters=()=>{this.inputComp.inputRef.value="",this.setState((e=>({filter:e.filter.onInputValueChange("")})));const e=document.querySelector("#no-results-container");e&&e.remove()};onFilterVisibilityChange=()=>{this.setState((e=>({isVisible:!e.isVisible})))};onFilterToggle=(e,t)=>{this.setState((l=>({filter:l.filter.onFilterToggle(e,t)}))),this.onChangeDisplayedElements(),this.onDisplayClearButton()};onPillClick=e=>{this.setState((t=>({filter:t.filter,selectedPill:e})))};onPillCollapse=()=>{this.setState((e=>({filter:e.filter,selectedPill:""})))};onChangeDisplayedElements=()=>{const e=this.refs.elements.filter((e=>"none"!==e.style.display)),t=document.querySelector("#no-results-container");if(0===e.length&&!t){document.querySelector("#Value-members").insertAdjacentHTML("beforeend","<div id='no-results-container'>\n          <div class=\"no-result-icon\" ></div>\n          <h2 class='h200 no-result-header'>No results match your filter criteria</h2>\n          <p class='no-result-content'>Try adjusting or clearing your filters<br>to display better result</p>\n          <button class='clearButton label-only-button'>Clear all filters</button>\n        </div>")}t&&0!==e.length&&t.remove()};onDisplayClearButton=()=>{const e=document.querySelector(".clearButton"),t=Object.values(this.state.filter._filters).some((e=>Object.values(e).some((e=>e.selected))));e&&(0!==this.state.filter._value.length||t?e.style.display="block":e.style.display="none")};render(){this.onDisplayClearButton(),this.refs.filterBar&&(this.state.isVisible?this.refs.filterBar.classList.add("active"):this.refs.filterBar.classList.remove("active")),this.listComp.render({filter:this.state.filter}),this.filterGroupComp.render({filter:this.state.filter,selectedPill:this.state.selectedPill})}}window.addEventListener("dynamicPageLoad",(()=>{new FilterBar})),document.addEventListener("click",(e=>{e.target.classList.contains("clearButton")&&(new FilterBar).onClearFilters()}));
+/**
+ * @typedef { import("./Filter").Filter } Filter
+ */
+
+class FilterBar extends Component {
+  constructor(props) {
+    super(props);
+
+    this.refs = {
+      elements: findRefs(".documentableElement"),
+      filterBar: findRef(".documentableFilter"),
+    };
+
+    this.state = {
+      filter: new Filter("", {}, this.refs.elements, true),
+      isVisible: false,
+      selectedPill: "",
+    };
+
+    this.inputComp = new Input({ onInputChange: this.onInputChange });
+    this.listComp = new DocumentableList({
+      filter: this.state.filter,
+    });
+    this.filterGroupComp = new FilterGroup({
+      filter: this.state.filter,
+      onFilterToggle: this.onFilterToggle,
+      onGroupSelectChange: this.onGroupSelectChange,
+      onFilterVisibilityChange: this.onFilterVisibilityChange,
+      onPillClick: this.onPillClick,
+      onPillCollapse: this.onPillCollapse,
+    });
+
+    this.render();
+  }
+
+  onInputChange = (value) => {
+    this.setState((prevState) => ({
+      filter: prevState.filter.onInputValueChange(value),
+    }));
+    this.onChangeDisplayedElements();
+    this.onDisplayClearButton();
+  };
+
+  onGroupSelectChange = (key, isActive) => {
+    this.setState((prevState) => ({
+      filter: prevState.filter.onGroupSelectionChange(key, isActive),
+    }));
+  };
+
+  onClearFilters = () => {
+    this.inputComp.inputRef.value = "";
+    this.setState((prevState) => ({
+      filter: prevState.filter.onInputValueChange(""),
+    }));
+    const noResultContainer = document.querySelector("#no-results-container");
+    if (noResultContainer) noResultContainer.remove();
+  };
+
+  onFilterVisibilityChange = () => {
+    this.setState((prevState) => ({ isVisible: !prevState.isVisible }));
+  };
+
+  onFilterToggle = (key, value) => {
+    this.setState((prevState) => ({
+      filter: prevState.filter.onFilterToggle(key, value),
+    }));
+    this.onChangeDisplayedElements();
+    this.onDisplayClearButton();
+  };
+
+  onPillClick = (key) => {
+    this.setState((prevState) => ({
+      filter: prevState.filter,
+      selectedPill: key,
+    }));
+  };
+
+  onPillCollapse = () => {
+    this.setState((prevState) => ({
+      filter: prevState.filter,
+      selectedPill: "",
+    }));
+  };
+
+  onChangeDisplayedElements = () => {
+    const elementsDisplayed = this.refs.elements.filter(
+      (member) => member.style.display !== "none",
+    );
+    const noResultContainer = document.querySelector("#no-results-container");
+    if (elementsDisplayed.length === 0 && !noResultContainer) {
+      const emptySpace = document.querySelector("#Value-members");
+        emptySpace.insertAdjacentHTML(
+        "beforeend",
+        `<div id='no-results-container'>
+          <div class="no-result-icon" ></div>
+          <h2 class='h200 no-result-header'>No results match your filter criteria</h2>
+          <p class='no-result-content'>Try adjusting or clearing your filters<br>to display better result</p>
+          <button class='clearButton label-only-button'>Clear all filters</button>
+        </div>`,
+      );
+    }
+    if(noResultContainer && elementsDisplayed.length !== 0) {
+      noResultContainer.remove();
+    }
+  };
+
+  onDisplayClearButton = () => {
+    const clearButton = document.querySelector(".clearButton");
+
+    const isPillFilterChecked = Object.values(this.state.filter._filters).some(
+      (bigFilter) =>
+        Object.values(bigFilter).some((smallFilter) => smallFilter.selected),
+    );
+
+    if (clearButton) {
+      if (this.state.filter._value.length === 0 && !isPillFilterChecked) {
+       clearButton.style.display = "none";
+     } else {
+       clearButton.style.display = "block";
+     }
+    }
+  };
+
+  render() {
+    this.onDisplayClearButton();
+    if (this.refs.filterBar) {
+      if (this.state.isVisible) {
+        this.refs.filterBar.classList.add("active");
+      } else {
+        this.refs.filterBar.classList.remove("active");
+      }
+    }
+
+    this.listComp.render({ filter: this.state.filter });
+    this.filterGroupComp.render({
+      filter: this.state.filter,
+      selectedPill: this.state.selectedPill,
+    });
+  }
+}
+
+window.addEventListener("dynamicPageLoad", () => {
+  new FilterBar();
+});
+
+document.addEventListener("click", (e) => {
+  const isClearButton = e.target.classList.contains("clearButton");
+  if (isClearButton) new FilterBar().onClearFilters();
+});

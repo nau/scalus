@@ -1,1 +1,2 @@
-importScripts("inkuire.js"),WorkerMain.main();
+importScripts("inkuire.js");
+WorkerMain.main();

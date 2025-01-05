@@ -1,1 +1,1 @@
-scastieConfiguration="";
+scastieConfiguration = ""

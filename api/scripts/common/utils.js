@@ -1,1 +1,38 @@
-const findRef=(e,t=document)=>t.querySelector(e),findRefs=(e,t=document)=>t?[...t.querySelectorAll(e)]:[],withEvent=(e,t,n)=>(e&&e.addEventListener(t,n),()=>e&&e.removeEventListener(t,n)),attachDOM=(e,t)=>{e&&(e.innerHTML=htmlToString(t))},htmlToString=e=>Array.isArray(e)?e.join(""):e,isFilterData=e=>e.startsWith("f"),getFilterKey=e=>`f${e.charAt(0).toUpperCase()}${e.slice(1)}`,attachListeners=(e,t,n)=>e.map((e=>withEvent(e,t,n))),getElementTextContent=e=>e?e.textContent:"",getElementDescription=e=>findRef(".documentableBrief",e),getElementNameRef=e=>findRef(".documentableName",e);
+const findRef = (searchBy, element = document) =>
+  element.querySelector(searchBy);
+
+const findRefs = (searchBy, element = document) =>
+  element ? [...element.querySelectorAll(searchBy)] : [];
+
+const withEvent = (element, listener, callback) => {
+  element && element.addEventListener(listener, callback);
+  return () => element && element.removeEventListener(listener, callback);
+};
+
+const attachDOM = (element, html) => {
+  if (element) {
+    element.innerHTML = htmlToString(html);
+  }
+};
+
+const htmlToString = (html) => {
+  if (Array.isArray(html)) {
+    return html.join("");
+  }
+  return html;
+};
+
+const isFilterData = key => key.startsWith("f")
+
+const getFilterKey = key => `f${key.charAt(0).toUpperCase()}${key.slice(1)}`
+
+const attachListeners = (elementsRefs, type, callback) =>
+  elementsRefs.map((elRef) => withEvent(elRef, type, callback));
+
+const getElementTextContent = (element) => (element ? element.textContent : "");
+
+const getElementDescription = (elementRef) =>
+  findRef(".documentableBrief", elementRef);
+
+const getElementNameRef = (elementRef) =>
+  findRef(".documentableName", elementRef);

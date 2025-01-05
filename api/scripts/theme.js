@@ -1,1 +1,51 @@
-!function(){const e=(()=>{try{return localStorage.setItem("test","test"),localStorage.removeItem("test"),!0}catch(e){return!1}})(),t="use-dark-theme";function o(o){r=o,document.documentElement.classList.toggle("theme-dark",o),e&&localStorage.setItem(t,o)}const n=window.matchMedia("(prefers-color-scheme: dark)"),c=(()=>{const o=e&&localStorage.getItem(t);return null===o?n.matches:"true"===o})();let r=c;o(c),window.addEventListener("DOMContentLoaded",(()=>{const e=document.querySelector("#theme-toggle");document.querySelector("#mobile-theme-toggle").addEventListener("click",(e=>{o(!r)})),e.addEventListener("click",(e=>{o(!r)})),n.addEventListener("change",(e=>{o(e.matches)}))}))}();
+; (function () {
+  const supportsLocalStorage = (() => {
+    try {
+      localStorage.setItem('test', 'test');
+      localStorage.removeItem('test');
+      return true;
+    } catch (e) {
+      return false;
+    }
+  })();
+
+  const settingKey = "use-dark-theme";
+
+  function toggleDarkTheme(isDark) {
+    currentlyDark = isDark
+    // this triggers the `:root.theme-dark` rule from scalastyle.css,
+    // which changes the values of a bunch of CSS color variables
+    document.documentElement.classList.toggle("theme-dark", isDark);
+    supportsLocalStorage && localStorage.setItem(settingKey, isDark);
+  }
+
+  /* Infer a dark/light theme preference from the user's system */
+  const colorSchemePrefMql = window.matchMedia("(prefers-color-scheme: dark)");
+
+  /* This needs to happen ASAP so we don't get a FOUC of bright colors before the dark theme is applied */
+  const initiallyDark = (() => {
+    const storedSetting = supportsLocalStorage && localStorage.getItem(settingKey);
+    return (storedSetting === null) ? colorSchemePrefMql.matches : storedSetting === "true";
+  })();
+  let currentlyDark = initiallyDark;
+  toggleDarkTheme(initiallyDark);
+
+  /* Wait for the DOM to be loaded before we try to attach event listeners to things in the DOM */
+  window.addEventListener("DOMContentLoaded", () => {
+    const themeToggler = document.querySelector('#theme-toggle');
+    const mobileThemeToggler = document.querySelector('#mobile-theme-toggle');
+    mobileThemeToggler.addEventListener("click", e => {
+      toggleDarkTheme(!currentlyDark);
+    });
+
+    themeToggler.addEventListener("click", e => {
+      toggleDarkTheme(!currentlyDark);
+    });
+
+    /* Auto-swap the dark/light theme if the user changes it in their system */
+    colorSchemePrefMql.addEventListener('change', e => {
+      const preferDark = e.matches;
+      toggleDarkTheme(preferDark);
+    });
+  });
+})();

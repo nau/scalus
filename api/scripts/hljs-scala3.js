@@ -1,1 +1,461 @@
-function highlightDotty(e){const n=/[a-zA-Z$_][$\w]*/,a=/[^\s\w\d,;"'()[\]{}]/,i=new RegExp(`(${`[a-zA-Z$][a-zA-Z0-9$]*_${a.source}`}|${n.source}|${a.source}{2,}|${/[^\s\w\d,;"'()[\]{}=:]/.source}+|\`.+?\`)`),s="[a-fA-F0-9]",t="0|([1-9]((\\d|_)*\\d)?)",d="[eE][+-]?\\d((\\d|_)*\\d)?",r=new RegExp(`(${`0[xX]${s}((${s}|_)*${s}+)?`}|${`(${t})?\\.\\d((\\d|_)*\\d)?${d}[fFdD]?`}|${`${t}${d}[fFdD]?`}|(${t}[lLfFdD]?))`),c={$pattern:/(\w+|\?=>|\?{1,3}|=>>|=>|<:|>:|_|#|<-|\.nn)/,keyword:"abstract case catch class def do else enum export extends final finally for given if implicit import lazy match new object package private protected override return sealed then throw trait true try type val var while with yield =>> => ?=> <: >: _ ? <- #",literal:"true false null this super",built_in:"??? asInstanceOf isInstanceOf assert implicitly locally summon valueOf .nn"},l="abstract|final|implicit|override|private|protected|sealed";function _(e){return{$pattern:c.$pattern,keyword:e+" "+c.keyword,literal:c.literal,built_in:c.built_in}}const o={className:"title",begin:i,returnEnd:!0,keywords:c.keyword,literal:c.literal,built_in:c.built_in},E={className:"title",begin:i,excludeEnd:!0,endsWithParent:!0},M={begin:/: (?=[a-zA-Z()?])/,end:/\/\/|\/\*|\n/,endsWithParent:!0,returnEnd:!0,contains:[{className:"keyword",begin:/\?\=>|=>>|[=:][><]|\?/},{className:"type",begin:n}]},g={className:"type",begin:/\b[A-Z][$\w]*\b/,relevance:0},O={className:"number",begin:r,relevance:0},C={begin:/\[/,end:/\]/,keywords:{$pattern:/<:|>:|[+-?_:]/,keyword:"<: >: : + - ? _"},contains:[e.C_BLOCK_COMMENT_MODE,{className:"type",begin:n}],relevance:3},b={className:"params",begin:/\(/,end:/\)/,excludeBegin:!0,excludeEnd:!0,keywords:_("inline using"),contains:[e.C_BLOCK_COMMENT_MODE,e.QUOTE_STRING_MODE,O,g]},u={className:"params",begin:/\(using (?!\w+:)/,end:/\)/,excludeBegin:!1,excludeEnd:!0,relevance:5,keywords:_("using"),contains:[g]},N={className:"subst",variants:[{begin:/\$[a-zA-Z_]\w*/},{begin:/\${/,end:/}/,contains:[O,e.QUOTE_STRING_MODE]}]},w={className:"string",variants:[e.QUOTE_STRING_MODE,{begin:'"""',end:'"""',contains:[e.BACKSLASH_ESCAPE],relevance:10},{begin:n.source+'"',end:'"',contains:[e.BACKSLASH_ESCAPE,N],illegal:/\n/,relevance:5},{begin:n.source+'"""',end:'"""',contains:[e.BACKSLASH_ESCAPE,N],relevance:10}]},y={begin:/\(/,end:/\)/,excludeBegin:!0,excludeEnd:!0,keywords:{$pattern:c.$pattern,keyword:"using "+c.keyword,literal:c.literal,built_in:c.built_in},contains:[w,O,e.C_BLOCK_COMMENT_MODE,g]},m={className:"meta",begin:`@${i.source}(\\.${i.source})*`,contains:[y,e.C_BLOCK_COMMENT_MODE]},p=e.COMMENT("/\\*\\*","\\*/",{contains:[{className:"doctag",begin:/@[a-zA-Z]+/},{className:"code",variants:[{begin:/```.*\n/,end:/```/},{begin:/`/,end:/`/}]},{className:"bold",variants:[{begin:/\*\*/,end:/\*\*/},{begin:/__/,end:/__/}]},{className:"emphasis",variants:[{begin:/\*(?!([\*\s/])|([^\*]*\*[\*/]))/,end:/\*/},{begin:/_/,end:/_/}]},{className:"bullet",begin:/- (?=\S)/,end:/\s/},{begin:/\[.*?\]\(/,end:/\)/,contains:[{className:"link",begin:/.*?/,endsWithParent:!0}]}]}),$={className:"function",begin:`((${l}|transparent|inline|infix) +)*def`,end:/ =\s|\n/,excludeEnd:!0,relevance:5,keywords:_("inline infix transparent"),contains:[e.C_LINE_COMMENT_MODE,e.C_BLOCK_COMMENT_MODE,C,u,b,M,g,o]},k={beginKeywords:"val var",end:/[=:;\n/]/,excludeEnd:!0,contains:[e.C_LINE_COMMENT_MODE,e.C_BLOCK_COMMENT_MODE,E]},v={className:"typedef",begin:`((${l}|opaque) +)*type`,end:/[=;\n]| ?[<>]:/,excludeEnd:!0,keywords:_("opaque"),contains:[e.C_LINE_COMMENT_MODE,e.C_BLOCK_COMMENT_MODE,g,o]},D={begin:/given/,end:/ =|[=;\n]/,excludeEnd:!0,keywords:"given using with",contains:[e.C_LINE_COMMENT_MODE,e.C_BLOCK_COMMENT_MODE,b,{begin:"as",keywords:"as"},g,o]},T={begin:/extension/,end:/(\n|def)/,returnEnd:!0,keywords:"extension implicit using",contains:[e.C_LINE_COMMENT_MODE,e.C_BLOCK_COMMENT_MODE,u,b,g]},x={begin:`end(?= (if|while|for|match|try|given|extension|this|val|${i.source})\\n)`,end:/\s/,keywords:"end"},h={begin:" extends ",end:/( with | derives |\/[/*])/,endsWithParent:!0,returnEnd:!0,keywords:"extends",contains:[y,g]},L={begin:" with ",end:/ derives |\/[/*]/,endsWithParent:!0,returnEnd:!0,keywords:"with",contains:[y,g],relevance:10},f={begin:" derives ",end:/\n|\/[/*]/,endsWithParent:!0,returnEnd:!0,keywords:"derives",contains:[g],relevance:10},B={className:"class",begin:`((${l}|open|case|transparent) +)*(class|trait|enum|object|package object)`,end:/(\/[/*]|{|:(?= *\n)|\n(?! *(extends|with|derives)))/,keywords:_("open transparent"),excludeEnd:!0,contains:[e.C_LINE_COMMENT_MODE,e.C_BLOCK_COMMENT_MODE,C,u,b,h,L,f,o,g]},A={className:"package",begin:/package (?=\w+ *[:{\n])/,end:/[:{\n]/,excludeEnd:!0,keywords:c,contains:[o]},K={begin:/case (?!.*=>)/,end:/\n/,keywords:"case",excludeEnd:!0,contains:[e.C_LINE_COMMENT_MODE,e.C_BLOCK_COMMENT_MODE,b,h,L,f,o,g]},I={begin:/case/,end:/=>|\n/,keywords:"case",excludeEnd:!0,contains:[e.C_LINE_COMMENT_MODE,e.C_BLOCK_COMMENT_MODE,{begin:/[@_]/,keywords:{$pattern:/[@_]/,keyword:"@ _"}},O,w,g]};return{name:"Scala3",aliases:["scala","dotty"],keywords:c,contains:[O,w,p,e.C_LINE_COMMENT_MODE,e.C_BLOCK_COMMENT_MODE,$,k,v,A,B,D,T,m,K,I,{begin:/inline [^\n:]+ match/,keywords:"inline match"},x,y,g]}}
+function highlightDotty(hljs) {
+
+  // identifiers
+  const capitalizedId = /\b[A-Z][$\w]*\b/
+  const alphaId = /[a-zA-Z$_][$\w]*/
+  const op1 = /[^\s\w\d,;"'()[\]{}=:]/
+  const op2 = /[^\s\w\d,;"'()[\]{}]/
+  const compound = `[a-zA-Z$][a-zA-Z0-9$]*_${op2.source}` // e.g. value_=
+  const id = new RegExp(`(${compound}|${alphaId.source}|${op2.source}{2,}|${op1.source}+|\`.+?\`)`)
+
+  // numbers
+  const hexDigit = '[a-fA-F0-9]'
+  const hexNumber = `0[xX]${hexDigit}((${hexDigit}|_)*${hexDigit}+)?`
+  const decNumber = `0|([1-9]((\\d|_)*\\d)?)`
+  const exponent = `[eE][+-]?\\d((\\d|_)*\\d)?`
+  const floatingPointA = `(${decNumber})?\\.\\d((\\d|_)*\\d)?${exponent}[fFdD]?`
+  const floatingPointB = `${decNumber}${exponent}[fFdD]?`
+  const number = new RegExp(`(${hexNumber}|${floatingPointA}|${floatingPointB}|(${decNumber}[lLfFdD]?))`)
+
+  // Regular Keywords
+  // The "soft" keywords (e.g. 'using') are added later where necessary
+  const alwaysKeywords = {
+    $pattern: /(\w+|\?=>|\?{1,3}|=>>|=>|<:|>:|_|#|<-|\.nn)/,
+    keyword:
+      'abstract case catch class def do else enum export extends final finally for given '+
+      'if implicit import lazy match new object package private protected override return '+
+      'sealed then throw trait true try type val var while with yield =>> => ?=> <: >: _ ? <- #',
+    literal: 'true false null this super',
+    built_in: '??? asInstanceOf isInstanceOf assert implicitly locally summon valueOf .nn'
+  }
+  const modifiers = 'abstract|final|implicit|override|private|protected|sealed'
+
+  // End of class, enum, etc. header
+  const templateDeclEnd = /(\/[/*]|{|:(?= *\n)|\n(?! *(extends|with|derives)))/
+
+  // all the keywords + soft keywords, separated by spaces
+  function withSoftKeywords(kwd) {
+    return {
+      $pattern: alwaysKeywords.$pattern,
+      keyword: kwd + ' ' + alwaysKeywords.keyword,
+      literal: alwaysKeywords.literal,
+      built_in: alwaysKeywords.built_in
+    }
+  }
+
+  // title inside of a complex token made of several parts (e.g. class)
+  const TITLE = {
+    className: 'title',
+    begin: id,
+    returnEnd: true,
+    keywords: alwaysKeywords.keyword,
+    literal: alwaysKeywords.literal,
+    built_in: alwaysKeywords.built_in
+  }
+
+  // title that goes to the end of a simple token (e.g. val)
+  const TITLE2 = {
+    className: 'title',
+    begin: id,
+    excludeEnd: true,
+    endsWithParent: true
+  }
+
+  const TYPED = {
+    begin: /: (?=[a-zA-Z()?])/,
+    end: /\/\/|\/\*|\n/,
+    endsWithParent: true,
+    returnEnd: true,
+    contains: [
+      {
+        // works better than the usual way of defining keyword,
+        // in this specific situation
+        className: 'keyword',
+        begin: /\?\=>|=>>|[=:][><]|\?/,
+      },
+      {
+        className: 'type',
+        begin: alphaId
+      }
+    ]
+  }
+
+  const PROBABLY_TYPE = {
+    className: 'type',
+    begin: capitalizedId,
+    relevance: 0
+  }
+
+  const NUMBER = {
+    className: 'number',
+    begin: number,
+    relevance: 0
+  }
+
+  // type parameters within [square brackets]
+  const TPARAMS = {
+    begin: /\[/, end: /\]/,
+    keywords: {
+      $pattern: /<:|>:|[+-?_:]/,
+      keyword: '<: >: : + - ? _'
+    },
+    contains: [
+      hljs.C_BLOCK_COMMENT_MODE,
+      {
+        className: 'type',
+        begin: alphaId
+      },
+    ],
+    relevance: 3
+  }
+
+  // Class or method parameters declaration
+  const PARAMS = {
+    className: 'params',
+    begin: /\(/, end: /\)/,
+    excludeBegin: true,
+    excludeEnd: true,
+    keywords: withSoftKeywords('inline using'),
+    contains: [
+      hljs.C_BLOCK_COMMENT_MODE,
+      hljs.QUOTE_STRING_MODE,
+      NUMBER,
+      PROBABLY_TYPE
+    ]
+  }
+
+  // (using T1, T2, T3)
+  const CTX_PARAMS = {
+    className: 'params',
+    begin: /\(using (?!\w+:)/, end: /\)/,
+    excludeBegin: false,
+    excludeEnd: true,
+    relevance: 5,
+    keywords: withSoftKeywords('using'),
+    contains: [
+      PROBABLY_TYPE
+    ]
+  }
+
+  // String interpolation
+  const SUBST = {
+    className: 'subst',
+    variants: [
+      {begin: /\$[a-zA-Z_]\w*/},
+      {
+        begin: /\${/, end: /}/,
+        contains: [
+          NUMBER,
+          hljs.QUOTE_STRING_MODE
+        ]
+      }
+    ]
+  }
+
+  // "string" or """string""", with or without interpolation
+  const STRING = {
+    className: 'string',
+    variants: [
+      hljs.QUOTE_STRING_MODE,
+      {
+        begin: '"""', end: '"""',
+        contains: [hljs.BACKSLASH_ESCAPE],
+        relevance: 10
+      },
+      {
+        begin: alphaId.source + '"', end: '"',
+        contains: [hljs.BACKSLASH_ESCAPE, SUBST],
+        illegal: /\n/,
+        relevance: 5
+      },
+      {
+        begin: alphaId.source + '"""', end: '"""',
+        contains: [hljs.BACKSLASH_ESCAPE, SUBST],
+        relevance: 10
+      }
+    ]
+  }
+
+  // Class or method apply
+  const APPLY = {
+    begin: /\(/, end: /\)/,
+    excludeBegin: true, excludeEnd: true,
+    keywords: {
+      $pattern: alwaysKeywords.$pattern,
+      keyword: 'using ' + alwaysKeywords.keyword,
+      literal: alwaysKeywords.literal,
+      built_in: alwaysKeywords.built_in
+    },
+    contains: [
+      STRING,
+      NUMBER,
+      hljs.C_BLOCK_COMMENT_MODE,
+      PROBABLY_TYPE,
+    ]
+  }
+
+  // @annot(...) or @my.package.annot(...)
+  const ANNOTATION = {
+    className: 'meta',
+    begin: `@${id.source}(\\.${id.source})*`,
+    contains: [
+      APPLY,
+      hljs.C_BLOCK_COMMENT_MODE
+    ]
+  }
+
+  // Documentation
+  const SCALADOC = hljs.COMMENT('/\\*\\*', '\\*/', {
+    contains: [
+      {
+        className: 'doctag',
+        begin: /@[a-zA-Z]+/
+      },
+      // markdown syntax elements:
+      {
+        className: 'code',
+        variants: [
+          {begin: /```.*\n/, end: /```/},
+          {begin: /`/, end: /`/}
+        ],
+      },
+      {
+        className: 'bold',
+        variants: [
+          {begin: /\*\*/, end: /\*\*/},
+          {begin: /__/, end: /__/}
+        ],
+      },
+      {
+        className: 'emphasis',
+        variants: [
+          {begin: /\*(?!([\*\s/])|([^\*]*\*[\*/]))/, end: /\*/},
+          {begin: /_/, end: /_/}
+        ],
+      },
+      {
+        className: 'bullet', // list item
+        begin: /- (?=\S)/, end: /\s/,
+      },
+      {
+        begin: /\[.*?\]\(/, end: /\)/,
+        contains: [
+          {
+            // mark as "link" only the URL
+            className: 'link',
+            begin: /.*?/,
+            endsWithParent: true
+          }
+        ]
+      }
+    ]
+  })
+
+  // Methods
+  const METHOD = {
+    className: 'function',
+    begin: `((${modifiers}|transparent|inline|infix) +)*def`, end: / =\s|\n/,
+    excludeEnd: true,
+    relevance: 5,
+    keywords: withSoftKeywords('inline infix transparent'),
+    contains: [
+      hljs.C_LINE_COMMENT_MODE,
+      hljs.C_BLOCK_COMMENT_MODE,
+      TPARAMS,
+      CTX_PARAMS,
+      PARAMS,
+      TYPED, // prevents the ":" (declared type) to become a title
+      PROBABLY_TYPE,
+      TITLE
+    ]
+  }
+
+  // Variables & Constants
+  const VAL = {
+    beginKeywords: 'val var', end: /[=:;\n/]/,
+    excludeEnd: true,
+    contains: [
+      hljs.C_LINE_COMMENT_MODE,
+      hljs.C_BLOCK_COMMENT_MODE,
+      TITLE2
+    ]
+  }
+
+  // Type declarations
+  const TYPEDEF = {
+    className: 'typedef',
+    begin: `((${modifiers}|opaque) +)*type`, end: /[=;\n]| ?[<>]:/,
+    excludeEnd: true,
+    keywords: withSoftKeywords('opaque'),
+    contains: [
+      hljs.C_LINE_COMMENT_MODE,
+      hljs.C_BLOCK_COMMENT_MODE,
+      PROBABLY_TYPE,
+      TITLE,
+    ]
+  }
+
+  // Given instances
+  const GIVEN = {
+    begin: /given/, end: / =|[=;\n]/,
+    excludeEnd: true,
+    keywords: 'given using with',
+    contains: [
+      hljs.C_LINE_COMMENT_MODE,
+      hljs.C_BLOCK_COMMENT_MODE,
+      PARAMS,
+      {
+        begin: 'as',
+        keywords: 'as'
+      },
+      PROBABLY_TYPE,
+      TITLE
+    ]
+  }
+
+  // Extension methods
+  const EXTENSION = {
+    begin: /extension/, end: /(\n|def)/,
+    returnEnd: true,
+    keywords: 'extension implicit using',
+    contains: [
+      hljs.C_LINE_COMMENT_MODE,
+      hljs.C_BLOCK_COMMENT_MODE,
+      CTX_PARAMS,
+      PARAMS,
+      PROBABLY_TYPE
+    ]
+  }
+
+  // 'end' soft keyword
+  const END = {
+    begin: `end(?= (if|while|for|match|try|given|extension|this|val|${id.source})\\n)`, end: /\s/,
+    keywords: 'end'
+  }
+
+  // Classes, traits, enums, etc.
+  const EXTENDS_PARENT = {
+    begin: ' extends ', end: /( with | derives |\/[/*])/,
+    endsWithParent: true,
+    returnEnd: true,
+    keywords: 'extends',
+    contains: [APPLY, PROBABLY_TYPE]
+  }
+  const WITH_MIXIN = {
+    begin: ' with ', end: / derives |\/[/*]/,
+    endsWithParent: true,
+    returnEnd: true,
+    keywords: 'with',
+    contains: [APPLY, PROBABLY_TYPE],
+    relevance: 10
+  }
+  const DERIVES_TYPECLASS = {
+    begin: ' derives ', end: /\n|\/[/*]/,
+    endsWithParent: true,
+    returnEnd: true,
+    keywords: 'derives',
+    contains: [PROBABLY_TYPE],
+    relevance: 10
+  }
+
+  const CLASS = {
+    className: 'class',
+    begin: `((${modifiers}|open|case|transparent) +)*(class|trait|enum|object|package object)`, end: templateDeclEnd,
+    keywords: withSoftKeywords('open transparent'),
+    excludeEnd: true,
+    contains: [
+      hljs.C_LINE_COMMENT_MODE,
+      hljs.C_BLOCK_COMMENT_MODE,
+      TPARAMS,
+      CTX_PARAMS,
+      PARAMS,
+      EXTENDS_PARENT,
+      WITH_MIXIN,
+      DERIVES_TYPECLASS,
+      TITLE,
+      PROBABLY_TYPE
+    ]
+  }
+
+  // package declaration with a content
+  const PACKAGE = {
+    className: 'package',
+    begin: /package (?=\w+ *[:{\n])/, end: /[:{\n]/,
+    excludeEnd: true,
+    keywords: alwaysKeywords,
+    contains: [
+      TITLE
+    ]
+  }
+
+  // Case in enum
+  const ENUM_CASE = {
+    begin: /case (?!.*=>)/, end: /\n/,
+    keywords: 'case',
+    excludeEnd: true,
+    contains: [
+      hljs.C_LINE_COMMENT_MODE,
+      hljs.C_BLOCK_COMMENT_MODE,
+      PARAMS,
+      EXTENDS_PARENT,
+      WITH_MIXIN,
+      DERIVES_TYPECLASS,
+      TITLE,
+      PROBABLY_TYPE
+    ]
+  }
+
+  // Case in pattern matching
+  const MATCH_CASE = {
+    begin: /case/, end: /=>|\n/,
+    keywords: 'case',
+    excludeEnd: true,
+    contains: [
+      hljs.C_LINE_COMMENT_MODE,
+      hljs.C_BLOCK_COMMENT_MODE,
+      {
+        begin: /[@_]/,
+        keywords: {
+          $pattern: /[@_]/,
+          keyword: '@ _'
+        }
+      },
+      NUMBER,
+      STRING,
+      PROBABLY_TYPE
+    ]
+  }
+
+  // inline someVar[andMaybeTypeParams] match
+  const INLINE_MATCH = {
+    begin: /inline [^\n:]+ match/,
+    keywords: 'inline match'
+  }
+
+  return {
+    name: 'Scala3',
+    aliases: ['scala', 'dotty'],
+    keywords: alwaysKeywords,
+    contains: [
+      NUMBER,
+      STRING,
+      SCALADOC,
+      hljs.C_LINE_COMMENT_MODE,
+      hljs.C_BLOCK_COMMENT_MODE,
+      METHOD,
+      VAL,
+      TYPEDEF,
+      PACKAGE,
+      CLASS,
+      GIVEN,
+      EXTENSION,
+      ANNOTATION,
+      ENUM_CASE,
+      MATCH_CASE,
+      INLINE_MATCH,
+      END,
+      APPLY,
+      PROBABLY_TYPE
+    ]
+  }
+}
