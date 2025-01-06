@@ -11,6 +11,7 @@ import scalus.uplc.Term
 import scalus.uplc.TermDSL.*
 import scalus.uplc.TypeScheme
 
+import scala.annotation.tailrec
 import scala.collection.mutable.HashMap
 
 /** Lowering from Scalus Intermediate Representation [[SIR]] to UPLC [[Term]].
@@ -116,6 +117,7 @@ class SimpleSirToUplcLowering(sir: SIR, generateErrorTraces: Boolean = false):
             case SIR.LamAbs(name, term) => Term.LamAbs(name.name, lowerInner(term))
             case SIR.Apply(f, arg, _)   => Term.Apply(lowerInner(f), lowerInner(arg))
             case SIR.Select(scrutinee, field, _) =>
+                @tailrec
                 def find(sirType: SIRType): ConstrDecl =
                     sirType match
                         case SIRType.CaseClass(constrDecl, _) => constrDecl
@@ -138,7 +140,6 @@ class SimpleSirToUplcLowering(sir: SIR, generateErrorTraces: Boolean = false):
                         )
                     val instance = lowerInner(scrutinee)
                     val s0 = Term.Var(NamedDeBruijn(field))
-                    println(s"AAAAA: name=${constrDecl.name} params: ${constrDecl.params}")
                     val lam = constrDecl.params.foldRight(s0) { case (f, acc) =>
                         Term.LamAbs(f.name, acc)
                     }
@@ -185,3 +186,5 @@ class SimpleSirToUplcLowering(sir: SIR, generateErrorTraces: Boolean = false):
                       Constant.String(msg)
                     ) $ ~Term.Error)
                 else Term.Error
+            case _: SIR.Hole =>
+                sys.error("Holes are not supported in UPLC")

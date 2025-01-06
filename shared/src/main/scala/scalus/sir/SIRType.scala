@@ -3,6 +3,7 @@ package scalus.sir
 import scalus.uplc.DefaultUni
 import scalus.uplc.TypeScheme as UplcTypeScheme
 import scalus.sir.SIRType.TypeVar
+import scalus.uplc.DefaultUni
 
 import java.util
 
@@ -447,17 +448,19 @@ object SIRType {
 
     def fromDefaultUni(uplcType: DefaultUni): SIRType = {
         uplcType match
-            case DefaultUni.ByteString => ByteStringPrimitive
-            case DefaultUni.Integer    => IntegerPrimitive
-            case DefaultUni.String     => StringPrimitive
-            case DefaultUni.Bool       => BooleanPrimitive
-            case DefaultUni.Unit       => VoidPrimitive
-            case DefaultUni.Data       => Data
+            case DefaultUni.ByteString           => ByteStringPrimitive
+            case DefaultUni.Integer              => IntegerPrimitive
+            case DefaultUni.String               => StringPrimitive
+            case DefaultUni.Bool                 => BooleanPrimitive
+            case DefaultUni.Unit                 => VoidPrimitive
+            case DefaultUni.Data                 => Data
+            case DefaultUni.BLS12_381_G1_Element => BLS12_381_G1_Element
+            case DefaultUni.BLS12_381_G2_Element => BLS12_381_G2_Element
+            case DefaultUni.BLS12_381_MlResult   => BLS12_381_MlResult
             case DefaultUni.ProtoList =>
                 val a = TypeVar("A", Some(DefaultUni.ProtoList.hashCode()))
                 TypeLambda(scala.List(a), SumCaseClass(List.dataDecl, scala.List(a)))
             case DefaultUni.ProtoPair =>
-                Pair
                 val a = TypeVar("A", Some(DefaultUni.ProtoPair.hashCode()))
                 val b = TypeVar("B", Some(DefaultUni.ProtoPair.hashCode() + 1))
                 TypeLambda(scala.List(a, b), Pair(a, b))

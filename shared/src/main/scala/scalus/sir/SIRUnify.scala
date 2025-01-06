@@ -386,14 +386,6 @@ object SIRUnify {
             case (pLeft: SIRType.Primitive[?], pRight: SIRType.Primitive[?]) =>
                 if pLeft == pRight then UnificationSuccess(env, pLeft)
                 else UnificationFailure(env.path, left, right)
-            case (SIRType.Data, SIRType.Data) =>
-                UnificationSuccess(env, SIRType.Data)
-            case (SIRType.BLS12_381_G1_Element, SIRType.BLS12_381_G1_Element) =>
-                UnificationSuccess(env, SIRType.BLS12_381_G1_Element)
-            case (SIRType.BLS12_381_G2_Element, SIRType.BLS12_381_G2_Element) =>
-                UnificationSuccess(env, SIRType.BLS12_381_G2_Element)
-            case (SIRType.BLS12_381_MlResult, SIRType.BLS12_381_MlResult) =>
-                UnificationSuccess(env, SIRType.BLS12_381_MlResult)
             case (ccLeft: SIRType.CaseClass, ccRight: SIRType.CaseClass) =>
                 unifyConstrDecl(
                   ccLeft.constrDecl,

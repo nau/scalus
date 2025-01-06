@@ -76,7 +76,7 @@ object SIRTypesHelper {
             case tpc: SuperType =>
                 ???
             case tpc: RefinedType =>
-                println(s"RefinedType ${tpc.show}")
+//                println(s"RefinedType ${tpc.show}")
                 if tpc <:< defn.PolyFunctionType then {
                     // then this is a type of applyMethod
                     val applyTpe = tpc.member(nme.apply).info

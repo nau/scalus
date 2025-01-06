@@ -94,7 +94,7 @@ class OptimizingSirToUplcLowering(
                 analyzeSir(f)
                 analyzeSir(arg)
             case SIR.Select(scrutinee, _, _) =>
-                analizeSir(scrutinee)
+                analyzeSir(scrutinee)
             case SIR.IfThenElse(cond, t, f, tp) =>
                 usedBuiltins += DefaultFun.IfThenElse
                 analyzeSir(cond)
@@ -117,6 +117,7 @@ class OptimizingSirToUplcLowering(
             case SIR.Var(_, _)            =>
             case SIR.ExternalVar(_, _, _) =>
             case SIR.Const(_, _)          =>
+            case SIR.Hole(_, _)           => sys.error("Hole not supported")
     }
 
     def lower(): Term =
@@ -285,3 +286,4 @@ class OptimizingSirToUplcLowering(
                       Constant.String(msg)
                     ) $ ~Term.Error)
                 else Term.Error
+            case SIR.Hole(_, _) => sys.error("Hole not supported")

@@ -1,10 +1,12 @@
 package scalus.sir
 
-import scala.language.implicitConversions
-import scalus.sir.SirDSL.{*, given}
 import org.scalatest.funsuite.AnyFunSuite
 import scalus.sir.SIR.LamAbs
 import scalus.sir.SIRType.TypeVar
+import scalus.sir.SirDSL.*
+import scalus.sir.SirDSL.given
+
+import scala.language.implicitConversions
 
 class SirDSLTypingSpec extends AnyFunSuite:
 

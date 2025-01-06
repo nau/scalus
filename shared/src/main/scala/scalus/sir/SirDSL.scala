@@ -2,7 +2,6 @@ package scalus.sir
 
 import scalus.uplc.Constant
 import scalus.uplc.DefaultFun
-import scalus.pretty
 
 object SirDSL:
 
@@ -48,3 +47,14 @@ object SirDSL:
                 case Constant.Data(value)       => SIR.Const(c, SIRType.Data)
                 case Constant.List(elemType, value) =>
                     SIR.Const(c, SIRType.List(SIRType.fromDefaultUni(elemType)))
+                case Constant.Pair(a, b) =>
+                    SIR.Const(
+                      c,
+                      SIRType.Pair(SIRType.fromDefaultUni(a.tpe), SIRType.fromDefaultUni(b.tpe))
+                    )
+                case Constant.BLS12_381_G1_Element(value) =>
+                    SIR.Const(c, SIRType.BLS12_381_G1_Element)
+                case Constant.BLS12_381_G2_Element(value) =>
+                    SIR.Const(c, SIRType.BLS12_381_G2_Element)
+                case Constant.BLS12_381_MlResult(value) =>
+                    SIR.Const(c, SIRType.BLS12_381_MlResult)
