@@ -117,7 +117,6 @@ class OptimizingSirToUplcLowering(
             case SIR.Var(_, _)            =>
             case SIR.ExternalVar(_, _, _) =>
             case SIR.Const(_, _)          =>
-            case SIR.Hole(_, _)           => sys.error("Hole not supported")
     }
 
     def lower(): Term =
@@ -286,4 +285,3 @@ class OptimizingSirToUplcLowering(
                       Constant.String(msg)
                     ) $ ~Term.Error)
                 else Term.Error
-            case SIR.Hole(_, _) => sys.error("Hole not supported")

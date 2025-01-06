@@ -186,5 +186,3 @@ class SimpleSirToUplcLowering(sir: SIR, generateErrorTraces: Boolean = false):
                       Constant.String(msg)
                     ) $ ~Term.Error)
                 else Term.Error
-            case _: SIR.Hole =>
-                sys.error("Holes are not supported in UPLC")

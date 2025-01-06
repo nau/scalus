@@ -46,7 +46,7 @@ object RemoveRecursivity:
             case Constr(name, data, args) =>
                 Constr(name, data, args.map(removeRecursivity))
             case Decl(data, term) => Decl(data, removeRecursivity(term))
-            case _: Builtin | _: Error | _: Var | _: ExternalVar | _: Const | _: Hole => sir
+            case _: Builtin | _: Error | _: Var | _: ExternalVar | _: Const => sir
 
     def isRecursive(name: String, term: SIR, env: List[String] = Nil): Boolean =
         term match

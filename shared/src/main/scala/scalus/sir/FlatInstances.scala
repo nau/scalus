@@ -711,7 +711,7 @@ object FlatInstantces:
     object SIRHashConsedFlat extends HashConsedReprFlat[SIR, HashConsedRef[SIR]]:
         import SIR.*
 
-        final val termTagWidth = 5
+        final val termTagWidth = 4
 
         final val tagVar = 0x00
         final val tagLet = 0x01
@@ -727,9 +727,8 @@ object FlatInstantces:
         final val tagAnd = 0x0b
         final val tagOr = 0x0c
         final val tagNot = 0x0d
-        final val tagHole = 0x0e
-        final val tagDecl = 0x0f
-        final val tagSelect = 0x10
+        final val tagDecl = 0x0e
+        final val tagSelect = 0xf
 
         override def toRepr(a: SIR): HashConsedRef[SIR] = {
             HashConsedRef.fromData(a)
@@ -774,9 +773,6 @@ object FlatInstantces:
                 termTagWidth + bitSizeHC(scrutinee, hashCons)
                     + HashConsedReprFlat.listRepr(SIRCaseHashConsedFlat).bitSizeHC(cases, hashCons)
                     + SIRTypeHashConsedFlat.bitSizeHC(tp, hashCons)
-            case Hole(name, tp) =>
-                termTagWidth + summon[Flat[String]].bitSize(name) +
-                    SIRTypeHashConsedFlat.bitSizeHC(tp, hashCons)
             case Decl(data, term) =>
                 termTagWidth + DataDeclFlat.bitSizeHC(data, hashCons) + bitSizeHC(term, hashCons)
 
@@ -844,10 +840,6 @@ object FlatInstantces:
                 case Not(x) =>
                     enc.encode.bits(termTagWidth, tagNot)
                     encodeHC(x, enc)
-                case Hole(name, tp) =>
-                    enc.encode.bits(termTagWidth, tagHole)
-                    summon[Flat[String]].encode(name, enc.encode)
-                    SIRTypeHashConsedFlat.encodeHC(tp, enc)
                 case Decl(data, term) =>
                     enc.encode.bits(termTagWidth, tagDecl)
                     DataDeclFlat.encodeHC(data, enc)
@@ -963,13 +955,6 @@ object FlatInstantces:
                     HashConsedRef.deferred(
                       hs => x.isComplete(hs),
                       (hs, l, p) => Not(x.finValue(hs, l, p))
-                    )
-                case `tagHole` =>
-                    val name = summon[Flat[String]].decode(decoder.decode)
-                    val tp = SIRTypeHashConsedFlat.decodeHC(decoder)
-                    HashConsedRef.deferred(
-                      hs => tp.isComplete(hs),
-                      (hs, l, p) => Hole(name, tp.finValue(hs, l, p))
                     )
                 case `tagDecl` =>
                     val data = DataDeclFlat.decodeHC(decoder)

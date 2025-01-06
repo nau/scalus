@@ -5,7 +5,6 @@ object SIRUnify {
     case class Env(
         path: List[String] = List.empty,
         filledHoles: Map[String, SIR] = Map.empty,
-        eqHoles: Map[String, SIR.Hole] = Map.empty,
         filledTypes: Map[SIRType.TypeVar, SIRType] = Map.empty,
         eqTypes: Map[SIRType.TypeVar, SIRType] = Map.empty,
         parentTypes: Map[SIRType, Set[SIRType]] = Map.empty,
@@ -65,16 +64,6 @@ object SIRUnify {
     extension [T: Unify](left: T)
         def ~=~(right: T): UnificationResult[T] = summon[Unify[T]].apply(left, right, Env.empty)
 
-    def checkEqHoles(env: Env, h: SIR.Hole, v: SIR): UnificationResult[SIR] = {
-        env.eqHoles.get(h.name) match {
-            case Some(h2) =>
-                val nEqHoles = env.eqHoles - h.name
-                unifySIR(h2, v, env.copy(eqHoles = nEqHoles))
-            case None =>
-                UnificationSuccess(env, v)
-        }
-    }
-
     def unifySIR(left: SIR, right: SIR, env: Env): UnificationResult[SIR] = {
         unifySIRExpr(left, right, env)
         // (left, right) match
@@ -96,29 +85,6 @@ object SIRUnify {
 
     def unifySIRExpr(left: SIR, right: SIR, env: Env): UnificationResult[SIR] = {
         (left, right) match
-            case (h1: SIR.Hole, h2: SIR.Hole) =>
-                env.filledHoles.get(h1.name) match
-                    case Some(e1) =>
-                        env.filledHoles.get(h2.name) match
-                            case Some(e2) =>
-                                unifySIRExpr(e1, e2, env)
-                            case None =>
-                                val nFilledHoles = env.filledHoles.updated(h2.name, e1)
-                                checkEqHoles(env.copy(filledHoles = nFilledHoles), h2, e1)
-                    case None =>
-                        env.filledHoles.get(h2.name) match
-                            case Some(e2) =>
-                                val nFilledHoles = env.filledHoles.updated(h1.name, e2)
-                                checkEqHoles(env.copy(filledHoles = nFilledHoles), h1, e2)
-                            case None =>
-                                val nEqHoles = env.eqHoles.updated(h1.name, h2)
-                                UnificationSuccess(env.copy(eqHoles = nEqHoles), h1)
-            case (h: SIR.Hole, _) =>
-                val nEnv = env.copy(filledHoles = env.filledHoles.updated(h.name, right))
-                checkEqHoles(nEnv, h, right)
-            case (_, h: SIR.Hole) =>
-                val nEnv = env.copy(filledHoles = env.filledHoles.updated(h.name, left))
-                checkEqHoles(nEnv, h, left)
             case (SIR.Var(name1, tp1), SIR.Var(name2, tp2)) =>
                 if name1 == name2 then
                     unifyType(tp1, tp2, env.copy(path = "tp" :: env.path)) match

@@ -201,8 +201,6 @@ object SIR:
       */
     case class Match(scrutinee: SIR, cases: List[Case], tp: SIRType) extends SIR
 
-    case class Hole(name: String, override val tp: SIRType = FreeUnificator) extends SIR
-
     case class Decl(data: DataDecl, term: SIR) extends SIR {
 
         override def tp: SIRType = term.tp
@@ -270,7 +268,6 @@ object SIRChecker {
             case SIR.Match(scrutinee, cases, tp) =>
                 val checkCases = cases.flatMap(c => checkCase(c, throwOnFirst))
                 checkSIR(scrutinee, throwOnFirst) ++ checkCases ++ checkTp
-            case SIR.Hole(_, _) => checkTp
             case SIR.Decl(data, term) =>
                 checkData(data, throwOnFirst) ++ checkSIR(term, throwOnFirst)
         }
