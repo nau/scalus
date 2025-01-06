@@ -2,7 +2,6 @@ package scalus
 
 import dotty.tools.dotc.*
 import dotty.tools.dotc.core.*
-import dotty.tools.dotc.core.Names.*
 import dotty.tools.dotc.core.StdNames.*
 import dotty.tools.dotc.core.Contexts.Context
 import dotty.tools.dotc.core.Types.*

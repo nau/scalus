@@ -6,7 +6,6 @@ import scalus.flat.EncoderState
 import scalus.flat.Flat
 import scalus.flat.given
 import scalus.sir.{Binding, ConstrDecl, DataDecl, Module, Recursivity, SIR, SIRBuiltins, SIRType, SIRVarStorage, TypeBinding}
-import scalus.sir.SIR.Case
 import scalus.uplc.CommonFlatInstances.*
 import scalus.uplc.CommonFlatInstances.given
 import scalus.builtin.Data
@@ -268,8 +267,6 @@ object FlatInstantces:
             val retval = a match
                 case _: SIRType.Primitive[?] =>
                     tagWidth
-                case SIRType.Data =>
-                    tagWidth
                 case cc: SIRType.CaseClass =>
                     tagWidth + SIRTypeCaseClassFlat.bitSizeHC(cc, hashConsed)
                 case scc: SIRType.SumCaseClass =>
@@ -296,12 +293,6 @@ object FlatInstantces:
                 case err: SIRType.TypeError =>
                     tagWidth + summon[Flat[String]].bitSize(err.msg)
                 case SIRType.TypeNothing => tagWidth
-                case SIRType.BLS12_381_G1_Element =>
-                    tagWidth
-                case SIRType.BLS12_381_G2_Element =>
-                    tagWidth
-                case SIRType.BLS12_381_MlResult =>
-                    tagWidth
 
             if !mute then
                 println(s"SIRTypeHashConsedFlat.bisSizeHC end ${a.hashCode()} $a =${retval}")

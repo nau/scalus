@@ -1,14 +1,6 @@
 package scalus.sir
 
-import scalus.builtin.ByteString
-import scalus.builtin.Data
-import scalus.builtin.BLS12_381_G1_Element
-import scalus.builtin.BLS12_381_G2_Element
-import scalus.builtin.BLS12_381_MlResult
 import scalus.uplc.DefaultFun
-import scalus.uplc.TypeScheme.Type
-
-import scala.util.control.NonFatal
 
 object SIRBuiltins {
 

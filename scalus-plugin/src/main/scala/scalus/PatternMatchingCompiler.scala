@@ -11,12 +11,11 @@ import dotty.tools.dotc.core.StdNames.nme
 import dotty.tools.dotc.core.Symbols.*
 import dotty.tools.dotc.core.Types.*
 import dotty.tools.dotc.util.SrcPos
-import scalus.SIRTypesHelper.{sirTypeInEnvWithErr, unsupportedType, TypingException}
+import scalus.SIRTypesHelper.TypingException
 import scalus.sir.*
 
 import scala.collection.mutable
 import scala.language.implicitConversions
-import scala.util.control.NonFatal
 
 enum SirBinding:
     case Name(name: String, tp: SIRType)
@@ -395,8 +394,8 @@ class PatternMatchingCompiler(val compiler: SIRCompiler)(using Context) {
                                 .map(_ => bindingName.fresh().show)
                             // TODO: extract rhs to a let binding before the match
                             // so we don't have to repeat it for each case
-                            // also we have no way toknowtype-arameters, so use abstract type-vars (will use FreeUnificator))
-                            val typeArgs = constr.typeParams.map(tp => SIRType.FreeUnificator)
+                            // also we have no way to know type-arguments, so use abstract type-vars (will use FreeUnificator)
+                            val typeArgs = constr.typeParams.map(_ => SIRType.FreeUnificator)
                             val constrDecl = retrieveConstrDecl(env, constr, srcPos)
                             expandedCases += constructCase(constrDecl, bindings, typeArgs, rhs)
                             matchedConstructors += constr // collect all matched constructors

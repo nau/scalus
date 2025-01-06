@@ -4,7 +4,7 @@ import scalus.flat.FlatInstantces.SIRTypeHashConsedFlat
 import scalus.flat.FlatInstantces.SIRHashConsedFlat
 
 import scala.quoted.*
-import scalus.sir.SIRType.{checkAllProxiesFilled, TypeVar}
+import scalus.sir.SIRType.checkAllProxiesFilled
 import scalus.utils.*
 import scalus.flat.*
 

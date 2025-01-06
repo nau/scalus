@@ -82,7 +82,7 @@ class SimpleSirToUplcLoweringSpec
     }
 
     test("lower Constr") {
-        import SIRType.{Fun, TypeVar, TypeProxy, IntegerPrimitive, ByteStringPrimitive}
+        import SIRType.{TypeVar, TypeProxy, ByteStringPrimitive}
         import SIRVarStorage.DEFAULT
         /* Nil
        lowers to (\Nil Cons -> force Nil)

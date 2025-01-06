@@ -1,6 +1,6 @@
 package scalus.utils
 
-import scalus.flat.{*, given}
+import scalus.flat.*
 
 class HashConsedEncoderState(val encode: EncoderState, val hashConsed: HashConsed.State) {
 

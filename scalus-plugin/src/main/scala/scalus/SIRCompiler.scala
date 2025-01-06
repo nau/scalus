@@ -35,7 +35,6 @@ import scala.collection.mutable.ListBuffer
 import scala.language.implicitConversions
 import scala.annotation.unused
 import scala.util.control.NonFatal
-import scalus.builtin.ByteString
 
 case class FullName(name: String)
 object FullName:
@@ -82,10 +81,13 @@ final class SIRCompiler(mode: scalus.Mode)(using ctx: Context) {
     import tpd.*
     import SIRCompiler.Env
 
-    val SirVersion = (0, 0)
+    val SirVersion = (1, 0)
 
-    private val converter = new SIRConverter
     private val builtinsHelper = new BuiltinHelper
+    private val BigIntSymbol = requiredModule("scala.math.BigInt")
+    private val BigIntClassSymbol = requiredClass("scala.math.BigInt")
+    private val ByteStringClassSymbol = requiredClass("scalus.builtin.ByteString")
+    private val DataClassSymbol = requiredClass("scalus.builtin.Data")
     private val PairSymbol = requiredClass("scalus.builtin.Pair")
     private val ScalusBuiltinListClassSymbol = requiredClass("scalus.builtin.List")
     private val PlatformSpecificClassSymbol = requiredClass("scalus.builtin.PlatformSpecific")
@@ -93,7 +95,7 @@ final class SIRCompiler(mode: scalus.Mode)(using ctx: Context) {
     private val StringContextApplySymbol = StringContextSymbol.requiredMethod("apply")
     private val Tuple2Symbol = requiredClass("scala.Tuple2")
     private val NothingSymbol = requiredClass("scala.Nothing")
-    private val ByteStringModuleSymbol = converter.ByteStringSymbol
+    private val ByteStringModuleSymbol = requiredModule("scalus.builtin.ByteString")
     private val ByteStringSymbolHex = ByteStringModuleSymbol.requiredMethod("hex")
     private val ByteStringStringInterpolatorsMethodSymbol =
         ByteStringModuleSymbol.requiredMethod("StringInterpolators")
@@ -117,7 +119,7 @@ final class SIRCompiler(mode: scalus.Mode)(using ctx: Context) {
     extension (t: Tree) def isPair: Boolean = t.tpe.isPair
 
     extension (t: Tree) def isLiteral = compileConstant.isDefinedAt(t)
-    extension (t: Tree) def isData = t.tpe <:< converter.DataClassSymbol.typeRef
+    extension (t: Tree) def isData = t.tpe <:< DataClassSymbol.typeRef
 
     enum CompileDef:
         case Compiling
@@ -209,24 +211,7 @@ final class SIRCompiler(mode: scalus.Mode)(using ctx: Context) {
         val bitSize = fl.bitSize(module)
         val enc = EncoderState(bitSize / 8 + 1)
         fl.encode(module, enc)
-        try {
-            enc.filler()
-        } catch {
-            case ex: ArrayIndexOutOfBoundsException =>
-                println("Catched ArrayIndexOutOfBoundsException during encoding in filler()")
-                println(
-                  s"module: ${module.defs(0).name}, number of defs: ${module.defs.size}, bitSize: ${bitSize}"
-                )
-
-                val hs0 = scalus.utils.HashConsed.State.empty
-                val hsc1 = scalus.utils.HashConsedEncoderState.withSize(1000)
-                for b <- module.defs do {
-                    println(s"def: ${b}")
-                    // val bindingBitSize = scalus.flat.FlatInstantces.BindingFlat.bitSizeHC(b,hs0)
-                }
-
-                throw ex
-        }
+        enc.filler()
         output.write(enc.buffer)
         output.close()
     }
@@ -739,28 +724,27 @@ final class SIRCompiler(mode: scalus.Mode)(using ctx: Context) {
                 case Constants.UnitTag    => scalus.uplc.Constant.Unit
                 case _ => error(LiteralTypeNotSupported(c, l.srcPos), scalus.uplc.Constant.Unit)
         case t @ Apply(bigintApply, List(SkipInline(Literal(c))))
-            if bigintApply.symbol == converter.BigIntSymbol.requiredMethod(
+            if bigintApply.symbol == BigIntSymbol.requiredMethod(
               "apply",
               List(defn.StringClass.typeRef)
             ) && c.tag == Constants.StringTag =>
             scalus.uplc.Constant.Integer(BigInt(c.stringValue))
         case t @ Apply(bigintApply, List(SkipInline(Literal(c))))
-            if bigintApply.symbol == converter.BigIntSymbol.requiredMethod(
+            if bigintApply.symbol == BigIntSymbol.requiredMethod(
               "apply",
               List(defn.IntType)
             ) && c.tag == Constants.IntTag =>
             scalus.uplc.Constant.Integer(BigInt(c.intValue))
 
-        case Apply(i, List(Literal(c)))
-            if i.symbol == converter.BigIntSymbol.requiredMethod("int2bigInt") =>
+        case Apply(i, List(Literal(c))) if i.symbol == BigIntSymbol.requiredMethod("int2bigInt") =>
             scalus.uplc.Constant.Integer(BigInt(c.intValue))
-        case expr if expr.symbol == converter.ByteStringSymbol.requiredMethod("empty") =>
+        case expr if expr.symbol == ByteStringModuleSymbol.requiredMethod("empty") =>
             scalus.uplc.Constant.ByteString(scalus.builtin.ByteString.empty)
         case Apply(expr, List(Literal(c)))
-            if expr.symbol == converter.ByteStringSymbol.requiredMethod("fromHex") =>
+            if expr.symbol == ByteStringModuleSymbol.requiredMethod("fromHex") =>
             scalus.uplc.Constant.ByteString(scalus.builtin.ByteString.fromHex(c.stringValue))
         case Apply(expr, List(Literal(c)))
-            if expr.symbol == converter.ByteStringSymbol.requiredMethod("fromString") =>
+            if expr.symbol == ByteStringModuleSymbol.requiredMethod("fromString") =>
             scalus.uplc.Constant.ByteString(scalus.builtin.ByteString.fromString(c.stringValue))
         // hex"deadbeef" as ByteString using Scala 3 StringContext extension
         case Apply(
@@ -796,12 +780,12 @@ final class SIRCompiler(mode: scalus.Mode)(using ctx: Context) {
     }
 
     private def typeReprToDefaultUni(tpe: Type, list: Tree): DefaultUni =
-        if tpe =:= converter.BigIntClassSymbol.typeRef then DefaultUni.Integer
+        if tpe =:= BigIntClassSymbol.typeRef then DefaultUni.Integer
         else if tpe =:= defn.StringClass.typeRef then DefaultUni.String
         else if tpe =:= defn.BooleanClass.typeRef then DefaultUni.Bool
         else if tpe =:= defn.UnitClass.typeRef then DefaultUni.Unit
-        else if tpe =:= converter.DataClassSymbol.typeRef then DefaultUni.Data
-        else if tpe =:= converter.ByteStringClassSymbol.typeRef then DefaultUni.ByteString
+        else if tpe =:= DataClassSymbol.typeRef then DefaultUni.Data
+        else if tpe =:= ByteStringClassSymbol.typeRef then DefaultUni.ByteString
         else if tpe.isPair then
             val List(t1, t2) = tpe.dealias.argInfos
             DefaultUni.Pair(typeReprToDefaultUni(t1, list), typeReprToDefaultUni(t2, list))
@@ -1214,8 +1198,8 @@ final class SIRCompiler(mode: scalus.Mode)(using ctx: Context) {
                 )
             // ByteString equality
             case Apply(Select(lhs, op), List(rhs))
-                if lhs.tpe.widen =:= converter.ByteStringClassSymbol.typeRef && (op == nme.EQ || op == nme.NE) =>
-                if !(rhs.tpe.widen =:= converter.ByteStringClassSymbol.typeRef) then
+                if lhs.tpe.widen =:= ByteStringClassSymbol.typeRef && (op == nme.EQ || op == nme.NE) =>
+                if !(rhs.tpe.widen =:= ByteStringClassSymbol.typeRef) then
                     report.error(
                       s"""Equality is only allowed between the same types but here we have ${lhs.tpe.widen.show} == ${rhs.tpe.widen.show}
                          |Make sure you compare values of the same type""".stripMargin
@@ -1252,7 +1236,7 @@ final class SIRCompiler(mode: scalus.Mode)(using ctx: Context) {
                 if op == nme.EQ then eq else SIR.Not(eq)
             // Data equality
             case Apply(Select(lhs, op), List(rhs))
-                if lhs.tpe.widen <:< converter.DataClassSymbol.typeRef && (op == nme.EQ || op == nme.NE) =>
+                if lhs.tpe.widen <:< DataClassSymbol.typeRef && (op == nme.EQ || op == nme.NE) =>
                 val lhsExpr = compileExpr(env, lhs)
                 val rhsExpr = compileExpr(env, rhs)
                 val eq =
@@ -1274,10 +1258,10 @@ final class SIRCompiler(mode: scalus.Mode)(using ctx: Context) {
                 builtinsHelper.builtinFun(bi.symbol).get
             // BigInt stuff
             case Apply(optree @ Select(lhs, op), List(rhs))
-                if lhs.tpe.widen =:= converter.BigIntClassSymbol.typeRef =>
+                if lhs.tpe.widen =:= BigIntClassSymbol.typeRef =>
                 compileBigIntOps(env, lhs, op, rhs, optree)
             case Select(expr, op)
-                if expr.tpe.widen =:= converter.BigIntClassSymbol.typeRef && op == nme.UNARY_- =>
+                if expr.tpe.widen =:= BigIntClassSymbol.typeRef && op == nme.UNARY_- =>
                 SIR.Apply(
                   SIR.Apply(
                     SIRBuiltins.subtractInteger,

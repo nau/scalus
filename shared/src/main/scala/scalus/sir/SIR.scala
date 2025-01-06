@@ -1,10 +1,7 @@
 package scalus.sir
 
-import scalus.sir.SIRType.{checkAllProxiesFilled, FreeUnificator}
 import scalus.uplc.Constant
 import scalus.uplc.DefaultFun
-
-import scala.util.hashing.MurmurHash3
 
 case class Module(version: (Int, Int), defs: List[Binding])
 

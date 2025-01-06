@@ -1,8 +1,6 @@
 package scalus.sir
 
 import org.scalatest.funsuite.AnyFunSuite
-import scalus.sir.SIR.LamAbs
-import scalus.sir.SIRType.TypeVar
 import scalus.sir.SirDSL.*
 import scalus.sir.SirDSL.given
 

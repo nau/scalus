@@ -3,7 +3,6 @@ package scalus.sir
 import scalus.uplc.DefaultUni
 import scalus.uplc.TypeScheme as UplcTypeScheme
 import scalus.sir.SIRType.TypeVar
-import scalus.uplc.DefaultUni
 
 import java.util
 
