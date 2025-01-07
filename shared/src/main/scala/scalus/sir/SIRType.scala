@@ -73,7 +73,7 @@ object SIRType {
         override def show: String = "Boolean"
     }
     given Boolean.type = Boolean
-    case object VoidPrimitive extends Primitive[Unit] {
+    case object Unit extends Primitive[Unit] {
         override def uplcTpe: DefaultUni = DefaultUni.Unit
         override def show: String = "Unit"
     }
@@ -330,7 +330,7 @@ object SIRType {
                 if dataDecl.name == "List" then Some(a)
                 else None
             case this.Cons(a) => Some(a)
-            case this.Nil     => Some(VoidPrimitive)
+            case this.Nil     => Some(Unit)
             case _            => None
         }
 
@@ -451,7 +451,7 @@ object SIRType {
             case DefaultUni.Integer              => Integer
             case DefaultUni.String               => String
             case DefaultUni.Bool                 => Boolean
-            case DefaultUni.Unit                 => VoidPrimitive
+            case DefaultUni.Unit                 => Unit
             case DefaultUni.Data                 => Data
             case DefaultUni.BLS12_381_G1_Element => BLS12_381_G1_Element
             case DefaultUni.BLS12_381_G2_Element => BLS12_381_G2_Element

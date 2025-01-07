@@ -78,8 +78,8 @@ class SIRTypeSerializationSpec extends AnyFunSuite {
         // println(sir.pretty.render(100))
         // println(s"sir.tp=${sir.tp.show}")
         val txInfoSIRType = sir.tp match
-            case SIRType.Fun(u, tp) if u == SIRType.VoidPrimitive => tp
-            case _ => fail(s"unexpected type ${sir.tp.show}")
+            case SIRType.Fun(u, tp) if u == SIRType.Unit => tp
+            case _                                       => fail(s"unexpected type ${sir.tp.show}")
         val constrDecl = txInfoSIRType match
             case SIRType.CaseClass(constrDecl, typeArgs) => constrDecl
             case SIRType.SumCaseClass(dataDecl, typeArgs) =>
@@ -137,8 +137,8 @@ class SIRTypeSerializationSpec extends AnyFunSuite {
         val sir2 = encodeDecodeSIR(sir)
         val tpF2 = sir2.tp
         val tp2 = tpF2 match
-            case SIRType.Fun(u, tp) if u == SIRType.VoidPrimitive => tp
-            case _ => fail(s"unexpected type ${tpF2.show}")
+            case SIRType.Fun(u, tp) if u == SIRType.Unit => tp
+            case _                                       => fail(s"unexpected type ${tpF2.show}")
         val constrDecl2 = tp2 match
             case SIRType.CaseClass(constrDecl, typeArgs) => constrDecl
             case SIRType.SumCaseClass(dataDecl, typeArgs) =>

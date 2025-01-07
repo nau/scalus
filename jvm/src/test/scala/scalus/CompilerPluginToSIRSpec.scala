@@ -40,7 +40,7 @@ class CompilerPluginToSIRSpec extends AnyFunSuite with ScalaCheckPropertyChecks:
     val sirInt = SIRType.Integer
     val sirString = SIRType.String
     val sirByteString = SIRType.ByteString
-    val sirVoid = SIRType.VoidPrimitive
+    val sirVoid = SIRType.Unit
     def sirList(tpe: SIRType) = SIRType.List(tpe)
     def sirPair(t1: SIRType, t2: SIRType) = SIRType.Pair(t1, t2)
 
@@ -50,12 +50,12 @@ class CompilerPluginToSIRSpec extends AnyFunSuite with ScalaCheckPropertyChecks:
     def sirConst(x: String) = Const(Constant.String(x), SIRType.String)
     def sirConst(x: ByteString) = Const(Constant.ByteString(x), SIRType.ByteString)
     def sirConst(x: Data) = Const(Constant.Data(x), SIRType.Data)
-    def sirConstUnit = Const(Constant.Unit, SIRType.VoidPrimitive)
+    def sirConstUnit = Const(Constant.Unit, SIRType.Unit)
 
     test("compile literals") {
         assert(compile(false) == Const(Constant.Bool(false), SIRType.Boolean))
         assert(compile(true) == Const(Constant.Bool(true), SIRType.Boolean))
-        assert(compile(()) == Const(Constant.Unit, SIRType.VoidPrimitive))
+        assert(compile(()) == Const(Constant.Unit, SIRType.Unit))
         assert(compile("foo") == Const(Constant.String("foo"), SIRType.String))
         assert(
           compile(BigInt("15511210043330985984000000")) == Const(
@@ -110,9 +110,9 @@ class CompilerPluginToSIRSpec extends AnyFunSuite with ScalaCheckPropertyChecks:
               Const(Constant.Integer(2), SIRType.Integer),
               SIRType.Boolean
             ),
-            Const(Constant.Unit, SIRType.VoidPrimitive),
-            Const(Constant.Unit, SIRType.VoidPrimitive),
-            SIRType.VoidPrimitive
+            Const(Constant.Unit, SIRType.Unit),
+            Const(Constant.Unit, SIRType.Unit),
+            SIRType.Unit
           )
         )
     }
@@ -144,7 +144,7 @@ class CompilerPluginToSIRSpec extends AnyFunSuite with ScalaCheckPropertyChecks:
               Binding(
                 "b",
                 LamAbs(
-                  Var("_", SIRType.VoidPrimitive),
+                  Var("_", SIRType.Unit),
                   Const(Constant.Bool(true), SIRType.Boolean)
                 )
               )
@@ -160,8 +160,8 @@ class CompilerPluginToSIRSpec extends AnyFunSuite with ScalaCheckPropertyChecks:
               Apply(
                 Var("c", SIRType.Fun(Boolean, SIRType.Boolean)),
                 Apply(
-                  Var("b", SIRType.Fun(SIRType.VoidPrimitive, SIRType.Boolean)),
-                  Const(Constant.Unit, SIRType.VoidPrimitive),
+                  Var("b", SIRType.Fun(SIRType.Unit, SIRType.Boolean)),
+                  Const(Constant.Unit, SIRType.Unit),
                   SIRType.Boolean
                 ),
                 SIRType.Boolean
@@ -1688,7 +1688,7 @@ class CompilerPluginToSIRSpec extends AnyFunSuite with ScalaCheckPropertyChecks:
             @Ignore val a = true
 
             @Ignore def foo() = true
-        } == Const(Constant.Unit, SIRType.VoidPrimitive))
+        } == Const(Constant.Unit, SIRType.Unit))
     }
 
     test("Ignore PlatformSpecific arguments") {

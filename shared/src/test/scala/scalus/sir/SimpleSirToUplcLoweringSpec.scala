@@ -40,13 +40,13 @@ class SimpleSirToUplcLoweringSpec
     test("lower Var") { SIR.Var("x", SIRType.ByteString) lowersTo vr"x" }
 
     test("lower Lam/Apply") {
-        import SIRType.{TypeLambda, TypeVar, VoidPrimitive}
+        import SIRType.{TypeLambda, TypeVar, Unit}
         val idType = TypeLambda(List(TypeVar("A", Some(1))), TypeVar("A", Some(1)))
         val x = SIR.Var("x", TypeVar("X", Some(2)))
         SIR.Apply(
           SIR.LamAbs(x, x),
-          SIR.Const(Constant.Unit, VoidPrimitive),
-          VoidPrimitive
+          SIR.Const(Constant.Unit, Unit),
+          Unit
         ) lowersTo (lam("x")(vr"x") $ Constant.Unit)
 
     }

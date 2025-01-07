@@ -628,8 +628,7 @@ final class SIRCompiler(mode: scalus.Mode)(using ctx: Context) {
                 acc + (td.symbol -> SIRType.TypeVar(td.symbol.name.show, Some(td.symbol.hashCode)))
             }
             val paramNameTypes =
-                if params.isEmpty then
-                    List(("_" -> SIRType.VoidPrimitive)) /* Param for () argument */
+                if params.isEmpty then List(("_" -> SIRType.Unit)) /* Param for () argument */
                 else
                     params.map { case v: ValDef =>
                         val tEnv =
@@ -1089,7 +1088,7 @@ final class SIRCompiler(mode: scalus.Mode)(using ctx: Context) {
         val applySirType = sirTypeInEnv(applyTpe, applyTree.srcPos, env)
         val argsE = args.map(compileExpr(env, _))
         if argsE.isEmpty then
-            SIR.Apply(fE, SIR.Const(scalus.uplc.Constant.Unit, SIRType.VoidPrimitive), applySirType)
+            SIR.Apply(fE, SIR.Const(scalus.uplc.Constant.Unit, SIRType.Unit), applySirType)
         else
             // (f : (arg1 -> args2 -> ... -> res))
             // Apply(f, arg1) arg2 -> ... -> res)
@@ -1108,7 +1107,7 @@ final class SIRCompiler(mode: scalus.Mode)(using ctx: Context) {
                             tp,
                             f.srcPos
                           ),
-                          SIRType.VoidPrimitive
+                          SIRType.Unit
                         )
                 (SIR.Apply(fun, arg, nTp), nTp)
             }

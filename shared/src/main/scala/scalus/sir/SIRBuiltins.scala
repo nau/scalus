@@ -132,7 +132,7 @@ object SIRBuiltins {
         SIR.Builtin(
           DefaultFun.ChooseUnit, {
               val a = SIRType.TypeVar("A", Some("chooseUnit_A".hashCode))
-              a :=>> (SIRType.VoidPrimitive ->: a ->: a)
+              a :=>> (SIRType.Unit ->: a ->: a)
           }
         )
 
@@ -225,11 +225,11 @@ object SIRBuiltins {
           SIRType.Data ->: SIRType.Data ->: SIRType.Pair(SIRType.Data, SIRType.Data)
         )
     val mkNilData =
-        SIR.Builtin(DefaultFun.MkNilData, SIRType.VoidPrimitive ->: SIRType.List(SIRType.Data))
+        SIR.Builtin(DefaultFun.MkNilData, SIRType.Unit ->: SIRType.List(SIRType.Data))
     val mkNilPairData =
         SIR.Builtin(
           DefaultFun.MkNilPairData,
-          SIRType.VoidPrimitive ->: SIRType.List(SIRType.Pair(SIRType.Data, SIRType.Data))
+          SIRType.Unit ->: SIRType.List(SIRType.Pair(SIRType.Data, SIRType.Data))
         )
 
     // BLS12_381 operations

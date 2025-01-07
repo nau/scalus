@@ -311,7 +311,7 @@ object FlatInstantces:
                     encode.encode.bits(tagWidth, tagPrimitiveString)
                 case SIRType.Boolean =>
                     encode.encode.bits(tagWidth, tagPrimitiveBoolean)
-                case SIRType.VoidPrimitive =>
+                case SIRType.Unit =>
                     encode.encode.bits(tagWidth, tagPrimitiveVoid)
                 case SIRType.Data =>
                     encode.encode.bits(tagWidth, tagPrimitiveData)
@@ -363,7 +363,7 @@ object FlatInstantces:
                 case `tagPrimitiveInteger`    => HashConsedRef.fromData(SIRType.Integer)
                 case `tagPrimitiveString`     => HashConsedRef.fromData(SIRType.String)
                 case `tagPrimitiveBoolean`    => HashConsedRef.fromData(SIRType.Boolean)
-                case `tagPrimitiveVoid`       => HashConsedRef.fromData(SIRType.VoidPrimitive)
+                case `tagPrimitiveVoid`       => HashConsedRef.fromData(SIRType.Unit)
                 case `tagPrimitiveData`       => HashConsedRef.fromData(SIRType.Data)
                 case `tagCaseClass` =>
                     SIRTypeCaseClassFlat.decodeHC(decode)

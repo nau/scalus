@@ -259,7 +259,7 @@ object SIRTypesHelper {
         else if symbol == defn.LongType.typeSymbol || symbol == defn.BoxedLongClass then
             Some(SIRType.Integer)
         else if symbol == defn.StringType.typeSymbol then Some(SIRType.String)
-        else if symbol == defn.UnitClass then Some(SIRType.VoidPrimitive)
+        else if symbol == defn.UnitClass then Some(SIRType.Unit)
         else None
     }
 

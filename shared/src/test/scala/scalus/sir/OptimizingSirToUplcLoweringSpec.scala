@@ -50,8 +50,8 @@ class OptimizingSirToUplcLoweringSpec
         val xVar = SIR.Var("x", SIRType.TypeLambda(List(xTypeVar), xTypeVar))
         SIR.Apply(
           SIR.LamAbs(xVar, xVar),
-          SIR.Const(Constant.Unit, SIRType.VoidPrimitive),
-          SIRType.VoidPrimitive
+          SIR.Const(Constant.Unit, SIRType.Unit),
+          SIRType.Unit
         ) lowersTo (lam("x")(vr"x") $ Constant.Unit)
 
     }
