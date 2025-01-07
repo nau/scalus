@@ -21,12 +21,12 @@ class SirDSLTypingSpec extends AnyFunSuite:
     }
 
     test("pair type is created without unfilled proxies") {
-        val stp = SIRType.Pair(SIRType.Integer, SIRType.BooleanPrimitive)
+        val stp = SIRType.Pair(SIRType.Integer, SIRType.Boolean)
         assert(SIRType.checkAllProxiesFilled(stp))
     }
 
     test("function type is created without unfilled proxies") {
-        val stp = SIRType.Fun(SIRType.Integer, SIRType.BooleanPrimitive)
+        val stp = SIRType.Fun(SIRType.Integer, SIRType.Boolean)
         assert(SIRType.checkAllProxiesFilled(stp))
     }
 

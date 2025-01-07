@@ -250,26 +250,26 @@ class OptimizingSirToUplcLowering(
                   SIR.IfThenElse(
                     lhs,
                     rhs,
-                    SIR.Const(Constant.Bool(false), SIRType.BooleanPrimitive),
-                    SIRType.BooleanPrimitive
+                    SIR.Const(Constant.Bool(false), SIRType.Boolean),
+                    SIRType.Boolean
                   )
                 )
             case SIR.Or(lhs, rhs) =>
                 lowerInner(
                   SIR.IfThenElse(
                     lhs,
-                    SIR.Const(Constant.Bool(true), SIRType.BooleanPrimitive),
+                    SIR.Const(Constant.Bool(true), SIRType.Boolean),
                     rhs,
-                    SIRType.BooleanPrimitive
+                    SIRType.Boolean
                   )
                 )
             case SIR.Not(term) =>
                 lowerInner(
                   SIR.IfThenElse(
                     term,
-                    SIR.Const(Constant.Bool(false), SIRType.BooleanPrimitive),
-                    SIR.Const(Constant.Bool(true), SIRType.BooleanPrimitive),
-                    SIRType.BooleanPrimitive
+                    SIR.Const(Constant.Bool(false), SIRType.Boolean),
+                    SIR.Const(Constant.Bool(true), SIRType.Boolean),
+                    SIRType.Boolean
                   )
                 )
             case SIR.IfThenElse(cond, t, f, tp) =>

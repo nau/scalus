@@ -34,15 +34,15 @@ object SIRBuiltins {
     )
     val equalsInteger = SIR.Builtin(
       DefaultFun.EqualsInteger,
-      SIRType.Integer ->: SIRType.Integer ->: SIRType.BooleanPrimitive
+      SIRType.Integer ->: SIRType.Integer ->: SIRType.Boolean
     )
     val lessThanInteger = SIR.Builtin(
       DefaultFun.LessThanInteger,
-      SIRType.Integer ->: SIRType.Integer ->: SIRType.BooleanPrimitive
+      SIRType.Integer ->: SIRType.Integer ->: SIRType.Boolean
     )
     val lessThanEqualsInteger = SIR.Builtin(
       DefaultFun.LessThanEqualsInteger,
-      SIRType.Integer ->: SIRType.Integer ->: SIRType.BooleanPrimitive
+      SIRType.Integer ->: SIRType.Integer ->: SIRType.Boolean
     )
 
     // Bytestrings
@@ -68,15 +68,15 @@ object SIRBuiltins {
     )
     val equalsByteString = SIR.Builtin(
       DefaultFun.EqualsByteString,
-      SIRType.ByteString ->: SIRType.ByteString ->: SIRType.BooleanPrimitive
+      SIRType.ByteString ->: SIRType.ByteString ->: SIRType.Boolean
     )
     val lessThanByteString = SIR.Builtin(
       DefaultFun.LessThanByteString,
-      SIRType.ByteString ->: SIRType.ByteString ->: SIRType.BooleanPrimitive
+      SIRType.ByteString ->: SIRType.ByteString ->: SIRType.Boolean
     )
     val lessThanEqualsByteString = SIR.Builtin(
       DefaultFun.LessThanEqualsByteString,
-      SIRType.ByteString ->: SIRType.ByteString ->: SIRType.BooleanPrimitive
+      SIRType.ByteString ->: SIRType.ByteString ->: SIRType.Boolean
     )
 
     // Cryptography and hashes
@@ -94,15 +94,15 @@ object SIRBuiltins {
     )
     val verifyEd25519Signature = SIR.Builtin(
       DefaultFun.VerifyEd25519Signature,
-      SIRType.ByteString ->: SIRType.ByteString ->: SIRType.ByteString ->: SIRType.BooleanPrimitive
+      SIRType.ByteString ->: SIRType.ByteString ->: SIRType.ByteString ->: SIRType.Boolean
     )
     val verifyEcdsaSecp256k1Signature = SIR.Builtin(
       DefaultFun.VerifyEcdsaSecp256k1Signature,
-      SIRType.ByteString ->: SIRType.ByteString ->: SIRType.ByteString ->: SIRType.BooleanPrimitive
+      SIRType.ByteString ->: SIRType.ByteString ->: SIRType.ByteString ->: SIRType.Boolean
     )
     val verifySchnorrSecp256k1Signature = SIR.Builtin(
       DefaultFun.VerifySchnorrSecp256k1Signature,
-      SIRType.ByteString ->: SIRType.ByteString ->: SIRType.ByteString ->: SIRType.BooleanPrimitive
+      SIRType.ByteString ->: SIRType.ByteString ->: SIRType.ByteString ->: SIRType.Boolean
     )
 
     // Strings
@@ -112,7 +112,7 @@ object SIRBuiltins {
     )
     val equalsString = SIR.Builtin(
       DefaultFun.EqualsString,
-      SIRType.String ->: SIRType.String ->: SIRType.BooleanPrimitive
+      SIRType.String ->: SIRType.String ->: SIRType.Boolean
     )
     val encodeUtf8 =
         SIR.Builtin(DefaultFun.EncodeUtf8, SIRType.String ->: SIRType.ByteString)
@@ -123,7 +123,7 @@ object SIRBuiltins {
     val ifThenElse = SIR.Builtin(
       DefaultFun.IfThenElse, {
           val a = SIRType.TypeVar("A", Some("ifThenElse_A".hashCode))
-          a :=>> (SIRType.BooleanPrimitive ->: a ->: a ->: a)
+          a :=>> (SIRType.Boolean ->: a ->: a ->: a)
       }
     )
 
@@ -177,7 +177,7 @@ object SIRBuiltins {
     )
     val nullList = SIR.Builtin(
       DefaultFun.NullList,
-      SIRType.TypeLambda("nullList_A", a => SIRType.List(a) ->: SIRType.BooleanPrimitive)
+      SIRType.TypeLambda("nullList_A", a => SIRType.List(a) ->: SIRType.Boolean)
     )
 
     // Data
@@ -197,7 +197,7 @@ object SIRBuiltins {
     val listData =
         SIR.Builtin(DefaultFun.ListData, SIRType.List(SIRType.Data) ->: SIRType.Data)
     val iData = SIR.Builtin(DefaultFun.IData, SIRType.Integer ->: SIRType.Data)
-    val bData = SIR.Builtin(DefaultFun.BData, SIRType.BooleanPrimitive ->: SIRType.Data)
+    val bData = SIR.Builtin(DefaultFun.BData, SIRType.Boolean ->: SIRType.Data)
     val unConstrData = SIR.Builtin(
       DefaultFun.UnConstrData,
       SIRType.Data ->: SIRType.Pair(SIRType.Integer, SIRType.List(SIRType.Data))
@@ -209,11 +209,11 @@ object SIRBuiltins {
     val unListData =
         SIR.Builtin(DefaultFun.UnListData, SIRType.Data ->: SIRType.List(SIRType.Data))
     val unIData = SIR.Builtin(DefaultFun.UnIData, SIRType.Data ->: SIRType.Integer)
-    val unBData = SIR.Builtin(DefaultFun.UnBData, SIRType.Data ->: SIRType.BooleanPrimitive)
+    val unBData = SIR.Builtin(DefaultFun.UnBData, SIRType.Data ->: SIRType.Boolean)
     val equalsData =
         SIR.Builtin(
           DefaultFun.EqualsData,
-          SIRType.Data ->: SIRType.Data ->: SIRType.BooleanPrimitive
+          SIRType.Data ->: SIRType.Data ->: SIRType.Boolean
         )
     val serialiseData =
         SIR.Builtin(DefaultFun.SerialiseData, SIRType.Data ->: SIRType.ByteString)
@@ -248,7 +248,7 @@ object SIRBuiltins {
     )
     val bls12_381_G1_equal = SIR.Builtin(
       DefaultFun.Bls12_381_G1_equal,
-      SIRType.BLS12_381_G1_Element ->: SIRType.BLS12_381_G1_Element ->: SIRType.BooleanPrimitive
+      SIRType.BLS12_381_G1_Element ->: SIRType.BLS12_381_G1_Element ->: SIRType.Boolean
     )
     val bls12_381_G1_hashToGroup = SIR.Builtin(
       DefaultFun.Bls12_381_G1_hashToGroup,
@@ -278,7 +278,7 @@ object SIRBuiltins {
     )
     val bls12_381_G2_equal = SIR.Builtin(
       DefaultFun.Bls12_381_G2_equal,
-      SIRType.BLS12_381_G2_Element ->: SIRType.BLS12_381_G2_Element ->: SIRType.BooleanPrimitive
+      SIRType.BLS12_381_G2_Element ->: SIRType.BLS12_381_G2_Element ->: SIRType.Boolean
     )
     val bls12_381_G2_hashToGroup = SIR.Builtin(
       DefaultFun.Bls12_381_G2_hashToGroup,
@@ -306,7 +306,7 @@ object SIRBuiltins {
     // Final verification
     val bls12_381_finalVerify = SIR.Builtin(
       DefaultFun.Bls12_381_finalVerify,
-      SIRType.BLS12_381_MlResult ->: SIRType.BLS12_381_MlResult ->: SIRType.BooleanPrimitive
+      SIRType.BLS12_381_MlResult ->: SIRType.BLS12_381_MlResult ->: SIRType.Boolean
     )
 
     // keccak_256

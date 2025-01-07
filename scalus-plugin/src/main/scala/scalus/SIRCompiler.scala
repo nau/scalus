@@ -851,50 +851,50 @@ final class SIRCompiler(mode: scalus.Mode)(using ctx: Context) {
                   SIR.Apply(
                     SIRBuiltins.lessThanInteger,
                     compileExpr(env, lhs),
-                    SIRType.Integer ->: SIRType.BooleanPrimitive
+                    SIRType.Integer ->: SIRType.Boolean
                   ),
                   compileExpr(env, rhs),
-                  SIRType.BooleanPrimitive
+                  SIRType.Boolean
                 )
             case nme.LE =>
                 SIR.Apply(
                   SIR.Apply(
                     SIRBuiltins.lessThanEqualsInteger,
                     compileExpr(env, lhs),
-                    SIRType.Integer ->: SIRType.BooleanPrimitive
+                    SIRType.Integer ->: SIRType.Boolean
                   ),
                   compileExpr(env, rhs),
-                  SIRType.BooleanPrimitive
+                  SIRType.Boolean
                 )
             case nme.GT =>
                 SIR.Apply(
                   SIR.Apply(
                     SIRBuiltins.lessThanInteger,
                     compileExpr(env, rhs),
-                    SIRType.Integer ->: SIRType.BooleanPrimitive
+                    SIRType.Integer ->: SIRType.Boolean
                   ),
                   compileExpr(env, lhs),
-                  SIRType.BooleanPrimitive
+                  SIRType.Boolean
                 )
             case nme.GE =>
                 SIR.Apply(
                   SIR.Apply(
                     SIRBuiltins.lessThanEqualsInteger,
                     compileExpr(env, rhs),
-                    SIRType.Integer ->: SIRType.BooleanPrimitive
+                    SIRType.Integer ->: SIRType.Boolean
                   ),
                   compileExpr(env, lhs),
-                  SIRType.BooleanPrimitive
+                  SIRType.Boolean
                 )
             case nme.EQ =>
                 SIR.Apply(
                   SIR.Apply(
                     SIRBuiltins.equalsInteger,
                     compileExpr(env, lhs),
-                    SIRType.Integer ->: SIRType.BooleanPrimitive
+                    SIRType.Integer ->: SIRType.Boolean
                   ),
                   compileExpr(env, rhs),
-                  SIRType.BooleanPrimitive
+                  SIRType.Boolean
                 )
             case nme.NE =>
                 SIR.Not(
@@ -902,10 +902,10 @@ final class SIRCompiler(mode: scalus.Mode)(using ctx: Context) {
                     SIR.Apply(
                       SIRBuiltins.equalsInteger,
                       compileExpr(env, lhs),
-                      SIRType.Integer ->: SIRType.BooleanPrimitive
+                      SIRType.Integer ->: SIRType.Boolean
                     ),
                     compileExpr(env, rhs),
-                    SIRType.BooleanPrimitive
+                    SIRType.Boolean
                   )
                 )
             case _ =>
@@ -1026,7 +1026,7 @@ final class SIRCompiler(mode: scalus.Mode)(using ctx: Context) {
                 val exprArg = compileExpr(env, lst)
                 SIR.Apply(SIRBuiltins.tailList, exprArg, exprArg.tp)
             case "isEmpty" =>
-                SIR.Apply(SIRBuiltins.nullList, compileExpr(env, lst), SIRType.BooleanPrimitive)
+                SIR.Apply(SIRBuiltins.nullList, compileExpr(env, lst), SIRType.Boolean)
             case _ =>
                 error(UnsupportedListFunction(fun.toString, lst.srcPos), SIR.Error(""))
 
@@ -1175,11 +1175,11 @@ final class SIRCompiler(mode: scalus.Mode)(using ctx: Context) {
                   rhsExpr,
                   SIR.IfThenElse(
                     rhsExpr,
-                    SIR.Const(scalus.uplc.Constant.Bool(false), SIRType.BooleanPrimitive),
-                    SIR.Const(scalus.uplc.Constant.Bool(true), SIRType.BooleanPrimitive),
-                    SIRType.BooleanPrimitive
+                    SIR.Const(scalus.uplc.Constant.Bool(false), SIRType.Boolean),
+                    SIR.Const(scalus.uplc.Constant.Bool(true), SIRType.Boolean),
+                    SIRType.Boolean
                   ),
-                  SIRType.BooleanPrimitive
+                  SIRType.Boolean
                 )
             case Apply(Select(lhs, op), List(rhs))
                 if lhs.tpe.widen =:= defn.BooleanType && op == nme.NE =>
@@ -1189,12 +1189,12 @@ final class SIRCompiler(mode: scalus.Mode)(using ctx: Context) {
                   lhsExpr,
                   SIR.IfThenElse(
                     rhsExpr,
-                    SIR.Const(scalus.uplc.Constant.Bool(false), SIRType.BooleanPrimitive),
-                    SIR.Const(scalus.uplc.Constant.Bool(true), SIRType.BooleanPrimitive),
-                    SIRType.BooleanPrimitive
+                    SIR.Const(scalus.uplc.Constant.Bool(false), SIRType.Boolean),
+                    SIR.Const(scalus.uplc.Constant.Bool(true), SIRType.Boolean),
+                    SIRType.Boolean
                   ),
                   rhsExpr,
-                  SIRType.BooleanPrimitive
+                  SIRType.Boolean
                 )
             // ByteString equality
             case Apply(Select(lhs, op), List(rhs))
@@ -1212,10 +1212,10 @@ final class SIRCompiler(mode: scalus.Mode)(using ctx: Context) {
                       SIR.Apply(
                         SIRBuiltins.equalsByteString,
                         lhsExpr,
-                        SIRType.ByteString ->: SIRType.BooleanPrimitive
+                        SIRType.ByteString ->: SIRType.Boolean
                       ),
                       rhsExpr,
-                      SIRType.BooleanPrimitive
+                      SIRType.Boolean
                     )
                     if op == nme.EQ then eq else SIR.Not(eq)
             // String equality
@@ -1228,10 +1228,10 @@ final class SIRCompiler(mode: scalus.Mode)(using ctx: Context) {
                       SIR.Apply(
                         SIRBuiltins.equalsString,
                         lhsExpr,
-                        SIRType.String ->: SIRType.BooleanPrimitive
+                        SIRType.String ->: SIRType.Boolean
                       ),
                       rhsExpr,
-                      SIRType.BooleanPrimitive
+                      SIRType.Boolean
                     )
                 if op == nme.EQ then eq else SIR.Not(eq)
             // Data equality
@@ -1244,10 +1244,10 @@ final class SIRCompiler(mode: scalus.Mode)(using ctx: Context) {
                       SIR.Apply(
                         SIRBuiltins.equalsData,
                         lhsExpr,
-                        SIRType.Fun(SIRType.Data, SIRType.BooleanPrimitive)
+                        SIRType.Fun(SIRType.Data, SIRType.Boolean)
                       ),
                       rhsExpr,
-                      SIRType.BooleanPrimitive
+                      SIRType.Boolean
                     )
                 if op == nme.EQ then eq else SIR.Not(eq)
             // BUILTINS

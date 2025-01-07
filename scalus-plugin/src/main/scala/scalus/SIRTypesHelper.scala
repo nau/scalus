@@ -250,7 +250,7 @@ object SIRTypesHelper {
     ): Option[SIRType] = {
         if !tpArgs.isEmpty then None
         else if symbol == defn.BooleanType.typeSymbol || symbol == defn.BoxedBooleanClass then
-            Some(SIRType.BooleanPrimitive)
+            Some(SIRType.Boolean)
         else if (symbol == Symbols.requiredClass("scalus.builtin.ByteString")) then
             Some(SIRType.ByteString)
         else if (symbol == Symbols.requiredClass("scala.math.BigInt")) then Some(SIRType.Integer)

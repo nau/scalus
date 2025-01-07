@@ -17,7 +17,7 @@ import scalus.prelude.Prelude.given
 import scalus.sir.{Binding, ConstrDecl, DataDecl, Recursivity, SIR, SIRBuiltins, SIRType, SIRUnify, SIRVarStorage, ToExprHSSIRFlat, TypeBinding}
 import scalus.sir.Recursivity.*
 import scalus.sir.SIR.*
-import scalus.sir.SIRType.{BooleanPrimitive, TypeVar}
+import scalus.sir.SIRType.{Boolean, TypeVar}
 import scalus.sir.SirDSL.{*, given}
 import scalus.uplc.DefaultFun.*
 import scalus.uplc.DefaultUni.asConstant
@@ -36,7 +36,7 @@ class CompilerPluginToSIRSpec extends AnyFunSuite with ScalaCheckPropertyChecks:
     val deadbeef = Constant.ByteString(hex"deadbeef")
 
     val sirData = SIRType.Data
-    val sirBool = SIRType.BooleanPrimitive
+    val sirBool = SIRType.Boolean
     val sirInt = SIRType.Integer
     val sirString = SIRType.String
     val sirByteString = SIRType.ByteString
@@ -46,15 +46,15 @@ class CompilerPluginToSIRSpec extends AnyFunSuite with ScalaCheckPropertyChecks:
 
     def sirConst(x: Int) = Const(Constant.Integer(x), SIRType.Integer)
     def sirConst(x: BigInt) = Const(Constant.Integer(x), SIRType.Integer)
-    def sirConst(x: Boolean) = Const(Constant.Bool(x), SIRType.BooleanPrimitive)
+    def sirConst(x: Boolean) = Const(Constant.Bool(x), SIRType.Boolean)
     def sirConst(x: String) = Const(Constant.String(x), SIRType.String)
     def sirConst(x: ByteString) = Const(Constant.ByteString(x), SIRType.ByteString)
     def sirConst(x: Data) = Const(Constant.Data(x), SIRType.Data)
     def sirConstUnit = Const(Constant.Unit, SIRType.VoidPrimitive)
 
     test("compile literals") {
-        assert(compile(false) == Const(Constant.Bool(false), SIRType.BooleanPrimitive))
-        assert(compile(true) == Const(Constant.Bool(true), SIRType.BooleanPrimitive))
+        assert(compile(false) == Const(Constant.Bool(false), SIRType.Boolean))
+        assert(compile(true) == Const(Constant.Bool(true), SIRType.Boolean))
         assert(compile(()) == Const(Constant.Unit, SIRType.VoidPrimitive))
         assert(compile("foo") == Const(Constant.String("foo"), SIRType.String))
         assert(
@@ -105,10 +105,10 @@ class CompilerPluginToSIRSpec extends AnyFunSuite with ScalaCheckPropertyChecks:
               Apply(
                 SIRBuiltins.equalsInteger,
                 Const(Constant.Integer(1), SIRType.Integer),
-                SIRType.Fun(SIRType.Integer, SIRType.BooleanPrimitive)
+                SIRType.Fun(SIRType.Integer, SIRType.Boolean)
               ),
               Const(Constant.Integer(2), SIRType.Integer),
-              SIRType.BooleanPrimitive
+              SIRType.Boolean
             ),
             Const(Constant.Unit, SIRType.VoidPrimitive),
             Const(Constant.Unit, SIRType.VoidPrimitive),
@@ -124,8 +124,8 @@ class CompilerPluginToSIRSpec extends AnyFunSuite with ScalaCheckPropertyChecks:
               a
           } == Let(
             Recursivity.NonRec,
-            immutable.List(Binding("a", Const(Constant.Bool(true), SIRType.BooleanPrimitive))),
-            Var("a", SIRType.BooleanPrimitive)
+            immutable.List(Binding("a", Const(Constant.Bool(true), SIRType.Boolean))),
+            Var("a", SIRType.Boolean)
           )
         )
     }
@@ -145,7 +145,7 @@ class CompilerPluginToSIRSpec extends AnyFunSuite with ScalaCheckPropertyChecks:
                 "b",
                 LamAbs(
                   Var("_", SIRType.VoidPrimitive),
-                  Const(Constant.Bool(true), SIRType.BooleanPrimitive)
+                  Const(Constant.Bool(true), SIRType.Boolean)
                 )
               )
             ),
@@ -154,17 +154,17 @@ class CompilerPluginToSIRSpec extends AnyFunSuite with ScalaCheckPropertyChecks:
               immutable.List(
                 Binding(
                   "c",
-                  LamAbs(Var("x", SIRType.BooleanPrimitive), Var("x", SIRType.BooleanPrimitive))
+                  LamAbs(Var("x", SIRType.Boolean), Var("x", SIRType.Boolean))
                 )
               ),
               Apply(
-                Var("c", SIRType.Fun(BooleanPrimitive, SIRType.BooleanPrimitive)),
+                Var("c", SIRType.Fun(Boolean, SIRType.Boolean)),
                 Apply(
-                  Var("b", SIRType.Fun(SIRType.VoidPrimitive, SIRType.BooleanPrimitive)),
+                  Var("b", SIRType.Fun(SIRType.VoidPrimitive, SIRType.Boolean)),
                   Const(Constant.Unit, SIRType.VoidPrimitive),
-                  SIRType.BooleanPrimitive
+                  SIRType.Boolean
                 ),
-                SIRType.BooleanPrimitive
+                SIRType.Boolean
               )
             )
           )
@@ -668,10 +668,10 @@ class CompilerPluginToSIRSpec extends AnyFunSuite with ScalaCheckPropertyChecks:
                 Apply(
                   SIRBuiltins.bls12_381_G1_equal,
                   p1Var,
-                  Fun(SIRType.BLS12_381_G1_Element, SIRType.BooleanPrimitive)
+                  Fun(SIRType.BLS12_381_G1_Element, SIRType.Boolean)
                 ),
                 p2Var,
-                SIRType.BooleanPrimitive
+                SIRType.Boolean
               )
             )
           )
@@ -773,10 +773,10 @@ class CompilerPluginToSIRSpec extends AnyFunSuite with ScalaCheckPropertyChecks:
                 Apply(
                   SIRBuiltins.bls12_381_G2_equal,
                   p1Var,
-                  Fun(SIRType.BLS12_381_G2_Element, SIRType.BooleanPrimitive)
+                  Fun(SIRType.BLS12_381_G2_Element, SIRType.Boolean)
                 ),
                 p2Var,
-                SIRType.BooleanPrimitive
+                SIRType.Boolean
               )
             )
           )
@@ -863,10 +863,10 @@ class CompilerPluginToSIRSpec extends AnyFunSuite with ScalaCheckPropertyChecks:
                 Apply(
                   SIRBuiltins.bls12_381_finalVerify,
                   p1BlsMlVar,
-                  Fun(SIRType.BLS12_381_MlResult, SIRType.BooleanPrimitive)
+                  Fun(SIRType.BLS12_381_MlResult, SIRType.Boolean)
                 ),
                 p2BlsMlVar,
-                SIRType.BooleanPrimitive
+                SIRType.Boolean
               )
             )
           )

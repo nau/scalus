@@ -68,11 +68,11 @@ object SIRType {
     }
     given String.type = String
 
-    case object BooleanPrimitive extends Primitive[Boolean] {
+    case object Boolean extends Primitive[Boolean] {
         override def uplcTpe: DefaultUni = DefaultUni.Bool
         override def show: String = "Boolean"
     }
-    given BooleanPrimitive.type = BooleanPrimitive
+    given Boolean.type = Boolean
     case object VoidPrimitive extends Primitive[Unit] {
         override def uplcTpe: DefaultUni = DefaultUni.Unit
         override def show: String = "Unit"
@@ -450,7 +450,7 @@ object SIRType {
             case DefaultUni.ByteString           => ByteString
             case DefaultUni.Integer              => Integer
             case DefaultUni.String               => String
-            case DefaultUni.Bool                 => BooleanPrimitive
+            case DefaultUni.Bool                 => Boolean
             case DefaultUni.Unit                 => VoidPrimitive
             case DefaultUni.Data                 => Data
             case DefaultUni.BLS12_381_G1_Element => BLS12_381_G1_Element

@@ -12,7 +12,7 @@ class RemoveRecursivitySpec extends AnyFunSuite:
         }
         val optimized = RemoveRecursivity(compiled)
         import sir.SIR.*, Recursivity.*
-        import sir.SIRType.{Fun, Integer, BooleanPrimitive, VoidPrimitive}
+        import sir.SIRType.{Fun, Integer, Boolean, VoidPrimitive}
         import scalus.uplc.Constant
         import scalus.uplc.DefaultFun.{IfThenElse as _, *}
 
@@ -40,10 +40,10 @@ class RemoveRecursivitySpec extends AnyFunSuite:
                               Apply(
                                 SIRBuiltins.equalsInteger,
                                 xVar,
-                                Fun(Integer, BooleanPrimitive)
+                                Fun(Integer, Boolean)
                               ),
                               Const(Constant.Integer(0), Integer),
-                              BooleanPrimitive
+                              Boolean
                             ),
                             Const(Constant.Integer(0), Integer),
                             Apply(

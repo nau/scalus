@@ -130,8 +130,8 @@ class SimpleSirToUplcLoweringSpec
         /* And True False
        lowers to (\True False -> And True False) True False
          */
-        val a = SIR.Var("a", SIRType.BooleanPrimitive)
-        val b = SIR.Var("b", SIRType.BooleanPrimitive)
+        val a = SIR.Var("a", SIRType.Boolean)
+        val b = SIR.Var("b", SIRType.Boolean)
         SIR.And(a, b) lowersTo !(!IfThenElse $ vr"a" $ ~vr"b" $ ~false)
         SIR.Or(a, b) lowersTo !(!IfThenElse $ vr"a" $ ~true $ ~vr"b")
         SIR.Not(a) lowersTo !(!IfThenElse $ vr"a" $ ~false $ ~true)

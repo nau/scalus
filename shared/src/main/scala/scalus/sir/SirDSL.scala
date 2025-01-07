@@ -43,7 +43,7 @@ object SirDSL:
                 case Constant.ByteString(value) => SIR.Const(c, SIRType.ByteString)
                 case Constant.String(value)     => SIR.Const(c, SIRType.String)
                 case Constant.Unit              => SIR.Const(c, SIRType.VoidPrimitive)
-                case Constant.Bool(value)       => SIR.Const(c, SIRType.BooleanPrimitive)
+                case Constant.Bool(value)       => SIR.Const(c, SIRType.Boolean)
                 case Constant.Data(value)       => SIR.Const(c, SIRType.Data)
                 case Constant.List(elemType, value) =>
                     SIR.Const(c, SIRType.List(SIRType.fromDefaultUni(elemType)))

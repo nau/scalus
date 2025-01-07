@@ -159,15 +159,15 @@ object SIR:
     case class Const(uplcConst: Constant, tp: SIRType) extends SIR
 
     case class And(a: SIR, b: SIR) extends SIR {
-        override def tp: SIRType = SIRType.BooleanPrimitive
+        override def tp: SIRType = SIRType.Boolean
     }
 
     case class Or(a: SIR, b: SIR) extends SIR {
-        override def tp: SIRType = SIRType.BooleanPrimitive
+        override def tp: SIRType = SIRType.Boolean
     }
 
     case class Not(a: SIR) extends SIR {
-        override def tp: SIRType = SIRType.BooleanPrimitive
+        override def tp: SIRType = SIRType.Boolean
     }
 
     case class IfThenElse(cond: SIR, t: SIR, f: SIR, tp: SIRType) extends SIR
