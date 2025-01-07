@@ -216,7 +216,7 @@ trait HashConsedMutRefReprFlat[A <: AnyRef] extends HashConsedReprFlat[A, HashCo
             case None =>
                 decoderState.hashConsed.putForwardRef(HashConsed.ForwardRefAcceptor(ihc, tag, Nil))
                 val sa = decodeHCNew(decoderState)
-                if (sa.isForward) then
+                if sa.isForward then
                     throw new IllegalStateException("decodeHCNew returned a forward reference")
                 decoderState.hashConsed.setRef(ihc, tag, sa)
                 sa

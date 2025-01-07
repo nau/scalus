@@ -62,9 +62,9 @@ object SIRHashCodeInRec {
                 case (a: SIRType.TypeProxy, y: SIRType.TypeProxy) =>
                     summon[SIRHashCodeInRec[SIRType.TypeProxy]].applyEq(a, y, trace)
                 case (a: SIRType.TypeProxy, b: SIRType) =>
-                    if (a.ref == null) then false else applyEq(a.ref, b, trace)
+                    if a.ref == null then false else applyEq(a.ref, b, trace)
                 case (a: SIRType, b: SIRType.TypeProxy) =>
-                    if (b.ref == null) then false else applyEq(a, b.ref, trace)
+                    if b.ref == null then false else applyEq(a, b.ref, trace)
                 case _ =>
                     a == y
         }
@@ -122,7 +122,7 @@ object SIRHashCodeInRec {
         ): Boolean = {
             val inTrace = trace.get(a)
             if (inTrace eq null) || !inTrace.contains(b) then
-                val nSameAsA = if (inTrace eq null) then List(b) else b :: inTrace
+                val nSameAsA = if inTrace eq null then List(b) else b :: inTrace
                 trace.put(a, nSameAsA)
                 summon[SIRHashCodeInRec[DataDecl]].applyEq(a.decl, b.decl, trace) &&
                 summon[SIRHashCodeInRec[List[SIRType]]].applyEq(a.typeArgs, b.typeArgs, trace)
@@ -155,7 +155,7 @@ object SIRHashCodeInRec {
         ): Boolean = {
             val inTrace = trace.get(a)
             if (inTrace eq null) || !inTrace.contains(b) then
-                val nSameAsA = if (inTrace eq null) then List(b) else b :: inTrace
+                val nSameAsA = if inTrace eq null then List(b) else b :: inTrace
                 trace.put(a, nSameAsA)
                 summon[SIRHashCodeInRec[ConstrDecl]].applyEq(a.constrDecl, b.constrDecl, trace) &&
                 summon[SIRHashCodeInRec[List[SIRType]]].applyEq(a.typeArgs, b.typeArgs, trace)
@@ -214,7 +214,7 @@ object SIRHashCodeInRec {
         ): Boolean = {
             val inTrace = trace.get(a)
             if (inTrace eq null) || !inTrace.contains(b) then
-                val nSameAsA = if (inTrace eq null) then List(b) else b :: inTrace
+                val nSameAsA = if inTrace eq null then List(b) else b :: inTrace
                 trace.put(a, nSameAsA)
                 a.params == b.params &&
                 summon[SIRHashCodeInRec[SIRType]].applyEq(a.body, b.body, trace)
@@ -226,7 +226,7 @@ object SIRHashCodeInRec {
     given SIRHashCodeInRec[SIRType.TypeProxy] with {
 
         override def apply(t: SIRType.TypeProxy, trace: util.IdentityHashMap[SIRType, Int]): Int = {
-            if (t.ref == null) then 0
+            if t.ref == null then 0
             else summon[SIRHashCodeInRec[SIRType]](t.ref, trace)
         }
 
@@ -235,7 +235,7 @@ object SIRHashCodeInRec {
             b: SIRType.TypeProxy,
             trace: util.IdentityHashMap[SIRType, List[SIRType]]
         ): Boolean = {
-            if (a.ref == null) then b.ref == null
+            if a.ref == null then b.ref == null
             else summon[SIRHashCodeInRec[SIRType]].applyEq(a.ref, b.ref, trace)
         }
 

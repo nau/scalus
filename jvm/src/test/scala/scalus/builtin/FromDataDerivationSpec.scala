@@ -202,8 +202,8 @@ class FromDataDerivationSpec
                 VM.evaluateProgram(Program((1, 0, 0), term $ d))
             catch
                 case e: Throwable =>
-                    if (e.getMessage != null) {
-                        if (e.getMessage.length > 100) {
+                    if e.getMessage != null {
+                        if e.getMessage.length > 100 {
                             val newMsg = e.getMessage.take(100) + "..."
                             throw new RuntimeException(newMsg)
                         }
@@ -218,7 +218,7 @@ class FromDataDerivationSpec
                     assert(term == Term.Const(Constant.Data(d)))
                 case UplcEvalResult.UplcFailure(errorCode, error) =>
                     println(s"UplcFailure: d=${d}")
-                    val errorMsg = if (error.length > 100) error.take(100)+"..." else error
+                    val errorMsg = if error.length > 100 error.take(100)+"..." else error
                     fail(errorMsg)
                 case UplcEvalResult.TermParsingError(error) =>
                     fail(error)

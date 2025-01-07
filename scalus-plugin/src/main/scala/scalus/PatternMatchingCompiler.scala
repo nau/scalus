@@ -92,7 +92,7 @@ class PatternMatchingCompiler(val compiler: SIRCompiler)(using Context) {
     }
 
     private def compileBinding(env: SIRCompiler.Env, pat: Tree, tp: Type): SirBinding = {
-        if (env.debug) then println(s"compileBinding: ${pat.show} ${tp.show}")
+        if env.debug then println(s"compileBinding: ${pat.show} ${tp.show}")
         pat match
             // this is case Constr(name @ _) or Constr(name)
             case Bind(name, id @ Ident(nme.WILDCARD)) =>
@@ -192,7 +192,7 @@ class PatternMatchingCompiler(val compiler: SIRCompiler)(using Context) {
             case mt: MethodType =>
                 val unapplyResType = mt.resultType.dealias
                 val optionBase = unapplyResType.baseType(defn.OptionClass)
-                if (optionBase != NoType) then
+                if optionBase != NoType then
                     optionBase match
                         case AppliedType(tpe, List(optArgType)) =>
                             optArgType.tupleElementTypes match
@@ -206,12 +206,12 @@ class PatternMatchingCompiler(val compiler: SIRCompiler)(using Context) {
                               srcPos,
                               s"unapply result type is not applied type when type constructor of ${unapplyResType.classSymbol} have type params"
                             )
-                else if (unapplyResType.baseType(defn.ProductClass) != NoType) then
+                else if unapplyResType.baseType(defn.ProductClass) != NoType then
                     val unapplyPrimaryConstructor = unapplyResType.classSymbol.primaryConstructor
                     val constrTypeParamss =
                         unapplyPrimaryConstructor.paramSymss.filter(_.exists(_.isType))
                     val nEnv =
-                        if (!constrTypeParamss.isEmpty) then
+                        if !constrTypeParamss.isEmpty then
                             unapplyResType match
                                 case AppliedType(tpe, args) =>
                                     val newParams = (constrTypeParamss.head zip args).map {
@@ -228,9 +228,9 @@ class PatternMatchingCompiler(val compiler: SIRCompiler)(using Context) {
                         else envIn
                     val constrParamss =
                         unapplyPrimaryConstructor.paramSymss.filter(_.exists(_.isTerm))
-                    if (constrParamss.isEmpty) then (List.empty[Type], nEnv)
+                    if constrParamss.isEmpty then (List.empty[Type], nEnv)
                     else (constrParamss.head.map(_.info), nEnv)
-                else if (unapplyResType =:= defn.BooleanType) then (List.empty, envIn)
+                else if unapplyResType =:= defn.BooleanType then (List.empty, envIn)
                 else
                     // constructor patterns have no special forms
                     // TODO: get resuslt
@@ -246,7 +246,7 @@ class PatternMatchingCompiler(val compiler: SIRCompiler)(using Context) {
                   "type of unapply fun is not a method type"
                 )
 
-        if (patternTypes.length != patterns.length) then
+        if patternTypes.length != patterns.length then
             throw TypingException(
               fun.tpe.widen,
               srcPos,
@@ -286,11 +286,11 @@ class PatternMatchingCompiler(val compiler: SIRCompiler)(using Context) {
             SirCase.Error(GuardsNotSupported(guard.srcPos)) :: Nil
         // this case is for matching on a case class
         case CaseDef(unapply @ UnApply(fun, _, pats), _, rhs) =>
-            if (env.debug) then
+            if env.debug then
                 println(s"Case: ${fun}, pats: ${pats}, rhs: $rhs")
                 report.debuglog(s"dl: Case: ${fun}, pats: ${pats}, rhs: $rhs")
             // report.error(s"Case: ${fun}, pats: ${pats}, rhs: $rhs", t.pos)
-            if (unapply.tpe == defn.NothingType) then
+            if unapply.tpe == defn.NothingType then
                 // need to restore constructor, maybe from fun
                 fun.tpe.widen match
                     case mt: MethodType =>
@@ -348,14 +348,14 @@ class PatternMatchingCompiler(val compiler: SIRCompiler)(using Context) {
             SirCase.Error(UnsupportedMatchExpression(a, a.srcPos)) :: Nil
 
     def compileMatch(tree: Match, env: SIRCompiler.Env): SIR = {
-        if (env.debug) then println(s"compileMatch: ${tree.show}")
+        if env.debug then println(s"compileMatch: ${tree.show}")
         val Match(matchTree, cases) = tree
         // val typeSymbol = matchTree.tpe.widen.dealias.typeSymbol
         val adtInfo = compiler.getAdtTypeInfo(matchTree.tpe)
         // report.echo(s"Match: ${typeSymbol} ${typeSymbol.children} $adtInfo", tree.srcPos)
         val matchExpr = compiler.compileExpr(env, matchTree)
         val sirCases = cases.flatMap(cs => scalaCaseDefToSirCase(env, cs))
-        if (env.debug) then println(s"compileMatch cases: ${sirCases}")
+        if env.debug then println(s"compileMatch cases: ${sirCases}")
 
         // 1. If we have a wildcard case, it must be the last one
         // 2. Validate we don't have any errors

@@ -46,7 +46,7 @@ case class ConstrDecl(
     private var _tp: SIRType = null
 
     def tp: SIRType =
-        if (_tp == null) then
+        if _tp == null then
             _tp = typeParams match
                 case Nil => SIRType.CaseClass(this, typeParams)
                 case tp :: tail =>

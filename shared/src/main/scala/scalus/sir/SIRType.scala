@@ -106,7 +106,7 @@ object SIRType {
     case class CaseClass(constrDecl: ConstrDecl, typeArgs: scala.List[SIRType]) extends SIRType {
 
         override def show: String =
-            if (typeArgs.isEmpty) then constrDecl.name
+            if typeArgs.isEmpty then constrDecl.name
             else s"${constrDecl.name}[${typeArgs.map(_.show).mkString(", ")}]"
 
     }
@@ -114,7 +114,7 @@ object SIRType {
     case class SumCaseClass(decl: DataDecl, typeArgs: scala.List[SIRType]) extends SIRType {
 
         override def show: String =
-            if (typeArgs.isEmpty) then decl.name
+            if typeArgs.isEmpty then decl.name
             else s"${decl.name}[${typeArgs.map(_.show).mkString(", ")}]"
 
     }
@@ -219,7 +219,7 @@ object SIRType {
 
     case class TypeError(msg: String, cause: Throwable | Null) extends SIRType {
         override def show: String =
-            if (cause eq null) then s"Error: $msg"
+            if cause eq null then s"Error: $msg"
             else s"Error: $msg\nCause: ${cause.getMessage}"
     }
 
@@ -232,7 +232,7 @@ object SIRType {
         val ex = new RuntimeException("type-proxy-created")
 
         override def hashCode(): Int = {
-            if (ref == null) then 0
+            if ref == null then 0
             else
                 // do not call ref.hashCode because it will be recursively called
                 //  TODO: actually this beeak case-class contract
@@ -247,7 +247,7 @@ object SIRType {
 
         override def show: String = {
             val internal =
-                if (ref eq null) then "null" else java.lang.System.identityHashCode(ref).toString
+                if ref eq null then "null" else java.lang.System.identityHashCode(ref).toString
             s"Proxy($internal)"
         }
 
@@ -327,7 +327,7 @@ object SIRType {
 
         def unapply(l: SIRType): Option[SIRType] = l match {
             case SumCaseClass(dataDecl, scala.List(a)) =>
-                if (dataDecl.name == "List") then Some(a)
+                if dataDecl.name == "List" then Some(a)
                 else None
             case this.Cons(a) => Some(a)
             case this.Nil     => Some(VoidPrimitive)
@@ -359,7 +359,7 @@ object SIRType {
 
             def unapply(x: SIRType): Option[SIRType] = x match {
                 case CaseClass(constr, scala.List(a)) =>
-                    if (constr.name == "Cons") then Some(a)
+                    if constr.name == "Cons" then Some(a)
                     else None
                 case _ => None
             }
@@ -410,7 +410,7 @@ object SIRType {
                 }
                 calculateApplyType(body, arg, newEnv, debug)
             case TypeProxy(next) =>
-                if (next == null) then throw TypingException(s"TypeProxy is not resolved: $f")
+                if next == null then throw TypingException(s"TypeProxy is not resolved: $f")
                 else calculateApplyType(next, arg, env, debug)
             case other =>
                 throw TypingException(s"Expected function type, got $other", null)
@@ -497,16 +497,16 @@ object SIRType {
         traceloops: java.util.IdentityHashMap[SIRType, SIRType],
         log: List[String]
     ): Boolean = {
-        if (traceloops.get(tp) != null) then true
+        if traceloops.get(tp) != null then true
         else
             traceloops.put(tp, tp)
             tp match
                 case tp: TypeProxy =>
-                    if (tp.ref == null) then
+                    if tp.ref == null then
                         println("Found null typeproxe, created at: ")
                         tp.ex.printStackTrace()
                         false
-                    else if (traceloops.get(tp.ref) != null) then
+                    else if traceloops.get(tp.ref) != null then
                         checkAllProxiesFilledTraced(tp.ref, traceloops, log)
                     else true
                 case Fun(in, out) =>

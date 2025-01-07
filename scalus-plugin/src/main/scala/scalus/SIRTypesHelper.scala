@@ -23,7 +23,7 @@ object SIRTypesHelper {
 
     def sirTypeInEnv(tp: Type, env0: SIRTypeEnv)(using Context): SIRType = {
         val env =
-            if (tp =:= Symbols.requiredClass("scalus.ledger.api.v3.TxInfo").info) then
+            if tp =:= Symbols.requiredClass("scalus.ledger.api.v3.TxInfo").info then
                 env0.copy(trace = true)
             else env0
         val retval =
@@ -32,41 +32,40 @@ object SIRTypesHelper {
                 case e: TypingException =>
                     println(s"typing exception during sirTypeInEnv(${tp.show}), tp tree: ${tp}")
                     throw e
-        if (true) then
+        if true then
             if (!SIRType.checkAllProxiesFilled(retval)) then
                 throw new TypingException(tp, env.pos, s"Unfilled proxies in ${retval.show}")
         retval
     }
 
     def sirTypeInEnvWithErr(tp: Type, env: SIRTypeEnv)(using Context): SIRType =
-        if (env.trace) then println(s"sirTypeInEnvWithErr ${tp.show},  env=${env}")
+        if env.trace then println(s"sirTypeInEnvWithErr ${tp.show},  env=${env}")
         val retval = tp match
             case tpc: TermRef =>
-                if (tpc.typeSymbol.isTypeParam) then
-                    unsupportedType(tp, s"TermRef ${tpc.show}", env)
+                if tpc.typeSymbol.isTypeParam then unsupportedType(tp, s"TermRef ${tpc.show}", env)
                 else if !(tpc.widen =:= tpc) then sirTypeInEnvWithErr(tp.widen, env)
                 else unsupportedType(tp, s"TermRef ${tpc.show}", env)
             case tpc: TypeRef =>
                 val sym = tpc.typeSymbol
-                if (tpc =:= defn.NothingType) then SIRType.TypeNothing
-                else if (tpc.isTypeAlias) then sirTypeInEnvWithErr(tpc.dealias, env)
-                else if (tpc =:= defn.AnyType) then SIRType.FreeUnificator
-                else if (sym.isClass) then makeSIRNonFunClassType(tpc, Nil, env)
-                else if (sym.isTypeParam) then
+                if tpc =:= defn.NothingType then SIRType.TypeNothing
+                else if tpc.isTypeAlias then sirTypeInEnvWithErr(tpc.dealias, env)
+                else if tpc =:= defn.AnyType then SIRType.FreeUnificator
+                else if sym.isClass then makeSIRNonFunClassType(tpc, Nil, env)
+                else if sym.isTypeParam then
                     env.vars.get(sym) match
                         case Some(t) => t
                         case None =>
                             val name = sym.showFullName
                             unsupportedType(tp, s"Unfilled typeParam: ${tpc.show}", env)
-                else if (sym.isAliasType) then
+                else if sym.isAliasType then
                     // looks like bug in a compiler
                     // println(s"stragen alias: ${tpc.show}, tpc.isTypeAlias=${tpc.isTypeAlias}, tp.isTypeAlias=${tp.isTypeAlias} sym.isAlias=${sym.isAliasType}, tpc.isSingleton=${tpc.isSingleton}")
                     // println(s"strange aliase: tree=${tpc}, symFullName=${sym.fullName}, dealias=${tpc.dealias.show}, deaslias.fullName=${tpc.dealias.typeSymbol.fullName}")
                     // throw new Exception("alias type")
                     sirTypeInEnvWithErr(tpc.dealias, env)
-                else if (tpc.isValueType) then
+                else if tpc.isValueType then
                     val wtpc = tpc.widen
-                    if (wtpc != tpc) then sirTypeInEnvWithErr(wtpc, env)
+                    if wtpc != tpc then sirTypeInEnvWithErr(wtpc, env)
                     else makeSIRNonFunValueType(tpc, Nil, env)
                 else unsupportedType(tpc, "TypeRef", env)
             case tpc: ConstantType =>
@@ -90,7 +89,7 @@ object SIRTypesHelper {
                 else
                     tp.tycon match
                         case tpc: TypeRef =>
-                            if (tpc.isTypeAlias || tpc.symbol.isAliasType) then
+                            if tpc.isTypeAlias || tpc.symbol.isAliasType then
                                 sirTypeInEnvWithErr(tpc.dealias.appliedTo(tp.args), env)
                             else makeSIRNonFunClassType(tpc, tp.args.map(sirTypeInEnv(_, env)), env)
                         case tpc: TypeLambda =>
@@ -155,7 +154,7 @@ object SIRTypesHelper {
                                 val paramName = binder.paramNames(idx).show
                                 // unsupportedType(tp, s"TypeVar ${typeVar.show}, name=${name}", env)
                                 val symCode =
-                                    if (typeVar.typeSymbol == Symbols.NoSymbol) then
+                                    if typeVar.typeSymbol == Symbols.NoSymbol then
                                         // (binder.typeSymbol.hashCode().toLong << 32) + idx
                                         binder.typeSymbol.hashCode() + idx
                                     else typeVar.typeSymbol.hashCode()
@@ -204,7 +203,7 @@ object SIRTypesHelper {
         if (sym == Symbols.requiredClass("scala.math.BigInt")) then SIRType.IntegerPrimitive
         else
         // this is a custom value type,  check hidden val
-        if (tpc.typeSymbol.isTerm && !tpc.typeSymbol.isType) then
+        if tpc.typeSymbol.isTerm && !tpc.typeSymbol.isType then
             // sone strange type, which should be a TermRef,  not TypeRef
             //  (error in dotty  ???)
             val termSym = tpc.typeSymbol.asTerm
@@ -249,19 +248,19 @@ object SIRTypesHelper {
     def tryMakePrimitivePrimitive(symbol: Symbol, tpArgs: List[SIRType])(using
         Context
     ): Option[SIRType] = {
-        if (!tpArgs.isEmpty) then None
-        else if (symbol == defn.BooleanType.typeSymbol || symbol == defn.BoxedBooleanClass) then
+        if !tpArgs.isEmpty then None
+        else if symbol == defn.BooleanType.typeSymbol || symbol == defn.BoxedBooleanClass then
             Some(SIRType.BooleanPrimitive)
         else if (symbol == Symbols.requiredClass("scalus.builtin.ByteString")) then
             Some(SIRType.ByteStringPrimitive)
         else if (symbol == Symbols.requiredClass("scala.math.BigInt")) then
             Some(SIRType.IntegerPrimitive)
-        else if (symbol == defn.IntType.typeSymbol || symbol == defn.BoxedIntClass) then
+        else if symbol == defn.IntType.typeSymbol || symbol == defn.BoxedIntClass then
             Some(SIRType.IntegerPrimitive)
-        else if (symbol == defn.LongType.typeSymbol || symbol == defn.BoxedLongClass) then
+        else if symbol == defn.LongType.typeSymbol || symbol == defn.BoxedLongClass then
             Some(SIRType.IntegerPrimitive)
-        else if (symbol == defn.StringType.typeSymbol) then Some(SIRType.StringPrimitive)
-        else if (symbol == defn.UnitClass) then Some(SIRType.VoidPrimitive)
+        else if symbol == defn.StringType.typeSymbol then Some(SIRType.StringPrimitive)
+        else if symbol == defn.UnitClass then Some(SIRType.VoidPrimitive)
         else None
     }
 
@@ -367,11 +366,11 @@ object SIRTypesHelper {
         if typeSymbol.flags.is(Flags.Case) || typeSymbol.flags.is(Flags.Enum) then {
             // case class, can do constrdecl
             val name = typeSymbol.fullName.show
-            // if (name=="")
+            // if name==""
 
             val (typeParamSymbols, paramSymbols) = typeSymbol.primaryConstructor.paramSymss match
                 case List(args) =>
-                    if (args.isEmpty) then (Nil, Nil)
+                    if args.isEmpty then (Nil, Nil)
                     else if (args.exists(_.isTerm)) then (Nil, args)
                     else if (args.exists(_.isType)) then (args, Nil)
                     else {
@@ -381,22 +380,22 @@ object SIRTypesHelper {
                         throw TypingException(typeSymbol.info, env.pos, msg)
                     }
                 case List(frs, snd) =>
-                    if (frs.exists(_.isType) && snd.exists(_.isTerm)) then (frs, snd)
-                    else if (frs.exists(_.isTerm) && snd.exists(_.isType)) then (snd, frs)
-                    else if (frs.exists(_.isType) && snd.exists(_.isType)) then
+                    if frs.exists(_.isType) && snd.exists(_.isTerm) then (frs, snd)
+                    else if frs.exists(_.isTerm) && snd.exists(_.isType) then (snd, frs)
+                    else if frs.exists(_.isType) && snd.exists(_.isType) then
                         val msg =
                             s"Case class ${typeSymbol.showFullName} has primary constructor with two type parametes list"
                         thisProxy.ref = SIRType.TypeError(msg, null)
                         throw TypingException(typeSymbol.info, env.pos, msg)
-                    else if (frs.exists(_.isTerm) && snd.exists(_.isTerm)) then
+                    else if frs.exists(_.isTerm) && snd.exists(_.isTerm) then
                         val msg =
                             s"Not supported ${typeSymbol.showFullName} has primary constructor with multiole parametes list"
                         thisProxy.ref = SIRType.TypeError(msg, null)
                         throw TypingException(typeSymbol.info, env.pos, msg)
-                    else if (frs.exists(_.isType) && snd.isEmpty) then (frs, Nil)
-                    else if (frs.isEmpty && snd.exists(_.isType)) then (Nil, snd)
-                    else if (frs.exists(_.isTerm) && snd.isEmpty) then (Nil, frs)
-                    else if (frs.isEmpty && snd.exists(_.isTerm)) then (snd, Nil)
+                    else if frs.exists(_.isType) && snd.isEmpty then (frs, Nil)
+                    else if frs.isEmpty && snd.exists(_.isType) then (Nil, snd)
+                    else if frs.exists(_.isTerm) && snd.isEmpty then (Nil, frs)
+                    else if frs.isEmpty && snd.exists(_.isTerm) then (snd, Nil)
                     else {
                         val msg =
                             s"Case class ${typeSymbol.showFullName} has strange primary constructor: ${frs} ${snd}"
@@ -404,7 +403,7 @@ object SIRTypesHelper {
                         throw TypingException(typeSymbol.info, env.pos, msg)
                     }
                 case List(frs, snd, thr) =>
-                    if (frs.exists(_.isType) && snd.exists(_.isTerm) && thr.isEmpty) then (frs, snd)
+                    if frs.exists(_.isType) && snd.exists(_.isTerm) && thr.isEmpty then (frs, snd)
                     else
                         val msg =
                             s"Not supported ${typeSymbol.showFullName} has primary constructor with multiole parametes list"
@@ -569,7 +568,7 @@ object SIRTypesHelper {
         throwError: Boolean = true,
         cause: Throwable = null
     )(using Context): SIRType = {
-        if (throwError) then throw TypingException(tpe, env.pos, msg)
+        if throwError then throw TypingException(tpe, env.pos, msg)
         else SIRType.TypeError(msg, null)
     }
 

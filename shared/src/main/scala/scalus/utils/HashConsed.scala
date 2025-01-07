@@ -59,7 +59,7 @@ object HashConsedRef {
                 level: Int,
                 parents: IdentityHashMap[HashConsedRef[?], HashConsedRef[?]]
             ): A =
-                if (parents.get(this) != null) then
+                if parents.get(this) != null then
                     throw IllegalStateException(s"Cyclic reference, this= $this, parents=$parents")
                 parents.put(this, this)
                 val retval = op(hashConsed, level + 1, parents)
@@ -105,8 +105,8 @@ object HashConsed {
             data != null || ref.isComplete(hashConsed)
 
         override def finValue(hashConsed: State, level: Int, parents: HSRIdentityHashMap): A =
-            if (data == null) then
-                if (parents.get(this) != null) then throw IllegalStateException("Cyclic reference")
+            if data == null then
+                if parents.get(this) != null then throw IllegalStateException("Cyclic reference")
                 parents.put(this, this)
                 data = ref.finValue(hashConsed, level + 1, parents)
                 parents.remove(this)
@@ -121,7 +121,7 @@ object HashConsed {
         override def isComplete(hashConsed: State): Boolean = (value != null)
 
         override def finValue(hashConsed: State, level: Int, parents: HSRIdentityHashMap): A =
-            if (value == null) then throw IllegalStateException("Null reference during reading")
+            if value == null then throw IllegalStateException("Null reference during reading")
             value.asInstanceOf[A]
 
         def setValue(a: A): Unit =
@@ -149,16 +149,16 @@ object HashConsed {
             ref != null && ref.isComplete(hashConsed)
 
         override def finValue(hashConsed: State, level: Int, parents: HSRIdentityHashMap): A =
-            if (ref == null) then
+            if ref == null then
                 ref = hashConsed.lookup(ihc, tag) match
                     case None =>
                         throw IllegalStateException(s"Forward reference not creaded: $ihc, $tag")
                     case Some(Left(fw)) =>
                         throw IllegalStateException(s"Forward reference not resolved: $ihc, $tag")
                     case Some(Right(a)) =>
-                        if (parents.get(a) != null) then
+                        if parents.get(a) != null then
                             throw IllegalStateException(s"Cycled forward referenc: $ihc, $tag")
-                        if (a eq this) then
+                        if a eq this then
                             throw IllegalStateException(
                               s"Forward reference not non-rec resolved: $ihc, $tag"
                             )
@@ -240,7 +240,7 @@ object HashConsed {
                 v.setValueActions = acceptor.asInstanceOf[AnyRef => Unit] :: v.setValueActions
 
     def setRef[A <: AnyRef](state: State, ihc: Int, tag: Tag, ra: HashConsedRef[A]): Unit =
-        if (ra.isForward) then throw IllegalStateException("Forward reference in setRef")
+        if ra.isForward then throw IllegalStateException("Forward reference in setRef")
         val key = (ihc, tag)
         state.refs.get(key) match
             case None => state.refs.put(key, CachedTaggedRef(tag, ra))

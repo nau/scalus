@@ -83,7 +83,7 @@ class SIRTypeSerializationSpec extends AnyFunSuite {
         val constrDecl = txInfoSIRType match
             case SIRType.CaseClass(constrDecl, typeArgs) => constrDecl
             case SIRType.SumCaseClass(dataDecl, typeArgs) =>
-                if (dataDecl.constructors.length == 1) then
+                if dataDecl.constructors.length == 1 then
                     val constrDecl = dataDecl.constructors.head
                     constrDecl
                 else
@@ -114,7 +114,7 @@ class SIRTypeSerializationSpec extends AnyFunSuite {
         val constrDecl1 = tp1 match
             case SIRType.CaseClass(constrDecl, typeArgs) => constrDecl
             case SIRType.SumCaseClass(dataDecl, typeArgs) =>
-                if (dataDecl.constructors.length == 1) then
+                if dataDecl.constructors.length == 1 then
                     val constrDecl = dataDecl.constructors.head
                     constrDecl
                 else
@@ -142,7 +142,7 @@ class SIRTypeSerializationSpec extends AnyFunSuite {
         val constrDecl2 = tp2 match
             case SIRType.CaseClass(constrDecl, typeArgs) => constrDecl
             case SIRType.SumCaseClass(dataDecl, typeArgs) =>
-                if (dataDecl.constructors.length == 1) then
+                if dataDecl.constructors.length == 1 then
                     val constrDecl = dataDecl.constructors.head
                     constrDecl
                 else

@@ -41,7 +41,7 @@ object ToExprHSSIRTypeFlat extends HashConsedFlat[SIRType] {
     val paranoid = true
 
     override def bitSizeHC(a: SIRType, encoderState: HashConsed.State): Int = {
-        if (paranoid) then
+        if paranoid then
             if (!SIRType.checkAllProxiesFilled(a)) then
                 throw new IllegalStateException("proxy not filled in $a")
         SIRTypeHashConsedFlat.bitSizeHC(a, encoderState)
@@ -52,7 +52,7 @@ object ToExprHSSIRTypeFlat extends HashConsedFlat[SIRType] {
         encoderState.encode.filler()
 
         // not check that it is decoded correctly
-        if (paranoid) then
+        if paranoid then
             val decoderState = HashConsedDecoderState(
               DecoderState(encoderState.encode.buffer),
               HashConsed.State.empty
@@ -61,7 +61,7 @@ object ToExprHSSIRTypeFlat extends HashConsedFlat[SIRType] {
             val sirType1 = ref.finValue(decoderState.hashConsed, 0, new HSRIdentityHashMap)
             decoderState.runFinCallbacks()
             val unifyResult = SIRUnify.unifyType(a, sirType1, SIRUnify.Env.empty)
-            if (!unifyResult.isSuccess) then
+            if !unifyResult.isSuccess then
                 println("unification for encoding/decoding failed")
                 println(s"original: ${a.show}")
                 println(s"decoded: ${sirType1.show}")
@@ -76,7 +76,7 @@ object ToExprHSSIRTypeFlat extends HashConsedFlat[SIRType] {
         val ref = SIRTypeHashConsedFlat.decodeHC(decoderState)
         decoderState.runFinCallbacks()
         val retval = ref.finValue(decoderState.hashConsed, 0, new HSRIdentityHashMap)
-        if (paranoid) then
+        if paranoid then
             if (!checkAllProxiesFilled(retval)) then
                 throw new IllegalStateException("proxy not filled in $retval")
         retval
@@ -104,7 +104,7 @@ object ToExprHSSIRFlat extends HashConsedFlat[SIR] {
         }
         SIRHashConsedFlat.encodeHC(a, encoderState)
         encoderState.encode.filler()
-        // if (paranoid) {
+        // if paranoid {
         //    val decoderState = HashConsedDecoderState(
         //      DecoderState(encoderState.encode.buffer),
         //      HashConsed.State.empty
