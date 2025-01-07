@@ -1228,7 +1228,7 @@ final class SIRCompiler(mode: scalus.Mode)(using ctx: Context) {
                       SIR.Apply(
                         SIRBuiltins.equalsString,
                         lhsExpr,
-                        SIRType.StringPrimitive ->: SIRType.BooleanPrimitive
+                        SIRType.String ->: SIRType.BooleanPrimitive
                       ),
                       rhsExpr,
                       SIRType.BooleanPrimitive

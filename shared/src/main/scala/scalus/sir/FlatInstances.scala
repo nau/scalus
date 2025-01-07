@@ -307,7 +307,7 @@ object FlatInstantces:
                     encode.encode.bits(tagWidth, tagPrimitiveByteString)
                 case SIRType.Integer =>
                     encode.encode.bits(tagWidth, tagPrimitiveInteger)
-                case SIRType.StringPrimitive =>
+                case SIRType.String =>
                     encode.encode.bits(tagWidth, tagPrimitiveString)
                 case SIRType.BooleanPrimitive =>
                     encode.encode.bits(tagWidth, tagPrimitiveBoolean)
@@ -361,7 +361,7 @@ object FlatInstantces:
             ctag match
                 case `tagPrimitiveByteString` => HashConsedRef.fromData(SIRType.ByteString)
                 case `tagPrimitiveInteger`    => HashConsedRef.fromData(SIRType.Integer)
-                case `tagPrimitiveString`     => HashConsedRef.fromData(SIRType.StringPrimitive)
+                case `tagPrimitiveString`     => HashConsedRef.fromData(SIRType.String)
                 case `tagPrimitiveBoolean`    => HashConsedRef.fromData(SIRType.BooleanPrimitive)
                 case `tagPrimitiveVoid`       => HashConsedRef.fromData(SIRType.VoidPrimitive)
                 case `tagPrimitiveData`       => HashConsedRef.fromData(SIRType.Data)

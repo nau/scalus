@@ -108,16 +108,16 @@ object SIRBuiltins {
     // Strings
     val appendString = SIR.Builtin(
       DefaultFun.AppendString,
-      SIRType.StringPrimitive ->: SIRType.StringPrimitive ->: SIRType.StringPrimitive
+      SIRType.String ->: SIRType.String ->: SIRType.String
     )
     val equalsString = SIR.Builtin(
       DefaultFun.EqualsString,
-      SIRType.StringPrimitive ->: SIRType.StringPrimitive ->: SIRType.BooleanPrimitive
+      SIRType.String ->: SIRType.String ->: SIRType.BooleanPrimitive
     )
     val encodeUtf8 =
-        SIR.Builtin(DefaultFun.EncodeUtf8, SIRType.StringPrimitive ->: SIRType.ByteString)
+        SIR.Builtin(DefaultFun.EncodeUtf8, SIRType.String ->: SIRType.ByteString)
     val decodeUtf8 =
-        SIR.Builtin(DefaultFun.DecodeUtf8, SIRType.ByteString ->: SIRType.StringPrimitive)
+        SIR.Builtin(DefaultFun.DecodeUtf8, SIRType.ByteString ->: SIRType.String)
 
     // Bool
     val ifThenElse = SIR.Builtin(
@@ -140,7 +140,7 @@ object SIRBuiltins {
     //   TODO: move to SIR construction
     val trace = SIR.Builtin(
       DefaultFun.Trace,
-      SIRType.TypeLambda("trace_A", a => SIRType.StringPrimitive ->: a ->: a)
+      SIRType.TypeLambda("trace_A", a => SIRType.String ->: a ->: a)
     )
 
     // Pairs

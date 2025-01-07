@@ -38,7 +38,7 @@ class CompilerPluginToSIRSpec extends AnyFunSuite with ScalaCheckPropertyChecks:
     val sirData = SIRType.Data
     val sirBool = SIRType.BooleanPrimitive
     val sirInt = SIRType.Integer
-    val sirString = SIRType.StringPrimitive
+    val sirString = SIRType.String
     val sirByteString = SIRType.ByteString
     val sirVoid = SIRType.VoidPrimitive
     def sirList(tpe: SIRType) = SIRType.List(tpe)
@@ -47,7 +47,7 @@ class CompilerPluginToSIRSpec extends AnyFunSuite with ScalaCheckPropertyChecks:
     def sirConst(x: Int) = Const(Constant.Integer(x), SIRType.Integer)
     def sirConst(x: BigInt) = Const(Constant.Integer(x), SIRType.Integer)
     def sirConst(x: Boolean) = Const(Constant.Bool(x), SIRType.BooleanPrimitive)
-    def sirConst(x: String) = Const(Constant.String(x), SIRType.StringPrimitive)
+    def sirConst(x: String) = Const(Constant.String(x), SIRType.String)
     def sirConst(x: ByteString) = Const(Constant.ByteString(x), SIRType.ByteString)
     def sirConst(x: Data) = Const(Constant.Data(x), SIRType.Data)
     def sirConstUnit = Const(Constant.Unit, SIRType.VoidPrimitive)
@@ -56,7 +56,7 @@ class CompilerPluginToSIRSpec extends AnyFunSuite with ScalaCheckPropertyChecks:
         assert(compile(false) == Const(Constant.Bool(false), SIRType.BooleanPrimitive))
         assert(compile(true) == Const(Constant.Bool(true), SIRType.BooleanPrimitive))
         assert(compile(()) == Const(Constant.Unit, SIRType.VoidPrimitive))
-        assert(compile("foo") == Const(Constant.String("foo"), SIRType.StringPrimitive))
+        assert(compile("foo") == Const(Constant.String("foo"), SIRType.String))
         assert(
           compile(BigInt("15511210043330985984000000")) == Const(
             Constant.Integer(BigInt("15511210043330985984000000")),
