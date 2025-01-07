@@ -265,7 +265,7 @@ object FlatInstantces:
             // println(s"SIRTypeHashConsedFlat.bisSizeHC start ${a.hashCode()} ${a}")
             var mute = true
             val retval = a match
-                case _: SIRType.Primitive[?] =>
+                case _: SIRType.Primitive =>
                     tagWidth
                 case cc: SIRType.CaseClass =>
                     tagWidth + SIRTypeCaseClassFlat.bitSizeHC(cc, hashConsed)

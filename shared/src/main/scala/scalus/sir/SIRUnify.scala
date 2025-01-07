@@ -348,7 +348,7 @@ object SIRUnify {
             case (_, v: SIRType.TypeVar) =>
                 val nEnv = env.copy(filledTypes = env.filledTypes.updated(v, left))
                 checkEqType(nEnv, v, left)
-            case (pLeft: SIRType.Primitive[?], pRight: SIRType.Primitive[?]) =>
+            case (pLeft: SIRType.Primitive, pRight: SIRType.Primitive) =>
                 if pLeft == pRight then UnificationSuccess(env, pLeft)
                 else UnificationFailure(env.path, left, right)
             case (ccLeft: SIRType.CaseClass, ccRight: SIRType.CaseClass) =>

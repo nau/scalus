@@ -28,7 +28,7 @@ object SIRHashCodeInRec {
 
         def apply(t: SIRType, trace: java.util.IdentityHashMap[SIRType, Int]): Int = {
             t match {
-                case p: SIRType.Primitive[?] => p.hashCode()
+                case p: SIRType.Primitive => p.hashCode()
                 case f: SIRType.Fun =>
                     summon[SIRHashCodeInRec[SIRType.Fun]](f, trace)
                 case sc: SIRType.SumCaseClass =>
@@ -50,7 +50,7 @@ object SIRHashCodeInRec {
             trace: java.util.IdentityHashMap[SIRType, List[SIRType]]
         ): Boolean = {
             (a, y) match
-                case (a: SIRType.Primitive[?], y: SIRType.Primitive[?]) => a == y
+                case (a: SIRType.Primitive, y: SIRType.Primitive) => a == y
                 case (a: SIRType.Fun, y: SIRType.Fun) =>
                     summon[SIRHashCodeInRec[SIRType.Fun]].applyEq(a, y, trace)
                 case (a: SIRType.SumCaseClass, y: SIRType.SumCaseClass) =>

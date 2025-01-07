@@ -8,8 +8,6 @@ import java.util
 
 sealed trait SIRType {
 
-    type Carrier
-
     def show: String
 
     def ~=~(that: SIRType): Boolean =
@@ -44,60 +42,56 @@ object SIRType {
         def uplcTpe: DefaultUni
     }
 
-    sealed trait Lifted[T] extends SIRType {
-        type Carrier = T
-    }
+    sealed trait Primitive extends SIRType with ULPCMapped
 
-    sealed trait Primitive[T] extends Lifted[T] with ULPCMapped
-
-    case object ByteString extends Primitive[scalus.builtin.ByteString] {
+    case object ByteString extends Primitive {
         override def uplcTpe: DefaultUni = DefaultUni.ByteString
         override def show: String = "ByteString"
     }
     given ByteString.type = ByteString
 
-    case object Integer extends Primitive[BigInt] {
+    case object Integer extends Primitive {
         override def uplcTpe: DefaultUni = DefaultUni.Integer
         override def show: String = "Int"
     }
     given Integer.type = Integer
 
-    case object String extends Primitive[String] {
+    case object String extends Primitive {
         override def uplcTpe: DefaultUni = DefaultUni.String
         override def show: String = "String"
     }
     given String.type = String
 
-    case object Boolean extends Primitive[Boolean] {
+    case object Boolean extends Primitive {
         override def uplcTpe: DefaultUni = DefaultUni.Bool
         override def show: String = "Boolean"
     }
     given Boolean.type = Boolean
-    case object Unit extends Primitive[Unit] {
+    case object Unit extends Primitive {
         override def uplcTpe: DefaultUni = DefaultUni.Unit
         override def show: String = "Unit"
     }
 
     // sealed trait MappedBuiltin[T] extends Lifted[T] with ULPCMapped
 
-    case object Data extends Primitive[scalus.builtin.Data] {
+    case object Data extends Primitive {
         override def uplcTpe: DefaultUni = DefaultUni.Data
         override def show: String = "Data"
     }
     given Data.type = Data
 
-    case object BLS12_381_G1_Element extends Primitive[scalus.builtin.BLS12_381_G1_Element] {
+    case object BLS12_381_G1_Element extends Primitive {
         override def uplcTpe: DefaultUni = DefaultUni.BLS12_381_G1_Element
         override def show: String = "BLS12_381_G1_Element"
     }
 
-    case object BLS12_381_G2_Element extends Primitive[scalus.builtin.BLS12_381_G2_Element] {
+    case object BLS12_381_G2_Element extends Primitive {
 
         override def uplcTpe: DefaultUni = DefaultUni.BLS12_381_G2_Element
         override def show: String = "BLS12_381_G2_Element"
     }
 
-    case object BLS12_381_MlResult extends Primitive[scalus.builtin.BLS12_381_MlResult] {
+    case object BLS12_381_MlResult extends Primitive {
 
         override def uplcTpe: DefaultUni = DefaultUni.BLS12_381_MlResult
         override def show: String = "BLS12_381_MlResult"
@@ -120,8 +114,6 @@ object SIRType {
     }
 
     case class Fun(in: SIRType, out: SIRType) extends SIRType {
-
-        override type Carrier = in.Carrier => out.Carrier
 
         override def show: String = s"${in.show} -> ${out.show}"
 
@@ -273,7 +265,7 @@ object SIRType {
                     throw new IllegalArgumentException(
                       s"TypeProxy cannot be created from another TypeProxy: $ref1"
                     )
-                case _: Primitive[?] =>
+                case _: Primitive =>
                     throw new IllegalArgumentException(
                       s"TypeProxy cannot be created from Primitive: $ref"
                     )
