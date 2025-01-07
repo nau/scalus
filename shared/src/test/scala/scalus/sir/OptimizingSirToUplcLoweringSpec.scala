@@ -6,7 +6,7 @@ import scalus.builtin.Builtins.*
 import scalus.builtin.ByteString.*
 import scalus.builtin.Data
 import scalus.sir.Recursivity.NonRec
-import scalus.sir.SIRType.{ByteStringPrimitive, TypeVar}
+import scalus.sir.SIRType.{ByteString, TypeVar}
 import scalus.uplc.ArbitraryInstances
 import scalus.uplc.Constant
 import scalus.uplc.DefaultFun
@@ -112,7 +112,7 @@ class OptimizingSirToUplcLoweringSpec
             ConstrDecl(
               "TxId",
               SIRVarStorage.DEFAULT,
-              List(TypeBinding("hash", ByteStringPrimitive)),
+              List(TypeBinding("hash", ByteString)),
               List()
             )
           ),
@@ -128,7 +128,7 @@ class OptimizingSirToUplcLoweringSpec
           SIR.Constr(
             "TxId",
             txIdData,
-            List(SIR.Const(asConstant(hex"DEADBEEF"), SIRType.ByteStringPrimitive))
+            List(SIR.Const(asConstant(hex"DEADBEEF"), SIRType.ByteString))
           )
         ) lowersTo (lam("hash", "TxId")(vr"TxId" $ vr"hash") $ hex"DEADBEEF")
 
@@ -172,7 +172,7 @@ class OptimizingSirToUplcLoweringSpec
             ConstrDecl(
               "TxId",
               SIRVarStorage.DEFAULT,
-              List(TypeBinding("hash", ByteStringPrimitive)),
+              List(TypeBinding("hash", ByteString)),
               List()
             )
           ),

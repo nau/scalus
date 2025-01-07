@@ -252,7 +252,7 @@ object SIRTypesHelper {
         else if symbol == defn.BooleanType.typeSymbol || symbol == defn.BoxedBooleanClass then
             Some(SIRType.BooleanPrimitive)
         else if (symbol == Symbols.requiredClass("scalus.builtin.ByteString")) then
-            Some(SIRType.ByteStringPrimitive)
+            Some(SIRType.ByteString)
         else if (symbol == Symbols.requiredClass("scala.math.BigInt")) then
             Some(SIRType.IntegerPrimitive)
         else if symbol == defn.IntType.typeSymbol || symbol == defn.BoxedIntClass then

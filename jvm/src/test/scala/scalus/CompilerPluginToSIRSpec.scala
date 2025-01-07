@@ -39,7 +39,7 @@ class CompilerPluginToSIRSpec extends AnyFunSuite with ScalaCheckPropertyChecks:
     val sirBool = SIRType.BooleanPrimitive
     val sirInt = SIRType.IntegerPrimitive
     val sirString = SIRType.StringPrimitive
-    val sirByteString = SIRType.ByteStringPrimitive
+    val sirByteString = SIRType.ByteString
     val sirVoid = SIRType.VoidPrimitive
     def sirList(tpe: SIRType) = SIRType.List(tpe)
     def sirPair(t1: SIRType, t2: SIRType) = SIRType.Pair(t1, t2)
@@ -48,7 +48,7 @@ class CompilerPluginToSIRSpec extends AnyFunSuite with ScalaCheckPropertyChecks:
     def sirConst(x: BigInt) = Const(Constant.Integer(x), SIRType.IntegerPrimitive)
     def sirConst(x: Boolean) = Const(Constant.Bool(x), SIRType.BooleanPrimitive)
     def sirConst(x: String) = Const(Constant.String(x), SIRType.StringPrimitive)
-    def sirConst(x: ByteString) = Const(Constant.ByteString(x), SIRType.ByteStringPrimitive)
+    def sirConst(x: ByteString) = Const(Constant.ByteString(x), SIRType.ByteString)
     def sirConst(x: Data) = Const(Constant.Data(x), SIRType.Data)
     def sirConstUnit = Const(Constant.Unit, SIRType.VoidPrimitive)
 
@@ -77,21 +77,21 @@ class CompilerPluginToSIRSpec extends AnyFunSuite with ScalaCheckPropertyChecks:
         assert(
           compile(builtin.ByteString.empty) == Const(
             Constant.ByteString(builtin.ByteString.empty),
-            SIRType.ByteStringPrimitive
+            SIRType.ByteString
           )
         )
 
         assert(
           compile(builtin.ByteString.fromHex("deadbeef")) == Const(
             deadbeef,
-            SIRType.ByteStringPrimitive
+            SIRType.ByteString
           )
         )
-        assert(compile(hex"deadbeef") == Const(deadbeef, SIRType.ByteStringPrimitive))
+        assert(compile(hex"deadbeef") == Const(deadbeef, SIRType.ByteString))
         assert(
           compile(builtin.ByteString.fromString("deadbeef")) == Const(
             Constant.ByteString(builtin.ByteString.fromString("deadbeef")),
-            SIRType.ByteStringPrimitive
+            SIRType.ByteString
           )
         )
     }
@@ -610,8 +610,8 @@ class CompilerPluginToSIRSpec extends AnyFunSuite with ScalaCheckPropertyChecks:
     test("compile BLS12_381_G1 builtins") {
         val p1Var = Var("p1", SIRType.BLS12_381_G1_Element)
         val p2Var = Var("p2", SIRType.BLS12_381_G1_Element)
-        val bsVar = Var("bs", SIRType.ByteStringPrimitive)
-        val dstVar = Var("dst", SIRType.ByteStringPrimitive)
+        val bsVar = Var("bs", SIRType.ByteString)
+        val dstVar = Var("dst", SIRType.ByteString)
 
         assert(
           compile(Builtins.bls12_381_G1_add) ~=~ LamAbs(
@@ -686,7 +686,7 @@ class CompilerPluginToSIRSpec extends AnyFunSuite with ScalaCheckPropertyChecks:
                 Apply(
                   SIRBuiltins.bls12_381_G1_hashToGroup,
                   bsVar,
-                  Fun(SIRType.ByteStringPrimitive, SIRType.BLS12_381_G1_Element)
+                  Fun(SIRType.ByteString, SIRType.BLS12_381_G1_Element)
                 ),
                 dstVar,
                 SIRType.BLS12_381_G1_Element
@@ -700,16 +700,16 @@ class CompilerPluginToSIRSpec extends AnyFunSuite with ScalaCheckPropertyChecks:
             Apply(
               SIRBuiltins.bls12_381_G1_compress,
               Var("p", SIRType.BLS12_381_G1_Element),
-              SIRType.ByteStringPrimitive
+              SIRType.ByteString
             )
           )
         )
         assert(
           compile(Builtins.bls12_381_G1_uncompress) ~=~ LamAbs(
-            Var("bs", SIRType.ByteStringPrimitive),
+            Var("bs", SIRType.ByteString),
             Apply(
               SIRBuiltins.bls12_381_G1_uncompress,
-              Var("bs", SIRType.ByteStringPrimitive),
+              Var("bs", SIRType.ByteString),
               SIRType.BLS12_381_G1_Element
             )
           )
@@ -722,8 +722,8 @@ class CompilerPluginToSIRSpec extends AnyFunSuite with ScalaCheckPropertyChecks:
         val pVar = Var("p", SIRType.BLS12_381_G2_Element)
         val sBlsVar = Var("s", SIRType.BLS12_381_G2_Element)
         val sIntVar = Var("s", SIRType.IntegerPrimitive)
-        val bsVar = Var("bs", SIRType.ByteStringPrimitive)
-        val dstVar = Var("dst", SIRType.ByteStringPrimitive)
+        val bsVar = Var("bs", SIRType.ByteString)
+        val dstVar = Var("dst", SIRType.ByteString)
         assert(
           compile(Builtins.bls12_381_G2_add) ~=~ LamAbs(
             p1Var,
@@ -790,7 +790,7 @@ class CompilerPluginToSIRSpec extends AnyFunSuite with ScalaCheckPropertyChecks:
                 Apply(
                   SIRBuiltins.bls12_381_G2_hashToGroup,
                   bsVar,
-                  Fun(SIRType.ByteStringPrimitive, SIRType.BLS12_381_G2_Element)
+                  Fun(SIRType.ByteString, SIRType.BLS12_381_G2_Element)
                 ),
                 dstVar,
                 SIRType.BLS12_381_G2_Element
@@ -801,7 +801,7 @@ class CompilerPluginToSIRSpec extends AnyFunSuite with ScalaCheckPropertyChecks:
         assert(
           compile(Builtins.bls12_381_G2_compress) ~=~ LamAbs(
             pVar,
-            Apply(SIRBuiltins.bls12_381_G2_compress, pVar, SIRType.ByteStringPrimitive)
+            Apply(SIRBuiltins.bls12_381_G2_compress, pVar, SIRType.ByteString)
           )
         )
         assert(
@@ -874,21 +874,21 @@ class CompilerPluginToSIRSpec extends AnyFunSuite with ScalaCheckPropertyChecks:
     }
 
     test("compile Keccak_256 builtin") {
-        val bsVar = Var("bs", SIRType.ByteStringPrimitive)
+        val bsVar = Var("bs", SIRType.ByteString)
         assert(
           compile(Builtins.keccak_256) ~=~ LamAbs(
             bsVar,
-            Apply(SIRBuiltins.keccak_256, bsVar, SIRType.ByteStringPrimitive)
+            Apply(SIRBuiltins.keccak_256, bsVar, SIRType.ByteString)
           )
         )
     }
 
     test("compile Blake2b_224 builtin") {
-        val bsVar = Var("bs", SIRType.ByteStringPrimitive)
+        val bsVar = Var("bs", SIRType.ByteString)
         assert(
           compile(Builtins.blake2b_224) ~=~ LamAbs(
             bsVar,
-            Apply(SIRBuiltins.blake2b_224, bsVar, SIRType.ByteStringPrimitive)
+            Apply(SIRBuiltins.blake2b_224, bsVar, SIRType.ByteString)
           )
         )
     }

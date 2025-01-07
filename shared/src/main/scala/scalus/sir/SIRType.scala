@@ -50,11 +50,11 @@ object SIRType {
 
     sealed trait Primitive[T] extends Lifted[T] with ULPCMapped
 
-    case object ByteStringPrimitive extends Primitive[scalus.builtin.ByteString] {
+    case object ByteString extends Primitive[scalus.builtin.ByteString] {
         override def uplcTpe: DefaultUni = DefaultUni.ByteString
         override def show: String = "ByteString"
     }
-    given ByteStringPrimitive.type = ByteStringPrimitive
+    given ByteString.type = ByteString
 
     case object IntegerPrimitive extends Primitive[BigInt] {
         override def uplcTpe: DefaultUni = DefaultUni.Integer
@@ -447,7 +447,7 @@ object SIRType {
 
     def fromDefaultUni(uplcType: DefaultUni): SIRType = {
         uplcType match
-            case DefaultUni.ByteString           => ByteStringPrimitive
+            case DefaultUni.ByteString           => ByteString
             case DefaultUni.Integer              => IntegerPrimitive
             case DefaultUni.String               => StringPrimitive
             case DefaultUni.Bool                 => BooleanPrimitive

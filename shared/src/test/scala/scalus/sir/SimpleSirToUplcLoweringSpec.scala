@@ -37,7 +37,7 @@ class SimpleSirToUplcLoweringSpec
         )
     }
 
-    test("lower Var") { SIR.Var("x", SIRType.ByteStringPrimitive) lowersTo vr"x" }
+    test("lower Var") { SIR.Var("x", SIRType.ByteString) lowersTo vr"x" }
 
     test("lower Lam/Apply") {
         import SIRType.{TypeLambda, TypeVar, VoidPrimitive}
@@ -82,7 +82,7 @@ class SimpleSirToUplcLoweringSpec
     }
 
     test("lower Constr") {
-        import SIRType.{TypeVar, TypeProxy, ByteStringPrimitive}
+        import SIRType.{TypeVar, TypeProxy, ByteString}
         import SIRVarStorage.DEFAULT
         /* Nil
        lowers to (\Nil Cons -> force Nil)
@@ -109,7 +109,7 @@ class SimpleSirToUplcLoweringSpec
         tailTypeProxy.ref = SumCaseClass(listData, List(a2TypeVar))
         val txIdData = DataDecl(
           "TxId",
-          List(ConstrDecl("TxId", DEFAULT, List(TypeBinding("hash", ByteStringPrimitive)), List())),
+          List(ConstrDecl("TxId", DEFAULT, List(TypeBinding("hash", ByteString)), List())),
           List()
         )
         def withDecls(sir: SIR) = SIR.Decl(listData, SIR.Decl(txIdData, sir))
@@ -120,7 +120,7 @@ class SimpleSirToUplcLoweringSpec
           SIR.Constr(
             "TxId",
             txIdData,
-            List(SIR.Const(asConstant(hex"DEADBEEF"), ByteStringPrimitive))
+            List(SIR.Const(asConstant(hex"DEADBEEF"), ByteString))
           )
         ) lowersTo (lam("hash", "TxId")(vr"TxId" $ vr"hash") $ hex"DEADBEEF")
 
@@ -163,7 +163,7 @@ class SimpleSirToUplcLoweringSpec
             ConstrDecl(
               "TxId",
               SIRVarStorage.DEFAULT,
-              List(TypeBinding("hash", SIRType.ByteStringPrimitive)),
+              List(TypeBinding("hash", SIRType.ByteString)),
               List()
             )
           ),

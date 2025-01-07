@@ -48,61 +48,61 @@ object SIRBuiltins {
     // Bytestrings
     val appendByteString = SIR.Builtin(
       DefaultFun.AppendByteString,
-      SIRType.ByteStringPrimitive ->: SIRType.ByteStringPrimitive ->: SIRType.ByteStringPrimitive
+      SIRType.ByteString ->: SIRType.ByteString ->: SIRType.ByteString
     )
     val consByteString = SIR.Builtin(
       DefaultFun.ConsByteString,
-      SIRType.IntegerPrimitive ->: SIRType.ByteStringPrimitive ->: SIRType.ByteStringPrimitive
+      SIRType.IntegerPrimitive ->: SIRType.ByteString ->: SIRType.ByteString
     )
     val sliceByteString = SIR.Builtin(
       DefaultFun.SliceByteString,
-      SIRType.IntegerPrimitive ->: SIRType.IntegerPrimitive ->: SIRType.ByteStringPrimitive ->: SIRType.ByteStringPrimitive
+      SIRType.IntegerPrimitive ->: SIRType.IntegerPrimitive ->: SIRType.ByteString ->: SIRType.ByteString
     )
     val lengthOfByteString = SIR.Builtin(
       DefaultFun.LengthOfByteString,
-      SIRType.ByteStringPrimitive ->: SIRType.IntegerPrimitive
+      SIRType.ByteString ->: SIRType.IntegerPrimitive
     )
     val indexByteString = SIR.Builtin(
       DefaultFun.IndexByteString,
-      SIRType.ByteStringPrimitive ->: SIRType.IntegerPrimitive ->: SIRType.IntegerPrimitive
+      SIRType.ByteString ->: SIRType.IntegerPrimitive ->: SIRType.IntegerPrimitive
     )
     val equalsByteString = SIR.Builtin(
       DefaultFun.EqualsByteString,
-      SIRType.ByteStringPrimitive ->: SIRType.ByteStringPrimitive ->: SIRType.BooleanPrimitive
+      SIRType.ByteString ->: SIRType.ByteString ->: SIRType.BooleanPrimitive
     )
     val lessThanByteString = SIR.Builtin(
       DefaultFun.LessThanByteString,
-      SIRType.ByteStringPrimitive ->: SIRType.ByteStringPrimitive ->: SIRType.BooleanPrimitive
+      SIRType.ByteString ->: SIRType.ByteString ->: SIRType.BooleanPrimitive
     )
     val lessThanEqualsByteString = SIR.Builtin(
       DefaultFun.LessThanEqualsByteString,
-      SIRType.ByteStringPrimitive ->: SIRType.ByteStringPrimitive ->: SIRType.BooleanPrimitive
+      SIRType.ByteString ->: SIRType.ByteString ->: SIRType.BooleanPrimitive
     )
 
     // Cryptography and hashes
     val sha2_256 = SIR.Builtin(
       DefaultFun.Sha2_256,
-      SIRType.ByteStringPrimitive ->: SIRType.ByteStringPrimitive
+      SIRType.ByteString ->: SIRType.ByteString
     )
     val sha3_256 = SIR.Builtin(
       DefaultFun.Sha3_256,
-      SIRType.ByteStringPrimitive ->: SIRType.ByteStringPrimitive
+      SIRType.ByteString ->: SIRType.ByteString
     )
     val blake2b_256 = SIR.Builtin(
       DefaultFun.Blake2b_256,
-      SIRType.ByteStringPrimitive ->: SIRType.ByteStringPrimitive
+      SIRType.ByteString ->: SIRType.ByteString
     )
     val verifyEd25519Signature = SIR.Builtin(
       DefaultFun.VerifyEd25519Signature,
-      SIRType.ByteStringPrimitive ->: SIRType.ByteStringPrimitive ->: SIRType.ByteStringPrimitive ->: SIRType.BooleanPrimitive
+      SIRType.ByteString ->: SIRType.ByteString ->: SIRType.ByteString ->: SIRType.BooleanPrimitive
     )
     val verifyEcdsaSecp256k1Signature = SIR.Builtin(
       DefaultFun.VerifyEcdsaSecp256k1Signature,
-      SIRType.ByteStringPrimitive ->: SIRType.ByteStringPrimitive ->: SIRType.ByteStringPrimitive ->: SIRType.BooleanPrimitive
+      SIRType.ByteString ->: SIRType.ByteString ->: SIRType.ByteString ->: SIRType.BooleanPrimitive
     )
     val verifySchnorrSecp256k1Signature = SIR.Builtin(
       DefaultFun.VerifySchnorrSecp256k1Signature,
-      SIRType.ByteStringPrimitive ->: SIRType.ByteStringPrimitive ->: SIRType.ByteStringPrimitive ->: SIRType.BooleanPrimitive
+      SIRType.ByteString ->: SIRType.ByteString ->: SIRType.ByteString ->: SIRType.BooleanPrimitive
     )
 
     // Strings
@@ -115,9 +115,9 @@ object SIRBuiltins {
       SIRType.StringPrimitive ->: SIRType.StringPrimitive ->: SIRType.BooleanPrimitive
     )
     val encodeUtf8 =
-        SIR.Builtin(DefaultFun.EncodeUtf8, SIRType.StringPrimitive ->: SIRType.ByteStringPrimitive)
+        SIR.Builtin(DefaultFun.EncodeUtf8, SIRType.StringPrimitive ->: SIRType.ByteString)
     val decodeUtf8 =
-        SIR.Builtin(DefaultFun.DecodeUtf8, SIRType.ByteStringPrimitive ->: SIRType.StringPrimitive)
+        SIR.Builtin(DefaultFun.DecodeUtf8, SIRType.ByteString ->: SIRType.StringPrimitive)
 
     // Bool
     val ifThenElse = SIR.Builtin(
@@ -216,7 +216,7 @@ object SIRBuiltins {
           SIRType.Data ->: SIRType.Data ->: SIRType.BooleanPrimitive
         )
     val serialiseData =
-        SIR.Builtin(DefaultFun.SerialiseData, SIRType.Data ->: SIRType.ByteStringPrimitive)
+        SIR.Builtin(DefaultFun.SerialiseData, SIRType.Data ->: SIRType.ByteString)
 
     //   TODO: think about pair
     val mkPairData =
@@ -252,15 +252,15 @@ object SIRBuiltins {
     )
     val bls12_381_G1_hashToGroup = SIR.Builtin(
       DefaultFun.Bls12_381_G1_hashToGroup,
-      SIRType.ByteStringPrimitive ->: SIRType.ByteStringPrimitive ->: SIRType.BLS12_381_G1_Element
+      SIRType.ByteString ->: SIRType.ByteString ->: SIRType.BLS12_381_G1_Element
     )
     val bls12_381_G1_compress = SIR.Builtin(
       DefaultFun.Bls12_381_G1_compress,
-      SIRType.BLS12_381_G1_Element ->: SIRType.ByteStringPrimitive
+      SIRType.BLS12_381_G1_Element ->: SIRType.ByteString
     )
     val bls12_381_G1_uncompress = SIR.Builtin(
       DefaultFun.Bls12_381_G1_uncompress,
-      SIRType.ByteStringPrimitive ->: SIRType.BLS12_381_G1_Element
+      SIRType.ByteString ->: SIRType.BLS12_381_G1_Element
     )
 
     // G2 operations
@@ -282,15 +282,15 @@ object SIRBuiltins {
     )
     val bls12_381_G2_hashToGroup = SIR.Builtin(
       DefaultFun.Bls12_381_G2_hashToGroup,
-      SIRType.ByteStringPrimitive ->: SIRType.ByteStringPrimitive ->: SIRType.BLS12_381_G2_Element
+      SIRType.ByteString ->: SIRType.ByteString ->: SIRType.BLS12_381_G2_Element
     )
     val bls12_381_G2_compress = SIR.Builtin(
       DefaultFun.Bls12_381_G2_compress,
-      SIRType.BLS12_381_G2_Element ->: SIRType.ByteStringPrimitive
+      SIRType.BLS12_381_G2_Element ->: SIRType.ByteString
     )
     val bls12_381_G2_uncompress = SIR.Builtin(
       DefaultFun.Bls12_381_G2_uncompress,
-      SIRType.ByteStringPrimitive ->: SIRType.BLS12_381_G2_Element
+      SIRType.ByteString ->: SIRType.BLS12_381_G2_Element
     )
 
     val bls12_381_mulMlResult = SIR.Builtin(
@@ -312,22 +312,22 @@ object SIRBuiltins {
     // keccak_256
     val keccak_256 = SIR.Builtin(
       DefaultFun.Keccak_256,
-      SIRType.ByteStringPrimitive ->: SIRType.ByteStringPrimitive
+      SIRType.ByteString ->: SIRType.ByteString
     )
     // blake
     val blake2b_224 = SIR.Builtin(
       DefaultFun.Blake2b_224,
-      SIRType.ByteStringPrimitive ->: SIRType.ByteStringPrimitive
+      SIRType.ByteString ->: SIRType.ByteString
     )
     // IntegerToByteString
     val integerToByteString = SIR.Builtin(
       DefaultFun.IntegerToByteString,
-      SIRType.IntegerPrimitive ->: SIRType.ByteStringPrimitive
+      SIRType.IntegerPrimitive ->: SIRType.ByteString
     )
     // ByteStringToInteger
     val byteStringToInteger = SIR.Builtin(
       DefaultFun.ByteStringToInteger,
-      SIRType.ByteStringPrimitive ->: SIRType.IntegerPrimitive
+      SIRType.ByteString ->: SIRType.IntegerPrimitive
     )
 
     def fromUplc(uplcFun: DefaultFun): SIR.Builtin =

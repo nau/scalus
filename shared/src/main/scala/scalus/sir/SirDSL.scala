@@ -40,7 +40,7 @@ object SirDSL:
         def apply(c: Constant): SIR =
             c match
                 case Constant.Integer(value)    => SIR.Const(c, SIRType.IntegerPrimitive)
-                case Constant.ByteString(value) => SIR.Const(c, SIRType.ByteStringPrimitive)
+                case Constant.ByteString(value) => SIR.Const(c, SIRType.ByteString)
                 case Constant.String(value)     => SIR.Const(c, SIRType.StringPrimitive)
                 case Constant.Unit              => SIR.Const(c, SIRType.VoidPrimitive)
                 case Constant.Bool(value)       => SIR.Const(c, SIRType.BooleanPrimitive)

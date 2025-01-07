@@ -303,7 +303,7 @@ object FlatInstantces:
             var mute = false
             val startPos = encode.encode.bitPosition()
             a match
-                case SIRType.ByteStringPrimitive =>
+                case SIRType.ByteString =>
                     encode.encode.bits(tagWidth, tagPrimitiveByteString)
                 case SIRType.IntegerPrimitive =>
                     encode.encode.bits(tagWidth, tagPrimitiveInteger)
@@ -359,7 +359,7 @@ object FlatInstantces:
             val ctag = decode.decode.bits8(tagWidth)
             // println(s"SIRTypeHashConsedFlat.decodeHC: ctag=${ctag}, pos=${decode.decode.currPtr*8 + decode.decode.usedBits}")
             ctag match
-                case `tagPrimitiveByteString` => HashConsedRef.fromData(SIRType.ByteStringPrimitive)
+                case `tagPrimitiveByteString` => HashConsedRef.fromData(SIRType.ByteString)
                 case `tagPrimitiveInteger`    => HashConsedRef.fromData(SIRType.IntegerPrimitive)
                 case `tagPrimitiveString`     => HashConsedRef.fromData(SIRType.StringPrimitive)
                 case `tagPrimitiveBoolean`    => HashConsedRef.fromData(SIRType.BooleanPrimitive)
