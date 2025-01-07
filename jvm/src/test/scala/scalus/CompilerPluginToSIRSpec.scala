@@ -37,15 +37,15 @@ class CompilerPluginToSIRSpec extends AnyFunSuite with ScalaCheckPropertyChecks:
 
     val sirData = SIRType.Data
     val sirBool = SIRType.BooleanPrimitive
-    val sirInt = SIRType.IntegerPrimitive
+    val sirInt = SIRType.Integer
     val sirString = SIRType.StringPrimitive
     val sirByteString = SIRType.ByteString
     val sirVoid = SIRType.VoidPrimitive
     def sirList(tpe: SIRType) = SIRType.List(tpe)
     def sirPair(t1: SIRType, t2: SIRType) = SIRType.Pair(t1, t2)
 
-    def sirConst(x: Int) = Const(Constant.Integer(x), SIRType.IntegerPrimitive)
-    def sirConst(x: BigInt) = Const(Constant.Integer(x), SIRType.IntegerPrimitive)
+    def sirConst(x: Int) = Const(Constant.Integer(x), SIRType.Integer)
+    def sirConst(x: BigInt) = Const(Constant.Integer(x), SIRType.Integer)
     def sirConst(x: Boolean) = Const(Constant.Bool(x), SIRType.BooleanPrimitive)
     def sirConst(x: String) = Const(Constant.String(x), SIRType.StringPrimitive)
     def sirConst(x: ByteString) = Const(Constant.ByteString(x), SIRType.ByteString)
@@ -60,16 +60,16 @@ class CompilerPluginToSIRSpec extends AnyFunSuite with ScalaCheckPropertyChecks:
         assert(
           compile(BigInt("15511210043330985984000000")) == Const(
             Constant.Integer(BigInt("15511210043330985984000000")),
-            SIRType.IntegerPrimitive
+            SIRType.Integer
           )
         )
         assert(
-          compile(12: BigInt) == Const(Constant.Integer(BigInt("12")), SIRType.IntegerPrimitive)
+          compile(12: BigInt) == Const(Constant.Integer(BigInt("12")), SIRType.Integer)
         )
         assert(
           compile(scala.math.BigInt.int2bigInt(12)) == Const(
             Constant.Integer(BigInt("12")),
-            SIRType.IntegerPrimitive
+            SIRType.Integer
           )
         )
 
@@ -104,10 +104,10 @@ class CompilerPluginToSIRSpec extends AnyFunSuite with ScalaCheckPropertyChecks:
             Apply(
               Apply(
                 SIRBuiltins.equalsInteger,
-                Const(Constant.Integer(1), SIRType.IntegerPrimitive),
-                SIRType.Fun(SIRType.IntegerPrimitive, SIRType.BooleanPrimitive)
+                Const(Constant.Integer(1), SIRType.Integer),
+                SIRType.Fun(SIRType.Integer, SIRType.BooleanPrimitive)
               ),
-              Const(Constant.Integer(2), SIRType.IntegerPrimitive),
+              Const(Constant.Integer(2), SIRType.Integer),
               SIRType.BooleanPrimitive
             ),
             Const(Constant.Unit, SIRType.VoidPrimitive),
@@ -317,7 +317,7 @@ class CompilerPluginToSIRSpec extends AnyFunSuite with ScalaCheckPropertyChecks:
               builtin.List.empty[BigInt]
           } ~=~ Const(
             Constant.List(DefaultUni.Integer, List()),
-            SIRType.List(SIRType.IntegerPrimitive)
+            SIRType.List(SIRType.Integer)
           )
         )
     }
@@ -331,7 +331,7 @@ class CompilerPluginToSIRSpec extends AnyFunSuite with ScalaCheckPropertyChecks:
               DefaultUni.Integer,
               List(Constant.Integer(1), Constant.Integer(2), Constant.Integer(3))
             ),
-            SIRType.List(SIRType.IntegerPrimitive)
+            SIRType.List(SIRType.Integer)
           )
         )
     }
@@ -643,13 +643,13 @@ class CompilerPluginToSIRSpec extends AnyFunSuite with ScalaCheckPropertyChecks:
         )
         assert(
           compile(Builtins.bls12_381_G1_scalarMul) == LamAbs(
-            Var("s", SIRType.IntegerPrimitive),
+            Var("s", SIRType.Integer),
             LamAbs(
               Var("p", SIRType.BLS12_381_G1_Element),
               Apply(
                 Apply(
                   SIRBuiltins.bls12_381_G1_scalarMul,
-                  Var("s", SIRType.IntegerPrimitive),
+                  Var("s", SIRType.Integer),
                   Fun(SIRType.BLS12_381_G1_Element, SIRType.BLS12_381_G1_Element)
                 ),
                 Var("p", SIRType.BLS12_381_G1_Element),
@@ -721,7 +721,7 @@ class CompilerPluginToSIRSpec extends AnyFunSuite with ScalaCheckPropertyChecks:
         val p2Var = Var("p2", SIRType.BLS12_381_G2_Element)
         val pVar = Var("p", SIRType.BLS12_381_G2_Element)
         val sBlsVar = Var("s", SIRType.BLS12_381_G2_Element)
-        val sIntVar = Var("s", SIRType.IntegerPrimitive)
+        val sIntVar = Var("s", SIRType.Integer)
         val bsVar = Var("bs", SIRType.ByteString)
         val dstVar = Var("dst", SIRType.ByteString)
         assert(

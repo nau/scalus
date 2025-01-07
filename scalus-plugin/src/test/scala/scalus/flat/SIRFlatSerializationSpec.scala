@@ -13,7 +13,7 @@ class SIRFlatSerializationSpec extends AnyFunSuite with ScalaCheckPropertyChecks
 
     test("serialize and deserialize SIR Module") {
         val fl = summon[Flat[Module]]
-        val sir = SIR.Const(scalus.uplc.Constant.Integer(23), SIRType.IntegerPrimitive)
+        val sir = SIR.Const(scalus.uplc.Constant.Integer(23), SIRType.Integer)
         val binding = Binding("x", sir)
         val module = Module((1, 0), List(binding))
         val enc = EncoderState(fl.bitSize(module) / 8 + 1)

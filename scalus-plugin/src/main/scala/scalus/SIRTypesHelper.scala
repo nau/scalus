@@ -200,7 +200,7 @@ object SIRTypesHelper {
         Context
     ): SIRType = {
         val sym = tpc.typeSymbol
-        if (sym == Symbols.requiredClass("scala.math.BigInt")) then SIRType.IntegerPrimitive
+        if (sym == Symbols.requiredClass("scala.math.BigInt")) then SIRType.Integer
         else
         // this is a custom value type,  check hidden val
         if tpc.typeSymbol.isTerm && !tpc.typeSymbol.isType then
@@ -253,12 +253,11 @@ object SIRTypesHelper {
             Some(SIRType.BooleanPrimitive)
         else if (symbol == Symbols.requiredClass("scalus.builtin.ByteString")) then
             Some(SIRType.ByteString)
-        else if (symbol == Symbols.requiredClass("scala.math.BigInt")) then
-            Some(SIRType.IntegerPrimitive)
+        else if (symbol == Symbols.requiredClass("scala.math.BigInt")) then Some(SIRType.Integer)
         else if symbol == defn.IntType.typeSymbol || symbol == defn.BoxedIntClass then
-            Some(SIRType.IntegerPrimitive)
+            Some(SIRType.Integer)
         else if symbol == defn.LongType.typeSymbol || symbol == defn.BoxedLongClass then
-            Some(SIRType.IntegerPrimitive)
+            Some(SIRType.Integer)
         else if symbol == defn.StringType.typeSymbol then Some(SIRType.StringPrimitive)
         else if symbol == defn.UnitClass then Some(SIRType.VoidPrimitive)
         else None

@@ -56,11 +56,11 @@ object SIRType {
     }
     given ByteString.type = ByteString
 
-    case object IntegerPrimitive extends Primitive[BigInt] {
+    case object Integer extends Primitive[BigInt] {
         override def uplcTpe: DefaultUni = DefaultUni.Integer
         override def show: String = "Int"
     }
-    given IntegerPrimitive.type = IntegerPrimitive
+    given Integer.type = Integer
 
     case object StringPrimitive extends Primitive[String] {
         override def uplcTpe: DefaultUni = DefaultUni.String
@@ -448,7 +448,7 @@ object SIRType {
     def fromDefaultUni(uplcType: DefaultUni): SIRType = {
         uplcType match
             case DefaultUni.ByteString           => ByteString
-            case DefaultUni.Integer              => IntegerPrimitive
+            case DefaultUni.Integer              => Integer
             case DefaultUni.String               => StringPrimitive
             case DefaultUni.Bool                 => BooleanPrimitive
             case DefaultUni.Unit                 => VoidPrimitive

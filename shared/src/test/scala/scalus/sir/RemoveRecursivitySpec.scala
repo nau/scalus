@@ -12,13 +12,13 @@ class RemoveRecursivitySpec extends AnyFunSuite:
         }
         val optimized = RemoveRecursivity(compiled)
         import sir.SIR.*, Recursivity.*
-        import sir.SIRType.{Fun, IntegerPrimitive, BooleanPrimitive, VoidPrimitive}
-        import scalus.uplc.Constant.{Unit, Integer}
+        import sir.SIRType.{Fun, Integer, BooleanPrimitive, VoidPrimitive}
+        import scalus.uplc.Constant
         import scalus.uplc.DefaultFun.{IfThenElse as _, *}
 
-        val xVar = Var("x", SIRType.IntegerPrimitive)
-        val nonRecursiveVar = Var("nonRecursive", Fun(IntegerPrimitive, IntegerPrimitive))
-        val recursiveVar = Var("recursive", Fun(IntegerPrimitive, IntegerPrimitive))
+        val xVar = Var("x", SIRType.Integer)
+        val nonRecursiveVar = Var("nonRecursive", Fun(Integer, Integer))
+        val recursiveVar = Var("recursive", Fun(Integer, Integer))
 
         assert(
           optimized == Let(
@@ -40,36 +40,36 @@ class RemoveRecursivitySpec extends AnyFunSuite:
                               Apply(
                                 SIRBuiltins.equalsInteger,
                                 xVar,
-                                Fun(IntegerPrimitive, BooleanPrimitive)
+                                Fun(Integer, BooleanPrimitive)
                               ),
-                              Const(Integer(0), IntegerPrimitive),
+                              Const(Constant.Integer(0), Integer),
                               BooleanPrimitive
                             ),
-                            Const(Integer(0), IntegerPrimitive),
+                            Const(Constant.Integer(0), Integer),
                             Apply(
                               recursiveVar,
                               Apply(
                                 Apply(
                                   SIRBuiltins.subtractInteger,
                                   xVar,
-                                  Fun(IntegerPrimitive, IntegerPrimitive)
+                                  Fun(Integer, Integer)
                                 ),
-                                Const(Integer(1), IntegerPrimitive),
-                                IntegerPrimitive
+                                Const(Constant.Integer(1), Integer),
+                                Integer
                               ),
-                              IntegerPrimitive
+                              Integer
                             ),
-                            IntegerPrimitive
+                            Integer
                           )
                         )
                       )
                     ),
-                    Apply(recursiveVar, xVar, IntegerPrimitive)
+                    Apply(recursiveVar, xVar, Integer)
                   )
                 )
               )
             ),
-            Const(Unit, VoidPrimitive)
+            Const(Constant.Unit, VoidPrimitive)
           )
         )
     }

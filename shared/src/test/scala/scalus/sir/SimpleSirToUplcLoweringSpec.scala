@@ -25,7 +25,7 @@ class SimpleSirToUplcLoweringSpec
 
     test("lower constant") {
         forAll { (c: Constant) =>
-            SIR.Const(c, SIRType.IntegerPrimitive) lowersTo Term.Const(c)
+            SIR.Const(c, SIRType.Integer) lowersTo Term.Const(c)
         }
     }
 
@@ -58,25 +58,25 @@ class SimpleSirToUplcLoweringSpec
     }
 
     test("lower let") {
-        import SIRType.{Fun, IntegerPrimitive}
+        import SIRType.{Fun, Integer}
         /* let x = 1 in
        let y = 2 in x + y
        lowers to (\x -> (\y -> x + y) 2) 1
          */
         SIR.Let(
           NonRec,
-          Binding("x", SIR.Const(asConstant(1), IntegerPrimitive)) :: Binding(
+          Binding("x", SIR.Const(asConstant(1), Integer)) :: Binding(
             "y",
-            SIR.Const(asConstant(2), IntegerPrimitive)
+            SIR.Const(asConstant(2), Integer)
           ) :: Nil,
           SIR.Apply(
             SIR.Apply(
               SIRBuiltins.addInteger,
-              SIR.Var("x", IntegerPrimitive),
-              Fun(IntegerPrimitive, IntegerPrimitive)
+              SIR.Var("x", Integer),
+              Fun(Integer, Integer)
             ),
-            SIR.Var("y", IntegerPrimitive),
-            IntegerPrimitive
+            SIR.Var("y", Integer),
+            Integer
           )
         ) lowersTo (lam("x")(lam("y")(AddInteger $ vr"x" $ vr"y") $ 2) $ 1)
     }
@@ -182,16 +182,16 @@ class SimpleSirToUplcLoweringSpec
                 nilConstr,
                 Nil,
                 Nil,
-                SIR.Const(Constant.Integer(1), SIRType.IntegerPrimitive)
+                SIR.Const(Constant.Integer(1), SIRType.Integer)
               ),
               SIR.Case(
                 consConstr,
                 List("h", "tl"),
                 List(SIRType.FreeUnificator, listAnyType),
-                SIR.Const(Constant.Integer(2), SIRType.IntegerPrimitive)
+                SIR.Const(Constant.Integer(2), SIRType.Integer)
               )
             ),
-            SIRType.IntegerPrimitive
+            SIRType.Integer
           )
         ) lowersTo (lam("Nil", "Cons")(!vr"Nil") $ ~asConstant(1) $ lam("h", "tl")(2))
     }

@@ -6,43 +6,43 @@ object SIRBuiltins {
 
     val addInteger: SIR.Builtin = SIR.Builtin(
       DefaultFun.AddInteger,
-      SIRType.IntegerPrimitive ->: SIRType.IntegerPrimitive ->: SIRType.IntegerPrimitive
+      SIRType.Integer ->: SIRType.Integer ->: SIRType.Integer
     )
     val subtractInteger: SIR.Builtin = SIR.Builtin(
       DefaultFun.SubtractInteger,
-      SIRType.IntegerPrimitive ->: SIRType.IntegerPrimitive ->: SIRType.IntegerPrimitive
+      SIRType.Integer ->: SIRType.Integer ->: SIRType.Integer
     )
     val multiplyInteger = SIR.Builtin(
       DefaultFun.MultiplyInteger,
-      SIRType.IntegerPrimitive ->: SIRType.IntegerPrimitive ->: SIRType.IntegerPrimitive
+      SIRType.Integer ->: SIRType.Integer ->: SIRType.Integer
     )
     val divideInteger = SIR.Builtin(
       DefaultFun.DivideInteger,
-      SIRType.IntegerPrimitive ->: SIRType.IntegerPrimitive ->: SIRType.IntegerPrimitive
+      SIRType.Integer ->: SIRType.Integer ->: SIRType.Integer
     )
     val quotientInteger = SIR.Builtin(
       DefaultFun.QuotientInteger,
-      SIRType.IntegerPrimitive ->: SIRType.IntegerPrimitive ->: SIRType.IntegerPrimitive
+      SIRType.Integer ->: SIRType.Integer ->: SIRType.Integer
     )
     val remainderInteger = SIR.Builtin(
       DefaultFun.RemainderInteger,
-      SIRType.IntegerPrimitive ->: SIRType.IntegerPrimitive ->: SIRType.IntegerPrimitive
+      SIRType.Integer ->: SIRType.Integer ->: SIRType.Integer
     )
     val modInteger = SIR.Builtin(
       DefaultFun.ModInteger,
-      SIRType.IntegerPrimitive ->: SIRType.IntegerPrimitive ->: SIRType.IntegerPrimitive
+      SIRType.Integer ->: SIRType.Integer ->: SIRType.Integer
     )
     val equalsInteger = SIR.Builtin(
       DefaultFun.EqualsInteger,
-      SIRType.IntegerPrimitive ->: SIRType.IntegerPrimitive ->: SIRType.BooleanPrimitive
+      SIRType.Integer ->: SIRType.Integer ->: SIRType.BooleanPrimitive
     )
     val lessThanInteger = SIR.Builtin(
       DefaultFun.LessThanInteger,
-      SIRType.IntegerPrimitive ->: SIRType.IntegerPrimitive ->: SIRType.BooleanPrimitive
+      SIRType.Integer ->: SIRType.Integer ->: SIRType.BooleanPrimitive
     )
     val lessThanEqualsInteger = SIR.Builtin(
       DefaultFun.LessThanEqualsInteger,
-      SIRType.IntegerPrimitive ->: SIRType.IntegerPrimitive ->: SIRType.BooleanPrimitive
+      SIRType.Integer ->: SIRType.Integer ->: SIRType.BooleanPrimitive
     )
 
     // Bytestrings
@@ -52,19 +52,19 @@ object SIRBuiltins {
     )
     val consByteString = SIR.Builtin(
       DefaultFun.ConsByteString,
-      SIRType.IntegerPrimitive ->: SIRType.ByteString ->: SIRType.ByteString
+      SIRType.Integer ->: SIRType.ByteString ->: SIRType.ByteString
     )
     val sliceByteString = SIR.Builtin(
       DefaultFun.SliceByteString,
-      SIRType.IntegerPrimitive ->: SIRType.IntegerPrimitive ->: SIRType.ByteString ->: SIRType.ByteString
+      SIRType.Integer ->: SIRType.Integer ->: SIRType.ByteString ->: SIRType.ByteString
     )
     val lengthOfByteString = SIR.Builtin(
       DefaultFun.LengthOfByteString,
-      SIRType.ByteString ->: SIRType.IntegerPrimitive
+      SIRType.ByteString ->: SIRType.Integer
     )
     val indexByteString = SIR.Builtin(
       DefaultFun.IndexByteString,
-      SIRType.ByteString ->: SIRType.IntegerPrimitive ->: SIRType.IntegerPrimitive
+      SIRType.ByteString ->: SIRType.Integer ->: SIRType.Integer
     )
     val equalsByteString = SIR.Builtin(
       DefaultFun.EqualsByteString,
@@ -188,7 +188,7 @@ object SIRBuiltins {
         )
     val constrData = SIR.Builtin(
       DefaultFun.ConstrData,
-      SIRType.IntegerPrimitive ->: SIRType.List(SIRType.Data) ->: SIRType.Data
+      SIRType.Integer ->: SIRType.List(SIRType.Data) ->: SIRType.Data
     )
     val mapData = SIR.Builtin(
       DefaultFun.MapData,
@@ -196,11 +196,11 @@ object SIRBuiltins {
     )
     val listData =
         SIR.Builtin(DefaultFun.ListData, SIRType.List(SIRType.Data) ->: SIRType.Data)
-    val iData = SIR.Builtin(DefaultFun.IData, SIRType.IntegerPrimitive ->: SIRType.Data)
+    val iData = SIR.Builtin(DefaultFun.IData, SIRType.Integer ->: SIRType.Data)
     val bData = SIR.Builtin(DefaultFun.BData, SIRType.BooleanPrimitive ->: SIRType.Data)
     val unConstrData = SIR.Builtin(
       DefaultFun.UnConstrData,
-      SIRType.Data ->: SIRType.Pair(SIRType.IntegerPrimitive, SIRType.List(SIRType.Data))
+      SIRType.Data ->: SIRType.Pair(SIRType.Integer, SIRType.List(SIRType.Data))
     )
     val unMapData = SIR.Builtin(
       DefaultFun.UnMapData,
@@ -208,7 +208,7 @@ object SIRBuiltins {
     )
     val unListData =
         SIR.Builtin(DefaultFun.UnListData, SIRType.Data ->: SIRType.List(SIRType.Data))
-    val unIData = SIR.Builtin(DefaultFun.UnIData, SIRType.Data ->: SIRType.IntegerPrimitive)
+    val unIData = SIR.Builtin(DefaultFun.UnIData, SIRType.Data ->: SIRType.Integer)
     val unBData = SIR.Builtin(DefaultFun.UnBData, SIRType.Data ->: SIRType.BooleanPrimitive)
     val equalsData =
         SIR.Builtin(
@@ -244,7 +244,7 @@ object SIRBuiltins {
     )
     val bls12_381_G1_scalarMul = SIR.Builtin(
       DefaultFun.Bls12_381_G1_scalarMul,
-      SIRType.IntegerPrimitive ->: SIRType.BLS12_381_G1_Element ->: SIRType.BLS12_381_G1_Element
+      SIRType.Integer ->: SIRType.BLS12_381_G1_Element ->: SIRType.BLS12_381_G1_Element
     )
     val bls12_381_G1_equal = SIR.Builtin(
       DefaultFun.Bls12_381_G1_equal,
@@ -274,7 +274,7 @@ object SIRBuiltins {
     )
     val bls12_381_G2_scalarMul = SIR.Builtin(
       DefaultFun.Bls12_381_G2_scalarMul,
-      SIRType.IntegerPrimitive ->: SIRType.BLS12_381_G2_Element ->: SIRType.BLS12_381_G2_Element
+      SIRType.Integer ->: SIRType.BLS12_381_G2_Element ->: SIRType.BLS12_381_G2_Element
     )
     val bls12_381_G2_equal = SIR.Builtin(
       DefaultFun.Bls12_381_G2_equal,
@@ -322,12 +322,12 @@ object SIRBuiltins {
     // IntegerToByteString
     val integerToByteString = SIR.Builtin(
       DefaultFun.IntegerToByteString,
-      SIRType.IntegerPrimitive ->: SIRType.ByteString
+      SIRType.Integer ->: SIRType.ByteString
     )
     // ByteStringToInteger
     val byteStringToInteger = SIR.Builtin(
       DefaultFun.ByteStringToInteger,
-      SIRType.ByteString ->: SIRType.IntegerPrimitive
+      SIRType.ByteString ->: SIRType.Integer
     )
 
     def fromUplc(uplcFun: DefaultFun): SIR.Builtin =

@@ -17,7 +17,7 @@ class SirToExprSpec extends AnyFunSuite {
               scalus.uplc.Constant.Integer(3)
             )
           ),
-          SIRType.List(SIRType.IntegerPrimitive)
+          SIRType.List(SIRType.Integer)
         )
         println(s"sir:${sir}")
         val len = ToExprHSSIRFlat.bitSize(sir)
@@ -30,7 +30,7 @@ class SirToExprSpec extends AnyFunSuite {
 
     /*
     test("serialize/deserialize ListType") {
-        val tp = SIRType.List(SIRType.IntegerPrimitive)
+        val tp = SIRType.List(SIRType.Integer)
         val bitSize = ToExprHSSIRTypeFlat.bitSize(tp)
         //println(s"ListType bit size: $bitSize")
         val encoded = EncoderState(bitSize / 8 + 1)
@@ -69,7 +69,7 @@ class SirToExprSpec extends AnyFunSuite {
         val arg: SIR = SIR.Const(
           scalus.uplc.Constant
               .List(scalus.uplc.DefaultUni.Integer, List(scalus.uplc.Constant.Integer(1))),
-          SIRType.List(SIRType.IntegerPrimitive)
+          SIRType.List(SIRType.Integer)
         )
         val fun1 = SIR.Apply(fun, arg, SIRType.calculateApplyType(fun.tp, arg.tp, Map.empty))
         val tp = fun1.tp
@@ -86,7 +86,7 @@ class SirToExprSpec extends AnyFunSuite {
         val arg: SIR = SIR.Const(
           scalus.uplc.Constant
               .List(scalus.uplc.DefaultUni.Integer, List(scalus.uplc.Constant.Integer(1))),
-          SIRType.List(SIRType.IntegerPrimitive)
+          SIRType.List(SIRType.Integer)
         )
         val fun1 = SIR.Apply(fun0, arg, SIRType.calculateApplyType(fun0.tp, arg.tp, Map.empty))
         println(s"fun1: ${fun1}")

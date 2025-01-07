@@ -39,7 +39,7 @@ object SirDSL:
     given Conversion[Constant, SIR] with
         def apply(c: Constant): SIR =
             c match
-                case Constant.Integer(value)    => SIR.Const(c, SIRType.IntegerPrimitive)
+                case Constant.Integer(value)    => SIR.Const(c, SIRType.Integer)
                 case Constant.ByteString(value) => SIR.Const(c, SIRType.ByteString)
                 case Constant.String(value)     => SIR.Const(c, SIRType.StringPrimitive)
                 case Constant.Unit              => SIR.Const(c, SIRType.VoidPrimitive)

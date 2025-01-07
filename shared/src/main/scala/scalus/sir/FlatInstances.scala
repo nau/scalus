@@ -305,7 +305,7 @@ object FlatInstantces:
             a match
                 case SIRType.ByteString =>
                     encode.encode.bits(tagWidth, tagPrimitiveByteString)
-                case SIRType.IntegerPrimitive =>
+                case SIRType.Integer =>
                     encode.encode.bits(tagWidth, tagPrimitiveInteger)
                 case SIRType.StringPrimitive =>
                     encode.encode.bits(tagWidth, tagPrimitiveString)
@@ -360,7 +360,7 @@ object FlatInstantces:
             // println(s"SIRTypeHashConsedFlat.decodeHC: ctag=${ctag}, pos=${decode.decode.currPtr*8 + decode.decode.usedBits}")
             ctag match
                 case `tagPrimitiveByteString` => HashConsedRef.fromData(SIRType.ByteString)
-                case `tagPrimitiveInteger`    => HashConsedRef.fromData(SIRType.IntegerPrimitive)
+                case `tagPrimitiveInteger`    => HashConsedRef.fromData(SIRType.Integer)
                 case `tagPrimitiveString`     => HashConsedRef.fromData(SIRType.StringPrimitive)
                 case `tagPrimitiveBoolean`    => HashConsedRef.fromData(SIRType.BooleanPrimitive)
                 case `tagPrimitiveVoid`       => HashConsedRef.fromData(SIRType.VoidPrimitive)

@@ -801,57 +801,57 @@ final class SIRCompiler(mode: scalus.Mode)(using ctx: Context) {
                   SIR.Apply(
                     SIRBuiltins.addInteger,
                     compileExpr(env, lhs),
-                    SIRType.IntegerPrimitive ->: SIRType.IntegerPrimitive
+                    SIRType.Integer ->: SIRType.Integer
                   ),
                   compileExpr(env, rhs),
-                  SIRType.IntegerPrimitive
+                  SIRType.Integer
                 )
             case nme.MINUS =>
                 SIR.Apply(
                   SIR.Apply(
                     SIRBuiltins.subtractInteger,
                     compileExpr(env, lhs),
-                    SIRType.IntegerPrimitive ->: SIRType.IntegerPrimitive
+                    SIRType.Integer ->: SIRType.Integer
                   ),
                   compileExpr(env, rhs),
-                  SIRType.IntegerPrimitive
+                  SIRType.Integer
                 )
             case nme.MUL =>
                 SIR.Apply(
                   SIR.Apply(
                     SIRBuiltins.multiplyInteger,
                     compileExpr(env, lhs),
-                    SIRType.IntegerPrimitive ->: SIRType.IntegerPrimitive
+                    SIRType.Integer ->: SIRType.Integer
                   ),
                   compileExpr(env, rhs),
-                  SIRType.IntegerPrimitive
+                  SIRType.Integer
                 )
             case nme.DIV =>
                 SIR.Apply(
                   SIR.Apply(
                     SIRBuiltins.divideInteger,
                     compileExpr(env, lhs),
-                    SIRType.IntegerPrimitive ->: SIRType.IntegerPrimitive
+                    SIRType.Integer ->: SIRType.Integer
                   ),
                   compileExpr(env, rhs),
-                  SIRType.IntegerPrimitive
+                  SIRType.Integer
                 )
             case nme.MOD =>
                 SIR.Apply(
                   SIR.Apply(
                     SIRBuiltins.remainderInteger,
                     compileExpr(env, lhs),
-                    SIRType.IntegerPrimitive ->: SIRType.IntegerPrimitive
+                    SIRType.Integer ->: SIRType.Integer
                   ),
                   compileExpr(env, rhs),
-                  SIRType.IntegerPrimitive
+                  SIRType.Integer
                 )
             case nme.LT =>
                 SIR.Apply(
                   SIR.Apply(
                     SIRBuiltins.lessThanInteger,
                     compileExpr(env, lhs),
-                    SIRType.IntegerPrimitive ->: SIRType.BooleanPrimitive
+                    SIRType.Integer ->: SIRType.BooleanPrimitive
                   ),
                   compileExpr(env, rhs),
                   SIRType.BooleanPrimitive
@@ -861,7 +861,7 @@ final class SIRCompiler(mode: scalus.Mode)(using ctx: Context) {
                   SIR.Apply(
                     SIRBuiltins.lessThanEqualsInteger,
                     compileExpr(env, lhs),
-                    SIRType.IntegerPrimitive ->: SIRType.BooleanPrimitive
+                    SIRType.Integer ->: SIRType.BooleanPrimitive
                   ),
                   compileExpr(env, rhs),
                   SIRType.BooleanPrimitive
@@ -871,7 +871,7 @@ final class SIRCompiler(mode: scalus.Mode)(using ctx: Context) {
                   SIR.Apply(
                     SIRBuiltins.lessThanInteger,
                     compileExpr(env, rhs),
-                    SIRType.IntegerPrimitive ->: SIRType.BooleanPrimitive
+                    SIRType.Integer ->: SIRType.BooleanPrimitive
                   ),
                   compileExpr(env, lhs),
                   SIRType.BooleanPrimitive
@@ -881,7 +881,7 @@ final class SIRCompiler(mode: scalus.Mode)(using ctx: Context) {
                   SIR.Apply(
                     SIRBuiltins.lessThanEqualsInteger,
                     compileExpr(env, rhs),
-                    SIRType.IntegerPrimitive ->: SIRType.BooleanPrimitive
+                    SIRType.Integer ->: SIRType.BooleanPrimitive
                   ),
                   compileExpr(env, lhs),
                   SIRType.BooleanPrimitive
@@ -891,7 +891,7 @@ final class SIRCompiler(mode: scalus.Mode)(using ctx: Context) {
                   SIR.Apply(
                     SIRBuiltins.equalsInteger,
                     compileExpr(env, lhs),
-                    SIRType.IntegerPrimitive ->: SIRType.BooleanPrimitive
+                    SIRType.Integer ->: SIRType.BooleanPrimitive
                   ),
                   compileExpr(env, rhs),
                   SIRType.BooleanPrimitive
@@ -902,7 +902,7 @@ final class SIRCompiler(mode: scalus.Mode)(using ctx: Context) {
                     SIR.Apply(
                       SIRBuiltins.equalsInteger,
                       compileExpr(env, lhs),
-                      SIRType.IntegerPrimitive ->: SIRType.BooleanPrimitive
+                      SIRType.Integer ->: SIRType.BooleanPrimitive
                     ),
                     compileExpr(env, rhs),
                     SIRType.BooleanPrimitive
@@ -1265,11 +1265,11 @@ final class SIRCompiler(mode: scalus.Mode)(using ctx: Context) {
                 SIR.Apply(
                   SIR.Apply(
                     SIRBuiltins.subtractInteger,
-                    SIR.Const(scalus.uplc.Constant.Integer(BigInt(0)), SIRType.IntegerPrimitive),
-                    SIRType.IntegerPrimitive ->: SIRType.IntegerPrimitive
+                    SIR.Const(scalus.uplc.Constant.Integer(BigInt(0)), SIRType.Integer),
+                    SIRType.Integer ->: SIRType.Integer
                   ),
                   compileExpr(env, expr),
-                  SIRType.IntegerPrimitive
+                  SIRType.Integer
                 )
             // List BUILTINS
             case TypeApply(Select(lst, fun), targs) if lst.isList =>

@@ -11,27 +11,27 @@ class SirDSLTypingSpec extends AnyFunSuite:
     test("type list of ints moved to SIR via implicit conversion") {
         val sir: SIR = List(1, 2, 3)
 
-        assert(sir.tp == SIRType.List(SIRType.IntegerPrimitive))
+        assert(sir.tp == SIRType.List(SIRType.Integer))
 
     }
 
     test("list type is created without unfilled proxies") {
-        val stp = SIRType.List(SIRType.IntegerPrimitive)
+        val stp = SIRType.List(SIRType.Integer)
         assert(SIRType.checkAllProxiesFilled(stp))
     }
 
     test("pair type is created without unfilled proxies") {
-        val stp = SIRType.Pair(SIRType.IntegerPrimitive, SIRType.BooleanPrimitive)
+        val stp = SIRType.Pair(SIRType.Integer, SIRType.BooleanPrimitive)
         assert(SIRType.checkAllProxiesFilled(stp))
     }
 
     test("function type is created without unfilled proxies") {
-        val stp = SIRType.Fun(SIRType.IntegerPrimitive, SIRType.BooleanPrimitive)
+        val stp = SIRType.Fun(SIRType.Integer, SIRType.BooleanPrimitive)
         assert(SIRType.checkAllProxiesFilled(stp))
     }
 
     test("list type fron macro is created without unfilled proxies") {
-        val stp = SIRType.List(SIRType.IntegerPrimitive)
+        val stp = SIRType.List(SIRType.Integer)
         assert(SIRType.checkAllProxiesFilled(stp))
     }
 

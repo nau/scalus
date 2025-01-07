@@ -27,7 +27,7 @@ class OptimizingSirToUplcLoweringSpec
             val uplc = OptimizingSirToUplcLowering(s, forceBuiltins = ForceBuiltins.None).lower()
             assert(s.toUplc() == r)
 
-    val sirInt = SIRType.IntegerPrimitive
+    val sirInt = SIRType.Integer
 
     test("lower constant") {
         forAll { (c: Constant) =>
@@ -187,7 +187,7 @@ class OptimizingSirToUplcLoweringSpec
                 nilConstr,
                 Nil,
                 Nil,
-                SIR.Const(Constant.Integer(1), SIRType.IntegerPrimitive)
+                SIR.Const(Constant.Integer(1), SIRType.Integer)
               ),
               SIR.Case(
                 consConstr,
@@ -196,10 +196,10 @@ class OptimizingSirToUplcLoweringSpec
                   SIRType.FreeUnificator,
                   SIRType.SumCaseClass(listData, List(SIRType.FreeUnificator))
                 ),
-                SIR.Const(Constant.Integer(2), SIRType.IntegerPrimitive)
+                SIR.Const(Constant.Integer(2), SIRType.Integer)
               )
             ),
-            SIRType.IntegerPrimitive
+            SIRType.Integer
           )
         ) lowersTo (lam("Nil", "Cons")(!vr"Nil") $ ~asConstant(1) $ lam("h", "tl")(2))
     }
