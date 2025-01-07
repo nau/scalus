@@ -1,12 +1,13 @@
 package scalus.sir
 
-import scalus.flat.FlatInstantces.SIRTypeHashConsedFlat
+import scalus.flat.*
 import scalus.flat.FlatInstantces.SIRHashConsedFlat
-
-import scala.quoted.*
+import scalus.flat.FlatInstantces.SIRTypeHashConsedFlat
 import scalus.sir.SIRType.checkAllProxiesFilled
 import scalus.utils.*
-import scalus.flat.*
+
+import java.nio.charset.StandardCharsets
+import scala.quoted.*
 
 class ToExprHS[T](
     hst: HashConsedFlat[T],
@@ -17,7 +18,8 @@ class ToExprHS[T](
     def apply(x: T)(using Quotes): Expr[T] = {
         given Type[T] = tt
         val bitSize = hst.bitSize(x)
-        val encoderState = HashConsedEncoderState.withSize(bitSize)
+        val byteSize = (bitSize + 1 /* for filler */ / 8) + 1 /* minimum size */
+        val encoderState = HashConsedEncoderState.withSize(byteSize)
         hst.encodeHC(x, encoderState)
         val bytes = encoderState.encode.result
         val b64 = java.util.Base64.getEncoder.encodeToString(bytes)
@@ -133,6 +135,16 @@ object ToExprHSSIRFlat extends HashConsedFlat[SIR] {
 
     def decodeBase64(base64: String): SIR = {
         val bytes = java.util.Base64.getDecoder.decode(base64)
+        val decoderState = HashConsedDecoderState(DecoderState(bytes), HashConsed.State.empty)
+        decodeHC(decoderState)
+    }
+
+    /** Decode a string encoded in ISO-8859-1 to SIR.
+      *
+      * Used by SIRConverter to decode the string representation of SIR.
+      */
+    def decodeStringLatin1(string: String): SIR = {
+        val bytes = string.getBytes(StandardCharsets.ISO_8859_1)
         val decoderState = HashConsedDecoderState(DecoderState(bytes), HashConsed.State.empty)
         decodeHC(decoderState)
     }
