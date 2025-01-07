@@ -4,7 +4,6 @@ object SIRUnify {
 
     case class Env(
         path: List[String] = List.empty,
-        filledHoles: Map[String, SIR] = Map.empty,
         filledTypes: Map[SIRType.TypeVar, SIRType] = Map.empty,
         eqTypes: Map[SIRType.TypeVar, SIRType] = Map.empty,
         parentTypes: Map[SIRType, Set[SIRType]] = Map.empty,

@@ -83,7 +83,7 @@ final class SIRCompiler(mode: scalus.Mode)(using ctx: Context) {
 
     val SirVersion = (1, 0)
 
-    private val builtinsHelper = new BuiltinHelper
+    private val DefaultFunSIRBuiltins: Map[Symbol, SIR.Builtin] = Macros.generateBuiltinsMap(ctx)
     private val BigIntSymbol = requiredModule("scala.math.BigInt")
     private val BigIntClassSymbol = requiredClass("scala.math.BigInt")
     private val ByteStringClassSymbol = requiredClass("scalus.builtin.ByteString")
@@ -136,6 +136,10 @@ final class SIRCompiler(mode: scalus.Mode)(using ctx: Context) {
     private val IgnoreAnnot = requiredClassRef("scalus.Ignore").symbol.asClass
 
     private lazy val classLoader = makeClassLoader
+
+    private def builtinFun(s: Symbol): Option[SIR.Builtin] = {
+        DefaultFunSIRBuiltins.get(s)
+    }
 
     private def makeClassLoader(using Context): ClassLoader = {
         import scala.language.unsafeNulls
@@ -1250,11 +1254,11 @@ final class SIRCompiler(mode: scalus.Mode)(using ctx: Context) {
                     )
                 if op == nme.EQ then eq else SIR.Not(eq)
             // BUILTINS
-            case bi: Select if builtinsHelper.builtinFun(bi.symbol).isDefined =>
+            case bi: Select if builtinFun(bi.symbol).isDefined =>
                 if env.debug then println(s"compileExpr: builtinFun: ${bi.symbol}")
-                builtinsHelper.builtinFun(bi.symbol).get
-            case bi: Ident if builtinsHelper.builtinFun(bi.symbol).isDefined =>
-                builtinsHelper.builtinFun(bi.symbol).get
+                builtinFun(bi.symbol).get
+            case bi: Ident if builtinFun(bi.symbol).isDefined =>
+                builtinFun(bi.symbol).get
             // BigInt stuff
             case Apply(optree @ Select(lhs, op), List(rhs))
                 if lhs.tpe.widen =:= BigIntClassSymbol.typeRef =>
