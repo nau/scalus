@@ -1,13 +1,10 @@
 package scalus
 package sir
 
-import scalus.Compiler.compile
-import scalus.builtin.Builtins
-import scalus.builtin.Data
-import scalus.macros.Macros
 import scalus.sir.Recursivity.*
 import scalus.uplc.Constant
 import scalus.uplc.DefaultFun
+import scalus.uplc.DefaultFun.*
 import scalus.uplc.ExprBuilder
 import scalus.uplc.Meaning
 import scalus.uplc.NamedDeBruijn
@@ -46,11 +43,11 @@ class SimpleSirToUplcV3Lowering(sir: SIR, generateErrorTraces: Boolean = false):
         else term
 
     private def constr(tag: Long, args: Seq[Term]): Term =
-        builtinTerms(DefaultFun.ConstrData) $ Term.Const(Constant.Integer(tag)) $ args.foldRight(
-          builtinTerms(DefaultFun.MkNilData) $ Term.Const(Constant.Unit)
+        builtinTerms(ConstrData) $ Term.Const(Constant.Integer(tag)) $ args.foldRight(
+          builtinTerms(MkNilData) $ Term.Const(Constant.Unit)
 //          Term.Const(Constant.List(DefaultUni.List(DefaultUni.Data), Nil))
         ) { (arg, ls) =>
-            builtinTerms(DefaultFun.MkCons) $ arg $ ls
+            builtinTerms(MkCons) $ arg $ ls
         }
 
     @tailrec
@@ -58,45 +55,56 @@ class SimpleSirToUplcV3Lowering(sir: SIR, generateErrorTraces: Boolean = false):
         tp match
             case SIRType.Data => arg
             case SIRType.Boolean =>
-                builtinTerms(DefaultFun.IfThenElse) $ arg $ constr(1, Nil) $ constr(0, Nil)
-            case SIRType.Integer    => builtinTerms(DefaultFun.IData) $ arg
-            case SIRType.ByteString => builtinTerms(DefaultFun.BData) $ arg
+                builtinTerms(IfThenElse) $ arg $ constr(1, Nil) $ constr(0, Nil)
+            case SIRType.Integer    => builtinTerms(IData) $ arg
+            case SIRType.ByteString => builtinTerms(BData) $ arg
             case SIRType.String =>
-                builtinTerms(DefaultFun.BData) $ (builtinTerms(DefaultFun.EncodeUtf8) $ arg)
+                builtinTerms(BData) $ (builtinTerms(EncodeUtf8) $ arg)
             case SIRType.Unit => constr(0, Nil)
             case SIRType.BLS12_381_G1_Element =>
-                toData(builtinTerms(DefaultFun.Bls12_381_G1_compress) $ arg, SIRType.ByteString)
+                toData(builtinTerms(Bls12_381_G1_compress) $ arg, SIRType.ByteString)
             case SIRType.BLS12_381_G2_Element =>
-                toData(builtinTerms(DefaultFun.Bls12_381_G2_compress) $ arg, SIRType.ByteString)
+                toData(builtinTerms(Bls12_381_G2_compress) $ arg, SIRType.ByteString)
             case _: SIRType.CaseClass => arg
             case _ =>
                 throw new IllegalArgumentException(
                   s"Unsupported type: ${tp.show} of term: ${arg.show}"
                 )
 
+    private def unconstr(term: Term): Term = builtinTerms(UnConstrData) $ term
+
     private def fromData(arg: Term, tp: SIRType): Term =
         tp match
             case SIRType.Data => arg
             case SIRType.Boolean =>
-                val tag =
-                    builtinTerms(DefaultFun.FstPair) $ (builtinTerms(DefaultFun.UnConstrData) $ arg)
-                builtinTerms(DefaultFun.EqualsInteger) $ tag $ Term.Const(Constant.Integer(1))
+                val tag = builtinTerms(FstPair) $ unconstr(arg)
+                builtinTerms(EqualsInteger) $ tag $ Term.Const(Constant.Integer(1))
             case SIRType.Integer =>
-                builtinTerms(DefaultFun.UnIData) $ arg
+                builtinTerms(UnIData) $ arg
             case SIRType.ByteString =>
-                builtinTerms(DefaultFun.UnBData) $ arg
+                builtinTerms(UnBData) $ arg
             case SIRType.String =>
-                builtinTerms(DefaultFun.DecodeUtf8) $ (builtinTerms(DefaultFun.UnBData) $ arg)
+                builtinTerms(DecodeUtf8) $ (builtinTerms(UnBData) $ arg)
             case SIRType.Unit => Term.Const(Constant.Unit)
             case SIRType.BLS12_381_G1_Element =>
-                builtinTerms(DefaultFun.Bls12_381_G1_uncompress) $ fromData(arg, SIRType.ByteString)
+                builtinTerms(Bls12_381_G1_uncompress) $ fromData(arg, SIRType.ByteString)
             case SIRType.BLS12_381_G2_Element =>
-                builtinTerms(DefaultFun.Bls12_381_G2_uncompress) $ fromData(arg, SIRType.ByteString)
+                builtinTerms(Bls12_381_G2_uncompress) $ fromData(arg, SIRType.ByteString)
             case _: SIRType.CaseClass => arg
             case _ =>
                 throw new IllegalArgumentException(
                   s"Unsupported type: ${tp.show} of term: ${arg.show}"
                 )
+
+    private def getFieldByIndex(args: Term, fieldIndex: Long, tp: SIRType) = {
+        var expr = args
+        var i = 0
+        while i < fieldIndex do
+            expr = builtinTerms(TailList) $ expr
+            i += 1
+        val data = builtinTerms(HeadList) $ expr
+        fromData(data, tp)
+    }
 
     private def lowerInner(sir: SIR): Term =
         sir match
@@ -112,10 +120,32 @@ class SimpleSirToUplcV3Lowering(sir: SIR, generateErrorTraces: Boolean = false):
                     .zip(ctorParams)
                     .map:
                         case (arg, TypeBinding(_, tp)) => toData(lowerInner(arg), tp)
-                println(data)
                 constr(tag, loweredArgs)
             case SIR.Match(scrutinee, cases, tp) =>
-                ???
+                val scrutineeTerm = lowerInner(scrutinee)
+                val pair = unconstr(scrutineeTerm)
+                λ("__pair") {
+                    λ("__tag") {
+                        λ("__args") {
+                            var term = lowerInner(SIR.Error("MatchError", null))
+                            for (cs, idx) <- cases.zipWithIndex do
+                                val bodyTerm = lowerInner(cs.body)
+                                val bindings = cs.bindings.zipWithIndex
+                                    .zip(cs.constr.params)
+                                    .foldRight(bodyTerm):
+                                        case (((name, idx), TypeBinding(_, tp)), term) =>
+                                            val value = getFieldByIndex(vr"__args", idx, tp)
+                                            lam(name)(term) $ value
+
+                                term =
+                                    val cond = builtinTerms(EqualsInteger) $ vr"__tag" $ idx.asTerm
+                                    !(builtinTerms(IfThenElse) $ cond $ ~bindings $ ~term)
+
+                            println(term.showHighlighted)
+                            term
+                        } $ (builtinTerms(SndPair) $ vr"__pair")
+                    } $ (builtinTerms(FstPair) $ vr"__pair")
+                } $ pair
             case SIR.Var(name, _)            => Term.Var(NamedDeBruijn(name))
             case SIR.ExternalVar(_, name, _) => Term.Var(NamedDeBruijn(name))
             case SIR.Let(NonRec, bindings, body) =>
@@ -166,16 +196,8 @@ class SimpleSirToUplcV3Lowering(sir: SIR, generateErrorTraces: Boolean = false):
                         )
                     val instance = lowerInner(scrutinee)
 
-                    val args = builtinTerms(DefaultFun.SndPair) $ (builtinTerms(
-                      DefaultFun.UnConstrData
-                    ) $ instance)
-                    var expr = args
-                    var i = 0
-                    while i < fieldIndex do
-                        expr = builtinTerms(DefaultFun.TailList) $ expr
-                        i += 1
-                    val data = builtinTerms(DefaultFun.HeadList) $ expr
-                    fromData(data, constrDecl.params(fieldIndex).tp)
+                    val args = builtinTerms(SndPair) $ unconstr(instance)
+                    getFieldByIndex(args, fieldIndex, constrDecl.params(fieldIndex).tp)
                 }
                 lowerSelect(find(scrutinee.tp))
             case SIR.Const(const, _) => Term.Const(const)
@@ -207,14 +229,14 @@ class SimpleSirToUplcV3Lowering(sir: SIR, generateErrorTraces: Boolean = false):
                   )
                 )
             case SIR.IfThenElse(cond, t, f, _) =>
-                !(builtinTerms(DefaultFun.IfThenElse) $ lowerInner(cond) $ ~lowerInner(
+                !(builtinTerms(IfThenElse) $ lowerInner(cond) $ ~lowerInner(
                   t
                 ) $ ~lowerInner(f))
             case SIR.Builtin(bn, _) => builtinTerms(bn)
             case SIR.Error(msg, _) =>
                 if generateErrorTraces
                 then
-                    !(builtinTerms(DefaultFun.Trace) $ Term.Const(
+                    !(builtinTerms(Trace) $ Term.Const(
                       Constant.String(msg)
                     ) $ ~Term.Error)
                 else Term.Error

@@ -26,6 +26,7 @@ class SimpleSirToUplcV3LoweringSpec extends AnyFunSuite {
     enum AA:
         case BBB
         case CCC
+        case DDD(a: BigInt)
 
     test("V3 lowering") {
         val sir =
@@ -53,4 +54,20 @@ class SimpleSirToUplcV3LoweringSpec extends AnyFunSuite {
         println(term.showHighlighted)
         println(term.evaluateDebug)
     }
+
+    test("V3 pattern matching") {
+        val sir =
+            compile:
+                val bb = AA.BBB
+                bb match
+                    case AA.BBB => true
+                    case _      => false
+
+        println(sir.showHighlighted)
+        val lower = SimpleSirToUplcV3Lowering(sir)
+        val term = lower.lower()
+        println(term.showHighlighted)
+        println(term.evaluateDebug)
+    }
+
 }

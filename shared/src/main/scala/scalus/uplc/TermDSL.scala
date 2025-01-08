@@ -29,6 +29,9 @@ object TermDSL:
     given constantAsTerm[A: Constant.LiftValue]: Conversion[A, Term] with
         def apply(c: A): Term = Term.Const(summon[Constant.LiftValue[A]].lift(c))
 
+    extension [A: Constant.LiftValue](a: A)
+        def asTerm: Term = Term.Const(summon[Constant.LiftValue[A]].lift(a))
+
     given Conversion[Constant, Term] with
         def apply(c: Constant): Term = Term.Const(c)
 
