@@ -344,9 +344,10 @@ final class SIRCompiler(mode: scalus.Mode)(using ctx: Context) {
         val sortedConstructors = adtCallInfo.dataInfo.childrenSymbols.sortBy(_.name.show)
 
         val dataTypeSymbol = adtCallInfo.dataInfo.dataTypeSymbol
-        val dataName = dataTypeSymbol.name.show
+        val dataFullName = FullName(dataTypeSymbol)
+        val dataName = dataFullName.name
         // debugInfo(s"compileNewConstructor2: dataTypeSymbol $dataTypeSymbol, dataName $dataName, constrName $constrName, children ${constructors}")
-        val dataDecl = globalDataDecls.get(FullName(dataTypeSymbol)) match
+        val dataDecl = globalDataDecls.get(dataFullName) match
             case Some(decl) => decl
             case None =>
                 val dataTypeParams = adtCallInfo.dataInfo.dataTypeParams.map { tp =>
@@ -396,7 +397,7 @@ final class SIRCompiler(mode: scalus.Mode)(using ctx: Context) {
                     scalus.sir.ConstrDecl(sym.name.show, SIRVarStorage.DEFAULT, params, typeParams)
                 }
                 val decl = scalus.sir.DataDecl(dataName, constrDecls, dataTypeParams)
-                globalDataDecls.addOne(FullName(dataTypeSymbol) -> decl)
+                globalDataDecls.addOne(dataFullName -> decl)
                 decl
         // constructor body as: constr arg1 arg2 ...
         SIR.Constr(constrName, dataDecl, argsE)

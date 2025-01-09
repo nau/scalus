@@ -112,6 +112,8 @@ class PatternMatchingCompiler(val compiler: SIRCompiler)(using Context) {
             // this is case _ =>
             case Ident(nme.WILDCARD) =>
                 SirBinding.Name(bindingName.fresh().show, sirTypeInEnv(tp, pat.srcPos, env))
+            // this is case case Outer(Inner(a, b)) which is case Outer(_ @ Constr.unappy(a, b)) =>
+            // thus we generate a unique patternName: case Outer($pat @ Constr(a, b)) =>
             case UnApply(fun, _, pats) =>
                 // pattern Symbol probaly incorrect here (need to be tps,  can be Any).  TODO: write test
                 val typeSymbol = pat.tpe.widen.dealias.typeSymbol

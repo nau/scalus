@@ -1501,35 +1501,22 @@ class CompilerPluginToSIRSpec extends AnyFunSuite with ScalaCheckPropertyChecks:
             pkh.hash
         }
 
-        val pkhType =
-            DataDecl(
+        val pubKeyHashDataDecl = DataDecl(
+          "scalus.ledger.api.v1.PubKeyHash",
+          List(
+            ConstrDecl(
               "PubKeyHash",
-              List(
-                ConstrDecl(
-                  "PubKeyHash",
-                  SIRVarStorage.DEFAULT,
-                  List(TypeBinding("hash", sirByteString)),
-                  List.empty
-                )
-              ),
+              SIRVarStorage.DEFAULT,
+              List(TypeBinding("hash", sirByteString)),
               List.empty
-            ).tp
-
+            )
+          ),
+          List.empty
+        )
         assert(
           compiled ~=~
               Decl(
-                DataDecl(
-                  "PubKeyHash",
-                  List(
-                    ConstrDecl(
-                      "PubKeyHash",
-                      SIRVarStorage.DEFAULT,
-                      List(TypeBinding("hash", sirByteString)),
-                      List.empty
-                    )
-                  ),
-                  List.empty
-                ),
+                pubKeyHashDataDecl,
                 Let(
                   NonRec,
                   List(
@@ -1537,23 +1524,12 @@ class CompilerPluginToSIRSpec extends AnyFunSuite with ScalaCheckPropertyChecks:
                       "pkh",
                       Constr(
                         "PubKeyHash",
-                        DataDecl(
-                          "PubKeyHash",
-                          List(
-                            ConstrDecl(
-                              "PubKeyHash",
-                              SIRVarStorage.DEFAULT,
-                              List(TypeBinding("hash", sirByteString)),
-                              List.empty
-                            )
-                          ),
-                          List.empty
-                        ),
+                        pubKeyHashDataDecl,
                         List(Const(uplc.Constant.ByteString(hex"DEADBEEF"), sirByteString))
                       )
                     )
                   ),
-                  Select(Var("pkh", pkhType), "hash", sirByteString)
+                  Select(Var("pkh", pubKeyHashDataDecl.tp), "hash", sirByteString)
                 )
               )
         )
