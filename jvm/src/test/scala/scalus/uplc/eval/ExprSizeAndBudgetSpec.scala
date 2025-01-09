@@ -3,10 +3,16 @@ package scalus.uplc.eval
 import org.scalatest.funsuite.AnyFunSuite
 import scalus.*
 import scalus.Compiler.compile
+import scalus.builtin.given
+import scalus.builtin.Builtins.*
+import scalus.builtin.Data
 import scalus.flat.Flat
 import scalus.uplc.FlatInstantces.given
 import scalus.uplc.NamedDeBruijn
 import scalus.uplc.Term
+import scalus.uplc.TermDSL.*
+import scalus.uplc.eval.ExBudget.given
+import scala.math.Ordering.Implicits._
 
 class ExprSizeAndBudgetSpec extends AnyFunSuite {
     private val encoder = summon[Flat[Term]]
@@ -54,4 +60,19 @@ class ExprSizeAndBudgetSpec extends AnyFunSuite {
         val uplc = compile(prelude.List.single(true)).toUplcOptimized()
         assert(encoder.bitSize(uplc) == 143)
     }
+
+    test("equalsInteger(unIData) < equalsData(iData)") {
+        given PlutusVM = PlutusVM.makePlutusV3VM()
+        val eqDataSIR = compile { (d: Data) => equalsData(d, iData(1)) }
+        val eqIntegerSIR = compile { (d: Data) => equalsInteger(unIData(d), 1) }
+        val d = iData(1)
+        val eqDataUplc = eqDataSIR.toUplc() $ d.asTerm
+        val eqIntegerUplc = eqIntegerSIR.toUplc() $ d.asTerm
+        val (eqData, eqInteger) = (eqDataUplc.evaluateDebug, eqIntegerUplc.evaluateDebug)
+        // here we ensure that it's cheaper to convert the data to an integer and compare with equalsInteger
+        // than to convert the integer to data and compare with equalsData
+        // this is a prerequisite for the optimizations to be valid
+        assert(eqInteger.budget < eqData.budget)
+    }
+
 }

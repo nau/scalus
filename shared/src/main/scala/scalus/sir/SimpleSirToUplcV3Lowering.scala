@@ -1,6 +1,10 @@
 package scalus
 package sir
 
+import scalus.Compiler.compile
+import scalus.builtin.given
+import scalus.builtin.Data.ToData
+import scalus.ledger.api.v3.TxId
 import scalus.sir.Recursivity.*
 import scalus.uplc.Constant
 import scalus.uplc.DefaultFun
@@ -11,9 +15,18 @@ import scalus.uplc.NamedDeBruijn
 import scalus.uplc.Term
 import scalus.uplc.TermDSL.*
 import scalus.uplc.TypeScheme
+import scalus.ledger.api.v3.ToDataInstances.given
+import scalus.uplc.Inliner
+import scalus.uplc.eval.PlutusVM
 
 import scala.annotation.tailrec
 import scala.collection.mutable.HashMap
+
+case class Asdf(
+    toData: Seq[Term] => Term,
+    select: Int => Term => Term,
+    genMatch: SIR.Match => Term
+)
 
 /** Lowering from Scalus Intermediate Representation [[SIR]] to UPLC [[Term]].
   *
@@ -24,7 +37,7 @@ import scala.collection.mutable.HashMap
   */
 class SimpleSirToUplcV3Lowering(sir: SIR, generateErrorTraces: Boolean = false):
 
-    private val builtinTerms =
+    private val builtinTerms = {
         def forceBuiltin(scheme: TypeScheme, term: Term): Term = scheme match
             case TypeScheme.All(_, t) => Term.Force(forceBuiltin(t, term))
             case _                    => term
@@ -32,48 +45,54 @@ class SimpleSirToUplcV3Lowering(sir: SIR, generateErrorTraces: Boolean = false):
         Meaning.allBuiltins.BuiltinMeanings.map((bi, rt) =>
             bi -> forceBuiltin(rt.typeScheme, Term.Builtin(bi))
         )
+    }
 
     private var zCombinatorNeeded: Boolean = false
     private val decls = HashMap.empty[String, DataDecl]
 
-    def lower(): Term =
+    def lower(): Term = {
         val term = lowerInner(sir)
         if zCombinatorNeeded then
             Term.Apply(Term.LamAbs("__z_combinator__", term), ExprBuilder.ZTerm)
         else term
+    }
 
-    private def constr(tag: Long, args: Seq[Term]): Term =
+    private def constrData(tag: Long, args: Seq[Term]): Term = {
         builtinTerms(ConstrData) $ Term.Const(Constant.Integer(tag)) $ args.foldRight(
           builtinTerms(MkNilData) $ Term.Const(Constant.Unit)
 //          Term.Const(Constant.List(DefaultUni.List(DefaultUni.Data), Nil))
         ) { (arg, ls) =>
             builtinTerms(MkCons) $ arg $ ls
         }
+    }
 
     @tailrec
-    private def toData(arg: Term, tp: SIRType): Term =
+    private def toData(arg: Term, tp: SIRType): Term = {
         tp match
             case SIRType.Data => arg
             case SIRType.Boolean =>
-                builtinTerms(IfThenElse) $ arg $ constr(1, Nil) $ constr(0, Nil)
+                builtinTerms(IfThenElse) $ arg $ constrData(1, Nil) $ constrData(0, Nil)
             case SIRType.Integer    => builtinTerms(IData) $ arg
             case SIRType.ByteString => builtinTerms(BData) $ arg
             case SIRType.String =>
                 builtinTerms(BData) $ (builtinTerms(EncodeUtf8) $ arg)
-            case SIRType.Unit => constr(0, Nil)
+            case SIRType.Unit => constrData(0, Nil)
             case SIRType.BLS12_381_G1_Element =>
                 toData(builtinTerms(Bls12_381_G1_compress) $ arg, SIRType.ByteString)
             case SIRType.BLS12_381_G2_Element =>
                 toData(builtinTerms(Bls12_381_G2_compress) $ arg, SIRType.ByteString)
-            case _: SIRType.CaseClass => arg
+            case _: SIRType.CaseClass =>
+                println(s"toData: ${tp.show}")
+                arg
             case _ =>
                 throw new IllegalArgumentException(
                   s"Unsupported type: ${tp.show} of term: ${arg.show}"
                 )
+    }
 
     private def unconstr(term: Term): Term = builtinTerms(UnConstrData) $ term
 
-    private def fromData(arg: Term, tp: SIRType): Term =
+    private def fromData(arg: Term, tp: SIRType): Term = {
         tp match
             case SIRType.Data => arg
             case SIRType.Boolean =>
@@ -95,6 +114,7 @@ class SimpleSirToUplcV3Lowering(sir: SIR, generateErrorTraces: Boolean = false):
                 throw new IllegalArgumentException(
                   s"Unsupported type: ${tp.show} of term: ${arg.show}"
                 )
+    }
 
     private def getFieldByIndex(args: Term, fieldIndex: Long, tp: SIRType) = {
         var expr = args
@@ -106,46 +126,87 @@ class SimpleSirToUplcV3Lowering(sir: SIR, generateErrorTraces: Boolean = false):
         fromData(data, tp)
     }
 
-    private def lowerInner(sir: SIR): Term =
+    /** Generates [[Term]] like this:
+      * {{{
+      *  if tag == 0
+      *  then { (field1, field2, ...) => caseBody} (fromData(args.head), fromData(args.tail.head), ...)
+      *  else if tag == 1 then ...
+      *  else Error("MatchError")
+      * }}}
+      */
+    private def genMatch(cases: Seq[SIR.Case], args: Term, tag: Term): Term = {
+        var term = lowerInner(SIR.Error("MatchError", null))
+        for (cs, idx) <- cases.zipWithIndex do
+            val bodyTerm = lowerInner(cs.body)
+            val bindings = cs.bindings.zipWithIndex
+                .zip(cs.constr.params)
+                .foldRight(bodyTerm):
+                    case (((name, idx), TypeBinding(_, tp)), term) =>
+                        val value = getFieldByIndex(args, idx, tp)
+                        lam(name)(term) $ value
+
+            term =
+                val cond = builtinTerms(EqualsInteger) $ idx.asTerm $ tag
+                !(builtinTerms(IfThenElse) $ cond $ ~bindings $ ~term)
+        term
+    }
+
+    private val mapping: Map[String, Asdf] = Map(
+      "scalus.ledger.api.v3.TxId" -> Asdf(
+        toData = { args => args.head },
+        select = {
+            case 0 => identity
+            case i => throw new IllegalArgumentException(s"Invalid field index $i for TxId")
+
+        },
+        genMatch = { case SIR.Match(scrutinee, cases, _) =>
+            val scrutineeTerm = lowerInner(scrutinee)
+            cases match
+                case SIR.Case(constr, bindings, _, body) :: Nil =>
+                    λ(cases.head.bindings.head)(lowerInner(body)) $ scrutineeTerm
+                case _ => throw new IllegalArgumentException("Expected single case for TxId")
+        }
+      )
+    )
+
+    private def lowerInner(sir: SIR): Term = {
         sir match
             case SIR.Decl(data, body) =>
                 decls(data.name) = data
                 lowerInner(body)
             case SIR.Constr(name, data, args) =>
+                println(s"Constr: $name, ${data.name}, $args")
                 val tag = data.constructors.indexWhere(_.name == name, 0)
                 if tag == -1 then
                     throw new IllegalArgumentException(s"Constructor $name not found in $data")
-                val ctorParams = data.constructors(tag).params
-                val loweredArgs = args
-                    .zip(ctorParams)
-                    .map:
-                        case (arg, TypeBinding(_, tp)) => toData(lowerInner(arg), tp)
-                constr(tag, loweredArgs)
-            case SIR.Match(scrutinee, cases, tp) =>
+                val loweredArgs = args.map: arg =>
+                    toData(lowerInner(arg), arg.tp)
+                if mapping.contains(data.name)
+                then
+                    val term = mapping(data.name).toData(loweredArgs)
+                    println(s"Term: ${term.showHighlighted}")
+                    term
+                else constrData(tag, loweredArgs)
+            case m @ SIR.Match(scrutinee, cases, tp) =>
                 val scrutineeTerm = lowerInner(scrutinee)
-                val pair = unconstr(scrutineeTerm)
-                λ("__pair") {
-                    λ("__tag") {
-                        λ("__args") {
-                            var term = lowerInner(SIR.Error("MatchError", null))
-                            for (cs, idx) <- cases.zipWithIndex do
-                                val bodyTerm = lowerInner(cs.body)
-                                val bindings = cs.bindings.zipWithIndex
-                                    .zip(cs.constr.params)
-                                    .foldRight(bodyTerm):
-                                        case (((name, idx), TypeBinding(_, tp)), term) =>
-                                            val value = getFieldByIndex(vr"__args", idx, tp)
-                                            lam(name)(term) $ value
-
-                                term =
-                                    val cond = builtinTerms(EqualsInteger) $ vr"__tag" $ idx.asTerm
-                                    !(builtinTerms(IfThenElse) $ cond $ ~bindings $ ~term)
-
-                            println(term.showHighlighted)
-                            term
-                        } $ (builtinTerms(SndPair) $ vr"__pair")
-                    } $ (builtinTerms(FstPair) $ vr"__pair")
-                } $ pair
+                scrutinee.tp match
+                    case SIRType.SumCaseClass(decl, _) =>
+                        mapping.get(decl.name) match
+                            case Some(asdf) =>
+                                asdf.genMatch(m)
+                            case None =>
+                                val pair = unconstr(scrutineeTerm)
+                                λλ("pair") { pair =>
+                                    λλ("tag") { tag =>
+                                        λλ("args") { args =>
+                                            genMatch(cases, args, tag)
+                                        } $ (builtinTerms(SndPair) $ pair)
+                                    } $ (builtinTerms(FstPair) $ pair)
+                                } $ pair
+                    case _ =>
+                        throw new IllegalArgumentException(
+                          s"Expected case class type, got ${scrutinee.tp} in expression: ${sir.show}"
+                        )
             case SIR.Var(name, _)            => Term.Var(NamedDeBruijn(name))
             case SIR.ExternalVar(_, name, _) => Term.Var(NamedDeBruijn(name))
             case SIR.Let(NonRec, bindings, body) =>
@@ -173,22 +234,23 @@ class SimpleSirToUplcV3Lowering(sir: SIR, generateErrorTraces: Boolean = false):
             // record.field
             case SIR.Select(scrutinee, field, _) =>
                 @tailrec
-                def find(sirType: SIRType): ConstrDecl =
+                def find(sirType: SIRType): (String, ConstrDecl) =
                     sirType match
-                        case SIRType.CaseClass(constrDecl, _) => constrDecl
+                        case SIRType.CaseClass(constrDecl, _) => (constrDecl.name, constrDecl)
                         case SIRType.SumCaseClass(decl, _) =>
-                            if decl.constructors.length == 1 then decl.constructors.head
-                            else
-                                throw new IllegalArgumentException(
-                                  s"Expected case class type, got ${sirType} in expression: ${sir.show}"
-                                )
+                            decl.constructors match
+                                case head :: Nil => (decl.name, head)
+                                case _ =>
+                                    throw new IllegalArgumentException(
+                                      s"Expected single constructor, got ${decl.constructors} in expression: ${sir.show}"
+                                    )
                         case SIRType.TypeLambda(_, t) => find(t)
                         case _ =>
                             throw new IllegalArgumentException(
                               s"Expected case class type, got ${sirType} in expression: ${sir.show}"
                             )
 
-                def lowerSelect(constrDecl: ConstrDecl) = {
+                def lowerSelect(fullname: String, constrDecl: ConstrDecl) = {
                     val fieldIndex = constrDecl.params.indexWhere(_.name == field)
                     if fieldIndex == -1 then
                         throw new IllegalArgumentException(
@@ -196,10 +258,15 @@ class SimpleSirToUplcV3Lowering(sir: SIR, generateErrorTraces: Boolean = false):
                         )
                     val instance = lowerInner(scrutinee)
 
-                    val args = builtinTerms(SndPair) $ unconstr(instance)
-                    getFieldByIndex(args, fieldIndex, constrDecl.params(fieldIndex).tp)
+                    mapping.get(fullname) match
+                        case Some(asdf) =>
+                            asdf.select(fieldIndex)(instance)
+                        case None =>
+                            val args = builtinTerms(SndPair) $ unconstr(instance)
+                            getFieldByIndex(args, fieldIndex, constrDecl.params(fieldIndex).tp)
                 }
-                lowerSelect(find(scrutinee.tp))
+                val (name, constrDecl) = find(scrutinee.tp)
+                lowerSelect(name, constrDecl)
             case SIR.Const(const, _) => Term.Const(const)
             case SIR.And(lhs, rhs) =>
                 lowerInner(
@@ -240,3 +307,4 @@ class SimpleSirToUplcV3Lowering(sir: SIR, generateErrorTraces: Boolean = false):
                       Constant.String(msg)
                     ) $ ~Term.Error)
                 else Term.Error
+    }
