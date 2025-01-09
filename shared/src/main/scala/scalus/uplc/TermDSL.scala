@@ -14,6 +14,7 @@ object TermDSL:
             case f => (f, Nil)
 
     def λ(names: String*)(term: Term): Term = lam(names*)(term)
+    def λλ(name: String)(f: Term => Term): Term = lam(name)(f(vr(name)))
     def lam(names: String*)(term: Term): Term = names.foldRight(term)(Term.LamAbs(_, _))
     def vr(name: String): Term = Term.Var(NamedDeBruijn(name))
     extension (term: Term)
