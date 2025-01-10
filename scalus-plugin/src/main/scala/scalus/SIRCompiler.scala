@@ -38,12 +38,12 @@ import scala.util.control.NonFatal
 
 case class FullName(name: String)
 object FullName:
-    def apply(sym: Symbol)(using Context): FullName = FullName(sym.fullName.toString())
+    def apply(sym: Symbol)(using Context): FullName = FullName(sym.fullName.toString)
 
 case class TopLevelBinding(fullName: FullName, recursivity: Recursivity, body: SIR)
 
 case class B(name: String, symbol: Symbol, recursivity: Recursivity, body: SIR):
-    def fullName(using Context) = FullName(symbol)
+    def fullName(using Context): FullName = FullName(symbol)
 
 case class AdtTypeInfo(
     dataTypeSymbol: Symbol,
@@ -229,18 +229,19 @@ final class SIRCompiler(mode: scalus.Mode)(using ctx: Context) {
         AdtTypeInfo(dataTypeSymbol, dataTypeParams, constructorSymbols)
     }
 
-    def getAdtConstructorCallInfo(constrTpe: Type): AdtConstructorCallInfo = {
-        /* We support these cases:
-        1. case class Foo(a: Int, b: String)
-        2. case object Bar
-        3. enum Base { case A ...}
-        4. enum Base { case B(a, b) }
-        5. sealed abstract class Base; object Base { case object A extends Base }
-        6. sealed abstract class Base; object Base { case class B(a: Int, b: String) extends Base }
-        7. scala.Tuple2
-
-         */
-
+    /** Creates [[AdtConstructorCallInfo]] based on a constructor type.
+      *
+      * We support these cases:
+      *   1. case class Foo(a: Int, b: String) (case 1)
+      *   1. case object Bar (case 2)
+      *   1. enum Base { case A ...} (case 3)
+      *   1. enum Base { case B(a, b) } (case 4)
+      *   1. sealed abstract class Base; object Base { case object A extends Base } (case 5)
+      *   1. sealed abstract class Base; object Base { case class B(a:Int, b: String) extends Base }
+      *      (case 6)
+      *   1. scala.Tuple2 (case 7)
+      */
+    private def getAdtConstructorCallInfo(constrTpe: Type): AdtConstructorCallInfo = {
         val typeSymbol = constrTpe.widen.dealias.typeSymbol
         // println(s"getAdtInfoFromConstroctorType: ${typeSymbol.showFullName}, $constrTpe")
         // look for a base `sealed abstract class`. If it exists, we are in case 5 or 6
@@ -257,9 +258,6 @@ final class SIRCompiler(mode: scalus.Mode)(using ctx: Context) {
         val info =
             if constrTpe.typeConstructor =:= Tuple2Symbol.typeRef
             then
-                val typeArgs = constrTpe match
-                    case AppliedType(_, args) => args
-                    case _                    => Nil
                 AdtConstructorCallInfo(
                   typeSymbol,
                   AdtTypeInfo(typeSymbol, typeArgs, List(typeSymbol)),
@@ -275,23 +273,12 @@ final class SIRCompiler(mode: scalus.Mode)(using ctx: Context) {
                         val baseDataParams = adtBaseType match
                             case AppliedType(_, args) => args
                             case _                    => Nil
+                        val typeInfo =
+                            AdtTypeInfo(baseClassSymbol, baseDataParams, baseClassSymbol.children)
                         if constrTpe.isSingleton then // case 3, 5
-                            val typeInfo = AdtTypeInfo(
-                              baseClassSymbol,
-                              baseDataParams,
-                              baseClassSymbol.children
-                            )
                             AdtConstructorCallInfo(constrTpe.termSymbol, typeInfo, typeArgs)
                         else // case 4, 6
-                            val typeInfo = AdtTypeInfo(
-                              baseClassSymbol,
-                              baseDataParams,
-                              baseClassSymbol.children
-                            )
                             AdtConstructorCallInfo(typeSymbol, typeInfo, typeArgs)
-        /* report.echo(
-      s"getAdtInfoFromConstroctorType: ${constrTpe.show}: ${typeSymbol.showFullName} ${adtBaseType} $info"
-    ) */
         info
     }
 
@@ -321,84 +308,75 @@ final class SIRCompiler(mode: scalus.Mode)(using ctx: Context) {
         else None
     }
 
+    private def getCachedDataDecl(dataInfo: AdtTypeInfo, env: Env, srcPos: SrcPos): DataDecl = {
+        val dataFullName = FullName(dataInfo.dataTypeSymbol)
+        // debugInfo(s"compileNewConstructor2: dataTypeSymbol $dataTypeSymbol, dataName $dataName, constrName $constrName, children ${constructors}")
+        globalDataDecls.getOrElseUpdate(dataFullName, makeDataDecl(dataInfo, env, srcPos))
+    }
+
+    private def makeDataDecl(dataInfo: AdtTypeInfo, env: Env, srcPos: SrcPos) = {
+        val dataFullName = FullName(dataInfo.dataTypeSymbol)
+        // sort by name to get a stable order
+        val sortedConstructors = dataInfo.childrenSymbols.sortBy(_.name.show)
+        val dataTypeParams = dataInfo.dataTypeParams.map { tp =>
+            SIRType.TypeVar(tp.typeSymbol.name.show)
+        }
+        val constrDecls = sortedConstructors.map { sym =>
+            makeConstrDecl(env, srcPos, sym)
+        }
+        scalus.sir.DataDecl(dataFullName.name, constrDecls, dataTypeParams)
+    }
+
+    private def makeConstrDecl(env: Env, srcPos: SrcPos, sym: Symbol) = {
+        val typeParams =
+            sym.typeParams.map(tp => SIRType.TypeVar(tp.name.show, Some(tp.hashCode)))
+        val envTypeVars1 = sym.typeParams.foldLeft(env.typeVars) { case (acc, tp) =>
+            acc + (tp -> SIRType.TypeVar(tp.name.show, Some(tp.hashCode)))
+        }
+        val envTypeVars2 = primaryConstructorTypeParams(sym).foldLeft(envTypeVars1) {
+            case (acc, tp) =>
+                acc + (tp -> SIRType.TypeVar(tp.name.show, Some(tp.hashCode)))
+        }
+        val nEnv = env.copy(typeVars = envTypeVars2)
+        val params = primaryConstructorParams(sym).map { p =>
+            val pType =
+                try sirTypeInEnv(p.info, srcPos, nEnv)
+                catch
+                    case NonFatal(e) =>
+                        println(s"Error in sirTypeInEnv: ${p.info.show} ${p.info.widen.show}")
+                        println(s"PrimaryConstructorParams: ${primaryConstructorParams(sym)}")
+                        println(
+                          s"PrimaryConstructorTypeParams: ${primaryConstructorTypeParams(sym)}"
+                        )
+                        throw e
+            TypeBinding(p.name.show, pType)
+        }
+        val optBaseClass = sym.info.baseClasses.find { b =>
+            b.flags.is(Flags.Sealed) && b.children.contains(sym)
+        }
+        val baseTypeArgs = optBaseClass
+            .flatMap { bs =>
+                sym.info.baseType(bs) match
+                    case AppliedType(_, args) =>
+                        Some(args.map(a => sirTypeInEnv(a, srcPos, nEnv)))
+                    case _ => None
+            }
+            .getOrElse(Nil)
+        // TODO: add substoitution for parent type params
+        // scalus.sir.ConstrDecl(sym.name.show, SIRVarStorage.DEFAULT, params, typeParams, baseTypeArgs)
+        scalus.sir.ConstrDecl(sym.name.show, SIRVarStorage.DEFAULT, params, typeParams)
+    }
+
     private def compileNewConstructor(
         env: Env,
         tpe: Type,
         args: immutable.List[Tree],
         srcPos: SrcPos
     ): SIR = {
-
-        // val typeSymbol = tpe.typeSymbol
-        // debugInfo(s"compileNewConstructor0")
-        /* report.echo(
-      s"compileNewConstructor1 ${typeSymbol} singleton ${tpe.isSingleton} companion: ${typeSymbol.maybeOwner.companionClass} " +
-      s"${typeSymbol.children} widen: ${tpe.widen.typeSymbol}, widen.children: ${tpe.widen.typeSymbol.children} ${typeSymbol.maybeOwner.companionClass.children}"
-      ) */
-
         val adtCallInfo = getAdtConstructorCallInfo(tpe)
-        // report.echo(s"compileNewConstructor1 ${tpe.show} base type: ${adtInfo}")
-
         val argsE = args.map(compileExpr(env, _))
         val constrName = adtCallInfo.constructorTypeSymbol.name.show
-        // sort by name to get a stable order
-        val sortedConstructors = adtCallInfo.dataInfo.childrenSymbols.sortBy(_.name.show)
-
-        val dataTypeSymbol = adtCallInfo.dataInfo.dataTypeSymbol
-        val dataFullName = FullName(dataTypeSymbol)
-        val dataName = dataFullName.name
-        // debugInfo(s"compileNewConstructor2: dataTypeSymbol $dataTypeSymbol, dataName $dataName, constrName $constrName, children ${constructors}")
-        val dataDecl = globalDataDecls.get(dataFullName) match
-            case Some(decl) => decl
-            case None =>
-                val dataTypeParams = adtCallInfo.dataInfo.dataTypeParams.map { tp =>
-                    SIRType.TypeVar(tp.typeSymbol.name.show)
-                }
-                val constrDecls = sortedConstructors.map { sym =>
-                    val typeParams =
-                        sym.typeParams.map(tp => SIRType.TypeVar(tp.name.show, Some(tp.hashCode)))
-                    val envTypeVars1 = sym.typeParams.foldLeft(env.typeVars) { case (acc, tp) =>
-                        acc + (tp -> SIRType.TypeVar(tp.name.show, Some(tp.hashCode)))
-                    }
-                    val envTypeVars2 = primaryConstructorTypeParams(sym).foldLeft(envTypeVars1) {
-                        case (acc, tp) =>
-                            acc + (tp -> SIRType.TypeVar(tp.name.show, Some(tp.hashCode)))
-                    }
-                    val nEnv = env.copy(typeVars = envTypeVars2)
-                    val params = primaryConstructorParams(sym).map { p =>
-                        val pType =
-                            try sirTypeInEnv(p.info, srcPos, nEnv)
-                            catch
-                                case NonFatal(e) =>
-                                    println(
-                                      s"Error in sirTypeInEnv: ${p.info.show} ${p.info.widen.show}"
-                                    )
-                                    println(
-                                      s"PrimaryConstructorParams: ${primaryConstructorParams(sym)}"
-                                    )
-                                    println(
-                                      s"PrimaryConstructorTypeParams: ${primaryConstructorTypeParams(sym)}"
-                                    )
-                                    throw e
-                        TypeBinding(p.name.show, pType)
-                    }
-                    val optBaseClass = sym.info.baseClasses.find { b =>
-                        b.flags.is(Flags.Sealed) && b.children.contains(sym)
-                    }
-                    val baseTypeArgs = optBaseClass
-                        .flatMap { bs =>
-                            sym.info.baseType(bs) match
-                                case AppliedType(_, args) =>
-                                    Some(args.map(a => sirTypeInEnv(a, srcPos, nEnv)))
-                                case _ => None
-                        }
-                        .getOrElse(Nil)
-                    // TODO: add substoitution for parent type params
-                    // scalus.sir.ConstrDecl(sym.name.show, SIRVarStorage.DEFAULT, params, typeParams, baseTypeArgs)
-                    scalus.sir.ConstrDecl(sym.name.show, SIRVarStorage.DEFAULT, params, typeParams)
-                }
-                val decl = scalus.sir.DataDecl(dataName, constrDecls, dataTypeParams)
-                globalDataDecls.addOne(dataFullName -> decl)
-                decl
+        val dataDecl = getCachedDataDecl(adtCallInfo.dataInfo, env, srcPos)
         // constructor body as: constr arg1 arg2 ...
         SIR.Constr(constrName, dataDecl, argsE)
     }
