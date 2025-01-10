@@ -37,63 +37,60 @@ object SIRVarStorage {
 
 object SIRType {
 
-    trait ULPCMapped {
-        this: SIRType =>
-        def uplcTpe: DefaultUni
+    sealed trait Primitive extends SIRType {
+        def uplcType: DefaultUni
     }
 
-    sealed trait Primitive extends SIRType with ULPCMapped
-
     case object ByteString extends Primitive {
-        override def uplcTpe: DefaultUni = DefaultUni.ByteString
+        override def uplcType: DefaultUni = DefaultUni.ByteString
         override def show: String = "ByteString"
     }
     given ByteString.type = ByteString
 
     case object Integer extends Primitive {
-        override def uplcTpe: DefaultUni = DefaultUni.Integer
+        override def uplcType: DefaultUni = DefaultUni.Integer
         override def show: String = "Int"
     }
     given Integer.type = Integer
 
     case object String extends Primitive {
-        override def uplcTpe: DefaultUni = DefaultUni.String
+        override def uplcType: DefaultUni = DefaultUni.String
         override def show: String = "String"
     }
     given String.type = String
 
     case object Boolean extends Primitive {
-        override def uplcTpe: DefaultUni = DefaultUni.Bool
+        override def uplcType: DefaultUni = DefaultUni.Bool
         override def show: String = "Boolean"
     }
     given Boolean.type = Boolean
     case object Unit extends Primitive {
-        override def uplcTpe: DefaultUni = DefaultUni.Unit
+        override def uplcType: DefaultUni = DefaultUni.Unit
         override def show: String = "Unit"
     }
 
     // sealed trait MappedBuiltin[T] extends Lifted[T] with ULPCMapped
 
     case object Data extends Primitive {
-        override def uplcTpe: DefaultUni = DefaultUni.Data
+        override def uplcType: DefaultUni = DefaultUni.Data
         override def show: String = "Data"
     }
     given Data.type = Data
 
     case object BLS12_381_G1_Element extends Primitive {
-        override def uplcTpe: DefaultUni = DefaultUni.BLS12_381_G1_Element
+        override def uplcType: DefaultUni = DefaultUni.BLS12_381_G1_Element
         override def show: String = "BLS12_381_G1_Element"
     }
 
     case object BLS12_381_G2_Element extends Primitive {
 
-        override def uplcTpe: DefaultUni = DefaultUni.BLS12_381_G2_Element
+        override def uplcType: DefaultUni = DefaultUni.BLS12_381_G2_Element
         override def show: String = "BLS12_381_G2_Element"
     }
 
     case object BLS12_381_MlResult extends Primitive {
 
-        override def uplcTpe: DefaultUni = DefaultUni.BLS12_381_MlResult
+        override def uplcType: DefaultUni = DefaultUni.BLS12_381_MlResult
         override def show: String = "BLS12_381_MlResult"
     }
 
