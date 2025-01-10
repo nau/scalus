@@ -143,10 +143,7 @@ class PatternMatchingCompiler(val compiler: SIRCompiler)(using Context) {
                                 val contExpr = enclosingGenerator(generator2(cont))
                                 SIR.Match(
                                   SIR.Var(name, constrSirType),
-                                  List(
-                                    scalus.sir.SIR
-                                        .Case(constrDecl, innerNames, typeParams, contExpr)
-                                  ),
+                                  List(SIR.Case(constrDecl, innerNames, typeParams, contExpr)),
                                   contExpr.tp
                                 )
                             ,
@@ -348,14 +345,14 @@ class PatternMatchingCompiler(val compiler: SIRCompiler)(using Context) {
         val iter = sirCases.iterator
         val allConstructors = adtInfo.constructorsSymbols.toSet
         val matchedConstructors = mutable.HashSet.empty[Symbol]
-        val expandedCases = mutable.ArrayBuffer.empty[scalus.sir.SIR.Case]
+        val expandedCases = mutable.ArrayBuffer.empty[SIR.Case]
 
         while iter.hasNext do
             iter.next() match
                 case SirCase.Case(constructorSymbol, typeParams, bindings, rhs, srcPos) =>
                     matchedConstructors += constructorSymbol // collect all matched constructors
                     val constrDecl = compiler.makeConstrDecl(env, srcPos, constructorSymbol)
-                    expandedCases += scalus.sir.SIR.Case(constrDecl, bindings, typeParams, rhs)
+                    expandedCases += SIR.Case(constrDecl, bindings, typeParams, rhs)
                 case SirCase.Wildcard(rhs, srcPos) =>
                     // If we have a wildcard case, it must be the last one
                     if idx != sirCases.length - 1 then
@@ -378,7 +375,7 @@ class PatternMatchingCompiler(val compiler: SIRCompiler)(using Context) {
                             // also we have no way to know type-arguments, so use abstract type-vars (will use FreeUnificator)
                             val typeArgs = constr.typeParams.map(_ => SIRType.FreeUnificator)
                             val constrDecl = compiler.makeConstrDecl(env, srcPos, constr)
-                            expandedCases += scalus.sir.SIR.Case(
+                            expandedCases += SIR.Case(
                               constrDecl,
                               bindings,
                               typeArgs,
