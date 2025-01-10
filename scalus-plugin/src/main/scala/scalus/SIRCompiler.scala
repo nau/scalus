@@ -65,17 +65,23 @@ case class AdtTypeInfo(
 //    childrenSymbols: List[Symbol]
 //) extends AdtTypeInfo
 
+/** Information about a constructor call.
+  * @param name
+  *   Name of the constructor.
+  * @param dataInfo
+  *   Type information of the base data type.
+  */
 case class AdtConstructorCallInfo(
-    constructorTypeSymbol: Symbol,
-
-    /** Type information of the base data type.
-      */
-    dataInfo: AdtTypeInfo,
-
-    /** Type parameters of this type.
-      */
-    typeParams: List[Type]
+    name: String,
+    dataInfo: AdtTypeInfo
 )
+
+object AdtConstructorCallInfo {
+    def apply(constructorTypeSymbol: Symbol, dataInfo: AdtTypeInfo)(using
+        Context
+    ): AdtConstructorCallInfo =
+        AdtConstructorCallInfo(constructorTypeSymbol.name.show, dataInfo)
+}
 
 final class SIRCompiler(mode: scalus.Mode)(using ctx: Context) {
     import tpd.*
@@ -260,14 +266,13 @@ final class SIRCompiler(mode: scalus.Mode)(using ctx: Context) {
             then
                 AdtConstructorCallInfo(
                   typeSymbol,
-                  AdtTypeInfo(typeSymbol, typeArgs, List(typeSymbol)),
-                  typeArgs
+                  AdtTypeInfo(typeSymbol, typeArgs, List(typeSymbol))
                 )
             else
                 optAdtBaseTypeSymbol match
                     case None => // case 1 or 2
                         val typeInfo = AdtTypeInfo(typeSymbol, typeArgs, List(typeSymbol))
-                        AdtConstructorCallInfo(typeSymbol, typeInfo, typeArgs)
+                        AdtConstructorCallInfo(typeSymbol, typeInfo)
                     case Some(baseClassSymbol) =>
                         val adtBaseType = constrTpe.baseType(baseClassSymbol)
                         val baseDataParams = adtBaseType match
@@ -276,9 +281,9 @@ final class SIRCompiler(mode: scalus.Mode)(using ctx: Context) {
                         val typeInfo =
                             AdtTypeInfo(baseClassSymbol, baseDataParams, baseClassSymbol.children)
                         if constrTpe.isSingleton then // case 3, 5
-                            AdtConstructorCallInfo(constrTpe.termSymbol, typeInfo, typeArgs)
+                            AdtConstructorCallInfo(constrTpe.termSymbol, typeInfo)
                         else // case 4, 6
-                            AdtConstructorCallInfo(typeSymbol, typeInfo, typeArgs)
+                            AdtConstructorCallInfo(typeSymbol, typeInfo)
         info
     }
 
@@ -373,12 +378,11 @@ final class SIRCompiler(mode: scalus.Mode)(using ctx: Context) {
         args: immutable.List[Tree],
         srcPos: SrcPos
     ): SIR = {
-        val adtCallInfo = getAdtConstructorCallInfo(tpe)
+        val constructorCallInfo = getAdtConstructorCallInfo(tpe)
         val argsE = args.map(compileExpr(env, _))
-        val constrName = adtCallInfo.constructorTypeSymbol.name.show
-        val dataDecl = getCachedDataDecl(adtCallInfo.dataInfo, env, srcPos)
+        val dataDecl = getCachedDataDecl(constructorCallInfo.dataInfo, env, srcPos)
         // constructor body as: constr arg1 arg2 ...
-        SIR.Constr(constrName, dataDecl, argsE)
+        SIR.Constr(constructorCallInfo.name, dataDecl, argsE)
     }
 
     // Parameterless case class constructor of an enum
