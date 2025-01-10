@@ -346,7 +346,7 @@ class PatternMatchingCompiler(val compiler: SIRCompiler)(using Context) {
 
         var idx = 0
         val iter = sirCases.iterator
-        val allConstructors = adtInfo.childrenSymbols.toSet
+        val allConstructors = adtInfo.constructorsSymbols.toSet
         val matchedConstructors = mutable.HashSet.empty[Symbol]
         val expandedCases = mutable.ArrayBuffer.empty[scalus.sir.SIR.Case]
 

@@ -49,7 +49,7 @@ case class B(name: String, symbol: Symbol, recursivity: Recursivity, body: SIR):
 case class AdtTypeInfo(
     dataTypeSymbol: Symbol,
     dataTypeParams: List[Type],
-    childrenSymbols: List[Symbol]
+    constructorsSymbols: List[Symbol]
 )
 
 //sealed trait AdtTypeInfo
@@ -323,7 +323,7 @@ final class SIRCompiler(mode: scalus.Mode)(using ctx: Context) {
     private def makeDataDecl(dataInfo: AdtTypeInfo, env: Env, srcPos: SrcPos) = {
         val dataFullName = FullName(dataInfo.dataTypeSymbol)
         // sort by name to get a stable order
-        val sortedConstructors = dataInfo.childrenSymbols.sortBy(_.name.show)
+        val sortedConstructors = dataInfo.constructorsSymbols.sortBy(_.name.show)
         val dataTypeParams = dataInfo.dataTypeParams.map { tp =>
             SIRType.TypeVar(tp.typeSymbol.name.show)
         }
