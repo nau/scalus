@@ -18,6 +18,7 @@ import scalus.flat.EncoderState
 import scalus.flat.Flat
 import scalus.flat.FlatInstantces.given
 import scalus.sir.Binding
+import scalus.sir.ConstrDecl
 import scalus.sir.DataDecl
 import scalus.sir.Module
 import scalus.sir.Recursivity
@@ -332,36 +333,38 @@ final class SIRCompiler(mode: scalus.Mode)(using ctx: Context) {
         scalus.sir.DataDecl(dataFullName.name, constrDecls, dataTypeParams)
     }
 
-    private def makeConstrDecl(env: Env, srcPos: SrcPos, sym: Symbol) = {
+    def makeConstrDecl(env: Env, srcPos: SrcPos, constrSymbol: Symbol): ConstrDecl = {
         val typeParams =
-            sym.typeParams.map(tp => SIRType.TypeVar(tp.name.show, Some(tp.hashCode)))
-        val envTypeVars1 = sym.typeParams.foldLeft(env.typeVars) { case (acc, tp) =>
+            constrSymbol.typeParams.map(tp => SIRType.TypeVar(tp.name.show, Some(tp.hashCode)))
+        val envTypeVars1 = constrSymbol.typeParams.foldLeft(env.typeVars) { case (acc, tp) =>
             acc + (tp -> SIRType.TypeVar(tp.name.show, Some(tp.hashCode)))
         }
-        val envTypeVars2 = primaryConstructorTypeParams(sym).foldLeft(envTypeVars1) {
+        val envTypeVars2 = primaryConstructorTypeParams(constrSymbol).foldLeft(envTypeVars1) {
             case (acc, tp) =>
                 acc + (tp -> SIRType.TypeVar(tp.name.show, Some(tp.hashCode)))
         }
         val nEnv = env.copy(typeVars = envTypeVars2)
-        val params = primaryConstructorParams(sym).map { p =>
+        val params = primaryConstructorParams(constrSymbol).map { p =>
             val pType =
                 try sirTypeInEnv(p.info, srcPos, nEnv)
                 catch
                     case NonFatal(e) =>
                         println(s"Error in sirTypeInEnv: ${p.info.show} ${p.info.widen.show}")
-                        println(s"PrimaryConstructorParams: ${primaryConstructorParams(sym)}")
                         println(
-                          s"PrimaryConstructorTypeParams: ${primaryConstructorTypeParams(sym)}"
+                          s"PrimaryConstructorParams: ${primaryConstructorParams(constrSymbol)}"
+                        )
+                        println(
+                          s"PrimaryConstructorTypeParams: ${primaryConstructorTypeParams(constrSymbol)}"
                         )
                         throw e
             TypeBinding(p.name.show, pType)
         }
-        val optBaseClass = sym.info.baseClasses.find { b =>
-            b.flags.is(Flags.Sealed) && b.children.contains(sym)
+        val optBaseClass = constrSymbol.info.baseClasses.find { b =>
+            b.flags.is(Flags.Sealed) && b.children.contains(constrSymbol)
         }
         val baseTypeArgs = optBaseClass
             .flatMap { bs =>
-                sym.info.baseType(bs) match
+                constrSymbol.info.baseType(bs) match
                     case AppliedType(_, args) =>
                         Some(args.map(a => sirTypeInEnv(a, srcPos, nEnv)))
                     case _ => None
@@ -369,7 +372,7 @@ final class SIRCompiler(mode: scalus.Mode)(using ctx: Context) {
             .getOrElse(Nil)
         // TODO: add substoitution for parent type params
         // scalus.sir.ConstrDecl(sym.name.show, SIRVarStorage.DEFAULT, params, typeParams, baseTypeArgs)
-        scalus.sir.ConstrDecl(sym.name.show, SIRVarStorage.DEFAULT, params, typeParams)
+        scalus.sir.ConstrDecl(constrSymbol.name.show, SIRVarStorage.DEFAULT, params, typeParams)
     }
 
     private def compileNewConstructor(
