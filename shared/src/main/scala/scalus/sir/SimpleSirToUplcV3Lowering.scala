@@ -84,6 +84,9 @@ class SimpleSirToUplcV3Lowering(sir: SIR, generateErrorTraces: Boolean = false):
             case _: SIRType.CaseClass =>
                 println(s"toData: ${tp.show}")
                 arg
+            case _: SIRType.SumCaseClass =>
+                println(s"toData: ${tp.show}")
+                arg
             case _ =>
                 throw new IllegalArgumentException(
                   s"Unsupported type: ${tp.show} of term: ${arg.show}"
