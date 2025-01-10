@@ -1420,7 +1420,7 @@ final class SIRCompiler(mode: scalus.Mode)(using ctx: Context) {
         env.copy(typeVars = env.typeVars ++ nTypeVars)
     }
 
-    def compileToSIR(tree: Tree, debug: Boolean)(using Context): SIR = {
+    def compileToSIRAndLink(tree: Tree, debug: Boolean)(using Context): SIR = {
         val result = compileExpr(Env.empty.copy(debug = debug), tree)
         val full: SIR = globalDefs.values.foldRight(result) {
             case (CompileDef.Compiled(b), acc) =>
