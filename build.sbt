@@ -129,6 +129,11 @@ lazy val scalusPlugin = project
           }
       },
       Compile / unmanagedSourceDirectories += (Compile / sourceDirectory).value / "shared" / "scala",
+      clean := {
+          (Compile / clean).value
+          streams.value.log.info("Cleaning shared files")
+          IO.delete((Compile / sourceDirectory).value / "shared")
+      },
       Compile / compile := (Compile / compile).dependsOn(copySharedFiles).value
     )
 
@@ -170,7 +175,7 @@ lazy val scalus = crossProject(JSPlatform, JVMPlatform)
       libraryDependencies += "org.typelevel" %%% "cats-core" % "2.12.0",
       libraryDependencies += "org.typelevel" %%% "cats-parse" % "1.1.0",
       libraryDependencies += "org.typelevel" %%% "paiges-core" % "0.4.4",
-      libraryDependencies += "com.lihaoyi" %%% "upickle" % "4.0.2",
+      libraryDependencies += "com.lihaoyi" %%% "upickle" % "4.1.0",
       libraryDependencies ++= Seq(
         "io.bullet" %%% "borer-core" % "1.15.0",
         "io.bullet" %%% "borer-derivation" % "1.15.0" % "provided"
@@ -182,7 +187,6 @@ lazy val scalus = crossProject(JSPlatform, JVMPlatform)
     .jvmSettings(
       Test / fork := true,
       // Test / testOptions += Tests.Argument(TestFrameworks.ScalaTest, "-S", "-8077211454138081902"),
-      libraryDependencies += "org.scala-lang" %% "scala3-compiler" % scalaVersion.value,
       libraryDependencies += "org.slf4j" % "slf4j-simple" % "2.0.16" % "provided",
       libraryDependencies += "org.bouncycastle" % "bcprov-jdk18on" % "1.79",
       libraryDependencies += "foundation.icon" % "blst-java" % "0.3.2",
@@ -238,7 +242,7 @@ lazy val `scalus-bloxbean-cardano-client-lib` = project
       libraryDependencies += "org.slf4j" % "slf4j-simple" % "2.0.16" % "test",
       libraryDependencies += "org.scalatest" %%% "scalatest" % "3.2.19" % "test",
       libraryDependencies += "com.bloxbean.cardano" % "cardano-client-backend-blockfrost" % "0.6.3" % "test",
-      libraryDependencies += "com.bloxbean.cardano" % "yaci" % "0.3.4" % "test",
+      libraryDependencies += "com.bloxbean.cardano" % "yaci" % "0.3.4.1" % "test",
       Test / fork := true, // needed for BlocksValidation to run in sbt
       inConfig(Test)(PluginDependency)
     )
