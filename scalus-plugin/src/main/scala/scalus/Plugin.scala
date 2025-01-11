@@ -6,6 +6,7 @@ import dotty.tools.dotc.core.*
 import dotty.tools.dotc.core.Constants.Constant
 import dotty.tools.dotc.core.Contexts.*
 import dotty.tools.dotc.core.Contexts.Context
+import dotty.tools.dotc.core.StdNames.nme
 import dotty.tools.dotc.core.Symbols.*
 import dotty.tools.dotc.plugins.*
 import dotty.tools.dotc.util.Spans
@@ -74,7 +75,12 @@ class ScalusPhase extends PluginPhase {
             // report.echo(tree.showIndented(2))
             val code = tree.args.head
             val compiler = new SIRCompiler(Mode.Link)
+            val start = System.currentTimeMillis()
             val result = compiler.compileToSIRAndLink(code, tree.fun.symbol == compileDebugSymbol)
+            val time = System.currentTimeMillis() - start
+            report.echo(
+              s"Scalus compile() at ${tree.srcPos.sourcePos.source}:${tree.srcPos.line} in $time ms"
+            )
             convertSIRToTree(result, tree.span)
         else tree
     end transformApply
@@ -103,15 +109,14 @@ class ScalusPhase extends PluginPhase {
       * which is a lot of boilerplate. And we have [[Flat]] encoding for SIR, so we can use it.
       */
     private def convertSIRToTree(sir: SIR, span: Spans.Span)(using Context): Tree = {
-        val res = {
-            val bitSize =
-                scalus.flat.FlatInstantces.SIRHashConsedFlat.bitSizeHC(sir, HashConsed.State.empty)
-            val byteSize = (bitSize + 1 /* for filler */ / 8) + 1 /* minimum size */
-            val encodedState = HashConsedEncoderState.withSize(byteSize)
-            FlatInstantces.SIRHashConsedFlat.encodeHC(sir, encodedState)
-            encodedState.encode.filler()
-            val bytes = encodedState.encode.result
-            /*
+        val bitSize =
+            scalus.flat.FlatInstantces.SIRHashConsedFlat.bitSizeHC(sir, HashConsed.State.empty)
+        val byteSize = (bitSize + 1 /* for filler */ / 8) + 1 /* minimum size */
+        val encodedState = HashConsedEncoderState.withSize(byteSize)
+        FlatInstantces.SIRHashConsedFlat.encodeHC(sir, encodedState)
+        encodedState.encode.filler()
+        val bytes = encodedState.encode.result
+        /*
             We could generate Array[Byte] constant from bytes directly, like this:
 
             val bytesLiterals = bytes.map(b => Literal(Constant(b))).toList
@@ -120,17 +125,29 @@ class ScalusPhase extends PluginPhase {
             But Scala 3.3.4 generates the array literal inside a method.
             That sometimes produces "Method too large" error. JVM has a limit of 64KB for a method.
             But for String's it appears to generate a `LDC` opcode loading the String from a constant pool.
+
             So we convert the bytes to a String in ISO_8859_1 encoding to get a one byte per character.
             It was Base64 encoded before, but it's 33% larger than the original bytes.
             We could fit two bytes in one character, but then it's not a valid UTF-16 string.
-             */
-            val str = new String(bytes, StandardCharsets.ISO_8859_1)
-            val stringLiteral = Literal(Constant(str)).withSpan(span)
-            val sirToExprFlat = requiredModule("scalus.sir.ToExprHSSIRFlat")
-            val decodeLatin1SIR = sirToExprFlat.requiredMethod("decodeStringLatin1")
-            ref(sirToExprFlat).select(decodeLatin1SIR).appliedTo(stringLiteral).withSpan(span)
-        }
-        // println(res.showIndented(2))
-        res
+
+            We split the bytes into chunks of 65000 bytes, because the maximum size of a String literal is 65535 bytes.
+            https://stackoverflow.com/questions/816142/strings-maximum-length-in-java-calling-length-method
+            https://asm.ow2.io/javadoc/org/objectweb/asm/ByteVector.html#putUTF8(java.lang.String)
+
+            But for some reason, it's not possible to create a string literal with 65535 bytes.
+            45000 is a safe value that works.
+         */
+        val strings =
+            for bytes <- bytes.grouped(45000)
+            yield
+                val str = new String(bytes, StandardCharsets.ISO_8859_1)
+                Literal(Constant(str)).withSpan(span): Tree
+        // Concatenate all the strings: "str1" + "str2" + ...
+        val concatenatedStrings =
+            strings.reduce((lhs, rhs) => lhs.select(nme.Plus).appliedTo(rhs).withSpan(span))
+        // Generate scalus.sir.ToExprHSSIRFlat.decodeStringLatin1(str1 + str2 + ...)
+        val sirToExprFlat = requiredModule("scalus.sir.ToExprHSSIRFlat")
+        val decodeLatin1SIR = sirToExprFlat.requiredMethod("decodeStringLatin1")
+        ref(sirToExprFlat).select(decodeLatin1SIR).appliedTo(concatenatedStrings).withSpan(span)
     }
 }
