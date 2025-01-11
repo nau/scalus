@@ -55,7 +55,7 @@ class ScalusPhase extends PluginPhase {
     override def prepareForUnit(tree: Tree)(using Context): Context =
         // report.echo(s"Scalus: ${ctx.compilationUnit.source.file.name}")
         val compiler =
-            try new SIRCompiler(Mode.Compile)
+            try new SIRCompiler
             catch
                 case NonFatal(e) =>
                     report.error(s"Failed to initialize Scalus compiler: ${e.getMessage}")
@@ -74,9 +74,11 @@ class ScalusPhase extends PluginPhase {
         if tree.fun.symbol == compileSymbol || tree.fun.symbol == compileDebugSymbol then
             // report.echo(tree.showIndented(2))
             val code = tree.args.head
-            val compiler = new SIRCompiler(Mode.Link)
+            val compiler = new SIRCompiler
             val start = System.currentTimeMillis()
-            val result = compiler.compileToSIRAndLink(code, tree.fun.symbol == compileDebugSymbol)
+            val result =
+                val result = compiler.compileToSIR(code, tree.fun.symbol == compileDebugSymbol)
+                SIRLinker().link(result, tree.srcPos)
             val time = System.currentTimeMillis() - start
             report.echo(
               s"Scalus compile() at ${tree.srcPos.sourcePos.source}:${tree.srcPos.line} in $time ms"

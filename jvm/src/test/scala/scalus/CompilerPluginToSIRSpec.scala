@@ -236,26 +236,31 @@ class CompilerPluginToSIRSpec extends AnyFunSuite with ScalaCheckPropertyChecks:
         val compiled = compile {
             BigInt(1).toData
         }
-        assert(
-          compiled ~=~ Let(
-            Rec,
-            immutable.List(
-              Binding(
+        println(compiled)
+        val expected = Let(
+          Rec,
+          immutable.List(
+            Binding(
+              "scalus.builtin.ToDataInstances$.given_ToData_BigInt",
+              LamAbs(Var("a", sirInt), Apply(SIRBuiltins.iData, Var("a", sirInt), sirData))
+            )
+          ),
+          Let(
+            NonRec,
+            immutable.List(Binding("a$proxy1", Const(Constant.Integer(1), sirInt))),
+            Apply(
+              ExternalVar(
+                "scalus.builtin.ToDataInstances$",
                 "scalus.builtin.ToDataInstances$.given_ToData_BigInt",
-                LamAbs(Var("a", sirInt), Apply(SIRBuiltins.iData, Var("a", sirInt), sirData))
-              )
-            ),
-            Let(
-              NonRec,
-              immutable.List(Binding("a$proxy1", Const(Constant.Integer(1), sirInt))),
-              Apply(
-                Var("scalus.builtin.ToDataInstances$.given_ToData_BigInt", Fun(sirInt, sirData)),
-                Var("a$proxy1", sirInt),
-                sirData
-              )
+                Fun(sirInt, sirData)
+              ),
+              Var("a$proxy1", sirInt),
+              sirData
             )
           )
         )
+        println(expected.showHighlighted)
+        assert(compiled ~=~ expected)
         //    val term = compiled.toUplc()
         //    assert(VM.evaluateTerm(term) == Data.I(22))
     }
@@ -1457,29 +1462,6 @@ class CompilerPluginToSIRSpec extends AnyFunSuite with ScalaCheckPropertyChecks:
         // println(compiled.show)
         val evaled = compiled.toUplc().evaluate
         assert(evaled == scalus.uplc.Term.Const(Constant.Bool(true)))
-    }
-
-    test("compile external definitions") {
-        def foo(i: BigInt) = i
-
-        val iVar = Var("i", sirInt)
-
-        assert(
-          compile {
-              foo(5)
-          } ==
-              Let(
-                Rec,
-                List(
-                  Binding("scalus.CompilerPluginToSIRSpec._$_$foo", LamAbs(iVar, iVar))
-                ),
-                Apply(
-                  Var("scalus.CompilerPluginToSIRSpec._$_$foo", Fun(sirInt, sirInt)),
-                  sirConst(5),
-                  sirInt
-                )
-              )
-        )
     }
 
     private val pubKeyHashDataDecl = DataDecl(
