@@ -6,10 +6,12 @@ object Hex:
     private val HEX_ARRAY = "0123456789abcdef".toCharArray
     def bytesToHex(bytes: Array[Byte]): String =
         val hexChars = new Array[Char](bytes.length * 2)
-        for j <- bytes.indices do
+        var j = 0
+        while j < bytes.length do
             val v = bytes(j) & 0xff
             hexChars(j * 2) = HEX_ARRAY(v >>> 4)
             hexChars(j * 2 + 1) = HEX_ARRAY(v & 0x0f)
+            j += 1
         new String(hexChars)
 
     def hexToBytes(hex: String): Array[Byte] =
