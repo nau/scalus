@@ -227,13 +227,32 @@ final class SIRCompiler(mode: scalus.Mode)(using ctx: Context) {
         output.close()
     }
 
-    def getAdtTypeInfo(dataType: Type): AdtTypeInfo = {
-        val dataTypeParams = dataType match
-            case AppliedType(tp, params) => params
-            case _                       => Nil
-        val dataTypeSymbol = dataType.typeSymbol
-        val constructorSymbols = dataTypeSymbol.children
-        AdtTypeInfo(dataTypeSymbol, dataTypeParams, constructorSymbols)
+    def getAdtTypeInfo(constrTpe: Type): AdtTypeInfo = {
+        val typeSymbol = constrTpe.widen.dealias.typeSymbol
+        // println(s"getAdtInfoFromConstroctorType: ${typeSymbol.showFullName}, $constrTpe")
+        // look for a base `sealed abstract class`. If it exists, we are in case 5 or 6
+        val optAdtBaseTypeSymbol = constrTpe.baseClasses.find(b =>
+            // println(s"base class: ${b.show} ${b.flags.flagsString}")
+            // TODO:  recheck.  Why ! trait ?
+            b.flags.isAllOf(Flags.Sealed | Flags.Abstract) && !b.flags.is(Flags.Trait)
+        )
+
+        val typeArgs = constrTpe match
+            case AppliedType(_, args) => args
+            case _                    => Nil
+
+        if constrTpe.typeConstructor =:= Tuple2Symbol.typeRef
+        then AdtTypeInfo(typeSymbol, typeArgs, List(typeSymbol))
+        else
+            optAdtBaseTypeSymbol match
+                case None => // case 1 or 2
+                    AdtTypeInfo(typeSymbol, typeArgs, List(typeSymbol))
+                case Some(baseClassSymbol) =>
+                    val adtBaseType = constrTpe.baseType(baseClassSymbol)
+                    val baseDataParams = adtBaseType match
+                        case AppliedType(_, args) => args
+                        case _                    => Nil
+                    AdtTypeInfo(baseClassSymbol, baseDataParams, baseClassSymbol.children)
     }
 
     /** Creates [[AdtConstructorCallInfo]] based on a constructor type.
@@ -249,43 +268,12 @@ final class SIRCompiler(mode: scalus.Mode)(using ctx: Context) {
       *   1. scala.Tuple2 (case 7)
       */
     private def getAdtConstructorCallInfo(constrTpe: Type): AdtConstructorCallInfo = {
-        val typeSymbol = constrTpe.widen.dealias.typeSymbol
-        // println(s"getAdtInfoFromConstroctorType: ${typeSymbol.showFullName}, $constrTpe")
-        // look for a base `sealed abstract class`. If it exists, we are in case 5 or 6
-        val optAdtBaseTypeSymbol = constrTpe.baseClasses.find(b =>
-            // println(s"base class: ${b.show} ${b.flags.flagsString}")
-            // TODO:  recheck.  Why ! trait ?
-            b.flags.isAllOf(Flags.Sealed | Flags.Abstract) && !b.flags.is(Flags.Trait)
-        )
-
-        val typeArgs = constrTpe match
-            case AppliedType(_, args) => args
-            case _                    => Nil
-
-        val info =
-            if constrTpe.typeConstructor =:= Tuple2Symbol.typeRef
-            then
-                AdtConstructorCallInfo(
-                  typeSymbol,
-                  AdtTypeInfo(typeSymbol, typeArgs, List(typeSymbol))
-                )
-            else
-                optAdtBaseTypeSymbol match
-                    case None => // case 1 or 2
-                        val typeInfo = AdtTypeInfo(typeSymbol, typeArgs, List(typeSymbol))
-                        AdtConstructorCallInfo(typeSymbol, typeInfo)
-                    case Some(baseClassSymbol) =>
-                        val adtBaseType = constrTpe.baseType(baseClassSymbol)
-                        val baseDataParams = adtBaseType match
-                            case AppliedType(_, args) => args
-                            case _                    => Nil
-                        val typeInfo =
-                            AdtTypeInfo(baseClassSymbol, baseDataParams, baseClassSymbol.children)
-                        if constrTpe.isSingleton then // case 3, 5
-                            AdtConstructorCallInfo(constrTpe.termSymbol, typeInfo)
-                        else // case 4, 6
-                            AdtConstructorCallInfo(typeSymbol, typeInfo)
-        info
+        val typeInfo = getAdtTypeInfo(constrTpe)
+        if constrTpe.isSingleton then // case 3, 5
+            AdtConstructorCallInfo(constrTpe.termSymbol, typeInfo)
+        else // case 1, 2, 4, 6, 7
+            val typeSymbol = constrTpe.widen.dealias.typeSymbol
+            AdtConstructorCallInfo(typeSymbol, typeInfo)
     }
 
     def primaryConstructorParams(typeSymbol: Symbol): List[Symbol] = {
