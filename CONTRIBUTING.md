@@ -7,8 +7,8 @@
 
 ## Env setup with Nix
 
-Make sure that you have installed Nix package manager (see https://nixos.org/ ) and enabled `nix-command` and `flake` features and 
- IOHK binary cache.  
+Make sure that you have installed Nix package manager (see https://nixos.org/ ) and enabled `nix-command` and `flake` features and
+ IOHK binary cache.
 
 Typical Nix config can looks like:
 
@@ -88,6 +88,12 @@ like `/opt/async-profiler` for Linux in the command bellow:
 
 ```bash
 sbt 'bench/jmh:run -prof "async:event=cycles;=dir=target/async-reports;interval=1000000;output=flamegraph;libPath=/opt/async-profiler/lib/libasyncProfiler.so" -jvmArgsAppend "-XX:+UnlockDiagnosticVMOptions -XX:+DebugNonSafepoints" -f 1 -wi 1 -i 1 -t 1 .*'
+```
+
+On MacOS use this command in sbt shell:
+
+```bash
+bench/jmh:run -prof "async:event=itimer;dir=target/async-reports;interval=1000000;output=flamegraph;libPath=/nix/store/mr0adcvnv8pkalfbhsgm9p762rs2pyzg-async-profiler-3.0/lib/libasyncProfiler.dylib" -jvmArgsAppend "-XX:+UnlockDiagnosticVMOptions -XX:+DebugNonSafepoints"   -f 1 -wi 1 -i 1 -t 1 .*
 ```
 
 Resulting interactive flame graphs will be stored in the `bench/target/async-reports` subdirectory of the project.
