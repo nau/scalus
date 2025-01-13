@@ -151,15 +151,4 @@ class SimpleSirToUplcV3LoweringSpec extends AnyFunSuite {
         println(ctx.txInfo.validRange.toData.asTerm.showHighlighted)
         assert(Term.alphaEq(t, ctx.txInfo.validRange.toData.asTerm))
     }
-
-    test("Aiken test") {
-        import upickle.default.*
-        val sdf = ujson.read(Files.readString(Path.of("../aiken/asdf/plutus.json")))
-        val cc = sdf.obj("validators")(1)("compiledCode").str
-        val program = scalus.uplc.Program.fromCborHex(cc)
-
-        println(program.showHighlighted)
-
-    }
-
 }
