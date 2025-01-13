@@ -137,19 +137,20 @@ object PrettyPrinter:
                     .tightBracketBy(text("("), text(")"))
             case Match(scrutinee, cases, tp) =>
                 val prettyCases =
-                    stack(cases.map { case SIR.Case(constr, bindings, typeBindings, body) =>
-                        val typedConst = inOptBrackets(
-                          intercalate(text(",") + space, typeBindings.map(pretty))
-                        )
-                        val params = bindings match
-                            case Nil => empty
-                            case _ =>
-                                intercalate(text(",") + line, bindings.map(text))
-                                    .tightBracketBy(text("("), text(")"))
-                        (kw("case") & ctr(constr.name) + typedConst + params & text(
-                          "->"
-                        ) + (line + pretty(body, style))
-                            .nested(2)).grouped.aligned
+                    stack(cases.map {
+                        case SIR.Case(Pattern.Constr(constr, bindings, typeBindings), body) =>
+                            val typedConst = inOptBrackets(
+                              intercalate(text(",") + space, typeBindings.map(pretty))
+                            )
+                            val params = bindings match
+                                case Nil => empty
+                                case _ =>
+                                    intercalate(text(",") + line, bindings.map(text))
+                                        .tightBracketBy(text("("), text(")"))
+                            (kw("case") & ctr(constr.name) + typedConst + params & text(
+                              "->"
+                            ) + (line + pretty(body, style))
+                                .nested(2)).grouped.aligned
                     })
                 ((kw("match") & pretty(scrutinee, style) & kw(
                   "with"

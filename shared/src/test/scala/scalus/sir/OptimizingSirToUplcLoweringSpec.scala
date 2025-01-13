@@ -6,6 +6,7 @@ import scalus.builtin.Builtins.*
 import scalus.builtin.ByteString.*
 import scalus.builtin.Data
 import scalus.sir.Recursivity.NonRec
+import scalus.sir.SIR.Pattern
 import scalus.sir.SIRType.{ByteString, TypeVar}
 import scalus.uplc.ArbitraryInstances
 import scalus.uplc.Constant
@@ -184,17 +185,17 @@ class OptimizingSirToUplcLoweringSpec
             SIR.Constr("Nil", listData, List()),
             List(
               SIR.Case(
-                nilConstr,
-                Nil,
-                Nil,
+                Pattern.Constr(nilConstr, Nil, Nil),
                 SIR.Const(Constant.Integer(1), SIRType.Integer)
               ),
               SIR.Case(
-                consConstr,
-                List("h", "tl"),
-                List(
-                  SIRType.FreeUnificator,
-                  SIRType.SumCaseClass(listData, List(SIRType.FreeUnificator))
+                Pattern.Constr(
+                  consConstr,
+                  List("h", "tl"),
+                  List(
+                    SIRType.FreeUnificator,
+                    SIRType.SumCaseClass(listData, List(SIRType.FreeUnificator))
+                  )
                 ),
                 SIR.Const(Constant.Integer(2), SIRType.Integer)
               )

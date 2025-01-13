@@ -12,6 +12,8 @@ import dotty.tools.dotc.core.Symbols.*
 import dotty.tools.dotc.core.Types.*
 import dotty.tools.dotc.util.SrcPos
 import scalus.sir.*
+import scalus.sir.SIR.Pattern
+import scalus.sir.SIR.Pattern.Constr
 
 import scala.collection.mutable
 import scala.language.implicitConversions
@@ -142,7 +144,12 @@ class PatternMatchingCompiler(val compiler: SIRCompiler)(using Context) {
                                 val contExpr = enclosingGenerator(generator2(cont))
                                 SIR.Match(
                                   SIR.Var(name, constrSirType),
-                                  List(SIR.Case(constrDecl, innerNames, typeParams, contExpr)),
+                                  List(
+                                    SIR.Case(
+                                      Pattern.Constr(constrDecl, innerNames, typeParams),
+                                      contExpr
+                                    )
+                                  ),
                                   contExpr.tp
                                 )
                             ,
@@ -351,7 +358,7 @@ class PatternMatchingCompiler(val compiler: SIRCompiler)(using Context) {
                 case SirCase.Case(constructorSymbol, typeParams, bindings, rhs, srcPos) =>
                     matchedConstructors += constructorSymbol // collect all matched constructors
                     val constrDecl = compiler.makeConstrDecl(env, srcPos, constructorSymbol)
-                    expandedCases += SIR.Case(constrDecl, bindings, typeParams, rhs)
+                    expandedCases += SIR.Case(Constr(constrDecl, bindings, typeParams), rhs)
                 case SirCase.Wildcard(rhs, srcPos) =>
                     // If we have a wildcard case, it must be the last one
                     if idx != sirCases.length - 1 then
@@ -375,9 +382,7 @@ class PatternMatchingCompiler(val compiler: SIRCompiler)(using Context) {
                             val typeArgs = constr.typeParams.map(_ => SIRType.FreeUnificator)
                             val constrDecl = compiler.makeConstrDecl(env, srcPos, constr)
                             expandedCases += SIR.Case(
-                              constrDecl,
-                              bindings,
-                              typeArgs,
+                              Pattern.Constr(constrDecl, bindings, typeArgs),
                               rhs
                             )
                             matchedConstructors += constr // collect all matched constructors
@@ -399,7 +404,9 @@ class PatternMatchingCompiler(val compiler: SIRCompiler)(using Context) {
             )
 
         // Sort the cases by constructor name to ensure we have a deterministic order
-        val sortedCases = expandedCases.sortBy(_.constr.name).toList
+        val sortedCases = expandedCases.sortBy { case SIR.Case(Pattern.Constr(constr, _, _), _) =>
+            constr.name
+        }.toList
         SIR.Match(matchExpr, sortedCases, sirTypeInEnv(tree.tpe.dealias.widen, tree.srcPos, env))
     }
 

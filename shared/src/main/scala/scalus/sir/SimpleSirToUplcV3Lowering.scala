@@ -16,6 +16,7 @@ import scalus.uplc.Term
 import scalus.uplc.TermDSL.*
 import scalus.uplc.TypeScheme
 import scalus.ledger.api.v3.ToDataInstances.given
+import scalus.sir.SIR.Pattern
 import scalus.uplc.Inliner
 import scalus.uplc.eval.PlutusVM
 
@@ -139,8 +140,8 @@ class SimpleSirToUplcV3Lowering(sir: SIR, generateErrorTraces: Boolean = false):
       */
     private def genMatch(cases: Seq[SIR.Case], args: Term, tag: Term): Term = {
         var term = lowerInner(SIR.Error("MatchError", null))
-        for (cs, idx) <- cases.zipWithIndex do
-            val bodyTerm = lowerInner(cs.body)
+        for (SIR.Case(cs: Pattern.Constr, body), idx) <- cases.zipWithIndex do
+            val bodyTerm = lowerInner(body)
             val bindings = cs.bindings.zipWithIndex
                 .zip(cs.constr.params)
                 .foldRight(bodyTerm):
@@ -165,8 +166,8 @@ class SimpleSirToUplcV3Lowering(sir: SIR, generateErrorTraces: Boolean = false):
         genMatch = { case SIR.Match(scrutinee, cases, _) =>
             val scrutineeTerm = lowerInner(scrutinee)
             cases match
-                case SIR.Case(constr, bindings, _, body) :: Nil =>
-                    λ(cases.head.bindings.head)(lowerInner(body)) $ scrutineeTerm
+                case SIR.Case(Pattern.Constr(constr, bindings, _), body) :: Nil =>
+                    λ(bindings.head)(lowerInner(body)) $ scrutineeTerm
                 case _ => throw new IllegalArgumentException("Expected single case for TxId")
         }
       )

@@ -9,6 +9,7 @@ import scalus.sir.{Binding, ConstrDecl, DataDecl, Module, Recursivity, SIR, SIRB
 import scalus.uplc.CommonFlatInstances.*
 import scalus.uplc.CommonFlatInstances.given
 import scalus.builtin.Data
+import scalus.sir.SIR.Pattern
 import scalus.uplc.DefaultFun
 import scalus.utils.*
 
@@ -666,19 +667,30 @@ object FlatInstantces:
             HashConsedRef.fromData(a)
 
         def bitSizeHC(a: SIR.Case, hashConsed: HashConsed.State): Int =
-            val constrSize = ConstrDeclFlat.bitSizeHC(a.constr, hashConsed)
-            val bindings = summon[Flat[List[String]]].bitSize(a.bindings)
-            val typeBindings = HashConsedReprFlat
-                .listRepr(SIRTypeHashConsedFlat)
-                .bitSizeHC(a.typeBindings, hashConsed)
-            val bodySize = SIRHashConsedFlat.bitSizeHC(a.body, hashConsed)
-            constrSize + bindings + typeBindings + bodySize
+            a.pattern match
+                case Pattern.Constr(constr, bindings, typeBindings) =>
+                    val constrSize = ConstrDeclFlat.bitSizeHC(constr, hashConsed)
+                    val bindingsSize = summon[Flat[List[String]]].bitSize(bindings)
+                    val typeBindingsSize =
+                        HashConsedReprFlat
+                            .listRepr(SIRTypeHashConsedFlat)
+                            .bitSizeHC(typeBindings, hashConsed)
+                    val bodySize = SIRHashConsedFlat.bitSizeHC(a.body, hashConsed)
+                    constrSize + bindingsSize + typeBindingsSize + bodySize
+                case Pattern.Wildcard => // FIXME
+                    SIRHashConsedFlat.bitSizeHC(a.body, hashConsed)
 
         def encodeHC(a: SIR.Case, encode: HashConsedEncoderState): Unit = {
-            ConstrDeclFlat.encodeHC(a.constr, encode)
-            summon[Flat[List[String]]].encode(a.bindings, encode.encode)
-            HashConsedReprFlat.listRepr(SIRTypeHashConsedFlat).encodeHC(a.typeBindings, encode)
-            SIRHashConsedFlat.encodeHC(a.body, encode)
+            a.pattern match
+                case Pattern.Constr(constr, bindings, typeBindings) =>
+                    ConstrDeclFlat.encodeHC(constr, encode)
+                    summon[Flat[List[String]]].encode(bindings, encode.encode)
+                    HashConsedReprFlat
+                        .listRepr(SIRTypeHashConsedFlat)
+                        .encodeHC(typeBindings, encode)
+                    SIRHashConsedFlat.encodeHC(a.body, encode)
+                case Pattern.Wildcard => // FIXME
+                    SIRHashConsedFlat.encodeHC(a.body, encode)
         }
 
         def decodeHC(decode: HashConsedDecoderState): HashConsedRef[SIR.Case] = {
@@ -690,9 +702,11 @@ object FlatInstantces:
               hs => constr.isComplete(hs) && typeBindings.isComplete(hs) && body.isComplete(hs),
               (hs, l, p) =>
                   SIR.Case(
-                    constr.finValue(hs, l, p),
-                    bindings,
-                    typeBindings.finValue(hs, l, p),
+                    Pattern.Constr(
+                      constr.finValue(hs, l, p),
+                      bindings,
+                      typeBindings.finValue(hs, l, p)
+                    ),
                     body.finValue(hs, l, p)
                   )
             )

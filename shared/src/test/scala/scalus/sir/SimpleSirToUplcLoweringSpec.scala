@@ -4,6 +4,7 @@ import org.scalatestplus.scalacheck.ScalaCheckPropertyChecks
 import scalus.*
 import scalus.builtin.ByteString.*
 import scalus.sir.Recursivity.NonRec
+import scalus.sir.SIR.Pattern
 import scalus.sir.SIRType.{FreeUnificator, SumCaseClass, TypeVar}
 import scalus.uplc.ArbitraryInstances
 import scalus.uplc.Constant
@@ -179,15 +180,12 @@ class SimpleSirToUplcLoweringSpec
             SIR.Constr("Nil", listData, List()),
             List(
               SIR.Case(
-                nilConstr,
-                Nil,
-                Nil,
+                Pattern.Constr(nilConstr, Nil, Nil),
                 SIR.Const(Constant.Integer(1), SIRType.Integer)
               ),
               SIR.Case(
-                consConstr,
-                List("h", "tl"),
-                List(SIRType.FreeUnificator, listAnyType),
+                Pattern
+                    .Constr(consConstr, List("h", "tl"), List(SIRType.FreeUnificator, listAnyType)),
                 SIR.Const(Constant.Integer(2), SIRType.Integer)
               )
             ),

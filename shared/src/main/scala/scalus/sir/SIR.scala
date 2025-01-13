@@ -183,10 +183,12 @@ object SIR:
         override def tp: SIRType = data.tp
     }
 
+    enum Pattern:
+        case Constr(constr: ConstrDecl, bindings: List[String], typeBindings: List[SIRType])
+        case Wildcard
+
     case class Case(
-        constr: ConstrDecl,
-        bindings: List[String],
-        typeBindings: List[SIRType],
+        pattern: Pattern,
         body: SIR
     )
 
@@ -271,8 +273,11 @@ object SIRChecker {
     }
 
     def checkCase(c: SIR.Case, throwOnFirst: Boolean): Seq[String] = {
-        c.typeBindings.flatMap(x => checkType(x, throwOnFirst)) ++
-            checkConstr(c.constr, throwOnFirst) ++ checkSIR(c.body, throwOnFirst)
+        c.pattern match
+            case SIR.Pattern.Constr(constr, bindings, typeBindings) =>
+                typeBindings.flatMap(x => checkType(x, throwOnFirst)) ++
+                    checkConstr(constr, throwOnFirst) ++ checkSIR(c.body, throwOnFirst)
+            case SIR.Pattern.Wildcard => checkSIR(c.body, throwOnFirst)
     }
 
     def checkType(tp: SIRType, throwOnFirst: Boolean): Seq[String] =

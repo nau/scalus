@@ -2,6 +2,7 @@ package scalus
 package sir
 
 import scalus.sir.Recursivity.*
+import scalus.sir.SIR.Pattern
 import scalus.uplc.Constant
 import scalus.uplc.DefaultFun
 import scalus.uplc.ExprBuilder
@@ -80,7 +81,7 @@ class OptimizingSirToUplcLowering(
                 args.foreach(analyzeSir)
             case SIR.Match(scrutinee, cases, tp) =>
                 analyzeSir(scrutinee)
-                cases.foreach { case SIR.Case(_, _, _, body) =>
+                cases.foreach { case SIR.Case(_, body) =>
                     analyzeSir(body)
                 }
             case SIR.Let(_, bindings, body) =>
@@ -183,7 +184,7 @@ class OptimizingSirToUplcLowering(
                     lowers to list (delay 1) (\h tl -> 2)
                  */
                 val scrutineeTerm = lowerInner(scrutinee)
-                val casesTerms = cases.map { case SIR.Case(constr, bindings, typeBindings, body) =>
+                val casesTerms = cases.map { case SIR.Case(Pattern.Constr(constr, bindings, typeBindings), body) =>
                     constr.params match
                         case Nil => ~lowerInner(body)
                         case _ =>

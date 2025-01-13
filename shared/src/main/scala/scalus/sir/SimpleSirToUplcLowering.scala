@@ -2,6 +2,7 @@ package scalus
 package sir
 
 import scalus.sir.Recursivity.*
+import scalus.sir.SIR.Pattern
 import scalus.uplc.Constant
 import scalus.uplc.DefaultFun
 import scalus.uplc.ExprBuilder
@@ -84,13 +85,14 @@ class SimpleSirToUplcLowering(sir: SIR, generateErrorTraces: Boolean = false):
                     lowers to list (delay 1) (\h tl -> 2)
                  */
                 val scrutineeTerm = lowerInner(scrutinee)
-                val casesTerms = cases.map { case SIR.Case(constr, bindings, typeBindings, body) =>
-                    constr.params match
-                        case Nil => ~lowerInner(body)
-                        case _ =>
-                            bindings.foldRight(lowerInner(body)) { (binding, acc) =>
-                                Term.LamAbs(binding, acc)
-                            }
+                val casesTerms = cases.map {
+                    case SIR.Case(Pattern.Constr(constr, bindings, typeBindings), body) =>
+                        constr.params match
+                            case Nil => ~lowerInner(body)
+                            case _ =>
+                                bindings.foldRight(lowerInner(body)) { (binding, acc) =>
+                                    Term.LamAbs(binding, acc)
+                                }
                 }
                 casesTerms.foldLeft(scrutineeTerm) { (acc, caseTerm) => Term.Apply(acc, caseTerm) }
             case SIR.Var(name, _)            => Term.Var(NamedDeBruijn(name))
