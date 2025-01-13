@@ -99,7 +99,7 @@ This will calculate the execution budget for your validator and add it to the re
 
 ### AdaStream Example
 
-Sources: [AdaStream Contract](https://github.com/nau/adastream/blob/main/contract.scala)
+Sources: [AdaStream Contract](https://github.com/nau/adastream/blob/main/src/contract.scala)
 
 This project is a Cardano implementation of the [BitStream](https://github.com/RobinLinus/BitStream) protocol by Robin Linus, inventor of [BitVM](https://bitvm.org/)
 
