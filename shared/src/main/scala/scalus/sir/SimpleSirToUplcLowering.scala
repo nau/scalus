@@ -13,6 +13,8 @@ import scalus.uplc.TermDSL.*
 import scalus.uplc.TypeScheme
 
 import scala.annotation.tailrec
+import scala.collection.mutable
+import scala.collection.mutable
 import scala.collection.mutable.HashMap
 
 /** Lowering from Scalus Intermediate Representation [[SIR]] to UPLC [[Term]].
@@ -85,8 +87,64 @@ class SimpleSirToUplcLowering(sir: SIR, generateErrorTraces: Boolean = false):
                     lowers to list (delay 1) (\h tl -> 2)
                  */
                 val scrutineeTerm = lowerInner(scrutinee)
-                val casesTerms = cases.map {
-                    case SIR.Case(Pattern.Constr(constr, bindings, typeBindings), body) =>
+
+                def find(sirType: SIRType): Seq[ConstrDecl] =
+                    sirType match
+                        case SIRType.CaseClass(constrDecl, _) => Seq(constrDecl)
+                        case SIRType.SumCaseClass(decl, _) =>
+                            decl.constructors
+                        case SIRType.TypeLambda(_, t) => find(t)
+                        case _ =>
+                            throw new IllegalArgumentException(
+                              s"Expected case class type, got ${sirType} in expression: ${sir.show}"
+                            )
+
+                val constructors = find(scrutinee.tp)
+
+                var idx = 0
+                val iter = cases.iterator
+                val allConstructors = constructors.toSet
+                val matchedConstructors = mutable.HashSet.empty[ConstrDecl]
+                val expandedCases = mutable.ArrayBuffer.empty[SIR.Case]
+
+                while iter.hasNext do
+                    iter.next() match
+                        case c @ SIR.Case(Pattern.Constr(constrDecl, _, _), _) =>
+                            matchedConstructors += constrDecl // collect all matched constructors
+                            expandedCases += c
+                        case SIR.Case(Pattern.Wildcard, rhs) =>
+                            // If we have a wildcard case, it must be the last one
+                            if idx != cases.length - 1 then
+                                throw new IllegalArgumentException(
+                                  s"Wildcard case must be the last and only one in match expression"
+                                )
+                            else
+                                // Convert Wildcard to the rest of the cases/constructors
+                                val missingConstructors = allConstructors -- matchedConstructors
+                                missingConstructors.foreach { constrDecl =>
+                                    val bindings = constrDecl.params.map(_.name)
+                                    // TODO: extract rhs to a let binding before the match
+                                    // so we don't have to repeat it for each case
+                                    // also we have no way to know type-arguments, so use abstract type-vars (will use FreeUnificator)
+                                    val typeArgs =
+                                        constrDecl.typeParams.map(_ => SIRType.FreeUnificator)
+                                    expandedCases += SIR.Case(
+                                      Pattern.Constr(constrDecl, bindings, typeArgs),
+                                      rhs
+                                    )
+                                    matchedConstructors += constrDecl // collect all matched constructors
+                                }
+
+                    idx += 1
+                end while
+                // Sort the cases by constructor name to ensure we have a deterministic order
+                val sortedCases = expandedCases.sortBy {
+                    case SIR.Case(Pattern.Constr(constr, _, _), _) =>
+                        constr.name
+                }.toList
+
+                val casesTerms = sortedCases.map {
+                    case SIR.Case(Pattern.Constr(constr, bindings, _), body) =>
                         constr.params match
                             case Nil => ~lowerInner(body)
                             case _ =>

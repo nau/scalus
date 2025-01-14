@@ -662,7 +662,9 @@ object FlatInstantces:
     }
 
     object SIRCaseHashConsedFlat extends HashConsedReprFlat[SIR.Case, HashConsedRef[SIR.Case]] {
-
+        private val patternTagWidth = 2
+        private val patternTagConstr: Byte = 0
+        private val patternTagWildcard: Byte = 1
         override def toRepr(a: SIR.Case): HashConsedRef[SIR.Case] =
             HashConsedRef.fromData(a)
 
@@ -676,13 +678,14 @@ object FlatInstantces:
                             .listRepr(SIRTypeHashConsedFlat)
                             .bitSizeHC(typeBindings, hashConsed)
                     val bodySize = SIRHashConsedFlat.bitSizeHC(a.body, hashConsed)
-                    constrSize + bindingsSize + typeBindingsSize + bodySize
+                    patternTagWidth + constrSize + bindingsSize + typeBindingsSize + bodySize
                 case Pattern.Wildcard => // FIXME
-                    SIRHashConsedFlat.bitSizeHC(a.body, hashConsed)
+                    patternTagWidth + SIRHashConsedFlat.bitSizeHC(a.body, hashConsed)
 
         def encodeHC(a: SIR.Case, encode: HashConsedEncoderState): Unit = {
             a.pattern match
                 case Pattern.Constr(constr, bindings, typeBindings) =>
+                    encode.encode.bits(patternTagWidth, patternTagConstr)
                     ConstrDeclFlat.encodeHC(constr, encode)
                     summon[Flat[List[String]]].encode(bindings, encode.encode)
                     HashConsedReprFlat
@@ -690,26 +693,40 @@ object FlatInstantces:
                         .encodeHC(typeBindings, encode)
                     SIRHashConsedFlat.encodeHC(a.body, encode)
                 case Pattern.Wildcard => // FIXME
+                    encode.encode.bits(patternTagWidth, patternTagWildcard)
                     SIRHashConsedFlat.encodeHC(a.body, encode)
         }
 
         def decodeHC(decode: HashConsedDecoderState): HashConsedRef[SIR.Case] = {
-            val constr = ConstrDeclFlat.decodeHC(decode)
-            val bindings = summon[Flat[List[String]]].decode(decode.decode)
-            val typeBindings = HashConsedReprFlat.listRepr(SIRTypeHashConsedFlat).decodeHC(decode)
-            val body = SIRHashConsedFlat.decodeHC(decode)
-            HashConsedRef.deferred(
-              hs => constr.isComplete(hs) && typeBindings.isComplete(hs) && body.isComplete(hs),
-              (hs, l, p) =>
-                  SIR.Case(
-                    Pattern.Constr(
-                      constr.finValue(hs, l, p),
-                      bindings,
-                      typeBindings.finValue(hs, l, p)
-                    ),
-                    body.finValue(hs, l, p)
-                  )
-            )
+            val patternTag = decode.decode.bits8(patternTagWidth)
+            patternTag match
+                case `patternTagWildcard` =>
+                    val body = SIRHashConsedFlat.decodeHC(decode)
+                    HashConsedRef.deferred(
+                      hs => body.isComplete(hs),
+                      (hs, l, p) => SIR.Case(Pattern.Wildcard, body.finValue(hs, l, p))
+                    )
+                case `patternTagConstr` =>
+                    val constr = ConstrDeclFlat.decodeHC(decode)
+                    val bindings = summon[Flat[List[String]]].decode(decode.decode)
+                    val typeBindings =
+                        HashConsedReprFlat.listRepr(SIRTypeHashConsedFlat).decodeHC(decode)
+                    val body = SIRHashConsedFlat.decodeHC(decode)
+                    HashConsedRef.deferred(
+                      hs =>
+                          constr.isComplete(hs) && typeBindings.isComplete(hs) && body.isComplete(
+                            hs
+                          ),
+                      (hs, l, p) =>
+                          SIR.Case(
+                            Pattern.Constr(
+                              constr.finValue(hs, l, p),
+                              bindings,
+                              typeBindings.finValue(hs, l, p)
+                            ),
+                            body.finValue(hs, l, p)
+                          )
+                    )
         }
     }
 

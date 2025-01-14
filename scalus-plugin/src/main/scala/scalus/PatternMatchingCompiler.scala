@@ -370,44 +370,12 @@ class PatternMatchingCompiler(val compiler: SIRCompiler)(using Context) {
                           ()
                         )
                     else
-                        // Convert Wildcard to the rest of the cases/constructors
-                        val missingConstructors = allConstructors -- matchedConstructors
-                        missingConstructors.foreach { constr =>
-                            val bindings = compiler
-                                .primaryConstructorParams(constr)
-                                .map(_ => bindingName.fresh().show)
-                            // TODO: extract rhs to a let binding before the match
-                            // so we don't have to repeat it for each case
-                            // also we have no way to know type-arguments, so use abstract type-vars (will use FreeUnificator)
-                            val typeArgs = constr.typeParams.map(_ => SIRType.FreeUnificator)
-                            val constrDecl = compiler.makeConstrDecl(env, srcPos, constr)
-                            expandedCases += SIR.Case(
-                              Pattern.Constr(constrDecl, bindings, typeArgs),
-                              rhs
-                            )
-                            matchedConstructors += constr // collect all matched constructors
-                        }
+                        expandedCases += SIR.Case(Pattern.Wildcard, rhs)
                 case SirCase.Error(err) => compiler.error(err, ())
 
             idx += 1
         end while
-        // Ensure we cover all constructors
-        val missingConstructors = allConstructors -- matchedConstructors
-        if missingConstructors.nonEmpty then
-            compiler.error(
-              MissingConstructors(
-                adtInfo,
-                missingConstructors,
-                tree.srcPos
-              ),
-              ()
-            )
-
-        // Sort the cases by constructor name to ensure we have a deterministic order
-        val sortedCases = expandedCases.sortBy { case SIR.Case(Pattern.Constr(constr, _, _), _) =>
-            constr.name
-        }.toList
-        SIR.Match(matchExpr, sortedCases, sirTypeInEnv(tree.tpe.dealias.widen, tree.srcPos, env))
+        SIR.Match(matchExpr, expandedCases.toList, sirTypeInEnv(tree.tpe.dealias.widen, tree.srcPos, env))
     }
 
     private def sirTypeInEnv(tpe: Type, srcPos: SrcPos, env: SIRCompiler.Env): SIRType = {
