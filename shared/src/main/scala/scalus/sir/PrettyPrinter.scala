@@ -151,6 +151,9 @@ object PrettyPrinter:
                               "->"
                             ) + (line + pretty(body, style))
                                 .nested(2)).grouped.aligned
+                        case SIR.Case(Pattern.Wildcard, body) =>
+                            (kw("case") & text("_") & text("->") + (line + pretty(body, style))
+                                .nested(2)).grouped.aligned
                     })
                 ((kw("match") & pretty(scrutinee, style) & kw(
                   "with"

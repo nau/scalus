@@ -335,28 +335,18 @@ class PatternMatchingCompiler(val compiler: SIRCompiler)(using Context) {
         if env.debug then println(s"compileMatch: ${tree.show}")
         val Match(matchTree, cases) = tree
         // val typeSymbol = matchTree.tpe.widen.dealias.typeSymbol
-        val adtInfo = compiler.getAdtTypeInfo(matchTree.tpe)
         // report.echo(s"Match: ${typeSymbol} ${typeSymbol.children} $adtInfo", tree.srcPos)
         val matchExpr = compiler.compileExpr(env, matchTree)
         val sirCases = cases.flatMap(cs => scalaCaseDefToSirCase(env, cs))
         if env.debug then println(s"compileMatch cases: ${sirCases}")
 
-        // 1. If we have a wildcard case, it must be the last one
-        // 2. Validate we don't have any errors
-        // 3. Convert Wildcard to the rest of the cases/constructors
-        // 4. Ensure we cover all constructors
-        // 5. Sort the cases by constructor name
-
         var idx = 0
         val iter = sirCases.iterator
-        val allConstructors = adtInfo.constructorsSymbols.toSet
-        val matchedConstructors = mutable.HashSet.empty[Symbol]
         val expandedCases = mutable.ArrayBuffer.empty[SIR.Case]
 
         while iter.hasNext do
             iter.next() match
                 case SirCase.Case(constructorSymbol, typeParams, bindings, rhs, srcPos) =>
-                    matchedConstructors += constructorSymbol // collect all matched constructors
                     val constrDecl = compiler.makeConstrDecl(env, srcPos, constructorSymbol)
                     expandedCases += SIR.Case(Constr(constrDecl, bindings, typeParams), rhs)
                 case SirCase.Wildcard(rhs, srcPos) =>

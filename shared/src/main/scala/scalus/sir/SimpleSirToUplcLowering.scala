@@ -101,6 +101,11 @@ class SimpleSirToUplcLowering(sir: SIR, generateErrorTraces: Boolean = false):
 
                 val constructors = find(scrutinee.tp)
 
+                // 1. If we have a wildcard case, it must be the last one
+                // 2. Validate we don't have any errors
+                // 3. Convert Wildcard to the rest of the cases/constructors
+                // 4. Sort the cases by constructor name
+
                 var idx = 0
                 val iter = cases.iterator
                 val allConstructors = constructors.toSet
@@ -141,6 +146,10 @@ class SimpleSirToUplcLowering(sir: SIR, generateErrorTraces: Boolean = false):
                 val sortedCases = expandedCases.sortBy {
                     case SIR.Case(Pattern.Constr(constr, _, _), _) =>
                         constr.name
+                    case SIR.Case(Pattern.Wildcard, _) =>
+                        throw new IllegalArgumentException(
+                          "Wildcard case must have been eliminated"
+                        )
                 }.toList
 
                 val casesTerms = sortedCases.map {
@@ -151,6 +160,10 @@ class SimpleSirToUplcLowering(sir: SIR, generateErrorTraces: Boolean = false):
                                 bindings.foldRight(lowerInner(body)) { (binding, acc) =>
                                     Term.LamAbs(binding, acc)
                                 }
+                    case SIR.Case(Pattern.Wildcard, _) =>
+                        throw new IllegalArgumentException(
+                          "Wildcard case must have been eliminated"
+                        )
                 }
                 casesTerms.foldLeft(scrutineeTerm) { (acc, caseTerm) => Term.Apply(acc, caseTerm) }
             case SIR.Var(name, _)            => Term.Var(NamedDeBruijn(name))
