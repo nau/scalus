@@ -359,13 +359,16 @@ class PatternMatchingCompiler(val compiler: SIRCompiler)(using Context) {
                           ),
                           ()
                         )
-                    else
-                        expandedCases += SIR.Case(Pattern.Wildcard, rhs)
+                    else expandedCases += SIR.Case(Pattern.Wildcard, rhs)
                 case SirCase.Error(err) => compiler.error(err, ())
 
             idx += 1
         end while
-        SIR.Match(matchExpr, expandedCases.toList, sirTypeInEnv(tree.tpe.dealias.widen, tree.srcPos, env))
+        SIR.Match(
+          matchExpr,
+          expandedCases.toList,
+          sirTypeInEnv(tree.tpe.dealias.widen, tree.srcPos, env)
+        )
     }
 
     private def sirTypeInEnv(tpe: Type, srcPos: SrcPos, env: SIRCompiler.Env): SIRType = {

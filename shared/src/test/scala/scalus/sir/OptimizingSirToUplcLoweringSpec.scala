@@ -202,7 +202,7 @@ class OptimizingSirToUplcLoweringSpec
             ),
             SIRType.Integer
           )
-        ) lowersTo (lam("Nil", "Cons")(!vr"Nil") $ ~asConstant(1) $ lam("h", "tl")(2))
+        ) lowersTo (lam("Nil", "Cons")(!vr"Nil") $ lam("h", "tl")(2) $ ~asConstant(1))
     }
 
     test("abstract over all used forced polymorphic builtins") {
