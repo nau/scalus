@@ -306,23 +306,17 @@ class SIRTypesHelper(private val compiler: SIRCompiler)(using Context) {
         tpArgs: List[SIRType],
         env: SIRTypeEnv
     ): Option[SIRType] = {
-        env.forwardRefs.get(typeSymbol) match
-            case Some(proxy) =>
-                Some(proxy)
-            case None =>
-                val proxy = new SIRType.TypeProxy(null)
-                val retval = tryMakeCaseClassOrCaseParentTypeNoRec(
-                  typeSymbol,
-                  tpArgs,
-                  env.copy(forwardRefs = env.forwardRefs.updated(typeSymbol, proxy)),
-                  proxy
-                )
-                retval match
-                    case Some(t) =>
-                        proxy.ref = t
-                        Some(t)
-                    case None =>
-                        None
+        env.forwardRefs.get(typeSymbol).orElse {
+            val proxy = new SIRType.TypeProxy(null)
+            val retval = tryMakeCaseClassOrCaseParentTypeNoRec(
+              typeSymbol,
+              tpArgs,
+              env.copy(forwardRefs = env.forwardRefs.updated(typeSymbol, proxy)),
+              proxy
+            )
+            retval.foreach(t => proxy.ref = t)
+            retval
+        }
     }
 
     private def flatSealedTraitHierarchy(
@@ -360,7 +354,10 @@ class SIRTypesHelper(private val compiler: SIRCompiler)(using Context) {
         env: SIRTypeEnv,
         thisProxy: SIRType.TypeProxy
     ): Option[SIRType] = {
-        // println(s"tryMakeCaseClassOrCaseParentTypeNoRec ${typeSymbol.showFullName} ${tpArgs.map(_.show)}, isCase=${typeSymbol.flags.is(Flags.CaseClass)}, isEnum=${typeSymbol.flags.is(Flags.Enum)}, flags=${typeSymbol.flagsString}")
+        if typeSymbol.showFullName.contains(".IntervalBoundType") then
+            println(s"tryMakeCaseClassOrCaseParentTypeNoRec ${typeSymbol.showFullName} ${tpArgs
+                    .map(_.show)}, isCase=${typeSymbol.flags.is(Flags.CaseClass)}, isEnum=${typeSymbol.flags
+                    .is(Flags.Enum)}, flags=${typeSymbol.flagsString}")
         // println(s"typeSymbol.isType=${typeSymbol.isType}, typeSymbol.isClass=${typeSymbol.isClass}, typeSymbol.isTerm=${typeSymbol.isTerm}")
         if typeSymbol.flags.is(Flags.Case) || typeSymbol.flags.is(Flags.Enum) then {
             // case class, can do constrdecl
