@@ -101,6 +101,7 @@ final class SIRCompiler(mode: scalus.Mode)(using ctx: Context) {
     private val ByteStringSymbolHex = ByteStringModuleSymbol.requiredMethod("hex")
     private val ByteStringStringInterpolatorsMethodSymbol =
         ByteStringModuleSymbol.requiredMethod("StringInterpolators")
+    private val typer = new SIRTypesHelper(this)
     private val pmCompiler = new PatternMatchingCompiler(this)
 
     extension (t: Type)
@@ -624,7 +625,7 @@ final class SIRCompiler(mode: scalus.Mode)(using ctx: Context) {
                 else
                     params.map { case v: ValDef =>
                         val tEnv =
-                            SIRTypesHelper.SIRTypeEnv(v.srcPos, env.typeVars ++ typeParamsMap)
+                            SIRTypeEnv(v.srcPos, env.typeVars ++ typeParamsMap)
                         val vType =
                             try sirTypeInEnv(v.tpe, tEnv)
                             catch
@@ -639,7 +640,7 @@ final class SIRCompiler(mode: scalus.Mode)(using ctx: Context) {
                     }
             val body = dd.rhs
             val selfName = if isGlobalDef then FullName(dd.symbol).name else dd.symbol.name.show
-            val selfType = sirTypeInEnv(dd.tpe, SIRTypesHelper.SIRTypeEnv(dd.srcPos, env.typeVars))
+            val selfType = sirTypeInEnv(dd.tpe, SIRTypeEnv(dd.srcPos, env.typeVars))
             val nTypeVars = env.typeVars ++ typeParamsMap
             val nVars = env.vars ++ paramNameTypes + (selfName -> selfType)
             val bE = compileExpr(env.copy(vars = nVars, typeVars = nTypeVars), body)
@@ -1455,13 +1456,13 @@ final class SIRCompiler(mode: scalus.Mode)(using ctx: Context) {
     // }
 
     def sirTypeInEnv(tp: Type, srcPos: SrcPos, env: Env): SIRType = {
-        sirTypeInEnv(tp, SIRTypesHelper.SIRTypeEnv(srcPos, env.typeVars))
+        sirTypeInEnv(tp, SIRTypeEnv(srcPos, env.typeVars))
     }
 
-    protected def sirTypeInEnv(tp: Type, env: SIRTypesHelper.SIRTypeEnv): SIRType = {
-        try SIRTypesHelper.sirTypeInEnv(tp, env)
+    protected def sirTypeInEnv(tp: Type, env: SIRTypeEnv): SIRType = {
+        try typer.sirTypeInEnv(tp, env)
         catch
-            case e: SIRTypesHelper.TypingException =>
+            case e: TypingException =>
                 println(s"Error wjile typing: ${tp.show}: ${e.msg},")
                 println(s"env.vars=${env.vars}");
                 if true then {

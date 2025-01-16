@@ -9,19 +9,19 @@ import dotty.tools.dotc.core.Symbols.*
 import dotty.tools.dotc.util.SrcPos
 import scalus.sir.*
 
-object SIRTypesHelper {
+case class SIRTypeEnv(
+    pos: SrcPos,
+    vars: Map[Symbol, SIRType],
+    forwardRefs: Map[Symbol, SIRType.TypeProxy] = Map.empty,
+    trace: Boolean = false
+)
 
-    case class SIRTypeEnv(
-        pos: SrcPos,
-        vars: Map[Symbol, SIRType],
-        forwardRefs: Map[Symbol, SIRType.TypeProxy] = Map.empty,
-        trace: Boolean = false
-    )
+case class TypingException(tpe: Type, pos: SrcPos, msg: String, cause: Throwable = null)
+    extends RuntimeException(msg, cause)
 
-    case class TypingException(tpe: Type, pos: SrcPos, msg: String, cause: Throwable = null)
-        extends RuntimeException(msg, cause)
+class SIRTypesHelper(private val compiler: SIRCompiler)(using Context) {
 
-    def sirTypeInEnv(tp: Type, env0: SIRTypeEnv)(using Context): SIRType = {
+    def sirTypeInEnv(tp: Type, env0: SIRTypeEnv): SIRType = {
         val env =
             if tp =:= Symbols.requiredClass("scalus.ledger.api.v3.TxInfo").info then
                 env0.copy(trace = true)
@@ -38,7 +38,7 @@ object SIRTypesHelper {
         retval
     }
 
-    def sirTypeInEnvWithErr(tp: Type, env: SIRTypeEnv)(using Context): SIRType =
+    def sirTypeInEnvWithErr(tp: Type, env: SIRTypeEnv): SIRType =
         if env.trace then println(s"sirTypeInEnvWithErr ${tp.show},  env=${env}")
         val retval = tp match
             case tpc: TermRef =>
@@ -169,15 +169,13 @@ object SIRTypesHelper {
                 unsupportedType(tp, s"${tp.show}, tree=${tp}", env)
         retval
 
-    def makeSIRClassTypeNoTypeArgs(tp: Type, env: SIRTypeEnv)(using Context): SIRType = {
+    def makeSIRClassTypeNoTypeArgs(tp: Type, env: SIRTypeEnv): SIRType = {
         // println(s"makeSIRClassTypeNoTypeArgs ${tp.show}")
         if (defn.isFunctionType(tp)) then makeFunTypeLambda(tp)
         else makeSIRNonFunClassType(tp, Nil, env)
     }
 
-    def makeSIRNonFunClassType(tp: Type, types: List[SIRType], env: SIRTypeEnv)(using
-        Context
-    ): SIRType = {
+    def makeSIRNonFunClassType(tp: Type, types: List[SIRType], env: SIRTypeEnv): SIRType = {
         val sym = tp.typeSymbol
         // println(s"makeSIRNonFumClassType ${sym.showFullName} ${types.map(_.show)}, isFunctionType=${defn.isFunctionType(tp)}")
         val retval = (tryMakePrimitivePrimitive(sym, types) orElse
@@ -196,9 +194,7 @@ object SIRTypesHelper {
         retval
     }
 
-    def makeSIRNonFunValueType(tpc: TypeRef, params: List[Type], env: SIRTypeEnv)(using
-        Context
-    ): SIRType = {
+    def makeSIRNonFunValueType(tpc: TypeRef, params: List[Type], env: SIRTypeEnv): SIRType = {
         val sym = tpc.typeSymbol
         if (sym == Symbols.requiredClass("scala.math.BigInt")) then SIRType.Integer
         else
@@ -224,7 +220,7 @@ object SIRTypesHelper {
                     )
     }
 
-    def makeSIRFunType(tp: Type, env: SIRTypeEnv)(using Context): SIRType = {
+    def makeSIRFunType(tp: Type, env: SIRTypeEnv): SIRType = {
         tp match
             case mt: MethodType =>
                 makeSIRMethodType(mt, env)
@@ -241,13 +237,11 @@ object SIRTypesHelper {
                 ???
     }
 
-    def findClassInAndType(andType: AndType)(using Context): Option[Type] = {
+    def findClassInAndType(andType: AndType): Option[Type] = {
         ???
     }
 
-    def tryMakePrimitivePrimitive(symbol: Symbol, tpArgs: List[SIRType])(using
-        Context
-    ): Option[SIRType] = {
+    def tryMakePrimitivePrimitive(symbol: Symbol, tpArgs: List[SIRType]): Option[SIRType] = {
         if !tpArgs.isEmpty then None
         else if symbol == defn.BooleanType.typeSymbol || symbol == defn.BoxedBooleanClass then
             Some(SIRType.Boolean)
@@ -263,8 +257,10 @@ object SIRTypesHelper {
         else None
     }
 
-    def tryMakeBuildinType(symbol: Symbol, tpArgs: List[SIRType], env: SIRTypeEnv)(using
-        Context
+    def tryMakeBuildinType(
+        symbol: Symbol,
+        tpArgs: List[SIRType],
+        env: SIRTypeEnv
     ): Option[SIRType] = {
         if (symbol == Symbols.requiredClass("scalus.builtin.Data")) then Some(SIRType.Data)
         else if (symbol == Symbols.requiredClass("scalus.builtin.List")) then
@@ -295,16 +291,20 @@ object SIRTypesHelper {
         else None
     }
 
-    def makeFunctionClassType(symbol: Symbols.Symbol, list: List[SIRType], env: SIRTypeEnv)(using
-        Context
+    def makeFunctionClassType(
+        symbol: Symbols.Symbol,
+        list: List[SIRType],
+        env: SIRTypeEnv
     ): SIRType = {
         val args = list.init
         val res = list.last
         makeUnaryFun(args, res)
     }
 
-    def tryMakeCaseClassOrCaseParent(typeSymbol: Symbol, tpArgs: List[SIRType], env: SIRTypeEnv)(
-        using Context
+    def tryMakeCaseClassOrCaseParent(
+        typeSymbol: Symbol,
+        tpArgs: List[SIRType],
+        env: SIRTypeEnv
     ): Option[SIRType] = {
         env.forwardRefs.get(typeSymbol) match
             case Some(proxy) =>
@@ -359,7 +359,7 @@ object SIRTypesHelper {
         tpArgs: List[SIRType],
         env: SIRTypeEnv,
         thisProxy: SIRType.TypeProxy
-    )(using Context): Option[SIRType] = {
+    ): Option[SIRType] = {
         // println(s"tryMakeCaseClassOrCaseParentTypeNoRec ${typeSymbol.showFullName} ${tpArgs.map(_.show)}, isCase=${typeSymbol.flags.is(Flags.CaseClass)}, isEnum=${typeSymbol.flags.is(Flags.Enum)}, flags=${typeSymbol.flagsString}")
         // println(s"typeSymbol.isType=${typeSymbol.isType}, typeSymbol.isClass=${typeSymbol.isClass}, typeSymbol.isTerm=${typeSymbol.isTerm}")
         if typeSymbol.flags.is(Flags.Case) || typeSymbol.flags.is(Flags.Enum) then {
@@ -527,8 +527,11 @@ object SIRTypesHelper {
         }
     }
 
-    def tryMakeNonCaseModule(tp: Type, typeSymbol: Symbol, tpArgs: List[SIRType], env: SIRTypeEnv)(
-        using Context
+    def tryMakeNonCaseModule(
+        tp: Type,
+        typeSymbol: Symbol,
+        tpArgs: List[SIRType],
+        env: SIRTypeEnv
     ): Option[SIRType] = {
         if typeSymbol.flags.is(Flags.Module) || typeSymbol.flags.is(Flags.Package) then {
             val name = typeSymbol.fullName.show
@@ -543,14 +546,14 @@ object SIRTypesHelper {
         }
     }
 
-    def makeUnaryFun(args: List[SIRType], res: SIRType)(using Context): SIRType = {
+    def makeUnaryFun(args: List[SIRType], res: SIRType): SIRType = {
         args match
             case Nil          => res
             case head :: Nil  => SIRType.Fun(head, res)
             case head :: tail => SIRType.Fun(head, makeUnaryFun(tail, res))
     }
 
-    def makeSIRMethodType(mt: MethodType, env: SIRTypeEnv)(using Context): SIRType = {
+    def makeSIRMethodType(mt: MethodType, env: SIRTypeEnv): SIRType = {
         val params = mt.paramNames.zip(mt.paramInfos).map { (_, tp) =>
             sirTypeInEnvWithErr(tp, env)
         }
@@ -566,13 +569,16 @@ object SIRTypesHelper {
         env: SIRTypeEnv,
         throwError: Boolean = true,
         cause: Throwable = null
-    )(using Context): SIRType = {
+    ): SIRType = {
         if throwError then throw TypingException(tpe, env.pos, msg)
         else SIRType.TypeError(msg, null)
     }
 
-    def unsupportedType(tpe: Type, msg: String, env: SIRTypeEnv, throwError: Boolean = true)(using
-        Context
+    def unsupportedType(
+        tpe: Type,
+        msg: String,
+        env: SIRTypeEnv,
+        throwError: Boolean = true
     ): SIRType = {
         typeError(tpe, s"unsupported type: ${tpe.show} $msg", env, throwError)
     }

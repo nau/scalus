@@ -11,7 +11,6 @@ import dotty.tools.dotc.core.StdNames.nme
 import dotty.tools.dotc.core.Symbols.*
 import dotty.tools.dotc.core.Types.*
 import dotty.tools.dotc.util.SrcPos
-import scalus.SIRTypesHelper.TypingException
 import scalus.sir.*
 
 import scala.collection.mutable
