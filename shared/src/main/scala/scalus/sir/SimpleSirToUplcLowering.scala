@@ -209,7 +209,7 @@ class SimpleSirToUplcLowering(sir: SIR, generateErrorTraces: Boolean = false):
                     val fieldIndex = constrDecl.params.indexWhere(_.name == field)
                     if fieldIndex == -1 then
                         throw new IllegalArgumentException(
-                          s"Field $field not found in constructor ${constrDecl.name}"
+                          s"Field $field not found in constructor ${constrDecl}"
                         )
                     val instance = lowerInner(scrutinee)
                     val s0 = Term.Var(NamedDeBruijn(field))

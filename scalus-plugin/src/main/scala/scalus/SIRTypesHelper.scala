@@ -179,7 +179,7 @@ class SIRTypesHelper(private val compiler: SIRCompiler)(using Context) {
         val sym = tp.typeSymbol
         // println(s"makeSIRNonFumClassType ${sym.showFullName} ${types.map(_.show)}, isFunctionType=${defn.isFunctionType(tp)}")
         val retval = (tryMakePrimitivePrimitive(sym, types) orElse
-            tryMakeBuildinType(sym, types, env) orElse
+            tryMakeBuiltinType(sym, types, env) orElse
             tryMakeCaseClassOrCaseParent(sym, types, env) orElse
             tryMakeNonCaseModule(tp, sym, types, env)).getOrElse {
             val name = sym.showFullName
@@ -257,7 +257,7 @@ class SIRTypesHelper(private val compiler: SIRCompiler)(using Context) {
         else None
     }
 
-    def tryMakeBuildinType(
+    def tryMakeBuiltinType(
         symbol: Symbol,
         tpArgs: List[SIRType],
         env: SIRTypeEnv
@@ -359,92 +359,14 @@ class SIRTypesHelper(private val compiler: SIRCompiler)(using Context) {
                     .map(_.show)}, isCase=${typeSymbol.flags.is(Flags.CaseClass)}, isEnum=${typeSymbol.flags
                     .is(Flags.Enum)}, flags=${typeSymbol.flagsString}")
         // println(s"typeSymbol.isType=${typeSymbol.isType}, typeSymbol.isClass=${typeSymbol.isClass}, typeSymbol.isTerm=${typeSymbol.isTerm}")
-        if typeSymbol.flags.is(Flags.Case) || typeSymbol.flags.is(Flags.Enum) then {
-            // case class, can do constrdecl
-            val name = typeSymbol.fullName.show
-            // if name==""
-
-            val (typeParamSymbols, paramSymbols) = typeSymbol.primaryConstructor.paramSymss match
-                case List(args) =>
-                    if args.isEmpty then (Nil, Nil)
-                    else if (args.exists(_.isTerm)) then (Nil, args)
-                    else if (args.exists(_.isType)) then (args, Nil)
-                    else {
-                        val msg =
-                            s"Case class ${typeSymbol.showFullName} has strange primary constructor: ${args}"
-                        thisProxy.ref = SIRType.TypeError(msg, null)
-                        throw TypingException(typeSymbol.info, env.pos, msg)
-                    }
-                case List(frs, snd) =>
-                    if frs.exists(_.isType) && snd.exists(_.isTerm) then (frs, snd)
-                    else if frs.exists(_.isTerm) && snd.exists(_.isType) then (snd, frs)
-                    else if frs.exists(_.isType) && snd.exists(_.isType) then
-                        val msg =
-                            s"Case class ${typeSymbol.showFullName} has primary constructor with two type parametes list"
-                        thisProxy.ref = SIRType.TypeError(msg, null)
-                        throw TypingException(typeSymbol.info, env.pos, msg)
-                    else if frs.exists(_.isTerm) && snd.exists(_.isTerm) then
-                        val msg =
-                            s"Not supported ${typeSymbol.showFullName} has primary constructor with multiole parametes list"
-                        thisProxy.ref = SIRType.TypeError(msg, null)
-                        throw TypingException(typeSymbol.info, env.pos, msg)
-                    else if frs.exists(_.isType) && snd.isEmpty then (frs, Nil)
-                    else if frs.isEmpty && snd.exists(_.isType) then (Nil, snd)
-                    else if frs.exists(_.isTerm) && snd.isEmpty then (Nil, frs)
-                    else if frs.isEmpty && snd.exists(_.isTerm) then (snd, Nil)
-                    else {
-                        val msg =
-                            s"Case class ${typeSymbol.showFullName} has strange primary constructor: ${frs} ${snd}"
-                        thisProxy.ref = SIRType.TypeError(msg, null)
-                        throw TypingException(typeSymbol.info, env.pos, msg)
-                    }
-                case List(frs, snd, thr) =>
-                    if frs.exists(_.isType) && snd.exists(_.isTerm) && thr.isEmpty then (frs, snd)
-                    else
-                        val msg =
-                            s"Not supported ${typeSymbol.showFullName} has primary constructor with multiole parametes list"
-                        thisProxy.ref = SIRType.TypeError(msg, null)
-                        throw TypingException(typeSymbol.info, env.pos, msg)
-                case _ =>
-                    val msg =
-                        s"Case class ${typeSymbol.showFullName} has primary constructor with multiply parameters list: ${typeSymbol.primaryConstructor.paramSymss}"
-                    thisProxy.ref = SIRType.TypeError(msg, null)
-                    throw TypingException(typeSymbol.info, env.pos, msg)
-
-            val tparams = typeParamSymbols.map(s => SIRType.TypeVar(s.name.show, Some(s.hashCode)))
-            val nVars = typeParamSymbols.zip(tparams).foldLeft(env.vars) {
-                case (acc, (sym, tvar)) => acc.updated(sym, tvar)
-            }
-            val nEnv = env.copy(vars = nVars)
-            // val params1 = typeSymbol.info.fields
-            //    .map(f => TypeBinding(f.name.show, sirTypeInEnv(f.info, nEnv)))
-            //    .toList
-            val params = paramSymbols
-                .map(s =>
-                    val t = sirTypeInEnv(s.info, nEnv)
-                    // println(s"param ${s.show} -> ${t.show}")
-                    TypeBinding(s.name.show, t)
-                )
-                .toList
-            // TODO:  get 'most top?'
-            val optBaseSymbol = typeSymbol.info.baseClasses.find(bc => bc.children.nonEmpty)
-            val constrDecl = optBaseSymbol match
-                case Some(baseSymbol) =>
-                    // val baseClassType = typeSymbol.info.baseType(baseSymbol)
-                    // val parentTParams = baseClassType match
-                    //    case AppliedType(tycon, args) => args.map(sirTypeInEnv(_, nEnv))
-                    //    case _ => Nil
-                    // ConstrDecl(name, SIRVarStorage.Data, params, tparams, parentTParams)
-                    ConstrDecl(name, SIRVarStorage.Data, params, tparams)
-                case None =>
-                    // ConstrDecl(name, SIRVarStorage.Data, params, tparams, Nil)
-                    ConstrDecl(name, SIRVarStorage.Data, params, tparams)
-            val nType = SIRType.CaseClass(constrDecl, tpArgs)
-            Some(nType)
-        } else {
+        if typeSymbol.flags.is(Flags.Case) || typeSymbol.flags.is(Flags.Enum) || typeSymbol.flags
+                .isAllOf(Flags.Sealed | Flags.Abstract)
+        then {
             // TODO: keep in env mapSymbol => SumCaseClass to prevent duplication
-            if typeSymbol.children.nonEmpty then {
-                val childrenSymbols = typeSymbol.children
+            val name = typeSymbol.fullName.show
+            val childrenSymbols = typeSymbol.children
+            // this is an enum/sum type
+            if childrenSymbols.nonEmpty then {
                 val childrenTypes = childrenSymbols.map(s =>
                     val typeParams = s.primaryConstructor.typeParams.map(s =>
                         SIRType.TypeVar(s.name.show, Some(s.hashCode))
@@ -499,7 +421,6 @@ class SIRTypesHelper(private val compiler: SIRCompiler)(using Context) {
                                 thisProxy.ref = SIRType.TypeError(msg, null)
                                 Some(typeError(typeSymbol.info, msg, env, throwError = true))
                     case None =>
-                        val name = typeSymbol.fullName.show
                         val tparams = typeSymbol.info.typeParamSymbols.map(s =>
                             SIRType.TypeVar(s.name.show, Some(s.hashCode))
                         )
@@ -513,15 +434,164 @@ class SIRTypesHelper(private val compiler: SIRCompiler)(using Context) {
                         } else {
                             val constrDecls =
                                 flatSealedTraitHierarchy(typeSymbol.info, childrenTypes, env)
+                            val sortedConstructors = constrDecls.sortBy(_.name)
                             val nType =
-                                SIRType.SumCaseClass(DataDecl(name, constrDecls, tparams), tpArgs)
+                                SIRType.SumCaseClass(
+                                  DataDecl(name, sortedConstructors, tparams),
+                                  tpArgs
+                                )
+                            if name.contains("IntervalBoundType") then
+                                println(s"IntervalBoundType: ${nType}")
                             thisProxy.ref = nType
                             Some(nType)
                         }
             } else {
-                None
+                // this is a case class
+                val typeParamsSymbols =
+                    typeSymbol.primaryConstructor.paramSymss.flatten.filter(_.isType)
+                val typeParams =
+                    typeParamsSymbols.map(s => SIRType.TypeVar(s.name.show, Some(s.hashCode)))
+                val nVars = env.vars ++ typeParamsSymbols.zip(typeParams)
+                val nEnv = env.copy(vars = nVars)
+                val params = typeSymbol.primaryConstructor.paramSymss.flatten
+                    .filter(_.isTerm)
+                    .map(s =>
+                        val t = sirTypeInEnv(s.info, nEnv)
+                        TypeBinding(s.name.show, t)
+                    )
+                val constrDecl =
+                    ConstrDecl(typeSymbol.name.show, SIRVarStorage.DEFAULT, params, typeParams)
+                Some(SIRType.SumCaseClass(DataDecl(name, List(constrDecl), typeParams), tpArgs))
             }
-        }
+        } else None
+    }
+
+    /** case classes and symbols.
+      * @param typeSymbol
+      * @param tpArgs
+      * @param x$3
+      * @return
+      */
+    def tryMakeCaseClassOrCaseParentTypeNoRec2(
+        typeSymbol: Symbol,
+        tpArgs: List[SIRType],
+        env: SIRTypeEnv,
+        thisProxy: SIRType.TypeProxy
+    ): Option[SIRType] = {
+        if typeSymbol.showFullName.contains(".IntervalBoundType") then
+            println(s"tryMakeCaseClassOrCaseParentTypeNoRec ${typeSymbol.showFullName} ${tpArgs
+                    .map(_.show)}, isCase=${typeSymbol.flags.is(Flags.CaseClass)}, isEnum=${typeSymbol.flags
+                    .is(Flags.Enum)}, flags=${typeSymbol.flagsString}")
+        // println(s"typeSymbol.isType=${typeSymbol.isType}, typeSymbol.isClass=${typeSymbol.isClass}, typeSymbol.isTerm=${typeSymbol.isTerm}")
+        if typeSymbol.flags.is(Flags.Case) || typeSymbol.flags.is(Flags.Enum) || typeSymbol.flags
+                .isAllOf(Flags.Sealed | Flags.Abstract)
+        then {
+            // this is a case class
+            if typeSymbol.flags.is(Flags.Case, butNot = Flags.Enum) then
+                println(s"Enum: ${typeSymbol.showFullName}")
+
+            // TODO: keep in env mapSymbol => SumCaseClass to prevent duplication
+            val name = typeSymbol.fullName.show
+            val childrenSymbols = typeSymbol.children
+            // this is an enum/sum type
+            if childrenSymbols.nonEmpty then {
+                val childrenTypes = childrenSymbols.map(s =>
+                    val typeParams = s.primaryConstructor.typeParams.map(s =>
+                        SIRType.TypeVar(s.name.show, Some(s.hashCode))
+                    )
+                    val nVars = env.vars ++ s.primaryConstructor.typeParams.zip(typeParams)
+                    val nEnv = env.copy(vars = nVars)
+                    // val parentTpArgs = s.info.baseType(typeSymbol) match
+                    //        case AppliedType(tycon, args) => args.map(sirTypeInEnv(_, nEnv))
+                    //        case _ => Nil
+                    if s.children.isEmpty then
+                        // val constrDecl = ConstrDecl(s.name.show, SIRVarStorage.DEFAULT, Nil, typeParams, parentTpArgs)
+                        val constrDecl =
+                            ConstrDecl(s.name.show, SIRVarStorage.DEFAULT, Nil, typeParams)
+
+                        SIRType.CaseClass(constrDecl, typeParams)
+                    else
+                        val proxy = new SIRType.TypeProxy(null)
+                        val retval =
+                            tryMakeCaseClassOrCaseParentTypeNoRec(s, typeParams, nEnv, proxy)
+                        retval match
+                            case Some(t) =>
+                                proxy.ref = t
+                                t
+                            case None =>
+                                val msg =
+                                    s"Case parent type ${typeSymbol.showFullName} has children that are not case classes or case parent types: ${s.show}"
+                                thisProxy.ref = SIRType.TypeError(msg, null)
+                                throw TypingException(typeSymbol.info, env.pos, msg)
+                )
+                childrenSymbols.zip(childrenTypes).find { case (sym, chtp) =>
+                    !chtp.isInstanceOf[SIRType.CaseClass] &&
+                    !chtp.isInstanceOf[SIRType.SumCaseClass] &&
+                    !chtp.isInstanceOf[SIRType.TypeLambda] &&
+                    !chtp.isInstanceOf[SIRType.TypeProxy]
+                } match
+                    case Some((childSym, childStrangeType)) =>
+                        childStrangeType match
+                            case err @ SIRType.TypeError(msg, cause) =>
+                                // return typeError. Note, that if we here then throwError already set to false.
+                                Some(
+                                  typeError(
+                                    typeSymbol.info,
+                                    msg,
+                                    env,
+                                    throwError = false,
+                                    cause = cause
+                                  )
+                                )
+                            case _ =>
+                                val msg =
+                                    s"Case parent type ${typeSymbol.showFullName} has children that are not case classes or case parent types: ${childSym.showFullName}: ${childStrangeType}"
+                                thisProxy.ref = SIRType.TypeError(msg, null)
+                                Some(typeError(typeSymbol.info, msg, env, throwError = true))
+                    case None =>
+                        val tparams = typeSymbol.info.typeParamSymbols.map(s =>
+                            SIRType.TypeVar(s.name.show, Some(s.hashCode))
+                        )
+                        if tparams.length != tpArgs.length then {
+                            // println(s"Children types: ${childrenTypes}")
+                            // println(s"Children symbols: ${childrenSymbols.map(_.showFullName)}")
+                            val msg =
+                                s"Case parent type ${typeSymbol.showFullName} has ${tparams.length} type parameters, but ${tpArgs.length} were provided"
+                            thisProxy.ref = SIRType.TypeError(msg, null)
+                            Some(typeError(typeSymbol.info, msg, env, throwError = true))
+                        } else {
+                            val constrDecls =
+                                flatSealedTraitHierarchy(typeSymbol.info, childrenTypes, env)
+                            val sortedConstructors = constrDecls.sortBy(_.name)
+                            val nType =
+                                SIRType.SumCaseClass(
+                                  DataDecl(name, sortedConstructors, tparams),
+                                  tpArgs
+                                )
+                            if name.contains("IntervalBoundType") then
+                                println(s"IntervalBoundType: ${nType}")
+                            thisProxy.ref = nType
+                            Some(nType)
+                        }
+            } else {
+                // this is a case class
+                val typeParamsSymbols =
+                    typeSymbol.primaryConstructor.paramSymss.flatten.filter(_.isType)
+                val typeParams =
+                    typeParamsSymbols.map(s => SIRType.TypeVar(s.name.show, Some(s.hashCode)))
+                val nVars = env.vars ++ typeParamsSymbols.zip(typeParams)
+                val nEnv = env.copy(vars = nVars)
+                val params = typeSymbol.primaryConstructor.paramSymss.flatten
+                    .filter(_.isTerm)
+                    .map(s =>
+                        val t = sirTypeInEnv(s.info, nEnv)
+                        TypeBinding(s.name.show, t)
+                    )
+                val constrDecl =
+                    ConstrDecl(typeSymbol.name.show, SIRVarStorage.DEFAULT, params, typeParams)
+                Some(SIRType.SumCaseClass(DataDecl(name, List(constrDecl), typeParams), tpArgs))
+            }
+        } else None
     }
 
     def tryMakeNonCaseModule(
@@ -577,7 +647,12 @@ class SIRTypesHelper(private val compiler: SIRCompiler)(using Context) {
         env: SIRTypeEnv,
         throwError: Boolean = true
     ): SIRType = {
-        typeError(tpe, s"unsupported type: ${tpe.show} $msg", env, throwError)
+        typeError(
+          tpe,
+          s"unsupported type: ${tpe.typeSymbol.showFullName} $msg at ${env.pos.sourcePos.show}",
+          env,
+          throwError
+        )
     }
 
 }

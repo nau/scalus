@@ -139,8 +139,9 @@ class PatternMatchingCompiler(val compiler: SIRCompiler)(using Context) {
                             (enclosingBindings ++ bindings2) + (name -> constrSirType),
                             cont =>
                                 val (constrDecl, typeParams) = constrSirType match
+                                    case SIRType.SumCaseClass(DataDecl(_, constrs, _), typeArgs) => (constrs.head, typeArgs)
                                     case SIRType.CaseClass(decl, typeArgs) => (decl, typeArgs)
-                                    case _                                 => ???
+                                    case _                                 => sys.error(s"AAA: $constrSirType")
                                 val contExpr = enclosingGenerator(generator2(cont))
                                 SIR.Match(
                                   SIR.Var(name, constrSirType),

@@ -95,7 +95,7 @@ final class SIRCompiler(mode: scalus.Mode)(using ctx: Context) {
     private val PlatformSpecificClassSymbol = requiredClass("scalus.builtin.PlatformSpecific")
     private val StringContextSymbol = requiredModule("scala.StringContext")
     private val StringContextApplySymbol = StringContextSymbol.requiredMethod("apply")
-    private val Tuple2Symbol = requiredClass("scala.Tuple2")
+    val Tuple2Symbol = requiredClass("scala.Tuple2")
     private val NothingSymbol = requiredClass("scala.Nothing")
     private val ByteStringModuleSymbol = requiredModule("scalus.builtin.ByteString")
     private val ByteStringSymbolHex = ByteStringModuleSymbol.requiredMethod("hex")
@@ -360,6 +360,7 @@ final class SIRCompiler(mode: scalus.Mode)(using ctx: Context) {
                         throw e
             TypeBinding(p.name.show, pType)
         }
+        println(s"makeConstrDecl ${constrSymbol.fullName}(${params.mkString(", ")})")
         val optBaseClass = constrSymbol.info.baseClasses.find { b =>
             b.flags.is(Flags.Sealed) && b.children.contains(constrSymbol)
         }
