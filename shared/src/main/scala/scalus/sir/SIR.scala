@@ -175,7 +175,7 @@ object SIR:
     case class Builtin(bn: DefaultFun, tp: SIRType) extends SIR
 
     case class Error(msg: String, cause: Throwable | Null = null) extends SIR {
-        override def tp: SIRType = SIRType.TypeError(msg, cause)
+        override def tp: SIRType = SIRType.TypeNothing
     }
 
     // TODO: unify data-decl.

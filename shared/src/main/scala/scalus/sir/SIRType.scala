@@ -116,29 +116,6 @@ object SIRType {
 
     }
 
-    // given liftFun1[A, B](using a: SIRType.Aux[A], b: SIRType.Aux[B]): SIRType.Aux[A => B] =
-    //    Fun(a, b).asInstanceOf[SIRType.Aux[A => B]]
-    // given liftFun2[A,B,C](using a: SIRType.Aux[A], b: SIRType.Aux[B], c: SIRType.Aux[C]): SIRType.Aux[(A, B) => C] =
-    //    Fun(Tuple(List(a, b)), c).asInstanceOf[SIRType.Aux[(A, B) => C]]
-    // given liftFun3[A,B,C,D](using a: SIRType.Aux[A], b: SIRType.Aux[B], c: SIRType.Aux[C], d: SIRType.Aux[D]): SIRType.Aux[(A, B, C) => D] =
-    //    Fun(Tuple(List(a, b, c)), d).asInstanceOf[SIRType.Aux[(A, B, C) => D]]
-    // given liftFun4[A,B,C,D,E](using a: SIRType.Aux[A], b: SIRType.Aux[B], c: SIRType.Aux[C], d: SIRType.Aux[D], e: SIRType.Aux[E]): SIRType.Aux[(A, B, C, D) => E] =
-    //    Fun(Tuple(List(a, b, c, d)), e).asInstanceOf[SIRType.Aux[(A, B, C, D) => E]]
-
-    /*
-    case class Tuple(fields: List[SIRType]) extends SIRType {
-
-        override def show: String = s"(${fields.map(_.show).mkString(", ")})"
-
-    }
-    given liftTuple2[A,B](using a: SIRType.Aux[A], b: SIRType.Aux[B]): SIRType.Aux[(A, B)] =
-        Tuple(List(a, b)).asInstanceOf[SIRType.Aux[(A, B)]]
-    given liftTuple3[A,B,C](using a: SIRType.Aux[A], b: SIRType.Aux[B], c: SIRType.Aux[C]): SIRType.Aux[(A, B, C)] =
-        Tuple(List(a, b, c)).asInstanceOf[SIRType.Aux[(A, B, C)]]
-    given liftTuple4[A,B,C,D](using a: SIRType.Aux[A], b: SIRType.Aux[B], c: SIRType.Aux[C], d: SIRType.Aux[D]): SIRType.Aux[(A, B, C, D)] =
-        Tuple(List(a, b, c, d)).asInstanceOf[SIRType.Aux[(A, B, C, D)]]
-     */
-
     object Pair {
 
         val constrDecl = {
@@ -204,12 +181,6 @@ object SIRType {
             val tv2 = TypeVar(param2)
             TypeLambda(scala.List(tv1, tv2), body(tv1, tv2))
         }
-    }
-
-    case class TypeError(msg: String, cause: Throwable | Null) extends SIRType {
-        override def show: String =
-            if cause eq null then s"Error: $msg"
-            else s"Error: $msg\nCause: ${cause.getMessage}"
     }
 
     case object FreeUnificator extends SIRType {
@@ -362,7 +333,7 @@ object SIRType {
 
     }
 
-    case class TypingException(msg: String, cause: Throwable | Null = null)
+    case class CaclulateApplyTypeException(msg: String, cause: Throwable | Null = null)
         extends RuntimeException(msg, cause)
 
     def calculateApplyType(
@@ -386,23 +357,23 @@ object SIRType {
                         println(s"fun=$f")
                         println(s"in=$in")
                         println(s"arg=$arg")
-                        throw new TypingException(message)
+                        throw new CaclulateApplyTypeException(message)
             // TypeError(s"Cannot unify $in with $arg, difference at path ${e.path}", null)
             case tvF @ TypeVar(name, _) =>
                 env.get(tvF) match
                     case Some(f1) => calculateApplyType(tvF, arg, env)
                     case None =>
-                        throw new TypingException(s"Unbound type variable $name")
+                        throw new CaclulateApplyTypeException(s"Unbound type variable $name")
             case TypeLambda(params, body) =>
                 val newEnv = params.foldLeft(env) { case (acc, tv) =>
                     acc + (tv -> FreeUnificator)
                 }
                 calculateApplyType(body, arg, newEnv, debug)
             case TypeProxy(next) =>
-                if next == null then throw TypingException(s"TypeProxy is not resolved: $f")
+                if next == null then throw CaclulateApplyTypeException(s"TypeProxy is not resolved: $f")
                 else calculateApplyType(next, arg, env, debug)
             case other =>
-                throw TypingException(s"Expected function type, got $other", null)
+                throw CaclulateApplyTypeException(s"Expected function type, got $other", null)
         }
 
     def substitute(

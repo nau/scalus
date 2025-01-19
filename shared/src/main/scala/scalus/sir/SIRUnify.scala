@@ -442,9 +442,6 @@ object SIRUnify {
                     env.filledTypes ++ params.map(_ -> SIRType.FreeUnificator)
                 )
                 unifyType(left, body, nEnv)
-            case (errLeft: SIRType.TypeError, errRight: SIRType.TypeError) =>
-                if errLeft.msg == errRight.msg then UnificationSuccess(env, errLeft)
-                else UnificationFailure(env.path, left, right)
             case (SIRType.FreeUnificator, right) =>
                 UnificationSuccess(env, right)
             case (left, SIRType.FreeUnificator) =>
