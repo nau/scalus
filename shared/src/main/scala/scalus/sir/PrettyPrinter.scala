@@ -253,7 +253,6 @@ object PrettyPrinter:
                   ) + pretty(body)
                 )
             case p: SIRType.Primitive      => text(p.show)
-            case SIRType.TypeError(msg, _) => text(s"Error '$msg'")
             case SIRType.CaseClass(constrDecl, typeParams) =>
                 text(constrDecl.name) + inOptBrackets(
                   intercalate(text(",") + space, typeParams.map(pretty))

@@ -271,21 +271,12 @@ object SIRTypesHelper {
             tpArgs match
                 case List(elemType) => Some(SIRType.List(elemType))
                 case _ =>
-                    val err = SIRType.TypeError(
-                      s"List type should have one type argument, found ${tpArgs.length}",
-                      null
-                    )
-                    Some(err)
+                    throw TypingException(symbol.info, env.pos, s"List type should have one type argument, found ${tpArgs.length}" )
         else if (symbol == Symbols.requiredClass("scalus.builtin.Pair")) then
             tpArgs match
                 case List(a1, a2) => Some(SIRType.Pair(a1, a2))
                 case _ =>
-                    Some(
-                      SIRType.TypeError(
-                        s"Pair type should have two type arguments, found ${tpArgs.length}",
-                        null
-                      )
-                    )
+                    throw TypingException(symbol.info, env.pos,  s"Pair type should have two type arguments, found ${tpArgs.length}")
         else if (symbol == Symbols.requiredClass("scalus.builtin.BLS12_381_G1_Element")) then
             Some(SIRType.BLS12_381_G1_Element)
         else if (symbol == Symbols.requiredClass("scalus.builtin.BLS12_381_G2_Element")) then
@@ -375,7 +366,7 @@ object SIRTypesHelper {
                     else {
                         val msg =
                             s"Case class ${typeSymbol.showFullName} has strange primary constructor: ${args}"
-                        thisProxy.ref = SIRType.TypeError(msg, null)
+                        thisProxy.ref = SIRType.TypeNothing
                         throw TypingException(typeSymbol.info, env.pos, msg)
                     }
                 case List(frs, snd) =>
@@ -384,12 +375,12 @@ object SIRTypesHelper {
                     else if frs.exists(_.isType) && snd.exists(_.isType) then
                         val msg =
                             s"Case class ${typeSymbol.showFullName} has primary constructor with two type parametes list"
-                        thisProxy.ref = SIRType.TypeError(msg, null)
+                        thisProxy.ref = SIRType.TypeNothing
                         throw TypingException(typeSymbol.info, env.pos, msg)
                     else if frs.exists(_.isTerm) && snd.exists(_.isTerm) then
                         val msg =
                             s"Not supported ${typeSymbol.showFullName} has primary constructor with multiole parametes list"
-                        thisProxy.ref = SIRType.TypeError(msg, null)
+                        thisProxy.ref = SIRType.TypeNothing
                         throw TypingException(typeSymbol.info, env.pos, msg)
                     else if frs.exists(_.isType) && snd.isEmpty then (frs, Nil)
                     else if frs.isEmpty && snd.exists(_.isType) then (Nil, snd)
@@ -398,7 +389,7 @@ object SIRTypesHelper {
                     else {
                         val msg =
                             s"Case class ${typeSymbol.showFullName} has strange primary constructor: ${frs} ${snd}"
-                        thisProxy.ref = SIRType.TypeError(msg, null)
+                        thisProxy.ref = SIRType.TypeNothing
                         throw TypingException(typeSymbol.info, env.pos, msg)
                     }
                 case List(frs, snd, thr) =>
@@ -406,12 +397,12 @@ object SIRTypesHelper {
                     else
                         val msg =
                             s"Not supported ${typeSymbol.showFullName} has primary constructor with multiole parametes list"
-                        thisProxy.ref = SIRType.TypeError(msg, null)
+                        thisProxy.ref = SIRType.TypeNothing
                         throw TypingException(typeSymbol.info, env.pos, msg)
                 case _ =>
                     val msg =
                         s"Case class ${typeSymbol.showFullName} has primary constructor with multiply parameters list: ${typeSymbol.primaryConstructor.paramSymss}"
-                    thisProxy.ref = SIRType.TypeError(msg, null)
+                    thisProxy.ref = SIRType.TypeNothing
                     throw TypingException(typeSymbol.info, env.pos, msg)
 
             val tparams = typeParamSymbols.map(s => SIRType.TypeVar(s.name.show, Some(s.hashCode)))
@@ -474,7 +465,7 @@ object SIRTypesHelper {
                             case None =>
                                 val msg =
                                     s"Case parent type ${typeSymbol.showFullName} has children that are not case classes or case parent types: ${s.show}"
-                                thisProxy.ref = SIRType.TypeError(msg, null)
+                                thisProxy.ref = SIRType.TypeNothing
                                 throw TypingException(typeSymbol.info, env.pos, msg)
                 )
                 childrenSymbols.zip(childrenTypes).find { case (sym, chtp) =>
@@ -484,23 +475,9 @@ object SIRTypesHelper {
                     !chtp.isInstanceOf[SIRType.TypeProxy]
                 } match
                     case Some((childSym, childStrangeType)) =>
-                        childStrangeType match
-                            case err @ SIRType.TypeError(msg, cause) =>
-                                // return typeError. Note, that if we here then throwError already set to false.
-                                Some(
-                                  typeError(
-                                    typeSymbol.info,
-                                    msg,
-                                    env,
-                                    throwError = false,
-                                    cause = cause
-                                  )
-                                )
-                            case _ =>
-                                val msg =
-                                    s"Case parent type ${typeSymbol.showFullName} has children that are not case classes or case parent types: ${childSym.showFullName}: ${childStrangeType}"
-                                thisProxy.ref = SIRType.TypeError(msg, null)
-                                Some(typeError(typeSymbol.info, msg, env, throwError = true))
+                        val msg = s"Case parent type ${typeSymbol.showFullName} has children that are not case classes or case parent types: ${childSym.showFullName}: ${childStrangeType}"
+                        thisProxy.ref = SIRType.TypeNothing
+                        Some(typeError(typeSymbol.info, msg, env, throwError = true))
                     case None =>
                         val name = typeSymbol.fullName.show
                         val tparams = typeSymbol.info.typeParamSymbols.map(s =>
@@ -511,7 +488,6 @@ object SIRTypesHelper {
                             // println(s"Children symbols: ${childrenSymbols.map(_.showFullName)}")
                             val msg =
                                 s"Case parent type ${typeSymbol.showFullName} has ${tparams.length} type parameters, but ${tpArgs.length} were provided"
-                            thisProxy.ref = SIRType.TypeError(msg, null)
                             Some(typeError(typeSymbol.info, msg, env, throwError = true))
                         } else {
                             val constrDecls =
@@ -567,8 +543,7 @@ object SIRTypesHelper {
         throwError: Boolean = true,
         cause: Throwable = null
     )(using Context): SIRType = {
-        if throwError then throw TypingException(tpe, env.pos, msg)
-        else SIRType.TypeError(msg, null)
+        throw TypingException(tpe, env.pos, msg)
     }
 
     def unsupportedType(tpe: Type, msg: String, env: SIRTypeEnv, throwError: Boolean = true)(using
