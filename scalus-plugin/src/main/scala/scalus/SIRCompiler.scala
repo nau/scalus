@@ -1469,7 +1469,7 @@ final class SIRCompiler(mode: scalus.Mode)(using ctx: Context) {
                 }
                 val retval = error(
                   GenericError(e.msg, e.pos),
-                  SIRType.TypeError(s"tp: ${tp.show}, ${e.msg}", e)
+                  SIRType.TypeNothing
                 )
                 retval
     }
