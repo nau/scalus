@@ -17,7 +17,8 @@ object SITRTypingScalaToSIRSpecScope {
 
 class SITRTypingScalaToSIRSpec extends AnyFunSuite {
 
-    test("check that simple case class is mapped to case class") {
+    /*
+    test("check that simple case class is mapped to case class in fun") {
         import SITRTypingScalaToSIRSpecScope.*
 
         val sir = compile {
@@ -33,5 +34,25 @@ class SITRTypingScalaToSIRSpec extends AnyFunSuite {
         //println(sir.pretty.render(100))
 
     }
+
+     */
+
+    test("check that simple case class is mapped to case class") {
+        import SITRTypingScalaToSIRSpecScope.*
+
+        val sir = compile {
+            new ClassA1(10)
+        }
+
+        sir.tp match {
+            case SIRType.CaseClass(constrDecl, Nil) =>
+                assert(constrDecl.name == "ClassA1")
+            case _ => fail(s"unexpected type ${sir.tp}")
+        }
+
+        //println(sir.pretty.render(100))
+
+    }
+
 
 }
