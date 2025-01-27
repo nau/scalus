@@ -43,6 +43,7 @@
                 yarn
                 uplc
                 async-profiler
+                llvm
                 # cardano-cli
               ];
               shellHook = ''

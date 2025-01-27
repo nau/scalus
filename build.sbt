@@ -1,5 +1,6 @@
 import org.scalajs.linker.interface.OutputPatterns
 import sbtwelcome.*
+import scala.scalanative.build._
 
 import java.net.URI
 
@@ -82,7 +83,7 @@ lazy val scalusPlugin = project
       // COMMENT THIS LINE TO ENABLE VERSION INCREMENT during Scalus plugin development
       // version := "0.6.2-SNAPSHOT",
       libraryDependencies += "org.scalatest" %%% "scalatest" % "3.2.19" % "test",
-      libraryDependencies += "org.scalatestplus" %%% "scalacheck-1-16" % "3.2.14.0" % "test",
+      libraryDependencies += "org.scalatestplus" %%% "scalacheck-1-18" % "3.2.19.0" % "test",
       libraryDependencies += "org.scala-lang" %% "scala3-compiler" % scalaVersion.value // % "provided"
     )
     .settings(
@@ -148,7 +149,7 @@ lazy val scalusPluginTests = project
       publish / skip := true,
       PluginDependency,
       libraryDependencies += "org.scalatest" %%% "scalatest" % "3.2.19" % "test",
-      libraryDependencies += "org.scalatestplus" %%% "scalacheck-1-16" % "3.2.12.0" % "test"
+      libraryDependencies += "org.scalatestplus" %%% "scalacheck-1-18" % "3.2.19.0" % "test"
     )
 
 // Scalus Compiler Plugin Dependency
@@ -164,7 +165,7 @@ lazy val PluginDependency: List[Def.Setting[?]] = List(scalacOptions ++= {
 })
 
 // Scalus Core and Standard Library for JVM and JS
-lazy val scalus = crossProject(JSPlatform, JVMPlatform)
+lazy val scalus = crossProject(JSPlatform, JVMPlatform, NativePlatform)
     .in(file("."))
     .settings(
       name := "scalus",
@@ -182,7 +183,7 @@ lazy val scalus = crossProject(JSPlatform, JVMPlatform)
       ),
       PluginDependency,
       libraryDependencies += "org.scalatest" %%% "scalatest" % "3.2.19" % "test",
-      libraryDependencies += "org.scalatestplus" %%% "scalacheck-1-16" % "3.2.14.0" % "test"
+      libraryDependencies += "org.scalatestplus" %%% "scalacheck-1-18" % "3.2.19.0" % "test"
     )
     .jvmSettings(
       Test / fork := true,
