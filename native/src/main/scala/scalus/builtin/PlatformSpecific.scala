@@ -1,5 +1,7 @@
 package scalus.builtin
 
+import scala.scalanative.runtime
+import scala.scalanative.runtime.ffi
 import scala.scalanative.unsafe.*
 import scalanative.unsigned.*
 
@@ -36,6 +38,13 @@ object LibSodium {
         keylen: CSize
     ): CInt = extern
 
+    def crypto_sign_ed25519_verify_detached(
+        sig: Ptr[Byte],
+        msg: Ptr[Byte],
+        msglen: CUnsignedLongLong,
+        key: Ptr[Byte]
+    ): CInt = extern
+
 }
 
 object Sodium {
@@ -49,11 +58,9 @@ object Sodium {
 
         Zone {
             val inPtr = alloc[Byte](input.length)
-            val outPtr = alloc[Byte](hashLen)
+            val outPtr = stackalloc[Byte](hashLen)
 
-            input.zipWithIndex.foreach { case (b, i) =>
-                !(inPtr + i) = b
-            }
+            ffi.memcpy(inPtr, input.atUnsafe(0), input.length.toCSize)
 
             hashFunc(
               outPtr,
@@ -61,7 +68,7 @@ object Sodium {
               input.length.toULong
             )
 
-            for i <- 0 until hashLen do output(i) = !(outPtr + i)
+            ffi.memcpy(output.atUnsafe(0), outPtr, hashLen.toCSize)
         }
         output
 
@@ -81,17 +88,12 @@ object Sodium {
 
         Zone {
             val inPtr = alloc[Byte](input.length)
-            val outPtr = alloc[Byte](outputLength)
+            val outPtr = stackalloc[Byte](outputLength)
             val keyPtr = if key.nonEmpty then alloc[Byte](key.length) else null
 
-            input.zipWithIndex.foreach { case (b, i) =>
-                !(inPtr + i) = b
-            }
+            ffi.memcpy(inPtr, input.atUnsafe(0), input.length.toCSize)
 
-            if key.nonEmpty then
-                key.zipWithIndex.foreach { case (b, i) =>
-                    !(keyPtr + i) = b
-                }
+            if key.nonEmpty then ffi.memcpy(keyPtr, key.atUnsafe(0), key.length.toCSize)
 
             LibSodium.crypto_generichash_blake2b(
               outPtr,
@@ -102,7 +104,7 @@ object Sodium {
               key.length.toCSize
             )
 
-            for i <- 0 until outputLength do output(i) = !(outPtr + i)
+            ffi.memcpy(output.atUnsafe(0), outPtr, outputLength.toCSize)
         }
         output
 
@@ -111,6 +113,30 @@ object Sodium {
 
     def blake2b256(input: Array[Byte], key: Array[Byte] = Array.empty): Array[Byte] =
         blake2b(input, 32, key) // 256 bits = 32 bytes
+
+    def verifyEd25519Signature(
+        pubKey: Array[Byte],
+        msg: Array[Byte],
+        signature: Array[Byte]
+    ): Boolean =
+        if pubKey.length != 32 || signature.length != 64 then false
+        else
+            Zone {
+                val msgPtr = alloc[Byte](msg.length)
+                val sigPtr = stackalloc[Byte](64)
+                val keyPtr = stackalloc[Byte](32)
+
+                ffi.memcpy(msgPtr, msg.atUnsafe(0), msg.length.toCSize)
+                ffi.memcpy(sigPtr, signature.atUnsafe(0), 64.toCSize)
+                ffi.memcpy(keyPtr, pubKey.atUnsafe(0), 32.toCSize)
+
+                LibSodium.crypto_sign_ed25519_verify_detached(
+                  sigPtr,
+                  msgPtr,
+                  msg.length.toULong,
+                  keyPtr
+                ) == 0
+            }
 }
 
 trait NativePlatformSpecific extends PlatformSpecific {
@@ -127,11 +153,9 @@ trait NativePlatformSpecific extends PlatformSpecific {
         ByteString.unsafeFromArray(Sodium.blake2b256(bs.bytes))
 
     override def verifyEd25519Signature(pk: ByteString, msg: ByteString, sig: ByteString): Boolean =
-        if pk.length != 32 then
-            throw new IllegalArgumentException(s"Invalid public key length ${pk.length}")
-        if sig.length != 64 then
-            throw new IllegalArgumentException(s"Invalid signature length ${sig.length}")
-        ???
+        require(pk.length == 32, s"Invalid public key length ${pk.length}")
+        require(sig.length == 64, s"Invalid signature length ${sig.length}")
+        Sodium.verifyEd25519Signature(pk.bytes, msg.bytes, sig.bytes)
 
     override def verifyEcdsaSecp256k1Signature(
         pk: ByteString,
