@@ -44,6 +44,7 @@
                 uplc
                 async-profiler
                 llvm
+                libsodium
                 # cardano-cli
               ];
               shellHook = ''
