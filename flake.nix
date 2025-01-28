@@ -2,6 +2,7 @@
   inputs = {
     flake-utils.url = "github:numtide/flake-utils";
     plutus.url = "github:input-output-hk/plutus/1.30.0.0";
+    rust-overlay.url = "github:oxalica/rust-overlay";
     # cardano-node-flake.url = "github:input-output-hk/cardano-node/9.1.1";
   };
 
@@ -10,14 +11,39 @@
     , flake-utils
     , nixpkgs
     , plutus
+    , rust-overlay
     # , cardano-node-flake
     , ...
     } @ inputs:
     (flake-utils.lib.eachSystem [ "x86_64-darwin" "x86_64-linux" "aarch64-darwin" ]
       (system:
       let
-        pkgs = import nixpkgs { inherit system; };
+        pkgs = import nixpkgs {
+                inherit system;
+                overlays = [ rust-overlay.overlays.default ];
+        };
         uplc = plutus.cabalProject.${system}.hsPkgs.plutus-core.components.exes.uplc;
+        sha3 = pkgs.stdenv.mkDerivation {
+            name = "tiny_keccak_wrapper";
+            src = ./rust;  # directory with Rust code
+            nativeBuildInputs = [
+                          pkgs.rustc
+                          pkgs.cargo
+                          pkgs.git               # Added git
+                          pkgs.cacert           # Added SSL certificates
+                          pkgs.pkg-config       # Often needed for Rust builds
+                          pkgs.openssl          # Added OpenSSL
+                        ];
+            buildPhase = ''
+             export CARGO_HOME=$PWD/.cargo
+             cargo build --release
+            '';
+            installPhase = ''
+             mkdir -p $out/lib
+             cp target/release/libtiny_keccak_wrapper.a $out/lib/
+             # Copy generated .h file if you have one
+            '';
+        };
         # cardano-cli = cardano-node-flake.packages.${system}.cardano-cli;
       in
       {
@@ -45,6 +71,9 @@
                 async-profiler
                 llvm
                 libsodium
+                pkgs.rustc
+                pkgs.cargo
+                sha3
                 # cardano-cli
               ];
               shellHook = ''

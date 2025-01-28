@@ -205,6 +205,9 @@ lazy val scalus = crossProject(JSPlatform, JVMPlatform, NativePlatform)
       scalaJSUseMainModuleInitializer := false
     )
     .jsConfigure { project => project.enablePlugins(ScalaJSBundlerPlugin) }
+    .nativeSettings(
+      nativeConfig ~= { _.withBuildTarget(BuildTarget.libraryStatic) }
+    )
 
 lazy val examples = project
     .in(file("examples"))
