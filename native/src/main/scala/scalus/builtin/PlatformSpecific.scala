@@ -1,5 +1,6 @@
 package scalus.builtin
 
+import java.math.BigInteger
 import scala.scalanative.runtime
 import scala.scalanative.unsafe.*
 import scala.scalanative.unsigned.*
@@ -85,15 +86,16 @@ object Sodium {
         pubKey: Array[Byte],
         msg: Array[Byte],
         signature: Array[Byte]
-    ): Boolean =
-        if pubKey.length != 32 || signature.length != 64 then false
-        else
-            LibSodium.crypto_sign_ed25519_verify_detached(
-              signature.atUnsafe(0),
-              msg.atUnsafe(0),
-              msg.length.toULong,
-              pubKey.atUnsafe(0)
-            ) == 0
+    ): Boolean = {
+        require(pubKey.length == 32, s"Invalid public key length ${pubKey.length}")
+        require(signature.length == 64, s"Invalid signature length ${signature.length}")
+        LibSodium.crypto_sign_ed25519_verify_detached(
+          signature.atUnsafe(0),
+          msg.atUnsafe(0),
+          msg.length.toULong,
+          pubKey.atUnsafe(0)
+        ) == 0
+    }
 }
 
 object SHA3 {
@@ -118,6 +120,164 @@ object SHA3 {
     }
 }
 
+/** Native bindings for libsecp256k1 */
+@link("secp256k1")
+@extern
+private object LibSecp256k1 {
+
+    /** Context for secp256k1 operations */
+    type Context = Ptr[Byte]
+
+    /** Public key structure */
+    type PublicKey = CArray[Byte, Nat.Digit2[Nat._6, Nat._4]]
+
+    /** Signature structure */
+    type ECDSASignature = CArray[Byte, Nat.Digit2[Nat._6, Nat._4]]
+    type SchnorrSignature = CArray[Byte, Nat.Digit2[Nat._6, Nat._4]]
+
+    /** Create a secp256k1 context object */
+    def secp256k1_context_create(flags: CUnsignedInt): Context = extern
+
+    /** Destroy a secp256k1 context object */
+    def secp256k1_context_destroy(ctx: Context): Unit = extern
+
+    /** Parse a serialized public key */
+    def secp256k1_ec_pubkey_parse(
+        ctx: Context,
+        pubkey: Ptr[PublicKey],
+        input: Ptr[Byte],
+        inputlen: CSize
+    ): CInt = extern
+
+    /** Verify an ECDSA signature */
+    def secp256k1_ecdsa_verify(
+        ctx: Context,
+        sig: Ptr[Byte],
+        msg32: Ptr[Byte],
+        pubkey: Ptr[PublicKey]
+    ): CInt = extern
+
+    /** Verify a Schnorr signature */
+    def secp256k1_schnorrsig_verify(
+        ctx: Context,
+        sig64: Ptr[Byte],
+        msg32: Ptr[Byte],
+        msglen: CSize,
+        pubkey: Ptr[PublicKey]
+    ): CInt = extern
+}
+
+/** Implementation of Cardano secp256k1 signature verification builtins */
+object Secp256k1Builtins:
+    private val SECP256K1_CONTEXT_VERIFY = 0x0101.toUInt
+
+    /** Verify an ECDSA secp256k1 signature according to Cardano specification
+      *
+      * @param message
+      *   The 32-byte message hash to verify
+      * @param signature
+      *   The DER-encoded ECDSA signature
+      * @param publicKey
+      *   The 33/65-byte compressed/uncompressed public key
+      * @return
+      *   True if signature is valid, false otherwise
+      *
+      * Implementation follows CIP-0049 for ECDSA verification
+      */
+    def verifyEcdsaSecp256k1Signature(
+        message: Array[Byte],
+        signature: Array[Byte],
+        publicKey: Array[Byte]
+    ): Boolean = {
+        // Input validation
+        require(publicKey.length == 33, s"Invalid public key length ${publicKey.length}")
+        require(message.length == 32, s"Invalid message length ${message.length}")
+        require(signature.length == 64, s"Invalid signature length ${signature.length}")
+
+        val fullSignature =
+            val r = BigInt(new BigInteger(1, signature, 0, 32)) // avoid copying the array
+            val s = BigInt(new BigInteger(1, signature, 32, 32)) // avoid copying the array
+            val rsSize = r.toByteArray.length + s.toByteArray.length
+            val totalSize = 4 + rsSize
+            Array(
+              0x30.toByte,
+              totalSize.toByte,
+              0x2.toByte,
+              r.toByteArray.length.toByte
+            ) ++ r.toByteArray ++ Array(0x2.toByte, s.toByteArray.length.toByte) ++ s.toByteArray
+
+        // Create context
+        val ctx = LibSecp256k1.secp256k1_context_create(SECP256K1_CONTEXT_VERIFY)
+        assert(ctx != null, "Failed to create secp256k1 context")
+
+        try
+            // Parse public key
+            val pubkey = stackalloc[LibSecp256k1.PublicKey]()
+            if LibSecp256k1.secp256k1_ec_pubkey_parse(
+                  ctx,
+                  pubkey,
+                  publicKey.atUnsafe(0),
+                  publicKey.length.toCSize
+                ) != 1
+            then throw new IllegalArgumentException("Failed to parse public key")
+
+            // Verify signature
+            LibSecp256k1.secp256k1_ecdsa_verify(
+              ctx,
+              fullSignature.atUnsafe(0),
+              message.atUnsafe(0),
+              pubkey
+            ) == 1
+        finally LibSecp256k1.secp256k1_context_destroy(ctx)
+    }
+
+    /** Verify a Schnorr secp256k1 signature according to Cardano specification
+      *
+      * @param message
+      *   The message to verify (any length)
+      * @param signature
+      *   The 64-byte Schnorr signature
+      * @param publicKey
+      *   The 32-byte x-only public key
+      * @return
+      *   True if signature is valid, false otherwise
+      *
+      * Implementation follows BIP-0340 for Schnorr verification
+      */
+    def verifySchnorrSecp256k1Signature(
+        message: Array[Byte],
+        signature: Array[Byte],
+        publicKey: Array[Byte]
+    ): Boolean = {
+        // Input validation
+        require(signature.length == 64, s"Invalid signature length ${signature.length}")
+        require(publicKey.length == 32, s"Invalid public key length ${publicKey.length}")
+
+        // Create context
+        val ctx = LibSecp256k1.secp256k1_context_create(SECP256K1_CONTEXT_VERIFY)
+        assert(ctx != null, "Failed to create secp256k1 context")
+
+        try
+            // Parse x-only public key
+            val pubkey = stackalloc[LibSecp256k1.PublicKey]()
+            if LibSecp256k1.secp256k1_ec_pubkey_parse(
+                  ctx,
+                  pubkey,
+                  publicKey.atUnsafe(0),
+                  publicKey.length.toCSize
+                ) != 1
+            then throw new IllegalArgumentException("Failed to parse public key")
+
+            LibSecp256k1.secp256k1_schnorrsig_verify(
+              ctx,
+              signature.atUnsafe(0),
+              message.atUnsafe(0),
+              message.length.toCSize,
+              pubkey
+            ) == 1
+        finally LibSecp256k1.secp256k1_context_destroy(ctx)
+    }
+
 trait NativePlatformSpecific extends PlatformSpecific {
     override def sha2_256(bs: ByteString): ByteString =
         ByteString.unsafeFromArray(Sodium.sha256(bs.bytes))
@@ -141,13 +301,14 @@ trait NativePlatformSpecific extends PlatformSpecific {
         msg: ByteString,
         sig: ByteString
     ): Boolean =
-        ???
+        Secp256k1Builtins.verifyEcdsaSecp256k1Signature(msg.bytes, sig.bytes, pk.bytes)
 
     override def verifySchnorrSecp256k1Signature(
         pk: ByteString,
         msg: ByteString,
         sig: ByteString
-    ): Boolean = ???
+    ): Boolean =
+        Secp256k1Builtins.verifySchnorrSecp256k1Signature(msg.bytes, sig.bytes, pk.bytes)
 
     // BLS12_381 operations
     override def bls12_381_G1_equal(p1: BLS12_381_G1_Element, p2: BLS12_381_G1_Element): Boolean =

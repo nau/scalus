@@ -71,6 +71,7 @@
                 async-profiler
                 llvm
                 libsodium
+                secp256k1
                 pkgs.rustc
                 pkgs.cargo
                 sha3
