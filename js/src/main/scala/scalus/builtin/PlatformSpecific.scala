@@ -35,11 +35,9 @@ private trait Hash extends js.Object {
 
 @JSImport("@noble/curves/secp256k1", JSImport.Namespace)
 @js.native
-private object Secp256k1 extends js.Object {
-    def ecdsaVerify(message: Uint8Array, signature: Uint8Array, publicKey: Uint8Array): Boolean =
-        js.native
-    def schnorrVerify(message: Uint8Array, signature: Uint8Array, publicKey: Uint8Array): Boolean =
-        js.native
+private object Secp256k1Curve extends js.Object {
+    val secp256k1: Secp256k1 = js.native
+    val schnorr: Secp256k1Schnorr = js.native
 }
 
 @JSImport("@noble/curves/ed25519", JSImport.Namespace)
@@ -80,6 +78,28 @@ private trait Ed25519 extends js.Object {
         js.native
 }
 
+@js.native
+private trait Secp256k1 extends js.Object {
+    def verify(signature: Uint8Array, message: Uint8Array, publicKey: Uint8Array): Boolean =
+        js.native
+
+    def ProjectivePoint: ProjectivePointModule = js.native
+}
+
+@js.native
+trait ProjectivePointModule extends js.Object:
+    def fromHex(bytes: Uint8Array): ProjectivePoint = js.native
+
+@js.native
+trait ProjectivePoint extends js.Object:
+    def toAffine(): js.Object = js.native
+
+@js.native
+private trait Secp256k1Schnorr extends js.Object {
+    def verify(signature: Uint8Array, message: Uint8Array, publicKey: Uint8Array): Boolean =
+        js.native
+}
+
 trait NodeJsPlatformSpecific extends PlatformSpecific {
     extension (bs: ByteString)
         def toUint8Array: Uint8Array =
@@ -115,14 +135,29 @@ trait NodeJsPlatformSpecific extends PlatformSpecific {
         pk: ByteString,
         msg: ByteString,
         sig: ByteString
-    ): Boolean =
-        Secp256k1.ecdsaVerify(msg.toUint8Array, sig.toUint8Array, pk.toUint8Array)
+    ): Boolean = {
+        def isValidPublicKey(pubKey: ByteString): Boolean =
+            try
+                val point = Secp256k1Curve.secp256k1.ProjectivePoint.fromHex(
+                  pubKey.toUint8Array
+                ) // Use fromBytes instead of fromHex
+                point.toAffine() // Ensures key is valid
+                true
+            catch case e: Throwable => false
+        require(pk.length == 33, s"Invalid public key length ${pk.length}, expected 33")
+        require(isValidPublicKey(pk), s"Invalid public key ${pk}")
+        require(msg.length == 32, s"Invalid message length ${msg.length}, expected 32")
+        require(sig.length == 64, s"Invalid signature length ${sig.length}, expected 64")
+
+        Secp256k1Curve.secp256k1.verify(sig.toUint8Array, msg.toUint8Array, pk.toUint8Array)
+    }
 
     override def verifySchnorrSecp256k1Signature(
         pk: ByteString,
         msg: ByteString,
         sig: ByteString
-    ): Boolean = Secp256k1.schnorrVerify(msg.toUint8Array, sig.toUint8Array, pk.toUint8Array)
+    ): Boolean =
+        Secp256k1Curve.schnorr.verify(sig.toUint8Array, msg.toUint8Array, pk.toUint8Array)
 
     // BLS12_381 operations
     override def bls12_381_G1_equal(p1: BLS12_381_G1_Element, p2: BLS12_381_G1_Element): Boolean =

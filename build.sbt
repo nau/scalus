@@ -47,6 +47,7 @@ lazy val root: Project = project
       scalusPlugin,
       scalus.js,
       scalus.jvm,
+      scalus.native,
       `examples-js`,
       examples,
       bench,

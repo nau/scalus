@@ -7,10 +7,8 @@ import scalus.*
 import scalus.BaseValidatorSpec
 import scalus.Compiler.compile
 import scalus.Expected
-import scalus.builtin.ByteString
+import scalus.builtin.{ByteString, Data, PlatformSpecific, given}
 import scalus.builtin.ByteString.*
-import scalus.builtin.Data
-import scalus.builtin.given
 import scalus.ledger.api.v1.*
 import scalus.ledger.api.v1.ToDataInstances.given
 import scalus.prelude.List.Cons
@@ -122,38 +120,6 @@ class CekJVMSpec extends BaseValidatorSpec:
         assert(flatValidator.length == 95)
     }
 
-    test("verifyEd25519Signature") {
-        val sir = compile { scalus.builtin.Builtins.verifyEd25519Signature }
-        val verify = sir.toUplc()
-        val valid = verify $
-            hex"9518c18103cbdab9c6e60b58ecc3e2eb439fef6519bb22570f391327381900a8" $
-            ByteString.fromString("hello") $
-            hex"f13fa9acffb108114ec060561b58005fb2d69184de0a2d7400b2ea1f111c0794831cc832c92daf4807820dd9458324935e90bec855e8bf076bbbc4e42b727b07"
-
-        assertSameResult(Expected.Success(true))(Program((1, 0, 0), valid))
-
-        val wrongMessage = verify $
-            hex"9518c18103cbdab9c6e60b58ecc3e2eb439fef6519bb22570f391327381900a8" $
-            ByteString.fromString("NOT hello") $
-            hex"f13fa9acffb108114ec060561b58005fb2d69184de0a2d7400b2ea1f111c0794831cc832c92daf4807820dd9458324935e90bec855e8bf076bbbc4e42b727b07"
-
-        assertSameResult(Expected.Success(false))(Program((1, 0, 0), wrongMessage))
-
-        val wrongPubKey = verify $
-            hex"AA18c18103cbdab9c6e60b58ecc3e2eb439fef6519bb22570f391327381900a8" $
-            ByteString.fromString("hello") $
-            hex"f13fa9acffb108114ec060561b58005fb2d69184de0a2d7400b2ea1f111c0794831cc832c92daf4807820dd9458324935e90bec855e8bf076bbbc4e42b727b07"
-
-        assertSameResult(Expected.Success(false))(Program((1, 0, 0), wrongPubKey))
-
-        val wrongSignature = verify $
-            hex"9518c18103cbdab9c6e60b58ecc3e2eb439fef6519bb22570f391327381900a8" $
-            ByteString.fromString("NOT hello") $
-            hex"FF3fa9acffb108114ec060561b58005fb2d69184de0a2d7400b2ea1f111c0794831cc832c92daf4807820dd9458324935e90bec855e8bf076bbbc4e42b727b07"
-
-        assertSameResult(Expected.Success(false))(Program((1, 0, 0), wrongSignature))
-    }
-
     test("verifyEcdsaSecp256k1Signature") {
         val sir = compile { scalus.builtin.Builtins.verifyEcdsaSecp256k1Signature }
 
@@ -164,6 +130,7 @@ class CekJVMSpec extends BaseValidatorSpec:
         // Compute schnorr public key from private key
         val publicKey = privateKey.publicKey
         val publicKeyBytesCompressed = ByteString.fromArray(publicKey.bytes.toArray)
+        println(publicKeyBytesCompressed.toHex)
 
         val messageGen =
             Gen.containerOfN[Array, Byte](32, Arbitrary.arbitrary[Byte])
@@ -176,6 +143,14 @@ class CekJVMSpec extends BaseValidatorSpec:
                 .suchThat(_.length != 32)
 
         val verify = sir.toUplc()
+
+        val msg = summon[PlatformSpecific].sha2_256(ByteString.fromString("hello"))
+        val sig =
+            ByteString.fromArray(privateKey.sign(ByteVector(msg.bytes)).toRawRS.toArray)
+
+        println(s"msg: ${msg.toHex}")
+        println(s"sig: ${sig.toHex}")
+
         forAll(messageGen, wrongMessageGen) { (message, wrongMessage) =>
             // Create a signature
 

@@ -3,9 +3,9 @@ package scalus.uplc
 import org.scalatest.funsuite.AnyFunSuite
 import org.scalatestplus.scalacheck.ScalaCheckPropertyChecks
 import scalus.*
-import scalus.builtin.given
+import scalus.Compiler.compile
+import scalus.builtin.{ByteString, Data, given}
 import scalus.builtin.ByteString.*
-import scalus.builtin.Data
 import scalus.builtin.ToDataInstances.given
 import scalus.uplc.Constant.Pair
 import scalus.uplc.DefaultFun.*
@@ -322,4 +322,80 @@ open class CekBuiltinsSpec
           ),
           Const(Constant.ByteString(hex"adbeef"))
         )
+    }
+
+    test("verifyEd25519Signature") {
+        val sir = compile { scalus.builtin.Builtins.verifyEd25519Signature }
+        val verify = sir.toUplc()
+        val valid = verify $
+            hex"9518c18103cbdab9c6e60b58ecc3e2eb439fef6519bb22570f391327381900a8" $
+            ByteString.fromString("hello") $
+            hex"f13fa9acffb108114ec060561b58005fb2d69184de0a2d7400b2ea1f111c0794831cc832c92daf4807820dd9458324935e90bec855e8bf076bbbc4e42b727b07"
+
+        assertEvalEq(valid, true)
+
+        val wrongMessage = verify $
+            hex"9518c18103cbdab9c6e60b58ecc3e2eb439fef6519bb22570f391327381900a8" $
+            ByteString.fromString("NOT hello") $
+            hex"f13fa9acffb108114ec060561b58005fb2d69184de0a2d7400b2ea1f111c0794831cc832c92daf4807820dd9458324935e90bec855e8bf076bbbc4e42b727b07"
+
+        assertEvalEq(wrongMessage, false)
+
+        val wrongPubKey = verify $
+            hex"AA18c18103cbdab9c6e60b58ecc3e2eb439fef6519bb22570f391327381900a8" $
+            ByteString.fromString("hello") $
+            hex"f13fa9acffb108114ec060561b58005fb2d69184de0a2d7400b2ea1f111c0794831cc832c92daf4807820dd9458324935e90bec855e8bf076bbbc4e42b727b07"
+
+        assertEvalEq(wrongPubKey, false)
+
+        val wrongSignature = verify $
+            hex"9518c18103cbdab9c6e60b58ecc3e2eb439fef6519bb22570f391327381900a8" $
+            ByteString.fromString("NOT hello") $
+            hex"FF3fa9acffb108114ec060561b58005fb2d69184de0a2d7400b2ea1f111c0794831cc832c92daf4807820dd9458324935e90bec855e8bf076bbbc4e42b727b07"
+
+        assertEvalEq(wrongSignature, false)
+    }
+
+    test("verifyEcdsaSecp256k1Signature follows CIP-49") {
+        // https://cips.cardano.org/cip/CIP-49
+        val sir = compile { scalus.builtin.Builtins.verifyEcdsaSecp256k1Signature }
+        val verify = sir.toUplc()
+        val pubKey = hex"03427d3132a06e31bf66791dda478b5ebec79bd045247126396fccdf11e42a3627"
+
+        // valid public key, message and signature
+        val valid = verify $
+            pubKey $
+            hex"2cf24dba5fb0a30e26e83b2ac5b9e29e1b161e5c1fa7425e73043362938b9824" $
+            hex"040f5b6a2bb4e024d47eab02d4073da655af77c0cf0efdb19c6771378da175c45ffac010a1bd9b9a275ad685ea4052f4bc72c0dc27094422ba9379e7bf44b29b"
+
+        assertEvalEq(valid, true)
+
+        // invalid message size
+        val invalidMessageSize = verify $
+            pubKey $
+            hex"deadbeef" $
+            hex"040f5b6a2bb4e024d47eab02d4073da655af77c0cf0efdb19c6771378da175c45ffac010a1bd9b9a275ad685ea4052f4bc72c0dc27094422ba9379e7bf44b29b"
+
+        assertEvalThrows[BuiltinError](invalidMessageSize)
+
+        val invalidPubKey = verify $
+            hex"FFFF7d3132a06e31bf66791dda478b5ebec79bd045247126396fccdf11e42a3627" $
+            hex"2cf24dba5fb0a30e26e83b2ac5b9e29e1b161e5c1fa7425e73043362938b9824" $
+            hex"040f5b6a2bb4e024d47eab02d4073da655af77c0cf0efdb19c6771378da175c45ffac010a1bd9b9a275ad685ea4052f4bc72c0dc27094422ba9379e7bf44b29b"
+
+        assertEvalThrows[BuiltinError](invalidPubKey)
+
+        val invalidSignature = verify $
+            pubKey $
+            hex"2cf24dba5fb0a30e26e83b2ac5b9e29e1b161e5c1fa7425e73043362938b9824" $
+            hex"deadbeef"
+
+        assertEvalThrows[BuiltinError](invalidSignature)
+
+        val wrongSignature = verify $
+            pubKey $
+            hex"2cf24dba5fb0a30e26e83b2ac5b9e29e1b161e5c1fa7425e73043362938b9824" $
+            hex"FF0f5b6a2bb4e024d47eab02d4073da655af77c0cf0efdb19c6771378da175c45ffac010a1bd9b9a275ad685ea4052f4bc72c0dc27094422ba9379e7bf44b29b"
+
+        assertEvalEq(wrongSignature, false)
     }

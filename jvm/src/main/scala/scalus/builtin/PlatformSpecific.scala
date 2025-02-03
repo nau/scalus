@@ -72,12 +72,14 @@ trait JVMPlatformSpecific extends PlatformSpecific {
         msg: ByteString,
         sig: ByteString
     ): Boolean = {
-        if pk.length != 33 || !NativeSecp256k1.isValidPubKey(pk.bytes) then
-            throw new IllegalArgumentException(s"Invalid public key length ${pk.length}")
-        if msg.length != 32 then
-            throw new IllegalArgumentException(s"Invalid message length ${msg.length}")
-        if sig.length != 64 then
-            throw new IllegalArgumentException(s"Invalid signature length ${sig.length}")
+        require(
+          pk.length == 33,
+          s"Invalid public key length ${pk.length}, expected 33, ${pk.toHex}"
+        )
+        require(NativeSecp256k1.isValidPubKey(pk.bytes), s"Invalid public key ${pk}")
+        require(msg.length == 32, s"Invalid message length ${msg.length}, expected 32")
+        require(sig.length == 64, s"Invalid signature length ${sig.length}, expected 64")
+
         val r = BigInt(new BigInteger(1, sig.bytes, 0, 32)) // avoid copying the array
         val s = BigInt(new BigInteger(1, sig.bytes, 32, 32)) // avoid copying the array
         val rsSize = r.toByteArray.length + s.toByteArray.length
