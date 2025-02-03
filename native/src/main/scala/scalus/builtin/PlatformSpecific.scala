@@ -257,16 +257,18 @@ object Secp256k1Builtins:
         publicKey: Array[Byte]
     ): Boolean = {
         // Input validation
-        require(signature.length == 64, s"Invalid signature length ${signature.length}")
         require(publicKey.length == 32, s"Invalid public key length ${publicKey.length}")
+        require(signature.length == 64, s"Invalid signature length ${signature.length}")
+
+        val ecPubKey = Array(0x02.toByte) ++ publicKey
 
         // Parse x-only public key
         val pubkey = stackalloc[LibSecp256k1.PublicKey]()
         if LibSecp256k1.secp256k1_ec_pubkey_parse(
               ctx,
               pubkey,
-              publicKey.atUnsafe(0),
-              publicKey.length.toCSize
+              ecPubKey.atUnsafe(0),
+              ecPubKey.length.toCSize
             ) != 1
         then throw new IllegalArgumentException("Failed to parse public key")
 

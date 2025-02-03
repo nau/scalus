@@ -399,3 +399,39 @@ open class CekBuiltinsSpec
 
         assertEvalEq(wrongSignature, false)
     }
+
+    test("verifySchnorrSecp256k1Signature follows CIP-49") {
+        // https://cips.cardano.org/cip/CIP-49
+        val sir = compile { scalus.builtin.Builtins.verifySchnorrSecp256k1Signature }
+        val verify = sir.toUplc()
+        val pubKey = hex"427d3132a06e31bf66791dda478b5ebec79bd045247126396fccdf11e42a3627"
+
+        // valid public key, message and signature
+        val valid = verify $
+            pubKey $
+            hex"2cf24dba5fb0a30e26e83b2ac5b9e29e1b161e5c1fa7425e73043362938b9824" $
+            hex"4fd97a0c4ad719f89cba68a522e0dee13bcf656ae9c0a395404cda858a7992d8dea979dbc4c83659d695b7d380fe8a75264ba51a63a53fc2a8bd225e50f223f4"
+
+        assertEvalEq(valid, true)
+
+        val invalidPubKey = verify $
+            hex"FFFF7d3132a06e31bf66791dda478b5ebec79bd045247126396fccdf11e42a3627" $
+            hex"2cf24dba5fb0a30e26e83b2ac5b9e29e1b161e5c1fa7425e73043362938b9824" $
+            hex"4fd97a0c4ad719f89cba68a522e0dee13bcf656ae9c0a395404cda858a7992d8dea979dbc4c83659d695b7d380fe8a75264ba51a63a53fc2a8bd225e50f223f4"
+
+        assertEvalThrows[BuiltinError](invalidPubKey)
+
+        val invalidSignature = verify $
+            pubKey $
+            hex"2cf24dba5fb0a30e26e83b2ac5b9e29e1b161e5c1fa7425e73043362938b9824" $
+            hex"deadbeef"
+
+        assertEvalThrows[BuiltinError](invalidSignature)
+
+        val wrongSignature = verify $
+            pubKey $
+            hex"2cf24dba5fb0a30e26e83b2ac5b9e29e1b161e5c1fa7425e73043362938b9824" $
+            hex"FFd97a0c4ad719f89cba68a522e0dee13bcf656ae9c0a395404cda858a7992d8dea979dbc4c83659d695b7d380fe8a75264ba51a63a53fc2a8bd225e50f223f4"
+
+        assertEvalEq(wrongSignature, false)
+    }

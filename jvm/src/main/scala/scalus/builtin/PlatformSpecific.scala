@@ -43,20 +43,16 @@ trait JVMPlatformSpecific extends PlatformSpecific {
         msg: ByteString,
         sig: ByteString
     ): Boolean = {
-        if pk.length != 32 then
-            throw new IllegalArgumentException(s"Invalid public key length ${pk.length}")
-        if !NativeSecp256k1.isValidPubKey(0x02 +: pk.bytes) then // parity byte
-            throw new IllegalArgumentException(s"Invalid public key ${pk}")
-        if sig.length != 64 then
-            throw new IllegalArgumentException(s"Invalid signature length ${sig.length}")
+        require(pk.length == 32, s"Invalid public key length ${pk.length}")
+        // parity byte 0x02 for compressed public key
+        require(NativeSecp256k1.isValidPubKey(0x02 +: pk.bytes), s"Invalid public key ${pk}")
+        require(sig.length == 64, s"Invalid signature length ${sig.length}")
         NativeSecp256k1.schnorrVerify(sig.bytes, msg.bytes, pk.bytes)
     }
 
     override def verifyEd25519Signature(pk: ByteString, msg: ByteString, sig: ByteString): Boolean =
-        if pk.length != 32 then
-            throw new IllegalArgumentException(s"Invalid public key length ${pk.length}")
-        if sig.length != 64 then
-            throw new IllegalArgumentException(s"Invalid signature length ${sig.length}")
+        require(pk.length == 32, s"Invalid public key length ${pk.length}")
+        require(sig.length == 64, s"Invalid signature length ${sig.length}")
         val pubKeyParams =
             try new Ed25519PublicKeyParameters(pk.bytes, 0)
             catch
