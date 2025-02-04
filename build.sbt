@@ -207,7 +207,12 @@ lazy val scalus = crossProject(JSPlatform, JVMPlatform, NativePlatform)
     )
     .jsConfigure { project => project.enablePlugins(ScalaJSBundlerPlugin) }
     .nativeSettings(
-      nativeConfig ~= { _.withBuildTarget(BuildTarget.libraryStatic) }
+      nativeConfig ~= {
+          _.withBuildTarget(BuildTarget.libraryDynamic)
+//              .withLTO(LTO.thin)
+              .withMode(Mode.releaseFast)
+              .withGC(GC.commix)
+      }
     )
 
 lazy val examples = project

@@ -79,6 +79,9 @@
               ];
               shellHook = ''
                 ln -s ${plutus}/plutus-conformance plutus-conformance
+                echo "${pkgs.secp256k1}"
+                echo "${pkgs.libsodium}"
+                echo "${sha3}"
               '';
             };
           ci =
