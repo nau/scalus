@@ -22,6 +22,8 @@ data* scalus_data_from_json(const char* json);
 
 void scalus_free(void* ptr);
 
+int scalus_script_apply_data_arg(const char* script_hex, char* result, size_t len, data* arg);
+
 // Evaluates a Plutus script
 // Parameters:
 //   script_hex: null-terminated hex string of the script

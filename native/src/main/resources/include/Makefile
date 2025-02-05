@@ -9,11 +9,11 @@ LIBS=-lsodium -lsecp256k1 -ltiny_keccak_wrapper -lc++ -lscalus
 
 all: test_scalus
 
-test_scalus: test_scalus.c libscalus.a
+test_scalus: test_scalus.c $(LIBSCALUS_PATH)/libscalus.a
 	$(CXX) $(CXXFLAGS) $(LDFLAGS) -o test_scalus test_scalus.c $(LIBS)
 
 clean:
 	rm -f test_scalus
 
 run: clean all
-	GC_STATS_FILE=gc_stats.txt ./test_scalus
+	GC_STATS_FILE=stats.txt ./test_scalus

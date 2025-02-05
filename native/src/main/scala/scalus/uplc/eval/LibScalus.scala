@@ -140,6 +140,19 @@ private object LibScalus:
                 null
     }
 
+    @exported(name = "scalus_script_apply_data_arg")
+    def applyDataArgs(scriptHex: CString, result: CString, len: CSize, arg: Data): CInt = {
+        try
+            val program = DeBruijnedProgram.fromDoubleCborHex(fromCString(scriptHex))
+            val applied = program $ Term.Const(Constant.Data(arg))
+            applied.doubleCborHex.toCString(result, len)
+            0
+        catch
+            case e: Exception =>
+                e.getMessage.toCString(result, len)
+                1
+    }
+
     @exported(name = "scalus_evaluate_script")
     def evaluateScript(
         scriptHex: CString,
