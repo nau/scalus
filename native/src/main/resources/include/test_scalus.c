@@ -14,6 +14,8 @@ void run_script(const char* script) {
     int r = scalus_flat_script_from_hex(script, &ptr, 1024);
     printf("Flat script result %d: %s\n", r, buffer);
 
+    machine_params params = scalus_get_default_machine_params(3, 10);
+
     int ret = scalus_evaluate_script(
         script,    // script hex
         3,         // Plutus V3

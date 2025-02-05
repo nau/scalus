@@ -3,6 +3,7 @@ package eval
 
 import io.bullet.borer.Cbor
 import scalus.builtin.{NativePlatformSpecific, PlatformSpecific}
+import scalus.ledger.api.{MajorProtocolVersion, PlutusLedgerLanguage}
 import scalus.uplc
 import scalus.utils.Utils
 
@@ -25,9 +26,12 @@ private object LibScalus:
     type EvalResult = CStruct4[CLongLong, CLongLong, CString, CString]
 
     /** Converts a double CBOR HEX encoded script to a [[Flat]] encoded UPLC program.
-      * @param scriptHex The double CBOR HEX encoded script
-      * @param result Pointer to the result buffer
-      * @param size Size of the result buffer
+      * @param scriptHex
+      *   The double CBOR HEX encoded script
+      * @param result
+      *   Pointer to the result buffer
+      * @param size
+      *   Size of the result buffer
       * @return
       */
     @exported(name = "scalus_flat_script_from_hex")
@@ -43,13 +47,32 @@ private object LibScalus:
                     1
                 else
                     ffi.memcpy(result, scriptFlat.atUnsafe(0), scriptFlat.length.toCSize)
-                    !result = scriptFlat.atUnsafe(0)
                     0
             catch
                 case e: Exception =>
                     !result = toCString(e.getMessage)
                     1
         }
+
+    @exported(name = "scalus_get_machine_params_from_cardano_cli_protocol_params_json")
+    def fromCardanoCliProtocolParamsJson(json: CString, plutusVersion: CInt): MachineParams = {
+        val jsonStr = fromCString(json)
+        try
+            val pll = PlutusLedgerLanguage.fromOrdinal(plutusVersion - 1)
+            MachineParams.fromCardanoCliProtocolParamsJson(jsonStr, pll)
+        catch case _: Exception => null
+    }
+
+    @exported(name = "scalus_get_default_machine_params")
+    def defaultMachineParams(plutusVersion: CInt, protocolVersion: CInt): MachineParams = {
+        try
+            val pll = PlutusLedgerLanguage.fromOrdinal(plutusVersion - 1)
+            MachineParams.defaultParamsFor(pll, MajorProtocolVersion(protocolVersion))
+        catch
+            case e: Exception =>
+                println(s"Error: ${e.getMessage}")
+                null
+    }
 
     @exported(name = "scalus_evaluate_script")
     def scalus_evaluate_script(
@@ -59,10 +82,7 @@ private object LibScalus:
     ): CInt = Zone {
         try
             // Parse script from hex
-            val scriptBytes = Utils.hexToBytes(fromCString(scriptHex))
-            val cbor = Cbor.decode(scriptBytes).to[Array[Byte]].value
-            val scriptFlat = Cbor.decode(cbor).to[Array[Byte]].value
-            val program = DeBruijnedProgram.fromFlatEncoded(scriptFlat)
+            val program = DeBruijnedProgram.fromDoubleCborHex(fromCString(scriptHex))
 
             // Create appropriate VM based on version
             val vm = plutusVersion match

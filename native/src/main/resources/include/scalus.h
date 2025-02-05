@@ -12,6 +12,11 @@ typedef struct {
   char* error;
 } eval_result;
 
+typedef void* machine_params;
+
+machine_params scalus_get_default_machine_params(int plutus_version, int protocol_version);
+machine_params scalus_get_machine_params_from_cardano_cli_protocol_params_json(const char* json, int plutus_version);
+
 // Evaluates a Plutus script
 // Parameters:
 //   script_hex: null-terminated hex string of the script
