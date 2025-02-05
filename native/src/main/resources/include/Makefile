@@ -6,6 +6,7 @@ LDFLAGS=-L$(LIBSCALUS_PATH) -L/nix/store/lcq9ckpy6c6rf25679qb47rkgy4lrl4a-secp25
         -L/nix/store/ckc6chj43pj34xafirv47vvig2zz5awm-tiny_keccak_wrapper
 LIBS=-lsodium -lsecp256k1 -ltiny_keccak_wrapper -lc++ -lscalus
 
+
 all: test_scalus
 
 test_scalus: test_scalus.c libscalus.a
@@ -15,4 +16,4 @@ clean:
 	rm -f test_scalus
 
 run: clean all
-	./test_scalus
+	GC_STATS_FILE=gc_stats.txt ./test_scalus

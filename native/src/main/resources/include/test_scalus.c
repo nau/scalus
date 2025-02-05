@@ -5,6 +5,7 @@
 // Example Plutus script in hex format
 #define TEST_SCRIPT "545301010033573892010753756363657373004981"
 #define TEST_FAILING_SCRIPT "54530101003357389201074661696c757265004a01"
+#define UNIT_DATA "{\"constructor\":0,\"fields\":[]}"
 
 void run_script(const char* script) {
     ex_budget budget;
@@ -16,6 +17,9 @@ void run_script(const char* script) {
 
     machine_params* params = scalus_get_default_machine_params(3, 10);
     assert(params != NULL);
+
+    data* unit_data = scalus_data_from_json(UNIT_DATA);
+    assert(unit_data != NULL);
 
     char error[1024];
     int ret = scalus_evaluate_script(
@@ -29,7 +33,8 @@ void run_script(const char* script) {
         &budget    // result struct
     );
 
-    scalus_free_machine_params(params);
+    scalus_free(params);
+    scalus_free(unit_data);
 
     if (ret == 0) {
         printf("Script evaluation successful. CPU %lld, MEM %lld\n", budget.cpu, budget.memory);

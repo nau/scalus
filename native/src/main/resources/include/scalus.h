@@ -11,10 +11,16 @@ typedef struct {
 } ex_budget;
 
 typedef void machine_params;
+typedef void data;
 
 machine_params* scalus_get_default_machine_params(int plutus_version, int protocol_version);
+
 machine_params* scalus_get_machine_params_from_cardano_cli_protocol_params_json(const char* json, int plutus_version);
-void scalus_free_machine_params(machine_params* params);
+
+data* scalus_data_from_cbor(const char* cbor, size_t len);
+data* scalus_data_from_json(const char* json);
+
+void scalus_free(void* ptr);
 
 // Evaluates a Plutus script
 // Parameters:

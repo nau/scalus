@@ -2,7 +2,7 @@ package scalus.uplc
 package eval
 
 import io.bullet.borer.Cbor
-import scalus.builtin.{NativePlatformSpecific, PlatformSpecific}
+import scalus.builtin.{Data, NativePlatformSpecific, PlatformSpecific}
 import scalus.ledger.api.{MajorProtocolVersion, PlutusLedgerLanguage}
 import scalus.uplc
 import scalus.utils.Utils
@@ -23,6 +23,7 @@ private object LibScalus:
 
         def addRoot(o: Object): Unit = references.put(o, ())
 
+        @exported(name = "scalus_free")
         def removeRoot(o: Object): Unit = references.remove(o)
 
         def hasRoot(o: Object): Boolean = references.containsKey(o)
@@ -51,9 +52,23 @@ private object LibScalus:
                     0.toCSize
         }
 
+    extension (bytes: CString)
+        def toArray(size: CSize): Array[Byte] = {
+            val array = new Array[Byte](size.toInt)
+            ffi.memcpy(array.atUnsafe(0), bytes, size)
+            array
+        }
+
+    extension [A <: AnyRef](obj: A)
+        /** Adds a reference to the object to the GC roots.
+          * @return
+          *   The object itself
+          */
+        def gc: A = { GCRoots.addRoot(obj); obj }
+
     /* struct ex_budget {
-     *     long long cpu;
-     *     long long memory;
+     *     int64_t cpu;
+     *     int64_t memory;
      * };
      * */
     type ExBudget = CStruct2[CLongLong, CLongLong]
@@ -92,9 +107,7 @@ private object LibScalus:
         val jsonStr = fromCString(json)
         try
             val pll = PlutusLedgerLanguage.fromOrdinal(plutusVersion - 1)
-            val params = MachineParams.fromCardanoCliProtocolParamsJson(jsonStr, pll)
-            GCRoots.addRoot(params)
-            params
+            MachineParams.fromCardanoCliProtocolParamsJson(jsonStr, pll).gc
         catch case _: Exception => null
     }
 
@@ -102,18 +115,29 @@ private object LibScalus:
     def defaultMachineParams(plutusVersion: CInt, protocolVersion: CInt): MachineParams = {
         try
             val pll = PlutusLedgerLanguage.fromOrdinal(plutusVersion - 1)
-            val params = MachineParams.defaultParamsFor(pll, MajorProtocolVersion(protocolVersion))
-            GCRoots.addRoot(params)
-            params
+            MachineParams.defaultParamsFor(pll, MajorProtocolVersion(protocolVersion)).gc
         catch
             case e: Exception =>
                 println(s"Error: ${e.getMessage}")
                 null
     }
 
-    @exported(name = "scalus_free_machine_params")
-    def freeMachineParams(params: MachineParams): Unit = {
-        GCRoots.removeRoot(params)
+    @exported(name = "scalus_data_from_cbor")
+    def dataFromCbor(cbor: CString, size: CSize): Data = {
+        try
+            val bytes = cbor.toArray(size)
+            Data.fromCbor(bytes).gc
+        catch
+            case e: Exception =>
+                null
+    }
+
+    @exported(name = "scalus_data_from_json")
+    def dataFromJson(json: CString): Data = {
+        try Data.fromJson(fromCString(json)).gc
+        catch
+            case e: Exception =>
+                null
     }
 
     @exported(name = "scalus_evaluate_script")

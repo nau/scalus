@@ -211,7 +211,7 @@ lazy val scalus = crossProject(JSPlatform, JVMPlatform, NativePlatform)
           _.withBuildTarget(BuildTarget.libraryStatic)
 //              .withLTO(LTO.thin)
               .withMode(Mode.releaseFast)
-              .withGC(GC.commix)
+              .withGC(GC.immix)
       }
     )
 
