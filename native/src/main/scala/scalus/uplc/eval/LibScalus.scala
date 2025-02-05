@@ -7,6 +7,8 @@ import scalus.ledger.api.{MajorProtocolVersion, PlutusLedgerLanguage}
 import scalus.uplc
 import scalus.utils.Utils
 
+import java.nio.charset.Charset
+import scala.scalanative.runtime.Intrinsics.{castIntToRawSizeUnsigned, unsignedOf}
 import scala.scalanative.unsafe.*
 import scala.scalanative.runtime.ffi
 import scala.scalanative.unsigned.*
@@ -16,14 +18,45 @@ import scala.scalanative.unsigned.*
 private object LibScalus:
     private given platformSpecific: PlatformSpecific = NativePlatformSpecific
 
-    /* struct eval_result {
+    private object GCRoots {
+        private val references = new java.util.IdentityHashMap[Object, Unit]
+
+        def addRoot(o: Object): Unit = references.put(o, ())
+
+        def removeRoot(o: Object): Unit = references.remove(o)
+
+        def hasRoot(o: Object): Boolean = references.containsKey(o)
+
+        override def toString(): String = references.toString
+    }
+
+    extension (str: String)
+        def toCString(buf: CString, len: CSize): CSize =
+            toCString(Charset.defaultCharset(), buf, len)
+
+        def toCString(charset: Charset, cstr: CString, size: CSize): CSize = {
+            if cstr == null || size == 0 then return 0.toCSize
+            if str == null then
+                cstr(0) = 0.toByte
+                0.toCSize
+            else
+                val bytes = str.getBytes(charset)
+                if bytes.nonEmpty then
+                    val len = Math.min(bytes.length + 1, size.toInt) - 1
+                    ffi.memcpy(cstr, bytes.atUnsafe(0), len.toCSize)
+                    cstr(len + 1) = 0.toByte
+                    size
+                else
+                    cstr(0) = 0.toByte
+                    0.toCSize
+        }
+
+    /* struct ex_budget {
      *     long long cpu;
      *     long long memory;
-     *     char* logs;
-     *     char* error;
      * };
      * */
-    type EvalResult = CStruct4[CLongLong, CLongLong, CString, CString]
+    type ExBudget = CStruct2[CLongLong, CLongLong]
 
     /** Converts a double CBOR HEX encoded script to a [[Flat]] encoded UPLC program.
       * @param scriptHex
@@ -35,7 +68,7 @@ private object LibScalus:
       * @return
       */
     @exported(name = "scalus_flat_script_from_hex")
-    def scalus_flat_script_from_hex(scriptHex: CString, result: Ptr[Ptr[Byte]], size: CSize): CInt =
+    def flatScriptFromCborHex(scriptHex: CString, result: Ptr[Ptr[Byte]], size: CSize): CInt =
         Zone {
             try
                 // Parse script from hex
@@ -46,11 +79,11 @@ private object LibScalus:
                     !result = c"Buffer size is too small for the script"
                     1
                 else
-                    ffi.memcpy(result, scriptFlat.atUnsafe(0), scriptFlat.length.toCSize)
+                    ffi.memcpy(result, scriptFlat.atUnsafe(0), size)
                     0
             catch
                 case e: Exception =>
-                    !result = toCString(e.getMessage)
+                    e.getMessage.toCString(!result, size)
                     1
         }
 
@@ -59,7 +92,9 @@ private object LibScalus:
         val jsonStr = fromCString(json)
         try
             val pll = PlutusLedgerLanguage.fromOrdinal(plutusVersion - 1)
-            MachineParams.fromCardanoCliProtocolParamsJson(jsonStr, pll)
+            val params = MachineParams.fromCardanoCliProtocolParamsJson(jsonStr, pll)
+            GCRoots.addRoot(params)
+            params
         catch case _: Exception => null
     }
 
@@ -67,20 +102,33 @@ private object LibScalus:
     def defaultMachineParams(plutusVersion: CInt, protocolVersion: CInt): MachineParams = {
         try
             val pll = PlutusLedgerLanguage.fromOrdinal(plutusVersion - 1)
-            MachineParams.defaultParamsFor(pll, MajorProtocolVersion(protocolVersion))
+            val params = MachineParams.defaultParamsFor(pll, MajorProtocolVersion(protocolVersion))
+            GCRoots.addRoot(params)
+            params
         catch
             case e: Exception =>
                 println(s"Error: ${e.getMessage}")
                 null
     }
 
+    @exported(name = "scalus_free_machine_params")
+    def freeMachineParams(params: MachineParams): Unit = {
+        GCRoots.removeRoot(params)
+    }
+
     @exported(name = "scalus_evaluate_script")
-    def scalus_evaluate_script(
+    def evaluateScript(
         scriptHex: CString,
         plutusVersion: CInt,
-        result: Ptr[EvalResult]
-    ): CInt = Zone {
+        machineParams: MachineParams,
+        logsBuffer: CString,
+        logsLen: CSize,
+        errorBuffer: CString,
+        errorLen: CSize,
+        result: Ptr[ExBudget]
+    ): CInt = {
         try
+            assert(machineParams != null, "Machine parameters must not be null")
             // Parse script from hex
             val program = DeBruijnedProgram.fromDoubleCborHex(fromCString(scriptHex))
 
@@ -99,20 +147,16 @@ private object LibScalus:
                 case Result.Success(term, budget, costs, logs) =>
                     result._1 = budget.cpu
                     result._2 = budget.memory
-                    result._3 = toCString(logs.mkString("\n"))
-                    result._4 = null
+                    logs.mkString("\n").toCString(logsBuffer, logsLen)
                     0
                 case Result.Failure(exception, budget, costs, logs) =>
                     result._1 = budget.cpu
                     result._2 = budget.memory
-                    result._3 = toCString(logs.mkString("\n"))
-                    result._4 = toCString(exception.getMessage)
+                    logs.mkString("\n").toCString(logsBuffer, logsLen)
+                    exception.getMessage.toCString(errorBuffer, errorLen)
                     1
         catch
-            case e: Exception =>
-                result._1 = 0
-                result._2 = 0
-                result._3 = null
-                result._4 = toCString(e.getMessage)
+            case exception: Exception =>
+                exception.getMessage.toCString(errorBuffer, errorLen)
                 2
     }
