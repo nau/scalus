@@ -1,16 +1,14 @@
 package scalus.uplc
 package eval
 
-import io.bullet.borer.Cbor
 import scalus.builtin.{Data, NativePlatformSpecific, PlatformSpecific}
 import scalus.ledger.api.{MajorProtocolVersion, PlutusLedgerLanguage}
 import scalus.uplc
-import scalus.utils.Utils
 
 import java.nio.charset.Charset
 import scala.scalanative.runtime.Intrinsics.{castIntToRawSizeUnsigned, unsignedOf}
-import scala.scalanative.unsafe.*
 import scala.scalanative.runtime.ffi
+import scala.scalanative.unsafe.*
 import scala.scalanative.unsigned.*
 
 /** Scala Native bindings for the UPLC evaluation library.
@@ -18,6 +16,10 @@ import scala.scalanative.unsigned.*
 private object LibScalus:
     private given platformSpecific: PlatformSpecific = NativePlatformSpecific
 
+    /** We must keep track of all the objects that are passed to the native code. This is necessary
+      * because the native code may store references to these objects and the garbage collector must
+      * not collect them while they are still in use.
+      */
     private object GCRoots {
         private val references = new java.util.IdentityHashMap[Object, Unit]
 
@@ -28,8 +30,15 @@ private object LibScalus:
 
         def hasRoot(o: Object): Boolean = references.containsKey(o)
 
-        override def toString(): String = references.toString
+        override def toString: String = references.toString
     }
+
+    extension [A <: AnyRef](obj: A)
+        /** Adds a reference to the object to the GC roots.
+          * @return
+          *   The object itself
+          */
+        def gc: A = { GCRoots.addRoot(obj); obj }
 
     extension (str: String)
         def toCString(buf: CString, len: CSize): CSize =
@@ -59,48 +68,12 @@ private object LibScalus:
             array
         }
 
-    extension [A <: AnyRef](obj: A)
-        /** Adds a reference to the object to the GC roots.
-          * @return
-          *   The object itself
-          */
-        def gc: A = { GCRoots.addRoot(obj); obj }
-
     /* struct ex_budget {
      *     int64_t cpu;
      *     int64_t memory;
      * };
      * */
     type ExBudget = CStruct2[CLongLong, CLongLong]
-
-    /** Converts a double CBOR HEX encoded script to a [[Flat]] encoded UPLC program.
-      * @param scriptHex
-      *   The double CBOR HEX encoded script
-      * @param result
-      *   Pointer to the result buffer
-      * @param size
-      *   Size of the result buffer
-      * @return
-      */
-    @exported(name = "scalus_flat_script_from_hex")
-    def flatScriptFromCborHex(scriptHex: CString, result: Ptr[Ptr[Byte]], size: CSize): CInt =
-        Zone {
-            try
-                // Parse script from hex
-                val scriptBytes = Utils.hexToBytes(fromCString(scriptHex))
-                val cbor = Cbor.decode(scriptBytes).to[Array[Byte]].value
-                val scriptFlat = Cbor.decode(cbor).to[Array[Byte]].value
-                if size < scriptFlat.length.toCSize then
-                    !result = c"Buffer size is too small for the script"
-                    1
-                else
-                    ffi.memcpy(result, scriptFlat.atUnsafe(0), size)
-                    0
-            catch
-                case e: Exception =>
-                    e.getMessage.toCString(!result, size)
-                    1
-        }
 
     @exported(name = "scalus_get_machine_params_from_cardano_cli_protocol_params_json")
     def fromCardanoCliProtocolParamsJson(json: CString, plutusVersion: CInt): MachineParams = {
