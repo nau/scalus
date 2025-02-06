@@ -91,6 +91,8 @@
             pkgs.mkShell {
               JAVA_HOME = "${jdk}";
               JAVA_OPTS = "-Xmx4g -Xss512m -XX:+UseG1GC";
+              CARGO_NET_GIT_FETCH_WITH_CLI = "true";
+              CARGO_REGISTRIES_CRATES_IO_PROTOCOL = "sparse";
               packages = with pkgs; [
                 jdk
                 sbt
