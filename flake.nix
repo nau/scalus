@@ -23,7 +23,7 @@
                 overlays = [ rust-overlay.overlays.default ];
         };
         uplc = plutus.cabalProject.${system}.hsPkgs.plutus-core.components.exes.uplc;
-        sha3 = pkgs.stdenv.mkDerivation {
+        tiny_keccak_wrapper = pkgs.stdenv.mkDerivation {
             name = "tiny_keccak_wrapper";
             src = ./rust;  # directory with Rust code
             nativeBuildInputs = [
@@ -41,7 +41,6 @@
             installPhase = ''
              mkdir -p $out/lib
              cp target/release/libtiny_keccak_wrapper.a $out/lib/
-             # Copy generated .h file if you have one
             '';
         };
         # cardano-cli = cardano-node-flake.packages.${system}.cardano-cli;
@@ -74,14 +73,14 @@
                 secp256k1
                 pkgs.rustc
                 pkgs.cargo
-                sha3
+                tiny_keccak_wrapper
                 # cardano-cli
               ];
               shellHook = ''
                 ln -s ${plutus}/plutus-conformance plutus-conformance
                 echo "${pkgs.secp256k1}"
                 echo "${pkgs.libsodium}"
-                echo "${sha3}"
+                echo "${tiny_keccak_wrapper}"
               '';
             };
           ci =
@@ -91,13 +90,19 @@
             in
             pkgs.mkShell {
               JAVA_HOME = "${jdk}";
-              JAVA_OPTS = "-Xmx4g -XX:+UseG1GC";
+              JAVA_OPTS = "-Xmx4g -Xss512m -XX:+UseG1GC";
               packages = with pkgs; [
                 jdk
                 sbt
                 scalafmt
                 nodejs
                 uplc
+                llvm
+                libsodium
+                secp256k1
+                pkgs.rustc
+                pkgs.cargo
+                tiny_keccak_wrapper
               ];
               shellHook = ''
                 ln -s ${plutus}/plutus-conformance plutus-conformance
