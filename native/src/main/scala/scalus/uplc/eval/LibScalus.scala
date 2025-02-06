@@ -158,11 +158,11 @@ private object LibScalus:
         scriptHex: CString,
         plutusVersion: CInt,
         machineParams: MachineParams,
+        result: Ptr[ExBudget],
         logsBuffer: CString,
         logsLen: CSize,
         errorBuffer: CString,
-        errorLen: CSize,
-        result: Ptr[ExBudget]
+        errorLen: CSize
     ): CInt = {
         try
             assert(machineParams != null, "Machine parameters must not be null")

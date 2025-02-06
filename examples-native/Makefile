@@ -1,5 +1,5 @@
 CXX=clang
-LIBSCALUS_PATH=../../../../target/scala-3.3.4
+LIBSCALUS_PATH=../native/target/scala-3.3.4
 CXXFLAGS=-Wall -I.
 LDFLAGS=-L$(LIBSCALUS_PATH) -L/nix/store/lcq9ckpy6c6rf25679qb47rkgy4lrl4a-secp256k1-0.5.0 \
         -L/nix/store/bjgbcdi4v0y6hdzic9xl03z6lwnpxxkc-libsodium-1.0.20 \
@@ -7,13 +7,13 @@ LDFLAGS=-L$(LIBSCALUS_PATH) -L/nix/store/lcq9ckpy6c6rf25679qb47rkgy4lrl4a-secp25
 LIBS=-lsodium -lsecp256k1 -ltiny_keccak_wrapper -lc++ -lscalus
 
 
-all: test_scalus
+all: scalus
 
-test_scalus: test_scalus.c $(LIBSCALUS_PATH)/libscalus.a
-	$(CXX) $(CXXFLAGS) $(LDFLAGS) -o test_scalus test_scalus.c $(LIBS)
+scalus: main.c $(LIBSCALUS_PATH)/libscalus.a
+	$(CXX) $(CXXFLAGS) $(LDFLAGS) -o scalus main.c $(LIBS)
 
 clean:
-	rm -f test_scalus
+	rm -f scalus
 
 run: clean all
-	GC_STATS_FILE=stats.txt ./test_scalus
+	./scalus

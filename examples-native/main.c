@@ -23,11 +23,11 @@ void run_script(const char* script) {
         script,    // script hex
         3,         // Plutus V3
         params,    // machine params
+        &budget,    // result struct
         buffer,
         sizeof(buffer),
         error,
-        sizeof(error),
-        &budget    // result struct
+        sizeof(error)
     );
 
     scalus_free(params);
