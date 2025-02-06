@@ -64,15 +64,20 @@ int main()
     // This function needs to be called before invoking any methods defined in Scala Native.
     // Might be called automatically unless SCALANATIVE_NO_DYLIB_CTOR env variable is set.
     assert(ScalaNativeInit() == 0);
+    // Read Plutus Data from JSON string
     data* unit_data = scalus_data_from_json(UNIT_DATA);
     assert(unit_data != NULL);
 
     char applied_script[1024];
+    // Our example script is a function that takes a Plutus Data argument and logs "Success".
+    // We apply the script to the data we created above.
+    // The resulting script is a hex-encoded string of double CBOR flat-encoded Plutus script.
     assert(scalus_script_apply_data_arg(TEST_SCRIPT, applied_script, sizeof(applied_script), unit_data) == 0);
     printf("Applied script: %s\n", applied_script);
 
     run_script(applied_script);
     run_script(TEST_FAILING_SCRIPT);
+    // Free the Plutus Data object
     scalus_free(unit_data);
     return 0;
 }

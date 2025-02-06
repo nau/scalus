@@ -7,13 +7,13 @@ LDFLAGS=-L$(LIBSCALUS_PATH) -L/nix/store/lcq9ckpy6c6rf25679qb47rkgy4lrl4a-secp25
 LIBS=-lsodium -lsecp256k1 -ltiny_keccak_wrapper -lc++ -lscalus
 
 
-all: scalus
+all: example
 
-scalus: main.c $(LIBSCALUS_PATH)/libscalus.a
-	$(CXX) $(CXXFLAGS) $(LDFLAGS) -o scalus main.c $(LIBS)
+example: main.c $(LIBSCALUS_PATH)/libscalus.a
+	$(CXX) $(CXXFLAGS) $(LDFLAGS) -o example main.c $(LIBS)
 
 clean:
-	rm -f scalus
+	rm -f example
 
 run: clean all
-	./scalus
+	./example

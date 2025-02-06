@@ -48,7 +48,7 @@ machine_params* scalus_get_default_machine_params(int plutus_version, int protoc
  * @brief Parse machine parameters from Cardano CLI protocol parameters JSON
  *
  * @param json Protocol parameters JSON string
- * @param plutus_version Plutus language version
+ * @param plutus_version Plutus language version (1=V1, 2=V2, 3=V3)
  * @return Machine parameters pointer (must be freed with scalus_free)
  */
 machine_params* scalus_get_machine_params_from_cardano_cli_protocol_params_json(
@@ -82,8 +82,8 @@ void scalus_free(void* ptr);
 /**
  * @brief Apply datum to a parameterized script
  *
- * @param script_hex Hex-encoded script string
- * @param result Buffer for resulting script
+ * @param script_hex Hex-encoded string of double CBOR flat-encoded Plutus script
+ * @param result Buffer for resulting hex-encoded string of double CBOR flat-encoded Plutus script
  * @param len Result buffer length
  * @param arg Datum to apply
  * @return 0 on success, error code otherwise
