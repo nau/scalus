@@ -108,6 +108,8 @@
               ];
               shellHook = ''
                 ln -s ${plutus}/plutus-conformance plutus-conformance
+                export LIBRARY_PATH="${tiny_keccak_wrapper}/lib:${pkgs.secp256k1}/lib:${pkgs.libsodium}/lib:$LIBRARY_PATH"
+                export LD_LIBRARY_PATH="${tiny_keccak_wrapper}/lib:${pkgs.secp256k1}/lib:${pkgs.libsodium}/lib:$LD_LIBRARY_PATH"
                 export SBT_OPTS="-Xss64m $SBT_OPTS"
               '';
             };
