@@ -188,6 +188,10 @@ lazy val scalus = crossProject(JSPlatform, JVMPlatform, NativePlatform)
     )
     .jvmSettings(
       Test / fork := true,
+      // needed for secp256k1jni. Otherwise, JVM loads secp256k1 library from LD_LIBRARY_PATH
+      // which doesn't export the secp256k1_ec_pubkey_decompress function
+      // that is needed by bitcoin-s-secp256k1jni, because it's an older fork of secp256k1
+      Test / javaOptions += "-Djava.library.path=",
       // Test / testOptions += Tests.Argument(TestFrameworks.ScalaTest, "-S", "-8077211454138081902"),
       libraryDependencies += "org.slf4j" % "slf4j-simple" % "2.0.16" % "provided",
       libraryDependencies += "org.bouncycastle" % "bcprov-jdk18on" % "1.80",
