@@ -66,7 +66,8 @@ val dataTypes = compile {
     val empty = State.Empty // simple constructor
     // Use `new` to create an instance
     val account = new Account(ByteString.empty, tuple._2) // access tuple fields
-    val active: State = new State.Active(account)
+    // or use a companion object apply method
+    val active: State = State.Active(account)
     val hash = account.hash // access case class fields
     // A simple pattern matching is supported
     // no guards, no type ascriptions.
