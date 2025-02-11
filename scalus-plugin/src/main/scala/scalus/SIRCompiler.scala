@@ -902,6 +902,25 @@ final class SIRCompiler(mode: scalus.Mode)(using ctx: Context) {
             case Apply(app @ Select(f, nme.apply), args)
                 if app.symbol.fullName.show == "scala.Tuple2$.apply" =>
                 compileNewConstructor(env, tree.tpe, args)
+            /* case class Test(a: Int)
+             * val t = Test(42)
+             * is translated to
+             * val t = Test.apply(42), where Test.apply is a synthetic method of a companion object
+             * We need to compile it as a primary constructor
+             */
+            case Apply(TypeApply(apply, _), args)
+                if apply.symbol.flags
+                    .is(Flags.Synthetic) && apply.symbol.owner.flags.is(Flags.ModuleClass) =>
+                val classSymbol: Symbol = apply.symbol.owner.linkedClass
+                compileNewConstructor(env, classSymbol.typeRef, args)
+
+            case Apply(apply @ Select(f, nme.apply), args)
+                if apply.symbol.flags
+                    .is(Flags.Synthetic) && apply.symbol.owner.flags.is(Flags.ModuleClass) =>
+                // get a class symbol from a companion object
+                val classSymbol: Symbol = apply.symbol.owner.linkedClass
+                compileNewConstructor(env, classSymbol.typeRef, args)
+
             // f.apply[A, B](arg) => Apply(f, arg)
             /* When we have something like this:
              * (f: [A] => List[A] => A, a: A) => f[Data](a)
