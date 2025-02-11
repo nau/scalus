@@ -19,15 +19,15 @@ class AssocMapSpec extends AnyFunSuite with ScalaCheckPropertyChecks with Arbitr
 
     test("isEmpty") {
         assert(List.isEmpty(List.empty))
-        assert(!List.isEmpty(new List.Cons(true, List.Nil)))
+        assert(!List.isEmpty(List.Cons(true, List.Nil)))
     }
 
     test("union") {
         val m1 = AssocMap.fromList(
-          new Cons((BigInt(1), BigInt(2)), new Cons((BigInt(0), BigInt(0)), List.Nil))
+          Cons((BigInt(1), BigInt(2)), Cons((BigInt(0), BigInt(0)), List.Nil))
         )
         val m2 = AssocMap.fromList(
-          new Cons((BigInt(1), BigInt(3)), new Cons((BigInt(3), BigInt(4)), List.Nil))
+          Cons((BigInt(1), BigInt(3)), Cons((BigInt(3), BigInt(4)), List.Nil))
         )
         val m3 = AssocMap.union(m1, m2)
         val compiled = Compiler.compile {

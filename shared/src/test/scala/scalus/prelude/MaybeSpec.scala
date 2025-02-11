@@ -21,9 +21,9 @@ class MaybeSpec extends AnyFunSuite with ScalaCheckPropertyChecks with Arbitrary
         assert((Nothing: Maybe[String]) === Nothing)
         assert(Just(BigInt(1)) === Just(BigInt(1)))
         assert(Just(BigInt(1)) !== Just(BigInt(2)))
-        assertEval(compile(new Just(true) === Nothing), false)
-        assertEval(compile(new Just(true) === new Just(true)), true)
-        assertEval(compile(new Just(true) !== new Just(true)), false)
+        assertEval(compile(Just(true) === Nothing), false)
+        assertEval(compile(Just(true) === Just(true)), true)
+        assertEval(compile(Just(true) !== Just(true)), false)
     }
 
     private def assertEval(sir: SIR, expected: Term) = {
