@@ -36,4 +36,4 @@ object Data extends DataApi:
     case class B(value: ByteString) extends Data:
         override def toString: String = s"B(\"${value.toHex}\")"
 
-    val unit = Constr(0, immutable.Nil)
+    val unit: Data = Constr(0, immutable.Nil)
