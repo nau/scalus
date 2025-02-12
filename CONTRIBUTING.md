@@ -7,8 +7,9 @@
 
 ## Env setup with Nix
 
-Make sure that you have installed Nix package manager (see https://nixos.org/ ) and enabled `nix-command` and `flake` features and
- IOHK binary cache.
+Make sure that you have installed Nix package manager (see https://nixos.org/ ) and enabled `nix-command` and `flake`
+features and
+IOHK binary cache.
 
 Typical Nix config can looks like:
 
@@ -23,11 +24,9 @@ allow-import-from-derivation = true
 
 Usually you already have this setup if you have build cardano-node or cardano-cli locally.
 
-
 ```bash
 nix develop
 ```
-
 
 ## Build
 
@@ -52,8 +51,23 @@ Seq(s"-Xplugin:${jar.getAbsolutePath}", s"-Jdummy=${jar.lastModified}")
 This line should be commented out in scalusPlugin project settings:
 
 ```scala
-version := "0.6.2-SNAPSHOT",
+version := "0.6.2-SNAPSHOT"
+,
 ```
+
+### Debugging Scalus Plugin during compilation
+
+* Run sbt with the following command:
+
+```bash
+sbt -J-agentlib:jdwp=transport=dt_socket,server=y,suspend=y,address=5005 compile
+```
+
+This makes the compiler wait for a debugger to attach on port 5005.
+
+* Set Breakpoints in IntelliJ
+* In IntelliJ, create a Remote Debug configuration (host: localhost, port: 5005) and start it.
+* Once attached, resume execution to hit your breakpoints.
 
 ## Docusaurus
 
