@@ -62,7 +62,8 @@ final class SIRCompiler(mode: scalus.Mode)(using ctx: Context) {
     private val StringContextSymbol = requiredModule("scala.StringContext")
     private val StringContextApplySymbol = StringContextSymbol.requiredMethod("apply")
     private val Tuple2Symbol = requiredClass("scala.Tuple2")
-    private val NothingSymbol = requiredClass("scala.Nothing")
+    private val NothingSymbol = defn.NothingClass
+    private val NullSymbol = defn.NullClass
     private val ByteStringModuleSymbol = converter.ByteStringSymbol
     private val ByteStringSymbolHex = ByteStringModuleSymbol.requiredMethod("hex")
     private val ByteStringStringInterpolatorsMethodSymbol =
@@ -422,7 +423,8 @@ final class SIRCompiler(mode: scalus.Mode)(using ctx: Context) {
         else if vd.symbol.hasAnnotation(IgnoreAnnot) then None
         // ignore PlatformSpecific statements
         // NOTE: check ps.tpe is not Nothing, as Nothing is a subtype of everything
-        else if vd.tpe <:< PlatformSpecificClassSymbol.typeRef && !(vd.tpe =:= NothingSymbol.typeRef)
+        else if vd.tpe <:< PlatformSpecificClassSymbol.typeRef &&
+            !(vd.tpe =:= NothingSymbol.typeRef || vd.tpe =:= NullSymbol.typeRef)
         then
             // println(s"Ignore PlatformSpecific: ${vd.symbol.fullName}")
             None
@@ -742,6 +744,86 @@ final class SIRCompiler(mode: scalus.Mode)(using ctx: Context) {
             case term => "error"
         SIR.Error(msg)
 
+    private def compileEquality(env: Env, lhs: Tree, op: Name, rhs: Tree, srcPos: SrcPos): SIR = {
+        lazy val lhsExpr = compileExpr(env, lhs)
+        lazy val rhsExpr = compileExpr(env, rhs)
+        val lhsTpe = lhs.tpe.widen.dealias
+        if lhsTpe =:= converter.BigIntClassSymbol.typeRef then
+            // common mistake: comparing BigInt with Int literal, e.g. BigInt(1) == 1
+            rhs match
+                case Literal(l) =>
+                    report.error(
+                      s"""You are trying to compare a BigInt and non-BigInt literal:
+                           |  ${lhs.show} ${op.show} ${rhs.show}.
+                           |
+                           |Convert the literal to BigInt before comparing:
+                           |  ${lhs.show} ${op} BigInt(${l.show})
+                           |""".stripMargin,
+                      rhs.srcPos
+                    )
+                    SIR.Error("Equality is only allowed between the same types")
+                case _ =>
+                    val eq =
+                        SIR.Apply(
+                          SIR.Apply(SIR.Builtin(DefaultFun.EqualsInteger), lhsExpr),
+                          rhsExpr
+                        )
+                    if op == nme.EQ then eq else SIR.Not(eq)
+        else if lhsTpe =:= defn.BooleanType then
+            if op == nme.EQ then
+                SIR.IfThenElse(
+                  lhsExpr,
+                  rhsExpr,
+                  SIR.IfThenElse(
+                    rhsExpr,
+                    SIR.Const(scalus.uplc.Constant.Bool(false)),
+                    SIR.Const(scalus.uplc.Constant.Bool(true))
+                  )
+                )
+            else
+                SIR.IfThenElse(
+                  lhsExpr,
+                  SIR.IfThenElse(
+                    rhsExpr,
+                    SIR.Const(scalus.uplc.Constant.Bool(false)),
+                    SIR.Const(scalus.uplc.Constant.Bool(true))
+                  ),
+                  rhsExpr
+                )
+        else if lhsTpe =:= converter.ByteStringClassSymbol.typeRef then
+            val eq =
+                SIR.Apply(SIR.Apply(SIR.Builtin(DefaultFun.EqualsByteString), lhsExpr), rhsExpr)
+            if op == nme.EQ then eq else SIR.Not(eq)
+        else if lhsTpe =:= defn.StringClass.typeRef then
+            val eq = SIR.Apply(SIR.Apply(SIR.Builtin(DefaultFun.EqualsString), lhsExpr), rhsExpr)
+            if op == nme.EQ then eq else SIR.Not(eq)
+        else if lhsTpe <:< converter.DataClassSymbol.typeRef && !(lhsTpe =:= NothingSymbol.typeRef || lhsTpe =:= NullSymbol.typeRef)
+        then
+            val eq = SIR.Apply(SIR.Apply(SIR.Builtin(DefaultFun.EqualsData), lhsExpr), rhsExpr)
+            if op == nme.EQ then eq else SIR.Not(eq)
+        else
+            report.error(
+              s"""Equality check operations (`==`, `!=`) are only allowed between these primitive types:
+                 | BigInt, Boolean, ByteString, String, Data
+                 |
+                 |You are trying to compare these types:
+                 |  ${lhs.tpe.widen.show} ${op} ${rhs.tpe.widen.show}
+                 |  ---------- dealiaing to ------------
+                 |  ${lhs.tpe.widen.dealias.show} ${op} ${rhs.tpe.widen.dealias.show}
+                 |
+                 |Make sure you compare values of the same supported type.
+                 |
+                 |If you want to compare data types try using `===` operator from Prelude.
+                 |
+                 |Or convert the data to a supported type before comparing,
+                 |e.g. toData(x) == toData(y)
+                 |
+                 |""".stripMargin,
+              srcPos
+            )
+            SIR.Error("Equality is only allowed between the same types")
+    }
+
     def compileExpr(env: Env, tree: Tree)(using Context): SIR = {
         // println(s"compileExpr: ${tree.showIndented(2)}, env: $env")
         if compileConstant.isDefinedAt(tree) then
@@ -764,7 +846,8 @@ final class SIRCompiler(mode: scalus.Mode)(using ctx: Context) {
              */
             case Apply(builtin, immutable.List(ps))
                 // NOTE: check ps.tpe is not Nothing, as Nothing is a subtype of everything
-                if ps.tpe <:< PlatformSpecificClassSymbol.typeRef && !(ps.tpe =:= NothingSymbol.typeRef) =>
+                if ps.tpe <:< PlatformSpecificClassSymbol.typeRef &&
+                    !(ps.tpe =:= NothingSymbol.typeRef || ps.tpe =:= NullSymbol.typeRef) =>
                 compileExpr(env, builtin)
             // Boolean
             case Select(lhs, op) if lhs.tpe.widen =:= defn.BooleanType && op == nme.UNARY_! =>
@@ -780,65 +863,9 @@ final class SIRCompiler(mode: scalus.Mode)(using ctx: Context) {
                 val lhsExpr = compileExpr(env, lhs)
                 val rhsExpr = compileExpr(env, rhs)
                 SIR.Or(lhsExpr, rhsExpr)
-            case Apply(Select(lhs, op), List(rhs))
-                if lhs.tpe.widen =:= defn.BooleanType && op == nme.EQ =>
-                val lhsExpr = compileExpr(env, lhs)
-                val rhsExpr = compileExpr(env, rhs)
-                SIR.IfThenElse(
-                  lhsExpr,
-                  rhsExpr,
-                  SIR.IfThenElse(
-                    rhsExpr,
-                    SIR.Const(scalus.uplc.Constant.Bool(false)),
-                    SIR.Const(scalus.uplc.Constant.Bool(true))
-                  )
-                )
-            case Apply(Select(lhs, op), List(rhs))
-                if lhs.tpe.widen =:= defn.BooleanType && op == nme.NE =>
-                val lhsExpr = compileExpr(env, lhs)
-                val rhsExpr = compileExpr(env, rhs)
-                SIR.IfThenElse(
-                  lhsExpr,
-                  SIR.IfThenElse(
-                    rhsExpr,
-                    SIR.Const(scalus.uplc.Constant.Bool(false)),
-                    SIR.Const(scalus.uplc.Constant.Bool(true))
-                  ),
-                  rhsExpr
-                )
-            // ByteString equality
-            case Apply(Select(lhs, op), List(rhs))
-                if lhs.tpe.widen =:= converter.ByteStringClassSymbol.typeRef && (op == nme.EQ || op == nme.NE) =>
-                if !(rhs.tpe.widen =:= converter.ByteStringClassSymbol.typeRef) then
-                    report.error(
-                      s"""Equality is only allowed between the same types but here we have ${lhs.tpe.widen.show} == ${rhs.tpe.widen.show}
-                         |Make sure you compare values of the same type""".stripMargin
-                    )
-                    SIR.Error("Equality is only allowed between the same types")
-                else
-                    val lhsExpr = compileExpr(env, lhs)
-                    val rhsExpr = compileExpr(env, rhs)
-                    val eq = SIR.Apply(
-                      SIR.Apply(SIR.Builtin(DefaultFun.EqualsByteString), lhsExpr),
-                      rhsExpr
-                    )
-                    if op == nme.EQ then eq else SIR.Not(eq)
-            // String equality
-            case Apply(Select(lhs, op), List(rhs))
-                if lhs.tpe.widen =:= defn.StringClass.typeRef && (op == nme.EQ || op == nme.NE) =>
-                val lhsExpr = compileExpr(env, lhs)
-                val rhsExpr = compileExpr(env, rhs)
-                val eq =
-                    SIR.Apply(SIR.Apply(SIR.Builtin(DefaultFun.EqualsString), lhsExpr), rhsExpr)
-                if op == nme.EQ then eq else SIR.Not(eq)
-            // Data equality
-            case Apply(Select(lhs, op), List(rhs))
-                if lhs.tpe.widen <:< converter.DataClassSymbol.typeRef && (op == nme.EQ || op == nme.NE) =>
-                val lhsExpr = compileExpr(env, lhs)
-                val rhsExpr = compileExpr(env, rhs)
-                val eq =
-                    SIR.Apply(SIR.Apply(SIR.Builtin(DefaultFun.EqualsData), lhsExpr), rhsExpr)
-                if op == nme.EQ then eq else SIR.Not(eq)
+            // Equality and inequality: ==, !=
+            case Apply(Select(lhs, op), List(rhs)) if op == nme.EQ || op == nme.NE =>
+                compileEquality(env, lhs, op, rhs, tree.srcPos)
             // BUILTINS
             case bi: Select if builtinsHelper.builtinFun(bi.symbol).isDefined =>
                 builtinsHelper.builtinFun(bi.symbol).get
