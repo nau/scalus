@@ -1,6 +1,7 @@
 package scalus.builtin
 
 import scalus.Compile
+import scalus.Ignore
 import scalus.builtin
 import scalus.builtin.Data.*
 import scalus.prelude
@@ -74,7 +75,9 @@ object ToDataInstances {
         if a then constrData(1, mkNilData()) else constrData(0, mkNilData())
     given ToData[Data] = (a: Data) => a
     given ToData[BigInt] = (a: BigInt) => iData(a)
+    @Ignore
     given ToData[Int] = (a: Int) => iData(a)
+    @Ignore
     given ToData[Long] = (a: Long) => iData(a)
     given ToData[ByteString] = (a: ByteString) => bData(a)
     given ToData[String] = (a: String) => bData(encodeUtf8(a))
