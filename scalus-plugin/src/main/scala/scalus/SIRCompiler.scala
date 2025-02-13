@@ -32,6 +32,7 @@ import scala.collection.mutable
 import scala.collection.mutable.ListBuffer
 import scala.language.implicitConversions
 import scala.annotation.unused
+import scala.util.control.NonFatal
 
 case class FullName(name: String)
 object FullName:
@@ -510,32 +511,98 @@ final class SIRCompiler(mode: scalus.Mode)(using ctx: Context) {
                 case Constants.StringTag  => scalus.uplc.Constant.String(c.stringValue)
                 case Constants.UnitTag    => scalus.uplc.Constant.Unit
                 case _ => error(LiteralTypeNotSupported(c, l.srcPos), scalus.uplc.Constant.Unit)
-        case t @ Apply(bigintApply, List(SkipInline(Literal(c))))
+        case t @ Apply(bigintApply, List(SkipInline(literal)))
             if bigintApply.symbol == converter.BigIntSymbol.requiredMethod(
               "apply",
               List(defn.StringClass.typeRef)
-            ) && c.tag == Constants.StringTag =>
-            scalus.uplc.Constant.Integer(BigInt(c.stringValue))
-        case t @ Apply(bigintApply, List(SkipInline(Literal(c))))
+            ) =>
+            literal match
+                case Literal(c) if c.tag == Constants.StringTag =>
+                    scalus.uplc.Constant.Integer(BigInt(c.stringValue))
+                case _ =>
+                    error(
+                      GenericError(
+                        s"""BigInt(${literal.show}) is not a constant expression.
+                             |Try using String literals, like BigInt("123")
+                             |""".stripMargin,
+                        t.srcPos
+                      ),
+                      scalus.uplc.Constant.Unit
+                    )
+        case t @ Apply(bigintApply, List(SkipInline(literal)))
             if bigintApply.symbol == converter.BigIntSymbol.requiredMethod(
               "apply",
               List(defn.IntType)
-            ) && c.tag == Constants.IntTag =>
-            scalus.uplc.Constant.Integer(BigInt(c.intValue))
+            ) =>
+            literal match
+                case Literal(c) if c.tag == Constants.IntTag =>
+                    scalus.uplc.Constant.Integer(BigInt(c.intValue))
+                case _ =>
+                    error(
+                      GenericError(
+                        s"""BigInt(${literal.show}) is not a constant expression.
+                               |Try using Int literals, like BigInt(123)
+                               |""".stripMargin,
+                        t.srcPos
+                      ),
+                      scalus.uplc.Constant.Unit
+                    )
 
-        case Apply(i, List(Literal(c)))
+        case Apply(i, List(SkipInline(literal)))
             if i.symbol == converter.BigIntSymbol.requiredMethod("int2bigInt") =>
-            scalus.uplc.Constant.Integer(BigInt(c.intValue))
+            literal match
+                case Literal(c) if c.tag == Constants.IntTag =>
+                    scalus.uplc.Constant.Integer(BigInt(c.intValue))
+                case _ =>
+                    error(
+                      GenericError(
+                        s"""You are trying to implicitly convert an Int expression `${literal.show}` to a BigInt constant.
+                               |This is not supported.
+                               |Try using Int literals, like BigInt(123) or change the type of the expression `${literal.show}` to BigInt
+                               |""".stripMargin,
+                        i.srcPos
+                      ),
+                      scalus.uplc.Constant.Unit
+                    )
+
         case expr if expr.symbol == converter.ByteStringSymbol.requiredMethod("empty") =>
             scalus.uplc.Constant.ByteString(scalus.builtin.ByteString.empty)
-        case Apply(expr, List(Literal(c)))
+        case Apply(expr, List(SkipInline(literal)))
             if expr.symbol == converter.ByteStringSymbol.requiredMethod("fromHex") =>
-            scalus.uplc.Constant.ByteString(scalus.builtin.ByteString.fromHex(c.stringValue))
-        case Apply(expr, List(Literal(c)))
+            literal match
+                case Literal(c) if c.tag == Constants.StringTag =>
+                    scalus.uplc.Constant.ByteString(
+                      scalus.builtin.ByteString.fromHex(c.stringValue)
+                    )
+                case _ =>
+                    error(
+                      GenericError(
+                        s"""ByteString.fromHex only accepts String literals, like ByteString.fromHex("deadbeef")
+                             |But you provided `${literal.show}`, which is not a String literal.
+                             |""".stripMargin,
+                        expr.srcPos
+                      ),
+                      scalus.uplc.Constant.Unit
+                    )
+        case Apply(expr, List(SkipInline(literal)))
             if expr.symbol == converter.ByteStringSymbol.requiredMethod("fromString") =>
-            scalus.uplc.Constant.ByteString(scalus.builtin.ByteString.fromString(c.stringValue))
+            literal match
+                case Literal(c) if c.tag == Constants.StringTag =>
+                    scalus.uplc.Constant.ByteString(
+                      scalus.builtin.ByteString.fromString(c.stringValue)
+                    )
+                case _ =>
+                    error(
+                      GenericError(
+                        s"""ByteString.fromString only accepts String literals, like ByteString.fromString("deadbeef")
+                               |But you provided `${literal.show}`, which is not a String literal.
+                               |""".stripMargin,
+                        expr.srcPos
+                      ),
+                      scalus.uplc.Constant.Unit
+                    )
         // hex"deadbeef" as ByteString using Scala 3 StringContext extension
-        case Apply(
+        case expr @ Apply(
               Apply(
                 byteStringHex,
                 List(Apply(stringContextApply, List(SeqLiteral(List(Literal(c)), _))))
@@ -544,9 +611,21 @@ final class SIRCompiler(mode: scalus.Mode)(using ctx: Context) {
             )
             if byteStringHex.symbol == ByteStringSymbolHex
                 && stringContextApply.symbol == StringContextApplySymbol =>
-            scalus.uplc.Constant.ByteString(scalus.builtin.ByteString.fromHex(c.stringValue))
+            try scalus.uplc.Constant.ByteString(scalus.builtin.ByteString.fromHex(c.stringValue))
+            catch
+                case NonFatal(e) =>
+                    error(
+                      GenericError(
+                        s"""Hex string `${c.stringValue}` is not a valid hex string.
+                           |Make sure it contains only hexadecimal characters (0-9, a-f, A-F)
+                           |Error: ${e.getMessage}
+                           |""".stripMargin,
+                        expr.srcPos
+                      ),
+                      scalus.uplc.Constant.Unit
+                    )
         // hex"deadbeef" as ByteString for Scala 2 implicit StringInterpolators
-        case Apply(
+        case expr @ Apply(
               Select(
                 Apply(
                   stringInterpolators,
@@ -564,7 +643,23 @@ final class SIRCompiler(mode: scalus.Mode)(using ctx: Context) {
             if ByteStringStringInterpolatorsMethodSymbol == stringInterpolators.symbol
                 && stringContext.symbol == StringContextSymbol && hex == termName("hex") &&
                 const.tag == Constants.StringTag =>
-            scalus.uplc.Constant.ByteString(scalus.builtin.ByteString.fromHex(const.stringValue))
+            try
+                scalus.uplc.Constant.ByteString(
+                  scalus.builtin.ByteString.fromHex(const.stringValue)
+                )
+            catch
+                case NonFatal(e) =>
+                    error(
+                      GenericError(
+                        s"""Hex string `${const.stringValue}` is not a valid hex string.
+                               |Make sure it contains only hexadecimal characters (0-9, a-f, A-F)
+                               |Error: ${e.getMessage}
+                               |""".stripMargin,
+                        expr.srcPos
+                      ),
+                      scalus.uplc.Constant.Unit
+                    )
+
     }
 
     private def typeReprToDefaultUni(tpe: Type, list: Tree): DefaultUni =
