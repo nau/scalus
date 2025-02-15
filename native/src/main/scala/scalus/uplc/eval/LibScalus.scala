@@ -91,7 +91,6 @@ private object LibScalus:
             MachineParams.defaultParamsFor(pll, MajorProtocolVersion(protocolVersion)).gc
         catch
             case e: Exception =>
-                println(s"Error: ${e.getMessage}")
                 null
     }
 
