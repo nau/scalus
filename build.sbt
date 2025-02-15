@@ -1,5 +1,6 @@
 import org.scalajs.linker.interface.OutputPatterns
 import sbtwelcome.*
+import scala.scalanative.build._
 
 import java.net.URI
 
@@ -46,6 +47,7 @@ lazy val root: Project = project
       scalusPlugin,
       scalus.js,
       scalus.jvm,
+      scalus.native,
       `examples-js`,
       examples,
       bench,
@@ -82,7 +84,7 @@ lazy val scalusPlugin = project
       // COMMENT THIS LINE TO ENABLE VERSION INCREMENT during Scalus plugin development
       // version := "0.6.2-SNAPSHOT",
       libraryDependencies += "org.scalatest" %%% "scalatest" % "3.2.19" % "test",
-      libraryDependencies += "org.scalatestplus" %%% "scalacheck-1-16" % "3.2.14.0" % "test",
+      libraryDependencies += "org.scalatestplus" %%% "scalacheck-1-18" % "3.2.19.0" % "test",
       libraryDependencies += "org.scala-lang" %% "scala3-compiler" % scalaVersion.value // % "provided"
     )
     .settings(
@@ -148,7 +150,7 @@ lazy val scalusPluginTests = project
       publish / skip := true,
       PluginDependency,
       libraryDependencies += "org.scalatest" %%% "scalatest" % "3.2.19" % "test",
-      libraryDependencies += "org.scalatestplus" %%% "scalacheck-1-16" % "3.2.12.0" % "test"
+      libraryDependencies += "org.scalatestplus" %%% "scalacheck-1-18" % "3.2.19.0" % "test"
     )
 
 // Scalus Compiler Plugin Dependency
@@ -164,7 +166,7 @@ lazy val PluginDependency: List[Def.Setting[?]] = List(scalacOptions ++= {
 })
 
 // Scalus Core and Standard Library for JVM and JS
-lazy val scalus = crossProject(JSPlatform, JVMPlatform)
+lazy val scalus = crossProject(JSPlatform, JVMPlatform, NativePlatform)
     .in(file("."))
     .settings(
       name := "scalus",
@@ -182,10 +184,14 @@ lazy val scalus = crossProject(JSPlatform, JVMPlatform)
       ),
       PluginDependency,
       libraryDependencies += "org.scalatest" %%% "scalatest" % "3.2.19" % "test",
-      libraryDependencies += "org.scalatestplus" %%% "scalacheck-1-16" % "3.2.14.0" % "test"
+      libraryDependencies += "org.scalatestplus" %%% "scalacheck-1-18" % "3.2.19.0" % "test"
     )
     .jvmSettings(
       Test / fork := true,
+      // needed for secp256k1jni. Otherwise, JVM loads secp256k1 library from LD_LIBRARY_PATH
+      // which doesn't export the secp256k1_ec_pubkey_decompress function
+      // that is needed by bitcoin-s-secp256k1jni, because it's an older fork of secp256k1
+      Test / javaOptions += "-Djava.library.path=",
       // Test / testOptions += Tests.Argument(TestFrameworks.ScalaTest, "-S", "-8077211454138081902"),
       libraryDependencies += "org.slf4j" % "slf4j-simple" % "2.0.16" % "provided",
       libraryDependencies += "org.bouncycastle" % "bcprov-jdk18on" % "1.80",
@@ -204,6 +210,14 @@ lazy val scalus = crossProject(JSPlatform, JVMPlatform)
       scalaJSUseMainModuleInitializer := false
     )
     .jsConfigure { project => project.enablePlugins(ScalaJSBundlerPlugin) }
+    .nativeSettings(
+      nativeConfig ~= {
+          _.withBuildTarget(BuildTarget.libraryStatic)
+//              .withLTO(LTO.thin)
+              .withMode(Mode.releaseFast)
+              .withGC(GC.immix)
+      }
+    )
 
 lazy val examples = project
     .in(file("examples"))
