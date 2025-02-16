@@ -1,5 +1,25 @@
 # Changelog
 
+## 0.8.5 (2025-02-16)
+
+### Added
+
+- Scalus Scala Native support with all Plutus V1/V2 builtins
+- a C example using libscalus native library for script evaluation and budget calculation
+- compile synthetic DataType.apply as a primary constructor
+- better error messages during Scalus on-chain script compilation
+- async-profiler support for profiling
+
+### Changed
+
+- dependencies updated: Scala 3.3.5, Scala.js 1.18.2
+- speedup MemoryUsage calculation
+
+### Fixed
+
+- removed unnecessary bitcoin-s-crypto dependency
+- Data.unit type is Data, not Constr
+
 ## 0.8.4 (2025-01-05)
 
 ### Added
@@ -14,13 +34,14 @@
 
 ### Added
 
-- customizable UPLC Inliner optimization pass 
+- customizable UPLC Inliner optimization pass
 - Prelude List functions: single, cons, length, map2
 - experimental Groth16 SNARK implementation
 - Data `toCbor` and `fromCbor` extensions
 - add generated ScalaDocs to website
 
 ### Changed
+
 - code is updated to Scala 3.5+
 - use latest dependencies
 
