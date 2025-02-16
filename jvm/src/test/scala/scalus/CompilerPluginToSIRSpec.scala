@@ -1494,6 +1494,19 @@ class CompilerPluginToSIRSpec extends AnyFunSuite with ScalaCheckPropertyChecks:
         )
     }
 
+    private val pubKeyHashDataDecl = DataDecl(
+      "scalus.ledger.api.v1.PubKeyHash",
+      List(
+        ConstrDecl(
+          "PubKeyHash",
+          SIRVarStorage.DEFAULT,
+          List(TypeBinding("hash", sirByteString)),
+          List.empty
+        )
+      ),
+      List.empty
+    )
+
     test("compile datatypes") {
         import scalus.ledger.api.v1.PubKeyHash
         val compiled = compile {
@@ -1501,18 +1514,6 @@ class CompilerPluginToSIRSpec extends AnyFunSuite with ScalaCheckPropertyChecks:
             pkh.hash
         }
 
-        val pubKeyHashDataDecl = DataDecl(
-          "scalus.ledger.api.v1.PubKeyHash",
-          List(
-            ConstrDecl(
-              "PubKeyHash",
-              SIRVarStorage.DEFAULT,
-              List(TypeBinding("hash", sirByteString)),
-              List.empty
-            )
-          ),
-          List.empty
-        )
         assert(
           compiled ~=~
               Decl(
@@ -1539,14 +1540,15 @@ class CompilerPluginToSIRSpec extends AnyFunSuite with ScalaCheckPropertyChecks:
         val compiled = compile {
             scalus.ledger.api.v1.PubKeyHash(hex"deadbeef")
         }
+
         assert(
           compiled ==
               Decl(
-                DataDecl("PubKeyHash", List(ConstrDecl("PubKeyHash", List("hash")))),
+                pubKeyHashDataDecl,
                 Constr(
                   "PubKeyHash",
-                  DataDecl("PubKeyHash", List(ConstrDecl("PubKeyHash", List("hash")))),
-                  List(Const(Constant.ByteString(hex"deadbeef")))
+                  pubKeyHashDataDecl,
+                  List(Const(Constant.ByteString(hex"deadbeef"), SIRType.ByteString))
                 )
               )
         )

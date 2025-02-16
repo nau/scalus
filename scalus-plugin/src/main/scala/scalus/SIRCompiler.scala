@@ -1217,7 +1217,7 @@ final class SIRCompiler(mode: scalus.Mode)(using ctx: Context) {
         lazy val lhsExpr = compileExpr(env, lhs)
         lazy val rhsExpr = compileExpr(env, rhs)
         val lhsTpe = lhs.tpe.widen.dealias
-        if lhsTpe =:= converter.BigIntClassSymbol.typeRef then
+        if lhsTpe =:= BigIntClassSymbol.typeRef then
             // common mistake: comparing BigInt with Int literal, e.g. BigInt(1) == 1
             rhs match
                 case Literal(l) =>
@@ -1250,8 +1250,8 @@ final class SIRCompiler(mode: scalus.Mode)(using ctx: Context) {
                   rhsExpr,
                   SIR.IfThenElse(
                     rhsExpr,
-                    SIR.Const(scalus.uplc.Constant.Bool(false)),
-                    SIR.Const(scalus.uplc.Constant.Bool(true)),
+                    SIR.Const(scalus.uplc.Constant.Bool(false), SIRType.Boolean),
+                    SIR.Const(scalus.uplc.Constant.Bool(true), SIRType.Boolean),
                     SIRType.Boolean
                   ),
                   SIRType.Boolean
@@ -1261,14 +1261,14 @@ final class SIRCompiler(mode: scalus.Mode)(using ctx: Context) {
                   lhsExpr,
                   SIR.IfThenElse(
                     rhsExpr,
-                    SIR.Const(scalus.uplc.Constant.Bool(false)),
-                    SIR.Const(scalus.uplc.Constant.Bool(true)),
+                    SIR.Const(scalus.uplc.Constant.Bool(false), SIRType.Boolean),
+                    SIR.Const(scalus.uplc.Constant.Bool(true), SIRType.Boolean),
                     SIRType.Boolean
                   ),
                   rhsExpr,
                   SIRType.Boolean
                 )
-        else if lhsTpe =:= converter.ByteStringClassSymbol.typeRef then
+        else if lhsTpe =:= ByteStringClassSymbol.typeRef then
             val eq =
                 SIR.Apply(
                   SIR.Apply(
@@ -1292,7 +1292,7 @@ final class SIRCompiler(mode: scalus.Mode)(using ctx: Context) {
                   SIRType.Boolean
                 )
             if op == nme.EQ then eq else SIR.Not(eq)
-        else if lhsTpe <:< converter.DataClassSymbol.typeRef && !(lhsTpe =:= NothingSymbol.typeRef || lhsTpe =:= NullSymbol.typeRef)
+        else if lhsTpe <:< DataClassSymbol.typeRef && !(lhsTpe =:= NothingSymbol.typeRef || lhsTpe =:= NullSymbol.typeRef)
         then
             val eq =
                 SIR.Apply(
@@ -1458,14 +1458,14 @@ final class SIRCompiler(mode: scalus.Mode)(using ctx: Context) {
                 if apply.symbol.flags
                     .is(Flags.Synthetic) && apply.symbol.owner.flags.is(Flags.ModuleClass) =>
                 val classSymbol: Symbol = apply.symbol.owner.linkedClass
-                compileNewConstructor(env, classSymbol.typeRef, args)
+                compileNewConstructor(env, classSymbol.typeRef, args, tree)
 
             case Apply(apply @ Select(f, nme.apply), args)
                 if apply.symbol.flags
                     .is(Flags.Synthetic) && apply.symbol.owner.flags.is(Flags.ModuleClass) =>
                 // get a class symbol from a companion object
                 val classSymbol: Symbol = apply.symbol.owner.linkedClass
-                compileNewConstructor(env, classSymbol.typeRef, args)
+                compileNewConstructor(env, classSymbol.typeRef, args, tree)
             // f.apply[A, B](arg) => Apply(f, arg)
             /* When we have something like this:
              * (f: [A] => List[A] => A, a: A) => f[Data](a)
