@@ -1535,6 +1535,23 @@ class CompilerPluginToSIRSpec extends AnyFunSuite with ScalaCheckPropertyChecks:
         )
     }
 
+    test("compile companion object apply as a primary constructor") {
+        val compiled = compile {
+            scalus.ledger.api.v1.PubKeyHash(hex"deadbeef")
+        }
+        assert(
+          compiled ==
+              Decl(
+                DataDecl("PubKeyHash", List(ConstrDecl("PubKeyHash", List("hash")))),
+                Constr(
+                  "PubKeyHash",
+                  DataDecl("PubKeyHash", List(ConstrDecl("PubKeyHash", List("hash")))),
+                  List(Const(Constant.ByteString(hex"deadbeef")))
+                )
+              )
+        )
+    }
+
     test("compile Tuple2 construction/matching") {
         val compiled = compile {
             type Pair = (Boolean, Boolean)

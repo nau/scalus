@@ -96,7 +96,8 @@ final class SIRCompiler(mode: scalus.Mode)(using ctx: Context) {
     private val StringContextSymbol = requiredModule("scala.StringContext")
     private val StringContextApplySymbol = StringContextSymbol.requiredMethod("apply")
     private val Tuple2Symbol = requiredClass("scala.Tuple2")
-    private val NothingSymbol = requiredClass("scala.Nothing")
+    private val NothingSymbol = defn.NothingClass
+    private val NullSymbol = defn.NullClass
     private val ByteStringModuleSymbol = requiredModule("scalus.builtin.ByteString")
     private val ByteStringSymbolHex = ByteStringModuleSymbol.requiredMethod("hex")
     private val ByteStringStringInterpolatorsMethodSymbol =
@@ -590,7 +591,8 @@ final class SIRCompiler(mode: scalus.Mode)(using ctx: Context) {
             CompileMemberDefResult.Ignored(sirTypeInEnv(vd.tpe, vd.srcPos, env))
         // ignore PlatformSpecific statements
         // NOTE: check ps.tpe is not Nothing, as Nothing is a subtype of everything
-        else if vd.tpe <:< PlatformSpecificClassSymbol.typeRef && !(vd.tpe =:= NothingSymbol.typeRef)
+        else if vd.tpe <:< PlatformSpecificClassSymbol.typeRef &&
+            !(vd.tpe =:= NothingSymbol.typeRef || vd.tpe =:= NullSymbol.typeRef)
         then CompileMemberDefResult.Builtin(name.show, SIRType.FreeUnificator)
         else
             // TODO store comments in the SIR
@@ -716,31 +718,98 @@ final class SIRCompiler(mode: scalus.Mode)(using ctx: Context) {
                 case Constants.StringTag  => scalus.uplc.Constant.String(c.stringValue)
                 case Constants.UnitTag    => scalus.uplc.Constant.Unit
                 case _ => error(LiteralTypeNotSupported(c, l.srcPos), scalus.uplc.Constant.Unit)
-        case t @ Apply(bigintApply, List(SkipInline(Literal(c))))
+        case t @ Apply(bigintApply, List(SkipInline(literal)))
             if bigintApply.symbol == BigIntSymbol.requiredMethod(
               "apply",
               List(defn.StringClass.typeRef)
-            ) && c.tag == Constants.StringTag =>
-            scalus.uplc.Constant.Integer(BigInt(c.stringValue))
-        case t @ Apply(bigintApply, List(SkipInline(Literal(c))))
+            ) =>
+            literal match
+                case Literal(c) if c.tag == Constants.StringTag =>
+                    scalus.uplc.Constant.Integer(BigInt(c.stringValue))
+                case _ =>
+                    error(
+                      GenericError(
+                        s"""BigInt(${literal.show}) is not a constant expression.
+                             |Try using String literals, like BigInt("123")
+                             |""".stripMargin,
+                        t.srcPos
+                      ),
+                      scalus.uplc.Constant.Unit
+                    )
+        case t @ Apply(bigintApply, List(SkipInline(literal)))
             if bigintApply.symbol == BigIntSymbol.requiredMethod(
               "apply",
               List(defn.IntType)
-            ) && c.tag == Constants.IntTag =>
-            scalus.uplc.Constant.Integer(BigInt(c.intValue))
+            ) =>
+            literal match
+                case Literal(c) if c.tag == Constants.IntTag =>
+                    scalus.uplc.Constant.Integer(BigInt(c.intValue))
+                case _ =>
+                    error(
+                      GenericError(
+                        s"""BigInt(${literal.show}) is not a constant expression.
+                               |Try using Int literals, like BigInt(123)
+                               |""".stripMargin,
+                        t.srcPos
+                      ),
+                      scalus.uplc.Constant.Unit
+                    )
 
-        case Apply(i, List(Literal(c))) if i.symbol == BigIntSymbol.requiredMethod("int2bigInt") =>
-            scalus.uplc.Constant.Integer(BigInt(c.intValue))
+        case Apply(i, List(SkipInline(literal)))
+            if i.symbol == BigIntSymbol.requiredMethod("int2bigInt") =>
+            literal match
+                case Literal(c) if c.tag == Constants.IntTag =>
+                    scalus.uplc.Constant.Integer(BigInt(c.intValue))
+                case _ =>
+                    error(
+                      GenericError(
+                        s"""You are trying to implicitly convert an Int expression `${literal.show}` to a BigInt constant.
+                               |This is not supported.
+                               |Try using Int literals, like BigInt(123) or change the type of the expression `${literal.show}` to BigInt
+                               |""".stripMargin,
+                        i.srcPos
+                      ),
+                      scalus.uplc.Constant.Unit
+                    )
+
         case expr if expr.symbol == ByteStringModuleSymbol.requiredMethod("empty") =>
             scalus.uplc.Constant.ByteString(scalus.builtin.ByteString.empty)
-        case Apply(expr, List(Literal(c)))
+        case Apply(expr, List(SkipInline(literal)))
             if expr.symbol == ByteStringModuleSymbol.requiredMethod("fromHex") =>
-            scalus.uplc.Constant.ByteString(scalus.builtin.ByteString.fromHex(c.stringValue))
-        case Apply(expr, List(Literal(c)))
+            literal match
+                case Literal(c) if c.tag == Constants.StringTag =>
+                    scalus.uplc.Constant.ByteString(
+                      scalus.builtin.ByteString.fromHex(c.stringValue)
+                    )
+                case _ =>
+                    error(
+                      GenericError(
+                        s"""ByteString.fromHex only accepts String literals, like ByteString.fromHex("deadbeef")
+                             |But you provided `${literal.show}`, which is not a String literal.
+                             |""".stripMargin,
+                        expr.srcPos
+                      ),
+                      scalus.uplc.Constant.Unit
+                    )
+        case Apply(expr, List(SkipInline(literal)))
             if expr.symbol == ByteStringModuleSymbol.requiredMethod("fromString") =>
-            scalus.uplc.Constant.ByteString(scalus.builtin.ByteString.fromString(c.stringValue))
+            literal match
+                case Literal(c) if c.tag == Constants.StringTag =>
+                    scalus.uplc.Constant.ByteString(
+                      scalus.builtin.ByteString.fromString(c.stringValue)
+                    )
+                case _ =>
+                    error(
+                      GenericError(
+                        s"""ByteString.fromString only accepts String literals, like ByteString.fromString("deadbeef")
+                               |But you provided `${literal.show}`, which is not a String literal.
+                               |""".stripMargin,
+                        expr.srcPos
+                      ),
+                      scalus.uplc.Constant.Unit
+                    )
         // hex"deadbeef" as ByteString using Scala 3 StringContext extension
-        case Apply(
+        case expr @ Apply(
               Apply(
                 byteStringHex,
                 List(Apply(stringContextApply, List(SeqLiteral(List(Literal(c)), _))))
@@ -749,9 +818,21 @@ final class SIRCompiler(mode: scalus.Mode)(using ctx: Context) {
             )
             if byteStringHex.symbol == ByteStringSymbolHex
                 && stringContextApply.symbol == StringContextApplySymbol =>
-            scalus.uplc.Constant.ByteString(scalus.builtin.ByteString.fromHex(c.stringValue))
+            try scalus.uplc.Constant.ByteString(scalus.builtin.ByteString.fromHex(c.stringValue))
+            catch
+                case NonFatal(e) =>
+                    error(
+                      GenericError(
+                        s"""Hex string `${c.stringValue}` is not a valid hex string.
+                           |Make sure it contains only hexadecimal characters (0-9, a-f, A-F)
+                           |Error: ${e.getMessage}
+                           |""".stripMargin,
+                        expr.srcPos
+                      ),
+                      scalus.uplc.Constant.Unit
+                    )
         // hex"deadbeef" as ByteString for Scala 2 implicit StringInterpolators
-        case Apply(
+        case expr @ Apply(
               Select(
                 Apply(
                   stringInterpolators,
@@ -769,7 +850,23 @@ final class SIRCompiler(mode: scalus.Mode)(using ctx: Context) {
             if ByteStringStringInterpolatorsMethodSymbol == stringInterpolators.symbol
                 && stringContext.symbol == StringContextSymbol && hex == termName("hex") &&
                 const.tag == Constants.StringTag =>
-            scalus.uplc.Constant.ByteString(scalus.builtin.ByteString.fromHex(const.stringValue))
+            try
+                scalus.uplc.Constant.ByteString(
+                  scalus.builtin.ByteString.fromHex(const.stringValue)
+                )
+            catch
+                case NonFatal(e) =>
+                    error(
+                      GenericError(
+                        s"""Hex string `${const.stringValue}` is not a valid hex string.
+                               |Make sure it contains only hexadecimal characters (0-9, a-f, A-F)
+                               |Error: ${e.getMessage}
+                               |""".stripMargin,
+                        expr.srcPos
+                      ),
+                      scalus.uplc.Constant.Unit
+                    )
+
     }
 
     private def typeReprToDefaultUni(tpe: Type, list: Tree): DefaultUni =
@@ -1116,6 +1213,121 @@ final class SIRCompiler(mode: scalus.Mode)(using ctx: Context) {
             case term => "error"
         SIR.Error(msg)
 
+    private def compileEquality(env: Env, lhs: Tree, op: Name, rhs: Tree, srcPos: SrcPos): SIR = {
+        lazy val lhsExpr = compileExpr(env, lhs)
+        lazy val rhsExpr = compileExpr(env, rhs)
+        val lhsTpe = lhs.tpe.widen.dealias
+        if lhsTpe =:= converter.BigIntClassSymbol.typeRef then
+            // common mistake: comparing BigInt with Int literal, e.g. BigInt(1) == 1
+            rhs match
+                case Literal(l) =>
+                    report.error(
+                      s"""You are trying to compare a BigInt and non-BigInt literal:
+                           |  ${lhs.show} ${op.show} ${rhs.show}.
+                           |
+                           |Convert the literal to BigInt before comparing:
+                           |  ${lhs.show} ${op} BigInt(${l.show})
+                           |""".stripMargin,
+                      rhs.srcPos
+                    )
+                    SIR.Error("Equality is only allowed between the same types")
+                case _ =>
+                    val eq =
+                        SIR.Apply(
+                          SIR.Apply(
+                            SIRBuiltins.equalsInteger,
+                            lhsExpr,
+                            SIRType.Integer ->: SIRType.Boolean
+                          ),
+                          rhsExpr,
+                          SIRType.Boolean
+                        )
+                    if op == nme.EQ then eq else SIR.Not(eq)
+        else if lhsTpe =:= defn.BooleanType then
+            if op == nme.EQ then
+                SIR.IfThenElse(
+                  lhsExpr,
+                  rhsExpr,
+                  SIR.IfThenElse(
+                    rhsExpr,
+                    SIR.Const(scalus.uplc.Constant.Bool(false)),
+                    SIR.Const(scalus.uplc.Constant.Bool(true)),
+                    SIRType.Boolean
+                  ),
+                  SIRType.Boolean
+                )
+            else
+                SIR.IfThenElse(
+                  lhsExpr,
+                  SIR.IfThenElse(
+                    rhsExpr,
+                    SIR.Const(scalus.uplc.Constant.Bool(false)),
+                    SIR.Const(scalus.uplc.Constant.Bool(true)),
+                    SIRType.Boolean
+                  ),
+                  rhsExpr,
+                  SIRType.Boolean
+                )
+        else if lhsTpe =:= converter.ByteStringClassSymbol.typeRef then
+            val eq =
+                SIR.Apply(
+                  SIR.Apply(
+                    SIRBuiltins.equalsByteString,
+                    lhsExpr,
+                    SIRType.ByteString ->: SIRType.Boolean
+                  ),
+                  rhsExpr,
+                  SIRType.Boolean
+                )
+            if op == nme.EQ then eq else SIR.Not(eq)
+        else if lhsTpe =:= defn.StringClass.typeRef then
+            val eq =
+                SIR.Apply(
+                  SIR.Apply(
+                    SIRBuiltins.equalsString,
+                    lhsExpr,
+                    SIRType.String ->: SIRType.Boolean
+                  ),
+                  rhsExpr,
+                  SIRType.Boolean
+                )
+            if op == nme.EQ then eq else SIR.Not(eq)
+        else if lhsTpe <:< converter.DataClassSymbol.typeRef && !(lhsTpe =:= NothingSymbol.typeRef || lhsTpe =:= NullSymbol.typeRef)
+        then
+            val eq =
+                SIR.Apply(
+                  SIR.Apply(
+                    SIRBuiltins.equalsData,
+                    lhsExpr,
+                    SIRType.Fun(SIRType.Data, SIRType.Boolean)
+                  ),
+                  rhsExpr,
+                  SIRType.Boolean
+                )
+            if op == nme.EQ then eq else SIR.Not(eq)
+        else
+            report.error(
+              s"""Equality check operations (`==`, `!=`) are only allowed between these primitive types:
+                 | BigInt, Boolean, ByteString, String, Data
+                 |
+                 |You are trying to compare these types:
+                 |  ${lhs.tpe.widen.show} ${op} ${rhs.tpe.widen.show}
+                 |  ---------- dealiaing to ------------
+                 |  ${lhs.tpe.widen.dealias.show} ${op} ${rhs.tpe.widen.dealias.show}
+                 |
+                 |Make sure you compare values of the same supported type.
+                 |
+                 |If you want to compare data types try using `===` operator from Prelude.
+                 |
+                 |Or convert the data to a supported type before comparing,
+                 |e.g. toData(x) == toData(y)
+                 |
+                 |""".stripMargin,
+              srcPos
+            )
+            SIR.Error("Equality is only allowed between the same types")
+    }
+
     def compileExpr[T](env: Env, tree: Tree)(using Context): SIR = {
         if env.debug then println(s"compileExpr: ${tree.showIndented(2)}, env: $env")
         if compileConstant.isDefinedAt(tree) then
@@ -1143,7 +1355,8 @@ final class SIRCompiler(mode: scalus.Mode)(using ctx: Context) {
              */
             case Apply(builtin, immutable.List(ps))
                 // NOTE: check ps.tpe is not Nothing, as Nothing is a subtype of everything
-                if ps.tpe <:< PlatformSpecificClassSymbol.typeRef && !(ps.tpe =:= NothingSymbol.typeRef) =>
+                if ps.tpe <:< PlatformSpecificClassSymbol.typeRef &&
+                    !(ps.tpe =:= NothingSymbol.typeRef || ps.tpe =:= NullSymbol.typeRef) =>
                 compileExpr(env, builtin)
             // Boolean
             case Select(lhs, op) if lhs.tpe.widen =:= defn.BooleanType && op == nme.UNARY_! =>
@@ -1159,90 +1372,9 @@ final class SIRCompiler(mode: scalus.Mode)(using ctx: Context) {
                 val lhsExpr = compileExpr(env, lhs)
                 val rhsExpr = compileExpr(env, rhs)
                 SIR.Or(lhsExpr, rhsExpr)
-            case Apply(Select(lhs, op), List(rhs))
-                if lhs.tpe.widen =:= defn.BooleanType && op == nme.EQ =>
-                val lhsExpr = compileExpr(env, lhs)
-                val rhsExpr = compileExpr(env, rhs)
-                SIR.IfThenElse(
-                  lhsExpr,
-                  rhsExpr,
-                  SIR.IfThenElse(
-                    rhsExpr,
-                    SIR.Const(scalus.uplc.Constant.Bool(false), SIRType.Boolean),
-                    SIR.Const(scalus.uplc.Constant.Bool(true), SIRType.Boolean),
-                    SIRType.Boolean
-                  ),
-                  SIRType.Boolean
-                )
-            case Apply(Select(lhs, op), List(rhs))
-                if lhs.tpe.widen =:= defn.BooleanType && op == nme.NE =>
-                val lhsExpr = compileExpr(env, lhs)
-                val rhsExpr = compileExpr(env, rhs)
-                SIR.IfThenElse(
-                  lhsExpr,
-                  SIR.IfThenElse(
-                    rhsExpr,
-                    SIR.Const(scalus.uplc.Constant.Bool(false), SIRType.Boolean),
-                    SIR.Const(scalus.uplc.Constant.Bool(true), SIRType.Boolean),
-                    SIRType.Boolean
-                  ),
-                  rhsExpr,
-                  SIRType.Boolean
-                )
-            // ByteString equality
-            case Apply(Select(lhs, op), List(rhs))
-                if lhs.tpe.widen =:= ByteStringClassSymbol.typeRef && (op == nme.EQ || op == nme.NE) =>
-                if !(rhs.tpe.widen =:= ByteStringClassSymbol.typeRef) then
-                    report.error(
-                      s"""Equality is only allowed between the same types but here we have ${lhs.tpe.widen.show} == ${rhs.tpe.widen.show}
-                         |Make sure you compare values of the same type""".stripMargin
-                    )
-                    SIR.Error("Equality is only allowed between the same types")
-                else
-                    val lhsExpr = compileExpr(env, lhs)
-                    val rhsExpr = compileExpr(env, rhs)
-                    val eq = SIR.Apply(
-                      SIR.Apply(
-                        SIRBuiltins.equalsByteString,
-                        lhsExpr,
-                        SIRType.ByteString ->: SIRType.Boolean
-                      ),
-                      rhsExpr,
-                      SIRType.Boolean
-                    )
-                    if op == nme.EQ then eq else SIR.Not(eq)
-            // String equality
-            case Apply(Select(lhs, op), List(rhs))
-                if lhs.tpe.widen =:= defn.StringClass.typeRef && (op == nme.EQ || op == nme.NE) =>
-                val lhsExpr = compileExpr(env, lhs)
-                val rhsExpr = compileExpr(env, rhs)
-                val eq =
-                    SIR.Apply(
-                      SIR.Apply(
-                        SIRBuiltins.equalsString,
-                        lhsExpr,
-                        SIRType.String ->: SIRType.Boolean
-                      ),
-                      rhsExpr,
-                      SIRType.Boolean
-                    )
-                if op == nme.EQ then eq else SIR.Not(eq)
-            // Data equality
-            case Apply(Select(lhs, op), List(rhs))
-                if lhs.tpe.widen <:< DataClassSymbol.typeRef && (op == nme.EQ || op == nme.NE) =>
-                val lhsExpr = compileExpr(env, lhs)
-                val rhsExpr = compileExpr(env, rhs)
-                val eq =
-                    SIR.Apply(
-                      SIR.Apply(
-                        SIRBuiltins.equalsData,
-                        lhsExpr,
-                        SIRType.Fun(SIRType.Data, SIRType.Boolean)
-                      ),
-                      rhsExpr,
-                      SIRType.Boolean
-                    )
-                if op == nme.EQ then eq else SIR.Not(eq)
+            // Equality and inequality: ==, !=
+            case Apply(Select(lhs, op), List(rhs)) if op == nme.EQ || op == nme.NE =>
+                compileEquality(env, lhs, op, rhs, tree.srcPos)
             // BUILTINS
             case bi: Select if builtinFun(bi.symbol).isDefined =>
                 if env.debug then println(s"compileExpr: builtinFun: ${bi.symbol}")
@@ -1316,6 +1448,24 @@ final class SIRCompiler(mode: scalus.Mode)(using ctx: Context) {
             case Apply(app @ Select(f, nme.apply), args)
                 if app.symbol.fullName.show == "scala.Tuple2$.apply" =>
                 compileNewConstructor(env, tree.tpe, args, tree)
+            /* case class Test(a: Int)
+             * val t = Test(42)
+             * is translated to
+             * val t = Test.apply(42), where Test.apply is a synthetic method of a companion object
+             * We need to compile it as a primary constructor
+             */
+            case Apply(TypeApply(apply, _), args)
+                if apply.symbol.flags
+                    .is(Flags.Synthetic) && apply.symbol.owner.flags.is(Flags.ModuleClass) =>
+                val classSymbol: Symbol = apply.symbol.owner.linkedClass
+                compileNewConstructor(env, classSymbol.typeRef, args)
+
+            case Apply(apply @ Select(f, nme.apply), args)
+                if apply.symbol.flags
+                    .is(Flags.Synthetic) && apply.symbol.owner.flags.is(Flags.ModuleClass) =>
+                // get a class symbol from a companion object
+                val classSymbol: Symbol = apply.symbol.owner.linkedClass
+                compileNewConstructor(env, classSymbol.typeRef, args)
             // f.apply[A, B](arg) => Apply(f, arg)
             /* When we have something like this:
              * (f: [A] => List[A] => A, a: A) => f[Data](a)

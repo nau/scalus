@@ -7,8 +7,9 @@
 
 ## Env setup with Nix
 
-Make sure that you have installed Nix package manager (see https://nixos.org/ ) and enabled `nix-command` and `flake` features and 
- IOHK binary cache.  
+Make sure that you have installed Nix package manager (see https://nixos.org/ ) and enabled `nix-command` and `flake`
+features and
+IOHK binary cache.
 
 Typical Nix config can looks like:
 
@@ -23,11 +24,9 @@ allow-import-from-derivation = true
 
 Usually you already have this setup if you have build cardano-node or cardano-cli locally.
 
-
 ```bash
 nix develop
 ```
-
 
 ## Build
 
@@ -52,8 +51,23 @@ Seq(s"-Xplugin:${jar.getAbsolutePath}", s"-Jdummy=${jar.lastModified}")
 This line should be commented out in scalusPlugin project settings:
 
 ```scala
-version := "0.6.2-SNAPSHOT",
+version := "0.6.2-SNAPSHOT"
+,
 ```
+
+### Debugging Scalus Plugin during compilation
+
+* Run sbt with the following command:
+
+```bash
+sbt -J-agentlib:jdwp=transport=dt_socket,server=y,suspend=y,address=5005 compile
+```
+
+This makes the compiler wait for a debugger to attach on port 5005.
+
+* Set Breakpoints in IntelliJ
+* In IntelliJ, create a Remote Debug configuration (host: localhost, port: 5005) and start it.
+* Once attached, resume execution to hit your breakpoints.
 
 ## Docusaurus
 
@@ -88,6 +102,12 @@ like `/opt/async-profiler` for Linux in the command bellow:
 
 ```bash
 sbt 'bench/jmh:run -prof "async:event=cycles;=dir=target/async-reports;interval=1000000;output=flamegraph;libPath=/opt/async-profiler/lib/libasyncProfiler.so" -jvmArgsAppend "-XX:+UnlockDiagnosticVMOptions -XX:+DebugNonSafepoints" -f 1 -wi 1 -i 1 -t 1 .*'
+```
+
+On MacOS use this command in sbt shell:
+
+```bash
+bench/jmh:run -prof "async:event=itimer;dir=target/async-reports;interval=1000000;output=flamegraph;libPath=/nix/store/mr0adcvnv8pkalfbhsgm9p762rs2pyzg-async-profiler-3.0/lib/libasyncProfiler.dylib" -jvmArgsAppend "-XX:+UnlockDiagnosticVMOptions -XX:+DebugNonSafepoints"   -f 1 -wi 1 -i 1 -t 1 .*
 ```
 
 Resulting interactive flame graphs will be stored in the `bench/target/async-reports` subdirectory of the project.

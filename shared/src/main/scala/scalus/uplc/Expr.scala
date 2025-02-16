@@ -1,17 +1,13 @@
 package scalus.uplc
 
-import scalus.builtin.ByteString
+import scalus.*
 import scalus.builtin.ByteString.*
-import scalus.builtin.Data
-import scalus.ledger.api.v1.*
+import scalus.builtin.{ByteString, Data}
 import scalus.macros.Macros
 import scalus.uplc.Constant.LiftValue
-import scalus.*
-import scalus.utils.Utils
-import scalus.utils.Utils.bytesToHex
-import scala.language.implicitConversions
 
 import scala.annotation.targetName
+import scala.language.implicitConversions
 
 trait Delayed[+A]
 case class Expr[+A](term: Term)
@@ -145,63 +141,3 @@ object ExprBuilder:
         def compose[A](rhs: Expr[A => B]): Expr[A => C] = lam(a => app(lhs, app(rhs, a)))
     extension [A](lhs: Expr[A]) def unary_~ : Expr[Delayed[A]] = delay(lhs)
     extension [A](lhs: Expr[Delayed[A]]) def unary_! : Expr[A] = force(lhs)
-
-object Example:
-    import Constant.given
-    import ExprBuilder.{*, given}
-    import scalus.ledger.api.v1.ToDataInstances.given
-    // simple validator that checks that the spending transaction has no outputs
-    // it's a gift to the validators community
-
-    val giftValidator: Expr[Unit => Unit => Data => Unit] = lam { redeemer =>
-        lam { datum =>
-            lam { ctx =>
-                val txInfoOutputs =
-                    fieldAsData[ScriptContext](_.txInfo.outputs).apply(ctx)
-                val isTxInfoOutputsEmpty = nullList(unListData(txInfoOutputs))
-                ifThenElse2(isTxInfoOutputsEmpty)(())(err("Tx has outputs"))
-            }
-        }
-    }
-
-    /// PubKey style validator. Checks whether the transaction has a specific signature
-    def pubKeyValidator(pkh: PubKeyHash): Expr[Unit => Unit => Data => Unit] =
-        lam { redeemer =>
-            lam { datum =>
-                lam { ctx =>
-                    val txInfoSignatories: Expr[List[Data]] = unListData(
-                      fieldAsData[ScriptContext](_.txInfo.signatories).apply(ctx)
-                    )
-
-                    val search = rec[List[Data], Unit] { self =>
-                        lam { signatories =>
-                            // signatories.head.pubKeyHash
-                            val head = headList.apply(signatories)
-                            val headPubKeyHash = unBData(head)
-                            !chooseList(signatories)(error("Signature not found")) {
-                                ~ifThenElse2(equalsByteString(headPubKeyHash)(pkh.hash))(()) {
-                                    self(tailList(signatories))
-                                }
-                            }
-                        }
-                    }
-                    search(txInfoSignatories)
-                }
-            }
-        }
-
-    def main(args: Array[String]): Unit = {
-//    println(giftValidator.term.show)
-        val pubKeyProgram = pubKeyValidator(PubKeyHash(hex"deadbeef")).term.plutusV1.show
-        println(pubKeyProgram)
-        val flat = UplcCli.uplcToFlat(pubKeyProgram)
-        println(s"${flat.length} ${bytesToHex(flat)}")
-
-        /*val asdf = rec[BigInt, BigInt](self =>
-      lam[BigInt]("x") { x =>
-        !ifThenElse(x <= BigInt(0), ~self(x |+| const(BigInt(1))), ~const(BigInt(123)))
-      }
-    )
-
-    println(VM.evaluateTerm(asdf(BigInt(-3)).term).show)*/
-    }

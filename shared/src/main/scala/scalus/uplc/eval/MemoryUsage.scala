@@ -31,9 +31,9 @@ object MemoryUsage {
         else (l - 1) / 8 + 1
 
     def memoryUsageInteger(i: BigInt): CostingInteger =
-        if i == 0 then 1
+        if i.equals(BigInt(0)) then 1L
         else
-            val ceilLog2 = i.abs.bitLength - 1
+            val ceilLog2 = i.abs.bitLength - 1L
             ceilLog2 / 64 + 1
 
     // this mimics the Haskell implementation
@@ -64,7 +64,8 @@ object MemoryUsage {
 
     private def sumList(l: List[Data]): CostingInteger =
         var acc = 0L
-        for d <- l do acc += memoryUsageData(d)
+        val it = l.iterator
+        while it.hasNext do acc += memoryUsageData(it.next())
         acc
 
     def memoryUsage(a: CekValue): CostingInteger = a match
