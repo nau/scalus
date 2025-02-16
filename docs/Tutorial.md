@@ -1,6 +1,7 @@
 ---
 sidebar_position: 2
 ---
+
 # Tutorial
 
 ## Basic workflow
@@ -16,7 +17,7 @@ to use the [Cardano Client Lib](https://github.com/bloxbean/cardano-client-lib) 
 
 ## How it works
 
-You write a script using a small subset of [Scala 3](https://scala-lang.org) language,
+You write a script using a subset of [Scala 3](https://scala-lang.org) language,
 which is then compiled to a Scalus Intermediate Representation (SIR) with `compile` function.
 
 The SIR can be pretty-printed and reviewed.
@@ -58,7 +59,7 @@ Supported:
 * passing/returning functions as arguments (higher-order functions)
 * `if-then-else` expressions
 * simple `match` expressions on case classes and enums
-  * only simple bindings are supported like `case Costr(field, other) => ...`
+    * only simple bindings are supported like `case Costr(field, other) => ...`
 * `given` arguments and `using` clauses
 * `throw` expressions but no `try-catch` expressions
 * built-in functions and operators
@@ -73,7 +74,7 @@ Supported:
 * `var`s and `lazy val`s
 * `while` loops
 * classes, inheritance and polymorphism aka virtual dispatch
-  * you can't use `isInstanceOf`
+    * you can't use `isInstanceOf`
 * pattern matching with guards
 * pattern matching on multiple constructors (`case A | B => ...`)
 * pattern matching using type ascriptions (`case x: BigInt => ...`)
@@ -81,37 +82,24 @@ Supported:
 * overloaded functions
 * mutually recursive functions
 
-## Constans and primitives
+## Constants and primitives
 
-Plutus V3 supports the following primitive types: 
+Plutus V3 supports multiple builtin primitive types.
+Here's a table showing correspondence between Plutus, Scalus, and Aiken types:
 
-* `unit`
-* `bool`
-* `integer`
-* `bytestring`
-* `string`
-* `data`
-* `list`
-* `pair`
-* `BLS12_381_G1_Element`
-* `BLS12_381_G2_Element`
-* `BLS12_381_MlResult`
-
-Those types are represented in Scalus as:
-
-* `Unit`
-* `Boolean`
-* `BigInt`
-* `ByteString`
-* `String`
-* `Data`
-* `List`
-* `Pair` 
-* `BLS12_381_G1_Element`
-* `BLS12_381_G2_Element`
-* `BLS12_381_MlResult`
-
-respectively.
+| Plutus V3              | Scalus                 | Aiken              |
+|------------------------|------------------------|--------------------|
+| `unit`                 | `Unit`                 | `()`               |
+| `bool`                 | `Boolean`              | `Bool`             |
+| `integer`              | `BigInt`               | `Int`              |
+| `bytestring`           | `ByteString`           | `ByteArray`        |
+| `string`               | `String`               | `String`           |
+| `data`                 | `Data`                 | `Data`             |
+| `list`                 | `List`                 | `List`             |
+| `pair`                 | `Pair`                 | `Pairs`            |
+| `BLS12_381_G1_Element` | `BLS12_381_G1_Element` | `G1Element`        |
+| `BLS12_381_G2_Element` | `BLS12_381_G2_Element` | `G12Element`       |
+| `BLS12_381_MlResult`   | `BLS12_381_MlResult`   | `MillerLoopResult` |
 
 We use Scala native types to represent `Unit`, `Boolean`, `BigInt`, and `String`.
 
@@ -141,6 +129,11 @@ val constants = compile {
 ```
 
 ## Builtin Functions
+
+Cardano Plutus provides a set of built-in functions that can be used in the scripts.
+Scalus implements them in the [Builtins](https://scalus.org/api/scalus/builtin/Builtins$.html) object.
+
+Here are some examples of using built-in functions.
 
 ```scala mdoc:compile-only
 import scalus.builtin.*
