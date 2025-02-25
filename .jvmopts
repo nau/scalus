@@ -1,1 +1,1 @@
--Xmx8G
+-Xmx8G -Xss64m
