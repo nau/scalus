@@ -1498,7 +1498,7 @@ class CompilerPluginToSIRSpec extends AnyFunSuite with ScalaCheckPropertyChecks:
       "scalus.ledger.api.v1.PubKeyHash",
       List(
         ConstrDecl(
-          "PubKeyHash",
+          "scalus.ledger.api.v1.PubKeyHash",
           SIRVarStorage.DEFAULT,
           List(TypeBinding("hash", sirByteString)),
           List.empty
