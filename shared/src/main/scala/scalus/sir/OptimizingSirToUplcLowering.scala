@@ -76,7 +76,7 @@ class OptimizingSirToUplcLowering(
             case SIR.Decl(data, body) =>
                 decls(data.name) = data
                 analyzeSir(body)
-            case SIR.Constr(name, data, args) =>
+            case SIR.Constr(name, data, args, tp) =>
                 args.foreach(analyzeSir)
             case SIR.Match(scrutinee, cases, tp) =>
                 analyzeSir(scrutinee)
@@ -145,7 +145,7 @@ class OptimizingSirToUplcLowering(
             case SIR.Decl(data, body) =>
                 decls(data.name) = data
                 lowerInner(body)
-            case SIR.Constr(name, data, args) =>
+            case SIR.Constr(name, data, args, tp) =>
                 /* data List a = Nil | Cons a (List a)
                     Nil is represented as \Nil Cons -> force Nil
                     Cons is represented as (\head tail Nil Cons -> Cons head tail) h tl

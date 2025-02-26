@@ -378,15 +378,17 @@ final class SIRCompiler(mode: scalus.Mode)(using ctx: Context) {
 
     private def compileNewConstructor(
         env: Env,
-        tpe: Type,
+        nakedType: Type,
+        fullType: Type,
+        targs: immutable.List[Tree],
         args: immutable.List[Tree],
         srcPos: SrcPos
     ): SIR = {
-        val constructorCallInfo = getAdtConstructorCallInfo(tpe)
+        val constructorCallInfo = getAdtConstructorCallInfo(nakedType)
         val argsE = args.map(compileExpr(env, _))
         val dataDecl = getCachedDataDecl(constructorCallInfo.dataInfo, env, srcPos)
         // constructor body as: constr arg1 arg2 ...
-        SIR.Constr(constructorCallInfo.name, dataDecl, argsE)
+        SIR.Constr(constructorCallInfo.name, dataDecl, argsE, sirTypeInEnv(fullType, srcPos, env))
     }
 
     // Parameterless case class constructor of an enum
@@ -418,7 +420,7 @@ final class SIRCompiler(mode: scalus.Mode)(using ctx: Context) {
             traverseAndLink(t, srcPos)
             traverseAndLink(f, srcPos)
         case SIR.Decl(data, term) => traverseAndLink(term, srcPos)
-        case SIR.Constr(name, data, args) =>
+        case SIR.Constr(name, data, args, tp) =>
             try
                 globalDataDecls.put(FullName(data.name), data)
                 args.foreach(a => traverseAndLink(a, srcPos))
@@ -696,7 +698,7 @@ final class SIRCompiler(mode: scalus.Mode)(using ctx: Context) {
         val retval = exprs.foldRight(exprExpr) { (bind, expr) =>
             SIR.Let(bind.recursivity, List(Binding(bind.name, bind.body)), expr)
         }
-        if env.debug then println(s"compileBlock: retval.tp=${retval.tp.show}")
+        if env.debug then println(s"compileBlock: retval.tp=${retval.tp.show}, ${retval.tp} isSumCaseClass=${retval.tp.isInstanceOf[SIRType.SumCaseClass]}")
         retval
     }
 
@@ -1333,7 +1335,7 @@ final class SIRCompiler(mode: scalus.Mode)(using ctx: Context) {
         if compileConstant.isDefinedAt(tree) then
             val const = compileConstant(tree)
             SIR.Const(const, sirTypeInEnv(tree.tpe, tree.srcPos, env))
-        else compileExpr2(env, tree)
+        else compileExpr2(env.copy(level = env.level+1), tree)
     }
 
     private def compileExpr2(env: Env, tree: Tree)(using Context): SIR = {
@@ -1435,37 +1437,37 @@ final class SIRCompiler(mode: scalus.Mode)(using ctx: Context) {
                 ) if pair.tpe =:= requiredModule("scalus.builtin.Pair").typeRef =>
                 compileBuiltinPairConstructor(env, a, b, tpe1, tpe2, tree)
             // new Constr(args)
-            case Apply(TypeApply(con @ Select(f, nme.CONSTRUCTOR), _), args) =>
-                compileNewConstructor(env, f.tpe, args, tree)
+            case Apply(TypeApply(con @ Select(f, nme.CONSTRUCTOR), targs), args) =>
+                compileNewConstructor(env, f.tpe, tree.tpe.widen, targs,args, tree)
             case Apply(con @ Select(f, nme.CONSTRUCTOR), args) =>
-                compileNewConstructor(env, f.tpe, args, tree)
+                compileNewConstructor(env, f.tpe, tree.tpe.widen, Nil, args, tree)
             // (a, b) as scala.Tuple2.apply(a, b)
             // we need to special-case it because we use scala-library 2.13.x
             // which does not include TASTy so we can't access the method body
-            case Apply(TypeApply(app @ Select(f, nme.apply), _), args)
+            case Apply(TypeApply(app @ Select(f, nme.apply), targs), args)
                 if app.symbol.fullName.show == "scala.Tuple2$.apply" =>
-                compileNewConstructor(env, tree.tpe, args, tree)
+                compileNewConstructor(env, tree.tpe, tree.tpe.widen, targs, args, tree)
             case Apply(app @ Select(f, nme.apply), args)
                 if app.symbol.fullName.show == "scala.Tuple2$.apply" =>
-                compileNewConstructor(env, tree.tpe, args, tree)
+                compileNewConstructor(env, tree.tpe, tree.tpe, Nil, args, tree)
             /* case class Test(a: Int)
              * val t = Test(42)
              * is translated to
              * val t = Test.apply(42), where Test.apply is a synthetic method of a companion object
              * We need to compile it as a primary constructor
              */
-            case Apply(TypeApply(apply, _), args)
+            case Apply(TypeApply(apply, targs), args)
                 if apply.symbol.flags
                     .is(Flags.Synthetic) && apply.symbol.owner.flags.is(Flags.ModuleClass) =>
                 val classSymbol: Symbol = apply.symbol.owner.linkedClass
-                compileNewConstructor(env, classSymbol.typeRef, args, tree)
+                compileNewConstructor(env, classSymbol.typeRef, tree.tpe.widen, targs, args, tree)
 
             case Apply(apply @ Select(f, nme.apply), args)
                 if apply.symbol.flags
                     .is(Flags.Synthetic) && apply.symbol.owner.flags.is(Flags.ModuleClass) =>
                 // get a class symbol from a companion object
                 val classSymbol: Symbol = apply.symbol.owner.linkedClass
-                compileNewConstructor(env, classSymbol.typeRef, args, tree)
+                compileNewConstructor(env, classSymbol.typeRef, tree.tpe.widen, Nil, args, tree)
             // f.apply[A, B](arg) => Apply(f, arg)
             /* When we have something like this:
              * (f: [A] => List[A] => A, a: A) => f[Data](a)
@@ -1479,7 +1481,7 @@ final class SIRCompiler(mode: scalus.Mode)(using ctx: Context) {
                 compileApply(env, f, Nil, args, tree.tpe, a)
             case Ident(a) =>
                 if isConstructorVal(tree.symbol, tree.tpe) then
-                    compileNewConstructor(env, tree.tpe, Nil, tree)
+                    compileNewConstructor(env, tree.tpe, tree.tpe, Nil, Nil, tree)
                 else compileIdentOrQualifiedSelect(env, tree)
             // case class User(name: String, age: Int)
             // val user = User("John", 42) => \u - u "John" 42
@@ -1498,10 +1500,11 @@ final class SIRCompiler(mode: scalus.Mode)(using ctx: Context) {
                 // else if obj.symbol.isPackageDef then
                 // compileExpr(env, obj)
                 else if isConstructorVal(tree.symbol, tree.tpe) then
-                    compileNewConstructor(env, tree.tpe, Nil, tree.srcPos)
+                    compileNewConstructor(env, tree.tpe, tree.tpe, Nil, Nil, tree.srcPos)
                 else compileIdentOrQualifiedSelect(env, tree)
             // ignore asInstanceOf
-            case TypeApply(Select(e, nme.asInstanceOf_), _) => compileExpr(env, e)
+            case TypeApply(Select(e, nme.asInstanceOf_), _) =>
+                compileExpr(env, e)
             // Ignore type application
             case TypeApply(f, targs) =>
                 val nEnv = fillTypeParamInTypeApply(f.symbol, targs, env)
@@ -1609,7 +1612,17 @@ final class SIRCompiler(mode: scalus.Mode)(using ctx: Context) {
     }
 
     protected def sirTypeInEnv(tp: Type, env: SIRTypesHelper.SIRTypeEnv): SIRType = {
-        try SIRTypesHelper.sirTypeInEnv(tp, env)
+        try
+            val retval = SIRTypesHelper.sirTypeInEnv(tp, env)
+            retval match
+                case _: SIRType.SumCaseClass =>
+                    tp match
+                        case AppliedType(tpe, List(arg)) if tpe.widen.typeSymbol.name.asSimpleName.show == "List" =>
+                            //println(s"SIRTypeInEnv:List, tp=${tp.show}, fullname=${tp.typeSymbol.fullName}, retval=${retval.show}")
+                        case _ =>
+                            println(s"SIRTypeInEnv, tp=${tp.show}, fullname=${tp.typeSymbol.fullName}, retval=${retval.show}")
+                case _ =>
+            retval
         catch
             case e: SIRTypesHelper.TypingException =>
                 println(s"Error wjile typing: ${tp.show}: ${e.msg},")

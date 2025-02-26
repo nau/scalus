@@ -748,10 +748,11 @@ object FlatInstantces:
                     SIRTypeHashConsedFlat.bitSizeHC(tp, hashCons)
             case Builtin(bn, tp)   => termTagWidth + summon[Flat[DefaultFun]].bitSize(bn)
             case Error(msg, cause) => termTagWidth + summon[Flat[String]].bitSize(msg)
-            case Constr(name, data, args) =>
+            case Constr(name, data, args, tp) =>
                 termTagWidth + summon[Flat[String]].bitSize(name)
                     + DataDeclFlat.bitSizeHC(data, hashCons)
                     + HashConsedReprFlat.listRepr(SIRHashConsedFlat).bitSizeHC(args, hashCons)
+                    + SIRTypeHashConsedFlat.bitSizeHC(tp, hashCons)
             case Match(scrutinee, cases, tp) =>
                 termTagWidth + bitSizeHC(scrutinee, hashCons)
                     + HashConsedReprFlat.listRepr(SIRCaseHashConsedFlat).bitSizeHC(cases, hashCons)
@@ -802,11 +803,12 @@ object FlatInstantces:
                 case Error(msg, _) =>
                     enc.encode.bits(termTagWidth, tagError)
                     summon[Flat[String]].encode(msg, enc.encode)
-                case Constr(name, data, args) =>
+                case Constr(name, data, args, tp) =>
                     enc.encode.bits(termTagWidth, tagConstr)
                     summon[Flat[String]].encode(name, enc.encode)
                     DataDeclFlat.encodeHC(data, enc)
                     HashConsedReprFlat.listRepr(SIRHashConsedFlat).encodeHC(args, enc)
+                    SIRTypeHashConsedFlat.encodeHC(tp, enc)
                 case Match(scrutinee, cases, tp) =>
                     enc.encode.bits(termTagWidth, tagMatch)
                     encodeHC(scrutinee, enc)
@@ -894,9 +896,10 @@ object FlatInstantces:
                     val name = summon[Flat[String]].decode(decoder.decode)
                     val data = DataDeclFlat.decodeHC(decoder)
                     val args = HashConsedReprFlat.listRepr(SIRHashConsedFlat).decodeHC(decoder)
+                    val tp = SIRTypeHashConsedFlat.decodeHC(decoder)
                     HashConsedRef.deferred(
-                      hs => data.isComplete(hs) && args.isComplete(hs),
-                      (hs, l, p) => Constr(name, data.finValue(hs, l, p), args.finValue(hs, l, p))
+                      hs => data.isComplete(hs) && args.isComplete(hs) && tp.isComplete(hs),
+                      (hs, l, p) => Constr(name, data.finValue(hs, l, p), args.finValue(hs, l, p), tp.finValue(hs, l, p))
                     )
                 case `tagMatch` =>
                     val scrutinee = decodeHC(decoder)

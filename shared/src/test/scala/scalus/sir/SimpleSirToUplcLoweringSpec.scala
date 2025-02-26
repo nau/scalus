@@ -113,14 +113,15 @@ class SimpleSirToUplcLoweringSpec
           List()
         )
         def withDecls(sir: SIR) = SIR.Decl(listData, SIR.Decl(txIdData, sir))
-        withDecls(SIR.Constr("Nil", listData, List())) lowersTo (lam("Nil", "Cons")(
+        withDecls(SIR.Constr("Nil", listData, List(),listData.constructors.head.tp)) lowersTo (lam("Nil", "Cons")(
           !(vr"Nil")
         ))
         withDecls(
           SIR.Constr(
             "TxId",
             txIdData,
-            List(SIR.Const(asConstant(hex"DEADBEEF"), ByteString))
+            List(SIR.Const(asConstant(hex"DEADBEEF"), ByteString)),
+            txIdData.constructors.head.tp
           )
         ) lowersTo (lam("hash", "TxId")(vr"TxId" $ vr"hash") $ hex"DEADBEEF")
 
@@ -176,7 +177,7 @@ class SimpleSirToUplcLoweringSpec
 
         withDecls(
           SIR.Match(
-            SIR.Constr("Nil", listData, List()),
+            SIR.Constr("Nil", listData, List(), listData.constructors.head.tp),
             List(
               SIR.Case(
                 nilConstr,

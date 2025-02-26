@@ -129,7 +129,7 @@ object PrettyPrinter:
                       prettyConstrs
                     )).grouped.aligned
                     / pretty(term, style)
-            case Constr(name, _, args) =>
+            case Constr(name, _, args, _) =>
                 ctr(name) + intercalate(
                   text(",") + line,
                   args.map(pretty(_, style))

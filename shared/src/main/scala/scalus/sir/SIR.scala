@@ -43,6 +43,10 @@ case class ConstrDecl(
         throw new RuntimeException("Invalud name in constructor: " + name)
     }
 
+    if name.contains(".") then {
+        throw new RuntimeException("Full name in constructor: " + name)
+    }
+
     private var _tp: SIRType = null
 
     def tp: SIRType =
@@ -92,7 +96,7 @@ sealed trait SIR {
             case SIRUnify.UnificationSuccess(_, _)    => true
             case SIRUnify.UnificationFailure(_, _, _) => false
         }
-
+    
 }
 
 object SIR:
@@ -179,9 +183,9 @@ object SIR:
     }
 
     // TODO: unify data-decl.
-    case class Constr(name: String, data: DataDecl, args: List[SIR]) extends SIR {
-        override def tp: SIRType = data.tp
-    }
+    case class Constr(name: String, data: DataDecl, args: List[SIR], tp: SIRType) extends SIR
+
+
 
     case class Case(
         constr: ConstrDecl,
@@ -259,9 +263,10 @@ object SIRChecker {
                 ) ++ checkTp
             case SIR.Builtin(_, tp) => checkTp
             case SIR.Error(_, _)    => checkTp
-            case SIR.Constr(_, data, args) =>
+            case SIR.Constr(_, data, args, tp1) =>
                 val checkArgs = args.flatMap(a => checkSIR(a, throwOnFirst))
-                checkData(data, throwOnFirst) ++ checkArgs ++ checkTp
+                val checkTp1 = checkType(tp1, throwOnFirst)
+                checkData(data, throwOnFirst) ++ checkArgs ++ checkTp ++ checkTp1
             case SIR.Match(scrutinee, cases, tp) =>
                 val checkCases = cases.flatMap(c => checkCase(c, throwOnFirst))
                 checkSIR(scrutinee, throwOnFirst) ++ checkCases ++ checkTp

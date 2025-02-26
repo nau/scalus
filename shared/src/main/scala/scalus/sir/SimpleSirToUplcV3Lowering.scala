@@ -177,8 +177,8 @@ class SimpleSirToUplcV3Lowering(sir: SIR, generateErrorTraces: Boolean = false):
             case SIR.Decl(data, body) =>
                 decls(data.name) = data
                 lowerInner(body)
-            case SIR.Constr(name, data, args) =>
-                println(s"Constr: $name, ${data.name}, $args")
+            case SIR.Constr(name, data, args, tp) =>
+                println(s"Constr: $name, ${data.name}, $args, ${tp.show}")
                 val tag = data.constructors.indexWhere(_.name == name, 0)
                 if tag == -1 then
                     throw new IllegalArgumentException(s"Constructor $name not found in $data")
@@ -206,6 +206,8 @@ class SimpleSirToUplcV3Lowering(sir: SIR, generateErrorTraces: Boolean = false):
                                         } $ (builtinTerms(SndPair) $ pair)
                                     } $ (builtinTerms(FstPair) $ pair)
                                 } $ pair
+                    case SIRType.CaseClass(constr, _) =>
+                        ???  
                     case _ =>
                         throw new IllegalArgumentException(
                           s"Expected case class type, got ${scrutinee.tp} in expression: ${sir.show}"

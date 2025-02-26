@@ -43,8 +43,8 @@ object RemoveRecursivity:
                   },
                   tp
                 )
-            case Constr(name, data, args) =>
-                Constr(name, data, args.map(removeRecursivity))
+            case Constr(name, data, args, tp) =>
+                Constr(name, data, args.map(removeRecursivity), tp)
             case Decl(data, term) => Decl(data, removeRecursivity(term))
             case _: Builtin | _: Error | _: Var | _: ExternalVar | _: Const => sir
 
@@ -65,7 +65,7 @@ object RemoveRecursivity:
             case IfThenElse(c, t, f, tp) =>
                 isRecursive(name, c, env) || isRecursive(name, t, env) || isRecursive(name, f, env)
             case Decl(_, t) => isRecursive(name, t, env)
-            case Constr(_, _, args) =>
+            case Constr(_, _, args, tp) =>
                 args.exists(a => isRecursive(name, a, env))
             case Match(scrutinee, cases, tp) =>
                 isRecursive(name, scrutinee, env) || cases.exists {

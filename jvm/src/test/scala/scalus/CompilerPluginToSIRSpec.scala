@@ -1514,25 +1514,35 @@ class CompilerPluginToSIRSpec extends AnyFunSuite with ScalaCheckPropertyChecks:
             pkh.hash
         }
 
-        assert(
-          compiled ~=~
-              Decl(
-                pubKeyHashDataDecl,
-                Let(
-                  NonRec,
-                  List(
+        val expected = Decl(
+            pubKeyHashDataDecl,
+            Let(
+                NonRec,
+                List(
                     Binding(
-                      "pkh",
-                      Constr(
-                        "PubKeyHash",
-                        pubKeyHashDataDecl,
-                        List(Const(uplc.Constant.ByteString(hex"DEADBEEF"), sirByteString))
-                      )
+                        "pkh",
+                        Constr(
+                            "PubKeyHash",
+                            pubKeyHashDataDecl,
+                            List(Const(uplc.Constant.ByteString(hex"DEADBEEF"), sirByteString)),
+                            SIRType.FreeUnificator
+                        )
                     )
-                  ),
-                  Select(Var("pkh", pubKeyHashDataDecl.tp), "hash", sirByteString)
-                )
-              )
+                ),
+                Select(Var("pkh", pubKeyHashDataDecl.constructors.head.tp), "hash", sirByteString)
+            )
+        )
+
+        SIRUnify.unifySIR(compiled, expected, SIRUnify.Env.empty.copy(debug = true)) match
+            case SIRUnify.UnificationSuccess(env, unificator) =>
+
+            case SIRUnify.UnificationFailure(path,left,right) =>
+                println(s"compile datatypes: unify path=${path}")
+                println(s"compile datatypes: unify left=${left}")
+                println(s"compile datatypes: unify right=${right}")
+
+        assert(
+          compiled ~=~ expected
         )
     }
 
@@ -1548,7 +1558,8 @@ class CompilerPluginToSIRSpec extends AnyFunSuite with ScalaCheckPropertyChecks:
                 Constr(
                   "PubKeyHash",
                   pubKeyHashDataDecl,
-                  List(Const(Constant.ByteString(hex"deadbeef"), SIRType.ByteString))
+                  List(Const(Constant.ByteString(hex"deadbeef"), SIRType.ByteString)),
+                  SIRType.CaseClass(pubKeyHashDataDecl.constructors.head, scala.Nil)
                 )
               )
         )

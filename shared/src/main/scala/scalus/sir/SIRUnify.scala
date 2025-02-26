@@ -62,6 +62,8 @@ object SIRUnify {
 
     extension [T: Unify](left: T)
         def ~=~(right: T): UnificationResult[T] = summon[Unify[T]].apply(left, right, Env.empty)
+        def ~~=~~(right: T): Boolean = summon[Unify[T]].apply(left, right, Env(debug = true)).isSuccess
+
 
     def unifySIR(left: SIR, right: SIR, env: Env): UnificationResult[SIR] = {
         unifySIRExpr(left, right, env)
@@ -251,7 +253,7 @@ object SIRUnify {
                                     case UnificationSuccess(env2, data) =>
                                         UnificationSuccess(
                                           env2.copy(path = env.path),
-                                          SIR.Constr(c1.name, data, args)
+                                          SIR.Constr(c1.name, data, args, c1.tp)
                                         )
                                     case failure @ UnificationFailure(path, left, right) =>
                                         failure
