@@ -43,10 +43,6 @@ case class ConstrDecl(
         throw new RuntimeException("Invalud name in constructor: " + name)
     }
 
-    if name.contains(".") then {
-        throw new RuntimeException("Full name in constructor: " + name)
-    }
-
     private var _tp: SIRType = null
 
     def tp: SIRType =

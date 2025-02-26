@@ -1522,7 +1522,7 @@ class CompilerPluginToSIRSpec extends AnyFunSuite with ScalaCheckPropertyChecks:
                     Binding(
                         "pkh",
                         Constr(
-                            "PubKeyHash",
+                            "scalus.ledger.api.v1.PubKeyHash",
                             pubKeyHashDataDecl,
                             List(Const(uplc.Constant.ByteString(hex"DEADBEEF"), sirByteString)),
                             SIRType.FreeUnificator
@@ -1556,7 +1556,7 @@ class CompilerPluginToSIRSpec extends AnyFunSuite with ScalaCheckPropertyChecks:
               Decl(
                 pubKeyHashDataDecl,
                 Constr(
-                  "PubKeyHash",
+                  "scalus.ledger.api.v1.PubKeyHash",
                   pubKeyHashDataDecl,
                   List(Const(Constant.ByteString(hex"deadbeef"), SIRType.ByteString)),
                   SIRType.CaseClass(pubKeyHashDataDecl.constructors.head, scala.Nil)
