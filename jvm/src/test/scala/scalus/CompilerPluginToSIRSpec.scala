@@ -1525,7 +1525,7 @@ class CompilerPluginToSIRSpec extends AnyFunSuite with ScalaCheckPropertyChecks:
                             "scalus.ledger.api.v1.PubKeyHash",
                             pubKeyHashDataDecl,
                             List(Const(uplc.Constant.ByteString(hex"DEADBEEF"), sirByteString)),
-                            SIRType.FreeUnificator
+                            pubKeyHashDataDecl.constructors.head.tp
                         )
                     )
                 ),
@@ -1538,8 +1538,13 @@ class CompilerPluginToSIRSpec extends AnyFunSuite with ScalaCheckPropertyChecks:
 
             case SIRUnify.UnificationFailure(path,left,right) =>
                 println(s"compile datatypes: unify path=${path}")
-                println(s"compile datatypes: unify left=${left}")
+                println(s"compile datatypes: unify left =${left}")
                 println(s"compile datatypes: unify right=${right}")
+                if left.isInstanceOf[SIR] then
+                    println(s"compile datatypes: unify left:\n${left.asInstanceOf[SIR].show}")
+                if right.isInstanceOf[SIR] then
+                    println(s"compile datatypes: unify right:\n${right.asInstanceOf[SIR].show}")
+
 
         assert(
           compiled ~=~ expected

@@ -68,7 +68,8 @@ case class AdtTypeInfo(
   *   Type information of the base data type.
   */
 case class AdtConstructorCallInfo(
-    name: String,
+    shortName: String,
+    fullName: String,
     dataInfo: AdtTypeInfo
 )
 
@@ -76,7 +77,7 @@ object AdtConstructorCallInfo {
     def apply(constructorTypeSymbol: Symbol, dataInfo: AdtTypeInfo)(using
         Context
     ): AdtConstructorCallInfo =
-        AdtConstructorCallInfo(constructorTypeSymbol.name.show, dataInfo)
+        AdtConstructorCallInfo(constructorTypeSymbol.name.show, constructorTypeSymbol.fullName.show, dataInfo)
 }
 
 final class SIRCompiler(mode: scalus.Mode)(using ctx: Context) {
@@ -373,7 +374,7 @@ final class SIRCompiler(mode: scalus.Mode)(using ctx: Context) {
             .getOrElse(Nil)
         // TODO: add substoitution for parent type params
         // scalus.sir.ConstrDecl(sym.name.show, SIRVarStorage.DEFAULT, params, typeParams, baseTypeArgs)
-        scalus.sir.ConstrDecl(constrSymbol.name.show, SIRVarStorage.DEFAULT, params, typeParams)
+        scalus.sir.ConstrDecl(constrSymbol.fullName.show, SIRVarStorage.DEFAULT, params, typeParams)
     }
 
     private def compileNewConstructor(
@@ -388,7 +389,7 @@ final class SIRCompiler(mode: scalus.Mode)(using ctx: Context) {
         val argsE = args.map(compileExpr(env, _))
         val dataDecl = getCachedDataDecl(constructorCallInfo.dataInfo, env, srcPos)
         // constructor body as: constr arg1 arg2 ...
-        SIR.Constr(constructorCallInfo.name, dataDecl, argsE, sirTypeInEnv(fullType, srcPos, env))
+        SIR.Constr(constructorCallInfo.fullName, dataDecl, argsE, sirTypeInEnv(fullType, srcPos, env))
     }
 
     // Parameterless case class constructor of an enum

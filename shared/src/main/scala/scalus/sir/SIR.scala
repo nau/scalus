@@ -7,6 +7,10 @@ case class Module(version: (Int, Int), defs: List[Binding])
 
 case class Binding(name: String, value: SIR) {
 
+    if (name == "pkh" && value.tp == SIRType.FreeUnificator) {
+        throw new RuntimeException("Binding with name pkh and value FreeUnitifactor")
+    }
+
     override def toString: String = s"Binding(\"$name\" : $value)"
 
 }
@@ -35,6 +39,7 @@ case class ConstrDecl(
     // (moved to DataDecl,  since when we have a hierarchy with more than one level,
     //  then we map this to few DataDecl, and each DataDecl has its own constructor type).
     // */
+    //TODO: enable this,
     // parentTypeArgs: List[SIRType]
 
 ) {
@@ -42,6 +47,7 @@ case class ConstrDecl(
     if name.contains(" ") || name.contains("\u0021") then {
         throw new RuntimeException("Invalud name in constructor: " + name)
     }
+
 
     private var _tp: SIRType = null
 
@@ -179,12 +185,7 @@ object SIR:
     }
 
     // TODO: unify data-decl.
-    case class Constr(name: String, data: DataDecl, args: List[SIR], tp: SIRType) extends SIR {
-        if (name == "PubKeyHash") {
-            throw new RuntimeException("Constr with name PubKeyHash")
-        }
-
-    }
+    case class Constr(name: String, data: DataDecl, args: List[SIR], tp: SIRType) extends SIR
 
 
 

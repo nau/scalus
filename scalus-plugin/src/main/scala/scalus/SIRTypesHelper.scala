@@ -429,10 +429,10 @@ object SIRTypesHelper {
                     //    case AppliedType(tycon, args) => args.map(sirTypeInEnv(_, nEnv))
                     //    case _ => Nil
                     // ConstrDecl(name, SIRVarStorage.Data, params, tparams, parentTParams)
-                    ConstrDecl(name, SIRVarStorage.Data, params, tparams)
+                    ConstrDecl(name, SIRVarStorage.DEFAULT, params, tparams)
                 case None =>
                     // ConstrDecl(name, SIRVarStorage.Data, params, tparams, Nil)
-                    ConstrDecl(name, SIRVarStorage.Data, params, tparams)
+                    ConstrDecl(name, SIRVarStorage.DEFAULT, params, tparams)
             val nType = SIRType.CaseClass(constrDecl, tpArgs)
             Some(nType)
         } else {

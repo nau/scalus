@@ -178,7 +178,6 @@ class SimpleSirToUplcV3Lowering(sir: SIR, generateErrorTraces: Boolean = false):
                 decls(data.name) = data
                 lowerInner(body)
             case SIR.Constr(name, data, args, tp) =>
-                println(s"Constr: $name, ${data.name}, $args, ${tp.show}")
                 val tag = data.constructors.indexWhere(_.name == name, 0)
                 if tag == -1 then
                     throw new IllegalArgumentException(s"Constructor $name not found in $data")
@@ -187,7 +186,6 @@ class SimpleSirToUplcV3Lowering(sir: SIR, generateErrorTraces: Boolean = false):
                 if mapping.contains(data.name)
                 then
                     val term = mapping(data.name).toData(loweredArgs)
-                    println(s"Term: ${term.showHighlighted}")
                     term
                 else constrData(tag, loweredArgs)
             case m @ SIR.Match(scrutinee, cases, tp) =>
@@ -207,6 +205,7 @@ class SimpleSirToUplcV3Lowering(sir: SIR, generateErrorTraces: Boolean = false):
                                     } $ (builtinTerms(FstPair) $ pair)
                                 } $ pair
                     case SIRType.CaseClass(constr, _) =>
+                        
                         ???  
                     case _ =>
                         throw new IllegalArgumentException(

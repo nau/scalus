@@ -976,7 +976,7 @@ object FlatInstantces:
 
     given Flat[SIRVarStorage] with
         override def bitSize(a: SIRVarStorage): Int =
-            summon[Flat[Boolean]].bitSize(a == SIRVarStorage.Data)
+            summon[Flat[Boolean]].bitSize(a ==SIRVarStorage.Data)
 
         override def decode(decode: DecoderState): SIRVarStorage =
             if summon[Flat[Boolean]].decode(decode) then SIRVarStorage.Data

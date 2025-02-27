@@ -272,7 +272,7 @@ object SIRType {
             val proxy = new TypeProxy(null)
             val aInCons = TypeVar("A", Some(1))
             val retval = DataDecl(
-              "List",
+              "scalus.prelude.List",
               scala.List(Cons.buildConstr(aInCons, proxy), NilConstr),
               scala.List(TypeVar("A", Some(2)))
             )
@@ -287,7 +287,7 @@ object SIRType {
 
         def unapply(l: SIRType): Option[SIRType] = l match {
             case SumCaseClass(dataDecl, scala.List(a)) =>
-                if dataDecl.name == "List" then Some(a)
+                if dataDecl.name == "scalus.prelude.List" then Some(a)
                 else None
             case this.Cons(a) => Some(a)
             case this.Nil     => Some(Unit)
@@ -298,7 +298,7 @@ object SIRType {
 
             def buildConstr(a: TypeVar, listSum: SIRType): ConstrDecl = {
                 ConstrDecl(
-                  "Cons",
+                  "scalus.prelude.List$.Cons",
                   SIRVarStorage.LocalUPLC,
                   scala.List(TypeBinding("head", a), TypeBinding("tail", listSum)),
                   scala.List(a)
@@ -309,7 +309,7 @@ object SIRType {
             // TODO:  remove duplication via cache
             lazy val constr = {
                 dataDecl.constructors
-                    .find(_.name == "Cons")
+                    .find(_.name == "scalus.prelude.List$.Cons")
                     .getOrElse(
                       throw new IllegalStateException("Cons constructor not found in List.dataDecl")
                     )
@@ -319,7 +319,7 @@ object SIRType {
 
             def unapply(x: SIRType): Option[SIRType] = x match {
                 case CaseClass(constr, scala.List(a)) =>
-                    if constr.name == "Cons" then Some(a)
+                    if constr.name == "scalus.prelude.List$.Cons" then Some(a)
                     else None
                 case _ => None
             }
@@ -327,7 +327,7 @@ object SIRType {
         }
 
         // val NilConstr = ConstrDecl("Nil", SIRVarStorage.DEFAULT, scala.Nil, scala.Nil, scala.Nil)
-        val NilConstr = ConstrDecl("Nil", SIRVarStorage.DEFAULT, scala.Nil, scala.Nil)
+        val NilConstr = ConstrDecl("scalus.prelude.List$.Nil", SIRVarStorage.DEFAULT, scala.Nil, scala.Nil)
 
         val Nil = CaseClass(NilConstr, scala.Nil)
 
