@@ -179,7 +179,12 @@ object SIR:
     }
 
     // TODO: unify data-decl.
-    case class Constr(name: String, data: DataDecl, args: List[SIR], tp: SIRType) extends SIR
+    case class Constr(name: String, data: DataDecl, args: List[SIR], tp: SIRType) extends SIR {
+        if (name == "PubKeyHash") {
+            throw new RuntimeException("Constr with name PubKeyHash")
+        }
+
+    }
 
 
 
