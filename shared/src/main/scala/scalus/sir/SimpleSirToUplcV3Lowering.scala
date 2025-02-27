@@ -205,8 +205,19 @@ class SimpleSirToUplcV3Lowering(sir: SIR, generateErrorTraces: Boolean = false):
                                     } $ (builtinTerms(FstPair) $ pair)
                                 } $ pair
                     case SIRType.CaseClass(constr, _) =>
-                        
-                        ???  
+                        cases.find(_.constr.name == constr.name) match
+                            case None =>
+                                throw new IllegalArgumentException(
+                                  s"Constructor ${constr.name} not found in cases"
+                                )
+                            case Some(cs) =>
+                                val bindings = cs.bindings.zipWithIndex
+                                    .zip(constr.params)
+                                    .foldRight(lowerInner(cs.body)):
+                                    case (((name, idx), TypeBinding(_, tp)), term) =>
+                                        val value = getFieldByIndex(scrutineeTerm, idx, tp)
+                                        lam(name)(term) $ value
+                                bindings
                     case _ =>
                         throw new IllegalArgumentException(
                           s"Expected case class type, got ${scrutinee.tp} in expression: ${sir.show}"
