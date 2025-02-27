@@ -9,6 +9,8 @@ import dotty.tools.dotc.util.SrcPos
 import dotty.tools.dotc.core.Symbols.Symbol
 import dotty.tools.dotc.ast.tpd.ValDef
 
+import scalus.sir.SIRType
+
 sealed trait CompilationError {
     def message: String
     def srcPos: SrcPos
@@ -204,6 +206,31 @@ case class LazyValNotSupported(vd: ValDef, srcPos: SrcPos)(using Context) extend
     def message: String =
         s"""lazy vals can't be used in Scalus scripts.
            |Try 'val ${vd.symbol.name} = ...' instead""".stripMargin
+}
+
+case class TypeMismatch(name: String, expected: SIRType, actual: SIRType, srcPos: SrcPos)(using
+    Context
+) extends CompilationError {
+    def message: String =
+        s"""Type mismatch.
+           |symbol: $name
+           |Expected: ${expected.show}
+           |Actual: ${actual.show}""".stripMargin
+}
+
+case class ExpectedTypeLambda(name: String, actual: SIRType, srcPos: SrcPos)(using Context)
+    extends CompilationError {
+    def message: String =
+        s"""Type of expression should be type-lambda, but it's not.
+           |symbol: $name
+           |Actual: ${actual.show}""".stripMargin
+}
+
+case class UnsupportedType(tp: Type, srcPos: SrcPos, msg: String = "")(using Context)
+    extends CompilationError {
+    def message: String =
+        s"""Unsupported type ${tp.show} ${msg}
+           |Try rewriting your program without using it""".stripMargin
 }
 
 case class GenericError(message: String, srcPos: SrcPos) extends CompilationError

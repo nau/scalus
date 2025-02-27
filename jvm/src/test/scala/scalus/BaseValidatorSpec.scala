@@ -9,6 +9,7 @@ import scalus.ledger.api.v1.{ArbitraryInstances as _, *}
 import scalus.prelude.Maybe.*
 import scalus.prelude.*
 import scalus.uplc.*
+import scalus.uplc.eval.BuiltinError
 import scalus.uplc.eval.PlutusVM
 
 import scala.util.Failure
@@ -43,6 +44,10 @@ abstract class BaseValidatorSpec
                 // println(s"Error: $err and $e2")
                 assert(true)
             case _ =>
+                result2 match
+                    case Failure(e: BuiltinError) =>
+                        println(e.term.showHighlighted)
+                    case _ =>
                 fail(
                   s"Expected $expected, but got uplc evaluate: $result1\nCek.evalUPLCProgram => $result2"
                 )

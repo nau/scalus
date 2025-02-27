@@ -11,7 +11,7 @@ import scalus.builtin.Data
 import scalus.builtin.Data.fromData
 import scalus.builtin.Data.toData
 import scalus.prelude.Prelude.*
-import scalus.sir.SIR
+import scalus.sir.{SIR, SIRType}
 import scalus.uplc.ArbitraryInstances
 import scalus.uplc.Constant
 import scalus.uplc.Term
@@ -51,11 +51,14 @@ class ContextSpec
             i === i
         }
 
+        println(s"sir=$sir")
+        println(s"sir.show=${sir.show}")
+
         forAll { (i: Interval) =>
             import scalus.ledger.api.v1.ToDataInstances.given
             assert(i === i)
             val d = i.toData
-            val applied = sir $ SIR.Const(Constant.Data(d))
+            val applied = sir $ SIR.Const(Constant.Data(d), SIRType.Data)
             assertEval(applied, true)
         }
     }

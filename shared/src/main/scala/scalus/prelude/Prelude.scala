@@ -210,6 +210,7 @@ object AssocMap {
     )
     def fromList[A, B](lst: List[(A, B)]): AssocMap[A, B] = AssocMap(lst)
     def toList[A, B](map: AssocMap[A, B]): List[(A, B)] = map.inner
+
     def lookup[A: Eq, B](map: AssocMap[A, B])(key: A): Maybe[B] =
         def go(lst: List[(A, B)]): Maybe[B] = lst match
             case Nil => Maybe.Nothing

@@ -51,8 +51,15 @@ object UplcCli:
     def evalFlat(program: Program, semanticsVariant: BuiltinSemanticsVariant): UplcEvalResult =
         import cats.implicits.toShow
         val flat = program.flatEncoded
+
+        // val cmdPrint =
+        //    s"uplc print"
+        // val printOut = cmdPrint.#<(new ByteArrayInputStream(flat)).!!.trim
+        // println(s"UPLC program:\n$printOut")
+
         val cmd =
             s"uplc evaluate --input-format flat --counting --trace-mode LogsWithBudgets --builtin-semantics-variant $semanticsVariant"
+
         var out = ""
         val retCode = cmd.#<(new ByteArrayInputStream(flat)).!(ProcessLogger(o => out += o))
         if retCode == 0 then

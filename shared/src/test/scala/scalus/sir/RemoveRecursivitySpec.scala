@@ -12,8 +12,14 @@ class RemoveRecursivitySpec extends AnyFunSuite:
         }
         val optimized = RemoveRecursivity(compiled)
         import sir.SIR.*, Recursivity.*
-        import scalus.uplc.Constant.{Unit, Integer}
+        import sir.SIRType.{Fun, Integer, Boolean, Unit}
+        import scalus.uplc.Constant
         import scalus.uplc.DefaultFun.{IfThenElse as _, *}
+
+        val xVar = Var("x", SIRType.Integer)
+        val nonRecursiveVar = Var("nonRecursive", Fun(Integer, Integer))
+        val recursiveVar = Var("recursive", Fun(Integer, Integer))
+
         assert(
           optimized == Let(
             NonRec,
@@ -21,31 +27,49 @@ class RemoveRecursivitySpec extends AnyFunSuite:
               Binding(
                 "nonRecursive",
                 LamAbs(
-                  "x",
+                  xVar,
                   Let(
                     Rec,
                     List(
                       Binding(
                         "recursive",
                         LamAbs(
-                          "x",
+                          xVar,
                           IfThenElse(
-                            Apply(Apply(Builtin(EqualsInteger), Var("x")), Const(Integer(0))),
-                            Const(Integer(0)),
                             Apply(
-                              Var("recursive"),
-                              Apply(Apply(Builtin(SubtractInteger), Var("x")), Const(Integer(1)))
-                            )
+                              Apply(
+                                SIRBuiltins.equalsInteger,
+                                xVar,
+                                Fun(Integer, Boolean)
+                              ),
+                              Const(Constant.Integer(0), Integer),
+                              Boolean
+                            ),
+                            Const(Constant.Integer(0), Integer),
+                            Apply(
+                              recursiveVar,
+                              Apply(
+                                Apply(
+                                  SIRBuiltins.subtractInteger,
+                                  xVar,
+                                  Fun(Integer, Integer)
+                                ),
+                                Const(Constant.Integer(1), Integer),
+                                Integer
+                              ),
+                              Integer
+                            ),
+                            Integer
                           )
                         )
                       )
                     ),
-                    Apply(Var("recursive"), Var("x"))
+                    Apply(recursiveVar, xVar, Integer)
                   )
                 )
               )
             ),
-            Const(Unit)
+            Const(Constant.Unit, Unit)
           )
         )
     }

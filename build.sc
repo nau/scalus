@@ -10,15 +10,22 @@ object scalusPlugin extends RootModule with SbtModule {
           PathRef(millSourcePath / "scalus-plugin" / "src" / "main" / "scala")
         ) ++ Seq(
           PathRef(baseDir / "scalus" / "utils" / "Hex.scala"),
+          PathRef(baseDir / "scalus" / "utils" / "HashConsed.scala"),
           PathRef(baseDir / "scalus" / "builtin" / "ByteString.scala"),
           PathRef(baseDir / "scalus" / "builtin" / "Data.scala"),
           PathRef(baseDir / "scalus" / "builtin" / "List.scala"),
           PathRef(baseDir / "scalus" / "sir" / "SIR.scala"),
+          PathRef(baseDir / "scalus" / "sir" / "SIRType.scala"),
+          PathRef(baseDir / "scalus" / "sir" / "SIRToExpr.scala"),
+          PathRef(baseDir / "scalus" / "sir" / "SIRBuiltins.scala"),
+          PathRef(baseDir / "scalus" / "sir" / "SIRUnify.scala"),
+          PathRef(baseDir / "scalus" / "sir" / "SIRHashCodeInRec.scala"),
           PathRef(baseDir / "scalus" / "sir" / "FlatInstances.scala"),
           PathRef(baseDir / "scalus" / "uplc" / "Constant.scala"),
           PathRef(baseDir / "scalus" / "uplc" / "DefaultFun.scala"),
           PathRef(baseDir / "scalus" / "uplc" / "DefaultUni.scala"),
           PathRef(baseDir / "scalus" / "uplc" / "CommonFlatInstances.scala"),
+          PathRef(baseDir / "scalus" / "uplc" / "TypeScheme.scala"),
           PathRef(baseDir / "scalus" / "flat" / "package.scala")
         )
     }

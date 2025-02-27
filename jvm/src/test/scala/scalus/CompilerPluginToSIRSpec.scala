@@ -3,6 +3,7 @@ package scalus
 import org.scalatest.funsuite.AnyFunSuite
 import org.scalatestplus.scalacheck.ScalaCheckPropertyChecks
 import scalus.Compiler.compile
+import scalus.Compiler.compileDebug
 import scalus.Compiler.fieldAsData
 import scalus.builtin.Builtins
 import scalus.builtin.ByteString
@@ -13,13 +14,10 @@ import scalus.ledger.api.v1.*
 import scalus.prelude.List.Cons
 import scalus.prelude.List.Nil
 import scalus.prelude.Prelude.given
-import scalus.sir.Binding
-import scalus.sir.ConstrDecl
-import scalus.sir.DataDecl
-import scalus.sir.Recursivity
+import scalus.sir.{Binding, ConstrDecl, DataDecl, Recursivity, SIR, SIRBuiltins, SIRType, SIRUnify, SIRVarStorage, ToExprHSSIRFlat, TypeBinding}
 import scalus.sir.Recursivity.*
-import scalus.sir.SIR
 import scalus.sir.SIR.*
+import scalus.sir.SIRType.{Boolean, TypeVar}
 import scalus.sir.SirDSL.{*, given}
 import scalus.uplc.DefaultFun.*
 import scalus.uplc.DefaultUni.asConstant
@@ -29,36 +27,71 @@ import scalus.uplc.eval.PlutusVM
 import scala.collection.immutable
 import scala.language.implicitConversions
 import scalus.uplc.eval.Result
+import SIRType.Fun
+import SIRType.TypeVar
+import SIRType.TypeLambda
 
 class CompilerPluginToSIRSpec extends AnyFunSuite with ScalaCheckPropertyChecks:
     private given PlutusVM = PlutusVM.makePlutusV2VM()
     val deadbeef = Constant.ByteString(hex"deadbeef")
 
+    val sirData = SIRType.Data
+    val sirBool = SIRType.Boolean
+    val sirInt = SIRType.Integer
+    val sirString = SIRType.String
+    val sirByteString = SIRType.ByteString
+    val sirVoid = SIRType.Unit
+    def sirList(tpe: SIRType) = SIRType.List(tpe)
+    def sirPair(t1: SIRType, t2: SIRType) = SIRType.Pair(t1, t2)
+
+    def sirConst(x: Int) = Const(Constant.Integer(x), SIRType.Integer)
+    def sirConst(x: BigInt) = Const(Constant.Integer(x), SIRType.Integer)
+    def sirConst(x: Boolean) = Const(Constant.Bool(x), SIRType.Boolean)
+    def sirConst(x: String) = Const(Constant.String(x), SIRType.String)
+    def sirConst(x: ByteString) = Const(Constant.ByteString(x), SIRType.ByteString)
+    def sirConst(x: Data) = Const(Constant.Data(x), SIRType.Data)
+    def sirConstUnit = Const(Constant.Unit, SIRType.Unit)
+
     test("compile literals") {
-        assert(compile(false) == Const(Constant.Bool(false)))
-        assert(compile(true) == Const(Constant.Bool(true)))
-        assert(compile(()) == Const(Constant.Unit))
-        assert(compile("foo") == Const(Constant.String("foo")))
+        assert(compile(false) == Const(Constant.Bool(false), SIRType.Boolean))
+        assert(compile(true) == Const(Constant.Bool(true), SIRType.Boolean))
+        assert(compile(()) == Const(Constant.Unit, SIRType.Unit))
+        assert(compile("foo") == Const(Constant.String("foo"), SIRType.String))
         assert(
           compile(BigInt("15511210043330985984000000")) == Const(
-            Constant.Integer(BigInt("15511210043330985984000000"))
+            Constant.Integer(BigInt("15511210043330985984000000")),
+            SIRType.Integer
           )
         )
-        assert(compile(12: BigInt) == Const(Constant.Integer(BigInt("12"))))
-        assert(compile(scala.math.BigInt.int2bigInt(12)) == Const(Constant.Integer(BigInt("12"))))
+        assert(
+          compile(12: BigInt) == Const(Constant.Integer(BigInt("12")), SIRType.Integer)
+        )
+        assert(
+          compile(scala.math.BigInt.int2bigInt(12)) == Const(
+            Constant.Integer(BigInt("12")),
+            SIRType.Integer
+          )
+        )
 
         // ByteStrings
         assert(
           compile(builtin.ByteString.empty) == Const(
-            Constant.ByteString(builtin.ByteString.empty)
+            Constant.ByteString(builtin.ByteString.empty),
+            SIRType.ByteString
           )
         )
 
-        assert(compile(builtin.ByteString.fromHex("deadbeef")) == Const(deadbeef))
-        assert(compile(hex"deadbeef") == Const(deadbeef))
+        assert(
+          compile(builtin.ByteString.fromHex("deadbeef")) == Const(
+            deadbeef,
+            SIRType.ByteString
+          )
+        )
+        assert(compile(hex"deadbeef") == Const(deadbeef, SIRType.ByteString))
         assert(
           compile(builtin.ByteString.fromString("deadbeef")) == Const(
-            Constant.ByteString(builtin.ByteString.fromString("deadbeef"))
+            Constant.ByteString(builtin.ByteString.fromString("deadbeef")),
+            SIRType.ByteString
           )
         )
     }
@@ -69,11 +102,17 @@ class CompilerPluginToSIRSpec extends AnyFunSuite with ScalaCheckPropertyChecks:
               if Builtins.equalsInteger(1, 2) then () else ()
           } == SIR.IfThenElse(
             Apply(
-              Apply(Builtin(EqualsInteger), Const(Constant.Integer(1))),
-              Const(Constant.Integer(2))
+              Apply(
+                SIRBuiltins.equalsInteger,
+                Const(Constant.Integer(1), SIRType.Integer),
+                SIRType.Fun(SIRType.Integer, SIRType.Boolean)
+              ),
+              Const(Constant.Integer(2), SIRType.Integer),
+              SIRType.Boolean
             ),
-            Const(Constant.Unit),
-            Const(Constant.Unit)
+            Const(Constant.Unit, SIRType.Unit),
+            Const(Constant.Unit, SIRType.Unit),
+            SIRType.Unit
           )
         )
     }
@@ -85,8 +124,8 @@ class CompilerPluginToSIRSpec extends AnyFunSuite with ScalaCheckPropertyChecks:
               a
           } == Let(
             Recursivity.NonRec,
-            immutable.List(Binding("a", Const(Constant.Bool(true)))),
-            Var("a")
+            immutable.List(Binding("a", Const(Constant.Bool(true), SIRType.Boolean))),
+            Var("a", SIRType.Boolean)
           )
         )
     }
@@ -101,11 +140,32 @@ class CompilerPluginToSIRSpec extends AnyFunSuite with ScalaCheckPropertyChecks:
               c(b())
           } == Let(
             Recursivity.Rec,
-            immutable.List(Binding("b", LamAbs("_", Const(Constant.Bool(true))))),
+            immutable.List(
+              Binding(
+                "b",
+                LamAbs(
+                  Var("_", SIRType.Unit),
+                  Const(Constant.Bool(true), SIRType.Boolean)
+                )
+              )
+            ),
             Let(
               Recursivity.Rec,
-              immutable.List(Binding("c", LamAbs("x", Var("x")))),
-              Apply(Var("c"), Apply(Var("b"), Const(Constant.Unit)))
+              immutable.List(
+                Binding(
+                  "c",
+                  LamAbs(Var("x", SIRType.Boolean), Var("x", SIRType.Boolean))
+                )
+              ),
+              Apply(
+                Var("c", SIRType.Fun(Boolean, SIRType.Boolean)),
+                Apply(
+                  Var("b", SIRType.Fun(SIRType.Unit, SIRType.Boolean)),
+                  Const(Constant.Unit, SIRType.Unit),
+                  SIRType.Boolean
+                ),
+                SIRType.Boolean
+              )
             )
           )
         )
@@ -117,9 +177,34 @@ class CompilerPluginToSIRSpec extends AnyFunSuite with ScalaCheckPropertyChecks:
             (tail: [A] => builtin.List[A] => builtin.List[A], ctx: builtin.List[Data]) =>
                 tail[Data](ctx)
         }
-        assert(
-          sir == LamAbs("tail", LamAbs("ctx", Apply(Var("tail"), Var("ctx"))))
+
+        val compiledTp = sir.tp
+
+        val a = TypeVar("A", Some(1))
+        val listA = SIRType.List(TypeVar("A", Some(1)))
+        val listData = SIRType.List(SIRType.Data)
+        val tailType = SIRType.TypeLambda(List(a), Fun(listA, listA))
+
+        val constructedExpr = LamAbs(
+          Var("tail", tailType),
+          LamAbs(Var("ctx", listData), Apply(Var("tail", tailType), Var("ctx", listData), listData))
         )
+
+        // SIRUnify.unifyType(sir.asInstanceOf[SIRExpr].tp, constructedExpr.tp, SIRUnify.Env.empty.copy(debug = true)) match {
+        //    case success@SIRUnify.UnificationSuccess(env,tp) => println("unifyType success")
+        //    case failure@SIRUnify.UnificationFailure(path, left, right) => println(s"unifyType failure: ${failure}")
+        // }
+
+        assert(
+          sir ~=~ LamAbs(
+            Var("tail", tailType),
+            LamAbs(
+              Var("ctx", listData),
+              Apply(Var("tail", tailType), Var("ctx", listData), listData)
+            )
+          )
+        )
+
     }
 
     test("compile inline def") {
@@ -128,7 +213,7 @@ class CompilerPluginToSIRSpec extends AnyFunSuite with ScalaCheckPropertyChecks:
               inline def b = true
 
               b
-          } == Const(Constant.Bool(true))
+          } == Const(Constant.Bool(true), sirBool)
         )
     }
 
@@ -137,10 +222,14 @@ class CompilerPluginToSIRSpec extends AnyFunSuite with ScalaCheckPropertyChecks:
           compile {
               val a = (x: Boolean) => x
               a(true)
-          } == Let(
+          } ~=~ Let(
             NonRec,
-            List(Binding("a", LamAbs("x", Var("x")))),
-            Apply(Var("a"), Const(Constant.Bool(true)))
+            List(Binding("a", LamAbs(Var("x", sirBool), Var("x", sirBool)))),
+            Apply(
+              Var("a", SIRType.Fun(sirBool, sirBool)),
+              Const(Constant.Bool(true), sirBool),
+              sirBool
+            )
           )
         )
     }
@@ -148,7 +237,7 @@ class CompilerPluginToSIRSpec extends AnyFunSuite with ScalaCheckPropertyChecks:
     test("compile throw") {
         assert(compile {
             throw new RuntimeException("foo")
-        } == Error("foo"))
+        } ~=~ Error("foo"))
     }
 
     test("compile ToData") {
@@ -158,18 +247,22 @@ class CompilerPluginToSIRSpec extends AnyFunSuite with ScalaCheckPropertyChecks:
             BigInt(1).toData
         }
         assert(
-          compiled == Let(
+          compiled ~=~ Let(
             Rec,
             immutable.List(
               Binding(
                 "scalus.builtin.ToDataInstances$.given_ToData_BigInt",
-                LamAbs("a", Apply(Builtin(IData), Var("a")))
+                LamAbs(Var("a", sirInt), Apply(SIRBuiltins.iData, Var("a", sirInt), sirData))
               )
             ),
             Let(
               NonRec,
-              immutable.List(Binding("a$proxy1", Const(Constant.Integer(1)))),
-              Apply(Var("scalus.builtin.ToDataInstances$.given_ToData_BigInt"), Var("a$proxy1"))
+              immutable.List(Binding("a$proxy1", Const(Constant.Integer(1), sirInt))),
+              Apply(
+                Var("scalus.builtin.ToDataInstances$.given_ToData_BigInt", Fun(sirInt, sirData)),
+                Var("a$proxy1", sirInt),
+                sirData
+              )
             )
           )
         )
@@ -178,10 +271,11 @@ class CompilerPluginToSIRSpec extends AnyFunSuite with ScalaCheckPropertyChecks:
     }
 
     test("compile chooseList builtins") {
+
         assert(
           compile(
             Builtins.chooseList(builtin.List[BigInt](1, 2, 3), true, false)
-          ) == (DefaultFun.ChooseList $ List(1, 2, 3) $ true $ false)
+          ) ~=~ (DefaultFun.ChooseList $ List(1, 2, 3) $ true $ false)
         )
     }
 
@@ -189,7 +283,7 @@ class CompilerPluginToSIRSpec extends AnyFunSuite with ScalaCheckPropertyChecks:
         assert(
           compile(
             Builtins.mkCons(BigInt(4), builtin.List[BigInt](1, 2, 3))
-          ) == (DefaultFun.MkCons $ 4 $ List(1, 2, 3))
+          ) ~=~ (DefaultFun.MkCons $ 4 $ List(1, 2, 3))
         )
     }
 
@@ -197,7 +291,7 @@ class CompilerPluginToSIRSpec extends AnyFunSuite with ScalaCheckPropertyChecks:
         assert(
           compile(
             Builtins.headList(builtin.List[BigInt](1, 2, 3))
-          ) == (DefaultFun.HeadList $ List(1, 2, 3))
+          ) ~=~ (DefaultFun.HeadList $ List(1, 2, 3))
         )
     }
 
@@ -205,7 +299,7 @@ class CompilerPluginToSIRSpec extends AnyFunSuite with ScalaCheckPropertyChecks:
         assert(
           compile(
             Builtins.tailList(builtin.List[BigInt](1, 2, 3))
-          ) == (DefaultFun.TailList $ List(1, 2, 3))
+          ) ~=~ (DefaultFun.TailList $ List(1, 2, 3))
         )
     }
 
@@ -213,7 +307,7 @@ class CompilerPluginToSIRSpec extends AnyFunSuite with ScalaCheckPropertyChecks:
         assert(
           compile(
             Builtins.nullList(builtin.List[BigInt](1, 2, 3))
-          ) == (DefaultFun.NullList $ List(1, 2, 3))
+          ) ~=~ (DefaultFun.NullList $ List(1, 2, 3))
         )
     }
 
@@ -221,7 +315,10 @@ class CompilerPluginToSIRSpec extends AnyFunSuite with ScalaCheckPropertyChecks:
         assert(
           compile {
               builtin.List.empty[BigInt]
-          } == Const(Constant.List(DefaultUni.Integer, List()))
+          } ~=~ Const(
+            Constant.List(DefaultUni.Integer, List()),
+            SIRType.List(SIRType.Integer)
+          )
         )
     }
 
@@ -229,97 +326,171 @@ class CompilerPluginToSIRSpec extends AnyFunSuite with ScalaCheckPropertyChecks:
         assert(
           compile {
               builtin.List[BigInt](1, 2, 3)
-          } == Const(
+          } ~=~ Const(
             Constant.List(
               DefaultUni.Integer,
               List(Constant.Integer(1), Constant.Integer(2), Constant.Integer(3))
-            )
+            ),
+            SIRType.List(SIRType.Integer)
           )
         )
     }
 
     test("compile MkCons builtin") {
-        assert(
-          compile {
-              val a = "foo"
-              "bar" :: builtin.List(a)
-          } == Let(
-            NonRec,
-            List(Binding("a", Const(Constant.String("foo")))),
+
+        val compiled = compile {
+            val a = "foo"
+            "bar" :: builtin.List(a)
+        }
+
+        val expected = Let(
+          NonRec,
+          List(Binding("a", Const(Constant.String("foo"), sirString))),
+          Apply(
             Apply(
-              Apply(Builtin(MkCons), Const(Constant.String("bar"))),
+              SIRBuiltins.mkCons,
+              Const(Constant.String("bar"), sirString),
+              Fun(SIRType.List(sirString), SIRType.List(sirString))
+            ),
+            Apply(
               Apply(
-                Apply(Builtin(MkCons), Var("a")),
-                Const(Constant.List(DefaultUni.String, List()))
-              )
-            )
+                SIRBuiltins.mkCons,
+                Var("a", sirString),
+                Fun(SIRType.List(sirString), SIRType.List(sirString))
+              ),
+              Const(Constant.List(DefaultUni.String, List()), SIRType.List(sirString)),
+              SIRType.List(sirString)
+            ),
+            SIRType.List(sirString)
           )
+        )
+
+        assert(
+          compiled ~=~ expected
         )
     }
 
     test("compile head function") {
         assert(
           compile { (l: builtin.List[BigInt]) => l.head }
-              == LamAbs("l", Apply(Builtin(HeadList), Var("l")))
+              ~=~ LamAbs(
+                Var("l", sirList(sirInt)),
+                Apply(SIRBuiltins.headList, Var("l", sirList(sirInt)), sirInt)
+              )
         )
     }
 
     test("compile tail function") {
-        assert(compile { (l: builtin.List[BigInt]) => l.tail }
-            == LamAbs("l", Apply(Builtin(TailList), Var("l"))))
+        assert(
+          compile { (l: builtin.List[BigInt]) => l.tail }
+              ~=~ LamAbs(
+                Var("l", sirList(sirInt)),
+                Apply(SIRBuiltins.tailList, Var("l", sirList(sirInt)), sirList(sirInt))
+              )
+        )
     }
 
     test("compile isEmpty function") {
         assert(
           compile { (l: builtin.List[BigInt]) => l.isEmpty }
-              == LamAbs("l", Apply(Builtin(NullList), Var("l")))
+              ~=~ LamAbs(
+                Var("l", sirList(sirInt)),
+                Apply(SIRBuiltins.nullList, Var("l", sirList(sirInt)), sirBool)
+              )
         )
     }
 
     test("compile mkNilData") {
-        assert(compile(Builtins.mkNilData()) == (Apply(Builtin(MkNilData), Const(Constant.Unit))))
+        assert(
+          compile(Builtins.mkNilData())
+              ~=~
+                  (Apply(SIRBuiltins.mkNilData, Const(Constant.Unit, sirVoid), sirList(sirData)))
+        )
     }
 
     test("compile mkNilPairData") {
+
         assert(
-          compile(Builtins.mkNilPairData()) == (Apply(Builtin(MkNilPairData), Const(Constant.Unit)))
+          compile(Builtins.mkNilPairData())
+              ~=~
+                  (Apply(
+                    SIRBuiltins.mkNilPairData,
+                    Const(Constant.Unit, sirVoid),
+                    SIRType.List(SIRType.Pair(sirData, sirData))
+                  ))
         )
     }
 
     test("compile mkConstr builtins") {
-        val nilData = Const(Constant.List(DefaultUni.Data, immutable.Nil))
+        val nilData = Const(Constant.List(DefaultUni.Data, immutable.Nil), SIRType.List(sirData))
         assert(
           compile(
             Builtins.constrData(
               1,
               builtin.List(Builtins.iData(2))
             )
-          ) == Apply(
-            Apply(Builtin(ConstrData), Const(Constant.Integer(1))),
+          ) ~=~ Apply(
+            Apply(SIRBuiltins.constrData, sirConst(1), Fun(sirList(sirData), sirData)),
             Apply(
-              Apply(Builtin(MkCons), Apply(Builtin(IData), Const(Constant.Integer(2)))),
-              nilData
-            )
+              Apply(
+                SIRBuiltins.mkCons,
+                Apply(SIRBuiltins.iData, sirConst(2), sirData),
+                Fun(sirList(sirData), sirList(sirData))
+              ),
+              nilData,
+              sirList(sirData)
+            ),
+            sirData
           )
         )
     }
 
     test("compile mkList builtins") {
-        val nilData = Const(Constant.List(DefaultUni.Data, immutable.Nil))
+        val nilData = Const(Constant.List(DefaultUni.Data, immutable.Nil), SIRType.List(sirData))
         assert(
           compile(
             Builtins.listData(builtin.List(Builtins.iData(1)))
-          ) == Apply(
-            Builtin(ListData),
-            Apply(
-              Apply(Builtin(MkCons), Apply(Builtin(IData), Const(Constant.Integer(1)))),
-              nilData
-            )
           )
+              ~=~
+                  Apply(
+                    SIRBuiltins.listData,
+                    Apply(
+                      Apply(
+                        SIRBuiltins.mkCons,
+                        Apply(SIRBuiltins.iData, sirConst(1), sirData),
+                        Fun(sirList(sirData), sirList(sirData))
+                      ),
+                      nilData,
+                      sirList(sirData)
+                    ),
+                    sirData
+                  )
         )
     }
 
+    test("compile mkPairData builtins") {
+
+        val compiled = compile(builtin.Pair(Builtins.bData(hex"deadbeef"), Builtins.iData(1)))
+
+        val expected =
+            Apply(
+              Apply(
+                SIRBuiltins.mkPairData,
+                Apply(SIRBuiltins.bData, sirConst(hex"deadbeef"), sirData),
+                Fun(sirData, sirPair(sirData, sirData))
+              ),
+              Apply(SIRBuiltins.iData, sirConst(1), sirData),
+              sirPair(sirData, sirData)
+            )
+
+        assert(
+          compiled ~=~ expected
+        )
+
+    }
+
     test("compile mkMap builtins") {
+
         assert(
           compile(
             Builtins.mapData(
@@ -327,18 +498,29 @@ class CompilerPluginToSIRSpec extends AnyFunSuite with ScalaCheckPropertyChecks:
                 builtin.Pair(Builtins.bData(hex"deadbeef"), Builtins.iData(1))
               )
             )
-          ) == Apply(
-            Builtin(MapData),
+          ) ~=~ Apply(
+            SIRBuiltins.mapData,
             Apply(
               Apply(
-                Builtin(MkCons),
+                SIRBuiltins.mkCons,
                 Apply(
-                  Apply(Builtin(MkPairData), Apply(Builtin(BData), Const(deadbeef))),
-                  Apply(Builtin(IData), Const(Constant.Integer(1)))
-                )
+                  Apply(
+                    SIRBuiltins.mkPairData,
+                    Apply(SIRBuiltins.bData, Const(deadbeef, sirByteString), sirData),
+                    Fun(sirData, sirPair(sirData, sirData))
+                  ),
+                  Apply(SIRBuiltins.iData, sirConst(1), sirData),
+                  sirPair(sirData, sirData)
+                ),
+                Fun(sirList(sirPair(sirData, sirData)), sirList(sirPair(sirData, sirData)))
               ),
-              Const(Constant.List(DefaultUni.Pair(DefaultUni.Data, DefaultUni.Data), immutable.Nil))
-            )
+              Const(
+                Constant.List(DefaultUni.Pair(DefaultUni.Data, DefaultUni.Data), immutable.Nil),
+                SIRType.List(sirPair(sirData, sirData))
+              ),
+              sirList(sirPair(sirData, sirData))
+            ),
+            sirData
           )
         )
     }
@@ -346,176 +528,368 @@ class CompilerPluginToSIRSpec extends AnyFunSuite with ScalaCheckPropertyChecks:
     test("compile unsafeDataAsConstr function") {
         assert(
           compile { (d: Data) => Builtins.unConstrData(d) }
-              == LamAbs("d", Apply(Builtin(DefaultFun.UnConstrData), Var("d")))
+              ~=~ LamAbs(
+                Var("d", sirData),
+                Apply(
+                  SIRBuiltins.unConstrData,
+                  Var("d", sirData),
+                  sirPair(sirInt, sirList(sirData))
+                )
+              )
         )
     }
 
     test("compile unsafeDataAsList function") {
         assert(
           compile { (d: Data) => Builtins.unListData(d) }
-              == LamAbs("d", Apply(Builtin(DefaultFun.UnListData), Var("d")))
+              ~=~ LamAbs(
+                Var("d", sirData),
+                Apply(SIRBuiltins.unListData, Var("d", sirData), sirList(sirData))
+              )
         )
     }
 
     test("compile unsafeDataAsMap function") {
         assert(
           compile { (d: Data) => Builtins.unMapData(d) }
-              == LamAbs("d", Apply(Builtin(DefaultFun.UnMapData), Var("d")))
+              ~=~ LamAbs(
+                Var("d", sirData),
+                Apply(SIRBuiltins.unMapData, Var("d", sirData), sirList(sirPair(sirData, sirData)))
+              )
         )
     }
 
     test("compile unsafeDataAsB function") {
         assert(
           compile { (d: Data) => Builtins.unBData(d) }
-              == LamAbs("d", Apply(Builtin(DefaultFun.UnBData), Var("d")))
+              ~=~ LamAbs(
+                Var("d", sirData),
+                Apply(SIRBuiltins.unBData, Var("d", sirData), sirByteString)
+              )
         )
     }
 
     test("compile unsafeDataAsI function") {
         assert(
-          compile { (d: Data) => Builtins.unIData(d) } ==
-              LamAbs("d", Apply(Builtin(DefaultFun.UnIData), Var("d")))
+          compile { (d: Data) => Builtins.unIData(d) } ~=~
+              LamAbs(Var("d", sirData), Apply(SIRBuiltins.unIData, Var("d", sirData), sirInt))
         )
     }
 
     test("compile chooseData function") {
         assert(
           compile { (d: Data) => Builtins.chooseData[BigInt](d, 1, 2, 3, 4, 5) }
-              == LamAbs("d", ChooseData $ Var("d") $ 1 $ 2 $ 3 $ 4 $ 5)
+              ~=~ LamAbs(Var("d", sirData), ChooseData $ Var("d", sirData) $ 1 $ 2 $ 3 $ 4 $ 5)
         )
     }
 
     test("compile equalsData function") {
         assert(
           compile { (d1: Data, d2: Data) => Builtins.equalsData(d1, d2) }
-              == LamAbs("d1", LamAbs("d2", EqualsData $ Var("d1") $ Var("d2")))
+              ~=~ LamAbs(
+                Var("d1", sirData),
+                LamAbs(
+                  Var("d2", sirData),
+                  SIRBuiltins.equalsData $ Var("d1", sirData) $ Var("d2", sirData)
+                )
+              )
         )
     }
 
     test("compile serialiseData builtins") {
-        assert(compile {
-            Builtins.serialiseData
-        } == LamAbs("d", Apply(Builtin(SerialiseData), Var("d"))))
+        assert(
+          compile {
+              Builtins.serialiseData
+          } ~=~ LamAbs(
+            Var("d", sirData),
+            Apply(SIRBuiltins.serialiseData, Var("d", sirData), sirByteString)
+          )
+        )
     }
 
     test("compile BLS12_381_G1 builtins") {
+        val p1Var = Var("p1", SIRType.BLS12_381_G1_Element)
+        val p2Var = Var("p2", SIRType.BLS12_381_G1_Element)
+        val bsVar = Var("bs", SIRType.ByteString)
+        val dstVar = Var("dst", SIRType.ByteString)
+
         assert(
-          compile(Builtins.bls12_381_G1_add) == LamAbs(
-            "p1",
-            LamAbs("p2", Apply(Apply(Builtin(Bls12_381_G1_add), Var("p1")), Var("p2")))
+          compile(Builtins.bls12_381_G1_add) ~=~ LamAbs(
+            Var("p1", SIRType.BLS12_381_G1_Element),
+            LamAbs(
+              p2Var,
+              Apply(
+                Apply(
+                  SIRBuiltins.bls12_381_G1_add,
+                  p1Var,
+                  Fun(SIRType.BLS12_381_G1_Element, SIRType.BLS12_381_G1_Element)
+                ),
+                p2Var,
+                SIRType.BLS12_381_G1_Element
+              )
+            )
           )
         )
         assert(
-          compile(Builtins.bls12_381_G1_neg) == LamAbs(
-            "p",
-            Apply(Builtin(Bls12_381_G1_neg), Var("p"))
-          )
+          compile(Builtins.bls12_381_G1_neg)
+              ~=~ LamAbs(
+                Var("p", SIRType.BLS12_381_G1_Element),
+                Apply(
+                  SIRBuiltins.bls12_381_G1_neg,
+                  Var("p", SIRType.BLS12_381_G1_Element),
+                  SIRType.BLS12_381_G1_Element
+                )
+              )
         )
         assert(
           compile(Builtins.bls12_381_G1_scalarMul) == LamAbs(
-            "s",
-            LamAbs("p", Apply(Apply(Builtin(Bls12_381_G1_scalarMul), Var("s")), Var("p")))
+            Var("s", SIRType.Integer),
+            LamAbs(
+              Var("p", SIRType.BLS12_381_G1_Element),
+              Apply(
+                Apply(
+                  SIRBuiltins.bls12_381_G1_scalarMul,
+                  Var("s", SIRType.Integer),
+                  Fun(SIRType.BLS12_381_G1_Element, SIRType.BLS12_381_G1_Element)
+                ),
+                Var("p", SIRType.BLS12_381_G1_Element),
+                SIRType.BLS12_381_G1_Element
+              )
+            )
           )
         )
+
         assert(
           compile(Builtins.bls12_381_G1_equal) == LamAbs(
-            "p1",
-            LamAbs("p2", Apply(Apply(Builtin(Bls12_381_G1_equal), Var("p1")), Var("p2")))
+            p1Var,
+            LamAbs(
+              p2Var,
+              Apply(
+                Apply(
+                  SIRBuiltins.bls12_381_G1_equal,
+                  p1Var,
+                  Fun(SIRType.BLS12_381_G1_Element, SIRType.Boolean)
+                ),
+                p2Var,
+                SIRType.Boolean
+              )
+            )
           )
         )
+
         assert(
           compile(Builtins.bls12_381_G1_hashToGroup) == LamAbs(
-            "bs",
-            LamAbs("dst", Apply(Apply(Builtin(Bls12_381_G1_hashToGroup), Var("bs")), Var("dst")))
+            bsVar,
+            LamAbs(
+              dstVar,
+              Apply(
+                Apply(
+                  SIRBuiltins.bls12_381_G1_hashToGroup,
+                  bsVar,
+                  Fun(SIRType.ByteString, SIRType.BLS12_381_G1_Element)
+                ),
+                dstVar,
+                SIRType.BLS12_381_G1_Element
+              )
+            )
           )
         )
         assert(
-          compile(Builtins.bls12_381_G1_compress) == LamAbs(
-            "p",
-            Apply(Builtin(Bls12_381_G1_compress), Var("p"))
+          compile(Builtins.bls12_381_G1_compress) ~=~ LamAbs(
+            Var("p", SIRType.BLS12_381_G1_Element),
+            Apply(
+              SIRBuiltins.bls12_381_G1_compress,
+              Var("p", SIRType.BLS12_381_G1_Element),
+              SIRType.ByteString
+            )
           )
         )
         assert(
-          compile(Builtins.bls12_381_G1_uncompress) == LamAbs(
-            "bs",
-            Apply(Builtin(Bls12_381_G1_uncompress), Var("bs"))
+          compile(Builtins.bls12_381_G1_uncompress) ~=~ LamAbs(
+            Var("bs", SIRType.ByteString),
+            Apply(
+              SIRBuiltins.bls12_381_G1_uncompress,
+              Var("bs", SIRType.ByteString),
+              SIRType.BLS12_381_G1_Element
+            )
           )
         )
     }
 
     test("compile BLS12_381_G2 builtins") {
+        val p1Var = Var("p1", SIRType.BLS12_381_G2_Element)
+        val p2Var = Var("p2", SIRType.BLS12_381_G2_Element)
+        val pVar = Var("p", SIRType.BLS12_381_G2_Element)
+        val sBlsVar = Var("s", SIRType.BLS12_381_G2_Element)
+        val sIntVar = Var("s", SIRType.Integer)
+        val bsVar = Var("bs", SIRType.ByteString)
+        val dstVar = Var("dst", SIRType.ByteString)
         assert(
-          compile(Builtins.bls12_381_G2_add) == LamAbs(
-            "p1",
-            LamAbs("p2", Apply(Apply(Builtin(Bls12_381_G2_add), Var("p1")), Var("p2")))
+          compile(Builtins.bls12_381_G2_add) ~=~ LamAbs(
+            p1Var,
+            LamAbs(
+              p2Var,
+              Apply(
+                Apply(
+                  SIRBuiltins.bls12_381_G2_add,
+                  p1Var,
+                  Fun(SIRType.BLS12_381_G2_Element, SIRType.BLS12_381_G2_Element)
+                ),
+                p2Var,
+                SIRType.BLS12_381_G2_Element
+              )
+            )
           )
         )
         assert(
-          compile(Builtins.bls12_381_G2_neg) == LamAbs(
-            "p",
-            Apply(Builtin(Bls12_381_G2_neg), Var("p"))
+          compile(Builtins.bls12_381_G2_neg) ~=~ LamAbs(
+            pVar,
+            Apply(SIRBuiltins.bls12_381_G2_neg, pVar, SIRType.BLS12_381_G2_Element)
           )
         )
         assert(
-          compile(Builtins.bls12_381_G2_scalarMul) == LamAbs(
-            "s",
-            LamAbs("p", Apply(Apply(Builtin(Bls12_381_G2_scalarMul), Var("s")), Var("p")))
+          compile(Builtins.bls12_381_G2_scalarMul) ~=~ LamAbs(
+            sIntVar,
+            LamAbs(
+              pVar,
+              Apply(
+                Apply(
+                  SIRBuiltins.bls12_381_G2_scalarMul,
+                  sIntVar,
+                  Fun(SIRType.BLS12_381_G2_Element, SIRType.BLS12_381_G2_Element)
+                ),
+                pVar,
+                SIRType.BLS12_381_G2_Element
+              )
+            )
           )
         )
         assert(
-          compile(Builtins.bls12_381_G2_equal) == LamAbs(
-            "p1",
-            LamAbs("p2", Apply(Apply(Builtin(Bls12_381_G2_equal), Var("p1")), Var("p2")))
+          compile(Builtins.bls12_381_G2_equal) ~=~ LamAbs(
+            p1Var,
+            LamAbs(
+              p2Var,
+              Apply(
+                Apply(
+                  SIRBuiltins.bls12_381_G2_equal,
+                  p1Var,
+                  Fun(SIRType.BLS12_381_G2_Element, SIRType.Boolean)
+                ),
+                p2Var,
+                SIRType.Boolean
+              )
+            )
           )
         )
         assert(
-          compile(Builtins.bls12_381_G2_hashToGroup) == LamAbs(
-            "bs",
-            LamAbs("dst", Apply(Apply(Builtin(Bls12_381_G2_hashToGroup), Var("bs")), Var("dst")))
+          compile(Builtins.bls12_381_G2_hashToGroup) ~=~ LamAbs(
+            bsVar,
+            LamAbs(
+              dstVar,
+              Apply(
+                Apply(
+                  SIRBuiltins.bls12_381_G2_hashToGroup,
+                  bsVar,
+                  Fun(SIRType.ByteString, SIRType.BLS12_381_G2_Element)
+                ),
+                dstVar,
+                SIRType.BLS12_381_G2_Element
+              )
+            )
           )
         )
         assert(
-          compile(Builtins.bls12_381_G2_compress) == LamAbs(
-            "p",
-            Apply(Builtin(Bls12_381_G2_compress), Var("p"))
+          compile(Builtins.bls12_381_G2_compress) ~=~ LamAbs(
+            pVar,
+            Apply(SIRBuiltins.bls12_381_G2_compress, pVar, SIRType.ByteString)
           )
         )
         assert(
           compile(Builtins.bls12_381_G2_uncompress) == LamAbs(
-            "bs",
-            Apply(Builtin(Bls12_381_G2_uncompress), Var("bs"))
+            bsVar,
+            Apply(SIRBuiltins.bls12_381_G2_uncompress, bsVar, SIRType.BLS12_381_G2_Element)
           )
         )
     }
 
     test("compile BLS12_381 pairing operations builtins") {
+        val p1BlsG1Var = Var("p1", SIRType.BLS12_381_G1_Element)
+        val p2BlsG2Var = Var("p2", SIRType.BLS12_381_G2_Element)
+        val p1BlsMlVar = Var("p1", SIRType.BLS12_381_MlResult)
+        val p2BlsMlVar = Var("p2", SIRType.BLS12_381_MlResult)
+        val r1Var = Var("r1", SIRType.BLS12_381_MlResult)
+        val r2Var = Var("r2", SIRType.BLS12_381_MlResult)
+
         assert(
-          compile(Builtins.bls12_381_millerLoop) == LamAbs(
-            "p1",
-            LamAbs("p2", Apply(Apply(Builtin(Bls12_381_millerLoop), Var("p1")), Var("p2")))
+          compile(Builtins.bls12_381_millerLoop) ~=~ LamAbs(
+            p1BlsG1Var,
+            LamAbs(
+              p2BlsG2Var,
+              Apply(
+                Apply(
+                  SIRBuiltins.bls12_381_millerLoop,
+                  p1BlsG1Var,
+                  Fun(SIRType.BLS12_381_G2_Element, SIRType.BLS12_381_MlResult)
+                ),
+                p2BlsG2Var,
+                SIRType.BLS12_381_MlResult
+              )
+            )
           )
         )
         assert(
-          compile(Builtins.bls12_381_mulMlResult) == LamAbs(
-            "r1",
-            LamAbs("r2", Apply(Apply(Builtin(Bls12_381_mulMlResult), Var("r1")), Var("r2")))
+          compile(Builtins.bls12_381_mulMlResult) ~=~ LamAbs(
+            r1Var,
+            LamAbs(
+              r2Var,
+              Apply(
+                Apply(
+                  SIRBuiltins.bls12_381_mulMlResult,
+                  r1Var,
+                  Fun(SIRType.BLS12_381_MlResult, SIRType.BLS12_381_MlResult)
+                ),
+                r2Var,
+                SIRType.BLS12_381_MlResult
+              )
+            )
           )
         )
         assert(
-          compile(Builtins.bls12_381_finalVerify) == LamAbs(
-            "p1",
-            LamAbs("p2", Apply(Apply(Builtin(Bls12_381_finalVerify), Var("p1")), Var("p2")))
+          compile(Builtins.bls12_381_finalVerify) ~=~ LamAbs(
+            p1BlsMlVar,
+            LamAbs(
+              p2BlsMlVar,
+              Apply(
+                Apply(
+                  SIRBuiltins.bls12_381_finalVerify,
+                  p1BlsMlVar,
+                  Fun(SIRType.BLS12_381_MlResult, SIRType.Boolean)
+                ),
+                p2BlsMlVar,
+                SIRType.Boolean
+              )
+            )
           )
         )
     }
 
     test("compile Keccak_256 builtin") {
-        assert(compile(Builtins.keccak_256) == LamAbs("bs", Apply(Builtin(Keccak_256), Var("bs"))))
+        val bsVar = Var("bs", SIRType.ByteString)
+        assert(
+          compile(Builtins.keccak_256) ~=~ LamAbs(
+            bsVar,
+            Apply(SIRBuiltins.keccak_256, bsVar, SIRType.ByteString)
+          )
+        )
     }
 
     test("compile Blake2b_224 builtin") {
+        val bsVar = Var("bs", SIRType.ByteString)
         assert(
-          compile(Builtins.blake2b_224) == LamAbs("bs", Apply(Builtin(Blake2b_224), Var("bs")))
+          compile(Builtins.blake2b_224) ~=~ LamAbs(
+            bsVar,
+            Apply(SIRBuiltins.blake2b_224, bsVar, SIRType.ByteString)
+          )
         )
     }
 
@@ -644,37 +1018,66 @@ class CompilerPluginToSIRSpec extends AnyFunSuite with ScalaCheckPropertyChecks:
         assert(
           compile(
             Builtins.ifThenElse(true, BigInt(1), BigInt(2))
-          ) == (DefaultFun.IfThenElse $ true $ 1 $ 2)
+          ) ~=~ (DefaultFun.IfThenElse $ true $ 1 $ 2)
         )
         // TODO: check if that is correct
-        assert(compile(Builtins.chooseUnit()(true)) == (DefaultFun.ChooseUnit $ () $ true))
-        assert(compile(Builtins.trace("dead")(BigInt(1))) == (DefaultFun.Trace $ "dead" $ 1))
+        assert(compile(Builtins.chooseUnit()(true)) ~=~ (DefaultFun.ChooseUnit $ () $ true))
+        assert(compile(Builtins.trace("dead")(BigInt(1))) ~=~ (DefaultFun.Trace $ "dead" $ 1))
     }
 
     test("compile Pair builtins") {
+        val fst = Var("fst", sirData)
+        val snd = Var("snd", sirData)
+        val pv = Var("p", SIRType.Pair(sirData, sirData))
+
         assert(
-          compile(Builtins.mkPairData) == LamAbs(
-            "fst",
-            LamAbs("snd", Apply(Apply(Builtin(MkPairData), Var("fst")), Var("snd")))
+          compile(Builtins.mkPairData) ~=~ LamAbs(
+            fst,
+            LamAbs(
+              snd,
+              Apply(
+                Apply(SIRBuiltins.mkPairData, fst, Fun(sirData, SIRType.Pair(sirData, sirData))),
+                snd,
+                SIRType.Pair(sirData, sirData)
+              )
+            )
           )
         )
+
         assert(
           compile { (p: builtin.Pair[Data, Data]) =>
               builtin.Pair(Builtins.sndPair(p), Builtins.fstPair(p))
-          } == LamAbs("p", MkPairData $ (SndPair $ Var("p")) $ (FstPair $ Var("p")))
+          } ~=~
+              LamAbs(
+                pv,
+                (SIRBuiltins.mkPairData $ (SIRBuiltins.sndPair $ pv)) $ (SIRBuiltins.fstPair $ pv)
+              )
         )
-        assert(compile { builtin.Pair(BigInt(1), hex"deadbeef") }
-            == Const(Constant.Pair(Constant.Integer(1), deadbeef)))
+
+        assert(
+          compile { builtin.Pair(BigInt(1), hex"deadbeef") }
+              ~=~ Const(
+                Constant.Pair(Constant.Integer(1), deadbeef),
+                SIRType.Pair(sirInt, sirByteString)
+              )
+        )
+
         assert(
           compile { (p: builtin.Pair[Data, Data]) => builtin.Pair(p.snd, p.fst) }
-              == LamAbs(
-                "p",
+              ~=~ LamAbs(
+                pv,
                 Apply(
-                  Apply(Builtin(MkPairData), Apply(Builtin(SndPair), Var("p"))),
-                  Apply(Builtin(FstPair), Var("p"))
+                  Apply(
+                    SIRBuiltins.mkPairData,
+                    Apply(SIRBuiltins.sndPair, pv, sirData),
+                    Fun(sirData, SIRType.Pair(sirData, sirData))
+                  ),
+                  Apply(SIRBuiltins.fstPair, pv, sirData),
+                  SIRType.Pair(sirData, sirData)
                 )
               )
         )
+
     }
 
     test("compile Boolean &&, ||, ! builtins") {
@@ -684,11 +1087,11 @@ class CompilerPluginToSIRSpec extends AnyFunSuite with ScalaCheckPropertyChecks:
             !a && false || true
         }
         assert(
-          compiled ==
+          compiled ~=~
               Let(
                 NonRec,
-                List(Binding("a", Or(Const(Bool(true)), Error("M")))),
-                Or(And(Not(Var("a")), Const(Bool(false))), Const(Bool(true)))
+                List(Binding("a", Or(sirConst(true), Error("M")))),
+                Or(And(Not(Var("a", sirBool)), sirConst(false)), sirConst(true))
               )
         )
         // println(compiled.show)
@@ -701,44 +1104,50 @@ class CompilerPluginToSIRSpec extends AnyFunSuite with ScalaCheckPropertyChecks:
         import Constant.Bool
         val eq = compile { def check(a: Boolean) = a == false; check }
         val ne = compile { def check(a: Boolean) = a != false; check }
+        val aVar = Var("a", sirBool)
+
         assert(
-          eq == Let(
+          eq ~=~ Let(
             Rec,
             List(
               Binding(
                 "check",
                 LamAbs(
-                  "a",
+                  aVar,
                   SIR.IfThenElse(
-                    Var("a"),
-                    Const(Bool(false)),
-                    SIR.IfThenElse(Const(Bool(false)), Const(Bool(false)), Const(Bool(true)))
+                    aVar,
+                    sirConst(false),
+                    SIR.IfThenElse(sirConst(false), sirConst(false), sirConst(true), sirBool),
+                    sirBool
                   )
                 )
               )
             ),
-            LamAbs("a", Apply(Var("check"), Var("a")))
+            LamAbs(aVar, Apply(Var("check", Fun(sirBool, sirBool)), aVar, sirBool))
           )
         )
+
         assert(
-          ne == Let(
+          ne ~=~ Let(
             Rec,
             List(
               Binding(
                 "check",
                 LamAbs(
-                  "a",
+                  aVar,
                   SIR.IfThenElse(
-                    Var("a"),
-                    SIR.IfThenElse(Const(Bool(false)), Const(Bool(false)), Const(Bool(true))),
-                    Const(Bool(false))
+                    aVar,
+                    SIR.IfThenElse(sirConst(false), sirConst(false), sirConst(true), sirBool),
+                    sirConst(false),
+                    sirBool
                   )
                 )
               )
             ),
-            LamAbs("a", Apply(Var("check"), Var("a")))
+            LamAbs(aVar, Apply(Var("check", Fun(sirBool, sirBool)), aVar, sirBool))
           )
         )
+
         val eqterm = eq.toUplc()
         val neterm = ne.toUplc()
         import scalus.uplc.TermDSL.{*, given}
@@ -749,39 +1158,99 @@ class CompilerPluginToSIRSpec extends AnyFunSuite with ScalaCheckPropertyChecks:
     }
 
     test("compile ByteString equality") {
-        val eq = compile { def check(a: ByteString, b: ByteString) = a == b; check }
-        val ne = compile { def check(a: ByteString, b: ByteString) = a != b; check }
+        val eqCompiled = compile { def check(a: ByteString, b: ByteString) = a == b; check }
+
+        val eqExpected = Let(
+          Rec,
+          List(
+            Binding(
+              "check",
+              LamAbs(
+                Var("a", sirByteString),
+                LamAbs(
+                  Var("b", sirByteString),
+                  Apply(
+                    Apply(
+                      SIRBuiltins.equalsByteString,
+                      Var("a", sirByteString),
+                      Fun(sirByteString, sirBool)
+                    ),
+                    Var("b", sirByteString),
+                    sirBool
+                  )
+                )
+              )
+            )
+          ),
+          LamAbs(
+            Var("a", sirByteString),
+            LamAbs(
+              Var("b", sirByteString),
+              Apply(
+                Apply(
+                  Var("check", Fun(sirByteString, Fun(sirByteString, sirBool))),
+                  Var("a", sirByteString),
+                  Fun(sirByteString, sirBool)
+                ),
+                Var("b", sirByteString),
+                sirBool
+              )
+            )
+          )
+        )
+
         assert(
-          eq == Let(
+          eqCompiled ~=~ eqExpected
+        )
+
+        val ne = compile {
+            def check(a: ByteString, b: ByteString) = a != b; check
+        }
+
+        assert(
+          ne ~=~ Let(
             Rec,
             List(
               Binding(
                 "check",
                 LamAbs(
-                  "a",
-                  LamAbs("b", Apply(Apply(Builtin(EqualsByteString), Var("a")), Var("b")))
+                  Var("a", sirByteString),
+                  LamAbs(
+                    Var("b", sirByteString),
+                    Not(
+                      Apply(
+                        Apply(
+                          SIRBuiltins.equalsByteString,
+                          Var("a", sirByteString),
+                          Fun(sirByteString, sirBool)
+                        ),
+                        Var("b", sirByteString),
+                        sirBool
+                      )
+                    )
+                  )
                 )
               )
             ),
-            LamAbs("a", LamAbs("b", Apply(Apply(Var("check"), Var("a")), Var("b"))))
-          )
-        )
-        assert(
-          ne == Let(
-            Rec,
-            List(
-              Binding(
-                "check",
-                LamAbs(
-                  "a",
-                  LamAbs("b", Not(Apply(Apply(Builtin(EqualsByteString), Var("a")), Var("b"))))
+            LamAbs(
+              Var("a", sirByteString),
+              LamAbs(
+                Var("b", sirByteString),
+                Apply(
+                  Apply(
+                    Var("check", Fun(sirByteString, Fun(sirByteString, sirBool))),
+                    Var("a", sirByteString),
+                    Fun(sirByteString, sirBool)
+                  ),
+                  Var("b", sirByteString),
+                  sirBool
                 )
               )
-            ),
-            LamAbs("a", LamAbs("b", Apply(Apply(Var("check"), Var("a")), Var("b"))))
+            )
           )
         )
-        val eqterm = eq.toUplc()
+
+        val eqterm = eqCompiled.toUplc()
         val neterm = ne.toUplc()
         import scalus.uplc.TermDSL.{*, given}
         assert(
@@ -804,40 +1273,95 @@ class CompilerPluginToSIRSpec extends AnyFunSuite with ScalaCheckPropertyChecks:
             asConstant(true)
           )
         )
+
     }
 
     test("compile String equality") {
         val eq = compile { def check(a: String, b: String) = a == b; check }
-        val ne = compile { def check(a: String, b: String) = a != b; check }
+
+        val aVar = Var("a", sirString)
+        val bVar = Var("b", sirString)
+
         assert(
-          eq == Let(
+          eq ~=~ Let(
             Rec,
             List(
               Binding(
                 "check",
                 LamAbs(
-                  "a",
-                  LamAbs("b", Apply(Apply(Builtin(EqualsString), Var("a")), Var("b")))
+                  aVar,
+                  LamAbs(
+                    bVar,
+                    Apply(
+                      Apply(SIRBuiltins.equalsString, aVar, Fun(sirString, sirBool)),
+                      bVar,
+                      sirBool
+                    )
+                  )
                 )
               )
             ),
-            LamAbs("a", LamAbs("b", Apply(Apply(Var("check"), Var("a")), Var("b"))))
+            LamAbs(
+              aVar,
+              LamAbs(
+                bVar,
+                Apply(
+                  Apply(
+                    Var("check", Fun(sirString, Fun(sirString, sirBool))),
+                    aVar,
+                    Fun(sirString, sirBool)
+                  ),
+                  bVar,
+                  sirBool
+                )
+              )
+            )
           )
         )
-        assert(
-          ne == Let(
-            Rec,
-            List(
-              Binding(
-                "check",
+
+        val ne = compile {
+            def check(a: String, b: String) = a != b; check
+        }
+
+        val neExpected = Let(
+          Rec,
+          List(
+            Binding(
+              "check",
+              LamAbs(
+                aVar,
                 LamAbs(
-                  "a",
-                  LamAbs("b", Not(Apply(Apply(Builtin(EqualsString), Var("a")), Var("b"))))
+                  bVar,
+                  Not(
+                    Apply(
+                      Apply(SIRBuiltins.equalsString, aVar, Fun(sirString, sirBool)),
+                      bVar,
+                      sirBool
+                    )
+                  )
                 )
               )
-            ),
-            LamAbs("a", LamAbs("b", Apply(Apply(Var("check"), Var("a")), Var("b"))))
+            )
+          ),
+          LamAbs(
+            aVar,
+            LamAbs(
+              bVar,
+              Apply(
+                Apply(
+                  Var("check", Fun(sirString, Fun(sirString, sirBool))),
+                  aVar,
+                  Fun(sirString, sirBool)
+                ),
+                bVar,
+                sirBool
+              )
+            )
           )
+        )
+
+        assert(
+          ne ~=~ neExpected
         )
         val eqterm = eq.toUplc()
         val neterm = ne.toUplc()
@@ -867,6 +1391,9 @@ class CompilerPluginToSIRSpec extends AnyFunSuite with ScalaCheckPropertyChecks:
     test("compile Data equality") {
         val eq = compile { def check(a: Data, b: Data) = a == b; check }
         val ne = compile { def check(a: Data, b: Data) = a != b; check }
+        val a = Var("a", sirData)
+        val b = Var("b", sirData)
+        val check = Var("check", Fun(sirData, Fun(sirData, sirBool)))
         assert(
           eq == Let(
             Rec,
@@ -874,27 +1401,33 @@ class CompilerPluginToSIRSpec extends AnyFunSuite with ScalaCheckPropertyChecks:
               Binding(
                 "check",
                 LamAbs(
-                  "a",
-                  LamAbs("b", Apply(Apply(Builtin(EqualsData), Var("a")), Var("b")))
+                  a,
+                  LamAbs(
+                    b,
+                    Apply(Apply(SIRBuiltins.equalsData, a, Fun(sirData, sirBool)), b, sirBool)
+                  )
                 )
               )
             ),
-            LamAbs("a", LamAbs("b", Apply(Apply(Var("check"), Var("a")), Var("b"))))
+            LamAbs(a, LamAbs(b, Apply(Apply(check, a, Fun(sirData, sirBool)), b, sirBool)))
           )
         )
         assert(
-          ne == Let(
+          ne ~=~ Let(
             Rec,
             List(
               Binding(
                 "check",
                 LamAbs(
-                  "a",
-                  LamAbs("b", Not(Apply(Apply(Builtin(EqualsData), Var("a")), Var("b"))))
+                  a,
+                  LamAbs(
+                    b,
+                    Not(Apply(Apply(SIRBuiltins.equalsData, a, Fun(sirData, sirBool)), b, sirBool))
+                  )
                 )
               )
             ),
-            LamAbs("a", LamAbs("b", Apply(Apply(Var("check"), Var("a")), Var("b"))))
+            LamAbs(a, LamAbs(b, Apply(Apply(check, a, Fun(sirData, sirBool)), b, sirBool)))
           )
         )
         val eqterm = eq.toUplc()
@@ -941,6 +1474,8 @@ class CompilerPluginToSIRSpec extends AnyFunSuite with ScalaCheckPropertyChecks:
     test("compile external definitions") {
         def foo(i: BigInt) = i
 
+        val iVar = Var("i", sirInt)
+
         assert(
           compile {
               foo(5)
@@ -948,15 +1483,29 @@ class CompilerPluginToSIRSpec extends AnyFunSuite with ScalaCheckPropertyChecks:
               Let(
                 Rec,
                 List(
-                  Binding("scalus.CompilerPluginToSIRSpec._$_$foo", LamAbs("i", Var("i")))
+                  Binding("scalus.CompilerPluginToSIRSpec._$_$foo", LamAbs(iVar, iVar))
                 ),
                 Apply(
-                  Var("scalus.CompilerPluginToSIRSpec._$_$foo"),
-                  Const(Constant.Integer(5))
+                  Var("scalus.CompilerPluginToSIRSpec._$_$foo", Fun(sirInt, sirInt)),
+                  sirConst(5),
+                  sirInt
                 )
               )
         )
     }
+
+    private val pubKeyHashDataDecl = DataDecl(
+      "scalus.ledger.api.v1.PubKeyHash",
+      List(
+        ConstrDecl(
+          "scalus.ledger.api.v1.PubKeyHash",
+          SIRVarStorage.DEFAULT,
+          List(TypeBinding("hash", sirByteString)),
+          List.empty
+        )
+      ),
+      List.empty
+    )
 
     test("compile datatypes") {
         import scalus.ledger.api.v1.PubKeyHash
@@ -964,25 +1513,36 @@ class CompilerPluginToSIRSpec extends AnyFunSuite with ScalaCheckPropertyChecks:
             val pkh = new scalus.ledger.api.v1.PubKeyHash(hex"deadbeef")
             pkh.hash
         }
-        assert(
-          compiled ==
-              Decl(
-                DataDecl("PubKeyHash", List(ConstrDecl("PubKeyHash", List("hash")))),
-                Let(
-                  NonRec,
-                  List(
-                    Binding(
-                      "pkh",
-                      Constr(
-                        "PubKeyHash",
-                        DataDecl("PubKeyHash", List(ConstrDecl("PubKeyHash", List("hash")))),
-                        List(Const(uplc.Constant.ByteString(hex"DEADBEEF")))
-                      )
-                    )
-                  ),
-                  Apply(Var("pkh"), LamAbs("hash", Var("hash")))
+
+        val expected = Decl(
+          pubKeyHashDataDecl,
+          Let(
+            NonRec,
+            List(
+              Binding(
+                "pkh",
+                Constr(
+                  "scalus.ledger.api.v1.PubKeyHash",
+                  pubKeyHashDataDecl,
+                  List(Const(uplc.Constant.ByteString(hex"DEADBEEF"), sirByteString)),
+                  pubKeyHashDataDecl.constructors.head.tp
                 )
               )
+            ),
+            Select(Var("pkh", pubKeyHashDataDecl.constructors.head.tp), "hash", sirByteString)
+          )
+        )
+
+        // SIRUnify.unifySIR(compiled, expected, SIRUnify.Env.empty.copy(debug = true)) match
+        //    case SIRUnify.UnificationSuccess(env, unificator) =>
+        //    case SIRUnify.UnificationFailure(path,left,right) =>
+        //        if left.isInstanceOf[SIR] then
+        //            println(s"compile datatypes: unify left:\n${left.asInstanceOf[SIR].show}")
+        //        if right.isInstanceOf[SIR] then
+        //            println(s"compile datatypes: unify right:\n${right.asInstanceOf[SIR].show}")
+
+        assert(
+          compiled ~=~ expected
         )
     }
 
@@ -990,14 +1550,16 @@ class CompilerPluginToSIRSpec extends AnyFunSuite with ScalaCheckPropertyChecks:
         val compiled = compile {
             scalus.ledger.api.v1.PubKeyHash(hex"deadbeef")
         }
+
         assert(
           compiled ==
               Decl(
-                DataDecl("PubKeyHash", List(ConstrDecl("PubKeyHash", List("hash")))),
+                pubKeyHashDataDecl,
                 Constr(
-                  "PubKeyHash",
-                  DataDecl("PubKeyHash", List(ConstrDecl("PubKeyHash", List("hash")))),
-                  List(Const(Constant.ByteString(hex"deadbeef")))
+                  "scalus.ledger.api.v1.PubKeyHash",
+                  pubKeyHashDataDecl,
+                  List(Const(Constant.ByteString(hex"deadbeef"), SIRType.ByteString)),
+                  SIRType.CaseClass(pubKeyHashDataDecl.constructors.head, scala.Nil)
                 )
               )
         )
@@ -1132,12 +1694,12 @@ class CompilerPluginToSIRSpec extends AnyFunSuite with ScalaCheckPropertyChecks:
             @Ignore val a = true
 
             @Ignore def foo() = true
-        } == Const(Constant.Unit))
+        } == Const(Constant.Unit, SIRType.Unit))
     }
 
     test("Ignore PlatformSpecific arguments") {
         // Make sure that the implicit PlatformSpecific argument is not generated
-        assert(compile(Builtins.sha2_256) == (lam("bs")(Sha2_256 $ Var("bs"))))
+        assert(compile(Builtins.sha2_256) == (lam("bs")(Sha2_256 $ Var("bs", sirByteString))))
     }
 
     test("? operator produces a debug log") {
@@ -1152,4 +1714,33 @@ class CompilerPluginToSIRSpec extends AnyFunSuite with ScalaCheckPropertyChecks:
                 assert(evaled == scalus.uplc.Term.Const(Constant.Bool(false)))
                 assert(logs == List("oneEqualsTwo ? False: { mem: 0.002334, cpu: 0.539980 }"))
             case Result.Failure(exception, _, _, _) => fail(exception)
+    }
+
+    test("compile large script") {
+        // this test ensures that the compiler can handle large scripts
+        inline def generate(n: Int): String =
+            if n == 0 then "asdfasdfasdfasdfasdfasdfasdfasdfasdfasdfasdfasdfasdf"
+            else
+                Builtins.appendString(
+                  generate(n - 1),
+                  "asdfasdfasdfasdfasdfasdfasdfasdfasdfasdfasdfasdfasdfasdfasdfasdfasdfasdf"
+                      + "asdfasdfasdfasdfasdfasdfasdfasdfasdfasdfasdfasdfasdfasdfasdfasdfasdfasdf"
+                      + "asdfasdfasdfasdfasdfasdfasdfasdfasdfasdfasdfasdfasdfasdfasdfasdfasdfasdf"
+                      + "asdfasdfasdfasdfasdfasdfasdfasdfasdfasdfasdfasdfasdfasdfasdfasdfasdfasdf"
+                      + "asdfasdfasdfasdfasdfasdfasdfasdfasdfasdfasdfasdfasdfasdfasdfasdfasdfasdf"
+                      + "asdfasdfasdfasdfasdfasdfasdfasdfasdfasdfasdfasdfasdfasdfasdfasdfasdfasdf"
+                      + "asdfasdfasdfasdfasdfasdfasdfasdfasdfasdfasdfasdfasdfasdfasdfasdfasdfasdf"
+                      + "asdfasdfasdfasdfasdfasdfasdfasdfasdfasdfasdfasdfasdfasdfasdfasdfasdfasdf"
+                      + "asdfasdfasdfasdfasdfasdfasdfasdfasdfasdfasdfasdfasdfasdfasdfasdfasdfasdf"
+                      + "asdfasdfasdfasdfasdfasdfasdfasdfasdfasdfasdfasdfasdfasdfasdfasdfasdfasdf"
+                      + "asdfasdfasdfasdfasdfasdfasdfasdfasdfasdfasdfasdfasdfasdfasdfasdfasdfasdf"
+                      + "asdfasdfasdfasdfasdfasdfasdfasdfasdfasdfasdfasdfasdfasdfasdfasdfasdfasdf"
+                      + "asdfasdfasdfasdfasdfasdfasdfasdfasdfasdfasdfasdfasdfasdfasdfasdfasdfasdf"
+                )
+        // this generates a script with 99 calls to appendString
+        // appendString(appendString(..., "asdf..."), ..., "asdf...")
+        val compiled = compile {
+            generate(99)
+        }
+        assert(compiled.toUplc().plutusV3.flatEncoded.length == 93652)
     }

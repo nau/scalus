@@ -6,6 +6,7 @@ import scalus.builtin.Builtins.*
 import scalus.builtin.ByteString.*
 import scalus.builtin.Data
 import scalus.sir.Recursivity.NonRec
+import scalus.sir.SIRType.{ByteString, TypeVar}
 import scalus.uplc.ArbitraryInstances
 import scalus.uplc.Constant
 import scalus.uplc.DefaultFun
@@ -26,9 +27,11 @@ class OptimizingSirToUplcLoweringSpec
             val uplc = OptimizingSirToUplcLowering(s, forceBuiltins = ForceBuiltins.None).lower()
             assert(s.toUplc() == r)
 
+    val sirInt = SIRType.Integer
+
     test("lower constant") {
         forAll { (c: Constant) =>
-            SIR.Const(c) lowersTo Term.Const(c)
+            SIR.Const(c, SIRType.fromDefaultUni(c.tpe)) lowersTo Term.Const(c)
         }
     }
 
@@ -40,20 +43,23 @@ class OptimizingSirToUplcLoweringSpec
         )
     }
 
-    test("lower Var") { SIR.Var("x") lowersTo vr"x" }
+    test("lower Var") { SIR.Var("x", SIRType.FreeUnificator) lowersTo vr"x" }
 
     test("lower Lam/Apply") {
+        val xTypeVar = SIRType.TypeVar("X", Some(1))
+        val xVar = SIR.Var("x", SIRType.TypeLambda(List(xTypeVar), xTypeVar))
         SIR.Apply(
-          SIR.LamAbs("x", SIR.Var("x")),
-          SIR.Const(Constant.Unit)
+          SIR.LamAbs(xVar, xVar),
+          SIR.Const(Constant.Unit, SIRType.Unit),
+          SIRType.Unit
         ) lowersTo (lam("x")(vr"x") $ Constant.Unit)
 
     }
 
     test("lower builtins") {
-        SIR.Builtin(AddInteger) lowersTo AddInteger
-        SIR.Builtin(HeadList) lowersTo !HeadList
-        SIR.Builtin(FstPair) lowersTo !(!FstPair)
+        SIRBuiltins.addInteger lowersTo AddInteger
+        SIRBuiltins.headList lowersTo !HeadList
+        SIRBuiltins.fstPair lowersTo !(!FstPair)
     }
 
     test("lower let") {
@@ -63,10 +69,14 @@ class OptimizingSirToUplcLoweringSpec
          */
         SIR.Let(
           NonRec,
-          Binding("x", SIR.Const(asConstant(1))) :: Binding("y", SIR.Const(asConstant(2))) :: Nil,
+          Binding("x", SIR.Const(asConstant(1), sirInt)) :: Binding(
+            "y",
+            SIR.Const(asConstant(2), sirInt)
+          ) :: Nil,
           SIR.Apply(
-            SIR.Apply(SIR.Builtin(AddInteger), SIR.Var("x")),
-            SIR.Var("y")
+            SIR.Apply(SIRBuiltins.addInteger, SIR.Var("x", sirInt), SIRType.Fun(sirInt, sirInt)),
+            SIR.Var("y", sirInt),
+            sirInt
           )
         ) lowersTo (lam("x")(lam("y")(AddInteger $ vr"x" $ vr"y") $ 2) $ 1)
     }
@@ -77,18 +87,53 @@ class OptimizingSirToUplcLoweringSpec
        TxId(name)
        lowers to (\name TxId -> TxId name) name
          */
+        val listDataDeclTypeProxy = new SIRType.TypeProxy(null)
         val listData =
             DataDecl(
               "List",
-              List(ConstrDecl("Nil", List()), ConstrDecl("Cons", List("head", "tail")))
+              List(
+                ConstrDecl("Nil", SIRVarStorage.DEFAULT, List(), List()),
+                ConstrDecl(
+                  "Cons",
+                  SIRVarStorage.DEFAULT,
+                  List(
+                    TypeBinding("head", TypeVar("T", Some(1))),
+                    TypeBinding("tail", listDataDeclTypeProxy)
+                  ),
+                  List(TypeVar("T", Some(1)))
+                )
+              ),
+              List(TypeVar("T", Some(1)))
             )
-        val txIdData = DataDecl("TxId", List(ConstrDecl("TxId", List("hash"))))
+        listDataDeclTypeProxy.ref = SIRType.SumCaseClass(listData, List(TypeVar("T", Some(1))))
+        val txIdData = DataDecl(
+          "TxId",
+          List(
+            ConstrDecl(
+              "TxId",
+              SIRVarStorage.DEFAULT,
+              List(TypeBinding("hash", ByteString)),
+              List()
+            )
+          ),
+          List()
+        )
+
         def withDecls(sir: SIR) = SIR.Decl(listData, SIR.Decl(txIdData, sir))
-        withDecls(SIR.Constr("Nil", listData, List())) lowersTo (lam("Nil", "Cons")(
+
+        withDecls(SIR.Constr("Nil", listData, List(), listData.constructors.head.tp)) lowersTo (lam(
+          "Nil",
+          "Cons"
+        )(
           !(vr"Nil")
         ))
         withDecls(
-          SIR.Constr("TxId", txIdData, List(SIR.Const(asConstant(hex"DEADBEEF"))))
+          SIR.Constr(
+            "TxId",
+            txIdData,
+            List(SIR.Const(asConstant(hex"DEADBEEF"), SIRType.ByteString)),
+            txIdData.constructors.head.tp
+          )
         ) lowersTo (lam("hash", "TxId")(vr"TxId" $ vr"hash") $ hex"DEADBEEF")
 
     }
@@ -97,9 +142,11 @@ class OptimizingSirToUplcLoweringSpec
         /* And True False
        lowers to (\True False -> And True False) True False
          */
-        SIR.And(SIR.Var("a"), SIR.Var("b")) lowersTo !(!IfThenElse $ vr"a" $ ~vr"b" $ ~false)
-        SIR.Or(SIR.Var("a"), SIR.Var("b")) lowersTo !(!IfThenElse $ vr"a" $ ~true $ ~vr"b")
-        SIR.Not(SIR.Var("a")) lowersTo !(!IfThenElse $ vr"a" $ ~false $ ~true)
+        val a = SIR.Var("a", SIRType.Boolean)
+        val b = SIR.Var("b", SIRType.Boolean)
+        SIR.And(a, b) lowersTo !(!IfThenElse $ vr"a" $ ~vr"b" $ ~false)
+        SIR.Or(a, b) lowersTo !(!IfThenElse $ vr"a" $ ~true $ ~vr"b")
+        SIR.Not(a) lowersTo !(!IfThenElse $ vr"a" $ ~false $ ~true)
     }
 
     test("lower Match") {
@@ -109,19 +156,54 @@ class OptimizingSirToUplcLoweringSpec
 
        lowers to (\Nil Cons -> force Nil) (delay 1) (\h tl -> 2)
          */
-        val nilConstr = ConstrDecl("Nil", List())
-        val consConstr = ConstrDecl("Cons", List("head", "tail"))
+        val listTp = SIRType.TypeProxy(null)
+        val listTpX = SIRType.TypeProxy(null)
+        val nilConstr = ConstrDecl("Nil", SIRVarStorage.DEFAULT, List(), List())
+        val consConstr = ConstrDecl(
+          "Cons",
+          SIRVarStorage.DEFAULT,
+          List(TypeBinding("head", TypeVar("x", Some(1))), TypeBinding("tail", listTpX)),
+          List(TypeVar("x", Some(1)))
+        )
         val listData =
-            DataDecl("List", List(nilConstr, consConstr))
-        val txIdData = DataDecl("TxId", List(ConstrDecl("TxId", List("hash"))))
+            DataDecl("List", List(nilConstr, consConstr), List(TypeVar("T", Some(2))))
+        listTp.ref = listData.tp
+        listTpX.ref = SIRType.SumCaseClass(listData, List(TypeVar("x", Some(1))))
+
+        val txIdData = DataDecl(
+          "TxId",
+          List(
+            ConstrDecl(
+              "TxId",
+              SIRVarStorage.DEFAULT,
+              List(TypeBinding("hash", ByteString)),
+              List()
+            )
+          ),
+          List()
+        )
         def withDecls(sir: SIR) = SIR.Decl(listData, SIR.Decl(txIdData, sir))
         withDecls(
           SIR.Match(
-            SIR.Constr("Nil", listData, List()),
+            SIR.Constr("Nil", listData, List(), listData.constructors.head.tp),
             List(
-              Case(nilConstr, Nil, SIR.Const(Constant.Integer(1))),
-              Case(consConstr, List("h", "tl"), SIR.Const(Constant.Integer(2)))
-            )
+              SIR.Case(
+                nilConstr,
+                Nil,
+                Nil,
+                SIR.Const(Constant.Integer(1), SIRType.Integer)
+              ),
+              SIR.Case(
+                consConstr,
+                List("h", "tl"),
+                List(
+                  SIRType.FreeUnificator,
+                  SIRType.SumCaseClass(listData, List(SIRType.FreeUnificator))
+                ),
+                SIR.Const(Constant.Integer(2), SIRType.Integer)
+              )
+            ),
+            SIRType.Integer
           )
         ) lowersTo (lam("Nil", "Cons")(!vr"Nil") $ ~asConstant(1) $ lam("h", "tl")(2))
     }

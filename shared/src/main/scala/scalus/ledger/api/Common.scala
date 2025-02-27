@@ -37,7 +37,7 @@ case class ProtocolVersion(major: Int, minor: Int) extends Ordered[ProtocolVersi
     derives ReadWriter {
     def compare(that: ProtocolVersion): Int = {
         val majorComp = this.major.compareTo(that.major)
-        if (majorComp != 0) majorComp else this.minor.compareTo(that.minor)
+        if majorComp != 0 then majorComp else this.minor.compareTo(that.minor)
     }
 }
 

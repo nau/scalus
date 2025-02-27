@@ -302,8 +302,12 @@ class DeserializationError(fun: DefaultFun, value: CekValue)
 class KnownTypeUnliftingError(expected: DefaultUni, actual: CekValue)
     extends BuiltinException(s"Expected type $expected, got $actual")
 
-class BuiltinError(builtin: DefaultFun, term: Term, cause: Throwable, env: CekValEnv)
-    extends StackTraceMachineError(s"Builtin error: $builtin $term, caused by $cause", env)
+class BuiltinError(
+    val builtin: DefaultFun,
+    val term: Term,
+    val cause: Throwable,
+    env: CekValEnv
+) extends StackTraceMachineError(s"Builtin error: $builtin $term, caused by $cause", env)
 
 class OutOfExBudgetError(budget: ExBudget, env: CekValEnv)
     extends StackTraceMachineError(s"Out of budget: $budget", env)
@@ -317,6 +321,13 @@ enum CekValue {
     case VLamAbs(name: String, term: Term, env: CekValEnv)
     case VBuiltin(bn: DefaultFun, term: () => Term, runtime: BuiltinRuntime)
     case VConstr(tag: Long, args: Seq[CekValue])
+
+    override def toString: String = this match
+        case VCon(const)            => s"VCon($const)"
+        case VDelay(term, _)        => s"VDelay($term)"
+        case VLamAbs(name, term, _) => s"VLamAbs($name, $term)"
+        case VBuiltin(bn, _, _)     => s"VBuiltin($bn)"
+        case VConstr(tag, args)     => s"VConstr($tag, ${args.mkString(", ")})"
 
     def asUnit: Unit = this match {
         case VCon(Constant.Unit) => ()

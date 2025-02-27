@@ -14,6 +14,7 @@ object TermDSL:
             case f => (f, Nil)
 
     def λ(names: String*)(term: Term): Term = lam(names*)(term)
+    def λλ(name: String)(f: Term => Term): Term = lam(name)(f(vr(name)))
     def lam(names: String*)(term: Term): Term = names.foldRight(term)(Term.LamAbs(_, _))
     def vr(name: String): Term = Term.Var(NamedDeBruijn(name))
     extension (term: Term)
@@ -28,6 +29,9 @@ object TermDSL:
 
     given constantAsTerm[A: Constant.LiftValue]: Conversion[A, Term] with
         def apply(c: A): Term = Term.Const(summon[Constant.LiftValue[A]].lift(c))
+
+    extension [A: Constant.LiftValue](a: A)
+        def asTerm: Term = Term.Const(summon[Constant.LiftValue[A]].lift(a))
 
     given Conversion[Constant, Term] with
         def apply(c: Constant): Term = Term.Const(c)

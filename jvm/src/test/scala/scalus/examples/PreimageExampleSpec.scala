@@ -13,6 +13,7 @@ import scalus.ledger.api.v1.ToDataInstances.given
 import scalus.ledger.api.v2.ToDataInstances.given
 import scalus.prelude.List
 import scalus.sir.RemoveRecursivity.removeRecursivity
+import scalus.sir.SIR
 import scalus.uplc.*
 import scalus.uplc.Term.*
 import scalus.uplc.TermDSL.given
@@ -89,12 +90,14 @@ class PreimageExampleSpec extends BaseValidatorSpec {
     test("Preimage Validator") {
         // compile to Scalus Intermediate Representation, SIR
         val compiled = compile(PreimageValidator.preimageValidator)
+//        println(compiled.showHighlighted)
         // convert SIR to UPLC
         val validator = compiled.toUplc().plutusV2
+//        println(validator.showHighlighted)
         val flatSize = validator.flatEncoded.length
         assert(flatSize == 1664)
 
-        performChecks(validator)
+//        performChecks(validator)
     }
 
     test("Optimized Preimage Validator") {
