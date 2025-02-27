@@ -327,7 +327,8 @@ object SIRType {
         }
 
         // val NilConstr = ConstrDecl("Nil", SIRVarStorage.DEFAULT, scala.Nil, scala.Nil, scala.Nil)
-        val NilConstr = ConstrDecl("scalus.prelude.List$.Nil", SIRVarStorage.DEFAULT, scala.Nil, scala.Nil)
+        val NilConstr =
+            ConstrDecl("scalus.prelude.List$.Nil", SIRVarStorage.DEFAULT, scala.Nil, scala.Nil)
 
         val Nil = CaseClass(NilConstr, scala.Nil)
 
@@ -370,7 +371,8 @@ object SIRType {
                 }
                 calculateApplyType(body, arg, newEnv, debug)
             case TypeProxy(next) =>
-                if next == null then throw CaclulateApplyTypeException(s"TypeProxy is not resolved: $f")
+                if next == null then
+                    throw CaclulateApplyTypeException(s"TypeProxy is not resolved: $f")
                 else calculateApplyType(next, arg, env, debug)
             case other =>
                 throw CaclulateApplyTypeException(s"Expected function type, got $other", null)

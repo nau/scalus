@@ -62,8 +62,8 @@ object SIRUnify {
 
     extension [T: Unify](left: T)
         def ~=~(right: T): UnificationResult[T] = summon[Unify[T]].apply(left, right, Env.empty)
-        def ~~=~~(right: T): Boolean = summon[Unify[T]].apply(left, right, Env(debug = true)).isSuccess
-
+        def ~~=~~(right: T): Boolean =
+            summon[Unify[T]].apply(left, right, Env(debug = true)).isSuccess
 
     def unifySIR(left: SIR, right: SIR, env: Env): UnificationResult[SIR] = {
         unifySIRExpr(left, right, env)
@@ -112,32 +112,31 @@ object SIRUnify {
                             UnificationFailure(path, left, right)
                 else UnificationFailure(env.path, left, right)
             case (v1: SIR.Let, v2: SIR.Let) =>
-                    unifyList(
-                      v1.bindings,
-                      v2.bindings,
-                      env.copy(path = "binding" :: env.path)
-                    ) match
-                        case UnificationSuccess(env1, bindings) =>
-                            unifySIRExpr(
-                              v1.body,
-                              v2.body,
-                              env1.copy(path = "body" :: env.path)
-                            ) match
-                                case UnificationSuccess(env2, body) =>
-                                    val recursivity =
-                                        if (v1.recursivity == v2.recursivity) then
-                                            v1.recursivity
-                                        else
-                                            //TODO: print warning ?
-                                            Recursivity.NonRec
-                                    UnificationSuccess(
-                                      env2,
-                                      SIR.Let(recursivity, bindings, body)
-                                    )
-                                case UnificationFailure(path, bodyLeft, bodyRight) =>
-                                    UnificationFailure(path, bodyLeft, bodyRight)
-                        case UnificationFailure(path, bindingsLeft, bindingsRight) =>
-                            UnificationFailure(path, bindingsLeft, bindingsRight)
+                unifyList(
+                  v1.bindings,
+                  v2.bindings,
+                  env.copy(path = "binding" :: env.path)
+                ) match
+                    case UnificationSuccess(env1, bindings) =>
+                        unifySIRExpr(
+                          v1.body,
+                          v2.body,
+                          env1.copy(path = "body" :: env.path)
+                        ) match
+                            case UnificationSuccess(env2, body) =>
+                                val recursivity =
+                                    if (v1.recursivity == v2.recursivity) then v1.recursivity
+                                    else
+                                        // TODO: print warning ?
+                                        Recursivity.NonRec
+                                UnificationSuccess(
+                                  env2,
+                                  SIR.Let(recursivity, bindings, body)
+                                )
+                            case UnificationFailure(path, bodyLeft, bodyRight) =>
+                                UnificationFailure(path, bodyLeft, bodyRight)
+                    case UnificationFailure(path, bindingsLeft, bindingsRight) =>
+                        UnificationFailure(path, bindingsLeft, bindingsRight)
             case (v1: SIR.LamAbs, v2: SIR.LamAbs) =>
                 // note, that this is not semantic unification, but syntactic
                 //  so, different parametes means different lambda.

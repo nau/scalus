@@ -39,7 +39,7 @@ case class ConstrDecl(
     // (moved to DataDecl,  since when we have a hierarchy with more than one level,
     //  then we map this to few DataDecl, and each DataDecl has its own constructor type).
     // */
-    //TODO: enable this,
+    // TODO: enable this,
     // parentTypeArgs: List[SIRType]
 
 ) {
@@ -47,7 +47,6 @@ case class ConstrDecl(
     if name.contains(" ") || name.contains("\u0021") then {
         throw new RuntimeException("Invalud name in constructor: " + name)
     }
-
 
     private var _tp: SIRType = null
 
@@ -98,7 +97,7 @@ sealed trait SIR {
             case SIRUnify.UnificationSuccess(_, _)    => true
             case SIRUnify.UnificationFailure(_, _, _) => false
         }
-    
+
 }
 
 object SIR:
@@ -186,8 +185,6 @@ object SIR:
 
     // TODO: unify data-decl.
     case class Constr(name: String, data: DataDecl, args: List[SIR], tp: SIRType) extends SIR
-
-
 
     case class Case(
         constr: ConstrDecl,

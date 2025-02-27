@@ -252,7 +252,7 @@ object PrettyPrinter:
                     " =>> "
                   ) + pretty(body)
                 )
-            case p: SIRType.Primitive      => text(p.show)
+            case p: SIRType.Primitive => text(p.show)
             case SIRType.CaseClass(constrDecl, typeParams) =>
                 text(constrDecl.name) + inOptBrackets(
                   intercalate(text(",") + space, typeParams.map(pretty))

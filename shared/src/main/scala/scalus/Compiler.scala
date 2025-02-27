@@ -29,7 +29,6 @@ object Compiler:
      */
     def compileType[T]: SIRType = throwCompilerPluginMissingException()
 
-
     def throwCompilerPluginMissingException(): Nothing =
         throw new RuntimeException(
           "This method call is handled by the Scalus compiler plugin. " +

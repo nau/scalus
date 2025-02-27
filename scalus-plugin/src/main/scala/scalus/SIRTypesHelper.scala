@@ -271,12 +271,20 @@ object SIRTypesHelper {
             tpArgs match
                 case List(elemType) => Some(SIRType.List(elemType))
                 case _ =>
-                    throw TypingException(symbol.info, env.pos, s"List type should have one type argument, found ${tpArgs.length}" )
+                    throw TypingException(
+                      symbol.info,
+                      env.pos,
+                      s"List type should have one type argument, found ${tpArgs.length}"
+                    )
         else if (symbol == Symbols.requiredClass("scalus.builtin.Pair")) then
             tpArgs match
                 case List(a1, a2) => Some(SIRType.Pair(a1, a2))
                 case _ =>
-                    throw TypingException(symbol.info, env.pos,  s"Pair type should have two type arguments, found ${tpArgs.length}")
+                    throw TypingException(
+                      symbol.info,
+                      env.pos,
+                      s"Pair type should have two type arguments, found ${tpArgs.length}"
+                    )
         else if (symbol == Symbols.requiredClass("scalus.builtin.BLS12_381_G1_Element")) then
             Some(SIRType.BLS12_381_G1_Element)
         else if (symbol == Symbols.requiredClass("scalus.builtin.BLS12_381_G2_Element")) then
@@ -475,7 +483,8 @@ object SIRTypesHelper {
                     !chtp.isInstanceOf[SIRType.TypeProxy]
                 } match
                     case Some((childSym, childStrangeType)) =>
-                        val msg = s"Case parent type ${typeSymbol.showFullName} has children that are not case classes or case parent types: ${childSym.showFullName}: ${childStrangeType}"
+                        val msg =
+                            s"Case parent type ${typeSymbol.showFullName} has children that are not case classes or case parent types: ${childSym.showFullName}: ${childStrangeType}"
                         thisProxy.ref = SIRType.TypeNothing
                         Some(typeError(typeSymbol.info, msg, env, throwError = true))
                     case None =>

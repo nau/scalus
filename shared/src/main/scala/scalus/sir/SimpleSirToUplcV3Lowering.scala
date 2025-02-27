@@ -214,9 +214,9 @@ class SimpleSirToUplcV3Lowering(sir: SIR, generateErrorTraces: Boolean = false):
                                 val bindings = cs.bindings.zipWithIndex
                                     .zip(constr.params)
                                     .foldRight(lowerInner(cs.body)):
-                                    case (((name, idx), TypeBinding(_, tp)), term) =>
-                                        val value = getFieldByIndex(scrutineeTerm, idx, tp)
-                                        lam(name)(term) $ value
+                                        case (((name, idx), TypeBinding(_, tp)), term) =>
+                                            val value = getFieldByIndex(scrutineeTerm, idx, tp)
+                                            lam(name)(term) $ value
                                 bindings
                     case _ =>
                         throw new IllegalArgumentException(
