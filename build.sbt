@@ -298,6 +298,10 @@ addCommandAlias(
   "precommit",
   "clean;docs/clean;scalusPluginTests/clean;scalafmtAll;scalafmtSbt;Test/compile;scalusPluginTests/Test/compile;test;docs/mdoc"
 )
+addCommandAlias(
+  "ci",
+  "clean;docs/clean;scalusPluginTests/clean;scalafmtCheckAll;scalafmtSbtCheck;Test/compile;scalusPluginTests/Test/compile;test;docs/mdoc"
+)
 
 logo :=
     s"""
@@ -315,5 +319,6 @@ logo :=
 usefulTasks := Seq(
   UsefulTask("~compile", "Compile with file-watch enabled"),
   UsefulTask("precommit", "Format all, clean compile and test everything"),
+  UsefulTask("ci", "Clean compile, check formatting and test everything"),
   UsefulTask("docs/docusaurusCreateSite", "Generate Scalus documentation website")
 )

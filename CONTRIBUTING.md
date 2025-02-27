@@ -30,6 +30,8 @@ nix develop
 
 ## Build
 
+Before committing changes, make sure that the code is formatted, compiles and the tests pass:
+
 ```bash
 sbt precommit
 ```
