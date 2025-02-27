@@ -1515,36 +1515,31 @@ class CompilerPluginToSIRSpec extends AnyFunSuite with ScalaCheckPropertyChecks:
         }
 
         val expected = Decl(
-            pubKeyHashDataDecl,
-            Let(
-                NonRec,
-                List(
-                    Binding(
-                        "pkh",
-                        Constr(
-                            "scalus.ledger.api.v1.PubKeyHash",
-                            pubKeyHashDataDecl,
-                            List(Const(uplc.Constant.ByteString(hex"DEADBEEF"), sirByteString)),
-                            pubKeyHashDataDecl.constructors.head.tp
-                        )
-                    )
-                ),
-                Select(Var("pkh", pubKeyHashDataDecl.constructors.head.tp), "hash", sirByteString)
-            )
+          pubKeyHashDataDecl,
+          Let(
+            NonRec,
+            List(
+              Binding(
+                "pkh",
+                Constr(
+                  "scalus.ledger.api.v1.PubKeyHash",
+                  pubKeyHashDataDecl,
+                  List(Const(uplc.Constant.ByteString(hex"DEADBEEF"), sirByteString)),
+                  pubKeyHashDataDecl.constructors.head.tp
+                )
+              )
+            ),
+            Select(Var("pkh", pubKeyHashDataDecl.constructors.head.tp), "hash", sirByteString)
+          )
         )
 
-        SIRUnify.unifySIR(compiled, expected, SIRUnify.Env.empty.copy(debug = true)) match
-            case SIRUnify.UnificationSuccess(env, unificator) =>
-
-            case SIRUnify.UnificationFailure(path,left,right) =>
-                println(s"compile datatypes: unify path=${path}")
-                println(s"compile datatypes: unify left =${left}")
-                println(s"compile datatypes: unify right=${right}")
-                if left.isInstanceOf[SIR] then
-                    println(s"compile datatypes: unify left:\n${left.asInstanceOf[SIR].show}")
-                if right.isInstanceOf[SIR] then
-                    println(s"compile datatypes: unify right:\n${right.asInstanceOf[SIR].show}")
-
+        // SIRUnify.unifySIR(compiled, expected, SIRUnify.Env.empty.copy(debug = true)) match
+        //    case SIRUnify.UnificationSuccess(env, unificator) =>
+        //    case SIRUnify.UnificationFailure(path,left,right) =>
+        //        if left.isInstanceOf[SIR] then
+        //            println(s"compile datatypes: unify left:\n${left.asInstanceOf[SIR].show}")
+        //        if right.isInstanceOf[SIR] then
+        //            println(s"compile datatypes: unify right:\n${right.asInstanceOf[SIR].show}")
 
         assert(
           compiled ~=~ expected
