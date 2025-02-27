@@ -68,7 +68,8 @@ case class AdtTypeInfo(
   *   Type information of the base data type.
   */
 case class AdtConstructorCallInfo(
-    name: String,
+    shortName: String,
+    fullName: String,
     dataInfo: AdtTypeInfo
 )
 
@@ -76,7 +77,11 @@ object AdtConstructorCallInfo {
     def apply(constructorTypeSymbol: Symbol, dataInfo: AdtTypeInfo)(using
         Context
     ): AdtConstructorCallInfo =
-        AdtConstructorCallInfo(constructorTypeSymbol.name.show, dataInfo)
+        AdtConstructorCallInfo(
+          constructorTypeSymbol.name.show,
+          constructorTypeSymbol.fullName.show,
+          dataInfo
+        )
 }
 
 final class SIRCompiler(mode: scalus.Mode)(using ctx: Context) {
@@ -373,7 +378,7 @@ final class SIRCompiler(mode: scalus.Mode)(using ctx: Context) {
             .getOrElse(Nil)
         // TODO: add substoitution for parent type params
         // scalus.sir.ConstrDecl(sym.name.show, SIRVarStorage.DEFAULT, params, typeParams, baseTypeArgs)
-        scalus.sir.ConstrDecl(constrSymbol.name.show, SIRVarStorage.DEFAULT, params, typeParams)
+        scalus.sir.ConstrDecl(constrSymbol.fullName.show, SIRVarStorage.DEFAULT, params, typeParams)
     }
 
     private def compileNewConstructor(
@@ -388,7 +393,12 @@ final class SIRCompiler(mode: scalus.Mode)(using ctx: Context) {
         val argsE = args.map(compileExpr(env, _))
         val dataDecl = getCachedDataDecl(constructorCallInfo.dataInfo, env, srcPos)
         // constructor body as: constr arg1 arg2 ...
-        SIR.Constr(constructorCallInfo.name, dataDecl, argsE, sirTypeInEnv(fullType, srcPos, env))
+        SIR.Constr(
+          constructorCallInfo.fullName,
+          dataDecl,
+          argsE,
+          sirTypeInEnv(fullType, srcPos, env)
+        )
     }
 
     // Parameterless case class constructor of an enum
@@ -698,7 +708,11 @@ final class SIRCompiler(mode: scalus.Mode)(using ctx: Context) {
         val retval = exprs.foldRight(exprExpr) { (bind, expr) =>
             SIR.Let(bind.recursivity, List(Binding(bind.name, bind.body)), expr)
         }
-        if env.debug then println(s"compileBlock: retval.tp=${retval.tp.show}, ${retval.tp} isSumCaseClass=${retval.tp.isInstanceOf[SIRType.SumCaseClass]}")
+        if env.debug then
+            println(
+              s"compileBlock: retval.tp=${retval.tp.show}, ${retval.tp} isSumCaseClass=${retval.tp
+                      .isInstanceOf[SIRType.SumCaseClass]}"
+            )
         retval
     }
 
@@ -1335,7 +1349,7 @@ final class SIRCompiler(mode: scalus.Mode)(using ctx: Context) {
         if compileConstant.isDefinedAt(tree) then
             val const = compileConstant(tree)
             SIR.Const(const, sirTypeInEnv(tree.tpe, tree.srcPos, env))
-        else compileExpr2(env.copy(level = env.level+1), tree)
+        else compileExpr2(env.copy(level = env.level + 1), tree)
     }
 
     private def compileExpr2(env: Env, tree: Tree)(using Context): SIR = {
@@ -1438,7 +1452,7 @@ final class SIRCompiler(mode: scalus.Mode)(using ctx: Context) {
                 compileBuiltinPairConstructor(env, a, b, tpe1, tpe2, tree)
             // new Constr(args)
             case Apply(TypeApply(con @ Select(f, nme.CONSTRUCTOR), targs), args) =>
-                compileNewConstructor(env, f.tpe, tree.tpe.widen, targs,args, tree)
+                compileNewConstructor(env, f.tpe, tree.tpe.widen, targs, args, tree)
             case Apply(con @ Select(f, nme.CONSTRUCTOR), args) =>
                 compileNewConstructor(env, f.tpe, tree.tpe.widen, Nil, args, tree)
             // (a, b) as scala.Tuple2.apply(a, b)
@@ -1617,10 +1631,13 @@ final class SIRCompiler(mode: scalus.Mode)(using ctx: Context) {
             retval match
                 case _: SIRType.SumCaseClass =>
                     tp match
-                        case AppliedType(tpe, List(arg)) if tpe.widen.typeSymbol.name.asSimpleName.show == "List" =>
-                            //println(s"SIRTypeInEnv:List, tp=${tp.show}, fullname=${tp.typeSymbol.fullName}, retval=${retval.show}")
+                        case AppliedType(tpe, List(arg))
+                            if tpe.widen.typeSymbol.name.asSimpleName.show == "List" =>
+                        // println(s"SIRTypeInEnv:List, tp=${tp.show}, fullname=${tp.typeSymbol.fullName}, retval=${retval.show}")
                         case _ =>
-                            println(s"SIRTypeInEnv, tp=${tp.show}, fullname=${tp.typeSymbol.fullName}, retval=${retval.show}")
+                            println(
+                              s"SIRTypeInEnv, tp=${tp.show}, fullname=${tp.typeSymbol.fullName}, retval=${retval.show}"
+                            )
                 case _ =>
             retval
         catch

@@ -247,7 +247,7 @@ object FlatInstantces:
         val tagTypeLambda: Byte = 0x0a
         val tagTypeFreeUnificator: Byte = 0x0b
         val tagTypeProxy: Byte = 0x0c
-        //val tagTypeError: Byte = 0x0d -- free.
+        // val tagTypeError: Byte = 0x0d -- free.
         val tagTypeNothing: Byte = 0x0e
         val tagNonCaseModule: Byte = 0x0f
         val tagBls12_381_G1_Element: Byte = 0x10
@@ -899,7 +899,13 @@ object FlatInstantces:
                     val tp = SIRTypeHashConsedFlat.decodeHC(decoder)
                     HashConsedRef.deferred(
                       hs => data.isComplete(hs) && args.isComplete(hs) && tp.isComplete(hs),
-                      (hs, l, p) => Constr(name, data.finValue(hs, l, p), args.finValue(hs, l, p), tp.finValue(hs, l, p))
+                      (hs, l, p) =>
+                          Constr(
+                            name,
+                            data.finValue(hs, l, p),
+                            args.finValue(hs, l, p),
+                            tp.finValue(hs, l, p)
+                          )
                     )
                 case `tagMatch` =>
                     val scrutinee = decodeHC(decoder)

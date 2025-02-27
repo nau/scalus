@@ -49,8 +49,7 @@ class SITRTypingScalaToSIRSpec extends AnyFunSuite {
 
         sir.tp match {
             case SIRType.CaseClass(constrDecl, Nil) =>
-                println("SIRType.CaseClass: name=" + constrDecl.name)
-                assert(constrDecl.name == "ClassA1")
+                assert(constrDecl.name == "scalus.sir.SITRTypingScalaToSIRSpecScope$.ClassA1")
             case _ => fail(s"unexpected type ${sir.tp}")
         }
 
