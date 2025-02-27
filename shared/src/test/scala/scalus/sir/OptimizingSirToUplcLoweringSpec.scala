@@ -121,7 +121,10 @@ class OptimizingSirToUplcLoweringSpec
 
         def withDecls(sir: SIR) = SIR.Decl(listData, SIR.Decl(txIdData, sir))
 
-        withDecls(SIR.Constr("Nil", listData, List(),listData.constructors.head.tp)) lowersTo (lam("Nil", "Cons")(
+        withDecls(SIR.Constr("Nil", listData, List(), listData.constructors.head.tp)) lowersTo (lam(
+          "Nil",
+          "Cons"
+        )(
           !(vr"Nil")
         ))
         withDecls(
@@ -182,7 +185,7 @@ class OptimizingSirToUplcLoweringSpec
         def withDecls(sir: SIR) = SIR.Decl(listData, SIR.Decl(txIdData, sir))
         withDecls(
           SIR.Match(
-            SIR.Constr("Nil", listData, List(),listData.constructors.head.tp),
+            SIR.Constr("Nil", listData, List(), listData.constructors.head.tp),
             List(
               SIR.Case(
                 nilConstr,

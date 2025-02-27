@@ -113,7 +113,9 @@ class SimpleSirToUplcLoweringSpec
           List()
         )
         def withDecls(sir: SIR) = SIR.Decl(listData, SIR.Decl(txIdData, sir))
-        withDecls(SIR.Constr("scalus.prelude.List$.Nil", listData, List(),listData.constructors.head.tp)) lowersTo (lam("scalus.prelude.List$.Nil", "scalus.prelude.List$.Cons")(
+        withDecls(
+          SIR.Constr("scalus.prelude.List$.Nil", listData, List(), listData.constructors.head.tp)
+        ) lowersTo (lam("scalus.prelude.List$.Nil", "scalus.prelude.List$.Cons")(
           !(vr"scalus.prelude.List$$.Nil")
         ))
         withDecls(

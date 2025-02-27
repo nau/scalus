@@ -7,9 +7,6 @@ import scalus.Compiler.compileDebug
 import scalus.*
 import scalus.builtin.given
 
-
-
-
 object SITRTypingScalaToSIRSpecScope {
 
     case class ClassA1(a: BigInt)
@@ -38,8 +35,6 @@ class SITRTypingScalaToSIRSpec extends AnyFunSuite {
 
      */
 
-
-
     test("check that simple case class is mapped to case class") {
         import SITRTypingScalaToSIRSpecScope.*
 
@@ -53,9 +48,8 @@ class SITRTypingScalaToSIRSpec extends AnyFunSuite {
             case _ => fail(s"unexpected type ${sir.tp}")
         }
 
-        //println(sir.pretty.render(100))
+        // println(sir.pretty.render(100))
 
     }
-
 
 }

@@ -6,7 +6,6 @@ import scalus.sir.SirDSL.given
 
 import scala.language.implicitConversions
 
-
 class SirDSLTypingSpec extends AnyFunSuite:
 
     test("type list of ints moved to SIR via implicit conversion") {
@@ -44,6 +43,3 @@ class SirDSLTypingSpec extends AnyFunSuite:
     //    println(s"k.tp: ${k.tp.show } ")
     //
     // }
-
-
-
