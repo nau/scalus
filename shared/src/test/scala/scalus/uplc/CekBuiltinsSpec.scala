@@ -13,6 +13,7 @@ import scalus.uplc.DefaultUni.asConstant
 import scalus.uplc.Term.*
 import scalus.uplc.TermDSL.{*, given}
 import scalus.uplc.eval.*
+import scalus.ledger.api.{PlutusLedgerLanguage, ProtocolVersion}
 
 import scala.language.implicitConversions
 import scala.reflect.ClassTag
@@ -434,4 +435,13 @@ open class CekBuiltinsSpec
             hex"FFd97a0c4ad719f89cba68a522e0dee13bcf656ae9c0a395404cda858a7992d8dea979dbc4c83659d695b7d380fe8a75264ba51a63a53fc2a8bd225e50f223f4"
 
         assertEvalEq(wrongSignature, false)
+    }
+
+    test("AndByteString") {
+        given PlutusVM = PlutusVM.makePlutusV3VM(
+          MachineParams.defaultParamsFor(PlutusLedgerLanguage.PlutusV3, ProtocolVersion.conwayPV)
+        )
+
+//        assert(andByteString(true, hex"00", hex"ff") == hex"00")
+        assertEvalEq(AndByteString $ true $ hex"00" $ hex"ff", hex"00")
     }

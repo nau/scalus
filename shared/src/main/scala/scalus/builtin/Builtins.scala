@@ -370,6 +370,12 @@ object Builtins:
         ByteStringToInteger.byteStringToInteger(endianness, input)
     }
 
+    /** Bitwise logical And for [[ByteString]], as per
+      * [CIP-122](https://github.com/cardano-foundation/CIPs/tree/master/CIP-0122).
+      */
+    def andByteString(shouldPad: Boolean, lhs: ByteString, rhs: ByteString): ByteString =
+        BitwiseLogicalOperations.andByteString(shouldPad, lhs, rhs)
+
     def bls12_381_G1_equal(using
         ps: PlatformSpecific
     )(p1: BLS12_381_G1_Element, p2: BLS12_381_G1_Element): Boolean =

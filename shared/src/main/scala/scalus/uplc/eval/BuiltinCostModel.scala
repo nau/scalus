@@ -92,7 +92,8 @@ case class BuiltinCostModel(
     bls12_381_mulMlResult: DefaultCostingFun[TwoArguments],
     bls12_381_finalVerify: DefaultCostingFun[TwoArguments],
     integerToByteString: IntegerToByteStringCostingFun,
-    byteStringToInteger: DefaultCostingFun[TwoArguments]
+    byteStringToInteger: DefaultCostingFun[TwoArguments],
+    andByteString: DefaultCostingFun[ThreeArguments]
 ) {
 
     /** Convert a [[BuiltinCostModel]] to a flat map of cost parameters
@@ -218,7 +219,8 @@ object BuiltinCostModel {
             "bls12_381_mulMlResult" -> writeJs(model.bls12_381_mulMlResult),
             "bls12_381_finalVerify" -> writeJs(model.bls12_381_finalVerify),
             "integerToByteString" -> writeJs(model.integerToByteString),
-            "byteStringToInteger" -> writeJs(model.byteStringToInteger)
+            "byteStringToInteger" -> writeJs(model.byteStringToInteger),
+            "andByteString" -> writeJs(model.andByteString)
           ),
       json =>
           BuiltinCostModel(
@@ -312,7 +314,9 @@ object BuiltinCostModel {
             bls12_381_finalVerify =
                 read[DefaultCostingFun[TwoArguments]](json("bls12_381_finalVerify")),
             integerToByteString = read[IntegerToByteStringCostingFun](json("integerToByteString")),
-            byteStringToInteger = read[DefaultCostingFun[TwoArguments]](json("byteStringToInteger"))
+            byteStringToInteger =
+                read[DefaultCostingFun[TwoArguments]](json("byteStringToInteger")),
+            andByteString = read[DefaultCostingFun[ThreeArguments]](json("andByteString"))
           )
     )
 
@@ -1240,6 +1244,21 @@ object BuiltinCostModel {
               OneVariableLinearFunction(
                 intercept = params("byteStringToInteger-memory-arguments-intercept"),
                 slope = params("byteStringToInteger-memory-arguments-slope")
+              )
+            )
+          ),
+          andByteString = DefaultCostingFun(
+            cpu = ThreeArguments.LinearInYAndZ(
+              TwoVariableLinearFunction(
+                intercept = params("andByteString-cpu-arguments-intercept"),
+                slopeX = params("andByteString-cpu-arguments-slopeX"),
+                slopeY = params("andByteString-cpu-arguments-slopeY")
+              )
+            ),
+            memory = ThreeArguments.LinearInMaxYZ(
+              OneVariableLinearFunction(
+                intercept = params("andByteString-memory-arguments-intercept"),
+                slope = params("andByteString-memory-arguments-slope")
               )
             )
           )

@@ -959,6 +959,18 @@ class BuiltinsMeaning(
           builtinCostModel.byteStringToInteger
         )
 
+    val AndByteString =
+        mkMeaning(
+          DefaultUni.Bool ->: DefaultUni.ByteString ->: DefaultUni.ByteString ->: DefaultUni.ByteString,
+          (logger: Logger, args: Seq[CekValue]) =>
+              val shouldPad = args(0).asBool
+              val lhs = args(1).asByteString
+              val rhs = args(2).asByteString
+              VCon(asConstant(andByteString(shouldPad, lhs, rhs)))
+          ,
+          builtinCostModel.andByteString
+        )
+
     private inline def mkGetBuiltinRuntime: DefaultFun => BuiltinRuntime = ${
         scalus.macros.Macros.mkGetBuiltinRuntime('this)
     }

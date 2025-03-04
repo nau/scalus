@@ -555,6 +555,7 @@ class PlutusV2Params {
     def toJson: String = write(this)
 }
 
+// TODO: make one single style of naming
 class PlutusV3Params {
     var `addInteger-cpu-arguments-intercept`: Long = 0L
     var `addInteger-cpu-arguments-slope`: Long = 0L
@@ -807,6 +808,11 @@ class PlutusV3Params {
     var byteStringToInteger_cpu_arguments_c2: Long = 0L
     var byteStringToInteger_memory_arguments_intercept: Long = 0L
     var byteStringToInteger_memory_arguments_slope: Long = 0L
+    var `andByteString-cpu-arguments-intercept`: Long = 0L
+    var `andByteString-cpu-arguments-slopeX`: Long = 0L
+    var `andByteString-cpu-arguments-slopeY`: Long = 0L
+    var `andByteString-memory-arguments-intercept`: Long = 0L
+    var `andByteString-memory-arguments-slope`: Long = 0L
 
     def toJson: String = write(this)
 }
