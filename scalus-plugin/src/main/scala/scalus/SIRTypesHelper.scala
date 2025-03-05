@@ -30,7 +30,8 @@ class SIRTypesHelper(private val compiler: SIRCompiler)(using Context) {
             try sirTypeInEnvWithErr(tp.widen, env)
             catch
                 case e: TypingException =>
-                    println(s"typing exception during sirTypeInEnv(${tp.show}), tp tree: ${tp}")
+                    if (env.trace) then
+                        println(s"typing exception during sirTypeInEnv(${tp.show}), tp tree: ${tp}")
                     throw e
         if true then
             if (!SIRType.checkAllProxiesFilled(retval)) then
@@ -525,10 +526,10 @@ class SIRTypesHelper(private val compiler: SIRCompiler)(using Context) {
                         TypeBinding(s.name.show, t)
                     )
                 val constrDecl =
-                    ConstrDecl(typeSymbol.name.show, SIRVarStorage.DEFAULT, params, typeParams)
+                    ConstrDecl(typeSymbol.fullName.show, SIRVarStorage.DEFAULT, params, typeParams)
                 Some(SIRType.SumCaseClass(DataDecl(name, List(constrDecl), typeParams), tpArgs))
             }
-        } else None
+        }
     }
 
     /** case classes and symbols.
@@ -586,7 +587,6 @@ class SIRTypesHelper(private val compiler: SIRCompiler)(using Context) {
                             case None =>
                                 val msg =
                                     s"Case parent type ${typeSymbol.showFullName} has children that are not case classes or case parent types: ${s.show}"
-                                thisProxy.ref = SIRType.TypeError(msg, null)
                                 throw TypingException(typeSymbol.info, env.pos, msg)
                 )
                 childrenSymbols.zip(childrenTypes).find { case (sym, chtp) =>
@@ -596,23 +596,9 @@ class SIRTypesHelper(private val compiler: SIRCompiler)(using Context) {
                     !chtp.isInstanceOf[SIRType.TypeProxy]
                 } match
                     case Some((childSym, childStrangeType)) =>
-                        childStrangeType match
-                            case err @ SIRType.TypeError(msg, cause) =>
-                                // return typeError. Note, that if we here then throwError already set to false.
-                                Some(
-                                  typeError(
-                                    typeSymbol.info,
-                                    msg,
-                                    env,
-                                    throwError = false,
-                                    cause = cause
-                                  )
-                                )
-                            case _ =>
-                                val msg =
-                                    s"Case parent type ${typeSymbol.showFullName} has children that are not case classes or case parent types: ${childSym.showFullName}: ${childStrangeType}"
-                                thisProxy.ref = SIRType.TypeError(msg, null)
-                                Some(typeError(typeSymbol.info, msg, env, throwError = true))
+                        val msg =
+                            s"Case parent type ${typeSymbol.showFullName} has children that are not case classes or case parent types: ${childSym.showFullName}: ${childStrangeType}"
+                        Some(typeError(typeSymbol.info, msg, env, throwError = true))
                     case None =>
                         val tparams = typeSymbol.info.typeParamSymbols.map(s =>
                             SIRType.TypeVar(s.name.show, Some(s.hashCode))
@@ -622,7 +608,6 @@ class SIRTypesHelper(private val compiler: SIRCompiler)(using Context) {
                             // println(s"Children symbols: ${childrenSymbols.map(_.showFullName)}")
                             val msg =
                                 s"Case parent type ${typeSymbol.showFullName} has ${tparams.length} type parameters, but ${tpArgs.length} were provided"
-                            thisProxy.ref = SIRType.TypeError(msg, null)
                             Some(typeError(typeSymbol.info, msg, env, throwError = true))
                         } else {
                             val constrDecls =

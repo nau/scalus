@@ -366,7 +366,6 @@ final class SIRCompiler(mode: scalus.Mode)(using ctx: Context) {
                         throw e
             TypeBinding(p.name.show, pType)
         }
-        println(s"makeConstrDecl ${constrSymbol.fullName}(${params.mkString(", ")})")
         val optBaseClass = constrSymbol.info.baseClasses.find { b =>
             b.flags.is(Flags.Sealed) && b.children.contains(constrSymbol)
         }
@@ -1628,32 +1627,7 @@ final class SIRCompiler(mode: scalus.Mode)(using ctx: Context) {
     }
 
     protected def sirTypeInEnv(tp: Type, env: SIRTypeEnv): SIRType = {
-        try typer.sirTypeInEnv(tp, env)
-            val retval = SIRTypesHelper.sirTypeInEnv(tp, env)
-            retval match
-                case _: SIRType.SumCaseClass =>
-                    tp match
-                        case AppliedType(tpe, List(arg))
-                            if tpe.widen.typeSymbol.name.asSimpleName.show == "List" =>
-                        // println(s"SIRTypeInEnv:List, tp=${tp.show}, fullname=${tp.typeSymbol.fullName}, retval=${retval.show}")
-                        case _ =>
-                            println(
-                              s"SIRTypeInEnv, tp=${tp.show}, fullname=${tp.typeSymbol.fullName}, retval=${retval.show}"
-                            )
-                case _ =>
-            retval
-        catch
-            case e: TypingException =>
-                println(s"Error wjile typing: ${tp.show}: ${e.msg},")
-                println(s"env.vars=${env.vars}");
-                if true then {
-                    throw e
-                }
-                val retval = error(
-                  GenericError(e.msg, e.pos),
-                  SIRType.TypeNothing
-                )
-                retval
+        typer.sirTypeInEnv(tp, env)
     }
 
 }
