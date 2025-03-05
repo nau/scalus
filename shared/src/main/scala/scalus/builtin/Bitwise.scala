@@ -141,23 +141,23 @@ object BitwiseLogicalOperations:
     def xorByteString(shouldPad: Boolean, lhs: ByteString, rhs: ByteString): ByteString =
         combineByteStrings(shouldPad, lhs, rhs)((lhsByte, rhsByte) => (lhsByte ^ rhsByte).toByte)
 
-    private def combineByteStrings(
+    private inline def combineByteStrings(
         shouldPad: Boolean,
         lhs: ByteString,
         rhs: ByteString
-    )(
-        combiner: (Byte, Byte) => Byte
-    ): ByteString =
+    )(inline op: (Byte, Byte) => Byte): ByteString = {
         val (shortArray, longArray) =
             if lhs.size < rhs.size then (lhs.bytes, rhs.bytes) else (rhs.bytes, lhs.bytes)
 
         val resultArray = new Array[Byte](if shouldPad then longArray.length else shortArray.length)
 
-        for (index <- shortArray.indices)
-        do resultArray(index) = combiner(shortArray(index), longArray(index))
+        var index = 0
+        while index < shortArray.length do
+            resultArray(index) = op(shortArray(index), longArray(index))
+            index += 1
 
         if shouldPad && shortArray.length != longArray.length then
-            Array.copy(
+            System.arraycopy(
               longArray,
               shortArray.length,
               resultArray,
@@ -165,4 +165,5 @@ object BitwiseLogicalOperations:
               longArray.length - shortArray.length
             )
 
-        ByteString.fromArray(resultArray)
+        ByteString.unsafeFromArray(resultArray)
+    }
