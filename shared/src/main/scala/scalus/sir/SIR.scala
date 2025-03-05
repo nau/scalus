@@ -22,6 +22,39 @@ case class TypeBinding(name: String, tp: SIRType) {
 enum Recursivity:
     case NonRec, Rec
 
+case class SIRPosition(file: String, startLine: Int, startColumn: Int, endLine: Int, endColumn: Int)
+
+case class Annotations(
+    pos: SIRPosition,
+    comment: Option[String],
+    data: Map[String, SIR]
+)
+
+case object Annotations {
+    import scala.quoted.*
+
+    inline def empty: Annotations = ${ emptyImpl }
+
+    def emptyImpl(using qctx: Quotes): Expr[Annotations] = {
+        import qctx.reflect.*
+        val scalaPosition = qctx.reflect.Position.ofMacroExpansio
+        '{
+            Annotations(
+              SIRPosition(
+                file = ${ Expr(scalaPosition.sourceFile.jpath.toString) },
+                startLine = ${ Expr(scalaPosition.startLine) },
+                startColumn = ${ Expr(scalaPosition.startColumn) },
+                endLine = ${ Expr(scalaPosition.endLine) },
+                endColumn = ${ Expr(scalaPosition.endColumn) }
+              ),
+              comment = None,
+              data = Map.empty
+            )
+        }
+    }
+
+}
+
 case class ConstrDecl(
     name: String,
     storageType: SIRVarStorage,
@@ -37,6 +70,8 @@ case class ConstrDecl(
     /** Type parameters of the parent constructor.
       */
     parentTypeArgs: List[SIRType]
+
+    annotations: Annotations
 ) {
 
     if name.contains(" ") || name.contains("\u0021") then {
@@ -61,8 +96,8 @@ case class ConstrDecl(
 case class DataDecl(
     name: String,
     constructors: List[ConstrDecl],
-    typeParams: List[SIRType.TypeVar]
-    // optParentName: Option[String]
+    typeParams: List[SIRType.TypeVar],
+    annotations: Annotations
 ) {
 
     private var _tp: SIRType = null
@@ -133,21 +168,23 @@ object SIR:
     //  TypeAlias(1, SumType("AClass", List(("x", Int), ("y", String))))
     //  Var(x,  TypeRef(1))
 
-    case class Var(name: String, tp: SIRType) extends SIR {
+    case class Var(name: String, tp: SIRType, anns: Annotations) extends SIR {
         override def toString: String = s"Var($name, ${tp.show})"
     }
 
-    case class ExternalVar(moduleName: String, name: String, tp: SIRType) extends SIR {
+    case class ExternalVar(moduleName: String, name: String, tp: SIRType, anns: Annotations)
+        extends SIR {
 
         override def toString: String = s"ExternalVar($moduleName, $name, ${tp.show})"
 
     }
 
-    case class Let(recursivity: Recursivity, bindings: List[Binding], body: SIR) extends SIR {
+    case class Let(recursivity: Recursivity, bindings: List[Binding], body: SIR, anns: Annotations)
+        extends SIR {
         override def tp: SIRType = body.tp
     }
 
-    case class LamAbs(param: Var, term: SIR) extends SIR {
+    case class LamAbs(param: Var, term: SIR, anns: Annotations) extends SIR {
 
         override def tp: SIRType =
             term.tp match
@@ -158,7 +195,7 @@ object SIR:
 
     }
 
-    case class Apply(f: SIR, arg: SIR, tp: SIRType) extends SIR {
+    case class Apply(f: SIR, arg: SIR, tp: SIRType, anns: Annotations) extends SIR {
 
         // TODO: makr tp computable, not stored.  (implement subst at first).
         /*
@@ -176,9 +213,9 @@ object SIR:
 
     }
 
-    case class Select(scrutinee: SIR, field: String, tp: SIRType) extends SIR
+    case class Select(scrutinee: SIR, field: String, tp: SIRType, anns: Annotations) extends SIR
 
-    case class Const(uplcConst: Constant, tp: SIRType) extends SIR
+    case class Const(uplcConst: Constant, tp: SIRType, anns: Annotations) extends SIR
 
     case class And(a: SIR, b: SIR) extends SIR {
         override def tp: SIRType = SIRType.Boolean
@@ -192,16 +229,17 @@ object SIR:
         override def tp: SIRType = SIRType.Boolean
     }
 
-    case class IfThenElse(cond: SIR, t: SIR, f: SIR, tp: SIRType) extends SIR
+    case class IfThenElse(cond: SIR, t: SIR, f: SIR, tp: SIRType, anns: Annotations) extends SIR
 
-    case class Builtin(bn: DefaultFun, tp: SIRType) extends SIR
+    case class Builtin(bn: DefaultFun, tp: SIRType, anns: Annotations) extends SIR
 
-    case class Error(msg: String, cause: Throwable | Null = null) extends SIR {
+    case class Error(msg: String, anns: Annotations, cause: Throwable | Null = null) extends SIR {
         override def tp: SIRType = SIRType.TypeNothing
     }
 
     // TODO: unify data-decl.
-    case class Constr(name: String, data: DataDecl, args: List[SIR], tp: SIRType) extends SIR
+    case class Constr(name: String, data: DataDecl, args: List[SIR], tp: SIRType, anns: Annotations)
+        extends SIR
 
     enum Pattern:
         case Constr(constr: ConstrDecl, bindings: List[String], typeBindings: List[SIRType])
@@ -218,7 +256,7 @@ object SIR:
       * @param tp
       *   \- resulting type of Match expression, can be calculated as max(tp of all cases)
       */
-    case class Match(scrutinee: SIR, cases: List[Case], tp: SIRType) extends SIR
+    case class Match(scrutinee: SIR, cases: List[Case], tp: SIRType, anns: Annotations) extends SIR
 
     case class Decl(data: DataDecl, term: SIR) extends SIR {
 
