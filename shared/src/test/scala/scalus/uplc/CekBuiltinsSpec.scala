@@ -437,11 +437,65 @@ open class CekBuiltinsSpec
         assertEvalEq(wrongSignature, false)
     }
 
-    test("AndByteString") {
+    test("AndByteString follows CIP-122") {
         given PlutusVM = PlutusVM.makePlutusV3VM(
           MachineParams.defaultParamsFor(PlutusLedgerLanguage.PlutusV3, ProtocolVersion.conwayPV)
         )
 
-//        assert(andByteString(true, hex"00", hex"ff") == hex"00")
-        assertEvalEq(AndByteString $ true $ hex"00" $ hex"ff", hex"00")
+        assertEvalEq(AndByteString $ true $ hex"00" $ hex"00", hex"00")
+        assertEvalEq(AndByteString $ true $ hex"FF" $ hex"00", hex"00")
+        assertEvalEq(AndByteString $ true $ hex"00" $ hex"FF", hex"00")
+        assertEvalEq(AndByteString $ true $ hex"FF" $ hex"FF", hex"FF")
+
+        assertEvalEq(AndByteString $ true $ hex"00FF" $ hex"00", hex"00FF")
+        assertEvalEq(AndByteString $ true $ hex"FFFF" $ hex"00", hex"00FF")
+        assertEvalEq(AndByteString $ true $ hex"00FF" $ hex"FF", hex"00FF")
+        assertEvalEq(AndByteString $ true $ hex"FFFF" $ hex"FF", hex"FFFF")
+
+        assertEvalEq(AndByteString $ true $ hex"00" $ hex"00FF", hex"00FF")
+        assertEvalEq(AndByteString $ true $ hex"FF" $ hex"00FF", hex"00FF")
+        assertEvalEq(AndByteString $ true $ hex"00" $ hex"FFFF", hex"00FF")
+        assertEvalEq(AndByteString $ true $ hex"FF" $ hex"FFFF", hex"FFFF")
+    }
+
+    test("OrByteString follows CIP-122") {
+        given PlutusVM = PlutusVM.makePlutusV3VM(
+          MachineParams.defaultParamsFor(PlutusLedgerLanguage.PlutusV3, ProtocolVersion.conwayPV)
+        )
+
+        assertEvalEq(OrByteString $ true $ hex"00" $ hex"00", hex"00")
+        assertEvalEq(OrByteString $ true $ hex"FF" $ hex"00", hex"FF")
+        assertEvalEq(OrByteString $ true $ hex"00" $ hex"FF", hex"FF")
+        assertEvalEq(OrByteString $ true $ hex"FF" $ hex"FF", hex"FF")
+
+        assertEvalEq(OrByteString $ true $ hex"00FF" $ hex"00", hex"00FF")
+        assertEvalEq(OrByteString $ true $ hex"FFFF" $ hex"00", hex"FFFF")
+        assertEvalEq(OrByteString $ true $ hex"00FF" $ hex"FF", hex"FFFF")
+        assertEvalEq(OrByteString $ true $ hex"FFFF" $ hex"FF", hex"FFFF")
+
+        assertEvalEq(OrByteString $ true $ hex"00" $ hex"00FF", hex"00FF")
+        assertEvalEq(OrByteString $ true $ hex"FF" $ hex"00FF", hex"FFFF")
+        assertEvalEq(OrByteString $ true $ hex"00" $ hex"FFFF", hex"FFFF")
+        assertEvalEq(OrByteString $ true $ hex"FF" $ hex"FFFF", hex"FFFF")
+    }
+
+    test("XorByteString follows CIP-122") {
+        given PlutusVM = PlutusVM.makePlutusV3VM(
+          MachineParams.defaultParamsFor(PlutusLedgerLanguage.PlutusV3, ProtocolVersion.conwayPV)
+        )
+
+        assertEvalEq(XorByteString $ true $ hex"00" $ hex"00", hex"00")
+        assertEvalEq(XorByteString $ true $ hex"FF" $ hex"00", hex"FF")
+        assertEvalEq(XorByteString $ true $ hex"00" $ hex"FF", hex"FF")
+        assertEvalEq(XorByteString $ true $ hex"FF" $ hex"FF", hex"00")
+
+        assertEvalEq(XorByteString $ true $ hex"00FF" $ hex"00", hex"00FF")
+        assertEvalEq(XorByteString $ true $ hex"FFFF" $ hex"00", hex"FFFF")
+        assertEvalEq(XorByteString $ true $ hex"00FF" $ hex"FF", hex"FFFF")
+        assertEvalEq(XorByteString $ true $ hex"FFFF" $ hex"FF", hex"00FF")
+
+        assertEvalEq(XorByteString $ true $ hex"00" $ hex"00FF", hex"00FF")
+        assertEvalEq(XorByteString $ true $ hex"FF" $ hex"00FF", hex"FFFF")
+        assertEvalEq(XorByteString $ true $ hex"00" $ hex"FFFF", hex"FFFF")
+        assertEvalEq(XorByteString $ true $ hex"FF" $ hex"FFFF", hex"00FF")
     }

@@ -161,6 +161,8 @@ object CommonFlatInstances:
                 case IntegerToByteString      => 73
                 case ByteStringToInteger      => 74
                 case AndByteString            => 75
+                case OrByteString             => 76
+                case XorByteString            => 77
 
             encode.bits(7, code.toByte)
 
@@ -242,6 +244,8 @@ object CommonFlatInstances:
                 case 73 => IntegerToByteString
                 case 74 => ByteStringToInteger
                 case 75 => AndByteString
+                case 76 => OrByteString
+                case 77 => XorByteString
                 case c  => throw new Exception(s"Invalid builtin function code: $c")
 
     def flatConstant(using Flat[builtin.Data]): Flat[Constant] = new Flat[Constant]:

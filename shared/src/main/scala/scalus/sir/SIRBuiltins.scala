@@ -335,6 +335,16 @@ object SIRBuiltins {
       SIRType.Boolean ->: SIRType.ByteString ->: SIRType.ByteString ->: SIRType.ByteString
     )
 
+    val orByteString: SIR.Builtin = SIR.Builtin(
+      DefaultFun.OrByteString,
+      SIRType.Boolean ->: SIRType.ByteString ->: SIRType.ByteString ->: SIRType.ByteString
+    )
+
+    val xorByteString: SIR.Builtin = SIR.Builtin(
+      DefaultFun.XorByteString,
+      SIRType.Boolean ->: SIRType.ByteString ->: SIRType.ByteString ->: SIRType.ByteString
+    )
+
     def fromUplc(uplcFun: DefaultFun): SIR.Builtin =
         uplcFun match
             case DefaultFun.AddInteger                      => addInteger
@@ -413,4 +423,6 @@ object SIRBuiltins {
             case DefaultFun.IntegerToByteString             => integerToByteString
             case DefaultFun.ByteStringToInteger             => byteStringToInteger
             case DefaultFun.AndByteString                   => andByteString
+            case DefaultFun.OrByteString                    => orByteString
+            case DefaultFun.XorByteString                   => xorByteString
 }
