@@ -809,8 +809,8 @@ class PlutusV3Params {
     var byteStringToInteger_memory_arguments_intercept: Long = 0L
     var byteStringToInteger_memory_arguments_slope: Long = 0L
     var `andByteString-cpu-arguments-intercept`: Long = 0L
-    var `andByteString-cpu-arguments-slopeX`: Long = 0L
-    var `andByteString-cpu-arguments-slopeY`: Long = 0L
+    var `andByteString-cpu-arguments-slope1`: Long = 0L
+    var `andByteString-cpu-arguments-slope2`: Long = 0L
     var `andByteString-memory-arguments-intercept`: Long = 0L
     var `andByteString-memory-arguments-slope`: Long = 0L
 

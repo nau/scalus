@@ -316,7 +316,10 @@ object BuiltinCostModel {
             integerToByteString = read[IntegerToByteStringCostingFun](json("integerToByteString")),
             byteStringToInteger =
                 read[DefaultCostingFun[TwoArguments]](json("byteStringToInteger")),
-            andByteString = read[DefaultCostingFun[ThreeArguments]](json("andByteString"))
+            andByteString =
+                if json.obj.keySet.contains("andByteString") then
+                    read[DefaultCostingFun[ThreeArguments]](json("andByteString"))
+                else null
           )
     )
 
@@ -1251,8 +1254,8 @@ object BuiltinCostModel {
             cpu = ThreeArguments.LinearInYAndZ(
               TwoVariableLinearFunction(
                 intercept = params("andByteString-cpu-arguments-intercept"),
-                slopeX = params("andByteString-cpu-arguments-slopeX"),
-                slopeY = params("andByteString-cpu-arguments-slopeY")
+                slope1 = params("andByteString-cpu-arguments-slope1"),
+                slope2 = params("andByteString-cpu-arguments-slope2")
               )
             ),
             memory = ThreeArguments.LinearInMaxYZ(

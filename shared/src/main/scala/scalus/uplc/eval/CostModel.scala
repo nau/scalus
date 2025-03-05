@@ -22,10 +22,10 @@ case class SubtractedSizesLinearFunction(
     }
 }
 
-case class TwoVariableLinearFunction(intercept: Intercept, slopeX: Slope, slopeY: Slope)
+case class TwoVariableLinearFunction(intercept: Intercept, slope1: Slope, slope2: Slope)
     derives ReadWriter {
     def apply(arg1: CostingInteger, arg2: CostingInteger): CostingInteger = {
-        intercept + arg1 * slopeX + arg2 * slopeY
+        intercept + arg1 * slope1 + arg2 * slope2
     }
 }
 
@@ -140,7 +140,7 @@ object TwoArguments {
 
     case class LinearInXAndY(cost: TwoVariableLinearFunction) extends TwoArguments {
         def apply(arg1: CostingInteger, arg2: CostingInteger): CostingInteger =
-            cost.intercept + arg1 * cost.slopeX + arg2 * cost.slopeY
+            cost.intercept + arg1 * cost.slope1 + arg2 * cost.slope2
     }
 
     case class AddedSizes(cost: OneVariableLinearFunction) extends TwoArguments {
