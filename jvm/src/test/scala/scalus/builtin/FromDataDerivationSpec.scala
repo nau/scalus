@@ -120,9 +120,7 @@ class FromDataDerivationSpec
         import scalus.uplc.TermDSL.{*, given}
         given PlutusVM = PlutusVM.makePlutusV2VM()
         val sir = compile { (d: Data) => fromData[BigRecord](d).toData }
-        // println(sir.pretty.render(100))
         val term = sir.toUplc()
-        // println(term.pretty.render(100))
         forAll { (r: BigRecord) =>
             val d = r.toData
             assert(fromData[BigRecord](d) == r)
@@ -143,7 +141,6 @@ class FromDataDerivationSpec
         given PlutusVM = PlutusVM.makePlutusV2VM()
         val sir = compile { (d: Data) => fromData[Adt](d).toData }
         val term = sir.toUplc()
-        println(sir.pretty.render(100))
         forAll { (r: Adt) =>
             val d = r.toData
             assert(fromData[Adt](d) == r)
@@ -163,7 +160,6 @@ class FromDataDerivationSpec
         given PlutusVM = PlutusVM.makePlutusV2VM()
         val sir = compile { (d: Data) => Adt.derivedFromData(d).toData }
         val term = sir.toUplc()
-        println(sir.pretty.render(100))
         forAll { (r: Adt) =>
             val d = r.toData
             assert(fromData[Adt](d) == r)
@@ -187,9 +183,6 @@ class FromDataDerivationSpec
         import scalus.uplc.TermDSL.{*, given}
         val sir = compile { (d: Data) => Adt.derivedFromData(d).toData }
         val term = sir.toUplc()
-        println(sir.pretty.render(100))
-        println("UPLC:")
-        println(term.pretty.render(100))
         val r = Adt.A
         //forAll { (r: Adt) =>
             val d = r.toData
