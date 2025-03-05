@@ -8,6 +8,7 @@ Global / onChangedBuildSource := ReloadOnSourceChanges
 autoCompilerPlugins := true
 
 val scalusStableVersion = "0.8.5"
+val scalusCompatibleVersion = scalusStableVersion
 ThisBuild / scalaVersion := "3.3.5"
 ThisBuild / organization := "org.scalus"
 ThisBuild / organizationName := "Scalus"
@@ -74,6 +75,7 @@ lazy val copySharedFiles = taskKey[Unit]("Copy shared files")
 // Scala 3 Compiler Plugin for Scalus
 lazy val scalusPlugin = project
     .in(file("scalus-plugin"))
+    .disablePlugins(MimaPlugin) // disable Migration Manager for Scala
     .settings(
       name := "scalus-plugin",
       scalacOptions ++= commonScalacOptions,
@@ -160,6 +162,7 @@ lazy val scalusPlugin = project
 lazy val scalusPluginTests = project
     .in(file("scalus-plugin-tests"))
     .dependsOn(scalus.jvm)
+    .disablePlugins(MimaPlugin) // disable Migration Manager for Scala
     .settings(
       name := "scalus-plugin-tests",
       publish / skip := true,
@@ -189,6 +192,7 @@ lazy val scalus = crossProject(JSPlatform, JVMPlatform, NativePlatform)
       scalacOptions ++= commonScalacOptions,
       scalacOptions += "-Xmax-inlines:100", // needed for upickle derivation of CostModel
       // scalacOptions += "-Yretain-trees",
+      mimaPreviousArtifacts := Set(organization.value %%% name.value % scalusCompatibleVersion),
 
       // enable when debug compilation of tests
       Test / scalacOptions += "-color:never",
@@ -240,6 +244,7 @@ lazy val scalus = crossProject(JSPlatform, JVMPlatform, NativePlatform)
 lazy val examples = project
     .in(file("examples"))
     .dependsOn(scalus.jvm, `scalus-bloxbean-cardano-client-lib`)
+    .disablePlugins(MimaPlugin) // disable Migration Manager for Scala
     .settings(
       PluginDependency,
       scalacOptions ++= commonScalacOptions,
@@ -251,6 +256,7 @@ lazy val `examples-js` = project
     .enablePlugins(ScalaJSPlugin, ScalaJSBundlerPlugin)
     .in(file("examples-js"))
     .dependsOn(scalus.js)
+    .disablePlugins(MimaPlugin) // disable Migration Manager for Scala
     .settings(
       publish / skip := true,
       scalacOptions ++= commonScalacOptions,
@@ -269,6 +275,7 @@ lazy val `scalus-bloxbean-cardano-client-lib` = project
     .settings(
       publish / skip := false,
       scalacOptions ++= commonScalacOptions,
+      mimaPreviousArtifacts := Set(organization.value %% name.value % scalusCompatibleVersion),
       libraryDependencies += "com.bloxbean.cardano" % "cardano-client-lib" % "0.6.3",
       libraryDependencies += "org.slf4j" % "slf4j-api" % "2.0.16",
       libraryDependencies += "org.slf4j" % "slf4j-simple" % "2.0.16" % "test",
@@ -286,6 +293,7 @@ lazy val docs = project // documentation project
     .in(file("scalus-docs")) // important: it must not be docs/
     .dependsOn(scalus.jvm)
     .enablePlugins(MdocPlugin, DocusaurusPlugin, ScalaUnidocPlugin)
+    .disablePlugins(MimaPlugin) // disable Migration Manager for Scala
     .settings(
       publish / skip := true,
       moduleName := "scalus-docs",
@@ -306,6 +314,7 @@ lazy val bench = project
     .in(file("bench"))
     .dependsOn(scalus.jvm)
     .enablePlugins(JmhPlugin)
+    .disablePlugins(MimaPlugin) // disable Migration Manager for Scala
     .settings(
       name := "scalus-bench",
       PluginDependency,

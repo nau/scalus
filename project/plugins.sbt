@@ -15,3 +15,5 @@ addSbtPlugin("com.github.reibitto" % "sbt-welcome" % "0.4.0")
 addSbtPlugin("pl.project13.scala" % "sbt-jmh" % "0.4.7")
 // sbt plugin to unify scaladoc/javadoc across multiple projects
 addSbtPlugin("com.github.sbt" % "sbt-unidoc" % "0.5.0")
+// Migration Manager for Scala
+addSbtPlugin("com.typesafe" % "sbt-mima-plugin" % "1.1.4")
