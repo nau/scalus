@@ -1,13 +1,15 @@
 import org.scalajs.linker.interface.OutputPatterns
 import sbtwelcome.*
+import scala.scalanative.build._
 
 import java.net.URI
 
 Global / onChangedBuildSource := ReloadOnSourceChanges
 autoCompilerPlugins := true
 
-val scalusStableVersion = "0.8.4"
-ThisBuild / scalaVersion := "3.3.4"
+val scalusStableVersion = "0.8.5"
+val scalusCompatibleVersion = scalusStableVersion
+ThisBuild / scalaVersion := "3.3.5"
 ThisBuild / organization := "org.scalus"
 ThisBuild / organizationName := "Scalus"
 ThisBuild / organizationHomepage := Some(url("https://scalus.org/"))
@@ -46,6 +48,7 @@ lazy val root: Project = project
       scalusPlugin,
       scalus.js,
       scalus.jvm,
+      scalus.native,
       `examples-js`,
       examples,
       bench,
@@ -95,6 +98,7 @@ lazy val sharedFiles =
 // Scala 3 Compiler Plugin for Scalus
 lazy val scalusPlugin = project
     .in(file("scalus-plugin"))
+    .disablePlugins(MimaPlugin) // disable Migration Manager for Scala
     .settings(
       name := "scalus-plugin",
       scalacOptions ++= commonScalacOptions,
@@ -105,7 +109,7 @@ lazy val scalusPlugin = project
       // COMMENT THIS LINE TO ENABLE VERSION INCREMENT during Scalus plugin development
       // version := "0.6.2-SNAPSHOT",
       libraryDependencies += "org.scalatest" %%% "scalatest" % "3.2.19" % "test",
-      libraryDependencies += "org.scalatestplus" %%% "scalacheck-1-16" % "3.2.14.0" % "test",
+      libraryDependencies += "org.scalatestplus" %%% "scalacheck-1-18" % "3.2.19.0" % "test",
       libraryDependencies += "org.scala-lang" %% "scala3-compiler" % scalaVersion.value // % "provided"
     )
     .settings(
@@ -129,8 +133,15 @@ lazy val scalusPlugin = project
               val target = targetDir / file
 
               if (source.exists) {
-                  IO.copyFile(source, target)
-                  log.info(s"Copied $file to target $target")
+                  if (!target.exists) {
+                      IO.copyFile(source, target)
+                      log.info(s"Copied $file to target $target")
+                  } else if (source.lastModified() > target.lastModified()) {
+                      IO.copyFile(source, target)
+                      log.info(s"Copied $file to target $target")
+                  } else {
+                      log.info(s"File $target is up to date")
+                  }
               } else {
                   log.error(s"Source file not found: $file")
               }
@@ -155,12 +166,13 @@ lazy val scalusPlugin = project
 lazy val scalusPluginTests = project
     .in(file("scalus-plugin-tests"))
     .dependsOn(scalus.jvm)
+    .disablePlugins(MimaPlugin) // disable Migration Manager for Scala
     .settings(
       name := "scalus-plugin-tests",
       publish / skip := true,
       PluginDependency,
       libraryDependencies += "org.scalatest" %%% "scalatest" % "3.2.19" % "test",
-      libraryDependencies += "org.scalatestplus" %%% "scalacheck-1-16" % "3.2.12.0" % "test"
+      libraryDependencies += "org.scalatestplus" %%% "scalacheck-1-18" % "3.2.19.0" % "test"
     )
 
 // Scalus Compiler Plugin Dependency
@@ -176,7 +188,7 @@ lazy val PluginDependency: List[Def.Setting[?]] = List(scalacOptions ++= {
 })
 
 // Scalus Core and Standard Library for JVM and JS
-lazy val scalus = crossProject(JSPlatform, JVMPlatform)
+lazy val scalus = crossProject(JSPlatform, JVMPlatform, NativePlatform)
     .in(file("."))
     .settings(
       name := "scalus",
@@ -184,10 +196,11 @@ lazy val scalus = crossProject(JSPlatform, JVMPlatform)
       scalacOptions ++= commonScalacOptions,
       scalacOptions += "-Xmax-inlines:100", // needed for upickle derivation of CostModel
       // scalacOptions += "-Yretain-trees",
+      mimaPreviousArtifacts := Set(organization.value %%% name.value % scalusCompatibleVersion),
 
       // enable when debug compilation of tests
       Test / scalacOptions += "-color:never",
-      libraryDependencies += "org.typelevel" %%% "cats-core" % "2.12.0",
+      libraryDependencies += "org.typelevel" %%% "cats-core" % "2.13.0",
       libraryDependencies += "org.typelevel" %%% "cats-parse" % "1.1.0",
       libraryDependencies += "org.typelevel" %%% "paiges-core" % "0.4.4",
       libraryDependencies += "com.lihaoyi" %%% "upickle" % "4.1.0",
@@ -197,16 +210,20 @@ lazy val scalus = crossProject(JSPlatform, JVMPlatform)
       ),
       PluginDependency,
       libraryDependencies += "org.scalatest" %%% "scalatest" % "3.2.19" % "test",
-      libraryDependencies += "org.scalatestplus" %%% "scalacheck-1-16" % "3.2.14.0" % "test"
+      libraryDependencies += "org.scalatestplus" %%% "scalacheck-1-18" % "3.2.19.0" % "test"
     )
     .jvmSettings(
       Test / fork := true,
+      // needed for secp256k1jni. Otherwise, JVM loads secp256k1 library from LD_LIBRARY_PATH
+      // which doesn't export the secp256k1_ec_pubkey_decompress function
+      // that is needed by bitcoin-s-secp256k1jni, because it's an older fork of secp256k1
+      Test / javaOptions += "-Djava.library.path=",
       // Test / testOptions += Tests.Argument(TestFrameworks.ScalaTest, "-S", "-8077211454138081902"),
-      libraryDependencies += "org.slf4j" % "slf4j-simple" % "2.0.16" % "provided",
-      libraryDependencies += "org.bouncycastle" % "bcprov-jdk18on" % "1.79",
+      libraryDependencies += "org.slf4j" % "slf4j-simple" % "2.0.17" % "provided",
+      libraryDependencies += "org.bouncycastle" % "bcprov-jdk18on" % "1.80",
       libraryDependencies += "foundation.icon" % "blst-java" % "0.3.2",
-      libraryDependencies += "org.bitcoin-s" % "bitcoin-s-crypto_2.13" % "1.9.9",
-      libraryDependencies += "org.bitcoin-s" % "bitcoin-s-secp256k1jni" % "1.9.9"
+      libraryDependencies += "org.bitcoin-s" % "bitcoin-s-crypto_2.13" % "1.9.10" % "test",
+      libraryDependencies += "org.bitcoin-s" % "bitcoin-s-secp256k1jni" % "1.9.10"
     )
     .jsSettings(
       // Add JS-specific settings here
@@ -219,10 +236,19 @@ lazy val scalus = crossProject(JSPlatform, JVMPlatform)
       scalaJSUseMainModuleInitializer := false
     )
     .jsConfigure { project => project.enablePlugins(ScalaJSBundlerPlugin) }
+    .nativeSettings(
+      nativeConfig ~= {
+          _.withBuildTarget(BuildTarget.libraryStatic)
+//              .withLTO(LTO.thin)
+              .withMode(Mode.releaseFast)
+              .withGC(GC.immix)
+      }
+    )
 
 lazy val examples = project
     .in(file("examples"))
     .dependsOn(scalus.jvm, `scalus-bloxbean-cardano-client-lib`)
+    .disablePlugins(MimaPlugin) // disable Migration Manager for Scala
     .settings(
       PluginDependency,
       scalacOptions ++= commonScalacOptions,
@@ -234,6 +260,7 @@ lazy val `examples-js` = project
     .enablePlugins(ScalaJSPlugin, ScalaJSBundlerPlugin)
     .in(file("examples-js"))
     .dependsOn(scalus.js)
+    .disablePlugins(MimaPlugin) // disable Migration Manager for Scala
     .settings(
       publish / skip := true,
       scalacOptions ++= commonScalacOptions,
@@ -252,12 +279,13 @@ lazy val `scalus-bloxbean-cardano-client-lib` = project
     .settings(
       publish / skip := false,
       scalacOptions ++= commonScalacOptions,
+      mimaPreviousArtifacts := Set(organization.value %% name.value % scalusCompatibleVersion),
       libraryDependencies += "com.bloxbean.cardano" % "cardano-client-lib" % "0.6.3",
-      libraryDependencies += "org.slf4j" % "slf4j-api" % "2.0.16",
-      libraryDependencies += "org.slf4j" % "slf4j-simple" % "2.0.16" % "test",
+      libraryDependencies += "org.slf4j" % "slf4j-api" % "2.0.17",
+      libraryDependencies += "org.slf4j" % "slf4j-simple" % "2.0.17" % "test",
       libraryDependencies += "org.scalatest" %%% "scalatest" % "3.2.19" % "test",
       libraryDependencies += "com.bloxbean.cardano" % "cardano-client-backend-blockfrost" % "0.6.3" % "test",
-      libraryDependencies += "com.bloxbean.cardano" % "yaci" % "0.3.4.1" % "test",
+      libraryDependencies += "com.bloxbean.cardano" % "yaci" % "0.3.5" % "test",
       Test / fork := true, // needed for BlocksValidation to run in sbt
       inConfig(Test)(PluginDependency)
     )
@@ -269,6 +297,7 @@ lazy val docs = project // documentation project
     .in(file("scalus-docs")) // important: it must not be docs/
     .dependsOn(scalus.jvm)
     .enablePlugins(MdocPlugin, DocusaurusPlugin, ScalaUnidocPlugin)
+    .disablePlugins(MimaPlugin) // disable Migration Manager for Scala
     .settings(
       publish / skip := true,
       moduleName := "scalus-docs",
@@ -289,6 +318,7 @@ lazy val bench = project
     .in(file("bench"))
     .dependsOn(scalus.jvm)
     .enablePlugins(JmhPlugin)
+    .disablePlugins(MimaPlugin) // disable Migration Manager for Scala
     .settings(
       name := "scalus-bench",
       PluginDependency,
@@ -298,6 +328,10 @@ lazy val bench = project
 addCommandAlias(
   "precommit",
   "clean;docs/clean;scalusPluginTests/clean;scalafmtAll;scalafmtSbt;Test/compile;scalusPluginTests/Test/compile;test;docs/mdoc"
+)
+addCommandAlias(
+  "ci",
+  "clean;docs/clean;scalusPluginTests/clean;scalafmtCheckAll;scalafmtSbtCheck;Test/compile;scalusPluginTests/Test/compile;test;docs/mdoc"
 )
 
 logo :=
@@ -316,5 +350,6 @@ logo :=
 usefulTasks := Seq(
   UsefulTask("~compile", "Compile with file-watch enabled"),
   UsefulTask("precommit", "Format all, clean compile and test everything"),
+  UsefulTask("ci", "Clean compile, check formatting and test everything"),
   UsefulTask("docs/docusaurusCreateSite", "Generate Scalus documentation website")
 )

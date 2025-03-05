@@ -22,14 +22,9 @@ case class SymbolNotFound(name: String, srcPos: SrcPos) extends CompilationError
            |Possible reasons and solutions:
            |  Make sure you added @Compile annotation to the object that contains '$name'.
            |
-           |  Maybe you're trying to create a case class instance, but forgot to add 'new'?
-           |  In Scalus you need to write 'new MyDataType(...)' instead of 'MyDataType(...)'
-           |
            |  Maybe '$name' is not intended to be used in Scalus scripts.
            |
            |  Maybe you used $name by accident?
-           |
-           |  If the '$name' is defined in another file, try adding scalacOptions += "-Yretain-trees" to your build.sbt.
            |
            |  It can be a bug in Scalus. Please report it or contact us via Discord.
            |""".stripMargin

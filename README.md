@@ -23,6 +23,7 @@ Using the same language, tools and code for frontend, backend and smart contract
 * Enjoy comprehensive IDE support: IntelliJ IDEA, VSCode and syntax highlighting on GitHub.
 * Advanced debugging support.
 * Enhanced code formatting and linting, navigation, and refactoring.
+* Scala code coverage and profiling tools.
 
 ## How It Works
 
@@ -36,7 +37,8 @@ Write efficient and compact smart contracts and squeeze the most out of the Card
 * Scala 3 to Cardano Plutus Core compiler
 * Standard library for Plutus contracts development
 * Plutus V1, V2 and V3 support
-* Plutus VM Interpreter and execution budget calculation for Plutus V1, V2 and V3, pre and post Chang Hard Fork
+* Plutus VM Interpreter and execution budget calculation for Plutus V1, V2 and V3
+* Plutus VM library works on JVM, JavaScript and Native platforms!
 * Property-based testing library
 * Untyped Plutus Core (UPLC) data types and functions
 * Flat, CBOR, JSON serialization
@@ -99,7 +101,7 @@ This will calculate the execution budget for your validator and add it to the re
 
 ### AdaStream Example
 
-Sources: [AdaStream Contract](https://github.com/nau/adastream/blob/main/contract.scala)
+Sources: [AdaStream Contract](https://github.com/nau/adastream/blob/main/src/contract.scala)
 
 This project is a Cardano implementation of the [BitStream](https://github.com/RobinLinus/BitStream) protocol by Robin Linus, inventor of [BitVM](https://bitvm.org/)
 
@@ -148,6 +150,48 @@ val validator = compile:
             unMapData(fieldAsData[ScriptContext](_.txInfo.withdrawals)(ctx))
         list_has(withdrawal_from_ctx)
 ```
+
+## Scalus Native
+
+Scalus implements a Plutus VM (CEK machine) that works on JVM, JavaScript and Native platforms.
+All from the same Scala codebase.
+
+Here's how you can evaluate a Plutus script from a C program:
+
+```c
+#include "scalus.h"
+// Plutus V3, protocol version 10
+machine_params* params = scalus_get_default_machine_params(3, 10); 
+ex_budget budget;
+char logs_buffer[1024];
+char error[1024];
+int ret = scalus_evaluate_script(
+    script, // script hex
+    3, // Plutus V3
+    params2, // machine params
+    &budget,
+    logs_buffer, sizeof(logs_buffer),
+    error, sizeof(error));
+
+if (ret == 0) {
+    printf("Script evaluation successful. CPU %lld, MEM %lld\n", budget.cpu, budget.memory);
+    printf("Logs: %s\n", logs_buffer);
+} else {
+    printf("Script evaluation failed: %d\n", ret);
+    printf("Units spent: CPU %lld, MEM %lld\n", budget.cpu, budget.memory);
+    printf("Error: %s\n", error);
+    printf("Logs: %s\n", logs_buffer);
+}
+```
+
+See the full example in the [main.c](https://github.com/nau/scalus/blob/master/examples-native/main.c) file.
+
+### How to build a native library
+
+```shell
+sbt scalusNative/nativeLink
+```
+will produce a shared library in the `native/target/scala-3.3.4` directory.
 
 ## Roadmap
 

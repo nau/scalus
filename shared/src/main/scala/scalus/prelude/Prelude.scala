@@ -76,11 +76,11 @@ object List:
     extension [A](lst: List[A]) inline def !!(idx: BigInt): A = getByIndex(lst)(idx)
 
     @Ignore
-    def apply[A](args: A*): List[A] = args.foldRight(empty[A]) { case (a, b) => new Cons(a, b) }
+    def apply[A](args: A*): List[A] = args.foldRight(empty[A]) { case (a, b) => Cons(a, b) }
 
     @Ignore
     def from[A](i: IterableOnce[A]): List[A] = i.iterator.foldRight(empty[A]) { case (a, b) =>
-        new Cons(a, b)
+        Cons(a, b)
     }
 
     @Ignore
@@ -102,24 +102,24 @@ object List:
     }
 
     /** Creates a list with a single element */
-    def single[A](a: A): List[A] = new Cons(a, List.Nil)
+    def single[A](a: A): List[A] = Cons(a, List.Nil)
 
     /** Adds an element at the beginning of this list */
-    def cons[A](head: A, tail: List[A]): List[A] = new Cons(head, tail)
+    def cons[A](head: A, tail: List[A]): List[A] = Cons(head, tail)
 
     def append[A](lst1: List[A], lst2: List[A]): List[A] = lst1 match
         case Nil              => lst2
-        case Cons(head, tail) => new Cons(head, append(tail, lst2))
+        case Cons(head, tail) => Cons(head, append(tail, lst2))
 
     def map[A, B](lst: List[A])(f: A => B): List[B] = lst match
         case Nil              => List.Nil
-        case Cons(head, tail) => new Cons(f(head), List.map(tail)(f))
+        case Cons(head, tail) => Cons(f(head), List.map(tail)(f))
 
     def map2[A, B, C](a: List[A], b: List[B])(f: (A, B) => C): List[C] = {
         a match
             case List.Cons(h1, t1) =>
                 b match
-                    case List.Cons(h2, t2) => new List.Cons(f(h1, h2), map2(t1, t2)(f))
+                    case List.Cons(h2, t2) => List.Cons(f(h1, h2), map2(t1, t2)(f))
                     case _                 => List.Nil
             case _ => List.Nil
     }
@@ -127,7 +127,7 @@ object List:
     def filter[A](lst: List[A])(p: A => Boolean): List[A] = lst match
         case Nil => List.Nil
         case Cons(head, tail) =>
-            if p(head) then new Cons(head, List.filter(tail)(p)) else List.filter(tail)(p)
+            if p(head) then Cons(head, List.filter(tail)(p)) else List.filter(tail)(p)
 
     def findOrFail[A](lst: List[A])(p: A => Boolean): A = lst match
         case Nil              => throw new Exception("Not found")
@@ -135,7 +135,7 @@ object List:
 
     def find[A](lst: List[A])(p: A => Boolean): Maybe[A] = lst match
         case Nil              => Maybe.Nothing
-        case Cons(head, tail) => if p(head) then new Maybe.Just(head) else find(tail)(p)
+        case Cons(head, tail) => if p(head) then Maybe.Just(head) else find(tail)(p)
 
     def exists[A](lst: List[A])(p: A => Boolean): Boolean = find(lst)(p) match
         case Nothing => false
@@ -204,11 +204,11 @@ case class AssocMap[A, B](inner: List[(A, B)])
 object AssocMap {
     import List.*
     import Maybe.*
-    def empty[A, B]: AssocMap[A, B] = new AssocMap(List.empty[(A, B)])
-    def singleton[A, B](key: A, value: B): AssocMap[A, B] = new AssocMap(
+    def empty[A, B]: AssocMap[A, B] = AssocMap(List.empty[(A, B)])
+    def singleton[A, B](key: A, value: B): AssocMap[A, B] = AssocMap(
       List.cons((key, value), List.Nil)
     )
-    def fromList[A, B](lst: List[(A, B)]): AssocMap[A, B] = new AssocMap(lst)
+    def fromList[A, B](lst: List[(A, B)]): AssocMap[A, B] = AssocMap(lst)
     def toList[A, B](map: AssocMap[A, B]): List[(A, B)] = map.inner
 
     def lookup[A: Eq, B](map: AssocMap[A, B])(key: A): Maybe[B] =
@@ -216,18 +216,18 @@ object AssocMap {
             case Nil => Maybe.Nothing
             case Cons(pair, tail) =>
                 pair match
-                    case (k, v) => if k === key then new Maybe.Just(v) else go(tail)
+                    case (k, v) => if k === key then Maybe.Just(v) else go(tail)
         go(map.inner)
 
     def insert[A: Eq, B](map: AssocMap[A, B])(key: A, value: B): AssocMap[A, B] =
         def go(lst: List[(A, B)]): List[(A, B)] = lst match
-            case Nil => new List.Cons((key, value), List.Nil)
+            case Nil => List.Cons((key, value), List.Nil)
             case Cons(pair, tail) =>
                 pair match
                     case (k, v) =>
-                        if k === key then new List.Cons((key, value), tail)
-                        else new List.Cons(pair, go(tail))
-        new AssocMap(go(map.inner))
+                        if k === key then List.Cons((key, value), tail)
+                        else List.Cons(pair, go(tail))
+        AssocMap(go(map.inner))
 
     def delete[A: Eq, B](map: AssocMap[A, B])(key: A): AssocMap[A, B] =
         def go(lst: List[(A, B)]): List[(A, B)] = lst match
@@ -235,8 +235,8 @@ object AssocMap {
             case Cons(pair, tail) =>
                 pair match
                     case (k, v) =>
-                        if k === key then tail else new List.Cons(pair, go(tail))
-        new AssocMap(go(map.inner))
+                        if k === key then tail else List.Cons(pair, go(tail))
+        AssocMap(go(map.inner))
 
     def union[A: Eq, B, C](
         lhs: AssocMap[A, B],
@@ -249,20 +249,20 @@ object AssocMap {
                     case (k, v) =>
                         val maybeR = AssocMap.lookup(rhs)(k)
                         val these = maybeR match
-                            case Nothing => new These.This(v)
-                            case Just(r) => new These.These(v, r)
-                        new Cons((k, these), go(tail))
+                            case Nothing => These.This(v)
+                            case Just(r) => These.These(v, r)
+                        Cons((k, these), go(tail))
 
         val lhs1 = go(lhs.inner) // all left with corresponding right
 
         val rhsNotInLhs =
             List.filter(rhs.inner) { case (a, c) => !List.exists(lhs.inner)(p => p._1 === a) }
 
-        val rhsThat = List.map(rhsNotInLhs) { case (k, v) => (k, new These.That(v)) }
-        new AssocMap(List.append(lhs1, rhsThat))
+        val rhsThat = List.map(rhsNotInLhs) { case (k, v) => (k, These.That(v)) }
+        AssocMap(List.append(lhs1, rhsThat))
 
     def map[A, B, C](map: AssocMap[A, B])(f: ((A, B)) => (A, C)): AssocMap[A, C] =
-        new AssocMap(List.map(map.inner)(f))
+        AssocMap(List.map(map.inner)(f))
 
     def all[A, B](map: AssocMap[A, B])(f: ((A, B)) => Boolean): Boolean =
         List.all(map.inner)(f)

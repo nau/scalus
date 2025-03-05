@@ -248,7 +248,7 @@ object FlatInstantces:
         val tagTypeLambda: Byte = 0x0a
         val tagTypeFreeUnificator: Byte = 0x0b
         val tagTypeProxy: Byte = 0x0c
-        val tagTypeError: Byte = 0x0d
+        // val tagTypeError: Byte = 0x0d -- free.
         val tagTypeNothing: Byte = 0x0e
         val tagNonCaseModule: Byte = 0x0f
         val tagBls12_381_G1_Element: Byte = 0x10
@@ -291,8 +291,6 @@ object FlatInstantces:
                     tagWidth + SIRTypeTypeProxyFlat.bitSizeHC(tp, hashConsed)
                 case a: SIRType.TypeNonCaseModule =>
                     tagWidth + SIRTypeNonCaseModuleFlat.bitSizeHC(a, hashConsed)
-                case err: SIRType.TypeError =>
-                    tagWidth + summon[Flat[String]].bitSize(err.msg)
                 case SIRType.TypeNothing => tagWidth
 
             if !mute then
@@ -341,9 +339,6 @@ object FlatInstantces:
                 case a: SIRType.TypeNonCaseModule =>
                     encode.encode.bits(tagWidth, tagNonCaseModule)
                     SIRTypeNonCaseModuleFlat.encodeHC(a, encode)
-                case err: SIRType.TypeError =>
-                    encode.encode.bits(tagWidth, tagTypeError)
-                    summon[Flat[String]].encode(err.msg, encode.encode)
                 case SIRType.TypeNothing =>
                     encode.encode.bits(tagWidth, tagTypeNothing)
                 case SIRType.BLS12_381_G1_Element =>
@@ -394,9 +389,6 @@ object FlatInstantces:
                 case `tagTypeFreeUnificator` => HashConsedRef.fromData(SIRType.FreeUnificator)
                 case `tagTypeProxy` =>
                     SIRTypeTypeProxyFlat.decodeHC(decode)
-                case `tagTypeError` =>
-                    val msg = summon[Flat[String]].decode(decode.decode)
-                    HashConsedRef.fromData(SIRType.TypeError(msg, null))
                 case `tagTypeNothing` => HashConsedRef.fromData(SIRType.TypeNothing)
                 case `tagNonCaseModule` =>
                     SIRTypeNonCaseModuleFlat.decodeHC(decode)
@@ -787,10 +779,11 @@ object FlatInstantces:
                     SIRTypeHashConsedFlat.bitSizeHC(tp, hashCons)
             case Builtin(bn, tp)   => termTagWidth + summon[Flat[DefaultFun]].bitSize(bn)
             case Error(msg, cause) => termTagWidth + summon[Flat[String]].bitSize(msg)
-            case Constr(name, data, args) =>
+            case Constr(name, data, args, tp) =>
                 termTagWidth + summon[Flat[String]].bitSize(name)
                     + DataDeclFlat.bitSizeHC(data, hashCons)
                     + HashConsedReprFlat.listRepr(SIRHashConsedFlat).bitSizeHC(args, hashCons)
+                    + SIRTypeHashConsedFlat.bitSizeHC(tp, hashCons)
             case Match(scrutinee, cases, tp) =>
                 termTagWidth + bitSizeHC(scrutinee, hashCons)
                     + HashConsedReprFlat.listRepr(SIRCaseHashConsedFlat).bitSizeHC(cases, hashCons)
@@ -841,11 +834,12 @@ object FlatInstantces:
                 case Error(msg, _) =>
                     enc.encode.bits(termTagWidth, tagError)
                     summon[Flat[String]].encode(msg, enc.encode)
-                case Constr(name, data, args) =>
+                case Constr(name, data, args, tp) =>
                     enc.encode.bits(termTagWidth, tagConstr)
                     summon[Flat[String]].encode(name, enc.encode)
                     DataDeclFlat.encodeHC(data, enc)
                     HashConsedReprFlat.listRepr(SIRHashConsedFlat).encodeHC(args, enc)
+                    SIRTypeHashConsedFlat.encodeHC(tp, enc)
                 case Match(scrutinee, cases, tp) =>
                     enc.encode.bits(termTagWidth, tagMatch)
                     encodeHC(scrutinee, enc)
@@ -933,9 +927,16 @@ object FlatInstantces:
                     val name = summon[Flat[String]].decode(decoder.decode)
                     val data = DataDeclFlat.decodeHC(decoder)
                     val args = HashConsedReprFlat.listRepr(SIRHashConsedFlat).decodeHC(decoder)
+                    val tp = SIRTypeHashConsedFlat.decodeHC(decoder)
                     HashConsedRef.deferred(
-                      hs => data.isComplete(hs) && args.isComplete(hs),
-                      (hs, l, p) => Constr(name, data.finValue(hs, l, p), args.finValue(hs, l, p))
+                      hs => data.isComplete(hs) && args.isComplete(hs) && tp.isComplete(hs),
+                      (hs, l, p) =>
+                          Constr(
+                            name,
+                            data.finValue(hs, l, p),
+                            args.finValue(hs, l, p),
+                            tp.finValue(hs, l, p)
+                          )
                     )
                 case `tagMatch` =>
                     val scrutinee = decodeHC(decoder)

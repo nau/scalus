@@ -7,6 +7,10 @@ case class Module(version: (Int, Int), defs: List[Binding])
 
 case class Binding(name: String, value: SIR) {
 
+    if (name == "pkh" && value.tp == SIRType.FreeUnificator) {
+        throw new RuntimeException("Binding with name pkh and value FreeUnitifactor")
+    }
+
     override def toString: String = s"Binding(\"$name\" : $value)"
 
 }
@@ -35,6 +39,7 @@ case class ConstrDecl(
     // (moved to DataDecl,  since when we have a hierarchy with more than one level,
     //  then we map this to few DataDecl, and each DataDecl has its own constructor type).
     // */
+    // TODO: enable this,
     // parentTypeArgs: List[SIRType]
 
 ) {
@@ -175,13 +180,11 @@ object SIR:
     case class Builtin(bn: DefaultFun, tp: SIRType) extends SIR
 
     case class Error(msg: String, cause: Throwable | Null = null) extends SIR {
-        override def tp: SIRType = SIRType.TypeError(msg, cause)
+        override def tp: SIRType = SIRType.TypeNothing
     }
 
     // TODO: unify data-decl.
-    case class Constr(name: String, data: DataDecl, args: List[SIR]) extends SIR {
-        override def tp: SIRType = data.tp
-    }
+    case class Constr(name: String, data: DataDecl, args: List[SIR], tp: SIRType) extends SIR
 
     enum Pattern:
         case Constr(constr: ConstrDecl, bindings: List[String], typeBindings: List[SIRType])
@@ -261,9 +264,10 @@ object SIRChecker {
                 ) ++ checkTp
             case SIR.Builtin(_, tp) => checkTp
             case SIR.Error(_, _)    => checkTp
-            case SIR.Constr(_, data, args) =>
+            case SIR.Constr(_, data, args, tp1) =>
                 val checkArgs = args.flatMap(a => checkSIR(a, throwOnFirst))
-                checkData(data, throwOnFirst) ++ checkArgs ++ checkTp
+                val checkTp1 = checkType(tp1, throwOnFirst)
+                checkData(data, throwOnFirst) ++ checkArgs ++ checkTp ++ checkTp1
             case SIR.Match(scrutinee, cases, tp) =>
                 val checkCases = cases.flatMap(c => checkCase(c, throwOnFirst))
                 checkSIR(scrutinee, throwOnFirst) ++ checkCases ++ checkTp

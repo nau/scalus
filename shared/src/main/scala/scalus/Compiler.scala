@@ -1,7 +1,7 @@
 package scalus
 
 import scalus.macros.Macros
-import scalus.sir.SIR
+import scalus.sir.{SIR, SIRType}
 import scalus.builtin.Data
 
 import scala.annotation.Annotation
@@ -23,6 +23,11 @@ object Compiler:
          Leave it as it is.
      */
     def compileDebug(e: Any): SIR = throwCompilerPluginMissingException()
+
+    /* This method call is handled by the compiler plugin.
+         Leave it as it is.
+     */
+    def compileType[T]: SIRType = throwCompilerPluginMissingException()
 
     def throwCompilerPluginMissingException(): Nothing =
         throw new RuntimeException(

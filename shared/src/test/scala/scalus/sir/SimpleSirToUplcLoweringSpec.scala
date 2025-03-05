@@ -95,11 +95,11 @@ class SimpleSirToUplcLoweringSpec
         val tailTypeProxy = new TypeProxy(null)
         val listData =
             DataDecl(
-              "List",
+              "scalus.prelude.List",
               List(
-                ConstrDecl("Nil", DEFAULT, List(), List()),
+                ConstrDecl("scalus.prelude.List$.Nil", DEFAULT, List(), List()),
                 ConstrDecl(
-                  "Cons",
+                  "scalus.prelude.List$.Cons",
                   DEFAULT,
                   List(TypeBinding("head", a2TypeVar), TypeBinding("tail", tailTypeProxy)),
                   List(a2TypeVar)
@@ -114,14 +114,17 @@ class SimpleSirToUplcLoweringSpec
           List()
         )
         def withDecls(sir: SIR) = SIR.Decl(listData, SIR.Decl(txIdData, sir))
-        withDecls(SIR.Constr("Nil", listData, List())) lowersTo (lam("Nil", "Cons")(
-          !(vr"Nil")
+        withDecls(
+          SIR.Constr("scalus.prelude.List$.Nil", listData, List(), listData.constructors.head.tp)
+        ) lowersTo (lam("scalus.prelude.List$.Nil", "scalus.prelude.List$.Cons")(
+          !(vr"scalus.prelude.List$$.Nil")
         ))
         withDecls(
           SIR.Constr(
             "TxId",
             txIdData,
-            List(SIR.Const(asConstant(hex"DEADBEEF"), ByteString))
+            List(SIR.Const(asConstant(hex"DEADBEEF"), ByteString)),
+            txIdData.constructors.head.tp
           )
         ) lowersTo (lam("hash", "TxId")(vr"TxId" $ vr"hash") $ hex"DEADBEEF")
 
@@ -177,7 +180,7 @@ class SimpleSirToUplcLoweringSpec
 
         withDecls(
           SIR.Match(
-            SIR.Constr("Nil", listData, List()),
+            SIR.Constr("Nil", listData, List(), listData.constructors.head.tp),
             List(
               SIR.Case(
                 Pattern.Constr(nilConstr, Nil, Nil),
