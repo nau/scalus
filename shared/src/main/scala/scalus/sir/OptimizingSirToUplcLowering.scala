@@ -194,7 +194,7 @@ class OptimizingSirToUplcLowering(
                         case SIRType.TypeLambda(_, t) => find(t)
                         case _ =>
                             throw new IllegalArgumentException(
-                                s"Expected case class type, got ${sirType} in expression: ${sir.show}"
+                              s"Expected case class type, got ${sirType} in expression: ${sir.show}"
                             )
 
                 val constructors = find(scrutinee.tp)
@@ -207,23 +207,25 @@ class OptimizingSirToUplcLowering(
                 var idx = 0
                 val iter = cases.iterator
                 val allConstructors = constructors.toSet
-                val matchedConstructors = mutable.HashSet.empty[ConstrDecl]
+                val matchedConstructors = mutable.HashSet.empty[String]
                 val expandedCases = mutable.ArrayBuffer.empty[SIR.Case]
 
                 while iter.hasNext do
                     iter.next() match
                         case c @ SIR.Case(Pattern.Constr(constrDecl, _, _), _) =>
-                            matchedConstructors += constrDecl // collect all matched constructors
+                            matchedConstructors += constrDecl.name // collect all matched constructors
                             expandedCases += c
                         case SIR.Case(Pattern.Wildcard, rhs) =>
                             // If we have a wildcard case, it must be the last one
                             if idx != cases.length - 1 then
                                 throw new IllegalArgumentException(
-                                    s"Wildcard case must be the last and only one in match expression"
+                                  s"Wildcard case must be the last and only one in match expression"
                                 )
                             else
                                 // Convert Wildcard to the rest of the cases/constructors
-                                val missingConstructors = allConstructors -- matchedConstructors
+                                val missingConstructors = allConstructors.filter(c =>
+                                    !matchedConstructors.contains(c.name)
+                                )
                                 missingConstructors.foreach { constrDecl =>
                                     val bindings = constrDecl.params.map(_.name)
                                     // TODO: extract rhs to a let binding before the match
@@ -232,10 +234,10 @@ class OptimizingSirToUplcLowering(
                                     val typeArgs =
                                         constrDecl.typeParams.map(_ => SIRType.FreeUnificator)
                                     expandedCases += SIR.Case(
-                                        Pattern.Constr(constrDecl, bindings, typeArgs),
-                                        rhs
+                                      Pattern.Constr(constrDecl, bindings, typeArgs),
+                                      rhs
                                     )
-                                    matchedConstructors += constrDecl // collect all matched constructors
+                                    matchedConstructors += constrDecl.name // collect all matched constructors
                                 }
 
                     idx += 1
@@ -246,7 +248,7 @@ class OptimizingSirToUplcLowering(
                         constr.name
                     case SIR.Case(Pattern.Wildcard, _) =>
                         throw new IllegalArgumentException(
-                            "Wildcard case must have been eliminated"
+                          "Wildcard case must have been eliminated"
                         )
                 }.toList
 
@@ -260,7 +262,7 @@ class OptimizingSirToUplcLowering(
                                 }
                     case SIR.Case(Pattern.Wildcard, _) =>
                         throw new IllegalArgumentException(
-                            "Wildcard case must have been eliminated"
+                          "Wildcard case must have been eliminated"
                         )
                 }
                 casesTerms.foldLeft(scrutineeTerm) { (acc, caseTerm) => Term.Apply(acc, caseTerm) }

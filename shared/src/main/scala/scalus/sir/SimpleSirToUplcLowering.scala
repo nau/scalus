@@ -109,13 +109,14 @@ class SimpleSirToUplcLowering(sir: SIR, generateErrorTraces: Boolean = false):
                 var idx = 0
                 val iter = cases.iterator
                 val allConstructors = constructors.toSet
-                val matchedConstructors = mutable.HashSet.empty[ConstrDecl]
+                // val matchedConstructors = mutable.HashSet.empty[ConstrDecl]
+                val matchedConstructors = mutable.HashSet.empty[String]
                 val expandedCases = mutable.ArrayBuffer.empty[SIR.Case]
 
                 while iter.hasNext do
                     iter.next() match
                         case c @ SIR.Case(Pattern.Constr(constrDecl, _, _), _) =>
-                            matchedConstructors += constrDecl // collect all matched constructors
+                            matchedConstructors += constrDecl.name // collect all matched constructors
                             expandedCases += c
                         case SIR.Case(Pattern.Wildcard, rhs) =>
                             // If we have a wildcard case, it must be the last one
@@ -125,7 +126,9 @@ class SimpleSirToUplcLowering(sir: SIR, generateErrorTraces: Boolean = false):
                                 )
                             else
                                 // Convert Wildcard to the rest of the cases/constructors
-                                val missingConstructors = allConstructors -- matchedConstructors
+                                val missingConstructors = allConstructors.filter(c =>
+                                    !matchedConstructors.contains(c.name)
+                                )
                                 missingConstructors.foreach { constrDecl =>
                                     val bindings = constrDecl.params.map(_.name)
                                     // TODO: extract rhs to a let binding before the match
@@ -137,7 +140,7 @@ class SimpleSirToUplcLowering(sir: SIR, generateErrorTraces: Boolean = false):
                                       Pattern.Constr(constrDecl, bindings, typeArgs),
                                       rhs
                                     )
-                                    matchedConstructors += constrDecl // collect all matched constructors
+                                    matchedConstructors += constrDecl.name // collect all matched constructors
                                 }
 
                     idx += 1
