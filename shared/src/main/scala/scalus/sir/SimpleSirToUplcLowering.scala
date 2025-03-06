@@ -80,6 +80,7 @@ class SimpleSirToUplcLowering(sir: SIR, generateErrorTraces: Boolean = false):
                     Term.Apply(acc, lowerInner(arg))
                 }
             case SIR.Match(scrutinee, cases, tp) =>
+                println("SIRMatch: scrutinee: " + scrutinee)
                 /* list match
                     case Nil -> 1
                     case Cons(h, tl) -> 2
@@ -109,7 +110,7 @@ class SimpleSirToUplcLowering(sir: SIR, generateErrorTraces: Boolean = false):
                 var idx = 0
                 val iter = cases.iterator
                 val allConstructors = constructors.toSet
-                // val matchedConstructors = mutable.HashSet.empty[ConstrDecl]
+                println(s"constructors = ${allConstructors.map(_.name)}")
                 val matchedConstructors = mutable.HashSet.empty[String]
                 val expandedCases = mutable.ArrayBuffer.empty[SIR.Case]
 
@@ -155,6 +156,8 @@ class SimpleSirToUplcLowering(sir: SIR, generateErrorTraces: Boolean = false):
                         )
                 }.toList
 
+                println("sortedCases: " + sortedCases)
+
                 val casesTerms = sortedCases.map {
                     case SIR.Case(Pattern.Constr(constr, bindings, _), body) =>
                         constr.params match
@@ -168,13 +171,22 @@ class SimpleSirToUplcLowering(sir: SIR, generateErrorTraces: Boolean = false):
                           "Wildcard case must have been eliminated"
                         )
                 }
-                casesTerms.foldLeft(scrutineeTerm) { (acc, caseTerm) => Term.Apply(acc, caseTerm) }
+                println("casesTerms: " + casesTerms)
+                val matchResult = casesTerms.foldLeft(scrutineeTerm) { (acc, caseTerm) =>
+                    Term.Apply(acc, caseTerm)
+                }
+                println("matchResult: " + matchResult)
+                matchResult
             case SIR.Var(name, _)            => Term.Var(NamedDeBruijn(name))
             case SIR.ExternalVar(_, name, _) => Term.Var(NamedDeBruijn(name))
             case SIR.Let(NonRec, bindings, body) =>
-                bindings.foldRight(lowerInner(body)) { case (Binding(name, rhs), body) =>
-                    Term.Apply(Term.LamAbs(name, body), lowerInner(rhs))
+                println(s"let: bindings: ${bindings}, body: ${body}")
+                val letResult = bindings.foldRight(lowerInner(body)) {
+                    case (Binding(name, rhs), body) =>
+                        Term.Apply(Term.LamAbs(name, body), lowerInner(rhs))
                 }
+                println("letResult: " + letResult)
+                letResult
             case SIR.Let(Rec, Binding(name, rhs) :: Nil, body) =>
                 /*  let rec f x = f (x + 1)
                     in f 0

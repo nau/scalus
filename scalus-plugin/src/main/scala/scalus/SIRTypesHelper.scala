@@ -354,12 +354,10 @@ class SIRTypesHelper(private val compiler: SIRCompiler)(using Context) {
         env: SIRTypeEnv,
         thisProxy: SIRType.TypeProxy
     ): Option[SIRType] = {
-        if typeSymbol.showFullName.contains(".IntervalBoundType") then
-            println(s"tryMakeCaseClassOrCaseParentTypeNoRec ${typeSymbol.showFullName} ${tpArgs
-                    .map(_.show)}, isCase=${typeSymbol.flags.is(Flags.CaseClass)}, isEnum=${typeSymbol.flags
-                    .is(Flags.Enum)}, flags=${typeSymbol.flagsString}")
         // println(s"typeSymbol.isType=${typeSymbol.isType}, typeSymbol.isClass=${typeSymbol.isClass}, typeSymbol.isTerm=${typeSymbol.isTerm}")
-        if typeSymbol.flags.is(Flags.Case) || typeSymbol.flags.is(Flags.Enum) then {
+        if typeSymbol.flags
+                .is(Flags.Case) || (typeSymbol.flags.is(Flags.Enum) && typeSymbol.children.isEmpty)
+        then {
             // case class, can do constrdecl
             val name = typeSymbol.fullName.show
             // if name==""
@@ -459,7 +457,7 @@ class SIRTypesHelper(private val compiler: SIRCompiler)(using Context) {
                     if s.children.isEmpty then
                         // val constrDecl = ConstrDecl(s.name.show, SIRVarStorage.DEFAULT, Nil, typeParams, parentTpArgs)
                         val constrDecl =
-                            ConstrDecl(s.name.show, SIRVarStorage.DEFAULT, Nil, typeParams)
+                            ConstrDecl(s.fullName.show, SIRVarStorage.DEFAULT, Nil, typeParams)
 
                         SIRType.CaseClass(constrDecl, typeParams)
                     else
@@ -506,8 +504,6 @@ class SIRTypesHelper(private val compiler: SIRCompiler)(using Context) {
                                   DataDecl(name, sortedConstructors, tparams),
                                   tpArgs
                                 )
-                            if name.contains("IntervalBoundType") then
-                                println(s"IntervalBoundType: ${nType}")
                             thisProxy.ref = nType
                             Some(nType)
                         }
@@ -544,17 +540,10 @@ class SIRTypesHelper(private val compiler: SIRCompiler)(using Context) {
         env: SIRTypeEnv,
         thisProxy: SIRType.TypeProxy
     ): Option[SIRType] = {
-        if typeSymbol.showFullName.contains(".IntervalBoundType") then
-            println(s"tryMakeCaseClassOrCaseParentTypeNoRec ${typeSymbol.showFullName} ${tpArgs
-                    .map(_.show)}, isCase=${typeSymbol.flags.is(Flags.CaseClass)}, isEnum=${typeSymbol.flags
-                    .is(Flags.Enum)}, flags=${typeSymbol.flagsString}")
-        // println(s"typeSymbol.isType=${typeSymbol.isType}, typeSymbol.isClass=${typeSymbol.isClass}, typeSymbol.isTerm=${typeSymbol.isTerm}")
         if typeSymbol.flags.is(Flags.Case) || typeSymbol.flags.is(Flags.Enum) || typeSymbol.flags
                 .isAllOf(Flags.Sealed | Flags.Abstract)
         then {
             // this is a case class
-            if typeSymbol.flags.is(Flags.Case, butNot = Flags.Enum) then
-                println(s"Enum: ${typeSymbol.showFullName}")
 
             // TODO: keep in env mapSymbol => SumCaseClass to prevent duplication
             val name = typeSymbol.fullName.show
@@ -618,8 +607,6 @@ class SIRTypesHelper(private val compiler: SIRCompiler)(using Context) {
                                   DataDecl(name, sortedConstructors, tparams),
                                   tpArgs
                                 )
-                            if name.contains("IntervalBoundType") then
-                                println(s"IntervalBoundType: ${nType}")
                             thisProxy.ref = nType
                             Some(nType)
                         }

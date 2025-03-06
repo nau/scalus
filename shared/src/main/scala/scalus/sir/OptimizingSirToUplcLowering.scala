@@ -210,6 +210,9 @@ class OptimizingSirToUplcLowering(
                 val matchedConstructors = mutable.HashSet.empty[String]
                 val expandedCases = mutable.ArrayBuffer.empty[SIR.Case]
 
+                println(s"match: scroutinee.tp: ${scrutinee.tp.show}, ${scrutinee.tp} ")
+                println(s"match: all-constructires=${allConstructors.map(_.name)}")
+
                 while iter.hasNext do
                     iter.next() match
                         case c @ SIR.Case(Pattern.Constr(constrDecl, _, _), _) =>
@@ -265,6 +268,15 @@ class OptimizingSirToUplcLowering(
                           "Wildcard case must have been eliminated"
                         )
                 }
+
+                val debugCases = sortedCases.map { c =>
+                    c.pattern match
+                        case Pattern.Constr(constr, bindings, _) =>
+                            s"${constr.name}(${bindings.mkString(", ")})"
+                        case Pattern.Wildcard => "_"
+                }
+                println(s"cases: ${debugCases}")
+
                 casesTerms.foldLeft(scrutineeTerm) { (acc, caseTerm) => Term.Apply(acc, caseTerm) }
             case SIR.Var(name, _)            => Term.Var(NamedDeBruijn(name))
             case SIR.ExternalVar(_, name, _) => Term.Var(NamedDeBruijn(name))

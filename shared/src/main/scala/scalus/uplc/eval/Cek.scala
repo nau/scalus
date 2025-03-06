@@ -744,7 +744,8 @@ class CekMachine(
       * @throws StackTraceMachineError
       */
     def evaluateTerm(term: Term): Term = {
-        @tailrec def loop(state: CekState): Term = {
+        @tailrec
+        def loop(state: CekState): Term = {
             state match
                 case Compute(ctx, env, term) => loop(computeCek(ctx, env, term))
                 case Return(ctx, env, value) => loop(returnCek(ctx, env, value))

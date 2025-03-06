@@ -45,7 +45,7 @@ case class ConstrDecl(
 ) {
 
     if name.contains(" ") || name.contains("\u0021") then {
-        throw new RuntimeException("Invalud name in constructor: " + name)
+        throw new RuntimeException("Invalid name in constructor: " + name)
     }
 
     private var _tp: SIRType = null
