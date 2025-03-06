@@ -847,6 +847,19 @@ private object JsonUtils {
     }
 
     /** Generates a pair of functions to convert a class with fields to a sequence of longs and back
+      * @example
+      *   {{{
+      *  class Foo {
+      *  var a: Int = 0
+      *  }
+      *  val (toSeq, fromSeq) = mkClassFieldsFromSeqIso[Foo]
+      *   }}}
+      *   where `fromSeq` looks like this
+      *   {{{
+      *  val foo = new Foo()
+      *  foo.a = seq(0)
+      *  foo
+      *   }}}
       */
     inline def mkClassFieldsFromSeqIso[A]: (A => Seq[Long], Seq[Long] => A) = ${
         scalus.macros.Macros.mkClassFieldsFromSeqIsoImpl[A]
