@@ -995,6 +995,16 @@ class BuiltinsMeaning(
           builtinCostModel.xorByteString
         )
 
+    val ComplementByteString =
+        mkMeaning(
+          DefaultUni.ByteString ->: DefaultUni.ByteString,
+          (logger: Logger, args: Seq[CekValue]) =>
+              val byteString = args(0).asByteString
+              VCon(asConstant(complementByteString(byteString)))
+          ,
+          builtinCostModel.complementByteString
+        )
+
     private inline def mkGetBuiltinRuntime: DefaultFun => BuiltinRuntime = ${
         scalus.macros.Macros.mkGetBuiltinRuntime('this)
     }

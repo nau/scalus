@@ -454,6 +454,26 @@ object Builtins:
     def xorByteString(shouldPad: Boolean, lhs: ByteString, rhs: ByteString): ByteString =
         BitwiseLogicalOperations.xorByteString(shouldPad, lhs, rhs)
 
+    /** Bitwise logical ComplementByteString for ByteStrings.
+      * @see
+      *   [CIP-122] (https://github.com/cardano-foundation/CIPs/tree/master/CIP-0122).
+      *
+      * Performs a bitwise logical ComplementByteString operation on the input ByteString by
+      * inverting each bit (Formally resultBit[i] = if inputBit[i] == 0 then 1 else 0).
+      *
+      * @example
+      *   complementByteString(hex"FF") == hex"00"
+      * @example
+      *   complementByteString(hex"F0") == hex"0F"
+      *
+      * @param byteString
+      *   The `ByteString` that to be bitwise logical completed(inverted).
+      * @return
+      *   The result of the bitwise logical ComplementByteString operation.
+      */
+    def complementByteString(byteString: ByteString): ByteString =
+        BitwiseLogicalOperations.complementByteString(byteString)
+
     def bls12_381_G1_equal(using
         ps: PlatformSpecific
     )(p1: BLS12_381_G1_Element, p2: BLS12_381_G1_Element): Boolean =
