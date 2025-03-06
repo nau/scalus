@@ -5,6 +5,7 @@ import scalus.utils.Hex
 import scala.annotation.targetName
 import scala.compiletime.asMatchable
 
+// TODO replace Array on IArray
 class ByteString private (val bytes: Array[Byte]) {
     override def toString: String = "\"" + toHex + "\""
 
@@ -32,6 +33,8 @@ class ByteString private (val bytes: Array[Byte]) {
 
 object ByteString {
     val empty = new ByteString(Array.empty)
+    
+    // FIXME: copy input bytes
     def fromArray(bytes: Array[Byte]): ByteString = new ByteString(bytes)
 
     def apply(bytes: Byte*): ByteString = new ByteString(bytes.toArray)

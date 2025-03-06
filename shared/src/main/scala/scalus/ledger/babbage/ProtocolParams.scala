@@ -823,10 +823,10 @@ class PlutusV3Params {
     var `xorByteString-cpu-arguments-slope2`: Long = 0L
     var `xorByteString-memory-arguments-intercept`: Long = 0L
     var `xorByteString-memory-arguments-slope`: Long = 0L
-    var `complemntByteString-cpu-arguments-intercept`: Long = 0L
-    var `complemntByteString-cpu-arguments-slope`: Long = 0L
-    var `complemntByteString-memory-arguments-intercept`: Long = 0L
-    var `complemntByteString-memory-arguments-slope`: Long = 0L
+    var `complementByteString-cpu-arguments-intercept`: Long = 0L
+    var `complementByteString-cpu-arguments-slope`: Long = 0L
+    var `complementByteString-memory-arguments-intercept`: Long = 0L
+    var `complementByteString-memory-arguments-slope`: Long = 0L
 
     def toJson: String = write(this)
 }
