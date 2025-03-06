@@ -38,7 +38,7 @@ class SITRTypingScalaToSIRSpec extends AnyFunSuite {
     test("check that simple case class is mapped to case class") {
         import SITRTypingScalaToSIRSpecScope.*
 
-        val sir = compileDebug {
+        val sir = compile {
             new ClassA1(10)
         }
 

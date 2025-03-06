@@ -90,7 +90,6 @@ object SIRUnify {
             case (SIR.Var(name1, tp1), SIR.Var(name2, tp2)) =>
                 if (env.debug) then println(s"unifySIRExpr: vars: \nleft=$left\nright=$right")
                 if name1 == name2 then
-                    println(s"unifySIRExpr: names are equal")
                     unifyType(tp1, tp2, env.copy(path = "tp" :: env.path)) match
                         case UnificationSuccess(env1, tp) =>
                             UnificationSuccess(
@@ -98,7 +97,6 @@ object SIRUnify {
                               SIR.Var(name1, tp)
                             )
                         case UnificationFailure(path, tpLeft, tpRight) =>
-                            println(s"unifySIRExpr: tp unification failed")
                             UnificationFailure(path, left, right)
                 else UnificationFailure("name" :: env.path, left, right)
             case (v1: SIR.ExternalVar, v2: SIR.ExternalVar) =>

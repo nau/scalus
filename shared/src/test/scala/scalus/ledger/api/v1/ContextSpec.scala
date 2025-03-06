@@ -57,9 +57,6 @@ class ContextSpec
         val uplc = sir.toUplc() |> EtaReduce.apply
         println(uplc.showHighlighted)
 
-        println(s"sir=$sir")
-        println(s"sir.show=${sir.show}")
-
         forAll { (i: Interval) =>
             import scalus.ledger.api.v1.ToDataInstances.given
             assert(i === i)
