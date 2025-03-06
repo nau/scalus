@@ -95,7 +95,8 @@ case class BuiltinCostModel(
     byteStringToInteger: DefaultCostingFun[TwoArguments],
     andByteString: DefaultCostingFun[ThreeArguments],
     orByteString: DefaultCostingFun[ThreeArguments],
-    xorByteString: DefaultCostingFun[ThreeArguments]
+    xorByteString: DefaultCostingFun[ThreeArguments],
+    complementByteString: DefaultCostingFun[OneArgument]
 ) {
 
     /** Convert a [[BuiltinCostModel]] to a flat map of cost parameters
@@ -224,7 +225,8 @@ object BuiltinCostModel {
             "byteStringToInteger" -> writeJs(model.byteStringToInteger),
             "andByteString" -> writeJs(model.andByteString),
             "orByteString" -> writeJs(model.orByteString),
-            "xorByteString" -> writeJs(model.xorByteString)
+            "xorByteString" -> writeJs(model.xorByteString),
+            "complementByteString" -> writeJs(model.complementByteString)
           ),
       json =>
           BuiltinCostModel(
@@ -332,6 +334,10 @@ object BuiltinCostModel {
                 if json.obj.keySet.contains("xorByteString") then
                     read[DefaultCostingFun[ThreeArguments]](json("xorByteString"))
                 else null,
+            complementByteString =
+                if json.obj.keySet.contains("complementByteString") then
+                    read[DefaultCostingFun[OneArgument]](json("complementByteString"))
+                else null
           )
     )
 
@@ -1304,6 +1310,20 @@ object BuiltinCostModel {
               OneVariableLinearFunction(
                 intercept = params("xorByteString-memory-arguments-intercept"),
                 slope = params("xorByteString-memory-arguments-slope")
+              )
+            )
+          ),
+          complementByteString = DefaultCostingFun(
+            cpu = OneArgument.LinearInX(
+              OneVariableLinearFunction(
+                intercept = params("complementByteString-cpu-arguments-intercept"),
+                slope = params("complementByteString-cpu-arguments-slope")
+              )
+            ),
+            memory = OneArgument.LinearInX(
+              OneVariableLinearFunction(
+                intercept = params("complementByteString-memory-arguments-intercept"),
+                slope = params("complementByteString-memory-arguments-slope")
               )
             )
           )

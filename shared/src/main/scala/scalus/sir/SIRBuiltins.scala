@@ -345,6 +345,11 @@ object SIRBuiltins {
       SIRType.Boolean ->: SIRType.ByteString ->: SIRType.ByteString ->: SIRType.ByteString
     )
 
+    val complementByteString: SIR.Builtin = SIR.Builtin(
+      DefaultFun.ComplementByteString,
+      SIRType.ByteString ->: SIRType.ByteString
+    )
+
     def fromUplc(uplcFun: DefaultFun): SIR.Builtin =
         uplcFun match
             case DefaultFun.AddInteger                      => addInteger
@@ -425,4 +430,5 @@ object SIRBuiltins {
             case DefaultFun.AndByteString                   => andByteString
             case DefaultFun.OrByteString                    => orByteString
             case DefaultFun.XorByteString                   => xorByteString
+            case DefaultFun.ComplementByteString            => complementByteString
 }

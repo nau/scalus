@@ -439,6 +439,9 @@ open class CekBuiltinsSpec
 
     test("AndByteString follows CIP-122") {
         val AndByteString = compile(scalus.builtin.Builtins.andByteString).toUplc()
+
+        assertEvalEq(AndByteString $ false $ hex"" $ hex"", hex"")
+
         assertEvalEq(AndByteString $ false $ hex"00" $ hex"00", hex"00")
         assertEvalEq(AndByteString $ false $ hex"FF" $ hex"00", hex"00")
         assertEvalEq(AndByteString $ false $ hex"00" $ hex"FF", hex"00")
@@ -453,6 +456,8 @@ open class CekBuiltinsSpec
         assertEvalEq(AndByteString $ false $ hex"FF" $ hex"00FF", hex"00")
         assertEvalEq(AndByteString $ false $ hex"00" $ hex"FFFF", hex"00")
         assertEvalEq(AndByteString $ false $ hex"FF" $ hex"FFFF", hex"FF")
+
+        assertEvalEq(AndByteString $ true $ hex"" $ hex"", hex"")
 
         assertEvalEq(AndByteString $ true $ hex"00" $ hex"00", hex"00")
         assertEvalEq(AndByteString $ true $ hex"FF" $ hex"00", hex"00")
@@ -472,6 +477,9 @@ open class CekBuiltinsSpec
 
     test("OrByteString follows CIP-122") {
         val OrByteString = compile(scalus.builtin.Builtins.orByteString).toUplc()
+
+        assertEvalEq(OrByteString $ false $ hex"" $ hex"", hex"")
+
         assertEvalEq(OrByteString $ false $ hex"00" $ hex"00", hex"00")
         assertEvalEq(OrByteString $ false $ hex"FF" $ hex"00", hex"FF")
         assertEvalEq(OrByteString $ false $ hex"00" $ hex"FF", hex"FF")
@@ -486,6 +494,8 @@ open class CekBuiltinsSpec
         assertEvalEq(OrByteString $ false $ hex"FF" $ hex"00FF", hex"FF")
         assertEvalEq(OrByteString $ false $ hex"00" $ hex"FFFF", hex"FF")
         assertEvalEq(OrByteString $ false $ hex"FF" $ hex"FFFF", hex"FF")
+
+        assertEvalEq(OrByteString $ true $ hex"" $ hex"", hex"")
 
         assertEvalEq(OrByteString $ true $ hex"00" $ hex"00", hex"00")
         assertEvalEq(OrByteString $ true $ hex"FF" $ hex"00", hex"FF")
@@ -505,6 +515,9 @@ open class CekBuiltinsSpec
 
     test("XorByteString follows CIP-122") {
         val XorByteString = compile(scalus.builtin.Builtins.xorByteString).toUplc()
+
+        assertEvalEq(XorByteString $ false $ hex"" $ hex"", hex"")
+
         assertEvalEq(XorByteString $ false $ hex"00" $ hex"00", hex"00")
         assertEvalEq(XorByteString $ false $ hex"FF" $ hex"00", hex"FF")
         assertEvalEq(XorByteString $ false $ hex"00" $ hex"FF", hex"FF")
@@ -520,6 +533,8 @@ open class CekBuiltinsSpec
         assertEvalEq(XorByteString $ false $ hex"00" $ hex"FFFF", hex"FF")
         assertEvalEq(XorByteString $ false $ hex"FF" $ hex"FFFF", hex"00")
 
+        assertEvalEq(XorByteString $ true $ hex"" $ hex"", hex"")
+
         assertEvalEq(XorByteString $ true $ hex"00" $ hex"00", hex"00")
         assertEvalEq(XorByteString $ true $ hex"FF" $ hex"00", hex"FF")
         assertEvalEq(XorByteString $ true $ hex"00" $ hex"FF", hex"FF")
@@ -534,4 +549,15 @@ open class CekBuiltinsSpec
         assertEvalEq(XorByteString $ true $ hex"FF" $ hex"00FF", hex"FFFF")
         assertEvalEq(XorByteString $ true $ hex"00" $ hex"FFFF", hex"FFFF")
         assertEvalEq(XorByteString $ true $ hex"FF" $ hex"FFFF", hex"00FF")
+    }
+
+    test("ComplementByteString follows CIP-122") {
+        val ComplementByteString = compile(scalus.builtin.Builtins.complementByteString).toUplc()
+
+        assertEvalEq(ComplementByteString $ hex"", hex"")
+
+        assertEvalEq(ComplementByteString $ hex"00", hex"FF")
+        assertEvalEq(ComplementByteString $ hex"F0", hex"0F")
+        assertEvalEq(ComplementByteString $ hex"0F", hex"F0")
+        assertEvalEq(ComplementByteString $ hex"FF", hex"00")
     }
