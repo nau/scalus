@@ -100,8 +100,14 @@ class CekBudgetJVMSpec extends AnyFunSuite:
 //        compareN(3) // sop is more efficient for n=3 and more
     }
 
-    test("BuiltinCostModel JSON reader from Blockfrost Protocol Parameters") {
-        val input = this.getClass().getResourceAsStream("/blockfrost-params-epoch-507.json")
+    test("BuiltinCostModel JSON reader from Blockfrost Protocol Parameters epoch 507") {
+        val input = this.getClass.getResourceAsStream("/blockfrost-params-epoch-507.json")
+        val pparams = read[ProtocolParams](input)(using ProtocolParams.blockfrostParamsRW)
+        testReadingCostModelParams(pparams)
+    }
+
+    test("BuiltinCostModel JSON reader from Blockfrost Protocol Parameters epoch 544") {
+        val input = this.getClass.getResourceAsStream("/blockfrost-params-epoch-544.json")
         val pparams = read[ProtocolParams](input)(using ProtocolParams.blockfrostParamsRW)
         testReadingCostModelParams(pparams)
     }

@@ -23,7 +23,7 @@ open class CekBuiltinsSpec
     with ScalaCheckPropertyChecks
     with ArbitraryInstances:
 
-    protected given PlutusVM = PlutusVM.makePlutusV2VM()
+    protected given PlutusVM = PlutusVM.makePlutusV3VM()
 
     def assertEvalEq(a: Term, b: Term): Unit =
         assert(a.evaluate == b, s"$a != $b")
@@ -438,10 +438,6 @@ open class CekBuiltinsSpec
     }
 
     test("AndByteString follows CIP-122") {
-        given PlutusVM = PlutusVM.makePlutusV3VM(
-          MachineParams.defaultParamsFor(PlutusLedgerLanguage.PlutusV3, ProtocolVersion.conwayPV)
-        )
-
         assertEvalEq(AndByteString $ true $ hex"00" $ hex"00", hex"00")
         assertEvalEq(AndByteString $ true $ hex"FF" $ hex"00", hex"00")
         assertEvalEq(AndByteString $ true $ hex"00" $ hex"FF", hex"00")
@@ -459,10 +455,6 @@ open class CekBuiltinsSpec
     }
 
     test("OrByteString follows CIP-122") {
-        given PlutusVM = PlutusVM.makePlutusV3VM(
-          MachineParams.defaultParamsFor(PlutusLedgerLanguage.PlutusV3, ProtocolVersion.conwayPV)
-        )
-
         assertEvalEq(OrByteString $ true $ hex"00" $ hex"00", hex"00")
         assertEvalEq(OrByteString $ true $ hex"FF" $ hex"00", hex"FF")
         assertEvalEq(OrByteString $ true $ hex"00" $ hex"FF", hex"FF")
@@ -480,10 +472,6 @@ open class CekBuiltinsSpec
     }
 
     test("XorByteString follows CIP-122") {
-        given PlutusVM = PlutusVM.makePlutusV3VM(
-          MachineParams.defaultParamsFor(PlutusLedgerLanguage.PlutusV3, ProtocolVersion.conwayPV)
-        )
-
         assertEvalEq(XorByteString $ true $ hex"00" $ hex"00", hex"00")
         assertEvalEq(XorByteString $ true $ hex"FF" $ hex"00", hex"FF")
         assertEvalEq(XorByteString $ true $ hex"00" $ hex"FF", hex"FF")
