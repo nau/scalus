@@ -409,7 +409,7 @@ object Builtins:
       * padded with the remaining values from the longer input.
       *
       * @example
-      *   orByteString(false, hex"0FFF", hex"FF") == hex"FFFF"
+      *   orByteString(false, hex"0FFF", hex"FF") == hex"FF"
       * @example
       *   orByteString(true, hex"0FFF", hex"FF") == hex"FFFF"
       *
@@ -437,7 +437,7 @@ object Builtins:
       * padded with the remaining values from the longer input.
       *
       * @example
-      *   xorByteString(false, hex"0FFF", hex"FF") == hex"F0FF"
+      *   xorByteString(false, hex"0FFF", hex"FF") == hex"F0"
       * @example
       *   xorByteString(true, hex"0FFF", hex"FF") == hex"F0FF"
       *

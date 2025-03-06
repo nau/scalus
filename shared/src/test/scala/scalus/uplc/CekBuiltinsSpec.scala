@@ -438,6 +438,21 @@ open class CekBuiltinsSpec
     }
 
     test("AndByteString follows CIP-122") {
+        assertEvalEq(AndByteString $ false $ hex"00" $ hex"00", hex"00")
+        assertEvalEq(AndByteString $ false $ hex"FF" $ hex"00", hex"00")
+        assertEvalEq(AndByteString $ false $ hex"00" $ hex"FF", hex"00")
+        assertEvalEq(AndByteString $ false $ hex"FF" $ hex"FF", hex"FF")
+
+        assertEvalEq(AndByteString $ false $ hex"00FF" $ hex"00", hex"00")
+        assertEvalEq(AndByteString $ false $ hex"FFFF" $ hex"00", hex"00")
+        assertEvalEq(AndByteString $ false $ hex"00FF" $ hex"FF", hex"00")
+        assertEvalEq(AndByteString $ false $ hex"FFFF" $ hex"FF", hex"FF")
+
+        assertEvalEq(AndByteString $ false $ hex"00" $ hex"00FF", hex"00")
+        assertEvalEq(AndByteString $ false $ hex"FF" $ hex"00FF", hex"00")
+        assertEvalEq(AndByteString $ false $ hex"00" $ hex"FFFF", hex"00")
+        assertEvalEq(AndByteString $ false $ hex"FF" $ hex"FFFF", hex"FF")
+
         assertEvalEq(AndByteString $ true $ hex"00" $ hex"00", hex"00")
         assertEvalEq(AndByteString $ true $ hex"FF" $ hex"00", hex"00")
         assertEvalEq(AndByteString $ true $ hex"00" $ hex"FF", hex"00")
@@ -455,6 +470,21 @@ open class CekBuiltinsSpec
     }
 
     test("OrByteString follows CIP-122") {
+        assertEvalEq(OrByteString $ false $ hex"00" $ hex"00", hex"00")
+        assertEvalEq(OrByteString $ false $ hex"FF" $ hex"00", hex"FF")
+        assertEvalEq(OrByteString $ false $ hex"00" $ hex"FF", hex"FF")
+        assertEvalEq(OrByteString $ false $ hex"FF" $ hex"FF", hex"FF")
+
+        assertEvalEq(OrByteString $ false $ hex"00FF" $ hex"00", hex"00")
+        assertEvalEq(OrByteString $ false $ hex"FFFF" $ hex"00", hex"FF")
+        assertEvalEq(OrByteString $ false $ hex"00FF" $ hex"FF", hex"FF")
+        assertEvalEq(OrByteString $ false $ hex"FFFF" $ hex"FF", hex"FF")
+
+        assertEvalEq(OrByteString $ false $ hex"00" $ hex"00FF", hex"00")
+        assertEvalEq(OrByteString $ false $ hex"FF" $ hex"00FF", hex"FF")
+        assertEvalEq(OrByteString $ false $ hex"00" $ hex"FFFF", hex"FF")
+        assertEvalEq(OrByteString $ false $ hex"FF" $ hex"FFFF", hex"FF")
+
         assertEvalEq(OrByteString $ true $ hex"00" $ hex"00", hex"00")
         assertEvalEq(OrByteString $ true $ hex"FF" $ hex"00", hex"FF")
         assertEvalEq(OrByteString $ true $ hex"00" $ hex"FF", hex"FF")
@@ -472,6 +502,21 @@ open class CekBuiltinsSpec
     }
 
     test("XorByteString follows CIP-122") {
+        assertEvalEq(XorByteString $ false $ hex"00" $ hex"00", hex"00")
+        assertEvalEq(XorByteString $ false $ hex"FF" $ hex"00", hex"FF")
+        assertEvalEq(XorByteString $ false $ hex"00" $ hex"FF", hex"FF")
+        assertEvalEq(XorByteString $ false $ hex"FF" $ hex"FF", hex"00")
+
+        assertEvalEq(XorByteString $ false $ hex"00FF" $ hex"00", hex"00")
+        assertEvalEq(XorByteString $ false $ hex"FFFF" $ hex"00", hex"FF")
+        assertEvalEq(XorByteString $ false $ hex"00FF" $ hex"FF", hex"FF")
+        assertEvalEq(XorByteString $ false $ hex"FFFF" $ hex"FF", hex"00")
+
+        assertEvalEq(XorByteString $ false $ hex"00" $ hex"00FF", hex"00")
+        assertEvalEq(XorByteString $ false $ hex"FF" $ hex"00FF", hex"FF")
+        assertEvalEq(XorByteString $ false $ hex"00" $ hex"FFFF", hex"FF")
+        assertEvalEq(XorByteString $ false $ hex"FF" $ hex"FFFF", hex"00")
+
         assertEvalEq(XorByteString $ true $ hex"00" $ hex"00", hex"00")
         assertEvalEq(XorByteString $ true $ hex"FF" $ hex"00", hex"FF")
         assertEvalEq(XorByteString $ true $ hex"00" $ hex"FF", hex"FF")
