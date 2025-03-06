@@ -130,3 +130,40 @@ object ByteStringToInteger:
         while lastNonZeroIndex >= 0 && p(bs.bytes(lastNonZeroIndex)) do lastNonZeroIndex -= 1
         if lastNonZeroIndex == -1 then Array.empty
         else bs.bytes.slice(0, lastNonZeroIndex + 1)
+
+object BitwiseLogicalOperations:
+    def andByteString(shouldPad: Boolean, lhs: ByteString, rhs: ByteString): ByteString =
+        combineByteStrings(shouldPad, lhs, rhs)((lhsByte, rhsByte) => (lhsByte & rhsByte).toByte)
+
+    def orByteString(shouldPad: Boolean, lhs: ByteString, rhs: ByteString): ByteString =
+        combineByteStrings(shouldPad, lhs, rhs)((lhsByte, rhsByte) => (lhsByte | rhsByte).toByte)
+
+    def xorByteString(shouldPad: Boolean, lhs: ByteString, rhs: ByteString): ByteString =
+        combineByteStrings(shouldPad, lhs, rhs)((lhsByte, rhsByte) => (lhsByte ^ rhsByte).toByte)
+
+    private inline def combineByteStrings(
+        shouldPad: Boolean,
+        lhs: ByteString,
+        rhs: ByteString
+    )(inline op: (Byte, Byte) => Byte): ByteString = {
+        val (shortArray, longArray) =
+            if lhs.size < rhs.size then (lhs.bytes, rhs.bytes) else (rhs.bytes, lhs.bytes)
+
+        val resultArray = new Array[Byte](if shouldPad then longArray.length else shortArray.length)
+
+        var index = 0
+        while index < shortArray.length do
+            resultArray(index) = op(shortArray(index), longArray(index))
+            index += 1
+
+        if shouldPad && shortArray.length != longArray.length then
+            System.arraycopy(
+              longArray,
+              shortArray.length,
+              resultArray,
+              shortArray.length,
+              longArray.length - shortArray.length
+            )
+
+        ByteString.unsafeFromArray(resultArray)
+    }

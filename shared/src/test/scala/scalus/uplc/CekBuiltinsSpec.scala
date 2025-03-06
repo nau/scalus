@@ -13,6 +13,7 @@ import scalus.uplc.DefaultUni.asConstant
 import scalus.uplc.Term.*
 import scalus.uplc.TermDSL.{*, given}
 import scalus.uplc.eval.*
+import scalus.ledger.api.{PlutusLedgerLanguage, ProtocolVersion}
 
 import scala.language.implicitConversions
 import scala.reflect.ClassTag
@@ -22,7 +23,7 @@ open class CekBuiltinsSpec
     with ScalaCheckPropertyChecks
     with ArbitraryInstances:
 
-    protected given PlutusVM = PlutusVM.makePlutusV2VM()
+    protected given PlutusVM = PlutusVM.makePlutusV3VM()
 
     def assertEvalEq(a: Term, b: Term): Unit =
         assert(a.evaluate == b, s"$a != $b")
@@ -434,4 +435,103 @@ open class CekBuiltinsSpec
             hex"FFd97a0c4ad719f89cba68a522e0dee13bcf656ae9c0a395404cda858a7992d8dea979dbc4c83659d695b7d380fe8a75264ba51a63a53fc2a8bd225e50f223f4"
 
         assertEvalEq(wrongSignature, false)
+    }
+
+    test("AndByteString follows CIP-122") {
+        val AndByteString = compile(scalus.builtin.Builtins.andByteString).toUplc()
+        assertEvalEq(AndByteString $ false $ hex"00" $ hex"00", hex"00")
+        assertEvalEq(AndByteString $ false $ hex"FF" $ hex"00", hex"00")
+        assertEvalEq(AndByteString $ false $ hex"00" $ hex"FF", hex"00")
+        assertEvalEq(AndByteString $ false $ hex"FF" $ hex"FF", hex"FF")
+
+        assertEvalEq(AndByteString $ false $ hex"00FF" $ hex"00", hex"00")
+        assertEvalEq(AndByteString $ false $ hex"FFFF" $ hex"00", hex"00")
+        assertEvalEq(AndByteString $ false $ hex"00FF" $ hex"FF", hex"00")
+        assertEvalEq(AndByteString $ false $ hex"FFFF" $ hex"FF", hex"FF")
+
+        assertEvalEq(AndByteString $ false $ hex"00" $ hex"00FF", hex"00")
+        assertEvalEq(AndByteString $ false $ hex"FF" $ hex"00FF", hex"00")
+        assertEvalEq(AndByteString $ false $ hex"00" $ hex"FFFF", hex"00")
+        assertEvalEq(AndByteString $ false $ hex"FF" $ hex"FFFF", hex"FF")
+
+        assertEvalEq(AndByteString $ true $ hex"00" $ hex"00", hex"00")
+        assertEvalEq(AndByteString $ true $ hex"FF" $ hex"00", hex"00")
+        assertEvalEq(AndByteString $ true $ hex"00" $ hex"FF", hex"00")
+        assertEvalEq(AndByteString $ true $ hex"FF" $ hex"FF", hex"FF")
+
+        assertEvalEq(AndByteString $ true $ hex"00FF" $ hex"00", hex"00FF")
+        assertEvalEq(AndByteString $ true $ hex"FFFF" $ hex"00", hex"00FF")
+        assertEvalEq(AndByteString $ true $ hex"00FF" $ hex"FF", hex"00FF")
+        assertEvalEq(AndByteString $ true $ hex"FFFF" $ hex"FF", hex"FFFF")
+
+        assertEvalEq(AndByteString $ true $ hex"00" $ hex"00FF", hex"00FF")
+        assertEvalEq(AndByteString $ true $ hex"FF" $ hex"00FF", hex"00FF")
+        assertEvalEq(AndByteString $ true $ hex"00" $ hex"FFFF", hex"00FF")
+        assertEvalEq(AndByteString $ true $ hex"FF" $ hex"FFFF", hex"FFFF")
+    }
+
+    test("OrByteString follows CIP-122") {
+        val OrByteString = compile(scalus.builtin.Builtins.orByteString).toUplc()
+        assertEvalEq(OrByteString $ false $ hex"00" $ hex"00", hex"00")
+        assertEvalEq(OrByteString $ false $ hex"FF" $ hex"00", hex"FF")
+        assertEvalEq(OrByteString $ false $ hex"00" $ hex"FF", hex"FF")
+        assertEvalEq(OrByteString $ false $ hex"FF" $ hex"FF", hex"FF")
+
+        assertEvalEq(OrByteString $ false $ hex"00FF" $ hex"00", hex"00")
+        assertEvalEq(OrByteString $ false $ hex"FFFF" $ hex"00", hex"FF")
+        assertEvalEq(OrByteString $ false $ hex"00FF" $ hex"FF", hex"FF")
+        assertEvalEq(OrByteString $ false $ hex"FFFF" $ hex"FF", hex"FF")
+
+        assertEvalEq(OrByteString $ false $ hex"00" $ hex"00FF", hex"00")
+        assertEvalEq(OrByteString $ false $ hex"FF" $ hex"00FF", hex"FF")
+        assertEvalEq(OrByteString $ false $ hex"00" $ hex"FFFF", hex"FF")
+        assertEvalEq(OrByteString $ false $ hex"FF" $ hex"FFFF", hex"FF")
+
+        assertEvalEq(OrByteString $ true $ hex"00" $ hex"00", hex"00")
+        assertEvalEq(OrByteString $ true $ hex"FF" $ hex"00", hex"FF")
+        assertEvalEq(OrByteString $ true $ hex"00" $ hex"FF", hex"FF")
+        assertEvalEq(OrByteString $ true $ hex"FF" $ hex"FF", hex"FF")
+
+        assertEvalEq(OrByteString $ true $ hex"00FF" $ hex"00", hex"00FF")
+        assertEvalEq(OrByteString $ true $ hex"FFFF" $ hex"00", hex"FFFF")
+        assertEvalEq(OrByteString $ true $ hex"00FF" $ hex"FF", hex"FFFF")
+        assertEvalEq(OrByteString $ true $ hex"FFFF" $ hex"FF", hex"FFFF")
+
+        assertEvalEq(OrByteString $ true $ hex"00" $ hex"00FF", hex"00FF")
+        assertEvalEq(OrByteString $ true $ hex"FF" $ hex"00FF", hex"FFFF")
+        assertEvalEq(OrByteString $ true $ hex"00" $ hex"FFFF", hex"FFFF")
+        assertEvalEq(OrByteString $ true $ hex"FF" $ hex"FFFF", hex"FFFF")
+    }
+
+    test("XorByteString follows CIP-122") {
+        val XorByteString = compile(scalus.builtin.Builtins.xorByteString).toUplc()
+        assertEvalEq(XorByteString $ false $ hex"00" $ hex"00", hex"00")
+        assertEvalEq(XorByteString $ false $ hex"FF" $ hex"00", hex"FF")
+        assertEvalEq(XorByteString $ false $ hex"00" $ hex"FF", hex"FF")
+        assertEvalEq(XorByteString $ false $ hex"FF" $ hex"FF", hex"00")
+
+        assertEvalEq(XorByteString $ false $ hex"00FF" $ hex"00", hex"00")
+        assertEvalEq(XorByteString $ false $ hex"FFFF" $ hex"00", hex"FF")
+        assertEvalEq(XorByteString $ false $ hex"00FF" $ hex"FF", hex"FF")
+        assertEvalEq(XorByteString $ false $ hex"FFFF" $ hex"FF", hex"00")
+
+        assertEvalEq(XorByteString $ false $ hex"00" $ hex"00FF", hex"00")
+        assertEvalEq(XorByteString $ false $ hex"FF" $ hex"00FF", hex"FF")
+        assertEvalEq(XorByteString $ false $ hex"00" $ hex"FFFF", hex"FF")
+        assertEvalEq(XorByteString $ false $ hex"FF" $ hex"FFFF", hex"00")
+
+        assertEvalEq(XorByteString $ true $ hex"00" $ hex"00", hex"00")
+        assertEvalEq(XorByteString $ true $ hex"FF" $ hex"00", hex"FF")
+        assertEvalEq(XorByteString $ true $ hex"00" $ hex"FF", hex"FF")
+        assertEvalEq(XorByteString $ true $ hex"FF" $ hex"FF", hex"00")
+
+        assertEvalEq(XorByteString $ true $ hex"00FF" $ hex"00", hex"00FF")
+        assertEvalEq(XorByteString $ true $ hex"FFFF" $ hex"00", hex"FFFF")
+        assertEvalEq(XorByteString $ true $ hex"00FF" $ hex"FF", hex"FFFF")
+        assertEvalEq(XorByteString $ true $ hex"FFFF" $ hex"FF", hex"00FF")
+
+        assertEvalEq(XorByteString $ true $ hex"00" $ hex"00FF", hex"00FF")
+        assertEvalEq(XorByteString $ true $ hex"FF" $ hex"00FF", hex"FFFF")
+        assertEvalEq(XorByteString $ true $ hex"00" $ hex"FFFF", hex"FFFF")
+        assertEvalEq(XorByteString $ true $ hex"FF" $ hex"FFFF", hex"00FF")
     }

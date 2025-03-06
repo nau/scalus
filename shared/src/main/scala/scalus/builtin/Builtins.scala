@@ -370,6 +370,90 @@ object Builtins:
         ByteStringToInteger.byteStringToInteger(endianness, input)
     }
 
+    /** Bitwise logical AND for ByteStrings.
+      * @see
+      *   [CIP-122](https://github.com/cardano-foundation/CIPs/tree/master/CIP-0122).
+      *
+      * Performs a logical bitwise AND operation on each byte between two ByteStrings sequentially
+      * and returns the result(Formally result[i] = lhs[i] & rhs[i]). The argument shouldPad
+      * determines what to do in the case when ByteStrings are of different lengths. If shouldPad is
+      * false, the result will be the length of the shorter input. Otherwise, the result will be
+      * padded with the remaining values from the longer input.
+      *
+      * @example
+      *   andByteString(false, hex"0FFF", hex"FF") == hex"0F"
+      * @example
+      *   andByteString(true, hex"0FFF", hex"FF") == hex"0FFF"
+      *
+      * @param shouldPad
+      *   Indicates whether to truncate the result to the length of the shorter input, or to pad
+      *   with the remaining values from the longer one.
+      * @param lhs
+      *   The left-hand side `ByteString`.
+      * @param rhs
+      *   The right-hand side `ByteString`.
+      * @return
+      *   The result of the bitwise AND operation.
+      */
+    def andByteString(shouldPad: Boolean, lhs: ByteString, rhs: ByteString): ByteString =
+        BitwiseLogicalOperations.andByteString(shouldPad, lhs, rhs)
+
+    /** Bitwise logical OR for ByteStrings.
+      * @see
+      *   [CIP-122](https://github.com/cardano-foundation/CIPs/tree/master/CIP-0122).
+      *
+      * Performs a logical bitwise OR operation on each byte between two ByteStrings sequentially
+      * and returns the result(Formally result[i] = lhs[i] | rhs[i]). The argument shouldPad
+      * determines what to do in the case when ByteStrings are of different lengths. If shouldPad is
+      * false, the result will be the length of the shorter input. Otherwise, the result will be
+      * padded with the remaining values from the longer input.
+      *
+      * @example
+      *   orByteString(false, hex"0FFF", hex"FF") == hex"FF"
+      * @example
+      *   orByteString(true, hex"0FFF", hex"FF") == hex"FFFF"
+      *
+      * @param shouldPad
+      *   Indicates whether to truncate the result to the length of the shorter input, or to pad
+      *   with the remaining values from the longer one.
+      * @param lhs
+      *   The left-hand side `ByteString`.
+      * @param rhs
+      *   The right-hand side `ByteString`.
+      * @return
+      *   The result of the bitwise OR operation.
+      */
+    def orByteString(shouldPad: Boolean, lhs: ByteString, rhs: ByteString): ByteString =
+        BitwiseLogicalOperations.orByteString(shouldPad, lhs, rhs)
+
+    /** Bitwise logical XOR for ByteStrings.
+      * @see
+      *   [CIP-122] (https://github.com/cardano-foundation/CIPs/tree/master/CIP-0122).
+      *
+      * Performs a logical bitwise XOR operation on each byte between two ByteStrings sequentially
+      * and returns the result(Formally result[i] = lhs[i] ˆ rhs[i]). The argument shouldPad
+      * determines what to do in the case when ByteStrings are of different lengths. If shouldPad is
+      * false, the result will be the length of the shorter input. Otherwise, the result will be
+      * padded with the remaining values from the longer input.
+      *
+      * @example
+      *   xorByteString(false, hex"0FFF", hex"FF") == hex"F0"
+      * @example
+      *   xorByteString(true, hex"0FFF", hex"FF") == hex"F0FF"
+      *
+      * @param shouldPad
+      *   Indicates whether to truncate the result to the length of the shorter input, or to pad
+      *   with the remaining values from the longer one.
+      * @param lhs
+      *   The left-hand side `ByteString`.
+      * @param rhs
+      *   The right-hand side `ByteString`.
+      * @return
+      *   The result of the bitwise XOR operation.
+      */
+    def xorByteString(shouldPad: Boolean, lhs: ByteString, rhs: ByteString): ByteString =
+        BitwiseLogicalOperations.xorByteString(shouldPad, lhs, rhs)
+
     def bls12_381_G1_equal(using
         ps: PlatformSpecific
     )(p1: BLS12_381_G1_Element, p2: BLS12_381_G1_Element): Boolean =

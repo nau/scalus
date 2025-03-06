@@ -92,7 +92,10 @@ case class BuiltinCostModel(
     bls12_381_mulMlResult: DefaultCostingFun[TwoArguments],
     bls12_381_finalVerify: DefaultCostingFun[TwoArguments],
     integerToByteString: IntegerToByteStringCostingFun,
-    byteStringToInteger: DefaultCostingFun[TwoArguments]
+    byteStringToInteger: DefaultCostingFun[TwoArguments],
+    andByteString: DefaultCostingFun[ThreeArguments],
+    orByteString: DefaultCostingFun[ThreeArguments],
+    xorByteString: DefaultCostingFun[ThreeArguments]
 ) {
 
     /** Convert a [[BuiltinCostModel]] to a flat map of cost parameters
@@ -218,7 +221,10 @@ object BuiltinCostModel {
             "bls12_381_mulMlResult" -> writeJs(model.bls12_381_mulMlResult),
             "bls12_381_finalVerify" -> writeJs(model.bls12_381_finalVerify),
             "integerToByteString" -> writeJs(model.integerToByteString),
-            "byteStringToInteger" -> writeJs(model.byteStringToInteger)
+            "byteStringToInteger" -> writeJs(model.byteStringToInteger),
+            "andByteString" -> writeJs(model.andByteString),
+            "orByteString" -> writeJs(model.orByteString),
+            "xorByteString" -> writeJs(model.xorByteString)
           ),
       json =>
           BuiltinCostModel(
@@ -312,7 +318,20 @@ object BuiltinCostModel {
             bls12_381_finalVerify =
                 read[DefaultCostingFun[TwoArguments]](json("bls12_381_finalVerify")),
             integerToByteString = read[IntegerToByteStringCostingFun](json("integerToByteString")),
-            byteStringToInteger = read[DefaultCostingFun[TwoArguments]](json("byteStringToInteger"))
+            byteStringToInteger =
+                read[DefaultCostingFun[TwoArguments]](json("byteStringToInteger")),
+            andByteString =
+                if json.obj.keySet.contains("andByteString") then
+                    read[DefaultCostingFun[ThreeArguments]](json("andByteString"))
+                else null,
+            orByteString =
+                if json.obj.keySet.contains("orByteString") then
+                    read[DefaultCostingFun[ThreeArguments]](json("orByteString"))
+                else null,
+            xorByteString =
+                if json.obj.keySet.contains("xorByteString") then
+                    read[DefaultCostingFun[ThreeArguments]](json("xorByteString"))
+                else null,
           )
     )
 
@@ -1240,6 +1259,51 @@ object BuiltinCostModel {
               OneVariableLinearFunction(
                 intercept = params("byteStringToInteger-memory-arguments-intercept"),
                 slope = params("byteStringToInteger-memory-arguments-slope")
+              )
+            )
+          ),
+          andByteString = DefaultCostingFun(
+            cpu = ThreeArguments.LinearInYAndZ(
+              TwoVariableLinearFunction(
+                intercept = params("andByteString-cpu-arguments-intercept"),
+                slope1 = params("andByteString-cpu-arguments-slope1"),
+                slope2 = params("andByteString-cpu-arguments-slope2")
+              )
+            ),
+            memory = ThreeArguments.LinearInMaxYZ(
+              OneVariableLinearFunction(
+                intercept = params("andByteString-memory-arguments-intercept"),
+                slope = params("andByteString-memory-arguments-slope")
+              )
+            )
+          ),
+          orByteString = DefaultCostingFun(
+            cpu = ThreeArguments.LinearInYAndZ(
+              TwoVariableLinearFunction(
+                intercept = params("orByteString-cpu-arguments-intercept"),
+                slope1 = params("orByteString-cpu-arguments-slope1"),
+                slope2 = params("orByteString-cpu-arguments-slope2")
+              )
+            ),
+            memory = ThreeArguments.LinearInMaxYZ(
+              OneVariableLinearFunction(
+                intercept = params("orByteString-memory-arguments-intercept"),
+                slope = params("orByteString-memory-arguments-slope")
+              )
+            )
+          ),
+          xorByteString = DefaultCostingFun(
+            cpu = ThreeArguments.LinearInYAndZ(
+              TwoVariableLinearFunction(
+                intercept = params("xorByteString-cpu-arguments-intercept"),
+                slope1 = params("xorByteString-cpu-arguments-slope1"),
+                slope2 = params("xorByteString-cpu-arguments-slope2")
+              )
+            ),
+            memory = ThreeArguments.LinearInMaxYZ(
+              OneVariableLinearFunction(
+                intercept = params("xorByteString-memory-arguments-intercept"),
+                slope = params("xorByteString-memory-arguments-slope")
               )
             )
           )

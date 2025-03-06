@@ -118,13 +118,13 @@ case class MachineParams(
 
 object MachineParams {
 
-    val defaultPlutusV1PostConwayParams: MachineParams =
+    lazy val defaultPlutusV1PostConwayParams: MachineParams =
         defaultParamsFor(PlutusLedgerLanguage.PlutusV1, ProtocolVersion.conwayPV)
 
-    val defaultPlutusV2PostConwayParams: MachineParams =
+    lazy val defaultPlutusV2PostConwayParams: MachineParams =
         defaultParamsFor(PlutusLedgerLanguage.PlutusV2, ProtocolVersion.conwayPV)
 
-    val defaultPlutusV3Params: MachineParams =
+    lazy val defaultPlutusV3Params: MachineParams =
         defaultParamsFor(PlutusLedgerLanguage.PlutusV3, ProtocolVersion.conwayPV)
 
     /** The default machine parameters. Uses [[BuiltinSemanticsVariant.B]]
@@ -134,7 +134,7 @@ object MachineParams {
       *   `fromCardanoCliProtocolParamsJson` etc to create machine parameters with the latest costs.
       */
     @deprecated("Use defaultPlutusV2PostConwayParams or defaultParamsFor", "0.8.0")
-    val defaultParams: MachineParams = defaultPlutusV2PostConwayParams
+    lazy val defaultParams: MachineParams = defaultPlutusV2PostConwayParams
 
     /** Creates default machine parameters for a given Plutus version and protocol version.
       *
