@@ -236,7 +236,6 @@ class CompilerPluginToSIRSpec extends AnyFunSuite with ScalaCheckPropertyChecks:
         val compiled = compile {
             BigInt(1).toData
         }
-        println(compiled)
         val expected = Let(
           Rec,
           immutable.List(
@@ -259,7 +258,6 @@ class CompilerPluginToSIRSpec extends AnyFunSuite with ScalaCheckPropertyChecks:
             )
           )
         )
-        println(expected.showHighlighted)
         assert(compiled ~=~ expected)
         //    val term = compiled.toUplc()
         //    assert(VM.evaluateTerm(term) == Data.I(22))
