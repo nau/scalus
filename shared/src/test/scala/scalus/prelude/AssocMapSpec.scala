@@ -11,6 +11,30 @@ import scalus.prelude.Prelude.given
 import scalus.prelude.These.*
 import scalus.uplc.ArbitraryInstances
 
+@Compile
+private object AssocMapTest {
+    val m1 = AssocMap.fromList(
+      Cons((BigInt(1), BigInt(2)), Cons((BigInt(0), BigInt(0)), List.Nil))
+    )
+    val m2 = AssocMap.fromList(
+      Cons((BigInt(1), BigInt(3)), Cons((BigInt(3), BigInt(4)), List.Nil))
+    )
+    def equalsAssets(
+        a: AssocMap[BigInt, BigInt],
+        b: AssocMap[BigInt, BigInt]
+    ): Boolean = {
+        val combined = AssocMap.toList(AssocMap.union(a, b))
+        // all values are equal, absent values are 0
+        List.foldLeft(combined, true) { case (acc, pair) =>
+            pair._2 match
+                case These(v1, v2) => acc && v1 == v2
+                case This(v1)      => acc && v1 == BigInt(0)
+                case That(v2)      => acc && v2 == BigInt(0)
+        }
+    }
+
+}
+
 class AssocMapSpec extends AnyFunSuite with ScalaCheckPropertyChecks with ArbitraryInstances {
 
     test("empty") {
@@ -23,12 +47,7 @@ class AssocMapSpec extends AnyFunSuite with ScalaCheckPropertyChecks with Arbitr
     }
 
     test("union") {
-        val m1 = AssocMap.fromList(
-          Cons((BigInt(1), BigInt(2)), Cons((BigInt(0), BigInt(0)), List.Nil))
-        )
-        val m2 = AssocMap.fromList(
-          Cons((BigInt(1), BigInt(3)), Cons((BigInt(3), BigInt(4)), List.Nil))
-        )
+        import AssocMapTest.*
         val m3 = AssocMap.union(m1, m2)
         val compiled = Compiler.compile {
             val a = BigInt(132)
@@ -44,19 +63,6 @@ class AssocMapSpec extends AnyFunSuite with ScalaCheckPropertyChecks with Arbitr
             (BigInt(3), That(BigInt(4)))
           )
         )
-        def equalsAssets(
-            a: AssocMap[BigInt, BigInt],
-            b: AssocMap[BigInt, BigInt]
-        ): Boolean = {
-            val combined = AssocMap.toList(AssocMap.union(a, b))
-            // all values are equal, absent values are 0
-            List.foldLeft(combined, true) { case (acc, pair) =>
-                pair._2 match
-                    case These(v1, v2) => acc && v1 == v2
-                    case This(v1)      => acc && v1 == BigInt(0)
-                    case That(v2)      => acc && v2 == BigInt(0)
-            }
-        }
         {
             val compiled = Compiler.compile {
                 equalsAssets(m1, m2)
