@@ -33,7 +33,7 @@ class ByteString private (val bytes: Array[Byte]) {
 
 object ByteString {
     val empty = new ByteString(Array.empty)
-    
+
     // FIXME: copy input bytes
     def fromArray(bytes: Array[Byte]): ByteString = new ByteString(bytes)
 
