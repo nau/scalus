@@ -1628,6 +1628,8 @@ final class SIRCompiler(mode: scalus.Mode)(using ctx: Context) {
     protected def sirTypeInEnv(tp: Type, env: SIRTypesHelper.SIRTypeEnv): SIRType = {
         try
             val retval = SIRTypesHelper.sirTypeInEnv(tp, env)
+
+            // FIXME: why this is here?
             retval match
                 case _: SIRType.SumCaseClass =>
                     tp match
@@ -1635,15 +1637,15 @@ final class SIRCompiler(mode: scalus.Mode)(using ctx: Context) {
                             if tpe.widen.typeSymbol.name.asSimpleName.show == "List" =>
                         // println(s"SIRTypeInEnv:List, tp=${tp.show}, fullname=${tp.typeSymbol.fullName}, retval=${retval.show}")
                         case _ =>
-                            println(
-                              s"SIRTypeInEnv, tp=${tp.show}, fullname=${tp.typeSymbol.fullName}, retval=${retval.show}"
-                            )
+//                            println(
+//                              s"SIRTypeInEnv, tp=${tp.show}, fullname=${tp.typeSymbol.fullName}, retval=${retval.show}"
+//                            )
                 case _ =>
             retval
         catch
             case e: SIRTypesHelper.TypingException =>
-                println(s"Error wjile typing: ${tp.show}: ${e.msg},")
-                println(s"env.vars=${env.vars}");
+                println(s"Error while typing: ${tp.show}: ${e.msg},")
+                println(s"env.vars=${env.vars}")
                 if true then {
                     throw e
                 }
