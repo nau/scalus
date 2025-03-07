@@ -145,7 +145,8 @@ object BitwiseLogicalOperations:
         transformByteString(byteString)(byte => (byte ^ 255).toByte)
 
     def readBit(byteString: ByteString, index: BigInt): Boolean = {
-        if !index.isValidInt then throw new BuiltinException(s"Index out of Int bounds, actual $index")
+        if !index.isValidInt then
+            throw new BuiltinException(s"Index out of Int bounds, actual $index")
 
         val bytes = byteString.bytes
         val bitLength = bytes.length * 8
