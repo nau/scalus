@@ -54,37 +54,4 @@ object CommonSubExpression {
         (withVars, logs)
 }
 
-object ApplyAsConstrCase {
-    def apply(term: Term): Term =
-        val (transformed, logs) = extractPass(term)
-        transformed
 
-    /** Main inlining function */
-    def extractPass(term: Term): (Term, collection.Seq[String]) =
-        val logs = ArrayBuffer.empty[String]
-        def applyToList(app: Term): (Term, List[Term]) =
-            app match
-                case Apply(f, arg) =>
-                    val (f1, args) = applyToList(f)
-                    (f1, args :+ arg)
-                case f => (f, Nil)
-
-        def go(term: Term): Term = term match
-            case _: Apply =>
-                applyToList(term) match
-                    case (f, args) if args.sizeCompare(2) > 0 =>
-                        logs += s"Replacing ${args.size} Apply with Case/Constr"
-                        Case(Constr(0, args.map(go)), go(f) :: Nil)
-                    case _ => term
-            case LamAbs(name, body) => LamAbs(name, go(body))
-            case Force(t)           => Force(go(t))
-            case Delay(t)           => Delay(go(t))
-            case Constr(tag, args)  => Constr(tag, args.map(arg => go(arg)))
-            case Case(scrutinee, cases) =>
-                Case(
-                  go(scrutinee),
-                  cases.map(go)
-                )
-            case _: Var | _: Const | _: Builtin | Error => term
-        (go(term), logs)
-}
