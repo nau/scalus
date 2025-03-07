@@ -474,6 +474,34 @@ object Builtins:
     def complementByteString(byteString: ByteString): ByteString =
         BitwiseLogicalOperations.complementByteString(byteString)
 
+    /** Bitwise logical ReadBit for ByteStrings.
+      *
+      * @see
+      *   [CIP-122] (https://github.com/cardano-foundation/CIPs/tree/master/CIP-0122).
+      *
+      * Gets the value of the bit at the specified index in the input ByteString. The index must be
+      * in the range [0 .. byteString.size * 8), otherwise BuiltinException will be thrown. Bit
+      * indexing starts from the end of the ByteString.
+      *
+      * @example
+      *   readBit(hex"0004", 2) == true
+      * @example
+      *   readBit(hex"0004", 15) == false
+      * @example
+      *   readBit(hex"0004", 16) throws BuiltinException
+      *
+      * @param byteString
+      *   The `ByteString` that contains the bit to be read.
+      * @param index
+      *   The index of the bit to be read.
+      * @throws BuiltinException
+      *   if the index is out of bounds.
+      * @return
+      *   The value of the bit at the specified index.
+      */
+    def readBit(byteString: ByteString, index: BigInt): Boolean =
+        BitwiseLogicalOperations.readBit(byteString, index)
+
     def bls12_381_G1_equal(using
         ps: PlatformSpecific
     )(p1: BLS12_381_G1_Element, p2: BLS12_381_G1_Element): Boolean =

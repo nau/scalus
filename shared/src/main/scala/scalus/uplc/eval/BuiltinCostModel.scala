@@ -96,7 +96,8 @@ case class BuiltinCostModel(
     andByteString: DefaultCostingFun[ThreeArguments],
     orByteString: DefaultCostingFun[ThreeArguments],
     xorByteString: DefaultCostingFun[ThreeArguments],
-    complementByteString: DefaultCostingFun[OneArgument]
+    complementByteString: DefaultCostingFun[OneArgument],
+    readBit: DefaultCostingFun[TwoArguments]
 ) {
 
     /** Convert a [[BuiltinCostModel]] to a flat map of cost parameters
@@ -226,7 +227,8 @@ object BuiltinCostModel {
             "andByteString" -> writeJs(model.andByteString),
             "orByteString" -> writeJs(model.orByteString),
             "xorByteString" -> writeJs(model.xorByteString),
-            "complementByteString" -> writeJs(model.complementByteString)
+            "complementByteString" -> writeJs(model.complementByteString),
+            "readBit" -> writeJs(model.readBit)
           ),
       json =>
           BuiltinCostModel(
@@ -337,6 +339,10 @@ object BuiltinCostModel {
             complementByteString =
                 if json.obj.keySet.contains("complementByteString") then
                     read[DefaultCostingFun[OneArgument]](json("complementByteString"))
+                else null,
+            readBit =
+                if json.obj.keySet.contains("readBit") then
+                    read[DefaultCostingFun[TwoArguments]](json("readBit"))
                 else null
           )
     )
@@ -1325,6 +1331,14 @@ object BuiltinCostModel {
                 intercept = params("complementByteString-memory-arguments-intercept"),
                 slope = params("complementByteString-memory-arguments-slope")
               )
+            )
+          ),
+          readBit = DefaultCostingFun(
+            cpu = TwoArguments.ConstantCost(
+              cost = params("readBit-cpu-arguments")
+            ),
+            memory = TwoArguments.ConstantCost(
+              cost = params("readBit-memory-arguments")
             )
           )
         )

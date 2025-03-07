@@ -561,3 +561,26 @@ open class CekBuiltinsSpec
         assertEvalEq(ComplementByteString $ hex"0F", hex"F0")
         assertEvalEq(ComplementByteString $ hex"FF", hex"00")
     }
+
+    test("ReadBit follows CIP-122") {
+        val ReadBit = compile(scalus.builtin.Builtins.readBit).toUplc()
+
+        assertEvalThrows[BuiltinError](ReadBit $ hex"" $ 0)
+        assertEvalThrows[BuiltinError](ReadBit $ hex"" $ 345)
+        assertEvalThrows[BuiltinError](ReadBit $ hex"" $ -1)
+        assertEvalThrows[BuiltinError](ReadBit $ hex"FF" $ -1)
+
+        assertEvalEq(ReadBit $ hex"F4" $ 0, false)
+        assertEvalEq(ReadBit $ hex"F4" $ 1, false)
+        assertEvalEq(ReadBit $ hex"F4" $ 2, true)
+        assertEvalEq(ReadBit $ hex"F4" $ 3, false)
+        assertEvalEq(ReadBit $ hex"F4" $ 4, true)
+        assertEvalEq(ReadBit $ hex"F4" $ 5, true)
+        assertEvalEq(ReadBit $ hex"F4" $ 6, true)
+        assertEvalEq(ReadBit $ hex"F4" $ 7, true)
+
+        assertEvalThrows[BuiltinError](ReadBit $ hex"F4" $ 8)
+        assertEvalThrows[BuiltinError](ReadBit $ hex"FFF4" $ 16)
+
+        assertEvalEq(ReadBit $ hex"F4FF" $ 10, true)
+    }
