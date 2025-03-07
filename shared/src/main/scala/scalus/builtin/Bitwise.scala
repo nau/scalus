@@ -144,6 +144,28 @@ object BitwiseLogicalOperations:
     def complementByteString(byteString: ByteString): ByteString =
         transformByteString(byteString)(byte => (byte ^ 255).toByte)
 
+    def readBit(byteString: ByteString, index: BigInt): Boolean = {
+        if !index.isValidInt then throw new BuiltinException(s"Index out of Int bounds, actual $index")
+
+        val bytes = byteString.bytes
+        val bitLength = bytes.length * 8
+        val intIndex = index.toInt
+
+        if bytes.isEmpty then
+            throw new BuiltinException(
+              s"Index out of bounds, because byte string is empty, actual $intIndex"
+            )
+
+        if intIndex < 0 || intIndex >= bitLength then
+            throw new BuiltinException(
+              s"Index out of bounds, expected: [0 .. $bitLength), actual $intIndex"
+            )
+
+        val byteIndex = (bitLength - 1 - intIndex) / 8
+        val bitIndex = intIndex % 8
+        ((bytes(byteIndex) >> bitIndex) & 1) == 1
+    }
+
     private inline def combineByteStrings(
         shouldPad: Boolean,
         lhs: ByteString,

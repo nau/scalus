@@ -7,9 +7,10 @@ import scala.compiletime.asMatchable
 
 // TODO replace Array on IArray
 class ByteString private (val bytes: Array[Byte]) {
+    def apply(i: Int): Byte = bytes(i)
     override def toString: String = "\"" + toHex + "\""
 
-    override def hashCode(): Int = java.util.Arrays.hashCode(bytes)
+    override def hashCode: Int = java.util.Arrays.hashCode(bytes)
 
     override def equals(obj: Any): Boolean = obj.asMatchable match {
         case that: ByteString => java.util.Arrays.equals(this.bytes, that.bytes)
@@ -34,8 +35,7 @@ class ByteString private (val bytes: Array[Byte]) {
 object ByteString {
     val empty = new ByteString(Array.empty)
 
-    // FIXME: copy input bytes
-    def fromArray(bytes: Array[Byte]): ByteString = new ByteString(bytes)
+    def fromArray(bytes: Array[Byte]): ByteString = new ByteString(bytes.clone)
 
     def apply(bytes: Byte*): ByteString = new ByteString(bytes.toArray)
 
