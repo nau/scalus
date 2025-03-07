@@ -145,26 +145,67 @@ object BitwiseLogicalOperations:
         transformByteString(byteString)(byte => (byte ^ 255).toByte)
 
     def readBit(byteString: ByteString, index: BigInt): Boolean = {
+        if byteString.isEmpty then
+            throw new BuiltinException(
+              s"Index out of bounds, because byte string is empty, actual: $index"
+            )
+
         if !index.isValidInt then
-            throw new BuiltinException(s"Index out of Int bounds, actual $index")
+            throw new BuiltinException(s"Index out of Int bounds, actual: $index")
 
         val bytes = byteString.bytes
         val bitLength = bytes.length * 8
-        val intIndex = index.toInt
+        val currentIndex = index.toInt
 
-        if bytes.isEmpty then
+        if currentIndex < 0 || currentIndex >= bitLength then
             throw new BuiltinException(
-              s"Index out of bounds, because byte string is empty, actual $intIndex"
+              s"Index out of bounds, expected: [0 .. $bitLength), actual: $currentIndex"
             )
 
-        if intIndex < 0 || intIndex >= bitLength then
-            throw new BuiltinException(
-              s"Index out of bounds, expected: [0 .. $bitLength), actual $intIndex"
-            )
-
-        val byteIndex = (bitLength - 1 - intIndex) / 8
-        val bitIndex = intIndex % 8
+        val byteIndex = (bitLength - 1 - currentIndex) / 8
+        val bitIndex = currentIndex % 8
         ((bytes(byteIndex) >> bitIndex) & 1) == 1
+    }
+
+    def writeBits(
+        byteString: ByteString,
+        indexes: scala.collection.immutable.List[BigInt],
+        bit: Boolean
+    ): ByteString = {
+        if indexes.isEmpty then return byteString
+
+        if byteString.isEmpty then
+            throw new BuiltinException(
+              s"Indexes out of bounds, because byte string is empty, actual: $indexes"
+            )
+
+        val resultArray = byteString.bytes.clone()
+        val bitLength = resultArray.length * 8
+        val bitValue = if (bit) 1 else 0
+
+        var iterationIndexes = indexes
+        while iterationIndexes.nonEmpty do
+            val index = iterationIndexes.head
+
+            if !index.isValidInt then
+                throw new BuiltinException(s"Index out of Int bounds, actual: $index")
+
+            val currentIndex = index.toInt
+
+            if currentIndex < 0 || currentIndex >= bitLength then
+                throw new BuiltinException(
+                  s"Index out of bounds, expected: [0 .. $bitLength), actual: $currentIndex"
+                )
+
+            val byteIndex = (bitLength - 1 - currentIndex) / 8
+            val bitIndex = currentIndex % 8
+            if bitValue == 1 then
+                resultArray(byteIndex) = (resultArray(byteIndex) | (1 << bitIndex)).toByte
+            else resultArray(byteIndex) = (resultArray(byteIndex) & ~(1 << bitIndex)).toByte
+
+            iterationIndexes = iterationIndexes.tail
+
+        ByteString.unsafeFromArray(resultArray)
     }
 
     private inline def combineByteStrings(

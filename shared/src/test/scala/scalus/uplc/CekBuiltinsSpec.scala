@@ -584,3 +584,36 @@ open class CekBuiltinsSpec
 
         assertEvalEq(ReadBit $ hex"F4FF" $ 10, true)
     }
+
+    test("WriteBits follows CIP-122") {
+        val WriteBits = compile(scalus.builtin.Builtins.writeBits).toUplc()
+
+        assertEvalThrows[BuiltinError](WriteBits $ hex"" $ List(0) $ false)
+        assertEvalThrows[BuiltinError](WriteBits $ hex"" $ List(15) $ false)
+        assertEvalThrows[BuiltinError](WriteBits $ hex"" $ List(0) $ true)
+        assertEvalThrows[BuiltinError](WriteBits $ hex"" $ List(0, 1) $ false)
+        assertEvalThrows[BuiltinError](WriteBits $ hex"FF" $ List(-1) $ false)
+        assertEvalThrows[BuiltinError](WriteBits $ hex"FF" $ List(0, -1) $ true)
+        assertEvalThrows[BuiltinError](WriteBits $ hex"FF" $ List(-1, 0) $ true)
+        assertEvalThrows[BuiltinError](WriteBits $ hex"FF" $ List(8) $ false)
+        assertEvalThrows[BuiltinError](WriteBits $ hex"FF" $ List(1, 8) $ false)
+        assertEvalThrows[BuiltinError](WriteBits $ hex"FF" $ List(8, 1) $ false)
+
+        assertEvalEq(WriteBits $ hex"FF" $ List(0) $ false, hex"FE")
+        assertEvalEq(WriteBits $ hex"FF" $ List(1) $ false, hex"FD")
+        assertEvalEq(WriteBits $ hex"FF" $ List(2) $ false, hex"FB")
+        assertEvalEq(WriteBits $ hex"FF" $ List(3) $ false, hex"F7")
+        assertEvalEq(WriteBits $ hex"FF" $ List(4) $ false, hex"EF")
+        assertEvalEq(WriteBits $ hex"FF" $ List(5) $ false, hex"DF")
+        assertEvalEq(WriteBits $ hex"FF" $ List(6) $ false, hex"BF")
+        assertEvalEq(WriteBits $ hex"FF" $ List(7) $ false, hex"7F")
+
+        assertEvalEq(WriteBits $ hex"00" $ List(5) $ true, hex"20")
+        assertEvalEq(WriteBits $ hex"FF" $ List(5) $ false, hex"DF")
+        assertEvalEq(WriteBits $ hex"F4FF" $ List(10) $ false, hex"F0FF")
+        assertEvalEq(WriteBits $ hex"F4FF" $ List(10, 1) $ false, hex"F0FD")
+        assertEvalEq(WriteBits $ hex"F4FF" $ List(1, 10) $ false, hex"F0FD")
+
+        assertEvalEq(WriteBits $ hex"FF" $ List(0) $ true, hex"FF")
+        assertEvalEq(WriteBits $ hex"00" $ List(0) $ false, hex"00")
+    }

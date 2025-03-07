@@ -97,7 +97,8 @@ case class BuiltinCostModel(
     orByteString: DefaultCostingFun[ThreeArguments],
     xorByteString: DefaultCostingFun[ThreeArguments],
     complementByteString: DefaultCostingFun[OneArgument],
-    readBit: DefaultCostingFun[TwoArguments]
+    readBit: DefaultCostingFun[TwoArguments],
+    writeBits: DefaultCostingFun[ThreeArguments]
 ) {
 
     /** Convert a [[BuiltinCostModel]] to a flat map of cost parameters
@@ -228,7 +229,8 @@ object BuiltinCostModel {
             "orByteString" -> writeJs(model.orByteString),
             "xorByteString" -> writeJs(model.xorByteString),
             "complementByteString" -> writeJs(model.complementByteString),
-            "readBit" -> writeJs(model.readBit)
+            "readBit" -> writeJs(model.readBit),
+            "writeBits" -> writeJs(model.writeBits)
           ),
       json =>
           BuiltinCostModel(
@@ -343,6 +345,10 @@ object BuiltinCostModel {
             readBit =
                 if json.obj.keySet.contains("readBit") then
                     read[DefaultCostingFun[TwoArguments]](json("readBit"))
+                else null,
+            writeBits =
+                if json.obj.keySet.contains("writeBits") then
+                    read[DefaultCostingFun[ThreeArguments]](json("writeBits"))
                 else null
           )
     )
@@ -1339,6 +1345,20 @@ object BuiltinCostModel {
             ),
             memory = TwoArguments.ConstantCost(
               cost = params("readBit-memory-arguments")
+            )
+          ),
+          writeBits = DefaultCostingFun(
+            cpu = ThreeArguments.LinearInY(
+              OneVariableLinearFunction(
+                intercept = params("writeBits-cpu-arguments-intercept"),
+                slope = params("writeBits-cpu-arguments-slope")
+              )
+            ),
+            memory = ThreeArguments.LinearInX(
+              OneVariableLinearFunction(
+                intercept = params("writeBits-memory-arguments-intercept"),
+                slope = params("writeBits-memory-arguments-slope")
+              )
             )
           )
         )
