@@ -12,12 +12,13 @@ import scalus.uplc.DefaultFun
 import scalus.uplc.DefaultUni.Bool
 import scala.language.implicitConversions
 
-class CommonSubExpressionSpec extends AnyFunSuite {
+class ForcedBuiltinsExtractorSpec extends AnyFunSuite {
 
     test("extract (force (builtin headList))") {
         val sir = compile(headList(builtin.List.empty[Boolean]))
         val uplc = sir.toUplc()
-        val optimized = CommonSubExpression(uplc)
+        val (optimized, logs) = ForcedBuiltinsExtractor.extractPass(uplc)
+        assert(logs == Seq("Replacing Forced builtin with Var: builtin_HeadList"))
         assert(
           optimized == (lam("builtin_HeadList")(
             vr"builtin_HeadList" $ Constant.List(Bool, Nil)
@@ -28,7 +29,7 @@ class CommonSubExpressionSpec extends AnyFunSuite {
     test("extract (force (force (builtin fstPair)))") {
         val sir = compile(fstPair(builtin.Pair(true, false)))
         val uplc = sir.toUplc()
-        val optimized = CommonSubExpression(uplc)
+        val optimized = ForcedBuiltinsExtractor(uplc)
         assert(
           optimized == (lam("builtin_FstPair")(
             vr"builtin_FstPair" $ Constant.Pair(asConstant(true), asConstant(false))

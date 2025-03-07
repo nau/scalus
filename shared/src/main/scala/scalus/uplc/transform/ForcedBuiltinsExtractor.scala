@@ -10,7 +10,17 @@ import scalus.uplc.TermDSL.*
 import scala.collection.mutable
 import scala.collection.mutable.ArrayBuffer
 
-object CommonSubExpression {
+/** Extract forced builtins to top level
+  *
+  * For example, replace `(force (force (builtin fstPair)))` with (lam builtin_FstPair
+  * (builtin_FstPair (pair true false)) (! (! builtin_FstPair))). This is more memory/cpu efficient
+  * than nested Force at least in Plutus V3 Plomin HF, protocol version 10.
+  *
+  * With current machine costs, Force costs 100 memory and 16000 cpu, same for Builtin. Hence (lam
+  * builtin_FstPair (builtin_FstPair (pair true false)) (! (! builtin_FstPair))) costs 200 memory
+  * and 32000 cpu, while `(force (force (builtin fstPair)))` costs 300 memory and 48000 cpu.
+  */
+object ForcedBuiltinsExtractor {
     def apply(term: Term): Term =
         val (transformed, logs) = extractPass(term)
         transformed
@@ -33,10 +43,12 @@ object CommonSubExpression {
             case Force(Force(Builtin(bn)))
                 if Meaning.allBuiltins.BuiltinMeanings(bn).typeScheme.numTypeVars == 2 =>
                 val name = extracted.getOrElseUpdate(term, freshName(s"builtin_$bn", env))
+                logs += s"Replacing Forced builtin with Var: $name"
                 Var(NamedDeBruijn(name))
             case Force(Builtin(bn))
                 if Meaning.allBuiltins.BuiltinMeanings(bn).typeScheme.numTypeVars == 1 =>
                 val name = extracted.getOrElseUpdate(term, freshName(s"builtin_$bn", env))
+                logs += s"Replacing Forced builtin with Var: $name"
                 Var(NamedDeBruijn(name))
             case Force(t)          => Force(go(t, env))
             case Delay(t)          => Delay(go(t, env))
@@ -53,5 +65,3 @@ object CommonSubExpression {
         }
         (withVars, logs)
 }
-
-
