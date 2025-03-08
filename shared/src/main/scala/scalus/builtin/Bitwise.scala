@@ -181,7 +181,7 @@ object BitwiseLogicalOperations:
 
         val resultArray = byteString.bytes.clone()
         val bitLength = resultArray.length * 8
-        val bitValue = if (bit) 1 else 0
+        val bitValue = if bit then 1 else 0
 
         var iterationIndexes = indexes
         while iterationIndexes.nonEmpty do

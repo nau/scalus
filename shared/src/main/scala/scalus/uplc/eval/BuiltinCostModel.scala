@@ -98,7 +98,7 @@ case class BuiltinCostModel(
     xorByteString: DefaultCostingFun[ThreeArguments],
     complementByteString: DefaultCostingFun[OneArgument],
     readBit: DefaultCostingFun[TwoArguments],
-    writeBits: DefaultCostingFun[ThreeArguments]
+    writeBits: WriteBitsCostingFun
 ) {
 
     /** Convert a [[BuiltinCostModel]] to a flat map of cost parameters
@@ -348,7 +348,7 @@ object BuiltinCostModel {
                 else null,
             writeBits =
                 if json.obj.keySet.contains("writeBits") then
-                    read[DefaultCostingFun[ThreeArguments]](json("writeBits"))
+                    read[WriteBitsCostingFun](json("writeBits"))
                 else null
           )
     )
@@ -1347,7 +1347,7 @@ object BuiltinCostModel {
               cost = params("readBit-memory-arguments")
             )
           ),
-          writeBits = DefaultCostingFun(
+          writeBits = WriteBitsCostingFun(
             cpu = ThreeArguments.LinearInY(
               OneVariableLinearFunction(
                 intercept = params("writeBits-cpu-arguments-intercept"),
