@@ -97,7 +97,9 @@ case class BuiltinCostModel(
     orByteString: DefaultCostingFun[ThreeArguments],
     xorByteString: DefaultCostingFun[ThreeArguments],
     complementByteString: DefaultCostingFun[OneArgument],
-    readBit: DefaultCostingFun[TwoArguments]
+    readBit: DefaultCostingFun[TwoArguments],
+    writeBits: WriteBitsCostingFun,
+    replicateByte: DefaultCostingFun[TwoArguments]
 ) {
 
     /** Convert a [[BuiltinCostModel]] to a flat map of cost parameters
@@ -228,7 +230,9 @@ object BuiltinCostModel {
             "orByteString" -> writeJs(model.orByteString),
             "xorByteString" -> writeJs(model.xorByteString),
             "complementByteString" -> writeJs(model.complementByteString),
-            "readBit" -> writeJs(model.readBit)
+            "readBit" -> writeJs(model.readBit),
+            "writeBits" -> writeJs(model.writeBits),
+            "replicateByte" -> writeJs(model.replicateByte)
           ),
       json =>
           BuiltinCostModel(
@@ -343,6 +347,14 @@ object BuiltinCostModel {
             readBit =
                 if json.obj.keySet.contains("readBit") then
                     read[DefaultCostingFun[TwoArguments]](json("readBit"))
+                else null,
+            writeBits =
+                if json.obj.keySet.contains("writeBits") then
+                    read[WriteBitsCostingFun](json("writeBits"))
+                else null,
+            replicateByte =
+                if json.obj.keySet.contains("replicateByte") then
+                    read[DefaultCostingFun[TwoArguments]](json("replicateByte"))
                 else null
           )
     )
@@ -1339,6 +1351,34 @@ object BuiltinCostModel {
             ),
             memory = TwoArguments.ConstantCost(
               cost = params("readBit-memory-arguments")
+            )
+          ),
+          writeBits = WriteBitsCostingFun(
+            cpu = ThreeArguments.LinearInY(
+              OneVariableLinearFunction(
+                intercept = params("writeBits-cpu-arguments-intercept"),
+                slope = params("writeBits-cpu-arguments-slope")
+              )
+            ),
+            memory = ThreeArguments.LinearInX(
+              OneVariableLinearFunction(
+                intercept = params("writeBits-memory-arguments-intercept"),
+                slope = params("writeBits-memory-arguments-slope")
+              )
+            )
+          ),
+          replicateByte = DefaultCostingFun(
+            cpu = TwoArguments.LinearInX(
+              OneVariableLinearFunction(
+                intercept = params("replicateByte-cpu-arguments-intercept"),
+                slope = params("replicateByte-cpu-arguments-slope")
+              )
+            ),
+            memory = TwoArguments.LinearInX(
+              OneVariableLinearFunction(
+                intercept = params("replicateByte-memory-arguments-intercept"),
+                slope = params("replicateByte-memory-arguments-slope")
+              )
             )
           )
         )

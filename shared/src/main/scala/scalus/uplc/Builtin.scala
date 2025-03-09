@@ -1016,6 +1016,34 @@ class BuiltinsMeaning(
           builtinCostModel.readBit
         )
 
+    val WriteBits =
+        mkMeaning(
+          DefaultUni.ByteString ->: DefaultUni.List(
+            DefaultUni.Integer
+          ) ->: DefaultUni.Bool ->: DefaultUni.ByteString,
+          (logger: Logger, args: Seq[CekValue]) =>
+              val byteString = args(0).asByteString
+              val indexes = args(1).asList.map {
+                  case Constant.Integer(i) => i
+                  case _ => throw new KnownTypeUnliftingError(DefaultUni.Integer, args(1))
+              }
+              val bit = args(2).asBool
+              VCon(asConstant(writeBits(byteString, indexes, bit)))
+          ,
+          builtinCostModel.writeBits
+        )
+
+    val ReplicateByte =
+        mkMeaning(
+          DefaultUni.Integer ->: DefaultUni.Integer ->: DefaultUni.ByteString,
+          (logger: Logger, args: Seq[CekValue]) =>
+              val length = args(0).asInteger
+              val byte = args(1).asInteger
+              VCon(asConstant(replicateByte(length, byte)))
+          ,
+          builtinCostModel.replicateByte
+        )
+
     private inline def mkGetBuiltinRuntime: DefaultFun => BuiltinRuntime = ${
         scalus.macros.Macros.mkGetBuiltinRuntime('this)
     }
