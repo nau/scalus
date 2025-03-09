@@ -150,18 +150,15 @@ object BitwiseLogicalOperations:
               s"readBit: Index out of bounds, because byte string is empty, actual: $index"
             )
 
-        if !index.isValidInt then
-            throw new BuiltinException(s"readBit: Index out of Int bounds, actual: $index")
-
         val bytes = byteString.bytes
         val bitLength = bytes.length * 8
-        val currentIndex = index.toInt
 
-        if currentIndex < 0 || currentIndex >= bitLength then
+        if index < 0 || index >= bitLength then
             throw new BuiltinException(
-              s"readBit: Index out of bounds, expected: [0 .. $bitLength), actual: $currentIndex"
+              s"readBit: Index out of bounds, expected: [0 .. $bitLength), actual: $index"
             )
 
+        val currentIndex = index.toInt
         val byteIndex = (bitLength - 1 - currentIndex) / 8
         val bitIndex = currentIndex % 8
         ((bytes(byteIndex) >> bitIndex) & 1) == 1
@@ -187,16 +184,12 @@ object BitwiseLogicalOperations:
         while iterationIndexes.nonEmpty do
             val index = iterationIndexes.head
 
-            if !index.isValidInt then
-                throw new BuiltinException(s"writeBits: Index out of Int bounds, actual: $index")
-
-            val currentIndex = index.toInt
-
-            if currentIndex < 0 || currentIndex >= bitLength then
+            if index < 0 || index >= bitLength then
                 throw new BuiltinException(
-                  s"writeBits: Index out of bounds, expected: [0 .. $bitLength), actual: $currentIndex"
+                  s"writeBits: Index out of bounds, expected: [0 .. $bitLength), actual: $index"
                 )
 
+            val currentIndex = index.toInt
             val byteIndex = (bitLength - 1 - currentIndex) / 8
             val bitIndex = currentIndex % 8
             if bitValue == 1 then
@@ -208,15 +201,10 @@ object BitwiseLogicalOperations:
         ByteString.unsafeFromArray(resultArray)
     }
 
-    def replicateByte(length: Int, byte: Int): ByteString = {
-        if length < 0 then
+    def replicateByte(length: BigInt, byte: BigInt): ByteString = {
+        if length < 0 || length > IntegerToByteString.maximumOutputLength then
             throw new BuiltinException(
-              s"replicateByte: negative length, actual: $length"
-            )
-
-        if length > IntegerToByteString.maximumOutputLength then
-            throw new BuiltinException(
-              s"replicateByte: requested length is too long, expected: [0 .. ${IntegerToByteString.maximumOutputLength}], actual: $length"
+              s"replicateByte: requested length out of bounds, expected: [0 .. ${IntegerToByteString.maximumOutputLength}], actual: $length"
             )
 
         if byte < 0 || byte > 255 then
@@ -226,7 +214,7 @@ object BitwiseLogicalOperations:
 
         if length == 0 then return ByteString.empty
 
-        val resultArray = new Array[Byte](length)
+        val resultArray = new Array[Byte](length.toInt)
         java.util.Arrays.fill(resultArray, byte.toByte)
         ByteString.unsafeFromArray(resultArray)
     }

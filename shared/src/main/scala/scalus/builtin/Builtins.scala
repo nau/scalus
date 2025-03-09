@@ -565,7 +565,7 @@ object Builtins:
       * @return
       *   The result of the bitwise logical ReplicateByte operation.
       */
-    def replicateByte(length: Int, byte: Int): ByteString =
+    def replicateByte(length: BigInt, byte: BigInt): ByteString =
         BitwiseLogicalOperations.replicateByte(length, byte)
 
     def bls12_381_G1_equal(using
