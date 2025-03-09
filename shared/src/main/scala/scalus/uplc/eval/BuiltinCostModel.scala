@@ -98,7 +98,8 @@ case class BuiltinCostModel(
     xorByteString: DefaultCostingFun[ThreeArguments],
     complementByteString: DefaultCostingFun[OneArgument],
     readBit: DefaultCostingFun[TwoArguments],
-    writeBits: WriteBitsCostingFun
+    writeBits: WriteBitsCostingFun,
+    replicateByte: DefaultCostingFun[TwoArguments]
 ) {
 
     /** Convert a [[BuiltinCostModel]] to a flat map of cost parameters
@@ -230,7 +231,8 @@ object BuiltinCostModel {
             "xorByteString" -> writeJs(model.xorByteString),
             "complementByteString" -> writeJs(model.complementByteString),
             "readBit" -> writeJs(model.readBit),
-            "writeBits" -> writeJs(model.writeBits)
+            "writeBits" -> writeJs(model.writeBits),
+            "replicateByte" -> writeJs(model.replicateByte)
           ),
       json =>
           BuiltinCostModel(
@@ -349,6 +351,10 @@ object BuiltinCostModel {
             writeBits =
                 if json.obj.keySet.contains("writeBits") then
                     read[WriteBitsCostingFun](json("writeBits"))
+                else null,
+            replicateByte =
+                if json.obj.keySet.contains("replicateByte") then
+                    read[DefaultCostingFun[TwoArguments]](json("replicateByte"))
                 else null
           )
     )
@@ -1358,6 +1364,20 @@ object BuiltinCostModel {
               OneVariableLinearFunction(
                 intercept = params("writeBits-memory-arguments-intercept"),
                 slope = params("writeBits-memory-arguments-slope")
+              )
+            )
+          ),
+          replicateByte = DefaultCostingFun(
+            cpu = TwoArguments.LinearInX(
+              OneVariableLinearFunction(
+                intercept = params("replicateByte-cpu-arguments-intercept"),
+                slope = params("replicateByte-cpu-arguments-slope")
+              )
+            ),
+            memory = TwoArguments.LinearInX(
+              OneVariableLinearFunction(
+                intercept = params("replicateByte-memory-arguments-intercept"),
+                slope = params("replicateByte-memory-arguments-slope")
               )
             )
           )

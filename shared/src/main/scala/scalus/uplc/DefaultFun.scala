@@ -119,6 +119,7 @@ enum DefaultFun extends Enum[DefaultFun]:
     case ComplementByteString
     case ReadBit
     case WriteBits
+    case ReplicateByte
 
 given DefaultFunOrdering: Ordering[DefaultFun] with
     def compare(x: DefaultFun, y: DefaultFun): Int = x.ordinal - y.ordinal

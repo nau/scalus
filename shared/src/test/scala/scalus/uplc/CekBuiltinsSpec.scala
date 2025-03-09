@@ -617,3 +617,19 @@ open class CekBuiltinsSpec
         assertEvalEq(WriteBits $ hex"FF" $ List(0) $ true, hex"FF")
         assertEvalEq(WriteBits $ hex"00" $ List(0) $ false, hex"00")
     }
+
+    test("ReplicateByte follows CIP-122") {
+        val ReplicateByte = compile(scalus.builtin.Builtins.replicateByte).toUplc()
+
+        assertEvalThrows[BuiltinError](ReplicateByte $ -1 $ 0)
+        assertEvalThrows[BuiltinError](ReplicateByte $ -1 $ 3)
+        assertEvalThrows[BuiltinError](ReplicateByte $ 8193 $ 0)
+        assertEvalThrows[BuiltinError](ReplicateByte $ 8193 $ 3)
+        assertEvalThrows[BuiltinError](ReplicateByte $ 1 $ -1)
+        assertEvalThrows[BuiltinError](ReplicateByte $ 1 $ 256)
+        assertEvalThrows[BuiltinError](ReplicateByte $ 4 $ -1)
+        assertEvalThrows[BuiltinError](ReplicateByte $ 4 $ 256)
+
+        assertEvalEq(ReplicateByte $ 0 $ 0xff, hex"")
+        assertEvalEq(ReplicateByte $ 4 $ 0xff, hex"FFFFFFFF")
+    }

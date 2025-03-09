@@ -1033,6 +1033,17 @@ class BuiltinsMeaning(
           builtinCostModel.writeBits
         )
 
+    val ReplicateByte =
+        mkMeaning(
+          DefaultUni.Integer ->: DefaultUni.Integer ->: DefaultUni.ByteString,
+          (logger: Logger, args: Seq[CekValue]) =>
+              val length = args(0).asInteger
+              val byte = args(1).asInteger
+              VCon(asConstant(replicateByte(length, byte)))
+          ,
+          builtinCostModel.replicateByte
+        )
+
     private inline def mkGetBuiltinRuntime: DefaultFun => BuiltinRuntime = ${
         scalus.macros.Macros.mkGetBuiltinRuntime('this)
     }

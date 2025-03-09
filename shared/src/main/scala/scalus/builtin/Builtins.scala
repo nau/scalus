@@ -536,6 +536,38 @@ object Builtins:
     ): ByteString =
         BitwiseLogicalOperations.writeBits(byteString, indexes, bit)
 
+    /** Bitwise logical ReplicateByte for ByteStrings.
+      *
+      * @see
+      *   [CIP-122] (https://github.com/cardano-foundation/CIPs/tree/master/CIP-0122).
+      *
+      * Replicates a byte `length` times and returns result as ByteString. Length must be
+      * non-negative, otherwise BuiltinException will be thrown. The byte value must be in the range
+      * [0 .. 255], otherwise BuiltinException will be thrown.
+      *
+      * @example
+      *   replicateByte(0, 0xFF) == hex""
+      * @example
+      *   replicateByte(4, 0xFF) == hex"FFFFFFFF"
+      * @example
+      *   replicateByte(-1, 255) throws BuiltinException
+      * @example
+      *   replicateByte(1, -1) throws BuiltinException
+      * @example
+      *   replicateByte(1, 256) throws BuiltinException
+      *
+      * @param length
+      *   The number of times to replicate the byte.
+      * @param byte
+      *   The value of the byte to be replicated.
+      * @throws BuiltinException
+      *   if the length is negative or the byte value is out of bounds.
+      * @return
+      *   The result of the bitwise logical ReplicateByte operation.
+      */
+    def replicateByte(length: Int, byte: Int): ByteString =
+        BitwiseLogicalOperations.replicateByte(length, byte)
+
     def bls12_381_G1_equal(using
         ps: PlatformSpecific
     )(p1: BLS12_381_G1_Element, p2: BLS12_381_G1_Element): Boolean =

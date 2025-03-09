@@ -147,11 +147,11 @@ object BitwiseLogicalOperations:
     def readBit(byteString: ByteString, index: BigInt): Boolean = {
         if byteString.isEmpty then
             throw new BuiltinException(
-              s"Index out of bounds, because byte string is empty, actual: $index"
+              s"readBit: Index out of bounds, because byte string is empty, actual: $index"
             )
 
         if !index.isValidInt then
-            throw new BuiltinException(s"Index out of Int bounds, actual: $index")
+            throw new BuiltinException(s"readBit: Index out of Int bounds, actual: $index")
 
         val bytes = byteString.bytes
         val bitLength = bytes.length * 8
@@ -159,7 +159,7 @@ object BitwiseLogicalOperations:
 
         if currentIndex < 0 || currentIndex >= bitLength then
             throw new BuiltinException(
-              s"Index out of bounds, expected: [0 .. $bitLength), actual: $currentIndex"
+              s"readBit: Index out of bounds, expected: [0 .. $bitLength), actual: $currentIndex"
             )
 
         val byteIndex = (bitLength - 1 - currentIndex) / 8
@@ -176,7 +176,7 @@ object BitwiseLogicalOperations:
 
         if byteString.isEmpty then
             throw new BuiltinException(
-              s"Indexes out of bounds, because byte string is empty, actual: $indexes"
+              s"writeBits: Indexes out of bounds, because byte string is empty, actual: $indexes"
             )
 
         val resultArray = byteString.bytes.clone()
@@ -188,13 +188,13 @@ object BitwiseLogicalOperations:
             val index = iterationIndexes.head
 
             if !index.isValidInt then
-                throw new BuiltinException(s"Index out of Int bounds, actual: $index")
+                throw new BuiltinException(s"writeBits: Index out of Int bounds, actual: $index")
 
             val currentIndex = index.toInt
 
             if currentIndex < 0 || currentIndex >= bitLength then
                 throw new BuiltinException(
-                  s"Index out of bounds, expected: [0 .. $bitLength), actual: $currentIndex"
+                  s"writeBits: Index out of bounds, expected: [0 .. $bitLength), actual: $currentIndex"
                 )
 
             val byteIndex = (bitLength - 1 - currentIndex) / 8
@@ -205,6 +205,29 @@ object BitwiseLogicalOperations:
 
             iterationIndexes = iterationIndexes.tail
 
+        ByteString.unsafeFromArray(resultArray)
+    }
+
+    def replicateByte(length: Int, byte: Int): ByteString = {
+        if length < 0 then
+            throw new BuiltinException(
+              s"replicateByte: negative length, actual: $length"
+            )
+
+        if length > IntegerToByteString.maximumOutputLength then
+            throw new BuiltinException(
+              s"replicateByte: requested length is too long, expected: [0 .. ${IntegerToByteString.maximumOutputLength}], actual: $length"
+            )
+
+        if byte < 0 || byte > 255 then
+            throw new BuiltinException(
+              s"replicateByte: byte value out of bounds, expected: [0 .. 255], actual: $byte"
+            )
+
+        if length == 0 then return ByteString.empty
+
+        val resultArray = new Array[Byte](length)
+        java.util.Arrays.fill(resultArray, byte.toByte)
         ByteString.unsafeFromArray(resultArray)
     }
 
