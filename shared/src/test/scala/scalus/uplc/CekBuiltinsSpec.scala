@@ -633,3 +633,34 @@ open class CekBuiltinsSpec
         assertEvalEq(ReplicateByte $ 0 $ 0xff, hex"")
         assertEvalEq(ReplicateByte $ 4 $ 0xff, hex"FFFFFFFF")
     }
+
+    test("ShiftByteString follows CIP-123") {
+        val ShiftByteString = compile(scalus.builtin.Builtins.shiftByteString).toUplc()
+
+        assertEvalEq(ShiftByteString $ hex"" $ 3, hex"")
+        assertEvalEq(ShiftByteString $ hex"" $ -3, hex"")
+        assertEvalEq(ShiftByteString $ hex"EBFC" $ 0, hex"EBFC")
+        assertEvalEq(ShiftByteString $ hex"EBFC" $ 5, hex"7F80")
+        assertEvalEq(ShiftByteString $ hex"EBFC" $ -5, hex"075F")
+        assertEvalEq(ShiftByteString $ hex"EBFC" $ 16, hex"0000")
+        assertEvalEq(ShiftByteString $ hex"EBFC" $ -16, hex"0000")
+
+        val size = 20
+        val byteString = ByteString.unsafeFromArray(
+          Array.fill(size)((scala.util.Random.nextInt(256) - 128).toByte)
+        )
+        val binaryStr = byteString.toBinaryString
+
+        for i <- 0 to size do
+            assert(
+              scalus.builtin.Builtins.shiftByteString(byteString, i).toBinaryString == binaryStr
+                  .drop(i) + "0" * i
+            )
+            assert(
+              scalus.builtin.Builtins
+                  .shiftByteString(byteString, -i)
+                  .toBinaryString == "0" * i + binaryStr
+                  .dropRight(i)
+            )
+        end for
+    }

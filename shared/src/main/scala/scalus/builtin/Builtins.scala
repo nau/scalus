@@ -568,6 +568,31 @@ object Builtins:
     def replicateByte(length: BigInt, byte: BigInt): ByteString =
         BitwiseLogicalOperations.replicateByte(length, byte)
 
+    /** Bitwise logical shiftByteString for ByteStrings.
+      *
+      * @see
+      *   [CIP-123] (https://github.com/cardano-foundation/CIPs/tree/master/CIP-0123).
+      *
+      * Shifts the input ByteString by the specified number of bits. A positive shift value shifts
+      * the ByteString to the left, while a negative shift value shifts the ByteString to the right.
+      *
+      * @example
+      *   shiftByteString(hex"000F", 4) == hex"00F0"
+      * @example
+      *   shiftByteString(hex"000F", 16) == hex"0000"
+      * @example
+      *   shiftByteString(hex"000F", -4) == hex"0000"
+      *
+      * @param byteString
+      *   The ByteString to be shifted.
+      * @param shift
+      *   The number of bits to shift the ByteString.
+      * @return
+      *   The result of the bitwise logical shiftByteString operation.
+      */
+    def shiftByteString(byteString: ByteString, shift: BigInt): ByteString =
+        BitwiseLogicalOperations.shiftByteString(byteString, shift)
+
     def bls12_381_G1_equal(using
         ps: PlatformSpecific
     )(p1: BLS12_381_G1_Element, p2: BLS12_381_G1_Element): Boolean =

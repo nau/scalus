@@ -1044,6 +1044,17 @@ class BuiltinsMeaning(
           builtinCostModel.replicateByte
         )
 
+    val ShiftByteString =
+        mkMeaning(
+          DefaultUni.ByteString ->: DefaultUni.Integer ->: DefaultUni.ByteString,
+          (logger: Logger, args: Seq[CekValue]) =>
+              val byteString = args(0).asByteString
+              val shift = args(1).asInteger
+              VCon(asConstant(shiftByteString(byteString, shift)))
+          ,
+          builtinCostModel.shiftByteString
+        )
+
     private inline def mkGetBuiltinRuntime: DefaultFun => BuiltinRuntime = ${
         scalus.macros.Macros.mkGetBuiltinRuntime('this)
     }

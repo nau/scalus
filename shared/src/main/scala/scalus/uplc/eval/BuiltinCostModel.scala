@@ -99,7 +99,8 @@ case class BuiltinCostModel(
     complementByteString: DefaultCostingFun[OneArgument],
     readBit: DefaultCostingFun[TwoArguments],
     writeBits: WriteBitsCostingFun,
-    replicateByte: DefaultCostingFun[TwoArguments]
+    replicateByte: DefaultCostingFun[TwoArguments],
+    shiftByteString: DefaultCostingFun[TwoArguments]
 ) {
 
     /** Convert a [[BuiltinCostModel]] to a flat map of cost parameters
@@ -232,7 +233,8 @@ object BuiltinCostModel {
             "complementByteString" -> writeJs(model.complementByteString),
             "readBit" -> writeJs(model.readBit),
             "writeBits" -> writeJs(model.writeBits),
-            "replicateByte" -> writeJs(model.replicateByte)
+            "replicateByte" -> writeJs(model.replicateByte),
+            "shiftByteString" -> writeJs(model.shiftByteString)
           ),
       json =>
           BuiltinCostModel(
@@ -355,6 +357,10 @@ object BuiltinCostModel {
             replicateByte =
                 if json.obj.keySet.contains("replicateByte") then
                     read[DefaultCostingFun[TwoArguments]](json("replicateByte"))
+                else null,
+            shiftByteString =
+                if json.obj.keySet.contains("shiftByteString") then
+                    read[DefaultCostingFun[TwoArguments]](json("shiftByteString"))
                 else null
           )
     )
@@ -1378,6 +1384,20 @@ object BuiltinCostModel {
               OneVariableLinearFunction(
                 intercept = params("replicateByte-memory-arguments-intercept"),
                 slope = params("replicateByte-memory-arguments-slope")
+              )
+            )
+          ),
+          shiftByteString = DefaultCostingFun(
+            cpu = TwoArguments.LinearInX(
+              OneVariableLinearFunction(
+                intercept = params("shiftByteString-cpu-arguments-intercept"),
+                slope = params("shiftByteString-cpu-arguments-slope")
+              )
+            ),
+            memory = TwoArguments.LinearInX(
+              OneVariableLinearFunction(
+                intercept = params("shiftByteString-memory-arguments-intercept"),
+                slope = params("shiftByteString-memory-arguments-slope")
               )
             )
           )

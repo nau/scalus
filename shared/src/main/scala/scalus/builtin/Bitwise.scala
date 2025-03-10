@@ -219,6 +219,27 @@ object BitwiseLogicalOperations:
         ByteString.unsafeFromArray(resultArray)
     }
 
+    def shiftByteString(byteString: ByteString, shift: BigInt): ByteString = {
+        if byteString.isEmpty || shift == 0 then return byteString
+
+        if shift < Int.MinValue || shift > Int.MaxValue then
+            throw new BuiltinException(
+              s"shiftByteString: shift out of bounds, expected: [${Int.MinValue} .. ${Int.MaxValue}], actual: $shift"
+            )
+
+        val bytes = byteString.bytes
+        val bytesLength = bytes.length
+        val shiftValue = shift.toInt
+
+        if bytesLength * 8 < shiftValue.abs then return ByteString.fill(bytesLength, 0)
+
+        val resultArray =
+            if shiftValue > 0 then shiftLeft(bytes, shiftValue)
+            else shiftRight(bytes, shiftValue.abs)
+
+        ByteString.unsafeFromArray(resultArray)
+    }
+
     private inline def combineByteStrings(
         shouldPad: Boolean,
         lhs: ByteString,
@@ -260,4 +281,57 @@ object BitwiseLogicalOperations:
             index += 1
 
         ByteString.unsafeFromArray(resultArray)
+    }
+
+    private def shiftLeft(inputBytes: Array[Byte], shift: Int): Array[Byte] = {
+        val shiftMod = shift % 8
+        val carryMask = ((1 << shiftMod) - 1).toByte
+        val offsetBytes = shift / 8
+        val bytesLength = inputBytes.length
+
+        val resultBytes = new Array[Byte](bytesLength)
+
+        var index = 0
+        while index < bytesLength do
+            val sourceIndex = index + offsetBytes
+
+            if sourceIndex >= bytesLength then resultBytes(index) = 0
+            else
+                val src = inputBytes(sourceIndex)
+                var dst = (src << shiftMod).toByte
+                if sourceIndex + 1 < bytesLength then
+                    dst = (dst | ((inputBytes(
+                      sourceIndex + 1
+                    ) >>> (8 - shiftMod)) & carryMask)).toByte
+                resultBytes(index) = dst
+
+            index += 1
+
+        resultBytes
+    }
+
+    private def shiftRight(inputBytes: Array[Byte], shift: Int): Array[Byte] = {
+        val shiftMod = shift % 8
+        val carryMask = (0xff << (8 - shiftMod)).toByte
+        val offsetBytes = shift / 8
+        val bytesLength = inputBytes.length
+
+        val resultBytes = new Array[Byte](bytesLength)
+
+        var index = bytesLength - 1
+        while index >= 0 do
+            val sourceIndex = index - offsetBytes
+
+            if sourceIndex < 0 then resultBytes(index) = 0
+            else
+                val src = inputBytes(sourceIndex)
+                var dst = ((src & 0xff) >>> shiftMod).toByte
+                if sourceIndex - 1 >= 0 then
+                    dst =
+                        (dst | ((inputBytes(sourceIndex - 1) << (8 - shiftMod)) & carryMask)).toByte
+                resultBytes(index) = dst
+
+            index -= 1
+
+        resultBytes
     }
