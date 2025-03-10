@@ -35,8 +35,7 @@ abstract class BaseValidatorSpec
         (expected, result1, result2) match
             case (Expected.SuccessSame, UplcEvalResult.Success(term1, _), Success(term2)) =>
                 val normalized1 = DeBruijn.fromDeBruijnTerm(DeBruijn.deBruijnTerm(term1))
-                val normalized2 = DeBruijn.fromDeBruijnTerm(DeBruijn.deBruijnTerm(term2))
-                assert(normalized1 == normalized2)
+                assert(normalized1 == term2)
             case (Expected.Success(term), UplcEvalResult.Success(term1, _), Success(term2)) =>
                 assert(term == term1)
                 assert(term == term2)

@@ -1,7 +1,7 @@
 {
   inputs = {
     flake-utils.url = "github:numtide/flake-utils";
-    plutus.url = "github:input-output-hk/plutus/1.30.0.0";
+    plutus.url = "github:input-output-hk/plutus/1.40.0.0";
     rust-overlay.url = "github:oxalica/rust-overlay";
     # cardano-node-flake.url = "github:input-output-hk/cardano-node/9.1.1";
   };
@@ -22,7 +22,7 @@
                 inherit system;
                 overlays = [ rust-overlay.overlays.default ];
         };
-        uplc = plutus.cabalProject.${system}.hsPkgs.plutus-core.components.exes.uplc;
+        uplc = plutus.cabalProject.${system}.hsPkgs.plutus-executables.components.exes.uplc;
         tiny_keccak_wrapper = pkgs.stdenv.mkDerivation {
             name = "tiny_keccak_wrapper";
             src = ./rust;  # directory with Rust code
