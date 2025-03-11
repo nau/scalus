@@ -168,6 +168,7 @@ object CommonFlatInstances:
                 case WriteBits                => 80
                 case ReplicateByte            => 81
                 case ShiftByteString          => 82
+                case RotateByteString         => 83
 
             encode.bits(7, code.toByte)
 
@@ -256,6 +257,7 @@ object CommonFlatInstances:
                 case 80 => WriteBits
                 case 81 => ReplicateByte
                 case 82 => ShiftByteString
+                case 83 => RotateByteString
                 case c  => throw new Exception(s"Invalid builtin function code: $c")
 
     def flatConstant(using Flat[builtin.Data]): Flat[Constant] = new Flat[Constant]:

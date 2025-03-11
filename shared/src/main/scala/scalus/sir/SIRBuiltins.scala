@@ -372,6 +372,11 @@ object SIRBuiltins {
       SIRType.ByteString ->: SIRType.Integer ->: SIRType.ByteString
     )
 
+    val rotateByteString: SIR.Builtin = SIR.Builtin(
+      DefaultFun.RotateByteString,
+      SIRType.ByteString ->: SIRType.Integer ->: SIRType.ByteString
+    )
+
     def fromUplc(uplcFun: DefaultFun): SIR.Builtin =
         uplcFun match
             case DefaultFun.AddInteger                      => addInteger
@@ -457,4 +462,5 @@ object SIRBuiltins {
             case DefaultFun.WriteBits                       => writeBits
             case DefaultFun.ReplicateByte                   => replicateByte
             case DefaultFun.ShiftByteString                 => shiftByteString
+            case DefaultFun.RotateByteString                => rotateByteString
 }

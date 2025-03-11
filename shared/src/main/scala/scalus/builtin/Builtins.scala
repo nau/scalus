@@ -593,6 +593,35 @@ object Builtins:
     def shiftByteString(byteString: ByteString, shift: BigInt): ByteString =
         BitwiseLogicalOperations.shiftByteString(byteString, shift)
 
+    /** Bitwise logical rotateByteString for ByteStrings.
+      *
+      * @see
+      *   [CIP-123] (https://github.com/cardano-foundation/CIPs/tree/master/CIP-0123).
+      *
+      * Rotates the input ByteString by the specified number of bits. A positive rotation value
+      * rotates the ByteString to the left, while a negative rotation value rotates the ByteString
+      * to the right. Rotation by more than the total number of bits is the same as the remainder
+      * after division by number of bits.
+      *
+      * @example
+      *   rotateByteString(hex"000F", 4) == hex"00F0"
+      * @example
+      *   rotateByteString(hex"000F", -4) == hex"F000"
+      * @example
+      *   rotateByteString(hex"000F", 16) == hex"000F"
+      * @example
+      *   rotateByteString(hex"000F", -16) == hex"000F"
+      *
+      * @param byteString
+      *   The ByteString to be rotated.
+      * @param rotation
+      *   The number of bits to rotates the ByteString.
+      * @return
+      *   The result of the bitwise logical rotateByteString operation.
+      */
+    def rotateByteString(byteString: ByteString, rotation: BigInt): ByteString =
+        BitwiseLogicalOperations.rotateByteString(byteString, rotation)
+
     def bls12_381_G1_equal(using
         ps: PlatformSpecific
     )(p1: BLS12_381_G1_Element, p2: BLS12_381_G1_Element): Boolean =

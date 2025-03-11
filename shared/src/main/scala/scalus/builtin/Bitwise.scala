@@ -207,10 +207,13 @@ object BitwiseLogicalOperations:
               s"replicateByte: byte value out of bounds, expected: [0 .. 255], actual: $byte"
             )
 
-        if length == 0 then return ByteString.empty
+        val lengthValue = length.toInt
+        val byteValue = byte.toByte
 
-        val resultArray = new Array[Byte](length.toInt)
-        java.util.Arrays.fill(resultArray, byte.toByte)
+        if lengthValue == 0 then return ByteString.empty
+
+        val resultArray = new Array[Byte](lengthValue)
+        if byteValue != 0 then java.util.Arrays.fill(resultArray, byteValue)
         ByteString.unsafeFromArray(resultArray)
     }
 
@@ -220,7 +223,8 @@ object BitwiseLogicalOperations:
         val bytes = byteString.bytes
         val bytesLength = bytes.length
 
-        if bytesLength * 8 < shift.abs then return ByteString.fill(bytesLength, 0)
+        if bytesLength * 8 < shift.abs then
+            return ByteString.unsafeFromArray(new Array[Byte](bytesLength))
 
         if shift < Int.MinValue || shift > Int.MaxValue then
             throw new BuiltinException(
@@ -234,6 +238,28 @@ object BitwiseLogicalOperations:
             else shiftRight(bytes, shiftValue.abs)
 
         ByteString.unsafeFromArray(resultArray)
+    }
+
+    def rotateByteString(byteString: ByteString, rotation: BigInt): ByteString = {
+        val bytes = byteString.bytes
+        val bytesLength = bytes.length
+        val bitLength = bytesLength * 8
+        val rotationRemainder = rotation % bitLength
+
+        if bytesLength == 0 || rotationRemainder == 0 then return byteString
+
+        if rotationRemainder < Int.MinValue || rotationRemainder > Int.MaxValue then
+            throw new BuiltinException(
+              s"rotateByteString: rotation remainder to big, expected: [${Int.MinValue} .. ${Int.MaxValue}], actual: $rotationRemainder"
+            )
+
+        val rotationValue = rotationRemainder.toInt
+        ???
+//        val resultArray =
+        //            if shiftValue > 0 then shiftLeft(bytes, shiftValue)
+        //            else shiftRight(bytes, shiftValue.abs)
+        //
+        //        ByteString.unsafeFromArray(resultArray)
     }
 
     private inline def combineByteStrings(

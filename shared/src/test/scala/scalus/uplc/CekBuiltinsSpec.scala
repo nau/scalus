@@ -652,15 +652,40 @@ open class CekBuiltinsSpec
         val binaryStr = byteString.toBinaryString
 
         for i <- 0 to size do
-            assert(
-              scalus.builtin.Builtins.shiftByteString(byteString, i).toBinaryString == binaryStr
-                  .drop(i) + "0" * i
+            assertResult(binaryStr.drop(i) + "0" * i)(
+              scalus.builtin.Builtins.shiftByteString(byteString, i).toBinaryString
             )
-            assert(
-              scalus.builtin.Builtins
-                  .shiftByteString(byteString, -i)
-                  .toBinaryString == "0" * i + binaryStr
-                  .dropRight(i)
+
+            assertResult("0" * i + binaryStr.dropRight(i))(
+              scalus.builtin.Builtins.shiftByteString(byteString, -i).toBinaryString
             )
-        end for
+    }
+
+    test("RotateByteString follows CIP-123") {
+        val RotateByteString = compile(scalus.builtin.Builtins.rotateByteString).toUplc()
+
+        assertEvalEq(RotateByteString $ hex"" $ 3, hex"")
+        assertEvalEq(RotateByteString $ hex"" $ -3, hex"")
+        assertEvalEq(RotateByteString $ hex"EBFC" $ 0, hex"EBFC")
+        assertEvalEq(RotateByteString $ hex"EBFC" $ 5, hex"7F9D")
+        assertEvalEq(RotateByteString $ hex"EBFC" $ -5, hex"E75F")
+        assertEvalEq(RotateByteString $ hex"EBFC" $ 16, hex"EBFC")
+        assertEvalEq(RotateByteString $ hex"EBFC" $ -16, hex"EBFC")
+        assertEvalEq(RotateByteString $ hex"EBFC" $ 21, hex"7F9D")
+        assertEvalEq(RotateByteString $ hex"EBFC" $ -21, hex"E75F")
+
+        val size = 20
+        val byteString = ByteString.unsafeFromArray(
+          Array.fill(size)((scala.util.Random.nextInt(256) - 128).toByte)
+        )
+        val binaryStr = byteString.toBinaryString
+
+        for i <- 0 to size do
+            assertResult(binaryStr.drop(i) + binaryStr.take(i))(
+              scalus.builtin.Builtins.rotateByteString(byteString, i).toBinaryString
+            )
+
+            assertResult(binaryStr.takeRight(i) + binaryStr.dropRight(i))(
+              scalus.builtin.Builtins.rotateByteString(byteString, -i).toBinaryString
+            )
     }

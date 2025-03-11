@@ -100,7 +100,8 @@ case class BuiltinCostModel(
     readBit: DefaultCostingFun[TwoArguments],
     writeBits: WriteBitsCostingFun,
     replicateByte: ReplicateByteCostingFun,
-    shiftByteString: ShiftOrRotateByteStringCostingFun
+    shiftByteString: ShiftOrRotateByteStringCostingFun,
+    rotateByteString: ShiftOrRotateByteStringCostingFun
 ) {
 
     /** Convert a [[BuiltinCostModel]] to a flat map of cost parameters
@@ -234,7 +235,8 @@ object BuiltinCostModel {
             "readBit" -> writeJs(model.readBit),
             "writeBits" -> writeJs(model.writeBits),
             "replicateByte" -> writeJs(model.replicateByte),
-            "shiftByteString" -> writeJs(model.shiftByteString)
+            "shiftByteString" -> writeJs(model.shiftByteString),
+            "rotateByteString" -> writeJs(model.rotateByteString)
           ),
       json =>
           BuiltinCostModel(
@@ -361,6 +363,10 @@ object BuiltinCostModel {
             shiftByteString =
                 if json.obj.keySet.contains("shiftByteString") then
                     read[ShiftOrRotateByteStringCostingFun](json("shiftByteString"))
+                else null,
+            rotateByteString =
+                if json.obj.keySet.contains("rotateByteString") then
+                    read[ShiftOrRotateByteStringCostingFun](json("rotateByteString"))
                 else null
           )
     )
@@ -1398,6 +1404,20 @@ object BuiltinCostModel {
               OneVariableLinearFunction(
                 intercept = params("shiftByteString-memory-arguments-intercept"),
                 slope = params("shiftByteString-memory-arguments-slope")
+              )
+            )
+          ),
+          rotateByteString = ShiftOrRotateByteStringCostingFun(
+            cpu = TwoArguments.LinearInX(
+              OneVariableLinearFunction(
+                intercept = params("rotateByteString-cpu-arguments-intercept"),
+                slope = params("rotateByteString-cpu-arguments-slope")
+              )
+            ),
+            memory = TwoArguments.LinearInX(
+              OneVariableLinearFunction(
+                intercept = params("rotateByteString-memory-arguments-intercept"),
+                slope = params("rotateByteString-memory-arguments-slope")
               )
             )
           )
