@@ -99,8 +99,8 @@ case class BuiltinCostModel(
     complementByteString: DefaultCostingFun[OneArgument],
     readBit: DefaultCostingFun[TwoArguments],
     writeBits: WriteBitsCostingFun,
-    replicateByte: DefaultCostingFun[TwoArguments],
-    shiftByteString: DefaultCostingFun[TwoArguments]
+    replicateByte: ReplicateByteCostingFun,
+    shiftByteString: ShiftOrRotateByteStringCostingFun
 ) {
 
     /** Convert a [[BuiltinCostModel]] to a flat map of cost parameters
@@ -356,11 +356,11 @@ object BuiltinCostModel {
                 else null,
             replicateByte =
                 if json.obj.keySet.contains("replicateByte") then
-                    read[DefaultCostingFun[TwoArguments]](json("replicateByte"))
+                    read[ReplicateByteCostingFun](json("replicateByte"))
                 else null,
             shiftByteString =
                 if json.obj.keySet.contains("shiftByteString") then
-                    read[DefaultCostingFun[TwoArguments]](json("shiftByteString"))
+                    read[ShiftOrRotateByteStringCostingFun](json("shiftByteString"))
                 else null
           )
     )
@@ -1373,7 +1373,7 @@ object BuiltinCostModel {
               )
             )
           ),
-          replicateByte = DefaultCostingFun(
+          replicateByte = ReplicateByteCostingFun(
             cpu = TwoArguments.LinearInX(
               OneVariableLinearFunction(
                 intercept = params("replicateByte-cpu-arguments-intercept"),
@@ -1387,7 +1387,7 @@ object BuiltinCostModel {
               )
             )
           ),
-          shiftByteString = DefaultCostingFun(
+          shiftByteString = ShiftOrRotateByteStringCostingFun(
             cpu = TwoArguments.LinearInX(
               OneVariableLinearFunction(
                 intercept = params("shiftByteString-cpu-arguments-intercept"),

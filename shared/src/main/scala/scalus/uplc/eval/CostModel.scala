@@ -527,6 +527,34 @@ case class IntegerToByteStringCostingFun(cpu: ThreeArguments, memory: ThreeArgum
     }
 }
 
+case class ReplicateByteCostingFun(cpu: TwoArguments, memory: TwoArguments) extends CostingFun
+    derives ReadWriter {
+    def calculateCost(args: CekValue*): ExBudget = {
+        val Seq(CekValue.VCon(Constant.Integer(size)), arg1) = args.toSeq: @unchecked
+        val argsMem = Seq(
+          MemoryUsage.memoryUsageLiteralByteSize(size),
+          MemoryUsage.memoryUsage(arg1)
+        )
+        val cpu = ExCPU(this.cpu.calculateCost(argsMem))
+        val mem = ExMemory(this.memory.calculateCost(argsMem))
+        ExBudget(cpu, mem)
+    }
+}
+
+case class ShiftOrRotateByteStringCostingFun(cpu: TwoArguments, memory: TwoArguments)
+    extends CostingFun derives ReadWriter {
+    def calculateCost(args: CekValue*): ExBudget = {
+        val Seq(arg0, CekValue.VCon(Constant.Integer(size))) = args.toSeq: @unchecked
+        val argsMem = Seq(
+          MemoryUsage.memoryUsage(arg0),
+          MemoryUsage.memoryUsageLiteral(size)
+        )
+        val cpu = ExCPU(this.cpu.calculateCost(argsMem))
+        val mem = ExMemory(this.memory.calculateCost(argsMem))
+        ExBudget(cpu, mem)
+    }
+}
+
 case class WriteBitsCostingFun(cpu: ThreeArguments, memory: ThreeArguments) extends CostingFun
     derives ReadWriter {
     def calculateCost(args: CekValue*): ExBudget = {

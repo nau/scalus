@@ -166,7 +166,7 @@ object BitwiseLogicalOperations:
 
     def writeBits(
         byteString: ByteString,
-        indexes: scala.collection.immutable.List[BigInt],
+        indexes: Seq[BigInt],
         bit: Boolean
     ): ByteString = {
         if indexes.isEmpty then return byteString
@@ -180,10 +180,7 @@ object BitwiseLogicalOperations:
         val bitLength = resultArray.length * 8
         val bitValue = if bit then 1 else 0
 
-        var iterationIndexes = indexes
-        while iterationIndexes.nonEmpty do
-            val index = iterationIndexes.head
-
+        for index <- indexes do
             if index < 0 || index >= bitLength then
                 throw new BuiltinException(
                   s"writeBits: Index out of bounds, expected: [0 .. $bitLength), actual: $index"
@@ -195,8 +192,6 @@ object BitwiseLogicalOperations:
             if bitValue == 1 then
                 resultArray(byteIndex) = (resultArray(byteIndex) | (1 << bitIndex)).toByte
             else resultArray(byteIndex) = (resultArray(byteIndex) & ~(1 << bitIndex)).toByte
-
-            iterationIndexes = iterationIndexes.tail
 
         ByteString.unsafeFromArray(resultArray)
     }
@@ -222,16 +217,17 @@ object BitwiseLogicalOperations:
     def shiftByteString(byteString: ByteString, shift: BigInt): ByteString = {
         if byteString.isEmpty || shift == 0 then return byteString
 
+        val bytes = byteString.bytes
+        val bytesLength = bytes.length
+
+        if bytesLength * 8 < shift.abs then return ByteString.fill(bytesLength, 0)
+
         if shift < Int.MinValue || shift > Int.MaxValue then
             throw new BuiltinException(
               s"shiftByteString: shift out of bounds, expected: [${Int.MinValue} .. ${Int.MaxValue}], actual: $shift"
             )
 
-        val bytes = byteString.bytes
-        val bytesLength = bytes.length
         val shiftValue = shift.toInt
-
-        if bytesLength * 8 < shiftValue.abs then return ByteString.fill(bytesLength, 0)
 
         val resultArray =
             if shiftValue > 0 then shiftLeft(bytes, shiftValue)
