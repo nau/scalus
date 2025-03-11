@@ -133,7 +133,7 @@ class ScriptContextV1DataSerializationSpec extends BaseValidatorSpec:
         assert(encodeAsHexString(scriptContextV1.toData) == plutusSerializedData)
     }
 
-    ignore("deserialize ScriptContext V1 using Plutus") {
+    test("deserialize ScriptContext V1 using Plutus") {
         import scalus.ledger.api.v1.ToDataInstances.given
         import scalus.uplc.TermDSL.given
         given PlutusVM = PlutusVM.makePlutusV1VM(machineParamsV1)
@@ -148,7 +148,7 @@ class ScriptContextV1DataSerializationSpec extends BaseValidatorSpec:
         assertThrows[Exception]((program $ scriptContextV2.toData).evaluate)
     }
 
-    ignore("deserialize ScriptContext V1 using Scalus") {
+    test("deserialize ScriptContext V1 using Scalus") {
         import scalus.ledger.api.v1.ToDataInstances.given
         import scalus.uplc.TermDSL.{*, given}
         given PlutusVM = PlutusVM.makePlutusV1VM(machineParamsV1)
@@ -177,7 +177,7 @@ class ScriptContextV1DataSerializationSpec extends BaseValidatorSpec:
         assertThrows[Exception]((program $ scriptContextV1.toData).evaluate)
     }
 
-    ignore("deserialize ScriptContext V2 using Scalus") {
+    test("deserialize ScriptContext V2 using Scalus") {
         import scalus.ledger.api.v2.ToDataInstances.given
         import scalus.uplc.TermDSL.{*, given}
         val applied = Program((1, 0, 0), scalusDeserializerV2 $ scriptContextV2.toData)

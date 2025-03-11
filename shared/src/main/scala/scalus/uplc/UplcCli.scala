@@ -58,7 +58,7 @@ object UplcCli:
         // println(s"UPLC program:\n$printOut")
 
         val cmd =
-            s"uplc evaluate --input-format flat --counting --trace-mode LogsWithBudgets --builtin-semantics-variant $semanticsVariant"
+            s"uplc evaluate --input-format flat --counting --print-mode Classic --trace-mode LogsWithBudgets --builtin-semantics-variant $semanticsVariant"
 
         var out = ""
         var err = ""
