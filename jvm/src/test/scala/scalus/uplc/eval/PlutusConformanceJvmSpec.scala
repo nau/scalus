@@ -4,7 +4,6 @@ package eval
 
 import java.nio.file.{Files, Paths}
 import scala.language.implicitConversions
-import scala.util.Using
 
 /** Tests for the Plutus Conformance Test Suite.
   *
