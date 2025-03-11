@@ -44,7 +44,10 @@ object ByteString {
 
     def apply(bytes: Byte*): ByteString = new ByteString(bytes.toArray)
 
-    def fill(n: Int, byte: Byte): ByteString = new ByteString(Array.fill(n)(byte))
+    def fill(size: Int, byte: Byte): ByteString =
+        val result = new Array[Byte](size)
+        if byte != 0 then java.util.Arrays.fill(result, byte)
+        new ByteString(result)
 
     def unsafeFromArray(bytes: Array[Byte]): ByteString = new ByteString(bytes)
     def fromHex(bytes: String): ByteString = new ByteString(Hex.hexToBytes(bytes))

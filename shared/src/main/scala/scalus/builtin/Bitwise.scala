@@ -211,10 +211,7 @@ object BitwiseLogicalOperations:
         val byteValue = byte.toByte
 
         if lengthValue == 0 then return ByteString.empty
-
-        val resultArray = new Array[Byte](lengthValue)
-        if byteValue != 0 then java.util.Arrays.fill(resultArray, byteValue)
-        ByteString.unsafeFromArray(resultArray)
+        ByteString.fill(lengthValue, byteValue)
     }
 
     def shiftByteString(byteString: ByteString, shift: BigInt): ByteString = {
