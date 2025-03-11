@@ -241,12 +241,14 @@ object BitwiseLogicalOperations:
     }
 
     def rotateByteString(byteString: ByteString, rotation: BigInt): ByteString = {
+        if byteString.isEmpty then return byteString
+
         val bytes = byteString.bytes
         val bytesLength = bytes.length
         val bitLength = bytesLength * 8
         val rotationRemainder = rotation % bitLength
 
-        if bytesLength == 0 || rotationRemainder == 0 then return byteString
+        if rotationRemainder == 0 then return byteString
 
         if rotationRemainder < Int.MinValue || rotationRemainder > Int.MaxValue then
             throw new BuiltinException(
@@ -254,12 +256,11 @@ object BitwiseLogicalOperations:
             )
 
         val rotationValue = rotationRemainder.toInt
-        ???
-//        val resultArray =
-        //            if shiftValue > 0 then shiftLeft(bytes, shiftValue)
-        //            else shiftRight(bytes, shiftValue.abs)
-        //
-        //        ByteString.unsafeFromArray(resultArray)
+        val resultArray =
+            if rotationValue > 0 then rotateLeft(bytes, rotationValue)
+            else rotateRight(bytes, rotationValue.abs)
+
+        ByteString.unsafeFromArray(resultArray)
     }
 
     private inline def combineByteStrings(
@@ -352,6 +353,56 @@ object BitwiseLogicalOperations:
                     dst =
                         (dst | ((inputBytes(sourceIndex - 1) << (8 - shiftMod)) & carryMask)).toByte
                 resultBytes(index) = dst
+
+            index -= 1
+
+        resultBytes
+    }
+
+    private def rotateLeft(inputBytes: Array[Byte], rotation: Int): Array[Byte] = {
+        val shiftMod = rotation % 8
+        val carryMask = ((1 << shiftMod) - 1).toByte
+        val offsetBytes = rotation / 8
+        val bytesLength = inputBytes.length
+
+        val resultBytes = new Array[Byte](bytesLength)
+
+        var index = 0
+        while index < bytesLength do
+            val sourceIndex = (index + offsetBytes) % bytesLength
+
+            val src = inputBytes(sourceIndex)
+            var dst = (src << shiftMod).toByte
+            dst = (dst | ((inputBytes(
+              if sourceIndex + 1 < bytesLength then sourceIndex + 1 else 0
+            ) >>> (8 - shiftMod)) & carryMask)).toByte
+            resultBytes(index) = dst
+
+            index += 1
+
+        resultBytes
+    }
+
+    private def rotateRight(inputBytes: Array[Byte], rotation: Int): Array[Byte] = {
+        val shiftMod = rotation % 8
+        val carryMask = (0xff << (8 - shiftMod)).toByte
+        val offsetBytes = rotation / 8
+        val bytesLength = inputBytes.length
+        val lastByteIndex = bytesLength - 1
+
+        val resultBytes = new Array[Byte](bytesLength)
+
+        var index = bytesLength - 1
+        while index >= 0 do
+            val diff = index - offsetBytes
+            val sourceIndex = if diff >= 0 then diff else bytesLength + diff
+
+            val src = inputBytes(sourceIndex)
+            var dst = ((src & 0xff) >>> shiftMod).toByte
+            dst = (dst | ((inputBytes(
+              if sourceIndex > 0 then sourceIndex - 1 else lastByteIndex
+            ) << (8 - shiftMod)) & carryMask)).toByte
+            resultBytes(index) = dst
 
             index -= 1
 
