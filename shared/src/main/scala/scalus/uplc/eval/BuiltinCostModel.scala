@@ -101,7 +101,8 @@ case class BuiltinCostModel(
     writeBits: WriteBitsCostingFun,
     replicateByte: ReplicateByteCostingFun,
     shiftByteString: ShiftOrRotateByteStringCostingFun,
-    rotateByteString: ShiftOrRotateByteStringCostingFun
+    rotateByteString: ShiftOrRotateByteStringCostingFun,
+    countSetBits: DefaultCostingFun[OneArgument]
 ) {
 
     /** Convert a [[BuiltinCostModel]] to a flat map of cost parameters
@@ -236,7 +237,8 @@ object BuiltinCostModel {
             "writeBits" -> writeJs(model.writeBits),
             "replicateByte" -> writeJs(model.replicateByte),
             "shiftByteString" -> writeJs(model.shiftByteString),
-            "rotateByteString" -> writeJs(model.rotateByteString)
+            "rotateByteString" -> writeJs(model.rotateByteString),
+            "countSetBits" -> writeJs(model.countSetBits)
           ),
       json =>
           BuiltinCostModel(
@@ -367,6 +369,10 @@ object BuiltinCostModel {
             rotateByteString =
                 if json.obj.keySet.contains("rotateByteString") then
                     read[ShiftOrRotateByteStringCostingFun](json("rotateByteString"))
+                else null,
+            countSetBits =
+                if json.obj.keySet.contains("countSetBits") then
+                    read[DefaultCostingFun[OneArgument]](json("countSetBits"))
                 else null
           )
     )
@@ -1419,6 +1425,17 @@ object BuiltinCostModel {
                 intercept = params("rotateByteString-memory-arguments-intercept"),
                 slope = params("rotateByteString-memory-arguments-slope")
               )
+            )
+          ),
+          countSetBits = DefaultCostingFun(
+            cpu = OneArgument.LinearInX(
+              OneVariableLinearFunction(
+                intercept = params("countSetBits-cpu-arguments-intercept"),
+                slope = params("countSetBits-cpu-arguments-slope")
+              )
+            ),
+            memory = OneArgument.ConstantCost(
+              cost = params("countSetBits-memory-arguments")
             )
           )
         )

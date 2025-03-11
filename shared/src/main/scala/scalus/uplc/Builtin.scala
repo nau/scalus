@@ -1066,6 +1066,16 @@ class BuiltinsMeaning(
           builtinCostModel.rotateByteString
         )
 
+    val CountSetBits =
+        mkMeaning(
+          DefaultUni.ByteString ->: DefaultUni.Integer,
+          (logger: Logger, args: Seq[CekValue]) =>
+              val byteString = args(0).asByteString
+              VCon(asConstant(countSetBits(byteString)))
+          ,
+          builtinCostModel.countSetBits
+        )
+
     private inline def mkGetBuiltinRuntime: DefaultFun => BuiltinRuntime = ${
         scalus.macros.Macros.mkGetBuiltinRuntime('this)
     }

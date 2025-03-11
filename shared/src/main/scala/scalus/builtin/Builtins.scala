@@ -622,6 +622,28 @@ object Builtins:
     def rotateByteString(byteString: ByteString, rotation: BigInt): ByteString =
         BitwiseLogicalOperations.rotateByteString(byteString, rotation)
 
+    /** Bitwise logical countSetBits for ByteStrings.
+      *
+      * @see
+      *   [CIP-123] (https://github.com/cardano-foundation/CIPs/tree/master/CIP-0123).
+      *
+      * Counts the number of set bits in the input ByteString.
+      *
+      * @example
+      *   countSetBits(hex"000F") == 4
+      * @example
+      *   countSetBits(hex"0000") == 0
+      * @example
+      *   countSetBits(hex"0001") == 1
+      *
+      * @param byteString
+      *   The ByteString to be counted.
+      * @return
+      *   The number of set bits in the ByteString.
+      */
+    def countSetBits(byteString: ByteString): Int =
+        BitwiseLogicalOperations.countSetBits(byteString)
+
     def bls12_381_G1_equal(using
         ps: PlatformSpecific
     )(p1: BLS12_381_G1_Element, p2: BLS12_381_G1_Element): Boolean =

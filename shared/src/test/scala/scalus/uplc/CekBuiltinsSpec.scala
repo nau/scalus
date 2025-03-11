@@ -689,3 +689,14 @@ open class CekBuiltinsSpec
               scalus.builtin.Builtins.rotateByteString(byteString, -i).toBinaryString
             )
     }
+
+    test("CountSetBits follows CIP-123") {
+        val CountSetBits = compile(scalus.builtin.Builtins.countSetBits).toUplc()
+
+        assertEvalEq(CountSetBits $ hex"", 0)
+        assertEvalEq(CountSetBits $ hex"0000", 0)
+        assertEvalEq(CountSetBits $ hex"0100", 1)
+        assertEvalEq(CountSetBits $ hex"0001", 1)
+        assertEvalEq(CountSetBits $ hex"000F", 4)
+        assertEvalEq(CountSetBits $ hex"FFFF", 16)
+    }

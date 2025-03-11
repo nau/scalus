@@ -845,6 +845,9 @@ class PlutusV3Params {
     var `rotateByteString-cpu-arguments-slope`: Long = 0L
     var `rotateByteString-memory-arguments-intercept`: Long = 0L
     var `rotateByteString-memory-arguments-slope`: Long = 0L
+    var `countSetBits-cpu-arguments-intercept`: Long = 0L
+    var `countSetBits-cpu-arguments-slope`: Long = 0L
+    var `countSetBits-memory-arguments`: Long = 0L
 
     def toJson: String = write(this)
 }

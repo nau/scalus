@@ -259,6 +259,22 @@ object BitwiseLogicalOperations:
 
         ByteString.unsafeFromArray(resultArray)
     }
+    
+    def countSetBits(byteString: ByteString): Int = {
+        val bytes = byteString.bytes
+        val bytesLength = bytes.length
+
+        var count = 0
+        var index = 0
+        while index < bytesLength do
+            var value = bytes(index) & 0xFF
+            while value != 0 do
+                count += value & 1
+                value >>>= 1
+            index += 1
+
+        count
+    }
 
     private inline def combineByteStrings(
         shouldPad: Boolean,
