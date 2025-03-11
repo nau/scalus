@@ -700,3 +700,13 @@ open class CekBuiltinsSpec
         assertEvalEq(CountSetBits $ hex"000F", 4)
         assertEvalEq(CountSetBits $ hex"FFFF", 16)
     }
+
+    test("FindFirstSetBit follows CIP-123") {
+        val FindFirstSetBit = compile(scalus.builtin.Builtins.findFirstSetBit).toUplc()
+
+        assertEvalEq(FindFirstSetBit $ hex"", -1)
+        assertEvalEq(FindFirstSetBit $ hex"0000", -1)
+        assertEvalEq(FindFirstSetBit $ hex"0002", 1)
+        assertEvalEq(FindFirstSetBit $ hex"FFF2", 1)
+        assertEvalEq(FindFirstSetBit $ hex"8000", 15)
+    }

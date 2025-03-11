@@ -102,7 +102,8 @@ case class BuiltinCostModel(
     replicateByte: ReplicateByteCostingFun,
     shiftByteString: ShiftOrRotateByteStringCostingFun,
     rotateByteString: ShiftOrRotateByteStringCostingFun,
-    countSetBits: DefaultCostingFun[OneArgument]
+    countSetBits: DefaultCostingFun[OneArgument],
+    findFirstSetBit: DefaultCostingFun[OneArgument]
 ) {
 
     /** Convert a [[BuiltinCostModel]] to a flat map of cost parameters
@@ -238,7 +239,8 @@ object BuiltinCostModel {
             "replicateByte" -> writeJs(model.replicateByte),
             "shiftByteString" -> writeJs(model.shiftByteString),
             "rotateByteString" -> writeJs(model.rotateByteString),
-            "countSetBits" -> writeJs(model.countSetBits)
+            "countSetBits" -> writeJs(model.countSetBits),
+            "findFirstSetBit" -> writeJs(model.findFirstSetBit)
           ),
       json =>
           BuiltinCostModel(
@@ -373,6 +375,10 @@ object BuiltinCostModel {
             countSetBits =
                 if json.obj.keySet.contains("countSetBits") then
                     read[DefaultCostingFun[OneArgument]](json("countSetBits"))
+                else null,
+            findFirstSetBit =
+                if json.obj.keySet.contains("findFirstSetBit") then
+                    read[DefaultCostingFun[OneArgument]](json("findFirstSetBit"))
                 else null
           )
     )
@@ -1436,6 +1442,17 @@ object BuiltinCostModel {
             ),
             memory = OneArgument.ConstantCost(
               cost = params("countSetBits-memory-arguments")
+            )
+          ),
+          findFirstSetBit = DefaultCostingFun(
+            cpu = OneArgument.LinearInX(
+              OneVariableLinearFunction(
+                intercept = params("findFirstSetBit-cpu-arguments-intercept"),
+                slope = params("findFirstSetBit-cpu-arguments-slope")
+              )
+            ),
+            memory = OneArgument.ConstantCost(
+              cost = params("findFirstSetBit-memory-arguments")
             )
           )
         )

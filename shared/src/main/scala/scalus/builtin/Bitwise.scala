@@ -259,21 +259,45 @@ object BitwiseLogicalOperations:
 
         ByteString.unsafeFromArray(resultArray)
     }
-    
+
     def countSetBits(byteString: ByteString): Int = {
+        if byteString.isEmpty then return 0
+
         val bytes = byteString.bytes
         val bytesLength = bytes.length
 
         var count = 0
         var index = 0
         while index < bytesLength do
-            var value = bytes(index) & 0xFF
+            var value = bytes(index) & 0xff
             while value != 0 do
                 count += value & 1
                 value >>>= 1
             index += 1
 
         count
+    }
+
+    def findFirstSetBit(byteString: ByteString): Int = {
+        if byteString.isEmpty then return -1
+
+        val bytes = byteString.bytes
+        val bytesLength = bytes.length
+
+        var totalBitIndex = 0
+        var index = bytesLength - 1
+        while index >= 0 do
+            var value = bytes(index) & 0xff
+            var localBitIndex = 0
+            while value != 0 do
+                if (value & 1) == 1 then return totalBitIndex + localBitIndex
+                else localBitIndex += 1
+                value >>>= 1
+            totalBitIndex += 8
+
+            index -= 1
+
+        -1
     }
 
     private inline def combineByteStrings(

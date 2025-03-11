@@ -1076,6 +1076,16 @@ class BuiltinsMeaning(
           builtinCostModel.countSetBits
         )
 
+    val FindFirstSetBit =
+        mkMeaning(
+          DefaultUni.ByteString ->: DefaultUni.Integer,
+          (logger: Logger, args: Seq[CekValue]) =>
+              val byteString = args(0).asByteString
+              VCon(asConstant(findFirstSetBit(byteString)))
+          ,
+          builtinCostModel.findFirstSetBit
+        )
+
     private inline def mkGetBuiltinRuntime: DefaultFun => BuiltinRuntime = ${
         scalus.macros.Macros.mkGetBuiltinRuntime('this)
     }

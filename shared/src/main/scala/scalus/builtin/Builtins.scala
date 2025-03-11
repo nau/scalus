@@ -644,6 +644,31 @@ object Builtins:
     def countSetBits(byteString: ByteString): Int =
         BitwiseLogicalOperations.countSetBits(byteString)
 
+    /** Bitwise logical findFirstSetBit for ByteStrings.
+      *
+      * @see
+      *   [CIP-123] (https://github.com/cardano-foundation/CIPs/tree/master/CIP-0123).
+      *
+      * Finds the index of the first set bit in the input ByteString. The index is zero-based and
+      * starts from the end of the ByteString. If no set bits are found, -1 is returned.
+      *
+      * @example
+      *   findFirstSetBit(hex"") == -1
+      * @example
+      *   findFirstSetBit(hex"0000") == -1
+      * @example
+      *   findFirstSetBit(hex"0002") == 1
+      * @example
+      *   findFirstSetBit(hex"FFF2") == 1
+      *
+      * @param byteString
+      *   The ByteString to be searched.
+      * @return
+      *   The index of the first set bit in the ByteString from the end.
+      */
+    def findFirstSetBit(byteString: ByteString): Int =
+        BitwiseLogicalOperations.findFirstSetBit(byteString)
+
     def bls12_381_G1_equal(using
         ps: PlatformSpecific
     )(p1: BLS12_381_G1_Element, p2: BLS12_381_G1_Element): Boolean =
