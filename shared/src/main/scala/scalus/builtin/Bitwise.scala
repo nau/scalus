@@ -145,26 +145,159 @@ object BitwiseLogicalOperations:
         transformByteString(byteString)(byte => (byte ^ 255).toByte)
 
     def readBit(byteString: ByteString, index: BigInt): Boolean = {
-        if !index.isValidInt then
-            throw new BuiltinException(s"Index out of Int bounds, actual $index")
+        if byteString.isEmpty then
+            throw new BuiltinException(
+              s"readBit: Index out of bounds, because byte string is empty, actual: $index"
+            )
 
         val bytes = byteString.bytes
         val bitLength = bytes.length * 8
-        val intIndex = index.toInt
 
-        if bytes.isEmpty then
+        if index < 0 || index >= bitLength then
             throw new BuiltinException(
-              s"Index out of bounds, because byte string is empty, actual $intIndex"
+              s"readBit: Index out of bounds, expected: [0 .. $bitLength), actual: $index"
             )
 
-        if intIndex < 0 || intIndex >= bitLength then
-            throw new BuiltinException(
-              s"Index out of bounds, expected: [0 .. $bitLength), actual $intIndex"
-            )
-
-        val byteIndex = (bitLength - 1 - intIndex) / 8
-        val bitIndex = intIndex % 8
+        val currentIndex = index.toInt
+        val byteIndex = (bitLength - 1 - currentIndex) / 8
+        val bitIndex = currentIndex % 8
         ((bytes(byteIndex) >> bitIndex) & 1) == 1
+    }
+
+    def writeBits(
+        byteString: ByteString,
+        indexes: Seq[BigInt],
+        bit: Boolean
+    ): ByteString = {
+        if indexes.isEmpty then return byteString
+
+        if byteString.isEmpty then
+            throw new BuiltinException(
+              s"writeBits: Indexes out of bounds, because byte string is empty, actual: $indexes"
+            )
+
+        val resultArray = byteString.bytes.clone()
+        val bitLength = resultArray.length * 8
+        val bitValue = if bit then 1 else 0
+
+        for index <- indexes do
+            if index < 0 || index >= bitLength then
+                throw new BuiltinException(
+                  s"writeBits: Index out of bounds, expected: [0 .. $bitLength), actual: $index"
+                )
+
+            val currentIndex = index.toInt
+            val byteIndex = (bitLength - 1 - currentIndex) / 8
+            val bitIndex = currentIndex % 8
+            if bitValue == 1 then
+                resultArray(byteIndex) = (resultArray(byteIndex) | (1 << bitIndex)).toByte
+            else resultArray(byteIndex) = (resultArray(byteIndex) & ~(1 << bitIndex)).toByte
+
+        ByteString.unsafeFromArray(resultArray)
+    }
+
+    def replicateByte(length: BigInt, byte: BigInt): ByteString = {
+        if length < 0 || length > IntegerToByteString.maximumOutputLength then
+            throw new BuiltinException(
+              s"replicateByte: requested length out of bounds, expected: [0 .. ${IntegerToByteString.maximumOutputLength}], actual: $length"
+            )
+
+        if byte < 0 || byte > 255 then
+            throw new BuiltinException(
+              s"replicateByte: byte value out of bounds, expected: [0 .. 255], actual: $byte"
+            )
+
+        val lengthValue = length.toInt
+        val byteValue = byte.toByte
+
+        if lengthValue == 0 then return ByteString.empty
+        ByteString.fill(lengthValue, byteValue)
+    }
+
+    def shiftByteString(byteString: ByteString, shift: BigInt): ByteString = {
+        if byteString.isEmpty || shift == 0 then return byteString
+
+        val bytes = byteString.bytes
+        val bytesLength = bytes.length
+
+        if bytesLength * 8 < shift.abs then
+            return ByteString.unsafeFromArray(new Array[Byte](bytesLength))
+
+        if shift < Int.MinValue || shift > Int.MaxValue then
+            throw new BuiltinException(
+              s"shiftByteString: shift out of bounds, expected: [${Int.MinValue} .. ${Int.MaxValue}], actual: $shift"
+            )
+
+        val shiftValue = shift.toInt
+
+        val resultArray =
+            if shiftValue > 0 then shiftLeft(bytes, shiftValue)
+            else shiftRight(bytes, shiftValue.abs)
+
+        ByteString.unsafeFromArray(resultArray)
+    }
+
+    def rotateByteString(byteString: ByteString, rotation: BigInt): ByteString = {
+        if byteString.isEmpty then return byteString
+
+        val bytes = byteString.bytes
+        val bytesLength = bytes.length
+        val bitLength = bytesLength * 8
+        val rotationRemainder = rotation % bitLength
+
+        if rotationRemainder == 0 then return byteString
+
+        if rotationRemainder < Int.MinValue || rotationRemainder > Int.MaxValue then
+            throw new BuiltinException(
+              s"rotateByteString: rotation remainder to big, expected: [${Int.MinValue} .. ${Int.MaxValue}], actual: $rotationRemainder"
+            )
+
+        val rotationValue = rotationRemainder.toInt
+        val resultArray =
+            if rotationValue > 0 then rotateLeft(bytes, rotationValue)
+            else rotateRight(bytes, rotationValue.abs)
+
+        ByteString.unsafeFromArray(resultArray)
+    }
+
+    def countSetBits(byteString: ByteString): Int = {
+        if byteString.isEmpty then return 0
+
+        val bytes = byteString.bytes
+        val bytesLength = bytes.length
+
+        var count = 0
+        var index = 0
+        while index < bytesLength do
+            var value = bytes(index) & 0xff
+            while value != 0 do
+                count += value & 1
+                value >>>= 1
+            index += 1
+
+        count
+    }
+
+    def findFirstSetBit(byteString: ByteString): Int = {
+        if byteString.isEmpty then return -1
+
+        val bytes = byteString.bytes
+        val bytesLength = bytes.length
+
+        var totalBitIndex = 0
+        var index = bytesLength - 1
+        while index >= 0 do
+            var value = bytes(index) & 0xff
+            var localBitIndex = 0
+            while value != 0 do
+                if (value & 1) == 1 then return totalBitIndex + localBitIndex
+                else localBitIndex += 1
+                value >>>= 1
+            totalBitIndex += 8
+
+            index -= 1
+
+        -1
     }
 
     private inline def combineByteStrings(
@@ -208,4 +341,107 @@ object BitwiseLogicalOperations:
             index += 1
 
         ByteString.unsafeFromArray(resultArray)
+    }
+
+    private def shiftLeft(inputBytes: Array[Byte], shift: Int): Array[Byte] = {
+        val shiftMod = shift % 8
+        val carryMask = ((1 << shiftMod) - 1).toByte
+        val offsetBytes = shift / 8
+        val bytesLength = inputBytes.length
+
+        val resultBytes = new Array[Byte](bytesLength)
+
+        var index = 0
+        while index < bytesLength do
+            val sourceIndex = index + offsetBytes
+
+            if sourceIndex >= bytesLength then resultBytes(index) = 0
+            else
+                val src = inputBytes(sourceIndex)
+                var dst = (src << shiftMod).toByte
+                if sourceIndex + 1 < bytesLength then
+                    dst = (dst | ((inputBytes(
+                      sourceIndex + 1
+                    ) >>> (8 - shiftMod)) & carryMask)).toByte
+                resultBytes(index) = dst
+
+            index += 1
+
+        resultBytes
+    }
+
+    private def shiftRight(inputBytes: Array[Byte], shift: Int): Array[Byte] = {
+        val shiftMod = shift % 8
+        val carryMask = (0xff << (8 - shiftMod)).toByte
+        val offsetBytes = shift / 8
+        val bytesLength = inputBytes.length
+
+        val resultBytes = new Array[Byte](bytesLength)
+
+        var index = bytesLength - 1
+        while index >= 0 do
+            val sourceIndex = index - offsetBytes
+
+            if sourceIndex < 0 then resultBytes(index) = 0
+            else
+                val src = inputBytes(sourceIndex)
+                var dst = ((src & 0xff) >>> shiftMod).toByte
+                if sourceIndex - 1 >= 0 then
+                    dst =
+                        (dst | ((inputBytes(sourceIndex - 1) << (8 - shiftMod)) & carryMask)).toByte
+                resultBytes(index) = dst
+
+            index -= 1
+
+        resultBytes
+    }
+
+    private def rotateLeft(inputBytes: Array[Byte], rotation: Int): Array[Byte] = {
+        val shiftMod = rotation % 8
+        val carryMask = ((1 << shiftMod) - 1).toByte
+        val offsetBytes = rotation / 8
+        val bytesLength = inputBytes.length
+
+        val resultBytes = new Array[Byte](bytesLength)
+
+        var index = 0
+        while index < bytesLength do
+            val sourceIndex = (index + offsetBytes) % bytesLength
+
+            val src = inputBytes(sourceIndex)
+            var dst = (src << shiftMod).toByte
+            dst = (dst | ((inputBytes(
+              if sourceIndex + 1 < bytesLength then sourceIndex + 1 else 0
+            ) >>> (8 - shiftMod)) & carryMask)).toByte
+            resultBytes(index) = dst
+
+            index += 1
+
+        resultBytes
+    }
+
+    private def rotateRight(inputBytes: Array[Byte], rotation: Int): Array[Byte] = {
+        val shiftMod = rotation % 8
+        val carryMask = (0xff << (8 - shiftMod)).toByte
+        val offsetBytes = rotation / 8
+        val bytesLength = inputBytes.length
+        val lastByteIndex = bytesLength - 1
+
+        val resultBytes = new Array[Byte](bytesLength)
+
+        var index = bytesLength - 1
+        while index >= 0 do
+            val diff = index - offsetBytes
+            val sourceIndex = if diff >= 0 then diff else bytesLength + diff
+
+            val src = inputBytes(sourceIndex)
+            var dst = ((src & 0xff) >>> shiftMod).toByte
+            dst = (dst | ((inputBytes(
+              if sourceIndex > 0 then sourceIndex - 1 else lastByteIndex
+            ) << (8 - shiftMod)) & carryMask)).toByte
+            resultBytes(index) = dst
+
+            index -= 1
+
+        resultBytes
     }

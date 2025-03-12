@@ -5,9 +5,10 @@ import scalus.utils.Hex
 import scala.annotation.targetName
 import scala.compiletime.asMatchable
 
-// TODO replace Array on IArray
+// TODO: replace Array on IArray
 class ByteString private (val bytes: Array[Byte]) {
     def apply(i: Int): Byte = bytes(i)
+
     override def toString: String = "\"" + toHex + "\""
 
     override def hashCode: Int = java.util.Arrays.hashCode(bytes)
@@ -18,6 +19,10 @@ class ByteString private (val bytes: Array[Byte]) {
     }
 
     lazy val toHex: String = Hex.bytesToHex(bytes)
+
+    def toBinaryString: String = bytes.view
+        .map(b => String.format("%8s", Integer.toBinaryString(b & 0xff)).replace(' ', '0'))
+        .mkString("")
 
     /** Concatenates two ByteStrings and returns a new ByteString */
     @targetName("concat")
@@ -38,6 +43,11 @@ object ByteString {
     def fromArray(bytes: Array[Byte]): ByteString = new ByteString(bytes.clone)
 
     def apply(bytes: Byte*): ByteString = new ByteString(bytes.toArray)
+
+    def fill(size: Int, byte: Byte): ByteString =
+        val result = new Array[Byte](size)
+        if byte != 0 then java.util.Arrays.fill(result, byte)
+        new ByteString(result)
 
     def unsafeFromArray(bytes: Array[Byte]): ByteString = new ByteString(bytes)
     def fromHex(bytes: String): ByteString = new ByteString(Hex.hexToBytes(bytes))

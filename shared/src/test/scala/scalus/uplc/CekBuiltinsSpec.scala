@@ -584,3 +584,129 @@ open class CekBuiltinsSpec
 
         assertEvalEq(ReadBit $ hex"F4FF" $ 10, true)
     }
+
+    test("WriteBits follows CIP-122") {
+        val WriteBits = compile(scalus.builtin.Builtins.writeBits).toUplc()
+
+        assertEvalThrows[BuiltinError](WriteBits $ hex"" $ List(0) $ false)
+        assertEvalThrows[BuiltinError](WriteBits $ hex"" $ List(15) $ false)
+        assertEvalThrows[BuiltinError](WriteBits $ hex"" $ List(0) $ true)
+        assertEvalThrows[BuiltinError](WriteBits $ hex"" $ List(0, 1) $ false)
+        assertEvalThrows[BuiltinError](WriteBits $ hex"FF" $ List(-1) $ false)
+        assertEvalThrows[BuiltinError](WriteBits $ hex"FF" $ List(0, -1) $ true)
+        assertEvalThrows[BuiltinError](WriteBits $ hex"FF" $ List(-1, 0) $ true)
+        assertEvalThrows[BuiltinError](WriteBits $ hex"FF" $ List(8) $ false)
+        assertEvalThrows[BuiltinError](WriteBits $ hex"FF" $ List(1, 8) $ false)
+        assertEvalThrows[BuiltinError](WriteBits $ hex"FF" $ List(8, 1) $ false)
+
+        assertEvalEq(WriteBits $ hex"FF" $ List(0) $ false, hex"FE")
+        assertEvalEq(WriteBits $ hex"FF" $ List(1) $ false, hex"FD")
+        assertEvalEq(WriteBits $ hex"FF" $ List(2) $ false, hex"FB")
+        assertEvalEq(WriteBits $ hex"FF" $ List(3) $ false, hex"F7")
+        assertEvalEq(WriteBits $ hex"FF" $ List(4) $ false, hex"EF")
+        assertEvalEq(WriteBits $ hex"FF" $ List(5) $ false, hex"DF")
+        assertEvalEq(WriteBits $ hex"FF" $ List(6) $ false, hex"BF")
+        assertEvalEq(WriteBits $ hex"FF" $ List(7) $ false, hex"7F")
+
+        assertEvalEq(WriteBits $ hex"00" $ List(5) $ true, hex"20")
+        assertEvalEq(WriteBits $ hex"FF" $ List(5) $ false, hex"DF")
+        assertEvalEq(WriteBits $ hex"F4FF" $ List(10) $ false, hex"F0FF")
+        assertEvalEq(WriteBits $ hex"F4FF" $ List(10, 1) $ false, hex"F0FD")
+        assertEvalEq(WriteBits $ hex"F4FF" $ List(1, 10) $ false, hex"F0FD")
+
+        assertEvalEq(WriteBits $ hex"FF" $ List(0) $ true, hex"FF")
+        assertEvalEq(WriteBits $ hex"00" $ List(0) $ false, hex"00")
+    }
+
+    test("ReplicateByte follows CIP-122") {
+        val ReplicateByte = compile(scalus.builtin.Builtins.replicateByte).toUplc()
+
+        assertEvalThrows[BuiltinError](ReplicateByte $ -1 $ 0)
+        assertEvalThrows[BuiltinError](ReplicateByte $ -1 $ 3)
+        assertEvalThrows[BuiltinError](ReplicateByte $ 8193 $ 0)
+        assertEvalThrows[BuiltinError](ReplicateByte $ 8193 $ 3)
+        assertEvalThrows[BuiltinError](ReplicateByte $ 1 $ -1)
+        assertEvalThrows[BuiltinError](ReplicateByte $ 1 $ 256)
+        assertEvalThrows[BuiltinError](ReplicateByte $ 4 $ -1)
+        assertEvalThrows[BuiltinError](ReplicateByte $ 4 $ 256)
+
+        assertEvalEq(ReplicateByte $ 0 $ 0xff, hex"")
+        assertEvalEq(ReplicateByte $ 4 $ 0xff, hex"FFFFFFFF")
+    }
+
+    test("ShiftByteString follows CIP-123") {
+        val ShiftByteString = compile(scalus.builtin.Builtins.shiftByteString).toUplc()
+
+        assertEvalEq(ShiftByteString $ hex"" $ 3, hex"")
+        assertEvalEq(ShiftByteString $ hex"" $ -3, hex"")
+        assertEvalEq(ShiftByteString $ hex"EBFC" $ 0, hex"EBFC")
+        assertEvalEq(ShiftByteString $ hex"EBFC" $ 5, hex"7F80")
+        assertEvalEq(ShiftByteString $ hex"EBFC" $ -5, hex"075F")
+        assertEvalEq(ShiftByteString $ hex"EBFC" $ 16, hex"0000")
+        assertEvalEq(ShiftByteString $ hex"EBFC" $ -16, hex"0000")
+
+        val size = 20
+        val byteString = ByteString.unsafeFromArray(
+          Array.fill(size)((scala.util.Random.nextInt(256) - 128).toByte)
+        )
+        val binaryStr = byteString.toBinaryString
+
+        for i <- 0 to size do
+            assertResult(binaryStr.drop(i) + "0" * i)(
+              scalus.builtin.Builtins.shiftByteString(byteString, i).toBinaryString
+            )
+
+            assertResult("0" * i + binaryStr.dropRight(i))(
+              scalus.builtin.Builtins.shiftByteString(byteString, -i).toBinaryString
+            )
+    }
+
+    test("RotateByteString follows CIP-123") {
+        val RotateByteString = compile(scalus.builtin.Builtins.rotateByteString).toUplc()
+
+        assertEvalEq(RotateByteString $ hex"" $ 3, hex"")
+        assertEvalEq(RotateByteString $ hex"" $ -3, hex"")
+        assertEvalEq(RotateByteString $ hex"EBFC" $ 0, hex"EBFC")
+        assertEvalEq(RotateByteString $ hex"EBFC" $ 5, hex"7F9D")
+        assertEvalEq(RotateByteString $ hex"EBFC" $ -5, hex"E75F")
+        assertEvalEq(RotateByteString $ hex"EBFC" $ 16, hex"EBFC")
+        assertEvalEq(RotateByteString $ hex"EBFC" $ -16, hex"EBFC")
+        assertEvalEq(RotateByteString $ hex"EBFC" $ 21, hex"7F9D")
+        assertEvalEq(RotateByteString $ hex"EBFC" $ -21, hex"E75F")
+
+        val size = 20
+        val byteString = ByteString.unsafeFromArray(
+          Array.fill(size)((scala.util.Random.nextInt(256) - 128).toByte)
+        )
+        val binaryStr = byteString.toBinaryString
+
+        for i <- 0 to size do
+            assertResult(binaryStr.drop(i) + binaryStr.take(i))(
+              scalus.builtin.Builtins.rotateByteString(byteString, i).toBinaryString
+            )
+
+            assertResult(binaryStr.takeRight(i) + binaryStr.dropRight(i))(
+              scalus.builtin.Builtins.rotateByteString(byteString, -i).toBinaryString
+            )
+    }
+
+    test("CountSetBits follows CIP-123") {
+        val CountSetBits = compile(scalus.builtin.Builtins.countSetBits).toUplc()
+
+        assertEvalEq(CountSetBits $ hex"", 0)
+        assertEvalEq(CountSetBits $ hex"0000", 0)
+        assertEvalEq(CountSetBits $ hex"0100", 1)
+        assertEvalEq(CountSetBits $ hex"0001", 1)
+        assertEvalEq(CountSetBits $ hex"000F", 4)
+        assertEvalEq(CountSetBits $ hex"FFFF", 16)
+    }
+
+    test("FindFirstSetBit follows CIP-123") {
+        val FindFirstSetBit = compile(scalus.builtin.Builtins.findFirstSetBit).toUplc()
+
+        assertEvalEq(FindFirstSetBit $ hex"", -1)
+        assertEvalEq(FindFirstSetBit $ hex"0000", -1)
+        assertEvalEq(FindFirstSetBit $ hex"0002", 1)
+        assertEvalEq(FindFirstSetBit $ hex"FFF2", 1)
+        assertEvalEq(FindFirstSetBit $ hex"8000", 15)
+    }

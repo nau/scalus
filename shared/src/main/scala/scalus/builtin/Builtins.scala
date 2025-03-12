@@ -168,6 +168,8 @@ trait PlatformSpecific:
 
     def keccak_256(bs: ByteString): ByteString
 
+    def ripemd_160(byteString: ByteString): ByteString
+
 object Builtins:
     // Integers
     def addInteger(i1: BigInt, i2: BigInt): BigInt = i1 + i2
@@ -502,6 +504,173 @@ object Builtins:
     def readBit(byteString: ByteString, index: BigInt): Boolean =
         BitwiseLogicalOperations.readBit(byteString, index)
 
+    /** Bitwise logical WriteBits for ByteStrings.
+      *
+      * @see
+      *   [CIP-122] (https://github.com/cardano-foundation/CIPs/tree/master/CIP-0122).
+      *
+      * Sets the value of the bit at the specified indexes in a copy of the input ByteString. The
+      * indexes must be in the range [0 .. byteString.size * 8), otherwise BuiltinException will be
+      * thrown. Bit indexing starts from the end of the ByteString.
+      *
+      * @example
+      *   writeBits(hex"0000", List(0, 1, 2, 3), true) == hex"000F"
+      * @example
+      *   writeBits(hex"000F", List(0, 1, 2, 3), false) == hex"0000"
+      * @example
+      *   writeBits(hex"000F", List(16), true) throws BuiltinException
+      *
+      * @param byteString
+      *   The `ByteString` copy of that to be written.
+      * @param indexes
+      *   The indexes of the bits to be written.
+      * @param bit
+      *   The value of the bit to be written.
+      * @throws BuiltinException
+      *   if the indexes are out of bounds.
+      * @return
+      *   The result of the bitwise logical WriteBits operation.
+      */
+    def writeBits(
+        byteString: ByteString,
+        indexes: scala.collection.immutable.List[BigInt],
+        bit: Boolean
+    ): ByteString =
+        BitwiseLogicalOperations.writeBits(byteString, indexes, bit)
+
+    /** Bitwise logical ReplicateByte for ByteStrings.
+      *
+      * @see
+      *   [CIP-122] (https://github.com/cardano-foundation/CIPs/tree/master/CIP-0122).
+      *
+      * Replicates a byte `length` times and returns result as ByteString. Length must be
+      * non-negative, otherwise BuiltinException will be thrown. The byte value must be in the range
+      * [0 .. 255], otherwise BuiltinException will be thrown.
+      *
+      * @example
+      *   replicateByte(0, 0xFF) == hex""
+      * @example
+      *   replicateByte(4, 0xFF) == hex"FFFFFFFF"
+      * @example
+      *   replicateByte(-1, 255) throws BuiltinException
+      * @example
+      *   replicateByte(1, -1) throws BuiltinException
+      * @example
+      *   replicateByte(1, 256) throws BuiltinException
+      *
+      * @param length
+      *   The number of times to replicate the byte.
+      * @param byte
+      *   The value of the byte to be replicated.
+      * @throws BuiltinException
+      *   if the length is negative or the byte value is out of bounds.
+      * @return
+      *   The result of the bitwise logical ReplicateByte operation.
+      */
+    def replicateByte(length: BigInt, byte: BigInt): ByteString =
+        BitwiseLogicalOperations.replicateByte(length, byte)
+
+    /** Bitwise logical shiftByteString for ByteStrings.
+      *
+      * @see
+      *   [CIP-123] (https://github.com/cardano-foundation/CIPs/tree/master/CIP-0123).
+      *
+      * Shifts the input ByteString by the specified number of bits. A positive shift value shifts
+      * the ByteString to the left, while a negative shift value shifts the ByteString to the right.
+      *
+      * @example
+      *   shiftByteString(hex"000F", 4) == hex"00F0"
+      * @example
+      *   shiftByteString(hex"000F", 16) == hex"0000"
+      * @example
+      *   shiftByteString(hex"000F", -4) == hex"0000"
+      *
+      * @param byteString
+      *   The ByteString to be shifted.
+      * @param shift
+      *   The number of bits to shift the ByteString.
+      * @return
+      *   The result of the bitwise logical shiftByteString operation.
+      */
+    def shiftByteString(byteString: ByteString, shift: BigInt): ByteString =
+        BitwiseLogicalOperations.shiftByteString(byteString, shift)
+
+    /** Bitwise logical rotateByteString for ByteStrings.
+      *
+      * @see
+      *   [CIP-123] (https://github.com/cardano-foundation/CIPs/tree/master/CIP-0123).
+      *
+      * Rotates the input ByteString by the specified number of bits. A positive rotation value
+      * rotates the ByteString to the left, while a negative rotation value rotates the ByteString
+      * to the right. Rotation by more than the total number of bits is the same as the remainder
+      * after division by number of bits.
+      *
+      * @example
+      *   rotateByteString(hex"000F", 4) == hex"00F0"
+      * @example
+      *   rotateByteString(hex"000F", -4) == hex"F000"
+      * @example
+      *   rotateByteString(hex"000F", 16) == hex"000F"
+      * @example
+      *   rotateByteString(hex"000F", -16) == hex"000F"
+      *
+      * @param byteString
+      *   The ByteString to be rotated.
+      * @param rotation
+      *   The number of bits to rotates the ByteString.
+      * @return
+      *   The result of the bitwise logical rotateByteString operation.
+      */
+    def rotateByteString(byteString: ByteString, rotation: BigInt): ByteString =
+        BitwiseLogicalOperations.rotateByteString(byteString, rotation)
+
+    /** Bitwise logical countSetBits for ByteStrings.
+      *
+      * @see
+      *   [CIP-123] (https://github.com/cardano-foundation/CIPs/tree/master/CIP-0123).
+      *
+      * Counts the number of set bits in the input ByteString.
+      *
+      * @example
+      *   countSetBits(hex"000F") == 4
+      * @example
+      *   countSetBits(hex"0000") == 0
+      * @example
+      *   countSetBits(hex"0001") == 1
+      *
+      * @param byteString
+      *   The ByteString to be counted.
+      * @return
+      *   The number of set bits in the ByteString.
+      */
+    def countSetBits(byteString: ByteString): Int =
+        BitwiseLogicalOperations.countSetBits(byteString)
+
+    /** Bitwise logical findFirstSetBit for ByteStrings.
+      *
+      * @see
+      *   [CIP-123] (https://github.com/cardano-foundation/CIPs/tree/master/CIP-0123).
+      *
+      * Finds the index of the first set bit in the input ByteString. The index is zero-based and
+      * starts from the end of the ByteString. If no set bits are found, -1 is returned.
+      *
+      * @example
+      *   findFirstSetBit(hex"") == -1
+      * @example
+      *   findFirstSetBit(hex"0000") == -1
+      * @example
+      *   findFirstSetBit(hex"0002") == 1
+      * @example
+      *   findFirstSetBit(hex"FFF2") == 1
+      *
+      * @param byteString
+      *   The ByteString to be searched.
+      * @return
+      *   The index of the first set bit in the ByteString from the end.
+      */
+    def findFirstSetBit(byteString: ByteString): Int =
+        BitwiseLogicalOperations.findFirstSetBit(byteString)
+
     def bls12_381_G1_equal(using
         ps: PlatformSpecific
     )(p1: BLS12_381_G1_Element, p2: BLS12_381_G1_Element): Boolean =
@@ -593,6 +762,21 @@ object Builtins:
 
     def keccak_256(using ps: PlatformSpecific)(bs: ByteString): ByteString =
         ps.keccak_256(bs)
+
+    /** Hashing primitive Ripemd_160 for ByteStrings.
+      *
+      * @see
+      *   [CIP-127] (https://github.com/cardano-foundation/CIPs/tree/master/CIP-0127).
+      *
+      * Ripemd_160 hash function (https://en.wikipedia.org/wiki/RIPEMD).
+      *
+      * @param byteString
+      *   The ByteString to be hashed.
+      * @return
+      *   The result of the Ripemd_160 hash function.
+      */
+    def ripemd_160(using ps: PlatformSpecific)(byteString: ByteString): ByteString =
+        ps.ripemd_160(byteString)
 
 private object UTF8Decoder {
     def decode(bytes: Array[Byte]): String = {

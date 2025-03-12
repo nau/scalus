@@ -2,8 +2,8 @@ package scalus
 package uplc
 package eval
 
+import java.nio.file.{Files, Paths}
 import scala.language.implicitConversions
-import scala.util.Using
 
 /** Tests for the Plutus Conformance Test Suite.
   *
@@ -12,17 +12,14 @@ import scala.util.Using
   */
 class PlutusConformanceJvmSpec extends PlutusConformanceSpec:
     override protected val path = s"../${super.path}"
-    protected def readFile(path: String): String = {
-        Using.resource(scala.io.Source.fromFile(path))(_.mkString)
-    }
     // TODO: for now, the BLS12-381 builtins implemented only for JVM
     // TODO: move to PlutusConformanceSpec when the BLS12-381 builtins are implemented for Scala.js
     // format: off
-    check("builtin/constant/bls12-381/G1/bad-syntax-1/bad-syntax-1")
-    check("builtin/constant/bls12-381/G1/bad-syntax-2/bad-syntax-2")
-    check("builtin/constant/bls12-381/G1/bad-zero-1/bad-zero-1")
-    check("builtin/constant/bls12-381/G1/bad-zero-2/bad-zero-2")
-    check("builtin/constant/bls12-381/G1/bad-zero-3/bad-zero-3")
+    check("builtin/constant/bls12-381/G1/bad-syntax-01/bad-syntax-01")
+    check("builtin/constant/bls12-381/G1/bad-syntax-02/bad-syntax-02")
+    check("builtin/constant/bls12-381/G1/bad-zero-01/bad-zero-01")
+    check("builtin/constant/bls12-381/G1/bad-zero-02/bad-zero-02")
+    check("builtin/constant/bls12-381/G1/bad-zero-03/bad-zero-03")
     check("builtin/constant/bls12-381/G1/off-curve/off-curve")
     check("builtin/constant/bls12-381/G1/on-curve-bit3-clear/on-curve-bit3-clear")
     check("builtin/constant/bls12-381/G1/on-curve-bit3-set/on-curve-bit3-set")
@@ -31,11 +28,11 @@ class PlutusConformanceJvmSpec extends PlutusConformanceSpec:
     check("builtin/constant/bls12-381/G1/too-long/too-long")
     check("builtin/constant/bls12-381/G1/too-short/too-short")
     check("builtin/constant/bls12-381/G1/zero/zero")
-    check("builtin/constant/bls12-381/G2/bad-syntax-1/bad-syntax-1")
-    check("builtin/constant/bls12-381/G2/bad-syntax-2/bad-syntax-2")
-    check("builtin/constant/bls12-381/G2/bad-zero-1/bad-zero-1")
-    check("builtin/constant/bls12-381/G2/bad-zero-2/bad-zero-2")
-    check("builtin/constant/bls12-381/G2/bad-zero-3/bad-zero-3")
+    check("builtin/constant/bls12-381/G2/bad-syntax-01/bad-syntax-01")
+    check("builtin/constant/bls12-381/G2/bad-syntax-02/bad-syntax-02")
+    check("builtin/constant/bls12-381/G2/bad-zero-01/bad-zero-01")
+    check("builtin/constant/bls12-381/G2/bad-zero-02/bad-zero-02")
+    check("builtin/constant/bls12-381/G2/bad-zero-03/bad-zero-03")
     check("builtin/constant/bls12-381/G2/off-curve/off-curve")
     check("builtin/constant/bls12-381/G2/on-curve-bit3-clear/on-curve-bit3-clear")
     check("builtin/constant/bls12-381/G2/on-curve-bit3-set/on-curve-bit3-set")
@@ -65,7 +62,7 @@ class PlutusConformanceJvmSpec extends PlutusConformanceSpec:
     //  and then convert it to a byte array as UTF-8. This is a bug in the Java bindings.
     // Here is the discussion: https://github.com/supranational/blst/pull/232
     // For now, we are skipping this test.
-    //    check("builtin/semantics/bls12_381-cardano-crypto-tests/signature/large-dst/large-dst")
+    ignore("builtin/semantics/bls12_381-cardano-crypto-tests/signature/large-dst/large-dst")(())
     check("builtin/semantics/bls12_381_G1_add/add-associative/add-associative")
     check("builtin/semantics/bls12_381_G1_add/add-commutative/add-commutative")
     check("builtin/semantics/bls12_381_G1_add/add-zero/add-zero")
@@ -78,7 +75,7 @@ class PlutusConformanceJvmSpec extends PlutusConformanceSpec:
     //  and then convert it to a byte array as UTF-8. This is a bug in the Java bindings.
     // Here is the discussion: https://github.com/supranational/blst/pull/232
     // For now, we are skipping this test.
-    //    check("builtin/semantics/bls12_381_G1_hashToGroup/hash-dst-len-255/hash-dst-len-255")
+    ignore("builtin/semantics/bls12_381_G1_hashToGroup/hash-dst-len-255/hash-dst-len-255")(())
     check("builtin/semantics/bls12_381_G1_hashToGroup/hash-dst-len-256/hash-dst-len-256")
     check("builtin/semantics/bls12_381_G1_hashToGroup/hash-empty-dst/hash-empty-dst")
     check("builtin/semantics/bls12_381_G1_hashToGroup/hash-same-msg-different-dst/hash-same-msg-different-dst")
@@ -87,21 +84,21 @@ class PlutusConformanceJvmSpec extends PlutusConformanceSpec:
     check("builtin/semantics/bls12_381_G1_neg/neg-zero/neg-zero")
     check("builtin/semantics/bls12_381_G1_neg/neg/neg")
     check("builtin/semantics/bls12_381_G1_scalarMul/addmul/addmul")
-    check("builtin/semantics/bls12_381_G1_scalarMul/mul0/mul0")
-    check("builtin/semantics/bls12_381_G1_scalarMul/mul1/mul1")
+    check("builtin/semantics/bls12_381_G1_scalarMul/mul-44/mul-44")
+    check("builtin/semantics/bls12_381_G1_scalarMul/mul-neg-one/mul-neg-one")
+    check("builtin/semantics/bls12_381_G1_scalarMul/mul-one/mul-one")
+    check("builtin/semantics/bls12_381_G1_scalarMul/mul-zero/mul-zero")
     check("builtin/semantics/bls12_381_G1_scalarMul/mul19+25/mul19+25")
-    check("builtin/semantics/bls12_381_G1_scalarMul/mul44/mul44")
-    check("builtin/semantics/bls12_381_G1_scalarMul/mul4x11/mul4x11")
+    check("builtin/semantics/bls12_381_G1_scalarMul/mul4x-11/mul4x-11")
     check("builtin/semantics/bls12_381_G1_scalarMul/muladd/muladd")
-    check("builtin/semantics/bls12_381_G1_scalarMul/mulneg1/mulneg1")
-    check("builtin/semantics/bls12_381_G1_scalarMul/mulneg44/mulneg44")
-    check("builtin/semantics/bls12_381_G1_scalarMul/mulperiodic1/mulperiodic1")
-    check("builtin/semantics/bls12_381_G1_scalarMul/mulperiodic2/mulperiodic2")
-    check("builtin/semantics/bls12_381_G1_scalarMul/mulperiodic3/mulperiodic3")
-    check("builtin/semantics/bls12_381_G1_scalarMul/mulperiodic4/mulperiodic4")
-    check("builtin/semantics/bls12_381_G1_uncompress/bad-zero-1/bad-zero-1")
-    check("builtin/semantics/bls12_381_G1_uncompress/bad-zero-2/bad-zero-2")
-    check("builtin/semantics/bls12_381_G1_uncompress/bad-zero-3/bad-zero-3")
+    check("builtin/semantics/bls12_381_G1_scalarMul/mulneg-44/mulneg-44")
+    check("builtin/semantics/bls12_381_G1_scalarMul/mulperiodic-01/mulperiodic-01")
+    check("builtin/semantics/bls12_381_G1_scalarMul/mulperiodic-02/mulperiodic-02")
+    check("builtin/semantics/bls12_381_G1_scalarMul/mulperiodic-03/mulperiodic-03")
+    check("builtin/semantics/bls12_381_G1_scalarMul/mulperiodic-04/mulperiodic-04")
+    check("builtin/semantics/bls12_381_G1_uncompress/bad-zero-01/bad-zero-01")
+    check("builtin/semantics/bls12_381_G1_uncompress/bad-zero-02/bad-zero-02")
+    check("builtin/semantics/bls12_381_G1_uncompress/bad-zero-03/bad-zero-03")
     check("builtin/semantics/bls12_381_G1_uncompress/off-curve/off-curve")
     check("builtin/semantics/bls12_381_G1_uncompress/on-curve-bit1-clear/on-curve-bit1-clear")
     check("builtin/semantics/bls12_381_G1_uncompress/on-curve-bit3-clear/on-curve-bit3-clear")
@@ -123,7 +120,7 @@ class PlutusConformanceJvmSpec extends PlutusConformanceSpec:
     //  and then convert it to a byte array as UTF-8. This is a bug in the Java bindings.
     // Here is the discussion: https://github.com/supranational/blst/pull/232
     // For now, we are skipping this test.
-    //    check("builtin/semantics/bls12_381_G2_hashToGroup/hash-dst-len-255/hash-dst-len-255")
+    ignore("builtin/semantics/bls12_381_G2_hashToGroup/hash-dst-len-255/hash-dst-len-255")(())
     check("builtin/semantics/bls12_381_G2_hashToGroup/hash-dst-len-256/hash-dst-len-256")
     check("builtin/semantics/bls12_381_G2_hashToGroup/hash-empty-dst/hash-empty-dst")
     check("builtin/semantics/bls12_381_G2_hashToGroup/hash-same-msg-different-dst/hash-same-msg-different-dst")
@@ -132,21 +129,21 @@ class PlutusConformanceJvmSpec extends PlutusConformanceSpec:
     check("builtin/semantics/bls12_381_G2_neg/neg-zero/neg-zero")
     check("builtin/semantics/bls12_381_G2_neg/neg/neg")
     check("builtin/semantics/bls12_381_G2_scalarMul/addmul/addmul")
-    check("builtin/semantics/bls12_381_G2_scalarMul/mul0/mul0")
-    check("builtin/semantics/bls12_381_G2_scalarMul/mul1/mul1")
+    check("builtin/semantics/bls12_381_G2_scalarMul/mul-44/mul-44")
+    check("builtin/semantics/bls12_381_G2_scalarMul/mul-neg-one/mul-neg-one")
+    check("builtin/semantics/bls12_381_G2_scalarMul/mul-one/mul-one")
+    check("builtin/semantics/bls12_381_G2_scalarMul/mul-zero/mul-zero")
     check("builtin/semantics/bls12_381_G2_scalarMul/mul19+25/mul19+25")
-    check("builtin/semantics/bls12_381_G2_scalarMul/mul44/mul44")
-    check("builtin/semantics/bls12_381_G2_scalarMul/mul4x11/mul4x11")
+    check("builtin/semantics/bls12_381_G2_scalarMul/mul4x-11/mul4x-11")
     check("builtin/semantics/bls12_381_G2_scalarMul/muladd/muladd")
-    check("builtin/semantics/bls12_381_G2_scalarMul/mulneg1/mulneg1")
-    check("builtin/semantics/bls12_381_G2_scalarMul/mulneg44/mulneg44")
-    check("builtin/semantics/bls12_381_G2_scalarMul/mulperiodic1/mulperiodic1")
-    check("builtin/semantics/bls12_381_G2_scalarMul/mulperiodic2/mulperiodic2")
-    check("builtin/semantics/bls12_381_G2_scalarMul/mulperiodic3/mulperiodic3")
-    check("builtin/semantics/bls12_381_G2_scalarMul/mulperiodic4/mulperiodic4")
-    check("builtin/semantics/bls12_381_G2_uncompress/bad-zero-1/bad-zero-1")
-    check("builtin/semantics/bls12_381_G2_uncompress/bad-zero-2/bad-zero-2")
-    check("builtin/semantics/bls12_381_G2_uncompress/bad-zero-3/bad-zero-3")
+    check("builtin/semantics/bls12_381_G2_scalarMul/mulneg-44/mulneg-44")
+    check("builtin/semantics/bls12_381_G2_scalarMul/mulperiodic-01/mulperiodic-01")
+    check("builtin/semantics/bls12_381_G2_scalarMul/mulperiodic-02/mulperiodic-02")
+    check("builtin/semantics/bls12_381_G2_scalarMul/mulperiodic-03/mulperiodic-03")
+    check("builtin/semantics/bls12_381_G2_scalarMul/mulperiodic-04/mulperiodic-04")
+    check("builtin/semantics/bls12_381_G2_uncompress/bad-zero-01/bad-zero-01")
+    check("builtin/semantics/bls12_381_G2_uncompress/bad-zero-02/bad-zero-02")
+    check("builtin/semantics/bls12_381_G2_uncompress/bad-zero-03/bad-zero-03")
     check("builtin/semantics/bls12_381_G2_uncompress/off-curve/off-curve")
     check("builtin/semantics/bls12_381_G2_uncompress/on-curve-bit1-clear/on-curve-bit1-clear")
     check("builtin/semantics/bls12_381_G2_uncompress/on-curve-bit3-clear/on-curve-bit3-clear")
@@ -161,3 +158,5 @@ class PlutusConformanceJvmSpec extends PlutusConformanceSpec:
     check("builtin/semantics/bls12_381_millerLoop/left-additive/left-additive")
     check("builtin/semantics/bls12_381_millerLoop/random-pairing/random-pairing")
     check("builtin/semantics/bls12_381_millerLoop/right-additive/right-additive")
+    check("builtin/semantics/ripemd_160/ripemd_160-empty/ripemd_160-empty")
+    check("builtin/semantics/ripemd_160/ripemd_160-length-200/ripemd_160-length-200")

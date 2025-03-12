@@ -97,7 +97,14 @@ case class BuiltinCostModel(
     orByteString: DefaultCostingFun[ThreeArguments],
     xorByteString: DefaultCostingFun[ThreeArguments],
     complementByteString: DefaultCostingFun[OneArgument],
-    readBit: DefaultCostingFun[TwoArguments]
+    readBit: DefaultCostingFun[TwoArguments],
+    writeBits: WriteBitsCostingFun,
+    replicateByte: ReplicateByteCostingFun,
+    shiftByteString: ShiftOrRotateByteStringCostingFun,
+    rotateByteString: ShiftOrRotateByteStringCostingFun,
+    countSetBits: DefaultCostingFun[OneArgument],
+    findFirstSetBit: DefaultCostingFun[OneArgument],
+    ripemd_160: DefaultCostingFun[OneArgument]
 ) {
 
     /** Convert a [[BuiltinCostModel]] to a flat map of cost parameters
@@ -228,7 +235,14 @@ object BuiltinCostModel {
             "orByteString" -> writeJs(model.orByteString),
             "xorByteString" -> writeJs(model.xorByteString),
             "complementByteString" -> writeJs(model.complementByteString),
-            "readBit" -> writeJs(model.readBit)
+            "readBit" -> writeJs(model.readBit),
+            "writeBits" -> writeJs(model.writeBits),
+            "replicateByte" -> writeJs(model.replicateByte),
+            "shiftByteString" -> writeJs(model.shiftByteString),
+            "rotateByteString" -> writeJs(model.rotateByteString),
+            "countSetBits" -> writeJs(model.countSetBits),
+            "findFirstSetBit" -> writeJs(model.findFirstSetBit),
+            "ripemd_160" -> writeJs(model.ripemd_160)
           ),
       json =>
           BuiltinCostModel(
@@ -343,6 +357,34 @@ object BuiltinCostModel {
             readBit =
                 if json.obj.keySet.contains("readBit") then
                     read[DefaultCostingFun[TwoArguments]](json("readBit"))
+                else null,
+            writeBits =
+                if json.obj.keySet.contains("writeBits") then
+                    read[WriteBitsCostingFun](json("writeBits"))
+                else null,
+            replicateByte =
+                if json.obj.keySet.contains("replicateByte") then
+                    read[ReplicateByteCostingFun](json("replicateByte"))
+                else null,
+            shiftByteString =
+                if json.obj.keySet.contains("shiftByteString") then
+                    read[ShiftOrRotateByteStringCostingFun](json("shiftByteString"))
+                else null,
+            rotateByteString =
+                if json.obj.keySet.contains("rotateByteString") then
+                    read[ShiftOrRotateByteStringCostingFun](json("rotateByteString"))
+                else null,
+            countSetBits =
+                if json.obj.keySet.contains("countSetBits") then
+                    read[DefaultCostingFun[OneArgument]](json("countSetBits"))
+                else null,
+            findFirstSetBit =
+                if json.obj.keySet.contains("findFirstSetBit") then
+                    read[DefaultCostingFun[OneArgument]](json("findFirstSetBit"))
+                else null,
+            ripemd_160 =
+                if json.obj.keySet.contains("ripemd_160") then
+                    read[DefaultCostingFun[OneArgument]](json("ripemd_160"))
                 else null
           )
     )
@@ -1339,6 +1381,95 @@ object BuiltinCostModel {
             ),
             memory = TwoArguments.ConstantCost(
               cost = params("readBit-memory-arguments")
+            )
+          ),
+          writeBits = WriteBitsCostingFun(
+            cpu = ThreeArguments.LinearInY(
+              OneVariableLinearFunction(
+                intercept = params("writeBits-cpu-arguments-intercept"),
+                slope = params("writeBits-cpu-arguments-slope")
+              )
+            ),
+            memory = ThreeArguments.LinearInX(
+              OneVariableLinearFunction(
+                intercept = params("writeBits-memory-arguments-intercept"),
+                slope = params("writeBits-memory-arguments-slope")
+              )
+            )
+          ),
+          replicateByte = ReplicateByteCostingFun(
+            cpu = TwoArguments.LinearInX(
+              OneVariableLinearFunction(
+                intercept = params("replicateByte-cpu-arguments-intercept"),
+                slope = params("replicateByte-cpu-arguments-slope")
+              )
+            ),
+            memory = TwoArguments.LinearInX(
+              OneVariableLinearFunction(
+                intercept = params("replicateByte-memory-arguments-intercept"),
+                slope = params("replicateByte-memory-arguments-slope")
+              )
+            )
+          ),
+          shiftByteString = ShiftOrRotateByteStringCostingFun(
+            cpu = TwoArguments.LinearInX(
+              OneVariableLinearFunction(
+                intercept = params("shiftByteString-cpu-arguments-intercept"),
+                slope = params("shiftByteString-cpu-arguments-slope")
+              )
+            ),
+            memory = TwoArguments.LinearInX(
+              OneVariableLinearFunction(
+                intercept = params("shiftByteString-memory-arguments-intercept"),
+                slope = params("shiftByteString-memory-arguments-slope")
+              )
+            )
+          ),
+          rotateByteString = ShiftOrRotateByteStringCostingFun(
+            cpu = TwoArguments.LinearInX(
+              OneVariableLinearFunction(
+                intercept = params("rotateByteString-cpu-arguments-intercept"),
+                slope = params("rotateByteString-cpu-arguments-slope")
+              )
+            ),
+            memory = TwoArguments.LinearInX(
+              OneVariableLinearFunction(
+                intercept = params("rotateByteString-memory-arguments-intercept"),
+                slope = params("rotateByteString-memory-arguments-slope")
+              )
+            )
+          ),
+          countSetBits = DefaultCostingFun(
+            cpu = OneArgument.LinearInX(
+              OneVariableLinearFunction(
+                intercept = params("countSetBits-cpu-arguments-intercept"),
+                slope = params("countSetBits-cpu-arguments-slope")
+              )
+            ),
+            memory = OneArgument.ConstantCost(
+              cost = params("countSetBits-memory-arguments")
+            )
+          ),
+          findFirstSetBit = DefaultCostingFun(
+            cpu = OneArgument.LinearInX(
+              OneVariableLinearFunction(
+                intercept = params("findFirstSetBit-cpu-arguments-intercept"),
+                slope = params("findFirstSetBit-cpu-arguments-slope")
+              )
+            ),
+            memory = OneArgument.ConstantCost(
+              cost = params("findFirstSetBit-memory-arguments")
+            )
+          ),
+          ripemd_160 = DefaultCostingFun(
+            cpu = OneArgument.LinearInX(
+              OneVariableLinearFunction(
+                intercept = params("ripemd_160-cpu-arguments-intercept"),
+                slope = params("ripemd_160-cpu-arguments-slope")
+              )
+            ),
+            memory = OneArgument.ConstantCost(
+              cost = params("ripemd_160-memory-arguments")
             )
           )
         )

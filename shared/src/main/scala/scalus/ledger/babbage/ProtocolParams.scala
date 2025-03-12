@@ -829,6 +829,31 @@ class PlutusV3Params {
     var `complementByteString-memory-arguments-slope`: Long = 0L
     var `readBit-cpu-arguments`: Long = 0L
     var `readBit-memory-arguments`: Long = 0L
+    var `writeBits-cpu-arguments-intercept`: Long = 0L
+    var `writeBits-cpu-arguments-slope`: Long = 0L
+    var `writeBits-memory-arguments-intercept`: Long = 0L
+    var `writeBits-memory-arguments-slope`: Long = 0L
+    var `replicateByte-cpu-arguments-intercept`: Long = 0L
+    var `replicateByte-cpu-arguments-slope`: Long = 0L
+    var `replicateByte-memory-arguments-intercept`: Long = 0L
+    var `replicateByte-memory-arguments-slope`: Long = 0L
+    var `shiftByteString-cpu-arguments-intercept`: Long = 0L
+    var `shiftByteString-cpu-arguments-slope`: Long = 0L
+    var `shiftByteString-memory-arguments-intercept`: Long = 0L
+    var `shiftByteString-memory-arguments-slope`: Long = 0L
+    var `rotateByteString-cpu-arguments-intercept`: Long = 0L
+    var `rotateByteString-cpu-arguments-slope`: Long = 0L
+    var `rotateByteString-memory-arguments-intercept`: Long = 0L
+    var `rotateByteString-memory-arguments-slope`: Long = 0L
+    var `countSetBits-cpu-arguments-intercept`: Long = 0L
+    var `countSetBits-cpu-arguments-slope`: Long = 0L
+    var `countSetBits-memory-arguments`: Long = 0L
+    var `findFirstSetBit-cpu-arguments-intercept`: Long = 0L
+    var `findFirstSetBit-cpu-arguments-slope`: Long = 0L
+    var `findFirstSetBit-memory-arguments`: Long = 0L
+    var `ripemd_160-cpu-arguments-intercept`: Long = 0L
+    var `ripemd_160-cpu-arguments-slope`: Long = 0L
+    var `ripemd_160-memory-arguments`: Long = 0L
 
     def toJson: String = write(this)
 }

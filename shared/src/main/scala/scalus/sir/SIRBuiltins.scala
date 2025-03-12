@@ -355,6 +355,43 @@ object SIRBuiltins {
       SIRType.ByteString ->: SIRType.Integer ->: SIRType.Boolean
     )
 
+    val writeBits: SIR.Builtin = SIR.Builtin(
+      DefaultFun.WriteBits,
+      SIRType.ByteString ->: SIRType.List(
+        SIRType.Integer
+      ) ->: SIRType.Boolean ->: SIRType.ByteString
+    )
+
+    val replicateByte: SIR.Builtin = SIR.Builtin(
+      DefaultFun.ReplicateByte,
+      SIRType.Integer ->: SIRType.Integer ->: SIRType.ByteString
+    )
+
+    val shiftByteString: SIR.Builtin = SIR.Builtin(
+      DefaultFun.ShiftByteString,
+      SIRType.ByteString ->: SIRType.Integer ->: SIRType.ByteString
+    )
+
+    val rotateByteString: SIR.Builtin = SIR.Builtin(
+      DefaultFun.RotateByteString,
+      SIRType.ByteString ->: SIRType.Integer ->: SIRType.ByteString
+    )
+
+    val countSetBits: SIR.Builtin = SIR.Builtin(
+      DefaultFun.CountSetBits,
+      SIRType.ByteString ->: SIRType.Integer
+    )
+
+    val findFirstSetBit: SIR.Builtin = SIR.Builtin(
+      DefaultFun.FindFirstSetBit,
+      SIRType.ByteString ->: SIRType.Integer
+    )
+
+    val ripemd_160: SIR.Builtin = SIR.Builtin(
+      DefaultFun.Ripemd_160,
+      SIRType.ByteString ->: SIRType.ByteString
+    )
+
     def fromUplc(uplcFun: DefaultFun): SIR.Builtin =
         uplcFun match
             case DefaultFun.AddInteger                      => addInteger
@@ -437,4 +474,11 @@ object SIRBuiltins {
             case DefaultFun.XorByteString                   => xorByteString
             case DefaultFun.ComplementByteString            => complementByteString
             case DefaultFun.ReadBit                         => readBit
+            case DefaultFun.WriteBits                       => writeBits
+            case DefaultFun.ReplicateByte                   => replicateByte
+            case DefaultFun.ShiftByteString                 => shiftByteString
+            case DefaultFun.RotateByteString                => rotateByteString
+            case DefaultFun.CountSetBits                    => countSetBits
+            case DefaultFun.FindFirstSetBit                 => findFirstSetBit
+            case DefaultFun.Ripemd_160                      => ripemd_160
 }

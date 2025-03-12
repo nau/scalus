@@ -4,8 +4,7 @@ import org.bitcoin.NativeSecp256k1
 import org.bouncycastle.crypto.digests.Blake2bDigest
 import org.bouncycastle.crypto.params.Ed25519PublicKeyParameters
 import org.bouncycastle.crypto.signers.Ed25519Signer
-import org.bouncycastle.jcajce.provider.digest.Keccak
-import org.bouncycastle.jcajce.provider.digest.SHA3
+import org.bouncycastle.jcajce.provider.digest.{Keccak, RIPEMD160, SHA3}
 import scalus.utils.Utils
 import supranational.blst.P1
 import supranational.blst.P2
@@ -209,6 +208,11 @@ trait JVMPlatformSpecific extends PlatformSpecific {
     override def keccak_256(bs: ByteString): ByteString = {
         val digest = new Keccak.Digest256()
         ByteString.unsafeFromArray(digest.digest(bs.bytes))
+    }
+
+    override def ripemd_160(byteString: ByteString): ByteString = {
+        val digest = new RIPEMD160.Digest()
+        ByteString.unsafeFromArray(digest.digest(byteString.bytes))
     }
 }
 
