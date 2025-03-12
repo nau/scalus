@@ -347,8 +347,6 @@ abstract class PlutusConformanceSpec extends AnyFunSuite:
     check("builtin/semantics/replicateByte/case-08/case-08")
     check("builtin/semantics/replicateByte/case-09/case-09")
     check("builtin/semantics/replicateByte/case-10/case-10")
-    check("builtin/semantics/ripemd_160/ripemd_160-empty/ripemd_160-empty")
-    check("builtin/semantics/ripemd_160/ripemd_160-length-200/ripemd_160-length-200")
     check("builtin/semantics/rotateByteString/case-01/case-01")
     check("builtin/semantics/rotateByteString/case-02/case-02")
     check("builtin/semantics/rotateByteString/case-03/case-03")

@@ -158,3 +158,5 @@ class PlutusConformanceJvmSpec extends PlutusConformanceSpec:
     check("builtin/semantics/bls12_381_millerLoop/left-additive/left-additive")
     check("builtin/semantics/bls12_381_millerLoop/random-pairing/random-pairing")
     check("builtin/semantics/bls12_381_millerLoop/right-additive/right-additive")
+    check("builtin/semantics/ripemd_160/ripemd_160-empty/ripemd_160-empty")
+    check("builtin/semantics/ripemd_160/ripemd_160-length-200/ripemd_160-length-200")
