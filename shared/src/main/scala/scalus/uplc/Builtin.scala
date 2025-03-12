@@ -1086,6 +1086,16 @@ class BuiltinsMeaning(
           builtinCostModel.findFirstSetBit
         )
 
+    val Ripemd_160 =
+        mkMeaning(
+          DefaultUni.ByteString ->: DefaultUni.ByteString,
+          (logger: Logger, args: Seq[CekValue]) =>
+              val byteString = args(0).asByteString
+              VCon(asConstant(platformSpecific.ripemd_160(byteString)))
+          ,
+          builtinCostModel.ripemd_160
+        )
+
     private inline def mkGetBuiltinRuntime: DefaultFun => BuiltinRuntime = ${
         scalus.macros.Macros.mkGetBuiltinRuntime('this)
     }

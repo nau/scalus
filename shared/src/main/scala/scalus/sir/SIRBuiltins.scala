@@ -387,6 +387,11 @@ object SIRBuiltins {
       SIRType.ByteString ->: SIRType.Integer
     )
 
+    val ripemd_160: SIR.Builtin = SIR.Builtin(
+      DefaultFun.Ripemd_160,
+      SIRType.ByteString ->: SIRType.ByteString
+    )
+
     def fromUplc(uplcFun: DefaultFun): SIR.Builtin =
         uplcFun match
             case DefaultFun.AddInteger                      => addInteger
@@ -475,4 +480,5 @@ object SIRBuiltins {
             case DefaultFun.RotateByteString                => rotateByteString
             case DefaultFun.CountSetBits                    => countSetBits
             case DefaultFun.FindFirstSetBit                 => findFirstSetBit
+            case DefaultFun.Ripemd_160                      => ripemd_160
 }

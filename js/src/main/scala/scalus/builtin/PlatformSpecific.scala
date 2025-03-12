@@ -221,6 +221,9 @@ trait NodeJsPlatformSpecific extends PlatformSpecific {
         ???
     override def keccak_256(bs: ByteString): ByteString =
         Sha3.keccak_256(bs.toUint8Array).toByteString
+
+    // TODO make native implementation for ripemd_160
+    override def ripemd_160(byteString: ByteString): ByteString = ???
 }
 
 object NodeJsPlatformSpecific extends NodeJsPlatformSpecific

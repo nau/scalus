@@ -851,6 +851,9 @@ class PlutusV3Params {
     var `findFirstSetBit-cpu-arguments-intercept`: Long = 0L
     var `findFirstSetBit-cpu-arguments-slope`: Long = 0L
     var `findFirstSetBit-memory-arguments`: Long = 0L
+    var `ripemd_160-cpu-arguments-intercept`: Long = 0L
+    var `ripemd_160-cpu-arguments-slope`: Long = 0L
+    var `ripemd_160-memory-arguments`: Long = 0L
 
     def toJson: String = write(this)
 }

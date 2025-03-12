@@ -168,6 +168,8 @@ trait PlatformSpecific:
 
     def keccak_256(bs: ByteString): ByteString
 
+    def ripemd_160(byteString: ByteString): ByteString
+
 object Builtins:
     // Integers
     def addInteger(i1: BigInt, i2: BigInt): BigInt = i1 + i2
@@ -760,6 +762,21 @@ object Builtins:
 
     def keccak_256(using ps: PlatformSpecific)(bs: ByteString): ByteString =
         ps.keccak_256(bs)
+
+    /** Hashing primitive Ripemd_160 for ByteStrings.
+      *
+      * @see
+      *   [CIP-127] (https://github.com/cardano-foundation/CIPs/tree/master/CIP-0127).
+      *
+      * Ripemd_160 hash function (https://en.wikipedia.org/wiki/RIPEMD).
+      *
+      * @param byteString
+      *   The ByteString to be hashed.
+      * @return
+      *   The result of the Ripemd_160 hash function.
+      */
+    def ripemd_160(using ps: PlatformSpecific)(byteString: ByteString): ByteString =
+        ps.ripemd_160(byteString)
 
 private object UTF8Decoder {
     def decode(bytes: Array[Byte]): String = {
