@@ -6,7 +6,7 @@ import scalus.builtin.ByteString.{fromString, given}
 
 import scala.language.implicitConversions
 
-// TODO: move to shared when BLS12-381 builtins on JS are implemented
+// TODO: move to shared when Ripemd_160 builtins on JS and native are implemented
 class Ripemd_160BuiltinsSpec extends AnyFunSuite {
     test("empty input") {
         assertResult(hex"9c1185a5c5e9fc54612808977ee8f548b2258d31")(ripemd_160(hex""))

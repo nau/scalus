@@ -370,7 +370,7 @@ trait NativePlatformSpecific extends PlatformSpecific {
     override def keccak_256(bs: ByteString): ByteString =
         ByteString.unsafeFromArray(SHA3.keccak256(bs.bytes))
 
-    // TODO make native implementation for ripemd_160
+    // TODO: make native implementation for ripemd_160
     override def ripemd_160(byteString: ByteString): ByteString = ???
 }
 

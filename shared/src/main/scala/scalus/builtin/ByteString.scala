@@ -5,7 +5,7 @@ import scalus.utils.Hex
 import scala.annotation.targetName
 import scala.compiletime.asMatchable
 
-// TODO replace Array on IArray
+// TODO: replace Array on IArray
 class ByteString private (val bytes: Array[Byte]) {
     def apply(i: Int): Byte = bytes(i)
 
