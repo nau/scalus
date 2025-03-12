@@ -212,6 +212,7 @@ lazy val scalus = crossProject(JSPlatform, JVMPlatform, NativePlatform)
       scalaVersion := scalaVersion.value,
       scalacOptions ++= commonScalacOptions,
       scalacOptions += "-Xmax-inlines:100", // needed for upickle derivation of CostModel
+      scalacOptions += "-Xcheck-macros",
       // scalacOptions += "-Yretain-trees",
       mimaPreviousArtifacts := Set(organization.value %%% name.value % scalusCompatibleVersion),
 
@@ -247,6 +248,8 @@ lazy val scalus = crossProject(JSPlatform, JVMPlatform, NativePlatform)
       Test / javaOptions += "-Djava.library.path=",
       // Test / testOptions += Tests.Argument(TestFrameworks.ScalaTest, "-S", "-8077211454138081902"),
       Test / testOptions += Tests.Argument("-oF"),
+      libraryDependencies += "org.scala-lang" %% "scala3-staging" % scalaVersion.value,
+      libraryDependencies += "org.scala-lang" %% "scala3-compiler" % scalaVersion.value, // % "provided"
       libraryDependencies += "org.slf4j" % "slf4j-simple" % "2.0.17" % "provided",
       libraryDependencies += "org.bouncycastle" % "bcprov-jdk18on" % "1.81",
       libraryDependencies += "foundation.icon" % "blst-java" % "0.3.2",
