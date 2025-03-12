@@ -7,8 +7,4 @@ import scala.util.Using
   * @note
   *   This tests run only on JVM right now.
   */
-class PlutusConformanceNativeSpec extends PlutusConformanceSpec {
-    protected def readFile(path: String): String = {
-        Using.resource(scala.io.Source.fromFile(path))(_.mkString)
-    }
-}
+class PlutusConformanceNativeSpec extends PlutusConformanceSpec

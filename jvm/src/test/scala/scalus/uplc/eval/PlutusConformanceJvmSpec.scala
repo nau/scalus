@@ -12,9 +12,6 @@ import scala.language.implicitConversions
   */
 class PlutusConformanceJvmSpec extends PlutusConformanceSpec:
     override protected val path = s"../${super.path}"
-    protected def readFile(path: String): String = {
-        Files.readString(Paths.get(path))
-    }
     // TODO: for now, the BLS12-381 builtins implemented only for JVM
     // TODO: move to PlutusConformanceSpec when the BLS12-381 builtins are implemented for Scala.js
     // format: off
@@ -65,7 +62,7 @@ class PlutusConformanceJvmSpec extends PlutusConformanceSpec:
     //  and then convert it to a byte array as UTF-8. This is a bug in the Java bindings.
     // Here is the discussion: https://github.com/supranational/blst/pull/232
     // For now, we are skipping this test.
-    //    check("builtin/semantics/bls12_381-cardano-crypto-tests/signature/large-dst/large-dst")
+    ignore("builtin/semantics/bls12_381-cardano-crypto-tests/signature/large-dst/large-dst")(())
     check("builtin/semantics/bls12_381_G1_add/add-associative/add-associative")
     check("builtin/semantics/bls12_381_G1_add/add-commutative/add-commutative")
     check("builtin/semantics/bls12_381_G1_add/add-zero/add-zero")
@@ -78,7 +75,7 @@ class PlutusConformanceJvmSpec extends PlutusConformanceSpec:
     //  and then convert it to a byte array as UTF-8. This is a bug in the Java bindings.
     // Here is the discussion: https://github.com/supranational/blst/pull/232
     // For now, we are skipping this test.
-    //    check("builtin/semantics/bls12_381_G1_hashToGroup/hash-dst-len-255/hash-dst-len-255")
+    ignore("builtin/semantics/bls12_381_G1_hashToGroup/hash-dst-len-255/hash-dst-len-255")(())
     check("builtin/semantics/bls12_381_G1_hashToGroup/hash-dst-len-256/hash-dst-len-256")
     check("builtin/semantics/bls12_381_G1_hashToGroup/hash-empty-dst/hash-empty-dst")
     check("builtin/semantics/bls12_381_G1_hashToGroup/hash-same-msg-different-dst/hash-same-msg-different-dst")
@@ -123,7 +120,7 @@ class PlutusConformanceJvmSpec extends PlutusConformanceSpec:
     //  and then convert it to a byte array as UTF-8. This is a bug in the Java bindings.
     // Here is the discussion: https://github.com/supranational/blst/pull/232
     // For now, we are skipping this test.
-    //    check("builtin/semantics/bls12_381_G2_hashToGroup/hash-dst-len-255/hash-dst-len-255")
+    ignore("builtin/semantics/bls12_381_G2_hashToGroup/hash-dst-len-255/hash-dst-len-255")(())
     check("builtin/semantics/bls12_381_G2_hashToGroup/hash-dst-len-256/hash-dst-len-256")
     check("builtin/semantics/bls12_381_G2_hashToGroup/hash-empty-dst/hash-empty-dst")
     check("builtin/semantics/bls12_381_G2_hashToGroup/hash-same-msg-different-dst/hash-same-msg-different-dst")
