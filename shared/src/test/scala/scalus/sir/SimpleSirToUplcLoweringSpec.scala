@@ -97,11 +97,12 @@ class SimpleSirToUplcLoweringSpec
             DataDecl(
               "scalus.prelude.List",
               List(
-                ConstrDecl("scalus.prelude.List$.Nil", DEFAULT, List(), List()),
+                ConstrDecl("scalus.prelude.List$.Nil", DEFAULT, List(), List(), List()),
                 ConstrDecl(
                   "scalus.prelude.List$.Cons",
                   DEFAULT,
                   List(TypeBinding("head", a2TypeVar), TypeBinding("tail", tailTypeProxy)),
+                  List(a2TypeVar),
                   List(a2TypeVar)
                 )
               ),
@@ -110,12 +111,17 @@ class SimpleSirToUplcLoweringSpec
         tailTypeProxy.ref = SumCaseClass(listData, List(a2TypeVar))
         val txIdData = DataDecl(
           "TxId",
-          List(ConstrDecl("TxId", DEFAULT, List(TypeBinding("hash", ByteString)), List())),
+          List(ConstrDecl("TxId", DEFAULT, List(TypeBinding("hash", ByteString)), List(), List())),
           List()
         )
         def withDecls(sir: SIR) = SIR.Decl(listData, SIR.Decl(txIdData, sir))
         withDecls(
-          SIR.Constr("scalus.prelude.List$.Nil", listData, List(), listData.constructors.head.tp)
+          SIR.Constr(
+            "scalus.prelude.List$.Nil",
+            listData,
+            List(),
+            listData.constrType("scalus.prelude.List$.Nil")
+          )
         ) lowersTo (lam("scalus.prelude.List$.Nil", "scalus.prelude.List$.Cons")(
           !(vr"scalus.prelude.List$$.Nil")
         ))
@@ -124,7 +130,7 @@ class SimpleSirToUplcLoweringSpec
             "TxId",
             txIdData,
             List(SIR.Const(asConstant(hex"DEADBEEF"), ByteString)),
-            txIdData.constructors.head.tp
+            txIdData.constrType("TxId")
           )
         ) lowersTo (lam("hash", "TxId")(vr"TxId" $ vr"hash") $ hex"DEADBEEF")
 
@@ -151,11 +157,12 @@ class SimpleSirToUplcLoweringSpec
         val tailTypeProxy = new SIRType.TypeProxy(null)
         val a1TypeVar = SIRType.TypeVar("A1", Some(1))
         val a2TypeVar = SIRType.TypeVar("A2", Some(2))
-        val nilConstr = ConstrDecl("Nil", SIRVarStorage.DEFAULT, List(), List())
+        val nilConstr = ConstrDecl("Nil", SIRVarStorage.DEFAULT, List(), List(), List())
         val consConstr = ConstrDecl(
           "Cons",
           SIRVarStorage.DEFAULT,
           List(TypeBinding("head", a2TypeVar), TypeBinding("tail", tailTypeProxy)),
+          List(a2TypeVar),
           List(a2TypeVar)
         )
         val listData = DataDecl("List", List(nilConstr, consConstr), List(a1TypeVar))
@@ -168,6 +175,7 @@ class SimpleSirToUplcLoweringSpec
               "TxId",
               SIRVarStorage.DEFAULT,
               List(TypeBinding("hash", SIRType.ByteString)),
+              List(),
               List()
             )
           ),
@@ -180,7 +188,7 @@ class SimpleSirToUplcLoweringSpec
 
         withDecls(
           SIR.Match(
-            SIR.Constr("Nil", listData, List(), listData.constructors.head.tp),
+            SIR.Constr("Nil", listData, List(), listData.constrType("Nil")),
             List(
               SIR.Case(
                 Pattern.Constr(nilConstr, Nil, Nil),

@@ -93,7 +93,7 @@ class OptimizingSirToUplcLoweringSpec
             DataDecl(
               "List",
               List(
-                ConstrDecl("Nil", SIRVarStorage.DEFAULT, List(), List()),
+                ConstrDecl("Nil", SIRVarStorage.DEFAULT, List(), List(), List()),
                 ConstrDecl(
                   "Cons",
                   SIRVarStorage.DEFAULT,
@@ -101,6 +101,7 @@ class OptimizingSirToUplcLoweringSpec
                     TypeBinding("head", TypeVar("T", Some(1))),
                     TypeBinding("tail", listDataDeclTypeProxy)
                   ),
+                  List(TypeVar("T", Some(1))),
                   List(TypeVar("T", Some(1)))
                 )
               ),
@@ -114,6 +115,7 @@ class OptimizingSirToUplcLoweringSpec
               "TxId",
               SIRVarStorage.DEFAULT,
               List(TypeBinding("hash", ByteString)),
+              List(),
               List()
             )
           ),
@@ -122,7 +124,7 @@ class OptimizingSirToUplcLoweringSpec
 
         def withDecls(sir: SIR) = SIR.Decl(listData, SIR.Decl(txIdData, sir))
 
-        withDecls(SIR.Constr("Nil", listData, List(), listData.constructors.head.tp)) lowersTo (lam(
+        withDecls(SIR.Constr("Nil", listData, List(), listData.constrType("Nil"))) lowersTo (lam(
           "Nil",
           "Cons"
         )(
@@ -133,7 +135,7 @@ class OptimizingSirToUplcLoweringSpec
             "TxId",
             txIdData,
             List(SIR.Const(asConstant(hex"DEADBEEF"), SIRType.ByteString)),
-            txIdData.constructors.head.tp
+            txIdData.constrType("TxId")
           )
         ) lowersTo (lam("hash", "TxId")(vr"TxId" $ vr"hash") $ hex"DEADBEEF")
 
@@ -159,11 +161,12 @@ class OptimizingSirToUplcLoweringSpec
          */
         val listTp = SIRType.TypeProxy(null)
         val listTpX = SIRType.TypeProxy(null)
-        val nilConstr = ConstrDecl("Nil", SIRVarStorage.DEFAULT, List(), List())
+        val nilConstr = ConstrDecl("Nil", SIRVarStorage.DEFAULT, List(), List(), List())
         val consConstr = ConstrDecl(
           "Cons",
           SIRVarStorage.DEFAULT,
           List(TypeBinding("head", TypeVar("x", Some(1))), TypeBinding("tail", listTpX)),
+          List(TypeVar("x", Some(1))),
           List(TypeVar("x", Some(1)))
         )
         val listData =
@@ -178,6 +181,7 @@ class OptimizingSirToUplcLoweringSpec
               "TxId",
               SIRVarStorage.DEFAULT,
               List(TypeBinding("hash", ByteString)),
+              List(),
               List()
             )
           ),
@@ -186,7 +190,7 @@ class OptimizingSirToUplcLoweringSpec
         def withDecls(sir: SIR) = SIR.Decl(listData, SIR.Decl(txIdData, sir))
         withDecls(
           SIR.Match(
-            SIR.Constr("Nil", listData, List(), listData.constructors.head.tp),
+            SIR.Constr("Nil", listData, List(), listData.constrType("Nil")),
             List(
               SIR.Case(
                 Pattern.Constr(nilConstr, Nil, Nil),

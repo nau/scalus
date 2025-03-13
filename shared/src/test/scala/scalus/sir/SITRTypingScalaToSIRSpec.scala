@@ -10,10 +10,12 @@ object SITRTypingScalaToSIRSpecScope {
 
     case class ClassA1(a: BigInt)
 
+    case class Wrapper[X](value: X)
+
     sealed trait HierarchicalLevel1[A]
     case class LeafLevel1A[A](a: A) extends HierarchicalLevel1[A]
-    sealed trait HierarchicalLevel2[B] extends HierarchicalLevel1[Future[B]]
-    case class LeafLevel2A[B](b: Future[B]) extends HierarchicalLevel2[B]
+    sealed trait HierarchicalLevel2[B] extends HierarchicalLevel1[Wrapper[B]]
+    case class LeafLevel2A[B](b: Wrapper[B]) extends HierarchicalLevel2[B]
     case class LeafLevel2B[B](ib: Int) extends HierarchicalLevel2[Int]
 
     // DataDecl(
@@ -27,7 +29,7 @@ object SITRTypingScalaToSIRSpecScope {
     //  DataDecl(
     //    "scalus.sir.SITRTypingScalaToSIRSpecScope$.HierarchicalLevel2",
     //    List(
-    
+
 }
 
 class SITRTypingScalaToSIRSpec extends AnyFunSuite {
@@ -60,7 +62,7 @@ class SITRTypingScalaToSIRSpec extends AnyFunSuite {
         }
 
         sir.tp match {
-            case SIRType.CaseClass(constrDecl, Nil) =>
+            case SIRType.CaseClass(constrDecl, Nil, _) =>
                 assert(constrDecl.name == "scalus.sir.SITRTypingScalaToSIRSpecScope$.ClassA1")
             case _ => fail(s"unexpected type ${sir.tp}")
         }
