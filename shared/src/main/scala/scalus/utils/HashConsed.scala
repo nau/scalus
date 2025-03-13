@@ -51,20 +51,31 @@ object HashConsedRef {
         op: (HashConsed.State, Int, HSRIdentityHashMap) => A
     ): HashConsedRef[A] =
         new HashConsedRef[A] {
+            val createdAt = new Exception()
+            var finishedValue: Option[A] = None
 
-            override def isComplete(hashConsed: HashConsed.State) = complete(hashConsed)
+            override def isComplete(hashConsed: HashConsed.State) =
+                finishedValue.isDefined || complete(hashConsed)
 
             override def finValue(
                 hashConsed: HashConsed.State,
                 level: Int,
                 parents: IdentityHashMap[HashConsedRef[?], HashConsedRef[?]]
             ): A =
-                if parents.get(this) != null then
-                    throw IllegalStateException(s"Cyclic reference, this= $this, parents=$parents")
-                parents.put(this, this)
-                val retval = op(hashConsed, level + 1, parents)
-                parents.remove(this)
-                retval
+                finishedValue match
+                    case Some(a) => a
+                    case None =>
+                        if parents.get(this) != null then
+                            println("cyclic reference for ex, created at:")
+                            createdAt.printStackTrace()
+                            throw IllegalStateException(
+                              s"Cyclic reference, this= $this, parents=$parents"
+                            )
+                        parents.put(this, this)
+                        val retval = op(hashConsed, level + 1, parents)
+                        finishedValue = Some(retval)
+                        parents.remove(this)
+                        retval
 
         }
 
@@ -100,6 +111,8 @@ object HashConsed {
         extends HashConsedRef[A] {
 
         private var data: A | Null = null
+
+        def cache: A | Null = data
 
         override def isComplete(hashConsed: State): Boolean =
             data != null || ref.isComplete(hashConsed)
@@ -264,7 +277,7 @@ object HashConsed {
                         Some(Left(fw))
             case Some(r) => Some(Right(r))
 
-    def finishCallbacks(s: State): Unit =
+    def finishCallbacks(s: State, debug: Boolean = false): Unit =
         for (k, v) <- s.forwardValueAcceptors do {
             s.refs.get(k) match
                 case None =>
@@ -304,5 +317,5 @@ extension (s: HashConsed.State)
     ): Unit =
         HashConsed.putForwadValueAcceptor(s, ihc, tag, acceptor)
 
-    def finishCallbacks(): Unit =
-        HashConsed.finishCallbacks(s)
+    def finishCallbacks(debug: Boolean = false): Unit =
+        HashConsed.finishCallbacks(s, debug)

@@ -188,7 +188,7 @@ class OptimizingSirToUplcLowering(
 
                 def find(sirType: SIRType): Seq[ConstrDecl] =
                     sirType match
-                        case SIRType.CaseClass(constrDecl, _) => Seq(constrDecl)
+                        case SIRType.CaseClass(constrDecl, _, _) => Seq(constrDecl)
                         case SIRType.SumCaseClass(decl, _) =>
                             decl.constructors
                         case SIRType.TypeLambda(_, t) => find(t)
@@ -304,7 +304,7 @@ class OptimizingSirToUplcLowering(
             case SIR.Select(scrutinee, field, _) =>
                 def find(sirType: SIRType): ConstrDecl =
                     sirType match
-                        case SIRType.CaseClass(constrDecl, _) => constrDecl
+                        case SIRType.CaseClass(constrDecl, _, _) => constrDecl
                         case SIRType.SumCaseClass(decl, _) =>
                             if decl.constructors.length == 1 then decl.constructors.head
                             else

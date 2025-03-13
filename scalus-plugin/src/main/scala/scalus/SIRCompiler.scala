@@ -44,7 +44,8 @@ object FullName:
 case class AdtTypeInfo(
     dataTypeSymbol: Symbol,
     dataTypeParams: List[Type],
-    constructorsSymbols: List[Symbol]
+    constructorsSymbols: List[Symbol],
+    parentSymbol: Option[Symbol]
 )
 
 //sealed trait AdtTypeInfo
@@ -261,17 +262,32 @@ final class SIRCompiler(mode: scalus.Mode)(using ctx: Context) {
             case _                    => Nil
 
         if constrTpe.typeConstructor =:= Tuple2Symbol.typeRef
-        then AdtTypeInfo(typeSymbol, typeArgs, List(typeSymbol))
+        then AdtTypeInfo(typeSymbol, typeArgs, List(typeSymbol), None)
         else
             optAdtBaseTypeSymbol match
                 case None => // case 1 or 2
-                    AdtTypeInfo(typeSymbol, typeArgs, List(typeSymbol))
+                    AdtTypeInfo(typeSymbol, typeArgs, List(typeSymbol), None)
                 case Some(baseClassSymbol) =>
                     val adtBaseType = constrTpe.baseType(baseClassSymbol)
                     val baseDataParams = adtBaseType match
                         case AppliedType(_, args) => args
                         case _                    => Nil
-                    AdtTypeInfo(baseClassSymbol, baseDataParams, baseClassSymbol.children)
+                    val parents = baseClassSymbol.baseClasses.filter(cf =>
+                        cf.children.contains(baseClassSymbol)
+                    )
+                    val optParent =
+                        if parents.isEmpty then None
+                        else if parents.size == 1 then parents.headOption
+                        else
+                            val msg =
+                                s"Multiple parents for ${baseClassSymbol.showFullName}: ${parents.map(_.showFullName).mkString(", ")}"
+                            throw new RuntimeException(msg)
+                    AdtTypeInfo(
+                      baseClassSymbol,
+                      baseDataParams,
+                      baseClassSymbol.children,
+                      optParent
+                    )
     }
 
     /** Creates [[AdtConstructorCallInfo]] based on a constructor type.
@@ -315,7 +331,12 @@ final class SIRCompiler(mode: scalus.Mode)(using ctx: Context) {
         if resource != null then
             val buffer = resource.readAllBytes()
             val dec = DecoderState(buffer)
-            val module = flat.decode[Module](dec)
+            val module =
+                try flat.decode[Module](dec)
+                catch
+                    case scala.util.control.NonFatal(ex) =>
+                        println(s"Can;t load module ${filename}")
+                        throw ex
             resource.close()
             Some(module)
         else None
@@ -379,7 +400,13 @@ final class SIRCompiler(mode: scalus.Mode)(using ctx: Context) {
             .getOrElse(Nil)
         // TODO: add substoitution for parent type params
         // scalus.sir.ConstrDecl(sym.name.show, SIRVarStorage.DEFAULT, params, typeParams, baseTypeArgs)
-        scalus.sir.ConstrDecl(constrSymbol.fullName.show, SIRVarStorage.DEFAULT, params, typeParams)
+        scalus.sir.ConstrDecl(
+          constrSymbol.fullName.show,
+          SIRVarStorage.DEFAULT,
+          params,
+          typeParams,
+          baseTypeArgs
+        )
     }
 
     private def compileNewConstructor(

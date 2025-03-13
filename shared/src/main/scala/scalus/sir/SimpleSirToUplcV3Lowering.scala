@@ -203,7 +203,8 @@ class SimpleSirToUplcV3Lowering(sir: SIR, generateErrorTraces: Boolean = false):
 
                 def find(sirType: SIRType): (String, Seq[ConstrDecl]) =
                     sirType match
-                        case SIRType.CaseClass(constrDecl, _) => (constrDecl.name, Seq(constrDecl))
+                        case SIRType.CaseClass(constrDecl, _, _) =>
+                            (constrDecl.name, Seq(constrDecl))
                         case SIRType.SumCaseClass(decl, _) =>
                             (decl.name, decl.constructors.toSeq)
                         case SIRType.TypeLambda(_, t) => find(t)
@@ -255,7 +256,7 @@ class SimpleSirToUplcV3Lowering(sir: SIR, generateErrorTraces: Boolean = false):
                 @tailrec
                 def find(sirType: SIRType): (String, ConstrDecl) =
                     sirType match
-                        case SIRType.CaseClass(constrDecl, _) => (constrDecl.name, constrDecl)
+                        case SIRType.CaseClass(constrDecl, _, _) => (constrDecl.name, constrDecl)
                         case SIRType.SumCaseClass(decl, _) =>
                             decl.constructors match
                                 case head :: Nil => (decl.name, head)

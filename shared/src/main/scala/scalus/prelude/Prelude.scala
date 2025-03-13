@@ -63,7 +63,7 @@ import Prelude.*
 
 enum List[+A]:
     case Nil extends List[Nothing]
-    case Cons(head: A, tail: List[A])
+    case Cons(head: A, tail: List[A]) extends List[A]
     def toList: immutable.List[A] = this match
         case Nil              => immutable.List.empty[A]
         case Cons(head, tail) => head :: tail.toList

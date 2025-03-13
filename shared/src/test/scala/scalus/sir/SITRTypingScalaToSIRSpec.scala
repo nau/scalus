@@ -10,6 +10,24 @@ object SITRTypingScalaToSIRSpecScope {
 
     case class ClassA1(a: BigInt)
 
+    sealed trait HierarchicalLevel1[A]
+    case class LeafLevel1A[A](a: A) extends HierarchicalLevel1[A]
+    sealed trait HierarchicalLevel2[B] extends HierarchicalLevel1[Future[B]]
+    case class LeafLevel2A[B](b: Future[B]) extends HierarchicalLevel2[B]
+    case class LeafLevel2B[B](ib: Int) extends HierarchicalLevel2[Int]
+
+    // DataDecl(
+    //    "scalus.sir.SITRTypingScalaToSIRSpecScope$.HierarchicalLevel1",
+    //    List(
+    //      ConstrDecl("LeafLevel1A", D, List(SIRType.Var("A",Some(1))),List(SIRType.Var("A",Some(1))))),
+    //      ConstrDecl("_narrow_HierarchialLevel2", D, List(SIRType.Var("B",Some(2))),List(SIRType.Future(SIRType.Var("B",Some(1))))),
+    //    ),
+    //    None
+    //  )
+    //  DataDecl(
+    //    "scalus.sir.SITRTypingScalaToSIRSpecScope$.HierarchicalLevel2",
+    //    List(
+    
 }
 
 class SITRTypingScalaToSIRSpec extends AnyFunSuite {
@@ -64,8 +82,8 @@ class SITRTypingScalaToSIRSpec extends AnyFunSuite {
     }
 
     test("check that scalus.prelude.List is mapped to SumCaseClass in fun") {
-        val sir = compile {
-            (x:BigInt) => scalus.prelude.List.single(x)
+        val sir = compile { (x: BigInt) =>
+            scalus.prelude.List.single(x)
         }
         sir.tp match
             case SIRType.Fun(SIRType.Integer, SIRType.SumCaseClass(dataDecl, typeArgs)) =>
@@ -74,5 +92,5 @@ class SITRTypingScalaToSIRSpec extends AnyFunSuite {
             case _ => fail(s"unexpected type ${sir.tp}")
 
     }
-    
+
 }
