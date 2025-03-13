@@ -144,9 +144,8 @@ object FlatInstantces:
                 .bitSizeHC(a.parentTypeArgs, hashConsed)
             nameSize + storageTypeSize + paramsSize + typeParamsSize + parentTypeArgsSize
 
-        def encodeHCNew(a: ConstrDecl, encode0: HashConsedEncoderState): Unit = {
-            val debug = (a.name == "scalus.prelude.List.Cons") || encode0.debug
-            val encode = encode0.withDebug(debug)
+        def encodeHCNew(a: ConstrDecl, encode: HashConsedEncoderState): Unit = {
+            val debug = encode.debug
             if (debug) then println(s"ConstrDecl = ${a}")
             summon[Flat[String]].encode(a.name, encode.encode)
             summon[Flat[SIRVarStorage]].encode(a.storageType, encode.encode)

@@ -65,8 +65,6 @@ class SimpleSirToUplcLowering(sir: SIR, generateErrorTraces: Boolean = false):
                         throw new IllegalArgumentException(s"Constructor $name not found in $data")
                     case Some(value) => value.params
 
-                println(s"lowerInner SIR.Constr, ctorParams: ${ctorParams}")
-
                 // force Nil | Cons head tail
                 val appInner = ctorParams match
                     case Nil => Term.Force(Term.Var(NamedDeBruijn(name)))
@@ -87,7 +85,6 @@ class SimpleSirToUplcLowering(sir: SIR, generateErrorTraces: Boolean = false):
                     Term.Apply(acc, lowerInner(arg))
                 }
             case SIR.Match(scrutinee, cases, tp) =>
-                println("SIRMatch: scrutinee: " + scrutinee)
                 /* list match
                     case Nil -> 1
                     case Cons(h, tl) -> 2
@@ -95,20 +92,22 @@ class SimpleSirToUplcLowering(sir: SIR, generateErrorTraces: Boolean = false):
                     lowers to list (delay 1) (\h tl -> 2)
                  */
                 val scrutineeTerm = lowerInner(scrutinee)
-                println("scrutineeTerm: " + scrutineeTerm)
 
-                def find(sirType: SIRType): (Seq[ConstrDecl], Boolean) =
+                def find(sirType: SIRType): Seq[ConstrDecl] =
                     sirType match
-                        case SIRType.CaseClass(constrDecl, _, _) => (Seq(constrDecl), true)
+                        case SIRType.CaseClass(constrDecl, typeArgs, optParent) =>
+                            optParent match
+                                case None         => Seq(constrDecl)
+                                case Some(parent) => find(parent)
                         case SIRType.SumCaseClass(decl, _) =>
-                            (decl.constructors, false)
+                            decl.constructors
                         case SIRType.TypeLambda(_, t) => find(t)
                         case _ =>
                             throw new IllegalArgumentException(
                               s"Expected case class type, got ${sirType} in expression: ${sir.show}"
                             )
 
-                val (constructors, isCaseClass) = find(scrutinee.tp)
+                val constructors = find(scrutinee.tp)
 
                 // 1. If we have a wildcard case, it must be the last one
                 // 2. Validate we don't have any errors
@@ -118,7 +117,6 @@ class SimpleSirToUplcLowering(sir: SIR, generateErrorTraces: Boolean = false):
                 var idx = 0
                 val iter = cases.iterator
                 val allConstructors = constructors.toSet
-                println(s"constructors = ${allConstructors.map(_.name)}")
                 val matchedConstructors = mutable.HashSet.empty[String]
                 val expandedCases = mutable.ArrayBuffer.empty[SIR.Case]
 
@@ -164,8 +162,6 @@ class SimpleSirToUplcLowering(sir: SIR, generateErrorTraces: Boolean = false):
                         )
                 }.toList
 
-                println("sortedCases: " + sortedCases)
-
                 val casesTerms = sortedCases.map {
                     case SIR.Case(Pattern.Constr(constr, bindings, _), body) =>
                         constr.params match
@@ -179,12 +175,11 @@ class SimpleSirToUplcLowering(sir: SIR, generateErrorTraces: Boolean = false):
                           "Wildcard case must have been eliminated"
                         )
                 }
-                println("casesTerms: " + casesTerms)
+
                 val matchResult =
                     casesTerms.foldLeft(scrutineeTerm) { (acc, caseTerm) =>
                         Term.Apply(acc, caseTerm)
                     }
-                println("matchResult: " + matchResult)
                 matchResult
             case SIR.Var(name, _)            => Term.Var(NamedDeBruijn(name))
             case SIR.ExternalVar(_, name, _) => Term.Var(NamedDeBruijn(name))

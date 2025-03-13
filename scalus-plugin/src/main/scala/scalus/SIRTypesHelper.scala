@@ -59,7 +59,7 @@ class SIRTypesHelper(private val compiler: SIRCompiler)(using Context) {
                     env.vars.get(sym) match
                         case Some(t) => t
                         case None =>
-                            val name = sym.showFullName
+                            val name = sym.fullName.show
                             unsupportedType(tp, s"Unfilled typeParam: ${tpc.show}", env)
                 else if sym.isAliasType then
                     // looks like bug in a compiler
@@ -181,12 +181,12 @@ class SIRTypesHelper(private val compiler: SIRCompiler)(using Context) {
 
     def makeSIRNonFunClassType(tp: Type, types: List[SIRType], env: SIRTypeEnv): SIRType = {
         val sym = tp.typeSymbol
-        // println(s"makeSIRNonFumClassType ${sym.showFullName} ${types.map(_.show)}, isFunctionType=${defn.isFunctionType(tp)}")
+        // println(s"makeSIRNonFumClassType ${sym.fullName.show} ${types.map(_.show)}, isFunctionType=${defn.isFunctionType(tp)}")
         val retval = (tryMakePrimitivePrimitive(sym, types) orElse
             tryMakeBuiltinType(sym, types, env) orElse
             tryMakeCaseClassOrCaseParent(tp, sym, types, env) orElse
             tryMakeNonCaseModule(tp, sym, types, env)).getOrElse {
-            val name = sym.showFullName
+            val name = sym.fullName.show
             val typeArgs = types.map(_.show)
             unsupportedType(
               tp,
@@ -444,7 +444,7 @@ class SIRTypesHelper(private val compiler: SIRCompiler)(using Context) {
             case Some(parentSym) =>
                 val optParentParent = retrieveParentSymbol(parentSym, env)
                 val dataDecl = makeSumClassDataDecl(parentSym, env)
-                val nakedType = dataDecl.constrType(typeSymbol.showFullName)
+                val nakedType = dataDecl.constrType(typeSymbol.fullName.show)
                 SIRType.typeApply(nakedType, tpArgs)
             case None =>
                 val constrDecl = makeCaseClassConstrDecl(typeSymbol, env, optParentSym)
@@ -469,7 +469,7 @@ class SIRTypesHelper(private val compiler: SIRCompiler)(using Context) {
         env: SIRTypeEnv,
         optParentSym: Option[Symbol]
     ): ConstrDecl = {
-        val name = typeSymbol.showFullName
+        val name = typeSymbol.fullName.show
         val (typeParamSymbols, paramSymbols) =
             retrieveTypeParamsAndParamsFromConstructor(typeSymbol, env)
         val tparams = typeParamSymbols.map(s => SIRType.TypeVar(s.name.show, Some(s.hashCode)))
@@ -547,7 +547,7 @@ class SIRTypesHelper(private val compiler: SIRCompiler)(using Context) {
         val constrDecls = typeSymbol.children.map { s =>
             if (s.children.isEmpty) then makeCaseClassConstrDecl(s, env, Some(typeSymbol))
             else
-                val syntethicName = SIRType.syntheticNarrowConstrDeclName(typeSymbol.showFullName)
+                val syntethicName = SIRType.syntheticNarrowConstrDeclName(typeSymbol.fullName.show)
                 val sirTypeParams =
                     s.typeParams.map(tps => SIRType.TypeVar(tps.name.show, Some(tps.hashCode)))
                 val newVars = s.typeParams.zip(sirTypeParams).toMap
@@ -571,9 +571,10 @@ class SIRTypesHelper(private val compiler: SIRCompiler)(using Context) {
         }
         val typeParams =
             typeSymbol.typeParams.map(tp => SIRType.TypeVar(tp.name.show, Some(tp.hashCode())))
-        DataDecl(typeSymbol.showFullName, constrDecls, typeParams)
+        DataDecl(typeSymbol.fullName.show, constrDecls, typeParams)
     }
 
+    /*
     def tryGetParentDataDecl(childSymbol: Symbol, env: SIRTypeEnv): Option[DataDecl] = {
         childSymbol.info.baseClasses.find(x =>
             x.children.nonEmpty && x.children.contains(childSymbol)
@@ -592,6 +593,8 @@ class SIRTypesHelper(private val compiler: SIRCompiler)(using Context) {
                                     s"Parent of ${childSymbol.showFullName} is not a case class: ${parentSym.showFullName}: ${parentType.show}"
                                 throw TypingException(childSymbol.info, env.pos, msg)
     }
+
+     */
 
     def extractDataDecl(tp: SIRType): Option[DataDecl] = {
         tp match

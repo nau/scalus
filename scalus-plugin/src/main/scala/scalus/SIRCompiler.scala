@@ -249,7 +249,7 @@ final class SIRCompiler(mode: scalus.Mode)(using ctx: Context) {
       */
     def getAdtTypeInfo(constrTpe: Type): AdtTypeInfo = {
         val typeSymbol = constrTpe.widen.dealias.typeSymbol
-        // println(s"getAdtInfoFromConstroctorType: ${typeSymbol.showFullName}, $constrTpe")
+        // println(s"getAdtInfoFromConstroctorType: ${typeSymbol.fullName.show}, $constrTpe")
         // look for a base `sealed abstract class`. If it exists, we are in case 5 or 6
         val optAdtBaseTypeSymbol = constrTpe.baseClasses.find(b =>
             // println(s"base class: ${b.show} ${b.flags.flagsString}")
@@ -280,7 +280,7 @@ final class SIRCompiler(mode: scalus.Mode)(using ctx: Context) {
                         else if parents.size == 1 then parents.headOption
                         else
                             val msg =
-                                s"Multiple parents for ${baseClassSymbol.showFullName}: ${parents.map(_.showFullName).mkString(", ")}"
+                                s"Multiple parents for ${baseClassSymbol.fullName.show}: ${parents.map(_.fullName.show).mkString(", ")}"
                             throw new RuntimeException(msg)
                     AdtTypeInfo(
                       baseClassSymbol,

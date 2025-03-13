@@ -52,7 +52,6 @@ class CompilerPluginToSIRSpec extends AnyFunSuite with ScalaCheckPropertyChecks:
     def sirConst(x: Data) = Const(Constant.Data(x), SIRType.Data)
     def sirConstUnit = Const(Constant.Unit, SIRType.Unit)
 
-    /*
     test("compile literals") {
         assert(compile(false) == Const(Constant.Bool(false), SIRType.Boolean))
         assert(compile(true) == Const(Constant.Bool(true), SIRType.Boolean))
@@ -975,7 +974,7 @@ class CompilerPluginToSIRSpec extends AnyFunSuite with ScalaCheckPropertyChecks:
           case VerifyEd25519Signature // formerly verifySignature
           case VerifyEcdsaSecp256k1Signature
           case VerifySchnorrSecp256k1Signature
-     */
+         */
         assert(compile(Builtins.sha2_256(hex"dead")) == (Sha2_256 $ hex"dead"))
         assert(compile(Builtins.sha3_256(hex"dead")) == (Sha3_256 $ hex"dead"))
         assert(compile(Builtins.blake2b_256(hex"dead")) == (Blake2b_256 $ hex"dead"))
@@ -1502,6 +1501,7 @@ class CompilerPluginToSIRSpec extends AnyFunSuite with ScalaCheckPropertyChecks:
           "scalus.ledger.api.v1.PubKeyHash",
           SIRVarStorage.DEFAULT,
           List(TypeBinding("hash", sirByteString)),
+          List.empty,
           List.empty
         )
       ),
@@ -1526,11 +1526,15 @@ class CompilerPluginToSIRSpec extends AnyFunSuite with ScalaCheckPropertyChecks:
                   "scalus.ledger.api.v1.PubKeyHash",
                   pubKeyHashDataDecl,
                   List(Const(uplc.Constant.ByteString(hex"DEADBEEF"), sirByteString)),
-                  pubKeyHashDataDecl.constructors.head.tp
+                  pubKeyHashDataDecl.constrType("scalus.ledger.api.v1.PubKeyHash")
                 )
               )
             ),
-            Select(Var("pkh", pubKeyHashDataDecl.constructors.head.tp), "hash", sirByteString)
+            Select(
+              Var("pkh", pubKeyHashDataDecl.constrType("scalus.ledger.api.v1.PubKeyHash")),
+              "hash",
+              sirByteString
+            )
           )
         )
 
@@ -1560,7 +1564,7 @@ class CompilerPluginToSIRSpec extends AnyFunSuite with ScalaCheckPropertyChecks:
                   "scalus.ledger.api.v1.PubKeyHash",
                   pubKeyHashDataDecl,
                   List(Const(Constant.ByteString(hex"deadbeef"), SIRType.ByteString)),
-                  SIRType.CaseClass(pubKeyHashDataDecl.constructors.head, scala.Nil)
+                  SIRType.CaseClass(pubKeyHashDataDecl.constructors.head, scala.Nil, None)
                 )
               )
         )
@@ -1603,7 +1607,6 @@ class CompilerPluginToSIRSpec extends AnyFunSuite with ScalaCheckPropertyChecks:
         // println(evaled.show)
         assert(evaled == scalus.uplc.Term.Const(Constant.Integer(1)))
     }
-     */
 
     test("compile wildcard match on ADT") {
         import scalus.prelude.These
@@ -1621,7 +1624,6 @@ class CompilerPluginToSIRSpec extends AnyFunSuite with ScalaCheckPropertyChecks:
         assert(evaled == scalus.uplc.Term.Const(Constant.Integer(1)))
     }
 
-    /*
     test("compile inner matches") {
         import scalus.prelude.List
         import scalus.prelude.List.*
@@ -1751,4 +1753,3 @@ class CompilerPluginToSIRSpec extends AnyFunSuite with ScalaCheckPropertyChecks:
         }
         assert(compiled.toUplc().plutusV3.flatEncoded.length == 93652)
     }
-     */

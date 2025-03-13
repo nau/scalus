@@ -43,6 +43,11 @@ case class ConstrDecl(
         throw new RuntimeException("Invalid name in constructor: " + name)
     }
 
+    if (name == "scalus.prelude.These.This") {
+        println("Constr with scalus.prelude.These.This")
+        throw new RuntimeException("These.This")
+    }
+
 }
 
 //  Data~ Lost(Const)
