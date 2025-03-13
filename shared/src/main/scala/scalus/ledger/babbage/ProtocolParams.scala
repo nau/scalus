@@ -555,6 +555,7 @@ class PlutusV2Params {
     def toJson: String = write(this)
 }
 
+// TODO: make one single style of naming
 class PlutusV3Params {
     var `addInteger-cpu-arguments-intercept`: Long = 0L
     var `addInteger-cpu-arguments-slope`: Long = 0L
@@ -807,6 +808,52 @@ class PlutusV3Params {
     var byteStringToInteger_cpu_arguments_c2: Long = 0L
     var byteStringToInteger_memory_arguments_intercept: Long = 0L
     var byteStringToInteger_memory_arguments_slope: Long = 0L
+    var `andByteString-cpu-arguments-intercept`: Long = 0L
+    var `andByteString-cpu-arguments-slope1`: Long = 0L
+    var `andByteString-cpu-arguments-slope2`: Long = 0L
+    var `andByteString-memory-arguments-intercept`: Long = 0L
+    var `andByteString-memory-arguments-slope`: Long = 0L
+    var `orByteString-cpu-arguments-intercept`: Long = 0L
+    var `orByteString-cpu-arguments-slope1`: Long = 0L
+    var `orByteString-cpu-arguments-slope2`: Long = 0L
+    var `orByteString-memory-arguments-intercept`: Long = 0L
+    var `orByteString-memory-arguments-slope`: Long = 0L
+    var `xorByteString-cpu-arguments-intercept`: Long = 0L
+    var `xorByteString-cpu-arguments-slope1`: Long = 0L
+    var `xorByteString-cpu-arguments-slope2`: Long = 0L
+    var `xorByteString-memory-arguments-intercept`: Long = 0L
+    var `xorByteString-memory-arguments-slope`: Long = 0L
+    var `complementByteString-cpu-arguments-intercept`: Long = 0L
+    var `complementByteString-cpu-arguments-slope`: Long = 0L
+    var `complementByteString-memory-arguments-intercept`: Long = 0L
+    var `complementByteString-memory-arguments-slope`: Long = 0L
+    var `readBit-cpu-arguments`: Long = 0L
+    var `readBit-memory-arguments`: Long = 0L
+    var `writeBits-cpu-arguments-intercept`: Long = 0L
+    var `writeBits-cpu-arguments-slope`: Long = 0L
+    var `writeBits-memory-arguments-intercept`: Long = 0L
+    var `writeBits-memory-arguments-slope`: Long = 0L
+    var `replicateByte-cpu-arguments-intercept`: Long = 0L
+    var `replicateByte-cpu-arguments-slope`: Long = 0L
+    var `replicateByte-memory-arguments-intercept`: Long = 0L
+    var `replicateByte-memory-arguments-slope`: Long = 0L
+    var `shiftByteString-cpu-arguments-intercept`: Long = 0L
+    var `shiftByteString-cpu-arguments-slope`: Long = 0L
+    var `shiftByteString-memory-arguments-intercept`: Long = 0L
+    var `shiftByteString-memory-arguments-slope`: Long = 0L
+    var `rotateByteString-cpu-arguments-intercept`: Long = 0L
+    var `rotateByteString-cpu-arguments-slope`: Long = 0L
+    var `rotateByteString-memory-arguments-intercept`: Long = 0L
+    var `rotateByteString-memory-arguments-slope`: Long = 0L
+    var `countSetBits-cpu-arguments-intercept`: Long = 0L
+    var `countSetBits-cpu-arguments-slope`: Long = 0L
+    var `countSetBits-memory-arguments`: Long = 0L
+    var `findFirstSetBit-cpu-arguments-intercept`: Long = 0L
+    var `findFirstSetBit-cpu-arguments-slope`: Long = 0L
+    var `findFirstSetBit-memory-arguments`: Long = 0L
+    var `ripemd_160-cpu-arguments-intercept`: Long = 0L
+    var `ripemd_160-cpu-arguments-slope`: Long = 0L
+    var `ripemd_160-memory-arguments`: Long = 0L
 
     def toJson: String = write(this)
 }
@@ -831,6 +878,19 @@ private object JsonUtils {
     }
 
     /** Generates a pair of functions to convert a class with fields to a sequence of longs and back
+      * @example
+      *   {{{
+      *  class Foo {
+      *  var a: Int = 0
+      *  }
+      *  val (toSeq, fromSeq) = mkClassFieldsFromSeqIso[Foo]
+      *   }}}
+      *   where `fromSeq` looks like this
+      *   {{{
+      *  val foo = new Foo()
+      *  foo.a = seq(0)
+      *  foo
+      *   }}}
       */
     inline def mkClassFieldsFromSeqIso[A]: (A => Seq[Long], Seq[Long] => A) = ${
         scalus.macros.Macros.mkClassFieldsFromSeqIsoImpl[A]

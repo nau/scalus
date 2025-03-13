@@ -110,8 +110,14 @@ object UplcParser:
     def lexeme[A](p: P[A]): P[A] = p <* whitespaces0
     def symbol(s: String): P[Unit] = P.string(s).void <* whitespaces0
 
-    val name: P[String] = alpha ~ (alpha | digit | P.charIn("_'")).rep0 map { case (a, b) =>
-        (a :: b).mkString
+    val identifier: P[String] =
+        (alpha | P.charIn('_')) ~ (alpha | digit | P.charIn("_'")).rep0 map { case (a, b) =>
+            (a :: b).mkString
+        }
+
+    val name: P[String] = (identifier ~ (P.char('-') *> digits).?).map {
+        case (name, Some(suffix)) => s"$name-$suffix"
+        case (name, None)         => name
     }
 
     val defaultUni: P[DefaultUni] = P.recursive { self =>
@@ -275,7 +281,7 @@ object UplcParser:
     val conTerm: P[Term] = inParens(symbol("con") *> constant).map(c => Const(c))
 
     val builtinFunction: P[DefaultFun] = lexeme(
-      name.flatMap(name =>
+      identifier.flatMap(name =>
           UplcParser.cached.get(name) match
               case Some(f) => P.pure(f)
               case None    => P.failWith(s"unknown builtin function: $name")
@@ -285,4 +291,5 @@ object UplcParser:
     val builtinTerm: P[Builtin] =
         inParens(symbol("builtin") *> builtinFunction).map(n => Builtin(n))
 
-    val varTerm: P[Var] = lexeme(name).map(n => Var(NamedDeBruijn(n)))
+    val varTerm: P[Var] =
+        lexeme(name).map(n => Var(NamedDeBruijn(n)))

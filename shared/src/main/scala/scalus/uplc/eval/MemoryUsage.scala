@@ -30,6 +30,9 @@ object MemoryUsage {
         if l == 0 then 0
         else (l - 1) / 8 + 1
 
+    def memoryUsageLiteral(i: BigInt): CostingInteger =
+        i.toLong.abs
+
     def memoryUsageInteger(i: BigInt): CostingInteger =
         if i.equals(BigInt(0)) then 1L
         else

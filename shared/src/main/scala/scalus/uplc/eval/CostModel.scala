@@ -22,10 +22,10 @@ case class SubtractedSizesLinearFunction(
     }
 }
 
-case class TwoVariableLinearFunction(intercept: Intercept, slopeX: Slope, slopeY: Slope)
+case class TwoVariableLinearFunction(intercept: Intercept, slope1: Slope, slope2: Slope)
     derives ReadWriter {
     def apply(arg1: CostingInteger, arg2: CostingInteger): CostingInteger = {
-        intercept + arg1 * slopeX + arg2 * slopeY
+        intercept + arg1 * slope1 + arg2 * slope2
     }
 }
 
@@ -140,7 +140,7 @@ object TwoArguments {
 
     case class LinearInXAndY(cost: TwoVariableLinearFunction) extends TwoArguments {
         def apply(arg1: CostingInteger, arg2: CostingInteger): CostingInteger =
-            cost.intercept + arg1 * cost.slopeX + arg2 * cost.slopeY
+            cost.intercept + arg1 * cost.slope1 + arg2 * cost.slope2
     }
 
     case class AddedSizes(cost: OneVariableLinearFunction) extends TwoArguments {
@@ -524,5 +524,46 @@ case class IntegerToByteStringCostingFun(cpu: ThreeArguments, memory: ThreeArgum
         val cpu = ExCPU(this.cpu.calculateCost(argsMem))
         val mem = ExMemory(this.memory.calculateCost(argsMem))
         ExBudget(cpu, mem)
+    }
+}
+
+case class ReplicateByteCostingFun(cpu: TwoArguments, memory: TwoArguments) extends CostingFun
+    derives ReadWriter {
+    def calculateCost(args: CekValue*): ExBudget = {
+        val Seq(CekValue.VCon(Constant.Integer(size)), arg1) = args.toSeq: @unchecked
+        val argsMem = Seq(
+          MemoryUsage.memoryUsageLiteralByteSize(size),
+          MemoryUsage.memoryUsage(arg1)
+        )
+        val cpu = ExCPU(this.cpu.calculateCost(argsMem))
+        val mem = ExMemory(this.memory.calculateCost(argsMem))
+        ExBudget(cpu, mem)
+    }
+}
+
+case class ShiftOrRotateByteStringCostingFun(cpu: TwoArguments, memory: TwoArguments)
+    extends CostingFun derives ReadWriter {
+    def calculateCost(args: CekValue*): ExBudget = {
+        val Seq(arg0, CekValue.VCon(Constant.Integer(size))) = args.toSeq: @unchecked
+        val argsMem = Seq(
+          MemoryUsage.memoryUsage(arg0),
+          MemoryUsage.memoryUsageLiteral(size)
+        )
+        val cpu = ExCPU(this.cpu.calculateCost(argsMem))
+        val mem = ExMemory(this.memory.calculateCost(argsMem))
+        ExBudget(cpu, mem)
+    }
+}
+
+case class WriteBitsCostingFun(cpu: ThreeArguments, memory: ThreeArguments) extends CostingFun
+    derives ReadWriter {
+    def calculateCost(args: CekValue*): ExBudget = {
+        val Seq(arg0, CekValue.VCon(Constant.List(_, list)), arg2) = args.toSeq: @unchecked
+        val argsMem =
+            Seq(MemoryUsage.memoryUsage(arg0), list.size.toLong, MemoryUsage.memoryUsage(arg2))
+        ExBudget.fromCpuAndMemory(
+          this.cpu.calculateCost(argsMem),
+          this.memory.calculateCost(argsMem)
+        )
     }
 }

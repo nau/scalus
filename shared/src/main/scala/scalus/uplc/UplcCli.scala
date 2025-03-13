@@ -32,7 +32,7 @@ enum UplcEvalResult:
 
 /** Cardano `uplc` CLI interface */
 object UplcCli:
-    private val budget = raw"""\s*CPU budget:\s+(\d+)\s*Memory budget:\s+(\d+)""".r
+    private val budget = raw"""(?ims)\s*CPU budget:\s+(\d+)\R\s*Memory budget:\s+(\d+).*""".r
 
     /** Evaluates a UPLC program using the Cardano `uplc` CLI using the builtin semantics variant
       * 'B'.
@@ -41,7 +41,7 @@ object UplcCli:
       *   the UPLC program
       */
     def evalFlat(program: Program): UplcEvalResult =
-        evalFlat(program, BuiltinSemanticsVariant.B)
+        evalFlat(program, BuiltinSemanticsVariant.C)
 
     /** Evaluates a UPLC program using the Cardano `uplc` CLI
       *
@@ -58,10 +58,13 @@ object UplcCli:
         // println(s"UPLC program:\n$printOut")
 
         val cmd =
-            s"uplc evaluate --input-format flat --counting --trace-mode LogsWithBudgets --builtin-semantics-variant $semanticsVariant"
+            s"uplc evaluate --input-format flat --counting --print-mode Classic --trace-mode LogsWithBudgets --builtin-semantics-variant $semanticsVariant"
 
         var out = ""
-        val retCode = cmd.#<(new ByteArrayInputStream(flat)).!(ProcessLogger(o => out += o))
+        var err = ""
+        val retCode = cmd
+            .#<(new ByteArrayInputStream(flat))
+            .!(ProcessLogger(o => out += o + "\n", e => err += e + "\n"))
         if retCode == 0 then
             UplcParser().term.parse(out) match
                 case Right(budget(cpu, mem), term) =>

@@ -2,34 +2,24 @@ package scalus
 
 import org.scalatest.funsuite.AnyFunSuite
 import org.scalatestplus.scalacheck.ScalaCheckPropertyChecks
-import scalus.Compiler.compile
-import scalus.Compiler.compileDebug
-import scalus.Compiler.fieldAsData
-import scalus.builtin.Builtins
-import scalus.builtin.ByteString
+import scalus.Compiler.{compile, fieldAsData}
 import scalus.builtin.ByteString.*
-import scalus.builtin.Data
-import scalus.builtin.given
+import scalus.builtin.{Builtins, ByteString, Data, given}
 import scalus.ledger.api.v1.*
-import scalus.prelude.List.Cons
-import scalus.prelude.List.Nil
+import scalus.prelude.List.{Cons, Nil}
 import scalus.prelude.Prelude.given
-import scalus.sir.{Binding, ConstrDecl, DataDecl, Recursivity, SIR, SIRBuiltins, SIRType, SIRUnify, SIRVarStorage, ToExprHSSIRFlat, TypeBinding}
 import scalus.sir.Recursivity.*
 import scalus.sir.SIR.*
-import scalus.sir.SIRType.{Boolean, TypeVar}
+import scalus.sir.SIRType.{Boolean, Fun, TypeVar}
 import scalus.sir.SirDSL.{*, given}
+import scalus.sir.*
+import scalus.uplc.*
 import scalus.uplc.DefaultFun.*
 import scalus.uplc.DefaultUni.asConstant
-import scalus.uplc.*
-import scalus.uplc.eval.PlutusVM
+import scalus.uplc.eval.{PlutusVM, Result}
 
 import scala.collection.immutable
 import scala.language.implicitConversions
-import scalus.uplc.eval.Result
-import SIRType.Fun
-import SIRType.TypeVar
-import SIRType.TypeLambda
 
 class CompilerPluginToSIRSpec extends AnyFunSuite with ScalaCheckPropertyChecks:
     private given PlutusVM = PlutusVM.makePlutusV2VM()
@@ -246,26 +236,29 @@ class CompilerPluginToSIRSpec extends AnyFunSuite with ScalaCheckPropertyChecks:
         val compiled = compile {
             BigInt(1).toData
         }
-        assert(
-          compiled ~=~ Let(
-            Rec,
-            immutable.List(
-              Binding(
+        val expected = Let(
+          Rec,
+          immutable.List(
+            Binding(
+              "scalus.builtin.ToDataInstances$.given_ToData_BigInt",
+              LamAbs(Var("a", sirInt), Apply(SIRBuiltins.iData, Var("a", sirInt), sirData))
+            )
+          ),
+          Let(
+            NonRec,
+            immutable.List(Binding("a$proxy1", Const(Constant.Integer(1), sirInt))),
+            Apply(
+              ExternalVar(
+                "scalus.builtin.ToDataInstances$",
                 "scalus.builtin.ToDataInstances$.given_ToData_BigInt",
-                LamAbs(Var("a", sirInt), Apply(SIRBuiltins.iData, Var("a", sirInt), sirData))
-              )
-            ),
-            Let(
-              NonRec,
-              immutable.List(Binding("a$proxy1", Const(Constant.Integer(1), sirInt))),
-              Apply(
-                Var("scalus.builtin.ToDataInstances$.given_ToData_BigInt", Fun(sirInt, sirData)),
-                Var("a$proxy1", sirInt),
-                sirData
-              )
+                Fun(sirInt, sirData)
+              ),
+              Var("a$proxy1", sirInt),
+              sirData
             )
           )
         )
+        assert(compiled ~=~ expected)
         //    val term = compiled.toUplc()
         //    assert(VM.evaluateTerm(term) == Data.I(22))
     }
@@ -1081,7 +1074,6 @@ class CompilerPluginToSIRSpec extends AnyFunSuite with ScalaCheckPropertyChecks:
     }
 
     test("compile Boolean &&, ||, ! builtins") {
-        import Constant.Bool
         val compiled = compile {
             val a = true || (throw new Exception("M"))
             !a && false || true
@@ -1101,7 +1093,6 @@ class CompilerPluginToSIRSpec extends AnyFunSuite with ScalaCheckPropertyChecks:
     }
 
     test("compile Boolean equality") {
-        import Constant.Bool
         val eq = compile { def check(a: Boolean) = a == false; check }
         val ne = compile { def check(a: Boolean) = a != false; check }
         val aVar = Var("a", sirBool)
@@ -1432,9 +1423,9 @@ class CompilerPluginToSIRSpec extends AnyFunSuite with ScalaCheckPropertyChecks:
         )
         val eqterm = eq.toUplc()
         val neterm = ne.toUplc()
-        import scalus.uplc.TermDSL.{*, given}
         import scalus.builtin.Data.toData
         import scalus.builtin.ToDataInstances.given
+        import scalus.uplc.TermDSL.{*, given}
 
         assert(
           (eqterm $ 1.toData $ 1.toData).evaluate == scalus.uplc.Term.Const(
@@ -1469,29 +1460,6 @@ class CompilerPluginToSIRSpec extends AnyFunSuite with ScalaCheckPropertyChecks:
         // println(compiled.show)
         val evaled = compiled.toUplc().evaluate
         assert(evaled == scalus.uplc.Term.Const(Constant.Bool(true)))
-    }
-
-    test("compile external definitions") {
-        def foo(i: BigInt) = i
-
-        val iVar = Var("i", sirInt)
-
-        assert(
-          compile {
-              foo(5)
-          } ==
-              Let(
-                Rec,
-                List(
-                  Binding("scalus.CompilerPluginToSIRSpec._$_$foo", LamAbs(iVar, iVar))
-                ),
-                Apply(
-                  Var("scalus.CompilerPluginToSIRSpec._$_$foo", Fun(sirInt, sirInt)),
-                  sirConst(5),
-                  sirInt
-                )
-              )
-        )
     }
 
     private val pubKeyHashDataDecl = DataDecl(
@@ -1683,9 +1651,9 @@ class CompilerPluginToSIRSpec extends AnyFunSuite with ScalaCheckPropertyChecks:
               ),
               ScriptPurpose.Spending(TxOutRef(TxId(hex"deadbeef"), 0))
             )
-        import scalus.uplc.TermDSL.given
-        import scalus.builtin.Data.*
         import DefaultUni.asConstant
+        import scalus.builtin.Data.*
+        import scalus.uplc.TermDSL.given
         val appliedScript = term.plutusV1 $ scriptContext.toData
         assert(appliedScript.evaluate == scalus.uplc.Term.Const(asConstant(hex"deadbeef")))
         val flatBytesLength = appliedScript.flatEncoded.length

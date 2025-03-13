@@ -959,6 +959,143 @@ class BuiltinsMeaning(
           builtinCostModel.byteStringToInteger
         )
 
+    val AndByteString =
+        mkMeaning(
+          DefaultUni.Bool ->: DefaultUni.ByteString ->: DefaultUni.ByteString ->: DefaultUni.ByteString,
+          (logger: Logger, args: Seq[CekValue]) =>
+              val shouldPad = args(0).asBool
+              val lhs = args(1).asByteString
+              val rhs = args(2).asByteString
+              VCon(asConstant(andByteString(shouldPad, lhs, rhs)))
+          ,
+          builtinCostModel.andByteString
+        )
+
+    val OrByteString =
+        mkMeaning(
+          DefaultUni.Bool ->: DefaultUni.ByteString ->: DefaultUni.ByteString ->: DefaultUni.ByteString,
+          (logger: Logger, args: Seq[CekValue]) =>
+              val shouldPad = args(0).asBool
+              val lhs = args(1).asByteString
+              val rhs = args(2).asByteString
+              VCon(asConstant(orByteString(shouldPad, lhs, rhs)))
+          ,
+          builtinCostModel.orByteString
+        )
+
+    val XorByteString =
+        mkMeaning(
+          DefaultUni.Bool ->: DefaultUni.ByteString ->: DefaultUni.ByteString ->: DefaultUni.ByteString,
+          (logger: Logger, args: Seq[CekValue]) =>
+              val shouldPad = args(0).asBool
+              val lhs = args(1).asByteString
+              val rhs = args(2).asByteString
+              VCon(asConstant(xorByteString(shouldPad, lhs, rhs)))
+          ,
+          builtinCostModel.xorByteString
+        )
+
+    val ComplementByteString =
+        mkMeaning(
+          DefaultUni.ByteString ->: DefaultUni.ByteString,
+          (logger: Logger, args: Seq[CekValue]) =>
+              val byteString = args(0).asByteString
+              VCon(asConstant(complementByteString(byteString)))
+          ,
+          builtinCostModel.complementByteString
+        )
+
+    val ReadBit =
+        mkMeaning(
+          DefaultUni.ByteString ->: DefaultUni.Integer ->: DefaultUni.Bool,
+          (logger: Logger, args: Seq[CekValue]) =>
+              val byteString = args(0).asByteString
+              val index = args(1).asInteger
+              VCon(asConstant(readBit(byteString, index)))
+          ,
+          builtinCostModel.readBit
+        )
+
+    val WriteBits =
+        mkMeaning(
+          DefaultUni.ByteString ->: DefaultUni.List(
+            DefaultUni.Integer
+          ) ->: DefaultUni.Bool ->: DefaultUni.ByteString,
+          (logger: Logger, args: Seq[CekValue]) =>
+              val byteString = args(0).asByteString
+              val indexes = args(1).asList.map {
+                  case Constant.Integer(i) => i
+                  case _ => throw new KnownTypeUnliftingError(DefaultUni.Integer, args(1))
+              }
+              val bit = args(2).asBool
+              VCon(asConstant(writeBits(byteString, indexes, bit)))
+          ,
+          builtinCostModel.writeBits
+        )
+
+    val ReplicateByte =
+        mkMeaning(
+          DefaultUni.Integer ->: DefaultUni.Integer ->: DefaultUni.ByteString,
+          (logger: Logger, args: Seq[CekValue]) =>
+              val length = args(0).asInteger
+              val byte = args(1).asInteger
+              VCon(asConstant(replicateByte(length, byte)))
+          ,
+          builtinCostModel.replicateByte
+        )
+
+    val ShiftByteString =
+        mkMeaning(
+          DefaultUni.ByteString ->: DefaultUni.Integer ->: DefaultUni.ByteString,
+          (logger: Logger, args: Seq[CekValue]) =>
+              val byteString = args(0).asByteString
+              val shift = args(1).asInteger
+              VCon(asConstant(shiftByteString(byteString, shift)))
+          ,
+          builtinCostModel.shiftByteString
+        )
+
+    val RotateByteString =
+        mkMeaning(
+          DefaultUni.ByteString ->: DefaultUni.Integer ->: DefaultUni.ByteString,
+          (logger: Logger, args: Seq[CekValue]) =>
+              val byteString = args(0).asByteString
+              val rotation = args(1).asInteger
+              VCon(asConstant(rotateByteString(byteString, rotation)))
+          ,
+          builtinCostModel.rotateByteString
+        )
+
+    val CountSetBits =
+        mkMeaning(
+          DefaultUni.ByteString ->: DefaultUni.Integer,
+          (logger: Logger, args: Seq[CekValue]) =>
+              val byteString = args(0).asByteString
+              VCon(asConstant(countSetBits(byteString)))
+          ,
+          builtinCostModel.countSetBits
+        )
+
+    val FindFirstSetBit =
+        mkMeaning(
+          DefaultUni.ByteString ->: DefaultUni.Integer,
+          (logger: Logger, args: Seq[CekValue]) =>
+              val byteString = args(0).asByteString
+              VCon(asConstant(findFirstSetBit(byteString)))
+          ,
+          builtinCostModel.findFirstSetBit
+        )
+
+    val Ripemd_160 =
+        mkMeaning(
+          DefaultUni.ByteString ->: DefaultUni.ByteString,
+          (logger: Logger, args: Seq[CekValue]) =>
+              val byteString = args(0).asByteString
+              VCon(asConstant(platformSpecific.ripemd_160(byteString)))
+          ,
+          builtinCostModel.ripemd_160
+        )
+
     private inline def mkGetBuiltinRuntime: DefaultFun => BuiltinRuntime = ${
         scalus.macros.Macros.mkGetBuiltinRuntime('this)
     }

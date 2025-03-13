@@ -242,6 +242,25 @@ object Macros {
         impl
     }
 
+    /** Generates a pair of functions to convert a class to a sequence of longs and vice versa. The
+      * generated code is equivalent to the following:
+      * {{{
+      *   (
+      *     (m: A) => Seq(m.field1, m.field2, ...),
+      *     (seq: Seq[Long]) => {
+      *       val params = new A()
+      *       params.field1 = if idx < seq.size then seq(0) else 0L
+      *       ...
+      *       params
+      *     }
+      *   )
+      * }}}
+      *
+      * @tparam A
+      *   the type of the class
+      * @return
+      *   a pair of functions
+      */
     def mkClassFieldsFromSeqIsoImpl[A: Type](using
         Quotes
     ): Expr[(A => Seq[Long], Seq[Long] => A)] = {
@@ -249,14 +268,13 @@ object Macros {
         import quotes.reflect.*
         val tpe = TypeTree.of[A]
         val fields = tpe.symbol.declaredFields
-        val fieldNames = fields.map(_.name)
         val impl = '{
             (
               (m: A) =>
                   ${ Expr.ofSeq(fields.map(name => '{ m }.asTerm.select(name).asExprOf[Long])) },
               (seq: Seq[Long]) =>
                   ${
-                      val stats = ListBuffer[Statement]()
+                      val stmts = ListBuffer[Statement]()
                       // val params = new A()
                       val value = ValDef(
                         Symbol.newVal(
@@ -269,14 +287,19 @@ object Macros {
                         Some(New(tpe).select(tpe.symbol.primaryConstructor).appliedToNone)
                       )
                       val ref = Ref(value.symbol)
-                      stats += value
-                      // params.field1 = seq(0)
+                      stmts += value
+                      val size = '{ seq.size }
+                      // params.field1 = if idx < seq.size then seq(0) else 0L
                       // ...
-                      for (field, idx) <- fields.zipWithIndex do
-                          stats += Assign(ref.select(field), '{ seq(${ Expr(idx) }) }.asTerm)
+                      for (field, index) <- fields.zipWithIndex do
+                          val idx = Expr(index)
+                          stmts += Assign(
+                            ref.select(field),
+                            '{ if $idx < $size then seq($idx) else 0L }.asTerm
+                          )
 
                       // { val params = new A(); params.field1 =...; params }
-                      Block(stats.toList, ref).asExprOf[A]
+                      Block(stmts.toList, ref).asExprOf[A]
                   }
             )
         }

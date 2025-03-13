@@ -113,6 +113,18 @@ enum DefaultFun extends Enum[DefaultFun]:
     // Conversions
     case IntegerToByteString
     case ByteStringToInteger
+    case AndByteString
+    case OrByteString
+    case XorByteString
+    case ComplementByteString
+    case ReadBit
+    case WriteBits
+    case ReplicateByte
+    case ShiftByteString
+    case RotateByteString
+    case CountSetBits
+    case FindFirstSetBit
+    case Ripemd_160
 
 given DefaultFunOrdering: Ordering[DefaultFun] with
     def compare(x: DefaultFun, y: DefaultFun): Int = x.ordinal - y.ordinal
