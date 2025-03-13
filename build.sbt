@@ -156,7 +156,7 @@ lazy val scalusPlugin = project
           (Compile / clean).value
           streams.value.log.info("Cleaning shared files")
           IO.delete((Compile / sourceDirectory).value / "shared")
-      },
+      }
 //      Compile / compile := (Compile / compile).dependsOn(copySharedFiles).value
     )
 

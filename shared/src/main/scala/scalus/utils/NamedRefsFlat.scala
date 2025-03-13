@@ -8,7 +8,7 @@ trait NamedRef[A] {
     def isComplete: Boolean
 
     def finValue(state: NamedRefs.State): A
-    
+
 }
 
 object NamedRefs {
