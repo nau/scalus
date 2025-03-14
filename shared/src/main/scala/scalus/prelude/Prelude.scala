@@ -151,9 +151,21 @@ object List:
     /** Returns the length of the list */
     def length[A](lst: List[A]): BigInt = foldLeft(lst, BigInt(0))((acc, _) => acc + 1)
 
+// TODO: rename to Option
 enum Maybe[+A]:
     case Nothing extends Maybe[Nothing]
     case Just(value: A)
+
+// TODO: check hypothesis
+
+/*
+    Look how it's done in Cats/ZIO
+    import cats.syntax.all.*
+
+     object offchain extends Maybe.offchai, \dots  {
+     }
+
+ * */
 
 @Compile
 object Maybe {
@@ -163,6 +175,8 @@ object Maybe {
       */
     @Ignore
     inline def apply[A](x: A): Maybe[A] = if x == null then Nothing else Just(x)
+
+//    given ScalusIterable[Maybe] = ???
 
     extension [A](m: Maybe[A])
         /** Converts a `Maybe` to an [[Option]] */
@@ -174,6 +188,12 @@ object Maybe {
         def map[B](f: A => B): Maybe[B] = m match
             case Nothing => Nothing
             case Just(a) => Just(f(a))
+
+        /* TODO: next version/idea use ScalusIterableOnce as typeclass for flatMap
+         */
+        def flatMap[B](f: A => Maybe[B]): Maybe[B] = m match
+            case Nothing => Nothing
+            case Just(a) => f(a)
 
     /** Converts an [[Option]] to a `Maybe` */
     @Ignore
@@ -200,6 +220,12 @@ enum These[+A, +B]:
 
 case class AssocMap[A, B](inner: List[(A, B)])
 
+/* TODO:
+ * 1. Extend to Aiken functionality
+ * 1. Use Scala way of naming/typing function
+ * 1. Use extension for methods
+ * 1. Document functions
+ */
 @Compile
 object AssocMap {
     import List.*
