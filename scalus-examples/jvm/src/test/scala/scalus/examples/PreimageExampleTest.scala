@@ -46,18 +46,6 @@ class PreimageExampleTest extends BaseValidatorTest {
             val ctx = scriptContext(signatories)
             validator $ datum $ redeemer $ ctx.toData
 
-        val s = appliedScript(
-                preimage = ByteString.fromArray("Scalus rocks!".getBytes("UTF-8")),
-                pubKeyHash =
-                    PubKeyHash(hex"61822dde476439a526070f36d3d1667ad099b462c111cd85e089f5e7f6"),
-                hash = hex"36c71edaf0affadf6dd9c5f8df3dc90ec0fc01bf9f8cf0f18268db24b2a3da49",
-                signatories =
-                    List(PubKeyHash(hex"61822dde476439a526070f36d3d1667ad099b462c111cd85e089f5e7f6"))
-            )
-
-        println(s.doubleCborHex)
-
-
         assertSameResult(Expected.Success(Const(Constant.Unit)))(
           appliedScript(
             preimage = ByteString.fromArray("Scalus rocks!".getBytes("UTF-8")),

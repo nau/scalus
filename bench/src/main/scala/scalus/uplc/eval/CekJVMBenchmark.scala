@@ -9,7 +9,6 @@ import org.openjdk.jmh.annotations.Scope
 import org.openjdk.jmh.annotations.Setup
 import org.openjdk.jmh.annotations.State
 import scalus.*
-import scalus.examples.{OptimizedPreimageValidator, PreimageValidator, PubKeyValidator}
 import scalus.uplc.{DeBruijnedProgram, DefaultFun, Program, Term}
 
 import java.nio.file.Files
@@ -59,7 +58,8 @@ class JITBenchmark:
     private var program: DeBruijnedProgram = null
     private var program2: Program = null
     private val jitted = Test.getJitted()
-    private val vm = PlutusVM.makePlutusV2VM()
+    private val params = MachineParams.defaultPlutusV2PostConwayParams
+    private val vm = PlutusVM.makePlutusV2VM(params)
 
     @Setup
     def readProgram() = {
@@ -85,7 +85,7 @@ class JITBenchmark:
     @BenchmarkMode(Array(Mode.AverageTime))
     @OutputTimeUnit(TimeUnit.MICROSECONDS)
     def benchJIT() = {
-        jitted(NoLogger, NoBudgetSpender)
+        jitted(NoLogger, NoBudgetSpender, params)
     }
 
 object Test {
@@ -124,6 +124,8 @@ object Test {
         println(program.evaluateDebug)
 //        println(program.showHighlighted)
 //        println(JIT.jitUplc(program.term)())
-        getJitted()(NoLogger, NoBudgetSpender)
+        val spender = CountingBudgetSpender()
+        getJitted()(NoLogger, spender, MachineParams.defaultPlutusV2PostConwayParams)
+        println(spender.getSpentBudget.showJson)
     }
 }
