@@ -33,6 +33,12 @@ private trait Hash extends js.Object {
     def digest(): Uint8Array = js.native
 }
 
+@JSImport("@noble/hashes/ripemd160", JSImport.Namespace)
+@js.native
+private object Ripemd160 extends js.Object {
+    def ripemd160(msg: Uint8Array): Uint8Array = js.native
+}
+
 @JSImport("@noble/curves/secp256k1", JSImport.Namespace)
 @js.native
 private object Secp256k1Curve extends js.Object {
@@ -50,12 +56,8 @@ private object Ed25519Curves extends js.Object {
 @JSImport("@noble/curves/bls12-381", JSImport.Namespace)
 @js.native
 private object BLS12_381 extends js.Object {
-    val bls12_381: BLS12_381 = js.native
-}
-
-@js.native
-private trait BLS12_381 extends js.Object {
-    def getPublicKey(privateKey: Uint8Array): Uint8Array = js.native
+    val G1: BLS12_381_G1 = js.native
+    val G2: BLS12_381_G2 = js.native
 }
 
 @js.native
@@ -220,8 +222,8 @@ trait NodeJsPlatformSpecific extends PlatformSpecific {
     override def keccak_256(bs: ByteString): ByteString =
         Sha3.keccak_256(bs.toUint8Array).toByteString
 
-    // TODO: make native implementation for ripemd_160
-    override def ripemd_160(byteString: ByteString): ByteString = ???
+    override def ripemd_160(byteString: ByteString): ByteString =
+        Ripemd160.ripemd160(byteString.toUint8Array).toByteString
 }
 
 object NodeJsPlatformSpecific extends NodeJsPlatformSpecific
