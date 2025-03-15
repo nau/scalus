@@ -10,11 +10,11 @@ import scalus.ledger.api.v1.PubKeyHash
 import scalus.ledger.api.v3.*
 import scalus.prelude.*
 import scalus.uplc.DeBruijnedProgram
-import scalus.uplc.Inliner
 import scalus.uplc.Term
 import scalus.uplc.eval.PlutusVM
 import scalus.uplc.TermDSL.*
 import scalus.uplc.eval.Result
+import scalus.uplc.transform.Inliner
 
 import java.nio.file.Files
 import java.nio.file.Path

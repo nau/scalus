@@ -1,5 +1,5 @@
-package scalus
-package uplc
+package scalus.uplc
+package transform
 
 import scalus.uplc.Term.*
 import scalus.uplc.TermDSL.{*, given}
