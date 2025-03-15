@@ -94,7 +94,11 @@ object SIRType {
         override def show: String = "BLS12_381_MlResult"
     }
 
-    case class CaseClass(constrDecl: ConstrDecl, typeArgs: scala.List[SIRType]) extends SIRType {
+    case class CaseClass(
+        constrDecl: ConstrDecl,
+        typeArgs: scala.List[SIRType],
+        parent: Option[SIRType]
+    ) extends SIRType {
 
         override def show: String =
             if typeArgs.isEmpty then constrDecl.name
@@ -125,17 +129,17 @@ object SIRType {
               "Pair",
               SIRVarStorage.LocalUPLC,
               scala.List(TypeBinding("fst", A), TypeBinding("snd", B)),
-              scala.List(A, B) // ,
-              // scala.Nil
+              scala.List(A, B),
+              scala.Nil
             )
         }
 
         def apply(a: SIRType, b: SIRType): SIRType =
-            CaseClass(constrDecl, scala.List(a, b))
+            CaseClass(constrDecl, scala.List(a, b), None)
 
         def unapply(x: SIRType): Option[(SIRType, SIRType)] = x match {
-            case CaseClass(`constrDecl`, scala.List(a, b)) => Some((a, b))
-            case _                                         => None
+            case CaseClass(`constrDecl`, scala.List(a, b), None) => Some((a, b))
+            case _                                               => None
         }
 
     }
@@ -282,7 +286,7 @@ object SIRType {
             retval
         }
 
-        def apply(a: SIRType): SIRType =
+        def apply(a: SIRType): SumCaseClass =
             SumCaseClass(dataDecl, scala.List(a))
 
         def unapply(l: SIRType): Option[SIRType] = l match {
@@ -301,8 +305,8 @@ object SIRType {
                   "scalus.prelude.List$.Cons",
                   SIRVarStorage.LocalUPLC,
                   scala.List(TypeBinding("head", a), TypeBinding("tail", listSum)),
+                  scala.List(a),
                   scala.List(a)
-                  // scala.List(a)
                 )
             }
 
@@ -315,10 +319,11 @@ object SIRType {
                     )
             }
 
-            def apply(a: SIRType) = CaseClass(constr, scala.List(a))
+            def apply(a: SIRType) =
+                CaseClass(constr, scala.List(a), Some(List.apply(a)))
 
             def unapply(x: SIRType): Option[SIRType] = x match {
-                case CaseClass(constr, scala.List(a)) =>
+                case CaseClass(constr, scala.List(a), _) =>
                     if constr.name == "scalus.prelude.List$.Cons" then Some(a)
                     else None
                 case _ => None
@@ -328,11 +333,40 @@ object SIRType {
 
         // val NilConstr = ConstrDecl("Nil", SIRVarStorage.DEFAULT, scala.Nil, scala.Nil, scala.Nil)
         val NilConstr =
-            ConstrDecl("scalus.prelude.List$.Nil", SIRVarStorage.DEFAULT, scala.Nil, scala.Nil)
+            ConstrDecl(
+              "scalus.prelude.List$.Nil",
+              SIRVarStorage.DEFAULT,
+              scala.Nil,
+              scala.Nil,
+              scala.List(SIRType.TypeNothing)
+            )
 
-        val Nil = CaseClass(NilConstr, scala.Nil)
+        val Nil = CaseClass(NilConstr, scala.Nil, Some(List.apply(SIRType.TypeNothing)))
 
     }
+
+    case class TypeApplyException(msg: String, cause: Throwable | Null = null)
+        extends RuntimeException(msg, cause)
+
+    def typeApply(tpl: SIRType, args: List[SIRType]): SIRType =
+        if (args.isEmpty) then tpl
+        else
+            tpl match
+                case TypeLambda(params, body) =>
+                    if (params.length != args.length) then
+                        throw TypeApplyException(
+                          s"length of type-lambda parameter list is differ then args list. tpl=${tpl.show}, args=${args
+                                  .map(_.show)}"
+                        )
+                    else
+                        val env = params.zip(args).toMap
+                        substitute(body, env, Map.empty)
+                case TypeProxy(ref) =>
+                    typeApply(ref, args)
+                case _ =>
+                    throw TypeApplyException(
+                      s"type-lambda should be the first argument of typeApply,  we have ${tpl.show}"
+                    )
 
     case class CaclulateApplyTypeException(msg: String, cause: Throwable | Null = null)
         extends RuntimeException(msg, cause)
@@ -390,8 +424,12 @@ object SIRType {
                     case None    => tv
             case TypeLambda(params, body) =>
                 TypeLambda(params, substitute(body, env, proxyEnv))
-            case CaseClass(constrDecl, typeArgs) =>
-                CaseClass(constrDecl, typeArgs.map(substitute(_, env, proxyEnv)))
+            case CaseClass(constrDecl, typeArgs, optParent) =>
+                CaseClass(
+                  constrDecl,
+                  typeArgs.map(substitute(_, env, proxyEnv)),
+                  optParent.map(c => substitute(c, env, proxyEnv))
+                )
             case SumCaseClass(decl, typeArgs) =>
                 SumCaseClass(decl, typeArgs.map(substitute(_, env, proxyEnv)))
             case Fun(in, out) =>
@@ -474,12 +512,7 @@ object SIRType {
                 case Fun(in, out) =>
                     checkAllProxiesFilledTraced(in, traceloops, "in" :: log) &&
                     checkAllProxiesFilledTraced(out, traceloops, "out" :: log)
-                case CaseClass(constrDecl, typeArgs) =>
-                    checkAllProxiesFilledTraced(
-                      constrDecl.tp,
-                      traceloops,
-                      s"constrDecl ${constrDecl.name}" :: log
-                    ) &&
+                case CaseClass(constrDecl, typeArgs, optParent) =>
                     constrDecl.params.forall(x =>
                         checkAllProxiesFilledTraced(
                           x.tp,
@@ -511,6 +544,10 @@ object SIRType {
                 case TypeLambda(params, body) =>
                     checkAllProxiesFilledTraced(body, traceloops, "type-lambda bofy" :: log)
                 case _ => true
+    }
+
+    def syntheticNarrowConstrDeclName(childDataDeclName: String): String = {
+        s"z_narrow$$${childDataDeclName}"
     }
 
 }

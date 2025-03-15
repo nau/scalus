@@ -2,17 +2,12 @@ package scalus
 package sir
 
 import scalus.sir.Recursivity.*
-import scalus.uplc.Constant
-import scalus.uplc.DefaultFun
-import scalus.uplc.ExprBuilder
-import scalus.uplc.Meaning
-import scalus.uplc.NamedDeBruijn
-import scalus.uplc.Term
+import scalus.sir.SIR.Pattern
 import scalus.uplc.TermDSL.*
-import scalus.uplc.TypeScheme
+import scalus.uplc.*
 
 import scala.annotation.tailrec
-import scala.collection.mutable.HashMap
+import scala.collection.mutable
 
 /** Lowering from Scalus Intermediate Representation [[SIR]] to UPLC [[Term]].
   *
@@ -33,7 +28,7 @@ class SimpleSirToUplcLowering(sir: SIR, generateErrorTraces: Boolean = false):
         )
 
     private var zCombinatorNeeded: Boolean = false
-    private val decls = HashMap.empty[String, DataDecl]
+    private val decls = mutable.HashMap.empty[String, DataDecl]
 
     def lower(): Term =
         val term = lowerInner(sir)
@@ -51,6 +46,11 @@ class SimpleSirToUplcLowering(sir: SIR, generateErrorTraces: Boolean = false):
                     Nil is represented as \Nil Cons -> force Nil
                     Cons is represented as (\head tail Nil Cons -> Cons head tail) h tl
                  */
+
+                // def checkIsCaseClass()
+                //    tp match
+                //        case SIRType.CaseClass(constrDecl,targs)
+
                 val constrs = data.constructors.map(_.name)
                 val ctorParams = data.constructors.find(_.name == name) match
                     case None =>
@@ -84,21 +84,104 @@ class SimpleSirToUplcLowering(sir: SIR, generateErrorTraces: Boolean = false):
                     lowers to list (delay 1) (\h tl -> 2)
                  */
                 val scrutineeTerm = lowerInner(scrutinee)
-                val casesTerms = cases.map { case SIR.Case(constr, bindings, typeBindings, body) =>
-                    constr.params match
-                        case Nil => ~lowerInner(body)
+
+                def find(sirType: SIRType): Seq[ConstrDecl] =
+                    sirType match
+                        case SIRType.CaseClass(constrDecl, typeArgs, optParent) =>
+                            optParent match
+                                case None         => Seq(constrDecl)
+                                case Some(parent) => find(parent)
+                        case SIRType.SumCaseClass(decl, _) =>
+                            decl.constructors
+                        case SIRType.TypeLambda(_, t) => find(t)
                         case _ =>
-                            bindings.foldRight(lowerInner(body)) { (binding, acc) =>
-                                Term.LamAbs(binding, acc)
-                            }
+                            throw new IllegalArgumentException(
+                              s"Expected case class type, got ${sirType} in expression: ${sir.show}"
+                            )
+
+                val constructors = find(scrutinee.tp)
+
+                // 1. If we have a wildcard case, it must be the last one
+                // 2. Validate we don't have any errors
+                // 3. Convert Wildcard to the rest of the cases/constructors
+                // 4. Sort the cases by constructor name
+
+                var idx = 0
+                val iter = cases.iterator
+                val allConstructors = constructors.toSet
+                val matchedConstructors = mutable.HashSet.empty[String]
+                val expandedCases = mutable.ArrayBuffer.empty[SIR.Case]
+
+                while iter.hasNext do
+                    iter.next() match
+                        case c @ SIR.Case(Pattern.Constr(constrDecl, _, _), _) =>
+                            matchedConstructors += constrDecl.name // collect all matched constructors
+                            expandedCases += c
+                        case SIR.Case(Pattern.Wildcard, rhs) =>
+                            // If we have a wildcard case, it must be the last one
+                            if idx != cases.length - 1 then
+                                throw new IllegalArgumentException(
+                                  s"Wildcard case must be the last and only one in match expression"
+                                )
+                            else
+                                // Convert Wildcard to the rest of the cases/constructors
+                                val missingConstructors = allConstructors.filter(c =>
+                                    !matchedConstructors.contains(c.name)
+                                )
+                                missingConstructors.foreach { constrDecl =>
+                                    val bindings = constrDecl.params.map(_.name)
+                                    // TODO: extract rhs to a let binding before the match
+                                    // so we don't have to repeat it for each case
+                                    // also we have no way to know type-arguments, so use abstract type-vars (will use FreeUnificator)
+                                    val typeArgs =
+                                        constrDecl.typeParams.map(_ => SIRType.FreeUnificator)
+                                    expandedCases += SIR.Case(
+                                      Pattern.Constr(constrDecl, bindings, typeArgs),
+                                      rhs
+                                    )
+                                    matchedConstructors += constrDecl.name // collect all matched constructors
+                                }
+
+                    idx += 1
+                end while
+                // Sort the cases by constructor name to ensure we have a deterministic order
+                val sortedCases = expandedCases.sortBy {
+                    case SIR.Case(Pattern.Constr(constr, _, _), _) =>
+                        constr.name
+                    case SIR.Case(Pattern.Wildcard, _) =>
+                        throw new IllegalArgumentException(
+                          "Wildcard case must have been eliminated"
+                        )
+                }.toList
+
+                val casesTerms = sortedCases.map {
+                    case SIR.Case(Pattern.Constr(constr, bindings, _), body) =>
+                        constr.params match
+                            case Nil => ~lowerInner(body)
+                            case _ =>
+                                bindings.foldRight(lowerInner(body)) { (binding, acc) =>
+                                    Term.LamAbs(binding, acc)
+                                }
+                    case SIR.Case(Pattern.Wildcard, _) =>
+                        throw new IllegalArgumentException(
+                          "Wildcard case must have been eliminated"
+                        )
                 }
-                casesTerms.foldLeft(scrutineeTerm) { (acc, caseTerm) => Term.Apply(acc, caseTerm) }
+
+                val matchResult =
+                    casesTerms.foldLeft(scrutineeTerm) { (acc, caseTerm) =>
+                        Term.Apply(acc, caseTerm)
+                    }
+                matchResult
             case SIR.Var(name, _)            => Term.Var(NamedDeBruijn(name))
             case SIR.ExternalVar(_, name, _) => Term.Var(NamedDeBruijn(name))
             case SIR.Let(NonRec, bindings, body) =>
-                bindings.foldRight(lowerInner(body)) { case (Binding(name, rhs), body) =>
+                val loweredBody = lowerInner(body)
+                val letResult = bindings.foldRight(loweredBody) { case (Binding(name, rhs), body) =>
+                    val loweredRhs = lowerInner(rhs)
                     Term.Apply(Term.LamAbs(name, body), lowerInner(rhs))
                 }
+                letResult
             case SIR.Let(Rec, Binding(name, rhs) :: Nil, body) =>
                 /*  let rec f x = f (x + 1)
                     in f 0
@@ -120,7 +203,7 @@ class SimpleSirToUplcLowering(sir: SIR, generateErrorTraces: Boolean = false):
                 @tailrec
                 def find(sirType: SIRType): ConstrDecl =
                     sirType match
-                        case SIRType.CaseClass(constrDecl, _) => constrDecl
+                        case SIRType.CaseClass(constrDecl, _, _) => constrDecl
                         case SIRType.SumCaseClass(decl, _) =>
                             if decl.constructors.length == 1 then decl.constructors.head
                             else
@@ -136,7 +219,7 @@ class SimpleSirToUplcLowering(sir: SIR, generateErrorTraces: Boolean = false):
                     val fieldIndex = constrDecl.params.indexWhere(_.name == field)
                     if fieldIndex == -1 then
                         throw new IllegalArgumentException(
-                          s"Field $field not found in constructor ${constrDecl.name}"
+                          s"Field $field not found in constructor ${constrDecl}"
                         )
                     val instance = lowerInner(scrutinee)
                     val s0 = Term.Var(NamedDeBruijn(field))

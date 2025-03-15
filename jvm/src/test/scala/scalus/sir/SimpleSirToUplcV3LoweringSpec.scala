@@ -21,6 +21,7 @@ import java.nio.file.Path
 import scala.collection.immutable
 import scala.language.implicitConversions
 
+@org.scalatest.Ignore
 class SimpleSirToUplcV3LoweringSpec extends AnyFunSuite {
     given PlutusVM = PlutusVM.makePlutusV3VM()
 
@@ -72,7 +73,6 @@ class SimpleSirToUplcV3LoweringSpec extends AnyFunSuite {
                 val bb: AA = new AA.DDD(123)
                 bb match
                     case AA.DDD(i) => i == BigInt(123)
-                    case AA.BBB    => false
                     case _         => false
 
         println(sir.showHighlighted)

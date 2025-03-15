@@ -1,8 +1,14 @@
 package scalus.utils
 
 import scalus.flat.*
+import scalus.flat.FlatInstantces.SIRTypeHashConsedRef
+import scalus.utils.HashConsed.ForwardRefAcceptor
 
-class HashConsedEncoderState(val encode: EncoderState, val hashConsed: HashConsed.State) {
+class HashConsedEncoderState(
+    val encode: EncoderState,
+    val hashConsed: HashConsed.State,
+    val debug: Boolean = false
+) {
 
     inline def lookupValue(ihc: Int, tag: HashConsed.Tag): Option[HashConsedRef[?]] = {
         hashConsed.lookupValue(ihc, tag)
@@ -16,6 +22,9 @@ class HashConsedEncoderState(val encode: EncoderState, val hashConsed: HashConse
         hashConsed.putForwardRef(fw)
     }
 
+    def withDebug(debug: Boolean): HashConsedEncoderState =
+        new HashConsedEncoderState(encode, hashConsed, debug)
+
 }
 
 object HashConsedEncoderState {
@@ -25,10 +34,14 @@ object HashConsedEncoderState {
 
 }
 
-class HashConsedDecoderState(val decode: DecoderState, val hashConsed: HashConsed.State) {
+class HashConsedDecoderState(
+    val decode: DecoderState,
+    val hashConsed: HashConsed.State,
+    val debug: Boolean = false
+) {
 
     def runFinCallbacks(): Unit =
-        hashConsed.finishCallbacks()
+        hashConsed.finishCallbacks(debug)
 
 }
 
@@ -70,21 +83,27 @@ object HashConsedReprFlat {
     case class ListRepl[A <: AnyRef, SA <: HashConsedRef[A]](elems: List[SA])
         extends HashConsedRef[List[A]] {
 
+        var result: List[A] | Null = null
+
         def isComplete(hashConsed: HashConsed.State): Boolean =
-            elems.forall(_.isComplete(hashConsed))
+            if (result eq null) then elems.forall(_.isComplete(hashConsed))
+            else true
 
         override def finValue(
             hashConsed: HashConsed.State,
             level: Int,
             parents: HSRIdentityHashMap
         ): List[A] =
-            if parents.get(this) != null then throw new Exception("Cycle detected")
-            parents.put(this, this)
-            val nextLevel = level + 1
-            val retval = elems.map(_.finValue(hashConsed, nextLevel, parents))
-            parents.remove(this)
-            retval
-
+            if !(result eq null) then result
+            else
+                // if parents.get(this) != null then
+                //    throw new Exception(s"Cycle detected, this=${this}")
+                // parents.put(this, this)
+                val nextLevel = level + 1
+                val retval = elems.map(_.finValue(hashConsed, nextLevel, parents))
+                // parents.remove(this)
+                result = retval
+                retval
     }
 
     implicit def listHashConsedRepr[A <: AnyRef, SA <: HashConsedRef[A]](using
@@ -177,7 +196,8 @@ object PlainIntFlat extends HashConsedFlat[Int] {
 
 }
 
-trait HashConsedMutRefReprFlat[A <: AnyRef] extends HashConsedReprFlat[A, HashConsedRef[A]] {
+trait HashConsedMutRefReprFlat[A <: AnyRef, SA <: HashConsedRef[A]]
+    extends HashConsedReprFlat[A, SA] {
 
     def tag: HashConsed.Tag
 
@@ -185,7 +205,11 @@ trait HashConsedMutRefReprFlat[A <: AnyRef] extends HashConsedReprFlat[A, HashCo
 
     def encodeHCNew(a: A, encode: HashConsedEncoderState): Unit
 
-    def decodeHCNew(decoderState: HashConsedDecoderState): HashConsedRef[A]
+    def decodeHCNew(decoderState: HashConsedDecoderState): SA
+
+    def saFromForward(state: HashConsed.State, fw: ForwardRefAcceptor): SA
+
+    def saFromRef(ref: HashConsedRef[A]): SA
 
     override def bitSizeHC(a: A, encoderState: HashConsed.State): Int = {
         val ihc = a.hashCode
@@ -194,7 +218,7 @@ trait HashConsedMutRefReprFlat[A <: AnyRef] extends HashConsedReprFlat[A, HashCo
             case None =>
                 encoderState.putForwardRef(HashConsed.ForwardRefAcceptor(ihc, tag, Nil))
                 retval += bitSizeHCNew(a, encoderState)
-                encoderState.setRef(ihc, tag, HashConsedRef.fromData(a))
+                encoderState.setRef(ihc, tag, toRepr(a))
             case Some(_) =>
         retval
     }
@@ -206,11 +230,11 @@ trait HashConsedMutRefReprFlat[A <: AnyRef] extends HashConsedReprFlat[A, HashCo
             case None =>
                 encoderState.putForwardRefAcceptor(HashConsed.ForwardRefAcceptor(ihc, tag, Nil))
                 encodeHCNew(a, encoderState)
-                encoderState.setRef(ihc, tag, HashConsedRef.fromData(a))
+                encoderState.setRef(ihc, tag, toRepr(a))
             case Some(ref) =>
     }
 
-    override def decodeHC(decoderState: HashConsedDecoderState): HashConsedRef[A] = {
+    override def decodeHC(decoderState: HashConsedDecoderState): SA = {
         val ihc = PlainIntFlat.decode(decoderState.decode)
         decoderState.hashConsed.lookup(ihc, tag) match
             case None =>
@@ -221,9 +245,10 @@ trait HashConsedMutRefReprFlat[A <: AnyRef] extends HashConsedReprFlat[A, HashCo
                 decoderState.hashConsed.setRef(ihc, tag, sa)
                 sa
             case Some(Left(fw)) =>
-                HashConsedRef.fromForward[A](decoderState.hashConsed, ihc, tag)
-            case Some(Right(sa)) =>
-                sa.asInstanceOf[HashConsedRef[A]]
+                saFromForward(decoderState.hashConsed, fw)
+            case Some(Right(saa)) =>
+                saFromRef(saa.asInstanceOf[HashConsedRef[A]])
+
     }
 
 }

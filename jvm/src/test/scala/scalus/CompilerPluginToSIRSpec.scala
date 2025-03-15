@@ -1469,6 +1469,7 @@ class CompilerPluginToSIRSpec extends AnyFunSuite with ScalaCheckPropertyChecks:
           "scalus.ledger.api.v1.PubKeyHash",
           SIRVarStorage.DEFAULT,
           List(TypeBinding("hash", sirByteString)),
+          List.empty,
           List.empty
         )
       ),
@@ -1493,11 +1494,15 @@ class CompilerPluginToSIRSpec extends AnyFunSuite with ScalaCheckPropertyChecks:
                   "scalus.ledger.api.v1.PubKeyHash",
                   pubKeyHashDataDecl,
                   List(Const(uplc.Constant.ByteString(hex"DEADBEEF"), sirByteString)),
-                  pubKeyHashDataDecl.constructors.head.tp
+                  pubKeyHashDataDecl.constrType("scalus.ledger.api.v1.PubKeyHash")
                 )
               )
             ),
-            Select(Var("pkh", pubKeyHashDataDecl.constructors.head.tp), "hash", sirByteString)
+            Select(
+              Var("pkh", pubKeyHashDataDecl.constrType("scalus.ledger.api.v1.PubKeyHash")),
+              "hash",
+              sirByteString
+            )
           )
         )
 
@@ -1527,7 +1532,7 @@ class CompilerPluginToSIRSpec extends AnyFunSuite with ScalaCheckPropertyChecks:
                   "scalus.ledger.api.v1.PubKeyHash",
                   pubKeyHashDataDecl,
                   List(Const(Constant.ByteString(hex"deadbeef"), SIRType.ByteString)),
-                  SIRType.CaseClass(pubKeyHashDataDecl.constructors.head, scala.Nil)
+                  SIRType.CaseClass(pubKeyHashDataDecl.constructors.head, scala.Nil, None)
                 )
               )
         )
@@ -1579,7 +1584,8 @@ class CompilerPluginToSIRSpec extends AnyFunSuite with ScalaCheckPropertyChecks:
                 case These.This(h) => h
                 case _             => BigInt(0)
         }
-        val evaled = compiled.toUplc().evaluate
+        val uplc = compiled.toUplc()
+        val evaled = uplc.evaluate
         assert(evaled == scalus.uplc.Term.Const(Constant.Integer(1)))
     }
 

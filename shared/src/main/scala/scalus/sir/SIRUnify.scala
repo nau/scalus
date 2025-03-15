@@ -1,4 +1,5 @@
 package scalus.sir
+import scalus.sir.SIR.Pattern
 
 object SIRUnify {
 
@@ -370,10 +371,29 @@ object SIRUnify {
                           env1.copy(path = "args" :: env.path)
                         ) match
                             case UnificationSuccess(env2, typeArgs) =>
-                                UnificationSuccess(
-                                  env2.copy(path = env.path),
-                                  SIRType.CaseClass(constrDecl, typeArgs)
-                                )
+                                ccLeft.parent match
+                                    case None =>
+                                        UnificationSuccess(
+                                          env2.copy(path = env.path),
+                                          SIRType.CaseClass(constrDecl, typeArgs, None)
+                                        )
+                                    case Some(p) =>
+                                        unifyType(
+                                          p,
+                                          ccRight.parent.get,
+                                          env2.copy(path = "parent" :: env2.path)
+                                        ) match
+                                            case UnificationSuccess(env3, parent) =>
+                                                UnificationSuccess(
+                                                  env3.copy(path = env.path),
+                                                  SIRType.CaseClass(
+                                                    constrDecl,
+                                                    typeArgs,
+                                                    Some(parent)
+                                                  )
+                                                )
+                                            case failure @ UnificationFailure(path, left, right) =>
+                                                failure
                             case failure @ UnificationFailure(path, left, right) => failure
                     case failure @ UnificationFailure(path, left, right) => failure
             case (ccLeft: SIRType.CaseClass, ccRight: SIRType.SumCaseClass) =>
@@ -390,7 +410,7 @@ object SIRUnify {
                                 //  In future, insert check here, when we will have full reflection of scala type hierechy
                                 UnificationSuccess(
                                   env1.copy(path = env.path),
-                                  SIRType.CaseClass(constrDecl, ccLeft.typeArgs)
+                                  SIRType.CaseClass(constrDecl, ccLeft.typeArgs, ccLeft.parent)
                                 )
                             case failure @ UnificationFailure(path, left, right) => failure
                     case None =>
@@ -410,7 +430,7 @@ object SIRUnify {
                                 val nEnv = env1.copy(path = env.path, parentTypes = env.parentTypes)
                                 UnificationSuccess(
                                   nEnv,
-                                  SIRType.CaseClass(constrDecl, ccRight.typeArgs)
+                                  SIRType.CaseClass(constrDecl, ccRight.typeArgs, ccRight.parent)
                                 )
                             case failure @ UnificationFailure(path, left, right) => failure
                     case None =>
@@ -555,34 +575,48 @@ object SIRUnify {
     }
 
     def unifyCase(left: SIR.Case, right: SIR.Case, env: Env): UnificationResult[SIR.Case] = {
-        unifyConstrDecl(left.constr, right.constr, env.copy(path = "constrDecl" :: env.path)) match
-            case UnificationSuccess(env1, constrDecl) =>
-                unifyList(
-                  left.bindings,
-                  right.bindings,
-                  env1.copy(path = "bindings" :: env.path)
+        (left.pattern, right.pattern) match
+            case (
+                  Pattern.Constr(leftConstr, lbindings, ltbds),
+                  Pattern.Constr(rightConstr, rbindings, rtbds)
+                ) =>
+                unifyConstrDecl(
+                  leftConstr,
+                  rightConstr,
+                  env.copy(path = "constrDecl" :: env.path)
                 ) match
-                    case UnificationSuccess(env2, bindings) =>
+                    case UnificationSuccess(env1, constrDecl) =>
                         unifyList(
-                          left.typeBindings,
-                          right.typeBindings,
-                          env2.copy(path = "typeBindings" :: env.path)
+                          lbindings,
+                          rbindings,
+                          env1.copy(path = "bindings" :: env.path)
                         ) match
-                            case UnificationSuccess(env3, typeBindings) =>
-                                unifySIR(
-                                  left.body,
-                                  right.body,
-                                  env3.copy(path = "body" :: env.path)
+                            case UnificationSuccess(env2, bindings) =>
+                                unifyList(
+                                  ltbds,
+                                  rtbds,
+                                  env2.copy(path = "typeBindings" :: env.path)
                                 ) match
-                                    case UnificationSuccess(env4, body) =>
-                                        UnificationSuccess(
-                                          env4.copy(path = env.path),
-                                          SIR.Case(constrDecl, bindings, typeBindings, body)
-                                        )
+                                    case UnificationSuccess(env3, typeBindings) =>
+                                        unifySIR(
+                                          left.body,
+                                          right.body,
+                                          env3.copy(path = "body" :: env.path)
+                                        ) match
+                                            case UnificationSuccess(env4, body) =>
+                                                UnificationSuccess(
+                                                  env4.copy(path = env.path),
+                                                  SIR.Case(
+                                                    Pattern
+                                                        .Constr(constrDecl, bindings, typeBindings),
+                                                    body
+                                                  )
+                                                )
+                                            case failure @ UnificationFailure(path, left, right) =>
+                                                failure
                                     case failure @ UnificationFailure(path, left, right) => failure
                             case failure @ UnificationFailure(path, left, right) => failure
                     case failure @ UnificationFailure(path, left, right) => failure
-            case failure @ UnificationFailure(path, left, right) => failure
     }
 
     given Unify[ConstrDecl] with {
@@ -604,10 +638,23 @@ object SIRUnify {
                 case UnificationSuccess(env1, typeParams) =>
                     unifyList(left.params, right.params, env1.copy(path = "args" :: env.path)) match
                         case UnificationSuccess(env2, params) =>
-                            UnificationSuccess(
-                              env2.copy(path = env.path),
-                              ConstrDecl(left.name, left.storageType, params, typeParams)
-                            )
+                            unifyList(
+                              left.parentTypeArgs,
+                              right.parentTypeArgs,
+                              env2.copy(path = "parentTypeArgs" :: env.path)
+                            ) match
+                                case UnificationSuccess(ebv3, parentTypeArgs) =>
+                                    UnificationSuccess(
+                                      env2.copy(path = env.path),
+                                      ConstrDecl(
+                                        left.name,
+                                        left.storageType,
+                                        params,
+                                        typeParams,
+                                        parentTypeArgs
+                                      )
+                                    )
+                                case failure @ UnificationFailure(path, left, right) => failure
                         case failure @ UnificationFailure(path, left, right) => failure
                 case failure @ UnificationFailure(path, left, right) => failure
         else UnificationFailure(env.path, left, right)

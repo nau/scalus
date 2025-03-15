@@ -2,6 +2,7 @@ package scalus.examples
 
 import scalus.Compile
 import scalus.Compiler.compile
+import scalus.Ignore
 import scalus.builtin.Builtins.*
 import scalus.builtin.ByteString
 import scalus.builtin.ByteString.*
@@ -114,10 +115,12 @@ object MintingPolicy {
                         check(burned, "B")
     }
 
+    @Ignore
     val compiledOptimizedMintingPolicyScript = compile(
       mintingPolicyScript(optimizedCtxDeserializer)
     )
 
+    @Ignore
     val compiledMintingPolicyScript = compile(
       mintingPolicyScript(simpleCtxDeserializer)
     )
@@ -152,6 +155,7 @@ object MintingPolicyV2 {
         )
     }
 
+    @Ignore
     val compiledMintingPolicyScriptV2 = compile(
       MintingPolicy.mintingPolicyScript(simpleCtxV2Deserializer)
     )

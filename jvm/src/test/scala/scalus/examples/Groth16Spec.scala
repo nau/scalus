@@ -45,7 +45,8 @@ class Groth16Spec extends AnyFunSuite:
         val sir = compile((vk: Data, proof: Data, public: Data) =>
             grothVerify(vk.to[SnarkVerificationKey], proof.to[Proof], public.to[List[BigInt]])
         )
-        sir.toUplcOptimized()
+        val uplc = sir.toUplcOptimized()
+        uplc
 
     test("verify factorial proof - 3! = 6") {
         val proof = Proof(

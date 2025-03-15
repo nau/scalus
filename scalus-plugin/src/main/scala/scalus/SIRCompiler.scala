@@ -44,7 +44,8 @@ object FullName:
 case class AdtTypeInfo(
     dataTypeSymbol: Symbol,
     dataTypeParams: List[Type],
-    constructorsSymbols: List[Symbol]
+    constructorsSymbols: List[Symbol],
+    parentSymbol: Option[Symbol]
 )
 
 //sealed trait AdtTypeInfo
@@ -113,6 +114,7 @@ final class SIRCompiler(using ctx: Context) {
     private val ByteStringSymbolHex = ByteStringModuleSymbol.requiredMethod("hex")
     private val ByteStringStringInterpolatorsMethodSymbol =
         ByteStringModuleSymbol.requiredMethod("StringInterpolators")
+    private val typer = new SIRTypesHelper
     private val pmCompiler = new PatternMatchingCompiler(this)
 
     extension (t: Type)
@@ -247,7 +249,7 @@ final class SIRCompiler(using ctx: Context) {
       */
     def getAdtTypeInfo(constrTpe: Type): AdtTypeInfo = {
         val typeSymbol = constrTpe.widen.dealias.typeSymbol
-        // println(s"getAdtInfoFromConstroctorType: ${typeSymbol.showFullName}, $constrTpe")
+        // println(s"getAdtInfoFromConstroctorType: ${typeSymbol.fullName.show}, $constrTpe")
         // look for a base `sealed abstract class`. If it exists, we are in case 5 or 6
         val optAdtBaseTypeSymbol = constrTpe.baseClasses.find(b =>
             // println(s"base class: ${b.show} ${b.flags.flagsString}")
@@ -260,17 +262,32 @@ final class SIRCompiler(using ctx: Context) {
             case _                    => Nil
 
         if constrTpe.typeConstructor =:= Tuple2Symbol.typeRef
-        then AdtTypeInfo(typeSymbol, typeArgs, List(typeSymbol))
+        then AdtTypeInfo(typeSymbol, typeArgs, List(typeSymbol), None)
         else
             optAdtBaseTypeSymbol match
                 case None => // case 1 or 2
-                    AdtTypeInfo(typeSymbol, typeArgs, List(typeSymbol))
+                    AdtTypeInfo(typeSymbol, typeArgs, List(typeSymbol), None)
                 case Some(baseClassSymbol) =>
                     val adtBaseType = constrTpe.baseType(baseClassSymbol)
                     val baseDataParams = adtBaseType match
                         case AppliedType(_, args) => args
                         case _                    => Nil
-                    AdtTypeInfo(baseClassSymbol, baseDataParams, baseClassSymbol.children)
+                    val parents = baseClassSymbol.baseClasses.filter(cf =>
+                        cf.children.contains(baseClassSymbol)
+                    )
+                    val optParent =
+                        if parents.isEmpty then None
+                        else if parents.size == 1 then parents.headOption
+                        else
+                            val msg =
+                                s"Multiple parents for ${baseClassSymbol.fullName.show}: ${parents.map(_.fullName.show).mkString(", ")}"
+                            throw new RuntimeException(msg)
+                    AdtTypeInfo(
+                      baseClassSymbol,
+                      baseDataParams,
+                      baseClassSymbol.children,
+                      optParent
+                    )
     }
 
     /** Creates [[AdtConstructorCallInfo]] based on a constructor type.
@@ -304,6 +321,25 @@ final class SIRCompiler(using ctx: Context) {
         val fields = typeSymbol.primaryConstructor.paramSymss.flatten.filter(s => s.isType)
         // debugInfo(s"caseFields: ${typeSymbol.fullName} $fields")
         fields
+    }
+
+    private def findAndReadModuleOfSymbol(moduleName: String): Option[Module] = {
+        val filename = moduleName.replace('.', '/') + ".sir"
+        // println(s"findAndReadModuleOfSymbol: ${filename}")
+        // read the file from the classpath
+        val resource = classLoader.getResourceAsStream(filename)
+        if resource != null then
+            val buffer = resource.readAllBytes()
+            val dec = DecoderState(buffer)
+            val module =
+                try flat.decode[Module](dec)
+                catch
+                    case scala.util.control.NonFatal(ex) =>
+                        println(s"Can;t load module ${filename}")
+                        throw ex
+            resource.close()
+            Some(module)
+        else None
     }
 
     private def getCachedDataDecl(dataInfo: AdtTypeInfo, env: Env, srcPos: SrcPos): DataDecl = {
@@ -364,7 +400,13 @@ final class SIRCompiler(using ctx: Context) {
             .getOrElse(Nil)
         // TODO: add substoitution for parent type params
         // scalus.sir.ConstrDecl(sym.name.show, SIRVarStorage.DEFAULT, params, typeParams, baseTypeArgs)
-        scalus.sir.ConstrDecl(constrSymbol.fullName.show, SIRVarStorage.DEFAULT, params, typeParams)
+        scalus.sir.ConstrDecl(
+          constrSymbol.fullName.show,
+          SIRVarStorage.DEFAULT,
+          params,
+          typeParams,
+          baseTypeArgs
+        )
     }
 
     private def compileNewConstructor(
@@ -514,7 +556,7 @@ final class SIRCompiler(using ctx: Context) {
                 else
                     params.map { case v: ValDef =>
                         val tEnv =
-                            SIRTypesHelper.SIRTypeEnv(v.srcPos, env.typeVars ++ typeParamsMap)
+                            SIRTypeEnv(v.srcPos, env.typeVars ++ typeParamsMap)
                         val vType =
                             try sirTypeInEnv(v.tpe, tEnv)
                             catch
@@ -529,7 +571,7 @@ final class SIRCompiler(using ctx: Context) {
                     }
             val body = dd.rhs
             val selfName = if isGlobalDef then FullName(dd.symbol).name else dd.symbol.name.show
-            val selfType = sirTypeInEnv(dd.tpe, SIRTypesHelper.SIRTypeEnv(dd.srcPos, env.typeVars))
+            val selfType = sirTypeInEnv(dd.tpe, SIRTypeEnv(dd.srcPos, env.typeVars))
             val nTypeVars = env.typeVars ++ typeParamsMap
             val nVars = env.vars ++ paramNameTypes + (selfName -> selfType)
             val bE = compileExpr(env.copy(vars = nVars, typeVars = nTypeVars), body)
@@ -1479,38 +1521,11 @@ final class SIRCompiler(using ctx: Context) {
     // }
 
     def sirTypeInEnv(tp: Type, srcPos: SrcPos, env: Env): SIRType = {
-        sirTypeInEnv(tp, SIRTypesHelper.SIRTypeEnv(srcPos, env.typeVars))
+        sirTypeInEnv(tp, SIRTypeEnv(srcPos, env.typeVars))
     }
 
-    protected def sirTypeInEnv(tp: Type, env: SIRTypesHelper.SIRTypeEnv): SIRType = {
-        try
-            val retval = SIRTypesHelper.sirTypeInEnv(tp, env)
-
-            // FIXME: why this is here?
-            retval match
-                case _: SIRType.SumCaseClass =>
-                    tp match
-                        case AppliedType(tpe, List(arg))
-                            if tpe.widen.typeSymbol.name.asSimpleName.show == "List" =>
-                        // println(s"SIRTypeInEnv:List, tp=${tp.show}, fullname=${tp.typeSymbol.fullName}, retval=${retval.show}")
-                        case _ =>
-//                            println(
-//                              s"SIRTypeInEnv, tp=${tp.show}, fullname=${tp.typeSymbol.fullName}, retval=${retval.show}"
-//                            )
-                case _ =>
-            retval
-        catch
-            case e: SIRTypesHelper.TypingException =>
-                println(s"Error while typing: ${tp.show}: ${e.msg},")
-                println(s"env.vars=${env.vars}")
-                if true then {
-                    throw e
-                }
-                val retval = error(
-                  GenericError(e.msg, e.pos),
-                  SIRType.TypeNothing
-                )
-                retval
+    protected def sirTypeInEnv(tp: Type, env: SIRTypeEnv): SIRType = {
+        typer.sirTypeInEnv(tp, env)
     }
 
 }

@@ -1,23 +1,11 @@
 package scalus
 package sir
 
-import scalus.Compiler.compile
-import scalus.builtin.given
-import scalus.builtin.Data.ToData
-import scalus.ledger.api.v3.TxId
 import scalus.sir.Recursivity.*
-import scalus.uplc.Constant
-import scalus.uplc.DefaultFun
+import scalus.sir.SIR.Pattern
 import scalus.uplc.DefaultFun.*
-import scalus.uplc.ExprBuilder
-import scalus.uplc.Meaning
-import scalus.uplc.NamedDeBruijn
-import scalus.uplc.Term
 import scalus.uplc.TermDSL.*
-import scalus.uplc.TypeScheme
-import scalus.ledger.api.v3.ToDataInstances.given
-import scalus.uplc.Inliner
-import scalus.uplc.eval.PlutusVM
+import scalus.uplc.*
 
 import scala.annotation.tailrec
 import scala.collection.mutable.HashMap
@@ -137,21 +125,30 @@ class SimpleSirToUplcV3Lowering(sir: SIR, generateErrorTraces: Boolean = false):
       *  else Error("MatchError")
       * }}}
       */
-    private def genMatch(cases: Seq[SIR.Case], args: Term, tag: Term): Term = {
-        var term = lowerInner(SIR.Error("MatchError", null))
-        for (cs, idx) <- cases.zipWithIndex do
-            val bodyTerm = lowerInner(cs.body)
-            val bindings = cs.bindings.zipWithIndex
-                .zip(cs.constr.params)
-                .foldRight(bodyTerm):
-                    case (((name, idx), TypeBinding(_, tp)), term) =>
-                        val value = getFieldByIndex(args, idx, tp)
-                        lam(name)(term) $ value
-
-            term =
+    private def genMatch(
+        constructors: Seq[ConstrDecl],
+        cases: Seq[SIR.Case],
+        args: Term,
+        tag: Term
+    ): Term = {
+        val mapping = constructors.zipWithIndex.map { case (c, i) => (c.name, i) }.toMap
+        val matchErrorTerm = lowerInner(
+          SIR.Error(s"MatchError: unknown constructor tag", null)
+        )
+        cases.foldRight(matchErrorTerm) {
+            case (SIR.Case(Pattern.Constr(constr, bindings, _), body), resultTerm) =>
+                val idx = mapping(constr.name)
+                val bodyTerm = lowerInner(body)
+                val bodyWithBindings = bindings.zipWithIndex
+                    .zip(constr.params)
+                    .foldRight(bodyTerm):
+                        case (((name, idx), TypeBinding(_, tp)), term) =>
+                            val value = getFieldByIndex(args, idx, tp)
+                            lam(name)(term) $ value
                 val cond = builtinTerms(EqualsInteger) $ idx.asTerm $ tag
-                !(builtinTerms(IfThenElse) $ cond $ ~bindings $ ~term)
-        term
+                !(builtinTerms(IfThenElse) $ cond $ ~bodyWithBindings $ ~resultTerm)
+            case _ => matchErrorTerm
+        }
     }
 
     private val mapping: Map[String, Asdf] = Map(
@@ -165,8 +162,8 @@ class SimpleSirToUplcV3Lowering(sir: SIR, generateErrorTraces: Boolean = false):
         genMatch = { case SIR.Match(scrutinee, cases, _) =>
             val scrutineeTerm = lowerInner(scrutinee)
             cases match
-                case SIR.Case(constr, bindings, _, body) :: Nil =>
-                    λ(cases.head.bindings.head)(lowerInner(body)) $ scrutineeTerm
+                case SIR.Case(Pattern.Constr(constr, bindings, _), body) :: Nil =>
+                    λ(bindings.head)(lowerInner(body)) $ scrutineeTerm
                 case _ => throw new IllegalArgumentException("Expected single case for TxId")
         }
       )
@@ -190,38 +187,33 @@ class SimpleSirToUplcV3Lowering(sir: SIR, generateErrorTraces: Boolean = false):
                 else constrData(tag, loweredArgs)
             case m @ SIR.Match(scrutinee, cases, tp) =>
                 val scrutineeTerm = lowerInner(scrutinee)
-                scrutinee.tp match
-                    case SIRType.SumCaseClass(decl, _) =>
-                        mapping.get(decl.name) match
-                            case Some(asdf) =>
-                                asdf.genMatch(m)
-                            case None =>
-                                val pair = unconstr(scrutineeTerm)
-                                λλ("pair") { pair =>
-                                    λλ("tag") { tag =>
-                                        λλ("args") { args =>
-                                            genMatch(cases, args, tag)
-                                        } $ (builtinTerms(SndPair) $ pair)
-                                    } $ (builtinTerms(FstPair) $ pair)
-                                } $ pair
-                    case SIRType.CaseClass(constr, _) =>
-                        cases.find(_.constr.name == constr.name) match
-                            case None =>
-                                throw new IllegalArgumentException(
-                                  s"Constructor ${constr.name} not found in cases"
-                                )
-                            case Some(cs) =>
-                                val bindings = cs.bindings.zipWithIndex
-                                    .zip(constr.params)
-                                    .foldRight(lowerInner(cs.body)):
-                                        case (((name, idx), TypeBinding(_, tp)), term) =>
-                                            val value = getFieldByIndex(scrutineeTerm, idx, tp)
-                                            lam(name)(term) $ value
-                                bindings
-                    case _ =>
-                        throw new IllegalArgumentException(
-                          s"Expected case class type, got ${scrutinee.tp} in expression: ${sir.show}"
-                        )
+
+                def find(sirType: SIRType): (String, Seq[ConstrDecl]) =
+                    sirType match
+                        case SIRType.CaseClass(constrDecl, _, _) =>
+                            (constrDecl.name, Seq(constrDecl))
+                        case SIRType.SumCaseClass(decl, _) =>
+                            (decl.name, decl.constructors.toSeq)
+                        case SIRType.TypeLambda(_, t) => find(t)
+                        case _ =>
+                            throw new IllegalArgumentException(
+                              s"Expected case class type, got ${sirType} in expression: ${sir.show}"
+                            )
+
+                val (name, constructors) = find(scrutinee.tp)
+
+                mapping.get(name) match
+                    case Some(asdf) =>
+                        asdf.genMatch(m)
+                    case None =>
+                        val pair = unconstr(scrutineeTerm)
+                        λλ("pair") { pair =>
+                            λλ("tag") { tag =>
+                                λλ("args") { args =>
+                                    genMatch(constructors, cases, args, tag)
+                                } $ (builtinTerms(SndPair) $ pair)
+                            } $ (builtinTerms(FstPair) $ pair)
+                        } $ pair
             case SIR.Var(name, _)            => Term.Var(NamedDeBruijn(name))
             case SIR.ExternalVar(_, name, _) => Term.Var(NamedDeBruijn(name))
             case SIR.Let(NonRec, bindings, body) =>
@@ -251,7 +243,7 @@ class SimpleSirToUplcV3Lowering(sir: SIR, generateErrorTraces: Boolean = false):
                 @tailrec
                 def find(sirType: SIRType): (String, ConstrDecl) =
                     sirType match
-                        case SIRType.CaseClass(constrDecl, _) => (constrDecl.name, constrDecl)
+                        case SIRType.CaseClass(constrDecl, _, _) => (constrDecl.name, constrDecl)
                         case SIRType.SumCaseClass(decl, _) =>
                             decl.constructors match
                                 case head :: Nil => (decl.name, head)

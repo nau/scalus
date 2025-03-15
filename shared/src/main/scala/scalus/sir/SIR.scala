@@ -32,31 +32,21 @@ case class ConstrDecl(
 
     /** Type parameters of this type.
       */
-    typeParams: List[SIRType.TypeVar]
+    typeParams: List[SIRType.TypeVar],
 
-    /// **
-    // * Type of the constructor.
-    // (moved to DataDecl,  since when we have a hierarchy with more than one level,
-    //  then we map this to few DataDecl, and each DataDecl has its own constructor type).
-    // */
-    // TODO: enable this,
-    // parentTypeArgs: List[SIRType]
-
+    /** Type parameters of the parent constructor.
+      */
+    parentTypeArgs: List[SIRType]
 ) {
 
     if name.contains(" ") || name.contains("\u0021") then {
-        throw new RuntimeException("Invalud name in constructor: " + name)
+        throw new RuntimeException("Invalid name in constructor: " + name)
     }
 
-    private var _tp: SIRType = null
-
-    def tp: SIRType =
-        if _tp == null then
-            _tp = typeParams match
-                case Nil => SIRType.CaseClass(this, typeParams)
-                case tp :: tail =>
-                    SIRType.TypeLambda(typeParams, SIRType.CaseClass(this, typeParams))
-        _tp
+    if (name == "scalus.prelude.These.This") {
+        println("Constr with scalus.prelude.These.This")
+        throw new RuntimeException("These.This")
+    }
 
 }
 
@@ -72,10 +62,11 @@ case class DataDecl(
     name: String,
     constructors: List[ConstrDecl],
     typeParams: List[SIRType.TypeVar]
-    /*constructorTypeMapping: Map[String, List[SIRType]]*/
+    // optParentName: Option[String]
 ) {
 
     private var _tp: SIRType = null
+    private var _constrs: Map[String, SIRType] = null
 
     def tp: SIRType =
         if _tp == null then
@@ -83,6 +74,32 @@ case class DataDecl(
                 case Nil => SIRType.SumCaseClass(this, Nil)
                 case _   => SIRType.TypeLambda(typeParams, SIRType.SumCaseClass(this, typeParams))
         _tp
+
+    def constrType(constrName: String): SIRType =
+        if _constrs == null then
+            _constrs = constructors
+                .map { c =>
+                    val parent = typeParams match
+                        case Nil => tp
+                        case typeParams =>
+                            val tpEnv = typeParams.zip(c.parentTypeArgs).toMap
+                            SIRType.substitute(tp, tpEnv, Map.empty)
+                    val sirType = c.typeParams match
+                        case Nil => SIRType.CaseClass(c, Nil, Some(parent))
+                        case targs =>
+                            SIRType.TypeLambda(
+                              c.typeParams,
+                              SIRType.CaseClass(c, c.typeParams, Some(parent))
+                            )
+                    c.name -> sirType
+                }
+                .toMap[String, SIRType]
+        _constrs.getOrElse(
+          constrName,
+          throw new IllegalArgumentException(
+            s"Constructor for $constrName not found in $name"
+          )
+        )
 
 }
 
@@ -186,10 +203,12 @@ object SIR:
     // TODO: unify data-decl.
     case class Constr(name: String, data: DataDecl, args: List[SIR], tp: SIRType) extends SIR
 
+    enum Pattern:
+        case Constr(constr: ConstrDecl, bindings: List[String], typeBindings: List[SIRType])
+        case Wildcard
+
     case class Case(
-        constr: ConstrDecl,
-        bindings: List[String],
-        typeBindings: List[SIRType],
+        pattern: Pattern,
         body: SIR
     )
 
@@ -231,8 +250,7 @@ object SIRChecker {
 
     def checkConstr(constr: ConstrDecl, throwOnFirst: Boolean): Seq[String] = {
         val checkParams = constr.params.flatMap(b => checkTypeBinding(b, throwOnFirst))
-        val checkTp = checkType(constr.tp, throwOnFirst)
-        checkParams ++ checkTp
+        checkParams
     }
 
     def checkTypeBinding(tpb: TypeBinding, throwOnFirst: Boolean): Seq[String] =
@@ -275,8 +293,11 @@ object SIRChecker {
     }
 
     def checkCase(c: SIR.Case, throwOnFirst: Boolean): Seq[String] = {
-        c.typeBindings.flatMap(x => checkType(x, throwOnFirst)) ++
-            checkConstr(c.constr, throwOnFirst) ++ checkSIR(c.body, throwOnFirst)
+        c.pattern match
+            case SIR.Pattern.Constr(constr, bindings, typeBindings) =>
+                typeBindings.flatMap(x => checkType(x, throwOnFirst)) ++
+                    checkConstr(constr, throwOnFirst) ++ checkSIR(c.body, throwOnFirst)
+            case SIR.Pattern.Wildcard => checkSIR(c.body, throwOnFirst)
     }
 
     def checkType(tp: SIRType, throwOnFirst: Boolean): Seq[String] =

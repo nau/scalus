@@ -72,6 +72,29 @@ lazy val commonScalacOptions = Seq(
 
 lazy val copySharedFiles = taskKey[Unit]("Copy shared files")
 
+lazy val sharedFiles =
+    Seq(
+      "scalus/utils/Hex.scala",
+      "scalus/utils/HashConsed.scala",
+      "scalus/utils/HashConsedFlat.scala",
+      "scalus/builtin/ByteString.scala",
+      "scalus/builtin/Data.scala",
+      "scalus/builtin/List.scala",
+      "scalus/sir/SIR.scala",
+      "scalus/sir/SIRType.scala",
+      "scalus/sir/SIRToExpr.scala",
+      "scalus/sir/SIRBuiltins.scala",
+      "scalus/sir/SIRUnify.scala",
+      "scalus/sir/SIRHashCodeInRec.scala",
+      "scalus/sir/FlatInstances.scala",
+      "scalus/uplc/Constant.scala",
+      "scalus/uplc/DefaultFun.scala",
+      "scalus/uplc/DefaultUni.scala",
+      "scalus/uplc/CommonFlatInstances.scala",
+      "scalus/uplc/TypeScheme.scala",
+      "scalus/flat/package.scala"
+    )
+
 // Scala 3 Compiler Plugin for Scalus
 lazy val scalusPlugin = project
     .in(file("scalus-plugin"))
@@ -104,29 +127,6 @@ lazy val scalusPlugin = project
           val targetDir = (Compile / sourceDirectory).value / "shared" / "scala"
           val log = streams.value.log
 
-          val sharedFiles =
-              Seq(
-                "scalus/utils/Hex.scala",
-                "scalus/utils/HashConsed.scala",
-                "scalus/utils/HashConsedFlat.scala",
-                "scalus/builtin/ByteString.scala",
-                "scalus/builtin/Data.scala",
-                "scalus/builtin/List.scala",
-                "scalus/sir/SIR.scala",
-                "scalus/sir/SIRType.scala",
-                "scalus/sir/SIRToExpr.scala",
-                "scalus/sir/SIRBuiltins.scala",
-                "scalus/sir/SIRUnify.scala",
-                "scalus/sir/SIRHashCodeInRec.scala",
-                "scalus/sir/FlatInstances.scala",
-                "scalus/uplc/Constant.scala",
-                "scalus/uplc/DefaultFun.scala",
-                "scalus/uplc/DefaultUni.scala",
-                "scalus/uplc/CommonFlatInstances.scala",
-                "scalus/uplc/TypeScheme.scala",
-                "scalus/flat/package.scala"
-              )
-
           sharedFiles.foreach { file =>
               val baseDir = baseDirectory.value / ".." / "shared" / "src" / "main" / "scala"
               val source = baseDir / file
@@ -147,13 +147,17 @@ lazy val scalusPlugin = project
               }
           }
       },
-      Compile / unmanagedSourceDirectories += (Compile / sourceDirectory).value / "shared" / "scala",
+      Compile / managedSources ++= {
+          val baseDir = baseDirectory.value / ".." / "shared" / "src" / "main" / "scala"
+          sharedFiles.map(file => baseDir / file)
+      },
+//      Compile / unmanagedSourceDirectories += (Compile / sourceDirectory).value / "shared" / "scala",
       clean := {
           (Compile / clean).value
           streams.value.log.info("Cleaning shared files")
           IO.delete((Compile / sourceDirectory).value / "shared")
-      },
-      Compile / compile := (Compile / compile).dependsOn(copySharedFiles).value
+      }
+//      Compile / compile := (Compile / compile).dependsOn(copySharedFiles).value
     )
 
 // Used only for Scalus compiler plugin development
@@ -179,8 +183,8 @@ lazy val PluginDependency: List[Def.Setting[?]] = List(scalacOptions ++= {
 
     // NOTE: uncomment for faster Scalus Plugin development
     // this will recompile the plugin when the jar is modified
-    // Seq(s"-Xplugin:${jar.getAbsolutePath}", s"-Jdummy=${jar.lastModified}")
-    Seq(s"-Xplugin:${jar.getAbsolutePath}")
+    Seq(s"-Xplugin:${jar.getAbsolutePath}", s"-Jdummy=${jar.lastModified}")
+//    Seq(s"-Xplugin:${jar.getAbsolutePath}")
 })
 
 // Scalus Core and Standard Library for JVM and JS

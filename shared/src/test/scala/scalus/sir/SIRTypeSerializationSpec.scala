@@ -81,7 +81,7 @@ class SIRTypeSerializationSpec extends AnyFunSuite {
             case SIRType.Fun(u, tp) if u == SIRType.Unit => tp
             case _                                       => fail(s"unexpected type ${sir.tp.show}")
         val constrDecl = txInfoSIRType match
-            case SIRType.CaseClass(constrDecl, typeArgs) => constrDecl
+            case SIRType.CaseClass(constrDecl, typeArgs, _) => constrDecl
             case SIRType.SumCaseClass(dataDecl, typeArgs) =>
                 if dataDecl.constructors.length == 1 then
                     val constrDecl = dataDecl.constructors.head
@@ -112,7 +112,7 @@ class SIRTypeSerializationSpec extends AnyFunSuite {
         assert(params(15).name == "treasuryDonation")
         val tp1 = encodeDecodeSIRType(txInfoSIRType)
         val constrDecl1 = tp1 match
-            case SIRType.CaseClass(constrDecl, typeArgs) => constrDecl
+            case SIRType.CaseClass(constrDecl, typeArgs, parentTypeArgs) => constrDecl
             case SIRType.SumCaseClass(dataDecl, typeArgs) =>
                 if dataDecl.constructors.length == 1 then
                     val constrDecl = dataDecl.constructors.head
@@ -140,7 +140,7 @@ class SIRTypeSerializationSpec extends AnyFunSuite {
             case SIRType.Fun(u, tp) if u == SIRType.Unit => tp
             case _                                       => fail(s"unexpected type ${tpF2.show}")
         val constrDecl2 = tp2 match
-            case SIRType.CaseClass(constrDecl, typeArgs) => constrDecl
+            case SIRType.CaseClass(constrDecl, typeArgs, _) => constrDecl
             case SIRType.SumCaseClass(dataDecl, typeArgs) =>
                 if dataDecl.constructors.length == 1 then
                     val constrDecl = dataDecl.constructors.head
