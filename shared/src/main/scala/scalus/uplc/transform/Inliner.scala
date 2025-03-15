@@ -1,6 +1,8 @@
-package scalus.uplc
+package scalus.uplc.transform
+
 import scalus.*
 import scalus.uplc.Term.*
+import scalus.uplc.{NamedDeBruijn, Term}
 
 import scala.collection.mutable.ArrayBuffer
 
