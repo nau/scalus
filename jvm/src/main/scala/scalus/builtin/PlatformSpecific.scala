@@ -90,30 +90,30 @@ trait JVMPlatformSpecific extends PlatformSpecific {
 
     // BLS12_381 operations
     override def bls12_381_G1_equal(p1: BLS12_381_G1_Element, p2: BLS12_381_G1_Element): Boolean = {
-        p1.p.is_equal(p2.p)
+        p1.value.is_equal(p2.value)
     }
 
     override def bls12_381_G1_add(
         p1: BLS12_381_G1_Element,
         p2: BLS12_381_G1_Element
-    ): BLS12_381_G1_Element = BLS12_381_G1_Element(p1.p.add(p2.p))
+    ): BLS12_381_G1_Element = BLS12_381_G1_Element(p1.value.add(p2.value))
 
     override def bls12_381_G1_scalarMul(
         s: BigInt,
         p: BLS12_381_G1_Element
     ): BLS12_381_G1_Element = {
         val scalar = s.bigInteger.mod(scalarPeriod.bigInteger)
-        BLS12_381_G1_Element(p.p.mult(scalar))
+        BLS12_381_G1_Element(p.value.mult(scalar))
     }
 
     override def bls12_381_G1_neg(
         p: BLS12_381_G1_Element
     ): BLS12_381_G1_Element = {
-        BLS12_381_G1_Element(p.p.neg())
+        BLS12_381_G1_Element(p.value.neg())
     }
 
     override def bls12_381_G1_compress(p: BLS12_381_G1_Element): ByteString = {
-        ByteString.fromArray(p.p.compress())
+        ByteString.fromArray(p.value.compress())
     }
 
     override def bls12_381_G1_uncompress(bs: ByteString): BLS12_381_G1_Element = {
@@ -133,35 +133,31 @@ trait JVMPlatformSpecific extends PlatformSpecific {
             BLS12_381_G1_Element(p)
     }
 
-    override val bls12_381_G1_compressed_generator: ByteString = {
-        ByteString.fromArray(P1.generator().compress())
-    }
-
     override def bls12_381_G2_equal(p1: BLS12_381_G2_Element, p2: BLS12_381_G2_Element): Boolean = {
-        p1.p.is_equal(p2.p)
+        p1.value.is_equal(p2.value)
     }
 
     override def bls12_381_G2_add(
         p1: BLS12_381_G2_Element,
         p2: BLS12_381_G2_Element
-    ): BLS12_381_G2_Element = BLS12_381_G2_Element(p1.p.add(p2.p))
+    ): BLS12_381_G2_Element = BLS12_381_G2_Element(p1.value.add(p2.value))
 
     override def bls12_381_G2_scalarMul(
         s: BigInt,
         p: BLS12_381_G2_Element
     ): BLS12_381_G2_Element = {
         val scalar = s.bigInteger.mod(scalarPeriod.bigInteger)
-        BLS12_381_G2_Element(p.p.mult(scalar))
+        BLS12_381_G2_Element(p.value.mult(scalar))
     }
 
     override def bls12_381_G2_neg(
         p: BLS12_381_G2_Element
     ): BLS12_381_G2_Element = {
-        BLS12_381_G2_Element(p.p.neg())
+        BLS12_381_G2_Element(p.value.neg())
     }
 
     override def bls12_381_G2_compress(p: BLS12_381_G2_Element): ByteString = {
-        ByteString.fromArray(p.p.compress())
+        ByteString.fromArray(p.value.compress())
     }
 
     override def bls12_381_G2_uncompress(bs: ByteString): BLS12_381_G2_Element = {
@@ -181,15 +177,11 @@ trait JVMPlatformSpecific extends PlatformSpecific {
             BLS12_381_G2_Element(p)
     }
 
-    override def bls12_381_G2_compressed_generator: ByteString = {
-        ByteString.fromArray(P2.generator().compress())
-    }
-
     override def bls12_381_millerLoop(
         p1: BLS12_381_G1_Element,
         p2: BLS12_381_G2_Element
     ): BLS12_381_MlResult = {
-        val pt = new PT(p1.p, p2.p)
+        val pt = new PT(p1.value, p2.value)
         BLS12_381_MlResult(pt)
     }
 
@@ -197,12 +189,12 @@ trait JVMPlatformSpecific extends PlatformSpecific {
         r1: BLS12_381_MlResult,
         r2: BLS12_381_MlResult
     ): BLS12_381_MlResult = {
-        val pt = r1.p.mul(r2.p)
+        val pt = r1.value.mul(r2.value)
         BLS12_381_MlResult(pt)
     }
 
     override def bls12_381_finalVerify(p1: BLS12_381_MlResult, p2: BLS12_381_MlResult): Boolean = {
-        PT.finalverify(p1.p, p2.p)
+        PT.finalverify(p1.value, p2.value)
     }
 
     override def keccak_256(bs: ByteString): ByteString = {
