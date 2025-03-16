@@ -25,8 +25,7 @@ package object scalus {
         def toUplc(generateErrorTraces: Boolean = false): Term =
             SimpleSirToUplcLowering(sir, generateErrorTraces).lower()
         def toUplcOptimized(generateErrorTraces: Boolean = false): Term = {
-            val sir1 = sir |> RemoveRecursivity.apply
-            SimpleSirToUplcLowering(sir1, generateErrorTraces).lower()
+            SimpleSirToUplcLowering(sir, generateErrorTraces).lower()
                 |> EtaReduce.apply
                 |> Inliner.apply
                 |> CaseConstrApply.apply

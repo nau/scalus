@@ -87,6 +87,7 @@ lazy val sharedFiles =
       "scalus/sir/SIRUnify.scala",
       "scalus/sir/SIRHashCodeInRec.scala",
       "scalus/sir/FlatInstances.scala",
+      "scalus/sir/RemoveRecursivity.scala",
       "scalus/uplc/Constant.scala",
       "scalus/uplc/DefaultFun.scala",
       "scalus/uplc/DefaultUni.scala",

@@ -50,7 +50,7 @@ class ContextSpec
             import scalus.ledger.api.v1.FromDataInstances.given
             val i = fromData[Interval](d)
             i === i
-        } |> RemoveRecursivity.apply
+        }
 
         forAll { (i: Interval) =>
             import scalus.ledger.api.v1.ToDataInstances.given
