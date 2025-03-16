@@ -48,7 +48,7 @@ object FromDataInstances {
         if tag == BigInt(0) then IntervalBoundType.NegInf
         else if tag == BigInt(1) then new IntervalBoundType.Finite(unIData(pair.snd.head))
         else if tag == BigInt(2) then IntervalBoundType.PosInf
-        else throw new Exception(s"Unknown IntervalBoundType tag: $tag")
+        else throw new Exception("Unknown IntervalBoundType tag")
 
     given FromData[Credential] = (d: Data) =>
         val pair = unConstrData(d)
@@ -56,7 +56,7 @@ object FromDataInstances {
         val args = pair.snd
         if tag == BigInt(0) then new Credential.PubKeyCredential(fromData[PubKeyHash](args.head))
         else if tag == BigInt(1) then new Credential.ScriptCredential(unBData(args.head))
-        else throw new Exception(s"Unknown Credential tag: $tag")
+        else throw new Exception("Unknown Credential tag")
 
     given FromData[StakingCredential] =
         (d: Data) =>
@@ -97,7 +97,7 @@ object FromDataInstances {
             )
         else if tag == BigInt(5) then DCert.Genesis
         else if tag == BigInt(6) then DCert.Mir
-        else throw new Exception(s"Unknown DCert tag: $tag")
+        else throw new Exception("Unknown DCert tag")
 
     given FromData[ScriptPurpose] = (d: Data) =>
         val pair = unConstrData(d)
@@ -108,7 +108,7 @@ object FromDataInstances {
         else if tag == BigInt(2) then
             new ScriptPurpose.Rewarding(fromData[StakingCredential](args.head))
         else if tag == BigInt(3) then new ScriptPurpose.Certifying(fromData[DCert](args.head))
-        else throw new Exception(s"Unknown ScriptPurpose tag: $tag")
+        else throw new Exception("Unknown ScriptPurpose tag")
 
     given FromData[Address] = (d: Data) =>
         val args = unConstrData(d).snd
