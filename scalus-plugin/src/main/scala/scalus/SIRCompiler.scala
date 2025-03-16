@@ -30,6 +30,7 @@ import scalus.sir.TypeBinding
 import scalus.uplc.DefaultUni
 
 import java.net.URL
+import scala.annotation.tailrec
 import scala.collection.immutable
 import scala.collection.mutable
 import scala.collection.mutable.ListBuffer
@@ -639,6 +640,7 @@ final class SIRCompiler(using ctx: Context) {
      * otherwise,say, constants are not compiled correctly
      */
     object SkipInline {
+        @tailrec
         def unapply(expr: Tree): Some[Tree] =
             expr match
                 case Inlined(EmptyTree, Nil, t) => unapply(t)
@@ -1139,12 +1141,39 @@ final class SIRCompiler(using ctx: Context) {
             applyExpr
     }
 
+    /** Compile a throw expression to SIR
+      *
+      * {{{
+      *    throw new Exception("error msg") // becomes SIR.Error("error msg")
+      *    throw new CustomException // becomes SIR.Error("CustomException")
+      *    throw foo() // becomes SIR.Error("foo()")
+      *    inline def err(inline msg: String) = throw new RuntimeException(msg)
+      *    err("test") // becomes SIR.Error("test")
+      * }}}
+      */
     private def compileThrowException(ex: Tree): SIR =
         val msg = ex match
-            case Apply(Select(New(tpt), nme.CONSTRUCTOR), immutable.List(Literal(msg), _*))
-                if tpt.tpe <:< defn.ExceptionClass.typeRef =>
-                msg.stringValue
-            case term => "error"
+            case SkipInline(
+                  Apply(
+                    Select(New(tpt), nme.CONSTRUCTOR),
+                    immutable.List(SkipInline(arg), _*)
+                  )
+                ) if tpt.tpe <:< defn.ThrowableType =>
+                arg match
+                    case Literal(c) => c.stringValue
+                    case _ =>
+                        report.warning(
+                          s"""Only string literals are supported as exception messages, but found ${arg.show}.
+                          |Try rewriting the code to use a string literal like `throw new RuntimeException("error message")`
+                          |Scalus will compile this to `Error("${arg.show}")`.""".stripMargin,
+                          ex.srcPos
+                        )
+                        arg.show
+            case SkipInline(Apply(Select(New(tpt), nme.CONSTRUCTOR), Nil))
+                if tpt.tpe <:< defn.ThrowableType =>
+                tpt.symbol.showName
+            case SkipInline(term) =>
+                term.show
         SIR.Error(msg)
 
     private def compileEquality(env: Env, lhs: Tree, op: Name, rhs: Tree, srcPos: SrcPos): SIR = {
