@@ -89,9 +89,8 @@ trait JVMPlatformSpecific extends PlatformSpecific {
     }
 
     // BLS12_381 operations
-    override def bls12_381_G1_equal(p1: BLS12_381_G1_Element, p2: BLS12_381_G1_Element): Boolean = {
-        p1.value.is_equal(p2.value)
-    }
+    override def bls12_381_G1_equal(p1: BLS12_381_G1_Element, p2: BLS12_381_G1_Element): Boolean =
+        p1 == p2
 
     override def bls12_381_G1_add(
         p1: BLS12_381_G1_Element,
@@ -133,9 +132,8 @@ trait JVMPlatformSpecific extends PlatformSpecific {
             BLS12_381_G1_Element(p)
     }
 
-    override def bls12_381_G2_equal(p1: BLS12_381_G2_Element, p2: BLS12_381_G2_Element): Boolean = {
-        p1.value.is_equal(p2.value)
-    }
+    override def bls12_381_G2_equal(p1: BLS12_381_G2_Element, p2: BLS12_381_G2_Element): Boolean =
+        p1 == p2
 
     override def bls12_381_G2_add(
         p1: BLS12_381_G2_Element,

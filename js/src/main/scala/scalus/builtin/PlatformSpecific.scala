@@ -52,28 +52,6 @@ private object Ed25519Curves extends js.Object {
     val ed25519: Ed25519 = js.native
 }
 
-//import { bls12_381 as bls } from '@noble/curves/bls12-381
-@JSImport("@noble/curves/bls12-381", JSImport.Namespace)
-@js.native
-private object BLS12_381 extends js.Object {
-    val G1: BLS12_381_G1 = js.native
-    val G2: BLS12_381_G2 = js.native
-}
-
-@js.native
-private trait BLS12_381_G1 extends js.Object {}
-
-@js.native
-private trait BLS12_381_G2 extends js.Object {}
-
-@js.native
-private trait BLS12_381_GT extends js.Object {
-    def equal(p1: Uint8Array, p2: Uint8Array): Boolean = js.native
-    def add(p1: Uint8Array, p2: Uint8Array): Uint8Array = js.native
-    def mul(p1: Uint8Array, p2: Uint8Array): Uint8Array = js.native
-    def finalExp(p: Uint8Array): Uint8Array = js.native
-}
-
 @js.native
 private trait Ed25519 extends js.Object {
     def verify(signature: Uint8Array, message: Uint8Array, publicKey: Uint8Array): Boolean =
@@ -110,7 +88,11 @@ trait NodeJsPlatformSpecific extends PlatformSpecific {
 
     extension (arr: Uint8Array)
         def toByteString: ByteString =
-            ByteString.fromArray(new Int8Array(arr.buffer, arr.byteOffset, arr.length).toArray)
+            ByteString.unsafeFromArray(
+              new Int8Array(arr.buffer, arr.byteOffset, arr.length).toArray
+            )
+
+    extension (bigInt: BigInt) def toJsBigInt: js.BigInt = js.BigInt(bigInt.toString())
 
     override def sha2_256(bs: ByteString): ByteString =
         Sha2.sha256(bs.toUint8Array).toByteString
@@ -168,57 +150,79 @@ trait NodeJsPlatformSpecific extends PlatformSpecific {
         Secp256k1Curve.schnorr.verify(sig.toUint8Array, msg.toUint8Array, pk.toUint8Array)
 
     // BLS12_381 operations
-    override def bls12_381_G1_equal(p1: BLS12_381_G1_Element, p2: BLS12_381_G1_Element): Boolean =
-        ???
+    override def bls12_381_G1_equal(
+        elem1: BLS12_381_G1_Element,
+        elem2: BLS12_381_G1_Element
+    ): Boolean = elem1 == elem2
 
     override def bls12_381_G1_add(
-        p1: BLS12_381_G1_Element,
-        p2: BLS12_381_G1_Element
-    ): BLS12_381_G1_Element =
-        ???
+        elem1: BLS12_381_G1_Element,
+        elem2: BLS12_381_G1_Element
+    ): BLS12_381_G1_Element = elem1 + elem2
 
-    override def bls12_381_G1_scalarMul(s: BigInt, p: BLS12_381_G1_Element): BLS12_381_G1_Element =
-        ???
+    override def bls12_381_G1_scalarMul(
+        scalar: BigInt,
+        elem: BLS12_381_G1_Element
+    ): BLS12_381_G1_Element = elem * scalar
 
-    override def bls12_381_G1_neg(
-        p: BLS12_381_G1_Element
-    ): BLS12_381_G1_Element = ???
+    override def bls12_381_G1_neg(elem: BLS12_381_G1_Element): BLS12_381_G1_Element = -elem
 
-    override def bls12_381_G1_compress(p: BLS12_381_G1_Element): ByteString = ???
+    override def bls12_381_G1_compress(elem: BLS12_381_G1_Element): ByteString =
+        elem.compressedByteString
 
-    override def bls12_381_G1_uncompress(bs: ByteString): BLS12_381_G1_Element =
-        ???
-    override def bls12_381_G1_hashToGroup(bs: ByteString, dst: ByteString): BLS12_381_G1_Element =
-        ???
-    override def bls12_381_G2_equal(p1: BLS12_381_G2_Element, p2: BLS12_381_G2_Element): Boolean =
-        ???
+    override def bls12_381_G1_uncompress(byteString: ByteString): BLS12_381_G1_Element =
+        BLS12_381_G1_Element.fromCompressedByteString(byteString)
+
+    override def bls12_381_G1_hashToGroup(
+        byteString: ByteString,
+        dst: ByteString
+    ): BLS12_381_G1_Element = BLS12_381_G1_Element.hashToGroup(byteString, dst)
+
+    override def bls12_381_G2_equal(
+        elem1: BLS12_381_G2_Element,
+        elem2: BLS12_381_G2_Element
+    ): Boolean = elem1 == elem2
+
     override def bls12_381_G2_add(
-        p1: BLS12_381_G2_Element,
-        p2: BLS12_381_G2_Element
-    ): BLS12_381_G2_Element =
-        ???
-    override def bls12_381_G2_scalarMul(s: BigInt, p: BLS12_381_G2_Element): BLS12_381_G2_Element =
-        ???
+        elem1: BLS12_381_G2_Element,
+        elem2: BLS12_381_G2_Element
+    ): BLS12_381_G2_Element = elem1 + elem2
+
+    override def bls12_381_G2_scalarMul(
+        scalar: BigInt,
+        elem: BLS12_381_G2_Element
+    ): BLS12_381_G2_Element = elem * scalar
+
     override def bls12_381_G2_neg(
-        p: BLS12_381_G2_Element
-    ): BLS12_381_G2_Element = ???
-    override def bls12_381_G2_compress(p: BLS12_381_G2_Element): ByteString = ???
-    override def bls12_381_G2_uncompress(bs: ByteString): BLS12_381_G2_Element =
-        ???
-    override def bls12_381_G2_hashToGroup(bs: ByteString, dst: ByteString): BLS12_381_G2_Element =
-        ???
+        elem: BLS12_381_G2_Element
+    ): BLS12_381_G2_Element = -elem
+
+    override def bls12_381_G2_compress(elem: BLS12_381_G2_Element): ByteString =
+        elem.compressedByteString
+
+    override def bls12_381_G2_uncompress(byteString: ByteString): BLS12_381_G2_Element =
+        BLS12_381_G2_Element.fromCompressedByteString(byteString)
+
+    override def bls12_381_G2_hashToGroup(
+        byteString: ByteString,
+        dst: ByteString
+    ): BLS12_381_G2_Element = BLS12_381_G2_Element.hashToGroup(byteString, dst)
+
     override def bls12_381_millerLoop(
         p1: BLS12_381_G1_Element,
         p2: BLS12_381_G2_Element
     ): BLS12_381_MlResult =
         ???
+
     override def bls12_381_mulMlResult(
         r1: BLS12_381_MlResult,
         r2: BLS12_381_MlResult
     ): BLS12_381_MlResult =
         ???
+
     override def bls12_381_finalVerify(p1: BLS12_381_MlResult, p2: BLS12_381_MlResult): Boolean =
         ???
+
     override def keccak_256(bs: ByteString): ByteString =
         Sha3.keccak_256(bs.toUint8Array).toByteString
 
