@@ -54,8 +54,8 @@ object PrettyPrinter:
                   text(", ") + space,
                   values.map(v => prettyValue(v))
                 ) + text("]")
-            case BLS12_381_G1_Element(value) => text(s"0x${value.compressedByteString.toHex}")
-            case BLS12_381_G2_Element(value) => text(s"0x${value.compressedByteString.toHex}")
+            case BLS12_381_G1_Element(value) => text(s"0x${value.toCompressedByteString.toHex}")
+            case BLS12_381_G2_Element(value) => text(s"0x${value.toCompressedByteString.toHex}")
             case BLS12_381_MlResult(_) =>
                 throw new IllegalArgumentException("Cannot print to BLS12_381_MlResult")
 

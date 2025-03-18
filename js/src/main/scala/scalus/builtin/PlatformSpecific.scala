@@ -168,7 +168,7 @@ trait NodeJsPlatformSpecific extends PlatformSpecific {
     override def bls12_381_G1_neg(elem: BLS12_381_G1_Element): BLS12_381_G1_Element = -elem
 
     override def bls12_381_G1_compress(elem: BLS12_381_G1_Element): ByteString =
-        elem.compressedByteString
+        elem.toCompressedByteString
 
     override def bls12_381_G1_uncompress(byteString: ByteString): BLS12_381_G1_Element =
         BLS12_381_G1_Element.fromCompressedByteString(byteString)
@@ -198,7 +198,7 @@ trait NodeJsPlatformSpecific extends PlatformSpecific {
     ): BLS12_381_G2_Element = -elem
 
     override def bls12_381_G2_compress(elem: BLS12_381_G2_Element): ByteString =
-        elem.compressedByteString
+        elem.toCompressedByteString
 
     override def bls12_381_G2_uncompress(byteString: ByteString): BLS12_381_G2_Element =
         BLS12_381_G2_Element.fromCompressedByteString(byteString)

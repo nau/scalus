@@ -5,7 +5,7 @@ import supranational.blst.*
 import scala.compiletime.asMatchable
 
 class BLS12_381_G1_Element(private[builtin] val value: P1):
-    def compressedByteString: ByteString = ByteString.unsafeFromArray(value.compress())
+    def toCompressedByteString: ByteString = ByteString.unsafeFromArray(value.compress())
 
     override def equals(that: Any): Boolean = that.asMatchable match
         case that: BLS12_381_G1_Element => value.is_equal(that.value)
@@ -15,7 +15,7 @@ class BLS12_381_G1_Element(private[builtin] val value: P1):
     override def toString: String = s"0x${Hex.bytesToHex(value.compress())}"
 
 class BLS12_381_G2_Element(private[builtin] val value: P2):
-    def compressedByteString: ByteString = ByteString.unsafeFromArray(value.compress())
+    def toCompressedByteString: ByteString = ByteString.unsafeFromArray(value.compress())
 
     override def equals(that: Any): Boolean = that.asMatchable match
         case that: BLS12_381_G2_Element => value.is_equal(that.value)

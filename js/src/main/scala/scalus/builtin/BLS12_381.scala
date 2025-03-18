@@ -10,7 +10,7 @@ import NodeJsPlatformSpecific.{toByteString, toJsBigInt, toUint8Array}
 import scala.compiletime.asMatchable
 
 class BLS12_381_G1_Element(private val point: BLS.G1.Point):
-    def compressedByteString: ByteString = point.toRawBytes().toByteString
+    def toCompressedByteString: ByteString = point.toRawBytes().toByteString
 
     def +(that: BLS12_381_G1_Element): BLS12_381_G1_Element = BLS12_381_G1_Element(
       point.add(that.point)
@@ -26,7 +26,7 @@ class BLS12_381_G1_Element(private val point: BLS.G1.Point):
         case that: BLS12_381_G1_Element => point.isEquals(that.point)
         case _                          => false
 
-    override def hashCode: Int = compressedByteString.hashCode
+    override def hashCode: Int = toCompressedByteString.hashCode
     override def toString: String = s"0x${point.toHex()}"
 
 object BLS12_381_G1_Element:
@@ -42,7 +42,7 @@ object BLS12_381_G1_Element:
         )
 
 class BLS12_381_G2_Element(private val point: BLS.G2.Point):
-    def compressedByteString: ByteString = point.toRawBytes().toByteString
+    def toCompressedByteString: ByteString = point.toRawBytes().toByteString
 
     def +(that: BLS12_381_G2_Element): BLS12_381_G2_Element = BLS12_381_G2_Element(
       point.add(that.point)
@@ -58,7 +58,7 @@ class BLS12_381_G2_Element(private val point: BLS.G2.Point):
         case that: BLS12_381_G2_Element => point.isEquals(that.point)
         case _                          => false
 
-    override def hashCode: Int = compressedByteString.hashCode
+    override def hashCode: Int = toCompressedByteString.hashCode
     override def toString: String = s"0x${point.toHex()}"
 
 object BLS12_381_G2_Element:
