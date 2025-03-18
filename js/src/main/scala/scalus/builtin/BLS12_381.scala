@@ -10,7 +10,7 @@ import NodeJsPlatformSpecific.{toByteString, toJsBigInt, toUint8Array}
 import scala.compiletime.asMatchable
 import scala.annotation.targetName
 
-class BLS12_381_G1_Element(private val point: BLS.G1.Point):
+class BLS12_381_G1_Element(private[builtin] val point: BLS.G1.Point):
     def toCompressedByteString: ByteString = point.toRawBytes().toByteString
 
     @targetName("add")
@@ -76,7 +76,7 @@ object BLS12_381_G1_Element:
     val zero: BLS12_381_G1_Element =
         BLS12_381_G1_Element.fromCompressedByteString(PlatformSpecific.bls12_381_G1_compressed_zero)
 
-class BLS12_381_G2_Element(private val point: BLS.G2.Point):
+class BLS12_381_G2_Element(private[builtin] val point: BLS.G2.Point):
     def toCompressedByteString: ByteString = point.toRawBytes().toByteString
 
     @targetName("add")
@@ -142,7 +142,18 @@ object BLS12_381_G2_Element:
     val zero: BLS12_381_G2_Element =
         BLS12_381_G2_Element.fromCompressedByteString(PlatformSpecific.bls12_381_G2_compressed_zero)
 
-class BLS12_381_MlResult(value: ByteString)
+class BLS12_381_MlResult(private val gt: BLS.GT):
+    @targetName("multiply")
+    def *(that: BLS12_381_MlResult): BLS12_381_MlResult =
+        new BLS12_381_MlResult(BLS.GT.multiply(gt, that.gt))
+
+    override def equals(that: Any): Boolean = that.asMatchable match
+        case that: BLS12_381_MlResult => BLS.GT.isEquals(gt, that.gt)
+        case _                        => false
+
+object BLS12_381_MlResult:
+    def apply(elemG1: BLS12_381_G1_Element, elemG2: BLS12_381_G2_Element): BLS12_381_MlResult =
+        new BLS12_381_MlResult(BLS.pairing(elemG1.point, elemG2.point))
 
 enum ByteOrder extends Enum[ByteOrder]:
     case BigEndian, LittleEndian
@@ -154,9 +165,18 @@ private[builtin] object BLS:
     private object bls12_381 extends js.Object:
         def G1: G1 = js.native
         def G2: G2 = js.native
+        // Explicit indication type parameters to js.Object instead of G1.Point/G2.Point resolves type inference issue
+        def pairing(
+            pointG1: js.Object,
+            pointG2: js.Object,
+            withFinalExponent: Boolean = true
+        ): GT =
+            js.native
+        def fields: Fields = js.native
 
     def g1: G1 = bls12_381.G1
     def g2: G2 = bls12_381.G2
+    def pairing(pointG1: G1.Point, pointG2: G2.Point): GT = bls12_381.pairing(pointG1, pointG2)
 
     class HtfBasicOpts(val DST: Uint8Array) extends js.Object
 
@@ -215,4 +235,23 @@ private[builtin] object BLS:
         object Point:
             def fromRowBytes(bytes: Uint8Array): Point = g2.pointModule.fromRowBytes(bytes)
     end G2
+
+    @js.native
+    trait GT extends js.Object
+
+    object GT:
+        def isEquals(lhs: GT, rhs: GT): Boolean = bls12_381.fields.gtModule.isEquals(lhs, rhs)
+        def multiply(lhs: GT, rhs: GT): GT = bls12_381.fields.gtModule.multiply(lhs, rhs)
+
+    @js.native
+    trait Fields extends js.Object:
+        @JSName("Fp12")
+        def gtModule: GTModule = js.native
+
+    @js.native
+    trait GTModule extends js.Object:
+        @JSName("eql")
+        def isEquals(lhs: GT, rhs: GT): Boolean = js.native
+        @JSName("mul")
+        def multiply(lhs: GT, rhs: GT): GT = js.native
 end BLS

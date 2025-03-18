@@ -209,19 +209,19 @@ trait NodeJsPlatformSpecific extends PlatformSpecific {
     ): BLS12_381_G2_Element = BLS12_381_G2_Element.hashToGroup(byteString, dst)
 
     override def bls12_381_millerLoop(
-        p1: BLS12_381_G1_Element,
-        p2: BLS12_381_G2_Element
+        elemG1: BLS12_381_G1_Element,
+        elemG2: BLS12_381_G2_Element
     ): BLS12_381_MlResult =
-        ???
+        BLS12_381_MlResult(elemG1, elemG2)
 
     override def bls12_381_mulMlResult(
-        r1: BLS12_381_MlResult,
-        r2: BLS12_381_MlResult
+        lhs: BLS12_381_MlResult,
+        rhs: BLS12_381_MlResult
     ): BLS12_381_MlResult =
-        ???
+        lhs * rhs
 
-    override def bls12_381_finalVerify(p1: BLS12_381_MlResult, p2: BLS12_381_MlResult): Boolean =
-        ???
+    override def bls12_381_finalVerify(lhs: BLS12_381_MlResult, rhs: BLS12_381_MlResult): Boolean =
+        lhs == rhs
 
     override def keccak_256(bs: ByteString): ByteString =
         Sha3.keccak_256(bs.toUint8Array).toByteString

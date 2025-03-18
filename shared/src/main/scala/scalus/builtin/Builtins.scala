@@ -687,6 +687,8 @@ object Builtins:
     def findFirstSetBit(byteString: ByteString): Int =
         BitwiseLogicalOperations.findFirstSetBit(byteString)
 
+    def bls12_381_scalar_period: BigInt = PlatformSpecific.bls12_381_scalar_period
+
     def bls12_381_G1_equal(using
         ps: PlatformSpecific
     )(p1: BLS12_381_G1_Element, p2: BLS12_381_G1_Element): Boolean =

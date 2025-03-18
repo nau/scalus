@@ -109,9 +109,8 @@ trait JVMPlatformSpecific extends PlatformSpecific {
         BLS12_381_G1_Element(p.value.neg())
     }
 
-    override def bls12_381_G1_compress(p: BLS12_381_G1_Element): ByteString = {
-        ByteString.fromArray(p.value.compress())
-    }
+    override def bls12_381_G1_compress(p: BLS12_381_G1_Element): ByteString =
+        p.toCompressedByteString
 
     override def bls12_381_G1_uncompress(bs: ByteString): BLS12_381_G1_Element = {
         require(
@@ -162,9 +161,8 @@ trait JVMPlatformSpecific extends PlatformSpecific {
         BLS12_381_G2_Element(p.value.neg())
     }
 
-    override def bls12_381_G2_compress(p: BLS12_381_G2_Element): ByteString = {
-        ByteString.fromArray(p.value.compress())
-    }
+    override def bls12_381_G2_compress(p: BLS12_381_G2_Element): ByteString =
+        p.toCompressedByteString
 
     override def bls12_381_G2_uncompress(bs: ByteString): BLS12_381_G2_Element = {
         require(
