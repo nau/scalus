@@ -95,9 +95,6 @@ enum CompileDef:
 final class SIRCompiler(using ctx: Context) {
     import tpd.*
     import SIRCompiler.Env
-
-    val SirVersion: (Int, Int) = (1, 0)
-
     private val DefaultFunSIRBuiltins: Map[Symbol, SIR.Builtin] = Macros.generateBuiltinsMap(ctx)
     private val BigIntSymbol = requiredModule("scala.math.BigInt")
     private val BigIntClassSymbol = requiredClass("scala.math.BigInt")
@@ -212,7 +209,8 @@ final class SIRCompiler(using ctx: Context) {
                     case _                                  => None
             case _ => None
         }
-        val module = Module(SirVersion, bindings.map(b => Binding(b.fullName.name, b.body)))
+        val module =
+            Module(SIRCompiler.SIRVersion, bindings.map(b => Binding(b.fullName.name, b.body)))
         writeModule(module, td.symbol.fullName.toString)
         val time = System.currentTimeMillis() - start
         report.echo(
@@ -1585,8 +1583,18 @@ object SIRCompiler {
 
     }
 
+    val SIRVersion: (Int, Int) = (1, 0)
+
 }
 
+/** Links SIR definitions and data declarations into a single SIR module.
+  *
+  * This class is responsible for linking SIR definitions and data declarations to create a single
+  * SIR module.
+  *
+  * It traverses the SIR tree and links external definitions and data declarations to the global
+  * definitions and data declarations.
+  */
 class SIRLinker(using ctx: Context) {
     private lazy val classLoader = makeClassLoader
     private val globalDefs: mutable.LinkedHashMap[FullName, CompileDef] =
@@ -1612,9 +1620,9 @@ class SIRLinker(using ctx: Context) {
         defaultValue
     }
 
-    def link(result: SIR, srcPos: SrcPos): SIR = {
-        traverseAndLink(result, srcPos)
-        val full: SIR = globalDefs.values.foldRight(result) {
+    def link(sir: SIR, srcPos: SrcPos): SIR = {
+        traverseAndLink(sir, srcPos)
+        val full: SIR = globalDefs.values.foldRight(sir) {
             case (CompileDef.Compiled(b), acc) =>
                 SIR.Let(b.recursivity, List(Binding(b.fullName.name, b.body)), acc)
             case (d, acc) =>
@@ -1695,10 +1703,12 @@ class SIRLinker(using ctx: Context) {
                 findAndLinkDefinition(defs, fullName, srcPos)
             case None =>
                 findAndReadModuleOfSymbol(moduleName) match
-                    case Some(m @ Module(version, defs)) =>
+                    case Some(module) =>
                         // println(s"Loaded module ${moduleName}, defs: ${defs}")
-                        val defsMap =
-                            mutable.LinkedHashMap.from(defs.map(d => FullName(d.name) -> d.value))
+                        validateSIRVersion(module, moduleName, srcPos)
+                        val defsMap = mutable.LinkedHashMap.from(
+                          module.defs.map(d => FullName(d.name) -> d.value)
+                        )
                         moduleDefsCache.put(moduleName, defsMap)
                         findAndLinkDefinition(defsMap, fullName, srcPos)
                     case None =>
@@ -1720,6 +1730,20 @@ class SIRLinker(using ctx: Context) {
             resource.close()
             Some(module)
         else None
+    }
+
+    private def validateSIRVersion(module: Module, moduleName: String, srcPos: SrcPos): Unit = {
+        if (module.version._1 != SIRCompiler.SIRVersion._1)
+            || (module.version._1 == SIRCompiler.SIRVersion._1
+                && SIRCompiler.SIRVersion._2 < module.version._2)
+        then
+            report.error(
+              s"""During linking I've found that a module '$moduleName' has an incompatible SIR version: ${module.version} (expected: ${SIRCompiler.SIRVersion}).
+                   |This can happen if you try to link a module compiled with a different version of Scalus.
+                   |Please, recompile the module with the version of Scalus that has the SIR version ${SIRCompiler.SIRVersion}
+                   |""".stripMargin,
+              srcPos
+            )
     }
 
 }
