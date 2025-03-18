@@ -8,18 +8,27 @@ import scala.scalajs.js.typedarray.Uint8Array
 import NodeJsPlatformSpecific.{toByteString, toJsBigInt, toUint8Array}
 
 import scala.compiletime.asMatchable
+import scala.annotation.targetName
 
 class BLS12_381_G1_Element(private val point: BLS.G1.Point):
     def toCompressedByteString: ByteString = point.toRawBytes().toByteString
 
+    @targetName("add")
     def +(that: BLS12_381_G1_Element): BLS12_381_G1_Element = BLS12_381_G1_Element(
       point.add(that.point)
     )
 
-    def *(scalar: BigInt): BLS12_381_G1_Element = BLS12_381_G1_Element(
-      point.multiply(scalar.toJsBigInt)
-    )
+    @targetName("multiply")
+    def *(scalar: BigInt): BLS12_381_G1_Element =
+        val modScalar = scalar % PlatformSpecific.bls12_381_scalar_period
+        val signum = modScalar.signum
 
+        if signum > 0 then BLS12_381_G1_Element(point.multiply(modScalar.toJsBigInt))
+        else if signum < 0 then
+            BLS12_381_G1_Element(point.multiply(modScalar.abs.toJsBigInt).negate())
+        else BLS12_381_G1_Element.zero
+
+    @targetName("negate")
     def unary_- : BLS12_381_G1_Element = BLS12_381_G1_Element(point.negate())
 
     override def equals(that: Any): Boolean = that.asMatchable match
@@ -30,28 +39,62 @@ class BLS12_381_G1_Element(private val point: BLS.G1.Point):
     override def toString: String = s"0x${point.toHex()}"
 
 object BLS12_381_G1_Element:
-    def fromCompressedByteString(byteString: ByteString): BLS12_381_G1_Element =
+    def fromCompressedByteString(byteString: ByteString): BLS12_381_G1_Element = {
+        if byteString.size != 48 then
+            throw js.JavaScriptException(
+              js.Error(
+                s"Invalid length of bytes for compressed point of G1: expected 48, actual: ${byteString.size}, byteString: $byteString"
+              )
+            )
+
+        if (byteString.bytes(0) & 0x40) != 0 && (byteString.bytes(0) & 0x30) != 0 then
+            throw js.JavaScriptException(
+              js.Error(
+                s"invalid encoding for compressed zero point of G1, byteString: $byteString"
+              )
+            )
+
         BLS12_381_G1_Element(
           BLS.G1.Point.fromRowBytes(byteString.toUint8Array)
         )
+    }
 
-    def hashToGroup(byteString: ByteString, dst: ByteString): BLS12_381_G1_Element =
+    def hashToGroup(byteString: ByteString, dst: ByteString): BLS12_381_G1_Element = {
+        if dst.size > 255 then
+            throw js.JavaScriptException(
+              js.Error(
+                s"Invalid length of bytes for dst parameter of hashToGroup of G1, expected: <= 255, actual: ${dst.size}"
+              )
+            )
+
         BLS12_381_G1_Element(
           BLS.g1
               .hashToGroup(byteString.toUint8Array, BLS.HtfBasicOpts(dst.toUint8Array))
         )
+    }
+
+    val zero: BLS12_381_G1_Element =
+        BLS12_381_G1_Element.fromCompressedByteString(PlatformSpecific.bls12_381_G1_compressed_zero)
 
 class BLS12_381_G2_Element(private val point: BLS.G2.Point):
     def toCompressedByteString: ByteString = point.toRawBytes().toByteString
 
+    @targetName("add")
     def +(that: BLS12_381_G2_Element): BLS12_381_G2_Element = BLS12_381_G2_Element(
       point.add(that.point)
     )
 
-    def *(scalar: BigInt): BLS12_381_G2_Element = BLS12_381_G2_Element(
-      point.multiply(scalar.toJsBigInt)
-    )
+    @targetName("multiply")
+    def *(scalar: BigInt): BLS12_381_G2_Element =
+        val modScalar = scalar % PlatformSpecific.bls12_381_scalar_period
+        val signum = modScalar.signum
 
+        if signum > 0 then BLS12_381_G2_Element(point.multiply(modScalar.toJsBigInt))
+        else if signum < 0 then
+            BLS12_381_G2_Element(point.multiply(modScalar.abs.toJsBigInt).negate())
+        else BLS12_381_G2_Element.zero
+
+    @targetName("negate")
     def unary_- : BLS12_381_G2_Element = BLS12_381_G2_Element(point.negate())
 
     override def equals(that: Any): Boolean = that.asMatchable match
@@ -62,16 +105,42 @@ class BLS12_381_G2_Element(private val point: BLS.G2.Point):
     override def toString: String = s"0x${point.toHex()}"
 
 object BLS12_381_G2_Element:
-    def fromCompressedByteString(byteString: ByteString): BLS12_381_G2_Element =
+    def fromCompressedByteString(byteString: ByteString): BLS12_381_G2_Element = {
+        if byteString.size != 96 then
+            throw js.JavaScriptException(
+              js.Error(
+                s"Invalid length of bytes for compressed point of G2: expected 96, actual: ${byteString.size}, byteString: $byteString"
+              )
+            )
+
+        if (byteString.bytes(0) & 0x40) != 0 && (byteString.bytes(0) & 0x30) != 0 then
+            throw js.JavaScriptException(
+              js.Error(
+                s"invalid encoding for compressed zero point of G2, byteString: $byteString"
+              )
+            )
+
         BLS12_381_G2_Element(
           BLS.G2.Point.fromRowBytes(byteString.toUint8Array)
         )
+    }
 
-    def hashToGroup(byteString: ByteString, dst: ByteString): BLS12_381_G2_Element =
+    def hashToGroup(byteString: ByteString, dst: ByteString): BLS12_381_G2_Element = {
+        if dst.size > 255 then
+            throw js.JavaScriptException(
+              js.Error(
+                s"Invalid length of bytes for dst parameter of hashToGroup of G2, expected: <= 255, actual: ${dst.size}"
+              )
+            )
+
         BLS12_381_G2_Element(
           BLS.g2
               .hashToGroup(byteString.toUint8Array, BLS.HtfBasicOpts(dst.toUint8Array))
         )
+    }
+
+    val zero: BLS12_381_G2_Element =
+        BLS12_381_G2_Element.fromCompressedByteString(PlatformSpecific.bls12_381_G2_compressed_zero)
 
 class BLS12_381_MlResult(value: ByteString)
 
