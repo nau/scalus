@@ -125,11 +125,11 @@ class CompilerPluginToSIRSpec extends AnyFunSuite with ScalaCheckPropertyChecks:
           compile {
               def b() = true
 
-              def c(x: Boolean) = x
+              def c(x: Boolean): Boolean = c(x)
 
               c(b())
           } == Let(
-            Recursivity.Rec,
+            Recursivity.NonRec,
             immutable.List(
               Binding(
                 "b",
@@ -144,7 +144,14 @@ class CompilerPluginToSIRSpec extends AnyFunSuite with ScalaCheckPropertyChecks:
               immutable.List(
                 Binding(
                   "c",
-                  LamAbs(Var("x", SIRType.Boolean), Var("x", SIRType.Boolean))
+                  LamAbs(
+                    Var("x", SIRType.Boolean),
+                    Apply(
+                      Var("c", SIRType.Fun(Boolean, SIRType.Boolean)),
+                      Var("x", SIRType.Boolean),
+                      SIRType.Boolean
+                    )
+                  )
                 )
               ),
               Apply(
@@ -1401,7 +1408,7 @@ class CompilerPluginToSIRSpec extends AnyFunSuite with ScalaCheckPropertyChecks:
         val check = Var("check", Fun(sirData, Fun(sirData, sirBool)))
         assert(
           eq == Let(
-            Rec,
+            NonRec,
             List(
               Binding(
                 "check",
@@ -1419,7 +1426,7 @@ class CompilerPluginToSIRSpec extends AnyFunSuite with ScalaCheckPropertyChecks:
         )
         assert(
           ne ~=~ Let(
-            Rec,
+            NonRec,
             List(
               Binding(
                 "check",
@@ -1671,7 +1678,7 @@ class CompilerPluginToSIRSpec extends AnyFunSuite with ScalaCheckPropertyChecks:
         val appliedScript = term.plutusV1 $ scriptContext.toData
         assert(appliedScript.evaluate == scalus.uplc.Term.Const(asConstant(hex"deadbeef")))
         val flatBytesLength = appliedScript.flatEncoded.length
-        assert(flatBytesLength == 332)
+        assert(flatBytesLength == 306)
     }
 
     test("@Ignore annotation") {
