@@ -93,20 +93,20 @@ trait JVMPlatformSpecific extends PlatformSpecific {
     override def bls12_381_G1_add(
         p1: BLS12_381_G1_Element,
         p2: BLS12_381_G1_Element
-    ): BLS12_381_G1_Element = BLS12_381_G1_Element(p1.value.add(p2.value))
+    ): BLS12_381_G1_Element = BLS12_381_G1_Element(p1.value.dup.add(p2.value))
 
     override def bls12_381_G1_scalarMul(
         s: BigInt,
         p: BLS12_381_G1_Element
     ): BLS12_381_G1_Element = {
         val scalar = s.bigInteger.mod(PlatformSpecific.bls12_381_scalar_period.bigInteger)
-        BLS12_381_G1_Element(p.value.mult(scalar))
+        BLS12_381_G1_Element(p.value.dup.mult(scalar))
     }
 
     override def bls12_381_G1_neg(
         p: BLS12_381_G1_Element
     ): BLS12_381_G1_Element = {
-        BLS12_381_G1_Element(p.value.neg())
+        BLS12_381_G1_Element(p.value.dup.neg())
     }
 
     override def bls12_381_G1_compress(p: BLS12_381_G1_Element): ByteString =
@@ -145,20 +145,20 @@ trait JVMPlatformSpecific extends PlatformSpecific {
     override def bls12_381_G2_add(
         p1: BLS12_381_G2_Element,
         p2: BLS12_381_G2_Element
-    ): BLS12_381_G2_Element = BLS12_381_G2_Element(p1.value.add(p2.value))
+    ): BLS12_381_G2_Element = BLS12_381_G2_Element(p1.value.dup.add(p2.value))
 
     override def bls12_381_G2_scalarMul(
         s: BigInt,
         p: BLS12_381_G2_Element
     ): BLS12_381_G2_Element = {
         val scalar = s.bigInteger.mod(PlatformSpecific.bls12_381_scalar_period.bigInteger)
-        BLS12_381_G2_Element(p.value.mult(scalar))
+        BLS12_381_G2_Element(p.value.dup.mult(scalar))
     }
 
     override def bls12_381_G2_neg(
         p: BLS12_381_G2_Element
     ): BLS12_381_G2_Element = {
-        BLS12_381_G2_Element(p.value.neg())
+        BLS12_381_G2_Element(p.value.dup.neg())
     }
 
     override def bls12_381_G2_compress(p: BLS12_381_G2_Element): ByteString =
@@ -203,7 +203,7 @@ trait JVMPlatformSpecific extends PlatformSpecific {
         r1: BLS12_381_MlResult,
         r2: BLS12_381_MlResult
     ): BLS12_381_MlResult = {
-        val pt = r1.value.mul(r2.value)
+        val pt = r1.value.dup.mul(r2.value)
         BLS12_381_MlResult(pt)
     }
 

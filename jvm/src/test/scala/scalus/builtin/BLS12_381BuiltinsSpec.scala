@@ -23,11 +23,11 @@ class BLS12_381BuiltinsSpec extends AnyFunSuite {
         assert(bls12_381_G1_equal(zero, sumZero))
     }
 
-    test("add anythig and zero is zero in G1") {
+    test("add anything and zero is anything in G1") {
         val zero = bls12_381_G1_uncompress(bls12_381_G1_compressed_zero)
         val g1 = bls12_381_G1_uncompress(bls12_381_G1_compressed_generator)
-        val sumZero = bls12_381_G1_add(zero, g1)
-        assert(bls12_381_G1_equal(zero, sumZero))
+        val sum = bls12_381_G1_add(zero, g1)
+        assert(bls12_381_G1_equal(g1, sum))
     }
 
     test("uncompress zero G2") {
@@ -44,10 +44,10 @@ class BLS12_381BuiltinsSpec extends AnyFunSuite {
         assert(bls12_381_G2_equal(zero, sumZero))
     }
 
-    test("add anythig and zero is zero in G2") {
+    test("add anything and zero is anything in G2") {
         val zero = bls12_381_G2_uncompress(bls12_381_G2_compressed_zero)
         val g2 = bls12_381_G2_uncompress(bls12_381_G2_compressed_generator)
-        val sumZero = bls12_381_G2_add(zero, g2)
-        assert(bls12_381_G2_equal(zero, sumZero))
+        val sum = bls12_381_G2_add(zero, g2)
+        assert(bls12_381_G2_equal(g2, sum))
     }
 }
