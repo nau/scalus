@@ -102,15 +102,15 @@ class OptimizingSirToUplcLowering(
                 analyzeSir(cond)
                 analyzeSir(t)
                 analyzeSir(f)
-            case SIR.And(lhs, rhs) =>
+            case SIR.And(lhs, rhs, anns) =>
                 usedBuiltins += DefaultFun.IfThenElse
                 analyzeSir(lhs)
                 analyzeSir(rhs)
-            case SIR.Or(lhs, rhs) =>
+            case SIR.Or(lhs, rhs, anns) =>
                 usedBuiltins += DefaultFun.IfThenElse
                 analyzeSir(lhs)
                 analyzeSir(rhs)
-            case SIR.Not(term) =>
+            case SIR.Not(term, anns) =>
                 usedBuiltins += DefaultFun.IfThenElse
                 analyzeSir(term)
             case SIR.Builtin(bi, _, _) => usedBuiltins += bi
@@ -331,7 +331,7 @@ class OptimizingSirToUplcLowering(
                 }
                 lowerSelect(find(scrutinee.tp))
             case SIR.Const(const, tp, anns) => Term.Const(const)
-            case SIR.And(lhs, rhs) =>
+            case SIR.And(lhs, rhs, anns) =>
                 lowerInner(
                   SIR.IfThenElse(
                     lhs,
@@ -339,42 +339,42 @@ class OptimizingSirToUplcLowering(
                     SIR.Const(
                       Constant.Bool(false),
                       SIRType.Boolean,
-                      AnnotationsDecl(lhs.pos.union(rhs.pos), None)
+                      anns
                     ),
                     SIRType.Boolean,
-                    AnnotationsDecl(lhs.pos.union(rhs.pos), None)
+                    anns
                   )
                 )
-            case SIR.Or(lhs, rhs) =>
+            case SIR.Or(lhs, rhs, anns) =>
                 lowerInner(
                   SIR.IfThenElse(
                     lhs,
                     SIR.Const(
                       Constant.Bool(true),
                       SIRType.Boolean,
-                      AnnotationsDecl(lhs.pos.union(rhs.pos), None)
+                      AnnotationsDecl.empty
                     ),
                     rhs,
                     SIRType.Boolean,
-                    AnnotationsDecl(lhs.pos.union(rhs.pos), None)
+                    anns
                   )
                 )
-            case SIR.Not(term) =>
+            case SIR.Not(term, anns) =>
                 lowerInner(
                   SIR.IfThenElse(
                     term,
                     SIR.Const(
                       Constant.Bool(false),
                       SIRType.Boolean,
-                      AnnotationsDecl(term.pos, None)
+                      anns
                     ),
                     SIR.Const(
                       Constant.Bool(true),
                       SIRType.Boolean,
-                      AnnotationsDecl(term.pos, None)
+                      anns
                     ),
                     SIRType.Boolean,
-                    AnnotationsDecl(term.pos, None)
+                    anns
                   )
                 )
             case SIR.IfThenElse(cond, t, f, tp, anns) =>

@@ -36,50 +36,7 @@ case class SIRPosition(
     startColumn: Int,
     endLine: Int,
     endColumn: Int
-) {
-
-    def union(other: SIRPosition): SIRPosition = {
-        if (file.isEmpty) then other
-        else if (other.file.isEmpty) then this
-        else if (file != other.file) then
-            throw new IllegalArgumentException(
-              s"Cannot union positions from different files: $file and ${other.file}"
-            )
-        else if (startLine < other.startLine) then
-            if (endLine < other.startLine) then
-                copy(endLine = other.endLine, endColumn = other.endColumn)
-            else if (endLine == other.endLine) then
-                if (endColumn < other.endColumn) then copy(endColumn = other.endColumn)
-                else this
-            else this
-        else if (startLine == other.startLine) then
-            copy(
-              startColumn = Math.min(startColumn, other.startColumn),
-              endLine = Math.max(endLine, other.endLine),
-              endColumn = Math.max(endColumn, other.endColumn)
-            )
-        else if (endLine < other.endLine) then
-            copy(
-              startLine = other.startLine,
-              startColumn = other.startColumn,
-              endLine = other.endLine,
-              endColumn = other.endColumn
-            )
-        else if (endLine == other.endLine) then
-            copy(
-              startLine = other.startLine,
-              startColumn = other.startColumn,
-              endLine = other.endLine,
-              endColumn = Math.max(endColumn, other.endColumn)
-            )
-        else
-            copy(
-              startLine = other.startLine,
-              startColumn = other.startColumn
-            )
-    }
-
-}
+)
 
 object SIRPosition {
 
@@ -215,8 +172,6 @@ sealed trait SIR {
             case SIRUnify.UnificationFailure(_, _, _) => false
         }
 
-    def pos: SIRPosition
-
 }
 
 object SIR:
@@ -237,15 +192,12 @@ object SIR:
 
     case class Var(name: String, tp: SIRType, anns: AnnotationsDecl) extends SIR {
         override def toString: String = s"Var($name, ${tp.show})"
-        override def pos: SIRPosition = anns.pos
     }
 
     case class ExternalVar(moduleName: String, name: String, tp: SIRType, anns: AnnotationsDecl)
         extends SIR {
 
         override def toString: String = s"ExternalVar($moduleName, $name, ${tp.show})"
-
-        override def pos: SIRPosition = anns.pos
 
     }
 
@@ -256,7 +208,6 @@ object SIR:
         anns: AnnotationsDecl
     ) extends SIR {
         override def tp: SIRType = body.tp
-        override def pos: SIRPosition = anns.pos
     }
 
     case class LamAbs(param: Var, term: SIR, anns: AnnotationsDecl) extends SIR {
@@ -267,8 +218,6 @@ object SIR:
                     SIRType.TypeLambda(tvars, SIRType.Fun(param.tp, tpexpr))
                 case _ =>
                     SIRType.Fun(param.tp, term.tp)
-
-        override def pos: SIRPosition = anns.pos
 
     }
 
@@ -288,52 +237,31 @@ object SIR:
         }
          */
 
-        override def pos: SIRPosition = anns.pos
-
     }
 
-    case class Select(scrutinee: SIR, field: String, tp: SIRType, anns: AnnotationsDecl)
-        extends SIR {
+    case class Select(scrutinee: SIR, field: String, tp: SIRType, anns: AnnotationsDecl) extends SIR
 
-        override def pos: SIRPosition = anns.pos
-    }
+    case class Const(uplcConst: Constant, tp: SIRType, anns: AnnotationsDecl) extends SIR
 
-    case class Const(uplcConst: Constant, tp: SIRType, anns: AnnotationsDecl) extends SIR {
-
-        override def pos: SIRPosition = anns.pos
-
-    }
-
-    case class And(a: SIR, b: SIR) extends SIR {
+    case class And(a: SIR, b: SIR, anns: AnnotationsDecl) extends SIR {
         override def tp: SIRType = SIRType.Boolean
-        override def pos: SIRPosition = a.pos.union(b.pos)
     }
 
-    case class Or(a: SIR, b: SIR) extends SIR {
+    case class Or(a: SIR, b: SIR, anns: AnnotationsDecl) extends SIR {
         override def tp: SIRType = SIRType.Boolean
-        override def pos: SIRPosition = a.pos.union(b.pos)
     }
 
-    case class Not(a: SIR) extends SIR {
+    case class Not(a: SIR, anns: AnnotationsDecl) extends SIR {
         override def tp: SIRType = SIRType.Boolean
-        override def pos: SIRPosition = a.pos
     }
 
-    case class IfThenElse(cond: SIR, t: SIR, f: SIR, tp: SIRType, anns: AnnotationsDecl)
-        extends SIR {
+    case class IfThenElse(cond: SIR, t: SIR, f: SIR, tp: SIRType, anns: AnnotationsDecl) extends SIR
 
-        override def pos: SIRPosition = anns.pos
-    }
-
-    case class Builtin(bn: DefaultFun, tp: SIRType, anns: AnnotationsDecl) extends SIR {
-
-        override def pos: SIRPosition = anns.pos
-    }
+    case class Builtin(bn: DefaultFun, tp: SIRType, anns: AnnotationsDecl) extends SIR
 
     case class Error(msg: String, anns: AnnotationsDecl, cause: Throwable | Null = null)
         extends SIR {
         override def tp: SIRType = SIRType.TypeNothing
-        override def pos: SIRPosition = anns.pos
     }
 
     // TODO: unify data-decl.
@@ -343,10 +271,7 @@ object SIR:
         args: List[SIR],
         tp: SIRType,
         anns: AnnotationsDecl
-    ) extends SIR {
-
-        override def pos: SIRPosition = anns.pos
-    }
+    ) extends SIR
 
     enum Pattern:
         case Constr(constr: ConstrDecl, bindings: List[String], typeBindings: List[SIRType])
@@ -364,15 +289,11 @@ object SIR:
       *   \- resulting type of Match expression, can be calculated as max(tp of all cases)
       */
     case class Match(scrutinee: SIR, cases: List[Case], tp: SIRType, anns: AnnotationsDecl)
-        extends SIR {
-        override def pos: SIRPosition = anns.pos
-    }
+        extends SIR
 
     case class Decl(data: DataDecl, term: SIR) extends SIR {
 
         override def tp: SIRType = term.tp
-
-        override def pos: SIRPosition = data.annotations.pos.union(term.pos)
 
     }
 
@@ -434,9 +355,11 @@ object SIRChecker {
             case SIR.Select(scrutinee, _, _, anns) =>
                 checkSIR(scrutinee, throwOnFirst) ++ checkTp ++ checkAnnotations(anns, throwOnFirst)
             case SIR.Const(_, tp, anns) => checkTp ++ checkAnnotations(anns, throwOnFirst)
-            case SIR.And(a, b) => checkSIR(a, throwOnFirst) ++ checkSIR(b, throwOnFirst) ++ checkTp
-            case SIR.Or(a, b)  => checkSIR(a, throwOnFirst) ++ checkSIR(b, throwOnFirst) ++ checkTp
-            case SIR.Not(a)    => checkSIR(a, throwOnFirst) ++ checkTp
+            case SIR.And(a, b, anns) =>
+                checkSIR(a, throwOnFirst) ++ checkSIR(b, throwOnFirst) ++ checkTp
+            case SIR.Or(a, b, anns) =>
+                checkSIR(a, throwOnFirst) ++ checkSIR(b, throwOnFirst) ++ checkTp
+            case SIR.Not(a, anns) => checkSIR(a, throwOnFirst) ++ checkTp
             case SIR.IfThenElse(cond, t, f, tp, anns) =>
                 checkSIR(cond, throwOnFirst) ++ checkSIR(t, throwOnFirst) ++ checkSIR(
                   f,

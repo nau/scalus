@@ -203,7 +203,7 @@ object PrettyPrinter:
             case Select(scrutinee, field, tp, anns) =>
                 pretty(scrutinee, style) + text("." + field)
             case Const(const, _, _) => prettyValue(const).styled(Fg.colorCode(64))
-            case And(a, b)          =>
+            case And(a, b, _)       =>
                 // We don't add parentheses for nested Ands, because they are associative.
                 // But we add parentheses for nested Ors and Nots.
                 val docA = a match {
@@ -216,7 +216,7 @@ object PrettyPrinter:
                 }
                 (docA / kw("and") / docB).grouped.aligned
 
-            case Or(a, b) =>
+            case Or(a, b, _) =>
                 // We add parentheses for nested Ors and Nots.
                 val docA = a match {
                     case _: Or | _: Not => inParens(pretty(a, style))
@@ -228,7 +228,7 @@ object PrettyPrinter:
                 }
                 (docA / kw("or") / docB).grouped.aligned
 
-            case Not(a) =>
+            case Not(a, _) =>
                 // We add parentheses for nested Nots, Ands, and Ors.
                 val docA = a match {
                     case _: Not | _: And | _: Or => inParens(pretty(a, style) + line)

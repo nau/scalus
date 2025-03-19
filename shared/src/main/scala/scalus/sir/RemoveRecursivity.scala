@@ -35,9 +35,9 @@ object RemoveRecursivity:
                   tp,
                   anns
                 )
-            case And(lhs, rhs) => And(removeRecursivity(lhs), removeRecursivity(rhs))
-            case Or(lhs, rhs)  => Or(removeRecursivity(lhs), removeRecursivity(rhs))
-            case Not(term)     => Not(removeRecursivity(term))
+            case And(lhs, rhs, anns) => And(removeRecursivity(lhs), removeRecursivity(rhs), anns)
+            case Or(lhs, rhs, anns)  => Or(removeRecursivity(lhs), removeRecursivity(rhs), anns)
+            case Not(term, anns)     => Not(removeRecursivity(term), anns)
             case Match(scrutinee, cases, tp, anns) =>
                 Match(
                   removeRecursivity(scrutinee),
@@ -69,9 +69,9 @@ object RemoveRecursivity:
             case LamAbs(n, t, _)    => isRecursive(name, t, n.name :: env)
             case Apply(f, a, tp, _) => isRecursive(name, f, env) || isRecursive(name, a, env)
             case Select(s, _, _, _) => isRecursive(name, s, env)
-            case And(a, b)          => isRecursive(name, a, env) || isRecursive(name, b, env)
-            case Or(a, b)           => isRecursive(name, a, env) || isRecursive(name, b, env)
-            case Not(a)             => isRecursive(name, a, env)
+            case And(a, b, _)       => isRecursive(name, a, env) || isRecursive(name, b, env)
+            case Or(a, b, _)        => isRecursive(name, a, env) || isRecursive(name, b, env)
+            case Not(a, _)          => isRecursive(name, a, env)
             case IfThenElse(c, t, f, tp, _) =>
                 isRecursive(name, c, env) || isRecursive(name, t, env) || isRecursive(name, f, env)
             case Decl(_, t) => isRecursive(name, t, env)

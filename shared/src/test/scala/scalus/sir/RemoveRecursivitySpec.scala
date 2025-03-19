@@ -22,7 +22,7 @@ class RemoveRecursivitySpec extends AnyFunSuite:
         val recursiveVar = Var("recursive", Fun(Integer, Integer), ae)
 
         assert(
-          optimized == Let(
+          optimized ~=~ Let(
             NonRec,
             List(
               Binding(

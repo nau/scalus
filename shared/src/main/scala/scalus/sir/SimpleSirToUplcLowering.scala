@@ -104,7 +104,7 @@ class SimpleSirToUplcLowering(sir: SIR, generateErrorTraces: Boolean = false):
                         case SIRType.TypeLambda(_, t) => find(t)
                         case _ =>
                             throw new IllegalArgumentException(
-                              s"Expected case class type, got ${sirType} in expression: ${sir.show} at ${sir.pos}"
+                              s"Expected case class type, got ${sirType} in expression: ${sir.show} at ${anns.pos}"
                             )
 
                 val constructors = find(scrutinee.tp)
@@ -171,8 +171,9 @@ class SimpleSirToUplcLowering(sir: SIR, generateErrorTraces: Boolean = false):
                                     Term.LamAbs(binding, acc)
                                 }
                     case SIR.Case(Pattern.Wildcard, _) =>
+                        val pos = anns.pos
                         throw new IllegalArgumentException(
-                          s"Wildcard case must have been eliminated at ${sir.pos.file}:${sir.pos.startLine}, ${sir.pos.startColumn}"
+                          s"Wildcard case must have been eliminated at ${pos.file}:${pos.startLine}, ${pos.startColumn}"
                         )
                 }
 
@@ -215,19 +216,22 @@ class SimpleSirToUplcLowering(sir: SIR, generateErrorTraces: Boolean = false):
                         case SIRType.SumCaseClass(decl, _) =>
                             if decl.constructors.length == 1 then decl.constructors.head
                             else
+                                val pos = anns.pos
                                 throw new IllegalArgumentException(
-                                  s"Expected case class type, got ${sirType} in expression: ${sir.show} at ${sir.pos.file}:${sir.pos.startLine}, ${sir.pos.startColumn}"
+                                  s"Expected case class type, got ${sirType} in expression: ${sir.show} at ${pos.file}:${pos.startLine}, ${pos.startColumn}"
                                 )
                         case SIRType.TypeLambda(_, t) => find(t)
                         case _ =>
+                            val pos = anns.pos
                             throw new IllegalArgumentException(
-                              s"Expected case class type, got ${sirType} in expression: ${sir.show} at ${sir.pos.file}:${sir.pos.startLine}, ${sir.pos.startColumn}"
+                              s"Expected case class type, got ${sirType} in expression: ${sir.show} at ${pos.file}:${pos.startLine}, ${pos.startColumn}"
                             )
                 def lowerSelect(constrDecl: ConstrDecl) = {
                     val fieldIndex = constrDecl.params.indexWhere(_.name == field)
                     if fieldIndex == -1 then
+                        val pos = anns.pos
                         throw new IllegalArgumentException(
-                          s"Field $field not found in constructor ${constrDecl} at ${sir.pos.file}:${sir.pos.startLine}, ${sir.pos.startColumn}"
+                          s"Field $field not found in constructor ${constrDecl} at ${pos.file}:${pos.startLine}, ${pos.startColumn}"
                         )
                     val instance = lowerInner(scrutinee)
                     val s0 = Term.Var(NamedDeBruijn(field))
@@ -238,34 +242,34 @@ class SimpleSirToUplcLowering(sir: SIR, generateErrorTraces: Boolean = false):
                 }
                 lowerSelect(find(scrutinee.tp))
             case SIR.Const(const, _, _) => Term.Const(const)
-            case SIR.And(lhs, rhs) =>
+            case SIR.And(lhs, rhs, anns) =>
                 lowerInner(
                   SIR.IfThenElse(
                     lhs,
                     rhs,
                     SIR.Const(Constant.Bool(false), SIRType.Boolean, AnnotationsDecl.empty),
                     SIRType.Boolean,
-                    AnnotationsDecl(pos = lhs.pos.union(rhs.pos))
+                    anns
                   )
                 )
-            case SIR.Or(lhs, rhs) =>
+            case SIR.Or(lhs, rhs, anns) =>
                 lowerInner(
                   SIR.IfThenElse(
                     lhs,
                     SIR.Const(Constant.Bool(true), SIRType.Boolean, AnnotationsDecl.empty),
                     rhs,
                     SIRType.Boolean,
-                    AnnotationsDecl(pos = lhs.pos.union(rhs.pos))
+                    anns
                   )
                 )
-            case SIR.Not(term) =>
+            case SIR.Not(term, anns) =>
                 lowerInner(
                   SIR.IfThenElse(
                     term,
                     SIR.Const(Constant.Bool(false), SIRType.Boolean, AnnotationsDecl.empty),
                     SIR.Const(Constant.Bool(true), SIRType.Boolean, AnnotationsDecl.empty),
                     SIRType.Boolean,
-                    AnnotationsDecl(pos = term.pos)
+                    anns
                   )
                 )
             case SIR.IfThenElse(cond, t, f, _, _) =>

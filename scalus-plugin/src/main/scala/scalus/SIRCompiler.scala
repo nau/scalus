@@ -1007,6 +1007,7 @@ final class SIRCompiler(using ctx: Context) {
                   AnnotationsDecl.fromSourcePosition(lhs.sourcePos union rhs.sourcePos)
                 )
             case nme.NE =>
+                val anns = AnnotationsDecl.fromSourcePosition(lhs.sourcePos union rhs.sourcePos)
                 SIR.Not(
                   SIR.Apply(
                     SIR.Apply(
@@ -1017,8 +1018,9 @@ final class SIRCompiler(using ctx: Context) {
                     ),
                     compileExpr(env, rhs),
                     SIRType.Boolean,
-                    AnnotationsDecl.fromSourcePosition(lhs.sourcePos union rhs.sourcePos)
-                  )
+                    anns
+                  ),
+                  anns
                 )
             case _ =>
                 error(
@@ -1332,7 +1334,7 @@ final class SIRCompiler(using ctx: Context) {
                           SIRType.Boolean,
                           posAnns
                         )
-                    if op == nme.EQ then eq else SIR.Not(eq)
+                    if op == nme.EQ then eq else SIR.Not(eq, posAnns)
         else if lhsTpe =:= defn.BooleanType then
             if op == nme.EQ then
                 SIR.IfThenElse(
@@ -1383,7 +1385,7 @@ final class SIRCompiler(using ctx: Context) {
                   SIRType.Boolean,
                   posAnns
                 )
-            if op == nme.EQ then eq else SIR.Not(eq)
+            if op == nme.EQ then eq else SIR.Not(eq, posAnns)
         else if lhsTpe =:= defn.StringClass.typeRef then
             val eq =
                 SIR.Apply(
@@ -1397,7 +1399,7 @@ final class SIRCompiler(using ctx: Context) {
                   SIRType.Boolean,
                   posAnns
                 )
-            if op == nme.EQ then eq else SIR.Not(eq)
+            if op == nme.EQ then eq else SIR.Not(eq, posAnns)
         else if lhsTpe <:< DataClassSymbol.typeRef && !(lhsTpe =:= NothingSymbol.typeRef || lhsTpe =:= NullSymbol.typeRef)
         then
             val eq =
@@ -1412,7 +1414,7 @@ final class SIRCompiler(using ctx: Context) {
                   SIRType.Boolean,
                   posAnns
                 )
-            if op == nme.EQ then eq else SIR.Not(eq)
+            if op == nme.EQ then eq else SIR.Not(eq, posAnns)
         else
             report.error(
               s"""Equality check operations (`==`, `!=`) are only allowed between these primitive types:
@@ -1479,17 +1481,17 @@ final class SIRCompiler(using ctx: Context) {
             // Boolean
             case Select(lhs, op) if lhs.tpe.widen =:= defn.BooleanType && op == nme.UNARY_! =>
                 val lhsExpr = compileExpr(env, lhs)
-                SIR.Not(lhsExpr)
+                SIR.Not(lhsExpr, AnnotationsDecl.fromSrcPos(tree.srcPos))
             case Apply(Select(lhs, op), List(rhs))
                 if lhs.tpe.widen =:= defn.BooleanType && op == nme.ZAND =>
                 val lhsExpr = compileExpr(env, lhs)
                 val rhsExpr = compileExpr(env, rhs)
-                SIR.And(lhsExpr, rhsExpr)
+                SIR.And(lhsExpr, rhsExpr, AnnotationsDecl.fromSrcPos(tree.srcPos))
             case Apply(Select(lhs, op), List(rhs))
                 if lhs.tpe.widen =:= defn.BooleanType && op == nme.ZOR =>
                 val lhsExpr = compileExpr(env, lhs)
                 val rhsExpr = compileExpr(env, rhs)
-                SIR.Or(lhsExpr, rhsExpr)
+                SIR.Or(lhsExpr, rhsExpr, AnnotationsDecl.fromSrcPos(tree.srcPos))
             // Equality and inequality: ==, !=
             case Apply(Select(lhs, op), List(rhs)) if op == nme.EQ || op == nme.NE =>
                 compileEquality(env, lhs, op, rhs, tree.srcPos)
@@ -1828,13 +1830,13 @@ class SIRLinker(using ctx: Context) {
         case SIR.Apply(f, arg, tp, anns) =>
             traverseAndLink(f, srcPos)
             traverseAndLink(arg, srcPos)
-        case SIR.And(lhs, rhs) =>
+        case SIR.And(lhs, rhs, anns) =>
             traverseAndLink(lhs, srcPos)
             traverseAndLink(rhs, srcPos)
-        case SIR.Or(lhs, rhs) =>
+        case SIR.Or(lhs, rhs, anns) =>
             traverseAndLink(lhs, srcPos)
             traverseAndLink(rhs, srcPos)
-        case SIR.Not(term) => traverseAndLink(term, srcPos)
+        case SIR.Not(term, anns) => traverseAndLink(term, srcPos)
         case SIR.IfThenElse(cond, t, f, tp, anns) =>
             traverseAndLink(cond, srcPos)
             traverseAndLink(t, srcPos)

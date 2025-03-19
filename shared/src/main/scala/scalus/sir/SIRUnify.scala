@@ -195,7 +195,7 @@ object SIRUnify {
                     case UnificationSuccess(env1, a) =>
                         unifySIR(v1.b, v2.b, env1.copy(path = "b" :: env.path)) match
                             case UnificationSuccess(env2, b) =>
-                                UnificationSuccess(env2, SIR.And(a, b))
+                                UnificationSuccess(env2, SIR.And(a, b, v1.anns))
                             case failure @ UnificationFailure(path, rightLeft, rightRight) =>
                                 failure
                     case failure @ UnificationFailure(path, leftLeft, leftRight) => failure
@@ -204,13 +204,13 @@ object SIRUnify {
                     case UnificationSuccess(env1, a) =>
                         unifySIR(v1.b, v2.b, env1.copy(path = "b" :: env.path)) match
                             case UnificationSuccess(env2, b) =>
-                                UnificationSuccess(env2, SIR.Or(a, b))
+                                UnificationSuccess(env2, SIR.Or(a, b, v1.anns))
                             case failure: UnificationFailure[?] => failure
                     case failure: UnificationFailure[?] => failure
             case (v1: SIR.Not, v2: SIR.Not) =>
                 unifySIR(v1.a, v2.a, env.copy(path = "a" :: env.path)) match
                     case UnificationSuccess(env1, a) =>
-                        UnificationSuccess(env1.copy(path = env.path), SIR.Not(a))
+                        UnificationSuccess(env1.copy(path = env.path), SIR.Not(a, v1.anns))
                     case failure: UnificationFailure[?] => failure
             case (v1: SIR.IfThenElse, v2: SIR.IfThenElse) =>
                 unifySIR(v1.cond, v2.cond, env.copy(path = "cond" :: env.path)) match

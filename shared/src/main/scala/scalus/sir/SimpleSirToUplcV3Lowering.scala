@@ -291,34 +291,34 @@ class SimpleSirToUplcV3Lowering(sir: SIR, generateErrorTraces: Boolean = false):
                 val (name, constrDecl) = find(scrutinee.tp)
                 lowerSelect(name, constrDecl)
             case SIR.Const(const, _, _) => Term.Const(const)
-            case SIR.And(lhs, rhs) =>
+            case SIR.And(lhs, rhs, anns) =>
                 lowerInner(
                   SIR.IfThenElse(
                     lhs,
                     rhs,
                     SIR.Const(Constant.Bool(false), SIRType.Boolean, AnnotationsDecl.empty),
                     SIRType.Boolean,
-                    AnnotationsDecl.empty
+                    anns
                   )
                 )
-            case SIR.Or(lhs, rhs) =>
+            case SIR.Or(lhs, rhs, anns) =>
                 lowerInner(
                   SIR.IfThenElse(
                     lhs,
                     SIR.Const(Constant.Bool(true), SIRType.Boolean, AnnotationsDecl.empty),
                     rhs,
                     SIRType.Boolean,
-                    AnnotationsDecl.empty
+                    anns
                   )
                 )
-            case SIR.Not(term) =>
+            case SIR.Not(term, anns) =>
                 lowerInner(
                   SIR.IfThenElse(
                     term,
                     SIR.Const(Constant.Bool(false), SIRType.Boolean, AnnotationsDecl.empty),
                     SIR.Const(Constant.Bool(true), SIRType.Boolean, AnnotationsDecl.empty),
                     SIRType.Boolean,
-                    AnnotationsDecl.empty
+                    anns
                   )
                 )
             case SIR.IfThenElse(cond, t, f, _, _) =>

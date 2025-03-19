@@ -1073,9 +1073,17 @@ object FlatInstantces:
                       hashCons
                     )
             case aConst: Const => termTagWidth + SIRConstHashConsedFlat.bitSizeHC(aConst, hashCons)
-            case And(x, y)     => termTagWidth + bitSizeHC(x, hashCons) + bitSizeHC(y, hashCons)
-            case Or(x, y)      => termTagWidth + bitSizeHC(x, hashCons) + bitSizeHC(y, hashCons)
-            case Not(x)        => termTagWidth + bitSizeHC(x, hashCons)
+            case And(x, y, anns) =>
+                termTagWidth + bitSizeHC(x, hashCons) + bitSizeHC(y, hashCons) + AnnotationsDeclFlat
+                    .bitSizeHC(anns, hashCons)
+            case Or(x, y, anns) =>
+                termTagWidth + bitSizeHC(x, hashCons) + bitSizeHC(y, hashCons) + AnnotationsDeclFlat
+                    .bitSizeHC(anns, hashCons)
+            case Not(x, anns) =>
+                termTagWidth + bitSizeHC(x, hashCons) + AnnotationsDeclFlat.bitSizeHC(
+                  anns,
+                  hashCons
+                )
             case IfThenElse(c, t, f, tp, anns) =>
                 termTagWidth + bitSizeHC(c, hashCons) + bitSizeHC(t, hashCons) + bitSizeHC(
                   f,
@@ -1171,17 +1179,20 @@ object FlatInstantces:
                     HashConsedReprFlat.listRepr(SIRCaseHashConsedFlat).encodeHC(cases, enc)
                     SIRTypeHashConsedFlat.encodeHC(tp, enc)
                     AnnotationsDeclFlat.encodeHC(anns, enc)
-                case And(x, y) =>
+                case And(x, y, anns) =>
                     enc.encode.bits(termTagWidth, tagAnd)
                     encodeHC(x, enc)
                     encodeHC(y, enc)
-                case Or(x, y) =>
+                    AnnotationsDeclFlat.encodeHC(anns, enc)
+                case Or(x, y, anns) =>
                     enc.encode.bits(termTagWidth, tagOr)
                     encodeHC(x, enc)
                     encodeHC(y, enc)
-                case Not(x) =>
+                    AnnotationsDeclFlat.encodeHC(anns, enc)
+                case Not(x, anns) =>
                     enc.encode.bits(termTagWidth, tagNot)
                     encodeHC(x, enc)
+                    AnnotationsDeclFlat.encodeHC(anns, enc)
                 case Decl(data, term) =>
                     enc.encode.bits(termTagWidth, tagDecl)
                     DataDeclFlat.encodeHC(data, enc)
@@ -1324,22 +1335,27 @@ object FlatInstantces:
                 case `tagAnd` =>
                     val x = decodeHC(decoder)
                     val y = decodeHC(decoder)
+                    val anns = AnnotationsDeclFlat.decodeHC(decoder)
                     HashConsedRef.deferred(
                       hs => x.isComplete(hs) && y.isComplete(hs),
-                      (hs, l, p) => And(x.finValue(hs, l, p), y.finValue(hs, l, p))
+                      (hs, l, p) =>
+                          And(x.finValue(hs, l, p), y.finValue(hs, l, p), anns.finValue(hs, l, p))
                     )
                 case `tagOr` =>
                     val x = decodeHC(decoder)
                     val y = decodeHC(decoder)
+                    val anns = AnnotationsDeclFlat.decodeHC(decoder)
                     HashConsedRef.deferred(
                       hs => x.isComplete(hs) && y.isComplete(hs),
-                      (hs, l, p) => Or(x.finValue(hs, l, p), y.finValue(hs, l, p))
+                      (hs, l, p) =>
+                          Or(x.finValue(hs, l, p), y.finValue(hs, l, p), anns.finValue(hs, l, p))
                     )
                 case `tagNot` =>
                     val x = decodeHC(decoder)
+                    val anns = AnnotationsDeclFlat.decodeHC(decoder)
                     HashConsedRef.deferred(
                       hs => x.isComplete(hs),
-                      (hs, l, p) => Not(x.finValue(hs, l, p))
+                      (hs, l, p) => Not(x.finValue(hs, l, p), anns.finValue(hs, l, p))
                     )
                 case `tagDecl` =>
                     val data = DataDeclFlat.decodeHC(decoder)

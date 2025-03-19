@@ -168,9 +168,9 @@ class OptimizingSirToUplcLoweringSpec
         val ae = AnnotationsDecl.empty
         val a = SIR.Var("a", SIRType.Boolean, ae)
         val b = SIR.Var("b", SIRType.Boolean, ae)
-        SIR.And(a, b) lowersTo !(!IfThenElse $ vr"a" $ ~vr"b" $ ~false)
-        SIR.Or(a, b) lowersTo !(!IfThenElse $ vr"a" $ ~true $ ~vr"b")
-        SIR.Not(a) lowersTo !(!IfThenElse $ vr"a" $ ~false $ ~true)
+        SIR.And(a, b, ae) lowersTo !(!IfThenElse $ vr"a" $ ~vr"b" $ ~false)
+        SIR.Or(a, b, ae) lowersTo !(!IfThenElse $ vr"a" $ ~true $ ~vr"b")
+        SIR.Not(a, ae) lowersTo !(!IfThenElse $ vr"a" $ ~false $ ~true)
     }
 
     test("lower Match") {

@@ -1052,7 +1052,7 @@ class CompilerPluginToSIRSpec extends AnyFunSuite with ScalaCheckPropertyChecks:
         assert(compile(BigInt(1) > 2) ~=~ (LessThanInteger $ 2 $ 1))
         assert(compile(BigInt(1) >= 2) ~=~ (LessThanEqualsInteger $ 2 $ 1))
         assert(compile(BigInt(1) == BigInt(2)) ~=~ (EqualsInteger $ 1 $ 2))
-        assert(compile(BigInt(1) != BigInt(2)) ~=~ Not(EqualsInteger $ 1 $ 2))
+        assert(compile(BigInt(1) != BigInt(2)) ~=~ Not(EqualsInteger $ 1 $ 2, AnE))
     }
 
     test("compile Integer builtins") {
@@ -1249,8 +1249,12 @@ class CompilerPluginToSIRSpec extends AnyFunSuite with ScalaCheckPropertyChecks:
           compiled ~=~
               Let(
                 NonRec,
-                List(Binding("a", Or(sirConst(true), Error("M", AnE)))),
-                Or(And(Not(Var("a", sirBool, AnE)), sirConst(false)), sirConst(true)),
+                List(Binding("a", Or(sirConst(true), Error("M", AnE), AnE))),
+                Or(
+                  And(Not(Var("a", sirBool, AnE), AnE), sirConst(false), AnE),
+                  sirConst(true),
+                  AnE
+                ),
                 AnE
               )
         )
@@ -1402,7 +1406,8 @@ class CompilerPluginToSIRSpec extends AnyFunSuite with ScalaCheckPropertyChecks:
                         Var("b", sirByteString, AnE),
                         sirBool,
                         AnE
-                      )
+                      ),
+                      AnE
                     ),
                     AnE
                   ),
@@ -1529,7 +1534,8 @@ class CompilerPluginToSIRSpec extends AnyFunSuite with ScalaCheckPropertyChecks:
                       bVar,
                       sirBool,
                       AnE
-                    )
+                    ),
+                    AnE
                   ),
                   AnE
                 ),
@@ -1639,7 +1645,8 @@ class CompilerPluginToSIRSpec extends AnyFunSuite with ScalaCheckPropertyChecks:
                         b,
                         sirBool,
                         AnE
-                      )
+                      ),
+                      AnE
                     ),
                     AnE
                   ),
