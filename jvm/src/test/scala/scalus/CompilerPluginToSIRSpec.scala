@@ -740,7 +740,7 @@ class CompilerPluginToSIRSpec extends AnyFunSuite with ScalaCheckPropertyChecks:
               )
         )
         assert(
-          compile(Builtins.bls12_381_G1_scalarMul) == LamAbs(
+          compile(Builtins.bls12_381_G1_scalarMul) ~=~ LamAbs(
             Var("s", SIRType.Integer, AnE),
             LamAbs(
               Var("p", SIRType.BLS12_381_G1_Element, AnE),
@@ -762,7 +762,7 @@ class CompilerPluginToSIRSpec extends AnyFunSuite with ScalaCheckPropertyChecks:
         )
 
         assert(
-          compile(Builtins.bls12_381_G1_equal) == LamAbs(
+          compile(Builtins.bls12_381_G1_equal) ~=~ LamAbs(
             p1Var,
             LamAbs(
               p2Var,
@@ -784,7 +784,7 @@ class CompilerPluginToSIRSpec extends AnyFunSuite with ScalaCheckPropertyChecks:
         )
 
         assert(
-          compile(Builtins.bls12_381_G1_hashToGroup) == LamAbs(
+          compile(Builtins.bls12_381_G1_hashToGroup) ~=~ LamAbs(
             bsVar,
             LamAbs(
               dstVar,
@@ -937,7 +937,7 @@ class CompilerPluginToSIRSpec extends AnyFunSuite with ScalaCheckPropertyChecks:
           )
         )
         assert(
-          compile(Builtins.bls12_381_G2_uncompress) == LamAbs(
+          compile(Builtins.bls12_381_G2_uncompress) ~=~ LamAbs(
             bsVar,
             Apply(SIRBuiltins.bls12_381_G2_uncompress, bsVar, SIRType.BLS12_381_G2_Element, AnE),
             AnE
@@ -1041,74 +1041,74 @@ class CompilerPluginToSIRSpec extends AnyFunSuite with ScalaCheckPropertyChecks:
     }
 
     test("compile BigInt ops") {
-        assert(compile(-BigInt(-1)) == (SubtractInteger $ 0 $ -1))
-        assert(compile(BigInt(1) + 2) == (AddInteger $ 1 $ 2))
-        assert(compile(BigInt(1) - 2) == (SubtractInteger $ 1 $ 2))
-        assert(compile(BigInt(1) * 2) == (MultiplyInteger $ 1 $ 2))
-        assert(compile(BigInt(1) / 2) == (DivideInteger $ 1 $ 2))
-        assert(compile(BigInt(1) % 2) == (RemainderInteger $ 1 $ 2))
-        assert(compile(BigInt(1) < 2) == (LessThanInteger $ 1 $ 2))
-        assert(compile(BigInt(1) <= 2) == (LessThanEqualsInteger $ 1 $ 2))
-        assert(compile(BigInt(1) > 2) == (LessThanInteger $ 2 $ 1))
-        assert(compile(BigInt(1) >= 2) == (LessThanEqualsInteger $ 2 $ 1))
-        assert(compile(BigInt(1) == BigInt(2)) == (EqualsInteger $ 1 $ 2))
-        assert(compile(BigInt(1) != BigInt(2)) == Not(EqualsInteger $ 1 $ 2))
+        assert(compile(-BigInt(-1)) ~=~ (SubtractInteger $ 0 $ -1))
+        assert(compile(BigInt(1) + 2) ~=~ (AddInteger $ 1 $ 2))
+        assert(compile(BigInt(1) - 2) ~=~ (SubtractInteger $ 1 $ 2))
+        assert(compile(BigInt(1) * 2) ~=~ (MultiplyInteger $ 1 $ 2))
+        assert(compile(BigInt(1) / 2) ~=~ (DivideInteger $ 1 $ 2))
+        assert(compile(BigInt(1) % 2) ~=~ (RemainderInteger $ 1 $ 2))
+        assert(compile(BigInt(1) < 2) ~=~ (LessThanInteger $ 1 $ 2))
+        assert(compile(BigInt(1) <= 2) ~=~ (LessThanEqualsInteger $ 1 $ 2))
+        assert(compile(BigInt(1) > 2) ~=~ (LessThanInteger $ 2 $ 1))
+        assert(compile(BigInt(1) >= 2) ~=~ (LessThanEqualsInteger $ 2 $ 1))
+        assert(compile(BigInt(1) == BigInt(2)) ~=~ (EqualsInteger $ 1 $ 2))
+        assert(compile(BigInt(1) != BigInt(2)) ~=~ Not(EqualsInteger $ 1 $ 2))
     }
 
     test("compile Integer builtins") {
-        assert(compile(Builtins.addInteger(1, 2)) == (AddInteger $ 1 $ 2))
-        assert(compile(Builtins.subtractInteger(1, 2)) == (SubtractInteger $ 1 $ 2))
-        assert(compile(Builtins.multiplyInteger(1, 2)) == (MultiplyInteger $ 1 $ 2))
-        assert(compile(Builtins.divideInteger(1, 2)) == (DivideInteger $ 1 $ 2))
-        assert(compile(Builtins.modInteger(1, 2)) == (ModInteger $ 1 $ 2))
-        assert(compile(Builtins.quotientInteger(1, 2)) == (QuotientInteger $ 1 $ 2))
-        assert(compile(Builtins.remainderInteger(1, 2)) == (RemainderInteger $ 1 $ 2))
-        assert(compile(Builtins.lessThanInteger(1, 2)) == (LessThanInteger $ 1 $ 2))
-        assert(compile(Builtins.lessThanEqualsInteger(1, 2)) == (LessThanEqualsInteger $ 1 $ 2))
-        assert(compile(Builtins.equalsInteger(1, 2)) == (EqualsInteger $ 1 $ 2))
+        assert(compile(Builtins.addInteger(1, 2)) ~=~ (AddInteger $ 1 $ 2))
+        assert(compile(Builtins.subtractInteger(1, 2)) ~=~ (SubtractInteger $ 1 $ 2))
+        assert(compile(Builtins.multiplyInteger(1, 2)) ~=~ (MultiplyInteger $ 1 $ 2))
+        assert(compile(Builtins.divideInteger(1, 2)) ~=~ (DivideInteger $ 1 $ 2))
+        assert(compile(Builtins.modInteger(1, 2)) ~=~ (ModInteger $ 1 $ 2))
+        assert(compile(Builtins.quotientInteger(1, 2)) ~=~ (QuotientInteger $ 1 $ 2))
+        assert(compile(Builtins.remainderInteger(1, 2)) ~=~ (RemainderInteger $ 1 $ 2))
+        assert(compile(Builtins.lessThanInteger(1, 2)) ~=~ (LessThanInteger $ 1 $ 2))
+        assert(compile(Builtins.lessThanEqualsInteger(1, 2)) ~=~ (LessThanEqualsInteger $ 1 $ 2))
+        assert(compile(Builtins.equalsInteger(1, 2)) ~=~ (EqualsInteger $ 1 $ 2))
     }
 
     test("compile ByteStrings builtins") {
         assert(
           compile(
             Builtins.appendByteString(hex"dead", hex"beef")
-          ) == (AppendByteString $ hex"dead" $ hex"beef")
+          ) ~=~ (AppendByteString $ hex"dead" $ hex"beef")
         )
 
         assert(
           compile(
             Builtins.sliceByteString(1, 2, hex"dead")
-          ) == (SliceByteString $ 1 $ 2 $ hex"dead")
+          ) ~=~ (SliceByteString $ 1 $ 2 $ hex"dead")
         )
 
         assert(
           compile(
             Builtins.lengthOfByteString(hex"dead")
-          ) == (LengthOfByteString $ hex"dead")
+          ) ~=~ (LengthOfByteString $ hex"dead")
         )
 
         assert(
           compile(
             Builtins.indexByteString(hex"dead", 1)
-          ) == (IndexByteString $ hex"dead" $ 1)
+          ) ~=~ (IndexByteString $ hex"dead" $ 1)
         )
 
         assert(
           compile(
             Builtins.equalsByteString(hex"dead", hex"beef")
-          ) == (EqualsByteString $ hex"dead" $ hex"beef")
+          ) ~=~ (EqualsByteString $ hex"dead" $ hex"beef")
         )
 
         assert(
           compile(
             Builtins.lessThanByteString(hex"dead", hex"beef")
-          ) == (LessThanByteString $ hex"dead" $ hex"beef")
+          ) ~=~ (LessThanByteString $ hex"dead" $ hex"beef")
         )
 
         assert(
           compile(
             Builtins.lessThanEqualsByteString(hex"dead", hex"beef")
-          ) == (LessThanEqualsByteString $ hex"dead" $ hex"beef")
+          ) ~=~ (LessThanEqualsByteString $ hex"dead" $ hex"beef")
         )
     }
 
@@ -1122,9 +1122,9 @@ class CompilerPluginToSIRSpec extends AnyFunSuite with ScalaCheckPropertyChecks:
           case VerifyEcdsaSecp256k1Signature
           case VerifySchnorrSecp256k1Signature
          */
-        assert(compile(Builtins.sha2_256(hex"dead")) == (Sha2_256 $ hex"dead"))
-        assert(compile(Builtins.sha3_256(hex"dead")) == (Sha3_256 $ hex"dead"))
-        assert(compile(Builtins.blake2b_256(hex"dead")) == (Blake2b_256 $ hex"dead"))
+        assert(compile(Builtins.sha2_256(hex"dead")) ~=~ (Sha2_256 $ hex"dead"))
+        assert(compile(Builtins.sha3_256(hex"dead")) ~=~ (Sha3_256 $ hex"dead"))
+        assert(compile(Builtins.blake2b_256(hex"dead")) ~=~ (Blake2b_256 $ hex"dead"))
         assert(
           compile(
             Builtins.verifyEd25519Signature(
@@ -1132,7 +1132,7 @@ class CompilerPluginToSIRSpec extends AnyFunSuite with ScalaCheckPropertyChecks:
               hex"beef",
               hex"cafe"
             )
-          ) == (VerifyEd25519Signature $ hex"dead" $ hex"beef" $ hex"cafe")
+          ) ~=~ (VerifyEd25519Signature $ hex"dead" $ hex"beef" $ hex"cafe")
         )
         assert(
           compile(
@@ -1141,7 +1141,7 @@ class CompilerPluginToSIRSpec extends AnyFunSuite with ScalaCheckPropertyChecks:
               hex"beef",
               hex"cafe"
             )
-          ) == (VerifyEcdsaSecp256k1Signature $ hex"dead" $ hex"beef" $ hex"cafe")
+          ) ~=~ (VerifyEcdsaSecp256k1Signature $ hex"dead" $ hex"beef" $ hex"cafe")
         )
         assert(
           compile(
@@ -1150,15 +1150,15 @@ class CompilerPluginToSIRSpec extends AnyFunSuite with ScalaCheckPropertyChecks:
               hex"beef",
               hex"cafe"
             )
-          ) == (VerifySchnorrSecp256k1Signature $ hex"dead" $ hex"beef" $ hex"cafe")
+          ) ~=~ (VerifySchnorrSecp256k1Signature $ hex"dead" $ hex"beef" $ hex"cafe")
         )
     }
 
     test("compile String builtins") {
-        assert(compile(Builtins.appendString("dead", "beef")) == (AppendString $ "dead" $ "beef"))
-        assert(compile(Builtins.equalsString("dead", "beef")) == (EqualsString $ "dead" $ "beef"))
-        assert(compile(Builtins.encodeUtf8("dead")) == (EncodeUtf8 $ "dead"))
-        assert(compile(Builtins.decodeUtf8(hex"dead")) == (DecodeUtf8 $ hex"dead"))
+        assert(compile(Builtins.appendString("dead", "beef")) ~=~ (AppendString $ "dead" $ "beef"))
+        assert(compile(Builtins.equalsString("dead", "beef")) ~=~ (EqualsString $ "dead" $ "beef"))
+        assert(compile(Builtins.encodeUtf8("dead")) ~=~ (EncodeUtf8 $ "dead"))
+        assert(compile(Builtins.decodeUtf8(hex"dead")) ~=~ (DecodeUtf8 $ hex"dead"))
     }
 
     test("compile IfThenElse/ChooseUnit/Trace builtins") {
@@ -1764,7 +1764,7 @@ class CompilerPluginToSIRSpec extends AnyFunSuite with ScalaCheckPropertyChecks:
         }
 
         assert(
-          compiled ==
+          compiled ~=~
               Decl(
                 pubKeyHashDataDecl,
                 Constr(
@@ -1908,12 +1908,12 @@ class CompilerPluginToSIRSpec extends AnyFunSuite with ScalaCheckPropertyChecks:
             @Ignore val a = true
 
             @Ignore def foo() = true
-        } == Const(Constant.Unit, SIRType.Unit, AnE))
+        } ~=~ Const(Constant.Unit, SIRType.Unit, AnE))
     }
 
     test("Ignore PlatformSpecific arguments") {
         // Make sure that the implicit PlatformSpecific argument is not generated
-        assert(compile(Builtins.sha2_256) == (lam("bs")(Sha2_256 $ Var("bs", sirByteString, AnE))))
+        assert(compile(Builtins.sha2_256) ~=~ (lam("bs")(Sha2_256 $ Var("bs", sirByteString, AnE))))
     }
 
     test("? operator produces a debug log") {
