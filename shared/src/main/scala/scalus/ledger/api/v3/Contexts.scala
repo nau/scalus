@@ -13,7 +13,7 @@ import scalus.ledger.api.v1.*
 import scalus.ledger.api.v2
 import scalus.prelude.AssocMap
 import scalus.prelude.List
-import scalus.prelude.Maybe
+import scalus.prelude.Option
 import scalus.prelude.Rational
 
 export scalus.ledger.api.v1.Address
@@ -67,7 +67,7 @@ object FromDataInstances {
         val pair = d.toConstr
         if pair.fst == BigInt(1) then
             val args = pair.snd
-            new SpendingScriptInfo(args.head.to[TxOutRef], args.tail.head.to[Maybe[Datum]])
+            new SpendingScriptInfo(args.head.to[TxOutRef], args.tail.head.to[Option[Datum]])
         else throw new Exception("Invalid SpendingScriptInfo")
     given FromData[SpendingScriptContext] = FromData.deriveCaseClass
 }
@@ -122,8 +122,8 @@ enum Delegatee:
     case StakeVote(pubKeyHash: PubKeyHash, dRep: DRep)
 
 enum TxCert:
-    case RegStaking(credential: Credential, deposit: Maybe[Lovelace])
-    case UnRegStaking(credential: Credential, refund: Maybe[Lovelace])
+    case RegStaking(credential: Credential, deposit: Option[Lovelace])
+    case UnRegStaking(credential: Credential, refund: Option[Lovelace])
     case DelegStaking(credential: Credential, delegatee: Delegatee)
     case RegDeleg(credential: Credential, delegatee: Delegatee, deposit: Lovelace)
     case RegDRep(credential: DRepCredential, deposit: Lovelace)
@@ -149,7 +149,7 @@ case class Committee(
     quorum: BigInt
 )
 
-type Constitution = Maybe[ScriptHash]
+type Constitution = Option[ScriptHash]
 
 case class ProtocolVersion(pvMajor: BigInt, pvMinor: BigInt)
 
@@ -157,23 +157,23 @@ type ChangedParameters = Data
 
 enum GovernanceAction:
     case ParameterChange(
-        id: Maybe[GovernanceActionId],
+        id: Option[GovernanceActionId],
         parameters: ChangedParameters,
-        constitutionScript: Maybe[ScriptHash]
+        constitutionScript: Option[ScriptHash]
     )
-    case HardForkInitiation(id: Maybe[GovernanceActionId], protocolVersion: ProtocolVersion)
+    case HardForkInitiation(id: Option[GovernanceActionId], protocolVersion: ProtocolVersion)
     case TreasuryWithdrawals(
         withdrawals: AssocMap[Credential, Lovelace],
-        constitutionScript: Maybe[ScriptHash]
+        constitutionScript: Option[ScriptHash]
     )
-    case NoConfidence(id: Maybe[GovernanceActionId])
+    case NoConfidence(id: Option[GovernanceActionId])
     case UpdateCommittee(
-        id: Maybe[GovernanceActionId],
+        id: Option[GovernanceActionId],
         removedMembers: List[ColdCommitteeCredential],
         addedMembers: AssocMap[ColdCommitteeCredential, BigInt],
         newQuorum: Rational
     )
-    case NewConstitution(id: Maybe[GovernanceActionId], constitution: Constitution)
+    case NewConstitution(id: Option[GovernanceActionId], constitution: Constitution)
     case InfoAction
 
 case class ProposalProcedure(
@@ -192,13 +192,13 @@ enum ScriptPurpose:
 
 enum ScriptInfo:
     case MintingScript(currencySymbol: CurrencySymbol)
-    case SpendingScript(txOutRef: TxOutRef, datum: Maybe[Datum])
+    case SpendingScript(txOutRef: TxOutRef, datum: Option[Datum])
     case RewardingScript(credential: Credential)
     case CertifyingScript(index: BigInt, cert: TxCert)
     case VotingScript(voter: Voter)
     case ProposingScript(index: BigInt, procedure: ProposalProcedure)
 
-case class SpendingScriptInfo(txOutRef: TxOutRef, datum: Maybe[Datum])
+case class SpendingScriptInfo(txOutRef: TxOutRef, datum: Option[Datum])
 case class MintingScriptInfo(currencySymbol: CurrencySymbol)
 case class RewardingScriptInfo(credential: Credential)
 
@@ -222,8 +222,8 @@ case class TxInfo(
     id: TxId,
     votes: AssocMap[Voter, AssocMap[GovernanceActionId, Vote]],
     proposalProcedures: List[ProposalProcedure],
-    currentTreasuryAmount: Maybe[Lovelace],
-    treasuryDonation: Maybe[Lovelace]
+    currentTreasuryAmount: Option[Lovelace],
+    treasuryDonation: Option[Lovelace]
 )
 
 case class ScriptContext(

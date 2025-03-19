@@ -93,7 +93,7 @@ class SimpleSirToUplcV3LoweringSpec extends AnyFunSuite {
     test("Maybe") {
         val sir =
             compile:
-                new Maybe.Just(true)
+                new Option.Some(true)
 
         println(sir.showHighlighted)
         val lower = SimpleSirToUplcV3Lowering(sir)
@@ -123,8 +123,8 @@ class SimpleSirToUplcV3LoweringSpec extends AnyFunSuite {
             id = TxId(hex"61822dde476439a526070f36d3d1667ad099b462c111cd85e089f5e7f6"),
             votes = AssocMap(prelude.List.empty),
             proposalProcedures = prelude.List.empty,
-            currentTreasuryAmount = prelude.Maybe.Nothing,
-            treasuryDonation = prelude.Maybe.Nothing
+            currentTreasuryAmount = prelude.Option.None,
+            treasuryDonation = prelude.Option.None
           ),
           redeemer = Data.unit,
           scriptInfo = ScriptInfo.MintingScript(ByteString.empty)

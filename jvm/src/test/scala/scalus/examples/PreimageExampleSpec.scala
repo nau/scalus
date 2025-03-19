@@ -93,7 +93,7 @@ class PreimageExampleSpec extends BaseValidatorSpec {
         val validator = compiled.toUplc().plutusV2
 //        println(validator.showHighlighted)
         val flatSize = validator.flatEncoded.length
-        assert(flatSize == 1607)
+        assert(flatSize == 1621)
 
 //        performChecks(validator)
     }

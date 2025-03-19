@@ -7,7 +7,8 @@ import scalus.builtin.ByteString
 import scalus.builtin.Data
 import scalus.macros.Macros
 
-import scala.collection.immutable
+import scala.annotation.tailrec
+import scala.collection.{immutable, mutable}
 
 extension (x: Boolean)
     /** Trace the expression only if it evaluates to `false`. This is useful to trace an entire
@@ -30,8 +31,7 @@ object Prelude {
     given Eq[BigInt] = (x: BigInt, y: BigInt) => equalsInteger(x, y)
     given Eq[ByteString] = (x: ByteString, y: ByteString) => equalsByteString(x, y)
     given Eq[String] = (x: String, y: String) => equalsString(x, y)
-    given Eq[Boolean] = (x: Boolean, y: Boolean) =>
-        if x then if y then true else false else if y then false else true
+    given Eq[Boolean] = (x: Boolean, y: Boolean) => x == y
     given Eq[Data] = (x: Data, y: Data) => equalsData(x, y)
     given Eq[Unit] = (_: Unit, _: Unit) => true
 
@@ -78,16 +78,14 @@ inline def require(inline requirement: Boolean, inline message: String): Unit =
 enum List[+A]:
     case Nil extends List[Nothing]
     case Cons(head: A, tail: List[A]) extends List[A]
-    def toList: immutable.List[A] = this match
-        case Nil              => immutable.List.empty[A]
-        case Cons(head, tail) => head :: tail.toList
 
 @Compile
 object List:
-    import Maybe.*
+    import Option.*
     inline def empty[A]: List[A] = List.Nil
 
-    extension [A](lst: List[A]) inline def !!(idx: BigInt): A = getByIndex(lst)(idx)
+    /** Creates a list with a single element */
+    def single[A](a: A): List[A] = Cons(a, List.Nil)
 
     @Ignore
     def apply[A](args: A*): List[A] = args.foldRight(empty[A]) { case (a, b) => Cons(a, b) }
@@ -103,108 +101,153 @@ object List:
         from(i.asScala)
     }
 
-    def isEmpty[A](lst: List[A]): Boolean = lst match
-        case Nil        => true
-        case Cons(_, _) => false
-
-    def getByIndex[A](lst: List[A])(idx: BigInt): A = {
-        def go(i: BigInt, lst: List[A]): A = lst match
-            case Nil => throw new Exception("Index out of bounds")
-            case Cons(head, tail) =>
-                if equalsInteger(i, idx) then head else go(addInteger(i, 1), tail)
-        go(0, lst)
-    }
-
-    /** Creates a list with a single element */
-    def single[A](a: A): List[A] = Cons(a, List.Nil)
-
-    /** Adds an element at the beginning of this list */
-    def cons[A](head: A, tail: List[A]): List[A] = Cons(head, tail)
-
-    def append[A](lst1: List[A], lst2: List[A]): List[A] = lst1 match
-        case Nil              => lst2
-        case Cons(head, tail) => Cons(head, append(tail, lst2))
-
-    def map[A, B](lst: List[A])(f: A => B): List[B] = lst match
-        case Nil              => List.Nil
-        case Cons(head, tail) => Cons(f(head), List.map(tail)(f))
-
     def map2[A, B, C](a: List[A], b: List[B])(f: (A, B) => C): List[C] = {
         a match
-            case List.Cons(h1, t1) =>
+            case Cons(h1, t1) =>
                 b match
-                    case List.Cons(h2, t2) => List.Cons(f(h1, h2), map2(t1, t2)(f))
-                    case _                 => List.Nil
-            case _ => List.Nil
+                    case Cons(h2, t2) => Cons(f(h1, h2), map2(t1, t2)(f))
+                    case Nil          => Nil
+            case Nil => Nil
     }
 
-    def filter[A](lst: List[A])(p: A => Boolean): List[A] = lst match
-        case Nil => List.Nil
-        case Cons(head, tail) =>
-            if p(head) then Cons(head, List.filter(tail)(p)) else List.filter(tail)(p)
+    extension [A](self: List[A])
+        inline def !!(idx: BigInt): A = self.getByIndex(idx)
 
-    def findOrFail[A](lst: List[A])(p: A => Boolean): A = lst match
-        case Nil              => throw new Exception("Not found")
-        case Cons(head, tail) => if p(head) then head else findOrFail(tail)(p)
+        def isEmpty: Boolean = self match
+            case Nil        => true
+            case Cons(_, _) => false
 
-    def find[A](lst: List[A])(p: A => Boolean): Maybe[A] = lst match
-        case Nil              => Maybe.Nothing
-        case Cons(head, tail) => if p(head) then Maybe.Just(head) else find(tail)(p)
+        def nonEmpty: Boolean = self match
+            case Nil        => false
+            case Cons(_, _) => true
 
-    def exists[A](lst: List[A])(p: A => Boolean): Boolean = find(lst)(p) match
-        case Nothing => false
-        case Just(a) => true
+        def getByIndex(idx: BigInt): A = {
+            @tailrec
+            def go(i: BigInt, lst: List[A]): A = lst match
+                case Nil => throw new Exception("Index out of bounds")
+                case Cons(head, tail) =>
+                    if equalsInteger(i, idx) then head else go(addInteger(i, 1), tail)
 
-    def foldLeft[A, B](lst: List[A], z: B)(f: (B, A) => B): B = lst match
-        case Nil              => z
-        case Cons(head, tail) => foldLeft(tail, f(z, head))(f)
+            go(0, self)
+        }
 
-    def all[A, B](lst: List[A])(f: A => Boolean): Boolean =
-        foldLeft(lst, true)((acc, x) => acc && f(x))
+        /** Adds an element at the beginning of this list */
+        def prepended[B >: A](head: B): List[B] = Cons(head, self)
 
-    /** Returns the length of the list */
-    def length[A](lst: List[A]): BigInt = foldLeft(lst, BigInt(0))((acc, _) => acc + 1)
+        def appendedAll[B >: A](other: List[B]): List[B] = self match
+            case Nil              => other
+            case Cons(head, tail) => Cons(head, tail.appendedAll(other))
 
-enum Maybe[+A]:
-    case Nothing extends Maybe[Nothing]
-    case Just(value: A)
+        def map[B](f: A => B): List[B] = self match
+            case Nil              => Nil
+            case Cons(head, tail) => Cons(f(head), tail.map(f))
+
+        def filter(p: A => Boolean): List[A] = self match
+            case Nil => Nil
+            case Cons(head, tail) =>
+                if p(head) then Cons(head, tail.filter(p)) else tail.filter(p)
+
+        @tailrec
+        def find(p: A => Boolean): Option[A] = self match
+            case Nil              => None
+            case Cons(head, tail) => if p(head) then Some(head) else tail.find(p)
+
+        @tailrec
+        def foldLeft[B](z: B)(f: (B, A) => B): B = self match
+            case Nil              => z
+            case Cons(head, tail) => tail.foldLeft(f(z, head))(f)
+
+        @tailrec
+        def exists(p: A => Boolean): Boolean = self match
+            case Nil              => false
+            case Cons(head, tail) => if p(head) then true else tail.exists(p)
+
+        @tailrec
+        def forall(p: A => Boolean): Boolean = self match
+            case Nil              => true
+            case Cons(head, tail) => if p(head) then tail.forall(p) else false
+
+        def length: BigInt = {
+            @tailrec
+            def count(lst: List[A], counter: BigInt): BigInt = lst match
+                case Nil           => counter
+                case Cons(_, tail) => count(tail, counter + 1)
+
+            count(self, BigInt(0))
+        }
+
+        def size: BigInt = length
+
+        @Ignore
+        def toScalaList: immutable.List[A] = {
+            if (self.isEmpty) then return immutable.List.empty[A]
+
+            @tailrec
+            def toListBuffer(
+                list: List[A],
+                listBuffer: mutable.ListBuffer[A]
+            ): mutable.ListBuffer[A] =
+                list match
+                    case Nil              => listBuffer
+                    case Cons(head, tail) => toListBuffer(tail, listBuffer.addOne(head))
+
+            toListBuffer(self, mutable.ListBuffer.empty[A]).toList
+        }
+
+enum Option[+A]:
+    case None extends Option[Nothing]
+    case Some(value: A)
 
 @Compile
-object Maybe {
+object Option {
 
-    /** Constructs a `Maybe` from a value. If the value is `null`, it returns `Nothing`, otherwise
-      * `Just(value)`.
+    /** Constructs a `Option` from a value. If the value is `null`, it returns `None`, otherwise
+      * `Some(value)`.
       */
     @Ignore
-    inline def apply[A](x: A): Maybe[A] = if x == null then Nothing else Just(x)
+    inline def apply[A](x: A): Option[A] = if x == null then None else Some(x)
 
-    extension [A](m: Maybe[A])
-        /** Converts a `Maybe` to an [[Option]] */
+    extension [A](self: Option[A])
+        def isEmpty: Boolean = self match
+            case None    => true
+            case Some(_) => false
+
+        def nonEmpty: Boolean = self match
+            case None    => false
+            case Some(_) => true
+
+        def isDefined: Boolean = nonEmpty
+
+        inline def getOrFail(inline message: String = "None.getOrFail"): A = self match
+            case None        => throw new NoSuchElementException(message)
+            case Some(value) => value
+
+        /** Converts a `Option` to an [[scala.Option]] */
         @Ignore
-        def toOption: Option[A] = m match
-            case Nothing => None
-            case Just(a) => Some(a)
+        def toScalaOption: scala.Option[A] = self match
+            case None    => scala.None
+            case Some(a) => scala.Some(a)
 
-        def map[B](f: A => B): Maybe[B] = m match
-            case Nothing => Nothing
-            case Just(a) => Just(f(a))
+        def map[B](f: A => B): Option[B] = self match
+            case None    => None
+            case Some(a) => Some(f(a))
 
-    /** Converts an [[Option]] to a `Maybe` */
+    /** Converts an [[scala.Option]] to a `Option` */
     @Ignore
-    def fromOption[A](o: Option[A]): Maybe[A] = o match
-        case None    => Nothing
-        case Some(a) => Just(a)
+    def fromScalaOption[A](o: scala.Option[A]): Option[A] = o match
+        case scala.None    => None
+        case scala.Some(a) => Some(a)
 
-    given maybeEq[A](using eq: Eq[A]): Eq[Maybe[A]] = (a: Maybe[A], b: Maybe[A]) =>
+    given optionEq[A](using eq: Eq[A]): Eq[Option[A]] = (a: Option[A], b: Option[A]) =>
         a match
-            case Nothing =>
+            case None =>
                 b match
-                    case Nothing => true
-                    case Just(a) => false
-            case Just(value) =>
+                    case None    => true
+                    case Some(_) => false
+            case Some(value) =>
                 b match
-                    case Nothing      => false
-                    case Just(value2) => value === value2
+                    case None         => false
+                    case Some(value2) => value === value2
 }
 
 enum These[+A, +B]:
@@ -217,20 +260,18 @@ case class AssocMap[A, B](inner: List[(A, B)])
 @Compile
 object AssocMap {
     import List.*
-    import Maybe.*
+    import Option.*
     def empty[A, B]: AssocMap[A, B] = AssocMap(List.empty[(A, B)])
-    def singleton[A, B](key: A, value: B): AssocMap[A, B] = AssocMap(
-      List.cons((key, value), List.Nil)
-    )
+    def singleton[A, B](key: A, value: B): AssocMap[A, B] = AssocMap(List.single((key, value)))
     def fromList[A, B](lst: List[(A, B)]): AssocMap[A, B] = AssocMap(lst)
     def toList[A, B](map: AssocMap[A, B]): List[(A, B)] = map.inner
 
-    def lookup[A: Eq, B](map: AssocMap[A, B])(key: A): Maybe[B] =
-        def go(lst: List[(A, B)]): Maybe[B] = lst match
-            case Nil => Maybe.Nothing
+    def lookup[A: Eq, B](map: AssocMap[A, B])(key: A): Option[B] =
+        def go(lst: List[(A, B)]): Option[B] = lst match
+            case Nil => Option.None
             case Cons(pair, tail) =>
                 pair match
-                    case (k, v) => if k === key then Maybe.Just(v) else go(tail)
+                    case (k, v) => if k === key then Option.Some(v) else go(tail)
         go(map.inner)
 
     def insert[A: Eq, B](map: AssocMap[A, B])(key: A, value: B): AssocMap[A, B] =
@@ -261,25 +302,25 @@ object AssocMap {
             case Cons(pair, tail) =>
                 pair match
                     case (k, v) =>
-                        val maybeR = AssocMap.lookup(rhs)(k)
-                        val these = maybeR match
-                            case Nothing => These.This(v)
-                            case Just(r) => These.These(v, r)
+                        val optionR = AssocMap.lookup(rhs)(k)
+                        val these = optionR match
+                            case None    => These.This(v)
+                            case Some(r) => These.These(v, r)
                         Cons((k, these), go(tail))
 
         val lhs1 = go(lhs.inner) // all left with corresponding right
 
         val rhsNotInLhs =
-            List.filter(rhs.inner) { case (a, c) => !List.exists(lhs.inner)(p => p._1 === a) }
+            rhs.inner.filter { case (a, c) => !lhs.inner.exists(p => p._1 === a) }
 
-        val rhsThat = List.map(rhsNotInLhs) { case (k, v) => (k, These.That(v)) }
-        AssocMap(List.append(lhs1, rhsThat))
+        val rhsThat = rhsNotInLhs.map { case (k, v) => (k, These.That(v)) }
+        AssocMap(lhs1.appendedAll(rhsThat))
 
     def map[A, B, C](map: AssocMap[A, B])(f: ((A, B)) => (A, C)): AssocMap[A, C] =
-        AssocMap(List.map(map.inner)(f))
+        AssocMap(map.inner.map(f))
 
     def all[A, B](map: AssocMap[A, B])(f: ((A, B)) => Boolean): Boolean =
-        List.all(map.inner)(f)
+        map.inner.forall(f)
 }
 
 case class Rational(numerator: BigInt, denominator: BigInt)

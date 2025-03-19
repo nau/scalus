@@ -282,11 +282,9 @@ trait ArbitraryInstances:
         yield scalus.prelude.List(lst*)
     }
 
-    given arbMaybe[A: Arbitrary]: Arbitrary[scalus.prelude.Maybe[A]] = Arbitrary {
+    given arbOption[A: Arbitrary]: Arbitrary[scalus.prelude.Option[A]] = Arbitrary {
         for o <- Arbitrary.arbitrary[Option[A]]
-        yield o match
-            case None        => scalus.prelude.Maybe.Nothing
-            case Some(value) => scalus.prelude.Maybe.Just(value)
+        yield scalus.prelude.Option.fromScalaOption(o)
     }
 
     given arbAssocMap[A: Arbitrary, B: Arbitrary]: Arbitrary[scalus.prelude.AssocMap[A, B]] =

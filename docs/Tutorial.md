@@ -304,8 +304,7 @@ import scalus.prelude.List
 val pubKeyValidator = compile:
     def validator(ctxData: Data) = {
         val ctx = ctxData.to[ScriptContext]
-        List.findOrFail(ctx.txInfo.signatories): sig =>
-            sig.hash == hex"deadbeef"
+        ctx.txInfo.signatories.find {_.hash == hex"deadbeef"}
     }
 ```
 
@@ -355,7 +354,7 @@ val serializeToDoubleCborHex = {
     val pubKeyValidator = compile {
         def validator(datum: Data, redeamder: Data, ctxData: Data) = {
             val ctx = ctxData.to[ScriptContext]
-            List.findOrFail[PubKeyHash](ctx.txInfo.signatories)(sig => sig.hash == hex"deadbeef")
+            ctx.txInfo.signatories.find {_.hash == hex"deadbeef"}
         }
     }
     // convert to UPLC

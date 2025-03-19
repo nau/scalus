@@ -40,7 +40,7 @@ class HelloCardanoSpec extends AnyFunSuite {
         val appliedScript = HelloCardanoValidator.script $ context.toData
         assertEval(
           appliedScript,
-          Success(ExBudget.fromCpuAndMemory(cpu = 49427700, memory = 185591))
+          Success(ExBudget.fromCpuAndMemory(cpu = 49667700, memory = 187091))
         )
     }
 
@@ -61,13 +61,13 @@ class HelloCardanoSpec extends AnyFunSuite {
             id = TxId(hex"1e0612fbd127baddfcd555706de96b46c4d4363ac78c73ab4dee6e6a7bf61fe9"),
             votes = AssocMap.empty,
             proposalProcedures = List.Nil,
-            currentTreasuryAmount = Maybe.Nothing,
-            treasuryDonation = Maybe.Nothing
+            currentTreasuryAmount = Option.None,
+            treasuryDonation = Option.None
           ),
           redeemer = redeemer,
           scriptInfo = ScriptInfo.SpendingScript(
             txOutRef = TxOutRef(TxId(hex"deadbeef"), 0),
-            datum = Maybe.Just(datum)
+            datum = Option.Some(datum)
           )
         )
 

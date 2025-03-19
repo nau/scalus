@@ -1867,7 +1867,7 @@ class CompilerPluginToSIRSpec extends AnyFunSuite with ScalaCheckPropertyChecks:
         import scalus.prelude.List.*
         val compiled = compile {
             val ls: List[(BigInt, TxOutRef)] =
-                cons((1, new TxOutRef(new TxId(hex"deadbeef"), 2)), Nil)
+                List.single((1, new TxOutRef(new TxId(hex"deadbeef"), 2)))
             ls match
                 case Cons(h @ (a, TxOutRef(TxId(_), idx)), _) => a + idx
                 case Nil                                      => BigInt(0)
