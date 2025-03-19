@@ -280,15 +280,16 @@ class CompilerPluginToSIRSpec extends AnyFunSuite with ScalaCheckPropertyChecks:
         // Otherwise, compile Error(code.show)
         assert(
           compile { throw new RuntimeException(s"Not a literal: ${1 + 1}") } ~=~ Error(
-            "_root_.scala.StringContext.apply([\"Not a literal: \",\"\" : String]).s([2 : Any])", AnE
+            "_root_.scala.StringContext.apply([\"Not a literal: \",\"\" : String]).s([2 : Any])",
+            AnE
           )
         )
         // compile custom exceptions <:< Throwable as Error(exception.getSimpleName)
-        assert(compile { throw new CustomException } ~=~ Error("CustomException"))
+        assert(compile { throw new CustomException } ~=~ Error("CustomException", AnE))
         // compile throw code as Error(code.show)
-        assert(compile { throw foo() } ~=~ Error("foo()"))
+        assert(compile { throw foo() } ~=~ Error("foo()", AnE))
         // handle inlines correctly
-        assert(compile { err("test") } ~=~ Error("test"))
+        assert(compile { err("test") } ~=~ Error("test", AnE))
     }
 
     test("compile ToData") {

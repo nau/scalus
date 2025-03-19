@@ -179,11 +179,7 @@ class SimpleSirToUplcLoweringSpec
           List(a2TypeVar),
           ae
         )
-<<<<<<< HEAD
-        val listData = DataDecl("List", List(nilConstr, consConstr), List(a1TypeVar), ae)
-=======
-        val listData = DataDecl("List", List(consConstr, nilConstr), List(a1TypeVar))
->>>>>>> master
+        val listData = DataDecl("List", List(consConstr, nilConstr), List(a1TypeVar), ae)
         tailTypeProxy.ref = SumCaseClass(listData, List(a2TypeVar))
 
         val txIdData = DataDecl(

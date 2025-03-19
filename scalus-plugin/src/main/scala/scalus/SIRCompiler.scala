@@ -1324,7 +1324,7 @@ final class SIRCompiler(using ctx: Context) {
                 tpt.symbol.showName
             case SkipInline(term) =>
                 term.show
-        SIR.Error(msg)
+        SIR.Error(msg, AnnotationsDecl.fromSrcPos(ex.srcPos))
 
     private def compileEquality(env: Env, lhs: Tree, op: Name, rhs: Tree, srcPos: SrcPos): SIR = {
         lazy val lhsExpr = compileExpr(env, lhs)
