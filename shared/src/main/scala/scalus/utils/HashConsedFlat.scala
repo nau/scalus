@@ -141,6 +141,72 @@ object HashConsedReprFlat {
     ): HashConsedReprFlat[List[A], ListRepl[A, SA]] =
         listHashConsedRepr[A, SA](using flatRepr)
 
+    case class StringMapRep[A <: AnyRef, SA <: HashConsedRef[A]](elems: Map[String, SA])
+        extends HashConsedRef[Map[String, A]] {
+
+        var result: Map[String, A] | Null = null
+
+        def isComplete(hashConsed: HashConsed.State): Boolean =
+            if (result eq null) then elems.valuesIterator.forall(_.isComplete(hashConsed))
+            else true
+
+        override def finValue(
+            hashConsed: HashConsed.State,
+            level: Int,
+            parents: HSRIdentityHashMap
+        ): Map[String, A] =
+            if !(result eq null) then result
+            else
+                // if parents.get(this) != null then
+                //    throw new Exception(s"Cycle detected, this=${this}")
+                // parents.put(this, this)
+                val nextLevel = level + 1
+                val retval = elems.view.mapValues(_.finValue(hashConsed, nextLevel, parents)).toMap
+                // parents.remove(this)
+                result = retval
+                retval
+    }
+
+    implicit def stringMapHashConsedRepr[A <: AnyRef, SA <: HashConsedRef[A]](using
+        flatA: HashConsedReprFlat[A, SA]
+    ): HashConsedReprFlat[Map[String, A], StringMapRep[A, SA]] =
+        new HashConsedReprFlat[Map[String, A], StringMapRep[A, SA]] {
+
+            import scalus.flat.given
+
+            def toRepr(a: Map[String, A]): StringMapRep[A, SA] =
+                StringMapRep[A, SA](a.view.mapValues(flatA.toRepr).toMap)
+
+            def bitSizeHC(a: Map[String, A], hashConsed: HashConsed.State): Int = {
+                a.foldLeft(1)((acc, elem) =>
+                    acc + 1 + summon[Flat[String]].bitSize(elem._1) + flatA.bitSizeHC(
+                      elem._2,
+                      hashConsed
+                    )
+                )
+            }
+
+            def encodeHC(a: Map[String, A], encode: HashConsedEncoderState): Unit = {
+                a.foreach { elem =>
+                    encode.encode.bits(1, 1)
+                    summon[Flat[String]].encode(elem._1, encode.encode)
+                    flatA.encodeHC(elem._2, encode)
+                }
+                encode.encode.bits(1, 0)
+            }
+
+            def decodeHC(decode: HashConsedDecoderState): StringMapRep[A, SA] = {
+                val builder = Map.newBuilder[String, SA]
+                while decode.decode.bits8(1) == 1.toByte
+                do
+                    val key = summon[Flat[String]].decode(decode.decode)
+                    val elem = flatA.decodeHC(decode)
+                    builder += (key -> elem)
+                StringMapRep(builder.result())
+            }
+
+        }
+
 }
 
 /*

@@ -49,7 +49,7 @@ class SimpleSirToUplcLowering(sir: SIR, generateErrorTraces: Boolean = false):
             case SIR.Decl(data, body) =>
                 decls(data.name) = data
                 lowerInner(body)
-            case SIR.Constr(name, data, args, tp) =>
+            case SIR.Constr(name, data, args, tp, anns) =>
                 /* data List a = Nil | Cons a (List a)
                     Nil is represented as \Nil Cons -> force Nil
                     Cons is represented as (\head tail Nil Cons -> Cons head tail) h tl
@@ -84,7 +84,7 @@ class SimpleSirToUplcLowering(sir: SIR, generateErrorTraces: Boolean = false):
                 args.foldLeft(ctorParamsLambda) { (acc, arg) =>
                     Term.Apply(acc, lowerInner(arg))
                 }
-            case SIR.Match(scrutinee, cases, tp) =>
+            case SIR.Match(scrutinee, cases, tp, anns) =>
                 /* list match
                     case Nil -> 1
                     case Cons(h, tl) -> 2
@@ -104,7 +104,7 @@ class SimpleSirToUplcLowering(sir: SIR, generateErrorTraces: Boolean = false):
                         case SIRType.TypeLambda(_, t) => find(t)
                         case _ =>
                             throw new IllegalArgumentException(
-                              s"Expected case class type, got ${sirType} in expression: ${sir.show}"
+                              s"Expected case class type, got ${sirType} in expression: ${sir.show} at ${sir.pos}"
                             )
 
                 val constructors = find(scrutinee.tp)
@@ -172,7 +172,7 @@ class SimpleSirToUplcLowering(sir: SIR, generateErrorTraces: Boolean = false):
                                 }
                     case SIR.Case(Pattern.Wildcard, _) =>
                         throw new IllegalArgumentException(
-                          "Wildcard case must have been eliminated"
+                          s"Wildcard case must have been eliminated at ${sir.pos.file}:${sir.pos.startLine}, ${sir.pos.startColumn}"
                         )
                 }
 
@@ -181,16 +181,16 @@ class SimpleSirToUplcLowering(sir: SIR, generateErrorTraces: Boolean = false):
                         Term.Apply(acc, caseTerm)
                     }
                 matchResult
-            case SIR.Var(name, _)            => Term.Var(NamedDeBruijn(name))
-            case SIR.ExternalVar(_, name, _) => Term.Var(NamedDeBruijn(name))
-            case SIR.Let(NonRec, bindings, body) =>
+            case SIR.Var(name, _, _)            => Term.Var(NamedDeBruijn(name))
+            case SIR.ExternalVar(_, name, _, _) => Term.Var(NamedDeBruijn(name))
+            case SIR.Let(NonRec, bindings, body, anns) =>
                 val loweredBody = lowerInner(body)
                 val letResult = bindings.foldRight(loweredBody) { case (Binding(name, rhs), body) =>
                     val loweredRhs = lowerInner(rhs)
                     Term.Apply(Term.LamAbs(name, body), lowerInner(rhs))
                 }
                 letResult
-            case SIR.Let(Rec, Binding(name, rhs) :: Nil, body) =>
+            case SIR.Let(Rec, Binding(name, rhs) :: Nil, body, _) =>
                 /*  let rec f x = f (x + 1)
                     in f 0
                     (\f -> f 0) (Z (\f. \x. f (x + 1)))
@@ -202,12 +202,12 @@ class SimpleSirToUplcLowering(sir: SIR, generateErrorTraces: Boolean = false):
                       Term.LamAbs(name, lowerInner(rhs))
                     )
                 Term.Apply(Term.LamAbs(name, lowerInner(body)), fixed)
-            case SIR.Let(Rec, bindings, body) =>
+            case SIR.Let(Rec, bindings, body, _) =>
                 // TODO: implement mutual recursion
                 sys.error(s"Mutually recursive bindings are not supported: $bindings")
-            case SIR.LamAbs(name, term) => Term.LamAbs(name.name, lowerInner(term))
-            case SIR.Apply(f, arg, _)   => Term.Apply(lowerInner(f), lowerInner(arg))
-            case SIR.Select(scrutinee, field, _) =>
+            case SIR.LamAbs(name, term, _) => Term.LamAbs(name.name, lowerInner(term))
+            case SIR.Apply(f, arg, _, _)   => Term.Apply(lowerInner(f), lowerInner(arg))
+            case SIR.Select(scrutinee, field, _, anns) =>
                 @tailrec
                 def find(sirType: SIRType): ConstrDecl =
                     sirType match
@@ -216,18 +216,18 @@ class SimpleSirToUplcLowering(sir: SIR, generateErrorTraces: Boolean = false):
                             if decl.constructors.length == 1 then decl.constructors.head
                             else
                                 throw new IllegalArgumentException(
-                                  s"Expected case class type, got ${sirType} in expression: ${sir.show}"
+                                  s"Expected case class type, got ${sirType} in expression: ${sir.show} at ${sir.pos.file}:${sir.pos.startLine}, ${sir.pos.startColumn}"
                                 )
                         case SIRType.TypeLambda(_, t) => find(t)
                         case _ =>
                             throw new IllegalArgumentException(
-                              s"Expected case class type, got ${sirType} in expression: ${sir.show}"
+                              s"Expected case class type, got ${sirType} in expression: ${sir.show} at ${sir.pos.file}:${sir.pos.startLine}, ${sir.pos.startColumn}"
                             )
                 def lowerSelect(constrDecl: ConstrDecl) = {
                     val fieldIndex = constrDecl.params.indexWhere(_.name == field)
                     if fieldIndex == -1 then
                         throw new IllegalArgumentException(
-                          s"Field $field not found in constructor ${constrDecl}"
+                          s"Field $field not found in constructor ${constrDecl} at ${sir.pos.file}:${sir.pos.startLine}, ${sir.pos.startColumn}"
                         )
                     val instance = lowerInner(scrutinee)
                     val s0 = Term.Var(NamedDeBruijn(field))
@@ -237,40 +237,43 @@ class SimpleSirToUplcLowering(sir: SIR, generateErrorTraces: Boolean = false):
                     Term.Apply(instance, lam)
                 }
                 lowerSelect(find(scrutinee.tp))
-            case SIR.Const(const, _) => Term.Const(const)
+            case SIR.Const(const, _, _) => Term.Const(const)
             case SIR.And(lhs, rhs) =>
                 lowerInner(
                   SIR.IfThenElse(
                     lhs,
                     rhs,
-                    SIR.Const(Constant.Bool(false), SIRType.Boolean),
-                    SIRType.Boolean
+                    SIR.Const(Constant.Bool(false), SIRType.Boolean, AnnotationsDecl.empty),
+                    SIRType.Boolean,
+                    AnnotationsDecl(pos = lhs.pos.union(rhs.pos))
                   )
                 )
             case SIR.Or(lhs, rhs) =>
                 lowerInner(
                   SIR.IfThenElse(
                     lhs,
-                    SIR.Const(Constant.Bool(true), SIRType.Boolean),
+                    SIR.Const(Constant.Bool(true), SIRType.Boolean, AnnotationsDecl.empty),
                     rhs,
-                    SIRType.Boolean
+                    SIRType.Boolean,
+                    AnnotationsDecl(pos = lhs.pos.union(rhs.pos))
                   )
                 )
             case SIR.Not(term) =>
                 lowerInner(
                   SIR.IfThenElse(
                     term,
-                    SIR.Const(Constant.Bool(false), SIRType.Boolean),
-                    SIR.Const(Constant.Bool(true), SIRType.Boolean),
-                    SIRType.Boolean
+                    SIR.Const(Constant.Bool(false), SIRType.Boolean, AnnotationsDecl.empty),
+                    SIR.Const(Constant.Bool(true), SIRType.Boolean, AnnotationsDecl.empty),
+                    SIRType.Boolean,
+                    AnnotationsDecl(pos = term.pos)
                   )
                 )
-            case SIR.IfThenElse(cond, t, f, _) =>
+            case SIR.IfThenElse(cond, t, f, _, _) =>
                 !(builtinTerms(DefaultFun.IfThenElse) $ lowerInner(cond) $ ~lowerInner(
                   t
                 ) $ ~lowerInner(f))
-            case SIR.Builtin(bn, _) => builtinTerms(bn)
-            case SIR.Error(msg, _) =>
+            case SIR.Builtin(bn, _, _) => builtinTerms(bn)
+            case SIR.Error(msg, _, _) =>
                 if generateErrorTraces
                 then
                     !(builtinTerms(DefaultFun.Trace) $ Term.Const(

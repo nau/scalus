@@ -16,9 +16,10 @@ class RemoveRecursivitySpec extends AnyFunSuite:
         import scalus.uplc.Constant
         import scalus.uplc.DefaultFun.{IfThenElse as _, *}
 
-        val xVar = Var("x", SIRType.Integer)
-        val nonRecursiveVar = Var("nonRecursive", Fun(Integer, Integer))
-        val recursiveVar = Var("recursive", Fun(Integer, Integer))
+        val ae = AnnotationsDecl.empty
+        val xVar = Var("x", SIRType.Integer, ae)
+        val nonRecursiveVar = Var("nonRecursive", Fun(Integer, Integer), ae)
+        val recursiveVar = Var("recursive", Fun(Integer, Integer), ae)
 
         assert(
           optimized == Let(
@@ -40,36 +41,46 @@ class RemoveRecursivitySpec extends AnyFunSuite:
                               Apply(
                                 SIRBuiltins.equalsInteger,
                                 xVar,
-                                Fun(Integer, Boolean)
+                                Fun(Integer, Boolean),
+                                ae
                               ),
-                              Const(Constant.Integer(0), Integer),
-                              Boolean
+                              Const(Constant.Integer(0), Integer, ae),
+                              Boolean,
+                              ae
                             ),
-                            Const(Constant.Integer(0), Integer),
+                            Const(Constant.Integer(0), Integer, ae),
                             Apply(
                               recursiveVar,
                               Apply(
                                 Apply(
                                   SIRBuiltins.subtractInteger,
                                   xVar,
-                                  Fun(Integer, Integer)
+                                  Fun(Integer, Integer),
+                                  ae
                                 ),
-                                Const(Constant.Integer(1), Integer),
-                                Integer
+                                Const(Constant.Integer(1), Integer, ae),
+                                Integer,
+                                ae
                               ),
-                              Integer
+                              Integer,
+                              ae
                             ),
-                            Integer
-                          )
+                            Integer,
+                            ae
+                          ),
+                          ae
                         )
                       )
                     ),
-                    Apply(recursiveVar, xVar, Integer)
-                  )
+                    Apply(recursiveVar, xVar, Integer, ae),
+                    ae
+                  ),
+                  ae
                 )
               )
             ),
-            Const(Constant.Unit, Unit)
+            Const(Constant.Unit, Unit, ae),
+            ae
           )
         )
     }

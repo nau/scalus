@@ -130,7 +130,8 @@ object SIRType {
               SIRVarStorage.LocalUPLC,
               scala.List(TypeBinding("fst", A), TypeBinding("snd", B)),
               scala.List(A, B),
-              scala.Nil
+              scala.Nil,
+              AnnotationsDecl.empty
             )
         }
 
@@ -278,7 +279,8 @@ object SIRType {
             val retval = DataDecl(
               "scalus.prelude.List",
               scala.List(Cons.buildConstr(aInCons, proxy), NilConstr),
-              scala.List(TypeVar("A", Some(2)))
+              scala.List(TypeVar("A", Some(2))),
+              AnnotationsDecl.empty
             )
             proxy.ref = SumCaseClass(retval, scala.List(TypeVar("A", Some(1))))
             if (!checkAllProxiesFilled(retval.tp)) then
@@ -306,7 +308,8 @@ object SIRType {
                   SIRVarStorage.LocalUPLC,
                   scala.List(TypeBinding("head", a), TypeBinding("tail", listSum)),
                   scala.List(a),
-                  scala.List(a)
+                  scala.List(a),
+                  AnnotationsDecl.empty
                 )
             }
 
@@ -338,7 +341,8 @@ object SIRType {
               SIRVarStorage.DEFAULT,
               scala.Nil,
               scala.Nil,
-              scala.List(SIRType.TypeNothing)
+              scala.List(SIRType.TypeNothing),
+              AnnotationsDecl.empty
             )
 
         val Nil = CaseClass(NilConstr, scala.Nil, Some(List.apply(SIRType.TypeNothing)))

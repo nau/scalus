@@ -61,7 +61,7 @@ class ContextSpec
             import scalus.ledger.api.v1.ToDataInstances.given
             assert(i === i)
             val d = i.toData
-            val applied = sir $ SIR.Const(Constant.Data(d), SIRType.Data)
+            val applied = sir $ SIR.Const(Constant.Data(d), SIRType.Data, AnnotationsDecl.empty)
             assertEval(applied, true)
         }
     }

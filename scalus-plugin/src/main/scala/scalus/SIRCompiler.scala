@@ -11,12 +11,13 @@ import dotty.tools.dotc.core.StdNames.nme
 import dotty.tools.dotc.core.Symbols.*
 import dotty.tools.dotc.core.Types.*
 import dotty.tools.dotc.core.*
-import dotty.tools.dotc.util.SrcPos
+import dotty.tools.dotc.util.{NoSource, NoSourcePosition, SourcePosition, SrcPos}
 import dotty.tools.io.ClassPath
 import scalus.flat.DecoderState
 import scalus.flat.EncoderState
 import scalus.flat.Flat
 import scalus.flat.FlatInstantces.given
+import scalus.sir.AnnotationsDecl
 import scalus.sir.Binding
 import scalus.sir.ConstrDecl
 import scalus.sir.DataDecl
@@ -26,6 +27,7 @@ import scalus.sir.SIR
 import scalus.sir.SIRType
 import scalus.sir.SIRVarStorage
 import scalus.sir.SIRBuiltins
+import scalus.sir.SIRPosition
 import scalus.sir.TypeBinding
 import scalus.uplc.DefaultUni
 
@@ -137,7 +139,13 @@ final class SIRCompiler(using ctx: Context) {
     extension (t: Tree) def isLiteral: Boolean = compileConstant.isDefinedAt(t)
     extension (t: Tree) def isData: Boolean = t.tpe <:< DataClassSymbol.typeRef
 
-    case class LocalBinding(name: String, symbol: Symbol, recursivity: Recursivity, body: SIR):
+    case class LocalBinding(
+        name: String,
+        symbol: Symbol,
+        recursivity: Recursivity,
+        body: SIR,
+        pos: SourcePosition
+    ):
         def fullName(using Context): FullName = FullName(symbol)
 
     private val globalDefs: mutable.LinkedHashMap[FullName, CompileDef] =
@@ -358,7 +366,18 @@ final class SIRCompiler(using ctx: Context) {
         val constrDecls = sortedConstructors.map { sym =>
             makeConstrDecl(env, srcPos, sym)
         }
-        scalus.sir.DataDecl(dataFullName.name, constrDecls, dataTypeParams)
+        val sourcePos =
+            if (dataInfo.dataTypeSymbol.srcPos.sourcePos == NoSourcePosition) then srcPos.sourcePos
+            else dataInfo.dataTypeSymbol.srcPos.sourcePos
+        val optComment = dataInfo.dataTypeSymbol.defTree match
+            case memberDef: MemberDef =>
+                memberDef.rawComment.map(_.raw)
+            case _ => None
+        val anns = AnnotationsDecl(
+          SIRPosition.fromSourcePosition(sourcePos),
+          optComment
+        )
+        scalus.sir.DataDecl(dataFullName.name, constrDecls, dataTypeParams, anns)
     }
 
     def makeConstrDecl(env: Env, srcPos: SrcPos, constrSymbol: Symbol): ConstrDecl = {
@@ -400,12 +419,19 @@ final class SIRCompiler(using ctx: Context) {
             .getOrElse(Nil)
         // TODO: add substoitution for parent type params
         // scalus.sir.ConstrDecl(sym.name.show, SIRVarStorage.DEFAULT, params, typeParams, baseTypeArgs)
+        val pos = SIRPosition.fromSrcPos(srcPos)
+        val comment = constrSymbol.defTree match
+            case memberDef: MemberDef =>
+                memberDef.rawComment.map(_.raw)
+            case _ => None
+        val anns = AnnotationsDecl(pos, comment)
         scalus.sir.ConstrDecl(
           constrSymbol.fullName.show,
           SIRVarStorage.DEFAULT,
           params,
           typeParams,
-          baseTypeArgs
+          baseTypeArgs,
+          anns
         )
     }
 
@@ -421,11 +447,22 @@ final class SIRCompiler(using ctx: Context) {
         val argsE = args.map(compileExpr(env, _))
         val dataDecl = getCachedDataDecl(constructorCallInfo.dataInfo, env, srcPos)
         // constructor body as: constr arg1 arg2 ...
+        val (pos, optComment) = constructorCallInfo.dataInfo.constructorsSymbols.find(
+          _.fullName.show == constructorCallInfo.fullName
+        ) match
+            case Some(sym) =>
+                sym.defTree match
+                    case memberDef: MemberDef =>
+                        (SIRPosition.fromSrcPos(memberDef.srcPos), memberDef.rawComment.map(_.raw))
+                    case _ =>
+                        (SIRPosition.fromSrcPos(srcPos), None)
+        val anns = AnnotationsDecl(pos, optComment)
         SIR.Constr(
           constructorCallInfo.fullName,
           dataDecl,
           argsE,
-          sirTypeInEnv(fullType, srcPos, env)
+          sirTypeInEnv(fullType, srcPos, env),
+          anns
         )
     }
 
@@ -466,16 +503,32 @@ final class SIRCompiler(using ctx: Context) {
                                 globalType,
                                 e.srcPos
                               ),
-                              SIR.Var(e.symbol.fullName.toString, localType)
+                              SIR.Var(
+                                e.symbol.fullName.toString,
+                                localType,
+                                AnnotationsDecl.fromSymIn(e.symbol, e.srcPos.sourcePos)
+                              )
                             )
                     case _ =>
-                SIR.Var(e.symbol.fullName.toString, localType)
+                SIR.Var(
+                  e.symbol.fullName.toString,
+                  localType,
+                  AnnotationsDecl.fromSymIn(e.symbol, e.srcPos.sourcePos)
+                )
             // local def, use the name
             case (true, false) =>
-                SIR.Var(e.symbol.name.show, env.vars(name))
+                SIR.Var(
+                  e.symbol.name.show,
+                  env.vars(name),
+                  AnnotationsDecl.fromSymIn(e.symbol, e.srcPos.sourcePos)
+                )
             // global def, use full name
             case (false, true) =>
-                SIR.Var(e.symbol.fullName.toString, sirTypeInEnv(e.tpe.widen, e.srcPos, env))
+                SIR.Var(
+                  e.symbol.fullName.toString,
+                  sirTypeInEnv(e.tpe.widen, e.srcPos, env),
+                  AnnotationsDecl.fromSymIn(e.symbol, e.srcPos.sourcePos)
+                )
             case (false, false) =>
                 // println( s"external var: module ${e.symbol.owner.fullName.toString()}, ${e.symbol.fullName.toString()}" )
                 val valType = sirTypeInEnv(e.tpe.widen.dealias, e.srcPos, env)
@@ -483,7 +536,8 @@ final class SIRCompiler(using ctx: Context) {
                     SIR.ExternalVar(
                       e.symbol.owner.fullName.toString,
                       e.symbol.fullName.toString,
-                      valType
+                      valType,
+                      AnnotationsDecl.fromSymIn(e.symbol, e.srcPos.sourcePos)
                     )
                 catch
                     case NonFatal(ex) =>
@@ -529,7 +583,7 @@ final class SIRCompiler(using ctx: Context) {
             // vd.rawComment
             val bodyExpr = compileExpr(env, vd.rhs)
             CompileMemberDefResult.Compiled(
-              LocalBinding(name.show, vd.symbol, Recursivity.NonRec, bodyExpr)
+              LocalBinding(name.show, vd.symbol, Recursivity.NonRec, bodyExpr, vd.sourcePos)
             )
     }
 
@@ -551,8 +605,12 @@ final class SIRCompiler(using ctx: Context) {
             val typeParamsMap = typeParams.foldLeft(Map.empty[Symbol, SIRType]) { case (acc, td) =>
                 acc + (td.symbol -> SIRType.TypeVar(td.symbol.name.show, Some(td.symbol.hashCode)))
             }
-            val paramNameTypes =
-                if params.isEmpty then List(("_" -> SIRType.Unit)) /* Param for () argument */
+            val paramVars =
+                if params.isEmpty
+                then
+                    List(
+                      SIR.Var("_", SIRType.Unit, AnnotationsDecl.empty)
+                    ) /* Param for () argument */
                 else
                     params.map { case v: ValDef =>
                         val tEnv =
@@ -567,8 +625,10 @@ final class SIRCompiler(using ctx: Context) {
                                     println(s"Params: ${params}")
                                     println(s"TypeParams: ${typeParams}")
                                     throw e
-                        (v.symbol.name.show, vType)
+                        val anns = AnnotationsDecl.fromSymIn(v.symbol, v.srcPos.sourcePos)
+                        SIR.Var(v.symbol.name.show, vType, anns)
                     }
+            val paramNameTypes = paramVars.map(p => (p.name, p.tp))
             val body = dd.rhs
             val selfName = if isGlobalDef then FullName(dd.symbol).name else dd.symbol.name.show
             val selfType = sirTypeInEnv(dd.tpe, SIRTypeEnv(dd.srcPos, env.typeVars))
@@ -576,11 +636,11 @@ final class SIRCompiler(using ctx: Context) {
             val nVars = env.vars ++ paramNameTypes + (selfName -> selfType)
             val bE = compileExpr(env.copy(vars = nVars, typeVars = nTypeVars), body)
             val bodyExpr: scalus.sir.SIR =
-                paramNameTypes.foldRight(bE) { (nameType, acc) =>
-                    SIR.LamAbs(SIR.Var(nameType._1, nameType._2), acc)
+                paramVars.foldRight(bE) { (v, acc) =>
+                    SIR.LamAbs(v, acc, v.anns)
                 }
             CompileMemberDefResult.Compiled(
-              LocalBinding(dd.name.show, dd.symbol, Recursivity.Rec, bodyExpr)
+              LocalBinding(dd.name.show, dd.symbol, Recursivity.Rec, bodyExpr, dd.sourcePos)
             )
     }
 
@@ -600,7 +660,8 @@ final class SIRCompiler(using ctx: Context) {
                     s"__${stmt.source.file.name.takeWhile(_.isLetterOrDigit)}_line_${stmt.srcPos.line}",
                     NoSymbol,
                     Recursivity.NonRec,
-                    compileExpr(env, x)
+                    compileExpr(env, x),
+                    stmt.sourcePos
                   )
                 )
     }
@@ -623,8 +684,13 @@ final class SIRCompiler(using ctx: Context) {
         if env.debug then
             println(s"compileBlock: expr=${expr.show}")
             println(s"compileBlock: exprExprs.tp=${exprExpr.tp.show}")
-        val retval = exprs.foldRight(exprExpr) { (bind, expr) =>
-            SIR.Let(bind.recursivity, List(Binding(bind.name, bind.body)), expr)
+        val retval = exprs.foldRight(exprExpr) { (bind, sirExpr) =>
+            SIR.Let(
+              bind.recursivity,
+              List(Binding(bind.name, bind.body)),
+              sirExpr,
+              AnnotationsDecl.fromSourcePosition(expr.sourcePos)
+            )
         }
         if env.debug then
             println(
@@ -825,100 +891,120 @@ final class SIRCompiler(using ctx: Context) {
                   SIR.Apply(
                     SIRBuiltins.addInteger,
                     compileExpr(env, lhs),
-                    SIRType.Integer ->: SIRType.Integer
+                    SIRType.Integer ->: SIRType.Integer,
+                    AnnotationsDecl.fromSourcePosition(lhs.srcPos.sourcePos)
                   ),
                   compileExpr(env, rhs),
-                  SIRType.Integer
+                  SIRType.Integer,
+                  AnnotationsDecl.fromSourcePosition(lhs.sourcePos union rhs.sourcePos)
                 )
             case nme.MINUS =>
                 SIR.Apply(
                   SIR.Apply(
                     SIRBuiltins.subtractInteger,
                     compileExpr(env, lhs),
-                    SIRType.Integer ->: SIRType.Integer
+                    SIRType.Integer ->: SIRType.Integer,
+                    AnnotationsDecl.fromSourcePosition(lhs.sourcePos)
                   ),
                   compileExpr(env, rhs),
-                  SIRType.Integer
+                  SIRType.Integer,
+                  AnnotationsDecl.fromSourcePosition(lhs.sourcePos union rhs.sourcePos)
                 )
             case nme.MUL =>
                 SIR.Apply(
                   SIR.Apply(
                     SIRBuiltins.multiplyInteger,
                     compileExpr(env, lhs),
-                    SIRType.Integer ->: SIRType.Integer
+                    SIRType.Integer ->: SIRType.Integer,
+                    AnnotationsDecl.fromSourcePosition(lhs.sourcePos)
                   ),
                   compileExpr(env, rhs),
-                  SIRType.Integer
+                  SIRType.Integer,
+                  AnnotationsDecl.fromSourcePosition(lhs.sourcePos union rhs.sourcePos)
                 )
             case nme.DIV =>
                 SIR.Apply(
                   SIR.Apply(
                     SIRBuiltins.divideInteger,
                     compileExpr(env, lhs),
-                    SIRType.Integer ->: SIRType.Integer
+                    SIRType.Integer ->: SIRType.Integer,
+                    AnnotationsDecl.fromSourcePosition(lhs.sourcePos)
                   ),
                   compileExpr(env, rhs),
-                  SIRType.Integer
+                  SIRType.Integer,
+                  AnnotationsDecl.fromSourcePosition(lhs.sourcePos union rhs.sourcePos)
                 )
             case nme.MOD =>
                 SIR.Apply(
                   SIR.Apply(
                     SIRBuiltins.remainderInteger,
                     compileExpr(env, lhs),
-                    SIRType.Integer ->: SIRType.Integer
+                    SIRType.Integer ->: SIRType.Integer,
+                    AnnotationsDecl.fromSourcePosition(lhs.sourcePos)
                   ),
                   compileExpr(env, rhs),
-                  SIRType.Integer
+                  SIRType.Integer,
+                  AnnotationsDecl.fromSourcePosition(lhs.sourcePos union rhs.sourcePos)
                 )
             case nme.LT =>
                 SIR.Apply(
                   SIR.Apply(
                     SIRBuiltins.lessThanInteger,
                     compileExpr(env, lhs),
-                    SIRType.Integer ->: SIRType.Boolean
+                    SIRType.Integer ->: SIRType.Boolean,
+                    AnnotationsDecl.fromSourcePosition(lhs.sourcePos)
                   ),
                   compileExpr(env, rhs),
-                  SIRType.Boolean
+                  SIRType.Boolean,
+                  AnnotationsDecl.fromSourcePosition(lhs.sourcePos union rhs.sourcePos)
                 )
             case nme.LE =>
                 SIR.Apply(
                   SIR.Apply(
                     SIRBuiltins.lessThanEqualsInteger,
                     compileExpr(env, lhs),
-                    SIRType.Integer ->: SIRType.Boolean
+                    SIRType.Integer ->: SIRType.Boolean,
+                    AnnotationsDecl.fromSourcePosition(lhs.sourcePos)
                   ),
                   compileExpr(env, rhs),
-                  SIRType.Boolean
+                  SIRType.Boolean,
+                  AnnotationsDecl.fromSourcePosition(lhs.sourcePos union rhs.sourcePos)
                 )
             case nme.GT =>
                 SIR.Apply(
                   SIR.Apply(
                     SIRBuiltins.lessThanInteger,
                     compileExpr(env, rhs),
-                    SIRType.Integer ->: SIRType.Boolean
+                    SIRType.Integer ->: SIRType.Boolean,
+                    AnnotationsDecl.fromSourcePosition(rhs.sourcePos)
                   ),
                   compileExpr(env, lhs),
-                  SIRType.Boolean
+                  SIRType.Boolean,
+                  AnnotationsDecl.fromSourcePosition(lhs.sourcePos union rhs.sourcePos)
                 )
             case nme.GE =>
                 SIR.Apply(
                   SIR.Apply(
                     SIRBuiltins.lessThanEqualsInteger,
                     compileExpr(env, rhs),
-                    SIRType.Integer ->: SIRType.Boolean
+                    SIRType.Integer ->: SIRType.Boolean,
+                    AnnotationsDecl.fromSourcePosition(rhs.sourcePos)
                   ),
                   compileExpr(env, lhs),
-                  SIRType.Boolean
+                  SIRType.Boolean,
+                  AnnotationsDecl.fromSourcePosition(lhs.sourcePos union rhs.sourcePos)
                 )
             case nme.EQ =>
                 SIR.Apply(
                   SIR.Apply(
                     SIRBuiltins.equalsInteger,
                     compileExpr(env, lhs),
-                    SIRType.Integer ->: SIRType.Boolean
+                    SIRType.Integer ->: SIRType.Boolean,
+                    AnnotationsDecl.fromSourcePosition(lhs.sourcePos)
                   ),
                   compileExpr(env, rhs),
-                  SIRType.Boolean
+                  SIRType.Boolean,
+                  AnnotationsDecl.fromSourcePosition(lhs.sourcePos union rhs.sourcePos)
                 )
             case nme.NE =>
                 SIR.Not(
@@ -926,16 +1012,21 @@ final class SIRCompiler(using ctx: Context) {
                     SIR.Apply(
                       SIRBuiltins.equalsInteger,
                       compileExpr(env, lhs),
-                      SIRType.Integer ->: SIRType.Boolean
+                      SIRType.Integer ->: SIRType.Boolean,
+                      AnnotationsDecl.fromSourcePosition(lhs.sourcePos)
                     ),
                     compileExpr(env, rhs),
-                    SIRType.Boolean
+                    SIRType.Boolean,
+                    AnnotationsDecl.fromSourcePosition(lhs.sourcePos union rhs.sourcePos)
                   )
                 )
             case _ =>
                 error(
                   UnsupportedBigIntOp(op.show, optree.srcPos),
-                  SIR.Error("Unsupported BigInt operation")
+                  SIR.Error(
+                    "Unsupported BigInt operation",
+                    AnnotationsDecl.fromSourcePosition(optree.sourcePos)
+                  )
                 )
 
     private def compileMatch(tree: Match, env: Env): SIR = {
@@ -948,7 +1039,12 @@ final class SIRCompiler(using ctx: Context) {
                 val expr = compileExpr(env, pair)
                 expr.tp match
                     case SIRType.Pair(t1, t2) =>
-                        SIR.Apply(SIRBuiltins.fstPair, expr, t1)
+                        SIR.Apply(
+                          SIRBuiltins.fstPair,
+                          expr,
+                          t1,
+                          AnnotationsDecl.fromSourcePosition(tree.sourcePos)
+                        )
                     case other =>
                         error(
                           TypeMismatch(
@@ -957,13 +1053,21 @@ final class SIRCompiler(using ctx: Context) {
                             other,
                             tree.srcPos
                           ),
-                          SIR.Error("")
+                          SIR.Error(
+                            "Type mismatch",
+                            AnnotationsDecl.fromSourcePosition(tree.sourcePos)
+                          )
                         )
             case "snd" =>
                 val expr = compileExpr(env, pair)
                 expr.tp match
                     case SIRType.Pair(t1, t2) =>
-                        SIR.Apply(SIRBuiltins.sndPair, expr, t2)
+                        SIR.Apply(
+                          SIRBuiltins.sndPair,
+                          expr,
+                          t2,
+                          AnnotationsDecl.fromSourcePosition(tree.sourcePos)
+                        )
                     case other =>
                         error(
                           TypeMismatch(
@@ -972,9 +1076,13 @@ final class SIRCompiler(using ctx: Context) {
                             other,
                             tree.srcPos
                           ),
-                          SIR.Error("")
+                          SIR.Error("", AnnotationsDecl.fromSourcePosition(tree.sourcePos))
                         )
-            case _ => error(UnsupportedPairFunction(fun.toString, tree.srcPos), SIR.Error(""))
+            case _ =>
+                error(
+                  UnsupportedPairFunction(fun.toString, tree.srcPos),
+                  SIR.Error("", AnnotationsDecl.fromSourcePosition(tree.sourcePos))
+                )
 
     private def compileBuiltinPairConstructor(
         env: Env,
@@ -993,7 +1101,8 @@ final class SIRCompiler(using ctx: Context) {
         if a.isLiteral && b.isLiteral then
             SIR.Const(
               scalus.uplc.Constant.Pair(compileConstant(a), compileConstant(b)),
-              SIRType.Pair(sirTypeInEnv(a.tpe, a.srcPos, env), sirTypeInEnv(b.tpe, b.srcPos, env))
+              SIRType.Pair(sirTypeInEnv(a.tpe, a.srcPos, env), sirTypeInEnv(b.tpe, b.srcPos, env)),
+              AnnotationsDecl.fromSrcPos(tree.srcPos)
             )
         else if a.isData && b.isData then
             val exprA = compileExpr(env, a)
@@ -1003,10 +1112,12 @@ final class SIRCompiler(using ctx: Context) {
               SIR.Apply(
                 SIRBuiltins.mkPairData,
                 exprA,
-                SIRType.Fun(exprB.tp, SIRType.Pair(exprA.tp, exprB.tp))
+                SIRType.Fun(exprB.tp, SIRType.Pair(exprA.tp, exprB.tp)),
+                AnnotationsDecl.fromSrcPos(a.srcPos)
               ),
               exprB,
-              SIRType.Pair(exprA.tp, exprB.tp)
+              SIRType.Pair(exprA.tp, exprB.tp),
+              AnnotationsDecl.fromSrcPos(tree.srcPos)
             )
         else
             //  TODO: implement generic mkPair ?
@@ -1022,18 +1133,30 @@ final class SIRCompiler(using ctx: Context) {
                 b.isData,
                 tree.srcPos
               ),
-              SIR.Error("")
+              SIR.Error("", AnnotationsDecl.fromSrcPos(tree.srcPos))
             )
 
-    private def compileBuiltinListMethods(env: Env, lst: Tree, fun: Name, targs: List[Tree]): SIR =
+    private def compileBuiltinListMethods(
+        env: Env,
+        lst: Tree,
+        fun: Name,
+        targs: List[Tree],
+        tree: Tree
+    ): SIR =
         if env.debug then
             println(s"compileBuiltinListMethods: ${lst.show}, fun: $fun, targs: $targs")
+        val posAnns = AnnotationsDecl.fromSrcPos(tree.srcPos)
         fun.show match
             case "head" =>
                 val exprA = compileExpr(env, lst)
                 exprA.tp match
                     case SIRType.List(t) =>
-                        SIR.Apply(SIRBuiltins.headList, exprA, t)
+                        SIR.Apply(
+                          SIRBuiltins.headList,
+                          exprA,
+                          t,
+                          posAnns
+                        )
                     case other =>
                         println(s"expected that exprA.tp ${exprA} is List, but got: ${other}")
                         throw new Exception("expected that exprA.tp is List")
@@ -1042,17 +1165,27 @@ final class SIRCompiler(using ctx: Context) {
                             fun.toString,
                             SIRType.List(SIRType.TypeVar("A")),
                             other,
-                            lst.srcPos
+                            tree.srcPos
                           ),
-                          SIR.Error("")
+                          SIR.Error("", posAnns)
                         )
             case "tail" =>
                 val exprArg = compileExpr(env, lst)
-                SIR.Apply(SIRBuiltins.tailList, exprArg, exprArg.tp)
+                SIR.Apply(
+                  SIRBuiltins.tailList,
+                  exprArg,
+                  exprArg.tp,
+                  posAnns
+                )
             case "isEmpty" =>
-                SIR.Apply(SIRBuiltins.nullList, compileExpr(env, lst), SIRType.Boolean)
+                SIR.Apply(
+                  SIRBuiltins.nullList,
+                  compileExpr(env, lst),
+                  SIRType.Boolean,
+                  posAnns
+                )
             case _ =>
-                error(UnsupportedListFunction(fun.toString, lst.srcPos), SIR.Error(""))
+                error(UnsupportedListFunction(fun.toString, lst.srcPos), SIR.Error("", posAnns))
 
     private def compileBuiltinListConstructor(
         env: Env,
@@ -1066,6 +1199,7 @@ final class SIRCompiler(using ctx: Context) {
         val tpeE = typeReprToDefaultUni(tpe.tpe, list)
         val tpeTp = sirTypeInEnv(tpe.tpe, tree.srcPos, env)
         val listTp = SIRType.List(tpeTp)
+        val anns = AnnotationsDecl.fromSrcPos(tree.srcPos)
         if env.debug then
             println(
               s"compileBuiltinListConstructor: tpeE: $tpeE, tpeTp: $tpeTp, listTp: $listTp, listTp.show=${listTp.show}"
@@ -1075,18 +1209,28 @@ final class SIRCompiler(using ctx: Context) {
                 val allLiterals = args.forall(arg => compileConstant.isDefinedAt(arg))
                 if allLiterals then
                     val lits = args.map(compileConstant)
-                    SIR.Const(scalus.uplc.Constant.List(tpeE, lits), listTp)
+                    SIR.Const(
+                      scalus.uplc.Constant.List(tpeE, lits),
+                      listTp,
+                      AnnotationsDecl.fromSrcPos(list.srcPos)
+                    )
                 else
-                    val nil: SIR = SIR.Const(scalus.uplc.Constant.List(tpeE, Nil), SIRType.List.Nil)
+                    val nil: SIR = SIR.Const(
+                      scalus.uplc.Constant.List(tpeE, Nil),
+                      SIRType.List.Nil,
+                      AnnotationsDecl.fromSrcPos(ex.srcPos)
+                    )
                     val retval = args.foldRight(nil) { (arg, acc) =>
                         SIR.Apply(
                           SIR.Apply(
                             SIRBuiltins.mkCons,
                             compileExpr(env, arg),
-                            SIRType.Fun(listTp, listTp)
+                            SIRType.Fun(listTp, listTp),
+                            anns
                           ),
                           acc,
-                          listTp
+                          listTp,
+                          anns
                         )
                     }
                     if env.debug then
@@ -1094,7 +1238,7 @@ final class SIRCompiler(using ctx: Context) {
                         println(s"compileBuiltinListConstructor: retval.tp: ${retval.tp.show}")
                     retval
             case _ =>
-                error(UnsupportedListApplyInvocation(tree, tpe, tree.srcPos), SIR.Error(""))
+                error(UnsupportedListApplyInvocation(tree, tpe, tree.srcPos), SIR.Error("", anns))
 
     private def compileApply(
         env0: Env,
@@ -1112,8 +1256,14 @@ final class SIRCompiler(using ctx: Context) {
         val fE = compileExpr(env, f)
         val applySirType = sirTypeInEnv(applyTpe, applyTree.srcPos, env)
         val argsE = args.map(compileExpr(env, _))
+        val applyAnns = AnnotationsDecl.fromSrcPos(applyTree.srcPos)
         if argsE.isEmpty then
-            SIR.Apply(fE, SIR.Const(scalus.uplc.Constant.Unit, SIRType.Unit), applySirType)
+            SIR.Apply(
+              fE,
+              SIR.Const(scalus.uplc.Constant.Unit, SIRType.Unit, applyAnns),
+              applySirType,
+              applyAnns
+            )
         else
             // (f : (arg1 -> args2 -> ... -> res))
             // Apply(f, arg1) arg2 -> ... -> res)
@@ -1134,7 +1284,7 @@ final class SIRCompiler(using ctx: Context) {
                           ),
                           SIRType.Unit
                         )
-                (SIR.Apply(fun, arg, nTp), nTp)
+                (SIR.Apply(fun, arg, nTp, applyAnns), nTp)
             }
             applyExpr
     }
@@ -1145,12 +1295,13 @@ final class SIRCompiler(using ctx: Context) {
                 if tpt.tpe <:< defn.ExceptionClass.typeRef =>
                 msg.stringValue
             case term => "error"
-        SIR.Error(msg)
+        SIR.Error(msg, AnnotationsDecl.fromSrcPos(ex.srcPos))
 
     private def compileEquality(env: Env, lhs: Tree, op: Name, rhs: Tree, srcPos: SrcPos): SIR = {
         lazy val lhsExpr = compileExpr(env, lhs)
         lazy val rhsExpr = compileExpr(env, rhs)
         val lhsTpe = lhs.tpe.widen.dealias
+        val posAnns = AnnotationsDecl.fromSrcPos(srcPos)
         if lhsTpe =:= BigIntClassSymbol.typeRef then
             // common mistake: comparing BigInt with Int literal, e.g. BigInt(1) == 1
             rhs match
@@ -1164,17 +1315,22 @@ final class SIRCompiler(using ctx: Context) {
                            |""".stripMargin,
                       rhs.srcPos
                     )
-                    SIR.Error("Equality is only allowed between the same types")
+                    SIR.Error(
+                      "Equality is only allowed between the same types",
+                      posAnns
+                    )
                 case _ =>
                     val eq =
                         SIR.Apply(
                           SIR.Apply(
                             SIRBuiltins.equalsInteger,
                             lhsExpr,
-                            SIRType.Integer ->: SIRType.Boolean
+                            SIRType.Integer ->: SIRType.Boolean,
+                            AnnotationsDecl.fromSrcPos(lhs.srcPos)
                           ),
                           rhsExpr,
-                          SIRType.Boolean
+                          SIRType.Boolean,
+                          posAnns
                         )
                     if op == nme.EQ then eq else SIR.Not(eq)
         else if lhsTpe =:= defn.BooleanType then
@@ -1184,23 +1340,35 @@ final class SIRCompiler(using ctx: Context) {
                   rhsExpr,
                   SIR.IfThenElse(
                     rhsExpr,
-                    SIR.Const(scalus.uplc.Constant.Bool(false), SIRType.Boolean),
-                    SIR.Const(scalus.uplc.Constant.Bool(true), SIRType.Boolean),
-                    SIRType.Boolean
+                    SIR.Const(
+                      scalus.uplc.Constant.Bool(false),
+                      SIRType.Boolean,
+                      posAnns
+                    ),
+                    SIR.Const(
+                      scalus.uplc.Constant.Bool(true),
+                      SIRType.Boolean,
+                      posAnns
+                    ),
+                    SIRType.Boolean,
+                    posAnns
                   ),
-                  SIRType.Boolean
+                  SIRType.Boolean,
+                  posAnns
                 )
             else
                 SIR.IfThenElse(
                   lhsExpr,
                   SIR.IfThenElse(
                     rhsExpr,
-                    SIR.Const(scalus.uplc.Constant.Bool(false), SIRType.Boolean),
-                    SIR.Const(scalus.uplc.Constant.Bool(true), SIRType.Boolean),
-                    SIRType.Boolean
+                    SIR.Const(scalus.uplc.Constant.Bool(false), SIRType.Boolean, posAnns),
+                    SIR.Const(scalus.uplc.Constant.Bool(true), SIRType.Boolean, posAnns),
+                    SIRType.Boolean,
+                    posAnns
                   ),
                   rhsExpr,
-                  SIRType.Boolean
+                  SIRType.Boolean,
+                  posAnns
                 )
         else if lhsTpe =:= ByteStringClassSymbol.typeRef then
             val eq =
@@ -1208,10 +1376,12 @@ final class SIRCompiler(using ctx: Context) {
                   SIR.Apply(
                     SIRBuiltins.equalsByteString,
                     lhsExpr,
-                    SIRType.ByteString ->: SIRType.Boolean
+                    SIRType.ByteString ->: SIRType.Boolean,
+                    posAnns
                   ),
                   rhsExpr,
-                  SIRType.Boolean
+                  SIRType.Boolean,
+                  posAnns
                 )
             if op == nme.EQ then eq else SIR.Not(eq)
         else if lhsTpe =:= defn.StringClass.typeRef then
@@ -1220,10 +1390,12 @@ final class SIRCompiler(using ctx: Context) {
                   SIR.Apply(
                     SIRBuiltins.equalsString,
                     lhsExpr,
-                    SIRType.String ->: SIRType.Boolean
+                    SIRType.String ->: SIRType.Boolean,
+                    posAnns
                   ),
                   rhsExpr,
-                  SIRType.Boolean
+                  SIRType.Boolean,
+                  posAnns
                 )
             if op == nme.EQ then eq else SIR.Not(eq)
         else if lhsTpe <:< DataClassSymbol.typeRef && !(lhsTpe =:= NothingSymbol.typeRef || lhsTpe =:= NullSymbol.typeRef)
@@ -1233,10 +1405,12 @@ final class SIRCompiler(using ctx: Context) {
                   SIR.Apply(
                     SIRBuiltins.equalsData,
                     lhsExpr,
-                    SIRType.Fun(SIRType.Data, SIRType.Boolean)
+                    SIRType.Fun(SIRType.Data, SIRType.Boolean),
+                    posAnns
                   ),
                   rhsExpr,
-                  SIRType.Boolean
+                  SIRType.Boolean,
+                  posAnns
                 )
             if op == nme.EQ then eq else SIR.Not(eq)
         else
@@ -1259,14 +1433,18 @@ final class SIRCompiler(using ctx: Context) {
                  |""".stripMargin,
               srcPos
             )
-            SIR.Error("Equality is only allowed between the same types")
+            SIR.Error("Equality is only allowed between the same types", posAnns)
     }
 
     def compileExpr[T](env: Env, tree: Tree)(using Context): SIR = {
         if env.debug then println(s"compileExpr: ${tree.showIndented(2)}, env: $env")
         if compileConstant.isDefinedAt(tree) then
             val const = compileConstant(tree)
-            SIR.Const(const, sirTypeInEnv(tree.tpe, tree.srcPos, env))
+            SIR.Const(
+              const,
+              sirTypeInEnv(tree.tpe, tree.srcPos, env),
+              AnnotationsDecl.fromSrcPos(tree.srcPos)
+            )
         else compileExpr2(env.copy(level = env.level + 1), tree)
     }
 
@@ -1278,7 +1456,13 @@ final class SIRCompiler(using ctx: Context) {
                 val ct = compileExpr(nEnv, t)
                 val cf = compileExpr(nEnv, f)
                 val sirTp = sirTypeInEnv(tree.tpe, tree.srcPos, env)
-                SIR.IfThenElse(compileExpr(nEnv, cond), ct, cf, sirTp)
+                SIR.IfThenElse(
+                  compileExpr(nEnv, cond),
+                  ct,
+                  cf,
+                  sirTp,
+                  AnnotationsDecl.fromSrcPos(tree.srcPos)
+                )
             case m: Match => compileMatch(m, env)
             // throw new Exception("error msg")
             // Supports any exception type that uses first argument as message
@@ -1324,16 +1508,23 @@ final class SIRCompiler(using ctx: Context) {
                 SIR.Apply(
                   SIR.Apply(
                     SIRBuiltins.subtractInteger,
-                    SIR.Const(scalus.uplc.Constant.Integer(BigInt(0)), SIRType.Integer),
-                    SIRType.Integer ->: SIRType.Integer
+                    SIR.Const(
+                      scalus.uplc.Constant.Integer(BigInt(0)),
+                      SIRType.Integer,
+                      AnnotationsDecl.empty
+                    ),
+                    SIRType.Integer ->: SIRType.Integer,
+                    AnnotationsDecl.fromSourcePosition(tree.sourcePos)
                   ),
                   compileExpr(env, expr),
-                  SIRType.Integer
+                  SIRType.Integer,
+                  AnnotationsDecl.fromSrcPos(tree.srcPos)
                 )
             // List BUILTINS
             case TypeApply(Select(lst, fun), targs) if lst.isList =>
-                compileBuiltinListMethods(env, lst, fun, targs)
-            case Select(lst, fun) if lst.isList => compileBuiltinListMethods(env, lst, fun, Nil)
+                compileBuiltinListMethods(env, lst, fun, targs, tree)
+            case Select(lst, fun) if lst.isList =>
+                compileBuiltinListMethods(env, lst, fun, Nil, tree)
             case tree @ TypeApply(Select(list, name), immutable.List(tpe))
                 if name == termName("empty") && list.tpe =:= requiredModule(
                   "scalus.builtin.List"
@@ -1341,7 +1532,8 @@ final class SIRCompiler(using ctx: Context) {
                 val tpeE = typeReprToDefaultUni(tpe.tpe, tree)
                 SIR.Const(
                   scalus.uplc.Constant.List(tpeE, Nil),
-                  SIRType.List(sirTypeInEnv(tpe.tpe, tree.srcPos, env))
+                  SIRType.List(sirTypeInEnv(tpe.tpe, tree.srcPos, env)),
+                  AnnotationsDecl.fromSrcPos(tree.srcPos)
                 )
             case Apply(
                   TypeApply(Select(list, name), immutable.List(tpe)),
@@ -1350,9 +1542,15 @@ final class SIRCompiler(using ctx: Context) {
                 val argE = compileExpr(env, arg)
                 val exprType = sirTypeInEnv(tree.tpe, tree.srcPos, env)
                 SIR.Apply(
-                  SIR.Apply(SIRBuiltins.mkCons, argE, SIRType.Fun(exprType, exprType)),
+                  SIR.Apply(
+                    SIRBuiltins.mkCons,
+                    argE,
+                    SIRType.Fun(exprType, exprType),
+                    AnnotationsDecl.fromSrcPos(arg.srcPos)
+                  ),
                   compileExpr(env, list),
-                  exprType
+                  exprType,
+                  AnnotationsDecl.fromSrcPos(tree.srcPos)
                 )
             case tree @ Apply(
                   TypeApply(Select(list, nme.apply), immutable.List(ltpe)),
@@ -1428,7 +1626,7 @@ final class SIRCompiler(using ctx: Context) {
                 if ts.isClass && fieldIdx >= 0 then
                     val lhs = compileExpr(env, obj)
                     val selType = sirTypeInEnv(sel.tpe.widen.dealias, sel, env)
-                    SIR.Select(lhs, ident.show, selType)
+                    SIR.Select(lhs, ident.show, selType, AnnotationsDecl.fromSrcPos(sel.srcPos))
                 // else if obj.symbol.isPackageDef then
                 // compileExpr(env, obj)
                 else if isConstructorVal(tree.symbol, tree.tpe) then
@@ -1456,16 +1654,19 @@ final class SIRCompiler(using ctx: Context) {
                     case CompileMemberDefResult.Ignored(tp) =>
                         error(
                           GenericError("Ignoring closure", tree.srcPos),
-                          SIR.Error("Ignored closure")
+                          SIR.Error("Ignored closure", AnnotationsDecl.fromSrcPos(tree.srcPos))
                         )
                     case CompileMemberDefResult.Builtin(name, tp) =>
                         error(
                           GenericError("Builtin library can be part of user code", tree.srcPos),
-                          SIR.Error("Builtin definition")
+                          SIR.Error("Builtin definition", AnnotationsDecl.fromSrcPos(tree.srcPos))
                         )
                     case _ =>
                         // assume,  that if we have here unsupported, error is already reported.
-                        SIR.Error("Closure with not supported form")
+                        SIR.Error(
+                          "Closure with not supported form",
+                          AnnotationsDecl.fromSrcPos(tree.srcPos)
+                        )
             case Block(stmt, expr) => compileBlock(env, stmt, expr)
             case Typed(expr, _)    => compileExpr(env, expr)
             case Inlined(_, bindings, expr) =>
@@ -1474,26 +1675,32 @@ final class SIRCompiler(using ctx: Context) {
                 // report.info(s"Inlined: ${bindings}, ${expr.show}\n${t}", Position(SourceFile.current, globalPosition, 0))
                 r
             case Return(expr, _) =>
-                error(ReturnNotSupported(expr, tree.srcPos), SIR.Error("Return not supported"))
+                error(
+                  ReturnNotSupported(expr, tree.srcPos),
+                  SIR.Error("Return not supported", AnnotationsDecl.fromSrcPos(tree.srcPos))
+                )
             case Assign(lhs, rhs) =>
                 error(
                   ExpressionNotSupported("Variable assignment", tree.srcPos),
-                  SIR.Error("Unsupported assign expression")
+                  SIR.Error(
+                    "Unsupported assign expression",
+                    AnnotationsDecl.fromSrcPos(tree.srcPos)
+                  )
                 )
             case Try(_, _, _) =>
                 error(
                   ExpressionNotSupported("'try-catch-finally'", tree.srcPos),
-                  SIR.Error("Unsupported try expression")
+                  SIR.Error("Unsupported try expression", AnnotationsDecl.fromSrcPos(tree.srcPos))
                 )
             case WhileDo(cond, body) =>
                 error(
                   ExpressionNotSupported("'while' expression", tree.srcPos),
-                  SIR.Error("Unsupported while expression")
+                  SIR.Error("Unsupported while expression", AnnotationsDecl.fromSrcPos(tree.srcPos))
                 )
             case x =>
                 error(
                   ExpressionNotSupported(x.show, tree.srcPos),
-                  SIR.Error("Unsupported expression")
+                  SIR.Error("Unsupported expression", AnnotationsDecl.fromSrcPos(tree.srcPos))
                 )
     }
 
@@ -1587,7 +1794,12 @@ class SIRLinker(using ctx: Context) {
         traverseAndLink(result, srcPos)
         val full: SIR = globalDefs.values.foldRight(result) {
             case (CompileDef.Compiled(b), acc) =>
-                SIR.Let(b.recursivity, List(Binding(b.fullName.name, b.body)), acc)
+                SIR.Let(
+                  b.recursivity,
+                  List(Binding(b.fullName.name, b.body)),
+                  acc,
+                  AnnotationsDecl.fromSrcPos(srcPos)
+                )
             case (d, acc) =>
                 error(
                   GenericError(
@@ -1597,7 +1809,7 @@ class SIRLinker(using ctx: Context) {
                            |""".stripMargin,
                     srcPos
                   ),
-                  SIR.Error("")
+                  SIR.Error("", AnnotationsDecl.fromSrcPos(srcPos))
                 )
         }
         val dataDecls = globalDataDecls.foldRight((full: SIR)) { case ((_, decl), acc) =>
@@ -1607,13 +1819,13 @@ class SIRLinker(using ctx: Context) {
     }
 
     private def traverseAndLink(sir: SIR, srcPos: SrcPos): Unit = sir match
-        case SIR.ExternalVar(moduleName, name, tp) if !globalDefs.contains(FullName(name)) =>
+        case SIR.ExternalVar(moduleName, name, tp, _) if !globalDefs.contains(FullName(name)) =>
             linkDefinition(moduleName, FullName(name), srcPos)
-        case SIR.Let(recursivity, bindings, body) =>
+        case SIR.Let(recursivity, bindings, body, anns) =>
             bindings.foreach(b => traverseAndLink(b.value, srcPos))
             traverseAndLink(body, srcPos)
-        case SIR.LamAbs(name, term) => traverseAndLink(term, srcPos)
-        case SIR.Apply(f, arg, tp) =>
+        case SIR.LamAbs(name, term, anns) => traverseAndLink(term, srcPos)
+        case SIR.Apply(f, arg, tp, anns) =>
             traverseAndLink(f, srcPos)
             traverseAndLink(arg, srcPos)
         case SIR.And(lhs, rhs) =>
@@ -1623,12 +1835,12 @@ class SIRLinker(using ctx: Context) {
             traverseAndLink(lhs, srcPos)
             traverseAndLink(rhs, srcPos)
         case SIR.Not(term) => traverseAndLink(term, srcPos)
-        case SIR.IfThenElse(cond, t, f, tp) =>
+        case SIR.IfThenElse(cond, t, f, tp, anns) =>
             traverseAndLink(cond, srcPos)
             traverseAndLink(t, srcPos)
             traverseAndLink(f, srcPos)
         case SIR.Decl(data, term) => traverseAndLink(term, srcPos)
-        case SIR.Constr(name, data, args, tp) =>
+        case SIR.Constr(name, data, args, tp, anns) =>
             try
                 globalDataDecls.put(FullName(data.name), data)
                 args.foreach(a => traverseAndLink(a, srcPos))
@@ -1637,7 +1849,7 @@ class SIRLinker(using ctx: Context) {
                     println(s"Error in traverseAndLink: ${e.getMessage}")
                     println(s"SIR= ${sir}")
                     throw e
-        case SIR.Match(scrutinee, cases, rhsType) =>
+        case SIR.Match(scrutinee, cases, rhsType, anns) =>
             traverseAndLink(scrutinee, srcPos)
             cases.foreach(c => traverseAndLink(c.body, srcPos))
         case _ => ()
@@ -1676,7 +1888,11 @@ class SIRLinker(using ctx: Context) {
                         report.error(s"Module not found: ${moduleName}", srcPos)
                         false
 
-        if !found then error(SymbolNotFound(fullName.name, srcPos), SIR.Error("Symbol not found"))
+        if !found then
+            error(
+              SymbolNotFound(fullName.name, srcPos),
+              SIR.Error("Symbol not found", AnnotationsDecl.fromSrcPos(srcPos))
+            )
     }
 
     private def findAndReadModuleOfSymbol(moduleName: String): Option[Module] = {

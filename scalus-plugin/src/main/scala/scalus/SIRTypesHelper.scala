@@ -4,7 +4,7 @@ package scalus
 import dotty.tools.dotc.*
 import dotty.tools.dotc.core.*
 import dotty.tools.dotc.core.StdNames.*
-import dotty.tools.dotc.core.Contexts.{explore, exploreInFreshCtx, Context}
+import dotty.tools.dotc.core.Contexts.Context
 import dotty.tools.dotc.core.Types.*
 import dotty.tools.dotc.core.Symbols.*
 import dotty.tools.dotc.util.SrcPos
@@ -488,7 +488,14 @@ class SIRTypesHelper(private val compiler: SIRCompiler)(using Context) {
                 case _ => Nil
 
         }
-        ConstrDecl(name, SIRVarStorage.DEFAULT, params, tparams, parentTypeArgs)
+        ConstrDecl(
+          name,
+          SIRVarStorage.DEFAULT,
+          params,
+          tparams,
+          parentTypeArgs,
+          AnnotationsDecl.fromSym(typeSymbol)
+        )
     }
 
     def constructorResultType(typeSymbol: Symbol): Type = {
@@ -566,12 +573,18 @@ class SIRTypesHelper(private val compiler: SIRCompiler)(using Context) {
                   SIRVarStorage.DEFAULT,
                   params,
                   sirTypeParams,
-                  parentTypeArgs
+                  parentTypeArgs,
+                  AnnotationsDecl.fromSym(s)
                 )
         }
         val typeParams =
             typeSymbol.typeParams.map(tp => SIRType.TypeVar(tp.name.show, Some(tp.hashCode())))
-        DataDecl(typeSymbol.fullName.show, constrDecls, typeParams)
+        DataDecl(
+          typeSymbol.fullName.show,
+          constrDecls,
+          typeParams,
+          AnnotationsDecl.fromSym(typeSymbol)
+        )
     }
 
     /*
