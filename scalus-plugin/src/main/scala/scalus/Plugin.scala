@@ -5,15 +5,13 @@ import dotty.tools.dotc.ast.tpd
 import dotty.tools.dotc.core.*
 import dotty.tools.dotc.core.Constants.Constant
 import dotty.tools.dotc.core.Contexts.*
-import dotty.tools.dotc.core.Contexts.Context
 import dotty.tools.dotc.core.StdNames.nme
 import dotty.tools.dotc.core.Symbols.*
 import dotty.tools.dotc.plugins.*
 import dotty.tools.dotc.util.Spans
 import scalus.flat.FlatInstantces
-import scalus.sir.SIR
-import scalus.utils.HashConsed
-import scalus.utils.HashConsedEncoderState
+import scalus.sir.{RemoveRecursivity, SIR}
+import scalus.utils.{HashConsed, HashConsedEncoderState}
 
 import java.nio.charset.StandardCharsets
 import scala.collection.immutable
@@ -78,7 +76,8 @@ class ScalusPhase extends PluginPhase {
             val start = System.currentTimeMillis()
             val result =
                 val result = compiler.compileToSIR(code, tree.fun.symbol == compileDebugSymbol)
-                SIRLinker().link(result, tree.srcPos)
+                val linked = SIRLinker().link(result, tree.srcPos)
+                RemoveRecursivity(linked)
             val time = System.currentTimeMillis() - start
             report.echo(
               s"Scalus compile() at ${tree.srcPos.sourcePos.source}:${tree.srcPos.line} in $time ms"

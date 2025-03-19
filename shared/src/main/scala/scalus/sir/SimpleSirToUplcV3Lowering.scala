@@ -1,24 +1,11 @@
 package scalus
 package sir
 
-import scalus.Compiler.compile
-import scalus.builtin.given
-import scalus.builtin.Data.ToData
-import scalus.ledger.api.v3.TxId
 import scalus.sir.Recursivity.*
-import scalus.uplc.Constant
-import scalus.uplc.DefaultFun
-import scalus.uplc.DefaultFun.*
-import scalus.uplc.ExprBuilder
-import scalus.uplc.Meaning
-import scalus.uplc.NamedDeBruijn
-import scalus.uplc.Term
-import scalus.uplc.TermDSL.*
-import scalus.uplc.TypeScheme
-import scalus.ledger.api.v3.ToDataInstances.given
 import scalus.sir.SIR.Pattern
-import scalus.uplc.Inliner
-import scalus.uplc.eval.PlutusVM
+import scalus.uplc.DefaultFun.*
+import scalus.uplc.TermDSL.*
+import scalus.uplc.*
 
 import scala.annotation.tailrec
 import scala.collection.mutable.HashMap

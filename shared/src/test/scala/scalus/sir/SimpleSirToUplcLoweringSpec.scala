@@ -164,8 +164,8 @@ class SimpleSirToUplcLoweringSpec
         /* Nil match
         case Nil -> 1
         case Cons(h, tl) -> 2
-
-       lowers to (\Nil Cons -> force Nil) (delay 1) (\h tl -> 2)
+        // constructors are sorted by name
+        lowers to (\Cons Nil -> force Nil) (\h tl -> 2) (delay 1)
          */
         val tailTypeProxy = new SIRType.TypeProxy(null)
         val a1TypeVar = SIRType.TypeVar("A1", Some(1))
@@ -179,7 +179,11 @@ class SimpleSirToUplcLoweringSpec
           List(a2TypeVar),
           ae
         )
+<<<<<<< HEAD
         val listData = DataDecl("List", List(nilConstr, consConstr), List(a1TypeVar), ae)
+=======
+        val listData = DataDecl("List", List(consConstr, nilConstr), List(a1TypeVar))
+>>>>>>> master
         tailTypeProxy.ref = SumCaseClass(listData, List(a2TypeVar))
 
         val txIdData = DataDecl(
@@ -219,5 +223,5 @@ class SimpleSirToUplcLoweringSpec
             SIRType.Integer,
             ae
           )
-        ) lowersTo (lam("Nil", "Cons")(!vr"Nil") $ lam("h", "tl")(2) $ ~asConstant(1))
+        ) lowersTo (lam("Cons", "Nil")(!vr"Nil") $ lam("h", "tl")(2) $ ~asConstant(1))
     }

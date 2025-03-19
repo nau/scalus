@@ -32,6 +32,7 @@ import scalus.sir.TypeBinding
 import scalus.uplc.DefaultUni
 
 import java.net.URL
+import scala.annotation.tailrec
 import scala.collection.immutable
 import scala.collection.mutable
 import scala.collection.mutable.ListBuffer
@@ -96,9 +97,6 @@ enum CompileDef:
 final class SIRCompiler(using ctx: Context) {
     import tpd.*
     import SIRCompiler.Env
-
-    val SirVersion: (Int, Int) = (1, 0)
-
     private val DefaultFunSIRBuiltins: Map[Symbol, SIR.Builtin] = Macros.generateBuiltinsMap(ctx)
     private val BigIntSymbol = requiredModule("scala.math.BigInt")
     private val BigIntClassSymbol = requiredClass("scala.math.BigInt")
@@ -116,7 +114,7 @@ final class SIRCompiler(using ctx: Context) {
     private val ByteStringSymbolHex = ByteStringModuleSymbol.requiredMethod("hex")
     private val ByteStringStringInterpolatorsMethodSymbol =
         ByteStringModuleSymbol.requiredMethod("StringInterpolators")
-    private val typer = new SIRTypesHelper(this)
+    private val typer = new SIRTypesHelper
     private val pmCompiler = new PatternMatchingCompiler(this)
 
     extension (t: Type)
@@ -219,7 +217,8 @@ final class SIRCompiler(using ctx: Context) {
                     case _                                  => None
             case _ => None
         }
-        val module = Module(SirVersion, bindings.map(b => Binding(b.fullName.name, b.body)))
+        val module =
+            Module(SIRCompiler.SIRVersion, bindings.map(b => Binding(b.fullName.name, b.body)))
         writeModule(module, td.symbol.fullName.toString)
         val time = System.currentTimeMillis() - start
         report.echo(
@@ -705,6 +704,7 @@ final class SIRCompiler(using ctx: Context) {
      * otherwise,say, constants are not compiled correctly
      */
     object SkipInline {
+        @tailrec
         def unapply(expr: Tree): Some[Tree] =
             expr match
                 case Inlined(EmptyTree, Nil, t) => unapply(t)
@@ -1291,13 +1291,40 @@ final class SIRCompiler(using ctx: Context) {
             applyExpr
     }
 
+    /** Compile a throw expression to SIR
+      *
+      * {{{
+      *    throw new Exception("error msg") // becomes SIR.Error("error msg")
+      *    throw new CustomException // becomes SIR.Error("CustomException")
+      *    throw foo() // becomes SIR.Error("foo()")
+      *    inline def err(inline msg: String) = throw new RuntimeException(msg)
+      *    err("test") // becomes SIR.Error("test")
+      * }}}
+      */
     private def compileThrowException(ex: Tree): SIR =
         val msg = ex match
-            case Apply(Select(New(tpt), nme.CONSTRUCTOR), immutable.List(Literal(msg), _*))
-                if tpt.tpe <:< defn.ExceptionClass.typeRef =>
-                msg.stringValue
-            case term => "error"
-        SIR.Error(msg, AnnotationsDecl.fromSrcPos(ex.srcPos))
+            case SkipInline(
+                  Apply(
+                    Select(New(tpt), nme.CONSTRUCTOR),
+                    immutable.List(SkipInline(arg), _*)
+                  )
+                ) if tpt.tpe <:< defn.ThrowableType =>
+                arg match
+                    case Literal(c) => c.stringValue
+                    case _ =>
+                        report.warning(
+                          s"""Only string literals are supported as exception messages, but found ${arg.show}.
+                          |Try rewriting the code to use a string literal like `throw new RuntimeException("error message")`
+                          |Scalus will compile this to `Error("${arg.show}")`.""".stripMargin,
+                          ex.srcPos
+                        )
+                        arg.show
+            case SkipInline(Apply(Select(New(tpt), nme.CONSTRUCTOR), Nil))
+                if tpt.tpe <:< defn.ThrowableType =>
+                tpt.symbol.showName
+            case SkipInline(term) =>
+                term.show
+        SIR.Error(msg)
 
     private def compileEquality(env: Env, lhs: Tree, op: Name, rhs: Tree, srcPos: SrcPos): SIR = {
         lazy val lhsExpr = compileExpr(env, lhs)
@@ -1765,8 +1792,18 @@ object SIRCompiler {
 
     }
 
+    val SIRVersion: (Int, Int) = (1, 0)
+
 }
 
+/** Links SIR definitions and data declarations into a single SIR module.
+  *
+  * This class is responsible for linking SIR definitions and data declarations to create a single
+  * SIR module.
+  *
+  * It traverses the SIR tree and links external definitions and data declarations to the global
+  * definitions and data declarations.
+  */
 class SIRLinker(using ctx: Context) {
     private lazy val classLoader = makeClassLoader
     private val globalDefs: mutable.LinkedHashMap[FullName, CompileDef] =
@@ -1792,9 +1829,9 @@ class SIRLinker(using ctx: Context) {
         defaultValue
     }
 
-    def link(result: SIR, srcPos: SrcPos): SIR = {
-        traverseAndLink(result, srcPos)
-        val full: SIR = globalDefs.values.foldRight(result) {
+    def link(sir: SIR, srcPos: SrcPos): SIR = {
+        traverseAndLink(sir, srcPos)
+        val full: SIR = globalDefs.values.foldRight(sir) {
             case (CompileDef.Compiled(b), acc) =>
                 SIR.Let(
                   b.recursivity,
@@ -1880,10 +1917,12 @@ class SIRLinker(using ctx: Context) {
                 findAndLinkDefinition(defs, fullName, srcPos)
             case None =>
                 findAndReadModuleOfSymbol(moduleName) match
-                    case Some(m @ Module(version, defs)) =>
+                    case Some(module) =>
                         // println(s"Loaded module ${moduleName}, defs: ${defs}")
-                        val defsMap =
-                            mutable.LinkedHashMap.from(defs.map(d => FullName(d.name) -> d.value))
+                        validateSIRVersion(module, moduleName, srcPos)
+                        val defsMap = mutable.LinkedHashMap.from(
+                          module.defs.map(d => FullName(d.name) -> d.value)
+                        )
                         moduleDefsCache.put(moduleName, defsMap)
                         findAndLinkDefinition(defsMap, fullName, srcPos)
                     case None =>
@@ -1909,6 +1948,20 @@ class SIRLinker(using ctx: Context) {
             resource.close()
             Some(module)
         else None
+    }
+
+    private def validateSIRVersion(module: Module, moduleName: String, srcPos: SrcPos): Unit = {
+        if (module.version._1 != SIRCompiler.SIRVersion._1)
+            || (module.version._1 == SIRCompiler.SIRVersion._1
+                && SIRCompiler.SIRVersion._2 < module.version._2)
+        then
+            report.error(
+              s"""During linking I've found that a module '$moduleName' has an incompatible SIR version: ${module.version} (expected: ${SIRCompiler.SIRVersion}).
+                   |This can happen if you try to link a module compiled with a different version of Scalus.
+                   |Please, recompile the module with the version of Scalus that has the SIR version ${SIRCompiler.SIRVersion}
+                   |""".stripMargin,
+              srcPos
+            )
     }
 
 }

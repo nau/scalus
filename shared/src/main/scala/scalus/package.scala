@@ -1,25 +1,10 @@
 import org.typelevel.paiges.Doc
 import scalus.ledger.api.PlutusLedgerLanguage
-import scalus.sir.EtaReduce
-import scalus.sir.OptimizingSirToUplcLowering
-import scalus.sir.PrettyPrinter
 import scalus.sir.PrettyPrinter.Style
-import scalus.sir.RemoveRecursivity
-import scalus.sir.SIR
-import scalus.sir.SimpleSirToUplcLowering
-import scalus.uplc.Constant
-import scalus.uplc.DeBruijn
-import scalus.uplc.DeBruijnedProgram
-import scalus.uplc.DefaultUni
-import scalus.uplc.Program
-import scalus.uplc.Term
-import scalus.uplc.eval.NoBudgetSpender
-import scalus.uplc.eval.NoLogger
-import scalus.uplc.eval.PlutusVM
-import scalus.uplc.eval.Result
-import scalus.uplc.eval.CountingBudgetSpender
-import scalus.uplc.eval.TallyingBudgetSpenderLogger
-import scalus.uplc.eval.VM
+import scalus.sir.*
+import scalus.uplc.eval.*
+import scalus.uplc.transform.{CaseConstrApply, ForcedBuiltinsExtractor, Inliner}
+import scalus.uplc.{Program, *}
 import scalus.utils.Utils
 
 package object scalus {
@@ -39,9 +24,13 @@ package object scalus {
 
         def toUplc(generateErrorTraces: Boolean = false): Term =
             SimpleSirToUplcLowering(sir, generateErrorTraces).lower()
-        def toUplcOptimized(generateErrorTraces: Boolean = false): Term =
-            OptimizingSirToUplcLowering(sir |> RemoveRecursivity.apply, generateErrorTraces)
-                .lower() |> EtaReduce.apply
+        def toUplcOptimized(generateErrorTraces: Boolean = false): Term = {
+            SimpleSirToUplcLowering(sir, generateErrorTraces).lower()
+                |> EtaReduce.apply
+                |> Inliner.apply
+                |> CaseConstrApply.apply
+                |> ForcedBuiltinsExtractor.apply
+        }
 
         @deprecated("Use toUplc().plutusV* instead", "0.8.4")
         def toPlutusProgram(

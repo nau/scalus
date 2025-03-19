@@ -3,19 +3,11 @@ package sir
 
 import scalus.sir.Recursivity.*
 import scalus.sir.SIR.Pattern
-import scalus.uplc.Constant
-import scalus.uplc.DefaultFun
-import scalus.uplc.ExprBuilder
-import scalus.uplc.Meaning
-import scalus.uplc.NamedDeBruijn
-import scalus.uplc.Term
 import scalus.uplc.TermDSL.*
-import scalus.uplc.TypeScheme
+import scalus.uplc.*
 
 import scala.annotation.tailrec
 import scala.collection.mutable
-import scala.collection.mutable
-import scala.collection.mutable.HashMap
 
 /** Lowering from Scalus Intermediate Representation [[SIR]] to UPLC [[Term]].
   *
@@ -36,7 +28,7 @@ class SimpleSirToUplcLowering(sir: SIR, generateErrorTraces: Boolean = false):
         )
 
     private var zCombinatorNeeded: Boolean = false
-    private val decls = HashMap.empty[String, DataDecl]
+    private val decls = mutable.HashMap.empty[String, DataDecl]
 
     def lower(): Term =
         val term = lowerInner(sir)

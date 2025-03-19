@@ -1,14 +1,15 @@
 package scalus
 
-//import scala.collection.*
 import dotty.tools.dotc.*
 import dotty.tools.dotc.core.*
-import dotty.tools.dotc.core.StdNames.*
 import dotty.tools.dotc.core.Contexts.Context
-import dotty.tools.dotc.core.Types.*
+import dotty.tools.dotc.core.StdNames.*
 import dotty.tools.dotc.core.Symbols.*
+import dotty.tools.dotc.core.Types.*
 import dotty.tools.dotc.util.SrcPos
 import scalus.sir.*
+
+import scala.annotation.unused
 
 case class SIRTypeEnv(
     pos: SrcPos,
@@ -20,7 +21,7 @@ case class SIRTypeEnv(
 case class TypingException(tpe: Type, pos: SrcPos, msg: String, cause: Throwable = null)
     extends RuntimeException(msg, cause)
 
-class SIRTypesHelper(private val compiler: SIRCompiler)(using Context) {
+class SIRTypesHelper(using Context) {
 
     val cachedDataDecl: MutableSymbolMap[DataDecl] = new MutableSymbolMap()
 
@@ -58,8 +59,8 @@ class SIRTypesHelper(private val compiler: SIRCompiler)(using Context) {
                 else if sym.isTypeParam then
                     env.vars.get(sym) match
                         case Some(t) => t
-                        case None =>
-                            val name = sym.fullName.show
+                        case None    =>
+//                            val name = sym.fullName.show
                             unsupportedType(tp, s"Unfilled typeParam: ${tpc.show}", env)
                 else if sym.isAliasType then
                     // looks like bug in a compiler
@@ -186,8 +187,8 @@ class SIRTypesHelper(private val compiler: SIRCompiler)(using Context) {
             tryMakeBuiltinType(sym, types, env) orElse
             tryMakeCaseClassOrCaseParent(tp, sym, types, env) orElse
             tryMakeNonCaseModule(tp, sym, types, env)).getOrElse {
-            val name = sym.fullName.show
-            val typeArgs = types.map(_.show)
+//            val name = sym.fullName.show
+//            val typeArgs = types.map(_.show)
             unsupportedType(
               tp,
               s"tree=${tp}, isClass=${sym.isClass} isAliasType=${sym.isAliasType}, info:${sym.info}",
@@ -324,6 +325,7 @@ class SIRTypesHelper(private val compiler: SIRCompiler)(using Context) {
         }
     }
 
+    @unused
     private def flatSealedTraitHierarchy(
         top: Type,
         childrens: List[SIRType],
@@ -478,7 +480,7 @@ class SIRTypesHelper(private val compiler: SIRCompiler)(using Context) {
         val params = paramSymbols.map { s =>
             val t = sirTypeInEnvWithErr(s.info, nEnv)
             TypeBinding(s.name.show, t)
-        }.toList
+        }
         val parentTypeArgs = optParentSym.toList.flatMap { parentSym =>
             val ct = constructorResultType(typeSymbol)
             val btp = ct.baseType(parentSym)
@@ -528,7 +530,7 @@ class SIRTypesHelper(private val compiler: SIRCompiler)(using Context) {
     ): SIRType = {
         val dataDecl = makeSumClassDataDecl(typeSymbol, env)
         val retval =
-            if (tpArgs.isEmpty) then dataDecl.tp
+            if tpArgs.isEmpty then dataDecl.tp
             else SIRType.typeApply(dataDecl.tp, tpArgs)
         thisProxy.ref = retval
         retval
@@ -552,7 +554,7 @@ class SIRTypesHelper(private val compiler: SIRCompiler)(using Context) {
     ): DataDecl = {
 
         val constrDecls = typeSymbol.children.map { s =>
-            if (s.children.isEmpty) then makeCaseClassConstrDecl(s, env, Some(typeSymbol))
+            if s.children.isEmpty then makeCaseClassConstrDecl(s, env, Some(typeSymbol))
             else
                 val syntethicName = SIRType.syntheticNarrowConstrDeclName(typeSymbol.fullName.show)
                 val sirTypeParams =

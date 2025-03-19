@@ -149,11 +149,11 @@ class CompilerPluginToSIRSpec extends AnyFunSuite with ScalaCheckPropertyChecks:
           compile {
               def b() = true
 
-              def c(x: Boolean) = x
+              def c(x: Boolean): Boolean = c(x)
 
               c(b())
           } ~=~ Let(
-            Recursivity.Rec,
+            Recursivity.NonRec,
             immutable.List(
               Binding(
                 "b",
@@ -169,7 +169,16 @@ class CompilerPluginToSIRSpec extends AnyFunSuite with ScalaCheckPropertyChecks:
               immutable.List(
                 Binding(
                   "c",
-                  LamAbs(Var("x", SIRType.Boolean, AnE), Var("x", SIRType.Boolean, AnE), AnE)
+                  LamAbs(
+                    Var("x", SIRType.Boolean, AnE),
+                    Apply(
+                      Var("c", SIRType.Fun(Boolean, SIRType.Boolean), AnE),
+                      Var("x", SIRType.Boolean, AnE),
+                      SIRType.Boolean,
+                      AnE
+                    ),
+                    AnE
+                  )
                 )
               ),
               Apply(
@@ -263,9 +272,23 @@ class CompilerPluginToSIRSpec extends AnyFunSuite with ScalaCheckPropertyChecks:
     }
 
     test("compile throw") {
-        assert(compile {
-            throw new RuntimeException("foo")
-        } ~=~ Error("foo", AnE))
+        class CustomException extends RuntimeException("CustomException")
+        def foo(): Throwable = new CustomException
+        inline def err(inline msg: String): Nothing = throw new RuntimeException(msg)
+        // Compile message in the 1st Exception string literal argument to Error(message)
+        assert(compile { throw new RuntimeException("foo") } ~=~ Error("foo", AnE))
+        // Otherwise, compile Error(code.show)
+        assert(
+          compile { throw new RuntimeException(s"Not a literal: ${1 + 1}") } ~=~ Error(
+            "_root_.scala.StringContext.apply([\"Not a literal: \",\"\" : String]).s([2 : Any])", AnE
+          )
+        )
+        // compile custom exceptions <:< Throwable as Error(exception.getSimpleName)
+        assert(compile { throw new CustomException } ~=~ Error("CustomException"))
+        // compile throw code as Error(code.show)
+        assert(compile { throw foo() } ~=~ Error("foo()"))
+        // handle inlines correctly
+        assert(compile { err("test") } ~=~ Error("test"))
     }
 
     test("compile ToData") {
@@ -1601,7 +1624,7 @@ class CompilerPluginToSIRSpec extends AnyFunSuite with ScalaCheckPropertyChecks:
         val check = Var("check", Fun(sirData, Fun(sirData, sirBool)), AnE)
         assert(
           eq ~=~ Let(
-            Rec,
+            NonRec,
             List(
               Binding(
                 "check",
@@ -1631,7 +1654,7 @@ class CompilerPluginToSIRSpec extends AnyFunSuite with ScalaCheckPropertyChecks:
         )
         assert(
           ne ~=~ Let(
-            Rec,
+            NonRec,
             List(
               Binding(
                 "check",
@@ -1904,7 +1927,7 @@ class CompilerPluginToSIRSpec extends AnyFunSuite with ScalaCheckPropertyChecks:
         val appliedScript = term.plutusV1 $ scriptContext.toData
         assert(appliedScript.evaluate == scalus.uplc.Term.Const(asConstant(hex"deadbeef")))
         val flatBytesLength = appliedScript.flatEncoded.length
-        assert(flatBytesLength == 332)
+        assert(flatBytesLength == 306)
     }
 
     test("@Ignore annotation") {

@@ -23,12 +23,15 @@ object Test {
     given Data.ToData[Test] = ToData.deriveCaseClass[Test](12)
 }
 
+class CustomError extends Exception("custom error")
+
 class CompilerPluginToSIRSpec extends AnyFunSuite with ScalaCheckPropertyChecks:
     val deadbeef = Constant.ByteString(hex"deadbeef")
 
     test("compile literals") {
         val sir = compile {
-            (new Test(1, "asdf"), false)._1.b
+            def err(msg: String) = throw new RuntimeException(msg)
+            err("test")
         }
         println(sir)
         println(sir.pretty.render(100))
