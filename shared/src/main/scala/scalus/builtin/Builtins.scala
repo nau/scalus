@@ -137,8 +137,6 @@ trait PlatformSpecific:
 
     def bls12_381_G1_hashToGroup(bs: ByteString, dst: ByteString): BLS12_381_G1_Element
 
-    def bls12_381_G1_compressed_generator: ByteString
-
     def bls12_381_G2_equal(p1: BLS12_381_G2_Element, p2: BLS12_381_G2_Element): Boolean
 
     def bls12_381_G2_add(p1: BLS12_381_G2_Element, p2: BLS12_381_G2_Element): BLS12_381_G2_Element
@@ -155,8 +153,6 @@ trait PlatformSpecific:
 
     def bls12_381_G2_hashToGroup(bs: ByteString, dst: ByteString): BLS12_381_G2_Element
 
-    def bls12_381_G2_compressed_generator: ByteString
-
     def bls12_381_millerLoop(
         p1: BLS12_381_G1_Element,
         p2: BLS12_381_G2_Element
@@ -169,6 +165,26 @@ trait PlatformSpecific:
     def keccak_256(bs: ByteString): ByteString
 
     def ripemd_160(byteString: ByteString): ByteString
+
+object PlatformSpecific:
+    val bls12_381_scalar_period: BigInt =
+        BigInt("73eda753299d7d483339d80809a1d80553bda402fffe5bfeffffffff00000001", 16)
+
+    val bls12_381_G1_compressed_zero: ByteString =
+        ByteString.unsafeFromArray(Array(0xc0.toByte) ++ Array.fill(47)(0.toByte))
+
+    val bls12_381_G1_compressed_generator: ByteString =
+        ByteString.fromHex(
+          "97f1d3a73197d7942695638c4fa9ac0fc3688c4f9774b905a14e3a3f171bac586c55e83ff97a1aeffb3af00adb22c6bb"
+        )
+
+    val bls12_381_G2_compressed_zero: ByteString =
+        ByteString.unsafeFromArray(Array(0xc0.toByte) ++ Array.fill(95)(0.toByte))
+
+    val bls12_381_G2_compressed_generator: ByteString =
+        ByteString.fromHex(
+          "93e02b6052719f607dacd3a088274f65596bd0d09920b61ab5da61bbdc7f5049334cf11213945d57e5ac7d055d042b7e024aa2b2f08f0a91260805272dc51051c6e47ad4fa403b02b4510b647ae3d1770bac0326a805bbefd48056c8c121bdb8"
+        )
 
 object Builtins:
     // Integers
@@ -671,6 +687,8 @@ object Builtins:
     def findFirstSetBit(byteString: ByteString): Int =
         BitwiseLogicalOperations.findFirstSetBit(byteString)
 
+    def bls12_381_scalar_period: BigInt = PlatformSpecific.bls12_381_scalar_period
+
     def bls12_381_G1_equal(using
         ps: PlatformSpecific
     )(p1: BLS12_381_G1_Element, p2: BLS12_381_G1_Element): Boolean =
@@ -702,11 +720,10 @@ object Builtins:
 
     /** The compressed form of the point at infinity in G1, 48 bytes long.
       */
-    val bls12_381_G1_compressed_zero: ByteString =
-        ByteString.unsafeFromArray(Array(0xc0.toByte) ++ Array.fill(47)(0.toByte))
+    def bls12_381_G1_compressed_zero: ByteString = PlatformSpecific.bls12_381_G1_compressed_zero
 
-    def bls12_381_G1_compressed_generator(using ps: PlatformSpecific): ByteString =
-        ps.bls12_381_G1_compressed_generator
+    def bls12_381_G1_compressed_generator: ByteString =
+        PlatformSpecific.bls12_381_G1_compressed_generator
 
     def bls12_381_G2_equal(using
         ps: PlatformSpecific
@@ -738,11 +755,10 @@ object Builtins:
 
     /** The compressed form of the point at infinity in G2, 96 bytes long.
       */
-    val bls12_381_G2_compressed_zero: ByteString =
-        ByteString.unsafeFromArray(Array(0xc0.toByte) ++ Array.fill(95)(0.toByte))
+    def bls12_381_G2_compressed_zero: ByteString = PlatformSpecific.bls12_381_G2_compressed_zero
 
-    def bls12_381_G2_compressed_generator(using ps: PlatformSpecific): ByteString =
-        ps.bls12_381_G2_compressed_generator
+    def bls12_381_G2_compressed_generator: ByteString =
+        PlatformSpecific.bls12_381_G2_compressed_generator
 
     def bls12_381_millerLoop(using ps: PlatformSpecific)(
         p1: BLS12_381_G1_Element,
