@@ -21,7 +21,6 @@ import java.nio.file.Path
 import scala.collection.immutable
 import scala.language.implicitConversions
 
-
 class SimpleSirToUplcV3LoweringSpec extends AnyFunSuite {
     given PlutusVM = PlutusVM.makePlutusV3VM()
 
