@@ -75,6 +75,8 @@ class SimpleSirToUplcV3Lowering(sir: SIR, generateErrorTraces: Boolean = false):
             case _: SIRType.SumCaseClass =>
                 println(s"toData: ${tp.show}")
                 arg
+            case SIRType.TypeProxy(ref) =>
+                toData(arg, ref)
             case _ =>
                 throw new IllegalArgumentException(
                   s"Unsupported type: ${tp.show} of term: ${arg.show}"
@@ -100,14 +102,16 @@ class SimpleSirToUplcV3Lowering(sir: SIR, generateErrorTraces: Boolean = false):
                 builtinTerms(Bls12_381_G1_uncompress) $ fromData(arg, SIRType.ByteString)
             case SIRType.BLS12_381_G2_Element =>
                 builtinTerms(Bls12_381_G2_uncompress) $ fromData(arg, SIRType.ByteString)
-            case _: SIRType.CaseClass => arg
+            case _: SIRType.CaseClass    => arg
+            case _: SIRType.SumCaseClass => arg
+            case SIRType.TypeProxy(ref)  => fromData(arg, ref)
             case _ =>
                 throw new IllegalArgumentException(
-                  s"Unsupported type: ${tp.show} of term: ${arg.show}"
+                  s"Unsupported type: ${tp.show} ($tp) of term: ${arg.show}"
                 )
     }
 
-    private def getFieldByIndex(args: Term, fieldIndex: Long, tp: SIRType) = {
+    private def getFieldByIndex(args: Term, fieldIndex: Long, tp: SIRType): Term = {
         var expr = args
         var i = 0
         while i < fieldIndex do
@@ -255,6 +259,7 @@ class SimpleSirToUplcV3Lowering(sir: SIR, generateErrorTraces: Boolean = false):
                                       s"Expected single constructor, got ${decl.constructors} in expression: ${sir.show}"
                                     )
                         case SIRType.TypeLambda(_, t) => find(t)
+                        case SIRType.TypeProxy(ref)   => find(ref)
                         case _ =>
                             throw new IllegalArgumentException(
                               s"Expected case class type, got ${sirType} in expression: ${sir.show}"
