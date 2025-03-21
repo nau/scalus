@@ -11,7 +11,7 @@ import dotty.tools.dotc.core.StdNames.nme
 import dotty.tools.dotc.core.Symbols.*
 import dotty.tools.dotc.core.Types.*
 import dotty.tools.dotc.core.*
-import dotty.tools.dotc.util.{NoSource, NoSourcePosition, SourcePosition, SrcPos}
+import dotty.tools.dotc.util.{NoSourcePosition, SourcePosition, SrcPos}
 import dotty.tools.io.ClassPath
 import scalus.flat.DecoderState
 import scalus.flat.EncoderState
@@ -150,8 +150,6 @@ final class SIRCompiler(using ctx: Context) {
         mutable.LinkedHashMap.empty
     private val globalDataDecls: mutable.LinkedHashMap[FullName, DataDecl] =
         mutable.LinkedHashMap.empty
-    private val moduleDefsCache: mutable.Map[String, mutable.LinkedHashMap[FullName, SIR]] =
-        mutable.LinkedHashMap.empty.withDefaultValue(mutable.LinkedHashMap.empty)
 
     private val CompileAnnot = requiredClassRef("scalus.Compile").symbol.asClass
     private val IgnoreAnnot = requiredClassRef("scalus.Ignore").symbol.asClass
@@ -328,25 +326,6 @@ final class SIRCompiler(using ctx: Context) {
         val fields = typeSymbol.primaryConstructor.paramSymss.flatten.filter(s => s.isType)
         // debugInfo(s"caseFields: ${typeSymbol.fullName} $fields")
         fields
-    }
-
-    private def findAndReadModuleOfSymbol(moduleName: String): Option[Module] = {
-        val filename = moduleName.replace('.', '/') + ".sir"
-        // println(s"findAndReadModuleOfSymbol: ${filename}")
-        // read the file from the classpath
-        val resource = classLoader.getResourceAsStream(filename)
-        if resource != null then
-            val buffer = resource.readAllBytes()
-            val dec = DecoderState(buffer)
-            val module =
-                try flat.decode[Module](dec)
-                catch
-                    case scala.util.control.NonFatal(ex) =>
-                        println(s"Can;t load module ${filename}")
-                        throw ex
-            resource.close()
-            Some(module)
-        else None
     }
 
     private def getCachedDataDecl(dataInfo: AdtTypeInfo, env: Env, srcPos: SrcPos): DataDecl = {

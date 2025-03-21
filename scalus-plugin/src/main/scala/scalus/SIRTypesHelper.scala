@@ -444,7 +444,6 @@ class SIRTypesHelper(using Context) {
     ): SIRType = {
         val retval = optParentSym match
             case Some(parentSym) =>
-                val optParentParent = retrieveParentSymbol(parentSym, env)
                 val dataDecl = makeSumClassDataDecl(parentSym, env)
                 val nakedType = dataDecl.constrType(typeSymbol.fullName.show)
                 SIRType.typeApply(nakedType, tpArgs)
