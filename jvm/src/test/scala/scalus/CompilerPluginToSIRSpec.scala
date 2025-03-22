@@ -18,6 +18,7 @@ import scalus.uplc.DefaultFun.*
 import scalus.uplc.DefaultUni.asConstant
 import scalus.uplc.eval.{PlutusVM, Result}
 
+import scala.annotation.nowarn
 import scala.collection.immutable
 import scala.language.implicitConversions
 
@@ -279,7 +280,7 @@ class CompilerPluginToSIRSpec extends AnyFunSuite with ScalaCheckPropertyChecks:
         assert(compile { throw new RuntimeException("foo") } ~=~ Error("foo", AnE))
         // Otherwise, compile Error(code.show)
         assert(
-          compile { throw new RuntimeException(s"Not a literal: ${1 + 1}") } ~=~ Error(
+          compile { throw new RuntimeException(s"Not a literal: ${1 + 1}"): @nowarn } ~=~ Error(
             "_root_.scala.StringContext.apply([\"Not a literal: \",\"\" : String]).s([2 : Any])",
             AnE
           )

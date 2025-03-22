@@ -4,7 +4,7 @@ import org.scalatest.funsuite.AnyFunSuite
 import scalus.Compiler.compile
 import scalus.*
 
-object SITRTypingScalaToSIRSpecScope {
+object SIRTypingScalaToSIRSpecScope {
 
     case class ClassA1(a: BigInt)
 
@@ -17,7 +17,7 @@ object SITRTypingScalaToSIRSpecScope {
     case class LeafLevel2B[B](ib: Int) extends HierarchicalLevel2[Int]
 
     // DataDecl(
-    //    "scalus.sir.SITRTypingScalaToSIRSpecScope$.HierarchicalLevel1",
+    //    "scalus.sir.SIRTypingScalaToSIRSpecScope$.HierarchicalLevel1",
     //    List(
     //      ConstrDecl("LeafLevel1A", D, List(SIRType.Var("A",Some(1))),List(SIRType.Var("A",Some(1))))),
     //      ConstrDecl("_narrow_HierarchialLevel2", D, List(SIRType.Var("B",Some(2))),List(SIRType.Future(SIRType.Var("B",Some(1))))),
@@ -25,16 +25,16 @@ object SITRTypingScalaToSIRSpecScope {
     //    None
     //  )
     //  DataDecl(
-    //    "scalus.sir.SITRTypingScalaToSIRSpecScope$.HierarchicalLevel2",
+    //    "scalus.sir.SIRTypingScalaToSIRSpecScope$.HierarchicalLevel2",
     //    List(
 
 }
 
-class SITRTypingScalaToSIRSpec extends AnyFunSuite {
+class SIRTypingScalaToSIRSpec extends AnyFunSuite {
 
     /*
     test("check that simple case class is mapped to case class in fun") {
-        import SITRTypingScalaToSIRSpecScope.*
+        import SIRTypingScalaToSIRSpecScope.*
 
         val sir = compile {
             (x:BigInt) => new ClassA1(x)
@@ -53,7 +53,7 @@ class SITRTypingScalaToSIRSpec extends AnyFunSuite {
      */
 
     test("check that simple case class is mapped to case class") {
-        import SITRTypingScalaToSIRSpecScope.*
+        import SIRTypingScalaToSIRSpecScope.*
 
         val sir = compile {
             new ClassA1(10)
@@ -61,7 +61,7 @@ class SITRTypingScalaToSIRSpec extends AnyFunSuite {
 
         sir.tp match {
             case SIRType.CaseClass(constrDecl, Nil, _) =>
-                assert(constrDecl.name == "scalus.sir.SITRTypingScalaToSIRSpecScope$.ClassA1")
+                assert(constrDecl.name == "scalus.sir.SIRTypingScalaToSIRSpecScope$.ClassA1")
             case _ => fail(s"unexpected type ${sir.tp}")
         }
 

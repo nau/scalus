@@ -10,6 +10,8 @@ import scalus.builtin.ToData.toData
 import scalus.uplc.*
 import scalus.builtin.Data
 
+import scala.annotation.nowarn
+
 @Compile
 object TotoDataInstances {
     given Data.ToData[BigInt] = (a: BigInt) => builtin.Builtins.iData(a)
@@ -30,7 +32,8 @@ class CompilerPluginToSIRSpec extends AnyFunSuite with ScalaCheckPropertyChecks:
 
     test("compile literals") {
         val sir = compile {
-            def err(msg: String) = throw new RuntimeException(msg)
+            @nowarn
+            def err(msg: String): Nothing = throw new RuntimeException(msg)
             err("test")
         }
         println(sir)
