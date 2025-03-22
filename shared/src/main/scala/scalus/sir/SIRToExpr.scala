@@ -16,6 +16,7 @@ class ToExprHS[T](
 ) extends ToExpr[T] {
 
     def apply(x: T)(using Quotes): Expr[T] = {
+        // note, that this expression is needed regardless of warning
         given Type[T] = tt
         val bitSize = hst.bitSize(x)
         val byteSize = (bitSize + 1 /* for filler */ / 8) + 1 /* minimum size */

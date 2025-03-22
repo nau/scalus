@@ -444,7 +444,6 @@ class SIRTypesHelper(using Context) {
     ): SIRType = {
         val retval = optParentSym match
             case Some(parentSym) =>
-                val optParentParent = retrieveParentSymbol(parentSym, env)
                 val dataDecl = makeSumClassDataDecl(parentSym, env)
                 val nakedType = dataDecl.constrType(typeSymbol.fullName.show)
                 SIRType.typeApply(nakedType, tpArgs)
@@ -490,7 +489,14 @@ class SIRTypesHelper(using Context) {
                 case _ => Nil
 
         }
-        ConstrDecl(name, SIRVarStorage.DEFAULT, params, tparams, parentTypeArgs)
+        ConstrDecl(
+          name,
+          SIRVarStorage.DEFAULT,
+          params,
+          tparams,
+          parentTypeArgs,
+          AnnotationsDecl.fromSym(typeSymbol)
+        )
     }
 
     def constructorResultType(typeSymbol: Symbol): Type = {
@@ -568,12 +574,18 @@ class SIRTypesHelper(using Context) {
                   SIRVarStorage.DEFAULT,
                   params,
                   sirTypeParams,
-                  parentTypeArgs
+                  parentTypeArgs,
+                  AnnotationsDecl.fromSym(s)
                 )
         }
         val typeParams =
             typeSymbol.typeParams.map(tp => SIRType.TypeVar(tp.name.show, Some(tp.hashCode())))
-        DataDecl(typeSymbol.fullName.show, constrDecls, typeParams)
+        DataDecl(
+          typeSymbol.fullName.show,
+          constrDecls,
+          typeParams,
+          AnnotationsDecl.fromSym(typeSymbol)
+        )
     }
 
     /*

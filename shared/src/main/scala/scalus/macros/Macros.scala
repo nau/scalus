@@ -17,7 +17,9 @@ import scala.collection.immutable
 import scala.quoted.*
 import scala.annotation.nowarn
 import scala.collection.mutable.ListBuffer
+
 object Macros {
+
     @nowarn
     def lamMacro[A: Type, B: Type](f: Expr[Exp[A] => Exp[B]])(using Quotes): Expr[Exp[A => B]] =
         import quotes.reflect.*

@@ -7,6 +7,8 @@ import scalus.flat.*
 
 class SirToExprSpec extends AnyFunSuite {
 
+    val ae = AnnotationsDecl.empty
+
     test("serialize/deserialize List") {
         val sir = SIR.Const(
           scalus.uplc.Constant.List(
@@ -17,7 +19,8 @@ class SirToExprSpec extends AnyFunSuite {
               scalus.uplc.Constant.Integer(3)
             )
           ),
-          SIRType.List(SIRType.Integer)
+          SIRType.List(SIRType.Integer),
+          ae
         )
         val len = ToExprHSSIRFlat.bitSize(sir)
         val encoded = EncoderState(len / 8 + 1)
@@ -63,9 +66,15 @@ class SirToExprSpec extends AnyFunSuite {
         val arg: SIR = SIR.Const(
           scalus.uplc.Constant
               .List(scalus.uplc.DefaultUni.Integer, List(scalus.uplc.Constant.Integer(1))),
-          SIRType.List(SIRType.Integer)
+          SIRType.List(SIRType.Integer),
+          ae
         )
-        val fun1 = SIR.Apply(fun, arg, SIRType.calculateApplyType(fun.tp, arg.tp, Map.empty))
+        val fun1 = SIR.Apply(
+          fun,
+          arg,
+          SIRType.calculateApplyType(fun.tp, arg.tp, Map.empty),
+          AnnotationsDecl.empty
+        )
         val tp = fun1.tp
         val bitSize = ToExprHSSIRTypeFlat.bitSize(tp)
         val encoded = EncoderState(bitSize / 8 + 1)
@@ -80,9 +89,15 @@ class SirToExprSpec extends AnyFunSuite {
         val arg: SIR = SIR.Const(
           scalus.uplc.Constant
               .List(scalus.uplc.DefaultUni.Integer, List(scalus.uplc.Constant.Integer(1))),
-          SIRType.List(SIRType.Integer)
+          SIRType.List(SIRType.Integer),
+          ae
         )
-        val fun1 = SIR.Apply(fun0, arg, SIRType.calculateApplyType(fun0.tp, arg.tp, Map.empty))
+        val fun1 = SIR.Apply(
+          fun0,
+          arg,
+          SIRType.calculateApplyType(fun0.tp, arg.tp, Map.empty),
+          AnnotationsDecl.empty
+        )
         val bitSize = ToExprHSSIRFlat.bitSize(fun1)
         val encoded = EncoderState(bitSize / 8 + 1)
         ToExprHSSIRFlat.encode(fun1, encoded)

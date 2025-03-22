@@ -159,12 +159,15 @@ class SimpleSirToUplcV3Lowering(sir: SIR, generateErrorTraces: Boolean = false):
             case i => throw new IllegalArgumentException(s"Invalid field index $i for TxId")
 
         },
-        genMatch = { case SIR.Match(scrutinee, cases, _) =>
+        genMatch = { case SIR.Match(scrutinee, cases, _, anns) =>
             val scrutineeTerm = lowerInner(scrutinee)
             cases match
                 case SIR.Case(Pattern.Constr(constr, bindings, _), body) :: Nil =>
                     λ(bindings.head)(lowerInner(body)) $ scrutineeTerm
-                case _ => throw new IllegalArgumentException("Expected single case for TxId")
+                case _ =>
+                    throw new IllegalArgumentException(
+                      s"Expected single case for TxId at ${anns.pos}"
+                    )
         }
       )
     )
@@ -174,7 +177,7 @@ class SimpleSirToUplcV3Lowering(sir: SIR, generateErrorTraces: Boolean = false):
             case SIR.Decl(data, body) =>
                 decls(data.name) = data
                 lowerInner(body)
-            case SIR.Constr(name, data, args, tp) =>
+            case SIR.Constr(name, data, args, tp, anns) =>
                 val tag = data.constructors.indexWhere(_.name == name, 0)
                 if tag == -1 then
                     throw new IllegalArgumentException(s"Constructor $name not found in $data")
@@ -185,7 +188,7 @@ class SimpleSirToUplcV3Lowering(sir: SIR, generateErrorTraces: Boolean = false):
                     val term = mapping(data.name).toData(loweredArgs)
                     term
                 else constrData(tag, loweredArgs)
-            case m @ SIR.Match(scrutinee, cases, tp) =>
+            case m @ SIR.Match(scrutinee, cases, tp, anns) =>
                 val scrutineeTerm = lowerInner(scrutinee)
 
                 def find(sirType: SIRType): (String, Seq[ConstrDecl]) =
@@ -214,13 +217,13 @@ class SimpleSirToUplcV3Lowering(sir: SIR, generateErrorTraces: Boolean = false):
                                 } $ (builtinTerms(SndPair) $ pair)
                             } $ (builtinTerms(FstPair) $ pair)
                         } $ pair
-            case SIR.Var(name, _)            => Term.Var(NamedDeBruijn(name))
-            case SIR.ExternalVar(_, name, _) => Term.Var(NamedDeBruijn(name))
-            case SIR.Let(NonRec, bindings, body) =>
+            case SIR.Var(name, _, _)            => Term.Var(NamedDeBruijn(name))
+            case SIR.ExternalVar(_, name, _, _) => Term.Var(NamedDeBruijn(name))
+            case SIR.Let(NonRec, bindings, body, _) =>
                 bindings.foldRight(lowerInner(body)) { case (Binding(name, rhs), body) =>
                     Term.Apply(Term.LamAbs(name, body), lowerInner(rhs))
                 }
-            case SIR.Let(Rec, Binding(name, rhs) :: Nil, body) =>
+            case SIR.Let(Rec, Binding(name, rhs) :: Nil, body, _) =>
                 /*  let rec f x = f (x + 1)
                     in f 0
                     (\f -> f 0) (Z (\f. \x. f (x + 1)))
@@ -232,14 +235,14 @@ class SimpleSirToUplcV3Lowering(sir: SIR, generateErrorTraces: Boolean = false):
                       Term.LamAbs(name, lowerInner(rhs))
                     )
                 Term.Apply(Term.LamAbs(name, lowerInner(body)), fixed)
-            case SIR.Let(Rec, bindings, body) =>
+            case SIR.Let(Rec, bindings, body, anns) =>
                 // TODO: implement mutual recursion
                 sys.error(s"Mutually recursive bindings are not supported: $bindings")
-            case SIR.LamAbs(name, term) => Term.LamAbs(name.name, lowerInner(term))
+            case SIR.LamAbs(name, term, anns) => Term.LamAbs(name.name, lowerInner(term))
             // f(arg)
-            case SIR.Apply(f, arg, _) => Term.Apply(lowerInner(f), lowerInner(arg))
+            case SIR.Apply(f, arg, _, _) => Term.Apply(lowerInner(f), lowerInner(arg))
             // record.field
-            case SIR.Select(scrutinee, field, _) =>
+            case SIR.Select(scrutinee, field, _, _) =>
                 @tailrec
                 def find(sirType: SIRType): (String, ConstrDecl) =
                     sirType match
@@ -274,40 +277,43 @@ class SimpleSirToUplcV3Lowering(sir: SIR, generateErrorTraces: Boolean = false):
                 }
                 val (name, constrDecl) = find(scrutinee.tp)
                 lowerSelect(name, constrDecl)
-            case SIR.Const(const, _) => Term.Const(const)
-            case SIR.And(lhs, rhs) =>
+            case SIR.Const(const, _, _) => Term.Const(const)
+            case SIR.And(lhs, rhs, anns) =>
                 lowerInner(
                   SIR.IfThenElse(
                     lhs,
                     rhs,
-                    SIR.Const(Constant.Bool(false), SIRType.Boolean),
-                    SIRType.Boolean
+                    SIR.Const(Constant.Bool(false), SIRType.Boolean, AnnotationsDecl.empty),
+                    SIRType.Boolean,
+                    anns
                   )
                 )
-            case SIR.Or(lhs, rhs) =>
+            case SIR.Or(lhs, rhs, anns) =>
                 lowerInner(
                   SIR.IfThenElse(
                     lhs,
-                    SIR.Const(Constant.Bool(true), SIRType.Boolean),
+                    SIR.Const(Constant.Bool(true), SIRType.Boolean, AnnotationsDecl.empty),
                     rhs,
-                    SIRType.Boolean
+                    SIRType.Boolean,
+                    anns
                   )
                 )
-            case SIR.Not(term) =>
+            case SIR.Not(term, anns) =>
                 lowerInner(
                   SIR.IfThenElse(
                     term,
-                    SIR.Const(Constant.Bool(false), SIRType.Boolean),
-                    SIR.Const(Constant.Bool(true), SIRType.Boolean),
-                    SIRType.Boolean
+                    SIR.Const(Constant.Bool(false), SIRType.Boolean, AnnotationsDecl.empty),
+                    SIR.Const(Constant.Bool(true), SIRType.Boolean, AnnotationsDecl.empty),
+                    SIRType.Boolean,
+                    anns
                   )
                 )
-            case SIR.IfThenElse(cond, t, f, _) =>
+            case SIR.IfThenElse(cond, t, f, _, _) =>
                 !(builtinTerms(IfThenElse) $ lowerInner(cond) $ ~lowerInner(
                   t
                 ) $ ~lowerInner(f))
-            case SIR.Builtin(bn, _) => builtinTerms(bn)
-            case SIR.Error(msg, _) =>
+            case SIR.Builtin(bn, _, _) => builtinTerms(bn)
+            case SIR.Error(msg, _, _) =>
                 if generateErrorTraces
                 then
                     !(builtinTerms(Trace) $ Term.Const(

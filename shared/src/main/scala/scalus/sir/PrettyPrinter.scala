@@ -108,7 +108,7 @@ object PrettyPrinter:
         def typ(s: Doc): Doc = s.styled(Fg.colorCode(55))
         def typedName(name: String, tp: SIRType): Doc = text(name) + char(':') & typ(pretty(tp))
         sir match
-            case Decl(DataDecl(name, constructors, typeParams), term) =>
+            case Decl(DataDecl(name, constructors, typeParams, anns), term) =>
                 val prettyConstrs = constructors.map { constr =>
                     val params = constr.params match
                         case Nil => empty
@@ -129,13 +129,13 @@ object PrettyPrinter:
                       prettyConstrs
                     )).grouped.aligned
                     / pretty(term, style)
-            case Constr(name, _, args, _) =>
+            case Constr(name, _, args, _, _) =>
                 ctr(name) + intercalate(
                   text(",") + line,
                   args.map(pretty(_, style))
                 )
                     .tightBracketBy(text("("), text(")"))
-            case Match(scrutinee, cases, tp) =>
+            case Match(scrutinee, cases, tp, anns) =>
                 val prettyCases =
                     stack(cases.map {
                         case SIR.Case(Pattern.Constr(constr, bindings, typeBindings), body) =>
@@ -162,14 +162,14 @@ object PrettyPrinter:
                       2
                     )).aligned
 
-            case Var(name, tp)                     => text(name)
-            case ExternalVar(moduleName, name, tp) => text(name)
-            case Let(Recursivity.NonRec, List(Binding(name, body)), inExpr) =>
+            case Var(name, tp, _)                     => text(name)
+            case ExternalVar(moduleName, name, tp, _) => text(name)
+            case Let(Recursivity.NonRec, List(Binding(name, body)), inExpr, anns) =>
                 pretty(body, style).bracketBy(
                   kw("let") & typedName(name, body.tp) & text("="),
                   kw("in")
                 ) / pretty(inExpr, style)
-            case Let(Recursivity.Rec, List(Binding(name, body)), inExpr) =>
+            case Let(Recursivity.Rec, List(Binding(name, body)), inExpr, anns) =>
                 val (args, body1) = SirDSL.lamAbsToList(body)
                 val prettyArgs = inParens(intercalate(text(",") + space, args.map(text)))
                 val signatureLine =
@@ -182,8 +182,8 @@ object PrettyPrinter:
                   "in"
                 ) & pretty(inExpr, style)
             // TODO: support multiple bindings
-            case Let(_, _, inExpr) => sys.error(s"Multiple bindings not supported: $sir")
-            case LamAbs(name, term) =>
+            case Let(_, _, inExpr, _) => sys.error(s"Multiple bindings not supported: $sir")
+            case LamAbs(name, term, anns) =>
                 val (args, body1) = SirDSL.lamAbsToList(sir)
                 val prettyArgs = stack(args.map(text))
                 val decl =
@@ -191,7 +191,7 @@ object PrettyPrinter:
                 ((decl + (line + pretty(body1, style)).nested(2)).grouped / text(
                   "}"
                 )).grouped.aligned
-            case a @ Apply(f, arg, tp) =>
+            case a @ Apply(f, arg, tp, anns) =>
                 val (t, args) = SirDSL.applyToList(a)
                 val prettyArgs = args match
                     case List() => text("()")
@@ -200,10 +200,10 @@ object PrettyPrinter:
                             .tightBracketBy(text("("), text(")"))
 
                 pretty(t, style) + prettyArgs
-            case Select(scrutinee, field, tp) =>
+            case Select(scrutinee, field, tp, anns) =>
                 pretty(scrutinee, style) + text("." + field)
-            case Const(const, _) => prettyValue(const).styled(Fg.colorCode(64))
-            case And(a, b)       =>
+            case Const(const, _, _) => prettyValue(const).styled(Fg.colorCode(64))
+            case And(a, b, _)       =>
                 // We don't add parentheses for nested Ands, because they are associative.
                 // But we add parentheses for nested Ors and Nots.
                 val docA = a match {
@@ -216,7 +216,7 @@ object PrettyPrinter:
                 }
                 (docA / kw("and") / docB).grouped.aligned
 
-            case Or(a, b) =>
+            case Or(a, b, _) =>
                 // We add parentheses for nested Ors and Nots.
                 val docA = a match {
                     case _: Or | _: Not => inParens(pretty(a, style))
@@ -228,7 +228,7 @@ object PrettyPrinter:
                 }
                 (docA / kw("or") / docB).grouped.aligned
 
-            case Not(a) =>
+            case Not(a, _) =>
                 // We add parentheses for nested Nots, Ands, and Ors.
                 val docA = a match {
                     case _: Not | _: And | _: Or => inParens(pretty(a, style) + line)
@@ -236,14 +236,14 @@ object PrettyPrinter:
                 }
                 (kw("not") / docA).grouped.aligned
 
-            case IfThenElse(cond, t, f, tp) =>
+            case IfThenElse(cond, t, f, tp, ann) =>
                 ((kw("if") + (line + pretty(cond, style)).nested(4)).grouped
                     + (line + kw("then") + (line + pretty(t, style)).nested(4)).grouped
                     + (line + kw("else") + (line + pretty(f, style)).nested(
                       4
                     )).grouped).aligned
-            case Builtin(bn, _) => pretty(bn).styled(Fg.colorCode(176))
-            case Error(msg, _)  => text(s"ERROR '$msg'").styled(Fg.colorCode(124))
+            case Builtin(bn, _, _) => pretty(bn).styled(Fg.colorCode(176))
+            case Error(msg, _, _)  => text(s"ERROR '$msg'").styled(Fg.colorCode(124))
 
     def pretty(sirType: SIRType): Doc =
         sirType match

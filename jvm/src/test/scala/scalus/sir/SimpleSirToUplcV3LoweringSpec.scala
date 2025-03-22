@@ -6,7 +6,6 @@ import scalus.Compiler.compile
 import scalus.builtin.*
 import scalus.builtin.given
 import scalus.builtin.ByteString.*
-import scalus.ledger.api.v1.PubKeyHash
 import scalus.ledger.api.v3.*
 import scalus.prelude.*
 import scalus.uplc.DeBruijnedProgram
@@ -146,7 +145,7 @@ class SimpleSirToUplcV3LoweringSpec extends AnyFunSuite {
         val lower = SimpleSirToUplcV3Lowering(sir)
         val term = lower.lower() $ ctxData.asTerm
         println(term.showHighlighted)
-        val Result.Success(t, _, _, _) = term.evaluateDebug
+        @unchecked val Result.Success(t, _, _, _) = term.evaluateDebug
         println(t.showHighlighted)
         println(ctx.txInfo.validRange.toData.asTerm.showHighlighted)
         assert(Term.alphaEq(t, ctx.txInfo.validRange.toData.asTerm))
