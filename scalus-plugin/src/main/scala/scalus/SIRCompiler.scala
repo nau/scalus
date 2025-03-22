@@ -12,8 +12,6 @@ import dotty.tools.dotc.core.Symbols.*
 import dotty.tools.dotc.core.Types.*
 import dotty.tools.dotc.core.*
 import dotty.tools.dotc.util.{NoSourcePosition, SourcePosition, SrcPos}
-import dotty.tools.io.ClassPath
-import scalus.flat.DecoderState
 import scalus.flat.EncoderState
 import scalus.flat.Flat
 import scalus.flat.FlatInstantces.given
@@ -31,7 +29,6 @@ import scalus.sir.SIRPosition
 import scalus.sir.TypeBinding
 import scalus.uplc.DefaultUni
 
-import java.net.URL
 import scala.annotation.tailrec
 import scala.collection.immutable
 import scala.collection.mutable
@@ -50,20 +47,6 @@ case class AdtTypeInfo(
     constructorsSymbols: List[Symbol],
     parentSymbol: Option[Symbol]
 )
-
-//sealed trait AdtTypeInfo
-//
-//case class AdtTypeInfoChildrenRecord(
-//    childrenTypeSymbol: Symbol,
-//    childrenTypeParams: List[Type],
-//    data
-//                            )
-
-//case class AdtHierarchyTypeInfo(
-//    dataTypeSymbol: Symbol,
-//    dataTypeParams: List[Type],
-//    childrenSymbols: List[Symbol]
-//) extends AdtTypeInfo
 
 /** Information about a constructor call.
   * @param name
@@ -154,21 +137,8 @@ final class SIRCompiler(using ctx: Context) {
     private val CompileAnnot = requiredClassRef("scalus.Compile").symbol.asClass
     private val IgnoreAnnot = requiredClassRef("scalus.Ignore").symbol.asClass
 
-    private lazy val classLoader = makeClassLoader
-
     private def builtinFun(s: Symbol): Option[SIR.Builtin] = {
         DefaultFunSIRBuiltins.get(s)
-    }
-
-    private def makeClassLoader(using Context): ClassLoader = {
-        import scala.language.unsafeNulls
-
-        val entries = ClassPath.expandPath(ctx.settings.classpath.value, expandStar = true)
-        val urls = entries.map(cp => java.nio.file.Paths.get(cp).toUri.toURL).toArray
-        val out = Option(
-          ctx.settings.outputDir.value.toURL
-        ) // to find classes in case of suspended compilation
-        new java.net.URLClassLoader(urls ++ out.toList, getClass.getClassLoader)
     }
 
     def compileModule(tree: Tree): Unit = {
@@ -417,8 +387,7 @@ final class SIRCompiler(using ctx: Context) {
         env: Env,
         nakedType: Type,
         fullType: Type,
-        targs: immutable.List[Tree],
-        args: immutable.List[Tree],
+        args: List[Tree],
         srcPos: SrcPos
     ): SIR = {
         val constructorCallInfo = getAdtConstructorCallInfo(nakedType)
@@ -434,6 +403,12 @@ final class SIRCompiler(using ctx: Context) {
                         (SIRPosition.fromSrcPos(memberDef.srcPos), memberDef.rawComment.map(_.raw))
                     case _ =>
                         (SIRPosition.fromSrcPos(srcPos), None)
+            case None =>
+                report.warning(
+                  s"Constructor symbol not found: ${constructorCallInfo.fullName}",
+                  srcPos
+                )
+                (SIRPosition.fromSrcPos(srcPos), None)
         val anns = AnnotationsDecl(pos, optComment)
         SIR.Constr(
           constructorCallInfo.fullName,
@@ -1576,18 +1551,18 @@ final class SIRCompiler(using ctx: Context) {
                 compileBuiltinPairConstructor(env, a, b, tpe1, tpe2, tree)
             // new Constr(args)
             case Apply(TypeApply(con @ Select(f, nme.CONSTRUCTOR), targs), args) =>
-                compileNewConstructor(env, f.tpe, tree.tpe.widen, targs, args, tree)
+                compileNewConstructor(env, f.tpe, tree.tpe.widen, args, tree)
             case Apply(con @ Select(f, nme.CONSTRUCTOR), args) =>
-                compileNewConstructor(env, f.tpe, tree.tpe.widen, Nil, args, tree)
+                compileNewConstructor(env, f.tpe, tree.tpe.widen, args, tree)
             // (a, b) as scala.Tuple2.apply(a, b)
             // we need to special-case it because we use scala-library 2.13.x
             // which does not include TASTy so we can't access the method body
             case Apply(TypeApply(app @ Select(f, nme.apply), targs), args)
                 if app.symbol.fullName.show == "scala.Tuple2$.apply" =>
-                compileNewConstructor(env, tree.tpe, tree.tpe.widen, targs, args, tree)
+                compileNewConstructor(env, tree.tpe, tree.tpe.widen, args, tree)
             case Apply(app @ Select(f, nme.apply), args)
                 if app.symbol.fullName.show == "scala.Tuple2$.apply" =>
-                compileNewConstructor(env, tree.tpe, tree.tpe, Nil, args, tree)
+                compileNewConstructor(env, tree.tpe, tree.tpe, args, tree)
             /* case class Test(a: Int)
              * val t = Test(42)
              * is translated to
@@ -1598,14 +1573,14 @@ final class SIRCompiler(using ctx: Context) {
                 if apply.symbol.flags
                     .is(Flags.Synthetic) && apply.symbol.owner.flags.is(Flags.ModuleClass) =>
                 val classSymbol: Symbol = apply.symbol.owner.linkedClass
-                compileNewConstructor(env, classSymbol.typeRef, tree.tpe.widen, targs, args, tree)
+                compileNewConstructor(env, classSymbol.typeRef, tree.tpe.widen, args, tree)
 
             case Apply(apply @ Select(f, nme.apply), args)
                 if apply.symbol.flags
                     .is(Flags.Synthetic) && apply.symbol.owner.flags.is(Flags.ModuleClass) =>
                 // get a class symbol from a companion object
                 val classSymbol: Symbol = apply.symbol.owner.linkedClass
-                compileNewConstructor(env, classSymbol.typeRef, tree.tpe.widen, Nil, args, tree)
+                compileNewConstructor(env, classSymbol.typeRef, tree.tpe.widen, args, tree)
             // f.apply[A, B](arg) => Apply(f, arg)
             /* When we have something like this:
              * (f: [A] => List[A] => A, a: A) => f[Data](a)
@@ -1619,7 +1594,7 @@ final class SIRCompiler(using ctx: Context) {
                 compileApply(env, f, Nil, args, tree.tpe, a)
             case Ident(a) =>
                 if isConstructorVal(tree.symbol, tree.tpe) then
-                    compileNewConstructor(env, tree.tpe, tree.tpe, Nil, Nil, tree)
+                    compileNewConstructor(env, tree.tpe, tree.tpe, Nil, tree)
                 else compileIdentOrQualifiedSelect(env, tree)
             // case class User(name: String, age: Int)
             // val user = User("John", 42) => \u - u "John" 42
@@ -1638,7 +1613,7 @@ final class SIRCompiler(using ctx: Context) {
                 // else if obj.symbol.isPackageDef then
                 // compileExpr(env, obj)
                 else if isConstructorVal(tree.symbol, tree.tpe) then
-                    compileNewConstructor(env, tree.tpe, tree.tpe, Nil, Nil, tree.srcPos)
+                    compileNewConstructor(env, tree.tpe, tree.tpe, Nil, tree.srcPos)
                 else compileIdentOrQualifiedSelect(env, tree)
             // ignore asInstanceOf
             case TypeApply(Select(e, nme.asInstanceOf_), _) =>
@@ -1772,175 +1747,5 @@ object SIRCompiler {
     }
 
     val SIRVersion: (Int, Int) = (1, 0)
-
-}
-
-/** Links SIR definitions and data declarations into a single SIR module.
-  *
-  * This class is responsible for linking SIR definitions and data declarations to create a single
-  * SIR module.
-  *
-  * It traverses the SIR tree and links external definitions and data declarations to the global
-  * definitions and data declarations.
-  */
-class SIRLinker(using ctx: Context) {
-    private lazy val classLoader = makeClassLoader
-    private val globalDefs: mutable.LinkedHashMap[FullName, CompileDef] =
-        mutable.LinkedHashMap.empty
-    private val globalDataDecls: mutable.LinkedHashMap[FullName, DataDecl] =
-        mutable.LinkedHashMap.empty
-    private val moduleDefsCache: mutable.Map[String, mutable.LinkedHashMap[FullName, SIR]] =
-        mutable.LinkedHashMap.empty.withDefaultValue(mutable.LinkedHashMap.empty)
-
-    private def makeClassLoader: ClassLoader = {
-        import scala.language.unsafeNulls
-
-        val entries = ClassPath.expandPath(ctx.settings.classpath.value, expandStar = true)
-        val urls = entries.map(cp => java.nio.file.Paths.get(cp).toUri.toURL).toArray
-        val out = Option(
-          ctx.settings.outputDir.value.toURL
-        ) // to find classes in case of suspended compilation
-        new java.net.URLClassLoader(urls ++ out.toList, getClass.getClassLoader)
-    }
-
-    private def error[A](error: CompilationError, defaultValue: A): A = {
-        report.error(error.message, error.srcPos)
-        defaultValue
-    }
-
-    def link(sir: SIR, srcPos: SrcPos): SIR = {
-        traverseAndLink(sir, srcPos)
-        val full: SIR = globalDefs.values.foldRight(sir) {
-            case (CompileDef.Compiled(b), acc) =>
-                SIR.Let(
-                  b.recursivity,
-                  List(Binding(b.fullName.name, b.body)),
-                  acc,
-                  AnnotationsDecl.fromSrcPos(srcPos)
-                )
-            case (d, acc) =>
-                error(
-                  GenericError(
-                    s"""Unexpected globalDefs state: $d
-                           |$globalDefs
-                           |It's likely a Scalus bug. Please, report it via GitHub Issues or Discord
-                           |""".stripMargin,
-                    srcPos
-                  ),
-                  SIR.Error("", AnnotationsDecl.fromSrcPos(srcPos))
-                )
-        }
-        val dataDecls = globalDataDecls.foldRight((full: SIR)) { case ((_, decl), acc) =>
-            SIR.Decl(decl, acc)
-        }
-        dataDecls
-    }
-
-    private def traverseAndLink(sir: SIR, srcPos: SrcPos): Unit = sir match
-        case SIR.ExternalVar(moduleName, name, tp, _) if !globalDefs.contains(FullName(name)) =>
-            linkDefinition(moduleName, FullName(name), srcPos)
-        case SIR.Let(recursivity, bindings, body, anns) =>
-            bindings.foreach(b => traverseAndLink(b.value, srcPos))
-            traverseAndLink(body, srcPos)
-        case SIR.LamAbs(name, term, anns) => traverseAndLink(term, srcPos)
-        case SIR.Apply(f, arg, tp, anns) =>
-            traverseAndLink(f, srcPos)
-            traverseAndLink(arg, srcPos)
-        case SIR.And(lhs, rhs, anns) =>
-            traverseAndLink(lhs, srcPos)
-            traverseAndLink(rhs, srcPos)
-        case SIR.Or(lhs, rhs, anns) =>
-            traverseAndLink(lhs, srcPos)
-            traverseAndLink(rhs, srcPos)
-        case SIR.Not(term, anns) => traverseAndLink(term, srcPos)
-        case SIR.IfThenElse(cond, t, f, tp, anns) =>
-            traverseAndLink(cond, srcPos)
-            traverseAndLink(t, srcPos)
-            traverseAndLink(f, srcPos)
-        case SIR.Decl(data, term) => traverseAndLink(term, srcPos)
-        case SIR.Constr(name, data, args, tp, anns) =>
-            try
-                globalDataDecls.put(FullName(data.name), data)
-                args.foreach(a => traverseAndLink(a, srcPos))
-            catch
-                case NonFatal(e) =>
-                    println(s"Error in traverseAndLink: ${e.getMessage}")
-                    println(s"SIR= ${sir}")
-                    throw e
-        case SIR.Match(scrutinee, cases, rhsType, anns) =>
-            traverseAndLink(scrutinee, srcPos)
-            cases.foreach(c => traverseAndLink(c.body, srcPos))
-        case _ => ()
-
-    private def findAndLinkDefinition(
-        defs: collection.Map[FullName, SIR],
-        fullName: FullName,
-        srcPos: SrcPos
-    ): Boolean = {
-        val found = defs.get(fullName)
-        for sir <- found do
-            globalDefs.update(fullName, CompileDef.Compiling)
-            traverseAndLink(sir, srcPos)
-            globalDefs.remove(fullName)
-            globalDefs.update(
-              fullName,
-              CompileDef.Compiled(TopLevelBinding(fullName, Recursivity.Rec, sir))
-            )
-        found.isDefined
-    }
-
-    private def linkDefinition(moduleName: String, fullName: FullName, srcPos: SrcPos): Unit = {
-        // println(s"linkDefinition: ${fullName}")
-        val found = moduleDefsCache.get(moduleName) match
-            case Some(defs) =>
-                findAndLinkDefinition(defs, fullName, srcPos)
-            case None =>
-                findAndReadModuleOfSymbol(moduleName) match
-                    case Some(module) =>
-                        // println(s"Loaded module ${moduleName}, defs: ${defs}")
-                        validateSIRVersion(module, moduleName, srcPos)
-                        val defsMap = mutable.LinkedHashMap.from(
-                          module.defs.map(d => FullName(d.name) -> d.value)
-                        )
-                        moduleDefsCache.put(moduleName, defsMap)
-                        findAndLinkDefinition(defsMap, fullName, srcPos)
-                    case None =>
-                        report.error(s"Module not found: ${moduleName}", srcPos)
-                        false
-
-        if !found then
-            error(
-              SymbolNotFound(fullName.name, srcPos),
-              SIR.Error("Symbol not found", AnnotationsDecl.fromSrcPos(srcPos))
-            )
-    }
-
-    private def findAndReadModuleOfSymbol(moduleName: String): Option[Module] = {
-        val filename = moduleName.replace('.', '/') + ".sir"
-        // println(s"findAndReadModuleOfSymbol: ${filename}")
-        // read the file from the classpath
-        val resource = classLoader.getResourceAsStream(filename)
-        if resource != null then
-            val buffer = resource.readAllBytes()
-            val dec = DecoderState(buffer)
-            val module = flat.decode[Module](dec)
-            resource.close()
-            Some(module)
-        else None
-    }
-
-    private def validateSIRVersion(module: Module, moduleName: String, srcPos: SrcPos): Unit = {
-        if (module.version._1 != SIRCompiler.SIRVersion._1)
-            || (module.version._1 == SIRCompiler.SIRVersion._1
-                && SIRCompiler.SIRVersion._2 < module.version._2)
-        then
-            report.error(
-              s"""During linking I've found that a module '$moduleName' has an incompatible SIR version: ${module.version} (expected: ${SIRCompiler.SIRVersion}).
-                   |This can happen if you try to link a module compiled with a different version of Scalus.
-                   |Please, recompile the module with the version of Scalus that has the SIR version ${SIRCompiler.SIRVersion}
-                   |""".stripMargin,
-              srcPos
-            )
-    }
 
 }
