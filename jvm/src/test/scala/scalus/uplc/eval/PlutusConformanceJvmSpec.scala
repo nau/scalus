@@ -2,7 +2,6 @@ package scalus
 package uplc
 package eval
 
-import java.nio.file.{Files, Paths}
 import scala.language.implicitConversions
 
 /** Tests for the Plutus Conformance Test Suite.

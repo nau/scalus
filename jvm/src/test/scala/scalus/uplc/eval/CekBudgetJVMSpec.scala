@@ -5,7 +5,6 @@ import cats.syntax.all.*
 import org.scalatest.funsuite.AnyFunSuite
 import scalus.*
 import scalus.builtin.JVMPlatformSpecific
-import scalus.flat.Flat
 import scalus.ledger.api.BuiltinSemanticsVariant
 import scalus.ledger.api.PlutusLedgerLanguage.*
 import scalus.ledger.babbage.*

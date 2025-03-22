@@ -2,9 +2,7 @@ package scalus.sir
 
 import org.scalatest.funsuite.AnyFunSuite
 import scalus.Compiler.compile
-import scalus.Compiler.compileDebug
 import scalus.*
-import scalus.builtin.given
 
 object SITRTypingScalaToSIRSpecScope {
 
