@@ -1,9 +1,7 @@
-package scalus.sir
+package scalus.uplc.transform
 
 import scalus.*
-import scalus.uplc.Meaning
-import scalus.uplc.NamedDeBruijn
-import scalus.uplc.Term
+import scalus.uplc.{Meaning, NamedDeBruijn, Term}
 import scalus.uplc.Term.*
 
 /** Performs eta-reduction on a term.
@@ -74,8 +72,8 @@ object EtaReduce:
         case Apply(_, _) => false
         // (lam x [(lam ...) x]) can be eta-reduced to (lam ...)
         case LamAbs(_, _) => true
-        // we had (lam x [(delay t) x]), it can be eta-reduced to (delay t) if t is pure
-        case Delay(term) => isPure(term)
+        // we had (lam x [(delay t) x]), it can be eta-reduced to (delay t)
+        case Delay(_) => true
         // (lam x [(const ..) x]) can be eta-reduced to (const ..)
         case Const(_) => true
         // (lam x [(var f) x]) can be eta-reduced to (var f)
