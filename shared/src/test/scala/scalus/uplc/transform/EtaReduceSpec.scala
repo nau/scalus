@@ -1,14 +1,14 @@
-package scalus.sir
+package scalus.uplc.transform
+
 import org.scalatest.funsuite.AnyFunSuite
 import scalus.*
 import scalus.uplc.DefaultFun.*
 import scalus.uplc.Term
 import scalus.uplc.Term.*
 import scalus.uplc.TermDSL.{*, given}
+import scalus.uplc.transform.EtaReduce.etaReduce
 
 import scala.language.implicitConversions
-
-import EtaReduce.etaReduce
 
 class EtaReduceSpec extends AnyFunSuite:
     test("(lam x [f x]) reduces to f"):

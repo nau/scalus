@@ -1,9 +1,7 @@
-package scalus.sir
+package scalus.uplc.transform
 
 import scalus.*
-import scalus.uplc.Meaning
-import scalus.uplc.NamedDeBruijn
-import scalus.uplc.Term
+import scalus.uplc.{Meaning, NamedDeBruijn, Term}
 import scalus.uplc.Term.*
 
 /** Performs eta-reduction on a term.

@@ -96,9 +96,7 @@ val optimized2 = sir |> RemoveRecursivity.apply
 Scalus can also optimize the UPLC representation of the script. The `EtaReduce` optimization removes unnecessary lambdas.
 
 ```scala mdoc:compile-only
-import scalus.*, scalus.sir.*
-val sir: SIR = ??? // from the previous example
-val optimized = RemoveRecursivity(sir)
-val uplc = optimized.toUplc()
-val opt = uplc |> EtaReduce.apply
+import scalus.uplc.Term, scalus.uplc.transform.*
+val uplc: Term = ???
+val opt = EtaReduce(uplc)
 ```
