@@ -13,7 +13,6 @@ import scalus.examples.Groth16.*
 import scalus.prelude.List
 import scalus.uplc.Constant
 import scalus.uplc.Term
-import scalus.uplc.TermDSL.*
 import scalus.uplc.TermDSL.given
 import scalus.uplc.eval.PlutusVM
 

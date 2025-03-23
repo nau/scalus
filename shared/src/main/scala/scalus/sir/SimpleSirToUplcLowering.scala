@@ -3,7 +3,6 @@ package sir
 
 import scalus.sir.Recursivity.*
 import scalus.sir.SIR.Pattern
-import scalus.uplc.TermDSL.*
 import scalus.uplc.*
 
 import scala.annotation.tailrec

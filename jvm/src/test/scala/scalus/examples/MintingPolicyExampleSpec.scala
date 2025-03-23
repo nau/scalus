@@ -11,7 +11,7 @@ import scalus.ledger.api.v2
 import scalus.prelude.Maybe.*
 import scalus.prelude.*
 import scalus.uplc.Term.*
-import scalus.uplc.TermDSL.{*, given}
+import scalus.uplc.TermDSL.given
 import scalus.uplc.*
 
 import scala.language.implicitConversions
