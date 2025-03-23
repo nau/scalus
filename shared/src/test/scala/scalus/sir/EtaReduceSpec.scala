@@ -1,8 +1,6 @@
 package scalus.sir
 import org.scalatest.funsuite.AnyFunSuite
-import org.scalatestplus.scalacheck.ScalaCheckPropertyChecks
 import scalus.*
-import scalus.uplc.ArbitraryInstances
 import scalus.uplc.DefaultFun.*
 import scalus.uplc.Term
 import scalus.uplc.Term.*
@@ -12,7 +10,7 @@ import scala.language.implicitConversions
 
 import EtaReduce.etaReduce
 
-class EtaReduceSpec extends AnyFunSuite with ScalaCheckPropertyChecks with ArbitraryInstances:
+class EtaReduceSpec extends AnyFunSuite:
     test("(lam x [f x]) reduces to f"):
         assert(etaReduce(λ("x")(vr"f" $ vr"x")) == vr"f")
 
@@ -27,6 +25,9 @@ class EtaReduceSpec extends AnyFunSuite with ScalaCheckPropertyChecks with Arbit
 
     test("(lam x [(error) x]) does not reduce"):
         assert(etaReduce(λ("x")(Error $ vr"x")) == λ("x")(Error $ vr"x"))
+
+    test("(lam x [(delay error) x]) reduces to (delay error)"):
+        assert(etaReduce(λ("x")(Delay(Error) $ vr"x")) == Delay(Error))
 
     test("(lam x [(force f) x]) does not reduce"):
         assert(etaReduce(λ("x")(Force(vr"f") $ vr"x")) == λ("x")(Force(vr"f") $ vr"x"))
