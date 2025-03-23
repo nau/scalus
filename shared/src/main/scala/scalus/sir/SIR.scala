@@ -55,7 +55,7 @@ case object AnnotationsDecl {
 
     inline def empty: AnnotationsDecl = ${ emptyImpl }
 
-    def emptyImpl(using qctx: Quotes): Expr[AnnotationsDecl] = {
+    private def emptyImpl(using qctx: Quotes): Expr[AnnotationsDecl] = {
         val scalaPosition = qctx.reflect.Position.ofMacroExpansion
         '{
             AnnotationsDecl(
