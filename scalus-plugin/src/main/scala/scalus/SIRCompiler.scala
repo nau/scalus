@@ -97,7 +97,7 @@ final class SIRCompiler(using ctx: Context) {
     private val ByteStringSymbolHex = ByteStringModuleSymbol.requiredMethod("hex")
     private val ByteStringStringInterpolatorsMethodSymbol =
         ByteStringModuleSymbol.requiredMethod("StringInterpolators")
-    private val typer = new SIRTypesHelper
+    private val typer = new SIRTyper
     private val pmCompiler = new PatternMatchingCompiler(this)
 
     extension (t: Type)
