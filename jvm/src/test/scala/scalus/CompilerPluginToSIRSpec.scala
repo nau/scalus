@@ -4,7 +4,7 @@ import org.scalatest.funsuite.AnyFunSuite
 import org.scalatestplus.scalacheck.ScalaCheckPropertyChecks
 import scalus.Compiler.{compile, fieldAsData}
 import scalus.builtin.ByteString.*
-import scalus.builtin.{Builtins, ByteString, Data, given}
+import scalus.builtin.{Builtins, ByteString, Data, JVMPlatformSpecific, PlatformSpecific, given}
 import scalus.ledger.api.v1.*
 import scalus.prelude.List.{Cons, Nil}
 import scalus.prelude.Prelude.given
@@ -1944,9 +1944,27 @@ class CompilerPluginToSIRSpec extends AnyFunSuite with ScalaCheckPropertyChecks:
         } ~=~ Const(Constant.Unit, SIRType.Unit, AnE))
     }
 
-    test("Ignore PlatformSpecific arguments") {
-        // Make sure that the implicit PlatformSpecific argument is not generated
-        assert(compile(Builtins.sha2_256) ~=~ (lam("bs")(Sha2_256 $ Var("bs", sirByteString, AnE))))
+    test("compile custom Builtins") {
+        given PlatformSpecific = new JVMPlatformSpecific {
+            override def sha2_256(bs: ByteString): ByteString = hex"deadbeef"
+        }
+        object CustomBuiltins extends Builtins
+        given PlutusVM = PlutusVM.makePlutusV3VM()
+
+        val sir = compile(CustomBuiltins.sha2_256(hex"12"))
+        // check that SIRCompiler compiles the custom builtin
+        assert(
+          sir ~=~ Apply(
+            SIRBuiltins.sha2_256,
+            Const(Constant.ByteString(hex"12"), sirByteString, AnE),
+            sirByteString,
+            AnE
+          )
+        )
+        // check that the custom builtin is correctly evaluated on the JVM
+        assert(CustomBuiltins.sha2_256(hex"12") == hex"deadbeef")
+        // check that PlutusVM uses the custom builtin
+        assert(sir.toUplc().evaluate == Term.Const(Constant.ByteString(hex"deadbeef")))
     }
 
     test("? operator produces a debug log") {

@@ -80,6 +80,9 @@ private trait Secp256k1Schnorr extends js.Object {
         js.native
 }
 
+object Builtins extends AbstractBuiltins(using NodeJsPlatformSpecific)
+class Builtins(using ps: PlatformSpecific) extends AbstractBuiltins(using ps)
+
 trait NodeJsPlatformSpecific extends PlatformSpecific {
     extension (bs: ByteString)
         def toUint8Array: Uint8Array =

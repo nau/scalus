@@ -12,7 +12,6 @@ import scalus.builtin.Data.ToData
 import scalus.builtin.FromData
 import scalus.builtin.ToData
 import scalus.prelude.*
-import scalus.builtin.given
 
 /** Groth16 Zero-Knowledge Proof Verification Implementation
   *

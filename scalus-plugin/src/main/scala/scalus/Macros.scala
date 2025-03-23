@@ -1,7 +1,6 @@
 package scalus
 import dotty.tools.dotc.core.Contexts.Context
 import dotty.tools.dotc.core.Symbols
-import dotty.tools.dotc.core.Symbols.requiredModule
 import scalus.sir.SIR
 import scalus.sir.SIRBuiltins
 import scalus.uplc.DefaultFun
@@ -33,9 +32,11 @@ object Macros {
                 '{
                     given Context = $ctx
                     (
-                      requiredModule("scalus.builtin.Builtins").requiredMethod(${
-                          Expr(methodName)
-                      }),
+                      Symbols
+                          .requiredClass("scalus.builtin.Builtins")
+                          .requiredMethod(${
+                              Expr(methodName)
+                          }),
                       ${ Select.unique('{ SIRBuiltins }.asTerm, methodName).asExprOf[SIR.Builtin] }
                     )
                 }
