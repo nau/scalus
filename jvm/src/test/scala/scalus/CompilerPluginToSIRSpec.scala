@@ -46,7 +46,6 @@ class CompilerPluginToSIRSpec extends AnyFunSuite with ScalaCheckPropertyChecks:
 
     def AnE = AnnotationsDecl.empty
 
-    /*
     test("compile literals") {
         assert(
           compile(false) ~=~ Const(Constant.Bool(false), SIRType.Boolean, AnnotationsDecl.empty)
@@ -1148,7 +1147,7 @@ class CompilerPluginToSIRSpec extends AnyFunSuite with ScalaCheckPropertyChecks:
           case VerifyEd25519Signature // formerly verifySignature
           case VerifyEcdsaSecp256k1Signature
           case VerifySchnorrSecp256k1Signature
-     */
+         */
         assert(compile(Builtins.sha2_256(hex"dead")) ~=~ (Sha2_256 $ hex"dead"))
         assert(compile(Builtins.sha3_256(hex"dead")) ~=~ (Sha3_256 $ hex"dead"))
         assert(compile(Builtins.blake2b_256(hex"dead")) ~=~ (Blake2b_256 $ hex"dead"))
@@ -1834,7 +1833,6 @@ class CompilerPluginToSIRSpec extends AnyFunSuite with ScalaCheckPropertyChecks:
         val evaled = compiled.toUplc().evaluate
         assert(evaled == scalus.uplc.Term.Const(Constant.ByteString(hex"deadbeef")))
     }
-     */
 
     test("compile match on ADT") {
         import scalus.prelude.List
@@ -1853,7 +1851,6 @@ class CompilerPluginToSIRSpec extends AnyFunSuite with ScalaCheckPropertyChecks:
         assert(evaled == scalus.uplc.Term.Const(Constant.Integer(1)))
     }
 
-    /*
     test("compile wildcard match on ADT") {
         import scalus.prelude.These
         val compiled = compile {
@@ -1996,4 +1993,3 @@ class CompilerPluginToSIRSpec extends AnyFunSuite with ScalaCheckPropertyChecks:
         }
         assert(compiled.toUplc().plutusV3.flatEncoded.length == 93652)
     }
-     */
