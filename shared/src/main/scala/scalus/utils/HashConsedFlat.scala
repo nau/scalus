@@ -1,7 +1,6 @@
 package scalus.utils
 
 import scalus.flat.*
-import scalus.flat.FlatInstantces.SIRTypeHashConsedRef
 import scalus.utils.HashConsed.ForwardRefAcceptor
 
 class HashConsedEncoderState(

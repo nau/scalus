@@ -232,6 +232,8 @@ object SIRUnify {
                                                   ),
                                                   SIR.IfThenElse(cond, t, f, tp, v1.anns)
                                                 )
+                                            case failure @ UnificationFailure(path, left, right) =>
+                                                failure
                                     case failure @ UnificationFailure(
                                           path,
                                           rightLeft,
@@ -622,6 +624,13 @@ object SIRUnify {
                                     case failure @ UnificationFailure(path, left, right) => failure
                             case failure @ UnificationFailure(path, left, right) => failure
                     case failure @ UnificationFailure(path, left, right) => failure
+            case (Pattern.Wildcard, Pattern.Wildcard) =>
+                unifySIR(left.body, right.body, env.copy(path = "body" :: env.path)) match
+                    case UnificationSuccess(env1, body) =>
+                        UnificationSuccess(env, SIR.Case(Pattern.Wildcard, body))
+                    case failure @ UnificationFailure(path, left, right) => failure
+            case (_, _) =>
+                UnificationFailure(env.path, left, right)
     }
 
     given Unify[ConstrDecl] with {

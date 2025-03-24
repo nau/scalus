@@ -14,8 +14,6 @@ import java.math.BigInteger
 
 object JVMPlatformSpecific extends JVMPlatformSpecific
 trait JVMPlatformSpecific extends PlatformSpecific {
-    val scalarPeriod: BigInt =
-        BigInt("73eda753299d7d483339d80809a1d80553bda402fffe5bfeffffffff00000001", 16)
     override def sha2_256(bs: ByteString): ByteString =
         ByteString.unsafeFromArray(Utils.sha2_256(bs.bytes))
 
@@ -89,107 +87,115 @@ trait JVMPlatformSpecific extends PlatformSpecific {
     }
 
     // BLS12_381 operations
-    override def bls12_381_G1_equal(p1: BLS12_381_G1_Element, p2: BLS12_381_G1_Element): Boolean = {
-        p1.p.is_equal(p2.p)
-    }
+    override def bls12_381_G1_equal(p1: BLS12_381_G1_Element, p2: BLS12_381_G1_Element): Boolean =
+        p1 == p2
 
     override def bls12_381_G1_add(
         p1: BLS12_381_G1_Element,
         p2: BLS12_381_G1_Element
-    ): BLS12_381_G1_Element = BLS12_381_G1_Element(p1.p.add(p2.p))
+    ): BLS12_381_G1_Element = BLS12_381_G1_Element(p1.value.dup.add(p2.value))
 
     override def bls12_381_G1_scalarMul(
         s: BigInt,
         p: BLS12_381_G1_Element
     ): BLS12_381_G1_Element = {
-        val scalar = s.bigInteger.mod(scalarPeriod.bigInteger)
-        BLS12_381_G1_Element(p.p.mult(scalar))
+        val scalar = s.bigInteger.mod(PlatformSpecific.bls12_381_scalar_period.bigInteger)
+        BLS12_381_G1_Element(p.value.dup.mult(scalar))
     }
 
     override def bls12_381_G1_neg(
         p: BLS12_381_G1_Element
     ): BLS12_381_G1_Element = {
-        BLS12_381_G1_Element(p.p.neg())
+        BLS12_381_G1_Element(p.value.dup.neg())
     }
 
-    override def bls12_381_G1_compress(p: BLS12_381_G1_Element): ByteString = {
-        ByteString.fromArray(p.p.compress())
-    }
+    override def bls12_381_G1_compress(p: BLS12_381_G1_Element): ByteString =
+        p.toCompressedByteString
 
     override def bls12_381_G1_uncompress(bs: ByteString): BLS12_381_G1_Element = {
-        if bs.length != 48 then throw new IllegalArgumentException("Not a compressed point")
-        if (bs.bytes(0) & 0x80) == 0 then // compressed bit not set
-            throw new IllegalArgumentException(s"BSL point not compressed: $bs")
+        require(
+          bs.length == 48,
+          s"Invalid length of bytes for compressed point of G1: expected 48, actual: ${bs.length}, byteString: $bs"
+        )
+
+        require(
+          (bs.bytes(0) & 0x80) != 0,
+          s"Compressed bit isn't set for point in G1, byteString: $bs"
+        )
+
         val p = new P1(bs.bytes)
         if !p.in_group() then throw new IllegalArgumentException("Invalid point")
         BLS12_381_G1_Element(p)
     }
 
     override def bls12_381_G1_hashToGroup(bs: ByteString, dst: ByteString): BLS12_381_G1_Element = {
-        if dst.length > 255 then throw RuntimeException(s"HashToCurveDstTooBig: ${dst.length}")
-        else
-            val p = new P1()
-            p.hash_to(bs.bytes, new String(dst.bytes, "Latin1"))
-            BLS12_381_G1_Element(p)
+        require(
+          dst.length <= 255,
+          s"Invalid length of bytes for dst parameter of hashToGroup of G1, expected: <= 255, actual: ${dst.length}"
+        )
+
+        val p = new P1()
+        p.hash_to(bs.bytes, new String(dst.bytes, "Latin1"))
+        BLS12_381_G1_Element(p)
     }
 
-    override val bls12_381_G1_compressed_generator: ByteString = {
-        ByteString.fromArray(P1.generator().compress())
-    }
-
-    override def bls12_381_G2_equal(p1: BLS12_381_G2_Element, p2: BLS12_381_G2_Element): Boolean = {
-        p1.p.is_equal(p2.p)
-    }
+    override def bls12_381_G2_equal(p1: BLS12_381_G2_Element, p2: BLS12_381_G2_Element): Boolean =
+        p1 == p2
 
     override def bls12_381_G2_add(
         p1: BLS12_381_G2_Element,
         p2: BLS12_381_G2_Element
-    ): BLS12_381_G2_Element = BLS12_381_G2_Element(p1.p.add(p2.p))
+    ): BLS12_381_G2_Element = BLS12_381_G2_Element(p1.value.dup.add(p2.value))
 
     override def bls12_381_G2_scalarMul(
         s: BigInt,
         p: BLS12_381_G2_Element
     ): BLS12_381_G2_Element = {
-        val scalar = s.bigInteger.mod(scalarPeriod.bigInteger)
-        BLS12_381_G2_Element(p.p.mult(scalar))
+        val scalar = s.bigInteger.mod(PlatformSpecific.bls12_381_scalar_period.bigInteger)
+        BLS12_381_G2_Element(p.value.dup.mult(scalar))
     }
 
     override def bls12_381_G2_neg(
         p: BLS12_381_G2_Element
     ): BLS12_381_G2_Element = {
-        BLS12_381_G2_Element(p.p.neg())
+        BLS12_381_G2_Element(p.value.dup.neg())
     }
 
-    override def bls12_381_G2_compress(p: BLS12_381_G2_Element): ByteString = {
-        ByteString.fromArray(p.p.compress())
-    }
+    override def bls12_381_G2_compress(p: BLS12_381_G2_Element): ByteString =
+        p.toCompressedByteString
 
     override def bls12_381_G2_uncompress(bs: ByteString): BLS12_381_G2_Element = {
-        if bs.length != 96 then throw new IllegalArgumentException("Not a compressed point")
-        if (bs.bytes(0) & 0x80) == 0 then // compressed bit not set
-            throw new IllegalArgumentException(s"BSL point not compressed: $bs")
+        require(
+          bs.length == 96,
+          s"Invalid length of bytes for compressed point of G2: expected 96, actual: ${bs.length}, byteString: $bs"
+        )
+
+        require(
+          (bs.bytes(0) & 0x80) != 0,
+          s"Compressed bit isn't set for point in G2, byteString: $bs"
+        )
+
         val p = new P2(bs.bytes)
         if !p.in_group() then throw new IllegalArgumentException("Invalid point")
         BLS12_381_G2_Element(p)
     }
 
     override def bls12_381_G2_hashToGroup(bs: ByteString, dst: ByteString): BLS12_381_G2_Element = {
-        if dst.length > 255 then throw RuntimeException(s"HashToCurveDstTooBig: ${dst.length}")
-        else
-            val p = new P2()
-            p.hash_to(bs.bytes, new String(dst.bytes, "Latin1"))
-            BLS12_381_G2_Element(p)
-    }
+        require(
+          dst.length <= 255,
+          s"Invalid length of bytes for dst parameter of hashToGroup of G2, expected: <= 255, actual: ${dst.length}"
+        )
 
-    override def bls12_381_G2_compressed_generator: ByteString = {
-        ByteString.fromArray(P2.generator().compress())
+        val p = new P2()
+        p.hash_to(bs.bytes, new String(dst.bytes, "Latin1"))
+        BLS12_381_G2_Element(p)
     }
 
     override def bls12_381_millerLoop(
         p1: BLS12_381_G1_Element,
         p2: BLS12_381_G2_Element
     ): BLS12_381_MlResult = {
-        val pt = new PT(p1.p, p2.p)
+        val pt = new PT(p1.value, p2.value)
         BLS12_381_MlResult(pt)
     }
 
@@ -197,12 +203,12 @@ trait JVMPlatformSpecific extends PlatformSpecific {
         r1: BLS12_381_MlResult,
         r2: BLS12_381_MlResult
     ): BLS12_381_MlResult = {
-        val pt = r1.p.mul(r2.p)
+        val pt = r1.value.dup.mul(r2.value)
         BLS12_381_MlResult(pt)
     }
 
     override def bls12_381_finalVerify(p1: BLS12_381_MlResult, p2: BLS12_381_MlResult): Boolean = {
-        PT.finalverify(p1.p, p2.p)
+        PT.finalverify(p1.value, p2.value)
     }
 
     override def keccak_256(bs: ByteString): ByteString = {

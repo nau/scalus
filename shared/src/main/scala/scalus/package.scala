@@ -3,7 +3,7 @@ import scalus.ledger.api.PlutusLedgerLanguage
 import scalus.sir.PrettyPrinter.Style
 import scalus.sir.*
 import scalus.uplc.eval.*
-import scalus.uplc.transform.{CaseConstrApply, ForcedBuiltinsExtractor, Inliner}
+import scalus.uplc.transform.{CaseConstrApply, EtaReduce, ForcedBuiltinsExtractor, Inliner}
 import scalus.uplc.{Program, *}
 import scalus.utils.Utils
 

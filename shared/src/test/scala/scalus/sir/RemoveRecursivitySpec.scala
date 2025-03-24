@@ -1,6 +1,10 @@
 package scalus.sir
 import org.scalatest.funsuite.AnyFunSuite
 import scalus.*
+import scalus.uplc.Constant
+import sir.SIR.*
+import sir.SIRType.{Boolean, Fun, Integer, Unit}
+import Recursivity.*
 
 class RemoveRecursivitySpec extends AnyFunSuite:
     test("remove recursivity") {
@@ -11,11 +15,6 @@ class RemoveRecursivitySpec extends AnyFunSuite:
                 recursive(x)
         }
         val optimized = RemoveRecursivity(compiled)
-        import sir.SIR.*, Recursivity.*
-        import sir.SIRType.{Fun, Integer, Boolean, Unit}
-        import scalus.uplc.Constant
-        import scalus.uplc.DefaultFun.{IfThenElse as _, *}
-
         val ae = AnnotationsDecl.empty
         val xVar = Var("x", SIRType.Integer, ae)
         val nonRecursiveVar = Var("nonRecursive", Fun(Integer, Integer), ae)

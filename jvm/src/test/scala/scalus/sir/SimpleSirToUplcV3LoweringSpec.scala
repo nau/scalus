@@ -6,19 +6,12 @@ import scalus.Compiler.compile
 import scalus.builtin.*
 import scalus.builtin.given
 import scalus.builtin.ByteString.*
-import scalus.ledger.api.v1.PubKeyHash
 import scalus.ledger.api.v3.*
 import scalus.prelude.*
-import scalus.uplc.DeBruijnedProgram
 import scalus.uplc.Term
 import scalus.uplc.eval.PlutusVM
 import scalus.uplc.TermDSL.*
 import scalus.uplc.eval.Result
-import scalus.uplc.transform.Inliner
-
-import java.nio.file.Files
-import java.nio.file.Path
-import scala.collection.immutable
 import scala.language.implicitConversions
 
 class SimpleSirToUplcV3LoweringSpec extends AnyFunSuite {
@@ -138,14 +131,13 @@ class SimpleSirToUplcV3LoweringSpec extends AnyFunSuite {
         import scalus.builtin.Data.toData
         import scalus.ledger.api.v1.ToDataInstances.given
         import scalus.ledger.api.v3.ToDataInstances.given
-        import scalus.builtin.ToDataInstances.given
         val ctxData = ctx.toData
 
 //        println(sir.showHighlighted)
         val lower = SimpleSirToUplcV3Lowering(sir)
         val term = lower.lower() $ ctxData.asTerm
         println(term.showHighlighted)
-        val Result.Success(t, _, _, _) = term.evaluateDebug
+        val Result.Success(t, _, _, _) = term.evaluateDebug: @unchecked
         println(t.showHighlighted)
         println(ctx.txInfo.validRange.toData.asTerm.showHighlighted)
         assert(Term.alphaEq(t, ctx.txInfo.validRange.toData.asTerm))

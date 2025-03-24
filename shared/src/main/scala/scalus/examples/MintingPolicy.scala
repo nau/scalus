@@ -101,7 +101,8 @@ object MintingPolicy {
                         txOutRefTxId.hash == txId && txOutRefIdx == txOutIdx
                 }
 
-                val check = (b: Boolean, msg: String) => if b then () else throw new Exception(msg)
+                inline def check(b: Boolean, inline msg: String): Unit =
+                    if b then () else throw new Exception(msg)
                 checkSpendsTxOut match
                     // If the transaction spends the TxOut, then it's a minting transaction
                     case Just(input) => check(Value.equalsAssets(mintedTokens, tokensToMint), "M")

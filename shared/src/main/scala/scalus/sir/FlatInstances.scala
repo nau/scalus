@@ -256,34 +256,14 @@ object FlatInstantces:
             HashConsedRef.deferred(
               hs => params.isComplete(hs),
               (hs, level, parents) =>
-                  try
-                      ConstrDecl(
-                        name,
-                        storageType,
-                        params.finValue(hs, level, parents),
-                        typeParams,
-                        parentTypeArgs.finValue(hs, level, parents),
-                        annotations.finValue(hs, level, parents)
-                      )
-                  catch
-                      case scala.util.control.NonFatal(ex) =>
-                          println(s"can't decodeHCNew ConstrDecl $name")
-                          println(s"check where is loop:")
-                          try {
-                              val unused = params.finValue(hs, level, parents)
-                          } catch {
-                              case scala.util.control.NonFatal(ex1) =>
-                                  println(s"in params, params=${params}")
-                                  throw ex1
-                          }
-                          try {
-                              val unused = parentTypeArgs.finValue(hs, level, parents)
-                          } catch
-                              case scala.util.control.NonFatal(ex2) =>
-                                  println("in parentTypeArgs")
-                                  throw ex2
-
-                          throw ex
+                  ConstrDecl(
+                    name,
+                    storageType,
+                    params.finValue(hs, level, parents),
+                    typeParams,
+                    parentTypeArgs.finValue(hs, level, parents),
+                    annotations.finValue(hs, level, parents)
+                  )
             )
         }
 
@@ -445,7 +425,7 @@ object FlatInstantces:
     }
 
     object SIRTypeHashConsedRef {
-        def fromData(a: SIRType) = new SIRTypeHashConsedRef((s) => true, (s, l, p) => a, a)
+        def fromData(a: SIRType) = new SIRTypeHashConsedRef((_) => true, (s, l, p) => a, a)
         def deferred(
             opComplete: HashConsed.State => Boolean,
             opFinValue: (HashConsed.State, Int, HSRIdentityHashMap) => SIRType
@@ -551,8 +531,7 @@ object FlatInstantces:
 
         override def encodeHC(a: SIRType, encode: HashConsedEncoderState): Unit =
             // println(s"SIRTypeHashConsedFlat.encodeHC:start ${a.hashCode()} $a, pos=${encode.encode.bitPosition()}")
-            var mute = false
-            val startPos = encode.encode.bitPosition()
+            // val startPos = encode.encode.bitPosition()
             a match
                 case SIRType.ByteString =>
                     encode.encode.bits(tagWidth, tagPrimitiveByteString)
@@ -599,9 +578,9 @@ object FlatInstantces:
                     encode.encode.bits(tagWidth, tagBls12_381_G2_Element)
                 case SIRType.BLS12_381_MlResult =>
                     encode.encode.bits(tagWidth, tagBls12_381_MlResult)
-            // if !mute then
-            //    //val endPos = encode.encode.bitPosition()
-            //    //println(s"SIRTypeHashConsedFlat.encode ${a.hashCode()} $a,  size=${endPos-startPos}")
+                // if !mute then
+                //    //val endPos = encode.encode.bitPosition()
+                //    //println(s"SIRTypeHashConsedFlat.encode ${a.hashCode()} $a,  size=${endPos-startPos}")
 
         override def decodeHC(decode: HashConsedDecoderState): SIRTypeHashConsedRef =
             val ctag = decode.decode.bits8(tagWidth)

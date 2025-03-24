@@ -55,13 +55,12 @@ case object AnnotationsDecl {
 
     inline def empty: AnnotationsDecl = ${ emptyImpl }
 
-    def emptyImpl(using qctx: Quotes): Expr[AnnotationsDecl] = {
-        import qctx.reflect.*
+    private def emptyImpl(using qctx: Quotes): Expr[AnnotationsDecl] = {
         val scalaPosition = qctx.reflect.Position.ofMacroExpansion
         '{
             AnnotationsDecl(
               SIRPosition(
-                file = ${ Expr(scalaPosition.sourceFile.jpath.toString) },
+                file = ${ Expr(scalaPosition.sourceFile.path) },
                 startLine = ${ Expr(scalaPosition.startLine) },
                 startColumn = ${ Expr(scalaPosition.startColumn) },
                 endLine = ${ Expr(scalaPosition.endLine) },

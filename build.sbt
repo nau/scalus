@@ -206,8 +206,8 @@ lazy val scalus = crossProject(JSPlatform, JVMPlatform, NativePlatform)
       libraryDependencies += "org.typelevel" %%% "paiges-core" % "0.4.4",
       libraryDependencies += "com.lihaoyi" %%% "upickle" % "4.1.0",
       libraryDependencies ++= Seq(
-        "io.bullet" %%% "borer-core" % "1.15.0",
-        "io.bullet" %%% "borer-derivation" % "1.15.0" % "provided"
+        "io.bullet" %%% "borer-core" % "1.16.0",
+        "io.bullet" %%% "borer-derivation" % "1.16.0" % "provided"
       ),
       PluginDependency,
       libraryDependencies += "org.scalatest" %%% "scalatest" % "3.2.19" % "test",
@@ -327,12 +327,16 @@ lazy val bench = project
     )
 
 addCommandAlias(
+  "mima",
+  "scalus-bloxbean-cardano-client-lib/mimaReportBinaryIssues"
+)
+addCommandAlias(
   "precommit",
   "clean;docs/clean;scalusPluginTests/clean;scalafmtAll;scalafmtSbt;Test/compile;scalusPluginTests/Test/compile;test;docs/mdoc"
 )
 addCommandAlias(
   "ci",
-  "clean;docs/clean;scalusPluginTests/clean;scalafmtCheckAll;scalafmtSbtCheck;Test/compile;scalusPluginTests/Test/compile;test;docs/mdoc"
+  "clean;docs/clean;scalusPluginTests/clean;scalafmtCheckAll;scalafmtSbtCheck;Test/compile;scalusPluginTests/Test/compile;test;docs/mdoc;mima"
 )
 
 logo :=
@@ -352,5 +356,6 @@ usefulTasks := Seq(
   UsefulTask("~compile", "Compile with file-watch enabled"),
   UsefulTask("precommit", "Format all, clean compile and test everything"),
   UsefulTask("ci", "Clean compile, check formatting and test everything"),
+  UsefulTask("mima", "Check binary compatibility with the previous version using MiMa"),
   UsefulTask("docs/docusaurusCreateSite", "Generate Scalus documentation website")
 )

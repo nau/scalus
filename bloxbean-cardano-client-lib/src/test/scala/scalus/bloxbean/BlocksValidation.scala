@@ -22,6 +22,7 @@ import java.nio.channels.FileChannel
 import java.nio.file.{Path, Paths, StandardOpenOption}
 import java.util
 import java.util.stream.Collectors
+import scala.annotation.unused
 import scala.collection.mutable
 import scala.jdk.CollectionConverters.*
 
@@ -139,7 +140,7 @@ object BlocksValidation:
 
     }
 
-    private def validateNativeScriptOfEpoch(epoch: Int): Unit = {
+    private def validateNativeScriptOfEpoch(@unused epoch: Int): Unit = {
         import com.bloxbean.cardano.yaci.core.config.YaciConfig
         YaciConfig.INSTANCE.setReturnBlockCbor(true) // needed to get the block cbor
         YaciConfig.INSTANCE.setReturnTxBodyCbor(true) // needed to get the tx body cbor

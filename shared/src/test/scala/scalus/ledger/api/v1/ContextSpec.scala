@@ -11,7 +11,7 @@ import scalus.builtin.Data
 import scalus.builtin.Data.fromData
 import scalus.builtin.Data.toData
 import scalus.prelude.Prelude.*
-import scalus.sir.{SIR, SIRType}
+import scalus.sir.SIR
 import scalus.uplc.ArbitraryInstances
 import scalus.uplc.Constant
 import scalus.uplc.Term

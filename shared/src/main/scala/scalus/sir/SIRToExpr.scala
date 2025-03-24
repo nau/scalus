@@ -7,6 +7,7 @@ import scalus.sir.SIRType.checkAllProxiesFilled
 import scalus.utils.*
 
 import java.nio.charset.StandardCharsets
+import scala.annotation.nowarn
 import scala.quoted.*
 
 class ToExprHS[T](
@@ -16,7 +17,8 @@ class ToExprHS[T](
 ) extends ToExpr[T] {
 
     def apply(x: T)(using Quotes): Expr[T] = {
-        given Type[T] = tt
+        // note, that this expression is needed regardless of warning
+        @nowarn given Type[T] = tt
         val bitSize = hst.bitSize(x)
         val byteSize = (bitSize + 1 /* for filler */ / 8) + 1 /* minimum size */
         val encoderState = HashConsedEncoderState.withSize(byteSize)
