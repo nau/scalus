@@ -25,7 +25,7 @@
         uplc = plutus.cabalProject.${system}.hsPkgs.plutus-executables.components.exes.uplc;
         tiny_keccak_wrapper = pkgs.stdenv.mkDerivation {
             name = "tiny_keccak_wrapper";
-            src = ./rust;  # directory with Rust code
+            src = ./native/lib/tiny_keccak_wrapper;  # directory with Rust code
             nativeBuildInputs = [
                           pkgs.rustc
                           pkgs.cargo
