@@ -1843,11 +1843,11 @@ class CompilerPluginToSIRSpec extends AnyFunSuite with ScalaCheckPropertyChecks:
                 case Cons(h, _) => h
                 case Nil        => BigInt(0)
         }
-        println(compiled.show)
+        // println(compiled.show)
         val compiledToUplc = compiled.toUplc()
-        println(s"uplc:${compiledToUplc.show} ")
+        // println(s"uplc:${compiledToUplc.show} ")
         val evaled = compiledToUplc.evaluate
-        println(evaled.show)
+        // println(evaled.show)
         assert(evaled == scalus.uplc.Term.Const(Constant.Integer(1)))
     }
 
