@@ -20,9 +20,8 @@ class ForcedBuiltinsExtractorSpec extends AnyFunSuite {
         val (optimized, logs) = ForcedBuiltinsExtractor.extractPass(uplc)
         assert(logs == Seq("Replacing Forced builtin with Var: __builtin_HeadList"))
         assert(
-          optimized == (lam("__builtin_HeadList")(
-            vr"__builtin_HeadList" $ Constant.List(Bool, Nil)
-          ) $ (!Builtin(DefaultFun.HeadList)))
+          optimized == (λ("__builtin_HeadList")(bi => bi $ Constant.List(Bool, Nil))
+              $ (!Builtin(DefaultFun.HeadList)))
         )
     }
 
@@ -31,8 +30,8 @@ class ForcedBuiltinsExtractorSpec extends AnyFunSuite {
         val uplc = sir.toUplc()
         val optimized = ForcedBuiltinsExtractor(uplc)
         assert(
-          optimized == (lam("__builtin_FstPair")(
-            vr"__builtin_FstPair" $ Constant.Pair(asConstant(true), asConstant(false))
+          optimized == (λ("__builtin_FstPair")(bi =>
+              bi $ Constant.Pair(asConstant(true), asConstant(false))
           ) $ (!(!Builtin(DefaultFun.FstPair))))
         )
     }

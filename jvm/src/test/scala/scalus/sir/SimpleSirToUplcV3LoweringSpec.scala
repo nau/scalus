@@ -9,8 +9,8 @@ import scalus.builtin.ByteString.*
 import scalus.ledger.api.v3.*
 import scalus.prelude.*
 import scalus.uplc.Term
+import scalus.uplc.Term.*
 import scalus.uplc.eval.PlutusVM
-import scalus.uplc.TermDSL.*
 import scalus.uplc.eval.Result
 import scala.language.implicitConversions
 

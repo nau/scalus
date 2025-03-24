@@ -42,14 +42,8 @@ object ExprBuilder:
 
     // Z Combinator
     // (lam ff [(lam xx [ff (lam vv [xx xx vv])]) (lam xx [ff (lam vv [xx xx vv])])])
-    val ZTerm: Term = λ("ff") {
-        val zz = λ("xx")(
-          Term.Var(NamedDeBruijn("ff")) $ λ("vv")(
-            Term.Var(NamedDeBruijn("xx")) $ Term.Var(NamedDeBruijn("xx")) $ Term.Var(
-              NamedDeBruijn("vv")
-            )
-          )
-        )
+    val ZTerm: Term = λ("ff") { ff =>
+        val zz = λ("xx")(xx => ff $ λ("vv")(vv => xx $ xx $ vv))
         zz $ zz
     }
     def Z[A, B]: Expr[((A => B) => A => B) => A => B] = Expr(ZTerm)

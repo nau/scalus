@@ -6,15 +6,13 @@ import scalus.uplc.Term.*
 
 class DeBruijnSpec extends AnyFunSuite with ScalaCheckPropertyChecks with ArbitraryInstances:
     test("deBruijnTerm") {
-        import TermDSL.*
-        val t = lam("x", "x", "y")(Var(NamedDeBruijn("x")))
+        val t = lam("x", "x", "y")((_x, x, _y) => x)
         val deBruijnedTerm = DeBruijn.deBruijnTerm(t)
         assert(deBruijnedTerm == LamAbs("x", LamAbs("x", LamAbs("y", Var(NamedDeBruijn("x", 2))))))
     }
 
     test("fromDeBruijnTerm") {
-        import TermDSL.*
-        val t = lam("x", "x", "y")(Var(NamedDeBruijn("x")))
+        val t = lam("x", "x", "y")((_x, x, _y) => x)
         val deBruijnedTerm = DeBruijn.deBruijnTerm(t)
         val namedTerm = DeBruijn.fromDeBruijnTerm(deBruijnedTerm)
         assert(deBruijnedTerm == LamAbs("x", LamAbs("x", LamAbs("y", Var(NamedDeBruijn("x", 2))))))

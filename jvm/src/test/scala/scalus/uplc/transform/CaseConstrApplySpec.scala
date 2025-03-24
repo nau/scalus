@@ -31,7 +31,7 @@ class CaseConstrApplySpec extends AnyFunSuite {
                 Const(Constant.ByteString(hex"1012"))
               )
             ),
-            λ("a", "b", "c")(vr"c") :: Nil
+            λ("a", "b", "c")((_a, _b, c) => c) :: Nil
           )
         )
         assert(logs == Seq("Replacing 3 Apply with Case/Constr"))

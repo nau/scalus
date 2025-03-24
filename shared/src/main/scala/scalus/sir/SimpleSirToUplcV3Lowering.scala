@@ -144,7 +144,7 @@ class SimpleSirToUplcV3Lowering(sir: SIR, generateErrorTraces: Boolean = false):
                     .foldRight(bodyTerm):
                         case (((name, idx), TypeBinding(_, tp)), term) =>
                             val value = getFieldByIndex(args, idx, tp)
-                            lam(name)(term) $ value
+                            LamAbs(name, term) $ value
                 val cond = builtinTerms(EqualsInteger) $ idx.asTerm $ tag
                 !(builtinTerms(IfThenElse) $ cond $ ~bodyWithBindings $ ~resultTerm)
             case _ => matchErrorTerm
@@ -163,7 +163,7 @@ class SimpleSirToUplcV3Lowering(sir: SIR, generateErrorTraces: Boolean = false):
             val scrutineeTerm = lowerInner(scrutinee)
             cases match
                 case SIR.Case(Pattern.Constr(constr, bindings, _), body) :: Nil =>
-                    λ(bindings.head)(lowerInner(body)) $ scrutineeTerm
+                    Term.LamAbs(bindings.head, lowerInner(body)) $ scrutineeTerm
                 case _ =>
                     throw new IllegalArgumentException(
                       s"Expected single case for TxId at ${anns.pos}"
@@ -210,9 +210,9 @@ class SimpleSirToUplcV3Lowering(sir: SIR, generateErrorTraces: Boolean = false):
                         asdf.genMatch(m)
                     case None =>
                         val pair = unconstr(scrutineeTerm)
-                        λλ("pair") { pair =>
-                            λλ("tag") { tag =>
-                                λλ("args") { args =>
+                        λ("pair") { pair =>
+                            λ("tag") { tag =>
+                                λ("args") { args =>
                                     genMatch(constructors, cases, args, tag)
                                 } $ (builtinTerms(SndPair) $ pair)
                             } $ (builtinTerms(FstPair) $ pair)

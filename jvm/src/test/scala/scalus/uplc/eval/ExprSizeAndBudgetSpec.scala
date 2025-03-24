@@ -10,7 +10,7 @@ import scalus.flat.Flat
 import scalus.uplc.FlatInstantces.given
 import scalus.uplc.NamedDeBruijn
 import scalus.uplc.Term
-import scalus.uplc.TermDSL.*
+import scalus.uplc.Term.*
 import scalus.uplc.eval.ExBudget.given
 import scala.math.Ordering.Implicits._
 

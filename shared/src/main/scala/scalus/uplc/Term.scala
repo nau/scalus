@@ -38,6 +38,41 @@ enum Term:
                 (f1, args :+ arg)
             case f => (f, Nil)
 
+    /** Converts a term with named variables to a term with De Bruijn indices. We use unique
+      * negative indices to represent free variables.
+      * @return
+      *   the term with De Bruijn indices
+      */
+    def deBruijned: Term = DeBruijn.deBruijnTerm(this)
+
+    /** Determines alpha-equivalence between two UPLC terms.
+      *
+      * Alpha-equivalence considers two lambda terms equal if they have the same structure and
+      * differ only in the names of bound variables. This function checks if the terms are
+      * structurally identical with matching variable indices.
+      *
+      * @param t2
+      *   The second term to compare
+      * @return
+      *   True if the terms are alpha-equivalent, false otherwise
+      * @note
+      *   This function expects the term to be de Bruijn indexed. Use [[DeBruijn.deBruijnTerm()]]
+      *   before calling this function.
+      * @example
+      *   {{{
+      *   // These terms are alpha-equivalent (same structure, different variable names)
+      *   val term1 = lam("x")(x => x).deBruijned
+      *   val term2 = lam("y")(y => y).deBruijned
+      *   val result = term1 alphaEq term2 // Returns true
+      *
+      *   // These terms are not equivalent (different structure)
+      *   val term3 = lam("x")(x => !x).deBruijned
+      *   val term4 = lam("x")(x => x).deBruijned
+      *   val result2 = term3.alphaEq(term4) // Returns false
+      *   }}}
+      */
+    infix def alphaEq(other: Term): Boolean = Term.alphaEq(this, other)
+
     override def toString: String = this match
         case Var(name)          => s"Var(NamedDeBruijn(\"${name.name}\"))"
         case LamAbs(name, term) => s"LamAbs(\"$name\", $term)"
@@ -51,6 +86,34 @@ enum Term:
         case Case(arg, cases)   => s"Case($arg, ${cases.mkString(", ")})"
 
 object Term:
+    /** Determines alpha-equivalence between two UPLC terms.
+      *
+      * Alpha-equivalence considers two lambda terms equal if they have the same structure and
+      * differ only in the names of bound variables. This function checks if the terms are
+      * structurally identical with matching variable indices.
+      *
+      * @param t1
+      *   The first term to compare
+      * @param t2
+      *   The second term to compare
+      * @return
+      *   True if the terms are alpha-equivalent, false otherwise
+      * @note
+      *   This function expects the term to be de Bruijn indexed. Use [[DeBruijn.deBruijnTerm()]]
+      *   before calling this function.
+      * @example
+      *   {{{
+      *   // These terms are alpha-equivalent (same structure, different variable names)
+      *   val term1 = lam("x")(x => x).deBruijned
+      *   val term2 = lam("y")(y => y).deBruijned
+      *   val result = alphaEq(term1, term2) // Returns true
+      *
+      *   // These terms are not equivalent (different structure)
+      *   val term3 = lam("x")(x => !x).deBruijned
+      *   val term4 = lam("x")(x => x).deBruijned
+      *   val result2 = alphaEq(term3, term4) // Returns false
+      *   }}}
+      */
     def alphaEq(t1: Term, t2: Term): Boolean =
 
         def eqName(n1: NamedDeBruijn, n2: NamedDeBruijn): Boolean =
@@ -94,7 +157,177 @@ object Term:
     extension [A: Constant.LiftValue](a: A)
         def asTerm: Term = Term.Const(summon[Constant.LiftValue[A]].lift(a))
 
-    def λ(names: String*)(term: Term): Term = lam(names*)(term)
-    def λλ(name: String)(f: Term => Term): Term = lam(name)(f(vr(name)))
-    def lam(names: String*)(term: Term): Term = names.foldRight(term)(Term.LamAbs(_, _))
+    /** Creates a lambda abstraction with a single parameter.
+      *
+      * This is a helper method that simplifies creating lambda terms in the UPLC AST. It
+      * automatically creates a variable reference with the provided name and passes it to the
+      * function body constructor.
+      *
+      * @param name
+      *   The name to use for the bound variable
+      * @param f
+      *   A function that constructs the body of the lambda using the bound variable
+      * @return
+      *   A new lambda abstraction term
+      *
+      * @example
+      *   {{{
+      *   val identity = lam("x")(x => x) // Creates a lambda term equivalent to: λx. x
+      *   val forceTerm = lam("x")(x => !x) // Creates a lambda term equivalent to: λx. (force x)
+      *   }}}
+      */
+    def lam(name: String)(f: Term => Term): Term = LamAbs(name, f(vr(name)))
+
+    /** Creates a lambda abstraction with two parameters.
+      *
+      * This is a helper method that simplifies creating nested lambda terms in the UPLC AST. It
+      * automatically creates variable references with the provided names and passes them to the
+      * function body constructor.
+      *
+      * @param a
+      *   The name to use for the first bound variable
+      * @param b
+      *   The name to use for the second bound variable
+      * @param f
+      *   A function that constructs the body of the lambda using the bound variables
+      * @return
+      *   A new lambda abstraction term with nested structure
+      *
+      * @example
+      *   {{{
+      *   // Creates a lambda term equivalent to: λa. λb. a
+      *   val first = lam("a", "b")((a, b) => a)
+      *
+      *   // Creates a lambda term equivalent to: λx. λy. (force [x y])
+      *   val applyForce = lam("x", "y")((x, y) => !(x $ y))
+      *   }}}
+      */
+    def lam(a: String, b: String)(f: (Term, Term) => Term): Term =
+        LamAbs(a, LamAbs(b, f(vr(a), vr(b))))
+
+    /** Creates a lambda abstraction with three parameters.
+      *
+      * This is a helper method that simplifies creating nested lambda terms in the UPLC AST. It
+      * automatically creates variable references with the provided names and passes them to the
+      * function body constructor.
+      *
+      * @param a
+      *   The name to use for the first bound variable
+      * @param b
+      *   The name to use for the second bound variable
+      * @param c
+      *   The name to use for the third bound variable
+      * @param f
+      *   A function that constructs the body of the lambda using the bound variables
+      * @return
+      *   A new lambda abstraction term with nested structure
+      *
+      * @example
+      *   {{{
+      *   // Creates a lambda term equivalent to: λa. λb. λc. a
+      *   val first = lam("a", "b", "c")((a, b, c) => a)
+      *
+      *   // Creates a lambda term equivalent to: λx. λy. λz. (force [x y z])
+      *   val applyForce = lam("x", "y", "z")((x, y, z) => !(x $ y $ z))
+      *   }}}
+      */
+    def lam(a: String, b: String, c: String)(f: (Term, Term, Term) => Term): Term =
+        LamAbs(a, LamAbs(b, LamAbs(c, f(vr(a), vr(b), vr(c)))))
+
+    /** Creates a lambda abstraction with a single parameter.
+      *
+      * This is a helper method that simplifies creating lambda terms in the UPLC AST. It
+      * automatically creates a variable reference with the provided name and passes it to the
+      * function body constructor.
+      *
+      * @param name
+      *   The name to use for the bound variable
+      * @param f
+      *   A function that constructs the body of the lambda using the bound variable
+      * @return
+      *   A new lambda abstraction term
+      *
+      * @example
+      *   {{{
+      *   val identity = λ("x")(x => x) // Creates a lambda term equivalent to: λx. x
+      *   val forceTerm = λ("x")(x => !x) // Creates a lambda term equivalent to: λx. (force x)
+      *   }}}
+      */
+
+    inline def λ(name: String)(f: Term => Term): Term = lam(name)(f)
+
+    /** Creates a lambda abstraction with two parameters.
+      *
+      * This is a helper method that simplifies creating nested lambda terms in the UPLC AST. It
+      * automatically creates variable references with the provided names and passes them to the
+      * function body constructor.
+      *
+      * @param a
+      *   The name to use for the first bound variable
+      * @param b
+      *   The name to use for the second bound variable
+      * @param f
+      *   A function that constructs the body of the lambda using the bound variables
+      * @return
+      *   A new lambda abstraction term with nested structure
+      *
+      * @example
+      *   {{{
+      *   // Creates a lambda term equivalent to: λa. λb. a
+      *   val first = λ("a", "b")((a, b) => a)
+      *
+      *   // Creates a lambda term equivalent to: λx. λy. (force [x y])
+      *   val applyForce = λ("x", "y")((x, y) => !(x $ y))
+      *   }}}
+      */
+    inline def λ(a: String, b: String)(f: (Term, Term) => Term): Term = lam(a, b)(f)
+
+    /** Creates a lambda abstraction with three parameters.
+      *
+      * This is a helper method that simplifies creating nested lambda terms in the UPLC AST. It
+      * automatically creates variable references with the provided names and passes them to the
+      * function body constructor.
+      *
+      * @param a
+      *   The name to use for the first bound variable
+      * @param b
+      *   The name to use for the second bound variable
+      * @param c
+      *   The name to use for the third bound variable
+      * @param f
+      *   A function that constructs the body of the lambda using the bound variables
+      * @return
+      *   A new lambda abstraction term with nested structure
+      *
+      * @example
+      *   {{{
+      *   // Creates a lambda term equivalent to: λa. λb. λc. a
+      *   val first = λ("a", "b", "c")((a, b, c) => a)
+      *
+      *   // Creates a lambda term equivalent to: λx. λy. λz. (force [x y z])
+      *   val applyForce = λ("x", "y", "z")((x, y, z) => !(x $ y $ z))
+      *   }}}
+      */
+    inline def λ(a: String, b: String, c: String)(f: (Term, Term, Term) => Term): Term =
+        lam(a, b, c)(f)
+
+    /** Creates a variable term with the given name.
+      *
+      * This is a helper method that simplifies creating variable references in the UPLC AST. It
+      * automatically creates a [[NamedDeBruijn]] with the provided name and default index of 0.
+      *
+      * @param name
+      *   The name to use for the variable
+      * @return
+      *   A new variable term
+      *
+      * @example
+      *   {{{
+      *   // Creates a variable term referencing "x"
+      *   val xVar = vr("x")
+      *
+      *   // Can be used directly in term construction
+      *   val application = Apply(vr("f"), vr("arg"))
+      *   }}}
+      */
     def vr(name: String): Term = Term.Var(NamedDeBruijn(name))

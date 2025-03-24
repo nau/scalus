@@ -32,7 +32,7 @@ class UtilsSpec
         val alwaysFails =
             """{"type":"PlutusScriptV2","description":"","cborHex":"4746010000222601"}"""
         val program = Utils.readPlutusFileContent(alwaysFails)
-        assert(program == Program((1, 0, 0), lam("i0", "i1", "i2")(Term.Error)))
+        assert(program == Program((1, 0, 0), λ("i0", "i1", "i2")((_, _, _) => Term.Error)))
         val serialized = Utils.programToPlutusFileContent(
           program.deBruijnedProgram,
           PlutusLedgerLanguage.PlutusV2

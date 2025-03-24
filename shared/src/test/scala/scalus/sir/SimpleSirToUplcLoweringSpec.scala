@@ -52,7 +52,7 @@ class SimpleSirToUplcLoweringSpec
           SIR.Const(Constant.Unit, Unit, ae),
           Unit,
           ae
-        ) lowersTo (lam("x")(vr"x") $ Constant.Unit)
+        ) lowersTo (λ("x")(x => x) $ Constant.Unit)
 
     }
 
@@ -86,7 +86,7 @@ class SimpleSirToUplcLoweringSpec
             ae
           ),
           ae
-        ) lowersTo (lam("x")(lam("y")(AddInteger $ vr"x" $ vr"y") $ 2) $ 1)
+        ) lowersTo (λ("x")(x => λ("y")(y => AddInteger $ x $ y) $ 2) $ 1)
     }
 
     test("lower Constr") {
@@ -135,8 +135,8 @@ class SimpleSirToUplcLoweringSpec
             listData.constrType("scalus.prelude.List$.Nil"),
             ae
           )
-        ) lowersTo (lam("scalus.prelude.List$.Nil", "scalus.prelude.List$.Cons")(
-          !(vr"scalus.prelude.List$$.Nil")
+        ) lowersTo (λ("scalus.prelude.List$.Nil", "scalus.prelude.List$.Cons")((nil, _cons) =>
+            !nil
         ))
         withDecls(
           SIR.Constr(
@@ -146,7 +146,7 @@ class SimpleSirToUplcLoweringSpec
             txIdData.constrType("TxId"),
             ae
           )
-        ) lowersTo (lam("hash", "TxId")(vr"TxId" $ vr"hash") $ hex"DEADBEEF")
+        ) lowersTo (λ("hash", "TxId")((hash, txid) => txid $ hash) $ hex"DEADBEEF")
 
     }
 
@@ -220,5 +220,7 @@ class SimpleSirToUplcLoweringSpec
             SIRType.Integer,
             ae
           )
-        ) lowersTo (lam("Cons", "Nil")(!vr"Nil") $ lam("h", "tl")(2) $ ~asConstant(1))
+        ) lowersTo (λ("Cons", "Nil")((_cons, nil) => !nil) $ λ("h", "tl")((_h, _tl) =>
+            2
+        ) $ ~asConstant(1))
     }
