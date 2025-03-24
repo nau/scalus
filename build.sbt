@@ -398,6 +398,22 @@ lazy val bench = project
       publish / skip := true
     )
 
+// Benchmarks for Cardano Plutus VM Evaluator
+lazy val txbuilder = project
+    .in(file("txbuilder"))
+    .dependsOn(scalus.jvm)
+    .disablePlugins(MimaPlugin) // disable Migration Manager for Scala
+    .settings(
+      name := "scalus-txbuilder",
+      libraryDependencies += "com.bloxbean.cardano" % "cardano-client-lib" % "0.6.3",
+      libraryDependencies ++= Seq(
+        "io.bullet" %%% "borer-core" % "1.15.0",
+        "io.bullet" %%% "borer-derivation" % "1.15.0" % "provided"
+      ),
+      libraryDependencies += "org.scalatest" %%% "scalatest" % "3.2.19" % "test",
+      publish / skip := true
+    )
+
 addCommandAlias(
   "mima",
   "scalus-bloxbean-cardano-client-lib/mimaReportBinaryIssues"

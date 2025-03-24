@@ -1,0 +1,402 @@
+package scalus.ledger
+
+import scalus.builtin.ByteString
+import scalus.ledger.api.Timelock
+import io.bullet.borer.{DataItem, Decoder, Encoder, Reader, Tag, Writer}
+
+import scala.collection.immutable
+
+/** Metadata is a map from metadatum labels to metadatum values */
+type Metadata = Map[TransactionMetadatumLabel, TransactionMetadatum]
+
+object Metadata:
+    /** CBOR encoder for Metadata */
+    given Encoder[Metadata] with
+        def write(w: Writer, value: Metadata): Writer =
+            w.writeMapHeader(value.size)
+            value.foreach { (label, datum) =>
+                TransactionMetadatumLabel.given_Encoder_TransactionMetadatumLabel.write(w, label)
+                TransactionMetadatum.given_Encoder_TransactionMetadatum.write(w, datum)
+            }
+            w
+
+    /** CBOR decoder for Metadata */
+    given Decoder[Metadata] with
+        def read(r: Reader): Metadata =
+            val result = Map.newBuilder[TransactionMetadatumLabel, TransactionMetadatum]
+
+            if r.hasMapHeader then
+                val size = r.readMapHeader()
+                for _ <- 0L until size do
+                    val label =
+                        TransactionMetadatumLabel.given_Decoder_TransactionMetadatumLabel.read(r)
+                    val datum = TransactionMetadatum.given_Decoder_TransactionMetadatum.read(r)
+                    result += (label -> datum)
+            else if r.hasMapStart then
+                r.readMapStart()
+                while !r.tryReadBreak() do
+                    val label =
+                        TransactionMetadatumLabel.given_Decoder_TransactionMetadatumLabel.read(r)
+                    val datum = TransactionMetadatum.given_Decoder_TransactionMetadatum.read(r)
+                    result += (label -> datum)
+            else r.validationFailure("Expected Map for Metadata")
+
+            result.result()
+
+/** Represents a transaction metadatum label in Cardano */
+case class TransactionMetadatumLabel(value: Long):
+    require(value >= 0, s"Metadatum label must be non-negative, got $value")
+
+object TransactionMetadatumLabel:
+    /** CBOR encoder for TransactionMetadatumLabel */
+    given Encoder[TransactionMetadatumLabel] with
+        def write(w: Writer, value: TransactionMetadatumLabel): Writer =
+            w.writeLong(value.value)
+
+    /** CBOR decoder for TransactionMetadatumLabel */
+    given Decoder[TransactionMetadatumLabel] with
+        def read(r: Reader): TransactionMetadatumLabel =
+            val value = r.readLong()
+            if value < 0 then
+                r.validationFailure(s"Metadatum label must be non-negative, got $value")
+            TransactionMetadatumLabel(value)
+
+/** Represents transaction metadata in Cardano */
+enum TransactionMetadatum:
+    /** Map metadata */
+    case Map(entries: immutable.Map[TransactionMetadatum, TransactionMetadatum])
+
+    /** List metadata */
+    case List(items: scala.List[TransactionMetadatum])
+
+    /** Integer metadata */
+    case Int(value: Long)
+
+    /** Bytes metadata (max 64 bytes) */
+    case Bytes(value: ByteString)
+
+    /** Text metadata (max 64 chars) */
+    case Text(value: String)
+
+object TransactionMetadatum:
+    /** Maximum allowed size for bytes and text */
+    private val MaxSize = 64
+
+    /** CBOR encoder for TransactionMetadatum */
+    given Encoder[TransactionMetadatum] with
+        def write(w: Writer, value: TransactionMetadatum): Writer = value match
+            case TransactionMetadatum.Map(entries) =>
+                w.writeMapHeader(entries.size)
+                entries.foreach { case (k, v) =>
+                    write(w, k)
+                    write(w, v)
+                }
+                w
+
+            case TransactionMetadatum.List(items) =>
+                w.writeArrayHeader(items.size)
+                items.foreach(item => write(w, item))
+                w
+
+            case TransactionMetadatum.Int(value) =>
+                w.writeLong(value)
+
+            case TransactionMetadatum.Bytes(value) =>
+                if value.size > MaxSize then
+                    throw new IllegalArgumentException(
+                      s"Bytes size exceeds maximum ($MaxSize), got ${value.size}"
+                    )
+                w.writeBytes(value.bytes)
+
+            case TransactionMetadatum.Text(value) =>
+                if value.length > MaxSize then
+                    throw new IllegalArgumentException(
+                      s"Text length exceeds maximum ($MaxSize), got ${value.length}"
+                    )
+                w.writeString(value)
+
+    /** CBOR decoder for TransactionMetadatum */
+    given Decoder[TransactionMetadatum] with
+        def read(r: Reader): TransactionMetadatum =
+            import io.bullet.borer.DataItem as DI
+
+            r.dataItem() match
+                case DI.MapHeader | DI.MapStart =>
+                    val entries = readMap(r)
+                    TransactionMetadatum.Map(entries)
+
+                case DI.ArrayHeader | DI.ArrayStart =>
+                    val items = readList(r)
+                    TransactionMetadatum.List(items)
+
+                case DI.Int | DI.Long | DI.OverLong =>
+                    TransactionMetadatum.Int(r.readLong())
+
+                case DI.Bytes | DI.BytesStart =>
+                    val bytes = ByteString.unsafeFromArray(r.readBytes())
+                    if bytes.size > MaxSize then
+                        r.validationFailure(
+                          s"Bytes size exceeds maximum ($MaxSize), got ${bytes.size}"
+                        )
+                    TransactionMetadatum.Bytes(bytes)
+
+                case DI.Text | DI.TextStart =>
+                    val text = r.readString()
+                    if text.length > MaxSize then
+                        r.validationFailure(
+                          s"Text length exceeds maximum ($MaxSize), got ${text.length}"
+                        )
+                    TransactionMetadatum.Text(text)
+
+                case other =>
+                    r.validationFailure(s"Unexpected data item for TransactionMetadatum: $other")
+
+    /** Helper to read a Map from CBOR */
+    private def readMap(r: Reader): immutable.Map[TransactionMetadatum, TransactionMetadatum] =
+        val result = immutable.Map.newBuilder[TransactionMetadatum, TransactionMetadatum]
+
+        if r.hasMapHeader then
+            val size = r.readMapHeader()
+            for _ <- 0L until size do
+                val key = TransactionMetadatum.given_Decoder_TransactionMetadatum.read(r)
+                val value = TransactionMetadatum.given_Decoder_TransactionMetadatum.read(r)
+                result += (key -> value)
+        else if r.hasMapStart then
+            r.readMapStart()
+            while !r.tryReadBreak() do
+                val key = TransactionMetadatum.given_Decoder_TransactionMetadatum.read(r)
+                val value = TransactionMetadatum.given_Decoder_TransactionMetadatum.read(r)
+                result += (key -> value)
+
+        result.result()
+
+    /** Helper to read a List from CBOR */
+    private def readList(r: Reader): scala.List[TransactionMetadatum] =
+        val result = scala.List.newBuilder[TransactionMetadatum]
+
+        if r.hasArrayHeader then
+            val size = r.readArrayHeader()
+            for _ <- 0L until size do
+                result += TransactionMetadatum.given_Decoder_TransactionMetadatum.read(r)
+        else if r.hasArrayStart then
+            r.readArrayStart()
+            while !r.tryReadBreak() do
+                result += TransactionMetadatum.given_Decoder_TransactionMetadatum.read(r)
+
+        result.result()
+
+/** Represents auxiliary data in a Cardano transaction */
+enum AuxiliaryData:
+    /** Shelley-era metadata */
+    case Metadata(metadata: Map[TransactionMetadatumLabel, TransactionMetadatum])
+
+    /** Shelley-MA era combined metadata and scripts */
+    case MetadataWithScripts(
+        metadata: Map[TransactionMetadatumLabel, TransactionMetadatum],
+        scripts: List[Timelock]
+    )
+
+    /** Alonzo-era and later metadata format with optional components */
+    case AlonzoFormat(
+        metadata: Option[Map[TransactionMetadatumLabel, TransactionMetadatum]] = None,
+        nativeScripts: Option[List[Timelock]] = None,
+        plutusV1Scripts: Option[List[ByteString]] = None,
+        plutusV2Scripts: Option[List[ByteString]] = None,
+        plutusV3Scripts: Option[List[ByteString]] = None
+    )
+
+object AuxiliaryData:
+    /** CBOR encoder for AuxiliaryData */
+    given Encoder[AuxiliaryData] with
+        def write(w: Writer, value: AuxiliaryData): Writer = value match
+            case AuxiliaryData.Metadata(metadata) =>
+                // Metadata is encoded directly
+                w.write(metadata)
+
+            case AuxiliaryData.MetadataWithScripts(metadata, scripts) =>
+                // Array of [metadata, scripts]
+                w.writeArrayHeader(2)
+                w.write(metadata)
+
+                // Write scripts array
+                w.writeArrayHeader(scripts.size)
+                scripts.foreach(script => w.write(script))
+                w
+
+            case AuxiliaryData.AlonzoFormat(
+                  metadata,
+                  nativeScripts,
+                  plutusV1Scripts,
+                  plutusV2Scripts,
+                  plutusV3Scripts
+                ) =>
+                // Calculate map size
+                var mapSize = 0
+                if metadata.isDefined then mapSize += 1
+                if nativeScripts.isDefined then mapSize += 1
+                if plutusV1Scripts.isDefined then mapSize += 1
+                if plutusV2Scripts.isDefined then mapSize += 1
+                if plutusV3Scripts.isDefined then mapSize += 1
+
+                // Write the tag 259 first
+                w.writeTag(Tag.Other(259))
+
+                // Then write the map with all fields
+                w.writeMapHeader(mapSize)
+
+                // Metadata (key 0)
+                metadata.foreach { md =>
+                    w.writeInt(0)
+                    w.write(md)
+                }
+
+                // Native scripts (key 1)
+                nativeScripts.foreach { scripts =>
+                    w.writeInt(1)
+                    w.writeArrayHeader(scripts.size)
+                    scripts.foreach(script => w.write(script))
+                }
+
+                // Plutus V1 scripts (key 2)
+                plutusV1Scripts.foreach { scripts =>
+                    w.writeInt(2)
+                    w.writeArrayHeader(scripts.size)
+                    scripts.foreach(script => w.writeBytes(script.bytes))
+                }
+
+                // Plutus V2 scripts (key 3)
+                plutusV2Scripts.foreach { scripts =>
+                    w.writeInt(3)
+                    w.writeArrayHeader(scripts.size)
+                    scripts.foreach(script => w.writeBytes(script.bytes))
+                }
+
+                // Plutus V3 scripts (key 4)
+                plutusV3Scripts.foreach { scripts =>
+                    w.writeInt(4)
+                    w.writeArrayHeader(scripts.size)
+                    scripts.foreach(script => w.writeBytes(script.bytes))
+                }
+
+                w
+
+    /** CBOR decoder for AuxiliaryData */
+    given Decoder[AuxiliaryData] with
+        def read(r: Reader): AuxiliaryData =
+            import io.bullet.borer.DataItem as DI
+
+            // Check for tag 259 first (Alonzo format)
+            val isTaggedFormat = r.dataItem() == DI.Tag && r.tryReadTag(Tag.Other(259))
+
+            // Not tagged - check if it's a map or array
+            r.dataItem() match
+                case DI.Tag if r.tryReadTag(Tag.Other(259)) =>
+                    // Alonzo format with tag
+                    // We've already consumed the tag, now read the map
+                    val size = r.readMapHeader()
+                    var metadata: Option[Map[TransactionMetadatumLabel, TransactionMetadatum]] =
+                        None
+                    var nativeScripts: Option[List[Timelock]] = None
+                    var plutusV1Scripts: Option[List[ByteString]] = None
+                    var plutusV2Scripts: Option[List[ByteString]] = None
+                    var plutusV3Scripts: Option[List[ByteString]] = None
+
+                    for _ <- 0L until size do
+                        val key = r.readInt()
+                        key match
+                            case 0 => // Metadata
+                                metadata = Some(r.read[scalus.ledger.Metadata]())
+
+                            case 1 => // Native scripts
+                                val scripts = List.newBuilder[Timelock]
+                                r.readArrayHeader() match
+                                    case scriptsSize if scriptsSize >= 0 =>
+                                        for _ <- 0L until scriptsSize do
+                                            scripts += Timelock.given_Decoder_Timelock.read(
+                                              r
+                                            )
+                                        nativeScripts = Some(scripts.result())
+                                    case _ =>
+                                        r.unexpectedDataItem(
+                                          "Expected array for native scripts"
+                                        )
+
+                            case 2 => // Plutus V1 scripts
+                                val scripts = List.newBuilder[ByteString]
+                                r.readArrayHeader() match
+                                    case scriptsSize if scriptsSize >= 0 =>
+                                        for _ <- 0L until scriptsSize do
+                                            scripts += ByteString.unsafeFromArray(
+                                              r.readBytes()
+                                            )
+                                        plutusV1Scripts = Some(scripts.result())
+                                    case _ =>
+                                        r.unexpectedDataItem(
+                                          "Expected array for Plutus V1 scripts"
+                                        )
+
+                            case 3 => // Plutus V2 scripts
+                                val scripts = List.newBuilder[ByteString]
+                                r.readArrayHeader() match
+                                    case scriptsSize if scriptsSize >= 0 =>
+                                        for _ <- 0L until scriptsSize do
+                                            scripts += ByteString.unsafeFromArray(
+                                              r.readBytes()
+                                            )
+                                        plutusV2Scripts = Some(scripts.result())
+                                    case _ =>
+                                        r.unexpectedDataItem(
+                                          "Expected array for Plutus V2 scripts"
+                                        )
+
+                            case 4 => // Plutus V3 scripts
+                                val scripts = List.newBuilder[ByteString]
+                                r.readArrayHeader() match
+                                    case scriptsSize if scriptsSize >= 0 =>
+                                        for _ <- 0L until scriptsSize do
+                                            scripts += ByteString.unsafeFromArray(
+                                              r.readBytes()
+                                            )
+                                        plutusV3Scripts = Some(scripts.result())
+                                    case _ =>
+                                        r.unexpectedDataItem(
+                                          "Expected array for Plutus V3 scripts"
+                                        )
+
+                            case _ => r.skipDataItem() // Skip unknown fields
+
+                    AuxiliaryData.AlonzoFormat(
+                      metadata,
+                      nativeScripts,
+                      plutusV1Scripts,
+                      plutusV2Scripts,
+                      plutusV3Scripts
+                    )
+
+                case DI.MapHeader | DI.MapStart =>
+                    // Simple metadata format
+                    AuxiliaryData.Metadata(scalus.ledger.Metadata.given_Decoder_Metadata.read(r))
+
+                case DI.ArrayHeader | DI.ArrayStart =>
+                    // MetadataWithScripts format
+                    val size = r.readArrayHeader()
+                    if size != 2 then
+                        r.validationFailure(
+                          s"Expected 2 elements for MetadataWithScripts, got $size"
+                        )
+
+                    val metadata = r.read[scalus.ledger.Metadata]()
+
+                    val scripts = List.newBuilder[Timelock]
+                    r.readArrayHeader() match
+                        case scriptsSize if scriptsSize >= 0 =>
+                            for _ <- 0L until scriptsSize do
+                                scripts += Timelock.given_Decoder_Timelock.read(r)
+                            AuxiliaryData.MetadataWithScripts(metadata, scripts.result())
+                        case _ => r.unexpectedDataItem("Expected array for scripts")
+
+                case di =>
+                    r.validationFailure(
+                      s"Expected Map, MapStart, Array, or ArrayStart for AuxiliaryData, got ${DataItem
+                              .stringify(di)}"
+                    )
