@@ -281,6 +281,9 @@ object Secp256k1Builtins:
         ) == 1
     }
 
+object Builtins extends Builtins(using NativePlatformSpecific)
+class Builtins(using ps: PlatformSpecific) extends AbstractBuiltins(using ps)
+
 trait NativePlatformSpecific extends PlatformSpecific {
     override def sha2_256(bs: ByteString): ByteString =
         ByteString.unsafeFromArray(Sodium.sha256(bs.bytes))

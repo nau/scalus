@@ -87,7 +87,6 @@ final class SIRCompiler(using ctx: Context) {
     private val DataClassSymbol = requiredClass("scalus.builtin.Data")
     private val PairSymbol = requiredClass("scalus.builtin.Pair")
     private val ScalusBuiltinListClassSymbol = requiredClass("scalus.builtin.List")
-    private val PlatformSpecificClassSymbol = requiredClass("scalus.builtin.PlatformSpecific")
     private val StringContextSymbol = requiredModule("scala.StringContext")
     private val StringContextApplySymbol = StringContextSymbol.requiredMethod("apply")
     private val Tuple2Symbol = requiredClass("scala.Tuple2")
@@ -526,11 +525,6 @@ final class SIRCompiler(using ctx: Context) {
         // ignore @Ignore annotated statements
         else if vd.symbol.hasAnnotation(IgnoreAnnot) then
             CompileMemberDefResult.Ignored(sirTypeInEnv(vd.tpe, vd.srcPos, env))
-        // ignore PlatformSpecific statements
-        // NOTE: check ps.tpe is not Nothing, as Nothing is a subtype of everything
-        else if vd.tpe <:< PlatformSpecificClassSymbol.typeRef &&
-            !(vd.tpe =:= NothingSymbol.typeRef || vd.tpe =:= NullSymbol.typeRef)
-        then CompileMemberDefResult.Builtin(name.show, SIRType.FreeUnificator)
         else
             // TODO store comments in the SIR
             // vd.rawComment
@@ -548,8 +542,6 @@ final class SIRCompiler(using ctx: Context) {
         // ignore inline defs and @Ignore annotated statements
         if dd.symbol.flags.is(Flags.Inline) || dd.symbol.hasAnnotation(IgnoreAnnot) then
             CompileMemberDefResult.Ignored(sirTypeInEnv(dd.tpe, dd.srcPos, env))
-            // ignore PlatformSpecific statements
-            // NOTE: check ps.tpe is not Nothing, as Nothing is a subtype of everything
         else
             // TODO store comments in the SIR
             // dd.rawComment
@@ -1450,15 +1442,6 @@ final class SIRCompiler(using ctx: Context) {
             // throw new Exception("error msg")
             // Supports any exception type that uses first argument as message
             case Apply(Ident(nme.throw_), immutable.List(ex)) => compileThrowException(ex)
-            /* Handle PlatformSpecific builtins
-           Builtins.sha2_256(using PlatformSpecific)(msg: ByteString): ByteString
-           So we just ignore this PlatformSpecific argument and compile the rest
-             */
-            case Apply(builtin, immutable.List(ps))
-                // NOTE: check ps.tpe is not Nothing, as Nothing is a subtype of everything
-                if ps.tpe <:< PlatformSpecificClassSymbol.typeRef &&
-                    !(ps.tpe =:= NothingSymbol.typeRef || ps.tpe =:= NullSymbol.typeRef) =>
-                compileExpr(env, builtin)
             // Boolean
             case Select(lhs, op) if lhs.tpe.widen =:= defn.BooleanType && op == nme.UNARY_! =>
                 val lhsExpr = compileExpr(env, lhs)

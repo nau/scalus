@@ -11,7 +11,6 @@ import scalus.builtin.Data.FromData
 import scalus.builtin.Data.fromData
 import scalus.builtin.FromData
 import scalus.builtin.FromDataInstances.given
-import scalus.builtin.given
 import scalus.ledger.api.PlutusLedgerLanguage
 import scalus.prelude.Prelude.===
 import scalus.prelude.Prelude.given
