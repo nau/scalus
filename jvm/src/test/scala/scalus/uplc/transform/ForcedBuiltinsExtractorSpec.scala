@@ -6,7 +6,7 @@ import scalus.builtin.Builtins.*
 import scalus.uplc.Constant
 import scalus.uplc.DefaultUni.asConstant
 import scalus.uplc.Term.*
-import scalus.uplc.TermDSL.{*, given}
+import scalus.uplc.TermDSL.given
 import scalus.uplc.Constant.given
 import scalus.uplc.DefaultFun
 import scalus.uplc.DefaultUni.Bool

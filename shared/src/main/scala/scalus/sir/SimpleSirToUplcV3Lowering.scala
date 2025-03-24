@@ -3,9 +3,9 @@ package sir
 
 import scalus.sir.Recursivity.*
 import scalus.sir.SIR.Pattern
-import scalus.uplc.DefaultFun.*
-import scalus.uplc.TermDSL.*
 import scalus.uplc.*
+import scalus.uplc.DefaultFun.*
+import scalus.uplc.Term.*
 
 import scala.annotation.tailrec
 import scala.collection.mutable.HashMap

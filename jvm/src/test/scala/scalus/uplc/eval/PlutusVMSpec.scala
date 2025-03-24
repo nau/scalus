@@ -5,8 +5,7 @@ import scalus.builtin.given
 import scalus.uplc.Constant
 import scalus.uplc.DeBruijn
 import scalus.uplc.Program
-import scalus.uplc.Term.Const
-import scalus.uplc.TermDSL.*
+import scalus.uplc.Term.*
 
 class PlutusVMSpec extends AnyFunSuiteLike {
     private val v2vm = PlutusVM.makePlutusV2VM()

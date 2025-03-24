@@ -11,7 +11,7 @@ import scalus.uplc.Constant.Pair
 import scalus.uplc.DefaultFun.*
 import scalus.uplc.DefaultUni.asConstant
 import scalus.uplc.Term.*
-import scalus.uplc.TermDSL.{*, given}
+import scalus.uplc.TermDSL.given
 import scalus.uplc.eval.*
 
 import scala.language.implicitConversions

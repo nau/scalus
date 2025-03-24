@@ -150,7 +150,7 @@ class ScriptContextV1DataSerializationSpec extends BaseValidatorSpec:
 
     test("deserialize ScriptContext V1 using Scalus") {
         import scalus.ledger.api.v1.ToDataInstances.given
-        import scalus.uplc.TermDSL.{*, given}
+        import scalus.uplc.TermDSL.given
         given PlutusVM = PlutusVM.makePlutusV1VM(machineParamsV1)
         val applied = Program((1, 0, 0), scalusDeserializerV1 $ scriptContextV1.toData)
 
@@ -179,7 +179,7 @@ class ScriptContextV1DataSerializationSpec extends BaseValidatorSpec:
 
     test("deserialize ScriptContext V2 using Scalus") {
         import scalus.ledger.api.v2.ToDataInstances.given
-        import scalus.uplc.TermDSL.{*, given}
+        import scalus.uplc.TermDSL.given
         val applied = Program((1, 0, 0), scalusDeserializerV2 $ scriptContextV2.toData)
 
         assertSameResult(Expected.SuccessSame)(applied)

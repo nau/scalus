@@ -22,6 +22,22 @@ enum Term:
     case Constr(tag: Long, args: immutable.List[Term])
     case Case(arg: Term, cases: immutable.List[Term])
 
+    /** Applies the argument to the term. */
+    infix def $(rhs: Term): Term = Term.Apply(this, rhs)
+
+    /** Forces the term. */
+    def unary_! : Term = Term.Force(this)
+
+    /** Delays the term. */
+    def unary_~ : Term = Term.Delay(this)
+
+    def applyToList: (Term, immutable.List[Term]) =
+        this match
+            case Term.Apply(f, arg) =>
+                val (f1, args) = f.applyToList
+                (f1, args :+ arg)
+            case f => (f, Nil)
+
     override def toString: String = this match
         case Var(name)          => s"Var(NamedDeBruijn(\"${name.name}\"))"
         case LamAbs(name, term) => s"LamAbs(\"$name\", $term)"
@@ -62,3 +78,23 @@ object Term:
             case _ => false
 
         equals(t1, t2)
+
+    extension (sc: StringContext)
+        /** Creates a variable term.
+          * @param args
+          *   the arguments
+          * @example
+          *   {{{
+          *   val idx = 0
+          *   vr"foo${idx}" == Var(NamedDeBruijn("foo0"))
+          *   }}}
+          */
+        def vr(args: Any*): Term = Term.Var(NamedDeBruijn(sc.parts.head))
+
+    extension [A: Constant.LiftValue](a: A)
+        def asTerm: Term = Term.Const(summon[Constant.LiftValue[A]].lift(a))
+
+    def λ(names: String*)(term: Term): Term = lam(names*)(term)
+    def λλ(name: String)(f: Term => Term): Term = lam(name)(f(vr(name)))
+    def lam(names: String*)(term: Term): Term = names.foldRight(term)(Term.LamAbs(_, _))
+    def vr(name: String): Term = Term.Var(NamedDeBruijn(name))

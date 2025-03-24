@@ -7,7 +7,7 @@ import scalus.examples.MintingPolicy
 import scalus.prelude.AssocMap
 import scalus.sir.SIR
 import scalus.uplc.Term
-import scalus.uplc.TermDSL.{*, given}
+import scalus.uplc.TermDSL.given
 import scalus.uplc.eval.PlutusVM
 import scalus.builtin.given
 

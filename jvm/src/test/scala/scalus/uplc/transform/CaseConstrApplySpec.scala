@@ -7,7 +7,6 @@ import scalus.builtin.ByteString.*
 import scalus.builtin.{ByteString, given}
 import scalus.uplc.Constant
 import scalus.uplc.Term.*
-import scalus.uplc.TermDSL.{vr, λ}
 import scalus.uplc.eval.ExBudget.given
 import scalus.uplc.eval.Result.Success
 import scalus.uplc.eval.{ExBudget, PlutusVM}

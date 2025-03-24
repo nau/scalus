@@ -5,7 +5,6 @@ import scalus.uplc.Meaning
 import scalus.uplc.NamedDeBruijn
 import scalus.uplc.Term
 import scalus.uplc.Term.*
-import scalus.uplc.TermDSL.*
 
 import scala.collection.mutable
 import scala.collection.mutable.ArrayBuffer
