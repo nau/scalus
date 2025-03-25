@@ -145,7 +145,7 @@ class SimpleSirToUplcLowering(sir: SIR, generateErrorTraces: Boolean = false):
                     idx += 1
                 end while
                 // Sort the cases by the same order as the constructors
-                val sortedCases = constructors.map { constr =>
+                val orderedCases = constructors.map { constr =>
                     val optExpandedCase = expandedCases.find(_.pattern match {
                         case Pattern.Constr(constrDecl, _, _) => constrDecl.name == constr.name
                         case _                                => false
@@ -157,7 +157,7 @@ class SimpleSirToUplcLowering(sir: SIR, generateErrorTraces: Boolean = false):
                     )
                 }.toList
 
-                val casesTerms = sortedCases.map {
+                val casesTerms = orderedCases.map {
                     case SIR.Case(Pattern.Constr(constr, bindings, _), body) =>
                         constr.params match
                             case Nil => ~lowerInner(body)
