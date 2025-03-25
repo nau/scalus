@@ -1835,6 +1835,7 @@ class CompilerPluginToSIRSpec extends AnyFunSuite with ScalaCheckPropertyChecks:
     }
 
     test("compile match on ADT") {
+
         import scalus.prelude.List
         import scalus.prelude.List.*
         val compiled = compile {
@@ -1844,9 +1845,30 @@ class CompilerPluginToSIRSpec extends AnyFunSuite with ScalaCheckPropertyChecks:
                 case Nil        => BigInt(0)
         }
         // println(compiled.show)
-        val evaled = compiled.toUplc().evaluate
-        // println(evaled.show)
-        assert(evaled == scalus.uplc.Term.Const(Constant.Integer(1)))
+        val compiledToUplc = compiled.toUplc()
+        // println(s"uplc:${compiledToUplc.show} ")
+        try
+            val evaled = compiledToUplc.evaluate
+            // println(evaled.show)
+            assert(evaled == scalus.uplc.Term.Const(Constant.Integer(1)))
+        catch
+            case e: Throwable =>
+                println(s"compile match on ADT: error in evaled: ${e.getMessage}")
+                println(s"compile match on ADT: SIR=${compiled.pretty.render(100)}")
+                println(s"compile match on ADT: UPLC=${compiledToUplc.pretty.render(100)}")
+                compiled match
+                    case SIR.Decl(data, term) =>
+                        println(
+                          s"compile match on ADT:dataDecl, ${data.name}, constrNames=${data.constructors
+                                  .map(_.name)}"
+                        )
+                    case SIR.Let(_, bindings, body, _) =>
+                        println(
+                          s"compile match on ADT: bindings=${bindings.mkString("\n")}"
+                        )
+                    case _ =>
+                        println(s"compile match on ADT: not a Let, but $compiled")
+                throw e
     }
 
     test("compile wildcard match on ADT") {

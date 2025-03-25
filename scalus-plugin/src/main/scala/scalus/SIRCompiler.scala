@@ -41,6 +41,15 @@ case class FullName(name: String)
 object FullName:
     def apply(sym: Symbol)(using Context): FullName = FullName(sym.fullName.toString)
 
+/** @param dataTypeSymbol
+  *   \- the symbol of the base data type
+  * @param dataTypeParams
+  *   \- type parameters of the base data type
+  * @param constructorsSymbols
+  *   \- constructors symbols in the order of definition
+  * @param parentSymbol
+  *   \- the parent symbol of the base data type, if it exists
+  */
 case class AdtTypeInfo(
     dataTypeSymbol: Symbol,
     dataTypeParams: List[Type],
@@ -305,12 +314,10 @@ final class SIRCompiler(using ctx: Context) {
 
     private def makeDataDecl(dataInfo: AdtTypeInfo, env: Env, srcPos: SrcPos) = {
         val dataFullName = FullName(dataInfo.dataTypeSymbol)
-        // sort by name to get a stable order
-        val sortedConstructors = dataInfo.constructorsSymbols.sortBy(_.name.show)
         val dataTypeParams = dataInfo.dataTypeParams.map { tp =>
             SIRType.TypeVar(tp.typeSymbol.name.show)
         }
-        val constrDecls = sortedConstructors.map { sym =>
+        val constrDecls = dataInfo.constructorsSymbols.map { sym =>
             makeConstrDecl(env, srcPos, sym)
         }
         val sourcePos =

@@ -278,7 +278,7 @@ object SIRType {
             val aInCons = TypeVar("A", Some(1))
             val retval = DataDecl(
               "scalus.prelude.List",
-              scala.List(Cons.buildConstr(aInCons, proxy), NilConstr),
+              scala.List(NilConstr, Cons.buildConstr(aInCons, proxy)),
               scala.List(TypeVar("A", Some(2))),
               AnnotationsDecl.empty
             )
