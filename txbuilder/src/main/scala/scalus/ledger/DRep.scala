@@ -50,7 +50,7 @@ object DRep {
             case DRep.KeyHash(keyHash) =>
                 w.writeArrayOpen(2)
                     .writeInt(0)
-                    .writeBytes(keyHash.bytes.bytes)
+                    .write(keyHash)
                     .writeArrayClose()
 
             case DRep.ScriptHash(scriptHash) =>
