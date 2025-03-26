@@ -37,7 +37,7 @@ object TransactionOutput:
 
                 // Write optional datum hash
                 datumHashOpt.foreach { hash =>
-                    Hash32.given_Encoder_Hash32.write(w, hash)
+                    w.write(hash)
                 }
 
                 w
@@ -91,7 +91,7 @@ object TransactionOutput:
         val value = Value.given_Decoder_Value.read(r)
 
         val datumHash =
-            if size == 3 then Some(Hash32.given_Decoder_Hash32.read(r))
+            if size == 3 then Some(r.read[Hash32]())
             else None
 
         TransactionOutput.Shelley(address, value, datumHash)

@@ -184,7 +184,7 @@ object TransactionBody:
             // Auxiliary data hash (key 7)
             value.auxiliaryDataHash.foreach { hash =>
                 w.writeInt(7)
-                Hash32.given_Encoder_Hash32.write(w, hash)
+                w.write(hash)
             }
 
             // Validity start slot (key 8)
@@ -202,7 +202,7 @@ object TransactionBody:
             // Script data hash (key 11)
             value.scriptDataHash.foreach { hash =>
                 w.writeInt(11)
-                Hash32.given_Encoder_Hash32.write(w, hash)
+                w.write(hash)
             }
 
             // Collateral inputs (key 13)
@@ -325,7 +325,7 @@ object TransactionBody:
                         withdrawals = Some(r.read[Withdrawals]())
 
                     case 7 => // Auxiliary data hash
-                        auxiliaryDataHash = Some(Hash32.given_Decoder_Hash32.read(r))
+                        auxiliaryDataHash = Some(r.read[Hash32]())
 
                     case 8 => // Validity start slot
                         validityStartSlot = Some(r.readLong())
@@ -334,7 +334,7 @@ object TransactionBody:
                         mint = Some(r.read[MultiAsset[Long]]())
 
                     case 11 => // Script data hash
-                        scriptDataHash = Some(Hash32.given_Decoder_Hash32.read(r))
+                        scriptDataHash = Some(r.read[Hash32]())
 
                     case 13 => // Collateral inputs
                         collateralInputs = readSet(r)

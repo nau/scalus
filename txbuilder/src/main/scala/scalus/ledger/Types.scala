@@ -28,7 +28,7 @@ object Hash28 {
   *
   * Hash32 is commonly used for transaction IDs, block hashes and other crypto hashes
   */
-final case class Hash32(bytes: ByteString) {
+final case class Hash32(bytes: ByteString) derives Codec {
 
     /** Ensures the hash is exactly 32 bytes */
     require(bytes.size == 32, s"Hash32 must be 32 bytes, got ${bytes.size}")
@@ -45,18 +45,6 @@ object Hash32 {
 
     /** Create a nil (empty/zero) Hash32 - used for special cases */
     val nil: Hash32 = Hash32(ByteString.fill(32, 0))
-
-    /** CBOR encoder for Hash32 */
-    given Encoder[Hash32] = Encoder { (w, hash) =>
-        w.writeBytes(hash.bytes.bytes)
-    }
-
-    /** CBOR decoder for Hash32 */
-    given Decoder[Hash32] = Decoder { r =>
-        val bytes = ByteString.unsafeFromArray(r.readBytes())
-        require(bytes.size == 32, s"Hash32 must be 32 bytes, got ${bytes.size}")
-        Hash32(bytes)
-    }
 }
 
 /** Represents an amount of Cardano's native currency (ADA)
