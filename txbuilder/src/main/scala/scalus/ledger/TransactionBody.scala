@@ -150,7 +150,7 @@ object TransactionBody:
 
             // Inputs (key 0)
             w.writeInt(0)
-            writeSet(w, value.inputs, TransactionInput.given_Encoder_TransactionInput)
+            writeSet(w, value.inputs, summon[Encoder[TransactionInput]])
 
             // Outputs (key 1)
             w.writeInt(1)
@@ -208,7 +208,7 @@ object TransactionBody:
             // Collateral inputs (key 13)
             value.collateralInputs.foreach { inputs =>
                 w.writeInt(13)
-                writeSet(w, inputs, TransactionInput.given_Encoder_TransactionInput)
+                writeSet(w, inputs, summon[Encoder[TransactionInput]])
             }
 
             // Required signers (key 14)
@@ -238,7 +238,7 @@ object TransactionBody:
             // Reference inputs (key 18)
             value.referenceInputs.foreach { inputs =>
                 w.writeInt(18)
-                writeSet(w, inputs, TransactionInput.given_Encoder_TransactionInput)
+                writeSet(w, inputs, summon[Encoder[TransactionInput]])
             }
 
             // Voting procedures (key 19)

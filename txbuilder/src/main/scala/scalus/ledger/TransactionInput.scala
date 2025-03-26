@@ -1,7 +1,7 @@
 package scalus.ledger
 
-import scalus.builtin.ByteString
-import io.bullet.borer.{Decoder, Encoder, Reader, Writer}
+import io.bullet.borer.derivation.ArrayBasedCodecs.*
+import io.bullet.borer.*
 
 /** Represents an input to a transaction
   *
@@ -14,36 +14,4 @@ final case class TransactionInput(
 
     /** The index of the output in the transaction we're spending */
     index: Int
-)
-
-object TransactionInput {
-
-    /** CBOR encoder for TransactionInput */
-    given Encoder[TransactionInput] = Encoder { (w, input) =>
-        w.writeArrayHeader(2)
-            .write(input.transactionId)
-            .writeInt(input.index)
-    }
-
-    /** CBOR decoder for TransactionInput */
-    given Decoder[TransactionInput] = Decoder { r =>
-        r.readArrayHeader()
-        val txId = r.read[Hash32]()
-        val index = r.readInt()
-        TransactionInput(txId, index)
-    }
-
-    /** CBOR encoder for a set (list) of TransactionInput */
-    given Encoder[Set[TransactionInput]] = Encoder { (w, inputs) =>
-        w.writeArrayHeader(inputs.size)
-        inputs.foreach(input => w.write(input))
-        w
-    }
-
-//    /** CBOR decoder for a set (list) of TransactionInput */
-//    given Decoder[Set[TransactionInput]] = Decoder { r =>
-//        val count = r.readArrayHeader()
-//        val inputs = for (_ <- 0L until count) yield r.read[TransactionInput]
-//        inputs.toSet
-//    }
-}
+) derives Codec
