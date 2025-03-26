@@ -150,7 +150,7 @@ object TransactionBody:
 
             // Inputs (key 0)
             w.writeInt(0)
-            writeSet(w, value.inputs, summon[Encoder[TransactionInput]])
+            writeSet(w, value.inputs)
 
             // Outputs (key 1)
             w.writeInt(1)
@@ -172,7 +172,7 @@ object TransactionBody:
             // Certificates (key 4)
             value.certificates.foreach { certs =>
                 w.writeInt(4)
-                writeSet(w, certs, Certificate.given_Encoder_Certificate)
+                writeSet(w, certs)
             }
 
             // Withdrawals (key 5)
@@ -208,13 +208,13 @@ object TransactionBody:
             // Collateral inputs (key 13)
             value.collateralInputs.foreach { inputs =>
                 w.writeInt(13)
-                writeSet(w, inputs, summon[Encoder[TransactionInput]])
+                writeSet(w, inputs)
             }
 
             // Required signers (key 14)
             value.requiredSigners.foreach { signers =>
                 w.writeInt(14)
-                writeSet(w, signers, Hash28.given_Encoder_Hash28)
+                writeSet(w, signers)
             }
 
             // Network ID (key 15)
@@ -238,7 +238,7 @@ object TransactionBody:
             // Reference inputs (key 18)
             value.referenceInputs.foreach { inputs =>
                 w.writeInt(18)
-                writeSet(w, inputs, summon[Encoder[TransactionInput]])
+                writeSet(w, inputs)
             }
 
             // Voting procedures (key 19)
@@ -268,7 +268,7 @@ object TransactionBody:
             w
 
     /** Helper to write a Set as CBOR */
-    private def writeSet[A: Encoder](w: Writer, set: Set[A], encoder: Encoder[A]): Writer =
+    private def writeSet[A](w: Writer, set: Set[A])(using encoder: Encoder[A]): Writer =
         // Use indefinite array
         w.writeTag(Tag.Other(258))
         w.writeArrayHeader(set.size)

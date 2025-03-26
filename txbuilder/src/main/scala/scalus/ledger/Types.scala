@@ -1,13 +1,14 @@
 package scalus.ledger
 
 import scalus.builtin.ByteString
-import io.bullet.borer.{Decoder, Encoder, Reader, Writer}
+import io.bullet.borer.{Codec, Decoder, Encoder, Reader, Writer}
+import io.bullet.borer.derivation.ArrayBasedCodecs.*
 
 /** Represents a 28-byte hash value used in Cardano
   *
   * Hash28 is commonly used for address key hashes and script hashes
   */
-case class Hash28(bytes: ByteString) {
+case class Hash28(bytes: ByteString) derives Codec {
 
     /** Ensures the hash is exactly 28 bytes */
     require(bytes.size == 28, s"Hash28 must be 28 bytes, got ${bytes.size}")
@@ -18,18 +19,6 @@ object Hash28 {
     /** Create a Hash28 from a hex string */
     def fromHex(hex: String): Hash28 = {
         val bytes = ByteString.fromHex(hex)
-        require(bytes.size == 28, s"Hash28 must be 28 bytes, got ${bytes.size}")
-        Hash28(bytes)
-    }
-
-    /** CBOR encoder for Hash28 */
-    given Encoder[Hash28] = Encoder { (w, hash) =>
-        w.writeBytes(hash.bytes.bytes)
-    }
-
-    /** CBOR decoder for Hash28 */
-    given Decoder[Hash28] = Decoder { r =>
-        val bytes = ByteString.unsafeFromArray(r.readBytes())
         require(bytes.size == 28, s"Hash28 must be 28 bytes, got ${bytes.size}")
         Hash28(bytes)
     }
@@ -384,32 +373,6 @@ case class ExUnits(
 
     /** CPU step units */
     steps: Long
-):
+) derives Codec:
     require(mem >= 0, s"Memory units must be non-negative, got $mem")
     require(steps >= 0, s"Step units must be non-negative, got $steps")
-
-object ExUnits:
-    /** Zero execution units */
-    val zero: ExUnits = ExUnits(0, 0)
-
-    /** CBOR encoder for ExUnits */
-    given Encoder[ExUnits] with
-        def write(w: Writer, value: ExUnits): Writer =
-            w.writeArrayHeader(2)
-            w.writeLong(value.mem)
-            w.writeLong(value.steps)
-            w
-
-    /** CBOR decoder for ExUnits */
-    given Decoder[ExUnits] with
-        def read(r: Reader): ExUnits =
-            val size = r.readArrayHeader()
-            if size != 2 then r.validationFailure(s"Expected 2 elements for ExUnits, got $size")
-
-            val mem = r.readLong()
-            val steps = r.readLong()
-
-            if mem < 0 then r.validationFailure(s"Memory units must be non-negative, got $mem")
-            if steps < 0 then r.validationFailure(s"Step units must be non-negative, got $steps")
-
-            ExUnits(mem, steps)
