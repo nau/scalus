@@ -9,40 +9,6 @@ import scala.collection.immutable
 /** Metadata is a map from metadatum labels to metadatum values */
 type Metadata = Map[TransactionMetadatumLabel, TransactionMetadatum]
 
-object Metadata:
-    /** CBOR encoder for Metadata */
-    given Encoder[Metadata] with
-        def write(w: Writer, value: Metadata): Writer =
-            w.writeMapHeader(value.size)
-            value.foreach { (label, datum) =>
-                TransactionMetadatumLabel.given_Encoder_TransactionMetadatumLabel.write(w, label)
-                TransactionMetadatum.given_Encoder_TransactionMetadatum.write(w, datum)
-            }
-            w
-
-    /** CBOR decoder for Metadata */
-    given Decoder[Metadata] with
-        def read(r: Reader): Metadata =
-            val result = Map.newBuilder[TransactionMetadatumLabel, TransactionMetadatum]
-
-            if r.hasMapHeader then
-                val size = r.readMapHeader()
-                for _ <- 0L until size do
-                    val label =
-                        TransactionMetadatumLabel.given_Decoder_TransactionMetadatumLabel.read(r)
-                    val datum = TransactionMetadatum.given_Decoder_TransactionMetadatum.read(r)
-                    result += (label -> datum)
-            else if r.hasMapStart then
-                r.readMapStart()
-                while !r.tryReadBreak() do
-                    val label =
-                        TransactionMetadatumLabel.given_Decoder_TransactionMetadatumLabel.read(r)
-                    val datum = TransactionMetadatum.given_Decoder_TransactionMetadatum.read(r)
-                    result += (label -> datum)
-            else r.validationFailure("Expected Map for Metadata")
-
-            result.result()
-
 /** Represents a transaction metadatum label in Cardano */
 case class TransactionMetadatumLabel(value: Long):
     require(value >= 0, s"Metadatum label must be non-negative, got $value")
@@ -375,7 +341,7 @@ object AuxiliaryData:
 
                 case DI.MapHeader | DI.MapStart =>
                     // Simple metadata format
-                    AuxiliaryData.Metadata(scalus.ledger.Metadata.given_Decoder_Metadata.read(r))
+                    AuxiliaryData.Metadata(r.read[scalus.ledger.Metadata]())
 
                 case DI.ArrayHeader | DI.ArrayStart =>
                     // MetadataWithScripts format
