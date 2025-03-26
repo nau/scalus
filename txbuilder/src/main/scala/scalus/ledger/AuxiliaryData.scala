@@ -205,10 +205,6 @@ object AuxiliaryData:
         def read(r: Reader): AuxiliaryData =
             import io.bullet.borer.DataItem as DI
 
-            // Check for tag 259 first (Alonzo format)
-            val isTaggedFormat = r.dataItem() == DI.Tag && r.tryReadTag(Tag.Other(259))
-
-            // Not tagged - check if it's a map or array
             r.dataItem() match
                 case DI.Tag if r.tryReadTag(Tag.Other(259)) =>
                     // Alonzo format with tag
@@ -228,60 +224,16 @@ object AuxiliaryData:
                                 metadata = Some(r.read[scalus.ledger.Metadata]())
 
                             case 1 => // Native scripts
-                                val scripts = List.newBuilder[Timelock]
-                                r.readArrayHeader() match
-                                    case scriptsSize if scriptsSize >= 0 =>
-                                        for _ <- 0L until scriptsSize do
-                                            scripts += Timelock.given_Decoder_Timelock.read(
-                                              r
-                                            )
-                                        nativeScripts = Some(scripts.result())
-                                    case _ =>
-                                        r.unexpectedDataItem(
-                                          "Expected array for native scripts"
-                                        )
+                                nativeScripts = Some(r.read[List[Timelock]]())
 
                             case 2 => // Plutus V1 scripts
-                                val scripts = List.newBuilder[ByteString]
-                                r.readArrayHeader() match
-                                    case scriptsSize if scriptsSize >= 0 =>
-                                        for _ <- 0L until scriptsSize do
-                                            scripts += ByteString.unsafeFromArray(
-                                              r.readBytes()
-                                            )
-                                        plutusV1Scripts = Some(scripts.result())
-                                    case _ =>
-                                        r.unexpectedDataItem(
-                                          "Expected array for Plutus V1 scripts"
-                                        )
+                                plutusV1Scripts = Some(r.read[List[ByteString]]())
 
                             case 3 => // Plutus V2 scripts
-                                val scripts = List.newBuilder[ByteString]
-                                r.readArrayHeader() match
-                                    case scriptsSize if scriptsSize >= 0 =>
-                                        for _ <- 0L until scriptsSize do
-                                            scripts += ByteString.unsafeFromArray(
-                                              r.readBytes()
-                                            )
-                                        plutusV2Scripts = Some(scripts.result())
-                                    case _ =>
-                                        r.unexpectedDataItem(
-                                          "Expected array for Plutus V2 scripts"
-                                        )
+                                plutusV2Scripts = Some(r.read[List[ByteString]]())
 
                             case 4 => // Plutus V3 scripts
-                                val scripts = List.newBuilder[ByteString]
-                                r.readArrayHeader() match
-                                    case scriptsSize if scriptsSize >= 0 =>
-                                        for _ <- 0L until scriptsSize do
-                                            scripts += ByteString.unsafeFromArray(
-                                              r.readBytes()
-                                            )
-                                        plutusV3Scripts = Some(scripts.result())
-                                    case _ =>
-                                        r.unexpectedDataItem(
-                                          "Expected array for Plutus V3 scripts"
-                                        )
+                                plutusV3Scripts = Some(r.read[List[ByteString]]())
 
                             case _ => r.skipDataItem() // Skip unknown fields
 
@@ -307,13 +259,8 @@ object AuxiliaryData:
 
                     val metadata = r.read[scalus.ledger.Metadata]()
 
-                    val scripts = List.newBuilder[Timelock]
-                    r.readArrayHeader() match
-                        case scriptsSize if scriptsSize >= 0 =>
-                            for _ <- 0L until scriptsSize do
-                                scripts += Timelock.given_Decoder_Timelock.read(r)
-                            AuxiliaryData.MetadataWithScripts(metadata, scripts.result())
-                        case _ => r.unexpectedDataItem("Expected array for scripts")
+                    val scripts = r.read[List[Timelock]]()
+                    AuxiliaryData.MetadataWithScripts(metadata, scripts)
 
                 case di =>
                     r.validationFailure(
