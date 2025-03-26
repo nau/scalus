@@ -1,8 +1,8 @@
 package scalus.ledger
 
-import scalus.builtin.Data
-import scalus.builtin.given
-import io.bullet.borer.{DataItem, Decoder, Encoder, Reader, Writer}
+import io.bullet.borer.derivation.ArrayBasedCodecs.*
+import io.bullet.borer.*
+import scalus.builtin.{Data, given}
 
 import scala.collection.immutable
 
@@ -42,53 +42,25 @@ case class Redeemer(
 
     /** The execution units allocated to the script */
     exUnits: ExUnits
-):
+) derives Codec:
     require(index >= 0, s"Redeemer index must be non-negative, got $index")
 
 /** Represents a collection of redeemers in the transaction witness set */
 enum Redeemers:
     /** Array-based representation (legacy format) */
-    case Array(redeemers: scala.List[Redeemer])
+    case Array(redeemers: Seq[Redeemer])
 
     /** Map-based representation (new format) Maps (tag, index) pairs to (data, exUnits) pairs
       */
-    case Map(redeemers: scala.collection.immutable.Map[(RedeemerTag, Int), (Data, ExUnits)])
+    case Map(redeemers: immutable.Map[(RedeemerTag, Int), (Data, ExUnits)])
 
     /** Convert to list of Redeemer objects */
-    def toList: scala.List[Redeemer] = this match
+    def toSeq: Seq[Redeemer] = this match
         case Array(list) => list
         case Map(map) =>
             map.map { case ((tag, index), (data, exUnits)) =>
                 Redeemer(tag, index, data, exUnits)
             }.toList
-
-object Redeemer:
-    /** CBOR encoder for Redeemer */
-    given Encoder[Redeemer] with
-        def write(w: Writer, value: Redeemer): Writer =
-            w.writeArrayHeader(4)
-            w.write(value.tag)
-            w.writeInt(value.index)
-            w.write(value.data)
-            w.write(value.exUnits)
-            w
-
-    /** CBOR decoder for Redeemer */
-    given Decoder[Redeemer] with
-        def read(r: Reader): Redeemer =
-            val size = r.readArrayHeader()
-            if size != 4 then r.validationFailure(s"Expected 4 elements for Redeemer, got $size")
-
-            val tag = RedeemerTag.given_Decoder_RedeemerTag.read(r)
-            val index = r.readInt()
-
-            if index < 0 then
-                r.validationFailure(s"Redeemer index must be non-negative, got $index")
-
-            val data = r.read[Data]()
-            val exUnits = r.read[ExUnits]()
-
-            Redeemer(tag, index, data, exUnits)
 
 object Redeemers:
     /** CBOR encoder for Redeemers */
@@ -96,11 +68,7 @@ object Redeemers:
         def write(w: Writer, value: Redeemers): Writer = value match
             case Redeemers.Array(redeemers) =>
                 // Write as array of redeemers
-                w.writeArrayHeader(redeemers.size)
-                redeemers.foreach { redeemer =>
-                    Redeemer.given_Encoder_Redeemer.write(w, redeemer)
-                }
-                w
+                w.write(redeemers)
 
             case Redeemers.Map(redeemers) =>
                 // Write as map from keys to data+exunits
@@ -108,13 +76,13 @@ object Redeemers:
                 redeemers.foreach { case ((tag, index), (data, exUnits)) =>
                     // Write key as [tag, index]
                     w.writeArrayHeader(2)
-                    RedeemerTag.given_Encoder_RedeemerTag.write(w, tag)
+                    w.write(tag)
                     w.writeInt(index)
 
                     // Write value as [data, exUnits]
                     w.writeArrayHeader(2)
                     w.write(data)
-                    ExUnits.given_Encoder_ExUnits.write(w, exUnits)
+                    w.write(exUnits)
                 }
                 w
 
@@ -123,7 +91,7 @@ object Redeemers:
         def read(r: Reader): Redeemers =
             r.dataItem() match
                 case DataItem.ArrayHeader | DataItem.ArrayStart =>
-                    Redeemers.Array(r.read[scala.List[Redeemer]]())
+                    Redeemers.Array(r.read[Seq[Redeemer]]())
                 case DataItem.MapHeader | DataItem.MapStart =>
                     // Map format
                     val redeemers = r.read[immutable.Map[(RedeemerTag, Int), (Data, ExUnits)]]()
