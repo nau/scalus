@@ -2,6 +2,7 @@ package scalus.ledger
 
 import io.bullet.borer.{Decoder, Dom, Encoder, Reader, Writer}
 import scalus.builtin.ByteString
+import io.bullet.borer.NullOptions.given
 
 /** Represents a relay for a stake pool in the Cardano blockchain.
   *
@@ -69,22 +70,13 @@ object Relay {
                     .writeInt(0) // Tag for SingleHostAddr
 
                 // Write port or null
-                port match {
-                    case Some(p) => w.writeInt(p)
-                    case None    => w.writeNull()
-                }
+                w.write(port)
 
                 // Write IPv4 or null
-                ipv4 match {
-                    case Some(ip) => w.writeBytes(ip.bytes)
-                    case None     => w.writeNull()
-                }
+                w.write(ipv4)
 
                 // Write IPv6 or null
-                ipv6 match {
-                    case Some(ip) => w.writeBytes(ip.bytes)
-                    case None     => w.writeNull()
-                }
+                w.write(ipv6)
 
                 w.writeArrayClose()
 
@@ -93,11 +85,7 @@ object Relay {
                     .writeInt(1) // Tag for SingleHostName
 
                 // Write port or null
-                port match {
-                    case Some(p) => w.writeInt(p)
-                    case None    => w.writeNull()
-                }
-
+                w.write(port)
                 // Write DNS name
                 w.writeString(dnsName)
                     .writeArrayClose()
@@ -120,43 +108,19 @@ object Relay {
             val relay = tag match {
                 case 0 => // SingleHostAddr
                     // Read port
-                    val port = if (r.hasNull) {
-                        r.readNull()
-                        None
-                    } else {
-                        Some(r.readInt())
-                    }
+                    val port = r.read[Option[Int]]()
 
                     // Read IPv4
-                    val ipv4 = if (r.hasNull) {
-                        r.readNull()
-                        None
-                    } else {
-                        val bytes = ByteString.unsafeFromArray(r.readBytes())
-                        validateIpv4(bytes)
-                        Some(bytes)
-                    }
+                    val ipv4 = r.read[Option[ByteString]]()
 
                     // Read IPv6
-                    val ipv6 = if (r.hasNull) {
-                        r.readNull()
-                        None
-                    } else {
-                        val bytes = ByteString.unsafeFromArray(r.readBytes())
-                        validateIpv6(bytes)
-                        Some(bytes)
-                    }
+                    val ipv6 = r.read[Option[ByteString]]()
 
                     Relay.SingleHostAddr(port, ipv4, ipv6)
 
                 case 1 => // SingleHostName
                     // Read port
-                    val port = if (r.hasNull) {
-                        r.readNull()
-                        None
-                    } else {
-                        Some(r.readInt())
-                    }
+                    val port = r.read[Option[Int]]()
 
                     // Read DNS name
                     val dnsName = r.readString()
