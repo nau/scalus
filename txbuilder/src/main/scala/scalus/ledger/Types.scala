@@ -78,7 +78,7 @@ object Coin {
   *   - "\x02" for Plutus V2 scripts
   *   - "\x03" for Plutus V3 scripts
   */
-final case class ScriptHash(bytes: ByteString) {
+final case class ScriptHash(bytes: ByteString) derives Codec {
 
     /** Ensures the hash is exactly 28 bytes */
     require(bytes.size == 28, s"ScriptHash must be 28 bytes, got ${bytes.size}")
@@ -92,18 +92,6 @@ object ScriptHash {
         require(bytes.size == 28, s"ScriptHash must be 28 bytes, got ${bytes.size}")
         ScriptHash(bytes)
     }
-
-    /** CBOR encoder for ScriptHash */
-    given Encoder[ScriptHash] = Encoder { (w, hash) =>
-        w.writeBytes(hash.bytes.bytes)
-    }
-
-    /** CBOR decoder for ScriptHash */
-    given Decoder[ScriptHash] = Decoder { r =>
-        val bytes = ByteString.unsafeFromArray(r.readBytes())
-        require(bytes.size == 28, s"ScriptHash must be 28 bytes, got ${bytes.size}")
-        ScriptHash(bytes)
-    }
 }
 
 type PolicyId = ScriptHash
@@ -112,7 +100,7 @@ type PolicyId = ScriptHash
   *
   * Asset names can be between 0 and 32 bytes long.
   */
-final case class AssetName(bytes: ByteString) {
+final case class AssetName(bytes: ByteString) derives Codec {
 
     /** Ensures the asset name is at most 32 bytes */
     require(bytes.size <= 32, s"AssetName must be at most 32 bytes, got ${bytes.size}")
@@ -142,18 +130,6 @@ object AssetName {
     /** Create an AssetName from a UTF-8 string */
     def fromString(str: String): AssetName = {
         val bytes = ByteString.fromString(str)
-        require(bytes.size <= 32, s"AssetName must be at most 32 bytes, got ${bytes.size}")
-        AssetName(bytes)
-    }
-
-    /** CBOR encoder for AssetName */
-    given Encoder[AssetName] = Encoder { (w, assetName) =>
-        w.writeBytes(assetName.bytes.bytes)
-    }
-
-    /** CBOR decoder for AssetName */
-    given Decoder[AssetName] = Decoder { r =>
-        val bytes = ByteString.unsafeFromArray(r.readBytes())
         require(bytes.size <= 32, s"AssetName must be at most 32 bytes, got ${bytes.size}")
         AssetName(bytes)
     }
@@ -220,7 +196,7 @@ object Language {
   *
   * Byron addresses (bits 7-4 = 1000)
   */
-final case class Address(bytes: ByteString) {
+final case class Address(bytes: ByteString) derives Codec {
 
     /** Get the network ID from the address */
     def networkId: Int = bytes(0) & 0x0f
@@ -249,16 +225,6 @@ object Address {
         // In a real implementation, this would parse from bech32 format
         // For this example, we'll create a dummy address
         Address(ByteString.fromHex("00"))
-    }
-
-    /** CBOR encoder for Address */
-    given Encoder[Address] = Encoder { (w, address) =>
-        w.writeBytes(address.bytes.bytes)
-    }
-
-    /** CBOR decoder for Address */
-    given Decoder[Address] = Decoder { r =>
-        Address(ByteString.unsafeFromArray(r.readBytes()))
     }
 }
 

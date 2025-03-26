@@ -30,7 +30,7 @@ object TransactionOutput:
                 w.writeArrayHeader(size)
 
                 // Write address
-                Address.given_Encoder_Address.write(w, address)
+                w.write(address)
 
                 // Write value
                 Value.given_Encoder_Value.write(w, val1)
@@ -52,7 +52,7 @@ object TransactionOutput:
 
                 // Write address (key 0)
                 w.writeInt(0)
-                Address.given_Encoder_Address.write(w, address)
+                w.write(address)
 
                 // Write value (key 1)
                 w.writeInt(1)
@@ -87,7 +87,7 @@ object TransactionOutput:
         if size < 2 || size > 3 then
             r.validationFailure(s"Expected 2 or 3 elements for ShelleyTransactionOutput, got $size")
 
-        val address = Address.given_Decoder_Address.read(r)
+        val address = r.read[Address]()
         val value = Value.given_Decoder_Value.read(r)
 
         val datumHash =
@@ -107,7 +107,7 @@ object TransactionOutput:
 
         for _ <- 0L until size do
             r.readInt() match
-                case 0     => address = Some(Address.given_Decoder_Address.read(r))
+                case 0     => address = Some(r.read[Address]())
                 case 1     => value = Some(Value.given_Decoder_Value.read(r))
                 case 2     => datumOption = Some(DatumOption.given_Decoder_DatumOption.read(r))
                 case 3     => scriptRef = Some(ScriptRef.given_Decoder_ScriptRef.read(r))
