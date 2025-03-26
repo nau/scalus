@@ -33,7 +33,7 @@ object TransactionOutput:
                 w.write(address)
 
                 // Write value
-                Value.given_Encoder_Value.write(w, val1)
+                w.write(val1)
 
                 // Write optional datum hash
                 datumHashOpt.foreach { hash =>
@@ -56,18 +56,18 @@ object TransactionOutput:
 
                 // Write value (key 1)
                 w.writeInt(1)
-                Value.given_Encoder_Value.write(w, val1)
+                w.write(val1)
 
                 // Write optional datum (key 2)
                 datumOpt.foreach { datum =>
                     w.writeInt(2)
-                    DatumOption.given_Encoder_DatumOption.write(w, datum)
+                    w.write(datum)
                 }
 
                 // Write optional script reference (key 3)
                 scriptRefOpt.foreach { script =>
                     w.writeInt(3)
-                    ScriptRef.given_Encoder_ScriptRef.write(w, script)
+                    w.write(script)
                 }
 
                 w
@@ -88,7 +88,7 @@ object TransactionOutput:
             r.validationFailure(s"Expected 2 or 3 elements for ShelleyTransactionOutput, got $size")
 
         val address = r.read[Address]()
-        val value = Value.given_Decoder_Value.read(r)
+        val value = r.read[Value]()
 
         val datumHash =
             if size == 3 then Some(r.read[Hash32]())
@@ -108,9 +108,9 @@ object TransactionOutput:
         for _ <- 0L until size do
             r.readInt() match
                 case 0     => address = Some(r.read[Address]())
-                case 1     => value = Some(Value.given_Decoder_Value.read(r))
-                case 2     => datumOption = Some(DatumOption.given_Decoder_DatumOption.read(r))
-                case 3     => scriptRef = Some(ScriptRef.given_Decoder_ScriptRef.read(r))
+                case 1     => value = Some(r.read[Value]())
+                case 2     => datumOption = Some(r.read[DatumOption]())
+                case 3     => scriptRef = Some(r.read[ScriptRef]())
                 case other => r.skipDataItem() // Skip unknown fields
 
         // Address and value are required

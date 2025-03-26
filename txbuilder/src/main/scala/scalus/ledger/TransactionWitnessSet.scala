@@ -135,7 +135,7 @@ object TransactionWitnessSet:
             // Redeemers (key 5)
             value.redeemers.foreach { redeemers =>
                 w.writeInt(5)
-                Redeemers.given_Encoder_Redeemers.write(w, redeemers)
+                w.write(redeemers)
             }
 
             // Plutus V2 scripts (key 6)
@@ -194,7 +194,7 @@ object TransactionWitnessSet:
                         plutusData = readSet(r)
 
                     case 5 => // Redeemers
-                        redeemers = Some(Redeemers.given_Decoder_Redeemers.read(r))
+                        redeemers = Some(r.read[Redeemers]())
 
                     case 6 => // Plutus V2 scripts
                         plutusV2Scripts = readSet(r)

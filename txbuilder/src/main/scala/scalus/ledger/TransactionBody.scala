@@ -154,8 +154,7 @@ object TransactionBody:
 
             // Outputs (key 1)
             w.writeInt(1)
-            w.writeArrayHeader(value.outputs.size)
-            value.outputs.foreach(TransactionOutput.given_Encoder_TransactionOutput.write(w, _))
+            w.write(value.outputs)
 
             // Fee (key 2)
             w.writeInt(2)
@@ -178,7 +177,7 @@ object TransactionBody:
             // Withdrawals (key 5)
             value.withdrawals.foreach { withdrawals =>
                 w.writeInt(5)
-                Withdrawals.given_Encoder_Withdrawals.write(w, withdrawals)
+                w.write(withdrawals)
             }
 
             // Auxiliary data hash (key 7)
@@ -226,7 +225,7 @@ object TransactionBody:
             // Collateral return output (key 16)
             value.collateralReturnOutput.foreach { output =>
                 w.writeInt(16)
-                TransactionOutput.given_Encoder_TransactionOutput.write(w, output)
+                w.write(output)
             }
 
             // Total collateral (key 17)
@@ -349,9 +348,7 @@ object TransactionBody:
                         networkId = Some(id)
 
                     case 16 => // Collateral return output
-                        collateralReturnOutput = Some(
-                          TransactionOutput.given_Decoder_TransactionOutput.read(r)
-                        )
+                        collateralReturnOutput = Some(r.read[TransactionOutput]())
 
                     case 17 => // Total collateral
                         totalCollateral = Some(r.read[Coin]())
