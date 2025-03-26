@@ -251,33 +251,6 @@ final case class Slot(slot: Long) derives Codec {
     def >(other: Slot): Boolean = slot > other.slot
 }
 
-/** Represents a set of key hashes that must sign the transaction
-  *
-  * This provides a way to ensure specific keys are required to sign a transaction, even if they're
-  * not otherwise required by the transaction's inputs or outputs.
-  */
-final case class RequiredSigners(keyHashes: Set[Hash28])
-
-object RequiredSigners {
-
-    /** CBOR encoder for RequiredSigners */
-    given Encoder[RequiredSigners] = Encoder { (w, signers) =>
-        // Encode as a definite-length array
-        w.writeArrayHeader(signers.keyHashes.size)
-        signers.keyHashes.foreach { keyHash =>
-            w.write(keyHash)
-        }
-        w
-    }
-
-    /** CBOR decoder for RequiredSigners */
-//    given Decoder[RequiredSigners] = Decoder { r =>
-//        val count = r.readArrayHeader()
-//        val keyHashes = for (_ <- 0L until count) yield r.read[Hash28]
-//        RequiredSigners(keyHashes.toSet)
-//    }
-}
-
 /** Represents a hash of the auxiliary data (transaction metadata)
   *
   * This is simply a type alias for Hash32 to provide better type safety and readability.
