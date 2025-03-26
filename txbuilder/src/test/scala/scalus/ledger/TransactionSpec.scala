@@ -84,7 +84,7 @@ class TransactionSpec extends AnyFunSuite {
 
     private val blocksDir = Paths.get(s"../bloxbean-cardano-client-lib/blocks")
 
-    test("block") {
+    test("decode blocks of epoch 543") {
         val blocks = Files
             .list(blocksDir)
             .filter(f => f.getFileName.toString.endsWith(".cbor"))
@@ -105,6 +105,7 @@ class TransactionSpec extends AnyFunSuite {
             case e: Exception =>
                 println(s"Error reading block $path: ${e.getMessage}")
                 e.printStackTrace()
+                fail()
         //                val dom = Cbor.decode(blockBytes).to[Dom.Element].value
         //                println(dom.render())
     }

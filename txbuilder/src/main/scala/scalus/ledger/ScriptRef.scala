@@ -1,8 +1,7 @@
 package scalus.ledger
 
-import scalus.builtin.ByteString
-import io.bullet.borer.{Cbor, Decoder, Encoder, Reader, Tag, Writer}
 import io.bullet.borer.Tag.EmbeddedCBOR
+import io.bullet.borer.*
 
 /** Represents a reference to a script in Cardano */
 case class ScriptRef(script: Script)
