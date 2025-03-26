@@ -1,8 +1,9 @@
 package scalus.ledger
 
+import io.bullet.borer.*
+import io.bullet.borer.derivation.ArrayBasedCodecs.*
 import scalus.builtin.ByteString
 import scalus.ledger.api.Timelock
-import io.bullet.borer.{DataItem, Decoder, Encoder, Reader, Tag, Writer}
 
 import scala.collection.immutable
 
@@ -10,22 +11,8 @@ import scala.collection.immutable
 type Metadata = Map[TransactionMetadatumLabel, TransactionMetadatum]
 
 /** Represents a transaction metadatum label in Cardano */
-case class TransactionMetadatumLabel(value: Long):
+case class TransactionMetadatumLabel(value: Long) derives Codec:
     require(value >= 0, s"Metadatum label must be non-negative, got $value")
-
-object TransactionMetadatumLabel:
-    /** CBOR encoder for TransactionMetadatumLabel */
-    given Encoder[TransactionMetadatumLabel] with
-        def write(w: Writer, value: TransactionMetadatumLabel): Writer =
-            w.writeLong(value.value)
-
-    /** CBOR decoder for TransactionMetadatumLabel */
-    given Decoder[TransactionMetadatumLabel] with
-        def read(r: Reader): TransactionMetadatumLabel =
-            val value = r.readLong()
-            if value < 0 then
-                r.validationFailure(s"Metadatum label must be non-negative, got $value")
-            TransactionMetadatumLabel(value)
 
 /** Represents transaction metadata in Cardano */
 enum TransactionMetadatum:
@@ -33,7 +20,7 @@ enum TransactionMetadatum:
     case Map(entries: immutable.Map[TransactionMetadatum, TransactionMetadatum])
 
     /** List metadata */
-    case List(items: scala.List[TransactionMetadatum])
+    case List(items: Seq[TransactionMetadatum])
 
     /** Integer metadata */
     case Int(value: Long)
@@ -88,18 +75,19 @@ object TransactionMetadatum:
 
             r.dataItem() match
                 case DI.MapHeader | DI.MapStart =>
-                    val entries = readMap(r)
+                    val entries =
+                        r.read[immutable.Map[TransactionMetadatum, TransactionMetadatum]]()
                     TransactionMetadatum.Map(entries)
 
                 case DI.ArrayHeader | DI.ArrayStart =>
-                    val items = readList(r)
+                    val items = r.read[Seq[TransactionMetadatum]]()
                     TransactionMetadatum.List(items)
 
                 case DI.Int | DI.Long | DI.OverLong =>
                     TransactionMetadatum.Int(r.readLong())
 
                 case DI.Bytes | DI.BytesStart =>
-                    val bytes = ByteString.unsafeFromArray(r.readBytes())
+                    val bytes = r.read[ByteString]()
                     if bytes.size > MaxSize then
                         r.validationFailure(
                           s"Bytes size exceeds maximum ($MaxSize), got ${bytes.size}"
@@ -116,40 +104,6 @@ object TransactionMetadatum:
 
                 case other =>
                     r.validationFailure(s"Unexpected data item for TransactionMetadatum: $other")
-
-    /** Helper to read a Map from CBOR */
-    private def readMap(r: Reader): immutable.Map[TransactionMetadatum, TransactionMetadatum] =
-        val result = immutable.Map.newBuilder[TransactionMetadatum, TransactionMetadatum]
-
-        if r.hasMapHeader then
-            val size = r.readMapHeader()
-            for _ <- 0L until size do
-                val key = TransactionMetadatum.given_Decoder_TransactionMetadatum.read(r)
-                val value = TransactionMetadatum.given_Decoder_TransactionMetadatum.read(r)
-                result += (key -> value)
-        else if r.hasMapStart then
-            r.readMapStart()
-            while !r.tryReadBreak() do
-                val key = TransactionMetadatum.given_Decoder_TransactionMetadatum.read(r)
-                val value = TransactionMetadatum.given_Decoder_TransactionMetadatum.read(r)
-                result += (key -> value)
-
-        result.result()
-
-    /** Helper to read a List from CBOR */
-    private def readList(r: Reader): scala.List[TransactionMetadatum] =
-        val result = scala.List.newBuilder[TransactionMetadatum]
-
-        if r.hasArrayHeader then
-            val size = r.readArrayHeader()
-            for _ <- 0L until size do
-                result += TransactionMetadatum.given_Decoder_TransactionMetadatum.read(r)
-        else if r.hasArrayStart then
-            r.readArrayStart()
-            while !r.tryReadBreak() do
-                result += TransactionMetadatum.given_Decoder_TransactionMetadatum.read(r)
-
-        result.result()
 
 /** Represents auxiliary data in a Cardano transaction */
 enum AuxiliaryData:
