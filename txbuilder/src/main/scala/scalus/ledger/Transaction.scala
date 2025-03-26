@@ -1,6 +1,8 @@
 package scalus.ledger
 
-import io.bullet.borer.{Decoder, Encoder, Nullable, Reader, Writer}
+import io.bullet.borer.NullOptions.given
+import io.bullet.borer.derivation.ArrayBasedCodecs.*
+import io.bullet.borer.*
 
 /** Represents a complete transaction in Cardano */
 case class Transaction(
@@ -15,36 +17,4 @@ case class Transaction(
 
     /** Optional auxiliary data */
     auxiliaryData: Option[AuxiliaryData] = None
-)
-
-object Transaction:
-    /** CBOR encoder for Transaction */
-    given Encoder[Transaction] with
-        def write(w: Writer, value: Transaction): Writer =
-            w.writeArrayHeader(4)
-            // Transaction body
-            w.write(value.body)
-            // Witness set
-            w.write(value.witnessSet)
-            // Is valid flag
-            w.writeBoolean(value.isValid)
-            // Auxiliary data (or nil)
-            w.write[Nullable[Option[AuxiliaryData]]](value.auxiliaryData)
-            w
-
-    /** CBOR decoder for Transaction */
-    given Decoder[Transaction] with
-        def read(r: Reader): Transaction =
-            val size = r.readArrayHeader()
-            if size != 4 then r.validationFailure(s"Expected 4 elements for Transaction, got $size")
-
-            // Transaction body
-            val body = r.read[TransactionBody]()
-            // Witness set
-            val witnessSet = r.read[TransactionWitnessSet]()
-            // Is valid flag
-            val isValid = r.readBoolean()
-            // Auxiliary data (or nil)
-            val auxiliaryData = r.read[Nullable[Option[AuxiliaryData]]]()
-
-            Transaction(body, witnessSet, isValid, auxiliaryData)
+) derives Codec
