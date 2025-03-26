@@ -233,7 +233,7 @@ object Address {
   * A slot is a fixed period of time in the Cardano blockchain. Slots are where blocks can be added
   * to the chain.
   */
-final case class Slot(slot: Long) {
+final case class Slot(slot: Long) derives Codec {
 
     /** Ensures the slot number is non-negative */
     require(slot >= 0, s"Slot number must be non-negative, got $slot")
@@ -249,21 +249,6 @@ final case class Slot(slot: Long) {
 
     /** Compare slots for ordering */
     def >(other: Slot): Boolean = slot > other.slot
-}
-
-object Slot {
-
-    /** CBOR encoder for Slot */
-    given Encoder[Slot] = Encoder { (w, slot) =>
-        w.writeLong(slot.slot)
-    }
-
-    /** CBOR decoder for Slot */
-    given Decoder[Slot] = Decoder { r =>
-        val slot = r.readLong()
-        require(slot >= 0, s"Slot number must be non-negative, got $slot")
-        Slot(slot)
-    }
 }
 
 /** Represents a set of key hashes that must sign the transaction
