@@ -1,7 +1,8 @@
 package scalus.ledger
 
+import io.bullet.borer.derivation.ArrayBasedCodecs.*
+import io.bullet.borer.*
 import scalus.builtin.ByteString
-import io.bullet.borer.{Decoder, Encoder, Reader, Writer}
 
 /** Represents a block header in Cardano */
 case class Header(
@@ -10,7 +11,7 @@ case class Header(
 
     /** Body signature (KES signature, 448 bytes) */
     bodySignature: ByteString
-):
+) derives Codec {
     require(
       bodySignature.size == 448,
       s"Body signature must be 448 bytes, got ${bodySignature.size}"
@@ -24,26 +25,4 @@ case class Header(
 
     /** Get previous block hash */
     def prevHash: Option[Hash32] = headerBody.prevHash
-
-object Header:
-    /** CBOR encoder for Header */
-    given Encoder[Header] with
-        def write(w: Writer, value: Header): Writer =
-            w.writeArrayHeader(2)
-            HeaderBody.given_Encoder_HeaderBody.write(w, value.headerBody)
-            w.writeBytes(value.bodySignature.bytes)
-            w
-
-    /** CBOR decoder for Header */
-    given Decoder[Header] with
-        def read(r: Reader): Header =
-            val size = r.readArrayHeader()
-            if size != 2 then r.validationFailure(s"Expected 2 elements for Header, got $size")
-
-            val headerBody = HeaderBody.given_Decoder_HeaderBody.read(r)
-            val bodySignature = ByteString.unsafeFromArray(r.readBytes())
-
-            if bodySignature.size != 448 then
-                r.validationFailure(s"Body signature must be 448 bytes, got ${bodySignature.size}")
-
-            Header(headerBody, bodySignature)
+}

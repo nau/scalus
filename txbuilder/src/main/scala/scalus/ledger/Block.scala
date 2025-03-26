@@ -24,7 +24,7 @@ case class Block(
 
     /** List of invalid transaction indices */
     invalidTransactions: Seq[Int]
-):
+) derives Codec:
     require(
       transactionBodies.size == transactionWitnessSets.size,
       s"Number of transaction bodies (${transactionBodies.size}) must match number of witness sets (${transactionWitnessSets.size})"
@@ -47,7 +47,7 @@ case class Block(
     def slot: Long = header.slot
 
     /** Get the block hash */
-    def hash: Hash32 = ??? // In a real implementation, this would hash the header
+    def hash: Hash32 = header.headerBody.blockBodyHash
 
     /** Get the number of transactions in the block */
     def txCount: Int = transactionBodies.size
@@ -70,82 +70,5 @@ case class Block(
 
             Transaction(body, witnessSet, isValid, auxData)
         }
-
-object Block:
-    /** CBOR encoder for Block */
-    given Encoder[Block] with
-        def write(w: Writer, value: Block): Writer =
-            w.writeArrayHeader(5)
-
-            // Header
-            Header.given_Encoder_Header.write(w, value.header)
-
-            // Transaction bodies
-            w.writeArrayHeader(value.transactionBodies.size)
-            value.transactionBodies.foreach(
-              TransactionBody.given_Encoder_TransactionBody.write(w, _)
-            )
-
-            // Transaction witness sets
-            w.writeArrayHeader(value.transactionWitnessSets.size)
-            value.transactionWitnessSets.foreach(
-              TransactionWitnessSet.given_Encoder_TransactionWitnessSet.write(w, _)
-            )
-
-            // Auxiliary data set
-            w.writeMapHeader(value.auxiliaryDataSet.size)
-            value.auxiliaryDataSet.foreach { case (idx, auxData) =>
-                w.writeInt(idx)
-                AuxiliaryData.given_Encoder_AuxiliaryData.write(w, auxData)
-            }
-
-            // Invalid transactions
-            w.writeArrayHeader(value.invalidTransactions.size)
-            value.invalidTransactions.foreach(w.writeInt)
-
-            w
-
-    /** CBOR decoder for Block */
-    given Decoder[Block] with
-        def read(r: Reader): Block =
-            val size = r.readArrayHeader()
-//            if size != 5 then r.validationFailure(s"Expected 5 elements for Block, got $size")
-
-            // Header
-            val header = Header.given_Decoder_Header.read(r)
-
-            // Transaction bodies
-            val txBodies = r.read[List[TransactionBody]]()
-            val txBodiesSize = txBodies.size
-
-            // Transaction witness sets
-            val txWitnesses = r.read[List[TransactionWitnessSet]]()
-            val txWitnessSize = txWitnesses.size
-            if txWitnessSize != txBodiesSize then
-                r.validationFailure(
-                  s"Number of transaction bodies ($txBodiesSize) must match number of witness sets ($txWitnessSize)"
-                )
-
-            // Auxiliary data set
-            val auxData = r.read[Map[Int, AuxiliaryData]]()
-
-            // Invalid transactions
-            val invalidTxSize = r.readArrayHeader()
-            val invalidTxs = List.newBuilder[Int]
-            for _ <- 0L until invalidTxSize do
-                val idx = r.readInt()
-
-                if idx < 0 || idx >= txBodiesSize then
-                    r.validationFailure(s"Invalid transaction index $idx is out of range")
-
-                invalidTxs += idx
-
-            Block(
-              header,
-              txBodies,
-              txWitnesses,
-              auxData,
-              invalidTxs.result()
-            )
 
 case class BlockFile(era: Int, block: Block) derives Codec
