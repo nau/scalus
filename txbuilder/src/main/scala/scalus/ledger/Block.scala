@@ -10,20 +10,20 @@ import io.bullet.borer.*
   *      transaction_index must be strictly smaller than the length of transaction_bodies
   */
 case class Block(
-    /** Block header */
-    header: Header,
+                    /** Block header */
+                    header: BlockHeader,
 
-    /** Transaction bodies in this block */
-    transactionBodies: Seq[TransactionBody],
+                    /** Transaction bodies in this block */
+                    transactionBodies: Seq[TransactionBody],
 
-    /** Transaction witness sets for each transaction */
-    transactionWitnessSets: Seq[TransactionWitnessSet],
+                    /** Transaction witness sets for each transaction */
+                    transactionWitnessSets: Seq[TransactionWitnessSet],
 
-    /** Auxiliary data associated with transactions by index */
-    auxiliaryDataSet: Map[Int, AuxiliaryData],
+                    /** Auxiliary data associated with transactions by index */
+                    auxiliaryDataSet: Map[Int, AuxiliaryData],
 
-    /** List of invalid transaction indices */
-    invalidTransactions: Seq[Int]
+                    /** List of invalid transaction indices */
+                    invalidTransactions: Seq[Int]
 ) derives Codec:
     require(
       transactionBodies.size == transactionWitnessSets.size,

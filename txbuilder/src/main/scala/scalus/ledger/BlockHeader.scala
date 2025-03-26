@@ -5,12 +5,12 @@ import io.bullet.borer.*
 import scalus.builtin.ByteString
 
 /** Represents a block header in Cardano */
-case class Header(
-    /** Header body with block metadata */
-    headerBody: HeaderBody,
+case class BlockHeader(
+                          /** Header body with block metadata */
+                          headerBody: BlockHeaderBody,
 
-    /** Body signature (KES signature, 448 bytes) */
-    bodySignature: ByteString
+                          /** Body signature (KES signature, 448 bytes) */
+                          bodySignature: ByteString
 ) derives Codec {
     require(
       bodySignature.size == 448,

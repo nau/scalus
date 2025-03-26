@@ -6,7 +6,7 @@ import io.bullet.borer.derivation.ArrayBasedCodecs.*
 import io.bullet.borer.NullOptions.given
 
 /** Represents the body of a block header in Cardano */
-case class HeaderBody(
+case class BlockHeaderBody(
     /** Block number */
     blockNumber: Long,
 
