@@ -53,10 +53,10 @@ object Value:
     given Encoder[Value] with
         def write(w: Writer, value: Value): Writer = value match
             case Value.Ada(coin) =>
-                Coin.given_Encoder_Coin.write(w, coin)
+                w.write(coin)
             case Value.MultiAsset(coin, multiAsset) =>
                 w.writeArrayHeader(2)
-                Coin.given_Encoder_Coin.write(w, coin)
+                w.write(coin)
                 writeMultiAsset(w, multiAsset)
 
     /** Helper method to write MultiAsset as CBOR */
@@ -90,13 +90,9 @@ object Value:
                     r.validationFailure(s"Expected 2 elements for MultiAssetValue, got $size")
 
                 val coin = r.read[Coin]()
-                val multiAsset = readMultiAsset(r)
+                val multiAsset = r.read[Map[PolicyId, Map[AssetName, Long]]]()
                 Value.MultiAsset(coin, multiAsset)
             else
                 // Single coin value
                 val coin = r.read[Coin]()
                 Value.Ada(coin)
-
-    /** Helper method to read MultiAsset from CBOR */
-    private def readMultiAsset(r: Reader): Map[PolicyId, Map[AssetName, Long]] =
-        r.read[Map[PolicyId, Map[AssetName, Long]]]()

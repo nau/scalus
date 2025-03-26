@@ -51,7 +51,7 @@ object Hash32 {
   *
   * In Cardano, coins are represented as unsigned integers
   */
-final case class Coin(value: Long) {
+final case class Coin(value: Long) derives Codec {
 
     /** Ensures the coin value is non-negative */
     require(value >= 0, s"Coin value must be non-negative, got $value")
@@ -67,18 +67,6 @@ object Coin {
 
     /** Zero coin value */
     val zero: Coin = Coin(0)
-
-    /** CBOR encoder for Coin */
-    given Encoder[Coin] = Encoder { (w, coin) =>
-        w.writeLong(coin.value)
-    }
-
-    /** CBOR decoder for Coin */
-    given Decoder[Coin] = Decoder { r =>
-        val value = r.readLong()
-        require(value >= 0, s"Coin value must be non-negative, got $value")
-        Coin(value)
-    }
 }
 
 /** Represents a script hash in Cardano

@@ -159,7 +159,7 @@ object TransactionBody:
 
             // Fee (key 2)
             w.writeInt(2)
-            Coin.given_Encoder_Coin.write(w, value.fee)
+            w.write(value.fee)
 
             // Optional fields
 
@@ -232,7 +232,7 @@ object TransactionBody:
             // Total collateral (key 17)
             value.totalCollateral.foreach { coin =>
                 w.writeInt(17)
-                Coin.given_Encoder_Coin.write(w, coin)
+                w.write(coin)
             }
 
             // Reference inputs (key 18)
@@ -256,13 +256,13 @@ object TransactionBody:
             // Deposit (key 21)
             value.currentTreasuryValue.foreach { coin =>
                 w.writeInt(21)
-                Coin.given_Encoder_Coin.write(w, coin)
+                w.write(coin)
             }
 
             // Deposit return (key 22)
             value.donation.foreach { coin =>
                 w.writeInt(22)
-                Coin.given_Encoder_Coin.write(w, coin)
+                w.write(coin)
             }
 
             w
@@ -354,7 +354,7 @@ object TransactionBody:
                         )
 
                     case 17 => // Total collateral
-                        totalCollateral = Some(Coin.given_Decoder_Coin.read(r))
+                        totalCollateral = Some(r.read[Coin]())
 
                     case 18 => // Reference inputs
                         referenceInputs = readSet(r)
@@ -371,10 +371,10 @@ object TransactionBody:
                         proposalProcedures = None // TODO:
 
                     case 21 => // Deposit
-                        currentTreasuryValue = Some(Coin.given_Decoder_Coin.read(r))
+                        currentTreasuryValue = Some(r.read[Coin]())
 
                     case 22 => // Deposit return
-                        donation = Some(Coin.given_Decoder_Coin.read(r))
+                        donation = Some(r.read[Coin]())
 
                     case _ => r.skipElement()
                 i += 1
