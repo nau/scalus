@@ -26,4 +26,18 @@ trait ArbitraryInstances {
     }
     given Arbitrary[Value] = autoDerived
     given Arbitrary[DRep] = autoDerived
+    given Arbitrary[GovActionId] = Arbitrary {
+        for
+            txId <- Arbitrary.arbitrary[Hash32]
+            index <- Gen.choose(0, 65535)
+        yield GovActionId(txId, index)
+    }
+    given Arbitrary[OperationalCert] = Arbitrary {
+        for
+            hotVKey <- genByteStringOfN(32)
+            sequenceNumber <- Gen.posNum[Long]
+            kesPeriod <- Gen.posNum[Long]
+            sigma <- genByteStringOfN(64)
+        yield OperationalCert(hotVKey, sequenceNumber, kesPeriod, sigma)
+    }
 }
