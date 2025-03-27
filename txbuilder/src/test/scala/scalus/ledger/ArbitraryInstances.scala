@@ -5,7 +5,7 @@ import org.scalacheck.{Arbitrary, Gen}
 import ArbitraryDerivation.autoDerived
 
 trait ArbitraryInstances {
-    private def genByteStringOfN(n: Int): Gen[ByteString] = {
+    def genByteStringOfN(n: Int): Gen[ByteString] = {
         Gen
             .containerOfN[Array, Byte](n, Arbitrary.arbitrary[Byte])
             .map(a => ByteString.unsafeFromArray(a))
@@ -39,5 +39,12 @@ trait ArbitraryInstances {
             kesPeriod <- Gen.posNum[Long]
             sigma <- genByteStringOfN(64)
         yield OperationalCert(hotVKey, sequenceNumber, kesPeriod, sigma)
+    }
+    given Arbitrary[PoolMetadata] = Arbitrary {
+        for
+            len <- Gen.choose(0, 128)
+            url <- Gen.stringOfN(len, Gen.alphaNumChar)
+            hash <- Arbitrary.arbitrary[Hash32]
+        yield PoolMetadata(url, hash)
     }
 }

@@ -16,6 +16,7 @@ class CborSerializationSpec extends AnyFunSuite with ScalaCheckPropertyChecks wi
     checkCborSerialization[DRep]()
     checkCborSerialization[GovActionId]()
     checkCborSerialization[OperationalCert]()
+    checkCborSerialization[PoolMetadata]()
 
     private inline def checkCborSerialization[A: Manifest: Arbitrary: Encoder: Decoder](): Unit = {
         test(
