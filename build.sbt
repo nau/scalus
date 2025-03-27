@@ -410,7 +410,9 @@ lazy val txbuilder = project
         "io.bullet" %%% "borer-core" % "1.15.0",
         "io.bullet" %%% "borer-derivation" % "1.15.0" % "provided"
       ),
+      libraryDependencies += "com.softwaremill.magnolia1_3" %% "magnolia" % "1.3.16" % "test",
       libraryDependencies += "org.scalatest" %%% "scalatest" % "3.2.19" % "test",
+      libraryDependencies += "org.scalatestplus" %%% "scalacheck-1-18" % "3.2.19.0" % "test",
       publish / skip := true
     )
 
