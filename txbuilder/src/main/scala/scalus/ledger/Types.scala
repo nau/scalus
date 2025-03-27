@@ -78,19 +78,13 @@ object Coin {
   *   - "\x02" for Plutus V2 scripts
   *   - "\x03" for Plutus V3 scripts
   */
-final case class ScriptHash(bytes: ByteString) derives Codec {
-
-    /** Ensures the hash is exactly 28 bytes */
-    require(bytes.size == 28, s"ScriptHash must be 28 bytes, got ${bytes.size}")
-}
+final case class ScriptHash(hash: Hash28) derives Codec
 
 object ScriptHash {
 
     /** Create a ScriptHash from a hex string */
     def fromHex(hex: String): ScriptHash = {
-        val bytes = ByteString.fromHex(hex)
-        require(bytes.size == 28, s"ScriptHash must be 28 bytes, got ${bytes.size}")
-        ScriptHash(bytes)
+        ScriptHash(Hash28.fromHex(hex))
     }
 }
 

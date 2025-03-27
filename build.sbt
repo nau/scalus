@@ -405,6 +405,7 @@ lazy val txbuilder = project
     .disablePlugins(MimaPlugin) // disable Migration Manager for Scala
     .settings(
       name := "scalus-txbuilder",
+      scalacOptions += "-Xmax-inlines:100", // needed for upickle derivation of CostModel
       libraryDependencies += "com.bloxbean.cardano" % "cardano-client-lib" % "0.6.3",
       libraryDependencies ++= Seq(
         "io.bullet" %%% "borer-core" % "1.15.0",

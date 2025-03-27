@@ -14,6 +14,14 @@ trait ArbitraryInstances {
     given Arbitrary[Hash28] = Arbitrary(genByteStringOfN(28).map(Hash28.apply))
     given Arbitrary[Hash32] = Arbitrary(genByteStringOfN(32).map(Hash32.apply))
     given Arbitrary[AddrKeyHash] = autoDerived
+    given Arbitrary[ScriptHash] = autoDerived
     given Arbitrary[Anchor] = autoDerived
     given Arbitrary[Credential] = autoDerived
+    given Arbitrary[Coin] = Arbitrary(Gen.posNum[Long].map(Coin.apply))
+    given Arbitrary[AssetName] = Arbitrary {
+        for size <- Gen.choose(0, 32)
+            Gen.containerOfN[Array, Byte](size, Arbitrary.arbitrary[Byte])
+            .map(a => ByteString.unsafeFromArray(a))
+    }
+    given Arbitrary[Value] = autoDerived
 }
