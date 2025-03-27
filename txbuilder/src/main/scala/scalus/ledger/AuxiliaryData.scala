@@ -113,16 +113,16 @@ enum AuxiliaryData:
     /** Shelley-MA era combined metadata and scripts */
     case MetadataWithScripts(
         metadata: Map[TransactionMetadatumLabel, TransactionMetadatum],
-        scripts: List[Timelock]
+        scripts: Seq[Timelock]
     )
 
     /** Alonzo-era and later metadata format with optional components */
     case AlonzoFormat(
         metadata: Option[Map[TransactionMetadatumLabel, TransactionMetadatum]] = None,
-        nativeScripts: Option[List[Timelock]] = None,
-        plutusV1Scripts: Option[List[ByteString]] = None,
-        plutusV2Scripts: Option[List[ByteString]] = None,
-        plutusV3Scripts: Option[List[ByteString]] = None
+        nativeScripts: Option[Seq[Timelock]] = None,
+        plutusV1Scripts: Option[Seq[ByteString]] = None,
+        plutusV2Scripts: Option[Seq[ByteString]] = None,
+        plutusV3Scripts: Option[Seq[ByteString]] = None
     )
 
 object AuxiliaryData:
@@ -212,10 +212,10 @@ object AuxiliaryData:
                     val size = r.readMapHeader()
                     var metadata: Option[Map[TransactionMetadatumLabel, TransactionMetadatum]] =
                         None
-                    var nativeScripts: Option[List[Timelock]] = None
-                    var plutusV1Scripts: Option[List[ByteString]] = None
-                    var plutusV2Scripts: Option[List[ByteString]] = None
-                    var plutusV3Scripts: Option[List[ByteString]] = None
+                    var nativeScripts: Option[Seq[Timelock]] = None
+                    var plutusV1Scripts: Option[Seq[ByteString]] = None
+                    var plutusV2Scripts: Option[Seq[ByteString]] = None
+                    var plutusV3Scripts: Option[Seq[ByteString]] = None
 
                     for _ <- 0L until size do
                         val key = r.readInt()
@@ -224,16 +224,16 @@ object AuxiliaryData:
                                 metadata = Some(r.read[scalus.ledger.Metadata]())
 
                             case 1 => // Native scripts
-                                nativeScripts = Some(r.read[List[Timelock]]())
+                                nativeScripts = Some(r.read[Seq[Timelock]]())
 
                             case 2 => // Plutus V1 scripts
-                                plutusV1Scripts = Some(r.read[List[ByteString]]())
+                                plutusV1Scripts = Some(r.read[Seq[ByteString]]())
 
                             case 3 => // Plutus V2 scripts
-                                plutusV2Scripts = Some(r.read[List[ByteString]]())
+                                plutusV2Scripts = Some(r.read[Seq[ByteString]]())
 
                             case 4 => // Plutus V3 scripts
-                                plutusV3Scripts = Some(r.read[List[ByteString]]())
+                                plutusV3Scripts = Some(r.read[Seq[ByteString]]())
 
                             case _ => r.skipDataItem() // Skip unknown fields
 
@@ -259,7 +259,7 @@ object AuxiliaryData:
 
                     val metadata = r.read[scalus.ledger.Metadata]()
 
-                    val scripts = r.read[List[Timelock]]()
+                    val scripts = r.read[Seq[Timelock]]()
                     AuxiliaryData.MetadataWithScripts(metadata, scripts)
 
                 case di =>

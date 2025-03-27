@@ -10,7 +10,7 @@ case class TransactionBody(
     inputs: Set[TransactionInput],
 
     /** Transaction outputs to create */
-    outputs: List[TransactionOutput],
+    outputs: Seq[TransactionOutput],
 
     /** Transaction fee */
     fee: Coin,
@@ -280,7 +280,7 @@ object TransactionBody:
             val mapSize = r.readMapHeader()
 
             var inputs: Option[Set[TransactionInput]] = None
-            var outputs: Option[List[TransactionOutput]] = None
+            var outputs: Option[Seq[TransactionOutput]] = None
             var fee: Option[Coin] = None
             var ttl: Option[Long] = None
             var certificates: Option[Set[Certificate]] = None
@@ -309,7 +309,7 @@ object TransactionBody:
                         inputs = readSet[TransactionInput](r)
 
                     case 1 => // Outputs
-                        outputs = Some(r.read[List[TransactionOutput]]())
+                        outputs = Some(r.read[Seq[TransactionOutput]]())
 
                     case 2 => // Fee
                         fee = Some(r.read[Coin]())
