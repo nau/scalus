@@ -25,4 +25,5 @@ trait ArbitraryInstances {
         yield AssetName(ByteString.unsafeFromArray(bytes))
     }
     given Arbitrary[Value] = autoDerived
+    given Arbitrary[DRep] = autoDerived
 }
