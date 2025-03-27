@@ -10,6 +10,7 @@ class CborSerializationSpec extends AnyFunSuite with ScalaCheckPropertyChecks wi
     checkCborSerialization[Hash28]()
     checkCborSerialization[Hash32]()
     checkCborSerialization[AddrKeyHash]()
+    checkCborSerialization[Anchor]()
 
     private inline def checkCborSerialization[A: Manifest: Arbitrary: Encoder: Decoder](): Unit = {
         test(

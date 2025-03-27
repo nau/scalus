@@ -2,6 +2,7 @@ package scalus.ledger
 
 import scalus.builtin.ByteString
 import org.scalacheck.{Arbitrary, Gen}
+import ArbitraryDerivation.autoDerived
 
 trait ArbitraryInstances {
     private def genByteStringOfN(n: Int): Gen[ByteString] = {
@@ -12,5 +13,6 @@ trait ArbitraryInstances {
 
     given Arbitrary[Hash28] = Arbitrary(genByteStringOfN(28).map(Hash28.apply))
     given Arbitrary[Hash32] = Arbitrary(genByteStringOfN(32).map(Hash32.apply))
-    given Arbitrary[AddrKeyHash] = ArbitraryDerivation.autoDerived[AddrKeyHash]
+    given Arbitrary[AddrKeyHash] = autoDerived
+    given Arbitrary[Anchor] = autoDerived
 }
