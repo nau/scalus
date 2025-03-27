@@ -84,7 +84,7 @@ object DRep {
 
             val drep = tag match {
                 case 0 =>
-                    DRep.KeyHash(AddrKeyHash(r.read()))
+                    DRep.KeyHash(r.read[AddrKeyHash]())
 
                 case 1 =>
                     DRep.ScriptHash(r.read[scalus.ledger.ScriptHash]())
