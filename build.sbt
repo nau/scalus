@@ -401,7 +401,7 @@ lazy val bench = project
 // Benchmarks for Cardano Plutus VM Evaluator
 lazy val txbuilder = project
     .in(file("txbuilder"))
-    .dependsOn(scalus.jvm)
+    .dependsOn(scalus.jvm % "compile->compile;test->test")
     .disablePlugins(MimaPlugin) // disable Migration Manager for Scala
     .settings(
       name := "scalus-txbuilder",

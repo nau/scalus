@@ -25,7 +25,8 @@ object DatumOption:
 
                 case DatumOption.Inline(data) =>
                     w.writeInt(1)
-                    w.write(EmbeddedCBOR @@ data)
+                    val dataCbor = Cbor.encode(data).toByteArray
+                    w.write(EmbeddedCBOR @@ dataCbor)
             w
 
     /** CBOR decoder for DatumOption */

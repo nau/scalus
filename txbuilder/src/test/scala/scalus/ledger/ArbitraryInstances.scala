@@ -1,10 +1,14 @@
 package scalus.ledger
 
 import scalus.builtin.ByteString
+import scalus.builtin.Data
+import scalus.builtin.Data.*
+import scalus.uplc
 import org.scalacheck.{Arbitrary, Gen}
 import ArbitraryDerivation.autoDerived
+import scalus.builtin
 
-trait ArbitraryInstances {
+trait ArbitraryInstances extends uplc.ArbitraryInstances {
     def genByteStringOfN(n: Int): Gen[ByteString] = {
         Gen
             .containerOfN[Array, Byte](n, Arbitrary.arbitrary[Byte])
@@ -47,4 +51,5 @@ trait ArbitraryInstances {
             hash <- Arbitrary.arbitrary[Hash32]
         yield PoolMetadata(url, hash)
     }
+    given Arbitrary[DatumOption] = autoDerived
 }
