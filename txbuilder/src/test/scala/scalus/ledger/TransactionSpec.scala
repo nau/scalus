@@ -14,7 +14,7 @@ import java.nio.file.{Files, Path, Paths}
 class TransactionSpec extends AnyFunSuite {
     val addr = AddressUtil.addressToBytes(
       "addr1qxwg0u9fpl8dac9rkramkcgzerjsfdlqgkw0q8hy5vwk8tzk5pgcmdpe5jeh92guy4mke4zdmagv228nucldzxv95clqe35r3m"
-    );
+    )
     test("TxnWitnessSet") {
         asdf()
         fdsa()

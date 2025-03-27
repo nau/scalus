@@ -15,4 +15,5 @@ trait ArbitraryInstances {
     given Arbitrary[Hash32] = Arbitrary(genByteStringOfN(32).map(Hash32.apply))
     given Arbitrary[AddrKeyHash] = autoDerived
     given Arbitrary[Anchor] = autoDerived
+    given Arbitrary[Credential] = autoDerived
 }

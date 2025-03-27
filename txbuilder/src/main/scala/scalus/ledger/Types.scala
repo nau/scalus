@@ -96,6 +96,10 @@ object ScriptHash {
 
 type PolicyId = ScriptHash
 
+type MultiAsset[A] = Map[PolicyId, Map[AssetName, A]]
+
+type Mint = MultiAsset[Long]
+
 /** Represents an asset name in Cardano's multi-asset framework
   *
   * Asset names can be between 0 and 32 bytes long.
