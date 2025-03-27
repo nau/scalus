@@ -19,9 +19,10 @@ trait ArbitraryInstances {
     given Arbitrary[Credential] = autoDerived
     given Arbitrary[Coin] = Arbitrary(Gen.posNum[Long].map(Coin.apply))
     given Arbitrary[AssetName] = Arbitrary {
-        for size <- Gen.choose(0, 32)
-            Gen.containerOfN[Array, Byte](size, Arbitrary.arbitrary[Byte])
-            .map(a => ByteString.unsafeFromArray(a))
+        for
+            size <- Gen.choose(0, 32)
+            bytes <- Gen.containerOfN[Array, Byte](size, Arbitrary.arbitrary[Byte])
+        yield AssetName(ByteString.unsafeFromArray(bytes))
     }
     given Arbitrary[Value] = autoDerived
 }

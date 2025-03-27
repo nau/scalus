@@ -12,6 +12,7 @@ class CborSerializationSpec extends AnyFunSuite with ScalaCheckPropertyChecks wi
     checkCborSerialization[AddrKeyHash]()
     checkCborSerialization[Anchor]()
     checkCborSerialization[Credential]()
+    checkCborSerialization[Value]()
 
     private inline def checkCborSerialization[A: Manifest: Arbitrary: Encoder: Decoder](): Unit = {
         test(
@@ -20,7 +21,7 @@ class CborSerializationSpec extends AnyFunSuite with ScalaCheckPropertyChecks wi
             forAll { (a: A) =>
                 val encoded = Cbor.encode(a).toByteArray
                 val decoded = Cbor.decode(encoded).to[A].value
-                println(s"a: $a, encoded: ${encoded.toSeq}, decoded: $decoded")
+                println(a)
                 assert(a == decoded)
             }
         }
