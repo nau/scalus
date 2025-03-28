@@ -20,8 +20,9 @@ class CborSerializationSpec extends AnyFunSuite with ScalaCheckPropertyChecks wi
     checkCborSerialization[PoolMetadata]()
     checkCborSerialization[DatumOption]()
     checkCborSerialization[Timelock]()
-//    checkCborSerialization[Script]()
-//    checkCborSerialization[ScriptRef]()
+    checkCborSerialization[Script]()
+    checkCborSerialization[ScriptRef]()
+    checkCborSerialization[TransactionInput]()
     checkCborSerialization[TransactionOutput]()
 
     private inline def checkCborSerialization[A: Manifest: Arbitrary: Encoder: Decoder](): Unit = {

@@ -124,5 +124,6 @@ trait ArbitraryInstances extends uplc.ArbitraryInstances {
     given Arbitrary[Script] = autoDerived
     given Arbitrary[ScriptRef] = autoDerived
     given Arbitrary[Timelock] = Arbitrary(TimelockGen.genTimelock)
+    given Arbitrary[TransactionInput] = autoDerived
     given Arbitrary[TransactionOutput] = autoDerived
 }
