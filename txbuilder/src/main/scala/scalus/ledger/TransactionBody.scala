@@ -68,7 +68,6 @@ case class TransactionBody(
 ):
     /** Validate that inputs and outputs are non-empty */
     require(inputs.nonEmpty, "Transaction must have at least one input")
-    require(outputs.nonEmpty, "Transaction must have at least one output")
 
     /** Validate optional collateral inputs */
     require(
@@ -315,8 +314,8 @@ object TransactionBody:
                         fee = Some(r.read[Coin]())
 
                     case 3 => // TTL
-                        ttl = Some(r.readLong())
-
+                        if r.hasOverLong then ttl = Some(r.readOverLong())
+                        else ttl = Some(r.readLong())
                     case 4 => // Certificates
                         certificates = readSet[Certificate](r)
 
@@ -373,7 +372,9 @@ object TransactionBody:
                     case 22 => // Deposit return
                         donation = Some(r.read[Coin]())
 
-                    case _ => r.skipElement()
+                    case _ =>
+                        println(s"Skipping unknown field with key $key")
+                        r.skipElement()
                 i += 1
             end while
             // Validate required fields

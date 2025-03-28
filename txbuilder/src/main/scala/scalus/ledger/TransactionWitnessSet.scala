@@ -49,10 +49,10 @@ case class TransactionWitnessSet(
       nativeScripts.forall(_.nonEmpty),
       "If native scripts are present, they must be non-empty"
     )
-//    require(
-//      bootstrapWitnesses.forall(_.nonEmpty),
-//      "If bootstrap witnesses are present, they must be non-empty"
-//    )
+    require(
+      bootstrapWitnesses.forall(_.nonEmpty),
+      "If bootstrap witnesses are present, they must be non-empty"
+    )
     require(
       plutusV1Scripts.forall(_.nonEmpty),
       "If Plutus V1 scripts are present, they must be non-empty"

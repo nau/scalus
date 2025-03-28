@@ -92,6 +92,10 @@ class TransactionSpec extends AnyFunSuite {
         blocks.forEach(readBlock)
     }
 
+//    test("decode block") {
+//        readBlock(11547156)
+//    }
+
     private def readBlock(num: Int): Unit = {
         readBlock(blocksDir.resolve(s"block-$num.cbor"))
     }
@@ -100,7 +104,7 @@ class TransactionSpec extends AnyFunSuite {
         val blockBytes = Files.readAllBytes(path)
         try
             Cbor.decode(blockBytes).to[BlockFile].value
-            println(s"Decoded block $path")
+//            println(s"Decoded block $path")
         catch
             case e: Exception =>
                 println(s"Error reading block $path: ${e.getMessage}")

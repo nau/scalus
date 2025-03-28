@@ -42,9 +42,9 @@ object TxDownloader {
             }
         })
         val from =
-            Point(151372807, "7325c3a11f265e60e78ce8fbb08cc109d3cf432d47c8d2d5dd432803d56a9147")
+            Point(149212813, "d1bc8ef3834707673f4af968f7d999d9a87bdcd1cfd1b7f6643a9abc41000d32")
         val to =
-            Point(151516583, "7462f5d03a4a4a0e11f77964b66a630184d39e437acb5a3104e66b4aa73907de")
+            Point(149644779, "ac4ddd1cc64d30e94a42fc735dae4faa4556db1cbc5ea3caeaafc7916c4e7a4e")
         blockRangeSync.fetch(from, to)
     }
 
