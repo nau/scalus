@@ -4,6 +4,7 @@ import io.bullet.borer.{Cbor, Decoder, Encoder}
 import org.scalacheck.Arbitrary
 import org.scalatest.funsuite.AnyFunSuite
 import org.scalatestplus.scalacheck.ScalaCheckPropertyChecks
+import scalus.ledger.api.Timelock
 
 class CborSerializationSpec extends AnyFunSuite with ScalaCheckPropertyChecks with ArbitraryInstances {
 
@@ -18,6 +19,10 @@ class CborSerializationSpec extends AnyFunSuite with ScalaCheckPropertyChecks wi
     checkCborSerialization[OperationalCert]()
     checkCborSerialization[PoolMetadata]()
     checkCborSerialization[DatumOption]()
+    checkCborSerialization[Timelock]()
+//    checkCborSerialization[Script]()
+//    checkCborSerialization[ScriptRef]()
+    checkCborSerialization[TransactionOutput]()
 
     private inline def checkCborSerialization[A: Manifest: Arbitrary: Encoder: Decoder](): Unit = {
         test(

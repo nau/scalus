@@ -7,19 +7,22 @@ I need you to write Scala 3 code that meets these requirements:
 
 3. Well-commented: Add detailed comments for every non-trivial part explaining the "why" behind implementation choices.
 
-4. Use Scala 3's indentation-based syntax (not braces).
+4. Use Scala 3's indentation-based syntax (not braces) inside functions.
 
-5. Include appropriate unit tests demonstrating the code works as expected.
+5. Use 4 spaces for indentation.
 
-6. Handle edge cases explicitly.
+6. Use braces for class/trait/object and functions definitions.
 
-7. Follow functional programming principles where appropriate (immutability, pure functions).
+7. Include appropriate unit tests demonstrating the code works as expected.
 
-8. Include type annotations for public APIs.
+8. Handle edge cases explicitly.
 
-9. Document any assumptions made during implementation.
+9. Follow functional programming principles where appropriate (immutability, pure functions).
 
-10. Provide a brief explanation of how to use the code.
+10. Include type annotations for public APIs.
+
+11. Document any assumptions made during implementation.
+
+12. Provide a brief explanation of how to use the code.
 
 The code should solve the following problem:
-
