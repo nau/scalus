@@ -92,9 +92,9 @@ class TransactionSpec extends AnyFunSuite {
         blocks.forEach(readBlock)
     }
 
-//    test("decode block") {
-//        readBlock(11547156)
-//    }
+    test("decode block") {
+        readBlock(11649988)
+    }
 
     private def readBlock(num: Int): Unit = {
         readBlock(blocksDir.resolve(s"block-$num.cbor"))

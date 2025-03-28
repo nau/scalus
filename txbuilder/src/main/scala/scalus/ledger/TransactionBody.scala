@@ -3,7 +3,7 @@ package scalus.ledger
 import scala.collection.immutable.Set
 import io.bullet.borer.{DataItem, Decoder, Encoder, Reader, Tag, Writer}
 
-type ProposalProcedures = Seq[Nothing]
+type ProposalProcedures = Set[ProposalProcedure]
 
 case class TransactionBody(
     /** Transaction inputs to spend */
@@ -359,13 +359,7 @@ object TransactionBody:
                         votingProcedures = Some(r.read[VotingProcedures]())
 
                     case 20 => // Proposal procedures
-//                        proposalProcedures = Some(
-//                          ProposalProcedures.given_Decoder_ProposalProcedures.read(r)
-//                        )
-                        println("Skipping proposal procedures")
-                        r.skipElement()
-                        proposalProcedures = None // TODO:
-
+                        proposalProcedures = readSet[ProposalProcedure](r)
                     case 21 => // Deposit
                         currentTreasuryValue = Some(r.read[Coin]())
 
@@ -380,8 +374,6 @@ object TransactionBody:
             // Validate required fields
             if inputs.isEmpty then
                 r.validationFailure("Missing required field 'inputs' (key 0) in TransactionBody")
-            if outputs.isEmpty then
-                r.validationFailure("Missing required field 'outputs' (key 1) in TransactionBody")
             if fee.isEmpty then
                 r.validationFailure("Missing required field 'fee' (key 2) in TransactionBody")
 

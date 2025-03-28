@@ -274,3 +274,44 @@ case class ExUnits(
 ) derives Codec:
     require(mem >= 0, s"Memory units must be non-negative, got $mem")
     require(steps >= 0, s"Step units must be non-negative, got $steps")
+
+/** Represents execution unit prices in the Cardano blockchain.
+  *
+  * ExUnitPrices define the cost of execution units in terms of the protocol's currency, with
+  * separate prices for memory usage and CPU steps.
+  *
+  * @param memPrice
+  *   Price per memory unit
+  * @param stepPrice
+  *   Price per step unit
+  */
+case class ExUnitPrices(
+    memPrice: NonnegativeInterval,
+    stepPrice: NonnegativeInterval
+) derives Codec
+
+/** Represents cost models for script languages in the Cardano blockchain.
+  *
+  * Cost models define the execution costs of operations in different script languages. The keys are
+  * language identifiers (0 for Plutus V1, 1 for Plutus V2, 2 for Plutus V3), and the values are
+  * lists of integers representing operation costs.
+  *
+  * @param models
+  *   Map from language identifiers to lists of operation costs
+  */
+case class CostModels(models: Map[Int, List[Long]]) derives Codec
+
+/** Represents a constitution in the Cardano blockchain governance system.
+  *
+  * A constitution consists of an anchor (pointing to the constitution text) and an optional script
+  * hash for the constitution script.
+  *
+  * @param anchor
+  *   The anchor pointing to the constitution text
+  * @param scriptHash
+  *   Optional script hash for the constitution script
+  */
+case class Constitution(
+    anchor: Anchor,
+    scriptHash: Option[ScriptHash]
+) derives Codec
