@@ -1,6 +1,165 @@
-import { Steps } from 'nextra/components'
+import { Steps, Tabs } from 'nextra/components'
 
-# Get Started
+# Getting Started
+
+This guide will help you set up your development environment and create your first blockchain
+application on Cardano using Scalus.
+
+<Steps>
+    ## Install Scala on your computer
+
+    We  recommend using Scala Installer - [Coursier](https://get-coursier.io/docs/cli-overview), that ensures that a JVM and standard Scala tools are installed on
+    your system.
+
+    <Tabs items={['macOS - Brew', 'macOS', 'Linux', 'Windows']}>
+      <Tabs.Tab>
+      Homebrew based installation:
+      ```sh copy
+      brew install coursier && coursier setup
+      ```
+      </Tabs.Tab>
+      <Tabs.Tab>
+      On the Apple Silicon (M1, M2, …) architecture:
+      ```sh copy
+      curl -fL https://github.com/VirtusLab/coursier-m1/releases/latest/download/cs-aarch64-apple-darwin.gz | gzip -d > cs && chmod +x cs && (xattr -d com.apple.quarantine cs || true) && ./cs setup
+      ```
+      Otherwise, on the x86-64 architecture:
+      ```sh copy
+      curl -fL https://github.com/coursier/coursier/releases/latest/download/cs-x86_64-apple-darwin.gz | gzip -d > cs && chmod +x cs && (xattr -d com.apple.quarantine cs || true) && ./cs setup
+      ```
+      </Tabs.Tab>
+      <Tabs.Tab>
+      On the x86-64 architecture:
+      ```sh copy
+      curl -fL https://github.com/coursier/coursier/releases/latest/download/cs-x86_64-pc-linux.gz | gzip -d > cs && chmod +x cs && ./cs setup
+      ```
+      Otherwise, on the ARM64 architecture:
+      ```sh copy
+      curl -fL https://github.com/VirtusLab/coursier-m1/releases/latest/download/cs-aarch64-pc-linux.gz | gzip -d > cs && chmod +x cs && ./cs setup
+      ```
+      </Tabs.Tab>
+      <Tabs.Tab>Download and execute [the Scala installer for Windows](https://github.com/coursier/launchers/raw/master/cs-x86_64-pc-win32.zip) based on Coursier, and follow the on-screen
+      instructions.</Tabs.Tab>
+    </Tabs>
+
+    Coursier will install Scala compiler,
+        Command line tool: [Scala CLI](https://scala-cli.virtuslab.org/),
+        Build tool: [sbt](https://www.scala-sbt.org/),
+        REPL: [Ammonite](https://ammonite.io/) and
+        Code formatter: [Scalafmt](https://scalameta.org/scalafmt/).
+
+    ## Seed your first Scalus DApp
+    Pick one of the options:
+    <Tabs items={['New Scalus DApp', 'Starter project', 'Existing project']}>
+      <Tabs.Tab>
+        1. Let's seed a new Scalus project:
+        ```sh copy
+        sbt new scalus/scalus-seed.g8
+        ```
+        2. This ran the template scalus/scalus-seed.g8 using [Giter8](https://www.foundweekends.org/giter8/),
+        when prompted, name the application `hello-cardano`. This command scaffolds a Scalus project.
+        ```console
+        sbt new scalus/contract-seed.g8
+        A minimal Scalus project.
+
+        name [Scalus Seed Project]: hello-cardano
+
+        Template applied in ./hello-cardano
+        ```
+        3. Let’s take a look at what just got generated:
+        ```ansi
+        hello-cardano/
+        ├── build.sbt                 # Build configuration
+        ├── project/
+        │   ├── build.properties      # SBT settings
+        │   └── plugins.sbt           # SBT plugins (including Scalus)
+        ├── src/
+        │   ├── main/
+        │   │   ├── scala/            # Source code
+        │   │   │   └── helloCardano
+        │   │   │       ├── Main.scala               # Main application
+        │   │   │       ├── contracts/               # On-chain contracts
+        │   │   │       │   └── HelloCardano.scala     # Our validator
+        │   │   │       └── offchain/                # Off-chain code
+        │   │   │           └── Client.scala         # Client functionality
+        │   │   └── resources/        # Configuration files
+        │   │       └── application.conf
+        │   └── test/
+        │       └── scala/            # Test code
+        │           └── helloCardano
+        │               └── HelloCardanoSpec.scala     # Contract tests
+        └── README.md
+        ```
+      </Tabs.Tab>
+      <Tabs.Tab>
+        Clone the [Scalus Starter Project](https://github.com/nau/scalus-starter) to get started with Scalus.
+        ```sh copy
+        git clone https://github.com/nau/scalus-starter.git
+        cd scalus-starter
+        ```
+      </Tabs.Tab>
+      <Tabs.Tab>
+       If you already have a sbt project, you can add Scalus to it. Add the following configuration to your `build.sbt`:
+       ```scala copy
+         scalaVersion := "3.3.5"
+         libraryDependencies += "org.scalus" %% "scalus" % "0.8.5"
+         addCompilerPlugin("org.scalus" %% "scalus-plugin" % "0.8.5")
+       ```
+       That's it! You can now start using Scalus in your project.
+      </Tabs.Tab>
+
+    </Tabs>
+
+    ## Test
+    1. Run unit tests (MUnit, ScalaTest and ScalaCheck):
+    ```sh copy
+    sbtn test
+    ```
+
+    2. Run integration tests:
+    ```sh copy
+    sbtn integration/test
+    ```
+
+    ## Compile
+    Now we can compile the DApp:
+    ```sh copy
+    sbtn compile
+    ```
+    It will ...
+
+    ## Configure IDE
+    Setting up a productive development environment will significantly improve your Scala/Scalus development experience.
+    Scala offers wide range of IDE support, the most popular are IntelliJ and VSCode.
+
+    <Tabs items={['IntelliJ', 'VS Code', 'Others']}>
+      <Tabs.Tab>
+        1. Install IntelliJ IDEA (Community or Ultimate edition) from the [JetBrains website](https://www.jetbrains.com/idea/download/)
+        2. Install the Scala plugin:
+           - Go to **Settings/Preferences → Plugins → Marketplace**
+           - Search for "Scala" and install the plugin
+           - Restart IntelliJ IDEA when prompted
+        {/*(https://www.jetbrains.com/help/idea/discover-intellij-idea-for-scala.html) */}
+        3. Open your Scalus project:
+           - Select **File → Open** and navigate to your project directory
+           - Choose Import as sbt project when prompted
+      </Tabs.Tab>
+      <Tabs.Tab>
+        1. Install [Visual Studio Code](https://code.visualstudio.com/Download) from the official website.
+        2. Install the Metals extension from [the Marketplace](https://marketplace.visualstudio.com/items?itemName=scalameta.metals)
+        3. Open your Scalus project folder:
+           - Select **File → Open Folder** and navigate to your project directory.
+        4. Metals should activate and begin importing the project automatically.
+      </Tabs.Tab>
+      <Tabs.Tab>
+        Metals is most commonly used with VS Code, but it’s also available for Emacs, Vim, Sublime Text, Helix as
+      documented [here](https://scalameta.org/metals/docs/#editor-support).
+      </Tabs.Tab>
+    </Tabs>
+
+    ## You are good to go! Start exploring.
+
+</Steps>
 
 ## Quick start with Vercel
 
@@ -19,7 +178,7 @@ Nextra works like a Next.js plugin, and it accepts a theme config (layout) to
 render the page. To start: [^3]
 
 <Steps>
-### Install Next.js, Nextra and React [^1]
+### Install Next.js, Nextra and React
 
 ```sh npm2yarn
 npm i react react-dom next nextra

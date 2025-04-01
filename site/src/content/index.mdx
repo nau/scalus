@@ -1,17 +1,39 @@
 import { Bleed } from 'nextra/components'
 
 # Introduction
+## What is Scalus?
 
-**Nextra** is a [Next.js](https://nextjs.org) based static site generator.
+Scalus is a development platform that brings the power and expressiveness of Scala to the Cardano blockchain
+ecosystem. It allows developers to write both on-chain smart contracts and off-chain application logic using a single
+language: Scala.
 
-It supports Markdown and React components ([MDX](/features/mdx)), automatically
-generated [sidebar and anchor links](/get-started#sidebar-and-anchor-links),
-file-system based routing, built-in syntax highlighting, image optimization,
-custom layouts, i18n, and all the features you love about Next.js.
+Traditional Cardano development requires learning specialized languages like Aiken or Plutarch/Haskell for on-chain
+code, while using another language for client applications. Scalus eliminates this complexity by providing a unified
+development experience.
 
-Here's what you will get in 1 minute:
+{/* TODO: Update the code - simple validator */}
+```scala filename="welcome.scala" copy showLineNumbers
+object Hello {
+    def main(args: Array[String]) = {
+        println("Hello, world")
+    }
+}
+```
 
-<Bleed>![Nextra Example](/demo.png)</Bleed>
+Scalus compiles annotated Scala code directly to Plutus Core (the execution language of the Cardano blockchain) while
+ maintaining all the safety guarantees and expressiveness of the Scala language. This unified approach significantly
+ reduces the complexity of building, testing, and deploying Cardano applications.
+
+## Why Scalus for Cardano Development?
+
+## Key Features
+
+
+### 000
+- [ ] Key words optimisation
+- [ ] Custom highlighting for code
+- [ ] Embed code components
+- [ ] Use more checklists?
 
 ### Introduction - V1
 
@@ -73,7 +95,23 @@ Here's what you will get in 1 minute:
 
 ### Advanced topics
 
-- [ ]  Performance Optimization
-- [ ]  Security Considerations
-- [ ]  Scalability Solutions
-- [ ]  Interoperability
+- [ ] Performance Optimization
+- [ ] Security Considerations
+- [ ] Scalability Solutions
+- [ ] Interoperability
+- [ ] Benchmark, profile
+
+
+# Introduction
+
+**Nextra** is a [Next.js](https://nextjs.org) based static site generator.
+
+It supports Markdown and React components ([MDX](/features/mdx)), automatically
+generated [sidebar and anchor links](/get-started#sidebar-and-anchor-links),
+file-system based routing, built-in syntax highlighting, image optimization,
+custom layouts, i18n, and all the features you love about Next.js.
+
+Here's what you will get in 1 minute:
+
+<Bleed>![Nextra Example](/demo.png)</Bleed>
+
