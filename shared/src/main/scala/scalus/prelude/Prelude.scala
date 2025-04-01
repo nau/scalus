@@ -61,6 +61,20 @@ object Prelude {
 
 import Prelude.*
 
+/** Tests an expression, throwing an `IllegalArgumentException` if false.
+  * @param requirement
+  *   the expression to test
+  * @note
+  *   we do not use scala.Predef.require because it's not an `inline` method and it's not expanded
+  *   before Scalus compiler plugin phase.
+  * @example
+  *   {{{
+  *   require(value > 1000, "Not enough")
+  *   }}}
+  */
+inline def require(inline requirement: Boolean, inline message: String): Unit =
+    if !requirement then throw new IllegalArgumentException(message)
+
 enum List[+A]:
     case Nil extends List[Nothing]
     case Cons(head: A, tail: List[A]) extends List[A]
