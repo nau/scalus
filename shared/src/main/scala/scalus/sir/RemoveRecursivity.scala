@@ -42,13 +42,14 @@ object RemoveRecursivity:
                 Match(
                   removeRecursivity(scrutinee),
                   cases.map {
-                      case SIR.Case(Pattern.Constr(constr, bindings, typeBindings), body) =>
+                      case SIR.Case(Pattern.Constr(constr, bindings, typeBindings), body, anns) =>
                           Case(
                             Pattern.Constr(constr, bindings, typeBindings),
-                            removeRecursivity(body)
+                            removeRecursivity(body),
+                            anns
                           )
-                      case SIR.Case(Pattern.Wildcard, body) =>
-                          Case(Pattern.Wildcard, removeRecursivity(body))
+                      case SIR.Case(Pattern.Wildcard, body, anns) =>
+                          Case(Pattern.Wildcard, removeRecursivity(body), anns)
                   },
                   tp,
                   anns
@@ -79,9 +80,9 @@ object RemoveRecursivity:
                 args.exists(a => isRecursive(name, a, env))
             case Match(scrutinee, cases, tp, _) =>
                 isRecursive(name, scrutinee, env) || cases.exists {
-                    case SIR.Case(Pattern.Constr(_, bindings, typeBindings), body) =>
+                    case SIR.Case(Pattern.Constr(_, bindings, typeBindings), body, anns) =>
                         isRecursive(name, body, bindings ++ env)
-                    case SIR.Case(Pattern.Wildcard, body) =>
+                    case SIR.Case(Pattern.Wildcard, body, anns) =>
                         isRecursive(name, body, env)
                 }
             case _: Builtin | _: Error | _: Const => false

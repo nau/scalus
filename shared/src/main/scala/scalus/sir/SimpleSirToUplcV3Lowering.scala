@@ -6,7 +6,9 @@ import scalus.sir.SIR.Pattern
 import scalus.uplc.DefaultFun.*
 import scalus.uplc.TermDSL.*
 import scalus.uplc.*
+import scalus.uplc.Term.Builtin
 
+import java.util.function.BooleanSupplier
 import scala.annotation.tailrec
 import scala.collection.mutable.HashMap
 
@@ -25,7 +27,7 @@ case class Asdf(
   */
 class SimpleSirToUplcV3Lowering(sir: SIR, generateErrorTraces: Boolean = false):
 
-    private val builtinTerms = {
+    private val builtinTerms: Map[DefaultFun, Term] = {
         def forceBuiltin(scheme: TypeScheme, term: Term): Term = scheme match
             case TypeScheme.All(_, t) => Term.Force(forceBuiltin(t, term))
             case _                    => term
@@ -140,7 +142,7 @@ class SimpleSirToUplcV3Lowering(sir: SIR, generateErrorTraces: Boolean = false):
           SIR.Error(s"MatchError: unknown constructor tag", null)
         )
         cases.foldRight(matchErrorTerm) {
-            case (SIR.Case(Pattern.Constr(constr, bindings, _), body), resultTerm) =>
+            case (SIR.Case(Pattern.Constr(constr, bindings, _), body, anns), resultTerm) =>
                 val idx = mapping(constr.name)
                 val bodyTerm = lowerInner(body)
                 val bodyWithBindings = bindings.zipWithIndex
@@ -166,7 +168,7 @@ class SimpleSirToUplcV3Lowering(sir: SIR, generateErrorTraces: Boolean = false):
         genMatch = { case SIR.Match(scrutinee, cases, _, anns) =>
             val scrutineeTerm = lowerInner(scrutinee)
             cases match
-                case SIR.Case(Pattern.Constr(constr, bindings, _), body) :: Nil =>
+                case SIR.Case(Pattern.Constr(constr, bindings, _), body, _) :: Nil =>
                     λ(bindings.head)(lowerInner(body)) $ scrutineeTerm
                 case _ =>
                     throw new IllegalArgumentException(
@@ -326,3 +328,5 @@ class SimpleSirToUplcV3Lowering(sir: SIR, generateErrorTraces: Boolean = false):
                     ) $ ~Term.Error)
                 else Term.Error
     }
+
+object SimpleSirToUplcV3Lowering {}

@@ -138,7 +138,7 @@ object PrettyPrinter:
             case Match(scrutinee, cases, tp, anns) =>
                 val prettyCases =
                     stack(cases.map {
-                        case SIR.Case(Pattern.Constr(constr, bindings, typeBindings), body) =>
+                        case SIR.Case(Pattern.Constr(constr, bindings, typeBindings), body, anns) =>
                             val typedConst = inOptBrackets(
                               intercalate(text(",") + space, typeBindings.map(pretty))
                             )
@@ -151,7 +151,7 @@ object PrettyPrinter:
                               "->"
                             ) + (line + pretty(body, style))
                                 .nested(2)).grouped.aligned
-                        case SIR.Case(Pattern.Wildcard, body) =>
+                        case SIR.Case(Pattern.Wildcard, body, _) =>
                             (kw("case") & text("_") & text("->") + (line + pretty(body, style))
                                 .nested(2)).grouped.aligned
                     })

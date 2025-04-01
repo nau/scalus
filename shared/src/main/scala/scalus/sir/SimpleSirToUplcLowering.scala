@@ -114,10 +114,10 @@ class SimpleSirToUplcLowering(sir: SIR, generateErrorTraces: Boolean = false):
 
                 while iter.hasNext do
                     iter.next() match
-                        case c @ SIR.Case(Pattern.Constr(constrDecl, _, _), _) =>
+                        case c @ SIR.Case(Pattern.Constr(constrDecl, _, _), _, _) =>
                             matchedConstructors += constrDecl.name // collect all matched constructors
                             expandedCases += c
-                        case SIR.Case(Pattern.Wildcard, rhs) =>
+                        case SIR.Case(Pattern.Wildcard, rhs, anns) =>
                             // If we have a wildcard case, it must be the last one
                             if idx != cases.length - 1 then
                                 throw new IllegalArgumentException(
@@ -137,7 +137,8 @@ class SimpleSirToUplcLowering(sir: SIR, generateErrorTraces: Boolean = false):
                                         constrDecl.typeParams.map(_ => SIRType.FreeUnificator)
                                     expandedCases += SIR.Case(
                                       Pattern.Constr(constrDecl, bindings, typeArgs),
-                                      rhs
+                                      rhs,
+                                      anns
                                     )
                                     matchedConstructors += constrDecl.name // collect all matched constructors
                                 }
@@ -158,14 +159,14 @@ class SimpleSirToUplcLowering(sir: SIR, generateErrorTraces: Boolean = false):
                 }.toList
 
                 val casesTerms = orderedCases.map {
-                    case SIR.Case(Pattern.Constr(constr, bindings, _), body) =>
+                    case SIR.Case(Pattern.Constr(constr, bindings, _), body, anns) =>
                         constr.params match
                             case Nil => ~lowerInner(body)
                             case _ =>
                                 bindings.foldRight(lowerInner(body)) { (binding, acc) =>
                                     Term.LamAbs(binding, acc)
                                 }
-                    case SIR.Case(Pattern.Wildcard, _) =>
+                    case SIR.Case(Pattern.Wildcard, _, _) =>
                         val pos = anns.pos
                         throw new IllegalArgumentException(
                           s"Wildcard case must have been eliminated at ${pos.file}:${pos.startLine}, ${pos.startColumn}"

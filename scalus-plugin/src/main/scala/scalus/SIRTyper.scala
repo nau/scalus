@@ -9,7 +9,6 @@ import dotty.tools.dotc.core.Types.*
 import dotty.tools.dotc.util.SrcPos
 import scalus.sir.*
 
-import scala.annotation.unused
 
 case class SIRTypeEnv(
     pos: SrcPos,

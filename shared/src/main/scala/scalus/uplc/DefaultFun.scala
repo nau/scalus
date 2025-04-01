@@ -126,5 +126,8 @@ enum DefaultFun extends Enum[DefaultFun]:
     case FindFirstSetBit
     case Ripemd_160
 
+    //
+    // case CaseList
+
 given DefaultFunOrdering: Ordering[DefaultFun] with
     def compare(x: DefaultFun, y: DefaultFun): Int = x.ordinal - y.ordinal

@@ -616,7 +616,8 @@ object SIRUnify {
                                                   SIR.Case(
                                                     Pattern
                                                         .Constr(constrDecl, bindings, typeBindings),
-                                                    body
+                                                    body,
+                                                    left.anns
                                                   )
                                                 )
                                             case failure @ UnificationFailure(path, left, right) =>
@@ -627,7 +628,7 @@ object SIRUnify {
             case (Pattern.Wildcard, Pattern.Wildcard) =>
                 unifySIR(left.body, right.body, env.copy(path = "body" :: env.path)) match
                     case UnificationSuccess(env1, body) =>
-                        UnificationSuccess(env, SIR.Case(Pattern.Wildcard, body))
+                        UnificationSuccess(env, SIR.Case(Pattern.Wildcard, body, left.anns))
                     case failure @ UnificationFailure(path, left, right) => failure
             case (_, _) =>
                 UnificationFailure(env.path, left, right)

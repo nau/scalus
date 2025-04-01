@@ -181,8 +181,13 @@ class PatternMatchingCompiler(val compiler: SIRCompiler)(using Context) {
                                   ),
                                   List(
                                     SIR.Case(
-                                      Pattern.Constr(constrDecl, innerNames, typeParams),
-                                      contExpr
+                                      Pattern.Constr(
+                                        constrDecl,
+                                        innerNames,
+                                        typeParams
+                                      ),
+                                      contExpr,
+                                      AnnotationsDecl.fromSourcePosition(posLeft)
                                     )
                                   ),
                                   contExpr.tp,
@@ -385,7 +390,8 @@ class PatternMatchingCompiler(val compiler: SIRCompiler)(using Context) {
             iter.next() match
                 case SirCase.Case(constructorSymbol, typeParams, bindings, rhs, srcPos) =>
                     val constrDecl = compiler.makeConstrDecl(env, srcPos, constructorSymbol)
-                    expandedCases += SIR.Case(Constr(constrDecl, bindings, typeParams), rhs)
+                    val anns = AnnotationsDecl.fromSourcePosition(srcPos)
+                    expandedCases += SIR.Case(Constr(constrDecl, bindings, typeParams), rhs, anns)
                 case SirCase.Wildcard(rhs, srcPos) =>
                     // If we have a wildcard case, it must be the last one
                     if idx != sirCases.length - 1 then
@@ -396,7 +402,12 @@ class PatternMatchingCompiler(val compiler: SIRCompiler)(using Context) {
                           ),
                           ()
                         )
-                    else expandedCases += SIR.Case(Pattern.Wildcard, rhs)
+                    else
+                        expandedCases += SIR.Case(
+                          Pattern.Wildcard,
+                          rhs,
+                          AnnotationsDecl.fromSourcePosition(srcPos)
+                        )
                 case SirCase.Error(err) => compiler.error(err, ())
 
             idx += 1

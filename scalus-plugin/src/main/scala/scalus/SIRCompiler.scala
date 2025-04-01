@@ -611,7 +611,7 @@ final class SIRCompiler(using ctx: Context) {
     ): CompileMemberDefResult = {
         // report.echo(s"compileStmt  ${stmt.show} in ${env}")
         stmt match
-            case vd: ValDef => compileValDef(env, vd)
+            case vd: ValDef => compileValDef(env, vd) 
             case dd: DefDef =>
                 compileDefDef(env, dd, isGlobalDef)
             case x =>

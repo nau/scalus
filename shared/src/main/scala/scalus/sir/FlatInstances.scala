@@ -943,9 +943,11 @@ object FlatInstantces:
                             .listRepr(SIRTypeHashConsedFlat)
                             .bitSizeHC(typeBindings, hashConsed)
                     val bodySize = SIRHashConsedFlat.bitSizeHC(a.body, hashConsed)
-                    patternTagWidth + constrSize + bindingsSize + typeBindingsSize + bodySize
+                    val annsSize = AnnotationsDeclFlat.bitSizeHC(a.anns, hashConsed)
+                    patternTagWidth + constrSize + bindingsSize + typeBindingsSize + bodySize + annsSize
                 case Pattern.Wildcard => // FIXME
-                    patternTagWidth + SIRHashConsedFlat.bitSizeHC(a.body, hashConsed)
+                    patternTagWidth + SIRHashConsedFlat.bitSizeHC(a.body, hashConsed) +
+                        AnnotationsDeclFlat.bitSizeHC(a.anns, hashConsed)
 
         def encodeHC(a: SIR.Case, encode: HashConsedEncoderState): Unit = {
             a.pattern match
@@ -956,10 +958,10 @@ object FlatInstantces:
                     HashConsedReprFlat
                         .listRepr(SIRTypeHashConsedFlat)
                         .encodeHC(typeBindings, encode)
-                    SIRHashConsedFlat.encodeHC(a.body, encode)
                 case Pattern.Wildcard => // FIXME
                     encode.encode.bits(patternTagWidth, patternTagWildcard)
-                    SIRHashConsedFlat.encodeHC(a.body, encode)
+            SIRHashConsedFlat.encodeHC(a.body, encode)
+            AnnotationsDeclFlat.encodeHC(a.anns, encode)
         }
 
         def decodeHC(decode: HashConsedDecoderState): HashConsedRef[SIR.Case] = {
@@ -967,9 +969,15 @@ object FlatInstantces:
             patternTag match
                 case `patternTagWildcard` =>
                     val body = SIRHashConsedFlat.decodeHC(decode)
+                    val anns = AnnotationsDeclFlat.decodeHC(decode)
                     HashConsedRef.deferred(
                       hs => body.isComplete(hs),
-                      (hs, l, p) => SIR.Case(Pattern.Wildcard, body.finValue(hs, l, p))
+                      (hs, l, p) =>
+                          SIR.Case(
+                            Pattern.Wildcard,
+                            body.finValue(hs, l, p),
+                            anns.finValue(hs, l, p)
+                          )
                     )
                 case `patternTagConstr` =>
                     val constr = ConstrDeclFlat.decodeHC(decode)
@@ -977,6 +985,7 @@ object FlatInstantces:
                     val typeBindings =
                         HashConsedReprFlat.listRepr(SIRTypeHashConsedFlat).decodeHC(decode)
                     val body = SIRHashConsedFlat.decodeHC(decode)
+                    val anns = AnnotationsDeclFlat.decodeHC(decode)
                     HashConsedRef.deferred(
                       hs =>
                           constr.isComplete(hs) && typeBindings.isComplete(hs) && body.isComplete(
@@ -989,7 +998,8 @@ object FlatInstantces:
                               bindings,
                               typeBindings.finValue(hs, l, p)
                             ),
-                            body.finValue(hs, l, p)
+                            body.finValue(hs, l, p),
+                            anns.finValue(hs, l, p)
                           )
                     )
         }

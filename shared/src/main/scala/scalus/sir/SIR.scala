@@ -272,12 +272,30 @@ object SIR:
     ) extends SIR
 
     enum Pattern:
-        case Constr(constr: ConstrDecl, bindings: List[String], typeBindings: List[SIRType])
+        //  case class Point(x: Int, y: String)
+        //  p match
+        //     case Point(x, y) => x + y
+        //
+        //  case class Rectangle(leftTop: Point, rightBottom: Point)
+        //
+        //  p match
+        //     case Point(x, _) if x < 5 => x
+        //     case Point(1, 2)
+        //
+        //  r match
+        //     case Rectangle(Point(x, y), Point(x1, y2)) if y2-y == x2-x => // handle square
+        //     
+        case Constr(
+            constr: ConstrDecl,
+            bindings: List[String],
+            typeBindings: List[SIRType]
+        )
         case Wildcard
 
     case class Case(
         pattern: Pattern,
-        body: SIR
+        body: SIR,
+        anns: AnnotationsDecl
     )
 
     /** Match expression.
