@@ -29,8 +29,4 @@ object HelloCardano {
     }
 }
 
-object HelloCardanoValidator {
-    val sir = compile(HelloCardano.validator)
-    // UPLC program: (ScriptContext as Data) -> ()
-    val script = sir.toUplc(generateErrorTraces = true).plutusV3
-}
+
