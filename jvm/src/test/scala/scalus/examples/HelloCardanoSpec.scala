@@ -83,7 +83,11 @@ class HelloCardanoSpec extends AnyFunSuite {
 }
 
 object HelloCardanoValidator {
-    val sir = compile(HelloCardano.validator)
+    val sir = compile(HelloCardano.validate)
     // UPLC program: (ScriptContext as Data) -> ()
     val script = sir.toUplc(generateErrorTraces = true).plutusV3
+
+    println(s"HelloCardanoValidator sir:${sir.pretty.render(100)}")
+
+    println(s"HelloCardanoValidator script:${script.pretty.render(100)}")
 }
