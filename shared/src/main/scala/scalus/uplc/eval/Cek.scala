@@ -532,6 +532,10 @@ enum Result:
         case _: Success => true
         case _          => false
 
+    def isFailure: Boolean = this match
+        case _: Failure => true
+        case _          => false
+
     override def toString: String =
         import scalus.*
 

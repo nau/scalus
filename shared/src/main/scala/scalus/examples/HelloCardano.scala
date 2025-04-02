@@ -19,7 +19,9 @@ object HelloCardano {
                     case Option.Some(ownerDatum) =>
                         val owner = ownerDatum.to[PubKeyHash]
                         // must be signed
-                        ctx.txInfo.signatories.find { _.hash == owner.hash }.getOrFail()
+                        ctx.txInfo.signatories
+                            .find { _.hash == owner.hash }
+                            .getOrFail("Must be signed")
                         val mustSayHello = ctx.redeemer.to[String] == "Hello, Cardano!"
                         if !mustSayHello then throw new Exception("Invalid message")
                     case Option.None => throw new Exception("Expected datum")

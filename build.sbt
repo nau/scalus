@@ -224,7 +224,8 @@ lazy val scalus = crossProject(JSPlatform, JVMPlatform, NativePlatform)
       libraryDependencies += "org.bouncycastle" % "bcprov-jdk18on" % "1.80",
       libraryDependencies += "foundation.icon" % "blst-java" % "0.3.2",
       libraryDependencies += "org.bitcoin-s" % "bitcoin-s-crypto_2.13" % "1.9.10" % "test",
-      libraryDependencies += "org.bitcoin-s" % "bitcoin-s-secp256k1jni" % "1.9.10"
+      libraryDependencies += "org.bitcoin-s" % "bitcoin-s-secp256k1jni" % "1.9.10",
+      libraryDependencies += "org.scalameta" %% "munit" % "1.0.4" % Test
     )
     .jsSettings(
       // Add JS-specific settings here
