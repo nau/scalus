@@ -494,7 +494,9 @@ final class SIRCompiler(using ctx: Context) {
                 catch
                     case NonFatal(ex) =>
                         println(s"Error in compileIdentOrQualifiedSelect: ${ex.getMessage}")
-                        println(s"ExternalVar: ${e.symbol.fullName}")
+                        println(
+                          s"ExternalVar: ${e.symbol.fullName} at ${e.srcPos.sourcePos.source.name}:${e.srcPos.line}"
+                        )
                         println(s"tree: ${e.show}")
                         throw ex
     }

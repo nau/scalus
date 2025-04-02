@@ -73,8 +73,8 @@ class SIRLinker(using ctx: Context) {
     }
 
     private def traverseAndLink(sir: SIR, srcPos: SrcPos): Unit = sir match
-        case SIR.ExternalVar(moduleName, name, tp, _) if !globalDefs.contains(FullName(name)) =>
-            linkDefinition(moduleName, FullName(name), srcPos)
+        case SIR.ExternalVar(moduleName, name, tp, ann) if !globalDefs.contains(FullName(name)) =>
+            linkDefinition(moduleName, FullName(name), srcPos, ann)
         case SIR.Let(recursivity, bindings, body, anns) =>
             bindings.foreach(b => traverseAndLink(b.value, srcPos))
             traverseAndLink(body, srcPos)
@@ -125,14 +125,19 @@ class SIRLinker(using ctx: Context) {
         found.isDefined
     }
 
-    private def linkDefinition(moduleName: String, fullName: FullName, srcPos: SrcPos): Unit = {
+    private def linkDefinition(
+        moduleName: String,
+        fullName: FullName,
+        srcPos: SrcPos,
+        anns: AnnotationsDecl
+    ): Unit = {
         // println(s"linkDefinition: ${fullName}")
         val found = moduleDefsCache.get(moduleName) match
             case Some(defs) =>
                 findAndLinkDefinition(defs, fullName, srcPos)
             case None =>
                 findAndReadModuleOfSymbol(moduleName) match
-                    case Some(module) =>
+                    case Right(module) =>
                         // println(s"Loaded module ${moduleName}, defs: ${defs}")
                         validateSIRVersion(module, moduleName, srcPos)
                         val defsMap = mutable.LinkedHashMap.from(
@@ -140,8 +145,11 @@ class SIRLinker(using ctx: Context) {
                         )
                         moduleDefsCache.put(moduleName, defsMap)
                         findAndLinkDefinition(defsMap, fullName, srcPos)
-                    case None =>
-                        report.error(s"Module not found: ${moduleName}", srcPos)
+                    case Left(filename) =>
+                        report.error(
+                          s"Module not found during linking: ${moduleName}, missing filename: ${filename} referenced from ${anns.pos.file}: ${anns.pos.startLine}",
+                          srcPos
+                        )
                         false
 
         if !found then
@@ -151,9 +159,12 @@ class SIRLinker(using ctx: Context) {
             )
     }
 
-    private def findAndReadModuleOfSymbol(moduleName: String): Option[Module] = {
+    private def findAndReadModuleOfSymbol(
+        moduleName: String,
+        debug: Boolean = false
+    ): Either[String, Module] = {
         val filename = moduleName.replace('.', '/') + ".sir"
-        // println(s"findAndReadModuleOfSymbol: ${filename}")
+        if (debug) then println(s"findAndReadModuleOfSymbol: ${filename}")
         // read the file from the classpath
         val resource = classLoader.getResourceAsStream(filename)
         if resource != null then
@@ -161,8 +172,8 @@ class SIRLinker(using ctx: Context) {
             val dec = DecoderState(buffer)
             val module = flat.decode[Module](dec)
             resource.close()
-            Some(module)
-        else None
+            Right(module)
+        else Left(filename)
     }
 
     private def validateSIRVersion(module: Module, moduleName: String, srcPos: SrcPos): Unit = {

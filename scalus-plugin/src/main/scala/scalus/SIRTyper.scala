@@ -42,7 +42,7 @@ class SIRTyper(using Context) {
                 throw new TypingException(tp, env.pos, s"Unfilled proxies in ${retval.show}")
         retval
     }
-
+    
     private def sirTypeInEnvWithErr(tp: Type, env: SIRTypeEnv): SIRType =
         if env.trace then println(s"sirTypeInEnvWithErr ${tp.show},  env=${env}")
         val retval = tp match
