@@ -2,6 +2,7 @@ package scalus.examples
 
 import org.scalatest.funsuite.AnyFunSuite
 import scalus.*
+import scalus.Compiler.compile
 import scalus.builtin.ByteString.given
 import scalus.builtin.Data.toData
 import scalus.builtin.ToDataInstances.given
@@ -79,4 +80,10 @@ class HelloCardanoSpec extends AnyFunSuite {
                 assert(result.exception.getMessage == expected)
             case _ => fail(s"Unexpected result: $result, expected: $expected")
     }
+}
+
+object HelloCardanoValidator {
+    val sir = compile(HelloCardano.validator)
+    // UPLC program: (ScriptContext as Data) -> ()
+    val script = sir.toUplc(generateErrorTraces = true).plutusV3
 }

@@ -28,9 +28,3 @@ object HelloCardano {
             case _ => throw new Exception("Invalid script type")
     }
 }
-
-object HelloCardanoValidator {
-    val sir = compile(HelloCardano.validator)
-    // UPLC program: (ScriptContext as Data) -> ()
-    val script = sir.toUplc(generateErrorTraces = true).plutusV3
-}
