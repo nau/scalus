@@ -121,8 +121,10 @@ class PsrseScriptInfoSpec extends AnyFunSuite:
 
         val compiled = compile { ParseScriptInfo.validate }
 
-        // println(compiled.show)
+        println(compiled.pretty.render(100))
         val term = compiled.toUplc()
+
+        println(term.pretty.render(100))
 
         val scriptContextData = scriptContext.toData
         val appliedValidator = term.plutusV3 $ Term.Const(Constant.Data(scriptContextData))
