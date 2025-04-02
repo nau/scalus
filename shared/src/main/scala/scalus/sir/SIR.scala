@@ -75,6 +75,8 @@ case object AnnotationsDecl {
 }
 
 case class ConstrDecl(
+    /** Name (usually - full name of symbol, i.s. scalus.prelude.List$.Nit )
+      */
     name: String,
     storageType: SIRVarStorage,
 
@@ -99,11 +101,6 @@ case class ConstrDecl(
         throw new RuntimeException("Invalid name in constructor: " + name)
     }
 
-    if (name == "scalus.prelude.These.This") {
-        println("Constr with scalus.prelude.These.This")
-        throw new RuntimeException("These.This")
-    }
-
 }
 
 //  Data~ Lost(Const)
@@ -115,6 +112,8 @@ case class ConstrDecl(
 //f:  A => Int   A = Data(C1, C2, D)
 
 case class DataDecl(
+    /** Name of the data type. (full name of the symbol)
+      */
     name: String,
     constructors: List[ConstrDecl],
     typeParams: List[SIRType.TypeVar],

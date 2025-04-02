@@ -686,10 +686,12 @@ object SIRUnify {
     def unifyDataDecl(left: DataDecl, right: DataDecl, env: Env): UnificationResult[DataDecl] = {
         if left eq right then UnificationSuccess(env, left)
         else if left.name == right.name then
-            // is order of constructors determenistics (?)
-            val sortedLeft = left.constructors.sortBy(_.name)
-            val sortedRight = right.constructors.sortBy(_.name)
-            unifyList(sortedLeft, sortedRight, env.copy(path = "constructors" :: env.path)) match
+            // order of conctructoes is determenistic (the same as in program source)
+            unifyList(
+              left.constructors,
+              right.constructors,
+              env.copy(path = "constructors" :: env.path)
+            ) match
                 case UnificationSuccess(env1, constructors) =>
                     unifyList(
                       left.typeParams,

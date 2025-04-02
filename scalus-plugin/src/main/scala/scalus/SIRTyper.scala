@@ -332,30 +332,6 @@ class SIRTyper(using Context) {
         }
     }
 
-    @unused
-    private def flatSealedTraitHierarchy(
-        top: Type,
-        childrens: List[SIRType],
-        env: SIRTypeEnv
-    ): List[ConstrDecl] = {
-        childrens.flatMap {
-            case SIRType.CaseClass(constrDecl, _, _) => Some(constrDecl)
-            case SIRType.SumCaseClass(dataDecl, _)   => dataDecl.constructors
-            case SIRType.TypeProxy(proxy) =>
-                if proxy == null then {
-                    Nil
-                } else {
-                    flatSealedTraitHierarchy(top, List(proxy), env)
-                }
-            case ch @ SIRType.TypeLambda(params, tp) =>
-                val msg = s"TypeLambda in sealed trait hierarchy: ${tp.show}"
-                throw TypingException(top, env.pos, msg)
-            case other =>
-                val msg = s"Invalid type in sealed trait hierarchy:  ${other.show}"
-                throw TypingException(top, env.pos, msg)
-        }
-    }
-
     private def retrieveTypeParamsAndParamsFromConstructor(
         typeSymbol: Symbol,
         env: SIRTypeEnv
@@ -559,6 +535,7 @@ class SIRTyper(using Context) {
         env: SIRTypeEnv
     ): DataDecl = {
 
+        // result list is ordered by the order of the children in the typeSymbol (the same as in text)
         val constrDecls = typeSymbol.children.map { s =>
             if s.children.isEmpty then makeCaseClassConstrDecl(s, env, Some(typeSymbol))
             else
@@ -594,28 +571,6 @@ class SIRTyper(using Context) {
           AnnotationsDecl.fromSym(typeSymbol)
         )
     }
-
-    /*
-    private def tryGetParentDataDecl(childSymbol: Symbol, env: SIRTypeEnv): Option[DataDecl] = {
-        childSymbol.info.baseClasses.find(x =>
-            x.children.nonEmpty && x.children.contains(childSymbol)
-        ) match
-            case Some(parentSym) =>
-                this.cachedDataDecl.get(parentSym) match
-                    case Some(dataDecl) => Some(dataDecl)
-                    case None =>
-                        val parentType = sirTypeInEnvWithErr(parentSym.info, env)
-                        extractDataDecl(parentType) match
-                            case Some(dataDecl) =>
-                                this.cachedDataDecl.update(parentSym, dataDecl)
-                                Some(dataDecl)
-                            case None =>
-                                val msg =
-                                    s"Parent of ${childSymbol.showFullName} is not a case class: ${parentSym.showFullName}: ${parentType.show}"
-                                throw TypingException(childSymbol.info, env.pos, msg)
-    }
-
-     */
 
     private def extractDataDecl(tp: SIRType): Option[DataDecl] = {
         tp match
