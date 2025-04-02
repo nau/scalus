@@ -28,5 +28,3 @@ object HelloCardano {
             case _ => throw new Exception("Invalid script type")
     }
 }
-
-
