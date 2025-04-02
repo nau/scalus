@@ -3,9 +3,9 @@ package scalus.prelude
 import scalus.builtin.{ByteString, Data}
 import scalus.ledger.api.v3.*
 
+@scalus.Compile
 trait Validator {
 
-    @scalus.Compile
     def validate(sc: ScriptContext): Boolean = {
         sc.scriptInfo match
             case ScriptInfo.SpendingScript(txOutRef, datum) =>
