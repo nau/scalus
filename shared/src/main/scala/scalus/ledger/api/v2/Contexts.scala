@@ -9,7 +9,7 @@ import scalus.builtin.Data.FromData
 import scalus.builtin.Data.fromData
 import scalus.prelude.AssocMap
 import scalus.prelude.List
-import scalus.prelude.Maybe
+import scalus.prelude.Option
 import scalus.prelude.Prelude.Eq
 
 @Compile
@@ -34,7 +34,7 @@ object FromDataInstances {
           fromData[Address](args.head),
           fromData[Value](args.tail.head),
           fromData[OutputDatum](args.tail.tail.head),
-          fromData[Maybe[ScriptHash]](args.tail.tail.tail.head)
+          fromData[Option[ScriptHash]](args.tail.tail.tail.head)
         )
 
     given FromData[TxInInfo] = (d: Data) =>
@@ -105,7 +105,7 @@ case class TxOut(
     address: Address,
     value: Value,
     datum: OutputDatum,
-    referenceScript: Maybe[ScriptHash]
+    referenceScript: Option[ScriptHash]
 )
 
 case class TxInInfo(outRef: TxOutRef, resolved: TxOut)

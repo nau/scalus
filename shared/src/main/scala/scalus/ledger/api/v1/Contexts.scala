@@ -9,7 +9,7 @@ import scalus.builtin.Data.FromData
 import scalus.builtin.Data.fromData
 import scalus.prelude.AssocMap
 import scalus.prelude.List
-import scalus.prelude.Maybe
+import scalus.prelude.Option
 import scalus.prelude.Prelude.===
 import scalus.prelude.Prelude.given
 import scalus.prelude.Prelude.Eq
@@ -114,7 +114,7 @@ object FromDataInstances {
         val args = unConstrData(d).snd
         new Address(
           fromData[Credential](args.head),
-          fromData[Maybe[StakingCredential]](args.tail.head)
+          fromData[Option[StakingCredential]](args.tail.head)
         )
 
     given FromData[TxOut] = (d: Data) =>
@@ -122,7 +122,7 @@ object FromDataInstances {
         new TxOut(
           fromData[Address](args.head),
           fromData[Value](args.tail.head),
-          fromData[Maybe[DatumHash]](args.tail.tail.head)
+          fromData[Option[DatumHash]](args.tail.tail.head)
         )
 
     given FromData[TxInInfo] = (d: Data) =>
@@ -398,7 +398,7 @@ object StakingCredential {
 
 case class Address(
     credential: Credential,
-    stakingCredential: Maybe[StakingCredential]
+    stakingCredential: Option[StakingCredential]
 )
 
 @Compile
@@ -411,7 +411,7 @@ object Address {
                         aCredential === bCredential && aStakingCredential === bStakingCredential
 }
 
-case class TxOut(address: Address, value: Value, datumHash: Maybe[DatumHash]) {
+case class TxOut(address: Address, value: Value, datumHash: Option[DatumHash]) {
     override def toString: String = {
         s"""TxOut(
            |  address: $address,
@@ -441,8 +441,8 @@ case class TxInfo(
 ) {
     override def toString: String = {
         s"""TxInfo(
-           |  inputs: ${inputs.toList.mkString("[", ", ", "]")},
-           |  outputs: ${outputs.toList.mkString("[", ", ", "]")},
+           |  inputs: ${inputs.toScalaList.mkString("[", ", ", "]")},
+           |  outputs: ${outputs.toScalaList.mkString("[", ", ", "]")},
            |  fee: ${Value.debugToString(fee)},
            |  mint: ${Value.debugToString(mint)},
            |  dcert: $dcert,

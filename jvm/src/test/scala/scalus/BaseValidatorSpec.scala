@@ -6,7 +6,7 @@ import scalus.builtin.given
 import scalus.builtin.ByteString
 import scalus.builtin.ByteString.*
 import scalus.ledger.api.v1.{ArbitraryInstances as _, *}
-import scalus.prelude.Maybe.*
+import scalus.prelude.Option.*
 import scalus.prelude.*
 import scalus.uplc.*
 import scalus.uplc.eval.BuiltinError
@@ -71,9 +71,9 @@ abstract class BaseValidatorSpec
             hex"61822dde476439a526070f36d3d1667ad099b462c111cd85e089f5e7f6"
           )
         ),
-        Nothing
+        None
       ),
       Value.lovelace(BigInt("10000000")),
-      Nothing
+      None
     )
 }

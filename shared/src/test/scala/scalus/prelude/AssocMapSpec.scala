@@ -25,7 +25,7 @@ private object AssocMapTest {
     ): Boolean = {
         val combined = AssocMap.toList(AssocMap.union(a, b))
         // all values are equal, absent values are 0
-        List.foldLeft(combined, true) { case (acc, pair) =>
+        combined.foldLeft(true) { case (acc, pair) =>
             pair._2 match
                 case These(v1, v2) => acc && v1 == v2
                 case This(v1)      => acc && v1 == BigInt(0)
@@ -89,7 +89,7 @@ class AssocMapSpec extends AnyFunSuite with ScalaCheckPropertyChecks with Arbitr
     test("insert") {
         check { (map: AssocMap[BigInt, BigInt], k: BigInt, v: BigInt) =>
             val m1 = AssocMap.insert(map)(k, v)
-            val lst1 = AssocMap.toList(m1).toList
+            val lst1 = AssocMap.toList(m1).toScalaList
             lst1.contains((k, v))
         }
     }
@@ -97,16 +97,16 @@ class AssocMapSpec extends AnyFunSuite with ScalaCheckPropertyChecks with Arbitr
     test("lookup") {
         check { (map: AssocMap[BigInt, BigInt], k: BigInt, v: BigInt) =>
             val m1 = AssocMap.insert(map)(k, v)
-            AssocMap.lookup(m1)(k) == Maybe.Just(v)
+            AssocMap.lookup(m1)(k) == scalus.prelude.Option.Some(v)
         }
     }
 
     test("delete") {
         check { (map: AssocMap[BigInt, BigInt], k: BigInt, v: BigInt) =>
             val m1 = AssocMap.insert(map)(k, v)
-            AssocMap.lookup(m1)(k) == Maybe.Just(v)
+            AssocMap.lookup(m1)(k) == scalus.prelude.Option.Some(v)
             val m2 = AssocMap.delete(m1)(k)
-            AssocMap.lookup(m2)(k) == Maybe.Nothing
+            AssocMap.lookup(m2)(k) == scalus.prelude.Option.None
         }
     }
 

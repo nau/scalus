@@ -5,7 +5,7 @@ import org.scalatestplus.scalacheck.ScalaCheckPropertyChecks
 import scalus.Compiler.compile
 import scalus.*
 import scalus.builtin.given
-import scalus.prelude.Maybe.*
+import scalus.prelude
 import scalus.prelude.Prelude.{*, given}
 import scalus.sir.SIR
 import scalus.uplc.ArbitraryInstances
@@ -15,15 +15,15 @@ import scalus.uplc.eval.PlutusVM
 
 import scala.language.implicitConversions
 
-class MaybeSpec extends AnyFunSuite with ScalaCheckPropertyChecks with ArbitraryInstances {
+class OptionSpec extends AnyFunSuite with ScalaCheckPropertyChecks with ArbitraryInstances {
     private given PlutusVM = PlutusVM.makePlutusV2VM()
     test("eq") {
-        assert((Nothing: Maybe[String]) === Nothing)
-        assert(Just(BigInt(1)) === Just(BigInt(1)))
-        assert(Just(BigInt(1)) !== Just(BigInt(2)))
-        assertEval(compile(Just(true) === Nothing), false)
-        assertEval(compile(Just(true) === Just(true)), true)
-        assertEval(compile(Just(true) !== Just(true)), false)
+        assert((prelude.Option.None: prelude.Option[String]) === prelude.Option.None)
+        assert(prelude.Option.Some(BigInt(1)) === prelude.Option.Some(BigInt(1)))
+        assert(prelude.Option.Some(BigInt(1)) !== prelude.Option.Some(BigInt(2)))
+        assertEval(compile(prelude.Option.Some(true) === prelude.Option.None), false)
+        assertEval(compile(prelude.Option.Some(true) === prelude.Option.Some(true)), true)
+        assertEval(compile(prelude.Option.Some(true) !== prelude.Option.Some(true)), false)
     }
 
     private def assertEval(sir: SIR, expected: Term) = {

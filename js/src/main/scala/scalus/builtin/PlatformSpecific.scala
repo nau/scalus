@@ -80,7 +80,7 @@ private trait Secp256k1Schnorr extends js.Object {
         js.native
 }
 
-object Builtins extends AbstractBuiltins(using NodeJsPlatformSpecific)
+object Builtins extends Builtins(using NodeJsPlatformSpecific)
 class Builtins(using ps: PlatformSpecific) extends AbstractBuiltins(using ps)
 
 trait NodeJsPlatformSpecific extends PlatformSpecific {

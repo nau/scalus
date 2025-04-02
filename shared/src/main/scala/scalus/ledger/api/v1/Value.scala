@@ -56,7 +56,7 @@ object Value:
     ): Boolean = {
         val combined = AssocMap.toList(AssocMap.union(a, b))
         // all values are equal, absent values are 0
-        List.all(combined) { case (k, v) =>
+        combined.forall { case (k, v) =>
             v match
                 case These.These(v1, v2) => op(v1, v2)
                 case This(v1)            => op(v1, 0)
@@ -97,8 +97,8 @@ object Value:
 
     @Ignore
     def debugToString(v: Value): String = {
-        val pairs = v.inner.toList.map { case (cs, tokens) =>
-            val tokenPairs = tokens.inner.toList.map { case (tn, amount) =>
+        val pairs = v.inner.toScalaList.map { case (cs, tokens) =>
+            val tokenPairs = tokens.inner.toScalaList.map { case (tn, amount) =>
                 s"#${tn.toHex}: $amount"
             }
             s"policy#${cs.toHex} -> { ${tokenPairs.mkString(", ")} }"

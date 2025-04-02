@@ -16,15 +16,13 @@ object HelloCardano {
         ctx.scriptInfo match
             case ScriptInfo.SpendingScript(txOutRef, datum) =>
                 datum match
-                    case Maybe.Just(ownerDatum) =>
+                    case Option.Some(ownerDatum) =>
                         val owner = ownerDatum.to[PubKeyHash]
                         // must be signed
-                        List.findOrFail(ctx.txInfo.signatories)(signatory =>
-                            signatory.hash == owner.hash
-                        )
+                        ctx.txInfo.signatories.find { _.hash == owner.hash }.getOrFail()
                         val mustSayHello = ctx.redeemer.to[String] == "Hello, Cardano!"
                         if !mustSayHello then throw new Exception("Invalid message")
-                    case Maybe.Nothing => throw new Exception("Expected datum")
+                    case Option.None => throw new Exception("Expected datum")
             case _ => throw new Exception("Invalid script type")
     }
 }
