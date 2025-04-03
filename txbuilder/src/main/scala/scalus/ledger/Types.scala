@@ -16,10 +16,11 @@ case class Hash28(bytes: ByteString) derives Codec {
 
 object Hash28 {
 
+    val Size = 28
+
     /** Create a Hash28 from a hex string */
     def fromHex(hex: String): Hash28 = {
         val bytes = ByteString.fromHex(hex)
-        require(bytes.size == 28, s"Hash28 must be 28 bytes, got ${bytes.size}")
         Hash28(bytes)
     }
 }
@@ -39,7 +40,6 @@ object Hash32 {
     /** Create a Hash32 from a hex string */
     def fromHex(hex: String): Hash32 = {
         val bytes = ByteString.fromHex(hex)
-        require(bytes.size == 32, s"Hash32 must be 32 bytes, got ${bytes.size}")
         Hash32(bytes)
     }
 
@@ -105,7 +105,7 @@ final case class AssetName(bytes: ByteString) derives Codec {
 
     /** Convert to ASCII string if possible, otherwise returns hex representation */
     def asString: String = {
-        if (bytes.bytes.forall(b => b >= 32 && b < 127)) {
+        if bytes.bytes.forall(b => b >= 32 && b < 127) then {
             new String(bytes.bytes, "ASCII")
         } else {
             bytes.toHex
@@ -220,9 +220,7 @@ object Address {
 
     /** Create an Address from bech32 string */
     def fromBech32(bech32: String): Address = {
-        // In a real implementation, this would parse from bech32 format
-        // For this example, we'll create a dummy address
-        Address(ByteString.fromHex("00"))
+        Address(ByteString.unsafeFromArray(Bech32.decode(bech32).get._2))
     }
 }
 

@@ -19,13 +19,13 @@ class Bech32Spec extends AnyFunSuite with Matchers with Inspectors {
 
     test("Bech32 decode") {
         forAll(testData) { s =>
-            Bech32.decode(s) shouldBe a[Success[_]]
+            Bech32.decodeTo5Bit(s) shouldBe a[Success[_]]
         }
     }
 
     test("Bech32 must round trip") {
         forAll(testData) { s =>
-            Bech32.decode(s).flatMap((Bech32.encode _).tupled) shouldBe Success(s.toLowerCase)
+            Bech32.decodeTo5Bit(s).flatMap((Bech32.encodeFrom5Bit _).tupled) shouldBe Success(s.toLowerCase)
         }
     }
 }

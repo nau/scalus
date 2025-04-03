@@ -25,4 +25,11 @@ I need you to write Scala 3 code that meets these requirements:
 
 12. Provide a brief explanation of how to use the code.
 
+13. Use case classes and Scala 3 enums where appropriate
+
+14. avoid using opaque types.
+
+15. Generate one class at a time.
+
 The code should solve the following problem:
+

@@ -32,7 +32,6 @@ class CborSerializationSpec extends AnyFunSuite with ScalaCheckPropertyChecks wi
             forAll { (a: A) =>
                 val encoded = Cbor.encode(a).toByteArray
                 val decoded = Cbor.decode(encoded).to[A].value
-                println(a)
                 assert(a == decoded)
             }
         }
