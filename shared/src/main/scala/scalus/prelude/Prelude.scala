@@ -7,7 +7,8 @@ import scalus.builtin.ByteString
 import scalus.builtin.Data
 import scalus.macros.Macros
 
-import scala.collection.immutable
+import scala.annotation.tailrec
+import scala.collection.{immutable, mutable}
 
 extension (x: Boolean)
     /** Trace the expression only if it evaluates to `false`. This is useful to trace an entire
@@ -30,8 +31,7 @@ object Prelude {
     given Eq[BigInt] = (x: BigInt, y: BigInt) => equalsInteger(x, y)
     given Eq[ByteString] = (x: ByteString, y: ByteString) => equalsByteString(x, y)
     given Eq[String] = (x: String, y: String) => equalsString(x, y)
-    given Eq[Boolean] = (x: Boolean, y: Boolean) =>
-        if x then if y then true else false else if y then false else true
+    given Eq[Boolean] = (x: Boolean, y: Boolean) => x == y
     given Eq[Data] = (x: Data, y: Data) => equalsData(x, y)
     given Eq[Unit] = (_: Unit, _: Unit) => true
 
@@ -64,9 +64,7 @@ import Prelude.*
 enum List[+A]:
     case Nil extends List[Nothing]
     case Cons(head: A, tail: List[A]) extends List[A]
-    def toList: immutable.List[A] = this match
-        case Nil              => immutable.List.empty[A]
-        case Cons(head, tail) => head :: tail.toList
+    def toList: immutable.List[A] = List.toList(this)
 
 @Compile
 object List:
@@ -93,11 +91,17 @@ object List:
         case Nil        => true
         case Cons(_, _) => false
 
+    def nonEmpty[A](lst: List[A]): Boolean = lst match
+        case Nil        => false
+        case Cons(_, _) => true
+
     def getByIndex[A](lst: List[A])(idx: BigInt): A = {
+        @tailrec
         def go(i: BigInt, lst: List[A]): A = lst match
             case Nil => throw new Exception("Index out of bounds")
             case Cons(head, tail) =>
                 if equalsInteger(i, idx) then head else go(addInteger(i, 1), tail)
+
         go(0, lst)
     }
 
@@ -129,10 +133,12 @@ object List:
         case Cons(head, tail) =>
             if p(head) then Cons(head, List.filter(tail)(p)) else List.filter(tail)(p)
 
+    @tailrec
     def findOrFail[A](lst: List[A])(p: A => Boolean): A = lst match
         case Nil              => throw new Exception("Not found")
         case Cons(head, tail) => if p(head) then head else findOrFail(tail)(p)
 
+    @tailrec
     def find[A](lst: List[A])(p: A => Boolean): Maybe[A] = lst match
         case Nil              => Maybe.Nothing
         case Cons(head, tail) => if p(head) then Maybe.Just(head) else find(tail)(p)
@@ -141,15 +147,39 @@ object List:
         case Nothing => false
         case Just(a) => true
 
+    @tailrec
     def foldLeft[A, B](lst: List[A], z: B)(f: (B, A) => B): B = lst match
         case Nil              => z
         case Cons(head, tail) => foldLeft(tail, f(z, head))(f)
 
-    def all[A, B](lst: List[A])(f: A => Boolean): Boolean =
-        foldLeft(lst, true)((acc, x) => acc && f(x))
+    @tailrec
+    def any[A, B](lst: List[A])(f: A => Boolean): Boolean = lst match
+        case Nil              => false
+        case Cons(head, tail) => if f(head) then true else any(tail)(f)
+
+    @tailrec
+    def all[A, B](lst: List[A])(f: A => Boolean): Boolean = lst match
+        case Nil              => true
+        case Cons(head, tail) => if f(head) then all(tail)(f) else false
 
     /** Returns the length of the list */
-    def length[A](lst: List[A]): BigInt = foldLeft(lst, BigInt(0))((acc, _) => acc + 1)
+    def length[A](lst: List[A]): BigInt = {
+        @tailrec
+        def count(lst: List[A], counter: BigInt): BigInt = lst match
+            case Nil           => counter
+            case Cons(_, tail) => count(tail, counter + 1)
+
+        count(lst, BigInt(0))
+    }
+
+    @tailrec
+    private def toList[A](
+        src: List[A],
+        listBuffer: mutable.ListBuffer[A] = mutable.ListBuffer.empty[A]
+    ): immutable.List[A] =
+        src match
+            case Nil              => listBuffer.result()
+            case Cons(head, tail) => toList(tail, listBuffer.addOne(head))
 
 enum Maybe[+A]:
     case Nothing extends Maybe[Nothing]
