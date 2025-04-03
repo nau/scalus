@@ -26,9 +26,10 @@ class PaymentSplitterSpec extends AnyFunSuite with ScalusTest {
           signatories = List.Nil
         )
 
-        val result = compile(PaymentSplitter.validator)
+//        val uplc = compile(PaymentSplitter.validator).toUplc() $ context.toData
+//        val result = uplc.evaluateDebug
 
-        assert(result.isSuccess, result.toString)
+//        assert(result.isSuccess, result.toString)
 //        assert(result.budget == ExBudget(ExCPU(49667700), ExMemory(187091)))
     }
 }

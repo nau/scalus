@@ -52,7 +52,10 @@ trait ScalusTest {
           ),
           redeemer = redeemer,
           scriptInfo = ScriptInfo.SpendingScript(
-            txOutRef = TxOutRef(TxId(hex"1e0612fbd127baddfcd555706de96b46c4d4363ac78c73ab4dee6e6a7bf61fe9"), 0),
+            txOutRef = TxOutRef(
+              TxId(hex"1e0612fbd127baddfcd555706de96b46c4d4363ac78c73ab4dee6e6a7bf61fe9"),
+              0
+            ),
             datum = Option.Some(datum)
           )
         )

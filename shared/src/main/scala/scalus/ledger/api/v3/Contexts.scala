@@ -39,6 +39,7 @@ export scalus.ledger.api.v1.TokenName
 export scalus.ledger.api.v1.ValidatorHash
 export scalus.ledger.api.v1.Value
 export scalus.ledger.api.v2.TxOut
+export scalus.prelude.Prelude.*
 
 @Compile
 object FromDataInstances {
@@ -103,6 +104,11 @@ case class TxOutRef(
     id: TxId,
     idx: BigInt
 )
+
+@Compile
+object TxOutRef {
+    given Eq[TxOutRef] = (a: TxOutRef, b: TxOutRef) => ???
+}
 
 type Lovelace = BigInt
 type ColdCommitteeCredential = Credential
@@ -225,6 +231,10 @@ case class TxInfo(
     currentTreasuryAmount: Option[Lovelace],
     treasuryDonation: Option[Lovelace]
 )
+
+object TxInfo {
+//    def placeholder: TxInfo = TxInfo()
+}
 
 case class ScriptContext(
     txInfo: TxInfo,

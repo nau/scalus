@@ -57,6 +57,10 @@ object Prelude {
     }
 
     inline def log(msg: String): Unit = trace(msg)(())
+
+    extension (b: Boolean)
+        inline infix def orFail(inline message: String): Unit =
+            if b then () else fail(message)
 }
 
 import Prelude.*
@@ -75,9 +79,9 @@ import Prelude.*
 inline def require(inline requirement: Boolean, inline message: String): Unit =
     if !requirement then throw new IllegalArgumentException(message)
 
-inline def error(inline message: String): Nothing = throw new RuntimeException(message)
+inline def fail(inline message: String): Nothing = throw new RuntimeException(message)
 
-inline def error(): Nothing = throw new RuntimeException()
+inline def fail(): Nothing = throw new RuntimeException()
 
 enum List[+A]:
     case Nil extends List[Nothing]
@@ -117,6 +121,8 @@ object List:
     extension [A](self: List[A])
         inline def !!(idx: BigInt): A = self.getByIndex(idx)
 
+        def groupBy[B](f: A => B): AssocMap[B, List[A]] = ???
+
         def isEmpty: Boolean = self match
             case Nil        => true
             case Cons(_, _) => false
@@ -134,6 +140,8 @@ object List:
 
             go(0, self)
         }
+
+        def contains(what: A): Boolean = ???
 
         /** Adds an element at the beginning of this list */
         def prepended[B >: A](head: B): List[B] = Cons(head, self)
@@ -182,6 +190,8 @@ object List:
 
         def size: BigInt = length
 
+        def head: A = ???
+
         @Ignore
         def toScalaList: immutable.List[A] = {
             if (self.isEmpty) then return immutable.List.empty[A]
@@ -224,6 +234,14 @@ object Option {
 
         inline def getOrFail(inline message: String = "None.getOrFail"): A = self match
             case None        => throw new NoSuchElementException(message)
+            case Some(value) => value
+
+        inline infix def orFail(inline message: String = "None.getOrFail"): Unit = self match
+            case None    => throw new NoSuchElementException(message)
+            case Some(_) => ()
+
+        inline def get: A = self match
+            case None        => throw new NoSuchElementException()
             case Some(value) => value
 
         /** Converts a `Option` to an [[scala.Option]] */
