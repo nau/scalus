@@ -79,6 +79,9 @@ import Prelude.*
 inline def require(inline requirement: Boolean, inline message: String): Unit =
     if !requirement then throw new IllegalArgumentException(message)
 
+inline def require(inline requirement: Boolean): Unit =
+    if !requirement then throw new IllegalArgumentException()
+
 inline def fail(inline message: String): Nothing = throw new RuntimeException(message)
 
 inline def fail(): Nothing = throw new RuntimeException()

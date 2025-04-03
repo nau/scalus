@@ -15,8 +15,6 @@ import scalus.prelude.{List, *}
 import scalus.prelude.Prelude.*
 import List.*
 
-case class Redeemer(message: ByteString)
-
 @Compile
 object PaymentSplitter {
     type PayeeHash = ByteString
@@ -72,8 +70,15 @@ object PaymentSplitter {
         val splitEqualy = outputValues.inner.forall: (cred, value) =>
             value === splitValue
         splitEqualy orFail "NOPE"
+//        require(outputCredentials)
 
         /*
+        NOTE: This code allows non-unique payess, messing up payments
+
+        let has_no_additional_payees =
+          list.difference(list.unique(output_credentials), payees) == []
+
+
          * Alice: 10
               Bob: 10
               Charlie: 10
