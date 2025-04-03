@@ -26,7 +26,7 @@ trait ScalusTest {
             val appliedScript = script $ scriptContext.toData
             appliedScript.evaluateDebug
 
-    protected def makeScriptContext(
+    protected def makeSpendingScriptContext(
         datum: Data,
         redeemer: Redeemer,
         signatories: List[PubKeyHash]
@@ -36,7 +36,7 @@ trait ScalusTest {
             inputs = List.Nil,
             referenceInputs = List.Nil,
             outputs = List.Nil,
-            fee = BigInt("188021"),
+            fee = BigInt(188021),
             mint = Value.zero,
             certificates = List.Nil,
             withdrawals = AssocMap.empty,
@@ -52,7 +52,7 @@ trait ScalusTest {
           ),
           redeemer = redeemer,
           scriptInfo = ScriptInfo.SpendingScript(
-            txOutRef = TxOutRef(TxId(hex"deadbeef"), 0),
+            txOutRef = TxOutRef(TxId(hex"1e0612fbd127baddfcd555706de96b46c4d4363ac78c73ab4dee6e6a7bf61fe9"), 0),
             datum = Option.Some(datum)
           )
         )

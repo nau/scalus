@@ -75,6 +75,10 @@ import Prelude.*
 inline def require(inline requirement: Boolean, inline message: String): Unit =
     if !requirement then throw new IllegalArgumentException(message)
 
+inline def error(inline message: String): Nothing = throw new RuntimeException(message)
+
+inline def error(): Nothing = throw new RuntimeException()
+
 enum List[+A]:
     case Nil extends List[Nothing]
     case Cons(head: A, tail: List[A]) extends List[A]

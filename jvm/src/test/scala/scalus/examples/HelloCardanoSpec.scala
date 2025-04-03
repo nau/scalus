@@ -22,7 +22,7 @@ class HelloCardanoSpec extends AnyFunSuite with ScalusTest {
         val ownerPubKey =
             PubKeyHash(hex"1234567890abcdef1234567890abcdef1234567890abcdef1234567890abcdef")
         val message = "Hello, Cardano!".toData
-        val context = makeScriptContext(
+        val context = makeSpendingScriptContext(
           datum = ownerPubKey.toData,
           redeemer = message,
           signatories = List(ownerPubKey)
