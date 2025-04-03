@@ -143,6 +143,9 @@ object List:
 
         def contains(what: A): Boolean = ???
 
+        def groupMap = ???
+        def groupMapReduce = ???
+
         /** Adds an element at the beginning of this list */
         def prepended[B >: A](head: B): List[B] = Cons(head, self)
 
