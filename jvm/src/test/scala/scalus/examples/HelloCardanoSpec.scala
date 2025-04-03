@@ -1,5 +1,6 @@
 package scalus.examples
 
+import org.scalatest.funsuite.AnyFunSuite
 import scalus.*
 import scalus.Compiler.compile
 import scalus.builtin.ByteString.given
@@ -16,7 +17,7 @@ import scalus.uplc.eval.*
 
 import scala.language.implicitConversions
 
-class HelloCardanoSpec extends munit.FunSuite with ScalusTest {
+class HelloCardanoSpec extends AnyFunSuite with ScalusTest {
     test("Hello Cardano") {
         val ownerPubKey =
             PubKeyHash(hex"1234567890abcdef1234567890abcdef1234567890abcdef1234567890abcdef")
@@ -30,6 +31,6 @@ class HelloCardanoSpec extends munit.FunSuite with ScalusTest {
         val result = compile(HelloCardano.validator).runScript(context)
 
         assert(result.isSuccess)
-        assert(result.budget == ExBudget.fromCpuAndMemory(cpu = 49667700, memory = 187091))
+        assert(result.budget == ExBudget(ExCPU(49667700), ExMemory(187091)))
     }
 }
