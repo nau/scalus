@@ -149,12 +149,11 @@ object List:
         }
 
         @tailrec
-        def contains(what: A): Boolean = self match
+        def contains(what: A)(using eq: Eq[A]): Boolean = self match
             case Nil              => false
-            case Cons(head, tail) => if what == head then true else tail.contains(what)
+            case Cons(head, tail) => if what === head then true else tail.contains(what)
 
         def groupBy[K](f: A => K): AssocMap[K, List[A]] = {
-            @tailrec
             def go(list: List[A], map: AssocMap[K, List[A]]): AssocMap[K, List[A]] = ???
 
             go(self, AssocMap.empty[K, List[A]])
@@ -217,7 +216,7 @@ object List:
         def tail: List[A] = self match
             case Nil           => throw new NoSuchElementException("tail of empty list")
             case Cons(_, rest) => rest
-            
+
         def reverse: List[A] = {
             ???
         }

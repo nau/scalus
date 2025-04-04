@@ -20,39 +20,42 @@ object PaymentSplitter {
         val ctx: ScriptContext = scriptContext.to[ScriptContext]
         ctx.scriptInfo match
             case ScriptInfo.SpendingScript(txOutRef, _) =>
-                val payees = payeesData.toList.head.to[List[ByteString]]
+                val payees = payeesData.toList.head
+                    .to[List[ByteString]]
+                    .map(payee => Credential.PubKeyCredential(PubKeyHash(payee)))
                 spend(txOutRef, ctx.txInfo, payees)
             case _ => fail("Must be spending")
     }
 
-    def spend(myTxOutRef: TxOutRef, txInfo: TxInfo, payees: List[PayeeHash]): Unit = {
-        val groupedOutputs = txInfo.outputs.groupBy(_.address.credential)
-        val groupedInputs = txInfo.inputs.groupBy(_.resolved.address.credential)
-        val outputValues = AssocMap.map(groupedOutputs) { (credential, outputs) =>
-            val sum = outputs.foldLeft(Value.zero)((acc, txout) => acc + txout.value)
-            (credential, sum)
-        }
-        val inputValues = AssocMap.map(groupedInputs) { (credential, outputs) =>
-            val sum = outputs.foldLeft(Value.zero)((acc, txout) => acc + txout.resolved.value)
-            (credential, sum)
-        }
+    def spend(myTxOutRef: TxOutRef, txInfo: TxInfo, payees: List[Credential]): Unit = {
+        // aggregate outputs and their values
+        val outputValues =
+            val groupedOutputs = txInfo.outputs.groupBy(_.address.credential)
+            AssocMap.map(groupedOutputs) { (credential, outputs) =>
+                val sum = outputs.foldLeft(Value.zero)((acc, txout) => acc + txout.value)
+                (credential, sum)
+            }
         val ownInputCredential = txInfo.inputs
             .find(_.outRef === myTxOutRef)
             .getOrFail("Impossible: couldn't find own input")
             .resolved
             .address
             .credential
-        val (inputWithChangeCredential, inputWithChangeValue) = inputValues.inner match
+        val inputWithChange = txInfo.inputs match
             case List.Cons(firstInput, tail) =>
                 tail match
                     case List.Cons(secondInput, tail) =>
                         tail match
                             case List.Nil =>
-                                if firstInput._1 === ownInputCredential then
-                                    if payees.contains(secondInput._1) then secondInput
+                                if firstInput.resolved.address.credential === ownInputCredential
+                                then
+                                    if payees.contains(secondInput.resolved.address.credential) then
+                                        secondInput
                                     else fail("Only payees can trigger payout")
-                                else if secondInput._1 === ownInputCredential then
-                                    if payees.contains(firstInput._1) then firstInput
+                                else if secondInput.resolved.address.credential === ownInputCredential
+                                then
+                                    if payees.contains(firstInput.resolved.address.credential) then
+                                        firstInput
                                     else fail("Only payees can trigger payout")
                                 else fail("Impossible: one of the inputs must be the own input")
                             case _ => fail("Must be 2 inputs")
@@ -61,19 +64,18 @@ object PaymentSplitter {
 
         val (firstPayerCredential, firstPayerValue) = outputValues.inner.head
         val splitValue =
-            if firstPayerCredential !== inputWithChangeCredential then firstPayerValue
-            else firstPayerValue - inputWithChangeValue + Value.lovelace(txInfo.fee)
+            if firstPayerCredential !== inputWithChange.resolved.address.credential then
+                firstPayerValue
+            else firstPayerValue - inputWithChange.resolved.value + Value.lovelace(txInfo.fee)
 
         outputValues.inner.foldLeft(payees) { case (payees, (cred, value)) =>
             require(value === splitValue, "Split unequally")
+            // Here we require that all payees are being paid
+            // We expect the same order of outputs as listed in payees
             payees match
                 case List.Nil => fail("More outputs than payees")
                 case List.Cons(payee, tail) =>
-                    cred match
-                        case v1.Credential.PubKeyCredential(PubKeyHash(hash)) =>
-                            require(hash == payee, "Must pay to a payee")
-                        case v1.Credential.ScriptCredential(hash) =>
-                            require(hash == payee, "Must pay to a payee")
+                    require(cred === payee, "Must pay to a payee")
                     tail
         }
         /*
