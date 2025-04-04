@@ -117,7 +117,6 @@ class FromDataDerivationSpec
 
     test("derived FromData roundtrip works using Plutus uplc") {
         import ToDataBigRecord.given
-        import scalus.uplc.TermDSL.{*, given}
         given PlutusVM = PlutusVM.makePlutusV2VM()
         val sir = compile { (d: Data) => fromData[BigRecord](d).toData }
         val term = sir.toUplc()

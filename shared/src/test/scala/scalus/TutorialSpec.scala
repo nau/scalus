@@ -136,7 +136,6 @@ val fromDataExample = compile {
     }
 }
 
-import scalus.ledger.api.v1.PubKeyHash
 import scalus.ledger.api.v3.*
 import scalus.ledger.api.v3.FromDataInstances.given
 import scalus.prelude.List

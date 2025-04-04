@@ -1,19 +1,16 @@
 package scalus.examples
 
 import scalus.*
-import scalus.Compiler.compile
-import scalus.builtin.Data
-import scalus.builtin.ByteString
+import scalus.builtin.{ByteString, Data}
 import scalus.builtin.FromDataInstances.given
-import scalus.ledger.api.v1.FromDataInstances.given
+import scalus.ledger.api.v1.Value.{*, given}
 import scalus.ledger.api.v1.{Credential, Value}
-import Value.{*, given}
 import scalus.ledger.api.v3.FromDataInstances.given
-import scalus.ledger.api.v3.{PubKeyHash, ScriptContext, ScriptInfo, TxInfo, TxOutRef}
+import scalus.ledger.api.v3.{ScriptContext, ScriptInfo, TxInfo, TxOutRef}
 import scalus.ledger.api.v3.TxOutRef.given
-import scalus.prelude.{List, *}
+import scalus.prelude.List.*
 import scalus.prelude.Prelude.*
-import List.*
+import scalus.prelude.{List, *}
 
 @Compile
 object PaymentSplitter {
@@ -57,7 +54,6 @@ object PaymentSplitter {
                                     if payees.contains(a._1) then Option.Some(a) else fail("nahuy")
                                 else fail("DDD")
                             case _ => fail("BBB")
-                    case _ => fail("BBB")
             case _ => fail("BBB")
 
         val firstPayer = outputValues.inner.head

@@ -86,6 +86,12 @@ inline def fail(inline message: String): Nothing = throw new RuntimeException(me
 
 inline def fail(): Nothing = throw new RuntimeException()
 
+/** `???` can be used for marking methods that remain to be implemented.
+  * @throws NotImplementedError
+  *   when `???` is invoked.
+  */
+inline def ??? : Nothing = throw new NotImplementedError
+
 enum List[+A]:
     case Nil extends List[Nothing]
     case Cons(head: A, tail: List[A]) extends List[A]
@@ -200,7 +206,7 @@ object List:
 
         @Ignore
         def toScalaList: immutable.List[A] = {
-            if (self.isEmpty) then return immutable.List.empty[A]
+            if self.isEmpty then return immutable.List.empty[A]
 
             @tailrec
             def toListBuffer(
@@ -295,6 +301,7 @@ object AssocMap {
     def toList[A, B](map: AssocMap[A, B]): List[(A, B)] = map.inner
 
     def lookup[A: Eq, B](map: AssocMap[A, B])(key: A): Option[B] =
+        @tailrec
         def go(lst: List[(A, B)]): Option[B] = lst match
             case Nil => Option.None
             case Cons(pair, tail) =>

@@ -1,20 +1,16 @@
 package scalus
 
 import scalus.*
-import scalus.sir.SIR
-import scalus.builtin.ByteString.given
+import scalus.builtin.ByteString.*
 import scalus.builtin.Data.toData
-import scalus.builtin.ToDataInstances.given
 import scalus.builtin.{ByteString, Data, given}
 import scalus.ledger.api.v1.{Interval, PubKeyHash}
 import scalus.ledger.api.v3.ToDataInstances.given
-import scalus.ledger.api.v3.{*, given}
+import scalus.ledger.api.v3.*
 import scalus.prelude.*
+import scalus.sir.SIR
 import scalus.uplc.*
-import scalus.uplc.TermDSL.given
 import scalus.uplc.eval.*
-
-import scala.language.implicitConversions
 
 trait ScalusTest {
     protected given PlutusVM = PlutusVM.makePlutusV3VM()

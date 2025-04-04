@@ -148,17 +148,17 @@ lazy val scalusPlugin = project
               }
           }
       },
-      Compile / managedSources ++= {
-          val baseDir = baseDirectory.value / ".." / "shared" / "src" / "main" / "scala"
-          sharedFiles.map(file => baseDir / file)
-      },
-//      Compile / unmanagedSourceDirectories += (Compile / sourceDirectory).value / "shared" / "scala",
+//      Compile / managedSources ++= {
+//          val baseDir = baseDirectory.value / ".." / "shared" / "src" / "main" / "scala"
+//          sharedFiles.map(file => baseDir / file)
+//      },
+      Compile / unmanagedSourceDirectories += (Compile / sourceDirectory).value / "shared" / "scala",
       clean := {
           (Compile / clean).value
           streams.value.log.info("Cleaning shared files")
           IO.delete((Compile / sourceDirectory).value / "shared")
-      }
-//      Compile / compile := (Compile / compile).dependsOn(copySharedFiles).value
+      },
+      Compile / compile := (Compile / compile).dependsOn(copySharedFiles).value
     )
 
 // Used only for Scalus compiler plugin development

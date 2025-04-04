@@ -3,15 +3,14 @@ package scalus.sir
 import org.scalatest.funsuite.AnyFunSuite
 import scalus.*
 import scalus.Compiler.compile
-import scalus.builtin.*
-import scalus.builtin.given
 import scalus.builtin.ByteString.*
+import scalus.builtin.{*, given}
 import scalus.ledger.api.v3.*
 import scalus.prelude.*
 import scalus.uplc.Term
-import scalus.uplc.eval.PlutusVM
-import scalus.uplc.TermDSL.*
-import scalus.uplc.eval.Result
+import scalus.uplc.Term.*
+import scalus.uplc.eval.{PlutusVM, Result}
+
 import scala.language.implicitConversions
 
 @org.scalatest.Ignore

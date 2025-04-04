@@ -11,10 +11,7 @@ import scalus.builtin.FromData
 import scalus.builtin.ToData
 import scalus.ledger.api.v1.*
 import scalus.ledger.api.v2
-import scalus.prelude.AssocMap
-import scalus.prelude.List
-import scalus.prelude.Option
-import scalus.prelude.Rational
+import scalus.prelude.*
 
 export scalus.ledger.api.v1.Address
 export scalus.ledger.api.v1.Closure
@@ -47,7 +44,7 @@ object FromDataInstances {
     import scalus.ledger.api.v1.FromDataInstances.given
     import scalus.ledger.api.v2.FromDataInstances.given
 
-    given FromData[TxId] = (d: Data) => new TxId(d.toByteString)
+    given FromData[TxId] = (d: Data) => TxId(d.toByteString)
     given FromData[TxOutRef] = FromData.deriveCaseClass
     given FromData[DRep] = FromData.deriveEnum
     given FromData[Delegatee] = FromData.deriveEnum
@@ -68,7 +65,7 @@ object FromDataInstances {
         val pair = d.toConstr
         if pair.fst == BigInt(1) then
             val args = pair.snd
-            new SpendingScriptInfo(args.head.to[TxOutRef], args.tail.head.to[Option[Datum]])
+            SpendingScriptInfo(args.head.to[TxOutRef], args.tail.head.to[Option[Datum]])
         else throw new Exception("Invalid SpendingScriptInfo")
     given FromData[SpendingScriptContext] = FromData.deriveCaseClass
 }

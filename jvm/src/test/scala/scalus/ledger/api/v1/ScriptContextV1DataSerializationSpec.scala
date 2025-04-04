@@ -135,7 +135,6 @@ class ScriptContextV1DataSerializationSpec extends BaseValidatorSpec:
 
     test("deserialize ScriptContext V1 using Plutus") {
         import scalus.ledger.api.v1.ToDataInstances.given
-        import scalus.uplc.TermDSL.given
         given PlutusVM = PlutusVM.makePlutusV1VM(machineParamsV1)
         val program = Program.fromCborHex(deserializeContractV1)
         val applied = program $ scriptContextV1.toData
@@ -166,7 +165,6 @@ class ScriptContextV1DataSerializationSpec extends BaseValidatorSpec:
 
     test("deserialize ScriptContext V2 using Plutus") {
         import scalus.ledger.api.v2.ToDataInstances.given
-        import scalus.uplc.TermDSL.given
         given PlutusVM = PlutusVM.makePlutusV2VM(machineParamsV2)
         val program = Program.fromCborHex(deserializeContractV2)
         val applied = program $ scriptContextV2.toData

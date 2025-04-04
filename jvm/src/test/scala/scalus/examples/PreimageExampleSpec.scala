@@ -14,8 +14,6 @@ import scalus.ledger.api.v2.ToDataInstances.given
 import scalus.prelude.List
 import scalus.uplc.*
 import scalus.uplc.Term.*
-import scalus.uplc.TermDSL.given
-import scala.language.implicitConversions
 
 class PreimageExampleSpec extends BaseValidatorSpec {
     import scalus.builtin.ToDataInstances.given
