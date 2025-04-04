@@ -38,20 +38,22 @@ object PaymentSplitter {
             val sum = outputs.foldLeft(Value.zero)((acc, txout) => acc + txout.resolved.value)
             (credential, sum)
         }
-        val ownInput = txInfo.inputs.find(_.outRef === myTxOutRef).getOrFail("AAA")
+        val ownInput = txInfo.inputs
+            .find(_.outRef === myTxOutRef)
+            .getOrFail("Impossible: couldn't find own input")
         val (inputWithChangeCredential, inputWithChangeValue) = inputValues.inner match
-            case List.Cons(a, tail) =>
+            case List.Cons(firstInput, tail) =>
                 tail match
-                    case List.Cons(b, tail) =>
+                    case List.Cons(secondInput, tail) =>
                         tail match
                             case List.Nil =>
-                                if a._1 === ownInput.resolved.address.credential then
-                                    if payees.contains(b._1) then b
+                                if firstInput._1 === ownInput.resolved.address.credential then
+                                    if payees.contains(secondInput._1) then secondInput
                                     else fail("Only payees can trigger payout")
-                                else if b._1 === ownInput.resolved.address.credential then
-                                    if payees.contains(a._1) then a
+                                else if secondInput._1 === ownInput.resolved.address.credential then
+                                    if payees.contains(firstInput._1) then firstInput
                                     else fail("Only payees can trigger payout")
-                                else fail("DDD")
+                                else fail("Impossible: one of the inputs must be the own input")
                             case _ => fail("Must be 2 inputs")
                     case _ => fail("Must be 2 inputs")
             case _ => fail("Inputs can't be empty")
