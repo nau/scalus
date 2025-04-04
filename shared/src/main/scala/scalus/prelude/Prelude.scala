@@ -160,16 +160,16 @@ object List:
                     case Nil => acc
                     case Cons(head, tail) =>
                         val key = f(head)
-                        AssocMap.lookup(acc)(key) match
+                        acc.lookup(key) match
                             case None =>
-                                val newAcc = AssocMap.insert(acc)(key, List.single(head))
+                                val newAcc = acc.insert(key, List.single(head))
                                 go(tail, newAcc)
                             case Some(value) =>
                                 val newValue = value.prepended(head)
-                                val newAcc = AssocMap.insert(acc)(key, newValue)
+                                val newAcc = acc.insert(key, newValue)
                                 go(tail, newAcc)
 
-            AssocMap.map(go(self, AssocMap.empty[K, List[A]])) { (k, v) => (k, v.reverse) }
+            go(self, AssocMap.empty).map { (k, v) => (k, v.reverse) }
         }
 
         def groupMap[K: Eq, B](key: A => K)(f: A => B): AssocMap[K, List[B]] = {
@@ -180,16 +180,16 @@ object List:
                     case Cons(head, tail) =>
                         val k = key(head)
                         val v = f(head)
-                        AssocMap.lookup(acc)(k) match
+                        acc.lookup(k) match
                             case None =>
-                                val newAcc = AssocMap.insert(acc)(k, List.single(v))
+                                val newAcc = acc.insert(k, List.single(v))
                                 go(tail, newAcc)
                             case Some(value) =>
                                 val newValue = value.prepended(v)
-                                val newAcc = AssocMap.insert(acc)(k, newValue)
+                                val newAcc = acc.insert(k, newValue)
                                 go(tail, newAcc)
 
-            AssocMap.map(go(self, AssocMap.empty[K, List[B]])) { (k, v) => (k, v.reverse) }
+            go(self, AssocMap.empty).map { (k, v) => (k, v.reverse) }
         }
 
         def groupMapReduce[K: Eq, B](
@@ -202,16 +202,16 @@ object List:
                     case Cons(head, tail) =>
                         val k = key(head)
                         val v = f(head)
-                        AssocMap.lookup(acc)(k) match
+                        acc.lookup(k) match
                             case None =>
-                                val newAcc = AssocMap.insert(acc)(k, v)
+                                val newAcc = acc.insert(k, v)
                                 go(tail, newAcc)
                             case Some(value) =>
                                 val newValue = reduce(value, v)
-                                val newAcc = AssocMap.insert(acc)(k, newValue)
+                                val newAcc = acc.insert(k, newValue)
                                 go(tail, newAcc)
 
-            go(self, AssocMap.empty[K, B])
+            go(self, AssocMap.empty)
         }
 
         /** Adds an element at the beginning of this list */
@@ -286,7 +286,7 @@ object List:
         /** Converts a `List` to a [[scala.List]] */
         @Ignore
         def asScala: immutable.List[A] = {
-            if self.isEmpty then return immutable.List.empty[A]
+            if self.isEmpty then return immutable.List.empty
 
             @tailrec
             def toListBuffer(
@@ -297,7 +297,7 @@ object List:
                     case Nil              => listBuffer
                     case Cons(head, tail) => toListBuffer(tail, listBuffer.addOne(head))
 
-            toListBuffer(self, mutable.ListBuffer.empty[A]).toList
+            toListBuffer(self, mutable.ListBuffer.empty).toList
         }
 
 enum Option[+A]:
@@ -396,45 +396,54 @@ object AssocMap {
         def keys: List[A] = self.inner.map { case (k, _) => k }
         def values: List[B] = self.inner.map { case (_, v) => v }
         def toList: List[(A, B)] = self.inner
+        def map[C](f: ((A, B)) => (A, C)): AssocMap[A, C] = AssocMap(self.inner.map(f))
+        def all(f: ((A, B)) => Boolean): Boolean = self.inner.forall(f)
 
-    def lookup[A: Eq, B](map: AssocMap[A, B])(key: A): Option[B] =
-        @tailrec
-        def go(lst: List[(A, B)]): Option[B] = lst match
-            case Nil => Option.None
-            case Cons(pair, tail) =>
-                pair match
-                    case (k, v) => if k === key then Option.Some(v) else go(tail)
-        go(map.inner)
+    extension [A: Eq, B](self: AssocMap[A, B])
+        def lookup(key: A): Option[B] = {
+            @tailrec
+            def go(lst: List[(A, B)]): Option[B] = lst match
+                case Nil => Option.None
+                case Cons(pair, tail) =>
+                    pair match
+                        case (k, v) => if k === key then Option.Some(v) else go(tail)
 
-    def insert[A: Eq, B](map: AssocMap[A, B])(key: A, value: B): AssocMap[A, B] =
-        def go(lst: List[(A, B)]): List[(A, B)] = lst match
-            case Nil => List.Cons((key, value), List.Nil)
-            case Cons(pair, tail) =>
-                pair match
-                    case (k, v) =>
-                        if k === key then List.Cons((key, value), tail)
-                        else List.Cons(pair, go(tail))
-        AssocMap(go(map.inner))
+            go(self.inner)
+        }
 
-    def delete[A: Eq, B](map: AssocMap[A, B])(key: A): AssocMap[A, B] =
-        def go(lst: List[(A, B)]): List[(A, B)] = lst match
-            case Nil => List.Nil
-            case Cons(pair, tail) =>
-                pair match
-                    case (k, v) =>
-                        if k === key then tail else List.Cons(pair, go(tail))
-        AssocMap(go(map.inner))
+        def insert(key: A, value: B): AssocMap[A, B] = {
+            def go(lst: List[(A, B)]): List[(A, B)] = lst match
+                case Nil => List.Cons((key, value), List.Nil)
+                case Cons(pair, tail) =>
+                    pair match
+                        case (k, v) =>
+                            if k === key then List.Cons((key, value), tail)
+                            else List.Cons(pair, go(tail))
+
+            AssocMap(go(self.inner))
+        }
+
+        def delete(key: A): AssocMap[A, B] = {
+            def go(lst: List[(A, B)]): List[(A, B)] = lst match
+                case Nil => List.Nil
+                case Cons(pair, tail) =>
+                    pair match
+                        case (k, v) =>
+                            if k === key then tail else List.Cons(pair, go(tail))
+
+            AssocMap(go(self.inner))
+        }
 
     def union[A: Eq, B, C](
         lhs: AssocMap[A, B],
         rhs: AssocMap[A, C]
-    ): AssocMap[A, These[B, C]] =
+    ): AssocMap[A, These[B, C]] = {
         def go(lst: List[(A, B)]): List[(A, These[B, C])] = lst match
             case Nil => List.Nil
             case Cons(pair, tail) =>
                 pair match
                     case (k, v) =>
-                        val optionR = AssocMap.lookup(rhs)(k)
+                        val optionR = rhs.lookup(k)
                         val these = optionR match
                             case None    => These.This(v)
                             case Some(r) => These.These(v, r)
@@ -447,12 +456,7 @@ object AssocMap {
 
         val rhsThat = rhsNotInLhs.map { case (k, v) => (k, These.That(v)) }
         AssocMap(lhs1.appendedAll(rhsThat))
-
-    def map[A, B, C](map: AssocMap[A, B])(f: ((A, B)) => (A, C)): AssocMap[A, C] =
-        AssocMap(map.inner.map(f))
-
-    def all[A, B](map: AssocMap[A, B])(f: ((A, B)) => Boolean): Boolean =
-        map.inner.forall(f)
+    }
 }
 
 case class Rational(numerator: BigInt, denominator: BigInt)
