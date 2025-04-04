@@ -32,6 +32,8 @@ class PaymentSplitterSpec extends AnyFunSuite with ScalusTest {
 
         val program = compile(PaymentSplitter.validator).toUplc().plutusV3 $ payees $ context
 
+        println(program.flatEncoded.length)
+
         val result = program.evaluateDebug
 
         assert(result.isSuccess, clue = result.toString)
