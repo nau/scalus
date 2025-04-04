@@ -30,41 +30,40 @@ object PaymentSplitter {
 
         val groupedOutputs = txInfo.outputs.groupBy(_.address.credential)
         val groupedInputs = txInfo.inputs.groupBy(_.resolved.address.credential)
-        val outputValues = AssocMap.map(groupedOutputs): (credential, outputs) =>
+        val outputValues = AssocMap.map(groupedOutputs) { (credential, outputs) =>
             val sum = outputs.foldLeft(Value.zero)((acc, txout) => acc + txout.value)
             (credential, sum)
-        val inputValues = AssocMap.map(groupedInputs): (credential, outputs) =>
+        }
+        val inputValues = AssocMap.map(groupedInputs) { (credential, outputs) =>
             val sum = outputs.foldLeft(Value.zero)((acc, txout) => acc + txout.resolved.value)
             (credential, sum)
-        val myInput = txInfo.inputs.find(_.outRef === myTxOutRef).getOrFail("AAA")
-
-        val inputWithFee: Option[(Credential, Value)] = inputValues.inner match
+        }
+        val ownInput = txInfo.inputs.find(_.outRef === myTxOutRef).getOrFail("AAA")
+        val inputWithChange: Option[(Credential, Value)] = inputValues.inner match
             case List.Cons(a, tail) =>
                 tail match
-                    case List.Nil =>
-                        // the only input is our script
-                        a._1 === myInput.resolved.address.credential orFail "CCC"
-                        Option.None
                     case List.Cons(b, tail) =>
                         tail match
                             case List.Nil =>
-                                if a._1 === myInput.resolved.address.credential then
+                                if a._1 === ownInput.resolved.address.credential then
                                     if payees.contains(b._1) then Option.Some(b) else fail("nahuy")
-                                else if b._1 === myInput.resolved.address.credential then
+                                else if b._1 === ownInput.resolved.address.credential then
                                     if payees.contains(a._1) then Option.Some(a) else fail("nahuy")
                                 else fail("DDD")
-                            case _ => fail("BBB")
-            case _ => fail("BBB")
+                            case _ => fail("Must be 2 inputs")
+                    case _ => fail("Must be 2 inputs")
+            case _ => fail("Inputs can't be empty")
 
-        val firstPayer = outputValues.inner.head
-        val splitValue = inputWithFee match
-            case Option.None => firstPayer._2
-            case Option.Some(inputWithFee) =>
-                if firstPayer._1 !== inputWithFee._1 then firstPayer._2
-                else firstPayer._2 - inputWithFee._2 + Value.lovelace(txInfo.fee)
+        val (firstPayerCredential, firstPayerValue) = outputValues.inner.head
+        val splitValue = inputWithChange match
+            case Option.None => firstPayerValue
+            case Option.Some((inputWithFeeCredential, inputWithFeeValue)) =>
+                if firstPayerCredential !== inputWithFeeCredential then firstPayerValue
+                else firstPayerValue - inputWithFeeValue + Value.lovelace(txInfo.fee)
 
-        val splitEqualy = outputValues.inner.forall: (cred, value) =>
+        val splitEqualy = outputValues.inner.forall { (_, value) =>
             value === splitValue
+        }
         splitEqualy orFail "NOPE"
 //        require(outputCredentials)
 
