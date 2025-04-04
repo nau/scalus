@@ -39,27 +39,27 @@ object PaymentSplitter {
             (credential, sum)
         }
         val ownInput = txInfo.inputs.find(_.outRef === myTxOutRef).getOrFail("AAA")
-        val inputWithChange: Option[(Credential, Value)] = inputValues.inner match
+        val (inputWithChangeCredential, inputWithChangeValue) = inputValues.inner match
             case List.Cons(a, tail) =>
                 tail match
                     case List.Cons(b, tail) =>
                         tail match
                             case List.Nil =>
                                 if a._1 === ownInput.resolved.address.credential then
-                                    if payees.contains(b._1) then Option.Some(b) else fail("nahuy")
+                                    if payees.contains(b._1) then b
+                                    else fail("Only payees can trigger payout")
                                 else if b._1 === ownInput.resolved.address.credential then
-                                    if payees.contains(a._1) then Option.Some(a) else fail("nahuy")
+                                    if payees.contains(a._1) then a
+                                    else fail("Only payees can trigger payout")
                                 else fail("DDD")
                             case _ => fail("Must be 2 inputs")
                     case _ => fail("Must be 2 inputs")
             case _ => fail("Inputs can't be empty")
 
         val (firstPayerCredential, firstPayerValue) = outputValues.inner.head
-        val splitValue = inputWithChange match
-            case Option.None => firstPayerValue
-            case Option.Some((inputWithFeeCredential, inputWithFeeValue)) =>
-                if firstPayerCredential !== inputWithFeeCredential then firstPayerValue
-                else firstPayerValue - inputWithFeeValue + Value.lovelace(txInfo.fee)
+        val splitValue =
+            if firstPayerCredential !== inputWithChangeCredential then firstPayerValue
+            else firstPayerValue - inputWithChangeValue + Value.lovelace(txInfo.fee)
 
         val splitEqualy = outputValues.inner.forall { (_, value) =>
             value === splitValue
