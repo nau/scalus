@@ -22,7 +22,27 @@ class PaymentSplitterSpec extends AnyFunSuite with ScalusTest {
     val txId = TxId(hex"1e0612fbd127baddfcd555706de96b46c4d4363ac78c73ab4dee6e6a7bf61fe9")
     val scriptHash = hex"1e0612fbd127baddfcd555706de96b46c4d4363ac78c73ab4dee6e6a"
 
-    def makeScriptContext(scriptHash: ByteString): ScriptContext =
+    test("success when payments are correctly split") {
+        val context = makeScriptContext(scriptHash).toData
+        val payees = List(
+          List(
+            hex"1234567890abcdef1234567890abcdef1234567890abcdef12345678"
+          )
+        ).toData
+//      uncomment for debugging
+        PaymentSplitter.validator(payees)(context)
+
+        val program = compile(PaymentSplitter.validator).toUplc().plutusV3 $ payees $ context
+
+        println(program.flatEncoded.length)
+
+        val result = program.evaluateDebug
+
+        assert(result.isSuccess, clue = result.toString)
+        assert(result.budget == ExBudget(ExCPU(106090673), ExMemory(440616)))
+    }
+
+    private def makeScriptContext(scriptHash: ByteString): ScriptContext =
         ScriptContext(
           txInfo = TxInfo(
             inputs = List(
@@ -83,23 +103,4 @@ class PaymentSplitterSpec extends AnyFunSuite with ScalusTest {
               ScriptInfo.SpendingScript(txOutRef = TxOutRef(lockTxId, 0), datum = Option.None)
         )
 
-    test("success when payments are correctly split") {
-        val context = makeScriptContext(scriptHash).toData
-        val payees = List(
-          List(
-            hex"1234567890abcdef1234567890abcdef1234567890abcdef12345678"
-          )
-        ).toData
-//      uncomment for debugging
-        PaymentSplitter.validator(payees)(context)
-
-        val program = compile(PaymentSplitter.validator).toUplc().plutusV3 $ payees $ context
-
-        println(program.flatEncoded.length)
-
-        val result = program.evaluateDebug
-
-        assert(result.isSuccess, clue = result.toString)
-        assert(result.budget == ExBudget(ExCPU(106090673), ExMemory(440616)))
-    }
 }

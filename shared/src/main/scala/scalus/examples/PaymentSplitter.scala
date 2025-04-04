@@ -14,7 +14,6 @@ import scalus.prelude.Prelude.*
 
 @Compile
 object PaymentSplitter {
-    type PayeeHash = ByteString
     def validator(payeesData: Data)(scriptContext: Data): Unit = {
         val ctx: ScriptContext = scriptContext.to[ScriptContext]
         ctx.scriptInfo match
@@ -59,7 +58,7 @@ object PaymentSplitter {
                 firstOutput.value.lovelace
             else firstOutput.value.lovelace - inputWithChange.value.lovelace + txInfo.fee
 
-        txInfo.outputs.foldLeft(payees) { case (payees, output) =>
+        val unpaidPayees = txInfo.outputs.foldLeft(payees) { case (payees, output) =>
             require(output.value.lovelace == splitValue, "Split unequally")
             // Here we require that all payees are being paid
             // We expect the same order of outputs as listed in payees
@@ -69,6 +68,8 @@ object PaymentSplitter {
                     require(output.address.credential === payee, "Must pay to a payee")
                     tail
         }
+        require(unpaidPayees.isEmpty, "Not all payees were paid")
+
         /*
         NOTE: This code allows non-unique payess, messing up payments
 
