@@ -89,7 +89,7 @@ class AssocMapSpec extends AnyFunSuite with ScalaCheckPropertyChecks with Arbitr
     test("insert") {
         check { (map: AssocMap[BigInt, BigInt], k: BigInt, v: BigInt) =>
             val m1 = AssocMap.insert(map)(k, v)
-            val lst1 = AssocMap.toList(m1).toScalaList
+            val lst1 = AssocMap.toList(m1).asScala
             lst1.contains((k, v))
         }
     }

@@ -251,7 +251,7 @@ class TxEvaluator(
                 else throw new IllegalStateException(s"Cert not found: $index in $certs")
 
             case RedeemerTag.Reward =>
-                val withdrawals = getWithdrawals(tx.getBody.getWithdrawals).toScalaList
+                val withdrawals = getWithdrawals(tx.getBody.getWithdrawals).asScala
                 if withdrawals.isDefinedAt(index) then
                     withdrawals(index) match
                         case (
@@ -652,9 +652,9 @@ object TxEvaluator {
         val procedure = Interop.getProposalProcedureV3(propose)
         procedure.governanceAction match
             case v3.GovernanceAction.ParameterChange(_, _, constitutionScript) =>
-                constitutionScript.toScalaOption
+                constitutionScript.asScala
             case v3.GovernanceAction.TreasuryWithdrawals(_, constitutionScript) =>
-                constitutionScript.toScalaOption
+                constitutionScript.asScala
             case _ => None
     }
 

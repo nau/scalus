@@ -870,7 +870,7 @@ object Interop {
     def getScriptInfoV3(tx: Transaction, redeemer: Redeemer, datum: Option[Data]): v3.ScriptInfo = {
         getScriptPurposeV3(tx, redeemer) match
             case v3.ScriptPurpose.Spending(ref) =>
-                v3.ScriptInfo.SpendingScript(ref, prelude.Option.fromScalaOption(datum))
+                v3.ScriptInfo.SpendingScript(ref, prelude.Option.asScalus(datum))
             case v3.ScriptPurpose.Minting(policyId) =>
                 v3.ScriptInfo.MintingScript(policyId)
             case v3.ScriptPurpose.Certifying(index, cert) =>

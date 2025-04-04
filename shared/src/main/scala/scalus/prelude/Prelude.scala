@@ -226,8 +226,9 @@ object List:
             case Nil              => ()
             case Cons(head, tail) => f(head); tail.foreach(f)
 
+        /** Converts a `List` to a [[scala.List]] */
         @Ignore
-        def toScalaList: immutable.List[A] = {
+        def asScala: immutable.List[A] = {
             if self.isEmpty then return immutable.List.empty[A]
 
             @tailrec
@@ -278,9 +279,9 @@ object Option {
             case None        => throw new NoSuchElementException("None.get")
             case Some(value) => value
 
-        /** Converts a `Option` to an [[scala.Option]] */
+        /** Converts an `Option` to a [[scala.Option]] */
         @Ignore
-        def toScalaOption: scala.Option[A] = self match
+        def asScala: scala.Option[A] = self match
             case None    => scala.None
             case Some(a) => scala.Some(a)
 
@@ -296,11 +297,12 @@ object Option {
             case None    => None
             case Some(a) => a
 
-    /** Converts an [[scala.Option]] to a `Option` */
-    @Ignore
-    def fromScalaOption[A](o: scala.Option[A]): Option[A] = o match
-        case scala.None    => None
-        case scala.Some(a) => Some(a)
+    extension [A](self: scala.Option[A])
+        /** Converts a [[scala.Option]] to an `Option` */
+        @Ignore
+        def asScalus: Option[A] = o match
+            case scala.None    => None
+            case scala.Some(a) => Some(a)
 
     given optionEq[A](using eq: Eq[A]): Eq[Option[A]] = (a: Option[A], b: Option[A]) =>
         a match

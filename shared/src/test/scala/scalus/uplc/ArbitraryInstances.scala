@@ -284,7 +284,7 @@ trait ArbitraryInstances:
 
     given arbOption[A: Arbitrary]: Arbitrary[scalus.prelude.Option[A]] = Arbitrary {
         for o <- Arbitrary.arbitrary[Option[A]]
-        yield scalus.prelude.Option.fromScalaOption(o)
+        yield scalus.prelude.Option.asScalus(o)
     }
 
     given arbAssocMap[A: Arbitrary, B: Arbitrary]: Arbitrary[scalus.prelude.AssocMap[A, B]] =

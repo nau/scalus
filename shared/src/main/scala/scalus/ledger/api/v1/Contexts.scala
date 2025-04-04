@@ -441,8 +441,8 @@ case class TxInfo(
 ) {
     override def toString: String = {
         s"""TxInfo(
-           |  inputs: ${inputs.toScalaList.mkString("[", ", ", "]")},
-           |  outputs: ${outputs.toScalaList.mkString("[", ", ", "]")},
+           |  inputs: ${inputs.asScala.mkString("[", ", ", "]")},
+           |  outputs: ${outputs.asScala.mkString("[", ", ", "]")},
            |  fee: ${Value.debugToString(fee)},
            |  mint: ${Value.debugToString(mint)},
            |  dcert: $dcert,
