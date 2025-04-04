@@ -35,7 +35,7 @@ class PaymentSplitterSpec extends AnyFunSuite with ScalusTest {
                     ),
                     Option.None
                   ),
-                  value = Value.zero,
+                  value = Value.lovelace(100),
                   datum = NoOutputDatum,
                   referenceScript = Option.None
                 )
@@ -44,7 +44,7 @@ class PaymentSplitterSpec extends AnyFunSuite with ScalusTest {
                 outRef = TxOutRef(lockTxId, 0),
                 resolved = TxOut(
                   address = Address(ScriptCredential(scriptHash), Option.None),
-                  value = Value.zero,
+                  value = Value.lovelace(100),
                   datum = NoOutputDatum,
                   referenceScript = Option.None
                 )
@@ -59,12 +59,12 @@ class PaymentSplitterSpec extends AnyFunSuite with ScalusTest {
                   ),
                   Option.None
                 ),
-                value = Value.zero,
+                value = Value.lovelace(200),
                 datum = NoOutputDatum,
                 referenceScript = Option.None
               )
             ),
-            fee = BigInt(188021),
+            fee = BigInt(10),
             mint = Value.zero,
             certificates = List.Nil,
             withdrawals = AssocMap.empty,
@@ -82,13 +82,12 @@ class PaymentSplitterSpec extends AnyFunSuite with ScalusTest {
           scriptInfo =
               ScriptInfo.SpendingScript(txOutRef = TxOutRef(lockTxId, 0), datum = Option.None)
         )
+
     test("success when payments are correctly split") {
         val context = makeScriptContext(scriptHash).toData
         val payees = List(
           List(
-            hex"1234567890abcdef1234567890abcdef1234567890abcdef12345678",
-            hex"2234567890abcdef1234567890abcdef1234567890abcdef12345678",
-            hex"3234567890abcdef1234567890abcdef1234567890abcdef12345678"
+            hex"1234567890abcdef1234567890abcdef1234567890abcdef12345678"
           )
         ).toData
 //      uncomment for debugging

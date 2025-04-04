@@ -48,7 +48,7 @@ object PaymentSplitter {
 
         val splitValue =
             val firstOutput = txInfo.outputs.head
-            if firstOutput.address.credential !== inputWithChange.address.credential then
+            if firstOutput.address.credential === inputWithChange.address.credential then
                 firstOutput.value
             else firstOutput.value - inputWithChange.value + Value.lovelace(txInfo.fee)
 
