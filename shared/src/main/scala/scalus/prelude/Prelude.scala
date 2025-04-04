@@ -153,7 +153,7 @@ object List:
             case Nil              => false
             case Cons(head, tail) => if what === head then true else tail.contains(what)
 
-        def groupBy[K](f: A => K): AssocMap[K, List[A]] = {
+        def groupBy[K: Eq](f: A => K): AssocMap[K, List[A]] = {
             @tailrec
             def go(list: List[A], acc: AssocMap[K, List[A]]): AssocMap[K, List[A]] =
                 list match
@@ -169,10 +169,10 @@ object List:
                                 val newAcc = AssocMap.insert(acc)(key, newValue)
                                 go(tail, newAcc)
 
-            go(self, AssocMap.empty[K, List[A]]).map { (k, v) => (k, v.reverse) }
+            AssocMap.map( go(self, AssocMap.empty[K, List[A]]) ) { (k, v) => (k, v.reverse) }
         }
 
-        def groupMap[K, B](key: A => K)(f: A => B): AssocMap[K, List[B]] = {
+        def groupMap[K: Eq, B](key: A => K)(f: A => B): AssocMap[K, List[B]] = {
             @tailrec
             def go(list: List[A], acc: AssocMap[K, List[B]]): AssocMap[K, List[B]] =
                 list match
@@ -189,10 +189,10 @@ object List:
                                 val newAcc = AssocMap.insert(acc)(k, newValue)
                                 go(tail, newAcc)
 
-            go(self, AssocMap.empty[K, List[B]]).map { (k, v) => (k, v.reverse) }
+            AssocMap.map( go(self, AssocMap.empty[K, List[B]]) ) { (k, v) => (k, v.reverse) }
         }
 
-        def groupMapReduce[K, B](key: A => K)(f: A => B)(reduce: (B, B) => B): AssocMap[K, B] = {
+        def groupMapReduce[K: Eq, B](key: A => K)(f: A => B)(reduce: (B, B) => B): AssocMap[K, B] = {
             @tailrec
             def go(list: List[A], acc: AssocMap[K, B]): AssocMap[K, B] =
                 list match
@@ -355,7 +355,7 @@ object Option {
     extension [A](self: scala.Option[A])
         /** Converts a [[scala.Option]] to an `Option` */
         @Ignore
-        def asScalus: Option[A] = o match
+        def asScalus: Option[A] = self match
             case scala.None    => None
             case scala.Some(a) => Some(a)
 
