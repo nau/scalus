@@ -104,7 +104,7 @@ case class TxOutRef(
 
 @Compile
 object TxOutRef {
-    given Eq[TxOutRef] = (a: TxOutRef, b: TxOutRef) => ???
+    given Eq[TxOutRef] = (a: TxOutRef, b: TxOutRef) => a.id.hash == b.id.hash && a.idx == b.idx
 }
 
 type Lovelace = BigInt

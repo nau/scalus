@@ -28,13 +28,6 @@ object PaymentSplitter {
     }
 
     def spend(ownScriptRef: TxOutRef, txInfo: TxInfo, payees: List[Credential]): Unit = {
-        // aggregate outputs and their values
-        val outputValues =
-            val groupedOutputs = txInfo.outputs.groupBy(_.address.credential)
-            AssocMap.map(groupedOutputs) { (credential, outputs) =>
-                val sum = outputs.foldLeft(Value.zero)((acc, txout) => acc + txout.value)
-                (credential, sum)
-            }
         val inputWithChange = txInfo.inputs match
             case List.Cons(firstInput, tail) =>
                 tail match
@@ -59,14 +52,14 @@ object PaymentSplitter {
                 firstOutput.value
             else firstOutput.value - inputWithChange.value + Value.lovelace(txInfo.fee)
 
-        outputValues.inner.foldLeft(payees) { case (payees, (cred, value)) =>
-            require(value === splitValue, "Split unequally")
+        txInfo.outputs.foldLeft(payees) { case (payees, output) =>
+            require(output.value === splitValue, "Split unequally")
             // Here we require that all payees are being paid
             // We expect the same order of outputs as listed in payees
             payees match
                 case List.Nil => fail("More outputs than payees")
                 case List.Cons(payee, tail) =>
-                    require(cred === payee, "Must pay to a payee")
+                    require(output.address.credential === payee, "Must pay to a payee")
                     tail
         }
         /*
