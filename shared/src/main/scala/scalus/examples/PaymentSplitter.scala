@@ -3,8 +3,9 @@ package scalus.examples
 import scalus.*
 import scalus.builtin.{ByteString, Data}
 import scalus.builtin.FromDataInstances.given
+import scalus.ledger.api.v1
 import scalus.ledger.api.v1.Value.{*, given}
-import scalus.ledger.api.v1.{Credential, Value}
+import scalus.ledger.api.v1.{Credential, PubKeyHash, Value}
 import scalus.ledger.api.v3.FromDataInstances.given
 import scalus.ledger.api.v3.{ScriptContext, ScriptInfo, TxInfo, TxOutRef}
 import scalus.ledger.api.v3.TxOutRef.given
@@ -63,9 +64,17 @@ object PaymentSplitter {
             if firstPayerCredential !== inputWithChangeCredential then firstPayerValue
             else firstPayerValue - inputWithChangeValue + Value.lovelace(txInfo.fee)
 
-        outputValues.inner.foreach { (cred, value) =>
+        outputValues.inner.foldLeft(payees) { case (payees, (cred, value)) =>
             require(value === splitValue, "Split unequally")
-            require(payees.contains(cred), "Must pay to a payee")
+            payees match
+                case List.Nil => fail("More outputs than payees")
+                case List.Cons(payee, tail) =>
+                    cred match
+                        case v1.Credential.PubKeyCredential(PubKeyHash(hash)) =>
+                            require(hash == payee, "Must pay to a payee")
+                        case v1.Credential.ScriptCredential(hash) =>
+                            require(hash == payee, "Must pay to a payee")
+                    tail
         }
         /*
         NOTE: This code allows non-unique payess, messing up payments
