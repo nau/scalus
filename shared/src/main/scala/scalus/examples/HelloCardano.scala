@@ -15,16 +15,11 @@ object HelloCardano {
         val ctx = scriptContext.to[ScriptContext]
         ctx.scriptInfo match
             case ScriptInfo.SpendingScript(txOutRef, datum) =>
-                datum match
-                    case Option.Some(ownerDatum) =>
-                        val owner = ownerDatum.to[PubKeyHash]
-                        // must be mustBeSigned
-                        val mustBeSigned = ctx.txInfo.signatories.find { _.hash == owner.hash }
-                        mustBeSigned orFail "Must be mustBeSigned"
-                        val mustSayHello = ctx.redeemer.to[String] == "Hello, Cardano!"
-                        require(mustSayHello, "Fail")
-                        mustSayHello orFail "Fail"
-                    case Option.None => throw new Exception("Expected datum")
+                val owner = datum.getOrFail("Expected datum").to[PubKeyHash]
+                val mustBeSigned = ctx.txInfo.signatories.find { _.hash == owner.hash }
+                mustBeSigned orFail "Must be signed"
+                val mustSayHello = ctx.redeemer.to[String] == "Hello, Cardano!"
+                require(mustSayHello, "Invalid redeemer")
             case _ => throw new Exception("Invalid script type")
     }
 }

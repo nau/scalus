@@ -130,8 +130,6 @@ object List:
     extension [A](self: List[A])
         inline def !!(idx: BigInt): A = self.getByIndex(idx)
 
-        def groupBy[B](f: A => B): AssocMap[B, List[A]] = ???
-
         def isEmpty: Boolean = self match
             case Nil        => true
             case Cons(_, _) => false
@@ -150,7 +148,17 @@ object List:
             go(0, self)
         }
 
-        def contains(what: A): Boolean = ???
+        @tailrec
+        def contains(what: A): Boolean = self match
+            case Nil              => false
+            case Cons(head, tail) => if what == head then true else tail.contains(what)
+
+        def groupBy[K](f: A => K): AssocMap[K, List[A]] = {
+            @tailrec
+            def go(list: List[A], map: AssocMap[K, List[A]]): AssocMap[K, List[A]] = ???
+
+            go(self, AssocMap.empty[K, List[A]])
+        }
 
         def groupMap = ???
         def groupMapReduce = ???
@@ -202,7 +210,17 @@ object List:
 
         def size: BigInt = length
 
-        def head: A = ???
+        def head: A = self match
+            case Nil            => throw new NoSuchElementException("head of empty list")
+            case Cons(value, _) => value
+
+        def tail: List[A] = self match
+            case Nil           => throw new NoSuchElementException("tail of empty list")
+            case Cons(_, rest) => rest
+            
+        def reverse: List[A] = {
+            ???
+        }
 
         @tailrec
         def foreach(f: A => Unit): Unit = self match
@@ -253,12 +271,12 @@ object Option {
             case None        => throw new NoSuchElementException(message)
             case Some(value) => value
 
-        inline infix def orFail(inline message: String = "None.getOrFail"): Unit = self match
+        inline infix def orFail(inline message: String = "None.orFail"): Unit = self match
             case None    => throw new NoSuchElementException(message)
             case Some(_) => ()
 
         inline def get: A = self match
-            case None        => throw new NoSuchElementException()
+            case None        => throw new NoSuchElementException("None.get")
             case Some(value) => value
 
         /** Converts a `Option` to an [[scala.Option]] */
@@ -270,6 +288,14 @@ object Option {
         def map[B](f: A => B): Option[B] = self match
             case None    => None
             case Some(a) => Some(f(a))
+        def flatMap[B](f: A => Option[B]): Option[B] = self match
+            case None    => None
+            case Some(a) => f(a)
+
+    extension [A](self: Option[Option[A]])
+        def flatten: Option[A] = self match
+            case None    => None
+            case Some(a) => a
 
     /** Converts an [[scala.Option]] to a `Option` */
     @Ignore
