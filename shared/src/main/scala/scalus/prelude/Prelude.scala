@@ -169,7 +169,7 @@ object List:
                                 val newAcc = AssocMap.insert(acc)(key, newValue)
                                 go(tail, newAcc)
 
-            AssocMap.map( go(self, AssocMap.empty[K, List[A]]) ) { (k, v) => (k, v.reverse) }
+            AssocMap.map(go(self, AssocMap.empty[K, List[A]])) { (k, v) => (k, v.reverse) }
         }
 
         def groupMap[K: Eq, B](key: A => K)(f: A => B): AssocMap[K, List[B]] = {
@@ -189,10 +189,12 @@ object List:
                                 val newAcc = AssocMap.insert(acc)(k, newValue)
                                 go(tail, newAcc)
 
-            AssocMap.map( go(self, AssocMap.empty[K, List[B]]) ) { (k, v) => (k, v.reverse) }
+            AssocMap.map(go(self, AssocMap.empty[K, List[B]])) { (k, v) => (k, v.reverse) }
         }
 
-        def groupMapReduce[K: Eq, B](key: A => K)(f: A => B)(reduce: (B, B) => B): AssocMap[K, B] = {
+        def groupMapReduce[K: Eq, B](
+            key: A => K
+        )(f: A => B)(reduce: (B, B) => B): AssocMap[K, B] = {
             @tailrec
             def go(list: List[A], acc: AssocMap[K, B]): AssocMap[K, B] =
                 list match
