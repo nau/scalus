@@ -154,13 +154,63 @@ object List:
             case Cons(head, tail) => if what === head then true else tail.contains(what)
 
         def groupBy[K](f: A => K): AssocMap[K, List[A]] = {
-            def go(list: List[A], map: AssocMap[K, List[A]]): AssocMap[K, List[A]] = ???
+            @tailrec
+            def go(list: List[A], acc: AssocMap[K, List[A]]): AssocMap[K, List[A]] =
+                list match
+                    case Nil => acc
+                    case Cons(head, tail) =>
+                        val key = f(head)
+                        AssocMap.lookup(acc)(key) match
+                            case None =>
+                                val newAcc = AssocMap.insert(acc)(key, List.single(head))
+                                go(tail, newAcc)
+                            case Some(value) =>
+                                val newValue = value.prepended(head)
+                                val newAcc = AssocMap.insert(acc)(key, newValue)
+                                go(tail, newAcc)
 
-            go(self, AssocMap.empty[K, List[A]])
+            go(self, AssocMap.empty[K, List[A]]).map { (k, v) => (k, v.reverse) }
         }
 
-        def groupMap = ???
-        def groupMapReduce = ???
+        def groupMap[K, B](key: A => K)(f: A => B): AssocMap[K, List[B]] = {
+            @tailrec
+            def go(list: List[A], acc: AssocMap[K, List[B]]): AssocMap[K, List[B]] =
+                list match
+                    case Nil => acc
+                    case Cons(head, tail) =>
+                        val k = key(head)
+                        val v = f(head)
+                        AssocMap.lookup(acc)(k) match
+                            case None =>
+                                val newAcc = AssocMap.insert(acc)(k, List.single(v))
+                                go(tail, newAcc)
+                            case Some(value) =>
+                                val newValue = value.prepended(v)
+                                val newAcc = AssocMap.insert(acc)(k, newValue)
+                                go(tail, newAcc)
+
+            go(self, AssocMap.empty[K, List[B]]).map { (k, v) => (k, v.reverse) }
+        }
+
+        def groupMapReduce[K, B](key: A => K)(f: A => B)(reduce: (B, B) => B): AssocMap[K, B] = {
+            @tailrec
+            def go(list: List[A], acc: AssocMap[K, B]): AssocMap[K, B] =
+                list match
+                    case Nil => acc
+                    case Cons(head, tail) =>
+                        val k = key(head)
+                        val v = f(head)
+                        AssocMap.lookup(acc)(k) match
+                            case None =>
+                                val newAcc = AssocMap.insert(acc)(k, v)
+                                go(tail, newAcc)
+                            case Some(value) =>
+                                val newValue = reduce(value, v)
+                                val newAcc = AssocMap.insert(acc)(k, newValue)
+                                go(tail, newAcc)
+
+            go(self, AssocMap.empty[K, B])
+        }
 
         /** Adds an element at the beginning of this list */
         def prepended[B >: A](head: B): List[B] = Cons(head, self)
@@ -218,7 +268,12 @@ object List:
             case Cons(_, rest) => rest
 
         def reverse: List[A] = {
-            ???
+            @tailrec
+            def go(list: List[A], acc: List[A]): List[A] = list match
+                case Nil              => acc
+                case Cons(head, tail) => go(tail, Cons(head, acc))
+
+            go(self, Nil)
         }
 
         @tailrec

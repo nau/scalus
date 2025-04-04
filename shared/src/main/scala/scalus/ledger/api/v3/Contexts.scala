@@ -61,12 +61,16 @@ object FromDataInstances {
     given FromData[TxInInfo] = FromData.deriveCaseClass
     given FromData[TxInfo] = FromData.deriveCaseClass
     given FromData[ScriptContext] = FromData.deriveCaseClass
+
+    @deprecated("Use ScriptInfo instead")
     given FromData[SpendingScriptInfo] = (d: Data) =>
         val pair = d.toConstr
         if pair.fst == BigInt(1) then
             val args = pair.snd
             SpendingScriptInfo(args.head.to[TxOutRef], args.tail.head.to[Option[Datum]])
         else throw new Exception("Invalid SpendingScriptInfo")
+
+    @deprecated("Use ScriptContext instead")
     given FromData[SpendingScriptContext] = FromData.deriveCaseClass
 }
 
@@ -201,8 +205,13 @@ enum ScriptInfo:
     case VotingScript(voter: Voter)
     case ProposingScript(index: BigInt, procedure: ProposalProcedure)
 
+@deprecated("Use ScriptInfo instead")
 case class SpendingScriptInfo(txOutRef: TxOutRef, datum: Option[Datum])
+
+@deprecated("Use ScriptInfo instead")
 case class MintingScriptInfo(currencySymbol: CurrencySymbol)
+
+@deprecated("Use ScriptInfo instead")
 case class RewardingScriptInfo(credential: Credential)
 
 case class TxInInfo(
@@ -239,6 +248,7 @@ case class ScriptContext(
     scriptInfo: ScriptInfo
 )
 
+@deprecated("Use ScriptContext instead")
 case class SpendingScriptContext(
     txInfo: TxInfo,
     redeemer: Redeemer,
