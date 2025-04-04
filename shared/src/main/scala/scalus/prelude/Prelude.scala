@@ -204,6 +204,11 @@ object List:
 
         def head: A = ???
 
+        @tailrec
+        def foreach(f: A => Unit): Unit = self match
+            case Nil              => ()
+            case Cons(head, tail) => f(head); tail.foreach(f)
+
         @Ignore
         def toScalaList: immutable.List[A] = {
             if self.isEmpty then return immutable.List.empty[A]

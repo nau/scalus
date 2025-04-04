@@ -63,15 +63,10 @@ object PaymentSplitter {
             if firstPayerCredential !== inputWithChangeCredential then firstPayerValue
             else firstPayerValue - inputWithChangeValue + Value.lovelace(txInfo.fee)
 
-        val splitEqually = outputValues.inner.forall { (_, value) =>
-            value === splitValue
+        outputValues.inner.foreach { (cred, value) =>
+            require(value === splitValue, "Split unequally")
+            require(payees.contains(cred), "Must pay to a payee")
         }
-        require(splitEqually, "Split unequally")
-        // we must pay to all payees
-        groupedOutputs.inner.forall { (cred, _) =>
-            payees.contains(cred)
-        } orFail "Must pay to all payees"
-
         /*
         NOTE: This code allows non-unique payess, messing up payments
 
