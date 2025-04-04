@@ -25,9 +25,6 @@ object PaymentSplitter {
     }
 
     def spend(myTxOutRef: TxOutRef, txInfo: TxInfo, payees: List[PayeeHash]): Unit = {
-        // Only the payees are allowed to trigger the payout and the list needs to include all payees
-        val outputCredentials = txInfo.outputs.map(_.address.credential)
-
         val groupedOutputs = txInfo.outputs.groupBy(_.address.credential)
         val groupedInputs = txInfo.inputs.groupBy(_.resolved.address.credential)
         val outputValues = AssocMap.map(groupedOutputs) { (credential, outputs) =>
@@ -38,19 +35,22 @@ object PaymentSplitter {
             val sum = outputs.foldLeft(Value.zero)((acc, txout) => acc + txout.resolved.value)
             (credential, sum)
         }
-        val ownInput = txInfo.inputs
+        val ownInputCredential = txInfo.inputs
             .find(_.outRef === myTxOutRef)
             .getOrFail("Impossible: couldn't find own input")
+            .resolved
+            .address
+            .credential
         val (inputWithChangeCredential, inputWithChangeValue) = inputValues.inner match
             case List.Cons(firstInput, tail) =>
                 tail match
                     case List.Cons(secondInput, tail) =>
                         tail match
                             case List.Nil =>
-                                if firstInput._1 === ownInput.resolved.address.credential then
+                                if firstInput._1 === ownInputCredential then
                                     if payees.contains(secondInput._1) then secondInput
                                     else fail("Only payees can trigger payout")
-                                else if secondInput._1 === ownInput.resolved.address.credential then
+                                else if secondInput._1 === ownInputCredential then
                                     if payees.contains(firstInput._1) then firstInput
                                     else fail("Only payees can trigger payout")
                                 else fail("Impossible: one of the inputs must be the own input")
@@ -63,11 +63,14 @@ object PaymentSplitter {
             if firstPayerCredential !== inputWithChangeCredential then firstPayerValue
             else firstPayerValue - inputWithChangeValue + Value.lovelace(txInfo.fee)
 
-        val splitEqualy = outputValues.inner.forall { (_, value) =>
+        val splitEqually = outputValues.inner.forall { (_, value) =>
             value === splitValue
         }
-        splitEqualy orFail "NOPE"
-//        require(outputCredentials)
+        require(splitEqually, "Split unequally")
+        // we must pay to all payees
+        groupedOutputs.inner.forall { (cred, _) =>
+            payees.contains(cred)
+        } orFail "Must pay to all payees"
 
         /*
         NOTE: This code allows non-unique payess, messing up payments
