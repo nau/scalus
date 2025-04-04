@@ -79,7 +79,7 @@ class PaymentSplitterSpec extends AnyFunSuite with ScalusTest {
                   ),
                   Option.None
                 ),
-                value = Value.lovelace(200),
+                value = Value.lovelace(190),
                 datum = NoOutputDatum,
                 referenceScript = Option.None
               )
