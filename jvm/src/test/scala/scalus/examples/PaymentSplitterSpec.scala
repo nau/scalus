@@ -100,6 +100,6 @@ class PaymentSplitterSpec extends AnyFunSuite with ScalusTest {
         val result = program.evaluateDebug
 
         assert(result.isSuccess, clue = result.toString)
-        assert(result.budget == ExBudget(ExCPU(4144100), ExMemory(26000)))
+        assert(result.budget == ExBudget(ExCPU(106090673), ExMemory(440616)))
     }
 }

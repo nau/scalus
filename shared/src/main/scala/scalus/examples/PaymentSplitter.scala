@@ -4,14 +4,13 @@ import scalus.*
 import scalus.builtin.{ByteString, Data}
 import scalus.builtin.FromDataInstances.given
 import scalus.ledger.api.v1
-import scalus.ledger.api.v1.Value.{*, given}
 import scalus.ledger.api.v1.{Credential, PubKeyHash, Value}
 import scalus.ledger.api.v3.FromDataInstances.given
 import scalus.ledger.api.v3.{ScriptContext, ScriptInfo, TxInInfo, TxInfo, TxOutRef}
 import scalus.ledger.api.v3.TxOutRef.given
+import scalus.prelude.*
 import scalus.prelude.List.*
 import scalus.prelude.Prelude.*
-import scalus.prelude.{List, *}
 
 @Compile
 object PaymentSplitter {
@@ -27,13 +26,21 @@ object PaymentSplitter {
             case _ => fail("Must be spending")
     }
 
+    extension (value: Value)
+        def lovelace: BigInt = value.inner match
+            case Nil                   => 0
+            case Cons((cs, tokens), _) =>
+                // Ada is always the first token. Only Ada can have empty CurrencySymbol. And its only token is Lovelace
+                if cs == ByteString.empty then tokens.inner.head._2
+                else 0
+
     def spend(ownScriptRef: TxOutRef, txInfo: TxInfo, payees: List[Credential]): Unit = {
         val inputWithChange = txInfo.inputs match
-            case List.Cons(firstInput, tail) =>
+            case Cons(firstInput, tail) =>
                 tail match
-                    case List.Cons(secondInput, tail) =>
+                    case Cons(secondInput, tail) =>
                         tail match
-                            case List.Nil =>
+                            case Nil =>
                                 if ownScriptRef === firstInput.outRef then secondInput.resolved
                                 else if ownScriptRef === secondInput.outRef then firstInput.resolved
                                 else fail("Impossible: one of the inputs must be the own input")
@@ -49,16 +56,16 @@ object PaymentSplitter {
         val splitValue =
             val firstOutput = txInfo.outputs.head
             if firstOutput.address.credential === inputWithChange.address.credential then
-                firstOutput.value
-            else firstOutput.value - inputWithChange.value + Value.lovelace(txInfo.fee)
+                firstOutput.value.lovelace
+            else firstOutput.value.lovelace - inputWithChange.value.lovelace + txInfo.fee
 
         txInfo.outputs.foldLeft(payees) { case (payees, output) =>
-            require(output.value === splitValue, "Split unequally")
+            require(output.value.lovelace == splitValue, "Split unequally")
             // Here we require that all payees are being paid
             // We expect the same order of outputs as listed in payees
             payees match
-                case List.Nil => fail("More outputs than payees")
-                case List.Cons(payee, tail) =>
+                case Nil => fail("More outputs than payees")
+                case Cons(payee, tail) =>
                     require(output.address.credential === payee, "Must pay to a payee")
                     tail
         }
