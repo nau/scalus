@@ -109,7 +109,7 @@ object MintingPolicy {
                     case None =>
                         // check burned
                         val burned =
-                            AssocMap.toList(mintedTokens).forall { case (tokenName, amount) =>
+                            mintedTokens.toList.forall { case (tokenName, amount) =>
                                 lessThanInteger(amount, BigInt(0))
                             }
                         check(burned, "B")

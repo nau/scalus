@@ -23,7 +23,7 @@ private object AssocMapTest {
         a: AssocMap[BigInt, BigInt],
         b: AssocMap[BigInt, BigInt]
     ): Boolean = {
-        val combined = AssocMap.toList(AssocMap.union(a, b))
+        val combined = AssocMap.union(a, b).toList
         // all values are equal, absent values are 0
         combined.foldLeft(true) { case (acc, pair) =>
             pair._2 match
@@ -38,7 +38,7 @@ private object AssocMapTest {
 class AssocMapSpec extends AnyFunSuite with ScalaCheckPropertyChecks with ArbitraryInstances {
 
     test("empty") {
-        assert(AssocMap.toList(AssocMap.empty) == List.Nil)
+        assert(AssocMap.empty.toList == List.Nil)
     }
 
     test("isEmpty") {
@@ -57,7 +57,7 @@ class AssocMapSpec extends AnyFunSuite with ScalaCheckPropertyChecks with Arbitr
         val term = compiled.toUplc()
         // println(VM.evaluateTerm(term).pretty.render(100))
         assert(
-          AssocMap.toList(m3) == List(
+          m3.toList == List(
             (BigInt(1), These(2, 3)),
             (BigInt(0), This(BigInt(0))),
             (BigInt(3), That(BigInt(4)))
@@ -80,16 +80,16 @@ class AssocMapSpec extends AnyFunSuite with ScalaCheckPropertyChecks with Arbitr
         }
     }
 
-    test("toList(fromList(lst)) == lst") {
+    test("fromList(lst).toList == lst") {
         check { (lst: List[(BigInt, Boolean)]) =>
-            AssocMap.toList(AssocMap.fromList(lst)) == lst
+            AssocMap.fromList(lst).toList == lst
         }
     }
 
     test("insert") {
         check { (map: AssocMap[BigInt, BigInt], k: BigInt, v: BigInt) =>
             val m1 = AssocMap.insert(map)(k, v)
-            val lst1 = AssocMap.toList(m1).asScala
+            val lst1 = m1.toList.asScala
             lst1.contains((k, v))
         }
     }

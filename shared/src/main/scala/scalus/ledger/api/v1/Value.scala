@@ -54,7 +54,7 @@ object Value:
         a: AssocMap[TokenName, BigInt],
         b: AssocMap[TokenName, BigInt]
     ): Boolean = {
-        val combined = AssocMap.toList(AssocMap.union(a, b))
+        val combined = AssocMap.union(a, b).toList
         // all values are equal, absent values are 0
         combined.forall { case (k, v) =>
             v match

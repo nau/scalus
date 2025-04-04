@@ -387,7 +387,15 @@ object AssocMap {
     def empty[A, B]: AssocMap[A, B] = AssocMap(List.empty[(A, B)])
     def singleton[A, B](key: A, value: B): AssocMap[A, B] = AssocMap(List.single((key, value)))
     def fromList[A, B](lst: List[(A, B)]): AssocMap[A, B] = AssocMap(lst)
-    def toList[A, B](map: AssocMap[A, B]): List[(A, B)] = map.inner
+
+    extension [A, B](self: AssocMap[A, B])
+        def isEmpty: Boolean = self.inner.isEmpty
+        def nonEmpty: Boolean = self.inner.nonEmpty
+        def length: BigInt = self.inner.length
+        def size: BigInt = length
+        def keys: List[A] = self.inner.map { case (k, _) => k }
+        def values: List[B] = self.inner.map { case (_, v) => v }
+        def toList: List[(A, B)] = self.inner
 
     def lookup[A: Eq, B](map: AssocMap[A, B])(key: A): Option[B] =
         @tailrec

@@ -107,7 +107,7 @@ object ToDataInstances {
                             )
                     }
             }
-            mapData(go(AssocMap.toList(a)))
+            mapData(go(a.toList))
         }
 
     given tupleToData[A: ToData, B: ToData]: ToData[(A, B)] =
