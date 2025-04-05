@@ -17,10 +17,10 @@ object HelloCardano {
         ctx.scriptInfo match
             case SpendingScript(_, datum) =>
                 val owner = datum.getOrFail("Expected datum").to[PubKeyHash]
-                val mustBeSigned = ctx.txInfo.signatories.find { _.hash == owner.hash }
-                mustBeSigned orFail "Must be signed"
-                val mustSayHello = ctx.redeemer.to[String] == "Hello, Cardano!"
-                require(mustSayHello, "Invalid redeemer")
+                val signed = ctx.txInfo.signatories.contains(owner)
+                require(signed, "Must be signed")
+                val saysHello = ctx.redeemer.to[String] == "Hello, Cardano!"
+                require(saysHello, "Invalid redeemer")
             case _ => fail("Must be spending")
     }
 }

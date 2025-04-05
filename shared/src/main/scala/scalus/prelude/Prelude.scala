@@ -332,7 +332,7 @@ object Option {
             case None    => throw new NoSuchElementException(message)
             case Some(_) => ()
 
-        inline def get: A = self match
+        def get: A = self match
             case None        => throw new NoSuchElementException("None.get")
             case Some(value) => value
 
