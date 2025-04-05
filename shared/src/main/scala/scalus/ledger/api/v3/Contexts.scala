@@ -199,7 +199,7 @@ enum ScriptPurpose:
 
 enum ScriptInfo:
     case MintingScript(currencySymbol: CurrencySymbol)
-    case SpendingScript(txOutRef: TxOutRef, datum: Option[Datum])
+    case SpendingScript(txOutRef: TxOutRef, datum: Option[Datum] = Option.None)
     case RewardingScript(credential: Credential)
     case CertifyingScript(index: BigInt, cert: TxCert)
     case VotingScript(voter: Voter)
@@ -221,21 +221,21 @@ case class TxInInfo(
 
 case class TxInfo(
     inputs: List[TxInInfo],
-    referenceInputs: List[TxInInfo],
-    outputs: List[v2.TxOut],
-    fee: Lovelace,
-    mint: Value,
-    certificates: List[TxCert],
-    withdrawals: AssocMap[Credential, Lovelace],
-    validRange: Interval,
-    signatories: List[PubKeyHash],
-    redeemers: AssocMap[ScriptPurpose, Redeemer],
-    data: AssocMap[DatumHash, Datum],
+    referenceInputs: List[TxInInfo] = List.Nil,
+    outputs: List[v2.TxOut] = List.Nil,
+    fee: Lovelace = 0,
+    mint: Value = Value.zero,
+    certificates: List[TxCert] = List.Nil,
+    withdrawals: AssocMap[Credential, Lovelace] = AssocMap.empty,
+    validRange: Interval = Interval.always,
+    signatories: List[PubKeyHash] = List.Nil,
+    redeemers: AssocMap[ScriptPurpose, Redeemer] = AssocMap.empty,
+    data: AssocMap[DatumHash, Datum] = AssocMap.empty,
     id: TxId,
-    votes: AssocMap[Voter, AssocMap[GovernanceActionId, Vote]],
-    proposalProcedures: List[ProposalProcedure],
-    currentTreasuryAmount: Option[Lovelace],
-    treasuryDonation: Option[Lovelace]
+    votes: AssocMap[Voter, AssocMap[GovernanceActionId, Vote]] = AssocMap.empty,
+    proposalProcedures: List[ProposalProcedure] = List.Nil,
+    currentTreasuryAmount: Option[Lovelace] = Option.None,
+    treasuryDonation: Option[Lovelace] = Option.None
 )
 
 object TxInfo {
@@ -244,7 +244,7 @@ object TxInfo {
 
 case class ScriptContext(
     txInfo: TxInfo,
-    redeemer: Redeemer,
+    redeemer: Redeemer = Data.unit,
     scriptInfo: ScriptInfo
 )
 

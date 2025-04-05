@@ -7,6 +7,7 @@ import scalus.builtin.ByteString
 import scalus.builtin.Data
 import scalus.builtin.Data.FromData
 import scalus.builtin.Data.fromData
+import scalus.ledger.api.v2.OutputDatum.NoOutputDatum
 import scalus.prelude.AssocMap
 import scalus.prelude.List
 import scalus.prelude.Option
@@ -104,8 +105,8 @@ object OutputDatum {
 case class TxOut(
     address: Address,
     value: Value,
-    datum: OutputDatum,
-    referenceScript: Option[ScriptHash]
+    datum: OutputDatum = NoOutputDatum,
+    referenceScript: Option[ScriptHash] = Option.None
 )
 
 case class TxInInfo(outRef: TxOutRef, resolved: TxOut)

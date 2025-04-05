@@ -1,5 +1,6 @@
 package scalus
 
+import org.scalacheck.{Arbitrary, Gen}
 import scalus.*
 import scalus.builtin.ByteString.*
 import scalus.builtin.Data.toData
@@ -21,6 +22,14 @@ trait ScalusTest {
             val script = sir.toUplc(generateErrorTraces = true).plutusV3
             val appliedScript = script $ scriptContext.toData
             appliedScript.evaluateDebug
+
+    def genByteStringOfN(n: Int): Gen[ByteString] = {
+        Gen
+            .containerOfN[Array, Byte](n, Arbitrary.arbitrary[Byte])
+            .map(a => ByteString.unsafeFromArray(a))
+    }
+
+    given Arbitrary[TxId] = Arbitrary(genByteStringOfN(32).map(TxId.apply))
 
     protected def makeSpendingScriptContext(
         datum: Data,

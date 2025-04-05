@@ -1,106 +1,236 @@
 package scalus.examples
 
+import org.scalacheck.Arbitrary
 import org.scalatest.funsuite.AnyFunSuite
 import scalus.*
 import scalus.Compiler.compile
+import scalus.builtin.Builtins.blake2b_224
+import scalus.builtin.ByteString
 import scalus.builtin.ByteString.*
 import scalus.builtin.Data.toData
 import scalus.builtin.ToDataInstances.given
-import scalus.builtin.{ByteString, Data}
 import scalus.ledger.api.v1.Credential.{PubKeyCredential, ScriptCredential}
-import scalus.ledger.api.v1.{Address, Interval, PubKeyHash, Value}
-import scalus.ledger.api.v2.OutputDatum.NoOutputDatum
+import scalus.ledger.api.v1.{Address, Credential, PubKeyHash, Value}
 import scalus.ledger.api.v2.TxOut
-import scalus.ledger.api.v3.{ScriptContext, ScriptInfo, TxId, TxInInfo, TxInfo, TxOutRef}
+import scalus.ledger.api.v3.*
+import scalus.ledger.api.v3.ScriptInfo.SpendingScript
 import scalus.ledger.api.v3.ToDataInstances.given
-import scalus.prelude.{Option, *}
+import scalus.prelude.{List, Option, *}
 import scalus.uplc.*
 import scalus.uplc.eval.*
 
-class PaymentSplitterSpec extends AnyFunSuite with ScalusTest {
-    val lockTxId = TxId(hex"2e0612fbd127baddfcd555706de96b46c4d4363ac78c73ab4dee6e6a7bf61fe9")
-    val txId = TxId(hex"1e0612fbd127baddfcd555706de96b46c4d4363ac78c73ab4dee6e6a7bf61fe9")
-    val scriptHash = hex"1e0612fbd127baddfcd555706de96b46c4d4363ac78c73ab4dee6e6a"
+class PaymentSplitterSpec extends AnyFunSuite, ScalusTest {
 
-    test("success when payments are correctly split") {
-        val context = makeScriptContext(scriptHash).toData
-        val payees = List(
-          List(
-            hex"1234567890abcdef1234567890abcdef1234567890abcdef12345678"
-          )
-        ).toData
-//      uncomment for debugging
-        PaymentSplitter.validator(payees)(context)
-
-        val program = compile(PaymentSplitter.validator).toUplc().plutusV3 $ payees $ context
-
-        println(program.flatEncoded.length)
-
-        val result = program.evaluateDebug
-
-        assert(result.isSuccess, clue = result.toString)
-        assert(result.budget == ExBudget(ExCPU(106600643), ExMemory(445312)))
+    test("success when payments are correctly split for a single payee") {
+        val payees = List(hex"1234567890abcdef1234567890abcdef1234567890abcdef12345678")
+        assertCase(
+          payees,
+          inputs = List(
+            makePayeeTxInInfo(pkh = payees.head, idx = 0, value = 100),
+            makeScriptTxInInfo(100)
+          ),
+          outputs = List((payees.head, 190)),
+          fee = 10,
+          expected = Right(ExBudget(ExCPU(106600643), ExMemory(445312)))
+        )
     }
 
-    private def makeScriptContext(scriptHash: ByteString): ScriptContext =
-        ScriptContext(
-          txInfo = TxInfo(
-            inputs = List(
-              TxInInfo(
-                outRef = TxOutRef(lockTxId, 1),
-                resolved = TxOut(
-                  address = Address(
-                    PubKeyCredential(
-                      PubKeyHash(hex"1234567890abcdef1234567890abcdef1234567890abcdef12345678")
-                    ),
-                    Option.None
-                  ),
-                  value = Value.lovelace(100),
-                  datum = NoOutputDatum,
-                  referenceScript = Option.None
-                )
-              ),
-              TxInInfo(
-                outRef = TxOutRef(lockTxId, 0),
-                resolved = TxOut(
-                  address = Address(ScriptCredential(scriptHash), Option.None),
-                  value = Value.lovelace(100),
-                  datum = NoOutputDatum,
-                  referenceScript = Option.None
-                )
-              )
-            ),
-            referenceInputs = List.Nil,
-            outputs = List(
-              TxOut(
-                address = Address(
-                  PubKeyCredential(
-                    PubKeyHash(hex"1234567890abcdef1234567890abcdef1234567890abcdef12345678")
-                  ),
-                  Option.None
-                ),
-                value = Value.lovelace(190),
-                datum = NoOutputDatum,
-                referenceScript = Option.None
-              )
-            ),
-            fee = BigInt(10),
-            mint = Value.zero,
-            certificates = List.Nil,
-            withdrawals = AssocMap.empty,
-            validRange = Interval.always,
-            signatories = List.Nil,
-            redeemers = AssocMap.empty,
-            data = AssocMap.empty,
-            id = txId,
-            votes = AssocMap.empty,
-            proposalProcedures = List.Nil,
-            currentTreasuryAmount = Option.None,
-            treasuryDonation = Option.None
+    test("failure when a payee is not present in the inputs") {
+        val payees = List(hex"1234567890abcdef1234567890abcdef1234567890abcdef12345678")
+        assertCase(
+          payees,
+          inputs = List(makeScriptTxInInfo(100)),
+          outputs = List.empty,
+          fee = 10,
+          expected =
+              Left("One of the payees must have an input to pay the fee and trigger the payout")
+        )
+    }
+
+    test("failure when a payee is not payed out") {
+        val payees = List(hex"1234567890abcdef1234567890abcdef1234567890abcdef12345678")
+        assertCase(
+          payees,
+          inputs = List(
+            makeScriptTxInInfo(100),
+            makePayeeTxInInfo(pkh = payees.head, idx = 0, value = 100)
           ),
-          redeemer = Data.unit,
-          scriptInfo =
-              ScriptInfo.SpendingScript(txOutRef = TxOutRef(lockTxId, 0), datum = Option.None)
+          outputs = List.empty,
+          fee = 10,
+          expected = Left("Not all payees were paid")
+        )
+    }
+
+    test("failure when multiple payees are present in the inputs") {
+        val payees = List(
+          hex"1234567890abcdef1234567890abcdef1234567890abcdef12345678",
+          hex"2234567890abcdef1234567890abcdef1234567890abcdef12345678"
+        )
+        assertCase(
+          payees,
+          inputs = List(
+            makeScriptTxInInfo(100),
+            makePayeeTxInInfo(pkh = payees.head, idx = 0, value = 100),
+            makePayeeTxInInfo(pkh = payees !! 1, idx = 1, value = 100)
+          ),
+          outputs = List.empty,
+          fee = 10,
+          expected = Left("Already found a fee payer")
+        )
+    }
+
+    test("success when multiple payees are correctly split") {
+        val payees = List(
+          hex"1234567890abcdef1234567890abcdef1234567890abcdef12345678",
+          hex"2234567890abcdef1234567890abcdef1234567890abcdef12345678"
+        )
+        assertCase(
+          payees,
+          inputs = List(
+            makeScriptTxInInfo(100),
+            makePayeeTxInInfo(pkh = payees.head, idx = 0, value = 100)
+          ),
+          outputs = List((payees.head, 50 + 100 - 10), (payees !! 1, 50)),
+          fee = 10,
+          expected = Right(ExBudget(ExCPU(128552926), ExMemory(547333)))
+        )
+    }
+
+    test("failure when extra outputs are present") {
+        val payees = List(
+          hex"1234567890abcdef1234567890abcdef1234567890abcdef12345678",
+          hex"2234567890abcdef1234567890abcdef1234567890abcdef12345678"
+        )
+        assertCase(
+          payees,
+          inputs = List(
+            makeScriptTxInInfo(100),
+            makePayeeTxInInfo(pkh = payees.head, idx = 0, value = 100),
+            makePayeeTxInInfo( // extra input
+              pkh = hex"3234567890abcdef1234567890abcdef1234567890abcdef12345678",
+              idx = 0,
+              value = 50
+            )
+          ),
+          outputs = List(
+            (payees.head, 50 + 100 - 10),
+            (payees !! 1, 50),
+            (hex"3234567890abcdef1234567890abcdef1234567890abcdef12345678", 50) // extra output
+          ),
+          fee = 10,
+          expected = Left("More outputs than payees")
+        )
+    }
+
+    test("failure when not all payees are payed out") {
+        val payees = List(
+          hex"1234567890abcdef1234567890abcdef1234567890abcdef12345678",
+          hex"2234567890abcdef1234567890abcdef1234567890abcdef12345678"
+        )
+        assertCase(
+          payees,
+          inputs = List(
+            makeScriptTxInInfo(100),
+            makePayeeTxInInfo(pkh = payees.head, idx = 0, value = 100)
+          ),
+          outputs = List(
+            (payees.head, 50 + 100 - 10)
+          ),
+          fee = 10,
+          expected = Left("Not all payees were paid")
+        )
+    }
+
+    private val script = compile(PaymentSplitter.validator)
+        .toUplc(generateErrorTraces = true)
+        .plutusV3
+
+    private val lockTxId = Arbitrary.arbitrary[TxId].sample.get
+    private val payeesTxId = Arbitrary.arbitrary[TxId].sample.get
+    private val txId = Arbitrary.arbitrary[TxId].sample.get
+    private val scriptHash = blake2b_224(ByteString.fromArray(3 +: script.cborEncoded))
+
+    private def assertCase(
+        payees: List[ByteString],
+        inputs: List[TxInInfo],
+        outputs: List[(ByteString, BigInt)],
+        fee: BigInt,
+        expected: Either[String, ExBudget]
+    ): Unit = {
+        // Create script with payees parameter
+        val applied = script $ List(payees).toData
+
+        // Build transaction outputs from provided parameters
+        val txOutputs = outputs.map { case (pkh, amount) =>
+            TxOut(
+              address = Address(
+                PubKeyCredential(PubKeyHash(pkh)),
+                Option.None
+              ),
+              value = Value.lovelace(amount)
+            )
+        }
+
+        // Create script context with given inputs, outputs and fee
+        val context = ScriptContext(
+          txInfo = TxInfo(inputs = inputs, outputs = txOutputs, fee = fee, id = txId),
+          scriptInfo = SpendingScript(txOutRef = TxOutRef(lockTxId, 0))
         )
 
+        // Apply script to the context
+        val program = applied $ context.toData
+
+//        PaymentSplitter.validator(List(payees).toData)(context.toData)
+
+        // Evaluate the program
+        val result = program.evaluateDebug
+
+        // Assert the result matches the expected outcome
+        expected match
+            case Left(errorMsg) =>
+                assert(
+                  result.isFailure,
+                  clue = s"Expected failure with: $errorMsg, but got success"
+                )
+                // If a specific error message is provided, check it matches
+                assert(
+                  result.logs.exists(_.contains(errorMsg)),
+                  clue =
+                      s"Expected error containing: $errorMsg, but got: ${result.logs.mkString(", ")}"
+                )
+            case Right(budget) =>
+                assert(
+                  result.isSuccess,
+                  clue = s"Expected success with budget: $budget, but got: ${result.toString}"
+                )
+                if budget != ExBudget(ExCPU(0), ExMemory(0))
+                then // Check if budget verification is requested
+                    assert(
+                      result.budget == budget,
+                      clue = s"Expected budget: $budget, but got: ${result.budget}"
+                    )
+    }
+
+    private def makePayeeTxInInfo(pkh: ByteString, idx: Int, value: BigInt): TxInInfo = {
+        TxInInfo(
+          outRef = TxOutRef(payeesTxId, idx),
+          resolved = TxOut(
+            address = Address(
+              PubKeyCredential(PubKeyHash(pkh)),
+              Option.None
+            ),
+            value = Value.lovelace(value)
+          )
+        )
+    }
+
+    private def makeScriptTxInInfo(value: BigInt): TxInInfo = {
+        TxInInfo(
+          outRef = TxOutRef(lockTxId, 0),
+          resolved = TxOut(
+            address = Address(ScriptCredential(scriptHash), Option.None),
+            value = Value.lovelace(value)
+          )
+        )
+    }
 }
