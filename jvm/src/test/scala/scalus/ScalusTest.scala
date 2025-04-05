@@ -36,6 +36,10 @@ trait ScalusTest {
         yield TxOutRef(txId, index)
     }
 
+    protected def random[A: Arbitrary]: A = {
+        Arbitrary.arbitrary[A].sample.get
+    }
+
     protected def makeSpendingScriptContext(
         datum: Data,
         redeemer: Redeemer,

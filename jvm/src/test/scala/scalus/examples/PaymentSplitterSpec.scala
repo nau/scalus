@@ -1,6 +1,5 @@
 package scalus.examples
 
-import org.scalacheck.Arbitrary
 import org.scalatest.funsuite.AnyFunSuite
 import scalus.*
 import scalus.Compiler.compile
@@ -145,9 +144,9 @@ class PaymentSplitterSpec extends AnyFunSuite, ScalusTest {
         .toUplc(generateErrorTraces = true)
         .plutusV3
 
-    private val lockTxId = Arbitrary.arbitrary[TxId].sample.get
-    private val payeesTxId = Arbitrary.arbitrary[TxId].sample.get
-    private val txId = Arbitrary.arbitrary[TxId].sample.get
+    private val lockTxId = random[TxId]
+    private val payeesTxId = random[TxId]
+    private val txId = random[TxId]
     private val scriptHash = blake2b_224(ByteString.fromArray(3 +: script.cborEncoded))
 
     private def assertCase(
@@ -215,10 +214,7 @@ class PaymentSplitterSpec extends AnyFunSuite, ScalusTest {
         TxInInfo(
           outRef = TxOutRef(payeesTxId, idx),
           resolved = TxOut(
-            address = Address(
-              PubKeyCredential(PubKeyHash(pkh)),
-              Option.None
-            ),
+            address = Address(PubKeyCredential(PubKeyHash(pkh)), Option.None),
             value = Value.lovelace(value)
           )
         )
