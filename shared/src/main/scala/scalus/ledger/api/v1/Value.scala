@@ -97,8 +97,8 @@ object Value:
 
     @Ignore
     def debugToString(v: Value): String = {
-        val pairs = v.inner.asScala.map { case (cs, tokens) =>
-            val tokenPairs = tokens.inner.asScala.map { case (tn, amount) =>
+        val pairs = v.toList.asScala.map { case (cs, tokens) =>
+            val tokenPairs = tokens.toList.asScala.map { case (tn, amount) =>
                 s"#${tn.toHex}: $amount"
             }
             s"policy#${cs.toHex} -> { ${tokenPairs.mkString(", ")} }"

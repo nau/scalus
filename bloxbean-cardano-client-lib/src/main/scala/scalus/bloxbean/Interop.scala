@@ -365,7 +365,7 @@ object Interop {
             prelude.AssocMap(
               prelude.List.Cons(
                 (ByteString.empty, AssocMap.singleton(ByteString.empty, BigInt(value.getCoin))),
-                ma.inner
+                ma.toList
               )
             )
         else ma

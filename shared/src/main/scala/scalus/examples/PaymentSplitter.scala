@@ -31,11 +31,11 @@ object PaymentSplitter {
     }
 
     extension (value: Value)
-        def lovelace: BigInt = value.inner match
+        def lovelace: BigInt = value.toList match
             case Nil                   => 0
             case Cons((cs, tokens), _) =>
                 // Ada is always the first token. Only Ada can have empty CurrencySymbol. And its only token is Lovelace
-                if cs == ByteString.empty then tokens.inner.head._2
+                if cs == ByteString.empty then tokens.toList.head._2
                 else 0
 
     def spend(txInfo: TxInfo, payees: List[Credential]): Unit = {

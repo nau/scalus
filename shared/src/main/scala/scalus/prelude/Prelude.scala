@@ -378,7 +378,7 @@ enum These[+A, +B]:
     case That(b: B)
     case These(a: A, b: B)
 
-case class AssocMap[A, B](inner: List[(A, B)])
+case class AssocMap[A, B](toList: List[(A, B)])
 
 @Compile
 object AssocMap {
@@ -389,15 +389,14 @@ object AssocMap {
     def fromList[A, B](lst: List[(A, B)]): AssocMap[A, B] = AssocMap(lst)
 
     extension [A, B](self: AssocMap[A, B])
-        def isEmpty: Boolean = self.inner.isEmpty
-        def nonEmpty: Boolean = self.inner.nonEmpty
-        def length: BigInt = self.inner.length
+        def isEmpty: Boolean = self.toList.isEmpty
+        def nonEmpty: Boolean = self.toList.nonEmpty
+        def length: BigInt = self.toList.length
         def size: BigInt = length
-        def keys: List[A] = self.inner.map { case (k, _) => k }
-        def values: List[B] = self.inner.map { case (_, v) => v }
-        def toList: List[(A, B)] = self.inner
-        def map[C](f: ((A, B)) => (A, C)): AssocMap[A, C] = AssocMap(self.inner.map(f))
-        def all(f: ((A, B)) => Boolean): Boolean = self.inner.forall(f)
+        def keys: List[A] = self.toList.map { case (k, _) => k }
+        def values: List[B] = self.toList.map { case (_, v) => v }
+        def map[C](f: ((A, B)) => (A, C)): AssocMap[A, C] = AssocMap(self.toList.map(f))
+        def all(f: ((A, B)) => Boolean): Boolean = self.toList.forall(f)
 
     extension [A: Eq, B](self: AssocMap[A, B])
         def lookup(key: A): Option[B] = {
@@ -408,7 +407,7 @@ object AssocMap {
                     pair match
                         case (k, v) => if k === key then Option.Some(v) else go(tail)
 
-            go(self.inner)
+            go(self.toList)
         }
 
         def insert(key: A, value: B): AssocMap[A, B] = {
@@ -420,7 +419,7 @@ object AssocMap {
                             if k === key then List.Cons((key, value), tail)
                             else List.Cons(pair, go(tail))
 
-            AssocMap(go(self.inner))
+            AssocMap(go(self.toList))
         }
 
         def delete(key: A): AssocMap[A, B] = {
@@ -431,7 +430,7 @@ object AssocMap {
                         case (k, v) =>
                             if k === key then tail else List.Cons(pair, go(tail))
 
-            AssocMap(go(self.inner))
+            AssocMap(go(self.toList))
         }
 
     def union[A: Eq, B, C](
@@ -449,10 +448,10 @@ object AssocMap {
                             case Some(r) => These.These(v, r)
                         Cons((k, these), go(tail))
 
-        val lhs1 = go(lhs.inner) // all left with corresponding right
+        val lhs1 = go(lhs.toList) // all left with corresponding right
 
         val rhsNotInLhs =
-            rhs.inner.filter { case (a, c) => !lhs.inner.exists(p => p._1 === a) }
+            rhs.toList.filter { case (a, c) => !lhs.toList.exists(p => p._1 === a) }
 
         val rhsThat = rhsNotInLhs.map { case (k, v) => (k, These.That(v)) }
         AssocMap(lhs1.appendedAll(rhsThat))
