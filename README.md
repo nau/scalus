@@ -46,6 +46,25 @@ Write efficient and compact smart contracts and squeeze the most out of the Card
 * Type safe UPLC expression builder, think of Plutarch
 * Bloxbean [Cardano Client Lib](https://cardano-client.dev) integration
 
+## JSON Serialization
+
+For JSON serialization, Scalus recommends using [jsoniter-scala](https://github.com/plokhotnyuk/jsoniter-scala) instead of ujson, especially when working with large classes like PlutusV1Params. Jsoniter-scala provides:
+
+* Better performance with compile-time code generation
+* Support for larger and more complex classes
+* More robust serialization/deserialization
+* Lower memory usage
+* Better error messages
+
+To use jsoniter-scala in your Scalus project, add the following dependencies:
+
+```scala
+libraryDependencies ++= Seq(
+  "com.github.plokhotnyuk.jsoniter-scala" %% "jsoniter-scala-core"   % "2.27.1",
+  "com.github.plokhotnyuk.jsoniter-scala" %% "jsoniter-scala-macros" % "2.27.1" % "provided"
+)
+```
+
 ## Scalus Starter Project
 
 You can use the [Scalus Starter Project](https://github.com/nau/scalus-starter) to get started with Scalus.

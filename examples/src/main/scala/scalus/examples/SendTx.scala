@@ -100,7 +100,7 @@ object SendTx:
 
     def main(args: Array[String]): Unit =
         val crypto = summon[PlatformSpecific]
-        val cborHex = OptimizedPreimage.doubleCborHex
+        val cborHex = OptimizedPreimage.toUplc.PlutusV3
         val script = PlutusV2Script.builder().cborHex(cborHex).build()
         val scriptAddress = AddressProvider.getEntAddress(script, network)
         val scriptAddressBech32 = scriptAddress.toBech32()
