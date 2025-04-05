@@ -16,8 +16,7 @@ import scalus.uplc.eval.*
 
 class HelloCardanoSpec extends AnyFunSuite with ScalusTest {
     test("Hello Cardano") {
-        val ownerPubKey =
-            PubKeyHash(hex"1234567890abcdef1234567890abcdef1234567890abcdef1234567890abcdef")
+        val ownerPubKey = PubKeyHash(hex"1234567890abcdef1234567890abcdef1234567890abcdef12345678")
         val message = "Hello, Cardano!".toData
         val context = makeSpendingScriptContext(
           datum = ownerPubKey.toData,
@@ -28,6 +27,6 @@ class HelloCardanoSpec extends AnyFunSuite with ScalusTest {
         val result = compile(HelloCardano.validator).runScript(context)
 
         assert(result.isSuccess)
-        assert(result.budget == ExBudget(ExCPU(50059798), ExMemory(188593)))
+        assert(result.budget == ExBudget(ExCPU(60662989), ExMemory(228477)))
     }
 }

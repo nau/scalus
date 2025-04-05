@@ -2,12 +2,11 @@ package scalus
 
 import org.scalacheck.{Arbitrary, Gen}
 import scalus.*
-import scalus.builtin.ByteString.*
 import scalus.builtin.Data.toData
 import scalus.builtin.{ByteString, Data, given}
-import scalus.ledger.api.v1.{Interval, PubKeyHash}
-import scalus.ledger.api.v3.ToDataInstances.given
+import scalus.ledger.api.v1.PubKeyHash
 import scalus.ledger.api.v3.*
+import scalus.ledger.api.v3.ToDataInstances.given
 import scalus.prelude.*
 import scalus.sir.SIR
 import scalus.uplc.*
@@ -30,37 +29,39 @@ trait ScalusTest {
     }
 
     given Arbitrary[TxId] = Arbitrary(genByteStringOfN(32).map(TxId.apply))
+    given Arbitrary[TxOutRef] = Arbitrary {
+        for
+            txId <- Arbitrary.arbitrary[TxId]
+            index <- Gen.choose(0, 1000)
+        yield TxOutRef(txId, index)
+    }
 
     protected def makeSpendingScriptContext(
         datum: Data,
         redeemer: Redeemer,
         signatories: List[PubKeyHash]
     ): ScriptContext = {
+        val ownInput =
+            TxInInfo(
+              outRef = Arbitrary.arbitrary[TxOutRef].sample.get,
+              resolved = TxOut(
+                address = Address(
+                  Credential.ScriptCredential(genByteStringOfN(28).sample.get),
+                  Option.None
+                ),
+                value = Value.zero
+              )
+            )
         ScriptContext(
           txInfo = TxInfo(
-            inputs = List.Nil,
-            referenceInputs = List.Nil,
-            outputs = List.Nil,
-            fee = BigInt(188021),
-            mint = Value.zero,
-            certificates = List.Nil,
-            withdrawals = AssocMap.empty,
-            validRange = Interval.always,
+            inputs = List(ownInput),
+            fee = 188021,
             signatories = signatories,
-            redeemers = AssocMap.empty,
-            data = AssocMap.empty,
-            id = TxId(hex"1e0612fbd127baddfcd555706de96b46c4d4363ac78c73ab4dee6e6a7bf61fe9"),
-            votes = AssocMap.empty,
-            proposalProcedures = List.Nil,
-            currentTreasuryAmount = Option.None,
-            treasuryDonation = Option.None
+            id = Arbitrary.arbitrary[TxId].sample.get
           ),
           redeemer = redeemer,
           scriptInfo = ScriptInfo.SpendingScript(
-            txOutRef = TxOutRef(
-              TxId(hex"1e0612fbd127baddfcd555706de96b46c4d4363ac78c73ab4dee6e6a7bf61fe9"),
-              0
-            ),
+            txOutRef = ownInput.outRef,
             datum = Option.Some(datum)
           )
         )
