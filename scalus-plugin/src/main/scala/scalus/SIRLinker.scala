@@ -106,6 +106,8 @@ class SIRLinker(using ctx: Context) {
         case SIR.Match(scrutinee, cases, rhsType, anns) =>
             traverseAndLink(scrutinee, srcPos)
             cases.foreach(c => traverseAndLink(c.body, srcPos))
+        case SIR.Select(scrutinee, _, _, _) =>
+            traverseAndLink(scrutinee, srcPos)
         case _ => ()
 
     private def findAndLinkDefinition(
@@ -164,7 +166,7 @@ class SIRLinker(using ctx: Context) {
         debug: Boolean = false
     ): Either[String, Module] = {
         val filename = moduleName.replace('.', '/') + ".sir"
-        if (debug) then println(s"findAndReadModuleOfSymbol: ${filename}")
+        if debug then println(s"findAndReadModuleOfSymbol: ${filename}")
         // read the file from the classpath
         val resource = classLoader.getResourceAsStream(filename)
         if resource != null then
