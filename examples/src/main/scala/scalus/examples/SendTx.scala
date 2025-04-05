@@ -7,7 +7,7 @@ import com.bloxbean.cardano.client.backend.api.DefaultProtocolParamsSupplier
 import com.bloxbean.cardano.client.backend.api.DefaultUtxoSupplier
 import com.bloxbean.cardano.client.backend.blockfrost.common.Constants
 import com.bloxbean.cardano.client.backend.blockfrost.service.BFBackendService
-import com.bloxbean.cardano.client.common.CardanoConstants
+import com.bloxbean.cardano.client.common.CardanoConst
 import com.bloxbean.cardano.client.common.CardanoConstants.LOVELACE
 import com.bloxbean.cardano.client.common.model.Network
 import com.bloxbean.cardano.client.common.model.Networks
