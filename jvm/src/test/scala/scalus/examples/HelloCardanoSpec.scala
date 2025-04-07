@@ -3,7 +3,7 @@ package scalus.examples
 import org.scalatest.funsuite.AnyFunSuite
 import scalus.*
 import scalus.Compiler.compile
-import scalus.builtin.ByteString.*
+import scalus.builtin.ByteString.given
 import scalus.builtin.Data.toData
 import scalus.builtin.ToDataInstances.given
 import scalus.builtin.{ByteString, Data}

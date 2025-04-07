@@ -13,23 +13,26 @@ import scalus.examples.PubKeyValidator
 import scalus.ledger.api.v3.*
 import scalus.ledger.api.v3.FromDataInstances.given
 import scalus.ledger.api.v3.ToDataInstances.given
+import scalus.ledger.api.v1.ToDataInstances.given
 import scalus.*
 import scalus.prelude.*
 import scalus.prelude.List.{Cons, Nil}
 import scalus.prelude.Prelude.{*, given}
 import scalus.uplc.*
-import scalus.uplc.TermDSL.*
+import scalus.uplc.TermDSL.{*, given}
 import scalus.uplc.eval.PlutusVM
+import scala.language.implicitConversions
 
 @scalus.Compile
 object ParseScriptInfo {
 
-    def validate(sc: ScriptContext): Boolean = {
+    def validate(scData: Data): Boolean = {
+        val sc = scData.to[ScriptContext]
         sc.scriptInfo match
-            case ScriptInfo.SpendingScript(txOutRef, datum) =>
-                spend(datum, sc.redeemer, sc.txInfo, txOutRef)
             case ScriptInfo.MintingScript(currencySymbol) =>
                 mint(sc.redeemer, currencySymbol, sc.txInfo)
+            case ScriptInfo.SpendingScript(txOutRef, datum) =>
+                spend(datum, sc.redeemer, sc.txInfo, txOutRef)
             case ScriptInfo.RewardingScript(credential) =>
                 reward(credential, sc.txInfo)
             case ScriptInfo.CertifyingScript(index, cert) =>
@@ -41,7 +44,7 @@ object ParseScriptInfo {
     }
 
     def spend(
-        datum: Maybe[Data],
+        datum: Option[Data],
         redeemer: Data,
         targetTxInfo: TxInfo,
         sourceTxOutRef: TxOutRef
@@ -89,9 +92,9 @@ object ParseScriptInfo {
 
 }
 
-class PsrseScriptInfoSpec extends AnyFunSuite:
+class ParseScriptInfoSpec extends AnyFunSuite:
 
-    test("PubKey Validator example") {
+    test("ScriptInfo parsing") {
         val scriptContext =
             ScriptContext(
               TxInfo(
@@ -109,28 +112,31 @@ class PsrseScriptInfoSpec extends AnyFunSuite:
                 TxId(hex"bb"),
                 AssocMap.empty,
                 Nil,
-                Maybe.Nothing,
-                Maybe.Nothing
+                Option.None,
+                Option.None
               ),
               (hex"deadbeef").toData,
               ScriptInfo.SpendingScript(
                 TxOutRef(TxId(hex"deadbeef"), 0),
-                Maybe.Just(hex"aaaaaaaa".toData)
+                Option.Some(hex"aaaaaaaa".toData)
               )
             )
 
         val compiled = compile { ParseScriptInfo.validate }
 
-        println(compiled.pretty.render(100))
+        // println(compiled.pretty.render(100))
+        // println(s"compiled type:  ${compiled.tp.show}")
         val term = compiled.toUplc()
 
-        println(term.pretty.render(100))
+        // println(term.pretty.render(100))
 
         val scriptContextData = scriptContext.toData
-        val appliedValidator = term.plutusV3 $ Term.Const(Constant.Data(scriptContextData))
+        val appliedValidator = term.plutusV3 $ scriptContextData
+
+        // val appliedValidator = term $ Term.Const(Constant.Data(scriptContextData))
         given PlutusVM = PlutusVM.makePlutusV1VM()
         val result = appliedValidator.deBruijnedProgram.evaluateDebug
-        println(result)
+        // println(result)
         assert(result.isSuccess)
         assert(ParseScriptInfo.validate(scriptContext) == false)
     }

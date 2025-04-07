@@ -1,17 +1,20 @@
 package scalus.prelude
 
 import scalus.builtin.{ByteString, Data}
-import scalus.ledger.api.v3.*
+import scalus.ledger.api.v3.{*, given}
+import scalus.ledger.api.v3.FromDataInstances.given
+import scalus.ledger.api.v3.ToDataInstances.given
 
 @scalus.Compile
 trait Validator {
 
-    def validate(sc: ScriptContext): Boolean = {
+    def validate(scData: Data): Boolean = {
+        val sc = scData.to[ScriptContext]
         sc.scriptInfo match
-            case ScriptInfo.SpendingScript(txOutRef, datum) =>
-                spend(datum, sc.redeemer, sc.txInfo, txOutRef)
             case ScriptInfo.MintingScript(currencySymbol) =>
                 mint(sc.redeemer, currencySymbol, sc.txInfo)
+            case ScriptInfo.SpendingScript(txOutRef, datum) =>
+                spend(datum, sc.redeemer, sc.txInfo, txOutRef)
             case ScriptInfo.RewardingScript(credential) =>
                 reward(credential, sc.txInfo)
             case ScriptInfo.CertifyingScript(index, cert) =>
@@ -23,7 +26,7 @@ trait Validator {
     }
 
     def spend(
-        datum: Maybe[Data],
+        datum: Option[Data],
         redeemer: Data,
         targetTxInfo: TxInfo,
         sourceTxOutRef: TxOutRef

@@ -20,7 +20,7 @@ import scala.util.control.NonFatal
   * definitions and data declarations.
   */
 class SIRLinker(using ctx: Context) {
-    private lazy val classLoader = makeClassLoader
+
     private val globalDefs: mutable.LinkedHashMap[FullName, CompileDef] =
         mutable.LinkedHashMap.empty
     private val globalDataDecls: mutable.LinkedHashMap[FullName, DataDecl] =
@@ -28,16 +28,7 @@ class SIRLinker(using ctx: Context) {
     private val moduleDefsCache: mutable.Map[String, mutable.LinkedHashMap[FullName, SIR]] =
         mutable.LinkedHashMap.empty.withDefaultValue(mutable.LinkedHashMap.empty)
 
-    private def makeClassLoader: ClassLoader = {
-        import scala.language.unsafeNulls
-
-        val entries = ClassPath.expandPath(ctx.settings.classpath.value, expandStar = true)
-        val urls = entries.map(cp => java.nio.file.Paths.get(cp).toUri.toURL).toArray
-        val out = Option(
-          ctx.settings.outputDir.value.toURL
-        ) // to find classes in case of suspended compilation
-        new java.net.URLClassLoader(urls ++ out.toList, getClass.getClassLoader)
-    }
+    private val sirLoader = new SIRLoader(using ctx)
 
     private def error[A](error: CompilationError, defaultValue: A): A = {
         report.error(error.message, error.srcPos)
@@ -138,7 +129,7 @@ class SIRLinker(using ctx: Context) {
             case Some(defs) =>
                 findAndLinkDefinition(defs, fullName, srcPos)
             case None =>
-                findAndReadModuleOfSymbol(moduleName) match
+                sirLoader.findAndReadModule(moduleName) match
                     case Right(module) =>
                         // println(s"Loaded module ${moduleName}, defs: ${defs}")
                         validateSIRVersion(module, moduleName, srcPos)
@@ -159,23 +150,6 @@ class SIRLinker(using ctx: Context) {
               SymbolNotFound(fullName.name, srcPos),
               SIR.Error("Symbol not found", AnnotationsDecl.fromSrcPos(srcPos))
             )
-    }
-
-    private def findAndReadModuleOfSymbol(
-        moduleName: String,
-        debug: Boolean = false
-    ): Either[String, Module] = {
-        val filename = moduleName.replace('.', '/') + ".sir"
-        if debug then println(s"findAndReadModuleOfSymbol: ${filename}")
-        // read the file from the classpath
-        val resource = classLoader.getResourceAsStream(filename)
-        if resource != null then
-            val buffer = resource.readAllBytes()
-            val dec = DecoderState(buffer)
-            val module = flat.decode[Module](dec)
-            resource.close()
-            Right(module)
-        else Left(filename)
     }
 
     private def validateSIRVersion(module: Module, moduleName: String, srcPos: SrcPos): Unit = {
