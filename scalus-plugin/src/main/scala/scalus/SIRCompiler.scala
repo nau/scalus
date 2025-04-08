@@ -12,7 +12,6 @@ import dotty.tools.dotc.core.Symbols.*
 import dotty.tools.dotc.core.Types.*
 import dotty.tools.dotc.core.*
 import dotty.tools.dotc.util.{NoSourcePosition, SourcePosition, SrcPos}
-import scalus.SIRCompiler.SIRVersion
 import scalus.flat.EncoderState
 import scalus.flat.Flat
 import scalus.flat.FlatInstantces.given
@@ -281,12 +280,6 @@ final class SIRCompiler(using ctx: Context) {
                     Binding(b.fullName.name, newBody)
                 else Binding(b.fullName.name, b.body)
             } ++ nonOverridedSupers.map(b => Binding(b.fullName.name, b.body))
-
-        // --- DEBUG
-        if (superBindings.nonEmpty) then
-            println(s"superBingins:  ${superBindings.map(_.fullName.name)}")
-            println(s"nonOverrides:  ${nonOverridedSupers.map(_.fullName.name)}")
-            println(s"old bindings:  ${bindings.map(b => b.fullName.name)}")
 
         val module =
             Module(
@@ -1816,7 +1809,7 @@ final class SIRCompiler(using ctx: Context) {
     }
 
     private def compileVirtualCall(env: Env, tree: Tree, qualifier: Tree, name: Name): SIR = {
-        println("compile virtual call: " + tree.show)
+        if env.debug then println("compile virtual call: " + tree.show)
         val qualifierSym = qualifier.symbol
         val qualifierTypeSym = qualifier.tpe.typeSymbol
         val member = qualifierSym.info.member(name)
@@ -1826,43 +1819,6 @@ final class SIRCompiler(using ctx: Context) {
               SIR.Error("Member not found", AnnotationsDecl.fromSrcPos(tree.srcPos))
             )
         else
-            println(
-              s"compileVirtualCall: qualifier=${qualifierSym.fullName.show}, tp=${qualifierTypeSym.fullName.show} name=${name.show}"
-            )
-            println(
-              s"qualifier.isType=${qualifierSym.isType}, qualifier.isClass=${qualifierSym.isClass}"
-            )
-            println(
-              s"qualifierTypeSym.isType=${qualifierTypeSym.isType}, qualifierTypeSym.isClass=${qualifierTypeSym.isClass}"
-            )
-            println(
-              s"sym.flags=${qualifierSym.flagsString},  companionClass=${qualifierSym.companionClass}, companiomModule=${qualifierSym.companionModule}"
-            )
-            println(
-              s"isModule = ${qualifierSym.is(Flags.Module)},  companionModule.fullName=${qualifierSym.companionModule.fullName.toString}"
-            )
-            println(
-              s"isModule = ${qualifierSym.is(Flags.Module)},  companioClass.fullName=${qualifierSym.companionModule.companionClass.fullName.toString}"
-            )
-            println(
-              s"typeSym.name = ${qualifierTypeSym.fullName.toString}, typeSym.flags=${qualifierTypeSym.flagsString}, isModuleClass=${qualifierTypeSym
-                      .is(Flags.ModuleClass)}"
-            )
-            println(
-              s"tp: companionClass = ${qualifierTypeSym.companionClass}, companionModule=${qualifierTypeSym.companionModule}"
-            )
-            println(s"tree=${tree.show}, tree.symbol=${tree.symbol}")
-            println(s"tree.tpe=${tree.tpe.show}, tree.tpe.symbol=${tree.tpe.typeSymbol}")
-            println(
-              s"tree.tpe.widen=${tree.tpe.widen.show}, tree.tpe.symbol=${tree.tpe.widen.typeSymbol}"
-            )
-
-            if (qualifierTypeSym.fullName.toString == "scalus.examples.HelloCardano$") then
-                sirLoader.findAndReadModule(qualifierTypeSym.fullName.toString) match
-                    case Left(message) => println(s"module is not loaded ${message}")
-                    case Right(module) =>
-                        println(s"module bindings=${module.defs.map(_.name)}")
-
             member.info match
                 case _: MethodType | _: PolyType =>
                     SIR.ExternalVar(
@@ -1880,14 +1836,6 @@ final class SIRCompiler(using ctx: Context) {
                       SIR.Error("Invalid overriding", AnnotationsDecl.fromSrcPos(tree.srcPos))
                     )
     }
-
-    /*
-    private def specializeName(sym: Symbol, env: Env): String = {
-        val thisSymbol = env.thisTypeSymbol
-        val owner = sym.owner
-        if thisSymbol == owner then s"${thisSymbol.show}::${sym.name}"
-        else s"${thisSymbol.show}::${sym.fullName.show}"
-    }*/
 
     private def specializeInModule(
         parentSym: Symbol,
@@ -1930,14 +1878,8 @@ final class SIRCompiler(using ctx: Context) {
     ): (SIR, Boolean) = {
         sir match
             case SIR.ExternalVar(moduleName, name, tp, anns) =>
-                println(
-                  s"specializeSIR; ExternalVar, name=${name}, moduleName=${moduleName},  thisClassName=${env.thisTypeSymbol.fullName.show}"
-                )
                 possibleOverrides.get(name) match
                     case Some(binding) =>
-                        println(
-                          s"specializeSIR, found binding: ${binding.name}, return external var in module ${env.thisTypeSymbol.fullName.show} name ${binding.fullName.name}"
-                        )
                         SIR.ExternalVar(
                           env.thisTypeSymbol.fullName.toString,
                           binding.fullName.name,
@@ -1945,10 +1887,7 @@ final class SIRCompiler(using ctx: Context) {
                           anns
                         ) -> true
                     case None =>
-                        if (thisClassNames.contains(name)) then
-                            println(
-                              s"specializeSIR,  self binding for ${name}, remapping to this module"
-                            )
+                        if thisClassNames.contains(name) then
                             SIR.ExternalVar(
                               env.thisTypeSymbol.fullName.toString,
                               name,
@@ -1957,7 +1896,6 @@ final class SIRCompiler(using ctx: Context) {
                             ) -> true
                         else sir -> false
             case SIR.Var(name, tp, anns) =>
-                println(s"speializeSIR, Var($name), not change")
                 sir -> false
             case SIR.Let(rec, binding, body, anns) =>
                 var bindingIsChanged = false
