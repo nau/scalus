@@ -207,6 +207,8 @@ private[builtin] abstract class AbstractBuiltins(using ps: PlatformSpecific):
     def equalsInteger(i1: BigInt, i2: BigInt): Boolean = i1 == i2
     def lessThanInteger(i1: BigInt, i2: BigInt): Boolean = i1 < i2
     def lessThanEqualsInteger(i1: BigInt, i2: BigInt): Boolean = i1 <= i2
+    def greaterThanInteger(i1: BigInt, i2: BigInt): Boolean = i1 > i2
+    def greaterThanEqualsInteger(i1: BigInt, i2: BigInt): Boolean = i1 >= i2
     // Bytestrings
     def appendByteString(a: ByteString, b: ByteString): ByteString = a ++ b
     def consByteString(char: BigInt, byteString: ByteString): ByteString =
