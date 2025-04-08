@@ -34,4 +34,3 @@ class HelloCardanoSpec extends AnyFunSuite with ScalusTest {
         assert(result.budget == ExBudget(ExCPU(60662989), ExMemory(228477)))
     }
 }
-
