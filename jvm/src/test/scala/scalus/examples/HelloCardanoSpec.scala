@@ -28,9 +28,9 @@ class HelloCardanoSpec extends AnyFunSuite with ScalusTest {
           signatories = List(ownerPubKey)
         )
 
-        val result = compile(HelloCardano.validator).runScript(context)
+        val result = compile(HelloCardano.validate).runScript(context)
 
         assert(result.isSuccess)
-        assert(result.budget == ExBudget(ExCPU(60662989), ExMemory(228477)))
+        assert(result.budget == ExBudget(ExCPU(61142989), ExMemory(231477)))
     }
 }

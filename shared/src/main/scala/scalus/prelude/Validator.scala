@@ -5,6 +5,7 @@ import scalus.ledger.api.v3.{*, given}
 import scalus.ledger.api.v3.FromDataInstances.given
 import scalus.ledger.api.v3.ToDataInstances.given
 
+
 @scalus.Compile
 trait Validator {
 
