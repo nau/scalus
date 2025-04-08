@@ -14,12 +14,16 @@ import scalus.prelude.Prelude.*
 @Compile
 object HelloCardano extends Validator {
 
+    def validate1(scData: Data): Unit = {
+        validate(scData)
+    }
+
     override def spend(
-                          datum: Option[Data],
-                          redeemer: Data,
-                          targetTxInfo: TxInfo,
-                          sourceTxOutRef: TxOutRef
-                      ): Boolean = {
+        datum: Option[Data],
+        redeemer: Data,
+        targetTxInfo: TxInfo,
+        sourceTxOutRef: TxOutRef
+    ): Unit = {
         datum match
             case Option.Some(ownerDatum) =>
                 val owner = ownerDatum.to[PubKeyHash]
@@ -29,14 +33,13 @@ object HelloCardano extends Validator {
                     .getOrFail("No signature found")
                 val mustSayHello = redeemer.to[String] == "Hello, Cardano!"
                 if !mustSayHello then throw new Exception("Invalid message")
-                true
             case Option.None =>
                 throw new Exception("Expected datum")
     }
 
 }
 
-    /*
+/*
     def validator(scriptContext: Data): Unit = {
         val ctx = scriptContext.to[ScriptContext]
         ctx.scriptInfo match
@@ -49,5 +52,5 @@ object HelloCardano extends Validator {
             case _ => fail("Must be spending")
     }
 
-     */
+ */
 //}

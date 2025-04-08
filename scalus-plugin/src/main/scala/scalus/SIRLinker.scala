@@ -147,7 +147,7 @@ class SIRLinker(using ctx: Context) {
 
         if !found then
             error(
-              SymbolNotFound(fullName.name, srcPos),
+              SymbolNotFound(fullName.name, moduleName, srcPos, anns.pos),
               SIR.Error("Symbol not found", AnnotationsDecl.fromSrcPos(srcPos))
             )
     }

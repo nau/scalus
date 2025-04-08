@@ -8,7 +8,7 @@ import scalus.ledger.api.v3.ToDataInstances.given
 @scalus.Compile
 trait Validator {
 
-    def validate(scData: Data): Boolean = {
+    def validate(scData: Data): Unit = {
         val sc = scData.to[ScriptContext]
         sc.scriptInfo match
             case ScriptInfo.MintingScript(currencySymbol) =>
@@ -30,46 +30,46 @@ trait Validator {
         redeemer: Data,
         targetTxInfo: TxInfo,
         sourceTxOutRef: TxOutRef
-    ): Boolean = {
+    ): Unit = {
         // send the script to the blockchain
-        false
+        throw RuntimeException("Empty Validator.spend")
     }
 
     def mint(
         redeemer: Data,
         currencySymbol: CurrencySymbol,
         txInfo: TxInfo
-    ): Boolean = {
-        false
+    ): Unit = {
+        throw RuntimeException("Empty Validator.mint")
     }
 
     def reward(
         stakingKey: Credential,
         txInfo: TxInfo
-    ): Boolean = {
-        false
+    ): Unit = {
+        throw RuntimeException("Empty Validator.reward")
     }
 
     def certify(
         txCert: TxCert,
         txInfo: TxInfo
-    ): Boolean = {
-        false
+    ): Unit = {
+        throw RuntimeException("Empty Validator.certify")
     }
 
     def vote(
         redeemer: Data,
         voter: Voter,
         txInfo: TxInfo
-    ): Boolean = {
-        false
+    ): Unit = {
+        throw RuntimeException("Empty Validator.vote")
     }
 
     def propose(
         proposalProcedure: ProposalProcedure,
         txInfo: TxInfo
-    ): Boolean = {
-        false
+    ): Unit = {
+        throw RuntimeException("Empty Validator.propose")
     }
 
 }

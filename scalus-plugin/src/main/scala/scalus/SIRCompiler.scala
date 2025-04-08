@@ -12,6 +12,7 @@ import dotty.tools.dotc.core.Symbols.*
 import dotty.tools.dotc.core.Types.*
 import dotty.tools.dotc.core.*
 import dotty.tools.dotc.util.{NoSourcePosition, SourcePosition, SrcPos}
+import scalus.SIRCompiler.SIRVersion
 import scalus.flat.EncoderState
 import scalus.flat.Flat
 import scalus.flat.FlatInstantces.given
@@ -144,6 +145,8 @@ final class SIRCompiler(using ctx: Context) {
         mutable.LinkedHashMap.empty
 
     case class SuperBinding(
+        // here the full name orifinal symbol.
+        //  for now, we use the same name.
         name: String,
         // origin symbol (parent of this class) where the method is defined
         parentSymbol: Symbol,
@@ -156,7 +159,7 @@ final class SIRCompiler(using ctx: Context) {
     ) {
 
         def fullName(using Context): FullName =
-            FullName(childSymbol.fullName.toString + "." + name)
+            FullName(name)
 
     }
     // private val specializedDefs: mutable.LinkedHashMap[FullName, SIR] =
@@ -231,10 +234,17 @@ final class SIRCompiler(using ctx: Context) {
             case _ => None
         }
 
-        val possibleOverrides = bindings.map(lb => (lb.name, lb)).toMap
+        // val bindingByName = bindings.map(b => b.name -> b).toMap
+
+        val possibleOverrides = specializedParents.flatMap { p =>
+            bindings.map { lb =>
+                p.symbol.fullName.show + "." + lb.name
+                    -> lb
+            }
+        }.toMap
 
         val superBindings = specializedParents.flatMap { p =>
-            sirLoader.findAndReadModule(p.symbol.showFullName, true) match
+            sirLoader.findAndReadModule(p.symbol.fullName.show, true) match
                 case Left(message) =>
                     error(
                       GenericError(
@@ -256,10 +266,27 @@ final class SIRCompiler(using ctx: Context) {
             !possibleOverrides.contains(b.name)
         }
 
+        val superNames = superBindings.map(_.name).toSet
+
         val bindingsWithSpecialized =
-            bindings.map(b => Binding(b.fullName.name, b.body)) ++ nonOverridedSupers.map(b =>
-                Binding(b.name, b.body)
-            )
+            bindings.map { b =>
+                if (superBindings.nonEmpty) then
+                    val (newBody, changed) = specializeSIR(
+                      Symbols.NoSymbol,
+                      b.body,
+                      Env.empty.copy(thisTypeSymbol = td.symbol),
+                      Map.empty,
+                      superNames
+                    )
+                    Binding(b.fullName.name, newBody)
+                else Binding(b.fullName.name, b.body)
+            } ++ nonOverridedSupers.map(b => Binding(b.fullName.name, b.body))
+
+        // --- DEBUG
+        if (superBindings.nonEmpty) then
+            println(s"superBingins:  ${superBindings.map(_.fullName.name)}")
+            println(s"nonOverrides:  ${nonOverridedSupers.map(_.fullName.name)}")
+            println(s"old bindings:  ${bindings.map(b => b.fullName.name)}")
 
         val module =
             Module(
@@ -1678,7 +1705,7 @@ final class SIRCompiler(using ctx: Context) {
                 else if isConstructorVal(tree.symbol, tree.tpe) then
                     compileNewConstructor(env, tree.tpe, tree.tpe, Nil, tree.srcPos)
                 else if isVirtualCall(tree, obj.symbol, ident) then
-                    compileVirtualCall(env, tree, obj.symbol, ident)
+                    compileVirtualCall(env, tree, obj, ident)
                 else compileIdentOrQualifiedSelect(env, tree)
             // ignore asInstanceOf
             case TypeApply(Select(e, nme.asInstanceOf_), _) =>
@@ -1788,8 +1815,10 @@ final class SIRCompiler(using ctx: Context) {
         !declDenotation.exists
     }
 
-    private def compileVirtualCall(env: Env, tree: Tree, qualifierSym: Symbol, name: Name): SIR = {
+    private def compileVirtualCall(env: Env, tree: Tree, qualifier: Tree, name: Name): SIR = {
         println("compile virtual call: " + tree.show)
+        val qualifierSym = qualifier.symbol
+        val qualifierTypeSym = qualifier.tpe.typeSymbol
         val member = qualifierSym.info.member(name)
         if (!member.exists) then
             error(
@@ -1798,17 +1827,47 @@ final class SIRCompiler(using ctx: Context) {
             )
         else
             println(
-              s"compileVirtualCall: qualifier=${qualifierSym.fullName.show}, name=${name.show}"
+              s"compileVirtualCall: qualifier=${qualifierSym.fullName.show}, tp=${qualifierTypeSym.fullName.show} name=${name.show}"
             )
             println(
               s"qualifier.isType=${qualifierSym.isType}, qualifier.isClass=${qualifierSym.isClass}"
             )
+            println(
+              s"qualifierTypeSym.isType=${qualifierTypeSym.isType}, qualifierTypeSym.isClass=${qualifierTypeSym.isClass}"
+            )
+            println(
+              s"sym.flags=${qualifierSym.flagsString},  companionClass=${qualifierSym.companionClass}, companiomModule=${qualifierSym.companionModule}"
+            )
+            println(
+              s"isModule = ${qualifierSym.is(Flags.Module)},  companionModule.fullName=${qualifierSym.companionModule.fullName.toString}"
+            )
+            println(
+              s"isModule = ${qualifierSym.is(Flags.Module)},  companioClass.fullName=${qualifierSym.companionModule.companionClass.fullName.toString}"
+            )
+            println(
+              s"typeSym.name = ${qualifierTypeSym.fullName.toString}, typeSym.flags=${qualifierTypeSym.flagsString}, isModuleClass=${qualifierTypeSym
+                      .is(Flags.ModuleClass)}"
+            )
+            println(
+              s"tp: companionClass = ${qualifierTypeSym.companionClass}, companionModule=${qualifierTypeSym.companionModule}"
+            )
             println(s"tree=${tree.show}, tree.symbol=${tree.symbol}")
+            println(s"tree.tpe=${tree.tpe.show}, tree.tpe.symbol=${tree.tpe.typeSymbol}")
+            println(
+              s"tree.tpe.widen=${tree.tpe.widen.show}, tree.tpe.symbol=${tree.tpe.widen.typeSymbol}"
+            )
+
+            if (qualifierTypeSym.fullName.toString == "scalus.examples.HelloCardano$") then
+                sirLoader.findAndReadModule(qualifierTypeSym.fullName.toString) match
+                    case Left(message) => println(s"module is not loaded ${message}")
+                    case Right(module) =>
+                        println(s"module bindings=${module.defs.map(_.name)}")
+
             member.info match
                 case _: MethodType | _: PolyType =>
                     SIR.ExternalVar(
-                      qualifierSym.fullName.show,
-                      name.show,
+                      qualifierTypeSym.fullName.toString,
+                      member.symbol.fullName.toString,
                       sirTypeInEnv(member.info.finalResultType, tree.srcPos, env),
                       AnnotationsDecl.fromSrcPos(tree.srcPos)
                     )
@@ -1838,12 +1897,20 @@ final class SIRCompiler(using ctx: Context) {
     ): List[SuperBinding] = {
         val thisSymbol = env.thisTypeSymbol
         println(
-          s"specialize, parentSym=${parentSym}(${parentSym.fullName.show}), thisSymbol=${thisSymbol}(${thisSymbol.fullName.show})"
+          s"specialize, parentSym=${parentSym}(${parentSym.fullName.show}), thisSymbol=${thisSymbol}(${thisSymbol.fullName.toString})"
         )
+        println(
+          s"speciallize, possible overrides=${possibleOverrides.keys}"
+        )
+        println(
+          s"specialize,  defs = ${module.defs.map(_.name)}"
+        )
+        val thisClassNames = module.defs.map(_.name).toSet
         for {
             binding <- module.defs
         } yield {
-            val (nSIR, isChanged) = specializeSIR(parentSym, binding.value, env, possibleOverrides)
+            val (nSIR, isChanged) =
+                specializeSIR(parentSym, binding.value, env, possibleOverrides, thisClassNames)
             SuperBinding(
               binding.name,
               parentSym,
@@ -1858,26 +1925,50 @@ final class SIRCompiler(using ctx: Context) {
         parentSym: Symbol,
         sir: SIR,
         env: Env,
-        possibleOverrides: Map[String, LocalBinding]
+        possibleOverrides: Map[String, LocalBinding],
+        thisClassNames: Set[String]
     ): (SIR, Boolean) = {
         sir match
             case SIR.ExternalVar(moduleName, name, tp, anns) =>
+                println(
+                  s"specializeSIR; ExternalVar, name=${name}, moduleName=${moduleName},  thisClassName=${env.thisTypeSymbol.fullName.show}"
+                )
                 possibleOverrides.get(name) match
                     case Some(binding) =>
-                        SIR.ExternalVar(env.thisTypeSymbol.fullName.show, name, tp, anns) -> true
+                        println(
+                          s"specializeSIR, found binding: ${binding.name}, return external var in module ${env.thisTypeSymbol.fullName.show} name ${binding.fullName.name}"
+                        )
+                        SIR.ExternalVar(
+                          env.thisTypeSymbol.fullName.toString,
+                          binding.fullName.name,
+                          tp,
+                          anns
+                        ) -> true
                     case None =>
-                        sir -> false
+                        if (thisClassNames.contains(name)) then
+                            println(
+                              s"specializeSIR,  self binding for ${name}, remapping to this module"
+                            )
+                            SIR.ExternalVar(
+                              env.thisTypeSymbol.fullName.toString,
+                              name,
+                              tp,
+                              anns
+                            ) -> true
+                        else sir -> false
             case SIR.Var(name, tp, anns) =>
+                println(s"speializeSIR, Var($name), not change")
                 sir -> false
             case SIR.Let(rec, binding, body, anns) =>
                 var bindingIsChanged = false
                 val newBinding = binding.map { b =>
                     val (newBody, changed) =
-                        specializeSIR(parentSym, b.value, env, possibleOverrides)
+                        specializeSIR(parentSym, b.value, env, possibleOverrides, thisClassNames)
                     if (changed) bindingIsChanged = true
                     Binding(b.name, newBody)
                 }
-                val (newBody, bodyChanged) = specializeSIR(parentSym, body, env, possibleOverrides)
+                val (newBody, bodyChanged) =
+                    specializeSIR(parentSym, body, env, possibleOverrides, thisClassNames)
                 SIR.Let(
                   rec,
                   newBinding,
@@ -1885,38 +1976,50 @@ final class SIRCompiler(using ctx: Context) {
                   anns
                 ) -> (bindingIsChanged || bodyChanged)
             case SIR.LamAbs(param, term, anns) =>
-                val (newTerm, termChanged) = specializeSIR(parentSym, term, env, possibleOverrides)
+                val (newTerm, termChanged) =
+                    specializeSIR(parentSym, term, env, possibleOverrides, thisClassNames)
                 val newSIR = SIR.LamAbs(param, newTerm, anns)
                 (newSIR, termChanged)
             case SIR.Apply(f, arg, tp, anns) =>
-                val (newF, fChanged) = specializeSIR(parentSym, f, env, possibleOverrides)
-                val (newArg, argChanged) = specializeSIR(parentSym, arg, env, possibleOverrides)
+                val (newF, fChanged) =
+                    specializeSIR(parentSym, f, env, possibleOverrides, thisClassNames)
+                val (newArg, argChanged) =
+                    specializeSIR(parentSym, arg, env, possibleOverrides, thisClassNames)
                 val newSIR = SIR.Apply(newF, newArg, tp, anns)
                 (newSIR, fChanged || argChanged)
             case SIR.Select(obj, name, tp, anns) =>
-                val (newObj, objChanged) = specializeSIR(parentSym, obj, env, possibleOverrides)
+                val (newObj, objChanged) =
+                    specializeSIR(parentSym, obj, env, possibleOverrides, thisClassNames)
                 val newSIR = SIR.Select(newObj, name, tp, anns)
                 (newSIR, objChanged)
             case SIR.Const(_, _, _) =>
                 sir -> false
             case SIR.And(x, y, anns) =>
-                val (newX, xChanged) = specializeSIR(parentSym, x, env, possibleOverrides)
-                val (newY, yChanged) = specializeSIR(parentSym, y, env, possibleOverrides)
+                val (newX, xChanged) =
+                    specializeSIR(parentSym, x, env, possibleOverrides, thisClassNames)
+                val (newY, yChanged) =
+                    specializeSIR(parentSym, y, env, possibleOverrides, thisClassNames)
                 val newSIR = SIR.And(newX, newY, anns)
                 (newSIR, xChanged || yChanged)
             case SIR.Or(x, y, anns) =>
-                val (newX, xChanged) = specializeSIR(parentSym, x, env, possibleOverrides)
-                val (newY, yChanged) = specializeSIR(parentSym, y, env, possibleOverrides)
+                val (newX, xChanged) =
+                    specializeSIR(parentSym, x, env, possibleOverrides, thisClassNames)
+                val (newY, yChanged) =
+                    specializeSIR(parentSym, y, env, possibleOverrides, thisClassNames)
                 val newSIR = SIR.Or(newX, newY, anns)
                 (newSIR, xChanged || yChanged)
             case SIR.Not(x, anns) =>
-                val (newX, xChanged) = specializeSIR(parentSym, x, env, possibleOverrides)
+                val (newX, xChanged) =
+                    specializeSIR(parentSym, x, env, possibleOverrides, thisClassNames)
                 val newSIR = SIR.Not(newX, anns)
                 (newSIR, xChanged)
             case SIR.IfThenElse(cond, t, f, tp, anns) =>
-                val (newCond, condChanged) = specializeSIR(parentSym, cond, env, possibleOverrides)
-                val (newT, tChanged) = specializeSIR(parentSym, t, env, possibleOverrides)
-                val (newF, fChanged) = specializeSIR(parentSym, f, env, possibleOverrides)
+                val (newCond, condChanged) =
+                    specializeSIR(parentSym, cond, env, possibleOverrides, thisClassNames)
+                val (newT, tChanged) =
+                    specializeSIR(parentSym, t, env, possibleOverrides, thisClassNames)
+                val (newF, fChanged) =
+                    specializeSIR(parentSym, f, env, possibleOverrides, thisClassNames)
                 val newSIR = SIR.IfThenElse(newCond, newT, newF, tp, anns)
                 (newSIR, condChanged || tChanged || fChanged)
             case SIR.Builtin(name, tp, anns) =>
@@ -1926,7 +2029,8 @@ final class SIRCompiler(using ctx: Context) {
             case SIR.Constr(name, dataDecl, args, tp, anns) =>
                 var argsAreChanged = false
                 val newArgs = args.map { arg =>
-                    val (newArg, changed) = specializeSIR(parentSym, arg, env, possibleOverrides)
+                    val (newArg, changed) =
+                        specializeSIR(parentSym, arg, env, possibleOverrides, thisClassNames)
                     if changed then argsAreChanged = true
                     newArg
                 }
@@ -1936,17 +2040,17 @@ final class SIRCompiler(using ctx: Context) {
                 var casesAreChanged = false
                 val newCases = cases.map { c =>
                     val (newCaseBody, changed) =
-                        specializeSIR(parentSym, c.body, env, possibleOverrides)
+                        specializeSIR(parentSym, c.body, env, possibleOverrides, thisClassNames)
                     if changed then casesAreChanged = true
                     SIR.Case(c.pattern, newCaseBody)
                 }
                 val (newScrutinee, scrutineeChanged) =
-                    specializeSIR(parentSym, scrutinee, env, possibleOverrides)
+                    specializeSIR(parentSym, scrutinee, env, possibleOverrides, thisClassNames)
                 val newSIR = SIR.Match(newScrutinee, newCases, tp, anns)
                 (newSIR, scrutineeChanged || casesAreChanged)
             case SIR.Decl(data, term) =>
                 val (newTerm, changed) =
-                    specializeSIR(parentSym, term, env, possibleOverrides)
+                    specializeSIR(parentSym, term, env, possibleOverrides, thisClassNames)
                 SIR.Decl(data, newTerm) -> changed
     }
 
