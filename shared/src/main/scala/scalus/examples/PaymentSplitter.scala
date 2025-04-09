@@ -35,20 +35,16 @@ object PaymentSplitter {
                 else 0
 
     def spend(txInfo: TxInfo, payees: List[Credential]): Unit = {
-        val payeeInputWithChange =
-            def findPayeeOrFail(inputs: List[TxInInfo], feePayer: Option[TxOut]): TxOut =
-                inputs match
-                    case Nil =>
-                        feePayer.getOrFail(
-                          "One of the payees must have an input to pay the fee and trigger the payout"
-                        )
-                    case Cons(input, tail) =>
-                        if payees.contains(input.resolved.address.credential) then
-                            feePayer match
-                                case None => findPayeeOrFail(tail, Option.Some(input.resolved))
-                                case _    => fail("Already found a fee payer")
-                        else findPayeeOrFail(tail, feePayer)
-            findPayeeOrFail(txInfo.inputs, None)
+        val payeeInputWithChange = txInfo.inputs
+            .foldLeft(Option.empty[TxOut]) { (acc, input) =>
+                if payees.contains(input.resolved.address.credential)
+                then
+                    acc match
+                        case None    => Some(input.resolved)
+                        case Some(_) => fail("Already found a fee payer")
+                else acc
+            }
+            .getOrFail("One of the payees must have an input to pay the fee and trigger the payout")
 
         val (unpaidPayees, _) = txInfo.outputs.foldLeft((payees, None: Option[BigInt])) {
             case ((payees, prevValue), output) =>

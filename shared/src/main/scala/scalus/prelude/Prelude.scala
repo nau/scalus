@@ -26,7 +26,7 @@ extension (x: Boolean)
 
 @Compile
 object Prelude {
-    type Eq[A] = (A, A) => Boolean
+    type Eq[-A] = (A, A) => Boolean
     // given Eq[Nothing] = (x: Nothing, y: Nothing) => throw new Exception("EQN")
     given Eq[BigInt] = (x: BigInt, y: BigInt) => equalsInteger(x, y)
     given Eq[ByteString] = (x: ByteString, y: ByteString) => equalsByteString(x, y)
@@ -118,6 +118,28 @@ object List:
         from(i.asScala)
     }
 
+    def range(from: BigInt, to: BigInt): List[BigInt] = {
+        require(lessThanEqualsInteger(from, to), "`from` must be less than or equal `to`")
+
+        @tailrec
+        def go(current: BigInt, acc: List[BigInt]): List[BigInt] =
+            if lessThanInteger(current, to) then go(addInteger(current, 1), Cons(current, acc))
+            else acc
+
+        go(from, Nil).reverse
+    }
+
+    def fill[A](value: A, times: BigInt): List[A] = {
+        require(greaterThanEqualsInteger(times, 0), "`times` must be greater than or equal 0")
+
+        @tailrec
+        def go(current: BigInt, acc: List[A]): List[A] =
+            if lessThanInteger(current, times) then go(addInteger(current, 1), Cons(value, acc))
+            else acc
+
+        go(0, Nil).reverse
+    }
+
     def map2[A, B, C](a: List[A], b: List[B])(f: (A, B) => C): List[C] = {
         a match
             case Cons(h1, t1) =>
@@ -138,20 +160,48 @@ object List:
             case Nil        => false
             case Cons(_, _) => true
 
-        def getByIndex(idx: BigInt): A = {
+        def isDefinedAt(index: BigInt): Boolean =
+            require(greaterThanEqualsInteger(index, 0), "`index` must be greater than or equal 0")
+
             @tailrec
-            def go(i: BigInt, lst: List[A]): A = lst match
+            def go(lst: List[A], currentIndex: BigInt): Boolean = lst match
+                case Nil => false
+                case Cons(_, tail) =>
+                    if equalsInteger(currentIndex, index) then true
+                    else go(tail, addInteger(currentIndex, 1))
+
+            go(self, 0)
+
+        def getByIndex(index: BigInt): A = {
+            require(greaterThanEqualsInteger(index, 0), "`index` must be greater than or equal 0")
+
+            @tailrec
+            def go(lst: List[A], currentIndex: BigInt): A = lst match
                 case Nil => throw new Exception("Index out of bounds")
                 case Cons(head, tail) =>
-                    if equalsInteger(i, idx) then head else go(addInteger(i, 1), tail)
+                    if equalsInteger(currentIndex, index) then head
+                    else go(tail, addInteger(currentIndex, 1))
 
-            go(0, self)
+            go(self, 0)
+        }
+
+        def at(index: BigInt): Option[A] = {
+            require(greaterThanEqualsInteger(index, 0), "`index` must be greater than or equal 0")
+
+            @tailrec
+            def go(lst: List[A], currentIndex: BigInt): Option[A] = lst match
+                case Nil => None
+                case Cons(head, tail) =>
+                    if equalsInteger(currentIndex, index) then Some(head)
+                    else go(tail, addInteger(currentIndex, 1))
+
+            go(self, 0)
         }
 
         @tailrec
-        def contains(what: A)(using eq: Eq[A]): Boolean = self match
+        def contains[B >: A](elem: B)(using eq: Eq[B]): Boolean = self match
             case Nil              => false
-            case Cons(head, tail) => if what === head then true else tail.contains(what)
+            case Cons(head, tail) => if elem === head then true else tail.contains(elem)
 
         def groupBy[K: Eq](f: A => K): AssocMap[K, List[A]] = {
             @tailrec
@@ -215,11 +265,25 @@ object List:
         }
 
         /** Adds an element at the beginning of this list */
-        def prepended[B >: A](head: B): List[B] = Cons(head, self)
+        inline def prepended[B >: A](elem: B): List[B] = Cons(elem, self)
+        inline def +:[B >: A](elem: B): List[B] = prepended(elem)
+        inline def prependedAll[B >: A](other: List[B]): List[B] = other.appendedAll(self)
+        inline def ++:[B >: A](other: List[B]): List[B] = prependedAll(other)
+
+        def appended[B >: A](elem: B): List[B] = self match
+            case Nil              => List.single(elem)
+            case Cons(head, tail) => Cons(head, tail.appended(elem))
+
+        inline def :+[B >: A](elem: B): List[B] = appended(elem)
 
         def appendedAll[B >: A](other: List[B]): List[B] = self match
             case Nil              => other
             case Cons(head, tail) => Cons(head, tail.appendedAll(other))
+
+        inline def :++[B >: A](other: List[B]): List[B] = appendedAll(other)
+
+        inline def concat[B >: A](other: List[B]): List[B] = appendedAll(other)
+        inline def ++[B >: A](other: List[B]): List[B] = concat(other)
 
         def map[B](f: A => B): List[B] = self match
             case Nil              => Nil
@@ -250,20 +314,64 @@ object List:
             case Nil              => true
             case Cons(head, tail) => if p(head) then tail.forall(p) else false
 
-        def length: BigInt = {
+        def count(p: A => Boolean): BigInt = {
             @tailrec
-            def count(lst: List[A], counter: BigInt): BigInt = lst match
-                case Nil           => counter
-                case Cons(_, tail) => count(tail, counter + 1)
+            def go(lst: List[A], counter: BigInt): BigInt = lst match
+                case Nil => counter
+                case Cons(head, tail) =>
+                    if p(head) then go(tail, addInteger(counter, 1)) else go(tail, counter)
 
-            count(self, BigInt(0))
+            go(self, BigInt(0))
         }
 
-        def size: BigInt = length
+        def indexOf[B >: A](elem: B)(using eq: Eq[B]): BigInt = {
+            @tailrec
+            def go(lst: List[A], index: BigInt): BigInt = lst match
+                case Nil => -1
+                case Cons(head, tail) =>
+                    if head === elem then index else go(tail, addInteger(index, 1))
+
+            go(self, BigInt(0))
+        }
+
+        def indexOfOption[B >: A](elem: B)(using eq: Eq[B]): Option[BigInt] = {
+            @tailrec
+            def go(lst: List[A], index: BigInt): Option[BigInt] = lst match
+                case Nil => None
+                case Cons(head, tail) =>
+                    if head === elem then Some(index) else go(tail, addInteger(index, 1))
+
+            go(self, BigInt(0))
+        }
+
+        @tailrec
+        def last: A = self match
+            case Nil               => throw new NoSuchElementException("last of empty list")
+            case Cons(value, tail) => if tail.isEmpty then value else tail.last
+
+        @tailrec
+        def lastOption: Option[A] = self match
+            case Nil               => None
+            case Cons(value, tail) => if tail.isEmpty then Some(value) else tail.lastOption
+
+        def length: BigInt = {
+            @tailrec
+            def go(lst: List[A], counter: BigInt): BigInt = lst match
+                case Nil           => counter
+                case Cons(_, tail) => go(tail, addInteger(counter, 1))
+
+            go(self, BigInt(0))
+        }
+
+        inline def size: BigInt = length
 
         def head: A = self match
             case Nil            => throw new NoSuchElementException("head of empty list")
             case Cons(value, _) => value
+
+        def headOption: Option[A] = self match
+            case Nil            => None
+            case Cons(value, _) => Some(value)
 
         def tail: List[A] = self match
             case Nil           => throw new NoSuchElementException("tail of empty list")
@@ -312,6 +420,8 @@ object Option {
       */
     @Ignore
     inline def apply[A](x: A): Option[A] = if x == null then None else Some(x)
+
+    inline def empty[A]: Option[A] = None
 
     extension [A](self: Option[A])
         def isEmpty: Boolean = self match
@@ -389,10 +499,10 @@ object AssocMap {
     def fromList[A, B](lst: List[(A, B)]): AssocMap[A, B] = AssocMap(lst)
 
     extension [A, B](self: AssocMap[A, B])
-        def isEmpty: Boolean = self.toList.isEmpty
-        def nonEmpty: Boolean = self.toList.nonEmpty
-        def length: BigInt = self.toList.length
-        def size: BigInt = length
+        inline def isEmpty: Boolean = self.toList.isEmpty
+        inline def nonEmpty: Boolean = self.toList.nonEmpty
+        inline def length: BigInt = self.toList.length
+        inline def size: BigInt = length
         def keys: List[A] = self.toList.map { case (k, _) => k }
         def values: List[B] = self.toList.map { case (_, v) => v }
         def map[C](f: ((A, B)) => (A, C)): AssocMap[A, C] = AssocMap(self.toList.map(f))
