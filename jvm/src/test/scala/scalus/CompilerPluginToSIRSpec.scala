@@ -2,7 +2,7 @@ package scalus
 
 import org.scalatest.funsuite.AnyFunSuite
 import org.scalatestplus.scalacheck.ScalaCheckPropertyChecks
-import scalus.Compiler.{compile, fieldAsData}
+import scalus.Compiler.{compile, compileDebug, fieldAsData}
 import scalus.builtin.ByteString.*
 import scalus.builtin.{Builtins, ByteString, Data, JVMPlatformSpecific, PlatformSpecific, given}
 import scalus.ledger.api.v1.*
@@ -16,6 +16,7 @@ import scalus.sir.*
 import scalus.uplc.*
 import scalus.uplc.DefaultFun.*
 import scalus.uplc.DefaultUni.asConstant
+import scalus.uplc.eval.Result.Success
 import scalus.uplc.eval.{PlutusVM, Result}
 
 import scala.annotation.nowarn
@@ -2029,4 +2030,44 @@ class CompilerPluginToSIRSpec extends AnyFunSuite with ScalaCheckPropertyChecks:
             generate(99)
         }
         assert(compiled.toUplc().plutusV3.flatEncoded.length == 93652)
+    }
+
+    test("compile pattern in val with 1 argument") {
+        import scalus.prelude.Option
+        import scalus.builtin.Data.FromData
+        import scalus.builtin.FromDataInstances.given
+        import scalus.builtin.Data.ToData
+        import scalus.builtin.ToDataInstances.given
+        val compiled = compile { (x: Data) =>
+            val Option.Some(v0) = summon[FromData[Option[BigInt]]](x): @unchecked
+            // val Option.Some(v) = x
+            v0
+
+        }
+
+        val dataSome1 = summon[ToData[Option[BigInt]]].apply(Option.Some(BigInt(1)))
+        val uplcFun = compiled.toUplc(generateErrorTraces = true)
+        val uplc1 = uplcFun $ Term.Const(Constant.Data(dataSome1))
+        val script1 = uplc1.plutusV3
+
+        script1.evaluateDebug match
+            case Result.Success(evaled, _, _, logs) =>
+                println("success: evaled=" + evaled.show)
+                assert(evaled == scalus.uplc.Term.Const(Constant.Integer(1)))
+            case Result.Failure(exception, _, _, _) =>
+                println("failure: exception=" + exception.getMessage)
+                fail(exception)
+
+        val dataNone = summon[ToData[Option[BigInt]]].apply(Option.None)
+        val uplc2 = uplcFun $ Term.Const(Constant.Data(dataNone))
+        val script2 = uplc2.plutusV3
+
+        script2.evaluateDebug match
+            case Result.Success(evaled, _, _, logs) =>
+                fail("should not be successful")
+            case Result.Failure(exception, _, _, logs) =>
+                println("failure: exception=" + exception.getMessage)
+                println("failure: logs=" + logs.mkString(", "))
+                assert(logs.exists(_.contains("Unexpected case")))
+            // assert(logs == List("Pattern match failure: expected Some but got None"))
     }

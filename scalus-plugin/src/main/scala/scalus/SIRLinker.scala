@@ -125,31 +125,43 @@ class SIRLinker(using ctx: Context) {
         anns: AnnotationsDecl
     ): Unit = {
         // println(s"linkDefinition: ${fullName}")
-        val found = moduleDefsCache.get(moduleName) match
-            case Some(defs) =>
-                findAndLinkDefinition(defs, fullName, srcPos)
+        retrieveModule(moduleName, srcPos) match
+            case Left(filename) =>
+                report.error(
+                  s"Module not found during linking: ${moduleName}, missing filename: ${filename} referenced from ${anns.pos.file}: ${anns.pos.startLine}",
+                  srcPos
+                )
+            case Right(defs) =>
+                if !findAndLinkDefinition(defs, fullName, srcPos) then
+                    error(
+                      SymbolNotFound(
+                        fullName.name,
+                        moduleName,
+                        srcPos,
+                        anns.pos,
+                        defs.keys.map(_.name).toSet
+                      ),
+                      SIR.Error("Symbol not found", AnnotationsDecl.fromSrcPos(srcPos))
+                    )
+    }
+
+    private def retrieveModule(
+        moduleName: String,
+        srcPos: SrcPos
+    ): Either[String, mutable.LinkedHashMap[FullName, SIR]] = {
+        moduleDefsCache.get(moduleName) match
+            case Some(defs) => Right(defs)
             case None =>
                 sirLoader.findAndReadModule(moduleName) match
                     case Right(module) =>
-                        // println(s"Loaded module ${moduleName}, defs: ${defs}")
                         validateSIRVersion(module, moduleName, srcPos)
                         val defsMap = mutable.LinkedHashMap.from(
                           module.defs.map(d => FullName(d.name) -> d.value)
                         )
                         moduleDefsCache.put(moduleName, defsMap)
-                        findAndLinkDefinition(defsMap, fullName, srcPos)
+                        Right(defsMap)
                     case Left(filename) =>
-                        report.error(
-                          s"Module not found during linking: ${moduleName}, missing filename: ${filename} referenced from ${anns.pos.file}: ${anns.pos.startLine}",
-                          srcPos
-                        )
-                        false
-
-        if !found then
-            error(
-              SymbolNotFound(fullName.name, moduleName, srcPos, anns.pos),
-              SIR.Error("Symbol not found", AnnotationsDecl.fromSrcPos(srcPos))
-            )
+                        Left(filename)
     }
 
     private def validateSIRVersion(module: Module, moduleName: String, srcPos: SrcPos): Unit = {

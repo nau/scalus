@@ -20,7 +20,9 @@ object HelloCardano extends Validator {
         txInfo: TxInfo,
         sourceTxOutRef: TxOutRef
     ): Unit = {
-        val owner = datum.getOrFail("Expected datum").to[PubKeyHash]
+        // val owner = datum.getOrFail("Expected datum").to[PubKeyHash]
+        val Option.Some(ownerData) = datum: @unchecked
+        val owner = ownerData.to[PubKeyHash]
         val signed = txInfo.signatories.contains(owner)
         require(signed, "Must be signed")
         val saysHello = redeemer.to[String] == "Hello, Cardano!"

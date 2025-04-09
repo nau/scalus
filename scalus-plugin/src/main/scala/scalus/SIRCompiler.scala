@@ -1788,6 +1788,9 @@ final class SIRCompiler(using ctx: Context) {
     }
 
     def compileToSIR(tree: Tree, debug: Boolean): SIR = {
+        if (debug) {
+            println(s"compileToSIR: ${tree.show}")
+        }
         compileExpr(Env.empty.copy(debug = debug), tree)
     }
 
@@ -1844,15 +1847,6 @@ final class SIRCompiler(using ctx: Context) {
         possibleOverrides: Map[String, LocalBinding]
     ): List[SuperBinding] = {
         val thisSymbol = env.thisTypeSymbol
-        println(
-          s"specialize, parentSym=${parentSym}(${parentSym.fullName.show}), thisSymbol=${thisSymbol}(${thisSymbol.fullName.toString})"
-        )
-        println(
-          s"speciallize, possible overrides=${possibleOverrides.keys}"
-        )
-        println(
-          s"specialize,  defs = ${module.defs.map(_.name)}"
-        )
         val thisClassNames = module.defs.map(_.name).toSet
         for {
             binding <- module.defs

@@ -31,6 +31,6 @@ class HelloCardanoSpec extends AnyFunSuite with ScalusTest {
         val result = compile(HelloCardano.validate).runScript(context)
 
         assert(result.isSuccess)
-        assert(result.budget == ExBudget(ExCPU(61142989), ExMemory(231477)))
+        assert(result.budget == ExBudget(ExCPU(61190989), ExMemory(231777)))
     }
 }
