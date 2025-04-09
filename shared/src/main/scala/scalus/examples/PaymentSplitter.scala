@@ -27,12 +27,11 @@ object PaymentSplitter {
     }
 
     extension (value: Value)
-        def lovelace: BigInt = value.toList match
-            case Nil                   => 0
-            case Cons((cs, tokens), _) =>
-                // Ada is always the first token. Only Ada can have empty CurrencySymbol. And its only token is Lovelace
-                if cs == ByteString.empty then tokens.toList.head._2
-                else 0
+        def lovelace: BigInt = value.toList.headOption
+            .map[BigInt] { case (cs, tokens) =>
+                if cs == ByteString.empty then tokens.toList.head._2 else 0
+            }
+            .getOrElse(0)
 
     def spend(txInfo: TxInfo, payees: List[Credential]): Unit = {
         val payeeInputWithChange = txInfo.inputs
@@ -49,11 +48,8 @@ object PaymentSplitter {
         // We expect the same order of outputs as listed in payees
         List.zipFoldLeft(payees, txInfo.outputs)(Option.empty[BigInt]) {
             (previousSplitted, these) =>
-                val (payee, output) = these match {
-                    case These.These(payee, output) => (payee, output)
-                    case These.This(_)              => fail("Not all payees were paid")
-                    case These.That(_)              => fail("More outputs than payees")
-                }
+                val (payee, output) =
+                    these.bothOrFail("Not all payees were paid", "More outputs than payees")
 
                 val splitted =
                     if payeeInputWithChange.address.credential === output.address.credential

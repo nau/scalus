@@ -495,7 +495,7 @@ object Option {
             case None    => false
             case Some(a) => p(a)
 
-        def requireExists(p: A => Boolean, msg: String): Unit = self match
+        inline def requireExists(p: A => Boolean, inline msg: String): Unit = self match
             case None    => throw new NoSuchElementException("None.requireExists")
             case Some(a) => require(p(a), msg)
 
@@ -503,7 +503,7 @@ object Option {
             case None    => true
             case Some(a) => p(a)
 
-        def requireForall(p: A => Boolean, msg: String): Unit = self match
+        inline def requireForall(p: A => Boolean, inline msg: String): Unit = self match
             case None    => ()
             case Some(a) => require(p(a), msg)
 
@@ -537,6 +537,25 @@ enum These[+A, +B]:
     case This(a: A)
     case That(b: B)
     case These(a: A, b: B)
+
+extension [A, B](self: These[A, B])
+    def isThis: Boolean = self match
+        case These.This(_) => true
+        case _             => false
+
+    def isThat: Boolean = self match
+        case These.That(_) => true
+        case _             => false
+
+    def isThese: Boolean = self match
+        case These.These(_, _) => true
+        case _                 => false
+
+    inline def bothOrFail(inline thisMsg: String, inline thatMsg: String): (A, B) =
+        self match
+            case These.These(a, b) => (a, b)
+            case These.This(_)     => fail(thisMsg)
+            case These.That(_)     => fail(thatMsg)
 
 case class AssocMap[A, B](toList: List[(A, B)])
 
