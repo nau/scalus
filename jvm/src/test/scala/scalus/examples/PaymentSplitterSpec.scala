@@ -30,7 +30,7 @@ class PaymentSplitterSpec extends AnyFunSuite, ScalusTest {
           ),
           outputs = List((payees.head, 190)),
           fee = 10,
-          expected = Right(ExBudget(ExCPU(106792643), ExMemory(446512)))
+          expected = Right(ExBudget(ExCPU(107300692), ExMemory(449213)))
         )
     }
 
@@ -91,7 +91,7 @@ class PaymentSplitterSpec extends AnyFunSuite, ScalusTest {
           ),
           outputs = List((payees.head, 50 + 100 - 10), (payees !! 1, 50)),
           fee = 10,
-          expected = Right(ExBudget(ExCPU(128744926), ExMemory(548533)))
+          expected = Right(ExBudget(ExCPU(129444975), ExMemory(552434)))
         )
     }
 

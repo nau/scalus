@@ -446,6 +446,14 @@ object Option {
             case None        => throw new NoSuchElementException("None.get")
             case Some(value) => value
 
+        def getOrElse[B >: A](default: B): B = self match
+            case None    => default
+            case Some(a) => a
+
+        def orElse[B >: A](alternative: Option[B]): Option[B] = self match
+            case None    => alternative
+            case Some(a) => self
+
         /** Converts an `Option` to a [[scala.Option]] */
         @Ignore
         def asScala: scala.Option[A] = self match
@@ -455,9 +463,40 @@ object Option {
         def map[B](f: A => B): Option[B] = self match
             case None    => None
             case Some(a) => Some(f(a))
+
         def flatMap[B](f: A => Option[B]): Option[B] = self match
             case None    => None
             case Some(a) => f(a)
+
+        def filter(p: A => Boolean): Option[A] = self match
+            case None    => None
+            case Some(a) => if p(a) then self else None
+
+        def filterNot(p: A => Boolean): Option[A] = self match
+            case None    => None
+            case Some(a) => if p(a) then None else self
+
+        def contains[B >: A](elem: B)(using eq: Eq[B]): Boolean = self match
+            case None    => false
+            case Some(a) => a === elem
+
+        def exists(p: A => Boolean): Boolean = self match
+            case None    => false
+            case Some(a) => p(a)
+
+        def requireExists(p: A => Boolean, msg: String): Unit = self match
+            case None    => throw new NoSuchElementException("None.requireExists")
+            case Some(a) => require(p(a), msg)
+
+        def forall(p: A => Boolean): Boolean = self match
+            case None    => true
+            case Some(a) => p(a)
+
+        def requireForall(p: A => Boolean, msg: String): Unit = self match
+            case None    => ()
+            case Some(a) => require(p(a), msg)
+
+        inline def find(p: A => Boolean): Option[A] = filter(p)
 
     extension [A](self: Option[Option[A]])
         def flatten: Option[A] = self match

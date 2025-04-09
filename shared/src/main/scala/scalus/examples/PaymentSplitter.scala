@@ -36,17 +36,16 @@ object PaymentSplitter {
 
     def spend(txInfo: TxInfo, payees: List[Credential]): Unit = {
         val payeeInputWithChange = txInfo.inputs
-            .foldLeft(Option.empty[TxOut]) { (acc, input) =>
+            .foldLeft(Option.empty[TxOut]) { (txOut, input) =>
                 if payees.contains(input.resolved.address.credential)
                 then
-                    acc match
-                        case None    => Some(input.resolved)
-                        case Some(_) => fail("Already found a fee payer")
-                else acc
+                    if txOut.isEmpty then Some(input.resolved)
+                    else fail("Already found a fee payer")
+                else txOut
             }
             .getOrFail("One of the payees must have an input to pay the fee and trigger the payout")
 
-        val (unpaidPayees, _) = txInfo.outputs.foldLeft((payees, None: Option[BigInt])) {
+        val (unpaidPayees, _) = txInfo.outputs.foldLeft((payees, Option.empty[BigInt])) {
             case ((payees, prevValue), output) =>
                 val splitted =
                     if payeeInputWithChange.address.credential === output.address.credential
@@ -55,9 +54,7 @@ object PaymentSplitter {
                         output.value.lovelace - change
                     else output.value.lovelace
 
-                prevValue match
-                    case None       =>
-                    case Some(prev) => require(splitted == prev, "Split unequally")
+                prevValue.requireForall(_ == splitted, "Split unequally")
 
                 // Here we check that all outputs pay to payees from the list
                 // We expect the same order of outputs as listed in payees
