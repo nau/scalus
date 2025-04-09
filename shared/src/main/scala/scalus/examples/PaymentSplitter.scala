@@ -45,8 +45,16 @@ object PaymentSplitter {
             }
             .getOrFail("One of the payees must have an input to pay the fee and trigger the payout")
 
-        val (unpaidPayees, _) = txInfo.outputs.foldLeft((payees, Option.empty[BigInt])) {
-            case ((payees, prevValue), output) =>
+        // Here we check that all outputs pay to payees from the list and their number is the same
+        // We expect the same order of outputs as listed in payees
+        List.zipFoldLeft(payees, txInfo.outputs)(Option.empty[BigInt]) {
+            (previousSplitted, these) =>
+                val (payee, output) = these match {
+                    case These.These(payee, output) => (payee, output)
+                    case These.This(_)              => fail("Not all payees were paid")
+                    case These.That(_)              => fail("More outputs than payees")
+                }
+
                 val splitted =
                     if payeeInputWithChange.address.credential === output.address.credential
                     then
@@ -54,16 +62,10 @@ object PaymentSplitter {
                         output.value.lovelace - change
                     else output.value.lovelace
 
-                prevValue.requireForall(_ == splitted, "Split unequally")
+                previousSplitted.requireForall(_ == splitted, "Split unequally")
+                require(output.address.credential === payee, "Must pay to a payee")
 
-                // Here we check that all outputs pay to payees from the list
-                // We expect the same order of outputs as listed in payees
-                payees match
-                    case Nil => fail("More outputs than payees")
-                    case Cons(payee, tail) =>
-                        require(output.address.credential === payee, "Must pay to a payee")
-                        (tail, Some(splitted))
+                Some(splitted)
         }
-        require(unpaidPayees.isEmpty, "Not all payees were paid")
     }
 }
