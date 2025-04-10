@@ -2032,7 +2032,7 @@ class CompilerPluginToSIRSpec extends AnyFunSuite with ScalaCheckPropertyChecks:
         assert(compiled.toUplc().plutusV3.flatEncoded.length == 93652)
     }
 
-    test("compile pattern in val with 1 argument") {
+    test("compile pattern in val with one argument") {
         import scalus.prelude.Option
         import scalus.builtin.Data.FromData
         import scalus.builtin.FromDataInstances.given
@@ -2044,9 +2044,9 @@ class CompilerPluginToSIRSpec extends AnyFunSuite with ScalaCheckPropertyChecks:
             v0
 
         }
+        val uplcFun = compiled.toUplc(generateErrorTraces = true)
 
         val dataSome1 = summon[ToData[Option[BigInt]]].apply(Option.Some(BigInt(1)))
-        val uplcFun = compiled.toUplc(generateErrorTraces = true)
         val uplc1 = uplcFun $ Term.Const(Constant.Data(dataSome1))
         val script1 = uplc1.plutusV3
 
@@ -2066,8 +2066,53 @@ class CompilerPluginToSIRSpec extends AnyFunSuite with ScalaCheckPropertyChecks:
             case Result.Success(evaled, _, _, logs) =>
                 fail("should not be successful")
             case Result.Failure(exception, _, _, logs) =>
-                println("failure: exception=" + exception.getMessage)
-                println("failure: logs=" + logs.mkString(", "))
                 assert(logs.exists(_.contains("Unexpected case")))
             // assert(logs == List("Pattern match failure: expected Some but got None"))
+    }
+
+    test("compile pattern with val with two arguments") {
+        import scalus.prelude.List
+        import scalus.builtin.Data.FromData
+        import scalus.builtin.FromDataInstances.given
+        import scalus.builtin.Data.ToData
+        import scalus.builtin.ToDataInstances.given
+
+        val compiled = compile { (x: Data) =>
+            val List.Cons(head, tail) = summon[FromData[List[BigInt]]](x): @unchecked
+            // val Option.Some(v) = x
+            head + tail.length
+        }
+
+        val uplcFun = compiled.toUplc(generateErrorTraces = true)
+
+        val dataCons1 = summon[ToData[List[BigInt]]].apply(List.Cons(BigInt(1), List.Nil))
+        val uplc1 = uplcFun $ Term.Const(Constant.Data(dataCons1))
+        val script1 = uplc1.plutusV3
+        script1.evaluateDebug match
+            case Result.Success(evaled, _, _, logs) =>
+                assert(evaled == scalus.uplc.Term.Const(Constant.Integer(1)))
+            case Result.Failure(exception, _, _, logs) =>
+                println("failure: exception=" + exception.getMessage)
+                fail(exception)
+
+        val dataCons2 =
+            summon[ToData[List[BigInt]]].apply(List.Cons(BigInt(1), List.Cons(BigInt(2), List.Nil)))
+        val uplc2 = uplcFun $ Term.Const(Constant.Data(dataCons2))
+        val script2 = uplc2.plutusV3
+        script2.evaluateDebug match
+            case Result.Success(evaled, _, _, logs) =>
+                assert(evaled == scalus.uplc.Term.Const(Constant.Integer(2)))
+            case Result.Failure(exception, _, _, logs) =>
+                println("failure: exception=" + exception.getMessage)
+                fail(exception)
+
+        val dataNil = summon[ToData[List[BigInt]]].apply(List.Nil)
+        val uplc3 = uplcFun $ Term.Const(Constant.Data(dataNil))
+        val script3 = uplc3.plutusV3
+        script3.evaluateDebug match
+            case Result.Success(evaled, _, _, logs) =>
+                fail("should not be successful")
+            case Result.Failure(exception, _, _, logs) =>
+                assert(logs.exists(_.contains("Unexpected case")))
+
     }
