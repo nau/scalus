@@ -29,10 +29,10 @@ class PaymentSplitterSpec extends AnyFunSuite, ScalusTest {
         assertCase(
           payees,
           inputs = List(
-            makePayeeTxInInfo(pkh = payees.head, idx = 0, value = 100),
-            makeScriptTxInInfo(100)
+            makePayeeInput(pkh = A, idx = 0, value = 100),
+            makeScriptInput(100)
           ),
-          outputs = List((payees.head, 190)),
+          outputs = List((A, 190)),
           fee = 10,
           expected = Right(ExBudget(ExCPU(107692790), ExMemory(450715)))
         )
@@ -42,7 +42,7 @@ class PaymentSplitterSpec extends AnyFunSuite, ScalusTest {
         val payees = List(A)
         assertCase(
           payees,
-          inputs = List(makeScriptTxInInfo(100)),
+          inputs = List(makeScriptInput(100)),
           outputs = List.empty,
           fee = 10,
           expected =
@@ -55,8 +55,8 @@ class PaymentSplitterSpec extends AnyFunSuite, ScalusTest {
         assertCase(
           payees,
           inputs = List(
-            makeScriptTxInInfo(100),
-            makePayeeTxInInfo(pkh = payees.head, idx = 0, value = 100)
+            makeScriptInput(100),
+            makePayeeInput(pkh = A, idx = 0, value = 100)
           ),
           outputs = List.empty,
           fee = 10,
@@ -69,9 +69,9 @@ class PaymentSplitterSpec extends AnyFunSuite, ScalusTest {
         assertCase(
           payees,
           inputs = List(
-            makeScriptTxInInfo(100),
-            makePayeeTxInInfo(pkh = payees.head, idx = 0, value = 100),
-            makePayeeTxInInfo(pkh = payees !! 1, idx = 1, value = 100)
+            makeScriptInput(100),
+            makePayeeInput(pkh = A, idx = 0, value = 100),
+            makePayeeInput(pkh = B, idx = 1, value = 100)
           ),
           outputs = List.empty,
           fee = 10,
@@ -84,10 +84,10 @@ class PaymentSplitterSpec extends AnyFunSuite, ScalusTest {
         assertCase(
           payees,
           inputs = List(
-            makeScriptTxInInfo(100),
-            makePayeeTxInInfo(pkh = payees.head, idx = 0, value = 100)
+            makeScriptInput(100),
+            makePayeeInput(pkh = A, idx = 0, value = 100)
           ),
-          outputs = List((payees.head, 50 + 100 - 10), (payees !! 1, 50)),
+          outputs = List((A, 50 + 100 - 10), (B, 50)),
           fee = 10,
           expected = Right(ExBudget(ExCPU(129789073), ExMemory(553636)))
         )
@@ -98,13 +98,12 @@ class PaymentSplitterSpec extends AnyFunSuite, ScalusTest {
         assertCase(
           payees,
           inputs = List(
-            makeScriptTxInInfo(100),
-            makePayeeTxInInfo(pkh = payees.head, idx = 0, value = 100),
-            makePayeeTxInInfo(pkh = C, idx = 0, value = 50) // extra input
+            makeScriptInput(100),
+            makePayeeInput(pkh = A, idx = 0, value = 100)
           ),
           outputs = List(
-            (payees.head, 50 + 100 - 10),
-            (payees !! 1, 50),
+            (A, 50 + 100 - 10),
+            (B, 50),
             (C, 50) // extra output
           ),
           fee = 10,
@@ -117,11 +116,11 @@ class PaymentSplitterSpec extends AnyFunSuite, ScalusTest {
         assertCase(
           payees,
           inputs = List(
-            makeScriptTxInInfo(100),
-            makePayeeTxInInfo(pkh = payees.head, idx = 0, value = 100)
+            makeScriptInput(100),
+            makePayeeInput(pkh = A, idx = 0, value = 100)
           ),
           outputs = List(
-            (payees.head, 50 + 100 - 10)
+            (A, 50 + 100 - 10)
           ),
           fee = 10,
           expected = Left("Not all payees were paid")
@@ -132,12 +131,27 @@ class PaymentSplitterSpec extends AnyFunSuite, ScalusTest {
         .toUplc(generateErrorTraces = true)
         .plutusV3
 
+    private val aikenScript = {
+        import upickle.default.*
+        val obj = read[ujson.Obj](this.getClass.getResourceAsStream("/plutus.json"))
+        val cborHex = obj("validators").arr(0)("compiledCode").str
+        DeBruijnedProgram.fromCborHex(cborHex)
+    }
+
     private val lockTxId = random[TxId]
     private val payeesTxId = random[TxId]
     private val txId = random[TxId]
     private val scriptHash = blake2b_224(ByteString.fromArray(3 +: script.cborEncoded))
 
     private def assertCase(
+        payees: List[ByteString],
+        inputs: List[TxInInfo],
+        outputs: List[(ByteString, BigInt)],
+        fee: BigInt,
+        expected: Either[String, ExBudget]
+    ): Unit = assertCase(script)(payees, inputs, outputs, fee, expected)
+
+    private def assertCase(script: Program)(
         payees: List[ByteString],
         inputs: List[TxInInfo],
         outputs: List[(ByteString, BigInt)],
@@ -198,7 +212,7 @@ class PaymentSplitterSpec extends AnyFunSuite, ScalusTest {
                     )
     }
 
-    private def makePayeeTxInInfo(pkh: ByteString, idx: Int, value: BigInt): TxInInfo = {
+    private def makePayeeInput(pkh: ByteString, idx: Int, value: BigInt): TxInInfo = {
         TxInInfo(
           outRef = TxOutRef(payeesTxId, idx),
           resolved = TxOut(
@@ -208,7 +222,7 @@ class PaymentSplitterSpec extends AnyFunSuite, ScalusTest {
         )
     }
 
-    private def makeScriptTxInInfo(value: BigInt): TxInInfo = {
+    private def makeScriptInput(value: BigInt): TxInInfo = {
         TxInInfo(
           outRef = TxOutRef(lockTxId, 0),
           resolved = TxOut(
