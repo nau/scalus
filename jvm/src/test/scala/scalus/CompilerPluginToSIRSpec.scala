@@ -6,6 +6,7 @@ import scalus.Compiler.{compile, compileDebug, fieldAsData}
 import scalus.builtin.ByteString.*
 import scalus.builtin.{Builtins, ByteString, Data, JVMPlatformSpecific, PlatformSpecific, given}
 import scalus.ledger.api.v1.*
+import scalus.ledger.api.v3.SpendingScriptInfo
 import scalus.prelude.List.{Cons, Nil}
 import scalus.prelude.Prelude.given
 import scalus.sir.Recursivity.*
@@ -22,6 +23,12 @@ import scalus.uplc.eval.{PlutusVM, Result}
 import scala.annotation.nowarn
 import scala.collection.immutable
 import scala.language.implicitConversions
+
+object CompilerPluginToSIRSpecScope:
+
+    case class ThreeInts(a: BigInt, b: BigInt, c: BigInt)
+
+end CompilerPluginToSIRSpecScope
 
 class CompilerPluginToSIRSpec extends AnyFunSuite with ScalaCheckPropertyChecks:
     private given PlutusVM = PlutusVM.makePlutusV2VM()
@@ -2114,5 +2121,46 @@ class CompilerPluginToSIRSpec extends AnyFunSuite with ScalaCheckPropertyChecks:
                 fail("should not be successful")
             case Result.Failure(exception, _, _, logs) =>
                 assert(logs.exists(_.contains("Unexpected case")))
+
+    }
+
+    test("Compile parternin val with three arguments") {
+        import scalus.prelude.List
+        import scalus.prelude.Option
+        import scalus.builtin.Data.FromData
+        import scalus.builtin.FromDataInstances.given
+        import scalus.builtin.Data.ToData
+        import scalus.builtin.ToDataInstances.given
+        import scalus.ledger.api.v3.*
+        import scalus.ledger.api.v3.FromDataInstances.given
+        import scalus.ledger.api.v3.ToDataInstances.given
+
+        val compiled = compile { (x: Data) =>
+            val ScriptContext(txInfo, redeemper, scriptInfo) = summon[FromData[ScriptContext]](x)
+            // val Option.Some(v) = x
+            txInfo
+        }
+
+        val uplcFun = compiled.toUplc(generateErrorTraces = true)
+
+        val txInfo = TxInfo(
+          inputs = Nil,
+          id = TxId(hex"bb")
+        )
+        val redeemer = Data.unit
+        val scriptInfo = ScriptInfo.SpendingScript(
+          TxOutRef(TxId(hex"deadbeef"), 0),
+          Option.None
+        )
+        val dataScriptInfo =
+            summon[ToData[ScriptContext]].apply(ScriptContext(txInfo, redeemer, scriptInfo))
+        val uplc1 = uplcFun $ Term.Const(Constant.Data(dataScriptInfo))
+        val script1 = uplc1.plutusV3
+        script1.evaluateDebug match
+            case Result.Success(evaled, _, _, logs) =>
+            // val txInfo1Data = summon[ToData[TxInfo]].apply()
+            case Result.Failure(exception, _, _, logs) =>
+                println("failure: exception=" + exception.getMessage)
+                fail(exception)
 
     }

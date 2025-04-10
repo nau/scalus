@@ -110,6 +110,7 @@ class SIRLinker(using ctx: Context) {
         for sir <- found do
             globalDefs.update(fullName, CompileDef.Compiling)
             traverseAndLink(sir, srcPos)
+            // TODO: reseatch.  removeing 'remove' triggre fail of  scalus.CompilerPluginSpec. 'compile fieldAsData macro'
             globalDefs.remove(fullName)
             globalDefs.update(
               fullName,

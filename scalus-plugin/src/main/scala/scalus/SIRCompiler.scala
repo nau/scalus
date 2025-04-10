@@ -26,6 +26,7 @@ import scalus.sir.SIRType
 import scalus.sir.SIRVarStorage
 import scalus.sir.SIRBuiltins
 import scalus.sir.SIRPosition
+import scalus.sir.SIRVarStorage.LocalUPLC
 import scalus.sir.TypeBinding
 import scalus.uplc.DefaultUni
 
@@ -481,6 +482,43 @@ final class SIRCompiler(using ctx: Context) {
     }
 
     private def compileNewConstructor(
+        env: Env,
+        nakedType: Type,
+        fullType: Type,
+        args: List[Tree],
+        srcPos: SrcPos
+    ): SIR = {
+        if (nakedType.isGenericTuple) then
+            val nArgs = args.size
+            if (nArgs == 1 || nArgs == 2) then
+                println("Generic tuple with 1 or 2 args,  assume  normal constructpr")
+                compileNewConstructorNoTuple(env, nakedType, fullType, args, srcPos)
+            else
+                val decl = makeGenericTupleDecl(nArgs, srcPos)
+                val constrName = s"scala.Tuple${nArgs}"
+                val targs = fullType match
+                    case AppliedType(nt, targs) =>
+                        targs.map(t => sirTypeInEnv(t, srcPos, env)).toList
+                    case _ =>
+                        error(
+                          GenericError(
+                            s"Tuple${nArgs} should nave n type arguments, buf fullType is: ${fullType.show}",
+                            srcPos
+                          ),
+                          (1 to nArgs).map(x => SIRType.TypeNothing).toList
+                        )
+                SIR.Constr(
+                  constrName,
+                  decl,
+                  args.map(compileExpr(env, _)),
+                  SIRType.typeApply(decl.constrType(constrName), targs),
+                  AnnotationsDecl.fromSrcPos(srcPos)
+                )
+        else compileNewConstructorNoTuple(env, nakedType, fullType, args, srcPos)
+
+    }
+
+    private def compileNewConstructorNoTuple(
         env: Env,
         nakedType: Type,
         fullType: Type,
@@ -1654,9 +1692,25 @@ final class SIRCompiler(using ctx: Context) {
              */
             case Apply(TypeApply(apply, targs), args)
                 if apply.symbol.flags
-                    .is(Flags.Synthetic) && apply.symbol.owner.flags.is(Flags.ModuleClass) =>
+                    .is(Flags.Synthetic) && apply.symbol.owner.flags.is(Flags.ModuleClass)
+                    && apply.symbol.name.toString == "apply" =>
                 val classSymbol: Symbol = apply.symbol.owner.linkedClass
-                compileNewConstructor(env, classSymbol.typeRef, tree.tpe.widen, args, tree)
+                try compileNewConstructor(env, classSymbol.typeRef, tree.tpe.widen, args, tree)
+                catch
+                    case ex: RuntimeException =>
+                        println(
+                          s"exception in compileNewConstructor, classSymbol [Apply.owner.linkedClass]: ${classSymbol} "
+                        )
+                        println(
+                          s"apply.symbol.name=${apply.symbol.name}"
+                        )
+                        println(
+                          s"classSymbol.typeRef=${classSymbol.typeRef}, classSymbol.isType=${classSymbol.isType}"
+                        )
+                        println(
+                          s"classSymbol.typeRef.isGenericTuple=${classSymbol.typeRef.isGenericTuple}"
+                        )
+                        throw ex
 
             case Apply(apply @ Select(f, nme.apply), args)
                 if apply.symbol.flags
@@ -1838,6 +1892,43 @@ final class SIRCompiler(using ctx: Context) {
                       ),
                       SIR.Error("Invalid overriding", AnnotationsDecl.fromSrcPos(tree.srcPos))
                     )
+    }
+
+    private def makeGenericTupleDecl(size: Int, srcPos: SrcPos): DataDecl = {
+        // we will generate tupleN decl for each type.
+        //  (because we have no generic tupel with AnyKind in SIR)
+        //  theoreticalle we can add all to "scala.::*" as in scala.
+        //  but not sure if exists use-case when it needed.
+        //  (case over generic tuple with different arity in the user program)
+        val tupleName = s"scala.Tuple$size"
+        this.globalDataDecls.get(FullName(tupleName)) match
+            case Some(decl) =>
+                decl
+            case None =>
+                val tupleNameHash = tupleName.hashCode
+                val tupleTypeParams =
+                    (1 to size)
+                        .map(i => SIRType.TypeVar(s"T$i", Some(tupleNameHash + i * 5)))
+                        .toList
+                val tupleParams =
+                    tupleTypeParams.map(t => TypeBinding(t.name.toLowerCase, t)).toList
+                val tupleDecl = DataDecl(
+                  tupleName,
+                  List(
+                    ConstrDecl(
+                      tupleName,
+                      LocalUPLC,
+                      tupleParams,
+                      tupleTypeParams,
+                      tupleTypeParams,
+                      AnnotationsDecl.fromSrcPos(srcPos)
+                    )
+                  ),
+                  tupleTypeParams,
+                  AnnotationsDecl.fromSrcPos(srcPos)
+                )
+                this.globalDataDecls.put(FullName(tupleName), tupleDecl)
+                tupleDecl
     }
 
     private def specializeInModule(
