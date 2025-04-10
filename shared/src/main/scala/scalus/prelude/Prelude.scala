@@ -119,13 +119,25 @@ object List:
     }
 
     def range(from: BigInt, to: BigInt): List[BigInt] = {
-        if lessThanEqualsInteger(from, to) then Cons(from, range(addInteger(from, 1), to))
-        else Nil
+        require(lessThanEqualsInteger(from, to), "`from` must be less than or equal `to`")
+
+        @tailrec
+        def go(current: BigInt, acc: List[BigInt]): List[BigInt] =
+            if lessThanInteger(current, to) then go(addInteger(current, 1), Cons(current, acc))
+            else acc
+
+        go(from, Nil).reverse
     }
 
     def fill[A](value: A, times: BigInt): List[A] = {
-        if greaterThanInteger(times, 0) then Cons(value, fill(value, subtractInteger(times, 1)))
-        else Nil
+        require(greaterThanEqualsInteger(times, 0), "`times` must be greater than or equal 0")
+
+        @tailrec
+        def go(current: BigInt, acc: List[A]): List[A] =
+            if lessThanInteger(current, times) then go(addInteger(current, 1), Cons(value, acc))
+            else acc
+
+        go(0, Nil).reverse
     }
 
     def map2[A, B, C](a: List[A], b: List[B])(f: (A, B) => C): List[C] = {
@@ -135,29 +147,6 @@ object List:
                     case Cons(h2, t2) => Cons(f(h1, h2), map2(t1, t2)(f))
                     case Nil          => Nil
             case Nil => Nil
-    }
-
-    def zipFoldLeft[A, B, C](lhs: List[A], rhs: List[B])(
-        acc: C
-    )(folder: (C, These[A, B]) => C): C = {
-        @tailrec
-        def go(
-            lhs: List[A],
-            rhs: List[B],
-            acc: C
-        ): C = lhs match
-            case Nil =>
-                rhs match
-                    case Nil => acc
-                    case Cons(headRhs, tailRhs) =>
-                        go(Nil, tailRhs, folder(acc, These.That(headRhs)))
-            case Cons(headLhs, tailLhs) =>
-                rhs match
-                    case Nil => go(tailLhs, Nil, folder(acc, These.This(headLhs)))
-                    case Cons(headRhs, tailRhs) =>
-                        go(tailLhs, tailRhs, folder(acc, These.These(headLhs, headRhs)))
-
-        go(lhs, rhs, acc)
     }
 
     extension [A](self: List[A])
