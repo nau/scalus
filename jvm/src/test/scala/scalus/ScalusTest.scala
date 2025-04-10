@@ -16,7 +16,7 @@ trait ScalusTest {
     protected given PlutusVM = PlutusVM.makePlutusV3VM()
 
     extension (sir: SIR)
-        inline def runScript(scriptContext: ScriptContext): Result =
+        def runScript(scriptContext: ScriptContext): Result =
             // UPLC program: (ScriptContext as Data) -> ()
             val script = sir.toUplc(generateErrorTraces = true).plutusV3
             val appliedScript = script $ scriptContext.toData

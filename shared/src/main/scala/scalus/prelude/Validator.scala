@@ -1,9 +1,8 @@
 package scalus.prelude
 
-import scalus.builtin.{ByteString, Data}
-import scalus.ledger.api.v3.{*, given}
+import scalus.builtin.Data
 import scalus.ledger.api.v3.FromDataInstances.given
-import scalus.ledger.api.v3.ToDataInstances.given
+import scalus.ledger.api.v3.{*, given}
 
 @scalus.Compile
 trait Validator {
@@ -32,7 +31,7 @@ trait Validator {
         sourceTxOutRef: TxOutRef
     ): Unit = {
         // send the script to the blockchain
-        throw RuntimeException("Empty Validator.spend")
+        fail("Empty Validator.spend")
     }
 
     def mint(
@@ -40,21 +39,21 @@ trait Validator {
         currencySymbol: CurrencySymbol,
         txInfo: TxInfo
     ): Unit = {
-        throw RuntimeException("Empty Validator.mint")
+        fail("Empty Validator.mint")
     }
 
     def reward(
         stakingKey: Credential,
         txInfo: TxInfo
     ): Unit = {
-        throw RuntimeException("Empty Validator.reward")
+        fail("Empty Validator.reward")
     }
 
     def certify(
         txCert: TxCert,
         txInfo: TxInfo
     ): Unit = {
-        throw RuntimeException("Empty Validator.certify")
+        fail("Empty Validator.certify")
     }
 
     def vote(
@@ -62,14 +61,14 @@ trait Validator {
         voter: Voter,
         txInfo: TxInfo
     ): Unit = {
-        throw RuntimeException("Empty Validator.vote")
+        fail("Empty Validator.vote")
     }
 
     def propose(
         proposalProcedure: ProposalProcedure,
         txInfo: TxInfo
     ): Unit = {
-        throw RuntimeException("Empty Validator.propose")
+        fail("Empty Validator.propose")
     }
 
 }
