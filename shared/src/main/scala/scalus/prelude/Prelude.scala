@@ -119,25 +119,13 @@ object List:
     }
 
     def range(from: BigInt, to: BigInt): List[BigInt] = {
-        require(lessThanEqualsInteger(from, to), "`from` must be less than or equal `to`")
-
-        @tailrec
-        def go(current: BigInt, acc: List[BigInt]): List[BigInt] =
-            if lessThanInteger(current, to) then go(addInteger(current, 1), Cons(current, acc))
-            else acc
-
-        go(from, Nil).reverse
+        if lessThanEqualsInteger(from, to) then Cons(from, range(addInteger(from, 1), to))
+        else Nil
     }
 
     def fill[A](value: A, times: BigInt): List[A] = {
-        require(greaterThanEqualsInteger(times, 0), "`times` must be greater than or equal 0")
-
-        @tailrec
-        def go(current: BigInt, acc: List[A]): List[A] =
-            if lessThanInteger(current, times) then go(addInteger(current, 1), Cons(value, acc))
-            else acc
-
-        go(0, Nil).reverse
+        if greaterThanInteger(times, 0) then Cons(value, fill(value, subtractInteger(times, 1)))
+        else Nil
     }
 
     def map2[A, B, C](a: List[A], b: List[B])(f: (A, B) => C): List[C] = {

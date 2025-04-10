@@ -20,6 +20,36 @@ import scalus.uplc.eval.*
 
 class PaymentSplitterSpec extends AnyFunSuite, ScalusTest {
 
+    TestCases(
+      TestCase(
+        description = "success when payments are correctly split for a single payee",
+        payees = List(Payee.A),
+        amount = 30,
+        fee = 2,
+        inputs = List(Payee.A give 10),
+        outputs = List(Payee.A get 38),
+        expected = success
+      ),
+      TestCase(
+        description = "success when payments are correctly split for between 2 payees",
+        payees = List(Payee.A, Payee.B),
+        amount = 30,
+        fee = 2,
+        inputs = List(Payee.A give 10),
+        outputs = List(Payee.A get 23, Payee.B get 15),
+        expected = success
+      ),
+      TestCase(
+        description = "success when payments are correctly split for between 3 payees",
+        payees = List(Payee.A, Payee.B, Payee.C),
+        amount = 30,
+        fee = 2,
+        inputs = List(Payee.A give 10),
+        outputs = List(Payee.A get 18, Payee.B get 10, Payee.C get 10),
+        expected = success
+      )
+    )
+
     private val A = hex"1234567890abcdef1234567890abcdef1234567890abcdef12345678"
     private val B = hex"2234567890abcdef1234567890abcdef1234567890abcdef12345678"
     private val C = hex"3234567890abcdef1234567890abcdef1234567890abcdef12345678"
@@ -34,7 +64,7 @@ class PaymentSplitterSpec extends AnyFunSuite, ScalusTest {
           ),
           outputs = List((A, 190)),
           fee = 10,
-          expected = Right(ExBudget(ExCPU(107692790), ExMemory(450715)))
+          expected = success(ExBudget(ExCPU(107692790), ExMemory(450715)))
         )
     }
 
@@ -46,7 +76,7 @@ class PaymentSplitterSpec extends AnyFunSuite, ScalusTest {
           outputs = List.empty,
           fee = 10,
           expected =
-              Left("One of the payees must have an input to pay the fee and trigger the payout")
+              failure("One of the payees must have an input to pay the fee and trigger the payout")
         )
     }
 
@@ -60,7 +90,7 @@ class PaymentSplitterSpec extends AnyFunSuite, ScalusTest {
           ),
           outputs = List.empty,
           fee = 10,
-          expected = Left("Not all payees were paid")
+          expected = failure("Not all payees were paid")
         )
     }
 
@@ -75,7 +105,7 @@ class PaymentSplitterSpec extends AnyFunSuite, ScalusTest {
           ),
           outputs = List.empty,
           fee = 10,
-          expected = Left("Already found a fee payer")
+          expected = failure("Already found a fee payer")
         )
     }
 
@@ -89,7 +119,7 @@ class PaymentSplitterSpec extends AnyFunSuite, ScalusTest {
           ),
           outputs = List((A, 50 + 100 - 10), (B, 50)),
           fee = 10,
-          expected = Right(ExBudget(ExCPU(129789073), ExMemory(553636)))
+          expected = success(ExBudget(ExCPU(129789073), ExMemory(553636)))
         )
     }
 
@@ -107,7 +137,7 @@ class PaymentSplitterSpec extends AnyFunSuite, ScalusTest {
             (C, 50) // extra output
           ),
           fee = 10,
-          expected = Left("More outputs than payees")
+          expected = failure("More outputs than payees")
         )
     }
 
@@ -123,7 +153,7 @@ class PaymentSplitterSpec extends AnyFunSuite, ScalusTest {
             (A, 50 + 100 - 10)
           ),
           fee = 10,
-          expected = Left("Not all payees were paid")
+          expected = failure("Not all payees were paid")
         )
     }
 
@@ -148,7 +178,7 @@ class PaymentSplitterSpec extends AnyFunSuite, ScalusTest {
         inputs: List[TxInInfo],
         outputs: List[(ByteString, BigInt)],
         fee: BigInt,
-        expected: Either[String, ExBudget]
+        expected: Either[String, Option[ExBudget]]
     ): Unit = assertCase(script)(payees, inputs, outputs, fee, expected)
 
     private def assertCase(script: Program)(
@@ -156,7 +186,7 @@ class PaymentSplitterSpec extends AnyFunSuite, ScalusTest {
         inputs: List[TxInInfo],
         outputs: List[(ByteString, BigInt)],
         fee: BigInt,
-        expected: Either[String, ExBudget]
+        expected: Either[String, Option[ExBudget]]
     ): Unit = {
         // Create script with payees parameter
         val applied = script $ List(payees).toData
@@ -199,17 +229,25 @@ class PaymentSplitterSpec extends AnyFunSuite, ScalusTest {
                   clue =
                       s"Expected error containing: $errorMsg, but got: ${result.logs.mkString(", ")}"
                 )
-            case Right(budget) =>
-                assert(
-                  result.isSuccess,
-                  clue = s"Expected success with budget: $budget, but got: ${result.toString}"
-                )
-                if budget != ExBudget(ExCPU(0), ExMemory(0))
-                then // Check if budget verification is requested
-                    assert(
-                      result.budget == budget,
-                      clue = s"Expected budget: $budget, but got: ${result.budget}"
-                    )
+            case Right(success) =>
+                success match
+                    case Option.None =>
+                        assert(
+                          result.isSuccess,
+                          clue = s"Expected success, but got: ${result.toString}"
+                        )
+                    case Option.Some(budget) =>
+                        assert(
+                          result.isSuccess,
+                          clue =
+                              s"Expected success with budget: $budget, but got: ${result.toString}"
+                        )
+                        if budget != ExBudget(ExCPU(0), ExMemory(0))
+                        then // Check if budget verification is requested
+                            assert(
+                              result.budget == budget,
+                              clue = s"Expected budget: $budget, but got: ${result.budget}"
+                            )
     }
 
     private def makePayeeInput(pkh: ByteString, idx: Int, value: BigInt): TxInInfo = {
@@ -231,4 +269,64 @@ class PaymentSplitterSpec extends AnyFunSuite, ScalusTest {
           )
         )
     }
+
+    enum Payee(val pkh: ByteString):
+        case A extends Payee(genByteStringOfN(28).sample.get)
+        case B extends Payee(genByteStringOfN(28).sample.get)
+        case C extends Payee(genByteStringOfN(28).sample.get)
+        case D extends Payee(genByteStringOfN(28).sample.get)
+        case E extends Payee(genByteStringOfN(28).sample.get)
+        case F extends Payee(genByteStringOfN(28).sample.get)
+        case G extends Payee(genByteStringOfN(28).sample.get)
+        case H extends Payee(genByteStringOfN(28).sample.get)
+
+    extension (payee: Payee)
+        inline infix def give(amount: BigInt): Input = Input(payee, amount)
+        inline infix def get(amount: BigInt): Output = Output(payee, amount)
+
+    case class Input(payee: Payee, amount: BigInt)
+
+    case class Output(payee: Payee, amount: BigInt)
+
+    case class TestCase(
+        description: String,
+        payees: List[Payee],
+        amount: BigInt,
+        fee: BigInt,
+        inputs: List[Input],
+        outputs: List[Output],
+        expected: Either[String, Option[ExBudget]]
+    )
+
+    object TestCases {
+        def apply(cases: TestCase*): Unit = {
+            cases.zipWithIndex.foreach {
+                case (
+                      TestCase(description, payees, amount, fee, inputs, outputs, expected),
+                      caseIndex
+                    ) =>
+                    test(s"${caseIndex + 1}: $description") {
+                        assertCase(
+                          payees.map(_.pkh),
+                          inputs = List.from(
+                            inputs.asScala.zipWithIndex
+                                .map { case (Input(payee, amount), index) =>
+                                    makePayeeInput(payee.pkh, index, amount)
+                                }
+                                .prepended(makeScriptInput(amount))
+                          ),
+                          outputs = outputs.map { case Output(payee, amount) =>
+                              (payee.pkh, amount)
+                          },
+                          fee = fee,
+                          expected = expected
+                        )
+                    }
+            }
+        }
+    }
+
+    def failure(message: String): Either[String, Option[ExBudget]] = Left(message)
+    def success: Either[String, Option[ExBudget]] = Right(Option.None)
+    def success(budget: ExBudget): Either[String, Option[ExBudget]] = Right(Option.Some(budget))
 }
