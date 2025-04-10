@@ -20,8 +20,12 @@ import scalus.uplc.eval.*
 
 class PaymentSplitterSpec extends AnyFunSuite, ScalusTest {
 
+    private val A = hex"1234567890abcdef1234567890abcdef1234567890abcdef12345678"
+    private val B = hex"2234567890abcdef1234567890abcdef1234567890abcdef12345678"
+    private val C = hex"3234567890abcdef1234567890abcdef1234567890abcdef12345678"
+
     test("success when payments are correctly split for a single payee") {
-        val payees = List(hex"1234567890abcdef1234567890abcdef1234567890abcdef12345678")
+        val payees = List(A)
         assertCase(
           payees,
           inputs = List(
@@ -35,7 +39,7 @@ class PaymentSplitterSpec extends AnyFunSuite, ScalusTest {
     }
 
     test("failure when a payee is not present in the inputs") {
-        val payees = List(hex"1234567890abcdef1234567890abcdef1234567890abcdef12345678")
+        val payees = List(A)
         assertCase(
           payees,
           inputs = List(makeScriptTxInInfo(100)),
@@ -47,7 +51,7 @@ class PaymentSplitterSpec extends AnyFunSuite, ScalusTest {
     }
 
     test("failure when a payee is not payed out") {
-        val payees = List(hex"1234567890abcdef1234567890abcdef1234567890abcdef12345678")
+        val payees = List(A)
         assertCase(
           payees,
           inputs = List(
@@ -61,10 +65,7 @@ class PaymentSplitterSpec extends AnyFunSuite, ScalusTest {
     }
 
     test("failure when multiple payees are present in the inputs") {
-        val payees = List(
-          hex"1234567890abcdef1234567890abcdef1234567890abcdef12345678",
-          hex"2234567890abcdef1234567890abcdef1234567890abcdef12345678"
-        )
+        val payees = List(A, B)
         assertCase(
           payees,
           inputs = List(
@@ -79,10 +80,7 @@ class PaymentSplitterSpec extends AnyFunSuite, ScalusTest {
     }
 
     test("success when multiple payees are correctly split") {
-        val payees = List(
-          hex"1234567890abcdef1234567890abcdef1234567890abcdef12345678",
-          hex"2234567890abcdef1234567890abcdef1234567890abcdef12345678"
-        )
+        val payees = List(A, B)
         assertCase(
           payees,
           inputs = List(
@@ -96,25 +94,18 @@ class PaymentSplitterSpec extends AnyFunSuite, ScalusTest {
     }
 
     test("failure when extra outputs are present") {
-        val payees = List(
-          hex"1234567890abcdef1234567890abcdef1234567890abcdef12345678",
-          hex"2234567890abcdef1234567890abcdef1234567890abcdef12345678"
-        )
+        val payees = List(A, B)
         assertCase(
           payees,
           inputs = List(
             makeScriptTxInInfo(100),
             makePayeeTxInInfo(pkh = payees.head, idx = 0, value = 100),
-            makePayeeTxInInfo( // extra input
-              pkh = hex"3234567890abcdef1234567890abcdef1234567890abcdef12345678",
-              idx = 0,
-              value = 50
-            )
+            makePayeeTxInInfo(pkh = C, idx = 0, value = 50) // extra input
           ),
           outputs = List(
             (payees.head, 50 + 100 - 10),
             (payees !! 1, 50),
-            (hex"3234567890abcdef1234567890abcdef1234567890abcdef12345678", 50) // extra output
+            (C, 50) // extra output
           ),
           fee = 10,
           expected = Left("More outputs than payees")
@@ -122,10 +113,7 @@ class PaymentSplitterSpec extends AnyFunSuite, ScalusTest {
     }
 
     test("failure when not all payees are payed out") {
-        val payees = List(
-          hex"1234567890abcdef1234567890abcdef1234567890abcdef12345678",
-          hex"2234567890abcdef1234567890abcdef1234567890abcdef12345678"
-        )
+        val payees = List(A, B)
         assertCase(
           payees,
           inputs = List(
