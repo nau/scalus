@@ -484,17 +484,9 @@ object Option {
             case None    => false
             case Some(a) => p(a)
 
-        def requireExists(p: A => Boolean, msg: String): Unit = self match
-            case None    => throw new NoSuchElementException("None.requireExists")
-            case Some(a) => require(p(a), msg)
-
         def forall(p: A => Boolean): Boolean = self match
             case None    => true
             case Some(a) => p(a)
-
-        def requireForall(p: A => Boolean, msg: String): Unit = self match
-            case None    => ()
-            case Some(a) => require(p(a), msg)
 
         inline def find(p: A => Boolean): Option[A] = filter(p)
 

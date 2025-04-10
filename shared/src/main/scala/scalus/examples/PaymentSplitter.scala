@@ -13,8 +13,33 @@ import scalus.prelude.List.*
 import scalus.prelude.Option.*
 import scalus.prelude.Prelude.*
 
+/** Split payouts equally among a list of specified payees
+  *
+  * A payment splitter can be used for example to create a shared project donation address, ensuring
+  * that all payees receive the same amount
+  *
+  * Sending lovelace to the contract works similarly to sending lovelace to any other address. The
+  * payout transaction can only be submitted by one of the payees, and the output addresses are
+  * restricted to the payees. The output sum must be equally divided to ensure the transaction is
+  * successful.
+  *
+  * @see
+  *   [[https://meshjs.dev/smart-contracts/payment-splitter]]
+  */
 @Compile
 object PaymentSplitter {
+
+    /** @param payeesData
+      *   List of payees list to split the payment to.
+      * @param scriptContext
+      *   [[ScriptContext]]
+      *
+      * @example
+      *   {{{
+      *     val payees = List(A, B, C)
+      *     val script = PaymentSplitter.validator(payees)
+      *   }}}
+      */
     def validator(payeesData: Data)(scriptContext: Data): Unit = {
         val ctx: ScriptContext = scriptContext.to[ScriptContext]
         ctx.scriptInfo match
@@ -26,15 +51,8 @@ object PaymentSplitter {
             case _ => fail("Must be spending")
     }
 
-    extension (value: Value)
-        def lovelace: BigInt = value.toList match
-            case Nil                   => 0
-            case Cons((cs, tokens), _) =>
-                // Ada is always the first token. Only Ada can have empty CurrencySymbol. And its only token is Lovelace
-                if cs == ByteString.empty then tokens.toList.head._2
-                else 0
-
     def spend(txInfo: TxInfo, payees: List[Credential]): Unit = {
+        // Find the first and single payee that triggers the payout and pays the fee
         val payeeInputWithChange = txInfo.inputs
             .foldLeft(Option.empty[TxOut]) { (txOut, input) =>
                 if payees.contains(input.resolved.address.credential)
@@ -54,7 +72,7 @@ object PaymentSplitter {
                         output.value.lovelace - change
                     else output.value.lovelace
 
-                prevValue.requireForall(_ == splitted, "Split unequally")
+                require(prevValue.forall(_ == splitted), "Split unequally")
 
                 // Here we check that all outputs pay to payees from the list
                 // We expect the same order of outputs as listed in payees
@@ -66,4 +84,13 @@ object PaymentSplitter {
         }
         require(unpaidPayees.isEmpty, "Not all payees were paid")
     }
+
+    extension (value: Value)
+        def lovelace: BigInt = value.toList match
+            case Nil                   => 0
+            case Cons((cs, tokens), _) =>
+                // Ada is always the first token. Only Ada can have empty CurrencySymbol. And its only token is Lovelace
+                if cs == ByteString.empty then tokens.toList.head._2
+                else 0
+
 }
