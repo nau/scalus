@@ -64,7 +64,7 @@ class PaymentSplitterSpec extends AnyFunSuite, ScalusTest {
           ),
           outputs = List((A, 190)),
           fee = 10,
-          expected = success(ExBudget(ExCPU(107692790), ExMemory(450715)))
+          expected = success(ExBudget(ExCPU(108268790), ExMemory(450715)))
         )
     }
 
@@ -119,7 +119,7 @@ class PaymentSplitterSpec extends AnyFunSuite, ScalusTest {
           ),
           outputs = List((A, 50 + 100 - 10), (B, 50)),
           fee = 10,
-          expected = success(ExBudget(ExCPU(129789073), ExMemory(553636)))
+          expected = success(ExBudget(ExCPU(130365073), ExMemory(557236)))
         )
     }
 
@@ -157,7 +157,7 @@ class PaymentSplitterSpec extends AnyFunSuite, ScalusTest {
         )
     }
 
-    private val script = compile(PaymentSplitter.validator)
+    private val script = compile(PaymentSplitter.validate)
         .toUplc(generateErrorTraces = true)
         .plutusV3
 

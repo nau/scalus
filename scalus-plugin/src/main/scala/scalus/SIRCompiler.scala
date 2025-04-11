@@ -198,10 +198,11 @@ final class SIRCompiler(using ctx: Context) {
         val tpl = td.rhs.asInstanceOf[Template]
         val specializedParents = tpl.parents.flatMap { p =>
             if p.symbol.hasAnnotation(Symbols.requiredClass("scalus.Compile")) then
-                if p.symbol.fullName.toString == "scalus.prelude.Validator" then Some(p)
-                else if p.symbol.fullName.toString == "scalus.prelude.ParametrizedValidator" then
-                    Some(p)
-                else throw new RuntimeException("Unsopported parent: " + p.symbol.fullName.toString)
+                if p.symbol.fullName.toString.startsWith("scalus.prelude.") then Some(p)
+                else
+                    throw new RuntimeException(
+                      s"Unsopported parent: ${p.symbol.fullName.toString}, we support only builtin prelude validators as base classes "
+                    )
             else None
         }
 

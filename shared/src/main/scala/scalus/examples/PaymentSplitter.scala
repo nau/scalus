@@ -7,7 +7,7 @@ import scalus.ledger.api.v1
 import scalus.ledger.api.v1.{Credential, PubKeyHash, Value}
 import scalus.ledger.api.v2.TxOut
 import scalus.ledger.api.v3.FromDataInstances.given
-import scalus.ledger.api.v3.{ScriptContext, ScriptInfo, TxInInfo, TxInfo}
+import scalus.ledger.api.v3.{ScriptContext, ScriptInfo, TxInInfo, TxInfo, TxOutRef}
 import scalus.prelude.*
 import scalus.prelude.List.*
 import scalus.prelude.Option.*
@@ -27,7 +27,7 @@ import scalus.prelude.Prelude.*
   *   [[https://meshjs.dev/smart-contracts/payment-splitter]]
   */
 @Compile
-object PaymentSplitter {
+object PaymentSplitter extends DataParametrizedValidator {
 
     /** @param payeesData
       *   List of payees list to split the payment to.
@@ -40,18 +40,21 @@ object PaymentSplitter {
       *     val script = PaymentSplitter.validator(payees)
       *   }}}
       */
-    def validator(payeesData: Data)(scriptContext: Data): Unit = {
-        val ctx: ScriptContext = scriptContext.to[ScriptContext]
-        ctx.scriptInfo match
-            case ScriptInfo.SpendingScript(_, _) =>
-                val payees = payeesData.toList.head
-                    .to[List[ByteString]]
-                    .map(payee => Credential.PubKeyCredential(PubKeyHash(payee)))
-                spend(ctx.txInfo, payees)
-            case _ => fail("Must be spending")
-    }
+    override def spend(
+        payeesData: Data,
+        datum: Option[Data],
+        redeemer: Data,
+        txInfo: TxInfo,
+        sourceTxOutRef: TxOutRef
+    ): Unit = {
 
-    def spend(txInfo: TxInfo, payees: List[Credential]): Unit = {
+        // Note, that this expression is for compability with the data parametrization as in aiken.
+        //  Without compabilty requirement,  we can accept List[Credential] directly without this transformation
+        //   using ParametrizedValidator[List[Credential]].
+        val payees = payeesData.toList.head
+            .to[List[ByteString]]
+            .map(payee => Credential.PubKeyCredential(PubKeyHash(payee)))
+
         // Find the first and single payee that triggers the payout and pays the fee
         val payeeInputWithChange = txInfo.inputs
             .foldLeft(Option.empty[TxOut]) { (txOut, input) =>
