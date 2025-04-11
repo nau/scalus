@@ -27,7 +27,7 @@ import scalus.prelude.Prelude.*
   *   [[https://meshjs.dev/smart-contracts/payment-splitter]]
   */
 @Compile
-object PaymentSplitter extends DataParametrizedValidator {
+object PaymentSplitter extends ParametrizedValidator[List[Credential]] {
 
     /** @param payeesData
       *   List of payees list to split the payment to.
@@ -41,7 +41,7 @@ object PaymentSplitter extends DataParametrizedValidator {
       *   }}}
       */
     override def spend(
-        payeesData: Data,
+        payees: List[Credential],
         datum: Option[Data],
         redeemer: Data,
         txInfo: TxInfo,
@@ -51,9 +51,9 @@ object PaymentSplitter extends DataParametrizedValidator {
         // Note, that this expression is for compability with the data parametrization as in aiken.
         //  Without compabilty requirement,  we can accept List[Credential] directly without this transformation
         //   using ParametrizedValidator[List[Credential]].
-        val payees = payeesData.toList.head
-            .to[List[ByteString]]
-            .map(payee => Credential.PubKeyCredential(PubKeyHash(payee)))
+        // val payees = payeesData.toList.head
+        //    .to[List[ByteString]]
+        //    .map(payee => Credential.PubKeyCredential(PubKeyHash(payee)))
 
         // Find the first and single payee that triggers the payout and pays the fee
         val payeeInputWithChange = txInfo.inputs

@@ -196,15 +196,24 @@ final class SIRCompiler(using ctx: Context) {
     private def compileTypeDef(td: TypeDef): Unit = {
         val start = System.currentTimeMillis()
         val tpl = td.rhs.asInstanceOf[Template]
-        val specializedParents = tpl.parents.flatMap { p =>
-            if p.symbol.hasAnnotation(Symbols.requiredClass("scalus.Compile")) then
-                if p.symbol.fullName.toString.startsWith("scalus.prelude.") then Some(p)
+        val DEBUG = (td.name.toString == "PaymentSplitter$")
+
+        val specializedParents = td.tpe.parents.flatMap { p =>
+            val hasAnnotation = p.typeSymbol.hasAnnotation(Symbols.requiredClass("scalus.Compile"))
+            println(s"parent: ${p.typeSymbol.fullName.toString}, hasAnnotation: $hasAnnotation")
+            if p.typeSymbol.hasAnnotation(Symbols.requiredClass("scalus.Compile")) then
+                if p.typeSymbol.fullName.toString.startsWith("scalus.prelude.") then Some(p)
                 else
                     throw new RuntimeException(
-                      s"Unsopported parent: ${p.symbol.fullName.toString}, we support only builtin prelude validators as base classes "
+                      s"Unsopported parent: ${p.typeSymbol.fullName.toString}, we support only builtin prelude validators as base classes "
                     )
             else None
         }
+        if DEBUG then
+            println(s"parents ft ${td.name} are ${tpl.parents.map(_.symbol.fullName.toString)}")
+            println(s"parents fully ${td.name} are ${tpl.parents.map(_.show)}")
+            println(s"tpe.parents =${td.tpe.parents.map(_.show)}")
+            println(s"specializedParents =${specializedParents.map(_.show)}")
 
         val typeParams = td.tpe.typeParams
         val typeParamsSymbols = typeParams.map(_.paramRef.typeSymbol)
@@ -241,10 +250,16 @@ final class SIRCompiler(using ctx: Context) {
                   vd,
                   isGlobalDef = true
                 ) match
-                    case CompileMemberDefResult.Compiled(b) => Some(b)
-                    case _                                  =>
-                        // TODO: print diagnostins
-                        None
+                    case CompileMemberDefResult.Compiled(b)       => Some(b)
+                    case CompileMemberDefResult.Builtin(name, tp) => None
+                    case CompileMemberDefResult.NotSupported =>
+                        error(
+                          GenericError(
+                            s"Not supported: ${vd.symbol.fullName.show}",
+                            vd.srcPos
+                          ),
+                          None
+                        )
             case _ => None
         }
 
@@ -252,34 +267,34 @@ final class SIRCompiler(using ctx: Context) {
 
         val possibleOverrides = specializedParents.flatMap { p =>
             bindings.map { lb =>
-                p.symbol.fullName.show + "." + lb.name
+                p.typeSymbol.fullName.show + "." + lb.name
                     -> lb
             }
         }.toMap
 
         val superBindings = specializedParents.flatMap { p =>
-            sirLoader.findAndReadModule(p.symbol.fullName.show, true) match
+            sirLoader.findAndReadModule(p.typeSymbol.fullName.show, true) match
                 case Left(message) =>
                     error(
                       GenericError(
-                        s"Builtin module ${p.symbol.showFullName} not found, check is you installatin is complete: ${message}",
-                        p.srcPos
+                        s"Builtin module ${p.typeSymbol.showFullName} not found, check is you installatin is complete: ${message}",
+                        p.typeSymbol.srcPos
                       ),
                       None
                     )
                 case Right(module) =>
-                    val parentTypeParams = p.tpe.typeParams
+                    val parentTypeParams = p.typeParams
                     val parentTypeParamsSymbols = parentTypeParams.map(_.paramRef.typeSymbol)
-                    val parentTypeArgs = td.tpe.baseType(p.symbol) match
+                    val parentTypeArgs = td.tpe.baseType(p.typeSymbol) match
                         case AppliedType(_, args) =>
                             args.map { a =>
-                                sirTypeInEnv(a, p.srcPos, baseEnv)
+                                sirTypeInEnv(a, p.typeSymbol.srcPos, baseEnv)
                             }
                         case _ => Nil
                     val parentTypeVars = (parentTypeParamsSymbols zip parentTypeArgs).toMap
                     val env = baseEnv.copy(typeVars = baseEnv.typeVars ++ parentTypeVars)
                     specializeInModule(
-                      p.symbol,
+                      p.typeSymbol,
                       module,
                       env,
                       possibleOverrides
@@ -314,7 +329,7 @@ final class SIRCompiler(using ctx: Context) {
         writeModule(module, td.symbol.fullName.toString)
         val time = System.currentTimeMillis() - start
         report.echo(
-          s"compiled Scalus module ${td.name} definitions: ${bindings.map(_.name).mkString(", ")} in ${time}ms"
+          s"compiled Scalus module ${td.name} definitions: ${bindingsWithSpecialized.map(_.name)} in ${time}ms"
         )
     }
 
