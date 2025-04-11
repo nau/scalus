@@ -5,12 +5,10 @@ import scalus.*
 import scalus.Compiler.compile
 import scalus.builtin.Builtins.blake2b_224
 import scalus.builtin.ByteString
-import scalus.builtin.ByteString.*
 import scalus.builtin.Data.toData
 import scalus.builtin.ToDataInstances.given
 import scalus.ledger.api.v1.Credential.{PubKeyCredential, ScriptCredential}
 import scalus.ledger.api.v1.{Address, Credential, PubKeyHash, Value}
-import scalus.ledger.api.v1.Value.*
 import scalus.ledger.api.v2.TxOut
 import scalus.ledger.api.v3.*
 import scalus.ledger.api.v3.ScriptInfo.SpendingScript
@@ -20,7 +18,7 @@ import scalus.uplc.*
 import scalus.uplc.eval.*
 
 class PaymentSplitterSpec extends AnyFunSuite, ScalusTest {
-    import Payee._
+    import Payee.*
 
     TestCases(
       TestCase(
