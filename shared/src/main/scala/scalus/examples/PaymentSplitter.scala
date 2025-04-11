@@ -5,9 +5,10 @@ import scalus.builtin.FromDataInstances.given
 import scalus.builtin.{ByteString, Data}
 import scalus.ledger.api.v1
 import scalus.ledger.api.v1.{Credential, PubKeyHash, Value}
+import scalus.ledger.api.v1.Value.*
 import scalus.ledger.api.v2.TxOut
 import scalus.ledger.api.v3.FromDataInstances.given
-import scalus.ledger.api.v3.{ScriptContext, ScriptInfo, TxInInfo, TxInfo}
+import scalus.ledger.api.v3.{ScriptContext, ScriptInfo, TxInfo}
 import scalus.prelude.*
 import scalus.prelude.List.*
 import scalus.prelude.Option.*
@@ -51,9 +52,9 @@ object PaymentSplitter {
             case _ => fail("Must be spending")
     }
 
-    def spend(txInfo: TxInfo, payees: List[Credential]): Unit = {
+    def spend(tx: TxInfo, payees: List[Credential]): Unit = {
         // Find the first and single payee that triggers the payout and pays the fee
-        val payeeInputWithChange = txInfo.inputs
+        val payeeInputWithChange = tx.inputs
             .foldLeft(Option.empty[TxOut]) { (txOut, input) =>
                 if payees.contains(input.resolved.address.credential)
                 then
@@ -63,16 +64,16 @@ object PaymentSplitter {
             }
             .getOrFail("One of the payees must have an input to pay the fee and trigger the payout")
 
-        val (unpaidPayees, _) = txInfo.outputs.foldLeft((payees, Option.empty[BigInt])) {
+        val (unpaidPayees, _) = tx.outputs.foldLeft((payees, Option.empty[BigInt])) {
             case ((payees, prevValue), output) =>
-                val splitted =
+                val split =
                     if payeeInputWithChange.address.credential === output.address.credential
                     then
-                        val change = payeeInputWithChange.value.lovelace - txInfo.fee
-                        output.value.lovelace - change
-                    else output.value.lovelace
+                        val change = payeeInputWithChange.value.getLovelace - tx.fee
+                        output.value.getLovelace - change
+                    else output.value.getLovelace
 
-                require(prevValue.forall(_ == splitted), "Split unequally")
+                require(prevValue.forall(_ == split), "Split unequally")
 
                 // Here we check that all outputs pay to payees from the list
                 // We expect the same order of outputs as listed in payees
@@ -80,17 +81,8 @@ object PaymentSplitter {
                     case Nil => fail("More outputs than payees")
                     case Cons(payee, tail) =>
                         require(output.address.credential === payee, "Must pay to a payee")
-                        (tail, Some(splitted))
+                        (tail, Some(split))
         }
         require(unpaidPayees.isEmpty, "Not all payees were paid")
     }
-
-    extension (value: Value)
-        def lovelace: BigInt = value.toList match
-            case Nil                   => 0
-            case Cons((cs, tokens), _) =>
-                // Ada is always the first token. Only Ada can have empty CurrencySymbol. And its only token is Lovelace
-                if cs == ByteString.empty then tokens.toList.head._2
-                else 0
-
 }

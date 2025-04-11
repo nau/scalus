@@ -119,3 +119,10 @@ object Value:
         inline def >=(other: Value): Boolean = Value.gte(v, other)
         @Ignore
         inline def showDebug: String = debugToString(v)
+
+        def getLovelace: BigInt = v.toList match
+            case List.Nil                   => 0
+            case List.Cons((cs, tokens), _) =>
+                // Ada is always the first token. Only Ada can have empty CurrencySymbol. And its only token is Lovelace
+                if cs == ByteString.empty then tokens.toList.head._2
+                else 0
