@@ -199,9 +199,22 @@ final class SIRCompiler(using ctx: Context) {
         val specializedParents = tpl.parents.flatMap { p =>
             if p.symbol.hasAnnotation(Symbols.requiredClass("scalus.Compile")) then
                 if p.symbol.fullName.toString == "scalus.prelude.Validator" then Some(p)
+                else if p.symbol.fullName.toString == "scalus.prelude.ParametrizedValidator" then
+                    Some(p)
                 else throw new RuntimeException("Unsopported parent: " + p.symbol.fullName.toString)
             else None
         }
+
+        val typeParams = td.tpe.typeParams
+        val typeParamsSymbols = typeParams.map(_.paramRef.typeSymbol)
+        val sirTypeParams = typeParamsSymbols.map { tps =>
+            SIRType.TypeVar(tps.name.show, Some(tps.hashCode))
+        }
+        val sirTypeVars = (typeParamsSymbols zip sirTypeParams).toMap
+        val baseEnv = Env.empty.copy(
+          thisTypeSymbol = td.symbol,
+          typeVars = sirTypeVars
+        )
 
         val bindings = tpl.body.flatMap {
             case dd: DefDef
@@ -210,7 +223,7 @@ final class SIRCompiler(using ctx: Context) {
                 // && !dd.symbol.name.startsWith("derived")
                     && !dd.symbol.hasAnnotation(IgnoreAnnot) =>
                 compileStmt(
-                  Env.empty.copy(thisTypeSymbol = td.symbol),
+                  baseEnv,
                   dd,
                   isGlobalDef = true
                 ) match
@@ -223,7 +236,7 @@ final class SIRCompiler(using ctx: Context) {
                     && !vd.symbol.hasAnnotation(IgnoreAnnot) =>
                 // println(s"valdef: ${vd.symbol.fullName}")
                 compileStmt(
-                  Env.empty.copy(thisTypeSymbol = td.symbol),
+                  baseEnv,
                   vd,
                   isGlobalDef = true
                 ) match
@@ -254,10 +267,20 @@ final class SIRCompiler(using ctx: Context) {
                       None
                     )
                 case Right(module) =>
+                    val parentTypeParams = p.tpe.typeParams
+                    val parentTypeParamsSymbols = parentTypeParams.map(_.paramRef.typeSymbol)
+                    val parentTypeArgs = td.tpe.baseType(p.symbol) match
+                        case AppliedType(_, args) =>
+                            args.map { a =>
+                                sirTypeInEnv(a, p.srcPos, baseEnv)
+                            }
+                        case _ => Nil
+                    val parentTypeVars = (parentTypeParamsSymbols zip parentTypeArgs).toMap
+                    val env = baseEnv.copy(typeVars = baseEnv.typeVars ++ parentTypeVars)
                     specializeInModule(
                       p.symbol,
                       module,
-                      Env.empty.copy(thisTypeSymbol = td.symbol),
+                      env,
                       possibleOverrides
                     )
         }
