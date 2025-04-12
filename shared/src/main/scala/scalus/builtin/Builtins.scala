@@ -186,6 +186,17 @@ object PlatformSpecific:
           "93e02b6052719f607dacd3a088274f65596bd0d09920b61ab5da61bbdc7f5049334cf11213945d57e5ac7d055d042b7e024aa2b2f08f0a91260805272dc51051c6e47ad4fa403b02b4510b647ae3d1770bac0326a805bbefd48056c8c121bdb8"
         )
 
+/** Class contains all Cardano Plutus built-in functions according to Plutus Specification.
+  *
+  * All the builtins are implemented according to semantics of the Plutus builtins. The
+  * implementation is platform independent. All the platform specific code is in the
+  * [[PlatformSpecific]].
+  *
+  * Only modify this class when a new builtin is added, or when you know what you are doing.
+  *
+  * @see
+  *   [[https://plutus.cardano.intersectmbo.org/resources/plutus-core-spec.pdf]]
+  */
 private[builtin] abstract class AbstractBuiltins(using ps: PlatformSpecific):
     // Integers
     def addInteger(i1: BigInt, i2: BigInt): BigInt = i1 + i2
