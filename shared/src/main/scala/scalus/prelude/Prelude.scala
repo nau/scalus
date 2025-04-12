@@ -105,7 +105,7 @@ object List:
     def single[A](a: A): List[A] = Cons(a, List.Nil)
 
     @Ignore
-    def apply[A](args: A*): List[A] = args.foldRight(empty[A]) { case (a, b) => Cons(a, b) }
+    def apply[A](args: A*): List[A] = from(args)
 
     @Ignore
     def from[A](i: IterableOnce[A]): List[A] = i.iterator.foldRight(empty[A]) { case (a, b) =>
@@ -379,21 +379,12 @@ object List:
             case Nil              => ()
             case Cons(head, tail) => f(head); tail.foreach(f)
 
-        /** Converts a `List` to a [[scala.List]] */
+        /** Converts to a [[Seq]] */
         @Ignore
-        def asScala: immutable.List[A] = {
-            if self.isEmpty then return immutable.List.empty
-
-            @tailrec
-            def toListBuffer(
-                list: List[A],
-                listBuffer: mutable.ListBuffer[A]
-            ): mutable.ListBuffer[A] =
-                list match
-                    case Nil              => listBuffer
-                    case Cons(head, tail) => toListBuffer(tail, listBuffer.addOne(head))
-
-            toListBuffer(self, mutable.ListBuffer.empty).toList
+        def asScala: Seq[A] = {
+            val buf = mutable.ListBuffer.empty[A]
+            for e <- self do buf.addOne(e)
+            buf.toList
         }
 
 enum Option[+A]:
