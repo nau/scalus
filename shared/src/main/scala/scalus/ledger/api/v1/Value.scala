@@ -42,11 +42,10 @@ object Value:
         b: Value
     ): Boolean = {
         // all values are equal, absent values are 0
-        checkPred(a, b) { v =>
-            v match
-                case These.These(v1, v2) => op(v1, v2)
-                case This(v1)            => op(v1, 0)
-                case That(v2)            => op(v2, 0)
+        checkPred(a, b) {
+            case These.These(v1, v2) => op(v1, v2)
+            case This(v1)            => op(v1, 0)
+            case That(v2)            => op(v2, 0)
         }
     }
 
@@ -75,17 +74,17 @@ object Value:
         AssocMap.map(combined) { case (cs, these) =>
             these match
                 case These.These(v1, v2) => (cs, AssocMap.union(v1, v2))
-                case This(v1) => (cs, AssocMap.map(v1) { case (k, v) => (k, new These.This(v)) })
-                case That(v2) => (cs, AssocMap.map(v2) { case (k, v) => (k, new These.That(v)) })
+                case This(v1) => (cs, AssocMap.map(v1) { case (k, v) => (k, These.This(v)) })
+                case That(v2) => (cs, AssocMap.map(v2) { case (k, v) => (k, These.That(v)) })
         }
 
     def unionWith(op: (BigInt, BigInt) => BigInt)(a: Value, b: Value): Value =
         val combined = unionVal(a, b)
-        val unThese: These[BigInt, BigInt] => BigInt = (k) =>
-            k match
-                case These.These(v1, v2) => op(v1, v2)
-                case This(v1)            => op(v1, 0)
-                case That(v2)            => op(0, v2)
+        val unThese: These[BigInt, BigInt] => BigInt = {
+            case These.These(v1, v2) => op(v1, v2)
+            case This(v1)            => op(v1, 0)
+            case That(v2)            => op(0, v2)
+        }
         AssocMap.map(combined) { case (cs, v) =>
             (cs, AssocMap.map(v) { case (tn, v) => (tn, unThese(v)) })
         }
@@ -119,3 +118,10 @@ object Value:
         inline def >=(other: Value): Boolean = Value.gte(v, other)
         @Ignore
         inline def showDebug: String = debugToString(v)
+
+        def getLovelace: BigInt = v.toList match
+            case List.Nil                   => 0
+            case List.Cons((cs, tokens), _) =>
+                // Ada is always the first token. Only Ada can have empty CurrencySymbol. And its only token is Lovelace
+                if cs == ByteString.empty then tokens.toList.head._2
+                else 0

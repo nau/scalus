@@ -7,7 +7,7 @@ import scalus.ledger.api.v3.{*, given}
 @scalus.Compile
 trait Validator {
 
-    def validate(scData: Data): Unit = {
+    def validator(scData: Data): Unit = {
         val sc = scData.to[ScriptContext]
         sc.scriptInfo match
             case ScriptInfo.MintingScript(currencySymbol) =>
