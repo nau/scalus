@@ -1,13 +1,12 @@
 package scalus
 
-import dotty.tools.io.ClassPath
 import dotty.tools.dotc.core.Contexts.Context
+import dotty.tools.io.ClassPath
 import scalus.flat.DecoderState
 import scalus.flat.FlatInstantces.given
-import scalus.sir.{Module, SIR}
+import scalus.sir.Module
 
 import java.io.InputStream
-import java.nio.file.Paths
 import scala.util.control.NonFatal
 
 class SIRLoader(using ctx: Context):

@@ -3,9 +3,6 @@ package scalus
 import dotty.tools.dotc.core.Contexts.Context
 import dotty.tools.dotc.report
 import dotty.tools.dotc.util.SrcPos
-import dotty.tools.io.ClassPath
-import scalus.flat.DecoderState
-import scalus.flat.FlatInstantces.given
 import scalus.sir.{AnnotationsDecl, Binding, DataDecl, Module, Recursivity, SIR}
 
 import scala.collection.mutable

@@ -119,12 +119,12 @@ object List:
     }
 
     def range(from: BigInt, to: BigInt): List[BigInt] = {
-        if lessThanEqualsInteger(from, to) then Cons(from, range(addInteger(from, 1), to))
+        if lessThanEqualsInteger(from, to) then Cons(from, range(from + 1, to))
         else Nil
     }
 
     def fill[A](value: A, times: BigInt): List[A] = {
-        if greaterThanInteger(times, 0) then Cons(value, fill(value, subtractInteger(times, 1)))
+        if 0 < times then Cons(value, fill(value, times - 1))
         else Nil
     }
 
@@ -149,7 +149,7 @@ object List:
             case Cons(_, _) => true
 
         def isDefinedAt(index: BigInt): Boolean =
-            require(greaterThanEqualsInteger(index, 0), "`index` must be greater than or equal 0")
+            require(0 <= index, "`index` must be greater than or equal 0")
 
             @tailrec
             def go(lst: List[A], currentIndex: BigInt): Boolean = lst match
@@ -161,7 +161,7 @@ object List:
             go(self, 0)
 
         def getByIndex(index: BigInt): A = {
-            require(greaterThanEqualsInteger(index, 0), "`index` must be greater than or equal 0")
+            require(0 <= index, "`index` must be greater than or equal 0")
 
             @tailrec
             def go(lst: List[A], currentIndex: BigInt): A = lst match
@@ -174,7 +174,7 @@ object List:
         }
 
         def at(index: BigInt): Option[A] = {
-            require(greaterThanEqualsInteger(index, 0), "`index` must be greater than or equal 0")
+            require(0 <= index, "`index` must be greater than or equal 0")
 
             @tailrec
             def go(lst: List[A], currentIndex: BigInt): Option[A] = lst match
