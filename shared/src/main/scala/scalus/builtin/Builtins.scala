@@ -188,11 +188,20 @@ object PlatformSpecific:
 
 /** Class contains all Cardano Plutus built-in functions according to Plutus Specification.
   *
+  * Functions of this class are treated specially by the Scalus compiler plugin. When used in
+  * validator code, the compiler plugin will replace the function call with an actual Plutus
+  * built-in function.
+  *
+  * Scalus Compiler plugin expects that this class to contain methods named exactly as in
+  * [[scalus.uplc.DefaultFun]] with lowercase first letter. For example, for
+  * [[scalus.uplc.DefaultFun.AddInteger]] there should be a method named `addInteger` etc.
+  *
   * All the builtins are implemented according to semantics of the Plutus builtins. The
   * implementation is platform independent. All the platform specific code is in the
   * [[PlatformSpecific]].
   *
-  * Only modify this class when a new builtin is added, or when you know what you are doing.
+  * Only modify this class when a new builtin is added to [[scalus.uplc.DefaultFun]], or when you
+  * know what you are doing.
   *
   * @see
   *   [[https://plutus.cardano.intersectmbo.org/resources/plutus-core-spec.pdf]]
