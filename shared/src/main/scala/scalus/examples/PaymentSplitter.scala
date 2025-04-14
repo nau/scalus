@@ -24,6 +24,8 @@ import scalus.prelude.Prelude.{*, given}
   * restricted to the payees. The output sum must be equally divided to ensure the transaction is
   * successful.
   *
+  * Paye who triggers the payout must also pay the fee and can get a reminder from the equal split.
+  *
   * @see
   *   [[https://meshjs.dev/smart-contracts/payment-splitter]]
   */
@@ -85,6 +87,7 @@ object PaymentSplitter extends ParametrizedValidator[List[Credential]] {
         val eqSumValue = sumOutput - payeeOutputWithChange.value.getLovelace + split
         val reminder = sumOutput - eqSumValue
 
+        require(reminder < split)
         require(
           payeeOutputWithChange.value.getLovelace - payeeInputWithChange.value.getLovelace === split - tx.fee + reminder
         )
