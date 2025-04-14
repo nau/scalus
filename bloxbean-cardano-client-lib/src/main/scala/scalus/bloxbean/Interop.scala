@@ -319,7 +319,7 @@ object Interop {
     ): v1.TxInInfo = {
         val out = utxos.getOrElse(input, throw new IllegalStateException("Input Not Found"))
         val addr = Address(out.getAddress)
-        val maybeDatumHash =
+        val optionDatumHash =
             if out.getDatumHash != null then
                 prelude.Option.Some(ByteString.fromArray(out.getDatumHash))
             else prelude.Option.None
@@ -331,7 +331,7 @@ object Interop {
           v1.TxOut(
             getAddress(addr),
             getValue(out.getValue),
-            maybeDatumHash
+            optionDatumHash
           )
         )
     }
@@ -404,14 +404,14 @@ object Interop {
 
     def getTxOutV1(out: TransactionOutput): v1.TxOut = {
         val addr = Address(out.getAddress)
-        val maybeDatumHash =
+        val optionDatumHash =
             if out.getDatumHash != null then
                 prelude.Option.Some(ByteString.fromArray(out.getDatumHash))
             else prelude.Option.None
         v1.TxOut(
           getAddress(addr),
           getValue(out.getValue),
-          maybeDatumHash
+          optionDatumHash
         )
     }
 
