@@ -153,7 +153,7 @@ class PaymentSplitterSpec extends AnyFunSuite, ScalusTest {
         )
     }
 
-    private val script = compile(PaymentSplitter.validator)
+    private val scriptDI = compile(PaymentSplitterDI.validate)
         .toUplc(generateErrorTraces = true)
         .plutusV3
 

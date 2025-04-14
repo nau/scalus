@@ -12,7 +12,7 @@ import scalus.ledger.api.v3.{ScriptContext, ScriptInfo, TxInInfo, TxInfo, TxOutR
 import scalus.prelude.*
 import scalus.prelude.List.*
 import scalus.prelude.Option.*
-import scalus.prelude.Prelude.*
+import scalus.prelude.Prelude.{*, given}
 
 /** Split payouts equally among a list of specified payees
   *
@@ -45,16 +45,9 @@ object PaymentSplitter extends ParametrizedValidator[List[Credential]] {
         payees: List[Credential],
         datum: Option[Data],
         redeemer: Data,
-        txInfo: TxInfo,
+        tx: TxInfo,
         sourceTxOutRef: TxOutRef
     ): Unit = {
-
-        // Note, that this expression is for compability with the data parametrization as in aiken.
-        //  Without compabilty requirement,  we can accept List[Credential] directly without this transformation
-        //   using ParametrizedValidator[List[Credential]].
-        // val payees = payeesData.toList.head
-        //    .to[List[ByteString]]
-        //    .map(payee => Credential.PubKeyCredential(PubKeyHash(payee)))
 
         // Find the first and single payee that triggers the payout and pays the fee
         val payeeInputWithChange = tx.inputs
@@ -67,25 +60,34 @@ object PaymentSplitter extends ParametrizedValidator[List[Credential]] {
             }
             .getOrFail("One of the payees must have an input to pay the fee and trigger the payout")
 
-        val (unpaidPayees, _) = tx.outputs.foldLeft((payees, Option.empty[BigInt])) {
-            case ((payees, prevValue), output) =>
-                val split =
-                    if payeeInputWithChange.address.credential === output.address.credential
-                    then
-                        val change = payeeInputWithChange.value.getLovelace - tx.fee
-                        output.value.getLovelace - change
-                    else output.value.getLovelace
-
-                require(prevValue.forall(_ == split), "Split unequally")
-
-                // Here we check that all outputs pay to payees from the list
-                // We expect the same order of outputs as listed in payees
-                payees match
-                    case Nil => fail("More outputs than payees")
-                    case Cons(payee, tail) =>
-                        require(output.address.credential === payee, "Must pay to a payee")
-                        (tail, Some(split))
-        }
+        val (unpaidPayees, optSplit, optPayeeOutputWithChange, sumOutput) =
+            tx.outputs.foldLeft((payees, Option.empty[BigInt], Option.empty[TxOut], BigInt(0))) {
+                case ((payees, optPrevSplit, optPayWithChange, sum), output) =>
+                    val value = output.value.getLovelace
+                    payees match
+                        case Nil => fail("More outputs than payees")
+                        case Cons(payee, payeesTail) =>
+                            require(
+                              output.address.credential === payee,
+                              "Must pay to a payee"
+                            )
+                            val nextSum = sum + value
+                            if payeeInputWithChange.address.credential === output.address.credential
+                            then (payeesTail, optPrevSplit, Some(output), nextSum)
+                            else
+                                require(optPrevSplit.forall(value === _), "Split unequally")
+                                (payeesTail, Some(value), optPayWithChange, nextSum)
+            }
         require(unpaidPayees.isEmpty, "Not all payees were paid")
+        val split = optSplit.getOrFail("No non-change allocations")
+        val payeeOutputWithChange = optPayeeOutputWithChange.getOrFail("No change output")
+
+        val eqSumValue = sumOutput - payeeOutputWithChange.value.getLovelace + split
+        val reminder = sumOutput - eqSumValue
+
+        require(
+          payeeOutputWithChange.value.getLovelace - payeeInputWithChange.value.getLovelace === split - tx.fee + reminder
+        )
+
     }
 }
