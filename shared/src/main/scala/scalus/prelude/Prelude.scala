@@ -387,6 +387,55 @@ object List:
             buf.toList
         }
 
+@deprecated("Use `scalus.Option` instead")
+enum Maybe[+A]:
+    @deprecated("Use `scalus.Option.None` instead") case Nothing extends Maybe[Nothing]
+    @deprecated("Use `scalus.Option.Some` instead") case Just(value: A)
+
+@Compile
+@deprecated("Use `scalus.Option` instead")
+object Maybe {
+
+    /** Constructs a `Maybe` from a value. If the value is `null`, it returns `Nothing`, otherwise
+      * `Just(value)`.
+      */
+    @Ignore
+    @deprecated("Use `scalus.Option.apply` instead")
+    inline def apply[A](x: A): Maybe[A] = if x == null then Nothing else Just(x)
+
+    extension [A](m: Maybe[A])
+        /** Converts a `Maybe` to an [[Option]] */
+        @Ignore
+        @deprecated("Use `scalus.Option.asScala` instead")
+        def toOption: scala.Option[A] = m match
+            case Nothing => scala.None
+            case Just(a) => scala.Some(a)
+
+        @deprecated("Use `scalus.Option.map` instead")
+        def map[B](f: A => B): Maybe[B] = m match
+            case Nothing => Nothing
+            case Just(a) => Just(f(a))
+
+    /** Converts an [[Option]] to a `Maybe` */
+    @Ignore
+    @deprecated("Use `scalus.Option.asScalus` instead")
+    def fromOption[A](o: scala.Option[A]): Maybe[A] = o match
+        case scala.None    => Nothing
+        case scala.Some(a) => Just(a)
+
+    @deprecated("Use `scalus.Option.optionEq` instead")
+    given maybeEq[A](using eq: Eq[A]): Eq[Maybe[A]] = (a: Maybe[A], b: Maybe[A]) =>
+        a match
+            case Nothing =>
+                b match
+                    case Nothing => true
+                    case Just(a) => false
+            case Just(value) =>
+                b match
+                    case Nothing      => false
+                    case Just(value2) => value === value2
+}
+
 enum Option[+A]:
     case None extends Option[Nothing]
     case Some(value: A)
