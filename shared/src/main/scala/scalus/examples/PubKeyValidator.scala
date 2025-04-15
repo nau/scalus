@@ -6,7 +6,7 @@ import scalus.builtin.Builtins.*
 import scalus.builtin.ByteString
 import scalus.builtin.ByteString.*
 import scalus.builtin.Data
-import scalus.prelude.Prelude.log
+import scalus.prelude.log
 
 @Compile
 object PubKeyValidator {

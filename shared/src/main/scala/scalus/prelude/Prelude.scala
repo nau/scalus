@@ -7,7 +7,7 @@ import scalus.builtin.ByteString
 import scalus.builtin.Data
 import scalus.macros.Macros
 
-import scala.annotation.tailrec
+import scala.annotation.{nowarn, tailrec}
 import scala.collection.{immutable, mutable}
 
 extension (x: Boolean)
@@ -24,19 +24,51 @@ extension (x: Boolean)
       */
     inline def ? : Boolean = ${ Macros.questionMark('x) }
 
+    inline infix def orFail(inline message: String): Unit =
+        if x then () else fail(message)
+
+type Eq[-A] = (A, A) => Boolean
+// given Eq[Nothing] = (x: Nothing, y: Nothing) => throw new Exception("EQN")
+inline given Eq[BigInt] = equalsInteger
+inline given Eq[ByteString] = equalsByteString
+inline given Eq[String] = equalsString
+@nowarn
+inline given Eq[Boolean] = _ == _
+inline given Eq[Data] = equalsData
+@nowarn
+inline given Eq[Unit] = (_: Unit, _: Unit) => true
+
+extension [A](x: A) inline def ===(inline y: A)(using inline eq: Eq[A]): Boolean = eq(x, y)
+extension [A](x: A) inline def !==(inline y: A)(using inline eq: Eq[A]): Boolean = !eq(x, y)
+
+inline def log(msg: String): Unit = trace(msg)(())
+
 @Compile
 object Prelude {
+    @deprecated("Use `scalus.Eq` instead")
     type Eq[-A] = (A, A) => Boolean
+    @deprecated("Use `scalus.Eq[BigInt]` instead")
     // given Eq[Nothing] = (x: Nothing, y: Nothing) => throw new Exception("EQN")
     given Eq[BigInt] = (x: BigInt, y: BigInt) => equalsInteger(x, y)
+    @deprecated("Use `scalus.Eq[ByteString]` instead")
     given Eq[ByteString] = (x: ByteString, y: ByteString) => equalsByteString(x, y)
+    @deprecated("Use `scalus.Eq[String]` instead")
     given Eq[String] = (x: String, y: String) => equalsString(x, y)
+    @deprecated("Use `scalus.Eq[Boolean]` instead")
     given Eq[Boolean] = (x: Boolean, y: Boolean) => x == y
+    @deprecated("Use `scalus.Eq[Data]` instead")
     given Eq[Data] = (x: Data, y: Data) => equalsData(x, y)
+    @deprecated("Use `scalus.Eq[Unit]` instead")
     given Eq[Unit] = (_: Unit, _: Unit) => true
 
-    extension [A](x: A) inline def ===(inline y: A)(using inline eq: Eq[A]): Boolean = eq(x, y)
-    extension [A](x: A) inline def !==(inline y: A)(using inline eq: Eq[A]): Boolean = !eq(x, y)
+    extension [A](x: A)
+        @deprecated("Use `scalus.===` instead") inline def ===(inline y: A)(using
+            inline eq: Eq[A]
+        ): Boolean = eq(x, y)
+    extension [A](x: A)
+        @deprecated("Use `scalus.!==` instead") inline def !==(inline y: A)(using
+            inline eq: Eq[A]
+        ): Boolean = !eq(x, y)
 
     def encodeHex(input: ByteString): String = {
         val len = lengthOfByteString(input)
@@ -56,9 +88,11 @@ object Prelude {
         decodeUtf8(go(0))
     }
 
+    @deprecated("Use `scalus.log` instead")
     inline def log(msg: String): Unit = trace(msg)(())
 
     extension (b: Boolean)
+        @deprecated("Use `scalus.orFail` instead")
         inline infix def orFail(inline message: String): Unit =
             if b then () else fail(message)
 }

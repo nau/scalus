@@ -5,12 +5,12 @@ import scalus.Ignore
 import scalus.prelude.AssocMap
 import scalus.builtin.ByteString
 import scalus.builtin.Builtins.*
-import scalus.prelude.Prelude.given
 import scalus.prelude.List
 import scalus.prelude.These
 import scalus.prelude.These.*
 import scalus.prelude
-import scalus.prelude.Prelude
+import scalus.prelude.Eq
+import scalus.prelude.given
 
 @Compile
 object Value:
@@ -105,7 +105,7 @@ object Value:
         s"{ ${pairs.mkString(", ")} }"
     }
 
-    given Prelude.Eq[Value] = (a, b) => eq(a, b)
+    given Eq[Value] = (a, b) => eq(a, b)
 
     extension (v: Value)
         inline def +(other: Value): Value = Value.plus(v, other)

@@ -6,7 +6,7 @@ import scalus.Compiler.compile
 import scalus.*
 import scalus.builtin.given
 import scalus.prelude
-import scalus.prelude.Prelude.{*, given}
+import scalus.prelude.{*, given}
 import scalus.sir.SIR
 import scalus.uplc.ArbitraryInstances
 import scalus.uplc.Term

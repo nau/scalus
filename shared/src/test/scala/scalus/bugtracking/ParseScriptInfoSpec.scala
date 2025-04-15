@@ -17,7 +17,6 @@ import scalus.ledger.api.v1.ToDataInstances.given
 import scalus.*
 import scalus.prelude.*
 import scalus.prelude.List.{Cons, Nil}
-import scalus.prelude.Prelude.{*, given}
 import scalus.uplc.*
 import scalus.uplc.TermDSL.{*, given}
 import scalus.uplc.eval.PlutusVM

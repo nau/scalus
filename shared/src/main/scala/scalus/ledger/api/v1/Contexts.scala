@@ -10,9 +10,9 @@ import scalus.builtin.Data.fromData
 import scalus.prelude.AssocMap
 import scalus.prelude.List
 import scalus.prelude.Option
-import scalus.prelude.Prelude.===
-import scalus.prelude.Prelude.given
-import scalus.prelude.Prelude.Eq
+import scalus.prelude.===
+import scalus.prelude.Eq
+import scalus.prelude.given
 
 type ValidatorHash = ByteString
 type Datum = Data

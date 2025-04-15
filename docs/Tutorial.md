@@ -138,7 +138,7 @@ Here are some examples of using built-in functions.
 ```scala mdoc:compile-only
 import scalus.builtin.*
 import scalus.builtin.ByteString.*
-import scalus.prelude.Prelude.{*, given}
+import scalus.prelude.{*, given}
 compile {
     // See scalus.builtin.Builtins for what is available
     val data = Builtins.iData(123)
@@ -160,7 +160,7 @@ You can define your own data types using Scala case classes and enums.
 
 ```scala mdoc:compile-only
 import scalus.builtin.ByteString
-import scalus.prelude.Prelude.{*, given}
+import scalus.prelude.{*, given}
 
 case class Account(hash: ByteString, balance: BigInt)
 
@@ -195,7 +195,7 @@ compile {
 ## Control flow
 
 ```scala mdoc:compile-only
-import scalus.prelude.Prelude.{*, given}
+import scalus.prelude.{*, given}
 compile {
     val a = BigInt(1)
     // if-then-else
@@ -320,7 +320,7 @@ And there is a `?` operator that can be used to log the value of a boolean expre
 import scalus.builtin.given
 import scalus.builtin.Builtins.trace
 import scalus.prelude.*
-import scalus.prelude.Prelude.log
+import scalus.prelude.log
 import scalus.uplc.eval.PlutusVM
 given PlutusVM = PlutusVM.makePlutusV2VM()
 val sir = compile {

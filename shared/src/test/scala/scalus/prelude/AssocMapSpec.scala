@@ -7,7 +7,6 @@ import org.scalatestplus.scalacheck.Checkers.*
 import org.scalatestplus.scalacheck.ScalaCheckPropertyChecks
 import scalus.*
 import scalus.prelude.List.*
-import scalus.prelude.Prelude.given
 import scalus.prelude.These.*
 import scalus.uplc.ArbitraryInstances
 

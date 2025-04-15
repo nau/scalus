@@ -11,7 +11,7 @@ import scalus.ledger.api.v2.OutputDatum.NoOutputDatum
 import scalus.prelude.AssocMap
 import scalus.prelude.List
 import scalus.prelude.Option
-import scalus.prelude.Prelude.Eq
+import scalus.prelude.Eq
 
 @Compile
 object FromDataInstances {
