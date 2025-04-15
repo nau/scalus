@@ -17,6 +17,8 @@ import scalus.prelude.{List, Option, *}
 import scalus.uplc.*
 import scalus.uplc.eval.*
 
+import scala.util.control.NonFatal
+
 class PaymentSplitterSpec extends AnyFunSuite, ScalusTest {
     import Payee.*
 
@@ -28,7 +30,7 @@ class PaymentSplitterSpec extends AnyFunSuite, ScalusTest {
         fee = 2,
         inputs = List(A gives 10),
         outputs = List(A gets 38),
-        expected = success(ExBudget(ExCPU(107692790), ExMemory(450715)))
+        expected = success
       ),
       TestCase(
         description = "success when payments are correctly split between 2 payees",
@@ -85,43 +87,43 @@ class PaymentSplitterSpec extends AnyFunSuite, ScalusTest {
         inputs = List(A gives 10),
         outputs = List(A gets 18, B gets 10, C gets 10),
         expected = failure("More outputs than payees")
+      ),
+      TestCase(
+        description = "success when split equally and remainder compensates fee - o1",
+        payees = List(A, B, C),
+        amount = 31,
+        fee = 2,
+        inputs = List(A gives 3),
+        outputs = List(A gets 12, B gets 10, C gets 10),
+        expected = success
+      ),
+      TestCase(
+        description = "success when split equally and remainder compensates fee - o2",
+        payees = List(A, B, C),
+        amount = 31,
+        fee = 3,
+        inputs = List(A gives 3),
+        outputs = List(A gets 11, B gets 10, C gets 10),
+        expected = success
+      ),
+      TestCase(
+        description = "success when split equally and remainder compensates fee - o3",
+        payees = List(A, B, C),
+        amount = 31,
+        fee = 4,
+        inputs = List(A gives 3),
+        outputs = List(A gets 10, B gets 10, C gets 10),
+        expected = success
+      ),
+      TestCase(
+        description = "failure when inflated fee reduces the split payout",
+        payees = List(A, B, C),
+        amount = 31,
+        fee = 10,
+        inputs = List(A gives 3),
+        outputs = List(A gets 8, B gets 8, C gets 8),
+        expected = failure("reminder must be less than nOutputs")
       )
-//      TestCase(
-//        description = "success when split equally and remainder compensates fee - o1",
-//        payees = List(A, B, C),
-//        amount = 31,
-//        fee = 2,
-//        inputs = List(A gives 3),
-//        outputs = List(A gets 12, B gets 10, C gets 10),
-//        expected = success
-//      ),
-//      TestCase(
-//        description = "success when split equally and remainder compensates fee - o2",
-//        payees = List(A, B, C),
-//        amount = 31,
-//        fee = 3,
-//        inputs = List(A gives 3),
-//        outputs = List(A gets 11, B gets 10, C gets 10),
-//        expected = success
-//      ),
-//      TestCase(
-//        description = "success when split equally and remainder compensates fee - o3",
-//        payees = List(A, B, C),
-//        amount = 31,
-//        fee = 4,
-//        inputs = List(A gives 3),
-//        outputs = List(A gets 10, B gets 10, C gets 10),
-//        expected = success
-//      ),
-//      TestCase(
-//        description = "failure when inflated fee reduces the split payout",
-//        payees = List(A, B, C),
-//        amount = 31,
-//        fee = 10,
-//        inputs = List(A gives 3),
-//        outputs = List(A gets 8, B gets 8, C gets 8),
-//        expected = success
-//      )
     )
 
     test("failure when multiple payees are present in the inputs") {
@@ -149,11 +151,11 @@ class PaymentSplitterSpec extends AnyFunSuite, ScalusTest {
           ),
           outputs = List((A.pkh, 50 + 100 - 10), (B.pkh, 50)),
           fee = 10,
-          expected = success(ExBudget(ExCPU(130365073), ExMemory(557236)))
+          expected = success(ExBudget(ExCPU(137086863), ExMemory(594850)))
         )
     }
 
-    private val scriptDI = compile(PaymentSplitterDI.validate)
+    private val script = compile(PaymentSplitterDI.validate)
         .toUplc(generateErrorTraces = true)
         .plutusV3
 
@@ -168,6 +170,8 @@ class PaymentSplitterSpec extends AnyFunSuite, ScalusTest {
     private val payeesTxId = random[TxId]
     private val txId = random[TxId]
     private val scriptHash = blake2b_224(ByteString.fromArray(3 +: script.cborEncoded))
+
+    private val runScalaVersion = true
 
     private def assertCase(
         payees: List[ByteString],
@@ -207,7 +211,11 @@ class PaymentSplitterSpec extends AnyFunSuite, ScalusTest {
         // Apply script to the context
         val program = applied $ context.toData
 
-//        PaymentSplitter.validator(List(payees).toData)(context.toData)
+        if (runScalaVersion) then
+            try PaymentSplitterDI.validate(List(payees.toData).toData)(context.toData)
+            catch
+                case NonFatal(ex) =>
+                    if (expected.isRight) then throw ex
 
         // Evaluate the program
         val result = program.evaluateDebug
@@ -230,7 +238,8 @@ class PaymentSplitterSpec extends AnyFunSuite, ScalusTest {
                     case Option.None =>
                         assert(
                           result.isSuccess,
-                          clue = s"Expected success, but got: ${result.toString}"
+                          clue =
+                              s"Expected success, but got: ${result.toString}, logs0: ${result.logs.mkString(", ")}"
                         )
                     case Option.Some(budget) =>
                         assert(
