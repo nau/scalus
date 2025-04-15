@@ -618,8 +618,8 @@ object TxEvaluator {
                     case _ =>
 
         for cert <- txb.getCerts.asScala do
-            val maybeHash = getCertScript(cert)
-            maybeHash.foreach: hash =>
+            val optionHash = getCertScript(cert)
+            optionHash.foreach: hash =>
                 needed += hash
 
         for mint <- txb.getMint.asScala do

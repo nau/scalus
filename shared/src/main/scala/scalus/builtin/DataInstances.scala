@@ -51,7 +51,7 @@ object FromDataInstances {
                     )
             AssocMap.fromList(loop(unMapData(d)))
 
-    given MaybeFromData[A: FromData]: FromData[scalus.prelude.Option[A]] = (d: Data) =>
+    given OptionFromData[A: FromData]: FromData[scalus.prelude.Option[A]] = (d: Data) =>
         val pair = unConstrData(d)
         if pair.fst == BigInt(0) then new scalus.prelude.Option.Some(fromData[A](pair.snd.head))
         else scalus.prelude.Option.None
@@ -120,7 +120,7 @@ object ToDataInstances {
               )
             )
 
-    given MaybeToData[A: ToData]: ToData[Option[A]] =
+    given OptionToData[A: ToData]: ToData[Option[A]] =
         (a: Option[A]) => {
             a match {
                 case Option.Some(v) =>

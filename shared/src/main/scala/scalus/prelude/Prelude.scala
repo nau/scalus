@@ -105,7 +105,7 @@ object List:
     def single[A](a: A): List[A] = Cons(a, List.Nil)
 
     @Ignore
-    def apply[A](args: A*): List[A] = args.foldRight(empty[A]) { case (a, b) => Cons(a, b) }
+    def apply[A](args: A*): List[A] = from(args)
 
     @Ignore
     def from[A](i: IterableOnce[A]): List[A] = i.iterator.foldRight(empty[A]) { case (a, b) =>
@@ -119,12 +119,12 @@ object List:
     }
 
     def range(from: BigInt, to: BigInt): List[BigInt] = {
-        if lessThanEqualsInteger(from, to) then Cons(from, range(addInteger(from, 1), to))
+        if lessThanEqualsInteger(from, to) then Cons(from, range(from + 1, to))
         else Nil
     }
 
     def fill[A](value: A, times: BigInt): List[A] = {
-        if greaterThanInteger(times, 0) then Cons(value, fill(value, subtractInteger(times, 1)))
+        if 0 < times then Cons(value, fill(value, times - 1))
         else Nil
     }
 
@@ -149,7 +149,7 @@ object List:
             case Cons(_, _) => true
 
         def isDefinedAt(index: BigInt): Boolean =
-            require(greaterThanEqualsInteger(index, 0), "`index` must be greater than or equal 0")
+            require(0 <= index, "`index` must be greater than or equal 0")
 
             @tailrec
             def go(lst: List[A], currentIndex: BigInt): Boolean = lst match
@@ -161,7 +161,7 @@ object List:
             go(self, 0)
 
         def getByIndex(index: BigInt): A = {
-            require(greaterThanEqualsInteger(index, 0), "`index` must be greater than or equal 0")
+            require(0 <= index, "`index` must be greater than or equal 0")
 
             @tailrec
             def go(lst: List[A], currentIndex: BigInt): A = lst match
@@ -174,7 +174,7 @@ object List:
         }
 
         def at(index: BigInt): Option[A] = {
-            require(greaterThanEqualsInteger(index, 0), "`index` must be greater than or equal 0")
+            require(0 <= index, "`index` must be greater than or equal 0")
 
             @tailrec
             def go(lst: List[A], currentIndex: BigInt): Option[A] = lst match
@@ -379,22 +379,62 @@ object List:
             case Nil              => ()
             case Cons(head, tail) => f(head); tail.foreach(f)
 
-        /** Converts a `List` to a [[scala.List]] */
+        /** Converts to a [[Seq]] */
         @Ignore
-        def asScala: immutable.List[A] = {
-            if self.isEmpty then return immutable.List.empty
-
-            @tailrec
-            def toListBuffer(
-                list: List[A],
-                listBuffer: mutable.ListBuffer[A]
-            ): mutable.ListBuffer[A] =
-                list match
-                    case Nil              => listBuffer
-                    case Cons(head, tail) => toListBuffer(tail, listBuffer.addOne(head))
-
-            toListBuffer(self, mutable.ListBuffer.empty).toList
+        def asScala: Seq[A] = {
+            val buf = mutable.ListBuffer.empty[A]
+            for e <- self do buf.addOne(e)
+            buf.toList
         }
+
+@deprecated("Use `scalus.Option` instead")
+enum Maybe[+A]:
+    @deprecated("Use `scalus.Option.None` instead") case Nothing extends Maybe[Nothing]
+    @deprecated("Use `scalus.Option.Some` instead") case Just(value: A)
+
+@Compile
+@deprecated("Use `scalus.Option` instead")
+object Maybe {
+
+    /** Constructs a `Maybe` from a value. If the value is `null`, it returns `Nothing`, otherwise
+      * `Just(value)`.
+      */
+    @Ignore
+    @deprecated("Use `scalus.Option.apply` instead")
+    inline def apply[A](x: A): Maybe[A] = if x == null then Nothing else Just(x)
+
+    extension [A](m: Maybe[A])
+        /** Converts a `Maybe` to an [[Option]] */
+        @Ignore
+        @deprecated("Use `scalus.Option.asScala` instead")
+        def toOption: scala.Option[A] = m match
+            case Nothing => scala.None
+            case Just(a) => scala.Some(a)
+
+        @deprecated("Use `scalus.Option.map` instead")
+        def map[B](f: A => B): Maybe[B] = m match
+            case Nothing => Nothing
+            case Just(a) => Just(f(a))
+
+    /** Converts an [[Option]] to a `Maybe` */
+    @Ignore
+    @deprecated("Use `scalus.Option.asScalus` instead")
+    def fromOption[A](o: scala.Option[A]): Maybe[A] = o match
+        case scala.None    => Nothing
+        case scala.Some(a) => Just(a)
+
+    @deprecated("Use `scalus.Option.optionEq` instead")
+    given maybeEq[A](using eq: Eq[A]): Eq[Maybe[A]] = (a: Maybe[A], b: Maybe[A]) =>
+        a match
+            case Nothing =>
+                b match
+                    case Nothing => true
+                    case Just(a) => false
+            case Just(value) =>
+                b match
+                    case Nothing      => false
+                    case Just(value2) => value === value2
+}
 
 enum Option[+A]:
     case None extends Option[Nothing]

@@ -89,7 +89,7 @@ class SimpleSirToUplcV3LoweringSpec extends AnyFunSuite {
         println(term.evaluateDebug)
     }
 
-    test("Maybe") {
+    test("Option") {
         val sir =
             compile:
                 new Option.Some(true)

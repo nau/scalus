@@ -2124,19 +2124,17 @@ class CompilerPluginToSIRSpec extends AnyFunSuite with ScalaCheckPropertyChecks:
 
     }
 
-    test("Compile parternin val with three arguments") {
+    test("Compile pattern in val with three arguments") {
         import scalus.prelude.List
         import scalus.prelude.Option
         import scalus.builtin.Data.FromData
-        import scalus.builtin.FromDataInstances.given
         import scalus.builtin.Data.ToData
-        import scalus.builtin.ToDataInstances.given
         import scalus.ledger.api.v3.*
         import scalus.ledger.api.v3.FromDataInstances.given
         import scalus.ledger.api.v3.ToDataInstances.given
 
         val compiled = compile { (x: Data) =>
-            val ScriptContext(txInfo, redeemper, scriptInfo) = summon[FromData[ScriptContext]](x)
+            val ScriptContext(txInfo, redeemer, scriptInfo) = summon[FromData[ScriptContext]](x)
             // val Option.Some(v) = x
             txInfo
         }

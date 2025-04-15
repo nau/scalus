@@ -36,7 +36,7 @@ case class SymbolNotFound(
            |
            |  It can be a bug in Scalus. Please report it or contact us via Discord.
            |  
-           |  Names listed in moduke:
+           |  Names listed in module:
            |  ${namesInModule}
            |""".stripMargin
 }
@@ -67,7 +67,7 @@ case class LiteralTypeNotSupported(const: Constant, srcPos: SrcPos) extends Comp
                |Try representing a double literal as BigInt with fixed decimal point""".stripMargin
         case NullTag =>
             s"""Literal null can't be used in Scalus scripts.
-               |Maybe use Maybe""".stripMargin
+               |Maybe use Option""".stripMargin
         case ClazzTag => s"""Class literals can't be used in Scalus scripts."""
         case _        => ""
 }
