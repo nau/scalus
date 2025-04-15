@@ -196,11 +196,9 @@ final class SIRCompiler(using ctx: Context) {
     private def compileTypeDef(td: TypeDef): Unit = {
         val start = System.currentTimeMillis()
         val tpl = td.rhs.asInstanceOf[Template]
-        val DEBUG = (td.name.toString == "PaymentSplitter$")
 
         val specializedParents = td.tpe.parents.flatMap { p =>
             val hasAnnotation = p.typeSymbol.hasAnnotation(Symbols.requiredClass("scalus.Compile"))
-            println(s"parent: ${p.typeSymbol.fullName.toString}, hasAnnotation: $hasAnnotation")
             if p.typeSymbol.hasAnnotation(Symbols.requiredClass("scalus.Compile")) then
                 if p.typeSymbol.fullName.toString.startsWith("scalus.prelude.") then Some(p)
                 else
@@ -209,11 +207,6 @@ final class SIRCompiler(using ctx: Context) {
                     )
             else None
         }
-        if DEBUG then
-            println(s"parents ft ${td.name} are ${tpl.parents.map(_.symbol.fullName.toString)}")
-            println(s"parents fully ${td.name} are ${tpl.parents.map(_.show)}")
-            println(s"tpe.parents =${td.tpe.parents.map(_.show)}")
-            println(s"specializedParents =${specializedParents.map(_.show)}")
 
         val typeParams = td.tpe.typeParams
         val typeParamsSymbols = typeParams.map(_.paramRef.typeSymbol)
@@ -262,8 +255,6 @@ final class SIRCompiler(using ctx: Context) {
                         )
             case _ => None
         }
-
-        // val bindingByName = bindings.map(b => b.name -> b).toMap
 
         val possibleOverrides = specializedParents.flatMap { p =>
             bindings.map { lb =>
