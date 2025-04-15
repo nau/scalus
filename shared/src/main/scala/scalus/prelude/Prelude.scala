@@ -27,6 +27,10 @@ extension (x: Boolean)
     inline infix def orFail(inline message: String): Unit =
         if x then () else fail(message)
 
+extension (self: BigInt)
+    def to(other: BigInt): List[BigInt] = List.range(self, other)
+    def until(other: BigInt): List[BigInt] = List.rangeUntil(self, other)
+
 type Eq[-A] = (A, A) => Boolean
 // given Eq[Nothing] = (x: Nothing, y: Nothing) => throw new Exception("EQN")
 inline given Eq[BigInt] = equalsInteger
@@ -42,6 +46,8 @@ extension [A](x: A) inline def ===(inline y: A)(using inline eq: Eq[A]): Boolean
 extension [A](x: A) inline def !==(inline y: A)(using inline eq: Eq[A]): Boolean = !eq(x, y)
 
 inline def log(msg: String): Unit = trace(msg)(())
+
+inline def identity[A](value: A): A = value
 
 @Compile
 object Prelude {
@@ -74,10 +80,10 @@ object Prelude {
         val len = lengthOfByteString(input)
 
         val byteToChar =
-            (byte: BigInt) => if lessThanInteger(byte, 10) then byte + 48 else byte + 87
+            (byte: BigInt) => if byte < 10 then byte + 48 else byte + 87
 
         def go(i: BigInt): ByteString = {
-            if equalsInteger(i, len) then ByteString.fromHex("")
+            if i == len then ByteString.fromHex("")
             else {
                 val byte = indexByteString(input, i)
                 val char1 = byteToChar(byte / 16)
@@ -147,140 +153,100 @@ object List:
     }
 
     @Ignore
-    def from[A](i: java.lang.Iterable[A]): List[A] = {
+    def from[A](i: java.lang.Iterable[A]): List[A] =
         import scala.jdk.CollectionConverters.*
         from(i.asScala)
-    }
 
-    def range(from: BigInt, to: BigInt): List[BigInt] = {
-        if lessThanEqualsInteger(from, to) then Cons(from, range(from + 1, to))
+    def range(from: BigInt, to: BigInt): List[BigInt] =
+        if from <= to then Cons(from, range(from + 1, to))
         else Nil
-    }
 
-    def fill[A](value: A, times: BigInt): List[A] = {
+    def rangeUntil(from: BigInt, to: BigInt): List[BigInt] =
+        if from < to then Cons(from, rangeUntil(from + 1, to))
+        else Nil
+
+    def fill[A](value: A, times: BigInt): List[A] =
         if 0 < times then Cons(value, fill(value, times - 1))
         else Nil
-    }
 
-    def map2[A, B, C](a: List[A], b: List[B])(f: (A, B) => C): List[C] = {
+    def map2[A, B, C](a: List[A], b: List[B])(f: (A, B) => C): List[C] =
         a match
             case Cons(h1, t1) =>
                 b match
                     case Cons(h2, t2) => Cons(f(h1, h2), map2(t1, t2)(f))
                     case Nil          => Nil
             case Nil => Nil
-    }
 
     extension [A](self: List[A])
-        inline def !!(idx: BigInt): A = self.getByIndex(idx)
+        inline def !!(idx: BigInt): A = self.at(idx)
 
         def isEmpty: Boolean = self match
             case Nil        => true
             case Cons(_, _) => false
 
-        def nonEmpty: Boolean = self match
-            case Nil        => false
-            case Cons(_, _) => true
+        inline def nonEmpty: Boolean = !isEmpty
 
-        def isDefinedAt(index: BigInt): Boolean =
-            require(0 <= index, "`index` must be greater than or equal 0")
+        def isDefinedAt(index: BigInt): Boolean = get(index).isDefined
 
-            @tailrec
-            def go(lst: List[A], currentIndex: BigInt): Boolean = lst match
-                case Nil => false
-                case Cons(_, tail) =>
-                    if equalsInteger(currentIndex, index) then true
-                    else go(tail, addInteger(currentIndex, 1))
+        def at(index: BigInt): A = get(index).getOrFail("Index out of bounds")
 
-            go(self, 0)
-
-        def getByIndex(index: BigInt): A = {
-            require(0 <= index, "`index` must be greater than or equal 0")
-
-            @tailrec
-            def go(lst: List[A], currentIndex: BigInt): A = lst match
-                case Nil => throw new Exception("Index out of bounds")
-                case Cons(head, tail) =>
-                    if equalsInteger(currentIndex, index) then head
-                    else go(tail, addInteger(currentIndex, 1))
-
-            go(self, 0)
-        }
-
-        def at(index: BigInt): Option[A] = {
-            require(0 <= index, "`index` must be greater than or equal 0")
-
-            @tailrec
-            def go(lst: List[A], currentIndex: BigInt): Option[A] = lst match
-                case Nil => None
-                case Cons(head, tail) =>
-                    if equalsInteger(currentIndex, index) then Some(head)
-                    else go(tail, addInteger(currentIndex, 1))
-
-            go(self, 0)
-        }
-
-        @tailrec
-        def contains[B >: A](elem: B)(using eq: Eq[B]): Boolean = self match
-            case Nil              => false
-            case Cons(head, tail) => if elem === head then true else tail.contains(elem)
-
-        def groupBy[K: Eq](f: A => K): AssocMap[K, List[A]] = {
-            @tailrec
-            def go(list: List[A], acc: AssocMap[K, List[A]]): AssocMap[K, List[A]] =
-                list match
-                    case Nil => acc
+        def get(index: BigInt): Option[A] = {
+            if index < 0 then None
+            else
+                @tailrec
+                def go(lst: List[A], currentIndex: BigInt): Option[A] = lst match
+                    case Nil => None
                     case Cons(head, tail) =>
-                        val key = f(head)
-                        acc.lookup(key) match
-                            case None =>
-                                val newAcc = acc.insert(key, List.single(head))
-                                go(tail, newAcc)
-                            case Some(value) =>
-                                val newValue = value.prepended(head)
-                                val newAcc = acc.insert(key, newValue)
-                                go(tail, newAcc)
+                        if currentIndex == index then Some(head)
+                        else go(tail, currentIndex + 1)
 
-            go(self, AssocMap.empty).map { (k, v) => (k, v.reverse) }
+                go(self, 0)
         }
 
-        def groupMap[K: Eq, B](key: A => K)(f: A => B): AssocMap[K, List[B]] = {
+        def contains[B >: A](elem: B)(using eq: Eq[B]): Boolean = find(_ === elem).isDefined
+
+        def groupBy[K: Eq](keyExtractor: A => K): AssocMap[K, List[A]] =
+            groupMap(keyExtractor)(identity)
+
+        def groupMap[K: Eq, B](
+            keyExtractor: A => K
+        )(valueExtractor: A => B): AssocMap[K, List[B]] = {
             @tailrec
             def go(list: List[A], acc: AssocMap[K, List[B]]): AssocMap[K, List[B]] =
                 list match
                     case Nil => acc
                     case Cons(head, tail) =>
-                        val k = key(head)
-                        val v = f(head)
-                        acc.lookup(k) match
+                        val key = keyExtractor(head)
+                        val value = valueExtractor(head)
+                        acc.lookup(key) match
                             case None =>
-                                val newAcc = acc.insert(k, List.single(v))
+                                val newAcc = acc.insert(key, List.single(value))
                                 go(tail, newAcc)
-                            case Some(value) =>
-                                val newValue = value.prepended(v)
-                                val newAcc = acc.insert(k, newValue)
+                            case Some(lst) =>
+                                val newLst = lst.prepended(value)
+                                val newAcc = acc.insert(key, newLst)
                                 go(tail, newAcc)
 
-            go(self, AssocMap.empty).map { (k, v) => (k, v.reverse) }
+            go(self, AssocMap.empty).map { (key, list) => (key, list.reverse) }
         }
 
         def groupMapReduce[K: Eq, B](
-            key: A => K
-        )(f: A => B)(reduce: (B, B) => B): AssocMap[K, B] = {
+            keyExtractor: A => K
+        )(valueExtractor: A => B)(reducer: (B, B) => B): AssocMap[K, B] = {
             @tailrec
             def go(list: List[A], acc: AssocMap[K, B]): AssocMap[K, B] =
                 list match
                     case Nil => acc
                     case Cons(head, tail) =>
-                        val k = key(head)
-                        val v = f(head)
-                        acc.lookup(k) match
+                        val key = keyExtractor(head)
+                        val value = valueExtractor(head)
+                        acc.lookup(key) match
                             case None =>
-                                val newAcc = acc.insert(k, v)
+                                val newAcc = acc.insert(key, value)
                                 go(tail, newAcc)
-                            case Some(value) =>
-                                val newValue = reduce(value, v)
-                                val newAcc = acc.insert(k, newValue)
+                            case Some(oldValue) =>
+                                val newValue = reducer(oldValue, value)
+                                val newAcc = acc.insert(key, newValue)
                                 go(tail, newAcc)
 
             go(self, AssocMap.empty)
@@ -307,89 +273,64 @@ object List:
         inline def concat[B >: A](other: List[B]): List[B] = appendedAll(other)
         inline def ++[B >: A](other: List[B]): List[B] = concat(other)
 
-        def map[B](f: A => B): List[B] = self match
+        def map[B](mapper: A => B): List[B] = self match
             case Nil              => Nil
-            case Cons(head, tail) => Cons(f(head), tail.map(f))
+            case Cons(head, tail) => Cons(mapper(head), tail.map(mapper))
 
-        def filter(p: A => Boolean): List[A] = self match
+        def filter(predicate: A => Boolean): List[A] = self match
             case Nil => Nil
             case Cons(head, tail) =>
-                if p(head) then Cons(head, tail.filter(p)) else tail.filter(p)
+                if predicate(head) then Cons(head, tail.filter(predicate))
+                else tail.filter(predicate)
 
         @tailrec
-        def find(p: A => Boolean): Option[A] = self match
+        def find(predicate: A => Boolean): Option[A] = self match
             case Nil              => None
-            case Cons(head, tail) => if p(head) then Some(head) else tail.find(p)
+            case Cons(head, tail) => if predicate(head) then Some(head) else tail.find(predicate)
 
         @tailrec
-        def foldLeft[B](z: B)(f: (B, A) => B): B = self match
-            case Nil              => z
-            case Cons(head, tail) => tail.foldLeft(f(z, head))(f)
+        def foldLeft[B](init: B)(combiner: (B, A) => B): B = self match
+            case Nil              => init
+            case Cons(head, tail) => tail.foldLeft(combiner(init, head))(combiner)
 
         @tailrec
-        def exists(p: A => Boolean): Boolean = self match
+        def exists(predicate: A => Boolean): Boolean = self match
             case Nil              => false
-            case Cons(head, tail) => if p(head) then true else tail.exists(p)
+            case Cons(head, tail) => if predicate(head) then true else tail.exists(predicate)
 
         @tailrec
-        def forall(p: A => Boolean): Boolean = self match
+        def forall(predicate: A => Boolean): Boolean = self match
             case Nil              => true
-            case Cons(head, tail) => if p(head) then tail.forall(p) else false
+            case Cons(head, tail) => if predicate(head) then tail.forall(predicate) else false
 
-        def count(p: A => Boolean): BigInt = {
-            @tailrec
-            def go(lst: List[A], counter: BigInt): BigInt = lst match
-                case Nil => counter
-                case Cons(head, tail) =>
-                    if p(head) then go(tail, addInteger(counter, 1)) else go(tail, counter)
-
-            go(self, BigInt(0))
+        def count(p: A => Boolean): BigInt = foldLeft(BigInt(0)) { (counter, elem) =>
+            if p(elem) then counter + 1 else counter
         }
 
-        def indexOf[B >: A](elem: B)(using eq: Eq[B]): BigInt = {
-            @tailrec
-            def go(lst: List[A], index: BigInt): BigInt = lst match
-                case Nil => -1
-                case Cons(head, tail) =>
-                    if head === elem then index else go(tail, addInteger(index, 1))
-
-            go(self, BigInt(0))
-        }
+        def indexOf[B >: A](elem: B)(using eq: Eq[B]): BigInt = indexOfOption(elem).getOrElse(-1)
 
         def indexOfOption[B >: A](elem: B)(using eq: Eq[B]): Option[BigInt] = {
             @tailrec
             def go(lst: List[A], index: BigInt): Option[BigInt] = lst match
                 case Nil => None
                 case Cons(head, tail) =>
-                    if head === elem then Some(index) else go(tail, addInteger(index, 1))
+                    if head === elem then Some(index) else go(tail, index + 1)
 
             go(self, BigInt(0))
         }
 
-        @tailrec
-        def last: A = self match
-            case Nil               => throw new NoSuchElementException("last of empty list")
-            case Cons(value, tail) => if tail.isEmpty then value else tail.last
+        def last: A = lastOption.getOrFail("last of empty list")
 
         @tailrec
         def lastOption: Option[A] = self match
             case Nil               => None
             case Cons(value, tail) => if tail.isEmpty then Some(value) else tail.lastOption
 
-        def length: BigInt = {
-            @tailrec
-            def go(lst: List[A], counter: BigInt): BigInt = lst match
-                case Nil           => counter
-                case Cons(_, tail) => go(tail, addInteger(counter, 1))
-
-            go(self, BigInt(0))
-        }
+        def length: BigInt = foldLeft(BigInt(0)) { (counter, _) => counter + 1 }
 
         inline def size: BigInt = length
 
-        def head: A = self match
-            case Nil            => throw new NoSuchElementException("head of empty list")
-            case Cons(value, _) => value
+        def head: A = headOption.getOrFail("head of empty list")
 
         def headOption: Option[A] = self match
             case Nil            => None
@@ -399,14 +340,7 @@ object List:
             case Nil           => throw new NoSuchElementException("tail of empty list")
             case Cons(_, rest) => rest
 
-        def reverse: List[A] = {
-            @tailrec
-            def go(list: List[A], acc: List[A]): List[A] = list match
-                case Nil              => acc
-                case Cons(head, tail) => go(tail, Cons(head, acc))
-
-            go(self, Nil)
-        }
+        def reverse: List[A] = foldLeft(List.empty[A]) { (acc, elem) => Cons(elem, acc) }
 
         @tailrec
         def foreach(f: A => Unit): Unit = self match
@@ -415,11 +349,10 @@ object List:
 
         /** Converts to a [[Seq]] */
         @Ignore
-        def asScala: Seq[A] = {
+        def asScala: Seq[A] =
             val buf = mutable.ListBuffer.empty[A]
             for e <- self do buf.addOne(e)
             buf.toList
-        }
 
 @deprecated("Use `scalus.Option` instead")
 enum Maybe[+A]:
@@ -490,11 +423,9 @@ object Option {
             case None    => true
             case Some(_) => false
 
-        def nonEmpty: Boolean = self match
-            case None    => false
-            case Some(_) => true
+        inline def nonEmpty: Boolean = !isEmpty
 
-        def isDefined: Boolean = nonEmpty
+        inline def isDefined: Boolean = nonEmpty
 
         inline def getOrFail(inline message: String = "None.getOrFail"): A = self match
             case None        => throw new NoSuchElementException(message)
@@ -504,9 +435,7 @@ object Option {
             case None    => throw new NoSuchElementException(message)
             case Some(_) => ()
 
-        def get: A = self match
-            case None        => throw new NoSuchElementException("None.get")
-            case Some(value) => value
+        def get: A = getOrFail("None.get")
 
         def getOrElse[B >: A](default: B): B = self match
             case None    => default
@@ -522,21 +451,19 @@ object Option {
             case None    => scala.None
             case Some(a) => scala.Some(a)
 
-        def map[B](f: A => B): Option[B] = self match
+        def map[B](mapper: A => B): Option[B] = self match
             case None    => None
-            case Some(a) => Some(f(a))
+            case Some(a) => Some(mapper(a))
 
-        def flatMap[B](f: A => Option[B]): Option[B] = self match
+        def flatMap[B](mapper: A => Option[B]): Option[B] = self match
             case None    => None
-            case Some(a) => f(a)
+            case Some(a) => mapper(a)
 
-        def filter(p: A => Boolean): Option[A] = self match
+        def filter(predicate: A => Boolean): Option[A] = self match
             case None    => None
-            case Some(a) => if p(a) then self else None
+            case Some(a) => if predicate(a) then self else None
 
-        def filterNot(p: A => Boolean): Option[A] = self match
-            case None    => None
-            case Some(a) => if p(a) then None else self
+        def filterNot(predicate: A => Boolean): Option[A] = filter(!predicate(_))
 
         def contains[B >: A](elem: B)(using eq: Eq[B]): Boolean = self match
             case None    => false
