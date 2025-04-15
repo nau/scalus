@@ -1,8 +1,7 @@
 package scalus.examples
 
 import scalus.*
-import scalus.builtin.FromDataInstances.given
-import scalus.builtin.{Builtins, ByteString, Data}
+import scalus.builtin.{ByteString, Data}
 import scalus.ledger.api.v1
 import scalus.ledger.api.v1.{Credential, PubKeyHash, Value}
 import scalus.ledger.api.v1.Value.*
