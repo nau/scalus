@@ -55,6 +55,13 @@ object PaymentSplitterDI extends DataParametrizedValidator {
             .to[List[ByteString]]
             .map(payee => Credential.PubKeyCredential(PubKeyHash(payee)))
 
+        val myTxInputCredential = tx.inputs
+            .find(_.outRef === sourceTxOutRef)
+            .getOrFail("No output to the contract")
+            .resolved
+            .address
+            .credential
+
         // Find the first and single payee that triggers the payout and pays the fee
         //  and calculate the sum of contract inputs
         val (optPayeeInputWithChange, sumContractInputs) = tx.inputs
@@ -64,8 +71,11 @@ object PaymentSplitterDI extends DataParametrizedValidator {
                     then
                         if optTxOut.isEmpty then (Some(input.resolved), sumContractInputs)
                         else fail("Already found a fee payer")
-                    else // if (input.resolved.address === sourceTxOutRef)   ???)
+                    else if (input.resolved.address.credential === myTxInputCredential)
                         (optTxOut, sumContractInputs + input.resolved.value.getLovelace)
+                    else
+                        // TODO: think
+                        fail("Input not from the contract or payer")
             }
 
         val payeeInputWithChange = optPayeeInputWithChange.getOrFail(
@@ -96,13 +106,12 @@ object PaymentSplitterDI extends DataParametrizedValidator {
         optSplit match
             case None => // one payee, no split
             case Some(split) =>
-                val split = optSplit.getOrFail("No non-change allocations")
                 val payeeOutputWithChange = optPayeeOutputWithChange.getOrFail("No change output")
                 val eqSumValue = sumOutput - payeeOutputWithChange.value.getLovelace + split
                 val reminder = sumContractInputs - eqSumValue
                 require(
                   reminder < nOutputs,
-                  "reminder must be less than nOutputs"
+                  "value to be payed to payees is too low"
                   // s"""reminder (${reminder}) must be less than nOutputs (${nOutputs},
                   //  sumOutput (${sumOutput}), eqSumValue (${eqSumValue}), split (${split}))
                   //  """
@@ -112,9 +121,10 @@ object PaymentSplitterDI extends DataParametrizedValidator {
             //    eqSumValue + nOutputs > sumContractInputs <=>
             //    nOutputs > reminder ( = sumContractInputs - eqSumValue)
             //
-            // TODO:  introduce a maximum reminder which can be paid to the fee payer,
-            //          and add output to contract change if any ?
-            //
+        // max nPayers  approx 570
+        //   570 lovelace less then fee.  So, we can not think
+        //   570 lovelace less then fee.  So, we can not think
+        //
     }
 
 }

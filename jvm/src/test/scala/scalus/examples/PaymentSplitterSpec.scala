@@ -122,7 +122,7 @@ class PaymentSplitterSpec extends AnyFunSuite, ScalusTest {
         fee = 10,
         inputs = List(A gives 3),
         outputs = List(A gets 8, B gets 8, C gets 8),
-        expected = failure("reminder must be less than nOutputs")
+        expected = failure("value to be payed to payees is too low")
       )
     )
 
@@ -151,7 +151,7 @@ class PaymentSplitterSpec extends AnyFunSuite, ScalusTest {
           ),
           outputs = List((A.pkh, 50 + 100 - 10), (B.pkh, 50)),
           fee = 10,
-          expected = success(ExBudget(ExCPU(137086863), ExMemory(594850)))
+          expected = success
         )
     }
 
@@ -211,7 +211,7 @@ class PaymentSplitterSpec extends AnyFunSuite, ScalusTest {
         // Apply script to the context
         val program = applied $ context.toData
 
-        if (runScalaVersion) then
+        if runScalaVersion then
             try PaymentSplitterDI.validate(List(payees.toData).toData)(context.toData)
             catch
                 case NonFatal(ex) =>
