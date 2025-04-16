@@ -190,6 +190,7 @@ object List:
 
         def at(index: BigInt): A = get(index).getOrFail("Index out of bounds")
 
+        // TODO: document and test
         def get(index: BigInt): Option[A] = {
             if index < 0 then None
             else
@@ -205,9 +206,11 @@ object List:
 
         def contains[B >: A](elem: B)(using eq: Eq[B]): Boolean = find(_ === elem).isDefined
 
+        // TODO: document and test
         def groupBy[K: Eq](keyExtractor: A => K): AssocMap[K, List[A]] =
             groupMap(keyExtractor)(identity)
 
+        // TODO: document and test
         def groupMap[K: Eq, B](
             keyExtractor: A => K
         )(valueExtractor: A => B): AssocMap[K, List[B]] = {
@@ -230,6 +233,7 @@ object List:
             go(self, AssocMap.empty).map { (key, list) => (key, list.reverse) }
         }
 
+        // TODO: document and test
         def groupMapReduce[K: Eq, B](
             keyExtractor: A => K
         )(valueExtractor: A => B)(reducer: (B, B) => B): AssocMap[K, B] = {
@@ -273,21 +277,25 @@ object List:
         inline def concat[B >: A](other: List[B]): List[B] = appendedAll(other)
         inline def ++[B >: A](other: List[B]): List[B] = concat(other)
 
+        // TODO: document and test
         def map[B](mapper: A => B): List[B] = self match
             case Nil              => Nil
             case Cons(head, tail) => Cons(mapper(head), tail.map(mapper))
 
+        // TODO: document and test
         def filter(predicate: A => Boolean): List[A] = self match
             case Nil => Nil
             case Cons(head, tail) =>
                 if predicate(head) then Cons(head, tail.filter(predicate))
                 else tail.filter(predicate)
 
+        // TODO: document and test
         @tailrec
         def find(predicate: A => Boolean): Option[A] = self match
             case Nil              => None
             case Cons(head, tail) => if predicate(head) then Some(head) else tail.find(predicate)
 
+        // TODO: document and test
         @tailrec
         def foldLeft[B](init: B)(combiner: (B, A) => B): B = self match
             case Nil              => init
@@ -309,6 +317,7 @@ object List:
 
         def indexOf[B >: A](elem: B)(using eq: Eq[B]): BigInt = indexOfOption(elem).getOrElse(-1)
 
+        // TODO: document and test
         def indexOfOption[B >: A](elem: B)(using eq: Eq[B]): Option[BigInt] = {
             @tailrec
             def go(lst: List[A], index: BigInt): Option[BigInt] = lst match
@@ -326,27 +335,34 @@ object List:
             case Nil               => None
             case Cons(value, tail) => if tail.isEmpty then Some(value) else tail.lastOption
 
+        // TODO: document and test
         def length: BigInt = foldLeft(BigInt(0)) { (counter, _) => counter + 1 }
 
         inline def size: BigInt = length
 
+        // TODO: document and test
         def head: A = headOption.getOrFail("head of empty list")
 
+        // TODO: document and test
         def headOption: Option[A] = self match
             case Nil            => None
             case Cons(value, _) => Some(value)
 
+        // TODO: document and test
         def tail: List[A] = self match
             case Nil           => throw new NoSuchElementException("tail of empty list")
             case Cons(_, rest) => rest
 
+        // TODO: document and test
         def reverse: List[A] = foldLeft(List.empty[A]) { (acc, elem) => Cons(elem, acc) }
 
+        // TODO: document and test
         @tailrec
         def foreach(f: A => Unit): Unit = self match
             case Nil              => ()
             case Cons(head, tail) => f(head); tail.foreach(f)
 
+        // TODO: document and test
         /** Converts to a [[Seq]] */
         @Ignore
         def asScala: Seq[A] =
