@@ -50,7 +50,7 @@ object PaymentSplitterDI extends DataParametrizedValidator {
 
         // Note, that this expression is for compability with the data parametrization as in aiken.
         //  Without compabilty requirement,  we can accept List[Credential] directly without this transformation
-        //   using ParametrizedValidator[List[Credential]].
+        //   using ParametrizedValidator[List[PubKeyCredential]].
         val payees = payeesData.toList.head
             .to[List[ByteString]]
             .map(payee => Credential.PubKeyCredential(PubKeyHash(payee)))

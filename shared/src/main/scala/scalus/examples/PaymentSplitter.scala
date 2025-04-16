@@ -29,7 +29,7 @@ import scalus.prelude.Prelude.{*, given}
   *   [[https://meshjs.dev/smart-contracts/payment-splitter]]
   */
 @Compile
-object PaymentSplitter extends ParametrizedValidator[List[Credential]] {
+object PaymentSplitter extends ParametrizedValidator[List[Credential.PubKeyCredential]] {
 
     /** @param payeesData
       *   List of payees list to split the payment to.
