@@ -51,28 +51,28 @@ inline def identity[A](value: A): A = value
 
 @Compile
 object Prelude {
-    @deprecated("Use `scalus.Eq` instead")
+    @deprecated("Use `scalus.prelude.Eq` instead")
     type Eq[-A] = (A, A) => Boolean
-    @deprecated("Use `scalus.Eq[BigInt]` instead")
+    @deprecated("Use `scalus.prelude.Eq[BigInt]` instead")
     // given Eq[Nothing] = (x: Nothing, y: Nothing) => throw new Exception("EQN")
     given Eq[BigInt] = (x: BigInt, y: BigInt) => equalsInteger(x, y)
-    @deprecated("Use `scalus.Eq[ByteString]` instead")
+    @deprecated("Use `scalus.prelude.Eq[ByteString]` instead")
     given Eq[ByteString] = (x: ByteString, y: ByteString) => equalsByteString(x, y)
-    @deprecated("Use `scalus.Eq[String]` instead")
+    @deprecated("Use `scalus.prelude.Eq[String]` instead")
     given Eq[String] = (x: String, y: String) => equalsString(x, y)
-    @deprecated("Use `scalus.Eq[Boolean]` instead")
+    @deprecated("Use `scalus.prelude.Eq[Boolean]` instead")
     given Eq[Boolean] = (x: Boolean, y: Boolean) => x == y
-    @deprecated("Use `scalus.Eq[Data]` instead")
+    @deprecated("Use `scalus.prelude.Eq[Data]` instead")
     given Eq[Data] = (x: Data, y: Data) => equalsData(x, y)
-    @deprecated("Use `scalus.Eq[Unit]` instead")
+    @deprecated("Use `scalus.prelude.Eq[Unit]` instead")
     given Eq[Unit] = (_: Unit, _: Unit) => true
 
     extension [A](x: A)
-        @deprecated("Use `scalus.===` instead") inline def ===(inline y: A)(using
+        @deprecated("Use `scalus.prelude.===` instead") inline def ===(inline y: A)(using
             inline eq: Eq[A]
         ): Boolean = eq(x, y)
     extension [A](x: A)
-        @deprecated("Use `scalus.!==` instead") inline def !==(inline y: A)(using
+        @deprecated("Use `scalus.prelude.!==` instead") inline def !==(inline y: A)(using
             inline eq: Eq[A]
         ): Boolean = !eq(x, y)
 
@@ -94,11 +94,11 @@ object Prelude {
         decodeUtf8(go(0))
     }
 
-    @deprecated("Use `scalus.log` instead")
+    @deprecated("Use `scalus.prelude.log` instead")
     inline def log(msg: String): Unit = trace(msg)(())
 
     extension (b: Boolean)
-        @deprecated("Use `scalus.orFail` instead")
+        @deprecated("Use `scalus.prelude.orFail` instead")
         inline infix def orFail(inline message: String): Unit =
             if b then () else fail(message)
 }
@@ -354,43 +354,43 @@ object List:
             for e <- self do buf.addOne(e)
             buf.toList
 
-@deprecated("Use `scalus.Option` instead")
+@deprecated("Use `scalus.prelude.Option` instead")
 enum Maybe[+A]:
-    @deprecated("Use `scalus.Option.None` instead") case Nothing extends Maybe[Nothing]
-    @deprecated("Use `scalus.Option.Some` instead") case Just(value: A)
+    @deprecated("Use `scalus.prelude.Option.None` instead") case Nothing extends Maybe[Nothing]
+    @deprecated("Use `scalus.prelude.Option.Some` instead") case Just(value: A)
 
 @Compile
-@deprecated("Use `scalus.Option` instead")
+@deprecated("Use `scalus.prelude.Option` instead")
 object Maybe {
 
     /** Constructs a `Maybe` from a value. If the value is `null`, it returns `Nothing`, otherwise
       * `Just(value)`.
       */
     @Ignore
-    @deprecated("Use `scalus.Option.apply` instead")
+    @deprecated("Use `scalus.prelude.Option.apply` instead")
     inline def apply[A](x: A): Maybe[A] = if x == null then Nothing else Just(x)
 
     extension [A](m: Maybe[A])
         /** Converts a `Maybe` to an [[Option]] */
         @Ignore
-        @deprecated("Use `scalus.Option.asScala` instead")
+        @deprecated("Use `scalus.prelude.Option.asScala` instead")
         def toOption: scala.Option[A] = m match
             case Nothing => scala.None
             case Just(a) => scala.Some(a)
 
-        @deprecated("Use `scalus.Option.map` instead")
+        @deprecated("Use `scalus.prelude.Option.map` instead")
         def map[B](f: A => B): Maybe[B] = m match
             case Nothing => Nothing
             case Just(a) => Just(f(a))
 
     /** Converts an [[Option]] to a `Maybe` */
     @Ignore
-    @deprecated("Use `scalus.Option.asScalus` instead")
+    @deprecated("Use `scalus.prelude.Option.asScalus` instead")
     def fromOption[A](o: scala.Option[A]): Maybe[A] = o match
         case scala.None    => Nothing
         case scala.Some(a) => Just(a)
 
-    @deprecated("Use `scalus.Option.optionEq` instead")
+    @deprecated("Use `scalus.prelude.Option.optionEq` instead")
     given maybeEq[A](using eq: Eq[A]): Eq[Maybe[A]] = (a: Maybe[A], b: Maybe[A]) =>
         a match
             case Nothing =>
