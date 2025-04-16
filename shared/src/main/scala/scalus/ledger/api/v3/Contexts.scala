@@ -36,7 +36,6 @@ export scalus.ledger.api.v1.TokenName
 export scalus.ledger.api.v1.ValidatorHash
 export scalus.ledger.api.v1.Value
 export scalus.ledger.api.v2.TxOut
-export scalus.prelude.Prelude.*
 
 @Compile
 object FromDataInstances {

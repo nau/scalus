@@ -12,8 +12,8 @@ import scalus.builtin.Data.fromData
 import scalus.builtin.FromData
 import scalus.builtin.FromDataInstances.given
 import scalus.ledger.api.PlutusLedgerLanguage
-import scalus.prelude.Prelude.===
-import scalus.prelude.Prelude.given
+import scalus.prelude.===
+import scalus.prelude.given
 import scalus.uplc.eval.CountingBudgetSpender
 import scalus.uplc.eval.Log
 import scalus.uplc.eval.MachineParams

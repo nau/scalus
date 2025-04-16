@@ -6,12 +6,10 @@ import scalus.ledger.api.v1
 import scalus.ledger.api.v1.{Credential, PubKeyHash, Value}
 import scalus.ledger.api.v1.Value.*
 import scalus.ledger.api.v2.TxOut
-import scalus.ledger.api.v3.FromDataInstances.given
 import scalus.ledger.api.v3.{ScriptContext, ScriptInfo, TxInInfo, TxInfo, TxOutRef}
-import scalus.prelude.*
 import scalus.prelude.List.*
 import scalus.prelude.Option.*
-import scalus.prelude.Prelude.{*, given}
+import scalus.prelude.{*, given}
 
 /** Split payouts equally among a list of specified payees
   *
@@ -23,7 +21,7 @@ import scalus.prelude.Prelude.{*, given}
   * restricted to the payees. The output sum must be equally divided to ensure the transaction is
   * successful.
   *
-  * Paye who triggers the payout must also pay the fee and can get a reminder from the equal split.
+  * Payee who triggers the payout must also pay the fee and can get a reminder from the equal split.
   *
   * @see
   *   [[https://meshjs.dev/smart-contracts/payment-splitter]]

@@ -8,7 +8,7 @@ import scalus.builtin.{Builtins, ByteString, Data, JVMPlatformSpecific, Platform
 import scalus.ledger.api.v1.*
 import scalus.ledger.api.v3.SpendingScriptInfo
 import scalus.prelude.List.{Cons, Nil}
-import scalus.prelude.Prelude.given
+import scalus.prelude.given
 import scalus.sir.Recursivity.*
 import scalus.sir.SIR.*
 import scalus.sir.SIRType.{Boolean, Fun, TypeVar}
@@ -1725,7 +1725,7 @@ class CompilerPluginToSIRSpec extends AnyFunSuite with ScalaCheckPropertyChecks:
     }
 
     test("compile type-safe equality") {
-        import scalus.prelude.Prelude.*
+        import scalus.prelude.*
         val compiled = compile {
             val a = BigInt(0)
             val bs = hex"deadbeef"

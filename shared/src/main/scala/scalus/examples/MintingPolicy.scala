@@ -9,8 +9,8 @@ import scalus.builtin.ByteString.*
 import scalus.ledger.api.v1.FromDataInstances.given
 import scalus.ledger.api.v1.*
 import scalus.prelude.Option.*
-import scalus.prelude.Prelude.given
 import scalus.prelude.*
+import scalus.prelude.given
 import scalus.builtin.Data
 import scalus.builtin.Data.FromData
 import scalus.builtin.Data.fromData
