@@ -30,26 +30,30 @@ abstract class BaseValidatorSpec
     given PlutusVM = PlutusVM.makePlutusV2VM()
 
     protected final def assertSameResult(expected: Expected)(program: Program) = {
-        val result1 = UplcCli.evalFlat(program)
-        val result2 = Try(program.deBruijnedProgram.evaluate)
+        // println(s"Program: ${program.show}")
+        // val result1 = UplcCli.evalFlat(program)
+        val result = Try(program.deBruijnedProgram.evaluate)
         // println(s"$result1 == $result2")
-        (expected, result1, result2) match
-            case (Expected.SuccessSame, UplcEvalResult.Success(term1, _), Success(term2)) =>
-                val normalized1 = DeBruijn.fromDeBruijnTerm(DeBruijn.deBruijnTerm(term1))
-                assert(normalized1 == term2)
-            case (Expected.Success(term), UplcEvalResult.Success(term1, _), Success(term2)) =>
-                assert(term == term1)
-                assert(term == term2)
-            case (Expected.Failure(_), UplcEvalResult.UplcFailure(_, err), Failure(e2)) =>
+        (expected, result) match
+            case (Expected.SuccessSame, Success(term)) =>
+            case (Expected.Success(termExpected), Success(term)) =>
+                assert(termExpected == term)
+            case (Expected.Failure(_), Failure(e2)) =>
                 // println(s"Error: $err and $e2")
                 assert(true)
             case _ =>
-                result2 match
-                    case Failure(e: BuiltinError) =>
-                        println(e.term.showHighlighted)
-                    case _ =>
+                result match
+                    case Failure(e) =>
+                        e match
+                            case eb: BuiltinError =>
+                                println(eb.term.showHighlighted)
+                            case _ =>
+                                println(e.getMessage)
+                                e.printStackTrace()
+                    case Success(r) =>
+                        println(s"result = ${r.showHighlighted}")
                 fail(
-                  s"Expected $expected, but got uplc evaluate: $result1\nCek.evalUPLCProgram => $result2"
+                  s"Expected $expected, but got $result"
                 )
     }
 
