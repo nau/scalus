@@ -8,7 +8,7 @@ import scalus.builtin.Data
 import scalus.macros.Macros
 
 import scala.annotation.{nowarn, tailrec}
-import scala.collection.{immutable, mutable}
+import scala.collection.mutable
 
 extension (x: Boolean)
     /** Trace the expression only if it evaluates to `false`. This is useful to trace an entire
