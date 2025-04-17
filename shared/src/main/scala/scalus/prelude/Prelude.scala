@@ -180,17 +180,53 @@ object List:
     extension [A](self: List[A])
         inline def !!(idx: BigInt): A = self.at(idx)
 
+        /** Checks if the list is empty.
+          *
+          * @return
+          *   `true` if the list is empty, `false` otherwise.
+          * @example
+          *   {{{
+          *   List.empty[BigInt].isEmpty === true
+          *   Cons(1, Nil).isEmpty       === false
+          *   }}}
+          */
         def isEmpty: Boolean = self match
             case Nil        => true
             case Cons(_, _) => false
 
+        /** Checks if the list is not empty.
+          *
+          * @return
+          *   `true` if the list contains at least one element, `false` otherwise.
+          * @example
+          *   {{{
+          *   List.empty[BigInt].nonEmpty === false
+          *   Cons(1, Nil).nonEmpty       === true
+          *   }}}
+          */
         inline def nonEmpty: Boolean = !isEmpty
 
         def isDefinedAt(index: BigInt): Boolean = get(index).isDefined
 
         def at(index: BigInt): A = get(index).getOrFail("Index out of bounds")
 
-        // TODO: document and test
+        /** Retrieves the element at the specified index in the list.
+          *
+          * @param index
+          *   The zero-based index of the element to retrieve.
+          * @return
+          *   An `Option` containing the element at the specified index, or `None` if the index is
+          *   out of bounds.
+          * @example
+          *   {{{
+          *   List.empty[BigInt].get(0) === None
+          *
+          *   val list: List[BigInt] = Cons(1, Cons(2, Cons(3, Nil)))
+          *   list.get(1) === Some(2)
+          *   list.get(3) === None
+          *   list.get(-1) === None
+          *   }}}
+          */
         def get(index: BigInt): Option[A] = {
             if index < 0 then None
             else
@@ -277,25 +313,90 @@ object List:
         inline def concat[B >: A](other: List[B]): List[B] = appendedAll(other)
         inline def ++[B >: A](other: List[B]): List[B] = concat(other)
 
-        // TODO: document and test
+        /** Applies a function to each element of the list, producing a new list with the results.
+          *
+          * @param mapper
+          *   A function that takes an element of type `A` and returns a value of type `B`.
+          * @return
+          *   A new list where each element is the result of applying `mapper` to the corresponding
+          *   element of the original list.
+          * @example
+          *   {{{
+          *   List.empty[BigInt].map(_ * 2) === Nil
+          *
+          *   val list: List[BigInt] = Cons(1, Cons(2, Cons(3, Nil)))
+          *   val result = list.map(_ * 2)
+          *   result === Cons(2, Cons(4, .Cons(6, Nil)))
+          *   }}}
+          */
         def map[B](mapper: A => B): List[B] = self match
             case Nil              => Nil
             case Cons(head, tail) => Cons(mapper(head), tail.map(mapper))
 
-        // TODO: document and test
+        /** Filters the elements of the list based on a predicate.
+          *
+          * @param predicate
+          *   A function that takes an element of type `A` and returns `true` if the element should
+          *   be included in the resulting list, or `false` otherwise.
+          * @return
+          *   A new list containing only the elements that satisfy the predicate.
+          * @example
+          *   {{{
+          *   List.empty[BigInt].filter(_ % 2 == 1) === Nil
+          *
+          *   val list: List[BigInt] = Cons(1, Cons(2, Cons(3, Nil)))
+          *   val filtered = list.filter(_ % 2 == 1)
+          *   filtered === Cons(1, Cons(3, Nil))
+          *   }}}
+          */
         def filter(predicate: A => Boolean): List[A] = self match
             case Nil => Nil
             case Cons(head, tail) =>
                 if predicate(head) then Cons(head, tail.filter(predicate))
                 else tail.filter(predicate)
 
-        // TODO: document and test
+        /** Finds the first element in the list that satisfies the given predicate.
+          *
+          * @param predicate
+          *   A function that takes an element of type `A` and returns `true` if the element matches
+          *   the condition.
+          * @return
+          *   An `Option` containing the first element that satisfies the predicate, or `None` if no
+          *   such element exists.
+          * @example
+          *   {{{
+          *   List.empty[BigInt].find(_ > 1) === None
+          *
+          *   val list: List[BigInt] = Cons(1, Cons(2, Cons(3, Nil)))
+          *   list.find(_ > 1) === Some(2)
+          *   list.find(_ > 3) === None
+          *   }}}
+          */
         @tailrec
         def find(predicate: A => Boolean): Option[A] = self match
             case Nil              => None
             case Cons(head, tail) => if predicate(head) then Some(head) else tail.find(predicate)
 
-        // TODO: document and test
+        /** Performs a left fold on the list.
+          *
+          * @param init
+          *   The initial value to start the fold with.
+          * @param combiner
+          *   A function that combines the accumulated value and the current element.
+          * @tparam B
+          *   The type of the accumulated value.
+          * @return
+          *   The result of applying the combiner function to all elements of the list, starting
+          *   with the initial value.
+          * @example
+          *   {{{
+          *   List.empty[BigInt].foldLeft(BigInt(0))(_ + _) === BigInt(0)
+          *
+          *   val list: List[BigInt] = Cons(1, Cons(2, Cons(3, Nil)))
+          *   val sum = list.foldLeft(BigInt(0))(_ + _)
+          *   sum === BigInt(6)
+          *   }}}
+          */
         @tailrec
         def foldLeft[B](init: B)(combiner: (B, A) => B): B = self match
             case Nil              => init
@@ -317,7 +418,24 @@ object List:
 
         def indexOf[B >: A](elem: B)(using eq: Eq[B]): BigInt = indexOfOption(elem).getOrElse(-1)
 
-        // TODO: document and test
+        /** Finds the index of the first occurrence of the specified element in the list.
+          *
+          * @param elem
+          *   The element to search for in the list.
+          * @tparam B
+          *   The type of the element being searched for, which must be a supertype of `A`.
+          * @return
+          *   An `Option` containing the index of the first occurrence of the element, or `None` if
+          *   the element is not found.
+          * @example
+          *   {{{
+          *   List.empty[BigInt].indexOfOption(BigInt(2)) === None
+          *
+          *   val list: List[BigInt] = Cons(1, Cons(2, Cons(3, Nil)))
+          *   list.indexOfOption(BigInt(2)) === Some(BigInt(1))
+          *   list.indexOfOption(BigInt(4)) === None
+          *   }}}
+          */
         def indexOfOption[B >: A](elem: B)(using eq: Eq[B]): Option[BigInt] = {
             @tailrec
             def go(lst: List[A], index: BigInt): Option[BigInt] = lst match
@@ -363,12 +481,30 @@ object List:
             case Cons(head, tail) => f(head); tail.foreach(f)
 
         // TODO: document and test
-        /** Converts to a [[Seq]] */
+        /** Converts to a [[scala.Seq]] */
         @Ignore
-        def asScala: Seq[A] =
+        def asScala: scala.Seq[A] =
             val buf = mutable.ListBuffer.empty[A]
             for e <- self do buf.addOne(e)
             buf.toList
+
+    extension [A](self: scala.Seq[A])
+        /** Converts a [[scala.Seq]] to a `List` */
+        @Ignore
+        def asScalus: List[A] = self match
+            case scala.Seq()                => Nil
+            case scala.Seq(head, tail @ _*) => Cons(head, tail.asScalus)
+
+    given listEq[A](using eq: Eq[A]): Eq[List[A]] = (a: List[A], b: List[A]) =>
+        a match
+            case Nil =>
+                b match
+                    case Nil        => true
+                    case Cons(_, _) => false
+            case Cons(headLhs, tailLhs) =>
+                b match
+                    case Nil                    => false
+                    case Cons(headRhs, tailRhs) => headLhs === headRhs && tailLhs === tailRhs
 
 @deprecated("Use `scalus.prelude.Option` instead")
 enum Maybe[+A]:
@@ -503,6 +639,7 @@ object Option {
     extension [A](self: scala.Option[A])
         /** Converts a [[scala.Option]] to an `Option` */
         @Ignore
+        // TODO rename to asScalusOption
         def asScalus: Option[A] = self match
             case scala.None    => None
             case scala.Some(a) => Some(a)

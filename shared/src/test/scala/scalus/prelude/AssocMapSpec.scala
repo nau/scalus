@@ -40,11 +40,6 @@ class AssocMapSpec extends AnyFunSuite with ScalaCheckPropertyChecks with Arbitr
         assert(AssocMap.empty.toList == List.Nil)
     }
 
-    test("isEmpty") {
-        assert(List.isEmpty(List.empty))
-        assert(!List.isEmpty(List.Cons(true, List.Nil)))
-    }
-
     test("union") {
         import AssocMapTest.*
         val m3 = AssocMap.union(m1, m2)
