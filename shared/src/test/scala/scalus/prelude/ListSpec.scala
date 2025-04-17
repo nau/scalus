@@ -180,4 +180,90 @@ class ListSpec extends AnyFunSuite with ScalaCheckPropertyChecks with ArbitraryI
             }
         }
     }
+
+    test("headOption") {
+        assert(List.empty[BigInt].headOption === None)
+        assert(scala.List.empty[BigInt].headOption.asScalusOption === scala.None.asScalusOption)
+        assert(List.empty[BigInt].headOption.asScala == None.asScala)
+
+        assert(testScalusList1.headOption === Some[BigInt](1))
+        assert(testScalaList1.headOption.asScalusOption === scala.Some[BigInt](1).asScalusOption)
+        assert(testScalusList1.headOption.asScala == Some[BigInt](1).asScala)
+
+        check { (list: List[BigInt]) =>
+            list.headOption === list.asScala.headOption.asScalusOption
+        }
+
+        check { (list: scala.List[BigInt]) =>
+            list.headOption == list.asScalus.headOption.asScala
+        }
+    }
+
+    test("lastOption") {
+        assert(List.empty[BigInt].lastOption === None)
+        assert(scala.List.empty[BigInt].lastOption.asScalusOption === scala.None.asScalusOption)
+        assert(List.empty[BigInt].lastOption.asScala == None.asScala)
+
+        assert(testScalusList1.lastOption === Some[BigInt](3))
+        assert(testScalaList1.lastOption.asScalusOption === scala.Some[BigInt](3).asScalusOption)
+        assert(testScalusList1.lastOption.asScala == Some[BigInt](3).asScala)
+
+        check { (list: List[BigInt]) =>
+            list.lastOption === list.asScala.lastOption.asScalusOption
+        }
+
+        check { (list: scala.List[BigInt]) =>
+            list.lastOption == list.asScalus.lastOption.asScala
+        }
+    }
+
+    test("length") {
+        assert(List.empty[BigInt].length === BigInt(0))
+        assert(List.empty[BigInt].length == scala.List.empty[BigInt].length)
+
+        assert(testScalusList1.length === BigInt(3))
+        assert(testScalusList1.length == testScalaList1.length)
+
+        check { (list: List[BigInt]) =>
+            list.length == list.asScala.length
+        }
+
+        check { (list: scala.List[BigInt]) =>
+            list.length == list.asScalus.length
+        }
+    }
+
+    test("reverse") {
+        assert(List.empty[BigInt].reverse === Nil)
+        assert(scala.List.empty[BigInt].reverse.asScalus === scala.Nil.asScalus)
+        assert(List.empty[BigInt].reverse.asScala == Nil.asScala)
+
+        assert(testScalusList1.reverse === List[BigInt](3, 2, 1))
+        assert(testScalaList1.reverse.asScalus === scala.List[BigInt](3, 2, 1).asScalus)
+        assert(testScalusList1.reverse.asScala == List[BigInt](3, 2, 1).asScala)
+
+        check { (list: List[BigInt]) =>
+            list.reverse === list.asScala.reverse.asScalus
+        }
+
+        check { (list: scala.List[BigInt]) =>
+            list.reverse == list.asScalus.reverse.asScala
+        }
+    }
+
+    test("asScala/asScalus") {
+        assert(scala.List.empty[BigInt].asScalus === List.empty[BigInt])
+        assert(List.empty[BigInt].asScala == scala.List.empty[BigInt])
+
+        assert(testScalaList1.asScalus === testScalusList1)
+        assert(testScalusList1.asScala == testScalaList1)
+
+        check { (list: List[BigInt]) =>
+            list === list.asScala.asScalus
+        }
+
+        check { (list: scala.List[BigInt]) =>
+            list == list.asScalus.asScala
+        }
+    }
 }

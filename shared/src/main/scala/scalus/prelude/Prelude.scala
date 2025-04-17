@@ -924,7 +924,7 @@ object Option {
     extension [A](self: scala.Option[A])
         /** Converts a [[scala.Option]] to an `Option` */
         @Ignore
-        // TODO rename to asScalusOption
+        // TODO maybe rename to asScalusOption
         def asScalus: Option[A] = self match
             case scala.None    => None
             case scala.Some(a) => Some(a)
