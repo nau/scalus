@@ -274,13 +274,14 @@ lazy val scalusTestkit = crossProject(JSPlatform, JVMPlatform, NativePlatform)
 
 lazy val scalusExamples = crossProject(JSPlatform, JVMPlatform, NativePlatform)
     .in(file("scalus-examples"))
-    .dependsOn(scalus, scalusTestkit, `scalus-bloxbean-cardano-client-lib`)
+    .dependsOn(scalus, scalusTestkit)
     .disablePlugins(MimaPlugin) // disable Migration Manager for Scala
     .settings(
       PluginDependency,
       scalacOptions ++= commonScalacOptions,
       publish / skip := true,
     )
+    .configurePlatform(JVMPlatform)(_.dependsOn(`scalus-bloxbean-cardano-client-lib`))
     .jvmSettings(
       libraryDependencies += "com.bloxbean.cardano" % "cardano-client-backend-blockfrost" % "0.6.3"
       //.dependsOn(scalus.jvm, `scalus-bloxbean-cardano-client-lib`)
