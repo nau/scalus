@@ -280,12 +280,12 @@ lazy val scalusExamples = crossProject(JSPlatform, JVMPlatform, NativePlatform)
       PluginDependency,
       scalacOptions ++= commonScalacOptions,
       publish / skip := true,
-      Test / fork := true,
       libraryDependencies += "org.scalatest" %%% "scalatest" % "3.2.19" % "test",
       libraryDependencies += "org.scalatestplus" %%% "scalacheck-1-18" % "3.2.19.0" % "test"
     )
     .configurePlatform(JVMPlatform)(_.dependsOn(`scalus-bloxbean-cardano-client-lib`))
     .jvmSettings(
+      Test / fork := true,
       libraryDependencies += "com.bloxbean.cardano" % "cardano-client-backend-blockfrost" % "0.6.3"
       // .dependsOn(scalus.jvm, `scalus-bloxbean-cardano-client-lib`)
     )
