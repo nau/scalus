@@ -37,11 +37,11 @@ object PaymentSplitter extends ParametrizedValidator[List[Credential.PubKeyCrede
       * @example
       *   {{{
       *     val payees = List(A, B, C)
-      *     val script = PaymentSplitter.validator(payees)
+      *     val script = PaymentSplitter.validate(payees)
       *   }}}
       */
     override def spend(
-        payees: List[Credential],
+        payees: List[Credential.PubKeyCredential],
         datum: Option[Data],
         redeemer: Data,
         tx: TxInfo,
