@@ -260,6 +260,7 @@ lazy val scalusTestkit = crossProject(JSPlatform, JVMPlatform, NativePlatform)
       libraryDependencies += "org.scalatestplus" %%% "scalacheck-1-18" % "3.2.19.0"
     )
     .jsSettings(
+      Compile / npmDependencies += "@noble/curves" -> "1.4.2",
       scalaJSLinkerConfig ~= {
           _.withModuleKind(ModuleKind.CommonJSModule)
       },
@@ -287,7 +288,6 @@ lazy val scalusExamples = crossProject(JSPlatform, JVMPlatform, NativePlatform)
     .jvmSettings(
       Test / fork := true,
       libraryDependencies += "com.bloxbean.cardano" % "cardano-client-backend-blockfrost" % "0.6.3"
-      // .dependsOn(scalus.jvm, `scalus-bloxbean-cardano-client-lib`)
     )
     .jsSettings(
       // Compile / npmDependencies += "@noble/curves" -> "1.4.2",
