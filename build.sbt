@@ -290,12 +290,13 @@ lazy val scalusExamples = crossProject(JSPlatform, JVMPlatform, NativePlatform)
       libraryDependencies += "com.bloxbean.cardano" % "cardano-client-backend-blockfrost" % "0.6.3"
     )
     .jsSettings(
-      // Compile / npmDependencies += "@noble/curves" -> "1.4.2",
+      Compile / npmDependencies += "@noble/curves" -> "1.4.2",
       scalaJSUseMainModuleInitializer := false,
       scalaJSLinkerConfig ~= {
           _.withModuleKind(ModuleKind.CommonJSModule)
       }
     )
+    .jsConfigure { project => project.enablePlugins(ScalaJSBundlerPlugin) }
 
 /*
 lazy val examples = project
