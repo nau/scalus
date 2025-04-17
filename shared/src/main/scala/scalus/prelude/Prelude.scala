@@ -139,36 +139,179 @@ enum List[+A]:
 @Compile
 object List:
     import Option.*
+
+    /** Returns an empty list.
+      *
+      * This is an inline function that creates a new empty list of the specified type.
+      *
+      * @tparam A
+      *   The type of elements this empty list would contain.
+      * @return
+      *   An empty list of type `List[A]`.
+      */
     inline def empty[A]: List[A] = List.Nil
 
     /** Creates a list with a single element */
     def single[A](a: A): List[A] = Cons(a, List.Nil)
 
+    /** Creates a list from a variable number of arguments.
+      *
+      * This method allows creating a list by simply providing the elements. Works only offchain.
+      *
+      * @tparam A
+      *   The type of elements in the list.
+      * @param args
+      *   The elements to include in the list.
+      * @return
+      *   A list containing all provided arguments.
+      * @example
+      *   {{{
+      *   List("a", "b", "c") === Cons("a", Cons("b", Cons("c", Nil)))
+      *   List() === Nil
+      *   }}}
+      */
     @Ignore
     def apply[A](args: A*): List[A] = from(args)
 
+    /** Creates a list from any Scala iterable collection.
+      *
+      * Works only offchain.
+      *
+      * @tparam A
+      *   The type of elements in the list.
+      * @param i
+      *   The iterable collection to convert to a list.
+      * @return
+      *   A list containing all elements from the provided iterable.
+      * @example
+      *   {{{
+      *   List.from(Vector(BigInt(1), BigInt(2), BigInt(3))) === Cons(BigInt(1), Cons(BigInt(2), Cons(BigInt(3), Nil)))
+      *   List.from(Iterator.empty) === Nil
+      *   }}}
+      */
     @Ignore
     def from[A](i: IterableOnce[A]): List[A] = i.iterator.foldRight(empty[A]) { case (a, b) =>
         Cons(a, b)
     }
 
+    /** Creates a list from a Java iterable collection.
+      *
+      * Works only offchain.
+      *
+      * @tparam A
+      *   The type of elements in the list.
+      * @param i
+      *   The Java iterable collection to convert to a list.
+      * @return
+      *   A list containing all elements from the provided Java iterable.
+      * @example
+      *   {{{
+      *   import java.util.Arrays
+      *   val javaList = Arrays.asList("a", "b", "c")
+      *   List.from(javaList) === Cons("a", Cons("b", Cons("c", Nil)))
+      *
+      *   val emptyJavaList = new java.util.ArrayList[String]()
+      *   List.from(emptyJavaList) === Nil
+      *   }}}
+      */
     @Ignore
     def from[A](i: java.lang.Iterable[A]): List[A] =
         import scala.jdk.CollectionConverters.*
         from(i.asScala)
 
+    /** Creates a list containing a range of `BigInt` values, inclusive of both endpoints.
+      *
+      * This method creates a list containing all integers from `from` up to and including `to`. If
+      * `from` is greater than `to`, an empty list is returned.
+      *
+      * @param from
+      *   The starting value of the range (inclusive).
+      * @param to
+      *   The ending value of the range (inclusive).
+      * @return
+      *   A list containing all `BigInt` values from `from` to `to`, inclusive.
+      * @example
+      *   {{{
+      *   List.range(1, 3) === Cons(BigInt(1), Cons(BigInt(2), Cons(BigInt(3), Nil)))
+      *   List.range(5, 3) === Nil
+      *   List.range(0, 0) === Cons(BigInt(0), Nil)
+      *   }}}
+      */
     def range(from: BigInt, to: BigInt): List[BigInt] =
         if from <= to then Cons(from, range(from + 1, to))
         else Nil
 
+    /** Creates a list containing a range of `BigInt` values, inclusive of the start but exclusive
+      * of the end.
+      *
+      * This method creates a list containing all integers from `from` up to but not including `to`.
+      * If `from` is greater than or equal to `to`, an empty list is returned.
+      *
+      * @param from
+      *   The starting value of the range (inclusive).
+      * @param to
+      *   The ending value of the range (exclusive).
+      * @return
+      *   A list containing all `BigInt` values from `from` to `to-1`, inclusive.
+      * @example
+      *   {{{
+      *   List.rangeUntil(1, 4) === Cons(BigInt(1), Cons(BigInt(2), Cons(BigInt(3), Nil)))
+      *   List.rangeUntil(5, 5) === Nil
+      *   List.rangeUntil(5, 3) === Nil
+      *   }}}
+      */
     def rangeUntil(from: BigInt, to: BigInt): List[BigInt] =
         if from < to then Cons(from, rangeUntil(from + 1, to))
         else Nil
 
+    /** Creates a list by repeating a value a specified number of times.
+      *
+      * If `times` is less than or equal to 0, an empty list is returned.
+      *
+      * @param value
+      *   The value to repeat in the list.
+      * @param times
+      *   The number of times to repeat the value.
+      * @tparam A
+      *   The type of the value to repeat.
+      * @return
+      *   A list containing the specified value repeated `times` times.
+      * @example
+      *   {{{
+      *   List.fill("a", 3) === Cons("a", Cons("a", Cons("a", Nil)))
+      *   List.fill(true, 0) === Nil
+      *   List.fill("x", -1) === Nil
+      *   }}}
+      */
     def fill[A](value: A, times: BigInt): List[A] =
         if 0 < times then Cons(value, fill(value, times - 1))
         else Nil
 
+    /** Combines two lists element-wise using the provided function.
+      *
+      * The resulting list will have the length of the shorter of the two input lists.
+      *
+      * @param a
+      *   The first list.
+      * @param b
+      *   The second list.
+      * @param f
+      *   A function that takes one element from each list and produces a result.
+      * @tparam A
+      *   The element type of the first list.
+      * @tparam B
+      *   The element type of the second list.
+      * @tparam C
+      *   The element type of the resulting list.
+      * @return
+      *   A list containing the results of applying function `f` to corresponding elements of lists
+      *   `a` and `b`.
+      * @example
+      *   {{{
+      *   List.map2(List(BigInt(1), BigInt(2)), List(BigInt(3), BigInt(4)))(_ + _) === Cons(BigInt(4), Cons(BigInt(6), Nil))
+      *   List.map2(List.empty[BigInt], List(BigInt(1), BigInt(2)))(_ + _) === Nil
+      *   }}}
+      */
     def map2[A, B, C](a: List[A], b: List[B])(f: (A, B) => C): List[C] =
         a match
             case Cons(h1, t1) =>
@@ -242,11 +385,46 @@ object List:
 
         def contains[B >: A](elem: B)(using eq: Eq[B]): Boolean = find(_ === elem).isDefined
 
-        // TODO: document and test
+        /** Groups the elements of this list by the keys returned by the specified function.
+          *
+          * @param keyExtractor
+          *   A function that extracts the key from each element.
+          * @tparam K
+          *   The type of the keys.
+          * @return
+          *   An `AssocMap` mapping each key to a list of elements that have that key.
+          * @example
+          *   {{{
+          *   List.empty[BigInt].groupBy(_ % 2) === AssocMap.empty
+          *
+          *   val list: List[BigInt] = Cons(1, Cons(2, Cons(3, Cons(4, Nil))))
+          *   list.groupBy(_ % 2) === AssocMap.from((BigInt(1), Cons(1, Cons(3, Nil))), (BigInt(0), Cons(2, Cons(4, Nil))))
+          *   }}}
+          */
         def groupBy[K: Eq](keyExtractor: A => K): AssocMap[K, List[A]] =
             groupMap(keyExtractor)(identity)
 
-        // TODO: document and test
+        /** Groups the elements of this list by the keys returned by the key extractor function and
+          * transforms each element using the value extractor function.
+          *
+          * @param keyExtractor
+          *   A function that extracts the key from each element.
+          * @param valueExtractor
+          *   A function that transforms each element before collecting into groups.
+          * @tparam K
+          *   The type of the keys.
+          * @tparam B
+          *   The type of the transformed elements.
+          * @return
+          *   An `AssocMap` mapping each key to a list of transformed elements that have that key.
+          * @example
+          *   {{{
+          *   List.empty[BigInt].groupMap(_ % 2)(_ * 2) === AssocMap.empty
+          *
+          *   val list: List[BigInt] = Cons(1, Cons(2, Cons(3, Cons(4, Nil))))
+          *   list.groupMap(_ % 2)(_ * 2) === AssocMap.from((BigInt(1), Cons(2, Cons(6, Nil))), (BigInt(0), Cons(4, Cons(8, Nil))))
+          *   }}}
+          */
         def groupMap[K: Eq, B](
             keyExtractor: A => K
         )(valueExtractor: A => B): AssocMap[K, List[B]] = {
@@ -269,7 +447,30 @@ object List:
             go(self, AssocMap.empty).map { (key, list) => (key, list.reverse) }
         }
 
-        // TODO: document and test
+        /** Groups elements by the keys returned by the key extractor function, transforms each
+          * element using the value extractor function, and combines values with the same key using
+          * the reducer function.
+          *
+          * @param keyExtractor
+          *   A function that extracts the key from each element.
+          * @param valueExtractor
+          *   A function that transforms each element before reduction.
+          * @param reducer
+          *   A function that combines two values with the same key.
+          * @tparam K
+          *   The type of the keys.
+          * @tparam B
+          *   The type of the transformed elements.
+          * @return
+          *   An `AssocMap` mapping each key to the reduced value of all elements with that key.
+          * @example
+          *   {{{
+          *   List.empty[BigInt].groupMapReduce(_ % 2)(identity)(_ + _) === AssocMap.empty
+          *
+          *   val list: List[BigInt] = Cons(1, Cons(2, Cons(3, Cons(4, Nil))))
+          *   list.groupMapReduce(_ % 2)(identity)(_ + _) === AssocMap.from((BigInt(1), BigInt(4)), (BigInt(0), BigInt(6)))
+          *   }}}
+          */
         def groupMapReduce[K: Eq, B](
             keyExtractor: A => K
         )(valueExtractor: A => B)(reducer: (B, B) => B): AssocMap[K, B] = {
@@ -448,39 +649,123 @@ object List:
 
         def last: A = lastOption.getOrFail("last of empty list")
 
+        /** Returns the last element of the list.
+          *
+          * @return
+          *   An `Option` containing the last element of the list, or `None` if the list is empty.
+          * @example
+          *   {{{
+          *   List.empty[BigInt].lastOption === None
+          *
+          *   val list: List[BigInt] = Cons(1, Cons(2, Cons(3, Nil)))
+          *   list.lastOption === Some(3)
+          *   }}}
+          */
         @tailrec
         def lastOption: Option[A] = self match
             case Nil               => None
             case Cons(value, tail) => if tail.isEmpty then Some(value) else tail.lastOption
 
-        // TODO: document and test
+        /** Returns the number of elements in the list.
+          *
+          * @return
+          *   The number of elements in the list as a `BigInt`.
+          * @example
+          *   {{{
+          *   List.empty[BigInt].length === BigInt(0)
+          *
+          *   val list: List[BigInt] = Cons(1, Cons(2, Cons(3, Nil)))
+          *   list.length === BigInt(3)
+          *   }}}
+          */
         def length: BigInt = foldLeft(BigInt(0)) { (counter, _) => counter + 1 }
 
+        /** Alias for `length`.
+          *
+          * @return
+          *   The number of elements in the list as a `BigInt`.
+          */
         inline def size: BigInt = length
 
-        // TODO: document and test
+        /** Returns the first element of the list.
+          *
+          * @return
+          *   The first element of the list.
+          * @throws NoSuchElementException
+          *   If the list is empty.
+          * @example
+          *   {{{
+          *   val list: List[BigInt] = Cons(1, Cons(2, Cons(3, Nil)))
+          *   list.head === BigInt(1)
+          *   // List.empty[BigInt].head would throw NoSuchElementException
+          *   }}}
+          */
         def head: A = headOption.getOrFail("head of empty list")
 
-        // TODO: document and test
+        /** Returns the first element of the list as an [[Option]].
+          *
+          * @return
+          *   An `Option` containing the first element of the list, or `None` if the list is empty.
+          * @example
+          *   {{{
+          *   List.empty[BigInt].headOption === None
+          *
+          *   val list: List[BigInt] = Cons(1, Cons(2, Cons(3, Nil)))
+          *   list.headOption === Some(1)
+          *   }}}
+          */
         def headOption: Option[A] = self match
             case Nil            => None
             case Cons(value, _) => Some(value)
 
-        // TODO: document and test
+        /** Returns a list consisting of all elements except the first.
+          *
+          * @return
+          *   A list containing all elements except the first.
+          * @throws NoSuchElementException
+          *   If the list is empty.
+          * @example
+          *   {{{
+          *   val list: List[BigInt] = Cons(1, Cons(2, Cons(3, Nil)))
+          *   list.tail === Cons(2, Cons(3, Nil))
+          *   // List.empty[BigInt].tail would throw NoSuchElementException
+          *   }}}
+          */
         def tail: List[A] = self match
             case Nil           => throw new NoSuchElementException("tail of empty list")
             case Cons(_, rest) => rest
 
-        // TODO: document and test
+        /** Returns a new list with elements in reverse order.
+          *
+          * @return
+          *   A new list containing the same elements but in reverse order.
+          * @example
+          *   {{{
+          *   List.empty[BigInt].reverse === Nil
+          *
+          *   val list: List[BigInt] = Cons(1, Cons(2, Cons(3, Nil)))
+          *   list.reverse === Cons(3, Cons(2, Cons(1, Nil)))
+          *   }}}
+          */
         def reverse: List[A] = foldLeft(List.empty[A]) { (acc, elem) => Cons(elem, acc) }
 
-        // TODO: document and test
+        /** Applies the given function to each element of the list.
+          *
+          * @param f
+          *   The function to apply to each element.
+          * @example
+          *   {{{
+          *   var sum = BigInt(0)
+          *   val list: List[BigInt] = Cons(1, Cons(2, Cons(3, Nil)))
+          *   list.foreach(elem => sum += elem)
+          *   sum === BigInt(6)
+          *   }}}
+          */
         @tailrec
         def foreach(f: A => Unit): Unit = self match
             case Nil              => ()
             case Cons(head, tail) => f(head); tail.foreach(f)
 
-        // TODO: document and test
         /** Converts to a [[scala.Seq]] */
         @Ignore
         def asScala: scala.Seq[A] =
