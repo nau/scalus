@@ -1,5 +1,34 @@
 # Changelog
 
+## 0.9.0 (2025-04-17)
+
+### Added
+
+- all Plutus V3 builtins from the Plomin hard fork
+- improved Scalus standard library
+- support for TupleN types
+- support for destructuring: val (a, b) = Foo(2, “b”)
+- BLS12-381 primitives work on JVM and Javascript
+- Groth16 SNARK implementation works on JVM and Javascript
+- Cardano native scripts support: Timelock
+- advanced UPLC optimization: case/constr instead of apply
+- generate better error traces for UPLC
+- PaymentSplitter example
+- simple Validator trait for writing validators
+- Scalus Testkit: a simple test framework for testing Plutus scripts
+
+### Changed
+
+- better SIR code generation (remove recursivity)
+- better UPLC optimizations: eta-reduce
+- better error messages in the compiler
+- renamed `Maybe` to `Option` to follow Scala naming conventions
+- cardano-client-lib 0.6.4
+
+### Fixed
+
+- bug with Select fields during linking of SIR
+
 ## 0.8.5 (2025-02-16)
 
 ### Added

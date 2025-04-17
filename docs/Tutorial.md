@@ -68,6 +68,8 @@ Supported:
 * implicit conversions
 * opaque types (non top-level) and type aliases
 * extension methods
+* tuples
+* value destructuring in vals: `val Some((a, b)) = optionOfTuple` 
 
 ## Scala features that are not supported
 
@@ -291,7 +293,7 @@ val fromDataExample = compile {
 
 ## Writing a validator
 
-Here is a simple example of a PlutusV2 validator written in Scalus.
+Here is a simple example of a Plutus V3 validator written in Scalus.
 
 ```scala mdoc:compile-only
 import scalus.ledger.api.v1.PubKeyHash
@@ -304,8 +306,9 @@ import scalus.prelude.List
 val pubKeyValidator = compile:
     def validator(ctxData: Data) = {
         val ctx = ctxData.to[ScriptContext]
-        ctx.txInfo.signatories.find {_.hash == hex"deadbeef"}
+        ctx.txInfo.signatories.find {_.hash == hex"deadbeef"}.getOrFail("not signed")
     }
+    validator
 ```
 
 ## Troubleshooting
