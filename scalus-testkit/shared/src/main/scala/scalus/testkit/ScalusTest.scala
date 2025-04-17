@@ -1,4 +1,4 @@
-package scalus
+package scalus.testkit
 
 import org.scalacheck.{Arbitrary, Gen}
 import scalus.*

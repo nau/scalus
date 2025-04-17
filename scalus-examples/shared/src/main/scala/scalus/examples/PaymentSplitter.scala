@@ -3,10 +3,10 @@ package scalus.examples
 import scalus.*
 import scalus.builtin.{ByteString, Data}
 import scalus.ledger.api.v1
-import scalus.ledger.api.v1.{Credential, PubKeyHash, Value}
 import scalus.ledger.api.v1.Value.*
+import scalus.ledger.api.v1.{Credential, PubKeyHash, Value}
 import scalus.ledger.api.v2.TxOut
-import scalus.ledger.api.v3.{ScriptContext, ScriptInfo, TxInInfo, TxInfo, TxOutRef}
+import scalus.ledger.api.v3.*
 import scalus.prelude.List.*
 import scalus.prelude.Option.*
 import scalus.prelude.{*, given}
@@ -27,7 +27,7 @@ import scalus.prelude.{*, given}
   *   [[https://meshjs.dev/smart-contracts/payment-splitter]]
   */
 @Compile
-object PaymentSplitter extends ParametrizedValidator[List[Credential.PubKeyCredential]] {
+object PaymentSplitter extends ParameterizedValidator[List[Credential.PubKeyCredential]] {
 
     /** @param payeesData
       *   List of payees list to split the payment to.

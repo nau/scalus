@@ -14,6 +14,7 @@ import scalus.ledger.api.v3.*
 import scalus.ledger.api.v3.ScriptInfo.SpendingScript
 import scalus.ledger.api.v3.ToDataInstances.given
 import scalus.prelude.{List, Option, *}
+import scalus.testkit.*
 import scalus.uplc.*
 import scalus.uplc.eval.*
 

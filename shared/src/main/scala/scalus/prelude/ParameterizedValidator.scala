@@ -5,7 +5,7 @@ import scalus.ledger.api.v3.FromDataInstances.given
 import scalus.ledger.api.v3.*
 
 @scalus.Compile
-trait ParametrizedValidator[A] {
+trait ParameterizedValidator[A] {
 
     def validate(param: A)(scData: Data): Unit = {
         val sc = scData.to[ScriptContext]
@@ -85,7 +85,7 @@ trait ParametrizedValidator[A] {
   * parameter on UPLC level.
   */
 @scalus.Compile
-trait DataParametrizedValidator {
+trait DataParameterizedValidator {
 
     def validate(param: Data)(scData: Data): Unit = {
         val sc = scData.to[ScriptContext]

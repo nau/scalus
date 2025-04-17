@@ -2,19 +2,17 @@ package scalus.testkit
 
 import org.scalacheck.{Arbitrary, Gen, Shrink}
 import scalus.*
-import scalus.builtin.ByteString
-import scalus.builtin.Data
+import scalus.builtin.{ByteString, Data}
 import scalus.builtin.Data.{B, Constr, I, List, Map}
 import scalus.uplc.*
+import scalus.uplc.Constant.{BLS12_381_G1_Element, BLS12_381_G2_Element, BLS12_381_MlResult}
 import scalus.uplc.DefaultUni.{ProtoList, ProtoPair}
 import scalus.uplc.Term.*
 
-import scala.collection.immutable
 import scala.annotation.nowarn
-import scalus.uplc.Constant.BLS12_381_G1_Element
-import scalus.uplc.Constant.BLS12_381_G2_Element
-import scalus.uplc.Constant.BLS12_381_MlResult
+import scala.collection.immutable
 
+@nowarn("cat=deprecation")
 trait ArbitraryInstances {
 
     given byteStringArb: Arbitrary[builtin.ByteString] = Arbitrary(

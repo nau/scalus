@@ -27,7 +27,7 @@ import scalus.prelude.Option.*
   *   [[https://meshjs.dev/smart-contracts/payment-splitter]]
   */
 @Compile
-object PaymentSplitterDI extends DataParametrizedValidator {
+object PaymentSplitterDI extends DataParameterizedValidator {
 
     /** @param payeesData
       *   List of payees list to split the payment to.
