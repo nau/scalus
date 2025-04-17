@@ -5,12 +5,13 @@ import org.scalatestplus.scalacheck.ScalaCheckPropertyChecks
 import scalus.builtin.given
 import scalus.builtin.ByteString
 import scalus.builtin.ByteString.*
-import scalus.ledger.api.v1.{ArbitraryInstances as _, *}
+import scalus.ledger.api.v1.*
 import scalus.prelude.Option.*
 import scalus.prelude.*
 import scalus.uplc.*
 import scalus.uplc.eval.BuiltinError
 import scalus.uplc.eval.PlutusVM
+import scalus.testkit.*
 
 import scala.util.Failure
 import scala.util.Success
