@@ -155,16 +155,28 @@ class PaymentSplitterSpec extends AnyFunSuite, ScalusTest {
         )
     }
 
-    private val script = compile(PaymentSplitterDI.validate)
-        .toUplc(generateErrorTraces = true)
-        .plutusV3
+    private val script = {
+        try {
+            compile(PaymentSplitterDI.validate)
+                .toUplc(generateErrorTraces = true)
+                .plutusV3
+        } catch {
+            case NonFatal(ex) =>
+                println("Can't compile script PaymentSplitterDI.validate")
+                ex.printStackTrace()
+                throw ex
+        }
+    }
 
+    /*
     private val aikenScript = {
         import upickle.default.*
         val obj = read[ujson.Obj](this.getClass.getResourceAsStream("/plutus.json"))
         val cborHex = obj("validators").arr(0)("compiledCode").str
         DeBruijnedProgram.fromCborHex(cborHex)
     }
+
+     */
 
     private val lockTxId = random[TxId]
     private val payeesTxId = random[TxId]

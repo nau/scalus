@@ -2,7 +2,6 @@ package scalus.ledger.api.v1
 
 import io.bullet.borer.Cbor
 import scalus.*
-import scalus.BaseValidatorSpec
 import scalus.Compiler.compile
 import scalus.Expected
 import scalus.builtin.ByteString.*

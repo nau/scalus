@@ -49,8 +49,11 @@ lazy val root: Project = project
       scalus.js,
       scalus.jvm,
       scalus.native,
-      `examples-js`,
-      examples,
+      scalusTestkit.js,
+      scalusTestkit.jvm,
+      scalusTestkit.native,
+      scalusExamples.js,
+      scalusExamples.jvm,
       bench,
       `scalus-bloxbean-cardano-client-lib`,
       docs
@@ -246,6 +249,56 @@ lazy val scalus = crossProject(JSPlatform, JVMPlatform, NativePlatform)
       }
     )
 
+lazy val scalusTestkit = crossProject(JSPlatform, JVMPlatform, NativePlatform)
+    .in(file("scalus-testkit"))
+    .dependsOn(scalus)
+    .settings(
+      name := "scalus-testkit",
+      scalaVersion := scalaVersion.value,
+      scalacOptions ++= commonScalacOptions,
+      Test / scalacOptions += "-color:never",
+      libraryDependencies += "org.scalatestplus" %%% "scalacheck-1-18" % "3.2.19.0"
+    )
+    .jsSettings(
+      Compile / npmDependencies += "@noble/curves" -> "1.4.2",
+      scalaJSLinkerConfig ~= {
+          _.withModuleKind(ModuleKind.CommonJSModule)
+      },
+      scalaJSUseMainModuleInitializer := false
+    )
+    .jsConfigure { project => project.enablePlugins(ScalaJSBundlerPlugin) }
+    .nativeSettings(
+      nativeConfig ~= {
+          _.withBuildTarget(BuildTarget.libraryStatic)
+      }
+    )
+
+lazy val scalusExamples = crossProject(JSPlatform, JVMPlatform, NativePlatform)
+    .in(file("scalus-examples"))
+    .dependsOn(scalus, scalusTestkit)
+    .disablePlugins(MimaPlugin) // disable Migration Manager for Scala
+    .settings(
+      PluginDependency,
+      scalacOptions ++= commonScalacOptions,
+      publish / skip := true,
+      libraryDependencies += "org.scalatest" %%% "scalatest" % "3.2.19" % "test",
+      libraryDependencies += "org.scalatestplus" %%% "scalacheck-1-18" % "3.2.19.0" % "test"
+    )
+    .configurePlatform(JVMPlatform)(_.dependsOn(`scalus-bloxbean-cardano-client-lib`))
+    .jvmSettings(
+      Test / fork := true,
+      libraryDependencies += "com.bloxbean.cardano" % "cardano-client-backend-blockfrost" % "0.6.3"
+    )
+    .jsSettings(
+      Compile / npmDependencies += "@noble/curves" -> "1.4.2",
+      scalaJSUseMainModuleInitializer := false,
+      scalaJSLinkerConfig ~= {
+          _.withModuleKind(ModuleKind.CommonJSModule)
+      }
+    )
+    .jsConfigure { project => project.enablePlugins(ScalaJSBundlerPlugin) }
+
+/*
 lazy val examples = project
     .in(file("examples"))
     .dependsOn(scalus.jvm, `scalus-bloxbean-cardano-client-lib`)
@@ -256,7 +309,9 @@ lazy val examples = project
       publish / skip := true,
       libraryDependencies += "com.bloxbean.cardano" % "cardano-client-backend-blockfrost" % "0.6.4"
     )
+ */
 
+/*
 lazy val `examples-js` = project
     .enablePlugins(ScalaJSPlugin, ScalaJSBundlerPlugin)
     .in(file("examples-js"))
@@ -272,6 +327,7 @@ lazy val `examples-js` = project
       },
       PluginDependency
     )
+ */
 
 // Bloxbean Cardano Client Lib integration and Tx Evaluator implementation
 lazy val `scalus-bloxbean-cardano-client-lib` = project
