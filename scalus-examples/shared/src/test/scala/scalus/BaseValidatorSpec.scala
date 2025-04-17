@@ -18,7 +18,7 @@ import scala.util.Success
 import scala.util.Try
 
 enum Expected:
-    case SuccessSame
+    case SuccessAny
     case Success(term: Term)
     case Failure(description: String)
 
@@ -35,7 +35,7 @@ abstract class BaseValidatorSpec
         val result = Try(program.deBruijnedProgram.evaluate)
         // println(s"$result1 == $result2")
         (expected, result) match
-            case (Expected.SuccessSame, Success(term)) =>
+            case (Expected.SuccessAny, Success(term)) =>
             case (Expected.Success(termExpected), Success(term)) =>
                 assert(termExpected == term)
             case (Expected.Failure(_), Failure(e2)) =>
