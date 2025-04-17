@@ -246,6 +246,30 @@ lazy val scalus = crossProject(JSPlatform, JVMPlatform, NativePlatform)
       }
     )
 
+lazy val scalusTestkit = crossProject(JSPlatform, JVMPlatform, NativePlatform)
+    .in(file("scalus-testkit"))
+    .dependsOn(scalus)
+    .settings(
+      name := "scalus-testkit",
+      scalaVersion := scalaVersion.value,
+      scalacOptions ++= commonScalacOptions,
+      Test / scalacOptions += "-color:never",
+    )
+    .jvmSettings(
+    )
+    .jsSettings(
+      scalaJSLinkerConfig ~= {
+          _.withModuleKind(ModuleKind.CommonJSModule)
+      },
+      scalaJSUseMainModuleInitializer := false
+    )
+    .jsConfigure { project => project.enablePlugins(ScalaJSBundlerPlugin) }
+    .nativeSettings(
+      nativeConfig ~= {
+         _.withBuildTarget(BuildTarget.libraryStatic)
+      }
+    )
+
 lazy val examples = project
     .in(file("examples"))
     .dependsOn(scalus.jvm, `scalus-bloxbean-cardano-client-lib`)
@@ -290,6 +314,8 @@ lazy val `scalus-bloxbean-cardano-client-lib` = project
       Test / fork := true, // needed for BlocksValidation to run in sbt
       inConfig(Test)(PluginDependency)
     )
+
+
 
 // Documentation
 // We use Docusaurus for documentation
