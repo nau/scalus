@@ -123,7 +123,7 @@ Should be:
 
   BaseB: 
     dataDeclBaseB = DataDecl("BaseB",List(constrB1, constrB2), List(TypeVar("X",2)))
-    constrB = ConstrDecl("BaseB_BaseA", List("_value" -> ChildA1BaseB), List(TypeVar("X",3), List(`MayBe[X]`)), flag="syntetic"
+    constrB = ConstrDecl("BaseB_BaseA", List("_value" -> ChildA1BaseB), List(TypeVar("X",3), List(`Option[X]`)), flag="syntetic"
  
   B1: constrB1 = ConstrDecl("B1",List("x"-> TypeInteger), Nil, List(TypeInteger))
     Type = CaseClass(constrB1)

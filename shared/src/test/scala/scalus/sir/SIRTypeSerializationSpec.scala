@@ -2,6 +2,7 @@ package scalus.sir
 
 import scalus.*
 import scalus.builtin.*
+import scalus.prelude
 import scalus.prelude.*
 import scalus.ledger.api.v3.*
 import org.scalatest.funsuite.AnyFunSuite
@@ -34,22 +35,23 @@ class SIRTypeSerializationSpec extends AnyFunSuite {
             val outRef = new TxOutRef(txIdPrev, 0)
             val credential1 =
                 new Credential.PubKeyCredential(new PubKeyHash(ByteString.fromString("pkh1")))
-            val addressIn = new Address(credential = credential1, stakingCredential = Maybe.Nothing)
+            val addressIn =
+                new Address(credential = credential1, stakingCredential = prelude.Option.None)
             val valueIn = Value(ByteString.empty, ByteString.empty, 4)
             val outRefResolved = new TxOut(
               address = addressIn,
               value = valueIn,
               datum = OutputDatum.NoOutputDatum,
-              referenceScript = Maybe.Nothing
+              referenceScript = prelude.Option.None
             )
             val inputs = scalus.prelude.List.single(new TxInInfo(outRef, outRefResolved))
             val credential2 =
                 new Credential.PubKeyCredential(new PubKeyHash(ByteString.fromString("5")))
             val addressOut =
-                new Address(credential = credential2, stakingCredential = Maybe.Nothing)
+                new Address(credential = credential2, stakingCredential = prelude.Option.None)
             val valueOut = Value(ByteString.empty, ByteString.empty, 2)
             val outputs = scalus.prelude.List.single(
-              new TxOut(addressOut, valueOut, OutputDatum.NoOutputDatum, Maybe.Nothing)
+              new TxOut(addressOut, valueOut, OutputDatum.NoOutputDatum, prelude.Option.None)
             )
             val txId = new TxId(ByteString.fromString("0x123456789"))
             val fee = BigInt(2)
@@ -69,8 +71,8 @@ class SIRTypeSerializationSpec extends AnyFunSuite {
               id = txId,
               votes = AssocMap.empty,
               proposalProcedures = scalus.prelude.List.empty,
-              currentTreasuryAmount = Maybe.Nothing,
-              treasuryDonation = Maybe.Nothing
+              currentTreasuryAmount = prelude.Option.None,
+              treasuryDonation = prelude.Option.None
             )
             txInfo
         }

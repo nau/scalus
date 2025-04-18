@@ -106,19 +106,29 @@ class SimpleSirToUplcLowering(sir: SIR, generateErrorTraces: Boolean = false):
                 // 4. Sort the cases by constructor name
 
                 var idx = 0
-                val iter = cases.iterator
+
                 val allConstructors = constructors.toSet
                 val matchedConstructors = mutable.HashSet.empty[String]
                 val expandedCases = mutable.ArrayBuffer.empty[SIR.Case]
+                val isUnchecked = anns.data.contains("unchecked")
+                val enhanchedCases =
+                    if (isUnchecked && cases.length < allConstructors.size) then
+                        cases :+ SIR.Case(
+                          Pattern.Wildcard,
+                          SIR.Error("Unexpected case", anns)
+                        )
+                    else cases
 
-                while iter.hasNext do
-                    iter.next() match
+                val casesIter = enhanchedCases.iterator
+
+                while casesIter.hasNext do
+                    casesIter.next() match
                         case c @ SIR.Case(Pattern.Constr(constrDecl, _, _), _) =>
                             matchedConstructors += constrDecl.name // collect all matched constructors
                             expandedCases += c
                         case SIR.Case(Pattern.Wildcard, rhs) =>
                             // If we have a wildcard case, it must be the last one
-                            if idx != cases.length - 1 then
+                            if idx != enhanchedCases.length - 1 then
                                 throw new IllegalArgumentException(
                                   s"Wildcard case must be the last and only one in match expression"
                                 )
@@ -140,7 +150,6 @@ class SimpleSirToUplcLowering(sir: SIR, generateErrorTraces: Boolean = false):
                                     )
                                     matchedConstructors += constrDecl.name // collect all matched constructors
                                 }
-
                     idx += 1
                 end while
                 // Sort the cases by the same order as the constructors

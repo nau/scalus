@@ -54,8 +54,6 @@ import scalus.ledger.babbage.PlutusV3Params
 import scalus.prelude
 import scalus.prelude.AssocMap
 import scalus.prelude.List
-import scalus.prelude.Maybe
-import scalus.prelude.Maybe.Nothing
 import scalus.uplc.eval.*
 
 import java.math.BigInteger
@@ -310,8 +308,8 @@ object Interop {
     def getAddress(address: Address): v1.Address = {
         val cred = address.getPaymentCredential.map(getCredential).get
         val staking = address.getDelegationCredential
-            .map(cred => prelude.Maybe.Just(getStakingCredential(cred)))
-            .orElse(prelude.Maybe.Nothing)
+            .map(cred => prelude.Option.Some(getStakingCredential(cred)))
+            .orElse(prelude.Option.None)
         v1.Address(cred, staking)
     }
 
@@ -321,10 +319,10 @@ object Interop {
     ): v1.TxInInfo = {
         val out = utxos.getOrElse(input, throw new IllegalStateException("Input Not Found"))
         val addr = Address(out.getAddress)
-        val maybeDatumHash =
+        val optionDatumHash =
             if out.getDatumHash != null then
-                prelude.Maybe.Just(ByteString.fromArray(out.getDatumHash))
-            else prelude.Maybe.Nothing
+                prelude.Option.Some(ByteString.fromArray(out.getDatumHash))
+            else prelude.Option.None
         v1.TxInInfo(
           v1.TxOutRef(
             v1.TxId(ByteString.fromHex(input.getTransactionId)),
@@ -333,7 +331,7 @@ object Interop {
           v1.TxOut(
             getAddress(addr),
             getValue(out.getValue),
-            maybeDatumHash
+            optionDatumHash
           )
         )
     }
@@ -354,8 +352,8 @@ object Interop {
             getValue(out.getValue),
             getOutputDatum(out),
             if out.getScriptRef != null
-            then prelude.Maybe.Just(getScriptInfoFromScriptRef(out.getScriptRef).hash)
-            else prelude.Maybe.Nothing
+            then prelude.Option.Some(getScriptInfoFromScriptRef(out.getScriptRef).hash)
+            else prelude.Option.None
           )
         )
     }
@@ -367,7 +365,7 @@ object Interop {
             prelude.AssocMap(
               prelude.List.Cons(
                 (ByteString.empty, AssocMap.singleton(ByteString.empty, BigInt(value.getCoin))),
-                ma.inner
+                ma.toList
               )
             )
         else ma
@@ -406,14 +404,14 @@ object Interop {
 
     def getTxOutV1(out: TransactionOutput): v1.TxOut = {
         val addr = Address(out.getAddress)
-        val maybeDatumHash =
+        val optionDatumHash =
             if out.getDatumHash != null then
-                prelude.Maybe.Just(ByteString.fromArray(out.getDatumHash))
-            else prelude.Maybe.Nothing
+                prelude.Option.Some(ByteString.fromArray(out.getDatumHash))
+            else prelude.Option.None
         v1.TxOut(
           getAddress(addr),
           getValue(out.getValue),
-          maybeDatumHash
+          optionDatumHash
         )
     }
 
@@ -424,8 +422,8 @@ object Interop {
           getValue(out.getValue),
           getOutputDatum(out),
           if out.getScriptRef != null then
-              prelude.Maybe.Just(getScriptInfoFromScriptRef(out.getScriptRef).hash)
-          else prelude.Maybe.Nothing
+              prelude.Option.Some(getScriptInfoFromScriptRef(out.getScriptRef).hash)
+          else prelude.Option.None
         )
     }
 
@@ -529,7 +527,7 @@ object Interop {
                   BigInt(c.getEpoch)
                 )
             case c: RegCert =>
-                v3.TxCert.RegStaking(getCredential(c.getStakeCredential), Nothing)
+                v3.TxCert.RegStaking(getCredential(c.getStakeCredential), prelude.Option.None)
             case c: RegDRepCert =>
                 v3.TxCert.RegDRep(getCredential(c.getDrepCredential), BigInt(c.getCoin))
             case c: ResignCommitteeColdCert =>
@@ -569,7 +567,7 @@ object Interop {
                   BigInt(c.getCoin)
                 )
             case c: UnregCert =>
-                v3.TxCert.UnRegStaking(getCredential(c.getStakeCredential), Nothing)
+                v3.TxCert.UnRegStaking(getCredential(c.getStakeCredential), prelude.Option.None)
             case c: UnregDRepCert =>
                 v3.TxCert.UnRegDRep(getCredential(c.getDrepCredential), BigInt(c.getCoin))
             case c: UpdateDRepCert =>
@@ -872,7 +870,7 @@ object Interop {
     def getScriptInfoV3(tx: Transaction, redeemer: Redeemer, datum: Option[Data]): v3.ScriptInfo = {
         getScriptPurposeV3(tx, redeemer) match
             case v3.ScriptPurpose.Spending(ref) =>
-                v3.ScriptInfo.SpendingScript(ref, prelude.Maybe.fromOption(datum))
+                v3.ScriptInfo.SpendingScript(ref, prelude.Option.asScalus(datum))
             case v3.ScriptPurpose.Minting(policyId) =>
                 v3.ScriptInfo.MintingScript(policyId)
             case v3.ScriptPurpose.Certifying(index, cert) =>
@@ -937,10 +935,10 @@ object Interop {
             case a: ParameterChangeAction =>
                 v3.GovernanceAction.ParameterChange(
                   id =
-                      if a.getPrevGovActionId == null then Maybe.Nothing
-                      else Maybe.Just(getGovActionId(a.getPrevGovActionId)),
+                      if a.getPrevGovActionId == null then prelude.Option.None
+                      else prelude.Option.Some(getGovActionId(a.getPrevGovActionId)),
                   parameters = a.getProtocolParamUpdate.toData,
-                  constitutionScript = Maybe(a.getPolicyHash).map(ByteString.fromArray)
+                  constitutionScript = prelude.Option(a.getPolicyHash).map(ByteString.fromArray)
                 )
             case a: TreasuryWithdrawalsAction =>
                 v3.GovernanceAction.TreasuryWithdrawals(
@@ -950,37 +948,37 @@ object Interop {
                       )
 
                   }.toList)),
-                  constitutionScript = Maybe(ByteString.fromArray(a.getPolicyHash))
+                  constitutionScript = prelude.Option(ByteString.fromArray(a.getPolicyHash))
                 )
             case a: HardForkInitiationAction =>
                 v3.GovernanceAction.HardForkInitiation(
                   id =
-                      if a.getPrevGovActionId == null then Maybe.Nothing
-                      else Maybe.Just(getGovActionId(a.getPrevGovActionId)),
+                      if a.getPrevGovActionId == null then prelude.Option.None
+                      else prelude.Option.Some(getGovActionId(a.getPrevGovActionId)),
                   protocolVersion = getProtocolVersion(a.getProtocolVersion)
                 )
             case _: InfoAction => v3.GovernanceAction.InfoAction
             case a: NewConstitution =>
                 v3.GovernanceAction.NewConstitution(
                   id =
-                      if a.getPrevGovActionId == null then Maybe.Nothing
-                      else Maybe.Just(getGovActionId(a.getPrevGovActionId)),
+                      if a.getPrevGovActionId == null then prelude.Option.None
+                      else prelude.Option.Some(getGovActionId(a.getPrevGovActionId)),
                   constitution =
                       if a.getConstitution.getScripthash != null then
-                          Maybe.Just(ByteString.fromHex(a.getConstitution.getScripthash))
-                      else Maybe.Nothing
+                          prelude.Option.Some(ByteString.fromHex(a.getConstitution.getScripthash))
+                      else prelude.Option.None
                 )
             case a: NoConfidence =>
                 v3.GovernanceAction.NoConfidence(
                   id =
-                      if a.getPrevGovActionId == null then Maybe.Nothing
-                      else Maybe.Just(getGovActionId(a.getPrevGovActionId))
+                      if a.getPrevGovActionId == null then prelude.Option.None
+                      else prelude.Option.Some(getGovActionId(a.getPrevGovActionId))
                 )
             case a: UpdateCommittee =>
                 v3.GovernanceAction.UpdateCommittee(
                   id =
-                      if a.getPrevGovActionId == null then Maybe.Nothing
-                      else Maybe.Just(getGovActionId(a.getPrevGovActionId)),
+                      if a.getPrevGovActionId == null then prelude.Option.None
+                      else prelude.Option.Some(getGovActionId(a.getPrevGovActionId)),
                   removedMembers = prelude.List.from(a.getMembersForRemoval.asScala.map { m =>
                       getCredential(m)
                   }),
@@ -1081,7 +1079,7 @@ object Interop {
         val rdmrs = tx.getWitnessSet.getRedeemers ?? util.List.of()
         val withdrawals =
             val wdvls = getWithdrawals(body.getWithdrawals ?? util.List.of())
-            prelude.List.map(wdvls) {
+            wdvls.map {
                 case (v1.StakingCredential.StakingHash(cred), coin) => cred -> coin
                 case w => throw new IllegalStateException(s"Invalid withdrawal: $w")
             }
@@ -1117,14 +1115,14 @@ object Interop {
               ),
           currentTreasuryAmount =
               if tx.getBody.getCurrentTreasuryValue != null then
-                  prelude.Maybe.Just(
+                  prelude.Option.Some(
                     BigInt(tx.getBody.getCurrentTreasuryValue)
                   )
-              else prelude.Maybe.Nothing,
+              else prelude.Option.None,
           treasuryDonation =
               if tx.getBody.getDonation != null then
-                  prelude.Maybe.Just(BigInt(tx.getBody.getDonation))
-              else prelude.Maybe.Nothing
+                  prelude.Option.Some(BigInt(tx.getBody.getDonation))
+              else prelude.Option.None
         )
     }
 }

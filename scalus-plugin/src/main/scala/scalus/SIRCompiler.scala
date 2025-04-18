@@ -26,6 +26,7 @@ import scalus.sir.SIRType
 import scalus.sir.SIRVarStorage
 import scalus.sir.SIRBuiltins
 import scalus.sir.SIRPosition
+import scalus.sir.SIRVarStorage.LocalUPLC
 import scalus.sir.TypeBinding
 import scalus.uplc.DefaultUni
 
@@ -107,6 +108,7 @@ final class SIRCompiler(using ctx: Context) {
         ByteStringModuleSymbol.requiredMethod("StringInterpolators")
     private val typer = new SIRTyper
     private val pmCompiler = new PatternMatchingCompiler(this)
+    private val sirLoader = new SIRLoader(using ctx)
 
     extension (t: Type)
         def isPair: Boolean = t.typeConstructor.classSymbol == PairSymbol
@@ -142,6 +144,27 @@ final class SIRCompiler(using ctx: Context) {
     private val globalDataDecls: mutable.LinkedHashMap[FullName, DataDecl] =
         mutable.LinkedHashMap.empty
 
+    case class SuperBinding(
+        // here the full name orifinal symbol.
+        //  for now, we use the same name.
+        name: String,
+        // origin symbol (parent of this class) where the method is defined
+        parentSymbol: Symbol,
+        // child symbol (this class) where the specialized method should be added
+        childSymbol: Symbol,
+        // specialized body
+        body: SIR,
+        // is this body changed over original ?
+        isChanged: Boolean
+    ) {
+
+        def fullName(using Context): FullName =
+            FullName(name)
+
+    }
+    // private val specializedDefs: mutable.LinkedHashMap[FullName, SIR] =
+    //    mutable.LinkedHashMap.empty
+
     private val CompileAnnot = requiredClassRef("scalus.Compile").symbol.asClass
     private val IgnoreAnnot = requiredClassRef("scalus.Ignore").symbol.asClass
 
@@ -173,13 +196,40 @@ final class SIRCompiler(using ctx: Context) {
     private def compileTypeDef(td: TypeDef): Unit = {
         val start = System.currentTimeMillis()
         val tpl = td.rhs.asInstanceOf[Template]
+
+        val specializedParents = td.tpe.parents.flatMap { p =>
+            val hasAnnotation = p.typeSymbol.hasAnnotation(Symbols.requiredClass("scalus.Compile"))
+            if p.typeSymbol.hasAnnotation(Symbols.requiredClass("scalus.Compile")) then
+                if p.typeSymbol.fullName.toString.startsWith("scalus.prelude.") then Some(p)
+                else
+                    throw new RuntimeException(
+                      s"Unsopported parent: ${p.typeSymbol.fullName.toString}, we support only builtin prelude validators as base classes "
+                    )
+            else None
+        }
+
+        val typeParams = td.tpe.typeParams
+        val typeParamsSymbols = typeParams.map(_.paramRef.typeSymbol)
+        val sirTypeParams = typeParamsSymbols.map { tps =>
+            SIRType.TypeVar(tps.name.show, Some(tps.hashCode))
+        }
+        val sirTypeVars = (typeParamsSymbols zip sirTypeParams).toMap
+        val baseEnv = Env.empty.copy(
+          thisTypeSymbol = td.symbol,
+          typeVars = sirTypeVars
+        )
+
         val bindings = tpl.body.flatMap {
             case dd: DefDef
                 if !dd.symbol.flags.is(Flags.Synthetic)
                 // uncomment to ignore derived methods
                 // && !dd.symbol.name.startsWith("derived")
                     && !dd.symbol.hasAnnotation(IgnoreAnnot) =>
-                compileStmt(Env.empty, dd, isGlobalDef = true) match
+                compileStmt(
+                  baseEnv,
+                  dd,
+                  isGlobalDef = true
+                ) match
                     case CompileMemberDefResult.Compiled(b) => Some(b)
                     case _                                  => None
             case vd: ValDef
@@ -188,17 +238,89 @@ final class SIRCompiler(using ctx: Context) {
                 // && !vd.symbol.name.startsWith("derived")
                     && !vd.symbol.hasAnnotation(IgnoreAnnot) =>
                 // println(s"valdef: ${vd.symbol.fullName}")
-                compileStmt(Env.empty, vd, isGlobalDef = true) match
-                    case CompileMemberDefResult.Compiled(b) => Some(b)
-                    case _                                  => None
+                compileStmt(
+                  baseEnv,
+                  vd,
+                  isGlobalDef = true
+                ) match
+                    case CompileMemberDefResult.Compiled(b)       => Some(b)
+                    case CompileMemberDefResult.Builtin(name, tp) => None
+                    case CompileMemberDefResult.NotSupported =>
+                        error(
+                          GenericError(
+                            s"Not supported: ${vd.symbol.fullName.show}",
+                            vd.srcPos
+                          ),
+                          None
+                        )
             case _ => None
         }
+
+        val possibleOverrides = specializedParents.flatMap { p =>
+            bindings.map { lb =>
+                p.typeSymbol.fullName.show + "." + lb.name
+                    -> lb
+            }
+        }.toMap
+
+        val superBindings = specializedParents.flatMap { p =>
+            sirLoader.findAndReadModule(p.typeSymbol.fullName.show, true) match
+                case Left(message) =>
+                    error(
+                      GenericError(
+                        s"Builtin module ${p.typeSymbol.showFullName} not found, check is you installatin is complete: ${message}",
+                        p.typeSymbol.srcPos
+                      ),
+                      None
+                    )
+                case Right(module) =>
+                    val parentTypeParams = p.typeParams
+                    val parentTypeParamsSymbols = parentTypeParams.map(_.paramRef.typeSymbol)
+                    val parentTypeArgs = td.tpe.baseType(p.typeSymbol) match
+                        case AppliedType(_, args) =>
+                            args.map { a =>
+                                sirTypeInEnv(a, p.typeSymbol.srcPos, baseEnv)
+                            }
+                        case _ => Nil
+                    val parentTypeVars = (parentTypeParamsSymbols zip parentTypeArgs).toMap
+                    val env = baseEnv.copy(typeVars = baseEnv.typeVars ++ parentTypeVars)
+                    specializeInModule(
+                      p.typeSymbol,
+                      module,
+                      env,
+                      possibleOverrides
+                    )
+        }
+
+        val nonOverridedSupers = superBindings.filter { b =>
+            !possibleOverrides.contains(b.name)
+        }
+
+        val superNames = superBindings.map(_.name).toSet
+
+        val bindingsWithSpecialized =
+            bindings.map { b =>
+                if (superBindings.nonEmpty) then
+                    val (newBody, changed) = specializeSIR(
+                      Symbols.NoSymbol,
+                      b.body,
+                      Env.empty.copy(thisTypeSymbol = td.symbol),
+                      Map.empty,
+                      superNames
+                    )
+                    Binding(b.fullName.name, newBody)
+                else Binding(b.fullName.name, b.body)
+            } ++ nonOverridedSupers.map(b => Binding(b.fullName.name, b.body))
+
         val module =
-            Module(SIRCompiler.SIRVersion, bindings.map(b => Binding(b.fullName.name, b.body)))
+            Module(
+              SIRCompiler.SIRVersion,
+              bindingsWithSpecialized
+            )
         writeModule(module, td.symbol.fullName.toString)
         val time = System.currentTimeMillis() - start
         report.echo(
-          s"compiled Scalus module ${td.name} definitions: ${bindings.map(_.name).mkString(", ")} in ${time}ms"
+          s"compiled Scalus module ${td.name} definitions: ${bindingsWithSpecialized.map(_.name)} in ${time}ms"
         )
     }
 
@@ -396,6 +518,43 @@ final class SIRCompiler(using ctx: Context) {
         args: List[Tree],
         srcPos: SrcPos
     ): SIR = {
+        if (nakedType.isGenericTuple) then
+            val nArgs = args.size
+            if (nArgs == 1 || nArgs == 2) then
+                println("Generic tuple with 1 or 2 args,  assume  normal constructpr")
+                compileNewConstructorNoTuple(env, nakedType, fullType, args, srcPos)
+            else
+                val decl = makeGenericTupleDecl(nArgs, srcPos)
+                val constrName = s"scala.Tuple${nArgs}"
+                val targs = fullType match
+                    case AppliedType(nt, targs) =>
+                        targs.map(t => sirTypeInEnv(t, srcPos, env)).toList
+                    case _ =>
+                        error(
+                          GenericError(
+                            s"Tuple${nArgs} should nave n type arguments, buf fullType is: ${fullType.show}",
+                            srcPos
+                          ),
+                          (1 to nArgs).map(x => SIRType.TypeNothing).toList
+                        )
+                SIR.Constr(
+                  constrName,
+                  decl,
+                  args.map(compileExpr(env, _)),
+                  SIRType.typeApply(decl.constrType(constrName), targs),
+                  AnnotationsDecl.fromSrcPos(srcPos)
+                )
+        else compileNewConstructorNoTuple(env, nakedType, fullType, args, srcPos)
+
+    }
+
+    private def compileNewConstructorNoTuple(
+        env: Env,
+        nakedType: Type,
+        fullType: Type,
+        args: List[Tree],
+        srcPos: SrcPos
+    ): SIR = {
         val constructorCallInfo = getAdtConstructorCallInfo(nakedType)
         val argsE = args.map(compileExpr(env, _))
         val dataDecl = getCachedDataDecl(constructorCallInfo.dataInfo, env, srcPos)
@@ -501,7 +660,9 @@ final class SIRCompiler(using ctx: Context) {
                 catch
                     case NonFatal(ex) =>
                         println(s"Error in compileIdentOrQualifiedSelect: ${ex.getMessage}")
-                        println(s"ExternalVar: ${e.symbol.fullName}")
+                        println(
+                          s"ExternalVar: ${e.symbol.fullName} at ${e.srcPos.sourcePos.source.name}:${e.srcPos.line}"
+                        )
                         println(s"tree: ${e.show}")
                         throw ex
     }
@@ -1561,9 +1722,25 @@ final class SIRCompiler(using ctx: Context) {
              */
             case Apply(TypeApply(apply, targs), args)
                 if apply.symbol.flags
-                    .is(Flags.Synthetic) && apply.symbol.owner.flags.is(Flags.ModuleClass) =>
+                    .is(Flags.Synthetic) && apply.symbol.owner.flags.is(Flags.ModuleClass)
+                    && apply.symbol.name.toString == "apply" =>
                 val classSymbol: Symbol = apply.symbol.owner.linkedClass
-                compileNewConstructor(env, classSymbol.typeRef, tree.tpe.widen, args, tree)
+                try compileNewConstructor(env, classSymbol.typeRef, tree.tpe.widen, args, tree)
+                catch
+                    case ex: RuntimeException =>
+                        println(
+                          s"exception in compileNewConstructor, classSymbol [Apply.owner.linkedClass]: ${classSymbol} "
+                        )
+                        println(
+                          s"apply.symbol.name=${apply.symbol.name}"
+                        )
+                        println(
+                          s"classSymbol.typeRef=${classSymbol.typeRef}, classSymbol.isType=${classSymbol.isType}"
+                        )
+                        println(
+                          s"classSymbol.typeRef.isGenericTuple=${classSymbol.typeRef.isGenericTuple}"
+                        )
+                        throw ex
 
             case Apply(apply @ Select(f, nme.apply), args)
                 if apply.symbol.flags
@@ -1604,6 +1781,8 @@ final class SIRCompiler(using ctx: Context) {
                 // compileExpr(env, obj)
                 else if isConstructorVal(tree.symbol, tree.tpe) then
                     compileNewConstructor(env, tree.tpe, tree.tpe, Nil, tree.srcPos)
+                else if isVirtualCall(tree, obj.symbol, ident) then
+                    compileVirtualCall(env, tree, obj, ident)
                 else compileIdentOrQualifiedSelect(env, tree)
             // ignore asInstanceOf
             case TypeApply(Select(e, nme.asInstanceOf_), _) =>
@@ -1693,6 +1872,9 @@ final class SIRCompiler(using ctx: Context) {
     }
 
     def compileToSIR(tree: Tree, debug: Boolean): SIR = {
+        if (debug) {
+            println(s"compileToSIR: ${tree.show}")
+        }
         compileExpr(Env.empty.copy(debug = debug), tree)
     }
 
@@ -1708,6 +1890,223 @@ final class SIRCompiler(using ctx: Context) {
         typer.sirTypeInEnv(tp, env)
     }
 
+    private def isVirtualCall(tree: Tree, qualifierSym: Symbol, name: Name): Boolean = {
+        val declDenotation = qualifierSym.info.decl(name)
+        !declDenotation.exists
+    }
+
+    private def compileVirtualCall(env: Env, tree: Tree, qualifier: Tree, name: Name): SIR = {
+        if env.debug then println("compile virtual call: " + tree.show)
+        val qualifierSym = qualifier.symbol
+        val qualifierTypeSym = qualifier.tpe.typeSymbol
+        val member = qualifierSym.info.member(name)
+        if (!member.exists) then
+            error(
+              GenericError(s"Member ${name.show} not found in ${qualifierSym.show}", tree.srcPos),
+              SIR.Error("Member not found", AnnotationsDecl.fromSrcPos(tree.srcPos))
+            )
+        else
+            member.info match
+                case _: MethodType | _: PolyType =>
+                    SIR.ExternalVar(
+                      qualifierTypeSym.fullName.toString,
+                      member.symbol.fullName.toString,
+                      sirTypeInEnv(member.info.finalResultType, tree.srcPos, env),
+                      AnnotationsDecl.fromSrcPos(tree.srcPos)
+                    )
+                case _ =>
+                    error(
+                      GenericError(
+                        s"Overriden method in ${qualifierSym.show} should be a method or a polytype",
+                        tree.srcPos
+                      ),
+                      SIR.Error("Invalid overriding", AnnotationsDecl.fromSrcPos(tree.srcPos))
+                    )
+    }
+
+    private def makeGenericTupleDecl(size: Int, srcPos: SrcPos): DataDecl = {
+        // we will generate tupleN decl for each type.
+        //  (because we have no generic tupel with AnyKind in SIR)
+        //  theoreticalle we can add all to "scala.::*" as in scala.
+        //  but not sure if exists use-case when it needed.
+        //  (case over generic tuple with different arity in the user program)
+        val tupleName = s"scala.Tuple$size"
+        this.globalDataDecls.get(FullName(tupleName)) match
+            case Some(decl) =>
+                decl
+            case None =>
+                val tupleNameHash = tupleName.hashCode
+                val tupleTypeParams =
+                    (1 to size)
+                        .map(i => SIRType.TypeVar(s"T$i", Some(tupleNameHash + i * 5)))
+                        .toList
+                val tupleParams =
+                    tupleTypeParams.map(t => TypeBinding(t.name.toLowerCase, t)).toList
+                val tupleDecl = DataDecl(
+                  tupleName,
+                  List(
+                    ConstrDecl(
+                      tupleName,
+                      LocalUPLC,
+                      tupleParams,
+                      tupleTypeParams,
+                      tupleTypeParams,
+                      AnnotationsDecl.fromSrcPos(srcPos)
+                    )
+                  ),
+                  tupleTypeParams,
+                  AnnotationsDecl.fromSrcPos(srcPos)
+                )
+                this.globalDataDecls.put(FullName(tupleName), tupleDecl)
+                tupleDecl
+    }
+
+    private def specializeInModule(
+        parentSym: Symbol,
+        module: scalus.sir.Module,
+        env: Env,
+        possibleOverrides: Map[String, LocalBinding]
+    ): List[SuperBinding] = {
+        val thisSymbol = env.thisTypeSymbol
+        val thisClassNames = module.defs.map(_.name).toSet
+        for {
+            binding <- module.defs
+        } yield {
+            val (nSIR, isChanged) =
+                specializeSIR(parentSym, binding.value, env, possibleOverrides, thisClassNames)
+            SuperBinding(
+              binding.name,
+              parentSym,
+              env.thisTypeSymbol,
+              nSIR,
+              isChanged
+            )
+        }
+    }
+
+    private def specializeSIR(
+        parentSym: Symbol,
+        sir: SIR,
+        env: Env,
+        possibleOverrides: Map[String, LocalBinding],
+        thisClassNames: Set[String]
+    ): (SIR, Boolean) = {
+        sir match
+            case SIR.ExternalVar(moduleName, name, tp, anns) =>
+                possibleOverrides.get(name) match
+                    case Some(binding) =>
+                        SIR.ExternalVar(
+                          env.thisTypeSymbol.fullName.toString,
+                          binding.fullName.name,
+                          tp,
+                          anns
+                        ) -> true
+                    case None =>
+                        if thisClassNames.contains(name) then
+                            SIR.ExternalVar(
+                              env.thisTypeSymbol.fullName.toString,
+                              name,
+                              tp,
+                              anns
+                            ) -> true
+                        else sir -> false
+            case SIR.Var(name, tp, anns) =>
+                sir -> false
+            case SIR.Let(rec, binding, body, anns) =>
+                var bindingIsChanged = false
+                val newBinding = binding.map { b =>
+                    val (newBody, changed) =
+                        specializeSIR(parentSym, b.value, env, possibleOverrides, thisClassNames)
+                    if (changed) bindingIsChanged = true
+                    Binding(b.name, newBody)
+                }
+                val (newBody, bodyChanged) =
+                    specializeSIR(parentSym, body, env, possibleOverrides, thisClassNames)
+                SIR.Let(
+                  rec,
+                  newBinding,
+                  newBody,
+                  anns
+                ) -> (bindingIsChanged || bodyChanged)
+            case SIR.LamAbs(param, term, anns) =>
+                val (newTerm, termChanged) =
+                    specializeSIR(parentSym, term, env, possibleOverrides, thisClassNames)
+                val newSIR = SIR.LamAbs(param, newTerm, anns)
+                (newSIR, termChanged)
+            case SIR.Apply(f, arg, tp, anns) =>
+                val (newF, fChanged) =
+                    specializeSIR(parentSym, f, env, possibleOverrides, thisClassNames)
+                val (newArg, argChanged) =
+                    specializeSIR(parentSym, arg, env, possibleOverrides, thisClassNames)
+                val newSIR = SIR.Apply(newF, newArg, tp, anns)
+                (newSIR, fChanged || argChanged)
+            case SIR.Select(obj, name, tp, anns) =>
+                val (newObj, objChanged) =
+                    specializeSIR(parentSym, obj, env, possibleOverrides, thisClassNames)
+                val newSIR = SIR.Select(newObj, name, tp, anns)
+                (newSIR, objChanged)
+            case SIR.Const(_, _, _) =>
+                sir -> false
+            case SIR.And(x, y, anns) =>
+                val (newX, xChanged) =
+                    specializeSIR(parentSym, x, env, possibleOverrides, thisClassNames)
+                val (newY, yChanged) =
+                    specializeSIR(parentSym, y, env, possibleOverrides, thisClassNames)
+                val newSIR = SIR.And(newX, newY, anns)
+                (newSIR, xChanged || yChanged)
+            case SIR.Or(x, y, anns) =>
+                val (newX, xChanged) =
+                    specializeSIR(parentSym, x, env, possibleOverrides, thisClassNames)
+                val (newY, yChanged) =
+                    specializeSIR(parentSym, y, env, possibleOverrides, thisClassNames)
+                val newSIR = SIR.Or(newX, newY, anns)
+                (newSIR, xChanged || yChanged)
+            case SIR.Not(x, anns) =>
+                val (newX, xChanged) =
+                    specializeSIR(parentSym, x, env, possibleOverrides, thisClassNames)
+                val newSIR = SIR.Not(newX, anns)
+                (newSIR, xChanged)
+            case SIR.IfThenElse(cond, t, f, tp, anns) =>
+                val (newCond, condChanged) =
+                    specializeSIR(parentSym, cond, env, possibleOverrides, thisClassNames)
+                val (newT, tChanged) =
+                    specializeSIR(parentSym, t, env, possibleOverrides, thisClassNames)
+                val (newF, fChanged) =
+                    specializeSIR(parentSym, f, env, possibleOverrides, thisClassNames)
+                val newSIR = SIR.IfThenElse(newCond, newT, newF, tp, anns)
+                (newSIR, condChanged || tChanged || fChanged)
+            case SIR.Builtin(name, tp, anns) =>
+                sir -> false
+            case SIR.Error(msg, anns, cause) =>
+                sir -> false
+            case SIR.Constr(name, dataDecl, args, tp, anns) =>
+                var argsAreChanged = false
+                val newArgs = args.map { arg =>
+                    val (newArg, changed) =
+                        specializeSIR(parentSym, arg, env, possibleOverrides, thisClassNames)
+                    if changed then argsAreChanged = true
+                    newArg
+                }
+                val newSIR = SIR.Constr(name, dataDecl, newArgs, tp, anns)
+                (newSIR, argsAreChanged)
+            case SIR.Match(scrutinee, cases, tp, anns) =>
+                var casesAreChanged = false
+                val newCases = cases.map { c =>
+                    val (newCaseBody, changed) =
+                        specializeSIR(parentSym, c.body, env, possibleOverrides, thisClassNames)
+                    if changed then casesAreChanged = true
+                    SIR.Case(c.pattern, newCaseBody)
+                }
+                val (newScrutinee, scrutineeChanged) =
+                    specializeSIR(parentSym, scrutinee, env, possibleOverrides, thisClassNames)
+                val newSIR = SIR.Match(newScrutinee, newCases, tp, anns)
+                (newSIR, scrutineeChanged || casesAreChanged)
+            case SIR.Decl(data, term) =>
+                val (newTerm, changed) =
+                    specializeSIR(parentSym, term, env, possibleOverrides, thisClassNames)
+                SIR.Decl(data, newTerm) -> changed
+    }
+
 }
 
 object SIRCompiler {
@@ -1717,7 +2116,8 @@ object SIRCompiler {
         typeVars: Map[Symbol, SIRType],
         debug: Boolean = false,
         level: Int = 0,
-        resolvedClasses: Map[Symbol, SIRType] = Map.empty
+        resolvedClasses: Map[Symbol, SIRType] = Map.empty,
+        thisTypeSymbol: Symbol = Symbols.NoSymbol
     ) {
 
         def ++(bindings: Iterable[(String, SIRType)]): Env = copy(vars = vars ++ bindings)

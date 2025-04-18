@@ -12,8 +12,8 @@ import scalus.builtin.Data.fromData
 import scalus.builtin.FromData
 import scalus.builtin.FromDataInstances.given
 import scalus.ledger.api.PlutusLedgerLanguage
-import scalus.prelude.Prelude.===
-import scalus.prelude.Prelude.given
+import scalus.prelude.===
+import scalus.prelude.given
 import scalus.uplc.eval.CountingBudgetSpender
 import scalus.uplc.eval.Log
 import scalus.uplc.eval.MachineParams
@@ -136,15 +136,13 @@ val fromDataExample = compile {
     }
 }
 
-import scalus.ledger.api.v1.PubKeyHash
 import scalus.ledger.api.v3.*
 import scalus.ledger.api.v3.FromDataInstances.given
 import scalus.prelude.List
 val pubKeyValidator = compile {
     def validator(ctxData: Data) = {
         val ctx = ctxData.to[ScriptContext]
-        List.findOrFail[PubKeyHash](ctx.txInfo.signatories): sig =>
-            sig.hash === hex"deadbeef"
+        ctx.txInfo.signatories.find { _.hash === hex"deadbeef" }
     }
 }
 

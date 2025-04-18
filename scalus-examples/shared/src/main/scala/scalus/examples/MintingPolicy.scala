@@ -8,9 +8,9 @@ import scalus.builtin.ByteString
 import scalus.builtin.ByteString.*
 import scalus.ledger.api.v1.FromDataInstances.given
 import scalus.ledger.api.v1.*
-import scalus.prelude.Maybe.*
-import scalus.prelude.Prelude.given
+import scalus.prelude.Option.*
 import scalus.prelude.*
+import scalus.prelude.given
 import scalus.builtin.Data
 import scalus.builtin.Data.FromData
 import scalus.builtin.Data.fromData
@@ -38,10 +38,10 @@ object MintingPolicy {
             hex"61822dde476439a526070f36d3d1667ad099b462c111cd85e089f5e7f6"
           )
         ),
-        Nothing
+        None
       ),
       Value.lovelace(BigInt("10000000")),
-      Nothing
+      None
     )
 
     val simpleCtxDeserializer: Data => MintingContext = (ctxData: Data) => {
@@ -57,7 +57,7 @@ object MintingPolicy {
                 throw new RuntimeException("PR")
             case Certifying(cert) => throw new RuntimeException("PC")
         new MintingContext(
-          List.map(txInfoInputs)(_.outRef),
+          txInfoInputs.map(_.outRef),
           minted,
           ownSymbol
         )
@@ -75,7 +75,7 @@ object MintingPolicy {
             if tag == BigInt(0) then args.head.toByteString
             else throw new Exception("P")
         new MintingContext(
-          List.map(txInfoInputs)(_.txInInfoOutRef),
+          txInfoInputs.map(_.txInInfoOutRef),
           minted,
           ownSymbol
         )
@@ -91,28 +91,27 @@ object MintingPolicy {
     ) = (redeemer: Unit, ctxData: Data) => {
         deserializer(ctxData) match
             case MintingContext(txOutRefs, minted, ownSymbol) =>
-                val mintedTokens = AssocMap.lookup(minted)(ownSymbol) match
-                    case Just(mintedTokens) => mintedTokens
-                    case Nothing =>
+                val mintedTokens = minted.lookup(ownSymbol) match
+                    case Some(mintedTokens) => mintedTokens
+                    case None =>
                         throw new Exception("T")
 
-                val checkSpendsTxOut = List.find(txOutRefs) {
-                    case TxOutRef(txOutRefTxId, txOutRefIdx) =>
-                        txOutRefTxId.hash == txId && txOutRefIdx == txOutIdx
+                val checkSpendsTxOut = txOutRefs.find { case TxOutRef(txOutRefTxId, txOutRefIdx) =>
+                    txOutRefTxId.hash == txId && txOutRefIdx == txOutIdx
                 }
 
                 inline def check(b: Boolean, inline msg: String): Unit =
                     if b then () else throw new Exception(msg)
                 checkSpendsTxOut match
                     // If the transaction spends the TxOut, then it's a minting transaction
-                    case Just(input) => check(Value.equalsAssets(mintedTokens, tokensToMint), "M")
+                    case Some(input) => check(Value.equalsAssets(mintedTokens, tokensToMint), "M")
                     // Otherwise, it's a burn transaction
-                    case Nothing =>
+                    case None =>
                         // check burned
-                        val burned = List.all(AssocMap.toList(mintedTokens)) {
-                            case (tokenName, amount) =>
+                        val burned =
+                            mintedTokens.toList.forall { case (tokenName, amount) =>
                                 lessThanInteger(amount, BigInt(0))
-                        }
+                            }
                         check(burned, "B")
     }
 
@@ -150,7 +149,7 @@ object MintingPolicyV2 {
                 throw new RuntimeException("PR")
             case Certifying(cert) => throw new RuntimeException("PC")
         new MintingContext(
-          List.map(txInfoInputs)(_.outRef),
+          txInfoInputs.map(_.outRef),
           minted,
           ownSymbol
         )
