@@ -44,7 +44,7 @@ object PaymentSplitterDI extends DataParameterizedValidator {
         datum: Option[Data],
         redeemer: Data,
         tx: TxInfo,
-        sourceTxOutRef: TxOutRef
+        ownRef: TxOutRef
     ): Unit = {
 
         // Note, that this expression is for compability with the data parametrization as in aiken.
@@ -55,7 +55,7 @@ object PaymentSplitterDI extends DataParameterizedValidator {
             .map(payee => Credential.PubKeyCredential(PubKeyHash(payee)))
 
         val myTxInputCredential = tx.inputs
-            .find(_.outRef === sourceTxOutRef)
+            .find(_.outRef === ownRef)
             .getOrFail("No output to the contract")
             .resolved
             .address
