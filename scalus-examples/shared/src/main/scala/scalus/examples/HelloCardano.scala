@@ -14,12 +14,7 @@ import scalus.prelude.Prelude.*
   */
 @Compile
 object HelloCardano extends Validator {
-    override def spend(
-        datum: Option[Data],
-        redeemer: Data,
-        tx: TxInfo,
-        sourceTxOutRef: TxOutRef
-    ): Unit = {
+    override def spend(datum: Option[Data], redeemer: Data, tx: TxInfo, ownRef: TxOutRef): Unit = {
         val Some(ownerData) = datum: @unchecked
         val owner = ownerData.to[PubKeyHash]
         val signed = tx.signatories.contains(owner)

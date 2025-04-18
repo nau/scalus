@@ -45,7 +45,7 @@ object PaymentSplitter extends ParameterizedValidator[List[Credential.PubKeyCred
         datum: Option[Data],
         redeemer: Data,
         tx: TxInfo,
-        sourceTxOutRef: TxOutRef
+        ownRef: TxOutRef
     ): Unit = {
 
         // Find the first and single payee that triggers the payout and pays the fee

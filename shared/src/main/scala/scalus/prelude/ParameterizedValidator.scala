@@ -28,8 +28,8 @@ trait ParameterizedValidator[A] {
         param: A,
         datum: Option[Data],
         redeemer: Data,
-        targetTxInfo: TxInfo,
-        sourceTxOutRef: TxOutRef
+        tx: TxInfo,
+        ownRef: TxOutRef
     ): Unit = {
         // send the script to the blockchain
         fail("Empty Validator.spend")
@@ -39,7 +39,7 @@ trait ParameterizedValidator[A] {
         param: A,
         redeemer: Data,
         currencySymbol: CurrencySymbol,
-        txInfo: TxInfo
+        tx: TxInfo
     ): Unit = {
         fail("Empty Validator.mint")
     }
@@ -47,15 +47,15 @@ trait ParameterizedValidator[A] {
     def reward(
         param: A,
         stakingKey: Credential,
-        txInfo: TxInfo
+        tx: TxInfo
     ): Unit = {
         fail("Empty Validator.reward")
     }
 
     def certify(
         param: A,
-        txCert: TxCert,
-        txInfo: TxInfo
+        cert: TxCert,
+        tx: TxInfo
     ): Unit = {
         fail("Empty Validator.certify")
     }
@@ -64,7 +64,7 @@ trait ParameterizedValidator[A] {
         param: A,
         redeemer: Data,
         voter: Voter,
-        txInfo: TxInfo
+        tx: TxInfo
     ): Unit = {
         fail("Empty Validator.vote")
     }
@@ -72,7 +72,7 @@ trait ParameterizedValidator[A] {
     def propose(
         param: A,
         proposalProcedure: ProposalProcedure,
-        txInfo: TxInfo
+        tx: TxInfo
     ): Unit = {
         fail("Empty Validator.propose")
     }
@@ -108,8 +108,8 @@ trait DataParameterizedValidator {
         param: Data,
         datum: Option[Data],
         redeemer: Data,
-        targetTxInfo: TxInfo,
-        sourceTxOutRef: TxOutRef
+        tx: TxInfo,
+        ownRef: TxOutRef
     ): Unit = {
         // send the script to the blockchain
         fail("Empty Validator.spend")
@@ -119,7 +119,7 @@ trait DataParameterizedValidator {
         param: Data,
         redeemer: Data,
         currencySymbol: CurrencySymbol,
-        txInfo: TxInfo
+        tx: TxInfo
     ): Unit = {
         fail("Empty Validator.mint")
     }
@@ -127,15 +127,15 @@ trait DataParameterizedValidator {
     def reward(
         param: Data,
         stakingKey: Credential,
-        txInfo: TxInfo
+        tx: TxInfo
     ): Unit = {
         fail("Empty Validator.reward")
     }
 
     def certify(
         param: Data,
-        txCert: TxCert,
-        txInfo: TxInfo
+        cert: TxCert,
+        tx: TxInfo
     ): Unit = {
         fail("Empty Validator.certify")
     }
@@ -144,7 +144,7 @@ trait DataParameterizedValidator {
         param: Data,
         redeemer: Data,
         voter: Voter,
-        txInfo: TxInfo
+        tx: TxInfo
     ): Unit = {
         fail("Empty Validator.vote")
     }
@@ -152,7 +152,7 @@ trait DataParameterizedValidator {
     def propose(
         param: Data,
         proposalProcedure: ProposalProcedure,
-        txInfo: TxInfo
+        tx: TxInfo
     ): Unit = {
         fail("Empty Validator.propose")
     }

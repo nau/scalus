@@ -27,8 +27,8 @@ trait Validator {
     def spend(
         datum: Option[Data],
         redeemer: Data,
-        targetTxInfo: TxInfo,
-        sourceTxOutRef: TxOutRef
+        tx: TxInfo,
+        ownRef: TxOutRef
     ): Unit = {
         // send the script to the blockchain
         fail("Empty Validator.spend")
@@ -37,21 +37,21 @@ trait Validator {
     def mint(
         redeemer: Data,
         currencySymbol: CurrencySymbol,
-        txInfo: TxInfo
+        tx: TxInfo
     ): Unit = {
         fail("Empty Validator.mint")
     }
 
     def reward(
         stakingKey: Credential,
-        txInfo: TxInfo
+        tx: TxInfo
     ): Unit = {
         fail("Empty Validator.reward")
     }
 
     def certify(
-        txCert: TxCert,
-        txInfo: TxInfo
+        cert: TxCert,
+        tx: TxInfo
     ): Unit = {
         fail("Empty Validator.certify")
     }
@@ -59,14 +59,14 @@ trait Validator {
     def vote(
         redeemer: Data,
         voter: Voter,
-        txInfo: TxInfo
+        tx: TxInfo
     ): Unit = {
         fail("Empty Validator.vote")
     }
 
     def propose(
         proposalProcedure: ProposalProcedure,
-        txInfo: TxInfo
+        tx: TxInfo
     ): Unit = {
         fail("Empty Validator.propose")
     }
