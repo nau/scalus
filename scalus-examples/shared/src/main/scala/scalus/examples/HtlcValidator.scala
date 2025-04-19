@@ -8,23 +8,22 @@ import scalus.builtin.Builtins.sha3_256
 import scalus.prelude.{*, given}
 import scalus.builtin.FromDataInstances.given
 import scalus.builtin.ToDataInstances.given
-import scalus.ledger.api.v3.given
 import scalus.ledger.api.v3.{Interval, IntervalBoundType, PosixTime, TxInfo, TxOutRef}
 
 @Compile
 object HtlcValidator extends Validator:
-    type Preimage = ByteString
-    type Image = ByteString
-    type PubKeyHash = ByteString
+    private type Preimage = ByteString
+    private type Image = ByteString
+    private type PubKeyHash = ByteString
 
-    case class Contract(
+    case class ContractDatum(
         benefactor: PubKeyHash,
         beneficiary: PubKeyHash,
         image: Image,
         timeout: PosixTime
     )
 
-    enum Redeemer:
+    enum ContractRedeemer:
         case Benefactor
         case Beneficiary(preimage: Preimage)
 
@@ -34,23 +33,23 @@ object HtlcValidator extends Validator:
         targetTxInfo: TxInfo,
         sourceTxOutRef: TxOutRef
     ): Unit =
-        val Contract(benefactor, beneficiary, image, timeout) =
-            datum.map(_.to[Contract]).getOrFail(InvalidDatum)
+        val ContractDatum(benefactor, beneficiary, image, timeout) =
+            datum.map(_.to[ContractDatum]).getOrFail(InvalidDatum)
 
-        redeemer.to[Redeemer] match
-            case Redeemer.Benefactor =>
+        redeemer.to[ContractRedeemer] match
+            case ContractRedeemer.Benefactor =>
                 targetTxInfo.isSignedBy(benefactor) orFail UnsignedBenefactorTransaction
                 targetTxInfo.validRange.isAfter(timeout) orFail InvalidBenefactorTimePoint
 
-            case Redeemer.Beneficiary(preimage) =>
+            case ContractRedeemer.Beneficiary(preimage) =>
                 targetTxInfo.isSignedBy(beneficiary) orFail UnsignedBeneficiaryTransaction
                 !targetTxInfo.validRange.isAfter(timeout) orFail InvalidBeneficiaryTimePoint
-                preimage.sha3_256 === image orFail InvalidPreimage
+                sha3_256(preimage) === image orFail InvalidPreimage
 
-    given FromData[Contract] = FromData.deriveCaseClass[Contract]
-    given ToData[Contract] = ToData.deriveCaseClass[Contract](0)
-    given FromData[Redeemer] = FromData.deriveEnum[Redeemer]
-    given ToData[Redeemer] = ToData.deriveEnum[Redeemer]
+    given FromData[ContractDatum] = FromData.deriveCaseClass[ContractDatum]
+    given ToData[ContractDatum] = ToData.deriveCaseClass[ContractDatum](0)
+    given FromData[ContractRedeemer] = FromData.deriveEnum[ContractRedeemer]
+    given ToData[ContractRedeemer] = ToData.deriveEnum[ContractRedeemer]
 
     extension (self: TxInfo)
         private def isSignedBy(
@@ -64,15 +63,15 @@ object HtlcValidator extends Validator:
             case IntervalBoundType.Finite(time) => timePoint < time
             case _                              => false
 
-    private inline val InvalidDatum =
-        "Datum must be a HtlcValidator.Contract(benefactor, beneficiary, image, timeout)"
-    private inline val UnsignedBenefactorTransaction = "Transaction must be signed by a benefactor"
-    private inline val UnsignedBeneficiaryTransaction =
+    inline val InvalidDatum =
+        "Datum must be a HtlcValidator.ContractDatum(benefactor, beneficiary, image, timeout)"
+    inline val UnsignedBenefactorTransaction = "Transaction must be signed by a benefactor"
+    inline val UnsignedBeneficiaryTransaction =
         "Transaction must be signed by a beneficiary"
-    private inline val InvalidBenefactorTimePoint =
+    inline val InvalidBenefactorTimePoint =
         "Benefactor Transaction must be exclusively after timeout"
-    private inline val InvalidBeneficiaryTimePoint =
+    inline val InvalidBeneficiaryTimePoint =
         "Beneficiary Transaction must be inclusively before timeout"
-    private inline val InvalidPreimage = "Invalid preimage"
+    inline val InvalidPreimage = "Invalid preimage"
 
 end HtlcValidator
