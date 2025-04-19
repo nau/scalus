@@ -228,7 +228,7 @@ class PaymentSplitterSpec extends AnyFunSuite, ScalusTest {
             try PaymentSplitterDI.validate(List(payees.toData).toData)(context.toData)
             catch
                 case NonFatal(ex) =>
-                    if (expected.isRight) then throw ex
+                    if expected.isRight then throw ex
 
         // Evaluate the program
         val result = program.evaluateDebug

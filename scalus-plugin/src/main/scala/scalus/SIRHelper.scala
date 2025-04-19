@@ -9,7 +9,7 @@ import dotty.tools.dotc.core.Contexts.Context
 
 extension (singleton: SIRPosition.type)
     def fromSrcPos(pos: SrcPos)(using Context): SIRPosition =
-        if (pos.span.exists) then
+        if pos.span.exists then
             SIRPosition(
               pos.startPos.source.path,
               pos.startPos.startLine,
@@ -20,7 +20,7 @@ extension (singleton: SIRPosition.type)
         else SIRPosition.empty
 
     def fromSourcePosition(pos: SourcePosition)(using Context): SIRPosition =
-        if (pos.span.exists) then
+        if pos.span.exists then
             SIRPosition(
               pos.source.path,
               pos.startLine,
@@ -55,8 +55,8 @@ extension (singleton: AnnotationsDecl.type)
             case memberDef: MemberDef => memberDef.rawComment.map(_.raw)
             case _                    => None
         val pos =
-            if (sym.sourcePos == NoSourcePosition) then inPos
-            else if (inPos == NoSourcePosition) then sym.sourcePos
+            if sym.sourcePos == NoSourcePosition then inPos
+            else if inPos == NoSourcePosition then sym.sourcePos
             else inPos
         AnnotationsDecl(
           SIRPosition.fromSourcePosition(pos),
@@ -65,6 +65,6 @@ extension (singleton: AnnotationsDecl.type)
 
 extension (pos: SourcePosition)
     def union(other: SourcePosition): SourcePosition =
-        if (pos == NoSourcePosition) then other
-        else if (other == NoSourcePosition) then pos
+        if pos == NoSourcePosition then other
+        else if other == NoSourcePosition then pos
         else SourcePosition(pos.source, pos.span.union(other.span), NoSourcePosition)

@@ -777,8 +777,8 @@ object List:
         /** Converts a [[scala.Seq]] to a `List` */
         @Ignore
         def asScalus: List[A] = self match
-            case scala.Seq()                => Nil
-            case scala.Seq(head, tail @ _*) => Cons(head, tail.asScalus)
+            case scala.Seq()            => Nil
+            case scala.Seq(head, tail*) => Cons(head, tail.asScalus)
 
     given listEq[A](using eq: Eq[A]): Eq[List[A]] = (a: List[A], b: List[A]) =>
         a match

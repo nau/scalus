@@ -70,7 +70,7 @@ object PaymentSplitterDI extends DataParameterizedValidator {
                     then
                         if optTxOut.isEmpty then (Some(input.resolved), sumContractInputs)
                         else fail("Already found a fee payer")
-                    else if (input.resolved.address.credential === myTxInputCredential)
+                    else if input.resolved.address.credential === myTxInputCredential then
                         (optTxOut, sumContractInputs + input.resolved.value.getLovelace)
                     else
                         // TODO: think

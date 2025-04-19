@@ -908,8 +908,8 @@ class CekMachine(
                 term match
                     case Var(name) =>
                         if lamCnt >= name.index
-                            // the index n is less-than-or-equal than the number of lambdas we have descended
-                            // this means that n points to a bound variable, so we don't discharge it.
+                        // the index n is less-than-or-equal than the number of lambdas we have descended
+                        // this means that n points to a bound variable, so we don't discharge it.
                         then term
                         else
                             // index relative to (as seen from the point of view of) the environment

@@ -201,26 +201,27 @@ class SIRTyper(using Context) {
         val sym = tpc.typeSymbol
         if sym == Symbols.requiredClass("scala.math.BigInt") then SIRType.Integer
         else
-        // this is a custom value type,  check hidden val
-        if tpc.typeSymbol.isTerm && !tpc.typeSymbol.isType then
-            // sone strange type, which should be a TermRef,  not TypeRef
-            //  (error in dotty  ???)
-            val termSym = tpc.typeSymbol.asTerm
-            sirTypeInEnvWithErr(termSym.info, env)
-        else
-            val argss = sym.primaryConstructor.paramSymss.filter(_.exists(!_.isTypeParam)).flatten
-            argss match
-                case Nil =>
-                    unsupportedType(tpc, "ValueType without fields", env)
-                case head :: Nil =>
-                    val headType = head.info
-                    sirTypeInEnvWithErr(headType, env)
-                case _ =>
-                    unsupportedType(
-                      tpc,
-                      "ValueType with more that one argument to ptrimary constryctir",
-                      env
-                    )
+            // this is a custom value type,  check hidden val
+            if tpc.typeSymbol.isTerm && !tpc.typeSymbol.isType then
+                // sone strange type, which should be a TermRef,  not TypeRef
+                //  (error in dotty  ???)
+                val termSym = tpc.typeSymbol.asTerm
+                sirTypeInEnvWithErr(termSym.info, env)
+            else
+                val argss =
+                    sym.primaryConstructor.paramSymss.filter(_.exists(!_.isTypeParam)).flatten
+                argss match
+                    case Nil =>
+                        unsupportedType(tpc, "ValueType without fields", env)
+                    case head :: Nil =>
+                        val headType = head.info
+                        sirTypeInEnvWithErr(headType, env)
+                    case _ =>
+                        unsupportedType(
+                          tpc,
+                          "ValueType with more that one argument to ptrimary constryctir",
+                          env
+                        )
     }
 
     private def makeSIRFunType(tp: Type, env: SIRTypeEnv): SIRType = {

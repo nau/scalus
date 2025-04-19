@@ -85,7 +85,7 @@ object HashConsedReprFlat {
         var result: List[A] | Null = null
 
         def isComplete(hashConsed: HashConsed.State): Boolean =
-            if (result eq null) then elems.forall(_.isComplete(hashConsed))
+            if result eq null then elems.forall(_.isComplete(hashConsed))
             else true
 
         override def finValue(
@@ -146,7 +146,7 @@ object HashConsedReprFlat {
         var result: Map[String, A] | Null = null
 
         def isComplete(hashConsed: HashConsed.State): Boolean =
-            if (result eq null) then elems.valuesIterator.forall(_.isComplete(hashConsed))
+            if result eq null then elems.valuesIterator.forall(_.isComplete(hashConsed))
             else true
 
         override def finValue(
