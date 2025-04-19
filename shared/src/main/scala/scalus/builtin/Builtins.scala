@@ -269,10 +269,8 @@ private[builtin] abstract class AbstractBuiltins(using ps: PlatformSpecific):
         else false
     // Cryptography and hashes
 
-    extension (self: ByteString)
-        def sha2_256: ByteString = ps.sha2_256(self)
-        def sha3_256: ByteString = ps.sha3_256(self)
-
+    def sha2_256(bs: ByteString): ByteString = ps.sha2_256(bs)
+    def sha3_256(bs: ByteString): ByteString = ps.sha3_256(bs)
     def blake2b_256(bs: ByteString): ByteString = ps.blake2b_256(bs)
     def blake2b_224(bs: ByteString): ByteString = ps.blake2b_224(bs)
     def verifyEd25519Signature(

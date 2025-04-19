@@ -4,7 +4,9 @@ import org.scalacheck.{Arbitrary, Gen}
 import scalus.*
 import scalus.builtin.Data.toData
 import scalus.builtin.{ByteString, Data, given}
+import scalus.builtin.Builtins.blake2b_224
 import scalus.ledger.api.v1.PubKeyHash
+import scalus.ledger.api.v1.Credential.{PubKeyCredential, ScriptCredential}
 import scalus.ledger.api.v3.*
 import scalus.ledger.api.v3.ToDataInstances.given
 import scalus.prelude.*
@@ -15,14 +17,24 @@ import scalus.uplc.eval.*
 trait ScalusTest {
     protected given PlutusVM = PlutusVM.makePlutusV3VM()
 
-    extension (sir: SIR)
+    extension (self: SIR)
         def runScript(scriptContext: ScriptContext): Result =
             // UPLC program: (ScriptContext as Data) -> ()
-            val script = sir.toUplc(generateErrorTraces = true).plutusV3
+            val script = self.toUplc(generateErrorTraces = true).plutusV3
             val appliedScript = script $ scriptContext.toData
             appliedScript.evaluateDebug
 
-    def genByteStringOfN(n: Int): Gen[ByteString] = {
+        def scriptV3(errorTraces: Boolean = true): Program =
+            self.toUplc(generateErrorTraces = errorTraces).plutusV3
+
+    extension (self: Program)
+        def runWithDebug(scriptContext: ScriptContext): Result =
+            val appliedScript = self $ scriptContext.toData
+            appliedScript.evaluateDebug
+
+        def hash: ByteString = blake2b_224(ByteString.fromArray(3 +: self.cborEncoded))
+
+    protected def genByteStringOfN(n: Int): Gen[ByteString] = {
         Gen
             .containerOfN[Array, Byte](n, Arbitrary.arbitrary[Byte])
             .map(a => ByteString.unsafeFromArray(a))
@@ -61,7 +73,7 @@ trait ScalusTest {
             inputs = List(ownInput),
             fee = 188021,
             signatories = signatories,
-            id = Arbitrary.arbitrary[TxId].sample.get
+            id = random[TxId]
           ),
           redeemer = redeemer,
           scriptInfo = ScriptInfo.SpendingScript(
@@ -69,5 +81,81 @@ trait ScalusTest {
             datum = Option.Some(datum)
           )
         )
+    }
+
+    protected def makePubKeyHashInput(pkh: ByteString, value: BigInt): TxInInfo = {
+        TxInInfo(
+          outRef = TxOutRef(random[TxId], 0),
+          resolved = TxOut(
+            address = Address(PubKeyCredential(PubKeyHash(pkh)), Option.None),
+            value = Value.lovelace(value)
+          )
+        )
+    }
+
+    protected def makeScriptHashInput(scriptHash: ByteString, value: BigInt): TxInInfo = {
+        TxInInfo(
+          outRef = TxOutRef(random[TxId], 0),
+          resolved = TxOut(
+            address = Address(ScriptCredential(scriptHash), Option.None),
+            value = Value.lovelace(value)
+          )
+        )
+    }
+
+    protected def makePubKeyHashOutput(pkh: ByteString, value: BigInt): TxOut = {
+        TxOut(
+          address = Address(PubKeyCredential(PubKeyHash(pkh)), Option.None),
+          value = Value.lovelace(value)
+        )
+    }
+
+    protected def makeScriptHashOutput(scriptHash: ByteString, value: BigInt): TxOut = {
+        TxOut(
+          address = Address(ScriptCredential(scriptHash), Option.None),
+          value = Value.lovelace(value)
+        )
+    }
+
+    final protected def failure(message: String): Either[String, Option[ExBudget]] = Left(message)
+    final protected def success: Either[String, Option[ExBudget]] = Right(Option.None)
+    final protected def success(budget: ExBudget): Either[String, Option[ExBudget]] = Right(
+      Option.Some(budget)
+    )
+
+    protected def checkResult(
+        expected: Either[String, Option[ExBudget]],
+        actual: Result
+    ): Unit = {
+        expected match
+            case Left(errorMsg) =>
+                assert(
+                  actual.isFailure,
+                  s"Expected failure with: $errorMsg, but got success"
+                )
+                // If a specific error message is provided, check it matches
+                assert(
+                  actual.logs.exists(_.contains(errorMsg)),
+                  s"Expected error containing: $errorMsg, but got: ${actual.logs.mkString(", ")}"
+                )
+            case Right(success) =>
+                success match
+                    case Option.None =>
+                        assert(
+                          actual.isSuccess,
+                          s"Expected success, but got: ${actual.toString}, logs0: ${actual.logs.mkString(", ")}"
+                        )
+                    case Option.Some(budget) =>
+                        assert(
+                          actual.isSuccess,
+                          s"Expected success with budget: $budget, but got: ${actual.toString}, logs0: ${actual.logs
+                                  .mkString(", ")}"
+                        )
+                        if budget != ExBudget(ExCPU(0), ExMemory(0))
+                        then // Check if budget verification is requested
+                            assert(
+                              actual.budget == budget,
+                              s"Expected budget: $budget, but got: ${actual.budget}"
+                            )
     }
 }
