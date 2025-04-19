@@ -1,10 +1,11 @@
 package scalus.sir
 
+import org.scalacheck.Arbitrary
 import org.scalatest.funsuite.AnyFunSuite
 import scalus.*
 import scalus.Compiler.{compile, compileDebug}
 import scalus.builtin.ByteString.*
-import scalus.builtin.Data.toData1
+import scalus.builtin.Data.{toData, toData1}
 import scalus.builtin.{*, given}
 import scalus.ledger.api.v3.*
 import scalus.prelude.*
@@ -144,56 +145,69 @@ class SimpleSirToUplcV3LoweringSpec extends AnyFunSuite {
         println(ctx.txInfo.validRange.toData.asTerm.showHighlighted)
         assert(Term.alphaEq(t, ctx.txInfo.validRange.toData.asTerm))
     }
-
+     */
     test("Hello Cardano") {
+        import scalus.ledger.api.v1.FromDataInstances.given
+        import scalus.ledger.api.v1.ToDataInstances.given
+        import scalus.builtin.FromDataInstances.given
         val sir =
             compile { (ctx: ScriptContext) =>
                 ctx.scriptInfo match
                     case ScriptInfo.SpendingScript(_, datum) =>
                         val Some(ownerData) = datum: @unchecked
-//                        val owner = ownerData.to[PubKeyHash]
-//                        val signed = ctx.txInfo.signatories.find(s => s == owner).isDefined
+//                        val signed = ctx.txInfo.signatories.find(s => s.toData1 == ownerData).isDefined
 //                        require(signed, "Must be signed")
-//                        val saysHello = ctx.redeemer.asInstanceOf[String] == "Hello, Cardano!"
-//                        require(saysHello, "Invalid redeemer")
+                        val saysHello = ctx.redeemer.to1[String] == "Hello, Cardano!"
+                        require(saysHello, "Invalid redeemer")
                     case _ => scalus.prelude.fail("Invalid script info")
             }
-        val ctx = ScriptContext(
-          txInfo = TxInfo(
-            inputs = prelude.List.empty,
-            referenceInputs = prelude.List.empty,
-            outputs = prelude.List.empty,
-            fee = 0,
-            mint = Value.zero,
-            certificates = prelude.List.empty,
-            withdrawals = AssocMap(prelude.List.empty),
-            validRange = Interval.always,
-            signatories = prelude.List.empty,
-            redeemers = AssocMap(prelude.List.empty),
-            data = AssocMap(prelude.List.empty),
-            id = TxId(hex"61822dde476439a526070f36d3d1667ad099b462c111cd85e089f5e7f6"),
-            votes = AssocMap(prelude.List.empty),
-            proposalProcedures = prelude.List.empty,
-            currentTreasuryAmount = prelude.Option.None,
-            treasuryDonation = prelude.Option.None
-          ),
-          redeemer = Data.unit,
-          scriptInfo = ScriptInfo.MintingScript(ByteString.empty)
-        )
+
         import scalus.builtin.Data.toData
+        import scalus.builtin.ToDataInstances.given
         import scalus.ledger.api.v1.ToDataInstances.given
         import scalus.ledger.api.v3.ToDataInstances.given
+
+        val ownerPubKey = PubKeyHash(hex"1234567890abcdef1234567890abcdef1234567890abcdef12345678")
+        val message = "Hello, Cardano!".toData
+        val ownInput =
+            TxInInfo(
+              outRef = TxOutRef(
+                TxId(hex"deadbeef"),
+                0
+              ),
+              resolved = TxOut(
+                address = Address(
+                  Credential.ScriptCredential(hex"deadbeef"),
+                  Option.None
+                ),
+                value = Value.zero
+              )
+            )
+        val ctx = ScriptContext(
+          txInfo = TxInfo(
+            inputs = prelude.List(ownInput),
+            fee = 188021,
+            signatories = prelude.List.empty,
+            id = TxId(hex"deadbeef")
+          ),
+          redeemer = message,
+          scriptInfo = ScriptInfo.SpendingScript(
+            txOutRef = ownInput.outRef,
+            datum = Option.Some(ownerPubKey.toData)
+          )
+        )
         val ctxData = ctx.toData
 
-        //        println(sir.showHighlighted)
-        val lower = SimpleSirToUplcV3Lowering(sir)
-        val term = lower.lower() $ ctxData.asTerm
+        println(sir.showHighlighted)
+        val lower = SimpleSirToUplcV3Lowering(sir, generateErrorTraces = true).lower()
+        println(lower.plutusV3.cborEncoded.length)
+        val term = lower $ ctxData.asTerm
         println(term.showHighlighted)
         val Result.Success(t, _, _, _) = term.evaluateDebug: @unchecked
         println(t.showHighlighted)
         println(ctx.txInfo.validRange.toData.asTerm.showHighlighted)
         assert(Term.alphaEq(t, ctx.txInfo.validRange.toData.asTerm))
-    }*/
+    }
 
     test("fromData") {
         import scalus.ledger.api.v3.FromDataInstances.given

@@ -130,6 +130,8 @@ class SimpleSirToUplcV3Lowering(sir: SIR, generateErrorTraces: Boolean = false):
       *  else Error("MatchError")
       * }}}
       */
+
+    var idx = 0
     private def genMatch(
         constructors: Seq[ConstrDecl],
         cases: Seq[SIR.Case],
@@ -138,8 +140,9 @@ class SimpleSirToUplcV3Lowering(sir: SIR, generateErrorTraces: Boolean = false):
     ): Term = {
         val mapping = constructors.zipWithIndex.map { case (c, i) => (c.name, i) }.toMap
         val matchErrorTerm = lowerInner(
-          SIR.Error(s"MatchError: unknown constructor tag", null)
+          SIR.Error(s"MatchError: unknown constructor tag $idx", null)
         )
+        idx += 1
         cases.foldRight(matchErrorTerm) {
             case (SIR.Case(Pattern.Constr(constr, bindings, _), body), resultTerm) =>
                 val idx = mapping(constr.name)

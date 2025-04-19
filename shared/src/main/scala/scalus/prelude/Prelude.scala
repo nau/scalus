@@ -841,8 +841,11 @@ object Maybe {
 }
 
 enum Option[+A]:
-    case None extends Option[Nothing]
+    // `Some` goes first to match Plutus FromData/ToData serialization.
+    // There, `Some` is serialized as `0` and `None` as `1`.
+    // ¯\_(ツ)_/¯
     case Some(value: A)
+    case None extends Option[Nothing]
 
 @Compile
 object Option {
