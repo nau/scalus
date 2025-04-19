@@ -9,8 +9,10 @@ object Data extends DataApi:
     type ToData[A] = A => Data
 
     extension [A: ToData](a: A) inline def toData: Data = summon[ToData[A]](a)
+    extension [A: ToData](a: A) inline def toData1(using inline ev: ToData[A]): Data = ev(a)
 
     extension (inline data: Data) inline def to[A](using inline ev: FromData[A]): A = ev(data)
+    extension (inline data: Data) inline def to1[A](using inline ev: FromData[A]): A = ev(data)
 
     type FromData[A] = Data => A
 

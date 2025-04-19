@@ -10,7 +10,7 @@ import scalus.uplc.Term.*
 import scala.annotation.tailrec
 import scala.collection.mutable.HashMap
 
-case class Asdf(
+private case class Lowering(
     toData: Seq[Term] => Term,
     select: Int => Term => Term,
     genMatch: SIR.Match => Term
@@ -75,9 +75,12 @@ class SimpleSirToUplcV3Lowering(sir: SIR, generateErrorTraces: Boolean = false):
             case _: SIRType.SumCaseClass =>
                 println(s"toData: ${tp.show}")
                 arg
+            case _: SIRType.TypeVar =>
+                println(s"toData: ${tp.show}")
+                arg
             case _ =>
                 throw new IllegalArgumentException(
-                  s"Unsupported type: ${tp.show} of term: ${arg.show}"
+                  s"Unsupported type: ${tp} of term: ${arg.show}"
                 )
     }
 
@@ -100,7 +103,9 @@ class SimpleSirToUplcV3Lowering(sir: SIR, generateErrorTraces: Boolean = false):
                 builtinTerms(Bls12_381_G1_uncompress) $ fromData(arg, SIRType.ByteString)
             case SIRType.BLS12_381_G2_Element =>
                 builtinTerms(Bls12_381_G2_uncompress) $ fromData(arg, SIRType.ByteString)
-            case _: SIRType.CaseClass => arg
+            case _: SIRType.CaseClass    => arg
+            case _: SIRType.SumCaseClass => arg
+            case _: SIRType.TypeVar      => arg
             case _ =>
                 throw new IllegalArgumentException(
                   s"Unsupported type: ${tp.show} of term: ${arg.show}"
@@ -151,25 +156,29 @@ class SimpleSirToUplcV3Lowering(sir: SIR, generateErrorTraces: Boolean = false):
         }
     }
 
-    private val mapping: Map[String, Asdf] = Map(
-      "scalus.ledger.api.v3.TxId" -> Asdf(
-        toData = { args => args.head },
-        select = {
-            case 0 => identity
-            case i => throw new IllegalArgumentException(s"Invalid field index $i for TxId")
-
-        },
-        genMatch = { case SIR.Match(scrutinee, cases, _, anns) =>
-            val scrutineeTerm = lowerInner(scrutinee)
-            cases match
-                case SIR.Case(Pattern.Constr(constr, bindings, _), body) :: Nil =>
-                    λ(bindings.head)(lowerInner(body)) $ scrutineeTerm
-                case _ =>
-                    throw new IllegalArgumentException(
-                      s"Expected single case for TxId at ${anns.pos}"
-                    )
-        }
-      )
+    /** Lowering for a newtype-like types: single argument case class, like
+      * [[scalus.ledger.api.v3.TxId]] or [[scalus.ledger.api.v1.PubKeyHash]]
+      */
+    private val newtypeLowering: Lowering = Lowering(
+      toData = { args => args.head },
+      select = {
+          case 0 => identity
+          case i => throw new IllegalArgumentException(s"Invalid field index $i for TxId")
+      },
+      genMatch = { case SIR.Match(scrutinee, cases, _, anns) =>
+          val scrutineeTerm = lowerInner(scrutinee)
+          cases match
+              case SIR.Case(Pattern.Constr(constr, bindings, _), body) :: Nil =>
+                  λ(bindings.head)(lowerInner(body)) $ scrutineeTerm
+              case _ =>
+                  throw new IllegalArgumentException(
+                    s"Expected single case for TxId at ${anns.pos}"
+                  )
+      }
+    )
+    private val mapping: Map[String, Lowering] = Map(
+      "scalus.ledger.api.v1.PubKeyHash" -> newtypeLowering,
+      "scalus.ledger.api.v3.TxId" -> newtypeLowering,
     )
 
     private def lowerInner(sir: SIR): Term = {
@@ -182,6 +191,7 @@ class SimpleSirToUplcV3Lowering(sir: SIR, generateErrorTraces: Boolean = false):
                 if tag == -1 then
                     throw new IllegalArgumentException(s"Constructor $name not found in $data")
                 val loweredArgs = args.map: arg =>
+                    println(s"lowering ${arg.show}: ${tp}")
                     toData(lowerInner(arg), arg.tp)
                 if mapping.contains(data.name)
                 then
@@ -238,7 +248,16 @@ class SimpleSirToUplcV3Lowering(sir: SIR, generateErrorTraces: Boolean = false):
             case SIR.Let(Rec, bindings, body, anns) =>
                 // TODO: implement mutual recursion
                 sys.error(s"Mutually recursive bindings are not supported: $bindings")
-            case SIR.LamAbs(name, term, anns) => Term.LamAbs(name.name, lowerInner(term))
+            case SIR.LamAbs(name, term, _anns) => Term.LamAbs(name.name, lowerInner(term))
+            case SIR.Apply(SIR.Var("__scalus__internal__fromData", _, _), a, sirType, ann) =>
+                fromData(lowerInner(a), sirType)
+            case SIR.Apply(
+                  SIR.Var("__scalus__internal__toData", SIRType.Fun(sirType, _), _),
+                  a,
+                  _,
+                  _ann
+                ) =>
+                toData(lowerInner(a), sirType)
             // f(arg)
             case SIR.Apply(f, arg, _, _) => Term.Apply(lowerInner(f), lowerInner(arg))
             // record.field

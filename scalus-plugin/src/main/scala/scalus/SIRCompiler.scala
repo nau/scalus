@@ -1821,7 +1821,48 @@ final class SIRCompiler(using ctx: Context) {
                         )
             case Block(stmt, expr) => compileBlock(env, stmt, expr)
             case Typed(expr, _)    => compileExpr(env, expr)
-            case Inlined(_, bindings, expr) =>
+            case Inlined(
+                  Apply(TypeApply(Apply(select, List(arg)), List(tpe)), _),
+                  bindings,
+                  expr
+                ) if select.show == "scalus.builtin.Data.to1" =>
+                println(s"inline Data.to1 call: ${tpe.show}, arg: ${arg}: ${tpe.tpe}")
+                val sir = compileBlock(env, bindings, arg)
+                val sirType = sirTypeInEnv(tpe.tpe, tree.srcPos, env)
+                println(s"__scalus__internal__fromData: ${sir}, arg: ${sirType}")
+                SIR.Apply(
+                  SIR.Var(
+                    "__scalus__internal__fromData",
+                    SIRType.Fun(SIRType.Data, sirType),
+                    AnnotationsDecl.fromSrcPos(tree.srcPos)
+                  ),
+                  sir,
+                  sirType,
+                  AnnotationsDecl.fromSrcPos(tree.srcPos)
+                )
+
+            case Inlined(
+                  Apply(Apply(TypeApply(select, List(tpe)), List(arg)), _),
+                  bindings,
+                  expr
+                ) if select.show == "scalus.builtin.Data.toData1" =>
+                println(s"inline Data.toData1 call: ${tpe.show}, arg: ${arg}: ${tpe.tpe}")
+                val sir = compileBlock(env, bindings, arg)
+                val sirType = sirTypeInEnv(tpe.tpe, tree.srcPos, env)
+                println(s"__scalus__internal__toData: ${sir}, arg: ${sirType}")
+                SIR.Apply(
+                  SIR.Var(
+                    "__scalus__internal__toData",
+                    SIRType.Fun(sirType, SIRType.Data),
+                    AnnotationsDecl.fromSrcPos(tree.srcPos)
+                  ),
+                  sir,
+                  SIRType.Data,
+                  AnnotationsDecl.fromSrcPos(tree.srcPos)
+                )
+
+            case Inlined(call, bindings, expr) =>
+                println(s"inline call: ${call.show}, call: ${call}")
                 val r = compileBlock(env, bindings, expr)
                 // val t = r.asTerm.show
                 // report.info(s"Inlined: ${bindings}, ${expr.show}\n${t}", Position(SourceFile.current, globalPosition, 0))
