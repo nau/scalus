@@ -372,10 +372,15 @@ class SimpleSirToUplcV3Lowering(sir: SIR, generateErrorTraces: Boolean = false):
             case SIR.Apply(SIR.Var("__scalus__internal__fromData", _, _), a, sirType, ann) =>
                 fromData(lowerInner(a), sirType)
             case SIR.Apply(
-                  SIR.Var("__scalus__internal__toData", SIRType.Fun(sirType, _), _),
-                  a,
+                  SIR.Apply(
+                    SIR.Var("__scalus__internal__toData", SIRType.Fun(sirType, _), _),
+                    a,
+                    _,
+                    _ann
+                  ),
                   _,
-                  _ann
+                  _,
+                  _
                 ) =>
                 toData(lowerInner(a), sirType)
             // f(arg)

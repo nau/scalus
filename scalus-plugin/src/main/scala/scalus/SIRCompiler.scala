@@ -1847,17 +1847,32 @@ final class SIRCompiler(using ctx: Context) {
                   expr
                 ) if select.show == "scalus.builtin.Data.toData1" =>
                 println(s"inline Data.toData1 call: ${tpe.show}, arg: ${arg}: ${tpe.tpe}")
+                val toDataExpr = compileBlock(env, bindings, expr)
                 val sir = compileBlock(env, bindings, arg)
                 val sirType = sirTypeInEnv(tpe.tpe, tree.srcPos, env)
+                // the actual toData expression
+                println("AAAA" + toDataExpr)
+                // __scalus__internal__toData is Scalus "builtin" function
+                // which is specialy treated by Scalus UPLC Codegen
+                // def __scalus__internal__toData(x: Any)(f: Any => Data): Data
+                // __scalus__internal__toData(x)(toData(x))
+                // In UPLC codegen we will replace it with either `toData(x)` of our custom logic
+                val ann = AnnotationsDecl.fromSrcPos(tree.srcPos)
                 SIR.Apply(
-                  SIR.Var(
-                    "__scalus__internal__toData",
-                    SIRType.Fun(sirType, SIRType.Data),
-                    AnnotationsDecl.fromSrcPos(tree.srcPos)
+                  SIR.Apply(
+                    SIR.Var(
+                      "__scalus__internal__toData",
+                      sirType ->: (sirType ->: SIRType.Data) ->: SIRType.Data,
+                      ann
+                    ),
+                    sir,
+                    (sirType ->: SIRType.Data) ->: SIRType.Data,
+                    ann
                   ),
-                  sir,
+                  toDataExpr,
+//                  SIR.Error("asdf", ann, null),
                   SIRType.Data,
-                  AnnotationsDecl.fromSrcPos(tree.srcPos)
+                  ann
                 )
 
             case Inlined(call, bindings, expr) =>
