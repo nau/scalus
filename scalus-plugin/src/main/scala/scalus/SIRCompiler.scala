@@ -1849,7 +1849,6 @@ final class SIRCompiler(using ctx: Context) {
                 println(s"inline Data.toData1 call: ${tpe.show}, arg: ${arg}: ${tpe.tpe}")
                 val sir = compileBlock(env, bindings, arg)
                 val sirType = sirTypeInEnv(tpe.tpe, tree.srcPos, env)
-                println(s"__scalus__internal__toData: ${sir}, arg: ${sirType}")
                 SIR.Apply(
                   SIR.Var(
                     "__scalus__internal__toData",
@@ -1862,7 +1861,6 @@ final class SIRCompiler(using ctx: Context) {
                 )
 
             case Inlined(call, bindings, expr) =>
-                println(s"inline call: ${call.show}, call: ${call}")
                 val r = compileBlock(env, bindings, expr)
                 // val t = r.asTerm.show
                 // report.info(s"Inlined: ${bindings}, ${expr.show}\n${t}", Position(SourceFile.current, globalPosition, 0))

@@ -8,12 +8,13 @@ import scalus.builtin.ByteString.*
 import scalus.builtin.Data.{toData, toData1}
 import scalus.builtin.{*, given}
 import scalus.ledger.api.v3.*
-import scalus.prelude.*
+import scalus.prelude.{List, *}
 import scalus.prelude.Option.Some
 import scalus.uplc.DefaultFun.BData
 import scalus.uplc.Term
 import scalus.uplc.Term.*
-import scalus.uplc.eval.{PlutusVM, Result}
+import scalus.uplc.eval.{ExBudget, ExCPU, ExMemory, PlutusVM, Result}
+import scalus.uplc.transform.{CaseConstrApply, EtaReduce, ForcedBuiltinsExtractor, Inliner}
 
 import scala.language.implicitConversions
 
@@ -155,8 +156,8 @@ class SimpleSirToUplcV3LoweringSpec extends AnyFunSuite {
                 ctx.scriptInfo match
                     case ScriptInfo.SpendingScript(_, datum) =>
                         val Some(ownerData) = datum: @unchecked
-//                        val signed = ctx.txInfo.signatories.find(s => s.toData1 == ownerData).isDefined
-//                        require(signed, "Must be signed")
+                        val signed = ctx.txInfo.signatories.find(_.toData1 == ownerData)
+                        signed.orFail("Must be signed")
                         val saysHello = ctx.redeemer.to1[String] == "Hello, Cardano!"
                         require(saysHello, "Invalid redeemer")
                     case _ => scalus.prelude.fail("Invalid script info")
@@ -187,7 +188,7 @@ class SimpleSirToUplcV3LoweringSpec extends AnyFunSuite {
           txInfo = TxInfo(
             inputs = prelude.List(ownInput),
             fee = 188021,
-            signatories = prelude.List.empty,
+            signatories = prelude.List(ownerPubKey),
             id = TxId(hex"deadbeef")
           ),
           redeemer = message,
@@ -200,13 +201,18 @@ class SimpleSirToUplcV3LoweringSpec extends AnyFunSuite {
 
         println(sir.showHighlighted)
         val lower = SimpleSirToUplcV3Lowering(sir, generateErrorTraces = true).lower()
-        println(lower.plutusV3.cborEncoded.length)
-        val term = lower $ ctxData.asTerm
-        println(term.showHighlighted)
-        val Result.Success(t, _, _, _) = term.evaluateDebug: @unchecked
-        println(t.showHighlighted)
-        println(ctx.txInfo.validRange.toData.asTerm.showHighlighted)
-        assert(Term.alphaEq(t, ctx.txInfo.validRange.toData.asTerm))
+        val opt = lower
+            |> EtaReduce.apply
+            |> Inliner.apply
+            |> CaseConstrApply.apply
+            |> ForcedBuiltinsExtractor.apply
+
+        val length = opt.plutusV3.cborEncoded.length
+        assert(length == 487)
+        val applied = opt.plutusV3 $ ctxData.asTerm
+        val result = applied.evaluateDebug
+        assert(result.isSuccess)
+        assert(result.budget == ExBudget(ExCPU(11433264), ExMemory(31993)))
     }
 
     test("fromData") {
@@ -235,6 +241,28 @@ class SimpleSirToUplcV3LoweringSpec extends AnyFunSuite {
 
         val uplc = SimpleSirToUplcV3Lowering(sir).lower()
         assert(uplc == LamAbs("d", vr"d"))
+    }
+
+    test("prelude List") {
+        import scalus.ledger.api.v3.ToDataInstances.given
+        import scalus.builtin.ToDataInstances.given
+        val sir = compileDebug: (l: prelude.List[Data]) =>
+            l match
+//                case List.Nil              => ().toData1
+                case List.Cons(head, tail) => head
+                case _                     => prelude.fail("Invalid list")
+        println(sir.showHighlighted)
+        val uplc = SimpleSirToUplcV3Lowering(sir).lower()
+        val opt = uplc |> EtaReduce.apply
+            |> Inliner.apply
+            |> CaseConstrApply.apply
+            |> ForcedBuiltinsExtractor.apply
+        println(opt.showHighlighted)
+        println(opt.plutusV3.cborEncoded.length)
+        val list = List(true).toData
+        val applied = uplc.plutusV3 $ list
+        println(applied.showHighlighted)
+        println(applied.term.evaluateDebug)
     }
 
 }

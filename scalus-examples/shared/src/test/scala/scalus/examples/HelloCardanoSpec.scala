@@ -28,8 +28,11 @@ class HelloCardanoSpec extends AnyFunSuite, ScalusTest {
           signatories = List(ownerPubKey)
         )
 
+        println(compile(HelloCardano.validate).showHighlighted)
+        println(compile(HelloCardano.validate).toUplcOptimized(true).plutusV3.cborEncoded.length)
         val result = compile(HelloCardano.validate).runScript(context)
 
+        println(result)
         assert(result.isSuccess)
         assert(result.budget <= ExBudget(ExCPU(62000000), ExMemory(240000)))
     }
