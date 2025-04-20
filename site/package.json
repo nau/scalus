@@ -1,5 +1,5 @@
 {
-  "name": "example-docs",
+  "name": "scalus-site",
   "license": "MIT",
   "private": true,
   "scripts": {
@@ -10,8 +10,8 @@
   },
   "dependencies": {
     "next": "^15.0.2",
-    "nextra": "workspace:*",
-    "nextra-theme-docs": "workspace:*",
+    "nextra": "4.3.0-alpha.19",
+    "nextra-theme-docs": "4.3.0-alpha.19",
     "react": "18.3.1",
     "react-dom": "18.3.1"
   },

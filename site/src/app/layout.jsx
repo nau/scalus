@@ -9,6 +9,12 @@ export const metadata = {
   title: {
     template: '%s - Nextra'
   },
+  logo: (
+      <span>
+        <img src="/logo.svg" alt="Logo" style={{ height: '2rem', marginRight: '0.5rem' }} />
+        My Docs
+      </span>
+    ),
   description: 'Nextra: the Next.js site builder',
   applicationName: 'Nextra',
   generator: 'Next.js',
@@ -28,9 +34,10 @@ export default async function RootLayout({ children }) {
   const navbar = (
     <Navbar
       logo={
-        <div>
-          <b>Scalus</b>{' '}
-          <span style={{ opacity: '60%' }}>DApps Development Platform for Cardano</span>
+        <div style={{ display: 'flex', alignItems: 'center' }}>
+          <img src="/scalus-logo-dark.png" alt="Logo" style={{ height: '2.5rem', marginRight: '0.5rem' }} />
+          {/* <b>Scalus</b>{'   '}
+          <span style={{ opacity: '60%' }}>DApps Development Platform for Cardano</span> */}
         </div>
       }
       projectLink="https://github.com/nau/scalus"
@@ -44,9 +51,9 @@ export default async function RootLayout({ children }) {
       <Head faviconGlyph="✦" />
       <body>
         <Layout
-          banner={<Banner storageKey="Nextra 2">Scalus News Banner</Banner>}
+          // banner={<Banner storageKey="Nextra 2">Scalus News Banner</Banner>}
           navbar={navbar}
-          footer={<Footer>MIT {new Date().getFullYear()} © 2025 Lantr.</Footer>}
+          footer={<Footer>Apache 2.0 {new Date().getFullYear()} © 2025 Lantr Labs.</Footer>}
           // editLink="Edit this page on GitHub"
           docsRepositoryBase="https://github.com/nau/scalus"
           sidebar={{ defaultMenuCollapseLevel: 1 }}
