@@ -14,8 +14,6 @@ import scalus.ledger.api.v2.ToDataInstances.given
 import scalus.prelude.List
 import scalus.uplc.*
 import scalus.uplc.Term.*
-import scalus.uplc.TermDSL.given
-import scala.language.implicitConversions
 
 class PreimageExampleSpec extends BaseValidatorSpec {
     import scalus.builtin.ToDataInstances.given
@@ -93,7 +91,7 @@ class PreimageExampleSpec extends BaseValidatorSpec {
         val validator = compiled.toUplc().plutusV2
 //        println(validator.showHighlighted)
         val flatSize = validator.flatEncoded.length
-        assert(flatSize == 1607)
+        assert(flatSize == 1626)
 
 //        performChecks(validator)
     }

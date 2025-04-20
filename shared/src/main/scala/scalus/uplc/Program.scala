@@ -3,6 +3,7 @@ package scalus.uplc
 import io.bullet.borer.Cbor
 import org.typelevel.paiges.Doc
 import scalus.*
+import scalus.builtin.Data
 import scalus.builtin.Data.*
 import scalus.utils.Hex
 
@@ -67,6 +68,9 @@ case class Program(version: (Int, Int, Int), term: Term):
       */
     @targetName("applyArg")
     infix def $(arg: Term): Program = copy(term = Term.Apply(term, arg))
+
+    @targetName("applyArg")
+    infix def $(arg: Data): Program = copy(term = Term.Apply(term, Term.Const(Constant.Data(arg))))
 
     /** De Bruijn-indexed representation of the program.
       *

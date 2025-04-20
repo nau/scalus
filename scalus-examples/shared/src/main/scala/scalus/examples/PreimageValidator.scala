@@ -8,7 +8,7 @@ import scalus.builtin.FromDataInstances.given
 import scalus.builtin.Data
 import scalus.ledger.api.v2.*
 import scalus.ledger.api.v2.FromDataInstances.given
-import scalus.prelude.List
+import scalus.prelude.*
 import scalus.sir.SIR
 import scalus.uplc.*
 
@@ -19,14 +19,23 @@ object PreimageValidator {
         val (hash, pkh) = datum.to[(ByteString, ByteString)]
         val preimage = redeemer.toByteString
         val ctx = ctxData.to[ScriptContext]
-        // get the transaction signatories
-        val signatories = ctx.txInfo.signatories
         // check that the transaction is signed by the public key hash
-        List.findOrFail(signatories) { sig => sig.hash == pkh }
+        ctx.txInfo.signatories.find(_.hash == pkh).orFail("Not signed")
         // check that the preimage hashes to the hash
-        if sha2_256(preimage) == hash then ()
-        else throw new RuntimeException("Wrong preimage")
-        // throwing an exception compiles to UPLC error
+        require(sha2_256(preimage) == hash, "Wrong preimage")
+    }
+}
+
+@Compile
+object PreimageValidatorV3 extends Validator {
+    import scalus.ledger.api.v3.*
+    override def spend(datum: Option[Data], redeemer: Data, tx: TxInfo, ownRef: TxOutRef): Unit = { // deserialize from Data
+        val (hash, pkh) = datum.getOrFail("Expected datum").to[(ByteString, ByteString)]
+        val preimage = redeemer.toByteString
+        // check that the transaction is signed by the public key hash
+        tx.signatories.find(_.hash == pkh).orFail("Not signed")
+        // check that the preimage hashes to the hash
+        require(sha2_256(preimage) == hash, "Wrong preimage")
     }
 }
 

@@ -6,7 +6,7 @@ import scalus.builtin
 import scalus.builtin.Data.*
 import scalus.prelude
 import scalus.prelude.AssocMap
-import scalus.prelude.Maybe
+import scalus.prelude.Option
 import scalus.prelude.Rational
 
 import scala.annotation.nowarn
@@ -51,10 +51,10 @@ object FromDataInstances {
                     )
             AssocMap.fromList(loop(unMapData(d)))
 
-    given MaybeFromData[A: FromData]: FromData[scalus.prelude.Maybe[A]] = (d: Data) =>
+    given OptionFromData[A: FromData]: FromData[scalus.prelude.Option[A]] = (d: Data) =>
         val pair = unConstrData(d)
-        if pair.fst == BigInt(0) then new scalus.prelude.Maybe.Just(fromData[A](pair.snd.head))
-        else scalus.prelude.Maybe.Nothing
+        if pair.fst == BigInt(0) then new scalus.prelude.Option.Some(fromData[A](pair.snd.head))
+        else scalus.prelude.Option.None
 
     given unsafeTupleFromData[A, B](using
         fromA: FromData[A],
@@ -107,7 +107,7 @@ object ToDataInstances {
                             )
                     }
             }
-            mapData(go(AssocMap.toList(a)))
+            mapData(go(a.toList))
         }
 
     given tupleToData[A: ToData, B: ToData]: ToData[(A, B)] =
@@ -120,12 +120,12 @@ object ToDataInstances {
               )
             )
 
-    given MaybeToData[A: ToData]: ToData[Maybe[A]] =
-        (a: Maybe[A]) => {
+    given OptionToData[A: ToData]: ToData[Option[A]] =
+        (a: Option[A]) => {
             a match {
-                case Maybe.Just(v) =>
+                case Option.Some(v) =>
                     constrData(0, mkCons(v.toData, mkNilData()))
-                case Maybe.Nothing => constrData(1, mkNilData())
+                case Option.None => constrData(1, mkNilData())
             }
         }
 

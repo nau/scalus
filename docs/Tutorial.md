@@ -68,6 +68,8 @@ Supported:
 * implicit conversions
 * opaque types (non top-level) and type aliases
 * extension methods
+* tuples
+* value destructuring in vals: `val Some((a, b)) = optionOfTuple` 
 
 ## Scala features that are not supported
 
@@ -138,7 +140,7 @@ Here are some examples of using built-in functions.
 ```scala mdoc:compile-only
 import scalus.builtin.*
 import scalus.builtin.ByteString.*
-import scalus.prelude.Prelude.{*, given}
+import scalus.prelude.{*, given}
 compile {
     // See scalus.builtin.Builtins for what is available
     val data = Builtins.iData(123)
@@ -160,7 +162,7 @@ You can define your own data types using Scala case classes and enums.
 
 ```scala mdoc:compile-only
 import scalus.builtin.ByteString
-import scalus.prelude.Prelude.{*, given}
+import scalus.prelude.{*, given}
 
 case class Account(hash: ByteString, balance: BigInt)
 
@@ -195,7 +197,7 @@ compile {
 ## Control flow
 
 ```scala mdoc:compile-only
-import scalus.prelude.Prelude.{*, given}
+import scalus.prelude.{*, given}
 compile {
     val a = BigInt(1)
     // if-then-else
@@ -291,7 +293,7 @@ val fromDataExample = compile {
 
 ## Writing a validator
 
-Here is a simple example of a PlutusV2 validator written in Scalus.
+Here is a simple example of a Plutus V3 validator written in Scalus.
 
 ```scala mdoc:compile-only
 import scalus.ledger.api.v1.PubKeyHash
@@ -304,9 +306,9 @@ import scalus.prelude.List
 val pubKeyValidator = compile:
     def validator(ctxData: Data) = {
         val ctx = ctxData.to[ScriptContext]
-        List.findOrFail(ctx.txInfo.signatories): sig =>
-            sig.hash == hex"deadbeef"
+        ctx.txInfo.signatories.find {_.hash == hex"deadbeef"}.getOrFail("not signed")
     }
+    validator
 ```
 
 ## Troubleshooting
@@ -321,7 +323,7 @@ And there is a `?` operator that can be used to log the value of a boolean expre
 import scalus.builtin.given
 import scalus.builtin.Builtins.trace
 import scalus.prelude.*
-import scalus.prelude.Prelude.log
+import scalus.prelude.log
 import scalus.uplc.eval.PlutusVM
 given PlutusVM = PlutusVM.makePlutusV2VM()
 val sir = compile {
@@ -355,7 +357,7 @@ val serializeToDoubleCborHex = {
     val pubKeyValidator = compile {
         def validator(datum: Data, redeamder: Data, ctxData: Data) = {
             val ctx = ctxData.to[ScriptContext]
-            List.findOrFail[PubKeyHash](ctx.txInfo.signatories)(sig => sig.hash == hex"deadbeef")
+            ctx.txInfo.signatories.find {_.hash == hex"deadbeef"}
         }
     }
     // convert to UPLC

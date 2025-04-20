@@ -10,7 +10,7 @@ import scalus.flat.Flat
 import scalus.uplc.FlatInstantces.given
 import scalus.uplc.NamedDeBruijn
 import scalus.uplc.Term
-import scalus.uplc.TermDSL.*
+import scalus.uplc.Term.*
 import scalus.uplc.eval.ExBudget.given
 import scala.math.Ordering.Implicits._
 
@@ -52,7 +52,7 @@ class ExprSizeAndBudgetSpec extends AnyFunSuite {
     }
 
     test("prelude.List.cons(true, prelude.List.Nil) size is 123") {
-        val uplc = compile(prelude.List.cons(true, prelude.List.Nil)).toUplcOptimized()
+        val uplc = compile(prelude.List.single(true)).toUplcOptimized()
         assert(encoder.bitSize(uplc) == 123)
     }
 

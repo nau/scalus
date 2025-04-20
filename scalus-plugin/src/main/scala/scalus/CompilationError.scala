@@ -10,23 +10,34 @@ import dotty.tools.dotc.core.Symbols.Symbol
 import dotty.tools.dotc.ast.tpd.ValDef
 
 import scalus.sir.SIRType
+import scalus.sir.SIRPosition
 
 sealed trait CompilationError {
     def message: String
     def srcPos: SrcPos
 }
 
-case class SymbolNotFound(name: String, srcPos: SrcPos) extends CompilationError {
+case class SymbolNotFound(
+    name: String,
+    module: String,
+    srcPos: SrcPos,
+    refPos: SIRPosition,
+    namesInModule: Set[String]
+) extends CompilationError {
     def message: String =
         s"""Symbol not found: $name
            |Possible reasons and solutions:
-           |  Make sure you added @Compile annotation to the object that contains '$name'.
+           |  Make sure you added @Compile annotation to the object that contains '$name' in module ${module} 
+           |  referenced from ${refPos.file}:${refPos.startLine}.
            |
            |  Maybe '$name' is not intended to be used in Scalus scripts.
            |
            |  Maybe you used $name by accident?
            |
            |  It can be a bug in Scalus. Please report it or contact us via Discord.
+           |  
+           |  Names listed in module:
+           |  ${namesInModule}
            |""".stripMargin
 }
 
@@ -56,7 +67,7 @@ case class LiteralTypeNotSupported(const: Constant, srcPos: SrcPos) extends Comp
                |Try representing a double literal as BigInt with fixed decimal point""".stripMargin
         case NullTag =>
             s"""Literal null can't be used in Scalus scripts.
-               |Maybe use Maybe""".stripMargin
+               |Maybe use Option""".stripMargin
         case ClazzTag => s"""Class literals can't be used in Scalus scripts."""
         case _        => ""
 }

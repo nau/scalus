@@ -53,41 +53,41 @@ Clone the repository and follow the instructions in the README.
 
 ## Show Me The Code
 
-### Preimage Validator Example
+### Hello Cardano Validator Example
 
-Here is a simple validator that checks that an signer of `pkh` PubKeyHash provided a preimage of a `hash` in a `redeemer`.
-Below example is taken from [PreimageValidator](https://github.com/nau/scalus/blob/master/shared/src/main/scala/scalus/examples/PreimageValidator.scala#L19)
+Here is A simple validator that checks if the redeemer is "Hello, Cardano!" and if the transaction is signed by the
+owner. Below example is taken
+from [HelloCardano](https://github.com/nau/scalus/blob/3bc95e16c46ef32126f156af37dc22ed6b8b42c2/scalus-examples/shared/src/main/scala/scalus/examples/HelloCardano.scala#L16)
 
 ```scala 3
-def preimageValidator(datum: Data, redeemer: Data, ctxData: Data): Unit =
-    // deserialize from Data
-    val (hash, pkh) = datum.to[(ByteString, ByteString)]
-    val preimage = redeemer.toByteString
-    val ctx = ctxData.to[ScriptContext]
-    // get the transaction signatories
-    val signatories = ctx.txInfo.signatories
-    // check that the transaction is signed by the public key hash
-    List.findOrFail(signatories) { sig => sig.hash == pkh }
-    // check that the preimage hashes to the hash
-    if sha2_256(preimage) == hash then ()
-    else throw new RuntimeException("Wrong preimage")
-  // throwing an exception compiles to UPLC error
+@Compile
+object HelloCardano extends Validator {
+  override def spend(datum: Option[Data], redeemer: Data, tx: TxInfo, ownRef: TxOutRef): Unit = {
+    val Some(ownerData) = datum: @unchecked
+    val owner = ownerData.to[PubKeyHash]
+    val signed = tx.signatories.contains(owner)
+    require(signed, "Must be signed")
+    val saysHello = redeemer.to[String] == "Hello, Cardano!"
+    require(saysHello, "Invalid redeemer")
+  }
+}
 
 // compile to Untyped Plutus Core (UPLC)
-val compiled = compile(preimageValidator).toUplc()
-// create a validator script, Plutus program version 1.0.0
-val validator = Program((1, 0, 0), compiled)
+// create a validator script - Plutus V3 program
+val validator = compile(HelloCardano.validate).plutusV3.toUplc()
 // HEX encoded Plutus script, ready to be used in with cardano-cli or Blockfrost
 val plutusScript = validator.doubleCborHex
 // Create a Cardano .plutus file for this validator
-validator.writePlutusFile(path, PlutusLedgerLanguage.PlutusV2)
+validator.writePlutusFile(path, PlutusLedgerLanguage.PlutusV3)
 ```
 
-Look at [SendTx](https://github.com/nau/scalus/blob/master/examples/src/main/scala/scalus/examples/SendTx.scala#L31) example for a full example of how to create a transaction with this validator.
+Look at [SendTx](https://github.com/nau/scalus/blob/master/examples/src/main/scala/scalus/examples/SendTx.scala#L31)
+example for a full example of how to create a transaction with this validator.
 
 ### Scalus for budget calculation with Cardano Client Lib
 
-Scalus can calculate the execution budget for your validator using the Cardano Client Lib. Just provide `ScalusTransactionEvaluator` to your `QuickTxBuilder`:
+Scalus can calculate the execution budget for your validator using the Cardano Client Lib. Just provide
+`ScalusTransactionEvaluator` to your `QuickTxBuilder`:
 
 ```scala 3
 val signedTx = quickTxBuilder
@@ -103,7 +103,8 @@ This will calculate the execution budget for your validator and add it to the re
 
 Sources: [AdaStream Contract](https://github.com/nau/adastream/blob/main/src/contract.scala)
 
-This project is a Cardano implementation of the [BitStream](https://github.com/RobinLinus/BitStream) protocol by Robin Linus, inventor of [BitVM](https://bitvm.org/)
+This project is a Cardano implementation of the [BitStream](https://github.com/RobinLinus/BitStream) protocol by Robin
+Linus, inventor of [BitVM](https://bitvm.org/)
 
 Original paper: [BitStream: Decentralized File Hosting Incentivised via Bitcoin Payments
 ](https://robinlinus.com/bitstream.pdf)
@@ -118,7 +119,8 @@ Original paper: [BitStream: Decentralized File Hosting Incentivised via Bitcoin 
 * If Bob cheats, Alice can prove it and get the collateral from the bond contract.
 * Bob can withdraw the collateral by revealing the key.
 
-The project includes a bond contract and a HTLC contract for a fair exchange of files for ADA or other Cardano Native Tokens.
+The project includes a bond contract and a HTLC contract for a fair exchange of files for ADA or other Cardano Native
+Tokens.
 
 It's a CLI tool and a REST API server that allows you to create a bond contract, pay for a file, and decrypt it.
 
@@ -128,10 +130,10 @@ It has a set of tests that check the contract logic and its execution costs.
 
 Here is a full example of a token minting/burning validator that works on both JVM and JavaScript:
 
-[MintingPolicy.scala](https://github.com/nau/scalus/blob/master/shared/src/main/scala/scalus/examples/MintingPolicy.scala)
+[MintingPolicy.scala](https://github.com/nau/scalus/blob/master/scalus-examples/shared/src/main/scala/scalus/examples/MintingPolicy.scala)
 
 And here is a project that uses it in web frontend:
-[Scalus Minting Example](https://github.com/nau/scalus/tree/master/examples-js)
+[Scalus Minting Example](https://github.com/nau/scalus/tree/master/scalus-examples/js/)
 
 ### Minimal Size Withdrawal Validator
 
@@ -139,16 +141,17 @@ The challenge was to create the smallest possible validator that checks a certai
 
 [The result is 92 bytes long script](https://gist.github.com/nau/b8996fe3e51b0e21c20479c5d8548ec7)
 
-```scala 3
-val validator = compile:
-    (script_withdrawal_credential: Data, datum: Data, redeemer: Data, ctx: Data) =>
-        def list_has(list: List[Pair[Data, Data]]): Unit =
-            if list.head.fst == script_withdrawal_credential then ()
-            else list_has(list.tail) // fails on empty list
+Here's Plutus V3 version:
 
-        inline def withdrawal_from_ctx =
-            unMapData(fieldAsData[ScriptContext](_.txInfo.withdrawals)(ctx))
-        list_has(withdrawal_from_ctx)
+```scala 3
+val validator = compile: (scriptWithdrawalCredential: Data, ctx: Data) =>
+  def contains(list: builtin.List[Pair[Data, Data]]): Unit =
+    if list.head.fst == scriptWithdrawalCredential then ()
+    else contains(list.tail) // fails on empty list
+
+  contains(ctx.field[ScriptContext](_.txInfo.withdrawals).toMap)
+
+println(validator.toUplc().plutusV3.flatEncoded.length) // 86 bytes
 ```
 
 ## Scalus Native
@@ -191,6 +194,7 @@ See the full example in the [main.c](https://github.com/nau/scalus/blob/master/e
 ```shell
 sbt scalusNative/nativeLink
 ```
+
 will produce a shared library in the `native/target/scala-3.3.4` directory.
 
 ## Roadmap
@@ -245,7 +249,7 @@ With Scalus you can do the same and much more but in Scala, and produce JavaScri
 Scalus aimes to be a better version of all the above.
 
 * You can actually reuse Scala code for your validator, frontend and backend!
-The goal that PlutusTx failed to achieve.
+  The goal that PlutusTx failed to achieve.
 
 * You can use existing Scala libraries for testing, including ScalaCheck and ScalaTest.
 

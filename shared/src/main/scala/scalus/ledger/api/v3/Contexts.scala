@@ -11,10 +11,7 @@ import scalus.builtin.FromData
 import scalus.builtin.ToData
 import scalus.ledger.api.v1.*
 import scalus.ledger.api.v2
-import scalus.prelude.AssocMap
-import scalus.prelude.List
-import scalus.prelude.Maybe
-import scalus.prelude.Rational
+import scalus.prelude.*
 
 export scalus.ledger.api.v1.Address
 export scalus.ledger.api.v1.Closure
@@ -46,7 +43,7 @@ object FromDataInstances {
     import scalus.ledger.api.v1.FromDataInstances.given
     import scalus.ledger.api.v2.FromDataInstances.given
 
-    given FromData[TxId] = (d: Data) => new TxId(d.toByteString)
+    given FromData[TxId] = (d: Data) => TxId(d.toByteString)
     given FromData[TxOutRef] = FromData.deriveCaseClass
     given FromData[DRep] = FromData.deriveEnum
     given FromData[Delegatee] = FromData.deriveEnum
@@ -63,12 +60,16 @@ object FromDataInstances {
     given FromData[TxInInfo] = FromData.deriveCaseClass
     given FromData[TxInfo] = FromData.deriveCaseClass
     given FromData[ScriptContext] = FromData.deriveCaseClass
+
+    @deprecated("Use ScriptInfo instead")
     given FromData[SpendingScriptInfo] = (d: Data) =>
         val pair = d.toConstr
         if pair.fst == BigInt(1) then
             val args = pair.snd
-            new SpendingScriptInfo(args.head.to[TxOutRef], args.tail.head.to[Maybe[Datum]])
+            SpendingScriptInfo(args.head.to[TxOutRef], args.tail.head.to[Option[Datum]])
         else throw new Exception("Invalid SpendingScriptInfo")
+
+    @deprecated("Use ScriptContext instead")
     given FromData[SpendingScriptContext] = FromData.deriveCaseClass
 }
 
@@ -104,6 +105,11 @@ case class TxOutRef(
     idx: BigInt
 )
 
+@Compile
+object TxOutRef {
+    given Eq[TxOutRef] = (a: TxOutRef, b: TxOutRef) => a.id.hash == b.id.hash && a.idx == b.idx
+}
+
 type Lovelace = BigInt
 type ColdCommitteeCredential = Credential
 
@@ -122,8 +128,8 @@ enum Delegatee:
     case StakeVote(pubKeyHash: PubKeyHash, dRep: DRep)
 
 enum TxCert:
-    case RegStaking(credential: Credential, deposit: Maybe[Lovelace])
-    case UnRegStaking(credential: Credential, refund: Maybe[Lovelace])
+    case RegStaking(credential: Credential, deposit: Option[Lovelace])
+    case UnRegStaking(credential: Credential, refund: Option[Lovelace])
     case DelegStaking(credential: Credential, delegatee: Delegatee)
     case RegDeleg(credential: Credential, delegatee: Delegatee, deposit: Lovelace)
     case RegDRep(credential: DRepCredential, deposit: Lovelace)
@@ -149,7 +155,7 @@ case class Committee(
     quorum: BigInt
 )
 
-type Constitution = Maybe[ScriptHash]
+type Constitution = Option[ScriptHash]
 
 case class ProtocolVersion(pvMajor: BigInt, pvMinor: BigInt)
 
@@ -157,23 +163,23 @@ type ChangedParameters = Data
 
 enum GovernanceAction:
     case ParameterChange(
-        id: Maybe[GovernanceActionId],
+        id: Option[GovernanceActionId],
         parameters: ChangedParameters,
-        constitutionScript: Maybe[ScriptHash]
+        constitutionScript: Option[ScriptHash]
     )
-    case HardForkInitiation(id: Maybe[GovernanceActionId], protocolVersion: ProtocolVersion)
+    case HardForkInitiation(id: Option[GovernanceActionId], protocolVersion: ProtocolVersion)
     case TreasuryWithdrawals(
         withdrawals: AssocMap[Credential, Lovelace],
-        constitutionScript: Maybe[ScriptHash]
+        constitutionScript: Option[ScriptHash]
     )
-    case NoConfidence(id: Maybe[GovernanceActionId])
+    case NoConfidence(id: Option[GovernanceActionId])
     case UpdateCommittee(
-        id: Maybe[GovernanceActionId],
+        id: Option[GovernanceActionId],
         removedMembers: List[ColdCommitteeCredential],
         addedMembers: AssocMap[ColdCommitteeCredential, BigInt],
         newQuorum: Rational
     )
-    case NewConstitution(id: Maybe[GovernanceActionId], constitution: Constitution)
+    case NewConstitution(id: Option[GovernanceActionId], constitution: Constitution)
     case InfoAction
 
 case class ProposalProcedure(
@@ -192,14 +198,19 @@ enum ScriptPurpose:
 
 enum ScriptInfo:
     case MintingScript(currencySymbol: CurrencySymbol)
-    case SpendingScript(txOutRef: TxOutRef, datum: Maybe[Datum])
+    case SpendingScript(txOutRef: TxOutRef, datum: Option[Datum] = Option.None)
     case RewardingScript(credential: Credential)
     case CertifyingScript(index: BigInt, cert: TxCert)
     case VotingScript(voter: Voter)
     case ProposingScript(index: BigInt, procedure: ProposalProcedure)
 
-case class SpendingScriptInfo(txOutRef: TxOutRef, datum: Maybe[Datum])
+@deprecated("Use ScriptInfo instead")
+case class SpendingScriptInfo(txOutRef: TxOutRef, datum: Option[Datum])
+
+@deprecated("Use ScriptInfo instead")
 case class MintingScriptInfo(currencySymbol: CurrencySymbol)
+
+@deprecated("Use ScriptInfo instead")
 case class RewardingScriptInfo(credential: Credential)
 
 case class TxInInfo(
@@ -209,29 +220,34 @@ case class TxInInfo(
 
 case class TxInfo(
     inputs: List[TxInInfo],
-    referenceInputs: List[TxInInfo],
-    outputs: List[v2.TxOut],
-    fee: Lovelace,
-    mint: Value,
-    certificates: List[TxCert],
-    withdrawals: AssocMap[Credential, Lovelace],
-    validRange: Interval,
-    signatories: List[PubKeyHash],
-    redeemers: AssocMap[ScriptPurpose, Redeemer],
-    data: AssocMap[DatumHash, Datum],
+    referenceInputs: List[TxInInfo] = List.Nil,
+    outputs: List[v2.TxOut] = List.Nil,
+    fee: Lovelace = 0,
+    mint: Value = Value.zero,
+    certificates: List[TxCert] = List.Nil,
+    withdrawals: AssocMap[Credential, Lovelace] = AssocMap.empty,
+    validRange: Interval = Interval.always,
+    signatories: List[PubKeyHash] = List.Nil,
+    redeemers: AssocMap[ScriptPurpose, Redeemer] = AssocMap.empty,
+    data: AssocMap[DatumHash, Datum] = AssocMap.empty,
     id: TxId,
-    votes: AssocMap[Voter, AssocMap[GovernanceActionId, Vote]],
-    proposalProcedures: List[ProposalProcedure],
-    currentTreasuryAmount: Maybe[Lovelace],
-    treasuryDonation: Maybe[Lovelace]
+    votes: AssocMap[Voter, AssocMap[GovernanceActionId, Vote]] = AssocMap.empty,
+    proposalProcedures: List[ProposalProcedure] = List.Nil,
+    currentTreasuryAmount: Option[Lovelace] = Option.None,
+    treasuryDonation: Option[Lovelace] = Option.None
 )
+
+object TxInfo {
+//    def placeholder: TxInfo = TxInfo()
+}
 
 case class ScriptContext(
     txInfo: TxInfo,
-    redeemer: Redeemer,
+    redeemer: Redeemer = Data.unit,
     scriptInfo: ScriptInfo
 )
 
+@deprecated("Use ScriptContext instead")
 case class SpendingScriptContext(
     txInfo: TxInfo,
     redeemer: Redeemer,

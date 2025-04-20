@@ -2,7 +2,6 @@ package scalus.ledger.api.v1
 
 import io.bullet.borer.Cbor
 import scalus.*
-import scalus.BaseValidatorSpec
 import scalus.Compiler.compile
 import scalus.Expected
 import scalus.builtin.ByteString.*
@@ -16,7 +15,7 @@ import scalus.ledger.api.v1.FromDataInstances.given
 import scalus.ledger.api.v2
 import scalus.prelude.AssocMap
 import scalus.prelude.List.*
-import scalus.prelude.Maybe.*
+import scalus.prelude.Option.*
 import scalus.toUplc
 import scalus.uplc.*
 import scalus.uplc.eval.MachineParams
@@ -67,7 +66,7 @@ class ScriptContextV1DataSerializationSpec extends BaseValidatorSpec:
 
     val address = Address(
       PubKeyCredential(PubKeyHash(hex"0001")),
-      Just(
+      Some(
         StakingCredential.StakingHash(PubKeyCredential(PubKeyHash(hex"61613031")))
       )
     )
@@ -78,7 +77,7 @@ class ScriptContextV1DataSerializationSpec extends BaseValidatorSpec:
         TxOut(
           address,
           Value(hex"aa", hex"6262", 3),
-          Just(hex"64616461")
+          Some(hex"64616461")
         ),
         Nil
       ),
@@ -135,7 +134,6 @@ class ScriptContextV1DataSerializationSpec extends BaseValidatorSpec:
 
     test("deserialize ScriptContext V1 using Plutus") {
         import scalus.ledger.api.v1.ToDataInstances.given
-        import scalus.uplc.TermDSL.given
         given PlutusVM = PlutusVM.makePlutusV1VM(machineParamsV1)
         val program = Program.fromCborHex(deserializeContractV1)
         val applied = program $ scriptContextV1.toData
@@ -166,7 +164,6 @@ class ScriptContextV1DataSerializationSpec extends BaseValidatorSpec:
 
     test("deserialize ScriptContext V2 using Plutus") {
         import scalus.ledger.api.v2.ToDataInstances.given
-        import scalus.uplc.TermDSL.given
         given PlutusVM = PlutusVM.makePlutusV2VM(machineParamsV2)
         val program = Program.fromCborHex(deserializeContractV2)
         val applied = program $ scriptContextV2.toData

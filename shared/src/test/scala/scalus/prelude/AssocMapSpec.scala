@@ -7,7 +7,6 @@ import org.scalatestplus.scalacheck.Checkers.*
 import org.scalatestplus.scalacheck.ScalaCheckPropertyChecks
 import scalus.*
 import scalus.prelude.List.*
-import scalus.prelude.Prelude.given
 import scalus.prelude.These.*
 import scalus.uplc.ArbitraryInstances
 
@@ -23,9 +22,9 @@ private object AssocMapTest {
         a: AssocMap[BigInt, BigInt],
         b: AssocMap[BigInt, BigInt]
     ): Boolean = {
-        val combined = AssocMap.toList(AssocMap.union(a, b))
+        val combined = AssocMap.union(a, b).toList
         // all values are equal, absent values are 0
-        List.foldLeft(combined, true) { case (acc, pair) =>
+        combined.foldLeft(true) { case (acc, pair) =>
             pair._2 match
                 case These(v1, v2) => acc && v1 == v2
                 case This(v1)      => acc && v1 == BigInt(0)
@@ -38,12 +37,7 @@ private object AssocMapTest {
 class AssocMapSpec extends AnyFunSuite with ScalaCheckPropertyChecks with ArbitraryInstances {
 
     test("empty") {
-        assert(AssocMap.toList(AssocMap.empty) == List.Nil)
-    }
-
-    test("isEmpty") {
-        assert(List.isEmpty(List.empty))
-        assert(!List.isEmpty(List.Cons(true, List.Nil)))
+        assert(AssocMap.empty.toList == List.Nil)
     }
 
     test("union") {
@@ -57,7 +51,7 @@ class AssocMapSpec extends AnyFunSuite with ScalaCheckPropertyChecks with Arbitr
         val term = compiled.toUplc()
         // println(VM.evaluateTerm(term).pretty.render(100))
         assert(
-          AssocMap.toList(m3) == List(
+          m3.toList == List(
             (BigInt(1), These(2, 3)),
             (BigInt(0), This(BigInt(0))),
             (BigInt(3), That(BigInt(4)))
@@ -80,33 +74,33 @@ class AssocMapSpec extends AnyFunSuite with ScalaCheckPropertyChecks with Arbitr
         }
     }
 
-    test("toList(fromList(lst)) == lst") {
+    test("fromList(lst).toList == lst") {
         check { (lst: List[(BigInt, Boolean)]) =>
-            AssocMap.toList(AssocMap.fromList(lst)) == lst
+            AssocMap.fromList(lst).toList == lst
         }
     }
 
     test("insert") {
         check { (map: AssocMap[BigInt, BigInt], k: BigInt, v: BigInt) =>
-            val m1 = AssocMap.insert(map)(k, v)
-            val lst1 = AssocMap.toList(m1).toList
+            val m1 = map.insert(k, v)
+            val lst1 = m1.toList.asScala
             lst1.contains((k, v))
         }
     }
 
     test("lookup") {
         check { (map: AssocMap[BigInt, BigInt], k: BigInt, v: BigInt) =>
-            val m1 = AssocMap.insert(map)(k, v)
-            AssocMap.lookup(m1)(k) == Maybe.Just(v)
+            val m1 = map.insert(k, v)
+            m1.lookup(k) == scalus.prelude.Option.Some(v)
         }
     }
 
     test("delete") {
         check { (map: AssocMap[BigInt, BigInt], k: BigInt, v: BigInt) =>
-            val m1 = AssocMap.insert(map)(k, v)
-            AssocMap.lookup(m1)(k) == Maybe.Just(v)
-            val m2 = AssocMap.delete(m1)(k)
-            AssocMap.lookup(m2)(k) == Maybe.Nothing
+            val m1 = map.insert(k, v)
+            m1.lookup(k) == scalus.prelude.Option.Some(v)
+            val m2 = m1.delete(k)
+            m2.lookup(k) == scalus.prelude.Option.None
         }
     }
 

@@ -32,6 +32,6 @@ trait ArbitraryInstances extends scalus.uplc.ArbitraryInstances:
 
     given Arbitrary[TxId] = Arbitrary {
         Gen
-            .containerOfN[Array, Byte](64, Arbitrary.arbitrary[Byte])
+            .containerOfN[Array, Byte](32, Arbitrary.arbitrary[Byte])
             .map(ba => TxId(ByteString.unsafeFromArray(ba)))
     }

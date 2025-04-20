@@ -9,8 +9,6 @@ import dotty.tools.dotc.core.Types.*
 import dotty.tools.dotc.util.SrcPos
 import scalus.sir.*
 
-import scala.annotation.unused
-
 case class SIRTypeEnv(
     pos: SrcPos,
     vars: Map[Symbol, SIRType],
@@ -71,7 +69,7 @@ class SIRTyper(using Context) {
                 else if tpc.isValueType then
                     val wtpc = tpc.widen
                     if wtpc != tpc then sirTypeInEnvWithErr(wtpc, env)
-                    else makeSIRNonFunValueType(tpc, Nil, env)
+                    else makeSIRNonFunValueType(tpc, env)
                 else unsupportedType(tpc, "TypeRef", env)
             case tpc: ConstantType =>
                 // hmm, widen should have taken care of this
@@ -199,11 +197,7 @@ class SIRTyper(using Context) {
         retval
     }
 
-    private def makeSIRNonFunValueType(
-        tpc: TypeRef,
-        params: List[Type],
-        env: SIRTypeEnv
-    ): SIRType = {
+    private def makeSIRNonFunValueType(tpc: TypeRef, env: SIRTypeEnv) = {
         val sym = tpc.typeSymbol
         if sym == Symbols.requiredClass("scala.math.BigInt") then SIRType.Integer
         else
@@ -235,11 +229,7 @@ class SIRTyper(using Context) {
                 makeSIRMethodType(mt, env)
             case AppliedType(tycon, args) =>
                 if defn.isFunctionType(tp) then
-                    val retval = makeFunctionClassType(
-                      tycon.typeSymbol,
-                      args.map(sirTypeInEnvWithErr(_, env)),
-                      env
-                    )
+                    val retval = makeFunctionClassType(args.map(sirTypeInEnvWithErr(_, env)))
                     retval
                 else unsupportedType(tp, "AppliedType as function", env)
             case _ =>
@@ -302,11 +292,7 @@ class SIRTyper(using Context) {
         else None
     }
 
-    private def makeFunctionClassType(
-        symbol: Symbols.Symbol,
-        list: List[SIRType],
-        env: SIRTypeEnv
-    ): SIRType = {
+    private def makeFunctionClassType(list: List[SIRType]) = {
         val args = list.init
         val res = list.last
         makeUnaryFun(args, res)
@@ -321,7 +307,6 @@ class SIRTyper(using Context) {
         env.forwardRefs.get(typeSymbol).orElse {
             val proxy = new SIRType.TypeProxy(null)
             val retval = tryMakeCaseClassOrSumTypeNoRec(
-              originType,
               typeSymbol,
               tpArgs,
               env.copy(forwardRefs = env.forwardRefs.updated(typeSymbol, proxy)),
@@ -329,30 +314,6 @@ class SIRTyper(using Context) {
             )
             retval.foreach(t => proxy.ref = t)
             retval
-        }
-    }
-
-    @unused
-    private def flatSealedTraitHierarchy(
-        top: Type,
-        childrens: List[SIRType],
-        env: SIRTypeEnv
-    ): List[ConstrDecl] = {
-        childrens.flatMap {
-            case SIRType.CaseClass(constrDecl, _, _) => Some(constrDecl)
-            case SIRType.SumCaseClass(dataDecl, _)   => dataDecl.constructors
-            case SIRType.TypeProxy(proxy) =>
-                if proxy == null then {
-                    Nil
-                } else {
-                    flatSealedTraitHierarchy(top, List(proxy), env)
-                }
-            case ch @ SIRType.TypeLambda(params, tp) =>
-                val msg = s"TypeLambda in sealed trait hierarchy: ${tp.show}"
-                throw TypingException(top, env.pos, msg)
-            case other =>
-                val msg = s"Invalid type in sealed trait hierarchy:  ${other.show}"
-                throw TypingException(top, env.pos, msg)
         }
     }
 
@@ -400,15 +361,14 @@ class SIRTyper(using Context) {
       * @return
       */
     private def tryMakeCaseClassOrSumTypeNoRec(
-        originType: Type,
         typeSymbol: Symbol,
         tpArgs: List[SIRType],
         env: SIRTypeEnv,
         thisProxy: SIRType.TypeProxy
-    ): Option[SIRType] = {
+    ) = {
         if typeSymbol.children.isEmpty then
             val optParent = retrieveParentSymbol(typeSymbol, env)
-            tryMakeCaseClassType(originType, typeSymbol, tpArgs, env, thisProxy, optParent)
+            tryMakeCaseClassType(typeSymbol, tpArgs, env, thisProxy, optParent)
         else tryMakeSumType(typeSymbol, tpArgs, env, thisProxy)
     }
 
@@ -429,26 +389,24 @@ class SIRTyper(using Context) {
     }
 
     private def tryMakeCaseClassType(
-        originType: Type,
         typeSymbol: Symbol,
         tpArgs: List[SIRType],
         env: SIRTypeEnv,
         thisProxy: SIRType.TypeProxy,
         optParentSym: Option[Symbol]
-    ): Option[SIRType] = {
+    ) = {
         // TODO: insert checks
         if typeSymbol.flags.is(Flags.Trait) || typeSymbol.flags.is(Flags.Abstract) then None
-        else Some(makeCaseClassType(originType, typeSymbol, tpArgs, env, thisProxy, optParentSym))
+        else Some(makeCaseClassType(typeSymbol, tpArgs, env, thisProxy, optParentSym))
     }
 
     private def makeCaseClassType(
-        originType: Type,
         typeSymbol: Symbol,
         tpArgs: List[SIRType],
         env: SIRTypeEnv,
         thisProxy: SIRType.TypeProxy,
         optParentSym: Option[Symbol]
-    ): SIRType = {
+    ) = {
         val retval = optParentSym match
             case Some(parentSym) =>
                 val dataDecl = makeSumClassDataDecl(parentSym, env)
@@ -559,6 +517,7 @@ class SIRTyper(using Context) {
         env: SIRTypeEnv
     ): DataDecl = {
 
+        // result list is ordered by the order of the children in the typeSymbol (the same as in text)
         val constrDecls = typeSymbol.children.map { s =>
             if s.children.isEmpty then makeCaseClassConstrDecl(s, env, Some(typeSymbol))
             else
@@ -593,39 +552,6 @@ class SIRTyper(using Context) {
           typeParams,
           AnnotationsDecl.fromSym(typeSymbol)
         )
-    }
-
-    /*
-    private def tryGetParentDataDecl(childSymbol: Symbol, env: SIRTypeEnv): Option[DataDecl] = {
-        childSymbol.info.baseClasses.find(x =>
-            x.children.nonEmpty && x.children.contains(childSymbol)
-        ) match
-            case Some(parentSym) =>
-                this.cachedDataDecl.get(parentSym) match
-                    case Some(dataDecl) => Some(dataDecl)
-                    case None =>
-                        val parentType = sirTypeInEnvWithErr(parentSym.info, env)
-                        extractDataDecl(parentType) match
-                            case Some(dataDecl) =>
-                                this.cachedDataDecl.update(parentSym, dataDecl)
-                                Some(dataDecl)
-                            case None =>
-                                val msg =
-                                    s"Parent of ${childSymbol.showFullName} is not a case class: ${parentSym.showFullName}: ${parentType.show}"
-                                throw TypingException(childSymbol.info, env.pos, msg)
-    }
-
-     */
-
-    private def extractDataDecl(tp: SIRType): Option[DataDecl] = {
-        tp match
-            case SIRType.SumCaseClass(dataDecl, _) => Some(dataDecl)
-            case SIRType.TypeProxy(proxy) =>
-                if proxy == null then None
-                else extractDataDecl(proxy)
-            case SIRType.TypeLambda(params, body) =>
-                extractDataDecl(body)
-            case _ => None
     }
 
     private def tryMakeNonCaseModule(

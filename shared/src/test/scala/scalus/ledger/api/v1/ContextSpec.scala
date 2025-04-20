@@ -10,7 +10,7 @@ import scalus.builtin.given
 import scalus.builtin.Data
 import scalus.builtin.Data.fromData
 import scalus.builtin.Data.toData
-import scalus.prelude.Prelude.*
+import scalus.prelude.*
 import scalus.sir.SIR
 import scalus.uplc.ArbitraryInstances
 import scalus.uplc.Constant
