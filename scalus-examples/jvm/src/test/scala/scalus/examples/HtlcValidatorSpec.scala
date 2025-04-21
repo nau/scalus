@@ -1,15 +1,18 @@
 package scalus.examples
 
 import com.bloxbean.cardano.client.account.Account
+import com.bloxbean.cardano.client.address.AddressProvider
+import com.bloxbean.cardano.client.api.util.CostModelUtil
 import com.bloxbean.cardano.client.common.ADAConversionUtil
-import com.bloxbean.cardano.client.plutus.spec.{ExUnits, PlutusV3Script, Redeemer, RedeemerTag}
+import com.bloxbean.cardano.client.common.model.{Network, Networks}
+import com.bloxbean.cardano.client.plutus.spec.{CostMdls, ExUnits, PlutusV3Script, Redeemer, RedeemerTag}
 import com.bloxbean.cardano.client.transaction.spec
 import com.bloxbean.cardano.client.transaction.spec.*
 import com.bloxbean.cardano.client.transaction.util.TransactionUtil
 import org.scalatest.funsuite.AnyFunSuite
 import scalus.*
 import scalus.Compiler.compile
-import scalus.bloxbean.{Interop, SlotConfig}
+import scalus.bloxbean.{Interop, SlotConfig, TxEvaluator}
 import scalus.builtin.Builtins.sha3_256
 import scalus.builtin.Data.toData
 import scalus.builtin.{ByteString, Data}
@@ -153,26 +156,29 @@ class HtlcValidatorSpec extends AnyFunSuite with ScalusTest {
 
         val payeeAddress = sender.baseAddress()
 
+        val plutusScript = PlutusV3Script
+            .builder()
+            .`type`("PlutusScriptV3")
+            .cborHex(script.doubleCborHex)
+            .build()
+            .asInstanceOf[PlutusV3Script]
         val scriptRefUtxo = Map(
           scriptRefInput -> TransactionOutput
               .builder()
               .value(spec.Value.builder().coin(BigInteger.valueOf(20)).build())
               .address(payeeAddress)
               .scriptRef(
-                PlutusV3Script
-                    .builder()
-                    .`type`("PlutusScriptV3")
-                    .cborHex(script.doubleCborHex)
-                    .build()
-                    .asInstanceOf[PlutusV3Script]
+                plutusScript
               )
               .build()
         )
+        val htlcAddress =
+            AddressProvider.getBaseAddress(plutusScript, plutusScript, Networks.mainnet())
         val htlcUtxo = Map(
           htlcInput -> TransactionOutput
               .builder()
               .value(spec.Value.builder().coin(BigInteger.valueOf(20)).build())
-              .address(payeeAddress)
+              .address(htlcAddress.getAddress)
               .inlineDatum(toPlutusData(datum))
               .build()
         )
@@ -195,6 +201,17 @@ class HtlcValidatorSpec extends AnyFunSuite with ScalusTest {
         HtlcValidator.validate(context.toData)
         // run as UPLC script
         checkResult(expected = success, actual = script.runWithDebug(context))
+
+        val costMdls = CostMdls()
+        costMdls.add(CostModelUtil.PlutusV3CostModel)
+        val evaluator = TxEvaluator(
+          SlotConfig.Mainnet,
+          initialBudget = ExBudget.fromCpuAndMemory(10_000000000L, 10_000000L),
+          protocolMajorVersion = 10,
+          costMdls = costMdls
+        )
+        val redeemers = evaluator.evaluateTx(tx, utxos)
+        assert(redeemers.size == 1)
     }
 
     def makeUnlockingTransaction(
