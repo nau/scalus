@@ -1,20 +1,26 @@
 package scalus.examples
 
+import com.bloxbean.cardano.client.account.Account
+import com.bloxbean.cardano.client.common.ADAConversionUtil
+import com.bloxbean.cardano.client.plutus.spec.{ExUnits, PlutusV3Script, Redeemer, RedeemerTag}
+import com.bloxbean.cardano.client.transaction.spec
+import com.bloxbean.cardano.client.transaction.spec.*
+import com.bloxbean.cardano.client.transaction.util.TransactionUtil
 import org.scalatest.funsuite.AnyFunSuite
 import scalus.*
-import scalus.testkit.ScalusTest
 import scalus.Compiler.compile
-import scalus.builtin.{ByteString, Data}
-import scalus.builtin.ByteString.*
+import scalus.bloxbean.{Interop, SlotConfig}
 import scalus.builtin.Builtins.sha3_256
 import scalus.builtin.Data.toData
-import scalus.builtin.ToDataInstances.given
+import scalus.builtin.{ByteString, Data}
 import scalus.ledger.api.v3.*
-import scalus.ledger.api.v3.ToDataInstances.given
-import scalus.ledger.api.v3.ScriptInfo.SpendingScript
-import scalus.prelude.{*, given}
+import scalus.prelude.*
+import scalus.testkit.ScalusTest
 import scalus.uplc.*
 import scalus.uplc.eval.*
+
+import java.math.BigInteger
+import java.util
 
 class HtlcValidatorSpec extends AnyFunSuite with ScalusTest {
     import HtlcValidator.{*, given}
@@ -118,6 +124,126 @@ class HtlcValidatorSpec extends AnyFunSuite with ScalusTest {
         ).runWithDebug()
     }
 
+    test("successfully unlock HTLC with valid preimage") {
+        import Interop.*
+
+        val preimage = genByteStringOfN(32).sample.get
+        val image = sha3_256(preimage)
+        val contractDatum = ContractDatum(
+          committer = Person.Committer.pkh,
+          receiver = Person.Receiver.pkh,
+          image = image,
+          timeout = 1745261347000L
+        )
+
+        val txid = random[TxId].hash.toHex
+        val htlcInput = new TransactionInput(txid, 0)
+        val scriptRefInput = new TransactionInput(txid, 1)
+
+        // Use a transaction builder to create the transaction
+        val tx = makeUnlockingTransaction(
+          input = htlcInput,
+          scriptRefInput = scriptRefInput,
+          startTimeMillis = 1745261346000L,
+          action = Action.Reveal(preimage),
+          signatories = Seq(PubKeyHash(Person.Receiver.pkh))
+        )
+
+        val datum = contractDatum.toData
+
+        val payeeAddress = sender.baseAddress()
+
+        val scriptRefUtxo = Map(
+          scriptRefInput -> TransactionOutput
+              .builder()
+              .value(spec.Value.builder().coin(BigInteger.valueOf(20)).build())
+              .address(payeeAddress)
+              .scriptRef(
+                PlutusV3Script
+                    .builder()
+                    .`type`("PlutusScriptV3")
+                    .cborHex(script.doubleCborHex)
+                    .build()
+                    .asInstanceOf[PlutusV3Script]
+              )
+              .build()
+        )
+        val htlcUtxo = Map(
+          htlcInput -> TransactionOutput
+              .builder()
+              .value(spec.Value.builder().coin(BigInteger.valueOf(20)).build())
+              .address(payeeAddress)
+              .inlineDatum(toPlutusData(datum))
+              .build()
+        )
+
+        val utxos = htlcUtxo ++ scriptRefUtxo
+
+        // get ScriptContext from the transaction
+        val context = Interop.getScriptContextV3(
+          redeemer = tx.getWitnessSet.getRedeemers.get(0),
+          datum = Some(datum),
+          tx = tx,
+          txhash = TransactionUtil.getTxHash(tx.serialize()),
+          utxos = utxos,
+          slotConfig = SlotConfig.Mainnet,
+          protocolVersion = 10
+        )
+
+        // run as Scala function
+        import scalus.ledger.api.v3.ToDataInstances.given
+        HtlcValidator.validate(context.toData)
+        // run as UPLC script
+        checkResult(expected = success, actual = script.runWithDebug(context))
+    }
+
+    def makeUnlockingTransaction(
+        input: TransactionInput,
+        scriptRefInput: TransactionInput,
+        startTimeMillis: PosixTime,
+        action: Action,
+        signatories: Seq[PubKeyHash]
+    ): Transaction = {
+        import Interop.*
+
+        import scala.jdk.CollectionConverters.*
+        val redeemer = action.toData
+
+        val rdmr = Redeemer
+            .builder()
+            .tag(RedeemerTag.Spend)
+            .data(toPlutusData(redeemer))
+            .index(0)
+            .exUnits(
+              ExUnits
+                  .builder()
+                  .steps(BigInteger.valueOf(1000))
+                  .mem(BigInteger.valueOf(1000))
+                  .build()
+            )
+            .build()
+
+        val inputs = util.List.of(input)
+
+        val tx = Transaction
+            .builder()
+            .body(
+              TransactionBody
+                  .builder()
+                  .validityStartInterval(
+                    SlotConfig.Mainnet.timeToSlot(startTimeMillis.toLong)
+                  )
+                  .fee(ADAConversionUtil.adaToLovelace(0.2))
+                  .inputs(inputs)
+                  .referenceInputs(util.List.of(scriptRefInput))
+                  .requiredSigners(signatories.map(_.hash.bytes).asJava)
+                  .build()
+            )
+            .witnessSet(TransactionWitnessSet.builder().redeemers(util.List.of(rdmr)).build())
+            .build()
+        tx
+    }
+
     enum Person(val pkh: ByteString):
         case Committer extends Person(genByteStringOfN(28).sample.get)
         case Receiver extends Person(genByteStringOfN(28).sample.get)
@@ -150,43 +276,31 @@ class HtlcValidatorSpec extends AnyFunSuite with ScalusTest {
         expected: Either[String, Option[ExBudget]] = success
     ):
         def runWithDebug(): Unit = {
-            this match
-                case TestCase(
-                      inputs,
-                      outputs,
-                      value,
-                      fee,
+            val (action, contractDatum) = redeemer match
+                case Person.Committer =>
+                    makeActionAndContractDatumForCommitterTransaction(timeout)
+                case Person.Receiver =>
+                    makeActionAndContractDatumForReceiverTransaction(timeout)
+                case Person.ReceiverWithInvalidPreimage =>
+                    makeActionAndContractDatumForReceiverTransaction(
                       timeout,
-                      validRange,
-                      signatories,
-                      redeemer,
-                      expected
-                    ) =>
-                    val (action, contractDatum) = redeemer match
-                        case Person.Committer =>
-                            makeActionAndContractDatumForCommitterTransaction(timeout)
-                        case Person.Receiver =>
-                            makeActionAndContractDatumForReceiverTransaction(timeout)
-                        case Person.ReceiverWithInvalidPreimage =>
-                            makeActionAndContractDatumForReceiverTransaction(
-                              timeout,
-                              isValidPreimage = false
-                            )
-
-                    val context = makeSpendingScriptContext(
-                      inputs = inputs
-                          .map(input => makePubKeyHashInput(input.person.pkh, input.value))
-                          .prepended(makeScriptHashInput(scriptHash, value)),
-                      outputs = outputs
-                          .map(output => makePubKeyHashOutput(output.person.pkh, output.value)),
-                      fee = fee,
-                      validRange = Interval.after(validRange),
-                      signatories = signatories.map(_.pkh),
-                      action = Option.Some(action),
-                      contractDatum = Option.Some(contractDatum)
+                      isValidPreimage = false
                     )
 
-                    checkResult(expected = expected, actual = script.runWithDebug(context))
+            val context = makeSpendingScriptContext(
+              inputs = inputs
+                  .map(input => makePubKeyHashInput(input.person.pkh, input.value))
+                  .prepended(makeScriptHashInput(scriptHash, value)),
+              outputs = outputs
+                  .map(output => makePubKeyHashOutput(output.person.pkh, output.value)),
+              fee = fee,
+              validRange = Interval.after(validRange),
+              signatories = signatories.map(_.pkh),
+              action = Option.Some(action),
+              contractDatum = Option.Some(contractDatum)
+            )
+
+            checkResult(expected = expected, actual = script.runWithDebug(context))
         }
 
     private def makeActionAndContractDatumForCommitterTransaction(
@@ -248,6 +362,7 @@ class HtlcValidatorSpec extends AnyFunSuite with ScalusTest {
         )
     }
 
-    private val script = compile(HtlcValidator.validate).scriptV3()
-    private val scriptHash = script.hash
+    private lazy val sender = new Account()
+    private lazy val script = compile(HtlcValidator.validate).scriptV3()
+    private lazy val scriptHash = script.hash
 }
