@@ -1,15 +1,17 @@
 package scalus.examples
 
 import scalus.*
+import scalus.builtin.FromDataInstances.given
 import scalus.builtin.{ByteString, Data}
+import scalus.builtin.Builtins
 import scalus.ledger.api.v1
-import scalus.ledger.api.v1.Value.*
 import scalus.ledger.api.v1.{Credential, PubKeyHash, Value}
+import scalus.ledger.api.v1.Value.*
 import scalus.ledger.api.v2.TxOut
-import scalus.ledger.api.v3.*
+import scalus.ledger.api.v3.{TxInfo, TxOutRef}
+import scalus.prelude.{*, given}
 import scalus.prelude.List.*
 import scalus.prelude.Option.*
-import scalus.prelude.{*, given}
 
 /** Split payouts equally among a list of specified payees
   *
@@ -21,32 +23,30 @@ import scalus.prelude.{*, given}
   * restricted to the payees. The output sum must be equally divided to ensure the transaction is
   * successful.
   *
-  * Payee who triggers the payout must also pay the fee and can get a reminder from the equal split.
-  *
   * @see
   *   [[https://meshjs.dev/smart-contracts/payment-splitter]]
   */
 @Compile
-object PaymentSplitter extends ParameterizedValidator[List[Credential.PubKeyCredential]] {
+object PaymentSplitter extends DataParameterizedValidator {
 
-    /** @param payeesData
-      *   List of payees list to split the payment to.
-      * @param scriptContext
-      *   [[ScriptContext]]
-      *
-      * @example
-      *   {{{
-      *     val payees = List(A, B, C)
-      *     val script = PaymentSplitter.validate(payees)
-      *   }}}
-      */
     override def spend(
-        payees: List[Credential.PubKeyCredential],
+        payeesData: Data,
         datum: Option[Data],
         redeemer: Data,
         tx: TxInfo,
         ownRef: TxOutRef
     ): Unit = {
+        // Note, that this expression is for compatibility with the data parametrization of the Aiken implementation.
+        val payees = payeesData.toList.head
+            .to[List[ByteString]]
+            .map(payee => Credential.PubKeyCredential(PubKeyHash(payee)))
+
+        val myTxInputCredential = tx.inputs
+            .find(_.outRef === ownRef)
+            .getOrFail("No output to the contract")
+            .resolved
+            .address
+            .credential
 
         // Find the first and single payee that triggers the payout and pays the fee
         //  and calculate the sum of contract inputs
@@ -57,8 +57,11 @@ object PaymentSplitter extends ParameterizedValidator[List[Credential.PubKeyCred
                     then
                         if optTxOut.isEmpty then (Some(input.resolved), sumContractInputs)
                         else fail("Already found a fee payer")
-                    else // if (input.resolved.address === sourceTxOutRef)   ???)
+                    else if input.resolved.address.credential === myTxInputCredential then
                         (optTxOut, sumContractInputs + input.resolved.value.getLovelace)
+                    else
+                        // TODO: think
+                        fail("Input not from the contract or payer")
             }
 
         val payeeInputWithChange = optPayeeInputWithChange.getOrFail(
@@ -73,10 +76,7 @@ object PaymentSplitter extends ParameterizedValidator[List[Credential.PubKeyCred
                 payees match
                     case Nil => fail("More outputs than payees")
                     case Cons(payee, payeesTail) =>
-                        require(
-                          output.address.credential === payee,
-                          "Must pay to a payee"
-                        )
+                        require(output.address.credential === payee, "Must pay to a payee")
                         val nextSum = sum + value
                         if payeeInputWithChange.address.credential === output.address.credential
                         then (payeesTail, optPrevSplit, Some(output), nextSum, nOutputs + 1)
@@ -84,6 +84,7 @@ object PaymentSplitter extends ParameterizedValidator[List[Credential.PubKeyCred
                             require(optPrevSplit.forall(value === _), "Split unequally")
                             (payeesTail, Some(value), optPayWithChange, nextSum, nOutputs + 1)
             }
+
         require(unpaidPayees.isEmpty, "Not all payees were paid")
         optSplit match
             case None => // one payee, no split
@@ -91,15 +92,13 @@ object PaymentSplitter extends ParameterizedValidator[List[Credential.PubKeyCred
                 val payeeOutputWithChange = optPayeeOutputWithChange.getOrFail("No change output")
                 val eqSumValue = sumOutput - payeeOutputWithChange.value.getLovelace + split
                 val reminder = sumContractInputs - eqSumValue
-                require(
-                  reminder < nOutputs,
-                  "reminder must be less than nOutputs"
-                  // s"""reminder (${reminder}) must be less than nOutputs (${nOutputs},
-                  //  sumOutput (${sumOutput}), eqSumValue (${eqSumValue}), split (${split}))
-                  //  """
-                )
-            // TODO:  introduce a maximum reminder which can be paid to the fee payer,
-            //          and add output to contract change if any ?
-
+                require(reminder < nOutputs, "value to be payed to payees is too low")
+                //    nOutputs * (split + 1) > sumContractInputs   <=>
+                //    nOutputs * split + nOutputs > sumContractInputs <=>
+                //    eqSumValue + nOutputs > sumContractInputs <=>
+                //    nOutputs > reminder ( = sumContractInputs - eqSumValue)
+                //
+                // max number of payers ≈ 250 (16kB / 28 bytes / 2 (inputs and outputs))
+                // thus, up to 250 lovelace of reminder is possible, so we can ignore it
     }
 }

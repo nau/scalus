@@ -158,12 +158,12 @@ class PaymentSplitterSpec extends AnyFunSuite, ScalusTest {
 
     private val script = {
         try {
-            compile(PaymentSplitterDI.validate)
+            compile(PaymentSplitter.validate)
                 .toUplc(generateErrorTraces = true)
                 .plutusV3
         } catch {
             case NonFatal(ex) =>
-                println("Can't compile script PaymentSplitterDI.validate")
+                println("Can't compile script PaymentSplitter.validate")
                 ex.printStackTrace()
                 throw ex
         }
@@ -225,7 +225,7 @@ class PaymentSplitterSpec extends AnyFunSuite, ScalusTest {
         val program = applied $ context.toData
 
         if runScalaVersion then
-            try PaymentSplitterDI.validate(List(payees.toData).toData)(context.toData)
+            try PaymentSplitter.validate(List(payees.toData).toData)(context.toData)
             catch
                 case NonFatal(ex) =>
                     if expected.isRight then throw ex
