@@ -2,6 +2,7 @@ package scalus.examples
 
 import org.scalatest.funsuite.AnyFunSuite
 import scalus.*
+import scalus.testkit.ScalusTest
 import scalus.Compiler.compile
 import scalus.builtin.{ByteString, Data}
 import scalus.builtin.ByteString.*
@@ -19,97 +20,108 @@ class HtlcValidatorSpec extends AnyFunSuite with ScalusTest {
     import HtlcValidator.{*, given}
     import Person.*
 
-    TestCases(
-      TestCase(
-        description = "successful benefactor",
-        inputs = List(Benefactor gives 100),
-        outputs = List(Benefactor gets 1050),
-        value = 1000,
-        fee = 50,
-        timeout = 500,
-        validRange = 1000,
-        signatories = List(Benefactor),
-        redeemer = Benefactor,
-        expected = success
-      ),
-      TestCase(
-        description = "successful beneficiary",
-        inputs = List(Beneficiary gives 100),
-        outputs = List(Beneficiary gets 1050),
-        value = 1000,
-        fee = 50,
-        timeout = 1000,
-        validRange = 500,
-        signatories = List(Beneficiary),
-        redeemer = Beneficiary,
-        expected = success
-      ),
-      TestCase(
-        description = "unsigned benefactor transaction",
-        inputs = List(Benefactor gives 100),
-        outputs = List(Benefactor gets 1050),
-        value = 1000,
-        fee = 50,
-        timeout = 500,
-        validRange = 1000,
-        signatories = List.empty,
-        redeemer = Benefactor,
-        expected = failure(UnsignedBenefactorTransaction)
-      ),
-      TestCase(
-        description = "unsigned beneficiary transaction",
-        inputs = List(Beneficiary gives 100),
-        outputs = List(Beneficiary gets 1050),
-        value = 1000,
-        fee = 50,
-        timeout = 1000,
-        validRange = 500,
-        signatories = List.empty,
-        redeemer = Beneficiary,
-        expected = failure(UnsignedBeneficiaryTransaction)
-      ),
-      TestCase(
-        description = "invalid benefactor time point",
-        inputs = List(Benefactor gives 100),
-        outputs = List(Benefactor gets 1050),
-        value = 1000,
-        fee = 50,
-        timeout = 1000,
-        validRange = 500,
-        signatories = List(Benefactor),
-        redeemer = Benefactor,
-        expected = failure(InvalidBenefactorTimePoint)
-      ),
-      TestCase(
-        description = "invalid beneficiary time point",
-        inputs = List(Beneficiary gives 100),
-        outputs = List(Beneficiary gets 1050),
-        value = 1000,
-        fee = 50,
-        timeout = 500,
-        validRange = 1000,
-        signatories = List(Beneficiary),
-        redeemer = Beneficiary,
-        expected = failure(InvalidBeneficiaryTimePoint)
-      ),
-      TestCase(
-        description = "invalid beneficiary preimage",
-        inputs = List(BeneficiaryWithInvalidPreimage gives 100),
-        outputs = List(BeneficiaryWithInvalidPreimage gets 1050),
-        value = 1000,
-        fee = 50,
-        timeout = 1000,
-        validRange = 500,
-        signatories = List(BeneficiaryWithInvalidPreimage),
-        redeemer = BeneficiaryWithInvalidPreimage,
-        expected = failure(InvalidPreimage)
-      )
-    )
+    test("successful committer") {
+        TestCase(
+          inputs = List(Committer gives 100),
+          outputs = List(Committer gets 1050),
+          value = 1000,
+          fee = 50,
+          timeout = 500,
+          validRange = 1000,
+          signatories = List(Committer),
+          redeemer = Committer,
+          expected = success
+        ).runWithDebug()
+    }
+
+    test("successful receiver") {
+        TestCase(
+          inputs = List(Receiver gives 100),
+          outputs = List(Receiver gets 1050),
+          value = 1000,
+          fee = 50,
+          timeout = 1000,
+          validRange = 500,
+          signatories = List(Receiver),
+          redeemer = Receiver,
+          expected = success
+        ).runWithDebug()
+    }
+
+    test("unsigned committer transaction") {
+        TestCase(
+          inputs = List(Committer gives 100),
+          outputs = List(Committer gets 1050),
+          value = 1000,
+          fee = 50,
+          timeout = 500,
+          validRange = 1000,
+          signatories = List.empty,
+          redeemer = Committer,
+          expected = failure(UnsignedCommitterTransaction)
+        ).runWithDebug()
+    }
+
+    test("unsigned receiver transaction") {
+        TestCase(
+          inputs = List(Receiver gives 100),
+          outputs = List(Receiver gets 1050),
+          value = 1000,
+          fee = 50,
+          timeout = 1000,
+          validRange = 500,
+          signatories = List.empty,
+          redeemer = Receiver,
+          expected = failure(UnsignedReceiverTransaction)
+        ).runWithDebug()
+    }
+
+    test("invalid committer time point") {
+        TestCase(
+          inputs = List(Committer gives 100),
+          outputs = List(Committer gets 1050),
+          value = 1000,
+          fee = 50,
+          timeout = 1000,
+          validRange = 500,
+          signatories = List(Committer),
+          redeemer = Committer,
+          expected = failure(InvalidCommitterTimePoint)
+        ).runWithDebug()
+    }
+
+    test("invalid receiver time point") {
+        TestCase(
+          inputs = List(Receiver gives 100),
+          outputs = List(Receiver gets 1050),
+          value = 1000,
+          fee = 50,
+          timeout = 500,
+          validRange = 1000,
+          signatories = List(Receiver),
+          redeemer = Receiver,
+          expected = failure(InvalidReceiverTimePoint)
+        ).runWithDebug()
+    }
+
+    test("invalid receiver preimage") {
+        TestCase(
+          inputs = List(ReceiverWithInvalidPreimage gives 100),
+          outputs = List(ReceiverWithInvalidPreimage gets 1050),
+          value = 1000,
+          fee = 50,
+          timeout = 1000,
+          validRange = 500,
+          signatories = List(ReceiverWithInvalidPreimage),
+          redeemer = ReceiverWithInvalidPreimage,
+          expected = failure(InvalidReceiverPreimage)
+        ).runWithDebug()
+    }
 
     enum Person(val pkh: ByteString):
-        case Benefactor extends Person(genByteStringOfN(28).sample.get)
-        case Beneficiary extends Person(genByteStringOfN(28).sample.get)
-        case BeneficiaryWithInvalidPreimage extends Person(genByteStringOfN(28).sample.get)
+        case Committer extends Person(genByteStringOfN(28).sample.get)
+        case Receiver extends Person(genByteStringOfN(28).sample.get)
+        case ReceiverWithInvalidPreimage extends Person(genByteStringOfN(28).sample.get)
         case A extends Person(genByteStringOfN(28).sample.get)
         case B extends Person(genByteStringOfN(28).sample.get)
         case C extends Person(genByteStringOfN(28).sample.get)
@@ -127,7 +139,6 @@ class HtlcValidatorSpec extends AnyFunSuite with ScalusTest {
     case class Output(person: Person, value: BigInt)
 
     case class TestCase(
-        description: String,
         inputs: List[Input] = List.empty,
         outputs: List[Output] = List.empty,
         value: BigInt = 0,
@@ -135,85 +146,79 @@ class HtlcValidatorSpec extends AnyFunSuite with ScalusTest {
         timeout: BigInt = 0,
         validRange: BigInt = 0,
         signatories: List[Person] = List.empty,
-        redeemer: Benefactor.type | Beneficiary.type | BeneficiaryWithInvalidPreimage.type =
-            Benefactor,
+        redeemer: Committer.type | Receiver.type | ReceiverWithInvalidPreimage.type = Committer,
         expected: Either[String, Option[ExBudget]] = success
-    )
-
-    object TestCases {
-        def apply(testCases: TestCase*): Unit = {
-            testCases.zipWithIndex.foreach {
-                case (
-                      TestCase(
-                        description,
-                        inputs,
-                        outputs,
-                        value,
-                        fee,
-                        timeout,
-                        validRange,
-                        signatories,
-                        redeemer,
-                        expected
-                      ),
-                      testCaseIndex
+    ):
+        def runWithDebug(): Unit = {
+            this match
+                case TestCase(
+                      inputs,
+                      outputs,
+                      value,
+                      fee,
+                      timeout,
+                      validRange,
+                      signatories,
+                      redeemer,
+                      expected
                     ) =>
-                    test(s"${testCaseIndex + 1}: $description") {
-                        val (contractRedeemer, contractDatum) = redeemer match
-                            case Person.Benefactor  => makeBenefactorRedeemerAndDatum(timeout)
-                            case Person.Beneficiary => makeBeneficiaryRedeemerAndDatum(timeout)
-                            case Person.BeneficiaryWithInvalidPreimage =>
-                                makeBeneficiaryRedeemerAndDatum(timeout, isValidPreimage = false)
+                    val (action, contractDatum) = redeemer match
+                        case Person.Committer =>
+                            makeActionAndContractDatumForCommitterTransaction(timeout)
+                        case Person.Receiver =>
+                            makeActionAndContractDatumForReceiverTransaction(timeout)
+                        case Person.ReceiverWithInvalidPreimage =>
+                            makeActionAndContractDatumForReceiverTransaction(
+                              timeout,
+                              isValidPreimage = false
+                            )
 
-                        val context = makeSpendingScriptContext(
-                          inputs = inputs
-                              .map(input => makePubKeyHashInput(input.person.pkh, input.value))
-                              .prepended(makeScriptHashInput(scriptHash, value)),
-                          outputs = outputs
-                              .map(output => makePubKeyHashOutput(output.person.pkh, output.value)),
-                          fee = fee,
-                          validRange = Interval.after(validRange),
-                          signatories = signatories.map(_.pkh),
-                          contractRedeemer = Option.Some(contractRedeemer),
-                          contractDatum = Option.Some(contractDatum)
-                        )
+                    val context = makeSpendingScriptContext(
+                      inputs = inputs
+                          .map(input => makePubKeyHashInput(input.person.pkh, input.value))
+                          .prepended(makeScriptHashInput(scriptHash, value)),
+                      outputs = outputs
+                          .map(output => makePubKeyHashOutput(output.person.pkh, output.value)),
+                      fee = fee,
+                      validRange = Interval.after(validRange),
+                      signatories = signatories.map(_.pkh),
+                      action = Option.Some(action),
+                      contractDatum = Option.Some(contractDatum)
+                    )
 
-                        checkResult(expected = expected, actual = script.runWithDebug(context))
-                    }
-            }
+                    checkResult(expected = expected, actual = script.runWithDebug(context))
         }
-    }
 
-    private def makeBenefactorRedeemerAndDatum(
+    private def makeActionAndContractDatumForCommitterTransaction(
         timeout: BigInt
-    ): (ContractRedeemer, ContractDatum) = {
+    ): (Action, ContractDatum) = {
         val contractDatum = ContractDatum(
-          benefactor = Person.Benefactor.pkh,
-          beneficiary = Person.Beneficiary.pkh,
+          committer = Person.Committer.pkh,
+          receiver = Person.Receiver.pkh,
           image = genByteStringOfN(32).sample.get,
           timeout = timeout
         )
 
-        (ContractRedeemer.Benefactor, contractDatum)
+        (Action.Timeout, contractDatum)
     }
 
-    private def makeBeneficiaryRedeemerAndDatum(
+    private def makeActionAndContractDatumForReceiverTransaction(
         timeout: BigInt,
         isValidPreimage: Boolean = true
-    ): (ContractRedeemer, ContractDatum) = {
-        val contractRedeemer: ContractRedeemer.Beneficiary =
-            ContractRedeemer.Beneficiary(preimage = genByteStringOfN(32).sample.get)
+    ): (Action, ContractDatum) = {
+        val action: Action.Reveal =
+            Action.Reveal(preimage = genByteStringOfN(32).sample.get)
 
         val contractDatum = ContractDatum(
-          benefactor = Person.Benefactor.pkh,
-          beneficiary =
-              if isValidPreimage then Person.Beneficiary.pkh
-              else Person.BeneficiaryWithInvalidPreimage.pkh,
-          image = if isValidPreimage then sha3_256(contractRedeemer.preimage) else ByteString.empty,
+          committer = Person.Committer.pkh,
+          receiver =
+              if isValidPreimage then Person.Receiver.pkh
+              else Person.ReceiverWithInvalidPreimage.pkh,
+          image = if isValidPreimage then sha3_256(action.preimage) else ByteString.empty,
           timeout = timeout
         )
 
-        (contractRedeemer, contractDatum)
+        (action, contractDatum)
     }
 
     private def makeSpendingScriptContext(
@@ -222,7 +227,7 @@ class HtlcValidatorSpec extends AnyFunSuite with ScalusTest {
         fee: BigInt = 0,
         validRange: Interval = Interval.always,
         signatories: List[ByteString] = List.empty,
-        contractRedeemer: Option[ContractRedeemer] = Option.empty,
+        action: Option[Action] = Option.empty,
         contractDatum: Option[ContractDatum] = Option.empty,
         indexOfInputWithHtlcScript: BigInt = 0
     ): ScriptContext = {
@@ -235,7 +240,7 @@ class HtlcValidatorSpec extends AnyFunSuite with ScalusTest {
             signatories = signatories.map(PubKeyHash(_)),
             id = random[TxId]
           ),
-          redeemer = contractRedeemer.map(_.toData).getOrElse(Data.unit),
+          redeemer = action.map(_.toData).getOrElse(Data.unit),
           scriptInfo = ScriptInfo.SpendingScript(
             txOutRef = inputs.at(indexOfInputWithHtlcScript).outRef,
             datum = contractDatum.map(_.toData)
