@@ -107,6 +107,7 @@ object ToData {
         val constr = classSym.primaryConstructor
         val params = constr.paramSymss.flatten
         val paramsNameType = params.map(p => p.name -> p.typeRef)
+
         /*
       Generate a pattern match to introduce all the params,
       to avoid a.field1, a.field2, etc.
