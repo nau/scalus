@@ -36,17 +36,14 @@ object PaymentSplitter extends DataParameterizedValidator {
         tx: TxInfo,
         ownRef: TxOutRef
     ): Unit = {
-        // Note, that this expression is for compatibility with the data parametrization of the Aiken implementation.
+        // Note, that this expression is for compatibility
+        // with the data parametrization of the Aiken implementation.
         val payees = payeesData.toList.head
             .to[List[ByteString]]
             .map(payee => Credential.PubKeyCredential(PubKeyHash(payee)))
 
-        val myTxInputCredential = tx.inputs
-            .find(_.outRef === ownRef)
-            .getOrFail("No output to the contract")
-            .resolved
-            .address
-            .credential
+        val myTxInputCredential =
+            tx.inputs.find(_.outRef === ownRef).get.resolved.address.credential
 
         // Find the first and single payee that triggers the payout and pays the fee
         //  and calculate the sum of contract inputs
