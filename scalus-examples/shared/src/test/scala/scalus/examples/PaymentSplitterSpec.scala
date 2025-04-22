@@ -169,15 +169,18 @@ class PaymentSplitterSpec extends AnyFunSuite, ScalusTest {
         }
     }
 
-    /*
-    private val aikenScript = {
+    private lazy val aikenScript = {
         import upickle.default.*
-        val obj = read[ujson.Obj](this.getClass.getResourceAsStream("/plutus.json"))
+        val inputStream = this.getClass.getResourceAsStream("/plutus.json")
+        if inputStream == null then {
+            println("Can't load script from /plutus.json")
+            throw new RuntimeException("Resource not found: /plutus.json")
+        }
+        val obj = read[ujson.Obj](inputStream)
         val cborHex = obj("validators").arr(0)("compiledCode").str
-        DeBruijnedProgram.fromCborHex(cborHex)
+        val program = DeBruijnedProgram.fromCborHex(cborHex).toProgram
+        program
     }
-
-     */
 
     private val lockTxId = random[TxId]
     private val payeesTxId = random[TxId]
@@ -185,6 +188,7 @@ class PaymentSplitterSpec extends AnyFunSuite, ScalusTest {
     private val scriptHash = blake2b_224(ByteString.fromArray(3 +: script.cborEncoded))
 
     private val runScalaVersion = true
+    private val runAikenVersion = false
 
     private def assertCase(
         payees: List[ByteString],
@@ -202,7 +206,34 @@ class PaymentSplitterSpec extends AnyFunSuite, ScalusTest {
         expected: Either[String, Option[ExBudget]]
     ): Unit = {
         // Create script with payees parameter
-        val applied = script $ List(payees).toData
+
+        val payeesData = List(payees).toData
+
+        val payeesTerm =
+            Term.Const(
+              uplc.Constant
+                  .List(
+                    DefaultUni.ProtoList,
+                    scala.List(
+                      uplc.Constant.List(
+                        DefaultUni.ByteString,
+                        payees.asScala.map(bs => uplc.Constant.ByteString(bs)).toList
+                      )
+                    )
+                  )
+            )
+
+        // import scalus.builtin.FromDataInstances.given
+        // val compiledList = compile { (d: scalus.builtin.Data) =>
+        //    d.to[List[ByteString]]
+        // }
+        // val payeesUplc = compiledList.toUplc(true) $ Term.Const(Constant.Data(payeesData))
+
+        val applied =
+            if runAikenVersion then {
+                // println(s"aikenScript: ${aikenScript.pretty.render(100)}")
+                aikenScript $ payeesData
+            } else script $ payeesData
 
         // Build transaction outputs from provided parameters
         val txOutputs = outputs.map { case (pkh, amount) =>
@@ -249,6 +280,13 @@ class PaymentSplitterSpec extends AnyFunSuite, ScalusTest {
             case Right(success) =>
                 success match
                     case Option.None =>
+                        result match
+                            case Result.Failure(ex, budget, cost, logs) =>
+                                ex match
+                                    case be: scalus.uplc.eval.BuiltinError =>
+                                        be.cause.printStackTrace()
+                                    case _ =>
+                            case _ =>
                         assert(
                           result.isSuccess,
                           clue =
