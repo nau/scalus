@@ -1,8 +1,11 @@
 export default {
   index: '',
   'get-started': '',
-  'first-dapp': 'First Application',
-  features: '',
-  themes: '',
-  advanced: ''
+  'smart-contract': 'First Smart Contract',
+  'dapp': 'First Decentralised Application',
+  'language-tour': 'Language Tour',
+  'advanced': '',
+  'features': '',
+  'themes': '',
+  
 }

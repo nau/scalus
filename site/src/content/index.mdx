@@ -1,28 +1,28 @@
-import { Bleed } from 'nextra/components'
+import { Bleed, Cards } from 'nextra/components'
+import Image from 'next/image'
 
 # Introduction
-## What is Scalus?
 
-Scalus is a development platform that brings the power and expressiveness of Scala to the Cardano blockchain
-ecosystem. It allows developers to write both on-chain smart contracts and off-chain application logic using a single
-language: Scala.
+<Image src="/scalus-logo-dark.png" alt="Hello" width={400} height={400} style={{ display: 'block', margin: '0 auto' }} />
 
-Traditional Cardano development requires learning specialized languages like Aiken or Plutarch/Haskell for on-chain
-code, while using another language for client applications. Scalus eliminates this complexity by providing a unified
-development experience.
+**Scalus** is a development platform for building decentralized applications (DApps) on the Cardano blockchain. It provides a unified environment where developers can write both on-chain smart contracts and off-chain logic using [Scala 3](/docs/language-tour/scala3) - a modern, expressive, and type-safe functional programming language.
 
-{/* TODO: Update the code - simple validator */}
-```scala filename="welcome.scala" copy showLineNumbers
-object Hello {
-    def main(args: Array[String]) = {
-        println("Hello, world")
-    }
-}
-```
+## Meet Scalus
 
-Scalus compiles annotated Scala code directly to Plutus Core (the execution language of the Cardano blockchain) while
- maintaining all the safety guarantees and expressiveness of the Scala language. This unified approach significantly
- reduces the complexity of building, testing, and deploying Cardano applications.
+- Write Cardano smart contracts in Scala 3 that compile to UPLC
+- Maintain fine-grained control over generated on-chain code with [advanced optimisations](/docs/advanced)
+- Build and evaluate transactions off-chain
+- Integrate on-chain and off-chain components in your full-stack application
+- Test your entire application with unit, integration, and property-based tests
+- Debug your solution on a testnet
+- Build and deploy production-ready application to mainnet
+
+
+Enjoy a modern development experience with excellent IDE support, and the [extensive Scala](https://index.scala-lang.org/) & JVM ecosystems.
+
+Say goodbye to juggling multiple languages, libraries, and tools—meet Scalus, a development platform made for professionals and businesses who want to get things done.
+
+
 
 ## Why Scalus for Cardano Development?
 

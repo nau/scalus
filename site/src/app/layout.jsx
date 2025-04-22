@@ -5,28 +5,22 @@ import { getPageMap } from 'nextra/page-map'
 import 'nextra-theme-docs/style.css'
 
 export const metadata = {
-  metadataBase: new URL('https://nextra.site'),
+  metadataBase: new URL('https://scalus.org'),
   title: {
-    template: '%s - Nextra'
+    template: '%s - Scalus'
   },
-  logo: (
-      <span>
-        <img src="/logo.svg" alt="Logo" style={{ height: '2rem', marginRight: '0.5rem' }} />
-        My Docs
-      </span>
-    ),
-  description: 'Nextra: the Next.js site builder',
-  applicationName: 'Nextra',
+  description: 'Scalus: DApps Development Platform for Cardano',
+  applicationName: 'Scalus',
   generator: 'Next.js',
   appleWebApp: {
-    title: 'Nextra'
+    title: 'Scalus'
   },
   other: {
     'msapplication-TileImage': '/ms-icon-144x144.png',
     'msapplication-TileColor': '#fff'
   },
   twitter: {
-    site: 'https://nextra.site'
+    site: 'https://scalus.org'
   }
 }
 
@@ -53,7 +47,7 @@ export default async function RootLayout({ children }) {
         <Layout
           // banner={<Banner storageKey="Nextra 2">Scalus News Banner</Banner>}
           navbar={navbar}
-          footer={<Footer>Apache 2.0 {new Date().getFullYear()} © 2025 Lantr Labs.</Footer>}
+          footer={<Footer>Apache 2.0 © {new Date().getFullYear()} Lantr Labs</Footer>}
           // editLink="Edit this page on GitHub"
           docsRepositoryBase="https://github.com/nau/scalus"
           sidebar={{ defaultMenuCollapseLevel: 1 }}
