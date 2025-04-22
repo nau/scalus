@@ -56,7 +56,7 @@ object FromData {
         deriveConstructorMacro[T]
     }
 
-    private def deriveConstructorMacro[T: Type](using
+    private[scalus] def deriveConstructorMacro[T: Type](using
         Quotes
     ): Expr[scalus.builtin.List[Data] => T] =
         import quotes.reflect.*
@@ -95,7 +95,7 @@ object FromData {
         }
         '{ (args: scalus.builtin.List[scalus.builtin.Data]) => ${ genConstructorCall('{ args }) } }
 
-    private def deriveCaseClassMacro[T: Type](using Quotes): Expr[FromData[T]] =
+    private[scalus] def deriveCaseClassMacro[T: Type](using Quotes): Expr[FromData[T]] =
         '{ (d: Data) =>
             val args = scalus.builtin.Builtins.unConstrData(d).snd
 

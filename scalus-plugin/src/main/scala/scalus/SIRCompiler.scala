@@ -12,6 +12,7 @@ import dotty.tools.dotc.core.Symbols.*
 import dotty.tools.dotc.core.Types.*
 import dotty.tools.dotc.core.*
 import dotty.tools.dotc.util.{NoSourcePosition, SourcePosition, SrcPos}
+import scalus.SIRCompiler.SIRVersion
 import scalus.flat.EncoderState
 import scalus.flat.Flat
 import scalus.flat.FlatInstantces.given
@@ -1369,7 +1370,68 @@ final class SIRCompiler(using ctx: Context) {
               s"compileApply: ${f.show}, targs: $targs, args: $args, applyTpe: $applyTpe, applyTree: $applyTree"
             )
         val env = fillTypeParamInTypeApply(f.symbol, targs, env0)
-        val fE = compileExpr(env, f)
+        // val isNoSymApply = f match
+        //    case Select(qual, nme.apply) if qual.symbol ==
+        val fE = f match
+            case Select(qual, nme.apply) if qual.symbol == NoSymbol =>
+                println(s"NoSymApply, qual: ${qual.show}")
+                println(s"qual.tpe=${qual.tpe.show}, qual.tpe.typeSymbol=${qual.tpe.typeSymbol}")
+                println(s"qual.tpe.isSingleton=${qual.tpe.isSingleton}")
+                println(s"qual.tpe.flags=${qual.tpe.typeSymbol.flagsString}")
+                println(s"isFunctionType(qual.tpe.widen)=${defn.isFunctionType(qual.tpe.widen)}")
+                println(s"isFunctionType(qual.tpe)=${defn.isFunctionType(qual.tpe)}")
+                println(s"qual.tpe.typeSymol=${qual.tpe.typeSymbol}")
+                println(s"qual.tpe.termSymbol=${qual.tpe.termSymbol}")
+                println(s"qual.tpe.termSymbol.fullName=${qual.tpe.termSymbol.fullName}")
+                println(s"qual.tpe.classSymbol=${qual.tpe.classSymbol}")
+                val nArgs = args.length
+                val functionN = defn.FunctionSymbol(nArgs)
+                val baseFunction = qual.tpe.baseType(functionN)
+                if baseFunction.exists then println(s"baseFunction: ${baseFunction.show}")
+                else println(s"baseFunction for ${qual.tpe.show} does not exist")
+                if qual.tpe.isSingleton && baseFunction.exists then
+                    val termSymbol = qual.tpe.termSymbol
+                    if termSymbol.exists then
+                        val fullName = termSymbol.fullName
+                        val ownerFullName = termSymbol.owner.fullName
+                        val scalusCompileDerivations =
+                            Symbols.requiredClass("scalus.CompileDerivations")
+                        if qual.tpe.baseType(scalusCompileDerivations).exists then {
+                            println(
+                              s"Emitting external var for fun: module ${ownerFullName.show}, name ${fullName.show} "
+                            )
+                            SIR.ExternalVar(
+                              ownerFullName.show,
+                              fullName.show,
+                              sirTypeInEnv(baseFunction, f.srcPos, env),
+                              AnnotationsDecl.fromSrcPos(f.srcPos)
+                            )
+                        } else
+                            error(
+                              GenericError(
+                                s"""You are trying to apply a function `${qual.show}` with ${nArgs} arguments,
+                                  |but the function is not marked as CompileDerivations and will not be available in Scalus.
+                                  |""".stripMargin,
+                                f.srcPos
+                              ),
+                              SIR.Error(
+                                "Reference to non-marked function",
+                                AnnotationsDecl.fromSrcPos(f.srcPos)
+                              )
+                            )
+                    else
+                        val message = s"Can't resolve term symbol for singleton  ${qual.tpe.show}"
+                        error(
+                          GenericError(message, f.srcPos),
+                          SIR.Error(message, AnnotationsDecl.fromSrcPos(f.srcPos))
+                        )
+                else
+                    error(
+                      GenericError("Apply without symbol", f.srcPos),
+                      SIR.Error("Apply without symbol", AnnotationsDecl.fromSrcPos(f.srcPos))
+                    )
+            case _ =>
+                compileExpr(env, f)
         val applySirType = sirTypeInEnv(applyTpe, applyTree.srcPos, env)
         val argsE = args.map(compileExpr(env, _))
         val applyAnns = AnnotationsDecl.fromSrcPos(applyTree.srcPos)
@@ -1725,23 +1787,7 @@ final class SIRCompiler(using ctx: Context) {
                     .is(Flags.Synthetic) && apply.symbol.owner.flags.is(Flags.ModuleClass)
                     && apply.symbol.name.toString == "apply" =>
                 val classSymbol: Symbol = apply.symbol.owner.linkedClass
-                try compileNewConstructor(env, classSymbol.typeRef, tree.tpe.widen, args, tree)
-                catch
-                    case ex: RuntimeException =>
-                        println(
-                          s"exception in compileNewConstructor, classSymbol [Apply.owner.linkedClass]: ${classSymbol} "
-                        )
-                        println(
-                          s"apply.symbol.name=${apply.symbol.name}"
-                        )
-                        println(
-                          s"classSymbol.typeRef=${classSymbol.typeRef}, classSymbol.isType=${classSymbol.isType}"
-                        )
-                        println(
-                          s"classSymbol.typeRef.isGenericTuple=${classSymbol.typeRef.isGenericTuple}"
-                        )
-                        throw ex
-
+                compileNewConstructor(env, classSymbol.typeRef, tree.tpe.widen, args, tree)
             case Apply(apply @ Select(f, nme.apply), args)
                 if apply.symbol.flags
                     .is(Flags.Synthetic) && apply.symbol.owner.flags.is(Flags.ModuleClass) =>
@@ -1754,8 +1800,10 @@ final class SIRCompiler(using ctx: Context) {
              * f.tpe will be a MethodType
              */
             case a @ Apply(applied @ TypeApply(fun @ Select(f, nme.apply), targs), args)
-                if defn.isFunctionType(f.tpe.widen) || applied.tpe.isMethodType =>
+                if defn.isFunctionType(fun.tpe.widen) || applied.tpe.isMethodType =>
                 compileApply(env, f, targs, args, tree.tpe, a)
+            // case a @ Apply(applied @ TypeApply(fun @ Select(f, nme.apply), targs), args) =>
+            //    ???
             // f.apply(arg) => Apply(f, arg)
             case a @ Apply(Select(f, nme.apply), args) if defn.isFunctionType(f.tpe.widen) =>
                 compileApply(env, f, Nil, args, tree.tpe, a)
@@ -1781,7 +1829,14 @@ final class SIRCompiler(using ctx: Context) {
                 // compileExpr(env, obj)
                 else if isConstructorVal(tree.symbol, tree.tpe) then
                     compileNewConstructor(env, tree.tpe, tree.tpe, Nil, tree.srcPos)
-                else if isVirtualCall(tree, obj.symbol, ident) then
+                // else if obj.symbol == Symbols.NoSymbol then
+                //    val ts = obj.tpe.widen.dealias.typeSymbol
+                //    println(
+                //      s"ts=${ts}, obj.tpe.widen = ${obj.tpe.widen.show},  obj=${obj.show}, ident=${ident}"
+                //    )
+                //
+                //    ???
+                else if isVirtualCall(tree, obj, ident) then
                     compileVirtualCall(env, tree, obj, ident)
                 else compileIdentOrQualifiedSelect(env, tree)
             // ignore asInstanceOf
@@ -1890,8 +1945,15 @@ final class SIRCompiler(using ctx: Context) {
         typer.sirTypeInEnv(tp, env)
     }
 
-    private def isVirtualCall(tree: Tree, qualifierSym: Symbol, name: Name): Boolean = {
-        val declDenotation = qualifierSym.info.decl(name)
+    private def isVirtualCall(tree: Tree, qualifier: Tree, name: Name): Boolean = {
+        val qualifierSym = qualifier.symbol
+        if qualifierSym == Symbols.NoSymbol then {
+            error(
+              GenericError(s"Cannot resolve symbol ${qualifier.show}", tree.srcPos),
+              false
+            )
+        }
+        val declDenotation = qualifier.tpe.widen.decl(name)
         !declDenotation.exists
     }
 
@@ -1899,6 +1961,11 @@ final class SIRCompiler(using ctx: Context) {
         if env.debug then println("compile virtual call: " + tree.show)
         val qualifierSym = qualifier.symbol
         val qualifierTypeSym = qualifier.tpe.typeSymbol
+        if qualifierSym == Symbols.NoSymbol then
+            error(
+              GenericError(s"Cannot resolve symbol ${qualifier.show}", tree.srcPos),
+              ()
+            )
         val member = qualifierSym.info.member(name)
         if !member.exists then
             error(

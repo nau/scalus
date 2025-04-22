@@ -1,5 +1,6 @@
 package scalus.prelude
 
+import scalus.CompileDerivations
 import scalus.builtin.Builtins
 
 import scala.quoted.*
@@ -8,7 +9,7 @@ type Data = scalus.builtin.Data
 type ByteString = scalus.builtin.ByteString
 
 @FunctionalInterface
-trait ToData[-A] extends Function1[A, Data] {
+trait ToData[-A] extends Function1[A, Data] with CompileDerivations {
     override def apply(v1: A): Data
 }
 
@@ -24,11 +25,22 @@ object ToData {
 
 }
 
-trait FromData[A] extends Function1[Data, A] {
-    override def apply(v1: Data): A
+@FunctionalInterface
+trait FromData[+A] extends Function1[Data, A] with CompileDerivations {
+    override def apply(v: Data): A
 }
 
-object FromData {}
+object FromData {
+
+    inline def derived[A]: FromData[A] = ${
+        DataRepresentation.fromDataImpl[A]
+    }
+
+    given scalus.prelude.FromData[Data] = (a: Data) => a
+    given scalus.prelude.FromData[ByteString] = Builtins.unBData
+    given scalus.prelude.FromData[BigInt] = Builtins.unIData
+
+}
 
 trait DataRepresentation[A] {
 
@@ -44,6 +56,10 @@ object DataRepresentation {
 
     def toDataImpl[A: Type](using Quotes): Expr[ToData[A]] = {
         import quotes.reflect.*
+        '{ (a: A) =>
+            ${ generateToDataApply[A]('a) }
+        }
+        /*
         '{
             new ToData[A] {
                 override def apply(a: A): Data = {
@@ -51,6 +67,8 @@ object DataRepresentation {
                 }
             }
         }
+
+         */
     }
 
     def generateToDataApply[A: Type](a: Expr[A])(using Quotes): Expr[Data] = {
@@ -232,6 +250,89 @@ object DataRepresentation {
         genMatch(value.asTerm).asExprOf[Data]
     }
 
+    def fromDataImpl[A: Type](using Quotes): Expr[FromData[A]] = {
+        import quotes.reflect.*
+        val ta = TypeRepr.of[A].dealias.widen
+        if ta <:< TypeRepr.of[AnyRef] then
+            val children = ta.typeSymbol.children
+            if children.isEmpty then
+                if ta.typeSymbol.flags.is(Flags.Trait) then
+                    report.errorAndAbort(
+                      s"Cannot derive FromData for trait ${ta.typeSymbol.fullName}"
+                    )
+                else if ta.typeSymbol.flags.is(Flags.Case | Flags.Enum) then {
+                    deriveFromDataCaseClassApply[A]
+                } else {
+                    report.errorAndAbort(
+                      s"Cannot derive FromData for ${ta.typeSymbol.fullName} which is not a case class or enum"
+                    )
+                }
+            else {
+                deriveFromDataSumCaseClassApply[A]()
+            }
+        else
+            report.errorAndAbort(
+              s"Cannot derive FromData for ${ta.typeSymbol.fullName} which is not a case class or enum"
+            )
+    }
+
+    def deriveFromDataCaseClassApply[A: Type](using Quotes): Expr[FromData[A]] = {
+        '{ (d: Data) =>
+            val args = scalus.builtin.Builtins.unConstrData(d).snd
+
+            // generate f = (args) => new Constructor(args.head, args.tail.head, ...)
+            // then apply to args: f(args)
+            // and finally beta reduce it in compile time
+            ${ Expr.betaReduce('{ ${ scalus.builtin.FromData.deriveConstructorMacro[A] }(args) }) }
+        }
+    }
+
+    def deriveFromDataSumCaseClassApply[A: Type](using Quotes): Expr[FromData[A]] = {
+        import quotes.reflect.*
+        val constrTpe = TypeRepr.of[A]
+        val typeSymbol = TypeRepr.of[A].widen.dealias.typeSymbol
+        if !typeSymbol.flags.is(Flags.Enum) then
+            report.errorAndAbort(
+              s"deriveEnum can only be used with enums, got ${typeSymbol.fullName}"
+            )
+
+        val mappingRhs: scala.List[Expr[scalus.builtin.List[Data] => A]] = typeSymbol.children.map {
+            child =>
+                child.typeRef.asType match
+                    case '[t] =>
+                        // println(s"child: ${child}, ${child.flags.show} ${child.caseFields}")
+                        if child.caseFields.isEmpty then
+                            '{ (_: scalus.builtin.List[Data]) =>
+                                ${ Ident(child.termRef).asExprOf[t] }
+                            }.asExprOf[scalus.builtin.List[Data] => A]
+                        else scalus.builtin.FromData.deriveConstructorMacro[A]
+                    case _ =>
+                        report.errorAndAbort(
+                          s"Cannot derive FromData for ${child.typeRef.show} "
+                        )
+
+        }
+        // .asInstanceOf[scala.List[(Expr[scalus.builtin.List[Data] => A], Int)]]
+
+        // stage programming is cool, but it's hard to comprehend what's going on
+        '{ (d: Data) =>
+            val pair = Builtins.unConstrData(d)
+            val tag = pair.fst
+            val args = pair.snd
+            ${
+                mappingRhs.zipWithIndex.foldRight('{
+                    throw new Exception("Invalid tag")
+                }.asExprOf[A]) { case ((code, t), acc) =>
+                    '{
+                        if Builtins.equalsInteger(tag, BigInt(${ Expr(t) })) then $code(args)
+                        else $acc
+                    }
+                }
+            }
+        }
+
+    }
+
     /** Find the index of the given type constructor in the ADT. 0 if this index is not a giving
       * type hierarchy.
       *
@@ -260,9 +361,5 @@ object DataRepresentation {
                     )
                 else myIndex
     }
-
-    // private def retrieveConstructorTypes(using
-    //    Quotes
-    // )(constr: quotes.reflect.Symbol): Seq[quotes.reflect.TypeRepr] = {}
 
 }
