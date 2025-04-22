@@ -2,17 +2,23 @@ package scalus.examples
 
 import com.bloxbean.cardano.client.account.Account
 import com.bloxbean.cardano.client.address.AddressProvider
+import com.bloxbean.cardano.client.api.common.OrderEnum
+import com.bloxbean.cardano.client.api.model.{Amount, ProtocolParams, Utxo}
 import com.bloxbean.cardano.client.api.util.CostModelUtil
+import com.bloxbean.cardano.client.api.{ProtocolParamsSupplier, model}
+import com.bloxbean.cardano.client.backend.api.{BackendService, DefaultUtxoSupplier, UtxoService}
+import com.bloxbean.cardano.client.backend.blockfrost.service.BFBackendService
 import com.bloxbean.cardano.client.common.ADAConversionUtil
-import com.bloxbean.cardano.client.common.model.{Network, Networks}
-import com.bloxbean.cardano.client.plutus.spec.{CostMdls, ExUnits, PlutusV3Script, Redeemer, RedeemerTag}
+import com.bloxbean.cardano.client.common.model.Networks
+import com.bloxbean.cardano.client.plutus.spec.{Redeemer, *}
+import com.bloxbean.cardano.client.quicktx.{QuickTxBuilder, ScriptTx}
 import com.bloxbean.cardano.client.transaction.spec
 import com.bloxbean.cardano.client.transaction.spec.*
 import com.bloxbean.cardano.client.transaction.util.TransactionUtil
 import org.scalatest.funsuite.AnyFunSuite
 import scalus.*
 import scalus.Compiler.compile
-import scalus.bloxbean.{Interop, SlotConfig, TxEvaluator}
+import scalus.bloxbean.{Interop, ScalusTransactionEvaluator, SlotConfig, TxEvaluator}
 import scalus.builtin.Builtins.sha3_256
 import scalus.builtin.Data.toData
 import scalus.builtin.{ByteString, Data}
@@ -21,6 +27,7 @@ import scalus.prelude.*
 import scalus.testkit.ScalusTest
 import scalus.uplc.*
 import scalus.uplc.eval.*
+import scalus.utils.Hex.*
 
 import java.math.BigInteger
 import java.util
@@ -144,10 +151,10 @@ class HtlcValidatorSpec extends AnyFunSuite with ScalusTest {
         val scriptRefInput = new TransactionInput(txid, 1)
 
         // Use a transaction builder to create the transaction
-        val tx = makeUnlockingTransaction(
+        val tx = makeUnlockingTransaction2(
           input = htlcInput,
           scriptRefInput = scriptRefInput,
-          startTimeMillis = 1745261346000L,
+          contractDatum = contractDatum,
           action = Action.Reveal(preimage),
           signatories = Seq(PubKeyHash(Person.Receiver.pkh))
         )
@@ -212,6 +219,123 @@ class HtlcValidatorSpec extends AnyFunSuite with ScalusTest {
         )
         val redeemers = evaluator.evaluateTx(tx, utxos)
         assert(redeemers.size == 1)
+
+    }
+
+    def makeUnlockingTransaction2(
+        input: TransactionInput,
+        scriptRefInput: TransactionInput,
+        contractDatum: ContractDatum,
+        action: Action,
+        signatories: Seq[PubKeyHash]
+    ): Transaction = {
+        import Interop.*
+
+        import scala.jdk.CollectionConverters.*
+
+        lazy val backendService: BackendService = BFBackendService("", "")
+
+        val plutusScript = PlutusV3Script
+            .builder()
+            .`type`("PlutusScriptV3")
+            .cborHex(script.doubleCborHex)
+            .build()
+            .asInstanceOf[PlutusV3Script]
+
+        val htlcAddress: com.bloxbean.cardano.client.address.Address =
+            AddressProvider.getBaseAddress(plutusScript, plutusScript, Networks.mainnet())
+        val scriptHash = plutusScript.getScriptHash.toHex
+        val asdf = this.scriptHash.toHex
+        val ddd = htlcAddress.getPaymentCredentialHash.get.toHex
+
+        val htlcUtxo = Utxo
+            .builder()
+            .address(htlcAddress.getAddress)
+            .txHash(input.getTransactionId)
+            .inlineDatum(toPlutusData(contractDatum.toData).serializeToHex())
+            .amount(Seq(Amount.ada(10)).asJava)
+            .build()
+
+        val collateralUtxo = Utxo
+            .builder()
+            .address(sender.baseAddress())
+            .txHash(input.getTransactionId)
+            .amount(Seq(Amount.ada(5)).asJava)
+            .build()
+
+        val utxoSupplier = new DefaultUtxoSupplier(new UtxoService {
+            def getUtxos(address: String, count: Int, page: Int): model.Result[util.List[Utxo]] =
+                ???
+
+            def getUtxos(
+                address: String,
+                count: Int,
+                page: Int,
+                order: OrderEnum
+            ): model.Result[util.List[Utxo]] = {
+                println(s"$address")
+                val r = model.Result.success("asdf").asInstanceOf[model.Result[util.List[Utxo]]]
+                r.withValue(util.List.of(collateralUtxo))
+                    .asInstanceOf[model.Result[util.List[Utxo]]]
+            }
+
+            def getUtxos(
+                address: String,
+                unit: String,
+                count: Int,
+                page: Int
+            ): model.Result[util.List[Utxo]] = ???
+
+            def getUtxos(
+                address: String,
+                unit: String,
+                count: Int,
+                page: Int,
+                order: OrderEnum
+            ): model.Result[util.List[Utxo]] = ???
+
+            def getTxOutput(txHash: String, outputIndex: Int): model.Result[Utxo] = {
+                val r = model.Result.success("asdf").asInstanceOf[model.Result[Utxo]]
+                r.withValue(collateralUtxo).asInstanceOf[model.Result[Utxo]]
+            }
+        })
+
+//        val params =
+//            val input = this.getClass.getResourceAsStream("/blockfrost-params-epoch-544.json")
+//            read[ProtocolParams](input)(using ProtocolParams.blockfrostParamsRW)
+        val protocolParams = ProtocolParams
+            .builder()
+            .coinsPerUtxoSize("12")
+            .build()
+
+        val scalusEvaluator = new ScalusTransactionEvaluator(protocolParams, utxoSupplier)
+
+        val redeemer = Interop.toPlutusData(action.toData)
+
+        val scriptTx = new ScriptTx()
+            .collectFrom(htlcUtxo, redeemer)
+            .payToAddress(sender.baseAddress(), htlcUtxo.getAmount)
+            .attachSpendingValidator(plutusScript)
+
+        val pubKeyHashBytes = sender.hdKeyPair().getPublicKey.getKeyHash
+        val quickTxBuilder = new QuickTxBuilder(
+          utxoSupplier,
+          new ProtocolParamsSupplier {
+              def getProtocolParams: ProtocolParams = protocolParams
+          },
+          null
+        )
+        val tx = quickTxBuilder
+            .compose(scriptTx)
+            .feePayer(sender.getBaseAddress.getAddress)
+//            .withSigner(SignerProviders.signerFrom(acc))
+            .withTxEvaluator(scalusEvaluator)
+            .withCollateralInputs(input)
+            .validFrom(contractDatum.timeout.toLong - 1000)
+            .withRequiredSigners(pubKeyHashBytes)
+            .ignoreScriptCostEvaluationError(false)
+            .buildAndSign()
+        tx
     }
 
     def makeUnlockingTransaction(
