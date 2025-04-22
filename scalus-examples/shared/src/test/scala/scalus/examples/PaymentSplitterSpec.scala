@@ -3,7 +3,6 @@ package scalus.examples
 import org.scalatest.funsuite.AnyFunSuite
 import scalus.*
 import scalus.Compiler.compile
-import scalus.builtin.Builtins.blake2b_224
 import scalus.builtin.ByteString
 import scalus.builtin.Data.toData
 import scalus.builtin.ToDataInstances.given
@@ -185,7 +184,7 @@ class PaymentSplitterSpec extends AnyFunSuite, ScalusTest {
     private val lockTxId = random[TxId]
     private val payeesTxId = random[TxId]
     private val txId = random[TxId]
-    private val scriptHash = blake2b_224(ByteString.fromArray(3 +: script.cborEncoded))
+    private val scriptHash = script.hash
 
     private val runScalaVersion = true
     private val runAikenVersion = false
@@ -296,7 +295,8 @@ class PaymentSplitterSpec extends AnyFunSuite, ScalusTest {
                         assert(
                           result.isSuccess,
                           clue =
-                              s"Expected success with budget: $budget, but got: ${result.toString}"
+                              s"Expected success with budget: $budget, but got: ${result.toString}, logs0: ${result.logs
+                                      .mkString(", ")}"
                         )
                         if budget != ExBudget(ExCPU(0), ExMemory(0))
                         then // Check if budget verification is requested
@@ -381,8 +381,4 @@ class PaymentSplitterSpec extends AnyFunSuite, ScalusTest {
             }
         }
     }
-
-    def failure(message: String): Either[String, Option[ExBudget]] = Left(message)
-    def success: Either[String, Option[ExBudget]] = Right(Option.None)
-    def success(budget: ExBudget): Either[String, Option[ExBudget]] = Right(Option.Some(budget))
 }
