@@ -739,10 +739,49 @@ final class SIRCompiler(using ctx: Context) {
         else
             // TODO store comments in the SIR
             // vd.rawComment
-            val bodyExpr = compileExpr(env, vd.rhs)
+            if env.mode == ScalusCompilationMode.OnlyDerivations then {
+                // this means that this varDef is marked by CompileDerivations
+                println(s"derivation of ${vd.name}: rhs= ${vd.rhs.show}")
+                println(s"derivation of ${vd.name}: rhs.tree= ${vd.rhs}")
+            }
+            val rhsFixed =
+                if vd.tpe <:< CompileDerivationsMarker then fixFunctionInterface(env, vd.rhs)
+                else vd.rhs
+            val bodyExpr = compileExpr(env, rhsFixed)
+            if env.mode == ScalusCompilationMode.OnlyDerivations then {
+                // this means that this varDef is marked by CompileDerivations
+                println(s"SIR: ${bodyExpr}")
+            }
             CompileMemberDefResult.Compiled(
               LocalBinding(name.show, vd.symbol, Recursivity.NonRec, bodyExpr, vd.sourcePos)
             )
+    }
+
+    private def fixFunctionInterface(
+        env: Env,
+        tree: Tree
+    ): Tree = {
+        println(s"fix function interface for ${tree.show}")
+        println(s"fix function interface tree = ${tree}")
+        tree match
+            case Inlined(call, List(), expansion) =>
+                val newExpansion = fixFunctionInterface(env, expansion)
+                newExpansion
+            case Typed(body, tpe) =>
+                body match {
+                    case Block(List(ddef: DefDef), Block(List(typed), Apply(initCn, List()))) =>
+                        println(s"Determinated function interface: ${ddef.show}")
+                        println(s"typed: ${typed.show}")
+                        ddef
+                    case _ =>
+                        println(s"Function interace not applied for body ${body.show}")
+                        println(s"tree:${body}")
+                        body
+                }
+            case other =>
+                println(s"transstate functoon interface call unchanged: ${other.show}")
+                println(s"tree: ${other}")
+                other
     }
 
     private def compileDefDef(

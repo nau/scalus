@@ -31,7 +31,6 @@ class DerivingSpec extends AnyFunSuite {
 
     test("Compile To/From Data for AE1") {
 
-        /*
         val sir = compileDebug { (d: Data) =>
             val a = summon[scalus.prelude.FromData[AE1]](d)
             a match
@@ -55,8 +54,6 @@ class DerivingSpec extends AnyFunSuite {
             case Result.Failure(e, _, _, logs) =>
                 e.printStackTrace()
                 fail(s"Expected success, but got failure, logs=$logs")
-                
-         */
 
     }
 

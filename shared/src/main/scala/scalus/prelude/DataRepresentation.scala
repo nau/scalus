@@ -270,7 +270,7 @@ object DataRepresentation {
                     )
                 }
             else {
-                deriveFromDataSumCaseClassApply[A]()
+                deriveFromDataSumCaseClassApply[A]
             }
         else
             report.errorAndAbort(
