@@ -191,47 +191,6 @@ final class SIRCompiler(using ctx: Context) {
 
     def compileModule(tree: Tree): Unit = {
 
-        def findCompileDerivations(
-            owner: TypeDef,
-            tree: Tree,
-            acc: Map[Symbol, TypeDef],
-        ): Map[Symbol, TypeDef] = {
-
-            def updateAcc(td: TypeDef): Map[Symbol, TypeDef] =
-                acc.get(td.symbol) match
-                    case Some(v) => acc
-                    case None =>
-                        if td.symbol.hasAnnotation(CompileAnnot) then acc
-                        else acc.updated(td.symbol, td)
-            end updateAcc
-
-            // TODO:use tree accumulator
-            val retval = tree match
-                case cd: TypeDef =>
-                    if cd.symbol.flags.is(Flags.Module) then findCompileDerivations(cd, cd.rhs, acc)
-                    else acc
-                case tmpl: Template =>
-                    tmpl.body.foldLeft(acc) { (s, e) =>
-                        findCompileDerivations(owner, e, s)
-                    }
-                case dd: DefDef =>
-                    if tryMethodResultType(dd).exists(_ <:< CompileDerivationsMarker) then
-                        updateAcc(owner)
-                    else acc
-                case vd: ValDef =>
-                    if vd.tpe <:< CompileDerivationsMarker then
-                        println(
-                          s"select: found compile derivations: ${vd.symbol.fullName} in ${vd.symbol.owner} when cd is ${owner.symbol.name}"
-                        )
-                        val r = updateAcc(owner)
-                        println(s"select: update names: ${r.keys.map(_.name)}")
-                        r
-                    else acc
-                case _ =>
-                    acc
-            retval
-        }
-
         /** return typedef and set of string, which are full names of submodules, which contains
           * derivations.
           * @param tree
@@ -354,11 +313,12 @@ final class SIRCompiler(using ctx: Context) {
             } ++ nonOverridedSupers.map(b => Binding(b.fullName.name, b.body))
 
         val time = System.currentTimeMillis() - start
-        if bindingsWithSpecialized.isEmpty then
-            report.echo(
-              s"skipping empty Scalus module ${td.name} in ${time}ms"
-            )
-        else
+        if bindingsWithSpecialized.isEmpty then {
+            if mode == ScalusCompilationMode.AllDefs then
+                report.echo(
+                  s"skipping empty Scalus module ${td.name} in ${time}ms"
+                )
+        } else
             val module =
                 Module(
                   SIRCompiler.SIRVersion,
@@ -399,6 +359,9 @@ final class SIRCompiler(using ctx: Context) {
         }
         if bindings.nonEmpty then
             val module = Module(SIRCompiler.SIRVersion, bindings)
+            report.echo(
+              s"compiled Scalus module ${submodule.symbol.fullName} definitions: ${bindings.map(_.name)}"
+            )
             writeModule(module, submodule.name)
         subsubmodules.foreach(submodule => writeSubmodule(submodule, superBindings))
     }
