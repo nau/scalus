@@ -1,0 +1,75 @@
+---
+asIndexPage: true
+display: hidden
+---
+import { Steps, Tabs } from 'nextra/components'
+
+# First Smart Contract
+
+<Steps>
+## Creating a new validator from the template
+Let's seed a new Scalus validator:
+
+```sh copy
+sbt new scalus3/validator.g8
+```
+This ran the template scalus/validator.g8 using [Giter8](https://www.foundweekends.org/giter8/).
+When prompted, name the application `htlc validator`. This command scaffolds a simple Scalus validator project.
+```console
+sbt new scalus3/validator.g8
+
+name [MyValidator]: htlc validator
+
+Template applied in ./htlc-validator
+```
+## Project structure
+Let’s take a look at what just got generated:
+
+```ansi
+ htlc-validator/
+    ├── HtlcValidator.scala        # Simple validator
+    ├── HtlcValidator.test.scala   # Simple tests
+    ├── project.scala              # Project configuration
+    └── README.md
+```
+
+## HTLC Contract
+Let's create a simple "Hello Cardano" validator script that verifies a specific message:
+
+Create or open the file src/main/scala/com/example/contracts/HelloCardano.scala:
+```scala copy
+...
+```
+
+This simple validator script demonstrates several key concepts:
+- The @OnChain annotation marks the class for on-chain compilation
+- The validate method defines the validation logic
+- Contract params, Datum, Redeemer
+- We're using the ScriptContext to access transaction information
+
+## Let's test our Smart Contract
+
+## Debugging Smart Contract
+
+Breakpoint
+
+## Building Plutus script
+
+```sh copy
+sbt compile
+```
+
+Build?
+Blueprint
+
+## Evaluating Script
+Now let's create a simple client to interact with our smart contract:
+
+Create or open the file src/main/scala/com/example/offchain/Client.scala
+```scala copy
+...
+```
+
+</Steps>
+
+Plutus contract blueprint

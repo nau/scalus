@@ -1,0 +1,42 @@
+---
+title: Data types
+sidebarTitle: Data types
+---
+
+# Data types
+
+Scalus allows you to define custom data types using Scala case classes and enums, which are compiled to equivalent Plutus structures.
+
+```scala mdoc:compile-only
+import scalus.builtin.ByteString
+import scalus.prelude.{*, given}
+
+case class Account(hash: ByteString, balance: BigInt)
+
+enum State:
+    case Empty
+    case Active(account: Account)
+
+import State.*
+compile {
+    // Tuple2 literals are supported
+    val tuple = (true, BigInt(123))
+    val empty = State.Empty // simple constructor
+    // Use `new` to create an instance
+    val account = new Account(ByteString.empty, tuple._2) // access tuple fields
+    // or use a companion object apply method
+    val active: State = State.Active(account)
+    val hash = account.hash // access case class fields
+    // A simple pattern matching is supported
+    // no guards, no type ascriptions.
+    // Inner matches can be done only on single constructor case classes
+    // Wildcard patterns are supported
+    active match
+        case Empty                                 => true
+        case Active(account @ Account(_, balance)) => balance == BigInt(123)
+    // all cases must be covered or there must be a default case
+    val isEmpty = active match
+        case Empty => true
+        case _     => false
+}
+```

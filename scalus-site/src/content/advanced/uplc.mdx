@@ -1,0 +1,20 @@
+---
+title: UPLC optimisations
+sidebarTitle: UPLC optimisations
+---
+
+# UPLC optimisations
+
+Scalus provides optimization capabilities for Untyped Plutus Core (UPLC) scripts, which can significantly reduce script size and execution costs. 
+
+The `EtaReduce` optimization identifies and eliminates unnecessary lambda abstractions. For example, it transforms expressions like `λx. f x` into just `f` when `x` is only used once as a direct argument. This simplification reduces the number of function applications during execution, making your scripts more efficient.
+
+{/*Other available UPLC optimizations include constant folding, dead code elimination, and various term simplifications that can further improve script performance on the Cardano blockchain.*/}
+
+```scala mdoc:compile-only copy showLineNumbers {3-6}
+import scalus.*, scalus.sir.*
+val sir: SIR = ??? // from the previous example
+val optimized = RemoveRecursivity(sir)
+val uplc = optimized.toUplc()
+val opt = uplc |> EtaReduce.apply
+```

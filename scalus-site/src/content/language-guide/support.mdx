@@ -1,0 +1,45 @@
+---
+title: Supported Scala features
+sidebarTitle: Supported Scala features
+---
+
+# Supported Scala features
+
+Scalus compiles Scala code to Untyped Plutus Core (UPLC), which is a minimalist form of lambda calculus designed for blockchain execution. This fundamental constraint means that only a subset of Scala's rich feature set can be supported.
+
+The compilation process transforms your Scala code into an intermediate representation before generating the final UPLC that runs on the Cardano blockchain. Due to UPLC's deliberately limited nature (optimized for security and determinism), many high-level Scala features cannot be directly translated.
+
+## What Scala features are supported?
+
+Below is a comprehensive list of what Scala features are currently supported in Scalus:
+
+* simple `val`s and `def`s of supported built-in types or case classes/enums
+* lambda expressions
+* recursive functions
+* passing/returning functions as arguments (higher-order functions)
+* `if-then-else` expressions
+* simple `match` expressions on case classes and enums
+    * only simple bindings are supported like `case Costr(field, other) => ...`
+* `given` arguments and `using` clauses
+* `throw` expressions but no `try-catch` expressions
+* built-in functions and operators
+* simple data types: case classes and enums
+* `inline` vals, functions and macros in general
+* implicit conversions
+* opaque types (non top-level) and type aliases
+* extension methods
+* tuples
+* value destructuring in vals: `val Some((a, b)) = optionOfTuple` 
+
+## Scala features that are not supported
+
+* `var`s and `lazy val`s
+* `while` loops
+* classes, inheritance and polymorphism aka virtual dispatch
+    * you can't use `isInstanceOf`
+* pattern matching with guards
+* pattern matching on multiple constructors (`case A | B => ...`)
+* pattern matching using type ascriptions (`case x: BigInt => ...`)
+* `try-catch` expressions
+* overloaded functions
+* mutually recursive functions
