@@ -7,7 +7,7 @@ case class Module(version: (Int, Int), defs: List[Binding])
 
 case class Binding(name: String, value: SIR) {
 
-    if (name == "pkh" && value.tp == SIRType.FreeUnificator) {
+    if name == "pkh" && value.tp == SIRType.FreeUnificator then {
         throw new RuntimeException("Binding with name pkh and value FreeUnitifactor")
     }
 
@@ -326,7 +326,7 @@ object SIRChecker {
         checkType(tpb.tp, throwOnFirst)
 
     def checkAnnotations(decl: AnnotationsDecl, throwOnFirst: Boolean): Seq[String] = {
-        (decl.data.flatMap { case (k, v) => checkExpr(v, throwOnFirst) }).toSeq
+        decl.data.flatMap { case (k, v) => checkExpr(v, throwOnFirst) }.toSeq
     }
 
     def checkExpr(expr: SIR, throwOnFirst: Boolean): Seq[String] = {
@@ -390,7 +390,7 @@ object SIRChecker {
     }
 
     def checkType(tp: SIRType, throwOnFirst: Boolean): Seq[String] =
-        if (SIRType.checkAllProxiesFilled(tp)) then Nil
+        if SIRType.checkAllProxiesFilled(tp) then Nil
         else
             val msg = s"Type has unfilled proxies. (tp=${tp})"
             if throwOnFirst then throw CheckException(msg)

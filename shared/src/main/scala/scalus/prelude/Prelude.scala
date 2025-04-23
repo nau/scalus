@@ -8,7 +8,7 @@ import scalus.builtin.Data
 import scalus.macros.Macros
 
 import scala.annotation.{nowarn, tailrec}
-import scala.collection.{immutable, mutable}
+import scala.collection.mutable
 
 extension (x: Boolean)
     /** Trace the expression only if it evaluates to `false`. This is useful to trace an entire
@@ -777,8 +777,8 @@ object List:
         /** Converts a [[scala.Seq]] to a `List` */
         @Ignore
         def asScalus: List[A] = self match
-            case scala.Seq()                => Nil
-            case scala.Seq(head, tail @ _*) => Cons(head, tail.asScalus)
+            case scala.Seq()            => Nil
+            case scala.Seq(head, tail*) => Cons(head, tail.asScalus)
 
     given listEq[A](using eq: Eq[A]): Eq[List[A]] = (a: List[A], b: List[A]) =>
         a match
@@ -1024,6 +1024,19 @@ object AssocMap {
         val rhsThat = rhsNotInLhs.map { case (k, v) => (k, These.That(v)) }
         AssocMap(lhs1.appendedAll(rhsThat))
     }
+
+    given assocMapEq[A: Eq, B: Eq]: Eq[AssocMap[A, B]] =
+        (lhs: AssocMap[A, B], rhs: AssocMap[A, B]) =>
+            lhs.toList.length === rhs.toList.length && lhs.toList.forall { case (key, lhsValue) =>
+                rhs.lookup(key) match
+                    case None           => false
+                    case Some(rhsValue) => lhsValue === rhsValue
+            }
 }
 
 case class Rational(numerator: BigInt, denominator: BigInt)
+
+@Compile
+object Rational:
+    given Eq[Rational] = (lhs: Rational, rhs: Rational) =>
+        lhs.numerator * rhs.denominator === rhs.numerator * lhs.denominator

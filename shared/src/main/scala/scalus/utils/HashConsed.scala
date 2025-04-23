@@ -131,7 +131,7 @@ object HashConsed {
 
     class MutRef[A <: AnyRef](var value: A | Null) extends HashConsedRef[A] {
 
-        override def isComplete(hashConsed: State): Boolean = (value != null)
+        override def isComplete(hashConsed: State): Boolean = value != null
 
         override def finValue(hashConsed: State, level: Int, parents: HSRIdentityHashMap): A =
             if value == null then throw IllegalStateException("Null reference during reading")

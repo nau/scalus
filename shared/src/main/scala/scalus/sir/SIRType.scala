@@ -283,7 +283,7 @@ object SIRType {
               AnnotationsDecl.empty
             )
             proxy.ref = SumCaseClass(retval, scala.List(TypeVar("A", Some(1))))
-            if (!checkAllProxiesFilled(retval.tp)) then
+            if !checkAllProxiesFilled(retval.tp) then
                 throw new IllegalStateException(s"List dataDecl has unfilled proxies: ${retval.tp}")
             retval
         }
@@ -353,11 +353,11 @@ object SIRType {
         extends RuntimeException(msg, cause)
 
     def typeApply(tpl: SIRType, args: List[SIRType]): SIRType =
-        if (args.isEmpty) then tpl
+        if args.isEmpty then tpl
         else
             tpl match
                 case TypeLambda(params, body) =>
-                    if (params.length != args.length) then
+                    if params.length != args.length then
                         throw TypeApplyException(
                           s"length of type-lambda parameter list is differ then args list. tpl=${tpl.show}, args=${args
                                   .map(_.show)}"

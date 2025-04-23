@@ -37,7 +37,7 @@ class SimpleSirToUplcLoweringSpec
         SIR.Error("error", ae) lowersTo Term.Error
         assert(
           SIR.Error("error", ae)
-              .toUplc(generateErrorTraces = true) == !(!Trace $ "error" $ ~(Term.Error))
+              .toUplc(generateErrorTraces = true) == !(!Trace $ "error" $ ~Term.Error)
         )
     }
 
@@ -136,7 +136,7 @@ class SimpleSirToUplcLoweringSpec
             ae
           )
         ) lowersTo (lam("scalus.prelude.List$.Nil", "scalus.prelude.List$.Cons")(
-          !(vr"scalus.prelude.List$$.Nil")
+          !vr"scalus.prelude.List$$.Nil"
         ))
         withDecls(
           SIR.Constr(

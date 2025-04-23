@@ -300,7 +300,7 @@ final class SIRCompiler(using ctx: Context) {
 
         val bindingsWithSpecialized =
             bindings.map { b =>
-                if (superBindings.nonEmpty) then
+                if superBindings.nonEmpty then
                     val (newBody, changed) = specializeSIR(
                       Symbols.NoSymbol,
                       b.body,
@@ -319,9 +319,9 @@ final class SIRCompiler(using ctx: Context) {
             )
         writeModule(module, td.symbol.fullName.toString)
         val time = System.currentTimeMillis() - start
-        report.echo(
-          s"compiled Scalus module ${td.name} definitions: ${bindingsWithSpecialized.map(_.name)} in ${time}ms"
-        )
+//        report.echo(
+//          s"compiled Scalus module ${td.name} definitions: ${bindingsWithSpecialized.map(_.name)} in ${time}ms"
+//        )
     }
 
     private def writeModule(module: Module, className: String): Unit = {
@@ -443,7 +443,7 @@ final class SIRCompiler(using ctx: Context) {
             makeConstrDecl(env, srcPos, sym)
         }
         val sourcePos =
-            if (dataInfo.dataTypeSymbol.srcPos.sourcePos == NoSourcePosition) then srcPos.sourcePos
+            if dataInfo.dataTypeSymbol.srcPos.sourcePos == NoSourcePosition then srcPos.sourcePos
             else dataInfo.dataTypeSymbol.srcPos.sourcePos
         val optComment = dataInfo.dataTypeSymbol.defTree match
             case memberDef: MemberDef =>
@@ -518,9 +518,9 @@ final class SIRCompiler(using ctx: Context) {
         args: List[Tree],
         srcPos: SrcPos
     ): SIR = {
-        if (nakedType.isGenericTuple) then
+        if nakedType.isGenericTuple then
             val nArgs = args.size
-            if (nArgs == 1 || nArgs == 2) then
+            if nArgs == 1 || nArgs == 2 then
                 println("Generic tuple with 1 or 2 args,  assume  normal constructpr")
                 compileNewConstructorNoTuple(env, nakedType, fullType, args, srcPos)
             else
@@ -713,8 +713,8 @@ final class SIRCompiler(using ctx: Context) {
         else
             // TODO store comments in the SIR
             // dd.rawComment
-            val params = dd.paramss.flatten.collect({ case vd: ValDef => vd })
-            val typeParams = dd.paramss.flatten.collect({ case td: TypeDef => td })
+            val params = dd.paramss.flatten.collect { case vd: ValDef => vd }
+            val typeParams = dd.paramss.flatten.collect { case td: TypeDef => td }
             val typeParamsMap = typeParams.foldLeft(Map.empty[Symbol, SIRType]) { case (acc, td) =>
                 acc + (td.symbol -> SIRType.TypeVar(td.symbol.name.show, Some(td.symbol.hashCode)))
             }
@@ -1872,7 +1872,7 @@ final class SIRCompiler(using ctx: Context) {
     }
 
     def compileToSIR(tree: Tree, debug: Boolean): SIR = {
-        if (debug) {
+        if debug then {
             println(s"compileToSIR: ${tree.show}")
         }
         compileExpr(Env.empty.copy(debug = debug), tree)
@@ -1900,7 +1900,7 @@ final class SIRCompiler(using ctx: Context) {
         val qualifierSym = qualifier.symbol
         val qualifierTypeSym = qualifier.tpe.typeSymbol
         val member = qualifierSym.info.member(name)
-        if (!member.exists) then
+        if !member.exists then
             error(
               GenericError(s"Member ${name.show} not found in ${qualifierSym.show}", tree.srcPos),
               SIR.Error("Member not found", AnnotationsDecl.fromSrcPos(tree.srcPos))
@@ -2017,7 +2017,7 @@ final class SIRCompiler(using ctx: Context) {
                 val newBinding = binding.map { b =>
                     val (newBody, changed) =
                         specializeSIR(parentSym, b.value, env, possibleOverrides, thisClassNames)
-                    if (changed) bindingIsChanged = true
+                    if changed then bindingIsChanged = true
                     Binding(b.name, newBody)
                 }
                 val (newBody, bodyChanged) =

@@ -46,7 +46,7 @@ object ToExprHSSIRTypeFlat extends HashConsedFlat[SIRType] {
 
     override def bitSizeHC(a: SIRType, encoderState: HashConsed.State): Int = {
         if paranoid then
-            if (!SIRType.checkAllProxiesFilled(a)) then
+            if !SIRType.checkAllProxiesFilled(a) then
                 throw new IllegalStateException("proxy not filled in $a")
         SIRTypeHashConsedFlat.bitSizeHC(a, encoderState)
     }
@@ -81,7 +81,7 @@ object ToExprHSSIRTypeFlat extends HashConsedFlat[SIRType] {
         decoderState.runFinCallbacks()
         val retval = ref.finValue(decoderState.hashConsed, 0, new HSRIdentityHashMap)
         if paranoid then
-            if (!checkAllProxiesFilled(retval)) then
+            if !checkAllProxiesFilled(retval) then
                 throw new IllegalStateException("proxy not filled in $retval")
         retval
     }

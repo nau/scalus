@@ -54,7 +54,7 @@ class SIRLinker(using ctx: Context) {
                   SIR.Error("", AnnotationsDecl.fromSrcPos(srcPos))
                 )
         }
-        val dataDecls = globalDataDecls.foldRight((full: SIR)) { case ((_, decl), acc) =>
+        val dataDecls = globalDataDecls.foldRight(full: SIR) { case ((_, decl), acc) =>
             SIR.Decl(decl, acc)
         }
         dataDecls

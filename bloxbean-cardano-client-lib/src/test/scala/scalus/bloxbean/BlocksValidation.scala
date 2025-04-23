@@ -29,7 +29,6 @@ import scala.jdk.CollectionConverters.*
 /** Setup BLOCKFROST_API_KEY environment variable before running this test. In SBT shell:
   *   - set `scalus-bloxbean-cardano-client-lib`/envVars := Map("BLOCKFROST_API_KEY" -> "apikey")
   *   - scalus-bloxbean-cardano-client-lib/Test/runMain scalus.bloxbean.BlocksValidation
-  *
   *   - cat script-1.flat | uplc evaluate --input-format flat --counting --trace-mode
   *     LogsWithBudgets --builtin-semantics-variant B
   */
@@ -100,8 +99,8 @@ object BlocksValidation:
 //                println(s"Validating tx $txhash")
                 //                println(tx)
                 if tx.isValid
-                    && (datums.size() == tx.getWitnessSet.getPlutusDataList
-                        .size()) // FIXME: remove this check when we have the correct datums
+                && (datums.size() == tx.getWitnessSet.getPlutusDataList
+                    .size()) // FIXME: remove this check when we have the correct datums
                 then
                     val result = evaluator.evaluateTx(tx, util.Set.of(), datums, txhash)
                     totalTx += 1
