@@ -5,8 +5,7 @@ import scala.util.control.NonFatal
 object Hex:
     private val HEX_ARRAY = "0123456789abcdef".toCharArray
 
-    extension (bytes: Array[Byte])
-        def toHex: String = bytesToHex(bytes)
+    extension (bytes: Array[Byte]) def toHex: String = bytesToHex(bytes)
 
     def bytesToHex(bytes: Array[Byte]): String =
         val hexChars = new Array[Char](bytes.length * 2)
