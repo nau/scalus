@@ -13,6 +13,7 @@ trait ToData[-A] extends Function1[A, Data] with CompileDerivations {
     override def apply(v1: A): Data
 }
 
+@scalus.Compile
 object ToData {
 
     inline def derived[A]: ToData[A] = ${
@@ -30,6 +31,7 @@ trait FromData[+A] extends Function1[Data, A] with CompileDerivations {
     override def apply(v: Data): A
 }
 
+@scalus.Compile
 object FromData {
 
     inline def derived[A]: FromData[A] = ${

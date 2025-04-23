@@ -84,6 +84,10 @@ object AdtConstructorCallInfo {
 
 case class TopLevelBinding(fullName: FullName, recursivity: Recursivity, body: SIR)
 
+enum ScalusCompilationMode:
+    case AllDefs
+    case OnlyDerivations
+
 enum CompileDef:
     case Compiling
     case Compiled(binding: TopLevelBinding)
@@ -313,16 +317,21 @@ final class SIRCompiler(using ctx: Context) {
                 else Binding(b.fullName.name, b.body)
             } ++ nonOverridedSupers.map(b => Binding(b.fullName.name, b.body))
 
-        val module =
-            Module(
-              SIRCompiler.SIRVersion,
-              bindingsWithSpecialized
-            )
-        writeModule(module, td.symbol.fullName.toString)
         val time = System.currentTimeMillis() - start
-        report.echo(
-          s"compiled Scalus module ${td.name} definitions: ${bindingsWithSpecialized.map(_.name)} in ${time}ms"
-        )
+        if bindingsWithSpecialized.isEmpty then
+            report.echo(
+              s"skipping empty Scalus module ${td.name} in ${time}ms"
+            )
+        else
+            val module =
+                Module(
+                  SIRCompiler.SIRVersion,
+                  bindingsWithSpecialized
+                )
+            writeModule(module, td.symbol.fullName.toString)
+            report.echo(
+              s"compiled Scalus module ${td.name} definitions: ${bindingsWithSpecialized.map(_.name)} in ${time}ms"
+            )
     }
 
     private def writeModule(module: Module, className: String): Unit = {
@@ -1400,12 +1409,14 @@ final class SIRCompiler(using ctx: Context) {
                             println(
                               s"Emitting external var for fun: module ${ownerFullName.show}, name ${fullName.show} "
                             )
+
                             SIR.ExternalVar(
                               ownerFullName.show,
                               fullName.show,
                               sirTypeInEnv(baseFunction, f.srcPos, env),
                               AnnotationsDecl.fromSrcPos(f.srcPos)
                             )
+                            // SIR.Error("TODO", AnnotationsDecl.fromSrcPos(f.srcPos))
                         } else
                             error(
                               GenericError(

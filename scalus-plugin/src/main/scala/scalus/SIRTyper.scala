@@ -89,18 +89,26 @@ class SIRTyper(using Context) {
                 if tp.tycon.isRef(defn.MatchCaseClass) then
                     unsupportedType(tp, "MatchCaseClass", env)
                 else if defn.isFunctionType(tp) then makeSIRFunType(tp, env)
-                else
+                else {
                     tp.tycon match
                         case tpc: TypeRef =>
                             if tpc.isTypeAlias || tpc.symbol.isAliasType then
                                 sirTypeInEnvWithErr(tpc.dealias.appliedTo(tp.args), env)
-                            else makeSIRNonFunClassType(tpc, tp.args.map(sirTypeInEnv(_, env)), env)
+                            else {
+                                tryMakeCompiledDerivation(tp, tp.typeSymbol, env) getOrElse
+                                    makeSIRNonFunClassType(
+                                      tpc,
+                                      tp.args.map(sirTypeInEnv(_, env)),
+                                      env
+                                    )
+                            }
                         case tpc: TypeLambda =>
                             unsupportedType(tp, s"TypeLambda ${tpc.show}", env)
                         case tpc: TermRef =>
                             unsupportedType(tp, s"TermRef ${tpc.show}", env)
                         case other =>
                             unsupportedType(tp, s"AppliedType ${tp.show}", env)
+                }
             case tp: AnnotatedType =>
                 sirTypeInEnvWithErr(tp.underlying, env)
             case tp: AndType =>
@@ -316,6 +324,28 @@ class SIRTyper(using Context) {
             retval.foreach(t => proxy.ref = t)
             retval
         }
+    }
+
+    private def tryMakeCompiledDerivation(
+        originType: Type,
+        typeSymbol: Symbol,
+        env: SIRTypeEnv
+    ): Option[SIRType] = {
+        if originType <:< Symbols.requiredClassRef("scalus.CompileDerivations") then
+            originType.baseClasses.find(b => defn.isFunctionClass(b)) match {
+                case None =>
+                    report.warning(
+                      s"type ${originType.show} marded as CompileDerivations but not functional"
+                    )
+                    None
+                case Some(baseFunction) =>
+                    val t = originType.baseType(baseFunction)
+                    if t == Types.NoType then {
+                        report.warning(s"type ${originType.show} can't be transformed to function")
+                        None
+                    } else Some(sirTypeInEnvWithErr(t, env))
+            }
+        else None
     }
 
     private def retrieveTypeParamsAndParamsFromConstructor(

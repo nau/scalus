@@ -9,6 +9,11 @@ import scalus.uplc.eval.{*, given}
 import scalus.builtin.given
 import scalus.Compiler.{compile, compileDebug}
 
+enum DerivingSpec_AE2 derives ToData, FromData:
+    case DS2_A extends DerivingSpec_AE2
+    case DS2_B(b: BigInt) extends DerivingSpec_AE2
+    case DS2_C(b: BigInt, bs: ByteString) extends DerivingSpec_AE2
+
 object DerivingSpecScope {
 
     enum AE1 derives ToData, FromData:
