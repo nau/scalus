@@ -13,6 +13,7 @@ import dotty.tools.dotc.core.Types.*
 import dotty.tools.dotc.core.*
 import dotty.tools.dotc.util.{NoSourcePosition, SourcePosition, SrcPos}
 import scalus.SIRCompiler.SIRVersion
+import scalus.ScalusCompilationMode.{AllDefs, OnlyDerivations}
 import scalus.flat.EncoderState
 import scalus.flat.Flat
 import scalus.flat.FlatInstantces.given
@@ -173,18 +174,44 @@ final class SIRCompiler(using ctx: Context) {
     private val CompileAnnot = requiredClassRef("scalus.Compile").symbol.asClass
     private val IgnoreAnnot = requiredClassRef("scalus.Ignore").symbol.asClass
 
+    private val CompileDerivationsMarker = Symbols.requiredClassRef("scalus.CompileDerivations")
+
     private def builtinFun(s: Symbol): Option[SIR.Builtin] = {
         DefaultFunSIRBuiltins.get(s)
     }
 
     def compileModule(tree: Tree): Unit = {
-        def collectTypeDefs(tree: Tree): List[TypeDef] = {
+
+        def findCompileDerivations(tree: Tree): Boolean = {
+            tree match
+                case cd: TypeDef =>
+                    if cd.symbol.flags.is(Flags.Module) then findCompileDerivations(cd.rhs)
+                    else false
+                case tmpl: Template =>
+                    tmpl.body.exists(x => findCompileDerivations(x))
+                case dd: DefDef =>
+                    tryMethodResultType(dd).exists(_ <:< CompileDerivationsMarker)
+                case vd: ValDef =>
+                    if vd.tpe <:< CompileDerivationsMarker then
+                        println(
+                          s"select: found compile derivations: ${vd.symbol.fullName} in ${vd.symbol.owner.fullName}"
+                        )
+                        true
+                    else false
+                case _ =>
+                    false
+        }
+
+        def collectTypeDefs(tree: Tree): List[(TypeDef, ScalusCompilationMode)] = {
             tree match
                 case EmptyTree            => Nil
                 case PackageDef(_, stats) => stats.flatMap(collectTypeDefs)
                 case cd: TypeDef          =>
                     // println(s"typedef ${cd.name}: ${cd.rhs.showIndented(2)}")
-                    if cd.symbol.hasAnnotation(CompileAnnot) then List(cd)
+                    if cd.symbol.hasAnnotation(CompileAnnot) then
+                        List((cd, ScalusCompilationMode.AllDefs))
+                    else if findCompileDerivations(tree) then
+                        List((cd, ScalusCompilationMode.OnlyDerivations))
                     else Nil
                 case vd: ValDef =>
                     // println(s"valdef $vd")
@@ -195,16 +222,16 @@ final class SIRCompiler(using ctx: Context) {
         val allTypeDefs = collectTypeDefs(tree)
         // println(allTypeDefs.map(td => s"${td.name} ${td.isClassDef}"))
 
-        allTypeDefs.foreach(compileTypeDef)
+        allTypeDefs.foreach((td, mode) => compileTypeDef(td, mode))
     }
 
-    private def compileTypeDef(td: TypeDef): Unit = {
+    private def compileTypeDef(td: TypeDef, mode: ScalusCompilationMode): Unit = {
         val start = System.currentTimeMillis()
         val tpl = td.rhs.asInstanceOf[Template]
 
         val specializedParents = td.tpe.parents.flatMap { p =>
-            val hasAnnotation = p.typeSymbol.hasAnnotation(Symbols.requiredClass("scalus.Compile"))
-            if p.typeSymbol.hasAnnotation(Symbols.requiredClass("scalus.Compile")) then
+            val hasAnnotation = p.typeSymbol.hasAnnotation(CompileAnnot)
+            if hasAnnotation then
                 if p.typeSymbol.fullName.toString.startsWith("scalus.prelude.") then Some(p)
                 else
                     throw new RuntimeException(
@@ -221,43 +248,70 @@ final class SIRCompiler(using ctx: Context) {
         val sirTypeVars = (typeParamsSymbols zip sirTypeParams).toMap
         val baseEnv = Env.empty.copy(
           thisTypeSymbol = td.symbol,
-          typeVars = sirTypeVars
+          typeVars = sirTypeVars,
+          mode = mode
         )
 
         val bindings = tpl.body.flatMap {
-            case dd: DefDef
-                if !dd.symbol.flags.is(Flags.Synthetic)
-                // uncomment to ignore derived methods
-                // && !dd.symbol.name.startsWith("derived")
-                    && !dd.symbol.hasAnnotation(IgnoreAnnot) =>
-                compileStmt(
-                  baseEnv,
-                  dd,
-                  isGlobalDef = true
-                ) match
-                    case CompileMemberDefResult.Compiled(b) => Some(b)
-                    case _                                  => None
-            case vd: ValDef
-                if !vd.symbol.flags.isOneOf(Flags.Synthetic | Flags.Case)
-                // uncomment to ignore derived methods
-                // && !vd.symbol.name.startsWith("derived")
-                    && !vd.symbol.hasAnnotation(IgnoreAnnot) =>
-                // println(s"valdef: ${vd.symbol.fullName}")
-                compileStmt(
-                  baseEnv,
-                  vd,
-                  isGlobalDef = true
-                ) match
-                    case CompileMemberDefResult.Compiled(b)       => Some(b)
-                    case CompileMemberDefResult.Builtin(name, tp) => None
-                    case CompileMemberDefResult.NotSupported =>
-                        error(
-                          GenericError(
-                            s"Not supported: ${vd.symbol.fullName.show}",
-                            vd.srcPos
-                          ),
-                          None
-                        )
+            case dd: DefDef =>
+                val toProcess =
+                    mode match
+                        case AllDefs =>
+                            !dd.symbol.flags.is(Flags.Synthetic)
+                            // uncomment to ignore derived methods
+                            // && !dd.symbol.name.startsWith("derived")
+                            && !dd.symbol.hasAnnotation(IgnoreAnnot)
+                        case OnlyDerivations =>
+                            dd.symbol.name.startsWith("derived") &&
+                            tryMethodResultType(dd).exists(_ <:< CompileDerivationsMarker)
+                if toProcess then
+                    compileStmt(
+                      baseEnv,
+                      dd,
+                      isGlobalDef = true
+                    ) match
+                        case CompileMemberDefResult.Compiled(b) => Some(b)
+                        case _                                  => None
+                else None
+            case vd: ValDef =>
+                val toProcess = mode match {
+                    case AllDefs =>
+                        !vd.symbol.flags.isOneOf(Flags.Synthetic | Flags.Case)
+                        // uncomment to ignore derived methods
+                        // && !vd.symbol.name.startsWith("derived")
+                        && !vd.symbol.hasAnnotation(IgnoreAnnot)
+                    case OnlyDerivations =>
+                        vd.symbol.name.startsWith("derived") &&
+                        vd.tpe <:< CompileDerivationsMarker
+                        ||
+                        vd.symbol.flags.is(Flags.Module)
+                        &&
+                        !vd.symbol.flags.isOneOf(Flags.Synthetic)
+                }
+                mode match
+                    case OnlyDerivations =>
+                        println(s"check ValDef ${vd.symbol.fullName}, toProcess=${toProcess}")
+                    case _ =>
+                if toProcess then
+                    // println(s"valdef: ${vd.symbol.fullName}")
+                    compileStmt(
+                      baseEnv,
+                      vd,
+                      isGlobalDef = true
+                    ) match
+                        case CompileMemberDefResult.Compiled(b)       => Some(b)
+                        case CompileMemberDefResult.Builtin(name, tp) => None
+                        case CompileMemberDefResult.NotSupported =>
+                            error(
+                              GenericError(
+                                s"Not supported: ${vd.symbol.fullName.show}",
+                                vd.srcPos
+                              ),
+                              None
+                            )
+                else None
+            // case cd: TypeDef if cd.symbol.flags.is(Flags.Module) =>
+
             case _ => None
         }
 
@@ -698,6 +752,7 @@ final class SIRCompiler(using ctx: Context) {
             Thus, we need to ignore them here.
          */
         else if vd.symbol.flags.isAllOf(Flags.Lazy, butNot = Flags.Given) then
+            println(s"!! unexpected laxy val: ${vd.show}, ${vd.symbol.flags.flagsString}")
             error(LazyValNotSupported(vd, vd.srcPos), None)
             CompileMemberDefResult.NotSupported
         // ignore @Ignore annotated statements
@@ -2039,6 +2094,25 @@ final class SIRCompiler(using ctx: Context) {
                 tupleDecl
     }
 
+    private def tryMethodResultType(dd: DefDef): Option[Type] = {
+        def extractResultType(tpe: Type, isResult: Boolean, required: Boolean): Option[Type] = {
+            tpe match {
+                case mt: MethodType =>
+                    // TODO: adopt to carrying case
+                    // extractResultType(mt.resType, true, true)
+                    Some(mt.resType)
+                case pt: PolyType =>
+                    extractResultType(pt.resType, isResult, required)
+                case rt: RefinedType =>
+                    extractResultType(rt.underlying, isResult, required)
+                case _ =>
+                    if isResult then Some(tpe) else None
+
+            }
+        }
+        extractResultType(dd.tpe, false, false)
+    }
+
     private def specializeInModule(
         parentSym: Symbol,
         module: scalus.sir.Module,
@@ -2195,7 +2269,8 @@ object SIRCompiler {
         debug: Boolean = false,
         level: Int = 0,
         resolvedClasses: Map[Symbol, SIRType] = Map.empty,
-        thisTypeSymbol: Symbol = Symbols.NoSymbol
+        thisTypeSymbol: Symbol = Symbols.NoSymbol,
+        mode: ScalusCompilationMode = ScalusCompilationMode.AllDefs
     ) {
 
         def ++(bindings: Iterable[(String, SIRType)]): Env = copy(vars = vars ++ bindings)

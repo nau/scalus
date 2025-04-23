@@ -14,6 +14,7 @@ enum DerivingSpec_AE2 derives ToData, FromData:
     case DS2_B(b: BigInt) extends DerivingSpec_AE2
     case DS2_C(b: BigInt, bs: ByteString) extends DerivingSpec_AE2
 
+@Compile
 object DerivingSpecScope {
 
     enum AE1 derives ToData, FromData:
