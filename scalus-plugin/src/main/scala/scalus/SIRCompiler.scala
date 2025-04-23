@@ -319,9 +319,9 @@ final class SIRCompiler(using ctx: Context) {
             )
         writeModule(module, td.symbol.fullName.toString)
         val time = System.currentTimeMillis() - start
-        report.echo(
-          s"compiled Scalus module ${td.name} definitions: ${bindingsWithSpecialized.map(_.name)} in ${time}ms"
-        )
+//        report.echo(
+//          s"compiled Scalus module ${td.name} definitions: ${bindingsWithSpecialized.map(_.name)} in ${time}ms"
+//        )
     }
 
     private def writeModule(module: Module, className: String): Unit = {
