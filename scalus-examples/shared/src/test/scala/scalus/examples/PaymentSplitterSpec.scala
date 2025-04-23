@@ -3,7 +3,6 @@ package scalus.examples
 import org.scalatest.funsuite.AnyFunSuite
 import scalus.*
 import scalus.Compiler.compile
-import scalus.builtin.Builtins.blake2b_224
 import scalus.builtin.ByteString
 import scalus.builtin.Data.toData
 import scalus.builtin.ToDataInstances.given
@@ -158,33 +157,37 @@ class PaymentSplitterSpec extends AnyFunSuite, ScalusTest {
 
     private val script = {
         try {
-            compile(PaymentSplitterDI.validate)
+            compile(PaymentSplitter.validate)
                 .toUplc(generateErrorTraces = true)
                 .plutusV3
         } catch {
             case NonFatal(ex) =>
-                println("Can't compile script PaymentSplitterDI.validate")
+                println("Can't compile script PaymentSplitter.validate")
                 ex.printStackTrace()
                 throw ex
         }
     }
 
-    /*
-    private val aikenScript = {
-        import upickle.default.*
-        val obj = read[ujson.Obj](this.getClass.getResourceAsStream("/plutus.json"))
-        val cborHex = obj("validators").arr(0)("compiledCode").str
-        DeBruijnedProgram.fromCborHex(cborHex)
-    }
-
-     */
+//    private lazy val aikenScript = {
+//        import upickle.default.*
+//        val inputStream = this.getClass.getResourceAsStream("/plutus.json")
+//        if inputStream == null then {
+//            println("Can't load script from /plutus.json")
+//            throw new RuntimeException("Resource not found: /plutus.json")
+//        }
+//        val obj = read[ujson.Obj](inputStream)
+//        val cborHex = obj("validators").arr(0)("compiledCode").str
+//        val program = DeBruijnedProgram.fromCborHex(cborHex).toProgram
+//        program
+//    }
 
     private val lockTxId = random[TxId]
     private val payeesTxId = random[TxId]
     private val txId = random[TxId]
-    private val scriptHash = blake2b_224(ByteString.fromArray(3 +: script.cborEncoded))
+    private val scriptHash = script.hash
 
     private val runScalaVersion = true
+    private val runAikenVersion = false
 
     private def assertCase(
         payees: List[ByteString],
@@ -202,7 +205,34 @@ class PaymentSplitterSpec extends AnyFunSuite, ScalusTest {
         expected: Either[String, Option[ExBudget]]
     ): Unit = {
         // Create script with payees parameter
-        val applied = script $ List(payees).toData
+
+        val payeesData = List(payees).toData
+
+        val payeesTerm =
+            Term.Const(
+              uplc.Constant
+                  .List(
+                    DefaultUni.ProtoList,
+                    scala.List(
+                      uplc.Constant.List(
+                        DefaultUni.ByteString,
+                        payees.asScala.map(bs => uplc.Constant.ByteString(bs)).toList
+                      )
+                    )
+                  )
+            )
+
+        // import scalus.builtin.FromDataInstances.given
+        // val compiledList = compile { (d: scalus.builtin.Data) =>
+        //    d.to[List[ByteString]]
+        // }
+        // val payeesUplc = compiledList.toUplc(true) $ Term.Const(Constant.Data(payeesData))
+
+        val applied = script $ payeesData
+//            if runAikenVersion then {
+//                // println(s"aikenScript: ${aikenScript.pretty.render(100)}")
+//                aikenScript $ payeesData
+//            } else script $ payeesData
 
         // Build transaction outputs from provided parameters
         val txOutputs = outputs.map { case (pkh, amount) =>
@@ -225,10 +255,10 @@ class PaymentSplitterSpec extends AnyFunSuite, ScalusTest {
         val program = applied $ context.toData
 
         if runScalaVersion then
-            try PaymentSplitterDI.validate(List(payees.toData).toData)(context.toData)
+            try PaymentSplitter.validate(List(payees.toData).toData)(context.toData)
             catch
                 case NonFatal(ex) =>
-                    if (expected.isRight) then throw ex
+                    if expected.isRight then throw ex
 
         // Evaluate the program
         val result = program.evaluateDebug
@@ -249,6 +279,13 @@ class PaymentSplitterSpec extends AnyFunSuite, ScalusTest {
             case Right(success) =>
                 success match
                     case Option.None =>
+                        result match
+                            case Result.Failure(ex, budget, cost, logs) =>
+                                ex match
+                                    case be: scalus.uplc.eval.BuiltinError =>
+                                        be.cause.printStackTrace()
+                                    case _ =>
+                            case _ =>
                         assert(
                           result.isSuccess,
                           clue =
@@ -258,7 +295,8 @@ class PaymentSplitterSpec extends AnyFunSuite, ScalusTest {
                         assert(
                           result.isSuccess,
                           clue =
-                              s"Expected success with budget: $budget, but got: ${result.toString}"
+                              s"Expected success with budget: $budget, but got: ${result.toString}, logs0: ${result.logs
+                                      .mkString(", ")}"
                         )
                         if budget != ExBudget(ExCPU(0), ExMemory(0))
                         then // Check if budget verification is requested
@@ -343,8 +381,4 @@ class PaymentSplitterSpec extends AnyFunSuite, ScalusTest {
             }
         }
     }
-
-    def failure(message: String): Either[String, Option[ExBudget]] = Left(message)
-    def success: Either[String, Option[ExBudget]] = Right(Option.None)
-    def success(budget: ExBudget): Either[String, Option[ExBudget]] = Right(Option.Some(budget))
 }

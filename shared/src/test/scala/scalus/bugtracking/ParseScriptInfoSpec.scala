@@ -113,7 +113,7 @@ class ParseScriptInfoSpec extends AnyFunSuite:
                 Option.None,
                 Option.None
               ),
-              (hex"deadbeef").toData,
+              hex"deadbeef".toData,
               ScriptInfo.SpendingScript(
                 TxOutRef(TxId(hex"deadbeef"), 0),
                 Option.Some(hex"aaaaaaaa".toData)

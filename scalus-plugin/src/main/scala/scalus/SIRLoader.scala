@@ -20,10 +20,10 @@ class SIRLoader(using ctx: Context):
         val filename = moduleName.replace('.', '/') + ".sir"
         findAndReadModuleFromClassloader(filename) match
             case Left(filename) =>
-                if (debug) then println(s"read for ${filename} failed, look at predefined-sirs")
+                if debug then println(s"read for ${filename} failed, look at predefined-sirs")
                 val file =
                     new java.io.File(s"./shared/src/main/resources/predefined-sirs/${filename}")
-                if (file.exists()) then findAndReadModuleFromFile(file, debug)
+                if file.exists() then findAndReadModuleFromFile(file, debug)
                 else Left(filename)
             case r @ Right(module) => r
     }
@@ -32,7 +32,7 @@ class SIRLoader(using ctx: Context):
         filename: String,
         debug: Boolean = false
     ): Either[String, Module] = {
-        if (debug) then println(s"findAndReadModule: ${filename}")
+        if debug then println(s"findAndReadModule: ${filename}")
         // read the file from the classpath
         val resource = classLoader.getResourceAsStream(filename)
         if resource != null then
@@ -47,7 +47,7 @@ class SIRLoader(using ctx: Context):
         file: java.io.File,
         debug: Boolean = false
     ): Either[String, Module] = {
-        if (debug) then println(s"findAndReadModule: ${file.toPath}")
+        if debug then println(s"findAndReadModule: ${file.toPath}")
         // read the file from the classpath
         val fileInputStream = new java.io.FileInputStream(file)
         try Right(parseInputStream(fileInputStream))

@@ -112,7 +112,7 @@ class SimpleSirToUplcLowering(sir: SIR, generateErrorTraces: Boolean = false):
                 val expandedCases = mutable.ArrayBuffer.empty[SIR.Case]
                 val isUnchecked = anns.data.contains("unchecked")
                 val enhanchedCases =
-                    if (isUnchecked && cases.length < allConstructors.size) then
+                    if isUnchecked && cases.length < allConstructors.size then
                         cases :+ SIR.Case(
                           Pattern.Wildcard,
                           SIR.Error("Unexpected case", anns)

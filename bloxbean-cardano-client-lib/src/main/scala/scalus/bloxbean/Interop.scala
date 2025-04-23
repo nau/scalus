@@ -170,24 +170,25 @@ object Interop {
     }
 
     /** Converts Cardano Client Lib's [[PlutusData]] to Scalus' [[Data]] */
-    def toScalusData(datum: PlutusData): Data = {
-        datum match
-            case c: ConstrPlutusData =>
-                val args = c.getData.getPlutusDataList.asScala.map(toScalusData).toList
-                Data.Constr(c.getAlternative, args)
-            case m: MapPlutusData =>
-                val values = m.getMap.asScala.map { case (k, v) =>
-                    (toScalusData(k), toScalusData(v))
-                }.toList
-                Data.Map(values)
-            case l: ListPlutusData =>
-                val values = l.getPlutusDataList.asScala.map(toScalusData).toList
-                Data.List(values)
-            case i: BigIntPlutusData =>
-                Data.I(i.getValue)
-            case b: BytesPlutusData =>
-                Data.B(ByteString.fromArray(b.getValue))
-    }
+    extension (datum: PlutusData)
+        def toScalusData: Data = {
+            datum match
+                case c: ConstrPlutusData =>
+                    val args = c.getData.getPlutusDataList.asScala.map(_.toScalusData).toList
+                    Data.Constr(c.getAlternative, args)
+                case m: MapPlutusData =>
+                    val values = m.getMap.asScala.map { case (k, v) =>
+                        (k.toScalusData, v.toScalusData)
+                    }.toList
+                    Data.Map(values)
+                case l: ListPlutusData =>
+                    val values = l.getPlutusDataList.asScala.map(_.toScalusData).toList
+                    Data.List(values)
+                case i: BigIntPlutusData =>
+                    Data.I(i.getValue)
+                case b: BytesPlutusData =>
+                    Data.B(ByteString.fromArray(b.getValue))
+        }
 
     /** Converts Scalus' [[Data]] to Cardano Client Lib's [[PlutusData]] */
     def toPlutusData(data: Data): PlutusData = {
@@ -435,9 +436,9 @@ object Interop {
         else v2.OutputDatum.NoOutputDatum
     }
 
+    @deprecated("Use SlotConfig.slotToTime instead", "0.9.0")
     def slotToBeginPosixTime(slot: Long, sc: SlotConfig): Long = {
-        val msAfterBegin = (slot - sc.zeroSlot) * sc.slotLength
-        sc.zeroTime + msAfterBegin
+        sc.slotToTime(slot)
     }
 
     // https://github.com/IntersectMBO/cardano-ledger/blob/28ab3884cac8edbb7270fd4b8628a16429d2ec9e/eras/alonzo/impl/src/Cardano/Ledger/Alonzo/Plutus/TxInfo.hs#L186
@@ -450,19 +451,19 @@ object Interop {
                     if protocolVersion > 8 then false
                     else true // don't ask me why, I know it's stupid
                 val upper = v1.IntervalBound(
-                  v1.IntervalBoundType.Finite(BigInt(slotToBeginPosixTime(validTo, slotConfig))),
+                  v1.IntervalBoundType.Finite(BigInt(slotConfig.slotToTime(validTo))),
                   closure
                 )
                 v1.Interval(v1.Interval.negInf, upper)
             case (validFrom, 0) =>
                 v1.Interval(
-                  v1.Interval.finite(BigInt(slotToBeginPosixTime(validFrom, slotConfig))),
+                  v1.Interval.finite(BigInt(slotConfig.slotToTime(validFrom))),
                   v1.Interval.posInf
                 )
             case (validFrom, validTo) =>
-                val lower = v1.Interval.finite(BigInt(slotToBeginPosixTime(validFrom, slotConfig)))
+                val lower = v1.Interval.finite(BigInt(slotConfig.slotToTime(validFrom)))
                 val upper = v1.IntervalBound(
-                  v1.IntervalBoundType.Finite(BigInt(slotToBeginPosixTime(validTo, slotConfig))),
+                  v1.IntervalBoundType.Finite(BigInt(slotConfig.slotToTime(validTo))),
                   false // Closure is false here, this is how Cardano Ledger does it for upper bound
                 )
                 v1.Interval(lower, upper)
@@ -1124,5 +1125,24 @@ object Interop {
                   prelude.Option.Some(BigInt(tx.getBody.getDonation))
               else prelude.Option.None
         )
+    }
+
+    def getScriptContextV3(
+        redeemer: Redeemer,
+        datum: Option[Data],
+        tx: Transaction,
+        txhash: String,
+        utxos: Map[TransactionInput, TransactionOutput],
+        slotConfig: SlotConfig,
+        protocolVersion: Int
+    ): v3.ScriptContext = {
+        import scala.jdk.CollectionConverters.*
+        val scriptInfo = getScriptInfoV3(tx, redeemer, datum)
+        val datums = tx.getWitnessSet.getPlutusDataList.asScala.map { plutusData =>
+            ByteString.fromArray(plutusData.getDatumHashAsBytes) -> plutusData.toScalusData
+        }
+        val txInfo = getTxInfoV3(tx, txhash, datums, utxos, slotConfig, protocolVersion)
+        val scriptContext = v3.ScriptContext(txInfo, redeemer.getData.toScalusData, scriptInfo)
+        scriptContext
     }
 }

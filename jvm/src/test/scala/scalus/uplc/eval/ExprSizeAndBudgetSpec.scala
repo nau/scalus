@@ -12,7 +12,7 @@ import scalus.uplc.NamedDeBruijn
 import scalus.uplc.Term
 import scalus.uplc.Term.*
 import scalus.uplc.eval.ExBudget.given
-import scala.math.Ordering.Implicits._
+import scala.math.Ordering.Implicits.*
 
 class ExprSizeAndBudgetSpec extends AnyFunSuite {
     private val encoder = summon[Flat[Term]]

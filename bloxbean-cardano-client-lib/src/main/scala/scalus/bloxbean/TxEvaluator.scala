@@ -48,7 +48,10 @@ import scala.collection.mutable
 import scala.collection.mutable.ArrayBuffer
 import scala.jdk.CollectionConverters.*
 
-case class SlotConfig(zeroTime: Long, zeroSlot: Long, slotLength: Long)
+case class SlotConfig(zeroTime: Long, zeroSlot: Long, slotLength: Long) {
+    def slotToTime(slot: Long): Long = zeroTime + (slot - zeroSlot) * slotLength
+    def timeToSlot(time: Long): Long = zeroSlot + ((time - zeroTime) / slotLength)
+}
 
 object SlotConfig {
     // taken from https://github.com/spacebudz/lucid/blob/main/src/plutus/time.ts

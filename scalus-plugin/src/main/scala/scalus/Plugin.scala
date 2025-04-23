@@ -79,9 +79,9 @@ class ScalusPhase extends PluginPhase {
                 val linked = SIRLinker().link(result, tree.srcPos)
                 RemoveRecursivity(linked)
             val time = System.currentTimeMillis() - start
-            report.echo(
-              s"Scalus compile() at ${tree.srcPos.sourcePos.source}:${tree.srcPos.line} in $time ms"
-            )
+//            report.echo(
+//              s"Scalus compile() at ${tree.srcPos.sourcePos.source}:${tree.srcPos.line} in $time ms"
+//            )
             convertSIRToTree(result, tree.span)
         else tree
     end transformApply

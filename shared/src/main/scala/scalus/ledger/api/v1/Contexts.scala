@@ -222,7 +222,7 @@ object IntervalBound:
             case IntervalBound(bound, closure1) =>
                 y match
                     case IntervalBound(bound2, closure2) =>
-                        bound === bound2 && closure1 == closure2
+                        bound === bound2 && closure1 === closure2
 
 /** A type to represent time intervals.
   * @param from
@@ -319,7 +319,7 @@ object DCert {
                     case _                               => false
             case DCert.PoolRetire(poolId, epoch) =>
                 y match
-                    case DCert.PoolRetire(poolId, epoch) => poolId === poolId && epoch == epoch
+                    case DCert.PoolRetire(poolId, epoch) => poolId === poolId && epoch === epoch
                     case _                               => false
             case DCert.Genesis =>
                 y match
@@ -336,7 +336,7 @@ case class TxId(hash: ByteString):
 
 @Compile
 object TxId:
-    given Eq[TxId] = (a: TxId, b: TxId) => equalsByteString(a.hash, b.hash)
+    given Eq[TxId] = (a: TxId, b: TxId) => a.hash === b.hash
 
 case class TxOutRef(id: TxId, idx: BigInt)
 
@@ -347,7 +347,7 @@ object TxOutRef {
             case TxOutRef(aTxId, aTxOutIndex) =>
                 b match
                     case TxOutRef(bTxId, bTxOutIndex) =>
-                        aTxOutIndex == bTxOutIndex && aTxId === bTxId
+                        aTxOutIndex === bTxOutIndex && aTxId === bTxId
 }
 
 case class PubKeyHash(hash: ByteString) {
@@ -356,7 +356,7 @@ case class PubKeyHash(hash: ByteString) {
 
 @Compile
 object PubKeyHash {
-    given Eq[PubKeyHash] = (a: PubKeyHash, b: PubKeyHash) => equalsByteString(a.hash, b.hash)
+    given Eq[PubKeyHash] = (a: PubKeyHash, b: PubKeyHash) => a.hash === b.hash
 }
 
 enum Credential:
@@ -369,12 +369,12 @@ object Credential {
         a match
             case Credential.PubKeyCredential(hash) =>
                 b match
-                    case Credential.PubKeyCredential(hash2) => hash.hash == hash2.hash
+                    case Credential.PubKeyCredential(hash2) => hash.hash === hash2.hash
                     case Credential.ScriptCredential(hash)  => false
             case Credential.ScriptCredential(hash) =>
                 b match
                     case Credential.PubKeyCredential(hash2) => false
-                    case Credential.ScriptCredential(hash2) => hash == hash2
+                    case Credential.ScriptCredential(hash2) => hash === hash2
 }
 
 enum StakingCredential:
@@ -393,7 +393,7 @@ object StakingCredential {
                 rhs match
                     case StakingCredential.StakingHash(cred2) => false
                     case StakingCredential.StakingPtr(a2, b2, c2) =>
-                        a == a2 && b == b2 && c == c2
+                        a === a2 && b === b2 && c === c2
 }
 
 case class Address(
@@ -468,7 +468,7 @@ object ScriptPurpose {
         x match
             case ScriptPurpose.Minting(curSymbol) =>
                 y match
-                    case ScriptPurpose.Minting(curSymbol) => curSymbol == curSymbol
+                    case ScriptPurpose.Minting(curSymbol) => curSymbol === curSymbol
                     case _                                => false
             case ScriptPurpose.Spending(txOutRef) =>
                 y match
