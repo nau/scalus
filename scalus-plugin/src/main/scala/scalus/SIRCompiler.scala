@@ -2124,10 +2124,6 @@ final class SIRCompiler(using ctx: Context) {
                         &&
                         !vd.symbol.flags.isOneOf(Flags.Synthetic)
                 }
-                env.mode match
-                    case OnlyDerivations =>
-                        println(s"check ValDef ${vd.symbol.fullName}, toProcess=${toProcess}")
-                    case _ =>
                 if toProcess then
                     // println(s"valdef: ${vd.symbol.fullName}")
                     val debug = env.mode == OnlyDerivations || env.debug
@@ -2137,13 +2133,13 @@ final class SIRCompiler(using ctx: Context) {
                       isGlobalDef = true
                     ) match
                         case CompileMemberDefResult.Compiled(b) =>
-                            if debug then println(s"compileValDef result: ${b}")
+                            if debug then
+                                println(s"compileValDef result for ${vd.symbol.fullName}: ${b}")
                             Some(b)
                         case CompileMemberDefResult.Builtin(name, tp) =>
                             if debug then println(s"compileValDef builtin: ${name}")
                             None
                         case CompileMemberDefResult.Ignored(tp) =>
-                            if debug then println(s"compileValDef ignored: ${tp}")
                             None
                         case CompileMemberDefResult.NotSupported =>
                             error(

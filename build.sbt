@@ -68,7 +68,7 @@ lazy val commonScalacOptions = Seq(
   "-explain",
   "-Wunused:imports",
   "-Wunused:params",
-//  "-Xcheck-macros"
+  "-Xcheck-macros"
 //  "-rewrite",
 //  "-source:future-migration"
 )
