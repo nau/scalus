@@ -1024,6 +1024,19 @@ object AssocMap {
         val rhsThat = rhsNotInLhs.map { case (k, v) => (k, These.That(v)) }
         AssocMap(lhs1.appendedAll(rhsThat))
     }
+
+    given assocMapEq[A: Eq, B: Eq]: Eq[AssocMap[A, B]] =
+        (lhs: AssocMap[A, B], rhs: AssocMap[A, B]) =>
+            lhs.toList.length === rhs.toList.length && lhs.toList.forall { case (key, lhsValue) =>
+                rhs.lookup(key) match
+                    case None           => false
+                    case Some(rhsValue) => lhsValue === rhsValue
+            }
 }
 
 case class Rational(numerator: BigInt, denominator: BigInt)
+
+@Compile
+object Rational:
+    given Eq[Rational] = (lhs: Rational, rhs: Rational) =>
+        lhs.numerator * rhs.denominator === rhs.numerator * lhs.denominator
