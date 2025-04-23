@@ -136,14 +136,23 @@ final class SIRCompiler(using ctx: Context) {
     extension (t: Tree) def isLiteral: Boolean = compileConstant.isDefinedAt(t)
     extension (t: Tree) def isData: Boolean = t.tpe <:< DataClassSymbol.typeRef
 
+    sealed trait LocalBindingOrSubmodule
+
     case class LocalBinding(
         name: String,
         symbol: Symbol,
         recursivity: Recursivity,
         body: SIR,
         pos: SourcePosition
-    ):
+    ) extends LocalBindingOrSubmodule:
         def fullName(using Context): FullName = FullName(symbol)
+
+    case class LocalSubmodule(
+        name: String,
+        symbol: Symbol,
+        bindings: Seq[LocalBindingOrSubmodule],
+        pos: SourcePosition
+    ) extends LocalBindingOrSubmodule
 
     private val globalDefs: mutable.LinkedHashMap[FullName, CompileDef] =
         mutable.LinkedHashMap.empty
@@ -182,37 +191,60 @@ final class SIRCompiler(using ctx: Context) {
 
     def compileModule(tree: Tree): Unit = {
 
-        def findCompileDerivations(tree: Tree): Boolean = {
-            tree match
+        def findCompileDerivations(
+            owner: TypeDef,
+            tree: Tree,
+            acc: Map[Symbol, TypeDef],
+        ): Map[Symbol, TypeDef] = {
+
+            def updateAcc(td: TypeDef): Map[Symbol, TypeDef] =
+                acc.get(td.symbol) match
+                    case Some(v) => acc
+                    case None =>
+                        if td.symbol.hasAnnotation(CompileAnnot) then acc
+                        else acc.updated(td.symbol, td)
+            end updateAcc
+
+            // TODO:use tree accumulator
+            val retval = tree match
                 case cd: TypeDef =>
-                    if cd.symbol.flags.is(Flags.Module) then findCompileDerivations(cd.rhs)
-                    else false
+                    if cd.symbol.flags.is(Flags.Module) then findCompileDerivations(cd, cd.rhs, acc)
+                    else acc
                 case tmpl: Template =>
-                    tmpl.body.exists(x => findCompileDerivations(x))
+                    tmpl.body.foldLeft(acc) { (s, e) =>
+                        findCompileDerivations(owner, e, s)
+                    }
                 case dd: DefDef =>
-                    tryMethodResultType(dd).exists(_ <:< CompileDerivationsMarker)
+                    if tryMethodResultType(dd).exists(_ <:< CompileDerivationsMarker) then
+                        updateAcc(owner)
+                    else acc
                 case vd: ValDef =>
                     if vd.tpe <:< CompileDerivationsMarker then
                         println(
-                          s"select: found compile derivations: ${vd.symbol.fullName} in ${vd.symbol.owner.fullName}"
+                          s"select: found compile derivations: ${vd.symbol.fullName} in ${vd.symbol.owner} when cd is ${owner.symbol.name}"
                         )
-                        true
-                    else false
+                        val r = updateAcc(owner)
+                        println(s"select: update names: ${r.keys.map(_.name)}")
+                        r
+                    else acc
                 case _ =>
-                    false
+                    acc
+            retval
         }
 
+        /** return typedef and set of string, which are full names of submodules, which contains
+          * derivations.
+          * @param tree
+          * @return
+          */
         def collectTypeDefs(tree: Tree): List[(TypeDef, ScalusCompilationMode)] = {
             tree match
                 case EmptyTree            => Nil
                 case PackageDef(_, stats) => stats.flatMap(collectTypeDefs)
-                case cd: TypeDef          =>
-                    // println(s"typedef ${cd.name}: ${cd.rhs.showIndented(2)}")
+                case cd: TypeDef =>
                     if cd.symbol.hasAnnotation(CompileAnnot) then
                         List((cd, ScalusCompilationMode.AllDefs))
-                    else if findCompileDerivations(tree) then
-                        List((cd, ScalusCompilationMode.OnlyDerivations))
-                    else Nil
+                    else List((cd, ScalusCompilationMode.OnlyDerivations))
                 case vd: ValDef =>
                     // println(s"valdef $vd")
                     Nil // module instance
@@ -220,7 +252,9 @@ final class SIRCompiler(using ctx: Context) {
         }
 
         val allTypeDefs = collectTypeDefs(tree)
-        // println(allTypeDefs.map(td => s"${td.name} ${td.isClassDef}"))
+        // println("allTypedefs: " + allTypeDefs.map { case (td, mode) =>
+        //    s"${td.name} ${td.isClassDef}"
+        // })
 
         allTypeDefs.foreach((td, mode) => compileTypeDef(td, mode))
     }
@@ -252,73 +286,21 @@ final class SIRCompiler(using ctx: Context) {
           mode = mode
         )
 
-        val bindings = tpl.body.flatMap {
-            case dd: DefDef =>
-                val toProcess =
-                    mode match
-                        case AllDefs =>
-                            !dd.symbol.flags.is(Flags.Synthetic)
-                            // uncomment to ignore derived methods
-                            // && !dd.symbol.name.startsWith("derived")
-                            && !dd.symbol.hasAnnotation(IgnoreAnnot)
-                        case OnlyDerivations =>
-                            dd.symbol.name.startsWith("derived") &&
-                            tryMethodResultType(dd).exists(_ <:< CompileDerivationsMarker)
-                if toProcess then
-                    compileStmt(
-                      baseEnv,
-                      dd,
-                      isGlobalDef = true
-                    ) match
-                        case CompileMemberDefResult.Compiled(b) => Some(b)
-                        case _                                  => None
-                else None
-            case vd: ValDef =>
-                val toProcess = mode match {
-                    case AllDefs =>
-                        !vd.symbol.flags.isOneOf(Flags.Synthetic | Flags.Case)
-                        // uncomment to ignore derived methods
-                        // && !vd.symbol.name.startsWith("derived")
-                        && !vd.symbol.hasAnnotation(IgnoreAnnot)
-                    case OnlyDerivations =>
-                        vd.symbol.name.startsWith("derived") &&
-                        vd.tpe <:< CompileDerivationsMarker
-                        ||
-                        vd.symbol.flags.is(Flags.Module)
-                        &&
-                        !vd.symbol.flags.isOneOf(Flags.Synthetic)
-                }
-                mode match
-                    case OnlyDerivations =>
-                        println(s"check ValDef ${vd.symbol.fullName}, toProcess=${toProcess}")
-                    case _ =>
-                if toProcess then
-                    // println(s"valdef: ${vd.symbol.fullName}")
-                    compileStmt(
-                      baseEnv,
-                      vd,
-                      isGlobalDef = true
-                    ) match
-                        case CompileMemberDefResult.Compiled(b)       => Some(b)
-                        case CompileMemberDefResult.Builtin(name, tp) => None
-                        case CompileMemberDefResult.NotSupported =>
-                            error(
-                              GenericError(
-                                s"Not supported: ${vd.symbol.fullName.show}",
-                                vd.srcPos
-                              ),
-                              None
-                            )
-                else None
-            // case cd: TypeDef if cd.symbol.flags.is(Flags.Module) =>
+        val bindingsAndSubmodules = tpl.body.flatMap { tree =>
+            compileTreeInModule(baseEnv, td, tree)
+        }
 
-            case _ => None
+        val (bindings, sumbodules) = bindingsAndSubmodules.foldRight(
+          (List.empty[LocalBinding], List.empty[LocalSubmodule])
+        ) { case (element, (bindings, submodules)) =>
+            element match
+                case lb: LocalBinding   => (lb +: bindings, submodules)
+                case ls: LocalSubmodule => (bindings, ls +: submodules)
         }
 
         val possibleOverrides = specializedParents.flatMap { p =>
             bindings.map { lb =>
-                p.typeSymbol.fullName.show + "." + lb.name
-                    -> lb
+                p.typeSymbol.fullName.show + "." + lb.name -> lb
             }
         }.toMap
 
@@ -386,6 +368,39 @@ final class SIRCompiler(using ctx: Context) {
             report.echo(
               s"compiled Scalus module ${td.name} definitions: ${bindingsWithSpecialized.map(_.name)} in ${time}ms"
             )
+        for sumbodule <- sumbodules do {
+            writeSubmodule(sumbodule, superBindings)
+        }
+    }
+
+    private def writeSubmodule(
+        submodule: LocalSubmodule,
+        superBindings: List[SuperBinding]
+    ): Unit = {
+        val (localBindings, subsubmodules) = submodule.bindings.foldRight(
+          (List.empty[LocalBinding], List.empty[LocalSubmodule])
+        ) { case (element, (bindings, submodules)) =>
+            element match
+                case lb: LocalBinding   => (lb +: bindings, submodules)
+                case ls: LocalSubmodule => (bindings, ls +: submodules)
+        }
+        val superNames = superBindings.map(_.name).toSet
+        val bindings = localBindings.map { lb =>
+            if superBindings.nonEmpty then
+                val (newBody, changed) = specializeSIR(
+                  Symbols.NoSymbol,
+                  lb.body,
+                  Env.empty.copy(thisTypeSymbol = submodule.symbol),
+                  Map.empty,
+                  superNames
+                )
+                Binding(lb.fullName.name, newBody)
+            else Binding(lb.fullName.name, lb.body)
+        }
+        if bindings.nonEmpty then
+            val module = Module(SIRCompiler.SIRVersion, bindings)
+            writeModule(module, submodule.name)
+        subsubmodules.foreach(submodule => writeSubmodule(submodule, superBindings))
     }
 
     private def writeModule(module: Module, className: String): Unit = {
@@ -732,7 +747,7 @@ final class SIRCompiler(using ctx: Context) {
     }
 
     enum CompileMemberDefResult {
-        case Compiled(b: LocalBinding)
+        case Compiled(b: LocalBindingOrSubmodule)
         case Builtin(name: String, tp: SIRType)
         case Ignored(tp: SIRType)
         case NotSupported
@@ -829,19 +844,38 @@ final class SIRCompiler(using ctx: Context) {
     ): CompileMemberDefResult = {
         // report.echo(s"compileStmt  ${stmt.show} in ${env}")
         stmt match
-            case vd: ValDef => compileValDef(env, vd)
+            case vd: ValDef =>
+                env.mode match
+                    case ScalusCompilationMode.AllDefs =>
+                        compileValDef(env, vd)
+                    case ScalusCompilationMode.OnlyDerivations =>
+                        if vd.name.startsWith("derive") &&
+                            vd.tpe <:< CompileDerivationsMarker
+                        then compileValDef(env, vd)
+                        else CompileMemberDefResult.Ignored(SIRType.TypeNothing)
             case dd: DefDef =>
-                compileDefDef(env, dd, isGlobalDef)
+                env.mode match
+                    case ScalusCompilationMode.AllDefs =>
+                        compileDefDef(env, dd, isGlobalDef)
+                    case ScalusCompilationMode.OnlyDerivations =>
+                        if dd.name.startsWith("derived$") &&
+                            tryMethodResultType(dd).exists(_ <:< CompileDerivationsMarker)
+                        then compileDefDef(env, dd, isGlobalDef)
+                        else CompileMemberDefResult.Ignored(SIRType.TypeNothing)
             case x =>
-                CompileMemberDefResult.Compiled(
-                  LocalBinding(
-                    s"__${stmt.source.file.name.takeWhile(_.isLetterOrDigit)}_line_${stmt.srcPos.line}",
-                    NoSymbol,
-                    Recursivity.NonRec,
-                    compileExpr(env, x),
-                    stmt.sourcePos
-                  )
-                )
+                env.mode match
+                    case ScalusCompilationMode.AllDefs =>
+                        CompileMemberDefResult.Compiled(
+                          LocalBinding(
+                            s"__${stmt.source.file.name.takeWhile(_.isLetterOrDigit)}_line_${stmt.srcPos.line}",
+                            NoSymbol,
+                            Recursivity.NonRec,
+                            compileExpr(env, x),
+                            stmt.sourcePos
+                          )
+                        )
+                    case ScalusCompilationMode.OnlyDerivations =>
+                        CompileMemberDefResult.Ignored(SIRType.TypeNothing)
     }
 
     private def compileBlock(env: Env, stmts: immutable.List[Tree], expr: Tree): SIR = {
@@ -852,11 +886,19 @@ final class SIRCompiler(using ctx: Context) {
             case (env, _: TypeDef) => env // ignore local type definitions
             case (env, stmt) =>
                 compileStmt(env, stmt) match
-                    case CompileMemberDefResult.Compiled(bind) =>
-                        exprs += bind
-                        env + (bind.name -> bind.body.tp)
+                    case CompileMemberDefResult.Compiled(bindOrSubmodule) =>
+                        bindOrSubmodule match
+                            case bind: LocalBinding =>
+                                exprs += bind
+                                env + (bind.name -> bind.body.tp)
+                            case submodule: LocalSubmodule =>
+                                val message = "Block can't contains submodules"
+                                report.error(
+                                  message,
+                                  expr.srcPos
+                                )
+                                env
                     case _ => env
-
         }
         val exprExpr = compileExpr(exprEnv, expr)
         if env.debug then
@@ -1923,7 +1965,15 @@ final class SIRCompiler(using ctx: Context) {
                   Closure(_, Ident(nme.ANON_FUN), _)
                 ) =>
                 compileStmt(env, dd) match
-                    case CompileMemberDefResult.Compiled(b) => b.body
+                    case CompileMemberDefResult.Compiled(b) =>
+                        b match
+                            case lb: LocalBinding => lb.body
+                            case ls: LocalSubmodule =>
+                                val message =
+                                    s"Local objects are not supported, consider write ${ls.name} outside block"
+                                report.error(message, dd.srcPos)
+                                SIR.Error(message, AnnotationsDecl.fromSourcePosition(ls.pos))
+
                     case CompileMemberDefResult.Ignored(tp) =>
                         error(
                           GenericError("Ignoring closure", tree.srcPos),
@@ -2055,6 +2105,103 @@ final class SIRCompiler(using ctx: Context) {
                       ),
                       SIR.Error("Invalid overriding", AnnotationsDecl.fromSrcPos(tree.srcPos))
                     )
+    }
+
+    private def compileSubmodule(env: Env, td: TypeDef): Option[LocalSubmodule] = {
+        td.rhs match
+            case tmpl: Template =>
+                val bindings = tmpl.body.flatMap { tree =>
+                    compileTreeInModule(env, td, tree)
+                }
+                if bindings.isEmpty then None
+                else
+                    Some(LocalSubmodule(td.symbol.fullName.show, td.symbol, bindings, td.sourcePos))
+            case _ => None
+    }
+
+    private def compileTreeInModule(
+        env: Env,
+        td: TypeDef,
+        tree: Tree
+    ): Option[LocalBindingOrSubmodule] = {
+
+        tree match
+            case dd: DefDef =>
+                val toProcess =
+                    env.mode match
+                        case AllDefs =>
+                            !dd.symbol.flags.is(Flags.Synthetic)
+                            // uncomment to ignore derived methods
+                            // && !dd.symbol.name.startsWith("derived")
+                            && !dd.symbol.hasAnnotation(IgnoreAnnot)
+                        case OnlyDerivations =>
+                            dd.symbol.name.startsWith("derived") &&
+                            tryMethodResultType(dd).exists(_ <:< CompileDerivationsMarker)
+                if toProcess then
+                    compileStmt(
+                      env,
+                      dd,
+                      isGlobalDef = true
+                    ) match
+                        case CompileMemberDefResult.Compiled(b) => Some(b)
+                        case _                                  => None
+                else None
+            case vd: ValDef =>
+                val toProcess = env.mode match {
+                    case AllDefs =>
+                        !vd.symbol.flags.isOneOf(Flags.Synthetic | Flags.Case)
+                        // uncomment to ignore derived methods
+                        // && !vd.symbol.name.startsWith("derived")
+                        && !vd.symbol.hasAnnotation(IgnoreAnnot)
+                    case OnlyDerivations =>
+                        vd.symbol.name.startsWith("derived") &&
+                        vd.tpe <:< CompileDerivationsMarker
+                        ||
+                        vd.symbol.flags.is(Flags.Module)
+                        &&
+                        !vd.symbol.flags.isOneOf(Flags.Synthetic)
+                }
+                env.mode match
+                    case OnlyDerivations =>
+                        println(s"check ValDef ${vd.symbol.fullName}, toProcess=${toProcess}")
+                    case _ =>
+                if toProcess then
+                    // println(s"valdef: ${vd.symbol.fullName}")
+                    val debug = env.mode == OnlyDerivations || env.debug
+                    compileStmt(
+                      env,
+                      vd,
+                      isGlobalDef = true
+                    ) match
+                        case CompileMemberDefResult.Compiled(b) =>
+                            if debug then println(s"compileValDef result: ${b}")
+                            Some(b)
+                        case CompileMemberDefResult.Builtin(name, tp) =>
+                            if debug then println(s"compileValDef builtin: ${name}")
+                            None
+                        case CompileMemberDefResult.Ignored(tp) =>
+                            if debug then println(s"compileValDef ignored: ${tp}")
+                            None
+                        case CompileMemberDefResult.NotSupported =>
+                            error(
+                              GenericError(
+                                s"Not supported: ${vd.symbol.fullName.show}",
+                                vd.srcPos
+                              ),
+                              None
+                            )
+                else None
+            case cd: TypeDef if cd.symbol.flags.is(Flags.Module) =>
+                val cbMode =
+                    if cd.symbol.hasAnnotation(CompileAnnot) then ScalusCompilationMode.AllDefs
+                    else ScalusCompilationMode.OnlyDerivations
+                compileSubmodule(
+                  env.copy(mode = cbMode),
+                  cd
+                )
+            case _ =>
+                None
+
     }
 
     private def makeGenericTupleDecl(size: Int, srcPos: SrcPos): DataDecl = {
