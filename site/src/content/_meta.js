@@ -1,11 +1,20 @@
 export default {
   index: '',
   'get-started': '',
-  'smart-contract': 'First Smart Contract',
-  'dapp': 'First Decentralised Application',
   'language-tour': 'Language Tour',
-  'advanced': '',
-  'features': '',
-  'themes': '',
-  
+  'smart-contract': 'Writing Smart Contract',
+  // 'transaction-builder': 'Building Transactions',
+  dapp: {
+    title: 'Developing DApp',
+    display: 'hidden',
+  },
+  advanced: '',
+  features: {
+    display: 'hidden',
+  },
+  themes: {
+    display: 'hidden',
+  },
+
+
 }

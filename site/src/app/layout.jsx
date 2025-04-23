@@ -7,7 +7,7 @@ import 'nextra-theme-docs/style.css'
 export const metadata = {
   metadataBase: new URL('https://scalus.org'),
   title: {
-    template: '%s - Scalus'
+    template: '%s | Scalus - DApps Development Platform for Cardano'
   },
   description: 'Scalus: DApps Development Platform for Cardano',
   applicationName: 'Scalus',
@@ -15,7 +15,7 @@ export const metadata = {
   appleWebApp: {
     title: 'Scalus'
   },
-  other: {
+    other: {
     'msapplication-TileImage': '/ms-icon-144x144.png',
     'msapplication-TileColor': '#fff'
   },
@@ -50,7 +50,7 @@ export default async function RootLayout({ children }) {
           footer={<Footer>Apache 2.0 © {new Date().getFullYear()} Lantr Labs</Footer>}
           // editLink="Edit this page on GitHub"
           docsRepositoryBase="https://github.com/nau/scalus"
-          sidebar={{ defaultMenuCollapseLevel: 1 }}
+          sidebar={{ defaultMenuCollapseLevel: 2 }}
           pageMap={pageMap}
         >
           {children}

@@ -1,5 +1,6 @@
 import nextra from 'nextra'
 
+
 const withNextra = nextra({
   latex: true,
   search: {
@@ -9,5 +10,14 @@ const withNextra = nextra({
 })
 
 export default withNextra({
-  reactStrictMode: true
+  reactStrictMode: true,
+  async redirects() {
+    return [
+      {
+        source: '/',
+        destination: '/docs',
+        permanent: true,
+      },
+    ]
+  },
 })
