@@ -745,7 +745,8 @@ final class SIRCompiler(using ctx: Context) {
                 println(s"derivation of ${vd.name}: rhs.tree= ${vd.rhs}")
             }
             val rhsFixed =
-                if vd.tpe <:< CompileDerivationsMarker then fixFunctionInterface(env, vd.rhs)
+                if vd.tpe <:< CompileDerivationsMarker then
+                    fixFunctionInterface(env, vd.tpe, vd.rhs)
                 else vd.rhs
             val bodyExpr = compileExpr(env, rhsFixed)
             if env.mode == ScalusCompilationMode.OnlyDerivations then {
@@ -759,26 +760,39 @@ final class SIRCompiler(using ctx: Context) {
 
     private def fixFunctionInterface(
         env: Env,
+        tpe: Type,
         tree: Tree
     ): Tree = {
         println(s"fix function interface for ${tree.show}")
         println(s"fix function interface tree = ${tree}")
         tree match
             case Inlined(call, List(), expansion) =>
-                val newExpansion = fixFunctionInterface(env, expansion)
+                val newExpansion = fixFunctionInterface(env, tpe, expansion)
                 newExpansion
-            case Typed(body, tpe) =>
-                body match {
-                    case Block(List(ddef: DefDef), Block(List(typed), Apply(initCn, List()))) =>
-                        println(s"Determinated function interface: ${ddef.show}")
-                        println(s"typed: ${typed.show}")
-                        ddef
-                    case _ =>
-                        println(s"Function interace not applied for body ${body.show}")
-                        println(s"tree:${body}")
-                        body
-                }
+            case Block(
+                  List(ddef: DefDef),
+                  Block(List(typed), Apply(Select(obj, initCn), List()))
+                ) =>
+                println(s"Determinated function interface: ${ddef.show}")
+                println(s"typed: ${typed.show}")
+                println(s"initCn: ${initCn.show}, debugString: ${initCn.debugString}")
+
+                // val lambda = Block(List(ddef),Closure(Nil,),EmptyTree)
+                // ddef.tpe match {
+                //    case MethodType
+                // val params
+                // val substitute = new TreeMap() {
+                //    override def transform(tree: Tree): Tree = tree match
+                //        case Ident(name) if name == ddef.name =>
+                //            val newName = name + "_"
+                //            println(s"Renaming ${name} to ${newName}")
+                //            super.transform(tree.duplicate.withName(newName))
+                //        case _ => super.transform(tree)
+                // }
+                val call = Ident(TermRef(NoPrefix, ddef.symbol))
+                Block(List(ddef), Closure(Nil, call, EmptyTree))
             case other =>
+                report.error("Function interface not found")
                 println(s"transstate functoon interface call unchanged: ${other.show}")
                 println(s"tree: ${other}")
                 other
