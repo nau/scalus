@@ -14,12 +14,13 @@ import scalus.prelude.===
 import scalus.prelude.Eq
 import scalus.prelude.given
 
-type ValidatorHash = ByteString
+type Hash = ByteString
+type ValidatorHash = Hash
 type Datum = Data
-type DatumHash = ByteString
+type DatumHash = Hash
 type Redeemer = Data
-type ScriptHash = ByteString
-type RedeemerHash = ByteString
+type ScriptHash = Hash
+type RedeemerHash = Hash
 type CurrencySymbol = ByteString
 type TokenName = ByteString
 @deprecated("Use `PosixTime` instead", "0.7.0")
@@ -331,7 +332,7 @@ object DCert {
                     case _         => false
 }
 
-case class TxId(hash: ByteString):
+case class TxId(hash: Hash):
     override def toString = s"TxId(${hash.toHex})"
 
 @Compile
@@ -350,7 +351,7 @@ object TxOutRef {
                         aTxOutIndex === bTxOutIndex && aTxId === bTxId
 }
 
-case class PubKeyHash(hash: ByteString) {
+case class PubKeyHash(hash: Hash) {
     override def toString = s"pkh#${hash}"
 }
 

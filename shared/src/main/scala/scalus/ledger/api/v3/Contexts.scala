@@ -13,6 +13,7 @@ import scalus.ledger.api.v1.*
 import scalus.ledger.api.v2
 import scalus.prelude.{*, given}
 
+export scalus.ledger.api.v1.Hash
 export scalus.ledger.api.v1.Address
 export scalus.ledger.api.v1.Closure
 export scalus.ledger.api.v1.Credential

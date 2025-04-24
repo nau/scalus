@@ -269,7 +269,7 @@ class HtlcValidatorSpec extends AnyFunSuite with ScalusTest {
         tx
     }
 
-    enum Person(val pkh: ByteString):
+    enum Person(val pkh: Hash):
         case Committer extends Person(genByteStringOfN(28).sample.get)
         case Receiver extends Person(genByteStringOfN(28).sample.get)
         case ReceiverWithInvalidPreimage extends Person(genByteStringOfN(28).sample.get)

@@ -1,38 +1,47 @@
 package scalus.examples
 
 import scalus.*
-import scalus.builtin.ByteString
-import scalus.prelude.{*, given}
-import scalus.ledger.api.v3.{Credential, Lovelace, Redeemer, ScriptPurpose, TxInfo}
+import scalus.prelude.*
+import scalus.ledger.api.v3.{Credential, Lovelace, Redeemer, ScriptPurpose, TxInfo, ValidatorHash}
 
+@Compile
 object StakeValidator:
     def spend(
-        withdrawScriptHash: ByteString,
-        withdrawRedeemerValidator: (Redeemer, Lovelace) => Boolean,
-        tx: TxInfo
-    ): Boolean =
-        val scriptCredential = Credential.ScriptCredential(withdrawScriptHash)
+        withdrawalScriptHash: ValidatorHash,
+        withdrawalRedeemerValidator: (Redeemer, Lovelace) => Boolean,
+        txInfo: TxInfo
+    ): Unit =
+        val scriptCredential = Credential.ScriptCredential(withdrawalScriptHash)
         val scriptPurpose = ScriptPurpose.Rewarding(scriptCredential)
-        val redeemer = tx.redeemers.lookup(scriptPurpose).getOrFail(MissingRedeemer)
-        val withdrawAmount = tx.withdrawals.lookup(scriptCredential).getOrFail(MissingWithdrawal)
-        withdrawRedeemerValidator(redeemer, withdrawAmount)
 
-    def spendMinimal(withdrawScriptHash: ByteString, tx: TxInfo): Boolean =
-        val scriptCredential = Credential.ScriptCredential(withdrawScriptHash)
-        tx.withdrawals.lookup(scriptCredential).isDefined
+        val redeemer = txInfo.redeemers.lookup(scriptPurpose).getOrFail(MissingRedeemer)
+        val withdrawalAmount =
+            txInfo.withdrawals.lookup(scriptCredential).getOrFail(MissingWithdrawal)
+        withdrawalRedeemerValidator(
+          redeemer,
+          withdrawalAmount
+        ) orFail WithdrawalRedeemerValidatorFailed
+
+    def spendMinimal(withdrawalScriptHash: ValidatorHash, txInfo: TxInfo): Unit =
+        val scriptCredential = Credential.ScriptCredential(withdrawalScriptHash)
+        txInfo.withdrawals.lookup(scriptCredential).getOrFail(MissingWithdrawal)
 
     def withdraw[T](
-        withdrawalHandler: (T, ByteString, TxInfo) => Boolean,
+        withdrawalValidator: (T, ValidatorHash, TxInfo) => Boolean,
         redeemer: T,
         credential: Credential,
-        tx: TxInfo,
-    ): Boolean =
+        txInfo: TxInfo
+    ): Unit =
         val validatorHash = credential match
             case Credential.ScriptCredential(validatorHash) => validatorHash
             case Credential.PubKeyCredential(_)             => fail(PubKeyCredentialNotSupported)
 
-        withdrawalHandler(redeemer, validatorHash, tx)
+        withdrawalValidator(redeemer, validatorHash, txInfo) orFail WithdrawalValidatorFailed
 
-    val MissingRedeemer = "There isn't a redeemer for the script purpose"
-    val MissingWithdrawal = "There isn't a withdrawal for the script credential"
-    val PubKeyCredentialNotSupported = "PubKeyCredential not supported"
+    inline val MissingRedeemer = "There isn't a redeemer for the script purpose"
+    inline val MissingWithdrawal = "There isn't a withdrawal for the script credential"
+    inline val WithdrawalRedeemerValidatorFailed = "Withdrawal redeemer validator failed"
+    inline val WithdrawalValidatorFailed = "Withdrawal validator failed"
+    inline val PubKeyCredentialNotSupported = "PubKeyCredential not supported"
+
+end StakeValidator

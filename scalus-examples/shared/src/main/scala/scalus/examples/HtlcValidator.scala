@@ -8,17 +8,17 @@ import scalus.builtin.Builtins.sha3_256
 import scalus.prelude.{*, given}
 import scalus.builtin.FromDataInstances.given
 import scalus.builtin.ToDataInstances.given
-import scalus.ledger.api.v3.{Interval, IntervalBoundType, PosixTime, TxInfo, TxOutRef}
+import scalus.ledger.api.v3.{Hash, Interval, IntervalBoundType, PosixTime, TxInfo, TxOutRef}
 
 @Compile
 object HtlcValidator extends Validator:
     private type Preimage = ByteString
-    private type Image = ByteString
-    private type PubKeyHash = ByteString
+    private type Image = Hash
+    private type HashOfPubKey = Hash
 
     case class ContractDatum(
-        committer: PubKeyHash,
-        receiver: PubKeyHash,
+        committer: HashOfPubKey,
+        receiver: HashOfPubKey,
         image: Image,
         timeout: PosixTime
     )
@@ -53,8 +53,8 @@ object HtlcValidator extends Validator:
 
     extension (self: TxInfo)
         private def isSignedBy(
-            pubKeyHash: PubKeyHash
-        ): Boolean = self.signatories.exists { _.hash === pubKeyHash }
+            hashOfPubKey: HashOfPubKey
+        ): Boolean = self.signatories.exists { _.hash === hashOfPubKey }
 
     extension (self: Interval)
         private def isAfter(
