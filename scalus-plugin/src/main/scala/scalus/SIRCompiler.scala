@@ -709,6 +709,7 @@ final class SIRCompiler(using ctx: Context) {
                         throw ex
     }
 
+    /*
     enum CompileMemberDefResult {
         case Compiled(b: LocalBindingOrSubmodule)
         case Builtin(name: String, tp: SIRType)
@@ -716,7 +717,22 @@ final class SIRCompiler(using ctx: Context) {
         case NotSupported
     }
 
-    private def compileValDef(env: Env, vd: ValDef): CompileMemberDefResult = {
+     */
+    sealed trait CompileMemberDefResult
+    object CompileMemberDefResult {
+        case class Compiled(b: LocalBindingOrSubmodule) extends CompileMemberDefResult
+        case class Builtin(name: String, tp: SIRType) extends CompileMemberDefResult
+        case class Ignored(tp: SIRType) extends CompileMemberDefResult {
+            val created = new RuntimeException()
+        }
+        case object NotSupported extends CompileMemberDefResult
+    }
+
+    private def compileValDef(
+        env: Env,
+        vd: ValDef,
+        isModuleDef: Boolean
+    ): CompileMemberDefResult = {
         val name = vd.name
         // vars are not supported
         if vd.symbol.flags.is(Flags.Mutable) then
@@ -730,7 +746,9 @@ final class SIRCompiler(using ctx: Context) {
             Thus, we need to ignore them here.
          */
         else if vd.symbol.flags.isAllOf(Flags.Lazy, butNot = Flags.Given) then
-            println(s"!! unexpected laxy val: ${vd.show}, ${vd.symbol.flags.flagsString}")
+            println(
+              s"!! unexpected laxy val: ${vd.show}, ${vd.symbol.flags.flagsString}, mode=${env.mode}, isModuleDef=$isModuleDef"
+            )
             error(LazyValNotSupported(vd, vd.srcPos), None)
             CompileMemberDefResult.NotSupported
         // ignore @Ignore annotated statements
@@ -739,17 +757,20 @@ final class SIRCompiler(using ctx: Context) {
         else
             // TODO store comments in the SIR
             // vd.rawComment
-            if env.mode == ScalusCompilationMode.OnlyDerivations then {
+            if env.mode == ScalusCompilationMode.OnlyDerivations && vd.tpe <:< CompileDerivationsMarker
+            then {
                 // this means that this varDef is marked by CompileDerivations
                 println(s"derivation of ${vd.name}: rhs= ${vd.rhs.show}")
                 println(s"derivation of ${vd.name}: rhs.tree= ${vd.rhs}")
             }
             val rhsFixed =
-                if vd.tpe <:< CompileDerivationsMarker then
+                if vd.tpe <:< CompileDerivationsMarker then {
+                    // TODO: check that interface is function
                     fixFunctionInterface(env, vd.tpe, vd.rhs)
-                else vd.rhs
+                } else vd.rhs
             val bodyExpr = compileExpr(env, rhsFixed)
-            if env.mode == ScalusCompilationMode.OnlyDerivations then {
+            if env.mode == ScalusCompilationMode.OnlyDerivations && vd.tpe <:< CompileDerivationsMarker
+            then {
                 // this means that this varDef is marked by CompileDerivations
                 println(s"SIR: ${bodyExpr}")
             }
@@ -766,6 +787,8 @@ final class SIRCompiler(using ctx: Context) {
         println(s"fix function interface for ${tree.show}")
         println(s"fix function interface tree = ${tree}")
         tree match
+            case Typed(x, tpt) if tpt.tpe <:< CompileDerivationsMarker =>
+                fixFunctionInterface(env, tpe, x)
             case Inlined(call, List(), expansion) =>
                 val newExpansion = fixFunctionInterface(env, tpe, expansion)
                 newExpansion
@@ -775,7 +798,7 @@ final class SIRCompiler(using ctx: Context) {
                 ) =>
                 println(s"Determinated function interface: ${ddef.show}")
                 println(s"typed: ${typed.show}")
-                println(s"initCn: ${initCn.show}, ")
+                println(s"initCn: ${initCn.show}")
 
                 // val lambda = Block(List(ddef),Closure(Nil,),EmptyTree)
                 // ddef.tpe match {
@@ -856,28 +879,15 @@ final class SIRCompiler(using ctx: Context) {
     private def compileStmt(
         env: Env,
         stmt: Tree,
-        isGlobalDef: Boolean = false
+        isModuleDef: Boolean = false
     ): CompileMemberDefResult = {
         // report.echo(s"compileStmt  ${stmt.show} in ${env}")
         stmt match
             case vd: ValDef =>
-                env.mode match
-                    case ScalusCompilationMode.AllDefs =>
-                        compileValDef(env, vd)
-                    case ScalusCompilationMode.OnlyDerivations =>
-                        if vd.name.startsWith("derive") &&
-                            vd.tpe <:< CompileDerivationsMarker
-                        then compileValDef(env, vd)
-                        else CompileMemberDefResult.Ignored(SIRType.TypeNothing)
+                // (isModuleDef && env.mode == ScalusCompilationMode.OnlyDerivations)
+                compileValDef(env, vd, isModuleDef)
             case dd: DefDef =>
-                env.mode match
-                    case ScalusCompilationMode.AllDefs =>
-                        compileDefDef(env, dd, isGlobalDef)
-                    case ScalusCompilationMode.OnlyDerivations =>
-                        if dd.name.startsWith("derived$") &&
-                            tryMethodResultType(dd).exists(_ <:< CompileDerivationsMarker)
-                        then compileDefDef(env, dd, isGlobalDef)
-                        else CompileMemberDefResult.Ignored(SIRType.TypeNothing)
+                compileDefDef(env, dd, isModuleDef)
             case x =>
                 env.mode match
                     case ScalusCompilationMode.AllDefs =>
@@ -1989,10 +1999,10 @@ final class SIRCompiler(using ctx: Context) {
                                     s"Local objects are not supported, consider write ${ls.name} outside block"
                                 report.error(message, dd.srcPos)
                                 SIR.Error(message, AnnotationsDecl.fromSourcePosition(ls.pos))
-
-                    case CompileMemberDefResult.Ignored(tp) =>
+                    case ignored @ CompileMemberDefResult.Ignored(tp) =>
+                        ignored.created.printStackTrace()
                         error(
-                          GenericError("Ignoring closure", tree.srcPos),
+                          GenericError(s"Ignoring closure, dd=${dd.show}", tree.srcPos),
                           SIR.Error("Ignored closure", AnnotationsDecl.fromSrcPos(tree.srcPos))
                         )
                     case CompileMemberDefResult.Builtin(name, tp) =>
@@ -2157,7 +2167,7 @@ final class SIRCompiler(using ctx: Context) {
                     compileStmt(
                       env,
                       dd,
-                      isGlobalDef = true
+                      isModuleDef = true
                     ) match
                         case CompileMemberDefResult.Compiled(b) => Some(b)
                         case _                                  => None
@@ -2170,12 +2180,7 @@ final class SIRCompiler(using ctx: Context) {
                         // && !vd.symbol.name.startsWith("derived")
                         && !vd.symbol.hasAnnotation(IgnoreAnnot)
                     case OnlyDerivations =>
-                        vd.symbol.name.startsWith("derived") &&
-                        vd.tpe <:< CompileDerivationsMarker
-                        ||
-                        vd.symbol.flags.is(Flags.Module)
-                        &&
-                        !vd.symbol.flags.isOneOf(Flags.Synthetic)
+                        vd.symbol.name.startsWith("derived") && vd.tpe <:< CompileDerivationsMarker
                 }
                 if toProcess then
                     // println(s"valdef: ${vd.symbol.fullName}")
@@ -2183,7 +2188,7 @@ final class SIRCompiler(using ctx: Context) {
                     compileStmt(
                       env,
                       vd,
-                      isGlobalDef = true
+                      isModuleDef = true
                     ) match
                         case CompileMemberDefResult.Compiled(b) =>
                             if debug then
