@@ -771,11 +771,11 @@ final class SIRCompiler(using ctx: Context) {
                 newExpansion
             case Block(
                   List(ddef: DefDef),
-                  Block(List(typed), Apply(Select(obj, initCn), List()))
+                  Block(List(typed), Apply(initCn, List()))
                 ) =>
                 println(s"Determinated function interface: ${ddef.show}")
                 println(s"typed: ${typed.show}")
-                println(s"initCn: ${initCn.show}, debugString: ${initCn.debugString}")
+                println(s"initCn: ${initCn.show}, ")
 
                 // val lambda = Block(List(ddef),Closure(Nil,),EmptyTree)
                 // ddef.tpe match {
