@@ -326,7 +326,7 @@ final class SIRCompiler(using ctx: Context) {
                 )
             writeModule(module, td.symbol.fullName.toString)
             report.echo(
-              s"compiled Scalus module ${td.name} definitions: ${bindingsWithSpecialized.map(_.name)} in ${time}ms"
+              s"compiled Scalus module ${td.name} [${td.symbol.fullName.toString}] definitions: ${bindingsWithSpecialized.map(_.name)} in ${time}ms"
             )
         for sumbodule <- sumbodules do {
             writeSubmodule(sumbodule, superBindings)
@@ -362,7 +362,7 @@ final class SIRCompiler(using ctx: Context) {
             report.echo(
               s"compiled Scalus module ${submodule.symbol.fullName} definitions: ${bindings.map(_.name)}"
             )
-            writeModule(module, submodule.name)
+            writeModule(module, submodule.symbol.fullName.toString)
         subsubmodules.foreach(submodule => writeSubmodule(submodule, superBindings))
     }
 
@@ -757,23 +757,12 @@ final class SIRCompiler(using ctx: Context) {
         else
             // TODO store comments in the SIR
             // vd.rawComment
-            if env.mode == ScalusCompilationMode.OnlyDerivations && vd.tpe <:< CompileDerivationsMarker
-            then {
-                // this means that this varDef is marked by CompileDerivations
-                println(s"derivation of ${vd.name}: rhs= ${vd.rhs.show}")
-                println(s"derivation of ${vd.name}: rhs.tree= ${vd.rhs}")
-            }
             val rhsFixed =
                 if vd.tpe <:< CompileDerivationsMarker then {
                     // TODO: check that interface is function
                     fixFunctionInterface(env, vd.tpe, vd.rhs)
                 } else vd.rhs
             val bodyExpr = compileExpr(env, rhsFixed)
-            if env.mode == ScalusCompilationMode.OnlyDerivations && vd.tpe <:< CompileDerivationsMarker
-            then {
-                // this means that this varDef is marked by CompileDerivations
-                println(s"SIR: ${bodyExpr}")
-            }
             CompileMemberDefResult.Compiled(
               LocalBinding(name.show, vd.symbol, Recursivity.NonRec, bodyExpr, vd.sourcePos)
             )
@@ -784,8 +773,9 @@ final class SIRCompiler(using ctx: Context) {
         tpe: Type,
         tree: Tree
     ): Tree = {
-        println(s"fix function interface for ${tree.show}")
-        println(s"fix function interface tree = ${tree}")
+        //  TODO: chekc that tpe is actually inherited from FunctionN
+        // println(s"fix function interface for ${tree.show}")
+        // println(s"fix function interface tree = ${tree}")
         tree match
             case Typed(x, tpt) if tpt.tpe <:< CompileDerivationsMarker =>
                 fixFunctionInterface(env, tpe, x)
@@ -796,22 +786,10 @@ final class SIRCompiler(using ctx: Context) {
                   List(ddef: DefDef),
                   Block(List(typed), Apply(initCn, List()))
                 ) =>
-                println(s"Determinated function interface: ${ddef.show}")
-                println(s"typed: ${typed.show}")
-                println(s"initCn: ${initCn.show}")
+                // println(s"Determinated function interface: ${ddef.show}")
+                // println(s"typed: ${typed.show}")
+                // println(s"initCn: ${initCn.show}")
 
-                // val lambda = Block(List(ddef),Closure(Nil,),EmptyTree)
-                // ddef.tpe match {
-                //    case MethodType
-                // val params
-                // val substitute = new TreeMap() {
-                //    override def transform(tree: Tree): Tree = tree match
-                //        case Ident(name) if name == ddef.name =>
-                //            val newName = name + "_"
-                //            println(s"Renaming ${name} to ${newName}")
-                //            super.transform(tree.duplicate.withName(newName))
-                //        case _ => super.transform(tree)
-                // }
                 val call = Ident(TermRef(NoPrefix, ddef.symbol))
                 Block(List(ddef), Closure(Nil, call, EmptyTree))
             case other =>
@@ -1525,7 +1503,11 @@ final class SIRCompiler(using ctx: Context) {
                     val termSymbol = qual.tpe.termSymbol
                     if termSymbol.exists then
                         val fullName = termSymbol.fullName
+                        println(s"fullName=${termSymbol.fullName}")
                         val ownerFullName = termSymbol.owner.fullName
+                        println(s"ownerFullName=${ownerFullName}")
+                        println(s"ownerFullName.show=${ownerFullName.show}")
+                        println(s"owner=${termSymbol.owner}")
                         val scalusCompileDerivations =
                             Symbols.requiredClass("scalus.CompileDerivations")
                         if qual.tpe.baseType(scalusCompileDerivations).exists then {
@@ -1533,8 +1515,10 @@ final class SIRCompiler(using ctx: Context) {
                               s"Emitting external var for fun: module ${ownerFullName.show}, name ${fullName.show} "
                             )
 
+                            // module for derivation is a companion object of an appropriative
+
                             SIR.ExternalVar(
-                              ownerFullName.show,
+                              ownerFullName.toString,
                               fullName.show,
                               sirTypeInEnv(baseFunction, f.srcPos, env),
                               AnnotationsDecl.fromSrcPos(f.srcPos)
@@ -2141,7 +2125,9 @@ final class SIRCompiler(using ctx: Context) {
                 }
                 if bindings.isEmpty then None
                 else
-                    Some(LocalSubmodule(td.symbol.fullName.show, td.symbol, bindings, td.sourcePos))
+                    Some(
+                      LocalSubmodule(td.symbol.fullName.toString, td.symbol, bindings, td.sourcePos)
+                    )
             case _ => None
     }
 
@@ -2191,11 +2177,8 @@ final class SIRCompiler(using ctx: Context) {
                       isModuleDef = true
                     ) match
                         case CompileMemberDefResult.Compiled(b) =>
-                            if debug then
-                                println(s"compileValDef result for ${vd.symbol.fullName}: ${b}")
                             Some(b)
                         case CompileMemberDefResult.Builtin(name, tp) =>
-                            if debug then println(s"compileValDef builtin: ${name}")
                             None
                         case CompileMemberDefResult.Ignored(tp) =>
                             None

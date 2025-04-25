@@ -38,9 +38,10 @@ object FromData {
         DataRepresentation.fromDataImpl[A]
     }
 
-    given scalus.prelude.FromData[Data] = (a: Data) => a
-    given scalus.prelude.FromData[ByteString] = Builtins.unBData
-    given scalus.prelude.FromData[BigInt] = Builtins.unIData
+    given FromData[Data] = (a: Data) => a
+    given FromData[ByteString] = Builtins.unBData
+    given FromData[BigInt] = Builtins.unIData
+    given FromData[String] = (d: Data) => Builtins.decodeUtf8(Builtins.unBData(d))
 
 }
 
@@ -285,8 +286,51 @@ object DataRepresentation {
             // generate f = (args) => new Constructor(args.head, args.tail.head, ...)
             // then apply to args: f(args)
             // and finally beta reduce it in compile time
-            ${ Expr.betaReduce('{ ${ scalus.builtin.FromData.deriveConstructorMacro[A] }(args) }) }
+            ${ Expr.betaReduce('{ ${ deriveFromDataCaseClassConstructor[A] }(args) }) }
         }
+    }
+
+    private[scalus] def deriveFromDataCaseClassConstructor[T: Type](using
+        Quotes
+    ): Expr[scalus.builtin.List[Data] => T] = {
+        import quotes.reflect.*
+        val classSym = TypeTree.of[T].symbol
+        val constr = classSym.primaryConstructor
+        val params = constr.paramSymss.flatten
+        val fromDataOfArgs = params.map { param =>
+            val tpe = param.termRef.widen.dealias
+            tpe.asType match
+                case '[t] =>
+                    Expr.summon[FromData[t]] match
+                        case None =>
+                            report.errorAndAbort(
+                              s"Could not find given FromData[${tpe.show}] in case class constructor generation for ${TypeRepr.of[T].show}]"
+                            )
+                        case Some(value) => value
+        }
+
+        def genGetter(init: Expr[scalus.builtin.List[Data]], idx: Int)(using Quotes): Expr[Data] =
+            var expr = init
+            var i = 0
+            while i < idx do
+                val exp = expr // save the current expr, otherwise it will loop forever
+                expr = '{ $exp.tail }
+                i += 1
+            '{ $expr.head }
+
+        def genConstructorCall(
+            a: Expr[scalus.builtin.List[scalus.builtin.Data]]
+        )(using Quotes): Expr[T] = {
+            val args = fromDataOfArgs.zipWithIndex.map { case (appl, idx) =>
+                val arg = genGetter(a, idx)
+                '{ $appl($arg) }.asTerm
+            }
+            // Couldn't find a way to do this using quotes, so just construct the tree manually
+            New(TypeTree.of[T]).select(constr).appliedToArgs(args).asExprOf[T]
+        }
+
+        '{ (args: scalus.builtin.List[scalus.builtin.Data]) => ${ genConstructorCall('{ args }) } }
+
     }
 
     def deriveFromDataSumCaseClassApply[A: Type](using Quotes): Expr[FromData[A]] = {
@@ -307,7 +351,10 @@ object DataRepresentation {
                             '{ (_: scalus.builtin.List[Data]) =>
                                 ${ Ident(child.termRef).asExprOf[t] }
                             }.asExprOf[scalus.builtin.List[Data] => A]
-                        else scalus.builtin.FromData.deriveConstructorMacro[A]
+                        else {
+                            deriveFromDataCaseClassConstructor[t]
+                                .asExprOf[scalus.builtin.List[Data] => A]
+                        }
                     case _ =>
                         report.errorAndAbort(
                           s"Cannot derive FromData for ${child.typeRef.show} "

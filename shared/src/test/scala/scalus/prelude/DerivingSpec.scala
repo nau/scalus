@@ -6,8 +6,9 @@ import scalus.*
 import scalus.prelude.*
 import scalus.uplc.*
 import scalus.uplc.eval.{*, given}
-import scalus.builtin.given
+//import scalus.builtin.given
 import scalus.Compiler.{compile, compileDebug}
+import scalus.testutil.SIRModules
 
 enum DerivingSpec_AE2 derives ToData, FromData:
     case DS2_A extends DerivingSpec_AE2
@@ -27,6 +28,7 @@ class DerivingSpec extends AnyFunSuite {
 
     import DerivingSpecScope.*
 
+    import scalus.builtin.given
     protected given PlutusVM = PlutusVM.makePlutusV3VM()
 
     test("Compile To/From Data for AE1") {
@@ -38,6 +40,9 @@ class DerivingSpec extends AnyFunSuite {
                 case AE1.B(b)     => BigInt(2)
                 case AE1.C(b, bs) => BigInt(3)
         }
+
+        println(s"sir: ${sir.pretty.render(1000)}")
+
         val uplc = sir.toUplc(generateErrorTraces = true)
 
         val ae1 = AE1.A
@@ -47,12 +52,21 @@ class DerivingSpec extends AnyFunSuite {
 
         val result1 = program1.evalDebug
 
-        assert(result1.isSuccess)
+        // assert(result1.isSuccess)
         result1 match
             case Result.Success(term, _, _, _) =>
                 assert(term == Term.Const(Constant.Integer(1)))
             case Result.Failure(e, _, _, logs) =>
                 e.printStackTrace()
+                println(s"logs=${logs}")
+
+                println("loading module")
+                val module = SIRModules.load("scalus.prelude.DerivingSpecScope$.AE1$")
+
+                module.defs.foreach { b =>
+                    println(s"${b.name}:\n ${b.value.pretty.render(100)}")
+                }
+
                 fail(s"Expected success, but got failure, logs=$logs")
 
     }

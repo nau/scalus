@@ -195,6 +195,11 @@ object SIR:
     case class ExternalVar(moduleName: String, name: String, tp: SIRType, anns: AnnotationsDecl)
         extends SIR {
 
+        // if moduleName == "scalus.prelude.DerivingSpecScope$.AE1$" then {
+        //    println(s"SIR: moduleName=${moduleName}, name=${name}")
+        //    throw RuntimeException(s"moduleName=${moduleName}")
+        // }
+
         override def toString: String = s"ExternalVar($moduleName, $name, ${tp.show})"
 
     }
