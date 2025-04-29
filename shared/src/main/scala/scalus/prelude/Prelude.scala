@@ -10,6 +10,8 @@ import scalus.macros.Macros
 import scala.annotation.{nowarn, tailrec}
 import scala.collection.mutable
 
+export Ord.{*, given}
+
 extension (x: Boolean)
     /** Trace the expression only if it evaluates to `false`. This is useful to trace an entire
       * evaluation path that led to a final expression being `false`.
@@ -42,8 +44,28 @@ inline given Eq[Data] = equalsData
 @nowarn
 inline given Eq[Unit] = (_: Unit, _: Unit) => true
 
-extension [A](x: A) inline def ===(inline y: A)(using inline eq: Eq[A]): Boolean = eq(x, y)
-extension [A](x: A) inline def !==(inline y: A)(using inline eq: Eq[A]): Boolean = !eq(x, y)
+extension [A](x: A)
+    inline def ===(inline y: A)(using inline eq: Eq[A]): Boolean = eq(x, y)
+    inline def !==(inline y: A)(using inline eq: Eq[A]): Boolean = !eq(x, y)
+
+type Ord[-A] = (A, A) => BigInt
+
+@Compile
+object Ord:
+    given Ord[BigInt] = (x: BigInt, y: BigInt) =>
+        if lessThanInteger(x, y) then -1 else if lessThanInteger(y, x) then 1 else 0
+
+    extension [A: Ord](self: A)
+        inline def <=>(inline other: A): BigInt = summon[Ord[A]](self, other)
+        def lt(other: A): Boolean = lessThanInteger(summon[Ord[A]](self, other), 0)
+        def lteq(other: A): Boolean = lessThanEqualsInteger(summon[Ord[A]](self, other), 0)
+        def gt(other: A): Boolean = lessThanInteger(summon[Ord[A]](other, self), 0)
+        def gteq(other: A): Boolean = lessThanEqualsInteger(summon[Ord[A]](other, self), 0)
+        def equiv(other: A): Boolean = equalsInteger(summon[Ord[A]](self, other), 0)
+
+    end extension
+
+end Ord
 
 inline def log(msg: String): Unit = trace(msg)(())
 
@@ -603,10 +625,11 @@ object List:
             case Nil              => init
             case Cons(head, tail) => tail.foldLeft(combiner(init, head))(combiner)
 
-        @tailrec
-        def exists(predicate: A => Boolean): Boolean = self match
-            case Nil              => false
-            case Cons(head, tail) => if predicate(head) then true else tail.exists(predicate)
+        def foldRight[B](init: B)(combiner: (A, B) => B): B = self match
+            case Nil              => init
+            case Cons(head, tail) => combiner(head, tail.foldRight(init)(combiner))
+
+        def exists(predicate: A => Boolean): Boolean = find(predicate).isDefined
 
         @tailrec
         def forall(predicate: A => Boolean): Boolean = self match
@@ -780,16 +803,29 @@ object List:
             case scala.Seq()            => Nil
             case scala.Seq(head, tail*) => Cons(head, tail.asScalus)
 
-    given listEq[A](using eq: Eq[A]): Eq[List[A]] = (a: List[A], b: List[A]) =>
-        a match
+    given listEq[A: Eq]: Eq[List[A]] = (lhs: List[A], rhs: List[A]) =>
+        lhs match
             case Nil =>
-                b match
+                rhs match
                     case Nil        => true
                     case Cons(_, _) => false
             case Cons(headLhs, tailLhs) =>
-                b match
+                rhs match
                     case Nil                    => false
                     case Cons(headRhs, tailRhs) => headLhs === headRhs && tailLhs === tailRhs
+
+    given listOrd[A: Ord]: Ord[List[A]] = (lhs: List[A], rhs: List[A]) =>
+        lhs match
+            case Nil =>
+                rhs match
+                    case Nil        => 0
+                    case Cons(_, _) => -1
+            case Cons(headLhs, tailLhs) =>
+                rhs match
+                    case Nil => 1
+                    case Cons(headRhs, tailRhs) =>
+                        val cmp = headLhs <=> headRhs
+                        if cmp !== BigInt(0) then cmp else tailLhs <=> tailRhs
 
 @deprecated("Use `scalus.prelude.Option` instead")
 enum Maybe[+A]:
