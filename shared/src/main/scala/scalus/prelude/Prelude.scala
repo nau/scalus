@@ -10,7 +10,11 @@ import scalus.macros.Macros
 import scala.annotation.{nowarn, tailrec}
 import scala.collection.mutable
 
-export Ord.{*, given}
+import OrdCompanion.*
+
+extension [A](self: A)
+    inline def let[B](inline fn: A => B): B = fn(self)
+    inline def also[B](inline callback: A => Unit): A = { callback(self); self }
 
 extension (x: Boolean)
     /** Trace the expression only if it evaluates to `false`. This is useful to trace an entire
@@ -48,27 +52,68 @@ extension [A](x: A)
     inline def ===(inline y: A)(using inline eq: Eq[A]): Boolean = eq(x, y)
     inline def !==(inline y: A)(using inline eq: Eq[A]): Boolean = !eq(x, y)
 
-type Ord[-A] = (A, A) => BigInt
+type Ord[-A] = (A, A) => OrdCompanion.Order
 
 @Compile
-object Ord:
-    given Ord[BigInt] = (x: BigInt, y: BigInt) =>
-        if lessThanInteger(x, y) then -1 else if lessThanInteger(y, x) then 1 else 0
+object OrdCompanion:
+    enum Order:
+        case Less
+        case Greater
+        case Equal
 
-    extension [A: Ord](self: A)
-        inline def <=>(inline other: A): BigInt = summon[Ord[A]](self, other)
-        def lt(other: A): Boolean = lessThanInteger(summon[Ord[A]](self, other), 0)
-        def lteq(other: A): Boolean = lessThanEqualsInteger(summon[Ord[A]](self, other), 0)
-        def gt(other: A): Boolean = lessThanInteger(summon[Ord[A]](other, self), 0)
-        def gteq(other: A): Boolean = lessThanEqualsInteger(summon[Ord[A]](other, self), 0)
-        def equiv(other: A): Boolean = equalsInteger(summon[Ord[A]](self, other), 0)
+    import Order.*
+
+    extension (self: Order)
+        def isLess: Boolean = self match { case Less => true; case _ => false }
+        def isLessEqual: Boolean = self match {
+            case Less => true; case Equal => true; case _ => false
+        }
+        def isGreater: Boolean = self match { case Greater => true; case _ => false }
+        def isGreaterEqual: Boolean = self match {
+            case Greater => true; case Equal => true; case _ => false
+        }
+        def isEqual: Boolean = self match { case Equal => true; case _ => false }
+        inline def nonEqual: Boolean = !isEqual
 
     end extension
 
-end Ord
+    given Eq[Order] = (lhs, rhs) =>
+        lhs match
+            case Less    => rhs.isLess
+            case Greater => rhs.isGreater
+            case Equal   => rhs.isEqual
+
+    extension [A: Ord](self: A)
+        inline def <=>(inline other: A): Order = summon[Ord[A]].compare(self, other)
+        def lt(other: A): Boolean = (self <=> other).isLess
+        def lteq(other: A): Boolean = (self <=> other).isLessEqual
+        def gt(other: A): Boolean = (self <=> other).isGreater
+        def gteq(other: A): Boolean = (self <=> other).isGreaterEqual
+        def equiv(other: A): Boolean = (self <=> other).isEqual
+
+    end extension
+
+    def by[A, B: Ord](mapper: A => B): Ord[A] = (lhs: A, rhs: A) => mapper(lhs) <=> mapper(rhs)
+
+    extension [A](self: Ord[A])
+        inline def compare(inline lhs: A, inline rhs: A): Order = self(lhs, rhs)
+
+        def orElse(other: Ord[A]): Ord[A] = (lhs: A, rhs: A) =>
+            val order = self.compare(lhs, rhs)
+            if order.nonEqual then order else other.compare(lhs, rhs)
+
+        def orElseBy[B: Ord](mapper: A => B): Ord[A] = (lhs: A, rhs: A) =>
+            val order = self.compare(lhs, rhs)
+            if order.nonEqual then order else by[A, B](mapper).compare(lhs, rhs)
+
+    end extension
+
+    given Ord[BigInt] = (x: BigInt, y: BigInt) =>
+        if lessThanInteger(x, y) then Less else if lessThanInteger(y, x) then Greater else Equal
+
+end OrdCompanion
 
 inline def log(msg: String): Unit = trace(msg)(())
-
 inline def identity[A](value: A): A = value
 
 @Compile
@@ -835,14 +880,14 @@ object List:
         lhs match
             case Nil =>
                 rhs match
-                    case Nil        => 0
-                    case Cons(_, _) => -1
+                    case Nil        => Order.Equal
+                    case Cons(_, _) => Order.Less
             case Cons(headLhs, tailLhs) =>
                 rhs match
-                    case Nil => 1
+                    case Nil => Order.Greater
                     case Cons(headRhs, tailRhs) =>
-                        val cmp = headLhs <=> headRhs
-                        if cmp !== BigInt(0) then cmp else tailLhs <=> tailRhs
+                        val order = headLhs <=> headRhs
+                        if order.nonEqual then order else tailLhs <=> tailRhs
 
 @deprecated("Use `scalus.prelude.Option` instead")
 enum Maybe[+A]:
