@@ -9,8 +9,8 @@ autoCompilerPlugins := true
 
 val scalusStableVersion = "0.9.0"
 val scalusCompatibleVersion = scalusStableVersion
-ThisBuild / scalaVersion := "3.3.5"
-//ThisBuild / scalaVersion := "3.7.1-RC1-bin-SNAPSHOT"
+//ThisBuild / scalaVersion := "3.3.5"
+ThisBuild / scalaVersion := "3.7.1-RC1-bin-SNAPSHOT"
 ThisBuild / organization := "org.scalus"
 ThisBuild / organizationName := "Scalus"
 ThisBuild / organizationHomepage := Some(url("https://scalus.org/"))

@@ -1,0 +1,305 @@
+package scalus
+
+import dotty.tools.dotc.core.Contexts.Context
+import dotty.tools.dotc.report
+import dotty.tools.dotc.util.{NoSourcePosition, SrcPos}
+import scalus.sir.*
+import scalus.sir.Recursivity.{NonRec, Rec}
+import scalus.sir.SIR.Builtin
+import scalus.uplc.Constant
+
+class SIRDataReprGenerator(using ctx: Context) {
+
+    case class Env(
+        typeVars: Map[SIRType.TypeVar, SIRType] = Map.empty,
+        zCominatorNeeded: Boolean = false,
+        typeArgContextParams: Map[SIRType.TypeVar, SIR.Var] = Map.empty,
+        srcPos: SrcPos = NoSourcePosition
+    )
+
+    object Env {
+        def empty: Env = Env()
+    }
+
+    val sirTpListData = SIRType.List(SIRType.Data)
+
+    def generate(fullName: FullName, tp: SIRType, srcPos: SrcPos): SIR = {
+        println(s"SIRDataReprGenerator::generate, fullName=${fullName.name}, tp=${tp.show}")
+        if fullName.name.endsWith("derived$FromData") then
+            tp match
+                case SIRType.Fun(in, out) =>
+                    generateFromDataFun(out, Env.empty.copy(srcPos = srcPos))
+                case _ =>
+                    val message = s"Invalid type for derived FromData for ${fullName}: ${tp.show}"
+                    report.error(message, srcPos)
+                    SIR.Error(message, AnnotationsDecl.fromSrcPos(srcPos))
+        else if fullName.name.endsWith("derived$ToData") then
+            tp match
+                case SIRType.Fun(in, out) =>
+                    generateToDataFun(tp, Env.empty.copy(srcPos = srcPos))
+                case _ =>
+                    val message = s"Invalid type for derived ToData for ${fullName}: ${tp.show}"
+                    report.error(message, srcPos)
+                    SIR.Error(message, AnnotationsDecl.fromSrcPos(srcPos))
+        else
+            val message = s"Only FromData/ToData derivatons is supported, we have ${fullName}"
+            SIR.Error(message, AnnotationsDecl.fromSrcPos(srcPos))
+    }
+
+    def generateToDataFun(tp: SIRType, env: Env): SIR = {
+        val inputVar = SIR.Var("input", tp, AnnotationsDecl.empty)
+        tp match
+            case SIRType.TypeLambda(params, body) =>
+                val newTypeArgsContextParams = params.map { param =>
+                    param -> SIR.Var(
+                      param.name,
+                      SIRType.Fun(SIRType.Data, param),
+                      AnnotationsDecl.empty
+                    )
+                }.toMap
+                val newTypeVars = params.map { _ -> SIRType.FreeUnificator }.toMap
+                val nEnv = env.copy(
+                  typeVars = env.typeVars ++ newTypeVars,
+                  typeArgContextParams = env.typeArgContextParams ++ newTypeArgsContextParams
+                )
+                // val internalDerives: SIR = generateToDataRhs()
+                ???
+
+    }
+
+    def generateFromDataFun(tp: SIRType, env: Env): SIR = {
+        val dataVar = SIR.Var("data", SIRType.Data, AnnotationsDecl.empty)
+        tp match {
+            case SIRType.TypeLambda(params, body) =>
+                // we expect that type-lambdas define a paramaters for function which mean fromData for type arguments.
+                val newTypeArgsContextParams = params.map { param =>
+                    val sirVar =
+                        SIR.Var(param.name, SIRType.Fun(param, SIRType.Data), AnnotationsDecl.empty)
+                    param -> sirVar
+                }.toMap
+                val newTypeVars = params.map { _ -> SIRType.FreeUnificator }.toMap
+                val nEnv = env.copy(
+                  typeVars = env.typeVars ++ newTypeVars,
+                  typeArgContextParams = env.typeArgContextParams ++ newTypeArgsContextParams
+                )
+                val internalDerives: SIR = generateFromDataRhs(body, nEnv, dataVar)
+                val generatedWithParams = params.foldRight(internalDerives) { (param, acc) =>
+                    SIR.LamAbs(newTypeArgsContextParams(param), acc, AnnotationsDecl.empty)
+                }
+                val retval = SIR.LamAbs(dataVar, generatedWithParams, AnnotationsDecl.empty)
+                retval
+            case SIRType.TypeProxy(ref) =>
+                generateFromDataFun(ref, env)
+            case _ =>
+                SIR.LamAbs(
+                  dataVar,
+                  generateFromDataRhs(tp, env, dataVar),
+                  AnnotationsDecl.empty
+                )
+
+        }
+    }
+
+    def resolveFromDataRhs(tp: SIRType, env: Env, dataExpr: SIR): SIR = {
+        ???
+    }
+
+    def generateFromDataRhs(tp: SIRType, env: Env, input: SIR): SIR = {
+        tp match {
+            case SIRType.SumCaseClass(decls, typeArgs) =>
+                generateFromDataRhsSum(tp, decls, typeArgs, env, input)
+            case SIRType.CaseClass(constrDecl, targs, parent) =>
+                generateFromDataRhsCaseClass(constrDecl, targs, parent, env, input)
+            case SIRType.TypeProxy(ref) =>
+                generateFromDataRhs(ref, env, input)
+            case SIRType.TypeLambda(params, body) =>
+                report.error("Carried type arguments are not supported yet", env.srcPos)
+                SIR.Error("Carried type arguments are not supported yet", AnnotationsDecl.empty)
+            case v: SIRType.TypeVar =>
+                env.typeArgContextParams.get(v) match
+                    case Some(sirVar) =>
+                        SIR.Apply(sirVar, input, SIRType.Data, AnnotationsDecl.empty)
+                    case None =>
+                        val message = s"Cannot find type argument context parameter for ${v.show}"
+                        report.error(message, env.srcPos)
+                        SIR.Error(message, AnnotationsDecl.fromSrcPos(env.srcPos))
+            case SIRType.Data => input
+            case SIRType.Integer =>
+                SIR.Apply(SIRBuiltins.unIData, input, SIRType.Integer, AnnotationsDecl.empty)
+            case SIRType.ByteString =>
+                SIR.Apply(SIRBuiltins.unBData, input, SIRType.ByteString, AnnotationsDecl.empty)
+            case SIRType.String =>
+                SIR.Apply(
+                  SIRBuiltins.decodeUtf8,
+                  SIR.Apply(
+                    SIRBuiltins.unBData,
+                    input,
+                    SIRType.ByteString,
+                    AnnotationsDecl.empty
+                  ),
+                  SIRType.String,
+                  AnnotationsDecl.empty
+                )
+            case SIRType.Unit => SIR.Const(Constant.Unit, SIRType.Unit, AnnotationsDecl.empty)
+            case _ =>
+                val message = s"Cannot generate FromData for ${tp.show}"
+                report.error(message, env.srcPos)
+                SIR.Error(message, AnnotationsDecl.fromSrcPos(env.srcPos))
+        }
+    }
+
+    def generateFromDataRhsSum(
+        sumTp: SIRType,
+        decl: DataDecl,
+        typeArgs: List[SIRType],
+        env: Env,
+        input: SIR
+    ): SIR = {
+        val pairVar = SIR.Var(
+          "pair",
+          SIRType.Pair(SIRType.Integer, SIRType.List(SIRType.Data)),
+          AnnotationsDecl.empty
+        )
+        val pairRhs = SIR.Apply(
+          SIRBuiltins.unConstrData,
+          input,
+          SIRType.Pair(SIRType.Integer, sirTpListData),
+          AnnotationsDecl.empty
+        )
+        val frsVar = SIR.Var("frs", SIRType.Integer, AnnotationsDecl.empty)
+        val sndVar = SIR.Var("snd", SIRType.List(SIRType.Data), AnnotationsDecl.empty)
+
+        val ifBranches = decl.constructors.zipWithIndex.map { (constr, constrIndex) =>
+            val check = SIR.Apply(
+              SIR.Apply(
+                SIRBuiltins.equalsInteger,
+                frsVar,
+                SIRType.Fun(SIRType.Integer, SIRType.Boolean),
+                AnnotationsDecl.empty
+              ),
+              SIR.Const(Constant.Integer(constrIndex), SIRType.Integer, AnnotationsDecl.empty),
+              SIRType.Boolean,
+              AnnotationsDecl.empty
+            )
+            val constrTypeArgs =
+                if constr.typeParams.isEmpty then Nil
+                else {
+                    SIRUnify.unifyList(constr.parentTypeArgs, typeArgs, SIRUnify.Env.empty) match
+                        case SIRUnify.UnificationSuccess(env, unificator) =>
+                            constr.typeParams.map { t =>
+                                env.filledTypes.getOrElse(t, SIRType.FreeUnificator)
+                            }
+                        case SIRUnify.UnificationFailure(path, left, s) =>
+                            report.error(
+                              s"Incmosistent type parameters of ${decl.name} for case ${constr.name}: $path, $left, $s",
+                              env.srcPos
+                            )
+                            Nil
+                }
+            val nTypeVars =
+                constr.typeParams.zip(constrTypeArgs).map { case (param, t) => param -> t }.toMap
+            val nEnv = env.copy(typeVars = env.typeVars ++ nTypeVars)
+            val paramVars = constr.params.zipWithIndex.map { (b, i) =>
+                SIR.Var(
+                  b.name,
+                  SIRType.Fun(b.tp, SIRType.Data),
+                  AnnotationsDecl.empty
+                )
+            }
+            val constrRhs: SIR = SIR.Constr(
+              constr.name,
+              decl,
+              paramVars,
+              SIRType.typeApply(decl.constrType(constr.name), constrTypeArgs),
+              AnnotationsDecl.empty
+            )
+            val n = paramVars.length
+            val paramVarsIndexed = paramVars.toIndexedSeq
+            val (constrSir, _) = paramVars.foldRight((constrRhs, n - 1)) { case (e, (sir, i)) =>
+                val prevTailName = if i == 0 then sndVar.name else s"sndL${i - 1}"
+                val prevTail =
+                    if i == 0 then sndVar
+                    else SIR.Var(prevTailName, sirTpListData, AnnotationsDecl.empty)
+                val paramVar = paramVarsIndexed(i)
+                val paramVarDataValue =
+                    SIR.Apply(SIRBuiltins.headList, prevTail, paramVar.tp, AnnotationsDecl.empty)
+                val paramVarValue =
+                    resolveFromDataRhs(paramVar.tp, env, paramVar)
+                val paramVarBinding = Binding(paramVar.name, paramVarValue)
+                val newSir = {
+                    if i < n - 1 then
+                        val currentTailName = s"sndL$i"
+                        val currentTailValue =
+                            SIR.Apply(
+                              SIRBuiltins.tailList,
+                              prevTail,
+                              sirTpListData,
+                              AnnotationsDecl.empty
+                            )
+                        val currentTailBinding = Binding(currentTailName, currentTailValue)
+                        SIR.Let(
+                          NonRec,
+                          List(paramVarBinding, currentTailBinding),
+                          sir,
+                          AnnotationsDecl.empty
+                        )
+                    else SIR.Let(NonRec, List(paramVarBinding), sir, AnnotationsDecl.empty)
+                }
+                (newSir, i - 1)
+            }
+            (check, constrSir)
+        }
+        val lastElse: SIR = SIR.Error(s"bad data encoding for ${decl.name}", AnnotationsDecl.empty)
+        val ifChecks = ifBranches.foldRight(lastElse) { case ((check, branch), s) =>
+            SIR.Apply(
+              SIR.Apply(
+                SIR.Apply(
+                  SIRBuiltins.ifThenElse,
+                  check,
+                  SIRType.Fun(sumTp, SIRType.Fun(sumTp, sumTp)),
+                  AnnotationsDecl.empty
+                ),
+                branch,
+                SIRType.Fun(sumTp, sumTp),
+                AnnotationsDecl.empty
+              ),
+              s,
+              sumTp,
+              AnnotationsDecl.empty
+            )
+        }
+        val retval =
+            SIR.Let(
+              Recursivity.NonRec,
+              List(Binding(pairVar.name, pairRhs)),
+              SIR.Let(
+                Recursivity.NonRec,
+                List(
+                  Binding(
+                    frsVar.name,
+                    SIR.Apply(SIRBuiltins.fstPair, pairVar, SIRType.Data, AnnotationsDecl.empty)
+                  ),
+                  Binding(
+                    sndVar.name,
+                    SIR.Apply(SIRBuiltins.sndPair, pairVar, sirTpListData, AnnotationsDecl.empty)
+                  )
+                ),
+                ifChecks,
+                AnnotationsDecl.empty
+              ),
+              AnnotationsDecl.empty
+            )
+        retval
+    }
+
+    def generateFromDataRhsCaseClass(
+        decl: ConstrDecl,
+        typeArgs: List[SIRType],
+        parent: Option[SIRType],
+        env: Env,
+        input: SIR
+    ): SIR = {
+        ???
+    }
+
+}

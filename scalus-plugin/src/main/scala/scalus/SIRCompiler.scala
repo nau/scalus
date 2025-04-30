@@ -93,9 +93,19 @@ enum CompileDef:
     case Compiling
     case Compiled(binding: TopLevelBinding)
 
+case class SIRCompilerOptions(
+    useSubmodules: Boolean = false,
+    debugLevel: Int = 0
+)
+
+object SIRCompilerOptions {
+    val default: SIRCompilerOptions = SIRCompilerOptions()
+}
+
 final class SIRCompiler(using ctx: Context) {
     import tpd.*
     import SIRCompiler.Env
+    private val options = SIRCompilerOptions.default
     private val DefaultFunSIRBuiltins: Map[Symbol, SIR.Builtin] = Macros.generateBuiltinsMap(ctx)
     private val BigIntSymbol = requiredModule("scala.math.BigInt")
     private val BigIntClassSymbol = requiredClass("scala.math.BigInt")
@@ -203,7 +213,9 @@ final class SIRCompiler(using ctx: Context) {
                 case cd: TypeDef =>
                     if cd.symbol.hasAnnotation(CompileAnnot) then
                         List((cd, ScalusCompilationMode.AllDefs))
-                    else List((cd, ScalusCompilationMode.OnlyDerivations))
+                    else if options.useSubmodules then
+                        List((cd, ScalusCompilationMode.OnlyDerivations))
+                    else List.empty
                 case vd: ValDef =>
                     // println(s"valdef $vd")
                     Nil // module instance
@@ -2191,7 +2203,7 @@ final class SIRCompiler(using ctx: Context) {
                               None
                             )
                 else None
-            case cd: TypeDef if cd.symbol.flags.is(Flags.Module) =>
+            case cd: TypeDef if cd.symbol.flags.is(Flags.Module) && options.useSubmodules =>
                 val cbMode =
                     if cd.symbol.hasAnnotation(CompileAnnot) then ScalusCompilationMode.AllDefs
                     else ScalusCompilationMode.OnlyDerivations
