@@ -10,7 +10,7 @@ import scalus.macros.Macros
 import scala.annotation.{nowarn, tailrec}
 import scala.collection.mutable
 
-export Ord.{*, given}
+//export Ord.{*, given}
 
 extension (x: Boolean)
     /** Trace the expression only if it evaluates to `false`. This is useful to trace an entire
@@ -49,6 +49,8 @@ extension [A](x: A)
     inline def !==(inline y: A)(using inline eq: Eq[A]): Boolean = !eq(x, y)
 
 type Ord[-A] = (A, A) => BigInt
+
+import Ord.{*, given}
 
 @Compile
 object Ord:
