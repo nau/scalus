@@ -332,7 +332,7 @@ class SIRDataReprGenerator(using ctx: Context) {
         dataDecl: DataDecl,
         env: Env,
         resType: SIRType,
-        dataExpr: SIR
+        dataVar: SIR.Var
     ): SIR = {
         val typeVars = constrDecl.typeParams.zip(constrTypeArgs).toMap
         val nEnv = env.copy(typeVars = env.typeVars ++ typeVars)
@@ -345,8 +345,44 @@ class SIRDataReprGenerator(using ctx: Context) {
           SIRType.typeApply(dataDecl.constrType(constrDecl.name), constrTypeArgs),
           AnnotationsDecl.empty
         )
-        val paramVarsIndexed = constrParams.toIndexedSeq
-        // val nParams = paramVarsIndexed.size
+        val constrParamsIndexed = constrParams.toIndexedSeq
+        val nParams = constrParamsIndexed.size
+        val (constrSir, _) = constrParamsIndexed.foldRight((constrRhs, nParams - 1)) {
+            case (e, (sir, i)) =>
+                val prevTailName = if i == 0 then dataVar.name else s"sndL${i - 1}"
+                val prevTail =
+                    if i == 0 then dataVar
+                    else SIR.Var(prevTailName, sirTpListData, AnnotationsDecl.empty)
+                val paramVar = constrParamsIndexed(i)
+                val paramVarDataName = s"${paramVar.name}Data"
+                val paramVarDataValue =
+                    SIR.Apply(SIRBuiltins.headList, prevTail, paramVar.tp, AnnotationsDecl.empty)
+                    
+                val paramVarValue =
+                    resolveFromDataRhs(paramVar.tp, env, paramVar)
+                val paramVarBinding = Binding(paramVar.name, paramVarValue)
+                val newSir = {
+                    if i < n - 1 then
+                        val currentTailName = s"sndL$i"
+                        val currentTailValue =
+                            SIR.Apply(
+                              SIRBuiltins.tailList,
+                              prevTail,
+                              sirTpListData,
+                              AnnotationsDecl.empty
+                            )
+                        val currentTailBinding = Binding(currentTailName, currentTailValue)
+                        SIR.Let(
+                          NonRec,
+                          List(paramVarBinding, currentTailBinding),
+                          sir,
+                          AnnotationsDecl.empty
+                        )
+                    else SIR.Let(NonRec, List(paramVarBinding), sir, AnnotationsDecl.empty)
+                }
+                (newSir, i - 1)
+        }
+
         ???
     }
 
