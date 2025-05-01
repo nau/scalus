@@ -62,9 +62,16 @@ class SIRDataReprGenerator(using ctx: Context) {
                   typeVars = env.typeVars ++ newTypeVars,
                   typeArgContextParams = env.typeArgContextParams ++ newTypeArgsContextParams
                 )
-                // val internalDerives: SIR = generateToDataRhs()
-                ???
-
+                val internalDerives: SIR = generateToDataRhs(tp, nEnv, inputVar)
+                val generatedWithParams = params.foldRight(internalDerives) { (param, acc) =>
+                    SIR.LamAbs(newTypeArgsContextParams(param), acc, AnnotationsDecl.empty)
+                }
+                val retval = SIR.LamAbs(inputVar, generatedWithParams, AnnotationsDecl.empty)
+                retval
+            case SIRType.TypeProxy(ref) =>
+                generateToDataFun(ref, env)
+            case _ =>
+                SIR.LamAbs(inputVar, generateToDataRhs(tp, env, inputVar), AnnotationsDecl.empty)
     }
 
     def generateFromDataFun(tp: SIRType, env: Env): SIR = {
@@ -108,8 +115,8 @@ class SIRDataReprGenerator(using ctx: Context) {
         tp match {
             case SIRType.SumCaseClass(decls, typeArgs) =>
                 generateFromDataRhsSum(tp, decls, typeArgs, env, input)
-            case SIRType.CaseClass(constrDecl, targs, parent) =>
-                generateFromDataRhsCaseClass(constrDecl, targs, parent, env, input)
+            case cc @ SIRType.CaseClass(constrDecl, targs, parent) =>
+                generateFromDataRhsCaseClass(cc, env, input)
             case SIRType.TypeProxy(ref) =>
                 generateFromDataRhs(ref, env, input)
             case SIRType.TypeLambda(params, body) =>
@@ -293,13 +300,93 @@ class SIRDataReprGenerator(using ctx: Context) {
     }
 
     def generateFromDataRhsCaseClass(
-        decl: ConstrDecl,
-        typeArgs: List[SIRType],
-        parent: Option[SIRType],
+        caseType: SIRType.CaseClass,
         env: Env,
         input: SIR
     ): SIR = {
+        if caseType.parent.isDefined then {
+            val message =
+                s"FromData for ${caseType.constrDecl.name} should be declared for its parent ${caseType.parent.get.show}"
+            report.error(message, env.srcPos)
+            SIR.Error(message, AnnotationsDecl.fromSrcPos(env.srcPos))
+        }
+        retrieveParentDataDecl(caseType.constrDecl, caseType.typeArgs, caseType.parent) match {
+            case Left(message) =>
+                report.error(message, env.srcPos)
+                SIR.Error(message, AnnotationsDecl.fromSrcPos(env.srcPos))
+            case Right(parentDecl) =>
+                generateFromDataConstr(
+                  caseType.constrDecl,
+                  caseType.typeArgs,
+                  parentDecl,
+                  env,
+                  caseType,
+                  input
+                )
+        }
+    }
+
+    def generateFromDataConstr(
+        constrDecl: ConstrDecl,
+        constrTypeArgs: List[SIRType],
+        dataDecl: DataDecl,
+        env: Env,
+        resType: SIRType,
+        dataExpr: SIR
+    ): SIR = {
+        val typeVars = constrDecl.typeParams.zip(constrTypeArgs).toMap
+        val nEnv = env.copy(typeVars = env.typeVars ++ typeVars)
+        val constrParams =
+            constrDecl.params.map(tv => SIR.Var(tv.name, tv.tp, AnnotationsDecl.empty))
+        val constrRhs: SIR = SIR.Constr(
+          constrDecl.name,
+          dataDecl,
+          constrParams,
+          SIRType.typeApply(dataDecl.constrType(constrDecl.name), constrTypeArgs),
+          AnnotationsDecl.empty
+        )
+        val paramVarsIndexed = constrParams.toIndexedSeq
+        // val nParams = paramVarsIndexed.size
         ???
+    }
+
+    def generateToDataRhs(sirType: SIRType, env: Env, input: SIR.Var): SIR = {
+        sirType match {
+            case SIRType.SumCaseClass(decl, typeArgs) =>
+                // generateToDataRhsSum(sirType, decl, typeArgs, env, input)
+                ???
+        }
+    }
+
+    def retrieveParentDataDecl(
+        constrDecl: ConstrDecl,
+        typeArgs: List[SIRType],
+        parent: Option[SIRType]
+    ): Either[String, DataDecl] = {
+        parent
+            .map { pt =>
+                pt match {
+                    case SIRType.SumCaseClass(decl, pTypeArgs) => Right(decl)
+                    case SIRType.TypeProxy(ref) =>
+                        retrieveParentDataDecl(constrDecl, typeArgs, Some(ref))
+                    case SIRType.TypeLambda(tparams, body) =>
+                        retrieveParentDataDecl(constrDecl, typeArgs, Some(body))
+                    case _ =>
+                        Left(
+                          s"parent type for ${constrDecl.name} is ${pt.show} which is impossible"
+                        )
+                }
+            }
+            .getOrElse(
+              Right(
+                DataDecl(
+                  constrDecl.name,
+                  List(constrDecl),
+                  constrDecl.typeParams,
+                  AnnotationsDecl.empty
+                )
+              )
+            )
     }
 
 }
