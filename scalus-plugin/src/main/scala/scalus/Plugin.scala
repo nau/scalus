@@ -10,16 +10,13 @@ import dotty.tools.dotc.core.Symbols.*
 import dotty.tools.dotc.plugins.*
 import dotty.tools.dotc.util.Spans
 import scalus.flat.FlatInstantces
+import scalus.flat.FlatInstantces.SIRHashConsedFlat
 import scalus.sir.{RemoveRecursivity, SIR}
 import scalus.utils.{HashConsed, HashConsedEncoderState}
 
 import java.nio.charset.StandardCharsets
 import scala.collection.immutable
 import scala.language.implicitConversions
-import scala.util.control.NonFatal
-
-enum Mode:
-    case Compile, Link
 
 class Plugin extends StandardPlugin {
     val name: String = "scalus"
@@ -52,13 +49,7 @@ class ScalusPhase extends PluginPhase {
       */
     override def prepareForUnit(tree: Tree)(using Context): Context =
         // report.echo(s"Scalus: ${ctx.compilationUnit.source.file.name}")
-        val compiler =
-            try new SIRCompiler
-            catch
-                case NonFatal(e) =>
-                    report.error(s"Failed to initialize Scalus compiler: ${e.getMessage}")
-                    e.printStackTrace()
-                    throw e
+        val compiler = new SIRCompiler
         compiler.compileModule(tree)
         ctx
 
@@ -69,19 +60,23 @@ class ScalusPhase extends PluginPhase {
         val compilerModule = requiredModule("scalus.Compiler")
         val compileSymbol = compilerModule.requiredMethod("compile")
         val compileDebugSymbol = compilerModule.requiredMethod("compileDebug")
-        if tree.fun.symbol == compileSymbol || tree.fun.symbol == compileDebugSymbol then
+        val isCompileDebug = tree.fun.symbol == compileDebugSymbol
+        if tree.fun.symbol == compileSymbol || isCompileDebug then
             // report.echo(tree.showIndented(2))
             val code = tree.args.head
             val compiler = new SIRCompiler
             val start = System.currentTimeMillis()
             val result =
-                val result = compiler.compileToSIR(code, tree.fun.symbol == compileDebugSymbol)
+                val result = compiler.compileToSIR(code, isCompileDebug)
                 val linked = SIRLinker().link(result, tree.srcPos)
                 RemoveRecursivity(linked)
-            val time = System.currentTimeMillis() - start
-//            report.echo(
-//              s"Scalus compile() at ${tree.srcPos.sourcePos.source}:${tree.srcPos.line} in $time ms"
-//            )
+
+            if isCompileDebug then
+                val time = System.currentTimeMillis() - start
+                report.echo(
+                  s"Scalus compileDebug at ${tree.srcPos.sourcePos.source}:${tree.srcPos.line} in $time ms"
+                )
+
             convertSIRToTree(result, tree.span)
         else tree
     end transformApply
@@ -110,11 +105,10 @@ class ScalusPhase extends PluginPhase {
       * which is a lot of boilerplate. And we have [[Flat]] encoding for SIR, so we can use it.
       */
     private def convertSIRToTree(sir: SIR, span: Spans.Span)(using Context): Tree = {
-        val bitSize =
-            scalus.flat.FlatInstantces.SIRHashConsedFlat.bitSizeHC(sir, HashConsed.State.empty)
-        val byteSize = (bitSize + 1 /* for filler */ / 8) + 1 /* minimum size */
+        val bitSize = SIRHashConsedFlat.bitSizeHC(sir, HashConsed.State.empty)
+        val byteSize = (bitSize + 1) /* for filler */ / 8 + 1 /* minimum size */
         val encodedState = HashConsedEncoderState.withSize(byteSize)
-        FlatInstantces.SIRHashConsedFlat.encodeHC(sir, encodedState)
+        SIRHashConsedFlat.encodeHC(sir, encodedState)
         encodedState.encode.filler()
         val bytes = encodedState.encode.result
         /*
