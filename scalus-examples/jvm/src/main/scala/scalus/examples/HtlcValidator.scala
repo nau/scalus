@@ -1,38 +1,46 @@
 package scalus.examples
 
 import scalus.*
-import scalus.builtin.Data
-import scalus.builtin.Data.{FromData, ToData}
-import scalus.builtin.{ByteString, FromData, ToData}
 import scalus.builtin.Builtins.sha3_256
-import scalus.prelude.{*, given}
+import scalus.builtin.Data.{FromData, ToData}
 import scalus.builtin.FromDataInstances.given
 import scalus.builtin.ToDataInstances.given
-import scalus.ledger.api.v3.{Hash, Interval, IntervalBoundType, PosixTime, TxInfo, TxOutRef}
+import scalus.builtin.{ByteString, Data, FromData, ToData}
+import scalus.ledger.api.v3.*
+import scalus.prelude.{*, given}
 
 @Compile
 object HtlcValidator extends Validator:
     private type Preimage = ByteString
-    private type Image = Hash
-    private type HashOfPubKey = Hash
+    private type Image = ByteString
+    private type PubKeyHash = ByteString
 
+    // Contract Datum
     case class ContractDatum(
-        committer: HashOfPubKey,
-        receiver: HashOfPubKey,
+        committer: PubKeyHash,
+        receiver: PubKeyHash,
         image: Image,
         timeout: PosixTime
     )
 
+    // Redeemer
     enum Action:
         case Timeout
         case Reveal(preimage: Preimage)
 
-    override def spend(
-        datum: Option[Data],
-        redeemer: Data,
-        tx: TxInfo,
-        ownRef: TxOutRef
-    ): Unit =
+    // Data converters for ContractDatum and Action
+    // used in test and transaction building offchain logic
+    given FromData[ContractDatum] = FromData.deriveCaseClass[ContractDatum]
+    given ToData[ContractDatum] = ToData.deriveCaseClass[ContractDatum](0)
+    given FromData[Action] = FromData.deriveEnum[Action]
+    given ToData[Action] = ToData.deriveEnum[Action]
+
+    // val d = Action.Timeout.toData
+
+    /** Spending script purpose validation
+      */
+    override def spend(datum: Option[Data], redeemer: Data, tx: TxInfo, ownRef: TxOutRef): Unit = {
+        // Read ContractDatum from datum
         val ContractDatum(committer, receiver, image, timeout) =
             datum.map(_.to[ContractDatum]).getOrFail(InvalidDatum)
 
@@ -45,24 +53,20 @@ object HtlcValidator extends Validator:
                 tx.isSignedBy(receiver) orFail UnsignedReceiverTransaction
                 !tx.validRange.isAfter(timeout) orFail InvalidReceiverTimePoint
                 sha3_256(preimage) === image orFail InvalidReceiverPreimage
+    }
 
-    given FromData[ContractDatum] = FromData.deriveCaseClass[ContractDatum]
-    given ToData[ContractDatum] = ToData.deriveCaseClass[ContractDatum](0)
-    given FromData[Action] = FromData.deriveEnum[Action]
-    given ToData[Action] = ToData.deriveEnum[Action]
-
+    // Helper methods
     extension (self: TxInfo)
-        private def isSignedBy(
-            hashOfPubKey: HashOfPubKey
-        ): Boolean = self.signatories.exists { _.hash === hashOfPubKey }
+        private def isSignedBy(pubKeyHash: PubKeyHash): Boolean =
+            self.signatories.exists { _.hash === pubKeyHash }
 
     extension (self: Interval)
-        private def isAfter(
-            timePoint: PosixTime
-        ): Boolean = self.from.boundType match
-            case IntervalBoundType.Finite(time) => timePoint < time
-            case _                              => false
+        private infix def isAfter(timePoint: PosixTime): Boolean =
+            self.from.boundType match
+                case IntervalBoundType.Finite(time) => timePoint < time
+                case _                              => false
 
+    // Error messages
     inline val InvalidDatum =
         "Datum must be a HtlcValidator.ContractDatum(committer, receiver, image, timeout)"
     inline val UnsignedCommitterTransaction = "Transaction must be signed by a committer"
