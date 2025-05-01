@@ -14,9 +14,9 @@ object StakeValidator:
         val scriptCredential = Credential.ScriptCredential(withdrawalScriptHash)
         val scriptPurpose = ScriptPurpose.Rewarding(scriptCredential)
 
-        val redeemer = txInfo.redeemers.lookup(scriptPurpose).getOrFail(MissingRedeemer)
+        val redeemer = txInfo.redeemers.get(scriptPurpose).getOrFail(MissingRedeemer)
         val withdrawalAmount =
-            txInfo.withdrawals.lookup(scriptCredential).getOrFail(MissingWithdrawal)
+            txInfo.withdrawals.get(scriptCredential).getOrFail(MissingWithdrawal)
         withdrawalRedeemerValidator(
           redeemer,
           withdrawalAmount
@@ -24,7 +24,7 @@ object StakeValidator:
 
     def spendMinimal(withdrawalScriptHash: ValidatorHash, txInfo: TxInfo): Unit =
         val scriptCredential = Credential.ScriptCredential(withdrawalScriptHash)
-        txInfo.withdrawals.lookup(scriptCredential).getOrFail(MissingWithdrawal)
+        txInfo.withdrawals.get(scriptCredential).getOrFail(MissingWithdrawal)
 
     def withdraw[T](
         withdrawalValidator: (T, ValidatorHash, TxInfo) => Boolean,

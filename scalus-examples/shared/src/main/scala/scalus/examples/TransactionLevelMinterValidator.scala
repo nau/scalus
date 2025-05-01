@@ -13,14 +13,14 @@ object TransactionLevelMinterValidator:
         txInfo: TxInfo
     ): Unit =
         val scriptPurpose = ScriptPurpose.Minting(minterScriptHash)
-        val tokens = txInfo.mint.lookup(minterScriptHash).getOrElse(AssocMap.empty)
+        val tokens = txInfo.mint.get(minterScriptHash).getOrElse(AssocMap.empty)
 
-        val redeemer: Redeemer = txInfo.redeemers.lookup(scriptPurpose).getOrFail(MissingRedeemer)
+        val redeemer: Redeemer = txInfo.redeemers.get(scriptPurpose).getOrFail(MissingRedeemer)
         minterRedeemerValidator(redeemer) orFail MinterRedeemerValidatorFailed
         minterTokensValidator(tokens) orFail MinterTokensValidatorFailed
 
     def spendMinimal(minterScriptHash: ValidatorHash, txInfo: TxInfo): Unit =
-        txInfo.mint.lookup(minterScriptHash).getOrFail(MissingMint)
+        txInfo.mint.get(minterScriptHash).getOrFail(MissingMint)
 
     inline val MissingRedeemer = "There isn't a redeemer for the script purpose"
     inline val MinterRedeemerValidatorFailed = "Minter redeemer validator failed"
