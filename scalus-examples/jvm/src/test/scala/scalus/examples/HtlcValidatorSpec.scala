@@ -16,7 +16,6 @@ import scalus.bloxbean.{Interop, SlotConfig, TxEvaluator}
 import scalus.builtin.Builtins.sha3_256
 import scalus.builtin.Data.toData
 import scalus.builtin.{ByteString, Data}
-import scalus.ledger.api.PlutusLedgerLanguage.PlutusV3
 import scalus.ledger.api.v3.*
 import scalus.ledger.api.v3.ToDataInstances.given
 import scalus.prelude.*

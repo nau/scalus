@@ -245,6 +245,7 @@ final class SIRCompiler(using ctx: Context) {
                 ) match
                     case CompileMemberDefResult.Compiled(b)       => Some(b)
                     case CompileMemberDefResult.Builtin(name, tp) => None
+                    case CompileMemberDefResult.Ignored(_)        => None
                     case CompileMemberDefResult.NotSupported =>
                         error(
                           GenericError(
@@ -318,7 +319,7 @@ final class SIRCompiler(using ctx: Context) {
               bindingsWithSpecialized
             )
         writeModule(module, td.symbol.fullName.toString)
-        val time = System.currentTimeMillis() - start
+//        val time = System.currentTimeMillis() - start
 //        report.echo(
 //          s"compiled Scalus module ${td.name} definitions: ${bindingsWithSpecialized.map(_.name)} in ${time}ms"
 //        )
@@ -535,7 +536,7 @@ final class SIRCompiler(using ctx: Context) {
                             s"Tuple${nArgs} should nave n type arguments, buf fullType is: ${fullType.show}",
                             srcPos
                           ),
-                          (1 to nArgs).map(x => SIRType.TypeNothing).toList
+                          (1 to nArgs).map(_ => SIRType.TypeNothing).toList
                         )
                 SIR.Constr(
                   constrName,
@@ -1890,7 +1891,7 @@ final class SIRCompiler(using ctx: Context) {
         typer.sirTypeInEnv(tp, env)
     }
 
-    private def isVirtualCall(tree: Tree, qualifierSym: Symbol, name: Name): Boolean = {
+    private def isVirtualCall(@unused tree: Tree, qualifierSym: Symbol, name: Name): Boolean = {
         val declDenotation = qualifierSym.info.decl(name)
         !declDenotation.exists
     }
