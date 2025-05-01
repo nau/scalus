@@ -4,7 +4,7 @@ import scala.language.implicitConversions
 import scala.annotation.nowarn
 import scalus.*
 import scalus.prelude.{*, given}
-import scalus.prelude.Ord.{*, given}
+import scalus.prelude.Ord1.{*, given}
 import org.scalatest.funsuite.AnyFunSuite
 import scalus.testkit.ScalusTest
 
@@ -30,7 +30,7 @@ class Clausify extends AnyFunSuite, ScalusTest:
     test("F3") {
         // (a = a = a) = (a = a) = (a = a)
         val formula = (1 <-> (1 <-> 1)) <-> ((1 <-> 1) <-> (1 <-> 1))
-        val expected = List(LRVars(_1 = List.single(1)))
+        val expected = List(LRVars(_1 = List.single(1), List.empty))
         FormulaTestCase(formula, expected).check()
     }
 
@@ -121,11 +121,11 @@ end Clausify
 @Compile
 object Clausify:
     type Var = BigInt
-    case class LRVars(_1: List[Var] = List.empty, _2: List[Var] = List.empty)
+    case class LRVars(_1: List[Var], _2: List[Var])
 
     given Eq[LRVars] = (lhs, rhs) => lhs._1 === rhs._1 && lhs._2 === rhs._2
 
-    given Ord[LRVars] = (lhs, rhs) =>
+    given Ord1[LRVars] = (lhs, rhs) =>
         val comp = lhs._1 <=> rhs._1
         if comp !== BigInt(0) then comp else lhs._2 <=> rhs._2
 
@@ -219,7 +219,7 @@ object Clausify:
     extension (self: List[Formula])
         /// form unique clausal axioms excluding tautologies
         def unicl: List[LRVars] =
-            extension [A: Ord](self: List[A])
+            extension [A: Ord1](self: List[A])
                 def insertUniqueOrdered(elem: A): List[A] =
                     self match
                         case List.Nil => List.single(elem)
@@ -244,7 +244,7 @@ object Clausify:
                                     case _ => fail("Invalid formula")
                             case _ => fail("Invalid formula")
 
-                    doClause(self, LRVars())
+                    doClause(self, LRVars(List.empty, List.empty))
 
             end extension
 

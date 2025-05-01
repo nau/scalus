@@ -48,26 +48,27 @@ extension [A](x: A)
     inline def ===(inline y: A)(using inline eq: Eq[A]): Boolean = eq(x, y)
     inline def !==(inline y: A)(using inline eq: Eq[A]): Boolean = !eq(x, y)
 
-type Ord[-A] = (A, A) => BigInt
+type Ord1[-A] = (A, A) => BigInt
 
-import Ord.{*, given}
+import Ord1.{*, given}
+
+inline given Ord1[BigInt] = (x: BigInt, y: BigInt) =>
+    if lessThanInteger(x, y) then -1 else if lessThanInteger(y, x) then 1 else 0
 
 @Compile
-object Ord:
-    given Ord[BigInt] = (x: BigInt, y: BigInt) =>
-        if lessThanInteger(x, y) then -1 else if lessThanInteger(y, x) then 1 else 0
+object Ord1:
 
-    extension [A: Ord](self: A)
-        inline def <=>(inline other: A): BigInt = summon[Ord[A]](self, other)
-        def lt(other: A): Boolean = lessThanInteger(summon[Ord[A]](self, other), 0)
-        def lteq(other: A): Boolean = lessThanEqualsInteger(summon[Ord[A]](self, other), 0)
-        def gt(other: A): Boolean = lessThanInteger(summon[Ord[A]](other, self), 0)
-        def gteq(other: A): Boolean = lessThanEqualsInteger(summon[Ord[A]](other, self), 0)
-        def equiv(other: A): Boolean = equalsInteger(summon[Ord[A]](self, other), 0)
+    extension [A: Ord1](self: A)
+        inline def <=>(inline other: A): BigInt = summon[Ord1[A]](self, other)
+        def lt(other: A): Boolean = lessThanInteger(summon[Ord1[A]](self, other), 0)
+        def lteq(other: A): Boolean = lessThanEqualsInteger(summon[Ord1[A]](self, other), 0)
+        def gt(other: A): Boolean = lessThanInteger(summon[Ord1[A]](other, self), 0)
+        def gteq(other: A): Boolean = lessThanEqualsInteger(summon[Ord1[A]](other, self), 0)
+        def equiv(other: A): Boolean = equalsInteger(summon[Ord1[A]](self, other), 0)
 
     end extension
 
-end Ord
+end Ord1
 
 inline def log(msg: String): Unit = trace(msg)(())
 
@@ -816,7 +817,7 @@ object List:
                     case Nil                    => false
                     case Cons(headRhs, tailRhs) => headLhs === headRhs && tailLhs === tailRhs
 
-    given listOrd[A: Ord]: Ord[List[A]] = (lhs: List[A], rhs: List[A]) =>
+    given listOrd[A: Ord1]: Ord1[List[A]] = (lhs: List[A], rhs: List[A]) =>
         lhs match
             case Nil =>
                 rhs match
