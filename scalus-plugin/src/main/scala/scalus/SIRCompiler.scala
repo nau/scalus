@@ -1908,12 +1908,19 @@ final class SIRCompiler(using ctx: Context) {
         else
             member.info match
                 case _: MethodType | _: PolyType =>
-                    SIR.ExternalVar(
-                      qualifierTypeSym.fullName.toString,
-                      member.symbol.fullName.toString,
-                      sirTypeInEnv(member.info.finalResultType, tree.srcPos, env),
-                      AnnotationsDecl.fromSrcPos(tree.srcPos)
-                    )
+                    try {
+                        SIR.ExternalVar(
+                          qualifierTypeSym.fullName.toString,
+                          member.symbol.fullName.toString,
+                          sirTypeInEnv(member.info.finalResultType, tree.srcPos, env),
+                          AnnotationsDecl.fromSrcPos(tree.srcPos)
+                        )
+                    } catch
+                        case NonFatal(e) =>
+                            println("@@@@ " + qualifierTypeSym.fullName.toString + " " + " " + member.symbol.fullName.toString)
+                            println(tree.show)
+                            println(tree.srcPos)
+                            throw e
                 case _ =>
                     error(
                       GenericError(
