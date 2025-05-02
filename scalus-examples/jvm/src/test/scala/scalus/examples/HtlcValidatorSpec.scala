@@ -11,7 +11,6 @@ import com.bloxbean.cardano.client.transaction.spec.*
 import com.bloxbean.cardano.client.transaction.util.TransactionUtil
 import org.scalatest.funsuite.AnyFunSuite
 import scalus.*
-import scalus.Compiler.compile
 import scalus.bloxbean.{Interop, SlotConfig, TxEvaluator}
 import scalus.builtin.Builtins.sha3_256
 import scalus.builtin.Data.toData
