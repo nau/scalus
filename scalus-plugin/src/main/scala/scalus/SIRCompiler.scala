@@ -772,7 +772,14 @@ final class SIRCompiler(using ctx: Context) {
             val rhsFixed =
                 if vd.tpe <:< CompileDerivationsMarker then {
                     // TODO: check that interface is function
-                    fixFunctionInterface(env, vd.tpe, vd.rhs)
+                    tryFixFunctionalInterface(env, vd.tpe, vd.rhs).getOrElse {
+                        // report.error(
+                        //  s"[1] Functional interface not found for ${vd.rhs.show}" + "\n" +
+                        //      s"tree:  ${vd.rhs}" + "\n",
+                        //  vd.srcPos
+                        // )
+                        vd.rhs
+                    }
                 } else vd.rhs
             val bodyExpr = compileExpr(env, rhsFixed)
             CompileMemberDefResult.Compiled(
@@ -780,19 +787,22 @@ final class SIRCompiler(using ctx: Context) {
             )
     }
 
-    private def fixFunctionInterface(
+    private def tryFixFunctionalInterface(
         env: Env,
         tpe: Type,
         tree: Tree
-    ): Tree = {
+    ): Option[Tree] = {
         //  TODO: chekc that tpe is actually inherited from FunctionN
         // println(s"fix function interface for ${tree.show}")
         // println(s"fix function interface tree = ${tree}")
         tree match
-            case Typed(x, tpt) if tpt.tpe <:< CompileDerivationsMarker =>
-                fixFunctionInterface(env, tpe, x)
+            case Typed(x, tpt)
+                if tpt.tpe.typeSymbol.hasAnnotation(
+                  Symbols.requiredClass("java.lang.FunctionalInterface")
+                ) =>
+                tryFixFunctionalInterface(env, tpe, x)
             case Inlined(call, List(), expansion) =>
-                val newExpansion = fixFunctionInterface(env, tpe, expansion)
+                val newExpansion = tryFixFunctionalInterface(env, tpe, expansion)
                 newExpansion
             case Block(
                   List(ddef: DefDef),
@@ -803,12 +813,12 @@ final class SIRCompiler(using ctx: Context) {
                 // println(s"initCn: ${initCn.show}")
 
                 val call = Ident(TermRef(NoPrefix, ddef.symbol))
-                Block(List(ddef), Closure(Nil, call, EmptyTree))
+                Some(Block(List(ddef), Closure(Nil, call, EmptyTree)))
             case other =>
-                report.error("Function interface not found")
-                println(s"transstate functoon interface call unchanged: ${other.show}")
-                println(s"tree: ${other}")
-                other
+                // report.error("Function interface not found")
+                // println(s"transstate functoon interface call unchanged: ${other.show}")
+                // println(s"tree: ${other}")
+                None
     }
 
     private def compileDefDef(
@@ -1496,52 +1506,26 @@ final class SIRCompiler(using ctx: Context) {
         //    case Select(qual, nme.apply) if qual.symbol ==
         val fE = f match
             case Select(qual, nme.apply) if qual.symbol == NoSymbol =>
-                println(s"NoSymApply, qual: ${qual.show}")
-                println(s"qual.tpe=${qual.tpe.show}, qual.tpe.typeSymbol=${qual.tpe.typeSymbol}")
-                println(s"qual.tpe.isSingleton=${qual.tpe.isSingleton}")
-                println(s"qual.tpe.flags=${qual.tpe.typeSymbol.flagsString}")
-                println(s"isFunctionType(qual.tpe.widen)=${defn.isFunctionType(qual.tpe.widen)}")
-                println(s"isFunctionType(qual.tpe)=${defn.isFunctionType(qual.tpe)}")
-                println(s"qual.tpe.typeSymol=${qual.tpe.typeSymbol}")
-                println(s"qual.tpe.termSymbol=${qual.tpe.termSymbol}")
-                println(s"qual.tpe.termSymbol.fullName=${qual.tpe.termSymbol.fullName}")
-                println(s"qual.tpe.classSymbol=${qual.tpe.classSymbol}")
+                val isFunctionalInterface = qual.tpe.typeSymbol.hasAnnotation(
+                  Symbols.requiredClass("java.lang.FunctionalInterface")
+                )
                 val nArgs = args.length
                 val functionN = defn.FunctionSymbol(nArgs)
                 val baseFunction = qual.tpe.baseType(functionN)
-                if baseFunction.exists then println(s"baseFunction: ${baseFunction.show}")
-                else println(s"baseFunction for ${qual.tpe.show} does not exist")
                 if qual.tpe.isSingleton && baseFunction.exists then
                     val termSymbol = qual.tpe.termSymbol
                     if termSymbol.exists then
                         val fullName = termSymbol.fullName
-                        println(s"fullName=${termSymbol.fullName}")
                         val ownerFullName = termSymbol.owner.fullName
-                        println(s"ownerFullName=${ownerFullName}")
-                        println(s"ownerFullName.show=${ownerFullName.show}")
-                        println(s"owner=${termSymbol.owner}")
                         val scalusCompileDerivations =
                             Symbols.requiredClass("scalus.CompileDerivations")
-                        if qual.tpe.baseType(scalusCompileDerivations).exists then {
-                            println(
-                              s"Emitting external var for fun: module ${ownerFullName.show}, name ${fullName.show} "
-                            )
-
-                            // module for derivation is a companion object of an appropriative
-
-                            SIR.ExternalVar(
-                              ownerFullName.toString,
-                              fullName.show,
-                              sirTypeInEnv(baseFunction, f.srcPos, env),
-                              AnnotationsDecl.fromSrcPos(f.srcPos)
-                            )
-                            // SIR.Error("TODO", AnnotationsDecl.fromSrcPos(f.srcPos))
-                        } else
+                        val isDerived = termSymbol.name.toString.startsWith("derived$")
+                        if isDerived && !qual.tpe.baseType(scalusCompileDerivations).exists then
                             error(
                               GenericError(
-                                s"""You are trying to apply a function `${qual.show}` with ${nArgs} arguments,
-                                  |but the function is not marked as CompileDerivations and will not be available in Scalus.
-                                  |""".stripMargin,
+                                s"""You are trying to apply a derived function `${qual.show}` with ${nArgs} arguments,
+                                       |but the function is not marked as CompileDerivations and will not be available in Scalus.
+                                       |""".stripMargin,
                                 f.srcPos
                               ),
                               SIR.Error(
@@ -1549,17 +1533,28 @@ final class SIRCompiler(using ctx: Context) {
                                 AnnotationsDecl.fromSrcPos(f.srcPos)
                               )
                             )
+                        else
+                            // module for derivation is a companion object of an appropriative
+                            SIR.ExternalVar(
+                              ownerFullName.toString,
+                              fullName.show,
+                              sirTypeInEnv(baseFunction, f.srcPos, env),
+                              AnnotationsDecl.fromSrcPos(f.srcPos)
+                            )
+                            // SIR.Error("TODO", AnnotationsDecl.fromSrcPos(f.srcPos))
                     else
                         val message = s"Can't resolve term symbol for singleton  ${qual.tpe.show}"
                         error(
                           GenericError(message, f.srcPos),
                           SIR.Error(message, AnnotationsDecl.fromSrcPos(f.srcPos))
                         )
-                else
-                    error(
-                      GenericError("Apply without symbol", f.srcPos),
-                      SIR.Error("Apply without symbol", AnnotationsDecl.fromSrcPos(f.srcPos))
-                    )
+                else if isFunctionalInterface then
+                    this.tryFixFunctionalInterface(env, qual.tpe, qual) match
+                        case Some(lambda) =>
+                            compileExpr(env, lambda)
+                        case None =>
+                            compileExpr(env, f)
+                else compileExpr(env, f)
             case _ =>
                 compileExpr(env, f)
         val applySirType = sirTypeInEnv(applyTpe, applyTree.srcPos, env)
@@ -2086,13 +2081,12 @@ final class SIRCompiler(using ctx: Context) {
     private def isVirtualCall(tree: Tree, qualifier: Tree, name: Name): Boolean = {
         val qualifierSym = qualifier.symbol
         if qualifierSym == Symbols.NoSymbol then {
-            error(
-              GenericError(s"Cannot resolve symbol ${qualifier.show}", tree.srcPos),
-              false
-            )
-        }
-        val declDenotation = qualifier.tpe.widen.decl(name)
-        !declDenotation.exists
+            // this can be a case when we apply inline lamnda or function,
+            //  todo: control more tightly
+            false
+        } else
+            val declDenotation = qualifier.tpe.widen.decl(name)
+            !declDenotation.exists
     }
 
     private def compileVirtualCall(env: Env, tree: Tree, qualifier: Tree, name: Name): SIR = {

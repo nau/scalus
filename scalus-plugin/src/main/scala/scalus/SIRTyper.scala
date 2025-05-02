@@ -95,7 +95,7 @@ class SIRTyper(using Context) {
                             if tpc.isTypeAlias || tpc.symbol.isAliasType then
                                 sirTypeInEnvWithErr(tpc.dealias.appliedTo(tp.args), env)
                             else {
-                                tryMakeCompiledDerivation(tp, tp.typeSymbol, env) getOrElse
+                                tryMakeFunctionalInterface(tp, tp.typeSymbol, env) getOrElse
                                     makeSIRNonFunClassType(
                                       tpc,
                                       tp.args.map(sirTypeInEnv(_, env)),
@@ -326,16 +326,20 @@ class SIRTyper(using Context) {
         }
     }
 
-    private def tryMakeCompiledDerivation(
+    private def tryMakeFunctionalInterface(
         originType: Type,
         typeSymbol: Symbol,
         env: SIRTypeEnv
     ): Option[SIRType] = {
-        if originType <:< Symbols.requiredClassRef("scalus.CompileDerivations") then
-            originType.baseClasses.find(b => defn.isFunctionClass(b)) match {
+        if originType <:< Symbols.requiredClassRef("scalus.CompileDerivations")
+            || originType.typeSymbol.hasAnnotation(
+              Symbols.requiredClass("java.lang.FunctionalInterface")
+            )
+        then
+            originType.baseClasses.find(b => defn.isFunctionClass(b)) match
                 case None =>
                     report.warning(
-                      s"type ${originType.show} marded as CompileDerivations but not functional"
+                      s"type ${originType.show} marded as FuctionalInterface but not functional"
                     )
                     None
                 case Some(baseFunction) =>
@@ -344,7 +348,6 @@ class SIRTyper(using Context) {
                         report.warning(s"type ${originType.show} can't be transformed to function")
                         None
                     } else Some(sirTypeInEnvWithErr(t, env))
-            }
         else None
     }
 
