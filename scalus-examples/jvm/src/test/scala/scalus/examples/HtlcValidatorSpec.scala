@@ -303,7 +303,7 @@ class HtlcValidatorSpec extends AnyFunSuite with ScalusTest {
     }
 
     private lazy val sender = new Account()
-    private lazy val script = compile(HtlcValidator.validate).scriptV3()
+    private lazy val script = HtlcValidator.script
     private lazy val scriptHash = script.hash
     private val costMdls = CostMdls()
     costMdls.add(CostModelUtil.PlutusV3CostModel)

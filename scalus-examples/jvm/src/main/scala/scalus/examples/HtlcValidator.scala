@@ -1,6 +1,7 @@
 package scalus.examples
 
 import scalus.*
+import scalus.Compiler.compile
 import scalus.builtin.Builtins.sha3_256
 import scalus.builtin.Data.{FromData, ToData}
 import scalus.builtin.FromDataInstances.given
@@ -8,6 +9,7 @@ import scalus.builtin.ToDataInstances.given
 import scalus.builtin.{ByteString, Data, FromData, ToData}
 import scalus.ledger.api.v3.*
 import scalus.prelude.{*, given}
+import scalus.uplc.Program
 
 @Compile
 object HtlcValidator extends Validator:
@@ -74,5 +76,10 @@ object HtlcValidator extends Validator:
     inline val InvalidCommitterTimePoint = "Committer Transaction must be exclusively after timeout"
     inline val InvalidReceiverTimePoint = "Receiver Transaction must be inclusively before timeout"
     inline val InvalidReceiverPreimage = "Invalid receiver preimage"
+
+    @Ignore
+    val script: Program = compile(HtlcValidator.validate)
+        .toUplc(generateErrorTraces = true)
+        .plutusV3
 
 end HtlcValidator
