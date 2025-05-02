@@ -109,32 +109,32 @@ class SIRDataReprGenerator(using ctx: Context) {
     }
 
     def resolveFromDataRhs(tp: SIRType, env: Env, dataExpr: SIR): SIR = {
+        // TODO: check recursion
         tp match {
             case SIRType.TypeProxy(ref) =>
-                generateFromDataRhs(ref, env, dataExpr)
+                resolveFromDataRhs(ref, env, dataExpr)
             case SIRType.TypeLambda(params, body) =>
-                params.foldRight(
-                )
+                ???
             case SIRType.SumCaseClass(decl, typeArgs) =>
                 // Hmm, we can resolve, if we have compiler.
                 //  But if not ... assume derivedd.
                 val args = typeArgs.map(t => resolveFromDataRhs(t, env, dataExpr))
 
-                val fromDataVarTp = {
+                val fromDataVarTp: SIRType = {
                     decl.typeParams.foldRight(SIRType.Fun(SIRType.Data, tp): SIRType) { (e, s) =>
                         val fromE = SIRType.Fun(SIRType.Data, e)
                         SIRType.Fun(fromE, s)
                     }
                 }
 
-                val fromDataVar = SIR.ExternalVar(
+                val fromDataVar: SIR = SIR.ExternalVar(
                   decl.name + '$',
                   decl.name + "$.derived$FromData",
                   fromDataVarTp,
                   AnnotationsDecl.empty
                 )
 
-                val (sir, tp) = args.foldLeft((fromDataVar, fromDataVarTp)) {
+                val (sir, rtp) = args.foldLeft((fromDataVar, fromDataVarTp)) {
                     case ((sSIR, sType), e) =>
                         val nextType = sType match
                             case SIRType.Fun(ex, ey) => ey
@@ -148,6 +148,26 @@ class SIRDataReprGenerator(using ctx: Context) {
 
             case SIRType.CaseClass(constrDecl, typeArgs, parent) =>
                 ???
+
+            case SIRType.Integer =>
+                SIR.Apply(SIRBuiltins.iData, dataExpr, SIRType.Integer, AnnotationsDecl.empty)
+            case SIRType.ByteString =>
+                SIR.Apply(SIRBuiltins.bData, dataExpr, SIRType.ByteString, AnnotationsDecl.empty)
+            case SIRType.String =>
+                SIR.Apply(
+                  SIRBuiltins.encodeUtf8,
+                  SIR.Apply(SIRBuiltins.bData, dataExpr, SIRType.ByteString, AnnotationsDecl.empty),
+                  SIRType.String,
+                  AnnotationsDecl.empty
+                )
+            case SIRType.Unit =>
+                SIR.Const(
+                  Constant.Unit,
+                  SIRType.Unit,
+                  AnnotationsDecl.empty
+                )
+            case SIRType.Data =>
+                dataExpr
 
         }
     }
