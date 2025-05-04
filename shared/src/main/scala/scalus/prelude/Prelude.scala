@@ -10,7 +10,7 @@ import scalus.macros.Macros
 import scala.annotation.{nowarn, tailrec}
 import scala.collection.mutable
 
-import OrdCompanion.*
+import Ord.*
 
 extension [A](self: A)
     inline def let[B](inline fn: A => B): B = fn(self)
@@ -48,18 +48,40 @@ inline given Eq[Data] = equalsData
 @nowarn
 inline given Eq[Unit] = (_: Unit, _: Unit) => true
 
+val Eq: EqCompanion.type = EqCompanion
+
+@Compile
+object EqCompanion:
+    def by[A, B: Eq](mapper: A => B): Eq[A] = (lhs: A, rhs: A) => mapper(lhs) === mapper(rhs)
+
+    extension [A](self: Eq[A])
+        inline def eqv(inline lhs: A, inline rhs: A): Boolean = self(lhs, rhs)
+        inline def notEqv(inline lhs: A, inline rhs: A): Boolean = !self.eqv(lhs, rhs)
+
+        def orElse(other: Eq[A]): Eq[A] = (lhs: A, rhs: A) =>
+            if self.eqv(lhs, rhs) then other.eqv(lhs, rhs) else false
+
+        def orElseBy[B: Eq](mapper: A => B): Eq[A] = (lhs: A, rhs: A) =>
+            if self.eqv(lhs, rhs) then by[A, B](mapper).eqv(lhs, rhs) else false
+
+    end extension
+
+    given [A: Eq, B: Eq]: Eq[(A, B)] = Eq.by[(A, B), A](_._1).orElseBy(_._2)
+
+end EqCompanion
+
 extension [A](x: A)
     inline def ===(inline y: A)(using inline eq: Eq[A]): Boolean = eq(x, y)
     inline def !==(inline y: A)(using inline eq: Eq[A]): Boolean = !eq(x, y)
 
-type Ord[-A] = (A, A) => OrdCompanion.Order
+type Ord[-A] = (A, A) => Ord.Order
+
+val Ord: OrdCompanion.type = OrdCompanion
 
 @Compile
 object OrdCompanion:
     enum Order:
-        case Less
-        case Greater
-        case Equal
+        case Less, Greater, Equal
 
     import Order.*
 
@@ -110,6 +132,8 @@ object OrdCompanion:
 
     given Ord[BigInt] = (x: BigInt, y: BigInt) =>
         if lessThanInteger(x, y) then Less else if lessThanInteger(y, x) then Greater else Equal
+
+    given [A: Ord, B: Ord]: Ord[(A, B)] = Ord.by[(A, B), A](_._1).orElseBy(_._2)
 
 end OrdCompanion
 
@@ -614,9 +638,11 @@ object List:
           *   result === Cons(2, Cons(4, .Cons(6, Nil)))
           *   }}}
           */
-        def map[B](mapper: A => B): List[B] = self match
-            case Nil              => Nil
-            case Cons(head, tail) => Cons(mapper(head), tail.map(mapper))
+        def map[B](mapper: A => B): List[B] =
+            foldRight(List.empty[B]) { (head, tail) => Cons(mapper(head), tail) }
+
+        def flatMap[B](mapper: A => List[B]): List[B] =
+            foldRight(List.empty[B]) { (head, tail) => mapper(head) ++ tail }
 
         /** Filters the elements of the list based on a predicate.
           *
@@ -634,11 +660,17 @@ object List:
           *   filtered === Cons(1, Cons(3, Nil))
           *   }}}
           */
-        def filter(predicate: A => Boolean): List[A] = self match
-            case Nil => Nil
-            case Cons(head, tail) =>
-                if predicate(head) then Cons(head, tail.filter(predicate))
-                else tail.filter(predicate)
+        def filter(predicate: A => Boolean): List[A] =
+            foldRight(List.empty[A]) { (head, tail) =>
+                if predicate(head) then Cons(head, tail) else tail
+            }
+
+        def filterMap[B](predicate: A => Option[B]): List[B] =
+            foldRight(List.empty[B]) { (head, tail) =>
+                predicate(head) match
+                    case None        => tail
+                    case Some(value) => Cons(value, tail)
+            }
 
         /** Finds the first element in the list that satisfies the given predicate.
           *
@@ -819,6 +851,23 @@ object List:
         def tail: List[A] = self match
             case Nil           => throw new NoSuchElementException("tail of empty list")
             case Cons(_, rest) => rest
+
+        @tailrec
+        def drop(skip: BigInt): List[A] = self match
+            case Nil => Nil
+            case Cons(_, tail) =>
+                if skip <= 0 then self
+                else tail.drop(skip - 1)
+
+        def dropRight(skip: BigInt): List[A] =
+            if skip <= 0 then self
+            else
+                self.foldRight((List.empty[A], skip)) { (head, acc) =>
+                    if acc._2 > 0 then (Nil, acc._2 - 1)
+                    else (Cons(head, acc._1), acc._2)
+                }._1
+
+        inline def init: List[A] = dropRight(1)
 
         /** Returns a new list with elements in reverse order.
           *

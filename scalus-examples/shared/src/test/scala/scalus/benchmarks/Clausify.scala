@@ -4,7 +4,8 @@ import scala.language.implicitConversions
 import scala.annotation.nowarn
 import scalus.*
 import scalus.prelude.{*, given}
-import scalus.prelude.OrdCompanion.{*, given}
+import scalus.prelude.Eq.{*, given}
+import scalus.prelude.Ord.{*, given}
 import org.scalatest.funsuite.AnyFunSuite
 import scalus.testkit.ScalusTest
 
@@ -12,16 +13,16 @@ class Clausify extends AnyFunSuite, ScalusTest:
     import Clausify.{*, given}
     import Syms.*
 
-//    test("F0") {
-//        val result = Compiler
-//            .compile {
-//                val formula = (_1 <-> _1) <-> ((_1 <-> _1) <-> (_1 <-> _1))
-//                formula.clauses
-//            }
-//            .scriptV3()
-//            .evaluateDebug
+    test("F0") {
+        val result = Compiler
+            .compile {
+                val formula = (_1 <-> _1) <-> ((_1 <-> _1) <-> (_1 <-> _1))
+                formula.clauses === List.empty[LRVars]
+            }
+            .scriptV3()
+            .evaluateDebug
 //        println("--------------- " + result)
-//    }
+    }
 
     test("F1") {
         // (a = a) = (a = a) = (a = a)
@@ -40,78 +41,78 @@ class Clausify extends AnyFunSuite, ScalusTest:
     test("F3") {
         // (a = a = a) = (a = a) = (a = a)
         val formula = (1 <-> (1 <-> 1)) <-> ((1 <-> 1) <-> (1 <-> 1))
-        val expected = List(LRVars(List.single(1), List.empty))
+        val expected = List[LRVars]((List.single(1), List.empty[Var]))
         FormulaTestCase(formula, expected).check()
     }
 
     test("F4") {
         // (a = b = c) = (d = e) = (f = g)
         val formula = (1 <-> (2 <-> 3)) <-> ((4 <-> 5) <-> (6 <-> 7))
-        val expected = List(
-          LRVars(List(1), List(2, 3, 4, 5, 6, 7)),
-          LRVars(List(1, 2, 3), List(4, 5, 6, 7)),
-          LRVars(List(1, 2, 3, 4, 5), List(6, 7)),
-          LRVars(List(1, 2, 3, 4, 5, 6, 7), List()),
-          LRVars(List(1, 2, 3, 4, 6), List(5, 7)),
-          LRVars(List(1, 2, 3, 4, 7), List(5, 6)),
-          LRVars(List(1, 2, 3, 5, 6), List(4, 7)),
-          LRVars(List(1, 2, 3, 5, 7), List(4, 6)),
-          LRVars(List(1, 2, 3, 6, 7), List(4, 5)),
-          LRVars(List(1, 2, 4), List(3, 5, 6, 7)),
-          LRVars(List(1, 2, 4, 5, 6), List(3, 7)),
-          LRVars(List(1, 2, 4, 5, 7), List(3, 6)),
-          LRVars(List(1, 2, 4, 6, 7), List(3, 5)),
-          LRVars(List(1, 2, 5), List(3, 4, 6, 7)),
-          LRVars(List(1, 2, 5, 6, 7), List(3, 4)),
-          LRVars(List(1, 2, 6), List(3, 4, 5, 7)),
-          LRVars(List(1, 2, 7), List(3, 4, 5, 6)),
-          LRVars(List(1, 3, 4), List(2, 5, 6, 7)),
-          LRVars(List(1, 3, 4, 5, 6), List(2, 7)),
-          LRVars(List(1, 3, 4, 5, 7), List(2, 6)),
-          LRVars(List(1, 3, 4, 6, 7), List(2, 5)),
-          LRVars(List(1, 3, 5), List(2, 4, 6, 7)),
-          LRVars(List(1, 3, 5, 6, 7), List(2, 4)),
-          LRVars(List(1, 3, 6), List(2, 4, 5, 7)),
-          LRVars(List(1, 3, 7), List(2, 4, 5, 6)),
-          LRVars(List(1, 4, 5), List(2, 3, 6, 7)),
-          LRVars(List(1, 4, 5, 6, 7), List(2, 3)),
-          LRVars(List(1, 4, 6), List(2, 3, 5, 7)),
-          LRVars(List(1, 4, 7), List(2, 3, 5, 6)),
-          LRVars(List(1, 5, 6), List(2, 3, 4, 7)),
-          LRVars(List(1, 5, 7), List(2, 3, 4, 6)),
-          LRVars(List(1, 6, 7), List(2, 3, 4, 5)),
-          LRVars(List(2), List(1, 3, 4, 5, 6, 7)),
-          LRVars(List(2, 3, 4), List(1, 5, 6, 7)),
-          LRVars(List(2, 3, 4, 5, 6), List(1, 7)),
-          LRVars(List(2, 3, 4, 5, 7), List(1, 6)),
-          LRVars(List(2, 3, 4, 6, 7), List(1, 5)),
-          LRVars(List(2, 3, 5), List(1, 4, 6, 7)),
-          LRVars(List(2, 3, 5, 6, 7), List(1, 4)),
-          LRVars(List(2, 3, 6), List(1, 4, 5, 7)),
-          LRVars(List(2, 3, 7), List(1, 4, 5, 6)),
-          LRVars(List(2, 4, 5), List(1, 3, 6, 7)),
-          LRVars(List(2, 4, 5, 6, 7), List(1, 3)),
-          LRVars(List(2, 4, 6), List(1, 3, 5, 7)),
-          LRVars(List(2, 4, 7), List(1, 3, 5, 6)),
-          LRVars(List(2, 5, 6), List(1, 3, 4, 7)),
-          LRVars(List(2, 5, 7), List(1, 3, 4, 6)),
-          LRVars(List(2, 6, 7), List(1, 3, 4, 5)),
-          LRVars(List(3), List(1, 2, 4, 5, 6, 7)),
-          LRVars(List(3, 4, 5), List(1, 2, 6, 7)),
-          LRVars(List(3, 4, 5, 6, 7), List(1, 2)),
-          LRVars(List(3, 4, 6), List(1, 2, 5, 7)),
-          LRVars(List(3, 4, 7), List(1, 2, 5, 6)),
-          LRVars(List(3, 5, 6), List(1, 2, 4, 7)),
-          LRVars(List(3, 5, 7), List(1, 2, 4, 6)),
-          LRVars(List(3, 6, 7), List(1, 2, 4, 5)),
-          LRVars(List(4), List(1, 2, 3, 5, 6, 7)),
-          LRVars(List(4, 5, 6), List(1, 2, 3, 7)),
-          LRVars(List(4, 5, 7), List(1, 2, 3, 6)),
-          LRVars(List(4, 6, 7), List(1, 2, 3, 5)),
-          LRVars(List(5), List(1, 2, 3, 4, 6, 7)),
-          LRVars(List(5, 6, 7), List(1, 2, 3, 4)),
-          LRVars(List(6), List(1, 2, 3, 4, 5, 7)),
-          LRVars(List(7), List(1, 2, 3, 4, 5, 6))
+        val expected = List[LRVars](
+          (List(1), List(2, 3, 4, 5, 6, 7)),
+          (List(1, 2, 3), List(4, 5, 6, 7)),
+          (List(1, 2, 3, 4, 5), List(6, 7)),
+          (List(1, 2, 3, 4, 5, 6, 7), List()),
+          (List(1, 2, 3, 4, 6), List(5, 7)),
+          (List(1, 2, 3, 4, 7), List(5, 6)),
+          (List(1, 2, 3, 5, 6), List(4, 7)),
+          (List(1, 2, 3, 5, 7), List(4, 6)),
+          (List(1, 2, 3, 6, 7), List(4, 5)),
+          (List(1, 2, 4), List(3, 5, 6, 7)),
+          (List(1, 2, 4, 5, 6), List(3, 7)),
+          (List(1, 2, 4, 5, 7), List(3, 6)),
+          (List(1, 2, 4, 6, 7), List(3, 5)),
+          (List(1, 2, 5), List(3, 4, 6, 7)),
+          (List(1, 2, 5, 6, 7), List(3, 4)),
+          (List(1, 2, 6), List(3, 4, 5, 7)),
+          (List(1, 2, 7), List(3, 4, 5, 6)),
+          (List(1, 3, 4), List(2, 5, 6, 7)),
+          (List(1, 3, 4, 5, 6), List(2, 7)),
+          (List(1, 3, 4, 5, 7), List(2, 6)),
+          (List(1, 3, 4, 6, 7), List(2, 5)),
+          (List(1, 3, 5), List(2, 4, 6, 7)),
+          (List(1, 3, 5, 6, 7), List(2, 4)),
+          (List(1, 3, 6), List(2, 4, 5, 7)),
+          (List(1, 3, 7), List(2, 4, 5, 6)),
+          (List(1, 4, 5), List(2, 3, 6, 7)),
+          (List(1, 4, 5, 6, 7), List(2, 3)),
+          (List(1, 4, 6), List(2, 3, 5, 7)),
+          (List(1, 4, 7), List(2, 3, 5, 6)),
+          (List(1, 5, 6), List(2, 3, 4, 7)),
+          (List(1, 5, 7), List(2, 3, 4, 6)),
+          (List(1, 6, 7), List(2, 3, 4, 5)),
+          (List(2), List(1, 3, 4, 5, 6, 7)),
+          (List(2, 3, 4), List(1, 5, 6, 7)),
+          (List(2, 3, 4, 5, 6), List(1, 7)),
+          (List(2, 3, 4, 5, 7), List(1, 6)),
+          (List(2, 3, 4, 6, 7), List(1, 5)),
+          (List(2, 3, 5), List(1, 4, 6, 7)),
+          (List(2, 3, 5, 6, 7), List(1, 4)),
+          (List(2, 3, 6), List(1, 4, 5, 7)),
+          (List(2, 3, 7), List(1, 4, 5, 6)),
+          (List(2, 4, 5), List(1, 3, 6, 7)),
+          (List(2, 4, 5, 6, 7), List(1, 3)),
+          (List(2, 4, 6), List(1, 3, 5, 7)),
+          (List(2, 4, 7), List(1, 3, 5, 6)),
+          (List(2, 5, 6), List(1, 3, 4, 7)),
+          (List(2, 5, 7), List(1, 3, 4, 6)),
+          (List(2, 6, 7), List(1, 3, 4, 5)),
+          (List(3), List(1, 2, 4, 5, 6, 7)),
+          (List(3, 4, 5), List(1, 2, 6, 7)),
+          (List(3, 4, 5, 6, 7), List(1, 2)),
+          (List(3, 4, 6), List(1, 2, 5, 7)),
+          (List(3, 4, 7), List(1, 2, 5, 6)),
+          (List(3, 5, 6), List(1, 2, 4, 7)),
+          (List(3, 5, 7), List(1, 2, 4, 6)),
+          (List(3, 6, 7), List(1, 2, 4, 5)),
+          (List(4), List(1, 2, 3, 5, 6, 7)),
+          (List(4, 5, 6), List(1, 2, 3, 7)),
+          (List(4, 5, 7), List(1, 2, 3, 6)),
+          (List(4, 6, 7), List(1, 2, 3, 5)),
+          (List(5), List(1, 2, 3, 4, 6, 7)),
+          (List(5, 6, 7), List(1, 2, 3, 4)),
+          (List(6), List(1, 2, 3, 4, 5, 7)),
+          (List(7), List(1, 2, 3, 4, 5, 6))
         )
         FormulaTestCase(formula, expected).check()
     }
@@ -131,11 +132,7 @@ end Clausify
 @Compile
 object Clausify:
     type Var = BigInt
-    case class LRVars(_1: List[Var], _2: List[Var])
-
-    given Eq[LRVars] = (lhs, rhs) => lhs._1 === rhs._1 && lhs._2 === rhs._2
-    given Ord[LRVars] = (lhs, rhs) =>
-        OrdCompanion.by((_: LRVars)._1).orElseBy(_._2).compare(lhs, rhs)
+    type LRVars = (List[Var], List[Var])
 
     enum Formula:
         case Sym(arg: Var)
@@ -229,7 +226,7 @@ object Clausify:
             doSplit(self, List.empty)
         }
 
-        def clauses: List[LRVars] = self.eliminate.negin.disin.split.unicl
+        def clauses: List[LRVars] = eliminate.negin.disin.split.unicl
 
     end extension
 
@@ -253,15 +250,15 @@ object Clausify:
                     def doClause(formula: Formula, vars: LRVars): LRVars =
                         formula match
                             case Or(arg1, arg2) => doClause(arg1, doClause(arg2, vars))
-                            case Sym(arg)       => LRVars(vars._1.insertUniqueOrdered(arg), vars._2)
+                            case Sym(arg)       => (vars._1.insertUniqueOrdered(arg), vars._2)
                             case Not(expr) =>
                                 expr match
                                     case Sym(arg) =>
-                                        LRVars(vars._1, vars._2.insertUniqueOrdered(arg))
+                                        (vars._1, vars._2.insertUniqueOrdered(arg))
                                     case _ => fail("Invalid formula")
                             case _ => fail("Invalid formula")
 
-                    doClause(self, LRVars(List.empty, List.empty))
+                    doClause(self, (List.empty, List.empty))
 
             end extension
 
