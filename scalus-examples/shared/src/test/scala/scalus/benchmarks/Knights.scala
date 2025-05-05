@@ -1,20 +1,63 @@
-package scalus.benchmarks.knights
+package scalus.benchmarks
 
+import org.scalatest.funsuite.AnyFunSuite
 import scalus.*
 import scalus.builtin.Builtins.{multiplyInteger, remainderInteger}
-import scalus.prelude.{*, given}
+import scalus.prelude.Eq.given
 import scalus.prelude.Ord.{*, given}
+import scalus.prelude.{*, given}
+import scalus.testkit.ScalusTest
 
-case class ChessSet(
-    size: BigInt,
-    moveNumber: BigInt,
-    start: Option[Tile],
-    visited: List[Tile]
-)
+class Knights extends AnyFunSuite, ScalusTest:
+end Knights
 
 @Compile
-object ChessSet:
-    def apply(size: BigInt, initSquare: Tile): ChessSet =
+object Knights:
+    enum Direction:
+        case UL, UR, DL, DR, LU, LD, RU, RD
+
+    val directions: List[Direction] = {
+        import Direction.*
+        List.Cons(
+          UL,
+          List.Cons(
+            UR,
+            List.Cons(
+              DL,
+              List.Cons(DR, List.Cons(LU, List.Cons(LD, List.Cons(RU, List.Cons(RD, List.Nil)))))
+            )
+          )
+        )
+    }
+
+    type Tile = (BigInt, BigInt)
+
+    extension (self: Tile)
+        def move(direction: Direction): Tile =
+            val (x, y) = self
+            import Direction.*
+            direction match
+                case UL => (x - 1, y - 2)
+                case UR => (x + 1, y - 2)
+                case DL => (x - 1, y + 2)
+                case DR => (x + 1, y + 2)
+                case LU => (x - 2, y - 1)
+                case LD => (x - 2, y + 1)
+                case RU => (x + 2, y - 1)
+                case RD => (x + 2, y + 1)
+
+    end extension
+
+    type Solution = List[(BigInt, ChessSet)]
+
+    case class ChessSet(
+        size: BigInt,
+        moveNumber: BigInt,
+        start: Option[Tile],
+        visited: List[Tile]
+    )
+
+    def createBoard(size: BigInt, initSquare: Tile): ChessSet =
         ChessSet(
           size = size,
           moveNumber = BigInt(1),
@@ -24,7 +67,7 @@ object ChessSet:
 
     def startTour(tile: Tile, size: BigInt): ChessSet =
         require(remainderInteger(size, BigInt(2)) === BigInt(0))
-        apply(size, tile)
+        createBoard(size, tile)
 
     given Ord[ChessSet] = Ord.by[ChessSet, List[Tile]](_.visited)
 
@@ -64,13 +107,13 @@ object ChessSet:
         def isSquareFree(tile: Tile): Boolean = !self.visited.contains(tile)
 
         def canMoveTo(tile: Tile): Boolean =
-            val Tile(x, y) = tile
+            val (x, y) = tile
             val size = self.size
             x >= 1 && x <= size && y >= 1 && y <= size && isSquareFree(tile)
 
         def canMove(direction: Direction): Boolean = canMoveTo(lastPiece.move(direction))
         def moveKnight(direction: Direction): ChessSet = addPiece(lastPiece.move(direction))
-        def possibleMoves: List[Direction] = Direction.list.filter(canMove)
+        def possibleMoves: List[Direction] = directions.filter(canMove)
         def allDescend: List[ChessSet] = possibleMoves.map(moveKnight)
 
         def descAndNo: Solution = allDescend.map { item =>
@@ -110,4 +153,4 @@ object ChessSet:
 
     end extension
 
-end ChessSet
+end Knights
