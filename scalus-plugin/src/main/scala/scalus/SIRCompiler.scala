@@ -102,10 +102,11 @@ object SIRCompilerOptions {
     val default: SIRCompilerOptions = SIRCompilerOptions()
 }
 
-final class SIRCompiler(using ctx: Context) {
+final class SIRCompiler(options: SIRCompilerOptions = SIRCompilerOptions.default)(using
+    ctx: Context
+) {
     import tpd.*
     import SIRCompiler.Env
-    private val options = SIRCompilerOptions.default
     private val DefaultFunSIRBuiltins: Map[Symbol, SIR.Builtin] = Macros.generateBuiltinsMap(ctx)
     private val BigIntSymbol = requiredModule("scala.math.BigInt")
     private val BigIntClassSymbol = requiredClass("scala.math.BigInt")
@@ -337,9 +338,10 @@ final class SIRCompiler(using ctx: Context) {
                   bindingsWithSpecialized
                 )
             writeModule(module, td.symbol.fullName.toString)
-            report.echo(
-              s"compiled Scalus module ${td.name} [${td.symbol.fullName.toString}] definitions: ${bindingsWithSpecialized.map(_.name)} in ${time}ms"
-            )
+            if options.debugLevel > 0 then
+                report.echo(
+                  s"compiled Scalus module ${td.name} [${td.symbol.fullName.toString}] definitions: ${bindingsWithSpecialized.map(_.name)} in ${time}ms"
+                )
         for sumbodule <- sumbodules do {
             writeSubmodule(sumbodule, superBindings)
         }
@@ -371,9 +373,10 @@ final class SIRCompiler(using ctx: Context) {
         }
         if bindings.nonEmpty then
             val module = Module(SIRCompiler.SIRVersion, bindings)
-            report.echo(
-              s"compiled Scalus module ${submodule.symbol.fullName} definitions: ${bindings.map(_.name)}"
-            )
+            if options.debugLevel > 0 then
+                report.echo(
+                  s"compiled Scalus module ${submodule.symbol.fullName} definitions: ${bindings.map(_.name)}"
+                )
             writeModule(module, submodule.symbol.fullName.toString)
         subsubmodules.foreach(submodule => writeSubmodule(submodule, superBindings))
     }
@@ -1481,8 +1484,6 @@ final class SIRCompiler(using ctx: Context) {
                 if qual.tpe.isSingleton && baseFunction.exists then
                     val termSymbol = qual.tpe.termSymbol
                     if termSymbol.exists then
-                        val fullName = termSymbol.fullName
-                        val ownerFullName = termSymbol.owner.fullName
                         val scalusCompileDerivations =
                             Symbols.requiredClass("scalus.CompileDerivations")
                         val isDerived = termSymbol.name.toString.startsWith("derived$")
@@ -2259,7 +2260,6 @@ final class SIRCompiler(using ctx: Context) {
         env: Env,
         possibleOverrides: Map[String, LocalBinding]
     ): List[SuperBinding] = {
-        val thisSymbol = env.thisTypeSymbol
         val thisClassNames = module.defs.map(_.name).toSet
         for {
             binding <- module.defs

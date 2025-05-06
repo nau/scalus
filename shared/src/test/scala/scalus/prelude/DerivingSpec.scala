@@ -6,8 +6,7 @@ import scalus.*
 import scalus.prelude.*
 import scalus.uplc.*
 import scalus.uplc.eval.{*, given}
-//import scalus.builtin.given
-import scalus.Compiler.{compile, compileDebug}
+import scalus.Compiler.compile
 import scalus.testutil.SIRModules
 import scalus.builtin.*
 import scalus.builtin.ToDataInstances.given
@@ -62,7 +61,7 @@ class DerivingSpec extends AnyFunSuite {
     /*
     test("Compile To/From Data for AE1") {
 
-        val sir = compileDebug { (d: Data) =>
+        val sir = compile { (d: Data) =>
             val a = summon[scalus.prelude.FromData[AE1]](d)
             a match
                 case AE1.A        => BigInt(1)
@@ -104,7 +103,7 @@ class DerivingSpec extends AnyFunSuite {
 
     test("Compile To/From Data for AE3") {
 
-        val sir = Compiler.compileDebug { (d: Data) =>
+        val sir = Compiler.compile { (d: Data) =>
             val a = summon[FromData[DerivingSpec_AE3]](d)
             a match
                 case DerivingSpec_AE3.DS3_A        => BigInt(1)
@@ -112,7 +111,7 @@ class DerivingSpec extends AnyFunSuite {
                 case DerivingSpec_AE3.DS3_C(b, bs) => BigInt(3)
         }
 
-        println(s"sir: ${sir.pretty.render(1000)}")
+        // println(s"sir: ${sir.pretty.render(1000)}")
 
         val uplc = sir.toUplc(generateErrorTraces = true)
         val ae3 = DerivingSpec_AE3.DS3_A

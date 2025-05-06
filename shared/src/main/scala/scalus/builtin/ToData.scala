@@ -1,6 +1,5 @@
 package scalus.builtin
 
-import scala.collection.immutable.List
 import scala.quoted.*
 
 @FunctionalInterface

@@ -2,7 +2,7 @@ package scalus
 
 import org.scalatest.funsuite.AnyFunSuite
 import org.scalatestplus.scalacheck.ScalaCheckPropertyChecks
-import scalus.Compiler.{compile, compileDebug, fieldAsData}
+import scalus.Compiler.{compile, fieldAsData}
 import scalus.builtin.ByteString.*
 import scalus.builtin.{Builtins, ByteString, Data, JVMPlatformSpecific, PlatformSpecific, given}
 import scalus.ledger.api.v1.*
@@ -2059,7 +2059,6 @@ class CompilerPluginToSIRSpec extends AnyFunSuite with ScalaCheckPropertyChecks:
 
         script1.evaluateDebug match
             case Result.Success(evaled, _, _, logs) =>
-                println("success: evaled=" + evaled.show)
                 assert(evaled == scalus.uplc.Term.Const(Constant.Integer(1)))
             case Result.Failure(exception, _, _, _) =>
                 println("failure: exception=" + exception.getMessage)

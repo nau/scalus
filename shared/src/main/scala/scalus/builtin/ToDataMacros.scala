@@ -1,14 +1,11 @@
 package scalus.builtin
 
-import scalus.CompileDerivations
-
 import scala.collection.immutable.List
 import scala.quoted.*
 
 object ToDataMacros {
 
     def toDataImpl[A: Type](using Quotes): Expr[ToData[A]] = {
-        import quotes.reflect.*
         '{ (a: A) =>
             ${ generateToDataApply[A]('a) }
         }
@@ -112,8 +109,6 @@ object ToDataMacros {
         val tpe = TypeRepr.of[A].dealias.widen
         val originTpe = tpe
         val children = tpe.typeSymbol.children
-        import quotes.reflect.*
-
         val constrTpe = TypeRepr.of[A]
         val typeSymbol = TypeRepr.of[A].widen.dealias.typeSymbol
 
