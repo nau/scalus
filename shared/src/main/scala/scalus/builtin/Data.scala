@@ -6,13 +6,16 @@ import scala.compiletime.asMatchable
 sealed abstract class Data
 
 object Data extends DataApi:
-    type ToData[A] = A => Data
+
+    // type ToData[A] = A => Data
+    type ToData[A] = scalus.builtin.ToData[A]
 
     extension [A: ToData](a: A) inline def toData: Data = summon[ToData[A]](a)
 
     extension (inline data: Data) inline def to[A](using inline ev: FromData[A]): A = ev(data)
 
-    type FromData[A] = Data => A
+    // type FromData[A] = Data => A
+    type FromData[A] = scalus.builtin.FromData[A]
 
     inline def fromData[A](inline data: Data)(using inline ev: FromData[A]): A = ev(data)
 

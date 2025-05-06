@@ -64,7 +64,7 @@ extension (singleton: AnnotationsDecl.type)
         )
 
 extension (pos: SourcePosition)
-    def union(other: SourcePosition): SourcePosition =
+    infix def union(other: SourcePosition): SourcePosition =
         if pos == NoSourcePosition then other
         else if other == NoSourcePosition then pos
         else SourcePosition(pos.source, pos.span.union(other.span), NoSourcePosition)

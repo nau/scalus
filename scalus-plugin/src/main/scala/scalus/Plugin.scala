@@ -22,8 +22,14 @@ class Plugin extends StandardPlugin {
     val name: String = "scalus"
     override val description: String = "Compile Scala to Scalus IR"
 
-    override def init(options: List[String]): List[PluginPhase] =
-        new ScalusPhase :: Nil
+    override def init(options: List[String]): List[PluginPhase] = {
+        val debugLevel = options
+            .find(_.startsWith("debugLevel="))
+            .map(_.substring("debugLevel=".length))
+            .map(_.toInt)
+            .getOrElse(0)
+        new ScalusPhase(debugLevel) :: Nil
+    }
 }
 
 /** A plugin phase that compiles Scala code to Scalus Intermediate Representation (SIR).
@@ -34,7 +40,7 @@ class Plugin extends StandardPlugin {
   *      literal that contains the encoded SIR and a call to `decodeStringLatin1` that decodes it
   *      back.
   */
-class ScalusPhase extends PluginPhase {
+class ScalusPhase(debugLevel: Int) extends PluginPhase {
     import tpd.*
 
     val phaseName = "Scalus"
@@ -48,8 +54,9 @@ class ScalusPhase extends PluginPhase {
     /** Compiles the current compilation unit to SIR and stores it in JARs as .sir file.
       */
     override def prepareForUnit(tree: Tree)(using Context): Context =
-        // report.echo(s"Scalus: ${ctx.compilationUnit.source.file.name}")
-        val compiler = new SIRCompiler
+        if debugLevel > 0 then report.echo(s"Scalus: ${ctx.compilationUnit.source.file.name}")
+        val options = SIRCompilerOptions.default.copy(debugLevel = debugLevel)
+        val compiler = new SIRCompiler(options)
         compiler.compileModule(tree)
         ctx
 

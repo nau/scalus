@@ -5,7 +5,7 @@ import org.scalatestplus.scalacheck.ScalaCheckPropertyChecks
 import scalus.Compiler.compile
 import scalus.builtin.ByteString.hex
 import scalus.builtin.Data
-import scalus.builtin.ToData.toData
+import scalus.builtin.Data.*
 import scalus.builtin.ToDataInstances.given
 import scalus.builtin.given
 import scalus.builtin.PlatformSpecific.given
