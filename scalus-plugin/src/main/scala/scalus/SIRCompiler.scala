@@ -522,18 +522,7 @@ final class SIRCompiler(using ctx: Context) {
         }
         val nEnv = env.copy(typeVars = envTypeVars2)
         val params = primaryConstructorParams(constrSymbol).map { p =>
-            val pType =
-                try sirTypeInEnv(p.info, srcPos, nEnv)
-                catch
-                    case NonFatal(e) =>
-                        println(s"Error in sirTypeInEnv: ${p.info.show} ${p.info.widen.show}")
-                        println(
-                          s"PrimaryConstructorParams: ${primaryConstructorParams(constrSymbol)}"
-                        )
-                        println(
-                          s"PrimaryConstructorTypeParams: ${primaryConstructorTypeParams(constrSymbol)}"
-                        )
-                        throw e
+            val pType = sirTypeInEnv(p.info, srcPos, nEnv)
             TypeBinding(p.name.show, pType)
         }
         val optBaseClass = constrSymbol.info.baseClasses.find { b =>
@@ -575,7 +564,6 @@ final class SIRCompiler(using ctx: Context) {
         if nakedType.isGenericTuple then
             val nArgs = args.size
             if nArgs == 1 || nArgs == 2 then
-                println("Generic tuple with 1 or 2 args,  assume  normal constructpr")
                 compileNewConstructorNoTuple(env, nakedType, fullType, args, srcPos)
             else
                 val decl = makeGenericTupleDecl(nArgs, srcPos)
@@ -704,39 +692,19 @@ final class SIRCompiler(using ctx: Context) {
             case (false, false) =>
                 // println( s"external var: module ${e.symbol.owner.fullName.toString()}, ${e.symbol.fullName.toString()}" )
                 val valType = sirTypeInEnv(e.tpe.widen.dealias, e.srcPos, env)
-                try
-                    SIR.ExternalVar(
-                      e.symbol.owner.fullName.toString,
-                      e.symbol.fullName.toString,
-                      valType,
-                      AnnotationsDecl.fromSymIn(e.symbol, e.srcPos.sourcePos)
-                    )
-                catch
-                    case NonFatal(ex) =>
-                        println(s"Error in compileIdentOrQualifiedSelect: ${ex.getMessage}")
-                        println(
-                          s"ExternalVar: ${e.symbol.fullName} at ${e.srcPos.sourcePos.source.name}:${e.srcPos.line}"
-                        )
-                        println(s"tree: ${e.show}")
-                        throw ex
+                SIR.ExternalVar(
+                  e.symbol.owner.fullName.toString,
+                  e.symbol.fullName.toString,
+                  valType,
+                  AnnotationsDecl.fromSymIn(e.symbol, e.srcPos.sourcePos)
+                )
     }
 
-    /*
-    enum CompileMemberDefResult {
-        case Compiled(b: LocalBindingOrSubmodule)
-        case Builtin(name: String, tp: SIRType)
-        case Ignored(tp: SIRType)
-        case NotSupported
-    }
-
-     */
     sealed trait CompileMemberDefResult
     object CompileMemberDefResult {
         case class Compiled(b: LocalBindingOrSubmodule) extends CompileMemberDefResult
         case class Builtin(name: String, tp: SIRType) extends CompileMemberDefResult
-        case class Ignored(tp: SIRType) extends CompileMemberDefResult {
-            val created = new RuntimeException()
-        }
+        case class Ignored(tp: SIRType) extends CompileMemberDefResult
         case object NotSupported extends CompileMemberDefResult
     }
 
@@ -851,16 +819,7 @@ final class SIRCompiler(using ctx: Context) {
                     params.map { case v: ValDef =>
                         val tEnv =
                             SIRTypeEnv(v.srcPos, env.typeVars ++ typeParamsMap)
-                        val vType =
-                            try sirTypeInEnv(v.tpe, tEnv)
-                            catch
-                                case NonFatal(e) =>
-                                    println(
-                                      s"Error in sirTypeInEnv: ${v.tpe.show} ${v.tpe.widen.show}"
-                                    )
-                                    println(s"Params: ${params}")
-                                    println(s"TypeParams: ${typeParams}")
-                                    throw e
+                        val vType = sirTypeInEnv(v.tpe, tEnv)
                         val anns = AnnotationsDecl.fromSymIn(v.symbol, v.srcPos.sourcePos)
                         SIR.Var(v.symbol.name.show, vType, anns)
                     }
@@ -875,44 +834,7 @@ final class SIRCompiler(using ctx: Context) {
             val selfType = sirTypeInEnv(dd.tpe, SIRTypeEnv(dd.srcPos, env.typeVars))
             val nTypeVars = env.typeVars ++ typeParamsMap
             val nVars = env.vars ++ paramNameTypes + (selfName -> selfType)
-            val bE =
-                try compileExpr(env.copy(vars = nVars, typeVars = nTypeVars), body)
-                catch
-                    case NonFatal(ex) =>
-                        println(
-                          s"Error during compileing DefDef, fullName=${dd.symbol.fullName.show}"
-                        )
-                        println(
-                          s"body=${body.show}"
-                        )
-                        println(
-                          s"selfType = ${selfType.show}"
-                        )
-                        println(
-                          s"dd.rhs.tpe = ${dd.rhs.tpe.show}, isFunctionalInterface(dd.rhs.tpe)= ${isFunctionalInterface(dd.rhs.tpe)}"
-                        )
-                        println(
-                          s"dd.rhs.tpe.widen ${dd.rhs.tpe.widen.show}, tree: ${dd.rhs.tpe.widen}"
-                        )
-                        println(
-                          s"isFunctionalInterface(dd.rhs.tpe.widen)= ${isFunctionalInterface(dd.rhs.tpe.widen)}"
-                        )
-                        println(
-                          s"dd.rhs.tpe.typeSymbol = ${dd.rhs.tpe.typeSymbol.fullName}, flags=${dd.rhs.tpe.typeSymbol.flagsString}"
-                        )
-                        println(
-                          s"dd.rhs.tpe.termSymbol = ${dd.rhs.tpe.termSymbol.fullName}"
-                        )
-
-                        val fromDataSymbol = Symbols.requiredClass("scalus.builtin.FromData")
-                        println(
-                          s"isFunctionType = ${Symbols.defn.isFunctionType(dd.rhs.tpe)}, isAnonimousClass=${dd.rhs.tpe.typeSymbol.isAnonymousClass} " +
-                              s"isAnounimpisFunction=${dd.rhs.tpe.typeSymbol.isAnonymousFunction}"
-                        )
-                        println(
-                          s"baseClasses:  ${dd.rhs.tpe.baseClasses}"
-                        )
-                        throw ex;
+            val bE = compileExpr(env.copy(vars = nVars, typeVars = nTypeVars), body)
             val bodyExpr: scalus.sir.SIR =
                 paramVars.foldRight(bE) { (v, acc) =>
                     SIR.LamAbs(v, acc, v.anns)
@@ -972,19 +894,7 @@ final class SIRCompiler(using ctx: Context) {
                                 env
                     case _ => env
         }
-        val exprExpr = {
-            try compileExpr(exprEnv, expr)
-            catch
-                case NonFatal(ex) =>
-                    println(
-                      s"Error during compiling Block, fullName=${expr.symbol.fullName.show}"
-                    )
-                    println(s"expr=${expr.show}")
-                    println(s"exprEnv=${exprEnv}")
-                    println(s"env=${env}")
-                    println(s"stmts=${stmts.map(_.show).mkString("\n")}")
-                    throw ex
-        }
+        val exprExpr = compileExpr(exprEnv, expr)
         if env.debug then
             println(s"compileBlock: expr=${expr.show}")
             println(s"compileBlock: exprExprs.tp=${exprExpr.tp.show}")
@@ -1465,7 +1375,6 @@ final class SIRCompiler(using ctx: Context) {
                           posAnns
                         )
                     case other =>
-                        println(s"expected that exprA.tp ${exprA} is List, but got: ${other}")
                         throw new Exception("expected that exprA.tp is List")
                         error(
                           TypeMismatch(
@@ -1591,46 +1500,9 @@ final class SIRCompiler(using ctx: Context) {
                                 AnnotationsDecl.fromSrcPos(f.srcPos)
                               )
                             )
-                        else {
+                        else
                             // module for derivation is a companion object of an appropriative
-                            if ownerFullName.toString == "scalus.builtin.FromDataInstances$.OptionFromData"
-                            then {
-                                println(s"applyTree=${applyTree.show}")
-                                println(s"f=${f.show}, f.tpe=${f.tpe.show}")
-                                println(s"qual=${qual.show}, qual.tpe=${qual.tpe.show}")
-                                if qual.symbol == Symbols.NoSymbol then {
-                                    println("qual is not symbol")
-                                    println(s"qual tree = ${qual}")
-                                } else println(s"qual symbol=${qual.symbol.fullName}")
-                                println(s"qual.tpe.typeSymbol=${qual.tpe.typeSymbol}")
-                                println(
-                                  s"qual.tpe.termSymbol=${qual.tpe.termSymbol}, fullMame=${fullName}"
-                                )
-                                println(
-                                  s"qual.tpe.termSymbol.flags = ${qual.tpe.termSymbol.flagsString}"
-                                )
-                                println(
-                                  s"qual.tpe.termSymbol.isParamOrAccessor=  ${qual.tpe.termSymbol.isParamOrAccessor}"
-                                )
-                                val owner = qual.tpe.termSymbol.owner
-                                println(s"oqner=${owner}")
-                                println(s"owner.isInlineMethpd=${owner.isInlineMethod}")
-                                println(s"owner.isMethod=${owner.isRealMethod}")
-                                // println(s"owner  ${owner.is}")
-                            }
-
                             compileExpr(env, qual)
-                            /*
-                            SIR.ExternalVar(
-                              ownerFullName.toString,
-                              fullName.show,
-                              sirTypeInEnv(baseFunction, f.srcPos, env),
-                              AnnotationsDecl.fromSrcPos(f.srcPos)
-                            )
-                            
-                             */
-                        }
-                    // SIR.Error("TODO", AnnotationsDecl.fromSrcPos(f.srcPos))
                     else
                         val message = s"Can't resolve term symbol for singleton  ${qual.tpe.show}"
                         error(
@@ -2093,7 +1965,6 @@ final class SIRCompiler(using ctx: Context) {
                                 report.error(message, dd.srcPos)
                                 SIR.Error(message, AnnotationsDecl.fromSourcePosition(ls.pos))
                     case ignored @ CompileMemberDefResult.Ignored(tp) =>
-                        ignored.created.printStackTrace()
                         error(
                           GenericError(s"Ignoring closure, dd=${dd.show}", tree.srcPos),
                           SIR.Error("Ignored closure", AnnotationsDecl.fromSrcPos(tree.srcPos))
