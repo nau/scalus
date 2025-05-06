@@ -308,36 +308,18 @@ class CompilerPluginToSIRSpec extends AnyFunSuite with ScalaCheckPropertyChecks:
         val compiled = compile {
             BigInt(1).toData
         }
-        val expected = Let(
-          Rec,
-          immutable.List(
-            Binding(
-              "scalus.builtin.ToDataInstances$.given_ToData_BigInt",
-              LamAbs(
-                Var("a", sirInt, AnE),
-                Apply(SIRBuiltins.iData, Var("a", sirInt, AnE), sirData, AnE),
-                AnE
-              )
-            )
-          ),
-          Let(
-            NonRec,
-            immutable.List(Binding("a$proxy1", Const(Constant.Integer(1), sirInt, AnE))),
-            Apply(
-              ExternalVar(
-                "scalus.builtin.ToDataInstances$",
-                "scalus.builtin.ToDataInstances$.given_ToData_BigInt",
-                Fun(sirInt, sirData),
+        val expected =
+            Let(
+              NonRec,
+              immutable.List(Binding("a$proxy1", Const(Constant.Integer(1), sirInt, AnE))),
+              Apply(
+                SIRBuiltins.iData,
+                Var("a$proxy1", sirInt, AnE),
+                sirData,
                 AnE
               ),
-              Var("a$proxy1", sirInt, AnE),
-              sirData,
               AnE
-            ),
-            AnE
-          ),
-          AnE
-        )
+            )
         assert(compiled ~=~ expected)
         //    val term = compiled.toUplc()
         //    assert(VM.evaluateTerm(term) == Data.I(22))

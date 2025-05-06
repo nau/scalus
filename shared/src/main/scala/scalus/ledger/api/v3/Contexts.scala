@@ -45,7 +45,7 @@ object FromDataInstances {
     import scalus.ledger.api.v2.FromDataInstances.given
 
     // given FromData[TxId] = (d: Data) => TxId(d.toByteString)
-    given FromData[TxOutRef] = FromData.deriveCaseClass
+    // given FromData[TxOutRef] = FromData.deriveCaseClass
     given FromData[DRep] = FromData.deriveEnum
     given FromData[Delegatee] = FromData.deriveEnum
     given FromData[TxCert] = FromData.deriveEnum
@@ -81,7 +81,7 @@ object ToDataInstances {
     import scalus.ledger.api.v2.ToDataInstances.given
 
     // given ToData[TxId] = (x: TxId) => bData(x.hash)
-    given ToData[TxOutRef] = ToData.deriveCaseClass[TxOutRef](0)
+    // given ToData[TxOutRef] = ToData.deriveCaseClass[TxOutRef](0)
     given ToData[DRep] = ToData.deriveEnum
     given ToData[Delegatee] = ToData.deriveEnum
     given ToData[TxCert] = ToData.deriveEnum
@@ -112,6 +112,8 @@ case class TxOutRef(id: TxId, idx: BigInt)
 @Compile
 object TxOutRef:
     given Eq[TxOutRef] = (a: TxOutRef, b: TxOutRef) => a.id === b.id && a.idx === b.idx
+    given FromData[TxOutRef] = FromData.derived
+    given ToData[TxOutRef] = ToData.derived
 
 type Lovelace = BigInt
 type ColdCommitteeCredential = Credential

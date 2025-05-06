@@ -195,9 +195,33 @@ final class SIRCompiler(options: SIRCompilerOptions = SIRCompilerOptions.default
     private val IgnoreAnnot = requiredClassRef("scalus.Ignore").symbol.asClass
 
     private val CompileDerivationsMarker = Symbols.requiredClassRef("scalus.CompileDerivations")
+    private val uplcIntrinsicAnnot = Symbols.requiredClass("scalus.builtin.uplcIntrinsic")
 
     private def builtinFun(s: Symbol): Option[SIR.Builtin] = {
-        DefaultFunSIRBuiltins.get(s)
+        DefaultFunSIRBuiltins
+            .get(s)
+            .orElse {
+                s.getAnnotation(uplcIntrinsicAnnot) match
+                    case Some(annot) =>
+                        annot.argumentConstantString(0) match
+                            case Some(name) =>
+                                val sym = Symbols.requiredMethod(name)
+                                if !sym.exists then
+                                    report.error(
+                                      s"Unknown builtin name in uplcAnnotation: ${name}",
+                                      s.srcPos
+                                    )
+                                    None
+                                else
+                                    DefaultFunSIRBuiltins.get(sym).orElse {
+                                        report.error(
+                                          s"Default builtins not contains $name",
+                                          s.srcPos
+                                        )
+                                        None
+                                    }
+                    case None => None
+            }
     }
 
     def compileModule(tree: Tree): Unit = {

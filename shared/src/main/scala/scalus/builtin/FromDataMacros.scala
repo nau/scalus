@@ -138,7 +138,8 @@ object FromDataMacros {
                     report.errorAndAbort(
                       s"Cannot derive FromData for trait ${ta.typeSymbol.fullName}"
                     )
-                else if ta.typeSymbol.flags.is(Flags.Case | Flags.Enum) then {
+                else if ta.typeSymbol.flags.is(Flags.Case) || ta.typeSymbol.flags.is(Flags.Enum)
+                then {
                     deriveFromDataCaseClassApply[A]
                 } else {
                     report.errorAndAbort(

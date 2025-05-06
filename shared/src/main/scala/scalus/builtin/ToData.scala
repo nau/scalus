@@ -2,7 +2,9 @@ package scalus.builtin
 
 import scalus.CompileDerivations
 import scalus.builtin.Builtins.constrData
+import scalus.builtin.Builtins.iData
 import scalus.builtin.Builtins.mkNilData
+import scalus.uplc.DefaultFun
 
 import scala.quoted.*
 
@@ -39,5 +41,8 @@ object ToData {
 
     given ToData[Boolean] = (a: Boolean) =>
         if a then constrData(1, mkNilData()) else constrData(0, mkNilData())
+
+    @uplcIntrinsic("scalus.builtin.Builtins.iData")
+    given bigIntToData: ToData[BigInt] = (a: BigInt) => iData(a)
 
 }

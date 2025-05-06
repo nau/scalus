@@ -23,10 +23,11 @@ object ToDataMacros {
                     report.errorAndAbort(
                       s"Cannot derive ToData for trait ${tpe.typeSymbol.fullName}"
                     )
-                else if tpe.typeSymbol.flags.is(Flags.Case | Flags.Enum) then {
+                else if tpe.typeSymbol.flags.is(Flags.Case) || tpe.typeSymbol.flags.is(Flags.Enum)
+                then
                     val constrIndex = findADTConstrIndex[A]
                     deriveToDataCaseClassApply[A](a, constrIndex)
-                } else
+                else
                     report.errorAndAbort(
                       s"Cannot derive ToData for ${tpe.typeSymbol.fullName} which is not a case class or enum"
                     )
