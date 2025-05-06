@@ -15,13 +15,13 @@ import scala.annotation.nowarn
 object FromDataInstances {
     import scalus.builtin.Builtins.*
 
-    inline given FromData[BigInt] = unIData
-    inline given FromData[ByteString] = unBData
-    given FromData[String] = (d: Data) => decodeUtf8(unBData(d))
+    //inline given FromData[BigInt] = unIData
+    //inline given FromData[ByteString] = unBData
+    //given FromData[String] = (d: Data) => decodeUtf8(unBData(d))
     @nowarn // disable warning:
     // "An inline given alias with a function value as right-hand side can
     // significantly increase generated code size."
-    inline given FromData[Data] = (d: Data) => d
+    //inline given FromData[Data] = (d: Data) => d
 
     given FromData[Unit] = (d: Data) =>
         if unConstrData(d).fst == BigInt(0) then ()

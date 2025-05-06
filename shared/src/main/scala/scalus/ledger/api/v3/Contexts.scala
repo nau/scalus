@@ -44,7 +44,7 @@ object FromDataInstances {
     import scalus.ledger.api.v1.FromDataInstances.given
     import scalus.ledger.api.v2.FromDataInstances.given
 
-    given FromData[TxId] = (d: Data) => TxId(d.toByteString)
+    // given FromData[TxId] = (d: Data) => TxId(d.toByteString)
     given FromData[TxOutRef] = FromData.deriveCaseClass
     given FromData[DRep] = FromData.deriveEnum
     given FromData[Delegatee] = FromData.deriveEnum
@@ -80,7 +80,7 @@ object ToDataInstances {
     import scalus.ledger.api.v1.ToDataInstances.given
     import scalus.ledger.api.v2.ToDataInstances.given
 
-    given ToData[TxId] = (x: TxId) => bData(x.hash)
+    // given ToData[TxId] = (x: TxId) => bData(x.hash)
     given ToData[TxOutRef] = ToData.deriveCaseClass[TxOutRef](0)
     given ToData[DRep] = ToData.deriveEnum
     given ToData[Delegatee] = ToData.deriveEnum
@@ -104,6 +104,8 @@ case class TxId(hash: ByteString)
 @Compile
 object TxId:
     given Eq[TxId] = (a: TxId, b: TxId) => a.hash === b.hash
+    given FromData[TxId] = (d: Data) => TxId(d.toByteString)
+    given ToData[TxId] = (x: TxId) => bData(x.hash)
 
 case class TxOutRef(id: TxId, idx: BigInt)
 

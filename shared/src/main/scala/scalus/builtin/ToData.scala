@@ -1,12 +1,13 @@
 package scalus.builtin
 
+import scalus.CompileDerivations
 import scalus.builtin.Builtins.constrData
 import scalus.builtin.Builtins.mkNilData
 
 import scala.quoted.*
 
 @FunctionalInterface
-trait ToData[-A] extends Function1[A, Data] /*with CompileDerivation*/ {
+trait ToData[-A] extends Function1[A, Data] with CompileDerivations {
     override def apply(v1: A): Data
 }
 
