@@ -126,12 +126,11 @@ class DerivingSpec extends AnyFunSuite {
                 e.printStackTrace()
                 println(s"logs=${logs}")
 
-                println("loading module")
-                val module = SIRModules.load("scalus.prelude.DerivingSpec_AE3$")
-
-                module.defs.foreach { b =>
-                    println(s"${b.name}:\n ${b.value.pretty.render(100)}")
-                }
+                // println("loading module")
+                // val module = SIRModules.load("scalus.prelude.DerivingSpec_AE3$")
+                // module.defs.foreach { b =>
+                //    println(s"${b.name}:\n ${b.value.pretty.render(100)}")
+                // }
 
                 fail(s"Expected success, but got failure, logs=$logs")
     }
