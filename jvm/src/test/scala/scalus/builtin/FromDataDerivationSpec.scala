@@ -119,6 +119,7 @@ class FromDataDerivationSpec
         import ToDataBigRecord.given
         given PlutusVM = PlutusVM.makePlutusV2VM()
         val sir = compile { (d: Data) => fromData[BigRecord](d).toData }
+        println(s"fromData SIR = ${sir.pretty.render(100)}")
         val term = sir.toUplc()
         forAll { (r: BigRecord) =>
             val d = r.toData

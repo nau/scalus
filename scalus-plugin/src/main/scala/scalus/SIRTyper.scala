@@ -41,8 +41,17 @@ class SIRTyper(using Context) {
         retval
     }
 
-    private def sirTypeInEnvWithErr(tp: Type, env: SIRTypeEnv): SIRType =
-        if env.trace then println(s"sirTypeInEnvWithErr ${tp.show},  env=${env}")
+    private def sirTypeInEnvWithErr(tp: Type, env0: SIRTypeEnv): SIRType =
+        val env =
+            if tp.typeSymbol.fullName.toString == "scalus.builtin.FromDataInstances$._$$anon" then {
+                println(s"tp=${tp}")
+                env0.copy(trace = true)
+            } else env0
+        if env.trace then {
+            println(
+              s"sirTypeInEnvWithErr ${tp.show},  env=${env}"
+            )
+        }
         val retval = tp match
             case tpc: TermRef =>
                 if tpc.typeSymbol.isTypeParam then unsupportedType(tp, s"TermRef ${tpc.show}", env)
@@ -178,6 +187,10 @@ class SIRTyper(using Context) {
                                 sirTypeInEnvWithErr(other, env)
             case other =>
                 unsupportedType(tp, s"${tp.show}, tree=${tp}", env)
+        if env.trace then
+            println(
+              s"retval for ${tp.show} (${tp.typeSymbol.fullName.toString}) is ${retval.show} ($retval)"
+            )
         retval
 
     private def makeSIRClassTypeNoTypeArgs(tp: Type, env: SIRTypeEnv): SIRType = {
@@ -191,6 +204,7 @@ class SIRTyper(using Context) {
         // println(s"makeSIRNonFumClassType ${sym.fullName.show} ${types.map(_.show)}, isFunctionType=${defn.isFunctionType(tp)}")
         val retval = (tryMakePrimitivePrimitive(sym, types) orElse
             tryMakeBuiltinType(sym, types, env) orElse
+            tryMakeFunctionalInterface(tp, sym, env) orElse
             tryMakeCaseClassOrCaseParent(tp, sym, types, env) orElse
             tryMakeNonCaseModule(tp, sym, types, env)).getOrElse {
 //            val name = sym.fullName.show
