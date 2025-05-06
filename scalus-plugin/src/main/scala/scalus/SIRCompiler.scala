@@ -577,7 +577,7 @@ final class SIRCompiler(using ctx: Context) {
                             s"Tuple${nArgs} should nave n type arguments, buf fullType is: ${fullType.show}",
                             srcPos
                           ),
-                          (1 to nArgs).map(x => SIRType.TypeNothing).toList
+                          (1 to nArgs).map(_ => SIRType.TypeNothing).toList
                         )
                 SIR.Constr(
                   constrName,
@@ -649,7 +649,6 @@ final class SIRCompiler(using ctx: Context) {
         val isInGlobalEnv = globalDefs.contains(fullName)
         // println( s"compileIdentOrQualifiedSelect1: ${e.symbol} $name $fullName, term: ${e.show}, loc/glob: $isInLocalEnv/$isInGlobalEnv, env: ${env}" )
         (isInLocalEnv, isInGlobalEnv) match
-            // global def, self reference, use the name
             case (true, true) =>
                 val localType = env.vars(name)
                 globalDefs(fullName) match
@@ -2056,7 +2055,7 @@ final class SIRCompiler(using ctx: Context) {
         typer.sirTypeInEnv(tp, env)
     }
 
-    private def isVirtualCall(tree: Tree, qualifier: Tree, name: Name): Boolean = {
+    private def isVirtualCall(@unused tree: Tree, qualifier: Tree, name: Name): Boolean = {
         val qualifierSym = qualifier.symbol
         if qualifierSym == Symbols.NoSymbol then {
             // this can be a case when we apply inline lamnda or function,

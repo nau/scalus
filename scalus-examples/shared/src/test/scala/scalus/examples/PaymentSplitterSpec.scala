@@ -168,18 +168,18 @@ class PaymentSplitterSpec extends AnyFunSuite, ScalusTest {
         }
     }
 
-    private lazy val aikenScript = {
-        import upickle.default.*
-        val inputStream = this.getClass.getResourceAsStream("/plutus.json")
-        if inputStream == null then {
-            println("Can't load script from /plutus.json")
-            throw new RuntimeException("Resource not found: /plutus.json")
-        }
-        val obj = read[ujson.Obj](inputStream)
-        val cborHex = obj("validators").arr(0)("compiledCode").str
-        val program = DeBruijnedProgram.fromCborHex(cborHex).toProgram
-        program
-    }
+//    private lazy val aikenScript = {
+//        import upickle.default.*
+//        val inputStream = this.getClass.getResourceAsStream("/plutus.json")
+//        if inputStream == null then {
+//            println("Can't load script from /plutus.json")
+//            throw new RuntimeException("Resource not found: /plutus.json")
+//        }
+//        val obj = read[ujson.Obj](inputStream)
+//        val cborHex = obj("validators").arr(0)("compiledCode").str
+//        val program = DeBruijnedProgram.fromCborHex(cborHex).toProgram
+//        program
+//    }
 
     private val lockTxId = random[TxId]
     private val payeesTxId = random[TxId]
@@ -228,11 +228,11 @@ class PaymentSplitterSpec extends AnyFunSuite, ScalusTest {
         // }
         // val payeesUplc = compiledList.toUplc(true) $ Term.Const(Constant.Data(payeesData))
 
-        val applied =
-            if runAikenVersion then {
-                // println(s"aikenScript: ${aikenScript.pretty.render(100)}")
-                aikenScript $ payeesData
-            } else script $ payeesData
+        val applied = script $ payeesData
+//            if runAikenVersion then {
+//                // println(s"aikenScript: ${aikenScript.pretty.render(100)}")
+//                aikenScript $ payeesData
+//            } else script $ payeesData
 
         // Build transaction outputs from provided parameters
         val txOutputs = outputs.map { case (pkh, amount) =>

@@ -435,7 +435,7 @@ object List:
                     case Cons(head, tail) =>
                         val key = keyExtractor(head)
                         val value = valueExtractor(head)
-                        acc.lookup(key) match
+                        acc.get(key) match
                             case None =>
                                 val newAcc = acc.insert(key, List.single(value))
                                 go(tail, newAcc)
@@ -481,7 +481,7 @@ object List:
                     case Cons(head, tail) =>
                         val key = keyExtractor(head)
                         val value = valueExtractor(head)
-                        acc.lookup(key) match
+                        acc.get(key) match
                             case None =>
                                 val newAcc = acc.insert(key, value)
                                 go(tail, newAcc)
@@ -847,7 +847,7 @@ enum Option[+A]:
 @Compile
 object Option {
 
-    /** Constructs a `Option` from a value. If the value is `null`, it returns `None`, otherwise
+    /** Constructs an `Option` from a value. If the value is `null`, it returns `None`, otherwise
       * `Some(value)`.
       */
     @Ignore
@@ -967,7 +967,15 @@ object AssocMap {
         def all(f: ((A, B)) => Boolean): Boolean = self.toList.forall(f)
 
     extension [A: Eq, B](self: AssocMap[A, B])
-        def lookup(key: A): Option[B] = {
+        /** Optionally returns the value associated with a key.
+          *
+          * @param key
+          *   the key value
+          * @return
+          *   an option value containing the value associated with `key` in this map, or `None` if
+          *   none exists.
+          */
+        def get(key: A): Option[B] = {
             @tailrec
             def go(lst: List[(A, B)]): Option[B] = lst match
                 case Nil => Option.None
@@ -977,6 +985,9 @@ object AssocMap {
 
             go(self.toList)
         }
+
+        @deprecated("Use `get` instead")
+        def lookup(key: A): Option[B] = get(key)
 
         def insert(key: A, value: B): AssocMap[A, B] = {
             def go(lst: List[(A, B)]): List[(A, B)] = lst match
@@ -1010,7 +1021,7 @@ object AssocMap {
             case Cons(pair, tail) =>
                 pair match
                     case (k, v) =>
-                        val optionR = rhs.lookup(k)
+                        val optionR = rhs.get(k)
                         val these = optionR match
                             case None    => These.This(v)
                             case Some(r) => These.These(v, r)
@@ -1024,6 +1035,19 @@ object AssocMap {
         val rhsThat = rhsNotInLhs.map { case (k, v) => (k, These.That(v)) }
         AssocMap(lhs1.appendedAll(rhsThat))
     }
+
+    given assocMapEq[A: Eq, B: Eq]: Eq[AssocMap[A, B]] =
+        (lhs: AssocMap[A, B], rhs: AssocMap[A, B]) =>
+            lhs.toList.length === rhs.toList.length && lhs.toList.forall { case (key, lhsValue) =>
+                rhs.get(key) match
+                    case None           => false
+                    case Some(rhsValue) => lhsValue === rhsValue
+            }
 }
 
 case class Rational(numerator: BigInt, denominator: BigInt)
+
+@Compile
+object Rational:
+    given Eq[Rational] = (lhs: Rational, rhs: Rational) =>
+        lhs.numerator * rhs.denominator === rhs.numerator * lhs.denominator

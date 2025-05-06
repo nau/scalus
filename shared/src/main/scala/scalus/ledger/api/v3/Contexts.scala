@@ -11,8 +11,9 @@ import scalus.builtin.FromData
 import scalus.builtin.ToData
 import scalus.ledger.api.v1.*
 import scalus.ledger.api.v2
-import scalus.prelude.*
+import scalus.prelude.{*, given}
 
+export scalus.ledger.api.v1.Hash
 export scalus.ledger.api.v1.Address
 export scalus.ledger.api.v1.Closure
 export scalus.ledger.api.v1.Credential
@@ -100,15 +101,15 @@ object ToDataInstances {
 
 case class TxId(hash: ByteString)
 
-case class TxOutRef(
-    id: TxId,
-    idx: BigInt
-)
+@Compile
+object TxId:
+    given Eq[TxId] = (a: TxId, b: TxId) => a.hash === b.hash
+
+case class TxOutRef(id: TxId, idx: BigInt)
 
 @Compile
-object TxOutRef {
-    given Eq[TxOutRef] = (a: TxOutRef, b: TxOutRef) => a.id.hash == b.id.hash && a.idx == b.idx
-}
+object TxOutRef:
+    given Eq[TxOutRef] = (a: TxOutRef, b: TxOutRef) => a.id === b.id && a.idx === b.idx
 
 type Lovelace = BigInt
 type ColdCommitteeCredential = Credential
@@ -122,10 +123,46 @@ enum DRep:
     case AlwaysAbstain
     case AlwaysNoConfidence
 
+@Compile
+object DRep:
+    given Eq[scalus.ledger.api.v3.DRep] =
+        (lhs: scalus.ledger.api.v3.DRep, rhs: scalus.ledger.api.v3.DRep) =>
+            lhs match
+                case DRep(lhsCredential) =>
+                    rhs match
+                        case DRep(rhsCredential) => lhsCredential === rhsCredential
+                        case _                   => false
+                case AlwaysAbstain =>
+                    rhs match
+                        case AlwaysAbstain => true
+                        case _             => false
+                case AlwaysNoConfidence =>
+                    rhs match
+                        case AlwaysNoConfidence => true
+                        case _                  => false
+
 enum Delegatee:
     case Stake(pubKeyHash: PubKeyHash)
     case Vote(dRep: DRep)
     case StakeVote(pubKeyHash: PubKeyHash, dRep: DRep)
+
+@Compile
+object Delegatee:
+    given Eq[Delegatee] = (lhs: Delegatee, rhs: Delegatee) =>
+        lhs match
+            case Stake(lhsPubKeyHash) =>
+                rhs match
+                    case Stake(rhsPubKeyHash) => lhsPubKeyHash === rhsPubKeyHash
+                    case _                    => false
+            case Vote(lhsDRep) =>
+                rhs match
+                    case Vote(rhsDRep) => lhsDRep === rhsDRep
+                    case _             => false
+            case StakeVote(lhsPubKeyHash, lhsDRep) =>
+                rhs match
+                    case StakeVote(rhsPubKeyHash, rhsDRep) =>
+                        lhsPubKeyHash === rhsPubKeyHash && lhsDRep === rhsDRep
+                    case _ => false
 
 enum TxCert:
     case RegStaking(credential: Credential, deposit: Option[Lovelace])
@@ -140,24 +177,131 @@ enum TxCert:
     case AuthHotCommittee(cold: ColdCommitteeCredential, hot: HotCommitteeCredential)
     case ResignColdCommittee(cold: ColdCommitteeCredential)
 
+@Compile
+object TxCert:
+    given Eq[TxCert] = (lhs: TxCert, rhs: TxCert) =>
+        lhs match
+            case RegStaking(lhsCredential, lhsDeposit) =>
+                rhs match
+                    case RegStaking(rhsCredential, rhsDeposit) =>
+                        lhsCredential === rhsCredential && lhsDeposit === rhsDeposit
+                    case _ => false
+            case UnRegStaking(lhsCredential, lhsRefund) =>
+                rhs match
+                    case UnRegStaking(rhsCredential, rhsRefund) =>
+                        lhsCredential === rhsCredential && lhsRefund === rhsRefund
+                    case _ => false
+            case DelegStaking(lhsCredential, lhsDelegatee) =>
+                rhs match
+                    case DelegStaking(rhsCredential, rhsDelegatee) =>
+                        lhsCredential === rhsCredential && lhsDelegatee === rhsDelegatee
+                    case _ => false
+            case RegDeleg(lhsCredential, lhsDelegatee, lhsDeposit) =>
+                rhs match
+                    case RegDeleg(rhsCredential, rhsDelegatee, rhsDeposit) =>
+                        lhsCredential === rhsCredential && lhsDelegatee === rhsDelegatee && lhsDeposit === rhsDeposit
+                    case _ => false
+            case RegDRep(lhsCredential, lhsDeposit) =>
+                rhs match
+                    case RegDRep(rhsCredential, rhsDeposit) =>
+                        lhsCredential === rhsCredential && lhsDeposit === rhsDeposit
+                    case _ => false
+            case UpdateDRep(lhsCredential) =>
+                rhs match
+                    case UpdateDRep(rhsCredential) => lhsCredential === rhsCredential
+                    case _                         => false
+            case UnRegDRep(lhsCredential, lhsRefund) =>
+                rhs match
+                    case UnRegDRep(rhsCredential, rhsRefund) =>
+                        lhsCredential === rhsCredential && lhsRefund === rhsRefund
+                    case _ => false
+            case PoolRegister(lhsPoolId, lhsPoolVFR) =>
+                rhs match
+                    case PoolRegister(rhsPoolId, rhsPoolVFR) =>
+                        lhsPoolId === rhsPoolId && lhsPoolVFR === rhsPoolVFR
+                    case _ => false
+            case PoolRetire(lhsPubKeyHash, lhsEpoch) =>
+                rhs match
+                    case PoolRetire(rhsPubKeyHash, rhsEpoch) =>
+                        lhsPubKeyHash === rhsPubKeyHash && lhsEpoch === rhsEpoch
+                    case _ => false
+            case AuthHotCommittee(lhsCold, lhsHot) =>
+                rhs match
+                    case AuthHotCommittee(rhsCold, rhsHot) =>
+                        lhsCold === rhsCold && lhsHot === rhsHot
+                    case _ => false
+            case ResignColdCommittee(lhsCold) =>
+                rhs match
+                    case ResignColdCommittee(rhsCold) => lhsCold === rhsCold
+                    case _                            => false
+
 enum Voter:
     case CommitteeVoter(credential: HotCommitteeCredential)
     case DRepVoter(credential: DRepCredential)
     case StakePoolVoter(pubKeyHash: PubKeyHash)
 
+@Compile
+object Voter:
+    given Eq[Voter] = (lhs: Voter, rhs: Voter) =>
+        lhs match
+            case CommitteeVoter(lhsCredential) =>
+                rhs match
+                    case CommitteeVoter(rhsCredential) => lhsCredential === rhsCredential
+                    case _                             => false
+            case DRepVoter(lhsCredential) =>
+                rhs match
+                    case DRepVoter(rhsCredential) => lhsCredential === rhsCredential
+                    case _                        => false
+            case StakePoolVoter(lhsPubKeyHash) =>
+                rhs match
+                    case StakePoolVoter(rhsPubKeyHash) => lhsPubKeyHash === rhsPubKeyHash
+                    case _                             => false
+
 enum Vote:
     case No, Yes, Abstain
 
+@Compile
+object Vote:
+    given Eq[Vote] = (lhs: Vote, rhs: Vote) =>
+        lhs match
+            case No =>
+                rhs match
+                    case No => true
+                    case _  => false
+            case Yes =>
+                rhs match
+                    case Yes => true
+                    case _   => false
+            case Abstain =>
+                rhs match
+                    case Abstain => true
+                    case _       => false
+
 case class GovernanceActionId(txId: TxId, govActionIx: BigInt)
+
+@Compile
+object GovernanceActionId:
+    given Eq[GovernanceActionId] = (lhs: GovernanceActionId, rhs: GovernanceActionId) =>
+        lhs.txId === rhs.txId && lhs.govActionIx === rhs.govActionIx
 
 case class Committee(
     members: AssocMap[ColdCommitteeCredential, BigInt],
     quorum: BigInt
 )
 
+@Compile
+object Committee:
+    given Eq[Committee] = (lhs: Committee, rhs: Committee) =>
+        lhs.members === rhs.members && lhs.quorum === rhs.quorum
+
 type Constitution = Option[ScriptHash]
 
 case class ProtocolVersion(pvMajor: BigInt, pvMinor: BigInt)
+
+@Compile
+object ProtocolVersion:
+    given Eq[ProtocolVersion] = (lhs: ProtocolVersion, rhs: ProtocolVersion) =>
+        lhs.pvMajor === rhs.pvMajor && lhs.pvMinor === rhs.pvMinor
 
 type ChangedParameters = Data
 
@@ -182,11 +326,58 @@ enum GovernanceAction:
     case NewConstitution(id: Option[GovernanceActionId], constitution: Constitution)
     case InfoAction
 
+@Compile
+object GovernanceAction:
+    given Eq[GovernanceAction] = (lhs: GovernanceAction, rhs: GovernanceAction) =>
+        lhs match
+            case ParameterChange(lhsId, lhsParameters, lhsConstitutionScript) =>
+                rhs match
+                    case ParameterChange(rhsId, rhsParameters, rhsConstitutionScript) =>
+                        lhsId === rhsId && lhsParameters === rhsParameters
+                        && lhsConstitutionScript === rhsConstitutionScript
+                    case _ => false
+            case HardForkInitiation(lhsId, lhsProtocolVersion) =>
+                rhs match
+                    case HardForkInitiation(rhsId, rhsProtocolVersion) =>
+                        lhsId === rhsId && lhsProtocolVersion === rhsProtocolVersion
+                    case _ => false
+            case TreasuryWithdrawals(lhsWithdrawals, lhsConstitutionScript) =>
+                rhs match
+                    case TreasuryWithdrawals(rhsWithdrawals, rhsConstitutionScript) =>
+                        lhsWithdrawals === rhsWithdrawals && lhsConstitutionScript === rhsConstitutionScript
+                    case _ => false
+            case NoConfidence(lhsId) =>
+                rhs match
+                    case NoConfidence(rhsId) => lhsId === rhsId
+                    case _                   => false
+            case UpdateCommittee(lhsId, lhsRemovedMembers, lhsAddedMembers, lhsNewQuorum) =>
+                rhs match
+                    case UpdateCommittee(rhsId, rhsRemovedMembers, rhsAddedMembers, rhsNewQuorum) =>
+                        lhsId === rhsId && lhsRemovedMembers === rhsRemovedMembers
+                        && lhsAddedMembers === rhsAddedMembers && lhsNewQuorum === rhsNewQuorum
+                    case _ => false
+            case NewConstitution(lhsId, lhsConstitution) =>
+                rhs match
+                    case NewConstitution(rhsId, rhsConstitution) =>
+                        lhsId === rhsId
+                        && lhsConstitution === rhsConstitution
+                    case _ => false
+            case InfoAction =>
+                rhs match
+                    case InfoAction => true
+                    case _          => false
+
 case class ProposalProcedure(
     deposit: Lovelace,
     returnAddress: Credential,
     governanceAction: GovernanceAction
 )
+
+@Compile
+object ProposalProcedure:
+    given Eq[ProposalProcedure] = (lhs: ProposalProcedure, rhs: ProposalProcedure) =>
+        lhs.deposit === rhs.deposit && lhs.returnAddress === rhs.returnAddress
+            && lhs.governanceAction === rhs.governanceAction
 
 enum ScriptPurpose:
     case Minting(currencySymbol: CurrencySymbol)
@@ -195,6 +386,37 @@ enum ScriptPurpose:
     case Certifying(index: BigInt, cert: TxCert)
     case Voting(voter: Voter)
     case Proposing(index: BigInt, procedure: ProposalProcedure)
+
+@Compile
+object ScriptPurpose:
+    given Eq[ScriptPurpose] = (lhs: ScriptPurpose, rhs: ScriptPurpose) =>
+        lhs match
+            case Minting(lhsCurrencySymbol) =>
+                rhs match
+                    case Minting(rhsCurrencySymbol) => lhsCurrencySymbol === rhsCurrencySymbol
+                    case _                          => false
+            case Spending(lhsTxOutRef) =>
+                rhs match
+                    case Spending(rhsTxOutRef) => lhsTxOutRef === rhsTxOutRef
+                    case _                     => false
+            case Rewarding(lhsCredential) =>
+                rhs match
+                    case Rewarding(rhsCredential) => lhsCredential === rhsCredential
+                    case _                        => false
+            case Certifying(lhsIndex, lhsCert) =>
+                rhs match
+                    case Certifying(rhsIndex, rhsCert) =>
+                        lhsIndex === rhsIndex && lhsCert === rhsCert
+                    case _ => false
+            case Voting(lhsVoter) =>
+                rhs match
+                    case Voting(rhsVoter) => lhsVoter === rhsVoter
+                    case _                => false
+            case Proposing(lhsIndex, lhsProcedure) =>
+                rhs match
+                    case Proposing(rhsIndex, rhsProcedure) =>
+                        lhsIndex === rhsIndex && lhsProcedure === rhsProcedure
+                    case _ => false
 
 enum ScriptInfo:
     case MintingScript(currencySymbol: CurrencySymbol)

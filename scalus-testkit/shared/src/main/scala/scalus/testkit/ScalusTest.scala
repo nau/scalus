@@ -32,7 +32,7 @@ trait ScalusTest {
             val appliedScript = self $ scriptContext.toData
             appliedScript.evaluateDebug
 
-        def hash: ByteString = blake2b_224(ByteString.fromArray(3 +: self.cborEncoded))
+        def hash: ValidatorHash = blake2b_224(ByteString.fromArray(3 +: self.cborEncoded))
 
     protected def genByteStringOfN(n: Int): Gen[ByteString] = {
         Gen
@@ -83,7 +83,7 @@ trait ScalusTest {
         )
     }
 
-    protected def makePubKeyHashInput(pkh: ByteString, value: BigInt): TxInInfo = {
+    protected def makePubKeyHashInput(pkh: Hash, value: BigInt): TxInInfo = {
         TxInInfo(
           outRef = TxOutRef(random[TxId], 0),
           resolved = TxOut(
@@ -93,7 +93,7 @@ trait ScalusTest {
         )
     }
 
-    protected def makeScriptHashInput(scriptHash: ByteString, value: BigInt): TxInInfo = {
+    protected def makeScriptHashInput(scriptHash: ValidatorHash, value: BigInt): TxInInfo = {
         TxInInfo(
           outRef = TxOutRef(random[TxId], 0),
           resolved = TxOut(
@@ -103,14 +103,14 @@ trait ScalusTest {
         )
     }
 
-    protected def makePubKeyHashOutput(pkh: ByteString, value: BigInt): TxOut = {
+    protected def makePubKeyHashOutput(pkh: Hash, value: BigInt): TxOut = {
         TxOut(
           address = Address(PubKeyCredential(PubKeyHash(pkh)), Option.None),
           value = Value.lovelace(value)
         )
     }
 
-    protected def makeScriptHashOutput(scriptHash: ByteString, value: BigInt): TxOut = {
+    protected def makeScriptHashOutput(scriptHash: ValidatorHash, value: BigInt): TxOut = {
         TxOut(
           address = Address(ScriptCredential(scriptHash), Option.None),
           value = Value.lovelace(value)
