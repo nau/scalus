@@ -1,12 +1,10 @@
 package scalus.builtin
 
-import scalus.CompileDerivations
-
 import scala.collection.immutable.List
 import scala.quoted.*
 
 @FunctionalInterface
-trait ToData[-A] extends Function1[A, Data] with CompileDerivations {
+trait ToData[-A] extends Function1[A, Data] /*with CompileDerivation*/ {
     override def apply(v1: A): Data
 }
 
