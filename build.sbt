@@ -83,8 +83,6 @@ lazy val sharedFiles =
       "scalus/utils/HashConsedFlat.scala",
       "scalus/builtin/ByteString.scala",
       "scalus/builtin/Data.scala",
-      "scalus/builtin/FromData.scala",
-      "scalus/builtin/ToData.scala",
       "scalus/builtin/List.scala",
       "scalus/sir/SIR.scala",
       "scalus/sir/SIRType.scala",

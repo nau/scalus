@@ -71,8 +71,8 @@ object FromDataInstances {
 object ToDataInstances {
     import scalus.builtin.Builtins.*
 
-    given ToData[Boolean] = (a: Boolean) =>
-        if a then constrData(1, mkNilData()) else constrData(0, mkNilData())
+    // given ToData[Boolean] = (a: Boolean) =>
+    //    if a then constrData(1, mkNilData()) else constrData(0, mkNilData())
     given ToData[Data] = (a: Data) => a
     given ToData[BigInt] = (a: BigInt) => iData(a)
     @Ignore
