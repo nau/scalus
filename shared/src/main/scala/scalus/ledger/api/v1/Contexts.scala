@@ -39,21 +39,21 @@ object FromDataInstances {
     //    val args = unConstrData(d).snd
     //    new TxOutRef(fromData[TxId](args.head), unIData(args.tail.head))
 
-    given FromData[IntervalBoundType] = (d: Data) =>
-        val pair = unConstrData(d)
-        val tag = pair.fst
-        if tag == BigInt(0) then IntervalBoundType.NegInf
-        else if tag == BigInt(1) then new IntervalBoundType.Finite(unIData(pair.snd.head))
-        else if tag == BigInt(2) then IntervalBoundType.PosInf
-        else throw new Exception("Unknown IntervalBoundType tag")
+    // given FromData[IntervalBoundType] = (d: Data) =>
+    //    val pair = unConstrData(d)
+    //    val tag = pair.fst
+    //    if tag == BigInt(0) then IntervalBoundType.NegInf
+    //    else if tag == BigInt(1) then new IntervalBoundType.Finite(unIData(pair.snd.head))
+    //    else if tag == BigInt(2) then IntervalBoundType.PosInf
+    //    else throw new Exception("Unknown IntervalBoundType tag")
 
-    given FromData[Credential] = (d: Data) =>
-        val pair = unConstrData(d)
-        val tag = pair.fst
-        val args = pair.snd
-        if tag == BigInt(0) then new Credential.PubKeyCredential(fromData[PubKeyHash](args.head))
-        else if tag == BigInt(1) then new Credential.ScriptCredential(unBData(args.head))
-        else throw new Exception("Unknown Credential tag")
+    // given FromData[Credential] = (d: Data) =>
+    //    val pair = unConstrData(d)
+    //    val tag = pair.fst
+    //    val args = pair.snd
+    //    if tag == BigInt(0) then new Credential.PubKeyCredential(fromData[PubKeyHash](args.head))
+    //    else if tag == BigInt(1) then new Credential.ScriptCredential(unBData(args.head))
+    //    else throw new Exception("Unknown Credential tag")
 
     given FromData[StakingCredential] =
         (d: Data) =>
@@ -397,6 +397,7 @@ enum Credential:
 
 @Compile
 object Credential {
+
     given Eq[Credential] = (a: Credential, b: Credential) =>
         a match
             case Credential.PubKeyCredential(hash) =>
@@ -407,6 +408,22 @@ object Credential {
                 b match
                     case Credential.PubKeyCredential(hash2) => false
                     case Credential.ScriptCredential(hash2) => hash === hash2
+
+    given FromData[Credential] = (d: Data) =>
+        val pair = unConstrData(d)
+        val tag = pair.fst
+        val args = pair.snd
+        if tag == BigInt(0) then new Credential.PubKeyCredential(fromData[PubKeyHash](args.head))
+        else if tag == BigInt(1) then new Credential.ScriptCredential(unBData(args.head))
+        else throw new Exception("Unknown Credential tag")
+
+    given toData[T <: Credential]: ToData[T] = (a: T) =>
+        a match
+            case Credential.PubKeyCredential(hash) =>
+                constrData(0, mkCons(hash.toData, mkNilData()))
+            case Credential.ScriptCredential(hash) =>
+                constrData(1, hash.toData :: mkNilData())
+
 }
 
 enum StakingCredential:

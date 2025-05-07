@@ -20,12 +20,12 @@ object ToDataInstances {
     //        case IntervalBoundType.Finite(a) => constrData(1, iData(a) :: mkNilData())
     //        case IntervalBoundType.PosInf    => constrData(2, mkNilData())
 
-    given CredentialToData[T <: Credential]: ToData[T] = (a: T) =>
-        a match
-            case Credential.PubKeyCredential(hash) =>
-                constrData(0, mkCons(hash.toData, mkNilData()))
-            case Credential.ScriptCredential(hash) =>
-                constrData(1, hash.toData :: mkNilData())
+    // given CredentialToData[T <: Credential]: ToData[T] = (a: T) =>
+    //    a match
+    //        case Credential.PubKeyCredential(hash) =>
+    //            constrData(0, mkCons(hash.toData, mkNilData()))
+    //        case Credential.ScriptCredential(hash) =>
+    //            constrData(1, hash.toData :: mkNilData())
 
     given StakingCredentialLift[T <: StakingCredential]: ToData[T] = (a: T) =>
         a match
