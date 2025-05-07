@@ -21,11 +21,11 @@ class SimpleSirToUplcLoweringSpec
     extends AnyFunSuite
     with ScalaCheckPropertyChecks
     with ArbitraryInstances:
-    extension (s: SIR)
+    extension (sir: SIR)
         infix def lowersTo(r: Term): Unit =
-            assert(s.toUplc() == r)
+            assert(SimpleSirToUplcLowering(sir, generateErrorTraces = false).lower() == r)
 
-    val ae = AnnotationsDecl.empty
+    private val ae = AnnotationsDecl.empty
 
     test("lower constant") {
         forAll { (c: Constant) =>
