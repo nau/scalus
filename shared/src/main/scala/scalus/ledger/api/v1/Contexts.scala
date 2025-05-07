@@ -35,9 +35,9 @@ object FromDataInstances {
 
     // given FromData[PubKeyHash] = (d: Data) => new PubKeyHash(unBData(d))
 
-    given FromData[TxOutRef] = (d: Data) =>
-        val args = unConstrData(d).snd
-        new TxOutRef(fromData[TxId](args.head), unIData(args.tail.head))
+    // given FromData[TxOutRef] = (d: Data) =>
+    //    val args = unConstrData(d).snd
+    //    new TxOutRef(fromData[TxId](args.head), unIData(args.tail.head))
 
     given FromData[IntervalBoundType] = (d: Data) =>
         val pair = unConstrData(d)
@@ -199,6 +199,21 @@ object IntervalBoundType {
                 y match
                     case PosInf => true
                     case _      => false
+
+    given toData[T <: IntervalBoundType]: ToData[T] = (a: T) =>
+        a match
+            case IntervalBoundType.NegInf    => constrData(0, mkNilData())
+            case IntervalBoundType.Finite(a) => constrData(1, iData(a) :: mkNilData())
+            case IntervalBoundType.PosInf    => constrData(2, mkNilData())
+
+    given fromData: FromData[IntervalBoundType] = (d: Data) =>
+        val pair = unConstrData(d)
+        val tag = pair.fst
+        if tag == BigInt(0) then IntervalBoundType.NegInf
+        else if tag == BigInt(1) then new IntervalBoundType.Finite(unIData(pair.snd.head))
+        else if tag == BigInt(2) then IntervalBoundType.PosInf
+        else throw new Exception("Unknown IntervalBoundType tag")
+
 }
 
 /** An interval bound, either inclusive or exclusive.
@@ -345,12 +360,20 @@ case class TxOutRef(id: TxId, idx: BigInt)
 
 @Compile
 object TxOutRef {
+
     given Eq[TxOutRef] = (a: TxOutRef, b: TxOutRef) =>
         a match
             case TxOutRef(aTxId, aTxOutIndex) =>
                 b match
                     case TxOutRef(bTxId, bTxOutIndex) =>
                         aTxOutIndex === bTxOutIndex && aTxId === bTxId
+
+    given ToData[TxOutRef] = ToData.derived
+
+    given FromData[TxOutRef] = (d: Data) =>
+        val args = unConstrData(d).snd
+        new TxOutRef(fromData[TxId](args.head), unIData(args.tail.head))
+
 }
 
 case class PubKeyHash(hash: Hash) {

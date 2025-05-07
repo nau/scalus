@@ -12,13 +12,13 @@ object ToDataInstances {
     // given ToData[PubKeyHash] = (a: PubKeyHash) => a.hash.toData
     // given ToData[TxId] = (a: TxId) => constrData(0, mkCons(a.hash.toData, mkNilData()))
 
-    given ToData[TxOutRef] = ToData.deriveCaseClass[TxOutRef](0)
+    // given ToData[TxOutRef] = ToData.deriveCaseClass[TxOutRef](0)
 
-    given IntervalBoundTypeLift[T <: IntervalBoundType]: ToData[T] = (a: T) =>
-        a match
-            case IntervalBoundType.NegInf    => constrData(0, mkNilData())
-            case IntervalBoundType.Finite(a) => constrData(1, iData(a) :: mkNilData())
-            case IntervalBoundType.PosInf    => constrData(2, mkNilData())
+    // given IntervalBoundTypeLift[T <: IntervalBoundType]: ToData[T] = (a: T) =>
+    //    a match
+    //        case IntervalBoundType.NegInf    => constrData(0, mkNilData())
+    //        case IntervalBoundType.Finite(a) => constrData(1, iData(a) :: mkNilData())
+    //        case IntervalBoundType.PosInf    => constrData(2, mkNilData())
 
     given CredentialToData[T <: Credential]: ToData[T] = (a: T) =>
         a match
