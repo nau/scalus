@@ -1,6 +1,9 @@
 import org.scalajs.linker.interface.OutputPatterns
 import sbtwelcome.*
 import scala.scalanative.build._
+import com.typesafe.tools.mima.core.ProblemFilters
+import com.typesafe.tools.mima.core.IncompatibleResultTypeProblem
+import com.typesafe.tools.mima.core.ProblemFilters._
 
 import java.net.URI
 
@@ -203,11 +206,11 @@ lazy val scalus = crossProject(JSPlatform, JVMPlatform, NativePlatform)
       // scalacOptions += "-Yretain-trees",
       mimaPreviousArtifacts := Set(organization.value %%% name.value % scalusCompatibleVersion),
       mimaBinaryIssueFilters ++= Seq(
-        ProblemFilters.exclude[IncompatibleResultTypeProblem]("scalus.bloxbean.Interop.given_ToData_BigInteger")
-        ProblemFilters.exclude[IncompatibleResultTypeProblem]("scalus.bloxbean.Interop.given_ToData_Integer")
-        ProblemFilters.exclude[IncompatibleResultTypeProblem]("scalus.bloxbean.Interop.given_ToData_Long")
-        ProblemFilters.exclude[IncompatibleResultTypeProblem]("scalus.bloxbean.Interop.given_ToData_ProtocolParamUpdate")
-      )
+        ProblemFilters.exclude[IncompatibleResultTypeProblem]("scalus.bloxbean.Interop.given_ToData_BigInteger"),
+        ProblemFilters.exclude[IncompatibleResultTypeProblem]("scalus.bloxbean.Interop.given_ToData_Integer"),
+        ProblemFilters.exclude[IncompatibleResultTypeProblem]("scalus.bloxbean.Interop.given_ToData_Long"),
+        ProblemFilters.exclude[IncompatibleResultTypeProblem]("scalus.bloxbean.Interop.given_ToData_ProtocolParamUpdate"),
+      ),
 
       // enable when debug compilation of tests
       Test / scalacOptions += "-color:never",
