@@ -3,8 +3,8 @@ package scalus.prelude
 import scalus.Compile
 import scalus.Ignore
 import scalus.builtin.Builtins.*
-import scalus.builtin.ByteString
-import scalus.builtin.Data
+import scalus.builtin.Data.fromData
+import scalus.builtin.{ByteString, Data, FromData, ToData}
 import scalus.macros.Macros
 
 import scala.annotation.{nowarn, tailrec}
@@ -319,6 +319,23 @@ object List:
                     case Cons(h2, t2) => Cons(f(h1, h2), map2(t1, t2)(f))
                     case Nil          => Nil
             case Nil => Nil
+
+    given listToData[A: ToData]: ToData[scalus.prelude.List[A]] =
+        (a: scalus.prelude.List[A]) => {
+            def loop(a: scalus.prelude.List[A]): scalus.builtin.List[Data] =
+                a match
+                    case scalus.prelude.List.Nil => mkNilData()
+                    case scalus.prelude.List.Cons(head, tail) =>
+                        mkCons(summon[ToData[A]](head), loop(tail))
+
+            listData(loop(a))
+        }
+
+    given ListFromData[A: FromData]: FromData[scalus.prelude.List[A]] = (d: Data) =>
+        def loop(ls: scalus.builtin.List[Data]): scalus.prelude.List[A] =
+            if ls.isEmpty then List.Nil
+            else new List.Cons(fromData[A](ls.head), loop(ls.tail))
+        loop(unListData(d))
 
     extension [A](self: List[A])
         inline def !!(idx: BigInt): A = self.at(idx)
@@ -1049,5 +1066,6 @@ case class Rational(numerator: BigInt, denominator: BigInt)
 
 @Compile
 object Rational:
+
     given Eq[Rational] = (lhs: Rational, rhs: Rational) =>
         lhs.numerator * rhs.denominator === rhs.numerator * lhs.denominator

@@ -205,10 +205,10 @@ final class SIRCompiler(options: SIRCompilerOptions = SIRCompilerOptions.default
                     case Some(annot) =>
                         annot.argumentConstantString(0) match
                             case Some(name) =>
-                                val sym = Symbols.requiredMethod(name)
+                                val sym = Symbols.requiredMethod(s"scalus.builtin.Builtins.${name}")
                                 if !sym.exists then
                                     report.error(
-                                      s"Unknown builtin name in uplcAnnotation: ${name}",
+                                      s"Unknown builtin name in uplcAnnotation: ${name} (symbol scalus.builtin.Builtins.${name} not exists)",
                                       s.srcPos
                                     )
                                     None

@@ -15,29 +15,29 @@ import scala.annotation.nowarn
 object FromDataInstances {
     import scalus.builtin.Builtins.*
 
-    //inline given FromData[BigInt] = unIData
-    //inline given FromData[ByteString] = unBData
-    //given FromData[String] = (d: Data) => decodeUtf8(unBData(d))
-    @nowarn // disable warning:
+    // inline given FromData[BigInt] = unIData
+    // inline given FromData[ByteString] = unBData
+    // given FromData[String] = (d: Data) => decodeUtf8(unBData(d))
+    // @nowarn // disable warning:
     // "An inline given alias with a function value as right-hand side can
     // significantly increase generated code size."
-    //inline given FromData[Data] = (d: Data) => d
+    // inline given FromData[Data] = (d: Data) => d
 
-    given FromData[Unit] = (d: Data) =>
-        if unConstrData(d).fst == BigInt(0) then ()
-        else throw new RuntimeException("Not a unit")
+    // given FromData[Unit] = (d: Data) =>
+    //    if unConstrData(d).fst == BigInt(0) then ()
+    //    else throw new RuntimeException("Not a unit")
 
-    given FromData[Boolean] = (d: Data) =>
-        val constr = unConstrData(d).fst
-        if constr == BigInt(0) then false
-        else if constr == BigInt(1) then true
-        else throw new RuntimeException("Not a boolean")
+    // given FromData[Boolean] = (d: Data) =>
+    //    val constr = unConstrData(d).fst
+    //    if constr == BigInt(0) then false
+    //    else if constr == BigInt(1) then true
+    //    else throw new RuntimeException("Not a boolean")
 
-    given ListFromData[A: FromData]: FromData[scalus.prelude.List[A]] = (d: Data) =>
-        def loop(ls: scalus.builtin.List[Data]): scalus.prelude.List[A] =
-            if ls.isEmpty then prelude.List.Nil
-            else new prelude.List.Cons(fromData[A](ls.head), loop(ls.tail))
-        loop(unListData(d))
+    // given ListFromData[A: FromData]: FromData[scalus.prelude.List[A]] = (d: Data) =>
+    //    def loop(ls: scalus.builtin.List[Data]): scalus.prelude.List[A] =
+    //        if ls.isEmpty then prelude.List.Nil
+    //        else new prelude.List.Cons(fromData[A](ls.head), loop(ls.tail))
+    //    loop(unListData(d))
 
     given AssocMapFromData[A: FromData, B: FromData]: FromData[AssocMap[A, B]] =
         (d: Data) =>
@@ -64,35 +64,23 @@ object FromDataInstances {
             val args = unConstrData(d).snd
             (fromA(args.head), fromB(args.tail.head))
 
-    given RationalFromData: FromData[Rational] = FromData.deriveCaseClass[Rational]
+    given RationalFromData: FromData[Rational] = FromData.derived[Rational]
 }
 
 @Compile
 object ToDataInstances {
     import scalus.builtin.Builtins.*
 
-    // given ToData[Boolean] = (a: Boolean) =>
-    //    if a then constrData(1, mkNilData()) else constrData(0, mkNilData())
-    given ToData[Data] = (a: Data) => a
-    //given ToData[BigInt] = (a: BigInt) => iData(a)
-    @Ignore
-    given ToData[Int] = (a: Int) => iData(a)
-    @Ignore
-    given ToData[Long] = (a: Long) => iData(a)
-    given ToData[ByteString] = (a: ByteString) => bData(a)
-    given ToData[String] = (a: String) => bData(encodeUtf8(a))
-    given ToData[Unit] = (a: Unit) => constrData(0, mkNilData())
-
-    given listToData[A: ToData]: ToData[scalus.prelude.List[A]] =
-        (a: scalus.prelude.List[A]) => {
-            def loop(a: scalus.prelude.List[A]): scalus.builtin.List[Data] =
-                a match
-                    case scalus.prelude.List.Nil => mkNilData()
-                    case scalus.prelude.List.Cons(head, tail) =>
-                        mkCons(summon[ToData[A]](head), loop(tail))
-
-            listData(loop(a))
-        }
+    // given listToData[A: ToData]: ToData[scalus.prelude.List[A]] =
+    //    (a: scalus.prelude.List[A]) => {
+    //        def loop(a: scalus.prelude.List[A]): scalus.builtin.List[Data] =
+    //            a match
+    //                case scalus.prelude.List.Nil => mkNilData()
+    //                case scalus.prelude.List.Cons(head, tail) =>
+    //                    mkCons(summon[ToData[A]](head), loop(tail))
+    //
+    //        listData(loop(a))
+    //    }
 
     given assocMapToData[A: ToData, B: ToData]: ToData[AssocMap[A, B]] =
         (a: AssocMap[A, B]) => {

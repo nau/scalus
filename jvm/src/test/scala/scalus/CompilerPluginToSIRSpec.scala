@@ -321,8 +321,8 @@ class CompilerPluginToSIRSpec extends AnyFunSuite with ScalaCheckPropertyChecks:
               AnE
             )
         assert(compiled ~=~ expected)
-        //    val term = compiled.toUplc()
-        //    assert(VM.evaluateTerm(term) == Data.I(22))
+        // val term = compiled.toUplc()
+        // assert(VM.evaluateTerm(term) == Data.I(1))
     }
 
     test("compile chooseList builtins") {

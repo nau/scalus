@@ -80,9 +80,21 @@ object FromData {
         FromDataMacros.deriveConstructorMacro[T]
     }
 
+    @uplcIntrinsic("unIData")
     given FromData[BigInt] = unIData
+    @uplcIntrinsic("unBData")
     given FromData[ByteString] = unBData
     given FromData[String] = (d: Data) => decodeUtf8(unBData(d))
     given FromData[Data] = (d: Data) => d
+
+    given FromData[Unit] = (d: Data) =>
+        if unConstrData(d).fst == BigInt(0) then ()
+        else throw new RuntimeException("Not a unit")
+
+    given FromData[Boolean] = (d: Data) =>
+        val constr = unConstrData(d).fst
+        if constr == BigInt(0) then false
+        else if constr == BigInt(1) then true
+        else throw new RuntimeException("Not a boolean")
 
 }
