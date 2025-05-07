@@ -1,0 +1,1188 @@
+package scalus.benchmarks
+
+import scala.language.implicitConversions
+import scala.annotation.nowarn
+import scalus.*
+import scalus.prelude.{*, given}
+import scalus.prelude.Eq.given
+import scalus.prelude.Ord.{*, given}
+import scalus.uplc.*
+import scalus.uplc.eval.*
+import scalus.sir.SIR
+import org.scalatest.funsuite.AnyFunSuite
+import scalus.testkit.ScalusTest
+
+// https://github.com/aiken-lang/aiken/blob/main/benchmarks/lib/benchmarks/clausify/benchmark.ak
+class Clausify extends AnyFunSuite, ScalusTest:
+    import Clausify.*
+
+    inline val isAlwaysPrintComparison = false
+
+    test("F1") {
+        Compiler
+            .compile {
+                // (a = a) = (a = a) = (a = a)
+                val formula = (1 <-> 1) <-> ((1 <-> 1) <-> (1 <-> 1))
+                val expected = List.empty[LRVars]
+                formula.clauses === expected
+            }
+            .check(
+              testName = "F1",
+              scalusBudget = ExBudget(ExCPU(7878988762L), ExMemory(45835170L)),
+              aikenBudget = ExBudget(ExCPU(12325496028L), ExMemory(39891097L)),
+              isPrintComparison = false
+            )
+    }
+
+    test("F2") {
+        val result = Compiler
+            .compile {
+                // (a = a = a) = (a = a = a)
+                val formula = (1 <-> (1 <-> 1)) <-> (1 <-> (1 <-> 1))
+                val expected = List.empty[LRVars]
+                formula.clauses === expected
+            }
+            .check(
+              testName = "F2",
+              scalusBudget = ExBudget(ExCPU(9813254066L), ExMemory(57029082L)),
+              aikenBudget = ExBudget(ExCPU(15570882882L), ExMemory(50524767L)),
+              isPrintComparison = false
+            )
+    }
+
+    test("F3") {
+        val result = Compiler
+            .compile {
+                // (a = a = a) = (a = a) = (a = a)
+                val formula = (1 <-> (1 <-> 1)) <-> ((1 <-> 1) <-> (1 <-> 1))
+                val expected = List.single[LRVars]((List.single[Var](1), List.empty[Var]))
+                formula.clauses === expected
+            }
+            .check(
+              testName = "F3",
+              scalusBudget = ExBudget(ExCPU(26254280190L), ExMemory(152346640L)),
+              aikenBudget = ExBudget(ExCPU(41872495549L), ExMemory(136054751L)),
+              isPrintComparison = false
+            )
+    }
+
+    test("F4") {
+        val result = Compiler
+            .compile {
+                // (a = b = c) = (d = e) = (f = g)
+                val formula = (1 <-> (2 <-> 3)) <-> ((4 <-> 5) <-> (6 <-> 7))
+
+                import scalus.prelude.List.*
+                val expected = Cons[LRVars](
+                  (Cons(1, Nil), Cons(2, Cons(3, Cons(4, Cons(5, Cons(6, Cons(7, Nil))))))),
+                  Cons(
+                    (Cons(1, Cons(2, Cons(3, Nil))), Cons(4, Cons(5, Cons(6, Cons(7, Nil))))),
+                    Cons(
+                      (Cons(1, Cons(2, Cons(3, Cons(4, Cons(5, Nil))))), Cons(6, Cons(7, Nil))),
+                      Cons(
+                        (Cons(1, Cons(2, Cons(3, Cons(4, Cons(5, Cons(6, Cons(7, Nil))))))), Nil),
+                        Cons(
+                          (Cons(1, Cons(2, Cons(3, Cons(4, Cons(6, Nil))))), Cons(5, Cons(7, Nil))),
+                          Cons(
+                            (
+                              Cons(1, Cons(2, Cons(3, Cons(4, Cons(7, Nil))))),
+                              Cons(5, Cons(6, Nil))
+                            ),
+                            Cons(
+                              (
+                                Cons(1, Cons(2, Cons(3, Cons(5, Cons(6, Nil))))),
+                                Cons(4, Cons(7, Nil))
+                              ),
+                              Cons(
+                                (
+                                  Cons(1, Cons(2, Cons(3, Cons(5, Cons(7, Nil))))),
+                                  Cons(4, Cons(6, Nil))
+                                ),
+                                Cons(
+                                  (
+                                    Cons(1, Cons(2, Cons(3, Cons(6, Cons(7, Nil))))),
+                                    Cons(4, Cons(5, Nil))
+                                  ),
+                                  Cons(
+                                    (
+                                      Cons(1, Cons(2, Cons(4, Nil))),
+                                      Cons(3, Cons(5, Cons(6, Cons(7, Nil))))
+                                    ),
+                                    Cons(
+                                      (
+                                        Cons(1, Cons(2, Cons(4, Cons(5, Cons(6, Nil))))),
+                                        Cons(3, Cons(7, Nil))
+                                      ),
+                                      Cons(
+                                        (
+                                          Cons(1, Cons(2, Cons(4, Cons(5, Cons(7, Nil))))),
+                                          Cons(3, Cons(6, Nil))
+                                        ),
+                                        Cons(
+                                          (
+                                            Cons(1, Cons(2, Cons(4, Cons(6, Cons(7, Nil))))),
+                                            Cons(3, Cons(5, Nil))
+                                          ),
+                                          Cons(
+                                            (
+                                              Cons(1, Cons(2, Cons(5, Nil))),
+                                              Cons(3, Cons(4, Cons(6, Cons(7, Nil))))
+                                            ),
+                                            Cons(
+                                              (
+                                                Cons(1, Cons(2, Cons(5, Cons(6, Cons(7, Nil))))),
+                                                Cons(3, Cons(4, Nil))
+                                              ),
+                                              Cons(
+                                                (
+                                                  Cons(1, Cons(2, Cons(6, Nil))),
+                                                  Cons(3, Cons(4, Cons(5, Cons(7, Nil))))
+                                                ),
+                                                Cons(
+                                                  (
+                                                    Cons(1, Cons(2, Cons(7, Nil))),
+                                                    Cons(3, Cons(4, Cons(5, Cons(6, Nil))))
+                                                  ),
+                                                  Cons(
+                                                    (
+                                                      Cons(1, Cons(3, Cons(4, Nil))),
+                                                      Cons(2, Cons(5, Cons(6, Cons(7, Nil))))
+                                                    ),
+                                                    Cons(
+                                                      (
+                                                        Cons(
+                                                          1,
+                                                          Cons(3, Cons(4, Cons(5, Cons(6, Nil))))
+                                                        ),
+                                                        Cons(2, Cons(7, Nil))
+                                                      ),
+                                                      Cons(
+                                                        (
+                                                          Cons(
+                                                            1,
+                                                            Cons(3, Cons(4, Cons(5, Cons(7, Nil))))
+                                                          ),
+                                                          Cons(2, Cons(6, Nil))
+                                                        ),
+                                                        Cons(
+                                                          (
+                                                            Cons(
+                                                              1,
+                                                              Cons(
+                                                                3,
+                                                                Cons(4, Cons(6, Cons(7, Nil)))
+                                                              )
+                                                            ),
+                                                            Cons(2, Cons(5, Nil))
+                                                          ),
+                                                          Cons(
+                                                            (
+                                                              Cons(1, Cons(3, Cons(5, Nil))),
+                                                              Cons(
+                                                                2,
+                                                                Cons(4, Cons(6, Cons(7, Nil)))
+                                                              )
+                                                            ),
+                                                            Cons(
+                                                              (
+                                                                Cons(
+                                                                  1,
+                                                                  Cons(
+                                                                    3,
+                                                                    Cons(5, Cons(6, Cons(7, Nil)))
+                                                                  )
+                                                                ),
+                                                                Cons(2, Cons(4, Nil))
+                                                              ),
+                                                              Cons(
+                                                                (
+                                                                  Cons(1, Cons(3, Cons(6, Nil))),
+                                                                  Cons(
+                                                                    2,
+                                                                    Cons(4, Cons(5, Cons(7, Nil)))
+                                                                  )
+                                                                ),
+                                                                Cons(
+                                                                  (
+                                                                    Cons(1, Cons(3, Cons(7, Nil))),
+                                                                    Cons(
+                                                                      2,
+                                                                      Cons(4, Cons(5, Cons(6, Nil)))
+                                                                    )
+                                                                  ),
+                                                                  Cons(
+                                                                    (
+                                                                      Cons(
+                                                                        1,
+                                                                        Cons(4, Cons(5, Nil))
+                                                                      ),
+                                                                      Cons(
+                                                                        2,
+                                                                        Cons(
+                                                                          3,
+                                                                          Cons(6, Cons(7, Nil))
+                                                                        )
+                                                                      )
+                                                                    ),
+                                                                    Cons(
+                                                                      (
+                                                                        Cons(
+                                                                          1,
+                                                                          Cons(
+                                                                            4,
+                                                                            Cons(
+                                                                              5,
+                                                                              Cons(6, Cons(7, Nil))
+                                                                            )
+                                                                          )
+                                                                        ),
+                                                                        Cons(2, Cons(3, Nil))
+                                                                      ),
+                                                                      Cons(
+                                                                        (
+                                                                          Cons(
+                                                                            1,
+                                                                            Cons(4, Cons(6, Nil))
+                                                                          ),
+                                                                          Cons(
+                                                                            2,
+                                                                            Cons(
+                                                                              3,
+                                                                              Cons(5, Cons(7, Nil))
+                                                                            )
+                                                                          )
+                                                                        ),
+                                                                        Cons(
+                                                                          (
+                                                                            Cons(
+                                                                              1,
+                                                                              Cons(4, Cons(7, Nil))
+                                                                            ),
+                                                                            Cons(
+                                                                              2,
+                                                                              Cons(
+                                                                                3,
+                                                                                Cons(
+                                                                                  5,
+                                                                                  Cons(6, Nil)
+                                                                                )
+                                                                              )
+                                                                            )
+                                                                          ),
+                                                                          Cons(
+                                                                            (
+                                                                              Cons(
+                                                                                1,
+                                                                                Cons(
+                                                                                  5,
+                                                                                  Cons(6, Nil)
+                                                                                )
+                                                                              ),
+                                                                              Cons(
+                                                                                2,
+                                                                                Cons(
+                                                                                  3,
+                                                                                  Cons(
+                                                                                    4,
+                                                                                    Cons(7, Nil)
+                                                                                  )
+                                                                                )
+                                                                              )
+                                                                            ),
+                                                                            Cons(
+                                                                              (
+                                                                                Cons(
+                                                                                  1,
+                                                                                  Cons(
+                                                                                    5,
+                                                                                    Cons(7, Nil)
+                                                                                  )
+                                                                                ),
+                                                                                Cons(
+                                                                                  2,
+                                                                                  Cons(
+                                                                                    3,
+                                                                                    Cons(
+                                                                                      4,
+                                                                                      Cons(6, Nil)
+                                                                                    )
+                                                                                  )
+                                                                                )
+                                                                              ),
+                                                                              Cons(
+                                                                                (
+                                                                                  Cons(
+                                                                                    1,
+                                                                                    Cons(
+                                                                                      6,
+                                                                                      Cons(7, Nil)
+                                                                                    )
+                                                                                  ),
+                                                                                  Cons(
+                                                                                    2,
+                                                                                    Cons(
+                                                                                      3,
+                                                                                      Cons(
+                                                                                        4,
+                                                                                        Cons(5, Nil)
+                                                                                      )
+                                                                                    )
+                                                                                  )
+                                                                                ),
+                                                                                Cons(
+                                                                                  (
+                                                                                    Cons(2, Nil),
+                                                                                    Cons(
+                                                                                      1,
+                                                                                      Cons(
+                                                                                        3,
+                                                                                        Cons(
+                                                                                          4,
+                                                                                          Cons(
+                                                                                            5,
+                                                                                            Cons(
+                                                                                              6,
+                                                                                              Cons(
+                                                                                                7,
+                                                                                                Nil
+                                                                                              )
+                                                                                            )
+                                                                                          )
+                                                                                        )
+                                                                                      )
+                                                                                    )
+                                                                                  ),
+                                                                                  Cons(
+                                                                                    (
+                                                                                      Cons(
+                                                                                        2,
+                                                                                        Cons(
+                                                                                          3,
+                                                                                          Cons(
+                                                                                            4,
+                                                                                            Nil
+                                                                                          )
+                                                                                        )
+                                                                                      ),
+                                                                                      Cons(
+                                                                                        1,
+                                                                                        Cons(
+                                                                                          5,
+                                                                                          Cons(
+                                                                                            6,
+                                                                                            Cons(
+                                                                                              7,
+                                                                                              Nil
+                                                                                            )
+                                                                                          )
+                                                                                        )
+                                                                                      )
+                                                                                    ),
+                                                                                    Cons(
+                                                                                      (
+                                                                                        Cons(
+                                                                                          2,
+                                                                                          Cons(
+                                                                                            3,
+                                                                                            Cons(
+                                                                                              4,
+                                                                                              Cons(
+                                                                                                5,
+                                                                                                Cons(
+                                                                                                  6,
+                                                                                                  Nil
+                                                                                                )
+                                                                                              )
+                                                                                            )
+                                                                                          )
+                                                                                        ),
+                                                                                        Cons(
+                                                                                          1,
+                                                                                          Cons(
+                                                                                            7,
+                                                                                            Nil
+                                                                                          )
+                                                                                        )
+                                                                                      ),
+                                                                                      Cons(
+                                                                                        (
+                                                                                          Cons(
+                                                                                            2,
+                                                                                            Cons(
+                                                                                              3,
+                                                                                              Cons(
+                                                                                                4,
+                                                                                                Cons(
+                                                                                                  5,
+                                                                                                  Cons(
+                                                                                                    7,
+                                                                                                    Nil
+                                                                                                  )
+                                                                                                )
+                                                                                              )
+                                                                                            )
+                                                                                          ),
+                                                                                          Cons(
+                                                                                            1,
+                                                                                            Cons(
+                                                                                              6,
+                                                                                              Nil
+                                                                                            )
+                                                                                          )
+                                                                                        ),
+                                                                                        Cons(
+                                                                                          (
+                                                                                            Cons(
+                                                                                              2,
+                                                                                              Cons(
+                                                                                                3,
+                                                                                                Cons(
+                                                                                                  4,
+                                                                                                  Cons(
+                                                                                                    6,
+                                                                                                    Cons(7, Nil)
+                                                                                                  )
+                                                                                                )
+                                                                                              )
+                                                                                            ),
+                                                                                            Cons(
+                                                                                              1,
+                                                                                              Cons(
+                                                                                                5,
+                                                                                                Nil
+                                                                                              )
+                                                                                            )
+                                                                                          ),
+                                                                                          Cons(
+                                                                                            (
+                                                                                              Cons(
+                                                                                                2,
+                                                                                                Cons(
+                                                                                                  3,
+                                                                                                  Cons(
+                                                                                                    5,
+                                                                                                    Nil
+                                                                                                  )
+                                                                                                )
+                                                                                              ),
+                                                                                              Cons(
+                                                                                                1,
+                                                                                                Cons(
+                                                                                                  4,
+                                                                                                  Cons(
+                                                                                                    6,
+                                                                                                    Cons(7, Nil)
+                                                                                                  )
+                                                                                                )
+                                                                                              )
+                                                                                            ),
+                                                                                            Cons(
+                                                                                              (
+                                                                                                Cons(
+                                                                                                  2,
+                                                                                                  Cons(
+                                                                                                    3,
+                                                                                                    Cons(
+                                                                                                      5,
+                                                                                                      Cons(
+                                                                                                        6,
+                                                                                                        Cons(7, Nil)
+                                                                                                      )
+                                                                                                    )
+                                                                                                  )
+                                                                                                ),
+                                                                                                Cons(
+                                                                                                  1,
+                                                                                                  Cons(
+                                                                                                    4,
+                                                                                                    Nil
+                                                                                                  )
+                                                                                                )
+                                                                                              ),
+                                                                                              Cons(
+                                                                                                (
+                                                                                                  Cons(
+                                                                                                    2,
+                                                                                                    Cons(
+                                                                                                      3,
+                                                                                                      Cons(6, Nil)
+                                                                                                    )
+                                                                                                  ),
+                                                                                                  Cons(
+                                                                                                    1,
+                                                                                                    Cons(
+                                                                                                      4,
+                                                                                                      Cons(
+                                                                                                        5,
+                                                                                                        Cons(7, Nil)
+                                                                                                      )
+                                                                                                    )
+                                                                                                  )
+                                                                                                ),
+                                                                                                Cons(
+                                                                                                  (
+                                                                                                    Cons(
+                                                                                                      2,
+                                                                                                      Cons(
+                                                                                                        3,
+                                                                                                        Cons(7, Nil)
+                                                                                                      )
+                                                                                                    ),
+                                                                                                    Cons(
+                                                                                                      1,
+                                                                                                      Cons(
+                                                                                                        4,
+                                                                                                        Cons(
+                                                                                                          5,
+                                                                                                          Cons(6, Nil)
+                                                                                                        )
+                                                                                                      )
+                                                                                                    )
+                                                                                                  ),
+                                                                                                  Cons(
+                                                                                                    (
+                                                                                                      Cons(
+                                                                                                        2,
+                                                                                                        Cons(
+                                                                                                          4,
+                                                                                                          Cons(5, Nil)
+                                                                                                        )
+                                                                                                      ),
+                                                                                                      Cons(
+                                                                                                        1,
+                                                                                                        Cons(
+                                                                                                          3,
+                                                                                                          Cons(
+                                                                                                            6,
+                                                                                                            Cons(7, Nil)
+                                                                                                          )
+                                                                                                        )
+                                                                                                      )
+                                                                                                    ),
+                                                                                                    Cons(
+                                                                                                      (
+                                                                                                        Cons(
+                                                                                                          2,
+                                                                                                          Cons(
+                                                                                                            4,
+                                                                                                            Cons(
+                                                                                                              5,
+                                                                                                              Cons(
+                                                                                                                6,
+                                                                                                                Cons(7, Nil)
+                                                                                                              )
+                                                                                                            )
+                                                                                                          )
+                                                                                                        ),
+                                                                                                        Cons(
+                                                                                                          1,
+                                                                                                          Cons(3, Nil)
+                                                                                                        )
+                                                                                                      ),
+                                                                                                      Cons(
+                                                                                                        (
+                                                                                                          Cons(
+                                                                                                            2,
+                                                                                                            Cons(
+                                                                                                              4,
+                                                                                                              Cons(6, Nil)
+                                                                                                            )
+                                                                                                          ),
+                                                                                                          Cons(
+                                                                                                            1,
+                                                                                                            Cons(
+                                                                                                              3,
+                                                                                                              Cons(
+                                                                                                                5,
+                                                                                                                Cons(7, Nil)
+                                                                                                              )
+                                                                                                            )
+                                                                                                          )
+                                                                                                        ),
+                                                                                                        Cons(
+                                                                                                          (
+                                                                                                            Cons(
+                                                                                                              2,
+                                                                                                              Cons(
+                                                                                                                4,
+                                                                                                                Cons(7, Nil)
+                                                                                                              )
+                                                                                                            ),
+                                                                                                            Cons(
+                                                                                                              1,
+                                                                                                              Cons(
+                                                                                                                3,
+                                                                                                                Cons(
+                                                                                                                  5,
+                                                                                                                  Cons(6, Nil)
+                                                                                                                )
+                                                                                                              )
+                                                                                                            )
+                                                                                                          ),
+                                                                                                          Cons(
+                                                                                                            (
+                                                                                                              Cons(
+                                                                                                                2,
+                                                                                                                Cons(
+                                                                                                                  5,
+                                                                                                                  Cons(6, Nil)
+                                                                                                                )
+                                                                                                              ),
+                                                                                                              Cons(
+                                                                                                                1,
+                                                                                                                Cons(
+                                                                                                                  3,
+                                                                                                                  Cons(
+                                                                                                                    4,
+                                                                                                                    Cons(7, Nil)
+                                                                                                                  )
+                                                                                                                )
+                                                                                                              )
+                                                                                                            ),
+                                                                                                            Cons(
+                                                                                                              (
+                                                                                                                Cons(
+                                                                                                                  2,
+                                                                                                                  Cons(
+                                                                                                                    5,
+                                                                                                                    Cons(7, Nil)
+                                                                                                                  )
+                                                                                                                ),
+                                                                                                                Cons(
+                                                                                                                  1,
+                                                                                                                  Cons(
+                                                                                                                    3,
+                                                                                                                    Cons(4, Cons(6, Nil))
+                                                                                                                  )
+                                                                                                                )
+                                                                                                              ),
+                                                                                                              Cons(
+                                                                                                                (
+                                                                                                                  Cons(
+                                                                                                                    2,
+                                                                                                                    Cons(6, Cons(7, Nil))
+                                                                                                                  ),
+                                                                                                                  Cons(
+                                                                                                                    1,
+                                                                                                                    Cons(
+                                                                                                                      3,
+                                                                                                                      Cons(4, Cons(5, Nil))
+                                                                                                                    )
+                                                                                                                  )
+                                                                                                                ),
+                                                                                                                Cons(
+                                                                                                                  (
+                                                                                                                    Cons(3, Nil),
+                                                                                                                    Cons(
+                                                                                                                      1,
+                                                                                                                      Cons(
+                                                                                                                        2,
+                                                                                                                        Cons(
+                                                                                                                          4,
+                                                                                                                          Cons(
+                                                                                                                            5,
+                                                                                                                            Cons(6, Cons(7, Nil))
+                                                                                                                          )
+                                                                                                                        )
+                                                                                                                      )
+                                                                                                                    )
+                                                                                                                  ),
+                                                                                                                  Cons(
+                                                                                                                    (
+                                                                                                                      Cons(
+                                                                                                                        3,
+                                                                                                                        Cons(4, Cons(5, Nil))
+                                                                                                                      ),
+                                                                                                                      Cons(
+                                                                                                                        1,
+                                                                                                                        Cons(
+                                                                                                                          2,
+                                                                                                                          Cons(6, Cons(7, Nil))
+                                                                                                                        )
+                                                                                                                      )
+                                                                                                                    ),
+                                                                                                                    Cons(
+                                                                                                                      (
+                                                                                                                        Cons(
+                                                                                                                          3,
+                                                                                                                          Cons(
+                                                                                                                            4,
+                                                                                                                            Cons(
+                                                                                                                              5,
+                                                                                                                              Cons(6, Cons(7, Nil))
+                                                                                                                            )
+                                                                                                                          )
+                                                                                                                        ),
+                                                                                                                        Cons(1, Cons(2, Nil))
+                                                                                                                      ),
+                                                                                                                      Cons(
+                                                                                                                        (
+                                                                                                                          Cons(
+                                                                                                                            3,
+                                                                                                                            Cons(4, Cons(6, Nil))
+                                                                                                                          ),
+                                                                                                                          Cons(
+                                                                                                                            1,
+                                                                                                                            Cons(
+                                                                                                                              2,
+                                                                                                                              Cons(5, Cons(7, Nil))
+                                                                                                                            )
+                                                                                                                          )
+                                                                                                                        ),
+                                                                                                                        Cons(
+                                                                                                                          (
+                                                                                                                            Cons(
+                                                                                                                              3,
+                                                                                                                              Cons(4, Cons(7, Nil))
+                                                                                                                            ),
+                                                                                                                            Cons(
+                                                                                                                              1,
+                                                                                                                              Cons(
+                                                                                                                                2,
+                                                                                                                                Cons(5, Cons(6, Nil))
+                                                                                                                              )
+                                                                                                                            )
+                                                                                                                          ),
+                                                                                                                          Cons(
+                                                                                                                            (
+                                                                                                                              Cons(
+                                                                                                                                3,
+                                                                                                                                Cons(5, Cons(6, Nil))
+                                                                                                                              ),
+                                                                                                                              Cons(
+                                                                                                                                1,
+                                                                                                                                Cons(
+                                                                                                                                  2,
+                                                                                                                                  Cons(4, Cons(7, Nil))
+                                                                                                                                )
+                                                                                                                              )
+                                                                                                                            ),
+                                                                                                                            Cons(
+                                                                                                                              (
+                                                                                                                                Cons(
+                                                                                                                                  3,
+                                                                                                                                  Cons(5, Cons(7, Nil))
+                                                                                                                                ),
+                                                                                                                                Cons(
+                                                                                                                                  1,
+                                                                                                                                  Cons(
+                                                                                                                                    2,
+                                                                                                                                    Cons(4, Cons(6, Nil))
+                                                                                                                                  )
+                                                                                                                                )
+                                                                                                                              ),
+                                                                                                                              Cons(
+                                                                                                                                (
+                                                                                                                                  Cons(
+                                                                                                                                    3,
+                                                                                                                                    Cons(6, Cons(7, Nil))
+                                                                                                                                  ),
+                                                                                                                                  Cons(
+                                                                                                                                    1,
+                                                                                                                                    Cons(
+                                                                                                                                      2,
+                                                                                                                                      Cons(4, Cons(5, Nil))
+                                                                                                                                    )
+                                                                                                                                  )
+                                                                                                                                ),
+                                                                                                                                Cons(
+                                                                                                                                  (
+                                                                                                                                    Cons(4, Nil),
+                                                                                                                                    Cons(
+                                                                                                                                      1,
+                                                                                                                                      Cons(
+                                                                                                                                        2,
+                                                                                                                                        Cons(
+                                                                                                                                          3,
+                                                                                                                                          Cons(
+                                                                                                                                            5,
+                                                                                                                                            Cons(6, Cons(7, Nil))
+                                                                                                                                          )
+                                                                                                                                        )
+                                                                                                                                      )
+                                                                                                                                    )
+                                                                                                                                  ),
+                                                                                                                                  Cons(
+                                                                                                                                    (
+                                                                                                                                      Cons(
+                                                                                                                                        4,
+                                                                                                                                        Cons(5, Cons(6, Nil))
+                                                                                                                                      ),
+                                                                                                                                      Cons(
+                                                                                                                                        1,
+                                                                                                                                        Cons(
+                                                                                                                                          2,
+                                                                                                                                          Cons(3, Cons(7, Nil))
+                                                                                                                                        )
+                                                                                                                                      )
+                                                                                                                                    ),
+                                                                                                                                    Cons(
+                                                                                                                                      (
+                                                                                                                                        Cons(
+                                                                                                                                          4,
+                                                                                                                                          Cons(5, Cons(7, Nil))
+                                                                                                                                        ),
+                                                                                                                                        Cons(
+                                                                                                                                          1,
+                                                                                                                                          Cons(
+                                                                                                                                            2,
+                                                                                                                                            Cons(3, Cons(6, Nil))
+                                                                                                                                          )
+                                                                                                                                        )
+                                                                                                                                      ),
+                                                                                                                                      Cons(
+                                                                                                                                        (
+                                                                                                                                          Cons(
+                                                                                                                                            4,
+                                                                                                                                            Cons(6, Cons(7, Nil))
+                                                                                                                                          ),
+                                                                                                                                          Cons(
+                                                                                                                                            1,
+                                                                                                                                            Cons(
+                                                                                                                                              2,
+                                                                                                                                              Cons(3, Cons(5, Nil))
+                                                                                                                                            )
+                                                                                                                                          )
+                                                                                                                                        ),
+                                                                                                                                        Cons(
+                                                                                                                                          (
+                                                                                                                                            Cons(5, Nil),
+                                                                                                                                            Cons(
+                                                                                                                                              1,
+                                                                                                                                              Cons(
+                                                                                                                                                2,
+                                                                                                                                                Cons(
+                                                                                                                                                  3,
+                                                                                                                                                  Cons(
+                                                                                                                                                    4,
+                                                                                                                                                    Cons(6, Cons(7, Nil))
+                                                                                                                                                  )
+                                                                                                                                                )
+                                                                                                                                              )
+                                                                                                                                            )
+                                                                                                                                          ),
+                                                                                                                                          Cons(
+                                                                                                                                            (
+                                                                                                                                              Cons(
+                                                                                                                                                5,
+                                                                                                                                                Cons(6, Cons(7, Nil))
+                                                                                                                                              ),
+                                                                                                                                              Cons(
+                                                                                                                                                1,
+                                                                                                                                                Cons(
+                                                                                                                                                  2,
+                                                                                                                                                  Cons(3, Cons(4, Nil))
+                                                                                                                                                )
+                                                                                                                                              )
+                                                                                                                                            ),
+                                                                                                                                            Cons(
+                                                                                                                                              (
+                                                                                                                                                Cons(6, Nil),
+                                                                                                                                                Cons(
+                                                                                                                                                  1,
+                                                                                                                                                  Cons(
+                                                                                                                                                    2,
+                                                                                                                                                    Cons(
+                                                                                                                                                      3,
+                                                                                                                                                      Cons(
+                                                                                                                                                        4,
+                                                                                                                                                        Cons(5, Cons(7, Nil))
+                                                                                                                                                      )
+                                                                                                                                                    )
+                                                                                                                                                  )
+                                                                                                                                                )
+                                                                                                                                              ),
+                                                                                                                                              Cons(
+                                                                                                                                                (
+                                                                                                                                                  Cons(7, Nil),
+                                                                                                                                                  Cons(
+                                                                                                                                                    1,
+                                                                                                                                                    Cons(
+                                                                                                                                                      2,
+                                                                                                                                                      Cons(
+                                                                                                                                                        3,
+                                                                                                                                                        Cons(
+                                                                                                                                                          4,
+                                                                                                                                                          Cons(5, Cons(6, Nil))
+                                                                                                                                                        )
+                                                                                                                                                      )
+                                                                                                                                                    )
+                                                                                                                                                  )
+                                                                                                                                                ),
+                                                                                                                                                Nil
+                                                                                                                                              )
+                                                                                                                                            )
+                                                                                                                                          )
+                                                                                                                                        )
+                                                                                                                                      )
+                                                                                                                                    )
+                                                                                                                                  )
+                                                                                                                                )
+                                                                                                                              )
+                                                                                                                            )
+                                                                                                                          )
+                                                                                                                        )
+                                                                                                                      )
+                                                                                                                    )
+                                                                                                                  )
+                                                                                                                )
+                                                                                                              )
+                                                                                                            )
+                                                                                                          )
+                                                                                                        )
+                                                                                                      )
+                                                                                                    )
+                                                                                                  )
+                                                                                                )
+                                                                                              )
+                                                                                            )
+                                                                                          )
+                                                                                        )
+                                                                                      )
+                                                                                    )
+                                                                                  )
+                                                                                )
+                                                                              )
+                                                                            )
+                                                                          )
+                                                                        )
+                                                                      )
+                                                                    )
+                                                                  )
+                                                                )
+                                                              )
+                                                            )
+                                                          )
+                                                        )
+                                                      )
+                                                    )
+                                                  )
+                                                )
+                                              )
+                                            )
+                                          )
+                                        )
+                                      )
+                                    )
+                                  )
+                                )
+                              )
+                            )
+                          )
+                        )
+                      )
+                    )
+                  )
+                )
+                formula.clauses === expected
+            }
+            .check(
+              testName = "F4",
+              scalusBudget = ExBudget(ExCPU(37732983100L), ExMemory(214967822L)),
+              aikenBudget = ExBudget(ExCPU(56754761923L), ExMemory(181055087L)),
+              isPrintComparison = false
+            )
+    }
+
+    test("F5") {
+        val result = Compiler
+            .compile {
+                // (a = a = a) = (a = a = a) = (a = a)
+                val formula = (1 <-> (1 <-> 1)) <-> ((1 <-> (1 <-> 1)) <-> (1 <-> 1))
+                val expected = List.empty[LRVars]
+                formula.clauses === expected
+            }
+            .check(
+              testName = "F5",
+              scalusBudget = ExBudget(ExCPU(127163358542L), ExMemory(736502838L)),
+              aikenBudget = ExBudget(ExCPU(203182153626L), ExMemory(660668247L)),
+              isPrintComparison = false
+            )
+    }
+
+    extension (self: SIR)
+        def check(
+            testName: String,
+            scalusBudget: ExBudget,
+            aikenBudget: ExBudget,
+            isPrintComparison: Boolean = false
+        ): Unit =
+            extension (scalus: Long)
+                def comparisonAsJsonString(aiken: Long): String =
+                    val value = aiken.toDouble / scalus.toDouble
+                    val winner =
+                        if value == 1 then "draw" else if value > 1 then "scalus" else "aiken"
+
+                    s"{" +
+                        s"aiken: $aiken, scalus: $scalus, " +
+                        s"diff: {value: $value, winner: $winner}" +
+                        s"}"
+
+            end extension
+
+            val result = self.toUplcOptimized(false).evaluateDebug
+            result match
+                case Result.Success(Term.Const(Constant.Bool(true)), budget, _, _) =>
+                    assert(budget == scalusBudget)
+                    if isAlwaysPrintComparison || isPrintComparison then {
+                        println(
+                          s"Benchmark.Clausify.$testName{" +
+                              s"cpu: ${scalusBudget.cpu.comparisonAsJsonString(aikenBudget.cpu)}, " +
+                              s"memory: ${scalusBudget.memory.comparisonAsJsonString(aikenBudget.memory)}" +
+                              "}"
+                        )
+                    }
+                case _ => assert(result.isSuccess)
+    end extension
+
+end Clausify
+
+@Compile
+object Clausify:
+    type Var = BigInt
+    type LRVars = (List[Var], List[Var])
+
+    enum Formula:
+        case Sym(arg: Var)
+        case Not(arg: Formula)
+        case And(arg1: Formula, arg2: Formula)
+        case Or(arg1: Formula, arg2: Formula)
+        case Implication(arg1: Formula, arg2: Formula)
+        case Equivalence(arg1: Formula, arg2: Formula)
+
+    import Formula.*
+
+    extension (self: Int)
+        inline infix def <->(other: Int): Formula = Equivalence(Sym(self), Sym(other))
+        inline infix def <->(other: Formula): Formula = Equivalence(Sym(self), other)
+
+    end extension
+
+    extension (self: Var) inline def toFormula: Formula = Sym(self)
+    extension (self: Int) @Ignore inline def toFormula: Formula = Sym(self)
+
+    @nowarn @Ignore
+    inline given Conversion[Var, Formula] = (arg: Var) => arg.toFormula
+    @nowarn @Ignore
+    inline given Conversion[Int, Formula] = (arg: Int) => arg.toFormula
+
+    extension (self: Formula)
+        inline def unary_! : Formula = Not(self)
+        inline def not: Formula = !self
+        inline infix def &&(other: Formula): Formula = And(self, other)
+        inline infix def and(other: Formula): Formula = self && other
+        inline infix def ||(other: Formula): Formula = Or(self, other)
+        inline infix def or(other: Formula): Formula = self || other
+        inline infix def ->(other: Formula): Formula = Implication(self, other)
+        inline infix def impl(other: Formula): Formula = self -> other
+        inline infix def <->(other: Formula): Formula = Equivalence(self, other)
+        inline infix def eqv(other: Formula): Formula = self <-> other
+
+        /// eliminate connectives other than not, disjunction and conjunction
+        def eliminate: Formula =
+            self match
+                case Sym(arg)                => self
+                case Not(arg)                => !arg.eliminate
+                case And(arg1, arg2)         => arg1.eliminate && arg2.eliminate
+                case Or(arg1, arg2)          => arg1.eliminate || arg2.eliminate
+                case Implication(arg1, arg2) => !arg1.eliminate || arg2.eliminate
+                case Equivalence(arg1, arg2) => (arg1 -> arg2).eliminate && (arg2 -> arg1).eliminate
+
+        /// -- shift negation to innermost positions
+        def negin: Formula =
+            self match
+                case Not(expr) =>
+                    expr match
+                        case Not(arg)        => arg.negin
+                        case And(arg1, arg2) => (!arg1).negin || (!arg2).negin
+                        case Or(arg1, arg2)  => (!arg1).negin && (!arg2).negin
+                        case _               => self
+                case And(arg1, arg2) => arg1.negin && arg2.negin
+                case Or(arg1, arg2)  => arg1.negin || arg2.negin
+                case _               => self
+
+        /// shift disjunction within conjunction
+        def disin: Formula = {
+            extension (self: Formula)
+                def isAnd: Boolean = self match { case And(_, _) => true; case _ => false }
+
+                def unwrapAnd: (Formula, Formula) =
+                    self match
+                        case And(lhs, rhs) => (lhs, rhs)
+                        case _             => throw IllegalArgumentException("Not an And formula")
+
+            end extension
+
+            self match
+                case Or(left, right) =>
+                    if right.isAnd then
+                        val (rightArg1, rightArg2) = right.unwrapAnd
+                        (left || rightArg1).disin && (left || rightArg2).disin
+                    else if left.isAnd then
+                        val (leftArg1, leftArg2) = left.unwrapAnd
+                        (leftArg1 || right).disin && (leftArg2 || right).disin
+                    else
+                        val leftDisin = left.disin
+                        val rightDisin = right.disin
+                        if leftDisin.isAnd || rightDisin.isAnd then (leftDisin || rightDisin).disin
+                        else leftDisin || rightDisin
+                case And(arg1, arg2) => arg1.disin && arg2.disin
+                case _               => self
+        }
+
+        /// split conjunctive proposition into a list of conjuncts
+        def split: List[Formula] = {
+            def doSplit(formula: Formula, list: List[Formula]): List[Formula] =
+                formula match
+                    case And(arg1, arg2) => doSplit(arg1, doSplit(arg2, list))
+                    case _               => list.prepended(formula)
+
+            doSplit(self, List.empty)
+        }
+
+        def clauses: List[LRVars] = eliminate.negin.disin.split.unicl
+
+    end extension
+
+    extension (self: List[Formula])
+        /// form unique clausal axioms excluding tautologies
+        def unicl: List[LRVars] = {
+            extension [A: Ord](self: List[A])
+                def insertUniqueOrdered(elem: A): List[A] =
+                    self match
+                        case List.Nil => List.single(elem)
+                        case List.Cons(head, tail) =>
+                            elem <=> head match
+                                case Order.Less    => self.prepended(elem)
+                                case Order.Greater => tail.insertUniqueOrdered(elem).prepended(head)
+                                case Order.Equal   => self
+
+            end extension
+
+            extension (self: Formula)
+                def clause: LRVars =
+                    def doClause(formula: Formula, vars: LRVars): LRVars =
+                        formula match
+                            case Or(arg1, arg2) => doClause(arg1, doClause(arg2, vars))
+                            case Sym(arg)       => (vars._1.insertUniqueOrdered(arg), vars._2)
+                            case Not(expr) =>
+                                expr match
+                                    case Sym(arg) =>
+                                        (vars._1, vars._2.insertUniqueOrdered(arg))
+                                    case _ => fail("Invalid formula")
+                            case _ => fail("Invalid formula")
+
+                    doClause(self, (List.empty, List.empty))
+
+            end extension
+
+            self.foldRight(List.empty) { (formula, list) =>
+                val lrVars = formula.clause
+                if lrVars._1.exists(lrVars._2.contains(_)) then list
+                else list.insertUniqueOrdered(lrVars)
+            }
+        }
+
+    end extension
+
+end Clausify
