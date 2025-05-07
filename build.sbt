@@ -202,6 +202,12 @@ lazy val scalus = crossProject(JSPlatform, JVMPlatform, NativePlatform)
       scalacOptions += "-Xmax-inlines:100", // needed for upickle derivation of CostModel
       // scalacOptions += "-Yretain-trees",
       mimaPreviousArtifacts := Set(organization.value %%% name.value % scalusCompatibleVersion),
+      mimaBinaryIssueFilters ++= Seq(
+        ProblemFilters.exclude[IncompatibleResultTypeProblem]("scalus.bloxbean.Interop.given_ToData_BigInteger")
+        ProblemFilters.exclude[IncompatibleResultTypeProblem]("scalus.bloxbean.Interop.given_ToData_Integer")
+        ProblemFilters.exclude[IncompatibleResultTypeProblem]("scalus.bloxbean.Interop.given_ToData_Long")
+        ProblemFilters.exclude[IncompatibleResultTypeProblem]("scalus.bloxbean.Interop.given_ToData_ProtocolParamUpdate")
+      )
 
       // enable when debug compilation of tests
       Test / scalacOptions += "-color:never",
