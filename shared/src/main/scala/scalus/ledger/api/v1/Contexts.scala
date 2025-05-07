@@ -1,12 +1,9 @@
 package scalus.ledger.api.v1
 
 import scalus.Compile
-import scalus.builtin.Builtins
+import scalus.builtin.{Builtins, ByteString, Data, FromData, ToData}
 import scalus.builtin.Builtins.*
-import scalus.builtin.ByteString
-import scalus.builtin.Data
-import scalus.builtin.Data.FromData
-import scalus.builtin.Data.fromData
+import scalus.builtin.Data.{fromData, toData}
 import scalus.prelude.AssocMap
 import scalus.prelude.List
 import scalus.prelude.Option
@@ -33,11 +30,10 @@ type Value = AssocMap[CurrencySymbol, AssocMap[TokenName, BigInt]]
 
 @Compile
 object FromDataInstances {
-    import scalus.builtin.FromDataInstances.given
 
-    given FromData[TxId] = (d: Data) => new TxId(unBData(unConstrData(d).snd.head))
+    // given FromData[TxId] = (d: Data) => new TxId(unBData(unConstrData(d).snd.head))
 
-    given FromData[PubKeyHash] = (d: Data) => new PubKeyHash(unBData(d))
+    // given FromData[PubKeyHash] = (d: Data) => new PubKeyHash(unBData(d))
 
     given FromData[TxOutRef] = (d: Data) =>
         val args = unConstrData(d).snd
@@ -337,7 +333,13 @@ case class TxId(hash: Hash):
 
 @Compile
 object TxId:
+
     given Eq[TxId] = (a: TxId, b: TxId) => a.hash === b.hash
+
+    given ToData[TxId] = (a: TxId) => constrData(0, mkCons(ToData.toData(a.hash), mkNilData()))
+    given FromData[TxId] = (d: Data) => new TxId(unBData(unConstrData(d).snd.head))
+
+end TxId
 
 case class TxOutRef(id: TxId, idx: BigInt)
 
@@ -357,7 +359,13 @@ case class PubKeyHash(hash: Hash) {
 
 @Compile
 object PubKeyHash {
+
     given Eq[PubKeyHash] = (a: PubKeyHash, b: PubKeyHash) => a.hash === b.hash
+
+    given ToData[PubKeyHash] = (a: PubKeyHash) => summon[ToData[ByteString]](a.hash)
+
+    given FromData[PubKeyHash] = (d: Data) => new PubKeyHash(unBData(d))
+
 }
 
 enum Credential:

@@ -5,7 +5,6 @@ import scala.compiletime.asMatchable
 
 sealed abstract class Data
 
-
 object Data extends DataApi:
 
     type ToData[A] = scalus.builtin.ToData[A]

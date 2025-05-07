@@ -7,11 +7,10 @@ import scalus.builtin.*
 
 @Compile
 object ToDataInstances {
-    import scalus.builtin.ToDataInstances.given
     import scalus.builtin.Data.toData
 
-    given ToData[PubKeyHash] = (a: PubKeyHash) => a.hash.toData
-    given ToData[TxId] = (a: TxId) => constrData(0, mkCons(a.hash.toData, mkNilData()))
+    // given ToData[PubKeyHash] = (a: PubKeyHash) => a.hash.toData
+    // given ToData[TxId] = (a: TxId) => constrData(0, mkCons(a.hash.toData, mkNilData()))
 
     given ToData[TxOutRef] = ToData.deriveCaseClass[TxOutRef](0)
 

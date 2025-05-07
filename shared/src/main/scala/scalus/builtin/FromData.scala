@@ -6,7 +6,6 @@ import scalus.builtin.Builtins.decodeUtf8
 import scalus.builtin.Builtins.unConstrData
 import scalus.builtin.Builtins.unIData
 import scalus.builtin.Builtins.unBData
-import scalus.builtin.Data.FromData
 
 import scala.quoted.*
 
@@ -98,12 +97,11 @@ object FromData {
         else throw new RuntimeException("Not a boolean")
 
     given unsafeTupleFromData[A, B](using
-                                    fromA: FromData[A],
-                                    fromB: FromData[B]
-                                   ): FromData[(A, B)] =
+        fromA: FromData[A],
+        fromB: FromData[B]
+    ): FromData[(A, B)] =
         (d: Data) =>
             val args = unConstrData(d).snd
             (fromA(args.head), fromB(args.tail.head))
-
 
 }

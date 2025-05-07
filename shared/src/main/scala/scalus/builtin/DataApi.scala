@@ -97,5 +97,4 @@ trait DataApi {
     /** Decode a [[Data]] value from CBOR */
     def fromCbor(bs: ByteString): Data = Cbor.decode(bs.bytes).to[Data].value
 
- 
 }

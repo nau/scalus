@@ -2,7 +2,6 @@ package scalus.builtin
 
 import scalus.CompileDerivations
 import scalus.builtin.Builtins.{bData, constrData, encodeUtf8, iData, mkCons, mkNilData}
-import scalus.uplc.DefaultFun
 
 import scala.quoted.*
 
