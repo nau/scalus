@@ -3,7 +3,7 @@ package scalus.prelude
 import scalus.Compile
 import scalus.Ignore
 import scalus.builtin.Builtins.*
-import scalus.builtin.Data.fromData
+import scalus.builtin.Data.{fromData, toData}
 import scalus.builtin.{ByteString, Data, FromData, ToData}
 import scalus.macros.Macros
 
@@ -956,6 +956,21 @@ object Option {
                 b match
                     case None         => false
                     case Some(value2) => value === value2
+
+    given optionFromData[A: FromData]: FromData[Option[A]] = (d: Data) =>
+        val pair = unConstrData(d)
+        if pair.fst == BigInt(0) then new Option.Some(fromData[A](pair.snd.head))
+        else Option.None
+
+    given optionToData[A: ToData]: ToData[Option[A]] =
+        (a: Option[A]) => {
+            a match {
+                case Option.Some(v) =>
+                    constrData(0, mkCons(v.toData, mkNilData()))
+                case Option.None => constrData(1, mkNilData())
+            }
+        }
+
 }
 
 enum These[+A, +B]:
@@ -972,6 +987,38 @@ object AssocMap {
     def empty[A, B]: AssocMap[A, B] = AssocMap(List.empty[(A, B)])
     def singleton[A, B](key: A, value: B): AssocMap[A, B] = AssocMap(List.single((key, value)))
     def fromList[A, B](lst: List[(A, B)]): AssocMap[A, B] = AssocMap(lst)
+
+    given AssocMapFromData[A: FromData, B: FromData]: FromData[AssocMap[A, B]] =
+        (d: Data) =>
+            def loop(
+                ls: scalus.builtin.List[scalus.builtin.Pair[Data, Data]]
+            ): scalus.prelude.List[(A, B)] =
+                if ls.isEmpty then List.Nil
+                else
+                    val pair = ls.head
+                    new List.Cons(
+                      (fromData[A](pair.fst), fromData[B](pair.snd)),
+                      loop(ls.tail)
+                    )
+            AssocMap.fromList(loop(unMapData(d)))
+
+    given assocMapToData[A: ToData, B: ToData]: ToData[AssocMap[A, B]] =
+        (a: AssocMap[A, B]) => {
+            def go(a: List[(A, B)]): scalus.builtin.List[scalus.builtin.Pair[Data, Data]] =
+                a match {
+                    case List.Nil => mkNilPairData()
+                    case List.Cons(tuple, tail) =>
+                        tuple match {
+                            case (a, b) =>
+                                mkCons(
+                                  scalus.builtin.Pair(summon[ToData[A]](a), summon[ToData[B]](b)),
+                                  go(tail)
+                                )
+                        }
+                }
+
+            mapData(go(a.toList))
+        }
 
     extension [A, B](self: AssocMap[A, B])
         inline def isEmpty: Boolean = self.toList.isEmpty
@@ -1069,3 +1116,7 @@ object Rational:
 
     given Eq[Rational] = (lhs: Rational, rhs: Rational) =>
         lhs.numerator * rhs.denominator === rhs.numerator * lhs.denominator
+
+    given rationalFromData: FromData[Rational] = FromData.derived
+
+    given rationalToData: ToData[Rational] = ToData.derived

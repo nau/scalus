@@ -97,4 +97,13 @@ object FromData {
         else if constr == BigInt(1) then true
         else throw new RuntimeException("Not a boolean")
 
+    given unsafeTupleFromData[A, B](using
+                                    fromA: FromData[A],
+                                    fromB: FromData[B]
+                                   ): FromData[(A, B)] =
+        (d: Data) =>
+            val args = unConstrData(d).snd
+            (fromA(args.head), fromB(args.tail.head))
+
+
 }

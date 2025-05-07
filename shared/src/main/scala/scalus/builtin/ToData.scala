@@ -1,11 +1,7 @@
 package scalus.builtin
 
 import scalus.CompileDerivations
-import scalus.builtin.Builtins.constrData
-import scalus.builtin.Builtins.bData
-import scalus.builtin.Builtins.iData
-import scalus.builtin.Builtins.mkNilData
-import scalus.builtin.Builtins.encodeUtf8
+import scalus.builtin.Builtins.{bData, constrData, encodeUtf8, iData, mkCons, mkNilData}
 import scalus.uplc.DefaultFun
 
 import scala.quoted.*
@@ -55,5 +51,23 @@ object ToData {
     given ToData[ByteString] = (a: ByteString) => bData(a)
     given ToData[String] = (a: String) => bData(encodeUtf8(a))
     given ToData[Unit] = (a: Unit) => constrData(0, mkNilData())
+
+    given tupleToData[A: ToData, B: ToData]: ToData[(A, B)] =
+        (a: (A, B)) =>
+            constrData(
+              0,
+              mkCons(
+                summon[ToData[A]](a._1),
+                mkCons(summon[ToData[B]](a._2), mkNilData())
+              )
+            )
+
+    // TODO: are we need this?
+    @scalus.Ignore
+    given eitherToData[A: ToData, B: ToData]: ToData[Either[A, B]] =
+        (a: Either[A, B]) =>
+            a match
+                case Left(v)  => constrData(0, mkCons(v.toData, mkNilData()))
+                case Right(v) => constrData(1, mkCons(v.toData, mkNilData()))
 
 }
