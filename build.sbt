@@ -398,15 +398,15 @@ lazy val bench = project
       publish / skip := true
     )
 
-// Benchmarks for Cardano Plutus VM Evaluator
-lazy val txbuilder = project
-    .in(file("txbuilder"))
+// Cardano Ledger domain model and CBOR serialization
+lazy val scalusCardanoLedger = project
+    .in(file("scalus-cardano-ledger"))
     .dependsOn(scalus.jvm % "compile->compile;test->test")
     .disablePlugins(MimaPlugin) // disable Migration Manager for Scala
     .settings(
-      name := "scalus-txbuilder",
+      name := "scalus-cardano-ledger",
       scalacOptions += "-Xmax-inlines:100", // needed for upickle derivation of CostModel
-      libraryDependencies += "com.bloxbean.cardano" % "cardano-client-lib" % "0.6.3",
+      libraryDependencies += "com.bloxbean.cardano" % "cardano-client-lib" % "0.6.4",
       libraryDependencies ++= Seq(
         "io.bullet" %%% "borer-core" % "1.15.0",
         "io.bullet" %%% "borer-derivation" % "1.15.0" % "provided"
