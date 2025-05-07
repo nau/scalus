@@ -7,8 +7,6 @@ import scalus.builtin.ByteString
 import scalus.builtin.ByteString.given
 import scalus.builtin.Data
 import scalus.builtin.Data.toData
-import scalus.builtin.FromDataInstances.given
-import scalus.builtin.ToDataInstances.given
 import scalus.examples.Groth16.*
 import scalus.prelude.List
 import scalus.uplc.Constant
@@ -268,7 +266,7 @@ class Groth16Spec extends AnyFunSuite:
         val offchainResult = grothVerify(vk, proof, public)
         val onchainResultTerm =
             val applied =
-                validator $ vk.toData $ proof.toData $ public.toData(using listToData[BigInt])
+                validator $ vk.toData $ proof.toData $ public.toData
             applied.evaluate
         val Term.Const(Constant.Bool(onchainResult)) = onchainResultTerm: @unchecked
         assert(
