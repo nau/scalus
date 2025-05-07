@@ -205,12 +205,7 @@ lazy val scalus = crossProject(JSPlatform, JVMPlatform, NativePlatform)
       scalacOptions += "-Xmax-inlines:100", // needed for upickle derivation of CostModel
       // scalacOptions += "-Yretain-trees",
       mimaPreviousArtifacts := Set(organization.value %%% name.value % scalusCompatibleVersion),
-      mimaBinaryIssueFilters ++= Seq(
-        ProblemFilters.exclude[IncompatibleResultTypeProblem]("scalus.bloxbean.Interop.given_ToData_BigInteger"),
-        ProblemFilters.exclude[IncompatibleResultTypeProblem]("scalus.bloxbean.Interop.given_ToData_Integer"),
-        ProblemFilters.exclude[IncompatibleResultTypeProblem]("scalus.bloxbean.Interop.given_ToData_Long"),
-        ProblemFilters.exclude[IncompatibleResultTypeProblem]("scalus.bloxbean.Interop.given_ToData_ProtocolParamUpdate"),
-      ),
+
 
       // enable when debug compilation of tests
       Test / scalacOptions += "-color:never",
@@ -347,6 +342,12 @@ lazy val `scalus-bloxbean-cardano-client-lib` = project
       publish / skip := false,
       scalacOptions ++= commonScalacOptions,
       mimaPreviousArtifacts := Set(organization.value %% name.value % scalusCompatibleVersion),
+      mimaBinaryIssueFilters ++= Seq(
+        ProblemFilters.exclude[IncompatibleResultTypeProblem]("scalus.bloxbean.Interop.given_ToData_BigInteger"),
+        ProblemFilters.exclude[IncompatibleResultTypeProblem]("scalus.bloxbean.Interop.given_ToData_Integer"),
+        ProblemFilters.exclude[IncompatibleResultTypeProblem]("scalus.bloxbean.Interop.given_ToData_Long"),
+        ProblemFilters.exclude[IncompatibleResultTypeProblem]("scalus.bloxbean.Interop.given_ToData_ProtocolParamUpdate"),
+      ),
       libraryDependencies += "com.bloxbean.cardano" % "cardano-client-lib" % "0.6.4",
       libraryDependencies += "org.slf4j" % "slf4j-api" % "2.0.17",
       libraryDependencies += "org.slf4j" % "slf4j-simple" % "2.0.17" % "test",
