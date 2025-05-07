@@ -1,19 +1,12 @@
 package scalus.builtin
 
 import scalus.Compile
-import scalus.Ignore
 import scalus.builtin
-import scalus.builtin.Data.*
-import scalus.prelude
-import scalus.prelude.AssocMap
-import scalus.prelude.Option
-import scalus.prelude.Rational
-
-import scala.annotation.nowarn
 
 @Compile
+@deprecated("Now not needed, use companion objects instead")
 object FromDataInstances {
-    import scalus.builtin.Builtins.*
+    // import scalus.builtin.Builtins.*
 
     // inline given FromData[BigInt] = unIData
     // inline given FromData[ByteString] = unBData
@@ -68,8 +61,8 @@ object FromDataInstances {
 }
 
 @Compile
+@deprecated("Now not needed, use companion objects instead")
 object ToDataInstances {
-    import scalus.builtin.Builtins.*
 
     // given listToData[A: ToData]: ToData[scalus.prelude.List[A]] =
     //    (a: scalus.prelude.List[A]) => {
