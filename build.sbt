@@ -399,9 +399,9 @@ lazy val bench = project
     )
 
 // Cardano Ledger domain model and CBOR serialization
-lazy val scalusCardanoLedger = project
+lazy val scalusCardanoLedger = crossProject(JSPlatform, JVMPlatform)
     .in(file("scalus-cardano-ledger"))
-    .dependsOn(scalus.jvm % "compile->compile;test->test")
+    .dependsOn(scalus % "compile->compile;test->test")
     .disablePlugins(MimaPlugin) // disable Migration Manager for Scala
     .settings(
       name := "scalus-cardano-ledger",
@@ -411,11 +411,19 @@ lazy val scalusCardanoLedger = project
         "io.bullet" %%% "borer-core" % "1.15.0",
         "io.bullet" %%% "borer-derivation" % "1.15.0" % "provided"
       ),
-      libraryDependencies += "com.softwaremill.magnolia1_3" %% "magnolia" % "1.3.16" % "test",
+      libraryDependencies += "com.softwaremill.magnolia1_3" %%% "magnolia" % "1.3.16" % "test",
       libraryDependencies += "org.scalatest" %%% "scalatest" % "3.2.19" % "test",
       libraryDependencies += "org.scalatestplus" %%% "scalacheck-1-18" % "3.2.19.0" % "test",
       publish / skip := true
     )
+    .jsSettings(
+        Compile / npmDependencies += "@noble/curves" -> "1.4.2",
+        scalaJSUseMainModuleInitializer := false,
+        scalaJSLinkerConfig ~= {
+            _.withModuleKind(ModuleKind.CommonJSModule)
+        }
+    )
+    .jsConfigure { project => project.enablePlugins(ScalaJSBundlerPlugin) }
 
 addCommandAlias(
   "mima",
