@@ -53,6 +53,8 @@ lazy val root: Project = project
       scalus.js,
       scalus.jvm,
       scalus.native,
+      scalusCardanoLedger.jvm,
+      scalusCardanoLedger.js,
       scalusTestkit.js,
       scalusTestkit.jvm,
       scalusTestkit.native,
@@ -417,11 +419,11 @@ lazy val scalusCardanoLedger = crossProject(JSPlatform, JVMPlatform)
       publish / skip := true
     )
     .jsSettings(
-        Compile / npmDependencies += "@noble/curves" -> "1.4.2",
-        scalaJSUseMainModuleInitializer := false,
-        scalaJSLinkerConfig ~= {
-            _.withModuleKind(ModuleKind.CommonJSModule)
-        }
+      Compile / npmDependencies += "@noble/curves" -> "1.4.2",
+      scalaJSUseMainModuleInitializer := false,
+      scalaJSLinkerConfig ~= {
+          _.withModuleKind(ModuleKind.CommonJSModule)
+      }
     )
     .jsConfigure { project => project.enablePlugins(ScalaJSBundlerPlugin) }
 
