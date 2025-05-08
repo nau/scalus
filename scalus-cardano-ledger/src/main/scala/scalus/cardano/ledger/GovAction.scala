@@ -164,7 +164,7 @@ object GovAction {
                 case 0 => // ParameterChange
                     val prevActionId = r.read[Option[GovActionId]]()
                     val protocolParamUpdate = r.read[ProtocolParamUpdate]()
-                    val policyHash = r.read[Option[PolicyId]]()
+                    val policyHash = r.read[Option[ScriptHash]]()
                     GovAction.ParameterChange(prevActionId, protocolParamUpdate, policyHash)
 
                 case 1 => // HardForkInitiation

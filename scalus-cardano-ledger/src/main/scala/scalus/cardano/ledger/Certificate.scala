@@ -70,7 +70,7 @@ object Certificate:
                   relays,
                   poolMetadata
                 ) =>
-                w.writeArrayHeader(2)
+                w.writeArrayHeader(10)
                 w.writeInt(3)
                 // Write operator
                 w.write(operator)
