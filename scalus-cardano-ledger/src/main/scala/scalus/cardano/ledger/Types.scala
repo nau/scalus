@@ -220,7 +220,7 @@ object Address {
 
     /** Create an Address from bech32 string */
     def fromBech32(bech32: String): Address = {
-        Address(ByteString.unsafeFromArray(Bech32.decode(bech32).get._2))
+        Address(ByteString.unsafeFromArray(Bech32.decode(bech32).data))
     }
 }
 

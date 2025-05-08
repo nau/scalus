@@ -32,7 +32,7 @@ class CardanoAddressSpec extends AnyFunSuite {
 
     // Sample hashes from test vectors (these are example values to use in tests)
     private def hashHexFromBech32(bech32: String): String = {
-        val bytes = Bech32.decode(bech32).get._2
+        val bytes = Bech32.decode(bech32).data
         val hash = Builtins.blake2b_224(ByteString.unsafeFromArray(bytes))
         hash.toHex
     }
@@ -43,8 +43,7 @@ class CardanoAddressSpec extends AnyFunSuite {
       "stake_vk1px4j0r2fk7ux5p23shz8f3y5y2qam7s954rgf3lg5merqcj6aetsft99wu"
     )
     private val scriptHashHex =
-        val bytes =
-            Bech32.decode("script1cda3khwqv60360rp5m7akt50m6ttapacs8rqhn5w342z7r35m37").get._2
+        val bytes = Bech32.decode("script1cda3khwqv60360rp5m7akt50m6ttapacs8rqhn5w342z7r35m37").data
         ByteString.unsafeFromArray(bytes).toHex
 
     /** Test case for Type-0 address (PaymentKeyHash with StakeKeyHash)
@@ -312,7 +311,7 @@ class CardanoAddressSpec extends AnyFunSuite {
         val paymentKeyHash = Hash28.fromHex(paymentKeyHashHex)
         val invalidBytes = ByteString(invalidHeader) ++ paymentKeyHash.bytes
 
-        val invalidBech32 = Bech32.encodeFrom5Bit("addr", Bech32.to5Bit(invalidBytes.bytes)).get
+        val invalidBech32 = Bech32.encodeFrom5Bit("addr", Bech32.to5Bit(invalidBytes.bytes))
 
         // Should fail with unsupported header type
         assert(CardanoAddress.decode(invalidBech32).isFailure)

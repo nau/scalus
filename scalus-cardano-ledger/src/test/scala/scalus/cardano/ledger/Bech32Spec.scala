@@ -19,15 +19,18 @@ class Bech32Spec extends AnyFunSuite with Matchers with Inspectors {
 
     test("Bech32 decode") {
         forAll(testData) { s =>
-            Bech32.decodeTo5Bit(s) shouldBe a[Success[_]]
+            try Bech32.decode(s)
+            catch
+                case e: Throwable =>
+                    fail(s"Expected to decode $s, but got exception: ${e.getMessage}")
+
         }
     }
 
     test("Bech32 must round trip") {
         forAll(testData) { s =>
-            Bech32.decodeTo5Bit(s).flatMap((Bech32.encodeFrom5Bit _).tupled) shouldBe Success(
-              s.toLowerCase
-            )
+            val decoded = Bech32.decode(s)
+            assert(Bech32.encode(decoded.hrp, decoded.data) == s.toLowerCase)
         }
     }
 }

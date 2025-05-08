@@ -96,7 +96,7 @@ object CardanoAddress {
             case _ =>
                 // All other address types use Bech32
                 val hrp = determineHrpPrefix(addressType)
-                Bech32.encodeFrom5Bit(hrp, Bech32.to5Bit(bytes.bytes)).get
+                Bech32.encodeFrom5Bit(hrp, Bech32.to5Bit(bytes.bytes))
         }
     }
 
@@ -375,41 +375,45 @@ object CardanoAddress {
       * @return
       *   Success with address type or Failure with exception
       */
-    private def decodeBech32Address(address: String): Try[AddressType] = {
-        Bech32.decodeTo5Bit(address).flatMap { case (hrp, data5Bit) =>
-            Try {
-                // Convert from 5-bit to 8-bit encoding
-                val bytes = ByteString.unsafeFromArray(Bech32.from5Bit(data5Bit).toArray)
+    private def decodeBech32Address(address: String): Try[AddressType] = Try {
+        val decoded = Bech32.decode(address)
+        val bytes = ByteString.fromArray(decoded.data)
+        // Extract header byte
+        require(bytes.length > 0, "Address is too short")
+        val header = bytes.bytes(0)
 
-                // Extract header byte
-                require(bytes.length > 0, "Address is too short")
-                val header = bytes.bytes(0)
+        // Extract header type (bits 7-4) and network tag (bits 3-0)
+        val headerType = (header >> 4) & 0x0f
+        val networkTag = header & 0x0f
 
-                // Extract header type (bits 7-4) and network tag (bits 3-0)
-                val headerType = (header >> 4) & 0x0f
-                val networkTag = header & 0x0f
-
-                // Parse according to header type
-                headerType match {
-                    case 0x00 =>
-                        parseType0(bytes, networkTag.toByte) // Payment Key Hash with Stake Key Hash
-                    case 0x01 =>
-                        parseType1(bytes, networkTag.toByte) // Script Hash with Stake Key Hash
-                    case 0x02 =>
-                        parseType2(bytes, networkTag.toByte) // Payment Key Hash with Script Hash
-                    case 0x03 =>
-                        parseType3(bytes, networkTag.toByte) // Script Hash with Script Hash
-                    case 0x04 =>
-                        parseType4(bytes, networkTag.toByte) // Payment Key Hash with Pointer
-                    case 0x05 => parseType5(bytes, networkTag.toByte) // Script Hash with Pointer
-                    case 0x06 => parseType6(bytes, networkTag.toByte) // Payment Key Hash Only
-                    case 0x07 => parseType7(bytes, networkTag.toByte) // Script Hash Only
-                    case 0x0e => parseType14(bytes, networkTag.toByte) // Stake Key Hash
-                    case 0x0f => parseType15(bytes, networkTag.toByte) // Stake Script Hash
-                    case _ =>
-                        throw new IllegalArgumentException(s"Unsupported header type: $headerType")
-                }
-            }
+        // Parse according to header type
+        headerType match {
+            case 0x00 =>
+                parseType0(
+                  bytes,
+                  networkTag.toByte
+                ) // Payment Key Hash with Stake Key Hash
+            case 0x01 =>
+                parseType1(bytes, networkTag.toByte) // Script Hash with Stake Key Hash
+            case 0x02 =>
+                parseType2(
+                  bytes,
+                  networkTag.toByte
+                ) // Payment Key Hash with Script Hash
+            case 0x03 =>
+                parseType3(bytes, networkTag.toByte) // Script Hash with Script Hash
+            case 0x04 =>
+                parseType4(bytes, networkTag.toByte) // Payment Key Hash with Pointer
+            case 0x05 =>
+                parseType5(bytes, networkTag.toByte) // Script Hash with Pointer
+            case 0x06 => parseType6(bytes, networkTag.toByte) // Payment Key Hash Only
+            case 0x07 => parseType7(bytes, networkTag.toByte) // Script Hash Only
+            case 0x0e => parseType14(bytes, networkTag.toByte) // Stake Key Hash
+            case 0x0f => parseType15(bytes, networkTag.toByte) // Stake Script Hash
+            case _ =>
+                throw new IllegalArgumentException(
+                  s"Unsupported header type: $headerType"
+                )
         }
     }
 
