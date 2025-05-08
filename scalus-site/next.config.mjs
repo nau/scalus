@@ -5,11 +5,12 @@ import nextra from 'nextra'
  */
 const nextConfig = {
   output: 'export',
+  trailingSlash: true,
   images: {
     unoptimized: true // mandatory, otherwise won't export
   },
   // Optional: Change the output directory `out` -> `dist`
-   distDir: "dist",
+  // distDir: "out",
 }
 
 const withNextra = nextra({
