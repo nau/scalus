@@ -28,7 +28,6 @@ type POSIXTimeRange = Interval
 type PosixTimeRange = Interval
 type Value = AssocMap[CurrencySymbol, AssocMap[TokenName, BigInt]]
 
-@Compile
 @deprecated("Not needed, use companion object of appropriate type instead")
 object FromDataInstances {
 

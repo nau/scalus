@@ -5,10 +5,8 @@ import scalus.builtin.Builtins.*
 import scalus.builtin.Data.ToData
 import scalus.builtin.*
 
-@Compile
 @deprecated("Not needed, use companion object of appropriate type instead")
 object ToDataInstances {
-    import scalus.builtin.Data.toData
 
     // given ToData[PubKeyHash] = (a: PubKeyHash) => a.hash.toData
     // given ToData[TxId] = (a: TxId) => constrData(0, mkCons(a.hash.toData, mkNilData()))
@@ -115,5 +113,5 @@ object ToDataInstances {
 
     // given ToData[TxInfo] = ToData.deriveCaseClass[TxInfo](0)
 
-    //given ToData[ScriptContext] = ToData.deriveCaseClass[ScriptContext](0)
+    // given ToData[ScriptContext] = ToData.deriveCaseClass[ScriptContext](0)
 }

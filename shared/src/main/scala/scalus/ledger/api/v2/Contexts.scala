@@ -5,8 +5,9 @@ import scalus.builtin
 import scalus.builtin.Builtins.*
 import scalus.builtin.ByteString
 import scalus.builtin.Data
-import scalus.builtin.Data.FromData
-import scalus.builtin.Data.fromData
+import scalus.builtin.FromData
+import scalus.builtin.ToData
+import scalus.builtin.Data.{fromData, toData}
 import scalus.ledger.api.v2.OutputDatum.NoOutputDatum
 import scalus.prelude.AssocMap
 import scalus.prelude.List
@@ -15,18 +16,16 @@ import scalus.prelude.Eq
 
 @Compile
 object FromDataInstances {
-    import scalus.builtin.FromDataInstances.given
-    import scalus.ledger.api.v1.FromDataInstances.given
 
-    given FromData[OutputDatum] = (d: Data) =>
-        val pair = unConstrData(d)
-        val tag = pair.fst
-        val args = pair.snd
-        if tag == BigInt(0) then OutputDatum.NoOutputDatum
-        else if tag == BigInt(1) then
-            new OutputDatum.OutputDatumHash(fromData[DatumHash](args.head))
-        else if tag == BigInt(2) then new OutputDatum.OutputDatum(fromData[Datum](args.head))
-        else throw new Exception("PT1")
+    // given FromData[OutputDatum] = (d: Data) =>
+    //    val pair = unConstrData(d)
+    //    val tag = pair.fst
+    //    val args = pair.snd
+    //    if tag == BigInt(0) then OutputDatum.NoOutputDatum
+    //    else if tag == BigInt(1) then
+    //        new OutputDatum.OutputDatumHash(fromData[DatumHash](args.head))
+    //    else if tag == BigInt(2) then new OutputDatum.OutputDatum(fromData[Datum](args.head))
+    //    else throw new Exception("PT1")
 
     given FromData[TxOut] = (d: Data) =>
         val pair = unConstrData(d)
@@ -100,6 +99,24 @@ object OutputDatum {
                     b match
                         case OutputDatum(datum2) => datum == datum2
                         case _                   => false
+
+    given [T <: scalus.ledger.api.v2.OutputDatum]: ToData[T] = (d: T) =>
+        d match
+            case NoOutputDatum => constrData(0, mkNilData())
+            case OutputDatumHash(datumHash) =>
+                constrData(1, builtin.List(datumHash.toData))
+            case OutputDatum(datum) =>
+                constrData(2, builtin.List(datum))
+
+    given FromData[scalus.ledger.api.v2.OutputDatum] = (d: Data) =>
+        val pair = unConstrData(d)
+        val tag = pair.fst
+        val args = pair.snd
+        if tag == BigInt(0) then NoOutputDatum
+        else if tag == BigInt(1) then new OutputDatumHash(fromData[DatumHash](args.head))
+        else if tag == BigInt(2) then new OutputDatum(fromData[Datum](args.head))
+        else throw new Exception("PT1")
+
 }
 
 case class TxOut(
