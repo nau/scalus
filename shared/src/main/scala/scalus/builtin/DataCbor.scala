@@ -115,7 +115,10 @@ given dataCborDecoder: Decoder[Data] with
                         Constr(value - 1280 + 7, Decoder.forArray[Data].read(r).toList)
                     case PositiveBigNum => I(BigInteger(1, readBoundedBytes()))
                     case NegativeBigNum => I(BigInteger(1, readBoundedBytes()).not)
-                    case tag => r.unexpectedDataItem(s"Allowed Data Constr Tag or CBOR BigNum Tag, got $tag")
+                    case tag =>
+                        r.unexpectedDataItem(
+                          s"Allowed Data Constr Tag or CBOR BigNum Tag, got $tag"
+                        )
             case i => r.unexpectedDataItem(s"Allowed Data Item")
 
     /*
