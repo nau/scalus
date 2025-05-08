@@ -1024,14 +1024,13 @@ class Clausify extends AnyFunSuite, ScalusTest:
             result match
                 case Result.Success(Term.Const(Constant.Bool(true)), budget, _, _) =>
                     assert(budget == scalusBudget)
-                    if isAlwaysPrintComparison || isPrintComparison then {
+                    if isAlwaysPrintComparison || isPrintComparison then
                         println(
                           s"Benchmark.Clausify.$testName{" +
                               s"cpu: ${scalusBudget.cpu.comparisonAsJsonString(aikenBudget.cpu)}, " +
                               s"memory: ${scalusBudget.memory.comparisonAsJsonString(aikenBudget.memory)}" +
                               "}"
                         )
-                    }
                 case _ => assert(result.isSuccess)
     end extension
 
