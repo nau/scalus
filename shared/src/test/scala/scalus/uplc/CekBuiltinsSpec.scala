@@ -6,7 +6,6 @@ import scalus.*
 import scalus.Compiler.compile
 import scalus.builtin.{ByteString, Data, given}
 import scalus.builtin.ByteString.*
-import scalus.builtin.ToDataInstances.given
 import scalus.uplc.Constant.Pair
 import scalus.uplc.DefaultFun.*
 import scalus.uplc.DefaultUni.asConstant
