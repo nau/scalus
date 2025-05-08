@@ -1,7 +1,7 @@
 package scalus.cardano.ledger
 
 import io.bullet.borer.{Decoder, Encoder, Reader, Writer}
-import scala.collection.immutable.{Map, Set => ScalaSet}
+import scala.collection.immutable.{Map, Set as ScalaSet}
 
 /** Represents a governance action in the Cardano blockchain.
   *

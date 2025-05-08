@@ -94,12 +94,6 @@ object Bech32 {
 
     // Decodes bech32 string to hrp and 5-bit array
     final def decodeTo5Bit(bech32: String): Try[(String, Array[Int5])] = Try {
-        val l = bech32.length
-        require(
-            l >= 8 && l <= 90,
-            s"Invalid Bech32: $bech32 (length $l). Valid length range: 8-90 characters."
-        )
-
         // Check for consistent case in the data part only (after separator)
         // The HRP part (before separator) can contain special chars like underscore
         val sepPosition = bech32.lastIndexOf(SEP)
@@ -107,8 +101,10 @@ object Bech32 {
 
         val dataPart = bech32.substring(sepPosition + 1)
         require(
-            dataPart.forall(c => c.isLower || c.isDigit) || dataPart.forall(c => c.isUpper || c.isDigit),
-            s"Invalid Bech32: $bech32. Mixed case in data part."
+          dataPart.forall(c => c.isLower || c.isDigit) || dataPart.forall(c =>
+              c.isUpper || c.isDigit
+          ),
+          s"Invalid Bech32: $bech32. Mixed case in data part."
         )
         val input = bech32.toLowerCase()
         val hrp = input.take(sepPosition)
@@ -117,10 +113,11 @@ object Bech32 {
         var i = 0
         while i < data.length do {
             val c = input(sepPosition + 1 + i)
-            data(i) = CHARSET_MAP.getOrElse(c,
-                throw new IllegalArgumentException(
-                    s"Invalid Bech32: $bech32. Invalid Character. Valid (both cases): ${CHARSET.mkString("[", ",", "]")}"
-                )
+            data(i) = CHARSET_MAP.getOrElse(
+              c,
+              throw new IllegalArgumentException(
+                s"Invalid Bech32: $bech32. Invalid Character. Valid (both cases): ${CHARSET.mkString("[", ",", "]")}"
+              )
             )
             i += 1
         }
@@ -135,11 +132,11 @@ object Bech32 {
     }.recover {
         case _: java.util.NoSuchElementException =>
             throw new IllegalArgumentException(
-                s"requirement failed: Invalid Bech32: $bech32. Invalid Character. Valid (both cases): ${CHARSET.mkString("[", ",", "]")}"
+              s"requirement failed: Invalid Bech32: $bech32. Invalid Character. Valid (both cases): ${CHARSET.mkString("[", ",", "]")}"
             )
         case t =>
             throw new IllegalArgumentException(
-                s"requirement failed: Invalid Bech32: $bech32. " + t.getMessage
+              s"requirement failed: Invalid Bech32: $bech32. " + t.getMessage
             )
     }
 
@@ -163,11 +160,12 @@ object Bech32 {
 
         for b <- combined do {
             sb.append(
-                CHARSET_REVERSE_MAP.getOrElse(b,
-                    throw new IllegalArgumentException(
-                        s"requirement failed: Invalid data: $data. Valid data should contain only UInt5 values."
-                    )
+              CHARSET_REVERSE_MAP.getOrElse(
+                b,
+                throw new IllegalArgumentException(
+                  s"requirement failed: Invalid data: $data. Valid data should contain only UInt5 values."
                 )
+              )
             )
         }
 
@@ -175,11 +173,11 @@ object Bech32 {
     }.recover {
         case _: java.util.NoSuchElementException =>
             throw new IllegalArgumentException(
-                s"requirement failed: Invalid data: $data. Valid data should contain only UInt5 values."
+              s"requirement failed: Invalid data: $data. Valid data should contain only UInt5 values."
             )
         case t =>
             throw new IllegalArgumentException(
-                s"requirement failed: Invalid hrp: $hrp or data: $data. " + t.getMessage
+              s"requirement failed: Invalid hrp: $hrp or data: $data. " + t.getMessage
             )
     }
 

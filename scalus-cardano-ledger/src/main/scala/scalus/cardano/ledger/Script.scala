@@ -10,20 +10,16 @@ import scalus.ledger.api.Timelock
 /** Represents a script in Cardano */
 enum Script derives Codec.All:
     /** Native script (timelock) */
-    @key(0)
-    case Native(script: Timelock)
+    @key(0) case Native(script: Timelock)
 
     /** Plutus V1 script */
-    @key(1)
-    case PlutusV1(bytes: ByteString)
+    @key(1) case PlutusV1(bytes: ByteString)
 
     /** Plutus V2 script */
-    @key(2)
-    case PlutusV2(bytes: ByteString)
+    @key(2) case PlutusV2(bytes: ByteString)
 
     /** Plutus V3 script */
-    @key(3)
-    case PlutusV3(bytes: ByteString)
+    @key(3) case PlutusV3(bytes: ByteString)
 
     /** Get script language */
     def language: Option[Language] = this match

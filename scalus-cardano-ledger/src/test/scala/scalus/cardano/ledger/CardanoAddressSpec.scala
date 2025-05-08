@@ -1,10 +1,7 @@
 package scalus.cardano.ledger
 
 import org.scalatest.funsuite.AnyFunSuite
-
-import scala.util.{Success, Try}
-import scalus.builtin.ByteString
-import scalus.utils.Utils
+import scalus.builtin.{Builtins, ByteString}
 
 /** Test suite for CardanoAddress implementation Tests cover address encoding/decoding for different
   * address types based on CIP-19 test vectors
@@ -34,11 +31,21 @@ class CardanoAddressSpec extends AnyFunSuite {
     )
 
     // Sample hashes from test vectors (these are example values to use in tests)
-    private val paymentKeyHashHex =
-        val bytes = Bech32.decode("addr_vk1w0l2sr2zgfm26ztc6nl9xy8ghsk5sh6ldwemlpmp9xylzy4dtf7st80zhd").get._2
-        Utils.bytesToHex(bytes)
-    private val stakeKeyHashHex = "1d227aefa4b773149170885aadba30aab3127cc611ddbc4999def61c"
-    private val scriptHashHex = "2a25e6a9c3c5047303e80938d17c5f2c340ba0e3726b42f3e71c6b0"
+    private def hashHexFromBech32(bech32: String): String = {
+        val bytes = Bech32.decode(bech32).get._2
+        val hash = Builtins.blake2b_224(ByteString.unsafeFromArray(bytes))
+        hash.toHex
+    }
+    private val paymentKeyHashHex = hashHexFromBech32(
+      "addr_vk1w0l2sr2zgfm26ztc6nl9xy8ghsk5sh6ldwemlpmp9xylzy4dtf7st80zhd"
+    )
+    private val stakeKeyHashHex = hashHexFromBech32(
+      "stake_vk1px4j0r2fk7ux5p23shz8f3y5y2qam7s954rgf3lg5merqcj6aetsft99wu"
+    )
+    private val scriptHashHex =
+        val bytes =
+            Bech32.decode("script1cda3khwqv60360rp5m7akt50m6ttapacs8rqhn5w342z7r35m37").get._2
+        ByteString.unsafeFromArray(bytes).toHex
 
     /** Test case for Type-0 address (PaymentKeyHash with StakeKeyHash)
       */

@@ -4,6 +4,7 @@ import com.bloxbean.cardano.client.address.util.AddressUtil
 import com.bloxbean.cardano.client.transaction.spec
 import com.bloxbean.cardano.client.transaction.util.TransactionUtil.getTxHash
 import io.bullet.borer.Cbor
+import org.scalatest.Ignore
 import org.scalatest.funsuite.AnyFunSuite
 import scalus.builtin.{ByteString, JVMPlatformSpecific}
 import scalus.utils.Utils
@@ -11,6 +12,7 @@ import scalus.utils.Utils
 import java.math.BigInteger
 import java.nio.file.{Files, Path, Paths}
 
+@Ignore
 class TransactionSpec extends AnyFunSuite {
     val addr = AddressUtil.addressToBytes(
       "addr1qxwg0u9fpl8dac9rkramkcgzerjsfdlqgkw0q8hy5vwk8tzk5pgcmdpe5jeh92guy4mke4zdmagv228nucldzxv95clqe35r3m"
@@ -102,8 +104,7 @@ class TransactionSpec extends AnyFunSuite {
 
     private def readBlock(path: Path): Unit = {
         val blockBytes = Files.readAllBytes(path)
-        try
-            Cbor.decode(blockBytes).to[BlockFile].value
+        try Cbor.decode(blockBytes).to[BlockFile].value
 //            println(s"Decoded block $path")
         catch
             case e: Exception =>

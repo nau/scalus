@@ -84,7 +84,7 @@ trait ArbitraryInstances extends uplc.ArbitraryInstances {
           *   A generator for Timelock instances
           */
         private def genTimelockWithDepth(depth: Int): Gen[Timelock] = {
-            if (depth <= 0) then
+            if depth <= 0 then
                 // Base cases - non-recursive Timelock variants
                 Gen.oneOf(
                   genKeyHash.map(Timelock.Signature.apply),

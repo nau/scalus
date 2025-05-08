@@ -21,7 +21,7 @@ object ArbitraryDerivation extends AutoDerivation[Arbitrary] {
 
     def join[T](caseClass: CaseClass[Arbitrary, T]): Arbitrary[T] = Arbitrary {
         Gen.lzy(Gen.sized { size =>
-            if (size >= 0) {
+            if size >= 0 then {
                 Gen.resize(
                   size - 1,
                   caseClass.constructMonadic(_.typeclass.arbitrary)

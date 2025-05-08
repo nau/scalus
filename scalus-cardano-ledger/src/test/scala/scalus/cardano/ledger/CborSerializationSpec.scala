@@ -6,7 +6,7 @@ import org.scalatest.funsuite.AnyFunSuite
 import org.scalatestplus.scalacheck.ScalaCheckPropertyChecks
 import scalus.ledger.api.Timelock
 
-class CborSerializationSpec extends AnyFunSuite with ScalaCheckPropertyChecks with ArbitraryInstances {
+class CborSerializationSpec extends AnyFunSuite, ScalaCheckPropertyChecks, ArbitraryInstances {
 
     checkCborSerialization[Hash28]()
     checkCborSerialization[Hash32]()
@@ -27,7 +27,7 @@ class CborSerializationSpec extends AnyFunSuite with ScalaCheckPropertyChecks wi
 
     private inline def checkCborSerialization[A: Manifest: Arbitrary: Encoder: Decoder](): Unit = {
         test(
-            s"${manifest[A].runtimeClass.getSimpleName} should serialize and deserialize correctly"
+          s"${manifest[A].runtimeClass.getSimpleName} should serialize and deserialize correctly"
         ) {
             forAll { (a: A) =>
                 val encoded = Cbor.encode(a).toByteArray

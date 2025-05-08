@@ -131,10 +131,10 @@ object CardanoAddress {
         }
 
         // Return appropriate prefix based on network and address type
-        if (isStakeAddress) {
-            if (isTestnet) "stake_test" else "stake"
+        if isStakeAddress then {
+            if isTestnet then "stake_test" else "stake"
         } else {
-            if (isTestnet) "addr_test" else "addr"
+            if isTestnet then "addr_test" else "addr"
         }
     }
 
@@ -296,15 +296,18 @@ object CardanoAddress {
     private[ledger] def encodeVariableLengthUInt(value: Long): Array[Byte] = {
         require(value >= 0, "Value must be non-negative")
 
-        if (value < 128) {
-            // For values < 128, encode as a single byte with MSB=0
-            Array((value & 0x7f).toByte)
-        } else {
-            // For values >= 128, encode recursively
-            val remainder = value & 0x7f
-            val prefix = encodeVariableLengthUInt(value >> 7)
-            prefix ++ Array((remainder | 0x80).toByte)
-        }
+        var v = value
+        val buffer = scala.collection.mutable.ArrayBuffer.empty[Byte]
+
+        while
+            var byte = (v & 0x7f).toByte
+            v >>>= 7
+            if v != 0 then byte = (byte | 0x80).toByte // set continuation bit
+            buffer += byte
+            v != 0
+        do ()
+
+        buffer.toArray
     }
 
     /** Serializes a Shelley address with only payment part
@@ -356,7 +359,7 @@ object CardanoAddress {
       */
     def decode(address: String): Try[AddressType] = {
         // Check if it's a Bech32 address (Shelley or stake) or Base58 (Byron)
-        if (address.contains('1')) {
+        if address.contains('1') then {
             // It's likely a Bech32 address
             decodeBech32Address(address)
         } else {
@@ -602,7 +605,7 @@ object CardanoAddress {
         val firstByte = bytes(startIndex)
         val hasMoreBytes = (firstByte & 0x80) != 0
 
-        if (!hasMoreBytes) {
+        if !hasMoreBytes then {
             // Simple case: single byte with MSB=0
             (firstByte & 0x7f, 1)
         } else {

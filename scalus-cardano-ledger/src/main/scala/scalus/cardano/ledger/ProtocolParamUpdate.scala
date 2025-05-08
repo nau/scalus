@@ -57,36 +57,36 @@ object ProtocolParamUpdate {
         def write(w: Writer, value: ProtocolParamUpdate): Writer = {
             // Calculate map size (count non-None fields)
             var mapSize = 0
-            if (value.minFeeA.isDefined) mapSize += 1
-            if (value.minFeeB.isDefined) mapSize += 1
-            if (value.maxBlockBodySize.isDefined) mapSize += 1
-            if (value.maxTxSize.isDefined) mapSize += 1
-            if (value.maxBlockHeaderSize.isDefined) mapSize += 1
-            if (value.keyDeposit.isDefined) mapSize += 1
-            if (value.poolDeposit.isDefined) mapSize += 1
-            if (value.maxEpoch.isDefined) mapSize += 1
-            if (value.nOpt.isDefined) mapSize += 1
-            if (value.poolPledgeInfluence.isDefined) mapSize += 1
-            if (value.expansionRate.isDefined) mapSize += 1
-            if (value.treasuryGrowthRate.isDefined) mapSize += 1
-            if (value.minPoolCost.isDefined) mapSize += 1
-            if (value.adaPerUtxoByte.isDefined) mapSize += 1
-            if (value.costModels.isDefined) mapSize += 1
-            if (value.executionCosts.isDefined) mapSize += 1
-            if (value.maxTxExUnits.isDefined) mapSize += 1
-            if (value.maxBlockExUnits.isDefined) mapSize += 1
-            if (value.maxValueSize.isDefined) mapSize += 1
-            if (value.collateralPercentage.isDefined) mapSize += 1
-            if (value.maxCollateralInputs.isDefined) mapSize += 1
-            if (value.poolVotingThresholds.isDefined) mapSize += 1
-            if (value.drepVotingThresholds.isDefined) mapSize += 1
-            if (value.minCommitteeSize.isDefined) mapSize += 1
-            if (value.committeeTermLimit.isDefined) mapSize += 1
-            if (value.governanceActionValidityPeriod.isDefined) mapSize += 1
-            if (value.governanceActionDeposit.isDefined) mapSize += 1
-            if (value.drepDeposit.isDefined) mapSize += 1
-            if (value.drepInactivityPeriod.isDefined) mapSize += 1
-            if (value.minFeeRefScriptCoinsPerByte.isDefined) mapSize += 1
+            if value.minFeeA.isDefined then mapSize += 1
+            if value.minFeeB.isDefined then mapSize += 1
+            if value.maxBlockBodySize.isDefined then mapSize += 1
+            if value.maxTxSize.isDefined then mapSize += 1
+            if value.maxBlockHeaderSize.isDefined then mapSize += 1
+            if value.keyDeposit.isDefined then mapSize += 1
+            if value.poolDeposit.isDefined then mapSize += 1
+            if value.maxEpoch.isDefined then mapSize += 1
+            if value.nOpt.isDefined then mapSize += 1
+            if value.poolPledgeInfluence.isDefined then mapSize += 1
+            if value.expansionRate.isDefined then mapSize += 1
+            if value.treasuryGrowthRate.isDefined then mapSize += 1
+            if value.minPoolCost.isDefined then mapSize += 1
+            if value.adaPerUtxoByte.isDefined then mapSize += 1
+            if value.costModels.isDefined then mapSize += 1
+            if value.executionCosts.isDefined then mapSize += 1
+            if value.maxTxExUnits.isDefined then mapSize += 1
+            if value.maxBlockExUnits.isDefined then mapSize += 1
+            if value.maxValueSize.isDefined then mapSize += 1
+            if value.collateralPercentage.isDefined then mapSize += 1
+            if value.maxCollateralInputs.isDefined then mapSize += 1
+            if value.poolVotingThresholds.isDefined then mapSize += 1
+            if value.drepVotingThresholds.isDefined then mapSize += 1
+            if value.minCommitteeSize.isDefined then mapSize += 1
+            if value.committeeTermLimit.isDefined then mapSize += 1
+            if value.governanceActionValidityPeriod.isDefined then mapSize += 1
+            if value.governanceActionDeposit.isDefined then mapSize += 1
+            if value.drepDeposit.isDefined then mapSize += 1
+            if value.drepInactivityPeriod.isDefined then mapSize += 1
+            if value.minFeeRefScriptCoinsPerByte.isDefined then mapSize += 1
 
             w.writeMapOpen(mapSize)
 
@@ -172,7 +172,7 @@ object ProtocolParamUpdate {
             var minFeeRefScriptCoinsPerByte: Option[NonnegativeInterval] = None
 
             // Read all fields based on their keys
-            for (_ <- 0L until mapSize) {
+            for _ <- 0L until mapSize do {
                 val key = r.readInt()
 
                 key match {
