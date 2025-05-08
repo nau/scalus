@@ -1,14 +1,445 @@
 package scalus.benchmarks
 
-import org.scalatest.funsuite.AnyFunSuite
 import scalus.*
 import scalus.builtin.Builtins.{multiplyInteger, remainderInteger}
-import scalus.prelude.Eq.given
-import scalus.prelude.Ord.{*, given}
 import scalus.prelude.{*, given}
+import scalus.prelude.Eq.{*, given}
+import scalus.prelude.Ord.{*, given}
+import scalus.uplc.*
+import scalus.uplc.eval.*
+import scalus.sir.SIR
+import org.scalatest.funsuite.AnyFunSuite
 import scalus.testkit.ScalusTest
 
 class Knights extends AnyFunSuite, ScalusTest:
+    import Knights.{*, given}
+
+    test("100_4x4") {
+        val result = runKnights(100, 4)
+        val expected: Solution = List.empty
+        assert(result === expected)
+    }
+
+    test("100_6x6") {
+        val result = runKnights(100, 6)
+        val expected: Solution = List(
+          (
+            0,
+            ChessSet(
+              size = 6,
+              moveNumber = 36,
+              start = Option.Some((1, 1)),
+              visited = List(
+                (3, 2),
+                (5, 3),
+                (6, 1),
+                (4, 2),
+                (3, 4),
+                (2, 6),
+                (4, 5),
+                (6, 6),
+                (5, 4),
+                (6, 2),
+                (4, 1),
+                (2, 2),
+                (1, 4),
+                (3, 3),
+                (2, 1),
+                (1, 3),
+                (2, 5),
+                (4, 6),
+                (6, 5),
+                (4, 4),
+                (5, 2),
+                (6, 4),
+                (5, 6),
+                (3, 5),
+                (1, 6),
+                (2, 4),
+                (1, 2),
+                (3, 1),
+                (4, 3),
+                (5, 1),
+                (6, 3),
+                (5, 5),
+                (3, 6),
+                (1, 5),
+                (2, 3),
+                (1, 1)
+              )
+            )
+          ),
+          (
+            0,
+            ChessSet(
+              size = 6,
+              moveNumber = 36,
+              start = Option.Some((1, 1)),
+              visited = List(
+                (3, 2),
+                (5, 3),
+                (6, 1),
+                (4, 2),
+                (3, 4),
+                (2, 2),
+                (4, 1),
+                (6, 2),
+                (5, 4),
+                (6, 6),
+                (4, 5),
+                (2, 6),
+                (1, 4),
+                (3, 3),
+                (2, 1),
+                (1, 3),
+                (2, 5),
+                (4, 6),
+                (6, 5),
+                (4, 4),
+                (5, 2),
+                (6, 4),
+                (5, 6),
+                (3, 5),
+                (1, 6),
+                (2, 4),
+                (1, 2),
+                (3, 1),
+                (4, 3),
+                (5, 1),
+                (6, 3),
+                (5, 5),
+                (3, 6),
+                (1, 5),
+                (2, 3),
+                (1, 1)
+              )
+            )
+          ),
+          (
+            0,
+            ChessSet(
+              size = 6,
+              moveNumber = 36,
+              start = Option.Some((1, 1)),
+              visited = List(
+                (3, 2),
+                (5, 3),
+                (6, 1),
+                (4, 2),
+                (3, 4),
+                (2, 2),
+                (1, 4),
+                (2, 6),
+                (4, 5),
+                (6, 6),
+                (5, 4),
+                (6, 2),
+                (4, 1),
+                (3, 3),
+                (2, 1),
+                (1, 3),
+                (2, 5),
+                (4, 6),
+                (6, 5),
+                (4, 4),
+                (5, 2),
+                (6, 4),
+                (5, 6),
+                (3, 5),
+                (1, 6),
+                (2, 4),
+                (1, 2),
+                (3, 1),
+                (4, 3),
+                (5, 1),
+                (6, 3),
+                (5, 5),
+                (3, 6),
+                (1, 5),
+                (2, 3),
+                (1, 1)
+              )
+            )
+          ),
+          (
+            0,
+            ChessSet(
+              size = 6,
+              moveNumber = 36,
+              start = Option.Some((1, 1)),
+              visited = List(
+                (3, 2),
+                (5, 3),
+                (6, 1),
+                (4, 2),
+                (3, 4),
+                (2, 6),
+                (1, 4),
+                (2, 2),
+                (4, 1),
+                (6, 2),
+                (5, 4),
+                (6, 6),
+                (4, 5),
+                (3, 3),
+                (2, 1),
+                (1, 3),
+                (2, 5),
+                (4, 6),
+                (6, 5),
+                (4, 4),
+                (5, 2),
+                (6, 4),
+                (5, 6),
+                (3, 5),
+                (1, 6),
+                (2, 4),
+                (1, 2),
+                (3, 1),
+                (4, 3),
+                (5, 1),
+                (6, 3),
+                (5, 5),
+                (3, 6),
+                (1, 5),
+                (2, 3),
+                (1, 1)
+              )
+            )
+          )
+        )
+        assert(result === expected)
+    }
+
+    test("100_8x8") {
+        val result = runKnights(100, 8)
+        val expected: Solution = List(
+          (
+            0,
+            ChessSet(
+              size = 8,
+              moveNumber = 64,
+              start = Option.Some((1, 1)),
+              visited = List(
+                (3, 2),
+                (4, 4),
+                (5, 6),
+                (6, 4),
+                (8, 5),
+                (7, 7),
+                (6, 5),
+                (8, 4),
+                (7, 2),
+                (5, 3),
+                (3, 4),
+                (4, 6),
+                (5, 8),
+                (6, 6),
+                (4, 5),
+                (3, 7),
+                (1, 8),
+                (2, 6),
+                (4, 7),
+                (5, 5),
+                (6, 3),
+                (5, 1),
+                (4, 3),
+                (3, 5),
+                (5, 4),
+                (7, 3),
+                (8, 1),
+                (6, 2),
+                (4, 1),
+                (2, 2),
+                (1, 4),
+                (3, 3),
+                (2, 5),
+                (1, 3),
+                (2, 1),
+                (4, 2),
+                (6, 1),
+                (8, 2),
+                (7, 4),
+                (8, 6),
+                (7, 8),
+                (5, 7),
+                (3, 8),
+                (1, 7),
+                (3, 6),
+                (2, 8),
+                (1, 6),
+                (2, 4),
+                (1, 2),
+                (3, 1),
+                (5, 2),
+                (7, 1),
+                (8, 3),
+                (7, 5),
+                (8, 7),
+                (6, 8),
+                (7, 6),
+                (8, 8),
+                (6, 7),
+                (4, 8),
+                (2, 7),
+                (1, 5),
+                (2, 3),
+                (1, 1)
+              )
+            )
+          ),
+          (
+            0,
+            ChessSet(
+              size = 8,
+              moveNumber = 64,
+              start = Option.Some((1, 1)),
+              visited = List(
+                (3, 2),
+                (4, 4),
+                (5, 6),
+                (7, 7),
+                (8, 5),
+                (6, 4),
+                (7, 2),
+                (8, 4),
+                (6, 5),
+                (5, 3),
+                (3, 4),
+                (4, 6),
+                (5, 8),
+                (6, 6),
+                (4, 5),
+                (3, 7),
+                (1, 8),
+                (2, 6),
+                (4, 7),
+                (5, 5),
+                (6, 3),
+                (5, 1),
+                (4, 3),
+                (3, 5),
+                (5, 4),
+                (7, 3),
+                (8, 1),
+                (6, 2),
+                (4, 1),
+                (2, 2),
+                (1, 4),
+                (3, 3),
+                (2, 5),
+                (1, 3),
+                (2, 1),
+                (4, 2),
+                (6, 1),
+                (8, 2),
+                (7, 4),
+                (8, 6),
+                (7, 8),
+                (5, 7),
+                (3, 8),
+                (1, 7),
+                (3, 6),
+                (2, 8),
+                (1, 6),
+                (2, 4),
+                (1, 2),
+                (3, 1),
+                (5, 2),
+                (7, 1),
+                (8, 3),
+                (7, 5),
+                (8, 7),
+                (6, 8),
+                (7, 6),
+                (8, 8),
+                (6, 7),
+                (4, 8),
+                (2, 7),
+                (1, 5),
+                (2, 3),
+                (1, 1)
+              )
+            )
+          ),
+          (
+            0,
+            ChessSet(
+              size = 8,
+              moveNumber = 64,
+              start = Option.Some((1, 1)),
+              visited = List(
+                (3, 2),
+                (4, 4),
+                (6, 5),
+                (8, 4),
+                (7, 2),
+                (5, 3),
+                (3, 4),
+                (4, 6),
+                (5, 8),
+                (7, 7),
+                (5, 6),
+                (6, 4),
+                (8, 5),
+                (6, 6),
+                (4, 5),
+                (3, 7),
+                (1, 8),
+                (2, 6),
+                (4, 7),
+                (5, 5),
+                (6, 3),
+                (5, 1),
+                (4, 3),
+                (3, 5),
+                (5, 4),
+                (7, 3),
+                (8, 1),
+                (6, 2),
+                (4, 1),
+                (2, 2),
+                (1, 4),
+                (3, 3),
+                (2, 5),
+                (1, 3),
+                (2, 1),
+                (4, 2),
+                (6, 1),
+                (8, 2),
+                (7, 4),
+                (8, 6),
+                (7, 8),
+                (5, 7),
+                (3, 8),
+                (1, 7),
+                (3, 6),
+                (2, 8),
+                (1, 6),
+                (2, 4),
+                (1, 2),
+                (3, 1),
+                (5, 2),
+                (7, 1),
+                (8, 3),
+                (7, 5),
+                (8, 7),
+                (6, 8),
+                (7, 6),
+                (8, 8),
+                (6, 7),
+                (4, 8),
+                (2, 7),
+                (1, 5),
+                (2, 3),
+                (1, 1)
+              )
+            )
+          )
+        )
+        assert(result === expected)
+    }
+
 end Knights
 
 @Compile
@@ -69,6 +500,10 @@ object Knights:
         require(remainderInteger(size, BigInt(2)) === BigInt(0))
         createBoard(size, tile)
 
+    given Eq[ChessSet] =
+        import Eq.orElseBy
+        Eq.by[ChessSet, BigInt](_.size).orElseBy(_.moveNumber).orElseBy(_.start).orElseBy(_.visited)
+
     given Ord[ChessSet] = Ord.by[ChessSet, List[Tile]](_.visited)
 
     extension (self: ChessSet)
@@ -123,7 +558,7 @@ object Knights:
         def singleDescend: List[ChessSet] =
             descAndNo.filterMap { item =>
                 val (moves, board) = item
-                if moves === BigInt(1) then Option.Some(board) else Option.None
+                if moves === BigInt(1) then Option.Some(board) else Option.empty
             }
 
         def isDeadEnd: Boolean = possibleMoves.isEmpty
@@ -152,5 +587,49 @@ object Knights:
             self.moveNumber === multiplyInteger(self.size, self.size) && canJumpFirst
 
     end extension
+
+    opaque type Queue[A] = List[A]
+
+    def emptyQueue[A]: Queue[A] = List.empty
+
+    extension [A](self: Queue[A])
+        def toList: List[A] = self
+        def isEmpty: Boolean = List.isEmpty(toList)
+        def appendFront(item: A): Queue[A] = toList.prepended(item)
+        def appendAllFront(other: Queue[A]): Queue[A] = other.toList ++ toList
+        def removeFront: Queue[A] = toList.tail
+        def head: A = List.head(toList)
+
+    end extension
+
+    def isDone(item: (BigInt, ChessSet)): Boolean = item._2.isTourFinished
+
+    def grow(item: (BigInt, ChessSet)): List[(BigInt, ChessSet)] =
+        val (x, board) = item
+        board.descendants.map { (x + 1, _) }
+
+    def makeStarts(size: BigInt): List[(BigInt, ChessSet)] =
+        val it = List.range(1, size)
+        val l = it.flatMap { x => it.map { y => startTour((x, y), size) } }
+        val length = l.length
+        require(length == size * size)
+        List.fill(1 - length, length).zip(l)
+
+    def root(size: BigInt): Queue[(BigInt, ChessSet)] =
+        emptyQueue[(BigInt, ChessSet)].appendAllFront(makeStarts(size))
+
+    def depthSearch[A](
+        depth: BigInt,
+        queue: Queue[A],
+        grow: A => List[A],
+        done: A => Boolean
+    ): Queue[A] =
+        if depth === BigInt(0) || queue.isEmpty then emptyQueue
+        else if done(queue.head) then
+            depthSearch(depth - 1, queue.removeFront, grow, done).appendFront(queue.head)
+        else depthSearch(depth - 1, queue.removeFront.appendAllFront(grow(queue.head)), grow, done)
+
+    def runKnights(depth: BigInt, boardSize: BigInt): Solution =
+        depthSearch(depth, root(boardSize), grow, isDone).toList
 
 end Knights

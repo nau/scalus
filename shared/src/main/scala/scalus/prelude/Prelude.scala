@@ -601,6 +601,14 @@ object List:
             go(self, AssocMap.empty)
         }
 
+        def zip[B](other: List[B]): List[(A, B)] = self match
+            case Nil => Nil
+            case Cons(selfHead, selfTail) =>
+                other match
+                    case Nil => Nil
+                    case Cons(otherHead, otherTail) =>
+                        Cons((selfHead, otherHead), selfTail.zip(otherTail))
+
         /** Adds an element at the beginning of this list */
         inline def prepended[B >: A](elem: B): List[B] = Cons(elem, self)
         inline def +:[B >: A](elem: B): List[B] = prepended(elem)
