@@ -24,4 +24,5 @@ export scalus.ledger.api.v1.TokenName
 export scalus.ledger.api.v1.TxId
 export scalus.ledger.api.v1.TxOutRef
 export scalus.ledger.api.v1.ValidatorHash
+//type Value = scalus.ledger.api.v1.Value
 export scalus.ledger.api.v1.Value

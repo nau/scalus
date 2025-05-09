@@ -1,5 +1,7 @@
 package scalus.builtin
 
+import io.bullet.borer.Input.Position
+
 import scala.collection.immutable.List
 import scala.quoted.*
 
@@ -173,11 +175,15 @@ object ToDataMacros {
                         Bind(symbol, Wildcard())
                     }
                     val rhs = genRhs(tag, bindingsSymbols).asTerm
+
+                    // bug in scalac:  TypeTree.ref not set position, which later trigger assertion.
+                    //  Inferred set position to the position of macro-expansion.
+                    val childTypeRef = Inferred(TypeTree.ref(childTypeSymbol).tpe)
                     CaseDef(
-                      // Typed(
-                      Unapply(Ident(unapplyRef), Nil, bindings),
-                      //  TypeTree.ref(childTypeSymbol)
-                      // ),
+                      Typed(
+                        Unapply(Ident(unapplyRef), Nil, bindings).asInstanceOf[Term],
+                        childTypeRef
+                      ),
                       None,
                       rhs
                     )

@@ -1,10 +1,5 @@
 package scalus.ledger.api.v1
 
-import scalus.Compile
-import scalus.builtin.Builtins.*
-import scalus.builtin.Data.ToData
-import scalus.builtin.*
-
 @deprecated("Not needed, use companion object of appropriate type instead")
 object ToDataInstances {
 

@@ -7,14 +7,14 @@ import scalus.builtin.ByteString
 import scalus.builtin.Data
 import scalus.builtin.FromData
 import scalus.builtin.ToData
-import scalus.builtin.Data.{fromData, toData}
+import scalus.builtin.Data.{fromData, toData, ToData}
 import scalus.ledger.api.v2.OutputDatum.NoOutputDatum
 import scalus.prelude.AssocMap
 import scalus.prelude.List
 import scalus.prelude.Option
 import scalus.prelude.Eq
 
-@Compile
+@deprecated("Don't need anymore, use companion objects of appropriative types instead")
 object FromDataInstances {
 
     // given FromData[OutputDatum] = (d: Data) =>
@@ -27,54 +27,54 @@ object FromDataInstances {
     //    else if tag == BigInt(2) then new OutputDatum.OutputDatum(fromData[Datum](args.head))
     //    else throw new Exception("PT1")
 
-    given FromData[TxOut] = (d: Data) =>
-        val pair = unConstrData(d)
-        val args = pair.snd
-        new TxOut(
-          fromData[Address](args.head),
-          fromData[Value](args.tail.head),
-          fromData[OutputDatum](args.tail.tail.head),
-          fromData[Option[ScriptHash]](args.tail.tail.tail.head)
-        )
+    // given FromData[TxOut] = (d: Data) =>
+    //    val pair = unConstrData(d)
+    //    val args = pair.snd
+    //    new TxOut(
+    //      fromData[Address](args.head),
+    //      fromData[Value](args.tail.head),
+    //      fromData[OutputDatum](args.tail.tail.head),
+    //      fromData[Option[ScriptHash]](args.tail.tail.tail.head)
+    //    )
 
-    given FromData[TxInInfo] = (d: Data) =>
-        val pair = unConstrData(d)
-        val args = pair.snd
-        new TxInInfo(
-          fromData[TxOutRef](args.head),
-          fromData[TxOut](args.tail.head)
-        )
+    // given FromData[TxInInfo] = (d: Data) =>
+    //    val pair = unConstrData(d)
+    //    val args = pair.snd
+    //    new TxInInfo(
+    //      fromData[TxOutRef](args.head),
+    //      fromData[TxOut](args.tail.head)
+    //    )
 
-    given FromData[TxInfo] = (d: Data) =>
-        val pair = unConstrData(d)
-        val args = pair.snd
-        val fromValue = summon[FromData[Value]]
-        new TxInfo(
-          fromData[List[TxInInfo]](args.head),
-          fromData[List[TxInInfo]](args.tail.head),
-          fromData[List[TxOut]](args.tail.tail.head),
-          fromValue(args.tail.tail.tail.head),
-          fromValue(args.tail.tail.tail.tail.head),
-          fromData[List[DCert]](args.tail.tail.tail.tail.tail.head),
-          fromData[AssocMap[StakingCredential, BigInt]](args.tail.tail.tail.tail.tail.tail.head),
-          fromData[PosixTimeRange](args.tail.tail.tail.tail.tail.tail.tail.head),
-          fromData[List[PubKeyHash]](args.tail.tail.tail.tail.tail.tail.tail.tail.head),
-          fromData[AssocMap[ScriptPurpose, Redeemer]](
-            args.tail.tail.tail.tail.tail.tail.tail.tail.tail.head
-          ),
-          fromData[AssocMap[DatumHash, Datum]](
-            args.tail.tail.tail.tail.tail.tail.tail.tail.tail.tail.head
-          ),
-          fromData[TxId](args.tail.tail.tail.tail.tail.tail.tail.tail.tail.tail.tail.head)
-        )
+    // given FromData[TxInfo] = (d: Data) =>
+    //    val pair = unConstrData(d)
+    //    val args = pair.snd
+    //    val fromValue = summon[FromData[Value]]
+    //    new TxInfo(
+    //      fromData[List[TxInInfo]](args.head),
+    //      fromData[List[TxInInfo]](args.tail.head),
+    //      fromData[List[TxOut]](args.tail.tail.head),
+    //      fromValue(args.tail.tail.tail.head),
+    //      fromValue(args.tail.tail.tail.tail.head),
+    //      fromData[List[DCert]](args.tail.tail.tail.tail.tail.head),
+    //      fromData[AssocMap[StakingCredential, BigInt]](args.tail.tail.tail.tail.tail.tail.head),
+    //      fromData[PosixTimeRange](args.tail.tail.tail.tail.tail.tail.tail.head),
+    //      fromData[List[PubKeyHash]](args.tail.tail.tail.tail.tail.tail.tail.tail.head),
+    //      fromData[AssocMap[ScriptPurpose, Redeemer]](
+    //        args.tail.tail.tail.tail.tail.tail.tail.tail.tail.head
+    //      ),
+    //      fromData[AssocMap[DatumHash, Datum]](
+    //        args.tail.tail.tail.tail.tail.tail.tail.tail.tail.tail.head
+    //      ),
+    //      fromData[TxId](args.tail.tail.tail.tail.tail.tail.tail.tail.tail.tail.tail.head)
+    //    )
 
-    given FromData[ScriptContext] = (d: Data) =>
-        val pair = unConstrData(d)
-        val args = pair.snd
-        new ScriptContext(
-          fromData[TxInfo](args.head),
-          fromData[ScriptPurpose](args.tail.head)
-        )
+    // given FromData[ScriptContext] = (d: Data) =>
+    //    val pair = unConstrData(d)
+    //    val args = pair.snd
+    //    new ScriptContext(
+    //      fromData[TxInfo](args.head),
+    //      fromData[ScriptPurpose](args.tail.head)
+    //    )
 }
 
 enum OutputDatum:
@@ -126,7 +126,25 @@ case class TxOut(
     referenceScript: Option[ScriptHash] = Option.None
 )
 
+@Compile
+object TxOut {
+
+    given ToData[TxOut] = ToData.derived
+
+    given FromData[TxOut] = FromData.derived
+
+}
+
 case class TxInInfo(outRef: TxOutRef, resolved: TxOut)
+
+@Compile
+object TxInInfo {
+
+    given ToData[TxInInfo] = ToData.derived
+
+    given FromData[TxInInfo] = FromData.derived
+
+}
 
 /** A pending transaction.
   */
@@ -145,9 +163,26 @@ case class TxInfo(
     id: TxId
 )
 
+@Compile
+object TxInfo {
+
+    given ToData[TxInfo] = ToData.derived
+
+    given FromData[TxInfo] = FromData.derived
+
+}
+
 /** The context that the currently-executing script can access.
   */
 case class ScriptContext(
     txInfo: TxInfo,
     purpose: ScriptPurpose
 )
+
+@Compile
+object ScriptContext {
+
+    given ToData[ScriptContext] = ToData.derived
+    given FromData[ScriptContext] = FromData.derived
+
+}

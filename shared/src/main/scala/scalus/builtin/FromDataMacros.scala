@@ -133,22 +133,23 @@ object FromDataMacros {
         val ta = TypeRepr.of[A].dealias.widen
         if ta <:< TypeRepr.of[AnyRef] then
             val children = ta.typeSymbol.children
-            if children.isEmpty then
-                if ta.typeSymbol.flags.is(Flags.Trait) then
-                    report.errorAndAbort(
-                      s"Cannot derive FromData for trait ${ta.typeSymbol.fullName}"
-                    )
-                else if ta.typeSymbol.flags.is(Flags.Case) || ta.typeSymbol.flags.is(Flags.Enum)
-                then {
-                    deriveFromDataCaseClassApply[A]
-                } else {
-                    report.errorAndAbort(
-                      s"Cannot derive FromData for ${ta.typeSymbol.fullName} which is not a case class or enum"
-                    )
-                }
-            else {
-                deriveFromDataSumCaseClassApply[A]
-            }
+            val retval =
+                if children.isEmpty then
+                    if ta.typeSymbol.flags.is(Flags.Trait) then
+                        report.errorAndAbort(
+                          s"Cannot derive FromData for trait ${ta.typeSymbol.fullName}"
+                        )
+                    else if ta.typeSymbol.flags.is(Flags.Case) || ta.typeSymbol.flags.is(Flags.Enum)
+                    then {
+                        deriveFromDataCaseClassApply[A]
+                    } else {
+                        report.errorAndAbort(
+                          s"Cannot derive FromData for ${ta.typeSymbol.fullName} which is not a case class or enum"
+                        )
+                    }
+                else deriveFromDataSumCaseClassApply[A]
+            // println(s"fromDataImpl for ${Type.show[A]}:\n${retval.show}")
+            retval
         else
             report.errorAndAbort(
               s"Cannot derive FromData for ${ta.typeSymbol.fullName} which is not a case class or enum"
@@ -211,15 +212,14 @@ object FromDataMacros {
 
     def deriveFromDataSumCaseClassApply[A: Type](using Quotes): Expr[FromData[A]] = {
         import quotes.reflect.*
-        val constrTpe = TypeRepr.of[A]
         val typeSymbol = TypeRepr.of[A].widen.dealias.typeSymbol
         if !typeSymbol.flags.is(Flags.Enum) then
             report.errorAndAbort(
-              s"deriveEnum can only be used with enums, got ${typeSymbol.fullName}"
+              s"derived can only be used with enums or sealed hoerarchy of type classes ${typeSymbol.fullName}"
             )
 
-        val mappingRhs: scala.List[Expr[scalus.builtin.List[Data] => A]] = typeSymbol.children.map {
-            child =>
+        val mappingRhs: scala.List[Expr[scalus.builtin.List[Data] => A]] =
+            typeSymbol.children.map { child =>
                 child.typeRef.asType match
                     case '[t] =>
                         // println(s"child: ${child}, ${child.flags.show} ${child.caseFields}")
@@ -236,13 +236,21 @@ object FromDataMacros {
                           s"Cannot derive FromData for ${child.typeRef.show} "
                         )
 
-        }
+            }
         // .asInstanceOf[scala.List[(Expr[scalus.builtin.List[Data] => A], Int)]]
 
         // stage programming is cool, but it's hard to comprehend what's going on
+        val typeA: String = Type.show[A]
         '{ (d: Data) =>
             val pair = Builtins.unConstrData(d)
             val tag = pair.fst
+            val _a = scalus.builtin.Builtins.trace("type")(${ Expr(typeA) })
+            val _b = scalus.builtin.Builtins.trace("tag")(
+              scalus.builtin.Builtins.decodeUtf8(
+                Builtins.integerToByteString(false, 2, tag)
+              )
+            )
+            // println(s"tag for " + ${ Expr(typeA) } + ": ${tag}")
             val args = pair.snd
             ${
                 mappingRhs.zipWithIndex.foldRight('{

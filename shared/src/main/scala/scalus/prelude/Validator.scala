@@ -2,7 +2,6 @@ package scalus.prelude
 
 import scalus.builtin.Data
 import scalus.ledger.api.v3.*
-import scalus.ledger.api.v3.FromDataInstances.given
 
 @scalus.Compile
 trait Validator {

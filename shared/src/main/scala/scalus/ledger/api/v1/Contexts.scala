@@ -666,14 +666,8 @@ case class TxInfo(
 
 @Compile
 object TxInfo {
-
-    import ToDataInstances.given
-    import FromDataInstances.given
-
     given ToData[TxInfo] = ToData.derived
-
     given FromData[TxInfo] = FromData.derived
-
 }
 
 enum ScriptPurpose:
