@@ -803,7 +803,13 @@ object List:
           *   list.length === BigInt(3)
           *   }}}
           */
-        def length: BigInt = foldLeft(BigInt(0)) { (counter, _) => counter + 1 }
+        def length: BigInt = {
+            def go(lst: List[A], accc: BigInt): BigInt = lst match
+                case Nil              => accc
+                case Cons(_, tail) => go(tail, addInteger(accc, 1))
+            go(self, BigInt(0))
+        }
+        //            foldLeft(BigInt(0)) { (counter, _) => counter + 1 }
 
         /** Alias for `length`.
           *

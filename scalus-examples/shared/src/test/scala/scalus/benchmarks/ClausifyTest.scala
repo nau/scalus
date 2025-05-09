@@ -8,15 +8,12 @@ import scalus.prelude.Eq.given
 import scalus.prelude.Ord.{*, given}
 import scalus.uplc.*
 import scalus.uplc.eval.*
-import scalus.sir.SIR
-import org.scalatest.funsuite.AnyFunSuite
-import scalus.testkit.ScalusTest
 
 // https://github.com/aiken-lang/aiken/blob/main/benchmarks/lib/benchmarks/clausify/benchmark.ak
-class Clausify extends AnyFunSuite, ScalusTest:
-    import Clausify.*
+class ClausifyTest extends BenchmarkTest:
+    import ClausifyTest.*
 
-    inline val isAlwaysPrintComparison = false
+    override val isAlwaysPrintComparison = false
 
     test("F1") {
         Compiler
@@ -27,7 +24,7 @@ class Clausify extends AnyFunSuite, ScalusTest:
                 formula.clauses === expected
             }
             .check(
-              testName = "F1",
+              testName = "Clausify.F1",
               scalusBudget = ExBudget(ExCPU(7878988762L), ExMemory(45835170L)),
               aikenBudget = ExBudget(ExCPU(12325496028L), ExMemory(39891097L)),
               isPrintComparison = false
@@ -43,7 +40,7 @@ class Clausify extends AnyFunSuite, ScalusTest:
                 formula.clauses === expected
             }
             .check(
-              testName = "F2",
+              testName = "Clausify.F2",
               scalusBudget = ExBudget(ExCPU(9813254066L), ExMemory(57029082L)),
               aikenBudget = ExBudget(ExCPU(15570882882L), ExMemory(50524767L)),
               isPrintComparison = false
@@ -59,7 +56,7 @@ class Clausify extends AnyFunSuite, ScalusTest:
                 formula.clauses === expected
             }
             .check(
-              testName = "F3",
+              testName = "Clausify.F3",
               scalusBudget = ExBudget(ExCPU(26254280190L), ExMemory(152346640L)),
               aikenBudget = ExBudget(ExCPU(41872495549L), ExMemory(136054751L)),
               isPrintComparison = false
@@ -977,7 +974,7 @@ class Clausify extends AnyFunSuite, ScalusTest:
                 formula.clauses === expected
             }
             .check(
-              testName = "F4",
+              testName = "Clausify.F4",
               scalusBudget = ExBudget(ExCPU(37732983100L), ExMemory(214967822L)),
               aikenBudget = ExBudget(ExCPU(56754761923L), ExMemory(181055087L)),
               isPrintComparison = false
@@ -993,51 +990,17 @@ class Clausify extends AnyFunSuite, ScalusTest:
                 formula.clauses === expected
             }
             .check(
-              testName = "F5",
+              testName = "Clausify.F5",
               scalusBudget = ExBudget(ExCPU(127163358542L), ExMemory(736502838L)),
               aikenBudget = ExBudget(ExCPU(203182153626L), ExMemory(660668247L)),
               isPrintComparison = false
             )
     }
 
-    extension (self: SIR)
-        def check(
-            testName: String,
-            scalusBudget: ExBudget,
-            aikenBudget: ExBudget,
-            isPrintComparison: Boolean = false
-        ): Unit =
-            extension (scalus: Long)
-                def comparisonAsJsonString(aiken: Long): String =
-                    val value = aiken.toDouble / scalus.toDouble
-                    val winner =
-                        if value == 1 then "draw" else if value > 1 then "scalus" else "aiken"
-
-                    s"{" +
-                        s"aiken: $aiken, scalus: $scalus, " +
-                        s"diff: {value: $value, winner: $winner}" +
-                        s"}"
-
-            end extension
-
-            val result = self.toUplcOptimized(false).evaluateDebug
-            result match
-                case Result.Success(Term.Const(Constant.Bool(true)), budget, _, _) =>
-                    assert(budget == scalusBudget)
-                    if isAlwaysPrintComparison || isPrintComparison then
-                        println(
-                          s"Benchmark.Clausify.$testName{" +
-                              s"cpu: ${scalusBudget.cpu.comparisonAsJsonString(aikenBudget.cpu)}, " +
-                              s"memory: ${scalusBudget.memory.comparisonAsJsonString(aikenBudget.memory)}" +
-                              "}"
-                        )
-                case _ => assert(result.isSuccess)
-    end extension
-
-end Clausify
+end ClausifyTest
 
 @Compile
-object Clausify:
+object ClausifyTest:
     type Var = BigInt
     type LRVars = (List[Var], List[Var])
 
@@ -1184,4 +1147,4 @@ object Clausify:
 
     end extension
 
-end Clausify
+end ClausifyTest
