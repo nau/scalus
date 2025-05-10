@@ -5,6 +5,37 @@ import io.bullet.borer.{Cbor, Codec, Decoder, Encoder, Writer}
 import scalus.builtin.ByteString
 import io.bullet.borer.NullOptions.given
 
+enum HashFunction {
+    case Blake2b
+    case Sha2
+    case Sha3
+    case Keccak
+    case Ripemd160
+}
+
+opaque type Hash[+HF, Size <: Int & Singleton, +Purpose] <: ByteString = ByteString
+object Hash {
+    trait HashPurpose
+    trait PubKeyHashPurpose extends HashPurpose
+    trait ScriptHashPurpose extends HashPurpose
+    type Blake2b224Hash[Purpose] = Hash[HashFunction.Blake2b.type, 28, Purpose]
+    type AnyBlake2b224Hash = Blake2b224Hash[HashPurpose]
+    type PubKeyHash = Blake2b224Hash[PubKeyHashPurpose]
+    type ScriptHash = Blake2b224Hash[ScriptHashPurpose]
+    type AnyHash = Hash[Any, Int & Singleton, Any]
+
+    inline def apply[HF, Size <: Int & Singleton: ValueOf, Purpose](
+        bytes: ByteString
+    ): Hash[HF, Size, Purpose] = {
+        inline val size = valueOf[Size]
+        require(bytes.size == size, s"Hash must be ${size} bytes, got ${bytes.size}")
+        bytes
+    }
+
+    def asf(h: AnyHash): ByteString = h
+
+}
+
 /** Represents a 28-byte hash value used in Cardano
   *
   * Hash28 is commonly used for address key hashes and script hashes
