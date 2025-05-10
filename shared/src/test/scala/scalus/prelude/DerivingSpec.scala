@@ -9,8 +9,6 @@ import scalus.uplc.eval.{*, given}
 import scalus.Compiler.compile
 import scalus.testutil.SIRModules
 import scalus.builtin.*
-import scalus.builtin.ToDataInstances.given
-import scalus.builtin.FromDataInstances.given
 
 /*
 

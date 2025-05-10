@@ -1,7 +1,5 @@
 package scalus.builtin
 
-import io.bullet.borer.Input.Position
-
 import scala.collection.immutable.List
 import scala.quoted.*
 

@@ -304,7 +304,6 @@ class CompilerPluginToSIRSpec extends AnyFunSuite with ScalaCheckPropertyChecks:
 
     test("compile ToData") {
         import scalus.builtin.Data.*
-        import scalus.builtin.ToDataInstances.given
         val compiled = compile {
             BigInt(1).toData
         }
@@ -1681,7 +1680,6 @@ class CompilerPluginToSIRSpec extends AnyFunSuite with ScalaCheckPropertyChecks:
         val eqterm = eq.toUplc()
         val neterm = ne.toUplc()
         import scalus.builtin.Data.toData
-        import scalus.builtin.ToDataInstances.given
         import scalus.uplc.TermDSL.{*, given}
 
         assert(
@@ -2023,10 +2021,8 @@ class CompilerPluginToSIRSpec extends AnyFunSuite with ScalaCheckPropertyChecks:
 
     test("compile pattern in val with one argument") {
         import scalus.prelude.Option
-        import scalus.builtin.Data.FromData
-        import scalus.builtin.FromDataInstances.given
-        import scalus.builtin.Data.ToData
-        import scalus.builtin.ToDataInstances.given
+        import scalus.builtin.FromData
+        import scalus.builtin.ToData
         val compiled = compile { (x: Data) =>
             val Option.Some(v0) = summon[FromData[Option[BigInt]]](x): @unchecked
             // val Option.Some(v) = x
@@ -2060,10 +2056,8 @@ class CompilerPluginToSIRSpec extends AnyFunSuite with ScalaCheckPropertyChecks:
 
     test("compile pattern with val with two arguments") {
         import scalus.prelude.List
-        import scalus.builtin.Data.FromData
-        import scalus.builtin.FromDataInstances.given
-        import scalus.builtin.Data.ToData
-        import scalus.builtin.ToDataInstances.given
+        import scalus.builtin.FromData
+        import scalus.builtin.ToData
 
         val compiled = compile { (x: Data) =>
             val List.Cons(head, tail) = summon[FromData[List[BigInt]]](x): @unchecked
@@ -2111,8 +2105,6 @@ class CompilerPluginToSIRSpec extends AnyFunSuite with ScalaCheckPropertyChecks:
         import scalus.builtin.Data.FromData
         import scalus.builtin.Data.ToData
         import scalus.ledger.api.v3.*
-        import scalus.ledger.api.v3.FromDataInstances.given
-        import scalus.ledger.api.v3.ToDataInstances.given
 
         val compiled = compile { (x: Data) =>
             val ScriptContext(txInfo, redeemer, scriptInfo) = summon[FromData[ScriptContext]](x)
