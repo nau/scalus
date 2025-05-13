@@ -11,19 +11,14 @@ class ExampleTest extends AnyFunSuite with ScalusTest {
         def check(
             testName: String,
             scalusBudget: ExBudget,
-            aikenBudget: ExBudget,
+            refBudget: ExBudget,
             isPrintComparison: Boolean = false
         ): Unit =
             extension (scalus: Long)
-                def comparisonAsJsonString(aiken: Long): String =
-                    val value = aiken.toDouble / scalus.toDouble
-                    val winner =
-                        if value == 1 then "draw" else if value > 1 then "scalus" else "aiken"
-
-                    s"{" +
-                        s"aiken: $aiken, scalus: $scalus, " +
-                        s"comparison: {value: $value, winner: $winner}" +
-                        s"}"
+                def comparisonAsJsonString(ref: Long): String = {
+                    val comparison = f"${scalus.toDouble / ref.toDouble * 100}%.2f"
+                    s"{scalus: $scalus, ref: $ref, comparison: $comparison%}"
+                }
 
             end extension
 
@@ -32,8 +27,8 @@ class ExampleTest extends AnyFunSuite with ScalusTest {
                     if isPrintComparison then
                         println(
                           s"$testName: {" +
-                              s"cpu: ${budget.cpu.comparisonAsJsonString(aikenBudget.cpu)}, " +
-                              s"memory: ${budget.memory.comparisonAsJsonString(aikenBudget.memory)}" +
+                              s"cpu: ${budget.cpu.comparisonAsJsonString(refBudget.cpu)}, " +
+                              s"memory: ${budget.memory.comparisonAsJsonString(refBudget.memory)}" +
                               "}"
                         )
                     assert(budget == scalusBudget)
