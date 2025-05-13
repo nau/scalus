@@ -8,7 +8,6 @@ import scalus.builtin.Builtins.blake2b_224
 import scalus.ledger.api.v1.PubKeyHash
 import scalus.ledger.api.v1.Credential.{PubKeyCredential, ScriptCredential}
 import scalus.ledger.api.v3.*
-import scalus.ledger.api.v3.ToDataInstances.given
 import scalus.prelude.*
 import scalus.sir.SIR
 import scalus.uplc.*

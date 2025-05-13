@@ -12,6 +12,7 @@ import scalus.builtin.ToData
 import scalus.ledger.api.v1.*
 import scalus.ledger.api.v2
 import scalus.prelude.{*, given}
+import scalus.builtin.ByteString.*
 
 export scalus.ledger.api.v1.Hash
 export scalus.ledger.api.v1.Address
@@ -507,6 +508,11 @@ object TxInfo {
 
     given FromData[TxInfo] = FromData.derived
     given ToData[TxInfo] = ToData.derived
+
+    val placeholder: TxInfo = TxInfo(
+      inputs = List.empty,
+      id = TxId(hex"0000000000000000000000000000000000000000000000000000000000000000")
+    )
 
 }
 
