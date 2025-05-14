@@ -32,10 +32,10 @@ class HelloCardanoSpec extends AnyFunSuite with ScalusTest {
         assert(result.budget == scalusBudget)
 
         compareResultWithReferenceValue(
-            testName = "HelloCardanoSpec.Hello Cardano",
-            scalusBudget = scalusBudget,
-            refBudget = ExBudget(ExCPU(9375627L), ExMemory(28554L)),
-            isPrintComparison = false
+          testName = "HelloCardanoSpec.Hello Cardano",
+          scalusBudget = scalusBudget,
+          refBudget = ExBudget(ExCPU(9375627L), ExMemory(28554L)),
+          isPrintComparison = false
         )
     }
 }

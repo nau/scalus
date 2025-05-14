@@ -2,16 +2,15 @@ package scalus.examples
 
 import scalus.*
 import scalus.builtin.FromDataInstances.given
-import scalus.builtin.{ByteString, Data}
-import scalus.builtin.Builtins
+import scalus.builtin.{Builtins, ByteString, Data}
 import scalus.ledger.api.v1
-import scalus.ledger.api.v1.{Credential, PubKeyHash, Value}
 import scalus.ledger.api.v1.Value.*
+import scalus.ledger.api.v1.{Credential, PubKeyHash, Value}
 import scalus.ledger.api.v2.TxOut
 import scalus.ledger.api.v3.{TxInfo, TxOutRef}
-import scalus.prelude.{*, given}
 import scalus.prelude.List.*
 import scalus.prelude.Option.*
+import scalus.prelude.{*, given}
 
 /** Split payouts equally among a list of specified payees
   *

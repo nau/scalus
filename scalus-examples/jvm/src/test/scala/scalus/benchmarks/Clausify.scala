@@ -52,7 +52,7 @@ class Clausify extends AnyFunSuite, ScalusTest:
             }
             .toUplcOptimized(false)
             .evaluateDebug
-                
+
         val scalusBudget = ExBudget(ExCPU(9813254066L), ExMemory(57029082L))
         result match
             case Result.Success(Term.Const(Constant.Bool(true)), budget, _, _) =>
