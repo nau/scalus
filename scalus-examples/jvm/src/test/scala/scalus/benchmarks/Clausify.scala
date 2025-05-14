@@ -23,18 +23,16 @@ class Clausify extends AnyFunSuite, ScalusTest:
                 // (a = a) = (a = a) = (a = a)
                 val formula = (1 <-> 1) <-> ((1 <-> 1) <-> (1 <-> 1))
                 val expected = List.empty[LRVars]
-                formula.clauses === expected
+                require(formula.clauses === expected)
             }
             .toUplcOptimized(false)
             .evaluateDebug
 
-        val scalusBudget = ExBudget(ExCPU(7878988762L), ExMemory(45835170L))
-        result match
-            case Result.Success(Term.Const(Constant.Bool(true)), budget, _, _) =>
-                assert(budget == scalusBudget)
-            case _ => fail()
+        val scalusBudget = ExBudget(ExCPU(7879396860L), ExMemory(45836772L))
+        assert(result.isSuccess)
+        assert(result.budget == scalusBudget)
 
-        compareResultWithReferenceValue(
+        compareBudgetWithReferenceValue(
           testName = "Clausify.F1",
           scalusBudget = scalusBudget,
           refBudget = ExBudget(ExCPU(12325496028L), ExMemory(39891097L)),
@@ -48,18 +46,16 @@ class Clausify extends AnyFunSuite, ScalusTest:
                 // (a = a = a) = (a = a = a)
                 val formula = (1 <-> (1 <-> 1)) <-> (1 <-> (1 <-> 1))
                 val expected = List.empty[LRVars]
-                formula.clauses === expected
+                require(formula.clauses === expected)
             }
             .toUplcOptimized(false)
             .evaluateDebug
 
-        val scalusBudget = ExBudget(ExCPU(9813254066L), ExMemory(57029082L))
-        result match
-            case Result.Success(Term.Const(Constant.Bool(true)), budget, _, _) =>
-                assert(budget == scalusBudget)
-            case _ => fail()
+        val scalusBudget = ExBudget(ExCPU(9813662164L), ExMemory(57030684L))
+        assert(result.isSuccess)
+        assert(result.budget == scalusBudget)
 
-        compareResultWithReferenceValue(
+        compareBudgetWithReferenceValue(
           testName = "Clausify.F2",
           scalusBudget = scalusBudget,
           refBudget = ExBudget(ExCPU(15570882882L), ExMemory(50524767L)),
@@ -73,18 +69,16 @@ class Clausify extends AnyFunSuite, ScalusTest:
                 // (a = a = a) = (a = a) = (a = a)
                 val formula = (1 <-> (1 <-> 1)) <-> ((1 <-> 1) <-> (1 <-> 1))
                 val expected = List.single[LRVars]((List.single[Var](1), List.empty[Var]))
-                formula.clauses === expected
+                require(formula.clauses === expected)
             }
             .toUplcOptimized(false)
             .evaluateDebug
 
-        val scalusBudget = ExBudget(ExCPU(26254280190L), ExMemory(152346640L))
-        result match
-            case Result.Success(Term.Const(Constant.Bool(true)), budget, _, _) =>
-                assert(budget == scalusBudget)
-            case _ => fail()
+        val scalusBudget = ExBudget(ExCPU(26254688288L), ExMemory(152348242L))
+        assert(result.isSuccess)
+        assert(result.budget == scalusBudget)
 
-        compareResultWithReferenceValue(
+        compareBudgetWithReferenceValue(
           testName = "Clausify.F3",
           scalusBudget = scalusBudget,
           refBudget = ExBudget(ExCPU(41872495549L), ExMemory(136054751L)),
@@ -1000,18 +994,16 @@ class Clausify extends AnyFunSuite, ScalusTest:
                     )
                   )
                 )
-                formula.clauses === expected
+                require(formula.clauses === expected)
             }
             .toUplcOptimized(false)
             .evaluateDebug
 
-        val scalusBudget = ExBudget(ExCPU(37732983100L), ExMemory(214967822L))
-        result match
-            case Result.Success(Term.Const(Constant.Bool(true)), budget, _, _) =>
-                assert(budget == scalusBudget)
-            case _ => fail()
+        val scalusBudget = ExBudget(ExCPU(37733391198L), ExMemory(214969424L))
+        assert(result.isSuccess)
+        assert(result.budget == scalusBudget)
 
-        compareResultWithReferenceValue(
+        compareBudgetWithReferenceValue(
           testName = "Clausify.F4",
           scalusBudget = scalusBudget,
           refBudget = ExBudget(ExCPU(56754761923L), ExMemory(181055087L)),
@@ -1025,18 +1017,16 @@ class Clausify extends AnyFunSuite, ScalusTest:
                 // (a = a = a) = (a = a = a) = (a = a)
                 val formula = (1 <-> (1 <-> 1)) <-> ((1 <-> (1 <-> 1)) <-> (1 <-> 1))
                 val expected = List.empty[LRVars]
-                formula.clauses === expected
+                require(formula.clauses === expected)
             }
             .toUplcOptimized(false)
             .evaluateDebug
 
-        val scalusBudget = ExBudget(ExCPU(127163358542L), ExMemory(736502838L))
-        result match
-            case Result.Success(Term.Const(Constant.Bool(true)), budget, _, _) =>
-                assert(budget == scalusBudget)
-            case _ => fail()
+        val scalusBudget = ExBudget(ExCPU(127163766640L), ExMemory(736504440L))
+        assert(result.isSuccess)
+        assert(result.budget == scalusBudget)
 
-        compareResultWithReferenceValue(
+        compareBudgetWithReferenceValue(
           testName = "Clausify.F5",
           scalusBudget = scalusBudget,
           refBudget = ExBudget(ExCPU(203182153626L), ExMemory(660668247L)),

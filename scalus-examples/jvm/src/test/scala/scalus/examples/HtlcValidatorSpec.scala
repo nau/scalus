@@ -242,7 +242,7 @@ class HtlcValidatorSpec extends AnyFunSuite with ScalusTest {
         signatories: List[Person] = List.empty,
         action: Action,
         preimage: ByteString,
-        expected: Either[String, Option[ExBudget]] = success
+        expected: (String | Unit, Option[ExBudget]) = success
     ):
         def runWithDebug(): Unit = {
             val contractDatum = ContractDatum(
@@ -267,8 +267,8 @@ class HtlcValidatorSpec extends AnyFunSuite with ScalusTest {
 
             val actual = Try(HtlcValidator.validate(context.toData))
             (expected, actual) match
-                case (Left(msg), scala.util.Failure(exception)) =>
-                case (Right(_), scala.util.Success(_))          =>
+                case ((msg: String, _), scala.util.Failure(exception)) =>
+                case (((), _), scala.util.Success(_))          =>
                 case (_, actual) => fail(s"Expected: $expected, but got: $actual")
 
             checkResult(expected = expected, actual = script.runWithDebug(context))

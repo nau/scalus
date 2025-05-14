@@ -116,18 +116,20 @@ trait ScalusTest {
         )
     }
 
-    final protected def failure(message: String): Either[String, Option[ExBudget]] = Left(message)
-    final protected def success: Either[String, Option[ExBudget]] = Right(Option.None)
-    final protected def success(budget: ExBudget): Either[String, Option[ExBudget]] = Right(
-      Option.Some(budget)
-    )
+    final protected def failure(message: String): (String, Option[ExBudget]) =
+        (message, Option.None)
+    final protected def failure(message: String, budget: ExBudget): (String, Option[ExBudget]) =
+        (message, Option.Some(budget))
+    protected val success: (Unit, Option[ExBudget]) = ((), Option.None)
+    final protected def success(budget: ExBudget): (Unit, Option[ExBudget]) =
+        ((), Option.Some(budget))
 
     protected def checkResult(
-        expected: Either[String, Option[ExBudget]],
+        expected: (String | Unit, Option[ExBudget]),
         actual: Result
     ): Unit = {
-        expected match
-            case Left(errorMsg) =>
+        expected._1 match
+            case errorMsg: String =>
                 assert(
                   actual.isFailure,
                   s"Expected failure with: $errorMsg, but got success"
@@ -137,28 +139,29 @@ trait ScalusTest {
                   actual.logs.exists(_.contains(errorMsg)),
                   s"Expected error containing: $errorMsg, but got: ${actual.logs.mkString(", ")}"
                 )
-            case Right(success) =>
-                success match
-                    case Option.None =>
-                        assert(
-                          actual.isSuccess,
-                          s"Expected success, but got: ${actual.toString}, logs0: ${actual.logs.mkString(", ")}"
-                        )
-                    case Option.Some(budget) =>
-                        assert(
-                          actual.isSuccess,
-                          s"Expected success with budget: $budget, but got: ${actual.toString}, logs0: ${actual.logs
-                                  .mkString(", ")}"
-                        )
-                        if budget != ExBudget(ExCPU(0), ExMemory(0))
-                        then // Check if budget verification is requested
-                            assert(
-                              actual.budget == budget,
-                              s"Expected budget: $budget, but got: ${actual.budget}"
-                            )
+            case () =>
+                actual match
+                    case Result.Failure(ex, budget, cost, logs) =>
+                        ex match
+                            case be: scalus.uplc.eval.BuiltinError =>
+                                be.cause.printStackTrace()
+                            case _ =>
+                    case _ =>
+                assert(
+                  actual.isSuccess,
+                  s"Expected success, but got: ${actual.toString}, logs0: ${actual.logs.mkString(", ")}"
+                )
+
+        expected._2 match
+            case Option.Some(budget) if budget != ExBudget(ExCPU(0), ExMemory(0)) =>
+                assert(
+                  actual.budget == budget,
+                  s"Expected budget: $budget, but got: ${actual.budget}"
+                )
+            case _ =>
     }
 
-    def compareResultWithReferenceValue(
+    def compareBudgetWithReferenceValue(
         testName: String,
         scalusBudget: ExBudget,
         refBudget: ExBudget,
@@ -173,9 +176,9 @@ trait ScalusTest {
 
         end extension
 
-        if isPrintComparison || BenchmarkConfig.isPrintAllComparisonsOfResultWithReferenceValue then
+        if isPrintComparison || BenchmarkConfig.isPrintAllComparisonsOfBudgetWithReferenceValue then
             println(
-              s"${BenchmarkConfig.prefixOfLog}$testName: {" +
+              s"${BenchmarkConfig.logPrefix}[$testName]: {" +
                   s"cpu: ${scalusBudget.cpu.comparisonAsJsonString(refBudget.cpu)}, " +
                   s"memory: ${scalusBudget.memory.comparisonAsJsonString(refBudget.memory)}" +
                   "}"
@@ -185,7 +188,7 @@ trait ScalusTest {
 
 object ScalusTest {
     private object BenchmarkConfig {
-        inline val prefixOfLog = ""
-        val isPrintAllComparisonsOfResultWithReferenceValue: Boolean = false
+        inline val logPrefix = "BenchmarkComparison"
+        val isPrintAllComparisonsOfBudgetWithReferenceValue: Boolean = false
     }
 }
