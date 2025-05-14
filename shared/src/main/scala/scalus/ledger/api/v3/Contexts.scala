@@ -16,7 +16,9 @@ import scalus.prelude.{*, given}
 export scalus.ledger.api.v1.Hash
 export scalus.ledger.api.v1.Address
 export scalus.ledger.api.v1.Closure
-export scalus.ledger.api.v1.Credential
+//export scalus.ledger.api.v1.Credential
+type Credential = scalus.ledger.api.v1.Credential
+val Credential = scalus.ledger.api.v1.Credential
 export scalus.ledger.api.v1.CurrencySymbol
 export scalus.ledger.api.v1.DCert
 export scalus.ledger.api.v1.Datum

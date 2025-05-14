@@ -244,13 +244,6 @@ object FromDataMacros {
         '{ (d: Data) =>
             val pair = Builtins.unConstrData(d)
             val tag = pair.fst
-            val _a = scalus.builtin.Builtins.trace("type")(${ Expr(typeA) })
-            val _b = scalus.builtin.Builtins.trace("tag")(
-              scalus.builtin.Builtins.decodeUtf8(
-                Builtins.integerToByteString(false, 2, tag)
-              )
-            )
-            // println(s"tag for " + ${ Expr(typeA) } + ": ${tag}")
             val args = pair.snd
             ${
                 mappingRhs.zipWithIndex.foldRight('{

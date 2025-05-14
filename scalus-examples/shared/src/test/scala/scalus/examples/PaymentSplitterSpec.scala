@@ -4,18 +4,19 @@ import org.scalatest.funsuite.AnyFunSuite
 import scalus.*
 import scalus.Compiler.compile
 import scalus.builtin.ByteString
-import scalus.builtin.Data.toData
-import scalus.builtin.ToDataInstances.given
+import scalus.builtin.Data
+import scalus.builtin.{FromData, ToData}
+import scalus.builtin.Data.{fromData, toData, unit}
 import scalus.ledger.api.v1.Credential.{PubKeyCredential, ScriptCredential}
 import scalus.ledger.api.v1.{Address, Credential, PubKeyHash, Value}
 import scalus.ledger.api.v2.TxOut
 import scalus.ledger.api.v3.*
 import scalus.ledger.api.v3.ScriptInfo.SpendingScript
-import scalus.ledger.api.v3.ToDataInstances.given
 import scalus.prelude.{List, Option, *}
 import scalus.testkit.*
-import scalus.uplc.*
+import scalus.uplc.{DefaultUni, *}
 import scalus.uplc.eval.*
+import scalus.uplc.eval.Result.Failure
 
 import scala.util.control.NonFatal
 
@@ -168,26 +169,12 @@ class PaymentSplitterSpec extends AnyFunSuite, ScalusTest {
         }
     }
 
-//    private lazy val aikenScript = {
-//        import upickle.default.*
-//        val inputStream = this.getClass.getResourceAsStream("/plutus.json")
-//        if inputStream == null then {
-//            println("Can't load script from /plutus.json")
-//            throw new RuntimeException("Resource not found: /plutus.json")
-//        }
-//        val obj = read[ujson.Obj](inputStream)
-//        val cborHex = obj("validators").arr(0)("compiledCode").str
-//        val program = DeBruijnedProgram.fromCborHex(cborHex).toProgram
-//        program
-//    }
-
     private val lockTxId = random[TxId]
     private val payeesTxId = random[TxId]
     private val txId = random[TxId]
     private val scriptHash = script.hash
 
     private val runScalaVersion = true
-    private val runAikenVersion = false
 
     private def assertCase(
         payees: List[ByteString],
@@ -207,32 +194,7 @@ class PaymentSplitterSpec extends AnyFunSuite, ScalusTest {
         // Create script with payees parameter
 
         val payeesData = List(payees).toData
-
-        val payeesTerm =
-            Term.Const(
-              uplc.Constant
-                  .List(
-                    DefaultUni.ProtoList,
-                    scala.List(
-                      uplc.Constant.List(
-                        DefaultUni.ByteString,
-                        payees.asScala.map(bs => uplc.Constant.ByteString(bs)).toList
-                      )
-                    )
-                  )
-            )
-
-        // import scalus.builtin.FromDataInstances.given
-        // val compiledList = compile { (d: scalus.builtin.Data) =>
-        //    d.to[List[ByteString]]
-        // }
-        // val payeesUplc = compiledList.toUplc(true) $ Term.Const(Constant.Data(payeesData))
-
         val applied = script $ payeesData
-//            if runAikenVersion then {
-//                // println(s"aikenScript: ${aikenScript.pretty.render(100)}")
-//                aikenScript $ payeesData
-//            } else script $ payeesData
 
         // Build transaction outputs from provided parameters
         val txOutputs = outputs.map { case (pkh, amount) =>
@@ -246,13 +208,32 @@ class PaymentSplitterSpec extends AnyFunSuite, ScalusTest {
         }
 
         // Create script context with given inputs, outputs and fee
+        val pkh = PubKeyHash(
+          ByteString.fromHex("AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA")
+        )
+        val txCert = TxCert.RegStaking(Credential.PubKeyCredential(pkh), Option.None)
+        val txOutRef = TxOutRef(lockTxId, 0)
+        val redeemer = PaymentSplitterRedeemer("qqq").toData
         val context = ScriptContext(
-          txInfo = TxInfo(inputs = inputs, outputs = txOutputs, fee = fee, id = txId),
-          scriptInfo = SpendingScript(txOutRef = TxOutRef(lockTxId, 0))
+          txInfo = TxInfo(
+            inputs = inputs,
+            outputs = txOutputs,
+            fee = fee,
+            certificates = scalus.prelude.List(txCert),
+            signatories = scalus.prelude.List(pkh),
+            redeemers = AssocMap.fromList(
+              scalus.prelude.List((ScriptPurpose.Spending(txOutRef), redeemer))
+            ),
+            id = txId
+          ),
+          redeemer = redeemer,
+          scriptInfo = SpendingScript(txOutRef = txOutRef),
         )
 
+        assert(context.scriptInfo == SpendingScript(txOutRef, Option.None))
+
         // Apply script to the context
-        val program = applied $ context.toData
+        val programWithContext = applied $ context.toData
 
         if runScalaVersion then
             try PaymentSplitter.validate(List(payees.toData).toData)(context.toData)
@@ -261,7 +242,7 @@ class PaymentSplitterSpec extends AnyFunSuite, ScalusTest {
                     if expected.isRight then throw ex
 
         // Evaluate the program
-        val result = program.evaluateDebug
+        val result = programWithContext.evaluateDebug
 
         // Assert the result matches the expected outcome
         expected match
