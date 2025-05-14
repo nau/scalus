@@ -56,7 +56,7 @@ class CompabilityWithAikenSpec extends AnyFunSuite, ScalusTest {
           extraSignatories = List(
             ByteString.fromHex("52bd00e69e371daa373c021c3f4321356902016c320e41526e239406")
           ),
-          expected = success
+          expected = Right(Option.None)
         )
     }
 
