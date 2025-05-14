@@ -18,19 +18,28 @@ class Clausify extends AnyFunSuite, ScalusTest:
     inline val isAlwaysPrintComparison = false
 
     test("F1") {
-        Compiler
+        val result = Compiler
             .compile {
                 // (a = a) = (a = a) = (a = a)
                 val formula = (1 <-> 1) <-> ((1 <-> 1) <-> (1 <-> 1))
                 val expected = List.empty[LRVars]
                 formula.clauses === expected
             }
-            .check(
-              testName = "Clausify.F1",
-              scalusBudget = ExBudget(ExCPU(7878988762L), ExMemory(45835170L)),
-              refBudget = ExBudget(ExCPU(12325496028L), ExMemory(39891097L)),
-              isPrintComparison = false
-            )
+            .toUplcOptimized(false)
+            .evaluateDebug
+
+        val scalusBudget = ExBudget(ExCPU(7878988762L), ExMemory(45835170L))
+        result match
+            case Result.Success(Term.Const(Constant.Bool(true)), budget, _, _) =>
+                assert(budget == scalusBudget)
+            case _ => fail()
+
+        compareResultWithReferenceValue(
+          testName = "Clausify.F1",
+          scalusBudget = scalusBudget,
+          refBudget = ExBudget(ExCPU(12325496028L), ExMemory(39891097L)),
+          isPrintComparison = false
+        )
     }
 
     test("F2") {
@@ -41,12 +50,21 @@ class Clausify extends AnyFunSuite, ScalusTest:
                 val expected = List.empty[LRVars]
                 formula.clauses === expected
             }
-            .check(
-              testName = "Clausify.F2",
-              scalusBudget = ExBudget(ExCPU(9813254066L), ExMemory(57029082L)),
-              refBudget = ExBudget(ExCPU(15570882882L), ExMemory(50524767L)),
-              isPrintComparison = false
-            )
+            .toUplcOptimized(false)
+            .evaluateDebug
+                
+        val scalusBudget = ExBudget(ExCPU(9813254066L), ExMemory(57029082L))
+        result match
+            case Result.Success(Term.Const(Constant.Bool(true)), budget, _, _) =>
+                assert(budget == scalusBudget)
+            case _ => fail()
+
+        compareResultWithReferenceValue(
+          testName = "Clausify.F2",
+          scalusBudget = scalusBudget,
+          refBudget = ExBudget(ExCPU(15570882882L), ExMemory(50524767L)),
+          isPrintComparison = false
+        )
     }
 
     test("F3") {
@@ -57,12 +75,21 @@ class Clausify extends AnyFunSuite, ScalusTest:
                 val expected = List.single[LRVars]((List.single[Var](1), List.empty[Var]))
                 formula.clauses === expected
             }
-            .check(
-              testName = "Clausify.F3",
-              scalusBudget = ExBudget(ExCPU(26254280190L), ExMemory(152346640L)),
-              refBudget = ExBudget(ExCPU(41872495549L), ExMemory(136054751L)),
-              isPrintComparison = false
-            )
+            .toUplcOptimized(false)
+            .evaluateDebug
+
+        val scalusBudget = ExBudget(ExCPU(26254280190L), ExMemory(152346640L))
+        result match
+            case Result.Success(Term.Const(Constant.Bool(true)), budget, _, _) =>
+                assert(budget == scalusBudget)
+            case _ => fail()
+
+        compareResultWithReferenceValue(
+          testName = "Clausify.F3",
+          scalusBudget = scalusBudget,
+          refBudget = ExBudget(ExCPU(41872495549L), ExMemory(136054751L)),
+          isPrintComparison = false
+        )
     }
 
     test("F4") {
@@ -975,12 +1002,21 @@ class Clausify extends AnyFunSuite, ScalusTest:
                 )
                 formula.clauses === expected
             }
-            .check(
-              testName = "Clausify.F4",
-              scalusBudget = ExBudget(ExCPU(37732983100L), ExMemory(214967822L)),
-              refBudget = ExBudget(ExCPU(56754761923L), ExMemory(181055087L)),
-              isPrintComparison = false
-            )
+            .toUplcOptimized(false)
+            .evaluateDebug
+
+        val scalusBudget = ExBudget(ExCPU(37732983100L), ExMemory(214967822L))
+        result match
+            case Result.Success(Term.Const(Constant.Bool(true)), budget, _, _) =>
+                assert(budget == scalusBudget)
+            case _ => fail()
+
+        compareResultWithReferenceValue(
+          testName = "Clausify.F4",
+          scalusBudget = scalusBudget,
+          refBudget = ExBudget(ExCPU(56754761923L), ExMemory(181055087L)),
+          isPrintComparison = false
+        )
     }
 
     test("F5") {
@@ -991,41 +1027,22 @@ class Clausify extends AnyFunSuite, ScalusTest:
                 val expected = List.empty[LRVars]
                 formula.clauses === expected
             }
-            .check(
-              testName = "Clausify.F5",
-              scalusBudget = ExBudget(ExCPU(127163358542L), ExMemory(736502838L)),
-              refBudget = ExBudget(ExCPU(203182153626L), ExMemory(660668247L)),
-              isPrintComparison = false
-            )
+            .toUplcOptimized(false)
+            .evaluateDebug
+
+        val scalusBudget = ExBudget(ExCPU(127163358542L), ExMemory(736502838L))
+        result match
+            case Result.Success(Term.Const(Constant.Bool(true)), budget, _, _) =>
+                assert(budget == scalusBudget)
+            case _ => fail()
+
+        compareResultWithReferenceValue(
+          testName = "Clausify.F5",
+          scalusBudget = scalusBudget,
+          refBudget = ExBudget(ExCPU(203182153626L), ExMemory(660668247L)),
+          isPrintComparison = false
+        )
     }
-
-    extension (self: SIR)
-        def check(
-            testName: String,
-            scalusBudget: ExBudget,
-            refBudget: ExBudget,
-            isPrintComparison: Boolean = false
-        ): Unit =
-            extension (scalus: Long)
-                def comparisonAsJsonString(ref: Long): String =
-                    val comparison = f"${scalus.toDouble / ref.toDouble * 100}%.2f"
-                    s"{scalus: $scalus, ref: $ref, comparison: $comparison%}"
-
-            end extension
-
-            val result = self.toUplcOptimized(false).evaluateDebug
-            result match
-                case Result.Success(Term.Const(Constant.Bool(true)), budget, _, _) =>
-                    if isAlwaysPrintComparison || isPrintComparison then
-                        println(
-                          s"$testName: {" +
-                              s"cpu: ${budget.cpu.comparisonAsJsonString(refBudget.cpu)}, " +
-                              s"memory: ${budget.memory.comparisonAsJsonString(refBudget.memory)}" +
-                              "}"
-                        )
-                    assert(budget == scalusBudget)
-                case _ => fail(s"Test $testName failed: $self")
-    end extension
 
 end Clausify
 

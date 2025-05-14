@@ -157,4 +157,35 @@ trait ScalusTest {
                               s"Expected budget: $budget, but got: ${actual.budget}"
                             )
     }
+
+    def compareResultWithReferenceValue(
+        testName: String,
+        scalusBudget: ExBudget,
+        refBudget: ExBudget,
+        isPrintComparison: Boolean = false
+    ): Unit = {
+        import ScalusTest.BenchmarkConfig
+        extension (scalus: Long)
+            def comparisonAsJsonString(ref: Long): String = {
+                val comparison = f"${scalus.toDouble / ref.toDouble * 100}%.2f"
+                s"{scalus: $scalus, ref: $ref, comparison: $comparison%}"
+            }
+
+        end extension
+
+        if isPrintComparison || BenchmarkConfig.isPrintAllComparisonsOfResultWithReferenceValue then
+            println(
+              s"${BenchmarkConfig.prefixOfLog}$testName: {" +
+                  s"cpu: ${scalusBudget.cpu.comparisonAsJsonString(refBudget.cpu)}, " +
+                  s"memory: ${scalusBudget.memory.comparisonAsJsonString(refBudget.memory)}" +
+                  "}"
+            )
+    }
+}
+
+object ScalusTest {
+    private object BenchmarkConfig {
+        inline val prefixOfLog = ""
+        val isPrintAllComparisonsOfResultWithReferenceValue: Boolean = false
+    }
 }
