@@ -8,7 +8,6 @@ import scalus.builtin.Builtins.blake2b_224
 import scalus.ledger.api.v1.PubKeyHash
 import scalus.ledger.api.v1.Credential.{PubKeyCredential, ScriptCredential}
 import scalus.ledger.api.v3.*
-import scalus.ledger.api.v3.ToDataInstances.given
 import scalus.prelude.*
 import scalus.sir.SIR
 import scalus.uplc.*
@@ -157,5 +156,36 @@ trait ScalusTest {
                               actual.budget == budget,
                               s"Expected budget: $budget, but got: ${actual.budget}"
                             )
+    }
+
+    def compareResultWithReferenceValue(
+        testName: String,
+        scalusBudget: ExBudget,
+        refBudget: ExBudget,
+        isPrintComparison: Boolean = false
+    ): Unit = {
+        import ScalusTest.BenchmarkConfig
+        extension (scalus: Long)
+            def comparisonAsJsonString(ref: Long): String = {
+                val comparison = f"${scalus.toDouble / ref.toDouble * 100}%.2f"
+                s"{scalus: $scalus, ref: $ref, comparison: $comparison%}"
+            }
+
+        end extension
+
+        if isPrintComparison || BenchmarkConfig.isPrintAllComparisonsOfResultWithReferenceValue then
+            println(
+              s"${BenchmarkConfig.prefixOfLog}$testName: {" +
+                  s"cpu: ${scalusBudget.cpu.comparisonAsJsonString(refBudget.cpu)}, " +
+                  s"memory: ${scalusBudget.memory.comparisonAsJsonString(refBudget.memory)}" +
+                  "}"
+            )
+    }
+}
+
+object ScalusTest {
+    private object BenchmarkConfig {
+        inline val prefixOfLog = ""
+        val isPrintAllComparisonsOfResultWithReferenceValue: Boolean = false
     }
 }

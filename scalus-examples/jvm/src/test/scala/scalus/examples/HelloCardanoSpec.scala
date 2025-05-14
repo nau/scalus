@@ -1,36 +1,41 @@
 package scalus.examples
 
-import org.scalatest.funsuite.AnyFunSuite
 import scalus.*
 import scalus.Compiler.compile
 import scalus.builtin.ByteString.*
 import scalus.builtin.Data.toData
-import scalus.builtin.ToDataInstances.given
 import scalus.builtin.{ByteString, Data}
 import scalus.ledger.api.v1.PubKeyHash
-import scalus.ledger.api.v3.given
 import scalus.prelude.*
-import scalus.testkit.*
 import scalus.uplc.*
 import scalus.uplc.eval.*
+import org.scalatest.funsuite.AnyFunSuite
+import scalus.testkit.ScalusTest
 
 import scala.language.implicitConversions
 import scala.math.Ordering.Implicits.*
 
-class HelloCardanoSpec extends AnyFunSuite, ScalusTest {
+class HelloCardanoSpec extends AnyFunSuite with ScalusTest {
 
     test("Hello Cardano") {
         val ownerPubKey = PubKeyHash(hex"1234567890abcdef1234567890abcdef1234567890abcdef12345678")
-        val message = "Hello, Cardano!".toData
+        val message = "Hello, World!".toData
         val context = makeSpendingScriptContext(
           datum = ownerPubKey.toData,
           redeemer = message,
           signatories = List(ownerPubKey)
         )
 
+        val scalusBudget = ExBudget(ExCPU(63687411L), ExMemory(238149L))
         val result = compile(HelloCardano.validate).runScript(context)
-
         assert(result.isSuccess)
-        assert(result.budget <= ExBudget(ExCPU(63808599), ExMemory(238149)))
+        assert(result.budget == scalusBudget)
+
+        compareResultWithReferenceValue(
+          testName = "HelloCardanoSpec.Hello Cardano",
+          scalusBudget = scalusBudget,
+          refBudget = ExBudget(ExCPU(9375627L), ExMemory(28554L)),
+          isPrintComparison = false
+        )
     }
 }
