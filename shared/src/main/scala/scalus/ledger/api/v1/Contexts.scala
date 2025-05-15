@@ -495,8 +495,6 @@ object PubKeyHash {
 
 }
 
-
-
 enum Credential:
     case PubKeyCredential(hash: PubKeyHash)
     case ScriptCredential(hash: ValidatorHash)
