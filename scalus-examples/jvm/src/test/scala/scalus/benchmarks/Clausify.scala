@@ -8,7 +8,6 @@ import scalus.prelude.Eq.given
 import scalus.prelude.Ord.{*, given}
 import scalus.uplc.*
 import scalus.uplc.eval.*
-import scalus.sir.SIR
 import org.scalatest.funsuite.AnyFunSuite
 import scalus.testkit.ScalusTest
 

@@ -14,9 +14,9 @@ trait ParameterizedValidator[A] {
             case ScriptInfo.SpendingScript(txOutRef, datum) =>
                 spend(param, datum, sc.redeemer, sc.txInfo, txOutRef)
             case ScriptInfo.RewardingScript(credential) =>
-                reward(param, credential, sc.txInfo)
+                reward(param, sc.redeemer, credential, sc.txInfo)
             case ScriptInfo.CertifyingScript(index, cert) =>
-                certify(param, cert, sc.txInfo)
+                certify(param, sc.redeemer, cert, sc.txInfo)
             case ScriptInfo.VotingScript(voter) =>
                 vote(param, sc.redeemer, voter, sc.txInfo)
             case ScriptInfo.ProposingScript(index, procedure) =>
@@ -45,6 +45,7 @@ trait ParameterizedValidator[A] {
 
     def reward(
         param: A,
+        redeemer: Data,
         stakingKey: Credential,
         tx: TxInfo
     ): Unit = {
@@ -53,6 +54,7 @@ trait ParameterizedValidator[A] {
 
     def certify(
         param: A,
+        redeemer: Data,
         cert: TxCert,
         tx: TxInfo
     ): Unit = {
@@ -94,9 +96,9 @@ trait DataParameterizedValidator {
             case ScriptInfo.SpendingScript(txOutRef, datum) =>
                 spend(param, datum, sc.redeemer, sc.txInfo, txOutRef)
             case ScriptInfo.RewardingScript(credential) =>
-                reward(param, credential, sc.txInfo)
+                reward(param, sc.redeemer, credential, sc.txInfo)
             case ScriptInfo.CertifyingScript(index, cert) =>
-                certify(param, cert, sc.txInfo)
+                certify(param, sc.redeemer, cert, sc.txInfo)
             case ScriptInfo.VotingScript(voter) =>
                 vote(param, sc.redeemer, voter, sc.txInfo)
             case ScriptInfo.ProposingScript(index, procedure) =>
@@ -125,6 +127,7 @@ trait DataParameterizedValidator {
 
     def reward(
         param: Data,
+        redeemer: Data,
         stakingKey: Credential,
         tx: TxInfo
     ): Unit = {
@@ -133,6 +136,7 @@ trait DataParameterizedValidator {
 
     def certify(
         param: Data,
+        redeemer: Data,
         cert: TxCert,
         tx: TxInfo
     ): Unit = {

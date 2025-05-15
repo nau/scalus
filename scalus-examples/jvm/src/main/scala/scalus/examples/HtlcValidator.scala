@@ -4,8 +4,6 @@ import scalus.*
 import scalus.Compiler.compile
 import scalus.builtin.Builtins.sha3_256
 import scalus.builtin.Data.{FromData, ToData}
-import scalus.builtin.FromDataInstances.given
-import scalus.builtin.ToDataInstances.given
 import scalus.builtin.{ByteString, Data, FromData, ToData}
 import scalus.ledger.api.v3.*
 import scalus.prelude.{*, given}
@@ -32,10 +30,10 @@ object HtlcValidator extends Validator:
 
     // Data converters for ContractDatum and Action
     // used in test and transaction building offchain logic
-    given FromData[ContractDatum] = FromData.deriveCaseClass[ContractDatum]
-    given ToData[ContractDatum] = ToData.deriveCaseClass[ContractDatum](0)
-    given FromData[Action] = FromData.deriveEnum[Action]
-    given ToData[Action] = ToData.deriveEnum[Action]
+    given FromData[ContractDatum] = FromData.derived
+    given ToData[ContractDatum] = ToData.derived
+    given FromData[Action] = FromData.derived
+    given ToData[Action] = ToData.derived
 
     // val d = Action.Timeout.toData
 
