@@ -268,7 +268,7 @@ class HtlcValidatorSpec extends AnyFunSuite with ScalusTest {
             val actual = Try(HtlcValidator.validate(context.toData))
             (expected, actual) match
                 case ((msg: String, _), scala.util.Failure(exception)) =>
-                case (((), _), scala.util.Success(_))          =>
+                case (((), _), scala.util.Success(_))                  =>
                 case (_, actual) => fail(s"Expected: $expected, but got: $actual")
 
             checkResult(expected = expected, actual = script.runWithDebug(context))
