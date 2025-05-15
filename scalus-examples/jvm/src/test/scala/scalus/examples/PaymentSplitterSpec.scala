@@ -23,109 +23,145 @@ import scala.util.control.NonFatal
 class PaymentSplitterSpec extends AnyFunSuite, ScalusTest {
     import Payee.*
 
-    TestCases(
-      TestCase(
-        description = "success when payments are correctly split for a single payee",
-        payees = List(A),
-        amount = 30,
-        fee = 2,
-        inputs = List(A gives 10),
-        outputs = List(A gets 38),
-        expected = success
-      ),
-      TestCase(
-        description = "success when payments are correctly split between 2 payees",
-        payees = List(A, B),
-        amount = 30,
-        fee = 2,
-        inputs = List(A gives 10),
-        outputs = List(A gets 23, B gets 15),
-        expected = success
-      ),
-      TestCase(
-        description = "success when payments are correctly split between 3 payees",
-        payees = List(A, B, C),
-        amount = 30,
-        fee = 2,
-        inputs = List(A gives 10),
-        outputs = List(A gets 18, B gets 10, C gets 10),
-        expected = success
-      ),
-      TestCase(
-        description = "failure when a payee is not present in the inputs",
-        payees = List(A, B),
-        amount = 30,
-        fee = 2,
-        inputs = List.empty,
-        outputs = List(A gets 14, B gets 14),
-        expected = failure(
-          "One of the payees must have an input to pay the fee and trigger the payout"
+    test("success when payments are correctly split for a single payee") {
+        TestCase(
+          payees = List(A),
+          amount = 30,
+          fee = 2,
+          inputs = List(A gives 10),
+          outputs = List(A gets 38),
+          expected = success
+        ).runWithDebug()
+    }
+
+    test("success when payments are correctly split between 2 payees") {
+        TestCase(
+          payees = List(A, B),
+          amount = 30,
+          fee = 2,
+          inputs = List(A gives 10),
+          outputs = List(A gets 23, B gets 15),
+          expected = success
+        ).runWithDebug()
+    }
+
+    test("success when payments are correctly split between 3 payees") {
+        val scalusBudget = ExBudget(ExCPU(177207006L), ExMemory(783048L))
+        TestCase(
+          payees = List(A, B, C),
+          amount = 30,
+          fee = 2,
+          inputs = List(A gives 10),
+          outputs = List(A gets 18, B gets 10, C gets 10),
+          expected = success(scalusBudget)
+        ).runWithDebug()
+
+        compareBudgetWithReferenceValue(
+          testName =
+              "PaymentSplitterSpec.success when payments are correctly split between 3 payees",
+          scalusBudget = scalusBudget,
+          refBudget = ExBudget(ExCPU(290456791L), ExMemory(742305L)),
+          isPrintComparison = false
         )
-      ),
-      TestCase(
-        description = "failure when a payee is not payed out (1 payee)",
-        payees = List(A),
-        amount = 30,
-        fee = 2,
-        inputs = List(A gives 10),
-        outputs = List.empty,
-        expected = failure("Not all payees were paid")
-      ),
-      TestCase(
-        description = "failure when a one of the payee is not payed out",
-        payees = List(A, B),
-        amount = 30,
-        fee = 2,
-        inputs = List(A gives 10),
-        outputs = List(A gets 38),
-        expected = failure("Not all payees were paid")
-      ),
-      TestCase(
-        description = "failure when payee not present in contact to be payed",
-        payees = List(A, B),
-        amount = 30,
-        fee = 2,
-        inputs = List(A gives 10),
-        outputs = List(A gets 18, B gets 10, C gets 10),
-        expected = failure("More outputs than payees")
-      ),
-      TestCase(
-        description = "success when split equally and remainder compensates fee - o1",
-        payees = List(A, B, C),
-        amount = 31,
-        fee = 2,
-        inputs = List(A gives 3),
-        outputs = List(A gets 12, B gets 10, C gets 10),
-        expected = success
-      ),
-      TestCase(
-        description = "success when split equally and remainder compensates fee - o2",
-        payees = List(A, B, C),
-        amount = 31,
-        fee = 3,
-        inputs = List(A gives 3),
-        outputs = List(A gets 11, B gets 10, C gets 10),
-        expected = success
-      ),
-      TestCase(
-        description = "success when split equally and remainder compensates fee - o3",
-        payees = List(A, B, C),
-        amount = 31,
-        fee = 4,
-        inputs = List(A gives 3),
-        outputs = List(A gets 10, B gets 10, C gets 10),
-        expected = success
-      ),
-      TestCase(
-        description = "failure when inflated fee reduces the split payout",
-        payees = List(A, B, C),
-        amount = 31,
-        fee = 10,
-        inputs = List(A gives 3),
-        outputs = List(A gets 8, B gets 8, C gets 8),
-        expected = failure("value to be payed to payees is too low")
-      )
-    )
+    }
+
+    test("failure when a payee is not present in the inputs") {
+        TestCase(
+          payees = List(A, B),
+          amount = 30,
+          fee = 2,
+          inputs = List.empty,
+          outputs = List(A gets 14, B gets 14),
+          expected = failure(
+            "One of the payees must have an input to pay the fee and trigger the payout"
+          )
+        ).runWithDebug()
+    }
+
+    test("failure when a payee is not payed out (1 payee)") {
+        TestCase(
+          payees = List(A),
+          amount = 30,
+          fee = 2,
+          inputs = List(A gives 10),
+          outputs = List.empty,
+          expected = failure("Not all payees were paid")
+        ).runWithDebug()
+    }
+
+    test("failure when a one of the payee is not payed out") {
+        val scalusBudget = ExBudget(ExCPU(130862328L), ExMemory(566950L))
+        TestCase(
+          payees = List(A, B),
+          amount = 30,
+          fee = 2,
+          inputs = List(A gives 10),
+          outputs = List(A gets 38),
+          expected = failure("Not all payees were paid", scalusBudget)
+        ).runWithDebug()
+
+        compareBudgetWithReferenceValue(
+          testName = "PaymentSplitterSpec.failure when a one of the payee is not payed out",
+          scalusBudget = scalusBudget,
+          refBudget = ExBudget(ExCPU(177206757L), ExMemory(476022L)),
+          isPrintComparison = false
+        )
+    }
+
+    test("failure when payee not present in contact to be payed") {
+        TestCase(
+          payees = List(A, B),
+          amount = 30,
+          fee = 2,
+          inputs = List(A gives 10),
+          outputs = List(A gets 18, B gets 10, C gets 10),
+          expected = failure("More outputs than payees")
+        ).runWithDebug()
+    }
+
+    test("success when split equally and remainder compensates fee - o1") {
+        TestCase(
+          payees = List(A, B, C),
+          amount = 31,
+          fee = 2,
+          inputs = List(A gives 3),
+          outputs = List(A gets 12, B gets 10, C gets 10),
+          expected = success
+        ).runWithDebug()
+    }
+
+    test("success when split equally and remainder compensates fee - o2") {
+        TestCase(
+          payees = List(A, B, C),
+          amount = 31,
+          fee = 3,
+          inputs = List(A gives 3),
+          outputs = List(A gets 11, B gets 10, C gets 10),
+          expected = success
+        ).runWithDebug()
+    }
+
+    test("success when split equally and remainder compensates fee - o3") {
+        TestCase(
+          payees = List(A, B, C),
+          amount = 31,
+          fee = 4,
+          inputs = List(A gives 3),
+          outputs = List(A gets 10, B gets 10, C gets 10),
+          expected = success
+        ).runWithDebug()
+    }
+
+    test("failure when inflated fee reduces the split payout") {
+        TestCase(
+          payees = List(A, B, C),
+          amount = 31,
+          fee = 10,
+          inputs = List(A gives 3),
+          outputs = List(A gets 8, B gets 8, C gets 8),
+          expected = failure("value to be payed to payees is too low")
+        ).runWithDebug()
+    }
 
     test("failure when multiple payees are present in the inputs") {
         val payees = List(A.pkh, B.pkh)
@@ -181,7 +217,7 @@ class PaymentSplitterSpec extends AnyFunSuite, ScalusTest {
         inputs: List[TxInInfo],
         outputs: List[(ByteString, BigInt)],
         fee: BigInt,
-        expected: Either[String, Option[ExBudget]]
+        expected: (String | Unit, Option[ExBudget])
     ): Unit = assertCase(script)(payees, inputs, outputs, fee, expected)
 
     private def assertCase(script: Program)(
@@ -189,7 +225,7 @@ class PaymentSplitterSpec extends AnyFunSuite, ScalusTest {
         inputs: List[TxInInfo],
         outputs: List[(ByteString, BigInt)],
         fee: BigInt,
-        expected: Either[String, Option[ExBudget]]
+        expected: (String | Unit, Option[ExBudget])
     ): Unit = {
         // Create script with payees parameter
 
@@ -239,52 +275,13 @@ class PaymentSplitterSpec extends AnyFunSuite, ScalusTest {
             try PaymentSplitter.validate(List(payees.toData).toData)(context.toData)
             catch
                 case NonFatal(ex) =>
-                    if expected.isRight then throw ex
+                    if expected._1.isInstanceOf[Unit] then throw ex
 
         // Evaluate the program
         val result = programWithContext.evaluateDebug
 
         // Assert the result matches the expected outcome
-        expected match
-            case Left(errorMsg) =>
-                assert(
-                  result.isFailure,
-                  clue = s"Expected failure with: $errorMsg, but got success"
-                )
-                // If a specific error message is provided, check it matches
-                assert(
-                  result.logs.exists(_.contains(errorMsg)),
-                  clue =
-                      s"Expected error containing: $errorMsg, but got: ${result.logs.mkString(", ")}"
-                )
-            case Right(success) =>
-                success match
-                    case Option.None =>
-                        result match
-                            case Result.Failure(ex, budget, cost, logs) =>
-                                ex match
-                                    case be: scalus.uplc.eval.BuiltinError =>
-                                        be.cause.printStackTrace()
-                                    case _ =>
-                            case _ =>
-                        assert(
-                          result.isSuccess,
-                          clue =
-                              s"Expected success, but got: ${result.toString}, logs0: ${result.logs.mkString(", ")}"
-                        )
-                    case Option.Some(budget) =>
-                        assert(
-                          result.isSuccess,
-                          clue =
-                              s"Expected success with budget: $budget, but got: ${result.toString}, logs0: ${result.logs
-                                      .mkString(", ")}"
-                        )
-                        if budget != ExBudget(ExCPU(0), ExMemory(0))
-                        then // Check if budget verification is requested
-                            assert(
-                              result.budget == budget,
-                              clue = s"Expected budget: $budget, but got: ${result.budget}"
-                            )
+        checkResult(expected, result)
     }
 
     private def makePayeeInput(pkh: ByteString, idx: Int, value: BigInt): TxInInfo = {
@@ -326,40 +323,29 @@ class PaymentSplitterSpec extends AnyFunSuite, ScalusTest {
     case class Output(payee: Payee, amount: BigInt)
 
     case class TestCase(
-        description: String,
         payees: List[Payee],
         amount: BigInt,
         fee: BigInt,
         inputs: List[Input],
         outputs: List[Output],
-        expected: Either[String, Option[ExBudget]]
-    )
-
-    object TestCases {
-        def apply(cases: TestCase*): Unit = {
-            cases.zipWithIndex.foreach {
-                case (
-                      TestCase(description, payees, amount, fee, inputs, outputs, expected),
-                      caseIndex
-                    ) =>
-                    test(s"${caseIndex + 1}: $description") {
-                        assertCase(
-                          payees.map(_.pkh),
-                          inputs = List.from(
-                            inputs.asScala.zipWithIndex
-                                .map { case (Input(payee, amount), index) =>
-                                    makePayeeInput(payee.pkh, index, amount)
-                                }
-                                .prepended(makeScriptInput(amount))
-                          ),
-                          outputs = outputs.map { case Output(payee, amount) =>
-                              (payee.pkh, amount)
-                          },
-                          fee = fee,
-                          expected = expected
-                        )
+        expected: (String | Unit, Option[ExBudget])
+    ) {
+        def runWithDebug(): Unit = {
+            assertCase(
+              payees.map(_.pkh),
+              inputs = List.from(
+                inputs.asScala.zipWithIndex
+                    .map { case (Input(payee, amount), index) =>
+                        makePayeeInput(payee.pkh, index, amount)
                     }
-            }
+                    .prepended(makeScriptInput(amount))
+              ),
+              outputs = outputs.map { case Output(payee, amount) =>
+                  (payee.pkh, amount)
+              },
+              fee = fee,
+              expected = expected
+            )
         }
     }
 }
