@@ -10,10 +10,15 @@ import scalus.prelude.{*, given}
   Example for a validator that requires a withdrawal from its script for each
   spend. Note that depending on an external script is typically more
   performant.
-*/
+ */
 @Compile
 object StakeValidatorExample extends Validator {
-    override def spend(datum: Option[Data], redeemer: Redeemer, tx: TxInfo, ownRef: TxOutRef): Unit = {
+    override def spend(
+        datum: Option[Data],
+        redeemer: Redeemer,
+        tx: TxInfo,
+        ownRef: TxOutRef
+    ): Unit = {
         val ownAddress = tx.inputs.find(_.outRef === ownRef).get.resolved.address
         val ownWithdrawal = ownAddress.credential match
             case Credential.ScriptCredential(validatorHash) => validatorHash
