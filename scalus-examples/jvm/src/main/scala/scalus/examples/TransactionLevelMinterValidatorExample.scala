@@ -27,12 +27,15 @@ object TransactionLevelMinterValidatorExample extends Validator {
         ownRef: TxOutRef
     ): Unit = {
         val sampleSpendRedeemer = redeemer.to[SampleSpendRedeemer]
+        // Grabbing spending UTxO based on the provided index.
         val input = tx.inputs.get(sampleSpendRedeemer.ownIndex).getOrFail("Undefined ownIndex")
         val ownAddress = input.resolved.address
         val outRef = input.outRef
 
+        // Validating that the found UTxO is in fact the spending UTxO.
         require(ownRef === outRef)
 
+        // Getting the validator's script hash.
         val ownHash = ownAddress.credential match
             case Credential.ScriptCredential(validatorHash) => validatorHash
             case _ => fail("Own address must be ScriptCredential")
