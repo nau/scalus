@@ -9,43 +9,43 @@ import io.bullet.borer.{Decoder, Encoder, Reader, Writer}
   * of the Cardano blockchain.
   */
 case class ProtocolParamUpdate(
-    // Basic parameters
-    minFeeA: Option[Coin] = None,
-    minFeeB: Option[Coin] = None,
-    maxBlockBodySize: Option[Int] = None,
-    maxTxSize: Option[Int] = None,
-    maxBlockHeaderSize: Option[Int] = None,
-    keyDeposit: Option[Coin] = None,
-    poolDeposit: Option[Coin] = None,
-    maxEpoch: Option[Int] = None,
-    nOpt: Option[Int] = None,
-    poolPledgeInfluence: Option[NonnegativeInterval] = None,
-    expansionRate: Option[UnitInterval] = None,
-    treasuryGrowthRate: Option[UnitInterval] = None,
+                                  // Basic parameters
+                                  minFeeA: Option[Coin] = None,
+                                  minFeeB: Option[Coin] = None,
+                                  maxBlockBodySize: Option[Int] = None,
+                                  maxTxSize: Option[Int] = None,
+                                  maxBlockHeaderSize: Option[Int] = None,
+                                  keyDeposit: Option[Coin] = None,
+                                  poolDeposit: Option[Coin] = None,
+                                  maxEpoch: Option[Int] = None,
+                                  nOpt: Option[Int] = None,
+                                  poolPledgeInfluence: Option[NonNegativeInterval] = None,
+                                  expansionRate: Option[UnitInterval] = None,
+                                  treasuryGrowthRate: Option[UnitInterval] = None,
 
-    // Advanced parameters
-    minPoolCost: Option[Coin] = None,
-    adaPerUtxoByte: Option[Coin] = None,
-    costModels: Option[CostModels] = None,
-    executionCosts: Option[ExUnitPrices] = None,
-    maxTxExUnits: Option[ExUnits] = None,
-    maxBlockExUnits: Option[ExUnits] = None,
-    maxValueSize: Option[Int] = None,
-    collateralPercentage: Option[Int] = None,
-    maxCollateralInputs: Option[Int] = None,
+                                  // Advanced parameters
+                                  minPoolCost: Option[Coin] = None,
+                                  adaPerUtxoByte: Option[Coin] = None,
+                                  costModels: Option[CostModels] = None,
+                                  executionCosts: Option[ExUnitPrices] = None,
+                                  maxTxExUnits: Option[ExUnits] = None,
+                                  maxBlockExUnits: Option[ExUnits] = None,
+                                  maxValueSize: Option[Int] = None,
+                                  collateralPercentage: Option[Int] = None,
+                                  maxCollateralInputs: Option[Int] = None,
 
-    // Governance parameters
-    poolVotingThresholds: Option[PoolVotingThresholds] = None,
-    drepVotingThresholds: Option[DRepVotingThresholds] = None,
-    minCommitteeSize: Option[Int] = None,
-    committeeTermLimit: Option[Int] = None,
-    governanceActionValidityPeriod: Option[Int] = None,
-    governanceActionDeposit: Option[Coin] = None,
-    drepDeposit: Option[Coin] = None,
-    drepInactivityPeriod: Option[Int] = None,
+                                  // Governance parameters
+                                  poolVotingThresholds: Option[PoolVotingThresholds] = None,
+                                  drepVotingThresholds: Option[DRepVotingThresholds] = None,
+                                  minCommitteeSize: Option[Int] = None,
+                                  committeeTermLimit: Option[Int] = None,
+                                  governanceActionValidityPeriod: Option[Int] = None,
+                                  governanceActionDeposit: Option[Coin] = None,
+                                  drepDeposit: Option[Coin] = None,
+                                  drepInactivityPeriod: Option[Int] = None,
 
-    // Reference scripts
-    minFeeRefScriptCoinsPerByte: Option[NonnegativeInterval] = None
+                                  // Reference scripts
+                                  minFeeRefScriptCoinsPerByte: Option[NonNegativeInterval] = None
 )
 
 object ProtocolParamUpdate {
@@ -149,7 +149,7 @@ object ProtocolParamUpdate {
             var poolDeposit: Option[Coin] = None
             var maxEpoch: Option[Int] = None
             var nOpt: Option[Int] = None
-            var poolPledgeInfluence: Option[NonnegativeInterval] = None
+            var poolPledgeInfluence: Option[NonNegativeInterval] = None
             var expansionRate: Option[UnitInterval] = None
             var treasuryGrowthRate: Option[UnitInterval] = None
             var minPoolCost: Option[Coin] = None
@@ -169,7 +169,7 @@ object ProtocolParamUpdate {
             var governanceActionDeposit: Option[Coin] = None
             var drepDeposit: Option[Coin] = None
             var drepInactivityPeriod: Option[Int] = None
-            var minFeeRefScriptCoinsPerByte: Option[NonnegativeInterval] = None
+            var minFeeRefScriptCoinsPerByte: Option[NonNegativeInterval] = None
 
             // Read all fields based on their keys
             for _ <- 0L until mapSize do {
@@ -186,7 +186,7 @@ object ProtocolParamUpdate {
                     case 6  => poolDeposit = Some(r.read[Coin]())
                     case 7  => maxEpoch = Some(r.readInt())
                     case 8  => nOpt = Some(r.readInt())
-                    case 9  => poolPledgeInfluence = Some(r.read[NonnegativeInterval]())
+                    case 9  => poolPledgeInfluence = Some(r.read[NonNegativeInterval]())
                     case 10 => expansionRate = Some(r.read[UnitInterval]())
                     case 11 => treasuryGrowthRate = Some(r.read[UnitInterval]())
 
@@ -212,7 +212,7 @@ object ProtocolParamUpdate {
                     case 32 => drepInactivityPeriod = Some(r.readInt())
 
                     // Reference scripts parameters
-                    case 33 => minFeeRefScriptCoinsPerByte = Some(r.read[NonnegativeInterval]())
+                    case 33 => minFeeRefScriptCoinsPerByte = Some(r.read[NonNegativeInterval]())
 
                     case _ => r.skipElement() // Skip unknown fields
                 }

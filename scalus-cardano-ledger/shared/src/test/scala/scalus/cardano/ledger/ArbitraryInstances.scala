@@ -14,19 +14,67 @@ trait ArbitraryInstances extends uplc.ArbitraryInstances {
             .map(a => ByteString.unsafeFromArray(a))
     }
 
+    def genMapOfN[A: Arbitrary, B: Arbitrary](n: Int): Gen[scala.collection.immutable.Map[A, B]] = {
+        Gen.mapOfN(
+          n,
+          for
+              key <- summon[Arbitrary[A]].arbitrary
+              value <- summon[Arbitrary[B]].arbitrary
+          yield (key, value)
+        )
+    }
+
     given Arbitrary[Hash28] = Arbitrary(genByteStringOfN(28).map(Hash28.apply))
     given Arbitrary[Hash32] = Arbitrary(genByteStringOfN(32).map(Hash32.apply))
     given Arbitrary[AddrKeyHash] = autoDerived
     given Arbitrary[ScriptHash] = autoDerived
     given Arbitrary[Anchor] = autoDerived
     given Arbitrary[Credential] = autoDerived
-    given Arbitrary[Coin] = Arbitrary(Gen.posNum[Long].map(Coin.apply))
+    given Arbitrary[Coin] = Arbitrary(Gen.choose(0L, Long.MaxValue).map(Coin.apply))
+
     given Arbitrary[AssetName] = Arbitrary {
         for
             size <- Gen.choose(0, 32)
             bs <- genByteStringOfN(size)
         yield AssetName(bs)
     }
+
+    given Arbitrary[Mint] = {
+        import scala.collection.immutable.Map
+
+        given [A: Arbitrary, B: Arbitrary]: Arbitrary[Map[A, B]] =
+            Arbitrary(Gen.choose(0, 8).flatMap(genMapOfN))
+
+        summon[Arbitrary[Mint]]
+    }
+
+    given Arbitrary[Language] = autoDerived
+    given Arbitrary[Address] = autoDerived
+    given Arbitrary[Slot] = Arbitrary(Gen.choose(0L, Long.MaxValue).map(Slot.apply))
+
+    given Arbitrary[ExUnits] = Arbitrary {
+        for {
+            mem <- Gen.choose(0L, Long.MaxValue)
+            steps <- Gen.choose(0L, Long.MaxValue)
+        } yield ExUnits(mem, steps)
+    }
+
+    given Arbitrary[ExUnitPrices] = autoDerived
+
+    given Arbitrary[CostModels] = {
+        import scala.collection.immutable.{List, Map}
+
+        given [A: Arbitrary, B: Arbitrary]: Arbitrary[Map[A, B]] =
+            Arbitrary(Gen.choose(0, 8).flatMap(genMapOfN))
+
+        given [A: Arbitrary]: Arbitrary[List[A]] = Arbitrary(
+          Gen.choose(0, 8).flatMap(Gen.listOfN(_, summon[Arbitrary[A]].arbitrary))
+        )
+
+        Arbitrary(summon[Arbitrary[Map[Int, List[Long]]]].arbitrary.map(CostModels.apply))
+    }
+
+    given Arbitrary[Constitution] = autoDerived
     given Arbitrary[Value] = autoDerived
     given Arbitrary[DRep] = autoDerived
     given Arbitrary[GovActionId] = Arbitrary {
@@ -124,4 +172,59 @@ trait ArbitraryInstances extends uplc.ArbitraryInstances {
     given Arbitrary[Timelock] = Arbitrary(TimelockGen.genTimelock)
     given Arbitrary[TransactionInput] = autoDerived
     given Arbitrary[TransactionOutput] = autoDerived
+    given Arbitrary[ProtocolVersion] = Arbitrary {
+        for
+            major <- Gen.choose(1, 10)
+            minor <- Gen.choose(0, Int.MaxValue)
+        yield ProtocolVersion(major, minor)
+    }
+    given Arbitrary[RewardAccount] = autoDerived
+
+    given Arbitrary[NonNegativeInterval] = Arbitrary {
+        for
+            numerator <- Gen.choose(0L, Long.MaxValue)
+            denominator <- Gen.posNum[Long]
+        yield NonNegativeInterval(numerator, denominator)
+    }
+
+    given Arbitrary[VrfCert] = Arbitrary {
+        for
+            outputSize <- Gen.choose(0, 128)
+            output <- genByteStringOfN(outputSize)
+            proof <- genByteStringOfN(80)
+        yield VrfCert(output, proof)
+    }
+
+    given Arbitrary[BlockHeaderBody] = Arbitrary {
+        for
+            blockNumber <- Gen.choose(0L, Long.MaxValue)
+            slot <- Gen.choose(0L, Long.MaxValue)
+            prevHash <- summon[Arbitrary[Option[Hash32]]].arbitrary
+            issuerVkey <- genByteStringOfN(32)
+            vrfVkey <- genByteStringOfN(32)
+            vrfResult <- summon[Arbitrary[VrfCert]].arbitrary
+            blockBodySize <- Gen.choose(0L, Long.MaxValue)
+            blockBodyHash <- summon[Arbitrary[Hash32]].arbitrary
+            operationalCert <- summon[Arbitrary[OperationalCert]].arbitrary
+            protocolVersion <- summon[Arbitrary[ProtocolVersion]].arbitrary
+        yield BlockHeaderBody(
+          blockNumber,
+          slot,
+          prevHash,
+          issuerVkey,
+          vrfVkey,
+          vrfResult,
+          blockBodySize,
+          blockBodyHash,
+          operationalCert,
+          protocolVersion
+        )
+    }
+
+    given Arbitrary[BlockHeader] = Arbitrary {
+        for
+            headerBody <- summon[Arbitrary[BlockHeaderBody]].arbitrary
+            bodySignature <- genByteStringOfN(448)
+        yield BlockHeader(headerBody, bodySignature)
+    }
 }
