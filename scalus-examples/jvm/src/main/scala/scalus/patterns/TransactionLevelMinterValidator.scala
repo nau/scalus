@@ -1,4 +1,4 @@
-package scalus.examples
+package scalus.patterns
 
 import scalus.*
 import scalus.prelude.{*, given}

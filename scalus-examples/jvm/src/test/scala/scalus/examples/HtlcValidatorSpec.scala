@@ -16,7 +16,6 @@ import scalus.builtin.Builtins.sha3_256
 import scalus.builtin.Data.toData
 import scalus.builtin.{ByteString, Data}
 import scalus.ledger.api.v3.*
-import scalus.ledger.api.v3.ToDataInstances.given
 import scalus.prelude.*
 import scalus.testkit.ScalusTest
 import scalus.uplc.*
@@ -105,7 +104,6 @@ class HtlcValidatorSpec extends AnyFunSuite with ScalusTest {
             makeContext(htlcInput, scriptRefInput, tx, datum)
 
         // run as Scala function
-        import scalus.ledger.api.v3.ToDataInstances.given
         HtlcValidator.validate(context.toData)
 
         // run as UPLC script

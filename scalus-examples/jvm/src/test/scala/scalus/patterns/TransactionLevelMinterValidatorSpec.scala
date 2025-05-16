@@ -1,11 +1,11 @@
-package scalus.examples
+package scalus.patterns
 
-import org.scalatest.funsuite.AnyFunSuite
-import org.scalatest.matchers.should.Matchers.*
 import scalus.*
 import scalus.builtin.Data
 import scalus.ledger.api.v3.*
 import scalus.prelude.*
+import org.scalatest.funsuite.AnyFunSuite
+import org.scalatest.matchers.should.Matchers.*
 import scalus.testkit.ScalusTest
 
 class TransactionLevelMinterValidatorSpec extends AnyFunSuite with ScalusTest {
