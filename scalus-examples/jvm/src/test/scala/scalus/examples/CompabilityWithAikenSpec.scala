@@ -36,7 +36,7 @@ class CompabilityWithAikenSpec extends AnyFunSuite, ScalusTest {
 
     import Payee.*
 
-    test("run aiken-compiled test") {
+    test("run aiken-compiled test with two payeers in the outputs") {
         val payees = List(A.pkh, B.pkh, C.pkh, D.pkh, E.pkh)
         assertCase(
           payees,
@@ -47,6 +47,29 @@ class CompabilityWithAikenSpec extends AnyFunSuite, ScalusTest {
           outputs = List(
             (A.pkh, 3000000),
             (A.pkh, 41115417),
+            (B.pkh, 3000000),
+            (C.pkh, 3000000),
+            (D.pkh, 3000000),
+            (E.pkh, 3000000)
+          ),
+          fee = 846025,
+          extraSignatories = List(
+            ByteString.fromHex("52bd00e69e371daa373c021c3f4321356902016c320e41526e239406")
+          ),
+          expected = Right(Option.None)
+        )
+    }
+
+    test("run aiken-compiled test with merged outputs") {
+        val payees = List(A.pkh, B.pkh, C.pkh, D.pkh, E.pkh)
+        assertCase(
+          payees,
+          inputs = List(
+            makePayeeInput(A.pkh, idx = 0, value = 41961442),
+            makeScriptInput(15000000),
+          ),
+          outputs = List(
+            (A.pkh, 3000000 + 41115417),
             (B.pkh, 3000000),
             (C.pkh, 3000000),
             (D.pkh, 3000000),
