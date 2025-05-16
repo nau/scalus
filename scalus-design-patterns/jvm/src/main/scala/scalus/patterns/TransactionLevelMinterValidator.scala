@@ -1,8 +1,8 @@
 package scalus.patterns
 
 import scalus.*
+import scalus.ledger.api.v3.*
 import scalus.prelude.{*, given}
-import scalus.ledger.api.v3.{Redeemer, ScriptPurpose, TokenName, TxInfo, ValidatorHash}
 
 // This design pattern couples the spend and minting endpoints of a validator,
 // in order to have minimal spend costs, in exchange for a single execution of
