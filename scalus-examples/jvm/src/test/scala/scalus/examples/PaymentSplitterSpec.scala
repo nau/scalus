@@ -192,6 +192,51 @@ class PaymentSplitterSpec extends AnyFunSuite, ScalusTest {
         )
     }
 
+    test("success between 5 splitters with merged outputs") {
+        val payees = List(A.pkh, B.pkh, C.pkh, D.pkh, E.pkh)
+        assertCase(
+          payees,
+          inputs = List(
+            makePayeeInput(A.pkh, idx = 0, value = 41961442),
+            makeScriptInput(15000000),
+          ),
+          outputs = List(
+            (A.pkh, 3000000 + 41115417),
+            (B.pkh, 3000000),
+            (C.pkh, 3000000),
+            (D.pkh, 3000000),
+            (E.pkh, 3000000)
+          ),
+          fee = 846025,
+          expected = success
+        )
+    }
+
+    // this test=case illustrate the difference between the oriignal aiken implementation and our.
+    //  maybe support this case too ?
+    test(
+      "failure between 5 splitters were first splitter have separate outputs for fee and payout"
+    ) {
+        val payees = List(A.pkh, B.pkh, C.pkh, D.pkh, E.pkh)
+        assertCase(
+          payees,
+          inputs = List(
+            makePayeeInput(A.pkh, idx = 0, value = 41961442),
+            makeScriptInput(15000000),
+          ),
+          outputs = List(
+            (A.pkh, 3000000),
+            (A.pkh, 41115417),
+            (B.pkh, 3000000),
+            (C.pkh, 3000000),
+            (D.pkh, 3000000),
+            (E.pkh, 3000000)
+          ),
+          fee = 846025,
+          expected = failure("Must pay to a payee")
+        )
+    }
+
     private val script = {
         try {
             compile(PaymentSplitter.validate)
