@@ -9,43 +9,43 @@ import io.bullet.borer.{Decoder, Encoder, Reader, Writer}
   * of the Cardano blockchain.
   */
 case class ProtocolParamUpdate(
-                                  // Basic parameters
-                                  minFeeA: Option[Coin] = None,
-                                  minFeeB: Option[Coin] = None,
-                                  maxBlockBodySize: Option[Int] = None,
-                                  maxTxSize: Option[Int] = None,
-                                  maxBlockHeaderSize: Option[Int] = None,
-                                  keyDeposit: Option[Coin] = None,
-                                  poolDeposit: Option[Coin] = None,
-                                  maxEpoch: Option[Int] = None,
-                                  nOpt: Option[Int] = None,
-                                  poolPledgeInfluence: Option[NonNegativeInterval] = None,
-                                  expansionRate: Option[UnitInterval] = None,
-                                  treasuryGrowthRate: Option[UnitInterval] = None,
+    // Basic parameters
+    minFeeA: Option[Coin] = None,
+    minFeeB: Option[Coin] = None,
+    maxBlockBodySize: Option[Int] = None,
+    maxTxSize: Option[Int] = None,
+    maxBlockHeaderSize: Option[Int] = None,
+    keyDeposit: Option[Coin] = None,
+    poolDeposit: Option[Coin] = None,
+    maxEpoch: Option[Int] = None,
+    nOpt: Option[Int] = None,
+    poolPledgeInfluence: Option[NonNegativeInterval] = None,
+    expansionRate: Option[UnitInterval] = None,
+    treasuryGrowthRate: Option[UnitInterval] = None,
 
-                                  // Advanced parameters
-                                  minPoolCost: Option[Coin] = None,
-                                  adaPerUtxoByte: Option[Coin] = None,
-                                  costModels: Option[CostModels] = None,
-                                  executionCosts: Option[ExUnitPrices] = None,
-                                  maxTxExUnits: Option[ExUnits] = None,
-                                  maxBlockExUnits: Option[ExUnits] = None,
-                                  maxValueSize: Option[Int] = None,
-                                  collateralPercentage: Option[Int] = None,
-                                  maxCollateralInputs: Option[Int] = None,
+    // Advanced parameters
+    minPoolCost: Option[Coin] = None,
+    adaPerUtxoByte: Option[Coin] = None,
+    costModels: Option[CostModels] = None,
+    executionCosts: Option[ExUnitPrices] = None,
+    maxTxExUnits: Option[ExUnits] = None,
+    maxBlockExUnits: Option[ExUnits] = None,
+    maxValueSize: Option[Int] = None,
+    collateralPercentage: Option[Int] = None,
+    maxCollateralInputs: Option[Int] = None,
 
-                                  // Governance parameters
-                                  poolVotingThresholds: Option[PoolVotingThresholds] = None,
-                                  drepVotingThresholds: Option[DRepVotingThresholds] = None,
-                                  minCommitteeSize: Option[Int] = None,
-                                  committeeTermLimit: Option[Int] = None,
-                                  governanceActionValidityPeriod: Option[Int] = None,
-                                  governanceActionDeposit: Option[Coin] = None,
-                                  drepDeposit: Option[Coin] = None,
-                                  drepInactivityPeriod: Option[Int] = None,
+    // Governance parameters
+    poolVotingThresholds: Option[PoolVotingThresholds] = None,
+    drepVotingThresholds: Option[DRepVotingThresholds] = None,
+    minCommitteeSize: Option[Int] = None,
+    committeeTermLimit: Option[Int] = None,
+    governanceActionValidityPeriod: Option[Int] = None,
+    governanceActionDeposit: Option[Coin] = None,
+    drepDeposit: Option[Coin] = None,
+    drepInactivityPeriod: Option[Int] = None,
 
-                                  // Reference scripts
-                                  minFeeRefScriptCoinsPerByte: Option[NonNegativeInterval] = None
+    // Reference scripts
+    minFeeRefScriptCoinsPerByte: Option[NonNegativeInterval] = None
 )
 
 object ProtocolParamUpdate {
