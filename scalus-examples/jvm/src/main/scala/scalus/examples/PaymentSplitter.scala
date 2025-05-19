@@ -35,9 +35,8 @@ object PaymentSplitter extends DataParameterizedValidator {
         tx: TxInfo,
         ownRef: TxOutRef
     ): Unit = {
-        // Note, that this expression is for compatibility
-        // with the data parametrization of the Aiken implementation.
-        val payees = payeesData.toList.head
+
+        val payees = payeesData
             .to[List[ByteString]]
             .map(payee => Credential.PubKeyCredential(PubKeyHash(payee)))
 
@@ -64,31 +63,44 @@ object PaymentSplitter extends DataParameterizedValidator {
           "One of the payees must have an input to pay the fee and trigger the payout"
         )
 
-        val (unpaidPayees, optSplit, optPayeeOutputWithChange, sumOutput, nOutputs) =
+        val (sumOutput, sumsPerPayee) =
             tx.outputs.foldLeft(
-              (payees, Option.empty[BigInt], Option.empty[TxOut], BigInt(0), BigInt(0))
-            ) { case ((payees, optPrevSplit, optPayWithChange, sum, nOutputs), output) =>
+              (BigInt(0), AssocMap.empty[Credential.PubKeyCredential, BigInt])
+            ) { case (state, output) =>
+                val (sum, sumsPerPayee) = state
                 val value = output.value.getLovelace
-                payees match
-                    case Nil => fail("More outputs than payees")
-                    case Cons(payee, payeesTail) =>
-                        require(output.address.credential === payee, "Must pay to a payee")
-                        val nextSum = sum + value
-                        if payeeInputWithChange.address.credential === output.address.credential
-                        then (payeesTail, optPrevSplit, Some(output), nextSum, nOutputs + 1)
-                        else
-                            require(optPrevSplit.forall(value === _), "Split unequally")
-                            (payeesTail, Some(value), optPayWithChange, nextSum, nOutputs + 1)
+                val payee: Credential.PubKeyCredential = output.address.credential match
+                    case Credential.PubKeyCredential(pkh) => Credential.PubKeyCredential(pkh)
+                    case _                                => fail("Output to script is not allowed")
+                sumsPerPayee.get(payee) match
+                    case None => (sum + value, sumsPerPayee.insert(payee, value))
+                    case Some(prevSum) =>
+                        (sum + value, sumsPerPayee.insert(payee, prevSum + value))
             }
 
-        require(unpaidPayees.isEmpty, "Not all payees were paid")
+        val (optSplit, optPayeeSumWithChange, nPayed) =
+            sumsPerPayee.toList.foldLeft(
+              (Option.empty[BigInt], Option.empty[BigInt], BigInt(0))
+            ) { case ((optSplit, optPayeeSumWithChange, nPayed), (payee, value)) =>
+                require(payees.contains(payee), "Must pay to a payee")
+                if payeeInputWithChange.address.credential === payee
+                then (optSplit, Some(value), nPayed + 1)
+                else
+                    optSplit match
+                        case None => (Some(value), optPayeeSumWithChange, nPayed + 1)
+                        case Some(split) =>
+                            require(split === value, "Split unequally")
+                            (Some(split), optPayeeSumWithChange, nPayed + 1)
+            }
+
+        require(payees.length == nPayed, "Not all payees were paid")
         optSplit match
             case None => // one payee, no split
             case Some(split) =>
-                val payeeOutputWithChange = optPayeeOutputWithChange.getOrFail("No change output")
-                val eqSumValue = sumOutput - payeeOutputWithChange.value.getLovelace + split
+                val payeeSumWithChange = optPayeeSumWithChange.getOrFail("No change output")
+                val eqSumValue = sumOutput - payeeSumWithChange + split
                 val reminder = sumContractInputs - eqSumValue
-                require(reminder < nOutputs, "value to be payed to payees is too low")
+                require(reminder < nPayed, "value to be payed to payees is too low")
                 //    nOutputs * (split + 1) > sumContractInputs   <=>
                 //    nOutputs * split + nOutputs > sumContractInputs <=>
                 //    eqSumValue + nOutputs > sumContractInputs <=>
@@ -96,5 +108,6 @@ object PaymentSplitter extends DataParameterizedValidator {
                 //
                 // max number of payers ≈ 250 (16kB / 28 bytes / 2 (inputs and outputs))
                 // thus, up to 250 lovelace of reminder is possible, so we can ignore it
+
     }
 }
