@@ -9,12 +9,7 @@ export default {
     display: 'hidden',
   },
   advanced: '',
-  features: {
-    display: 'hidden',
-  },
-  themes: {
-    display: 'hidden',
-  },
+
 
 
 }
