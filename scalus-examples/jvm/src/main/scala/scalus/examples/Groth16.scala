@@ -4,8 +4,6 @@ import scalus.Compile
 import scalus.builtin.Builtins.*
 import scalus.builtin.ByteString
 import scalus.builtin.BLS12_381_G1_Element
-import scalus.builtin.FromDataInstances.given
-import scalus.builtin.ToDataInstances.given
 import scalus.builtin.BLS12_381_MlResult
 import scalus.builtin.Data.FromData
 import scalus.builtin.Data.ToData

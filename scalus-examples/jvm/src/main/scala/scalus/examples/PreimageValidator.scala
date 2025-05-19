@@ -4,10 +4,8 @@ import scalus.*
 import scalus.Compiler.compile
 import scalus.builtin.Builtins.*
 import scalus.builtin.ByteString
-import scalus.builtin.FromDataInstances.given
 import scalus.builtin.Data
 import scalus.ledger.api.v2.*
-import scalus.ledger.api.v2.FromDataInstances.given
 import scalus.prelude.*
 import scalus.sir.SIR
 import scalus.uplc.*
