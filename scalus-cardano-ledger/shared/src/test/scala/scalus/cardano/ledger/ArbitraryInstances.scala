@@ -6,6 +6,7 @@ import scalus.builtin.Data.*
 import scalus.cardano.ledger.ArbitraryDerivation.autoDerived
 import scalus.ledger.api.{KeyHash, SlotNo, Timelock}
 import scalus.{builtin, uplc}
+import scala.collection.immutable
 
 trait ArbitraryInstances extends uplc.ArbitraryInstances {
     def genByteStringOfN(n: Int): Gen[ByteString] = {
@@ -14,15 +15,36 @@ trait ArbitraryInstances extends uplc.ArbitraryInstances {
             .map(a => ByteString.unsafeFromArray(a))
     }
 
-    def genMapOfN[A: Arbitrary, B: Arbitrary](n: Int): Gen[scala.collection.immutable.Map[A, B]] = {
-        Gen.mapOfN(
-          n,
-          for
-              key <- summon[Arbitrary[A]].arbitrary
-              value <- summon[Arbitrary[B]].arbitrary
-          yield (key, value)
-        )
+    def genMapOfSizeFromArbitrary[A: Arbitrary, B: Arbitrary](
+        from: Int,
+        to: Int
+    ): Gen[immutable.Map[A, B]] = {
+        for
+            size <- Gen.choose(from, to)
+            result <- Gen.mapOfN(
+              size,
+              for
+                  key <- Arbitrary.arbitrary[A]
+                  value <- Arbitrary.arbitrary[B]
+              yield (key, value)
+            )
+        yield result
     }
+
+    def genListOfSizeFromArbitrary[A: Arbitrary](
+        from: Int,
+        to: Int
+    ): Gen[immutable.List[A]] = {
+        for
+            size <- Gen.choose(from, to)
+            result <- Gen.listOfN(size, Arbitrary.arbitrary[A])
+        yield result
+    }
+
+    def genSetOfSizeFromArbitrary[A: Arbitrary](
+        from: Int,
+        to: Int
+    ): Gen[immutable.Set[A]] = genListOfSizeFromArbitrary(from, to).map(_.toSet)
 
     given Arbitrary[Hash28] = Arbitrary(genByteStringOfN(28).map(Hash28.apply))
     given Arbitrary[Hash32] = Arbitrary(genByteStringOfN(32).map(Hash32.apply))
@@ -40,10 +62,9 @@ trait ArbitraryInstances extends uplc.ArbitraryInstances {
     }
 
     given Arbitrary[Mint] = {
-        import scala.collection.immutable.Map
-
-        given [A: Arbitrary, B: Arbitrary]: Arbitrary[Map[A, B]] =
-            Arbitrary(Gen.choose(0, 8).flatMap(genMapOfN))
+        given [A: Arbitrary, B: Arbitrary]: Arbitrary[immutable.Map[A, B]] = Arbitrary(
+          genMapOfSizeFromArbitrary(0, 8)
+        )
 
         summon[Arbitrary[Mint]]
     }
@@ -53,25 +74,25 @@ trait ArbitraryInstances extends uplc.ArbitraryInstances {
     given Arbitrary[Slot] = Arbitrary(Gen.choose(0L, Long.MaxValue).map(Slot.apply))
 
     given Arbitrary[ExUnits] = Arbitrary {
-        for {
+        for
             mem <- Gen.choose(0L, Long.MaxValue)
             steps <- Gen.choose(0L, Long.MaxValue)
-        } yield ExUnits(mem, steps)
+        yield ExUnits(mem, steps)
     }
 
     given Arbitrary[ExUnitPrices] = autoDerived
 
     given Arbitrary[CostModels] = {
-        import scala.collection.immutable.{List, Map}
-
-        given [A: Arbitrary, B: Arbitrary]: Arbitrary[Map[A, B]] =
-            Arbitrary(Gen.choose(0, 8).flatMap(genMapOfN))
-
-        given [A: Arbitrary]: Arbitrary[List[A]] = Arbitrary(
-          Gen.choose(0, 8).flatMap(Gen.listOfN(_, summon[Arbitrary[A]].arbitrary))
+        given [A: Arbitrary, B: Arbitrary]: Arbitrary[immutable.Map[A, B]] = Arbitrary(
+          genMapOfSizeFromArbitrary(0, 8)
         )
 
-        Arbitrary(summon[Arbitrary[Map[Int, List[Long]]]].arbitrary.map(CostModels.apply))
+        given [A: Arbitrary]: Arbitrary[immutable.List[A]] = Arbitrary(
+          genListOfSizeFromArbitrary(0, 8)
+        )
+
+        given result: Arbitrary[CostModels] = autoDerived
+        result
     }
 
     given Arbitrary[Constitution] = autoDerived
@@ -170,7 +191,14 @@ trait ArbitraryInstances extends uplc.ArbitraryInstances {
     given Arbitrary[Script] = autoDerived
     given Arbitrary[ScriptRef] = autoDerived
     given Arbitrary[Timelock] = Arbitrary(TimelockGen.genTimelock)
-    given Arbitrary[TransactionInput] = autoDerived
+
+    given Arbitrary[TransactionInput] = Arbitrary {
+        for
+            transactionId <- Arbitrary.arbitrary[Hash32]
+            index <- Gen.choose(0, Int.MaxValue)
+        yield TransactionInput(transactionId, index)
+    }
+
     given Arbitrary[TransactionOutput] = autoDerived
     given Arbitrary[ProtocolVersion] = Arbitrary {
         for
@@ -199,14 +227,14 @@ trait ArbitraryInstances extends uplc.ArbitraryInstances {
         for
             blockNumber <- Gen.choose(0L, Long.MaxValue)
             slot <- Gen.choose(0L, Long.MaxValue)
-            prevHash <- summon[Arbitrary[Option[Hash32]]].arbitrary
+            prevHash <- Arbitrary.arbitrary[Option[Hash32]]
             issuerVkey <- genByteStringOfN(32)
             vrfVkey <- genByteStringOfN(32)
-            vrfResult <- summon[Arbitrary[VrfCert]].arbitrary
+            vrfResult <- Arbitrary.arbitrary[VrfCert]
             blockBodySize <- Gen.choose(0L, Long.MaxValue)
-            blockBodyHash <- summon[Arbitrary[Hash32]].arbitrary
-            operationalCert <- summon[Arbitrary[OperationalCert]].arbitrary
-            protocolVersion <- summon[Arbitrary[ProtocolVersion]].arbitrary
+            blockBodyHash <- Arbitrary.arbitrary[Hash32]
+            operationalCert <- Arbitrary.arbitrary[OperationalCert]
+            protocolVersion <- Arbitrary.arbitrary[ProtocolVersion]
         yield BlockHeaderBody(
           blockNumber,
           slot,
@@ -223,8 +251,145 @@ trait ArbitraryInstances extends uplc.ArbitraryInstances {
 
     given Arbitrary[BlockHeader] = Arbitrary {
         for
-            headerBody <- summon[Arbitrary[BlockHeaderBody]].arbitrary
+            headerBody <- Arbitrary.arbitrary[BlockHeaderBody]
             bodySignature <- genByteStringOfN(448)
         yield BlockHeader(headerBody, bodySignature)
     }
+
+    given Arbitrary[TransactionMetadatumLabel] = Arbitrary(
+      Gen.choose(0L, Long.MaxValue).map(TransactionMetadatumLabel.apply)
+    )
+
+    given Arbitrary[TransactionMetadatum] = {
+        val genTransactionMetadatumInt =
+            Gen.choose(Long.MinValue, Long.MaxValue).map(TransactionMetadatum.Int.apply)
+
+        val genTransactionMetadatumBytes =
+            Gen.choose(0, 64).flatMap(genByteStringOfN).map(TransactionMetadatum.Bytes.apply)
+
+        val genTransactionMetadatumText = Gen
+            .choose(0, 64)
+            .flatMap(Gen.listOfN(_, Gen.alphaNumChar))
+            .map(_.mkString)
+            .map(TransactionMetadatum.Text.apply)
+
+        def genTransactionMetadatum(depth: Int): Gen[TransactionMetadatum] = {
+            if depth <= 0 then
+                Gen.oneOf(
+                  Gen.const(
+                    TransactionMetadatum.Map(
+                      immutable.Map.empty[TransactionMetadatum, TransactionMetadatum]
+                    )
+                  ),
+                  Gen.const(TransactionMetadatum.List(immutable.Seq.empty[TransactionMetadatum])),
+                  genTransactionMetadatumInt,
+                  genTransactionMetadatumBytes,
+                  genTransactionMetadatumText
+                )
+            else
+                val reducedDepth = depth - 1
+                Gen.frequency(
+                  2 -> (
+                    for
+                        size <- Gen.choose(0, 2)
+                        result <- Gen.mapOfN(
+                          size,
+                          for
+                              key <- Gen.lzy(genTransactionMetadatum(reducedDepth))
+                              value <- Gen.lzy(genTransactionMetadatum(reducedDepth))
+                          yield (key, value)
+                        )
+                    yield TransactionMetadatum.Map(result)
+                  ),
+                  2 -> (
+                    for
+                        size <- Gen.choose(0, 2)
+                        result <- Gen.listOfN(size, Gen.lzy(genTransactionMetadatum(reducedDepth)))
+                    yield TransactionMetadatum.List(result)
+                  ),
+                  1 -> genTransactionMetadatumInt,
+                  1 -> genTransactionMetadatumBytes,
+                  1 -> genTransactionMetadatumText
+                )
+
+        }
+
+        Arbitrary(Gen.choose(0, 3).flatMap(genTransactionMetadatum))
+    }
+
+    given Arbitrary[AuxiliaryData] = {
+        given [A: Arbitrary, B: Arbitrary]: Arbitrary[immutable.Map[A, B]] = Arbitrary(
+          genMapOfSizeFromArbitrary(0, 4)
+        )
+
+        given [A: Arbitrary]: Arbitrary[immutable.List[A]] = Arbitrary(
+          genListOfSizeFromArbitrary(0, 4)
+        )
+
+        given result: Arbitrary[AuxiliaryData] = autoDerived
+        result
+    }
+
+    given Arbitrary[VKeyWitness] = Arbitrary {
+        for
+            vkey <- genByteStringOfN(32)
+            signature <- genByteStringOfN(64)
+        yield VKeyWitness(vkey, signature)
+    }
+
+    given Arbitrary[BootstrapWitness] = Arbitrary {
+        for
+            publicKey <- genByteStringOfN(32)
+            signature <- genByteStringOfN(64)
+            chainCode <- genByteStringOfN(32)
+            attributesSize <- Gen.choose(0, 128)
+            attributes <- genByteStringOfN(attributesSize)
+        yield BootstrapWitness(publicKey, signature, chainCode, attributes)
+    }
+
+    given Arbitrary[RedeemerTag] = autoDerived
+
+    given Arbitrary[Redeemer] = Arbitrary {
+        for
+            tag <- Arbitrary.arbitrary[RedeemerTag]
+            index <- Gen.choose(0, Int.MaxValue)
+            data <- Arbitrary.arbitrary[Data]
+            exUnits <- Arbitrary.arbitrary[ExUnits]
+        yield Redeemer(tag, index, data, exUnits)
+    }
+
+    given Arbitrary[TransactionWitnessSet] = {
+        given [A: Arbitrary]: Arbitrary[immutable.Set[A]] = Arbitrary(
+          genSetOfSizeFromArbitrary(1, 3)
+        )
+
+        given result: Arbitrary[TransactionWitnessSet] = autoDerived
+        result
+    }
+
+    given Arbitrary[UnitInterval] = Arbitrary {
+        for
+            denominator <- Gen.posNum[Long]
+            numerator <- Gen.choose(0L, denominator)
+        yield UnitInterval(numerator, denominator)
+    }
+
+    given Arbitrary[ProposalProcedure] = autoDerived
+    given Arbitrary[Vote] = autoDerived
+    given Arbitrary[Voter] = autoDerived
+    given Arbitrary[VotingProcedure] = autoDerived
+
+    given Arbitrary[VotingProcedures] = {
+        given [A: Arbitrary, B: Arbitrary]: Arbitrary[immutable.Map[A, B]] = Arbitrary(
+          genMapOfSizeFromArbitrary(0, 8)
+        )
+
+        given result: Arbitrary[VotingProcedures] = autoDerived
+        result
+    }
+
+    given Arbitrary[PoolVotingThresholds] = autoDerived
+    given Arbitrary[DRepVotingThresholds] = autoDerived
+    given Arbitrary[ProtocolParamUpdate] = autoDerived
+    given Arbitrary[GovAction] = autoDerived
 }

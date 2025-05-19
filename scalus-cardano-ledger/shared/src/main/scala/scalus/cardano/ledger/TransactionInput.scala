@@ -14,4 +14,5 @@ final case class TransactionInput(
 
     /** The index of the output in the transaction we're spending */
     index: Int
-) derives Codec
+) derives Codec:
+    require(index >= 0, s"Invalid index of TransactionInput, expected: >= 0, actual: $index")

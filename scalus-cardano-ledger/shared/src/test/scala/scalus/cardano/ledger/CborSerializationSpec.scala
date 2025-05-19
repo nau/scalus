@@ -115,6 +115,60 @@ class CborSerializationSpec extends AnyFunSuite, ScalaCheckPropertyChecks, Arbit
     test(s"BlockHeader should serialize and deserialize correctly"):
         testSerializationRoundTrip[BlockHeader]()
 
+    test(s"TransactionMetadatumLabel should serialize and deserialize correctly"):
+        testSerializationRoundTrip[TransactionMetadatumLabel]()
+
+    test(s"TransactionMetadatum should serialize and deserialize correctly"):
+        testSerializationRoundTrip[TransactionMetadatum]()
+
+    test(s"AuxiliaryData should serialize and deserialize correctly"):
+        testSerializationRoundTrip[AuxiliaryData]()
+
+    test(s"VKeyWitness should serialize and deserialize correctly"):
+        testSerializationRoundTrip[VKeyWitness]()
+
+    test(s"BootstrapWitness should serialize and deserialize correctly"):
+        testSerializationRoundTrip[BootstrapWitness]()
+
+    test(s"RedeemerTag should serialize and deserialize correctly"):
+        testSerializationRoundTrip[RedeemerTag]()
+
+    test(s"Redeemer should serialize and deserialize correctly"):
+        testSerializationRoundTrip[Redeemer]()
+
+    test(s"TransactionWitnessSet should serialize and deserialize correctly"):
+        testSerializationRoundTrip[TransactionWitnessSet]()
+
+    test(s"UnitInterval should serialize and deserialize correctly"):
+        testSerializationRoundTrip[UnitInterval]()
+
+    test(s"PoolVotingThresholds should serialize and deserialize correctly"):
+        testSerializationRoundTrip[PoolVotingThresholds]()
+
+    test(s"DRepVotingThresholds should serialize and deserialize correctly"):
+        testSerializationRoundTrip[DRepVotingThresholds]()
+
+    test(s"ProtocolParamUpdate should serialize and deserialize correctly"):
+        testSerializationRoundTrip[ProtocolParamUpdate]()
+
+    test(s"Vote should serialize and deserialize correctly"):
+        testSerializationRoundTrip[Vote]()
+
+    test(s"Voter should serialize and deserialize correctly"):
+        testSerializationRoundTrip[Voter]()
+
+    test(s"VotingProcedure should serialize and deserialize correctly"):
+        testSerializationRoundTrip[VotingProcedure]()
+
+    test(s"VotingProcedures should serialize and deserialize correctly"):
+        testSerializationRoundTrip[VotingProcedures]()
+
+//    test(s"GovAction should serialize and deserialize correctly"):
+//        testSerializationRoundTrip[GovAction]()
+
+//    test(s"ProposalProcedure should serialize and deserialize correctly"):
+//        testSerializationRoundTrip[ProposalProcedure]()
+
     // Helper method to test serialization/deserialization for a given type
     private def testSerializationRoundTrip[A: Arbitrary: Encoder: Decoder](): Unit = {
         forAll: (a: A) =>
