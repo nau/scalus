@@ -30,7 +30,6 @@ class PaymentSplitter1Minimized1Spec extends AnyFunSuite {
     val a1FeeTx1 = TxId(hex"32ca42b5cd606173499f31e2547d7f664e917fbb824328c2dbe0d6775aefb08c")
 
     test("run payment validator ") {
-        pending
         val sir = compile { PaymentSplitter1Minimized.validate }
         val uplc = sir.toUplc(generateErrorTraces = true)
         val script = uplc.plutusV3
@@ -127,6 +126,8 @@ class PaymentSplitter1Minimized1Spec extends AnyFunSuite {
         val applied = script $ data $ scriptContext.toData
 
         PaymentSplitter1Minimized.validate(data)(scriptContext)
+
+        pending
 
         given PlutusVM = PlutusVM.makePlutusV3VM()
         val result = applied.evaluateDebug
