@@ -8,55 +8,115 @@ import scalus.ledger.api.Timelock
 
 class CborSerializationSpec extends AnyFunSuite, ScalaCheckPropertyChecks, ArbitraryInstances {
     test(s"Hash28 should serialize and deserialize correctly"):
-        testSerializationRoundtrip[Hash28]()
+        testSerializationRoundTrip[Hash28]()
 
     test(s"Hash32 should serialize and deserialize correctly"):
-        testSerializationRoundtrip[Hash32]()
+        testSerializationRoundTrip[Hash32]()
+
+    test(s"Coin should serialize and deserialize correctly"):
+        testSerializationRoundTrip[Coin]()
+
+    test(s"ScriptHash should serialize and deserialize correctly"):
+        testSerializationRoundTrip[ScriptHash]()
+
+    test(s"PolicyId should serialize and deserialize correctly"):
+        testSerializationRoundTrip[PolicyId]()
+
+    test(s"AssetName should serialize and deserialize correctly"):
+        testSerializationRoundTrip[AssetName]()
+
+    test(s"Mint should serialize and deserialize correctly"):
+        testSerializationRoundTrip[Mint]()
+
+    test(s"Language should serialize and deserialize correctly"):
+        testSerializationRoundTrip[Language]()
+
+    test(s"Address should serialize and deserialize correctly"):
+        testSerializationRoundTrip[Address]()
+
+    test(s"Slot should serialize and deserialize correctly"):
+        testSerializationRoundTrip[Slot]()
+
+    test(s"AuxiliaryDataHash should serialize and deserialize correctly"):
+        testSerializationRoundTrip[AuxiliaryDataHash]()
+
+    test(s"ScriptDataHash should serialize and deserialize correctly"):
+        testSerializationRoundTrip[ScriptDataHash]()
+
+    test(s"ExUnits should serialize and deserialize correctly"):
+        testSerializationRoundTrip[ExUnits]()
+
+    test(s"ExUnitPrices should serialize and deserialize correctly"):
+        testSerializationRoundTrip[ExUnitPrices]()
+
+    test(s"CostModels should serialize and deserialize correctly"):
+        testSerializationRoundTrip[CostModels]()
+
+    test(s"Constitution should serialize and deserialize correctly"):
+        testSerializationRoundTrip[Constitution]()
 
     test(s"AddrKeyHash should serialize and deserialize correctly"):
-        testSerializationRoundtrip[AddrKeyHash]()
+        testSerializationRoundTrip[AddrKeyHash]()
 
     test(s"Anchor should serialize and deserialize correctly"):
-        testSerializationRoundtrip[Anchor]()
+        testSerializationRoundTrip[Anchor]()
 
     test(s"Credential should serialize and deserialize correctly"):
-        testSerializationRoundtrip[Credential]()
+        testSerializationRoundTrip[Credential]()
 
     test(s"Value should serialize and deserialize correctly"):
-        testSerializationRoundtrip[Value]()
+        testSerializationRoundTrip[Value]()
 
     test(s"DRep should serialize and deserialize correctly"):
-        testSerializationRoundtrip[DRep]()
+        testSerializationRoundTrip[DRep]()
 
     test(s"GovActionId should serialize and deserialize correctly"):
-        testSerializationRoundtrip[GovActionId]()
+        testSerializationRoundTrip[GovActionId]()
 
     test(s"OperationalCert should serialize and deserialize correctly"):
-        testSerializationRoundtrip[OperationalCert]()
+        testSerializationRoundTrip[OperationalCert]()
 
     test(s"PoolMetadata should serialize and deserialize correctly"):
-        testSerializationRoundtrip[PoolMetadata]()
+        testSerializationRoundTrip[PoolMetadata]()
 
     test(s"DatumOption should serialize and deserialize correctly"):
-        testSerializationRoundtrip[DatumOption]()
+        testSerializationRoundTrip[DatumOption]()
 
     test(s"Timelock should serialize and deserialize correctly"):
-        testSerializationRoundtrip[Timelock]()
+        testSerializationRoundTrip[Timelock]()
 
     test(s"Script should serialize and deserialize correctly"):
-        testSerializationRoundtrip[Script]()
+        testSerializationRoundTrip[Script]()
 
     test(s"ScriptRef should serialize and deserialize correctly"):
-        testSerializationRoundtrip[ScriptRef]()
+        testSerializationRoundTrip[ScriptRef]()
 
     test(s"TransactionInput should serialize and deserialize correctly"):
-        testSerializationRoundtrip[TransactionInput]()
+        testSerializationRoundTrip[TransactionInput]()
 
     test(s"TransactionOutput should serialize and deserialize correctly"):
-        testSerializationRoundtrip[TransactionOutput]()
+        testSerializationRoundTrip[TransactionOutput]()
+
+    test(s"ProtocolVersion should serialize and deserialize correctly"):
+        testSerializationRoundTrip[ProtocolVersion]()
+
+    test(s"RewardAccount should serialize and deserialize correctly"):
+        testSerializationRoundTrip[RewardAccount]()
+
+    test(s"NonNegativeInterval should serialize and deserialize correctly"):
+        testSerializationRoundTrip[NonNegativeInterval]()
+
+    test(s"VrfCert should serialize and deserialize correctly"):
+        testSerializationRoundTrip[VrfCert]()
+
+    test(s"BlockHeaderBody should serialize and deserialize correctly"):
+        testSerializationRoundTrip[BlockHeaderBody]()
+
+    test(s"BlockHeader should serialize and deserialize correctly"):
+        testSerializationRoundTrip[BlockHeader]()
 
     // Helper method to test serialization/deserialization for a given type
-    private def testSerializationRoundtrip[A: Arbitrary: Encoder: Decoder](): Unit = {
+    private def testSerializationRoundTrip[A: Arbitrary: Encoder: Decoder](): Unit = {
         forAll: (a: A) =>
             val encoded = Cbor.encode(a).toByteArray
             val decoded = Cbor.decode(encoded).to[A].value

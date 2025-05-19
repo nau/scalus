@@ -284,8 +284,8 @@ case class ExUnits(
   *   Price per step unit
   */
 case class ExUnitPrices(
-    memPrice: NonnegativeInterval,
-    stepPrice: NonnegativeInterval
+    memPrice: NonNegativeInterval,
+    stepPrice: NonNegativeInterval
 ) derives Codec
 
 /** Represents cost models for script languages in the Cardano blockchain.

@@ -12,10 +12,10 @@ import io.bullet.borer.*
   * @param denominator
   *   The denominator of the fraction (positive)
   */
-case class NonnegativeInterval(numerator: Long, denominator: Long) {
+case class NonNegativeInterval(numerator: Long, denominator: Long) {
     // Validate constraints
-    require(denominator > 0, "Denominator must be positive")
     require(numerator >= 0, "Numerator must be non-negative")
+    require(denominator > 0, "Denominator must be positive")
 
     /** Converts this interval to a double value.
       *
@@ -25,30 +25,30 @@ case class NonnegativeInterval(numerator: Long, denominator: Long) {
     def toDouble: Double = numerator.toDouble / denominator.toDouble
 }
 
-object NonnegativeInterval {
+object NonNegativeInterval {
 
-    /** Creates a NonnegativeInterval from a double value. Uses a precision of 1,000,000 for the
+    /** Creates a NonNegativeInterval from a double value. Uses a precision of 1,000,000 for the
       * conversion.
       *
       * @param value
       *   A non-negative double
       * @return
-      *   The corresponding NonnegativeInterval
+      *   The corresponding NonNegativeInterval
       */
-    def fromDouble(value: Double): NonnegativeInterval = {
+    def fromDouble(value: Double): NonNegativeInterval = {
         require(value >= 0, s"Value must be non-negative, got $value")
 
         val precision = 1000000L
         val numerator = Math.round(value * precision)
 
-        NonnegativeInterval(numerator, precision)
+        NonNegativeInterval(numerator, precision)
     }
 
-    /** CBOR Encoder for NonnegativeInterval. Encodes as a tagged array [numerator, denominator]
+    /** CBOR Encoder for NonNegativeInterval. Encodes as a tagged array [numerator, denominator]
       * with tag 30.
       */
-    given Encoder[NonnegativeInterval] = new Encoder[NonnegativeInterval] {
-        def write(w: Writer, value: NonnegativeInterval): Writer =
+    given Encoder[NonNegativeInterval] = new Encoder[NonNegativeInterval] {
+        def write(w: Writer, value: NonNegativeInterval): Writer =
             w.writeTag(Tag.Other(30))
                 .writeArrayOpen(2)
                 .writeLong(value.numerator)
@@ -56,16 +56,16 @@ object NonnegativeInterval {
                 .writeArrayClose()
     }
 
-    /** CBOR Decoder for NonnegativeInterval. Decodes from a tagged array [numerator, denominator]
+    /** CBOR Decoder for NonNegativeInterval. Decodes from a tagged array [numerator, denominator]
       * with tag 30.
       */
-    given Decoder[NonnegativeInterval] = new Decoder[NonnegativeInterval] {
-        def read(r: Reader): NonnegativeInterval = {
+    given Decoder[NonNegativeInterval] = new Decoder[NonNegativeInterval] {
+        def read(r: Reader): NonNegativeInterval = {
             r.readTag() // Read and discard tag 30
             r.readArrayHeader()
             val numerator = r.readLong()
             val denominator = r.readLong()
-            NonnegativeInterval(numerator, denominator)
+            NonNegativeInterval(numerator, denominator)
         }
     }
 }
