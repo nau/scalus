@@ -3,6 +3,7 @@ package scalus.cardano.ledger
 import io.bullet.borer.{Decoder, Encoder, Reader, Writer}
 
 import scala.collection.immutable.{Map, Set as ScalaSet}
+import io.bullet.borer.NullOptions.given
 
 /** Represents a governance action in the Cardano blockchain.
   *
@@ -149,7 +150,9 @@ object GovAction {
                     .writeArrayClose()
 
             case GovAction.InfoAction =>
-                w.writeInt(6) // Tag for InfoAction
+                w.writeArrayOpen(1)
+                    .writeInt(6) // Tag for InfoAction
+                    .writeArrayClose()
         }
     }
 

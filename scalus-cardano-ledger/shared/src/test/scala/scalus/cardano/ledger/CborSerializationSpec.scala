@@ -163,11 +163,35 @@ class CborSerializationSpec extends AnyFunSuite, ScalaCheckPropertyChecks, Arbit
     test(s"VotingProcedures should serialize and deserialize correctly"):
         testSerializationRoundTrip[VotingProcedures]()
 
-//    test(s"GovAction should serialize and deserialize correctly"):
-//        testSerializationRoundTrip[GovAction]()
+    test(s"GovAction should serialize and deserialize correctly"):
+        testSerializationRoundTrip[GovAction]()
 
-//    test(s"ProposalProcedure should serialize and deserialize correctly"):
-//        testSerializationRoundTrip[ProposalProcedure]()
+    test(s"ProposalProcedure should serialize and deserialize correctly"):
+        testSerializationRoundTrip[ProposalProcedure]()
+
+    test(s"ProposalProcedures should serialize and deserialize correctly"):
+        testSerializationRoundTrip[ProposalProcedures]()
+
+    test(s"Relay should serialize and deserialize correctly"):
+        testSerializationRoundTrip[Relay]()
+
+    test(s"Certificate should serialize and deserialize correctly"):
+        testSerializationRoundTrip[Certificate]()
+
+    test(s"Withdrawals should serialize and deserialize correctly"):
+        testSerializationRoundTrip[Withdrawals]()
+
+    test(s"TransactionBody should serialize and deserialize correctly"):
+        testSerializationRoundTrip[TransactionBody]()
+
+    test(s"Block should serialize and deserialize correctly"):
+        testSerializationRoundTrip[Block]()
+
+    test(s"BlockFile should serialize and deserialize correctly"):
+        testSerializationRoundTrip[BlockFile]()
+
+    test(s"Transaction should serialize and deserialize correctly"):
+        testSerializationRoundTrip[Transaction]()
 
     // Helper method to test serialization/deserialization for a given type
     private def testSerializationRoundTrip[A: Arbitrary: Encoder: Decoder](): Unit = {

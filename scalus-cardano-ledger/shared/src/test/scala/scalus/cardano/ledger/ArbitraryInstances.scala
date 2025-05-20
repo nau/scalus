@@ -50,7 +50,17 @@ trait ArbitraryInstances extends uplc.ArbitraryInstances {
     given Arbitrary[Hash32] = Arbitrary(genByteStringOfN(32).map(Hash32.apply))
     given Arbitrary[AddrKeyHash] = autoDerived
     given Arbitrary[ScriptHash] = autoDerived
-    given Arbitrary[Anchor] = autoDerived
+
+    given Arbitrary[Anchor] = Arbitrary {
+        for
+            url <- Gen
+                .choose(0, 128)
+                .flatMap(Gen.listOfN(_, Gen.alphaNumChar))
+                .map(_.mkString)
+            dataHash <- Arbitrary.arbitrary[Hash32]
+        yield Anchor(url, dataHash)
+    }
+
     given Arbitrary[Credential] = autoDerived
     given Arbitrary[Coin] = Arbitrary(Gen.choose(0L, Long.MaxValue).map(Coin.apply))
 
@@ -375,13 +385,22 @@ trait ArbitraryInstances extends uplc.ArbitraryInstances {
     }
 
     given Arbitrary[ProposalProcedure] = autoDerived
+
+    given Arbitrary[ProposalProcedures] = {
+        given [A: Arbitrary]: Arbitrary[immutable.Set[A]] = Arbitrary(
+          genSetOfSizeFromArbitrary(1, 3)
+        )
+
+        summon[Arbitrary[ProposalProcedures]]
+    }
+
     given Arbitrary[Vote] = autoDerived
     given Arbitrary[Voter] = autoDerived
     given Arbitrary[VotingProcedure] = autoDerived
 
     given Arbitrary[VotingProcedures] = {
         given [A: Arbitrary, B: Arbitrary]: Arbitrary[immutable.Map[A, B]] = Arbitrary(
-          genMapOfSizeFromArbitrary(0, 8)
+          genMapOfSizeFromArbitrary(0, 4)
         )
 
         given result: Arbitrary[VotingProcedures] = autoDerived
@@ -392,4 +411,123 @@ trait ArbitraryInstances extends uplc.ArbitraryInstances {
     given Arbitrary[DRepVotingThresholds] = autoDerived
     given Arbitrary[ProtocolParamUpdate] = autoDerived
     given Arbitrary[GovAction] = autoDerived
+
+    given Arbitrary[Relay] = {
+        val genSingleHostAddr =
+            for
+                port <- Gen.option(Gen.choose(0, 65535))
+                ipv4 <- Gen.option(Gen.choose(7, 15).flatMap(genByteStringOfN))
+                ipv6 <- Gen.option(Gen.choose(2, 39).flatMap(genByteStringOfN))
+            yield Relay.SingleHostAddr(port, ipv4, ipv6)
+
+        val genSingleHostName =
+            for
+                port <- Gen.option(Gen.choose(0, 65535))
+                dnsName <- Gen
+                    .choose(5, 128)
+                    .flatMap(Gen.listOfN(_, Gen.alphaNumChar))
+                    .map(_.mkString)
+            yield Relay.SingleHostName(port, dnsName)
+
+        val genMultiHostName =
+            for dnsName <- Gen
+                    .choose(5, 128)
+                    .flatMap(Gen.listOfN(_, Gen.alphaNumChar))
+                    .map(_.mkString)
+            yield Relay.MultiHostName(dnsName)
+
+        val genRelay = Gen.oneOf(genSingleHostAddr, genSingleHostName, genMultiHostName)
+
+        Arbitrary(genRelay)
+    }
+
+    given Arbitrary[Certificate] = autoDerived
+    given Arbitrary[Withdrawals] = autoDerived
+
+    given Arbitrary[TransactionBody] = Arbitrary {
+        for
+            inputs <- genSetOfSizeFromArbitrary[TransactionInput](1, 4)
+            outputs <- genListOfSizeFromArbitrary[TransactionOutput](1, 4)
+            fee <- Arbitrary.arbitrary[Coin]
+            ttl <- Arbitrary.arbitrary[Option[Long]]
+            certificates <- Gen.option(genSetOfSizeFromArbitrary[Certificate](1, 4))
+            withdrawals <- Gen.option(
+              genMapOfSizeFromArbitrary[RewardAccount, Coin](1, 4).map(Withdrawals.apply)
+            )
+            auxiliaryDataHash <- Arbitrary.arbitrary[Option[Hash32]]
+            validityStartSlot <- Arbitrary.arbitrary[Option[Long]]
+            mint <- Arbitrary.arbitrary[Option[Mint]]
+            scriptDataHash <- Arbitrary.arbitrary[Option[Hash32]]
+            collateralInputs <- Gen.option(genSetOfSizeFromArbitrary[TransactionInput](1, 4))
+            requiredSigners <- Gen.option(genSetOfSizeFromArbitrary[Hash28](1, 4))
+            networkId <- Gen.option(Gen.oneOf(Gen.const(0), Gen.const(1)))
+            collateralReturnOutput <- Arbitrary.arbitrary[Option[TransactionOutput]]
+            totalCollateral <- Arbitrary.arbitrary[Option[Coin]]
+            referenceInputs <- Gen.option(genSetOfSizeFromArbitrary[TransactionInput](1, 4))
+            votingProcedures <- Arbitrary.arbitrary[Option[VotingProcedures]]
+            proposalProcedures <- Gen.option(genSetOfSizeFromArbitrary[ProposalProcedure](1, 4))
+            currentTreasuryValue <- Arbitrary.arbitrary[Option[Coin]]
+            donation <-
+                if currentTreasuryValue.isDefined then Arbitrary.arbitrary[Coin].map(Some(_))
+                else Gen.const(None)
+        yield TransactionBody(
+          inputs,
+          outputs,
+          fee,
+          ttl,
+          certificates,
+          withdrawals,
+          auxiliaryDataHash,
+          validityStartSlot,
+          mint,
+          scriptDataHash,
+          collateralInputs,
+          requiredSigners,
+          networkId,
+          collateralReturnOutput,
+          totalCollateral,
+          referenceInputs,
+          votingProcedures,
+          proposalProcedures,
+          currentTreasuryValue,
+          donation
+        )
+    }
+
+    given Arbitrary[Block] = Arbitrary {
+        for
+            header <- Arbitrary.arbitrary[BlockHeader]
+            transactionBodies <- genListOfSizeFromArbitrary[TransactionBody](1, 4)
+            transactionBodiesSize = transactionBodies.size
+            transactionWitnessSets <- genListOfSizeFromArbitrary[TransactionWitnessSet](
+              transactionBodiesSize,
+              transactionBodiesSize
+            )
+            auxiliaryDataSet <-
+                for
+                    size <- Gen.choose(0, 4)
+                    result <- Gen.mapOfN(
+                      size,
+                      for
+                          key <- Gen.choose(0, transactionBodiesSize - 1)
+                          value <- Arbitrary.arbitrary[AuxiliaryData]
+                      yield (key, value)
+                    )
+                yield result
+            invalidTransactions <-
+                for
+                    size <- Gen.choose(0, 4)
+                    result <- Gen.listOfN(size, Gen.choose(0, transactionBodiesSize - 1))
+                yield result
+        yield Block(
+          header,
+          transactionBodies,
+          transactionWitnessSets,
+          auxiliaryDataSet,
+          invalidTransactions
+        )
+    }
+
+    given Arbitrary[BlockFile] = autoDerived
+    given Arbitrary[Transaction] = autoDerived
 }

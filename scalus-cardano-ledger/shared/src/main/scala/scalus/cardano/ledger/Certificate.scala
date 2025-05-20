@@ -34,11 +34,11 @@ enum Certificate:
     )
     case ResignCommitteeColdCert(
         committeeColdCredential: Credential,
-        anchor: Nullable[Option[Anchor]]
+        anchor: Option[Anchor]
     )
-    case RegDRepCert(drepCredential: Credential, coin: Coin, anchor: Nullable[Option[Anchor]])
+    case RegDRepCert(drepCredential: Credential, coin: Coin, anchor: Option[Anchor])
     case UnregDRepCert(drepCredential: Credential, coin: Coin)
-    case UpdateDRepCert(drepCredential: Credential, anchor: Nullable[Option[Anchor]])
+    case UpdateDRepCert(drepCredential: Credential, anchor: Option[Anchor])
 
 object Certificate:
     given Encoder[Certificate] with
@@ -268,12 +268,12 @@ object Certificate:
                     )
                 case 15 =>
                     val committeeColdCredential = r.read[Credential]()
-                    val anchor = r.read[Nullable[Option[Anchor]]]()
+                    val anchor = r.read[Option[Anchor]]()
                     Certificate.ResignCommitteeColdCert(committeeColdCredential, anchor)
                 case 16 =>
                     val drepCredential = r.read[Credential]()
                     val coin = r.read[Coin]()
-                    val anchor = r.read[Nullable[Option[Anchor]]]()
+                    val anchor = r.read[Option[Anchor]]()
                     Certificate.RegDRepCert(drepCredential, coin, anchor)
                 case 17 =>
                     val drepCredential = r.read[Credential]()
@@ -281,7 +281,7 @@ object Certificate:
                     Certificate.UnregDRepCert(drepCredential, coin)
                 case 18 =>
                     val drepCredential = r.read[Credential]()
-                    val anchor = r.read[Nullable[Option[Anchor]]]()
+                    val anchor = r.read[Option[Anchor]]()
                     Certificate.UpdateDRepCert(drepCredential, anchor)
                 case _ =>
                     r.validationFailure(s"Unknown certificate type: $tag")

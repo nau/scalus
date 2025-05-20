@@ -67,8 +67,11 @@ case class TransactionBody(
     /** Transaction deposit return */
     donation: Option[Coin] = None
 ):
-    /** Validate that inputs and outputs are non-empty */
+    /** Validate that inputs are non-empty */
     require(inputs.nonEmpty, "Transaction must have at least one input")
+
+    /** Validate that outputs are non-empty */
+    require(outputs.nonEmpty, "Transaction must have at least one output")
 
     /** Validate optional collateral inputs */
     require(
@@ -116,7 +119,7 @@ case class TransactionBody(
     require(
       !(currentTreasuryValue.isDefined && donation.isEmpty) &&
           !(currentTreasuryValue.isEmpty && donation.isDefined),
-      "Deposit and deposit return must both be defined or both be undefined"
+      "currentTreasuryValue and deposit return must both be defined or both be undefined"
     )
 
 object TransactionBody:
@@ -243,13 +246,13 @@ object TransactionBody:
             // Voting procedures (key 19)
             value.votingProcedures.foreach { procedures =>
                 w.writeInt(19)
-//                w.write(procedures) //TODO: Implement encoder for VotingProcedures
+                w.write(procedures)
             }
 
             // Proposal procedures (key 20)
             value.proposalProcedures.foreach { procedures =>
                 w.writeInt(20)
-//                w.write(procedures) // TODO: Implement encoder for ProposalProcedures
+                w.write(procedures)
             }
 
             // Deposit (key 21)

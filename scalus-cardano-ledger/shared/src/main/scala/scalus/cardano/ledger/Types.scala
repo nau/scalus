@@ -3,6 +3,7 @@ package scalus.cardano.ledger
 import io.bullet.borer.derivation.ArrayBasedCodecs.*
 import io.bullet.borer.{Codec, Decoder, Encoder, Writer}
 import scalus.builtin.ByteString
+import io.bullet.borer.NullOptions.given
 
 /** Represents a 28-byte hash value used in Cardano
   *
