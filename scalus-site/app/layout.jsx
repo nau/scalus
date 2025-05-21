@@ -25,7 +25,7 @@ export const metadata = {
   }
 }
  
-// const banner = <Banner storageKey="some-key">Nextra 4.0 is released 🎉</Banner>
+const banner = <Banner storageKey="scalus-club"><a href="https://form.typeform.com/to/XQhDPGGH" target="_blank" rel="noopener noreferrer">Scalus Club is now open! Join us to get an early access to new features 🎉</a></Banner>
 
 const navbar = (
   <Navbar
@@ -61,7 +61,7 @@ export default async function RootLayout({ children }) {
       </Head>
       <body>
         <Layout
-          // banner={banner}
+          banner={banner}
           navbar={navbar}
           pageMap={await getPageMap()}
           docsRepositoryBase="https://github.com/nau/scalus"
