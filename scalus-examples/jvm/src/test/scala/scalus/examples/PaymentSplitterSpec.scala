@@ -24,7 +24,6 @@ class PaymentSplitterSpec extends AnyFunSuite, ScalusTest {
     import Payee.*
 
     test("success when payments are correctly split for a single payee") {
-        pending
         TestCase(
           payees = List(A),
           amount = 30,
@@ -36,7 +35,6 @@ class PaymentSplitterSpec extends AnyFunSuite, ScalusTest {
     }
 
     test("success when payments are correctly split between 2 payees") {
-        pending
         TestCase(
           payees = List(A, B),
           amount = 30,
@@ -48,8 +46,7 @@ class PaymentSplitterSpec extends AnyFunSuite, ScalusTest {
     }
 
     test("success when payments are correctly split between 3 payees") {
-        pending
-        val scalusBudget = ExBudget(ExCPU(177207006L), ExMemory(783048L))
+        val scalusBudget = ExBudget(ExCPU(202795782L), ExMemory(934211L))
         TestCase(
           payees = List(A, B, C),
           amount = 30,
@@ -69,7 +66,6 @@ class PaymentSplitterSpec extends AnyFunSuite, ScalusTest {
     }
 
     test("failure when a payee is not present in the inputs") {
-        pending
         TestCase(
           payees = List(A, B),
           amount = 30,
@@ -83,7 +79,6 @@ class PaymentSplitterSpec extends AnyFunSuite, ScalusTest {
     }
 
     test("failure when a payee is not payed out (1 payee)") {
-        pending
         TestCase(
           payees = List(A),
           amount = 30,
@@ -95,8 +90,7 @@ class PaymentSplitterSpec extends AnyFunSuite, ScalusTest {
     }
 
     test("failure when a one of the payee is not payed out") {
-        pending
-        val scalusBudget = ExBudget(ExCPU(130862328L), ExMemory(566950L))
+        val scalusBudget = ExBudget(ExCPU(136424092L), ExMemory(599793L))
         TestCase(
           payees = List(A, B),
           amount = 30,
@@ -115,19 +109,17 @@ class PaymentSplitterSpec extends AnyFunSuite, ScalusTest {
     }
 
     test("failure when payee not present in contact to be payed") {
-        pending
         TestCase(
           payees = List(A, B),
           amount = 30,
           fee = 2,
           inputs = List(A gives 10),
           outputs = List(A gets 18, B gets 10, C gets 10),
-          expected = failure("More outputs than payees")
+          expected = failure("Must pay to a payee")
         ).runWithDebug()
     }
 
     test("success when split equally and remainder compensates fee - o1") {
-        pending
         TestCase(
           payees = List(A, B, C),
           amount = 31,
@@ -139,7 +131,6 @@ class PaymentSplitterSpec extends AnyFunSuite, ScalusTest {
     }
 
     test("success when split equally and remainder compensates fee - o2") {
-        pending
         TestCase(
           payees = List(A, B, C),
           amount = 31,
@@ -151,7 +142,6 @@ class PaymentSplitterSpec extends AnyFunSuite, ScalusTest {
     }
 
     test("success when split equally and remainder compensates fee - o3") {
-        pending
         TestCase(
           payees = List(A, B, C),
           amount = 31,
@@ -163,7 +153,6 @@ class PaymentSplitterSpec extends AnyFunSuite, ScalusTest {
     }
 
     test("failure when inflated fee reduces the split payout") {
-        pending
         TestCase(
           payees = List(A, B, C),
           amount = 31,
@@ -175,7 +164,6 @@ class PaymentSplitterSpec extends AnyFunSuite, ScalusTest {
     }
 
     test("failure when multiple payees are present in the inputs") {
-        pending
         val payees = List(A.pkh, B.pkh)
         assertCase(
           payees,
@@ -191,7 +179,6 @@ class PaymentSplitterSpec extends AnyFunSuite, ScalusTest {
     }
 
     test("success when multiple payees are correctly split") {
-        pending
         val payees = List(A.pkh, B.pkh)
         assertCase(
           payees,
@@ -206,7 +193,6 @@ class PaymentSplitterSpec extends AnyFunSuite, ScalusTest {
     }
 
     test("success between 5 splitters with merged outputs") {
-        pending
         val payees = List(A.pkh, B.pkh, C.pkh, D.pkh, E.pkh)
         assertCase(
           payees,
@@ -226,12 +212,9 @@ class PaymentSplitterSpec extends AnyFunSuite, ScalusTest {
         )
     }
 
-    // this test=case illustrate the difference between the oriignal aiken implementation and our.
-    //  maybe support this case too ?
     test(
-      "failure between 5 splitters were first splitter have separate outputs for fee and payout"
+      "success between 5 splitters were first splitter have separate outputs for fee and payout"
     ) {
-        pending
         val payees = List(A.pkh, B.pkh, C.pkh, D.pkh, E.pkh)
         assertCase(
           payees,
@@ -248,7 +231,7 @@ class PaymentSplitterSpec extends AnyFunSuite, ScalusTest {
             (E.pkh, 3000000)
           ),
           fee = 846025,
-          expected = failure("Must pay to a payee")
+          expected = success
         )
     }
 
