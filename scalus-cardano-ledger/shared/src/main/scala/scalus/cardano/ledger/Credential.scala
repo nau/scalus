@@ -9,10 +9,10 @@ import io.bullet.borer.derivation.key
   */
 enum Credential derives Codec.All:
     /** Key hash credential */
-    @key(0) case KeyHash(hash: Hash28)
+    @key(0) case KeyHash(keyHash: AddrKeyHash)
 
     /** Script hash credential */
-    @key(1) case ScriptHash(hash: Hash28)
+    @key(1) case ScriptHash(scriptHash: scalus.cardano.ledger.ScriptHash)
 
     /** Check if this credential is a key hash */
     def isKeyHash: Boolean = this match

@@ -19,6 +19,9 @@ class CborSerializationSpec extends AnyFunSuite, ScalaCheckPropertyChecks, Arbit
     test(s"ScriptHash should serialize and deserialize correctly"):
         testSerializationRoundTrip[ScriptHash]()
 
+    test(s"PolicyHash should serialize and deserialize correctly"):
+        testSerializationRoundTrip[PolicyHash]()
+
     test(s"PolicyId should serialize and deserialize correctly"):
         testSerializationRoundTrip[PolicyId]()
 
@@ -43,6 +46,9 @@ class CborSerializationSpec extends AnyFunSuite, ScalaCheckPropertyChecks, Arbit
     test(s"ScriptDataHash should serialize and deserialize correctly"):
         testSerializationRoundTrip[ScriptDataHash]()
 
+    test(s"NonNegativeInterval should serialize and deserialize correctly"):
+        testSerializationRoundTrip[NonNegativeInterval]()
+
     test(s"ExUnits should serialize and deserialize correctly"):
         testSerializationRoundTrip[ExUnits]()
 
@@ -52,14 +58,14 @@ class CborSerializationSpec extends AnyFunSuite, ScalaCheckPropertyChecks, Arbit
     test(s"CostModels should serialize and deserialize correctly"):
         testSerializationRoundTrip[CostModels]()
 
+    test(s"Anchor should serialize and deserialize correctly"):
+        testSerializationRoundTrip[Anchor]()
+
     test(s"Constitution should serialize and deserialize correctly"):
         testSerializationRoundTrip[Constitution]()
 
     test(s"AddrKeyHash should serialize and deserialize correctly"):
         testSerializationRoundTrip[AddrKeyHash]()
-
-    test(s"Anchor should serialize and deserialize correctly"):
-        testSerializationRoundTrip[Anchor]()
 
     test(s"Credential should serialize and deserialize correctly"):
         testSerializationRoundTrip[Credential]()
@@ -103,9 +109,6 @@ class CborSerializationSpec extends AnyFunSuite, ScalaCheckPropertyChecks, Arbit
     test(s"RewardAccount should serialize and deserialize correctly"):
         testSerializationRoundTrip[RewardAccount]()
 
-    test(s"NonNegativeInterval should serialize and deserialize correctly"):
-        testSerializationRoundTrip[NonNegativeInterval]()
-
     test(s"VrfCert should serialize and deserialize correctly"):
         testSerializationRoundTrip[VrfCert]()
 
@@ -135,6 +138,9 @@ class CborSerializationSpec extends AnyFunSuite, ScalaCheckPropertyChecks, Arbit
 
     test(s"Redeemer should serialize and deserialize correctly"):
         testSerializationRoundTrip[Redeemer]()
+
+    test(s"Redeemers should serialize and deserialize correctly"):
+        testSerializationRoundTrip[Redeemers]()
 
     test(s"TransactionWitnessSet should serialize and deserialize correctly"):
         testSerializationRoundTrip[TransactionWitnessSet]()
