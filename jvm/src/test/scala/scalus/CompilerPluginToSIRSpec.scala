@@ -154,58 +154,65 @@ class CompilerPluginToSIRSpec extends AnyFunSuite with ScalaCheckPropertyChecks:
     }
 
     test("compile def") {
-        assert(
-          compile {
-              def b() = true
 
-              def c(x: Boolean): Boolean = c(x)
+        val compiled = compile {
+            def b() = true
 
-              c(b())
-          } ~=~ Let(
-            Recursivity.NonRec,
+            def c(x: Boolean): Boolean = c(x)
+
+            c(b())
+        }
+
+        val exprected = Let(
+          Recursivity.NonRec,
+          immutable.List(
+            Binding(
+              "b",
+              LamAbs(
+                Var("_", SIRType.Unit, AnE),
+                Const(Constant.Bool(true), SIRType.Boolean, AnE),
+                AnE
+              )
+            )
+          ),
+          Let(
+            Recursivity.Rec,
             immutable.List(
               Binding(
-                "b",
+                "c",
                 LamAbs(
-                  Var("_", SIRType.Unit, AnE),
-                  Const(Constant.Bool(true), SIRType.Boolean, AnE),
+                  Var("x", SIRType.Boolean, AnE),
+                  Apply(
+                    Var("c", SIRType.Fun(Boolean, SIRType.Boolean), AnE),
+                    Var("x", SIRType.Boolean, AnE),
+                    SIRType.Boolean,
+                    AnE
+                  ),
                   AnE
                 )
               )
             ),
-            Let(
-              Recursivity.Rec,
-              immutable.List(
-                Binding(
-                  "c",
-                  LamAbs(
-                    Var("x", SIRType.Boolean, AnE),
-                    Apply(
-                      Var("c", SIRType.Fun(Boolean, SIRType.Boolean), AnE),
-                      Var("x", SIRType.Boolean, AnE),
-                      SIRType.Boolean,
-                      AnE
-                    ),
-                    AnE
-                  )
-                )
-              ),
+            Apply(
+              Var("c", SIRType.Fun(Boolean, SIRType.Boolean), AnE),
               Apply(
-                Var("c", SIRType.Fun(Boolean, SIRType.Boolean), AnE),
-                Apply(
-                  Var("b", SIRType.Fun(SIRType.Unit, SIRType.Boolean), AnE),
-                  Const(Constant.Unit, SIRType.Unit, AnE),
-                  SIRType.Boolean,
-                  AnE
-                ),
+                Var("b", SIRType.Fun(SIRType.Unit, SIRType.Boolean), AnE),
+                Const(Constant.Unit, SIRType.Unit, AnE),
                 SIRType.Boolean,
                 AnE
               ),
+              SIRType.Boolean,
               AnE
             ),
             AnE
-          )
+          ),
+          AnE
         )
+
+        println(s"comileDef: compiled: ${compiled.pretty.render(100)}")
+
+        println(s"comileDef: expected: ${exprected.pretty.render(100)}")
+
+        assert(compiled ~=~ exprected)
     }
 
     test("compile lambda with args with type parameters") {
@@ -2133,5 +2140,89 @@ class CompilerPluginToSIRSpec extends AnyFunSuite with ScalaCheckPropertyChecks:
             case Result.Failure(exception, _, _, logs) =>
                 println("failure: exception=" + exception.getMessage)
                 fail(exception)
+
+    }
+
+    test("compile scala function with zero arguments") {
+        val compiled = compile {
+            def fooZeroArgs = BigInt(1)
+            val z = fooZeroArgs
+            z
+        }
+
+        val evaluated = compiled.toUplc().evaluate
+
+        assert(evaluated == scalus.uplc.Term.Const(Constant.Integer(1)))
+
+    }
+
+    test("compile scala methd with zero arguments") {
+        val compiled = compile {
+            import scalus.prelude.*
+            val m: AssocMap[BigInt, BigInt] = AssocMap.empty[BigInt, BigInt]
+            m.get(BigInt(1)) match {
+                case Option.None    => BigInt(0)
+                case Option.Some(v) => v
+            }
+        }
+
+        // println(s"sir=${compiled.pretty.render(100)}")
+
+        def retrieveLastSIRComponent(sir: SIR): SIR =
+            sir match
+                case SIR.Decl(data, term) => retrieveLastSIRComponent(term)
+                case _                    => sir
+
+        def findLetForVar(sir: SIR, name: String): Option[SIR.Let] =
+            sir match
+                case SIR.Let(_, bindings, body, _) =>
+                    bindings.find(_.name == name) match
+                        case Some(binding) => Some(SIR.Let(NonRec, List(binding), body, AnE))
+                        case None          => findLetForVar(body, name)
+                case _ => None
+
+        val mLet = findLetForVar(retrieveLastSIRComponent(compiled), "m").get
+
+        val mBindingCompiled = mLet.bindings.head
+
+        val mBindingExpected =
+            Binding(
+              "m",
+              Apply(
+                SIR.ExternalVar(
+                  "scalus.prelude.AssocMap$",
+                  "scalus.prelude.AssocMap$.empty",
+                  SIRType.FreeUnificator,
+                  AnE
+                ),
+                sirConstUnit,
+                SIRType.FreeUnificator,
+                AnE
+              )
+            )
+
+        assert(
+          mBindingCompiled.value ~=~ mBindingExpected.value
+        )
+
+        val uplc = compiled.toUplcOptimized(generateErrorTraces = true)
+        val evaluated = uplc.evaluate
+        assert(evaluated == scalus.uplc.Term.Const(Constant.Integer(0)))
+
+    }
+
+    test("compile scala methd with zero arguments in non-var position") {
+
+        val compiled = compile {
+            import scalus.prelude.*
+            AssocMap.empty[BigInt, BigInt].get(BigInt(1)) match {
+                case Option.None    => BigInt(0)
+                case Option.Some(v) => v
+            }
+        }
+
+        val uplc = compiled.toUplcOptimized(generateErrorTraces = true)
+        val evaluated = uplc.evaluate
+        assert(evaluated == scalus.uplc.Term.Const(Constant.Integer(0)))
 
     }
