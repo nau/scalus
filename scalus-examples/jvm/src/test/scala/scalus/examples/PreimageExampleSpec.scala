@@ -9,14 +9,11 @@ import scalus.builtin.Data.toData
 import scalus.ledger.api.v1
 import scalus.ledger.api.v1.{PubKeyHash, TxId}
 import scalus.ledger.api.v2.*
-import scalus.ledger.api.v1.ToDataInstances.given
-import scalus.ledger.api.v2.ToDataInstances.given
 import scalus.prelude.List
 import scalus.uplc.*
 import scalus.uplc.Term.*
 
 class PreimageExampleSpec extends BaseValidatorSpec {
-    import scalus.builtin.ToDataInstances.given
 
     private def scriptContext(signatories: scalus.prelude.List[PubKeyHash]) =
         ScriptContext(
