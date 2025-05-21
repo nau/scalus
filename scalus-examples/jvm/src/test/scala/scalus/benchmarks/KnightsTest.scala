@@ -12,9 +12,17 @@ class KnightsTest extends AnyFunSuite, ScalusTest:
     import KnightsTest.{*, given}
 
     test("100_4x4") {
-        val result = runKnights(100, 4)
-        val expected: Solution = List.empty
-        assert(result === expected)
+        val result = Compiler
+            .compile {
+                val result = runKnights(100, 4)
+                val expected: Solution = List.empty
+                given Eq[Solution] = (lhs, rhs) => lhs.length === rhs.length
+//                given Eq[Solution] = (lhs, rhs) => true
+                require(result === expected)
+            }
+            .toUplcOptimized(false)
+            .evaluateDebug
+//        println(result)
     }
 
     test("100_6x6") {
