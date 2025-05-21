@@ -9,7 +9,6 @@ import scalus.builtin.ByteString
 import scalus.builtin.ByteString.*
 import scalus.builtin.Data
 import scalus.ledger.api.v1.*
-import scalus.ledger.api.v1.ToDataInstances.given
 import scalus.prelude.List.Cons
 import scalus.prelude.List.Nil
 import scalus.uplc.*
@@ -45,7 +44,7 @@ class PubKeyValidatorSpec extends AnyFunSuite with ScalaCheckPropertyChecks:
         // println(term.show)
         assert(flatBytesLen == 116)
         import Data.*
-        import TermDSL.{*, given}
+        import TermDSL.given
 //    println(scriptContext.toData)
         val appliedValidator = script $ () $ () $ scriptContext.toData
         given PlutusVM = PlutusVM.makePlutusV1VM()

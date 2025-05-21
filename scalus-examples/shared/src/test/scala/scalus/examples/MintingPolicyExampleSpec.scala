@@ -67,7 +67,6 @@ class MintingPolicyExampleSpec extends BaseValidatorSpec {
         value: Value
     ) =
         import Data.toData
-        import scalus.ledger.api.v2.ToDataInstances.given
         val txInfoInputsV2 = txInfoInputs.map { case TxInInfo(txOutRef, txOut) =>
             val txOutV2 =
                 v2.TxOut(txOut.address, txOut.value, v2.OutputDatum.NoOutputDatum, None)

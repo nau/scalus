@@ -5,7 +5,7 @@ import scalus.prelude.*
 import scalus.builtin.ByteString
 import scalus.builtin.ToData
 import scalus.builtin.FromData
-import scalus.builtin.Data.{fromData, toData}
+import scalus.builtin.Data.toData
 import scalus.uplc.DeBruijnedProgram
 import scalus.uplc.eval.{ExBudget, ExCPU, ExMemory}
 import scalus.uplc.eval.Result

@@ -5,8 +5,8 @@ import scalus.*
 import scalus.Compiler.compile
 import scalus.builtin.ByteString
 import scalus.builtin.Data
-import scalus.builtin.{FromData, ToData}
-import scalus.builtin.Data.{fromData, toData, unit}
+import scalus.builtin.ToData
+import scalus.builtin.Data.toData
 import scalus.ledger.api.v1.Credential.{PubKeyCredential, ScriptCredential}
 import scalus.ledger.api.v1.{Address, Credential, PubKeyHash, Value}
 import scalus.ledger.api.v2.TxOut
@@ -14,9 +14,8 @@ import scalus.ledger.api.v3.*
 import scalus.ledger.api.v3.ScriptInfo.SpendingScript
 import scalus.prelude.{List, Option, *}
 import scalus.testkit.*
-import scalus.uplc.{DefaultUni, *}
+import scalus.uplc.Program
 import scalus.uplc.eval.*
-import scalus.uplc.eval.Result.Failure
 
 import scala.util.control.NonFatal
 
@@ -295,7 +294,7 @@ class PaymentSplitterSpec extends AnyFunSuite, ScalusTest {
         )
         val txCert = TxCert.RegStaking(Credential.PubKeyCredential(pkh), Option.None)
         val txOutRef = TxOutRef(lockTxId, 0)
-        val redeemer = PaymentSplitterRedeemer("qqq").toData
+        val redeemer = Data.unit // PaymentSplitterRedeemer("qqq").toData
         val context = ScriptContext(
           txInfo = TxInfo(
             inputs = inputs,

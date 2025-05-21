@@ -13,7 +13,6 @@ import org.scalatest.funsuite.AnyFunSuite
 import scalus.testkit.ScalusTest
 
 import scala.language.implicitConversions
-import scala.math.Ordering.Implicits.*
 
 class HelloCardanoSpec extends AnyFunSuite with ScalusTest {
 

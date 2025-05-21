@@ -1,7 +1,6 @@
 package scalus.examples
 
 import scalus.*
-import scalus.builtin.FromDataInstances.given
 import scalus.builtin.{Builtins, ByteString, Data}
 import scalus.ledger.api.v1
 import scalus.ledger.api.v1.Value.*
