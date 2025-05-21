@@ -46,6 +46,7 @@ Compile / doc / scalacOptions ++= Seq(
   "Lantr.io"
 )
 
+
 lazy val root: Project = project
     .in(file("."))
     .aggregate(
@@ -60,8 +61,8 @@ lazy val root: Project = project
       scalusTestkit.native,
       scalusExamples.js,
       scalusExamples.jvm,
-      designPatterns.js,
-      designPatterns.jvm,
+      // designPatterns.js,
+      scalusDesignPatterns,
       bench,
       `scalus-bloxbean-cardano-client-lib`,
       docs
@@ -306,30 +307,18 @@ lazy val scalusExamples = crossProject(JSPlatform, JVMPlatform, NativePlatform)
     )
     .jsConfigure { project => project.enablePlugins(ScalaJSBundlerPlugin) }
 
-lazy val designPatterns = crossProject(JSPlatform, JVMPlatform, NativePlatform)
+lazy val scalusDesignPatterns = project
     .in(file("scalus-design-patterns"))
-    .dependsOn(scalus, scalusTestkit)
+    .dependsOn(scalus.jvm, scalusTestkit.jvm)
     .disablePlugins(MimaPlugin) // disable Migration Manager for Scala
     .settings(
       PluginDependency,
       scalacOptions ++= commonScalacOptions,
       publish / skip := true,
       libraryDependencies += "org.scalatest" %%% "scalatest" % "3.2.19" % "test",
-      libraryDependencies += "org.scalatestplus" %%% "scalacheck-1-18" % "3.2.19.0" % "test"
-    )
-    .configurePlatform(JVMPlatform)(_.dependsOn(`scalus-bloxbean-cardano-client-lib`))
-    .jvmSettings(
+      libraryDependencies += "org.scalatestplus" %%% "scalacheck-1-18" % "3.2.19.0" % "test",
       Test / fork := true,
-      libraryDependencies += "com.bloxbean.cardano" % "cardano-client-backend-blockfrost" % "0.6.3"
     )
-    .jsSettings(
-      Compile / npmDependencies += "@noble/curves" -> "1.4.2",
-      scalaJSUseMainModuleInitializer := false,
-      scalaJSLinkerConfig ~= {
-          _.withModuleKind(ModuleKind.CommonJSModule)
-      }
-    )
-    .jsConfigure { project => project.enablePlugins(ScalaJSBundlerPlugin) }
 
 /*
 lazy val examples = project
