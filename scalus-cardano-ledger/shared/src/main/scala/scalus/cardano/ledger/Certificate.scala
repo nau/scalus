@@ -91,7 +91,7 @@ object Certificate:
                 w.write(rewardAccount)
 
                 // Write pool owners as a set
-                w.write(poolOwners)
+                writeSet(w, poolOwners)
 
                 // Write relays as an array
                 w.write(relays)
@@ -185,6 +185,14 @@ object Certificate:
                     .writeInt(18)
                     .write(drepCredential)
                     .write(anchor)
+
+    /** Helper to write a Set as CBOR */
+    private def writeSet[A](w: Writer, set: Set[A])(using encoder: Encoder[A]): Writer =
+        // Use indefinite array
+        w.writeTag(Tag.Other(258))
+        w.writeArrayHeader(set.size)
+        set.foreach(encoder.write(w, _))
+        w
 
     given Decoder[Certificate] with
         def read(r: Reader): Certificate =
@@ -294,7 +302,6 @@ object Certificate:
             if tag.code != 258 then
                 r.validationFailure(s"Expected tag 258 for definite Set, got $tag")
             val set = r.read[Set[A]]()
-            if set.isEmpty then r.validationFailure("Set must be non-empty")
             Some(set)
         else
             val set = r.read[Set[A]]()
