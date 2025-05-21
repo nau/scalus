@@ -17,19 +17,8 @@ import scalus.ScalusCompilationMode.{AllDefs, OnlyDerivations}
 import scalus.flat.EncoderState
 import scalus.flat.Flat
 import scalus.flat.FlatInstantces.given
-import scalus.sir.AnnotationsDecl
-import scalus.sir.Binding
-import scalus.sir.ConstrDecl
-import scalus.sir.DataDecl
-import scalus.sir.Module
-import scalus.sir.Recursivity
-import scalus.sir.SIR
-import scalus.sir.SIRType
-import scalus.sir.SIRVarStorage
-import scalus.sir.SIRBuiltins
-import scalus.sir.SIRPosition
+import scalus.sir.{AnnotationsDecl, Binding, ConstrDecl, DataDecl, Module, Recursivity, SIR, SIRBuiltins, SIRPosition, SIRType, SIRUnify, SIRVarStorage, TypeBinding}
 import scalus.sir.SIRVarStorage.LocalUPLC
-import scalus.sir.TypeBinding
 import scalus.uplc.DefaultUni
 
 import scala.annotation.tailrec
@@ -669,13 +658,27 @@ final class SIRCompiler(options: SIRCompilerOptions = SIRCompilerOptions.default
         defaultValue
     }
 
-    private def compileIdentOrQualifiedSelect(env: Env, e: Tree): SIR = {
+    /** Compile an identifier or a qualified select, possible type-applied
+      * @param env - env in which we compile
+      * @param e - select extpression or identifier
+      * @param taTree - or same as e or TypeApply(e, targs), typechecked
+      * @param targs - type arguments.
+      * @return appropriate SIR
+      */
+    private def compileIdentOrQualifiedSelect(
+        env: Env,
+        e: Tree,
+        taTree: Tree,
+        targs: List[Tree]
+    ): SIR = {
+
         val name = e.symbol.name.show
         val fullName = FullName(e.symbol)
         val isInLocalEnv = env.vars.contains(name)
         val isInGlobalEnv = globalDefs.contains(fullName)
+
         // println( s"compileIdentOrQualifiedSelect1: ${e.symbol} $name $fullName, term: ${e.show}, loc/glob: $isInLocalEnv/$isInGlobalEnv, env: ${env}" )
-        (isInLocalEnv, isInGlobalEnv) match
+        val sirVar = (isInLocalEnv, isInGlobalEnv) match
             case (true, true) =>
                 val localType = env.vars(name)
                 globalDefs(fullName) match
@@ -712,7 +715,7 @@ final class SIRCompiler(options: SIRCompilerOptions = SIRCompilerOptions.default
             case (false, true) =>
                 SIR.Var(
                   e.symbol.fullName.toString,
-                  sirTypeInEnv(e.tpe.widen, e.srcPos, env),
+                  sirTypeInEnv(taTree.tpe.widen, e.srcPos, env),
                   AnnotationsDecl.fromSymIn(e.symbol, e.srcPos.sourcePos)
                 )
             case (false, false) =>
@@ -724,6 +727,24 @@ final class SIRCompiler(options: SIRCompilerOptions = SIRCompilerOptions.default
                   valType,
                   AnnotationsDecl.fromSymIn(e.symbol, e.srcPos.sourcePos)
                 )
+
+        // TODO: check that this is not from an apply call.
+        if isNoArgsMethod(e.symbol) && !SIRType.isPolyFunOrFun(sirVar.tp)
+        then
+            val anns = AnnotationsDecl.fromSrcPos(e.srcPos)
+            val applySirType = sirTypeInEnv(taTree.tpe.widen.dealias, e.srcPos, env)
+            SIR.Apply(
+              sirVar,
+              SIR.Const(scalus.uplc.Constant.Unit, SIRType.Unit, anns),
+              applySirType,
+              anns
+            )
+        else sirVar
+    }
+
+    private def isNoArgsMethod(sym: Symbol): Boolean = {
+        sym.flags.is(Flags.Method) && !sym.flags.is(Flags.CaseAccessor) &&
+        sym.paramSymss.flatten.forall(_.isType)
     }
 
     sealed trait CompileMemberDefResult
@@ -781,8 +802,24 @@ final class SIRCompiler(options: SIRCompilerOptions = SIRCompilerOptions.default
                     }
                 } else vd.rhs
             val bodyExpr = compileExpr(env, rhsFixed)
+
+            // insert Apply if the left part hava a type T and right: Unit=>T
+            val bodyExpr1 =
+                if SIRType.isPolyFunOrFunUnit(bodyExpr.tp)
+                then
+                    val valSirType = sirTypeInEnv(vd.tpe.widen, vd.srcPos, env)
+                    if !SIRType.isPolyFunOrFun(valSirType) then
+                        SIR.Apply(
+                          bodyExpr,
+                          SIR.Const(scalus.uplc.Constant.Unit, SIRType.Unit, AnnotationsDecl.empty),
+                          valSirType,
+                          AnnotationsDecl.fromSrcPos(vd.srcPos)
+                        )
+                    else bodyExpr
+                else bodyExpr
+
             CompileMemberDefResult.Compiled(
-              LocalBinding(name.show, vd.symbol, Recursivity.NonRec, bodyExpr, vd.sourcePos)
+              LocalBinding(name.show, vd.symbol, Recursivity.NonRec, bodyExpr1, vd.sourcePos)
             )
     }
 
@@ -1540,19 +1577,7 @@ final class SIRCompiler(options: SIRCompilerOptions = SIRCompilerOptions.default
                         case None =>
                             compileExpr(env, qual)
             case Select(qual, nme.apply) =>
-                try compileExpr(env, f)
-                catch
-                    case NonFatal(e) =>
-                        println(s"Error in compileApply: ${e.getMessage}")
-                        println(s"f: ${f.show}, targs: $targs, args: $args")
-                        println(
-                          s"qual.symbol: ${f.symbol}; qual.symbol.fullName=${qual.symbol.fullName}"
-                        )
-                        val isFunctionalInterface = qual.tpe.typeSymbol.hasAnnotation(
-                          Symbols.requiredClass("java.lang.FunctionalInterface")
-                        )
-                        println(s"is functional interface = ${isFunctionalInterface}")
-                        throw e
+                compileExpr(env, f)
             case _ =>
                 compileExpr(env, f)
         val applySirType = sirTypeInEnv(applyTpe, applyTree.srcPos, env)
@@ -1930,10 +1955,25 @@ final class SIRCompiler(options: SIRCompilerOptions = SIRCompilerOptions.default
             // f.apply(arg) => Apply(f, arg)
             case a @ Apply(Select(f, nme.apply), args) if defn.isFunctionType(f.tpe.widen) =>
                 compileApply(env, f, Nil, args, tree.tpe, a)
+            case TypeApply(id @ Ident(a), targs) =>
+                if isConstructorVal(tree.symbol, tree.tpe) then
+                    compileNewConstructor(env, id.tpe.widen, tree.tpe, Nil, tree)
+                else compileIdentOrQualifiedSelect(env, id, tree, targs)
             case Ident(a) =>
                 if isConstructorVal(tree.symbol, tree.tpe) then
                     compileNewConstructor(env, tree.tpe, tree.tpe, Nil, tree)
-                else compileIdentOrQualifiedSelect(env, tree)
+                else compileIdentOrQualifiedSelect(env, tree, tree, Nil)
+            // ignore asInstanceOf
+            case TypeApply(Select(e, nme.asInstanceOf_), _) =>
+                compileExpr(env, e)
+            case TypeApply(sel @ Select(obj, ident), targs) =>
+                // can't be field (because fields are not type-applyable)
+                if isConstructorVal(tree.symbol, tree.tpe) then
+                    compileNewConstructor(env, sel.tpe, tree.tpe, targs, tree)
+                // TODO: now we have-no virtual calls with template parameters,
+                //   but if we want to add it, we well need extend case here
+                // else if isVirtualCall
+                else compileIdentOrQualifiedSelect(env, sel, tree, targs)
             // case class User(name: String, age: Int)
             // val user = User("John", 42) => \u - u "John" 42
             // user.name => \u name age -> name
@@ -1961,10 +2001,7 @@ final class SIRCompiler(options: SIRCompilerOptions = SIRCompilerOptions.default
                 //    ???
                 else if isVirtualCall(tree, obj, ident) then
                     compileVirtualCall(env, tree, obj, ident)
-                else compileIdentOrQualifiedSelect(env, tree)
-            // ignore asInstanceOf
-            case TypeApply(Select(e, nme.asInstanceOf_), _) =>
-                compileExpr(env, e)
+                else compileIdentOrQualifiedSelect(env, tree, tree, Nil)
             // Ignore type application
             case TypeApply(f, targs) =>
                 val nEnv = fillTypeParamInTypeApply(f.symbol, targs, env)

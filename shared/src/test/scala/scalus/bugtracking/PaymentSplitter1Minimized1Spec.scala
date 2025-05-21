@@ -127,8 +127,6 @@ class PaymentSplitter1Minimized1Spec extends AnyFunSuite {
 
         PaymentSplitter1Minimized.validate(data)(scriptContext)
 
-        pending
-
         given PlutusVM = PlutusVM.makePlutusV3VM()
         val result = applied.evaluateDebug
         println(result)
