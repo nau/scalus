@@ -3,12 +3,18 @@ package scalus.prelude
 import scalus.Compile
 import scalus.Ignore
 import scalus.builtin.Builtins.*
-import scalus.builtin.ByteString
-import scalus.builtin.Data
+import scalus.builtin.Data.{fromData, toData}
+import scalus.builtin.{ByteString, Data, FromData, ToData}
 import scalus.macros.Macros
 
 import scala.annotation.{nowarn, tailrec}
 import scala.collection.mutable
+
+import Ord.*
+
+extension [A](self: A)
+    inline def let[B](inline fn: A => B): B = fn(self)
+    inline def also[B](inline callback: A => Unit): A = { callback(self); self }
 
 extension (x: Boolean)
     /** Trace the expression only if it evaluates to `false`. This is useful to trace an entire
@@ -42,11 +48,96 @@ inline given Eq[Data] = equalsData
 @nowarn
 inline given Eq[Unit] = (_: Unit, _: Unit) => true
 
-extension [A](x: A) inline def ===(inline y: A)(using inline eq: Eq[A]): Boolean = eq(x, y)
-extension [A](x: A) inline def !==(inline y: A)(using inline eq: Eq[A]): Boolean = !eq(x, y)
+val Eq: EqCompanion.type = EqCompanion
+
+@Compile
+object EqCompanion:
+    def by[A, B: Eq](mapper: A => B): Eq[A] = (lhs: A, rhs: A) => mapper(lhs) === mapper(rhs)
+
+    extension [A](self: Eq[A])
+        inline def eqv(inline lhs: A, inline rhs: A): Boolean = self(lhs, rhs)
+        inline def notEqv(inline lhs: A, inline rhs: A): Boolean = !self.eqv(lhs, rhs)
+
+        def orElse(other: Eq[A]): Eq[A] = (lhs: A, rhs: A) =>
+            if self.eqv(lhs, rhs) then other.eqv(lhs, rhs) else false
+
+        def orElseBy[B: Eq](mapper: A => B): Eq[A] = (lhs: A, rhs: A) =>
+            if self.eqv(lhs, rhs) then by[A, B](mapper).eqv(lhs, rhs) else false
+
+    end extension
+
+    given [A: Eq, B: Eq]: Eq[(A, B)] = Eq.by[(A, B), A](_._1).orElseBy(_._2)
+
+end EqCompanion
+
+extension [A](x: A)
+    inline def ===(inline y: A)(using inline eq: Eq[A]): Boolean = eq(x, y)
+    inline def !==(inline y: A)(using inline eq: Eq[A]): Boolean = !eq(x, y)
+
+type Ord[-A] = (A, A) => Ord.Order
+
+val Ord: OrdCompanion.type = OrdCompanion
+
+@Compile
+object OrdCompanion:
+    enum Order:
+        case Less, Greater, Equal
+
+    import Order.*
+
+    extension (self: Order)
+        def isLess: Boolean = self match { case Less => true; case _ => false }
+        def isLessEqual: Boolean = self match {
+            case Less => true; case Equal => true; case _ => false
+        }
+        def isGreater: Boolean = self match { case Greater => true; case _ => false }
+        def isGreaterEqual: Boolean = self match {
+            case Greater => true; case Equal => true; case _ => false
+        }
+        def isEqual: Boolean = self match { case Equal => true; case _ => false }
+        inline def nonEqual: Boolean = !isEqual
+
+    end extension
+
+    given Eq[Order] = (lhs, rhs) =>
+        lhs match
+            case Less    => rhs.isLess
+            case Greater => rhs.isGreater
+            case Equal   => rhs.isEqual
+
+    extension [A: Ord](self: A)
+        inline def <=>(inline other: A): Order = summon[Ord[A]].compare(self, other)
+        def lt(other: A): Boolean = (self <=> other).isLess
+        def lteq(other: A): Boolean = (self <=> other).isLessEqual
+        def gt(other: A): Boolean = (self <=> other).isGreater
+        def gteq(other: A): Boolean = (self <=> other).isGreaterEqual
+        def equiv(other: A): Boolean = (self <=> other).isEqual
+
+    end extension
+
+    def by[A, B: Ord](mapper: A => B): Ord[A] = (lhs: A, rhs: A) => mapper(lhs) <=> mapper(rhs)
+
+    extension [A](self: Ord[A])
+        inline def compare(inline lhs: A, inline rhs: A): Order = self(lhs, rhs)
+
+        def orElse(other: Ord[A]): Ord[A] = (lhs: A, rhs: A) =>
+            val order = self.compare(lhs, rhs)
+            if order.nonEqual then order else other.compare(lhs, rhs)
+
+        def orElseBy[B: Ord](mapper: A => B): Ord[A] = (lhs: A, rhs: A) =>
+            val order = self.compare(lhs, rhs)
+            if order.nonEqual then order else by[A, B](mapper).compare(lhs, rhs)
+
+    end extension
+
+    given Ord[BigInt] = (x: BigInt, y: BigInt) =>
+        if lessThanInteger(x, y) then Less else if lessThanInteger(y, x) then Greater else Equal
+
+    given [A: Ord, B: Ord]: Ord[(A, B)] = Ord.by[(A, B), A](_._1).orElseBy(_._2)
+
+end OrdCompanion
 
 inline def log(msg: String): Unit = trace(msg)(())
-
 inline def identity[A](value: A): A = value
 
 @Compile
@@ -320,6 +411,23 @@ object List:
                     case Nil          => Nil
             case Nil => Nil
 
+    given listToData[A: ToData]: ToData[scalus.prelude.List[A]] =
+        (a: scalus.prelude.List[A]) => {
+            def loop(a: scalus.prelude.List[A]): scalus.builtin.List[Data] =
+                a match
+                    case scalus.prelude.List.Nil => mkNilData()
+                    case scalus.prelude.List.Cons(head, tail) =>
+                        mkCons(summon[ToData[A]](head), loop(tail))
+
+            listData(loop(a))
+        }
+
+    given ListFromData[A: FromData]: FromData[scalus.prelude.List[A]] = (d: Data) =>
+        def loop(ls: scalus.builtin.List[Data]): scalus.prelude.List[A] =
+            if ls.isEmpty then List.Nil
+            else new List.Cons(fromData[A](ls.head), loop(ls.tail))
+        loop(unListData(d))
+
     extension [A](self: List[A])
         inline def !!(idx: BigInt): A = self.at(idx)
 
@@ -435,7 +543,7 @@ object List:
                     case Cons(head, tail) =>
                         val key = keyExtractor(head)
                         val value = valueExtractor(head)
-                        acc.lookup(key) match
+                        acc.get(key) match
                             case None =>
                                 val newAcc = acc.insert(key, List.single(value))
                                 go(tail, newAcc)
@@ -481,7 +589,7 @@ object List:
                     case Cons(head, tail) =>
                         val key = keyExtractor(head)
                         val value = valueExtractor(head)
-                        acc.lookup(key) match
+                        acc.get(key) match
                             case None =>
                                 val newAcc = acc.insert(key, value)
                                 go(tail, newAcc)
@@ -492,6 +600,14 @@ object List:
 
             go(self, AssocMap.empty)
         }
+
+        def zip[B](other: List[B]): List[(A, B)] = self match
+            case Nil => Nil
+            case Cons(selfHead, selfTail) =>
+                other match
+                    case Nil => Nil
+                    case Cons(otherHead, otherTail) =>
+                        Cons((selfHead, otherHead), selfTail.zip(otherTail))
 
         /** Adds an element at the beginning of this list */
         inline def prepended[B >: A](elem: B): List[B] = Cons(elem, self)
@@ -530,9 +646,11 @@ object List:
           *   result === Cons(2, Cons(4, .Cons(6, Nil)))
           *   }}}
           */
-        def map[B](mapper: A => B): List[B] = self match
-            case Nil              => Nil
-            case Cons(head, tail) => Cons(mapper(head), tail.map(mapper))
+        def map[B](mapper: A => B): List[B] =
+            foldRight(List.empty[B]) { (head, tail) => Cons(mapper(head), tail) }
+
+        def flatMap[B](mapper: A => List[B]): List[B] =
+            foldRight(List.empty[B]) { (head, tail) => mapper(head) ++ tail }
 
         /** Filters the elements of the list based on a predicate.
           *
@@ -550,11 +668,17 @@ object List:
           *   filtered === Cons(1, Cons(3, Nil))
           *   }}}
           */
-        def filter(predicate: A => Boolean): List[A] = self match
-            case Nil => Nil
-            case Cons(head, tail) =>
-                if predicate(head) then Cons(head, tail.filter(predicate))
-                else tail.filter(predicate)
+        def filter(predicate: A => Boolean): List[A] =
+            foldRight(List.empty[A]) { (head, tail) =>
+                if predicate(head) then Cons(head, tail) else tail
+            }
+
+        def filterMap[B](predicate: A => Option[B]): List[B] =
+            foldRight(List.empty[B]) { (head, tail) =>
+                predicate(head) match
+                    case None        => tail
+                    case Some(value) => Cons(value, tail)
+            }
 
         /** Finds the first element in the list that satisfies the given predicate.
           *
@@ -603,10 +727,11 @@ object List:
             case Nil              => init
             case Cons(head, tail) => tail.foldLeft(combiner(init, head))(combiner)
 
-        @tailrec
-        def exists(predicate: A => Boolean): Boolean = self match
-            case Nil              => false
-            case Cons(head, tail) => if predicate(head) then true else tail.exists(predicate)
+        def foldRight[B](init: B)(combiner: (A, B) => B): B = self match
+            case Nil              => init
+            case Cons(head, tail) => combiner(head, tail.foldRight(init)(combiner))
+
+        def exists(predicate: A => Boolean): Boolean = find(predicate).isDefined
 
         @tailrec
         def forall(predicate: A => Boolean): Boolean = self match
@@ -735,6 +860,23 @@ object List:
             case Nil           => throw new NoSuchElementException("tail of empty list")
             case Cons(_, rest) => rest
 
+        @tailrec
+        def drop(skip: BigInt): List[A] = self match
+            case Nil => Nil
+            case Cons(_, tail) =>
+                if skip <= 0 then self
+                else tail.drop(skip - 1)
+
+        def dropRight(skip: BigInt): List[A] =
+            if skip <= 0 then self
+            else
+                self.foldRight((List.empty[A], skip)) { (head, acc) =>
+                    if acc._2 > 0 then (Nil, acc._2 - 1)
+                    else (Cons(head, acc._1), acc._2)
+                }._1
+
+        inline def init: List[A] = dropRight(1)
+
         /** Returns a new list with elements in reverse order.
           *
           * @return
@@ -780,16 +922,29 @@ object List:
             case scala.Seq()            => Nil
             case scala.Seq(head, tail*) => Cons(head, tail.asScalus)
 
-    given listEq[A](using eq: Eq[A]): Eq[List[A]] = (a: List[A], b: List[A]) =>
-        a match
+    given listEq[A: Eq]: Eq[List[A]] = (lhs: List[A], rhs: List[A]) =>
+        lhs match
             case Nil =>
-                b match
+                rhs match
                     case Nil        => true
                     case Cons(_, _) => false
             case Cons(headLhs, tailLhs) =>
-                b match
+                rhs match
                     case Nil                    => false
                     case Cons(headRhs, tailRhs) => headLhs === headRhs && tailLhs === tailRhs
+
+    given listOrd[A: Ord]: Ord[List[A]] = (lhs: List[A], rhs: List[A]) =>
+        lhs match
+            case Nil =>
+                rhs match
+                    case Nil        => Order.Equal
+                    case Cons(_, _) => Order.Less
+            case Cons(headLhs, tailLhs) =>
+                rhs match
+                    case Nil => Order.Greater
+                    case Cons(headRhs, tailRhs) =>
+                        val order = headLhs <=> headRhs
+                        if order.nonEqual then order else tailLhs <=> tailRhs
 
 @deprecated("Use `scalus.prelude.Option` instead")
 enum Maybe[+A]:
@@ -847,7 +1002,7 @@ enum Option[+A]:
 @Compile
 object Option {
 
-    /** Constructs a `Option` from a value. If the value is `null`, it returns `None`, otherwise
+    /** Constructs an `Option` from a value. If the value is `null`, it returns `None`, otherwise
       * `Some(value)`.
       */
     @Ignore
@@ -939,6 +1094,21 @@ object Option {
                 b match
                     case None         => false
                     case Some(value2) => value === value2
+
+    given optionFromData[A: FromData]: FromData[Option[A]] = (d: Data) =>
+        val pair = unConstrData(d)
+        if pair.fst == BigInt(0) then new Option.Some(fromData[A](pair.snd.head))
+        else Option.None
+
+    given optionToData[A: ToData]: ToData[Option[A]] =
+        (a: Option[A]) => {
+            a match {
+                case Option.Some(v) =>
+                    constrData(0, mkCons(v.toData, mkNilData()))
+                case Option.None => constrData(1, mkNilData())
+            }
+        }
+
 }
 
 enum These[+A, +B]:
@@ -956,6 +1126,38 @@ object AssocMap {
     def singleton[A, B](key: A, value: B): AssocMap[A, B] = AssocMap(List.single((key, value)))
     def fromList[A, B](lst: List[(A, B)]): AssocMap[A, B] = AssocMap(lst)
 
+    given AssocMapFromData[A: FromData, B: FromData]: FromData[AssocMap[A, B]] =
+        (d: Data) =>
+            def loop(
+                ls: scalus.builtin.List[scalus.builtin.Pair[Data, Data]]
+            ): scalus.prelude.List[(A, B)] =
+                if ls.isEmpty then List.Nil
+                else
+                    val pair = ls.head
+                    new List.Cons(
+                      (fromData[A](pair.fst), fromData[B](pair.snd)),
+                      loop(ls.tail)
+                    )
+            AssocMap.fromList(loop(unMapData(d)))
+
+    given assocMapToData[A: ToData, B: ToData]: ToData[AssocMap[A, B]] =
+        (a: AssocMap[A, B]) => {
+            def go(a: List[(A, B)]): scalus.builtin.List[scalus.builtin.Pair[Data, Data]] =
+                a match {
+                    case List.Nil => mkNilPairData()
+                    case List.Cons(tuple, tail) =>
+                        tuple match {
+                            case (a, b) =>
+                                mkCons(
+                                  scalus.builtin.Pair(summon[ToData[A]](a), summon[ToData[B]](b)),
+                                  go(tail)
+                                )
+                        }
+                }
+
+            mapData(go(a.toList))
+        }
+
     extension [A, B](self: AssocMap[A, B])
         inline def isEmpty: Boolean = self.toList.isEmpty
         inline def nonEmpty: Boolean = self.toList.nonEmpty
@@ -967,7 +1169,15 @@ object AssocMap {
         def all(f: ((A, B)) => Boolean): Boolean = self.toList.forall(f)
 
     extension [A: Eq, B](self: AssocMap[A, B])
-        def lookup(key: A): Option[B] = {
+        /** Optionally returns the value associated with a key.
+          *
+          * @param key
+          *   the key value
+          * @return
+          *   an option value containing the value associated with `key` in this map, or `None` if
+          *   none exists.
+          */
+        def get(key: A): Option[B] = {
             @tailrec
             def go(lst: List[(A, B)]): Option[B] = lst match
                 case Nil => Option.None
@@ -977,6 +1187,9 @@ object AssocMap {
 
             go(self.toList)
         }
+
+        @deprecated("Use `get` instead")
+        def lookup(key: A): Option[B] = get(key)
 
         def insert(key: A, value: B): AssocMap[A, B] = {
             def go(lst: List[(A, B)]): List[(A, B)] = lst match
@@ -1010,7 +1223,7 @@ object AssocMap {
             case Cons(pair, tail) =>
                 pair match
                     case (k, v) =>
-                        val optionR = rhs.lookup(k)
+                        val optionR = rhs.get(k)
                         val these = optionR match
                             case None    => These.This(v)
                             case Some(r) => These.These(v, r)
@@ -1028,7 +1241,7 @@ object AssocMap {
     given assocMapEq[A: Eq, B: Eq]: Eq[AssocMap[A, B]] =
         (lhs: AssocMap[A, B], rhs: AssocMap[A, B]) =>
             lhs.toList.length === rhs.toList.length && lhs.toList.forall { case (key, lhsValue) =>
-                rhs.lookup(key) match
+                rhs.get(key) match
                     case None           => false
                     case Some(rhsValue) => lhsValue === rhsValue
             }
@@ -1038,5 +1251,10 @@ case class Rational(numerator: BigInt, denominator: BigInt)
 
 @Compile
 object Rational:
+
     given Eq[Rational] = (lhs: Rational, rhs: Rational) =>
         lhs.numerator * rhs.denominator === rhs.numerator * lhs.denominator
+
+    given rationalFromData: FromData[Rational] = FromData.derived
+
+    given rationalToData: ToData[Rational] = ToData.derived

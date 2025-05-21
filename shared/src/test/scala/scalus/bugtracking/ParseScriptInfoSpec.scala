@@ -5,14 +5,10 @@ import org.scalatestplus.scalacheck.ScalaCheckPropertyChecks
 import scalus.Compiler.compile
 import scalus.builtin.ByteString.hex
 import scalus.builtin.Data
-import scalus.builtin.ToData.toData
-import scalus.builtin.ToDataInstances.given
+import scalus.builtin.Data.*
 import scalus.builtin.given
 import scalus.builtin.PlatformSpecific.given
 import scalus.ledger.api.v3.*
-import scalus.ledger.api.v3.FromDataInstances.given
-import scalus.ledger.api.v3.ToDataInstances.given
-import scalus.ledger.api.v1.ToDataInstances.given
 import scalus.*
 import scalus.prelude.*
 import scalus.prelude.List.{Cons, Nil}

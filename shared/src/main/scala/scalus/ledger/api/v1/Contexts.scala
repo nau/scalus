@@ -1,12 +1,9 @@
 package scalus.ledger.api.v1
 
 import scalus.Compile
-import scalus.builtin.Builtins
+import scalus.builtin.{Builtins, ByteString, Data, FromData, ToData}
 import scalus.builtin.Builtins.*
-import scalus.builtin.ByteString
-import scalus.builtin.Data
-import scalus.builtin.Data.FromData
-import scalus.builtin.Data.fromData
+import scalus.builtin.Data.{fromData, toData}
 import scalus.prelude.AssocMap
 import scalus.prelude.List
 import scalus.prelude.Option
@@ -14,12 +11,13 @@ import scalus.prelude.===
 import scalus.prelude.Eq
 import scalus.prelude.given
 
-type ValidatorHash = ByteString
+type Hash = ByteString
+type ValidatorHash = Hash
 type Datum = Data
-type DatumHash = ByteString
+type DatumHash = Hash
 type Redeemer = Data
-type ScriptHash = ByteString
-type RedeemerHash = ByteString
+type ScriptHash = Hash
+type RedeemerHash = Hash
 type CurrencySymbol = ByteString
 type TokenName = ByteString
 @deprecated("Use `PosixTime` instead", "0.7.0")
@@ -30,144 +28,143 @@ type POSIXTimeRange = Interval
 type PosixTimeRange = Interval
 type Value = AssocMap[CurrencySymbol, AssocMap[TokenName, BigInt]]
 
-@Compile
+@deprecated("Not needed, use companion object of appropriate type instead")
 object FromDataInstances {
-    import scalus.builtin.FromDataInstances.given
 
-    given FromData[TxId] = (d: Data) => new TxId(unBData(unConstrData(d).snd.head))
+    // given FromData[TxId] = (d: Data) => new TxId(unBData(unConstrData(d).snd.head))
 
-    given FromData[PubKeyHash] = (d: Data) => new PubKeyHash(unBData(d))
+    // given FromData[PubKeyHash] = (d: Data) => new PubKeyHash(unBData(d))
 
-    given FromData[TxOutRef] = (d: Data) =>
-        val args = unConstrData(d).snd
-        new TxOutRef(fromData[TxId](args.head), unIData(args.tail.head))
+    // given FromData[TxOutRef] = (d: Data) =>
+    //    val args = unConstrData(d).snd
+    //    new TxOutRef(fromData[TxId](args.head), unIData(args.tail.head))
 
-    given FromData[IntervalBoundType] = (d: Data) =>
-        val pair = unConstrData(d)
-        val tag = pair.fst
-        if tag == BigInt(0) then IntervalBoundType.NegInf
-        else if tag == BigInt(1) then new IntervalBoundType.Finite(unIData(pair.snd.head))
-        else if tag == BigInt(2) then IntervalBoundType.PosInf
-        else throw new Exception("Unknown IntervalBoundType tag")
+    // given FromData[IntervalBoundType] = (d: Data) =>
+    //    val pair = unConstrData(d)
+    //    val tag = pair.fst
+    //    if tag == BigInt(0) then IntervalBoundType.NegInf
+    //    else if tag == BigInt(1) then new IntervalBoundType.Finite(unIData(pair.snd.head))
+    //    else if tag == BigInt(2) then IntervalBoundType.PosInf
+    //    else throw new Exception("Unknown IntervalBoundType tag")
 
-    given FromData[Credential] = (d: Data) =>
-        val pair = unConstrData(d)
-        val tag = pair.fst
-        val args = pair.snd
-        if tag == BigInt(0) then new Credential.PubKeyCredential(fromData[PubKeyHash](args.head))
-        else if tag == BigInt(1) then new Credential.ScriptCredential(unBData(args.head))
-        else throw new Exception("Unknown Credential tag")
+    // given FromData[Credential] = (d: Data) =>
+    //    val pair = unConstrData(d)
+    //    val tag = pair.fst
+    //    val args = pair.snd
+    //    if tag == BigInt(0) then new Credential.PubKeyCredential(fromData[PubKeyHash](args.head))
+    //    else if tag == BigInt(1) then new Credential.ScriptCredential(unBData(args.head))
+    //    else throw new Exception("Unknown Credential tag")
 
-    given FromData[StakingCredential] =
-        (d: Data) =>
-            val pair = unConstrData(d)
-            val tag = pair.fst
-            val args = pair.snd
-            if tag == BigInt(0) then
-                new StakingCredential.StakingHash(fromData[Credential](args.head))
-            else if tag == BigInt(1) then
-                new StakingCredential.StakingPtr(
-                  unIData(args.head),
-                  unIData(args.tail.head),
-                  unIData(args.tail.tail.head)
-                )
-            else throw new RuntimeException("Invalid tag")
+    // given FromData[StakingCredential] =
+    //    (d: Data) =>
+    //        val pair = unConstrData(d)
+    //        val tag = pair.fst
+    //        val args = pair.snd
+    //        if tag == BigInt(0) then
+    //            new StakingCredential.StakingHash(fromData[Credential](args.head))
+    //        else if tag == BigInt(1) then
+    //            new StakingCredential.StakingPtr(
+    //              unIData(args.head),
+    //              unIData(args.tail.head),
+    //              unIData(args.tail.tail.head)
+    //            )
+    //        else throw new RuntimeException("Invalid tag")
 
-    given FromData[DCert] = (d: Data) =>
-        val pair = unConstrData(d)
-        val tag = pair.fst
-        val args = pair.snd
-        if tag == BigInt(0) then new DCert.DelegRegKey(fromData[StakingCredential](args.head))
-        else if tag == BigInt(1) then
-            new DCert.DelegDeRegKey(fromData[StakingCredential](args.head))
-        else if tag == BigInt(2) then
-            new DCert.DelegDelegate(
-              fromData[StakingCredential](args.head),
-              fromData[PubKeyHash](args.tail.head)
-            )
-        else if tag == BigInt(3) then
-            new DCert.PoolRegister(
-              fromData[PubKeyHash](args.head),
-              fromData[PubKeyHash](args.tail.head)
-            )
-        else if tag == BigInt(4) then
-            new DCert.PoolRetire(
-              fromData[PubKeyHash](args.head),
-              unIData(args.tail.head)
-            )
-        else if tag == BigInt(5) then DCert.Genesis
-        else if tag == BigInt(6) then DCert.Mir
-        else throw new Exception("Unknown DCert tag")
+    // given FromData[DCert] = (d: Data) =>
+    //    val pair = unConstrData(d)
+    //    val tag = pair.fst
+    //    val args = pair.snd
+    //    if tag == BigInt(0) then new DCert.DelegRegKey(fromData[StakingCredential](args.head))
+    //    else if tag == BigInt(1) then
+    //        new DCert.DelegDeRegKey(fromData[StakingCredential](args.head))
+    //    else if tag == BigInt(2) then
+    //        new DCert.DelegDelegate(
+    //          fromData[StakingCredential](args.head),
+    //          fromData[PubKeyHash](args.tail.head)
+    //        )
+    //    else if tag == BigInt(3) then
+    //        new DCert.PoolRegister(
+    //          fromData[PubKeyHash](args.head),
+    //          fromData[PubKeyHash](args.tail.head)
+    //        )
+    //    else if tag == BigInt(4) then
+    //        new DCert.PoolRetire(
+    //          fromData[PubKeyHash](args.head),
+    //          unIData(args.tail.head)
+    //        )
+    //    else if tag == BigInt(5) then DCert.Genesis
+    //    else if tag == BigInt(6) then DCert.Mir
+    //    else throw new Exception("Unknown DCert tag")
 
-    given FromData[ScriptPurpose] = (d: Data) =>
-        val pair = unConstrData(d)
-        val tag = pair.fst
-        val args = pair.snd
-        if tag == BigInt(0) then new ScriptPurpose.Minting(fromData[TokenName](args.head))
-        else if tag == BigInt(1) then new ScriptPurpose.Spending(fromData[TxOutRef](args.head))
-        else if tag == BigInt(2) then
-            new ScriptPurpose.Rewarding(fromData[StakingCredential](args.head))
-        else if tag == BigInt(3) then new ScriptPurpose.Certifying(fromData[DCert](args.head))
-        else throw new Exception("Unknown ScriptPurpose tag")
+    // given FromData[ScriptPurpose] = (d: Data) =>
+    //    val pair = unConstrData(d)
+    //    val tag = pair.fst
+    //    val args = pair.snd
+    //    if tag == BigInt(0) then new ScriptPurpose.Minting(fromData[TokenName](args.head))
+    //    else if tag == BigInt(1) then new ScriptPurpose.Spending(fromData[TxOutRef](args.head))
+    //    else if tag == BigInt(2) then
+    //        new ScriptPurpose.Rewarding(fromData[StakingCredential](args.head))
+    //    else if tag == BigInt(3) then new ScriptPurpose.Certifying(fromData[DCert](args.head))
+    //    else throw new Exception("Unknown ScriptPurpose tag")
 
-    given FromData[Address] = (d: Data) =>
-        val args = unConstrData(d).snd
-        new Address(
-          fromData[Credential](args.head),
-          fromData[Option[StakingCredential]](args.tail.head)
-        )
+    // given FromData[Address] = (d: Data) =>
+    //    val args = unConstrData(d).snd
+    //    new Address(
+    //      fromData[Credential](args.head),
+    //      fromData[Option[StakingCredential]](args.tail.head)
+    //    )
 
-    given FromData[TxOut] = (d: Data) =>
-        val args = unConstrData(d).snd
-        new TxOut(
-          fromData[Address](args.head),
-          fromData[Value](args.tail.head),
-          fromData[Option[DatumHash]](args.tail.tail.head)
-        )
+    // given FromData[TxOut] = (d: Data) =>
+    //    val args = unConstrData(d).snd
+    //    new TxOut(
+    //      fromData[Address](args.head),
+    //      fromData[Value](args.tail.head),
+    //      fromData[Option[DatumHash]](args.tail.tail.head)
+    //    )
 
-    given FromData[TxInInfo] = (d: Data) =>
-        val args = unConstrData(d).snd
-        new TxInInfo(
-          fromData[TxOutRef](args.head),
-          fromData[TxOut](args.tail.head)
-        )
+    // given FromData[TxInInfo] = (d: Data) =>
+    //    val args = unConstrData(d).snd
+    //    new TxInInfo(
+    //      fromData[TxOutRef](args.head),
+    //      fromData[TxOut](args.tail.head)
+    //    )
 
-    given FromData[IntervalBound] = (d: Data) =>
-        val args = unConstrData(d).snd
-        new IntervalBound(
-          fromData[IntervalBoundType](args.head),
-          fromData[Closure](args.tail.head)
-        )
+    // given FromData[IntervalBound] = (d: Data) =>
+    //    val args = unConstrData(d).snd
+    //    new IntervalBound(
+    //      fromData[IntervalBoundType](args.head),
+    //      fromData[Closure](args.tail.head)
+    //    )
 
-    given FromData[Interval] = (d: Data) =>
-        val args = unConstrData(d).snd
-        new Interval(
-          fromData[IntervalBound](args.head),
-          fromData[IntervalBound](args.tail.head)
-        )
+    // given FromData[Interval] = (d: Data) =>
+    //    val args = unConstrData(d).snd
+    //    new Interval(
+    //      fromData[IntervalBound](args.head),
+    //      fromData[IntervalBound](args.tail.head)
+    //    )
 
-    given FromData[TxInfo] = (d: Data) =>
-        val args = unConstrData(d).snd
-        val fromValue = summon[FromData[Value]]
-        new TxInfo(
-          fromData[List[TxInInfo]](args.head),
-          fromData[List[TxOut]](args.tail.head),
-          fromValue(args.tail.tail.head),
-          fromValue(args.tail.tail.tail.head),
-          fromData[List[DCert]](args.tail.tail.tail.tail.head),
-          fromData[List[(StakingCredential, BigInt)]](args.tail.tail.tail.tail.tail.head),
-          fromData[Interval](args.tail.tail.tail.tail.tail.tail.head),
-          fromData[List[PubKeyHash]](args.tail.tail.tail.tail.tail.tail.tail.head),
-          fromData[List[(DatumHash, Datum)]](args.tail.tail.tail.tail.tail.tail.tail.tail.head),
-          fromData[TxId](args.tail.tail.tail.tail.tail.tail.tail.tail.tail.head)
-        )
+    // given FromData[TxInfo] = (d: Data) =>
+    //    val args = unConstrData(d).snd
+    //    val fromValue = summon[FromData[Value]]
+    //    new TxInfo(
+    //      fromData[List[TxInInfo]](args.head),
+    //      fromData[List[TxOut]](args.tail.head),
+    //      fromValue(args.tail.tail.head),
+    //      fromValue(args.tail.tail.tail.head),
+    //      fromData[List[DCert]](args.tail.tail.tail.tail.head),
+    //      fromData[List[(StakingCredential, BigInt)]](args.tail.tail.tail.tail.tail.head),
+    //      fromData[Interval](args.tail.tail.tail.tail.tail.tail.head),
+    //      fromData[List[PubKeyHash]](args.tail.tail.tail.tail.tail.tail.tail.head),
+    //      fromData[List[(DatumHash, Datum)]](args.tail.tail.tail.tail.tail.tail.tail.tail.head),
+    //      fromData[TxId](args.tail.tail.tail.tail.tail.tail.tail.tail.tail.head)
+    //    )
 
-    given FromData[ScriptContext] = (d: Data) =>
-        val args = unConstrData(d).snd
-        new ScriptContext(
-          fromData[TxInfo](args.head),
-          fromData[ScriptPurpose](args.tail.head)
-        )
+    // given FromData[ScriptContext] = (d: Data) =>
+    //    val args = unConstrData(d).snd
+    //    new ScriptContext(
+    //      fromData[TxInfo](args.head),
+    //      fromData[ScriptPurpose](args.tail.head)
+    //    )
 
 }
 
@@ -202,6 +199,21 @@ object IntervalBoundType {
                 y match
                     case PosInf => true
                     case _      => false
+
+    given toData[T <: IntervalBoundType]: ToData[T] = (a: T) =>
+        a match
+            case IntervalBoundType.NegInf    => constrData(0, mkNilData())
+            case IntervalBoundType.Finite(a) => constrData(1, iData(a) :: mkNilData())
+            case IntervalBoundType.PosInf    => constrData(2, mkNilData())
+
+    given fromData: FromData[IntervalBoundType] = (d: Data) =>
+        val pair = unConstrData(d)
+        val tag = pair.fst
+        if tag == BigInt(0) then IntervalBoundType.NegInf
+        else if tag == BigInt(1) then new IntervalBoundType.Finite(unIData(pair.snd.head))
+        else if tag == BigInt(2) then IntervalBoundType.PosInf
+        else throw new Exception("Unknown IntervalBoundType tag")
+
 }
 
 /** An interval bound, either inclusive or exclusive.
@@ -215,14 +227,36 @@ case class IntervalBound(boundType: IntervalBoundType, isInclusive: Closure)
 type UpperBound[A] = IntervalBound
 @deprecated("Use `IntervalBound` instead", "0.7.0")
 type LowerBound[A] = IntervalBound
+
 @Compile
 object IntervalBound:
+
     given Eq[IntervalBound] = (x: IntervalBound, y: IntervalBound) =>
         x match
             case IntervalBound(bound, closure1) =>
                 y match
                     case IntervalBound(bound2, closure2) =>
                         bound === bound2 && closure1 === closure2
+
+    given ToData[IntervalBound] = (a: IntervalBound) =>
+        a match
+            case IntervalBound(a, b) =>
+                constrData(
+                  0,
+                  mkCons(
+                    a.toData,
+                    mkCons(b.toData, mkNilData())
+                  )
+                )
+
+    given FromData[IntervalBound] = (d: Data) =>
+        val args = unConstrData(d).snd
+        new IntervalBound(
+          fromData[IntervalBoundType](args.head),
+          fromData[Closure](args.tail.head)
+        )
+
+end IntervalBound
 
 /** A type to represent time intervals.
   * @param from
@@ -234,12 +268,31 @@ case class Interval(from: IntervalBound, to: IntervalBound)
 
 @Compile
 object Interval:
+
     given Eq[Interval] = (x: Interval, y: Interval) =>
         x match
             case Interval(from1, to1) =>
                 y match
                     case Interval(from2, to2) =>
                         from1 === from2 && to1 === to2
+
+    given ToData[Interval] = (a: Interval) =>
+        a match
+            case Interval(a, b) =>
+                constrData(
+                  0,
+                  mkCons(
+                    a.toData,
+                    mkCons(b.toData, mkNilData())
+                  )
+                )
+
+    given FromData[Interval] = (d: Data) =>
+        val args = unConstrData(d).snd
+        new Interval(
+          fromData[IntervalBound](args.head),
+          fromData[IntervalBound](args.tail.head)
+        )
 
     /** Inclusive -∞ interval bound */
     val negInf: IntervalBound = new IntervalBound(IntervalBoundType.NegInf, true)
@@ -286,6 +339,8 @@ object Interval:
     def between(from: PosixTime, to: PosixTime): Interval =
         new Interval(finite(from), finite(to))
 
+end Interval
+
 enum DCert:
     case DelegRegKey(cred: StakingCredential)
     case DelegDeRegKey(cred: StakingCredential)
@@ -297,6 +352,7 @@ enum DCert:
 
 @Compile
 object DCert {
+
     given Eq[DCert] = (x: DCert, y: DCert) =>
         x match
             case DCert.DelegRegKey(cred) =>
@@ -329,34 +385,114 @@ object DCert {
                 y match
                     case DCert.Mir => true
                     case _         => false
+
+    given [T <: DCert]: ToData[T] = (a: T) =>
+        a match
+            case DCert.DelegRegKey(cred) =>
+                constrData(0, mkCons(cred.toData, mkNilData()))
+            case DCert.DelegDeRegKey(cred) =>
+                constrData(1, mkCons(cred.toData, mkNilData()))
+            case DCert.DelegDelegate(cred, delegatee) =>
+                constrData(
+                  2,
+                  mkCons(
+                    cred.toData,
+                    mkCons(delegatee.toData, mkNilData())
+                  )
+                )
+            case DCert.PoolRegister(poolId, vrf) =>
+                constrData(
+                  3,
+                  mkCons(
+                    poolId.toData,
+                    mkCons(vrf.toData, mkNilData())
+                  )
+                )
+            case DCert.PoolRetire(poolId, epoch) =>
+                constrData(
+                  4,
+                  mkCons(
+                    poolId.toData,
+                    mkCons(epoch.toData, mkNilData())
+                  )
+                )
+            case DCert.Genesis => constrData(5, mkNilData())
+            case DCert.Mir     => constrData(6, mkNilData())
+
+    given FromData[DCert] = (d: Data) =>
+        val pair = unConstrData(d)
+        val tag = pair.fst
+        val args = pair.snd
+        if tag == BigInt(0) then new DCert.DelegRegKey(fromData[StakingCredential](args.head))
+        else if tag == BigInt(1) then
+            new DCert.DelegDeRegKey(fromData[StakingCredential](args.head))
+        else if tag == BigInt(2) then
+            new DCert.DelegDelegate(
+              fromData[StakingCredential](args.head),
+              fromData[PubKeyHash](args.tail.head)
+            )
+        else if tag == BigInt(3) then
+            new DCert.PoolRegister(
+              fromData[PubKeyHash](args.head),
+              fromData[PubKeyHash](args.tail.head)
+            )
+        else if tag == BigInt(4) then
+            new DCert.PoolRetire(
+              fromData[PubKeyHash](args.head),
+              unIData(args.tail.head)
+            )
+        else if tag == BigInt(5) then DCert.Genesis
+        else if tag == BigInt(6) then DCert.Mir
+        else throw new Exception("Unknown DCert tag")
+
 }
 
-case class TxId(hash: ByteString):
+case class TxId(hash: Hash):
     override def toString = s"TxId(${hash.toHex})"
 
 @Compile
 object TxId:
+
     given Eq[TxId] = (a: TxId, b: TxId) => a.hash === b.hash
+
+    given ToData[TxId] = (a: TxId) => constrData(0, mkCons(ToData.toData(a.hash), mkNilData()))
+    given FromData[TxId] = (d: Data) => new TxId(unBData(unConstrData(d).snd.head))
+
+end TxId
 
 case class TxOutRef(id: TxId, idx: BigInt)
 
 @Compile
 object TxOutRef {
+
     given Eq[TxOutRef] = (a: TxOutRef, b: TxOutRef) =>
         a match
             case TxOutRef(aTxId, aTxOutIndex) =>
                 b match
                     case TxOutRef(bTxId, bTxOutIndex) =>
                         aTxOutIndex === bTxOutIndex && aTxId === bTxId
+
+    given ToData[TxOutRef] = ToData.derived
+
+    given FromData[TxOutRef] = (d: Data) =>
+        val args = unConstrData(d).snd
+        new TxOutRef(fromData[TxId](args.head), unIData(args.tail.head))
+
 }
 
-case class PubKeyHash(hash: ByteString) {
+case class PubKeyHash(hash: Hash) {
     override def toString = s"pkh#${hash}"
 }
 
 @Compile
 object PubKeyHash {
+
     given Eq[PubKeyHash] = (a: PubKeyHash, b: PubKeyHash) => a.hash === b.hash
+
+    given ToData[PubKeyHash] = (a: PubKeyHash) => summon[ToData[ByteString]](a.hash)
+
+    given FromData[PubKeyHash] = (d: Data) => new PubKeyHash(unBData(d))
+
 }
 
 enum Credential:
@@ -365,6 +501,7 @@ enum Credential:
 
 @Compile
 object Credential {
+
     given Eq[Credential] = (a: Credential, b: Credential) =>
         a match
             case Credential.PubKeyCredential(hash) =>
@@ -375,6 +512,22 @@ object Credential {
                 b match
                     case Credential.PubKeyCredential(hash2) => false
                     case Credential.ScriptCredential(hash2) => hash === hash2
+
+    given FromData[Credential] = (d: Data) =>
+        val pair = unConstrData(d)
+        val tag = pair.fst
+        val args = pair.snd
+        if tag == BigInt(0) then new Credential.PubKeyCredential(fromData[PubKeyHash](args.head))
+        else if tag == BigInt(1) then new Credential.ScriptCredential(unBData(args.head))
+        else throw new Exception("Unknown Credential tag")
+
+    given toData[T <: Credential]: ToData[T] = (a: T) =>
+        a match
+            case Credential.PubKeyCredential(hash) =>
+                constrData(0, mkCons(hash.toData, mkNilData()))
+            case Credential.ScriptCredential(hash) =>
+                constrData(1, hash.toData :: mkNilData())
+
 }
 
 enum StakingCredential:
@@ -394,6 +547,35 @@ object StakingCredential {
                     case StakingCredential.StakingHash(cred2) => false
                     case StakingCredential.StakingPtr(a2, b2, c2) =>
                         a === a2 && b === b2 && c === c2
+
+    given fromData: FromData[StakingCredential] =
+        (d: Data) =>
+            val pair = unConstrData(d)
+            val tag = pair.fst
+            val args = pair.snd
+            if tag == BigInt(0) then
+                new StakingCredential.StakingHash(Data.fromData[Credential](args.head))
+            else if tag == BigInt(1) then
+                new StakingCredential.StakingPtr(
+                  unIData(args.head),
+                  unIData(args.tail.head),
+                  unIData(args.tail.tail.head)
+                )
+            else throw new RuntimeException("Invalid tag")
+
+    given toData[T <: StakingCredential]: ToData[T] = (a: T) =>
+        a match
+            case StakingCredential.StakingHash(cred) =>
+                constrData(0, mkCons(cred.toData, mkNilData()))
+            case StakingCredential.StakingPtr(a, b, c) =>
+                constrData(
+                  1,
+                  mkCons(
+                    a.toData,
+                    mkCons(b.toData, mkCons(c.toData, mkNilData()))
+                  )
+                )
+
 }
 
 case class Address(
@@ -403,15 +585,22 @@ case class Address(
 
 @Compile
 object Address {
+
     given Eq[Address] = (a: Address, b: Address) =>
         a match
             case Address(aCredential, aStakingCredential) =>
                 b match
                     case Address(bCredential, bStakingCredential) =>
                         aCredential === bCredential && aStakingCredential === bStakingCredential
+
+    given ToData[Address] = ToData.derived
+
+    given FromData[Address] = FromData.derived
+
 }
 
 case class TxOut(address: Address, value: Value, datumHash: Option[DatumHash]) {
+
     override def toString: String = {
         s"""TxOut(
            |  address: $address,
@@ -422,10 +611,28 @@ case class TxOut(address: Address, value: Value, datumHash: Option[DatumHash]) {
 
 }
 
+@Compile
+object TxOut {
+
+    given ToData[TxOut] = ToData.derived
+
+    given FromData[TxOut] = FromData.derived
+
+}
+
 case class TxInInfo(
     outRef: TxOutRef,
     resolved: TxOut
 )
+
+@Compile
+object TxInInfo {
+
+    given ToData[TxInInfo] = ToData.derived
+
+    given FromData[TxInInfo] = FromData.derived
+
+}
 
 case class TxInfo(
     inputs: List[TxInInfo],
@@ -439,6 +646,7 @@ case class TxInfo(
     data: List[(DatumHash, Datum)],
     id: TxId
 ) {
+
     override def toString: String = {
         s"""TxInfo(
            |  inputs: ${inputs.asScala.mkString("[", ", ", "]")},
@@ -456,6 +664,12 @@ case class TxInfo(
 
 }
 
+@Compile
+object TxInfo {
+    given ToData[TxInfo] = ToData.derived
+    given FromData[TxInfo] = FromData.derived
+}
+
 enum ScriptPurpose:
     case Minting(curSymbol: ByteString)
     case Spending(txOutRef: TxOutRef)
@@ -464,6 +678,7 @@ enum ScriptPurpose:
 
 @Compile
 object ScriptPurpose {
+
     given Eq[ScriptPurpose] = (x: ScriptPurpose, y: ScriptPurpose) =>
         x match
             case ScriptPurpose.Minting(curSymbol) =>
@@ -482,6 +697,38 @@ object ScriptPurpose {
                 y match
                     case ScriptPurpose.Certifying(cert) => cert === cert
                     case _                              => false
+
+    given [T <: ScriptPurpose]: ToData[T] = (a: T) =>
+        a match
+            case ScriptPurpose.Minting(curSymbol) =>
+                constrData(0, mkCons(curSymbol.toData, mkNilData()))
+            case ScriptPurpose.Spending(txOutRef) =>
+                constrData(1, mkCons(txOutRef.toData, mkNilData()))
+            case ScriptPurpose.Rewarding(stakingCred) =>
+                constrData(2, mkCons(stakingCred.toData, mkNilData()))
+            case ScriptPurpose.Certifying(cert) =>
+                constrData(3, mkCons(cert.toData, mkNilData()))
+
+    given FromData[ScriptPurpose] = (d: Data) =>
+        val pair = unConstrData(d)
+        val tag = pair.fst
+        val args = pair.snd
+        if tag == BigInt(0) then new ScriptPurpose.Minting(fromData[TokenName](args.head))
+        else if tag == BigInt(1) then new ScriptPurpose.Spending(fromData[TxOutRef](args.head))
+        else if tag == BigInt(2) then
+            new ScriptPurpose.Rewarding(fromData[StakingCredential](args.head))
+        else if tag == BigInt(3) then new ScriptPurpose.Certifying(fromData[DCert](args.head))
+        else throw new Exception("Unknown ScriptPurpose tag")
+
 }
 
 case class ScriptContext(txInfo: TxInfo, purpose: ScriptPurpose)
+
+@Compile
+object ScriptContext:
+
+    given FromData[ScriptContext] = FromData.derived
+
+    given ToData[ScriptContext] = ToData.derived
+
+end ScriptContext

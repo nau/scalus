@@ -88,19 +88,19 @@ class AssocMapSpec extends AnyFunSuite with ScalaCheckPropertyChecks with Arbitr
         }
     }
 
-    test("lookup") {
+    test("get") {
         check { (map: AssocMap[BigInt, BigInt], k: BigInt, v: BigInt) =>
             val m1 = map.insert(k, v)
-            m1.lookup(k) == scalus.prelude.Option.Some(v)
+            m1.get(k) == scalus.prelude.Option.Some(v)
         }
     }
 
     test("delete") {
         check { (map: AssocMap[BigInt, BigInt], k: BigInt, v: BigInt) =>
             val m1 = map.insert(k, v)
-            m1.lookup(k) == scalus.prelude.Option.Some(v)
+            m1.get(k) == scalus.prelude.Option.Some(v)
             val m2 = m1.delete(k)
-            m2.lookup(k) == scalus.prelude.Option.None
+            m2.get(k) == scalus.prelude.Option.None
         }
     }
 

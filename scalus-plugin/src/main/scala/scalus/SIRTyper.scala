@@ -41,8 +41,17 @@ class SIRTyper(using Context) {
         retval
     }
 
-    private def sirTypeInEnvWithErr(tp: Type, env: SIRTypeEnv): SIRType =
-        if env.trace then println(s"sirTypeInEnvWithErr ${tp.show},  env=${env}")
+    private def sirTypeInEnvWithErr(tp: Type, env0: SIRTypeEnv): SIRType =
+        val env =
+            if tp.typeSymbol.fullName.toString == "scalus.builtin.FromDataInstances$._$$anon" then {
+                println(s"tp=${tp}")
+                env0.copy(trace = true)
+            } else env0
+        if env.trace then {
+            println(
+              s"sirTypeInEnvWithErr ${tp.show},  env=${env}"
+            )
+        }
         val retval = tp match
             case tpc: TermRef =>
                 if tpc.typeSymbol.isTypeParam then unsupportedType(tp, s"TermRef ${tpc.show}", env)
@@ -89,18 +98,26 @@ class SIRTyper(using Context) {
                 if tp.tycon.isRef(defn.MatchCaseClass) then
                     unsupportedType(tp, "MatchCaseClass", env)
                 else if defn.isFunctionType(tp) then makeSIRFunType(tp, env)
-                else
+                else {
                     tp.tycon match
                         case tpc: TypeRef =>
                             if tpc.isTypeAlias || tpc.symbol.isAliasType then
                                 sirTypeInEnvWithErr(tpc.dealias.appliedTo(tp.args), env)
-                            else makeSIRNonFunClassType(tpc, tp.args.map(sirTypeInEnv(_, env)), env)
+                            else {
+                                tryMakeFunctionalInterface(tp, tp.typeSymbol, env) getOrElse
+                                    makeSIRNonFunClassType(
+                                      tpc,
+                                      tp.args.map(sirTypeInEnv(_, env)),
+                                      env
+                                    )
+                            }
                         case tpc: TypeLambda =>
                             unsupportedType(tp, s"TypeLambda ${tpc.show}", env)
                         case tpc: TermRef =>
                             unsupportedType(tp, s"TermRef ${tpc.show}", env)
                         case other =>
                             unsupportedType(tp, s"AppliedType ${tp.show}", env)
+                }
             case tp: AnnotatedType =>
                 sirTypeInEnvWithErr(tp.underlying, env)
             case tp: AndType =>
@@ -170,6 +187,10 @@ class SIRTyper(using Context) {
                                 sirTypeInEnvWithErr(other, env)
             case other =>
                 unsupportedType(tp, s"${tp.show}, tree=${tp}", env)
+        if env.trace then
+            println(
+              s"retval for ${tp.show} (${tp.typeSymbol.fullName.toString}) is ${retval.show} ($retval)"
+            )
         retval
 
     private def makeSIRClassTypeNoTypeArgs(tp: Type, env: SIRTypeEnv): SIRType = {
@@ -183,6 +204,7 @@ class SIRTyper(using Context) {
         // println(s"makeSIRNonFumClassType ${sym.fullName.show} ${types.map(_.show)}, isFunctionType=${defn.isFunctionType(tp)}")
         val retval = (tryMakePrimitivePrimitive(sym, types) orElse
             tryMakeBuiltinType(sym, types, env) orElse
+            tryMakeFunctionalInterface(tp, sym, env) orElse
             tryMakeCaseClassOrCaseParent(tp, sym, types, env) orElse
             tryMakeNonCaseModule(tp, sym, types, env)).getOrElse {
 //            val name = sym.fullName.show
@@ -316,6 +338,31 @@ class SIRTyper(using Context) {
             retval.foreach(t => proxy.ref = t)
             retval
         }
+    }
+
+    private def tryMakeFunctionalInterface(
+        originType: Type,
+        typeSymbol: Symbol,
+        env: SIRTypeEnv
+    ): Option[SIRType] = {
+        if originType <:< Symbols.requiredClassRef("scalus.CompileDerivations")
+            || originType.typeSymbol.hasAnnotation(
+              Symbols.requiredClass("java.lang.FunctionalInterface")
+            )
+        then
+            originType.baseClasses.find(b => defn.isFunctionClass(b)) match
+                case None =>
+                    report.warning(
+                      s"type ${originType.show} marded as FuctionalInterface but not functional"
+                    )
+                    None
+                case Some(baseFunction) =>
+                    val t = originType.baseType(baseFunction)
+                    if t == Types.NoType then {
+                        report.warning(s"type ${originType.show} can't be transformed to function")
+                        None
+                    } else Some(sirTypeInEnvWithErr(t, env))
+        else None
     }
 
     private def retrieveTypeParamsAndParamsFromConstructor(

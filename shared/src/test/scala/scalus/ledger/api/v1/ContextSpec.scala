@@ -47,13 +47,11 @@ class ContextSpec
         import scalus.sir.SirDSL.*
         import scalus.sir.*
         val sir = compile { (d: Data) =>
-            import scalus.ledger.api.v1.FromDataInstances.given
             val i = fromData[Interval](d)
             i === i
         }
 
         forAll { (i: Interval) =>
-            import scalus.ledger.api.v1.ToDataInstances.given
             assert(i === i)
             val d = i.toData
             val applied = sir $ SIR.Const(Constant.Data(d), SIRType.Data, AnnotationsDecl.empty)

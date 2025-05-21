@@ -9,6 +9,13 @@ import scala.annotation.Annotation
 final class Compile extends Annotation
 final class Ignore extends Annotation
 
+/** This is a marker trait for the compiler plugin to compile derivations of the instances of the
+  * type classes.
+  * @see
+  *   scalus.prelude.ToData, scalus.prelude.FromData
+  */
+trait CompileDerivations
+
 object Compiler:
     inline def fieldAsData[A](inline expr: A => Any): Data => Data = ${
         Macros.fieldAsDataMacro('expr)

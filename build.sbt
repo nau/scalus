@@ -1,6 +1,9 @@
 import org.scalajs.linker.interface.OutputPatterns
 import sbtwelcome.*
 import scala.scalanative.build._
+import com.typesafe.tools.mima.core.ProblemFilters
+import com.typesafe.tools.mima.core.IncompatibleResultTypeProblem
+import com.typesafe.tools.mima.core.ProblemFilters._
 
 import java.net.URI
 
@@ -10,6 +13,7 @@ autoCompilerPlugins := true
 val scalusStableVersion = "0.9.0"
 val scalusCompatibleVersion = scalusStableVersion
 ThisBuild / scalaVersion := "3.3.5"
+//ThisBuild / scalaVersion := "3.7.1-RC1-bin-SNAPSHOT"
 ThisBuild / organization := "org.scalus"
 ThisBuild / organizationName := "Scalus"
 ThisBuild / organizationHomepage := Some(url("https://scalus.org/"))
@@ -49,11 +53,15 @@ lazy val root: Project = project
       scalus.js,
       scalus.jvm,
       scalus.native,
+      scalusCardanoLedger.jvm,
+      scalusCardanoLedger.js,
       scalusTestkit.js,
       scalusTestkit.jvm,
       scalusTestkit.native,
       scalusExamples.js,
       scalusExamples.jvm,
+      designPatterns.js,
+      designPatterns.jvm,
       bench,
       `scalus-bloxbean-cardano-client-lib`,
       docs
@@ -298,6 +306,31 @@ lazy val scalusExamples = crossProject(JSPlatform, JVMPlatform, NativePlatform)
     )
     .jsConfigure { project => project.enablePlugins(ScalaJSBundlerPlugin) }
 
+lazy val designPatterns = crossProject(JSPlatform, JVMPlatform, NativePlatform)
+    .in(file("scalus-design-patterns"))
+    .dependsOn(scalus, scalusTestkit)
+    .disablePlugins(MimaPlugin) // disable Migration Manager for Scala
+    .settings(
+      PluginDependency,
+      scalacOptions ++= commonScalacOptions,
+      publish / skip := true,
+      libraryDependencies += "org.scalatest" %%% "scalatest" % "3.2.19" % "test",
+      libraryDependencies += "org.scalatestplus" %%% "scalacheck-1-18" % "3.2.19.0" % "test"
+    )
+    .configurePlatform(JVMPlatform)(_.dependsOn(`scalus-bloxbean-cardano-client-lib`))
+    .jvmSettings(
+      Test / fork := true,
+      libraryDependencies += "com.bloxbean.cardano" % "cardano-client-backend-blockfrost" % "0.6.3"
+    )
+    .jsSettings(
+      Compile / npmDependencies += "@noble/curves" -> "1.4.2",
+      scalaJSUseMainModuleInitializer := false,
+      scalaJSLinkerConfig ~= {
+          _.withModuleKind(ModuleKind.CommonJSModule)
+      }
+    )
+    .jsConfigure { project => project.enablePlugins(ScalaJSBundlerPlugin) }
+
 /*
 lazy val examples = project
     .in(file("examples"))
@@ -337,6 +370,18 @@ lazy val `scalus-bloxbean-cardano-client-lib` = project
       publish / skip := false,
       scalacOptions ++= commonScalacOptions,
       mimaPreviousArtifacts := Set(organization.value %% name.value % scalusCompatibleVersion),
+      mimaBinaryIssueFilters ++= Seq(
+        ProblemFilters.exclude[IncompatibleResultTypeProblem](
+          "scalus.bloxbean.Interop.given_ToData_BigInteger"
+        ),
+        ProblemFilters
+            .exclude[IncompatibleResultTypeProblem]("scalus.bloxbean.Interop.given_ToData_Integer"),
+        ProblemFilters
+            .exclude[IncompatibleResultTypeProblem]("scalus.bloxbean.Interop.given_ToData_Long"),
+        ProblemFilters.exclude[IncompatibleResultTypeProblem](
+          "scalus.bloxbean.Interop.given_ToData_ProtocolParamUpdate"
+        ),
+      ),
       libraryDependencies += "com.bloxbean.cardano" % "cardano-client-lib" % "0.6.4",
       libraryDependencies += "org.slf4j" % "slf4j-api" % "2.0.17",
       libraryDependencies += "org.slf4j" % "slf4j-simple" % "2.0.17" % "test",
@@ -381,6 +426,33 @@ lazy val bench = project
       PluginDependency,
       publish / skip := true
     )
+
+// Cardano Ledger domain model and CBOR serialization
+lazy val scalusCardanoLedger = crossProject(JSPlatform, JVMPlatform)
+    .in(file("scalus-cardano-ledger"))
+    .dependsOn(scalus % "compile->compile;test->test")
+    .disablePlugins(MimaPlugin) // disable Migration Manager for Scala
+    .settings(
+      name := "scalus-cardano-ledger",
+      scalacOptions += "-Xmax-inlines:100", // needed for upickle derivation of CostModel
+      libraryDependencies += "com.bloxbean.cardano" % "cardano-client-lib" % "0.6.4",
+      libraryDependencies ++= Seq(
+        "io.bullet" %%% "borer-core" % "1.15.0",
+        "io.bullet" %%% "borer-derivation" % "1.15.0" % "provided"
+      ),
+      libraryDependencies += "com.softwaremill.magnolia1_3" %%% "magnolia" % "1.3.16" % "test",
+      libraryDependencies += "org.scalatest" %%% "scalatest" % "3.2.19" % "test",
+      libraryDependencies += "org.scalatestplus" %%% "scalacheck-1-18" % "3.2.19.0" % "test",
+      publish / skip := true
+    )
+    .jsSettings(
+      Compile / npmDependencies += "@noble/curves" -> "1.4.2",
+      scalaJSUseMainModuleInitializer := false,
+      scalaJSLinkerConfig ~= {
+          _.withModuleKind(ModuleKind.CommonJSModule)
+      }
+    )
+    .jsConfigure { project => project.enablePlugins(ScalaJSBundlerPlugin) }
 
 addCommandAlias(
   "mima",

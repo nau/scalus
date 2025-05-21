@@ -12,16 +12,19 @@ import scalus.builtin.ToData
 import scalus.ledger.api.v1.*
 import scalus.ledger.api.v2
 import scalus.prelude.{*, given}
+import scalus.builtin.ByteString.*
 
+export scalus.ledger.api.v1.Hash
 export scalus.ledger.api.v1.Address
 export scalus.ledger.api.v1.Closure
-export scalus.ledger.api.v1.Credential
+//export scalus.ledger.api.v1.Credential
+type Credential = scalus.ledger.api.v1.Credential
+val Credential = scalus.ledger.api.v1.Credential
 export scalus.ledger.api.v1.CurrencySymbol
 export scalus.ledger.api.v1.DCert
 export scalus.ledger.api.v1.Datum
 export scalus.ledger.api.v1.DatumHash
 export scalus.ledger.api.v1.IntervalBoundType
-export scalus.ledger.api.v1.FromDataInstances.given
 export scalus.ledger.api.v1.Interval
 export scalus.ledger.api.v1.IntervalBound
 export scalus.ledger.api.v1.PosixTime
@@ -31,84 +34,35 @@ export scalus.ledger.api.v1.Redeemer
 export scalus.ledger.api.v1.RedeemerHash
 export scalus.ledger.api.v1.ScriptHash
 export scalus.ledger.api.v1.StakingCredential
-export scalus.ledger.api.v1.ToDataInstances.given
 export scalus.ledger.api.v1.TokenName
 export scalus.ledger.api.v1.ValidatorHash
-export scalus.ledger.api.v1.Value
 export scalus.ledger.api.v2.TxOut
+//type Value = scalus.ledger.api.v1.Value
+export scalus.ledger.api.v1.Value
 
 @Compile
-object FromDataInstances {
-    import scalus.builtin.FromDataInstances.given
-    import scalus.ledger.api.v1.FromDataInstances.given
-    import scalus.ledger.api.v2.FromDataInstances.given
-
-    given FromData[TxId] = (d: Data) => TxId(d.toByteString)
-    given FromData[TxOutRef] = FromData.deriveCaseClass
-    given FromData[DRep] = FromData.deriveEnum
-    given FromData[Delegatee] = FromData.deriveEnum
-    given FromData[TxCert] = FromData.deriveEnum
-    given FromData[Voter] = FromData.deriveEnum
-    given FromData[Vote] = FromData.deriveEnum
-    given FromData[GovernanceActionId] = FromData.deriveCaseClass
-    given FromData[Committee] = FromData.deriveCaseClass
-    given FromData[ProtocolVersion] = FromData.deriveCaseClass
-    given FromData[GovernanceAction] = FromData.deriveEnum
-    given FromData[ProposalProcedure] = FromData.deriveCaseClass
-    given FromData[ScriptPurpose] = FromData.deriveEnum
-    given FromData[ScriptInfo] = FromData.deriveEnum
-    given FromData[TxInInfo] = FromData.deriveCaseClass
-    given FromData[TxInfo] = FromData.deriveCaseClass
-    given FromData[ScriptContext] = FromData.deriveCaseClass
-
-    @deprecated("Use ScriptInfo instead")
-    given FromData[SpendingScriptInfo] = (d: Data) =>
-        val pair = d.toConstr
-        if pair.fst == BigInt(1) then
-            val args = pair.snd
-            SpendingScriptInfo(args.head.to[TxOutRef], args.tail.head.to[Option[Datum]])
-        else throw new Exception("Invalid SpendingScriptInfo")
-
-    @deprecated("Use ScriptContext instead")
-    given FromData[SpendingScriptContext] = FromData.deriveCaseClass
-}
+@deprecated("Not need anymore, use companion objects instead")
+object FromDataInstances
 
 @Compile
-object ToDataInstances {
-    import scalus.builtin.ToDataInstances.given
-    import scalus.ledger.api.v1.ToDataInstances.given
-    import scalus.ledger.api.v2.ToDataInstances.given
-
-    given ToData[TxId] = (x: TxId) => bData(x.hash)
-    given ToData[TxOutRef] = ToData.deriveCaseClass[TxOutRef](0)
-    given ToData[DRep] = ToData.deriveEnum
-    given ToData[Delegatee] = ToData.deriveEnum
-    given ToData[TxCert] = ToData.deriveEnum
-    given ToData[Voter] = ToData.deriveEnum
-    given ToData[Vote] = ToData.deriveEnum
-    given ToData[GovernanceActionId] = ToData.deriveCaseClass[GovernanceActionId](0)
-    given ToData[Committee] = ToData.deriveCaseClass[Committee](0)
-    given ToData[ProtocolVersion] = ToData.deriveCaseClass[ProtocolVersion](0)
-    given ToData[GovernanceAction] = ToData.deriveEnum
-    given ToData[ProposalProcedure] = ToData.deriveCaseClass[ProposalProcedure](0)
-    given ToData[ScriptPurpose] = ToData.deriveEnum
-    given ToData[ScriptInfo] = ToData.deriveEnum
-    given ToData[TxInInfo] = ToData.deriveCaseClass[TxInInfo](0)
-    given ToData[TxInfo] = ToData.deriveCaseClass[TxInfo](0)
-    given ToData[ScriptContext] = ToData.deriveCaseClass[ScriptContext](0)
-}
+@deprecated("Not need anymore, use companion objects instead")
+object ToDataInstances
 
 case class TxId(hash: ByteString)
 
 @Compile
 object TxId:
     given Eq[TxId] = (a: TxId, b: TxId) => a.hash === b.hash
+    given FromData[TxId] = (d: Data) => TxId(d.toByteString)
+    given ToData[TxId] = (x: TxId) => bData(x.hash)
 
 case class TxOutRef(id: TxId, idx: BigInt)
 
 @Compile
 object TxOutRef:
     given Eq[TxOutRef] = (a: TxOutRef, b: TxOutRef) => a.id === b.id && a.idx === b.idx
+    given FromData[TxOutRef] = FromData.derived
+    given ToData[TxOutRef] = ToData.derived
 
 type Lovelace = BigInt
 type ColdCommitteeCredential = Credential
@@ -124,6 +78,7 @@ enum DRep:
 
 @Compile
 object DRep:
+
     given Eq[scalus.ledger.api.v3.DRep] =
         (lhs: scalus.ledger.api.v3.DRep, rhs: scalus.ledger.api.v3.DRep) =>
             lhs match
@@ -140,6 +95,12 @@ object DRep:
                         case AlwaysNoConfidence => true
                         case _                  => false
 
+    given FromData[scalus.ledger.api.v3.DRep] = FromData.derived
+
+    given ToData[scalus.ledger.api.v3.DRep] = ToData.derived
+
+end DRep
+
 enum Delegatee:
     case Stake(pubKeyHash: PubKeyHash)
     case Vote(dRep: DRep)
@@ -147,6 +108,7 @@ enum Delegatee:
 
 @Compile
 object Delegatee:
+
     given Eq[Delegatee] = (lhs: Delegatee, rhs: Delegatee) =>
         lhs match
             case Stake(lhsPubKeyHash) =>
@@ -163,6 +125,11 @@ object Delegatee:
                         lhsPubKeyHash === rhsPubKeyHash && lhsDRep === rhsDRep
                     case _ => false
 
+    given FromData[Delegatee] = FromData.derived
+    given ToData[Delegatee] = ToData.derived
+
+end Delegatee
+
 enum TxCert:
     case RegStaking(credential: Credential, deposit: Option[Lovelace])
     case UnRegStaking(credential: Credential, refund: Option[Lovelace])
@@ -178,6 +145,7 @@ enum TxCert:
 
 @Compile
 object TxCert:
+
     given Eq[TxCert] = (lhs: TxCert, rhs: TxCert) =>
         lhs match
             case RegStaking(lhsCredential, lhsDeposit) =>
@@ -234,6 +202,11 @@ object TxCert:
                     case ResignColdCommittee(rhsCold) => lhsCold === rhsCold
                     case _                            => false
 
+    given FromData[TxCert] = FromData.derived
+    given ToData[TxCert] = ToData.derived
+
+end TxCert
+
 enum Voter:
     case CommitteeVoter(credential: HotCommitteeCredential)
     case DRepVoter(credential: DRepCredential)
@@ -241,6 +214,7 @@ enum Voter:
 
 @Compile
 object Voter:
+
     given Eq[Voter] = (lhs: Voter, rhs: Voter) =>
         lhs match
             case CommitteeVoter(lhsCredential) =>
@@ -256,11 +230,17 @@ object Voter:
                     case StakePoolVoter(rhsPubKeyHash) => lhsPubKeyHash === rhsPubKeyHash
                     case _                             => false
 
+    given ToData[Voter] = ToData.derived
+    given FromData[Voter] = FromData.derived
+
+end Voter
+
 enum Vote:
     case No, Yes, Abstain
 
 @Compile
 object Vote:
+
     given Eq[Vote] = (lhs: Vote, rhs: Vote) =>
         lhs match
             case No =>
@@ -276,12 +256,23 @@ object Vote:
                     case Abstain => true
                     case _       => false
 
+    given ToData[Vote] = ToData.derived
+    given FromData[Vote] = FromData.derived
+
+end Vote
+
 case class GovernanceActionId(txId: TxId, govActionIx: BigInt)
 
 @Compile
 object GovernanceActionId:
+
     given Eq[GovernanceActionId] = (lhs: GovernanceActionId, rhs: GovernanceActionId) =>
         lhs.txId === rhs.txId && lhs.govActionIx === rhs.govActionIx
+
+    given FromData[GovernanceActionId] = FromData.derived
+    given ToData[GovernanceActionId] = ToData.derived
+
+end GovernanceActionId
 
 case class Committee(
     members: AssocMap[ColdCommitteeCredential, BigInt],
@@ -293,6 +284,11 @@ object Committee:
     given Eq[Committee] = (lhs: Committee, rhs: Committee) =>
         lhs.members === rhs.members && lhs.quorum === rhs.quorum
 
+    given FromData[Committee] = FromData.derived
+    given ToData[Committee] = ToData.derived
+
+end Committee
+
 type Constitution = Option[ScriptHash]
 
 case class ProtocolVersion(pvMajor: BigInt, pvMinor: BigInt)
@@ -301,6 +297,11 @@ case class ProtocolVersion(pvMajor: BigInt, pvMinor: BigInt)
 object ProtocolVersion:
     given Eq[ProtocolVersion] = (lhs: ProtocolVersion, rhs: ProtocolVersion) =>
         lhs.pvMajor === rhs.pvMajor && lhs.pvMinor === rhs.pvMinor
+
+    given FromData[ProtocolVersion] = FromData.derived
+    given ToData[ProtocolVersion] = ToData.derived
+
+end ProtocolVersion
 
 type ChangedParameters = Data
 
@@ -366,6 +367,11 @@ object GovernanceAction:
                     case InfoAction => true
                     case _          => false
 
+    given FromData[GovernanceAction] = FromData.derived
+    given ToData[GovernanceAction] = ToData.derived
+
+end GovernanceAction
+
 case class ProposalProcedure(
     deposit: Lovelace,
     returnAddress: Credential,
@@ -374,9 +380,15 @@ case class ProposalProcedure(
 
 @Compile
 object ProposalProcedure:
+
     given Eq[ProposalProcedure] = (lhs: ProposalProcedure, rhs: ProposalProcedure) =>
         lhs.deposit === rhs.deposit && lhs.returnAddress === rhs.returnAddress
             && lhs.governanceAction === rhs.governanceAction
+
+    given ToData[ProposalProcedure] = ToData.derived
+    given FromData[ProposalProcedure] = FromData.derived
+
+end ProposalProcedure
 
 enum ScriptPurpose:
     case Minting(currencySymbol: CurrencySymbol)
@@ -417,6 +429,11 @@ object ScriptPurpose:
                         lhsIndex === rhsIndex && lhsProcedure === rhsProcedure
                     case _ => false
 
+    given FromData[ScriptPurpose] = FromData.derived
+    given ToData[ScriptPurpose] = ToData.derived
+
+end ScriptPurpose
+
 enum ScriptInfo:
     case MintingScript(currencySymbol: CurrencySymbol)
     case SpendingScript(txOutRef: TxOutRef, datum: Option[Datum] = Option.None)
@@ -425,8 +442,30 @@ enum ScriptInfo:
     case VotingScript(voter: Voter)
     case ProposingScript(index: BigInt, procedure: ProposalProcedure)
 
+@Compile
+object ScriptInfo:
+
+    given FromData[ScriptInfo] = FromData.derived
+    given ToData[ScriptInfo] = ToData.derived
+
+end ScriptInfo
+
 @deprecated("Use ScriptInfo instead")
 case class SpendingScriptInfo(txOutRef: TxOutRef, datum: Option[Datum])
+
+object SpendingScriptInfo:
+
+    @deprecated("Use ScriptInfo instead")
+    given FromData[SpendingScriptInfo] = (d: Data) =>
+        val pair = d.toConstr
+        if pair.fst == BigInt(1) then
+            val args = pair.snd
+            SpendingScriptInfo(args.head.to[TxOutRef], args.tail.head.to[Option[Datum]])
+        else throw new Exception("Invalid SpendingScriptInfo")
+
+    given ToData[SpendingScriptInfo] = ToData.derived
+
+end SpendingScriptInfo
 
 @deprecated("Use ScriptInfo instead")
 case class MintingScriptInfo(currencySymbol: CurrencySymbol)
@@ -438,6 +477,14 @@ case class TxInInfo(
     outRef: TxOutRef,
     resolved: v2.TxOut
 )
+
+@Compile
+object TxInInfo:
+
+    given FromData[TxInInfo] = FromData.derived
+    given ToData[TxInInfo] = ToData.derived
+
+end TxInInfo
 
 case class TxInfo(
     inputs: List[TxInInfo],
@@ -458,8 +505,17 @@ case class TxInfo(
     treasuryDonation: Option[Lovelace] = Option.None
 )
 
+@Compile
 object TxInfo {
-//    def placeholder: TxInfo = TxInfo()
+
+    given FromData[TxInfo] = FromData.derived
+    given ToData[TxInfo] = ToData.derived
+
+    val placeholder: TxInfo = TxInfo(
+      inputs = List.empty,
+      id = TxId(hex"0000000000000000000000000000000000000000000000000000000000000000")
+    )
+
 }
 
 case class ScriptContext(
@@ -468,9 +524,26 @@ case class ScriptContext(
     scriptInfo: ScriptInfo
 )
 
+@Compile
+object ScriptContext {
+
+    given FromData[ScriptContext] = FromData.derived
+    given ToData[ScriptContext] = ToData.derived
+
+}
+
 @deprecated("Use ScriptContext instead")
 case class SpendingScriptContext(
     txInfo: TxInfo,
     redeemer: Redeemer,
     scriptInfo: SpendingScriptInfo
 )
+
+@Compile
+@deprecated("Use ScriptContext instead")
+object SpendingScriptContext {
+
+    given FromData[SpendingScriptContext] = FromData.derived
+    given ToData[SpendingScriptContext] = ToData.derived
+
+}

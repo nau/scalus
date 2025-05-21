@@ -2,7 +2,6 @@ package scalus.prelude
 
 import scalus.builtin.Data
 import scalus.ledger.api.v3.*
-import scalus.ledger.api.v3.FromDataInstances.given
 
 @scalus.Compile
 trait Validator {
@@ -15,9 +14,9 @@ trait Validator {
             case ScriptInfo.SpendingScript(txOutRef, datum) =>
                 spend(datum, sc.redeemer, sc.txInfo, txOutRef)
             case ScriptInfo.RewardingScript(credential) =>
-                reward(credential, sc.txInfo)
+                reward(sc.redeemer, credential, sc.txInfo)
             case ScriptInfo.CertifyingScript(index, cert) =>
-                certify(cert, sc.txInfo)
+                certify(sc.redeemer, cert, sc.txInfo)
             case ScriptInfo.VotingScript(voter) =>
                 vote(sc.redeemer, voter, sc.txInfo)
             case ScriptInfo.ProposingScript(index, procedure) =>
@@ -43,6 +42,7 @@ trait Validator {
     }
 
     def reward(
+        redeemer: Data,
         stakingKey: Credential,
         tx: TxInfo
     ): Unit = {
@@ -50,6 +50,7 @@ trait Validator {
     }
 
     def certify(
+        redeemer: Data,
         cert: TxCert,
         tx: TxInfo
     ): Unit = {

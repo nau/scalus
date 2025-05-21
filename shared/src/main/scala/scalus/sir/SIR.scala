@@ -100,6 +100,9 @@ case class ConstrDecl(
     if name.contains(" ") || name.contains("\u0021") then {
         throw new RuntimeException("Invalid name in constructor: " + name)
     }
+    if name == "scalus.builtin.BigRecord$._$_$$anon" then {
+        throw new RuntimeException("Invalid name in constructor: " + name)
+    }
 
 }
 
@@ -194,6 +197,11 @@ object SIR:
 
     case class ExternalVar(moduleName: String, name: String, tp: SIRType, anns: AnnotationsDecl)
         extends SIR {
+
+        if moduleName == "scalus.builtin.FromDataInstances$.OptionFromData" then {
+            println(s"SIR: moduleName=${moduleName}, name=${name}")
+            throw RuntimeException(s"moduleName=${moduleName}")
+        }
 
         override def toString: String = s"ExternalVar($moduleName, $name, ${tp.show})"
 

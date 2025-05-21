@@ -23,7 +23,6 @@ import scalus.builtin.ByteString
 import scalus.builtin.Data
 import scalus.builtin.given
 import scalus.builtin.PlatformSpecific
-import scalus.builtin.ToDataInstances.given
 import scalus.utils.Utils
 
 object SendTx:

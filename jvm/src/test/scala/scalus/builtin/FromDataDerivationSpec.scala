@@ -9,7 +9,6 @@ import scalus.Compiler.compile
 import scalus.*
 import scalus.builtin.Builtins.*
 import scalus.builtin.Data.*
-import scalus.builtin.FromDataInstances.given
 import scalus.uplc.*
 import scalus.uplc.eval.PlutusVM
 
@@ -33,7 +32,6 @@ object Adt:
 @Compile
 object ToDataAdt:
     given AdtToData: ToData[Adt] = (a: Adt) =>
-        import ToDataInstances.given
         given ToData[Adt] = AdtToData
         a match
             case Adt.A => constrData(0, mkNilData())
@@ -61,7 +59,6 @@ object BigRecord extends ArbitraryInstances:
 
 @Compile
 object ToDataBigRecord:
-    import ToDataInstances.given
     /* given ToData[BigRecord] = (r: BigRecord) =>
     r match
       case BigRecord(a, b, bs, s, d, ls, m) =>
@@ -69,7 +66,7 @@ object ToDataBigRecord:
           0,
           scalus.builtin.List(a.toData, b.toData, bs.toData, s.toData, d, ls.toData, m.toData)
         ) */
-    given ToData[BigRecord] = ToData.deriveCaseClass[BigRecord](0): @unchecked
+    given ToData[BigRecord] = ToData.derived
 
 class FromDataDerivationSpec
     extends AnyFunSuite
@@ -119,6 +116,7 @@ class FromDataDerivationSpec
         import ToDataBigRecord.given
         given PlutusVM = PlutusVM.makePlutusV2VM()
         val sir = compile { (d: Data) => fromData[BigRecord](d).toData }
+        // println(s"fromData SIR = ${sir.pretty.render(100)}")
         val term = sir.toUplc()
         forAll { (r: BigRecord) =>
             val d = r.toData

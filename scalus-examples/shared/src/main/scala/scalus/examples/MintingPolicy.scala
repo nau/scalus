@@ -91,7 +91,7 @@ object MintingPolicy {
     ) = (redeemer: Unit, ctxData: Data) => {
         deserializer(ctxData) match
             case MintingContext(txOutRefs, minted, ownSymbol) =>
-                val mintedTokens = minted.lookup(ownSymbol) match
+                val mintedTokens = minted.get(ownSymbol) match
                     case Some(mintedTokens) => mintedTokens
                     case None =>
                         throw new Exception("T")

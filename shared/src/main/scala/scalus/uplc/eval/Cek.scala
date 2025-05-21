@@ -755,6 +755,7 @@ class CekMachine(
                 case Return(ctx, env, value) => loop(returnCek(ctx, env, value))
                 case Done(term)              => term
         }
+
         spendBudget(ExBudgetCategory.Startup, params.machineCosts.startupCost, ArraySeq.empty)
         loop(Compute(NoFrame, ArraySeq.empty, term))
     }
@@ -892,10 +893,10 @@ class CekMachine(
             case TypeScheme.Type(_) | TypeScheme.TVar(_) | TypeScheme.App(_, _) =>
                 spendBudget(ExBudgetCategory.BuiltinApp(builtinName), runtime.calculateCost, env)
                 // eval the builtin and return result
-                try
+                try {
                     // eval builtin when it's fully saturated, i.e. when all arguments were applied
                     runtime.apply(logger)
-                catch case NonFatal(e) => throw new BuiltinError(builtinName, term(), e, env)
+                } catch case NonFatal(e) => throw new BuiltinError(builtinName, term(), e, env)
             case _ => VBuiltin(builtinName, term, runtime)
     }
 

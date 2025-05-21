@@ -10,6 +10,7 @@ import scala.collection.mutable.ArrayBuffer
 /** JSON ReadWriter for the [[Data]] type.
   */
 given DataReadWriter: ReadWriter[Data] =
+
     given ReadWriter[Data] = DataReadWriter
     readwriter[ujson.Value].bimap(
       {
@@ -95,4 +96,5 @@ trait DataApi {
 
     /** Decode a [[Data]] value from CBOR */
     def fromCbor(bs: ByteString): Data = Cbor.decode(bs.bytes).to[Data].value
+
 }

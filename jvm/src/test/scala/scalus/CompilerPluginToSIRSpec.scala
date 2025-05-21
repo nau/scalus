@@ -2,7 +2,7 @@ package scalus
 
 import org.scalatest.funsuite.AnyFunSuite
 import org.scalatestplus.scalacheck.ScalaCheckPropertyChecks
-import scalus.Compiler.{compile, compileDebug, fieldAsData}
+import scalus.Compiler.{compile, fieldAsData}
 import scalus.builtin.ByteString.*
 import scalus.builtin.{Builtins, ByteString, Data, JVMPlatformSpecific, PlatformSpecific, given}
 import scalus.ledger.api.v1.*
@@ -304,43 +304,24 @@ class CompilerPluginToSIRSpec extends AnyFunSuite with ScalaCheckPropertyChecks:
 
     test("compile ToData") {
         import scalus.builtin.Data.*
-        import scalus.builtin.ToDataInstances.given
         val compiled = compile {
             BigInt(1).toData
         }
-        val expected = Let(
-          Rec,
-          immutable.List(
-            Binding(
-              "scalus.builtin.ToDataInstances$.given_ToData_BigInt",
-              LamAbs(
-                Var("a", sirInt, AnE),
-                Apply(SIRBuiltins.iData, Var("a", sirInt, AnE), sirData, AnE),
-                AnE
-              )
-            )
-          ),
-          Let(
-            NonRec,
-            immutable.List(Binding("a$proxy1", Const(Constant.Integer(1), sirInt, AnE))),
-            Apply(
-              ExternalVar(
-                "scalus.builtin.ToDataInstances$",
-                "scalus.builtin.ToDataInstances$.given_ToData_BigInt",
-                Fun(sirInt, sirData),
+        val expected =
+            Let(
+              NonRec,
+              immutable.List(Binding("a$proxy1", Const(Constant.Integer(1), sirInt, AnE))),
+              Apply(
+                SIRBuiltins.iData,
+                Var("a$proxy1", sirInt, AnE),
+                sirData,
                 AnE
               ),
-              Var("a$proxy1", sirInt, AnE),
-              sirData,
               AnE
-            ),
-            AnE
-          ),
-          AnE
-        )
+            )
         assert(compiled ~=~ expected)
-        //    val term = compiled.toUplc()
-        //    assert(VM.evaluateTerm(term) == Data.I(22))
+        // val term = compiled.toUplc()
+        // assert(VM.evaluateTerm(term) == Data.I(1))
     }
 
     test("compile chooseList builtins") {
@@ -1699,7 +1680,6 @@ class CompilerPluginToSIRSpec extends AnyFunSuite with ScalaCheckPropertyChecks:
         val eqterm = eq.toUplc()
         val neterm = ne.toUplc()
         import scalus.builtin.Data.toData
-        import scalus.builtin.ToDataInstances.given
         import scalus.uplc.TermDSL.{*, given}
 
         assert(
@@ -2041,10 +2021,8 @@ class CompilerPluginToSIRSpec extends AnyFunSuite with ScalaCheckPropertyChecks:
 
     test("compile pattern in val with one argument") {
         import scalus.prelude.Option
-        import scalus.builtin.Data.FromData
-        import scalus.builtin.FromDataInstances.given
-        import scalus.builtin.Data.ToData
-        import scalus.builtin.ToDataInstances.given
+        import scalus.builtin.FromData
+        import scalus.builtin.ToData
         val compiled = compile { (x: Data) =>
             val Option.Some(v0) = summon[FromData[Option[BigInt]]](x): @unchecked
             // val Option.Some(v) = x
@@ -2059,7 +2037,6 @@ class CompilerPluginToSIRSpec extends AnyFunSuite with ScalaCheckPropertyChecks:
 
         script1.evaluateDebug match
             case Result.Success(evaled, _, _, logs) =>
-                println("success: evaled=" + evaled.show)
                 assert(evaled == scalus.uplc.Term.Const(Constant.Integer(1)))
             case Result.Failure(exception, _, _, _) =>
                 println("failure: exception=" + exception.getMessage)
@@ -2079,10 +2056,8 @@ class CompilerPluginToSIRSpec extends AnyFunSuite with ScalaCheckPropertyChecks:
 
     test("compile pattern with val with two arguments") {
         import scalus.prelude.List
-        import scalus.builtin.Data.FromData
-        import scalus.builtin.FromDataInstances.given
-        import scalus.builtin.Data.ToData
-        import scalus.builtin.ToDataInstances.given
+        import scalus.builtin.FromData
+        import scalus.builtin.ToData
 
         val compiled = compile { (x: Data) =>
             val List.Cons(head, tail) = summon[FromData[List[BigInt]]](x): @unchecked
@@ -2130,8 +2105,6 @@ class CompilerPluginToSIRSpec extends AnyFunSuite with ScalaCheckPropertyChecks:
         import scalus.builtin.Data.FromData
         import scalus.builtin.Data.ToData
         import scalus.ledger.api.v3.*
-        import scalus.ledger.api.v3.FromDataInstances.given
-        import scalus.ledger.api.v3.ToDataInstances.given
 
         val compiled = compile { (x: Data) =>
             val ScriptContext(txInfo, redeemer, scriptInfo) = summon[FromData[ScriptContext]](x)
