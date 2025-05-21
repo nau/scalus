@@ -318,6 +318,7 @@ lazy val scalusDesignPatterns = project
       libraryDependencies += "org.scalatest" %%% "scalatest" % "3.2.19" % "test",
       libraryDependencies += "org.scalatestplus" %%% "scalacheck-1-18" % "3.2.19.0" % "test",
       Test / fork := true,
+      trackInternalDependencies := TrackLevel.TrackIfMissing,
     )
 
 /*
