@@ -6,7 +6,6 @@ import scalus.Ignore
 import scalus.builtin.Builtins.*
 import scalus.builtin.ByteString
 import scalus.builtin.ByteString.*
-import scalus.ledger.api.v1.FromDataInstances.given
 import scalus.ledger.api.v1.*
 import scalus.prelude.Option.*
 import scalus.prelude.*
@@ -14,7 +13,6 @@ import scalus.prelude.given
 import scalus.builtin.Data
 import scalus.builtin.Data.FromData
 import scalus.builtin.Data.fromData
-import scalus.builtin.FromDataInstances.given
 
 case class TxInInfoTxOutRefOnly(txInInfoOutRef: TxOutRef)
 
