@@ -8,8 +8,8 @@ import scalus.prelude.Ord.{*, given}
 import org.scalatest.funsuite.AnyFunSuite
 import scalus.testkit.ScalusTest
 
-class Knights extends AnyFunSuite, ScalusTest:
-    import Knights.{*, given}
+class KnightsTest extends AnyFunSuite, ScalusTest:
+    import KnightsTest.{*, given}
 
     test("100_4x4") {
         val result = runKnights(100, 4)
@@ -437,10 +437,10 @@ class Knights extends AnyFunSuite, ScalusTest:
         assert(result === expected)
     }
 
-end Knights
+end KnightsTest
 
 @Compile
-object Knights:
+object KnightsTest:
     enum Direction:
         case UL, UR, DL, DR, LU, LD, RU, RD
 
@@ -585,17 +585,17 @@ object Knights:
 
     end extension
 
-    opaque type Queue[A] = List[A]
+    case class Queue[A](list: List[A])
 
-    def emptyQueue[A]: Queue[A] = List.empty
+    def emptyQueue[A]: Queue[A] = Queue(List.empty[A])
 
     extension [A](self: Queue[A])
-        def toList: List[A] = self
-        def isEmpty: Boolean = List.isEmpty(toList)
-        def appendFront(item: A): Queue[A] = toList.prepended(item)
-        def appendAllFront(other: Queue[A]): Queue[A] = other.toList ++ toList
-        def removeFront: Queue[A] = toList.tail
-        def head: A = List.head(toList)
+        def toList: List[A] = self.list
+        def isEmpty: Boolean = toList.isEmpty
+        def appendFront(item: A): Queue[A] = Queue(toList.prepended(item))
+        def appendAllFront(list: List[A]): Queue[A] = Queue(list ++ toList)
+        def removeFront: Queue[A] = Queue(toList.tail)
+        def head: A = toList.head
 
     end extension
 
@@ -621,7 +621,7 @@ object Knights:
         grow: A => List[A],
         done: A => Boolean
     ): Queue[A] =
-        if depth === BigInt(0) || queue.isEmpty then emptyQueue
+        if depth === BigInt(0) || queue.isEmpty then emptyQueue[A]
         else if done(queue.head) then
             depthSearch(depth - 1, queue.removeFront, grow, done).appendFront(queue.head)
         else depthSearch(depth - 1, queue.removeFront.appendAllFront(grow(queue.head)), grow, done)
@@ -629,4 +629,4 @@ object Knights:
     def runKnights(depth: BigInt, boardSize: BigInt): Solution =
         depthSearch(depth, root(boardSize), grow, isDone).toList
 
-end Knights
+end KnightsTest

@@ -11,8 +11,8 @@ import scalus.uplc.eval.*
 import org.scalatest.funsuite.AnyFunSuite
 import scalus.testkit.ScalusTest
 
-class Clausify extends AnyFunSuite, ScalusTest:
-    import Clausify.*
+class ClausifyTest extends AnyFunSuite, ScalusTest:
+    import ClausifyTest.*
 
     inline val isAlwaysPrintComparison = false
 
@@ -32,7 +32,7 @@ class Clausify extends AnyFunSuite, ScalusTest:
         assert(result.budget == scalusBudget)
 
         compareBudgetWithReferenceValue(
-          testName = "Clausify.F1",
+          testName = "ClausifyTest.F1",
           scalusBudget = scalusBudget,
           refBudget = ExBudget(ExCPU(12325496028L), ExMemory(39891097L)),
           isPrintComparison = false
@@ -55,7 +55,7 @@ class Clausify extends AnyFunSuite, ScalusTest:
         assert(result.budget == scalusBudget)
 
         compareBudgetWithReferenceValue(
-          testName = "Clausify.F2",
+          testName = "ClausifyTest.F2",
           scalusBudget = scalusBudget,
           refBudget = ExBudget(ExCPU(15570882882L), ExMemory(50524767L)),
           isPrintComparison = false
@@ -78,7 +78,7 @@ class Clausify extends AnyFunSuite, ScalusTest:
         assert(result.budget == scalusBudget)
 
         compareBudgetWithReferenceValue(
-          testName = "Clausify.F3",
+          testName = "ClausifyTest.F3",
           scalusBudget = scalusBudget,
           refBudget = ExBudget(ExCPU(41872495549L), ExMemory(136054751L)),
           isPrintComparison = false
@@ -1003,7 +1003,7 @@ class Clausify extends AnyFunSuite, ScalusTest:
         assert(result.budget == scalusBudget)
 
         compareBudgetWithReferenceValue(
-          testName = "Clausify.F4",
+          testName = "ClausifyTest.F4",
           scalusBudget = scalusBudget,
           refBudget = ExBudget(ExCPU(56754761923L), ExMemory(181055087L)),
           isPrintComparison = false
@@ -1026,17 +1026,17 @@ class Clausify extends AnyFunSuite, ScalusTest:
         assert(result.budget == scalusBudget)
 
         compareBudgetWithReferenceValue(
-          testName = "Clausify.F5",
+          testName = "ClausifyTest.F5",
           scalusBudget = scalusBudget,
           refBudget = ExBudget(ExCPU(203182153626L), ExMemory(660668247L)),
           isPrintComparison = false
         )
     }
 
-end Clausify
+end ClausifyTest
 
 @Compile
-object Clausify:
+object ClausifyTest:
     type Var = BigInt
     type LRVars = (List[Var], List[Var])
 
@@ -1183,4 +1183,4 @@ object Clausify:
 
     end extension
 
-end Clausify
+end ClausifyTest
