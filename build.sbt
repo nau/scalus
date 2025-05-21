@@ -46,7 +46,6 @@ Compile / doc / scalacOptions ++= Seq(
   "Lantr.io"
 )
 
-
 lazy val root: Project = project
     .in(file("."))
     .aggregate(
