@@ -255,9 +255,9 @@ class PaymentSplitterSpec extends AnyFunSuite, ScalusTest {
     private val script = {
         try {
             val sir = compile(PaymentSplitter.validate)
-            println(s"sir=${sir.pretty.render(100)}")
+            // println(s"sir=${sir.pretty.render(100)}")
             val uplc = sir.toUplc(generateErrorTraces = true)
-            println(s"uplc=${uplc.pretty.render(100)}")
+            // println(s"uplc=${uplc.pretty.render(100)}")
             uplc.plutusV3
         } catch {
             case NonFatal(ex) =>
