@@ -320,37 +320,6 @@ lazy val scalusDesignPatterns = project
       trackInternalDependencies := TrackLevel.TrackIfMissing,
     )
 
-/*
-lazy val examples = project
-    .in(file("examples"))
-    .dependsOn(scalus.jvm, `scalus-bloxbean-cardano-client-lib`)
-    .disablePlugins(MimaPlugin) // disable Migration Manager for Scala
-    .settings(
-      PluginDependency,
-      scalacOptions ++= commonScalacOptions,
-      publish / skip := true,
-      libraryDependencies += "com.bloxbean.cardano" % "cardano-client-backend-blockfrost" % "0.6.4"
-    )
- */
-
-/*
-lazy val `examples-js` = project
-    .enablePlugins(ScalaJSPlugin, ScalaJSBundlerPlugin)
-    .in(file("examples-js"))
-    .dependsOn(scalus.js)
-    .disablePlugins(MimaPlugin) // disable Migration Manager for Scala
-    .settings(
-      publish / skip := true,
-      scalacOptions ++= commonScalacOptions,
-      Compile / npmDependencies += "@noble/curves" -> "1.4.2",
-      scalaJSUseMainModuleInitializer := false,
-      scalaJSLinkerConfig ~= {
-          _.withModuleKind(ModuleKind.CommonJSModule)
-      },
-      PluginDependency
-    )
- */
-
 // Bloxbean Cardano Client Lib integration and Tx Evaluator implementation
 lazy val `scalus-bloxbean-cardano-client-lib` = project
     .in(file("bloxbean-cardano-client-lib"))
