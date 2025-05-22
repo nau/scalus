@@ -13,7 +13,7 @@ trait Delayed[+A]
 case class Expr[+A](term: Term)
 
 object ExprBuilder:
-    import TermDSL.*
+    import Term.*
 
     trait Unlift[A]:
         def unlift: Expr[Data => A]

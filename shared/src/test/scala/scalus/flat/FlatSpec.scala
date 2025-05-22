@@ -6,7 +6,6 @@ import org.scalacheck.Shrink
 import org.scalatest.funsuite.AnyFunSuite
 import org.scalatestplus.scalacheck.ScalaCheckPropertyChecks
 import scalus.builtin
-import scalus.builtin.ToDataInstances.given
 import scalus.uplc.*
 import scalus.utils.Utils
 

@@ -532,6 +532,10 @@ enum Result:
         case _: Success => true
         case _          => false
 
+    def isFailure: Boolean = this match
+        case _: Failure => true
+        case _          => false
+
     override def toString: String =
         import scalus.*
 
@@ -751,6 +755,7 @@ class CekMachine(
                 case Return(ctx, env, value) => loop(returnCek(ctx, env, value))
                 case Done(term)              => term
         }
+
         spendBudget(ExBudgetCategory.Startup, params.machineCosts.startupCost, ArraySeq.empty)
         loop(Compute(NoFrame, ArraySeq.empty, term))
     }
@@ -888,10 +893,10 @@ class CekMachine(
             case TypeScheme.Type(_) | TypeScheme.TVar(_) | TypeScheme.App(_, _) =>
                 spendBudget(ExBudgetCategory.BuiltinApp(builtinName), runtime.calculateCost, env)
                 // eval the builtin and return result
-                try
+                try {
                     // eval builtin when it's fully saturated, i.e. when all arguments were applied
                     runtime.apply(logger)
-                catch case NonFatal(e) => throw new BuiltinError(builtinName, term(), e, env)
+                } catch case NonFatal(e) => throw new BuiltinError(builtinName, term(), e, env)
             case _ => VBuiltin(builtinName, term, runtime)
     }
 
@@ -904,8 +909,8 @@ class CekMachine(
                 term match
                     case Var(name) =>
                         if lamCnt >= name.index
-                            // the index n is less-than-or-equal than the number of lambdas we have descended
-                            // this means that n points to a bound variable, so we don't discharge it.
+                        // the index n is less-than-or-equal than the number of lambdas we have descended
+                        // this means that n points to a bound variable, so we don't discharge it.
                         then term
                         else
                             // index relative to (as seen from the point of view of) the environment

@@ -9,7 +9,6 @@ import scalus.Compiler.compile
 import scalus.*
 import scalus.builtin.Builtins.*
 import scalus.builtin.Data.*
-import scalus.builtin.FromDataInstances.given
 import scalus.uplc.*
 import scalus.uplc.eval.PlutusVM
 
@@ -33,7 +32,6 @@ object Adt:
 @Compile
 object ToDataAdt:
     given AdtToData: ToData[Adt] = (a: Adt) =>
-        import ToDataInstances.given
         given ToData[Adt] = AdtToData
         a match
             case Adt.A => constrData(0, mkNilData())
@@ -52,7 +50,7 @@ case class BigRecord(
     s: String,
     d: Data,
     ls: scalus.prelude.List[BigInt],
-    m: scalus.prelude.AssocMap[BigInt, scalus.prelude.Maybe[String]]
+    m: scalus.prelude.AssocMap[BigInt, scalus.prelude.Option[String]]
 )
 
 @Compile
@@ -61,7 +59,6 @@ object BigRecord extends ArbitraryInstances:
 
 @Compile
 object ToDataBigRecord:
-    import ToDataInstances.given
     /* given ToData[BigRecord] = (r: BigRecord) =>
     r match
       case BigRecord(a, b, bs, s, d, ls, m) =>
@@ -69,7 +66,7 @@ object ToDataBigRecord:
           0,
           scalus.builtin.List(a.toData, b.toData, bs.toData, s.toData, d, ls.toData, m.toData)
         ) */
-    given ToData[BigRecord] = ToData.deriveCaseClass[BigRecord](0): @unchecked
+    given ToData[BigRecord] = ToData.derived
 
 class FromDataDerivationSpec
     extends AnyFunSuite
@@ -84,7 +81,7 @@ class FromDataDerivationSpec
           s <- Arbitrary.arbitrary[String]
           d <- Arbitrary.arbitrary[Data]
           ls <- Arbitrary.arbitrary[scalus.prelude.List[BigInt]]
-          m <- Arbitrary.arbitrary[scalus.prelude.AssocMap[BigInt, scalus.prelude.Maybe[String]]]
+          m <- Arbitrary.arbitrary[scalus.prelude.AssocMap[BigInt, scalus.prelude.Option[String]]]
       yield BigRecord(a, b, bs, s, d, ls, m)
     )
 
@@ -117,9 +114,9 @@ class FromDataDerivationSpec
 
     test("derived FromData roundtrip works using Plutus uplc") {
         import ToDataBigRecord.given
-        import scalus.uplc.TermDSL.{*, given}
         given PlutusVM = PlutusVM.makePlutusV2VM()
         val sir = compile { (d: Data) => fromData[BigRecord](d).toData }
+        // println(s"fromData SIR = ${sir.pretty.render(100)}")
         val term = sir.toUplc()
         forAll { (r: BigRecord) =>
             val d = r.toData

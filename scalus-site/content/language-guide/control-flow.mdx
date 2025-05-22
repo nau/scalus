@@ -1,0 +1,21 @@
+---
+title: Control flow
+sidebarTitle: Control flow
+display: hidden
+---
+
+# Control flow
+
+```scala mdoc:compile-only copy showLineNumbers
+import scalus.prelude.{*, given}
+compile {
+    val a = BigInt(1)
+    // if-then-else
+    if a == BigInt(2) then ()
+    // throwing an exception compiles to Plutus ERROR,
+    // which aborts the evaluation of the script
+    // the exception message can be translated to a trace message
+    // using sir.toUplc(generateErrorTraces = true)
+    else throw new Exception("not 2")
+}
+```

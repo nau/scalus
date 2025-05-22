@@ -378,6 +378,13 @@ class PatternMatchingCompiler(val compiler: SIRCompiler)(using Context) {
         val Match(matchTree, cases) = tree
         // val typeSymbol = matchTree.tpe.widen.dealias.typeSymbol
         // report.echo(s"Match: ${typeSymbol} ${typeSymbol.children} $adtInfo", tree.srcPos)
+        val isUnchecked = matchTree match
+            case Typed(selectorExpr, tp) =>
+                tp.tpe match
+                    case AnnotatedType(_, ann) =>
+                        ann.symbol == defn.UncheckedAnnot
+                    case _ => false
+            case _ => false
         val matchExpr = compiler.compileExpr(env, matchTree)
         val sirCases = cases.flatMap(cs => scalaCaseDefToSirCase(env, cs))
         if env.debug then println(s"compileMatch cases: ${sirCases}")
@@ -412,11 +419,25 @@ class PatternMatchingCompiler(val compiler: SIRCompiler)(using Context) {
 
             idx += 1
         end while
+        val annotations0 = AnnotationsDecl.fromSrcPos(tree.srcPos)
+        val annotations =
+            if isUnchecked then
+                annotations0.copy(
+                  data = annotations0.data.updated(
+                    "unchecked",
+                    SIR.Const(
+                      scalus.uplc.Constant.Bool(true),
+                      SIRType.Boolean,
+                      AnnotationsDecl.empty
+                    )
+                  )
+                )
+            else annotations0
         SIR.Match(
           matchExpr,
           expandedCases.toList,
           sirTypeInEnv(tree.tpe.dealias.widen, tree.srcPos, env),
-          AnnotationsDecl.fromSrcPos(tree.srcPos)
+          annotations
         )
     }
 

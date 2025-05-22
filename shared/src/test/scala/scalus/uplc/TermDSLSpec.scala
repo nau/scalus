@@ -5,7 +5,8 @@ import org.scalatestplus.scalacheck.ScalaCheckPropertyChecks
 import scalus.*
 import scalus.builtin.ByteString
 import scalus.uplc.DefaultUni.asConstant
-import scalus.uplc.TermDSL.{*, given}
+import scalus.uplc.Term.*
+import scalus.uplc.TermDSL.given
 
 import scala.language.implicitConversions
 

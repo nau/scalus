@@ -302,7 +302,7 @@ object SIRHashCodeInRec {
             var h = MurmurHash3.seqSeed
             var n = 0;
             var c = t;
-            while (c.nonEmpty) {
+            while c.nonEmpty do {
                 h = MurmurHash3.mix(h, summon[SIRHashCodeInRec[T]](c.head, trace))
                 n += 1
                 c = c.tail

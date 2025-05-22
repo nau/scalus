@@ -5,7 +5,7 @@ import scalus.*
 import scalus.uplc.DefaultFun.*
 import scalus.uplc.Term
 import scalus.uplc.Term.*
-import scalus.uplc.TermDSL.{*, given}
+import scalus.uplc.TermDSL.given
 import scalus.uplc.transform.EtaReduce.etaReduce
 
 import scala.language.implicitConversions

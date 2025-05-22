@@ -5,12 +5,12 @@ import scalus.Ignore
 import scalus.prelude.AssocMap
 import scalus.builtin.ByteString
 import scalus.builtin.Builtins.*
-import scalus.prelude.Prelude.given
 import scalus.prelude.List
 import scalus.prelude.These
 import scalus.prelude.These.*
 import scalus.prelude
-import scalus.prelude.Prelude
+import scalus.prelude.Eq
+import scalus.prelude.given
 
 @Compile
 object Value:
@@ -33,8 +33,8 @@ object Value:
 
     def checkPred(l: Value, r: Value)(f: These[BigInt, BigInt] => Boolean): Boolean = {
         def inner(m: AssocMap[TokenName, These[BigInt, BigInt]]): Boolean =
-            AssocMap.all(m)((_, v) => f(v))
-        AssocMap.all(unionVal(l, r))((_, v) => inner(v))
+            m.all((_, v) => f(v))
+        unionVal(l, r).all((_, v) => inner(v))
     }
 
     def checkBinRel(op: (BigInt, BigInt) => Boolean)(
@@ -42,11 +42,10 @@ object Value:
         b: Value
     ): Boolean = {
         // all values are equal, absent values are 0
-        checkPred(a, b) { v =>
-            v match
-                case These.These(v1, v2) => op(v1, v2)
-                case This(v1)            => op(v1, 0)
-                case That(v2)            => op(v2, 0)
+        checkPred(a, b) {
+            case These.These(v1, v2) => op(v1, v2)
+            case This(v1)            => op(v1, 0)
+            case That(v2)            => op(v2, 0)
         }
     }
 
@@ -54,9 +53,9 @@ object Value:
         a: AssocMap[TokenName, BigInt],
         b: AssocMap[TokenName, BigInt]
     ): Boolean = {
-        val combined = AssocMap.toList(AssocMap.union(a, b))
+        val combined = AssocMap.union(a, b).toList
         // all values are equal, absent values are 0
-        List.all(combined) { case (k, v) =>
+        combined.forall { case (k, v) =>
             v match
                 case These.These(v1, v2) => op(v1, v2)
                 case This(v1)            => op(v1, 0)
@@ -75,17 +74,17 @@ object Value:
         AssocMap.map(combined) { case (cs, these) =>
             these match
                 case These.These(v1, v2) => (cs, AssocMap.union(v1, v2))
-                case This(v1) => (cs, AssocMap.map(v1) { case (k, v) => (k, new These.This(v)) })
-                case That(v2) => (cs, AssocMap.map(v2) { case (k, v) => (k, new These.That(v)) })
+                case This(v1) => (cs, AssocMap.map(v1) { case (k, v) => (k, These.This(v)) })
+                case That(v2) => (cs, AssocMap.map(v2) { case (k, v) => (k, These.That(v)) })
         }
 
     def unionWith(op: (BigInt, BigInt) => BigInt)(a: Value, b: Value): Value =
         val combined = unionVal(a, b)
-        val unThese: These[BigInt, BigInt] => BigInt = (k) =>
-            k match
-                case These.These(v1, v2) => op(v1, v2)
-                case This(v1)            => op(v1, 0)
-                case That(v2)            => op(0, v2)
+        val unThese: These[BigInt, BigInt] => BigInt = {
+            case These.These(v1, v2) => op(v1, v2)
+            case This(v1)            => op(v1, 0)
+            case That(v2)            => op(0, v2)
+        }
         AssocMap.map(combined) { case (cs, v) =>
             (cs, AssocMap.map(v) { case (tn, v) => (tn, unThese(v)) })
         }
@@ -97,8 +96,8 @@ object Value:
 
     @Ignore
     def debugToString(v: Value): String = {
-        val pairs = v.inner.toList.map { case (cs, tokens) =>
-            val tokenPairs = tokens.inner.toList.map { case (tn, amount) =>
+        val pairs = v.toList.asScala.map { case (cs, tokens) =>
+            val tokenPairs = tokens.toList.asScala.map { case (tn, amount) =>
                 s"#${tn.toHex}: $amount"
             }
             s"policy#${cs.toHex} -> { ${tokenPairs.mkString(", ")} }"
@@ -106,7 +105,7 @@ object Value:
         s"{ ${pairs.mkString(", ")} }"
     }
 
-    given Prelude.Eq[Value] = (a, b) => eq(a, b)
+    given Eq[Value] = (a, b) => eq(a, b)
 
     extension (v: Value)
         inline def +(other: Value): Value = Value.plus(v, other)
@@ -119,3 +118,10 @@ object Value:
         inline def >=(other: Value): Boolean = Value.gte(v, other)
         @Ignore
         inline def showDebug: String = debugToString(v)
+
+        def getLovelace: BigInt = v.toList match
+            case List.Nil                   => 0
+            case List.Cons((cs, tokens), _) =>
+                // Ada is always the first token. Only Ada can have empty CurrencySymbol. And its only token is Lovelace
+                if cs == ByteString.empty then tokens.toList.head._2
+                else 0

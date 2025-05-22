@@ -33,11 +33,11 @@ class CachedUtxoSupplier(cachePath: Path, default: UtxoSupplier) extends UtxoSup
                 Optional.of(utxo)
             else
                 val utxo = default.getTxOutput(txHash, outputIndex)
-                utxo.ifPresent({ u =>
+                utxo.ifPresent { u =>
                     cache.put((txHash, outputIndex), u)
                     objectMapper.writeValue(file, u)
                     //                    println(s"queried $txHash-$outputIndex in blockfrost and saved to utxos folder")
-                })
+                }
                 utxo
     }
 }

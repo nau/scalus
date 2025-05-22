@@ -7,22 +7,11 @@
 
 ## Env setup with Nix
 
-Make sure that you have installed Nix package manager (see https://nixos.org/ ) and enabled `nix-command` and `flake`
-features and
-IOHK binary cache.
+Please ensure that Nix is installed (see https://nixos.org/download/#download-nix).
 
-Typical Nix config can looks like:
+Verify that your user is marked as trusted-users in /etc/nix/nix.conf.
 
-```
-substituters = https://cache.iog.io https://hydra.iohk.io https://iohk.cachix.org https://cache.nixos.org/
-trusted-substituters = https://cache.iog.io https://hydra.iohk.io https://iohk.cachix.org https://cache.nixos.org/
-trusted-public-keys = hydra.iohk.io:f/Ea+s+dFdN+3Y/G+FDgSq+a5NEWhJGzdjvKNGv0/EQ= iohk.cachix.org-1:DpRUyj7h7V830dp/i6Nti+NEO2/nhblbov/8MW7Rqoo= cache.nixos.org-1:6NCHdD59X431o0gWypbMrAURkbJ16ZPMQFGspcDShjY=
-experimental-features = nix-command flakes
-accept-flake-config = true
-allow-import-from-derivation = true
-```
-
-Usually you already have this setup if you have build cardano-node or cardano-cli locally.
+Run :
 
 ```bash
 nix develop

@@ -12,7 +12,8 @@ import scalus.uplc.DefaultFun
 import scalus.uplc.DefaultFun.*
 import scalus.uplc.DefaultUni.asConstant
 import scalus.uplc.Term
-import scalus.uplc.TermDSL.{*, given}
+import scalus.uplc.Term.*
+import scalus.uplc.TermDSL.given
 
 import scala.language.implicitConversions
 
@@ -20,11 +21,11 @@ class SimpleSirToUplcLoweringSpec
     extends AnyFunSuite
     with ScalaCheckPropertyChecks
     with ArbitraryInstances:
-    extension (s: SIR)
+    extension (sir: SIR)
         infix def lowersTo(r: Term): Unit =
-            assert(s.toUplc() == r)
+            assert(SimpleSirToUplcLowering(sir, generateErrorTraces = false).lower() == r)
 
-    val ae = AnnotationsDecl.empty
+    private val ae = AnnotationsDecl.empty
 
     test("lower constant") {
         forAll { (c: Constant) =>
@@ -36,7 +37,7 @@ class SimpleSirToUplcLoweringSpec
         SIR.Error("error", ae) lowersTo Term.Error
         assert(
           SIR.Error("error", ae)
-              .toUplc(generateErrorTraces = true) == !(!Trace $ "error" $ ~(Term.Error))
+              .toUplc(generateErrorTraces = true) == !(!Trace $ "error" $ ~Term.Error)
         )
     }
 
@@ -135,7 +136,7 @@ class SimpleSirToUplcLoweringSpec
             ae
           )
         ) lowersTo (lam("scalus.prelude.List$.Nil", "scalus.prelude.List$.Cons")(
-          !(vr"scalus.prelude.List$$.Nil")
+          !vr"scalus.prelude.List$$.Nil"
         ))
         withDecls(
           SIR.Constr(

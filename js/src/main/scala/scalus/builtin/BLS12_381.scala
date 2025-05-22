@@ -164,13 +164,14 @@ private[builtin] object BLS:
     private object bls12_381 extends js.Object:
         def G1: G1 = js.native
         def G2: G2 = js.native
-        // Explicit indication type parameters to js.Object instead of G1.Point/G2.Point resolves type inference issue
+
         def pairing(
-            pointG1: js.Object,
-            pointG2: js.Object,
+            pointG1: BLS.G1.Point,
+            pointG2: BLS.G2.Point,
             withFinalExponent: Boolean = true
         ): GT =
             js.native
+
         def fields: Fields = js.native
 
     def g1: G1 = bls12_381.G1

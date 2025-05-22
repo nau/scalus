@@ -1,0 +1,53 @@
+---
+title: Constants & Primitives
+sidebarTitle: Constants & Primitives
+---
+# Constants and Primitives
+
+Scalus provides support for all Plutus V3 primitive types, allowing you to write smart contracts using familiar Scala syntax while targeting the Cardano blockchain.
+
+## Type Correspondence
+
+The following table shows how primitive types map between Plutus, Scalus, and Aiken (another Cardano smart contract language):
+
+
+| Plutus V3              | Scalus                 | Aiken              |
+|------------------------|------------------------|--------------------|
+| `unit`                 | `Unit`                 | `()`               |
+| `bool`                 | `Boolean`              | `Bool`             |
+| `integer`              | `BigInt`               | `Int`              |
+| `bytestring`           | `ByteString`           | `ByteArray`        |
+| `string`               | `String`               | `String`           |
+| `data`                 | `Data`                 | `Data`             |
+| `list`                 | `List`                 | `List`             |
+| `pair`                 | `Pair`                 | `Pairs`            |
+| `BLS12_381_G1_Element` | `BLS12_381_G1_Element` | `G1Element`        |
+| `BLS12_381_G2_Element` | `BLS12_381_G2_Element` | `G12Element`       |
+| `BLS12_381_MlResult`   | `BLS12_381_MlResult`   | `MillerLoopResult` |
+
+Scalus leverages Scala's native types for `Unit`, `Boolean`, `BigInt`, and `String`, providing a familiar programming experience. For other Plutus-specific types like `ByteString`, Scalus offers custom implementations with convenient constructors and utility methods.
+
+The code below demonstrates how to define constants and work with the various primitive types in Scalus. Note the different ways to create `ByteString` values and how Scala's type inference works with these primitives.
+
+```scala mdoc:compile-only
+import scalus.Compiler.compile
+import scalus.*
+import scalus.builtin.*
+import scalus.builtin.ByteString.*
+
+val constants = compile {
+    val unit = () // unit type
+    val bool = true || false // boolean type
+    val int = BigInt(123) // integer type
+    val bigint = BigInt("12345678901234567890") // large integer value
+    val implicitBigIng: BigInt = 123
+    val emptyByteString = ByteString.empty
+    val byteString = ByteString.fromHex("deadbeef")
+    val byteStringUtf8 = ByteString.fromString("hello") // from utf8 encoded string
+    val byteString2 = hex"deadbeef" // ByteString from hex string
+    val string = "Scalus Rocks!" // string type
+    val emptyList = List.empty[BigInt] // empty list
+    val list = List[BigInt](1, 2, 3) // list of integers
+    val pair = Pair(true, ()) // pair of boolean and unit
+}
+```

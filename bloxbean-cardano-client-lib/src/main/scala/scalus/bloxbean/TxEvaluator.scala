@@ -27,7 +27,7 @@ import scalus.ledger.api.v1
 import scalus.ledger.api.v2
 import scalus.ledger.api.v2.OutputDatum
 import scalus.ledger.api.v3
-import scalus.prelude.Maybe
+//import scalus.prelude.Option
 import scalus.uplc.Constant
 import scalus.uplc.DeBruijnedProgram
 import scalus.uplc.Term
@@ -48,7 +48,10 @@ import scala.collection.mutable
 import scala.collection.mutable.ArrayBuffer
 import scala.jdk.CollectionConverters.*
 
-case class SlotConfig(zeroTime: Long, zeroSlot: Long, slotLength: Long)
+case class SlotConfig(zeroTime: Long, zeroSlot: Long, slotLength: Long) {
+    def slotToTime(slot: Long): Long = zeroTime + (slot - zeroSlot) * slotLength
+    def timeToSlot(time: Long): Long = zeroSlot + ((time - zeroTime) / slotLength)
+}
 
 object SlotConfig {
     // taken from https://github.com/spacebudz/lucid/blob/main/src/plutus/time.ts
@@ -251,7 +254,7 @@ class TxEvaluator(
                 else throw new IllegalStateException(s"Cert not found: $index in $certs")
 
             case RedeemerTag.Reward =>
-                val withdrawals = getWithdrawals(tx.getBody.getWithdrawals).toList
+                val withdrawals = getWithdrawals(tx.getBody.getWithdrawals).asScala
                 if withdrawals.isDefinedAt(index) then
                     withdrawals(index) match
                         case (
@@ -618,8 +621,8 @@ object TxEvaluator {
                     case _ =>
 
         for cert <- txb.getCerts.asScala do
-            val maybeHash = getCertScript(cert)
-            maybeHash.foreach: hash =>
+            val optionHash = getCertScript(cert)
+            optionHash.foreach: hash =>
                 needed += hash
 
         for mint <- txb.getMint.asScala do
@@ -652,9 +655,9 @@ object TxEvaluator {
         val procedure = Interop.getProposalProcedureV3(propose)
         procedure.governanceAction match
             case v3.GovernanceAction.ParameterChange(_, _, constitutionScript) =>
-                constitutionScript.toOption
+                constitutionScript.asScala
             case v3.GovernanceAction.TreasuryWithdrawals(_, constitutionScript) =>
-                constitutionScript.toOption
+                constitutionScript.asScala
             case _ => None
     }
 

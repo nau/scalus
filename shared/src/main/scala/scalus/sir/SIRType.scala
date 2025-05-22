@@ -283,7 +283,7 @@ object SIRType {
               AnnotationsDecl.empty
             )
             proxy.ref = SumCaseClass(retval, scala.List(TypeVar("A", Some(1))))
-            if (!checkAllProxiesFilled(retval.tp)) then
+            if !checkAllProxiesFilled(retval.tp) then
                 throw new IllegalStateException(s"List dataDecl has unfilled proxies: ${retval.tp}")
             retval
         }
@@ -349,15 +349,64 @@ object SIRType {
 
     }
 
+    /** Check if the type is a function or a polymorphic function without unfolding type arguments.
+      * (i.e. isPolyFunOrFun(SIRType.Fun(SIRType.Unit, SIRType.Unit)) == true,
+      * isPolyFunOrFun(SIRType.TypeVar("A")) == false even if A is a needed function)
+      * @param tp - type to check
+      * @param trace - trace for recursive entries
+      * @return
+      */
+    def isPolyFunOrFun(
+        tp: SIRType,
+        trace: java.util.IdentityHashMap[SIRType, SIRType] = new util.IdentityHashMap()
+    ): Boolean = {
+        if trace.containsKey(tp) then false
+        else
+            trace.put(tp, tp)
+            tp match {
+                case SIRType.Fun(_, _)           => true
+                case SIRType.TypeLambda(_, body) => isPolyFunOrFun(body, trace)
+                case SIRType.TypeProxy(ref) =>
+                    if ref == null then false
+                    else isPolyFunOrFun(ref, trace)
+                case _ => false
+            }
+    }
+
+    /** Check if the type is a function or a polymorphic function  from unit without unfolding type arguments.
+      * (i.e. isPolyFunOrFunUnit(SIRType.Fun(SIRType.Unit, SIRType.Unit)) == true,
+      *       isPolyFunOrFunInut(SIRType.Fun(SIRType.Integer, SIRType.Unit)) == false,
+      * isPolyFunOrFunUnt(SIRType.TypeVar("A")) == false even if A is a needed function)
+      *
+      * @param tp    - type to check
+      * @param trace - trace for recursive entries
+      * @return
+      */
+    def isPolyFunOrFunUnit(
+        tp: SIRType,
+        trace: java.util.IdentityHashMap[SIRType, SIRType] = new util.IdentityHashMap()
+    ): Boolean = {
+        if trace.containsKey(tp) then false
+        else
+            trace.put(tp, tp)
+            tp match
+                case SIRType.Fun(SIRType.Unit, _) => true
+                case SIRType.TypeLambda(_, body)  => isPolyFunOrFunUnit(body, trace)
+                case SIRType.TypeProxy(ref) =>
+                    if ref == null then false
+                    else isPolyFunOrFunUnit(ref, trace)
+                case _ => false
+    }
+
     case class TypeApplyException(msg: String, cause: Throwable | Null = null)
         extends RuntimeException(msg, cause)
 
     def typeApply(tpl: SIRType, args: List[SIRType]): SIRType =
-        if (args.isEmpty) then tpl
+        if args.isEmpty then tpl
         else
             tpl match
                 case TypeLambda(params, body) =>
-                    if (params.length != args.length) then
+                    if params.length != args.length then
                         throw TypeApplyException(
                           s"length of type-lambda parameter list is differ then args list. tpl=${tpl.show}, args=${args
                                   .map(_.show)}"

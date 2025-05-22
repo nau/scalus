@@ -12,6 +12,9 @@ import supranational.blst.PT
 
 import java.math.BigInteger
 
+object Builtins extends Builtins(using JVMPlatformSpecific)
+class Builtins(using ps: PlatformSpecific) extends AbstractBuiltins(using ps)
+
 object JVMPlatformSpecific extends JVMPlatformSpecific
 trait JVMPlatformSpecific extends PlatformSpecific {
     override def sha2_256(bs: ByteString): ByteString =

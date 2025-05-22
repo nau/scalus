@@ -1,0 +1,17 @@
+---
+title: Functions
+sidebarTitle: Functions
+display: hidden
+---
+
+# Functions
+
+```scala mdoc:compile-only
+compile {
+    val nonRecursiveLambda = (a: BigInt) => a + 1
+
+    def recursive(a: BigInt): BigInt =
+        if a == BigInt(0) then 0
+        else recursive(a - 1)
+}
+```

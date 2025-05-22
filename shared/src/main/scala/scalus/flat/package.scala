@@ -46,7 +46,7 @@ package object flat:
             var inx = 0
             var blkLen = Math.min(255, numElems)
 
-            while (blkLen > 0) do
+            while blkLen > 0 do
                 enc.bits(8, blkLen.toByte)
                 var i = 0
                 while i < blkLen do

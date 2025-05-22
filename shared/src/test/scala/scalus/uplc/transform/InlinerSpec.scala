@@ -2,7 +2,7 @@ package scalus.uplc
 package transform
 
 import scalus.uplc.Term.*
-import scalus.uplc.TermDSL.{*, given}
+import scalus.uplc.TermDSL.given
 import scalus.uplc.Constant.given
 import DefaultFun.*
 import org.scalatest.funsuite.AnyFunSuite

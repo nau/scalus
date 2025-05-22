@@ -3,10 +3,7 @@ package scalus
 import dotty.tools.dotc.core.Contexts.Context
 import dotty.tools.dotc.report
 import dotty.tools.dotc.util.SrcPos
-import dotty.tools.io.ClassPath
-import scalus.flat.DecoderState
-import scalus.flat.FlatInstantces.given
-import scalus.sir.{AnnotationsDecl, Binding, DataDecl, Module, Recursivity, SIR}
+import scalus.sir.{AnnotationsDecl, Binding, DataDecl, Module, Recursivity, SIR, SIRType}
 
 import scala.collection.mutable
 import scala.util.control.NonFatal
@@ -20,7 +17,7 @@ import scala.util.control.NonFatal
   * definitions and data declarations.
   */
 class SIRLinker(using ctx: Context) {
-    private lazy val classLoader = makeClassLoader
+
     private val globalDefs: mutable.LinkedHashMap[FullName, CompileDef] =
         mutable.LinkedHashMap.empty
     private val globalDataDecls: mutable.LinkedHashMap[FullName, DataDecl] =
@@ -28,16 +25,8 @@ class SIRLinker(using ctx: Context) {
     private val moduleDefsCache: mutable.Map[String, mutable.LinkedHashMap[FullName, SIR]] =
         mutable.LinkedHashMap.empty.withDefaultValue(mutable.LinkedHashMap.empty)
 
-    private def makeClassLoader: ClassLoader = {
-        import scala.language.unsafeNulls
-
-        val entries = ClassPath.expandPath(ctx.settings.classpath.value, expandStar = true)
-        val urls = entries.map(cp => java.nio.file.Paths.get(cp).toUri.toURL).toArray
-        val out = Option(
-          ctx.settings.outputDir.value.toURL
-        ) // to find classes in case of suspended compilation
-        new java.net.URLClassLoader(urls ++ out.toList, getClass.getClassLoader)
-    }
+    private val sirLoader = new SIRLoader(using ctx)
+    private val sirDataReprGenerator = new SIRDataReprGenerator(using ctx)
 
     private def error[A](error: CompilationError, defaultValue: A): A = {
         report.error(error.message, error.srcPos)
@@ -66,15 +55,15 @@ class SIRLinker(using ctx: Context) {
                   SIR.Error("", AnnotationsDecl.fromSrcPos(srcPos))
                 )
         }
-        val dataDecls = globalDataDecls.foldRight((full: SIR)) { case ((_, decl), acc) =>
+        val dataDecls = globalDataDecls.foldRight(full: SIR) { case ((_, decl), acc) =>
             SIR.Decl(decl, acc)
         }
         dataDecls
     }
 
     private def traverseAndLink(sir: SIR, srcPos: SrcPos): Unit = sir match
-        case SIR.ExternalVar(moduleName, name, tp, _) if !globalDefs.contains(FullName(name)) =>
-            linkDefinition(moduleName, FullName(name), srcPos)
+        case SIR.ExternalVar(moduleName, name, tp, ann) if !globalDefs.contains(FullName(name)) =>
+            linkDefinition(moduleName, FullName(name), srcPos, tp, ann)
         case SIR.Let(recursivity, bindings, body, anns) =>
             bindings.foreach(b => traverseAndLink(b.value, srcPos))
             traverseAndLink(body, srcPos)
@@ -106,6 +95,8 @@ class SIRLinker(using ctx: Context) {
         case SIR.Match(scrutinee, cases, rhsType, anns) =>
             traverseAndLink(scrutinee, srcPos)
             cases.foreach(c => traverseAndLink(c.body, srcPos))
+        case SIR.Select(scrutinee, _, _, _) =>
+            traverseAndLink(scrutinee, srcPos)
         case _ => ()
 
     private def findAndLinkDefinition(
@@ -117,6 +108,7 @@ class SIRLinker(using ctx: Context) {
         for sir <- found do
             globalDefs.update(fullName, CompileDef.Compiling)
             traverseAndLink(sir, srcPos)
+            // TODO: reseatch.  removeing 'remove' triggre fail of  scalus.CompilerPluginSpec. 'compile fieldAsData macro'
             globalDefs.remove(fullName)
             globalDefs.update(
               fullName,
@@ -125,44 +117,54 @@ class SIRLinker(using ctx: Context) {
         found.isDefined
     }
 
-    private def linkDefinition(moduleName: String, fullName: FullName, srcPos: SrcPos): Unit = {
-        // println(s"linkDefinition: ${fullName}")
-        val found = moduleDefsCache.get(moduleName) match
-            case Some(defs) =>
-                findAndLinkDefinition(defs, fullName, srcPos)
+    private def linkDefinition(
+        moduleName: String,
+        fullName: FullName,
+        srcPos: SrcPos,
+        tp: SIRType,
+        anns: AnnotationsDecl
+    ): Unit = {
+        if fullName.name.endsWith("derived$FromData") || fullName.name.endsWith("derived$ToData")
+        then retrieveDataRepresentation(moduleName, fullName, tp, srcPos, anns)
+        else
+            // println(s"linkDefinition: ${fullName}")
+            retrieveModule(moduleName, srcPos) match
+                case Left(filename) =>
+                    report.error(
+                      s"Module not found during linking: ${moduleName} , missing filename: ${filename} referenced for name ${fullName.name} from ${anns.pos.file}: ${anns.pos.startLine}",
+                      srcPos
+                    )
+                case Right(defs) =>
+                    if !findAndLinkDefinition(defs, fullName, srcPos) then
+                        error(
+                          SymbolNotFound(
+                            fullName.name,
+                            moduleName,
+                            srcPos,
+                            anns.pos,
+                            defs.keys.map(_.name).toSet
+                          ),
+                          SIR.Error("Symbol not found", AnnotationsDecl.fromSrcPos(srcPos))
+                        )
+    }
+
+    private def retrieveModule(
+        moduleName: String,
+        srcPos: SrcPos
+    ): Either[String, mutable.LinkedHashMap[FullName, SIR]] = {
+        moduleDefsCache.get(moduleName) match
+            case Some(defs) => Right(defs)
             case None =>
-                findAndReadModuleOfSymbol(moduleName) match
-                    case Some(module) =>
-                        // println(s"Loaded module ${moduleName}, defs: ${defs}")
+                sirLoader.findAndReadModule(moduleName) match
+                    case Right(module) =>
                         validateSIRVersion(module, moduleName, srcPos)
                         val defsMap = mutable.LinkedHashMap.from(
                           module.defs.map(d => FullName(d.name) -> d.value)
                         )
                         moduleDefsCache.put(moduleName, defsMap)
-                        findAndLinkDefinition(defsMap, fullName, srcPos)
-                    case None =>
-                        report.error(s"Module not found: ${moduleName}", srcPos)
-                        false
-
-        if !found then
-            error(
-              SymbolNotFound(fullName.name, srcPos),
-              SIR.Error("Symbol not found", AnnotationsDecl.fromSrcPos(srcPos))
-            )
-    }
-
-    private def findAndReadModuleOfSymbol(moduleName: String): Option[Module] = {
-        val filename = moduleName.replace('.', '/') + ".sir"
-        // println(s"findAndReadModuleOfSymbol: ${filename}")
-        // read the file from the classpath
-        val resource = classLoader.getResourceAsStream(filename)
-        if resource != null then
-            val buffer = resource.readAllBytes()
-            val dec = DecoderState(buffer)
-            val module = flat.decode[Module](dec)
-            resource.close()
-            Some(module)
-        else None
+                        Right(defsMap)
+                    case Left(filename) =>
+                        Left(filename)
     }
 
     private def validateSIRVersion(module: Module, moduleName: String, srcPos: SrcPos): Unit = {
@@ -177,6 +179,37 @@ class SIRLinker(using ctx: Context) {
                    |""".stripMargin,
               srcPos
             )
+    }
+
+    private def retrieveDataRepresentation(
+        moduleName: String,
+        fullName: FullName,
+        tp: SIRType,
+        srcPos: SrcPos,
+        anns: AnnotationsDecl
+    ): Unit = {
+        val nDefs = moduleDefsCache.get(moduleName) match
+            case Some(defs) =>
+                defs.getOrElseUpdate(fullName, sirDataReprGenerator.generate(fullName, tp, srcPos))
+                defs
+            case None =>
+                val defs = mutable.LinkedHashMap(
+                  fullName -> sirDataReprGenerator.generate(fullName, tp, srcPos)
+                )
+                moduleDefsCache.put(moduleName, defs)
+                defs
+        if !findAndLinkDefinition(nDefs, fullName, srcPos) then {
+            error(
+              SymbolNotFound(
+                fullName.name,
+                moduleName,
+                srcPos,
+                anns.pos,
+                nDefs.keys.map(_.name).toSet
+              ),
+              SIR.Error("Symbol not found", AnnotationsDecl.fromSrcPos(srcPos))
+            )
+        }
     }
 
 }

@@ -90,7 +90,7 @@ object SIRUnify {
     def unifySIRExpr(left: SIR, right: SIR, env: Env): UnificationResult[SIR] = {
         (left, right) match
             case (SIR.Var(name1, tp1, anns1), SIR.Var(name2, tp2, anns2)) =>
-                if (env.debug) then println(s"unifySIRExpr: vars: \nleft=$left\nright=$right")
+                if env.debug then println(s"unifySIRExpr: vars: \nleft=$left\nright=$right")
                 if name1 == name2 then
                     unifyType(tp1, tp2, env.copy(path = "tp" :: env.path)) match
                         case UnificationSuccess(env1, tp) =>
@@ -126,7 +126,7 @@ object SIRUnify {
                         ) match
                             case UnificationSuccess(env2, body) =>
                                 val recursivity =
-                                    if (v1.recursivity == v2.recursivity) then v1.recursivity
+                                    if v1.recursivity == v2.recursivity then v1.recursivity
                                     else
                                         // TODO: print warning ?
                                         Recursivity.NonRec

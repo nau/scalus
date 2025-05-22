@@ -10,7 +10,6 @@ import scalus.uplc.Constant
 import scalus.uplc.DefaultFun
 import scalus.uplc.DefaultUni
 import scalus.uplc.Term
-import scalus.uplc.TermDSL
 import scalus.utils.Utils
 
 /** Pretty printers.
@@ -295,7 +294,7 @@ object PrettyPrinter:
                     + kw("lam") & text(name) / pretty(term, style).indent(2)
                     + char(')').styled(Fg.colorCode(color))
             case a @ Apply(f, arg) =>
-                val (t, args) = TermDSL.applyToList(a)
+                val (t, args) = a.applyToList
                 val color = nextBracketColor()
                 intercalate(lineOrSpace, (t :: args).map(pretty(_, style)))
                     .tightBracketBy(

@@ -95,7 +95,7 @@ object FlatInstantces:
 
         def decode(decode: DecoderState): Option[String] =
             val b = decode.bits8(1)
-            if (b == 0) then None
+            if b == 0 then None
             else Some(summon[Flat[String]].decode(decode))
 
     given Flat[Recursivity] with
@@ -231,7 +231,7 @@ object FlatInstantces:
 
         def encodeHCNew(a: ConstrDecl, encode: HashConsedEncoderState): Unit = {
             val debug = encode.debug
-            if (debug) then println(s"ConstrDecl = ${a}")
+            if debug then println(s"ConstrDecl = ${a}")
             summon[Flat[String]].encode(a.name, encode.encode)
             summon[Flat[SIRVarStorage]].encode(a.storageType, encode.encode)
             HashConsedReprFlat.listRepr(TypeBindingFlat).encodeHC(a.params, encode)
@@ -349,7 +349,7 @@ object FlatInstantces:
             val typeArgsSize =
                 HashConsedReprFlat.listRepr(SIRTypeHashConsedFlat).bitSizeHC(a.typeArgs, hashConsed)
             val parentBitSize =
-                if (a.parent.isEmpty) then 1
+                if a.parent.isEmpty then 1
                 else 1 + SIRTypeHashConsedFlat.bitSizeHC(a.parent.get, hashConsed)
             constrSize + typeArgsSize + parentBitSize
         }
@@ -425,7 +425,7 @@ object FlatInstantces:
     }
 
     object SIRTypeHashConsedRef {
-        def fromData(a: SIRType) = new SIRTypeHashConsedRef((_) => true, (s, l, p) => a, a)
+        def fromData(a: SIRType) = new SIRTypeHashConsedRef(_ => true, (s, l, p) => a, a)
         def deferred(
             opComplete: HashConsed.State => Boolean,
             opFinValue: (HashConsed.State, Int, HSRIdentityHashMap) => SIRType
@@ -820,7 +820,7 @@ object FlatInstantces:
             PlainIntFlat.encode(ihc, encode.encode)
             encode.hashConsed.lookup(ihc, tag) match
                 case None =>
-                    if (encode.debug) then println(s"TypeProxy, ihc=${ihc}, encode body")
+                    if encode.debug then println(s"TypeProxy, ihc=${ihc}, encode body")
                     // we don't know - are we have such ref. If ref is not known, then
                     // encode.hashConsed.putForwardRef(HashConsed.ForwardRefAcceptor(ihc, tag, Nil))
                     SIRTypeHashConsedFlat.encodeHC(ref, encode)
@@ -829,7 +829,7 @@ object FlatInstantces:
                             encode.hashConsed.setRef(ihc, tag, SIRTypeHashConsedRef.fromData(ref))
                         case Some(_) =>
                 case Some(_) =>
-                    if (encode.debug) then println(s"TypeProxy, inc=${ihc}, already encoded")
+                    if encode.debug then println(s"TypeProxy, inc=${ihc}, already encoded")
 
         override def decodeHC(decode: HashConsedDecoderState): SIRTypeHashConsedRef =
             val ihc = PlainIntFlat.decode(decode.decode)
@@ -867,7 +867,7 @@ object FlatInstantces:
                       hs => (newRef.value != null) && newRef.value.isComplete(hs),
                       (hs, l, ps) => {
                           val ref = newRef.value
-                          if (ref == null) then
+                          if ref == null then
                               throw new IllegalStateException("Type proxy is not resolved")
                           val v = ref.finValue(hs, l + 1, ps)
                           v match

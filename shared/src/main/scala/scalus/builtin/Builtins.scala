@@ -186,7 +186,27 @@ object PlatformSpecific:
           "93e02b6052719f607dacd3a088274f65596bd0d09920b61ab5da61bbdc7f5049334cf11213945d57e5ac7d055d042b7e024aa2b2f08f0a91260805272dc51051c6e47ad4fa403b02b4510b647ae3d1770bac0326a805bbefd48056c8c121bdb8"
         )
 
-object Builtins:
+/** Class contains all Cardano Plutus built-in functions according to Plutus Specification.
+  *
+  * Functions of this class are treated specially by the Scalus compiler plugin. When used in
+  * validator code, the compiler plugin will replace the function call with an actual Plutus
+  * built-in function.
+  *
+  * Scalus Compiler plugin expects that this class to contain methods named exactly as in
+  * [[scalus.uplc.DefaultFun]] with lowercase first letter. For example, for
+  * [[scalus.uplc.DefaultFun.AddInteger]] there should be a method named `addInteger` etc.
+  *
+  * All the builtins are implemented according to semantics of the Plutus builtins. The
+  * implementation is platform independent. All the platform specific code is in the
+  * [[PlatformSpecific]].
+  *
+  * Only modify this class when a new builtin is added to [[scalus.uplc.DefaultFun]], or when you
+  * know what you are doing.
+  *
+  * @see
+  *   [[https://plutus.cardano.intersectmbo.org/resources/plutus-core-spec.pdf]]
+  */
+private[builtin] abstract class AbstractBuiltins(using ps: PlatformSpecific):
     // Integers
     def addInteger(i1: BigInt, i2: BigInt): BigInt = i1 + i2
     def subtractInteger(i1: BigInt, i2: BigInt): BigInt = i1 - i2
@@ -248,22 +268,19 @@ object Builtins:
         if a.length <= b.length then true
         else false
     // Cryptography and hashes
-    def sha2_256(using ps: PlatformSpecific)(bs: ByteString): ByteString = ps.sha2_256(bs)
-    def sha3_256(using ps: PlatformSpecific)(bs: ByteString): ByteString = ps.sha3_256(bs)
-    def blake2b_256(using ps: PlatformSpecific)(bs: ByteString): ByteString = ps.blake2b_256(bs)
-    def blake2b_224(using ps: PlatformSpecific)(bs: ByteString): ByteString = ps.blake2b_224(bs)
-    def verifyEd25519Signature(using ps: PlatformSpecific)(
+
+    def sha2_256(bs: ByteString): ByteString = ps.sha2_256(bs)
+    def sha3_256(bs: ByteString): ByteString = ps.sha3_256(bs)
+    def blake2b_256(bs: ByteString): ByteString = ps.blake2b_256(bs)
+    def blake2b_224(bs: ByteString): ByteString = ps.blake2b_224(bs)
+    def verifyEd25519Signature(
         pk: ByteString,
         msg: ByteString,
         sig: ByteString
     ): Boolean = ps.verifyEd25519Signature(pk, msg, sig)
-    def verifyEcdsaSecp256k1Signature(using
-        ps: PlatformSpecific
-    )(pk: ByteString, msg: ByteString, sig: ByteString): Boolean =
+    def verifyEcdsaSecp256k1Signature(pk: ByteString, msg: ByteString, sig: ByteString): Boolean =
         ps.verifyEcdsaSecp256k1Signature(pk, msg, sig)
-    def verifySchnorrSecp256k1Signature(using
-        ps: PlatformSpecific
-    )(pk: ByteString, msg: ByteString, sig: ByteString): Boolean =
+    def verifySchnorrSecp256k1Signature(pk: ByteString, msg: ByteString, sig: ByteString): Boolean =
         ps.verifySchnorrSecp256k1Signature(pk, msg, sig)
 
     // Strings
@@ -689,33 +706,24 @@ object Builtins:
 
     def bls12_381_scalar_period: BigInt = PlatformSpecific.bls12_381_scalar_period
 
-    def bls12_381_G1_equal(using
-        ps: PlatformSpecific
-    )(p1: BLS12_381_G1_Element, p2: BLS12_381_G1_Element): Boolean =
+    def bls12_381_G1_equal(p1: BLS12_381_G1_Element, p2: BLS12_381_G1_Element): Boolean =
         ps.bls12_381_G1_equal(p1, p2)
 
-    def bls12_381_G1_add(using
-        ps: PlatformSpecific
-    )(p1: BLS12_381_G1_Element, p2: BLS12_381_G1_Element): BLS12_381_G1_Element =
+    def bls12_381_G1_add(p1: BLS12_381_G1_Element, p2: BLS12_381_G1_Element): BLS12_381_G1_Element =
         ps.bls12_381_G1_add(p1, p2)
 
-    def bls12_381_G1_scalarMul(using
-        ps: PlatformSpecific
-    )(s: BigInt, p: BLS12_381_G1_Element): BLS12_381_G1_Element = ps.bls12_381_G1_scalarMul(s, p)
+    def bls12_381_G1_scalarMul(s: BigInt, p: BLS12_381_G1_Element): BLS12_381_G1_Element =
+        ps.bls12_381_G1_scalarMul(s, p)
 
-    def bls12_381_G1_neg(using ps: PlatformSpecific)(
-        p: BLS12_381_G1_Element
-    ): BLS12_381_G1_Element = ps.bls12_381_G1_neg(p)
+    def bls12_381_G1_neg(p: BLS12_381_G1_Element): BLS12_381_G1_Element = ps.bls12_381_G1_neg(p)
 
-    def bls12_381_G1_compress(using ps: PlatformSpecific)(p: BLS12_381_G1_Element): ByteString =
+    def bls12_381_G1_compress(p: BLS12_381_G1_Element): ByteString =
         ps.bls12_381_G1_compress(p)
 
-    def bls12_381_G1_uncompress(using ps: PlatformSpecific)(bs: ByteString): BLS12_381_G1_Element =
+    def bls12_381_G1_uncompress(bs: ByteString): BLS12_381_G1_Element =
         ps.bls12_381_G1_uncompress(bs)
 
-    def bls12_381_G1_hashToGroup(using
-        ps: PlatformSpecific
-    )(bs: ByteString, dst: ByteString): BLS12_381_G1_Element =
+    def bls12_381_G1_hashToGroup(bs: ByteString, dst: ByteString): BLS12_381_G1_Element =
         ps.bls12_381_G1_hashToGroup(bs, dst)
 
     /** The compressed form of the point at infinity in G1, 48 bytes long.
@@ -725,33 +733,25 @@ object Builtins:
     def bls12_381_G1_compressed_generator: ByteString =
         PlatformSpecific.bls12_381_G1_compressed_generator
 
-    def bls12_381_G2_equal(using
-        ps: PlatformSpecific
-    )(p1: BLS12_381_G2_Element, p2: BLS12_381_G2_Element): Boolean =
+    def bls12_381_G2_equal(p1: BLS12_381_G2_Element, p2: BLS12_381_G2_Element): Boolean =
         ps.bls12_381_G2_equal(p1, p2)
 
-    def bls12_381_G2_add(using
-        ps: PlatformSpecific
-    )(p1: BLS12_381_G2_Element, p2: BLS12_381_G2_Element): BLS12_381_G2_Element =
+    def bls12_381_G2_add(p1: BLS12_381_G2_Element, p2: BLS12_381_G2_Element): BLS12_381_G2_Element =
         ps.bls12_381_G2_add(p1, p2)
 
-    def bls12_381_G2_scalarMul(using
-        ps: PlatformSpecific
-    )(s: BigInt, p: BLS12_381_G2_Element): BLS12_381_G2_Element = ps.bls12_381_G2_scalarMul(s, p)
+    def bls12_381_G2_scalarMul(s: BigInt, p: BLS12_381_G2_Element): BLS12_381_G2_Element =
+        ps.bls12_381_G2_scalarMul(s, p)
 
-    def bls12_381_G2_neg(using ps: PlatformSpecific)(
-        p: BLS12_381_G2_Element
-    ): BLS12_381_G2_Element = ps.bls12_381_G2_neg(p)
+    def bls12_381_G2_neg(p: BLS12_381_G2_Element): BLS12_381_G2_Element = ps.bls12_381_G2_neg(p)
 
-    def bls12_381_G2_compress(using ps: PlatformSpecific)(p: BLS12_381_G2_Element): ByteString =
+    def bls12_381_G2_compress(p: BLS12_381_G2_Element): ByteString =
         ps.bls12_381_G2_compress(p)
 
-    def bls12_381_G2_uncompress(using ps: PlatformSpecific)(bs: ByteString): BLS12_381_G2_Element =
+    def bls12_381_G2_uncompress(bs: ByteString): BLS12_381_G2_Element =
         ps.bls12_381_G2_uncompress(bs)
 
-    def bls12_381_G2_hashToGroup(using
-        ps: PlatformSpecific
-    )(bs: ByteString, dst: ByteString): BLS12_381_G2_Element = ps.bls12_381_G2_hashToGroup(bs, dst)
+    def bls12_381_G2_hashToGroup(bs: ByteString, dst: ByteString): BLS12_381_G2_Element =
+        ps.bls12_381_G2_hashToGroup(bs, dst)
 
     /** The compressed form of the point at infinity in G2, 96 bytes long.
       */
@@ -760,23 +760,19 @@ object Builtins:
     def bls12_381_G2_compressed_generator: ByteString =
         PlatformSpecific.bls12_381_G2_compressed_generator
 
-    def bls12_381_millerLoop(using ps: PlatformSpecific)(
+    def bls12_381_millerLoop(
         p1: BLS12_381_G1_Element,
         p2: BLS12_381_G2_Element
     ): BLS12_381_MlResult =
         ps.bls12_381_millerLoop(p1, p2)
 
-    def bls12_381_mulMlResult(using
-        ps: PlatformSpecific
-    )(r1: BLS12_381_MlResult, r2: BLS12_381_MlResult): BLS12_381_MlResult =
+    def bls12_381_mulMlResult(r1: BLS12_381_MlResult, r2: BLS12_381_MlResult): BLS12_381_MlResult =
         ps.bls12_381_mulMlResult(r1, r2)
 
-    def bls12_381_finalVerify(using
-        ps: PlatformSpecific
-    )(p1: BLS12_381_MlResult, p2: BLS12_381_MlResult): Boolean =
+    def bls12_381_finalVerify(p1: BLS12_381_MlResult, p2: BLS12_381_MlResult): Boolean =
         ps.bls12_381_finalVerify(p1, p2)
 
-    def keccak_256(using ps: PlatformSpecific)(bs: ByteString): ByteString =
+    def keccak_256(bs: ByteString): ByteString =
         ps.keccak_256(bs)
 
     /** Hashing primitive Ripemd_160 for ByteStrings.
@@ -791,7 +787,7 @@ object Builtins:
       * @return
       *   The result of the Ripemd_160 hash function.
       */
-    def ripemd_160(using ps: PlatformSpecific)(byteString: ByteString): ByteString =
+    def ripemd_160(byteString: ByteString): ByteString =
         ps.ripemd_160(byteString)
 
 private object UTF8Decoder {
