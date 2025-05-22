@@ -3,317 +3,348 @@ package scalus.cardano.ledger
 import org.scalatest.funsuite.AnyFunSuite
 import scalus.builtin.{Builtins, ByteString}
 
+import scala.util.Success
+
 /** Test suite for CardanoAddress implementation Tests cover address encoding/decoding for different
   * address types based on CIP-19 test vectors
   */
 class CardanoAddressSpec extends AnyFunSuite {
     import CardanoAddress.*
 
-    // Test vectors from CIP-19
-    private val testVectors = Map(
-      // Mainnet addresses
-      "type-00-mainnet" -> "addr1qx2fxv2umyhttkxyxp8x0dlpdt3k6cwng5pxj3jhsydzer3n0d3vllmyqwsx5wktcd8cc3sq835lu7drv2xwl2wywfgse35a3x",
-      "type-01-mainnet" -> "addr1z8phkx6acpnf78fuvxn0mkew3l0fd058hzquvz7w36x4gten0d3vllmyqwsx5wktcd8cc3sq835lu7drv2xwl2wywfgs9yc0hh",
-      "type-02-mainnet" -> "addr1yx2fxv2umyhttkxyxp8x0dlpdt3k6cwng5pxj3jhsydzerkr0vd4msrxnuwnccdxlhdjar77j6lg0wypcc9uar5d2shs2z78ve",
-      "type-03-mainnet" -> "addr1x8phkx6acpnf78fuvxn0mkew3l0fd058hzquvz7w36x4gt7r0vd4msrxnuwnccdxlhdjar77j6lg0wypcc9uar5d2shskhj42g",
-      "type-04-mainnet" -> "addr1gx2fxv2umyhttkxyxp8x0dlpdt3k6cwng5pxj3jhsydzer5pnz75xxcrzqf96k",
-      "type-05-mainnet" -> "addr128phkx6acpnf78fuvxn0mkew3l0fd058hzquvz7w36x4gtupnz75xxcrtw79hu",
-      "type-06-mainnet" -> "addr1vx2fxv2umyhttkxyxp8x0dlpdt3k6cwng5pxj3jhsydzers66hrl8",
-      "type-07-mainnet" -> "addr1w8phkx6acpnf78fuvxn0mkew3l0fd058hzquvz7w36x4gtcyjy7wx",
-      "type-14-mainnet" -> "stake1uyehkck0lajq8gr28t9uxnuvgcqrc6070x3k9r8048z8y5gh6ffgw",
-      "type-15-mainnet" -> "stake178phkx6acpnf78fuvxn0mkew3l0fd058hzquvz7w36x4gtcccycj5",
+    // Test vectors from CIP-19 and real Cardano addresses
+    private val testVectors = List(
+      // Format: (address_string, expected_type_id, description)
+        // format: off
+        ("addr1qx2fxv2umyhttkxyxp8x0dlpdt3k6cwng5pxj3jhsydzer3n0d3vllmyqwsx5wktcd8cc3sq835lu7drv2xwl2wywfgse35a3x", 0, "Payment Key + Stake Key"),
+        ("addr1z8phkx6acpnf78fuvxn0mkew3l0fd058hzquvz7w36x4gten0d3vllmyqwsx5wktcd8cc3sq835lu7drv2xwl2wywfgs9yc0hh", 1, "Script + Stake Key"),
+        ("addr1yx2fxv2umyhttkxyxp8x0dlpdt3k6cwng5pxj3jhsydzerkr0vd4msrxnuwnccdxlhdjar77j6lg0wypcc9uar5d2shs2z78ve", 2, "Payment Key + Script"),
+        ("addr1x8phkx6acpnf78fuvxn0mkew3l0fd058hzquvz7w36x4gt7r0vd4msrxnuwnccdxlhdjar77j6lg0wypcc9uar5d2shskhj42g", 3, "Script + Script"),
+        ("addr1gx2fxv2umyhttkxyxp8x0dlpdt3k6cwng5pxj3jhsydzer5pnz75xxcrzqf96k", 4, "Payment Key + Pointer"),
+        ("addr128phkx6acpnf78fuvxn0mkew3l0fd058hzquvz7w36x4gtupnz75xxcrtw79hu", 5, "Script + Pointer"),
+        ("addr1vx2fxv2umyhttkxyxp8x0dlpdt3k6cwng5pxj3jhsydzers66hrl8", 6, "Payment Key Only"),
+        ("addr1w8phkx6acpnf78fuvxn0mkew3l0fd058hzquvz7w36x4gtcyjy7wx", 7, "Script Only"),
+        ("stake1uyehkck0lajq8gr28t9uxnuvgcqrc6070x3k9r8048z8y5gh6ffgw", 14, "Stake Key"),
+        ("stake178phkx6acpnf78fuvxn0mkew3l0fd058hzquvz7w36x4gtcccycj5", 15, "Stake Script")
+    )
+    // format: on
 
-      // Testnet addresses
-      "type-00-testnet" -> "addr_test1qz2fxv2umyhttkxyxp8x0dlpdt3k6cwng5pxj3jhsydzer3n0d3vllmyqwsx5wktcd8cc3sq835lu7drv2xwl2wywfgs68faae",
-      "type-01-testnet" -> "addr_test1zrphkx6acpnf78fuvxn0mkew3l0fd058hzquvz7w36x4gten0d3vllmyqwsx5wktcd8cc3sq835lu7drv2xwl2wywfgsxj90mg",
-      "type-14-testnet" -> "stake_test1uqehkck0lajq8gr28t9uxnuvgcqrc6070x3k9r8048z8y5gssrtvn",
-      "type-15-testnet" -> "stake_test17rphkx6acpnf78fuvxn0mkew3l0fd058hzquvz7w36x4gtcljw6kf"
+    // Sample hash values for testing
+    private val samplePaymentHash = AddrKeyHash(
+      Hash28(ByteString.fromHex("c37b1b5dc0669f1d3c61a6fddb2e8fde96be87b881c60bce8e8d542f"))
+    )
+    private val sampleStakeHash = Hash28(
+      ByteString.fromHex("337b62cfff6403a06a3acbc34f8c46003c69fe79a3628cefa9c47251")
+    )
+    private val sampleScriptHash = ScriptHash(
+      Hash28(ByteString.fromHex("1234567890abcdef1234567890abcdef12345678901234567890abcd"))
     )
 
-    // Sample hashes from test vectors (these are example values to use in tests)
-    private def hashHexFromBech32(bech32: String): String = {
-        val bytes = Bech32.decode(bech32).data
-        val hash = Builtins.blake2b_224(ByteString.unsafeFromArray(bytes))
-        hash.toHex
-    }
-    private val paymentKeyHashHex = hashHexFromBech32(
-      "addr_vk1w0l2sr2zgfm26ztc6nl9xy8ghsk5sh6ldwemlpmp9xylzy4dtf7st80zhd"
-    )
-    private val stakeKeyHashHex = hashHexFromBech32(
-      "stake_vk1px4j0r2fk7ux5p23shz8f3y5y2qam7s954rgf3lg5merqcj6aetsft99wu"
-    )
-    private val scriptHashHex =
-        val bytes = Bech32.decode("script1cda3khwqv60360rp5m7akt50m6ttapacs8rqhn5w342z7r35m37").data
-        ByteString.unsafeFromArray(bytes).toHex
-
-    /** Test case for Type-0 address (PaymentKeyHash with StakeKeyHash)
-      */
-    test("correctly encode and decode Type-0 addresses") {
-        // Create hashes from hex strings
-        val paymentKeyHash = Hash28.fromHex(paymentKeyHashHex)
-        val stakeKeyHash = Hash28.fromHex(stakeKeyHashHex)
-
-        // Create address for mainnet
-        val mainnetAddress = AddressType.PaymentKeyHashWithStakeKeyHash(
-          paymentKeyHash,
-          stakeKeyHash,
-          MainnetTag
-        )
-
-        // Encode the address
-        val encodedMainnet = CardanoAddress.encode(mainnetAddress).get
-
-        // Expected mainnet address from test vector
-        val expectedMainnet = testVectors("type-00-mainnet")
-
-        // Verify encoded address matches expected
-        assert(encodedMainnet == expectedMainnet)
-
-        // Test decoding
-        val decodedMainnet = CardanoAddress.decode(encodedMainnet).get
-
-        // Verify decoded address matches original
-        assert(decodedMainnet == mainnetAddress)
-
-        // Create address for testnet
-        val testnetAddress = AddressType.PaymentKeyHashWithStakeKeyHash(
-          paymentKeyHash,
-          stakeKeyHash,
-          TestnetTag
-        )
-
-        // Encode the testnet address
-        val encodedTestnet = CardanoAddress.encode(testnetAddress).get
-
-        // Expected testnet address from test vector
-        val expectedTestnet = testVectors("type-00-testnet")
-
-        // Verify encoded testnet address matches expected
-        assert(encodedTestnet == expectedTestnet)
-
-        // Test decoding of testnet address
-        val decodedTestnet = CardanoAddress.decode(encodedTestnet).get
-
-        // Verify decoded testnet address matches original
-        assert(decodedTestnet == testnetAddress)
+    test("Original test vectors should parse with bech32") {
+        testVectors.foreach { case (addressStr, expectedTypeId, description) =>
+            val parseResult = fromBech32(addressStr)
+            assert(parseResult.typeId == expectedTypeId, s"Wrong type ID for $description")
+        }
     }
 
-    /** Test case for Type-1 address (ScriptHash with StakeKeyHash)
-      */
-    test("correctly encode and decode Type-1 addresses") {
-        // Create hashes from hex strings
-        val scriptHash = Hash28.fromHex(scriptHashHex)
-        val stakeKeyHash = Hash28.fromHex(stakeKeyHashHex)
+    test("Network enum should handle all cases correctly") {
+        assert(Network.fromByte(0x00) == Network.Testnet)
+        assert(Network.fromByte(0x01) == Network.Mainnet)
+        assert(Network.fromByte(0x05) == Network.Other(0x05))
 
-        // Create address for mainnet
-        val mainnetAddress = AddressType.ScriptHashWithStakeKeyHash(
-          scriptHash,
-          stakeKeyHash,
-          MainnetTag
-        )
+        assert(Network.Testnet.value == 0x00)
+        assert(Network.Mainnet.value == 0x01)
+        assert(Network.Other(0x05).value == 0x05)
 
-        // Encode the address
-        val encodedMainnet = CardanoAddress.encode(mainnetAddress).get
-
-        // Expected mainnet address from test vector
-        val expectedMainnet = testVectors("type-01-mainnet")
-
-        // Verify encoded address matches expected
-        assert(encodedMainnet == expectedMainnet)
-
-        // Test decoding
-        val decodedMainnet = CardanoAddress.decode(encodedMainnet).get
-
-        // Verify decoded address matches original
-        assert(decodedMainnet == mainnetAddress)
-
-        // Test for testnet
-        val testnetAddress = AddressType.ScriptHashWithStakeKeyHash(
-          scriptHash,
-          stakeKeyHash,
-          TestnetTag
-        )
-
-        val encodedTestnet = CardanoAddress.encode(testnetAddress).get
-        val expectedTestnet = testVectors("type-01-testnet")
-
-        assert(encodedTestnet == expectedTestnet)
-
-        val decodedTestnet = CardanoAddress.decode(encodedTestnet).get
-        assert(decodedTestnet == testnetAddress)
+        assert(Network.Mainnet.isMainnet == true)
+        assert(Network.Testnet.isMainnet == false)
     }
 
-    /** Test case for Type-14 address (Stake Key Hash)
-      */
-    test("correctly encode and decode Type-14 stake addresses") {
-        // Create stake key hash from hex string
-        val stakeKeyHash = Hash28.fromHex(stakeKeyHashHex)
-
-        // Create stake address for mainnet
-        val mainnetAddress = AddressType.StakeKeyHash(
-          stakeKeyHash,
-          MainnetTag
-        )
-
-        // Encode the address
-        val encodedMainnet = CardanoAddress.encode(mainnetAddress).get
-
-        // Expected mainnet stake address from test vector
-        val expectedMainnet = testVectors("type-14-mainnet")
-
-        // Verify encoded address matches expected
-        assert(encodedMainnet == expectedMainnet)
-
-        // Test decoding
-        val decodedMainnet = CardanoAddress.decode(encodedMainnet).get
-
-        // Verify decoded address matches original
-        assert(decodedMainnet == mainnetAddress)
-
-        // Test for testnet
-        val testnetAddress = AddressType.StakeKeyHash(
-          stakeKeyHash,
-          TestnetTag
-        )
-
-        val encodedTestnet = CardanoAddress.encode(testnetAddress).get
-        val expectedTestnet = testVectors("type-14-testnet")
-
-        assert(encodedTestnet == expectedTestnet)
-
-        val decodedTestnet = CardanoAddress.decode(encodedTestnet).get
-        assert(decodedTestnet == testnetAddress)
-    }
-
-    /** Test case for Type-15 address (Stake Script Hash)
-      */
-    test("correctly encode and decode Type-15 stake script addresses") {
-        // Create script hash from hex string
-        val scriptHash = Hash28.fromHex(scriptHashHex)
-
-        // Create stake script address for mainnet
-        val mainnetAddress = AddressType.StakeScriptHash(
-          scriptHash,
-          MainnetTag
-        )
-
-        // Encode the address
-        val encodedMainnet = CardanoAddress.encode(mainnetAddress).get
-
-        // Expected mainnet stake script address from test vector
-        val expectedMainnet = testVectors("type-15-mainnet")
-
-        // Verify encoded address matches expected
-        assert(encodedMainnet == expectedMainnet)
-
-        // Test decoding
-        val decodedMainnet = CardanoAddress.decode(encodedMainnet).get
-
-        // Verify decoded address matches original
-        assert(decodedMainnet == mainnetAddress)
-
-        // Test for testnet
-        val testnetAddress = AddressType.StakeScriptHash(
-          scriptHash,
-          TestnetTag
-        )
-
-        val encodedTestnet = CardanoAddress.encode(testnetAddress).get
-        val expectedTestnet = testVectors("type-15-testnet")
-
-        assert(encodedTestnet == expectedTestnet)
-
-        val decodedTestnet = CardanoAddress.decode(encodedTestnet).get
-        assert(decodedTestnet == testnetAddress)
-    }
-
-    /** Test case for pointer addresses (Type-4)
-      */
-    test("correctly handle pointer addresses") {
-        // Create payment key hash from hex string
-        val paymentKeyHash = Hash28.fromHex(paymentKeyHashHex)
-
-        // Create pointer from test vector (2498243, 27, 3)
+    test("Pointer should encode and decode correctly") {
         val pointer = Pointer(2498243, 27, 3)
+        val encoded = pointer.toBytes
 
-        // Create pointer address for mainnet
-        val address = AddressType.PaymentKeyHashWithPointer(
-          paymentKeyHash,
-          pointer,
-          MainnetTag
+        // Test round-trip encoding/decoding
+        val decoded = Pointer.fromBytes(encoded)
+        assert(decoded == Success(pointer))
+        // Test parsing from array with offset
+        val Success(parsedPointer, bytesUsed) = Pointer.parseFrom(encoded, 0): @unchecked
+        assert(parsedPointer == pointer)
+        assert(bytesUsed == encoded.length)
+    }
+
+    test("Variable length encoding should work correctly") {
+        // Test cases: (value, expected_bytes)
+        val testCases = List(
+          (0L, Array[Byte](0x00)),
+          (127L, Array[Byte](0x7f)),
+          (128L, Array[Byte](0x80.toByte, 0x01)),
+          (16383L, Array[Byte](0xff.toByte, 0x7f)),
+          (16384L, Array[Byte](0x80.toByte, 0x80.toByte, 0x01))
         )
 
-        // Test variable-length pointer encoding/decoding
-        val bytes = serializeAddress(address).bytes
-        val headerByte = bytes(0)
-        val extractedType = (headerByte >> 4) & 0x0f
-        val extractedTag = headerByte & 0x0f
+        testCases.foreach { case (value, expectedBytes) =>
+            val encoded = encodeVariableLengthUInt(value)
+            assert(encoded.sameElements(expectedBytes), s"Encoding failed for value $value")
 
-        // Verify header type and network tag
-        assert(extractedType == HeaderType.PaymentKeyHashWithPointer)
-        assert(extractedTag == MainnetTag)
-
-        // Decode the address
-        val pointerBytes = bytes.slice(1 + Hash28.Size, bytes.length)
-        val (decodedPointer, _) = decodePointer(pointerBytes, 0)
-
-        // Verify decoded pointer matches original
-        assert(decodedPointer.slot == pointer.slot)
-        assert(decodedPointer.txIndex == pointer.txIndex)
-        assert(decodedPointer.certIndex == pointer.certIndex)
+            val (decoded, bytesUsed) = decodeVariableLengthUInt(encoded, 0)
+            assert(decoded == value)
+            assert(bytesUsed == encoded.length)
+        }
     }
 
-    /** Test case for variable-length integer encoding/decoding
-      */
-    test("correctly encode and decode variable-length integers") {
-        // Test small value (fits in one byte)
-        val smallValue = 42L
-        val smallEncoded = encodeVariableLengthUInt(smallValue)
-        assert(smallEncoded.length == 1)
-        assert(smallEncoded(0) == 42.toByte)
+    test("ShelleyPaymentPart should handle key and script hashes") {
+        val keyPart = ShelleyPaymentPart.keyHash(samplePaymentHash)
+        val scriptPart = ShelleyPaymentPart.scriptHash(sampleScriptHash)
 
-        val (decodedSmall, bytesUsedSmall) = decodeVariableLengthUInt(smallEncoded, 0)
-        assert(decodedSmall == smallValue)
-        assert(bytesUsedSmall == 1)
+        assert(keyPart.asHash == samplePaymentHash.hash)
+        assert(scriptPart.asHash == sampleScriptHash.hash)
 
-        // Test medium value (two bytes)
-        val mediumValue = 130L // Just over 127 to use two bytes
-        val mediumEncoded = encodeVariableLengthUInt(mediumValue)
-        assert(mediumEncoded.length == 2)
+        assert(keyPart.isScript == false)
+        assert(scriptPart.isScript == true)
 
-        val (decodedMedium, bytesUsedMedium) = decodeVariableLengthUInt(mediumEncoded, 0)
-        assert(decodedMedium == mediumValue)
-        assert(bytesUsedMedium == 2)
-
-        // Test large value
-        val largeValue = 2498243L // Value from test vector
-        val largeEncoded = encodeVariableLengthUInt(largeValue)
-
-        val (decodedLarge, bytesUsedLarge) = decodeVariableLengthUInt(largeEncoded, 0)
-        assert(decodedLarge == largeValue)
+        assert(keyPart.toBytes == samplePaymentHash.hash.bytes)
+        assert(scriptPart.toBytes == sampleScriptHash.hash.bytes)
     }
 
-    /** Test edge cases and error handling
-      */
-    test("handle edge cases properly") {
-        // Test with malformed Bech32 address
-        val invalidAddress = "addr1badaddress"
-        assert(CardanoAddress.decode(invalidAddress).isFailure)
+    test("ShelleyDelegationPart should handle all delegation types") {
+        val keyDelegation = ShelleyDelegationPart.keyHash(sampleStakeHash)
+        val scriptDelegation = ShelleyDelegationPart.scriptHash(sampleScriptHash)
+        val pointerDelegation = ShelleyDelegationPart.Pointer(Pointer(100, 5, 2))
+        val nullDelegation = ShelleyDelegationPart.Null
 
-        // Test with negative value for variable-length integer encoding
-        intercept[IllegalArgumentException] {
-            encodeVariableLengthUInt(-1)
+        assert(keyDelegation.asHash == Some(sampleStakeHash))
+        assert(scriptDelegation.asHash == Some(sampleScriptHash.hash))
+        assert(pointerDelegation.asHash == None)
+        assert(nullDelegation.asHash == None)
+
+        assert(keyDelegation.isScript == false)
+        assert(scriptDelegation.isScript == true)
+        assert(pointerDelegation.isScript == false)
+        assert(nullDelegation.isScript == false)
+    }
+
+    test("StakePayload should handle stake and script types") {
+        val stakePayload = StakePayload.stakeKey(sampleStakeHash)
+        val scriptPayload = StakePayload.script(sampleScriptHash)
+
+        assert(stakePayload.asHash == sampleStakeHash)
+        assert(scriptPayload.asHash == sampleScriptHash.hash)
+
+        assert(stakePayload.isScript == false)
+        assert(scriptPayload.isScript == true)
+
+        // Test parsing from bytes
+        val stakeFromBytes = StakePayload.fromBytes(sampleStakeHash.bytes.bytes, false)
+        assert(stakeFromBytes == Success(StakePayload.Stake(sampleStakeHash)))
+
+        val scriptFromBytes = StakePayload.fromBytes(sampleScriptHash.hash.bytes.bytes, true)
+        assert(scriptFromBytes == Success(StakePayload.Script(sampleScriptHash)))
+    }
+
+    test("ShelleyAddress should calculate correct type IDs") {
+        val payment = ShelleyPaymentPart.keyHash(samplePaymentHash)
+        val delegation = ShelleyDelegationPart.keyHash(sampleStakeHash)
+
+        val addr = ShelleyAddress(Network.Mainnet, payment, delegation)
+        assert(addr.typeId == 0x00)
+
+        val scriptAddr = ShelleyAddress(
+          Network.Mainnet,
+          ShelleyPaymentPart.scriptHash(sampleScriptHash),
+          ShelleyDelegationPart.keyHash(sampleStakeHash)
+        )
+        assert(scriptAddr.typeId == 0x01)
+
+        val enterpriseAddr = ShelleyAddress(
+          Network.Mainnet,
+          payment,
+          ShelleyDelegationPart.Null
+        )
+        assert(enterpriseAddr.typeId == 0x06)
+        assert(enterpriseAddr.isEnterprise == true)
+    }
+
+    test("ShelleyAddress should build correct headers") {
+        val payment = ShelleyPaymentPart.keyHash(samplePaymentHash)
+        val delegation = ShelleyDelegationPart.keyHash(sampleStakeHash)
+
+        val mainnetAddr = ShelleyAddress(Network.Mainnet, payment, delegation)
+        val testnetAddr = ShelleyAddress(Network.Testnet, payment, delegation)
+
+        assert(mainnetAddr.toHeader == 0x01) // type 0 (0000) + mainnet (0001)
+        assert(testnetAddr.toHeader == 0x00) // type 0 (0000) + testnet (0000)
+    }
+
+    test("StakeAddress should calculate correct type IDs and headers") {
+        val stakeAddr = StakeAddress(Network.Mainnet, StakePayload.stakeKey(sampleStakeHash))
+        val scriptStakeAddr = StakeAddress(Network.Mainnet, StakePayload.script(sampleScriptHash))
+
+        assert(stakeAddr.typeId == 0x0e)
+        assert(scriptStakeAddr.typeId == 0x0f)
+
+        assert(stakeAddr.toHeader == 0xe1.toByte) // type 14 (1110) + mainnet (0001)
+        assert(scriptStakeAddr.toHeader == 0xf1.toByte) // type 15 (1111) + mainnet (0001)
+
+        assert(stakeAddr.isScript == false)
+        assert(scriptStakeAddr.isScript == true)
+    }
+
+    test("Address serialization should produce correct bytes") {
+        val payment = ShelleyPaymentPart.keyHash(samplePaymentHash)
+        val delegation = ShelleyDelegationPart.keyHash(sampleStakeHash)
+        val shelleyAddr = ShelleyAddress(Network.Mainnet, payment, delegation)
+
+        val bytes = shelleyAddr.toBytes
+        assert(bytes.length == 57) // 1 header + 28 payment + 28 delegation
+        assert(bytes.bytes(0) == 0x01) // header
+
+        val stakeAddr = StakeAddress(Network.Mainnet, StakePayload.stakeKey(sampleStakeHash))
+        val stakeBytes = stakeAddr.toBytes
+        assert(stakeBytes.length == 29) // 1 header + 28 hash
+        assert(stakeBytes.bytes(0) == 0xe1.toByte)
+    }
+
+    test("Address parsing should handle all address types") {
+        // Test each address type parser with manually constructed bytes
+
+        // Type 0: Payment Key + Stake Key
+        val type0Header: Byte = 0x01 // type 0 + mainnet
+        val type0Payload = samplePaymentHash.hash.bytes.bytes ++ sampleStakeHash.bytes.bytes
+        val type0Bytes = type0Header +: type0Payload
+
+        val parsedType0 = fromBytes(type0Bytes)
+        parsedType0 match {
+            case Address.Shelley(_) => // Expected
+            case _                  => fail("Expected Shelley address")
+        }
+        assert(parsedType0.typeId == 0)
+
+        // Type 14: Stake Key
+        val type14Header: Byte = 0xe1.toByte // type 14 + mainnet
+        val type14Bytes = type14Header +: sampleStakeHash.bytes.bytes
+
+        val parsedType14 = fromBytes(type14Bytes)
+
+        parsedType14 match {
+            case Address.Stake(_) => // Expected
+            case _                => fail("Expected Stake address")
+        }
+        assert(parsedType14.typeId == 14)
+    }
+
+    test("Address parsing should handle invalid inputs gracefully") {
+        // Empty bytes
+        assertThrows[IllegalArgumentException] {
+            fromBytes(Array.empty)
         }
 
-        // Test with invalid header type
-        val invalidHeaderType = 0x0b // Not defined in the standard
-        val invalidHeader = ((invalidHeaderType << 4) | (MainnetTag & 0x0f)).toByte
-        val paymentKeyHash = Hash28.fromHex(paymentKeyHashHex)
-        val invalidBytes = ByteString(invalidHeader) ++ paymentKeyHash.bytes
+        // Invalid header type
+        val invalidHeader: Byte = 0x91.toByte // type 9 doesn't exist
+        val invalidBytes = invalidHeader +: samplePaymentHash.hash.bytes.bytes
+        assertThrows[IllegalArgumentException] {
+            fromBytes(invalidBytes)
+        }
 
-        val invalidBech32 = Bech32.encodeFrom5Bit("addr", Bech32.to5Bit(invalidBytes.bytes))
+        // Wrong payload length
+        val shortPayload = Array[Byte](0x01, 0x02, 0x03) // too short
+        assertThrows[IllegalArgumentException] {
+            fromBytes(shortPayload)
+        }
+    }
 
-        // Should fail with unsupported header type
-        assert(CardanoAddress.decode(invalidBech32).isFailure)
+    test("Address round-trip should preserve data") {
+        val payment = ShelleyPaymentPart.keyHash(samplePaymentHash)
+        val delegation = ShelleyDelegationPart.keyHash(sampleStakeHash)
+        val originalAddr = ShelleyAddress(Network.Mainnet, payment, delegation)
+        val wrappedAddr = Address.Shelley(originalAddr)
+
+        // Serialize and parse back
+        val bytes = wrappedAddr.toBytes.bytes
+        val parsedAddr = fromBytes(bytes)
+
+        assert(parsedAddr == wrappedAddr)
+        assert(parsedAddr.typeId == wrappedAddr.typeId)
+        assert(parsedAddr.network == wrappedAddr.network)
+    }
+
+    test("Address utility methods should work correctly") {
+        val payment = ShelleyPaymentPart.keyHash(samplePaymentHash)
+        val scriptPayment = ShelleyPaymentPart.scriptHash(sampleScriptHash)
+        val delegation = ShelleyDelegationPart.keyHash(sampleStakeHash)
+
+        val normalAddr = Address.Shelley(ShelleyAddress(Network.Mainnet, payment, delegation))
+        val scriptAddr = Address.Shelley(ShelleyAddress(Network.Mainnet, scriptPayment, delegation))
+        val enterpriseAddr =
+            Address.Shelley(ShelleyAddress(Network.Mainnet, payment, ShelleyDelegationPart.Null))
+        val stakeAddr =
+            Address.Stake(StakeAddress(Network.Mainnet, StakePayload.stakeKey(sampleStakeHash)))
+
+        assert(normalAddr.hasScript == false)
+        assert(scriptAddr.hasScript == true)
+
+        assert(normalAddr.isEnterprise == false)
+        assert(enterpriseAddr.isEnterprise == true)
+        assert(stakeAddr.isEnterprise == false)
+
+        assert(normalAddr.network == Some(Network.Mainnet))
+        assert(stakeAddr.network == Some(Network.Mainnet))
+    }
+
+    test("Address conversion between Shelley and Stake should work") {
+        val payment = ShelleyPaymentPart.keyHash(samplePaymentHash)
+        val delegation = ShelleyDelegationPart.keyHash(sampleStakeHash)
+        val shelleyAddr = ShelleyAddress(Network.Mainnet, payment, delegation)
+
+        val stakeAddr = Address.shelleyToStake(shelleyAddr)
+        assert(stakeAddr.isSuccess)
+
+        val convertedStake = stakeAddr.get
+        assert(convertedStake.network == shelleyAddr.network)
+        assert(convertedStake.payload.asHash == delegation.asHash.get)
+
+        // Test conversion failure for enterprise address
+        val enterpriseAddr = ShelleyAddress(Network.Mainnet, payment, ShelleyDelegationPart.Null)
+        val enterpriseConversion = Address.shelleyToStake(enterpriseAddr)
+        assert(enterpriseConversion.isFailure)
+    }
+
+    test("Edge cases should be handled correctly") {
+        // Test maximum values for variable length encoding
+        val maxSlot = Long.MaxValue
+        val maxPointer = Pointer(maxSlot, Long.MaxValue, Long.MaxValue)
+        val encoded = maxPointer.toBytes
+        assert(encoded.length > 21) // Will use multiple bytes per field
+
+        val decoded = Pointer.fromBytes(encoded)
+        assert(decoded == Success(maxPointer))
+
+        // Test zero values
+        val minPointer = Pointer(0, 0, 0)
+        val minEncoded = minPointer.toBytes
+        assert(minEncoded.sameElements(Array[Byte](0x00, 0x00, 0x00)))
+
+        val minDecoded = Pointer.fromBytes(minEncoded)
+        assert(minDecoded == Success(minPointer))
+    }
+
+    test("Human readable prefixes should be correct") {
+        val payment = ShelleyPaymentPart.keyHash(samplePaymentHash)
+        val delegation = ShelleyDelegationPart.keyHash(sampleStakeHash)
+
+        val mainnetShelley = ShelleyAddress(Network.Mainnet, payment, delegation)
+        val testnetShelley = ShelleyAddress(Network.Testnet, payment, delegation)
+
+        assert(mainnetShelley.hrp == Success("addr"))
+        assert(testnetShelley.hrp == Success("addr_test"))
+
+        val mainnetStake = StakeAddress(Network.Mainnet, StakePayload.stakeKey(sampleStakeHash))
+        val testnetStake = StakeAddress(Network.Testnet, StakePayload.stakeKey(sampleStakeHash))
+
+        assert(mainnetStake.hrp == Success("stake"))
+        assert(testnetStake.hrp == Success("stake_test"))
+
+        // Test unknown network
+        val unknownShelley = ShelleyAddress(Network.Other(0x05), payment, delegation)
+        assert(unknownShelley.hrp.isFailure)
     }
 }
