@@ -60,7 +60,7 @@ class CardanoAddressSpec extends AnyFunSuite {
     }
 
     test("Pointer should encode and decode correctly") {
-        val pointer = Pointer(2498243, 27, 3)
+        val pointer = Pointer(Slot(2498243), 27, 3)
         val encoded = pointer.toBytes
 
         // Test round-trip encoding/decoding
@@ -109,7 +109,7 @@ class CardanoAddressSpec extends AnyFunSuite {
     test("ShelleyDelegationPart should handle all delegation types") {
         val keyDelegation = ShelleyDelegationPart.keyHash(sampleStakeHash)
         val scriptDelegation = ShelleyDelegationPart.scriptHash(sampleScriptHash)
-        val pointerDelegation = ShelleyDelegationPart.Pointer(Pointer(100, 5, 2))
+        val pointerDelegation = ShelleyDelegationPart.Pointer(Pointer(Slot(100), 5, 2))
         val nullDelegation = ShelleyDelegationPart.Null
 
         assert(keyDelegation.asHash == Some(sampleStakeHash))
@@ -311,7 +311,7 @@ class CardanoAddressSpec extends AnyFunSuite {
     test("Edge cases should be handled correctly") {
         // Test maximum values for variable length encoding
         val maxSlot = Long.MaxValue
-        val maxPointer = Pointer(maxSlot, Long.MaxValue, Long.MaxValue)
+        val maxPointer = Pointer(Slot(maxSlot), Long.MaxValue, Long.MaxValue)
         val encoded = maxPointer.toBytes
         assert(encoded.length > 21) // Will use multiple bytes per field
 
@@ -319,7 +319,7 @@ class CardanoAddressSpec extends AnyFunSuite {
         assert(decoded == Success(maxPointer))
 
         // Test zero values
-        val minPointer = Pointer(0, 0, 0)
+        val minPointer = Pointer(Slot(0), 0, 0)
         val minEncoded = minPointer.toBytes
         assert(minEncoded.sameElements(Array[Byte](0x00, 0x00, 0x00)))
 

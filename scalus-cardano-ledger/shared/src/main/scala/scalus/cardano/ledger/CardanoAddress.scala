@@ -1,8 +1,32 @@
 package scalus.cardano.ledger
 
 import scalus.builtin.ByteString
-import scalus.cardano.ledger
 import scala.util.{Failure, Success, Try}
+
+/** Network identification for Cardano addresses */
+enum Network {
+    case Testnet
+    case Mainnet
+    case Other(v: Byte)
+
+    /** Check if this is mainnet */
+    def isMainnet: Boolean = this == Mainnet
+
+    /** Get the numeric value for this network */
+    def value: Byte = this match
+        case Testnet  => 0x00
+        case Mainnet  => 0x01
+        case Other(v) => v
+}
+
+object Network {
+
+    /** Create Network from byte value */
+    def fromByte(value: Byte): Network = value match
+        case 0x00 => Testnet
+        case 0x01 => Mainnet
+        case v    => Other(v)
+}
 
 /** Implementation of Cardano CIP-19 address format following Rust pallas implementation structure.
   * Handles the binary structure of Cardano addresses including Shelley, Stake, and Byron addresses.
@@ -10,35 +34,9 @@ import scala.util.{Failure, Success, Try}
   */
 object CardanoAddress {
 
-    /** Network identification for Cardano addresses */
-    enum Network {
-        case Testnet
-        case Mainnet
-        case Other(v: Byte)
-
-        /** Check if this is mainnet */
-        def isMainnet: Boolean = this == Mainnet
-
-        /** Get the numeric value for this network */
-        def value: Byte = this match
-            case Testnet  => 0x00
-            case Mainnet  => 0x01
-            case Other(v) => v
-    }
-
-    object Network {
-
-        /** Create Network from byte value */
-        def fromByte(value: Byte): Network = value match
-            case 0x00 => Testnet
-            case 0x01 => Mainnet
-            case v    => Other(v)
-    }
-
     /** Type aliases for clarity - matching Rust implementation */
     type PaymentKeyHash = AddrKeyHash
     type StakeKeyHash = Hash28
-    type Slot = Long
     type TxIdx = Long
     type CertIdx = Long
 
@@ -56,7 +54,7 @@ object CardanoAddress {
 
         /** Serialize pointer to variable-length encoded bytes following CIP-19 specification */
         def toBytes: Array[Byte] =
-            encodeVariableLengthUInt(slot) ++
+            encodeVariableLengthUInt(slot.slot) ++
                 encodeVariableLengthUInt(txIdx) ++
                 encodeVariableLengthUInt(certIdx)
 
@@ -80,7 +78,7 @@ object CardanoAddress {
             val (txIdx, used2) = decodeVariableLengthUInt(bytes, startIndex + used1)
             val (certIdx, used3) = decodeVariableLengthUInt(bytes, startIndex + used1 + used2)
 
-            (Pointer(slot, txIdx, certIdx), used1 + used2 + used3)
+            (Pointer(Slot(slot), txIdx, certIdx), used1 + used2 + used3)
         }
 
         /** Parse pointer from complete byte array */
