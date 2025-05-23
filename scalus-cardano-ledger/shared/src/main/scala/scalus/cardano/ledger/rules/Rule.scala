@@ -25,31 +25,33 @@ case class UTxOState(
 
 case class UtxoEnv(slot: SlotNo, pparams: ProtocolParams)
 
-trait STS {
+trait Rule {
     type State
-    type Signal
     type Environment
     type Event
-    def validate(env: Environment, state: State, signal: Signal): Unit
+    type Error
+    def validate(env: Environment, state: State, event: Event): Either[Error, State]
 }
 
-object ConwayTxValidation extends STS {
+object ConwayTxValidation extends Rule {
     type State = UTxO
-    type Signal = Transaction
     type Environment = UtxoEnv
-    type Event = this.type
+    type Event = Transaction
+    type Error = Throwable
 
-    def validate(env: Environment, state: State, tx: Signal): Unit = {
-        val inputs = tx.body.inputs ++ tx.body.referenceInputs.getOrElse(Set.empty)
+    def validate(env: Environment, state: State, tx: Event): Either[Error, State] = {
+        FeesValidation.validate(env, state, tx)
     }
 }
 
-object Inputs {
-    def validate(env: UtxoEnv, state: UTxO, inputs: Seq[TransactionInput]): Unit = {
-        inputs.foreach { input =>
-            if !state.contains(input) then {
-                throw new IllegalArgumentException(s"Input $input not found in UTxO")
-            }
-        }
+object FeesValidation extends Rule {
+    type State = UTxO
+    type Environment = UtxoEnv
+    type Event = Transaction
+    type Error = Throwable
+
+    def validate(env: Environment, state: State, tx: Event): Either[Error, State] = {
+        if tx.isValid && tx.body.fee.value > 0 then Right(state)
+        else Left(new IllegalArgumentException("Invalid transaction"))
     }
 }
