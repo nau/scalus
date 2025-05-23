@@ -60,7 +60,6 @@ lazy val root: Project = project
       scalusTestkit.native,
       scalusExamples.js,
       scalusExamples.jvm,
-      // designPatterns.js,
       scalusDesignPatterns,
       bench,
       `scalus-bloxbean-cardano-client-lib`,
