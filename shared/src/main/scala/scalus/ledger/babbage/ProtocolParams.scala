@@ -1,7 +1,6 @@
 package scalus.ledger.babbage
 import scalus.ledger.api.ProtocolVersion
 import upickle.default.*
-import upickle.default.ReadWriter
 
 case class MaxTxExecutionUnits(memory: Long, steps: Long) derives ReadWriter
 

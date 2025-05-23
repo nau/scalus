@@ -194,8 +194,6 @@ object Prelude {
             if b then () else fail(message)
 }
 
-import Prelude.*
-
 /** Tests an expression, throwing an `IllegalArgumentException` if false.
   * @param requirement
   *   the expression to test

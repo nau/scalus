@@ -2,7 +2,6 @@ package scalus.uplc
 
 import scalus.builtin.*
 import scalus.builtin.Builtins.*
-import scalus.builtin.Data
 import scalus.ledger.api.BuiltinSemanticsVariant
 import scalus.uplc.Constant.given
 import scalus.uplc.DefaultUni.Bool
