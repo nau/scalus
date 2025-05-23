@@ -44,12 +44,12 @@ object ConwayTxValidation extends STS {
     }
 }
 
-object StateTransition {
-    def run(): Unit = {
-        val utxo: UTxO = Map.empty
-        val input = this.getClass.getResourceAsStream("/blockfrost-params-epoch-544.json")
-        val pparams = read[ProtocolParams](input)(using ProtocolParams.blockfrostParamsRW)
-        val env = UtxoEnv(slot = 100, pparams = pparams)
-        ConwayTxValidation.validate(env, utxo, null)
+object Inputs {
+    def validate(env: UtxoEnv, state: UTxO, inputs: Seq[TransactionInput]): Unit = {
+        inputs.foreach { input =>
+            if !state.contains(input) then {
+                throw new IllegalArgumentException(s"Input $input not found in UTxO")
+            }
+        }
     }
 }
