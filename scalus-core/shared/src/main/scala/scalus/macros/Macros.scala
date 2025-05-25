@@ -311,7 +311,8 @@ object Macros {
 
     def inlineBuiltinCostModelJsonImpl(using Quotes)(name: Expr[String]): Expr[String] = {
         import scala.quoted.*
-        val string = Files.readString(Paths.get("shared/src/main/resources", name.value.get))
+        val string =
+            Files.readString(Paths.get("scalus-core/shared/src/main/resources", name.value.get))
         Expr(string)
     }
 

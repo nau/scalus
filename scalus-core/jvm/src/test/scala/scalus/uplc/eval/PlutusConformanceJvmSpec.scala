@@ -10,7 +10,7 @@ import scala.language.implicitConversions
   *   This tests run only on JVM right now.
   */
 class PlutusConformanceJvmSpec extends PlutusConformanceSpec:
-    override protected val path = s"../${super.path}"
+    override protected val path = s"../../${super.path}"
     // TODO: for now, the BLS12-381 builtins implemented only for JVM
     // TODO: move to PlutusConformanceSpec when the BLS12-381 builtins are implemented for Scala.js
     // format: off

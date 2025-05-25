@@ -139,7 +139,8 @@ lazy val scalusPlugin = project
           val log = streams.value.log
 
           sharedFiles.foreach { file =>
-              val baseDir = baseDirectory.value / ".." / "shared" / "src" / "main" / "scala"
+              val baseDir =
+                  baseDirectory.value / ".." / "scalus-core" / "shared" / "src" / "main" / "scala"
               val source = baseDir / file
               val target = targetDir / file
 
@@ -200,7 +201,7 @@ lazy val PluginDependency: List[Def.Setting[?]] = List(scalacOptions ++= {
 
 // Scalus Core and Standard Library for JVM and JS
 lazy val scalus = crossProject(JSPlatform, JVMPlatform, NativePlatform)
-    .in(file("."))
+    .in(file("scalus-core"))
     .settings(
       name := "scalus",
       scalaVersion := scalaVersion.value,
