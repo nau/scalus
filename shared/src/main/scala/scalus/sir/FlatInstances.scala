@@ -1387,7 +1387,7 @@ object FlatInstantces:
 
         override def decode(decode: DecoderState): SIRVarStorage =
             if summon[Flat[Boolean]].decode(decode) then SIRVarStorage.Data
-            else SIRVarStorage.LocalUPLC
+            else SIRVarStorage.ScottEncoding
 
         override def encode(a: SIRVarStorage, encode: EncoderState): Unit =
             summon[Flat[Boolean]].encode(a == SIRVarStorage.Data, encode)

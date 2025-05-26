@@ -30,9 +30,10 @@ sealed trait SIRVarStorage
 
 object SIRVarStorage {
     case object Data extends SIRVarStorage
-    case object LocalUPLC extends SIRVarStorage
+    case object ScottEncoding extends SIRVarStorage
+    case object Cases extends SIRVarStorage
 
-    val DEFAULT = LocalUPLC
+    val DEFAULT = ScottEncoding
 }
 
 object SIRType {
@@ -127,7 +128,7 @@ object SIRType {
             val B = TypeVar("B")
             ConstrDecl(
               "Pair",
-              SIRVarStorage.LocalUPLC,
+              SIRVarStorage.ScottEncoding,
               scala.List(TypeBinding("fst", A), TypeBinding("snd", B)),
               scala.List(A, B),
               scala.Nil,
@@ -305,7 +306,7 @@ object SIRType {
             def buildConstr(a: TypeVar, listSum: SIRType): ConstrDecl = {
                 ConstrDecl(
                   "scalus.prelude.List$.Cons",
-                  SIRVarStorage.LocalUPLC,
+                  SIRVarStorage.ScottEncoding,
                   scala.List(TypeBinding("head", a), TypeBinding("tail", listSum)),
                   scala.List(a),
                   scala.List(a),

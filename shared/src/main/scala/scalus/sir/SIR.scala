@@ -173,6 +173,8 @@ sealed trait SIR {
             case SIRUnify.UnificationFailure(_, _, _) => false
         }
 
+    def anns: AnnotationsDecl
+
 }
 
 object SIR:
@@ -198,12 +200,9 @@ object SIR:
     case class ExternalVar(moduleName: String, name: String, tp: SIRType, anns: AnnotationsDecl)
         extends SIR {
 
-        if moduleName == "scalus.builtin.FromDataInstances$.OptionFromData" then {
-            println(s"SIR: moduleName=${moduleName}, name=${name}")
-            throw RuntimeException(s"moduleName=${moduleName}")
-        }
-
         override def toString: String = s"ExternalVar($moduleName, $name, ${tp.show})"
+
+        override def annotations: AnnotationsDecl = anns
 
     }
 
@@ -214,6 +213,9 @@ object SIR:
         anns: AnnotationsDecl
     ) extends SIR {
         override def tp: SIRType = body.tp
+
+        override def annotations: AnnotationsDecl = anns
+
     }
 
     case class LamAbs(param: Var, term: SIR, anns: AnnotationsDecl) extends SIR {
@@ -224,6 +226,8 @@ object SIR:
                     SIRType.TypeLambda(tvars, SIRType.Fun(param.tp, tpexpr))
                 case _ =>
                     SIRType.Fun(param.tp, term.tp)
+
+        override def annotations: AnnotationsDecl = anns
 
     }
 
@@ -243,9 +247,12 @@ object SIR:
         }
          */
 
+        override def annotations: AnnotationsDecl = anns
+
     }
 
-    case class Select(scrutinee: SIR, field: String, tp: SIRType, anns: AnnotationsDecl) extends SIR
+    case class Select(scrutinee: SIR, field: String, tp: SIRType, anns: AnnotationsDecl)
+        extends SIR {}
 
     case class Const(uplcConst: Constant, tp: SIRType, anns: AnnotationsDecl) extends SIR
 
@@ -292,7 +299,7 @@ object SIR:
         //
         //  r match
         //     case Rectangle(Point(x, y), Point(x1, y2)) if y2-y == x2-x => // handle square
-        //     
+        //
         case Constr(
             constr: ConstrDecl,
             bindings: List[String],

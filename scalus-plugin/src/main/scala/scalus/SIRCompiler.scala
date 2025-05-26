@@ -12,13 +12,11 @@ import dotty.tools.dotc.core.Symbols.*
 import dotty.tools.dotc.core.Types.*
 import dotty.tools.dotc.core.*
 import dotty.tools.dotc.util.{NoSourcePosition, SourcePosition, SrcPos}
-import scalus.SIRCompiler.SIRVersion
 import scalus.ScalusCompilationMode.{AllDefs, OnlyDerivations}
 import scalus.flat.EncoderState
 import scalus.flat.Flat
 import scalus.flat.FlatInstantces.given
 import scalus.sir.{AnnotationsDecl, Binding, ConstrDecl, DataDecl, Module, Recursivity, SIR, SIRBuiltins, SIRPosition, SIRType, SIRUnify, SIRVarStorage, TypeBinding}
-import scalus.sir.SIRVarStorage.LocalUPLC
 import scalus.uplc.DefaultUni
 
 import scala.annotation.tailrec
@@ -2272,7 +2270,7 @@ final class SIRCompiler(options: SIRCompilerOptions = SIRCompilerOptions.default
                   List(
                     ConstrDecl(
                       tupleName,
-                      LocalUPLC,
+                      SIRVarStorage.DEFAULT,
                       tupleParams,
                       tupleTypeParams,
                       tupleTypeParams,
@@ -2448,7 +2446,7 @@ final class SIRCompiler(options: SIRCompilerOptions = SIRCompilerOptions.default
                     val (newCaseBody, changed) =
                         specializeSIR(parentSym, c.body, env, possibleOverrides, thisClassNames)
                     if changed then casesAreChanged = true
-                    SIR.Case(c.pattern, newCaseBody)
+                    SIR.Case(c.pattern, newCaseBody, c.anns)
                 }
                 val (newScrutinee, scrutineeChanged) =
                     specializeSIR(parentSym, scrutinee, env, possibleOverrides, thisClassNames)

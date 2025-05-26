@@ -27,19 +27,20 @@ object Lowering {
         )
     }
 
-    def lowerSIR(sir: SIR)(using lctx: LoweringContext): LoweredValue = {
+    def lowerSIR(sir: SIR, localScope: LocalScope)(using lctx: LoweringContext): LoweredValue = {
         sir match
             case SIR.Decl(data, term) =>
                 lctx.decls.put(data.name, data).foreach { decl =>
                     // TODO: pass logger.
                     println(s"Data declaration ${data.name} already exists")
                 }
-                lowerSIR(term)
+                lowerSIR(term, localScope)
             case constr @ SIR.Constr(name, decl, args, tp, anns) =>
                 SIRTypeUplcGenerator(decl.tp).genConstr(constr)
             case sirMatch @ SIR.Match(scrutinee, cases, rhsType, anns) =>
                 SIRTypeUplcGenerator(scrutinee.tp).genMatch(sirMatch)
             case SIR.Var(name, tp, _) =>
+                
                 LoweredValue(
                   sir,
                   Term.Var(NamedDeBruijn(name)),
@@ -60,8 +61,12 @@ object Lowering {
                 lowerApp(app)
             case sel @ SIR.Select(scrutinee, field, tp, anns) =>
                 SIRTypeUplcGenerator(scrutinee.tp).genSelect(sel)
-            case SIR.Const(const, _, _) =>
-                LoweredValue(sir, Term.Const(const), SIRVarStorage.LocalUPLC)
+            case SIR.Const(const, tp, anns) =>
+                LoweredValue(
+                  sir,
+                  Term.Const(const),
+                  LoweredValueRepresentation.constRepresentation(tp)
+                )
             case SIR.And(lhs, rhs, anns) =>
                 lowerSIR(
                   SIR.IfThenElse(
@@ -106,14 +111,14 @@ object Lowering {
                           builtinTerms(DefaultFun.IfThenElse),
                           loweredCond.asTerm.term
                         ),
-                        Term.Delay(loweredT.toRepresnetation(resRepresentation).term)
+                        Term.Delay(loweredT.toRepresentation(resRepresentation).term)
                       ),
-                      Term.Delay(loweredF.toRepresnetation(resRepresentation).term)
+                      Term.Delay(loweredF.toRepresentation(resRepresentation).term)
                     )
                   ),
                   resRepresentation
                 )
-            case SIR.Builtin(bn, _, _) => LoweredValue(sir, bn.tpf, SIRVarStorage.LocalUPLC)
+            case SIR.Builtin(bn, _, _) => LoweredValue(sir, bn.tpf, SIRVarStorage.ScottEncoding)
             case SIR.Error(msg, anns, cause) =>
                 val term =
                     if lctx.generateErrorTraces then
@@ -121,16 +126,16 @@ object Lowering {
                           Constant.String(msg)
                         ) $ ~Term.Error)
                     else Term.Error
-                LoweredValue(sir, term, SIRVarStorage.LocalUPLC)
+                LoweredValue(sir, term, SIRVarStorage.ScottEncoding)
     }
 
     private def lowerLet(sirLet: SIR.Let)(using lctx: LoweringContext): LoweredValue = {
         val loweredBody = lowerSIR(sirLet.body)
         val term = sirLet match
             case SIR.Let(recursivity, bindings, body, anns) =>
-                if (recursivity == Recursivity.NonRec) then
+                if recursivity == Recursivity.NonRec then
                     bindings.foldRight(loweredBody.term) { case (Binding(name, rhs), body) =>
-                        val loweredRhs = lowerSIR(rhs).toRepresnetation(
+                        val loweredRhs = lowerSIR(rhs).toRepresentation(
                           SIRTypeUplcGenerator(rhs.tp).defaultRepresentation
                         )
                         Term.Apply(Term.LamAbs(name, body), loweredRhs.term)
@@ -143,7 +148,7 @@ object Lowering {
                                 (\f -> f 0) (Z (\f. \x. f (x + 1)))
                              */
                             lctx.zCombinatorNeeded = true
-                            val loweredRhs = lowerSIR(rhs).toRepresnetation(
+                            val loweredRhs = lowerSIR(rhs).toRepresentation(
                               SIRTypeUplcGenerator(rhs.tp).defaultRepresentation
                             )
                             val fixed =
@@ -188,7 +193,7 @@ object Lowering {
         val expectedRepresentation = SIRTypeUplcGenerator(firstArg).defaultRepresentation
 
         val fun = lowerSIR(app.f)
-        val arg = lowerSIR(app.arg).toRepresnetation(expectedRepresentation)
+        val arg = lowerSIR(app.arg).toRepresentation(expectedRepresentation)
 
         LoweredValue(
           app,

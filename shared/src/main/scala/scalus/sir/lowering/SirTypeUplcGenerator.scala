@@ -4,7 +4,7 @@ import scalus.sir.lowering.{LoweredValue, LoweringContext, SIRTypeUplcBooleanGen
 import scalus.sir.*
 import scalus.sir.SIR.Pattern
 import scalus.sir.SIR.Pattern.Constr
-import scalus.sir.SIRVarStorage.{DEFAULT, Data, LocalUPLC}
+import scalus.sir.SIRVarStorage.{DEFAULT, Data, ScottEncoding}
 import scalus.sir.lowering.Lowering.lowerSIR
 import scalus.uplc.*
 import scalus.uplc.TermDSL.*
@@ -14,26 +14,11 @@ trait SIRTypeUplcGenerator {
     /** Get default representation. Assumed that input parameters of functions and vars and are in
       * this representation.
       */
-    def defaultRepresentation: SIRVarStorage
+    def defaultRepresentation: LoweredValueRepresentation
 
-    /** term an
-      */
-    def uplcToData(input: Term)(using lctx: LoweringContext): Term
-
-    def toData(input: LoweredValue)(using lctx: LoweringContext): LoweredValue =
-        input.representation match
-            case SIRVarStorage.Data      => input
-            case SIRVarStorage.LocalUPLC => LoweredValue(input.sir, uplcToData(input.term), Data)
-
-    /** Get from data to term.
-      */
-    def dataToUplc(input: Term)(using lctx: LoweringContext): Term
-
-    def toTerm(input: LoweredValue)(using lctx: LoweringContext): LoweredValue =
-        input.representation match
-            case SIRVarStorage.Data =>
-                LoweredValue(input.sir, dataToUplc(input.term), LocalUPLC)
-            case SIRVarStorage.LocalUPLC => input
+    def toRepresentation(input: LoweredValue, representation: LoweredValueRepresentation)(using
+        lctx: LoweringContext
+    ): LoweredValue
 
     /** Generate constructor for this type. Always called on DataDecl.tp
       */
@@ -41,8 +26,8 @@ trait SIRTypeUplcGenerator {
         LoweringContext
     ): LoweredValue
 
-    /** Parse constructor for this type, Called
-      * @param unconstr
+    /** Parse constructor for this type, Called during generation of math statement.
+      * @param unconstr - pattern, names in pattern can be used when performing match.
       * @param body
       * @param x$3
       * @return
@@ -50,13 +35,13 @@ trait SIRTypeUplcGenerator {
     def genCaseLambda(
         unconstr: SIR.Pattern.Constr,
         body: SIR,
-        patternsRepresentation: SIRVarStorage,
-        pos: SIRPosition
+        patternRepresentation: LoweredValueRepresentation,
     )(using
         lctx: LoweringContext
-    ): Term = {
+    ): LoweredValue = {
         val paramNames = unconstr.constr.params.map(_.name)
-        lam(paramNames: _*)(lctx.lower(body).term)
+        lctx.lower(body)
+        val uplc = Term.lam(paramNames*)(lctx.lower(body).term)
     }
 
     def genSelect(sel: SIR.Select)(using LoweringContext): LoweredValue
@@ -97,7 +82,7 @@ object SIRTypeUplcBooleanGenerator extends SIRTypeUplcGenerator {
 
     }
 
-    def defaultRepresentation: SIRVarStorage = SIRVarStorage.LocalUPLC
+    def defaultRepresentation: SIRVarStorage = SIRVarStorage.ScottEncoding
 
     override def genConstr(constr: SIR.Constr)(using LoweringContext): LoweredValue =
         throw LoweringException("Constr can generated for boolean type", constr.anns.pos)
@@ -127,7 +112,7 @@ object SIRTypeUplcIntegerGenerator extends SIRTypeUplcGenerator {
         DefaultFun.UnIData.tpf $ input
     }
 
-    def defaultRepresentation: SIRVarStorage = SIRVarStorage.LocalUPLC
+    def defaultRepresentation: SIRVarStorage = SIRVarStorage.ScottEncoding
 
     override def genConstr(constr: SIR.Constr)(using LoweringContext): LoweredValue =
         throw LoweringException("Constr can generated for integer type", constr.anns.pos)
@@ -145,7 +130,7 @@ object SIRTypeUplcIntegerGenerator extends SIRTypeUplcGenerator {
   */
 class SIRTypeUplcListGenerator(elementType: SIRType) extends SIRTypeUplcGenerator {
 
-    override def defaultRepresentation: SIRVarStorage = SIRVarStorage.LocalUPLC
+    override def defaultRepresentation: SIRVarStorage = SIRVarStorage.ScottEncoding
 
     override def uplcToData(input: Term)(using lctx: LoweringContext): Term = {
         DefaultFun.ListData.tpf $ input
@@ -157,11 +142,11 @@ class SIRTypeUplcListGenerator(elementType: SIRType) extends SIRTypeUplcGenerato
     override def genConstr(constr: SIR.Constr)(using lctx: LoweringContext): LoweredValue = {
         val term = constr.name match
             case "scalus.prelude.List$.Nil" =>
-                if (constr.args.nonEmpty) then
+                if constr.args.nonEmpty then
                     throw LoweringException("Non-empy Nil constructor", constr.anns.pos)
                 DefaultFun.MkNilData.tpf
             case "scalus.prelude.List$.Cons" =>
-                if (constr.args.size != 2) then
+                if constr.args.size != 2 then
                     throw LoweringException("Non-empy Nil constructor", constr.anns.pos)
                 val head = lctx.lower(constr.args.head)
                 val tail = lctx.lower(constr.args.tail.head)
@@ -171,7 +156,7 @@ class SIRTypeUplcListGenerator(elementType: SIRType) extends SIRTypeUplcGenerato
                   s"Unknown constructor ${constr.name} for List",
                   constr.anns.pos
                 )
-        LoweredValue(constr, term, SIRVarStorage.LocalUPLC)
+        LoweredValue(constr, term, SIRVarStorage.ScottEncoding)
     }
 
     override def genSelect(sel: SIR.Select)(using
@@ -227,10 +212,10 @@ class SIRTypeUplcListGenerator(elementType: SIRType) extends SIRTypeUplcGenerato
 
         val loweredConsBody = lctx.lower(consCase.get.body)
         val br = loweredConsBody.representation
-        val loweredNilBody = lctx.lower(nilCase.get.body).toRepresnetation(br)
+        val loweredNilBody = lctx.lower(nilCase.get.body).toRepresentation(br)
 
         val term =
-            if (noBindingInConsCase) then
+            if noBindingInConsCase then
                 Term.Force(
                   DefaultFun.ChooseList.tpf $ loweredScrutinee.term $
                       Term.Delay(loweredNilBody.term) $
@@ -271,14 +256,14 @@ class SIRTypeUplcListGenerator(elementType: SIRType) extends SIRTypeUplcGenerato
   */
 class SIRTypeUplcConsGenerator(elemTp: SIRType) extends SIRTypeUplcGenerator {
 
-    override def defaultRepresentation: SIRVarStorage = SIRVarStorage.LocalUPLC
+    override def defaultRepresentation: SIRVarStorage = SIRVarStorage.ScottEncoding
 
     override def uplcToData(input: Term)(using lctx: LoweringContext): Term = {
         val listTerm = DefaultFun.ListData.tpf $ input
         val xVar = Term.Var(NamedDeBruijn("_x"))
         val checkList = Term.LamAbs(
           "_x",
-          DefaultFun.ChooseList.tpf $ xVar $ ~(genError("Empty list in cons")) $ ~xVar
+          DefaultFun.ChooseList.tpf $ xVar $ ~genError("Empty list in cons") $ ~xVar
         )
         checkList $ listTerm
     }
@@ -288,7 +273,7 @@ class SIRTypeUplcConsGenerator(elemTp: SIRType) extends SIRTypeUplcGenerator {
         val xVar = Term.Var(NamedDeBruijn("_x"))
         val checkList = Term.LamAbs(
           "_x",
-          DefaultFun.ChooseList.tpf $ xVar $ ~(genError("Empty list in cons")) $ ~xVar
+          DefaultFun.ChooseList.tpf $ xVar $ ~genError("Empty list in cons") $ ~xVar
         )
         checkList $ listTerm
     }
@@ -300,7 +285,7 @@ class SIRTypeUplcConsGenerator(elemTp: SIRType) extends SIRTypeUplcGenerator {
                 LoweredValue(sel, dataTerm, SIRVarStorage.Data)
             case "tail" =>
                 val listTerm = DefaultFun.TailList.tpf $ lctx.lower(sel.scrutinee).asTerm.term
-                LoweredValue(sel, listTerm, SIRVarStorage.LocalUPLC)
+                LoweredValue(sel, listTerm, SIRVarStorage.ScottEncoding)
             case _ =>
                 throw LoweringException(s"Unknown field ${sel.field} for Cons", sel.anns.pos)
     }
@@ -324,7 +309,7 @@ object AA_Generator_Constr extends SIRTypeUplcGenerator {
 
     val name = "scalus.sir.SIRUplcV3LoweringSpec$.AA"
 
-    override def defaultRepresentation: SIRVarStorage = SIRVarStorage.LocalUPLC
+    override def defaultRepresentation: SIRVarStorage = SIRVarStorage.ScottEncoding
 
     override def uplcToData(input: Term)(using lctx: LoweringContext): Term = {
         Term.Case(
@@ -364,14 +349,14 @@ object AA_Generator_Constr extends SIRTypeUplcGenerator {
             lctx.lower(constr.args.tail.head).asTerm.term
           )
         )
-        LoweredValue(constr, term, SIRVarStorage.LocalUPLC)
+        LoweredValue(constr, term, SIRVarStorage.ScottEncoding)
     }
 
     override def genSelect(sel: SIR.Select)(using lctx: LoweringContext): LoweredValue = {
         val loweredScrutinee = lctx.lower(sel.scrutinee).asTerm
         loweredScrutinee.representation match
             case SIRVarStorage.Data =>
-                val listTerm = (DefaultFun.UnListData.tpf $ loweredScrutinee.term)
+                val listTerm = DefaultFun.UnListData.tpf $ loweredScrutinee.term
                 val term = sel.field match
                     case "flag" =>
                         DefaultFun.HeadList.tpf $ listTerm
@@ -380,24 +365,24 @@ object AA_Generator_Constr extends SIRTypeUplcGenerator {
                     case _ =>
                         throw LoweringException(s"Unknown field ${sel.field} for A", sel.anns.pos)
                 LoweredValue(sel, term, SIRVarStorage.Data)
-            case SIRVarStorage.LocalUPLC =>
+            case SIRVarStorage.ScottEncoding =>
                 val caseFun = sel.field match
                     case "flag" => lam("flag", "a") { vr("flag") }
                     case "a"    => lam("flag", "a") { vr("a") }
                     case _ =>
                         throw LoweringException(s"Unknown field ${sel.field} for A", sel.anns.pos)
                 val term = Term.Case(loweredScrutinee.term, List(caseFun))
-                LoweredValue(sel, term, SIRVarStorage.LocalUPLC)
+                LoweredValue(sel, term, SIRVarStorage.ScottEncoding)
     }
 
     override def genMatch(matchData: SIR.Match)(using lctx: LoweringContext): LoweredValue = {
         // one case - 0,  so we can just apply one.
-        if (matchData.cases.length != 1) then
+        if matchData.cases.length != 1 then
             throw LoweringException(
               s" AA pattern should have only one case, but ${matchData.cases.length} found",
               matchData.anns.pos
             )
-        val loweredScrutine = lctx.lower(matchData.scrutinee).asTerm
+        val loweredScrutine = lctx.lower(matchData.scrutinee)
         val caseData = matchData.cases.head
         val unconstr = caseData.pattern match
             case unconstr @ SIR.Pattern.Constr(constrDecl, List(flag, a), _) => unconstr
@@ -406,19 +391,28 @@ object AA_Generator_Constr extends SIRTypeUplcGenerator {
                   s"Unknown pattern ${caseData.pattern} for AA",
                   caseData.anns.pos
                 )
-        val loweredBodyLambda = genCaseLambda(unconstr, caseData.body, caseData.anns.pos)
+        val loweredBodyLambda = genCaseLambda(
+          unconstr,
+          caseData.body,
+          loweredScrutine.representation,
+          caseData.anns.pos
+        )
         loweredScrutine.representation match
-            case SIRVarStorage.LocalUPLC =>
+            case SIRVarStorage.ScottEncoding =>
                 val term = Term.Case(loweredScrutine.term, List(loweredBodyLambda))
-                LoweredValue(matchData, term, SIRVarStorage.LocalUPLC)
+                LoweredValue(matchData, term, SIRVarStorage.ScottEncoding)
             case SIRVarStorage.Data =>
-                val listTerm = (DefaultFun.UnListData.tpf $ loweredScrutine.term)
+                val listTerm = DefaultFun.UnListData.tpf $ loweredScrutine.term
                 val listName = lctx.uniqueVarName("_list")
-                val listAcceptor = lam(listName)(
-                  loweredBodyLambda $ (DefaultFun.HeadList.tpf $ listTerm) $ (
-                    DefaultFun.HeadList.tpf $ (DefaultFun.TailList.tpf $ listTerm)
+                val listVar = Term.Var(NamedDeBruijn(listName))
+                val listAcceptor = Term.lam(listName)(
+                  loweredBodyLambda $ (DefaultFun.HeadList.tpf $ listVar) $ (
+                    DefaultFun.HeadList.tpf $ (DefaultFun.TailList.tpf $ listVar)
                   )
                 )
+                val term = Term.Apply(listAcceptor, listTerm)
+                LoweredValue(matchData, term, loweredBodyLambda)
+
     }
 
 }
@@ -427,12 +421,12 @@ object AA_Generator_List extends SIRTypeUplcGenerator {
 
     val name = "scalus.sir.SIRUplcV3LoweringSpec$.AA"
 
-    override def defaultRepresentation: SIRVarStorage = SIRVarStorage.LocalUPLC
+    override def defaultRepresentation: SIRVarStorage = SIRVarStorage.ScottEncoding
 
     override def toData(input: LoweredValue)(using lctx: LoweringContext): LoweredValue = {
         input.representation match
             case SIRVarStorage.Data => input
-            case SIRVarStorage.LocalUPLC =>
+            case SIRVarStorage.ScottEncoding =>
                 val term = DefaultFun.ListData.tpf $ input.term
                 LoweredValue(input.sir, term, SIRVarStorage.Data)
     }
@@ -449,7 +443,7 @@ class SIRCaseClassUplcGenerator_List(tpc: SIRType.CaseClass) extends SIRTypeUplc
     override def toData(input: LoweredValue)(using lctx: LoweringContext): LoweredValue = {
         input.representation match
             case SIRVarStorage.Data => input
-            case SIRVarStorage.LocalUPLC =>
+            case SIRVarStorage.ScottEncoding =>
                 val term = DefaultFun.UnListData.tpf $ input.term
                 LoweredValue(input.sir, term, SIRVarStorage.Data)
     }

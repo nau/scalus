@@ -115,7 +115,8 @@ class SimpleSirToUplcLowering(sir: SIR, generateErrorTraces: Boolean = false):
                     if isUnchecked && cases.length < allConstructors.size then
                         cases :+ SIR.Case(
                           Pattern.Wildcard,
-                          SIR.Error("Unexpected case", anns)
+                          SIR.Error("Unexpected case", anns),
+                          anns
                         )
                     else cases
 
@@ -123,7 +124,7 @@ class SimpleSirToUplcLowering(sir: SIR, generateErrorTraces: Boolean = false):
 
                 while casesIter.hasNext do
                     casesIter.next() match
-                        case c @ SIR.Case(Pattern.Constr(constrDecl, _, _), _) =>
+                        case c @ SIR.Case(Pattern.Constr(constrDecl, _, _), _, _) =>
                             matchedConstructors += constrDecl.name // collect all matched constructors
                             expandedCases += c
                         case SIR.Case(Pattern.Wildcard, rhs, anns) =>
