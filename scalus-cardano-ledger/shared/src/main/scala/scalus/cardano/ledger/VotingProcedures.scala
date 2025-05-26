@@ -15,6 +15,7 @@ import scala.collection.immutable.Map
   */
 case class VotingProcedures(procedures: Map[Voter, Map[GovActionId, VotingProcedure]])
     derives Codec {
+    require(procedures.nonEmpty, "VotingProcedures can be empty")
 
     /** Checks if there are any voting procedures.
       *

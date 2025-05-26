@@ -89,6 +89,7 @@ object ScriptHash {
     }
 }
 
+type PolicyHash = ScriptHash
 type PolicyId = ScriptHash
 
 type MultiAsset[A] = Map[PolicyId, Map[AssetName, A]]
@@ -252,7 +253,7 @@ final case class Slot(slot: Long) derives Codec {
   *
   * This is simply a type alias for Hash32 to provide better type safety and readability.
   */
-type AuxiliaryDataHash = Hash32
+final case class AuxiliaryDataHash(hash: Hash32) derives Codec
 
 /** Represents a hash of the script data
   *
@@ -261,7 +262,7 @@ type AuxiliaryDataHash = Hash32
   *
   * This is simply a type alias for Hash32 to provide better type safety and readability.
   */
-type ScriptDataHash = Hash32
+final case class ScriptDataHash(hash: Hash32) derives Codec
 
 /** Represents execution units for Plutus scripts in Cardano */
 case class ExUnits(

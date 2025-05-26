@@ -60,7 +60,6 @@ lazy val root: Project = project
       scalusTestkit.native,
       scalusExamples.js,
       scalusExamples.jvm,
-      // designPatterns.js,
       scalusDesignPatterns,
       bench,
       `scalus-bloxbean-cardano-client-lib`,
@@ -140,7 +139,8 @@ lazy val scalusPlugin = project
           val log = streams.value.log
 
           sharedFiles.foreach { file =>
-              val baseDir = baseDirectory.value / ".." / "shared" / "src" / "main" / "scala"
+              val baseDir =
+                  baseDirectory.value / ".." / "scalus-core" / "shared" / "src" / "main" / "scala"
               val source = baseDir / file
               val target = targetDir / file
 
@@ -201,7 +201,7 @@ lazy val PluginDependency: List[Def.Setting[?]] = List(scalacOptions ++= {
 
 // Scalus Core and Standard Library for JVM and JS
 lazy val scalus = crossProject(JSPlatform, JVMPlatform, NativePlatform)
-    .in(file("."))
+    .in(file("scalus-core"))
     .settings(
       name := "scalus",
       scalaVersion := scalaVersion.value,
@@ -319,37 +319,6 @@ lazy val scalusDesignPatterns = project
       Test / fork := true,
       trackInternalDependencies := TrackLevel.TrackIfMissing,
     )
-
-/*
-lazy val examples = project
-    .in(file("examples"))
-    .dependsOn(scalus.jvm, `scalus-bloxbean-cardano-client-lib`)
-    .disablePlugins(MimaPlugin) // disable Migration Manager for Scala
-    .settings(
-      PluginDependency,
-      scalacOptions ++= commonScalacOptions,
-      publish / skip := true,
-      libraryDependencies += "com.bloxbean.cardano" % "cardano-client-backend-blockfrost" % "0.6.4"
-    )
- */
-
-/*
-lazy val `examples-js` = project
-    .enablePlugins(ScalaJSPlugin, ScalaJSBundlerPlugin)
-    .in(file("examples-js"))
-    .dependsOn(scalus.js)
-    .disablePlugins(MimaPlugin) // disable Migration Manager for Scala
-    .settings(
-      publish / skip := true,
-      scalacOptions ++= commonScalacOptions,
-      Compile / npmDependencies += "@noble/curves" -> "1.4.2",
-      scalaJSUseMainModuleInitializer := false,
-      scalaJSLinkerConfig ~= {
-          _.withModuleKind(ModuleKind.CommonJSModule)
-      },
-      PluginDependency
-    )
- */
 
 // Bloxbean Cardano Client Lib integration and Tx Evaluator implementation
 lazy val `scalus-bloxbean-cardano-client-lib` = project

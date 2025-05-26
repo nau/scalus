@@ -10,11 +10,11 @@ enum Value:
     /** ADA value with multi-assets */
     case MultiAsset(
         coin: Coin,
-        assets: Map[PolicyId, Map[AssetName, Long]]
+        assets: scalus.cardano.ledger.MultiAsset[Long]
     )
 
     /** Get the multi-asset component if present, empty otherwise */
-    def multiAsset: Map[PolicyId, Map[AssetName, Long]] = this match
+    def multiAsset: scalus.cardano.ledger.MultiAsset[Long] = this match
         case Ada(_)                => Map.empty
         case MultiAsset(_, assets) => assets
 
@@ -26,7 +26,7 @@ object Value:
     def lovelace(amount: Long): Value = Value.Ada(Coin(amount))
 
     /** Create a Value from coin and multi-asset */
-    def apply(coin: Coin, multiAsset: Map[PolicyId, Map[AssetName, Long]] = Map.empty): Value =
+    def apply(coin: Coin, multiAsset: scalus.cardano.ledger.MultiAsset[Long] = Map.empty): Value =
         if multiAsset.isEmpty then Value.Ada(coin)
         else
             // Validate multi-asset map
@@ -34,7 +34,7 @@ object Value:
             Value.MultiAsset(coin, multiAsset)
 
     /** Validate a multi-asset map according to Cardano rules */
-    private def validateMultiAsset(multiAsset: Map[PolicyId, Map[AssetName, Long]]): Unit =
+    private def validateMultiAsset(multiAsset: scalus.cardano.ledger.MultiAsset[Long]): Unit =
         // Validate that all policy maps are non-empty
         require(
           multiAsset.forall { case (_, assets) => assets.nonEmpty },
@@ -62,7 +62,7 @@ object Value:
     /** Helper method to write MultiAsset as CBOR */
     private def writeMultiAsset(
         w: Writer,
-        multiAsset: Map[PolicyId, Map[AssetName, Long]]
+        multiAsset: scalus.cardano.ledger.MultiAsset[Long]
     ): Writer =
         // Write the map header with number of policies
         w.writeMapHeader(multiAsset.size)
@@ -90,7 +90,7 @@ object Value:
                     r.validationFailure(s"Expected 2 elements for MultiAssetValue, got $size")
 
                 val coin = r.read[Coin]()
-                val multiAsset = r.read[Map[PolicyId, Map[AssetName, Long]]]()
+                val multiAsset = r.read[scalus.cardano.ledger.MultiAsset[Long]]()
                 Value.MultiAsset(coin, multiAsset)
             else
                 // Single coin value

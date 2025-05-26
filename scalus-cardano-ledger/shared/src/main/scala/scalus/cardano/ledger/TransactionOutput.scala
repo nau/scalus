@@ -25,7 +25,7 @@ object TransactionOutput:
     /** CBOR encoder for TransactionOutput */
     given Encoder[TransactionOutput] with
         def write(w: Writer, value: TransactionOutput): Writer = value match
-            case TransactionOutput.Shelley(address, val1, datumHashOpt) =>
+            case TransactionOutput.Shelley(address, value, datumHashOpt) =>
                 val size = if datumHashOpt.isDefined then 3 else 2
                 w.writeArrayHeader(size)
 
@@ -33,7 +33,7 @@ object TransactionOutput:
                 w.write(address)
 
                 // Write value
-                w.write(val1)
+                w.write(value)
 
                 // Write optional datum hash
                 datumHashOpt.foreach { hash =>

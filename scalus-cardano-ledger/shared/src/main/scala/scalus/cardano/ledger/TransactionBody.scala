@@ -26,7 +26,7 @@ case class TransactionBody(
     withdrawals: Option[Withdrawals] = None,
 
     /** Auxiliary data hash */
-    auxiliaryDataHash: Option[Hash32] = None,
+    auxiliaryDataHash: Option[AuxiliaryDataHash] = None,
 
     /** Transaction validity start (transaction is invalid before this slot) */
     validityStartSlot: Option[Long] = None,
@@ -35,13 +35,13 @@ case class TransactionBody(
     mint: Option[Mint] = None,
 
     /** Script data hash */
-    scriptDataHash: Option[Hash32] = None,
+    scriptDataHash: Option[ScriptDataHash] = None,
 
     /** Collateral inputs */
     collateralInputs: Option[Set[TransactionInput]] = None,
 
     /** Required signers */
-    requiredSigners: Option[Set[Hash28]] = None,
+    requiredSigners: Option[Set[AddrKeyHash]] = None,
 
     /** Network ID */
     networkId: Option[Int] = None,
@@ -67,12 +67,6 @@ case class TransactionBody(
     /** Transaction deposit return */
     donation: Option[Coin] = None
 ):
-    /** Validate that inputs are non-empty */
-    require(inputs.nonEmpty, "Transaction must have at least one input")
-
-    /** Validate that outputs are non-empty */
-    require(outputs.nonEmpty, "Transaction must have at least one output")
-
     /** Validate optional collateral inputs */
     require(
       collateralInputs.forall(_.nonEmpty),
@@ -288,12 +282,12 @@ object TransactionBody:
             var ttl: Option[Long] = None
             var certificates: Option[Set[Certificate]] = None
             var withdrawals: Option[Withdrawals] = None
-            var auxiliaryDataHash: Option[Hash32] = None
+            var auxiliaryDataHash: Option[AuxiliaryDataHash] = None
             var validityStartSlot: Option[Long] = None
             var mint: Option[Mint] = None
-            var scriptDataHash: Option[Hash32] = None
+            var scriptDataHash: Option[ScriptDataHash] = None
             var collateralInputs: Option[Set[TransactionInput]] = None
-            var requiredSigners: Option[Set[Hash28]] = None
+            var requiredSigners: Option[Set[AddrKeyHash]] = None
             var networkId: Option[Int] = None
             var collateralReturnOutput: Option[TransactionOutput] = None
             var totalCollateral: Option[Coin] = None
@@ -327,7 +321,7 @@ object TransactionBody:
                         withdrawals = Some(r.read[Withdrawals]())
 
                     case 7 => // Auxiliary data hash
-                        auxiliaryDataHash = Some(r.read[Hash32]())
+                        auxiliaryDataHash = Some(r.read[AuxiliaryDataHash]())
 
                     case 8 => // Validity start slot
                         validityStartSlot = Some(r.readLong())
@@ -336,7 +330,7 @@ object TransactionBody:
                         mint = Some(r.read[MultiAsset[Long]]())
 
                     case 11 => // Script data hash
-                        scriptDataHash = Some(r.read[Hash32]())
+                        scriptDataHash = Some(r.read[ScriptDataHash]())
 
                     case 13 => // Collateral inputs
                         collateralInputs = readSet(r)
@@ -418,7 +412,7 @@ object TransactionBody:
             if tag.code != 258 then
                 r.validationFailure(s"Expected tag 258 for definite Set, got $tag")
             val set = r.read[Set[A]]()
-            if set.isEmpty then r.validationFailure("Set must be non-empty")
+//            if set.isEmpty then r.validationFailure("Set must be non-empty")
             Some(set)
         else
             val set = r.read[Set[A]]()

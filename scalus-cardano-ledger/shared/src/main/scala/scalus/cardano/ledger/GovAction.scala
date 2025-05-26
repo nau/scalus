@@ -24,7 +24,7 @@ enum GovAction {
     case ParameterChange(
         prevActionId: Option[GovActionId],
         protocolParamUpdate: ProtocolParamUpdate,
-        policyHash: Option[ScriptHash]
+        policyHash: Option[PolicyHash]
     )
 
     /** An action to initiate a hard fork.
@@ -49,9 +49,8 @@ enum GovAction {
       *   Optional policy hash for a treasury withdrawal policy
       */
     case TreasuryWithdrawals(
-        prevActionId: Option[GovActionId],
         withdrawals: Map[RewardAccount, Coin],
-        policyHash: Option[ScriptHash]
+        policyHash: Option[PolicyHash]
     )
 
     /** An action to express no confidence in the current constitutional committee.
@@ -119,10 +118,9 @@ object GovAction {
                     .write(protocolVersion)
                     .writeArrayClose()
 
-            case GovAction.TreasuryWithdrawals(prevActionId, withdrawals, policyHash) =>
-                w.writeArrayOpen(4)
+            case GovAction.TreasuryWithdrawals(withdrawals, policyHash) =>
+                w.writeArrayOpen(3)
                     .writeInt(2) // Tag for TreasuryWithdrawals
-                    .write(prevActionId)
                     .write(withdrawals)
                     .write(policyHash)
                     .writeArrayClose()
@@ -168,7 +166,7 @@ object GovAction {
                 case 0 => // ParameterChange
                     val prevActionId = r.read[Option[GovActionId]]()
                     val protocolParamUpdate = r.read[ProtocolParamUpdate]()
-                    val policyHash = r.read[Option[ScriptHash]]()
+                    val policyHash = r.read[Option[PolicyHash]]()
                     GovAction.ParameterChange(prevActionId, protocolParamUpdate, policyHash)
 
                 case 1 => // HardForkInitiation
@@ -177,11 +175,10 @@ object GovAction {
                     GovAction.HardForkInitiation(prevActionId, protocolVersion)
 
                 case 2 => // TreasuryWithdrawals
-                    val prevActionId = r.read[Option[GovActionId]]()
                     // Read withdrawals map (as ByteString -> Coin)
                     val withdrawals = r.read[Map[RewardAccount, Coin]]()
-                    val policyHash = r.read[Option[ScriptHash]]()
-                    GovAction.TreasuryWithdrawals(prevActionId, withdrawals, policyHash)
+                    val policyHash = r.read[Option[PolicyHash]]()
+                    GovAction.TreasuryWithdrawals(withdrawals, policyHash)
 
                 case 3 => // NoConfidence
                     val prevActionId = r.read[Option[GovActionId]]()

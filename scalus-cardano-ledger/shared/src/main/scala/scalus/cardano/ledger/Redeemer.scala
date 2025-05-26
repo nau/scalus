@@ -46,23 +46,25 @@ case class Redeemer(
     require(index >= 0, s"Redeemer index must be non-negative, got $index")
 
 /** Represents a collection of redeemers in the transaction witness set */
-enum Redeemers:
-    /** Array-based representation (legacy format) */
-    case Array(redeemers: Seq[Redeemer])
-
-    /** Map-based representation (new format) Maps (tag, index) pairs to (data, exUnits) pairs
-      */
-    case Map(redeemers: immutable.Map[(RedeemerTag, Int), (Data, ExUnits)])
-
+sealed trait Redeemers:
     /** Convert to list of Redeemer objects */
     def toSeq: Seq[Redeemer] = this match
-        case Array(list) => list
-        case Map(map) =>
+        case Redeemers.Array(list) => list
+        case Redeemers.Map(map) =>
             map.map { case ((tag, index), (data, exUnits)) =>
                 Redeemer(tag, index, data, exUnits)
             }.toList
 
 object Redeemers:
+    /** Array-based representation (legacy format) */
+    case class Array(redeemers: Seq[Redeemer]) extends Redeemers:
+        require(redeemers.nonEmpty, "Must have at least one redeemer")
+
+    /** Map-based representation (new format) Maps (tag, index) pairs to (data, exUnits) pairs
+      */
+    case class Map(redeemers: immutable.Map[(RedeemerTag, Int), (Data, ExUnits)]) extends Redeemers:
+        require(redeemers.nonEmpty, "Must have at least one redeemer")
+
     /** CBOR encoder for Redeemers */
     given Encoder[Redeemers] with
         def write(w: Writer, value: Redeemers): Writer = value match

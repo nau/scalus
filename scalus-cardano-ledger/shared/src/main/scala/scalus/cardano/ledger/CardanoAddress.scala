@@ -1,603 +1,408 @@
 package scalus.cardano.ledger
 
 import scalus.builtin.ByteString
-
 import scala.util.{Failure, Success, Try}
 
-/** Implementation of Cardano CIP-19 address format. Handles the binary structure of Cardano
-  * addresses including Shelley, Stake, and Byron addresses. Uses strongly typed Hash28 classes for
-  * payment, stake and script hashes.
+/** Network identification for Cardano addresses */
+enum Network {
+    case Testnet
+    case Mainnet
+    case Other(v: Byte)
+
+    /** Check if this is mainnet */
+    def isMainnet: Boolean = this == Mainnet
+
+    /** Get the numeric value for this network */
+    def value: Byte = this match
+        case Testnet  => 0x00
+        case Mainnet  => 0x01
+        case Other(v) => v
+}
+
+object Network {
+
+    /** Create Network from byte value */
+    def fromByte(value: Byte): Network = value match
+        case 0x00 => Testnet
+        case 0x01 => Mainnet
+        case v    => Other(v)
+}
+
+/** Implementation of Cardano CIP-19 address format following Rust pallas implementation structure.
+  * Handles the binary structure of Cardano addresses including Shelley, Stake, and Byron addresses.
+  * Uses strongly typed Hash28 classes for payment, stake and script hashes.
   */
 object CardanoAddress {
-    // Network tag constants
-    val TestnetTag: Byte = 0x00
-    val MainnetTag: Byte = 0x01
 
-    // Address header type constants (bits 7-4 in header byte)
-    object HeaderType {
-        // Shelley addresses
-        val PaymentKeyHashWithStakeKeyHash: Byte = 0x00
-        val ScriptHashWithStakeKeyHash: Byte = 0x01
-        val PaymentKeyHashWithScriptHash: Byte = 0x02
-        val ScriptHashWithScriptHash: Byte = 0x03
-        val PaymentKeyHashWithPointer: Byte = 0x04
-        val ScriptHashWithPointer: Byte = 0x05
-        val PaymentKeyHashOnly: Byte = 0x06
-        val ScriptHashOnly: Byte = 0x07
+    /** Type aliases for clarity - matching Rust implementation */
+    type PaymentKeyHash = AddrKeyHash
+    type StakeKeyHash = Hash28
+    type TxIdx = Long
+    type CertIdx = Long
 
-        // Byron addresses
-        val Byron: Byte = 0x08
-
-        // Stake addresses
-        val StakeKeyHash: Byte = 0x0e
-        val StakeScriptHash: Byte = 0x0f
-    }
-
-    // Byron address minimal size
-    val ByronAddressMinSize: Int = 29 // Minimum size of a Byron address (header + minimal payload)
-
-    /** Represents a pointer to a stake registration certificate on the blockchain
+    /** Represents a pointer to a stake registration certificate on the blockchain Used in pointer
+      * addresses to reference stake credentials indirectly
       *
       * @param slot
-      *   Transaction slot number
-      * @param txIndex
+      *   Transaction slot number where the stake registration occurred
+      * @param txIdx
       *   Transaction index within the slot
-      * @param certIndex
+      * @param certIdx
       *   Certificate index within the transaction
       */
-    case class Pointer(slot: Long, txIndex: Int, certIndex: Int)
+    case class Pointer(slot: Slot, txIdx: TxIdx, certIdx: CertIdx) {
 
-    /** Represents the different address types in Cardano
-      */
-    enum AddressType {
-        // Shelley address types
-        case PaymentKeyHashWithStakeKeyHash(
-            paymentKeyHash: Hash28,
-            stakeKeyHash: Hash28,
-            networkTag: Byte
-        )
-        case ScriptHashWithStakeKeyHash(scriptHash: Hash28, stakeKeyHash: Hash28, networkTag: Byte)
-        case PaymentKeyHashWithScriptHash(
-            paymentKeyHash: Hash28,
-            scriptHash: Hash28,
-            networkTag: Byte
-        )
-        case ScriptHashWithScriptHash(scriptHash1: Hash28, scriptHash2: Hash28, networkTag: Byte)
-        case PaymentKeyHashWithPointer(paymentKeyHash: Hash28, pointer: Pointer, networkTag: Byte)
-        case ScriptHashWithPointer(scriptHash: Hash28, pointer: Pointer, networkTag: Byte)
-        case PaymentKeyHashOnly(paymentKeyHash: Hash28, networkTag: Byte)
-        case ScriptHashOnly(scriptHash: Hash28, networkTag: Byte)
+        /** Serialize pointer to variable-length encoded bytes following CIP-19 specification */
+        def toBytes: Array[Byte] =
+            encodeVariableLengthUInt(slot.slot) ++
+                encodeVariableLengthUInt(txIdx) ++
+                encodeVariableLengthUInt(certIdx)
 
-        // Byron address type - stored as ByteString since it has a complex internal structure
-        case Byron(addressBytes: ByteString)
-
-        // Stake address types
-        case StakeKeyHash(stakeKeyHash: Hash28, networkTag: Byte)
-        case StakeScriptHash(scriptHash: Hash28, networkTag: Byte)
+        /** Convert to hex string for debugging */
+        def toHex: String = toBytes.map("%02x".format(_)).mkString
     }
 
-    /** Encodes a Cardano address to its canonical string representation
-      *
-      * @param addressType
-      *   The Cardano address to encode
-      * @return
-      *   Success with encoded address string or Failure with exception
-      */
-    def encode(addressType: AddressType): Try[String] = Try {
-        val bytes = serializeAddress(addressType)
+    object Pointer {
 
-        addressType match {
-            case AddressType.Byron(rawBytes) =>
-                // Byron addresses are encoded as Base58
-                // Not implemented in this version as we're focusing on Shelley addresses
-                throw new UnsupportedOperationException(
-                  "Byron address encoding not implemented yet"
-                )
+        /** Parse pointer from bytes starting at given index
+          *
+          * @param bytes
+          *   Source byte array
+          * @param startIndex
+          *   Index to start parsing from
+          * @return
+          *   Tuple of (parsed pointer, bytes consumed)
+          */
+        def parseFrom(bytes: Array[Byte], startIndex: Int): Try[(Pointer, Int)] = Try {
+            val (slot, used1) = decodeVariableLengthUInt(bytes, startIndex)
+            val (txIdx, used2) = decodeVariableLengthUInt(bytes, startIndex + used1)
+            val (certIdx, used3) = decodeVariableLengthUInt(bytes, startIndex + used1 + used2)
 
-            case _ =>
-                // All other address types use Bech32
-                val hrp = determineHrpPrefix(addressType)
-                Bech32.encodeFrom5Bit(hrp, Bech32.to5Bit(bytes.bytes))
+            (Pointer(Slot(slot), txIdx, certIdx), used1 + used2 + used3)
+        }
+
+        /** Parse pointer from complete byte array */
+        def fromBytes(bytes: Array[Byte]): Try[Pointer] =
+            parseFrom(bytes, 0).map(_._1)
+    }
+
+    /** The payment part of a Shelley address - can be either a key hash or script hash */
+    enum ShelleyPaymentPart {
+        case Key(hash: PaymentKeyHash)
+        case Script(hash: ScriptHash)
+
+        /** Get the underlying hash regardless of type */
+        def asHash: Hash28 = this match
+            case Key(h)    => h.hash
+            case Script(h) => h.hash
+
+        /** Check if this represents a script */
+        def isScript: Boolean = this match
+            case Script(_) => true
+            case Key(_)    => false
+
+        /** Convert to bytes */
+        def toBytes: ByteString = asHash.bytes
+
+        /** Convert to hex string */
+        def toHex: String = asHash.toString // Assuming Hash28 has proper toString
+    }
+
+    object ShelleyPaymentPart {
+
+        /** Create from key hash */
+        def keyHash(hash: PaymentKeyHash): ShelleyPaymentPart = Key(hash)
+
+        /** Create from script hash */
+        def scriptHash(hash: ScriptHash): ShelleyPaymentPart = Script(hash)
+    }
+
+    /** The delegation part of a Shelley address - various ways to specify stake credentials */
+    enum ShelleyDelegationPart {
+        case Key(hash: StakeKeyHash)
+        case Script(hash: ScriptHash)
+        case Pointer(pointer: CardanoAddress.Pointer)
+        case Null // Enterprise addresses have no delegation part
+
+        /** Get hash if this delegation part contains one */
+        def asHash: Option[Hash28] = this match
+            case Key(h)                                  => Some(h)
+            case Script(h)                               => Some(h.hash)
+            case ShelleyDelegationPart.Pointer(_) | Null => None
+
+        /** Check if this represents a script */
+        def isScript: Boolean = this match
+            case Script(_) => true
+            case _         => false
+
+        /** Convert to bytes */
+        def toBytes: ByteString = this match
+            case Key(h)                           => h.bytes
+            case Script(h)                        => h.hash.bytes
+            case ShelleyDelegationPart.Pointer(p) => ByteString.fromArray(p.toBytes)
+            case Null                             => ByteString.empty
+
+        /** Convert to hex string */
+        def toHex: String = toBytes.toString
+    }
+
+    object ShelleyDelegationPart {
+
+        /** Create from key hash */
+        def keyHash(hash: StakeKeyHash): ShelleyDelegationPart = Key(hash)
+
+        /** Create from script hash */
+        def scriptHash(hash: ScriptHash): ShelleyDelegationPart = Script(hash)
+
+        /** Create from pointer bytes */
+        def fromPointer(bytes: Array[Byte]): Try[ShelleyDelegationPart] =
+            CardanoAddress.Pointer.fromBytes(bytes).map(Pointer.apply)
+    }
+
+    /** The payload of a Stake address - either stake key or script */
+    enum StakePayload {
+        case Stake(hash: StakeKeyHash)
+        case Script(hash: ScriptHash)
+
+        /** Get the underlying hash */
+        def asHash: Hash28 = this match
+            case Stake(h)  => h
+            case Script(h) => h.hash
+
+        /** Check if this represents a script */
+        def isScript: Boolean = this match
+            case Script(_) => true
+            case Stake(_)  => false
+
+        /** Convert to bytes */
+        def toBytes: ByteString = asHash.bytes
+
+        /** Convert to hex string */
+        def toHex: String = asHash.toString
+    }
+
+    object StakePayload {
+
+        /** Create from stake key hash */
+        def stakeKey(hash: StakeKeyHash): StakePayload = Stake(hash)
+
+        /** Create from script hash */
+        def script(hash: ScriptHash): StakePayload = Script(hash)
+
+        /** Parse from bytes - assumes 28-byte hash */
+        def fromBytes(bytes: Array[Byte], isScript: Boolean): Try[StakePayload] = Try {
+            require(bytes.length == 28, s"Invalid hash size: ${bytes.length}, expected 28")
+            val hash = ByteString.fromArray(bytes)
+            if isScript then Script(ScriptHash(Hash28(hash))) else Stake(Hash28(hash))
         }
     }
 
-    /** Determines the human-readable prefix for Bech32 encoding based on address type
-      *
-      * @param addressType
-      *   The address type to get prefix for
-      * @return
-      *   The appropriate hrp prefix
-      */
-    private def determineHrpPrefix(addressType: AddressType): String = {
-        // Extract network tag when available
-        val isTestnet = addressType match {
-            case AddressType.Byron(_) => false // Default to mainnet for Byron addresses
-            case AddressType.PaymentKeyHashWithStakeKeyHash(_, _, tag) => tag == TestnetTag
-            case AddressType.ScriptHashWithStakeKeyHash(_, _, tag)     => tag == TestnetTag
-            case AddressType.PaymentKeyHashWithScriptHash(_, _, tag)   => tag == TestnetTag
-            case AddressType.ScriptHashWithScriptHash(_, _, tag)       => tag == TestnetTag
-            case AddressType.PaymentKeyHashWithPointer(_, _, tag)      => tag == TestnetTag
-            case AddressType.ScriptHashWithPointer(_, _, tag)          => tag == TestnetTag
-            case AddressType.PaymentKeyHashOnly(_, tag)                => tag == TestnetTag
-            case AddressType.ScriptHashOnly(_, tag)                    => tag == TestnetTag
-            case AddressType.StakeKeyHash(_, tag)                      => tag == TestnetTag
-            case AddressType.StakeScriptHash(_, tag)                   => tag == TestnetTag
+    /** A decoded Shelley address containing network, payment and delegation parts */
+    case class ShelleyAddress(
+        network: Network,
+        payment: ShelleyPaymentPart,
+        delegation: ShelleyDelegationPart
+    ) {
+
+        /** Get numeric type ID for this address following CIP-19 specification */
+        def typeId: Byte = (payment, delegation) match
+            case (ShelleyPaymentPart.Key(_), ShelleyDelegationPart.Key(_))        => 0x00
+            case (ShelleyPaymentPart.Script(_), ShelleyDelegationPart.Key(_))     => 0x01
+            case (ShelleyPaymentPart.Key(_), ShelleyDelegationPart.Script(_))     => 0x02
+            case (ShelleyPaymentPart.Script(_), ShelleyDelegationPart.Script(_))  => 0x03
+            case (ShelleyPaymentPart.Key(_), ShelleyDelegationPart.Pointer(_))    => 0x04
+            case (ShelleyPaymentPart.Script(_), ShelleyDelegationPart.Pointer(_)) => 0x05
+            case (ShelleyPaymentPart.Key(_), ShelleyDelegationPart.Null)          => 0x06
+            case (ShelleyPaymentPart.Script(_), ShelleyDelegationPart.Null)       => 0x07
+
+        /** Build header byte combining type ID and network */
+        def toHeader: Byte = ((typeId << 4) | (network.value & 0x0f)).toByte
+
+        /** Get human-readable prefix for bech32 encoding */
+        def hrp: Try[String] = network match
+            case Network.Testnet  => Success("addr_test")
+            case Network.Mainnet  => Success("addr")
+            case Network.Other(x) => Failure(new IllegalArgumentException(s"Unknown network: $x"))
+
+        /** Serialize address to bytes */
+        def toBytes: ByteString = {
+            val header = ByteString(toHeader)
+            val paymentBytes = payment.toBytes
+            val delegationBytes = delegation.toBytes
+            header ++ paymentBytes ++ delegationBytes
         }
 
-        // Determine if it's a stake address
-        val isStakeAddress = addressType match {
-            case AddressType.StakeKeyHash(_, _)    => true
-            case AddressType.StakeScriptHash(_, _) => true
-            case _                                 => false
-        }
+        /** Convert to hex string */
+        def toHex: String = toBytes.toString
 
-        // Return appropriate prefix based on network and address type
-        if isStakeAddress then {
-            if isTestnet then "stake_test" else "stake"
-        } else {
-            if isTestnet then "addr_test" else "addr"
-        }
+        /** Encode to bech32 string */
+        def toBech32: Try[String] = for {
+            prefix <- hrp
+            bytes = toBytes.bytes
+            encoded <- Try(Bech32.encodeFrom5Bit(prefix, Bech32.to5Bit(bytes)))
+        } yield encoded
+
+        /** Check if address contains any script hashes */
+        def hasScript: Boolean = payment.isScript || delegation.isScript
+
+        /** Check if this is an enterprise address (no delegation) */
+        def isEnterprise: Boolean = delegation == ShelleyDelegationPart.Null
     }
 
-    /** Serializes an address type to its binary representation
-      *
-      * @param addressType
-      *   The address type to serialize
-      * @return
-      *   ByteString representing the serialized address
-      */
-    def serializeAddress(addressType: AddressType): ByteString = {
-        addressType match {
-            case AddressType.Byron(rawBytes) =>
-                // Byron addresses are already in serialized form
-                rawBytes
+    /** A decoded Stake address for delegation purposes */
+    case class StakeAddress(network: Network, payload: StakePayload) {
 
-            case AddressType.PaymentKeyHashWithStakeKeyHash(
-                  paymentKeyHash,
-                  stakeKeyHash,
-                  networkTag
-                ) =>
-                serializeShelleyAddress(
-                  HeaderType.PaymentKeyHashWithStakeKeyHash,
-                  networkTag,
-                  paymentKeyHash.bytes,
-                  stakeKeyHash.bytes
-                )
+        /** Get numeric type ID */
+        def typeId: Byte = payload match
+            case StakePayload.Stake(_)  => 0x0e
+            case StakePayload.Script(_) => 0x0f
 
-            case AddressType.ScriptHashWithStakeKeyHash(scriptHash, stakeKeyHash, networkTag) =>
-                serializeShelleyAddress(
-                  HeaderType.ScriptHashWithStakeKeyHash,
-                  networkTag,
-                  scriptHash.bytes,
-                  stakeKeyHash.bytes
-                )
+        /** Build header byte */
+        def toHeader: Byte = ((typeId << 4) | (network.value & 0x0f)).toByte
 
-            case AddressType.PaymentKeyHashWithScriptHash(paymentKeyHash, scriptHash, networkTag) =>
-                serializeShelleyAddress(
-                  HeaderType.PaymentKeyHashWithScriptHash,
-                  networkTag,
-                  paymentKeyHash.bytes,
-                  scriptHash.bytes
-                )
+        /** Get human-readable prefix for bech32 encoding */
+        def hrp: Try[String] = network match
+            case Network.Testnet  => Success("stake_test")
+            case Network.Mainnet  => Success("stake")
+            case Network.Other(x) => Failure(new IllegalArgumentException(s"Unknown network: $x"))
 
-            case AddressType.ScriptHashWithScriptHash(scriptHash1, scriptHash2, networkTag) =>
-                serializeShelleyAddress(
-                  HeaderType.ScriptHashWithScriptHash,
-                  networkTag,
-                  scriptHash1.bytes,
-                  scriptHash2.bytes
-                )
+        /** Serialize to bytes */
+        def toBytes: ByteString = ByteString(toHeader) ++ payload.toBytes
 
-            case AddressType.PaymentKeyHashWithPointer(paymentKeyHash, pointer, networkTag) =>
-                serializeShelleyAddressWithPointer(
-                  HeaderType.PaymentKeyHashWithPointer,
-                  networkTag,
-                  paymentKeyHash.bytes,
-                  pointer
-                )
+        /** Convert to hex string */
+        def toHex: String = toBytes.toString
 
-            case AddressType.ScriptHashWithPointer(scriptHash, pointer, networkTag) =>
-                serializeShelleyAddressWithPointer(
-                  HeaderType.ScriptHashWithPointer,
-                  networkTag,
-                  scriptHash.bytes,
-                  pointer
-                )
+        /** Encode to bech32 string */
+        def toBech32: Try[String] = for {
+            prefix <- hrp
+            bytes = toBytes.bytes
+            encoded <- Try(Bech32.encodeFrom5Bit(prefix, Bech32.to5Bit(bytes)))
+        } yield encoded
 
-            case AddressType.PaymentKeyHashOnly(paymentKeyHash, networkTag) =>
-                serializeShelleyAddressBasic(
-                  HeaderType.PaymentKeyHashOnly,
-                  networkTag,
-                  paymentKeyHash.bytes
-                )
-
-            case AddressType.ScriptHashOnly(scriptHash, networkTag) =>
-                serializeShelleyAddressBasic(
-                  HeaderType.ScriptHashOnly,
-                  networkTag,
-                  scriptHash.bytes
-                )
-
-            case AddressType.StakeKeyHash(stakeKeyHash, networkTag) =>
-                serializeStakeAddress(HeaderType.StakeKeyHash, networkTag, stakeKeyHash.bytes)
-
-            case AddressType.StakeScriptHash(scriptHash, networkTag) =>
-                serializeStakeAddress(HeaderType.StakeScriptHash, networkTag, scriptHash.bytes)
-        }
+        /** Check if this is a script stake address */
+        def isScript: Boolean = payload.isScript
     }
 
-    /** Serializes a Shelley address with payment and delegation parts
-      *
-      * @param headerType
-      *   The header type nibble (bits 7-4)
-      * @param networkTag
-      *   The network tag nibble (bits 3-0)
-      * @param part1
-      *   The payment part (key hash or script hash)
-      * @param part2
-      *   The delegation part (key hash or script hash)
-      * @return
-      *   Serialized address as ByteString
-      */
-    private def serializeShelleyAddress(
-        headerType: Byte,
-        networkTag: Byte,
-        part1: ByteString,
-        part2: ByteString
-    ): ByteString = {
-        val header = ((headerType << 4) | (networkTag & 0x0f)).toByte
-        ByteString(header) ++ part1 ++ part2
+    /** Placeholder for Byron address - complex legacy format */
+    case class ByronAddress(bytes: ByteString) {
+        def typeId: Byte = 0x08
+        def toBytes: ByteString = bytes
+        def toHex: String = bytes.toString
+        // Byron addresses use Base58 encoding, not implemented here
+        def toBase58: String = ??? // Would need Base58 implementation
     }
 
-    /** Serializes a Shelley address with pointer
-      *
-      * @param headerType
-      *   The header type nibble (bits 7-4)
-      * @param networkTag
-      *   The network tag nibble (bits 3-0)
-      * @param paymentPart
-      *   The payment part (key hash or script hash)
-      * @param pointer
-      *   The stake pointer
-      * @return
-      *   Serialized address as ByteString
-      */
-    private def serializeShelleyAddressWithPointer(
-        headerType: Byte,
-        networkTag: Byte,
-        paymentPart: ByteString,
-        pointer: Pointer
-    ): ByteString = {
-        val header = ((headerType << 4) | (networkTag & 0x0f)).toByte
-        val pointerBytes = encodePointer(pointer)
+    /** Main Address enum representing any type of Cardano address */
+    enum Address {
+        case Byron(address: ByronAddress)
+        case Shelley(address: ShelleyAddress)
+        case Stake(address: StakeAddress)
 
-        ByteString(header) ++ paymentPart ++ ByteString.unsafeFromArray(pointerBytes)
+        /** Get network if available (Byron addresses don't have explicit network) */
+        def network: Option[Network] = this match
+            case Byron(_)      => None
+            case Shelley(addr) => Some(addr.network)
+            case Stake(addr)   => Some(addr.network)
+
+        /** Get type ID */
+        def typeId: Byte = this match
+            case Byron(addr)   => addr.typeId
+            case Shelley(addr) => addr.typeId
+            case Stake(addr)   => addr.typeId
+
+        /** Get human-readable prefix if available */
+        def hrp: Try[String] = this match
+            case Byron(_) =>
+                Failure(new UnsupportedOperationException("Byron addresses don't use bech32"))
+            case Shelley(addr) => addr.hrp
+            case Stake(addr)   => addr.hrp
+
+        /** Check if address contains scripts */
+        def hasScript: Boolean = this match
+            case Byron(_)      => false
+            case Shelley(addr) => addr.hasScript
+            case Stake(addr)   => addr.isScript
+
+        /** Check if this is an enterprise address */
+        def isEnterprise: Boolean = this match
+            case Shelley(addr) => addr.isEnterprise
+            case _             => false
+
+        /** Serialize to bytes */
+        def toBytes: ByteString = this match
+            case Byron(addr)   => addr.toBytes
+            case Shelley(addr) => addr.toBytes
+            case Stake(addr)   => addr.toBytes
+
+        /** Convert to hex string */
+        def toHex: String = this match
+            case Byron(addr)   => addr.toHex
+            case Shelley(addr) => addr.toHex
+            case Stake(addr)   => addr.toHex
+
+        /** Encode to appropriate string format */
+        def encode: Try[String] = this match
+            case Byron(addr)   => Try(addr.toBase58)
+            case Shelley(addr) => addr.toBech32
+            case Stake(addr)   => addr.toBech32
     }
 
-    /** Encodes a pointer using variable-length encoding
-      *
-      * @param pointer
-      *   The pointer to encode
-      * @return
-      *   Encoded pointer bytes
-      */
-    private def encodePointer(pointer: Pointer): Array[Byte] = {
-        encodeVariableLengthUInt(pointer.slot) ++
-            encodeVariableLengthUInt(pointer.txIndex) ++
-            encodeVariableLengthUInt(pointer.certIndex)
+    // Conversion utilities between address types
+    object Address {
+
+        /** Convert Shelley address to Stake address if it has delegation */
+        def shelleyToStake(shelleyAddr: ShelleyAddress): Try[StakeAddress] =
+            shelleyAddr.delegation match
+                case ShelleyDelegationPart.Key(hash) =>
+                    Success(StakeAddress(shelleyAddr.network, StakePayload.Stake(hash)))
+                case ShelleyDelegationPart.Script(hash) =>
+                    Success(StakeAddress(shelleyAddr.network, StakePayload.Script(hash)))
+                case _ =>
+                    Failure(
+                      new IllegalArgumentException(
+                        "Cannot convert address without delegation to stake address"
+                      )
+                    )
     }
 
-    /** Encodes a positive integer using variable-length encoding as specified in CIP-19
+    // Internal helper functions for variable-length encoding per CIP-19
+
+    /** Encode positive integer using variable-length encoding as specified in CIP-19 Uses
+      * continuation bits to handle arbitrarily large values efficiently
       *
       * @param value
-      *   The positive integer to encode
+      *   The positive integer to encode (must be >= 0)
       * @return
-      *   Encoded bytes
+      *   Encoded bytes with continuation bit protocol
       */
     private[ledger] def encodeVariableLengthUInt(value: Long): Array[Byte] = {
         require(value >= 0, "Value must be non-negative")
 
-        var v = value
         val buffer = scala.collection.mutable.ArrayBuffer.empty[Byte]
+        var remaining = value
 
-        while
-            var byte = (v & 0x7f).toByte
-            v >>>= 7
-            if v != 0 then byte = (byte | 0x80).toByte // set continuation bit
-            buffer += byte
-            v != 0
-        do ()
+        while {
+            // Take lower 7 bits for this byte
+            var currentByte = (remaining & 0x7f).toByte
+            remaining >>>= 7
+
+            // Set continuation bit if more bytes follow
+            if remaining != 0 then currentByte = (currentByte | 0x80).toByte
+
+            buffer += currentByte
+            remaining != 0
+        } do ()
 
         buffer.toArray
     }
 
-    /** Serializes a Shelley address with only payment part
-      *
-      * @param headerType
-      *   The header type nibble (bits 7-4)
-      * @param networkTag
-      *   The network tag nibble (bits 3-0)
-      * @param paymentPart
-      *   The payment part (key hash or script hash)
-      * @return
-      *   Serialized address as ByteString
-      */
-    private def serializeShelleyAddressBasic(
-        headerType: Byte,
-        networkTag: Byte,
-        paymentPart: ByteString
-    ): ByteString = {
-        val header = ((headerType << 4) | (networkTag & 0x0f)).toByte
-        ByteString(header) ++ paymentPart
-    }
-
-    /** Serializes a stake address
-      *
-      * @param headerType
-      *   The header type nibble (bits 7-4)
-      * @param networkTag
-      *   The network tag nibble (bits 3-0)
-      * @param stakePart
-      *   The stake part (key hash or script hash)
-      * @return
-      *   Serialized address as ByteString
-      */
-    private def serializeStakeAddress(
-        headerType: Byte,
-        networkTag: Byte,
-        stakePart: ByteString
-    ): ByteString = {
-        val header = ((headerType << 4) | (networkTag & 0x0f)).toByte
-        ByteString(header) ++ stakePart
-    }
-
-    /** Decodes a Cardano address from its string representation
-      *
-      * @param address
-      *   The address string to decode
-      * @return
-      *   Success with address type or Failure with exception
-      */
-    def decode(address: String): Try[AddressType] = {
-        // Check if it's a Bech32 address (Shelley or stake) or Base58 (Byron)
-        if address.contains('1') then {
-            // It's likely a Bech32 address
-            decodeBech32Address(address)
-        } else {
-            // It's likely a Base58 address (Byron)
-            decodeByronAddress(address)
-        }
-    }
-
-    /** Decodes a Bech32-encoded Cardano address
-      *
-      * @param address
-      *   The Bech32 address string
-      * @return
-      *   Success with address type or Failure with exception
-      */
-    private def decodeBech32Address(address: String): Try[AddressType] = Try {
-        val decoded = Bech32.decode(address)
-        val bytes = ByteString.fromArray(decoded.data)
-        // Extract header byte
-        require(bytes.length > 0, "Address is too short")
-        val header = bytes.bytes(0)
-
-        // Extract header type (bits 7-4) and network tag (bits 3-0)
-        val headerType = (header >> 4) & 0x0f
-        val networkTag = header & 0x0f
-
-        // Parse according to header type
-        headerType match {
-            case 0x00 =>
-                parseType0(
-                  bytes,
-                  networkTag.toByte
-                ) // Payment Key Hash with Stake Key Hash
-            case 0x01 =>
-                parseType1(bytes, networkTag.toByte) // Script Hash with Stake Key Hash
-            case 0x02 =>
-                parseType2(
-                  bytes,
-                  networkTag.toByte
-                ) // Payment Key Hash with Script Hash
-            case 0x03 =>
-                parseType3(bytes, networkTag.toByte) // Script Hash with Script Hash
-            case 0x04 =>
-                parseType4(bytes, networkTag.toByte) // Payment Key Hash with Pointer
-            case 0x05 =>
-                parseType5(bytes, networkTag.toByte) // Script Hash with Pointer
-            case 0x06 => parseType6(bytes, networkTag.toByte) // Payment Key Hash Only
-            case 0x07 => parseType7(bytes, networkTag.toByte) // Script Hash Only
-            case 0x0e => parseType14(bytes, networkTag.toByte) // Stake Key Hash
-            case 0x0f => parseType15(bytes, networkTag.toByte) // Stake Script Hash
-            case _ =>
-                throw new IllegalArgumentException(
-                  s"Unsupported header type: $headerType"
-                )
-        }
-    }
-
-    /** Parses a Type-0 address (Payment Key Hash with Stake Key Hash)
-      */
-    private def parseType0(bytes: ByteString, networkTag: Byte): AddressType = {
-        require(
-          bytes.length == 1 + Hash28.Size * 2,
-          s"Invalid Type-0 address length: ${bytes.length}, expected ${1 + Hash28.Size * 2}"
-        )
-
-        val paymentKeyHash = Hash28(
-          ByteString.unsafeFromArray(bytes.bytes.slice(1, 1 + Hash28.Size))
-        )
-        val stakeKeyHash = Hash28(
-          ByteString.unsafeFromArray(bytes.bytes.slice(1 + Hash28.Size, 1 + Hash28.Size * 2))
-        )
-
-        AddressType.PaymentKeyHashWithStakeKeyHash(paymentKeyHash, stakeKeyHash, networkTag)
-    }
-
-    /** Parses a Type-1 address (Script Hash with Stake Key Hash)
-      */
-    private def parseType1(bytes: ByteString, networkTag: Byte): AddressType = {
-        require(
-          bytes.length == 1 + Hash28.Size * 2,
-          s"Invalid Type-1 address length: ${bytes.length}, expected ${1 + Hash28.Size * 2}"
-        )
-
-        val scriptHash = Hash28(ByteString.unsafeFromArray(bytes.bytes.slice(1, 1 + Hash28.Size)))
-        val stakeKeyHash = Hash28(
-          ByteString.unsafeFromArray(bytes.bytes.slice(1 + Hash28.Size, 1 + Hash28.Size * 2))
-        )
-
-        AddressType.ScriptHashWithStakeKeyHash(scriptHash, stakeKeyHash, networkTag)
-    }
-
-    /** Parses a Type-2 address (Payment Key Hash with Script Hash)
-      */
-    private def parseType2(bytes: ByteString, networkTag: Byte): AddressType = {
-        require(
-          bytes.length == 1 + Hash28.Size * 2,
-          s"Invalid Type-2 address length: ${bytes.length}, expected ${1 + Hash28.Size * 2}"
-        )
-
-        val paymentKeyHash = Hash28(
-          ByteString.unsafeFromArray(bytes.bytes.slice(1, 1 + Hash28.Size))
-        )
-        val scriptHash = Hash28(
-          ByteString.unsafeFromArray(bytes.bytes.slice(1 + Hash28.Size, 1 + Hash28.Size * 2))
-        )
-
-        AddressType.PaymentKeyHashWithScriptHash(paymentKeyHash, scriptHash, networkTag)
-    }
-
-    /** Parses a Type-3 address (Script Hash with Script Hash)
-      */
-    private def parseType3(bytes: ByteString, networkTag: Byte): AddressType = {
-        require(
-          bytes.length == 1 + Hash28.Size * 2,
-          s"Invalid Type-3 address length: ${bytes.length}, expected ${1 + Hash28.Size * 2}"
-        )
-
-        val scriptHash1 = Hash28(ByteString.unsafeFromArray(bytes.bytes.slice(1, 1 + Hash28.Size)))
-        val scriptHash2 = Hash28(
-          ByteString.unsafeFromArray(bytes.bytes.slice(1 + Hash28.Size, 1 + Hash28.Size * 2))
-        )
-
-        AddressType.ScriptHashWithScriptHash(scriptHash1, scriptHash2, networkTag)
-    }
-
-    /** Parses a Type-4 address (Payment Key Hash with Pointer)
-      */
-    private def parseType4(bytes: ByteString, networkTag: Byte): AddressType = {
-        require(
-          bytes.length > 1 + Hash28.Size,
-          s"Invalid Type-4 address length: ${bytes.length}, expected > ${1 + Hash28.Size}"
-        )
-
-        val paymentKeyHash = Hash28(
-          ByteString.unsafeFromArray(bytes.bytes.slice(1, 1 + Hash28.Size))
-        )
-        val pointerBytes = bytes.bytes.slice(1 + Hash28.Size, bytes.length.toInt)
-
-        val (pointer, _) = decodePointer(pointerBytes, 0)
-
-        AddressType.PaymentKeyHashWithPointer(paymentKeyHash, pointer, networkTag)
-    }
-
-    /** Parses a Type-5 address (Script Hash with Pointer)
-      */
-    private def parseType5(bytes: ByteString, networkTag: Byte): AddressType = {
-        require(
-          bytes.length > 1 + Hash28.Size,
-          s"Invalid Type-5 address length: ${bytes.length}, expected > ${1 + Hash28.Size}"
-        )
-
-        val scriptHash = Hash28(ByteString.unsafeFromArray(bytes.bytes.slice(1, 1 + Hash28.Size)))
-        val pointerBytes = bytes.bytes.slice(1 + Hash28.Size, bytes.length.toInt)
-
-        val (pointer, _) = decodePointer(pointerBytes, 0)
-
-        AddressType.ScriptHashWithPointer(scriptHash, pointer, networkTag)
-    }
-
-    /** Parses a Type-6 address (Payment Key Hash Only)
-      */
-    private def parseType6(bytes: ByteString, networkTag: Byte): AddressType = {
-        require(
-          bytes.length == 1 + Hash28.Size,
-          s"Invalid Type-6 address length: ${bytes.length}, expected ${1 + Hash28.Size}"
-        )
-
-        val paymentKeyHash = Hash28(
-          ByteString.unsafeFromArray(bytes.bytes.slice(1, 1 + Hash28.Size))
-        )
-
-        AddressType.PaymentKeyHashOnly(paymentKeyHash, networkTag)
-    }
-
-    /** Parses a Type-7 address (Script Hash Only)
-      */
-    private def parseType7(bytes: ByteString, networkTag: Byte): AddressType = {
-        require(
-          bytes.length == 1 + Hash28.Size,
-          s"Invalid Type-7 address length: ${bytes.length}, expected ${1 + Hash28.Size}"
-        )
-
-        val scriptHash = Hash28(ByteString.unsafeFromArray(bytes.bytes.slice(1, 1 + Hash28.Size)))
-
-        AddressType.ScriptHashOnly(scriptHash, networkTag)
-    }
-
-    /** Parses a Type-14 address (Stake Key Hash)
-      */
-    private def parseType14(bytes: ByteString, networkTag: Byte): AddressType = {
-        require(
-          bytes.length == 1 + Hash28.Size,
-          s"Invalid Type-14 address length: ${bytes.length}, expected ${1 + Hash28.Size}"
-        )
-
-        val stakeKeyHash = Hash28(ByteString.unsafeFromArray(bytes.bytes.slice(1, 1 + Hash28.Size)))
-
-        AddressType.StakeKeyHash(stakeKeyHash, networkTag)
-    }
-
-    /** Parses a Type-15 address (Stake Script Hash)
-      */
-    private def parseType15(bytes: ByteString, networkTag: Byte): AddressType = {
-        require(
-          bytes.length == 1 + Hash28.Size,
-          s"Invalid Type-15 address length: ${bytes.length}, expected ${1 + Hash28.Size}"
-        )
-
-        val scriptHash = Hash28(ByteString.unsafeFromArray(bytes.bytes.slice(1, 1 + Hash28.Size)))
-
-        AddressType.StakeScriptHash(scriptHash, networkTag)
-    }
-
-    /** Decodes a variable-length pointer from byte array
+    /** Decode variable-length integer as specified in CIP-19 Handles continuation bit protocol to
+      * reconstruct original value
       *
       * @param bytes
-      *   The bytes containing the pointer
+      *   Source byte array
       * @param startIndex
-      *   The index to start decoding from
-      * @return
-      *   Tuple of (decoded pointer, number of bytes consumed)
-      */
-    private[ledger] def decodePointer(bytes: Array[Byte], startIndex: Int): (Pointer, Int) = {
-        val (slot, bytesUsed1) = decodeVariableLengthUInt(bytes, startIndex)
-        val (txIndex, bytesUsed2) = decodeVariableLengthUInt(bytes, startIndex + bytesUsed1)
-        val (certIndex, bytesUsed3) =
-            decodeVariableLengthUInt(bytes, startIndex + bytesUsed1 + bytesUsed2)
-
-        (Pointer(slot, txIndex.toInt, certIndex.toInt), bytesUsed1 + bytesUsed2 + bytesUsed3)
-    }
-
-    /** Decodes a variable-length integer as specified in CIP-19
-      *
-      * @param bytes
-      *   The bytes containing the encoded integer
-      * @param startIndex
-      *   The index to start decoding from
+      *   Index to start decoding from
       * @return
       *   Tuple of (decoded value, number of bytes consumed)
       */
@@ -614,24 +419,244 @@ object CardanoAddress {
             // Simple case: single byte with MSB=0
             (firstByte & 0x7f, 1)
         } else {
-            // Complex case: multiple bytes
+            // Complex case: multiple bytes with continuation
             val valueInThisByte = firstByte & 0x7f
             val (recursiveValue, bytesUsed) = decodeVariableLengthUInt(bytes, startIndex + 1)
-
+            // Shift previous value and combine with current byte
             ((recursiveValue << 7) | valueInThisByte, bytesUsed + 1)
         }
     }
 
-    /** Decodes a Byron address (Base58-encoded)
+    // Address parsing and construction functions
+
+    /** Parse address from raw bytes Determines address type from header byte and delegates to
+      * appropriate parser
       *
-      * @param address
-      *   The Base58 address string
+      * @param bytes
+      *   Raw address bytes including header
       * @return
-      *   Success with Byron address type or Failure with exception
+      *   Parsed address or failure with descriptive error
       */
-    private def decodeByronAddress(address: String): Try[AddressType] = {
-        // This implementation is a placeholder - Byron addresses have a complex internal structure
-        // that would require a complete implementation of Base58 encoding/decoding and CBOR parsing
-        Failure(new UnsupportedOperationException("Byron address decoding not implemented yet"))
+    def fromBytes(bytes: Array[Byte]): Address = {
+        require(bytes.nonEmpty, "Address bytes cannot be empty")
+
+        val header = bytes.head
+        val payload = bytes.tail
+
+        // Extract type from upper 4 bits of header
+        val addressType = (header & 0xf0) >> 4
+
+        addressType match
+            case 0x00 => parseType0(header, payload)
+            case 0x01 => parseType1(header, payload)
+            case 0x02 => parseType2(header, payload)
+            case 0x03 => parseType3(header, payload)
+            case 0x04 => parseType4(header, payload)
+            case 0x05 => parseType5(header, payload)
+            case 0x06 => parseType6(header, payload)
+            case 0x07 => parseType7(header, payload)
+            case 0x08 => parseType8(header, payload)
+            case 0x0e => parseType14(header, payload)
+            case 0x0f => parseType15(header, payload)
+            case _ =>
+                throw new IllegalArgumentException(f"Unsupported address type: 0x$addressType%02x")
+    }
+
+    /** Parse address from bech32 string */
+    def fromBech32(bech32: String): Address = {
+        fromBytes(Bech32.decode(bech32).data)
+    }
+
+    /** Parse address from any string format (bech32, base58, or hex) */
+    def fromString(str: String): Address = {
+        // Try bech32 first (most common for modern addresses)
+        Try(fromBech32(str))
+            .orElse(
+              Try(Address.Byron(ByronAddress(ByteString.fromString(str))))
+            )
+            .get
+    }
+
+    // Address type parsers - each handles specific CIP-19 address format
+
+    /** Parse Type 0: Payment Key Hash + Stake Key Hash */
+    private def parseType0(header: Byte, payload: Array[Byte]): Address = {
+        require(
+          payload.length == 56,
+          s"Invalid Type-0 address length: ${payload.length}, expected 56"
+        )
+
+        val network = Network.fromByte((header & 0x0f).toByte)
+        val paymentHash = Hash28(ByteString.fromArray(payload.slice(0, 28)))
+        val stakeHash = Hash28(ByteString.fromArray(payload.slice(28, 56)))
+
+        val payment = ShelleyPaymentPart.Key(AddrKeyHash(paymentHash))
+        val delegation = ShelleyDelegationPart.Key(stakeHash)
+
+        Address.Shelley(ShelleyAddress(network, payment, delegation))
+    }
+
+    /** Parse Type 1: Script Hash + Stake Key Hash */
+    private def parseType1(header: Byte, payload: Array[Byte]): Address = {
+        require(
+          payload.length == 56,
+          s"Invalid Type-1 address length: ${payload.length}, expected 56"
+        )
+
+        val network = Network.fromByte((header & 0x0f).toByte)
+        val scriptHash = Hash28(ByteString.fromArray(payload.slice(0, 28)))
+        val stakeHash = Hash28(ByteString.fromArray(payload.slice(28, 56)))
+
+        val payment = ShelleyPaymentPart.Script(ScriptHash(scriptHash))
+        val delegation = ShelleyDelegationPart.Key(stakeHash)
+
+        Address.Shelley(ShelleyAddress(network, payment, delegation))
+    }
+
+    /** Parse Type 2: Payment Key Hash + Script Hash */
+    private def parseType2(header: Byte, payload: Array[Byte]): Address = {
+        require(
+          payload.length == 56,
+          s"Invalid Type-2 address length: ${payload.length}, expected 56"
+        )
+
+        val network = Network.fromByte((header & 0x0f).toByte)
+        val paymentHash = Hash28(ByteString.fromArray(payload.slice(0, 28)))
+        val scriptHash = Hash28(ByteString.fromArray(payload.slice(28, 56)))
+
+        val payment = ShelleyPaymentPart.Key(AddrKeyHash(paymentHash))
+        val delegation = ShelleyDelegationPart.Script(ScriptHash(scriptHash))
+
+        Address.Shelley(ShelleyAddress(network, payment, delegation))
+    }
+
+    /** Parse Type 3: Script Hash + Script Hash */
+    private def parseType3(header: Byte, payload: Array[Byte]): Address = {
+        require(
+          payload.length == 56,
+          s"Invalid Type-3 address length: ${payload.length}, expected 56"
+        )
+
+        val network = Network.fromByte((header & 0x0f).toByte)
+        val scriptHash1 = Hash28(ByteString.fromArray(payload.slice(0, 28)))
+        val scriptHash2 = Hash28(ByteString.fromArray(payload.slice(28, 56)))
+
+        val payment = ShelleyPaymentPart.Script(ScriptHash(scriptHash1))
+        val delegation = ShelleyDelegationPart.Script(ScriptHash(scriptHash2))
+
+        Address.Shelley(ShelleyAddress(network, payment, delegation))
+    }
+
+    /** Parse Type 4: Payment Key Hash + Pointer */
+    private def parseType4(header: Byte, payload: Array[Byte]): Address = {
+        require(
+          payload.length > 28,
+          s"Invalid Type-4 address length: ${payload.length}, expected > 28"
+        )
+
+        val network = Network.fromByte((header & 0x0f).toByte)
+        val paymentHash = Hash28(ByteString.fromArray(payload.slice(0, 28)))
+        val pointerBytes = payload.slice(28, payload.length)
+
+        val pointer = Pointer
+            .fromBytes(pointerBytes)
+            .getOrElse(
+              throw new IllegalArgumentException("Invalid pointer data")
+            )
+
+        val payment = ShelleyPaymentPart.Key(AddrKeyHash(paymentHash))
+        val delegation = ShelleyDelegationPart.Pointer(pointer)
+
+        Address.Shelley(ShelleyAddress(network, payment, delegation))
+    }
+
+    /** Parse Type 5: Script Hash + Pointer */
+    private def parseType5(header: Byte, payload: Array[Byte]): Address = {
+        require(
+          payload.length > 28,
+          s"Invalid Type-5 address length: ${payload.length}, expected > 28"
+        )
+
+        val network = Network.fromByte((header & 0x0f).toByte)
+        val scriptHash = Hash28(ByteString.fromArray(payload.slice(0, 28)))
+        val pointerBytes = payload.slice(28, payload.length)
+
+        val pointer = Pointer
+            .fromBytes(pointerBytes)
+            .getOrElse(
+              throw new IllegalArgumentException("Invalid pointer data")
+            )
+
+        val payment = ShelleyPaymentPart.Script(ScriptHash(scriptHash))
+        val delegation = ShelleyDelegationPart.Pointer(pointer)
+
+        Address.Shelley(ShelleyAddress(network, payment, delegation))
+    }
+
+    /** Parse Type 6: Payment Key Hash Only (Enterprise) */
+    private def parseType6(header: Byte, payload: Array[Byte]): Address = {
+        require(
+          payload.length == 28,
+          s"Invalid Type-6 address length: ${payload.length}, expected 28"
+        )
+
+        val network = Network.fromByte((header & 0x0f).toByte)
+        val paymentHash = Hash28(ByteString.fromArray(payload))
+
+        val payment = ShelleyPaymentPart.Key(AddrKeyHash(paymentHash))
+        val delegation = ShelleyDelegationPart.Null
+
+        Address.Shelley(ShelleyAddress(network, payment, delegation))
+    }
+
+    /** Parse Type 7: Script Hash Only (Enterprise) */
+    private def parseType7(header: Byte, payload: Array[Byte]): Address = {
+        require(
+          payload.length == 28,
+          s"Invalid Type-7 address length: ${payload.length}, expected 28"
+        )
+
+        val network = Network.fromByte((header & 0x0f).toByte)
+        val scriptHash = Hash28(ByteString.fromArray(payload))
+
+        val payment = ShelleyPaymentPart.Script(ScriptHash(scriptHash))
+        val delegation = ShelleyDelegationPart.Null
+
+        Address.Shelley(ShelleyAddress(network, payment, delegation))
+    }
+
+    /** Parse Type 8: Byron Address (Legacy) */
+    private def parseType8(header: Byte, payload: Array[Byte]): Address = {
+        // Byron addresses have complex CBOR structure - simplified here
+        val fullBytes = header +: payload
+        Address.Byron(ByronAddress(ByteString.fromArray(fullBytes)))
+    }
+
+    /** Parse Type 14: Stake Key Hash */
+    private def parseType14(header: Byte, payload: Array[Byte]): Address = {
+        require(
+          payload.length == 28,
+          s"Invalid Type-14 address length: ${payload.length}, expected 28"
+        )
+
+        val network = Network.fromByte((header & 0x0f).toByte)
+        val stakeHash = Hash28(ByteString.fromArray(payload))
+
+        val stakePayload = StakePayload.Stake(stakeHash)
+        Address.Stake(StakeAddress(network, stakePayload))
+    }
+
+    /** Parse Type 15: Stake Script Hash */
+    private def parseType15(header: Byte, payload: Array[Byte]): Address = {
+        require(
+          payload.length == 28,
+          s"Invalid Type-15 address length: ${payload.length}, expected 28"
+        )
+
+        val network = Network.fromByte((header & 0x0f).toByte)
+        val scriptHash = Hash28(ByteString.fromArray(payload))
+
+        val stakePayload = StakePayload.Script(ScriptHash(scriptHash))
+        Address.Stake(StakeAddress(network, stakePayload))
     }
 }

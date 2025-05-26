@@ -48,8 +48,9 @@ trait ArbitraryInstances extends uplc.ArbitraryInstances {
 
     given Arbitrary[Hash28] = Arbitrary(genByteStringOfN(28).map(Hash28.apply))
     given Arbitrary[Hash32] = Arbitrary(genByteStringOfN(32).map(Hash32.apply))
-    given Arbitrary[AddrKeyHash] = autoDerived
+    // Arbitrary for ScriptHash, PolicyHash, PolicyId
     given Arbitrary[ScriptHash] = autoDerived
+    given Arbitrary[AddrKeyHash] = autoDerived
 
     given Arbitrary[Anchor] = Arbitrary {
         for
@@ -63,17 +64,16 @@ trait ArbitraryInstances extends uplc.ArbitraryInstances {
 
     given Arbitrary[Credential] = autoDerived
     given Arbitrary[Coin] = Arbitrary(Gen.choose(0L, Long.MaxValue).map(Coin.apply))
-
-    given Arbitrary[AssetName] = Arbitrary {
-        for
-            size <- Gen.choose(0, 32)
-            bs <- genByteStringOfN(size)
-        yield AssetName(bs)
-    }
+    given Arbitrary[AssetName] = Arbitrary(
+      Gen.choose(0, 32).flatMap(genByteStringOfN).map(AssetName.apply)
+    )
 
     given Arbitrary[Mint] = {
+        given Arbitrary[Long] = Arbitrary(
+          Gen.oneOf(Gen.choose(Long.MinValue, -1L), Gen.choose(1L, Long.MaxValue))
+        )
         given [A: Arbitrary, B: Arbitrary]: Arbitrary[immutable.Map[A, B]] = Arbitrary(
-          genMapOfSizeFromArbitrary(0, 8)
+          genMapOfSizeFromArbitrary(1, 8)
         )
 
         summon[Arbitrary[Mint]]
@@ -82,6 +82,8 @@ trait ArbitraryInstances extends uplc.ArbitraryInstances {
     given Arbitrary[Language] = autoDerived
     given Arbitrary[Address] = autoDerived
     given Arbitrary[Slot] = Arbitrary(Gen.choose(0L, Long.MaxValue).map(Slot.apply))
+    given Arbitrary[AuxiliaryDataHash] = autoDerived
+    given Arbitrary[ScriptDataHash] = autoDerived
 
     given Arbitrary[ExUnits] = Arbitrary {
         for
@@ -93,6 +95,8 @@ trait ArbitraryInstances extends uplc.ArbitraryInstances {
     given Arbitrary[ExUnitPrices] = autoDerived
 
     given Arbitrary[CostModels] = {
+        given Arbitrary[Int] = Arbitrary(Gen.choose(0, 255))
+
         given [A: Arbitrary, B: Arbitrary]: Arbitrary[immutable.Map[A, B]] = Arbitrary(
           genMapOfSizeFromArbitrary(0, 8)
         )
@@ -101,12 +105,28 @@ trait ArbitraryInstances extends uplc.ArbitraryInstances {
           genListOfSizeFromArbitrary(0, 8)
         )
 
-        given result: Arbitrary[CostModels] = autoDerived
+        val result: Arbitrary[CostModels] = autoDerived
         result
     }
 
     given Arbitrary[Constitution] = autoDerived
-    given Arbitrary[Value] = autoDerived
+
+    given Arbitrary[Value] = Arbitrary {
+        Gen.oneOf(
+          Arbitrary.arbitrary[Coin].map(Value.Ada.apply),
+          for
+              coin <- Arbitrary.arbitrary[Coin]
+              assets <- {
+                  given Arbitrary[Long] = Arbitrary(Gen.posNum[Long])
+                  given [A: Arbitrary, B: Arbitrary]: Arbitrary[immutable.Map[A, B]] = Arbitrary(
+                    genMapOfSizeFromArbitrary(1, 8)
+                  )
+                  Arbitrary.arbitrary[MultiAsset[Long]]
+              }
+          yield Value.MultiAsset(coin, assets)
+        )
+    }
+
     given Arbitrary[DRep] = autoDerived
     given Arbitrary[GovActionId] = Arbitrary {
         for
@@ -336,7 +356,7 @@ trait ArbitraryInstances extends uplc.ArbitraryInstances {
           genListOfSizeFromArbitrary(0, 4)
         )
 
-        given result: Arbitrary[AuxiliaryData] = autoDerived
+        val result: Arbitrary[AuxiliaryData] = autoDerived
         result
     }
 
@@ -368,12 +388,22 @@ trait ArbitraryInstances extends uplc.ArbitraryInstances {
         yield Redeemer(tag, index, data, exUnits)
     }
 
+    given Arbitrary[Redeemers] = Arbitrary {
+        Gen.oneOf(
+          genListOfSizeFromArbitrary[Redeemer](1, 8).map(Redeemers.Array.apply), {
+              given Arbitrary[Int] = Arbitrary(Gen.choose(0, Int.MaxValue))
+              genMapOfSizeFromArbitrary[(RedeemerTag, Int), (Data, ExUnits)](1, 8)
+                  .map(Redeemers.Map.apply)
+          }
+        )
+    }
+
     given Arbitrary[TransactionWitnessSet] = {
         given [A: Arbitrary]: Arbitrary[immutable.Set[A]] = Arbitrary(
           genSetOfSizeFromArbitrary(1, 3)
         )
 
-        given result: Arbitrary[TransactionWitnessSet] = autoDerived
+        val result: Arbitrary[TransactionWitnessSet] = autoDerived
         result
     }
 
@@ -385,39 +415,43 @@ trait ArbitraryInstances extends uplc.ArbitraryInstances {
     }
 
     given Arbitrary[ProposalProcedure] = autoDerived
-
-    given Arbitrary[ProposalProcedures] = {
-        given [A: Arbitrary]: Arbitrary[immutable.Set[A]] = Arbitrary(
-          genSetOfSizeFromArbitrary(1, 3)
-        )
-
-        summon[Arbitrary[ProposalProcedures]]
-    }
-
+    given Arbitrary[ProposalProcedures] = Arbitrary(genSetOfSizeFromArbitrary(1, 3))
     given Arbitrary[Vote] = autoDerived
     given Arbitrary[Voter] = autoDerived
     given Arbitrary[VotingProcedure] = autoDerived
 
     given Arbitrary[VotingProcedures] = {
         given [A: Arbitrary, B: Arbitrary]: Arbitrary[immutable.Map[A, B]] = Arbitrary(
-          genMapOfSizeFromArbitrary(0, 4)
+          genMapOfSizeFromArbitrary(1, 4)
         )
 
-        given result: Arbitrary[VotingProcedures] = autoDerived
+        val result: Arbitrary[VotingProcedures] = autoDerived
         result
     }
 
     given Arbitrary[PoolVotingThresholds] = autoDerived
     given Arbitrary[DRepVotingThresholds] = autoDerived
-    given Arbitrary[ProtocolParamUpdate] = autoDerived
-    given Arbitrary[GovAction] = autoDerived
+
+    given Arbitrary[ProtocolParamUpdate] = {
+        given Arbitrary[Int] = Arbitrary(Gen.choose(0, Int.MaxValue))
+
+        val result: Arbitrary[ProtocolParamUpdate] = autoDerived
+        result
+    }
+
+    given Arbitrary[GovAction] = {
+        given Arbitrary[Long] = Arbitrary(Gen.choose(0, Long.MaxValue))
+
+        val result: Arbitrary[GovAction] = autoDerived
+        result
+    }
 
     given Arbitrary[Relay] = {
         val genSingleHostAddr =
             for
                 port <- Gen.option(Gen.choose(0, 65535))
-                ipv4 <- Gen.option(Gen.choose(7, 15).flatMap(genByteStringOfN))
-                ipv6 <- Gen.option(Gen.choose(2, 39).flatMap(genByteStringOfN))
+                ipv4 <- Gen.option(genByteStringOfN(4))
+                ipv6 <- Gen.option(genByteStringOfN(16))
             yield Relay.SingleHostAddr(port, ipv4, ipv6)
 
         val genSingleHostName =
@@ -441,25 +475,38 @@ trait ArbitraryInstances extends uplc.ArbitraryInstances {
         Arbitrary(genRelay)
     }
 
-    given Arbitrary[Certificate] = autoDerived
-    given Arbitrary[Withdrawals] = autoDerived
+    given Arbitrary[Certificate] = {
+        given Arbitrary[Long] = Arbitrary(Gen.choose(0, Long.MaxValue))
+
+        val result: Arbitrary[Certificate] = autoDerived
+        result
+    }
+
+    given Arbitrary[Withdrawals] = {
+        given [A: Arbitrary, B: Arbitrary]: Arbitrary[immutable.Map[A, B]] = Arbitrary(
+          genMapOfSizeFromArbitrary(1, 8)
+        )
+
+        val result: Arbitrary[Withdrawals] = autoDerived
+        result
+    }
 
     given Arbitrary[TransactionBody] = Arbitrary {
         for
-            inputs <- genSetOfSizeFromArbitrary[TransactionInput](1, 4)
-            outputs <- genListOfSizeFromArbitrary[TransactionOutput](1, 4)
+            inputs <- genSetOfSizeFromArbitrary[TransactionInput](0, 4)
+            outputs <- genListOfSizeFromArbitrary[TransactionOutput](0, 4)
             fee <- Arbitrary.arbitrary[Coin]
-            ttl <- Arbitrary.arbitrary[Option[Long]]
+            ttl <- Gen.option(Gen.choose(0L, Long.MaxValue))
             certificates <- Gen.option(genSetOfSizeFromArbitrary[Certificate](1, 4))
             withdrawals <- Gen.option(
               genMapOfSizeFromArbitrary[RewardAccount, Coin](1, 4).map(Withdrawals.apply)
             )
-            auxiliaryDataHash <- Arbitrary.arbitrary[Option[Hash32]]
-            validityStartSlot <- Arbitrary.arbitrary[Option[Long]]
+            auxiliaryDataHash <- Arbitrary.arbitrary[Option[AuxiliaryDataHash]]
+            validityStartSlot <- Gen.option(Gen.choose(0L, Long.MaxValue))
             mint <- Arbitrary.arbitrary[Option[Mint]]
-            scriptDataHash <- Arbitrary.arbitrary[Option[Hash32]]
+            scriptDataHash <- Arbitrary.arbitrary[Option[ScriptDataHash]]
             collateralInputs <- Gen.option(genSetOfSizeFromArbitrary[TransactionInput](1, 4))
-            requiredSigners <- Gen.option(genSetOfSizeFromArbitrary[Hash28](1, 4))
+            requiredSigners <- Gen.option(genSetOfSizeFromArbitrary[AddrKeyHash](1, 4))
             networkId <- Gen.option(Gen.oneOf(Gen.const(0), Gen.const(1)))
             collateralReturnOutput <- Arbitrary.arbitrary[Option[TransactionOutput]]
             totalCollateral <- Arbitrary.arbitrary[Option[Coin]]
@@ -468,7 +515,8 @@ trait ArbitraryInstances extends uplc.ArbitraryInstances {
             proposalProcedures <- Gen.option(genSetOfSizeFromArbitrary[ProposalProcedure](1, 4))
             currentTreasuryValue <- Arbitrary.arbitrary[Option[Coin]]
             donation <-
-                if currentTreasuryValue.isDefined then Arbitrary.arbitrary[Coin].map(Some(_))
+                if currentTreasuryValue.isDefined then
+                    Gen.posNum[Long].map(value => Some(Coin(value)))
                 else Gen.const(None)
         yield TransactionBody(
           inputs,

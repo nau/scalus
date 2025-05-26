@@ -1,8 +1,8 @@
+.env
 target
 out
 /.bsp
 .bloop/
-.direnv
 .direnv
 .history
 /.idea
@@ -13,7 +13,6 @@ out
 .DS_Store
 .metals
 .vscode
-.direnv
 metals.sbt
 /plutus-conformance
 scalus-plugin/src/main/shared
