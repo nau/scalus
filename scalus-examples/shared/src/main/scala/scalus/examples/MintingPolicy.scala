@@ -11,7 +11,6 @@ import scalus.prelude.Option.*
 import scalus.prelude.*
 import scalus.prelude.given
 import scalus.builtin.Data
-import scalus.builtin.Data.FromData
 import scalus.builtin.Data.fromData
 
 case class TxInInfoTxOutRefOnly(txInInfoOutRef: TxOutRef)
@@ -131,7 +130,6 @@ object MintingPolicy {
 @Compile
 object MintingPolicyV2 {
     import scalus.ledger.api.v2.*
-    import scalus.ledger.api.v2.FromDataInstances.given
     import ScriptPurpose.*
 
     val simpleCtxV2Deserializer: Data => MintingContext = (ctxData: Data) => {
