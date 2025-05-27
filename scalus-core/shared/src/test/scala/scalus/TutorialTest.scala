@@ -10,7 +10,6 @@ import scalus.builtin.Data
 import scalus.builtin.Data.FromData
 import scalus.builtin.Data.fromData
 import scalus.builtin.FromData
-import scalus.builtin.FromDataInstances.given
 import scalus.ledger.api.PlutusLedgerLanguage
 import scalus.prelude.===
 import scalus.prelude.given
@@ -131,13 +130,12 @@ val fromDataExample = compile {
 
     // or your can you a macro to derive the FromData instance
     {
-        given FromData[Account] = FromData.deriveCaseClass
-        given FromData[State] = FromData.deriveEnum[State]
+        given FromData[Account] = FromData.derived
+        given FromData[State] = FromData.derived
     }
 }
 
 import scalus.ledger.api.v3.*
-import scalus.ledger.api.v3.FromDataInstances.given
 import scalus.prelude.List
 val pubKeyValidator = compile {
     def validator(ctxData: Data) = {

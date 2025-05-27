@@ -6,7 +6,6 @@ import scalus.*
 import scalus.uplc.*
 import scalus.uplc.eval.*
 import scalus.Compiler.compile
-import scalus.testutil.SIRModules
 import scalus.builtin.*
 
 /*
