@@ -31,7 +31,7 @@ object LocalScope {
                     throw LoweringException(
                         s"Value with name $name already exists in the scope with the same representation", pos
                     )
-                else record.otherRepresentations.get(representation) match {
+                else record.otherRepresentations.get(value.representation) match {
                     case Some(_) =>
                         throw LoweringException(
                             s"Value with name $name already exists in the scope with the same representation", pos
@@ -49,28 +49,8 @@ object LocalScope {
         }
     }
 
-    def retriveIn(
-                     scope: Carrier,
-                     name: String,
-                     representation: LoweredValueRepresentation
-    )(using lc: LoweringContext): Option[(LoweredValue,Carrier)] = {
-        scope.get(name) match
-            case Some(m) =>
-                if m.value.representation == representation then
-                    Some((m.value, scope))
-                else
-                    m.otherRepresentations.get(representation) match
-                        case Some(v) => Some(v)
-                        case None    =>
-                           val newRepresentation = lc.uplcGeneratorPolicy(m.value.sir.tp).toRepresentation(m.value)
-                           val newOthers = m.otherRepresentations.updated(
-                               newRepresentation,
-                               m.value
-                           )
-                           val newRecord = m.copy(otherRepresentations = newOthers)
-                           val newBinding = scope.updated(name, newRecord)
-                           Some((newRepresentation, newBinding))
-            case None  => None
+    def get(scope: Carrier, name: String): Option[LocalScopeRecord] = {
+        scope.get(name)
     }
 
 }
@@ -81,10 +61,8 @@ extension (c: LocalScope)
         name: String,
         value: LoweredValue,
         pos: SIRPosition
-    ): LocalScope = LocalScope.add(c, name, value, pos))
+    ): LocalScope = LocalScope.add(c, name, value, pos)
 
-    def get(
-        name: String,
-        representation: LoweredValueRepresentation
-    )(using lc: LoweringContext): Option[(LoweredValue,LocalScope)] =
-        LocalScope.retriveIn(c, name, representation)
+    def get(name: String): Option[LocalScopeRecord] = LocalScope.get(c, name)
+
+

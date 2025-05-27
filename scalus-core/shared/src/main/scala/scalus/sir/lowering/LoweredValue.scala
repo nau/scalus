@@ -29,9 +29,9 @@ trait LoweredValue {
       */
     def dependencies: Seq[LoweredValue]
 
-    /** usage count.
-      */
-    def usageCount: Int
+    def toRepresentation(representation: LoweredValueRepresentation)(using
+        LoweringContext
+    ): LoweredValue
 
 }
 
@@ -45,8 +45,6 @@ class StaticLoweredValue(
     forced: Boolean = false
 ) extends LoweredValue {
 
-    private var usageCount: Int = 0
-
     def toRepresentation(representation: LoweredValueRepresentation)(using
         LoweringContext
     ): LoweredValue
@@ -58,10 +56,10 @@ class StaticLoweredValue(
 class DependedLoweredValue(
     id: String,
     sir: SIR,
-    representation: LoweredValueRepresentation
+    representation: LoweredValueRepresentation,
     dependencies: Seq[LoweredValue],
     termFun: (Seq[Term] => Term),
-)
+) extends LoweredValue
 
 object DependedLoweredValue {
 
@@ -70,56 +68,31 @@ object DependedLoweredValue {
         dependencies: Seq[LoweredValue],
         representation: LoweredValueRepresentation,
         termFun: (Seq[Term] => Term)
-    )(using LoweringContext): DependedLoweredValue = {
-        val id = s"dep_${sir.id}"
+    )(using lc: LoweringContext): DependedLoweredValue = {
+        val id = lc.uniqueNodeName("dep_")
         val term = termFun(dependencies.map(_.term))
-        new DependedLoweredValue(id, sir, representation, dependencies, term)
+        new DependedLoweredValue(id, sir, representation, dependencies, termFun)
     }
 
 }
 
 object LoweredValue {
 
-    def intConstant(n: Int, anns: AnnotationsDecl): LoweredValue = {
+    def intConstant(n: Int, anns: AnnotationsDecl)(using lc: LoweringContext): LoweredValue = {
         StaticLoweredValue(
+          lc.uniqueNodeName("int_"),
           SIR.Const(Constant.Integer(n), SIRType.Integer, anns),
           Term.Const(Constant.Integer(n)),
           PrimitiveRepresentation.Constant
         )
     }
 
-    def boolConstant(b: Boolean): LoweredValue = {
-        LoweredValue(
+    def boolConstant(b: Boolean)(using lc: LoweringContext): LoweredValue = {
+        StaticLoweredValue(
+          lc.uniqueNodeName("bool_"),
           SIR.Const(Constant.Bool(b), SIRType.Boolean, AnnotationsDecl.empty),
           Term.Const(Constant.Bool(b)),
           PrimitiveRepresentation.Constant
-        )
-    }
-
-    def namedVar(
-        name: String,
-        tp: SIRType,
-        representation: LoweredValueRepresentation,
-        anns: AnnotationsDecl
-    ): LoweredValue = {
-        LoweredValue(
-          SIR.Var(name, tp, anns),
-          Term.Var(NamedDeBruijn(name)),
-          representation
-        )
-    }
-
-    def lambda(
-        name: String,
-        tp: SIRType,
-        representation: LoweredValueRepresentation,
-        body: LoweredValue,
-        anns: AnnotationsDecl
-    ): LoweredValue = {
-        LoweredValue(
-          SIR.LamAbs(SIR.Var(name, tp, anns), body.sir, anns),
-          Term.LamAbs(name, body.term),
-          LambdaRepresentaion(representation, body.representation)
         )
     }
 

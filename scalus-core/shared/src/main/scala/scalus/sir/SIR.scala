@@ -173,9 +173,14 @@ sealed trait SIR {
             case SIRUnify.UnificationFailure(_, _, _) => false
         }
 
+}
+
+sealed trait AnnotatedSIR extends SIR {
+
     def anns: AnnotationsDecl
 
 }
+
 
 object SIR:
 
@@ -193,16 +198,14 @@ object SIR:
     //  TypeAlias(1, SumType("AClass", List(("x", Int), ("y", String))))
     //  Var(x,  TypeRef(1))
 
-    case class Var(name: String, tp: SIRType, anns: AnnotationsDecl) extends SIR {
+    case class Var(name: String, tp: SIRType, anns: AnnotationsDecl) extends AnnotatedSIR {
         override def toString: String = s"Var($name, ${tp.show})"
     }
 
     case class ExternalVar(moduleName: String, name: String, tp: SIRType, anns: AnnotationsDecl)
-        extends SIR {
+        extends AnnotatedSIR {
 
         override def toString: String = s"ExternalVar($moduleName, $name, ${tp.show})"
-
-        override def annotations: AnnotationsDecl = anns
 
     }
 
@@ -211,14 +214,11 @@ object SIR:
         bindings: List[Binding],
         body: SIR,
         anns: AnnotationsDecl
-    ) extends SIR {
+    ) extends AnnotatedSIR {
         override def tp: SIRType = body.tp
-
-        override def annotations: AnnotationsDecl = anns
-
     }
 
-    case class LamAbs(param: Var, term: SIR, anns: AnnotationsDecl) extends SIR {
+    case class LamAbs(param: Var, term: SIR, anns: AnnotationsDecl) extends AnnotatedSIR {
 
         override def tp: SIRType =
             term.tp match
@@ -227,11 +227,9 @@ object SIR:
                 case _ =>
                     SIRType.Fun(param.tp, term.tp)
 
-        override def annotations: AnnotationsDecl = anns
-
     }
 
-    case class Apply(f: SIR, arg: SIR, tp: SIRType, anns: AnnotationsDecl) extends SIR {
+    case class Apply(f: SIR, arg: SIR, tp: SIRType, anns: AnnotationsDecl) extends AnnotatedSIR {
 
         // TODO: makr tp computable, not stored.  (implement subst at first).
         /*
@@ -247,33 +245,31 @@ object SIR:
         }
          */
 
-        override def annotations: AnnotationsDecl = anns
-
     }
 
     case class Select(scrutinee: SIR, field: String, tp: SIRType, anns: AnnotationsDecl)
-        extends SIR {}
+        extends AnnotatedSIR
 
-    case class Const(uplcConst: Constant, tp: SIRType, anns: AnnotationsDecl) extends SIR
+    case class Const(uplcConst: Constant, tp: SIRType, anns: AnnotationsDecl) extends AnnotatedSIR
 
-    case class And(a: SIR, b: SIR, anns: AnnotationsDecl) extends SIR {
+    case class And(a: SIR, b: SIR, anns: AnnotationsDecl) extends AnnotatedSIR {
         override def tp: SIRType = SIRType.Boolean
     }
 
-    case class Or(a: SIR, b: SIR, anns: AnnotationsDecl) extends SIR {
+    case class Or(a: SIR, b: SIR, anns: AnnotationsDecl) extends AnnotatedSIR {
         override def tp: SIRType = SIRType.Boolean
     }
 
-    case class Not(a: SIR, anns: AnnotationsDecl) extends SIR {
+    case class Not(a: SIR, anns: AnnotationsDecl) extends AnnotatedSIR {
         override def tp: SIRType = SIRType.Boolean
     }
 
-    case class IfThenElse(cond: SIR, t: SIR, f: SIR, tp: SIRType, anns: AnnotationsDecl) extends SIR
+    case class IfThenElse(cond: SIR, t: SIR, f: SIR, tp: SIRType, anns: AnnotationsDecl) extends AnnotatedSIR
 
-    case class Builtin(bn: DefaultFun, tp: SIRType, anns: AnnotationsDecl) extends SIR
+    case class Builtin(bn: DefaultFun, tp: SIRType, anns: AnnotationsDecl) extends AnnotatedSIR
 
     case class Error(msg: String, anns: AnnotationsDecl, cause: Throwable | Null = null)
-        extends SIR {
+        extends AnnotatedSIR {
         override def tp: SIRType = SIRType.TypeNothing
     }
 
@@ -284,7 +280,7 @@ object SIR:
         args: List[SIR],
         tp: SIRType,
         anns: AnnotationsDecl
-    ) extends SIR
+    ) extends AnnotatedSIR
 
     enum Pattern:
         //  case class Point(x: Int, y: String)
@@ -320,7 +316,7 @@ object SIR:
       *   \- resulting type of Match expression, can be calculated as max(tp of all cases)
       */
     case class Match(scrutinee: SIR, cases: List[Case], tp: SIRType, anns: AnnotationsDecl)
-        extends SIR
+        extends AnnotatedSIR
 
     case class Decl(data: DataDecl, term: SIR) extends SIR {
 
