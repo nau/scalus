@@ -412,7 +412,5 @@ class TimelockTest extends AnyFunSuite with ScalaCheckPropertyChecks:
         val decoded = decode[Timelock](encoded)
         assert(decoded == deepTimelock)
 
-    private def encode[A: Encoder](value: A): Array[Byte] =
-        Cbor.encode(value).toByteArray
-    private def decode[A: Decoder](bytes: Array[Byte]): A =
-        Cbor.decode(bytes).to[A].value
+    private def encode(value: Timelock): Array[Byte] = value.toCbor
+    private def decode[A: Decoder](bytes: Array[Byte]): Timelock = Timelock.fromCbor(bytes)
