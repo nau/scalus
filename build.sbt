@@ -317,7 +317,8 @@ lazy val scalusDesignPatterns = project
       libraryDependencies += "org.scalatest" %%% "scalatest" % "3.2.19" % "test",
       libraryDependencies += "org.scalatestplus" %%% "scalacheck-1-18" % "3.2.19.0" % "test",
       Test / fork := true,
-      trackInternalDependencies := TrackLevel.TrackIfMissing,
+      //// enable if need speedup
+      // trackInternalDependencies := TrackLevel.TrackIfMissing,
     )
 
 // Bloxbean Cardano Client Lib integration and Tx Evaluator implementation
