@@ -1,12 +1,6 @@
 package scalus.sir
 
-
 @scalus.Compile
-object FlatSIRTestDataValidator {
+object FlatSIRTestDataValidator {}
 
-}
-
-
-class FlatSIRTest {
-
-}
+class FlatSIRTest {}

@@ -203,7 +203,7 @@ class FlatTest extends AnyFunSuite with ScalaCheckPropertyChecks with ArbitraryI
             assert(decoded == n)
         }
     }
-    
+
     test("encode/decode String") {
         val fl = summon[Flat[String]]
         assert(fl.bitSize("") == 16)

@@ -113,31 +113,9 @@ class DerivingTest extends AnyFunSuite {
         val ae3Data = summon[ToData[DerivingSpec_AE3]](ae3)
         val program1 = uplc.plutusV3 $ ae3Data
 
-        val vm = PlutusVM.makePlutusV3VM()
+        given vm: PlutusVM = PlutusVM.makePlutusV3VM()
 
-        // val result1 =  program1.evalDebug
-        val spenderLogger = TallyingBudgetSpenderLogger(NoBudgetSpender)
-        val resultTerm = vm.evaluateDeBruijnedTerm(
-          DeBruijn.deBruijnTerm(program1.term),
-          spenderLogger,
-          spenderLogger
-        )
-        val result1 = {
-            if resultTerm == Term.Error then
-                Result.Failure(
-                  new RuntimeException("Evaluation failed"),
-                  spenderLogger.getSpentBudget,
-                  spenderLogger.costs.toMap,
-                  spenderLogger.getLogsWithBudget
-                )
-            else
-                Result.Success(
-                  resultTerm,
-                  spenderLogger.getSpentBudget,
-                  spenderLogger.costs.toMap,
-                  spenderLogger.getLogsWithBudget
-                )
-        }
+        val result1 = program1.term.evaluateDebug
         // assert(result1.isSuccess)
         result1 match
             case Result.Success(term, _, _, _) =>
