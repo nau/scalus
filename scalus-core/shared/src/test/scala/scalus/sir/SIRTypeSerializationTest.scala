@@ -2,7 +2,6 @@ package scalus.sir
 
 import scalus.*
 import scalus.builtin.*
-import scalus.prelude
 import scalus.prelude.*
 import scalus.ledger.api.v3.*
 import org.scalatest.funsuite.AnyFunSuite

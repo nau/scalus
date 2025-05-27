@@ -22,12 +22,12 @@ enum Adt:
 
 @Compile
 object Adt:
-    given FromData[Adt] = FromData.deriveEnum[Adt] {
-        case 0 => _ => Adt.A
-        case 1 => FromData.deriveConstructor[Adt.B]
-        case 2 => FromData.deriveConstructor[Adt.C]
-    }
-    val derivedFromData: FromData[Adt] = FromData.deriveEnum[Adt]
+    // given FromData[Adt] = FromData.deriveEnum[Adt] {
+    //    case 0 => _ => Adt.A
+    //    case 1 => FromData.deriveConstructor[Adt.B]
+    //    case 2 => FromData.deriveConstructor[Adt.C]
+    // }
+    given derivedFromData: FromData[Adt] = FromData.derived
 
 @Compile
 object ToDataAdt:
@@ -55,7 +55,7 @@ case class BigRecord(
 
 @Compile
 object BigRecord extends ArbitraryInstances:
-    given FromData[BigRecord] = FromData.deriveCaseClass[BigRecord]
+    given FromData[BigRecord] = FromData.derived
 
 @Compile
 object ToDataBigRecord:

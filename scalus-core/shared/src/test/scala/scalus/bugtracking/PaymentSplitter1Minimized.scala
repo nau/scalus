@@ -3,9 +3,8 @@ package scalus.bugtracking
 import scalus.prelude.DataParameterizedValidator
 
 import scalus.*
-import scalus.builtin.{Builtins, ByteString, Data}
+import scalus.builtin.{Builtins, Data}
 import scalus.ledger.api.v3.{TxInfo, TxOutRef}
-import scalus.prelude.AssocMap.*
 import scalus.prelude.{*, given}
 
 @scalus.Compile

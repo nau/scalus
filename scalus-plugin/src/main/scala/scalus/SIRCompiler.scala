@@ -12,7 +12,6 @@ import dotty.tools.dotc.core.Symbols.*
 import dotty.tools.dotc.core.Types.*
 import dotty.tools.dotc.core.*
 import dotty.tools.dotc.util.{NoSourcePosition, SourcePosition, SrcPos}
-import scalus.SIRCompiler.SIRVersion
 import scalus.ScalusCompilationMode.{AllDefs, OnlyDerivations}
 import scalus.flat.EncoderState
 import scalus.flat.Flat
@@ -21,12 +20,11 @@ import scalus.sir.{AnnotationsDecl, Binding, ConstrDecl, DataDecl, Module, Recur
 import scalus.sir.SIRVarStorage.LocalUPLC
 import scalus.uplc.DefaultUni
 
-import scala.annotation.tailrec
+import scala.annotation.{nowarn, tailrec, unused}
 import scala.collection.immutable
 import scala.collection.mutable
 import scala.collection.mutable.ListBuffer
 import scala.language.implicitConversions
-import scala.annotation.unused
 import scala.util.control.NonFatal
 
 case class FullName(name: String)
@@ -350,6 +348,7 @@ final class SIRCompiler(options: SIRCompilerOptions = SIRCompilerOptions.default
                   SIRCompiler.SIRVersion,
                   bindingsWithSpecialized
                 )
+
             writeModule(module, td.symbol.fullName.toString)
             if options.debugLevel > 0 then
                 report.echo(
@@ -669,7 +668,7 @@ final class SIRCompiler(options: SIRCompilerOptions = SIRCompilerOptions.default
         env: Env,
         e: Tree,
         taTree: Tree,
-        targs: List[Tree]
+        @nowarn targs: List[Tree]
     ): SIR = {
 
         val name = e.symbol.name.show

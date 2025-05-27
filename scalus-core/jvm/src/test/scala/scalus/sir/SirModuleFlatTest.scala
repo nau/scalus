@@ -3,9 +3,8 @@ package scalus.sir
 import java.io.InputStream
 import org.scalatest.funsuite.AnyFunSuite
 
-import scalus.flat.{*, given}
-import scalus.flat.FlatInstantces.{*, given}
-import scalus.sir.*
+import scalus.flat.*
+import scalus.flat.FlatInstantces.given
 
 class SirModuleFlatTest extends AnyFunSuite {
 
@@ -16,8 +15,6 @@ class SirModuleFlatTest extends AnyFunSuite {
         )
         val module = parseInputStream(stream)
         assert(module.defs.nonEmpty, "module should not be empty")
-
-        println("defs: in DataParemetrizedValidator " + module.defs.map(_.name))
 
     }
 

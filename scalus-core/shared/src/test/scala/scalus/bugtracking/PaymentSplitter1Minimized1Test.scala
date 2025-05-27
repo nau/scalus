@@ -8,7 +8,6 @@ import scalus.builtin.Data.*
 import scalus.builtin.given
 import scalus.ledger.api.v3.*
 import scalus.*
-import scalus.ledger.api.v1.Credential.ScriptCredential
 import scalus.prelude.*
 import scalus.prelude.List.{Cons, Nil}
 import scalus.uplc.*
