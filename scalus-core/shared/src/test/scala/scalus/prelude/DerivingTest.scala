@@ -3,9 +3,8 @@ package scalus.prelude
 import org.scalatest.funsuite.AnyFunSuite
 
 import scalus.*
-import scalus.prelude.*
 import scalus.uplc.*
-import scalus.uplc.eval.{*, given}
+import scalus.uplc.eval.*
 import scalus.Compiler.compile
 import scalus.testutil.SIRModules
 import scalus.builtin.*
