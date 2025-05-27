@@ -8,7 +8,6 @@ import scalus.builtin.ByteString.*
 import scalus.ledger.api.v3.TxId
 import scalus.sir.Recursivity.NonRec
 import scalus.sir.SIR.Pattern
-import scalus.sir.SIRType.{FreeUnificator, SumCaseClass, TypeVar}
 import scalus.uplc.DefaultFun.*
 import scalus.uplc.DefaultUni.asConstant
 import scalus.uplc.{ArbitraryInstances, Constant, DefaultFun, Term}

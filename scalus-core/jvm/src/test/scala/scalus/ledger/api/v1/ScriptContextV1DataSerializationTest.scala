@@ -3,7 +3,6 @@ package scalus.ledger.api.v1
 import io.bullet.borer.Cbor
 import scalus.*
 import scalus.Compiler.compile
-import scalus.Expected
 import scalus.builtin.ByteString.*
 import scalus.builtin.Data
 import scalus.builtin.Data.*
@@ -11,12 +10,10 @@ import scalus.builtin.given
 import scalus.ledger.api.PlutusLedgerLanguage
 import scalus.ledger.api.ProtocolVersion
 import scalus.ledger.api.v1.Credential.*
-import scalus.ledger.api.v1.FromDataInstances.given
 import scalus.ledger.api.v2
 import scalus.prelude.AssocMap
 import scalus.prelude.List.*
 import scalus.prelude.Option.*
-import scalus.toUplc
 import scalus.uplc.*
 import scalus.uplc.eval.MachineParams
 import scalus.uplc.eval.PlutusVM
@@ -119,8 +116,6 @@ class ScriptContextV1DataSerializationTest extends BaseValidatorTest:
         MachineParams.defaultParamsFor(PlutusLedgerLanguage.PlutusV2, ProtocolVersion.vasilPV)
 
     test("ScriptContext is the same as in Plutus") {
-        import scalus.ledger.api.v1.ToDataInstances.given
-
         // byte array to hex string
 
         def encodeAsHexString(d: Data) = Utils.bytesToHex(Cbor.encode(d).toByteArray)
@@ -133,7 +128,6 @@ class ScriptContextV1DataSerializationTest extends BaseValidatorTest:
     }
 
     test("deserialize ScriptContext V1 using Plutus") {
-        import scalus.ledger.api.v1.ToDataInstances.given
         given PlutusVM = PlutusVM.makePlutusV1VM(machineParamsV1)
         val program = Program.fromCborHex(deserializeContractV1)
         val applied = program $ scriptContextV1.toData
@@ -147,7 +141,6 @@ class ScriptContextV1DataSerializationTest extends BaseValidatorTest:
     }
 
     test("deserialize ScriptContext V1 using Scalus") {
-        import scalus.ledger.api.v1.ToDataInstances.given
         import scalus.uplc.TermDSL.given
         given PlutusVM = PlutusVM.makePlutusV1VM(machineParamsV1)
         val applied = Program((1, 0, 0), scalusDeserializerV1 $ scriptContextV1.toData)
@@ -156,26 +149,22 @@ class ScriptContextV1DataSerializationTest extends BaseValidatorTest:
         try applied.evaluate
         catch case e: Throwable => fail(e)
 
-        import scalus.ledger.api.v2.ToDataInstances.given
         assertThrows[Exception](
           Program((1, 0, 0), scalusDeserializerV1 $ scriptContextV2.toData).evaluate
         )
     }
 
     test("deserialize ScriptContext V2 using Plutus") {
-        import scalus.ledger.api.v2.ToDataInstances.given
         given PlutusVM = PlutusVM.makePlutusV2VM(machineParamsV2)
         val program = Program.fromCborHex(deserializeContractV2)
         val applied = program $ scriptContextV2.toData
         try applied.evaluate
         catch case e: Throwable => fail(e)
 
-        import scalus.ledger.api.v1.ToDataInstances.given
         assertThrows[Exception]((program $ scriptContextV1.toData).evaluate)
     }
 
     test("deserialize ScriptContext V2 using Scalus") {
-        import scalus.ledger.api.v2.ToDataInstances.given
         import scalus.uplc.TermDSL.given
         val applied = Program((1, 0, 0), scalusDeserializerV2 $ scriptContextV2.toData)
 
@@ -184,7 +173,6 @@ class ScriptContextV1DataSerializationTest extends BaseValidatorTest:
         try applied.evaluate
         catch case e: Throwable => fail(e)
 
-        import scalus.ledger.api.v1.ToDataInstances.given
         assertThrows[Exception](
           Program((1, 0, 0), scalusDeserializerV2 $ scriptContextV1.toData).evaluate
         )

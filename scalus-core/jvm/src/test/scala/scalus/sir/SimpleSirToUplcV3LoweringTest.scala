@@ -129,8 +129,6 @@ class SimpleSirToUplcV3LoweringTest extends AnyFunSuite {
           scriptInfo = ScriptInfo.MintingScript(ByteString.empty)
         )
         import scalus.builtin.Data.toData
-        import scalus.ledger.api.v1.ToDataInstances.given
-        import scalus.ledger.api.v3.ToDataInstances.given
         val ctxData = ctx.toData
 
 //        println(sir.showHighlighted)

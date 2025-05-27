@@ -1909,8 +1909,6 @@ class CompilerPluginToSIRTest extends AnyFunSuite with ScalaCheckPropertyChecks:
 
     test("compile fieldAsData macro") {
         import scalus.ledger.api.v1.*
-        import scalus.ledger.api.v1.FromDataInstances.given
-        import scalus.ledger.api.v1.ToDataInstances.given
 
         val compiled = compile { (ctx: scalus.builtin.Data) =>
             // check multiple nested fields
