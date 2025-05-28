@@ -1,5 +1,26 @@
 # Changelog
 
+## 0.10.0 (2025-05-28)
+
+### Added
+
+- improved Scalus standard library
+- Scalus Design Patterns project
+- Scalus Examples: HTLC, PaymentSplitter
+- Scalus benchmarks: Knights and Clausify
+- new UPLC 1.1 generation `SirToUplc110Lowering` (experimental)
+- Cardano Ledger domain types with CBOR codecs (experimental)
+- Scalus Bilinear Accumulator implementation (experimental)
+
+### Changed
+
+- simplify `ToData`/`FromData` derivation allowing Scala 3 `derives`
+- updated to Scala 3.3.6, Scala.js 1.19.0
+
+### Fixed
+
+- support for Scala argumentless functions in Scalus compiler
+
 ## 0.9.0 (2025-04-17)
 
 ### Added

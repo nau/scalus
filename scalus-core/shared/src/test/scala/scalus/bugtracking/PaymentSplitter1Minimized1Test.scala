@@ -127,8 +127,6 @@ class PaymentSplitter1Minimized1Test extends AnyFunSuite {
 
         given PlutusVM = PlutusVM.makePlutusV3VM()
         val result = applied.evaluateDebug
-        println(result)
-        println(s"logs=${result.logs}")
         assert(result.isSuccess)
     }
 
