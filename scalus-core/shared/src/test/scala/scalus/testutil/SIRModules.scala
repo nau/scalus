@@ -1,6 +1,5 @@
 package scalus.testutil
 
-import scalus.sir.SIR
 import scalus.sir.Module
 import scalus.flat
 import scalus.flat.DecoderState

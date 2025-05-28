@@ -3,7 +3,6 @@ package scalus.ledger.api.v1
 import org.scalacheck.Arbitrary
 import org.scalacheck.Gen
 import scalus.*
-import scalus.builtin
 
 import scalus.builtin.ByteString
 

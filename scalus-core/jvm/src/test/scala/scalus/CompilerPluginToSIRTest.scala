@@ -6,7 +6,7 @@ import scalus.Compiler.{compile, fieldAsData}
 import scalus.builtin.ByteString.*
 import scalus.builtin.{Builtins, ByteString, Data, JVMPlatformSpecific, PlatformSpecific, given}
 import scalus.ledger.api.v1.*
-import scalus.ledger.api.v3.SpendingScriptInfo
+//import scalus.ledger.api.v3.SpendingScriptInfo
 import scalus.prelude.List.{Cons, Nil}
 import scalus.prelude.given
 import scalus.sir.Recursivity.*
@@ -1909,8 +1909,6 @@ class CompilerPluginToSIRTest extends AnyFunSuite with ScalaCheckPropertyChecks:
 
     test("compile fieldAsData macro") {
         import scalus.ledger.api.v1.*
-        import scalus.ledger.api.v1.FromDataInstances.given
-        import scalus.ledger.api.v1.ToDataInstances.given
 
         val compiled = compile { (ctx: scalus.builtin.Data) =>
             // check multiple nested fields

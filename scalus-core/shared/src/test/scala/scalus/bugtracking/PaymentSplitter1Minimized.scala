@@ -2,17 +2,9 @@ package scalus.bugtracking
 
 import scalus.prelude.DataParameterizedValidator
 
-import scala.math.{pow, BigInt as payees}
 import scalus.*
-import scalus.builtin.{Builtins, ByteString, Data}
-import scalus.ledger.api.v1
-import scalus.ledger.api.v1.Value.*
-import scalus.ledger.api.v1.{Credential, PubKeyHash, Value}
-import scalus.ledger.api.v2.TxOut
+import scalus.builtin.{Builtins, Data}
 import scalus.ledger.api.v3.{TxInfo, TxOutRef}
-import scalus.prelude.List.*
-import scalus.prelude.Option.*
-import scalus.prelude.AssocMap.*
 import scalus.prelude.{*, given}
 
 @scalus.Compile

@@ -127,7 +127,15 @@ object FlatInstantces:
 
         def decodeHC(decode: HashConsedDecoderState): HashConsedRef[Binding] =
             val name = summon[Flat[String]].decode(decode.decode)
-            val termRef = SIRHashConsedFlat.decodeHC(decode)
+            val termRef = {
+                try SIRHashConsedFlat.decodeHC(decode)
+                catch
+                    case NonFatal(ex) =>
+                        println(
+                          s"Error decoding SIRHashConsedFlat in BindingFlat, name=${name}: ${ex.getMessage}"
+                        )
+                        throw ex
+            }
             HashConsedRef.deferred(
               hs => termRef.isComplete(hs),
               (hs, level, parents) => Binding(name, termRef.finValue(hs, level, parents))

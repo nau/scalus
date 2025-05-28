@@ -147,17 +147,18 @@ lazy val scalusPlugin = project
               if (source.exists) {
                   if (!target.exists) {
                       IO.copyFile(source, target)
-                      log.info(s"Copied $file to target $target")
+//                      log.info(s"Copied $file to target $target")
                   } else if (source.lastModified() > target.lastModified()) {
                       IO.copyFile(source, target)
-                      log.info(s"Copied $file to target $target")
+//                      log.info(s"Copied $file to target $target")
                   } else {
-                      log.info(s"File $target is up to date")
+//                      log.info(s"File $target is up to date")
                   }
               } else {
                   log.error(s"Source file not found: $file")
               }
           }
+          log.info(s"Copied shared files to target $targetDir")
       },
 //      Compile / managedSources ++= {
 //          val baseDir = baseDirectory.value / ".." / "shared" / "src" / "main" / "scala"
@@ -317,7 +318,8 @@ lazy val scalusDesignPatterns = project
       libraryDependencies += "org.scalatest" %%% "scalatest" % "3.2.19" % "test",
       libraryDependencies += "org.scalatestplus" %%% "scalacheck-1-18" % "3.2.19.0" % "test",
       Test / fork := true,
-      trackInternalDependencies := TrackLevel.TrackIfMissing,
+      //// enable if need speedup
+      // trackInternalDependencies := TrackLevel.TrackIfMissing,
     )
 
 // Bloxbean Cardano Client Lib integration and Tx Evaluator implementation

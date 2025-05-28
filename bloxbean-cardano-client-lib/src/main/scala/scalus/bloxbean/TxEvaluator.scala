@@ -319,9 +319,6 @@ class TxEvaluator(
     ): Redeemer = {
         import scalus.bloxbean.Interop.toScalusData
         import scalus.builtin.Data.toData
-        import scalus.ledger.api.v1.ToDataInstances.given
-        import scalus.ledger.api.v2.ToDataInstances.given
-        import scalus.ledger.api.v3.ToDataInstances.given
 
         val result = findScript(tx, redeemer, lookupTable, utxos) match
             case (ScriptVersion.Native, _) =>

@@ -67,7 +67,8 @@ package object scalus {
         def evaluateDebug(using vm: PlutusVM): Result = vm.evaluateScriptDebug(p.deBruijnedProgram)
 
     extension (p: DeBruijnedProgram)
-        def pretty: Doc = PrettyPrinter.pretty(p.toProgram, Style.Normal)
+        // we have member with the same name
+        // def pretty: Doc = PrettyPrinter.pretty(p.toProgram, Style.Normal)
         def prettyXTerm: Doc = PrettyPrinter.pretty(p.toProgram, Style.XTerm)
         def show: String = p.pretty.render(80)
         def showHighlighted: String = p.prettyXTerm.render(80)

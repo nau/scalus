@@ -1,19 +1,17 @@
 package scalus.bugtracking
 
 import org.scalatest.funsuite.AnyFunSuite
-import org.scalatestplus.scalacheck.ScalaCheckPropertyChecks
 import scalus.Compiler.compile
 import scalus.builtin.ByteString.hex
 import scalus.builtin.Data
 import scalus.builtin.Data.*
 import scalus.builtin.given
-import scalus.builtin.PlatformSpecific.given
 import scalus.ledger.api.v3.*
 import scalus.*
 import scalus.prelude.*
 import scalus.prelude.List.{Cons, Nil}
 import scalus.uplc.*
-import scalus.uplc.TermDSL.{*, given}
+import scalus.uplc.TermDSL.given
 import scalus.uplc.eval.PlutusVM
 import scala.language.implicitConversions
 

@@ -5,7 +5,6 @@ import org.scalatest.funsuite.AnyFunSuite
 import org.scalatestplus.scalacheck.ScalaCheckPropertyChecks
 import scala.language.implicitConversions
 import scalus.*
-import scalus.builtin
 import scalus.builtin.ByteString.*
 import scalus.builtin.Data
 import scalus.uplc.Constant.given

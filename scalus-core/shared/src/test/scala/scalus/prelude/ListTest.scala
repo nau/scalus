@@ -7,6 +7,8 @@ import org.scalatestplus.scalacheck.Checkers.*
 import org.scalatestplus.scalacheck.ScalaCheckPropertyChecks
 import scalus.*
 import scalus.prelude.List.*
+
+// here warnings are incorred
 import scalus.prelude.Option.{asScalus as asScalusOption, None, Some}
 import scalus.uplc.ArbitraryInstances
 

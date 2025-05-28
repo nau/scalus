@@ -3,7 +3,6 @@ package scalus.ledger.api.v1
 import io.bullet.borer.Cbor
 import scalus.*
 import scalus.Compiler.compile
-import scalus.Expected
 import scalus.builtin.ByteString.*
 import scalus.builtin.Data
 import scalus.builtin.Data.*
@@ -11,12 +10,10 @@ import scalus.builtin.given
 import scalus.ledger.api.PlutusLedgerLanguage
 import scalus.ledger.api.ProtocolVersion
 import scalus.ledger.api.v1.Credential.*
-import scalus.ledger.api.v1.FromDataInstances.given
 import scalus.ledger.api.v2
 import scalus.prelude.AssocMap
 import scalus.prelude.List.*
 import scalus.prelude.Option.*
-import scalus.toUplc
 import scalus.uplc.*
 import scalus.uplc.eval.MachineParams
 import scalus.uplc.eval.PlutusVM
@@ -57,9 +54,8 @@ class ScriptContextV1DataSerializationTest extends BaseValidatorTest:
         "5907490100003232323232323232323232323233223232323232232323333573466e1cd55cea80124000466442466002006004646464646464646464646464646666ae68cdc39aab9d500c480008cccccccccccc88888888888848cccccccccccc00403403002c02802402001c01801401000c008cd404c050d5d0a80619a80980a1aba1500b33501301535742a014666aa02eeb94058d5d0a804999aa80bbae501635742a01066a02603c6ae85401cccd5405c07dd69aba150063232323333573466e1cd55cea801240004664424660020060046464646666ae68cdc39aab9d5002480008cc8848cc00400c008cd40a5d69aba15002302a357426ae8940088c98c80b0cd5ce01601681509aab9e5001137540026ae854008c8c8c8cccd5cd19b8735573aa004900011991091980080180119a814bad35742a00460546ae84d5d1280111931901619ab9c02c02d02a135573ca00226ea8004d5d09aba2500223263202833573805005204c26aae7940044dd50009aba1500533501375c6ae854010ccd5405c06c8004d5d0a801999aa80bbae200135742a004603a6ae84d5d1280111931901219ab9c024025022135744a00226ae8940044d5d1280089aba25001135744a00226ae8940044d5d1280089aba25001135744a00226ae8940044d55cf280089baa00135742a004601a6ae84d5d1280111931900b19ab9c016017014135573ca00226ea800448c88c008dd6000990009aa80a111999aab9f0012500a233500930043574200460066ae880080548c8c8cccd5cd19b8735573aa004900011991091980080180118061aba150023005357426ae8940088c98c8050cd5ce00a00a80909aab9e5001137540024646464646666ae68cdc39aab9d5004480008cccc888848cccc00401401000c008c8c8c8cccd5cd19b8735573aa0049000119910919800801801180a9aba1500233500f014357426ae8940088c98c8064cd5ce00c80d00b89aab9e5001137540026ae854010ccd54021d728039aba150033232323333573466e1d4005200423212223002004357426aae79400c8cccd5cd19b875002480088c84888c004010dd71aba135573ca00846666ae68cdc3a801a400042444006464c6403666ae7006c07006406005c4d55cea80089baa00135742a00466a016eb8d5d09aba2500223263201533573802a02c02626ae8940044d5d1280089aab9e500113754002266aa002eb9d6889119118011bab00132001355011223233335573e0044a010466a00e66442466002006004600c6aae754008c014d55cf280118021aba200301313574200222440042442446600200800624464646666ae68cdc3a800a40004642446004006600a6ae84d55cf280191999ab9a3370ea0049001109100091931900819ab9c01001100e00d135573aa00226ea80048c8c8cccd5cd19b875001480188c848888c010014c01cd5d09aab9e500323333573466e1d400920042321222230020053009357426aae7940108cccd5cd19b875003480088c848888c004014c01cd5d09aab9e500523333573466e1d40112000232122223003005375c6ae84d55cf280311931900819ab9c01001100e00d00c00b135573aa00226ea80048c8c8cccd5cd19b8735573aa004900011991091980080180118029aba15002375a6ae84d5d1280111931900619ab9c00c00d00a135573ca00226ea80048c8cccd5cd19b8735573aa002900011bae357426aae7940088c98c8028cd5ce00500580409baa001232323232323333573466e1d4005200c21222222200323333573466e1d4009200a21222222200423333573466e1d400d2008233221222222233001009008375c6ae854014dd69aba135744a00a46666ae68cdc3a8022400c4664424444444660040120106eb8d5d0a8039bae357426ae89401c8cccd5cd19b875005480108cc8848888888cc018024020c030d5d0a8049bae357426ae8940248cccd5cd19b875006480088c848888888c01c020c034d5d09aab9e500b23333573466e1d401d2000232122222223005008300e357426aae7940308c98c804ccd5ce00980a00880800780700680600589aab9d5004135573ca00626aae7940084d55cf280089baa0012323232323333573466e1d400520022333222122333001005004003375a6ae854010dd69aba15003375a6ae84d5d1280191999ab9a3370ea0049000119091180100198041aba135573ca00c464c6401866ae700300340280244d55cea80189aba25001135573ca00226ea80048c8c8cccd5cd19b875001480088c8488c00400cdd71aba135573ca00646666ae68cdc3a8012400046424460040066eb8d5d09aab9e500423263200933573801201400e00c26aae7540044dd500089119191999ab9a3370ea00290021091100091999ab9a3370ea00490011190911180180218031aba135573ca00846666ae68cdc3a801a400042444004464c6401466ae7002802c02001c0184d55cea80089baa0012323333573466e1d40052002212200223333573466e1d40092000212200123263200633573800c00e00800626aae74dd5000a4c92010350543100120011123230010012233003300200200101"
 
     val scalusDeserializerV1SIR = compile { (d: Data) => fromData[ScriptContext](d) }
-    val scalusDeserializerV2SIR = compile {
-        import scalus.ledger.api.v2.FromDataInstances.given
-        (d: Data) => fromData[v2.ScriptContext](d)
+    val scalusDeserializerV2SIR = compile { (d: Data) =>
+        fromData[v2.ScriptContext](d)
     }
     val scalusDeserializerV1 = scalusDeserializerV1SIR.toUplc(generateErrorTraces = false)
     val scalusDeserializerV2 = scalusDeserializerV2SIR.toUplc(generateErrorTraces = false)
@@ -119,8 +115,6 @@ class ScriptContextV1DataSerializationTest extends BaseValidatorTest:
         MachineParams.defaultParamsFor(PlutusLedgerLanguage.PlutusV2, ProtocolVersion.vasilPV)
 
     test("ScriptContext is the same as in Plutus") {
-        import scalus.ledger.api.v1.ToDataInstances.given
-
         // byte array to hex string
 
         def encodeAsHexString(d: Data) = Utils.bytesToHex(Cbor.encode(d).toByteArray)
@@ -133,7 +127,6 @@ class ScriptContextV1DataSerializationTest extends BaseValidatorTest:
     }
 
     test("deserialize ScriptContext V1 using Plutus") {
-        import scalus.ledger.api.v1.ToDataInstances.given
         given PlutusVM = PlutusVM.makePlutusV1VM(machineParamsV1)
         val program = Program.fromCborHex(deserializeContractV1)
         val applied = program $ scriptContextV1.toData
@@ -142,12 +135,10 @@ class ScriptContextV1DataSerializationTest extends BaseValidatorTest:
         try applied.evaluate
         catch case e: Throwable => fail(e)
 
-        import scalus.ledger.api.v2.ToDataInstances.given
         assertThrows[Exception]((program $ scriptContextV2.toData).evaluate)
     }
 
     test("deserialize ScriptContext V1 using Scalus") {
-        import scalus.ledger.api.v1.ToDataInstances.given
         import scalus.uplc.TermDSL.given
         given PlutusVM = PlutusVM.makePlutusV1VM(machineParamsV1)
         val applied = Program((1, 0, 0), scalusDeserializerV1 $ scriptContextV1.toData)
@@ -156,26 +147,22 @@ class ScriptContextV1DataSerializationTest extends BaseValidatorTest:
         try applied.evaluate
         catch case e: Throwable => fail(e)
 
-        import scalus.ledger.api.v2.ToDataInstances.given
         assertThrows[Exception](
           Program((1, 0, 0), scalusDeserializerV1 $ scriptContextV2.toData).evaluate
         )
     }
 
     test("deserialize ScriptContext V2 using Plutus") {
-        import scalus.ledger.api.v2.ToDataInstances.given
         given PlutusVM = PlutusVM.makePlutusV2VM(machineParamsV2)
         val program = Program.fromCborHex(deserializeContractV2)
         val applied = program $ scriptContextV2.toData
         try applied.evaluate
         catch case e: Throwable => fail(e)
 
-        import scalus.ledger.api.v1.ToDataInstances.given
         assertThrows[Exception]((program $ scriptContextV1.toData).evaluate)
     }
 
     test("deserialize ScriptContext V2 using Scalus") {
-        import scalus.ledger.api.v2.ToDataInstances.given
         import scalus.uplc.TermDSL.given
         val applied = Program((1, 0, 0), scalusDeserializerV2 $ scriptContextV2.toData)
 
@@ -184,7 +171,6 @@ class ScriptContextV1DataSerializationTest extends BaseValidatorTest:
         try applied.evaluate
         catch case e: Throwable => fail(e)
 
-        import scalus.ledger.api.v1.ToDataInstances.given
         assertThrows[Exception](
           Program((1, 0, 0), scalusDeserializerV2 $ scriptContextV1.toData).evaluate
         )

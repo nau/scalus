@@ -72,10 +72,10 @@ object Groth16:
         piC: ByteString // G1Element
     )
 
-    given FromData[SnarkVerificationKey] = FromData.deriveCaseClass[SnarkVerificationKey]
-    given FromData[Proof] = FromData.deriveCaseClass[Proof]
-    given ToData[SnarkVerificationKey] = ToData.deriveCaseClass[SnarkVerificationKey](0)
-    given ToData[Proof] = ToData.deriveCaseClass[Proof](0)
+    given FromData[SnarkVerificationKey] = FromData.derived
+    given FromData[Proof] = FromData.derived
+    given ToData[SnarkVerificationKey] = ToData.derived
+    given ToData[Proof] = ToData.derived
 
     /** Computes a pairing (Miller loop) between two curve points
       *

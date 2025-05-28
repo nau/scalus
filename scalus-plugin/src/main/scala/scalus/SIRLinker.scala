@@ -26,6 +26,8 @@ class SIRLinker(using ctx: Context) {
         mutable.LinkedHashMap.empty.withDefaultValue(mutable.LinkedHashMap.empty)
 
     private val sirLoader = new SIRLoader(using ctx)
+
+    private val sirDataReprGeneratorEnabled = false
     private val sirDataReprGenerator = new SIRDataReprGenerator(using ctx)
 
     private def error[A](error: CompilationError, defaultValue: A): A = {
@@ -124,7 +126,9 @@ class SIRLinker(using ctx: Context) {
         tp: SIRType,
         anns: AnnotationsDecl
     ): Unit = {
-        if fullName.name.endsWith("derived$FromData") || fullName.name.endsWith("derived$ToData")
+        if sirDataReprGeneratorEnabled && (fullName.name.endsWith(
+              "derived$FromData"
+            ) || fullName.name.endsWith("derived$ToData"))
         then retrieveDataRepresentation(moduleName, fullName, tp, srcPos, anns)
         else
             // println(s"linkDefinition: ${fullName}")
@@ -190,14 +194,27 @@ class SIRLinker(using ctx: Context) {
     ): Unit = {
         val nDefs = moduleDefsCache.get(moduleName) match
             case Some(defs) =>
-                defs.getOrElseUpdate(fullName, sirDataReprGenerator.generate(fullName, tp, srcPos))
+                if sirDataReprGeneratorEnabled then {
+                    // will add to mutabe defs as a side effect
+                    val unused = defs.getOrElseUpdate(
+                      fullName,
+                      sirDataReprGenerator.generate(fullName, tp, srcPos)
+                    )
+                }
                 defs
             case None =>
-                val defs = mutable.LinkedHashMap(
-                  fullName -> sirDataReprGenerator.generate(fullName, tp, srcPos)
-                )
-                moduleDefsCache.put(moduleName, defs)
-                defs
+                if !sirDataReprGeneratorEnabled then {
+                    report.error(
+                      s"Module not found during linking: ${moduleName} for data representation of ${fullName.name} from ${anns.pos.file}: ${anns.pos.startLine}",
+                      srcPos
+                    )
+                    mutable.LinkedHashMap.empty[FullName, SIR]
+                } else
+                    val defs = mutable.LinkedHashMap(
+                      fullName -> sirDataReprGenerator.generate(fullName, tp, srcPos)
+                    )
+                    moduleDefsCache.put(moduleName, defs)
+                    defs
         if !findAndLinkDefinition(nDefs, fullName, srcPos) then {
             error(
               SymbolNotFound(

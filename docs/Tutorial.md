@@ -253,7 +253,6 @@ FromData type class is used to convert a Data value to a Scalus value.
 
 ```scala mdoc:compile-only
 import scalus.builtin.*, Builtins.*, Data.*
-import scalus.builtin.FromDataInstances.given
 
 case class Account(hash: ByteString, balance: BigInt)
 
@@ -282,13 +281,31 @@ val fromDataExample = compile {
 
     // or your can you a macro to derive the FromData instance
     {
-        given FromData[Account] = FromData.deriveCaseClass
-        given FromData[State] = FromData.deriveEnum[State] {
-            case 0 => d => State.Empty
-            case 1 => FromData.deriveConstructor[State.Active]
-        }
+        given FromData[Account] = FromData.derived
+        given FromData[State] = FromData.derived
     }
 }
+```
+
+ You can derive `FromData` instances for your case classes and enums via standard Scala 3 `derives` syntax.
+One caveat - you must always supply companion object with @Compile annotation on it even if it emptu. This is 
+because Scalus needs to compile the companion object to include the `FromData` instance in the UPLC script.
+
+```scala
+import scalus.builtin.*, Builtins.*, Data.*
+
+case class Account(hash: ByteString, balance: BigInt) derives FromData, ToData
+
+@Compile
+object Account
+
+enum State derives FromData, ToData:
+    case Empty
+    case Active(account: Account2)
+
+@Compile
+object State
+
 ```
 
 ## Writing a validator
@@ -298,7 +315,6 @@ Here is a simple example of a Plutus V3 validator written in Scalus.
 ```scala mdoc:compile-only
 import scalus.ledger.api.v1.PubKeyHash
 import scalus.ledger.api.v3.*
-import scalus.ledger.api.v3.FromDataInstances.given
 import scalus.builtin.ByteString.*
 import scalus.prelude.List
 
@@ -349,7 +365,6 @@ import scalus.builtin.ByteString.*
 import scalus.ledger.api.PlutusLedgerLanguage
 import scalus.ledger.api.v1.PubKeyHash
 import scalus.ledger.api.v3.*
-import scalus.ledger.api.v3.FromDataInstances.given
 import scalus.prelude.List
 import scalus.uplc.Program
 

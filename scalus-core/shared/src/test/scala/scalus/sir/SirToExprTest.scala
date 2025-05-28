@@ -29,7 +29,6 @@ class SirToExprTest extends AnyFunSuite {
         assert(sir ~=~ decoded)
     }
 
-    /*
     test("serialize/deserialize ListType") {
         val tp = SIRType.List(SIRType.Integer)
         val bitSize = ToExprHSSIRTypeFlat.bitSize(tp)
@@ -39,6 +38,7 @@ class SirToExprTest extends AnyFunSuite {
         assert(tp ~=~ decoded)
     }
 
+    /*
     test("list type fron macro is serialized without unfilled proxies") {
         val tp = SIRTypeMacros.liftM[scalus.builtin.List[Int]]
         val bitSize = ToExprHSSIRTypeFlat.bitSize(tp)
