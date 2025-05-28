@@ -10,7 +10,7 @@ import java.net.URI
 Global / onChangedBuildSource := ReloadOnSourceChanges
 autoCompilerPlugins := true
 
-val scalusStableVersion = "0.9.0"
+val scalusStableVersion = "0.10.0"
 val scalusCompatibleVersion = scalusStableVersion
 ThisBuild / scalaVersion := "3.3.6"
 //ThisBuild / scalaVersion := "3.7.1-RC1-bin-SNAPSHOT"
