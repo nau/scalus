@@ -46,6 +46,23 @@ object DerivingSpec_AE3 {
 
 }
 
+enum DerivingSpec_AE4 derives FromData, ToData {
+    case DS4_A extends DerivingSpec_AE4
+    case DS4_B(b: BigInt) extends DerivingSpec_AE4
+    case DS4_C(b: BigInt, bs: ByteString) extends DerivingSpec_AE4
+}
+
+// need for scalus compiler to generate FromData/ToData instances
+@Compile
+object DerivingSpec_AE4
+
+case class DerivingSpec_Account(id: ByteString, balance: BigInt, owner: ByteString)
+    derives FromData,
+      ToData
+
+@Compile
+object DerivingSpec_Account
+
 class DerivingTest extends AnyFunSuite {
 
     import DerivingSpecScope.*
@@ -130,6 +147,36 @@ class DerivingTest extends AnyFunSuite {
                 //    println(s"${b.name}:\n ${b.value.pretty.render(100)}")
                 // }
 
+                fail(s"Expected success, but got failure, logs=$logs")
+    }
+
+    test("Compile To/From Data for AE4") {
+
+        val sir = Compiler.compile { (d: Data) =>
+            val a = summon[FromData[DerivingSpec_AE4]](d)
+            a match
+                case DerivingSpec_AE4.DS4_A        => BigInt(1)
+                case DerivingSpec_AE4.DS4_B(b)     => BigInt(2)
+                case DerivingSpec_AE4.DS4_C(b, bs) => BigInt(3)
+        }
+
+        // println(s"sir: ${sir.pretty.render(1000)}")
+
+        val uplc = sir.toUplc(generateErrorTraces = true)
+        val ae4 = DerivingSpec_AE4.DS4_B(BigInt(2))
+        val ae4Data = summon[ToData[DerivingSpec_AE4]](ae4)
+        val program1 = uplc.plutusV3 $ ae4Data
+
+        given vm: PlutusVM = PlutusVM.makePlutusV3VM()
+
+        val result1 = program1.term.evaluateDebug
+        // assert(result1.isSuccess)
+        result1 match
+            case Result.Success(term, _, _, _) =>
+                assert(term == Term.Const(Constant.Integer(2)))
+            case Result.Failure(e, _, _, logs) =>
+                e.printStackTrace()
+                println(s"logs=${logs}")
                 fail(s"Expected success, but got failure, logs=$logs")
     }
 

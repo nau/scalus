@@ -2186,9 +2186,10 @@ final class SIRCompiler(options: SIRCompilerOptions = SIRCompilerOptions.default
                 val toProcess =
                     env.mode match
                         case AllDefs =>
-                            !dd.symbol.flags.is(Flags.Synthetic)
-                            // uncomment to ignore derived methods
-                            // && !dd.symbol.name.startsWith("derived")
+                            (
+                              !dd.symbol.flags.is(Flags.Synthetic) ||
+                                  dd.symbol.name.startsWith("derived")
+                            )
                             && !dd.symbol.hasAnnotation(IgnoreAnnot)
                         case OnlyDerivations =>
                             dd.symbol.name.startsWith("derived") &&
@@ -2205,9 +2206,13 @@ final class SIRCompiler(options: SIRCompilerOptions = SIRCompilerOptions.default
             case vd: ValDef =>
                 val toProcess = env.mode match {
                     case AllDefs =>
-                        !vd.symbol.flags.isOneOf(Flags.Synthetic | Flags.Case)
-                        // uncomment to ignore derived methods
-                        // && !vd.symbol.name.startsWith("derived")
+                        (
+                          !vd.symbol.flags.isOneOf(Flags.Synthetic | Flags.Case)
+                              ||
+                                  vd.symbol.name.startsWith("derived") && !vd.symbol.flags.is(
+                                    Flags.Case
+                                  )
+                        )
                         && !vd.symbol.hasAnnotation(IgnoreAnnot)
                     case OnlyDerivations =>
                         vd.symbol.name.startsWith("derived") && vd.tpe <:< CompileDerivationsMarker

@@ -287,6 +287,27 @@ val fromDataExample = compile {
 }
 ```
 
+ You can derive `FromData` instances for your case classes and enums via standard Scala 3 `derives` syntax.
+One caveat - you must always supply companion object with @Compile annotation on it even if it emptu. This is 
+because Scalus needs to compile the companion object to include the `FromData` instance in the UPLC script.
+
+```scala
+import scalus.builtin.*, Builtins.*, Data.*
+
+case class Account(hash: ByteString, balance: BigInt) derives FromData, ToData
+
+@Compile
+object Account
+
+enum State derives FromData, ToData:
+    case Empty
+    case Active(account: Account2)
+
+@Compile
+object State
+
+```
+
 ## Writing a validator
 
 Here is a simple example of a Plutus V3 validator written in Scalus.
