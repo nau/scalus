@@ -1,5 +1,5 @@
 package scalus.ledger.api
-import io.bullet.borer.{Cbor, Decoder, Encoder}
+import io.bullet.borer.{Cbor, Decoder}
 import org.scalacheck.{Arbitrary, Gen}
 import org.scalatest.funsuite.AnyFunSuite
 import org.scalatestplus.scalacheck.ScalaCheckPropertyChecks

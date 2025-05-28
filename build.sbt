@@ -216,10 +216,10 @@ lazy val scalus = crossProject(JSPlatform, JVMPlatform, NativePlatform)
       libraryDependencies += "org.typelevel" %%% "cats-core" % "2.13.0",
       libraryDependencies += "org.typelevel" %%% "cats-parse" % "1.1.0",
       libraryDependencies += "org.typelevel" %%% "paiges-core" % "0.4.4",
-      libraryDependencies += "com.lihaoyi" %%% "upickle" % "4.1.0",
+      libraryDependencies += "com.lihaoyi" %%% "upickle" % "4.2.1",
       libraryDependencies ++= Seq(
-        "io.bullet" %%% "borer-core" % "1.16.0",
-        "io.bullet" %%% "borer-derivation" % "1.16.0" % "provided"
+        "io.bullet" %%% "borer-core" % "1.16.1",
+        "io.bullet" %%% "borer-derivation" % "1.16.1" % "provided"
       ),
       PluginDependency,
       libraryDependencies += "org.scalatest" %%% "scalatest" % "3.2.19" % "test",
@@ -296,7 +296,7 @@ lazy val scalusExamples = crossProject(JSPlatform, JVMPlatform, NativePlatform)
     .configurePlatform(JVMPlatform)(_.dependsOn(`scalus-bloxbean-cardano-client-lib`))
     .jvmSettings(
       Test / fork := true,
-      libraryDependencies += "com.bloxbean.cardano" % "cardano-client-backend-blockfrost" % "0.6.3"
+      libraryDependencies += "com.bloxbean.cardano" % "cardano-client-backend-blockfrost" % "0.6.4"
     )
     .jsSettings(
       Compile / npmDependencies += "@noble/curves" -> "1.4.2",
@@ -397,10 +397,10 @@ lazy val scalusCardanoLedger = crossProject(JSPlatform, JVMPlatform)
       scalacOptions += "-Xmax-inlines:100", // needed for upickle derivation of CostModel
       libraryDependencies += "com.bloxbean.cardano" % "cardano-client-lib" % "0.6.4",
       libraryDependencies ++= Seq(
-        "io.bullet" %%% "borer-core" % "1.15.0",
-        "io.bullet" %%% "borer-derivation" % "1.15.0" % "provided"
+        "io.bullet" %%% "borer-core" % "1.16.1",
+        "io.bullet" %%% "borer-derivation" % "1.16.1" % "provided"
       ),
-      libraryDependencies += "com.softwaremill.magnolia1_3" %%% "magnolia" % "1.3.16" % "test",
+      libraryDependencies += "com.softwaremill.magnolia1_3" %%% "magnolia" % "1.3.18" % "test",
       libraryDependencies += "org.scalatest" %%% "scalatest" % "3.2.19" % "test",
       libraryDependencies += "org.scalatestplus" %%% "scalacheck-1-18" % "3.2.19.0" % "test",
       publish / skip := true
