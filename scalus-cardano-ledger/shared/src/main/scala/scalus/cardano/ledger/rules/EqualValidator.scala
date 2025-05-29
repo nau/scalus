@@ -47,7 +47,7 @@ object EqualValidator {
 
             override def evaluate(state: State, event: Event): Result = boundary {
                 val outputs =
-                    for input <- event.body.inputs
+                    for input <- event.body.value.inputs
                     yield
                         val output = state.utxo.get(input)
                         if output.isEmpty then
@@ -78,7 +78,7 @@ object EqualValidator {
             override def description: String = "OutputsAmount"
 
             override def evaluate(state: State, event: Event): Result = {
-                val result = event.body.outputs.foldLeft(0L) { (acc, output) =>
+                val result = event.body.value.outputs.foldLeft(0L) { (acc, output) =>
                     val value = output match
                         case shelley: TransactionOutput.Shelley => shelley.value
                         case babbage: TransactionOutput.Babbage => babbage.value
@@ -98,7 +98,7 @@ object EqualValidator {
             override def description: String = "FeeAmount"
 
             override def evaluate(state: State, event: Event): Result = {
-                success(event.body.fee.value)
+                success(event.body.value.fee.value)
             }
         }
 

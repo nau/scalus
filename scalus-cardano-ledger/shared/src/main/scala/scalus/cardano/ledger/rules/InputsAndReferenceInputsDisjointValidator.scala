@@ -4,8 +4,8 @@ package scalus.cardano.ledger.rules
 // It's Babbage.disjointRefInputs in cardano-ledger
 object InputsAndReferenceInputsDisjointValidator extends STS.Validator {
     override def validate(context: Context, state: State, event: Event): Result = {
-        val inputs = event.body.inputs
-        val referenceInputs = event.body.referenceInputs.getOrElse(Set.empty)
+        val inputs = event.body.value.inputs
+        val referenceInputs = event.body.value.referenceInputs.getOrElse(Set.empty)
         val intersection = referenceInputs.view.filter(inputs.contains)
 
         if intersection.nonEmpty then

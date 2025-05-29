@@ -62,13 +62,13 @@ case class Block(
     def isEmpty: Boolean = transactionBodies.isEmpty
 
     /** Reconstruct complete transactions from bodies, witness sets, and auxiliary data */
-    def transactions: Seq[Transaction] =
+    def transactions(using OriginalCborByteArray): Seq[Transaction] =
         transactionBodies.zipWithIndex.map { case (body, idx) =>
             val witnessSet = transactionWitnessSets(idx)
             val auxData = auxiliaryDataSet.get(idx)
             val isValid = !invalidTransactions.contains(idx)
 
-            Transaction(body, witnessSet, isValid, auxData)
+            Transaction(KeepRaw(body), witnessSet, isValid, auxData)
         }
 
 case class BlockFile(era: Int, block: Block) derives Codec

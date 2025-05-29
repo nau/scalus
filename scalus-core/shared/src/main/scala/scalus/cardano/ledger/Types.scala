@@ -1,10 +1,14 @@
 package scalus.cardano.ledger
 
-import io.bullet.borer.derivation.ArrayBasedCodecs.*
-import io.bullet.borer.{Cbor, Codec, Decoder, Encoder, Writer}
-import scalus.builtin.ByteString
 import io.bullet.borer.NullOptions.given
+import io.bullet.borer.derivation.ArrayBasedCodecs.*
+import io.bullet.borer.*
+import scalus.builtin.ByteString
 import scalus.cardano.address.Address
+import scalus.utils.Hex.toHex
+
+import java.util
+import scala.compiletime.asMatchable
 
 /** Represents an amount of Cardano's native currency (ADA)
   *
@@ -220,31 +224,44 @@ case class Constitution(
     scriptHash: Option[ScriptHash]
 ) derives Codec
 
-opaque type OriginalCborByteArray[A] <: Array[Byte] = Array[Byte]
+opaque type OriginalCborByteArray <: Array[Byte] = Array[Byte]
 object OriginalCborByteArray {
 
     /** Create an OriginalCborByteArray from a byte array */
-    def apply[A](bytes: Array[Byte]): OriginalCborByteArray[A] = bytes
+    def apply(bytes: Array[Byte]): OriginalCborByteArray = bytes
 }
 
-case class KeepRaw[A](value: A, raw: Array[Byte])
+case class KeepRaw[A](value: A, raw: Array[Byte]) {
+    override def hashCode: Int =
+        util.Arrays.hashCode(Array(value.hashCode(), util.Arrays.hashCode(raw)))
+
+    override def equals(obj: Any): Boolean = obj.asMatchable match {
+        case that: KeepRaw[?] =>
+            this.value == that.value && java.util.Arrays.equals(this.raw, that.raw)
+        case _ => false
+    }
+    override def toString: String = s"KeepRaw(value=$value, raw=${raw.toHex})"
+}
 
 object KeepRaw {
     def apply[A: Encoder](value: A): KeepRaw[A] = new KeepRaw(value, Cbor.encode(value).toByteArray)
 
-    given [A: Decoder: OriginalCborByteArray]: Decoder[KeepRaw[A]] =
+    given [A: Decoder](using OriginalCborByteArray): Decoder[KeepRaw[A]] =
         Decoder { r =>
-            val start = r.cursor
-            val value = r.read[A]()
             // Here we need to call `dataItem()` to ensure the cursor is updated
             // see https://github.com/sirthias/borer/issues/761#issuecomment-2919035884
             r.dataItem()
+            val start = r.cursor
+            val value = r.read[A]()
+            r.dataItem() // same here
             val end = r.cursor
-            val raw = summon[OriginalCborByteArray[A]].slice(start.toInt, end.toInt)
+            val raw = summon[OriginalCborByteArray].slice(start.toInt, end.toInt)
             KeepRaw(value, raw)
         }
 
     given [A: Encoder]: Encoder[KeepRaw[A]] = (w: Writer, value: KeepRaw[A]) => {
+        // FIXME: use w.writeValueAsRawBytes instead of re-encoding when it's supported:
+        // https://github.com/sirthias/borer/issues/764
         summon[Encoder[A]].write(w, value.value)
     }
 }

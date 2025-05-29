@@ -200,12 +200,17 @@ class CborSerializationTest extends AnyFunSuite, ScalaCheckPropertyChecks, Arbit
         testSerializationRoundTrip[BlockFile]()
 
     test(s"Transaction should serialize and deserialize correctly"):
-        testSerializationRoundTrip[Transaction]()
+        forAll: (a: Transaction) =>
+            val encoded = Cbor.encode(a).toByteArray
+            given OriginalCborByteArray = OriginalCborByteArray(encoded)
+            val decoded = Cbor.decode(encoded).to[Transaction].value
+            assert(a == decoded)
 
     // Helper method to test serialization/deserialization for a given type
     private def testSerializationRoundTrip[A: Arbitrary: Encoder: Decoder](): Unit = {
         forAll: (a: A) =>
             val encoded = Cbor.encode(a).toByteArray
+            given OriginalCborByteArray = OriginalCborByteArray(encoded)
             val decoded = Cbor.decode(encoded).to[A].value
             assert(a == decoded)
     }

@@ -1,5 +1,6 @@
 package scalus.cardano.ledger
 
+import io.bullet.borer.Encoder
 import org.scalacheck.{Arbitrary, Gen}
 import org.scalacheck.Arbitrary.arbitrary
 import scalus.builtin.{ByteString, Data}
@@ -7,6 +8,7 @@ import scalus.builtin.Data.*
 import scalus.cardano.ledger.ArbitraryDerivation.autoDerived
 import scalus.ledger.api.{KeyHash, SlotNo, Timelock}
 import scalus.{builtin, uplc}
+
 import scala.collection.immutable
 
 trait ArbitraryInstances extends uplc.ArbitraryInstances {
@@ -613,6 +615,9 @@ trait ArbitraryInstances extends uplc.ArbitraryInstances {
         )
     }
 
+    given [A: Arbitrary: Encoder]: Arbitrary[KeepRaw[A]] = Arbitrary {
+        Arbitrary.arbitrary[A].map(a => KeepRaw(a))
+    }
     given Arbitrary[BlockFile] = autoDerived
     given Arbitrary[Transaction] = autoDerived
 }

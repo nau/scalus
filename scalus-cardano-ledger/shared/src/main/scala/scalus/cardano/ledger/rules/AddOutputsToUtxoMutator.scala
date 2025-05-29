@@ -14,7 +14,7 @@ object AddOutputsToUtxoMutator extends STS.Mutator {
           )
         )
 
-        val addedUtxo: Utxo = event.body.outputs.view.zipWithIndex.map { case (output, index) =>
+        val addedUtxo: Utxo = event.body.value.outputs.view.zipWithIndex.map { case (output, index) =>
             TransactionInput(transactionId, index) -> output
         }.toMap
 

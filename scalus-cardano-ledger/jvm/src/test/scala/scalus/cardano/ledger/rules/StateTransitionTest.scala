@@ -17,15 +17,17 @@ class StateTransitionTest extends AnyFunSuite, ArbitraryInstances {
         val transaction = {
             val tx = randomValidTransaction
             tx.copy(
-              body = tx.body.copy(
-                inputs = genSetOfSizeFromArbitrary[TransactionInput](1, 4).sample.get
+              body = KeepRaw(
+                tx.body.value.copy(
+                  inputs = genSetOfSizeFromArbitrary[TransactionInput](1, 4).sample.get
+                )
               )
             )
         }
 
         val result = EmptyInputsValidator.validate(context, state, transaction)
         assert(result.isRight)
-        assert(transaction.body.inputs.nonEmpty)
+        assert(transaction.body.value.inputs.nonEmpty)
     }
 
     test("EmptyInputsValidator rule failure") {
@@ -34,15 +36,17 @@ class StateTransitionTest extends AnyFunSuite, ArbitraryInstances {
         val transaction = {
             val tx = randomValidTransaction
             tx.copy(
-              body = tx.body.copy(
-                inputs = Set.empty
+              body = KeepRaw(
+                tx.body.value.copy(
+                  inputs = Set.empty
+                )
               )
             )
         }
 
         val result = EmptyInputsValidator.validate(context, state, transaction)
         assert(result.isLeft)
-        assert(transaction.body.inputs.isEmpty)
+        assert(transaction.body.value.inputs.isEmpty)
     }
 
     test("InputsAndReferenceInputsDisjointValidator rule success") {
@@ -51,16 +55,20 @@ class StateTransitionTest extends AnyFunSuite, ArbitraryInstances {
         val transaction = {
             val tx = randomValidTransaction
             tx.copy(
-              body = tx.body.copy(
-                inputs = genSetOfSizeFromArbitrary[TransactionInput](1, 4).sample.get,
-                referenceInputs = None
+              body = KeepRaw(
+                tx.body.value.copy(
+                  inputs = genSetOfSizeFromArbitrary[TransactionInput](1, 4).sample.get,
+                  referenceInputs = None
+                )
               )
             )
         }
 
         val result = InputsAndReferenceInputsDisjointValidator.validate(context, state, transaction)
         assert(result.isRight)
-        assert(transaction.body.inputs.nonEmpty && transaction.body.referenceInputs.isEmpty)
+        assert(
+          transaction.body.value.inputs.nonEmpty && transaction.body.value.referenceInputs.isEmpty
+        )
     }
 
     test("InputsAndReferenceInputsDisjointValidator rule failure") {
@@ -70,14 +78,16 @@ class StateTransitionTest extends AnyFunSuite, ArbitraryInstances {
             val inputs = genSetOfSizeFromArbitrary[TransactionInput](1, 4).sample.get
             val tx = randomValidTransaction
             tx.copy(
-              body = tx.body.copy(inputs = inputs, referenceInputs = Some(inputs))
+              body = KeepRaw(tx.body.value.copy(inputs = inputs, referenceInputs = Some(inputs)))
             )
         }
 
         val result = InputsAndReferenceInputsDisjointValidator.validate(context, state, transaction)
         assert(result.isLeft)
-        assert(transaction.body.inputs.nonEmpty && transaction.body.referenceInputs.nonEmpty)
-        assert(transaction.body.inputs == transaction.body.referenceInputs.get)
+        assert(
+          transaction.body.value.inputs.nonEmpty && transaction.body.value.referenceInputs.nonEmpty
+        )
+        assert(transaction.body.value.inputs == transaction.body.value.referenceInputs.get)
     }
 
     test("AllInputsMustBeInUtxoValidator rule success") {
@@ -85,27 +95,30 @@ class StateTransitionTest extends AnyFunSuite, ArbitraryInstances {
         val transaction = {
             val tx = randomValidTransaction
             tx.copy(
-              body = tx.body.copy(
-                inputs = genSetOfSizeFromArbitrary[TransactionInput](1, 4).sample.get,
-                collateralInputs =
-                    Some(genSetOfSizeFromArbitrary[TransactionInput](1, 4).sample.get),
-                referenceInputs = Some(genSetOfSizeFromArbitrary[TransactionInput](1, 4).sample.get)
+              body = KeepRaw(
+                tx.body.value.copy(
+                  inputs = genSetOfSizeFromArbitrary[TransactionInput](1, 4).sample.get,
+                  collateralInputs =
+                      Some(genSetOfSizeFromArbitrary[TransactionInput](1, 4).sample.get),
+                  referenceInputs =
+                      Some(genSetOfSizeFromArbitrary[TransactionInput](1, 4).sample.get)
+                )
               )
             )
         }
         val state = State(
-          utxo = transaction.body.inputs.view
-              .concat(transaction.body.collateralInputs.get)
-              .concat(transaction.body.referenceInputs.get)
+          utxo = transaction.body.value.inputs.view
+              .concat(transaction.body.value.collateralInputs.get)
+              .concat(transaction.body.value.referenceInputs.get)
               .map(_ -> Arbitrary.arbitrary[TransactionOutput].sample.get)
               .toMap
         )
 
         val result = AllInputsMustBeInUtxoValidator.validate(context, state, transaction)
         assert(result.isRight)
-        assert(transaction.body.inputs.forall(state.utxo.contains))
-        assert(transaction.body.collateralInputs.get.forall(state.utxo.contains))
-        assert(transaction.body.referenceInputs.get.forall(state.utxo.contains))
+        assert(transaction.body.value.inputs.forall(state.utxo.contains))
+        assert(transaction.body.value.collateralInputs.get.forall(state.utxo.contains))
+        assert(transaction.body.value.referenceInputs.get.forall(state.utxo.contains))
     }
 
     test("AllInputsMustBeInUtxoValidator rule failure") {
@@ -114,20 +127,23 @@ class StateTransitionTest extends AnyFunSuite, ArbitraryInstances {
         val transaction = {
             val tx = randomValidTransaction
             tx.copy(
-              body = tx.body.copy(
-                inputs = genSetOfSizeFromArbitrary[TransactionInput](1, 4).sample.get,
-                collateralInputs =
-                    Some(genSetOfSizeFromArbitrary[TransactionInput](1, 4).sample.get),
-                referenceInputs = Some(genSetOfSizeFromArbitrary[TransactionInput](1, 4).sample.get)
+              body = KeepRaw(
+                tx.body.value.copy(
+                  inputs = genSetOfSizeFromArbitrary[TransactionInput](1, 4).sample.get,
+                  collateralInputs =
+                      Some(genSetOfSizeFromArbitrary[TransactionInput](1, 4).sample.get),
+                  referenceInputs =
+                      Some(genSetOfSizeFromArbitrary[TransactionInput](1, 4).sample.get)
+                )
               )
             )
         }
 
         val result = AllInputsMustBeInUtxoValidator.validate(context, state, transaction)
         assert(result.isLeft)
-        assert(!transaction.body.inputs.forall(state.utxo.contains))
-        assert(!transaction.body.collateralInputs.get.forall(state.utxo.contains))
-        assert(!transaction.body.referenceInputs.get.forall(state.utxo.contains))
+        assert(!transaction.body.value.inputs.forall(state.utxo.contains))
+        assert(!transaction.body.value.collateralInputs.get.forall(state.utxo.contains))
+        assert(!transaction.body.value.referenceInputs.get.forall(state.utxo.contains))
     }
 
     test("EqualValidator.InputsAmountEqualsSumOfOutputsAmountAndFeeAmount rule success") {
@@ -135,33 +151,35 @@ class StateTransitionTest extends AnyFunSuite, ArbitraryInstances {
         val transaction = {
             val tx = randomValidTransaction
             tx.copy(
-              body = tx.body.copy(
-                inputs = Set(
-                  Arbitrary.arbitrary[TransactionInput].sample.get
-                ),
-                outputs = List(
-                  TransactionOutput.Shelley(
-                    Arbitrary.arbitrary[AddressBytes].sample.get,
-                    Value.Ada(Coin(Gen.choose(0L, 1000000L).sample.get))
-                  )
-                ),
-                fee = Coin(Gen.choose(0L, 1000000L).sample.get)
+              body = KeepRaw(
+                tx.body.value.copy(
+                  inputs = Set(
+                    Arbitrary.arbitrary[TransactionInput].sample.get
+                  ),
+                  outputs = List(
+                    TransactionOutput.Shelley(
+                      Arbitrary.arbitrary[AddressBytes].sample.get,
+                      Value.Ada(Coin(Gen.choose(0L, 1000000L).sample.get))
+                    )
+                  ),
+                  fee = Coin(Gen.choose(0L, 1000000L).sample.get)
+                )
               )
             )
         }
         val state = State(
           utxo = Map(
-            transaction.body.inputs.head -> TransactionOutput.Shelley(
+            transaction.body.value.inputs.head -> TransactionOutput.Shelley(
               Arbitrary.arbitrary[AddressBytes].sample.get,
               Value.Ada(
                 Coin(
-                  transaction.body.outputs.head
+                  transaction.body.value.outputs.head
                       .asInstanceOf[TransactionOutput.Shelley]
                       .value
                       .asInstanceOf[Value.Ada]
                       .coin
                       .value +
-                      transaction.body.fee.value
+                      transaction.body.value.fee.value
                 )
               )
             )
@@ -181,33 +199,35 @@ class StateTransitionTest extends AnyFunSuite, ArbitraryInstances {
         val transaction = {
             val tx = randomValidTransaction
             tx.copy(
-              body = tx.body.copy(
-                inputs = Set(
-                  Arbitrary.arbitrary[TransactionInput].sample.get
-                ),
-                outputs = List(
-                  TransactionOutput.Shelley(
-                    Arbitrary.arbitrary[AddressBytes].sample.get,
-                    Value.Ada(Coin(Gen.choose(0L, 1000000L).sample.get))
-                  )
-                ),
-                fee = Coin(Gen.choose(0L, 1000000L).sample.get)
+              body = KeepRaw(
+                tx.body.value.copy(
+                  inputs = Set(
+                    Arbitrary.arbitrary[TransactionInput].sample.get
+                  ),
+                  outputs = List(
+                    TransactionOutput.Shelley(
+                      Arbitrary.arbitrary[AddressBytes].sample.get,
+                      Value.Ada(Coin(Gen.choose(0L, 1000000L).sample.get))
+                    )
+                  ),
+                  fee = Coin(Gen.choose(0L, 1000000L).sample.get)
+                )
               )
             )
         }
         val state = State(
           utxo = Map(
-            transaction.body.inputs.head -> TransactionOutput.Shelley(
+            transaction.body.value.inputs.head -> TransactionOutput.Shelley(
               Arbitrary.arbitrary[AddressBytes].sample.get,
               Value.Ada(
                 Coin(
-                  transaction.body.outputs.head
+                  transaction.body.value.outputs.head
                       .asInstanceOf[TransactionOutput.Shelley]
                       .value
                       .asInstanceOf[Value.Ada]
                       .coin
                       .value +
-                      transaction.body.fee.value
+                      transaction.body.value.fee.value
                       + 1L
                 )
               )
@@ -229,15 +249,17 @@ class StateTransitionTest extends AnyFunSuite, ArbitraryInstances {
         val transaction = {
             val tx = randomValidTransaction
             tx.copy(
-              body = tx.body.copy(
-                fee = Arbitrary.arbitrary[Coin].sample.get
+              body = KeepRaw(
+                tx.body.value.copy(
+                  fee = Arbitrary.arbitrary[Coin].sample.get
+                )
               )
             )
         }
 
         val result = FeeMutator.transit(context, state, transaction)
         assert(result.isRight)
-        assert(context.fee == transaction.body.fee)
+        assert(context.fee == transaction.body.value.fee)
     }
 
     test("RemoveInputsFromUtxoMutator success") {
@@ -248,8 +270,10 @@ class StateTransitionTest extends AnyFunSuite, ArbitraryInstances {
         val transaction = {
             val tx = randomValidTransaction
             tx.copy(
-              body = tx.body.copy(
-                inputs = state.utxo.keySet
+              body = KeepRaw(
+                tx.body.value.copy(
+                  inputs = state.utxo.keySet
+                )
               )
             )
         }
@@ -266,8 +290,10 @@ class StateTransitionTest extends AnyFunSuite, ArbitraryInstances {
         val transaction = {
             val tx = randomValidTransaction
             tx.copy(
-              body = tx.body.copy(
-                outputs = genListOfSizeFromArbitrary[TransactionOutput](1, 4).sample.get
+              body = KeepRaw(
+                tx.body.value.copy(
+                  outputs = genListOfSizeFromArbitrary[TransactionOutput](1, 4).sample.get
+                )
               )
             )
         }
@@ -275,7 +301,7 @@ class StateTransitionTest extends AnyFunSuite, ArbitraryInstances {
         val result = AddOutputsToUtxoMutator.transit(context, state, transaction)
         assert(state.utxo.isEmpty)
         assert(result.isRight)
-        assert(result.toOption.get.utxo.values.toSeq == transaction.body.outputs)
+        assert(result.toOption.get.utxo.values.toSeq == transaction.body.value.outputs)
     }
 
     test("CardanoMutator success") {
@@ -283,39 +309,41 @@ class StateTransitionTest extends AnyFunSuite, ArbitraryInstances {
         val transaction = {
             val tx = randomValidTransaction
             tx.copy(
-              body = tx.body.copy(
-                inputs = Set(
-                  Arbitrary.arbitrary[TransactionInput].sample.get
-                ),
-                outputs = List(
-                  TransactionOutput.Shelley(
-                    Arbitrary.arbitrary[AddressBytes].sample.get,
-                    Value.Ada(Coin(Gen.choose(0L, 1000000L).sample.get))
-                  )
-                ),
-                fee = Coin(Gen.choose(0L, 1000000L).sample.get),
-                collateralInputs =
-                    Some(genSetOfSizeFromArbitrary[TransactionInput](1, 4).sample.get),
-                referenceInputs = None
+              body = KeepRaw(
+                tx.body.value.copy(
+                  inputs = Set(
+                    Arbitrary.arbitrary[TransactionInput].sample.get
+                  ),
+                  outputs = List(
+                    TransactionOutput.Shelley(
+                      Arbitrary.arbitrary[AddressBytes].sample.get,
+                      Value.Ada(Coin(Gen.choose(0L, 1000000L).sample.get))
+                    )
+                  ),
+                  fee = Coin(Gen.choose(0L, 1000000L).sample.get),
+                  collateralInputs =
+                      Some(genSetOfSizeFromArbitrary[TransactionInput](1, 4).sample.get),
+                  referenceInputs = None
+                )
               )
             )
         }
         val state = State(
-          utxo = transaction.body.collateralInputs.get.view
+          utxo = transaction.body.value.collateralInputs.get.view
               .map(_ -> Arbitrary.arbitrary[TransactionOutput].sample.get)
               .concat(
                 Seq(
-                  transaction.body.inputs.head -> TransactionOutput.Shelley(
+                  transaction.body.value.inputs.head -> TransactionOutput.Shelley(
                     Arbitrary.arbitrary[AddressBytes].sample.get,
                     Value.Ada(
                       Coin(
-                        transaction.body.outputs.head
+                        transaction.body.value.outputs.head
                             .asInstanceOf[TransactionOutput.Shelley]
                             .value
                             .asInstanceOf[Value.Ada]
                             .coin
                             .value +
-                            transaction.body.fee.value
+                            transaction.body.value.fee.value
                       )
                     )
                   )
@@ -326,14 +354,16 @@ class StateTransitionTest extends AnyFunSuite, ArbitraryInstances {
 
         val result = CardanoMutator.transit(context, state, transaction)
         assert(result.isRight)
-        assert(transaction.body.inputs.nonEmpty)
-        assert(transaction.body.referenceInputs.isEmpty)
-        assert(transaction.body.inputs.forall(state.utxo.contains))
-        assert(transaction.body.collateralInputs.get.forall(state.utxo.contains))
-        assert(context.fee == transaction.body.fee)
+        assert(transaction.body.value.inputs.nonEmpty)
+        assert(transaction.body.value.referenceInputs.isEmpty)
+        assert(transaction.body.value.inputs.forall(state.utxo.contains))
+        assert(transaction.body.value.collateralInputs.get.forall(state.utxo.contains))
+        assert(context.fee == transaction.body.value.fee)
         assert(state.utxo.nonEmpty)
-        assert(!transaction.body.inputs.forall(result.toOption.get.utxo.contains))
-        assert(transaction.body.outputs.forall(result.toOption.get.utxo.values.toSeq.contains))
+        assert(!transaction.body.value.inputs.forall(result.toOption.get.utxo.contains))
+        assert(
+          transaction.body.value.outputs.forall(result.toOption.get.utxo.values.toSeq.contains)
+        )
     }
 
     private def randomValidTransaction =

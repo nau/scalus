@@ -27,17 +27,19 @@ class TransactionTest extends AnyFunSuite {
 
     private def asdf(): Unit = {
         val tx = Transaction(
-          TransactionBody(
-            inputs = Set(
-              TransactionInput(Hash(ByteString.fill(32, 0)), 0)
-            ),
-            outputs = List(
-              TransactionOutput.Babbage(
-                address = AddressBytes(ByteString.fromArray(addr)),
-                value = Value.lovelace(2)
-              )
-            ),
-            fee = Coin(0)
+          KeepRaw(
+            TransactionBody(
+              inputs = Set(
+                TransactionInput(Hash(ByteString.fill(32, 0)), 0)
+              ),
+              outputs = List(
+                TransactionOutput.Babbage(
+                  address = AddressBytes(ByteString.fromArray(addr)),
+                  value = Value.lovelace(2)
+                )
+              ),
+              fee = Coin(0)
+            )
           ),
           witnessSet = TransactionWitnessSet(),
           isValid = true
