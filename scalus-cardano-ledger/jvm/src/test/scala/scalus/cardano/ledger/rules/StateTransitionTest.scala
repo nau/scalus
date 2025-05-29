@@ -24,7 +24,7 @@ class StateTransitionTest extends AnyFunSuite, ArbitraryInstances {
               )
         )
         val result =
-            for newState <- InputSetEmptyUtxoLedgerSTM.transit(LedgerState(), tx)
+            for newState <- EmptinessLedgerValidator.Inputs.transit(LedgerState(), tx)
             yield newState
         assert(result.isRight)
     }
@@ -40,7 +40,7 @@ class StateTransitionTest extends AnyFunSuite, ArbitraryInstances {
               .copy(inputs = Set.empty)
         )
         val result =
-            for newState <- InputSetEmptyUtxoLedgerSTM.transit(LedgerState(), tx)
+            for newState <- EmptinessLedgerValidator.Inputs.transit(LedgerState(), tx)
             yield newState
         assert(result.isLeft)
     }
@@ -59,7 +59,7 @@ class StateTransitionTest extends AnyFunSuite, ArbitraryInstances {
               )
         )
         val result =
-            for newState <- DisjointRefInputsLedgerSTM.transit(LedgerState(), tx)
+            for newState <- DisjointLedgerValidator.InputsAndReferenceInputs.transit(LedgerState(), tx)
             yield newState
         assert(result.isRight)
     }
@@ -76,7 +76,7 @@ class StateTransitionTest extends AnyFunSuite, ArbitraryInstances {
               .copy(inputs = inputs, referenceInputs = Some(inputs))
         )
         val result =
-            for newState <- DisjointRefInputsLedgerSTM.transit(LedgerState(), tx)
+            for newState <- DisjointLedgerValidator.InputsAndReferenceInputs.transit(LedgerState(), tx)
             yield newState
         assert(result.isLeft)
     }
@@ -97,16 +97,17 @@ class StateTransitionTest extends AnyFunSuite, ArbitraryInstances {
               )
         )
         val result =
-            for newState <- BadInputsUtxOLedgerSTM.transit(
-                  LedgerState(
-                    tx.body.inputs.view
-                        .concat(tx.body.collateralInputs.getOrElse(Set.empty))
-                        .concat(tx.body.referenceInputs.getOrElse(Set.empty))
-                        .map(_ -> Arbitrary.arbitrary[TransactionOutput].sample.get)
-                        .toMap
-                  ),
-                  tx
-                )
+            for newState <- MustBeInUtxoLedgerValidator.AllInputs
+                    .transit(
+                      LedgerState(
+                        tx.body.inputs.view
+                            .concat(tx.body.collateralInputs.getOrElse(Set.empty))
+                            .concat(tx.body.referenceInputs.getOrElse(Set.empty))
+                            .map(_ -> Arbitrary.arbitrary[TransactionOutput].sample.get)
+                            .toMap
+                      ),
+                      tx
+                    )
             yield newState
         assert(result.isRight)
     }
@@ -127,7 +128,8 @@ class StateTransitionTest extends AnyFunSuite, ArbitraryInstances {
               )
         )
         val result =
-            for newState <- BadInputsUtxOLedgerSTM.transit(LedgerState(), tx)
+            for newState <- MustBeInUtxoLedgerValidator.AllInputs
+                    .transit(LedgerState(), tx)
             yield newState
         assert(result.isLeft)
     }
@@ -147,7 +149,7 @@ class StateTransitionTest extends AnyFunSuite, ArbitraryInstances {
               )
         )
         val result =
-            for newState <- InputsLedgerSTM.transit(
+            for newState <- InputsLedgerSTS.transit(
                   LedgerState(
                     tx.body.inputs.view
                         .concat(tx.body.referenceInputs.getOrElse(Set.empty))

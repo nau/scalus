@@ -2,7 +2,6 @@ package scalus.cardano.ledger
 package rules
 
 import scalus.ledger.babbage.ProtocolParams
-export scalus.cardano.ledger.{Transaction, TransactionInput, TransactionOutput}
 
 type V = Option[Throwable]
 
@@ -27,16 +26,41 @@ case class UtxoEnv(slot: SlotNo, params: ProtocolParams)
 
 case class LedgerState(utxo: Utxo = Map.empty)
 
-trait STM {
+trait STS {
     type State
     type Event
     type Error
 
     def transit(state: State, event: Event): Either[Error, State]
     final def apply(state: State, event: Event): Either[Error, State] = transit(state, event)
+
+//    final def |>>[T <: STS](other: T)(using ev: T =:= this.type): STS = (state, event) =>
+//        for
+//            state <- this.transit(state, event)
+//            state <- other.transit(state, event)
+//        yield state
+
 }
 
-trait LedgerSTM extends STM {
+trait Validator extends STS {
+
+    override final def transit(state: State, event: Event): Either[Error, State] = {
+        validate(state, event) match {
+            case Right(_)    => Right(state)
+            case Left(error) => Left(error)
+        }
+    }
+
+    def validate(state: State, event: Event): Either[Error, Unit]
+}
+
+trait LedgerSTS extends STS {
+    override final type State = LedgerState
+    override final type Event = Transaction
+    override final type Error = Throwable
+}
+
+trait LedgerValidator extends Validator {
     override final type State = LedgerState
     override final type Event = Transaction
     override final type Error = Throwable
