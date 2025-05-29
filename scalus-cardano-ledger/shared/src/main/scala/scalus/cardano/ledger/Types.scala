@@ -1,7 +1,7 @@
 package scalus.cardano.ledger
 
 import io.bullet.borer.derivation.ArrayBasedCodecs.*
-import io.bullet.borer.{Codec, Decoder, Encoder, Writer}
+import io.bullet.borer.{Cbor, Codec, Decoder, Encoder, Writer}
 import scalus.builtin.ByteString
 import io.bullet.borer.NullOptions.given
 
@@ -315,3 +315,32 @@ case class Constitution(
     anchor: Anchor,
     scriptHash: Option[ScriptHash]
 ) derives Codec
+
+opaque type OriginalCborByteArray[A] <: Array[Byte] = Array[Byte]
+object OriginalCborByteArray {
+
+    /** Create an OriginalCborByteArray from a byte array */
+    def apply[A](bytes: Array[Byte]): OriginalCborByteArray[A] = bytes
+}
+
+case class KeepRaw[A](value: A, raw: Array[Byte])
+
+object KeepRaw {
+    def apply[A: Encoder](value: A): KeepRaw[A] = new KeepRaw(value, Cbor.encode(value).toByteArray)
+
+    given [A: Decoder: OriginalCborByteArray]: Decoder[KeepRaw[A]] =
+        Decoder { r =>
+            val start = r.cursor
+            val value = r.read[A]()
+            // Here we need to call `dataItem()` to ensure the cursor is updated
+            // see https://github.com/sirthias/borer/issues/761#issuecomment-2919035884
+            r.dataItem()
+            val end = r.cursor
+            val raw = summon[OriginalCborByteArray[A]].slice(start.toInt, end.toInt)
+            KeepRaw(value, raw)
+        }
+
+    given [A: Encoder]: Encoder[KeepRaw[A]] = (w: Writer, value: KeepRaw[A]) => {
+        summon[Encoder[A]].write(w, value.value)
+    }
+}
