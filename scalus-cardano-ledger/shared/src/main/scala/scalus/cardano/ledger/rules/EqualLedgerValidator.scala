@@ -6,8 +6,10 @@ import scala.util.boundary.break
 import EqualLedgerValidator.*
 import EqualLedgerValidator.Expression.*
 
-class EqualLedgerValidator[T](lhs: Expression[T])(rhs: Expression[T]) extends LedgerValidator {
-    override def validate(state: State, event: Event): Either[Error, Unit] = {
+class EqualLedgerValidator[StateF[_] <: Ledger.StateI[_], T](lhs: Expression[_ >: StateF <: Ledger.StateI, T])(
+    rhs: Expression[_ >: StateF <: Ledger.StateI, T]
+) extends Ledger.STS.Validator[StateF] {
+    override def validate[StateT: StateI](state: StateT, event: Event): Either[Error, Unit] = {
         for
             lhsResult <- lhs(state, event)
             rhsResult <- rhs(state, event)
@@ -16,7 +18,7 @@ class EqualLedgerValidator[T](lhs: Expression[T])(rhs: Expression[T]) extends Le
                 else
                     Left(
                       IllegalArgumentException(
-                        s"Expressions $lhs = $lhsResult and $rhs = $rhsResult are not equal"
+                        s"Expressions ${lhs.description} = $lhsResult and ${rhs.description} = $rhsResult are not equal"
                       )
                     )
         yield result
@@ -24,29 +26,31 @@ class EqualLedgerValidator[T](lhs: Expression[T])(rhs: Expression[T]) extends Le
 }
 
 object EqualLedgerValidator {
-    object InputsEqualsSumOfOutputsAndFee
-        extends EqualLedgerValidator[Long](InputsAmount)(Sum(OutputsAmount, FeeAmount))
+    object InputsAmountEqualsSumOfOutputsAmountAndFeeAmount
+        extends EqualLedgerValidator[Ledger.StateI.Utxo, Long](InputsAmount)(
+          Sum(OutputsAmount, FeeAmount)
+        )
 
-    trait Expression[T]
-        extends (
-            (LedgerValidator#State, LedgerValidator#Event) => Either[LedgerValidator#Error, T]
-        ) {
-        final type State = LedgerValidator#State
-        final type Event = LedgerValidator#Event
-        final type Error = LedgerValidator#Error
+    trait Expression[StateF[_] <: Ledger.StateI[_], +T] {
+        final type StateI[StateT] = StateF[StateT]
+        final type Event = Ledger.Event
+        final type Error = Ledger.Error
 
-        def name: String
-        def evaluate(state: State, event: Event): Either[Error, T]
+        def description: String
+        def evaluate[StateT: StateI](state: StateT, event: Event): Either[Error, T]
 
-        override final def apply(state: State, event: Event): Either[Error, T] =
+        final def apply[StateT: StateI](state: StateT, event: Event): Either[Error, T] =
             evaluate(state, event)
     }
 
     object Expression {
-        object InputsAmount extends Expression[Long] {
-            override def name: String = "InputsAmount"
+        object InputsAmount extends Expression[Ledger.StateI.Utxo, Long] {
+            override def description: String = "InputsAmount"
 
-            override def evaluate(state: State, event: Event): Either[Error, Long] = boundary {
+            override def evaluate[StateT: StateI](
+                state: StateT,
+                event: Event
+            ): Either[Error, Long] = boundary {
                 val outputs =
                     for input <- event.body.inputs
                     yield
@@ -73,10 +77,13 @@ object EqualLedgerValidator {
             }
         }
 
-        object OutputsAmount extends Expression[Long] {
-            override def name: String = "OutputsAmount"
+        object OutputsAmount extends Expression[Ledger.StateI, Long] {
+            override def description: String = "OutputsAmount"
 
-            override def evaluate(state: State, event: Event): Either[Error, Long] = {
+            override def evaluate[StateT: StateI](
+                state: StateT,
+                event: Event
+            ): Either[Error, Long] = {
                 val result = event.body.outputs.foldLeft(0L) { (acc, output) =>
                     val value = output match
                         case shelley: TransactionOutput.Shelley => shelley.value
@@ -93,28 +100,37 @@ object EqualLedgerValidator {
             }
         }
 
-        object FeeAmount extends Expression[Long] {
-            override def name: String = "FeeAmount"
+        object FeeAmount extends Expression[Ledger.StateI, Long] {
+            override def description: String = "FeeAmount"
 
-            override def evaluate(state: State, event: Event): Either[Error, Long] = {
+            override def evaluate[StateT: StateI](
+                state: StateT,
+                event: Event
+            ): Either[Error, Long] = {
                 Right(event.body.fee.value)
             }
         }
 
-        class Sum[T](val expressions: Expression[T]*)(using num: Numeric[T]) extends Expression[T] {
-            override def name: String = s"Sum of ${expressions.view.map(_.name).mkString(", ")}"
+        class Sum[StateF[_] <: Ledger.StateI[_], T](
+            val expressions: Expression[_ >: StateF <: Ledger.StateI, T]  *
+        )(using
+            num: Numeric[T]
+        ) extends Expression[StateF, T] {
+            override def description: String =
+                s"Sum of ${expressions.view.map(_.description).mkString(", ")}"
 
-            override def evaluate(state: State, event: Event): Either[Error, T] = boundary {
-                val result = expressions.view
-                    .map { expression =>
-                        expression.evaluate(state, event) match
-                            case Right(value)       => value
-                            case left @ Left(error) => break(left)
-                    }
-                    .foldLeft(num.zero)(num.plus)
+            override def evaluate[StateT: StateI](state: StateT, event: Event): Either[Error, T] =
+                boundary {
+                    val result = expressions.view
+                        .map { expression =>
+                            expression.evaluate(state, event) match
+                                case Right(value)       => value
+                                case left @ Left(error) => break(left)
+                        }
+                        .foldLeft(num.zero)(num.plus)
 
-                Right(result)
-            }
+                    Right(result)
+                }
         }
     }
 }

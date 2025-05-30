@@ -24,7 +24,7 @@ class StateTransitionTest extends AnyFunSuite, ArbitraryInstances {
               )
         )
         val result =
-            for newState <- EmptinessLedgerValidator.Inputs.transit(LedgerState(), tx)
+            for newState <- EmptinessLedgerValidator.Inputs.validate(Ledger.State.Default(), tx)
             yield newState
         assert(result.isRight)
     }
@@ -40,7 +40,7 @@ class StateTransitionTest extends AnyFunSuite, ArbitraryInstances {
               .copy(inputs = Set.empty)
         )
         val result =
-            for newState <- EmptinessLedgerValidator.Inputs.transit(LedgerState(), tx)
+            for newState <- EmptinessLedgerValidator.Inputs.validate(Ledger.State.Default(), tx)
             yield newState
         assert(result.isLeft)
     }
@@ -59,7 +59,10 @@ class StateTransitionTest extends AnyFunSuite, ArbitraryInstances {
               )
         )
         val result =
-            for newState <- DisjointLedgerValidator.InputsAndReferenceInputs.transit(LedgerState(), tx)
+            for newState <- DisjointLedgerValidator.InputsAndReferenceInputs.validate(
+                  Ledger.State.Default(),
+                  tx
+                )
             yield newState
         assert(result.isRight)
     }
@@ -76,7 +79,10 @@ class StateTransitionTest extends AnyFunSuite, ArbitraryInstances {
               .copy(inputs = inputs, referenceInputs = Some(inputs))
         )
         val result =
-            for newState <- DisjointLedgerValidator.InputsAndReferenceInputs.transit(LedgerState(), tx)
+            for newState <- DisjointLedgerValidator.InputsAndReferenceInputs.validate(
+                  Ledger.State.Default(),
+                  tx
+                )
             yield newState
         assert(result.isLeft)
     }
@@ -98,8 +104,8 @@ class StateTransitionTest extends AnyFunSuite, ArbitraryInstances {
         )
         val result =
             for newState <- MustBeInUtxoLedgerValidator.AllInputs
-                    .transit(
-                      LedgerState(
+                    .validate(
+                      Ledger.State.Default(
                         tx.body.inputs.view
                             .concat(tx.body.collateralInputs.getOrElse(Set.empty))
                             .concat(tx.body.referenceInputs.getOrElse(Set.empty))
@@ -129,12 +135,12 @@ class StateTransitionTest extends AnyFunSuite, ArbitraryInstances {
         )
         val result =
             for newState <- MustBeInUtxoLedgerValidator.AllInputs
-                    .transit(LedgerState(), tx)
+                    .validate(Ledger.State.Default(), tx)
             yield newState
         assert(result.isLeft)
     }
 
-    test("InputsLedgerSTM success") {
+    test("inputs == outputs + fee success") {
         val utxo: Utxo = Map.empty
         val env = UtxoEnv(slot = 100, params = params)
         val tx = randomValidTransaction.copy(
@@ -143,17 +149,111 @@ class StateTransitionTest extends AnyFunSuite, ArbitraryInstances {
               .sample
               .get
               .copy(
-                inputs = genSetOfSizeFromArbitrary[TransactionInput](1, 4).sample.get,
+                inputs = Set(
+                  Arbitrary.arbitrary[TransactionInput].sample.get
+                ),
+                outputs = List(
+                  TransactionOutput.Shelley(
+                    Arbitrary.arbitrary[Address].sample.get,
+                    Value.Ada(Coin(100))
+                  )
+                ),
+                fee = Coin(20)
+              )
+        )
+        val result =
+            for newState <- EqualLedgerValidator.InputsAmountEqualsSumOfOutputsAmountAndFeeAmount
+                    .validate(
+                      Ledger.State.Default(
+                        Map(
+                          tx.body.inputs.head -> TransactionOutput.Shelley(
+                            Arbitrary.arbitrary[Address].sample.get,
+                            Value.Ada(Coin(120))
+                          )
+                        )
+                      ),
+                      tx
+                    )
+            yield newState
+        assert(result.isRight)
+    }
+
+    test("inputs == outputs + fee failure") {
+        val utxo: Utxo = Map.empty
+        val env = UtxoEnv(slot = 100, params = params)
+        val tx = randomValidTransaction.copy(
+          body = Arbitrary
+              .arbitrary[TransactionBody]
+              .sample
+              .get
+              .copy(
+                inputs = Set(
+                  Arbitrary.arbitrary[TransactionInput].sample.get
+                ),
+                outputs = List(
+                  TransactionOutput.Shelley(
+                    Arbitrary.arbitrary[Address].sample.get,
+                    Value.Ada(Coin(100))
+                  )
+                ),
+                fee = Coin(20)
+              )
+        )
+        val result =
+            for newState <- EqualLedgerValidator.InputsAmountEqualsSumOfOutputsAmountAndFeeAmount
+                    .validate(
+                      Ledger.State.Default(
+                        Map(
+                          tx.body.inputs.head -> TransactionOutput.Shelley(
+                            Arbitrary.arbitrary[Address].sample.get,
+                            Value.Ada(Coin(10))
+                          )
+                        )
+                      ),
+                      tx
+                    )
+            yield newState
+        assert(result.isLeft)
+    }
+
+    test("InputsLedgerMutator success") {
+        val utxo: Utxo = Map.empty
+        val env = UtxoEnv(slot = 100, params = params)
+        val tx = randomValidTransaction.copy(
+          body = Arbitrary
+              .arbitrary[TransactionBody]
+              .sample
+              .get
+              .copy(
+                inputs = Set(
+                  Arbitrary.arbitrary[TransactionInput].sample.get
+                ),
+                outputs = List(
+                  TransactionOutput.Shelley(
+                    Arbitrary.arbitrary[Address].sample.get,
+                    Value.Ada(Coin(100))
+                  )
+                ),
+                fee = Coin(20),
                 collateralInputs = None,
                 referenceInputs = Some(genSetOfSizeFromArbitrary[TransactionInput](1, 4).sample.get)
               )
         )
         val result =
-            for newState <- InputsLedgerSTS.transit(
-                  LedgerState(
-                    tx.body.inputs.view
-                        .concat(tx.body.referenceInputs.getOrElse(Set.empty))
+            for newState <- InputsLedgerMutator.transit(
+                  Ledger.State.Default(
+                    tx.body.referenceInputs
+                        .getOrElse(Set.empty)
+                        .view
                         .map(_ -> Arbitrary.arbitrary[TransactionOutput].sample.get)
+                        .concat(
+                          Seq(
+                            tx.body.inputs.head -> TransactionOutput.Shelley(
+                              Arbitrary.arbitrary[Address].sample.get,
+                              Value.Ada(Coin(120))
+                            )
+                          )
+                        )
                         .toMap
                   ),
                   tx

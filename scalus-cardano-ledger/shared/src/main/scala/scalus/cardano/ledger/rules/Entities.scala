@@ -24,44 +24,87 @@ case class UTxOState(
 
 case class UtxoEnv(slot: SlotNo, params: ProtocolParams)
 
-case class LedgerState(utxo: Utxo = Map.empty)
-
-trait STS {
-    type State
-    type Event
-    type Error
-
-    def transit(state: State, event: Event): Either[Error, State]
-    final def apply(state: State, event: Event): Either[Error, State] = transit(state, event)
-
-//    final def |>>[T <: STS](other: T)(using ev: T =:= this.type): STS = (state, event) =>
-//        for
-//            state <- this.transit(state, event)
-//            state <- other.transit(state, event)
-//        yield state
-
+sealed trait STS[StateF[_], EventT, ErrorT] {
+    final type StateI[StateT] = StateF[StateT]
+    final type Event = EventT
+    final type Error = ErrorT
 }
 
-trait Validator extends STS {
+object STS {
+    trait Validator[StateF[_], EventT, ErrorT] extends STS[StateF, EventT, ErrorT] {
+        def validate[StateT: StateI](state: StateT, event: Event): Either[Error, Unit]
+    }
 
-    override final def transit(state: State, event: Event): Either[Error, State] = {
-        validate(state, event) match {
-            case Right(_)    => Right(state)
-            case Left(error) => Left(error)
+    trait Mutator[StateF[_], EventT, ErrorT] extends STS[StateF, EventT, ErrorT] {
+        def transit[StateT: StateI](state: StateT, event: Event): Either[Error, StateT]
+    }
+}
+
+object Ledger {
+    type Utxo = Map[TransactionInput, TransactionOutput]
+
+    // TODO think about era or context
+    sealed trait StateI[StateT] {
+        final type State = StateT
+    }
+
+    object StateI {
+        type All[StateT] = Utxo[StateT] & Fee[StateT]
+
+        trait Utxo[StateT] extends StateI[StateT] {
+            extension (self: State) {
+                def utxo: Ledger.Utxo
+                def utxo_=(value: Ledger.Utxo): State
+            }
+        }
+
+        trait Fee[StateT] extends StateI[StateT] {
+            extension (self: State) {
+                def fee: Coin
+                def fee_=(value: Coin): State
+            }
         }
     }
 
-    def validate(state: State, event: Event): Either[Error, Unit]
-}
+    object State {
+        final class Default(
+            private val _utxo: Ledger.Utxo = Map.empty,
+            private val _fee: Coin = Coin.zero
+        ) {
+            override def toString: String = s"DefaultState{utxo: $_utxo, fee: $_fee}"
+        }
 
-trait LedgerSTS extends STS {
-    override final type State = LedgerState
-    override final type Event = Transaction
-    override final type Error = Throwable
-}
+        object Default {
+            given Ledger.StateI.All[Default] = StateI
 
-trait LedgerValidator extends Validator {
-    override final type State = LedgerState
-    override final type Event = Transaction
-    override final type Error = Throwable
+            private object StateI extends Ledger.StateI.Utxo[Default], Ledger.StateI.Fee[Default] {
+                extension (self: State) {
+                    override def utxo: Ledger.Utxo = self._utxo
+                    override def utxo_=(value: Ledger.Utxo): State = Default(value, self._fee)
+                    override def fee: Coin = self._fee
+                    override def fee_=(value: Coin): State = Default(self._utxo, value)
+                }
+            }
+        }
+    }
+
+    type Event = Transaction
+
+    // TODO make hierarchy of domain specific errors where high-level ones wrap low-level one
+    //  (example transaction error wraps input error)
+    type Error = Throwable
+
+    sealed trait STS[StateF[_] <: Ledger.StateI[_]] {
+        this: scalus.cardano.ledger.rules.STS[StateF, Ledger.Event, Ledger.Error] =>
+    }
+
+    object STS {
+        trait Validator[StateF[_] <: Ledger.StateI[_]]
+            extends Ledger.STS[StateF],
+              scalus.cardano.ledger.rules.STS.Validator[StateF, Ledger.Event, Ledger.Error]
+
+        trait Mutator[StateF[_] <: Ledger.StateI[_]]
+            extends Ledger.STS[StateF],
+              scalus.cardano.ledger.rules.STS.Mutator[StateF, Ledger.Event, Ledger.Error]
+    }
 }
