@@ -6,10 +6,16 @@ import scala.util.boundary.break
 import EqualLedgerValidator.*
 import EqualLedgerValidator.Expression.*
 
-class EqualLedgerValidator[StateF[_] <: Ledger.StateI[_], T](lhs: Expression[_ >: StateF <: Ledger.StateI, T])(
-    rhs: Expression[_ >: StateF <: Ledger.StateI, T]
+class EqualLedgerValidator[StateF[_] <: Ledger.StateI[_], T](
+    lhs: Expression[? >: StateF <: Ledger.StateI, T]
+)(
+    rhs: Expression[? >: StateF <: Ledger.StateI, T]
 ) extends Ledger.STS.Validator[StateF] {
-    override def validate[StateT: StateI](state: StateT, event: Event): Either[Error, Unit] = {
+    override def validate[StateT: StateI](
+        context: Context,
+        state: StateT,
+        event: Event
+    ): Either[Error, Unit] = {
         for
             lhsResult <- lhs(state, event)
             rhsResult <- rhs(state, event)
@@ -112,7 +118,7 @@ object EqualLedgerValidator {
         }
 
         class Sum[StateF[_] <: Ledger.StateI[_], T](
-            val expressions: Expression[_ >: StateF <: Ledger.StateI, T]  *
+            val expressions: Expression[? >: StateF <: Ledger.StateI, T]*
         )(using
             num: Numeric[T]
         ) extends Expression[StateF, T] {

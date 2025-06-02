@@ -5,7 +5,11 @@ import scala.util.boundary.break
 
 object MustBeInUtxoLedgerValidator {
     object Inputs extends Ledger.STS.Validator[Ledger.StateI.Utxo] {
-        override def validate[StateT: StateI](state: StateT, event: Event): Either[Error, Unit] = boundary {
+        override def validate[StateT: StateI](
+            context: Context,
+            state: StateT,
+            event: Event
+        ): Either[Error, Unit] = boundary {
             for input <- event.body.inputs
             do
                 if !state.utxo.contains(input) then
@@ -16,7 +20,11 @@ object MustBeInUtxoLedgerValidator {
     }
 
     object CollateralInputs extends Ledger.STS.Validator[Ledger.StateI.Utxo] {
-        override def validate[StateT: StateI](state: StateT, event: Event): Either[Error, Unit] = boundary {
+        override def validate[StateT: StateI](
+            context: Context,
+            state: StateT,
+            event: Event
+        ): Either[Error, Unit] = boundary {
             for collateralInput <- event.body.collateralInputs.getOrElse(Set.empty)
             do
                 if !state.utxo.contains(collateralInput) then
@@ -29,7 +37,11 @@ object MustBeInUtxoLedgerValidator {
     }
 
     object ReferenceInputs extends Ledger.STS.Validator[Ledger.StateI.Utxo] {
-        override def validate[StateT: StateI](state: StateT, event: Event): Either[Error, Unit] = boundary {
+        override def validate[StateT: StateI](
+            context: Context,
+            state: StateT,
+            event: Event
+        ): Either[Error, Unit] = boundary {
             for referenceInput <- event.body.referenceInputs.getOrElse(Set.empty)
             do
                 if !state.utxo.contains(referenceInput) then
@@ -42,11 +54,15 @@ object MustBeInUtxoLedgerValidator {
     }
 
     object AllInputs extends Ledger.STS.Validator[Ledger.StateI.Utxo] {
-        override def validate[StateT: StateI](state: StateT, event: Event): Either[Error, Unit] = {
+        override def validate[StateT: StateI](
+            context: Context,
+            state: StateT,
+            event: Event
+        ): Either[Error, Unit] = {
             for
-                _ <- Inputs.validate(state, event)
-                _ <- CollateralInputs.validate(state, event)
-                _ <- ReferenceInputs.validate(state, event)
+                _ <- Inputs.validate(context, state, event)
+                _ <- CollateralInputs.validate(context, state, event)
+                _ <- ReferenceInputs.validate(context, state, event)
             yield ()
         }
     }

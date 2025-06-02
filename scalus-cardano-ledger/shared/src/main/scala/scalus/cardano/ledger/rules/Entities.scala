@@ -24,24 +24,36 @@ case class UTxOState(
 
 case class UtxoEnv(slot: SlotNo, params: ProtocolParams)
 
-sealed trait STS[StateF[_], EventT, ErrorT] {
+sealed trait STS[ContextT, StateF[_], EventT, ErrorT] {
+    final type Context = ContextT
     final type StateI[StateT] = StateF[StateT]
     final type Event = EventT
     final type Error = ErrorT
 }
 
 object STS {
-    trait Validator[StateF[_], EventT, ErrorT] extends STS[StateF, EventT, ErrorT] {
-        def validate[StateT: StateI](state: StateT, event: Event): Either[Error, Unit]
+    trait Validator[ContextT, StateF[_], EventT, ErrorT]
+        extends STS[ContextT, StateF, EventT, ErrorT] {
+        def validate[StateT: StateI](
+            context: Context,
+            state: StateT,
+            event: Event
+        ): Either[Error, Unit]
     }
 
-    trait Mutator[StateF[_], EventT, ErrorT] extends STS[StateF, EventT, ErrorT] {
-        def transit[StateT: StateI](state: StateT, event: Event): Either[Error, StateT]
+    trait Mutator[ContextT, StateF[_], EventT, ErrorT]
+        extends STS[ContextT, StateF, EventT, ErrorT] {
+        def transit[StateT: StateI](
+            context: Context,
+            state: StateT,
+            event: Event
+        ): Either[Error, StateT]
     }
 }
 
 object Ledger {
     type Utxo = Map[TransactionInput, TransactionOutput]
+    type Context = Unit
 
     // TODO think about era or context
     sealed trait StateI[StateT] {
@@ -67,14 +79,19 @@ object Ledger {
     }
 
     object State {
-        final class Default(
-            private val _utxo: Ledger.Utxo = Map.empty,
-            private val _fee: Coin = Coin.zero
+        final class Default private (
+            private val _utxo: Ledger.Utxo,
+            private val _fee: Coin
         ) {
             override def toString: String = s"DefaultState{utxo: $_utxo, fee: $_fee}"
         }
 
         object Default {
+            def apply(
+                utxo: Ledger.Utxo = Map.empty,
+                fee: Coin = Coin.zero
+            ): Default = new Default(utxo, fee)
+
             given Ledger.StateI.All[Default] = StateI
 
             private object StateI extends Ledger.StateI.Utxo[Default], Ledger.StateI.Fee[Default] {
@@ -95,16 +112,26 @@ object Ledger {
     type Error = Throwable
 
     sealed trait STS[StateF[_] <: Ledger.StateI[_]] {
-        this: scalus.cardano.ledger.rules.STS[StateF, Ledger.Event, Ledger.Error] =>
+        this: scalus.cardano.ledger.rules.STS[Ledger.Context, StateF, Ledger.Event, Ledger.Error] =>
     }
 
     object STS {
         trait Validator[StateF[_] <: Ledger.StateI[_]]
             extends Ledger.STS[StateF],
-              scalus.cardano.ledger.rules.STS.Validator[StateF, Ledger.Event, Ledger.Error]
+              scalus.cardano.ledger.rules.STS.Validator[
+                Ledger.Context,
+                StateF,
+                Ledger.Event,
+                Ledger.Error
+              ]
 
         trait Mutator[StateF[_] <: Ledger.StateI[_]]
             extends Ledger.STS[StateF],
-              scalus.cardano.ledger.rules.STS.Mutator[StateF, Ledger.Event, Ledger.Error]
+              scalus.cardano.ledger.rules.STS.Mutator[
+                Ledger.Context,
+                StateF,
+                Ledger.Event,
+                Ledger.Error
+              ]
     }
 }
