@@ -196,8 +196,8 @@ lazy val PluginDependency: List[Def.Setting[?]] = List(scalacOptions ++= {
 
     // NOTE: uncomment for faster Scalus Plugin development
     // this will recompile the plugin when the jar is modified
-    Seq(s"-Xplugin:${jar.getAbsolutePath}", s"-Jdummy=${jar.lastModified}")
-//    Seq(s"-Xplugin:${jar.getAbsolutePath}")
+//    Seq(s"-Xplugin:${jar.getAbsolutePath}", s"-Jdummy=${jar.lastModified}")
+    Seq(s"-Xplugin:${jar.getAbsolutePath}")
 })
 
 // Scalus Core and Standard Library for JVM and JS
@@ -222,6 +222,7 @@ lazy val scalus = crossProject(JSPlatform, JVMPlatform, NativePlatform)
         "io.bullet" %%% "borer-derivation" % "1.16.1" % "provided"
       ),
       PluginDependency,
+      libraryDependencies += "com.softwaremill.magnolia1_3" %%% "magnolia" % "1.3.18" % "test",
       libraryDependencies += "org.scalatest" %%% "scalatest" % "3.2.19" % "test",
       libraryDependencies += "org.scalatestplus" %%% "scalacheck-1-18" % "3.2.19.0" % "test"
     )
@@ -395,15 +396,15 @@ lazy val scalusCardanoLedger = crossProject(JSPlatform, JVMPlatform)
     .settings(
       name := "scalus-cardano-ledger",
       scalacOptions += "-Xmax-inlines:100", // needed for upickle derivation of CostModel
-      libraryDependencies += "com.bloxbean.cardano" % "cardano-client-lib" % "0.6.4",
       libraryDependencies ++= Seq(
         "io.bullet" %%% "borer-core" % "1.16.1",
         "io.bullet" %%% "borer-derivation" % "1.16.1" % "provided"
       ),
+      libraryDependencies += "com.bloxbean.cardano" % "cardano-client-lib" % "0.6.4" % "test",
       libraryDependencies += "com.softwaremill.magnolia1_3" %%% "magnolia" % "1.3.18" % "test",
       libraryDependencies += "org.scalatest" %%% "scalatest" % "3.2.19" % "test",
       libraryDependencies += "org.scalatestplus" %%% "scalacheck-1-18" % "3.2.19.0" % "test",
-      publish / skip := true
+      publish / skip := false
     )
     .jsSettings(
       Compile / npmDependencies += "@noble/curves" -> "1.4.2",

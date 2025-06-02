@@ -62,7 +62,12 @@ trait ArbitraryInstances extends uplc.ArbitraryInstances {
         yield Anchor(url, dataHash)
     }
 
-    given Arbitrary[Credential] = autoDerived
+    given Arbitrary[Credential] = Arbitrary {
+        Gen.oneOf(
+          Arbitrary.arbitrary[AddrKeyHash].map(Credential.KeyHash.apply),
+          Arbitrary.arbitrary[ScriptHash].map(Credential.ScriptHash.apply)
+        )
+    }
     given Arbitrary[Coin] = Arbitrary(Gen.choose(0L, Long.MaxValue).map(Coin.apply))
     given Arbitrary[AssetName] = Arbitrary(
       Gen.choose(0, 32).flatMap(genByteStringOfN).map(AssetName.apply)
@@ -127,7 +132,18 @@ trait ArbitraryInstances extends uplc.ArbitraryInstances {
         )
     }
 
-    given Arbitrary[DRep] = autoDerived
+    // FIXME: autoDerived for DRep is not working correctly
+    // assertion failed: position not set for io.bullet.borer.derivation.key # -1 of class dotty.tools.dotc.ast.Trees$Ident in <no file>
+//    given Arbitrary[DRep] = autoDerived
+    given Arbitrary[DRep] = Arbitrary {
+        Gen.oneOf(
+          Arbitrary.arbitrary[AddrKeyHash].map(DRep.KeyHash.apply),
+          Arbitrary.arbitrary[ScriptHash].map(DRep.ScriptHash.apply),
+          Gen.const(DRep.AlwaysAbstain),
+          Gen.const(DRep.AlwaysNoConfidence)
+        )
+    }
+
     given Arbitrary[GovActionId] = Arbitrary {
         for
             txId <- Arbitrary.arbitrary[Hash32]
@@ -152,7 +168,14 @@ trait ArbitraryInstances extends uplc.ArbitraryInstances {
     given Arbitrary[KeyHash] = Arbitrary(
       Arbitrary.arbitrary[Hash28].map(h => KeyHash.apply(h.bytes))
     )
-    given Arbitrary[DatumOption] = autoDerived
+
+    // FIXME: autoDerived for DatumOption is not working correctly
+    given Arbitrary[DatumOption] = Arbitrary {
+        Gen.oneOf(
+          Arbitrary.arbitrary[Data].map(DatumOption.Inline.apply),
+          Arbitrary.arbitrary[Hash32].map(DatumOption.Hash.apply)
+        )
+    }
 
     object TimelockGen {
 
@@ -218,7 +241,15 @@ trait ArbitraryInstances extends uplc.ArbitraryInstances {
                 )
         }
     }
-    given Arbitrary[Script] = autoDerived
+    // FIXME: autoDerived for Script is not working correctly
+    given Arbitrary[Script] = Arbitrary {
+        Gen.oneOf(
+          TimelockGen.genTimelock.map(Script.Native.apply),
+          Arbitrary.arbitrary[ByteString].map(Script.PlutusV1.apply),
+          Arbitrary.arbitrary[ByteString].map(Script.PlutusV2.apply),
+          Arbitrary.arbitrary[ByteString].map(Script.PlutusV3.apply),
+        )
+    }
     given Arbitrary[ScriptRef] = autoDerived
     given Arbitrary[Timelock] = Arbitrary(TimelockGen.genTimelock)
 
@@ -417,7 +448,17 @@ trait ArbitraryInstances extends uplc.ArbitraryInstances {
     given Arbitrary[ProposalProcedure] = autoDerived
     given Arbitrary[ProposalProcedures] = Arbitrary(genSetOfSizeFromArbitrary(1, 3))
     given Arbitrary[Vote] = autoDerived
-    given Arbitrary[Voter] = autoDerived
+    // FIXME: autoDerived for Voter is not working correctly
+//    given Arbitrary[Voter] = autoDerived
+    given Arbitrary[Voter] = Arbitrary {
+        Gen.oneOf(
+          Arbitrary.arbitrary[AddrKeyHash].map(Voter.ConstitutionalCommitteeHotKey.apply),
+          Arbitrary.arbitrary[ScriptHash].map(Voter.ConstitutionalCommitteeHotScript.apply),
+          Arbitrary.arbitrary[AddrKeyHash].map(Voter.DRepKey.apply),
+          Arbitrary.arbitrary[ScriptHash].map(Voter.DRepScript.apply),
+          Arbitrary.arbitrary[AddrKeyHash].map(Voter.StakingPoolKey.apply),
+        )
+    }
     given Arbitrary[VotingProcedure] = autoDerived
 
     given Arbitrary[VotingProcedures] = {
