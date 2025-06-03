@@ -48,6 +48,10 @@ trait ArbitraryInstances extends uplc.ArbitraryInstances {
 
     given Arbitrary[Hash28] = Arbitrary(genByteStringOfN(28).map(Hash28.apply))
     given Arbitrary[Hash32] = Arbitrary(genByteStringOfN(32).map(Hash32.apply))
+    given [HF: HashSize, Purpose]: Arbitrary[Hash[HF, Purpose]] = Arbitrary {
+        val size = summon[HashSize[HF]].size
+        genByteStringOfN(size).map(Hash[HF, Purpose].apply)
+    }
     // Arbitrary for ScriptHash, PolicyHash, PolicyId
     given Arbitrary[ScriptHash] = autoDerived
     given Arbitrary[AddrKeyHash] = autoDerived

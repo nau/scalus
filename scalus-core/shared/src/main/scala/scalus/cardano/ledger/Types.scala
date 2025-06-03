@@ -5,45 +5,53 @@ import io.bullet.borer.{Cbor, Codec, Decoder, Encoder, Writer}
 import scalus.builtin.ByteString
 import io.bullet.borer.NullOptions.given
 
-trait Sized[S <: Int & Singleton: ValueOf] {
-    final type Size = S
-    final val size: Int = summon[ValueOf[S]].value
+trait Blake2b_256
+object Blake2b_256 extends Blake2b_256
+
+trait Blake2b_224
+case object Blake2b_224 extends Blake2b_224
+
+case class HashSize[HF](size: Int)
+
+object HashSize {
+    given HashSize[Blake2b_224] = HashSize(28)
+    given HashSize[Blake2b_256] = HashSize(32)
 }
 
-enum HashFunction extends java.lang.Enum[HashFunction] {
-    case Blake2b_256 extends HashFunction, Sized[32]
-    case Blake2b_224 extends HashFunction, Sized[28]
-    case Sha2_256 extends HashFunction, Sized[32]
-    case Sha3_256 extends HashFunction, Sized[32]
-    case Keccak_256 extends HashFunction, Sized[32]
-    case Ripemd_160 extends HashFunction, Sized[20]
+object HashPurpose {
+    case object KeyHash
+    case object ScriptHash
+    case object DatumHash
+    case object TransactionHash
 }
 
-enum HashPurpose {
-    case KeyHash extends HashPurpose
-    case ScriptHash extends HashPurpose
-    case TransactionHash extends HashPurpose
-}
-
-opaque type Hash[+Sized, +Purpose] <: ByteString = ByteString
+opaque type Hash[+HashFunction, +Purpose] <: ByteString = ByteString
 object Hash {
-    type Blake2b224Hash[Purpose] = Hash[HashFunction.Blake2b_224.type, Purpose]
+    type Blake2b224Hash[Purpose] = Hash[Blake2b_224, Purpose]
     type AnyBlake2b224Hash = Blake2b224Hash[Any]
     type PubKeyHash = Blake2b224Hash[HashPurpose.KeyHash.type]
     type ScriptHash = Blake2b224Hash[HashPurpose.ScriptHash.type]
-    type AnyHash[S <: Int & Singleton] = Hash[Sized[S], Any]
+    type DatumHash = Blake2b224Hash[HashPurpose.DatumHash.type]
+//    type AnyHash[S <: Int & Singleton] = Hash[Sized[S], Any]
 
-    inline def apply[HF <: Sized[?], Purpose](
-        bytes: ByteString
-    ): Hash[HF, Purpose] = {
-        val size = null.asInstanceOf[HF].size
-        require(bytes.size == size, s"Hash must be ${size} bytes, got ${bytes.size}")
+    def apply[HF: HashSize, Purpose](bytes: ByteString): Hash[HF, Purpose] = {
+        val size = summon[HashSize[HF]].size
+        require(bytes.size == size, s"Hash must be $size bytes, got ${bytes.size}")
         bytes
     }
 
+    given Encoder[HF: HashSize, Purpose]: Encoder[Hash[HF, Purpose]] = { (w, hash) =>
+        w.write[ByteString](hash)
+    }
+
+    given Decoder[HF: HashSize, Purpose]: Decoder[Hash[HF, Purpose]] = { r =>
+        val bytes = r.read[ByteString]()
+        Hash[HF, Purpose](bytes)
+    }
 }
 
-type H28 = Hash[HashFunction.Blake2b_224.type, Any]
+type H28 = Hash[Blake2b_224, Any]
+type H32 = Hash[Blake2b_224, Any]
 
 /** Represents a 28-byte hash value used in Cardano
   *
