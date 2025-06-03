@@ -7,10 +7,7 @@ import io.bullet.borer.NullOptions.given
 import scalus.cardano.address.Address
 
 trait Blake2b_256
-object Blake2b_256 extends Blake2b_256
-
 trait Blake2b_224
-case object Blake2b_224 extends Blake2b_224
 
 case class HashSize[HF](size: Int)
 
@@ -20,20 +17,19 @@ object HashSize {
 }
 
 object HashPurpose {
-    case object KeyHash
-    case object ScriptHash
-    case object DatumHash
-    case object TransactionHash
+    trait KeyHash
+    trait ScriptHash
+    trait DataHash
+    trait TransactionHash
 }
 
 opaque type Hash[+HashFunction, +Purpose] <: ByteString = ByteString
 object Hash {
-    type Blake2b224Hash[Purpose] = Hash[Blake2b_224, Purpose]
-    type AnyBlake2b224Hash = Blake2b224Hash[Any]
-    type PubKeyHash = Blake2b224Hash[HashPurpose.KeyHash.type]
-    type ScriptHash = Blake2b224Hash[HashPurpose.ScriptHash.type]
-    type DataHash = Blake2b224Hash[HashPurpose.DatumHash.type]
-//    type AnyHash[S <: Int & Singleton] = Hash[Sized[S], Any]
+    type KeyHash = Hash[Blake2b_224, HashPurpose.KeyHash]
+    type ScriptHash = Hash[Blake2b_224, HashPurpose.ScriptHash]
+    type DataHash = Hash[Blake2b_224, HashPurpose.DataHash]
+    type TransactionHash = Hash[Blake2b_256, HashPurpose.TransactionHash]
+    type AnyHash = Hash[Any, Any]
 
     def apply[HF: HashSize, Purpose](bytes: ByteString): Hash[HF, Purpose] = {
         val size = summon[HashSize[HF]].size
@@ -79,26 +75,15 @@ object Hash28 {
     }
 }
 
-/** Represents a 32-byte hash value used in Cardano
-  *
-  * Hash32 is commonly used for transaction IDs, block hashes and other crypto hashes
-  */
-final case class Hash32(bytes: ByteString) derives Codec {
-
-    /** Ensures the hash is exactly 32 bytes */
-    require(bytes.size == 32, s"Hash32 must be 32 bytes, got ${bytes.size}")
-}
+type Hash32 = Hash[Blake2b_256, Any]
 
 object Hash32 {
 
     /** Create a Hash32 from a hex string */
     def fromHex(hex: String): Hash32 = {
         val bytes = ByteString.fromHex(hex)
-        Hash32(bytes)
+        Hash(bytes)
     }
-
-    /** Create a nil (empty/zero) Hash32 - used for special cases */
-    val nil: Hash32 = Hash32(ByteString.fill(32, 0))
 }
 
 /** Represents an amount of Cardano's native currency (ADA)

@@ -48,7 +48,7 @@ trait ArbitraryInstances extends uplc.ArbitraryInstances {
     ): Gen[immutable.Set[A]] = genListOfSizeFromArbitrary(from, to).map(_.toSet)
 
     given Arbitrary[Hash28] = Arbitrary(genByteStringOfN(28).map(Hash28.apply))
-    given Arbitrary[Hash32] = Arbitrary(genByteStringOfN(32).map(Hash32.apply))
+//    given Arbitrary[Hash32] = Arbitrary(genByteStringOfN(32).map(Hash32.apply))
     given [HF: HashSize, Purpose]: Arbitrary[Hash[HF, Purpose]] = Arbitrary {
         val size = summon[HashSize[HF]].size
         genByteStringOfN(size).map(Hash[HF, Purpose].apply)
@@ -63,7 +63,7 @@ trait ArbitraryInstances extends uplc.ArbitraryInstances {
                 .choose(0, 128)
                 .flatMap(Gen.listOfN(_, Gen.alphaNumChar))
                 .map(_.mkString)
-            dataHash <- arbitrary[Hash32]
+            dataHash <- arbitrary[Hash.DataHash]
         yield Anchor(url, dataHash)
     }
 

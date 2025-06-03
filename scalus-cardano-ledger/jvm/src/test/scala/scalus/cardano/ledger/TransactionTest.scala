@@ -29,7 +29,7 @@ class TransactionTest extends AnyFunSuite {
         val tx = Transaction(
           TransactionBody(
             inputs = Set(
-              TransactionInput(Hash32(ByteString.fill(32, 0)), 0)
+              TransactionInput(Hash(ByteString.fill(32, 0)), 0)
             ),
             outputs = List(
               TransactionOutput.Babbage(

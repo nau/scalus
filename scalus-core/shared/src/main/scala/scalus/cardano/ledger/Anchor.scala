@@ -2,6 +2,7 @@ package scalus.cardano.ledger
 
 import io.bullet.borer.*
 import io.bullet.borer.derivation.ArrayBasedCodecs.*
+import scalus.cardano.ledger.Hash.DataHash
 
 /** Represents an anchor in the Cardano blockchain.
   *
@@ -13,8 +14,8 @@ import io.bullet.borer.derivation.ArrayBasedCodecs.*
   * @param dataHash
   *   A 32-byte hash of the data
   */
-case class Anchor(url: String, dataHash: Hash32) derives Codec:
+case class Anchor(url: String, dataHash: DataHash) derives Codec:
     /** Validate the URL length */
     require(url.length <= 128, s"Anchor URL must be at most 128 characters, got ${url.length}")
 
-    override def toString: String = s"Anchor($url, ${dataHash.bytes.toHex})"
+    override def toString: String = s"Anchor($url, ${dataHash.toHex})"

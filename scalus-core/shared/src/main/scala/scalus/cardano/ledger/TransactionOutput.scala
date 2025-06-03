@@ -1,6 +1,7 @@
 package scalus.cardano.ledger
 
 import io.bullet.borer.{Decoder, Encoder, Reader, Writer}
+import scalus.cardano.ledger.Hash.DataHash
 
 /** Represents a transaction output in Cardano. Both Shelley-era and Babbage-era output formats are
   * supported.
@@ -10,7 +11,7 @@ enum TransactionOutput:
     case Shelley(
         address: AddressBytes,
         value: Value,
-        datumHash: Option[Hash32] = None
+        datumHash: Option[DataHash] = None
     )
 
     /** Babbage-era transaction output format with extended features */
@@ -91,7 +92,7 @@ object TransactionOutput:
         val value = r.read[Value]()
 
         val datumHash =
-            if size == 3 then Some(r.read[Hash32]())
+            if size == 3 then Some(r.read[DataHash]())
             else None
 
         TransactionOutput.Shelley(address, value, datumHash)
