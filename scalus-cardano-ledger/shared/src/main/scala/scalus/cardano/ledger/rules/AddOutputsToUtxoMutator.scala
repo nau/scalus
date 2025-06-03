@@ -4,6 +4,7 @@ import scalus.builtin.{ByteString, PlatformSpecific, given}
 import scalus.cardano.ledger.{Hash32, TransactionInput}
 import io.bullet.borer.Cbor
 
+// It's part of Shelley.updateUTxOState in cardano-ledger
 object AddOutputsToUtxoMutator extends STS.Mutator {
     override def transit(context: Context, state: State, event: Event): Result = {
         val transactionId = Hash32(

@@ -24,6 +24,7 @@ class EqualValidator[T](lhs: Expression[T])(rhs: Expression[T]) extends STS.Vali
 }
 
 object EqualValidator {
+    // It's part of Shelley.validateValueNotConservedUTxO in cardano-ledger
     object InputsAmountEqualsSumOfOutputsAmountAndFeeAmount
         extends EqualValidator[Long](InputsAmount)(Sum(OutputsAmount, FeeAmount))
 

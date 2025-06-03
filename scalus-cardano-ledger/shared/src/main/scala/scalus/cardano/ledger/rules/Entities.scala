@@ -9,6 +9,7 @@ trait TransitionRule
 
 type Utxo = Map[TransactionInput, TransactionOutput]
 
+// It's mutable state for transient calculation
 class Context(var fee: Coin = Coin.zero)
 
 case class State(utxo: Utxo = Map.empty)
