@@ -4,8 +4,6 @@ import org.scalatest.Inspectors
 import org.scalatest.funsuite.AnyFunSuite
 import org.scalatest.matchers.should.Matchers
 
-import scala.util.Success
-
 class Bech32Test extends AnyFunSuite with Matchers with Inspectors {
 
     // https://github.com/bitcoin/bips/blob/master/bip-0173.mediawiki#test-vectors

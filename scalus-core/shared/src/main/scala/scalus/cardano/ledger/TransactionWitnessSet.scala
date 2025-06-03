@@ -1,16 +1,8 @@
 package scalus.cardano.ledger
 
 import io.bullet.borer.*
-import scalus.builtin.{ByteString, Data, given}
+import scalus.builtin.{ByteString, Data}
 import scalus.ledger.api.Timelock
-
-given Encoder[ByteString] with
-    def write(w: Writer, value: ByteString): Writer =
-        w.writeBytes(value.bytes)
-
-given Decoder[ByteString] with
-    def read(r: Reader): ByteString =
-        ByteString.unsafeFromArray(r.readBytes())
 
 /** Represents the witness set for a transaction in Cardano */
 case class TransactionWitnessSet(

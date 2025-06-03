@@ -1,7 +1,7 @@
 package scalus.cardano.ledger
 
 import org.scalatest.funsuite.AnyFunSuite
-import scalus.builtin.{Builtins, ByteString}
+import scalus.builtin.ByteString
 
 import scala.util.Success
 

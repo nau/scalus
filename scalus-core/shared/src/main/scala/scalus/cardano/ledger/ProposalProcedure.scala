@@ -4,8 +4,6 @@ import io.bullet.borer.*
 import io.bullet.borer.NullOptions.given
 import io.bullet.borer.derivation.ArrayBasedCodecs.*
 
-import scala.collection.immutable.Set
-
 /** Represents a proposal procedure in the Cardano blockchain governance system.
   *
   * A proposal procedure consists of a deposit, reward account, governance action, and an anchor

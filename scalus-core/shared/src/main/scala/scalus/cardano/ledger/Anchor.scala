@@ -2,7 +2,6 @@ package scalus.cardano.ledger
 
 import io.bullet.borer.*
 import io.bullet.borer.derivation.ArrayBasedCodecs.*
-import scalus.builtin.ByteString
 
 /** Represents an anchor in the Cardano blockchain.
   *

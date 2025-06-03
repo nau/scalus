@@ -2,7 +2,7 @@ package scalus.cardano.ledger
 
 import io.bullet.borer.*
 import io.bullet.borer.derivation.ArrayBasedCodecs.*
-import scalus.builtin.{Data, given}
+import scalus.builtin.Data
 
 import scala.collection.immutable
 

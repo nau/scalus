@@ -37,7 +37,7 @@ class ByteString private (val bytes: Array[Byte]) {
     def isEmpty: Boolean = bytes.isEmpty
 }
 
-object ByteString {
+object ByteString extends ByteStringApi {
     val empty = new ByteString(Array.empty)
 
     def fromArray(bytes: Array[Byte]): ByteString = new ByteString(bytes.clone)
