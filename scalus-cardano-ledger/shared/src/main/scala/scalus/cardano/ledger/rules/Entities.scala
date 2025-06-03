@@ -8,6 +8,11 @@ type V = Option[Throwable]
 trait TransitionRule
 
 type Utxo = Map[TransactionInput, TransactionOutput]
+
+class Context(var fee: Coin = Coin.zero)
+
+case class State(utxo: Utxo = Map.empty)
+
 type SlotNo = Long
 type CertState = Unit
 type GovState = Unit
@@ -24,114 +29,38 @@ case class UTxOState(
 
 case class UtxoEnv(slot: SlotNo, params: ProtocolParams)
 
-sealed trait STS[ContextT, StateF[_], EventT, ErrorT] {
-    final type Context = ContextT
-    final type StateI[StateT] = StateF[StateT]
-    final type Event = EventT
-    final type Error = ErrorT
+sealed trait STS {
+    final type Context = scalus.cardano.ledger.rules.Context
+    final type State = scalus.cardano.ledger.rules.State
+    final type Event = Transaction
+    final type Error = Throwable
+    type Result <: Either[Error, Unit | State]
+
+    def apply(context: Context, state: State, event: Event): Result
 }
 
 object STS {
-    trait Validator[ContextT, StateF[_], EventT, ErrorT]
-        extends STS[ContextT, StateF, EventT, ErrorT] {
-        def validate[StateT: StateI](
-            context: Context,
-            state: StateT,
-            event: Event
-        ): Either[Error, Unit]
+    trait Validator extends STS {
+        override final type Result = Either[Error, Unit]
+
+        def validate(context: Context, state: State, event: Event): Result
+
+        override final def apply(context: Context, state: State, event: Event): Result =
+            validate(context, state, event)
+
+        protected final def failure(error: Error): Result = Left(error)
+        protected final val success: Result = Right(())
     }
 
-    trait Mutator[ContextT, StateF[_], EventT, ErrorT]
-        extends STS[ContextT, StateF, EventT, ErrorT] {
-        def transit[StateT: StateI](
-            context: Context,
-            state: StateT,
-            event: Event
-        ): Either[Error, StateT]
-    }
-}
+    trait Mutator extends STS {
+        override final type Result = Either[Error, State]
 
-object Ledger {
-    type Utxo = Map[TransactionInput, TransactionOutput]
-    type Context = Unit
+        def transit(context: Context, state: State, event: Event): Result
 
-    // TODO think about era or context
-    sealed trait StateI[StateT] {
-        final type State = StateT
-    }
+        override final def apply(context: Context, state: State, event: Event): Result =
+            transit(context, state, event)
 
-    object StateI {
-        type All[StateT] = Utxo[StateT] & Fee[StateT]
-
-        trait Utxo[StateT] extends StateI[StateT] {
-            extension (self: State) {
-                def utxo: Ledger.Utxo
-                def utxo_=(value: Ledger.Utxo): State
-            }
-        }
-
-        trait Fee[StateT] extends StateI[StateT] {
-            extension (self: State) {
-                def fee: Coin
-                def fee_=(value: Coin): State
-            }
-        }
-    }
-
-    object State {
-        final class Default private (
-            private val _utxo: Ledger.Utxo,
-            private val _fee: Coin
-        ) {
-            override def toString: String = s"DefaultState{utxo: $_utxo, fee: $_fee}"
-        }
-
-        object Default {
-            def apply(
-                utxo: Ledger.Utxo = Map.empty,
-                fee: Coin = Coin.zero
-            ): Default = new Default(utxo, fee)
-
-            given Ledger.StateI.All[Default] = StateI
-
-            private object StateI extends Ledger.StateI.Utxo[Default], Ledger.StateI.Fee[Default] {
-                extension (self: State) {
-                    override def utxo: Ledger.Utxo = self._utxo
-                    override def utxo_=(value: Ledger.Utxo): State = Default(value, self._fee)
-                    override def fee: Coin = self._fee
-                    override def fee_=(value: Coin): State = Default(self._utxo, value)
-                }
-            }
-        }
-    }
-
-    type Event = Transaction
-
-    // TODO make hierarchy of domain specific errors where high-level ones wrap low-level one
-    //  (example transaction error wraps input error)
-    type Error = Throwable
-
-    sealed trait STS[StateF[_] <: Ledger.StateI[_]] {
-        this: scalus.cardano.ledger.rules.STS[Ledger.Context, StateF, Ledger.Event, Ledger.Error] =>
-    }
-
-    object STS {
-        trait Validator[StateF[_] <: Ledger.StateI[_]]
-            extends Ledger.STS[StateF],
-              scalus.cardano.ledger.rules.STS.Validator[
-                Ledger.Context,
-                StateF,
-                Ledger.Event,
-                Ledger.Error
-              ]
-
-        trait Mutator[StateF[_] <: Ledger.StateI[_]]
-            extends Ledger.STS[StateF],
-              scalus.cardano.ledger.rules.STS.Mutator[
-                Ledger.Context,
-                StateF,
-                Ledger.Event,
-                Ledger.Error
-              ]
+        protected final def failure(error: Error): Result = Left(error)
+        protected final def success(state: State): Result = Right(state)
     }
 }
