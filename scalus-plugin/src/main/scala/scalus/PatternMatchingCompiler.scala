@@ -373,7 +373,7 @@ class PatternMatchingCompiler(val compiler: SIRCompiler)(using Context) {
         case a =>
             SirCase.Error(UnsupportedMatchExpression(a, a.srcPos)) :: Nil
 
-    def compileMatch(tree: Match, env: SIRCompiler.Env): SIR = {
+    def compileMatch(tree: Match, env: SIRCompiler.Env): AnnotatedSIR = {
         if env.debug then println(s"compileMatch: ${tree.show}")
         val Match(matchTree, cases) = tree
         // val typeSymbol = matchTree.tpe.widen.dealias.typeSymbol

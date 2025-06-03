@@ -1,9 +1,8 @@
 package scalus.sir
 
-import scala.collection.mutable.{Map => MutableMap}
+import scala.collection.mutable.Map as MutableMap
 
 import scalus.sir.lowering.*
-import scalus.sir.*
 import scalus.uplc.*
 
 class SirToUplcV3Lowering(sir: SIR, generateErrorTraces: Boolean = false) {
@@ -16,7 +15,10 @@ class SirToUplcV3Lowering(sir: SIR, generateErrorTraces: Boolean = false) {
           generateErrorTraces = generateErrorTraces
         )
         val v = Lowering.lowerSIR(sir)(using lctx)
-        v.term
+        val gctx = TermGenerationContext(
+          generatedVars = Set.empty
+        )
+        v.termWithNeddedVars(gctx)
     }
 
 }

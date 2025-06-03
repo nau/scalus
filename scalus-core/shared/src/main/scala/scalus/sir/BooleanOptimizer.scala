@@ -27,49 +27,58 @@ object BooleanOptimizer:
       *   The optimized SIR expression
       */
     def optimize(sir: SIR): SIR =
+        sir match
+            case Decl(data, term) =>
+                Decl(data, optimize(term))
+            case ansir: AnnotatedSIR =>
+                optimizeExpr(ansir)
+
+    private def optimizeExpr(sir: AnnotatedSIR): AnnotatedSIR =
         // Recursively optimize the expression
-        val optimized = sir match
+        val optimized: AnnotatedSIR = sir match
             // Double negation elimination
             case Not(Not(a, _), _) =>
-                optimize(a)
+                optimizeExpr(a)
 
             // Correct conditional negation optimization: If(Not(cond), t, f) => If(cond, f, t)
             case IfThenElse(Not(cond, _), t, f, tp, anns) =>
-                optimize(IfThenElse(optimize(cond), optimize(f), optimize(t), tp, anns))
+                optimizeExpr(
+                  IfThenElse(optimizeExpr(cond), optimizeExpr(f), optimizeExpr(t), tp, anns)
+                )
 
             // Reverse De Morgan: Or(Not(a), Not(b)) => Not(And(a, b))
             case Or(Not(a, _), Not(b, _), anns) =>
-                val optA = optimize(a)
-                val optB = optimize(b)
-                optimize(Not(And(optA, optB, anns), anns))
+                val optA = optimizeExpr(a)
+                val optB = optimizeExpr(b)
+                optimizeExpr(Not(And(optA, optB, anns), anns))
 
             // Reverse De Morgan: And(Not(a), Not(b)) => Not(Or(a, b))
             case And(Not(a, _), Not(b, _), anns) =>
-                val optA = optimize(a)
-                val optB = optimize(b)
-                optimize(Not(Or(optA, optB, anns), anns))
+                val optA = optimizeExpr(a)
+                val optB = optimizeExpr(b)
+                optimizeExpr(Not(Or(optA, optB, anns), anns))
 
             // Recursive optimization of And expressions
             case And(a, b, anns) =>
-                val optA = optimize(a)
-                val optB = optimize(b)
+                val optA = optimizeExpr(a)
+                val optB = optimizeExpr(b)
                 optimizeAndExpression(optA, optB, anns)
 
             // Recursive optimization of Or expressions
             case Or(a, b, anns) =>
-                val optA = optimize(a)
-                val optB = optimize(b)
+                val optA = optimizeExpr(a)
+                val optB = optimizeExpr(b)
                 optimizeOrExpression(optA, optB, anns)
 
             // Recursive optimization of Not expressions
             case Not(a, anns) =>
-                optimizeNotExpression(optimize(a), anns)
+                optimizeNotExpression(optimizeExpr(a), anns)
 
             // Recursive optimization of IfThenElse
             case IfThenElse(cond, t, f, tp, anns) =>
-                val optCond = optimize(cond)
-                val optT = optimize(t)
-                val optF = optimize(f)
+                val optCond = optimizeExpr(cond)
+                val optT = optimizeExpr(t)
+                val optF = optimizeExpr(f)
                 optimizeIfExpression(optCond, optT, optF, tp, anns)
 
             // Recursive optimization for Apply
@@ -97,10 +106,6 @@ object BooleanOptimizer:
             case LamAbs(param, term, anns) =>
                 LamAbs(param, optimize(term), anns)
 
-            // Recursive optimization for Decl
-            case Decl(data, term) =>
-                Decl(data, optimize(term))
-
             // Other node types remain unchanged
             case _ => sir
 
@@ -118,7 +123,11 @@ object BooleanOptimizer:
       * @return
       *   Optimized SIR expression
       */
-    private def optimizeAndExpression(a: SIR, b: SIR, anns: AnnotationsDecl): SIR =
+    private def optimizeAndExpression(
+        a: AnnotatedSIR,
+        b: AnnotatedSIR,
+        anns: AnnotationsDecl
+    ): AnnotatedSIR =
         (a, b) match
             // Constant folding
             case (Const(Constant.Bool(false), _, _), _) =>
@@ -151,7 +160,11 @@ object BooleanOptimizer:
       * @return
       *   Optimized SIR expression
       */
-    private def optimizeOrExpression(a: SIR, b: SIR, anns: AnnotationsDecl): SIR =
+    private def optimizeOrExpression(
+        a: AnnotatedSIR,
+        b: AnnotatedSIR,
+        anns: AnnotationsDecl
+    ): AnnotatedSIR =
         (a, b) match
             // Constant folding
             case (Const(Constant.Bool(true), _, _), _) =>
@@ -182,7 +195,7 @@ object BooleanOptimizer:
       * @return
       *   Optimized SIR expression
       */
-    private def optimizeNotExpression(a: SIR, anns: AnnotationsDecl): SIR =
+    private def optimizeNotExpression(a: AnnotatedSIR, anns: AnnotationsDecl): AnnotatedSIR =
         a match
             // Constant folding
             case Const(Constant.Bool(b), _, _) => Const(Constant.Bool(!b), SIRType.Boolean, anns)
@@ -208,12 +221,12 @@ object BooleanOptimizer:
       *   Optimized SIR expression
       */
     private def optimizeIfExpression(
-        cond: SIR,
-        t: SIR,
-        f: SIR,
+        cond: AnnotatedSIR,
+        t: AnnotatedSIR,
+        f: AnnotatedSIR,
         tp: SIRType,
         anns: AnnotationsDecl
-    ): SIR =
+    ): AnnotatedSIR =
         cond match
             // Constant condition
             case Const(Constant.Bool(true), _, _)  => t

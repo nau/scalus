@@ -16,7 +16,7 @@ import scalus.ScalusCompilationMode.{AllDefs, OnlyDerivations}
 import scalus.flat.EncoderState
 import scalus.flat.Flat
 import scalus.flat.FlatInstantces.given
-import scalus.sir.{AnnotationsDecl, Binding, ConstrDecl, DataDecl, Module, Recursivity, SIR, SIRBuiltins, SIRPosition, SIRType, SIRUnify, SIRVarStorage, TypeBinding}
+import scalus.sir.{AnnotatedSIR, AnnotationsDecl, Binding, ConstrDecl, DataDecl, Module, Recursivity, SIR, SIRBuiltins, SIRPosition, SIRType, SIRVarStorage, TypeBinding}
 import scalus.uplc.DefaultUni
 
 import scala.annotation.{nowarn, tailrec, unused}
@@ -139,7 +139,7 @@ final class SIRCompiler(options: SIRCompilerOptions = SIRCompilerOptions.default
         name: String,
         symbol: Symbol,
         recursivity: Recursivity,
-        body: SIR,
+        body: AnnotatedSIR,
         pos: SourcePosition
     ) extends LocalBindingOrSubmodule:
         def fullName(using Context): FullName = FullName(symbol)
@@ -206,6 +206,12 @@ final class SIRCompiler(options: SIRCompilerOptions = SIRCompilerOptions.default
                                         )
                                         None
                                     }
+                            case None =>
+                                report.error(
+                                  "uplcIntrinsic annotation should have a string argument with builtin name",
+                                  s.srcPos
+                                )
+                                None
                     case None => None
             }
     }
@@ -574,7 +580,7 @@ final class SIRCompiler(options: SIRCompilerOptions = SIRCompilerOptions.default
         fullType: Type,
         args: List[Tree],
         srcPos: SrcPos
-    ): SIR = {
+    ): AnnotatedSIR = {
         if nakedType.isGenericTuple then
             val nArgs = args.size
             if nArgs == 1 || nArgs == 2 then
@@ -610,7 +616,7 @@ final class SIRCompiler(options: SIRCompilerOptions = SIRCompilerOptions.default
         fullType: Type,
         args: List[Tree],
         srcPos: SrcPos
-    ): SIR = {
+    ): AnnotatedSIR = {
         val constructorCallInfo = getAdtConstructorCallInfo(nakedType)
         val argsE = args.map(compileExpr(env, _))
         val dataDecl = getCachedDataDecl(constructorCallInfo.dataInfo, env, srcPos)
@@ -668,7 +674,7 @@ final class SIRCompiler(options: SIRCompilerOptions = SIRCompilerOptions.default
         e: Tree,
         taTree: Tree,
         @nowarn targs: List[Tree]
-    ): SIR = {
+    ): AnnotatedSIR = {
 
         val name = e.symbol.name.show
         val fullName = FullName(e.symbol)
@@ -896,7 +902,7 @@ final class SIRCompiler(options: SIRCompilerOptions = SIRCompilerOptions.default
             val nTypeVars = env.typeVars ++ typeParamsMap
             val nVars = env.vars ++ paramNameTypes + (selfName -> selfType)
             val bE = compileExpr(env.copy(vars = nVars, typeVars = nTypeVars), body)
-            val bodyExpr: scalus.sir.SIR =
+            val bodyExpr: scalus.sir.AnnotatedSIR =
                 paramVars.foldRight(bE) { (v, acc) =>
                     SIR.LamAbs(v, acc, v.anns)
                 }
@@ -933,7 +939,7 @@ final class SIRCompiler(options: SIRCompilerOptions = SIRCompilerOptions.default
                         CompileMemberDefResult.Ignored(SIRType.TypeNothing)
     }
 
-    private def compileBlock(env: Env, stmts: immutable.List[Tree], expr: Tree): SIR = {
+    private def compileBlock(env: Env, stmts: immutable.List[Tree], expr: Tree): AnnotatedSIR = {
         if env.debug then println(s"compileBlock: ${stmts.map(_.show).mkString("\n")}")
         val exprs = ListBuffer.empty[LocalBinding]
         val exprEnv = stmts.foldLeft(env) {
@@ -1160,7 +1166,13 @@ final class SIRCompiler(options: SIRCompilerOptions = SIRCompilerOptions.default
             DefaultUni.List(typeReprToDefaultUni(t1, list))
         else error(NotBuiltinTypeInBuiltinListConstruction(tpe, list), DefaultUni.Unit)
 
-    private def compileBigIntOps(env: Env, lhs: Tree, op: Name, rhs: Tree, optree: Tree): SIR =
+    private def compileBigIntOps(
+        env: Env,
+        lhs: Tree,
+        op: Name,
+        rhs: Tree,
+        optree: Tree
+    ): AnnotatedSIR =
         op match
             case nme.PLUS =>
                 SIR.Apply(
@@ -1307,11 +1319,16 @@ final class SIRCompiler(options: SIRCompilerOptions = SIRCompilerOptions.default
                   )
                 )
 
-    private def compileMatch(tree: Match, env: Env): SIR = {
+    private def compileMatch(tree: Match, env: Env): AnnotatedSIR = {
         pmCompiler.compileMatch(tree, env)
     }
 
-    private def compileBuiltinPairMethods(env: Env, fun: Name, pair: Tree, tree: Tree): SIR =
+    private def compileBuiltinPairMethods(
+        env: Env,
+        fun: Name,
+        pair: Tree,
+        tree: Tree
+    ): AnnotatedSIR =
         fun.show match
             case "fst" =>
                 val expr = compileExpr(env, pair)
@@ -1369,7 +1386,7 @@ final class SIRCompiler(options: SIRCompilerOptions = SIRCompilerOptions.default
         tpe1: Tree,
         tpe2: Tree,
         tree: Tree
-    ): SIR =
+    ): AnnotatedSIR =
         if env.debug then
             println(
               s"compileBuiltinPairConstructor: ${a.show}, ${b.show}, tpe1: $tpe1, tpe2: $tpe2"
@@ -1420,7 +1437,7 @@ final class SIRCompiler(options: SIRCompilerOptions = SIRCompilerOptions.default
         fun: Name,
         targs: List[Tree],
         tree: Tree
-    ): SIR =
+    ): AnnotatedSIR =
         if env.debug then
             println(s"compileBuiltinListMethods: ${lst.show}, fun: $fun, targs: $targs")
         val posAnns = AnnotationsDecl.fromSrcPos(tree.srcPos)
@@ -1470,7 +1487,7 @@ final class SIRCompiler(options: SIRCompilerOptions = SIRCompilerOptions.default
         list: Tree,
         tpe: Tree,
         tree: Tree
-    ): SIR =
+    ): AnnotatedSIR =
         if env.debug then
             println(s"compileBuiltinListConstructor: ${ex.show}, list: $list, tpe: $tpe")
         val tpeE = typeReprToDefaultUni(tpe.tpe, list)
@@ -1492,7 +1509,7 @@ final class SIRCompiler(options: SIRCompilerOptions = SIRCompilerOptions.default
                       AnnotationsDecl.fromSrcPos(list.srcPos)
                     )
                 else
-                    val nil: SIR = SIR.Const(
+                    val nil: AnnotatedSIR = SIR.Const(
                       scalus.uplc.Constant.List(tpeE, Nil),
                       SIRType.List.Nil,
                       AnnotationsDecl.fromSrcPos(ex.srcPos)
@@ -1524,7 +1541,7 @@ final class SIRCompiler(options: SIRCompilerOptions = SIRCompilerOptions.default
         args: List[Tree],
         applyTpe: Type,
         applyTree: Apply
-    ): SIR = {
+    ): AnnotatedSIR = {
         if env0.debug then
             println(
               s"compileApply: ${f.show}, targs: $targs, args: $args, applyTpe: $applyTpe, applyTree: $applyTree"
@@ -1623,7 +1640,7 @@ final class SIRCompiler(options: SIRCompilerOptions = SIRCompilerOptions.default
       *    err("test") // becomes SIR.Error("test")
       * }}}
       */
-    private def compileThrowException(ex: Tree): SIR =
+    private def compileThrowException(ex: Tree): AnnotatedSIR =
         val msg = ex match
             case SkipInline(
                   Apply(
@@ -1648,7 +1665,13 @@ final class SIRCompiler(options: SIRCompilerOptions = SIRCompilerOptions.default
                 term.show
         SIR.Error(msg, AnnotationsDecl.fromSrcPos(ex.srcPos))
 
-    private def compileEquality(env: Env, lhs: Tree, op: Name, rhs: Tree, srcPos: SrcPos): SIR = {
+    private def compileEquality(
+        env: Env,
+        lhs: Tree,
+        op: Name,
+        rhs: Tree,
+        srcPos: SrcPos
+    ): AnnotatedSIR = {
         lazy val lhsExpr = compileExpr(env, lhs)
         lazy val rhsExpr = compileExpr(env, rhs)
         val lhsTpe = lhs.tpe.widen.dealias
@@ -1787,7 +1810,7 @@ final class SIRCompiler(options: SIRCompilerOptions = SIRCompilerOptions.default
             SIR.Error("Equality is only allowed between the same types", posAnns)
     }
 
-    def compileExpr[T](env: Env, tree: Tree)(using Context): SIR = {
+    def compileExpr[T](env: Env, tree: Tree)(using Context): AnnotatedSIR = {
         if env.debug then println(s"compileExpr: ${tree.showIndented(2)}, env: $env")
         if compileConstant.isDefinedAt(tree) then
             val const = compileConstant(tree)
@@ -1799,7 +1822,7 @@ final class SIRCompiler(options: SIRCompilerOptions = SIRCompilerOptions.default
         else compileExpr2(env.copy(level = env.level + 1), tree)
     }
 
-    private def compileExpr2(env: Env, tree: Tree)(using Context): SIR = {
+    private def compileExpr2(env: Env, tree: Tree)(using Context): AnnotatedSIR = {
         tree match
             case If(cond, t, f) =>
                 if env.debug then println(s"compileExpr2: If ${cond.show}, ${t.show}, ${f.show}")
@@ -2126,7 +2149,12 @@ final class SIRCompiler(options: SIRCompilerOptions = SIRCompilerOptions.default
             !declDenotation.exists
     }
 
-    private def compileVirtualCall(env: Env, tree: Tree, qualifier: Tree, name: Name): SIR = {
+    private def compileVirtualCall(
+        env: Env,
+        tree: Tree,
+        qualifier: Tree,
+        name: Name
+    ): AnnotatedSIR = {
         if env.debug then println("compile virtual call: " + tree.show)
         val qualifierSym = qualifier.symbol
         val qualifierTypeSym = qualifier.tpe.typeSymbol
@@ -2348,6 +2376,22 @@ final class SIRCompiler(options: SIRCompilerOptions = SIRCompilerOptions.default
         thisClassNames: Set[String]
     ): (SIR, Boolean) = {
         sir match
+            case asir: AnnotatedSIR =>
+                specializeAnnotatedSIR(parentSym, asir, env, possibleOverrides, thisClassNames)
+            case SIR.Decl(data, term) =>
+                val (newTerm, changed) =
+                    specializeSIR(parentSym, term, env, possibleOverrides, thisClassNames)
+                SIR.Decl(data, newTerm) -> changed
+    }
+
+    private def specializeAnnotatedSIR(
+        parentSym: Symbol,
+        sir: AnnotatedSIR,
+        env: Env,
+        possibleOverrides: Map[String, LocalBinding],
+        thisClassNames: Set[String]
+    ): (AnnotatedSIR, Boolean) = {
+        sir match
             case SIR.ExternalVar(moduleName, name, tp, anns) =>
                 possibleOverrides.get(name) match
                     case Some(binding) =>
@@ -2405,30 +2449,30 @@ final class SIRCompiler(options: SIRCompilerOptions = SIRCompilerOptions.default
                 sir -> false
             case SIR.And(x, y, anns) =>
                 val (newX, xChanged) =
-                    specializeSIR(parentSym, x, env, possibleOverrides, thisClassNames)
+                    specializeAnnotatedSIR(parentSym, x, env, possibleOverrides, thisClassNames)
                 val (newY, yChanged) =
-                    specializeSIR(parentSym, y, env, possibleOverrides, thisClassNames)
+                    specializeAnnotatedSIR(parentSym, y, env, possibleOverrides, thisClassNames)
                 val newSIR = SIR.And(newX, newY, anns)
                 (newSIR, xChanged || yChanged)
             case SIR.Or(x, y, anns) =>
                 val (newX, xChanged) =
-                    specializeSIR(parentSym, x, env, possibleOverrides, thisClassNames)
+                    specializeAnnotatedSIR(parentSym, x, env, possibleOverrides, thisClassNames)
                 val (newY, yChanged) =
-                    specializeSIR(parentSym, y, env, possibleOverrides, thisClassNames)
+                    specializeAnnotatedSIR(parentSym, y, env, possibleOverrides, thisClassNames)
                 val newSIR = SIR.Or(newX, newY, anns)
                 (newSIR, xChanged || yChanged)
             case SIR.Not(x, anns) =>
                 val (newX, xChanged) =
-                    specializeSIR(parentSym, x, env, possibleOverrides, thisClassNames)
+                    specializeAnnotatedSIR(parentSym, x, env, possibleOverrides, thisClassNames)
                 val newSIR = SIR.Not(newX, anns)
                 (newSIR, xChanged)
             case SIR.IfThenElse(cond, t, f, tp, anns) =>
                 val (newCond, condChanged) =
-                    specializeSIR(parentSym, cond, env, possibleOverrides, thisClassNames)
+                    specializeAnnotatedSIR(parentSym, cond, env, possibleOverrides, thisClassNames)
                 val (newT, tChanged) =
-                    specializeSIR(parentSym, t, env, possibleOverrides, thisClassNames)
+                    specializeAnnotatedSIR(parentSym, t, env, possibleOverrides, thisClassNames)
                 val (newF, fChanged) =
-                    specializeSIR(parentSym, f, env, possibleOverrides, thisClassNames)
+                    specializeAnnotatedSIR(parentSym, f, env, possibleOverrides, thisClassNames)
                 val newSIR = SIR.IfThenElse(newCond, newT, newF, tp, anns)
                 (newSIR, condChanged || tChanged || fChanged)
             case SIR.Builtin(name, tp, anns) =>
@@ -2457,10 +2501,6 @@ final class SIRCompiler(options: SIRCompilerOptions = SIRCompilerOptions.default
                     specializeSIR(parentSym, scrutinee, env, possibleOverrides, thisClassNames)
                 val newSIR = SIR.Match(newScrutinee, newCases, tp, anns)
                 (newSIR, scrutineeChanged || casesAreChanged)
-            case SIR.Decl(data, term) =>
-                val (newTerm, changed) =
-                    specializeSIR(parentSym, term, env, possibleOverrides, thisClassNames)
-                SIR.Decl(data, newTerm) -> changed
     }
 
 }

@@ -3,7 +3,7 @@ package scalus
 import dotty.tools.dotc.core.Contexts.Context
 import dotty.tools.dotc.report
 import dotty.tools.dotc.util.SrcPos
-import scalus.sir.{AnnotationsDecl, Binding, DataDecl, Module, Recursivity, SIR, SIRType}
+import scalus.sir.{AnnotatedSIR, AnnotationsDecl, Binding, DataDecl, Module, Recursivity, SIR, SIRType}
 
 import scala.collection.mutable
 import scala.util.control.NonFatal
@@ -42,7 +42,16 @@ class SIRLinker(using ctx: Context) {
                 SIR.Let(
                   b.recursivity,
                   List(Binding(b.fullName.name, b.body)),
-                  acc,
+                  acc match {
+                      case annssir: AnnotatedSIR => annssir
+                      case _ =>
+                          val msg =
+                              s"Unexpected Decl. In binding ${b.fullName.name} in SIRLinker.link"
+                          error(
+                            GenericError(msg, srcPos),
+                            SIR.Error(msg, AnnotationsDecl.fromSrcPos(srcPos))
+                          )
+                  },
                   AnnotationsDecl.fromSrcPos(srcPos)
                 )
             case (d, acc) =>

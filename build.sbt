@@ -147,12 +147,12 @@ lazy val scalusPlugin = project
               if (source.exists) {
                   if (!target.exists) {
                       IO.copyFile(source, target)
-//                      log.info(s"Copied $file to target $target")
+                      // log.info(s"Copied $file to target $target")
                   } else if (source.lastModified() > target.lastModified()) {
                       IO.copyFile(source, target)
-//                      log.info(s"Copied $file to target $target")
+                      // log.info(s"Copied $file to target $target")
                   } else {
-//                      log.info(s"File $target is up to date")
+                      // log.info(s"File $target is up to date")
                   }
               } else {
                   log.error(s"Source file not found: $file")

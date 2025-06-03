@@ -181,7 +181,6 @@ sealed trait AnnotatedSIR extends SIR {
 
 }
 
-
 object SIR:
 
     //  Module A:
@@ -252,19 +251,25 @@ object SIR:
 
     case class Const(uplcConst: Constant, tp: SIRType, anns: AnnotationsDecl) extends AnnotatedSIR
 
-    case class And(a: SIR, b: SIR, anns: AnnotationsDecl) extends AnnotatedSIR {
+    case class And(a: AnnotatedSIR, b: AnnotatedSIR, anns: AnnotationsDecl) extends AnnotatedSIR {
         override def tp: SIRType = SIRType.Boolean
     }
 
-    case class Or(a: SIR, b: SIR, anns: AnnotationsDecl) extends AnnotatedSIR {
+    case class Or(a: AnnotatedSIR, b: AnnotatedSIR, anns: AnnotationsDecl) extends AnnotatedSIR {
         override def tp: SIRType = SIRType.Boolean
     }
 
-    case class Not(a: SIR, anns: AnnotationsDecl) extends AnnotatedSIR {
+    case class Not(a: AnnotatedSIR, anns: AnnotationsDecl) extends AnnotatedSIR {
         override def tp: SIRType = SIRType.Boolean
     }
 
-    case class IfThenElse(cond: SIR, t: SIR, f: SIR, tp: SIRType, anns: AnnotationsDecl) extends AnnotatedSIR
+    case class IfThenElse(
+        cond: AnnotatedSIR,
+        t: AnnotatedSIR,
+        f: AnnotatedSIR,
+        tp: SIRType,
+        anns: AnnotationsDecl
+    ) extends AnnotatedSIR
 
     case class Builtin(bn: DefaultFun, tp: SIRType, anns: AnnotationsDecl) extends AnnotatedSIR
 
@@ -283,22 +288,10 @@ object SIR:
     ) extends AnnotatedSIR
 
     enum Pattern:
-        //  case class Point(x: Int, y: String)
-        //  p match
-        //     case Point(x, y) => x + y
-        //
-        //  case class Rectangle(leftTop: Point, rightBottom: Point)
-        //
-        //  p match
-        //     case Point(x, _) if x < 5 => x
-        //     case Point(1, 2)
-        //
-        //  r match
-        //     case Rectangle(Point(x, y), Point(x1, y2)) if y2-y == x2-x => // handle square
-        //
+
         case Constr(
             constr: ConstrDecl,
-            bindings: List[String],
+            bindings: List[String], // TODO: add wildcard as a special case.
             typeBindings: List[SIRType]
         )
         case Wildcard

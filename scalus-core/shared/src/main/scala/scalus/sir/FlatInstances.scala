@@ -1265,10 +1265,25 @@ object FlatInstantces:
                             hs
                           ),
                       (hs, l, p) =>
+                          val c1 = c.finValue(hs, l, p) match {
+                              case as: AnnotatedSIR => as
+                              case _ =>
+                                  throw new IllegalStateException("non-annotated SIR in IfThenElse")
+                          }
+                          val t1 = t.finValue(hs, l, p) match {
+                              case as: AnnotatedSIR => as
+                              case _ =>
+                                  throw new IllegalStateException("non-annotated SIR in IfThenElse")
+                          }
+                          val f1 = f.finValue(hs, l, p) match {
+                              case as: AnnotatedSIR => as
+                              case _ =>
+                                  throw new IllegalStateException("non-annotated SIR in IfThenElse")
+                          }
                           IfThenElse(
-                            c.finValue(hs, l, p),
-                            t.finValue(hs, l, p),
-                            f.finValue(hs, l, p),
+                            c1,
+                            t1,
+                            f1,
                             tp.finValue(hs, l, p),
                             anns.finValue(hs, l, p)
                           )
@@ -1335,8 +1350,19 @@ object FlatInstantces:
                     val anns = AnnotationsDeclFlat.decodeHC(decoder)
                     HashConsedRef.deferred(
                       hs => x.isComplete(hs) && y.isComplete(hs),
-                      (hs, l, p) =>
-                          And(x.finValue(hs, l, p), y.finValue(hs, l, p), anns.finValue(hs, l, p))
+                      (hs, l, p) => {
+                          val x1 = x.finValue(hs, l, p) match {
+                              case as: AnnotatedSIR => as
+                              case _ =>
+                                  throw new IllegalStateException("non-annotated SIR in And")
+                          }
+                          val y1 = y.finValue(hs, l, p) match {
+                              case as: AnnotatedSIR => as
+                              case _ =>
+                                  throw new IllegalStateException("non-annotated SIR in And")
+                          }
+                          And(x1, y1, anns.finValue(hs, l, p))
+                      }
                     )
                 case `tagOr` =>
                     val x = decodeHC(decoder)
@@ -1344,15 +1370,33 @@ object FlatInstantces:
                     val anns = AnnotationsDeclFlat.decodeHC(decoder)
                     HashConsedRef.deferred(
                       hs => x.isComplete(hs) && y.isComplete(hs),
-                      (hs, l, p) =>
-                          Or(x.finValue(hs, l, p), y.finValue(hs, l, p), anns.finValue(hs, l, p))
+                      (hs, l, p) => {
+                          val x1 = x.finValue(hs, l, p) match {
+                              case as: AnnotatedSIR => as
+                              case _ =>
+                                  throw new IllegalStateException("non-annotated SIR in Or")
+                          }
+                          val y1 = y.finValue(hs, l, p) match {
+                              case as: AnnotatedSIR => as
+                              case _ =>
+                                  throw new IllegalStateException("non-annotated SIR in Or")
+                          }
+                          Or(x1, y1, anns.finValue(hs, l, p))
+                      }
                     )
                 case `tagNot` =>
                     val x = decodeHC(decoder)
                     val anns = AnnotationsDeclFlat.decodeHC(decoder)
                     HashConsedRef.deferred(
                       hs => x.isComplete(hs),
-                      (hs, l, p) => Not(x.finValue(hs, l, p), anns.finValue(hs, l, p))
+                      (hs, l, p) => {
+                          val x1 = x.finValue(hs, l, p) match {
+                              case as: AnnotatedSIR => as
+                              case _ =>
+                                  throw new IllegalStateException("non-annotated SIR in Not")
+                          }
+                          Not(x1, anns.finValue(hs, l, p))
+                      }
                     )
                 case `tagDecl` =>
                     val data = DataDeclFlat.decodeHC(decoder)

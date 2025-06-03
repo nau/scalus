@@ -4,9 +4,8 @@ import dotty.tools.dotc.core.Contexts.Context
 import dotty.tools.dotc.report
 import dotty.tools.dotc.util.{NoSourcePosition, SrcPos}
 import scalus.sir.*
-import scalus.sir.Recursivity.{NonRec, Rec}
+import scalus.sir.Recursivity.NonRec
 import scalus.sir.SIR.Builtin
-import scalus.sir.SIRType.Data
 import scalus.uplc.Constant
 
 class SIRDataReprGenerator(using ctx: Context) {
@@ -270,7 +269,8 @@ class SIRDataReprGenerator(using ctx: Context) {
             val constrSir = generateFromDataConstr(constr, constrTypeArgs, decl, nEnv, sumTp, input)
             (check, constrSir)
         }
-        val lastElse: SIR = SIR.Error(s"bad data encoding for ${decl.name}", AnnotationsDecl.empty)
+        val lastElse: AnnotatedSIR =
+            SIR.Error(s"bad data encoding for ${decl.name}", AnnotationsDecl.empty)
         val ifChecks = ifBranches.foldRight(lastElse) { case ((check, branch), s) =>
             SIR.Apply(
               SIR.Apply(
@@ -352,7 +352,7 @@ class SIRDataReprGenerator(using ctx: Context) {
         val nEnv = env.copy(typeVars = env.typeVars ++ typeVars)
         val constrParams =
             constrDecl.params.map(tv => SIR.Var(tv.name, tv.tp, AnnotationsDecl.empty))
-        val constrRhs: SIR = SIR.Constr(
+        val constrRhs: AnnotatedSIR = SIR.Constr(
           constrDecl.name,
           dataDecl,
           constrParams,

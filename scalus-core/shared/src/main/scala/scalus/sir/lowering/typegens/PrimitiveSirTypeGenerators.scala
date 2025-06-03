@@ -1,0 +1,107 @@
+package scalus.sir.lowering.typegens
+
+import scalus.sir.*
+import scalus.sir.lowering.*
+import scalus.sir.lowering.Lowering.tpf
+import scalus.uplc.{Constant, DefaultFun, Term}
+
+trait PrimitiveSirTypeGenerator extends SIRTypeUplcGenerator {
+
+    def defaultRepresentation: LoweredValueRepresentation = PrimitiveRepresentation.Constant
+
+    def defaultDataRepresentation: LoweredValueRepresentation = PrimitiveRepresentation.PackedData
+
+    def isDataCompatible: Boolean = true
+
+    def toRepresentation(
+        input: LoweredValue,
+        outputRepresentation: LoweredValueRepresentation,
+        pos: SIRPosition
+    )(using
+        lctx: LoweringContext
+    ): LoweredValue = new RepresentationProxyLoweredValue(input, outputRepresentation, pos) {
+
+        override def termInternal(gctx: TermGenerationContext): Term =
+            val inputTerm = input.termInternal(gctx)
+            genTranslateTermRepresentation(
+              input,
+              inputTerm,
+              outputRepresentation
+            )(using
+              gctx
+            )
+
+    }
+
+    def genTranslateTermRepresentation(
+        inputValue: LoweredValue,
+        input: Term,
+        outputRepresentation: LoweredValueRepresentation,
+    )(using gctx: TermGenerationContext): Term = {
+        (inputValue.representation, outputRepresentation) match
+            case (PrimitiveRepresentation.Constant, PrimitiveRepresentation.Constant) =>
+                input
+            case (PrimitiveRepresentation.Constant, PrimitiveRepresentation.PackedData) =>
+                uplcToData(input)
+            case (PrimitiveRepresentation.PackedData, PrimitiveRepresentation.Constant) =>
+                dataToUplc(input)
+            case (PrimitiveRepresentation.PackedData, PrimitiveRepresentation.PackedData) =>
+                input
+            case _ =>
+                throw LoweringException(
+                  s"Unsupported conversion for ${inputValue.sirType.show} from ${inputValue.representation} to $outputRepresentation",
+                  inputValue.pos
+                )
+    }
+
+    def uplcToData(input: Term): Term
+
+    def dataToUplc(input: Term): Term
+
+    override def genConstr(constr: SIR.Constr)(using LoweringContext): LoweredValue =
+        throw LoweringException("Constr can generated for primitive type", constr.anns.pos)
+
+    override def genSelect(sel: SIR.Select)(using
+        LoweringContext
+    ): LoweredValue = {
+        throw LoweringException(s"Primitive type have no field ${sel.field}", sel.anns.pos)
+    }
+
+    override def genMatch(matchData: SIR.Match, loweredScrutinee: LoweredValue)(using
+        lctx: LoweringContext
+    ): LoweredValue = {
+        // TODO: add support
+        throw LoweringException(s"Boolean type have no match ${matchData}", matchData.anns.pos)
+    }
+
+}
+
+object SIRTypeUplcBooleanGenerator extends PrimitiveSirTypeGenerator {
+
+    override def uplcToData(input: Term): Term = {
+        DefaultFun.IfThenElse.tpf $ input $
+            (DefaultFun.IData.tpf $ Term.Const(Constant.Integer(1))) $
+            (DefaultFun.IData.tpf $ Term.Const(Constant.Integer(0)))
+    }
+
+    override def dataToUplc(input: Term): Term = {
+        DefaultFun.IfThenElse.tpf $ (
+          DefaultFun.EqualsInteger.tpf $ (DefaultFun.UnIData.tpf $ input) $ Term
+              .Const(Constant.Integer(0))
+        ) $ (Term.Const(Constant.Bool(false))) $ (Term.Const(Constant.Bool(true)))
+
+    }
+
+}
+
+object SIRTypeUplcIntegerGenerator extends PrimitiveSirTypeGenerator {
+
+    override def uplcToData(input: Term): Term = {
+        DefaultFun.IData.tpf $ input
+    }
+
+    override def dataToUplc(input: Term): Term = {
+        DefaultFun.UnIData.tpf $ input
+    }
+
+}

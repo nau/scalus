@@ -2,67 +2,67 @@ package scalus.sir.lowering
 
 import scalus.sir.SIRPosition
 
-type LocalScope = LocalScope.Carrier
+case class LocalScope(
+    byId: Map[String, VariableLoweredValue],
+    byName: Map[String, VariableLoweredValue]
+) {
 
+    def getById(id: String): Option[VariableLoweredValue] = byId.get(id)
 
-case class LocalScopeRecord(
-    name: String,
-    value: LoweredValue,
-    otherRepresentations: Map[LoweredValueRepresentation, LoweredValue]
-)
+    def getByName(name: String): Option[VariableLoweredValue] = byName.get(name)
 
-object LocalScope {
-
-    opaque type Carrier = Map[String, LocalScopeRecord]
-
-    def empty: Carrier = Map.empty
-
-    def add(
-               scope: Carrier,
-               name: String,
-               value: LoweredValue,
-               pos: SIRPosition
-    ): Carrier = {
-        scope.get(name) match {
-            case None =>
-                scope.updated(name, LocalScopeRecord(name, value, Map.empty))
-            case Some(record)  =>
-                if value.representation == record.value.representation then
-                    throw LoweringException(
-                        s"Value with name $name already exists in the scope with the same representation", pos
-                    )
-                else record.otherRepresentations.get(value.representation) match {
-                    case Some(_) =>
-                        throw LoweringException(
-                            s"Value with name $name already exists in the scope with the same representation", pos
-                        )
-                    case None =>
-                        val newOtherRepresentations = record.otherRepresentations.updated(
-                            value.representation,
-                            value
-                        )
-                        scope.updated(
-                            name,
-                            record.copy(otherRepresentations = newOtherRepresentations)
-                        )
-                }
+    def getOrCreateById(
+        id: String,
+        representation: LoweredValueRepresentation,
+        pos: SIRPosition
+    )(using LoweringContext): Option[IdentifiableLoweredValue] = {
+        byId.get(id) match {
+            case Some(v) =>
+                if v.representation == representation then Some(v)
+                else
+                    v.otherRepresentations.get(representation) match
+                        case Some(other) => Some(other)
+                        case None =>
+                            val newVarRhs = v.toRepresentation(representation, pos)
+                            val newVar = new DependendVariableLoweredValue(
+                              id = id,
+                              name = v.name,
+                              sir = v.sir,
+                              representation = representation,
+                              rhs = newVarRhs
+                            )
+                            v.otherRepresentations.update(representation, newVar)
+                            Some(newVar)
+            case None => None
         }
     }
 
-    def get(scope: Carrier, name: String): Option[LocalScopeRecord] = {
-        scope.get(name)
+    def get(
+        id: String,
+        representation: LoweredValueRepresentation
+    ): Option[IdentifiableLoweredValue] = {
+        byId.get(id).flatMap { v =>
+            if v.representation == representation then Some(v)
+            else v.otherRepresentations.get(representation)
+        }
+    }
+
+    def add(value: VariableLoweredValue): LocalScope = {
+        if byId.contains(value.id) then
+            throw new IllegalArgumentException(s"Variable ${value.id} already exists in the scope")
+        else LocalScope(byId + (value.id -> value), byName + (value.name -> value))
+    }
+
+    def addAll(values: Iterable[VariableLoweredValue]): LocalScope = {
+        values.foldLeft(this) { (scope, value) =>
+            scope.add(value)
+        }
     }
 
 }
 
-extension (c: LocalScope)
+object LocalScope {
 
-    def put(
-        name: String,
-        value: LoweredValue,
-        pos: SIRPosition
-    ): LocalScope = LocalScope.add(c, name, value, pos)
+    def empty: LocalScope = LocalScope(Map.empty, Map.empty)
 
-    def get(name: String): Option[LocalScopeRecord] = LocalScope.get(c, name)
-
-
+}
