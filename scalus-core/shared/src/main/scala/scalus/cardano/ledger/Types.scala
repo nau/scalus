@@ -32,7 +32,7 @@ object Hash {
     type AnyBlake2b224Hash = Blake2b224Hash[Any]
     type PubKeyHash = Blake2b224Hash[HashPurpose.KeyHash.type]
     type ScriptHash = Blake2b224Hash[HashPurpose.ScriptHash.type]
-    type DatumHash = Blake2b224Hash[HashPurpose.DatumHash.type]
+    type DataHash = Blake2b224Hash[HashPurpose.DatumHash.type]
 //    type AnyHash[S <: Int & Singleton] = Hash[Sized[S], Any]
 
     def apply[HF: HashSize, Purpose](bytes: ByteString): Hash[HF, Purpose] = {

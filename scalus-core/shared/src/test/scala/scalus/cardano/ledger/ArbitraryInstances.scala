@@ -178,7 +178,7 @@ trait ArbitraryInstances extends uplc.ArbitraryInstances {
     given Arbitrary[DatumOption] = Arbitrary {
         Gen.oneOf(
           arbitrary[Data].map(DatumOption.Inline.apply),
-          arbitrary[Hash32].map(DatumOption.Hash.apply)
+          arbitrary[Hash.DataHash].map(DatumOption.Hash.apply)
         )
     }
 
