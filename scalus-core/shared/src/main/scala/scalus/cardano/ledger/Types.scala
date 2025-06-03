@@ -40,12 +40,16 @@ object Hash {
         bytes
     }
 
-    given Encoder[HF: HashSize, Purpose]: Encoder[Hash[HF, Purpose]] = { (w, hash) =>
-        w.write[ByteString](hash)
+    given Encoder[HF, Purpose]: Encoder[Hash[HF, Purpose]] = { (w, hash) =>
+        // here we explicitly pass the ByteString encoder to avoid StackOverflowError
+        // because here Encoder[Hash[]] is resolved as Encoder[ByteString]
+        w.write[ByteString](hash)(using ByteString.given_Encoder_ByteString)
     }
 
     given Decoder[HF: HashSize, Purpose]: Decoder[Hash[HF, Purpose]] = { r =>
-        val bytes = r.read[ByteString]()
+        // here we explicitly pass the ByteString decoder to avoid StackOverflowError
+        // because here Decoder[Hash[]] is resolved as Decoder[ByteString]
+        val bytes = r.read[ByteString]()(using ByteString.given_Decoder_ByteString)
         Hash[HF, Purpose](bytes)
     }
 }
