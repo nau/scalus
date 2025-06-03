@@ -1328,7 +1328,11 @@ object FlatInstantces:
                       hs => scrutinee.isComplete(hs) && cases.isComplete(hs) && tp.isComplete(hs),
                       (hs, l, p) =>
                           Match(
-                            scrutinee.finValue(hs, l, p),
+                            scrutinee.finValue(hs, l, p) match {
+                                case as: AnnotatedSIR => as
+                                case _ =>
+                                    throw new IllegalStateException("non-annotated SIR in Match")
+                            },
                             cases.finValue(hs, l, p),
                             tp.finValue(hs, l, p),
                             anns.finValue(hs, l, p)

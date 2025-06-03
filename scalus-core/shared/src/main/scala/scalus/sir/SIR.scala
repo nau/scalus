@@ -308,7 +308,7 @@ object SIR:
       * @param tp
       *   \- resulting type of Match expression, can be calculated as max(tp of all cases)
       */
-    case class Match(scrutinee: SIR, cases: List[Case], tp: SIRType, anns: AnnotationsDecl)
+    case class Match(scrutinee: AnnotatedSIR, cases: List[Case], tp: SIRType, anns: AnnotationsDecl)
         extends AnnotatedSIR
 
     case class Decl(data: DataDecl, term: SIR) extends SIR {

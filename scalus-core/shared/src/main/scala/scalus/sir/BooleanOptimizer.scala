@@ -91,7 +91,7 @@ object BooleanOptimizer:
 
             // Recursive optimization for Match
             case Match(scrutinee, cases, tp, anns) =>
-                val optScrutinee = optimize(scrutinee)
+                val optScrutinee = optimizeExpr(scrutinee)
                 val optCases = cases.map { case Case(pattern, body, anns) =>
                     Case(pattern, optimize(body), anns)
                 }

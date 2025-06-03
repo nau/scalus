@@ -16,6 +16,10 @@ object SumCaseClassRepresentation {
       */
     case object DataConstr extends SumCaseClassRepresentation
 
+    /** Representation for sum case classes that are represented as a Pair of Int and DataList.
+      */
+    case object PairIntDataList extends SumCaseClassRepresentation
+
     /** Representation for sum case classes that are represented as a list of data elements. unlike
       * `DataConstr`, this representation does not use a constructor tag, but use unList and
       * unListData to work with the data.
@@ -58,6 +62,12 @@ object ProductCaseClassRepresentation {
     case object ScottEncoding extends ProductCaseClassRepresentation
 
     case class OneElelmentWrapper(representation: LoweredValueRepresentation)
+
+    case class PairWrapper(
+        first: LoweredValueRepresentation,
+        second: LoweredValueRepresentation
+    ) extends ProductCaseClassRepresentation
+
 }
 
 case class LambdaRepresentaion(

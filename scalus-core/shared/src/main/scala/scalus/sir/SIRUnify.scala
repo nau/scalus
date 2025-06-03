@@ -273,7 +273,11 @@ object SIRUnify {
                             case failure @ UnificationFailure(path, left, right) => failure
                 else UnificationFailure(env.path, left, right)
             case (m1: SIR.Match, m2: SIR.Match) =>
-                unifySIR(m1.scrutinee, m2.scrutinee, env.copy(path = "scrutinee" :: env.path)) match
+                unifySIRExpr(
+                  m1.scrutinee,
+                  m2.scrutinee,
+                  env.copy(path = "scrutinee" :: env.path)
+                ) match
                     case UnificationSuccess(env1, expr) =>
                         unifyCases(m1.cases, m2.cases, env1.copy(path = "cases" :: env.path)) match
                             case UnificationSuccess(env2, cases) =>

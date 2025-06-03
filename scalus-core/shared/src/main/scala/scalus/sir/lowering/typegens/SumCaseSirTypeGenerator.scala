@@ -1,6 +1,9 @@
 package scalus.sir.lowering.typegens
 
+import scala.collection.mutable
+
 import scalus.sir.*
+import scalus.sir.SIR.Pattern
 import scalus.sir.lowering.*
 
 class SumCaseSirTypeGenerator(tp: SIRType.SumCaseClass) extends SIRTypeUplcGenerator {
@@ -88,7 +91,9 @@ class SumCaseSirTypeGenerator(tp: SIRType.SumCaseClass) extends SIRTypeUplcGener
 
     }
 
-    /** Prepares ordered cases (the same as in enum definition) for match expression.
+    /** Prepares cases withour wildcards, ordered the same as in enum definition, for match
+      * expression,
+      *
       * @param matchData
       * @param loweredScrutinee
       * @param lctx
@@ -98,8 +103,90 @@ class SumCaseSirTypeGenerator(tp: SIRType.SumCaseClass) extends SIRTypeUplcGener
         matchData: SIR.Match,
         loweredScrutinee: LoweredValue
     )(using lctx: LoweringContext): List[SIR.Case] = {
-        val constructors = findConstructors(tp, matchData.anns.pos)
-        ???
+
+        val cases = matchData.cases
+        val anns = matchData.anns
+
+        val constructors = findConstructors(tp, anns.pos)
+
+        // 1. If we have a wildcard case, it must be the last one
+        // 2. Validate we don't have any errors
+        // 3. Convert Wildcard to the rest of the cases/constructors
+        // 4. Sort the cases by constructor name
+
+        var idx = 0
+
+        val allConstructors = constructors.toSet
+        val matchedConstructors = mutable.HashSet.empty[String]
+        val expandedCases = mutable.ArrayBuffer.empty[SIR.Case]
+
+        // when we have a deconstruction like this:
+        // val Some(x) = expr
+        // Scala compiler generates an @unchecked annotation
+        // and code like this:
+        // val x = expr match
+        //   case Some(x) => x
+        // }
+        // which doesn't have a wildcard case
+        // so we need to add a wildcard case in this case ;)
+        val isUnchecked = anns.data.contains("unchecked")
+        val enhancedCases =
+            if isUnchecked && cases.length < allConstructors.size then
+                cases :+ SIR.Case(
+                  SIR.Pattern.Wildcard,
+                  SIR.Error("Unexpected case", anns),
+                  anns
+                )
+            else cases
+
+        val casesIter = enhancedCases.iterator
+
+        while casesIter.hasNext do
+            casesIter.next() match
+                case c @ SIR.Case(SIR.Pattern.Constr(constrDecl, _, _), _, _) =>
+                    matchedConstructors += constrDecl.name // collect all matched constructors
+                    expandedCases += c
+                case SIR.Case(SIR.Pattern.Wildcard, rhs, anns) =>
+                    // If we have a wildcard case, it must be the last one
+                    if idx != enhancedCases.length - 1 then
+                        throw new IllegalArgumentException(
+                          s"Wildcard case must be the last and only one in match expression"
+                        )
+                    else
+                        // Convert Wildcard to the rest of the cases/constructors
+                        val missingConstructors =
+                            allConstructors.filter(c => !matchedConstructors.contains(c.name))
+                        missingConstructors.foreach { constrDecl =>
+                            val bindings =
+                                constrDecl.params.map(p => s"__scalus_unused_binding_${p.name}")
+                            // TODO: extract rhs to a let binding before the match
+                            // so we don't have to repeat it for each case
+                            // also we have no way to know type-arguments, so use abstract type-vars (will use FreeUnificator)
+                            val typeArgs =
+                                constrDecl.typeParams.map(_ => SIRType.FreeUnificator)
+                            expandedCases += SIR.Case(
+                              Pattern.Constr(constrDecl, bindings, typeArgs),
+                              rhs,
+                              anns
+                            )
+                            matchedConstructors += constrDecl.name // collect all matched constructors
+                        }
+            idx += 1
+        end while
+        // Sort the cases by the same order as the constructors
+        val orderedCases = constructors.map { constr =>
+            val optExpandedCase = expandedCases.find(_.pattern match {
+                case Pattern.Constr(constrDecl, _, _) => constrDecl.name == constr.name
+                case _                                => false
+            })
+            optExpandedCase.getOrElse(
+              throw new IllegalArgumentException(
+                s"Missing case for constructor ${constr.name} at ${anns.pos.file}: ${anns.pos.startLine}, ${anns.pos.startColumn}"
+              )
+            )
+        }.toList
+
+        orderedCases
     }
 
     def genMatchDataConstr(

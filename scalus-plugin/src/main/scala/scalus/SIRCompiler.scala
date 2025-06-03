@@ -2498,7 +2498,13 @@ final class SIRCompiler(options: SIRCompilerOptions = SIRCompilerOptions.default
                     SIR.Case(c.pattern, newCaseBody, c.anns)
                 }
                 val (newScrutinee, scrutineeChanged) =
-                    specializeSIR(parentSym, scrutinee, env, possibleOverrides, thisClassNames)
+                    specializeAnnotatedSIR(
+                      parentSym,
+                      scrutinee,
+                      env,
+                      possibleOverrides,
+                      thisClassNames
+                    )
                 val newSIR = SIR.Match(newScrutinee, newCases, tp, anns)
                 (newSIR, scrutineeChanged || casesAreChanged)
     }

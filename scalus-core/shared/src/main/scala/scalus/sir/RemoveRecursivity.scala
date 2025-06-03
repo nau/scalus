@@ -49,7 +49,7 @@ object RemoveRecursivity:
             case Not(term, anns) => Not(removeRecursivityInExpr(term), anns)
             case Match(scrutinee, cases, tp, anns) =>
                 Match(
-                  removeRecursivity(scrutinee),
+                  removeRecursivityInExpr(scrutinee),
                   cases.map {
                       case SIR.Case(Pattern.Constr(constr, bindings, typeBindings), body, anns) =>
                           Case(
