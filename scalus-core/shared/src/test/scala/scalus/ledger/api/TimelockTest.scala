@@ -12,55 +12,6 @@ class TimelockTest extends AnyFunSuite with ScalaCheckPropertyChecks with Arbitr
     // Helper method to create KeyHash for testing
     private def keyHash(s: String): AddrKeyHash = Hash(crypto.blake2b_224(ByteString.fromString(s)))
 
-    // Define generators for our types
-    private val byteStringGen: Gen[ByteString] =
-        Gen.containerOf[Array, Byte](Arbitrary.arbByte.arbitrary)
-            .map(ByteString.unsafeFromArray)
-
-    private val keyHashGen: Gen[AddrKeyHash] = Arbitrary.arbitrary[AddrKeyHash]
-
-    private val slotNoGen: Gen[SlotNo] = Gen.chooseNum(0L, Long.MaxValue)
-
-    private val optionSlotNoGen: Gen[Option[SlotNo]] = Gen.option(slotNoGen)
-
-    private val validityIntervalGen: Gen[ValidityInterval] =
-        for
-            invalidBefore <- optionSlotNoGen
-            invalidHereafter <- optionSlotNoGen
-        yield ValidityInterval(invalidBefore, invalidHereafter)
-
-    // Recursive generator for Timelock
-    private val timelockGen: Gen[Timelock] =
-        Gen.sized: size =>
-            if size <= 1 then
-                // Base cases for small sizes
-                Gen.oneOf(
-                  keyHashGen.map(Timelock.Signature.apply),
-                  slotNoGen.map(Timelock.TimeStart.apply),
-                  slotNoGen.map(Timelock.TimeExpire.apply)
-                )
-            else
-                // Recursive cases with smaller sizes for nested scripts
-                val smallerScripts = Gen.listOf(Gen.resize(size / 3, timelockGen))
-
-                Gen.oneOf(
-                  keyHashGen.map(Timelock.Signature.apply),
-                  smallerScripts.map(scripts => Timelock.AllOf(scripts)),
-                  smallerScripts.map(scripts => Timelock.AnyOf(scripts)),
-                  for
-                      m <- Gen.chooseNum(0, 10)
-                      scripts <- smallerScripts
-                  yield Timelock.MOf(m, scripts),
-                  slotNoGen.map(Timelock.TimeStart.apply),
-                  slotNoGen.map(Timelock.TimeExpire.apply)
-                )
-
-    // Implicit Arbitrary instances using given syntax
-//    private given Arbitrary[ByteString] = Arbitrary(byteStringGen)
-    private given Arbitrary[SlotNo] = Arbitrary(slotNoGen)
-    private given Arbitrary[ValidityInterval] = Arbitrary(validityIntervalGen)
-    private given Arbitrary[Timelock] = Arbitrary(timelockGen)
-
     // Test evaluate method
     test("Signature with matching key hash should validate"):
         val hash1 = keyHash("deadbeef")
@@ -385,7 +336,7 @@ class TimelockTest extends AnyFunSuite with ScalaCheckPropertyChecks with Arbitr
             assert(decoded == timelock)
 
     test("Any Timelock structure round-trip encode and decode"):
-        forAll(Gen.resize(5, timelockGen)): timelock =>
+        forAll(Gen.resize(5, Arbitrary.arbitrary[Timelock])): timelock =>
             val encoded = encode(timelock)
             val decoded = decode[Timelock](encoded)
             assert(decoded == timelock)

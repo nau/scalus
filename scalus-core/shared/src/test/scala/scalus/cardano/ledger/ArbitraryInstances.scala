@@ -6,6 +6,7 @@ import org.scalacheck.Arbitrary.arbitrary
 import scalus.builtin.{ByteString, Data}
 import scalus.builtin.Data.*
 import scalus.cardano.ledger.ArbitraryDerivation.autoDerived
+import scalus.ledger.api.{SlotNo, Timelock}
 import scalus.{builtin, uplc}
 
 import scala.collection.immutable
@@ -172,6 +173,70 @@ trait ArbitraryInstances extends uplc.ArbitraryInstances {
         )
     }
 
+    object TimelockGen {
+
+        /** KeyHash generator - simplified implementation assuming KeyHash is a value class wrapping
+          * a byte array of fixed length (28 bytes as per Cardano specs)
+          */
+        val genKeyHash: Gen[AddrKeyHash] = arbitrary[AddrKeyHash]
+
+        /** SlotNo generator - simplified implementation assuming SlotNo is a value class wrapping a
+          * Long
+          */
+        val genSlotNo: Gen[SlotNo] = Gen.choose(0L, Long.MaxValue)
+
+        /** Main Timelock generator with controlled recursion depth Uses Gen.sized to ensure
+          * termination and reasonable test data
+          */
+        val genTimelock: Gen[Timelock] = Gen.sized { size =>
+            genTimelockWithDepth(size.min(3)) // Cap maximum depth at 3 as per requirements
+        }
+
+        /** Helper method to generate Timelock instances with controlled recursion depth
+          *
+          * @param depth
+          *   Maximum nesting depth for recursive Timelock structures
+          * @return
+          *   A generator for Timelock instances
+          */
+        private def genTimelockWithDepth(depth: Int): Gen[Timelock] = {
+            if depth <= 0 then
+                // Base cases - non-recursive Timelock variants
+                Gen.oneOf(
+                  genKeyHash.map(Timelock.Signature.apply),
+                  genSlotNo.map(Timelock.TimeStart.apply),
+                  genSlotNo.map(Timelock.TimeExpire.apply)
+                )
+            else
+                // Calculate a reduced depth for nested generators
+                val reducedDepth = depth - 1
+
+                // Generate a list of nested Timelock instances with reduced depth
+                lazy val genNestedTimelocks: Gen[Seq[Timelock]] = for
+                    n <- Gen.choose(1, 5) // Reasonable limit for number of nested scripts
+                    scripts <- Gen.listOfN(n, genTimelockWithDepth(reducedDepth))
+                yield scripts
+
+                // Choose between all possible Timelock variants
+                Gen.frequency(
+                  // Non-recursive variants have higher probability
+                  (3, genKeyHash.map(Timelock.Signature.apply)),
+                  (2, genSlotNo.map(Timelock.TimeStart.apply)),
+                  (2, genSlotNo.map(Timelock.TimeExpire.apply)),
+
+                  // Recursive variants with reduced depth
+                  (1, genNestedTimelocks.map(Timelock.AllOf.apply)),
+                  (1, genNestedTimelocks.map(Timelock.AnyOf.apply)),
+                  (
+                    1,
+                    for
+                        scripts <- genNestedTimelocks
+                        m <- Gen.choose(1, scripts.length.max(1)) // Ensure m is valid
+                    yield Timelock.MOf(m, scripts)
+                  )
+                )
+        }
+    }
     // FIXME: autoDerived for Script is not working correctly
     given Arbitrary[Script] = Arbitrary {
         Gen.oneOf(
@@ -182,6 +247,7 @@ trait ArbitraryInstances extends uplc.ArbitraryInstances {
         )
     }
     given Arbitrary[ScriptRef] = autoDerived
+    given Arbitrary[Timelock] = Arbitrary(TimelockGen.genTimelock)
 
     given Arbitrary[TransactionInput] = Arbitrary {
         for
