@@ -3,7 +3,6 @@ package scalus.cardano.ledger
 import io.bullet.borer.*
 import io.bullet.borer.derivation.ArrayBasedCodecs.*
 import scalus.builtin.ByteString
-import scalus.ledger.api.Timelock
 
 import scala.collection.immutable
 
@@ -116,13 +115,13 @@ enum AuxiliaryData:
     /** Shelley-MA era combined metadata and scripts */
     case MetadataWithScripts(
         metadata: Map[TransactionMetadatumLabel, TransactionMetadatum],
-        scripts: Seq[Timelock]
+        scripts: Seq[ByteString]
     )
 
     /** Alonzo-era and later metadata format with optional components */
     case AlonzoFormat(
         metadata: Option[Map[TransactionMetadatumLabel, TransactionMetadatum]] = None,
-        nativeScripts: Option[Seq[Timelock]] = None,
+        nativeScripts: Option[Seq[ByteString]] = None,
         plutusV1Scripts: Option[Seq[ByteString]] = None,
         plutusV2Scripts: Option[Seq[ByteString]] = None,
         plutusV3Scripts: Option[Seq[ByteString]] = None
@@ -215,7 +214,7 @@ object AuxiliaryData:
                     val size = r.readMapHeader()
                     var metadata: Option[Map[TransactionMetadatumLabel, TransactionMetadatum]] =
                         None
-                    var nativeScripts: Option[Seq[Timelock]] = None
+                    var nativeScripts: Option[Seq[ByteString]] = None
                     var plutusV1Scripts: Option[Seq[ByteString]] = None
                     var plutusV2Scripts: Option[Seq[ByteString]] = None
                     var plutusV3Scripts: Option[Seq[ByteString]] = None
@@ -227,7 +226,7 @@ object AuxiliaryData:
                                 metadata = Some(r.read[scalus.cardano.ledger.Metadata]())
 
                             case 1 => // Native scripts
-                                nativeScripts = Some(r.read[Seq[Timelock]]())
+                                nativeScripts = Some(r.read[Seq[ByteString]]())
 
                             case 2 => // Plutus V1 scripts
                                 plutusV1Scripts = Some(r.read[Seq[ByteString]]())
@@ -262,7 +261,7 @@ object AuxiliaryData:
 
                     val metadata = r.read[scalus.cardano.ledger.Metadata]()
 
-                    val scripts = r.read[Seq[Timelock]]()
+                    val scripts = r.read[Seq[ByteString]]()
                     AuxiliaryData.MetadataWithScripts(metadata, scripts)
 
                 case di =>

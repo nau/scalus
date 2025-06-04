@@ -5,12 +5,11 @@ import io.bullet.borer.NullOptions.given
 import io.bullet.borer.derivation.ArrayBasedCodecs.*
 import io.bullet.borer.derivation.key
 import scalus.builtin.ByteString
-import scalus.ledger.api.Timelock
 
 /** Represents a script in Cardano */
 enum Script derives Codec.All:
     /** Native script (timelock) */
-    @key(0) case Native(script: Timelock)
+    @key(0) case Native(script: ByteString)
 
     /** Plutus V1 script */
     @key(1) case PlutusV1(bytes: ByteString)

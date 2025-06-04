@@ -2,7 +2,6 @@ package scalus.cardano.ledger
 
 import io.bullet.borer.*
 import scalus.builtin.{ByteString, Data}
-import scalus.ledger.api.Timelock
 
 /** Represents the witness set for a transaction in Cardano */
 case class TransactionWitnessSet(
@@ -10,7 +9,7 @@ case class TransactionWitnessSet(
     vkeyWitnesses: Option[Set[VKeyWitness]] = None,
 
     /** Native scripts */
-    nativeScripts: Option[Set[Timelock]] = None,
+    nativeScripts: Option[Set[ByteString]] = None,
 
     /** Bootstrap witnesses (for Byron addresses) */
     bootstrapWitnesses: Option[Set[BootstrapWitness]] = None,
@@ -156,7 +155,7 @@ object TransactionWitnessSet:
             val mapSize = r.readMapHeader()
 
             var vkeyWitnesses: Option[Set[VKeyWitness]] = None
-            var nativeScripts: Option[Set[Timelock]] = None
+            var nativeScripts: Option[Set[ByteString]] = None
             var bootstrapWitnesses: Option[Set[BootstrapWitness]] = None
             var plutusV1Scripts: Option[Set[ByteString]] = None
             var plutusData: Option[Set[Data]] = None
