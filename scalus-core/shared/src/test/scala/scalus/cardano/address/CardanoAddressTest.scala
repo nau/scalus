@@ -1,5 +1,6 @@
-package scalus.cardano.ledger
+package scalus.cardano.address
 
+import scalus.cardano.ledger.{Address as _, *}
 import org.scalatest.funsuite.AnyFunSuite
 import scalus.builtin.ByteString
 
@@ -9,7 +10,6 @@ import scala.util.Success
   * address types based on CIP-19 test vectors
   */
 class CardanoAddressTest extends AnyFunSuite {
-    import CardanoAddress.*
 
     // Test vectors from CIP-19 and real Cardano addresses
     private val testVectors = List(
@@ -41,7 +41,7 @@ class CardanoAddressTest extends AnyFunSuite {
 
     test("Original test vectors should parse with bech32") {
         testVectors.foreach { case (addressStr, expectedTypeId, description) =>
-            val parseResult = fromBech32(addressStr)
+            val parseResult = Address.fromBech32(addressStr)
             assert(parseResult.typeId == expectedTypeId, s"Wrong type ID for $description")
         }
     }
@@ -83,10 +83,10 @@ class CardanoAddressTest extends AnyFunSuite {
         )
 
         testCases.foreach { case (value, expectedBytes) =>
-            val encoded = encodeVariableLengthUInt(value)
+            val encoded = VarUInt.encodeVariableLengthUInt(value)
             assert(encoded.sameElements(expectedBytes), s"Encoding failed for value $value")
 
-            val (decoded, bytesUsed) = decodeVariableLengthUInt(encoded, 0)
+            val (decoded, bytesUsed) = VarUInt.decodeVariableLengthUInt(encoded, 0)
             assert(decoded == value)
             assert(bytesUsed == encoded.length)
         }
@@ -212,7 +212,7 @@ class CardanoAddressTest extends AnyFunSuite {
         val type0Payload = samplePaymentHash.hash.bytes.bytes ++ sampleStakeHash.bytes.bytes
         val type0Bytes = type0Header +: type0Payload
 
-        val parsedType0 = fromBytes(type0Bytes)
+        val parsedType0 = Address.fromBytes(type0Bytes)
         parsedType0 match {
             case Address.Shelley(_) => // Expected
             case _                  => fail("Expected Shelley address")
@@ -223,7 +223,7 @@ class CardanoAddressTest extends AnyFunSuite {
         val type14Header: Byte = 0xe1.toByte // type 14 + mainnet
         val type14Bytes = type14Header +: sampleStakeHash.bytes.bytes
 
-        val parsedType14 = fromBytes(type14Bytes)
+        val parsedType14 = Address.fromBytes(type14Bytes)
 
         parsedType14 match {
             case Address.Stake(_) => // Expected
@@ -235,20 +235,20 @@ class CardanoAddressTest extends AnyFunSuite {
     test("Address parsing should handle invalid inputs gracefully") {
         // Empty bytes
         assertThrows[IllegalArgumentException] {
-            fromBytes(Array.empty)
+            Address.fromBytes(Array.empty)
         }
 
         // Invalid header type
         val invalidHeader: Byte = 0x91.toByte // type 9 doesn't exist
         val invalidBytes = invalidHeader +: samplePaymentHash.hash.bytes.bytes
         assertThrows[IllegalArgumentException] {
-            fromBytes(invalidBytes)
+            Address.fromBytes(invalidBytes)
         }
 
         // Wrong payload length
         val shortPayload = Array[Byte](0x01, 0x02, 0x03) // too short
         assertThrows[IllegalArgumentException] {
-            fromBytes(shortPayload)
+            Address.fromBytes(shortPayload)
         }
     }
 
@@ -260,7 +260,7 @@ class CardanoAddressTest extends AnyFunSuite {
 
         // Serialize and parse back
         val bytes = wrappedAddr.toBytes.bytes
-        val parsedAddr = fromBytes(bytes)
+        val parsedAddr = Address.fromBytes(bytes)
 
         assert(parsedAddr == wrappedAddr)
         assert(parsedAddr.typeId == wrappedAddr.typeId)
