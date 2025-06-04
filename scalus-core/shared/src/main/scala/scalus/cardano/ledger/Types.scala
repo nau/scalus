@@ -248,33 +248,30 @@ object Language {
   *
   * Byron addresses (bits 7-4 = 1000)
   */
-final case class Address(bytes: ByteString) derives Codec {
-
-    /** Get the network ID from the address */
-    def networkId: Int = bytes(0) & 0x0f
-
-    /** Is this a testnet address? */
-    def isTestnet: Boolean = networkId != 1
-
-    /** Is this a mainnet address? */
-    def isMainnet: Boolean = networkId == 1
-
-    /** Get bech32 representation (for human-readable format) */
-    def toBech32: String = {
-        // In a real implementation, this would convert to bech32 format
-        // For example: addr1q9qfllpxg2vu4lq6rnpel4pvpp5xnv3kvvgtxk6k6wp4ff89xrhu8jnu3pj9rqlmnfxm0husrvdkfhxrt5nazvcmhcssk5m9rq
-        "addr1..." + bytes.toHex.take(8)
-    }
-}
+opaque type Address <: ByteString = ByteString
 
 object Address {
+    inline def apply(bytes: ByteString): Address = bytes
 
     /** Create an Address from a hex string */
-    def fromHex(hex: String): Address = Address(ByteString.fromHex(hex))
+    def fromHex(hex: String): Address = ByteString.fromHex(hex)
 
     /** Create an Address from bech32 string */
     def fromBech32(bech32: String): Address = {
-        Address(ByteString.unsafeFromArray(Bech32.decode(bech32).data))
+        ByteString.unsafeFromArray(Bech32.decode(bech32).data)
+    }
+
+    given Encoder[Address] = Encoder { (w, address) =>
+        // here we explicitly pass the ByteString encoder to avoid StackOverflowError
+        // because here Encoder[Address] is resolved as Encoder[ByteString]
+        w.write[ByteString](address)(using ByteString.given_Encoder_ByteString)
+    }
+
+    given Decoder[Address] = Decoder { r =>
+        // here we explicitly pass the ByteString decoder to avoid StackOverflowError
+        // because here Decoder[Address] is resolved as Decoder[ByteString]
+        val bytes = r.read[ByteString]()(using ByteString.given_Decoder_ByteString)
+        Address(bytes)
     }
 }
 

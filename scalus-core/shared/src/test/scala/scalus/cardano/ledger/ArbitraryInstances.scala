@@ -1,6 +1,7 @@
 package scalus.cardano.ledger
 
 import org.scalacheck.{Arbitrary, Gen}
+import org.scalacheck.Arbitrary.arbitrary
 import scalus.builtin.{ByteString, Data}
 import scalus.builtin.Data.*
 import scalus.cardano.ledger.ArbitraryDerivation.autoDerived
@@ -11,7 +12,7 @@ import scala.collection.immutable
 trait ArbitraryInstances extends uplc.ArbitraryInstances {
     def genByteStringOfN(n: Int): Gen[ByteString] = {
         Gen
-            .containerOfN[Array, Byte](n, Arbitrary.arbitrary[Byte])
+            .containerOfN[Array, Byte](n, arbitrary[Byte])
             .map(a => ByteString.unsafeFromArray(a))
     }
 
@@ -24,8 +25,8 @@ trait ArbitraryInstances extends uplc.ArbitraryInstances {
             result <- Gen.mapOfN(
               size,
               for
-                  key <- Arbitrary.arbitrary[A]
-                  value <- Arbitrary.arbitrary[B]
+                  key <- arbitrary[A]
+                  value <- arbitrary[B]
               yield (key, value)
             )
         yield result
@@ -37,7 +38,7 @@ trait ArbitraryInstances extends uplc.ArbitraryInstances {
     ): Gen[immutable.List[A]] = {
         for
             size <- Gen.choose(from, to)
-            result <- Gen.listOfN(size, Arbitrary.arbitrary[A])
+            result <- Gen.listOfN(size, arbitrary[A])
         yield result
     }
 
@@ -62,14 +63,14 @@ trait ArbitraryInstances extends uplc.ArbitraryInstances {
                 .choose(0, 128)
                 .flatMap(Gen.listOfN(_, Gen.alphaNumChar))
                 .map(_.mkString)
-            dataHash <- Arbitrary.arbitrary[Hash32]
+            dataHash <- arbitrary[Hash32]
         yield Anchor(url, dataHash)
     }
 
     given Arbitrary[Credential] = Arbitrary {
         Gen.oneOf(
-          Arbitrary.arbitrary[AddrKeyHash].map(Credential.KeyHash.apply),
-          Arbitrary.arbitrary[ScriptHash].map(Credential.ScriptHash.apply)
+          arbitrary[AddrKeyHash].map(Credential.KeyHash.apply),
+          arbitrary[ScriptHash].map(Credential.ScriptHash.apply)
         )
     }
     given Arbitrary[Coin] = Arbitrary(Gen.choose(0L, Long.MaxValue).map(Coin.apply))
@@ -89,7 +90,7 @@ trait ArbitraryInstances extends uplc.ArbitraryInstances {
     }
 
     given Arbitrary[Language] = autoDerived
-    given Arbitrary[Address] = autoDerived
+    given Arbitrary[Address] = Arbitrary(arbitrary[ByteString].map(Address.apply))
     given Arbitrary[Slot] = Arbitrary(Gen.choose(0L, Long.MaxValue).map(Slot.apply))
     given Arbitrary[AuxiliaryDataHash] = autoDerived
     given Arbitrary[ScriptDataHash] = autoDerived
@@ -122,15 +123,15 @@ trait ArbitraryInstances extends uplc.ArbitraryInstances {
 
     given Arbitrary[Value] = Arbitrary {
         Gen.oneOf(
-          Arbitrary.arbitrary[Coin].map(Value.Ada.apply),
+          arbitrary[Coin].map(Value.Ada.apply),
           for
-              coin <- Arbitrary.arbitrary[Coin]
+              coin <- arbitrary[Coin]
               assets <- {
                   given Arbitrary[Long] = Arbitrary(Gen.posNum[Long])
                   given [A: Arbitrary, B: Arbitrary]: Arbitrary[immutable.Map[A, B]] = Arbitrary(
                     genMapOfSizeFromArbitrary(1, 8)
                   )
-                  Arbitrary.arbitrary[MultiAsset[Long]]
+                  arbitrary[MultiAsset[Long]]
               }
           yield Value.MultiAsset(coin, assets)
         )
@@ -141,8 +142,8 @@ trait ArbitraryInstances extends uplc.ArbitraryInstances {
 //    given Arbitrary[DRep] = autoDerived
     given Arbitrary[DRep] = Arbitrary {
         Gen.oneOf(
-          Arbitrary.arbitrary[AddrKeyHash].map(DRep.KeyHash.apply),
-          Arbitrary.arbitrary[ScriptHash].map(DRep.ScriptHash.apply),
+          arbitrary[AddrKeyHash].map(DRep.KeyHash.apply),
+          arbitrary[ScriptHash].map(DRep.ScriptHash.apply),
           Gen.const(DRep.AlwaysAbstain),
           Gen.const(DRep.AlwaysNoConfidence)
         )
@@ -150,7 +151,7 @@ trait ArbitraryInstances extends uplc.ArbitraryInstances {
 
     given Arbitrary[GovActionId] = Arbitrary {
         for
-            txId <- Arbitrary.arbitrary[Hash32]
+            txId <- arbitrary[Hash32]
             index <- Gen.choose(0, 65535)
         yield GovActionId(txId, index)
     }
@@ -166,18 +167,18 @@ trait ArbitraryInstances extends uplc.ArbitraryInstances {
         for
             len <- Gen.choose(0, 128)
             url <- Gen.stringOfN(len, Gen.alphaNumChar)
-            hash <- Arbitrary.arbitrary[Hash32]
+            hash <- arbitrary[Hash32]
         yield PoolMetadata(url, hash)
     }
     given Arbitrary[KeyHash] = Arbitrary(
-      Arbitrary.arbitrary[Hash28].map(h => KeyHash.apply(h.bytes))
+      arbitrary[Hash28].map(h => KeyHash.apply(h.bytes))
     )
 
     // FIXME: autoDerived for DatumOption is not working correctly
     given Arbitrary[DatumOption] = Arbitrary {
         Gen.oneOf(
-          Arbitrary.arbitrary[Data].map(DatumOption.Inline.apply),
-          Arbitrary.arbitrary[Hash32].map(DatumOption.Hash.apply)
+          arbitrary[Data].map(DatumOption.Inline.apply),
+          arbitrary[Hash32].map(DatumOption.Hash.apply)
         )
     }
 
@@ -186,7 +187,7 @@ trait ArbitraryInstances extends uplc.ArbitraryInstances {
         /** KeyHash generator - simplified implementation assuming KeyHash is a value class wrapping
           * a byte array of fixed length (28 bytes as per Cardano specs)
           */
-        val genKeyHash: Gen[KeyHash] = Arbitrary.arbitrary[Hash28].map(_.bytes).map(KeyHash.apply)
+        val genKeyHash: Gen[KeyHash] = arbitrary[Hash28].map(_.bytes).map(KeyHash.apply)
 
         /** SlotNo generator - simplified implementation assuming SlotNo is a value class wrapping a
           * Long
@@ -249,9 +250,9 @@ trait ArbitraryInstances extends uplc.ArbitraryInstances {
     given Arbitrary[Script] = Arbitrary {
         Gen.oneOf(
           TimelockGen.genTimelock.map(Script.Native.apply),
-          Arbitrary.arbitrary[ByteString].map(Script.PlutusV1.apply),
-          Arbitrary.arbitrary[ByteString].map(Script.PlutusV2.apply),
-          Arbitrary.arbitrary[ByteString].map(Script.PlutusV3.apply),
+          arbitrary[ByteString].map(Script.PlutusV1.apply),
+          arbitrary[ByteString].map(Script.PlutusV2.apply),
+          arbitrary[ByteString].map(Script.PlutusV3.apply),
         )
     }
     given Arbitrary[ScriptRef] = autoDerived
@@ -259,7 +260,7 @@ trait ArbitraryInstances extends uplc.ArbitraryInstances {
 
     given Arbitrary[TransactionInput] = Arbitrary {
         for
-            transactionId <- Arbitrary.arbitrary[Hash32]
+            transactionId <- arbitrary[Hash32]
             index <- Gen.choose(0, Int.MaxValue)
         yield TransactionInput(transactionId, index)
     }
@@ -292,14 +293,14 @@ trait ArbitraryInstances extends uplc.ArbitraryInstances {
         for
             blockNumber <- Gen.choose(0L, Long.MaxValue)
             slot <- Gen.choose(0L, Long.MaxValue)
-            prevHash <- Arbitrary.arbitrary[Option[Hash32]]
+            prevHash <- arbitrary[Option[Hash32]]
             issuerVkey <- genByteStringOfN(32)
             vrfVkey <- genByteStringOfN(32)
-            vrfResult <- Arbitrary.arbitrary[VrfCert]
+            vrfResult <- arbitrary[VrfCert]
             blockBodySize <- Gen.choose(0L, Long.MaxValue)
-            blockBodyHash <- Arbitrary.arbitrary[Hash32]
-            operationalCert <- Arbitrary.arbitrary[OperationalCert]
-            protocolVersion <- Arbitrary.arbitrary[ProtocolVersion]
+            blockBodyHash <- arbitrary[Hash32]
+            operationalCert <- arbitrary[OperationalCert]
+            protocolVersion <- arbitrary[ProtocolVersion]
         yield BlockHeaderBody(
           blockNumber,
           slot,
@@ -316,7 +317,7 @@ trait ArbitraryInstances extends uplc.ArbitraryInstances {
 
     given Arbitrary[BlockHeader] = Arbitrary {
         for
-            headerBody <- Arbitrary.arbitrary[BlockHeaderBody]
+            headerBody <- arbitrary[BlockHeaderBody]
             bodySignature <- genByteStringOfN(448)
         yield BlockHeader(headerBody, bodySignature)
     }
@@ -416,10 +417,10 @@ trait ArbitraryInstances extends uplc.ArbitraryInstances {
 
     given Arbitrary[Redeemer] = Arbitrary {
         for
-            tag <- Arbitrary.arbitrary[RedeemerTag]
+            tag <- arbitrary[RedeemerTag]
             index <- Gen.choose(0, Int.MaxValue)
-            data <- Arbitrary.arbitrary[Data]
-            exUnits <- Arbitrary.arbitrary[ExUnits]
+            data <- arbitrary[Data]
+            exUnits <- arbitrary[ExUnits]
         yield Redeemer(tag, index, data, exUnits)
     }
 
@@ -456,11 +457,11 @@ trait ArbitraryInstances extends uplc.ArbitraryInstances {
 //    given Arbitrary[Voter] = autoDerived
     given Arbitrary[Voter] = Arbitrary {
         Gen.oneOf(
-          Arbitrary.arbitrary[AddrKeyHash].map(Voter.ConstitutionalCommitteeHotKey.apply),
-          Arbitrary.arbitrary[ScriptHash].map(Voter.ConstitutionalCommitteeHotScript.apply),
-          Arbitrary.arbitrary[AddrKeyHash].map(Voter.DRepKey.apply),
-          Arbitrary.arbitrary[ScriptHash].map(Voter.DRepScript.apply),
-          Arbitrary.arbitrary[AddrKeyHash].map(Voter.StakingPoolKey.apply),
+          arbitrary[AddrKeyHash].map(Voter.ConstitutionalCommitteeHotKey.apply),
+          arbitrary[ScriptHash].map(Voter.ConstitutionalCommitteeHotScript.apply),
+          arbitrary[AddrKeyHash].map(Voter.DRepKey.apply),
+          arbitrary[ScriptHash].map(Voter.DRepScript.apply),
+          arbitrary[AddrKeyHash].map(Voter.StakingPoolKey.apply),
         )
     }
     given Arbitrary[VotingProcedure] = autoDerived
@@ -540,25 +541,25 @@ trait ArbitraryInstances extends uplc.ArbitraryInstances {
         for
             inputs <- genSetOfSizeFromArbitrary[TransactionInput](0, 4)
             outputs <- genListOfSizeFromArbitrary[TransactionOutput](0, 4)
-            fee <- Arbitrary.arbitrary[Coin]
+            fee <- arbitrary[Coin]
             ttl <- Gen.option(Gen.choose(0L, Long.MaxValue))
             certificates <- Gen.option(genSetOfSizeFromArbitrary[Certificate](1, 4))
             withdrawals <- Gen.option(
               genMapOfSizeFromArbitrary[RewardAccount, Coin](1, 4).map(Withdrawals.apply)
             )
-            auxiliaryDataHash <- Arbitrary.arbitrary[Option[AuxiliaryDataHash]]
+            auxiliaryDataHash <- arbitrary[Option[AuxiliaryDataHash]]
             validityStartSlot <- Gen.option(Gen.choose(0L, Long.MaxValue))
-            mint <- Arbitrary.arbitrary[Option[Mint]]
-            scriptDataHash <- Arbitrary.arbitrary[Option[ScriptDataHash]]
+            mint <- arbitrary[Option[Mint]]
+            scriptDataHash <- arbitrary[Option[ScriptDataHash]]
             collateralInputs <- Gen.option(genSetOfSizeFromArbitrary[TransactionInput](1, 4))
             requiredSigners <- Gen.option(genSetOfSizeFromArbitrary[AddrKeyHash](1, 4))
             networkId <- Gen.option(Gen.oneOf(Gen.const(0), Gen.const(1)))
-            collateralReturnOutput <- Arbitrary.arbitrary[Option[TransactionOutput]]
-            totalCollateral <- Arbitrary.arbitrary[Option[Coin]]
+            collateralReturnOutput <- arbitrary[Option[TransactionOutput]]
+            totalCollateral <- arbitrary[Option[Coin]]
             referenceInputs <- Gen.option(genSetOfSizeFromArbitrary[TransactionInput](1, 4))
-            votingProcedures <- Arbitrary.arbitrary[Option[VotingProcedures]]
+            votingProcedures <- arbitrary[Option[VotingProcedures]]
             proposalProcedures <- Gen.option(genSetOfSizeFromArbitrary[ProposalProcedure](1, 4))
-            currentTreasuryValue <- Arbitrary.arbitrary[Option[Coin]]
+            currentTreasuryValue <- arbitrary[Option[Coin]]
             donation <-
                 if currentTreasuryValue.isDefined then
                     Gen.posNum[Long].map(value => Some(Coin(value)))
@@ -589,7 +590,7 @@ trait ArbitraryInstances extends uplc.ArbitraryInstances {
 
     given Arbitrary[Block] = Arbitrary {
         for
-            header <- Arbitrary.arbitrary[BlockHeader]
+            header <- arbitrary[BlockHeader]
             transactionBodies <- genListOfSizeFromArbitrary[TransactionBody](1, 4)
             transactionBodiesSize = transactionBodies.size
             transactionWitnessSets <- genListOfSizeFromArbitrary[TransactionWitnessSet](
@@ -603,7 +604,7 @@ trait ArbitraryInstances extends uplc.ArbitraryInstances {
                       size,
                       for
                           key <- Gen.choose(0, transactionBodiesSize - 1)
-                          value <- Arbitrary.arbitrary[AuxiliaryData]
+                          value <- arbitrary[AuxiliaryData]
                       yield (key, value)
                     )
                 yield result
