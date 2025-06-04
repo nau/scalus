@@ -1,7 +1,7 @@
 package scalus.cardano.ledger.rules
 
 import scalus.builtin.{ByteString, PlatformSpecific, given}
-import scalus.cardano.ledger.{Hash, Hash32, TransactionInput}
+import scalus.cardano.ledger.{Hash, TransactionInput}
 import io.bullet.borer.Cbor
 
 // It's part of Shelley.updateUTxOState in cardano-ledger

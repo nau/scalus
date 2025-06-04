@@ -292,7 +292,7 @@ trait ArbitraryInstances extends uplc.ArbitraryInstances {
         for
             blockNumber <- Gen.choose(0L, Long.MaxValue)
             slot <- Gen.choose(0L, Long.MaxValue)
-            prevHash <- arbitrary[Option[Hash32]]
+            prevHash <- arbitrary[Option[Hash.BlockHash]]
             issuerVkey <- genByteStringOfN(32)
             vrfVkey <- genByteStringOfN(32)
             vrfResult <- arbitrary[VrfCert]

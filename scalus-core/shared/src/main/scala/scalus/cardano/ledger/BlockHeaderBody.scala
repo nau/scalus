@@ -14,7 +14,7 @@ case class BlockHeaderBody(
     slot: Long,
 
     /** Previous block hash (or nil for genesis) */
-    prevHash: Option[Hash32],
+    prevHash: Option[Hash.BlockHash],
 
     /** Issuer verification key */
     issuerVkey: ByteString,
