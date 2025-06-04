@@ -11,7 +11,7 @@ enum Certificate:
     case StakeDelegation(credential: Credential, poolKeyHash: Hash28)
     case PoolRegistration(
         operator: AddrKeyHash,
-        vrfKeyHash: Hash32,
+        vrfKeyHash: VrfKeyHash,
         pledge: Coin,
         cost: Coin,
         margin: UnitInterval,
@@ -210,7 +210,7 @@ object Certificate:
                     Certificate.StakeDelegation(credential, poolKeyHash)
                 case 3 =>
                     val operator = r.read[AddrKeyHash]()
-                    val vrfKeyHash = r.read[Hash32]()
+                    val vrfKeyHash = r.read[VrfKeyHash]()
                     val pledge = r.read[Coin]()
                     val cost = r.read[Coin]()
                     val margin = r.read[UnitInterval]()

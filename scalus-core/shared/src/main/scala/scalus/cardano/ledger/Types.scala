@@ -22,6 +22,7 @@ object HashPurpose {
     trait DataHash
     trait MetadataHash
     trait AuxiliaryDataHash
+    trait VrfKeyHash
     trait TransactionHash
     trait BlockHash
 }
@@ -57,6 +58,7 @@ object Hash {
 }
 
 type AuxiliaryDataHash = Hash[Blake2b_256, HashPurpose.AuxiliaryDataHash]
+type VrfKeyHash = Hash[Blake2b_256, HashPurpose.VrfKeyHash]
 type H28 = Hash[Blake2b_224, Any]
 type H32 = Hash[Blake2b_224, Any]
 
