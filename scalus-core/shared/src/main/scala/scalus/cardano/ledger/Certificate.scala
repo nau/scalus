@@ -27,7 +27,12 @@ enum Certificate:
     case StakeVoteDelegCert(credential: Credential, poolKeyHash: PoolKeyHash, drep: DRep)
     case StakeRegDelegCert(credential: Credential, poolKeyHash: PoolKeyHash, coin: Coin)
     case VoteRegDelegCert(credential: Credential, drep: DRep, coin: Coin)
-    case StakeVoteRegDelegCert(credential: Credential, poolKeyHash: PoolKeyHash, drep: DRep, coin: Coin)
+    case StakeVoteRegDelegCert(
+        credential: Credential,
+        poolKeyHash: PoolKeyHash,
+        drep: DRep,
+        coin: Coin
+    )
     case AuthCommitteeHotCert(
         committeeColdCredential: Credential,
         committeeHotCredential: Credential

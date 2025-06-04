@@ -25,6 +25,7 @@ object HashPurpose {
     trait AuxiliaryDataHash
     trait VrfKeyHash
     trait PoolKeyHash
+    trait StakeKeyHash
     trait TransactionHash
     trait BlockHash
 }
@@ -38,6 +39,8 @@ object Hash {
         require(bytes.size == size, s"Hash must be $size bytes, got ${bytes.size}")
         bytes
     }
+
+    def stakeKeyHash(bytes: ByteString): StakeKeyHash = Hash(bytes)
 
     given Encoder[HF, Purpose]: Encoder[Hash[HF, Purpose]] = { (w, hash) =>
         // here we explicitly pass the ByteString encoder to avoid StackOverflowError
@@ -85,6 +88,7 @@ type BlockHash = Hash[Blake2b_256, HashPurpose.BlockHash]
 type AuxiliaryDataHash = Hash[Blake2b_256, HashPurpose.AuxiliaryDataHash]
 type VrfKeyHash = Hash[Blake2b_256, HashPurpose.VrfKeyHash]
 type PoolKeyHash = Hash[Blake2b_224, HashPurpose.PoolKeyHash]
+type StakeKeyHash = Hash[Blake2b_224, HashPurpose.StakeKeyHash]
 
 /** Represents a hash of the script data
   *

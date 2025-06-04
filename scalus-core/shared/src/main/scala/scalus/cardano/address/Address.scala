@@ -102,7 +102,6 @@ object Network {
 }
 
 /** Type aliases for clarity - matching Rust implementation */
-type StakeKeyHash = Hash28
 type TxIdx = Long
 type CertIdx = Long
 
@@ -259,7 +258,7 @@ object StakePayload {
     def fromBytes(bytes: Array[Byte], isScript: Boolean): Try[StakePayload] = Try {
         require(bytes.length == 28, s"Invalid hash size: ${bytes.length}, expected 28")
         val hash = ByteString.fromArray(bytes)
-        if isScript then Script(ScriptHash(Hash28(hash))) else Stake(Hash28(hash))
+        if isScript then Script(ScriptHash(Hash28(hash))) else Stake(Hash.stakeKeyHash(hash))
     }
 }
 
@@ -502,7 +501,7 @@ object Address {
 
         val network = Network.fromByte((header & 0x0f).toByte)
         val paymentHash = AddrKeyHash(ByteString.fromArray(payload.slice(0, 28)))
-        val stakeHash = Hash28(ByteString.fromArray(payload.slice(28, 56)))
+        val stakeHash = Hash.stakeKeyHash(ByteString.fromArray(payload.slice(28, 56)))
 
         val payment = ShelleyPaymentPart.Key(paymentHash)
         val delegation = ShelleyDelegationPart.Key(stakeHash)
@@ -519,7 +518,7 @@ object Address {
 
         val network = Network.fromByte((header & 0x0f).toByte)
         val scriptHash = Hash28(ByteString.fromArray(payload.slice(0, 28)))
-        val stakeHash = Hash28(ByteString.fromArray(payload.slice(28, 56)))
+        val stakeHash = Hash.stakeKeyHash(ByteString.fromArray(payload.slice(28, 56)))
 
         val payment = ShelleyPaymentPart.Script(ScriptHash(scriptHash))
         val delegation = ShelleyDelegationPart.Key(stakeHash)
@@ -654,7 +653,7 @@ object Address {
         )
 
         val network = Network.fromByte((header & 0x0f).toByte)
-        val stakeHash = Hash28(ByteString.fromArray(payload))
+        val stakeHash = Hash.stakeKeyHash(ByteString.fromArray(payload))
 
         val stakePayload = StakePayload.Stake(stakeHash)
         Address.Stake(StakeAddress(network, stakePayload))

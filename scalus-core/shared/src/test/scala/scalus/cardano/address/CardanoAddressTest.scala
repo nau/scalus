@@ -2,7 +2,7 @@ package scalus.cardano.address
 
 import org.scalatest.funsuite.AnyFunSuite
 import scalus.builtin.ByteString
-import scalus.cardano.ledger.*
+import scalus.cardano.ledger.{Hash, *}
 
 import scala.util.Success
 
@@ -32,7 +32,7 @@ class CardanoAddressTest extends AnyFunSuite {
     private val samplePaymentHash = AddrKeyHash(
       ByteString.fromHex("c37b1b5dc0669f1d3c61a6fddb2e8fde96be87b881c60bce8e8d542f")
     )
-    private val sampleStakeHash = Hash28(
+    private val sampleStakeHash = Hash.stakeKeyHash(
       ByteString.fromHex("337b62cfff6403a06a3acbc34f8c46003c69fe79a3628cefa9c47251")
     )
     private val sampleScriptHash = ScriptHash(
