@@ -175,7 +175,7 @@ trait ArbitraryInstances extends uplc.ArbitraryInstances {
     // FIXME: autoDerived for Script is not working correctly
     given Arbitrary[Script] = Arbitrary {
         Gen.oneOf(
-          arbitrary[ByteString].map(Script.Native.apply),
+          TimelockGen.genTimelock.map(Script.Native.apply),
           arbitrary[ByteString].map(Script.PlutusV1.apply),
           arbitrary[ByteString].map(Script.PlutusV2.apply),
           arbitrary[ByteString].map(Script.PlutusV3.apply),
