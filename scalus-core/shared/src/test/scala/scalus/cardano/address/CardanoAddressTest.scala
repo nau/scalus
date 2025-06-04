@@ -1,8 +1,8 @@
 package scalus.cardano.address
 
-import scalus.cardano.ledger.{Address as _, *}
 import org.scalatest.funsuite.AnyFunSuite
 import scalus.builtin.ByteString
+import scalus.cardano.ledger.*
 
 import scala.util.Success
 

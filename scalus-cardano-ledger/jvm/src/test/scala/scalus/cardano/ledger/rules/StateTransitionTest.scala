@@ -141,7 +141,7 @@ class StateTransitionTest extends AnyFunSuite, ArbitraryInstances {
                 ),
                 outputs = List(
                   TransactionOutput.Shelley(
-                    Arbitrary.arbitrary[Address].sample.get,
+                    Arbitrary.arbitrary[AddressBytes].sample.get,
                     Value.Ada(Coin(Gen.choose(0L, 1000000L).sample.get))
                   )
                 ),
@@ -152,7 +152,7 @@ class StateTransitionTest extends AnyFunSuite, ArbitraryInstances {
         val state = State(
           utxo = Map(
             transaction.body.inputs.head -> TransactionOutput.Shelley(
-              Arbitrary.arbitrary[Address].sample.get,
+              Arbitrary.arbitrary[AddressBytes].sample.get,
               Value.Ada(
                 Coin(
                   transaction.body.outputs.head
@@ -187,7 +187,7 @@ class StateTransitionTest extends AnyFunSuite, ArbitraryInstances {
                 ),
                 outputs = List(
                   TransactionOutput.Shelley(
-                    Arbitrary.arbitrary[Address].sample.get,
+                    Arbitrary.arbitrary[AddressBytes].sample.get,
                     Value.Ada(Coin(Gen.choose(0L, 1000000L).sample.get))
                   )
                 ),
@@ -198,7 +198,7 @@ class StateTransitionTest extends AnyFunSuite, ArbitraryInstances {
         val state = State(
           utxo = Map(
             transaction.body.inputs.head -> TransactionOutput.Shelley(
-              Arbitrary.arbitrary[Address].sample.get,
+              Arbitrary.arbitrary[AddressBytes].sample.get,
               Value.Ada(
                 Coin(
                   transaction.body.outputs.head
@@ -289,7 +289,7 @@ class StateTransitionTest extends AnyFunSuite, ArbitraryInstances {
                 ),
                 outputs = List(
                   TransactionOutput.Shelley(
-                    Arbitrary.arbitrary[Address].sample.get,
+                    Arbitrary.arbitrary[AddressBytes].sample.get,
                     Value.Ada(Coin(Gen.choose(0L, 1000000L).sample.get))
                   )
                 ),
@@ -306,7 +306,7 @@ class StateTransitionTest extends AnyFunSuite, ArbitraryInstances {
               .concat(
                 Seq(
                   transaction.body.inputs.head -> TransactionOutput.Shelley(
-                    Arbitrary.arbitrary[Address].sample.get,
+                    Arbitrary.arbitrary[AddressBytes].sample.get,
                     Value.Ada(
                       Coin(
                         transaction.body.outputs.head

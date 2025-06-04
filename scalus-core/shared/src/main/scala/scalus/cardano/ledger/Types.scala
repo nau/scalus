@@ -4,6 +4,7 @@ import io.bullet.borer.derivation.ArrayBasedCodecs.*
 import io.bullet.borer.{Cbor, Codec, Decoder, Encoder, Writer}
 import scalus.builtin.ByteString
 import io.bullet.borer.NullOptions.given
+import scalus.cardano.address.Address
 
 trait Blake2b_256
 object Blake2b_256 extends Blake2b_256
@@ -228,50 +229,35 @@ object Language {
     }
 }
 
-/** Represents a Cardano address
-  *
-  * Cardano addresses encode information in their header byte:
-  *   - bit 7: 0 for Shelley addresses, 1 for special addresses
-  *   - bits 6-5: address type
-  *   - bit 4: credential type (key hash or script hash)
-  *   - bits 3-0: network ID
-  *
-  * Address types for Shelley addresses (bit 7 = 0):
-  *   - 00: base address (payment key + stake key)
-  *   - 01: pointer address (payment key + stake pointer)
-  *   - 10: enterprise address (payment key only)
-  *   - 11: reward address (stake key only)
-  *
-  * Reward addresses (bits 7-5 = 111):
-  *   - bit 4: credential type
-  *   - bits 3-0: network ID
-  *
-  * Byron addresses (bits 7-4 = 1000)
-  */
-opaque type Address <: ByteString = ByteString
+/** Represents a Cardano address bytes */
+opaque type AddressBytes <: ByteString = ByteString
 
-object Address {
-    inline def apply(bytes: ByteString): Address = bytes
+object AddressBytes {
+    inline def apply(bytes: ByteString): AddressBytes = bytes
 
     /** Create an Address from a hex string */
-    def fromHex(hex: String): Address = ByteString.fromHex(hex)
+    def fromHex(hex: String): AddressBytes = ByteString.fromHex(hex)
 
     /** Create an Address from bech32 string */
-    def fromBech32(bech32: String): Address = {
+    def fromBech32(bech32: String): AddressBytes = {
         ByteString.unsafeFromArray(Bech32.decode(bech32).data)
     }
 
-    given Encoder[Address] = Encoder { (w, address) =>
+    extension (self: AddressBytes) {
+        def toAddress: Address = Address.fromByteString(self)
+    }
+
+    given Encoder[AddressBytes] = Encoder { (w, address) =>
         // here we explicitly pass the ByteString encoder to avoid StackOverflowError
         // because here Encoder[Address] is resolved as Encoder[ByteString]
         w.write[ByteString](address)(using ByteString.given_Encoder_ByteString)
     }
 
-    given Decoder[Address] = Decoder { r =>
+    given Decoder[AddressBytes] = Decoder { r =>
         // here we explicitly pass the ByteString decoder to avoid StackOverflowError
         // because here Decoder[Address] is resolved as Decoder[ByteString]
         val bytes = r.read[ByteString]()(using ByteString.given_Decoder_ByteString)
-        Address(bytes)
+        AddressBytes(bytes)
     }
 }
 

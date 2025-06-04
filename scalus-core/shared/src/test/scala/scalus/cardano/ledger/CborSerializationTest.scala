@@ -37,8 +37,8 @@ class CborSerializationTest extends AnyFunSuite, ScalaCheckPropertyChecks, Arbit
     test(s"Language should serialize and deserialize correctly"):
         testSerializationRoundTrip[Language]()
 
-    test(s"Address should serialize and deserialize correctly"):
-        testSerializationRoundTrip[Address]()
+    test(s"AddressBytes should serialize and deserialize correctly"):
+        testSerializationRoundTrip[AddressBytes]()
 
     test(s"Slot should serialize and deserialize correctly"):
         testSerializationRoundTrip[Slot]()

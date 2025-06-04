@@ -8,14 +8,14 @@ import io.bullet.borer.{Decoder, Encoder, Reader, Writer}
 enum TransactionOutput:
     /** Shelley-era transaction output format */
     case Shelley(
-        address: Address,
+        address: AddressBytes,
         value: Value,
         datumHash: Option[Hash32] = None
     )
 
     /** Babbage-era transaction output format with extended features */
     case Babbage(
-        address: Address,
+        address: AddressBytes,
         value: Value,
         datumOption: Option[DatumOption] = None,
         scriptRef: Option[ScriptRef] = None
@@ -87,7 +87,7 @@ object TransactionOutput:
         if size < 2 || size > 3 then
             r.validationFailure(s"Expected 2 or 3 elements for ShelleyTransactionOutput, got $size")
 
-        val address = r.read[Address]()
+        val address = r.read[AddressBytes]()
         val value = r.read[Value]()
 
         val datumHash =
@@ -100,14 +100,14 @@ object TransactionOutput:
     private def readBabbageOutput(r: Reader): TransactionOutput.Babbage =
         val size = r.readMapHeader()
 
-        var address: Option[Address] = None
+        var address: Option[AddressBytes] = None
         var value: Option[Value] = None
         var datumOption: Option[DatumOption] = None
         var scriptRef: Option[ScriptRef] = None
 
         for _ <- 0L until size do
             r.readInt() match
-                case 0     => address = Some(r.read[Address]())
+                case 0     => address = Some(r.read[AddressBytes]())
                 case 1     => value = Some(r.read[Value]())
                 case 2     => datumOption = Some(r.read[DatumOption]())
                 case 3     => scriptRef = Some(r.read[ScriptRef]())

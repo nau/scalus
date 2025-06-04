@@ -33,7 +33,7 @@ class TransactionTest extends AnyFunSuite {
             ),
             outputs = List(
               TransactionOutput.Babbage(
-                address = Address(ByteString.fromArray(addr)),
+                address = AddressBytes(ByteString.fromArray(addr)),
                 value = Value.lovelace(2)
               )
             ),

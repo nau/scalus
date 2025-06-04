@@ -436,12 +436,12 @@ object Address {
 
     /** Parse address from [[ByteString]]
       *
-      * Determines address type from header byte and delegates to appropriate parser
-      *
-      * @param bytes
-      *   Raw address bytes including header
+      * @param bs
+      *   Raw address bytes
       * @return
-      *   Parsed address or failure with descriptive error
+      *   Parsed address
+      * @throws IllegalArgumentException
+      *   If the byte string is empty or does not match any known address format
       */
     def fromByteString(bs: ByteString): Address = fromBytes(bs.bytes)
 

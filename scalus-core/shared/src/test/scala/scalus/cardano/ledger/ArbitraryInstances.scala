@@ -90,7 +90,7 @@ trait ArbitraryInstances extends uplc.ArbitraryInstances {
     }
 
     given Arbitrary[Language] = autoDerived
-    given Arbitrary[Address] = Arbitrary(arbitrary[ByteString].map(Address.apply))
+    given Arbitrary[AddressBytes] = Arbitrary(arbitrary[ByteString].map(AddressBytes.apply))
     given Arbitrary[Slot] = Arbitrary(Gen.choose(0L, Long.MaxValue).map(Slot.apply))
     given Arbitrary[AuxiliaryDataHash] = autoDerived
     given Arbitrary[ScriptDataHash] = autoDerived
