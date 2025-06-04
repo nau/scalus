@@ -29,8 +29,6 @@ object HashPurpose {
 
 opaque type Hash[+HashFunction, +Purpose] <: ByteString = ByteString
 object Hash {
-    type ScriptHash = Hash[Blake2b_224, HashPurpose.ScriptHash]
-
     def apply[HF: HashSize, Purpose](bytes: ByteString): Hash[HF, Purpose] = {
         val size = summon[HashSize[HF]].size
         require(bytes.size == size, s"Hash must be $size bytes, got ${bytes.size}")
@@ -96,7 +94,7 @@ object ScriptHash {
         Hash(Hash28.fromHex(hex))
     }
 }
-type DataHash = Hash[Blake2b_224, HashPurpose.DataHash]
+type DataHash = Hash[Blake2b_256, HashPurpose.DataHash]
 type MetadataHash = Hash[Blake2b_256, HashPurpose.MetadataHash]
 type TransactionHash = Hash[Blake2b_256, HashPurpose.TransactionHash]
 type BlockHash = Hash[Blake2b_256, HashPurpose.BlockHash]
