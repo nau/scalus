@@ -35,8 +35,8 @@ class CardanoAddressTest extends AnyFunSuite {
     private val sampleStakeHash = Hash.stakeKeyHash(
       ByteString.fromHex("337b62cfff6403a06a3acbc34f8c46003c69fe79a3628cefa9c47251")
     )
-    private val sampleScriptHash = ScriptHash(
-      Hash28(ByteString.fromHex("1234567890abcdef1234567890abcdef12345678901234567890abcd"))
+    private val sampleScriptHash = Hash.scriptHash(
+      ByteString.fromHex("1234567890abcdef1234567890abcdef12345678901234567890abcd")
     )
 
     test("Original test vectors should parse with bech32") {
@@ -97,13 +97,13 @@ class CardanoAddressTest extends AnyFunSuite {
         val scriptPart = ShelleyPaymentPart.scriptHash(sampleScriptHash)
 
         assert(keyPart.asHash == samplePaymentHash)
-        assert(scriptPart.asHash == sampleScriptHash.hash)
+        assert(scriptPart.asHash == sampleScriptHash)
 
         assert(keyPart.isScript == false)
         assert(scriptPart.isScript == true)
 
         assert(keyPart.toBytes == samplePaymentHash)
-        assert(scriptPart.toBytes == sampleScriptHash.hash)
+        assert(scriptPart.toBytes == sampleScriptHash)
     }
 
     test("ShelleyDelegationPart should handle all delegation types") {
@@ -113,7 +113,7 @@ class CardanoAddressTest extends AnyFunSuite {
         val nullDelegation = ShelleyDelegationPart.Null
 
         assert(keyDelegation.asHash == Some(sampleStakeHash))
-        assert(scriptDelegation.asHash == Some(sampleScriptHash.hash))
+        assert(scriptDelegation.asHash == Some(sampleScriptHash))
         assert(pointerDelegation.asHash == None)
         assert(nullDelegation.asHash == None)
 
@@ -128,7 +128,7 @@ class CardanoAddressTest extends AnyFunSuite {
         val scriptPayload = StakePayload.script(sampleScriptHash)
 
         assert(stakePayload.asHash == sampleStakeHash)
-        assert(scriptPayload.asHash == sampleScriptHash.hash)
+        assert(scriptPayload.asHash == sampleScriptHash)
 
         assert(stakePayload.isScript == false)
         assert(scriptPayload.isScript == true)
@@ -137,7 +137,7 @@ class CardanoAddressTest extends AnyFunSuite {
         val stakeFromBytes = StakePayload.fromBytes(sampleStakeHash.bytes, false)
         assert(stakeFromBytes == Success(StakePayload.Stake(sampleStakeHash)))
 
-        val scriptFromBytes = StakePayload.fromBytes(sampleScriptHash.hash.bytes, true)
+        val scriptFromBytes = StakePayload.fromBytes(sampleScriptHash.bytes, true)
         assert(scriptFromBytes == Success(StakePayload.Script(sampleScriptHash)))
     }
 

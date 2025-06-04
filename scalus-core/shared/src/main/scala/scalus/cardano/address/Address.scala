@@ -159,7 +159,7 @@ enum ShelleyPaymentPart {
     /** Get the underlying hash regardless of type */
     def asHash: Hash28 = this match
         case Key(h)    => h
-        case Script(h) => h.hash
+        case Script(h) => h
 
     /** Check if this represents a script */
     def isScript: Boolean = this match
@@ -192,7 +192,7 @@ enum ShelleyDelegationPart {
     /** Get hash if this delegation part contains one */
     def asHash: Option[Hash28] = this match
         case Key(h)                                  => Some(h)
-        case Script(h)                               => Some(h.hash)
+        case Script(h)                               => Some(h)
         case ShelleyDelegationPart.Pointer(_) | Null => None
 
     /** Check if this represents a script */
@@ -203,7 +203,7 @@ enum ShelleyDelegationPart {
     /** Convert to bytes */
     def toBytes: ByteString = this match
         case Key(h)                           => h
-        case Script(h)                        => h.hash
+        case Script(h)                        => h
         case ShelleyDelegationPart.Pointer(p) => ByteString.fromArray(p.toBytes)
         case Null                             => ByteString.empty
 
@@ -232,7 +232,7 @@ enum StakePayload {
     /** Get the underlying hash */
     def asHash: Hash28 = this match
         case Stake(h)  => h
-        case Script(h) => h.hash
+        case Script(h) => h
 
     /** Check if this represents a script */
     def isScript: Boolean = this match
@@ -258,7 +258,7 @@ object StakePayload {
     def fromBytes(bytes: Array[Byte], isScript: Boolean): Try[StakePayload] = Try {
         require(bytes.length == 28, s"Invalid hash size: ${bytes.length}, expected 28")
         val hash = ByteString.fromArray(bytes)
-        if isScript then Script(ScriptHash(Hash28(hash))) else Stake(Hash.stakeKeyHash(hash))
+        if isScript then Script(Hash.scriptHash(hash)) else Stake(Hash.stakeKeyHash(hash))
     }
 }
 
@@ -517,10 +517,10 @@ object Address {
         )
 
         val network = Network.fromByte((header & 0x0f).toByte)
-        val scriptHash = Hash28(ByteString.fromArray(payload.slice(0, 28)))
+        val scriptHash = Hash.scriptHash(ByteString.fromArray(payload.slice(0, 28)))
         val stakeHash = Hash.stakeKeyHash(ByteString.fromArray(payload.slice(28, 56)))
 
-        val payment = ShelleyPaymentPart.Script(ScriptHash(scriptHash))
+        val payment = ShelleyPaymentPart.Script(scriptHash)
         val delegation = ShelleyDelegationPart.Key(stakeHash)
 
         Address.Shelley(ShelleyAddress(network, payment, delegation))
@@ -535,10 +535,10 @@ object Address {
 
         val network = Network.fromByte((header & 0x0f).toByte)
         val paymentHash = AddrKeyHash(ByteString.fromArray(payload.slice(0, 28)))
-        val scriptHash = Hash28(ByteString.fromArray(payload.slice(28, 56)))
+        val scriptHash = Hash.scriptHash(ByteString.fromArray(payload.slice(28, 56)))
 
         val payment = ShelleyPaymentPart.Key(paymentHash)
-        val delegation = ShelleyDelegationPart.Script(ScriptHash(scriptHash))
+        val delegation = ShelleyDelegationPart.Script(scriptHash)
 
         Address.Shelley(ShelleyAddress(network, payment, delegation))
     }
@@ -551,11 +551,11 @@ object Address {
         )
 
         val network = Network.fromByte((header & 0x0f).toByte)
-        val scriptHash1 = Hash28(ByteString.fromArray(payload.slice(0, 28)))
-        val scriptHash2 = Hash28(ByteString.fromArray(payload.slice(28, 56)))
+        val scriptHash1 = Hash.scriptHash(ByteString.fromArray(payload.slice(0, 28)))
+        val scriptHash2 = Hash.scriptHash(ByteString.fromArray(payload.slice(28, 56)))
 
-        val payment = ShelleyPaymentPart.Script(ScriptHash(scriptHash1))
-        val delegation = ShelleyDelegationPart.Script(ScriptHash(scriptHash2))
+        val payment = ShelleyPaymentPart.Script(scriptHash1)
+        val delegation = ShelleyDelegationPart.Script(scriptHash2)
 
         Address.Shelley(ShelleyAddress(network, payment, delegation))
     }
@@ -591,7 +591,7 @@ object Address {
         )
 
         val network = Network.fromByte((header & 0x0f).toByte)
-        val scriptHash = Hash28(ByteString.fromArray(payload.slice(0, 28)))
+        val scriptHash = Hash.scriptHash(ByteString.fromArray(payload.slice(0, 28)))
         val pointerBytes = payload.slice(28, payload.length)
 
         val pointer = Pointer
@@ -600,7 +600,7 @@ object Address {
               throw new IllegalArgumentException("Invalid pointer data")
             )
 
-        val payment = ShelleyPaymentPart.Script(ScriptHash(scriptHash))
+        val payment = ShelleyPaymentPart.Script(scriptHash)
         val delegation = ShelleyDelegationPart.Pointer(pointer)
 
         Address.Shelley(ShelleyAddress(network, payment, delegation))
@@ -630,9 +630,9 @@ object Address {
         )
 
         val network = Network.fromByte((header & 0x0f).toByte)
-        val scriptHash = Hash28(ByteString.fromArray(payload))
+        val scriptHash = Hash.scriptHash(ByteString.fromArray(payload))
 
-        val payment = ShelleyPaymentPart.Script(ScriptHash(scriptHash))
+        val payment = ShelleyPaymentPart.Script(scriptHash)
         val delegation = ShelleyDelegationPart.Null
 
         Address.Shelley(ShelleyAddress(network, payment, delegation))
@@ -667,9 +667,9 @@ object Address {
         )
 
         val network = Network.fromByte((header & 0x0f).toByte)
-        val scriptHash = Hash28(ByteString.fromArray(payload))
+        val scriptHash = Hash.scriptHash(ByteString.fromArray(payload))
 
-        val stakePayload = StakePayload.Script(ScriptHash(scriptHash))
+        val stakePayload = StakePayload.Script(scriptHash)
         Address.Stake(StakeAddress(network, stakePayload))
     }
 }

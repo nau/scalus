@@ -41,6 +41,7 @@ object Hash {
     }
 
     def stakeKeyHash(bytes: ByteString): StakeKeyHash = Hash(bytes)
+    def scriptHash(bytes: ByteString): ScriptHash = Hash(bytes)
 
     given Encoder[HF, Purpose]: Encoder[Hash[HF, Purpose]] = { (w, hash) =>
         // here we explicitly pass the ByteString encoder to avoid StackOverflowError
@@ -81,6 +82,24 @@ object AddrKeyHash {
         Hash[Blake2b_224, HashPurpose.KeyHash](bytes)
     }
 }
+
+/** Represents a script hash in Cardano
+  *
+  * To compute a script hash, a tag must be prepended to the script bytes before hashing. The tag is
+  * determined by the script language:
+  *   - "\x00" for multisig scripts
+  *   - "\x01" for Plutus V1 scripts
+  *   - "\x02" for Plutus V2 scripts
+  *   - "\x03" for Plutus V3 scripts
+  */
+type ScriptHash = Hash[Blake2b_224, HashPurpose.ScriptHash]
+object ScriptHash {
+
+    /** Create a ScriptHash from a hex string */
+    def fromHex(hex: String): ScriptHash = {
+        Hash(Hash28.fromHex(hex))
+    }
+}
 type DataHash = Hash[Blake2b_224, HashPurpose.DataHash]
 type MetadataHash = Hash[Blake2b_256, HashPurpose.MetadataHash]
 type TransactionHash = Hash[Blake2b_256, HashPurpose.TransactionHash]
@@ -108,8 +127,6 @@ type ScriptDataHash = Hash[Blake2b_256, HashPurpose.ScriptDataHash]
 type Hash28 = Hash[Blake2b_224, Any]
 
 object Hash28 {
-
-    val Size = 28
 
     def apply(bytes: ByteString): Hash28 = {
         Hash[Blake2b_224, Any](bytes)
@@ -153,25 +170,6 @@ object Coin {
 
     /** Zero coin value */
     val zero: Coin = Coin(0)
-}
-
-/** Represents a script hash in Cardano
-  *
-  * To compute a script hash, a tag must be prepended to the script bytes before hashing. The tag is
-  * determined by the script language:
-  *   - "\x00" for multisig scripts
-  *   - "\x01" for Plutus V1 scripts
-  *   - "\x02" for Plutus V2 scripts
-  *   - "\x03" for Plutus V3 scripts
-  */
-final case class ScriptHash(hash: Hash28) derives Codec
-
-object ScriptHash {
-
-    /** Create a ScriptHash from a hex string */
-    def fromHex(hex: String): ScriptHash = {
-        ScriptHash(Hash28.fromHex(hex))
-    }
 }
 
 type PolicyHash = ScriptHash
