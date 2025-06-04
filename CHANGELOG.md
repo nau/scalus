@@ -1,5 +1,16 @@
 # Changelog
 
+## 0.10.1 (2025-06-04)
+
+### Added
+
+- more Cardano ledger rules
+
+### Changed
+
+- moved Cardano Ledger domain types to scalus project
+- refactor Hash types in ledger domain types
+
 ## 0.10.0 (2025-05-28)
 
 ### Added
