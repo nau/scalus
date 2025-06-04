@@ -21,6 +21,7 @@ object HashPurpose {
     trait ScriptHash
     trait DataHash
     trait MetadataHash
+    trait AuxiliaryDataHash
     trait TransactionHash
     trait BlockHash
 }
@@ -55,6 +56,7 @@ object Hash {
     }
 }
 
+type AuxiliaryDataHash = Hash[Blake2b_256, HashPurpose.AuxiliaryDataHash]
 type H28 = Hash[Blake2b_224, Any]
 type H32 = Hash[Blake2b_224, Any]
 
@@ -219,6 +221,7 @@ object Language {
 }
 
 /** Represents a Cardano address bytes */
+// TODO: consider using Array[Byte] instead of ByteString
 opaque type AddressBytes <: ByteString = ByteString
 
 object AddressBytes {
@@ -272,12 +275,6 @@ final case class Slot(slot: Long) derives Codec {
     /** Compare slots for ordering */
     def >(other: Slot): Boolean = slot > other.slot
 }
-
-/** Represents a hash of the auxiliary data (transaction metadata)
-  *
-  * This is simply a type alias for Hash32 to provide better type safety and readability.
-  */
-final case class AuxiliaryDataHash(hash: Hash32) derives Codec
 
 /** Represents a hash of the script data
   *
