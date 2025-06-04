@@ -1,6 +1,4 @@
 package scalus.ledger.api
-import io.bullet.borer.{Decoder, Encoder}
-import scalus.builtin.ByteString
 import upickle.default.ReadWriter
 
 enum BuiltinSemanticsVariant:

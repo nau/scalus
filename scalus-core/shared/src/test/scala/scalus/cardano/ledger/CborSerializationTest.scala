@@ -4,7 +4,6 @@ import io.bullet.borer.{Cbor, Decoder, Encoder}
 import org.scalacheck.Arbitrary
 import org.scalatest.funsuite.AnyFunSuite
 import org.scalatestplus.scalacheck.ScalaCheckPropertyChecks
-import scalus.ledger.api.Timelock
 
 class CborSerializationTest extends AnyFunSuite, ScalaCheckPropertyChecks, ArbitraryInstances {
     test(s"Hash should serialize and deserialize correctly"):

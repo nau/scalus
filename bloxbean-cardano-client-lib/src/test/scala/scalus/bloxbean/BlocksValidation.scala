@@ -149,7 +149,7 @@ object BlocksValidation:
         case class Res(var succ: Int, var fail: Int)
         val stats = mutable.HashMap.empty[ByteString, Res].withDefaultValue(Res(0, 0))
         val start = System.currentTimeMillis()
-        for blockNum <- 10802134 to 10823158 do
+        for blockNum <- 11544518 to 11662495 do
             val txs = readTransactionsFromBlockCbor(cwd.resolve(s"blocks/block-$blockNum.cbor"))
             for BlockTx(tx, datums, txhash) <- txs do
                 try
@@ -194,21 +194,8 @@ object BlocksValidation:
         try
             val size = channel.size()
             val buffer = channel.map(FileChannel.MapMode.READ_ONLY, 0, size)
-            def hexDigit(b: Byte): Int = {
-                b.toChar match
-                    case c if c >= '0' && c <= '9' => c - '0'
-                    case c if c >= 'a' && c <= 'f' => c - 'a' + 10
-                    case c if c >= 'A' && c <= 'F' => c - 'A' + 10
-                    case c => throw new IllegalArgumentException(s"Invalid hex digit: ${c.toInt}")
-            }
-            val output = new Array[Byte]((size / 2).toInt)
-            var i = 0
-            while i < size && buffer.get(i) != 10 do
-                val high = hexDigit(buffer.get(i))
-                val low = hexDigit(buffer.get(i + 1))
-                output(i / 2) = ((high << 4) | low).toByte
-                i += 2
-            end while
+            val output = new Array[Byte](size.toInt)
+            buffer.get(output)
             readTransactionsFromBlockCbor(output)
         finally channel.close()
     }
