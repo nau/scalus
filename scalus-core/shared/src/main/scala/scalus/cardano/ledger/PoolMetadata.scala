@@ -13,7 +13,7 @@ import io.bullet.borer.*
   * @param metadataHash
   *   Hash of the metadata for verification
   */
-case class PoolMetadata(url: String, metadataHash: Hash32) derives Codec {
+case class PoolMetadata(url: String, metadataHash: Hash.MetadataHash) derives Codec {
     // Validate URL length
     require(url.length <= 128, s"URL must be at most 128 characters, got ${url.length}")
 }

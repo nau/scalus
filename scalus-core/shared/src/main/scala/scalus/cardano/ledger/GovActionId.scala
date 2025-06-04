@@ -14,7 +14,7 @@ import io.bullet.borer.*
   *   The index of the action within the transaction (2 bytes)
   */
 case class GovActionId(
-    transactionId: Hash32,
+    transactionId: Hash.TransactionHash,
     govActionIndex: Int
 ) derives Codec {
     // Validate gov action index range (2 bytes - 0 to 65535)

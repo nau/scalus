@@ -151,7 +151,7 @@ trait ArbitraryInstances extends uplc.ArbitraryInstances {
 
     given Arbitrary[GovActionId] = Arbitrary {
         for
-            txId <- arbitrary[Hash32]
+            txId <- arbitrary[Hash.TransactionHash]
             index <- Gen.choose(0, 65535)
         yield GovActionId(txId, index)
     }
@@ -167,7 +167,7 @@ trait ArbitraryInstances extends uplc.ArbitraryInstances {
         for
             len <- Gen.choose(0, 128)
             url <- Gen.stringOfN(len, Gen.alphaNumChar)
-            hash <- arbitrary[Hash32]
+            hash <- arbitrary[Hash.MetadataHash]
         yield PoolMetadata(url, hash)
     }
     given Arbitrary[KeyHash] = Arbitrary(

@@ -20,6 +20,7 @@ object HashPurpose {
     trait KeyHash
     trait ScriptHash
     trait DataHash
+    trait MetadataHash
     trait TransactionHash
     trait BlockHash
 }
@@ -29,6 +30,7 @@ object Hash {
     type KeyHash = Hash[Blake2b_224, HashPurpose.KeyHash]
     type ScriptHash = Hash[Blake2b_224, HashPurpose.ScriptHash]
     type DataHash = Hash[Blake2b_224, HashPurpose.DataHash]
+    type MetadataHash = Hash[Blake2b_256, HashPurpose.MetadataHash]
     type TransactionHash = Hash[Blake2b_256, HashPurpose.TransactionHash]
     type BlockHash = Hash[Blake2b_256, HashPurpose.BlockHash]
     type AnyHash = Hash[Any, Any]

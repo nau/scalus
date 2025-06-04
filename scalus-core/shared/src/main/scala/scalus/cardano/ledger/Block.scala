@@ -47,7 +47,7 @@ case class Block(
     def slot: Long = header.slot
 
     /** Get the block hash */
-    def hash: Hash32 = header.headerBody.blockBodyHash
+    def hash: Hash.BlockHash = header.headerBody.blockBodyHash
 
     /** Get the number of transactions in the block */
     def txCount: Int = transactionBodies.size
