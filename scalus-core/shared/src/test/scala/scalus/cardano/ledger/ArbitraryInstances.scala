@@ -33,20 +33,20 @@ trait ArbitraryInstances extends uplc.ArbitraryInstances {
         yield result
     }
 
-    def genListOfSizeFromArbitrary[A: Arbitrary](
+    def genVectorOfSizeFromArbitrary[A: Arbitrary](
         from: Int,
         to: Int
-    ): Gen[immutable.List[A]] = {
+    ): Gen[immutable.IndexedSeq[A]] = {
         for
             size <- Gen.choose(from, to)
-            result <- Gen.listOfN(size, arbitrary[A])
+            result <- Gen.containerOfN[Vector, A](size, arbitrary[A])
         yield result
     }
 
     def genSetOfSizeFromArbitrary[A: Arbitrary](
         from: Int,
         to: Int
-    ): Gen[immutable.Set[A]] = genListOfSizeFromArbitrary(from, to).map(_.toSet)
+    ): Gen[immutable.Set[A]] = genVectorOfSizeFromArbitrary(from, to).map(_.toSet)
 
     given [HF: HashSize, Purpose]: Arbitrary[Hash[HF, Purpose]] = Arbitrary {
         val size = summon[HashSize[HF]].size
@@ -104,8 +104,8 @@ trait ArbitraryInstances extends uplc.ArbitraryInstances {
           genMapOfSizeFromArbitrary(0, 8)
         )
 
-        given [A: Arbitrary]: Arbitrary[immutable.List[A]] = Arbitrary(
-          genListOfSizeFromArbitrary(0, 8)
+        given [A: Arbitrary]: Arbitrary[immutable.IndexedSeq[A]] = Arbitrary(
+          genVectorOfSizeFromArbitrary(0, 8)
         )
 
         val result: Arbitrary[CostModels] = autoDerived
@@ -313,8 +313,8 @@ trait ArbitraryInstances extends uplc.ArbitraryInstances {
           genMapOfSizeFromArbitrary(0, 4)
         )
 
-        given [A: Arbitrary]: Arbitrary[immutable.List[A]] = Arbitrary(
-          genListOfSizeFromArbitrary(0, 4)
+        given [A: Arbitrary]: Arbitrary[immutable.Seq[A]] = Arbitrary(
+          genVectorOfSizeFromArbitrary(0, 4)
         )
 
         val result: Arbitrary[AuxiliaryData] = autoDerived
@@ -351,7 +351,7 @@ trait ArbitraryInstances extends uplc.ArbitraryInstances {
 
     given Arbitrary[Redeemers] = Arbitrary {
         Gen.oneOf(
-          genListOfSizeFromArbitrary[Redeemer](1, 8).map(Redeemers.Array.apply), {
+          genVectorOfSizeFromArbitrary[Redeemer](1, 8).map(Redeemers.Array.apply), {
               given Arbitrary[Int] = Arbitrary(Gen.choose(0, Int.MaxValue))
               genMapOfSizeFromArbitrary[(RedeemerTag, Int), (Data, ExUnits)](1, 8)
                   .map(Redeemers.Map.apply)
@@ -465,7 +465,7 @@ trait ArbitraryInstances extends uplc.ArbitraryInstances {
     given Arbitrary[TransactionBody] = Arbitrary {
         for
             inputs <- genSetOfSizeFromArbitrary[TransactionInput](0, 4)
-            outputs <- genListOfSizeFromArbitrary[TransactionOutput](0, 4)
+            outputs <- genVectorOfSizeFromArbitrary[TransactionOutput](0, 4)
             fee <- arbitrary[Coin]
             ttl <- Gen.option(Gen.choose(0L, Long.MaxValue))
             certificates <- Gen.option(genSetOfSizeFromArbitrary[Certificate](1, 4))
@@ -516,9 +516,9 @@ trait ArbitraryInstances extends uplc.ArbitraryInstances {
     given Arbitrary[Block] = Arbitrary {
         for
             header <- arbitrary[BlockHeader]
-            transactionBodies <- genListOfSizeFromArbitrary[TransactionBody](1, 4)
+            transactionBodies <- genVectorOfSizeFromArbitrary[TransactionBody](1, 4)
             transactionBodiesSize = transactionBodies.size
-            transactionWitnessSets <- genListOfSizeFromArbitrary[TransactionWitnessSet](
+            transactionWitnessSets <- genVectorOfSizeFromArbitrary[TransactionWitnessSet](
               transactionBodiesSize,
               transactionBodiesSize
             )

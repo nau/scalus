@@ -156,7 +156,7 @@ class StateTransitionTest extends AnyFunSuite, ArbitraryInstances {
                   inputs = Set(
                     Arbitrary.arbitrary[TransactionInput].sample.get
                   ),
-                  outputs = List(
+                  outputs = Vector(
                     TransactionOutput.Shelley(
                       Arbitrary.arbitrary[AddressBytes].sample.get,
                       Value.Ada(Coin(Gen.choose(0L, 1000000L).sample.get))
@@ -204,7 +204,7 @@ class StateTransitionTest extends AnyFunSuite, ArbitraryInstances {
                   inputs = Set(
                     Arbitrary.arbitrary[TransactionInput].sample.get
                   ),
-                  outputs = List(
+                  outputs = Vector(
                     TransactionOutput.Shelley(
                       Arbitrary.arbitrary[AddressBytes].sample.get,
                       Value.Ada(Coin(Gen.choose(0L, 1000000L).sample.get))
@@ -292,7 +292,7 @@ class StateTransitionTest extends AnyFunSuite, ArbitraryInstances {
             tx.copy(
               body = KeepRaw(
                 tx.body.value.copy(
-                  outputs = genListOfSizeFromArbitrary[TransactionOutput](1, 4).sample.get
+                  outputs = genVectorOfSizeFromArbitrary[TransactionOutput](1, 4).sample.get
                 )
               )
             )
@@ -314,7 +314,7 @@ class StateTransitionTest extends AnyFunSuite, ArbitraryInstances {
                   inputs = Set(
                     Arbitrary.arbitrary[TransactionInput].sample.get
                   ),
-                  outputs = List(
+                  outputs = Vector(
                     TransactionOutput.Shelley(
                       Arbitrary.arbitrary[AddressBytes].sample.get,
                       Value.Ada(Coin(Gen.choose(0L, 1000000L).sample.get))

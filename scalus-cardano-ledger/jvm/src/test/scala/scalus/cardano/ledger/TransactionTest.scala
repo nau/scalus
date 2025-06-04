@@ -1,22 +1,20 @@
 package scalus.cardano.ledger
 
-import com.bloxbean.cardano.client.address.util.AddressUtil
 import com.bloxbean.cardano.client.transaction.spec
 import com.bloxbean.cardano.client.transaction.util.TransactionUtil.getTxHash
 import io.bullet.borer.Cbor
 import org.scalatest.Ignore
 import org.scalatest.funsuite.AnyFunSuite
 import scalus.builtin.{ByteString, PlatformSpecific, given}
-import scalus.utils.Utils
+import scalus.utils.Hex.toHex
 
 import java.math.BigInteger
 import java.nio.file.{Files, Path, Paths}
 
 @Ignore
 class TransactionTest extends AnyFunSuite {
-    private val addr = AddressUtil.addressToBytes(
-      "addr1qxwg0u9fpl8dac9rkramkcgzerjsfdlqgkw0q8hy5vwk8tzk5pgcmdpe5jeh92guy4mke4zdmagv228nucldzxv95clqe35r3m"
-    )
+    private val addr =
+        "addr1qxwg0u9fpl8dac9rkramkcgzerjsfdlqgkw0q8hy5vwk8tzk5pgcmdpe5jeh92guy4mke4zdmagv228nucldzxv95clqe35r3m"
 
     private val crypto = summon[PlatformSpecific]
 
@@ -32,9 +30,9 @@ class TransactionTest extends AnyFunSuite {
               inputs = Set(
                 TransactionInput(Hash(ByteString.fill(32, 0)), 0)
               ),
-              outputs = List(
-                TransactionOutput.Babbage(
-                  address = AddressBytes(ByteString.fromArray(addr)),
+              outputs = Vector(
+                TransactionOutput.Shelley(
+                  address = AddressBytes.fromBech32(addr),
                   value = Value.lovelace(2)
                 )
               ),
@@ -45,8 +43,8 @@ class TransactionTest extends AnyFunSuite {
           isValid = true
         )
 //        println(tx)
-        println(ByteString.fromArray(addr).toHex)
-        println(Utils.bytesToHex(Cbor.encode(tx).toByteArray))
+        println(AddressBytes.fromBech32(addr).toHex)
+        println(Cbor.encode(tx).toByteArray.toHex)
         val txbody = Cbor.encode(tx.body).toByteArray
         val txhash = crypto.blake2b_256(ByteString.fromArray(txbody))
         println(txhash)
@@ -84,12 +82,12 @@ class TransactionTest extends AnyFunSuite {
             )
             .build()
 //        println(tx)
-        println(Utils.bytesToHex(tx.serialize()))
+        println(tx.serialize().toHex)
         val txhash = getTxHash(tx)
         println(txhash)
     }
 
-    private val blocksDir = Paths.get(s"../bloxbean-cardano-client-lib/blocks")
+    private val blocksDir = Paths.get(s"../../bloxbean-cardano-client-lib/blocks")
 
     test("decode blocks of epoch 543") {
         val blocks = Files

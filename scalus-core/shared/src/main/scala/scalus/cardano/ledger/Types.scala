@@ -207,7 +207,7 @@ case class ExUnitPrices(
   * @param models
   *   Map from language identifiers to lists of operation costs
   */
-case class CostModels(models: Map[Int, List[Long]]) derives Codec
+case class CostModels(models: Map[Int, IndexedSeq[Long]]) derives Codec
 
 /** Represents a constitution in the Cardano blockchain governance system.
   *
