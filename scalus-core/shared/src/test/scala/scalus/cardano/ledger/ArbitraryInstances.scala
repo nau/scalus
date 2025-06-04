@@ -55,7 +55,6 @@ trait ArbitraryInstances extends uplc.ArbitraryInstances {
     }
     // Arbitrary for ScriptHash, PolicyHash, PolicyId
     given Arbitrary[ScriptHash] = autoDerived
-    given Arbitrary[AddrKeyHash] = autoDerived
 
     given Arbitrary[Anchor] = Arbitrary {
         for
@@ -167,9 +166,6 @@ trait ArbitraryInstances extends uplc.ArbitraryInstances {
             hash <- arbitrary[MetadataHash]
         yield PoolMetadata(url, hash)
     }
-    given Arbitrary[KeyHash] = Arbitrary(
-      arbitrary[Hash28].map(h => KeyHash.apply(h.bytes))
-    )
 
     // FIXME: autoDerived for DatumOption is not working correctly
     given Arbitrary[DatumOption] = Arbitrary {
@@ -184,7 +180,7 @@ trait ArbitraryInstances extends uplc.ArbitraryInstances {
         /** KeyHash generator - simplified implementation assuming KeyHash is a value class wrapping
           * a byte array of fixed length (28 bytes as per Cardano specs)
           */
-        val genKeyHash: Gen[KeyHash] = arbitrary[Hash28].map(_.bytes).map(KeyHash.apply)
+        val genKeyHash: Gen[KeyHash] = arbitrary[Hash28].map(KeyHash.apply)
 
         /** SlotNo generator - simplified implementation assuming SlotNo is a value class wrapping a
           * Long

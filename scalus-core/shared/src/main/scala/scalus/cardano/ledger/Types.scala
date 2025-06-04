@@ -30,7 +30,6 @@ object HashPurpose {
 
 opaque type Hash[+HashFunction, +Purpose] <: ByteString = ByteString
 object Hash {
-    type KeyHash = Hash[Blake2b_224, HashPurpose.KeyHash]
     type ScriptHash = Hash[Blake2b_224, HashPurpose.ScriptHash]
 
     def apply[HF: HashSize, Purpose](bytes: ByteString): Hash[HF, Purpose] = {
@@ -54,6 +53,30 @@ object Hash {
 }
 
 type AnyHash = Hash[Any, Any]
+
+/** Represents a key hash used in addresses in the Cardano blockchain.
+  *
+  * An AddrKeyHash is a 28-byte hash value that identifies a public key and is used in constructing
+  * addresses.
+  *
+  * @param hash
+  *   The 28-byte hash value
+  */
+//case class AddrKeyHash(hash: Hash28) derives Codec
+type AddrKeyHash = Hash[Blake2b_224, HashPurpose.KeyHash]
+object AddrKeyHash {
+
+    def apply(bytes: ByteString): AddrKeyHash = {
+        require(bytes.size == 28, s"AddrKeyHash must be 28 bytes, got ${bytes.size}")
+        Hash[Blake2b_224, HashPurpose.KeyHash](bytes)
+    }
+
+    /** Create an AddrKeyHash from a hex string */
+    def fromHex(hex: String): AddrKeyHash = {
+        val bytes = ByteString.fromHex(hex)
+        Hash[Blake2b_224, HashPurpose.KeyHash](bytes)
+    }
+}
 type DataHash = Hash[Blake2b_224, HashPurpose.DataHash]
 type MetadataHash = Hash[Blake2b_256, HashPurpose.MetadataHash]
 type TransactionHash = Hash[Blake2b_256, HashPurpose.TransactionHash]
@@ -74,15 +97,17 @@ type ScriptDataHash = Hash[Blake2b_256, HashPurpose.ScriptDataHash]
   *
   * Hash28 is commonly used for address key hashes and script hashes
   */
-case class Hash28(bytes: ByteString) derives Codec {
+//
 
-    /** Ensures the hash is exactly 28 bytes */
-    require(bytes.size == 28, s"Hash28 must be 28 bytes, got ${bytes.size}")
-}
+type Hash28 = Hash[Blake2b_224, Any]
 
 object Hash28 {
 
     val Size = 28
+
+    def apply(bytes: ByteString): Hash28 = {
+        Hash[Blake2b_224, Any](bytes)
+    }
 
     /** Create a Hash28 from a hex string */
     def fromHex(hex: String): Hash28 = {

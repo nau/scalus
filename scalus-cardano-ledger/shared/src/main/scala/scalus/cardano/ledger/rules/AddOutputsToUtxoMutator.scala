@@ -1,8 +1,9 @@
-package scalus.cardano.ledger.rules
+package scalus.cardano.ledger
+package rules
 
+import io.bullet.borer.Cbor
 import scalus.builtin.{ByteString, PlatformSpecific, given}
 import scalus.cardano.ledger.{Hash, TransactionInput}
-import io.bullet.borer.Cbor
 
 // It's part of Shelley.updateUTxOState in cardano-ledger
 object AddOutputsToUtxoMutator extends STS.Mutator {

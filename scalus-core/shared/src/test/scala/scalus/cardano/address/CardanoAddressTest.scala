@@ -30,7 +30,7 @@ class CardanoAddressTest extends AnyFunSuite {
 
     // Sample hash values for testing
     private val samplePaymentHash = AddrKeyHash(
-      Hash28(ByteString.fromHex("c37b1b5dc0669f1d3c61a6fddb2e8fde96be87b881c60bce8e8d542f"))
+      ByteString.fromHex("c37b1b5dc0669f1d3c61a6fddb2e8fde96be87b881c60bce8e8d542f")
     )
     private val sampleStakeHash = Hash28(
       ByteString.fromHex("337b62cfff6403a06a3acbc34f8c46003c69fe79a3628cefa9c47251")
@@ -93,17 +93,17 @@ class CardanoAddressTest extends AnyFunSuite {
     }
 
     test("ShelleyPaymentPart should handle key and script hashes") {
-        val keyPart = ShelleyPaymentPart.keyHash(samplePaymentHash)
+        val keyPart = ShelleyPaymentPart.Key(samplePaymentHash)
         val scriptPart = ShelleyPaymentPart.scriptHash(sampleScriptHash)
 
-        assert(keyPart.asHash == samplePaymentHash.hash)
+        assert(keyPart.asHash == samplePaymentHash)
         assert(scriptPart.asHash == sampleScriptHash.hash)
 
         assert(keyPart.isScript == false)
         assert(scriptPart.isScript == true)
 
-        assert(keyPart.toBytes == samplePaymentHash.hash.bytes)
-        assert(scriptPart.toBytes == sampleScriptHash.hash.bytes)
+        assert(keyPart.toBytes == samplePaymentHash)
+        assert(scriptPart.toBytes == sampleScriptHash.hash)
     }
 
     test("ShelleyDelegationPart should handle all delegation types") {
@@ -134,10 +134,10 @@ class CardanoAddressTest extends AnyFunSuite {
         assert(scriptPayload.isScript == true)
 
         // Test parsing from bytes
-        val stakeFromBytes = StakePayload.fromBytes(sampleStakeHash.bytes.bytes, false)
+        val stakeFromBytes = StakePayload.fromBytes(sampleStakeHash.bytes, false)
         assert(stakeFromBytes == Success(StakePayload.Stake(sampleStakeHash)))
 
-        val scriptFromBytes = StakePayload.fromBytes(sampleScriptHash.hash.bytes.bytes, true)
+        val scriptFromBytes = StakePayload.fromBytes(sampleScriptHash.hash.bytes, true)
         assert(scriptFromBytes == Success(StakePayload.Script(sampleScriptHash)))
     }
 
@@ -209,7 +209,7 @@ class CardanoAddressTest extends AnyFunSuite {
 
         // Type 0: Payment Key + Stake Key
         val type0Header: Byte = 0x01 // type 0 + mainnet
-        val type0Payload = samplePaymentHash.hash.bytes.bytes ++ sampleStakeHash.bytes.bytes
+        val type0Payload = samplePaymentHash.bytes ++ sampleStakeHash.bytes
         val type0Bytes = type0Header +: type0Payload
 
         val parsedType0 = Address.fromBytes(type0Bytes)
@@ -221,7 +221,7 @@ class CardanoAddressTest extends AnyFunSuite {
 
         // Type 14: Stake Key
         val type14Header: Byte = 0xe1.toByte // type 14 + mainnet
-        val type14Bytes = type14Header +: sampleStakeHash.bytes.bytes
+        val type14Bytes = type14Header +: sampleStakeHash.bytes
 
         val parsedType14 = Address.fromBytes(type14Bytes)
 
@@ -240,7 +240,7 @@ class CardanoAddressTest extends AnyFunSuite {
 
         // Invalid header type
         val invalidHeader: Byte = 0x91.toByte // type 9 doesn't exist
-        val invalidBytes = invalidHeader +: samplePaymentHash.hash.bytes.bytes
+        val invalidBytes = invalidHeader +: samplePaymentHash.bytes
         assertThrows[IllegalArgumentException] {
             Address.fromBytes(invalidBytes)
         }

@@ -102,7 +102,6 @@ object Network {
 }
 
 /** Type aliases for clarity - matching Rust implementation */
-type PaymentKeyHash = AddrKeyHash
 type StakeKeyHash = Hash28
 type TxIdx = Long
 type CertIdx = Long
@@ -155,12 +154,12 @@ object Pointer {
 
 /** The payment part of a Shelley address - can be either a key hash or script hash */
 enum ShelleyPaymentPart {
-    case Key(hash: PaymentKeyHash)
+    case Key(hash: AddrKeyHash)
     case Script(hash: ScriptHash)
 
     /** Get the underlying hash regardless of type */
     def asHash: Hash28 = this match
-        case Key(h)    => h.hash
+        case Key(h)    => h
         case Script(h) => h.hash
 
     /** Check if this represents a script */
@@ -169,7 +168,7 @@ enum ShelleyPaymentPart {
         case Key(_)    => false
 
     /** Convert to bytes */
-    def toBytes: ByteString = asHash.bytes
+    def toBytes: ByteString = asHash
 
     /** Convert to hex string */
     def toHex: String = asHash.toString // Assuming Hash28 has proper toString
@@ -178,7 +177,7 @@ enum ShelleyPaymentPart {
 object ShelleyPaymentPart {
 
     /** Create from key hash */
-    def keyHash(hash: PaymentKeyHash): ShelleyPaymentPart = Key(hash)
+    def keyHash(hash: AddrKeyHash): ShelleyPaymentPart = Key(hash)
 
     /** Create from script hash */
     def scriptHash(hash: ScriptHash): ShelleyPaymentPart = Script(hash)
@@ -204,8 +203,8 @@ enum ShelleyDelegationPart {
 
     /** Convert to bytes */
     def toBytes: ByteString = this match
-        case Key(h)                           => h.bytes
-        case Script(h)                        => h.hash.bytes
+        case Key(h)                           => h
+        case Script(h)                        => h.hash
         case ShelleyDelegationPart.Pointer(p) => ByteString.fromArray(p.toBytes)
         case Null                             => ByteString.empty
 
@@ -242,10 +241,10 @@ enum StakePayload {
         case Stake(_)  => false
 
     /** Convert to bytes */
-    def toBytes: ByteString = asHash.bytes
+    def toBytes: ByteString = asHash
 
     /** Convert to hex string */
-    def toHex: String = asHash.toString
+    def toHex: String = asHash.toHex
 }
 
 object StakePayload {
@@ -502,10 +501,10 @@ object Address {
         )
 
         val network = Network.fromByte((header & 0x0f).toByte)
-        val paymentHash = Hash28(ByteString.fromArray(payload.slice(0, 28)))
+        val paymentHash = AddrKeyHash(ByteString.fromArray(payload.slice(0, 28)))
         val stakeHash = Hash28(ByteString.fromArray(payload.slice(28, 56)))
 
-        val payment = ShelleyPaymentPart.Key(AddrKeyHash(paymentHash))
+        val payment = ShelleyPaymentPart.Key(paymentHash)
         val delegation = ShelleyDelegationPart.Key(stakeHash)
 
         Address.Shelley(ShelleyAddress(network, payment, delegation))
@@ -536,10 +535,10 @@ object Address {
         )
 
         val network = Network.fromByte((header & 0x0f).toByte)
-        val paymentHash = Hash28(ByteString.fromArray(payload.slice(0, 28)))
+        val paymentHash = AddrKeyHash(ByteString.fromArray(payload.slice(0, 28)))
         val scriptHash = Hash28(ByteString.fromArray(payload.slice(28, 56)))
 
-        val payment = ShelleyPaymentPart.Key(AddrKeyHash(paymentHash))
+        val payment = ShelleyPaymentPart.Key(paymentHash)
         val delegation = ShelleyDelegationPart.Script(ScriptHash(scriptHash))
 
         Address.Shelley(ShelleyAddress(network, payment, delegation))
@@ -570,7 +569,7 @@ object Address {
         )
 
         val network = Network.fromByte((header & 0x0f).toByte)
-        val paymentHash = Hash28(ByteString.fromArray(payload.slice(0, 28)))
+        val paymentHash = AddrKeyHash(ByteString.fromArray(payload.slice(0, 28)))
         val pointerBytes = payload.slice(28, payload.length)
 
         val pointer = Pointer
@@ -579,7 +578,7 @@ object Address {
               throw new IllegalArgumentException("Invalid pointer data")
             )
 
-        val payment = ShelleyPaymentPart.Key(AddrKeyHash(paymentHash))
+        val payment = ShelleyPaymentPart.Key(paymentHash)
         val delegation = ShelleyDelegationPart.Pointer(pointer)
 
         Address.Shelley(ShelleyAddress(network, payment, delegation))
@@ -616,9 +615,9 @@ object Address {
         )
 
         val network = Network.fromByte((header & 0x0f).toByte)
-        val paymentHash = Hash28(ByteString.fromArray(payload))
+        val paymentHash = AddrKeyHash(ByteString.fromArray(payload))
 
-        val payment = ShelleyPaymentPart.Key(AddrKeyHash(paymentHash))
+        val payment = ShelleyPaymentPart.Key(paymentHash)
         val delegation = ShelleyDelegationPart.Null
 
         Address.Shelley(ShelleyAddress(network, payment, delegation))
