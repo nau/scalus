@@ -1,6 +1,5 @@
 package scalus.cardano.ledger
 
-import io.bullet.borer.NullOptions.given
 import io.bullet.borer.{Decoder, Encoder, Reader, Writer}
 
 /** Represents voting thresholds for stake pools in the Cardano blockchain.
