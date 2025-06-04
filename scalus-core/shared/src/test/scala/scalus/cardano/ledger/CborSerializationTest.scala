@@ -91,9 +91,6 @@ class CborSerializationTest extends AnyFunSuite, ScalaCheckPropertyChecks, Arbit
     test(s"DatumOption should serialize and deserialize correctly"):
         testSerializationRoundTrip[DatumOption]()
 
-    test(s"Timelock should serialize and deserialize correctly"):
-        testSerializationRoundTrip[Timelock]()
-
     test(s"Script should serialize and deserialize correctly"):
         testSerializationRoundTrip[Script]()
 

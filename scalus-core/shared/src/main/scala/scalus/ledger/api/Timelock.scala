@@ -2,6 +2,7 @@ package scalus.ledger.api
 import io.bullet.borer.*
 import io.bullet.borer.derivation.ArrayBasedCodecs.*
 import io.bullet.borer.derivation.key
+import scalus.cardano.ledger.AddrKeyHash
 import scalus.ledger.api.Timelock.{lteNegInfty, ltePosInfty}
 
 import scala.annotation.tailrec
@@ -28,7 +29,7 @@ case class ValidityInterval(
   *   [evalTimelock](https://github.com/IntersectMBO/cardano-ledger/blob/d428f5bfcf60c9e0d9503f097175e61c968fefb9/eras/allegra/impl/src/Cardano/Ledger/Allegra/Scripts.hs#L346)
   */
 enum Timelock derives Codec.All:
-    @key(0) case Signature(keyHash: KeyHash)
+    @key(0) case Signature(keyHash: AddrKeyHash)
     @key(1) case AllOf(scripts: Seq[Timelock])
     @key(2) case AnyOf(scripts: Seq[Timelock])
     @key(3) case MOf(m: Int, scripts: Seq[Timelock])
@@ -62,7 +63,7 @@ enum Timelock derives Codec.All:
       *   true if the script evaluates to true, false otherwise
       */
     def evaluate(
-        validatorKeys: Set[KeyHash],
+        validatorKeys: Set[AddrKeyHash],
         interval: ValidityInterval
     ): Boolean = {
         this match

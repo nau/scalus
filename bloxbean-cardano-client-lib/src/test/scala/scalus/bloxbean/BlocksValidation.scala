@@ -14,7 +14,8 @@ import scalus.*
 import scalus.bloxbean.Interop.??
 import scalus.bloxbean.TxEvaluator.ScriptHash
 import scalus.builtin.{ByteString, PlatformSpecific, given}
-import scalus.ledger.api.{KeyHash, Timelock, ValidityInterval}
+import scalus.cardano.ledger.AddrKeyHash
+import scalus.ledger.api.{Timelock, ValidityInterval}
 import scalus.utils.Utils
 
 import java.math.BigInteger
@@ -164,7 +165,7 @@ object BlocksValidation:
                                     wit <- Option(ws.getVkeyWitnesses)
                                 yield for w <- wit.asScala yield
                                     val key = ByteString.fromArray(w.getVkey)
-                                    KeyHash(summon[PlatformSpecific].blake2b_224(key))
+                                    AddrKeyHash(summon[PlatformSpecific].blake2b_224(key))
                                 hashes.map(_.toSet).getOrElse(Set.empty)
 
                             if timelock.evaluate(
