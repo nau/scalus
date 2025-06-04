@@ -29,7 +29,7 @@ case class BlockHeaderBody(
     blockBodySize: Long,
 
     /** Block body hash */
-    blockBodyHash: Hash32,
+    blockBodyHash: Hash.BlockHash,
 
     /** Operational certificate */
     operationalCert: OperationalCert,

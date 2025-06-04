@@ -21,6 +21,7 @@ object HashPurpose {
     trait ScriptHash
     trait DataHash
     trait TransactionHash
+    trait BlockHash
 }
 
 opaque type Hash[+HashFunction, +Purpose] <: ByteString = ByteString
@@ -29,6 +30,7 @@ object Hash {
     type ScriptHash = Hash[Blake2b_224, HashPurpose.ScriptHash]
     type DataHash = Hash[Blake2b_224, HashPurpose.DataHash]
     type TransactionHash = Hash[Blake2b_256, HashPurpose.TransactionHash]
+    type BlockHash = Hash[Blake2b_256, HashPurpose.BlockHash]
     type AnyHash = Hash[Any, Any]
 
     def apply[HF: HashSize, Purpose](bytes: ByteString): Hash[HF, Purpose] = {

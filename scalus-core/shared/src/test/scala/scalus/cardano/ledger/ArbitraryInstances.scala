@@ -298,7 +298,7 @@ trait ArbitraryInstances extends uplc.ArbitraryInstances {
             vrfVkey <- genByteStringOfN(32)
             vrfResult <- arbitrary[VrfCert]
             blockBodySize <- Gen.choose(0L, Long.MaxValue)
-            blockBodyHash <- arbitrary[Hash32]
+            blockBodyHash <- arbitrary[Hash.BlockHash]
             operationalCert <- arbitrary[OperationalCert]
             protocolVersion <- arbitrary[ProtocolVersion]
         yield BlockHeaderBody(
