@@ -23,6 +23,7 @@ class EqualValidator[T](lhs: Expression[T])(rhs: Expression[T]) extends STS.Vali
     }
 }
 
+// TODO inputs + minted + refind + withdrawals == outputs + fee + TotalDeposits + burnedMultiAsset + treasuryDonation
 object EqualValidator {
     // It's part of Shelley.validateValueNotConservedUTxO in cardano-ledger
     object InputsAmountEqualsSumOfOutputsAmountAndFeeAmount

@@ -3,6 +3,7 @@ package scalus.cardano.ledger
 import io.bullet.borer.*
 import io.bullet.borer.NullOptions.given
 import io.bullet.borer.derivation.ArrayBasedCodecs.*
+import scalus.builtin.{ByteString, PlatformSpecific, given}
 
 /** Represents a complete transaction in Cardano */
 case class Transaction(
@@ -17,7 +18,13 @@ case class Transaction(
 
     /** Optional auxiliary data */
     auxiliaryData: Option[AuxiliaryData] = None
-)
+) {
+    @transient lazy val id: TransactionHash = Hash(
+      summon[PlatformSpecific].blake2b_256(
+        ByteString.unsafeFromArray(Cbor.encode(body).toByteArray)
+      )
+    )
+}
 
 object Transaction {
 

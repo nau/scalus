@@ -617,5 +617,13 @@ trait ArbitraryInstances extends uplc.ArbitraryInstances {
         Arbitrary.arbitrary[A].map(a => KeepRaw(a))
     }
     given Arbitrary[BlockFile] = autoDerived
-    given Arbitrary[Transaction] = autoDerived
+
+    given Arbitrary[Transaction] = Arbitrary {
+        for
+            body <- arbitrary[KeepRaw[TransactionBody]]
+            witnessSet <- arbitrary[TransactionWitnessSet]
+            isValid <- arbitrary[Boolean]
+            auxiliaryData <- arbitrary[Option[AuxiliaryData]]
+        yield Transaction(body, witnessSet, isValid, auxiliaryData)
+    }
 }
