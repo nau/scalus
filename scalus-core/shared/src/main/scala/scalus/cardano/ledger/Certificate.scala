@@ -8,7 +8,7 @@ import io.bullet.borer.NullOptions.given
 enum Certificate:
     case StakeRegistration(credential: Credential)
     case StakeDeregistration(credential: Credential)
-    case StakeDelegation(credential: Credential, poolKeyHash: Hash28)
+    case StakeDelegation(credential: Credential, poolKeyHash: PoolKeyHash)
     case PoolRegistration(
         operator: AddrKeyHash,
         vrfKeyHash: VrfKeyHash,
@@ -20,14 +20,14 @@ enum Certificate:
         relays: Seq[Relay],
         poolMetadata: Option[PoolMetadata]
     )
-    case PoolRetirement(poolKeyHash: Hash28, epochNo: Long)
+    case PoolRetirement(poolKeyHash: PoolKeyHash, epochNo: Long)
     case RegCert(credential: Credential, coin: Coin)
     case UnregCert(credential: Credential, coin: Coin)
     case VoteDelegCert(credential: Credential, drep: DRep)
-    case StakeVoteDelegCert(credential: Credential, poolKeyHash: Hash28, drep: DRep)
-    case StakeRegDelegCert(credential: Credential, poolKeyHash: Hash28, coin: Coin)
+    case StakeVoteDelegCert(credential: Credential, poolKeyHash: PoolKeyHash, drep: DRep)
+    case StakeRegDelegCert(credential: Credential, poolKeyHash: PoolKeyHash, coin: Coin)
     case VoteRegDelegCert(credential: Credential, drep: DRep, coin: Coin)
-    case StakeVoteRegDelegCert(credential: Credential, poolKeyHash: Hash28, drep: DRep, coin: Coin)
+    case StakeVoteRegDelegCert(credential: Credential, poolKeyHash: PoolKeyHash, drep: DRep, coin: Coin)
     case AuthCommitteeHotCert(
         committeeColdCredential: Credential,
         committeeHotCredential: Credential
@@ -206,7 +206,7 @@ object Certificate:
                 case 1 => Certificate.StakeDeregistration(r.read[Credential]())
                 case 2 =>
                     val credential = r.read[Credential]()
-                    val poolKeyHash = r.read[Hash28]()
+                    val poolKeyHash = r.read[PoolKeyHash]()
                     Certificate.StakeDelegation(credential, poolKeyHash)
                 case 3 =>
                     val operator = r.read[AddrKeyHash]()
@@ -231,7 +231,7 @@ object Certificate:
                       poolMetadata = poolMetadata
                     )
                 case 4 =>
-                    val poolKeyHash = r.read[Hash28]()
+                    val poolKeyHash = r.read[PoolKeyHash]()
                     val epochNo = r.readLong()
                     Certificate.PoolRetirement(poolKeyHash, epochNo)
                 case 7 =>
@@ -248,12 +248,12 @@ object Certificate:
                     Certificate.VoteDelegCert(credential, drep)
                 case 10 =>
                     val credential = r.read[Credential]()
-                    val poolKeyHash = r.read[Hash28]()
+                    val poolKeyHash = r.read[PoolKeyHash]()
                     val drep = r.read[DRep]()
                     Certificate.StakeVoteDelegCert(credential, poolKeyHash, drep)
                 case 11 =>
                     val credential = r.read[Credential]()
-                    val poolKeyHash = r.read[Hash28]()
+                    val poolKeyHash = r.read[PoolKeyHash]()
                     val coin = r.read[Coin]()
                     Certificate.StakeRegDelegCert(credential, poolKeyHash, coin)
                 case 12 =>
@@ -263,7 +263,7 @@ object Certificate:
                     Certificate.VoteRegDelegCert(credential, drep, coin)
                 case 13 =>
                     val credential = r.read[Credential]()
-                    val poolKeyHash = r.read[Hash28]()
+                    val poolKeyHash = r.read[PoolKeyHash]()
                     val drep = r.read[DRep]()
                     val coin = r.read[Coin]()
                     Certificate.StakeVoteRegDelegCert(credential, poolKeyHash, drep, coin)

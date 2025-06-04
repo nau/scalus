@@ -24,6 +24,7 @@ object HashPurpose {
     trait MetadataHash
     trait AuxiliaryDataHash
     trait VrfKeyHash
+    trait PoolKeyHash
     trait TransactionHash
     trait BlockHash
 }
@@ -83,6 +84,7 @@ type TransactionHash = Hash[Blake2b_256, HashPurpose.TransactionHash]
 type BlockHash = Hash[Blake2b_256, HashPurpose.BlockHash]
 type AuxiliaryDataHash = Hash[Blake2b_256, HashPurpose.AuxiliaryDataHash]
 type VrfKeyHash = Hash[Blake2b_256, HashPurpose.VrfKeyHash]
+type PoolKeyHash = Hash[Blake2b_224, HashPurpose.PoolKeyHash]
 
 /** Represents a hash of the script data
   *
