@@ -14,8 +14,9 @@ object AddOutputsToUtxoMutator extends STS.Mutator {
           )
         )
 
-        val addedUtxo: Utxo = event.body.value.outputs.view.zipWithIndex.map { case (output, index) =>
-            TransactionInput(transactionId, index) -> output
+        val addedUtxo: Utxo = event.body.value.outputs.view.zipWithIndex.map {
+            case (output, index) =>
+                TransactionInput(transactionId, index) -> output
         }.toMap
 
         success(state.copy(utxo = state.utxo ++ addedUtxo))

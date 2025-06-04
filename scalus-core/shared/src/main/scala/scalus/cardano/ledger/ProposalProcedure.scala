@@ -1,7 +1,6 @@
 package scalus.cardano.ledger
 
 import io.bullet.borer.*
-import io.bullet.borer.NullOptions.given
 import io.bullet.borer.derivation.ArrayBasedCodecs.*
 
 /** Represents a proposal procedure in the Cardano blockchain governance system.
