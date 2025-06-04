@@ -63,7 +63,7 @@ trait ArbitraryInstances extends uplc.ArbitraryInstances {
                 .choose(0, 128)
                 .flatMap(Gen.listOfN(_, Gen.alphaNumChar))
                 .map(_.mkString)
-            dataHash <- arbitrary[Hash.DataHash]
+            dataHash <- arbitrary[DataHash]
         yield Anchor(url, dataHash)
     }
 
@@ -148,7 +148,7 @@ trait ArbitraryInstances extends uplc.ArbitraryInstances {
 
     given Arbitrary[GovActionId] = Arbitrary {
         for
-            txId <- arbitrary[Hash.TransactionHash]
+            txId <- arbitrary[TransactionHash]
             index <- Gen.choose(0, 65535)
         yield GovActionId(txId, index)
     }
@@ -164,7 +164,7 @@ trait ArbitraryInstances extends uplc.ArbitraryInstances {
         for
             len <- Gen.choose(0, 128)
             url <- Gen.stringOfN(len, Gen.alphaNumChar)
-            hash <- arbitrary[Hash.MetadataHash]
+            hash <- arbitrary[MetadataHash]
         yield PoolMetadata(url, hash)
     }
     given Arbitrary[KeyHash] = Arbitrary(
@@ -175,7 +175,7 @@ trait ArbitraryInstances extends uplc.ArbitraryInstances {
     given Arbitrary[DatumOption] = Arbitrary {
         Gen.oneOf(
           arbitrary[Data].map(DatumOption.Inline.apply),
-          arbitrary[Hash.DataHash].map(DatumOption.Hash.apply)
+          arbitrary[DataHash].map(DatumOption.Hash.apply)
         )
     }
 
@@ -257,7 +257,7 @@ trait ArbitraryInstances extends uplc.ArbitraryInstances {
 
     given Arbitrary[TransactionInput] = Arbitrary {
         for
-            transactionId <- arbitrary[Hash.TransactionHash]
+            transactionId <- arbitrary[TransactionHash]
             index <- Gen.choose(0, Int.MaxValue)
         yield TransactionInput(transactionId, index)
     }
@@ -290,12 +290,12 @@ trait ArbitraryInstances extends uplc.ArbitraryInstances {
         for
             blockNumber <- Gen.choose(0L, Long.MaxValue)
             slot <- Gen.choose(0L, Long.MaxValue)
-            prevHash <- arbitrary[Option[Hash.BlockHash]]
+            prevHash <- arbitrary[Option[BlockHash]]
             issuerVkey <- genByteStringOfN(32)
             vrfVkey <- genByteStringOfN(32)
             vrfResult <- arbitrary[VrfCert]
             blockBodySize <- Gen.choose(0L, Long.MaxValue)
-            blockBodyHash <- arbitrary[Hash.BlockHash]
+            blockBodyHash <- arbitrary[BlockHash]
             operationalCert <- arbitrary[OperationalCert]
             protocolVersion <- arbitrary[ProtocolVersion]
         yield BlockHeaderBody(

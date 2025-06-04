@@ -10,7 +10,7 @@ import io.bullet.borer.derivation.ArrayBasedCodecs.*
   */
 final case class TransactionInput(
     /** The ID of the transaction that produced the output we're spending */
-    transactionId: Hash.TransactionHash,
+    transactionId: TransactionHash,
 
     /** The index of the output in the transaction we're spending */
     index: Int

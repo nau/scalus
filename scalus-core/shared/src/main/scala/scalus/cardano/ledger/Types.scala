@@ -32,11 +32,6 @@ opaque type Hash[+HashFunction, +Purpose] <: ByteString = ByteString
 object Hash {
     type KeyHash = Hash[Blake2b_224, HashPurpose.KeyHash]
     type ScriptHash = Hash[Blake2b_224, HashPurpose.ScriptHash]
-    type DataHash = Hash[Blake2b_224, HashPurpose.DataHash]
-    type MetadataHash = Hash[Blake2b_256, HashPurpose.MetadataHash]
-    type TransactionHash = Hash[Blake2b_256, HashPurpose.TransactionHash]
-    type BlockHash = Hash[Blake2b_256, HashPurpose.BlockHash]
-    type AnyHash = Hash[Any, Any]
 
     def apply[HF: HashSize, Purpose](bytes: ByteString): Hash[HF, Purpose] = {
         val size = summon[HashSize[HF]].size
@@ -58,15 +53,21 @@ object Hash {
     }
 }
 
+type AnyHash = Hash[Any, Any]
+type DataHash = Hash[Blake2b_224, HashPurpose.DataHash]
+type MetadataHash = Hash[Blake2b_256, HashPurpose.MetadataHash]
+type TransactionHash = Hash[Blake2b_256, HashPurpose.TransactionHash]
+type BlockHash = Hash[Blake2b_256, HashPurpose.BlockHash]
 type AuxiliaryDataHash = Hash[Blake2b_256, HashPurpose.AuxiliaryDataHash]
 type VrfKeyHash = Hash[Blake2b_256, HashPurpose.VrfKeyHash]
+
 /** Represents a hash of the script data
- *
- * This hash includes the redeemers, datums, and language views from the transaction. It's used to
- * ensure the script's execution environment is consistent with what was intended.
- *
- * This is simply a type alias for Hash32 to provide better type safety and readability.
- */
+  *
+  * This hash includes the redeemers, datums, and language views from the transaction. It's used to
+  * ensure the script's execution environment is consistent with what was intended.
+  *
+  * This is simply a type alias for Hash32 to provide better type safety and readability.
+  */
 type ScriptDataHash = Hash[Blake2b_256, HashPurpose.ScriptDataHash]
 
 /** Represents a 28-byte hash value used in Cardano

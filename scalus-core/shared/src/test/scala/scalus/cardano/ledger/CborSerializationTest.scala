@@ -8,7 +8,7 @@ import scalus.ledger.api.Timelock
 
 class CborSerializationTest extends AnyFunSuite, ScalaCheckPropertyChecks, ArbitraryInstances {
     test(s"Hash should serialize and deserialize correctly"):
-        testSerializationRoundTrip[Hash.DataHash]()
+        testSerializationRoundTrip[DataHash]()
 
     test(s"Hash28 should serialize and deserialize correctly"):
         testSerializationRoundTrip[Hash28]()

@@ -24,5 +24,5 @@ case class BlockHeader(
     def slot: Long = headerBody.slot
 
     /** Get previous block hash */
-    def prevHash: Option[Hash.BlockHash] = headerBody.prevHash
+    def prevHash: Option[BlockHash] = headerBody.prevHash
 }

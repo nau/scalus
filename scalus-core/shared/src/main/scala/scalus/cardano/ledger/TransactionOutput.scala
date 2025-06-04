@@ -1,7 +1,6 @@
 package scalus.cardano.ledger
 
 import io.bullet.borer.{Decoder, Encoder, Reader, Writer}
-import scalus.cardano.ledger.Hash.DataHash
 
 /** Represents a transaction output in Cardano. Both Shelley-era and Babbage-era output formats are
   * supported.
