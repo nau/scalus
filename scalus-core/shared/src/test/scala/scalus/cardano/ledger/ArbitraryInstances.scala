@@ -260,7 +260,7 @@ trait ArbitraryInstances extends uplc.ArbitraryInstances {
 
     given Arbitrary[TransactionInput] = Arbitrary {
         for
-            transactionId <- arbitrary[Hash32]
+            transactionId <- arbitrary[Hash.TransactionHash]
             index <- Gen.choose(0, Int.MaxValue)
         yield TransactionInput(transactionId, index)
     }
