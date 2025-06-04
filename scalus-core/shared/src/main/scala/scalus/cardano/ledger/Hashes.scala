@@ -64,7 +64,6 @@ type AnyHash = Hash[Any, Any]
   * @param hash
   *   The 28-byte hash value
   */
-//case class AddrKeyHash(hash: Hash28) derives Codec
 type AddrKeyHash = Hash[Blake2b_224, HashPurpose.KeyHash]
 object AddrKeyHash {
 
@@ -115,12 +114,10 @@ type StakeKeyHash = Hash[Blake2b_224, HashPurpose.StakeKeyHash]
   */
 type ScriptDataHash = Hash[Blake2b_256, HashPurpose.ScriptDataHash]
 
-/** Represents a 28-byte hash value used in Cardano
+/** Represents a 28-byte Blake2b_224 hash value used in Cardano
   *
   * Hash28 is commonly used for address key hashes and script hashes
   */
-//
-
 type Hash28 = Hash[Blake2b_224, Any]
 
 object Hash28 {
