@@ -20,6 +20,7 @@ object HashPurpose {
     trait KeyHash
     trait ScriptHash
     trait DataHash
+    trait ScriptDataHash
     trait MetadataHash
     trait AuxiliaryDataHash
     trait VrfKeyHash
@@ -59,8 +60,14 @@ object Hash {
 
 type AuxiliaryDataHash = Hash[Blake2b_256, HashPurpose.AuxiliaryDataHash]
 type VrfKeyHash = Hash[Blake2b_256, HashPurpose.VrfKeyHash]
-type H28 = Hash[Blake2b_224, Any]
-type H32 = Hash[Blake2b_224, Any]
+/** Represents a hash of the script data
+ *
+ * This hash includes the redeemers, datums, and language views from the transaction. It's used to
+ * ensure the script's execution environment is consistent with what was intended.
+ *
+ * This is simply a type alias for Hash32 to provide better type safety and readability.
+ */
+type ScriptDataHash = Hash[Blake2b_256, HashPurpose.ScriptDataHash]
 
 /** Represents a 28-byte hash value used in Cardano
   *
@@ -277,15 +284,6 @@ final case class Slot(slot: Long) derives Codec {
     /** Compare slots for ordering */
     def >(other: Slot): Boolean = slot > other.slot
 }
-
-/** Represents a hash of the script data
-  *
-  * This hash includes the redeemers, datums, and language views from the transaction. It's used to
-  * ensure the script's execution environment is consistent with what was intended.
-  *
-  * This is simply a type alias for Hash32 to provide better type safety and readability.
-  */
-final case class ScriptDataHash(hash: Hash32) derives Codec
 
 /** Represents execution units for Plutus scripts in Cardano */
 case class ExUnits(
