@@ -20,9 +20,7 @@ case class Transaction(
     auxiliaryData: Option[AuxiliaryData] = None
 ) {
     @transient lazy val id: TransactionHash = Hash(
-      summon[PlatformSpecific].blake2b_256(
-        ByteString.unsafeFromArray(Cbor.encode(body).toByteArray)
-      )
+      summon[PlatformSpecific].blake2b_256(ByteString.unsafeFromArray(body.raw))
     )
 }
 
