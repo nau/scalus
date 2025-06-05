@@ -15,7 +15,7 @@ object SumDataListGenerator extends SIRTypeUplcGenerator {
 
     override def defaultDataRepresentation: LoweredValueRepresentation =
         SumCaseClassRepresentation.PackedDataList
-    
+
     override def toRepresentation(
         input: LoweredValue,
         outputRepresentation: LoweredValueRepresentation,
@@ -121,11 +121,10 @@ object SumDataListGenerator extends SIRTypeUplcGenerator {
                 )
     }
 
-    override def genSelect(sel: SIR.Select)(using
+    override def genSelect(sel: SIR.Select, loweredScrutinee: LoweredValue)(using
         lctx: LoweringContext
     ): LoweredValue = {
-        val scrutinee = lctx.lower(sel.scrutinee)
-        val scrutineeDataRepr = scrutinee.toRepresentation(
+        val scrutineeDataRepr = loweredScrutinee.toRepresentation(
           SumCaseClassRepresentation.DataList,
           sel.anns.pos
         )

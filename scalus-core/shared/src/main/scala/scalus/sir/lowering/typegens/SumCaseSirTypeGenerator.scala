@@ -1,12 +1,12 @@
 package scalus.sir.lowering.typegens
 
 import scala.collection.mutable
-
-import scalus.sir.*
+import scalus.sir.{SIRType, *}
 import scalus.sir.SIR.Pattern
 import scalus.sir.lowering.*
+import scalus.sir.lowering.LoweredValue.Builder.*
 
-class SumCaseSirTypeGenerator(tp: SIRType.SumCaseClass) extends SIRTypeUplcGenerator {
+object SumCaseSirTypeGenerator extends SIRTypeUplcGenerator {
 
     import scalus.sir.lowering.SumCaseClassRepresentation.*
 
@@ -24,10 +24,13 @@ class SumCaseSirTypeGenerator(tp: SIRType.SumCaseClass) extends SIRTypeUplcGener
         (input.representation, representation) match {
             case (DataConstr, DataConstr) =>
                 input
+            case (DataConstr, PairIntDataList) =>
+                lvBuiltinApply(SIRBuiltins.unConstrData, input, input.sirType, PairIntDataList, pos)
             case (DataConstr, DataList) =>
                 ???
             case (DataConstr, PackedDataList) =>
-                ???
+                val asDataList = toRepresentation(input, DataList, pos)
+                lvBuiltinApply(SIRBuiltins.listData, asDataList, input.sirType, PackedDataList, pos)
             case (DataConstr, UplcConstr) =>
                 ???
             case (DataConstr, UplcConstrOnData) =>
@@ -39,7 +42,7 @@ class SumCaseSirTypeGenerator(tp: SIRType.SumCaseClass) extends SIRTypeUplcGener
             case (DataList, DataList) =>
                 input
             case (DataList, PackedDataList) =>
-                ???
+                lvBuiltinApply(SIRBuiltins.listData, input, input.sirType, PackedDataList, pos)
             case (DataList, UplcConstr) =>
                 ???
             case (DataList, UplcConstrOnData) =>
@@ -51,16 +54,18 @@ class SumCaseSirTypeGenerator(tp: SIRType.SumCaseClass) extends SIRTypeUplcGener
         }
     }
 
-    override def genSelect(sel: SIR.Select)(using lctx: LoweringContext): LoweredValue = {
+    override def genSelect(sel: SIR.Select, loweredScrutinee: LoweredValue)(using
+        lctx: LoweringContext
+    ): LoweredValue = {
         throw LoweringException(
-          s"Cannot generate select for ${tp.decl.name} as it is a sum type",
+          s"Cannot generate select for ${sel.tp} as it is a sum type",
           sel.anns.pos
         )
     }
 
     override def genConstr(constr: SIR.Constr)(using LoweringContext): LoweredValue = {
         throw LoweringException(
-          s"Cannot generate constructor for ${tp.decl.name} as it is a sum type",
+          s"Cannot generate constructor for ${constr.tp} in sum type generator",
           constr.anns.pos
         )
     }
@@ -107,7 +112,7 @@ class SumCaseSirTypeGenerator(tp: SIRType.SumCaseClass) extends SIRTypeUplcGener
         val cases = matchData.cases
         val anns = matchData.anns
 
-        val constructors = findConstructors(tp, anns.pos)
+        val constructors = findConstructors(loweredScrutinee.sirType, anns.pos)
 
         // 1. If we have a wildcard case, it must be the last one
         // 2. Validate we don't have any errors
@@ -193,8 +198,141 @@ class SumCaseSirTypeGenerator(tp: SIRType.SumCaseClass) extends SIRTypeUplcGener
         matchData: SIR.Match,
         loweredScrutinee: LoweredValue
     )(using lctx: LoweringContext): LoweredValue = {
+        val orderedCases = prepareOrderedCased(matchData, loweredScrutinee)
 
-        ???
+        val prevScope = lctx.scope
+
+        val scrutineeVarId = lctx.uniqueVarName("_match_scrutinee")
+        val scrutineeVar = lvNewLazyIdVar(
+          scrutineeVarId,
+          SIRType.Integer,
+          PrimitiveRepresentation.Constant,
+          loweredScrutinee.toRepresentation(PairIntDataList, matchData.scrutinee.anns.pos),
+          matchData.scrutinee.anns.pos
+        )
+
+        val constrIdxVarId = lctx.uniqueVarName("_match_constr_idx")
+        val constrIdxVar = lvNewLazyIdVar(
+          constrIdxVarId,
+          SIRType.Integer,
+          PrimitiveRepresentation.Constant,
+          lvBuiltinApply(
+            SIRBuiltins.fstPair,
+            scrutineeVar,
+            SIRType.Integer,
+            PrimitiveRepresentation.Constant,
+            matchData.scrutinee.anns.pos
+          ),
+          matchData.scrutinee.anns.pos
+        )
+
+        val dataListVarId = lctx.uniqueVarName("_match_datalist")
+        val dataListVar = lvNewLazyIdVar(
+          dataListVarId,
+          SIRType.List(SIRType.Data),
+          SumCaseClassRepresentation.DataList,
+          lvBuiltinApply(
+            SIRBuiltins.sndPair,
+            scrutineeVar,
+            SIRType.List(SIRType.Data),
+            SumCaseClassRepresentation.DataList,
+            matchData.scrutinee.anns.pos
+          ),
+          matchData.scrutinee.anns.pos
+        )
+
+        val lastTerm = lctx.lower(
+          SIR.Error(
+            s"Incorrect constructor index for type ${loweredScrutinee.sirType}",
+            matchData.anns
+          )
+        )
+
+        val retval = orderedCases.zipWithIndex.foldRight(lastTerm) {
+            case ((sirCase, caseIndex), state) =>
+                val body = genMatchDataConstrCase(sirCase, dataListVar)
+                lvIfThenElse(
+                  lvEqualsInteger(
+                    constrIdxVar,
+                    lvIntConstant(caseIndex, sirCase.anns.pos),
+                    body.pos
+                  ),
+                  body,
+                  state,
+                  sirCase.anns.pos
+                )
+        }
+
+        lctx.scope = prevScope
+
+        retval
+    }
+
+    def genMatchDataConstrCase(
+        sirCase: SIR.Case,
+        dataListVar: IdentifiableLoweredValue
+    )(using lctx: LoweringContext): LoweredValue = {
+        val prevScope = lctx.scope
+
+        val constrPattern = sirCase.pattern match
+            case p: Pattern.Constr => p
+            case _ =>
+                throw new LoweringException(
+                  s"Expected constructor pattern, got ${sirCase.pattern}",
+                  sirCase.anns.pos
+                )
+
+        val dataListId = dataListVar.id
+
+        val listDataType = SIRType.List(SIRType.Data)
+
+        // The sence of this fold is to add to hre scope all bindingd vars
+        val (lastTail, n) =
+            constrPattern.bindings.zip(constrPattern.typeBindings).foldLeft((dataListVar, 0)) {
+                case ((currentTail, idx), (name, tp)) =>
+                    val prevId = currentTail.id
+                    val tpDataRepresentation =
+                        lctx.typeGenerator(tp).defaultDataRepresentation
+                    val bindedVar = lvNewLazyNamedVar(
+                      name,
+                      tp,
+                      tpDataRepresentation,
+                      lvBuiltinApply(
+                        SIRBuiltins.headList,
+                        currentTail,
+                        tp,
+                        tpDataRepresentation,
+                        sirCase.anns.pos
+                      ),
+                      sirCase.anns.pos
+                    )
+                    val tailId = s"${dataListId}_b${}"
+                    // mb we already have this id in the scope
+                    val tailVar = lctx.scope.get(tailId, SumCaseClassRepresentation.DataList) match
+                        case Some(v) => v
+                        case None =>
+                            lvNewLazyIdVar(
+                              tailId,
+                              listDataType,
+                              SumCaseClassRepresentation.DataList,
+                              lvBuiltinApply(
+                                SIRBuiltins.tailList,
+                                currentTail,
+                                listDataType,
+                                SumCaseClassRepresentation.DataList,
+                                sirCase.anns.pos
+                              ),
+                              sirCase.anns.pos
+                            )
+                    (tailVar, idx + 1)
+            }
+
+        // now with the all named variable in the scope we can generate the body
+        val body = lctx.lower(sirCase.body)
+
+        lctx.scope = prevScope
+
+        body
     }
 
     def genMatchUplcConstr(
@@ -204,7 +342,7 @@ class SumCaseSirTypeGenerator(tp: SIRType.SumCaseClass) extends SIRTypeUplcGener
         ???
     }
 
-    private def findConstructors(sirType: SIRType, pos: SIRPosition): Seq[ConstrDecl] = {
+    def findConstructors(sirType: SIRType, pos: SIRPosition): Seq[ConstrDecl] = {
         sirType match
             case SIRType.CaseClass(constrDecl, typeArgs, optParent) =>
                 optParent match

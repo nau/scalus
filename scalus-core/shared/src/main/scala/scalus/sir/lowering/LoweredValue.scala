@@ -206,6 +206,28 @@ trait ProxyLoweredValue(origin: LoweredValue) extends LoweredValue {
 
 }
 
+trait ComplexLoweredValue(ownVars: Set[IdentifiableLoweredValue], subvalues: LoweredValue*)
+    extends LoweredValue {
+
+    lazy val usedVarsCount = Lowering.filterAndCountVars(
+      v => !ownVars.contains(v),
+      subvalues*
+    )
+
+    lazy val cUsedVars = usedVarsCount.keySet
+
+    override def dominatingUplevelVars: Set[IdentifiableLoweredValue] =
+        usedVarsCount.filter { case (v, c) => c > 1 && v.directDepended.size > 1 }.keySet
+
+    override def usedUplevelVars: Set[IdentifiableLoweredValue] =
+        cUsedVars
+
+    override def addDependent(value: IdentifiableLoweredValue): Unit = {
+        subvalues.foreach(_.addDependent(value))
+    }
+
+}
+
 object LoweredValue {
 
     def intConstant(value: Int, pos: SIRPosition): ConstantLoweredValue = {
@@ -218,6 +240,253 @@ object LoweredValue {
           Term.Const(Constant.Integer(value)),
           PrimitiveRepresentation.Constant
         )
+    }
+
+    /** Builder for LoweredValue, to avoid boilerplate code. Import this object to make aviabke
+      */
+    object Builder {
+
+        def lvIfThenElse(
+            cond: LoweredValue,
+            thenBranch: LoweredValue,
+            elseBranch: LoweredValue,
+            inPos: SIRPosition
+        )(using lctx: LoweringContext): LoweredValue = {
+
+            new ComplexLoweredValue(Set.empty, cond, thenBranch, elseBranch) {
+                override def sirType: SIRType = thenBranch.sirType
+                override def pos: SIRPosition = inPos
+                override def representation: LoweredValueRepresentation =
+                    thenBranch.representation
+
+                override def termInternal(gctx: TermGenerationContext): Term = {
+                    Term.Force(Term.Builtin(DefaultFun.IfThenElse)) $
+                        cond.termWithNeddedVars(gctx) $
+                        Term.Delay(thenBranch.termWithNeddedVars(gctx)) $
+                        Term.Delay(
+                          elseBranch
+                              .toRepresentation(thenBranch.representation, elseBranch.pos)
+                              .termWithNeddedVars(gctx)
+                        )
+                }
+
+            }
+
+        }
+
+        def lvApply(
+            f: LoweredValue,
+            arg: LoweredValue,
+            inPos: SIRPosition,
+            resTp: Option[SIRType] = None,
+            resRepresentation: Option[LoweredValueRepresentation] = None
+        )(using
+            lctx: LoweringContext
+        ): LoweredValue = {
+
+            new ComplexLoweredValue(Set.empty, f, arg) {
+
+                lazy val resType = resTp.getOrElse(
+                  SIRType.calculateApplyType(f.sirType, arg.sirType, lctx.typeVars)
+                )
+
+                override def sirType: SIRType = resType
+
+                override def pos: SIRPosition = inPos
+
+                override def representation: LoweredValueRepresentation =
+                    resRepresentation.getOrElse(
+                      lctx.typeGenerator(resType).defaultRepresentation
+                    )
+
+                override def termInternal(gctx: TermGenerationContext): Term = {
+                    Term.Apply(
+                      f.termWithNeddedVars(gctx),
+                      arg.termWithNeddedVars(gctx)
+                    )
+                }
+
+            }
+        }
+
+        def lvEqualsInteger(x: LoweredValue, y: LoweredValue, inPos: SIRPosition)(using
+            lctx: LoweringContext
+        ): LoweredValue = {
+            new ComplexLoweredValue(Set.empty, x, y) {
+                override def sirType: SIRType = SIRType.Boolean
+
+                override def pos: SIRPosition = inPos
+
+                override def representation: LoweredValueRepresentation =
+                    PrimitiveRepresentation.Constant
+
+                override def termInternal(gctx: TermGenerationContext): Term = {
+                    Term.Apply(
+                      Term.Apply(
+                        Term.Builtin(DefaultFun.EqualsInteger),
+                        x.termWithNeddedVars(gctx)
+                      ),
+                      y.termWithNeddedVars(gctx)
+                    )
+                }
+            }
+        }
+
+        def lvLamAbs(
+            name: String,
+            tp: SIRType,
+            representation: LoweredValueRepresentation,
+            f: IdentifiableLoweredValue => LoweringContext ?=> LoweredValue,
+            inPos: SIRPosition
+        )(using lctx: LoweringContext): LoweredValue = {
+            lvLamAbs(SIR.Var(name, tp, AnnotationsDecl(inPos)), representation, f, inPos)
+        }
+
+        def lvLamAbs(
+            sirVar: SIR.Var,
+            varRepresentation: LoweredValueRepresentation,
+            f: IdentifiableLoweredValue => LoweringContext ?=> LoweredValue,
+            inPos: SIRPosition
+        )(using lctx: LoweringContext): LoweredValue = {
+            val newVar = new VariableLoweredValue(
+              id = lctx.uniqueVarName(sirVar.name),
+              name = sirVar.name,
+              sir = sirVar,
+              representation = varRepresentation
+            )
+            val prevScope = lctx.scope
+            lctx.scope = lctx.scope.add(newVar)
+            val body = f(newVar)(using lctx)
+            lctx.scope = prevScope
+            new ComplexLoweredValue(Set(newVar), body) {
+                override def sirType: SIRType = SIRType.Fun(sirVar.tp, body.sirType)
+
+                override def representation: LoweredValueRepresentation =
+                    LambdaRepresentation(newVar.representation, body.representation)
+
+                override def pos: SIRPosition = inPos
+
+                override def termInternal(gctx: TermGenerationContext): Term =
+                    Term.LamAbs(newVar.id, body.termWithNeddedVars(gctx.addGeneratedVar(newVar.id)))
+            }
+        }
+
+        /** create let and add it to the current scope.
+          */
+        def lvNewLazyIdVar(
+            id: String,
+            tp: SIRType,
+            lvr: LoweredValueRepresentation,
+            rhs: LoweringContext ?=> LoweredValue,
+            inPos: SIRPosition
+        )(using lctx: LoweringContext): IdentifiableLoweredValue = {
+            val newVar: VariableLoweredValue = new VariableLoweredValue(
+              id = id,
+              name = id,
+              sir = SIR.Var(id, tp, AnnotationsDecl(inPos)),
+              representation = lvr,
+              optRhs = Some(rhs(using lctx)),
+            )
+            lctx.scope = lctx.scope.add(newVar)
+            newVar
+        }
+
+        def lvNewLazyNamedVar(
+            name: String,
+            tp: SIRType,
+            lvr: LoweredValueRepresentation,
+            rhs: LoweringContext ?=> LoweredValue,
+            inPos: SIRPosition
+        )(using lctx: LoweringContext): IdentifiableLoweredValue = {
+            val newVar: VariableLoweredValue = new VariableLoweredValue(
+              id = lctx.uniqueVarName(name),
+              name = name,
+              sir = SIR.Var(name, tp, AnnotationsDecl(inPos)),
+              representation = lvr,
+              optRhs = Some(rhs(using lctx)),
+            )
+            lctx.scope = lctx.scope.add(newVar)
+            newVar
+        }
+
+        def lvBuiltinApply(
+            fun: SIR.Builtin,
+            arg: LoweredValue,
+            tp: SIRType,
+            lvr: LoweredValueRepresentation,
+            inPos: SIRPosition
+        )(using
+            lctx: LoweringContext
+        ): LoweredValue = {
+            new ProxyLoweredValue(arg) {
+                override def sirType: SIRType = tp
+
+                override def pos: SIRPosition = inPos
+
+                override def termInternal(gctx: TermGenerationContext): Term =
+                    Term.Apply(
+                      Term.Builtin(fun.bn),
+                      arg.termWithNeddedVars(gctx)
+                    )
+
+                override def representation: LoweredValueRepresentation = lvr
+            }
+        }
+
+        def lvIntConstant(
+            value: Int,
+            pos: SIRPosition
+        )(using lctx: LoweringContext): ConstantLoweredValue = {
+            ConstantLoweredValue(
+              SIR.Const(Constant.Integer(value), SIRType.Integer, AnnotationsDecl(pos)),
+              Term.Const(Constant.Integer(value)),
+              PrimitiveRepresentation.Constant
+            )
+        }
+
+        def lvBuiltinApply0(
+            fun: SIR.Builtin,
+            tp: SIRType,
+            lvr: LoweredValueRepresentation,
+            inPos: SIRPosition
+        )(using
+            lctx: LoweringContext
+        ): LoweredValue = {
+            StaticLoweredValue(
+              SIR.Builtin(fun.bn, tp, AnnotationsDecl(inPos)),
+              Term.Builtin(fun.bn),
+              lvr
+            )
+        }
+
+        def lvBuiltinApply2(
+            fun: SIR.Builtin,
+            arg1: LoweredValue,
+            arg2: LoweredValue,
+            tp: SIRType,
+            lvr: LoweredValueRepresentation,
+            inPos: SIRPosition
+        )(using
+            lctx: LoweringContext
+        ): LoweredValue = {
+            new ComplexLoweredValue(Set.empty, arg1, arg2) {
+                override def sirType: SIRType = tp
+
+                override def pos: SIRPosition = inPos
+
+                override def termInternal(gctx: TermGenerationContext): Term =
+                    Term.Apply(
+                      Term.Apply(
+                        Term.Builtin(fun.bn),
+                        arg1.termWithNeddedVars(gctx)
+                      ),
+                      arg2.termWithNeddedVars(gctx)
+                    )
+
+                override def representation: LoweredValueRepresentation = lvr
+            }
+        }
+
     }
 
 }

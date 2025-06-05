@@ -4,9 +4,15 @@ import scalus.sir.*
 
 /** representation, depends on the type of the value.
   */
-sealed trait LoweredValueRepresentation
+sealed trait LoweredValueRepresentation {
+    def isPackedData: Boolean
+    def isDataCentric: Boolean
+}
 
-sealed trait SumCaseClassRepresentation extends LoweredValueRepresentation
+sealed trait SumCaseClassRepresentation(
+    override val isPackedData: Boolean,
+    override val isDataCentric: Boolean
+) extends LoweredValueRepresentation
 
 object SumCaseClassRepresentation {
 
@@ -14,79 +20,94 @@ object SumCaseClassRepresentation {
       * DatsaUnconstr operators to work with the data. the index of the constructor and x is a
       * field.
       */
-    case object DataConstr extends SumCaseClassRepresentation
+    case object DataConstr extends SumCaseClassRepresentation(true, true)
 
     /** Representation for sum case classes that are represented as a Pair of Int and DataList.
       */
-    case object PairIntDataList extends SumCaseClassRepresentation
+    case object PairIntDataList extends SumCaseClassRepresentation(false, true)
 
     /** Representation for sum case classes that are represented as a list of data elements. unlike
       * `DataConstr`, this representation does not use a constructor tag, but use unList and
       * unListData to work with the data.
       */
-    case object DataList extends SumCaseClassRepresentation
+    case object DataList extends SumCaseClassRepresentation(false, true)
 
     /** packed in data representation as a list of data elements. i.e. unListData for unpacking into
       * DataList
       */
-    case object PackedDataList extends SumCaseClassRepresentation
+    case object PackedDataList extends SumCaseClassRepresentation(true, true)
 
     /** Representation as tern Constr(i,x1,...,xn) where i is the index of the constructor and x is
       * a field
       */
-    case object UplcConstr extends SumCaseClassRepresentation
+    case object UplcConstr extends SumCaseClassRepresentation(false, false)
 
     /** Representation as Constr(i,x1,...,xn) where i is the index of the constructor and x is a
       * field reprented as data.
       */
-    case object UplcConstrOnData extends SumCaseClassRepresentation
+    case object UplcConstrOnData extends SumCaseClassRepresentation(false, true)
 
-    case object ScottEncoding extends SumCaseClassRepresentation
+    case object ScottEncoding extends SumCaseClassRepresentation(false, false)
 }
 
-sealed trait ProductCaseClassRepresentation extends LoweredValueRepresentation
+sealed trait ProductCaseClassRepresentation(val isPackedData: Boolean, val isDataCentric: Boolean)
+    extends LoweredValueRepresentation
 
 object ProductCaseClassRepresentation {
-    case object PackedDataList extends ProductCaseClassRepresentation
+    case object PackedDataList extends ProductCaseClassRepresentation(true, true)
 
-    case object DataList extends ProductCaseClassRepresentation
-
-    case object PacketDataConstr extends ProductCaseClassRepresentation
+    case object DataList extends ProductCaseClassRepresentation(false, true)
 
     /** Data.Unconstr will give as a pair from data and index of the constructor.
       */
-    case object DataConstr extends ProductCaseClassRepresentation
+    case object DataConstr extends ProductCaseClassRepresentation(true, true)
 
-    case object UplcConstr extends ProductCaseClassRepresentation
+    case object UplcConstr extends ProductCaseClassRepresentation(false, false)
 
-    case object ScottEncoding extends ProductCaseClassRepresentation
+    case object ScottEncoding extends ProductCaseClassRepresentation(false, false)
 
     case class OneElelmentWrapper(representation: LoweredValueRepresentation)
+        extends ProductCaseClassRepresentation(
+          representation.isPackedData,
+          representation.isDataCentric
+        )
 
-    case class PairWrapper(
-        first: LoweredValueRepresentation,
-        second: LoweredValueRepresentation
-    ) extends ProductCaseClassRepresentation
+    // TODO: implement
+    // case class PairWrapper(
+    //    first: LoweredValueRepresentation,
+    //    second: LoweredValueRepresentation
+    // ) extends ProductCaseClassRepresentation
 
 }
 
-case class LambdaRepresentaion(
+case class LambdaRepresentation(
     input: LoweredValueRepresentation,
     output: LoweredValueRepresentation
-) extends LoweredValueRepresentation
+) extends LoweredValueRepresentation {
+    override def isPackedData: Boolean = false
 
-sealed trait PrimitiveRepresentation extends LoweredValueRepresentation
+    override def isDataCentric: Boolean = false
+}
+
+sealed trait PrimitiveRepresentation(val isPackedData: Boolean, val isDataCentric: Boolean)
+    extends LoweredValueRepresentation
 
 object PrimitiveRepresentation {
-    case object PackedData extends PrimitiveRepresentation
+    case object PackedData extends PrimitiveRepresentation(true, true)
 
-    case object Constant extends PrimitiveRepresentation
+    case object Constant extends PrimitiveRepresentation(false, false)
 }
 
 /** TypeVarRepresentation is used for type variables. Usually this is a synonym for some other
   * specific-type representation.
+  *
+  * for now, assume that TypeVars can't be only serializibel to data.
   */
-case object TypeVarDataRepresentation extends LoweredValueRepresentation
+case object TypeVarDataRepresentation extends LoweredValueRepresentation {
+    override def isPackedData: Boolean = true
+
+    override def isDataCentric: Boolean = true
+}
 
 object LoweredValueRepresentation {
 
@@ -104,7 +125,7 @@ object LoweredValueRepresentation {
                 SIRType.Boolean | SIRType.Unit =>
                 PrimitiveRepresentation.Constant
             case SIRType.Fun(in, out) =>
-                LambdaRepresentaion(
+                LambdaRepresentation(
                   constRepresentation(in),
                   constRepresentation(out)
                 )

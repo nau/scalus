@@ -61,7 +61,7 @@ trait PrimitiveSirTypeGenerator extends SIRTypeUplcGenerator {
     override def genConstr(constr: SIR.Constr)(using LoweringContext): LoweredValue =
         throw LoweringException("Constr can generated for primitive type", constr.anns.pos)
 
-    override def genSelect(sel: SIR.Select)(using
+    override def genSelect(sel: SIR.Select, loweredScrutinee: LoweredValue)(using
         LoweringContext
     ): LoweredValue = {
         throw LoweringException(s"Primitive type have no field ${sel.field}", sel.anns.pos)

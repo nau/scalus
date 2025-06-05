@@ -1,9 +1,9 @@
 package scalus.sir.lowering
 
-import scala.collection.mutable.Map as MutableMap
 import scalus.sir.*
 import scalus.sir.Recursivity.NonRec
 import scalus.sir.lowering.typegens.SIRTypeUplcGenerator
+import scalus.sir.lowering.LoweredValue.Builder.*
 import scalus.uplc.*
 
 object Lowering {
@@ -61,59 +61,17 @@ object Lowering {
             case sirLet @ SIR.Let(recursivity, bindings, body, anns) =>
                 lowerLet(sirLet)
             case SIR.LamAbs(param, term, anns) =>
-                val paramValue = VariableLoweredValue(
-                  lctx.uniqueVarName(param.name),
-                  param.name,
+                lvLamAbs(
                   param,
                   lctx.typeGenerator(param.tp).defaultRepresentation,
-                  MutableMap.empty
+                  _id => summon[LoweringContext].lower(term),
+                  anns.pos
                 )
-                val prevScope = lctx.scope
-                lctx.scope = lctx.scope.add(paramValue)
-                val body = lowerSIR(term)
-                lctx.scope = prevScope
-                val usedVarsWithCount = addUsedVarsToCounts(
-                  body.usedUplevelVars - paramValue,
-                  Map.empty
-                )
-                val cDominatedUplevelVars = usedVarsWithCount.filter(_._2 > 1).keySet
-                val cUsedUplevelVars = usedVarsWithCount.keySet
-                new LoweredValue {
-
-                    override def sirType: SIRType = term.tp
-                    override def pos: SIRPosition = anns.pos
-
-                    override def termInternal(gctx: TermGenerationContext): Term = {
-                        val bodyGctx = gctx.copy(
-                          generatedVars = gctx.generatedVars + paramValue.id
-                        )
-                        Term.LamAbs(paramValue.id, body.termWithNeddedVars(bodyGctx))
-                    }
-
-                    override def representation: LoweredValueRepresentation =
-                        LambdaRepresentaion(
-                          paramValue.representation,
-                          body.representation
-                        )
-
-                    override def dominatingUplevelVars: Set[IdentifiableLoweredValue] = {
-                        cDominatedUplevelVars
-                    }
-
-                    override def usedUplevelVars: Set[IdentifiableLoweredValue] = {
-                        cUsedUplevelVars
-                    }
-
-                    override def addDependent(value: IdentifiableLoweredValue): Unit = {
-                        body.addDependent(value)
-                        paramValue.addDependent(value)
-                    }
-
-                }
             case app: SIR.Apply =>
                 lowerApp(app)
             case sel @ SIR.Select(scrutinee, field, tp, anns) =>
-                SIRTypeUplcGenerator(scrutinee.tp).genSelect(sel)
+                val loweredScrutinee = lowerSIR(scrutinee)
+                SIRTypeUplcGenerator(scrutinee.tp).genSelect(sel, loweredScrutinee)
             case sirConst @ SIR.Const(const, tp, anns) =>
                 StaticLoweredValue(
                   sirConst,
@@ -155,60 +113,7 @@ object Lowering {
                     lowerSIR(cond).toRepresentation(PrimitiveRepresentation.Constant, cond.anns.pos)
                 val loweredT = lowerSIR(t)
                 val loweredF = lowerSIR(f)
-                val resRepresentation = loweredT.representation // evristic - most often used
-                val loweredFR = loweredF.toRepresentation(resRepresentation, anns.pos)
-
-                val usedVarsWithCount = addUsedVarsToCounts(
-                  loweredFR.usedUplevelVars,
-                  addUsedVarsToCounts(
-                    loweredT.usedUplevelVars,
-                    addUsedVarsToCounts(loweredCond.usedUplevelVars, Map.empty)
-                  )
-                )
-
-                val cDominatedUplevelVars = usedVarsWithCount.filter(_._2 > 1).keySet
-                val cUsedUplevelVars = usedVarsWithCount.keySet
-
-                new LoweredValue {
-
-                    override def sirType: SIRType = tp
-                    override def pos: SIRPosition = anns.pos
-
-                    override def termInternal(gctx: TermGenerationContext): Term = {
-                        val condTerm = loweredCond.termWithNeddedVars(gctx)
-                        val tTerm = loweredT.termWithNeddedVars(gctx)
-                        val fTerm = loweredFR.termWithNeddedVars(gctx)
-                        Term.Apply(
-                          Term.Apply(
-                            Term.Apply(
-                              builtinTerms(DefaultFun.IfThenElse),
-                              condTerm
-                            ),
-                            Term.Delay(tTerm)
-                          ),
-                          Term.Delay(fTerm)
-                        )
-                    }
-
-                    override def representation: LoweredValueRepresentation =
-                        resRepresentation
-
-                    override def dominatingUplevelVars: Set[IdentifiableLoweredValue] = {
-                        cDominatedUplevelVars
-                    }
-
-                    override def usedUplevelVars: Set[IdentifiableLoweredValue] = {
-                        cUsedUplevelVars
-                    }
-
-                    override def addDependent(value: IdentifiableLoweredValue): Unit = {
-                        loweredT.addDependent(value)
-                        loweredF.addDependent(value)
-                        loweredCond.addDependent(value)
-                    }
-
-                }
-
+                lvIfThenElse(loweredCond, loweredT, loweredF, anns.pos)
             case sirBuiltin @ SIR.Builtin(bn, tp, anns) =>
                 StaticLoweredValue(
                   sirBuiltin,
@@ -243,20 +148,11 @@ object Lowering {
                           representation = rhs.representation
                         )
                         lctx.scope = lctx.scope.add(varVal)
-                        (varVal, rhs)
-                    }
+                        (varVal: IdentifiableLoweredValue, rhs)
+                    }.toMap
                     val bodyValue = lowerSIR(body)
-                    val myVars = bindingValues.map(_._1).toSet
-                    val varsUsageCount = this.filterAndCountVars(
-                      {
-                          case x: VariableLoweredValue          => !myVars.contains(x)
-                          case x: DependendVariableLoweredValue => true
-                      },
-                      bodyValue +: bindingValues.map(_._2): _*
-                    )
-                    val cDominatedUplevelVars = varsUsageCount.filter(_._2 > 1).keySet
-                    val cUsedUplevelVars = varsUsageCount.keySet
-                    new LoweredValue {
+                    val myVars = bindingValues.keySet
+                    new ComplexLoweredValue(myVars, (Seq(bodyValue) ++ bindingValues.values)*) {
 
                         override def sirType: SIRType = bodyValue.sirType
 
@@ -281,21 +177,6 @@ object Lowering {
 
                         override def representation: LoweredValueRepresentation =
                             bodyValue.representation
-
-                        override def dominatingUplevelVars: Set[IdentifiableLoweredValue] = {
-                            cDominatedUplevelVars
-                        }
-
-                        override def usedUplevelVars: Set[IdentifiableLoweredValue] = {
-                            cUsedUplevelVars
-                        }
-
-                        override def addDependent(value: IdentifiableLoweredValue): Unit = {
-                            bodyValue.addDependent(value)
-                            bindingValues.foreach { case (varVal, rhs) =>
-                                rhs.addDependent(value)
-                            }
-                        }
 
                     }
                 else {

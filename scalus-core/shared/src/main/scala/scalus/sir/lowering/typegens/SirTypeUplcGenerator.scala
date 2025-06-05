@@ -13,6 +13,8 @@ trait SIRTypeUplcGenerator {
       */
     def defaultRepresentation: LoweredValueRepresentation
 
+    def isDataSupported(tp: SIRType): Boolean = true
+
     /** Get default representation for data representation of this type. This representation is used
       * when converting to data.
       */
@@ -32,7 +34,9 @@ trait SIRTypeUplcGenerator {
         LoweringContext
     ): LoweredValue
 
-    def genSelect(sel: SIR.Select)(using LoweringContext): LoweredValue
+    def genSelect(sel: SIR.Select, loweredScrutinee: LoweredValue)(using
+        LoweringContext
+    ): LoweredValue
 
     def genMatch(matchData: SIR.Match, loweredScrutinee: LoweredValue)(using
         LoweringContext
