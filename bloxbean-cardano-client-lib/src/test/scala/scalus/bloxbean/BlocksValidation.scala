@@ -1,6 +1,6 @@
 package scalus.bloxbean
 
-import co.nstant.in.cbor.{model as cbor, CborException}
+import co.nstant.in.cbor.{CborException, model as cbor}
 import com.bloxbean.cardano.client.backend.api.DefaultUtxoSupplier
 import com.bloxbean.cardano.client.backend.blockfrost.common.Constants
 import com.bloxbean.cardano.client.backend.blockfrost.service.BFBackendService
@@ -10,20 +10,20 @@ import com.bloxbean.cardano.client.transaction.spec.*
 import com.bloxbean.cardano.yaci.core.model.serializers.util.WitnessUtil.getArrayBytes
 import com.bloxbean.cardano.yaci.core.model.serializers.util.{TransactionBodyExtractor, WitnessUtil}
 import com.bloxbean.cardano.yaci.core.util.CborSerializationUtil
+import io.bullet.borer.Cbor
 import scalus.*
 import scalus.bloxbean.Interop.??
 import scalus.bloxbean.TxEvaluator.ScriptHash
-import scalus.builtin.{ByteString, PlatformSpecific, given}
-import scalus.cardano.ledger.AddrKeyHash
+import scalus.builtin.{ByteString, JVMPlatformSpecific, PlatformSpecific, given}
+import scalus.cardano.ledger.{AddrKeyHash, BlockFile}
 import scalus.ledger.api.{Timelock, ValidityInterval}
 import scalus.utils.Utils
 
 import java.math.BigInteger
 import java.nio.channels.FileChannel
-import java.nio.file.{Path, Paths, StandardOpenOption}
+import java.nio.file.{Files, Path, Paths, StandardOpenOption}
 import java.util
 import java.util.stream.Collectors
-import scala.annotation.unused
 import scala.collection.mutable
 import scala.jdk.CollectionConverters.*
 
@@ -140,54 +140,6 @@ object BlocksValidation:
 
     }
 
-    private def validateNativeScriptOfEpoch(@unused epoch: Int): Unit = {
-        import com.bloxbean.cardano.yaci.core.config.YaciConfig
-        YaciConfig.INSTANCE.setReturnBlockCbor(true) // needed to get the block cbor
-        YaciConfig.INSTANCE.setReturnTxBodyCbor(true) // needed to get the tx body cbor
-
-        val cwd = Paths.get(".")
-        case class Res(var succ: Int, var fail: Int)
-        val stats = mutable.HashMap.empty[ByteString, Res].withDefaultValue(Res(0, 0))
-        val start = System.currentTimeMillis()
-        for blockNum <- 11544518 to 11662495 do
-            val txs = readTransactionsFromBlockCbor(cwd.resolve(s"blocks/block-$blockNum.cbor"))
-            for BlockTx(tx, datums, txhash) <- txs do
-                try
-                    if tx.getWitnessSet.getNativeScripts ne null then
-                        for script <- tx.getWitnessSet.getNativeScripts.asScala do
-                            val scriptHash = ByteString.fromArray(script.getScriptHash)
-                            val timelock = Timelock.fromCbor(
-                              script.serialize().drop(1)
-                            ) // drop NativeScript tag
-                            val keyHashes =
-                                val hashes = for
-                                    ws <- Option(tx.getWitnessSet)
-                                    wit <- Option(ws.getVkeyWitnesses)
-                                yield for w <- wit.asScala yield
-                                    val key = ByteString.fromArray(w.getVkey)
-                                    AddrKeyHash(summon[PlatformSpecific].blake2b_224(key))
-                                hashes.map(_.toSet).getOrElse(Set.empty)
-
-                            if timelock.evaluate(
-                                  keyHashes,
-                                  ValidityInterval(
-                                    Some(tx.getBody.getValidityStartInterval),
-                                    Some(tx.getBody.getTtl)
-                                  )
-                                )
-                            then stats.getOrElseUpdate(scriptHash, Res(0, 0)).succ += 1
-                            else stats.getOrElseUpdate(scriptHash, Res(0, 0)).fail += 1
-                catch
-                    case e: Exception =>
-                        println(s"Error in block $blockNum, tx $txhash: ${e.getMessage}")
-            println(s"Block $blockNum")
-        end for
-        println(s"Time taken: ${System.currentTimeMillis() - start} ms")
-        println(
-          s"Stats: num scripts ${stats.size}, succ: ${stats.values.map(_.succ).sum}, failed: ${stats.values.map(_.fail).sum}"
-        )
-    }
-
     def readTransactionsFromBlockCbor(path: Path): collection.Seq[BlockTx] = {
         // read block cbor from file using mmap
         val channel = FileChannel.open(path, StandardOpenOption.READ)
@@ -280,7 +232,57 @@ object BlocksValidation:
             BlockTx(transaction, datumsCbor, txHashFromBytes)
     }
 
+    private def validateNativeScriptEvaluation(): Unit = {
+        case class Res(
+            var succ: Int,
+            var fail: Int,
+            blocks: mutable.ArrayBuffer[Int] = mutable.ArrayBuffer.empty
+        )
+
+        val cwd = Paths.get(".")
+        val blocksDir = cwd.resolve("blocks")
+        val stats = mutable.HashMap.empty[ByteString, Res].withDefaultValue(Res(0, 0))
+        val start = System.currentTimeMillis()
+
+        val blocks = Files
+            .list(blocksDir)
+            .filter(f => f.getFileName.toString.endsWith(".cbor"))
+            .sorted()
+            .iterator()
+            .asScala
+
+        for path <- blocks do
+            try
+                val blockBytes = Files.readAllBytes(path)
+                val block = Cbor.decode(blockBytes).to[BlockFile].value.block
+                for
+                    (txb, w) <- block.transactionBodies.zip(block.transactionWitnessSets)
+                    native <- w.nativeScripts.getOrElse(Set.empty)
+                do
+                    val serialized = ByteString.fromArray(0 +: Cbor.encode(native).toByteArray)
+                    val scriptHash = JVMPlatformSpecific.blake2b_224(serialized)
+                    val keyHashes = w.vkeyWitnesses.getOrElse(Set.empty).map { w =>
+                        val key = w.vkey
+                        AddrKeyHash(summon[PlatformSpecific].blake2b_224(key))
+                    }
+
+                    if native.evaluate(keyHashes, ValidityInterval(txb.validityStartSlot, txb.ttl))
+                    then stats.getOrElseUpdate(scriptHash, Res(0, 0)).succ += 1
+                    else stats.getOrElseUpdate(scriptHash, Res(0, 0)).fail += 1
+
+            catch
+                case e: Exception =>
+                    println(s"Error reading block $path: ${e.getMessage}")
+                    e.printStackTrace()
+            println(s"Block $path")
+        end for
+        println(s"Time taken: ${System.currentTimeMillis() - start} ms")
+        println(
+          s"Stats: num scripts ${stats.size}, succ: ${stats.values.map(_.succ).sum}, failed: ${stats.values.map(_.fail).sum}"
+        )
+    }
+
     def main(args: Array[String]): Unit = {
 //        validateBlocksOfEpoch(508)
-        validateNativeScriptOfEpoch(508)
+        validateNativeScriptEvaluation()
     }
