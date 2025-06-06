@@ -26,7 +26,7 @@ object SirDSL:
             SIR.LamAbs(SIR.Var(e, s.tp, AnnotationsDecl.empty), s, AnnotationsDecl.empty)
         )
     extension (term: SIR)
-        infix def $(rhs: SIR): SIR =
+        infix def $(rhs: SIR): AnnotatedSIR =
             SIR.Apply(
               term,
               rhs,

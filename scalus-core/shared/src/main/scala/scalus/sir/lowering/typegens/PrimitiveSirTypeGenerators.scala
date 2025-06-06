@@ -5,7 +5,7 @@ import scalus.sir.lowering.*
 import scalus.sir.lowering.Lowering.tpf
 import scalus.uplc.{Constant, DefaultFun, Term}
 
-trait PrimitiveSirTypeGenerator extends SIRTypeUplcGenerator {
+trait PrimitiveSirTypeGenerator extends SirTypeUplcGenerator {
 
     def defaultRepresentation: LoweredValueRepresentation = PrimitiveRepresentation.Constant
 
@@ -102,6 +102,54 @@ object SIRTypeUplcIntegerGenerator extends PrimitiveSirTypeGenerator {
 
     override def dataToUplc(input: Term): Term = {
         DefaultFun.UnIData.tpf $ input
+    }
+
+}
+
+object SIRTypeUplcByteStringGenerator extends PrimitiveSirTypeGenerator {
+
+    override def uplcToData(input: Term): Term = {
+        DefaultFun.BData.tpf $ input
+    }
+
+    override def dataToUplc(input: Term): Term = {
+        DefaultFun.UnBData.tpf $ input
+    }
+
+}
+
+object SIRTypeUplcStringGenerator extends PrimitiveSirTypeGenerator {
+
+    override def uplcToData(input: Term): Term = {
+        DefaultFun.BData.tpf $ (DefaultFun.EncodeUtf8.tpf $ input)
+    }
+
+    override def dataToUplc(input: Term): Term = {
+        DefaultFun.DecodeUtf8.tpf $ (DefaultFun.UnBData.tpf $ input)
+    }
+
+}
+
+object SIRTypeUplcUnitGenerator extends PrimitiveSirTypeGenerator {
+
+    override def uplcToData(input: Term): Term = {
+        DefaultFun.MkNilData.tpf
+    }
+
+    override def dataToUplc(input: Term): Term = {
+        Term.Const(Constant.Unit)
+    }
+
+}
+
+object SIRTypeUplcDataGenerator extends PrimitiveSirTypeGenerator {
+
+    override def uplcToData(input: Term): Term = {
+        input
+    }
+
+    override def dataToUplc(input: Term): Term = {
+        input
     }
 
 }

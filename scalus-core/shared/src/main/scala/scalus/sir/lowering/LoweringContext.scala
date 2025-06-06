@@ -1,18 +1,18 @@
 package scalus.sir.lowering
 
 import scalus.sir.*
-import scalus.sir.lowering.typegens.SIRTypeUplcGenerator
+import scalus.sir.lowering.typegens.SirTypeUplcGenerator
 import scala.collection.mutable.Map as MutableMap
 
 class LoweringContext(
-    var zCombinatorNeeded: Boolean = false,
-    val decls: MutableMap[String, DataDecl] = MutableMap.empty,
-    var varIdSeq: Int = 0,
-    var scope: LocalScope = LocalScope.empty,
-    val plutusVersion: Int = 3,
-    val generateErrorTraces: Boolean = false,
-    val uplcGeneratorPolicy: SIRType => SIRTypeUplcGenerator = SIRTypeUplcGenerator(_),
-    val typeVars: Map[SIRType.TypeVar, SIRType] = Map.empty,
+                         var zCombinatorNeeded: Boolean = false,
+                         val decls: MutableMap[String, DataDecl] = MutableMap.empty,
+                         var varIdSeq: Int = 0,
+                         var scope: LocalScope = LocalScope.empty,
+                         val plutusVersion: Int = 3,
+                         val generateErrorTraces: Boolean = false,
+                         val uplcGeneratorPolicy: SIRType => SirTypeUplcGenerator = SirTypeUplcGenerator(_),
+                         val typeVars: Map[SIRType.TypeVar, SIRType] = Map.empty,
 ) {
 
     def uniqueVarName(prefix: String = "_v"): String = {
@@ -24,7 +24,7 @@ class LoweringContext(
         Lowering.lowerSIR(sir)(using this)
     }
 
-    def typeGenerator(sirType: SIRType): SIRTypeUplcGenerator = {
+    def typeGenerator(sirType: SIRType): SirTypeUplcGenerator = {
         uplcGeneratorPolicy(sirType)
     }
 

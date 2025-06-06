@@ -2,7 +2,7 @@ package scalus.sir.lowering
 
 import scalus.sir.*
 import scalus.sir.Recursivity.NonRec
-import scalus.sir.lowering.typegens.SIRTypeUplcGenerator
+import scalus.sir.lowering.typegens.SirTypeUplcGenerator
 import scalus.sir.lowering.LoweredValue.Builder.*
 import scalus.uplc.*
 
@@ -38,7 +38,7 @@ object Lowering {
                 }
                 lowerSIR(term)
             case constr @ SIR.Constr(name, decl, args, tp, anns) =>
-                SIRTypeUplcGenerator(decl.tp).genConstr(constr)
+                SirTypeUplcGenerator(tp).genConstr(constr)
             case sirMatch @ SIR.Match(scrutinee, cases, rhsType, anns) =>
                 val loweredScrutinee = lowerSIR(scrutinee)
                 lctx.typeGenerator(scrutinee.tp).genMatch(sirMatch, loweredScrutinee)
@@ -56,7 +56,7 @@ object Lowering {
                 StaticLoweredValue(
                   ev,
                   Term.Var(NamedDeBruijn(name)),
-                  SIRTypeUplcGenerator(tp).defaultRepresentation
+                  SirTypeUplcGenerator(tp).defaultRepresentation
                 )
             case sirLet @ SIR.Let(recursivity, bindings, body, anns) =>
                 lowerLet(sirLet)
@@ -71,7 +71,7 @@ object Lowering {
                 lowerApp(app)
             case sel @ SIR.Select(scrutinee, field, tp, anns) =>
                 val loweredScrutinee = lowerSIR(scrutinee)
-                SIRTypeUplcGenerator(scrutinee.tp).genSelect(sel, loweredScrutinee)
+                SirTypeUplcGenerator(scrutinee.tp).genSelect(sel, loweredScrutinee)
             case sirConst @ SIR.Const(const, tp, anns) =>
                 StaticLoweredValue(
                   sirConst,
@@ -118,7 +118,7 @@ object Lowering {
                 StaticLoweredValue(
                   sirBuiltin,
                   builtinTerms(bn),
-                  SIRTypeUplcGenerator(tp).defaultRepresentation
+                  SirTypeUplcGenerator(tp).defaultRepresentation
                 )
             case sirError @ SIR.Error(msg, anns, cause) =>
                 val term =
@@ -191,20 +191,15 @@ object Lowering {
                               id = lctx.uniqueVarName(name),
                               name = name,
                               sir = SIR.Var(name, rhs.tp, anns),
-                              representation = SIRTypeUplcGenerator(rhs.tp).defaultRepresentation
+                              representation = SirTypeUplcGenerator(rhs.tp).defaultRepresentation
                             )
                             val prevScope = lctx.scope
                             lctx.scope = lctx.scope.add(newVar)
                             val loweredRhs = lowerSIR(rhs)
                             val loweredBody = lowerSIR(body)
                             lctx.scope = prevScope
-                            val varsUsageCount = Lowering
-                                .filterAndCountVars(_ != newVar, loweredRhs, loweredBody)
 
-                            val cDominatedUplevelVars = varsUsageCount.filter(_._2 > 1).keySet
-                            val cUsedUplevelVars = varsUsageCount.keySet
-
-                            new LoweredValue {
+                            new ComplexLoweredValue(Set(newVar), loweredRhs, loweredBody) {
                                 override def sirType: SIRType = loweredBody.sirType
 
                                 override def pos: SIRPosition = sirLet.anns.pos
@@ -229,17 +224,6 @@ object Lowering {
 
                                 override def representation: LoweredValueRepresentation =
                                     loweredBody.representation
-
-                                override def dominatingUplevelVars: Set[IdentifiableLoweredValue] =
-                                    cDominatedUplevelVars
-
-                                override def usedUplevelVars: Set[IdentifiableLoweredValue] =
-                                    cUsedUplevelVars
-
-                                override def addDependent(value: IdentifiableLoweredValue): Unit = {
-                                    loweredRhs.addDependent(value)
-                                    loweredBody.addDependent(value)
-                                }
 
                             }
                         case Nil =>
@@ -354,7 +338,7 @@ object Lowering {
             }
 
             override def representation: LoweredValueRepresentation =
-                SIRTypeUplcGenerator(app.tp).defaultRepresentation
+                SirTypeUplcGenerator(app.tp).defaultRepresentation
 
             override def dominatingUplevelVars: Set[IdentifiableLoweredValue] = {
                 cDominatedUplevelVars

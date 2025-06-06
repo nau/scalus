@@ -7,7 +7,7 @@ import scalus.sir.lowering.ProductCaseClassRepresentation.{DataConstr, PackedDat
 import scalus.sir.lowering.SumCaseClassRepresentation.DataList
 import scalus.uplc.*
 
-class ProductCaseSirTypeGenerator extends SIRTypeUplcGenerator {
+object ProductCaseSirTypeGenerator extends SirTypeUplcGenerator {
 
     override def defaultRepresentation: LoweredValueRepresentation =
         ProductCaseClassRepresentation.DataList
@@ -43,7 +43,7 @@ class ProductCaseSirTypeGenerator extends SIRTypeUplcGenerator {
                 ???
             case (DataList, ScottEncoding) =>
                 ???
-            case (DataList, outRep @ ProductCaseClassRepresentation.OneElelmentWrapper(_)) =>
+            case (DataList, outRep @ ProductCaseClassRepresentation.OneElementWrapper(_)) =>
                 lvBuiltinApply(SIRBuiltins.headList, input, input.sirType, outRep, pos)
             case (PackedDataList, DataList) =>
                 lvBuiltinApply(
@@ -65,7 +65,7 @@ class ProductCaseSirTypeGenerator extends SIRTypeUplcGenerator {
                     .toRepresentation(ScottEncoding, pos)
             case (
                   PackedDataList,
-                  outputRep @ ProductCaseClassRepresentation.OneElelmentWrapper(_)
+                  outputRep @ ProductCaseClassRepresentation.OneElementWrapper(_)
                 ) =>
                 input
                     .toRepresentation(DataList, pos)
@@ -120,7 +120,7 @@ class ProductCaseSirTypeGenerator extends SIRTypeUplcGenerator {
                 ???
             case (ScottEncoding, ScottEncoding) =>
                 input
-            case (ProductCaseClassRepresentation.OneElelmentWrapper(_), DataList) =>
+            case (ProductCaseClassRepresentation.OneElementWrapper(_), DataList) =>
                 lvBuiltinApply2(
                   SIRBuiltins.mkCons,
                   input,
@@ -134,17 +134,17 @@ class ProductCaseSirTypeGenerator extends SIRTypeUplcGenerator {
                   DataList,
                   pos
                 )
-            case (ProductCaseClassRepresentation.OneElelmentWrapper(_), PackedDataList) =>
+            case (ProductCaseClassRepresentation.OneElementWrapper(_), PackedDataList) =>
                 input
                     .toRepresentation(DataList, pos)
                     .toRepresentation(PackedDataList, pos)
-            case (ProductCaseClassRepresentation.OneElelmentWrapper(_), DataConstr) =>
+            case (ProductCaseClassRepresentation.OneElementWrapper(_), DataConstr) =>
                 input
                     .toRepresentation(DataList, pos)
                     .toRepresentation(DataConstr, pos)
-            case (ProductCaseClassRepresentation.OneElelmentWrapper(_), UplcConstr) =>
+            case (ProductCaseClassRepresentation.OneElementWrapper(_), UplcConstr) =>
                 ???
-            case (ProductCaseClassRepresentation.OneElelmentWrapper(_), ScottEncoding) =>
+            case (ProductCaseClassRepresentation.OneElementWrapper(_), ScottEncoding) =>
                 ???
             case _ =>
                 throw LoweringException(
@@ -280,7 +280,7 @@ class ProductCaseSirTypeGenerator extends SIRTypeUplcGenerator {
     def genConstrDataConstr(
         constr: SIR.Constr,
         loweredArgs: Seq[LoweredValue],
-        argTypeGens: Seq[SIRTypeUplcGenerator],
+        argTypeGens: Seq[SirTypeUplcGenerator],
     )(using lctx: LoweringContext): LoweredValue = {
         val dataRepresentations = loweredArgs.zip(argTypeGens).map { case (arg, typeGen) =>
             arg.toRepresentation(typeGen.defaultDataRepresentation, constr.anns.pos)

@@ -1,6 +1,7 @@
 package scalus.sir.lowering
 
 import scalus.sir.*
+import scalus.sir.lowering.typegens.TypeNothingSirTypeGenerator
 
 /** representation, depends on the type of the value.
   */
@@ -66,7 +67,7 @@ object ProductCaseClassRepresentation {
 
     case object ScottEncoding extends ProductCaseClassRepresentation(false, false)
 
-    case class OneElelmentWrapper(representation: LoweredValueRepresentation)
+    case class OneElementWrapper(representation: LoweredValueRepresentation)
         extends ProductCaseClassRepresentation(
           representation.isPackedData,
           representation.isDataCentric
@@ -109,6 +110,12 @@ case object TypeVarDataRepresentation extends LoweredValueRepresentation {
     override def isDataCentric: Boolean = true
 }
 
+case object ErrorRepresentation extends LoweredValueRepresentation {
+    override def isPackedData: Boolean = false
+
+    override def isDataCentric: Boolean = false
+}
+
 object LoweredValueRepresentation {
 
     def constRepresentation(tp: SIRType)(using lc: LoweringContext): LoweredValueRepresentation = {
@@ -133,6 +140,7 @@ object LoweredValueRepresentation {
             case SIRType.FreeUnificator => TypeVarDataRepresentation
             case SIRType.TypeProxy(ref) =>
                 constRepresentation(ref)
+            case SIRType.TypeNothing => ErrorRepresentation
     }
 
 }

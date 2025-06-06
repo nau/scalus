@@ -458,6 +458,12 @@ object LoweredValue {
               lvr
             )
         }
+        
+        def lvDataNil(inPos: SIRPosition)(using
+            lctx: LoweringContext
+        ): LoweredValue = {
+            lvBuiltinApply0(SIRBuiltins.mkNilData, SIRType.Data, PrimitiveRepresentation.PackedData, inPos)
+        }
 
         def lvBuiltinApply2(
             fun: SIR.Builtin,

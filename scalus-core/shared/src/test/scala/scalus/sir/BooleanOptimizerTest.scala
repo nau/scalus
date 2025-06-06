@@ -16,16 +16,16 @@ class BooleanOptimizerTest extends AnyFunSuite:
     private def const(value: Boolean): SIR.Const =
         SIR.Const(Constant.Bool(value), SIRType.Boolean, emptyAnns)
 
-    private def not(expr: SIR): SIR.Not =
+    private def not(expr: AnnotatedSIR): SIR.Not =
         SIR.Not(expr, emptyAnns)
 
-    private def and(a: SIR, b: SIR): SIR.And =
+    private def and(a: AnnotatedSIR, b: AnnotatedSIR): SIR.And =
         SIR.And(a, b, emptyAnns)
 
-    private def or(a: SIR, b: SIR): SIR.Or =
+    private def or(a: AnnotatedSIR, b: AnnotatedSIR): SIR.Or =
         SIR.Or(a, b, emptyAnns)
 
-    private def ifThenElse(cond: SIR, t: SIR, f: SIR): SIR.IfThenElse =
+    private def ifThenElse(cond: AnnotatedSIR, t: AnnotatedSIR, f: AnnotatedSIR): SIR.IfThenElse =
         SIR.IfThenElse(cond, t, f, SIRType.Boolean, emptyAnns)
 
     // Mock variables for testing

@@ -8,7 +8,7 @@ import scalus.uplc.{DefaultFun, Term}
 /** Internal representation - Plutus List, element type should be data-compatibe List[E] when E is
   * data-compatible type is mapped to this type.
   */
-object SumDataListGenerator extends SIRTypeUplcGenerator {
+object SumDataListSirTypeGenerator extends SirTypeUplcGenerator {
 
     override def defaultRepresentation: LoweredValueRepresentation =
         SumCaseClassRepresentation.DataList

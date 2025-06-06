@@ -6,7 +6,7 @@ import scalus.sir.SIR.Pattern
 import scalus.sir.lowering.*
 import scalus.sir.lowering.LoweredValue.Builder.*
 
-object SumCaseSirTypeGenerator extends SIRTypeUplcGenerator {
+object SumCaseSirTypeGenerator extends SirTypeUplcGenerator {
 
     import scalus.sir.lowering.SumCaseClassRepresentation.*
 
@@ -80,9 +80,9 @@ object SumCaseSirTypeGenerator extends SIRTypeUplcGenerator {
                   loweredScrutinee,
                 )
             case DataList =>
-                SumDataListGenerator.genMatch(matchData, loweredScrutinee)
+                SumDataListSirTypeGenerator.genMatch(matchData, loweredScrutinee)
             case PackedDataList =>
-                SumDataListGenerator.genMatch(matchData, loweredScrutinee)
+                SumDataListSirTypeGenerator.genMatch(matchData, loweredScrutinee)
             case UplcConstr =>
                 genMatchUplcConstr(
                   matchData,

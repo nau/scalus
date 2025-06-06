@@ -210,12 +210,14 @@ class SimpleSirToUplcLoweringTest
             List(
               SIR.Case(
                 Pattern.Constr(nilConstr, Nil, Nil),
-                SIR.Const(Constant.Integer(1), SIRType.Integer, ae)
+                SIR.Const(Constant.Integer(1), SIRType.Integer, ae),
+                ae
               ),
               SIR.Case(
                 Pattern
                     .Constr(consConstr, List("h", "tl"), List(SIRType.FreeUnificator, listAnyType)),
-                SIR.Const(Constant.Integer(2), SIRType.Integer, ae)
+                SIR.Const(Constant.Integer(2), SIRType.Integer, ae),
+                ae
               )
             ),
             SIRType.Integer,
