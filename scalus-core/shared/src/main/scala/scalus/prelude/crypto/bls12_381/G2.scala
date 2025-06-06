@@ -15,21 +15,22 @@ object G2 {
       *
       * This is the point at infinity in the BLS12-381 G2 group
       */
-    val zero: BLS12_381_G2_Element = bls12_381_G2_uncompress(
+    val zero: BLS12_381_G2_Element = uncompress(
       hex"c00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000"
     )
 
-    val generator: BLS12_381_G2_Element = bls12_381_G2_uncompress(
-      ByteString.fromHex(
-        "93e02b6052719f607dacd3a088274f65596bd0d09920b61ab5da61bbdc7f5049334cf11213945d57e5ac7d055d042b7e024aa2b2f08f0a91260805272dc51051c6e47ad4fa403b02b4510b647ae3d1770bac0326a805bbefd48056c8c121bdb8"
-      )
+    /** The compressed generator of the G2 group of the BLS12-381 curve.
+      */
+    val generator: BLS12_381_G2_Element = uncompress(
+      hex"93e02b6052719f607dacd3a088274f65596bd0d09920b61ab5da61bbdc7f5049334cf11213945d57e5ac7d055d042b7e024aa2b2f08f0a91260805272dc51051c6e47ad4fa403b02b4510b647ae3d1770bac0326a805bbefd48056c8c121bdb8"
     )
 
-    def uncompress(bs: ByteString): BLS12_381_G2_Element = {
+    /** Uncompresses a point in the G2 group from its compressed form. */
+    inline def uncompress(bs: ByteString): BLS12_381_G2_Element = {
         bls12_381_G2_uncompress(bs)
     }
 
-    /** Hashes a byte string to a point in the G2 group.
+    /** Hashes a [[ByteString]] to a point in the G2 group.
       *
       * @param bs
       *   The byte string to hash.
@@ -38,12 +39,14 @@ object G2 {
       * @return
       *   A point in the G2 group.
       */
-    def hashToGroup(bs: ByteString, dst: ByteString): BLS12_381_G2_Element = {
+    inline def hashToGroup(bs: ByteString, dst: ByteString): BLS12_381_G2_Element = {
         bls12_381_G2_hashToGroup(bs, dst)
     }
 
     extension (self: BLS12_381_G2_Element) {
-        infix inline def equal(rhs: BLS12_381_G2_Element): Boolean = bls12_381_G2_equal(self, rhs)
+
+        /** Checks if two points in the G2 group are equal */
+        inline def equal(rhs: BLS12_381_G2_Element): Boolean = bls12_381_G2_equal(self, rhs)
 
         /** Adds two points in the G2 group */
         infix inline def +(rhs: BLS12_381_G2_Element): BLS12_381_G2_Element =
@@ -67,6 +70,11 @@ object G2 {
             bls12_381_G2_neg(self)
         }
 
+        /** Compresses the point in the G2 group to its compressed form.
+          *
+          * @return
+          *   A [[ByteString]] representing the compressed point.
+          */
         inline def compress: ByteString = bls12_381_G2_compress(self)
     }
 }

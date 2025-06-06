@@ -15,21 +15,22 @@ object G1 {
       *
       * This is the point at infinity in the BLS12-381 G1 group
       */
-    val zero: BLS12_381_G1_Element = bls12_381_G1_uncompress(
+    val zero: BLS12_381_G1_Element = uncompress(
       hex"c00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000"
     )
 
-    val generator: BLS12_381_G1_Element = bls12_381_G1_uncompress(
-      ByteString.fromHex(
-        "97f1d3a73197d7942695638c4fa9ac0fc3688c4f9774b905a14e3a3f171bac586c55e83ff97a1aeffb3af00adb22c6bb"
-      )
+    /** The compressed generator of the G1 group of the BLS12-381 curve.
+      */
+    val generator: BLS12_381_G1_Element = uncompress(
+      hex"97f1d3a73197d7942695638c4fa9ac0fc3688c4f9774b905a14e3a3f171bac586c55e83ff97a1aeffb3af00adb22c6bb"
     )
 
-    def uncompress(bs: ByteString): BLS12_381_G1_Element = {
+    /** Uncompresses a point in the G1 group from its compressed form. */
+    inline def uncompress(bs: ByteString): BLS12_381_G1_Element = {
         bls12_381_G1_uncompress(bs)
     }
 
-    /** Hashes a byte string to a point in the G1 group.
+    /** Hashes a [[ByteString]] to a point in the G1 group.
       *
       * @param bs
       *   The byte string to hash.
@@ -38,12 +39,14 @@ object G1 {
       * @return
       *   A point in the G1 group.
       */
-    def hashToGroup(bs: ByteString, dst: ByteString): BLS12_381_G1_Element = {
+    inline def hashToGroup(bs: ByteString, dst: ByteString): BLS12_381_G1_Element = {
         bls12_381_G1_hashToGroup(bs, dst)
     }
 
     extension (self: BLS12_381_G1_Element) {
-        infix inline def equal(rhs: BLS12_381_G1_Element): Boolean = bls12_381_G1_equal(self, rhs)
+
+        /** Checks if two points in the G1 group are equal */
+        inline def equal(rhs: BLS12_381_G1_Element): Boolean = bls12_381_G1_equal(self, rhs)
 
         /** Adds two points in the G1 group */
         infix inline def +(rhs: BLS12_381_G1_Element): BLS12_381_G1_Element =
@@ -67,6 +70,11 @@ object G1 {
             bls12_381_G1_neg(self)
         }
 
+        /** Compresses the point in the G1 group to its compressed form.
+          *
+          * @return
+          *   A [[ByteString]] representing the compressed point.
+          */
         inline def compress: ByteString = bls12_381_G1_compress(self)
     }
 }

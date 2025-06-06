@@ -4,7 +4,7 @@ import scalus.*
 import scalus.Compiler.compile
 import scalus.builtin.given
 import scalus.builtin.ByteString
-import scalus.builtin.ByteString.given
+import scalus.builtin.ByteString.hex
 import scalus.builtin.Data
 import scalus.builtin.Data.toData
 import scalus.examples.Groth16.*
