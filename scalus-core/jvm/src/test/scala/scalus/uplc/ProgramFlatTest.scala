@@ -13,4 +13,13 @@ class ProgramFlatTest extends AnyFunSuite with ScalaCheckPropertyChecks with Arb
             assert(Utils.bytesToHex(bytes) == Utils.bytesToHex(p.flatEncoded))
         }
     }
+
+    test("Program flat decode(encode(p)) is identical to p") {
+        forAll { (p: Program) =>
+            // deBruijn first to get the indexes right
+            val program = p.deBruijnedProgram.toProgram
+            val decoded = Program.fromFlatEncoded(p.flatEncoded)
+            assert(program alphaEq decoded)
+        }
+    }
 }

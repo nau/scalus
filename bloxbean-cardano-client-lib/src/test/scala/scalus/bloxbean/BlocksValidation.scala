@@ -1,6 +1,6 @@
 package scalus.bloxbean
 
-import co.nstant.in.cbor.{CborException, model as cbor}
+import co.nstant.in.cbor.{model as cbor, CborException}
 import com.bloxbean.cardano.client.backend.api.DefaultUtxoSupplier
 import com.bloxbean.cardano.client.backend.blockfrost.common.Constants
 import com.bloxbean.cardano.client.backend.blockfrost.service.BFBackendService
