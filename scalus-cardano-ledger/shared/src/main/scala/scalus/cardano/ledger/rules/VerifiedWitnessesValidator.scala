@@ -1,29 +1,58 @@
-package scalus.cardano.ledger.rules
+package scalus.cardano.ledger
+package rules
 
-import scalus.builtin.{PlatformSpecific, given}
+import scalus.builtin.{ByteString, PlatformSpecific, given}
 
 // It's Shelley.validateVerifiedWits in cardano-ledge
 object VerifiedWitnessesValidator extends STS.Validator {
     override def validate(context: Context, state: State, event: Event): Result = {
         val vkeyWitnesses = event.witnessSet.vkeyWitnesses.getOrElse(Set.empty)
-
-        val invalidSignatures = vkeyWitnesses.view.zipWithIndex
-            .filter { case (vkeyWitness, index) =>
-                !summon[PlatformSpecific].verifyEd25519Signature(
-                  vkeyWitness.vkey,
-                  event.id,
-                  vkeyWitness.signature
+        findFirstInvalidWitnessWithIndex(
+          vkeyWitnesses.view.map { vkeyWitness =>
+              (vkeyWitness.vkey, vkeyWitness.signature)
+          },
+          event.id
+        ) match
+            case None =>
+            case Some((key, signature, index)) =>
+                return failure(
+                  IllegalArgumentException(
+                    s"Invalid vkeyWitness at index $index for transactionId ${event.id}: " +
+                        s"key=$key, " +
+                        s"signature=$signature"
+                  )
                 )
-            }
-            .map(_._2)
-            .toSeq
 
-        if invalidSignatures.isEmpty then success
-        else
-            failure(
-              IllegalArgumentException(
-                s"Invalid signatures for vkeyWitnesses with indexes: $invalidSignatures"
-              )
-            )
+        val bootstrapWitnesses = event.witnessSet.bootstrapWitnesses.getOrElse(Set.empty)
+        findFirstInvalidWitnessWithIndex(
+          bootstrapWitnesses.view.map { bootstrapWitness =>
+              (bootstrapWitness.publicKey, bootstrapWitness.signature)
+          },
+          event.id
+        ) match
+            case None =>
+            case Some((key, signature, index)) =>
+                return failure(
+                  IllegalArgumentException(
+                    s"Invalid bootstrapWitness at index $index for transactionId ${event.id}: " +
+                        s"key=$key, " +
+                        s"signature=$signature"
+                  )
+                )
+
+        success
+    }
+
+    private[this] def findFirstInvalidWitnessWithIndex(
+        keysAndSignatures: scala.collection.View[(ByteString, ByteString)],
+        transactionId: TransactionHash
+    ): Option[(ByteString, ByteString, Int)] = {
+        keysAndSignatures.zipWithIndex
+            .map { case ((key, signature), index) =>
+                (key, signature, index)
+            }
+            .find { case (key, signature, index) =>
+                !summon[PlatformSpecific].verifyEd25519Signature(key, transactionId, signature)
+            }
     }
 }
