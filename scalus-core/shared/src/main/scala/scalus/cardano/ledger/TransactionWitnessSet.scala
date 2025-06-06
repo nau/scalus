@@ -7,59 +7,29 @@ import scalus.ledger.api.Timelock
 /** Represents the witness set for a transaction in Cardano */
 case class TransactionWitnessSet(
     /** VKey witnesses */
-    vkeyWitnesses: Option[Set[VKeyWitness]] = None,
+    vkeyWitnesses: Set[VKeyWitness] = Set.empty,
 
     /** Native scripts */
-    nativeScripts: Option[Set[Timelock]] = None,
+    nativeScripts: Set[Timelock] = Set.empty,
 
     /** Bootstrap witnesses (for Byron addresses) */
-    bootstrapWitnesses: Option[Set[BootstrapWitness]] = None,
+    bootstrapWitnesses: Set[BootstrapWitness] = Set.empty,
 
     /** Plutus V1 scripts */
-    plutusV1Scripts: Option[Set[ByteString]] = None,
+    plutusV1Scripts: Set[ByteString] = Set.empty,
 
     /** Plutus data values */
-    plutusData: Option[Set[Data]] = None,
+    plutusData: Set[Data] = Set.empty,
 
     /** Redeemers */
     redeemers: Option[Redeemers] = None,
 
     /** Plutus V2 scripts */
-    plutusV2Scripts: Option[Set[ByteString]] = None,
+    plutusV2Scripts: Set[ByteString] = Set.empty,
 
     /** Plutus V3 scripts */
-    plutusV3Scripts: Option[Set[ByteString]] = None
+    plutusV3Scripts: Set[ByteString] = Set.empty
 ):
-    /** Validate that all sets are non-empty if present */
-    require(
-      vkeyWitnesses.forall(_.nonEmpty),
-      "If vkey witnesses are present, they must be non-empty"
-    )
-    require(
-      nativeScripts.forall(_.nonEmpty),
-      "If native scripts are present, they must be non-empty"
-    )
-    require(
-      bootstrapWitnesses.forall(_.nonEmpty),
-      "If bootstrap witnesses are present, they must be non-empty"
-    )
-    require(
-      plutusV1Scripts.forall(_.nonEmpty),
-      "If Plutus V1 scripts are present, they must be non-empty"
-    )
-    require(
-      plutusData.forall(_.nonEmpty),
-      "If Plutus data values are present, they must be non-empty"
-    )
-    require(
-      plutusV2Scripts.forall(_.nonEmpty),
-      "If Plutus V2 scripts are present, they must be non-empty"
-    )
-    require(
-      plutusV3Scripts.forall(_.nonEmpty),
-      "If Plutus V3 scripts are present, they must be non-empty"
-    )
-
     /** Check if the witness set is empty */
     def isEmpty: Boolean =
         vkeyWitnesses.isEmpty &&
@@ -81,46 +51,41 @@ object TransactionWitnessSet:
             // Count the number of fields to write
             var mapSize = 0
 
-            if value.vkeyWitnesses.isDefined then mapSize += 1
-            if value.nativeScripts.isDefined then mapSize += 1
-            if value.bootstrapWitnesses.isDefined then mapSize += 1
-            if value.plutusV1Scripts.isDefined then mapSize += 1
-            if value.plutusData.isDefined then mapSize += 1
+            if value.vkeyWitnesses.nonEmpty then mapSize += 1
+            if value.nativeScripts.nonEmpty then mapSize += 1
+            if value.bootstrapWitnesses.nonEmpty then mapSize += 1
+            if value.plutusV1Scripts.nonEmpty then mapSize += 1
+            if value.plutusData.nonEmpty then mapSize += 1
             if value.redeemers.isDefined then mapSize += 1
-            if value.plutusV2Scripts.isDefined then mapSize += 1
-            if value.plutusV3Scripts.isDefined then mapSize += 1
+            if value.plutusV2Scripts.nonEmpty then mapSize += 1
+            if value.plutusV3Scripts.nonEmpty then mapSize += 1
 
             w.writeMapHeader(mapSize)
 
             // VKey witnesses (key 0)
-            value.vkeyWitnesses.foreach { witnesses =>
+            if value.vkeyWitnesses.nonEmpty then
                 w.writeInt(0)
-                writeSet(w, witnesses)
-            }
+                writeSet(w, value.vkeyWitnesses)
 
             // Native scripts (key 1)
-            value.nativeScripts.foreach { scripts =>
+            if value.nativeScripts.nonEmpty then
                 w.writeInt(1)
-                writeSet(w, scripts)
-            }
+                writeSet(w, value.nativeScripts)
 
             // Bootstrap witnesses (key 2)
-            value.bootstrapWitnesses.foreach { witnesses =>
+            if value.bootstrapWitnesses.nonEmpty then
                 w.writeInt(2)
-                writeSet(w, witnesses)
-            }
+                writeSet(w, value.bootstrapWitnesses)
 
             // Plutus V1 scripts (key 3)
-            value.plutusV1Scripts.foreach { scripts =>
+            if value.plutusV1Scripts.nonEmpty then
                 w.writeInt(3)
-                writeSet(w, scripts)
-            }
+                writeSet(w, value.plutusV1Scripts)
 
             // Plutus data (key 4)
-            value.plutusData.foreach { data =>
+            if value.plutusData.nonEmpty then
                 w.writeInt(4)
-                writeSet(w, data)
-            }
+                writeSet(w, value.plutusData)
 
             // Redeemers (key 5)
             value.redeemers.foreach { redeemers =>
@@ -129,16 +94,14 @@ object TransactionWitnessSet:
             }
 
             // Plutus V2 scripts (key 6)
-            value.plutusV2Scripts.foreach { scripts =>
+            if value.plutusV2Scripts.nonEmpty then
                 w.writeInt(6)
-                writeSet(w, scripts)
-            }
+                writeSet(w, value.plutusV2Scripts)
 
             // Plutus V3 scripts (key 7)
-            value.plutusV3Scripts.foreach { scripts =>
+            if value.plutusV3Scripts.nonEmpty then
                 w.writeInt(7)
-                writeSet(w, scripts)
-            }
+                writeSet(w, value.plutusV3Scripts)
 
             w
 
@@ -155,14 +118,14 @@ object TransactionWitnessSet:
         def read(r: Reader): TransactionWitnessSet =
             val mapSize = r.readMapHeader()
 
-            var vkeyWitnesses: Option[Set[VKeyWitness]] = None
-            var nativeScripts: Option[Set[Timelock]] = None
-            var bootstrapWitnesses: Option[Set[BootstrapWitness]] = None
-            var plutusV1Scripts: Option[Set[ByteString]] = None
-            var plutusData: Option[Set[Data]] = None
+            var vkeyWitnesses = Set.empty[VKeyWitness]
+            var nativeScripts = Set.empty[Timelock]
+            var bootstrapWitnesses = Set.empty[BootstrapWitness]
+            var plutusV1Scripts = Set.empty[ByteString]
+            var plutusData = Set.empty[Data]
             var redeemers: Option[Redeemers] = None
-            var plutusV2Scripts: Option[Set[ByteString]] = None
-            var plutusV3Scripts: Option[Set[ByteString]] = None
+            var plutusV2Scripts = Set.empty[ByteString]
+            var plutusV3Scripts = Set.empty[ByteString]
 
             for _ <- 0L until mapSize do
                 val key = r.readInt()
@@ -194,11 +157,6 @@ object TransactionWitnessSet:
 
                     case _ => r.skipDataItem() // Skip unknown fields
 
-            plutusData match
-                case Some(data) if data.isEmpty =>
-                    println("Empty plutus data")
-                case _ =>
-
             TransactionWitnessSet(
               vkeyWitnesses = vkeyWitnesses,
               nativeScripts = nativeScripts,
@@ -211,7 +169,7 @@ object TransactionWitnessSet:
             )
 
     /** Helper to read a Set from CBOR */
-    private def readSet[A](r: Reader)(using decoder: Decoder[A]): Option[Set[A]] =
+    private def readSet[A](r: Reader)(using decoder: Decoder[A]): Set[A] =
         // Check for indefinite array tag (258)
         if r.dataItem() == DataItem.Tag then
             val tag = r.readTag()
@@ -219,7 +177,5 @@ object TransactionWitnessSet:
                 r.validationFailure(s"Expected tag 258 for definite Set, got $tag")
             val set = r.read[Set[A]]()
             if set.isEmpty then r.validationFailure("Set must be non-empty")
-            Some(set)
-        else
-            val set = r.read[Set[A]]()
-            if set.isEmpty then None else Some(set)
+            set
+        else r.read[Set[A]]()

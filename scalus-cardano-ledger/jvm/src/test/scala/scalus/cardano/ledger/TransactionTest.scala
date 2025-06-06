@@ -10,7 +10,7 @@ import scalus.builtin.{ByteString, PlatformSpecific, given}
 import java.math.BigInteger
 import java.nio.file.{Files, Path, Paths}
 
-@Ignore
+//@Ignore
 class TransactionTest extends AnyFunSuite {
     private val addr =
         "addr1qxwg0u9fpl8dac9rkramkcgzerjsfdlqgkw0q8hy5vwk8tzk5pgcmdpe5jeh92guy4mke4zdmagv228nucldzxv95clqe35r3m"

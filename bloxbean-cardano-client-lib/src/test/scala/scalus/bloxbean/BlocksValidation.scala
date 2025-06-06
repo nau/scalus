@@ -257,11 +257,11 @@ object BlocksValidation:
                 val block = Cbor.decode(blockBytes).to[BlockFile].value.block
                 for
                     (txb, w) <- block.transactionBodies.zip(block.transactionWitnessSets)
-                    native <- w.nativeScripts.getOrElse(Set.empty)
+                    native <- w.nativeScripts
                 do
                     val serialized = ByteString.fromArray(0 +: Cbor.encode(native).toByteArray)
                     val scriptHash = JVMPlatformSpecific.blake2b_224(serialized)
-                    val keyHashes = w.vkeyWitnesses.getOrElse(Set.empty).map { w =>
+                    val keyHashes = w.vkeyWitnesses.map { w =>
                         val key = w.vkey
                         AddrKeyHash(summon[PlatformSpecific].blake2b_224(key))
                     }

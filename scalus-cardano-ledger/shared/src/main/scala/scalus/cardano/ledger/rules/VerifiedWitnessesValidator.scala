@@ -6,7 +6,7 @@ import scalus.builtin.{ByteString, PlatformSpecific, given}
 // It's Shelley.validateVerifiedWits in cardano-ledge
 object VerifiedWitnessesValidator extends STS.Validator {
     override def validate(context: Context, state: State, event: Event): Result = {
-        val vkeyWitnesses = event.witnessSet.vkeyWitnesses.getOrElse(Set.empty)
+        val vkeyWitnesses = event.witnessSet.vkeyWitnesses
         findFirstInvalidWitnessWithIndex(
           vkeyWitnesses.view.map { vkeyWitness =>
               (vkeyWitness.vkey, vkeyWitness.signature)
