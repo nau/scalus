@@ -3,6 +3,7 @@ package scalus
 import scalus.macros.Macros
 import scalus.sir.{SIR, SIRType}
 import scalus.builtin.Data
+import scalus.uplc.Term
 
 import scala.annotation.Annotation
 
@@ -36,7 +37,11 @@ object Compiler:
      */
     def compileType[T]: SIRType = throwCompilerPluginMissingException()
 
-    def throwCompilerPluginMissingException(): Nothing =
+    inline def compileToUplc(inline code: Any): Term = ${
+        Macros.compileToUplcImpl('code)
+    }
+
+    private def throwCompilerPluginMissingException(): Nothing =
         throw new RuntimeException(
           "This method call is handled by the Scalus compiler plugin. " +
               "If you see this message at runtime, the compiler plugin is not enabled." +

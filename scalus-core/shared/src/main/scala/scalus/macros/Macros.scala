@@ -1,15 +1,11 @@
 package scalus.macros
 
-import scalus.builtin
+import scalus.{builtin, Compiler}
 import scalus.builtin.Builtins
 import scalus.builtin.Data
-import scalus.uplc.BuiltinRuntime
-import scalus.uplc.BuiltinsMeaning
-import scalus.uplc.DefaultFun
-import scalus.uplc.ExprBuilder
+import scalus.uplc.{BuiltinRuntime, BuiltinsMeaning, Constant, DefaultFun, Expr as Exp, ExprBuilder, Term as Trm}
 import scalus.uplc.ExprBuilder.*
-import scalus.uplc.Expr as Exp
-import scalus.uplc.Term as Trm
+import scalus.uplc.eval.PlutusVM
 
 import java.nio.file.Files
 import java.nio.file.Paths
@@ -343,5 +339,10 @@ object Macros {
         '{ (fun: DefaultFun) =>
             ${ Match('{ fun.ordinal() }.asTerm, cases).asExprOf[BuiltinRuntime] }
         }
+    }
+
+    def compileToUplcImpl(code: Expr[Any])(using Quotes): Expr[Trm] = '{
+        import scalus.*
+        Compiler.compile($code).toUplc(true)
     }
 }
