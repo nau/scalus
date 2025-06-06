@@ -1,25 +1,25 @@
 package scalus.prelude.crypto.bls12_381
 
 import org.scalatest.funsuite.AnyFunSuiteLike
-import scalus.builtin.{Builtins, ByteString, PlatformSpecific, given}
 import scalus.builtin.Builtins.*
-import scalus.builtin.PlatformSpecific.{bls12_381_G1_compressed_generator, bls12_381_G1_compressed_zero}
-import scalus.prelude.crypto.bls12_381.G1.{*, given}
+import scalus.builtin.PlatformSpecific.{bls12_381_G2_compressed_generator, bls12_381_G2_compressed_zero}
+import scalus.builtin.{Builtins, ByteString, given}
 import scalus.prelude.*
+import scalus.prelude.crypto.bls12_381.G2.{*, given}
 import scalus.uplc.eval.PlutusVM
 import scalus.uplc.{Constant, Term}
 
-class BLS12_381_G1Test extends AnyFunSuiteLike {
+class BLS12_381_G2Test extends AnyFunSuiteLike {
 
     private given PlutusVM = PlutusVM.makePlutusV3VM()
 
     test("zero") {
-        assert(bls12_381_G1_equal(zero, bls12_381_G1_uncompress(bls12_381_G1_compressed_zero)))
+        assert(bls12_381_G2_equal(zero, bls12_381_G2_uncompress(bls12_381_G2_compressed_zero)))
     }
 
     test("generator") {
         assert(
-          bls12_381_G1_equal(generator, bls12_381_G1_uncompress(bls12_381_G1_compressed_generator))
+          bls12_381_G2_equal(generator, bls12_381_G2_uncompress(bls12_381_G2_compressed_generator))
         )
     }
 
@@ -33,13 +33,13 @@ class BLS12_381_G1Test extends AnyFunSuiteLike {
 
     test("add") {
         assertEval {
-            generator + generator === Builtins.bls12_381_G1_add(generator, generator)
+            generator + generator === Builtins.bls12_381_G2_add(generator, generator)
         }
     }
 
     test("scalar multiplication") {
         assertEval {
-            generator.scale(2) === bls12_381_G1_scalarMul(2, generator)
+            generator.scale(2) === bls12_381_G2_scalarMul(2, generator)
         }
     }
 
@@ -59,7 +59,7 @@ class BLS12_381_G1Test extends AnyFunSuiteLike {
         assertEval {
             val input = ByteString.fromHex("deadbeef")
             val dst = ByteString.fromHex("123456")
-            val hashed = bls12_381_G1_hashToGroup(input, dst)
+            val hashed = bls12_381_G2_hashToGroup(input, dst)
             // Ensure the result is not the zero element
             (hashed !== zero) && hashToGroup(input, dst) === hashed
         }

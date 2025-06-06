@@ -3,10 +3,13 @@ import scalus.Compile
 import scalus.builtin.BLS12_381_G1_Element
 import scalus.builtin.Builtins.*
 import scalus.builtin.ByteString.hex
-import scalus.builtin.{ByteString, PlatformSpecific}
+import scalus.builtin.ByteString
+import scalus.prelude.Eq
 
 @Compile
 object G1 {
+
+    given Eq[BLS12_381_G1_Element] = bls12_381_G1_equal
 
     /** BLS12 G1 zero element.
       *
@@ -22,8 +25,48 @@ object G1 {
       )
     )
 
-    extension (self: BLS12_381_G1_Element) {
-        infix def equal(rhs: BLS12_381_G1_Element): Boolean = bls12_381_G1_equal(self, rhs)
+    def uncompress(bs: ByteString): BLS12_381_G1_Element = {
+        bls12_381_G1_uncompress(bs)
+    }
 
+    /** Hashes a byte string to a point in the G1 group.
+      *
+      * @param bs
+      *   The byte string to hash.
+      * @param dst
+      *   The domain separation tag, which should be a short byte string (up to 255 bytes).
+      * @return
+      *   A point in the G1 group.
+      */
+    def hashToGroup(bs: ByteString, dst: ByteString): BLS12_381_G1_Element = {
+        bls12_381_G1_hashToGroup(bs, dst)
+    }
+
+    extension (self: BLS12_381_G1_Element) {
+        infix inline def equal(rhs: BLS12_381_G1_Element): Boolean = bls12_381_G1_equal(self, rhs)
+
+        /** Adds two points in the G1 group */
+        infix inline def +(rhs: BLS12_381_G1_Element): BLS12_381_G1_Element =
+            bls12_381_G1_add(self, rhs)
+
+        /** Exponentiates a point in the G1 group with a `scalar`. This operation is equivalent to
+          * the repeated addition of the point with itself `e` times.
+          *
+          * @param scalar
+          *   The scalar to multiply the point by.
+          * @return
+          *   A new point in the G1 group, which is the result of multiplying the original point by
+          *   the scalar.
+          */
+        inline def scale(scalar: BigInt): BLS12_381_G1_Element = {
+            bls12_381_G1_scalarMul(scalar, self)
+        }
+
+        /** Negates the point in the G1 group */
+        inline def unary_- : BLS12_381_G1_Element = {
+            bls12_381_G1_neg(self)
+        }
+
+        inline def compress: ByteString = bls12_381_G1_compress(self)
     }
 }

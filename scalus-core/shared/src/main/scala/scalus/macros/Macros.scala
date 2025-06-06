@@ -1,11 +1,10 @@
 package scalus.macros
 
-import scalus.{builtin, Compiler}
+import scalus.builtin
 import scalus.builtin.Builtins
 import scalus.builtin.Data
-import scalus.uplc.{BuiltinRuntime, BuiltinsMeaning, Constant, DefaultFun, Expr as Exp, ExprBuilder, Term as Trm}
+import scalus.uplc.{BuiltinRuntime, BuiltinsMeaning, DefaultFun, Expr as Exp, ExprBuilder, Term as Trm}
 import scalus.uplc.ExprBuilder.*
-import scalus.uplc.eval.PlutusVM
 
 import java.nio.file.Files
 import java.nio.file.Paths
