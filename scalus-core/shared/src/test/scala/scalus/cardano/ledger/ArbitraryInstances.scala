@@ -47,7 +47,12 @@ trait ArbitraryInstances extends uplc.ArbitraryInstances {
     def genSetOfSizeFromArbitrary[A: Arbitrary](
         from: Int,
         to: Int
-    ): Gen[immutable.Set[A]] = genVectorOfSizeFromArbitrary(from, to).map(_.toSet)
+    ): Gen[immutable.Set[A]] = {
+        for
+            size <- Gen.choose(from, to)
+            result <- Gen.containerOfN[Set, A](size, arbitrary[A])
+        yield result
+    }
 
     given [HF: HashSize, Purpose]: Arbitrary[Hash[HF, Purpose]] = Arbitrary {
         val size = summon[HashSize[HF]].size
@@ -442,7 +447,7 @@ trait ArbitraryInstances extends uplc.ArbitraryInstances {
     }
 
     given Arbitrary[ProposalProcedure] = autoDerived
-    given Arbitrary[ProposalProcedures] = Arbitrary(genSetOfSizeFromArbitrary(1, 3))
+    given Arbitrary[Set[ProposalProcedure]] = Arbitrary(genSetOfSizeFromArbitrary(0, 3))
     given Arbitrary[Vote] = autoDerived
     // FIXME: autoDerived for Voter is not working correctly
 //    given Arbitrary[Voter] = autoDerived
@@ -534,7 +539,7 @@ trait ArbitraryInstances extends uplc.ArbitraryInstances {
             outputs <- genVectorOfSizeFromArbitrary[TransactionOutput](0, 4)
             fee <- arbitrary[Coin]
             ttl <- Gen.option(Gen.choose(0L, Long.MaxValue))
-            certificates <- Gen.option(genSetOfSizeFromArbitrary[Certificate](1, 4))
+            certificates <- genSetOfSizeFromArbitrary[Certificate](0, 4)
             withdrawals <- Gen.option(
               genMapOfSizeFromArbitrary[RewardAccount, Coin](1, 4).map(Withdrawals.apply)
             )
@@ -542,14 +547,14 @@ trait ArbitraryInstances extends uplc.ArbitraryInstances {
             validityStartSlot <- Gen.option(Gen.choose(0L, Long.MaxValue))
             mint <- arbitrary[Option[Mint]]
             scriptDataHash <- arbitrary[Option[ScriptDataHash]]
-            collateralInputs <- Gen.option(genSetOfSizeFromArbitrary[TransactionInput](1, 4))
-            requiredSigners <- Gen.option(genSetOfSizeFromArbitrary[AddrKeyHash](1, 4))
+            collateralInputs <- genSetOfSizeFromArbitrary[TransactionInput](0, 4)
+            requiredSigners <- genSetOfSizeFromArbitrary[AddrKeyHash](0, 4)
             networkId <- Gen.option(Gen.oneOf(Gen.const(0), Gen.const(1)))
             collateralReturnOutput <- arbitrary[Option[TransactionOutput]]
             totalCollateral <- arbitrary[Option[Coin]]
-            referenceInputs <- Gen.option(genSetOfSizeFromArbitrary[TransactionInput](1, 4))
+            referenceInputs <- genSetOfSizeFromArbitrary[TransactionInput](0, 4)
             votingProcedures <- arbitrary[Option[VotingProcedures]]
-            proposalProcedures <- Gen.option(genSetOfSizeFromArbitrary[ProposalProcedure](1, 4))
+            proposalProcedures <- genSetOfSizeFromArbitrary[ProposalProcedure](0, 4)
             currentTreasuryValue <- arbitrary[Option[Coin]]
             donation <-
                 if currentTreasuryValue.isDefined then

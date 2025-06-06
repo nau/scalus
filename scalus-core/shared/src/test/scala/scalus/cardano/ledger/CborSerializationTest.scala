@@ -178,9 +178,6 @@ class CborSerializationTest extends AnyFunSuite, ScalaCheckPropertyChecks, Arbit
     test(s"ProposalProcedure should serialize and deserialize correctly"):
         testSerializationRoundTrip[ProposalProcedure]()
 
-    test(s"ProposalProcedures should serialize and deserialize correctly"):
-        testSerializationRoundTrip[ProposalProcedures]()
-
     test(s"Relay should serialize and deserialize correctly"):
         testSerializationRoundTrip[Relay]()
 

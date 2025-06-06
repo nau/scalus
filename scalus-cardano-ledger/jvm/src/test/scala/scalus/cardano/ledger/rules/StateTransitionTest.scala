@@ -58,7 +58,7 @@ class StateTransitionTest extends AnyFunSuite, ArbitraryInstances {
               body = KeepRaw(
                 tx.body.value.copy(
                   inputs = genSetOfSizeFromArbitrary[TransactionInput](1, 4).sample.get,
-                  referenceInputs = None
+                  referenceInputs = Set.empty
                 )
               )
             )
@@ -78,7 +78,7 @@ class StateTransitionTest extends AnyFunSuite, ArbitraryInstances {
             val inputs = genSetOfSizeFromArbitrary[TransactionInput](1, 4).sample.get
             val tx = randomValidTransaction
             tx.copy(
-              body = KeepRaw(tx.body.value.copy(inputs = inputs, referenceInputs = Some(inputs)))
+              body = KeepRaw(tx.body.value.copy(inputs = inputs, referenceInputs = inputs))
             )
         }
 
@@ -87,7 +87,7 @@ class StateTransitionTest extends AnyFunSuite, ArbitraryInstances {
         assert(
           transaction.body.value.inputs.nonEmpty && transaction.body.value.referenceInputs.nonEmpty
         )
-        assert(transaction.body.value.inputs == transaction.body.value.referenceInputs.get)
+        assert(transaction.body.value.inputs == transaction.body.value.referenceInputs)
     }
 
     test("AllInputsMustBeInUtxoValidator rule success") {
@@ -98,18 +98,16 @@ class StateTransitionTest extends AnyFunSuite, ArbitraryInstances {
               body = KeepRaw(
                 tx.body.value.copy(
                   inputs = genSetOfSizeFromArbitrary[TransactionInput](1, 4).sample.get,
-                  collateralInputs =
-                      Some(genSetOfSizeFromArbitrary[TransactionInput](1, 4).sample.get),
-                  referenceInputs =
-                      Some(genSetOfSizeFromArbitrary[TransactionInput](1, 4).sample.get)
+                  collateralInputs = genSetOfSizeFromArbitrary[TransactionInput](1, 4).sample.get,
+                  referenceInputs = genSetOfSizeFromArbitrary[TransactionInput](1, 4).sample.get
                 )
               )
             )
         }
         val state = State(
           utxo = transaction.body.value.inputs.view
-              .concat(transaction.body.value.collateralInputs.get)
-              .concat(transaction.body.value.referenceInputs.get)
+              .concat(transaction.body.value.collateralInputs)
+              .concat(transaction.body.value.referenceInputs)
               .map(_ -> Arbitrary.arbitrary[TransactionOutput].sample.get)
               .toMap
         )
@@ -117,8 +115,8 @@ class StateTransitionTest extends AnyFunSuite, ArbitraryInstances {
         val result = AllInputsMustBeInUtxoValidator.validate(context, state, transaction)
         assert(result.isRight)
         assert(transaction.body.value.inputs.forall(state.utxo.contains))
-        assert(transaction.body.value.collateralInputs.get.forall(state.utxo.contains))
-        assert(transaction.body.value.referenceInputs.get.forall(state.utxo.contains))
+        assert(transaction.body.value.collateralInputs.forall(state.utxo.contains))
+        assert(transaction.body.value.referenceInputs.forall(state.utxo.contains))
     }
 
     test("AllInputsMustBeInUtxoValidator rule failure") {
@@ -130,10 +128,8 @@ class StateTransitionTest extends AnyFunSuite, ArbitraryInstances {
               body = KeepRaw(
                 tx.body.value.copy(
                   inputs = genSetOfSizeFromArbitrary[TransactionInput](1, 4).sample.get,
-                  collateralInputs =
-                      Some(genSetOfSizeFromArbitrary[TransactionInput](1, 4).sample.get),
-                  referenceInputs =
-                      Some(genSetOfSizeFromArbitrary[TransactionInput](1, 4).sample.get)
+                  collateralInputs = genSetOfSizeFromArbitrary[TransactionInput](1, 4).sample.get,
+                  referenceInputs = genSetOfSizeFromArbitrary[TransactionInput](1, 4).sample.get
                 )
               )
             )
@@ -142,8 +138,8 @@ class StateTransitionTest extends AnyFunSuite, ArbitraryInstances {
         val result = AllInputsMustBeInUtxoValidator.validate(context, state, transaction)
         assert(result.isLeft)
         assert(!transaction.body.value.inputs.forall(state.utxo.contains))
-        assert(!transaction.body.value.collateralInputs.get.forall(state.utxo.contains))
-        assert(!transaction.body.value.referenceInputs.get.forall(state.utxo.contains))
+        assert(!transaction.body.value.collateralInputs.forall(state.utxo.contains))
+        assert(!transaction.body.value.referenceInputs.forall(state.utxo.contains))
     }
 
     test("EqualValidator.InputsAmountEqualsSumOfOutputsAmountAndFeeAmount rule success") {
@@ -321,15 +317,14 @@ class StateTransitionTest extends AnyFunSuite, ArbitraryInstances {
                     )
                   ),
                   fee = Coin(Gen.choose(0L, 1000000L).sample.get),
-                  collateralInputs =
-                      Some(genSetOfSizeFromArbitrary[TransactionInput](1, 4).sample.get),
-                  referenceInputs = None
+                  collateralInputs = genSetOfSizeFromArbitrary[TransactionInput](1, 4).sample.get,
+                  referenceInputs = Set.empty
                 )
               )
             )
         }
         val state = State(
-          utxo = transaction.body.value.collateralInputs.get.view
+          utxo = transaction.body.value.collateralInputs.view
               .map(_ -> Arbitrary.arbitrary[TransactionOutput].sample.get)
               .concat(
                 Seq(
@@ -357,7 +352,7 @@ class StateTransitionTest extends AnyFunSuite, ArbitraryInstances {
         assert(transaction.body.value.inputs.nonEmpty)
         assert(transaction.body.value.referenceInputs.isEmpty)
         assert(transaction.body.value.inputs.forall(state.utxo.contains))
-        assert(transaction.body.value.collateralInputs.get.forall(state.utxo.contains))
+        assert(transaction.body.value.collateralInputs.forall(state.utxo.contains))
         assert(context.fee == transaction.body.value.fee)
         assert(state.utxo.nonEmpty)
         assert(!transaction.body.value.inputs.forall(result.toOption.get.utxo.contains))

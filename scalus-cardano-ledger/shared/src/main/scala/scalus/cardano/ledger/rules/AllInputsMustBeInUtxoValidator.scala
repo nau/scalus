@@ -10,8 +10,8 @@ object AllInputsMustBeInUtxoValidator extends STS.Validator {
     override def validate(context: Context, state: State, event: Event): Result = boundary {
         val body = event.body.value
         for input <- body.inputs.view
-                .concat(body.collateralInputs.getOrElse(Set.empty))
-                .concat(body.referenceInputs.getOrElse(Set.empty))
+                .concat(body.collateralInputs)
+                .concat(body.referenceInputs)
         do
             if !state.utxo.contains(input) then
                 break(failure(IllegalArgumentException(s"Unknown input $input")))

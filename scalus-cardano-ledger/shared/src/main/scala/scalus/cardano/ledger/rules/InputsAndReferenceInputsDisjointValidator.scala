@@ -5,7 +5,7 @@ package scalus.cardano.ledger.rules
 object InputsAndReferenceInputsDisjointValidator extends STS.Validator {
     override def validate(context: Context, state: State, event: Event): Result = {
         val inputs = event.body.value.inputs
-        val referenceInputs = event.body.value.referenceInputs.getOrElse(Set.empty)
+        val referenceInputs = event.body.value.referenceInputs
         val intersection = referenceInputs.view.filter(inputs.contains)
 
         if intersection.nonEmpty then

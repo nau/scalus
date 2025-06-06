@@ -23,7 +23,7 @@ object VerifiedWitnessesValidator extends STS.Validator {
                   )
                 )
 
-        val bootstrapWitnesses = event.witnessSet.bootstrapWitnesses.getOrElse(Set.empty)
+        val bootstrapWitnesses = event.witnessSet.bootstrapWitnesses
         findFirstInvalidWitnessWithIndex(
           bootstrapWitnesses.view.map { bootstrapWitness =>
               (bootstrapWitness.publicKey, bootstrapWitness.signature)

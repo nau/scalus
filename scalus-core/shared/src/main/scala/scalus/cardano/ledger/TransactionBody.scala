@@ -2,9 +2,7 @@ package scalus.cardano.ledger
 
 import io.bullet.borer.*
 
-import scala.collection.immutable.Set
-
-type ProposalProcedures = Set[ProposalProcedure]
+import scala.collection.immutable.{ArraySeq, Set}
 
 case class TransactionBody(
     /** Transaction inputs to spend */
@@ -20,7 +18,7 @@ case class TransactionBody(
     ttl: Option[Long] = None,
 
     /** Certificates for delegation, stake operations, etc. */
-    certificates: Option[Set[Certificate]] = None,
+    certificates: Set[Certificate] = Set.empty,
 
     /** Withdrawals from reward accounts */
     withdrawals: Option[Withdrawals] = None,
@@ -38,10 +36,10 @@ case class TransactionBody(
     scriptDataHash: Option[ScriptDataHash] = None,
 
     /** Collateral inputs */
-    collateralInputs: Option[Set[TransactionInput]] = None,
+    collateralInputs: Set[TransactionInput] = Set.empty,
 
     /** Required signers */
-    requiredSigners: Option[Set[AddrKeyHash]] = None,
+    requiredSigners: Set[AddrKeyHash] = Set.empty,
 
     /** Network ID */
     networkId: Option[Int] = None,
@@ -53,13 +51,13 @@ case class TransactionBody(
     totalCollateral: Option[Coin] = None,
 
     /** Reference inputs */
-    referenceInputs: Option[Set[TransactionInput]] = None,
+    referenceInputs: Set[TransactionInput] = Set.empty,
 
     /** Voting procedures */
     votingProcedures: Option[VotingProcedures] = None,
 
     /** Proposal procedures */
-    proposalProcedures: Option[ProposalProcedures] = None,
+    proposalProcedures: Set[ProposalProcedure] = Set.empty,
 
     /** Transaction deposit */
     currentTreasuryValue: Option[Coin] = None,
@@ -67,40 +65,10 @@ case class TransactionBody(
     /** Transaction deposit return */
     donation: Option[Coin] = None
 ):
-    /** Validate optional collateral inputs */
-    require(
-      collateralInputs.forall(_.nonEmpty),
-      "If collateral inputs are present, they must be non-empty"
-    )
-
-    /** Validate optional required signers */
-    require(
-      requiredSigners.forall(_.nonEmpty),
-      "If required signers are present, they must be non-empty"
-    )
-
-    /** Validate optional reference inputs */
-    require(
-      referenceInputs.forall(_.nonEmpty),
-      "If reference inputs are present, they must be non-empty"
-    )
-
-    /** Validate optional certificates */
-    require(
-      certificates.forall(_.nonEmpty),
-      "If certificates are present, they must be non-empty"
-    )
-
     /** Validate optional withdrawals */
     require(
       withdrawals.forall(_.withdrawals.nonEmpty),
       "If withdrawals are present, they must be non-empty"
-    )
-
-    /** Validate optional proposal procedures */
-    require(
-      proposalProcedures.forall(_.nonEmpty),
-      "If proposal procedures are present, they must be non-empty"
     )
 
     /** Validate network ID if present */
@@ -124,20 +92,20 @@ object TransactionBody:
             var mapSize = 3 // inputs, outputs, fee are required
 
             if value.ttl.isDefined then mapSize += 1
-            if value.certificates.isDefined then mapSize += 1
+            if value.certificates.nonEmpty then mapSize += 1
             if value.withdrawals.isDefined then mapSize += 1
             if value.auxiliaryDataHash.isDefined then mapSize += 1
             if value.validityStartSlot.isDefined then mapSize += 1
             if value.mint.isDefined then mapSize += 1
             if value.scriptDataHash.isDefined then mapSize += 1
-            if value.collateralInputs.isDefined then mapSize += 1
-            if value.requiredSigners.isDefined then mapSize += 1
+            if value.collateralInputs.nonEmpty then mapSize += 1
+            if value.requiredSigners.nonEmpty then mapSize += 1
             if value.networkId.isDefined then mapSize += 1
             if value.collateralReturnOutput.isDefined then mapSize += 1
             if value.totalCollateral.isDefined then mapSize += 1
-            if value.referenceInputs.isDefined then mapSize += 1
+            if value.referenceInputs.nonEmpty then mapSize += 1
             if value.votingProcedures.isDefined then mapSize += 1
-            if value.proposalProcedures.isDefined then mapSize += 1
+            if value.proposalProcedures.nonEmpty then mapSize += 1
             if value.currentTreasuryValue.isDefined then mapSize += 1
             if value.donation.isDefined then mapSize += 1
 
@@ -166,10 +134,9 @@ object TransactionBody:
             }
 
             // Certificates (key 4)
-            value.certificates.foreach { certs =>
+            if value.certificates.nonEmpty then
                 w.writeInt(4)
-                writeSet(w, certs)
-            }
+                writeSet(w, value.certificates)
 
             // Withdrawals (key 5)
             value.withdrawals.foreach { withdrawals =>
@@ -202,16 +169,14 @@ object TransactionBody:
             }
 
             // Collateral inputs (key 13)
-            value.collateralInputs.foreach { inputs =>
+            if value.collateralInputs.nonEmpty then
                 w.writeInt(13)
-                writeSet(w, inputs)
-            }
+                writeSet(w, value.collateralInputs)
 
-            // Required signers (key 14)
-            value.requiredSigners.foreach { signers =>
+            if value.requiredSigners.nonEmpty then
+                // Required signers (key 14)
                 w.writeInt(14)
-                writeSet(w, signers)
-            }
+                writeSet(w, value.requiredSigners)
 
             // Network ID (key 15)
             value.networkId.foreach { id =>
@@ -232,10 +197,9 @@ object TransactionBody:
             }
 
             // Reference inputs (key 18)
-            value.referenceInputs.foreach { inputs =>
+            if value.referenceInputs.nonEmpty then
                 w.writeInt(18)
-                writeSet(w, inputs)
-            }
+                writeSet(w, value.referenceInputs)
 
             // Voting procedures (key 19)
             value.votingProcedures.foreach { procedures =>
@@ -244,10 +208,9 @@ object TransactionBody:
             }
 
             // Proposal procedures (key 20)
-            value.proposalProcedures.foreach { procedures =>
+            if value.proposalProcedures.nonEmpty then
                 w.writeInt(20)
-                w.write(procedures)
-            }
+                writeSet(w, value.proposalProcedures)
 
             // Deposit (key 21)
             value.currentTreasuryValue.foreach { coin =>
@@ -265,7 +228,6 @@ object TransactionBody:
 
     /** Helper to write a Set as CBOR */
     private def writeSet[A](w: Writer, set: Set[A])(using encoder: Encoder[A]): Writer =
-        // Use indefinite array
         w.writeTag(Tag.Other(258))
         w.writeArrayHeader(set.size)
         set.foreach(encoder.write(w, _))
@@ -276,24 +238,24 @@ object TransactionBody:
         def read(r: Reader): TransactionBody =
             val mapSize = r.readMapHeader()
 
-            var inputs: Option[Set[TransactionInput]] = None
-            var outputs: Option[IndexedSeq[TransactionOutput]] = None
+            var inputs = Set.empty[TransactionInput]
+            var outputs = IndexedSeq.empty[TransactionOutput]
             var fee: Option[Coin] = None
             var ttl: Option[Long] = None
-            var certificates: Option[Set[Certificate]] = None
+            var certificates = Set.empty[Certificate]
             var withdrawals: Option[Withdrawals] = None
             var auxiliaryDataHash: Option[AuxiliaryDataHash] = None
             var validityStartSlot: Option[Long] = None
             var mint: Option[Mint] = None
             var scriptDataHash: Option[ScriptDataHash] = None
-            var collateralInputs: Option[Set[TransactionInput]] = None
-            var requiredSigners: Option[Set[AddrKeyHash]] = None
+            var collateralInputs = Set.empty[TransactionInput]
+            var requiredSigners = Set.empty[AddrKeyHash]
             var networkId: Option[Int] = None
             var collateralReturnOutput: Option[TransactionOutput] = None
             var totalCollateral: Option[Coin] = None
-            var referenceInputs: Option[Set[TransactionInput]] = None
+            var referenceInputs = Set.empty[TransactionInput]
             var votingProcedures: Option[VotingProcedures] = None
-            var proposalProcedures: Option[ProposalProcedures] = None
+            var proposalProcedures = Set.empty[ProposalProcedure]
             var currentTreasuryValue: Option[Coin] = None
             var donation: Option[Coin] = None
 
@@ -306,7 +268,7 @@ object TransactionBody:
                         inputs = readSet[TransactionInput](r)
 
                     case 1 => // Outputs
-                        outputs = Some(r.read[IndexedSeq[TransactionOutput]]())
+                        outputs = r.read[ArraySeq[TransactionOutput]]()
 
                     case 2 => // Fee
                         fee = Some(r.read[Coin]())
@@ -382,8 +344,8 @@ object TransactionBody:
                 )
 
             TransactionBody(
-              inputs = inputs.get,
-              outputs = outputs.get,
+              inputs = inputs,
+              outputs = outputs,
               fee = fee.get,
               ttl = ttl,
               certificates = certificates,
@@ -405,15 +367,11 @@ object TransactionBody:
             )
 
     /** Helper to read a Set from CBOR */
-    private def readSet[A](r: Reader)(using decoder: Decoder[A]): Option[Set[A]] =
+    private def readSet[A](r: Reader)(using decoder: Decoder[A]): Set[A] =
         // Check for indefinite array tag (258)
         if r.dataItem() == DataItem.Tag then
             val tag = r.readTag()
             if tag.code != 258 then
                 r.validationFailure(s"Expected tag 258 for definite Set, got $tag")
-            val set = r.read[Set[A]]()
-//            if set.isEmpty then r.validationFailure("Set must be non-empty")
-            Some(set)
-        else
-            val set = r.read[Set[A]]()
-            if set.isEmpty then None else Some(set)
+            r.read[Set[A]]()
+        else r.read[Set[A]]()
