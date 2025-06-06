@@ -343,7 +343,7 @@ trait ArbitraryInstances extends uplc.ArbitraryInstances {
                       immutable.Map.empty[TransactionMetadatum, TransactionMetadatum]
                     )
                   ),
-                  Gen.const(TransactionMetadatum.List(immutable.Seq.empty[TransactionMetadatum])),
+                  Gen.const(TransactionMetadatum.List(immutable.IndexedSeq.empty)),
                   genTransactionMetadatumInt,
                   genTransactionMetadatumBytes,
                   genTransactionMetadatumText
@@ -366,7 +366,10 @@ trait ArbitraryInstances extends uplc.ArbitraryInstances {
                   2 -> (
                     for
                         size <- Gen.choose(0, 2)
-                        result <- Gen.listOfN(size, Gen.lzy(genTransactionMetadatum(reducedDepth)))
+                        result <- Gen.containerOfN[IndexedSeq, TransactionMetadatum](
+                          size,
+                          Gen.lzy(genTransactionMetadatum(reducedDepth))
+                        )
                     yield TransactionMetadatum.List(result)
                   ),
                   1 -> genTransactionMetadatumInt,
@@ -607,7 +610,10 @@ trait ArbitraryInstances extends uplc.ArbitraryInstances {
             invalidTransactions <-
                 for
                     size <- Gen.choose(0, 4)
-                    result <- Gen.listOfN(size, Gen.choose(0, transactionBodiesSize - 1))
+                    result <- Gen.containerOfN[IndexedSeq, Int](
+                      size,
+                      Gen.choose(0, transactionBodiesSize - 1)
+                    )
                 yield result
         yield Block(
           header,

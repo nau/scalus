@@ -17,7 +17,7 @@ enum Certificate:
         margin: UnitInterval,
         rewardAccount: RewardAccount,
         poolOwners: Set[AddrKeyHash],
-        relays: Seq[Relay],
+        relays: IndexedSeq[Relay],
         poolMetadata: Option[PoolMetadata]
     )
     case PoolRetirement(poolKeyHash: PoolKeyHash, epochNo: Long)
@@ -99,7 +99,7 @@ object Certificate:
                 writeSet(w, poolOwners)
 
                 // Write relays as an array
-                w.write(relays)
+                w.writeIndexedSeq(relays)
 
                 // Write pool metadata or null
                 w.write(poolMetadata)
@@ -220,8 +220,8 @@ object Certificate:
                     val cost = r.read[Coin]()
                     val margin = r.read[UnitInterval]()
                     val rewardAccount = r.read[RewardAccount]()
-                    val poolOwners = readSet[AddrKeyHash](r).get
-                    val relays = r.read[Seq[Relay]]()
+                    val poolOwners = readSet[AddrKeyHash](r)
+                    val relays = r.read[IndexedSeq[Relay]]()
                     val poolMetadata = r.read[Option[PoolMetadata]]()
 
                     Certificate.PoolRegistration(
@@ -300,14 +300,11 @@ object Certificate:
                     r.validationFailure(s"Unknown certificate type: $tag")
 
     /** Helper to read a Set from CBOR */
-    private def readSet[A](r: Reader)(using decoder: Decoder[A]): Option[Set[A]] =
+    private def readSet[A](r: Reader)(using decoder: Decoder[A]): Set[A] =
         // Check for indefinite array tag (258)
         if r.dataItem() == DataItem.Tag then
             val tag = r.readTag()
             if tag.code != 258 then
                 r.validationFailure(s"Expected tag 258 for definite Set, got $tag")
-            val set = r.read[Set[A]]()
-            Some(set)
-        else
-            val set = r.read[Set[A]]()
-            if set.isEmpty then None else Some(set)
+            r.read[Set[A]]()
+        else r.read[Set[A]]()

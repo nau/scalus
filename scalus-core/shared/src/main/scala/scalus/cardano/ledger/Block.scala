@@ -14,16 +14,16 @@ case class Block(
     header: BlockHeader,
 
     /** Transaction bodies in this block */
-    transactionBodies: Seq[TransactionBody],
+    transactionBodies: IndexedSeq[TransactionBody],
 
     /** Transaction witness sets for each transaction */
-    transactionWitnessSets: Seq[TransactionWitnessSet],
+    transactionWitnessSets: IndexedSeq[TransactionWitnessSet],
 
     /** Auxiliary data associated with transactions by index */
     auxiliaryDataSet: Map[Int, AuxiliaryData],
 
     /** List of invalid transaction indices */
-    invalidTransactions: Seq[Int]
+    invalidTransactions: IndexedSeq[Int]
 ) derives Codec:
     require(
       transactionBodies.size == transactionWitnessSets.size,

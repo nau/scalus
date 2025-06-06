@@ -57,7 +57,7 @@ sealed trait Redeemers:
 
 object Redeemers:
     /** Array-based representation (legacy format) */
-    case class Array(redeemers: Seq[Redeemer]) extends Redeemers:
+    case class Array(redeemers: IndexedSeq[Redeemer]) extends Redeemers:
         require(redeemers.nonEmpty, "Must have at least one redeemer")
 
     /** Map-based representation (new format) Maps (tag, index) pairs to (data, exUnits) pairs
@@ -70,7 +70,7 @@ object Redeemers:
         def write(w: Writer, value: Redeemers): Writer = value match
             case Redeemers.Array(redeemers) =>
                 // Write as array of redeemers
-                w.write(redeemers)
+                w.writeIndexedSeq(redeemers)
 
             case Redeemers.Map(redeemers) =>
                 // Write as map from keys to data+exunits
@@ -93,7 +93,7 @@ object Redeemers:
         def read(r: Reader): Redeemers =
             r.dataItem() match
                 case DataItem.ArrayHeader | DataItem.ArrayStart =>
-                    Redeemers.Array(r.read[Seq[Redeemer]]())
+                    Redeemers.Array(r.read[IndexedSeq[Redeemer]]())
                 case DataItem.MapHeader | DataItem.MapStart =>
                     // Map format
                     val redeemers = r.read[immutable.Map[(RedeemerTag, Int), (Data, ExUnits)]]()

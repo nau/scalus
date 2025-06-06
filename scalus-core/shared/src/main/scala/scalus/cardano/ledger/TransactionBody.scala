@@ -327,22 +327,9 @@ object TransactionBody:
                         donation = Some(r.read[Coin]())
 
                     case _ =>
-                        println(s"Skipping unknown field with key $key")
                         r.skipElement()
                 i += 1
             end while
-            // Validate required fields
-            if inputs.isEmpty then
-                r.validationFailure("Missing required field 'inputs' (key 0) in TransactionBody")
-            if fee.isEmpty then
-                r.validationFailure("Missing required field 'fee' (key 2) in TransactionBody")
-
-            // Validate currentTreasuryValue and currentTreasuryValue return consistency
-            if currentTreasuryValue.isDefined != donation.isDefined then
-                r.validationFailure(
-                  "Deposit and currentTreasuryValue return must both be defined or both be undefined"
-                )
-
             TransactionBody(
               inputs = inputs,
               outputs = outputs,

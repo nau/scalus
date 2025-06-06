@@ -22,7 +22,7 @@ object TransactionMetadatum:
         extends TransactionMetadatum
 
     /** List metadata */
-    case class List(items: Seq[TransactionMetadatum]) extends TransactionMetadatum
+    case class List(items: IndexedSeq[TransactionMetadatum]) extends TransactionMetadatum
 
     /** Integer metadata */
     case class Int(value: Long) extends TransactionMetadatum
@@ -50,9 +50,7 @@ object TransactionMetadatum:
                 w
 
             case TransactionMetadatum.List(items) =>
-                w.writeArrayHeader(items.size)
-                items.foreach(item => write(w, item))
-                w
+                w.writeIndexedSeq(items)
 
             case TransactionMetadatum.Int(value) =>
                 w.writeLong(value)
@@ -83,7 +81,7 @@ object TransactionMetadatum:
                     TransactionMetadatum.Map(entries)
 
                 case DI.ArrayHeader | DI.ArrayStart =>
-                    val items = r.read[Seq[TransactionMetadatum]]()
+                    val items = r.read[IndexedSeq[TransactionMetadatum]]()
                     TransactionMetadatum.List(items)
 
                 case DI.Int | DI.Long | DI.OverLong =>
@@ -116,16 +114,16 @@ enum AuxiliaryData:
     /** Shelley-MA era combined metadata and scripts */
     case MetadataWithScripts(
         metadata: Map[TransactionMetadatumLabel, TransactionMetadatum],
-        scripts: Seq[Timelock]
+        scripts: IndexedSeq[Timelock]
     )
 
     /** Alonzo-era and later metadata format with optional components */
     case AlonzoFormat(
         metadata: Option[Map[TransactionMetadatumLabel, TransactionMetadatum]] = None,
-        nativeScripts: Option[Seq[Timelock]] = None,
-        plutusV1Scripts: Option[Seq[ByteString]] = None,
-        plutusV2Scripts: Option[Seq[ByteString]] = None,
-        plutusV3Scripts: Option[Seq[ByteString]] = None
+        nativeScripts: IndexedSeq[Timelock] = IndexedSeq.empty,
+        plutusV1Scripts: IndexedSeq[ByteString] = IndexedSeq.empty,
+        plutusV2Scripts: IndexedSeq[ByteString] = IndexedSeq.empty,
+        plutusV3Scripts: IndexedSeq[ByteString] = IndexedSeq.empty
     )
 
 object AuxiliaryData:
@@ -156,10 +154,10 @@ object AuxiliaryData:
                 // Calculate map size
                 var mapSize = 0
                 if metadata.isDefined then mapSize += 1
-                if nativeScripts.isDefined then mapSize += 1
-                if plutusV1Scripts.isDefined then mapSize += 1
-                if plutusV2Scripts.isDefined then mapSize += 1
-                if plutusV3Scripts.isDefined then mapSize += 1
+                if nativeScripts.nonEmpty then mapSize += 1
+                if plutusV1Scripts.nonEmpty then mapSize += 1
+                if plutusV2Scripts.nonEmpty then mapSize += 1
+                if plutusV3Scripts.nonEmpty then mapSize += 1
 
                 // Write the tag 259 first
                 w.writeTag(Tag.Other(259))
@@ -174,32 +172,24 @@ object AuxiliaryData:
                 }
 
                 // Native scripts (key 1)
-                nativeScripts.foreach { scripts =>
+                if nativeScripts.nonEmpty then
                     w.writeInt(1)
-                    w.writeArrayHeader(scripts.size)
-                    scripts.foreach(script => w.write(script))
-                }
+                    w.writeIndexedSeq(nativeScripts)
 
                 // Plutus V1 scripts (key 2)
-                plutusV1Scripts.foreach { scripts =>
+                if plutusV1Scripts.nonEmpty then
                     w.writeInt(2)
-                    w.writeArrayHeader(scripts.size)
-                    scripts.foreach(script => w.writeBytes(script.bytes))
-                }
+                    w.writeIndexedSeq(plutusV1Scripts)
 
                 // Plutus V2 scripts (key 3)
-                plutusV2Scripts.foreach { scripts =>
+                if plutusV2Scripts.nonEmpty then
                     w.writeInt(3)
-                    w.writeArrayHeader(scripts.size)
-                    scripts.foreach(script => w.writeBytes(script.bytes))
-                }
+                    w.writeIndexedSeq(plutusV2Scripts)
 
                 // Plutus V3 scripts (key 4)
-                plutusV3Scripts.foreach { scripts =>
+                if plutusV3Scripts.nonEmpty then
                     w.writeInt(4)
-                    w.writeArrayHeader(scripts.size)
-                    scripts.foreach(script => w.writeBytes(script.bytes))
-                }
+                    w.writeIndexedSeq(plutusV3Scripts)
 
                 w
 
@@ -215,10 +205,10 @@ object AuxiliaryData:
                     val size = r.readMapHeader()
                     var metadata: Option[Map[TransactionMetadatumLabel, TransactionMetadatum]] =
                         None
-                    var nativeScripts: Option[Seq[Timelock]] = None
-                    var plutusV1Scripts: Option[Seq[ByteString]] = None
-                    var plutusV2Scripts: Option[Seq[ByteString]] = None
-                    var plutusV3Scripts: Option[Seq[ByteString]] = None
+                    var nativeScripts = IndexedSeq.empty[Timelock]
+                    var plutusV1Scripts = IndexedSeq.empty[ByteString]
+                    var plutusV2Scripts = IndexedSeq.empty[ByteString]
+                    var plutusV3Scripts = IndexedSeq.empty[ByteString]
 
                     for _ <- 0L until size do
                         val key = r.readInt()
@@ -227,16 +217,16 @@ object AuxiliaryData:
                                 metadata = Some(r.read[scalus.cardano.ledger.Metadata]())
 
                             case 1 => // Native scripts
-                                nativeScripts = Some(r.read[Seq[Timelock]]())
+                                nativeScripts = r.read[IndexedSeq[Timelock]]()
 
                             case 2 => // Plutus V1 scripts
-                                plutusV1Scripts = Some(r.read[Seq[ByteString]]())
+                                plutusV1Scripts = r.read[IndexedSeq[ByteString]]()
 
                             case 3 => // Plutus V2 scripts
-                                plutusV2Scripts = Some(r.read[Seq[ByteString]]())
+                                plutusV2Scripts = r.read[IndexedSeq[ByteString]]()
 
                             case 4 => // Plutus V3 scripts
-                                plutusV3Scripts = Some(r.read[Seq[ByteString]]())
+                                plutusV3Scripts = r.read[IndexedSeq[ByteString]]()
 
                             case _ => r.skipDataItem() // Skip unknown fields
 
@@ -262,7 +252,7 @@ object AuxiliaryData:
 
                     val metadata = r.read[scalus.cardano.ledger.Metadata]()
 
-                    val scripts = r.read[Seq[Timelock]]()
+                    val scripts = r.read[IndexedSeq[Timelock]]()
                     AuxiliaryData.MetadataWithScripts(metadata, scripts)
 
                 case di =>
