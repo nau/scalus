@@ -704,8 +704,6 @@ private[builtin] abstract class AbstractBuiltins(using ps: PlatformSpecific):
     def findFirstSetBit(byteString: ByteString): Int =
         BitwiseLogicalOperations.findFirstSetBit(byteString)
 
-    def bls12_381_scalar_period: BigInt = PlatformSpecific.bls12_381_scalar_period
-
     def bls12_381_G1_equal(p1: BLS12_381_G1_Element, p2: BLS12_381_G1_Element): Boolean =
         ps.bls12_381_G1_equal(p1, p2)
 
@@ -725,13 +723,6 @@ private[builtin] abstract class AbstractBuiltins(using ps: PlatformSpecific):
 
     def bls12_381_G1_hashToGroup(bs: ByteString, dst: ByteString): BLS12_381_G1_Element =
         ps.bls12_381_G1_hashToGroup(bs, dst)
-
-    /** The compressed form of the point at infinity in G1, 48 bytes long.
-      */
-    def bls12_381_G1_compressed_zero: ByteString = PlatformSpecific.bls12_381_G1_compressed_zero
-
-    def bls12_381_G1_compressed_generator: ByteString =
-        PlatformSpecific.bls12_381_G1_compressed_generator
 
     def bls12_381_G2_equal(p1: BLS12_381_G2_Element, p2: BLS12_381_G2_Element): Boolean =
         ps.bls12_381_G2_equal(p1, p2)

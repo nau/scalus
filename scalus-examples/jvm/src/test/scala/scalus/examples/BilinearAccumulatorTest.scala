@@ -7,14 +7,10 @@ import scalus.examples.BilinearAccumulator.checkMembership
 import scalus.examples.BilinearAccumulator.checkNonMembership
 import scalus.examples.BilinearAccumulator.getFinalPoly
 import scalus.prelude.List
-import supranational.blst.P1
 
 import scala.language.implicitConversions
 
 class BilinearAccumulatorTest extends BaseValidatorTest {
-
-    private given Conversion[ByteString, P1] with
-        override def apply(x: ByteString): P1 = ???
 
     test("get final poly") {
         assert(getFinalPoly(List(2, 3)) == List(BigInt(6), 5, 1))

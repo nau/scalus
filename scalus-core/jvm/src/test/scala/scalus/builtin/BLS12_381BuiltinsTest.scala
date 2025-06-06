@@ -2,13 +2,16 @@ package scalus.builtin
 
 import org.scalatest.funsuite.AnyFunSuite
 import scalus.builtin.Builtins.*
+import scalus.builtin.PlatformSpecific.bls12_381_G1_compressed_zero
+import scalus.builtin.PlatformSpecific.bls12_381_G2_compressed_zero
+import scalus.builtin.PlatformSpecific.bls12_381_G1_compressed_generator
+import scalus.builtin.PlatformSpecific.bls12_381_G2_compressed_generator
 import scalus.builtin.ByteString.given
 
 import scala.language.implicitConversions
 
 // TODO: move to shared when BLS12-381 builtins on JS are implemented
 class BLS12_381BuiltinsTest extends AnyFunSuite {
-
     test("uncompress zero G1") {
         assert(
           bls12_381_G1_uncompress(
