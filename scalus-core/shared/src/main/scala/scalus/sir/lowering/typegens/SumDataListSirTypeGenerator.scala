@@ -28,7 +28,7 @@ object SumDataListSirTypeGenerator extends SirTypeUplcGenerator {
         ) {
             override def termInternal(gctx: TermGenerationContext): Term = {
                 genTranslateTermRepresentation(
-                  input.termWithNeddedVars(gctx),
+                  input.termWithNeededVars(gctx),
                   input.representation,
                   outputRepresentation,
                   this.pos
@@ -95,8 +95,8 @@ object SumDataListSirTypeGenerator extends SirTypeUplcGenerator {
                     override def pos: SIRPosition = constr.anns.pos
 
                     override def termInternal(gctx: TermGenerationContext): Term = {
-                        val headTerm = headDataRepr.termWithNeddedVars(gctx)
-                        val tailTerm = tailDataRepr.termWithNeddedVars(gctx)
+                        val headTerm = headDataRepr.termWithNeededVars(gctx)
+                        val tailTerm = tailDataRepr.termWithNeededVars(gctx)
                         DefaultFun.MkCons.tpf $ headTerm $ tailTerm
                     }
 
@@ -136,7 +136,7 @@ object SumDataListSirTypeGenerator extends SirTypeUplcGenerator {
                     override def pos: SIRPosition = sel.anns.pos
 
                     override def termInternal(gctx: TermGenerationContext): Term = {
-                        val listTerm = scrutineeDataRepr.termWithNeddedVars(gctx)
+                        val listTerm = scrutineeDataRepr.termWithNeededVars(gctx)
                         DefaultFun.HeadList.tpf $ listTerm
                     }
 
@@ -152,7 +152,7 @@ object SumDataListSirTypeGenerator extends SirTypeUplcGenerator {
                     override def pos: SIRPosition = sel.anns.pos
 
                     override def termInternal(gctx: TermGenerationContext): Term = {
-                        val listTerm = scrutineeDataRepr.termWithNeddedVars(gctx)
+                        val listTerm = scrutineeDataRepr.termWithNeededVars(gctx)
                         DefaultFun.TailList.tpf $ listTerm
                     }
 
@@ -168,7 +168,7 @@ object SumDataListSirTypeGenerator extends SirTypeUplcGenerator {
                     override def pos: SIRPosition = sel.anns.pos
 
                     override def termInternal(gctx: TermGenerationContext): Term = {
-                        val listTerm = scrutineeDataRepr.termWithNeddedVars(gctx)
+                        val listTerm = scrutineeDataRepr.termWithNeededVars(gctx)
                         DefaultFun.NullList.tpf $ listTerm
                     }
 
@@ -284,7 +284,7 @@ object SumDataListSirTypeGenerator extends SirTypeUplcGenerator {
                 override def pos: SIRPosition = matchData.anns.pos
 
                 override def termInternal(gctx: TermGenerationContext): Term =
-                    DefaultFun.HeadList.tpf $ listInput.termWithNeddedVars(gctx)
+                    DefaultFun.HeadList.tpf $ listInput.termWithNeededVars(gctx)
 
                 override def representation: LoweredValueRepresentation =
                     lctx.typeGenerator(elementType).defaultDataRepresentation
@@ -309,7 +309,7 @@ object SumDataListSirTypeGenerator extends SirTypeUplcGenerator {
                 override def pos: SIRPosition = matchData.anns.pos
 
                 override def termInternal(gctx: TermGenerationContext): Term =
-                    DefaultFun.TailList.tpf $ listInput.termWithNeddedVars(gctx)
+                    DefaultFun.TailList.tpf $ listInput.termWithNeededVars(gctx)
 
                 override def representation: LoweredValueRepresentation =
                     SumCaseClassRepresentation.DataList
@@ -349,9 +349,9 @@ object SumDataListSirTypeGenerator extends SirTypeUplcGenerator {
                 val nGctx = gctx.copy(generatedVars = gctx.generatedVars + listInput.id)
                 Term.LamAbs(
                   listInput.id,
-                  DefaultFun.ChooseList.tpf $ listInput.termWithNeddedVars(nGctx)
-                      $ Term.Delay(loweredNilBody.termWithNeddedVars(nGctx))
-                      $ Term.Delay(loweredConsBody.termWithNeddedVars(nGctx))
+                  !(DefaultFun.ChooseList.tpf $ listInput.termWithNeededVars(nGctx)
+                      $ ~loweredNilBody.termWithNeededVars(nGctx)
+                      $ ~loweredConsBody.termWithNeededVars(nGctx))
                 )
             }
 

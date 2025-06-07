@@ -1,6 +1,7 @@
 package scalus.sir.lowering
 
 import scalus.sir.*
+import scalus.sir.lowering.Lowering.tpf
 import scalus.uplc.*
 
 import scala.collection.mutable.Set as MutableSet
@@ -18,7 +19,7 @@ trait LoweredValue {
       * @param gctx - context for term generation
       *  @return generated term wrapped in lambdas with definition of needed uplevel variables
       */
-    def termWithNeddedVars(gctx: TermGenerationContext): Term =
+    def termWithNeededVars(gctx: TermGenerationContext): Term =
         Lowering.generateDominatedUplevelVarsAccess(this)(using gctx)
 
     /** Generates the term for this value, without any uplevel variables.
@@ -144,7 +145,7 @@ class VariableLoweredValue(
                 case Some(rhs) =>
                     // if we here, it means that we was not included in any domination set,
                     //  so variable used once and we can generate rhs term instead of name.
-                    rhs.termWithNeddedVars(gctx)
+                    rhs.termWithNeededVars(gctx)
                 case None =>
                     throw new IllegalStateException(
                       s"Variable $name with id $id is not defined and has no rhs to generate term."
@@ -181,7 +182,7 @@ case class DependendVariableLoweredValue(
 
     override def termInternal(gctx: TermGenerationContext): Term = {
         if gctx.generatedVars.contains(id) then Term.Var(NamedDeBruijn(id))
-        else rhs.termWithNeddedVars(gctx)
+        else rhs.termWithNeededVars(gctx)
 
     }
 
@@ -242,7 +243,7 @@ object LoweredValue {
         )
     }
 
-    /** Builder for LoweredValue, to avoid boilerplate code. Import this object to make aviabke
+    /** Builder for LoweredValue, to avoid boilerplate code. Import this object to make available
       */
     object Builder {
 
@@ -260,14 +261,12 @@ object LoweredValue {
                     thenBranch.representation
 
                 override def termInternal(gctx: TermGenerationContext): Term = {
-                    Term.Force(Term.Builtin(DefaultFun.IfThenElse)) $
-                        cond.termWithNeddedVars(gctx) $
-                        Term.Delay(thenBranch.termWithNeddedVars(gctx)) $
-                        Term.Delay(
-                          elseBranch
-                              .toRepresentation(thenBranch.representation, elseBranch.pos)
-                              .termWithNeddedVars(gctx)
-                        )
+                    !(DefaultFun.IfThenElse.tpf $
+                        cond.termWithNeededVars(gctx) $
+                        ~thenBranch.termWithNeededVars(gctx) $
+                        ~elseBranch
+                            .toRepresentation(thenBranch.representation, elseBranch.pos)
+                            .termWithNeededVars(gctx))
                 }
 
             }
@@ -301,8 +300,8 @@ object LoweredValue {
 
                 override def termInternal(gctx: TermGenerationContext): Term = {
                     Term.Apply(
-                      f.termWithNeddedVars(gctx),
-                      arg.termWithNeddedVars(gctx)
+                      f.termWithNeededVars(gctx),
+                      arg.termWithNeededVars(gctx)
                     )
                 }
 
@@ -324,9 +323,9 @@ object LoweredValue {
                     Term.Apply(
                       Term.Apply(
                         Term.Builtin(DefaultFun.EqualsInteger),
-                        x.termWithNeddedVars(gctx)
+                        x.termWithNeededVars(gctx)
                       ),
-                      y.termWithNeddedVars(gctx)
+                      y.termWithNeededVars(gctx)
                     )
                 }
             }
@@ -367,7 +366,7 @@ object LoweredValue {
                 override def pos: SIRPosition = inPos
 
                 override def termInternal(gctx: TermGenerationContext): Term =
-                    Term.LamAbs(newVar.id, body.termWithNeddedVars(gctx.addGeneratedVar(newVar.id)))
+                    Term.LamAbs(newVar.id, body.termWithNeededVars(gctx.addGeneratedVar(newVar.id)))
             }
         }
 
@@ -426,7 +425,7 @@ object LoweredValue {
                 override def termInternal(gctx: TermGenerationContext): Term =
                     Term.Apply(
                       Term.Builtin(fun.bn),
-                      arg.termWithNeddedVars(gctx)
+                      arg.termWithNeededVars(gctx)
                     )
 
                 override def representation: LoweredValueRepresentation = lvr
@@ -458,11 +457,16 @@ object LoweredValue {
               lvr
             )
         }
-        
+
         def lvDataNil(inPos: SIRPosition)(using
             lctx: LoweringContext
         ): LoweredValue = {
-            lvBuiltinApply0(SIRBuiltins.mkNilData, SIRType.Data, PrimitiveRepresentation.PackedData, inPos)
+            lvBuiltinApply0(
+              SIRBuiltins.mkNilData,
+              SIRType.Data,
+              PrimitiveRepresentation.PackedData,
+              inPos
+            )
         }
 
         def lvBuiltinApply2(
@@ -484,9 +488,9 @@ object LoweredValue {
                     Term.Apply(
                       Term.Apply(
                         Term.Builtin(fun.bn),
-                        arg1.termWithNeddedVars(gctx)
+                        arg1.termWithNeededVars(gctx)
                       ),
-                      arg2.termWithNeddedVars(gctx)
+                      arg2.termWithNeededVars(gctx)
                     )
 
                 override def representation: LoweredValueRepresentation = lvr

@@ -88,7 +88,7 @@ object SIRTypeUplcBooleanGenerator extends PrimitiveSirTypeGenerator {
         DefaultFun.IfThenElse.tpf $ (
           DefaultFun.EqualsInteger.tpf $ (DefaultFun.UnIData.tpf $ input) $ Term
               .Const(Constant.Integer(0))
-        ) $ (Term.Const(Constant.Bool(false))) $ (Term.Const(Constant.Bool(true)))
+        ) $ Term.Const(Constant.Bool(false)) $ Term.Const(Constant.Bool(true))
 
     }
 

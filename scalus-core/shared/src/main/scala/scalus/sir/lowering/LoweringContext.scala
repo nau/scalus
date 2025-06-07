@@ -5,14 +5,14 @@ import scalus.sir.lowering.typegens.SirTypeUplcGenerator
 import scala.collection.mutable.Map as MutableMap
 
 class LoweringContext(
-                         var zCombinatorNeeded: Boolean = false,
-                         val decls: MutableMap[String, DataDecl] = MutableMap.empty,
-                         var varIdSeq: Int = 0,
-                         var scope: LocalScope = LocalScope.empty,
-                         val plutusVersion: Int = 3,
-                         val generateErrorTraces: Boolean = false,
-                         val uplcGeneratorPolicy: SIRType => SirTypeUplcGenerator = SirTypeUplcGenerator(_),
-                         val typeVars: Map[SIRType.TypeVar, SIRType] = Map.empty,
+    var zCombinatorNeeded: Boolean = false,
+    val decls: MutableMap[String, DataDecl] = MutableMap.empty,
+    var varIdSeq: Int = 0,
+    var scope: LocalScope = LocalScope.empty,
+    val plutusVersion: Int = 3,
+    val generateErrorTraces: Boolean = false,
+    val uplcGeneratorPolicy: SIRType => SirTypeUplcGenerator = SirTypeUplcGenerator(_),
+    val typeVars: Map[SIRType.TypeVar, SIRType] = Map.empty,
 ) {
 
     def uniqueVarName(prefix: String = "_v"): String = {

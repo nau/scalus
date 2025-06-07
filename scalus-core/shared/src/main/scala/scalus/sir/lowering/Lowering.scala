@@ -162,11 +162,11 @@ object Lowering {
                             val bodyGctx = gctx.copy(
                               generatedVars = gctx.generatedVars ++ myVars.map(_.id)
                             )
-                            val bodyTerm = bodyValue.termWithNeddedVars(bodyGctx)
+                            val bodyTerm = bodyValue.termWithNeededVars(bodyGctx)
                             bindingValues.foldRight(bodyTerm) { case ((varVal, rhs), term) =>
                                 Term.Apply(
                                   Term.LamAbs(varVal.id, term),
-                                  rhs.termWithNeddedVars(
+                                  rhs.termWithNeededVars(
                                     gctx.copy(
                                       generatedVars = gctx.generatedVars + varVal.id
                                     )
@@ -213,11 +213,11 @@ object Lowering {
                                           Term.Var(NamedDeBruijn("__z_combinator__")),
                                           Term.LamAbs(
                                             newVar.id,
-                                            loweredRhs.termWithNeddedVars(nGctx)
+                                            loweredRhs.termWithNeededVars(nGctx)
                                           )
                                         )
                                     Term.Apply(
-                                      Term.LamAbs(newVar.id, loweredBody.termWithNeddedVars(nGctx)),
+                                      Term.LamAbs(newVar.id, loweredBody.termWithNeededVars(nGctx)),
                                       fixed
                                     )
                                 }
@@ -332,8 +332,8 @@ object Lowering {
             override def pos: SIRPosition = app.anns.pos
 
             override def termInternal(gctx: TermGenerationContext): Term = {
-                val funTerm = fun.termWithNeddedVars(gctx)
-                val argTerm = arg.termWithNeddedVars(gctx)
+                val funTerm = fun.termWithNeededVars(gctx)
+                val argTerm = arg.termWithNeededVars(gctx)
                 Term.Apply(funTerm, argTerm)
             }
 
@@ -371,11 +371,11 @@ object Lowering {
             )
             v match
                 case dv: DependendVariableLoweredValue =>
-                    Term.Apply(Term.LamAbs(dv.id, term), dv.rhs.termWithNeddedVars(nGctx))
+                    Term.Apply(Term.LamAbs(dv.id, term), dv.rhs.termWithNeededVars(nGctx))
                 case v: VariableLoweredValue =>
                     v.optRhs match
                         case Some(rhs) =>
-                            Term.Apply(Term.LamAbs(v.id, term), rhs.termWithNeddedVars(nGctx))
+                            Term.Apply(Term.LamAbs(v.id, term), rhs.termWithNeededVars(nGctx))
                         case None =>
                             throw LoweringException(
                               s"Unexpected variable $v is not in scope",
