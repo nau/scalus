@@ -37,9 +37,27 @@ object Compiler:
      */
     def compileType[T]: SIRType = throwCompilerPluginMissingException()
 
-    inline def compileToUplc(inline code: Any): Term = ${
-        Macros.compileToUplcImpl('code)
-    }
+    /** Generates a `Compiler.compile(code)` call at compile time.
+      *
+      * When you want to use [[Compiler.compile]] in an inline method you can't do it directly,
+      * because the Scalus compiler plugin finds the call to `Compiler.compile` and replaces it with
+      * the compiled code. Which is not what you want in this case!
+      *
+      * For example this will not work:
+      * {{{
+      *   inline def myTest(inline code: Any): SIR = {
+      *       Compiler.compile(code).toUplc().evaluate
+      *   }
+      * }}}
+      *
+      * Instead, you should use this method:
+      * {{{
+      *  inline def myTest(inline code: Any): SIR = {
+      *     Compiler.compileInline(code).toUplc().evaluate
+      *  }
+      * }}}
+      */
+    inline def compileInline(inline code: Any): SIR = ${ Macros.generateCompileCall('code) }
 
     private def throwCompilerPluginMissingException(): Nothing =
         throw new RuntimeException(

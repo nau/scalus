@@ -1,8 +1,9 @@
 package scalus.macros
 
-import scalus.builtin
+import scalus.{builtin, Compiler}
 import scalus.builtin.Builtins
 import scalus.builtin.Data
+import scalus.sir.SIR
 import scalus.uplc.{BuiltinRuntime, BuiltinsMeaning, DefaultFun, Expr as Exp, ExprBuilder, Term as Trm}
 import scalus.uplc.ExprBuilder.*
 
@@ -340,8 +341,7 @@ object Macros {
         }
     }
 
-    def compileToUplcImpl(code: Expr[Any])(using Quotes): Expr[Trm] = '{
-        import scalus.*
-        Compiler.compile($code).toUplc(true)
+    def generateCompileCall(code: Expr[Any])(using Quotes): Expr[SIR] = '{
+        Compiler.compile($code)
     }
 }
