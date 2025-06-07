@@ -17,9 +17,8 @@ sealed trait SumCaseClassRepresentation(
 
 object SumCaseClassRepresentation {
 
-    /** Representation for sum case classes that are represented as a Data with DataConstr and and
-      * DatsaUnconstr operators to work with the data. the index of the constructor and x is a
-      * field.
+    /** Representation for sum case classes that are represented as a Data with DataConstr and
+      * DataUnconstr operators to work with the data. the index of the constructor and x is a field.
       */
     case object DataConstr extends SumCaseClassRepresentation(true, true)
 
@@ -44,7 +43,7 @@ object SumCaseClassRepresentation {
     case object UplcConstr extends SumCaseClassRepresentation(false, false)
 
     /** Representation as Constr(i,x1,...,xn) where i is the index of the constructor and x is a
-      * field reprented as data.
+      * field represented as data.
       */
     case object UplcConstrOnData extends SumCaseClassRepresentation(false, true)
 
@@ -59,7 +58,7 @@ object ProductCaseClassRepresentation {
 
     case object DataList extends ProductCaseClassRepresentation(false, true)
 
-    /** Data.Unconstr will give as a pair from data and index of the constructor.
+    /** Data.Unconstr will give us a pair from data and index of the constructor.
       */
     case object DataConstr extends ProductCaseClassRepresentation(true, true)
 
@@ -102,7 +101,7 @@ object PrimitiveRepresentation {
 /** TypeVarRepresentation is used for type variables. Usually this is a synonym for some other
   * specific-type representation.
   *
-  * for now, assume that TypeVars can't be only serializibel to data.
+  * for now, assume that TypeVars can't be only serializable to data.
   */
 case object TypeVarDataRepresentation extends LoweredValueRepresentation {
     override def isPackedData: Boolean = true
