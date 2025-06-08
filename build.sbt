@@ -200,6 +200,8 @@ lazy val PluginDependency: List[Def.Setting[?]] = List(scalacOptions ++= {
     Seq(s"-Xplugin:${jar.getAbsolutePath}")
 })
 
+lazy val copyBundle = taskKey[Unit]("Copy fastopt-bundle.js to dist/")
+
 // Scalus Core and Standard Library for JVM and JS
 lazy val scalus = crossProject(JSPlatform, JVMPlatform, NativePlatform)
     .in(file("scalus-core"))
@@ -242,6 +244,16 @@ lazy val scalus = crossProject(JSPlatform, JVMPlatform, NativePlatform)
     .jsSettings(
       // Add JS-specific settings here
       Compile / npmDependencies += "@noble/curves" -> "1.4.2",
+      // copy scalus-*-bundle.js to dist for publishing on npm
+      copyBundle := {
+          val bundle = (Compile / fullOptJS / webpack).value
+          val target = baseDirectory.value / "dist"
+          bundle.foreach(f => IO.copyFile(f.data.file, target / f.data.file.getName))
+          streams.value.log.info(s"Copied ${bundle} to ${target}")
+      },
+      // use custom webpack config to export scalus as a commonjs2 module
+      // otherwise it won't export the module correctly
+      webpackConfigFile := Some(sourceDirectory.value / "main" / "webpack" / "webpack.config.js"),
       scalaJSLinkerConfig ~= {
           _.withModuleKind(ModuleKind.CommonJSModule)
           // Use .mjs extension.

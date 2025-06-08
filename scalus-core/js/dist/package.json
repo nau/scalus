@@ -1,0 +1,6 @@
+{
+  "name": "scalus",
+  "version": "0.1.0",
+  "main": "scalus-opt-bundle.js",
+  "types": "scalus.d.ts"
+}
