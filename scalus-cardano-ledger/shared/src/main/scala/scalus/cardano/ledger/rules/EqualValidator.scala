@@ -1,4 +1,5 @@
-package scalus.cardano.ledger.rules
+package scalus.cardano.ledger
+package rules
 
 import scalus.cardano.ledger.*
 import scala.util.boundary
@@ -16,7 +17,7 @@ class EqualValidator[T](lhs: Expression[T])(rhs: Expression[T]) extends STS.Vali
                 else
                     failure(
                       IllegalArgumentException(
-                        s"Expressions ${lhs.description} = $lhsResult and ${rhs.description} = $rhsResult are not equal"
+                        s"Expressions ${lhs.description} = $lhsResult and ${rhs.description} = $rhsResult are not equal for transactionId ${event.id}"
                       )
                     )
         yield result
@@ -54,7 +55,9 @@ object EqualValidator {
                         if output.isEmpty then
                             break(
                               failure(
-                                IllegalArgumentException(s"Input: $input doesn't exist in utxo")
+                                IllegalArgumentException(
+                                  s"Input: $input doesn't exist in utxo for transactionId ${event.id}"
+                                )
                               )
                             )
                         output.get
@@ -107,18 +110,17 @@ object EqualValidator {
             override def description: String =
                 s"Sum of ${expressions.view.map(_.description).mkString(", ")}"
 
-            override def evaluate(state: State, event: Event): Result =
-                boundary {
-                    val result = expressions.view
-                        .map { expression =>
-                            expression.evaluate(state, event) match
-                                case Right(value)       => value
-                                case left @ Left(error) => break(left)
-                        }
-                        .foldLeft(num.zero)(num.plus)
+            override def evaluate(state: State, event: Event): Result = boundary {
+                val result = expressions.view
+                    .map { expression =>
+                        expression.evaluate(state, event) match
+                            case Right(value)       => value
+                            case left @ Left(error) => break(left)
+                    }
+                    .foldLeft(num.zero)(num.plus)
 
-                    success(result)
-                }
+                success(result)
+            }
         }
     }
 }

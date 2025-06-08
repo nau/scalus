@@ -1,4 +1,5 @@
-package scalus.cardano.ledger.rules
+package scalus.cardano.ledger
+package rules
 
 object CardanoMutator extends STS.Mutator {
     override def transit(context: Context, state: State, event: Event): Result = {

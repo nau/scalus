@@ -1,4 +1,5 @@
-package scalus.cardano.ledger.rules
+package scalus.cardano.ledger
+package rules
 
 // It's part of Shelley.updateUTxOState in cardano-ledger
 object RemoveInputsFromUtxoMutator extends STS.Mutator {

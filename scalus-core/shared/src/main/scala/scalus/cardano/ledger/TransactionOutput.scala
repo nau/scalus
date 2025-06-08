@@ -5,23 +5,26 @@ import io.bullet.borer.{Decoder, Encoder, Reader, Writer}
 /** Represents a transaction output in Cardano. Both Shelley-era and Babbage-era output formats are
   * supported.
   */
-enum TransactionOutput:
-    /** Shelley-era transaction output format */
-    case Shelley(
-        address: AddressBytes,
-        value: Value,
-        datumHash: Option[DataHash] = None
-    )
-
-    /** Babbage-era transaction output format with extended features */
-    case Babbage(
-        address: AddressBytes,
-        value: Value,
-        datumOption: Option[DatumOption] = None,
-        scriptRef: Option[ScriptRef] = None
-    )
+sealed trait TransactionOutput:
+    def address: AddressBytes
+    def value: Value
 
 object TransactionOutput:
+    /** Shelley-era transaction output format */
+    final case class Shelley(
+        override val address: AddressBytes,
+        override val value: Value,
+        datumHash: Option[DataHash] = None
+    ) extends TransactionOutput
+
+    /** Babbage-era transaction output format with extended features */
+    final case class Babbage(
+        override val address: AddressBytes,
+        override val value: Value,
+        datumOption: Option[DatumOption] = None,
+        scriptRef: Option[ScriptRef] = None
+    ) extends TransactionOutput
+
     /** CBOR encoder for TransactionOutput */
     given Encoder[TransactionOutput] with
         def write(w: Writer, value: TransactionOutput): Writer = value match

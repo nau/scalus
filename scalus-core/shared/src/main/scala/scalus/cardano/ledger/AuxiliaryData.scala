@@ -18,21 +18,21 @@ case class TransactionMetadatumLabel(value: Long) derives Codec:
 sealed trait TransactionMetadatum
 object TransactionMetadatum:
     /** Map metadata */
-    case class Map(entries: immutable.Map[TransactionMetadatum, TransactionMetadatum])
+    final case class Map(entries: immutable.Map[TransactionMetadatum, TransactionMetadatum])
         extends TransactionMetadatum
 
     /** List metadata */
-    case class List(items: IndexedSeq[TransactionMetadatum]) extends TransactionMetadatum
+    final case class List(items: IndexedSeq[TransactionMetadatum]) extends TransactionMetadatum
 
     /** Integer metadata */
-    case class Int(value: Long) extends TransactionMetadatum
+    final case class Int(value: Long) extends TransactionMetadatum
 
     /** Bytes metadata (max 64 bytes) */
-    case class Bytes(value: ByteString) extends TransactionMetadatum:
+    final case class Bytes(value: ByteString) extends TransactionMetadatum:
         require(value.size <= 64)
 
     /** Text metadata (max 64 chars) */
-    case class Text(value: String) extends TransactionMetadatum:
+    final case class Text(value: String) extends TransactionMetadatum:
         require(value.length <= 64)
 
     /** Maximum allowed size for bytes and text */

@@ -1,4 +1,5 @@
-package scalus.cardano.ledger.rules
+package scalus.cardano.ledger
+package rules
 
 // inputs and refInputs are disjoint, in Conway and later Eras
 // It's Babbage.disjointRefInputs in cardano-ledger
@@ -11,7 +12,7 @@ object InputsAndReferenceInputsDisjointValidator extends STS.Validator {
         if intersection.nonEmpty then
             return failure(
               IllegalArgumentException(
-                s"Inputs and reference inputs intersects: intersection $intersection"
+                s"Inputs and reference inputs intersects: intersection $intersection for transactionId ${event.id}"
               )
             );
 

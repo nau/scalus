@@ -1,5 +1,7 @@
 package scalus.cardano.address
 
+import scalus.ledger.api.v3.{Credential, PubKeyHash, StakingCredential}
+
 import scalus.builtin.ByteString
 import scalus.cardano.ledger.*
 
@@ -410,6 +412,22 @@ enum Address {
         case Byron(addr)   => Try(addr.toBase58)
         case Shelley(addr) => addr.toBech32
         case Stake(addr)   => addr.toBech32
+
+    def stakingCredential: Option[StakingCredential] = this match
+        case Byron(_) => None // Byron addresses don't have staking credentials
+        case Shelley(shelleyAddress) =>
+            Some(shelleyAddress.payment match
+                case ShelleyPaymentPart.Key(hash) =>
+                    StakingCredential.StakingHash(Credential.PubKeyCredential(PubKeyHash(hash)))
+                case ShelleyPaymentPart.Script(hash) =>
+                    StakingCredential.StakingHash(Credential.ScriptCredential(hash)))
+        case Stake(stakeAddress) =>
+            Some(stakeAddress.payload match
+                case StakePayload.Stake(hash) =>
+                    StakingCredential.StakingHash(Credential.PubKeyCredential(PubKeyHash(hash)))
+                case StakePayload.Script(hash) =>
+                    StakingCredential.StakingHash(Credential.ScriptCredential(hash)))
+
 }
 
 // Conversion utilities between address types
