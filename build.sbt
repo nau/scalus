@@ -247,7 +247,7 @@ lazy val scalus = crossProject(JSPlatform, JVMPlatform, NativePlatform)
       // copy scalus-*-bundle.js to dist for publishing on npm
       copyBundle := {
           val bundle = (Compile / fullOptJS / webpack).value
-          val target = baseDirectory.value / "dist"
+          val target = (Compile / sourceDirectory).value / "npm"
           bundle.foreach(f => IO.copyFile(f.data.file, target / f.data.file.getName))
           streams.value.log.info(s"Copied ${bundle} to ${target}")
       },
