@@ -60,9 +60,9 @@ object AllInputsMustBeInUtxoValidator extends STS.Validator {
         utxo: Utxo,
         error: (TransactionHash, TransactionInput, Int) => IllegalArgumentException
     ): Result =
-        val result = inputs.view.zipWithIndex.find{ case (input, index) => !utxo.contains(input) }
-        
-        result match 
+        val result = inputs.view.zipWithIndex.find { case (input, index) => !utxo.contains(input) }
+
+        result match
             case None => success
             case Some((input, index)) =>
                 failure(error(transactionId, input, index))

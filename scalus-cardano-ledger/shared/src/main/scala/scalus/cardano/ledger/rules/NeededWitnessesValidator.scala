@@ -13,6 +13,7 @@ object NeededWitnessesValidator extends STS.Validator {
             _ <- validateInputs(context, state, event)
             _ <- validateCollateralInputs(context, state, event)
             _ <- validateVotingProcedures(context, state, event)
+            _ <- validateCertificates(context, state, event)
         yield ()
     }
 
@@ -97,6 +98,14 @@ object NeededWitnessesValidator extends STS.Validator {
             }
 
         success
+    }
+
+    private[this] def validateCertificates(
+        context: Context,
+        state: State,
+        event: Event
+    ): Result = {
+        ???
     }
 
     // TODO add bootstrap witnesses validation
