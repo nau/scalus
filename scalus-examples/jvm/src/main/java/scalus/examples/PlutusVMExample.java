@@ -2,12 +2,9 @@ package scalus.examples;
 
 import scala.math.BigInt;
 import scalus.builtin.Data;
-import scalus.builtin.JVMPlatformSpecific$;
 import scalus.ledger.api.PlutusLedgerLanguage;
-import scalus.ledger.api.ProtocolVersion;
 import scalus.uplc.DeBruijnedProgram;
 import scalus.uplc.eval.*;
-import scalus.utils.Hex;
 
 import java.nio.file.Paths;
 import java.util.Arrays;
