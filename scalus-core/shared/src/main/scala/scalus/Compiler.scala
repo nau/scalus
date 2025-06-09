@@ -3,7 +3,6 @@ package scalus
 import scalus.macros.Macros
 import scalus.sir.{SIR, SIRType}
 import scalus.builtin.Data
-import scalus.uplc.Term
 
 import scala.annotation.Annotation
 

@@ -4,7 +4,7 @@ import org.scalatest.funsuite.AnyFunSuite
 import org.scalatestplus.scalacheck.ScalaCheckPropertyChecks
 import scalus.*
 import scalus.Compiler.compile
-import scalus.builtin.{ByteString, Data, given}
+import scalus.builtin.{ByteString, Data}
 import scalus.builtin.ByteString.*
 import scalus.uplc.Constant.Pair
 import scalus.uplc.DefaultFun.*

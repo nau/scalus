@@ -3,7 +3,7 @@ package scalus.testkit
 import org.scalacheck.{Arbitrary, Gen}
 import scalus.*
 import scalus.builtin.Data.toData
-import scalus.builtin.{ByteString, Data, given}
+import scalus.builtin.{ByteString, Data}
 import scalus.builtin.Builtins.blake2b_224
 import scalus.ledger.api.v1.PubKeyHash
 import scalus.ledger.api.v1.Credential.{PubKeyCredential, ScriptCredential}

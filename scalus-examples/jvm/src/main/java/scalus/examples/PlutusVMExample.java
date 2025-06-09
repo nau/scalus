@@ -7,6 +7,7 @@ import scalus.ledger.api.PlutusLedgerLanguage;
 import scalus.ledger.api.ProtocolVersion;
 import scalus.uplc.DeBruijnedProgram;
 import scalus.uplc.eval.*;
+import scalus.utils.Hex;
 
 import java.nio.file.Paths;
 import java.util.Arrays;
@@ -17,12 +18,19 @@ import static java.nio.file.Files.readString;
 class PlutusVMExample {
 
     public static void evaluationExample1() throws Exception {
-        // Read script from a double-CBOR-encoded hex string
+        // Read script from a double-CBOR-encoded hex string, like in *.plutus files
         var script = DeBruijnedProgram.fromDoubleCborHex("545301010023357389210753756363657373004981");
+        // Read script from a CBOR-encoded hex string, like in CIP-57 Blueprint files
+        var script2 = DeBruijnedProgram.fromCborHex("5301010023357389210753756363657373004981");
+        // Apply an argument to the script
         var appliedScript = script.applyArg(Data.I.apply(BigInt.apply(42)));
+        // Load protocol parameters from a JSON file
+        var pparams = readString(Paths.get("../../scalus-core/shared/src/main/resources/protocol-params.json"));
+        // Setup PlutusV3 machine parameters (cost model) from the protocol parameters
+        var machineParams = MachineParams.fromCardanoCliProtocolParamsJson(pparams, PlutusLedgerLanguage.PlutusV3);
+        // Setup Plutus 3 VM with machine parameters
+        var plutusVM = PlutusVM.makePlutusV3VM(machineParams);
         // Evaluate the script
-        var machineParams = MachineParams.defaultParamsFor(PlutusLedgerLanguage.PlutusV3, ProtocolVersion.conwayPV());
-        var plutusVM = PlutusVM.makePlutusV3VM(machineParams, JVMPlatformSpecific$.MODULE$);
         var result = plutusVM.evaluateScriptDebug(appliedScript);
         System.out.println("Evaluation Result:" + result);
         System.out.println("Is success: " + result.isSuccess());
@@ -30,13 +38,11 @@ class PlutusVMExample {
     }
 
     public static void evaluationExample2() throws Exception {
-        // Read Plutus script from a file
+        // Read flat encoded Plutus script from a file
         var flatScript = readAllBytes(Paths.get("../../bench/src/main/resources/data/auction_1-1.flat"));
         var script = DeBruijnedProgram.fromFlatEncoded(flatScript);
-        // Evaluate the script
-        var pparams = readString(Paths.get("../../scalus-core/shared/src/main/resources/protocol-params.json"));
-        var machineParams = MachineParams.fromCardanoCliProtocolParamsJson(pparams, PlutusLedgerLanguage.PlutusV2);
-        var plutusVM = PlutusVM.makePlutusV2VM(machineParams, JVMPlatformSpecific$.MODULE$);
+        // Evaluate the script using default parameters for Plutus V2 VM
+        var plutusVM = PlutusVM.makePlutusV2VM();
         try {
             // Pass custom budget spender and logger
             var result = plutusVM.evaluateScript(script, NoBudgetSpender$.MODULE$, NoLogger$.MODULE$);

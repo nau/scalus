@@ -1,5 +1,6 @@
 package scalus.uplc.eval
 
+import scalus.builtin.given
 import scalus.builtin.PlatformSpecific
 import scalus.ledger.api.BuiltinSemanticsVariant
 import scalus.ledger.api.PlutusLedgerLanguage
@@ -127,32 +128,55 @@ class PlutusVM(
 }
 
 object PlutusVM {
-    def makePlutusV1VM(
-        params: MachineParams = MachineParams.defaultPlutusV1PostConwayParams
-    )(using platformSpecific: PlatformSpecific): PlutusVM = new PlutusVM(
-      PlutusLedgerLanguage.PlutusV2,
+    def makePlutusV1VM(params: MachineParams): PlutusVM = new PlutusVM(
+      PlutusLedgerLanguage.PlutusV1,
       params,
       params.semanticVariant,
-      platformSpecific
+      summon[PlatformSpecific]
     )
 
-    def makePlutusV2VM(
-        params: MachineParams = MachineParams.defaultPlutusV2PostConwayParams
-    )(using platformSpecific: PlatformSpecific): PlutusVM =
+    def makePlutusV1VM(): PlutusVM = {
+        val params = MachineParams.defaultPlutusV1PostConwayParams
+        new PlutusVM(
+          PlutusLedgerLanguage.PlutusV1,
+          params,
+          params.semanticVariant,
+          summon[PlatformSpecific]
+        )
+    }
+
+    def makePlutusV2VM(params: MachineParams): PlutusVM =
         new PlutusVM(
           PlutusLedgerLanguage.PlutusV2,
           params,
           params.semanticVariant,
-          platformSpecific
+          summon[PlatformSpecific]
         )
 
-    def makePlutusV3VM(
-        params: MachineParams = MachineParams.defaultPlutusV3Params
-    )(using platformSpecific: PlatformSpecific): PlutusVM =
+    def makePlutusV2VM(): PlutusVM =
+        val params = MachineParams.defaultPlutusV2PostConwayParams
+        new PlutusVM(
+          PlutusLedgerLanguage.PlutusV2,
+          params,
+          params.semanticVariant,
+          summon[PlatformSpecific]
+        )
+
+    def makePlutusV3VM(params: MachineParams): PlutusVM =
         new PlutusVM(
           PlutusLedgerLanguage.PlutusV3,
           params,
           params.semanticVariant,
-          platformSpecific
+          summon[PlatformSpecific]
         )
+
+    def makePlutusV3VM(): PlutusVM = {
+        val params = MachineParams.defaultPlutusV3Params
+        new PlutusVM(
+          PlutusLedgerLanguage.PlutusV3,
+          params,
+          params.semanticVariant,
+          summon[PlatformSpecific]
+        )
+    }
 }

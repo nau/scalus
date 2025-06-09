@@ -6,7 +6,6 @@ import scalus.*
 import scalus.Compiler.compile
 import scalus.builtin.ByteString
 import scalus.builtin.ByteString.*
-import scalus.builtin.given
 import scalus.builtin.Data
 import scalus.builtin.Data.fromData
 import scalus.builtin.Data.toData

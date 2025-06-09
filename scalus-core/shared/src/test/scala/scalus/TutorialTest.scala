@@ -168,7 +168,6 @@ val serializeToDoubleCborHex = {
 
 def evaluation() = {
     import scalus.*
-    import scalus.builtin.given // for PlatformSpecific implementation
     import scalus.uplc.eval.PlutusVM
     val term = modules.toUplc()
     // setup a given PlutusVM for the PlutusV2 language and default parameters

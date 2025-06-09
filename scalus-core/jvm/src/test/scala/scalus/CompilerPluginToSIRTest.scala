@@ -4,8 +4,10 @@ import org.scalatest.funsuite.AnyFunSuite
 import org.scalatestplus.scalacheck.ScalaCheckPropertyChecks
 import scalus.Compiler.{compile, fieldAsData}
 import scalus.builtin.ByteString.*
-import scalus.builtin.{Builtins, ByteString, Data, JVMPlatformSpecific, PlatformSpecific, given}
+import scalus.builtin.{Builtins, ByteString, Data, JVMPlatformSpecific, PlatformSpecific}
+import scalus.ledger.api.PlutusLedgerLanguage
 import scalus.ledger.api.v1.*
+import scalus.uplc.eval.MachineParams
 //import scalus.ledger.api.v3.SpendingScriptInfo
 import scalus.prelude.List.{Cons, Nil}
 import scalus.prelude.given
@@ -1959,11 +1961,19 @@ class CompilerPluginToSIRTest extends AnyFunSuite with ScalaCheckPropertyChecks:
     }
 
     test("compile custom Builtins") {
-        given PlatformSpecific = new JVMPlatformSpecific {
+        val platform = new JVMPlatformSpecific {
             override def sha2_256(bs: ByteString): ByteString = hex"deadbeef"
         }
-        object CustomBuiltins extends Builtins
-        given PlutusVM = PlutusVM.makePlutusV3VM()
+        object CustomBuiltins extends Builtins(using platform)
+
+        given PlutusVM =
+            val params = MachineParams.defaultPlutusV3Params
+            new PlutusVM(
+              PlutusLedgerLanguage.PlutusV3,
+              params,
+              params.semanticVariant,
+              platform
+            )
 
         val sir = compile(CustomBuiltins.sha2_256(hex"12"))
         // check that SIRCompiler compiles the custom builtin

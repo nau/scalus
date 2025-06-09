@@ -1,6 +1,6 @@
 package scalus.uplc.eval
 
-import scalus.builtin.{Data, given}
+import scalus.builtin.Data
 import scalus.uplc.{Constant, DeBruijnedProgram, Term}
 
 import scala.scalajs.js

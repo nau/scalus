@@ -336,12 +336,11 @@ You can use `log` and `trace` functions to log messages to the execution log.
 And there is a `?` operator that can be used to log the value of a boolean expression when it is false.
 
 ```scala mdoc
-import scalus.builtin.given
 import scalus.builtin.Builtins.trace
 import scalus.prelude.*
 import scalus.prelude.log
 import scalus.uplc.eval.PlutusVM
-given PlutusVM = PlutusVM.makePlutusV2VM()
+given PlutusVM = PlutusVM.makePlutusV3VM()
 val sir = compile {
     val a = trace("a")(BigInt(1))
     val b = BigInt(2)
@@ -406,13 +405,12 @@ You get a `Result` object that contains the result of the evaluation, the execut
 You can also use the low-level API to evaluate scripts.
 
 ```scala mdoc:compile-only
-import scalus.builtin.{*, given}
+import scalus.builtin.*
 import scalus.ledger.api.*
 import scalus.uplc.*, eval.*
 
 def evaluation() = {
     import scalus.*
-    import scalus.builtin.given // for PlatformSpecific implementation
     import scalus.uplc.eval.PlutusVM
     val sir = compile {
         def usefulFunction(a: BigInt): BigInt = a + 1

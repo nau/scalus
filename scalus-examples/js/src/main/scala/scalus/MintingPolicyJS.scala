@@ -9,7 +9,6 @@ import scalus.sir.SIR
 import scalus.uplc.Term
 import scalus.uplc.TermDSL.given
 import scalus.uplc.eval.PlutusVM
-import scalus.builtin.given
 
 import scala.language.implicitConversions
 import scala.scalajs.js.annotation.JSExport
