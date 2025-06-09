@@ -1,7 +1,6 @@
 package scalus.cardano.ledger
 package rules
 
-import scalus.cardano.ledger.*
 import scala.util.boundary
 import scala.util.boundary.break
 import EqualValidator.*
@@ -50,9 +49,9 @@ object EqualValidator {
             override def evaluate(state: State, event: Event): Result = boundary {
                 val outputs =
                     for input <- event.body.value.inputs
-                    yield
-                        val output = state.utxo.get(input)
-                        if output.isEmpty then
+                    yield state.utxo.get(input) match
+                        case Some(output) => output
+                        case None =>
                             break(
                               failure(
                                 IllegalArgumentException(
@@ -60,7 +59,6 @@ object EqualValidator {
                                 )
                               )
                             )
-                        output.get
 
                 val result = outputs.foldLeft(0L) { (acc, output) =>
                     val value = output match

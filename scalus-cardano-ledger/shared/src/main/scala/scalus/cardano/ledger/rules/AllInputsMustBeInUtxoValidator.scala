@@ -1,9 +1,6 @@
 package scalus.cardano.ledger
 package rules
 
-import scala.util.boundary
-import scala.util.boundary.break
-
 // allInputs = spendInputs txb ∪ collInputs txb ∪ refInputs txb
 // (spendInputs txb ∪ collInputs txb ∪ refInputs txb) ⊆ dom utxo
 // It's Shelley.validateBadInputsUTxO in cardano-ledger
@@ -17,7 +14,7 @@ object AllInputsMustBeInUtxoValidator extends STS.Validator {
     }
 
     private[this] def validateInputs(context: Context, state: State, event: Event): Result =
-        validate(
+        validateTransactionInputs(
           event.id,
           event.body.value.inputs,
           state.utxo,
@@ -32,7 +29,7 @@ object AllInputsMustBeInUtxoValidator extends STS.Validator {
         state: State,
         event: Event
     ): Result =
-        validate(
+        validateTransactionInputs(
           event.id,
           event.body.value.collateralInputs,
           state.utxo,
@@ -47,7 +44,7 @@ object AllInputsMustBeInUtxoValidator extends STS.Validator {
         state: State,
         event: Event
     ): Result =
-        validate(
+        validateTransactionInputs(
           event.id,
           event.body.value.referenceInputs,
           state.utxo,
@@ -57,16 +54,16 @@ object AllInputsMustBeInUtxoValidator extends STS.Validator {
               )
         )
 
-    private[this] def validate(
+    private[this] def validateTransactionInputs(
         transactionId: TransactionHash,
         inputs: Set[TransactionInput],
         utxo: Utxo,
         error: (TransactionHash, TransactionInput, Int) => IllegalArgumentException
     ): Result =
-        boundary {
-            for (input, index) <- inputs.view.zipWithIndex
-            do if !utxo.contains(input) then break(failure(error(transactionId, input, index)))
-
-            success
-        }
+        val result = inputs.view.zipWithIndex.find{ case (input, index) => !utxo.contains(input) }
+        
+        result match 
+            case None => success
+            case Some((input, index)) =>
+                failure(error(transactionId, input, index))
 }
