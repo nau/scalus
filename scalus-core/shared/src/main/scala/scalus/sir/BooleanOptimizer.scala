@@ -83,7 +83,7 @@ object BooleanOptimizer:
 
             // Recursive optimization for Apply
             case Apply(f, arg, tp, anns) =>
-                Apply(optimize(f), optimize(arg), tp, anns)
+                Apply(optimizeExpr(f), optimizeExpr(arg), tp, anns)
 
             // Recursive optimization for Select
             case Select(scrutinee, field, tp, anns) =>

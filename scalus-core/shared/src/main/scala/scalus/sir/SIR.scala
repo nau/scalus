@@ -228,7 +228,8 @@ object SIR:
 
     }
 
-    case class Apply(f: SIR, arg: SIR, tp: SIRType, anns: AnnotationsDecl) extends AnnotatedSIR {
+    case class Apply(f: AnnotatedSIR, arg: AnnotatedSIR, tp: SIRType, anns: AnnotationsDecl)
+        extends AnnotatedSIR {
 
         // TODO: makr tp computable, not stored.  (implement subst at first).
         /*

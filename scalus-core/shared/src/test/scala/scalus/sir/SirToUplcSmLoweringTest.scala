@@ -1,31 +1,44 @@
 package scalus.sir
+
 import org.scalatest.funsuite.AnyFunSuite
 import org.scalatestplus.scalacheck.ScalaCheckPropertyChecks
 import scalus.*
 import scalus.builtin.ByteString.*
+import scalus.builtin.Data.{fromData, toData}
+import scalus.builtin.given
 import scalus.sir.Recursivity.NonRec
 import scalus.sir.SIR.Pattern
-import scalus.sir.SIRType.{FreeUnificator, SumCaseClass, TypeVar}
-import scalus.uplc.ArbitraryInstances
-import scalus.uplc.Constant
-import scalus.uplc.DefaultFun
+import scalus.sir.SIRType.{substitute, FreeUnificator, SumCaseClass, TypeVar}
+import scalus.uplc.{ArbitraryInstances, Constant, DeBruijn, DefaultFun, DefaultUni, NamedDeBruijn, Term}
 import scalus.uplc.DefaultFun.*
 import scalus.uplc.DefaultUni.asConstant
-import scalus.uplc.Term
 import scalus.uplc.Term.*
 import scalus.uplc.TermDSL.given
+import scalus.uplc.eval.PlutusVM
+import scalus.uplc.eval.Result.Success
 
 import scala.language.implicitConversions
 
-class SimpleSirToUplcLoweringTest
+class SirToUplcSmLoweringTest
     extends AnyFunSuite
     with ScalaCheckPropertyChecks
     with ArbitraryInstances:
+
     extension (sir: SIR)
         infix def lowersTo(r: Term): Unit =
-            assert(SimpleSirToUplcLowering(sir, generateErrorTraces = false).lower() == r)
+            // assert(SimpleSirToUplcLowering(sir, generateErrorTraces = false).lower() == r)
+            assert(SirToUplcV3Lowering(sir, generateErrorTraces = false).lower().alphaEq(r))
+
+    def lower(sir: SIR): Term =
+        SirToUplcV3Lowering(sir, generateErrorTraces = false).lower()
+
+    extension (term: Term)
+        infix def alphaEq(other: Term): Boolean =
+            Term.alphaEq(DeBruijn.deBruijnTerm(term), DeBruijn.deBruijnTerm(other))
 
     private val ae = AnnotationsDecl.empty
+
+    given PlutusVM = PlutusVM.makePlutusV3VM()
 
     test("lower constant") {
         forAll { (c: Constant) =>
@@ -42,7 +55,22 @@ class SimpleSirToUplcLoweringTest
     }
 
     test("lower Var in let") {
-        SIR.Var("x", SIRType.ByteString, ae) lowersTo vr"x"
+        // now we can't lower var in isolation, so should use Var in some context
+        val sir = SIR.Let(
+          NonRec,
+          List(Binding("x", SIR.Const(asConstant(hex"DEADBEEF"), SIRType.ByteString, ae))),
+          SIR.Var("x", SIRType.ByteString, ae),
+          ae
+        )
+        val uplc = lower(sir)
+        val expected = LamAbs(
+          "x",
+          Var(NamedDeBruijn("x")),
+        ) $ asConstant(hex"DEADBEEF")
+        // println(s"Lowered SIR: ${uplc.pretty.render(100)}")
+        // println(s"Expected UPLC: ${expected.pretty.render(100)}")
+        assert(uplc alphaEq expected)
+        // lowersTo vr"x"
     }
 
     test("lower Lam/Apply") {
@@ -119,7 +147,9 @@ class SimpleSirToUplcLoweringTest
               List(a1TypeVar),
               ae
             )
+
         tailTypeProxy.ref = SumCaseClass(listData, List(a2TypeVar))
+
         val txIdData = DataDecl(
           "TxId",
           List(
@@ -129,7 +159,7 @@ class SimpleSirToUplcLoweringTest
           ae
         )
         def withDecls(sir: SIR) = SIR.Decl(listData, SIR.Decl(txIdData, sir))
-        withDecls(
+        val originSir1 = withDecls(
           SIR.Constr(
             "scalus.prelude.List$.Nil",
             listData,
@@ -137,10 +167,44 @@ class SimpleSirToUplcLoweringTest
             listData.constrType("scalus.prelude.List$.Nil"),
             ae
           )
-        ) lowersTo (lam("scalus.prelude.List$.Nil", "scalus.prelude.List$.Cons")(
-          !vr"scalus.prelude.List$$.Nil"
-        ))
-        withDecls(
+        )
+
+        val gen1 = scalus.sir.lowering.typegens.SirTypeUplcGenerator(originSir1.tp)
+        val representation1 = gen1.defaultRepresentation
+        println(s"gen1 = $gen1, representation1=${representation1}")
+        assert(representation1 == scalus.sir.lowering.ProductCaseClassRepresentation.DataList)
+
+        val genDataList =
+            scalus.sir.lowering.typegens.SirTypeUplcGenerator(SIRType.List(SIRType.Data))
+        println(
+          s"genDataList=${genDataList}, defaultRepresentation=${genDataList.defaultRepresentation}"
+        )
+
+        val origin1 = lower(originSir1)
+        val expected1 = Term.Builtin(DefaultFun.MkNilData) $ Term.Const(Constant.Unit)
+        // println(s"Lowered SIR: ${origin1.pretty.render(100)}")
+        // println(s"Expected UPLC: ${expected1.pretty.render(100)}")
+
+        assert(origin1 alphaEq expected1)
+
+        val result1 = origin1.evaluateDebug
+        result1 match {
+            case Success(term, _, _, _) =>
+                val nilData = scalus.prelude.List.empty[scalus.builtin.Data].toData
+                println(s"NilData=${nilData}")
+                println(s"Term=${term}")
+                val termValue = term match {
+                    case Term.Const(Constant.List(DefaultUni.Data, value)) => value
+                    case _ => fail(s"Expected a List constant, got: ${term}")
+                }
+                println(s"TermValue=${termValue}")
+                /// assert(termValue == nilData)
+                assert(term == Term.Const(Constant.List(scalus.uplc.DefaultUni.Data, List())))
+            case _ =>
+                fail(s"Expected success, got: ${result1}")
+        }
+
+        val originSir2 = withDecls(
           SIR.Constr(
             "TxId",
             txIdData,
@@ -148,7 +212,12 @@ class SimpleSirToUplcLoweringTest
             txIdData.constrType("TxId"),
             ae
           )
-        ) lowersTo (lam("hash", "TxId")(vr"TxId" $ vr"hash") $ hex"DEADBEEF")
+        )
+
+        val uplc2 = lower(originSir2)
+        println(s"lowered TxId constr: ${uplc2.pretty.render(100)}")
+
+        // lowersTo (lam("hash", "TxId")(vr"TxId" $ vr"hash") $ hex"DEADBEEF")
 
     }
 
@@ -158,6 +227,18 @@ class SimpleSirToUplcLoweringTest
          */
         val a = SIR.Var("a", SIRType.Boolean, ae)
         val b = SIR.Var("b", SIRType.Boolean, ae)
+        SIR.Let(
+          NonRec,
+          List(
+            Binding("a", SIR.Const(Constant.Bool(true), SIRType.Boolean, ae)),
+            Binding(
+              "b",
+              SIR.Const(Constant.Bool(true), SIRType.Boolean, ae)
+            )
+          ),
+          SIR.And(a, b, ae),
+          ae
+        )
         SIR.And(a, b, ae) lowersTo !(!IfThenElse $ vr"a" $ ~vr"b" $ ~false)
         SIR.Or(a, b, ae) lowersTo !(!IfThenElse $ vr"a" $ ~true $ ~vr"b")
         SIR.Not(a, ae) lowersTo !(!IfThenElse $ vr"a" $ ~false $ ~true)

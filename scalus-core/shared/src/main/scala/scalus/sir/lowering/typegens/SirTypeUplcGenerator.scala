@@ -69,7 +69,8 @@ object SirTypeUplcGenerator {
                     else SumCaseUplcOnlySirTypeGenerator
                 else if !containsFun(tp, trace) then SumCaseSirTypeGenerator
                 else SumCaseUplcOnlySirTypeGenerator
-            case SIRType.CaseClass(constrDecl, typeArgs, _) =>
+            case SIRType.CaseClass(constrDecl, typeArgs, optParent) =>
+                //if (constrDecl.name == "scalus.prelude.List$.Nil") then
                 val trace = new IdentityHashMap[SIRType, SIRType]()
                 if !containsFun(tp, trace) then ProductCaseSirTypeGenerator
                 else ProductCaseUplcOnlySirTypeGenerator

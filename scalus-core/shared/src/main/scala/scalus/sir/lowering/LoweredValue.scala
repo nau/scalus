@@ -322,7 +322,7 @@ object LoweredValue {
                 override def termInternal(gctx: TermGenerationContext): Term = {
                     Term.Apply(
                       Term.Apply(
-                        Term.Builtin(DefaultFun.EqualsInteger),
+                        Lowering.forcedBuiltin(DefaultFun.EqualsInteger),
                         x.termWithNeededVars(gctx)
                       ),
                       y.termWithNeededVars(gctx)
@@ -424,7 +424,7 @@ object LoweredValue {
 
                 override def termInternal(gctx: TermGenerationContext): Term =
                     Term.Apply(
-                      Term.Builtin(fun.bn),
+                      fun.bn.tpf,
                       arg.termWithNeededVars(gctx)
                     )
 
@@ -453,7 +453,7 @@ object LoweredValue {
         ): LoweredValue = {
             StaticLoweredValue(
               SIR.Builtin(fun.bn, tp, AnnotationsDecl(inPos)),
-              Term.Builtin(fun.bn),
+              Lowering.forcedBuiltin(fun.bn) $ Term.Const(Constant.Unit),
               lvr
             )
         }
@@ -487,7 +487,7 @@ object LoweredValue {
                 override def termInternal(gctx: TermGenerationContext): Term =
                     Term.Apply(
                       Term.Apply(
-                        Term.Builtin(fun.bn),
+                        Lowering.forcedBuiltin(fun.bn),
                         arg1.termWithNeededVars(gctx)
                       ),
                       arg2.termWithNeededVars(gctx)

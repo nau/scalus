@@ -1228,13 +1228,24 @@ object FlatInstantces:
                     val anns = AnnotationsDeclFlat.decodeHC(decoder)
                     HashConsedRef.deferred(
                       hs => f.isComplete(hs) && x.isComplete(hs) && tp.isComplete(hs),
-                      (hs, l, p) =>
+                      (hs, l, p) => {
+                          val ff = f.finValue(hs, l, p) match {
+                              case as: AnnotatedSIR => as
+                              case _ =>
+                                  throw new IllegalStateException("non-annotated SIR in Apply")
+                          }
+                          val fx = x.finValue(hs, l, p) match {
+                              case as: AnnotatedSIR => as
+                              case _ =>
+                                  throw new IllegalStateException("non-annotated SIR in Apply")
+                          }
                           Apply(
-                            f.finValue(hs, l, p),
-                            x.finValue(hs, l, p),
+                            ff,
+                            fx,
                             tp.finValue(hs, l, p),
                             anns.finValue(hs, l, p)
                           )
+                      }
                     )
                 case `tagSelect` =>
                     val x = decodeHC(decoder)

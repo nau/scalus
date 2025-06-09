@@ -1,8 +1,9 @@
 package scalus.sir.lowering.typegens
 
-import scalus.sir.*
+import scalus.sir.{SIRType, *}
 import scalus.sir.lowering.*
 import scalus.sir.lowering.Lowering.tpf
+import scalus.sir.lowering.LoweredValue.Builder.*
 import scalus.uplc.{DefaultFun, Term}
 
 /** Internal representation - Plutus List, element type should be data-compatibe List[E] when E is
@@ -72,10 +73,11 @@ object SumDataListSirTypeGenerator extends SirTypeUplcGenerator {
     override def genConstr(constr: SIR.Constr)(using lctx: LoweringContext): LoweredValue = {
         constr.name match
             case "scalus.prelude.List$.Nil" =>
-                StaticLoweredValue(
-                  constr,
-                  DefaultFun.MkNilData.tpf,
-                  SumCaseClassRepresentation.DataList
+                lvBuiltinApply0(
+                  SIRBuiltins.mkNilData,
+                  SIRType.List(SIRType.FreeUnificator),
+                  SumCaseClassRepresentation.DataList,
+                  constr.anns.pos
                 )
             case "scalus.prelude.List$.Cons" =>
                 if constr.args.size != 2 then
@@ -89,31 +91,14 @@ object SumDataListSirTypeGenerator extends SirTypeUplcGenerator {
                 )
                 val tailDataRepr =
                     tail.toRepresentation(SumCaseClassRepresentation.DataList, tail.pos)
-                new LoweredValue {
-                    override def sirType: SIRType = constr.tp
-
-                    override def pos: SIRPosition = constr.anns.pos
-
-                    override def termInternal(gctx: TermGenerationContext): Term = {
-                        val headTerm = headDataRepr.termWithNeededVars(gctx)
-                        val tailTerm = tailDataRepr.termWithNeededVars(gctx)
-                        DefaultFun.MkCons.tpf $ headTerm $ tailTerm
-                    }
-
-                    override def representation: LoweredValueRepresentation =
-                        SumCaseClassRepresentation.DataList
-
-                    override def dominatingUplevelVars: Set[IdentifiableLoweredValue] =
-                        headDataRepr.dominatingUplevelVars ++ tailDataRepr.dominatingUplevelVars
-
-                    override def usedUplevelVars: Set[IdentifiableLoweredValue] =
-                        headDataRepr.usedUplevelVars ++ tailDataRepr.usedUplevelVars
-
-                    override def addDependent(value: IdentifiableLoweredValue): Unit = {
-                        headDataRepr.addDependent(value)
-                        tailDataRepr.addDependent(value)
-                    }
-                }
+                lvBuiltinApply2(
+                  SIRBuiltins.mkCons,
+                  headDataRepr,
+                  tailDataRepr,
+                  SIRType.List(elementType),
+                  SumCaseClassRepresentation.DataList,
+                  constr.anns.pos
+                )
             case _ =>
                 throw LoweringException(
                   s"Unknown constructor ${constr.name} for List",

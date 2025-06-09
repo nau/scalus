@@ -63,7 +63,7 @@ class SirToExprTest extends AnyFunSuite {
 
     test("type of buildin fun application is serialized without unfilled proxies") {
         val fun = SIRBuiltins.tailList
-        val arg: SIR = SIR.Const(
+        val arg: AnnotatedSIR = SIR.Const(
           scalus.uplc.Constant
               .List(scalus.uplc.DefaultUni.Integer, List(scalus.uplc.Constant.Integer(1))),
           SIRType.List(SIRType.Integer),
@@ -86,7 +86,7 @@ class SirToExprTest extends AnyFunSuite {
 
     test("buildin fun application is serialized without unfilled proxies") {
         val fun0 = SIRBuiltins.tailList
-        val arg: SIR = SIR.Const(
+        val arg: AnnotatedSIR = SIR.Const(
           scalus.uplc.Constant
               .List(scalus.uplc.DefaultUni.Integer, List(scalus.uplc.Constant.Integer(1))),
           SIRType.List(SIRType.Integer),

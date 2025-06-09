@@ -2435,9 +2435,9 @@ final class SIRCompiler(options: SIRCompilerOptions = SIRCompilerOptions.default
                 (newSIR, termChanged)
             case SIR.Apply(f, arg, tp, anns) =>
                 val (newF, fChanged) =
-                    specializeSIR(parentSym, f, env, possibleOverrides, thisClassNames)
+                    specializeAnnotatedSIR(parentSym, f, env, possibleOverrides, thisClassNames)
                 val (newArg, argChanged) =
-                    specializeSIR(parentSym, arg, env, possibleOverrides, thisClassNames)
+                    specializeAnnotatedSIR(parentSym, arg, env, possibleOverrides, thisClassNames)
                 val newSIR = SIR.Apply(newF, newArg, tp, anns)
                 (newSIR, fChanged || argChanged)
             case SIR.Select(obj, name, tp, anns) =>

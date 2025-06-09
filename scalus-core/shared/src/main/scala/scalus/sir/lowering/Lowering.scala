@@ -10,6 +10,8 @@ object Lowering {
 
     extension (fun: DefaultFun) def tpf: Term = builtinTerms(fun)
 
+    def forcedBuiltin(fun: DefaultFun): Term = builtinTerms(fun)
+
     def genError(
         msg: String
     )(using lctx: LoweringContext): Term =
@@ -295,35 +297,17 @@ object Lowering {
 
     private def lowerApp(app: SIR.Apply)(using lctx: LoweringContext): LoweredValue = {
 
-        def extractTypeParamsAndFirstArg(tp: SIRType): (List[SIRType.TypeVar], SIRType) =
-            tp match
-                case SIRType.TypeLambda(params, t) =>
-                    val (nextParams, firstArg) = extractTypeParamsAndFirstArg(t)
-                    (params ++ nextParams, firstArg)
-                case SIRType.Fun(arg, res) =>
-                    (Nil, arg)
-                case SIRType.TypeProxy(ref) =>
-                    extractTypeParamsAndFirstArg(ref)
-                case SIRType.TypeVar(name, _) =>
-                    sys.error(
-                      s"Unexpected type variable ${tp.show} at ${app.anns.pos.file}:${app.anns.pos.startLine}"
-                    )
-                case _ =>
-                    sys.error(
-                      s"Expected a function type, but got $tp at ${app.anns.pos.file}:${app.anns.pos.startLine}"
-                    )
-
-        val (typeParams, firstArg) = extractTypeParamsAndFirstArg(app.tp)
-
         val fun = lowerSIR(app.f)
-        val fArgRepresentation = lctx.typeGenerator(firstArg).defaultRepresentation
-        val arg = lowerSIR(app.arg).toRepresentation(fArgRepresentation, app.anns.pos)
+        val fArgRepresentation = lctx.typeGenerator(app.arg.tp).defaultRepresentation
+        val arg = lowerSIR(app.arg).toRepresentation(fArgRepresentation, app.arg.anns.pos)
 
         val usedVarsWithCount = addUsedVarsToCounts(
           fun.usedUplevelVars ++ arg.usedUplevelVars,
           Map.empty
         )
-        val cDominatedUplevelVars = usedVarsWithCount.filter(_._2 > 1).keySet
+        val cDominatedUplevelVars = usedVarsWithCount.filter { case (v, c) =>
+            c > 1 && v.directDepended.size > 1
+        }.keySet
         val cUsedUplevelVars = usedVarsWithCount.keySet
 
         new LoweredValue {

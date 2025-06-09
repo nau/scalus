@@ -107,7 +107,7 @@ class SIRDataReprGenerator(using ctx: Context) {
         }
     }
 
-    def resolveFromDataRhs(tp: SIRType, env: Env, dataExpr: SIR): SIR = {
+    def resolveFromDataRhs(tp: SIRType, env: Env, dataExpr: AnnotatedSIR): AnnotatedSIR = {
         // TODO: check recursion
         tp match {
             case SIRType.TypeProxy(ref) =>
@@ -126,7 +126,7 @@ class SIRDataReprGenerator(using ctx: Context) {
                     }
                 }
 
-                val fromDataVar: SIR = SIR.ExternalVar(
+                val fromDataVar: AnnotatedSIR = SIR.ExternalVar(
                   decl.name + '$',
                   decl.name + "$.derived$FromData",
                   fromDataVarTp,
@@ -347,7 +347,7 @@ class SIRDataReprGenerator(using ctx: Context) {
         env: Env,
         resType: SIRType,
         dataVar: SIR.Var
-    ): SIR = {
+    ): AnnotatedSIR = {
         val typeVars = constrDecl.typeParams.zip(constrTypeArgs).toMap
         val nEnv = env.copy(typeVars = env.typeVars ++ typeVars)
         val constrParams =

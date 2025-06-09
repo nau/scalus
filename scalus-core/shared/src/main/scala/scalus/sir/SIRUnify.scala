@@ -156,9 +156,9 @@ object SIRUnify {
                     case failure @ UnificationFailure(path, paramLeft, paramRight) =>
                         failure
             case (app1: SIR.Apply, app2: SIR.Apply) =>
-                unifySIR(app1.f, app2.f, env.copy(path = "f" :: env.path)) match
+                unifySIRExpr(app1.f, app2.f, env.copy(path = "f" :: env.path)) match
                     case UnificationSuccess(env1, fun) =>
-                        unifySIR(app1.arg, app2.arg, env1.copy(path = "arg" :: env.path)) match
+                        unifySIRExpr(app1.arg, app2.arg, env1.copy(path = "arg" :: env.path)) match
                             case UnificationSuccess(env2, arg) =>
                                 unifyType(
                                   app1.tp,

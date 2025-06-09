@@ -32,7 +32,7 @@ object RemoveRecursivity:
                 )
             case LamAbs(name, term, anns) => LamAbs(name, removeRecursivity(term), anns)
             case Apply(f, arg, tp, anns) =>
-                Apply(removeRecursivity(f), removeRecursivity(arg), tp, anns)
+                Apply(removeRecursivityInExpr(f), removeRecursivityInExpr(arg), tp, anns)
             case Select(s, field, tp, anns) => Select(removeRecursivity(s), field, tp, anns)
             case IfThenElse(cond, t, f, tp, anns) =>
                 IfThenElse(

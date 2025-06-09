@@ -133,7 +133,7 @@ object SIRTypeUplcStringGenerator extends PrimitiveSirTypeGenerator {
 object SIRTypeUplcUnitGenerator extends PrimitiveSirTypeGenerator {
 
     override def uplcToData(input: Term): Term = {
-        DefaultFun.MkNilData.tpf
+        DefaultFun.MkNilData.tpf $ Term.Const(Constant.Unit)
     }
 
     override def dataToUplc(input: Term): Term = {

@@ -5,6 +5,12 @@ import scalus.uplc.DefaultFun
 
 object SirDSL:
 
+    def extractAnnotated(sir: SIR): AnnotatedSIR =
+        sir match
+            case ansir: AnnotatedSIR => ansir
+            case SIR.Decl(data, term) =>
+                extractAnnotated(term)
+
     def applyToList(app: SIR): (SIR, List[SIR]) =
         app match
             case SIR.Apply(f, arg, tp, _) =>
@@ -28,8 +34,8 @@ object SirDSL:
     extension (term: SIR)
         infix def $(rhs: SIR): AnnotatedSIR =
             SIR.Apply(
-              term,
-              rhs,
+              extractAnnotated(term),
+              extractAnnotated(rhs),
               SIRType.calculateApplyType(term.tp, rhs.tp, Map.empty),
               AnnotationsDecl.empty
             )
