@@ -5,6 +5,7 @@ import org.typelevel.paiges.Doc
 import scalus.*
 import scalus.builtin.Data
 import scalus.builtin.Data.*
+import scalus.uplc.Term.Const
 import scalus.utils.Hex
 
 import scala.annotation.targetName
@@ -177,8 +178,36 @@ case class DeBruijnedProgram private[uplc] (version: (Int, Int, Int), term: Term
       * @return
       *   the program with the argument applied
       */
-    @targetName("applyArg")
+
     infix def $(arg: Term): DeBruijnedProgram = DeBruijnedProgram(version, Term.Apply(term, arg))
+
+    /** Applies a [[Data]] argument to the program.
+      *
+      * @param arg
+      *   the argument
+      * @return
+      *   the program with the argument applied
+      */
+    infix def $(arg: Data): DeBruijnedProgram =
+        DeBruijnedProgram(version, Term.Apply(term, Const(Constant.Data(arg))))
+
+    /** Applies an argument to the program.
+      *
+      * @param arg
+      *   the argument
+      * @return
+      *   the program with the argument applied
+      */
+    def applyArg(arg: Term): DeBruijnedProgram = this $ arg
+
+    /** Applies a [[Data]] argument to the program.
+      *
+      * @param arg
+      *   the argument
+      * @return
+      *   the program with the argument applied
+      */
+    def applyArg(arg: Data): DeBruijnedProgram = this $ arg
 
 object DeBruijnedProgram {
 
