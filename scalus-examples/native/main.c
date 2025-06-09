@@ -16,7 +16,7 @@ void run_script(const char* script)
     assert(params != NULL);
 
     // read a cardano-cli protocol-params.json file into a string
-    FILE* fp = fopen("../shared/src/main/resources/protocol-params.json", "r");
+    FILE* fp = fopen("../../scalus-core/shared/src/main/resources/protocol-params.json", "r");
     if (fp == NULL) {
         printf("Error opening file\n");
         return;
@@ -24,7 +24,7 @@ void run_script(const char* script)
     char json[20000];
     fread(json, 1, sizeof(json), fp);
     fclose(fp);
-    printf("JSON: %s\n", json);
+//    printf("JSON: %s\n", json);
 
     // get machine params from cardano-cli protocol-params.json file
     machine_params* params2 = scalus_get_machine_params_from_cardano_cli_protocol_params_json(json, 3);
