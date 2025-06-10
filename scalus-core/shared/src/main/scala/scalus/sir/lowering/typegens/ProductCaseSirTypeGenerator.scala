@@ -31,9 +31,10 @@ object ProductCaseSirTypeGenerator extends SirTypeUplcGenerator {
                   pos
                 )
             case (DataList, DataConstr) =>
+                val constrIndex = retrieveConstrIndex(input.sirType, pos)
                 lvBuiltinApply2(
                   SIRBuiltins.constrData,
-                  lvIntConstant(0, pos),
+                  lvIntConstant(constrIndex, pos),
                   input,
                   input.sirType,
                   ProductCaseClassRepresentation.DataConstr,
@@ -154,6 +155,25 @@ object ProductCaseSirTypeGenerator extends SirTypeUplcGenerator {
         }
     }
 
+    override def upcastOne(input: LoweredValue, targetType: SIRType, pos: SIRPosition)(using
+        LoweringContext
+    ): LoweredValue = {
+        val asDataConstr = input.toRepresentation(
+          ProductCaseClassRepresentation.DataConstr,
+          pos
+        )
+        new ProxyLoweredValue(asDataConstr) {
+            override def sirType: SIRType = targetType
+
+            override def representation: LoweredValueRepresentation =
+                SumCaseClassRepresentation.DataConstr
+
+            override def termInternal(gctx: TermGenerationContext): Term = {
+                asDataConstr.termInternal(gctx)
+            }
+        }
+    }
+
     override def genConstr(constr: SIR.Constr)(using
         lctx: LoweringContext
     ): LoweredValue = {
@@ -199,7 +219,7 @@ object ProductCaseSirTypeGenerator extends SirTypeUplcGenerator {
                   sel.anns.pos
                 )
         val list0id = list0.id
-        val (constrDecl, typeArgs) = retrieveConstrDecl(loweredScrutinee.sirType, sel.anns.pos)
+        val constrDecl = retrieveConstrDecl(loweredScrutinee.sirType, sel.anns.pos)
         val fieldIndex = constrDecl.params.indexWhere(_.name == sel.field)
         if fieldIndex < 0 then
             throw LoweringException(
@@ -238,8 +258,7 @@ object ProductCaseSirTypeGenerator extends SirTypeUplcGenerator {
     def genMatchDataList(matchData: SIR.Match, loweredScrutinee: LoweredValue)(using
         lctx: LoweringContext
     ): LoweredValue = {
-        val (constrDecl, typeArgs) =
-            retrieveConstrDecl(loweredScrutinee.sirType, matchData.anns.pos)
+        val constrDecl = retrieveConstrDecl(loweredScrutinee.sirType, matchData.anns.pos)
         matchData.cases match {
             case oneCase :: Nil =>
                 val matchCase = oneCase.pattern match
@@ -320,16 +339,50 @@ object ProductCaseSirTypeGenerator extends SirTypeUplcGenerator {
         ???
     }
 
-    def retrieveConstrDecl(tp: SIRType, pos: SIRPosition): (ConstrDecl, List[SIRType]) = {
-        tp match
-            case SIRType.CaseClass(constrDecl, typeArgs, parent) =>
-                (constrDecl, typeArgs)
+    def retrieveConstrIndex(tp: SIRType, pos: SIRPosition): Int = {
+        tp match {
+            case SIRType.CaseClass(constrDecl, targs, optParent) =>
+                optParent match
+                    case None => 0
+                    case Some(parent) =>
+                        val parentDecl = SIRType
+                            .retrieveDataDecl(parent)
+                            .fold(
+                              msg =>
+                                  throw LoweringException(
+                                    s"Can't retrieve parent decl from ${parent.show}: $msg",
+                                    pos
+                                  ),
+                              identity
+                            )
+                        val retval = parentDecl.constructors.indexWhere(_.name == constrDecl.name)
+                        if retval < 0 then {
+                            throw LoweringException(
+                              s"Expected case class ${constrDecl.name} with constr ${constrDecl.name}, but it is not found in data declaration",
+                              pos
+                            )
+                        }
+                        retval
             case SIRType.TypeLambda(params, body) =>
-                retrieveConstrDecl(body, pos)
+                retrieveConstrIndex(body, pos)
             case SIRType.TypeProxy(ref) =>
-                retrieveConstrDecl(ref, pos)
+                retrieveConstrIndex(ref, pos)
             case _ =>
-                throw LoweringException(s"Expected ConstrDecl type, got $tp", pos)
+                throw LoweringException(
+                  s"Expected case class type, got ${tp.show}",
+                  pos
+                )
+        }
+    }
+
+    def retrieveConstrDecl(tp: SIRType, pos: SIRPosition): ConstrDecl = {
+        SIRType.retrieveConstrDecl(tp) match
+            case Right(decl) => decl
+            case Left(msg) =>
+                throw LoweringException(
+                  s"Can't retrieve constr decl from ${tp.show}: $msg",
+                  pos
+                )
     }
 
 }

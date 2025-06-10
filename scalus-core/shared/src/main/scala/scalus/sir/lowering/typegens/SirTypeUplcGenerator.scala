@@ -30,6 +30,11 @@ trait SirTypeUplcGenerator {
         lctx: LoweringContext
     ): LoweredValue
 
+    def upcastOne(input: LoweredValue, targetType: SIRType, pos: SIRPosition)(using
+        LoweringContext
+    ): LoweredValue
+
+
     /** Generate constructor for this type. Always called on DataDecl.tp
       */
     def genConstr(constr: SIR.Constr)(using
@@ -70,7 +75,7 @@ object SirTypeUplcGenerator {
                 else if !containsFun(tp, trace) then SumCaseSirTypeGenerator
                 else SumCaseUplcOnlySirTypeGenerator
             case SIRType.CaseClass(constrDecl, typeArgs, optParent) =>
-                //if (constrDecl.name == "scalus.prelude.List$.Nil") then
+                // if (constrDecl.name == "scalus.prelude.List$.Nil") then
                 val trace = new IdentityHashMap[SIRType, SIRType]()
                 if !containsFun(tp, trace) then ProductCaseSirTypeGenerator
                 else ProductCaseUplcOnlySirTypeGenerator

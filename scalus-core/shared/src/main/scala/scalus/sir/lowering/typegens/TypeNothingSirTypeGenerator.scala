@@ -22,6 +22,12 @@ object TypeNothingSirTypeGenerator extends SirTypeUplcGenerator {
     )(using lctx: LoweringContext): LoweredValue =
         input
 
+    override def upcastOne(input: LoweredValue, targetType: SIRType, pos: SIRPosition)(using
+        LoweringContext
+    ): LoweredValue = {
+        input
+    }
+
     override def genConstr(constr: SIR.Constr)(using LoweringContext): LoweredValue = {
         throw LoweringException(
           s"TypeNothingSirTypeGenerator does not support constructors, got ${constr.name}",

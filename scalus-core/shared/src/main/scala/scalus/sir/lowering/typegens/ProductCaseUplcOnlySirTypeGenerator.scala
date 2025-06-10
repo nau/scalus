@@ -22,6 +22,12 @@ object ProductCaseUplcOnlySirTypeGenerator extends SirTypeUplcGenerator {
         ???
     }
 
+    override def upcastOne(input: LoweredValue, targetType: SIRType, pos: SIRPosition)(using
+        LoweringContext
+    ): LoweredValue = {
+        ???
+    }
+
     override def genConstr(constr: SIR.Constr)(using LoweringContext): LoweredValue = ???
 
     override def genSelect(sel: SIR.Select, loweredScrutinee: LoweredValue)(using

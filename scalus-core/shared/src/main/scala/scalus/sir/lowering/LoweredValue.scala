@@ -29,22 +29,42 @@ trait LoweredValue {
     def termInternal(gctx: TermGenerationContext): Term
 
     /** The type of representation of this value.
-      * @param ctx
-      * @return
       */
     def representation: LoweredValueRepresentation
 
+    /** Convert this value to the giveb representation,
+      */
     def toRepresentation(representation: LoweredValueRepresentation, pos: SIRPosition)(using
         LoweringContext
     ): LoweredValue = {
         summon[LoweringContext].typeGenerator(sirType).toRepresentation(this, representation, pos)
     }
 
+    def upcastOne(targetType: SIRType, pos: SIRPosition)(using
+        LoweringContext
+    ): LoweredValue =
+        summon[LoweringContext].typeGenerator(sirType).upcastOne(this, targetType, pos)
+
+    def upcast(targetType: SIRType, pos: SIRPosition)(using LoweringContext): LoweredValue = {
+        val parentsSeq = SIRType.parentsSeq(sirType, targetType) match {
+            case Left(message) =>
+                throw LoweringException(
+                  s"Can't upcast ${sirType.show} to ${targetType.show}: $message",
+                  pos
+                )
+            case Right(seq) => seq
+        }
+        parentsSeq.foldLeft(this) { (s, e) =>
+            s.upcastOne(e, pos)
+        }
+    }
+
     /** Uplevel variables, that shoule be generated before generation of term
-      * @return
       */
     def dominatingUplevelVars: Set[IdentifiableLoweredValue]
 
+    /** Uplevel variables, that are used in this value.
+      */
     def usedUplevelVars: Set[IdentifiableLoweredValue]
 
     /** add identifiable variable to be updated from this variable */

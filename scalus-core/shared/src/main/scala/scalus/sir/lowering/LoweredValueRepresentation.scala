@@ -1,7 +1,6 @@
 package scalus.sir.lowering
 
 import scalus.sir.*
-import scalus.sir.lowering.typegens.TypeNothingSirTypeGenerator
 
 /** representation, depends on the type of the value.
   */

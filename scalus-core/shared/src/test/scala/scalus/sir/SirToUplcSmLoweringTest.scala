@@ -217,6 +217,10 @@ class SirToUplcSmLoweringTest
         val uplc2 = lower(originSir2)
         println(s"lowered TxId constr: ${uplc2.pretty.render(100)}")
 
+        val gen2 = scalus.sir.lowering.typegens.SirTypeUplcGenerator(originSir2.tp)
+        val representation2 = gen2.defaultRepresentation
+        println(s"gen2 = $gen2, representation2=${representation2}")
+
         // lowersTo (lam("hash", "TxId")(vr"TxId" $ vr"hash") $ hex"DEADBEEF")
 
     }

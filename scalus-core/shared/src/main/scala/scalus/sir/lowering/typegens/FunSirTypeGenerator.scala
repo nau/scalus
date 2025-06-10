@@ -60,6 +60,12 @@ case class FunSirTypeGenerator(genInput: SirTypeUplcGenerator, genOutput: SirTyp
         }
     }
 
+    override def upcastOne(input: LoweredValue, targetType: SIRType, pos: SIRPosition)(using
+        LoweringContext
+    ): LoweredValue = {
+        throw LoweringException("Function type can't be upcasted", pos)
+    }
+
     override def genConstr(constr: SIR.Constr)(using LoweringContext): LoweredValue = {
         throw LoweringException(
           "Constr can't be generated for function type",

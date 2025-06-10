@@ -542,6 +542,58 @@ object SIRType {
             case UplcTypeScheme.TVar(name) => TypeVar(name)
     }
 
+    def parentsSeq(input: SIRType, parent: SIRType): Either[String, List[SIRType]] = {
+        parentsSeqReverse(input, parent, Nil).map(_.reverse)
+    }
+
+    /** @param input.
+      *   I <: Parent if
+      * @param parent
+      * @param acc
+      * @return
+      */
+    def parentsSeqReverse(
+        input: SIRType,
+        parent: SIRType,
+        acc: List[SIRType]
+    ): Either[String, List[SIRType]] = {
+        input match {
+            case SIRType.CaseClass(constrDecl, typeArgs, optParent) =>
+                optParent match
+                    case None => Left(s"class ${input.show} have no parent")
+                    case Some(iParent) =>
+                        SIRUnify.unifyType(iParent, parent, SIRUnify.Env.empty) match
+                            case SIRUnify.UnificationSuccess(env, rParent) =>
+                                Right(rParent :: acc)
+                            case failure =>
+                                parentsSeqReverse(iParent, parent, iParent :: acc)
+            case SIRType.SumCaseClass(constrDecl, typeArgs) =>
+                ???
+        }
+    }
+
+    def retrieveDataDecl(tp: SIRType): Either[String, DataDecl] = {
+        tp match {
+            case tp: SumCaseClass => Right(tp.decl)
+            case TypeProxy(ref) =>
+                if ref == null then Left("TypeProxy is not resolved")
+                else retrieveDataDecl(ref)
+            case TypeLambda(_, body) => retrieveDataDecl(body)
+            case _                   => Left(s"Expected SumCaseClass, got $tp")
+        }
+    }
+
+    def retrieveConstrDecl(tp: SIRType): Either[String, ConstrDecl] = {
+        tp match {
+            case tp: CaseClass => Right(tp.constrDecl)
+            case TypeProxy(ref) =>
+                if ref == null then Left("TypeProxy is not resolved")
+                else retrieveConstrDecl(ref)
+            case TypeLambda(_, body) => retrieveConstrDecl(body)
+            case _                   => Left(s"Expected CaseClass, got ${tp.show}")
+        }
+    }
+
     def checkAllProxiesFilled(tp: SIRType): Boolean = {
         checkAllProxiesFilledTraced(tp, new util.IdentityHashMap[SIRType, SIRType], Nil)
     }

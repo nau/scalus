@@ -38,6 +38,17 @@ object SumDataListSirTypeGenerator extends SirTypeUplcGenerator {
         }
     }
 
+    override def upcastOne(
+        input: LoweredValue,
+        targetType: SIRType,
+        pos: SIRPosition
+    )(using lctx: LoweringContext): LoweredValue = {
+        throw LoweringException(
+          s"DataList have no parent types to upcast.",
+          pos
+        )
+    }
+
     def genTranslateTermRepresentation(
         input: Term,
         inputRepresentation: LoweredValueRepresentation,

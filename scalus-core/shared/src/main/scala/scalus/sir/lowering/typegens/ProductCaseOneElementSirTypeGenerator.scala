@@ -1,6 +1,7 @@
 package scalus.sir.lowering.typegens
 
-import scalus.sir.*
+import scalus.sir.SIRType.Data
+import scalus.sir.{SIRType, *}
 import scalus.sir.lowering.*
 import scalus.sir.lowering.LoweredValue.Builder.*
 import scalus.uplc.Term
@@ -23,7 +24,69 @@ case class ProductCaseOneElementSirTypeGenerator(argGenerator: SirTypeUplcGenera
         representation: LoweredValueRepresentation,
         pos: SIRPosition
     )(using lctx: LoweringContext): LoweredValue = {
+
         ProductCaseSirTypeGenerator.toRepresentation(input, representation, pos)
+    }
+
+    override def upcastOne(input: LoweredValue, targetType: SIRType, pos: SIRPosition)(using
+        lctx: LoweringContext
+    ): LoweredValue = {
+
+        val dataDecl = SIRType
+            .retrieveDataDecl(targetType)
+            .fold(
+              msg =>
+                  throw LoweringException(
+                    s"Can't retrieve decl from ${targetType.show}: $msg",
+                    pos
+                  ),
+              identity
+            )
+        val constrDecl = SIRType
+            .retrieveConstrDecl(input.sirType)
+            .fold(
+              msg =>
+                  throw LoweringException(
+                    s"Can't retrieve constr decl from ${input.sirType.show}: $msg",
+                    pos
+                  ),
+              identity
+            )
+
+        val constrIndex = dataDecl.constructors.indexWhere(_.name == constrDecl.name)
+        if constrIndex < 0 then {
+            throw LoweringException(
+              s"Expected case class ${dataDecl.name} with constr ${constrDecl.name}, but it is not found in data declaration",
+              pos
+            )
+        }
+
+        val constrIndexConstant = lvIntConstant(3, pos)
+        val argValue =
+            argLoweredValue(input).toRepresentation(argGenerator.defaultDataRepresentation, pos)
+        val prodArgs = lvBuiltinApply2(
+          SIRBuiltins.mkCons,
+          argValue,
+          lvBuiltinApply0(
+            SIRBuiltins.mkNilData,
+            SIRType.List(Data),
+            SumCaseClassRepresentation.DataList,
+            pos
+          ),
+          SIRType.List(Data),
+          SumCaseClassRepresentation.DataList,
+          pos
+        )
+
+        lvBuiltinApply2(
+          SIRBuiltins.constrData,
+          constrIndexConstant,
+          prodArgs,
+          targetType,
+          SumCaseClassRepresentation.DataConstr,
+          pos
+        )
+
     }
 
     override def genConstr(constr: SIR.Constr)(using lctx: LoweringContext): LoweredValue = {

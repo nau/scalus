@@ -19,6 +19,10 @@ object SumCaseUplcOnlySirTypeGenerator extends SirTypeUplcGenerator {
         SumCaseSirTypeGenerator.toRepresentation(input, representation, pos)
     }
 
+    override def upcastOne(input: LoweredValue, targetType: SIRType, pos: SIRPosition)(using
+        LoweringContext
+    ): LoweredValue = ???
+
     override def genConstr(constr: SIR.Constr)(using lctx: LoweringContext): LoweredValue = {
         throw LoweringException(
           s"SumCaseUplcOnlySirTypeGenerator does not support constructors, got ${constr.name}",

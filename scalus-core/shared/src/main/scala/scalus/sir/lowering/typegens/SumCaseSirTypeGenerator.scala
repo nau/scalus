@@ -5,6 +5,7 @@ import scalus.sir.{SIRType, *}
 import scalus.sir.SIR.Pattern
 import scalus.sir.lowering.*
 import scalus.sir.lowering.LoweredValue.Builder.*
+import scalus.uplc.Term
 
 object SumCaseSirTypeGenerator extends SirTypeUplcGenerator {
 
@@ -52,6 +53,57 @@ object SumCaseSirTypeGenerator extends SirTypeUplcGenerator {
             case (PackedDataList, _) =>
                 ???
         }
+    }
+
+    override def upcastOne(
+        input: LoweredValue,
+        targetType: SIRType,
+        pos: SIRPosition
+    )(using lctx: LoweringContext): LoweredValue = {
+        val targetDataDecl = retrieveDataDecl(targetType, pos)
+        val dataConstructors = targetDataDecl.constructors
+        val inputDataDecl = retrieveDataDecl(input.sirType, pos)
+        val constrName = SIRType.syntheticNarrowConstrDeclName(inputDataDecl.name)
+        val constrIndex = dataConstructors.indexWhere(_.name == constrName)
+        if constrIndex < 0 then {
+            throw LoweringException(
+              s"Expected case class ${inputDataDecl.name} with constr ${constrName}, but it is not found in data declaration",
+              pos
+            )
+        }
+        val inputDataRepr = input.toRepresentation(SumCaseClassRepresentation.DataConstr, pos)
+
+        val inPos = pos
+
+        val constrProduct = new ProxyLoweredValue(inputDataRepr) {
+
+            override def sirType: SIRType =
+                targetDataDecl.constrType(constrName)
+
+            override def representation: LoweredValueRepresentation =
+                ProductCaseClassRepresentation.OneElementWrapper(inputDataRepr.representation)
+
+            override def pos: SIRPosition = inPos
+
+            override def termInternal(gctx: TermGenerationContext): Term =
+                inputDataRepr.termInternal(gctx)
+        }
+
+        val constrProductDataConstr =
+            constrProduct.toRepresentation(ProductCaseClassRepresentation.DataConstr, pos)
+
+        val retval = new ProxyLoweredValue(constrProductDataConstr) {
+            override def sirType: SIRType = targetType
+            override def representation: LoweredValueRepresentation =
+                SumCaseClassRepresentation.DataConstr
+
+            override def pos: SIRPosition = inPos
+
+            override def termInternal(gctx: TermGenerationContext): Term =
+                constrProductDataConstr.termInternal(gctx)
+        }
+
+        retval
     }
 
     override def genSelect(sel: SIR.Select, loweredScrutinee: LoweredValue)(using
@@ -107,7 +159,7 @@ object SumCaseSirTypeGenerator extends SirTypeUplcGenerator {
     private def prepareOrderedCased(
         matchData: SIR.Match,
         loweredScrutinee: LoweredValue
-    )(using lctx: LoweringContext): List[SIR.Case] = {
+    )(using LoweringContext): List[SIR.Case] = {
 
         val cases = matchData.cases
         val anns = matchData.anns
@@ -354,6 +406,16 @@ object SumCaseSirTypeGenerator extends SirTypeUplcGenerator {
             case _ =>
                 throw new IllegalArgumentException(
                   s"Expected case class type, got ${sirType} at match at ${pos}"
+                )
+    }
+
+    def retrieveDataDecl(tp: SIRType, pos: SIRPosition): DataDecl = {
+        SIRType.retrieveDataDecl(tp) match
+            case Right(decl) => decl
+            case Left(msg) =>
+                throw LoweringException(
+                  s"Can't retrieve data declaration from ${tp.show}: $msg",
+                  pos
                 )
     }
 

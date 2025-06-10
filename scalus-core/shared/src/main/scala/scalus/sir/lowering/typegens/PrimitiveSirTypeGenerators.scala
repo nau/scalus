@@ -33,6 +33,12 @@ trait PrimitiveSirTypeGenerator extends SirTypeUplcGenerator {
 
     }
 
+    override def upcastOne(input: LoweredValue, targetType: SIRType, pos: SIRPosition)(using
+        LoweringContext
+    ): LoweredValue = {
+        throw new LoweringException("Primitive value can't be upcasted", pos)
+    }
+
     def genTranslateTermRepresentation(
         inputValue: LoweredValue,
         input: Term,
