@@ -2,6 +2,7 @@ package scalus.cardano.ledger
 package rules
 
 import scalus.cardano.address.{Address, ShelleyPaymentPart, StakePayload}
+import scalus.builtin.ByteString
 import scala.util.boundary
 import scala.util.boundary.break
 import scala.util.control.NonFatal
@@ -14,6 +15,7 @@ object NeededWitnessesValidator extends STS.Validator {
             _ <- validateCollateralInputs(context, state, event)
             _ <- validateVotingProcedures(context, state, event)
             _ <- validateCertificates(context, state, event)
+            _ <- validateWithdrawals(context, state, event)
         yield ()
     }
 
@@ -72,11 +74,12 @@ object NeededWitnessesValidator extends STS.Validator {
         state: State,
         event: Event
     ): Result = boundary {
+        val transactionId = event.id
         val vkeyWitnesses = event.witnessSet.vkeyWitnesses
-
         val votingProcedures =
             event.body.value.votingProcedures.map(_.procedures).getOrElse(Map.empty)
-        for (voter, index) <- votingProcedures.keySet.zipWithIndex
+
+        for (voter, index) <- votingProcedures.view.keySet.zipWithIndex
         do
             val OptionHash = voter match
                 case Voter.ConstitutionalCommitteeHotKey(keyHash) => Some(keyHash)
@@ -91,7 +94,7 @@ object NeededWitnessesValidator extends STS.Validator {
                     break(
                       failure(
                         IllegalArgumentException(
-                          s"Missing vkey witness for staking credential $hash in voter $voter with index $index for transactionId ${event.id}"
+                          s"Missing vkey witness for staking credential $hash in voter $voter with index $index for transactionId $transactionId"
                         )
                       )
                     )
@@ -105,18 +108,60 @@ object NeededWitnessesValidator extends STS.Validator {
         state: State,
         event: Event
     ): Result = boundary {
-        event.body.value.certificates.view.zipWithIndex.foreach { case (certificate, index) =>
+        val transactionId = event.id
+        val vkeyWitnesses = event.witnessSet.vkeyWitnesses
+        val certificates = event.body.value.certificates
+
+        for (certificate, index) <- certificates.view.zipWithIndex
+        do
             val result = validateCertificate(
               certificate,
-              event.id,
-              event.witnessSet.vkeyWitnesses,
+              transactionId,
+              vkeyWitnesses,
               index
             )
 
             result match
                 case _: Right[Error, Value]   =>
                 case left: Left[Error, Value] => break(left)
-        }
+
+        success
+    }
+
+    private[this] def validateWithdrawals(
+        context: Context,
+        state: State,
+        event: Event
+    ): Result = boundary {
+        val transactionId = event.id
+        val vkeyWitnesses = event.witnessSet.vkeyWitnesses
+        val withdrawals = event.body.value.withdrawals.map(_.withdrawals).getOrElse(Map.empty)
+
+        for (rewardAccount, index) <- withdrawals.view.keySet.zipWithIndex
+        do
+            extractKeyHash(rewardAccount.bytes) match
+                case Right(optionHash) =>
+                    optionHash.foreach { hash =>
+                        if !vkeyWitnesses.exists(_.vkeyHash == hash)
+                        then
+                            break(
+                              failure(
+                                IllegalArgumentException(
+                                  s"Missing vkey witness for staking credential $hash in reward account $rewardAccount with index $index in withdrawals for transactionId $transactionId"
+                                )
+                              )
+                            )
+                    }
+
+                case Left(exception) =>
+                    break(
+                      failure(
+                        IllegalArgumentException(
+                          s"Invalid address format for reward account $rewardAccount with index $index in withdrawals for transactionId $transactionId",
+                          exception
+                        )
+                      )
+                    )
 
         success
     }
@@ -145,47 +190,34 @@ object NeededWitnessesValidator extends STS.Validator {
         do
             utxo.get(input) match
                 case Some(output) =>
-                    val address =
-                        try Address.fromByteString(output.address)
-                        catch
-                            case NonFatal(exception) =>
-                                break(
-                                  failure(
-                                    invalidAddressError(
-                                      transactionId,
-                                      input,
-                                      index,
-                                      exception
+                    extractKeyHash(output.address) match
+                        case Right(optionHash) =>
+                            optionHash.foreach { hash =>
+                                if !vkeyWitnesses.exists(_.vkeyHash == hash)
+                                then
+                                    break(
+                                      failure(
+                                        missingWitnessError(
+                                          transactionId,
+                                          hash,
+                                          input,
+                                          index
+                                        )
+                                      )
                                     )
-                                  )
-                                )
+                            }
 
-                    val optionHash = address match
-                        case Address.Byron(_) =>
-                            None // Byron addresses don't have staking credentials
-                        case Address.Shelley(shelleyAddress) =>
-                            shelleyAddress.payment match
-                                case ShelleyPaymentPart.Key(hash) => Some(hash)
-                                case _: ShelleyPaymentPart.Script => None
-                        case Address.Stake(stakeAddress) =>
-                            stakeAddress.payload match
-                                case StakePayload.Stake(hash) => Some(hash)
-                                case _: StakePayload.Script   => None
-
-                    optionHash.foreach { hash =>
-                        if !vkeyWitnesses.exists(_.vkeyHash == hash)
-                        then
+                        case Left(exception) =>
                             break(
                               failure(
-                                missingWitnessError(
+                                invalidAddressError(
                                   transactionId,
-                                  hash,
                                   input,
-                                  index
+                                  index,
+                                  exception
                                 )
                               )
                             )
-                    }
 
                 case None =>
                     break(failure(missingInputError(transactionId, input, index)))
@@ -327,5 +359,27 @@ object NeededWitnessesValidator extends STS.Validator {
             case Certificate.RegDRepCert(drepCredential, _, _) => checkWitness(drepCredential)
             case Certificate.UnregDRepCert(drepCredential, _)  => checkWitness(drepCredential)
             case Certificate.UpdateDRepCert(drepCredential, _) => checkWitness(drepCredential)
+    }
+
+    private[this] def extractKeyHash(
+        byteString: ByteString
+    ): Either[Error, Option[Hash[Blake2b_224, HashPurpose.KeyHash | HashPurpose.StakeKeyHash]]] = {
+        val address =
+            try Address.fromByteString(byteString)
+            catch case NonFatal(exception) => return Left(exception)
+
+        val optionHash = address match
+            case Address.Byron(_) =>
+                None // Byron addresses don't have staking credentials
+            case Address.Shelley(shelleyAddress) =>
+                shelleyAddress.payment match
+                    case ShelleyPaymentPart.Key(hash) => Some(hash)
+                    case _: ShelleyPaymentPart.Script => None
+            case Address.Stake(stakeAddress) =>
+                stakeAddress.payload match
+                    case StakePayload.Stake(hash) => Some(hash)
+                    case _: StakePayload.Script   => None
+
+        Right(optionHash)
     }
 }
