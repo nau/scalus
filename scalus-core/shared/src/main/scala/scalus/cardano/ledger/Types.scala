@@ -24,6 +24,11 @@ final case class Coin(value: Long) derives Codec {
 
     /** Subtract another coin amount, returns 0 if the result would be negative */
     def -(other: Coin): Coin = Coin(math.max(0, value - other.value))
+
+    def >(other: Coin): Boolean = value > other.value
+    def >=(other: Coin): Boolean = value >= other.value
+    def <(other: Coin): Boolean = value < other.value
+    def <=(other: Coin): Boolean = value <= other.value
 }
 
 object Coin {

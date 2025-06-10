@@ -23,8 +23,8 @@ object NeededWitnessesValidator extends STS.Validator {
         event: Event
     ): Result =
         validateTransactionInputs(
-          event.id,
           event.body.value.inputs,
+          event.id,
           event.witnessSet.vkeyWitnesses,
           state.utxo,
           (transactionId, input, index) =>
@@ -48,8 +48,8 @@ object NeededWitnessesValidator extends STS.Validator {
         event: Event
     ): Result =
         validateTransactionInputs(
-          event.id,
           event.body.value.collateralInputs,
+          event.id,
           event.witnessSet.vkeyWitnesses,
           state.utxo,
           (transactionId, collateralInput, index) =>
@@ -104,14 +104,27 @@ object NeededWitnessesValidator extends STS.Validator {
         context: Context,
         state: State,
         event: Event
-    ): Result = {
-        ???
+    ): Result = boundary {
+        event.body.value.certificates.view.zipWithIndex.foreach { case (certificate, index) =>
+            val result = validateCertificate(
+              certificate,
+              event.id,
+              event.witnessSet.vkeyWitnesses,
+              index
+            )
+
+            result match
+                case _: Right[Error, Value]   =>
+                case left: Left[Error, Value] => break(left)
+        }
+
+        success
     }
 
     // TODO add bootstrap witnesses validation
     private[this] def validateTransactionInputs(
-        transactionId: TransactionHash,
         inputs: Set[TransactionInput],
+        transactionId: TransactionHash,
         vkeyWitnesses: Set[VKeyWitness],
         utxo: Utxo,
         missingInputError: (TransactionHash, TransactionInput, Int) => IllegalArgumentException,
@@ -178,5 +191,141 @@ object NeededWitnessesValidator extends STS.Validator {
                     break(failure(missingInputError(transactionId, input, index)))
 
         success
+    }
+
+    private[this] def validateCertificate(
+        certificate: Certificate,
+        transactionId: TransactionHash,
+        vkeyWitnesses: Set[VKeyWitness],
+        index: Int
+    ): Result = {
+        def checkWitness(credential: Credential): Result = {
+            val optionHash = credential match
+                case Credential.KeyHash(keyHash) => Some(keyHash)
+                case _: Credential.ScriptHash    => None
+
+            optionHash match
+                case Some(hash) if !vkeyWitnesses.exists(_.vkeyHash == hash) =>
+                    failure(
+                      IllegalArgumentException(
+                        s"Missing vkey witness for staking credential $credential in certificate $certificate with index $index for transactionId $transactionId"
+                      )
+                    )
+                case _ => success
+        }
+
+        def wrapIfInnerErrorOccurred(credential: Credential, result: Result): Result = {
+            result match
+                case _: Right[Error, Value] => success
+                case Left(error) =>
+                    failure(
+                      IllegalArgumentException(
+                        s"Missing vkey witness for staking credential $credential in certificate $certificate with index $index for transactionId $transactionId",
+                        error
+                      )
+                    )
+        }
+
+        certificate match
+            case Certificate.StakeRegistration(credential)   => success
+            case Certificate.StakeDeregistration(credential) => checkWitness(credential)
+            case Certificate.StakeDelegation(credential, _)  => checkWitness(credential)
+            case certificate: Certificate.PoolRegistration =>
+                checkWitness(Credential.KeyHash(certificate.operator))
+            case Certificate.PoolRetirement(poolKeyHash, _) =>
+                checkWitness(Credential.KeyHash(poolKeyHash.asInstanceOf[AddrKeyHash]))
+            case Certificate.RegCert(credential, deposit) =>
+                if deposit > Coin.zero then checkWitness(credential)
+                else success // No witness needed for zero deposit
+            case Certificate.UnregCert(credential, _)     => checkWitness(credential)
+            case Certificate.VoteDelegCert(credential, _) => checkWitness(credential)
+            case Certificate.StakeVoteDelegCert(credential, poolKeyHash, drep) =>
+                wrapIfInnerErrorOccurred(
+                  credential,
+                  for
+                      _ <- validateCertificate(
+                        Certificate.VoteDelegCert(credential, drep),
+                        transactionId,
+                        vkeyWitnesses,
+                        index
+                      )
+                      _ <- validateCertificate(
+                        Certificate.StakeDelegation(credential, poolKeyHash),
+                        transactionId,
+                        vkeyWitnesses,
+                        index
+                      )
+                  yield ()
+                )
+
+            case Certificate.StakeRegDelegCert(credential, poolKeyHash, coin) =>
+                wrapIfInnerErrorOccurred(
+                  credential,
+                  for
+                      _ <- validateCertificate(
+                        Certificate.RegCert(credential, coin),
+                        transactionId,
+                        vkeyWitnesses,
+                        index
+                      )
+                      _ <- validateCertificate(
+                        Certificate.StakeDelegation(credential, poolKeyHash),
+                        transactionId,
+                        vkeyWitnesses,
+                        index
+                      )
+                  yield ()
+                )
+
+            case Certificate.VoteRegDelegCert(credential, drep, coin) =>
+                wrapIfInnerErrorOccurred(
+                  credential,
+                  for
+                      _ <- validateCertificate(
+                        Certificate.RegCert(credential, coin),
+                        transactionId,
+                        vkeyWitnesses,
+                        index
+                      )
+                      _ <- validateCertificate(
+                        Certificate.VoteDelegCert(credential, drep),
+                        transactionId,
+                        vkeyWitnesses,
+                        index
+                      )
+                  yield ()
+                )
+
+            case Certificate.StakeVoteRegDelegCert(credential, poolKeyHash, drep, coin) =>
+                wrapIfInnerErrorOccurred(
+                  credential,
+                  for
+                      _ <- validateCertificate(
+                        Certificate.RegCert(credential, coin),
+                        transactionId,
+                        vkeyWitnesses,
+                        index
+                      )
+                      _ <- validateCertificate(
+                        Certificate.StakeDelegation(credential, poolKeyHash),
+                        transactionId,
+                        vkeyWitnesses,
+                        index
+                      )
+                      _ <- validateCertificate(
+                        Certificate.VoteDelegCert(credential, drep),
+                        transactionId,
+                        vkeyWitnesses,
+                        index
+                      )
+                  yield ()
+                )
+            case Certificate.AuthCommitteeHotCert(committeeColdCredential, _) =>
+                checkWitness(committeeColdCredential)
+            case Certificate.ResignCommitteeColdCert(committeeColdCredential, _) =>
+                checkWitness(committeeColdCredential)
+            case Certificate.RegDRepCert(drepCredential, _, _) => checkWitness(drepCredential)
+            case Certificate.UnregDRepCert(drepCredential, _)  => checkWitness(drepCredential)
+            case Certificate.UpdateDRepCert(drepCredential, _) => checkWitness(drepCredential)
     }
 }

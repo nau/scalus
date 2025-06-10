@@ -32,8 +32,9 @@ object EqualValidator {
     trait Expression[T] {
         final type State = scalus.cardano.ledger.rules.State
         final type Event = Transaction
+        final type Value = T
         final type Error = Throwable
-        final type Result = Either[Error, T]
+        final type Result = Either[Error, Value]
 
         def description: String
         def evaluate(state: State, event: Event): Result
@@ -112,8 +113,8 @@ object EqualValidator {
                 val result = expressions.view
                     .map { expression =>
                         expression.evaluate(state, event) match
-                            case Right(value)       => value
-                            case left @ Left(error) => break(left)
+                            case Right(value)             => value
+                            case left: Left[Error, Value] => break(left)
                     }
                     .foldLeft(num.zero)(num.plus)
 

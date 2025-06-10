@@ -34,15 +34,16 @@ sealed trait STS {
     final type Context = scalus.cardano.ledger.rules.Context
     final type State = scalus.cardano.ledger.rules.State
     final type Event = Transaction
+    type Value <: Unit | State
     final type Error = Throwable
-    type Result <: Either[Error, Unit | State]
+    final type Result = Either[Error, Value]
 
     def apply(context: Context, state: State, event: Event): Result
 }
 
 object STS {
     trait Validator extends STS {
-        override final type Result = Either[Error, Unit]
+        override final type Value = Unit
 
         def validate(context: Context, state: State, event: Event): Result
 
@@ -54,7 +55,7 @@ object STS {
     }
 
     trait Mutator extends STS {
-        override final type Result = Either[Error, State]
+        override final type Value = State
 
         def transit(context: Context, state: State, event: Event): Result
 
