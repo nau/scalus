@@ -1972,7 +1972,8 @@ final class SIRCompiler(
       *    err("test") // becomes SIR.Error("test")
       * }}}
       */
-    private def compileThrowException(ex: Tree): AnnotatedSIR =
+    private def compileThrowException(env: Env, ex: Tree): AnnotatedSIR =
+        val ann = AnnotationsDecl.fromSrcPos(ex.srcPos)
         val msg = ex match
             case SkipInline(
                   Apply(
@@ -1980,22 +1981,21 @@ final class SIRCompiler(
                     immutable.List(SkipInline(arg), _*)
                   )
                 ) if tpt.tpe <:< defn.ThrowableType =>
-                arg match
-                    case Literal(c) => c.stringValue
-                    case _ =>
-                        report.warning(
-                          s"""Only string literals are supported as exception messages, but found ${arg.show}.
-                          |Try rewriting the code to use a string literal like `throw new RuntimeException("error message")`
-                          |Scalus will compile this to `Error("${arg.show}")`.""".stripMargin,
-                          ex.srcPos
-                        )
-                        arg.show
+                compileExpr(env, arg)
             case SkipInline(Apply(Select(New(tpt), nme.CONSTRUCTOR), Nil))
                 if tpt.tpe <:< defn.ThrowableType =>
-                tpt.symbol.showName
+                SIR.Const(
+                  scalus.uplc.Constant.String(tpt.symbol.showName),
+                  SIRType.String,
+                  ann
+                )
             case SkipInline(term) =>
-                term.show
-        SIR.Error(msg, AnnotationsDecl.fromSrcPos(ex.srcPos))
+                SIR.Const(
+                  scalus.uplc.Constant.String(term.show),
+                  SIRType.String,
+                  ann
+                )
+        SIR.Error(msg, ann)
 
     private def compileEquality(
         env: Env,
@@ -2180,7 +2180,7 @@ final class SIRCompiler(
             case m: Match => compileMatch(m, env)
             // throw new Exception("error msg")
             // Supports any exception type that uses first argument as message
-            case Apply(Ident(nme.throw_), immutable.List(ex)) => compileThrowException(ex)
+            case Apply(Ident(nme.throw_), immutable.List(ex)) => compileThrowException(env, ex)
             // Boolean
             case Select(lhs, op) if lhs.tpe.widen =:= defn.BooleanType && op == nme.UNARY_! =>
                 val lhsExpr = compileExpr(env, lhs)

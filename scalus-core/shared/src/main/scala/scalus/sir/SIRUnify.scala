@@ -281,8 +281,7 @@ object SIRUnify {
                 if v1.bn == v2.bn then UnificationSuccess(env, v1)
                 else UnificationFailure(env.path, left, right)
             case (e1: SIR.Error, e2: SIR.Error) =>
-                if e1.msg == e2.msg then UnificationSuccess(env, e1)
-                else UnificationFailure(env.path, left, right)
+                unifySIR(e1.msg, e2.msg, env.copy(path = "msg" :: env.path))
             case (c1: SIR.Constr, c2: SIR.Constr) =>
                 if c1.name == c2.name then
                     if c1.args.length != c2.args.length then

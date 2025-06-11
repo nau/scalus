@@ -1059,7 +1059,7 @@ object FlatInstantces:
                   hashCons
                 )
             case Error(msg, anns, cause) =>
-                termTagWidth + summon[Flat[String]].bitSize(msg) + AnnotationsDeclFlat.bitSizeHC(
+                termTagWidth + bitSizeHC(msg, hashCons) + AnnotationsDeclFlat.bitSizeHC(
                   anns,
                   hashCons
                 )
@@ -1131,7 +1131,7 @@ object FlatInstantces:
                     AnnotationsDeclFlat.encodeHC(anns, enc)
                 case Error(msg, anns, _) =>
                     enc.encode.bits(termTagWidth, tagError)
-                    summon[Flat[String]].encode(msg, enc.encode)
+                    encodeHC(msg, enc)
                     AnnotationsDeclFlat.encodeHC(anns, enc)
                 case Constr(name, data, args, tp, anns) =>
                     enc.encode.bits(termTagWidth, tagConstr)
@@ -1270,9 +1270,9 @@ object FlatInstantces:
                         SIRBuiltins.fromUplc(bn).copy(anns = anns.finValue(hs, l, p))
                     )
                 case `tagError` =>
-                    val msg = summon[Flat[String]].decode(decoder.decode)
+                    val msg = decodeHC(decoder)
                     val anns = AnnotationsDeclFlat.decodeHC(decoder)
-                    HashConsedRef.deferred((hs, l, p) => Error(msg, anns.finValue(hs, l, p)))
+                    HashConsedRef.deferred((hs, l, p) => Error(msg.finValue(hs, l, p), anns.finValue(hs, l, p)))
                 case `tagConstr` =>
                     val name = summon[Flat[String]].decode(decoder.decode)
                     val data = DataDeclFlat.decodeHC(decoder)

@@ -5,6 +5,7 @@ import org.scalatestplus.scalacheck.ScalaCheckPropertyChecks
 import scalus.Compiler.{compile, fieldAsData}
 import scalus.builtin.ByteString.*
 import scalus.builtin.{Builtins, ByteString, Data, JVMPlatformSpecific}
+import scalus.ledger.api.PlutusLedgerLanguage
 import scalus.ledger.api.v1.*
 import scalus.sir.SIRType
 import scalus.prelude.List.{Cons, Nil}
@@ -341,6 +342,17 @@ class CompilerPluginToSIRTest extends AnyFunSuite with ScalaCheckPropertyChecks:
         assert(compile { throw foo() } ~=~ Error("foo()", AnE))
         // handle inlines correctly
         assert(compile { err("test") } ~=~ Error("test", AnE))
+        //
+        val expected = Let(
+          NonRec,
+          List(Binding("msg", Const(Constant.String("test"), SIRType.String, AnE))),
+          Error(Var("msg", SIRType.String, AnE), null),
+          AnE
+        )
+        assert(compile {
+            val msg = "test"
+            throw new RuntimeException(msg)
+        } ~=~ expected)
     }
 
     test("compile ToData") {
