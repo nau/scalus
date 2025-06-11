@@ -10,6 +10,8 @@ import scalus.builtin.Data.ToData
 import scalus.builtin.FromData
 import scalus.builtin.ToData
 import scalus.prelude.*
+import scalus.prelude.crypto.bls12_381.{G1, G2}
+import scalus.prelude.crypto.bls12_381.G1.*
 
 /** Groth16 Zero-Knowledge Proof Verification Implementation
   *
@@ -87,10 +89,7 @@ object Groth16:
       *   Result of Miller loop pairing
       */
     def pairing(g1: ByteString, g2: ByteString): BLS12_381_MlResult =
-        bls12_381_millerLoop(
-          bls12_381_G1_uncompress(g1),
-          bls12_381_G2_uncompress(g2)
-        )
+        bls12_381_millerLoop(G1.uncompress(g1), G2.uncompress(g2))
 
     /** Recursively derives the linear combination of IC elements with public inputs
       *
@@ -116,15 +115,8 @@ object Groth16:
         case List.Cons(i, rest) =>
             public match
                 case List.Cons(scalar, publicRest) =>
-                    derive(
-                      rest,
-                      publicRest,
-                      bls12_381_G1_add(
-                        result,
-                        bls12_381_G1_scalarMul(scalar, bls12_381_G1_uncompress(i))
-                      )
-                    )
-                case _ => throw new RuntimeException("Invalid input")
+                    derive(rest, publicRest, result + G1.uncompress(i).scale(scalar))
+                case _ => fail("Invalid input")
 
     /** Verifies a Groth16 proof
       *
@@ -183,13 +175,11 @@ object Groth16:
 
         // Compute linear combination of IC with public inputs
         val vkI = vkIC match
-            case List.Cons(head, tail) =>
-                derive(tail, public, bls12_381_G1_uncompress(head))
-            case _ =>
-                throw new RuntimeException("empty vkIC")
+            case List.Cons(head, tail) => derive(tail, public, G1.uncompress(head))
+            case _                     => fail("empty vkIC")
 
         // Compute remaining pairings for right side
-        val eIGamma = bls12_381_millerLoop(vkI, bls12_381_G2_uncompress(vkGamma))
+        val eIGamma = bls12_381_millerLoop(vkI, G2.uncompress(vkGamma))
         val eCDelta = pairing(piC, vkDelta)
 
         // Combine all Miller loop results

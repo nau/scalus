@@ -2,6 +2,7 @@ package scalus.uplc
 
 import org.scalacheck.{Arbitrary, Gen, Shrink}
 import scalus.*
+import scalus.builtin.Builtins
 import scalus.builtin.ByteString
 import scalus.builtin.Data
 import scalus.builtin.Data.{B, Constr, I, List, Map}
@@ -25,6 +26,17 @@ trait ArbitraryInstances:
           bytes <- Gen.containerOfN[Array, Byte](sz, Arbitrary.arbitrary)
       yield builtin.ByteString.unsafeFromArray(bytes)
     )
+
+    given Arbitrary[builtin.BLS12_381_G1_Element] = Arbitrary(
+      for bs <- Arbitrary.arbitrary[ByteString]
+      yield Builtins.bls12_381_G1_hashToGroup(bs, dst = ByteString.fromString("Test"))
+    )
+
+    given Arbitrary[builtin.BLS12_381_G2_Element] = Arbitrary(
+      for bs <- Arbitrary.arbitrary[ByteString]
+      yield Builtins.bls12_381_G2_hashToGroup(bs, dst = ByteString.fromString("Test"))
+    )
+
     given iArb: Arbitrary[I] = Arbitrary(
       for n <- Gen.oneOf[BigInt](
             Gen.const[BigInt](0),
@@ -147,7 +159,23 @@ trait ArbitraryInstances:
                     vala <- arbConstantByType(a)
                     valb <- arbConstantByType(b)
                 yield Constant.Pair(vala, valb)
-            case _ => sys.error(s"unsupported type: $t")
+            case DefaultUni.BLS12_381_G1_Element =>
+                Arbitrary
+                    .arbitrary[builtin.BLS12_381_G1_Element]
+                    .map(Constant.BLS12_381_G1_Element.apply)
+            case DefaultUni.BLS12_381_G2_Element =>
+                Arbitrary
+                    .arbitrary[builtin.BLS12_381_G2_Element]
+                    .map(Constant.BLS12_381_G2_Element.apply)
+            case DefaultUni.BLS12_381_MlResult =>
+                throw new IllegalArgumentException(
+                  "BLS12_381_MlResult is not a valid constant type, it should be used in terms only"
+                )
+            case DefaultUni.Apply(_, _) =>
+                // This case should not happen, as we only generate constants for the known types
+                throw new IllegalArgumentException(
+                  s"Unexpected DefaultUni type for constant generation $t"
+                )
 
     given arbitraryConstant: Arbitrary[Constant] = Arbitrary(
       for

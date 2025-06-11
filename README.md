@@ -154,10 +154,37 @@ val validator = compile: (scriptWithdrawalCredential: Data, ctx: Data) =>
 println(validator.toUplc().plutusV3.flatEncoded.length) // 86 bytes
 ```
 
-## Scalus Native
+## Scalus Multiplatform
 
-Scalus implements a Plutus VM (CEK machine) that works on JVM, JavaScript and Native platforms.
+Scalus implements a Plutus VM (CEK machine) that works on JVM, JavaScript and Native platforms
+thanks to Scala multiplatform capabilities.
 All from the same Scala codebase.
+
+### Scalus on TypeScript/JavaScript via Scala.js
+
+Here's how you can evaluate a Plutus script from a TypeScript program:
+
+```typescript
+import {Scalus} from "scalus";
+
+const script = "545301010023357389210753756363657373004981";
+const applied = Scalus.applyDataArgToScript(script, JSON.stringify({"int": 42}));
+const result = Scalus.evaluateScript(applied);
+console.log(result);
+console.log(result.budget.memory);
+```
+
+### Building a JavaScript library
+
+The following command will build a JavaScript library that you can use in your TypeScript or JavaScript projects:
+
+```shell
+sbt  scalusJS/copyBundle
+```
+
+The output will be in the `scalus-core/js/src/main/npm` directory.
+
+### Scalus Native
 
 Here's how you can evaluate a Plutus script from a C program:
 

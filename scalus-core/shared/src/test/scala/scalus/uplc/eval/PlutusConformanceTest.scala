@@ -2,7 +2,6 @@ package scalus
 package uplc
 package eval
 
-import scalus.builtin.given
 import org.scalatest.funsuite.AnyFunSuite
 
 import java.nio.file.{Files, Paths}

@@ -1,5 +1,6 @@
 package scalus.uplc.eval
 
+import scalus.builtin.given
 import scalus.builtin.PlatformSpecific
 import scalus.ledger.api.BuiltinSemanticsVariant
 import scalus.ledger.api.PlutusLedgerLanguage
@@ -126,33 +127,96 @@ class PlutusVM(
         case _                                                                  => false
 }
 
+/** Companion object for PlutusVM that provides factory methods for creating VM instances for
+  * different Plutus versions (V1, V2, V3).
+  */
 object PlutusVM {
-    def makePlutusV1VM(
-        params: MachineParams = MachineParams.defaultPlutusV1PostConwayParams
-    )(using platformSpecific: PlatformSpecific): PlutusVM = new PlutusVM(
-      PlutusLedgerLanguage.PlutusV2,
+
+    /** Creates a Plutus V1 VM with custom parameters.
+      *
+      * @param params
+      *   Custom machine parameters to use for the VM
+      * @return
+      *   A configured Plutus V1 VM instance
+      */
+    def makePlutusV1VM(params: MachineParams): PlutusVM = new PlutusVM(
+      PlutusLedgerLanguage.PlutusV1,
       params,
       params.semanticVariant,
-      platformSpecific
+      summon[PlatformSpecific]
     )
 
-    def makePlutusV2VM(
-        params: MachineParams = MachineParams.defaultPlutusV2PostConwayParams
-    )(using platformSpecific: PlatformSpecific): PlutusVM =
+    /** Creates a Plutus V1 VM with default parameters.
+      *
+      * @return
+      *   A Plutus V1 VM instance with default post-Conway parameters
+      */
+    def makePlutusV1VM(): PlutusVM = {
+        val params = MachineParams.defaultPlutusV1PostConwayParams
+        new PlutusVM(
+          PlutusLedgerLanguage.PlutusV1,
+          params,
+          params.semanticVariant,
+          summon[PlatformSpecific]
+        )
+    }
+
+    /** Creates a Plutus V2 VM with custom parameters.
+      *
+      * @param params
+      *   Custom machine parameters to use for the VM
+      * @return
+      *   A configured Plutus V2 VM instance
+      */
+    def makePlutusV2VM(params: MachineParams): PlutusVM =
         new PlutusVM(
           PlutusLedgerLanguage.PlutusV2,
           params,
           params.semanticVariant,
-          platformSpecific
+          summon[PlatformSpecific]
         )
 
-    def makePlutusV3VM(
-        params: MachineParams = MachineParams.defaultPlutusV3Params
-    )(using platformSpecific: PlatformSpecific): PlutusVM =
+    /** Creates a Plutus V2 VM with default parameters.
+      *
+      * @return
+      *   A Plutus V2 VM instance with default post-Conway parameters
+      */
+    def makePlutusV2VM(): PlutusVM =
+        val params = MachineParams.defaultPlutusV2PostConwayParams
+        new PlutusVM(
+          PlutusLedgerLanguage.PlutusV2,
+          params,
+          params.semanticVariant,
+          summon[PlatformSpecific]
+        )
+
+    /** Creates a Plutus V3 VM with custom parameters.
+      *
+      * @param params
+      *   Custom machine parameters to use for the VM
+      * @return
+      *   A configured Plutus V3 VM instance
+      */
+    def makePlutusV3VM(params: MachineParams): PlutusVM =
         new PlutusVM(
           PlutusLedgerLanguage.PlutusV3,
           params,
           params.semanticVariant,
-          platformSpecific
+          summon[PlatformSpecific]
         )
+
+    /** Creates a Plutus V3 VM with default parameters.
+      *
+      * @return
+      *   A Plutus V3 VM instance with default parameters
+      */
+    def makePlutusV3VM(): PlutusVM = {
+        val params = MachineParams.defaultPlutusV3Params
+        new PlutusVM(
+          PlutusLedgerLanguage.PlutusV3,
+          params,
+          params.semanticVariant,
+          summon[PlatformSpecific]
+        )
+    }
 }

@@ -4,7 +4,7 @@ import org.scalatest.funsuite.AnyFunSuite
 import scalus.*
 import scalus.Compiler.compile
 import scalus.builtin.ByteString.*
-import scalus.builtin.{*, given}
+import scalus.builtin.*
 import scalus.ledger.api.v3.*
 import scalus.prelude.*
 import scalus.uplc.Term

@@ -1,26 +1,47 @@
 package scalus.examples;
 
+import scala.math.BigInt;
 import scalus.builtin.Data;
-import scalus.builtin.JVMPlatformSpecific$;
 import scalus.ledger.api.PlutusLedgerLanguage;
 import scalus.uplc.DeBruijnedProgram;
-import scalus.uplc.Constant;
-import scalus.uplc.Term;
 import scalus.uplc.eval.*;
 
-import java.nio.file.Files;
 import java.nio.file.Paths;
 import java.util.Arrays;
 
+import static java.nio.file.Files.readAllBytes;
+import static java.nio.file.Files.readString;
+
 class PlutusVMExample {
+
     public static void evaluationExample1() throws Exception {
-        // Read Plutus script from a file
-        var flatScript = Files.readAllBytes(Paths.get("bench/src/main/resources/data/auction_1-1.flat"));
-        var script = DeBruijnedProgram.fromFlatEncoded(flatScript);
+        // Read script from a double-CBOR-encoded hex string, like in *.plutus files
+        var script = DeBruijnedProgram.fromDoubleCborHex("545301010023357389210753756363657373004981");
+        // Read script from a CBOR-encoded hex string, like in CIP-57 Blueprint files
+        var script2 = DeBruijnedProgram.fromCborHex("5301010023357389210753756363657373004981");
+        // Apply an argument to the script
+        var appliedScript = script.applyArg(Data.I.apply(BigInt.apply(42)));
+        // Load protocol parameters from a JSON file
+        var pparams = readString(Paths.get("../../scalus-core/shared/src/main/resources/protocol-params.json"));
+        // Setup PlutusV3 machine parameters (cost model) from the protocol parameters
+        var machineParams = MachineParams.fromCardanoCliProtocolParamsJson(pparams, PlutusLedgerLanguage.PlutusV3);
+        // Setup Plutus 3 VM with machine parameters
+        var plutusVM = PlutusVM.makePlutusV3VM(machineParams);
         // Evaluate the script
-        var machineParams = MachineParams.defaultPlutusV2PostConwayParams();
-        var plutusVM = PlutusVM.makePlutusV2VM(machineParams, JVMPlatformSpecific$.MODULE$);
+        var result = plutusVM.evaluateScriptDebug(appliedScript);
+        System.out.println("Evaluation Result:" + result);
+        System.out.println("Is success: " + result.isSuccess());
+        System.out.println("Budget used: " + result.budget());
+    }
+
+    public static void evaluationExample2() throws Exception {
+        // Read flat encoded Plutus script from a file
+        var flatScript = readAllBytes(Paths.get("../../bench/src/main/resources/data/auction_1-1.flat"));
+        var script = DeBruijnedProgram.fromFlatEncoded(flatScript);
+        // Evaluate the script using default parameters for Plutus V2 VM
+        var plutusVM = PlutusVM.makePlutusV2VM();
         try {
+            // Pass custom budget spender and logger
             var result = plutusVM.evaluateScript(script, NoBudgetSpender$.MODULE$, NoLogger$.MODULE$);
             System.out.println(result);
         } catch (StackTraceMachineError e) {
@@ -33,23 +54,6 @@ class PlutusVMExample {
         } catch (Exception e) {
             e.printStackTrace();
         }
-    }
-
-    public static void evaluationExample2() throws Exception {
-        // Read protocol parameters from Cardano CLI protocol-parameters query, like:
-        // cardano-cli query protocol-parameters –mainnet –out-file protocol-params.json
-        var pparams = Files.readString(Paths.get("jvm/src/main/resources/protocol-params.json"));
-        var machineParams = MachineParams.fromCardanoCliProtocolParamsJson(pparams, PlutusLedgerLanguage.PlutusV2);
-        // Read Plutus script from a file
-        var flatScript = Files.readAllBytes(Paths.get("bench/src/main/resources/data/auction_1-1.flat"));
-        var script = DeBruijnedProgram.fromFlatEncoded(flatScript);
-        var arg = Term.Const.apply(Constant.Data.apply(Data.I.apply(scala.math.BigInt.apply(123))));
-        var appliedScript = script.applyArg(arg);
-
-        // Evaluate the script
-        var plutusVM = PlutusVM.makePlutusV2VM(machineParams, JVMPlatformSpecific$.MODULE$);
-        var result = plutusVM.evaluateScriptDebug(appliedScript);
-        System.out.println(result);
     }
 
     public static void main(String[] args) throws Exception {

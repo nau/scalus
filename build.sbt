@@ -10,7 +10,7 @@ import java.net.URI
 Global / onChangedBuildSource := ReloadOnSourceChanges
 autoCompilerPlugins := true
 
-val scalusStableVersion = "0.9.0"
+val scalusStableVersion = "0.10.0"
 val scalusCompatibleVersion = scalusStableVersion
 ThisBuild / scalaVersion := "3.3.6"
 //ThisBuild / scalaVersion := "3.7.1-RC1-bin-SNAPSHOT"
@@ -196,9 +196,11 @@ lazy val PluginDependency: List[Def.Setting[?]] = List(scalacOptions ++= {
 
     // NOTE: uncomment for faster Scalus Plugin development
     // this will recompile the plugin when the jar is modified
-    Seq(s"-Xplugin:${jar.getAbsolutePath}", s"-Jdummy=${jar.lastModified}")
-//    Seq(s"-Xplugin:${jar.getAbsolutePath}")
+//    Seq(s"-Xplugin:${jar.getAbsolutePath}", s"-Jdummy=${jar.lastModified}")
+    Seq(s"-Xplugin:${jar.getAbsolutePath}")
 })
+
+lazy val copyBundle = taskKey[Unit]("Copy fastopt-bundle.js to dist/")
 
 // Scalus Core and Standard Library for JVM and JS
 lazy val scalus = crossProject(JSPlatform, JVMPlatform, NativePlatform)
@@ -216,12 +218,13 @@ lazy val scalus = crossProject(JSPlatform, JVMPlatform, NativePlatform)
       libraryDependencies += "org.typelevel" %%% "cats-core" % "2.13.0",
       libraryDependencies += "org.typelevel" %%% "cats-parse" % "1.1.0",
       libraryDependencies += "org.typelevel" %%% "paiges-core" % "0.4.4",
-      libraryDependencies += "com.lihaoyi" %%% "upickle" % "4.1.0",
+      libraryDependencies += "com.lihaoyi" %%% "upickle" % "4.2.1",
       libraryDependencies ++= Seq(
-        "io.bullet" %%% "borer-core" % "1.16.0",
-        "io.bullet" %%% "borer-derivation" % "1.16.0" % "provided"
+        "io.bullet" %%% "borer-core" % "1.16.1",
+        "io.bullet" %%% "borer-derivation" % "1.16.1" % "provided"
       ),
       PluginDependency,
+      libraryDependencies += "com.softwaremill.magnolia1_3" %%% "magnolia" % "1.3.18" % "test",
       libraryDependencies += "org.scalatest" %%% "scalatest" % "3.2.19" % "test",
       libraryDependencies += "org.scalatestplus" %%% "scalacheck-1-18" % "3.2.19.0" % "test"
     )
@@ -241,6 +244,16 @@ lazy val scalus = crossProject(JSPlatform, JVMPlatform, NativePlatform)
     .jsSettings(
       // Add JS-specific settings here
       Compile / npmDependencies += "@noble/curves" -> "1.4.2",
+      // copy scalus-*-bundle.js to dist for publishing on npm
+      copyBundle := {
+          val bundle = (Compile / fullOptJS / webpack).value
+          val target = (Compile / sourceDirectory).value / "npm"
+          bundle.foreach(f => IO.copyFile(f.data.file, target / f.data.file.getName))
+          streams.value.log.info(s"Copied ${bundle} to ${target}")
+      },
+      // use custom webpack config to export scalus as a commonjs2 module
+      // otherwise it won't export the module correctly
+      webpackConfigFile := Some(sourceDirectory.value / "main" / "webpack" / "webpack.config.js"),
       scalaJSLinkerConfig ~= {
           _.withModuleKind(ModuleKind.CommonJSModule)
           // Use .mjs extension.
@@ -296,7 +309,7 @@ lazy val scalusExamples = crossProject(JSPlatform, JVMPlatform, NativePlatform)
     .configurePlatform(JVMPlatform)(_.dependsOn(`scalus-bloxbean-cardano-client-lib`))
     .jvmSettings(
       Test / fork := true,
-      libraryDependencies += "com.bloxbean.cardano" % "cardano-client-backend-blockfrost" % "0.6.3"
+      libraryDependencies += "com.bloxbean.cardano" % "cardano-client-backend-blockfrost" % "0.6.4"
     )
     .jsSettings(
       Compile / npmDependencies += "@noble/curves" -> "1.4.2",
@@ -330,24 +343,14 @@ lazy val `scalus-bloxbean-cardano-client-lib` = project
       publish / skip := false,
       scalacOptions ++= commonScalacOptions,
       mimaPreviousArtifacts := Set(organization.value %% name.value % scalusCompatibleVersion),
-      mimaBinaryIssueFilters ++= Seq(
-        ProblemFilters.exclude[IncompatibleResultTypeProblem](
-          "scalus.bloxbean.Interop.given_ToData_BigInteger"
-        ),
-        ProblemFilters
-            .exclude[IncompatibleResultTypeProblem]("scalus.bloxbean.Interop.given_ToData_Integer"),
-        ProblemFilters
-            .exclude[IncompatibleResultTypeProblem]("scalus.bloxbean.Interop.given_ToData_Long"),
-        ProblemFilters.exclude[IncompatibleResultTypeProblem](
-          "scalus.bloxbean.Interop.given_ToData_ProtocolParamUpdate"
-        ),
-      ),
+      mimaBinaryIssueFilters ++= Seq(),
       libraryDependencies += "com.bloxbean.cardano" % "cardano-client-lib" % "0.6.4",
       libraryDependencies += "org.slf4j" % "slf4j-api" % "2.0.17",
       libraryDependencies += "org.slf4j" % "slf4j-simple" % "2.0.17" % "test",
       libraryDependencies += "org.scalatest" %%% "scalatest" % "3.2.19" % "test",
       libraryDependencies += "com.bloxbean.cardano" % "cardano-client-backend-blockfrost" % "0.6.4" % "test",
       libraryDependencies += "com.bloxbean.cardano" % "yaci" % "0.3.5" % "test",
+      libraryDependencies += "io.bullet" %%% "borer-derivation" % "1.16.1" % "provided",
       Test / fork := true, // needed for BlocksValidation to run in sbt
       inConfig(Test)(PluginDependency)
     )
@@ -395,15 +398,15 @@ lazy val scalusCardanoLedger = crossProject(JSPlatform, JVMPlatform)
     .settings(
       name := "scalus-cardano-ledger",
       scalacOptions += "-Xmax-inlines:100", // needed for upickle derivation of CostModel
-      libraryDependencies += "com.bloxbean.cardano" % "cardano-client-lib" % "0.6.4",
       libraryDependencies ++= Seq(
-        "io.bullet" %%% "borer-core" % "1.15.0",
-        "io.bullet" %%% "borer-derivation" % "1.15.0" % "provided"
+        "io.bullet" %%% "borer-core" % "1.16.1",
+        "io.bullet" %%% "borer-derivation" % "1.16.1" % "provided"
       ),
-      libraryDependencies += "com.softwaremill.magnolia1_3" %%% "magnolia" % "1.3.16" % "test",
+      libraryDependencies += "com.bloxbean.cardano" % "cardano-client-lib" % "0.6.4" % "test",
+      libraryDependencies += "com.softwaremill.magnolia1_3" %%% "magnolia" % "1.3.18" % "test",
       libraryDependencies += "org.scalatest" %%% "scalatest" % "3.2.19" % "test",
       libraryDependencies += "org.scalatestplus" %%% "scalacheck-1-18" % "3.2.19.0" % "test",
-      publish / skip := true
+      publish / skip := false
     )
     .jsSettings(
       Compile / npmDependencies += "@noble/curves" -> "1.4.2",

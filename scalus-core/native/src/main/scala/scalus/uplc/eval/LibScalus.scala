@@ -1,7 +1,7 @@
 package scalus.uplc
 package eval
 
-import scalus.builtin.{Data, NativePlatformSpecific, PlatformSpecific}
+import scalus.builtin.Data
 import scalus.ledger.api.{MajorProtocolVersion, PlutusLedgerLanguage}
 import scalus.uplc
 
@@ -14,8 +14,6 @@ import scala.scalanative.unsigned.*
 /** Scala Native bindings for the UPLC evaluation library.
   */
 private object LibScalus:
-    private given platformSpecific: PlatformSpecific = NativePlatformSpecific
-
     /** We must keep track of all the objects that are passed to the native code. This is necessary
       * because the native code may store references to these objects and the garbage collector must
       * not collect them while they are still in use.
@@ -143,9 +141,9 @@ private object LibScalus:
 
             // Create appropriate VM based on version
             val vm = plutusVersion match
-                case 1 => PlutusVM.makePlutusV1VM()
-                case 2 => PlutusVM.makePlutusV2VM()
-                case 3 => PlutusVM.makePlutusV3VM()
+                case 1 => PlutusVM.makePlutusV1VM(machineParams)
+                case 2 => PlutusVM.makePlutusV2VM(machineParams)
+                case 3 => PlutusVM.makePlutusV3VM(machineParams)
                 case _ =>
                     throw new IllegalArgumentException(
                       s"Unsupported Plutus version: $plutusVersion"

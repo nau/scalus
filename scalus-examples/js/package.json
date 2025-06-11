@@ -1,0 +1,5 @@
+{
+  "dependencies": {
+    "scalus": "file:../../scalus-core/js/dist"
+  }
+}

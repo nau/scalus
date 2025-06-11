@@ -19,7 +19,9 @@ scalus-plugin/src/main/shared
 cardano-cli
 cardano-address
 scripts/
-blocks/
+bloxbean-cardano-client-lib/blocks
 utxos
 package-lock.json
 website/static/api
+node_modules
+.scala-build

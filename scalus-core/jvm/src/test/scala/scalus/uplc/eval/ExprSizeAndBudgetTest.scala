@@ -3,7 +3,6 @@ package scalus.uplc.eval
 import org.scalatest.funsuite.AnyFunSuite
 import scalus.*
 import scalus.Compiler.compile
-import scalus.builtin.given
 import scalus.builtin.Builtins.*
 import scalus.builtin.Data
 import scalus.flat.Flat

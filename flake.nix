@@ -53,7 +53,10 @@
               sbt = pkgs.sbt.override { jre = jdk; };
             in
             pkgs.mkShell {
+              JAVA_HOME = "${jdk}";
               JAVA_OPTS = "-Xmx4g -Xss512m -XX:+UseG1GC";
+              # Fixes issues with Node.js 20+ and OpenSSL 3 during webpack build
+              NODE_OPTIONS="--openssl-legacy-provider";
               # This fixes bash prompt/autocomplete issues with subshells (i.e. in VSCode) under `nix develop`/direnv
               buildInputs = [ pkgs.bashInteractive ];
               packages = with pkgs; [
@@ -96,6 +99,8 @@
               JAVA_OPTS = "-Xmx4g -Xss512m -XX:+UseG1GC";
               CARGO_NET_GIT_FETCH_WITH_CLI = "true";
               CARGO_REGISTRIES_CRATES_IO_PROTOCOL = "sparse";
+              # Fixes issues with Node.js 20+ and OpenSSL 3 during webpack build
+              NODE_OPTIONS="--openssl-legacy-provider";
               packages = with pkgs; [
                 jdk
                 sbt

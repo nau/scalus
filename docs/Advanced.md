@@ -8,7 +8,7 @@ sidebar_position: 3
 Converting full `ScriptContext` to Scott-encoded lambdas is not always necessary. Often you just need to access a few fields. In this case, you can use the `fieldAsData` macro to extract a field from a class represented as a `Data` object.
 
 ```scala mdoc:compile-only
-import scalus.*, Compiler.*, builtin.{Data, Builtins, ByteString}, Builtins.*, ByteString.given
+import scalus.*, Compiler.*, builtin.{Data, Builtins, ByteString}, Builtins.*, ByteString.*
 import scalus.ledger.api.v3.*
 
 val sir = compile:
@@ -31,7 +31,7 @@ val sir = compile:
 Scalus can inline constants in the script.
 
 ```scala mdoc:compile-only
-import scalus.*, Compiler.*, builtin.{Data, Builtins, ByteString, given}, Builtins.*, ByteString.given
+import scalus.*, Compiler.*, builtin.{Data, Builtins, ByteString}, Builtins.*, ByteString.*
 
 inline def validator(inline pubKeyHash: ByteString)(datum: Data, redeemer: Data, ctxData: Data) =
     verifyEd25519Signature(pubKeyHash, datum.toByteString, redeemer.toByteString)
@@ -86,9 +86,9 @@ the only optimization is the `RemoveRecursivity` optimization that inlines `let`
 ```scala mdoc:compile-only
 import scalus.*, scalus.sir.*
 val sir: SIR = ??? // from the previous example
-val optimized = RemoveRecursivity(sir)
+val optimized = BooleanOptimizer.optimize(sir)
 // or using the `|>` operator
-val optimized2 = sir |> RemoveRecursivity.apply
+val optimized2 = sir |> BooleanOptimizer.optimize
 ```
 
 ## UPLC optimizations

@@ -1,6 +1,4 @@
 package scalus.ledger.api
-import io.bullet.borer.{Decoder, Encoder}
-import scalus.builtin.ByteString
 import upickle.default.ReadWriter
 
 enum BuiltinSemanticsVariant:
@@ -78,15 +76,3 @@ object MajorProtocolVersion {
     val knownPVs: Set[MajorProtocolVersion] =
         Set(shelleyPV, allegraPV, maryPV, alonzoPV, vasilPV, valentinePV, changPV, plominPV)
 }
-
-opaque type KeyHash = ByteString
-
-object KeyHash:
-    // KeyHash encoder/decoder
-    given Encoder[KeyHash] = Encoder: (w, value) =>
-        w.writeBytes(value.bytes)
-
-    given Decoder[KeyHash] = Decoder: r =>
-        KeyHash(ByteString.unsafeFromArray(r.readByteArray()))
-
-    inline def apply(bs: ByteString): KeyHash = bs

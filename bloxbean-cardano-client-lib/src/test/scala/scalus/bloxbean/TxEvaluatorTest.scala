@@ -28,7 +28,6 @@ class TxEvaluatorTest extends AnyFunSuite:
     val sender1Addr: String = sender1.baseAddress()
 
     test("TxEvaluator PlutusV2") {
-        import scala.jdk.CollectionConverters.*
         val costMdls = CostMdls()
         costMdls.add(CostModelUtil.PlutusV1CostModel)
         costMdls.add(CostModelUtil.PlutusV2CostModel)
@@ -98,7 +97,6 @@ class TxEvaluatorTest extends AnyFunSuite:
     }
 
     test("TxEvaluator PlutusV3") {
-        import scala.jdk.CollectionConverters.*
         val costMdls = CostMdls()
         costMdls.add(CostModelUtil.PlutusV1CostModel)
         costMdls.add(CostModelUtil.PlutusV2CostModel)

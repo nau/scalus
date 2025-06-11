@@ -5,6 +5,7 @@ package scalus.builtin
 // This is a workaround to avoid original DataApi transitive dependencies.
 // Just leave the trait empty. It's needed for Data to compile.
 trait DataApi {}
+trait ByteStringApi {}
 
 // FromData is used in the Data companion object in the scalus runtime.
 //  Her is an empty stub for the compiler plugin.

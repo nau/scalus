@@ -67,7 +67,6 @@ class DerivingTest extends AnyFunSuite {
 
     import DerivingSpecScope.*
 
-    import scalus.builtin.given
     protected given PlutusVM = PlutusVM.makePlutusV3VM()
 
     /*

@@ -1,65 +1,16 @@
 package scalus.ledger.api
-import io.bullet.borer.{Cbor, Decoder, Encoder}
+import io.bullet.borer.{Cbor, Decoder}
 import org.scalacheck.{Arbitrary, Gen}
 import org.scalatest.funsuite.AnyFunSuite
 import org.scalatestplus.scalacheck.ScalaCheckPropertyChecks
-import scalus.builtin.ByteString
-import scalus.builtin.ByteString.hex
+import scalus.builtin.{*, given}
+import scalus.cardano.ledger.*
 
-class TimelockTest extends AnyFunSuite with ScalaCheckPropertyChecks:
+class TimelockTest extends AnyFunSuite with ScalaCheckPropertyChecks with ArbitraryInstances:
 
+    private val crypto: PlatformSpecific = summon[PlatformSpecific]
     // Helper method to create KeyHash for testing
-    private def keyHash(hex: String): KeyHash = KeyHash(ByteString.fromHex(hex))
-
-    // Define generators for our types
-    private val byteStringGen: Gen[ByteString] =
-        Gen.containerOf[Array, Byte](Arbitrary.arbByte.arbitrary)
-            .map(ByteString.unsafeFromArray)
-
-    private val keyHashGen: Gen[KeyHash] = byteStringGen.map(KeyHash.apply)
-
-    private val slotNoGen: Gen[SlotNo] = Gen.chooseNum(0L, Long.MaxValue)
-
-    private val optionSlotNoGen: Gen[Option[SlotNo]] = Gen.option(slotNoGen)
-
-    private val validityIntervalGen: Gen[ValidityInterval] =
-        for
-            invalidBefore <- optionSlotNoGen
-            invalidHereafter <- optionSlotNoGen
-        yield ValidityInterval(invalidBefore, invalidHereafter)
-
-    // Recursive generator for Timelock
-    private val timelockGen: Gen[Timelock] =
-        Gen.sized: size =>
-            if size <= 1 then
-                // Base cases for small sizes
-                Gen.oneOf(
-                  keyHashGen.map(Timelock.Signature.apply),
-                  slotNoGen.map(Timelock.TimeStart.apply),
-                  slotNoGen.map(Timelock.TimeExpire.apply)
-                )
-            else
-                // Recursive cases with smaller sizes for nested scripts
-                val smallerScripts = Gen.listOf(Gen.resize(size / 3, timelockGen))
-
-                Gen.oneOf(
-                  keyHashGen.map(Timelock.Signature.apply),
-                  smallerScripts.map(scripts => Timelock.AllOf(scripts)),
-                  smallerScripts.map(scripts => Timelock.AnyOf(scripts)),
-                  for
-                      m <- Gen.chooseNum(0, 10)
-                      scripts <- smallerScripts
-                  yield Timelock.MOf(m, scripts),
-                  slotNoGen.map(Timelock.TimeStart.apply),
-                  slotNoGen.map(Timelock.TimeExpire.apply)
-                )
-
-    // Implicit Arbitrary instances using given syntax
-    private given Arbitrary[ByteString] = Arbitrary(byteStringGen)
-    private given Arbitrary[KeyHash] = Arbitrary(keyHashGen)
-    private given Arbitrary[SlotNo] = Arbitrary(slotNoGen)
-    private given Arbitrary[ValidityInterval] = Arbitrary(validityIntervalGen)
-    private given Arbitrary[Timelock] = Arbitrary(timelockGen)
+    private def keyHash(s: String): AddrKeyHash = Hash(crypto.blake2b_224(ByteString.fromString(s)))
 
     // Test evaluate method
     test("Signature with matching key hash should validate"):
@@ -187,7 +138,7 @@ class TimelockTest extends AnyFunSuite with ScalaCheckPropertyChecks:
 
     test("MOf with m=0 should always validate"):
         val hash1 = keyHash("deadbeef")
-        val validatorKeys = Set.empty[KeyHash]
+        val validatorKeys = Set.empty[AddrKeyHash]
 
         val script = Timelock.MOf(
           0,
@@ -328,13 +279,13 @@ class TimelockTest extends AnyFunSuite with ScalaCheckPropertyChecks:
         assert(!Timelock.ltePosInfty(Some(150L), 100L))
 
     test("KeyHash round-trip encode and decode"):
-        forAll: (keyHash: KeyHash) =>
+        forAll: (keyHash: AddrKeyHash) =>
             val encoded = Cbor.encode(keyHash).toByteArray
-            val decoded = Cbor.decode(encoded).to[KeyHash].value
+            val decoded = Cbor.decode(encoded).to[AddrKeyHash].value
             assert(decoded == keyHash)
 
     test("Timelock.Signature round-trip encode and decode"):
-        forAll: (keyHash: KeyHash) =>
+        forAll: (keyHash: AddrKeyHash) =>
             val timelock = Timelock.Signature(keyHash)
             val encoded = encode(timelock)
             val decoded = decode[Timelock](encoded)
@@ -359,22 +310,22 @@ class TimelockTest extends AnyFunSuite with ScalaCheckPropertyChecks:
         val testCases = Seq(
           Timelock.AllOf(
             Seq(
-              Timelock.Signature(KeyHash(hex"deadbeef")),
+              Timelock.Signature(keyHash("deadbeef")),
               Timelock.TimeStart(123L)
             )
           ),
           Timelock.AnyOf(
             Seq(
-              Timelock.Signature(KeyHash(hex"cafebabe")),
+              Timelock.Signature(keyHash("cafebabe")),
               Timelock.TimeExpire(456L)
             )
           ),
           Timelock.MOf(
             2,
             Seq(
-              Timelock.Signature(KeyHash(hex"01020304")),
-              Timelock.Signature(KeyHash(hex"05060708")),
-              Timelock.Signature(KeyHash(hex"090a0b0c"))
+              Timelock.Signature(keyHash("01020304")),
+              Timelock.Signature(keyHash("05060708")),
+              Timelock.Signature(keyHash("090a0b0c"))
             )
           )
         )
@@ -385,7 +336,7 @@ class TimelockTest extends AnyFunSuite with ScalaCheckPropertyChecks:
             assert(decoded == timelock)
 
     test("Any Timelock structure round-trip encode and decode"):
-        forAll(Gen.resize(5, timelockGen)): timelock =>
+        forAll(Gen.resize(5, Arbitrary.arbitrary[Timelock])): timelock =>
             val encoded = encode(timelock)
             val decoded = decode[Timelock](encoded)
             assert(decoded == timelock)
@@ -393,7 +344,7 @@ class TimelockTest extends AnyFunSuite with ScalaCheckPropertyChecks:
     test("Deeply nested Timelock structures encode and decode correctly"):
         // Create a deeply nested structure
         def createNestedTimelock(depth: Int): Timelock =
-            if depth <= 0 then Timelock.Signature(KeyHash(hex"deadbeef"))
+            if depth <= 0 then Timelock.Signature(keyHash("deadbeef"))
             else
                 Timelock.AllOf(
                   Seq(

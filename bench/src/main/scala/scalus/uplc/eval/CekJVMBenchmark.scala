@@ -9,7 +9,6 @@ import org.openjdk.jmh.annotations.Scope
 import org.openjdk.jmh.annotations.Setup
 import org.openjdk.jmh.annotations.State
 import scalus.*
-import scalus.builtin.given
 import scalus.uplc.DeBruijnedProgram
 
 import java.nio.file.Files

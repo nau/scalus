@@ -4,6 +4,7 @@ import scalus.builtin.BLS12_381_G1_Element
 import scalus.builtin.BLS12_381_G2_Element
 import scalus.builtin.Builtins.*
 import scalus.prelude.*
+import scalus.prelude.crypto.bls12_381.G1.*
 
 /** A Bilinear Accumulator is a cryptographic primitive that allows for efficient membership and
   * non-membership proofs for a set of elements.
@@ -25,14 +26,12 @@ object BilinearAccumulator {
         setup: List[BLS12_381_G1_Element],
         subset: List[BigInt]
     ): BLS12_381_G1_Element = {
-        val g1Zero = bls12_381_G1_uncompress(bls12_381_G1_compressed_zero)
-
         val subsetInG1 =
             List.map2(getFinalPoly(subset), setup): (sb, st) =>
-                bls12_381_G1_scalarMul(sb, st)
+                st.scale(sb)
 
-        subsetInG1.foldLeft(g1Zero): (a, b) =>
-            bls12_381_G1_add(a, b)
+        subsetInG1.foldLeft(zero): (a, b) =>
+            a + b
     }
 
     /** Checks if the given `acc` is a valid accumulator for the given `subset` of the `setup`.

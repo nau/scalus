@@ -6,7 +6,6 @@ import scalus.Compiler.compile
 import scalus.builtin.ByteString.*
 import scalus.builtin.Data
 import scalus.builtin.Data.*
-import scalus.builtin.given
 import scalus.ledger.api.PlutusLedgerLanguage
 import scalus.ledger.api.ProtocolVersion
 import scalus.ledger.api.v1.Credential.*

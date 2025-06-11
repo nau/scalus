@@ -1,7 +1,6 @@
 package scalus.ledger.api
 import io.bullet.borer.*
-import io.bullet.borer.derivation.ArrayBasedCodecs.*
-import io.bullet.borer.derivation.key
+import scalus.cardano.ledger.AddrKeyHash
 import scalus.ledger.api.Timelock.{lteNegInfty, ltePosInfty}
 
 import scala.annotation.tailrec
@@ -27,13 +26,13 @@ case class ValidityInterval(
   * @see
   *   [evalTimelock](https://github.com/IntersectMBO/cardano-ledger/blob/d428f5bfcf60c9e0d9503f097175e61c968fefb9/eras/allegra/impl/src/Cardano/Ledger/Allegra/Scripts.hs#L346)
   */
-enum Timelock derives Codec.All:
-    @key(0) case Signature(keyHash: KeyHash)
-    @key(1) case AllOf(scripts: Seq[Timelock])
-    @key(2) case AnyOf(scripts: Seq[Timelock])
-    @key(3) case MOf(m: Int, scripts: Seq[Timelock])
-    @key(4) case TimeStart(lockStart: SlotNo)
-    @key(5) case TimeExpire(lockExpire: SlotNo)
+enum Timelock:
+    case Signature(keyHash: AddrKeyHash)
+    case AllOf(scripts: Seq[Timelock])
+    case AnyOf(scripts: Seq[Timelock])
+    case MOf(m: Int, scripts: Seq[Timelock])
+    case TimeStart(lockStart: SlotNo)
+    case TimeExpire(lockExpire: SlotNo)
 
     // String representation of Timelock
     lazy val show: String = this match
@@ -62,7 +61,7 @@ enum Timelock derives Codec.All:
       *   true if the script evaluates to true, false otherwise
       */
     def evaluate(
-        validatorKeys: Set[KeyHash],
+        validatorKeys: Set[AddrKeyHash],
         interval: ValidityInterval
     ): Boolean = {
         this match
@@ -101,6 +100,67 @@ enum Timelock derives Codec.All:
 
 // Companion object with factory methods
 object Timelock:
+    // Timelock encoder - based on the Haskell code which uses sum types with tags
+    given Encoder[Timelock] = Encoder: (w, value) =>
+        value match
+            case Timelock.Signature(hash) =>
+                w.writeArrayHeader(2)
+                    .write(0) // Tag for Signature
+                    .write(hash)
+
+            case Timelock.AllOf(scripts) =>
+                w.writeArrayHeader(2)
+                    .write(1) // Tag for AllOf
+                    .write(scripts)
+
+            case Timelock.AnyOf(scripts) =>
+                w.writeArrayHeader(2)
+                    .write(2) // Tag for AnyOf
+                    .write(scripts)
+
+            case Timelock.MOf(m, scripts) =>
+                w.writeArrayHeader(3)
+                    .write(3) // Tag for MOfN
+                    .write(m)
+                    .write(scripts)
+
+            case Timelock.TimeStart(slot) =>
+                w.writeArrayHeader(2)
+                    .write(4) // Tag for TimeStart
+                    .write(slot)
+
+            case Timelock.TimeExpire(slot) =>
+                w.writeArrayHeader(2)
+                    .write(5) // Tag for TimeExpire
+                    .write(slot)
+
+    // Timelock decoder
+    given Decoder[Timelock] = Decoder: r =>
+        r.readArrayHeader()
+        r.readInt() match
+            case 0 => // Signature
+                Timelock.Signature(r.read[AddrKeyHash]())
+
+            case 1 => // AllOf
+                Timelock.AllOf(r.read[Seq[Timelock]]())
+
+            case 2 => // AnyOf
+                Timelock.AnyOf(r.read[Seq[Timelock]]())
+
+            case 3 => // MOfN
+                val m = r.read[Int]()
+                val scripts = r.read[Seq[Timelock]]()
+                Timelock.MOf(m, scripts)
+
+            case 4 => // TimeStart
+                Timelock.TimeStart(r.read[SlotNo]())
+
+            case 5 => // TimeExpire
+                Timelock.TimeExpire(r.read[SlotNo]())
+
+            case tag =>
+                r.validationFailure(s"Invalid Timelock tag: $tag")
+
     /** Reads a Timelock script from a CBOR encoded byte array
       *
       * @param cbor
