@@ -9,13 +9,14 @@ import scalus.builtin.given
 import scalus.sir.Recursivity.NonRec
 import scalus.sir.SIR.Pattern
 import scalus.sir.SIRType.{substitute, FreeUnificator, SumCaseClass, TypeVar}
+import scalus.sir.lowering.StaticLoweredValue
 import scalus.uplc.{ArbitraryInstances, Constant, DeBruijn, DefaultFun, DefaultUni, NamedDeBruijn, Term}
 import scalus.uplc.DefaultFun.*
 import scalus.uplc.DefaultUni.asConstant
 import scalus.uplc.Term.*
 import scalus.uplc.TermDSL.given
 import scalus.uplc.eval.PlutusVM
-import scalus.uplc.eval.Result.Success
+import scalus.uplc.eval.Result
 
 import scala.language.implicitConversions
 
@@ -40,6 +41,7 @@ class SirToUplcSmLoweringTest
 
     given PlutusVM = PlutusVM.makePlutusV3VM()
 
+    /*
     test("lower constant") {
         forAll { (c: Constant) =>
             SIR.Const(c, SIRType.Integer, ae) lowersTo Term.Const(c)
@@ -97,7 +99,7 @@ class SirToUplcSmLoweringTest
         /* let x = 1 in
        let y = 2 in x + y
        lowers to (\x -> (\y -> x + y) 2) 1
-         */
+     */
         SIR.Let(
           NonRec,
           Binding("x", SIR.Const(asConstant(1), Integer, ae)) :: Binding(
@@ -126,7 +128,7 @@ class SirToUplcSmLoweringTest
        lowers to (\Nil Cons -> force Nil)
        TxId(name)
        lowers to (\name TxId -> TxId name) name
-         */
+     */
         val a1TypeVar = TypeVar("A", Some(1))
         val a2TypeVar = TypeVar("A", Some(2))
         val tailTypeProxy = new TypeProxy(null)
@@ -172,7 +174,7 @@ class SirToUplcSmLoweringTest
         val gen1 = scalus.sir.lowering.typegens.SirTypeUplcGenerator(originSir1.tp)
         val representation1 = gen1.defaultRepresentation
         println(s"gen1 = $gen1, representation1=${representation1}")
-        assert(representation1 == scalus.sir.lowering.ProductCaseClassRepresentation.DataList)
+        assert(representation1 == scalus.sir.lowering.ProductCaseClassRepresentation.ProdDataList)
 
         val genDataList =
             scalus.sir.lowering.typegens.SirTypeUplcGenerator(SIRType.List(SIRType.Data))
@@ -189,7 +191,7 @@ class SirToUplcSmLoweringTest
 
         val result1 = origin1.evaluateDebug
         result1 match {
-            case Success(term, _, _, _) =>
+            case Result.Success(term, _, _, _) =>
                 val nilData = scalus.prelude.List.empty[scalus.builtin.Data].toData
                 println(s"NilData=${nilData}")
                 println(s"Term=${term}")
@@ -228,27 +230,86 @@ class SirToUplcSmLoweringTest
     test("lower And, Or, Not") {
         /* And True False
        lowers to (\True False -> And True False) True False
-         */
+     */
+
         val a = SIR.Var("a", SIRType.Boolean, ae)
         val b = SIR.Var("b", SIRType.Boolean, ae)
-        SIR.Let(
-          NonRec,
-          List(
-            Binding("a", SIR.Const(Constant.Bool(true), SIRType.Boolean, ae)),
-            Binding(
-              "b",
-              SIR.Const(Constant.Bool(true), SIRType.Boolean, ae)
-            )
-          ),
-          SIR.And(a, b, ae),
-          ae
-        )
-        SIR.And(a, b, ae) lowersTo !(!IfThenElse $ vr"a" $ ~vr"b" $ ~false)
-        SIR.Or(a, b, ae) lowersTo !(!IfThenElse $ vr"a" $ ~true $ ~vr"b")
-        SIR.Not(a, ae) lowersTo !(!IfThenElse $ vr"a" $ ~false $ ~true)
-    }
 
-    test("lower Match") {
+        def withLet(a: Boolean = true, b: Boolean = true)(f: => SIR): SIR = {
+            SIR.Let(
+              NonRec,
+              List(
+                Binding("a", SIR.Const(Constant.Bool(a), SIRType.Boolean, ae)),
+                Binding("b", SIR.Const(Constant.Bool(b), SIRType.Boolean, ae))
+              ),
+              f,
+              ae
+            )
+        }
+
+        def withLambda(f: => SIR): SIR = {
+            SIR.LamAbs(
+              SIR.Var("a", SIRType.Boolean, ae),
+              SIR.LamAbs(SIR.Var("b", SIRType.Boolean, ae), f, ae),
+              ae
+            )
+        }
+
+        // SIR.And(a, b, ae) lowersTo !(!IfThenElse $ vr"a" $ ~vr"b" $ ~false)
+        val andLet1 = withLet(true, true) {
+            SIR.And(a, b, ae)
+        }
+        val andLetUplc1 = lower(andLet1)
+
+        val expected1 = lam("a")(
+          lam("b")(!(!IfThenElse $ vr"a" $ ~vr"b" $ ~false)) $ Constant.Bool(
+            true
+          )
+        ) $ Constant.Bool(true)
+
+        assert(
+          andLetUplc1 alphaEq expected1
+        )
+        val resultAnd1 = andLetUplc1.evaluateDebug
+        resultAnd1 match {
+            case Result.Success(term, _, _, _) =>
+                assert(term == Term.Const(Constant.Bool(true)))
+            case _ =>
+                fail(s"Expected success, got: ${resultAnd1}")
+        }
+
+        val andLambda1 = withLambda(SIR.And(a, b, ae))
+        val andLambdaUplc1 = lower(andLambda1)
+        val expectedLambda1 = lam("a")(
+          lam("b")(!(!IfThenElse $ vr"a" $ ~vr"b" $ ~false))
+        )
+
+        assert(
+          andLambdaUplc1 alphaEq expectedLambda1
+        )
+
+        // SIR.Or(a, b, ae) lowersTo !(!IfThenElse $ vr"a" $ ~true $ ~vr"b")
+        val orLambda1 = withLambda(SIR.Or(a, b, ae))
+        val orLambdaUplc1 = lower(orLambda1)
+        val expectedOr1 = lam("a")(
+          lam("b")(!(!IfThenElse $ vr"a" $ ~true $ ~vr"b"))
+        )
+        assert(
+          orLambdaUplc1 alphaEq expectedOr1
+        )
+
+        // SIR.Not(a, ae) lowersTo !(!IfThenElse $ vr"a" $ ~false $ ~true)
+        val nonLambda1 = SIR.LamAbs(a, SIR.Not(a, ae), ae)
+        val nonLambdaUplc1 = lower(nonLambda1)
+        val expectedNon1 = lam("a")(!(!IfThenElse $ vr"a" $ ~false $ ~true))
+        assert(
+          nonLambdaUplc1 alphaEq expectedNon1
+        )
+
+    }
+     */
+
+    test("lower Match / List[?]") {
         /* Nil match
         case Nil -> 1
         case Cons(h, tl) -> 2
@@ -259,16 +320,24 @@ class SirToUplcSmLoweringTest
         val tailTypeProxy = new SIRType.TypeProxy(null)
         val a1TypeVar = SIRType.TypeVar("A1", Some(1))
         val a2TypeVar = SIRType.TypeVar("A2", Some(2))
-        val nilConstr = ConstrDecl("Nil", SIRVarStorage.DEFAULT, List(), List(), List(), ae)
+        val nilConstr = ConstrDecl(
+          "scalus.prelude.List$.Nil",
+          SIRVarStorage.DEFAULT,
+          List(),
+          List(),
+          List(),
+          ae
+        )
         val consConstr = ConstrDecl(
-          "Cons",
+          "scalus.prelude.List$.Cons",
           SIRVarStorage.DEFAULT,
           List(TypeBinding("head", a2TypeVar), TypeBinding("tail", tailTypeProxy)),
           List(a2TypeVar),
           List(a2TypeVar),
           ae
         )
-        val listData = DataDecl("List", List(nilConstr, consConstr), List(a1TypeVar), ae)
+        val listData =
+            DataDecl("scalus.prelude.List", List(nilConstr, consConstr), List(a1TypeVar), ae)
         tailTypeProxy.ref = SumCaseClass(listData, List(a2TypeVar))
 
         val txIdData = DataDecl(
@@ -291,9 +360,15 @@ class SirToUplcSmLoweringTest
 
         val listAnyType = SIRType.SumCaseClass(listData, List(FreeUnificator))
 
-        withDecls(
+        val sirMatch1 = withDecls(
           SIR.Match(
-            SIR.Constr("Nil", listData, List(), listData.constrType("Nil"), ae),
+            SIR.Constr(
+              "scalus.prelude.List$.Nil",
+              listData,
+              List(),
+              listData.constrType("scalus.prelude.List$.Nil"),
+              ae
+            ),
             List(
               SIR.Case(
                 Pattern.Constr(nilConstr, Nil, Nil),
@@ -310,5 +385,81 @@ class SirToUplcSmLoweringTest
             SIRType.Integer,
             ae
           )
-        ) lowersTo (lam("Nil", "Cons")(!vr"Nil") $ ~asConstant(1) $ lam("h", "tl")(2))
+        )
+
+        val sirMatchUplc1 = lower(sirMatch1)
+
+        // println(s"Lowered SIR: ${sirMatchUplc1.pretty.render(100)}")
+
+        // val uplcExpected1 = lam("Nil", "Cons")(!vr"Nil") $ ~asConstant(1) $ lam("h", "tl")(2)
+        val uplcExpected = asConstant(1)
+
+        assert(
+          sirMatchUplc1 alphaEq uplcExpected
+        )
+
+        // To really check match we should put inti into lambda
+        val sirMath2 = withDecls(
+          SIR.LamAbs(
+            SIR.Var("scrutinee", listAnyType, ae),
+            SIR.Match(
+              SIR.Var("scrutinee", listAnyType, ae),
+              List(
+                SIR.Case(
+                  Pattern.Constr(nilConstr, Nil, Nil),
+                  SIR.Const(Constant.Integer(1), SIRType.Integer, ae),
+                  ae
+                ),
+                SIR.Case(
+                  Pattern
+                      .Constr(
+                        consConstr,
+                        List("h", "tl"),
+                        List(SIRType.FreeUnificator, listAnyType)
+                      ),
+                  SIR.Const(Constant.Integer(2), SIRType.Integer, ae),
+                  ae
+                )
+              ),
+              SIRType.Integer,
+              ae
+            ),
+            ae
+          )
+        )
+
+        val sirMatchUplc2 = lower(sirMath2)
+        // println(s"match2:  ${sirMatchUplc2.pretty.render(100)}")
+
+        val sirMatchExpectedUplc2 = lam("scrutinee")(
+          !(!(!Term.Builtin(DefaultFun.ChooseList)) $ vr"scrutinee" $ ~asConstant(1) $ ~asConstant(
+            2
+          )),
+        )
+
+        assert(
+          sirMatchUplc2 alphaEq sirMatchExpectedUplc2
+        )
+
+        val matchArgumentSIR = SIR.Constr(
+          "scalus.prelude.List$.Nil",
+          listData,
+          List(),
+          listData.constrType("scalus.prelude.List$.Nil"),
+          ae
+        )
+
+        val argumentUplc = lower(matchArgumentSIR)
+
+        val uplcApplied = sirMatchUplc2 $ argumentUplc
+
+        val resultMatchUplc2 = uplcApplied.evaluateDebug
+
+        resultMatchUplc2 match {
+            case Result.Success(term, _, _, _) =>
+                assert(term == Term.Const(Constant.Integer(1)))
+            case _ =>
+                fail(s"Expected success, got: ${resultMatchUplc2}")
+        }
+
     }

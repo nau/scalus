@@ -29,12 +29,12 @@ object SumCaseClassRepresentation {
       * `DataConstr`, this representation does not use a constructor tag, but use unList and
       * unListData to work with the data.
       */
-    case object DataList extends SumCaseClassRepresentation(false, true)
+    case object SumDataList extends SumCaseClassRepresentation(false, true)
 
     /** packed in data representation as a list of data elements. i.e. unListData for unpacking into
       * DataList
       */
-    case object PackedDataList extends SumCaseClassRepresentation(true, true)
+    case object PackedSumDataList extends SumCaseClassRepresentation(true, true)
 
     /** Representation as tern Constr(i,x1,...,xn) where i is the index of the constructor and x is
       * a field
@@ -55,7 +55,7 @@ sealed trait ProductCaseClassRepresentation(val isPackedData: Boolean, val isDat
 object ProductCaseClassRepresentation {
     case object PackedDataList extends ProductCaseClassRepresentation(true, true)
 
-    case object DataList extends ProductCaseClassRepresentation(false, true)
+    case object ProdDataList extends ProductCaseClassRepresentation(false, true)
 
     /** Data.Unconstr will give us a pair from data and index of the constructor.
       */

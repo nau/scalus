@@ -27,31 +27,49 @@ object SumCaseSirTypeGenerator extends SirTypeUplcGenerator {
                 input
             case (DataConstr, PairIntDataList) =>
                 lvBuiltinApply(SIRBuiltins.unConstrData, input, input.sirType, PairIntDataList, pos)
-            case (DataConstr, DataList) =>
+            case (DataConstr, SumDataList) =>
                 ???
-            case (DataConstr, PackedDataList) =>
-                val asDataList = toRepresentation(input, DataList, pos)
-                lvBuiltinApply(SIRBuiltins.listData, asDataList, input.sirType, PackedDataList, pos)
+            case (DataConstr, PackedSumDataList) =>
+                val asDataList = toRepresentation(input, SumDataList, pos)
+                lvBuiltinApply(SIRBuiltins.listData, asDataList, input.sirType, PackedSumDataList, pos)
             case (DataConstr, UplcConstr) =>
                 ???
             case (DataConstr, UplcConstrOnData) =>
                 ???
             case (DataConstr, ScottEncoding) =>
                 ???
-            case (DataList, DataConstr) =>
+            case (SumDataList, DataConstr) =>
                 ???
-            case (DataList, DataList) =>
+            case (SumDataList, SumDataList) =>
                 input
-            case (DataList, PackedDataList) =>
-                lvBuiltinApply(SIRBuiltins.listData, input, input.sirType, PackedDataList, pos)
-            case (DataList, UplcConstr) =>
+            case (SumDataList, PackedSumDataList) =>
+                lvBuiltinApply(SIRBuiltins.listData, input, input.sirType, PackedSumDataList, pos)
+            case (SumDataList, UplcConstr) =>
                 ???
-            case (DataList, UplcConstrOnData) =>
+            case (SumDataList, UplcConstrOnData) =>
                 ???
-            case (DataList, ScottEncoding) =>
+            case (SumDataList, ScottEncoding) =>
                 ???
-            case (PackedDataList, _) =>
+            case (PackedSumDataList, SumDataList) =>
+                lvBuiltinApply(SIRBuiltins.unListData, input, input.sirType, SumDataList, pos)
+            case (PackedSumDataList, PackedSumDataList) =>
+                input
+            case (PackedSumDataList, DataConstr) =>
+                val asDataList = toRepresentation(input, SumDataList, pos)
+                asDataList.toRepresentation(DataConstr, pos)
+            case (PackedSumDataList, UplcConstr) =>
                 ???
+            case (PackedSumDataList, UplcConstrOnData) =>
+                ???
+            case (PackedSumDataList, ScottEncoding) =>
+                ???
+            case (UplcConstr, DataConstr) =>
+                ???
+            case (UplcConstr, SumDataList) =>
+                ???
+            case (UplcConstr, PackedSumDataList) =>
+                val asDataList = toRepresentation(input, SumDataList, pos)
+                asDataList.toRepresentation(PackedSumDataList, pos)
         }
     }
 
@@ -131,9 +149,9 @@ object SumCaseSirTypeGenerator extends SirTypeUplcGenerator {
                   matchData,
                   loweredScrutinee,
                 )
-            case DataList =>
+            case SumDataList =>
                 SumDataListSirTypeGenerator.genMatch(matchData, loweredScrutinee)
-            case PackedDataList =>
+            case PackedSumDataList =>
                 SumDataListSirTypeGenerator.genMatch(matchData, loweredScrutinee)
             case UplcConstr =>
                 genMatchUplcConstr(
@@ -282,12 +300,12 @@ object SumCaseSirTypeGenerator extends SirTypeUplcGenerator {
         val dataListVar = lvNewLazyIdVar(
           dataListVarId,
           SIRType.List(SIRType.Data),
-          SumCaseClassRepresentation.DataList,
+          SumCaseClassRepresentation.SumDataList,
           lvBuiltinApply(
             SIRBuiltins.sndPair,
             scrutineeVar,
             SIRType.List(SIRType.Data),
-            SumCaseClassRepresentation.DataList,
+            SumCaseClassRepresentation.SumDataList,
             matchData.scrutinee.anns.pos
           ),
           matchData.scrutinee.anns.pos
@@ -360,18 +378,18 @@ object SumCaseSirTypeGenerator extends SirTypeUplcGenerator {
                     )
                     val tailId = s"${dataListId}_b${}"
                     // mb we already have this id in the scope
-                    val tailVar = lctx.scope.get(tailId, SumCaseClassRepresentation.DataList) match
+                    val tailVar = lctx.scope.get(tailId, SumCaseClassRepresentation.SumDataList) match
                         case Some(v) => v
                         case None =>
                             lvNewLazyIdVar(
                               tailId,
                               listDataType,
-                              SumCaseClassRepresentation.DataList,
+                              SumCaseClassRepresentation.SumDataList,
                               lvBuiltinApply(
                                 SIRBuiltins.tailList,
                                 currentTail,
                                 listDataType,
-                                SumCaseClassRepresentation.DataList,
+                                SumCaseClassRepresentation.SumDataList,
                                 sirCase.anns.pos
                               ),
                               sirCase.anns.pos

@@ -26,4 +26,8 @@ trait RepresentationProxyLoweredValue(
 
     def termInternal(gctx: TermGenerationContext): Term
 
+    def show: String = {
+        s"RepresentationProxyLoweredValue(${input.show}, $representation)"
+    }
+
 }

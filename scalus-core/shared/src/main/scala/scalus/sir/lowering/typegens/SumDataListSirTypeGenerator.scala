@@ -12,10 +12,10 @@ import scalus.uplc.{DefaultFun, Term}
 object SumDataListSirTypeGenerator extends SirTypeUplcGenerator {
 
     override def defaultRepresentation: LoweredValueRepresentation =
-        SumCaseClassRepresentation.DataList
+        SumCaseClassRepresentation.SumDataList
 
     override def defaultDataRepresentation: LoweredValueRepresentation =
-        SumCaseClassRepresentation.PackedDataList
+        SumCaseClassRepresentation.PackedSumDataList
 
     override def toRepresentation(
         input: LoweredValue,
@@ -56,15 +56,21 @@ object SumDataListSirTypeGenerator extends SirTypeUplcGenerator {
         pos: SIRPosition
     )(using gctx: TermGenerationContext): Term = {
         (inputRepresentation, outputRepresentation) match
-            case (SumCaseClassRepresentation.DataList, SumCaseClassRepresentation.DataList) =>
+            case (SumCaseClassRepresentation.SumDataList, SumCaseClassRepresentation.SumDataList) =>
                 input
-            case (SumCaseClassRepresentation.DataList, SumCaseClassRepresentation.PackedDataList) =>
+            case (
+                  SumCaseClassRepresentation.SumDataList,
+                  SumCaseClassRepresentation.PackedSumDataList
+                ) =>
                 uplcToData(input)
-            case (SumCaseClassRepresentation.PackedDataList, SumCaseClassRepresentation.DataList) =>
+            case (
+                  SumCaseClassRepresentation.PackedSumDataList,
+                  SumCaseClassRepresentation.SumDataList
+                ) =>
                 dataToUplc(input)
             case (
-                  SumCaseClassRepresentation.PackedDataList,
-                  SumCaseClassRepresentation.PackedDataList
+                  SumCaseClassRepresentation.PackedSumDataList,
+                  SumCaseClassRepresentation.PackedSumDataList
                 ) =>
                 input
             case _ =>
@@ -87,7 +93,7 @@ object SumDataListSirTypeGenerator extends SirTypeUplcGenerator {
                 lvBuiltinApply0(
                   SIRBuiltins.mkNilData,
                   SIRType.List(SIRType.FreeUnificator),
-                  SumCaseClassRepresentation.DataList,
+                  SumCaseClassRepresentation.SumDataList,
                   constr.anns.pos
                 )
             case "scalus.prelude.List$.Cons" =>
@@ -101,13 +107,13 @@ object SumDataListSirTypeGenerator extends SirTypeUplcGenerator {
                   head.pos
                 )
                 val tailDataRepr =
-                    tail.toRepresentation(SumCaseClassRepresentation.DataList, tail.pos)
+                    tail.toRepresentation(SumCaseClassRepresentation.SumDataList, tail.pos)
                 lvBuiltinApply2(
                   SIRBuiltins.mkCons,
                   headDataRepr,
                   tailDataRepr,
                   SIRType.List(elementType),
-                  SumCaseClassRepresentation.DataList,
+                  SumCaseClassRepresentation.SumDataList,
                   constr.anns.pos
                 )
             case _ =>
@@ -121,7 +127,7 @@ object SumDataListSirTypeGenerator extends SirTypeUplcGenerator {
         lctx: LoweringContext
     ): LoweredValue = {
         val scrutineeDataRepr = loweredScrutinee.toRepresentation(
-          SumCaseClassRepresentation.DataList,
+          SumCaseClassRepresentation.SumDataList,
           sel.anns.pos
         )
         sel.field match {
@@ -153,7 +159,7 @@ object SumDataListSirTypeGenerator extends SirTypeUplcGenerator {
                     }
 
                     override def representation: LoweredValueRepresentation =
-                        SumCaseClassRepresentation.DataList
+                        SumCaseClassRepresentation.SumDataList
 
                 }
             case "isNull" =>
@@ -253,10 +259,10 @@ object SumDataListSirTypeGenerator extends SirTypeUplcGenerator {
             matchData.scrutinee.tp,
             matchData.anns
           ),
-          representation = SumCaseClassRepresentation.DataList,
+          representation = SumCaseClassRepresentation.SumDataList,
           optRhs = Some(
             loweredScrutinee.toRepresentation(
-              SumCaseClassRepresentation.DataList,
+              SumCaseClassRepresentation.SumDataList,
               matchData.anns.pos
             )
           )
@@ -297,7 +303,7 @@ object SumDataListSirTypeGenerator extends SirTypeUplcGenerator {
             elementType,
             matchData.anns
           ),
-          representation = SumCaseClassRepresentation.DataList,
+          representation = SumCaseClassRepresentation.SumDataList,
           optRhs = Some(
             new ProxyLoweredValue(listInput) {
                 override def sirType: SIRType = elementType
@@ -308,7 +314,7 @@ object SumDataListSirTypeGenerator extends SirTypeUplcGenerator {
                     DefaultFun.TailList.tpf $ listInput.termWithNeededVars(gctx)
 
                 override def representation: LoweredValueRepresentation =
-                    SumCaseClassRepresentation.DataList
+                    SumCaseClassRepresentation.SumDataList
 
             }
           )
@@ -325,10 +331,10 @@ object SumDataListSirTypeGenerator extends SirTypeUplcGenerator {
             lctx.lower(nilCase.get.body).toRepresentation(bodyRepresentation, nilCase.get.anns.pos)
 
         val usedVarsCount = Lowering.filterAndCountVars(
-          x => x.id != listInput.id && x.id != consHead.id && x.id != consTail.id,
+          _ => true,
           loweredScrutinee,
           loweredConsBody,
-          loweredNilBody
+          loweredNilBody,
         )
 
         val cDominatedVars = usedVarsCount.filter { case (v, c) =>
@@ -342,13 +348,10 @@ object SumDataListSirTypeGenerator extends SirTypeUplcGenerator {
             override def pos: SIRPosition = matchData.anns.pos
 
             override def termInternal(gctx: TermGenerationContext): Term = {
-                val nGctx = gctx.copy(generatedVars = gctx.generatedVars + listInput.id)
-                Term.LamAbs(
-                  listInput.id,
-                  !(DefaultFun.ChooseList.tpf $ listInput.termWithNeededVars(nGctx)
-                      $ ~loweredNilBody.termWithNeededVars(nGctx)
-                      $ ~loweredConsBody.termWithNeededVars(nGctx))
-                )
+                !(DefaultFun.ChooseList.tpf $ listInput.termWithNeededVars(gctx)
+                    $ ~loweredNilBody.termWithNeededVars(gctx)
+                    $ ~loweredConsBody.termWithNeededVars(gctx))
+
             }
 
             override def representation: LoweredValueRepresentation =
@@ -362,6 +365,10 @@ object SumDataListSirTypeGenerator extends SirTypeUplcGenerator {
                 loweredScrutinee.addDependent(value)
                 loweredNilBody.addDependent(value)
                 loweredConsBody.addDependent(value)
+            }
+
+            override def show: String = {
+                s"SumDataListMatch(${matchData.scrutinee}, ${loweredNilBody}, ${loweredConsBody}) at ${matchData.anns.pos}"
             }
         }
 

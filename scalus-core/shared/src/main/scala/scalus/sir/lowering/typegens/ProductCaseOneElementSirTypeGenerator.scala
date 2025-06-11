@@ -70,11 +70,11 @@ case class ProductCaseOneElementSirTypeGenerator(argGenerator: SirTypeUplcGenera
           lvBuiltinApply0(
             SIRBuiltins.mkNilData,
             SIRType.List(Data),
-            SumCaseClassRepresentation.DataList,
+            SumCaseClassRepresentation.SumDataList,
             pos
           ),
           SIRType.List(Data),
-          SumCaseClassRepresentation.DataList,
+          SumCaseClassRepresentation.SumDataList,
           pos
         )
 

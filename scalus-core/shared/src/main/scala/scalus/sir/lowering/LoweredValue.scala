@@ -72,6 +72,7 @@ trait LoweredValue {
         value: IdentifiableLoweredValue
     ): Unit
 
+    def show: String
 }
 
 case class ConstantLoweredValue(
@@ -87,6 +88,7 @@ case class ConstantLoweredValue(
     override def addDependent(value: IdentifiableLoweredValue): Unit = {
         // constants are not depended on any variables
     }
+    override def show: String = s"ConstantLoweredValue($term, $representation) at ˜$pos"
 }
 
 case class StaticLoweredValue(
@@ -101,6 +103,9 @@ case class StaticLoweredValue(
     def usedUplevelVars: Set[IdentifiableLoweredValue] = Set.empty
     def termInternal(gctx: TermGenerationContext): Term = term
     def addDependent(value: IdentifiableLoweredValue): Unit = {}
+    def show: String = {
+        s"StaticLoweredValue($term, $representation) at $pos"
+    }
 
 }
 
@@ -173,6 +178,10 @@ class VariableLoweredValue(
             }
     }
 
+    override def show: String = {
+        s"VariableLoweredValue(id=$id, name=$name, representation=$representation, optRhs=${optRhs.map(_.show)})"
+    }
+
 }
 
 /** Represent a variable which is dependent on another variable. i.e. var x1 =
@@ -206,6 +215,10 @@ case class DependendVariableLoweredValue(
 
     }
 
+    override def show: String = {
+        s"DependendVariableLoweredValue(id=$id, name=$name, representation=$representation, rhs=${rhs.show} at = ${sir.anns.pos})"
+    }
+
 }
 
 trait ProxyLoweredValue(origin: LoweredValue) extends LoweredValue {
@@ -224,6 +237,8 @@ trait ProxyLoweredValue(origin: LoweredValue) extends LoweredValue {
 
     override def addDependent(value: IdentifiableLoweredValue): Unit =
         origin.addDependent(value)
+
+    override def show: String = s"ProxyLoweredValue(${origin.show})"
 
 }
 
@@ -246,6 +261,8 @@ trait ComplexLoweredValue(ownVars: Set[IdentifiableLoweredValue], subvalues: Low
     override def addDependent(value: IdentifiableLoweredValue): Unit = {
         subvalues.foreach(_.addDependent(value))
     }
+
+    override def show: String = toString
 
 }
 
@@ -303,11 +320,20 @@ object LoweredValue {
             lctx: LoweringContext
         ): LoweredValue = {
 
-            new ComplexLoweredValue(Set.empty, f, arg) {
+            val resType = resTp.getOrElse(
+              SIRType.calculateApplyType(f.sirType, arg.sirType, lctx.typeVars)
+            )
 
-                lazy val resType = resTp.getOrElse(
-                  SIRType.calculateApplyType(f.sirType, arg.sirType, lctx.typeVars)
-                )
+            // TODO: add upcast if needed (?)
+
+            val argRepresentation = lctx.typeGenerator(arg.sirType).defaultRepresentation
+
+            val argInDefaultRepresentation = arg.toRepresentation(
+              argRepresentation,
+              inPos
+            )
+
+            new ComplexLoweredValue(Set.empty, f, arg) {
 
                 override def sirType: SIRType = resType
 
@@ -321,8 +347,12 @@ object LoweredValue {
                 override def termInternal(gctx: TermGenerationContext): Term = {
                     Term.Apply(
                       f.termWithNeededVars(gctx),
-                      arg.termWithNeededVars(gctx)
+                      argInDefaultRepresentation.termWithNeededVars(gctx)
                     )
+                }
+
+                override def show: String = {
+                    s"lvApply(${f.show}, ${argInDefaultRepresentation.show}) at $inPos"
                 }
 
             }

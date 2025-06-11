@@ -296,53 +296,21 @@ object Lowering {
      */
 
     private def lowerApp(app: SIR.Apply)(using lctx: LoweringContext): LoweredValue = {
-
         val fun = lowerSIR(app.f)
-        val fArgRepresentation = lctx.typeGenerator(app.arg.tp).defaultRepresentation
-        val arg = lowerSIR(app.arg).toRepresentation(fArgRepresentation, app.arg.anns.pos)
-
-        val usedVarsWithCount = addUsedVarsToCounts(
-          fun.usedUplevelVars ++ arg.usedUplevelVars,
-          Map.empty
+        val arg = lowerSIR(app.arg)
+        lvApply(
+          fun,
+          arg,
+          app.anns.pos,
+          Some(app.tp),
+          Some(SirTypeUplcGenerator(app.tp).defaultRepresentation)
         )
-        val cDominatedUplevelVars = usedVarsWithCount.filter { case (v, c) =>
-            c > 1 && v.directDepended.size > 1
-        }.keySet
-        val cUsedUplevelVars = usedVarsWithCount.keySet
-
-        new LoweredValue {
-
-            override def sirType: SIRType = app.tp
-            override def pos: SIRPosition = app.anns.pos
-
-            override def termInternal(gctx: TermGenerationContext): Term = {
-                val funTerm = fun.termWithNeededVars(gctx)
-                val argTerm = arg.termWithNeededVars(gctx)
-                Term.Apply(funTerm, argTerm)
-            }
-
-            override def representation: LoweredValueRepresentation =
-                SirTypeUplcGenerator(app.tp).defaultRepresentation
-
-            override def dominatingUplevelVars: Set[IdentifiableLoweredValue] = {
-                cDominatedUplevelVars
-            }
-
-            override def usedUplevelVars: Set[IdentifiableLoweredValue] = {
-                cUsedUplevelVars
-            }
-
-            override def addDependent(value: IdentifiableLoweredValue): Unit = {
-                fun.addDependent(value)
-                arg.addDependent(value)
-            }
-        }
-
     }
 
     def generateDominatedUplevelVarsAccess(
         value: LoweredValue,
     )(using gctx: TermGenerationContext): Term = {
+
         val newVars = value.dominatingUplevelVars.filterNot(x => gctx.generatedVars.contains(x.id))
         val nGeneratedVars = gctx.generatedVars ++ newVars.map(_.id)
         val internalTerm = value.termInternal(gctx.copy(generatedVars = nGeneratedVars))
@@ -366,6 +334,7 @@ object Lowering {
                               value.pos
                             )
         }
+
         retval
     }
 
