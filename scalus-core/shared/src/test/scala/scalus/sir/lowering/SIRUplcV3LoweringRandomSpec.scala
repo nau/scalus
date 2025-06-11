@@ -1,11 +1,11 @@
-package scalus.sir
-
-import scalus.Compiler.compile
-import scalus.*
-import scalus.builtin.{*, given}
-import scalus.uplc.eval.PlutusVM
+package scalus.sir.lowering
 
 import org.scalatest.funsuite.AnyFunSuite
+import scalus.*
+import scalus.sir.*
+import scalus.Compiler.compile
+import scalus.builtin.{*, given}
+import scalus.uplc.eval.PlutusVM
 
 object SIRUplcV3LoweringSpec {
 

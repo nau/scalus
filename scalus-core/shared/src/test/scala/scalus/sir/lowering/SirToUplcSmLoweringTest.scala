@@ -1,4 +1,4 @@
-package scalus.sir
+package scalus.sir.lowering
 
 import org.scalatest.funsuite.AnyFunSuite
 import org.scalatestplus.scalacheck.ScalaCheckPropertyChecks
@@ -10,13 +10,13 @@ import scalus.sir.Recursivity.NonRec
 import scalus.sir.SIR.Pattern
 import scalus.sir.SIRType.{substitute, FreeUnificator, SumCaseClass, TypeVar}
 import scalus.sir.lowering.StaticLoweredValue
-import scalus.uplc.{ArbitraryInstances, Constant, DeBruijn, DefaultFun, DefaultUni, NamedDeBruijn, Term}
+import scalus.sir.*
 import scalus.uplc.DefaultFun.*
 import scalus.uplc.DefaultUni.asConstant
 import scalus.uplc.Term.*
 import scalus.uplc.TermDSL.given
-import scalus.uplc.eval.PlutusVM
-import scalus.uplc.eval.Result
+import scalus.uplc.eval.{PlutusVM, Result}
+import scalus.uplc.*
 
 import scala.language.implicitConversions
 
@@ -41,7 +41,6 @@ class SirToUplcSmLoweringTest
 
     given PlutusVM = PlutusVM.makePlutusV3VM()
 
-    /*
     test("lower constant") {
         forAll { (c: Constant) =>
             SIR.Const(c, SIRType.Integer, ae) lowersTo Term.Const(c)
@@ -99,7 +98,7 @@ class SirToUplcSmLoweringTest
         /* let x = 1 in
        let y = 2 in x + y
        lowers to (\x -> (\y -> x + y) 2) 1
-     */
+         */
         SIR.Let(
           NonRec,
           Binding("x", SIR.Const(asConstant(1), Integer, ae)) :: Binding(
@@ -128,7 +127,7 @@ class SirToUplcSmLoweringTest
        lowers to (\Nil Cons -> force Nil)
        TxId(name)
        lowers to (\name TxId -> TxId name) name
-     */
+         */
         val a1TypeVar = TypeVar("A", Some(1))
         val a2TypeVar = TypeVar("A", Some(2))
         val tailTypeProxy = new TypeProxy(null)
@@ -230,7 +229,7 @@ class SirToUplcSmLoweringTest
     test("lower And, Or, Not") {
         /* And True False
        lowers to (\True False -> And True False) True False
-     */
+         */
 
         val a = SIR.Var("a", SIRType.Boolean, ae)
         val b = SIR.Var("b", SIRType.Boolean, ae)
@@ -307,7 +306,6 @@ class SirToUplcSmLoweringTest
         )
 
     }
-     */
 
     test("lower Match / List[?]") {
         /* Nil match
