@@ -137,6 +137,7 @@ final class SIRCompiler(options: SIRCompilerOptions = SIRCompilerOptions.default
 
     case class LocalBinding(
         name: String,
+        tp: SIRType,
         symbol: Symbol,
         recursivity: Recursivity,
         body: AnnotatedSIR,
@@ -160,6 +161,8 @@ final class SIRCompiler(options: SIRCompilerOptions = SIRCompilerOptions.default
         // here the full name orifinal symbol.
         //  for now, we use the same name.
         name: String,
+        // type of the binding
+        tp: SIRType,
         // origin symbol (parent of this class) where the method is defined
         parentSymbol: Symbol,
         // child symbol (this class) where the specialized method should be added
@@ -337,9 +340,9 @@ final class SIRCompiler(options: SIRCompilerOptions = SIRCompilerOptions.default
                       Map.empty,
                       superNames
                     )
-                    Binding(b.fullName.name, newBody)
-                else Binding(b.fullName.name, b.body)
-            } ++ nonOverridedSupers.map(b => Binding(b.fullName.name, b.body))
+                    Binding(b.fullName.name, b.tp, newBody)
+                else Binding(b.fullName.name, b.tp, b.body)
+            } ++ nonOverridedSupers.map(b => Binding(b.fullName.name, b.tp, b.body))
 
         val time = System.currentTimeMillis() - start
         if bindingsWithSpecialized.isEmpty then {
@@ -385,8 +388,8 @@ final class SIRCompiler(options: SIRCompilerOptions = SIRCompilerOptions.default
                   Map.empty,
                   superNames
                 )
-                Binding(lb.fullName.name, newBody)
-            else Binding(lb.fullName.name, lb.body)
+                Binding(lb.fullName.name, lb.tp, newBody)
+            else Binding(lb.fullName.name, lb.tp, lb.body)
         }
         if bindings.nonEmpty then
             val module = Module(SIRCompiler.SIRVersion, bindings)
@@ -807,11 +810,12 @@ final class SIRCompiler(options: SIRCompilerOptions = SIRCompilerOptions.default
                 } else vd.rhs
             val bodyExpr = compileExpr(env, rhsFixed)
 
+            val valSirType = sirTypeInEnv(vd.tpe.widen, vd.srcPos, env)
+
             // insert Apply if the left part hava a type T and right: Unit=>T
             val bodyExpr1 =
                 if SIRType.isPolyFunOrFunUnit(bodyExpr.tp)
                 then
-                    val valSirType = sirTypeInEnv(vd.tpe.widen, vd.srcPos, env)
                     if !SIRType.isPolyFunOrFun(valSirType) then
                         SIR.Apply(
                           bodyExpr,
@@ -823,7 +827,14 @@ final class SIRCompiler(options: SIRCompilerOptions = SIRCompilerOptions.default
                 else bodyExpr
 
             CompileMemberDefResult.Compiled(
-              LocalBinding(name.show, vd.symbol, Recursivity.NonRec, bodyExpr1, vd.sourcePos)
+              LocalBinding(
+                name.show,
+                valSirType,
+                vd.symbol,
+                Recursivity.NonRec,
+                bodyExpr1,
+                vd.sourcePos
+              )
             )
     }
 
@@ -898,7 +909,13 @@ final class SIRCompiler(options: SIRCompilerOptions = SIRCompilerOptions.default
                 then tryFixFunctionalInterface(env, dd.rhs).getOrElse(dd.rhs)
                 else dd.rhs
             val selfName = if isGlobalDef then FullName(dd.symbol).name else dd.symbol.name.show
-            val selfType = sirTypeInEnv(dd.tpe, SIRTypeEnv(dd.srcPos, env.typeVars))
+            val selfType =
+                if params.isEmpty then
+                    SIRType.Fun(
+                      SIRType.Unit,
+                      sirTypeInEnv(dd.tpe, SIRTypeEnv(dd.srcPos, env.typeVars))
+                    )
+                else sirTypeInEnv(dd.tpe, SIRTypeEnv(dd.srcPos, env.typeVars))
             val nTypeVars = env.typeVars ++ typeParamsMap
             val nVars = env.vars ++ paramNameTypes + (selfName -> selfType)
             val bE = compileExpr(env.copy(vars = nVars, typeVars = nTypeVars), body)
@@ -907,7 +924,14 @@ final class SIRCompiler(options: SIRCompilerOptions = SIRCompilerOptions.default
                     SIR.LamAbs(v, acc, v.anns)
                 }
             CompileMemberDefResult.Compiled(
-              LocalBinding(dd.name.show, dd.symbol, Recursivity.Rec, bodyExpr, dd.sourcePos)
+              LocalBinding(
+                dd.name.show,
+                selfType,
+                dd.symbol,
+                Recursivity.Rec,
+                bodyExpr,
+                dd.sourcePos
+              )
             )
     }
 
@@ -926,12 +950,14 @@ final class SIRCompiler(options: SIRCompilerOptions = SIRCompilerOptions.default
             case x =>
                 env.mode match
                     case ScalusCompilationMode.AllDefs =>
+                        val body = compileExpr(env, x)
                         CompileMemberDefResult.Compiled(
                           LocalBinding(
                             s"__${stmt.source.file.name.takeWhile(_.isLetterOrDigit)}_line_${stmt.srcPos.line}",
+                            body.tp,
                             NoSymbol,
                             Recursivity.NonRec,
-                            compileExpr(env, x),
+                            body,
                             stmt.sourcePos
                           )
                         )
@@ -968,7 +994,7 @@ final class SIRCompiler(options: SIRCompilerOptions = SIRCompilerOptions.default
         val retval = exprs.foldRight(exprExpr) { (bind, sirExpr) =>
             SIR.Let(
               bind.recursivity,
-              List(Binding(bind.name, bind.body)),
+              List(Binding(bind.name, bind.tp, bind.body)),
               sirExpr,
               AnnotationsDecl.fromSourcePosition(expr.sourcePos)
             )
@@ -2360,6 +2386,7 @@ final class SIRCompiler(options: SIRCompilerOptions = SIRCompilerOptions.default
                 specializeSIR(parentSym, binding.value, env, possibleOverrides, thisClassNames)
             SuperBinding(
               binding.name,
+              binding.tp,
               parentSym,
               env.thisTypeSymbol,
               nSIR,
@@ -2418,7 +2445,7 @@ final class SIRCompiler(options: SIRCompilerOptions = SIRCompilerOptions.default
                     val (newBody, changed) =
                         specializeSIR(parentSym, b.value, env, possibleOverrides, thisClassNames)
                     if changed then bindingIsChanged = true
-                    Binding(b.name, newBody)
+                    Binding(b.name, b.tp, newBody)
                 }
                 val (newBody, bodyChanged) =
                     specializeSIR(parentSym, body, env, possibleOverrides, thisClassNames)

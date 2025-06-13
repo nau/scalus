@@ -163,17 +163,17 @@ object PrettyPrinter:
 
             case Var(name, tp, _)                     => text(name)
             case ExternalVar(moduleName, name, tp, _) => text(name)
-            case Let(Recursivity.NonRec, List(Binding(name, body)), inExpr, anns) =>
+            case Let(Recursivity.NonRec, List(Binding(name, tp, body)), inExpr, anns) =>
                 pretty(body, style).bracketBy(
-                  kw("let") & typedName(name, body.tp) & text("="),
+                  kw("let") & typedName(name, tp) & text("="),
                   kw("in")
                 ) / pretty(inExpr, style)
-            case Let(Recursivity.Rec, List(Binding(name, body)), inExpr, anns) =>
+            case Let(Recursivity.Rec, List(Binding(name, tp, body)), inExpr, anns) =>
                 val (args, body1) = SirDSL.lamAbsToList(body)
                 val prettyArgs = inParens(intercalate(text(",") + space, args.map(text)))
                 val signatureLine =
                     (kw("fun") & text(name) + (prettyArgs + char(':') & typ(
-                      pretty(body.tp)
+                      pretty(tp)
                     ) & char('=')).nested(2)).grouped
                 (signatureLine + (line + pretty(body1, style))
                     .nested(4)

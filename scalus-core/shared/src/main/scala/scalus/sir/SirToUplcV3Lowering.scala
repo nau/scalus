@@ -14,11 +14,15 @@ class SirToUplcV3Lowering(sir: SIR, generateErrorTraces: Boolean = false) {
           plutusVersion = 3,
           generateErrorTraces = generateErrorTraces
         )
-        val v = Lowering.lowerSIR(sir)(using lctx)
-        val gctx = TermGenerationContext(
-          generatedVars = Set.empty
-        )
-        v.termWithNeededVars(gctx)
+        try
+            val v = Lowering.lowerSIR(sir)(using lctx)
+            val gctx = TermGenerationContext(
+                generatedVars = Set.empty
+            )
+            v.termWithNeededVars(gctx)
+        catch
+            case e: LoweringException =>
+                throw e
     }
 
 }

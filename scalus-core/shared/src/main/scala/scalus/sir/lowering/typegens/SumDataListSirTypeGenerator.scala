@@ -22,20 +22,41 @@ object SumDataListSirTypeGenerator extends SirTypeUplcGenerator {
         outputRepresentation: LoweredValueRepresentation,
         pos: SIRPosition
     )(using lctx: LoweringContext): LoweredValue = {
-        new RepresentationProxyLoweredValue(
-          input,
-          outputRepresentation,
-          pos
-        ) {
-            override def termInternal(gctx: TermGenerationContext): Term = {
-                genTranslateTermRepresentation(
-                  input.termWithNeededVars(gctx),
-                  input.representation,
-                  outputRepresentation,
-                  this.pos
-                )(using gctx)
-            }
-        }
+        (input.representation, outputRepresentation) match
+            case (
+                  SumCaseClassRepresentation.SumDataList,
+                  SumCaseClassRepresentation.PackedSumDataList
+                ) =>
+                lvBuiltinApply(
+                  SIRBuiltins.listData,
+                  input,
+                  input.sirType,
+                  SumCaseClassRepresentation.PackedSumDataList,
+                  pos
+                )
+            case (SumCaseClassRepresentation.SumDataList, SumCaseClassRepresentation.SumDataList) =>
+                input
+            case (
+                  SumCaseClassRepresentation.PackedSumDataList,
+                  SumCaseClassRepresentation.PackedSumDataList
+                ) =>
+                input
+            case (
+                  SumCaseClassRepresentation.PackedSumDataList,
+                  SumCaseClassRepresentation.SumDataList
+                ) =>
+                lvBuiltinApply(
+                  SIRBuiltins.unListData,
+                  input,
+                  input.sirType,
+                  SumCaseClassRepresentation.SumDataList,
+                  pos
+                )
+            case _ =>
+                throw LoweringException(
+                  s"Unexpected representation conversion from ${input.representation} to ${outputRepresentation}",
+                  pos
+                )
     }
 
     override def upcastOne(
@@ -47,37 +68,6 @@ object SumDataListSirTypeGenerator extends SirTypeUplcGenerator {
           s"DataList have no parent types to upcast.",
           pos
         )
-    }
-
-    def genTranslateTermRepresentation(
-        input: Term,
-        inputRepresentation: LoweredValueRepresentation,
-        outputRepresentation: LoweredValueRepresentation,
-        pos: SIRPosition
-    )(using gctx: TermGenerationContext): Term = {
-        (inputRepresentation, outputRepresentation) match
-            case (SumCaseClassRepresentation.SumDataList, SumCaseClassRepresentation.SumDataList) =>
-                input
-            case (
-                  SumCaseClassRepresentation.SumDataList,
-                  SumCaseClassRepresentation.PackedSumDataList
-                ) =>
-                uplcToData(input)
-            case (
-                  SumCaseClassRepresentation.PackedSumDataList,
-                  SumCaseClassRepresentation.SumDataList
-                ) =>
-                dataToUplc(input)
-            case (
-                  SumCaseClassRepresentation.PackedSumDataList,
-                  SumCaseClassRepresentation.PackedSumDataList
-                ) =>
-                input
-            case _ =>
-                throw LoweringException(
-                  s"Unsupported conversion from $inputRepresentation to $outputRepresentation",
-                  pos
-                )
     }
 
     def uplcToData(input: Term): Term = {

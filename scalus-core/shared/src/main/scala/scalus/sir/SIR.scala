@@ -5,13 +5,9 @@ import scalus.uplc.DefaultFun
 
 case class Module(version: (Int, Int), defs: List[Binding])
 
-case class Binding(name: String, value: SIR) {
+case class Binding(name: String, tp: SIRType, value: SIR) {
 
-    if name == "pkh" && value.tp == SIRType.FreeUnificator then {
-        throw new RuntimeException("Binding with name pkh and value FreeUnitifactor")
-    }
-
-    override def toString: String = s"Binding(\"$name\" : $value)"
+    override def toString: String = s"Binding(\"$name\" [${tp.show}] : $value)"
 
 }
 

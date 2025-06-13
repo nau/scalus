@@ -117,16 +117,19 @@ object FlatInstantces:
 
         def bitSizeHC(a: Binding, hashConsed: HashConsed.State): Int =
             val nameSize = summon[Flat[String]].bitSize(a.name)
+            val tpSize = SIRTypeHashConsedFlat.bitSizeHC(a.tp, hashConsed)
             val termSize = SIRHashConsedFlat.bitSizeHC(a.value, hashConsed)
-            val retval = nameSize + termSize
+            val retval = nameSize + tpSize + termSize
             retval
 
         def encodeHC(a: Binding, encode: HashConsedEncoderState): Unit =
             summon[Flat[String]].encode(a.name, encode.encode)
+            SIRTypeHashConsedFlat.encodeHC(a.tp, encode)
             SIRHashConsedFlat.encodeHC(a.value, encode)
 
         def decodeHC(decode: HashConsedDecoderState): HashConsedRef[Binding] =
             val name = summon[Flat[String]].decode(decode.decode)
+            val tp = SIRTypeHashConsedFlat.decodeHC(decode)
             val termRef = {
                 try SIRHashConsedFlat.decodeHC(decode)
                 catch
@@ -138,7 +141,12 @@ object FlatInstantces:
             }
             HashConsedRef.deferred(
               hs => termRef.isComplete(hs),
-              (hs, level, parents) => Binding(name, termRef.finValue(hs, level, parents))
+              (hs, level, parents) =>
+                  Binding(
+                    name,
+                    tp.finValue(hs, level, parents),
+                    termRef.finValue(hs, level, parents)
+                  )
             )
 
     end BindingFlat

@@ -67,8 +67,9 @@ class SirToUplc110LoweringTest extends AnyFunSuite, ScalaCheckPropertyChecks, Ar
          */
         SIR.Let(
           NonRec,
-          Binding("x", SIR.Const(asConstant(1), Integer, ae)) :: Binding(
+          Binding("x", Integer, SIR.Const(asConstant(1), Integer, ae)) :: Binding(
             "y",
+            Integer,
             SIR.Const(asConstant(2), Integer, ae)
           ) :: Nil,
           SIR.Apply(

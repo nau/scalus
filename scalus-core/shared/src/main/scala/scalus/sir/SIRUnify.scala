@@ -518,9 +518,15 @@ object SIRUnify {
 
     def unifyBinding(left: Binding, right: Binding, env: Env): UnificationResult[Binding] = {
         if left.name == right.name then
-            unifySIR(left.value, right.value, env.copy(path = "value" :: env.path)) match
-                case UnificationSuccess(env1, value) =>
-                    UnificationSuccess(env1.copy(path = env.path), Binding(left.name, value))
+            unifyType(left.tp, right.tp, env.copy(path = "tp" :: env.path)) match
+                case UnificationSuccess(env1, tp) =>
+                    unifySIR(left.value, right.value, env1.copy(path = "value" :: env.path)) match
+                        case UnificationSuccess(env2, value) =>
+                            UnificationSuccess(
+                              env2.copy(path = env.path),
+                              Binding(left.name, tp, value)
+                            )
+                        case failure @ UnificationFailure(path, left, right) => failure
                 case failure @ UnificationFailure(path, left, right) => failure
         else UnificationFailure(env.path, left, right)
     }

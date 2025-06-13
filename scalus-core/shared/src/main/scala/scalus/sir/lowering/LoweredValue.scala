@@ -154,6 +154,13 @@ class VariableLoweredValue(
         rhs.addDependent(this)
     }
 
+    // if name == "tx" && representation == ProductCaseClassRepresentation.ProdDataList then {
+    //    throw LoweringException(
+    //      s"Variable $name with id $id has representation $representation, but it is not allowed.",
+    //      sir.anns.pos
+    //    )
+    // }
+
     override def sirType: SIRType = sir.tp
     override def pos: SIRPosition = sir.anns.pos
 
@@ -221,7 +228,7 @@ case class DependendVariableLoweredValue(
 
 }
 
-trait ProxyLoweredValue(origin: LoweredValue) extends LoweredValue {
+trait ProxyLoweredValue(val origin: LoweredValue) extends LoweredValue {
 
     override def sirType: SIRType = origin.sirType
 
@@ -291,7 +298,14 @@ object LoweredValue {
             inPos: SIRPosition
         )(using lctx: LoweringContext): LoweredValue = {
 
-            new ComplexLoweredValue(Set.empty, cond, thenBranch, elseBranch) {
+            val elseBranchR = elseBranch.toRepresentation(
+              thenBranch.representation,
+              inPos
+            )
+
+            // TODO: result type shoulb be least upper bound of thenBranch and elseBranch
+
+            new ComplexLoweredValue(Set.empty, cond, thenBranch, elseBranchR) {
                 override def sirType: SIRType = thenBranch.sirType
                 override def pos: SIRPosition = inPos
                 override def representation: LoweredValueRepresentation =
@@ -301,9 +315,7 @@ object LoweredValue {
                     !(DefaultFun.IfThenElse.tpf $
                         cond.termWithNeededVars(gctx) $
                         ~thenBranch.termWithNeededVars(gctx) $
-                        ~elseBranch
-                            .toRepresentation(thenBranch.representation, elseBranch.pos)
-                            .termWithNeededVars(gctx))
+                        ~elseBranchR.termWithNeededVars(gctx))
                 }
 
             }

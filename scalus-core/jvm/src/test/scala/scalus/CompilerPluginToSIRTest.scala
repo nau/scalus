@@ -7,6 +7,7 @@ import scalus.builtin.ByteString.*
 import scalus.builtin.{Builtins, ByteString, Data, JVMPlatformSpecific, PlatformSpecific}
 import scalus.ledger.api.PlutusLedgerLanguage
 import scalus.ledger.api.v1.*
+import scalus.sir.SIRType
 import scalus.uplc.eval.MachineParams
 //import scalus.ledger.api.v3.SpendingScriptInfo
 import scalus.prelude.List.{Cons, Nil}
@@ -147,7 +148,11 @@ class CompilerPluginToSIRTest extends AnyFunSuite with ScalaCheckPropertyChecks:
           } ~=~ Let(
             Recursivity.NonRec,
             immutable.List(
-              Binding("a", Const(Constant.Bool(true), SIRType.Boolean, AnnotationsDecl.empty))
+              Binding(
+                "a",
+                SIRType.Boolean,
+                Const(Constant.Bool(true), SIRType.Boolean, AnnotationsDecl.empty)
+              )
             ),
             Var("a", SIRType.Boolean, AnnotationsDecl.empty),
             AnnotationsDecl.empty
@@ -170,6 +175,7 @@ class CompilerPluginToSIRTest extends AnyFunSuite with ScalaCheckPropertyChecks:
           immutable.List(
             Binding(
               "b",
+              SIRType.Fun(SIRType.Unit, SIRType.Boolean),
               LamAbs(
                 Var("_", SIRType.Unit, AnE),
                 Const(Constant.Bool(true), SIRType.Boolean, AnE),
@@ -182,6 +188,7 @@ class CompilerPluginToSIRTest extends AnyFunSuite with ScalaCheckPropertyChecks:
             immutable.List(
               Binding(
                 "c",
+                SIRType.Fun(SIRType.Boolean, SIRType.Boolean),
                 LamAbs(
                   Var("x", SIRType.Boolean, AnE),
                   Apply(
@@ -210,9 +217,8 @@ class CompilerPluginToSIRTest extends AnyFunSuite with ScalaCheckPropertyChecks:
           AnE
         )
 
-        println(s"comileDef: compiled: ${compiled.pretty.render(100)}")
-
-        println(s"comileDef: expected: ${exprected.pretty.render(100)}")
+        // println(s"comileDef: compiled: ${compiled.pretty.render(100)}")
+        // println(s"comileDef: expected: ${exprected.pretty.render(100)}")
 
         assert(compiled ~=~ exprected)
     }
@@ -277,7 +283,13 @@ class CompilerPluginToSIRTest extends AnyFunSuite with ScalaCheckPropertyChecks:
               a(true)
           } ~=~ Let(
             NonRec,
-            List(Binding("a", LamAbs(Var("x", sirBool, AnE), Var("x", sirBool, AnE), AnE))),
+            List(
+              Binding(
+                "a",
+                SIRType.Fun(sirBool, sirBool),
+                LamAbs(Var("x", sirBool, AnE), Var("x", sirBool, AnE), AnE)
+              )
+            ),
             Apply(
               Var("a", SIRType.Fun(sirBool, sirBool), AnE),
               Const(Constant.Bool(true), sirBool, AnE),
@@ -319,7 +331,7 @@ class CompilerPluginToSIRTest extends AnyFunSuite with ScalaCheckPropertyChecks:
         val expected =
             Let(
               NonRec,
-              immutable.List(Binding("a$proxy1", Const(Constant.Integer(1), sirInt, AnE))),
+              immutable.List(Binding("a$proxy1", sirInt, Const(Constant.Integer(1), sirInt, AnE))),
               Apply(
                 SIRBuiltins.iData,
                 Var("a$proxy1", sirInt, AnE),
@@ -410,7 +422,7 @@ class CompilerPluginToSIRTest extends AnyFunSuite with ScalaCheckPropertyChecks:
 
         val expected = Let(
           NonRec,
-          List(Binding("a", Const(Constant.String("foo"), sirString, AnE))),
+          List(Binding("a", sirString, Const(Constant.String("foo"), sirString, AnE))),
           Apply(
             Apply(
               SIRBuiltins.mkCons,
@@ -1273,7 +1285,7 @@ class CompilerPluginToSIRTest extends AnyFunSuite with ScalaCheckPropertyChecks:
           compiled ~=~
               Let(
                 NonRec,
-                List(Binding("a", Or(sirConst(true), Error("M", AnE), AnE))),
+                List(Binding("a", sirBool, Or(sirConst(true), Error("M", AnE), AnE))),
                 Or(
                   And(Not(Var("a", sirBool, AnE), AnE), sirConst(false), AnE),
                   sirConst(true),
@@ -1299,6 +1311,7 @@ class CompilerPluginToSIRTest extends AnyFunSuite with ScalaCheckPropertyChecks:
             List(
               Binding(
                 "check",
+                SIRType.Fun(sirBool, sirBool),
                 LamAbs(
                   aVar,
                   SIR.IfThenElse(
@@ -1323,6 +1336,7 @@ class CompilerPluginToSIRTest extends AnyFunSuite with ScalaCheckPropertyChecks:
             List(
               Binding(
                 "check",
+                SIRType.Fun(sirBool, sirBool),
                 LamAbs(
                   aVar,
                   SIR.IfThenElse(
@@ -1358,6 +1372,7 @@ class CompilerPluginToSIRTest extends AnyFunSuite with ScalaCheckPropertyChecks:
           List(
             Binding(
               "check",
+              SIRType.Fun(sirByteString, Fun(sirByteString, sirBool)),
               LamAbs(
                 Var("a", sirByteString, AnE),
                 LamAbs(
@@ -1415,6 +1430,7 @@ class CompilerPluginToSIRTest extends AnyFunSuite with ScalaCheckPropertyChecks:
             List(
               Binding(
                 "check",
+                SIRType.Fun(sirByteString, Fun(sirByteString, sirBool)),
                 LamAbs(
                   Var("a", sirByteString, AnE),
                   LamAbs(
@@ -1500,6 +1516,7 @@ class CompilerPluginToSIRTest extends AnyFunSuite with ScalaCheckPropertyChecks:
             List(
               Binding(
                 "check",
+                SIRType.Fun(sirString, Fun(sirString, sirBool)),
                 LamAbs(
                   aVar,
                   LamAbs(
@@ -1548,6 +1565,7 @@ class CompilerPluginToSIRTest extends AnyFunSuite with ScalaCheckPropertyChecks:
           List(
             Binding(
               "check",
+              SIRType.Fun(sirString, Fun(sirString, sirBool)),
               LamAbs(
                 aVar,
                 LamAbs(
@@ -1629,6 +1647,7 @@ class CompilerPluginToSIRTest extends AnyFunSuite with ScalaCheckPropertyChecks:
             List(
               Binding(
                 "check",
+                SIRType.Fun(sirData, Fun(sirData, sirBool)),
                 LamAbs(
                   a,
                   LamAbs(
@@ -1659,6 +1678,7 @@ class CompilerPluginToSIRTest extends AnyFunSuite with ScalaCheckPropertyChecks:
             List(
               Binding(
                 "check",
+                SIRType.Fun(sirData, Fun(sirData, sirBool)),
                 LamAbs(
                   a,
                   LamAbs(
@@ -1756,6 +1776,7 @@ class CompilerPluginToSIRTest extends AnyFunSuite with ScalaCheckPropertyChecks:
             List(
               Binding(
                 "pkh",
+                pubKeyHashDataDecl.constrType("scalus.ledger.api.v1.PubKeyHash"),
                 Constr(
                   "scalus.ledger.api.v1.PubKeyHash",
                   pubKeyHashDataDecl,
@@ -2196,6 +2217,7 @@ class CompilerPluginToSIRTest extends AnyFunSuite with ScalaCheckPropertyChecks:
         val mBindingExpected =
             Binding(
               "m",
+              SIRType.FreeUnificator,
               Apply(
                 SIR.ExternalVar(
                   "scalus.prelude.AssocMap$",

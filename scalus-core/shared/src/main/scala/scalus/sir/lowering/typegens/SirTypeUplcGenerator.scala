@@ -34,8 +34,10 @@ trait SirTypeUplcGenerator {
         LoweringContext
     ): LoweredValue
 
-
     /** Generate constructor for this type. Always called on DataDecl.tp
+      *
+      * @param constr - constructor, which we should generate
+      * @param targetType - type of the generated value, which should be a subtype of constr.tp
       */
     def genConstr(constr: SIR.Constr)(using
         LoweringContext

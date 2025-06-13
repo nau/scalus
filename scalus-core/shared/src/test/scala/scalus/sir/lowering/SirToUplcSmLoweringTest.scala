@@ -59,7 +59,13 @@ class SirToUplcSmLoweringTest
         // now we can't lower var in isolation, so should use Var in some context
         val sir = SIR.Let(
           NonRec,
-          List(Binding("x", SIR.Const(asConstant(hex"DEADBEEF"), SIRType.ByteString, ae))),
+          List(
+            Binding(
+              "x",
+              SIRType.ByteString,
+              SIR.Const(asConstant(hex"DEADBEEF"), SIRType.ByteString, ae)
+            )
+          ),
           SIR.Var("x", SIRType.ByteString, ae),
           ae
         )
@@ -101,8 +107,9 @@ class SirToUplcSmLoweringTest
          */
         SIR.Let(
           NonRec,
-          Binding("x", SIR.Const(asConstant(1), Integer, ae)) :: Binding(
+          Binding("x", Integer, SIR.Const(asConstant(1), Integer, ae)) :: Binding(
             "y",
+            Integer,
             SIR.Const(asConstant(2), Integer, ae)
           ) :: Nil,
           SIR.Apply(
@@ -238,8 +245,8 @@ class SirToUplcSmLoweringTest
             SIR.Let(
               NonRec,
               List(
-                Binding("a", SIR.Const(Constant.Bool(a), SIRType.Boolean, ae)),
-                Binding("b", SIR.Const(Constant.Bool(b), SIRType.Boolean, ae))
+                Binding("a", SIRType.Boolean, SIR.Const(Constant.Bool(a), SIRType.Boolean, ae)),
+                Binding("b", SIRType.Boolean, SIR.Const(Constant.Bool(b), SIRType.Boolean, ae))
               ),
               f,
               ae

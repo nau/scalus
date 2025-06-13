@@ -31,7 +31,13 @@ object SumCaseSirTypeGenerator extends SirTypeUplcGenerator {
                 ???
             case (DataConstr, PackedSumDataList) =>
                 val asDataList = toRepresentation(input, SumDataList, pos)
-                lvBuiltinApply(SIRBuiltins.listData, asDataList, input.sirType, PackedSumDataList, pos)
+                lvBuiltinApply(
+                  SIRBuiltins.listData,
+                  asDataList,
+                  input.sirType,
+                  PackedSumDataList,
+                  pos
+                )
             case (DataConstr, UplcConstr) =>
                 ???
             case (DataConstr, UplcConstrOnData) =>
@@ -133,11 +139,11 @@ object SumCaseSirTypeGenerator extends SirTypeUplcGenerator {
         )
     }
 
-    override def genConstr(constr: SIR.Constr)(using LoweringContext): LoweredValue = {
-        throw LoweringException(
-          s"Cannot generate constructor for ${constr.tp} in sum type generator",
-          constr.anns.pos
-        )
+    override def genConstr(constr: SIR.Constr)(using
+        lctx: LoweringContext
+    ): LoweredValue = {
+        val caseClassType = constr.data.constrType(constr.name)
+        lctx.typeGenerator(caseClassType).genConstr(constr.copy(tp = caseClassType))
     }
 
     override def genMatch(matchData: SIR.Match, loweredScrutinee: LoweredValue)(using
@@ -378,22 +384,23 @@ object SumCaseSirTypeGenerator extends SirTypeUplcGenerator {
                     )
                     val tailId = s"${dataListId}_b${}"
                     // mb we already have this id in the scope
-                    val tailVar = lctx.scope.get(tailId, SumCaseClassRepresentation.SumDataList) match
-                        case Some(v) => v
-                        case None =>
-                            lvNewLazyIdVar(
-                              tailId,
-                              listDataType,
-                              SumCaseClassRepresentation.SumDataList,
-                              lvBuiltinApply(
-                                SIRBuiltins.tailList,
-                                currentTail,
-                                listDataType,
-                                SumCaseClassRepresentation.SumDataList,
-                                sirCase.anns.pos
-                              ),
-                              sirCase.anns.pos
-                            )
+                    val tailVar =
+                        lctx.scope.get(tailId, SumCaseClassRepresentation.SumDataList) match
+                            case Some(v) => v
+                            case None =>
+                                lvNewLazyIdVar(
+                                  tailId,
+                                  listDataType,
+                                  SumCaseClassRepresentation.SumDataList,
+                                  lvBuiltinApply(
+                                    SIRBuiltins.tailList,
+                                    currentTail,
+                                    listDataType,
+                                    SumCaseClassRepresentation.SumDataList,
+                                    sirCase.anns.pos
+                                  ),
+                                  sirCase.anns.pos
+                                )
                     (tailVar, idx + 1)
             }
 

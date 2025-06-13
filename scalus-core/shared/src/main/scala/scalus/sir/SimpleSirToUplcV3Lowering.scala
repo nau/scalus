@@ -225,10 +225,10 @@ class SimpleSirToUplcV3Lowering(sir: SIR, generateErrorTraces: Boolean = false):
             case SIR.Var(name, _, _)            => Term.Var(NamedDeBruijn(name))
             case SIR.ExternalVar(_, name, _, _) => Term.Var(NamedDeBruijn(name))
             case SIR.Let(NonRec, bindings, body, _) =>
-                bindings.foldRight(lowerInner(body)) { case (Binding(name, rhs), body) =>
+                bindings.foldRight(lowerInner(body)) { case (Binding(name, tp, rhs), body) =>
                     Term.Apply(Term.LamAbs(name, body), lowerInner(rhs))
                 }
-            case SIR.Let(Rec, Binding(name, rhs) :: Nil, body, _) =>
+            case SIR.Let(Rec, Binding(name, tp, rhs) :: Nil, body, _) =>
                 /*  let rec f x = f (x + 1)
                     in f 0
                     (\f -> f 0) (Z (\f. \x. f (x + 1)))

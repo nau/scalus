@@ -26,6 +26,7 @@ class RemoveRecursivityTest extends AnyFunSuite:
             List(
               Binding(
                 "nonRecursive",
+                SIRType.Fun(Integer, Integer),
                 LamAbs(
                   xVar,
                   Let(
@@ -33,6 +34,7 @@ class RemoveRecursivityTest extends AnyFunSuite:
                     List(
                       Binding(
                         "recursive",
+                        SIRType.Fun(Integer, Integer),
                         LamAbs(
                           xVar,
                           IfThenElse(

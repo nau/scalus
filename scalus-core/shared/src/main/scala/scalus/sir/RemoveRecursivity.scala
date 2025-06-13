@@ -18,14 +18,14 @@ object RemoveRecursivity:
     /** Makes a let expression non-recursive if its bindings are non-recursive */
     def removeRecursivityInExpr(sir: AnnotatedSIR): AnnotatedSIR =
         sir match
-            case Let(Rec, List(Binding(name, binding)), body, anns)
+            case Let(Rec, List(Binding(name, tp, binding)), body, anns)
                 if !isRecursive(name, binding) =>
-                removeRecursivityInExpr(Let(NonRec, List(Binding(name, binding)), body, anns))
+                removeRecursivityInExpr(Let(NonRec, List(Binding(name, tp, binding)), body, anns))
             case Let(rec, bindings, body, anns) =>
                 Let(
                   rec,
-                  bindings.map { case Binding(name, rhs) =>
-                      Binding(name, removeRecursivity(rhs))
+                  bindings.map { case Binding(name, tp, rhs) =>
+                      Binding(name, tp, removeRecursivity(rhs))
                   },
                   removeRecursivity(body),
                   anns

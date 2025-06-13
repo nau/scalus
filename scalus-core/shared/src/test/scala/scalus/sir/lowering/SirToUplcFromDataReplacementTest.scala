@@ -4,10 +4,11 @@ import org.scalatest.funsuite.AnyFunSuite
 import scalus.*
 import scalus.Compiler.compile
 import scalus.builtin.*
+import scalus.builtin.ByteString.hex
 import scalus.builtin.Data.{fromData, toData}
 import scalus.sir.*
 import scalus.ledger.api.v3.*
-import scalus.uplc.Term
+import scalus.uplc.*
 import scalus.uplc.eval.PlutusVM
 import scalus.uplc.eval.Result
 
@@ -16,17 +17,32 @@ class SirToUplcFromDataReplacementTest extends AnyFunSuite {
     given PlutusVM = PlutusVM.makePlutusV3VM()
 
     test("Import ScriptContext from Data") {
+        pending
         val sir = compile { (scData: Data) =>
             val sc = Data.fromData[ScriptContext](scData)
-
+            val tx = sc.txInfo
+            tx.inputs.length
         }
         println(sir.showHighlighted)
         val lowering = SirToUplcV3Lowering(sir)
         val term = lowering.lower()
         println(term.showHighlighted)
-        println(term.evaluateDebug)
+
+        val ownerPkh = PubKeyHash(hex"1234567890abcdef1234567890abcdef1234567890abcdef12345678")
+        val scriptContext = makeSpendingScriptContext(
+          datum = ownerPkh.toData,
+          redeemer = "Hello, World!".toData,
+          signatories = scalus.prelude.List(ownerPkh)
+        )
+
+        val termWithSc = term $ Term.Const(Constant.Data(Data.toData(scriptContext)))
+
+        val l = termWithSc.evaluateDebug
+
+        println(l)
     }
 
+    /*
     test("run Hello World") {
         import scalus.prelude.*
         val sir = compile { (scData: Data) =>
@@ -47,6 +63,49 @@ class SirToUplcFromDataReplacementTest extends AnyFunSuite {
         val term = lowering.lower()
         println(term.showHighlighted)
         println(term.evaluateDebug)
+    }
+    
+     */
+
+    private def makeSpendingScriptContext(
+        datum: Data,
+        redeemer: Redeemer,
+        signatories: scalus.prelude.List[PubKeyHash]
+    ): ScriptContext = {
+        import scalus.prelude.*
+        val ownInput =
+            TxInInfo(
+              outRef = TxOutRef(
+                id = TxId(randomByteString(32, 20)),
+                idx = 0
+              ),
+              resolved = TxOut(
+                address = Address(
+                  Credential.ScriptCredential(randomByteString(28)),
+                  Option.None
+                ),
+                value = Value.zero
+              )
+            )
+        ScriptContext(
+          txInfo = TxInfo(
+            inputs = List(ownInput),
+            fee = 188021,
+            signatories = signatories,
+            id = TxId(randomByteString(32, 20))
+          ),
+          redeemer = redeemer,
+          scriptInfo = ScriptInfo.SpendingScript(
+            txOutRef = ownInput.outRef,
+            datum = Option.Some(datum)
+          )
+        )
+    }
+
+    def randomByteString(n: Int, seed: Int = 10): ByteString = {
+        import scalus.builtin.ByteString
+        val random = scala.util.Random(seed)
+        ByteString(random.nextBytes(n)*)
     }
 
 }

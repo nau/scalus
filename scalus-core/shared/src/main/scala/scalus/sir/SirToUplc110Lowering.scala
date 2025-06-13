@@ -208,11 +208,12 @@ class SirToUplc110Lowering(sir: SIR, generateErrorTraces: Boolean = false):
             case SIR.ExternalVar(_, name, _, _) => Term.Var(NamedDeBruijn(name))
             case SIR.Let(NonRec, bindings, body, anns) =>
                 val loweredBody = lowerInner(body)
-                val letResult = bindings.foldRight(loweredBody) { case (Binding(name, rhs), body) =>
-                    Term.Apply(Term.LamAbs(name, body), lowerInner(rhs))
+                val letResult = bindings.foldRight(loweredBody) {
+                    case (Binding(name, tp, rhs), body) =>
+                        Term.Apply(Term.LamAbs(name, body), lowerInner(rhs))
                 }
                 letResult
-            case SIR.Let(Rec, Binding(name, rhs) :: Nil, body, _) =>
+            case SIR.Let(Rec, Binding(name, tp, rhs) :: Nil, body, _) =>
                 /*  let rec f x = f (x + 1)
                     in f 0
                     (\f -> f 0) (Z (\f. \x. f (x + 1)))

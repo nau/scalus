@@ -6,6 +6,9 @@ import scalus.sir.lowering.typegens.SirTypeUplcGenerator
 import scalus.sir.lowering.LoweredValue.Builder.*
 import scalus.uplc.*
 
+import scala.util.control.NonFatal
+import scalus.pretty
+
 object Lowering {
 
     extension (fun: DefaultFun) def tpf: Term = builtinTerms(fun)
@@ -40,7 +43,7 @@ object Lowering {
                 }
                 lowerSIR(term)
             case constr @ SIR.Constr(name, decl, args, tp, anns) =>
-                SirTypeUplcGenerator(tp).genConstr(constr)
+                lctx.typeGenerator(tp).genConstr(constr)
             case sirMatch @ SIR.Match(scrutinee, cases, rhsType, anns) =>
                 val loweredScrutinee = lowerSIR(scrutinee)
                 lctx.typeGenerator(scrutinee.tp).genMatch(sirMatch, loweredScrutinee)
@@ -143,8 +146,9 @@ object Lowering {
                 if recursivity == NonRec then
                     val bindingValues = bindings.map { b =>
                         val rhs = lowerSIR(b.value)
+                        val varId = lctx.uniqueVarName(b.name)
                         val varVal = VariableLoweredValue(
-                          id = lctx.uniqueVarName(b.name),
+                          id = varId,
                           name = b.name,
                           sir = SIR.Var(b.name, b.value.tp, anns),
                           representation = rhs.representation
@@ -183,7 +187,7 @@ object Lowering {
                     }
                 else {
                     bindings match
-                        case List(Binding(name, rhs)) =>
+                        case List(Binding(name, tp, rhs)) =>
                             /*  let rec f  = x => f (x + 1)
                                 in f 0
                                 (\f -> f 0) (Z (\f. \x. f (x + 1)))
@@ -298,13 +302,30 @@ object Lowering {
     private def lowerApp(app: SIR.Apply)(using lctx: LoweringContext): LoweredValue = {
         val fun = lowerSIR(app.f)
         val arg = lowerSIR(app.arg)
-        lvApply(
-          fun,
-          arg,
-          app.anns.pos,
-          Some(app.tp),
-          Some(SirTypeUplcGenerator(app.tp).defaultRepresentation)
-        )
+        try
+            lvApply(
+              fun,
+              arg,
+              app.anns.pos,
+              Some(app.tp),
+              Some(SirTypeUplcGenerator(app.tp).defaultRepresentation)
+            )
+        catch
+            case NonFatal(e) =>
+                println(s"Can't lower application: e=${app.pretty.render(100)}")
+                println(s"arg representation: ${arg.representation}")
+                println(s"fun representation: ${fun.representation}")
+                println(s"fun.sirType = ${fun.sirType.show}")
+                println(s"arg.sirType = ${arg.sirType.show}")
+                println(s"arg = ${app.arg.pretty.render(100)}")
+                println(s"arg lw = ${arg.show}")
+                arg match {
+                    case p: ProxyLoweredValue =>
+                        println(s"arg proxy origin representation: ${p.origin.representation}")
+                    case _ =>
+                }
+
+                throw e
     }
 
     def generateDominatedUplevelVarsAccess(

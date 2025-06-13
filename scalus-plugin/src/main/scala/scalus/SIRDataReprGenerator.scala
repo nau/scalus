@@ -292,16 +292,18 @@ class SIRDataReprGenerator(using ctx: Context) {
         val retval =
             SIR.Let(
               Recursivity.NonRec,
-              List(Binding(pairVar.name, pairRhs)),
+              List(Binding(pairVar.name, pairVar.tp, pairRhs)),
               SIR.Let(
                 Recursivity.NonRec,
                 List(
                   Binding(
                     frsVar.name,
+                    frsVar.tp,
                     SIR.Apply(SIRBuiltins.fstPair, pairVar, SIRType.Data, AnnotationsDecl.empty)
                   ),
                   Binding(
                     sndVar.name,
+                    sndVar.tp,
                     SIR.Apply(SIRBuiltins.sndPair, pairVar, sirTpListData, AnnotationsDecl.empty)
                   )
                 ),
@@ -373,7 +375,7 @@ class SIRDataReprGenerator(using ctx: Context) {
                     SIR.Apply(SIRBuiltins.headList, prevTail, paramVar.tp, AnnotationsDecl.empty)
                 val paramVarValue =
                     resolveFromDataRhs(paramVar.tp, env, paramVarDataValue)
-                val paramVarBinding = Binding(paramVar.name, paramVarValue)
+                val paramVarBinding = Binding(paramVar.name, paramVar.tp, paramVarValue)
                 val newSir = {
                     if i < nParams - 1 then
                         val currentTailName = s"sndL$i"
@@ -384,7 +386,8 @@ class SIRDataReprGenerator(using ctx: Context) {
                               sirTpListData,
                               AnnotationsDecl.empty
                             )
-                        val currentTailBinding = Binding(currentTailName, currentTailValue)
+                        val currentTailBinding =
+                            Binding(currentTailName, currentTailValue.tp, currentTailValue)
                         SIR.Let(
                           NonRec,
                           List(paramVarBinding, currentTailBinding),

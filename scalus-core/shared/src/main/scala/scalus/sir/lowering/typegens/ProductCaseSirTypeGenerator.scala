@@ -3,7 +3,8 @@ package scalus.sir.lowering.typegens
 import scalus.sir.*
 import scalus.sir.lowering.*
 import scalus.sir.lowering.LoweredValue.Builder.*
-import scalus.sir.lowering.ProductCaseClassRepresentation.{DataConstr, ProdDataList, PackedDataList, ScottEncoding, UplcConstr}
+import scalus.sir.lowering.ProductCaseClassRepresentation.{DataConstr, PackedDataList, ProdDataList, ScottEncoding, UplcConstr}
+import scalus.sir.lowering.SumCaseClassRepresentation.SumDataList
 import scalus.uplc.*
 
 object ProductCaseSirTypeGenerator extends SirTypeUplcGenerator {
@@ -213,7 +214,7 @@ object ProductCaseSirTypeGenerator extends SirTypeUplcGenerator {
                 lvNewLazyIdVar(
                   lctx.uniqueVarName("list_sel"),
                   dataListScrutinee.sirType,
-                  ProdDataList,
+                  SumDataList,
                   dataListScrutinee,
                   sel.anns.pos
                 )
@@ -233,19 +234,25 @@ object ProductCaseSirTypeGenerator extends SirTypeUplcGenerator {
                     lvNewLazyIdVar(
                       tailId,
                       SIRType.List(SIRType.Data),
-                      ProdDataList,
+                      SumDataList,
                       lvBuiltinApply(
                         SIRBuiltins.tailList,
                         acc,
                         SIRType.List(SIRType.Data),
-                        ProdDataList,
+                        SumDataList,
                         sel.anns.pos
                       ),
                       sel.anns.pos
                     )
             tailLazyVar
         }
-        lvBuiltinApply(SIRBuiltins.headList, selHeadList, sel.tp, ProdDataList, sel.anns.pos)
+        lvBuiltinApply(
+          SIRBuiltins.headList,
+          selHeadList,
+          sel.tp,
+          lctx.typeGenerator(sel.tp).defaultDataRepresentation,
+          sel.anns.pos
+        )
     }
 
     override def genMatch(matchData: SIR.Match, loweredScrutinee: LoweredValue)(using
@@ -282,7 +289,7 @@ object ProductCaseSirTypeGenerator extends SirTypeUplcGenerator {
                         lvNewLazyIdVar(
                           lctx.uniqueVarName("_match_data_list"),
                           SIRType.List(SIRType.Data),
-                          ProductCaseClassRepresentation.ProdDataList,
+                          SumCaseClassRepresentation.SumDataList,
                           other,
                           matchData.anns.pos
                         )
@@ -335,7 +342,7 @@ object ProductCaseSirTypeGenerator extends SirTypeUplcGenerator {
         val s0 = lvBuiltinApply0(
           SIRBuiltins.mkNilData,
           SIRType.List(SIRType.Data),
-          ProdDataList,
+          SumDataList,
           constr.anns.pos
         )
         val dataList = dataRepresentations.foldRight(s0) { (arg, acc) =>
@@ -344,7 +351,7 @@ object ProductCaseSirTypeGenerator extends SirTypeUplcGenerator {
               arg,
               acc,
               SIRType.List(SIRType.Data),
-              ProdDataList,
+              SumDataList,
               constr.anns.pos
             )
         }
@@ -355,6 +362,10 @@ object ProductCaseSirTypeGenerator extends SirTypeUplcGenerator {
 
             override def termInternal(gctx: TermGenerationContext): Term = {
                 dataList.termInternal(gctx)
+            }
+
+            override def show: String = {
+                s"Constr(${constr.tp.show}, ${dataList.show}) at ${sirType.show}"
             }
         }
         retval

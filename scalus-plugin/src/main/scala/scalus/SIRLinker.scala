@@ -41,7 +41,7 @@ class SIRLinker(using ctx: Context) {
             case (CompileDef.Compiled(b), acc) =>
                 SIR.Let(
                   b.recursivity,
-                  List(Binding(b.fullName.name, b.body)),
+                  List(Binding(b.fullName.name, b.body.tp, b.body)),
                   acc match {
                       case annssir: AnnotatedSIR => annssir
                       case _ =>

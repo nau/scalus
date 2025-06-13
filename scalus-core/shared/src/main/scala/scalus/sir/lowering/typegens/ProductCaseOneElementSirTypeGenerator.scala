@@ -89,7 +89,9 @@ case class ProductCaseOneElementSirTypeGenerator(argGenerator: SirTypeUplcGenera
 
     }
 
-    override def genConstr(constr: SIR.Constr)(using lctx: LoweringContext): LoweredValue = {
+    override def genConstr(constr: SIR.Constr)(using
+        lctx: LoweringContext
+    ): LoweredValue = {
         import ProductCaseOneElementSirTypeGenerator.*
         if constr.args.size != 1 then
             throw LoweringException(
