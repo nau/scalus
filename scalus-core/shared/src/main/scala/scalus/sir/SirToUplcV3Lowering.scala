@@ -17,7 +17,7 @@ class SirToUplcV3Lowering(sir: SIR, generateErrorTraces: Boolean = false) {
         try
             val v = Lowering.lowerSIR(sir)(using lctx)
             val gctx = TermGenerationContext(
-                generatedVars = Set.empty
+              generatedVars = Set.empty
             )
             v.termWithNeededVars(gctx)
         catch

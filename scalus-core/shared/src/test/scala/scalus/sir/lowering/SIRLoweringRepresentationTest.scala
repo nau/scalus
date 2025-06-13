@@ -14,7 +14,6 @@ object SIRLoweringRepresentationTest {
         case CaseB(b: String)
         case CaseC(c: Boolean)
 
-
     case class TestCaseClassOneElement(a: BigInt)
 
 }
