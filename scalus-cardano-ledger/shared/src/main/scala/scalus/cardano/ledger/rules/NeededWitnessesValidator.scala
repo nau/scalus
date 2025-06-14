@@ -2,10 +2,8 @@ package scalus.cardano.ledger
 package rules
 
 import scalus.cardano.address.{Address, ShelleyPaymentPart, StakePayload}
-import scalus.builtin.ByteString
 import scala.util.boundary
 import scala.util.boundary.break
-import scala.util.control.NonFatal
 
 // It's Shelley.validateNeededWitnesses in cardano-ledger
 object NeededWitnessesValidator extends STS.Validator {
@@ -33,11 +31,6 @@ object NeededWitnessesValidator extends STS.Validator {
               IllegalArgumentException(
                 s"Missing input $input with index $index in UTxO state for transactionId $transactionId"
               ),
-          (transactionId, input, index, exception) =>
-              IllegalArgumentException(
-                s"Invalid address format for input $input with index $index in UTxO state for transactionId $transactionId",
-                exception
-              ),
           (transactionId, hash, input, index) =>
               IllegalArgumentException(
                 s"Missing vkey witness for staking credential $hash in input $input with index $index for transactionId $transactionId"
@@ -57,11 +50,6 @@ object NeededWitnessesValidator extends STS.Validator {
           (transactionId, collateralInput, index) =>
               IllegalArgumentException(
                 s"Missing collateralInput $collateralInput with index $index in UTxO state for transactionId $transactionId"
-              ),
-          (transactionId, collateralInput, index, exception) =>
-              IllegalArgumentException(
-                s"Invalid address format for collateralInput $collateralInput with index $index in UTxO state for transactionId $transactionId",
-                exception
               ),
           (transactionId, hash, collateralInput, index) =>
               IllegalArgumentException(
@@ -139,29 +127,17 @@ object NeededWitnessesValidator extends STS.Validator {
 
         for (rewardAccount, index) <- withdrawals.view.keySet.zipWithIndex
         do
-            extractKeyHash(rewardAccount.bytes) match
-                case Right(optionHash) =>
-                    optionHash.foreach { hash =>
-                        if !vkeyWitnesses.exists(_.vkeyHash == hash)
-                        then
-                            break(
-                              failure(
-                                IllegalArgumentException(
-                                  s"Missing vkey witness for staking credential $hash in reward account $rewardAccount with index $index in withdrawals for transactionId $transactionId"
-                                )
-                              )
-                            )
-                    }
-
-                case Left(exception) =>
+            extractKeyHash(rewardAccount.address).foreach { hash =>
+                if !vkeyWitnesses.exists(_.vkeyHash == hash)
+                then
                     break(
                       failure(
                         IllegalArgumentException(
-                          s"Invalid address format for reward account $rewardAccount with index $index in withdrawals for transactionId $transactionId",
-                          exception
+                          s"Missing vkey witness for staking credential $hash in reward account $rewardAccount with index $index in withdrawals for transactionId $transactionId"
                         )
                       )
                     )
+            }
 
         success
     }
@@ -173,12 +149,6 @@ object NeededWitnessesValidator extends STS.Validator {
         vkeyWitnesses: Set[VKeyWitness],
         utxo: Utxo,
         missingInputError: (TransactionHash, TransactionInput, Int) => IllegalArgumentException,
-        invalidAddressError: (
-            TransactionHash,
-            TransactionInput,
-            Int,
-            Throwable
-        ) => IllegalArgumentException,
         missingWitnessError: (
             TransactionHash,
             Hash[Blake2b_224, HashPurpose.KeyHash | HashPurpose.StakeKeyHash],
@@ -190,35 +160,22 @@ object NeededWitnessesValidator extends STS.Validator {
         do
             utxo.get(input) match
                 case Some(output) =>
-                    extractKeyHash(output.address) match
-                        case Right(optionHash) =>
-                            optionHash.foreach { hash =>
-                                if !vkeyWitnesses.exists(_.vkeyHash == hash)
-                                then
-                                    break(
-                                      failure(
-                                        missingWitnessError(
-                                          transactionId,
-                                          hash,
-                                          input,
-                                          index
-                                        )
-                                      )
-                                    )
-                            }
-
-                        case Left(exception) =>
+                    extractKeyHash(output.address).foreach { hash =>
+                        if !vkeyWitnesses.exists(_.vkeyHash == hash)
+                        then
                             break(
                               failure(
-                                invalidAddressError(
+                                missingWitnessError(
                                   transactionId,
+                                  hash,
                                   input,
-                                  index,
-                                  exception
+                                  index
                                 )
                               )
                             )
+                    }
 
+                // This check allows to be an order independent in the sequence of validation rules
                 case None =>
                     break(failure(missingInputError(transactionId, input, index)))
 
@@ -362,13 +319,9 @@ object NeededWitnessesValidator extends STS.Validator {
     }
 
     private[this] def extractKeyHash(
-        byteString: ByteString
-    ): Either[Error, Option[Hash[Blake2b_224, HashPurpose.KeyHash | HashPurpose.StakeKeyHash]]] = {
-        val address =
-            try Address.fromByteString(byteString)
-            catch case NonFatal(exception) => return Left(exception)
-
-        val optionHash = address match
+        address: Address
+    ): Option[Hash[Blake2b_224, HashPurpose.KeyHash | HashPurpose.StakeKeyHash]] = {
+        address match
             case Address.Byron(_) =>
                 None // Byron addresses don't have staking credentials
             case Address.Shelley(shelleyAddress) =>
@@ -379,7 +332,5 @@ object NeededWitnessesValidator extends STS.Validator {
                 stakeAddress.payload match
                     case StakePayload.Stake(hash) => Some(hash)
                     case _: StakePayload.Script   => None
-
-        Right(optionHash)
     }
 }

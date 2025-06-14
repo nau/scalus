@@ -11,13 +11,9 @@ import scalus.{builtin, uplc}
 
 import scala.collection.immutable
 
-trait ArbitraryInstances extends uplc.ArbitraryInstances {
-    def genByteStringOfN(n: Int): Gen[ByteString] = {
-        Gen
-            .containerOfN[Array, Byte](n, arbitrary[Byte])
-            .map(a => ByteString.unsafeFromArray(a))
-    }
-
+trait ArbitraryInstances
+    extends uplc.ArbitraryInstances
+    with scalus.cardano.address.ArbitraryInstances {
     def genMapOfSizeFromArbitrary[A: Arbitrary, B: Arbitrary](
         from: Int,
         to: Int

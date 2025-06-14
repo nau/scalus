@@ -23,7 +23,7 @@ import java.util
 
 class TxEvaluatorTest extends AnyFunSuite:
     val senderMnemonic: String =
-        "drive useless envelope shine range ability time copper alarm museum near flee wrist live type device meadow allow churn purity wisdom praise drop code";
+        "drive useless envelope shine range ability time copper alarm museum near flee wrist live type device meadow allow churn purity wisdom praise drop code"
     val sender1 = new Account(Networks.testnet(), senderMnemonic)
     val sender1Addr: String = sender1.baseAddress()
 

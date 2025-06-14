@@ -6,6 +6,7 @@ import io.bullet.borer.Cbor
 import org.scalatest.funsuite.AnyFunSuite
 import scalus.builtin.{ByteString, PlatformSpecific, given}
 import scalus.cardano.ledger.*
+import scalus.cardano.address.Address
 
 import java.math.BigInteger
 
@@ -25,7 +26,7 @@ class TransactionTest extends AnyFunSuite {
                   ),
                   outputs = Vector(
                     TransactionOutput.Shelley(
-                      address = AddressBytes.fromBech32(addr),
+                      address = Address.fromByteString(AddressBytes.fromBech32(addr)),
                       value = Value.lovelace(2)
                     )
                   ),

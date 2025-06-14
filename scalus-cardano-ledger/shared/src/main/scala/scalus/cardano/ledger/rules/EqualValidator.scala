@@ -52,6 +52,8 @@ object EqualValidator {
                     for input <- event.body.value.inputs
                     yield state.utxo.get(input) match
                         case Some(output) => output
+
+                        // This check allows to be an order independent in the sequence of validation rules
                         case None =>
                             break(
                               failure(

@@ -1,25 +1,26 @@
 package scalus.cardano.ledger
 
+import scalus.cardano.address.Address
 import io.bullet.borer.{Decoder, Encoder, Reader, Writer}
 
 /** Represents a transaction output in Cardano. Both Shelley-era and Babbage-era output formats are
   * supported.
   */
 sealed trait TransactionOutput:
-    def address: AddressBytes
+    def address: Address
     def value: Value
 
 object TransactionOutput:
     /** Shelley-era transaction output format */
     final case class Shelley(
-        override val address: AddressBytes,
+        override val address: Address,
         override val value: Value,
         datumHash: Option[DataHash] = None
     ) extends TransactionOutput
 
     /** Babbage-era transaction output format with extended features */
     final case class Babbage(
-        override val address: AddressBytes,
+        override val address: Address,
         override val value: Value,
         datumOption: Option[DatumOption] = None,
         scriptRef: Option[ScriptRef] = None
@@ -90,7 +91,7 @@ object TransactionOutput:
         if size < 2 || size > 3 then
             r.validationFailure(s"Expected 2 or 3 elements for ShelleyTransactionOutput, got $size")
 
-        val address = r.read[AddressBytes]()
+        val address = r.read[Address]()
         val value = r.read[Value]()
 
         val datumHash =
@@ -103,14 +104,14 @@ object TransactionOutput:
     private def readBabbageOutput(r: Reader): TransactionOutput.Babbage =
         val size = r.readMapHeader()
 
-        var address: Option[AddressBytes] = None
+        var address: Option[Address] = None
         var value: Option[Value] = None
         var datumOption: Option[DatumOption] = None
         var scriptRef: Option[ScriptRef] = None
 
         for _ <- 0L until size do
             r.readInt() match
-                case 0     => address = Some(r.read[AddressBytes]())
+                case 0     => address = Some(r.read[Address]())
                 case 1     => value = Some(r.read[Value]())
                 case 2     => datumOption = Some(r.read[DatumOption]())
                 case 3     => scriptRef = Some(r.read[ScriptRef]())

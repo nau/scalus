@@ -6,6 +6,9 @@ import scalus.cardano.ledger.*
 import scala.collection.mutable
 import scala.util.{Failure, Success, Try}
 
+import io.bullet.borer.{Decoder, Encoder, Reader, Writer}
+import scala.util.control.NonFatal
+
 /** Implementation of Cardano CIP-19 address format following Rust Pallas implementation structure.
   * Handles the binary structure of Cardano addresses including Shelley, Stake, and Byron addresses.
   * Uses strongly typed Hash28 classes for payment, stake and script hashes.
@@ -77,22 +80,32 @@ object VarUInt {
 import VarUInt.*
 
 /** Network identification for Cardano addresses */
-enum Network {
-    case Testnet
-    case Mainnet
-    case Other(v: Byte)
+sealed trait Network {
 
     /** Check if this is mainnet */
-    def isMainnet: Boolean = this == Mainnet
+    def isMainnet: Boolean = this == Network.Mainnet
 
     /** Get the numeric value for this network */
     def value: Byte = this match
-        case Testnet  => 0x00
-        case Mainnet  => 0x01
-        case Other(v) => v
+        case Network.Testnet  => 0x00
+        case Network.Mainnet  => 0x01
+        case Network.Other(v) => v
 }
 
 object Network {
+    case object Testnet extends Network {
+        override def toString: String = "Testnet"
+    }
+
+    case object Mainnet extends Network {
+        override def toString: String = "Mainnet"
+    }
+
+    case class Other(v: Byte) extends Network {
+        require(v >= 2 && v <= 15, s"Invalid network byte: $v, must be in range 2-15")
+
+        override def toString: String = s"Other($v)"
+    }
 
     /** Create Network from byte value */
     def fromByte(value: Byte): Network = value match
@@ -414,6 +427,21 @@ enum Address {
 
 // Conversion utilities between address types
 object Address {
+
+    /** CBOR encoder for Address */
+    given Encoder[Address] with
+        def write(w: Writer, value: Address): Writer = {
+            w.write(value.toBytes)
+            w
+        }
+
+    /** CBOR decoder for Address */
+    given Decoder[Address] with
+        def read(r: Reader): Address = {
+            val addressBytes = r.read[AddressBytes]()
+            try Address.fromByteString(addressBytes)
+            catch case NonFatal(exception) => r.validationFailure(exception.getMessage)
+        }
 
     /** Convert Shelley address to Stake address if it has delegation */
     def shelleyToStake(shelleyAddr: ShelleyAddress): Try[StakeAddress] =
