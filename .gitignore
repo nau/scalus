@@ -16,6 +16,7 @@ out
 metals.sbt
 /plutus-conformance
 scalus-plugin/src/main/shared
+scalus-testkit/core-shared
 cardano-cli
 cardano-address
 scripts/
