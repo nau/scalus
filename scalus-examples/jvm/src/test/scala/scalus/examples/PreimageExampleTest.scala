@@ -88,7 +88,7 @@ class PreimageExampleTest extends BaseValidatorTest {
         val validator = compiled.toUplc().plutusV2
 //        println(validator.showHighlighted)
         val flatSize = validator.flatEncoded.length
-        assert(flatSize == 1588)
+        assert(flatSize == 1580)
 
 //        performChecks(validator)
     }

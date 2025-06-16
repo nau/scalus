@@ -9,8 +9,8 @@ import scalus.macros.Macros
 
 import scala.annotation.{nowarn, tailrec}
 import scala.collection.mutable
-
 import Ord.*
+import scalus.cardano.onchain.{ImpossibleLedgerStateError, OnchainError, RequirementError}
 
 extension [A](self: A)
     inline def let[B](inline fn: A => B): B = fn(self)
@@ -197,6 +197,8 @@ object Prelude {
 /** Tests an expression, throwing an `IllegalArgumentException` if false.
   * @param requirement
   *   the expression to test
+  * @throws RequirementError
+  *   when invoked off-chain.
   * @note
   *   we do not use scala.Predef.require because it's not an `inline` method and it's not expanded
   *   before Scalus compiler plugin phase.
@@ -206,14 +208,53 @@ object Prelude {
   *   }}}
   */
 inline def require(inline requirement: Boolean, inline message: String): Unit =
-    if !requirement then throw new IllegalArgumentException(message)
+    if requirement then () else throw new RequirementError(message)
 
+/** Tests an expression, throwing a `RequirementError` if false.
+  *
+  * This is used to enforce preconditions in on-chain logic.
+  *
+  * @param requirement
+  *   The boolean expression to test.
+  * @throws RequirementError
+  *   when invoked off-chain.
+  * @example
+  *   {{{
+  *   require(value > 1000)
+  *   }}}
+  */
 inline def require(inline requirement: Boolean): Unit =
-    if !requirement then throw new IllegalArgumentException()
+    if requirement then () else throw new RequirementError()
 
-inline def fail(inline message: String): Nothing = throw new RuntimeException(message)
+/** Fails the onchain evaluation with an `ERROR` term and a specific error message.
+  *
+  * This is used to indicate a failure in the on-chain logic with a specific error message.
+  *
+  * @param message
+  *   The error message to include in the failure.
+  * @throws OnchainError
+  *   when invoked off-chain.
+  */
+inline def fail(inline message: String): Nothing = throw new OnchainError(message)
 
-inline def fail(): Nothing = throw new RuntimeException()
+/** Fails the onchain evaluation with an `ERROR` term.
+  *
+  * This is used to indicate a failure in the on-chain logic without providing a specific error
+  * message.
+  *
+  * @throws OnchainError
+  *   when invoked off-chain.
+  */
+inline def fail(): Nothing = throw new OnchainError()
+
+/** Fails the onchain evaluation with an `ERROR` term indicating an impossible situation.
+  *
+  * This is used to indicate an impossible situation in the on-chain logic.
+  *
+  * @throws ImpossibleLedgerStateError
+  *   when invoked off-chain.
+  */
+inline def impossible(): Nothing = throw new ImpossibleLedgerStateError
 
 /** `???` can be used for marking methods that remain to be implemented.
   * @throws NotImplementedError

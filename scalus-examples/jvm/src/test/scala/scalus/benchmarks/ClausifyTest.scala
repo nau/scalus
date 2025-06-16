@@ -27,7 +27,7 @@ class ClausifyTest extends AnyFunSuite, ScalusTest:
             .toUplcOptimized(false)
             .evaluateDebug
 
-        val scalusBudget = ExBudget(ExCPU(7879396860L), ExMemory(45836772L))
+        val scalusBudget = ExBudget(ExCPU(7879192811L), ExMemory(45835971))
         assert(result.isSuccess)
         assert(result.budget == scalusBudget)
 
@@ -50,7 +50,7 @@ class ClausifyTest extends AnyFunSuite, ScalusTest:
             .toUplcOptimized(false)
             .evaluateDebug
 
-        val scalusBudget = ExBudget(ExCPU(9813662164L), ExMemory(57030684L))
+        val scalusBudget = ExBudget(ExCPU(9813458115L), ExMemory(57029883L))
         assert(result.isSuccess)
         assert(result.budget == scalusBudget)
 
@@ -73,7 +73,7 @@ class ClausifyTest extends AnyFunSuite, ScalusTest:
             .toUplcOptimized(false)
             .evaluateDebug
 
-        val scalusBudget = ExBudget(ExCPU(26254688288L), ExMemory(152348242L))
+        val scalusBudget = ExBudget(ExCPU(26254484239L), ExMemory(152347441L))
         assert(result.isSuccess)
         assert(result.budget == scalusBudget)
 
@@ -998,7 +998,7 @@ class ClausifyTest extends AnyFunSuite, ScalusTest:
             .toUplcOptimized(false)
             .evaluateDebug
 
-        val scalusBudget = ExBudget(ExCPU(37733391198L), ExMemory(214969424L))
+        val scalusBudget = ExBudget(ExCPU(37733187149L), ExMemory(214968623L))
         assert(result.isSuccess)
         assert(result.budget == scalusBudget)
 
@@ -1021,7 +1021,7 @@ class ClausifyTest extends AnyFunSuite, ScalusTest:
             .toUplcOptimized(false)
             .evaluateDebug
 
-        val scalusBudget = ExBudget(ExCPU(127163766640L), ExMemory(736504440L))
+        val scalusBudget = ExBudget(ExCPU(127163562591L), ExMemory(736503639L))
         assert(result.isSuccess)
         assert(result.budget == scalusBudget)
 

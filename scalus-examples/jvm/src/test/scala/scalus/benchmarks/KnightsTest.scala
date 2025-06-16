@@ -23,14 +23,14 @@ class KnightsTest extends AnyFunSuite, ScalusTest:
             .toUplcOptimized(false)
             .evaluateDebug
 
-        val scalusBudget = ExBudget(ExCPU(44806039120L), ExMemory(247940395L))
+        val scalusBudget = ExBudget(ExCPU(44802_366238L), ExMemory(247_925977L))
         assert(result.isSuccess)
         assert(result.budget == scalusBudget)
 
         compareBudgetWithReferenceValue(
           testName = "KnightsTest.100_4x4",
           scalusBudget = scalusBudget,
-          refBudget = ExBudget(ExCPU(54958831939L), ExMemory(160204421L)),
+          refBudget = ExBudget(ExCPU(54958_831939L), ExMemory(160_204421L)),
           isPrintComparison = false
         )
     }
@@ -551,14 +551,14 @@ class KnightsTest extends AnyFunSuite, ScalusTest:
             .toUplcOptimized(false)
             .evaluateDebug
 
-        val scalusBudget = ExBudget(ExCPU(115801212696L), ExMemory(645943580L))
+        val scalusBudget = ExBudget(ExCPU(115793_458834L), ExMemory(645_913142L))
         assert(result.isSuccess)
         assert(result.budget == scalusBudget)
 
         compareBudgetWithReferenceValue(
           testName = "KnightsTest.100_6x6",
           scalusBudget = scalusBudget,
-          refBudget = ExBudget(ExCPU(131954064320L), ExMemory(292216349L)),
+          refBudget = ExBudget(ExCPU(131954_064320L), ExMemory(292_216349L)),
           isPrintComparison = false
         )
     }
@@ -1212,14 +1212,14 @@ class KnightsTest extends AnyFunSuite, ScalusTest:
             .toUplcOptimized(false)
             .evaluateDebug
 
-        val scalusBudget = ExBudget(ExCPU(235854599301L), ExMemory(1315265845L))
+        val scalusBudget = ExBudget(ExCPU(235841_132067L), ExMemory(1315_212979L))
         assert(result.isSuccess)
         assert(result.budget == scalusBudget)
 
         compareBudgetWithReferenceValue(
           testName = "KnightsTest.100_8x8",
           scalusBudget = scalusBudget,
-          refBudget = ExBudget(ExCPU(270266226527L), ExMemory(540217437L)),
+          refBudget = ExBudget(ExCPU(270266_226527L), ExMemory(540_217437L)),
           isPrintComparison = false
         )
     }

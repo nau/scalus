@@ -45,7 +45,7 @@ class PaymentSplitterTest extends AnyFunSuite, ScalusTest {
     }
 
     test("success when payments are correctly split between 3 payees") {
-        val scalusBudget = ExBudget(ExCPU(202795782L), ExMemory(934211L))
+        val scalusBudget = ExBudget(ExCPU(201_475488L), ExMemory(928805))
         TestCase(
           payees = List(A, B, C),
           amount = 30,
@@ -89,7 +89,7 @@ class PaymentSplitterTest extends AnyFunSuite, ScalusTest {
     }
 
     test("failure when a one of the payee is not payed out") {
-        val scalusBudget = ExBudget(ExCPU(136424092L), ExMemory(599793L))
+        val scalusBudget = ExBudget(ExCPU(135_983994), ExMemory(597991))
         TestCase(
           payees = List(A, B),
           amount = 30,

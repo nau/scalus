@@ -12,6 +12,7 @@ import scalus.uplc.eval.*
 import org.scalatest.funsuite.AnyFunSuite
 import scalus.testkit.ScalusTest
 
+import java.nio.file.{Files, Path}
 import scala.language.implicitConversions
 
 class HelloCardanoTest extends AnyFunSuite with ScalusTest {
@@ -25,8 +26,9 @@ class HelloCardanoTest extends AnyFunSuite with ScalusTest {
           signatories = List(ownerPubKey)
         )
 
-        val scalusBudget = ExBudget(ExCPU(61769850L), ExMemory(235678L))
-        val result = compile(HelloCardano.validate).runScript(context)
+        val scalusBudget = ExBudget(ExCPU(61_329752L), ExMemory(233876L))
+        val sir = compile(HelloCardano.validate)
+        val result = sir.runScript(context)
         assert(result.isSuccess)
         assert(result.budget == scalusBudget)
 
