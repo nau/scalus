@@ -1,7 +1,6 @@
 package scalus.uplc.eval
 
 import org.scalatest.funsuite.AnyFunSuiteLike
-import scalus.builtin.given
 import scalus.uplc.Constant
 import scalus.uplc.DeBruijn
 import scalus.uplc.Program

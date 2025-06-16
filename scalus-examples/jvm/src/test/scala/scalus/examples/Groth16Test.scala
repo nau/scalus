@@ -2,7 +2,6 @@ package scalus.examples
 import org.scalatest.funsuite.AnyFunSuite
 import scalus.*
 import scalus.Compiler.compile
-import scalus.builtin.given
 import scalus.builtin.ByteString
 import scalus.builtin.ByteString.hex
 import scalus.builtin.Data

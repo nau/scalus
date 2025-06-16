@@ -4,7 +4,6 @@ import org.scalatest.funsuite.AnyFunSuite
 import org.scalatestplus.scalacheck.ScalaCheckPropertyChecks
 import scalus.Compiler.compile
 import scalus.*
-import scalus.builtin.given
 import scalus.builtin.ByteString
 import scalus.builtin.ByteString.*
 import scalus.builtin.Data
