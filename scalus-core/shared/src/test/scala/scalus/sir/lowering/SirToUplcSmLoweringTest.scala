@@ -8,7 +8,7 @@ import scalus.builtin.Data.{fromData, toData}
 import scalus.builtin.given
 import scalus.sir.Recursivity.NonRec
 import scalus.sir.SIR.Pattern
-import scalus.sir.SIRType.{substitute, FreeUnificator, SumCaseClass, TypeVar}
+import scalus.sir.SIRType.{substitute, FreeUnificator, SumCaseClass, TypeNothing, TypeVar}
 import scalus.sir.lowering.StaticLoweredValue
 import scalus.sir.*
 import scalus.uplc.DefaultFun.*
@@ -142,7 +142,14 @@ class SirToUplcSmLoweringTest
             DataDecl(
               "scalus.prelude.List",
               List(
-                ConstrDecl("scalus.prelude.List$.Nil", DEFAULT, List(), List(), List(), ae),
+                ConstrDecl(
+                  "scalus.prelude.List$.Nil",
+                  DEFAULT,
+                  List(),
+                  List(),
+                  List(SIRType.TypeNothing),
+                  ae
+                ),
                 ConstrDecl(
                   "scalus.prelude.List$.Cons",
                   DEFAULT,
@@ -330,7 +337,7 @@ class SirToUplcSmLoweringTest
           SIRVarStorage.DEFAULT,
           List(),
           List(),
-          List(),
+          List(SIRType.TypeNothing),
           ae
         )
         val consConstr = ConstrDecl(

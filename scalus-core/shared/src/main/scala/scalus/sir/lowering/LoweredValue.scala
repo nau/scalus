@@ -45,18 +45,33 @@ trait LoweredValue {
     ): LoweredValue =
         summon[LoweringContext].typeGenerator(sirType).upcastOne(this, targetType, pos)
 
-    def upcast(targetType: SIRType, pos: SIRPosition)(using LoweringContext): LoweredValue = {
-        val parentsSeq = SIRType.parentsSeq(sirType, targetType) match {
-            case Left(message) =>
-                throw LoweringException(
-                  s"Can't upcast ${sirType.show} to ${targetType.show}: $message",
-                  pos
-                )
-            case Right(seq) => seq
-        }
-        parentsSeq.foldLeft(this) { (s, e) =>
-            s.upcastOne(e, pos)
-        }
+    def maybeUpcast(targetType: SIRType, pos: SIRPosition)(using LoweringContext): LoweredValue = {
+        SIRUnify.unifyType(sirType, targetType, SIRUnify.Env.empty.withoutUpcasting) match
+            case SIRUnify.UnificationSuccess(env, tp) =>
+                this
+            case SIRUnify.UnificationFailure(_, _, _) =>
+                // if we cannot unify types, we need to upcast
+                //  to the target type.
+                val parentsSeq =
+                    SIRUnify.subtypeSeq(sirType, targetType, SIRUnify.Env.empty)
+                if parentsSeq.isEmpty then {
+                    println(s"sirType = ${sirType.show} (${sirType})")
+                    println(s"targetType = ${targetType.show} (${targetType})")
+                    val parentsSeq1 = SIRUnify.subtypeSeq(
+                      sirType,
+                      targetType,
+                      SIRUnify.Env.empty.withDebug
+                    )
+                    println("parentsSeq1 = " + parentsSeq1.mkString(", "))
+
+                    throw LoweringException(
+                      s"Cannot upcast ${this.show} to ${targetType.show}",
+                      pos
+                    )
+                } else
+                    parentsSeq.tail.foldLeft(this) { (s, e) =>
+                        s.upcastOne(e, pos)
+                    }
     }
 
     /** Uplevel variables, that shoule be generated before generation of term
@@ -298,24 +313,55 @@ object LoweredValue {
             inPos: SIRPosition
         )(using lctx: LoweringContext): LoweredValue = {
 
-            val elseBranchR = elseBranch.toRepresentation(
-              thenBranch.representation,
-              inPos
-            )
+            // val resType = SIRType.leastUpperBound(thenBranch.sirType, elseBranch.sirType)
+
+            val resType = SIRUnify.unifyType(
+              thenBranch.sirType,
+              elseBranch.sirType,
+              SIRUnify.Env.empty.withUpcasting
+            ) match {
+                case SIRUnify.UnificationSuccess(_, tp)                => tp
+                case failure @ SIRUnify.UnificationFailure(path, l, r) =>
+                    // if we cannot unify types, we need to upcast
+                    //  to the target type.
+                    println("Unification failure: " + failure)
+                    SIRType.FreeUnificator
+            }
+
+            if resType == SIRType.FreeUnificator then
+                throw LoweringException(
+                  s"if-then-else branches return unrelated types: ${thenBranch.sirType.show} and ${elseBranch.sirType.show}",
+                  inPos
+                )
+
+            val thenBranchR = thenBranch.maybeUpcast(resType, inPos)
+
+            val elseBranchR = elseBranch
+                .maybeUpcast(resType, inPos)
+                .toRepresentation(
+                  thenBranchR.representation,
+                  inPos
+                )
+
+            val condR = cond.toRepresentation(PrimitiveRepresentation.Constant, inPos)
 
             // TODO: result type shoulb be least upper bound of thenBranch and elseBranch
 
-            new ComplexLoweredValue(Set.empty, cond, thenBranch, elseBranchR) {
-                override def sirType: SIRType = thenBranch.sirType
+            new ComplexLoweredValue(Set.empty, condR, thenBranchR, elseBranchR) {
+                override def sirType: SIRType = resType
                 override def pos: SIRPosition = inPos
                 override def representation: LoweredValueRepresentation =
-                    thenBranch.representation
+                    thenBranchR.representation
 
                 override def termInternal(gctx: TermGenerationContext): Term = {
                     !(DefaultFun.IfThenElse.tpf $
-                        cond.termWithNeededVars(gctx) $
-                        ~thenBranch.termWithNeededVars(gctx) $
+                        condR.termWithNeededVars(gctx) $
+                        ~thenBranchR.termWithNeededVars(gctx) $
                         ~elseBranchR.termWithNeededVars(gctx))
+                }
+
+                override def show: String = {
+                    s"IfThenElse(${condR.show}, ${thenBranchR.show}, ${elseBranchR.show})"
                 }
 
             }

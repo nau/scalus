@@ -542,36 +542,27 @@ object SIRType {
             case UplcTypeScheme.TVar(name) => TypeVar(name)
     }
 
-    def parentsSeq(input: SIRType, parent: SIRType): Either[String, List[SIRType]] = {
-        parentsSeqReverse(input, parent, Nil).map(_.reverse)
+    def parentsEqSeq(input: SIRType, parent: SIRType): List[SIRType] = {
+        SIRUnify.subtypeSeq(input, parent, SIRUnify.Env.empty)
     }
 
-    /** @param input.
-      *   I <: Parent if
-      * @param parent
-      * @param acc
-      * @return
-      */
-    def parentsSeqReverse(
-        input: SIRType,
-        parent: SIRType,
-        acc: List[SIRType]
-    ): Either[String, List[SIRType]] = {
-        input match {
-            case SIRType.CaseClass(constrDecl, typeArgs, optParent) =>
-                optParent match
-                    case None => Left(s"class ${input.show} have no parent")
-                    case Some(iParent) =>
-                        SIRUnify.unifyType(iParent, parent, SIRUnify.Env.empty) match
-                            case SIRUnify.UnificationSuccess(env, rParent) =>
-                                Right(rParent :: acc)
-                            case failure =>
-                                parentsSeqReverse(iParent, parent, iParent :: acc)
-            case SIRType.SumCaseClass(constrDecl, typeArgs) =>
-                ???
+    def parentsNoEqSeq(input: SIRType, parent: SIRType): List[SIRType] = {
+        parentsEqSeq(input, parent) match
+            case Nil => Nil
+            case x :: xs =>
+                if x ~=~ parent then xs
+                else x :: xs
+    }
+
+    def leastUpperBound(left: SIRType, right: SIRType): SIRType = {
+        SIRUnify.unifyType(left, right, SIRUnify.Env.empty.withUpcasting) match {
+            case SIRUnify.UnificationSuccess(env, res) => res
+            case SIRUnify.UnificationFailure(_, _, _) =>
+                SIRType.FreeUnificator
         }
     }
 
+    @scala.annotation.tailrec
     def retrieveDataDecl(tp: SIRType): Either[String, DataDecl] = {
         tp match {
             case tp: SumCaseClass => Right(tp.decl)
@@ -654,6 +645,10 @@ object SIRType {
 
     def syntheticNarrowConstrDeclName(childDataDeclName: String): String = {
         s"z_narrow$$${childDataDeclName}"
+    }
+
+    def isSynteticNarrowConstrDeclName(name: String): Boolean = {
+        name.startsWith("z_narrow$$")
     }
 
 }

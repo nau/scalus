@@ -9,6 +9,8 @@ import dotty.tools.dotc.core.Types.*
 import dotty.tools.dotc.util.SrcPos
 import scalus.sir.*
 
+import scala.util.control.NonFatal
+
 case class SIRTypeEnv(
     pos: SrcPos,
     vars: Map[Symbol, SIRType],
@@ -502,18 +504,29 @@ class SIRTyper(using Context) {
                 case _ => Nil
 
         }
-        ConstrDecl(
-          name,
-          SIRVarStorage.DEFAULT,
-          params,
-          tparams,
-          parentTypeArgs,
-          AnnotationsDecl.fromSym(typeSymbol)
-        )
+        try
+            ConstrDecl(
+              name,
+              SIRVarStorage.DEFAULT,
+              params,
+              tparams,
+              parentTypeArgs,
+              AnnotationsDecl.fromSym(typeSymbol)
+            )
+        catch
+            case NonFatal(e) =>
+                println("error in makeCaseClassConstrDecl")
+                println(s"optParentSym=${optParentSym}")
+                println(s"typeSymbol=${typeSymbol.showFullName}")
+                println(s"constructorResultType=${constructorResultType(typeSymbol).show}")
+                println(s"isEnum = ${typeSymbol.is(Flags.Enum)}")
+                throw e
     }
 
-    private def constructorResultType(typeSymbol: Symbol): Type = {
-        if typeSymbol.primaryConstructor == NoSymbol then NoType
+    def constructorResultType(typeSymbol: Symbol): Type = {
+        if typeSymbol.primaryConstructor == NoSymbol then
+            if typeSymbol.is(Flags.Enum) then typeSymbol.info
+            else NoType
         else
             typeSymbol.primaryConstructor.info match
                 case polyType: PolyType =>

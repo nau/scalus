@@ -53,6 +53,8 @@ object SumDataListSirTypeGenerator extends SirTypeUplcGenerator {
                   pos
                 )
             case _ =>
+                println(s"input.tp=${input.sirType.show}")
+                println(s"input=${input}")
                 throw LoweringException(
                   s"Unexpected representation conversion from ${input.representation} to ${outputRepresentation}",
                   pos

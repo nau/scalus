@@ -96,9 +96,26 @@ case class ConstrDecl(
     if name.contains(" ") || name.contains("\u0021") then {
         throw new RuntimeException("Invalid name in constructor: " + name)
     }
-    if name == "scalus.builtin.BigRecord$._$_$$anon" then {
-        throw new RuntimeException("Invalid name in constructor: " + name)
-    }
+
+    if name == "scalus.prelude.List$.Nil" then
+        if parentTypeArgs.isEmpty then
+            throw new RuntimeException(
+              "Nil constructor must have parent type arguments. (name=" + name + ")"
+            )
+        else if parentTypeArgs.size != 1 then
+            throw new RuntimeException(
+              "Nil constructor must have exactly one parent type argument. (name=" + name + ")"
+            )
+
+    if name == "scalus.prelude.Option$.Some" then
+        if parentTypeArgs.isEmpty then
+            throw new RuntimeException(
+              "Some constructor must have parent type arguments. (name=" + name + ")"
+            )
+        else if parentTypeArgs.size != 1 then
+            throw new RuntimeException(
+              "Some constructor must have exactly one parent type argument. (name=" + name + ")"
+            )
 
 }
 

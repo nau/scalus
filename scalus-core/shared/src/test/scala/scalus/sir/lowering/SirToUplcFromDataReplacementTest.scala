@@ -17,16 +17,15 @@ class SirToUplcFromDataReplacementTest extends AnyFunSuite {
     given PlutusVM = PlutusVM.makePlutusV3VM()
 
     test("Import ScriptContext from Data") {
-        pending
         val sir = compile { (scData: Data) =>
             val sc = Data.fromData[ScriptContext](scData)
             val tx = sc.txInfo
             tx.inputs.length
         }
-        println(sir.showHighlighted)
+        // println(sir.showHighlighted)
         val lowering = SirToUplcV3Lowering(sir)
         val term = lowering.lower()
-        println(term.showHighlighted)
+        // println(term.showHighlighted)
 
         val ownerPkh = PubKeyHash(hex"1234567890abcdef1234567890abcdef1234567890abcdef12345678")
         val scriptContext = makeSpendingScriptContext(
@@ -39,7 +38,8 @@ class SirToUplcFromDataReplacementTest extends AnyFunSuite {
 
         val l = termWithSc.evaluateDebug
 
-        println(l)
+        // println(l)
+        pending
     }
 
     /*

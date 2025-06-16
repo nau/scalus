@@ -548,12 +548,13 @@ final class SIRCompiler(options: SIRCompilerOptions = SIRCompilerOptions.default
             val pType = sirTypeInEnv(p.info, srcPos, nEnv)
             TypeBinding(p.name.show, pType)
         }
+        val constrType = typer.constructorResultType(constrSymbol)
         val optBaseClass = constrSymbol.info.baseClasses.find { b =>
             b.flags.is(Flags.Sealed) && b.children.contains(constrSymbol)
         }
         val baseTypeArgs = optBaseClass
             .flatMap { bs =>
-                constrSymbol.info.baseType(bs) match
+                constrType.baseType(bs) match
                     case AppliedType(_, args) =>
                         Some(args.map(a => sirTypeInEnv(a, srcPos, nEnv)))
                     case _ => None
@@ -567,14 +568,31 @@ final class SIRCompiler(options: SIRCompilerOptions = SIRCompilerOptions.default
                 memberDef.rawComment.map(_.raw)
             case _ => None
         val anns = AnnotationsDecl(pos, comment)
-        scalus.sir.ConstrDecl(
-          constrSymbol.fullName.show,
-          SIRVarStorage.DEFAULT,
-          params,
-          typeParams,
-          baseTypeArgs,
-          anns
-        )
+        try
+            scalus.sir.ConstrDecl(
+              constrSymbol.fullName.show,
+              SIRVarStorage.DEFAULT,
+              params,
+              typeParams,
+              baseTypeArgs,
+              anns
+            )
+        catch
+            case NonFatal(ex) =>
+                println("Error in makeConstrDecl: " + constrSymbol.fullName.show)
+                println(s"optBaseClass: ${optBaseClass}, constrSymbol: ${constrSymbol.show}")
+                println(s"bs = ${optBaseClass.get}")
+                println(s"constrSymbol.info: ${constrSymbol.info.show}, row: ${constrSymbol.info}")
+                println(
+                  s"constrSymbol.info.baseClasses: ${constrSymbol.info.baseClasses.map(_.show).mkString(", ")}"
+                )
+                println(
+                  s"constrSymbol.info.baseType(bs) = ${constrSymbol.info.baseType(optBaseClass.get).show}"
+                )
+                println(s"constrType: ${constrType.show}")
+                println(s"constrTypeBaseClass: ${constrType.baseType(optBaseClass.get).show}")
+                println(s"baseTypeArgs: ${baseTypeArgs.map(_.show).mkString(", ")}")
+                throw ex
     }
 
     private def compileNewConstructor(

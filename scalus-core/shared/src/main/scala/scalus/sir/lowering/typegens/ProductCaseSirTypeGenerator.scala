@@ -1,5 +1,6 @@
 package scalus.sir.lowering.typegens
 
+import scala.util.control.NonFatal
 import scalus.sir.*
 import scalus.sir.lowering.*
 import scalus.sir.lowering.LoweredValue.Builder.*
@@ -156,21 +157,52 @@ object ProductCaseSirTypeGenerator extends SirTypeUplcGenerator {
     }
 
     override def upcastOne(input: LoweredValue, targetType: SIRType, pos: SIRPosition)(using
-        LoweringContext
+        lctx: LoweringContext
     ): LoweredValue = {
-        val asDataConstr = input.toRepresentation(
-          ProductCaseClassRepresentation.DataConstr,
-          pos
-        )
-        new ProxyLoweredValue(asDataConstr) {
-            override def sirType: SIRType = targetType
+        val targetTypeGenerator = lctx.typeGenerator(targetType)
+        targetTypeGenerator.defaultRepresentation match {
+            case SumCaseClassRepresentation.SumDataList =>
+                // we are constr or nill
+                val constrDecl = SIRType
+                    .retrieveConstrDecl(input.sirType)
+                    .getOrElse(
+                      throw LoweringException(
+                        s"can't retrieve constrDecl from value with Prod representation: ${input.sirType}, input=${input}",
+                        pos
+                      )
+                    )
+                if constrDecl.name == "scalus.prelude.List$.Cons" || constrDecl.name == "scalus.prelude.List$.Nil"
+                then
+                    val inputR = input.toRepresentation(ProdDataList, pos)
+                    new ProxyLoweredValue(inputR) {
+                        override def sirType: SIRType = targetType
+                        override def representation: LoweredValueRepresentation =
+                            SumCaseClassRepresentation.SumDataList
+                        override def termInternal(gctx: TermGenerationContext): Term =
+                            inputR.termInternal(gctx)
+                    }
+                else
+                    throw LoweringException(
+                      s"Unkonow constructor name for data-list: ${constrDecl.name}",
+                      pos
+                    )
+            case other =>
+                // all other types should be convertible to data-constr
+                val asDataConstr = input.toRepresentation(
+                  ProductCaseClassRepresentation.DataConstr,
+                  pos
+                )
+                new ProxyLoweredValue(asDataConstr) {
+                    override def sirType: SIRType = targetType
 
-            override def representation: LoweredValueRepresentation =
-                SumCaseClassRepresentation.DataConstr
+                    override def representation: LoweredValueRepresentation =
+                        SumCaseClassRepresentation.DataConstr
 
-            override def termInternal(gctx: TermGenerationContext): Term = {
-                asDataConstr.termInternal(gctx)
-            }
+                    override def termInternal(gctx: TermGenerationContext): Term = {
+                        asDataConstr.termInternal(gctx)
+                    }
+                }
+
         }
     }
 

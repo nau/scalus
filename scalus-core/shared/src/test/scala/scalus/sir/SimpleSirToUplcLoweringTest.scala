@@ -5,7 +5,7 @@ import scalus.*
 import scalus.builtin.ByteString.*
 import scalus.sir.Recursivity.NonRec
 import scalus.sir.SIR.Pattern
-import scalus.sir.SIRType.{FreeUnificator, SumCaseClass, TypeVar}
+import scalus.sir.SIRType.{FreeUnificator, SumCaseClass, TypeNothing, TypeVar}
 import scalus.uplc.ArbitraryInstances
 import scalus.uplc.Constant
 import scalus.uplc.DefaultFun
@@ -107,7 +107,14 @@ class SimpleSirToUplcLoweringTest
             DataDecl(
               "scalus.prelude.List",
               List(
-                ConstrDecl("scalus.prelude.List$.Nil", DEFAULT, List(), List(), List(), ae),
+                ConstrDecl(
+                  "scalus.prelude.List$.Nil",
+                  DEFAULT,
+                  List(),
+                  List(),
+                  List(TypeNothing),
+                  ae
+                ),
                 ConstrDecl(
                   "scalus.prelude.List$.Cons",
                   DEFAULT,
