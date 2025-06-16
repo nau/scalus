@@ -236,7 +236,7 @@ lazy val scalus = crossProject(JSPlatform, JVMPlatform, NativePlatform)
       Test / javaOptions += "-Djava.library.path=",
       // Test / testOptions += Tests.Argument(TestFrameworks.ScalaTest, "-S", "-8077211454138081902"),
       libraryDependencies += "org.slf4j" % "slf4j-simple" % "2.0.17" % "provided",
-      libraryDependencies += "org.bouncycastle" % "bcprov-jdk18on" % "1.80",
+      libraryDependencies += "org.bouncycastle" % "bcprov-jdk18on" % "1.81",
       libraryDependencies += "foundation.icon" % "blst-java" % "0.3.2",
       libraryDependencies += "org.bitcoin-s" % "bitcoin-s-crypto_2.13" % "1.9.10" % "test",
       libraryDependencies += "org.bitcoin-s" % "bitcoin-s-secp256k1jni" % "1.9.10"
@@ -309,7 +309,7 @@ lazy val scalusExamples = crossProject(JSPlatform, JVMPlatform, NativePlatform)
     .configurePlatform(JVMPlatform)(_.dependsOn(`scalus-bloxbean-cardano-client-lib`))
     .jvmSettings(
       Test / fork := true,
-      libraryDependencies += "com.bloxbean.cardano" % "cardano-client-backend-blockfrost" % "0.6.4"
+      libraryDependencies += "com.bloxbean.cardano" % "cardano-client-backend-blockfrost" % "0.6.6"
     )
     .jsSettings(
       Compile / npmDependencies += "@noble/curves" -> "1.4.2",
@@ -344,12 +344,12 @@ lazy val `scalus-bloxbean-cardano-client-lib` = project
       scalacOptions ++= commonScalacOptions,
       mimaPreviousArtifacts := Set(organization.value %% name.value % scalusCompatibleVersion),
       mimaBinaryIssueFilters ++= Seq(),
-      libraryDependencies += "com.bloxbean.cardano" % "cardano-client-lib" % "0.6.4",
+      libraryDependencies += "com.bloxbean.cardano" % "cardano-client-lib" % "0.6.6",
       libraryDependencies += "org.slf4j" % "slf4j-api" % "2.0.17",
       libraryDependencies += "org.slf4j" % "slf4j-simple" % "2.0.17" % "test",
       libraryDependencies += "org.scalatest" %%% "scalatest" % "3.2.19" % "test",
-      libraryDependencies += "com.bloxbean.cardano" % "cardano-client-backend-blockfrost" % "0.6.4" % "test",
-      libraryDependencies += "com.bloxbean.cardano" % "yaci" % "0.3.5" % "test",
+      libraryDependencies += "com.bloxbean.cardano" % "cardano-client-backend-blockfrost" % "0.6.6" % "test",
+      libraryDependencies += "com.bloxbean.cardano" % "yaci" % "0.3.6" % "test",
       libraryDependencies += "io.bullet" %%% "borer-derivation" % "1.16.1" % "provided",
       Test / fork := true, // needed for BlocksValidation to run in sbt
       inConfig(Test)(PluginDependency)
@@ -402,7 +402,7 @@ lazy val scalusCardanoLedger = crossProject(JSPlatform, JVMPlatform)
         "io.bullet" %%% "borer-core" % "1.16.1",
         "io.bullet" %%% "borer-derivation" % "1.16.1" % "provided"
       ),
-      libraryDependencies += "com.bloxbean.cardano" % "cardano-client-lib" % "0.6.4" % "test",
+      libraryDependencies += "com.bloxbean.cardano" % "cardano-client-lib" % "0.6.6" % "test",
       libraryDependencies += "com.softwaremill.magnolia1_3" %%% "magnolia" % "1.3.18" % "test",
       libraryDependencies += "org.scalatest" %%% "scalatest" % "3.2.19" % "test",
       libraryDependencies += "org.scalatestplus" %%% "scalacheck-1-18" % "3.2.19.0" % "test",
