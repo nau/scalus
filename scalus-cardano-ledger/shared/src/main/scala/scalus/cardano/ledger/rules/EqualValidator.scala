@@ -49,7 +49,7 @@ object EqualValidator {
 
             override def evaluate(state: State, event: Event): Result = boundary {
                 val outputs =
-                    for input <- event.body.value.inputs
+                    for input <- event.body.value.inputs.view
                     yield state.utxo.get(input) match
                         case Some(output) => output
 
