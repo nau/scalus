@@ -98,32 +98,40 @@ object NeededWitnessesValidator extends STS.Validator {
         val vkeyWitnesses = event.witnessSet.vkeyWitnesses
         val certificates = event.body.value.certificates
 
+        def extractKeyHash(credential: Credential): Option[AddrKeyHash] = {
+            credential match
+                case Credential.KeyHash(keyHash) => Some(keyHash)
+                case _: Credential.ScriptHash    => None
+        }
+
         for
             (certificate, index) <- certificates.view.zipWithIndex
             keyHash <- certificate match
                 case Certificate.StakeRegistration(credential)   => None
-                case Certificate.StakeDeregistration(credential) => Some(credential)
-                case Certificate.StakeDelegation(credential, _)  => Some(credential)
+                case Certificate.StakeDeregistration(credential) => extractKeyHash(credential)
+                case Certificate.StakeDelegation(credential, _)  => extractKeyHash(credential)
                 case certificate: Certificate.PoolRegistration =>
-                    Some(Credential.KeyHash(certificate.operator))
+                    extractKeyHash(Credential.KeyHash(certificate.operator))
                 case Certificate.PoolRetirement(poolKeyHash, _) =>
-                    Some(Credential.KeyHash(poolKeyHash.asInstanceOf[AddrKeyHash]))
+                    extractKeyHash(Credential.KeyHash(poolKeyHash.asInstanceOf[AddrKeyHash]))
                 case Certificate.RegCert(credential, deposit) =>
-                    if deposit > Coin.zero then Some(credential)
+                    if deposit > Coin.zero then extractKeyHash(credential)
                     else None // No witness needed for zero deposit
-                case Certificate.UnregCert(credential, _)                   => Some(credential)
-                case Certificate.VoteDelegCert(credential, _)               => Some(credential)
-                case Certificate.StakeVoteDelegCert(credential, _, _)       => Some(credential)
-                case Certificate.StakeRegDelegCert(credential, _, _)        => Some(credential)
-                case Certificate.VoteRegDelegCert(credential, drep, coin)   => Some(credential)
-                case Certificate.StakeVoteRegDelegCert(credential, _, _, _) => Some(credential)
+                case Certificate.UnregCert(credential, _)             => extractKeyHash(credential)
+                case Certificate.VoteDelegCert(credential, _)         => extractKeyHash(credential)
+                case Certificate.StakeVoteDelegCert(credential, _, _) => extractKeyHash(credential)
+                case Certificate.StakeRegDelegCert(credential, _, _)  => extractKeyHash(credential)
+                case Certificate.VoteRegDelegCert(credential, drep, coin) =>
+                    extractKeyHash(credential)
+                case Certificate.StakeVoteRegDelegCert(credential, _, _, _) =>
+                    extractKeyHash(credential)
                 case Certificate.AuthCommitteeHotCert(committeeColdCredential, _) =>
-                    Some(committeeColdCredential)
+                    extractKeyHash(committeeColdCredential)
                 case Certificate.ResignCommitteeColdCert(committeeColdCredential, _) =>
-                    Some(committeeColdCredential)
-                case Certificate.RegDRepCert(drepCredential, _, _) => Some(drepCredential)
-                case Certificate.UnregDRepCert(drepCredential, _)  => Some(drepCredential)
-                case Certificate.UpdateDRepCert(drepCredential, _) => Some(drepCredential)
+                    extractKeyHash(committeeColdCredential)
+                case Certificate.RegDRepCert(drepCredential, _, _) => extractKeyHash(drepCredential)
+                case Certificate.UnregDRepCert(drepCredential, _)  => extractKeyHash(drepCredential)
+                case Certificate.UpdateDRepCert(drepCredential, _) => extractKeyHash(drepCredential)
         do
             if !vkeyWitnesses.exists(_.vkeyHash == keyHash) then
                 break(

@@ -5,18 +5,37 @@ import scalus.cardano.address.{Address, ShelleyPaymentPart, StakePayload}
 import scala.util.boundary
 import scala.util.boundary.break
 
+// It's Shelley.validateMissingScripts in cardano-ledger
 object MissingScriptsValidator extends STS.Validator {
-    override def validate(context: Context, state: State, event: Event): Result = {
+    override def validate(context: Context, state: State, event: Event): Result = boundary {
+        val requiredScripts = allRequiredScripts(state, event).map {
+            case Right(scriptHash) => scriptHash
+            case Left(error)       => break(failure(error))
+        }.toSet
 
         ???
     }
 
-    private[this] def allRequiredScripts(state: State, event: Event): Set[ScriptHash] = {
-        val transactionId = event.id
-        val body = event.body.value
-        val utxo = state.utxo
+    private[this] def allRequiredScripts(
+        state: State,
+        event: Event
+    ): scala.collection.View[Either[Error, ScriptHash]] = {
+        val inputScripts = requiredInputScripts(state, event)
+        val collateralInputScripts = requiredCollateralInputScripts(state, event)
+        val mintScripts = requiredMintScripts(event).map(Right(_): Either[Error, ScriptHash])
+        val votingProceduresScripts =
+            requiredVotingProceduresScripts(event).map(Right(_): Either[Error, ScriptHash])
+        val withdrawalScripts =
+            requiredWithdrawalScripts(event).map(Right(_): Either[Error, ScriptHash])
+        val proposalProcedureScripts =
+            requiredProposalProcedureScripts(event).map(Right(_): Either[Error, ScriptHash])
+        val certificateScripts =
+            requiredCertificateScripts(event).map(Right(_): Either[Error, ScriptHash])
 
-        ???
+        inputScripts ++ collateralInputScripts ++
+            mintScripts ++ votingProceduresScripts ++
+            withdrawalScripts ++ proposalProcedureScripts ++
+            certificateScripts
     }
 
     private[this] def requiredInputScripts(
@@ -58,7 +77,7 @@ object MissingScriptsValidator extends STS.Validator {
     ): scala.collection.View[ScriptHash] = {
         val votingProcedures =
             event.body.value.votingProcedures.map(_.procedures).getOrElse(Map.empty)
-            
+
         for
             voter <- votingProcedures.keySet.view
             scriptHash <- voter match
@@ -74,11 +93,11 @@ object MissingScriptsValidator extends STS.Validator {
         event: Event
     ): scala.collection.View[ScriptHash] = {
         val withdrawals = event.body.value.withdrawals.map(_.withdrawals).getOrElse(Map.empty)
-        
+
         for
             rewardAccount <- withdrawals.keySet.view
-            keyHash <- extractScriptHash(rewardAccount.address)
-        yield keyHash
+            scriptHash <- extractScriptHash(rewardAccount.address)
+        yield scriptHash
     }
 
     private[this] def requiredProposalProcedureScripts(
@@ -88,15 +107,16 @@ object MissingScriptsValidator extends STS.Validator {
 
         for
             proposalProcedure <- proposalProcedures.view
-            keyHash <- proposalProcedure.govAction match 
+            scriptHash <- proposalProcedure.govAction match
                 case parameterChange: GovAction.ParameterChange => parameterChange.policyHash
-                case treasuryWithdrawals: GovAction.TreasuryWithdrawals => treasuryWithdrawals.policyHash
+                case treasuryWithdrawals: GovAction.TreasuryWithdrawals =>
+                    treasuryWithdrawals.policyHash
                 case _: GovAction.HardForkInitiation => None
-                case _: GovAction.NoConfidence => None
-                case _: GovAction.UpdateCommittee => None
-                case _: GovAction.NewConstitution => None
-                case GovAction.InfoAction => None
-        yield keyHash
+                case _: GovAction.NoConfidence       => None
+                case _: GovAction.UpdateCommittee    => None
+                case _: GovAction.NewConstitution    => None
+                case GovAction.InfoAction            => None
+        yield scriptHash
     }
 
     private[this] def requiredCertificateScripts(
@@ -104,12 +124,49 @@ object MissingScriptsValidator extends STS.Validator {
     ): scala.collection.View[ScriptHash] = {
         val certificates = event.body.value.certificates
 
+        def extractScriptHash(credential: Credential): Option[ScriptHash] = {
+            credential match
+                case _: Credential.KeyHash             => None
+                case Credential.ScriptHash(scriptHash) => Some(scriptHash)
+        }
+
         for
             certificate <- certificates.view
-            keyHash <- extractCertificateScriptHash(certificate)
-        yield keyHash
+            scriptHash <- certificate match
+                case Certificate.StakeRegistration(credential)   => None
+                case Certificate.StakeDeregistration(credential) => extractScriptHash(credential)
+                case Certificate.StakeDelegation(credential, _)  => extractScriptHash(credential)
+                case certificate: Certificate.PoolRegistration =>
+                    extractScriptHash(Credential.KeyHash(certificate.operator))
+                case Certificate.PoolRetirement(poolKeyHash, _) =>
+                    extractScriptHash(Credential.KeyHash(poolKeyHash.asInstanceOf[AddrKeyHash]))
+                case Certificate.RegCert(credential, deposit) =>
+                    if deposit > Coin.zero then extractScriptHash(credential)
+                    else None // No witness needed for zero deposit
+                case Certificate.UnregCert(credential, _)     => extractScriptHash(credential)
+                case Certificate.VoteDelegCert(credential, _) => extractScriptHash(credential)
+                case Certificate.StakeVoteDelegCert(credential, _, _) =>
+                    extractScriptHash(credential)
+                case Certificate.StakeRegDelegCert(credential, _, _) =>
+                    extractScriptHash(credential)
+                case Certificate.VoteRegDelegCert(credential, drep, coin) =>
+                    extractScriptHash(credential)
+                case Certificate.StakeVoteRegDelegCert(credential, _, _, _) =>
+                    extractScriptHash(credential)
+                case Certificate.AuthCommitteeHotCert(committeeColdCredential, _) =>
+                    extractScriptHash(committeeColdCredential)
+                case Certificate.ResignCommitteeColdCert(committeeColdCredential, _) =>
+                    extractScriptHash(committeeColdCredential)
+                case Certificate.RegDRepCert(drepCredential, _, _) =>
+                    extractScriptHash(drepCredential)
+                case Certificate.UnregDRepCert(drepCredential, _) =>
+                    extractScriptHash(drepCredential)
+                case Certificate.UpdateDRepCert(drepCredential, _) =>
+                    extractScriptHash(drepCredential)
+        yield scriptHash
     }
 
+    // TODO add bootstrap witnesses validation
     private[this] def requiredTransactionInputScripts(
         inputs: Set[TransactionInput],
         transactionId: TransactionHash,
@@ -124,10 +181,27 @@ object MissingScriptsValidator extends STS.Validator {
                         case Some(scriptHash) => Some(Right(scriptHash))
                         case None             => None
                 case None =>
-                    // If the input is missing, we can't validate it
+                    // This check allows to be an order independent in the sequence of validation rules
                     Some(Left(missingInputError(transactionId, input, index)))
         yield result
     }
+
+//    private[this] def providedTransactionReferenceScripts(
+//        inputs: Set[TransactionInput],
+//        transactionId: TransactionHash,
+//        utxo: Utxo,
+//        missingInputError: (TransactionHash, TransactionInput, Int) => IllegalArgumentException
+//    ): scala.collection.View[Either[Error, ScriptHash]] = {
+//        for
+//            (input, index) <- inputs.view.zipWithIndex
+//            state.get(input) match
+//                case Some(output) =>
+//
+//                case None =>
+//     // If the input is missing, we can't validate it
+//                    failure(missingInputError(transactionId, input, index))
+//
+//    }
 
     private[this] def extractScriptHash(
         address: Address
