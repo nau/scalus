@@ -10,7 +10,7 @@ import scalus.prelude.List.*
 
 // here warnings are incorrect, ignore them
 import scalus.prelude.Option.{asScalus as asScalusOption, None, Some}
-import scalus.uplc.ArbitraryInstances
+import scalus.uplc.test.ArbitraryInstances
 
 private object ListTest {
     val testScalusList1: List[BigInt] = List(1, 2, 3)

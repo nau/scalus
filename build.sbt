@@ -279,6 +279,11 @@ lazy val scalusTestkit = crossProject(JSPlatform, JVMPlatform, NativePlatform)
       scalaVersion := scalaVersion.value,
       scalacOptions ++= commonScalacOptions,
       Test / scalacOptions += "-color:never",
+      Compile / managedSources ++= {
+          val baseDir =
+              (scalus.jvm / crossProjectBaseDirectory).value / "shared" / "src" / "test" / "scala"
+          Seq(baseDir / "scalus" / "uplc" / "test" / "ArbitraryInstances.scala")
+      },
       libraryDependencies += "org.scalatestplus" %%% "scalacheck-1-18" % "3.2.19.0"
     )
     .jsSettings(

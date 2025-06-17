@@ -17,6 +17,7 @@ import scalus.uplc.Term.*
 import scalus.uplc.TermDSL.given
 import scalus.uplc.eval.{PlutusVM, Result}
 import scalus.uplc.*
+import scalus.uplc.test.ArbitraryInstances
 
 import scala.language.implicitConversions
 

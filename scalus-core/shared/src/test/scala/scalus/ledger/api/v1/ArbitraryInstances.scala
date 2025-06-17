@@ -6,8 +6,9 @@ import scalus.*
 import scalus.prelude.Ord
 
 import scalus.builtin.ByteString
+import scalus.uplc.test
 
-trait ArbitraryInstances extends scalus.uplc.ArbitraryInstances:
+trait ArbitraryInstances extends test.ArbitraryInstances:
     given Arbitrary[IntervalBoundType] = Arbitrary {
         Gen.frequency(
           (1, Gen.const(IntervalBoundType.NegInf)),

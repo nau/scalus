@@ -1,4 +1,5 @@
 package scalus.uplc
+package test
 
 import org.scalacheck.{Arbitrary, Gen, Shrink}
 import scalus.*

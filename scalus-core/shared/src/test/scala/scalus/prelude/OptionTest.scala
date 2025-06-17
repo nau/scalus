@@ -6,10 +6,10 @@ import scalus.Compiler.compile
 import scalus.*
 import scalus.prelude.{*, given}
 import scalus.sir.SIR
-import scalus.uplc.ArbitraryInstances
 import scalus.uplc.Term
 import scalus.uplc.TermDSL.given
 import scalus.uplc.eval.PlutusVM
+import scalus.uplc.test.ArbitraryInstances
 
 import scala.language.implicitConversions
 

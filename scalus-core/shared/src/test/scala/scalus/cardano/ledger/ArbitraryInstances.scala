@@ -7,12 +7,13 @@ import scalus.builtin.{ByteString, Data}
 import scalus.builtin.Data.*
 import scalus.cardano.ledger.ArbitraryDerivation.autoDerived
 import scalus.ledger.api.{SlotNo, Timelock}
+import scalus.uplc.test
 import scalus.{builtin, uplc}
 
 import scala.collection.immutable
 
 trait ArbitraryInstances
-    extends uplc.ArbitraryInstances
+    extends test.ArbitraryInstances
     with scalus.cardano.address.ArbitraryInstances {
     def genMapOfSizeFromArbitrary[A: Arbitrary, B: Arbitrary](
         from: Int,
