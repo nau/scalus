@@ -21,6 +21,12 @@ import scalus.uplc.Constant.BLS12_381_MlResult
 @nowarn("cat=deprecation")
 trait ArbitraryInstances:
 
+    def genByteStringOfN(n: Int): Gen[ByteString] = {
+        Gen
+            .containerOfN[Array, Byte](n, Arbitrary.arbitrary[Byte])
+            .map(a => ByteString.unsafeFromArray(a))
+    }
+
     given byteStringArb: Arbitrary[builtin.ByteString] = Arbitrary(
       for
           sz <- Gen.frequency((0, Gen.choose(1000, 10000)), (10, Gen.choose(0, 100)))

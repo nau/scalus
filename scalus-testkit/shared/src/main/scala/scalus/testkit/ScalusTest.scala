@@ -13,7 +13,7 @@ import scalus.sir.SIR
 import scalus.uplc.*
 import scalus.uplc.eval.*
 
-trait ScalusTest {
+trait ScalusTest extends ArbitraryInstances {
     protected given PlutusVM = PlutusVM.makePlutusV3VM()
 
     extension (self: SIR)
@@ -32,12 +32,6 @@ trait ScalusTest {
             appliedScript.evaluateDebug
 
         def hash: ValidatorHash = blake2b_224(ByteString.fromArray(3 +: self.cborEncoded))
-
-    protected def genByteStringOfN(n: Int): Gen[ByteString] = {
-        Gen
-            .containerOfN[Array, Byte](n, Arbitrary.arbitrary[Byte])
-            .map(a => ByteString.unsafeFromArray(a))
-    }
 
     given Arbitrary[TxId] = Arbitrary(genByteStringOfN(32).map(TxId.apply))
     given Arbitrary[TxOutRef] = Arbitrary {
@@ -58,7 +52,7 @@ trait ScalusTest {
     ): ScriptContext = {
         val ownInput =
             TxInInfo(
-              outRef = Arbitrary.arbitrary[TxOutRef].sample.get,
+              outRef = random[TxOutRef],
               resolved = TxOut(
                 address = Address(
                   Credential.ScriptCredential(genByteStringOfN(28).sample.get),

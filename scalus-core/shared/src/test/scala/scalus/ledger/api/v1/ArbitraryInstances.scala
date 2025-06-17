@@ -34,7 +34,9 @@ trait ArbitraryInstances extends test.ArbitraryInstances:
     }
 
     given Arbitrary[TxId] = Arbitrary {
-        Gen
-            .containerOfN[Array, Byte](32, Arbitrary.arbitrary[Byte])
-            .map(ba => TxId(ByteString.unsafeFromArray(ba)))
+        genByteStringOfN(32).map(TxId.apply)
+    }
+
+    given Arbitrary[PubKeyHash] = Arbitrary {
+        genByteStringOfN(28).map(PubKeyHash.apply)
     }

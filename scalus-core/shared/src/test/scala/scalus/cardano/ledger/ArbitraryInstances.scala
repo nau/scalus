@@ -12,9 +12,7 @@ import scalus.{builtin, uplc}
 
 import scala.collection.immutable
 
-trait ArbitraryInstances
-    extends test.ArbitraryInstances
-    with scalus.cardano.address.ArbitraryInstances {
+trait ArbitraryInstances extends scalus.cardano.address.ArbitraryInstances {
     def genMapOfSizeFromArbitrary[A: Arbitrary, B: Arbitrary](
         from: Int,
         to: Int
