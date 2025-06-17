@@ -31,9 +31,9 @@ object NeededWitnessesValidator extends STS.Validator {
               IllegalArgumentException(
                 s"Missing input $input with index $index in UTxO state for transactionId $transactionId"
               ),
-          (transactionId, hash, input, index) =>
+          (transactionId, keyHash, input, index) =>
               IllegalArgumentException(
-                s"Missing vkey witness for staking credential $hash in input $input with index $index for transactionId $transactionId"
+                s"Missing vkey witness for staking credential $keyHash in input $input with index $index for transactionId $transactionId"
               )
         )
 
@@ -51,9 +51,9 @@ object NeededWitnessesValidator extends STS.Validator {
               IllegalArgumentException(
                 s"Missing collateralInput $collateralInput with index $index in UTxO state for transactionId $transactionId"
               ),
-          (transactionId, hash, collateralInput, index) =>
+          (transactionId, keyHash, collateralInput, index) =>
               IllegalArgumentException(
-                s"Missing vkey witness for staking credential $hash in collateralInput $collateralInput with index $index for transactionId $transactionId"
+                s"Missing vkey witness for staking credential $keyHash in collateralInput $collateralInput with index $index for transactionId $transactionId"
               )
         )
 
@@ -67,26 +67,24 @@ object NeededWitnessesValidator extends STS.Validator {
         val votingProcedures =
             event.body.value.votingProcedures.map(_.procedures).getOrElse(Map.empty)
 
-        for (voter, index) <- votingProcedures.view.keySet.zipWithIndex
-        do
-            val OptionHash = voter match
+        for
+            (voter, index) <- votingProcedures.view.keySet.zipWithIndex
+            keyHash <- voter match
                 case Voter.ConstitutionalCommitteeHotKey(keyHash) => Some(keyHash)
                 case Voter.StakingPoolKey(keyHash)                => Some(keyHash)
                 case Voter.DRepKey(keyHash)                       => Some(keyHash)
                 case _: Voter.ConstitutionalCommitteeHotScript    => None
                 case _: Voter.DRepScript                          => None
-
-            OptionHash.foreach { hash =>
-                if !vkeyWitnesses.exists(_.vkeyHash == hash)
-                then
-                    break(
-                      failure(
-                        IllegalArgumentException(
-                          s"Missing vkey witness for staking credential $hash in voter $voter with index $index for transactionId $transactionId"
-                        )
-                      )
+        do
+            if !vkeyWitnesses.exists(_.vkeyHash == keyHash)
+            then
+                break(
+                  failure(
+                    IllegalArgumentException(
+                      s"Missing vkey witness for staking credential $keyHash in voter $voter with index $index for transactionId $transactionId"
                     )
-            }
+                  )
+                )
 
         success
     }
@@ -100,18 +98,41 @@ object NeededWitnessesValidator extends STS.Validator {
         val vkeyWitnesses = event.witnessSet.vkeyWitnesses
         val certificates = event.body.value.certificates
 
-        for (certificate, index) <- certificates.view.zipWithIndex
+        for
+            (certificate, index) <- certificates.view.zipWithIndex
+            keyHash <- certificate match
+                case Certificate.StakeRegistration(credential)   => None
+                case Certificate.StakeDeregistration(credential) => Some(credential)
+                case Certificate.StakeDelegation(credential, _)  => Some(credential)
+                case certificate: Certificate.PoolRegistration =>
+                    Some(Credential.KeyHash(certificate.operator))
+                case Certificate.PoolRetirement(poolKeyHash, _) =>
+                    Some(Credential.KeyHash(poolKeyHash.asInstanceOf[AddrKeyHash]))
+                case Certificate.RegCert(credential, deposit) =>
+                    if deposit > Coin.zero then Some(credential)
+                    else None // No witness needed for zero deposit
+                case Certificate.UnregCert(credential, _)                   => Some(credential)
+                case Certificate.VoteDelegCert(credential, _)               => Some(credential)
+                case Certificate.StakeVoteDelegCert(credential, _, _)       => Some(credential)
+                case Certificate.StakeRegDelegCert(credential, _, _)        => Some(credential)
+                case Certificate.VoteRegDelegCert(credential, drep, coin)   => Some(credential)
+                case Certificate.StakeVoteRegDelegCert(credential, _, _, _) => Some(credential)
+                case Certificate.AuthCommitteeHotCert(committeeColdCredential, _) =>
+                    Some(committeeColdCredential)
+                case Certificate.ResignCommitteeColdCert(committeeColdCredential, _) =>
+                    Some(committeeColdCredential)
+                case Certificate.RegDRepCert(drepCredential, _, _) => Some(drepCredential)
+                case Certificate.UnregDRepCert(drepCredential, _)  => Some(drepCredential)
+                case Certificate.UpdateDRepCert(drepCredential, _) => Some(drepCredential)
         do
-            val result = validateCertificate(
-              certificate,
-              transactionId,
-              vkeyWitnesses,
-              index
-            )
-
-            result match
-                case _: Right[Error, Value]   =>
-                case left: Left[Error, Value] => break(left)
+            if !vkeyWitnesses.exists(_.vkeyHash == keyHash) then
+                break(
+                  failure(
+                    IllegalArgumentException(
+                      s"Missing vkey witness for staking credential $keyHash in certificate $certificate with index $index for transactionId $transactionId"
+                    )
+                  )
+                )
 
         success
     }
@@ -125,19 +146,19 @@ object NeededWitnessesValidator extends STS.Validator {
         val vkeyWitnesses = event.witnessSet.vkeyWitnesses
         val withdrawals = event.body.value.withdrawals.map(_.withdrawals).getOrElse(Map.empty)
 
-        for (rewardAccount, index) <- withdrawals.view.keySet.zipWithIndex
+        for
+            (rewardAccount, index) <- withdrawals.view.keySet.zipWithIndex
+            keyHash <- extractKeyHash(rewardAccount.address)
         do
-            extractKeyHash(rewardAccount.address).foreach { hash =>
-                if !vkeyWitnesses.exists(_.vkeyHash == hash)
-                then
-                    break(
-                      failure(
-                        IllegalArgumentException(
-                          s"Missing vkey witness for staking credential $hash in reward account $rewardAccount with index $index in withdrawals for transactionId $transactionId"
-                        )
-                      )
+            if !vkeyWitnesses.exists(_.vkeyHash == keyHash)
+            then
+                break(
+                  failure(
+                    IllegalArgumentException(
+                      s"Missing vkey witness for staking credential $keyHash in reward account $rewardAccount with index $index in withdrawals for transactionId $transactionId"
                     )
-            }
+                  )
+                )
 
         success
     }
@@ -160,14 +181,14 @@ object NeededWitnessesValidator extends STS.Validator {
         do
             utxo.get(input) match
                 case Some(output) =>
-                    extractKeyHash(output.address).foreach { hash =>
-                        if !vkeyWitnesses.exists(_.vkeyHash == hash)
+                    extractKeyHash(output.address).foreach { keyHash =>
+                        if !vkeyWitnesses.exists(_.vkeyHash == keyHash)
                         then
                             break(
                               failure(
                                 missingWitnessError(
                                   transactionId,
-                                  hash,
+                                  keyHash,
                                   input,
                                   index
                                 )
@@ -180,142 +201,6 @@ object NeededWitnessesValidator extends STS.Validator {
                     break(failure(missingInputError(transactionId, input, index)))
 
         success
-    }
-
-    private[this] def validateCertificate(
-        certificate: Certificate,
-        transactionId: TransactionHash,
-        vkeyWitnesses: Set[VKeyWitness],
-        index: Int
-    ): Result = {
-        def checkWitness(credential: Credential): Result = {
-            val optionHash = credential match
-                case Credential.KeyHash(keyHash) => Some(keyHash)
-                case _: Credential.ScriptHash    => None
-
-            optionHash match
-                case Some(hash) if !vkeyWitnesses.exists(_.vkeyHash == hash) =>
-                    failure(
-                      IllegalArgumentException(
-                        s"Missing vkey witness for staking credential $credential in certificate $certificate with index $index for transactionId $transactionId"
-                      )
-                    )
-                case _ => success
-        }
-
-        def wrapIfInnerErrorOccurred(credential: Credential, result: Result): Result = {
-            result match
-                case _: Right[Error, Value] => success
-                case Left(error) =>
-                    failure(
-                      IllegalArgumentException(
-                        s"Missing vkey witness for staking credential $credential in certificate $certificate with index $index for transactionId $transactionId",
-                        error
-                      )
-                    )
-        }
-
-        certificate match
-            case Certificate.StakeRegistration(credential)   => success
-            case Certificate.StakeDeregistration(credential) => checkWitness(credential)
-            case Certificate.StakeDelegation(credential, _)  => checkWitness(credential)
-            case certificate: Certificate.PoolRegistration =>
-                checkWitness(Credential.KeyHash(certificate.operator))
-            case Certificate.PoolRetirement(poolKeyHash, _) =>
-                checkWitness(Credential.KeyHash(poolKeyHash.asInstanceOf[AddrKeyHash]))
-            case Certificate.RegCert(credential, deposit) =>
-                if deposit > Coin.zero then checkWitness(credential)
-                else success // No witness needed for zero deposit
-            case Certificate.UnregCert(credential, _)     => checkWitness(credential)
-            case Certificate.VoteDelegCert(credential, _) => checkWitness(credential)
-            case Certificate.StakeVoteDelegCert(credential, poolKeyHash, drep) =>
-                wrapIfInnerErrorOccurred(
-                  credential,
-                  for
-                      _ <- validateCertificate(
-                        Certificate.VoteDelegCert(credential, drep),
-                        transactionId,
-                        vkeyWitnesses,
-                        index
-                      )
-                      _ <- validateCertificate(
-                        Certificate.StakeDelegation(credential, poolKeyHash),
-                        transactionId,
-                        vkeyWitnesses,
-                        index
-                      )
-                  yield ()
-                )
-
-            case Certificate.StakeRegDelegCert(credential, poolKeyHash, coin) =>
-                wrapIfInnerErrorOccurred(
-                  credential,
-                  for
-                      _ <- validateCertificate(
-                        Certificate.RegCert(credential, coin),
-                        transactionId,
-                        vkeyWitnesses,
-                        index
-                      )
-                      _ <- validateCertificate(
-                        Certificate.StakeDelegation(credential, poolKeyHash),
-                        transactionId,
-                        vkeyWitnesses,
-                        index
-                      )
-                  yield ()
-                )
-
-            case Certificate.VoteRegDelegCert(credential, drep, coin) =>
-                wrapIfInnerErrorOccurred(
-                  credential,
-                  for
-                      _ <- validateCertificate(
-                        Certificate.RegCert(credential, coin),
-                        transactionId,
-                        vkeyWitnesses,
-                        index
-                      )
-                      _ <- validateCertificate(
-                        Certificate.VoteDelegCert(credential, drep),
-                        transactionId,
-                        vkeyWitnesses,
-                        index
-                      )
-                  yield ()
-                )
-
-            case Certificate.StakeVoteRegDelegCert(credential, poolKeyHash, drep, coin) =>
-                wrapIfInnerErrorOccurred(
-                  credential,
-                  for
-                      _ <- validateCertificate(
-                        Certificate.RegCert(credential, coin),
-                        transactionId,
-                        vkeyWitnesses,
-                        index
-                      )
-                      _ <- validateCertificate(
-                        Certificate.StakeDelegation(credential, poolKeyHash),
-                        transactionId,
-                        vkeyWitnesses,
-                        index
-                      )
-                      _ <- validateCertificate(
-                        Certificate.VoteDelegCert(credential, drep),
-                        transactionId,
-                        vkeyWitnesses,
-                        index
-                      )
-                  yield ()
-                )
-            case Certificate.AuthCommitteeHotCert(committeeColdCredential, _) =>
-                checkWitness(committeeColdCredential)
-            case Certificate.ResignCommitteeColdCert(committeeColdCredential, _) =>
-                checkWitness(committeeColdCredential)
-            case Certificate.RegDRepCert(drepCredential, _, _) => checkWitness(drepCredential)
-            case Certificate.UnregDRepCert(drepCredential, _)  => checkWitness(drepCredential)
-            case Certificate.UpdateDRepCert(drepCredential, _) => checkWitness(drepCredential)
     }
 
     private[this] def extractKeyHash(
