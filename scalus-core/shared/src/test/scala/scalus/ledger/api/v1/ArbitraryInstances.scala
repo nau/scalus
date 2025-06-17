@@ -3,6 +3,7 @@ package scalus.ledger.api.v1
 import org.scalacheck.Arbitrary
 import org.scalacheck.Gen
 import scalus.*
+import scalus.prelude.Ord
 
 import scalus.builtin.ByteString
 
@@ -24,9 +25,11 @@ trait ArbitraryInstances extends scalus.uplc.ArbitraryInstances:
 
     given Arbitrary[Interval] = Arbitrary {
         for
-            lower <- Arbitrary.arbitrary[IntervalBound]
-            upper <- Arbitrary.arbitrary[IntervalBound]
-        yield Interval(lower, upper)
+            b1 <- Arbitrary.arbitrary[IntervalBound]
+            b2 <- Arbitrary.arbitrary[IntervalBound]
+        yield summon[Ord[IntervalBound]].compare(b1, b2) match
+            case Ord.Order.Greater => Interval(b2, b1)
+            case _                 => Interval(b1, b2)
     }
 
     given Arbitrary[TxId] = Arbitrary {
