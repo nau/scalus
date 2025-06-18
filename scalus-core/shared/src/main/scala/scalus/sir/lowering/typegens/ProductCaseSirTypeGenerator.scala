@@ -122,7 +122,15 @@ object ProductCaseSirTypeGenerator extends SirTypeUplcGenerator {
                 ???
             case (ScottEncoding, ScottEncoding) =>
                 input
-            case (ProductCaseClassRepresentation.OneElementWrapper(_), ProdDataList) =>
+            case (
+                  ProductCaseClassRepresentation.OneElementWrapper(internalInputRep),
+                  ProdDataList
+                ) =>
+                if !internalInputRep.isPackedData then
+                    throw LoweringException(
+                      s"Expected packed data representation for one-element wrapper, got $internalInputRep",
+                      pos
+                    )
                 lvBuiltinApply2(
                   SIRBuiltins.mkCons,
                   input,

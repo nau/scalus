@@ -581,7 +581,7 @@ object SIRType {
                 if ref == null then Left("TypeProxy is not resolved")
                 else retrieveConstrDecl(ref)
             case TypeLambda(_, body) => retrieveConstrDecl(body)
-            case _                   => Left(s"Expected CaseClass, got ${tp.show}")
+            case _ => Left(s"Expected CaseClass, got ${tp.show} (${tp.getClass.getSimpleName}")
         }
     }
 

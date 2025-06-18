@@ -22,10 +22,10 @@ class SirToUplcFromDataReplacementTest extends AnyFunSuite {
             val tx = sc.txInfo
             tx.inputs.length
         }
-        // println(sir.showHighlighted)
+        // println(sir.show)
         val lowering = SirToUplcV3Lowering(sir)
         val term = lowering.lower()
-        // println(term.showHighlighted)
+        // println(term.show)
 
         val ownerPkh = PubKeyHash(hex"1234567890abcdef1234567890abcdef1234567890abcdef12345678")
         val scriptContext = makeSpendingScriptContext(
