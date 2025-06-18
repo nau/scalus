@@ -53,4 +53,11 @@ trait ArbitraryInstances extends v2.ArbitraryInstances {
         )
     }
 
+    given Arbitrary[ScriptPurpose] = Arbitrary {
+        Gen.oneOf(
+          arbitrary[CurrencySymbol].map(ScriptPurpose.Minting.apply),
+          arbitrary[TxOutRef].map(ScriptPurpose.Spending.apply),
+        )
+    }
+
 }
