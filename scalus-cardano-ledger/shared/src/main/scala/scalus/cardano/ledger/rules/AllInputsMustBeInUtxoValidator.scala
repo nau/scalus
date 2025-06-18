@@ -13,7 +13,7 @@ object AllInputsMustBeInUtxoValidator extends STS.Validator {
         yield ()
     }
 
-    private[this] def validateInputs(context: Context, state: State, event: Event): Result =
+    private def validateInputs(context: Context, state: State, event: Event): Result =
         validateTransactionInputs(
           event.id,
           event.body.value.inputs,
@@ -24,7 +24,7 @@ object AllInputsMustBeInUtxoValidator extends STS.Validator {
               )
         )
 
-    private[this] def validateCollateralInputs(
+    private def validateCollateralInputs(
         context: Context,
         state: State,
         event: Event
@@ -39,7 +39,7 @@ object AllInputsMustBeInUtxoValidator extends STS.Validator {
               )
         )
 
-    private[this] def validateReferenceInputs(
+    private def validateReferenceInputs(
         context: Context,
         state: State,
         event: Event
@@ -54,7 +54,7 @@ object AllInputsMustBeInUtxoValidator extends STS.Validator {
               )
         )
 
-    private[this] def validateTransactionInputs(
+    private def validateTransactionInputs(
         transactionId: TransactionHash,
         inputs: Set[TransactionInput],
         utxo: Utxo,
