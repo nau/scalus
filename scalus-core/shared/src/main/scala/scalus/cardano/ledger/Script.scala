@@ -38,7 +38,7 @@ enum Script derives Codec.All:
 object Script:
     def nativeScriptHash(script: Timelock): ScriptHash = Hash(
       summon[PlatformSpecific].blake2b_256(
-        ByteString.unsafeFromArray(Cbor.encode(script).toByteArray)
+        ByteString.unsafeFromArray(Cbor.encode(script).toByteArray.prepended(0))
       )
     )
 

@@ -6,11 +6,6 @@ import scalus.cardano.ledger.*
 import scalus.cardano.address.Address
 import scalus.ledger.babbage.ProtocolParams
 import upickle.default.read
-import com.bloxbean.cardano.client.transaction.TransactionSigner
-import com.bloxbean.cardano.client.common.model.{Network, Networks}
-import com.bloxbean.cardano.client.account.Account
-import com.bloxbean.cardano.client.transaction.spec.{Transaction as BloxbeanTransaction, TransactionWitnessSet as BloxbeanTransactionWitnessSet}
-import scalus.builtin.ByteString
 
 class StateTransitionTest extends AnyFunSuite, ArbitraryInstances {
     private val params = read[ProtocolParams](
@@ -246,32 +241,7 @@ class StateTransitionTest extends AnyFunSuite, ArbitraryInstances {
     }
 
 //    test("VerifiedWitnessesValidator VkeyWitnesses rule success") {
-//        val context = Context()
-//        val state = State()
-//        val transaction = {
-//            val tx = randomValidTransaction
-//            tx.copy(
-//              witnessSet = TransactionWitnessSet(
-//                vkeyWitnesses = Set.empty,
-//                bootstrapWitnesses = Set.empty
-//              )
-//            )
-//            val bloxbeanVkeyWitnesses = sign(tx).getVkeyWitnesses.getFirst
-//            tx.copy(
-//              witnessSet = TransactionWitnessSet(
-//                vkeyWitnesses = Set(
-//                  VKeyWitness(
-//                    ByteString.unsafeFromArray(bloxbeanVkeyWitnesses.getVkey),
-//                    ByteString.unsafeFromArray(bloxbeanVkeyWitnesses.getSignature)
-//                  )
-//                ),
-//                bootstrapWitnesses = Set.empty
-//              )
-//            )
-//        }
-//
-//        val result = VerifiedWitnessesValidator.validate(context, state, transaction)
-//        assert(result.isRight)
+//        ???
 //    }
 
     test("FeeMutator success") {
@@ -398,17 +368,4 @@ class StateTransitionTest extends AnyFunSuite, ArbitraryInstances {
 
     private[this] def randomValidTransaction =
         Arbitrary.arbitrary[Transaction].sample.get.copy(isValid = true)
-
-    private[this] val senderMnemonic: String =
-        "drive useless envelope shine range ability time copper alarm museum near flee wrist live type device meadow allow churn purity wisdom praise drop code"
-
-    private[this] val network: Network = Networks.preview()
-    private[this] val sender = new Account(network, senderMnemonic)
-    private[this] def sign(transaction: Transaction): BloxbeanTransactionWitnessSet = {
-        BloxbeanTransaction
-            .deserialize(
-              TransactionSigner.INSTANCE.sign(transaction.body.raw, sender.hdKeyPair())
-            )
-            .getWitnessSet
-    }
 }

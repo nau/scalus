@@ -302,6 +302,8 @@ trait NativePlatformSpecific extends PlatformSpecific {
         require(sig.length == 64, s"Invalid signature length ${sig.length}")
         Sodium.verifyEd25519Signature(pk.bytes, msg.bytes, sig.bytes)
 
+    override def signEd25519(privateKey: ByteString, msg: ByteString): ByteString = ???
+
     override def verifyEcdsaSecp256k1Signature(
         pk: ByteString,
         msg: ByteString,
