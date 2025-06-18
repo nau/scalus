@@ -33,14 +33,6 @@ trait ScalusTest extends ArbitraryInstances {
 
         def hash: ValidatorHash = blake2b_224(ByteString.fromArray(3 +: self.cborEncoded))
 
-    given Arbitrary[TxId] = Arbitrary(genByteStringOfN(32).map(TxId.apply))
-    given Arbitrary[TxOutRef] = Arbitrary {
-        for
-            txId <- Arbitrary.arbitrary[TxId]
-            index <- Gen.choose(0, 1000)
-        yield TxOutRef(txId, index)
-    }
-
     protected def random[A: Arbitrary]: A = {
         Arbitrary.arbitrary[A].sample.get
     }

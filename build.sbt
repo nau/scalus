@@ -282,8 +282,17 @@ lazy val scalusTestkit = crossProject(JSPlatform, JVMPlatform, NativePlatform)
       Compile / managedSources ++= {
           val baseDir =
               (scalus.jvm / crossProjectBaseDirectory).value / "shared" / "src" / "test" / "scala"
-          Seq(baseDir / "scalus" / "uplc" / "test" / "ArbitraryInstances.scala")
+          Seq(
+            baseDir / "scalus" / "testutil" / "ArbitraryDerivation.scala",
+            baseDir / "scalus" / "uplc" / "test" / "ArbitraryInstances.scala",
+            baseDir / "scalus" / "ledger" / "api" / "v1" / "ArbitraryInstances.scala",
+            baseDir / "scalus" / "ledger" / "api" / "v2" / "ArbitraryInstances.scala",
+            baseDir / "scalus" / "ledger" / "api" / "v3" / "ArbitraryInstances.scala",
+            baseDir / "scalus" / "cardano" / "address" / "ArbitraryInstances.scala",
+            baseDir / "scalus" / "cardano" / "ledger" / "ArbitraryInstances.scala"
+          )
       },
+      libraryDependencies += "com.softwaremill.magnolia1_3" %%% "magnolia" % "1.3.18",
       libraryDependencies += "org.scalatestplus" %%% "scalacheck-1-18" % "3.2.19.0"
     )
     .jsSettings(
@@ -308,6 +317,7 @@ lazy val scalusExamples = crossProject(JSPlatform, JVMPlatform, NativePlatform)
       PluginDependency,
       scalacOptions ++= commonScalacOptions,
       publish / skip := true,
+      libraryDependencies += "com.softwaremill.magnolia1_3" %%% "magnolia" % "1.3.18" % "test",
       libraryDependencies += "org.scalatest" %%% "scalatest" % "3.2.19" % "test",
       libraryDependencies += "org.scalatestplus" %%% "scalacheck-1-18" % "3.2.19.0" % "test"
     )

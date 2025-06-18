@@ -29,7 +29,7 @@ trait ArbitraryInstances extends test.ArbitraryInstances {
             case _                 => Interval(b1, b2)
     }
 
-    given Arbitrary[TxId] = Arbitrary {
+    given TxIdV1: Arbitrary[TxId] = Arbitrary {
         genByteStringOfN(32).map(TxId.apply)
     }
 
