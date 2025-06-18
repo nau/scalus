@@ -1,11 +1,10 @@
 package scalus.ledger.api.v1
 
-import org.scalacheck.Arbitrary
 import org.scalacheck.Arbitrary.arbitrary
-import org.scalacheck.Gen
+import org.scalacheck.{Arbitrary, Gen}
 import scalus.*
-import scalus.prelude.Ord
-
+import scalus.prelude.{Option, Ord}
+import scalus.testutil.ArbitraryDerivation.autoDerived
 import scalus.uplc.test
 
 object ArbitraryInstances extends ArbitraryInstances
@@ -18,12 +17,7 @@ trait ArbitraryInstances extends test.ArbitraryInstances {
         )
     }
 
-    given Arbitrary[IntervalBound] = Arbitrary {
-        for
-            time <- arbitrary[IntervalBoundType]
-            closure <- arbitrary[Boolean]
-        yield IntervalBound(time, closure)
-    }
+    given Arbitrary[IntervalBound] = autoDerived
 
     given Arbitrary[Interval] = Arbitrary {
         for
@@ -42,15 +36,12 @@ trait ArbitraryInstances extends test.ArbitraryInstances {
         genByteStringOfN(28).map(PubKeyHash.apply)
     }
 
-    given Arbitrary[Credential] = Arbitrary {
-        Gen.oneOf(
-          arbitrary[PubKeyHash].map(Credential.PubKeyCredential.apply),
-          arbitrary[ScriptHash].map(Credential.ScriptCredential.apply)
-        )
-    }
+    given Arbitrary[Credential] = autoDerived
 
     given Arbitrary[StakingCredential] = Arbitrary {
         // We don't generate StakingPtr because it's deprecated and can't be used since Conway era.
         arbitrary[Credential].map(StakingCredential.StakingHash.apply)
     }
+
+    given Arbitrary[Address] = autoDerived
 }

@@ -5,7 +5,7 @@ import org.scalacheck.{Arbitrary, Gen}
 import org.scalacheck.Arbitrary.arbitrary
 import scalus.builtin.{ByteString, Data}
 import scalus.builtin.Data.*
-import scalus.cardano.ledger.ArbitraryDerivation.autoDerived
+import scalus.testutil.ArbitraryDerivation.autoDerived
 import scalus.ledger.api.{SlotNo, Timelock}
 import scalus.uplc.test
 import scalus.{builtin, uplc}
