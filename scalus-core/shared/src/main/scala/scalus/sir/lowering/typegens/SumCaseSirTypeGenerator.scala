@@ -362,18 +362,10 @@ object SumCaseSirTypeGenerator extends SirTypeUplcGenerator {
 
         val listDataType = SIRType.List(SIRType.Data)
 
-        val constrDecl = constrPattern.constr
-        if constrDecl.params.length != constrPattern.bindings.length then
-            throw new LoweringException(
-              s"Expected ${constrDecl.params.length} bindings, got ${constrPattern.bindings.length} for constructor ${constrDecl.name}",
-              sirCase.anns.pos
-            )
-
         // The sence of this fold is to add to hre scope all bindingd vars
         val (lastTail, n) =
-            constrPattern.bindings.zip(constrDecl.params).foldLeft((dataListVar, 0)) {
-                case ((currentTail, idx), (name, typeBinding)) =>
-                    val tp = typeBinding.tp
+            constrPattern.bindings.zip(constrPattern.typeBindings).foldLeft((dataListVar, 0)) {
+                case ((currentTail, idx), (name, tp)) =>
                     val prevId = currentTail.id
                     val tpDataRepresentation =
                         lctx.typeGenerator(tp).defaultDataRepresentation
@@ -390,7 +382,6 @@ object SumCaseSirTypeGenerator extends SirTypeUplcGenerator {
                       ),
                       sirCase.anns.pos
                     )
-                    println(s"created binded var: ${bindedVar.name} with id ${bindedVar.id}")
                     val tailId = s"${dataListId}_b${}"
                     // mb we already have this id in the scope
                     val tailVar =

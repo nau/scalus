@@ -130,7 +130,6 @@ case class StaticLoweredValue(
   */
 sealed trait IdentifiableLoweredValue extends LoweredValue {
     def id: String
-    def name: String
 
     def optRhs: Option[LoweredValue]
 
@@ -379,51 +378,18 @@ object LoweredValue {
             lctx: LoweringContext
         ): LoweredValue = {
 
-            def firstArgType(tp: SIRType): SIRType = tp match {
-                case SIRType.Fun(argTp, _) => argTp
-                case SIRType.TypeLambda(params, body) =>
-                    firstArgType(body)
-                case SIRType.TypeProxy(ref) =>
-                    if ref != null then firstArgType(ref.asInstanceOf[SIRType])
-                    else
-                        throw LoweringException(
-                          s"Empty type proxy in function application",
-                          inPos
-                        )
-                case _ =>
-                    throw LoweringException(
-                      s"Cannot apply function to argument, because function type is not a function: ${tp.show}",
-                      inPos
-                    )
-            }
-
             val resType = resTp.getOrElse(
               SIRType.calculateApplyType(f.sirType, arg.sirType, lctx.typeVars)
             )
 
-            val targetArgType = firstArgType(f.sirType) match {
-                case SIRType.TypeVar(name, optId) => arg.sirType
-                case SIRType.FreeUnificator       => arg.sirType
-                case other                        => other
-            }
+            // TODO: add upcast if needed (?)
 
-            // println(s"targetArgType = ${targetArgType.show}")
+            val argRepresentation = lctx.typeGenerator(arg.sirType).defaultRepresentation
 
-            val targetArgRepresentation = lctx.typeGenerator(targetArgType).defaultRepresentation
-
-            // println(s"targetArgRepresentation = ${targetArgRepresentation}")
-
-            val argInDefaultRepresentation =
-                if SIRType.isPolyFunOrFun(targetArgType) then arg
-                else
-                    arg
-                        .maybeUpcast(targetArgType, inPos)
-                        .toRepresentation(
-                          targetArgRepresentation,
-                          inPos
-                        )
-
-            // println(s"argInDefaultRepresentation = ${argInDefaultRepresentation}")
+            val argInDefaultRepresentation = arg.toRepresentation(
+              argRepresentation,
+              inPos
+            )
 
             new ComplexLoweredValue(Set.empty, f, arg) {
 

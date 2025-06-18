@@ -25,7 +25,6 @@ case class FunSirTypeGenerator(genInput: SirTypeUplcGenerator, genOutput: SirTyp
     )(using
         lctx: LoweringContext
     ): LoweredValue = {
-        throw new RuntimeException("Fun: toRepresentation should not be called directly")
         (input.representation, outputRepresentation) match {
             case (
                   LambdaRepresentation(inputFrom, inputTo),

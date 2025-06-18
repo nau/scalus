@@ -301,15 +301,14 @@ object SIR:
         anns: AnnotationsDecl
     ) extends AnnotatedSIR
 
-    sealed trait Pattern
+    enum Pattern:
 
-    object Pattern:
-        case class Constr(
+        case Constr(
             constr: ConstrDecl,
             bindings: List[String], // TODO: add wildcard as a special case.
-            typeParamsBindings: List[SIRType]
-        ) extends Pattern
-        case object Wildcard extends Pattern
+            typeBindings: List[SIRType]
+        )
+        case Wildcard
 
     case class Case(
         pattern: Pattern,
