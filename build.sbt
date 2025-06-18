@@ -309,7 +309,7 @@ lazy val scalusTestkit = crossProject(JSPlatform, JVMPlatform, NativePlatform)
       }
     )
 
-lazy val scalusExamples = crossProject(JSPlatform, JVMPlatform, NativePlatform)
+lazy val scalusExamples = crossProject(JSPlatform, JVMPlatform)
     .in(file("scalus-examples"))
     .dependsOn(scalus, scalusTestkit)
     .disablePlugins(MimaPlugin) // disable Migration Manager for Scala
