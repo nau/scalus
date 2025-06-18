@@ -1,12 +1,12 @@
 package scalus.testkit
 
-import org.scalacheck.{Arbitrary, Gen}
+import org.scalacheck.Arbitrary
 import scalus.*
+import scalus.builtin.Builtins.blake2b_224
 import scalus.builtin.Data.toData
 import scalus.builtin.{ByteString, Data}
-import scalus.builtin.Builtins.blake2b_224
-import scalus.ledger.api.v1.PubKeyHash
 import scalus.ledger.api.v1.Credential.{PubKeyCredential, ScriptCredential}
+import scalus.ledger.api.v1.PubKeyHash
 import scalus.ledger.api.v3.*
 import scalus.prelude.*
 import scalus.sir.SIR

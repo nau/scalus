@@ -18,4 +18,11 @@ trait ArbitraryInstances extends v2.ArbitraryInstances {
         yield TxOutRef(txId, index)
     }
 
+    given Arbitrary[TxInInfo] = Arbitrary {
+        for
+            outRef <- Arbitrary.arbitrary[TxOutRef]
+            resolved <- Arbitrary.arbitrary[TxOut]
+        yield TxInInfo(outRef, resolved)
+    }
+
 }
