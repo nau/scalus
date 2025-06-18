@@ -132,6 +132,12 @@ final class SIRCompiler(options: SIRCompilerOptions = SIRCompilerOptions.default
     extension (t: Tree) def isLiteral: Boolean = compileConstant.isDefinedAt(t)
     extension (t: Tree) def isData: Boolean = t.tpe <:< DataClassSymbol.typeRef
 
+    opaque type LocalBingingFlags = Int
+    object LocalBindingFlags {
+        val None: LocalBingingFlags = 0
+        val ErasedOnDataRepr: LocalBingingFlags = 1 << 0
+    }
+
     sealed trait LocalBindingOrSubmodule
 
     case class LocalBinding(
@@ -140,7 +146,8 @@ final class SIRCompiler(options: SIRCompilerOptions = SIRCompilerOptions.default
         symbol: Symbol,
         recursivity: Recursivity,
         body: AnnotatedSIR,
-        pos: SourcePosition
+        pos: SourcePosition,
+        flags: LocalBingingFlags
     ) extends LocalBindingOrSubmodule:
 
         def fullName(using Context): FullName = FullName(symbol)

@@ -20,7 +20,8 @@ object SumDatumValidator extends Validator:
     given ToData[TreasuryDatum] = ToData.derived
 
     override def spend(datum: Option[Data], redeemer: Data, tx: TxInfo, ownRef: TxOutRef): Unit =
-        //  val _: TreasuryDatum = datum match  - works
+        //  val _: TreasuryDatum = datum match  // works
+        //  val x = datum match // works
         val _ = datum match
             case Option.Some(d) => d.to[TreasuryDatum]
             case Option.None    => fail()

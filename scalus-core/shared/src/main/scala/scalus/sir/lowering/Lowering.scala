@@ -83,7 +83,13 @@ object Lowering {
                 //  SirTypeUplcGenerator(tp).defaultRepresentation
                 // )
             case sirLet @ SIR.Let(recursivity, bindings, body, anns) =>
-                lowerLet(sirLet)
+                // don;t generate FromData/ToData (now handled by Data Representation)
+                val nBinding = bindings.filterNot(b =>
+                    (isFromDataName(b.name) && isFromDataType(b.tp)) ||
+                        (isToDataName(b.name) && isToDataType(b.tp))
+                )
+                if nBinding.isEmpty then lowerSIR(body)
+                else lowerLet(sirLet)
             case SIR.LamAbs(param, term, anns) =>
                 lvLamAbs(
                   param,
@@ -320,8 +326,8 @@ object Lowering {
      */
 
     private def lowerApp(app: SIR.Apply)(using lctx: LoweringContext): LoweredValue = {
-        if isFromData(app) then lowerFromData(app)
-        else if isToData(app) then lowerToData(app)
+        if isFromDataApp(app) then lowerFromData(app)
+        else if isToDataApp(app) then lowerToData(app)
         else lowerNormalApp(app)
     }
 
@@ -354,28 +360,47 @@ object Lowering {
                 throw e
     }
 
-    private def isFromData(app: SIR.Apply): Boolean = {
+    private def isFromDataType(tp: SIRType): Boolean = tp match {
+        case SIRType.Fun(SIRType.Data, _)    => true
+        case SIRType.TypeLambda(params, tp1) => isFromDataType(tp1)
+        case _                               => false
+    }
 
-        def isFromDataType(tp: SIRType): Boolean = tp match {
-            case SIRType.Fun(SIRType.Data, _)    => true
-            case SIRType.TypeLambda(params, tp1) => isFromDataType(tp1)
-            case _                               => false
+    private def isToDataType(tp: SIRType): Boolean = tp match {
+        case SIRType.Fun(_, SIRType.Data)    => true
+        case SIRType.TypeLambda(params, tp1) => isToDataType(tp1)
+        case _                               => false
+    }
+
+    private def isFromDataName(name: String): Boolean = {
+        // extrapolation.  TODO: write annotation when compiling FromData tp and extract it here
+        val x =
+            name.contains("given_FromData") || name.contains("FromData$derive") || name.endsWith(
+              "FromData"
+            )
+        if !x && name.contains("FromData") then {
+            println(
+              s"Warning: $name is not a FromData function, but it contains FromData in its name. Please check it."
+            )
         }
+        x
+    }
+
+    private def isToDataName(name: String): Boolean = {
+        // extrapolation.  TODO: write annotation when compiling ToData tp and extract it here
+        name.contains("given_ToData") || name.contains("ToData$derive") || name.endsWith("ToData")
+    }
+
+    private def isFromDataApp(app: SIR.Apply): Boolean = {
 
         app.f match
             case SIR.ExternalVar(moduleName, name, tp, _) =>
                 // extrapolation.  TODO: write annotation when compiling FromData tp and extract it here
-                name.contains("FromData") && isFromDataType(tp)
+                isFromDataName(name) && isFromDataType(tp)
             case _ => false
     }
 
-    private def isToData(app: SIR.Apply): Boolean = {
-
-        def isToDataType(tp: SIRType): Boolean = tp match {
-            case SIRType.Fun(_, SIRType.Data)    => true
-            case SIRType.TypeLambda(params, tp1) => isToDataType(tp1)
-            case _                               => false
-        }
+    private def isToDataApp(app: SIR.Apply): Boolean = {
 
         app.f match
             case SIR.ExternalVar(moduleName, name, tp, _) =>
