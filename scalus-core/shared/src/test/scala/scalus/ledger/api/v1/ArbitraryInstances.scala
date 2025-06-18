@@ -4,7 +4,6 @@ import org.scalacheck.Arbitrary.arbitrary
 import org.scalacheck.{Arbitrary, Gen}
 import scalus.*
 import scalus.builtin.ByteString
-import scalus.prelude
 import scalus.prelude.{AssocMap, List, Option, Ord}
 import scalus.testutil.ArbitraryDerivation.autoDerived
 import scalus.uplc.test
@@ -38,7 +37,13 @@ trait ArbitraryInstances extends test.ArbitraryInstances {
         genByteStringOfN(28).map(PubKeyHash.apply)
     }
 
-    given Arbitrary[Credential] = autoDerived
+    given Arbitrary[Credential] = Arbitrary {
+        import scalus.cardano.ledger.ArbitraryInstances.given
+        Gen.oneOf(
+          arbitrary[PubKeyHash].map(Credential.PubKeyCredential.apply),
+          arbitrary[scalus.cardano.ledger.ScriptHash].map(Credential.ScriptCredential.apply)
+        )
+    }
 
     given Arbitrary[StakingCredential] = Arbitrary {
         // We don't generate StakingPtr because it's deprecated and can't be used since Conway era.
