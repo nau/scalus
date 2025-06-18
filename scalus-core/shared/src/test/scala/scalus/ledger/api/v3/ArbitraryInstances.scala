@@ -1,15 +1,18 @@
 package scalus.ledger.api.v3
 
+import org.scalacheck.Arbitrary.arbitrary
 import org.scalacheck.{Arbitrary, Gen}
 import scalus.*
+import scalus.ledger.api.v1.{Interval, PubKeyHash, Value}
 import scalus.ledger.api.v2
+import scalus.prelude.{AssocMap, List}
 
 object ArbitraryInstances extends ArbitraryInstances
 trait ArbitraryInstances extends v2.ArbitraryInstances {
     given Arbitrary[TxId] = Arbitrary(genByteStringOfN(32).map(TxId.apply))
     given Arbitrary[TxOutRef] = Arbitrary {
         for
-            txId <- Arbitrary.arbitrary[TxId]
+            txId <- arbitrary[TxId]
             index <- Gen.frequency(
               (10, Gen.choose(0, 3)),
               (3, Gen.choose(4, 10)),
@@ -20,9 +23,34 @@ trait ArbitraryInstances extends v2.ArbitraryInstances {
 
     given Arbitrary[TxInInfo] = Arbitrary {
         for
-            outRef <- Arbitrary.arbitrary[TxOutRef]
-            resolved <- Arbitrary.arbitrary[TxOut]
+            outRef <- arbitrary[TxOutRef]
+            resolved <- arbitrary[TxOut]
         yield TxInInfo(outRef, resolved)
+    }
+
+    given Arbitrary[TxInfo] = Arbitrary {
+        for
+            inputs <- arbitrary[prelude.List[TxInInfo]]
+            fee <- Gen.choose(0L, 1000000_000000L)
+            signatories <- arbitrary[prelude.List[PubKeyHash]]
+            mint <- arbitrary[Value]
+            outputs <- arbitrary[prelude.List[TxOut]]
+            interval <- arbitrary[Interval]
+            id <- arbitrary[TxId]
+        yield TxInfo(
+          inputs = inputs,
+          referenceInputs = List.Nil,
+          outputs = outputs,
+          fee = fee,
+          mint = mint,
+          certificates = List.Nil,
+          withdrawals = AssocMap.empty,
+          validRange = interval,
+          signatories = signatories,
+          redeemers = AssocMap.empty,
+          data = AssocMap.empty,
+          id = id,
+        )
     }
 
 }
