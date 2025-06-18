@@ -7,7 +7,9 @@ import scalus.builtin.Data
 import scalus.cardano.ledger.DataHash
 import scalus.ledger.api.v1
 
-trait ArbitraryInstances extends v1.ArbitraryInstances, cardano.ledger.ArbitraryInstances {
+object ArbitraryInstances extends ArbitraryInstances
+trait ArbitraryInstances extends v1.ArbitraryInstances {
+    import scalus.cardano.ledger.ArbitraryInstances.given
     given Arbitrary[OutputDatum] = Arbitrary {
         Gen.oneOf(
           Gen.const(OutputDatum.NoOutputDatum),

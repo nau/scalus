@@ -5,10 +5,10 @@ import org.scalacheck.Gen
 import scalus.*
 import scalus.prelude.Ord
 
-import scalus.builtin.ByteString
 import scalus.uplc.test
 
-trait ArbitraryInstances extends test.ArbitraryInstances:
+object ArbitraryInstances extends ArbitraryInstances
+trait ArbitraryInstances extends test.ArbitraryInstances {
     given Arbitrary[IntervalBoundType] = Arbitrary {
         Gen.frequency(
           (1, Gen.const(IntervalBoundType.NegInf)),
@@ -40,3 +40,11 @@ trait ArbitraryInstances extends test.ArbitraryInstances:
     given Arbitrary[PubKeyHash] = Arbitrary {
         genByteStringOfN(28).map(PubKeyHash.apply)
     }
+
+    given Arbitrary[Credential] = Arbitrary {
+        Gen.oneOf(
+          Arbitrary.arbitrary[PubKeyHash].map(Credential.PubKeyCredential.apply),
+          Arbitrary.arbitrary[ScriptHash].map(Credential.ScriptCredential.apply)
+        )
+    }
+}

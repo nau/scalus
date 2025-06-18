@@ -1,10 +1,10 @@
 package scalus.cardano.address
 
-import org.scalacheck.{Arbitrary, Gen}
 import org.scalacheck.Arbitrary.arbitrary
-import scalus.builtin.ByteString
+import org.scalacheck.{Arbitrary, Gen}
 import scalus.cardano.ledger.{Hash, Slot}
 
+object ArbitraryInstances extends ArbitraryInstances
 trait ArbitraryInstances extends scalus.uplc.test.ArbitraryInstances {
     given Arbitrary[Network] = Arbitrary {
         val genTestnet = Gen.const(Network.Testnet)
