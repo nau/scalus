@@ -9,10 +9,10 @@ import dotty.tools.dotc.core.StdNames.nme
 import dotty.tools.dotc.core.Symbols.*
 import dotty.tools.dotc.plugins.*
 import dotty.tools.dotc.util.Spans
-import scalus.flat.FlatInstantces
+import scalus.flat.{DecoderState, FlatInstantces}
 import scalus.flat.FlatInstantces.SIRHashConsedFlat
-import scalus.sir.{RemoveRecursivity, SIR}
-import scalus.utils.{HashConsed, HashConsedEncoderState}
+import scalus.sir.{RemoveRecursivity, SIR, SIRUnify}
+import scalus.utils.{HSRIdentityHashMap, HashConsed, HashConsedDecoderState, HashConsedEncoderState}
 
 import java.nio.charset.StandardCharsets
 import scala.collection.immutable
@@ -84,7 +84,7 @@ class ScalusPhase(debugLevel: Int) extends PluginPhase {
                   s"Scalus compileDebug at ${tree.srcPos.sourcePos.source}:${tree.srcPos.line} in $time ms"
                 )
 
-            convertSIRToTree(result, tree.span)
+            convertSIRToTree(result, tree.span, isCompileDebug)
         else tree
     end transformApply
 
@@ -111,13 +111,25 @@ class ScalusPhase(debugLevel: Int) extends PluginPhase {
       * }}}
       * which is a lot of boilerplate. And we have [[Flat]] encoding for SIR, so we can use it.
       */
-    private def convertSIRToTree(sir: SIR, span: Spans.Span)(using Context): Tree = {
+    private def convertSIRToTree(
+        sir: SIR,
+        span: Spans.Span,
+        debug: Boolean
+    )(using Context): Tree = {
         val bitSize = SIRHashConsedFlat.bitSizeHC(sir, HashConsed.State.empty)
-        val byteSize = (bitSize + 1) /* for filler */ / 8 + 1 /* minimum size */
+        val byteSize = ((bitSize + 1 /* for filler */ ) / 8) + 1 /* minimum size */
         val encodedState = HashConsedEncoderState.withSize(byteSize)
         SIRHashConsedFlat.encodeHC(sir, encodedState)
         encodedState.encode.filler()
         val bytes = encodedState.encode.result
+        if debug then
+            // try to decode the SIR back
+            val decodeState = HashConsedDecoderState(DecoderState(bytes), HashConsed.State.empty)
+            val decodedRef = SIRHashConsedFlat.decodeHC(decodeState)
+            decodeState.runFinCallbacks()
+            val sirRef = decodedRef.finValue(decodeState.hashConsed, 0, new HSRIdentityHashMap)
+            report.echo("ScalusPhace.convertSIRToTree: sir was decoded back successfully")
+
         /*
             We could generate Array[Byte] constant from bytes directly, like this:
 
@@ -139,17 +151,39 @@ class ScalusPhase(debugLevel: Int) extends PluginPhase {
             But for some reason, it's not possible to create a string literal with 65535 bytes.
             45000 is a safe value that works.
          */
-        val strings =
-            for bytes <- bytes.grouped(45000)
-            yield
-                val str = new String(bytes, StandardCharsets.ISO_8859_1)
-                Literal(Constant(str)).withSpan(span): Tree
+        val strings = (
+          for bytes <- bytes.grouped(45000)
+          yield
+              val str = new String(bytes, StandardCharsets.ISO_8859_1)
+              Literal(Constant(str)).withSpan(span): Tree
+        ).toList
         // Concatenate all the strings: "str1" + "str2" + ...
         val concatenatedStrings =
             strings.reduce((lhs, rhs) => lhs.select(nme.Plus).appliedTo(rhs).withSpan(span))
         // Generate scalus.sir.ToExprHSSIRFlat.decodeStringLatin1(str1 + str2 + ...)
         val sirToExprFlat = requiredModule("scalus.sir.ToExprHSSIRFlat")
         val decodeLatin1SIR = sirToExprFlat.requiredMethod("decodeStringLatin1")
+        if debug then {
+            // save the SIR to a file for debugging purposes
+            val groupedBytes = bytes.grouped(45000).toList
+            println("groupedBytes.size: " + groupedBytes.size)
+            val strings = groupedBytes.map { b =>
+                Literal(Constant(new String(b, StandardCharsets.ISO_8859_1))).withSpan(span)
+            }
+            val parts = strings.map {
+                case Literal(Constant(str: String)) => str
+                case _ => throw new RuntimeException("Expected a string literal")
+            }
+            val codedStr = parts.mkString
+            report.echo(s"string.length: ${codedStr.length},  nParts: ${parts.size}")
+            val path = ctx.settings.outputDir.value.file.toPath
+                .resolve(s"${ctx.compilationUnit.source.file.name}_${span.start}.sir")
+            import java.nio.file.{Files, Paths}
+            Files.createDirectories(path.getParent)
+            Files.write(path, codedStr.getBytes(StandardCharsets.ISO_8859_1))
+            report.echo(s"Scalus: saved SIR to ${path}")
+            report.echo(s"Scalus: SIR size: ${codedStr.length} characters, ${bitSize} bits")
+        }
         ref(sirToExprFlat).select(decodeLatin1SIR).appliedTo(concatenatedStrings).withSpan(span)
     }
 }

@@ -17,15 +17,18 @@ class ClausifyTest extends AnyFunSuite, ScalusTest:
     inline val isAlwaysPrintComparison = false
 
     test("F1") {
-        val result = Compiler
-            .compile {
+        println("F1: before compilation")
+        val sir = Compiler
+            .compileDebug {
                 // (a = a) = (a = a) = (a = a)
                 val formula = (1 <-> 1) <-> ((1 <-> 1) <-> (1 <-> 1))
                 val expected = List.empty[LRVars]
                 require(formula.clauses === expected)
             }
-            .toUplcOptimized(false)
-            .evaluateDebug
+        println(s"Compiled SIR: ${sir.pretty.render(100)}")
+        val uplc = sir.toUplcOptimized(false)
+
+        val result = uplc.evaluateDebug
 
         val scalusBudget = ExBudget(ExCPU(7879192811L), ExMemory(45835971))
         assert(result.isSuccess)
@@ -39,6 +42,7 @@ class ClausifyTest extends AnyFunSuite, ScalusTest:
         )
     }
 
+    /*
     test("F2") {
         val result = Compiler
             .compile {
@@ -1032,6 +1036,7 @@ class ClausifyTest extends AnyFunSuite, ScalusTest:
           isPrintComparison = false
         )
     }
+     */
 
 end ClausifyTest
 

@@ -20,7 +20,7 @@ class ToExprHS[T](
         // note, that this expression is needed regardless of warning
         @nowarn given Type[T] = tt
         val bitSize = hst.bitSize(x)
-        val byteSize = (bitSize + 1 /* for filler */ / 8) + 1 /* minimum size */
+        val byteSize = (bitSize / 8) + 1 /* minimum size */
         val encoderState = HashConsedEncoderState.withSize(byteSize)
         hst.encodeHC(x, encoderState)
         val bytes = encoderState.encode.result
@@ -108,27 +108,32 @@ object ToExprHSSIRFlat extends HashConsedFlat[SIR] {
         }
         SIRHashConsedFlat.encodeHC(a, encoderState)
         encoderState.encode.filler()
-        // if paranoid {
-        //    val decoderState = HashConsedDecoderState(
-        //      DecoderState(encoderState.encode.buffer),
-        //      HashConsed.State.empty
-        //    )
-        //    val ref = SIRHashConsedFlat.decodeHC(decoderState)
-        //    val sir1 = ref.finValue(decoderState.hashConsed, 0, new HSRIdentityHashMap)
-        //    decoderState.runFinCallbacks()
-        //    if (!a.~=~(sir1)) {
-        //        println("unification for encoding/decoding failed")
-        //        println(s"original: ${a}")
-        //        println(s"decoded: ${sir1}")
-        //        throw new IllegalStateException("unification for encoding/decoding failed")
-        //    }
-        // }
+        if paranoid then {
+            val decoderState = HashConsedDecoderState(
+              DecoderState(encoderState.encode.buffer),
+              HashConsed.State.empty
+            )
+            val ref = SIRHashConsedFlat.decodeHC(decoderState)
+            val sir1 = ref.finValue(decoderState.hashConsed, 0, new HSRIdentityHashMap)
+            decoderState.runFinCallbacks()
+            if !a.~=~(sir1) then {
+                println("unification for encoding/decoding failed")
+                println(s"original: ${a}")
+                println(s"decoded: ${sir1}")
+                throw new IllegalStateException("unification for encoding/decoding failed")
+            }
+            println("coded SIRToExprHSSIRFlat.encodeHC decoded successfully")
+        }
     }
 
     override def decodeHC(decoderState: HashConsedDecoderState): SIR = {
+        println("SIRToExprHSSIRFlat.decodeHC:0")
         val ref = SIRHashConsedFlat.decodeHC(decoderState)
+        println("SIRToExprHSSIRFlat.decodeHC:1")
         decoderState.runFinCallbacks()
+        println("SIRToExprHSSIRFlat.decodeHC:2")
         val retval = ref.finValue(decoderState.hashConsed, 0, new HSRIdentityHashMap)
+        println("SIRToExprHSSIRFlat.decodeHC:3")
         if paranoid then {
             SIRChecker.checkAndThrow(retval)
         }
