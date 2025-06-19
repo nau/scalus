@@ -187,14 +187,10 @@ class SirToUplcSmLoweringTest
 
         val gen1 = scalus.sir.lowering.typegens.SirTypeUplcGenerator(originSir1.tp)
         val representation1 = gen1.defaultRepresentation
-        println(s"gen1 = $gen1, representation1=${representation1}")
         assert(representation1 == scalus.sir.lowering.ProductCaseClassRepresentation.ProdDataList)
 
         val genDataList =
             scalus.sir.lowering.typegens.SirTypeUplcGenerator(SIRType.List(SIRType.Data))
-        println(
-          s"genDataList=${genDataList}, defaultRepresentation=${genDataList.defaultRepresentation}"
-        )
 
         val origin1 = lower(originSir1)
         val expected1 = Term.Builtin(DefaultFun.MkNilData) $ Term.Const(Constant.Unit)
@@ -207,13 +203,10 @@ class SirToUplcSmLoweringTest
         result1 match {
             case Result.Success(term, _, _, _) =>
                 val nilData = scalus.prelude.List.empty[scalus.builtin.Data].toData
-                println(s"NilData=${nilData}")
-                println(s"Term=${term}")
                 val termValue = term match {
                     case Term.Const(Constant.List(DefaultUni.Data, value)) => value
                     case _ => fail(s"Expected a List constant, got: ${term}")
                 }
-                println(s"TermValue=${termValue}")
                 /// assert(termValue == nilData)
                 assert(term == Term.Const(Constant.List(scalus.uplc.DefaultUni.Data, List())))
             case _ =>
@@ -231,11 +224,10 @@ class SirToUplcSmLoweringTest
         )
 
         val uplc2 = lower(originSir2)
-        println(s"lowered TxId constr: ${uplc2.pretty.render(100)}")
 
         val gen2 = scalus.sir.lowering.typegens.SirTypeUplcGenerator(originSir2.tp)
         val representation2 = gen2.defaultRepresentation
-        println(s"gen2 = $gen2, representation2=${representation2}")
+        // println(s"gen2 = $gen2, representation2=${representation2}")
 
         // lowersTo (lam("hash", "TxId")(vr"TxId" $ vr"hash") $ hex"DEADBEEF")
 
@@ -476,3 +468,5 @@ class SirToUplcSmLoweringTest
         }
 
     }
+
+    test("lower Match / SumCaseClass") {}

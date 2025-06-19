@@ -13,8 +13,7 @@ import dotty.tools.dotc.core.Types.*
 import dotty.tools.dotc.core.*
 import dotty.tools.dotc.util.{NoSourcePosition, SourcePosition, SrcPos}
 import scalus.ScalusCompilationMode.{AllDefs, OnlyDerivations}
-import scalus.flat.EncoderState
-import scalus.flat.Flat
+import scalus.flat.{byteAsBitString, EncoderState, Flat}
 import scalus.flat.FlatInstantces.given
 import scalus.sir.{AnnotatedSIR, AnnotationsDecl, Binding, ConstrDecl, DataDecl, Module, Recursivity, SIR, SIRBuiltins, SIRPosition, SIRType, SIRVarStorage, SIRVersion, TypeBinding}
 import scalus.uplc.DefaultUni
@@ -143,6 +142,7 @@ final class SIRCompiler(options: SIRCompilerOptions = SIRCompilerOptions.default
         body: AnnotatedSIR,
         pos: SourcePosition
     ) extends LocalBindingOrSubmodule:
+
         def fullName(using Context): FullName = FullName(symbol)
 
     case class LocalSubmodule(
@@ -844,10 +844,17 @@ final class SIRCompiler(options: SIRCompilerOptions = SIRCompilerOptions.default
                     else bodyExpr
                 else bodyExpr
 
+            // Here we more precise then scala compiler.
+            val bindingSirType =
+                if bodyExpr1.tp.isInstanceOf[SIRType.CaseClass] && valSirType
+                        .isInstanceOf[SIRType.SumCaseClass]
+                then bodyExpr1.tp
+                else valSirType
+
             CompileMemberDefResult.Compiled(
               LocalBinding(
                 name.show,
-                valSirType,
+                bindingSirType,
                 vd.symbol,
                 Recursivity.NonRec,
                 bodyExpr1,
@@ -995,7 +1002,7 @@ final class SIRCompiler(options: SIRCompilerOptions = SIRCompilerOptions.default
                         bindOrSubmodule match
                             case bind: LocalBinding =>
                                 exprs += bind
-                                env + (bind.name -> bind.body.tp)
+                                env + (bind.name -> bind.tp)
                             case submodule: LocalSubmodule =>
                                 val message = "Block can't contains submodules"
                                 report.error(

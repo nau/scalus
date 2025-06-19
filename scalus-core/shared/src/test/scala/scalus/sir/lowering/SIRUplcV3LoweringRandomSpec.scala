@@ -5,7 +5,10 @@ import scalus.*
 import scalus.sir.*
 import scalus.Compiler.compile
 import scalus.builtin.{*, given}
+import scalus.uplc.Term
+import scalus.uplc.Constant
 import scalus.uplc.eval.PlutusVM
+import scalus.uplc.eval.Result
 
 object SIRUplcV3LoweringSpec {
 
@@ -29,11 +32,35 @@ class SIRUplcV3LoweringSpec extends AnyFunSuite {
             val aa = AA(true, BigInt(123))
             aa.a
         }
-        println(sir.showHighlighted)
+        // println(sir.showHighlighted)
         val lowering = SirToUplcV3Lowering(sir)
         val term = lowering.lower()
-        println(term.showHighlighted)
-        println(term.evaluateDebug)
+        // println(term.showHighlighted)
+        // println(term.evaluateDebug)
+    }
+
+    test("lowering simple enum") {
+        val sir = compile {
+            val bb = BB.E(BigInt(1), BigInt(2))
+            bb match
+                case BB.C       => BigInt(0)
+                case BB.D(a)    => a
+                case BB.E(a, b) => a + b
+        }
+        // println(sir.showHighlighted)
+
+        val lowering = SirToUplcV3Lowering(sir)
+        val term = lowering.lower()
+        // println(term.showHighlighted)
+        val result = term.evaluateDebug
+        // println(result)
+        assert(result.isSuccess)
+        result match {
+            case Result.Success(term, budget, costs, log) =>
+                assert(term == Term.Const(Constant.Integer(BigInt(3))))
+            case Result.Failure(err, budget, costs, log) =>
+                fail(s"Lowering failed with error: $err, budget: $budget, costs: $costs, log: $log")
+        }
     }
 
 }

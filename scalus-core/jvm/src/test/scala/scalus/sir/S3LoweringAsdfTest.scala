@@ -51,11 +51,11 @@ class S3LoweringAsdfTest extends AnyFunSuite {
                 //                asdf
                 asdf.bb
 
-        println(sir.showHighlighted)
+        // println(sir.showHighlighted)
         val lower = SimpleSirToUplcV3Lowering(sir)
         val term = lower.lower()
-        println(term.showHighlighted)
-        println(term.evaluateDebug)
+        // println(term.showHighlighted)
+        // println(term.evaluateDebug)
     }
 
     test("V3 pattern matching") {
@@ -66,11 +66,11 @@ class S3LoweringAsdfTest extends AnyFunSuite {
                     case AA.DDD(i) => i == BigInt(123)
                     case _         => false
 
-        println(sir.showHighlighted)
+        // println(sir.showHighlighted)
         val lower = SimpleSirToUplcV3Lowering(sir)
         val term = lower.lower()
-        println(term.showHighlighted)
-        println(term.evaluateDebug)
+        // println(term.showHighlighted)
+        // println(term.evaluateDebug)
     }
 
     test("Asdf") {
@@ -81,11 +81,11 @@ class S3LoweringAsdfTest extends AnyFunSuite {
                     case TxId(hash) => hash
                 txid.hash
 
-        println(sir.showHighlighted)
+        // println(sir.showHighlighted)
         val lower = SimpleSirToUplcV3Lowering(sir)
         val term = lower.lower()
-        println(term.showHighlighted)
-        println(term.evaluateDebug)
+        // println(term.showHighlighted)
+        // println(term.evaluateDebug)
     }
 
     test("Option") {
@@ -93,11 +93,11 @@ class S3LoweringAsdfTest extends AnyFunSuite {
             compile:
                 new Option.Some(true)
 
-        println(sir.showHighlighted)
+        // println(sir.showHighlighted)
         val lower = SimpleSirToUplcV3Lowering(sir)
         val term = lower.lower()
-        println(term.showHighlighted)
-        println(term.evaluateDebug)
+        // println(term.showHighlighted)
+        // println(term.evaluateDebug)
     }
 
     test("ScriptContext") {
@@ -133,10 +133,10 @@ class S3LoweringAsdfTest extends AnyFunSuite {
         //        println(sir.showHighlighted)
         val lower = SimpleSirToUplcV3Lowering(sir)
         val term = lower.lower() $ ctxData.asTerm
-        println(term.showHighlighted)
+        // println(term.showHighlighted)
         val Result.Success(t, _, _, _) = term.evaluateDebug: @unchecked
-        println(t.showHighlighted)
-        println(ctx.txInfo.validRange.toData.asTerm.showHighlighted)
+        // println(t.showHighlighted)
+        // println(ctx.txInfo.validRange.toData.asTerm.showHighlighted)
         assert(Term.alphaEq(t, ctx.txInfo.validRange.toData.asTerm))
     }
 }
