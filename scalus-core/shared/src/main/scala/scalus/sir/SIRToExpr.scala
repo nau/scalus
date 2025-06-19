@@ -122,18 +122,13 @@ object ToExprHSSIRFlat extends HashConsedFlat[SIR] {
                 println(s"decoded: ${sir1}")
                 throw new IllegalStateException("unification for encoding/decoding failed")
             }
-            println("coded SIRToExprHSSIRFlat.encodeHC decoded successfully")
         }
     }
 
     override def decodeHC(decoderState: HashConsedDecoderState): SIR = {
-        println("SIRToExprHSSIRFlat.decodeHC:0")
         val ref = SIRHashConsedFlat.decodeHC(decoderState)
-        println("SIRToExprHSSIRFlat.decodeHC:1")
         decoderState.runFinCallbacks()
-        println("SIRToExprHSSIRFlat.decodeHC:2")
         val retval = ref.finValue(decoderState.hashConsed, 0, new HSRIdentityHashMap)
-        println("SIRToExprHSSIRFlat.decodeHC:3")
         if paranoid then {
             SIRChecker.checkAndThrow(retval)
         }

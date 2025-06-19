@@ -53,7 +53,6 @@ class FlatSIRClausifyTest extends AnyFunSuite {
         val myDecl = findDecl(sir, "scalus.sir.FlatSIRClausifyTestScope$.Formula")
         assert(myDecl.isDefined, "Declaration for Formula should be found")
 
-        println("myDecl: " + myDecl.get)
         val myDeclTp = myDecl.get.tp
 
         val hcBitSizeState = scalus.utils.HashConsed.State.empty
@@ -62,7 +61,7 @@ class FlatSIRClausifyTest extends AnyFunSuite {
         val hcEncodeState = new HashConsedEncoderState(
           new EncoderState(byteSize),
           scalus.utils.HashConsed.State.empty,
-          debug = true
+          debug = false
         )
         val flat =
             scalus.flat.FlatInstantces.SIRTypeHashConsedFlat.encodeHC(myDeclTp, hcEncodeState)
@@ -76,7 +75,6 @@ class FlatSIRClausifyTest extends AnyFunSuite {
         val decodedTpRef =
             scalus.flat.FlatInstantces.SIRTypeHashConsedFlat.decodeHC(hcDecodeState)
         val decodedTp = decodedTpRef.finValue(hcDecodeState.hashConsed, 0, new HSRIdentityHashMap)
-        println("decodedTp: " + decodedTp)
 
         SIRUnify.unifyType(decodedTp, myDeclTp, SIRUnify.Env.empty) match {
             case SIRUnify.UnificationFailure(path, l, r) =>
@@ -100,15 +98,16 @@ class FlatSIRClausifyTest extends AnyFunSuite {
         val fileReader = new BufferedInputStream(new FileInputStream(file))
         val data = fileReader.readAllBytes()
         val module = summon[scalus.flat.Flat[Module]].decode(new DecoderState(data))
-        println(s"module.version = ${module.version}")
-        for df <- module.defs do {
-            println(s"df = ${df.name}")
-            val tp: SIRType = df.tp
-            println(s"tp = ${tp.show}")
-            val sir: SIR = df.value
-            println(s"sir = ${sir.pretty.render(100)}")
-        }
-
+        val toPrint = false
+        if toPrint then
+            println(s"module.version = ${module.version}")
+            for df <- module.defs do {
+                println(s"df = ${df.name}")
+                val tp: SIRType = df.tp
+                println(s"tp = ${tp.show}")
+                val sir: SIR = df.value
+                println(s"sir = ${sir.pretty.render(100)}")
+            }
     }
 
     test("deserelialize latin1 string with compilation") {
@@ -127,7 +126,8 @@ class FlatSIRClausifyTest extends AnyFunSuite {
             .mkString
         // val sir = ToExprHSSIRFlat.decodeStringLatin1(latin1String)
         val sir = ToExprHSSIRFlat.decode(new DecoderState(bytes))
-        println(sir.pretty.render(100))
+
+        // println(sir.pretty.render(100))
     }
 
 }

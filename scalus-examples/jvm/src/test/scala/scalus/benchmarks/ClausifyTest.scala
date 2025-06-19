@@ -19,13 +19,12 @@ class ClausifyTest extends AnyFunSuite, ScalusTest:
     test("F1") {
         println("F1: before compilation")
         val sir = Compiler
-            .compileDebug {
+            .compile {
                 // (a = a) = (a = a) = (a = a)
                 val formula = (1 <-> 1) <-> ((1 <-> 1) <-> (1 <-> 1))
                 val expected = List.empty[LRVars]
                 require(formula.clauses === expected)
             }
-        println(s"Compiled SIR: ${sir.pretty.render(100)}")
         val uplc = sir.toUplcOptimized(false)
 
         val result = uplc.evaluateDebug
@@ -42,7 +41,6 @@ class ClausifyTest extends AnyFunSuite, ScalusTest:
         )
     }
 
-    /*
     test("F2") {
         val result = Compiler
             .compile {
@@ -1036,7 +1034,6 @@ class ClausifyTest extends AnyFunSuite, ScalusTest:
           isPrintComparison = false
         )
     }
-     */
 
 end ClausifyTest
 
