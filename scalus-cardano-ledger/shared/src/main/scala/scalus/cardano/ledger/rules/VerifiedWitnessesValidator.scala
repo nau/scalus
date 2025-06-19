@@ -3,6 +3,8 @@ package rules
 
 import scalus.builtin.{ByteString, PlatformSpecific, given}
 
+import scala.util.control.NonFatal
+
 // It's Shelley.validateVerifiedWits in cardano-ledger
 object VerifiedWitnessesValidator extends STS.Validator {
     override def validate(context: Context, state: State, event: Event): Result = {
@@ -53,9 +55,19 @@ object VerifiedWitnessesValidator extends STS.Validator {
         keysAndSignatures: scala.collection.View[(ByteString, ByteString)],
         error: (TransactionHash, ByteString, ByteString, Int) => IllegalArgumentException
     ): Result = {
-        val result = keysAndSignatures.zipWithIndex.find { case ((key, signature), index) =>
-            !summon[PlatformSpecific].verifyEd25519Signature(key, transactionId, signature)
-        }
+        val result =
+            try
+                keysAndSignatures.zipWithIndex.find { case ((key, signature), index) =>
+                    !summon[PlatformSpecific].verifyEd25519Signature(key, transactionId, signature)
+                }
+            catch
+                case NonFatal(exception) =>
+                    return failure(
+                      IllegalArgumentException(
+                        s"Error while verifying signatures for transactionId $transactionId: ${exception.getMessage}",
+                        exception
+                      )
+                    )
 
         result match
             case None => success
