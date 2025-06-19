@@ -46,17 +46,7 @@ object Lowering {
                 lctx.typeGenerator(tp).genConstr(constr)
             case sirMatch @ SIR.Match(scrutinee, cases, rhsType, anns) =>
                 val loweredScrutinee = lowerSIR(scrutinee)
-                try lctx.typeGenerator(scrutinee.tp).genMatch(sirMatch, loweredScrutinee)
-                catch
-                    case NonFatal(e) =>
-                        println(s"scrutinee.tp=${scrutinee.tp}")
-                        println(s"scrutinee=${scrutinee}")
-                        println(s"loweredScrutinee.sirType=${loweredScrutinee.sirType}")
-                        println(s"loweredScrutinee=${loweredScrutinee.show}")
-                        println(
-                          s"lctx.typeGenerator(scrutinee.tp)=${lctx.typeGenerator(scrutinee.tp)}"
-                        )
-                        throw e
+                lctx.typeGenerator(scrutinee.tp).genMatch(sirMatch, loweredScrutinee)
             case SIR.Var(name, tp, anns) =>
                 lctx.scope.getByName(name) match
                     case Some(value) =>
@@ -68,20 +58,11 @@ object Lowering {
                           anns.pos
                         )
             case ev @ SIR.ExternalVar(moduleName, name, tp, _) =>
-                // SIRLinker made usual variable from names.
-                val myVar = lctx.scope.getByName(name) match
-                    case Some(value) => value
-                    case None =>
-                        throw LoweringException(
-                          s"External variable $name not found in the scope at ${ev.anns.pos.file}:${ev.anns.pos.startLine}",
-                          ev.anns.pos
-                        )
-                myVar
-                // StaticLoweredValue(
-                //  ev,
-                //  Term.Var(NamedDeBruijn(name)),
-                //  SirTypeUplcGenerator(tp).defaultRepresentation
-                // )
+                StaticLoweredValue(
+                  ev,
+                  Term.Var(NamedDeBruijn(name)),
+                  SirTypeUplcGenerator(tp).defaultRepresentation
+                )
             case sirLet @ SIR.Let(recursivity, bindings, body, anns) =>
                 lowerLet(sirLet)
             case SIR.LamAbs(param, term, anns) =>
@@ -164,12 +145,12 @@ object Lowering {
                 val prevScope = lctx.scope
                 if recursivity == NonRec then
                     val bindingValues = bindings.map { b =>
-                        val rhs = lowerSIR(b.value).maybeUpcast(b.tp, anns.pos)
+                        val rhs = lowerSIR(b.value)
                         val varId = lctx.uniqueVarName(b.name)
                         val varVal = VariableLoweredValue(
                           id = varId,
                           name = b.name,
-                          sir = SIR.Var(b.name, b.tp, anns),
+                          sir = SIR.Var(b.name, b.value.tp, anns),
                           representation = rhs.representation
                         )
                         lctx.scope = lctx.scope.add(varVal)
@@ -177,7 +158,6 @@ object Lowering {
                     }.toMap
                     val bodyValue = lowerSIR(body)
                     val myVars = bindingValues.keySet
-                    lctx.scope = prevScope
                     new ComplexLoweredValue(myVars, (Seq(bodyValue) ++ bindingValues.values)*) {
 
                         override def sirType: SIRType = bodyValue.sirType
@@ -216,12 +196,12 @@ object Lowering {
                             val newVar = VariableLoweredValue(
                               id = lctx.uniqueVarName(name),
                               name = name,
-                              sir = SIR.Var(name, tp, anns),
+                              sir = SIR.Var(name, rhs.tp, anns),
                               representation = SirTypeUplcGenerator(rhs.tp).defaultRepresentation
                             )
                             val prevScope = lctx.scope
                             lctx.scope = lctx.scope.add(newVar)
-                            val loweredRhs = lowerSIR(rhs).maybeUpcast(tp, anns.pos)
+                            val loweredRhs = lowerSIR(rhs)
                             val loweredBody = lowerSIR(body)
                             lctx.scope = prevScope
 
@@ -320,12 +300,6 @@ object Lowering {
      */
 
     private def lowerApp(app: SIR.Apply)(using lctx: LoweringContext): LoweredValue = {
-        if isFromData(app) then lowerFromData(app)
-        else if isToData(app) then lowerToData(app)
-        else lowerNormalApp(app)
-    }
-
-    private def lowerNormalApp(app: SIR.Apply)(using lctx: LoweringContext): LoweredValue = {
         val fun = lowerSIR(app.f)
         val arg = lowerSIR(app.arg)
         try
@@ -352,73 +326,6 @@ object Lowering {
                 }
 
                 throw e
-    }
-
-    private def isFromData(app: SIR.Apply): Boolean = {
-
-        def isFromDataType(tp: SIRType): Boolean = tp match {
-            case SIRType.Fun(SIRType.Data, _)    => true
-            case SIRType.TypeLambda(params, tp1) => isFromDataType(tp1)
-            case _                               => false
-        }
-
-        app.f match
-            case SIR.ExternalVar(moduleName, name, tp, _) =>
-                // extrapolation.  TODO: write annotation when compiling FromData tp and extract it here
-                name.contains("FromData") && isFromDataType(tp)
-            case _ => false
-    }
-
-    private def isToData(app: SIR.Apply): Boolean = {
-
-        def isToDataType(tp: SIRType): Boolean = tp match {
-            case SIRType.Fun(_, SIRType.Data)    => true
-            case SIRType.TypeLambda(params, tp1) => isToDataType(tp1)
-            case _                               => false
-        }
-
-        app.f match
-            case SIR.ExternalVar(moduleName, name, tp, _) =>
-                // extrapolation.  TODO: write annotation when compiling ToData tp and extract it here
-                name.contains("ToData") && isToDataType(tp)
-            case _ => false
-
-    }
-
-    private def lowerFromData(app: SIR.Apply)(using lctx: LoweringContext): LoweredValue = {
-        val data = lctx.lower(app.arg)
-        new ProxyLoweredValue(data) {
-            override def sirType: SIRType = app.tp
-            override def pos: SIRPosition = app.anns.pos
-            override def representation: LoweredValueRepresentation =
-                lctx.typeGenerator(app.tp).defaultDataRepresentation
-            override def termInternal(gctx: TermGenerationContext): Term =
-                data.termInternal(gctx)
-
-            override def show: String = {
-                s"FromData(${data.show}, ${app.tp.show})"
-            }
-        }
-    }
-
-    private def lowerToData(app: SIR.Apply)(using lctx: LoweringContext): LoweredValue = {
-        val value = lctx
-            .lower(app.arg)
-            .toRepresentation(
-              lctx.typeGenerator(app.arg.tp).defaultDataRepresentation,
-              app.anns.pos
-            )
-        new ProxyLoweredValue(value) {
-            override def sirType: SIRType = app.tp
-            override def pos: SIRPosition = app.anns.pos
-            override def representation: LoweredValueRepresentation =
-                PrimitiveRepresentation.PackedData
-            override def termInternal(gctx: TermGenerationContext): Term =
-                value.termInternal(gctx)
-            override def show: String = {
-                s"ToData(${value.show}, ${app.tp.show})"
-            }
-        }
     }
 
     def generateDominatedUplevelVarsAccess(

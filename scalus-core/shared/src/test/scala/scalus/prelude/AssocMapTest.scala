@@ -8,7 +8,7 @@ import org.scalatestplus.scalacheck.ScalaCheckPropertyChecks
 import scalus.*
 import scalus.prelude.List.*
 import scalus.prelude.These.*
-import scalus.uplc.ArbitraryInstances
+import scalus.uplc.test.ArbitraryInstances
 
 @Compile
 private object AssocMapTest {

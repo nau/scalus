@@ -1,17 +1,11 @@
 package scalus.cardano.address
 
-import org.scalacheck.{Arbitrary, Gen}
 import org.scalacheck.Arbitrary.arbitrary
-import scalus.builtin.ByteString
+import org.scalacheck.{Arbitrary, Gen}
 import scalus.cardano.ledger.{Hash, Slot}
 
-trait ArbitraryInstances {
-    def genByteStringOfN(n: Int): Gen[ByteString] = {
-        Gen
-            .containerOfN[Array, Byte](n, arbitrary[Byte])
-            .map(a => ByteString.unsafeFromArray(a))
-    }
-
+object ArbitraryInstances extends ArbitraryInstances
+trait ArbitraryInstances extends scalus.uplc.test.ArbitraryInstances {
     given Arbitrary[Network] = Arbitrary {
         val genTestnet = Gen.const(Network.Testnet)
         val genMainnet = Gen.const(Network.Mainnet)

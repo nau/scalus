@@ -5,8 +5,9 @@ import org.scalatest.funsuite.AnyFunSuite
 import org.scalatestplus.scalacheck.ScalaCheckPropertyChecks
 import scalus.*
 import scalus.ledger.api.PlutusLedgerLanguage
-import scalus.uplc.{ArbitraryInstances, Program, Term}
+import scalus.uplc.{Program, Term}
 import scalus.uplc.Term.*
+import scalus.uplc.test.ArbitraryInstances
 
 import java.nio.file.Files
 

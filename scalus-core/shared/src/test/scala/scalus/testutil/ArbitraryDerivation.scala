@@ -1,4 +1,4 @@
-package scalus.cardano.ledger
+package scalus.testutil
 
 import magnolia1.{AutoDerivation, CaseClass, Monadic, SealedTrait}
 import org.scalacheck.{Arbitrary, Gen}

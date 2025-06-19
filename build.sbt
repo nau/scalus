@@ -1,9 +1,11 @@
 import org.scalajs.linker.interface.OutputPatterns
 import sbtwelcome.*
-import scala.scalanative.build._
+
+import scala.scalanative.build.*
 import com.typesafe.tools.mima.core.ProblemFilters
 import com.typesafe.tools.mima.core.IncompatibleResultTypeProblem
-import com.typesafe.tools.mima.core.ProblemFilters._
+import com.typesafe.tools.mima.core.ProblemFilters.*
+import sbt.internal.util.ManagedLogger
 
 import java.net.URI
 
@@ -13,7 +15,6 @@ autoCompilerPlugins := true
 val scalusStableVersion = "0.10.0"
 val scalusCompatibleVersion = scalusStableVersion
 ThisBuild / scalaVersion := "3.3.6"
-//ThisBuild / scalaVersion := "3.7.1-RC1-bin-SNAPSHOT"
 ThisBuild / organization := "org.scalus"
 ThisBuild / organizationName := "Scalus"
 ThisBuild / organizationHomepage := Some(url("https://scalus.org/"))
@@ -32,8 +33,6 @@ ThisBuild / licenses := List(
 )
 ThisBuild / homepage := Some(url("https://github.com/nau/scalus"))
 ThisBuild / versionScheme := Some("early-semver")
-ThisBuild / sonatypeCredentialHost := "s01.oss.sonatype.org"
-sonatypeRepository := "https://s01.oss.sonatype.org/service/local"
 Test / publishArtifact := false
 
 ThisBuild / javaOptions += "-Xss64m"
@@ -82,30 +81,6 @@ lazy val commonScalacOptions = Seq(
 
 lazy val copySharedFiles = taskKey[Unit]("Copy shared files")
 
-lazy val sharedFiles =
-    Seq(
-      "scalus/utils/Hex.scala",
-      "scalus/utils/HashConsed.scala",
-      "scalus/utils/HashConsedFlat.scala",
-      "scalus/builtin/ByteString.scala",
-      "scalus/builtin/Data.scala",
-      "scalus/builtin/List.scala",
-      "scalus/sir/SIR.scala",
-      "scalus/sir/SIRType.scala",
-      "scalus/sir/SIRToExpr.scala",
-      "scalus/sir/SIRBuiltins.scala",
-      "scalus/sir/SIRUnify.scala",
-      "scalus/sir/SIRHashCodeInRec.scala",
-      "scalus/sir/FlatInstances.scala",
-      "scalus/sir/RemoveRecursivity.scala",
-      "scalus/uplc/Constant.scala",
-      "scalus/uplc/DefaultFun.scala",
-      "scalus/uplc/DefaultUni.scala",
-      "scalus/uplc/CommonFlatInstances.scala",
-      "scalus/uplc/TypeScheme.scala",
-      "scalus/flat/package.scala"
-    )
-
 // Scala 3 Compiler Plugin for Scalus
 lazy val scalusPlugin = project
     .in(file("scalus-plugin"))
@@ -135,29 +110,34 @@ lazy val scalusPlugin = project
        By copying the shared files to the plugin project, IntelliJ IDEA sees them as used in the plugin project
        */
       copySharedFiles := {
+          val sharedFiles = Seq(
+            "scalus/utils/Hex.scala",
+            "scalus/utils/HashConsed.scala",
+            "scalus/utils/HashConsedFlat.scala",
+            "scalus/builtin/ByteString.scala",
+            "scalus/builtin/Data.scala",
+            "scalus/builtin/List.scala",
+            "scalus/sir/SIR.scala",
+            "scalus/sir/SIRType.scala",
+            "scalus/sir/SIRToExpr.scala",
+            "scalus/sir/SIRBuiltins.scala",
+            "scalus/sir/SIRUnify.scala",
+            "scalus/sir/SIRHashCodeInRec.scala",
+            "scalus/sir/FlatInstances.scala",
+            "scalus/sir/RemoveRecursivity.scala",
+            "scalus/uplc/Constant.scala",
+            "scalus/uplc/DefaultFun.scala",
+            "scalus/uplc/DefaultUni.scala",
+            "scalus/uplc/CommonFlatInstances.scala",
+            "scalus/uplc/TypeScheme.scala",
+            "scalus/flat/package.scala"
+          )
+
+          val baseDir =
+              baseDirectory.value / ".." / "scalus-core" / "shared" / "src" / "main" / "scala"
           val targetDir = (Compile / sourceDirectory).value / "shared" / "scala"
           val log = streams.value.log
-
-          sharedFiles.foreach { file =>
-              val baseDir =
-                  baseDirectory.value / ".." / "scalus-core" / "shared" / "src" / "main" / "scala"
-              val source = baseDir / file
-              val target = targetDir / file
-
-              if (source.exists) {
-                  if (!target.exists) {
-                      IO.copyFile(source, target)
-                      // log.info(s"Copied $file to target $target")
-                  } else if (source.lastModified() > target.lastModified()) {
-                      IO.copyFile(source, target)
-                      // log.info(s"Copied $file to target $target")
-                  } else {
-                      // log.info(s"File $target is up to date")
-                  }
-              } else {
-                  log.error(s"Source file not found: $file")
-              }
-          }
+          copyFiles(sharedFiles, baseDir, targetDir, log)
           log.info(s"Copied shared files to target $targetDir")
       },
 //      Compile / managedSources ++= {
@@ -271,6 +251,23 @@ lazy val scalus = crossProject(JSPlatform, JVMPlatform, NativePlatform)
       }
     )
 
+def copyFiles(files: Seq[String], baseDir: File, targetDir: File, log: ManagedLogger): Unit = {
+    files.foreach { file =>
+        val source = baseDir / file
+        val target = targetDir / file
+        if (source.exists) {
+            if (!target.exists) {
+                IO.copyFile(source, target)
+            } else if (source.lastModified() > target.lastModified()) {
+                IO.copyFile(source, target)
+            }
+        } else {
+            log.error(s"Shared file $file does not exist in $baseDir")
+        }
+    }
+}
+
+// Scalus Testkit library for testing Scalus applications
 lazy val scalusTestkit = crossProject(JSPlatform, JVMPlatform, NativePlatform)
     .in(file("scalus-testkit"))
     .dependsOn(scalus)
@@ -279,6 +276,26 @@ lazy val scalusTestkit = crossProject(JSPlatform, JVMPlatform, NativePlatform)
       scalaVersion := scalaVersion.value,
       scalacOptions ++= commonScalacOptions,
       Test / scalacOptions += "-color:never",
+      copySharedFiles := {
+          val sharedFiles = Seq(
+            "scalus/testutil/ArbitraryDerivation.scala",
+            "scalus/uplc/test/ArbitraryInstances.scala",
+            "scalus/ledger/api/v1/ArbitraryInstances.scala",
+            "scalus/ledger/api/v2/ArbitraryInstances.scala",
+            "scalus/ledger/api/v3/ArbitraryInstances.scala",
+            "scalus/cardano/address/ArbitraryInstances.scala",
+            "scalus/cardano/ledger/ArbitraryInstances.scala"
+          )
+          val baseDir =
+              (scalus.jvm / crossProjectBaseDirectory).value / "shared" / "src" / "test" / "scala"
+          val targetDir = crossProjectBaseDirectory.value / "core-shared" / "scala"
+          val log = streams.value.log
+          copyFiles(sharedFiles, baseDir, targetDir, log)
+          log.info(s"Copied shared files to target $targetDir")
+      },
+      Compile / unmanagedSourceDirectories += crossProjectBaseDirectory.value / "core-shared" / "scala",
+      Compile / compile := (Compile / compile).dependsOn(copySharedFiles).value,
+      libraryDependencies += "com.softwaremill.magnolia1_3" %%% "magnolia" % "1.3.18",
       libraryDependencies += "org.scalatestplus" %%% "scalacheck-1-18" % "3.2.19.0"
     )
     .jsSettings(
@@ -295,7 +312,7 @@ lazy val scalusTestkit = crossProject(JSPlatform, JVMPlatform, NativePlatform)
       }
     )
 
-lazy val scalusExamples = crossProject(JSPlatform, JVMPlatform, NativePlatform)
+lazy val scalusExamples = crossProject(JSPlatform, JVMPlatform)
     .in(file("scalus-examples"))
     .dependsOn(scalus, scalusTestkit)
     .disablePlugins(MimaPlugin) // disable Migration Manager for Scala
@@ -303,6 +320,7 @@ lazy val scalusExamples = crossProject(JSPlatform, JVMPlatform, NativePlatform)
       PluginDependency,
       scalacOptions ++= commonScalacOptions,
       publish / skip := true,
+      libraryDependencies += "com.softwaremill.magnolia1_3" %%% "magnolia" % "1.3.18" % "test",
       libraryDependencies += "org.scalatest" %%% "scalatest" % "3.2.19" % "test",
       libraryDependencies += "org.scalatestplus" %%% "scalacheck-1-18" % "3.2.19.0" % "test"
     )

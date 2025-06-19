@@ -116,6 +116,8 @@ trait NodeJsPlatformSpecific extends PlatformSpecific {
         require(sig.length == 64, s"Invalid signature length ${sig.length}")
         Ed25519Curves.ed25519.verify(sig.toUint8Array, msg.toUint8Array, pk.toUint8Array)
 
+    override def signEd25519(privateKey: ByteString, msg: ByteString): ByteString = ???
+
     private def isValidPublicKey(pubKey: ByteString): Boolean =
         try
             val point = Secp256k1Curve.secp256k1.ProjectivePoint.fromHex(

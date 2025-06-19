@@ -1,4 +1,5 @@
 package scalus.uplc
+package test
 
 import org.scalacheck.{Arbitrary, Gen, Shrink}
 import scalus.*
@@ -19,6 +20,12 @@ import scalus.uplc.Constant.BLS12_381_MlResult
 // Remove the deprecation warning for now
 @nowarn("cat=deprecation")
 trait ArbitraryInstances:
+
+    def genByteStringOfN(n: Int): Gen[ByteString] = {
+        Gen
+            .containerOfN[Array, Byte](n, Arbitrary.arbitrary[Byte])
+            .map(a => ByteString.unsafeFromArray(a))
+    }
 
     given byteStringArb: Arbitrary[builtin.ByteString] = Arbitrary(
       for

@@ -1,19 +1,19 @@
 package scalus.testkit
 
-import org.scalacheck.{Arbitrary, Gen}
+import org.scalacheck.Arbitrary
 import scalus.*
+import scalus.builtin.Builtins.blake2b_224
 import scalus.builtin.Data.toData
 import scalus.builtin.{ByteString, Data}
-import scalus.builtin.Builtins.blake2b_224
-import scalus.ledger.api.v1.PubKeyHash
 import scalus.ledger.api.v1.Credential.{PubKeyCredential, ScriptCredential}
+import scalus.ledger.api.v1.PubKeyHash
 import scalus.ledger.api.v3.*
 import scalus.prelude.*
 import scalus.sir.SIR
 import scalus.uplc.*
 import scalus.uplc.eval.*
 
-trait ScalusTest {
+trait ScalusTest extends ArbitraryInstances {
     protected given PlutusVM = PlutusVM.makePlutusV3VM()
 
     extension (self: SIR)
@@ -33,20 +33,6 @@ trait ScalusTest {
 
         def hash: ValidatorHash = blake2b_224(ByteString.fromArray(3 +: self.cborEncoded))
 
-    protected def genByteStringOfN(n: Int): Gen[ByteString] = {
-        Gen
-            .containerOfN[Array, Byte](n, Arbitrary.arbitrary[Byte])
-            .map(a => ByteString.unsafeFromArray(a))
-    }
-
-    given Arbitrary[TxId] = Arbitrary(genByteStringOfN(32).map(TxId.apply))
-    given Arbitrary[TxOutRef] = Arbitrary {
-        for
-            txId <- Arbitrary.arbitrary[TxId]
-            index <- Gen.choose(0, 1000)
-        yield TxOutRef(txId, index)
-    }
-
     protected def random[A: Arbitrary]: A = {
         Arbitrary.arbitrary[A].sample.get
     }
@@ -58,7 +44,7 @@ trait ScalusTest {
     ): ScriptContext = {
         val ownInput =
             TxInInfo(
-              outRef = Arbitrary.arbitrary[TxOutRef].sample.get,
+              outRef = random[TxOutRef],
               resolved = TxOut(
                 address = Address(
                   Credential.ScriptCredential(genByteStringOfN(28).sample.get),

@@ -3,6 +3,7 @@ package scalus.uplc
 import cats.implicits.toShow
 import org.scalatest.funsuite.AnyFunSuite
 import org.scalatestplus.scalacheck.ScalaCheckPropertyChecks
+
 import scala.language.implicitConversions
 import scalus.*
 import scalus.builtin.ByteString.*
@@ -12,6 +13,7 @@ import scalus.uplc.DefaultUni.ProtoList
 import scalus.uplc.DefaultUni.ProtoPair
 import scalus.uplc.Term.*
 import scalus.uplc.TermDSL.given
+import scalus.uplc.test.ArbitraryInstances
 
 class UplcParserTest extends AnyFunSuite with ScalaCheckPropertyChecks with ArbitraryInstances:
     def parser = UplcParser()

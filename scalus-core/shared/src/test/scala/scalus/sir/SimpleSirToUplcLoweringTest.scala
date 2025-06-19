@@ -6,7 +6,6 @@ import scalus.builtin.ByteString.*
 import scalus.sir.Recursivity.NonRec
 import scalus.sir.SIR.Pattern
 import scalus.sir.SIRType.{FreeUnificator, SumCaseClass, TypeNothing, TypeVar}
-import scalus.uplc.ArbitraryInstances
 import scalus.uplc.Constant
 import scalus.uplc.DefaultFun
 import scalus.uplc.DefaultFun.*
@@ -14,6 +13,7 @@ import scalus.uplc.DefaultUni.asConstant
 import scalus.uplc.Term
 import scalus.uplc.Term.*
 import scalus.uplc.TermDSL.given
+import scalus.uplc.test.ArbitraryInstances
 
 import scala.language.implicitConversions
 

@@ -13,8 +13,6 @@ class LoweringContext(
     val generateErrorTraces: Boolean = false,
     val uplcGeneratorPolicy: SIRType => SirTypeUplcGenerator = SirTypeUplcGenerator(_),
     val typeVars: Map[SIRType.TypeVar, SIRType] = Map.empty,
-    var debug: Boolean = false,
-    var nestingLevel: Int = 0
 ) {
 
     def uniqueVarName(prefix: String = "_v"): String = {

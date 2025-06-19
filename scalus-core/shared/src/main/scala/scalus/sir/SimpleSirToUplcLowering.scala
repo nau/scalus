@@ -123,8 +123,7 @@ class SimpleSirToUplcLowering(sir: SIR, generateErrorTraces: Boolean = false):
                 val casesIter = enhanchedCases.iterator
 
                 while casesIter.hasNext do
-                    val currentCase = casesIter.next()
-                    currentCase match
+                    casesIter.next() match
                         case c @ SIR.Case(Pattern.Constr(constrDecl, _, _), _, _) =>
                             matchedConstructors += constrDecl.name // collect all matched constructors
                             expandedCases += c
@@ -132,7 +131,7 @@ class SimpleSirToUplcLowering(sir: SIR, generateErrorTraces: Boolean = false):
                             // If we have a wildcard case, it must be the last one
                             if idx != enhanchedCases.length - 1 then
                                 throw new IllegalArgumentException(
-                                  s"Wildcard case must be the last and only one in match expression at ${anns.pos.file}:${anns.pos.startLine}, ${anns.pos.startColumn}"
+                                  s"Wildcard case must be the last and only one in match expression"
                                 )
                             else
                                 // Convert Wildcard to the rest of the cases/constructors

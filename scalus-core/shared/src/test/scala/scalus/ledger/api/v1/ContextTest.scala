@@ -11,11 +11,11 @@ import scalus.builtin.Data.fromData
 import scalus.builtin.Data.toData
 import scalus.prelude.*
 import scalus.sir.SIR
-import scalus.uplc.ArbitraryInstances
 import scalus.uplc.Constant
 import scalus.uplc.Term
 import scalus.uplc.TermDSL.given
 import scalus.uplc.eval.PlutusVM
+import scalus.uplc.test.ArbitraryInstances
 import scala.language.implicitConversions
 
 class ContextTest

@@ -9,9 +9,10 @@ import scalus.ledger.api.v3.TxId
 import scalus.sir.Recursivity.NonRec
 import scalus.uplc.DefaultFun.*
 import scalus.uplc.DefaultUni.asConstant
-import scalus.uplc.{ArbitraryInstances, Constant, DefaultFun, Term}
+import scalus.uplc.{Constant, DefaultFun, Term}
 import scalus.uplc.Term.*
 import scalus.uplc.TermDSL.given
+import scalus.uplc.test.ArbitraryInstances
 
 import scala.language.implicitConversions
 

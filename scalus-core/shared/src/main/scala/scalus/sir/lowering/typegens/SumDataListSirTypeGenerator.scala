@@ -239,11 +239,6 @@ object SumDataListSirTypeGenerator extends SirTypeUplcGenerator {
         val (consHeadName, consTailName) = consCase.get.pattern match
             case SIR.Pattern.Constr(constrDecl, List(h, t), _) =>
                 (h, t)
-            case SIR.Pattern.Constr(_, _, _) =>
-                throw LoweringException(
-                  s"Cons case should have two bindings, but found ${consCase.get.pattern}",
-                  consCase.get.anns.pos
-                )
             case SIR.Pattern.Wildcard =>
                 ("_head", "_tail")
 
