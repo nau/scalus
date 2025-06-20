@@ -4,66 +4,55 @@ import io.bullet.borer.{Decoder, Encoder, Reader, Writer}
 import scalus.cardano.ledger
 
 /** Represents a value in Cardano, which can be either pure ADA or ADA with multi-assets */
-enum Value:
-    /** Pure ADA value with no multi-assets */
-    case Ada(coin: Coin)
-
-    /** ADA value with multi-assets */
-    case MultiAsset(coin: Coin, assets: ledger.MultiAsset)
-
-    /** Get the multi-asset component if present, empty otherwise */
-    def multiAsset: ledger.MultiAsset = this match
-        case Ada(_)                => Map.empty
-        case MultiAsset(_, assets) => assets
+case class Value(coin: Coin, assets: ledger.MultiAsset) {
+    // Validate multi-asset map
+    validateMultiAsset(assets)
 
     def binOp(op: (Long, Long) => Long)(rhs: Value): Value = (this, rhs) match
-        case (Value.Ada(Coin(coin1)), Value.Ada(Coin(coin2))) =>
-            Value.Ada(Coin(op(coin1, coin2)))
-        case (Value.MultiAsset(coin1, assets1), Value.MultiAsset(coin2, assets2)) =>
-            Value.MultiAsset(
-              Coin(op(coin1.value, coin2.value)),
-              ledger.MultiAsset.binOp(op)(assets1, assets2)
-            )
-        case (Value.Ada(coin), multi: Value.MultiAsset) =>
-            Value.MultiAsset(Coin(op(coin.value, multi.coin.value)), multi.assets)
-        case (multi: Value.MultiAsset, Value.Ada(coin)) =>
-            Value.MultiAsset(Coin(op(multi.coin.value, coin.value)), multi.assets)
+        case (Value(coin1, assets1), Value(coin2, assets2)) =>
+            Value(Coin(op(coin1.value, coin2.value)), ledger.MultiAsset.binOp(op)(assets1, assets2))
 
     def +(rhs: Value): Value = binOp(_ + _)(rhs)
+
     def -(rhs: Value): Value = binOp(_ - _)(rhs)
 
-object Value:
-    /** Zero value (0 ADA, no assets) */
-    val zero: Value = Value.Ada(Coin.zero)
-
-    /** Create a pure ADA value */
-    def lovelace(amount: Long): Value = Value.Ada(Coin(amount))
-
-    /** Create a Value from coin and multi-asset */
-    def apply(coin: Coin, multiAsset: ledger.MultiAsset = Map.empty): Value =
-        if multiAsset.isEmpty then Value.Ada(coin)
-        else
-            // Validate multi-asset map
-            validateMultiAsset(multiAsset)
-            Value.MultiAsset(coin, multiAsset)
-
     /** Validate a multi-asset map according to Cardano rules */
-    private def validateMultiAsset(multiAsset: ledger.MultiAsset): Unit =
+    private def validateMultiAsset(multiAsset: ledger.MultiAsset): Unit = {
         // Validate that all policy maps are non-empty
         require(
           multiAsset.forall { case (_, assets) => assets.nonEmpty },
-          "Multi-asset map cannot contain empty policy entries"
+          "MultiAsset map cannot contain empty policy entries"
         )
+
+        require(
+          multiAsset.values.forall(_.forall { case (_, amount) => amount != 0 }),
+          "MultiAsset cannot contain zeros"
+        )
+    }
+}
+
+object Value:
+    /** Zero value (0 ADA, no assets) */
+    val zero: Value = Value(Coin.zero)
+
+    /** Create a pure ADA value */
+    def lovelace(amount: Long): Value = Value(Coin(amount))
+
+    /** Create a Value from coin and multi-asset */
+    def apply(coin: Coin, multiAsset: ledger.MultiAsset = Map.empty): Value =
+        new Value(coin, multiAsset)
 
     /** CBOR encoder for Value */
     given Encoder[Value] with
-        def write(w: Writer, value: Value): Writer = value match
-            case Value.Ada(coin) =>
-                w.write(coin)
-            case Value.MultiAsset(coin, multiAsset) =>
-                w.writeArrayHeader(2)
-                w.write(coin)
-                writeMultiAsset(w, multiAsset)
+        def write(w: Writer, value: Value): Writer =
+            if value.assets.isEmpty then
+                // Pure ADA value
+                w.write(value.coin)
+            else
+                // Multi-asset value
+                w.writeArrayHeader(2) // 2 elements: coin and multi-asset
+                w.write(value.coin)
+                writeMultiAsset(w, value.assets)
 
     /** Helper method to write MultiAsset as CBOR */
     private def writeMultiAsset(
@@ -97,8 +86,8 @@ object Value:
 
                 val coin = r.read[Coin]()
                 val multiAsset = r.read[ledger.MultiAsset]()
-                Value.MultiAsset(coin, multiAsset)
+                new Value(coin, multiAsset)
             else
                 // Single coin value
                 val coin = r.read[Coin]()
-                Value.Ada(coin)
+                Value(coin)

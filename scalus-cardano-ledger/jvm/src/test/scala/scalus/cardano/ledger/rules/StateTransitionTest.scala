@@ -161,7 +161,7 @@ class StateTransitionTest extends AnyFunSuite, ArbitraryInstances {
                   outputs = Vector(
                     TransactionOutput.Shelley(
                       Arbitrary.arbitrary[Address].sample.get,
-                      Value.Ada(Coin(Gen.choose(0L, 1000000L).sample.get))
+                      Value(Coin(Gen.choose(0L, 1000000L).sample.get))
                     )
                   ),
                   fee = Coin(Gen.choose(0L, 1000000L).sample.get)
@@ -173,12 +173,11 @@ class StateTransitionTest extends AnyFunSuite, ArbitraryInstances {
           utxo = Map(
             transaction.body.value.inputs.head -> TransactionOutput.Shelley(
               Arbitrary.arbitrary[Address].sample.get,
-              Value.Ada(
+              Value(
                 Coin(
                   transaction.body.value.outputs.head
                       .asInstanceOf[TransactionOutput.Shelley]
                       .value
-                      .asInstanceOf[Value.Ada]
                       .coin
                       .value +
                       transaction.body.value.fee.value
@@ -209,7 +208,7 @@ class StateTransitionTest extends AnyFunSuite, ArbitraryInstances {
                   outputs = Vector(
                     TransactionOutput.Shelley(
                       Arbitrary.arbitrary[Address].sample.get,
-                      Value.Ada(Coin(Gen.choose(0L, 1000000L).sample.get))
+                      Value(Coin(Gen.choose(0L, 1000000L).sample.get))
                     )
                   ),
                   fee = Coin(Gen.choose(0L, 1000000L).sample.get)
@@ -221,12 +220,11 @@ class StateTransitionTest extends AnyFunSuite, ArbitraryInstances {
           utxo = Map(
             transaction.body.value.inputs.head -> TransactionOutput.Shelley(
               Arbitrary.arbitrary[Address].sample.get,
-              Value.Ada(
+              Value(
                 Coin(
                   transaction.body.value.outputs.head
                       .asInstanceOf[TransactionOutput.Shelley]
                       .value
-                      .asInstanceOf[Value.Ada]
                       .coin
                       .value +
                       transaction.body.value.fee.value
@@ -456,7 +454,7 @@ class StateTransitionTest extends AnyFunSuite, ArbitraryInstances {
 //                  outputs = Vector(
 //                    TransactionOutput.Shelley(
 //                      Arbitrary.arbitrary[Address].sample.get,
-//                      Value.Ada(Coin(Gen.choose(0L, 1000000L).sample.get))
+//                      Value(Coin(Gen.choose(0L, 1000000L).sample.get))
 //                    )
 //                  ),
 //                  fee = Coin(Gen.choose(0L, 1000000L).sample.get),
@@ -473,12 +471,11 @@ class StateTransitionTest extends AnyFunSuite, ArbitraryInstances {
 //                Seq(
 //                  transaction.body.value.inputs.head -> TransactionOutput.Shelley(
 //                    Arbitrary.arbitrary[Address].sample.get,
-//                    Value.Ada(
+//                    Value(
 //                      Coin(
 //                        transaction.body.value.outputs.head
 //                            .asInstanceOf[TransactionOutput.Shelley]
 //                            .value
-//                            .asInstanceOf[Value.Ada]
 //                            .coin
 //                            .value +
 //                            transaction.body.value.fee.value

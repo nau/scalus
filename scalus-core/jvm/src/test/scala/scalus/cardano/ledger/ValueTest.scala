@@ -50,19 +50,4 @@ class ValueTest extends AnyFunSuite, ArbitraryInstances {
         assert(ada1 == multi3) // ADA is equal to multi-asset with no assets
         assert(multi3 == ada1) // commutative property
     }
-
-    test("Value with absent asset is equal to 0") {
-        pending
-        val policy = arbitrary[PolicyId].sample.get
-        val asset = arbitrary[AssetName].sample.get
-        val ada1 = Value.lovelace(1000)
-        val multi1 = Value(Coin(1000), Map(policy -> Map(asset -> 0)))
-        val multi2 = Value(Coin(1000), Map.empty)
-
-        assert(ada1 == multi1) // reflexive property
-        assert(ada1 == multi2) // reflexive property
-        assert(multi1 == multi2)
-        assert(multi2 == multi1)
-    }
-
 }

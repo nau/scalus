@@ -11,13 +11,13 @@ object ValuePreservedValidator extends STS.Validator {
     override def validate(context: Context, state: State, tx: Transaction): Result = {
         val txBody = tx.body.value
         val mint = txBody.mint.getOrElse(Map.empty)
-        val minted = Value.MultiAsset(
+        val minted = Value(
           Coin.zero,
           mint.map { case (policy, assets) =>
               policy -> assets.filter((_, value) => value > 0)
           }
         )
-        val burned = Value.MultiAsset(
+        val burned = Value(
           Coin.zero,
           mint.map { case (policy, assets) =>
               policy -> assets.filter((_, value) => value < 0)
@@ -32,7 +32,7 @@ object ValuePreservedValidator extends STS.Validator {
         val conwayProposalsDeposits = Value.zero
         val deposits = getTotalDepositsTxCerts + conwayProposalsDeposits
         val outputs = Value.zero
-        val fee = Value.Ada(txBody.fee)
+        val fee = Value(txBody.fee)
         val produced = outputs + fee + deposits + burned
         if consumed == produced then success
         else

@@ -68,11 +68,7 @@ object EqualValidator {
                         case shelley: TransactionOutput.Shelley => shelley.value
                         case babbage: TransactionOutput.Babbage => babbage.value
 
-                    val amount = value match
-                        case ada: Value.Ada               => ada.coin.value
-                        case multiAsset: Value.MultiAsset => multiAsset.coin.value
-
-                    acc + amount
+                    acc + value.coin.value
                 }
 
                 success(result)
@@ -88,11 +84,7 @@ object EqualValidator {
                         case shelley: TransactionOutput.Shelley => shelley.value
                         case babbage: TransactionOutput.Babbage => babbage.value
 
-                    val amount = value match
-                        case ada: Value.Ada               => ada.coin.value
-                        case multiAsset: Value.MultiAsset => multiAsset.coin.value
-
-                    acc + amount
+                    acc + value.coin.value
                 }
 
                 success(result)

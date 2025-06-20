@@ -115,19 +115,41 @@ trait ArbitraryInstances extends scalus.cardano.address.ArbitraryInstances {
 
     given Arbitrary[Constitution] = autoDerived
 
-    given Arbitrary[Value] = Arbitrary {
-        Gen.oneOf(
-          arbitrary[Coin].map(Value.Ada.apply),
-          for
-              coin <- arbitrary[Coin]
-              assets <- {
-                  given [A: Arbitrary, B: Arbitrary]: Arbitrary[immutable.Map[A, B]] = Arbitrary(
-                    genMapOfSizeFromArbitrary(1, 8)
-                  )
-                  arbitrary[MultiAsset]
-              }
-          yield Value.MultiAsset(coin, assets)
+    def genMultiAsset(
+        minPolicies: Int = 1,
+        maxPolicies: Int = 8,
+        minAssets: Int = 1,
+        maxAssets: Int = 8
+    ): Gen[MultiAsset] = {
+        given Arbitrary[Long] = Arbitrary(
+          Gen.oneOf(Gen.choose(Long.MinValue, -1L), Gen.choose(1L, Long.MaxValue))
         )
+        given [A: Arbitrary, B: Arbitrary]: Arbitrary[immutable.Map[A, B]] = Arbitrary(
+          genMapOfSizeFromArbitrary(minAssets, maxAssets)
+        )
+
+        for
+            policies <- Gen.choose(minPolicies, maxPolicies)
+            result <- Gen.mapOfN(
+              policies,
+              for
+                  policyId <- arbitrary[PolicyId]
+                  assets <- arbitrary[immutable.Map[AssetName, Long]]
+              yield (policyId, assets)
+            )
+        yield result
+    }
+
+    given Arbitrary[Value] = Arbitrary {
+        for
+            coin <- arbitrary[Coin]
+            assets <- genMultiAsset(
+              minPolicies = 0,
+              maxPolicies = 4,
+              minAssets = 1,
+              maxAssets = 4
+            )
+        yield Value(coin, assets)
     }
 
     // FIXME: autoDerived for DRep is not working correctly
