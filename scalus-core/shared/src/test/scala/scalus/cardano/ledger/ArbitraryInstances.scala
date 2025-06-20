@@ -1,14 +1,13 @@
 package scalus.cardano.ledger
 
 import io.bullet.borer.Encoder
-import org.scalacheck.{Arbitrary, Gen}
 import org.scalacheck.Arbitrary.arbitrary
-import scalus.builtin.{ByteString, Data}
+import org.scalacheck.{Arbitrary, Gen}
+import scalus.builtin
 import scalus.builtin.Data.*
-import scalus.testutil.ArbitraryDerivation.autoDerived
+import scalus.builtin.{ByteString, Data}
 import scalus.ledger.api.{SlotNo, Timelock}
-import scalus.uplc.test
-import scalus.{builtin, uplc}
+import scalus.testutil.ArbitraryDerivation.autoDerived
 
 import scala.collection.immutable
 
@@ -122,11 +121,10 @@ trait ArbitraryInstances extends scalus.cardano.address.ArbitraryInstances {
           for
               coin <- arbitrary[Coin]
               assets <- {
-                  given Arbitrary[Long] = Arbitrary(Gen.posNum[Long])
                   given [A: Arbitrary, B: Arbitrary]: Arbitrary[immutable.Map[A, B]] = Arbitrary(
                     genMapOfSizeFromArbitrary(1, 8)
                   )
-                  arbitrary[MultiAsset[Long]]
+                  arbitrary[MultiAsset]
               }
           yield Value.MultiAsset(coin, assets)
         )

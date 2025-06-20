@@ -37,9 +37,32 @@ object Coin {
     val zero: Coin = Coin(0)
 }
 
-type MultiAsset[A] = Map[PolicyId, Map[AssetName, A]]
+// TODO: this should be SortedMap as in Haskell
+type MultiAsset = Map[PolicyId, Map[AssetName, Long]]
+object MultiAsset {
+    val zero: MultiAsset = Map.empty
+    def binOp(op: (Long, Long) => Long)(self: MultiAsset, other: MultiAsset): MultiAsset = {
+        (self.keySet ++ other.keySet).map { policyId =>
+            val selfAssets = self.getOrElse(policyId, Map.empty)
+            val otherAssets = other.getOrElse(policyId, Map.empty)
 
-type Mint = MultiAsset[Long]
+            val mergedAssets = (selfAssets.keySet ++ otherAssets.keySet).map { assetName =>
+                val combinedValue =
+                    op(selfAssets.getOrElse(assetName, 0L), otherAssets.getOrElse(assetName, 0L))
+                assetName -> combinedValue
+            }.toMap
+            policyId -> mergedAssets
+        }.toMap
+    }
+
+    extension (self: MultiAsset) {
+        def +(other: MultiAsset): MultiAsset = binOp(_ + _)(self, other)
+        def -(other: MultiAsset): MultiAsset = binOp(_ - _)(self, other)
+    }
+
+}
+
+type Mint = MultiAsset
 
 /** Represents an asset name in Cardano's multi-asset framework
   *

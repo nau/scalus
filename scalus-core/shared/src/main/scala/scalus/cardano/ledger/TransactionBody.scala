@@ -289,7 +289,7 @@ object TransactionBody:
                         validityStartSlot = Some(r.readLong())
 
                     case 9 => // Mint
-                        mint = Some(r.read[MultiAsset[Long]]())
+                        mint = Some(r.read[MultiAsset]())
 
                     case 11 => // Script data hash
                         scriptDataHash = Some(r.read[ScriptDataHash]())
