@@ -6,7 +6,7 @@ import scalus.builtin.PlatformSpecific.bls12_381_G1_compressed_zero
 import scalus.builtin.PlatformSpecific.bls12_381_G2_compressed_zero
 import scalus.builtin.PlatformSpecific.bls12_381_G1_compressed_generator
 import scalus.builtin.PlatformSpecific.bls12_381_G2_compressed_generator
-import scalus.builtin.ByteString.given
+import scalus.builtin.ByteString.*
 
 import scala.language.implicitConversions
 

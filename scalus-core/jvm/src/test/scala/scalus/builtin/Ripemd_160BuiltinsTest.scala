@@ -2,7 +2,7 @@ package scalus.builtin
 
 import org.scalatest.funsuite.AnyFunSuite
 import scalus.builtin.Builtins.*
-import scalus.builtin.ByteString.{fromString, given}
+import scalus.builtin.ByteString.*
 
 import scala.language.implicitConversions
 

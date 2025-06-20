@@ -53,13 +53,6 @@ object ByteString extends ByteStringApi {
     def fromHex(bytes: String): ByteString = new ByteString(Hex.hexToBytes(bytes))
     def fromString(s: String): ByteString = new ByteString(s.getBytes("UTF-8"))
 
-    @deprecated("Use `hex` extension instead. import scalus.builtin.ByteString.hex", "0.8.0")
-    implicit class StringInterpolators(val sc: StringContext) extends AnyVal:
-
-        def hex(args: Any*): ByteString =
-            val hexString = sc.s(args*).replace(" ", "")
-            fromHex(hexString)
-
     extension (sc: StringContext)
         /** Hex string interpolator
           *
