@@ -19,7 +19,7 @@ object ValidateValueNotConservedUTxO extends STS.Validator {
                     state.utxo.get(input) match {
                         case Some(output) => output.value
                         case None =>
-                            throw IllegalArgumentException(s"Input $input not found in UTxO state")
+                            throw IllegalStateException(s"Input $input not found in UTxO state")
                     }
                 }
                 .foldLeft(Value.zero)(_ + _)
@@ -73,14 +73,19 @@ object ValidateValueNotConservedUTxO extends STS.Validator {
                   policy -> assets.filter((_, value) => value < 0)
               }
             )
-            val getTotalDepositsTxCerts = Value.zero
-            val conwayProposalsDeposits = Value.zero
-            val deposits = getTotalDepositsTxCerts + conwayProposalsDeposits
             val outputs = txBody.outputs
                 .map(_.value)
                 .foldLeft(Value.zero)(_ + _)
-            val fee = Value(txBody.fee)
-            outputs + fee + deposits + burned
+            val shelleyTotalDepositsTxCerts: Coin = Coin.zero // FIXME: implement
+            val conwayDRepDepositsTxCerts: Coin = Coin.zero // FIXME: implement
+            val conwayTotalDepositsTxCerts = shelleyTotalDepositsTxCerts + conwayDRepDepositsTxCerts
+            val getTotalDepositsTxBody = conwayTotalDepositsTxCerts
+            val shelleyProducedValue = outputs + Value(txBody.fee + getTotalDepositsTxBody)
+            val getProducedMaryValue = shelleyProducedValue + burned
+            val conwayProducedValue =
+                getProducedMaryValue + Value(txBody.donation.getOrElse(Coin.zero))
+            val getProducedValue = conwayProducedValue
+            getProducedValue
         }
 
         if consumed == produced then success

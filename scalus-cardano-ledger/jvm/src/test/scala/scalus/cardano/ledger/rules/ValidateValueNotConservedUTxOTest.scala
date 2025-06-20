@@ -13,12 +13,10 @@ class ValidateValueNotConservedUTxOTest extends AnyFunSuite, ArbitraryInstances 
         val context = Context()
         val tx = randomValidTransaction.copy(
           body = KeepRaw(
-            randomValidTransaction.body.value.copy(
-              fee = Coin.zero,
-              mint = None,
+            TransactionBody(
               inputs = Set.empty,
               outputs = IndexedSeq.empty,
-              withdrawals = None,
+              fee = Coin.zero,
             )
           )
         )

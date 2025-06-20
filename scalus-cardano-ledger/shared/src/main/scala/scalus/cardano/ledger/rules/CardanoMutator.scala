@@ -7,11 +7,7 @@ object CardanoMutator extends STS.Mutator {
             _ <- EmptyInputsValidator.validate(context, state, event)
             _ <- InputsAndReferenceInputsDisjointValidator.validate(context, state, event)
             _ <- AllInputsMustBeInUtxoValidator.validate(context, state, event)
-            _ <- EqualValidator.InputsAmountEqualsSumOfOutputsAmountAndFeeAmount.validate(
-              context,
-              state,
-              event
-            )
+            _ <- ValidateValueNotConservedUTxO.validate(context, state, event)
             _ <- VerifiedWitnessesValidator.validate(context, state, event)
             _ <- NeededWitnessesValidator.validate(context, state, event)
             _ <- MissingScriptsValidator.validate(context, state, event)
