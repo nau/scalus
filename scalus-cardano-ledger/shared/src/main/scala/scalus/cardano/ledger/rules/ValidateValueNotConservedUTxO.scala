@@ -7,7 +7,7 @@ import scalus.ledger.babbage.ProtocolParams
   *
   * consumed pp utxo txb = produced pp poolParams txb
   */
-object ValuePreservedValidator extends STS.Validator {
+object ValidateValueNotConservedUTxO extends STS.Validator {
     override def validate(context: Context, state: State, tx: Transaction): Result = {
         val txBody = tx.body.value
         val mint = txBody.mint.getOrElse(Map.empty)
@@ -23,17 +23,29 @@ object ValuePreservedValidator extends STS.Validator {
               policy -> assets.filter((_, value) => value < 0)
           }
         )
-
-        val inputs = Value.zero
+        val inputs = txBody.inputs
+            .map { input =>
+                state.utxo.get(input) match {
+                    case Some(output) => output.value
+                    case None =>
+                        throw IllegalArgumentException(s"Input $input not found in UTxO state")
+                }
+            }
+            .foldLeft(Value.zero)(_ + _)
+        // TODO: handle refunds and withdrawals
         val refunds = Value.zero
         val withdrawals = Value.zero
-        val consumed = inputs + minted + refunds + withdrawals
         val getTotalDepositsTxCerts = Value.zero
         val conwayProposalsDeposits = Value.zero
         val deposits = getTotalDepositsTxCerts + conwayProposalsDeposits
-        val outputs = Value.zero
+        val outputs = txBody.outputs
+            .map(_.value)
+            .foldLeft(Value.zero)(_ + _)
         val fee = Value(txBody.fee)
+
+        val consumed = inputs + minted + refunds + withdrawals
         val produced = outputs + fee + deposits + burned
+
         if consumed == produced then success
         else
             failure(
