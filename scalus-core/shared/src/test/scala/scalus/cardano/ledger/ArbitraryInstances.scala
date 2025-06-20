@@ -263,9 +263,9 @@ trait ArbitraryInstances extends scalus.cardano.address.ArbitraryInstances {
     given Arbitrary[Script] = Arbitrary {
         Gen.oneOf(
           TimelockGen.genTimelock.map(Script.Native.apply),
-          arbitrary[ByteString].map(Script.PlutusV1.apply),
-          arbitrary[ByteString].map(Script.PlutusV2.apply),
-          arbitrary[ByteString].map(Script.PlutusV3.apply),
+          arbitrary[ByteString].map(byteString => Script.PlutusV1(PlutusV1Script(byteString))),
+          arbitrary[ByteString].map(byteString => Script.PlutusV2(PlutusV2Script(byteString))),
+          arbitrary[ByteString].map(byteString => Script.PlutusV3(PlutusV3Script(byteString))),
         )
     }
     given Arbitrary[ScriptRef] = autoDerived
@@ -448,6 +448,21 @@ trait ArbitraryInstances extends scalus.cardano.address.ArbitraryInstances {
                   .map(Redeemers.Map.apply)
           }
         )
+    }
+
+    given Arbitrary[PlutusV1Script] = Arbitrary {
+        for bytes <- genByteStringOfN(32)
+        yield PlutusV1Script(bytes)
+    }
+
+    given Arbitrary[PlutusV2Script] = Arbitrary {
+        for bytes <- genByteStringOfN(32)
+        yield PlutusV2Script(bytes)
+    }
+
+    given Arbitrary[PlutusV3Script] = Arbitrary {
+        for bytes <- genByteStringOfN(32)
+        yield PlutusV3Script(bytes)
     }
 
     given Arbitrary[TransactionWitnessSet] = {

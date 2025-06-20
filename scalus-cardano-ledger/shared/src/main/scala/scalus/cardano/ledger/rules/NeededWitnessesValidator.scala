@@ -1,7 +1,6 @@
 package scalus.cardano.ledger
 package rules
 
-import scalus.cardano.address.{Address, ShelleyPaymentPart, StakePayload}
 import scala.util.boundary
 import scala.util.boundary.break
 
@@ -156,7 +155,7 @@ object NeededWitnessesValidator extends STS.Validator {
 
         for
             (rewardAccount, index) <- withdrawals.view.keySet.zipWithIndex
-            keyHash <- extractKeyHash(rewardAccount.address)
+            keyHash <- rewardAccount.address.keyHash
         do
             if !vkeyWitnesses.exists(_.vkeyHash == keyHash)
             then
@@ -189,7 +188,7 @@ object NeededWitnessesValidator extends STS.Validator {
         do
             utxo.get(input) match
                 case Some(output) =>
-                    extractKeyHash(output.address).foreach { keyHash =>
+                    output.address.keyHash.foreach { keyHash =>
                         if !vkeyWitnesses.exists(_.vkeyHash == keyHash)
                         then
                             break(
@@ -209,21 +208,5 @@ object NeededWitnessesValidator extends STS.Validator {
                     break(failure(missingInputError(transactionId, input, index)))
 
         success
-    }
-
-    private def extractKeyHash(
-        address: Address
-    ): Option[Hash[Blake2b_224, HashPurpose.KeyHash | HashPurpose.StakeKeyHash]] = {
-        address match
-            case Address.Byron(_) =>
-                None // Byron addresses don't have staking credentials
-            case Address.Shelley(shelleyAddress) =>
-                shelleyAddress.payment match
-                    case ShelleyPaymentPart.Key(hash) => Some(hash)
-                    case _: ShelleyPaymentPart.Script => None
-            case Address.Stake(stakeAddress) =>
-                stakeAddress.payload match
-                    case StakePayload.Stake(hash) => Some(hash)
-                    case _: StakePayload.Script   => None
     }
 }

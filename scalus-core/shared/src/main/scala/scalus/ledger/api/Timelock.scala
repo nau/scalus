@@ -1,6 +1,8 @@
 package scalus.ledger.api
+
 import io.bullet.borer.*
-import scalus.cardano.ledger.AddrKeyHash
+import scalus.cardano.ledger.{AddrKeyHash, Hash, ScriptHash}
+import scalus.builtin.{ByteString, PlatformSpecific, given}
 import scalus.ledger.api.Timelock.{lteNegInfty, ltePosInfty}
 
 import scala.annotation.tailrec
@@ -33,6 +35,12 @@ enum Timelock:
     case MOf(m: Int, scripts: Seq[Timelock])
     case TimeStart(lockStart: SlotNo)
     case TimeExpire(lockExpire: SlotNo)
+
+    def scriptHash: ScriptHash = Hash(
+      summon[PlatformSpecific].blake2b_256(
+        ByteString.unsafeFromArray(Cbor.encode(this).toByteArray.prepended(0))
+      )
+    )
 
     // String representation of Timelock
     lazy val show: String = this match
