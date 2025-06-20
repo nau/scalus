@@ -5,21 +5,30 @@ import scalus.cardano.address.{Address, ShelleyPaymentPart, StakePayload}
 import scala.util.boundary
 import scala.util.boundary.break
 
-// It's Shelley.validateMissingScripts in cardano-ledger
+// It's babbageMissingScripts in cardano-ledger
 object MissingScriptsValidator extends STS.Validator {
     override def validate(context: Context, state: State, event: Event): Result = {
         for
             requiredScripts <- allRequiredScripts(state, event)
-            providedReferenceScripts <- allProvidedReferenceScripts(state, event)
-            filteredProvidedReferenceScripts = providedReferenceScripts.intersect(requiredScripts)
-            providedWitnessScripts = allProvidedWitnessScripts(event)
-            providedScripts = filteredProvidedReferenceScripts ++ providedWitnessScripts
+            referenceScripts <- allReferenceScripts(state, event)
+            requiredScriptsNonRefs = requiredScripts.diff(referenceScripts)
+            providedScripts = allProvidedScripts(event)
             _ <-
-                if providedScripts == requiredScripts then success
+                val missing = requiredScriptsNonRefs.diff(providedScripts)
+                if missing.isEmpty then success
                 else
                     failure(
                       IllegalArgumentException(
-                        s"Missing scripts: ${requiredScripts.diff(providedScripts)} transactionId ${event.id}"
+                        s"Missing scripts: $missing transactionId ${event.id}"
+                      )
+                    )
+            _ <-
+                val extra = providedScripts.diff(requiredScriptsNonRefs)
+                if extra.isEmpty then success
+                else
+                    failure(
+                      IllegalArgumentException(
+                        s"Extra scripts: $extra transactionId ${event.id}"
                       )
                     )
         yield ()
@@ -44,13 +53,12 @@ object MissingScriptsValidator extends STS.Validator {
         Right(result.toSet)
     }
 
-    private def allProvidedReferenceScripts(
+    private def allReferenceScripts(
         state: State,
         event: Event
     ): Either[Error, Set[ScriptHash]] = boundary {
         val result = (
-          providedInputReferenceScripts(state, event) ++
-              providedReferenceInputReferenceScripts(state, event)
+          inputReferenceScripts(state, event) ++ referenceInputReferenceScripts(state, event)
         ).map {
             case Right(scriptHash) => scriptHash
             case Left(error)       => break(Left(error))
@@ -59,7 +67,7 @@ object MissingScriptsValidator extends STS.Validator {
         Right(result.toSet)
     }
 
-    private def allProvidedWitnessScripts(event: Event): Set[ScriptHash] = {
+    private def allProvidedScripts(event: Event): Set[ScriptHash] = {
         val witnessSet = event.witnessSet
 
         (
@@ -198,11 +206,11 @@ object MissingScriptsValidator extends STS.Validator {
         yield scriptHash
     }
 
-    private def providedInputReferenceScripts(
+    private def inputReferenceScripts(
         state: State,
         event: Event
     ): scala.collection.View[Either[Error, ScriptHash]] = {
-        providedTransactionReferenceScripts(
+        transactionReferenceScripts(
           event.body.value.inputs,
           event.id,
           state.utxo,
@@ -213,11 +221,11 @@ object MissingScriptsValidator extends STS.Validator {
         )
     }
 
-    private def providedReferenceInputReferenceScripts(
+    private def referenceInputReferenceScripts(
         state: State,
         event: Event
     ): scala.collection.View[Either[Error, ScriptHash]] = {
-        providedTransactionReferenceScripts(
+        transactionReferenceScripts(
           event.body.value.referenceInputs,
           event.id,
           state.utxo,
@@ -247,7 +255,7 @@ object MissingScriptsValidator extends STS.Validator {
         yield result
     }
 
-    private def providedTransactionReferenceScripts(
+    private def transactionReferenceScripts(
         inputs: Set[TransactionInput],
         transactionId: TransactionHash,
         utxo: Utxo,
