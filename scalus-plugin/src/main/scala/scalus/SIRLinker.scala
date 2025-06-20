@@ -8,6 +8,8 @@ import scalus.sir.{AnnotatedSIR, AnnotationsDecl, Binding, DataDecl, Module, Rec
 import scala.collection.mutable
 import scala.util.control.NonFatal
 
+import scalus.sir.SIRVersion
+
 /** Links SIR definitions and data declarations into a single SIR module.
   *
   * This class is responsible for linking SIR definitions and data declarations to create a single
@@ -181,14 +183,14 @@ class SIRLinker(using ctx: Context) {
     }
 
     private def validateSIRVersion(module: Module, moduleName: String, srcPos: SrcPos): Unit = {
-        if (module.version._1 != SIRCompiler.SIRVersion._1)
-            || (module.version._1 == SIRCompiler.SIRVersion._1
-                && SIRCompiler.SIRVersion._2 < module.version._2)
+        if (module.version._1 != SIRVersion._1)
+            || (module.version._1 == SIRVersion._1
+                && SIRVersion._2 < module.version._2)
         then
             report.error(
-              s"""During linking I've found that a module '$moduleName' has an incompatible SIR version: ${module.version} (expected: ${SIRCompiler.SIRVersion}).
+              s"""During linking I've found that a module '$moduleName' has an incompatible SIR version: ${module.version} (expected: ${SIRVersion}).
                    |This can happen if you try to link a module compiled with a different version of Scalus.
-                   |Please, recompile the module with the version of Scalus that has the SIR version ${SIRCompiler.SIRVersion}
+                   |Please, recompile the module with the version of Scalus that has the SIR version ${SIRVersion}
                    |""".stripMargin,
               srcPos
             )

@@ -3,6 +3,8 @@ package scalus.sir
 import scalus.uplc.Constant
 import scalus.uplc.DefaultFun
 
+val SIRVersion: (Int, Int) = (2, 0)
+
 case class Module(version: (Int, Int), defs: List[Binding])
 
 case class Binding(name: String, tp: SIRType, value: SIR) {

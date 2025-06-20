@@ -12,6 +12,7 @@ import scalus.uplc.DefaultUni.asConstant
 import scalus.uplc.Term.*
 import scalus.uplc.TermDSL.given
 import scalus.uplc.eval.*
+import scalus.uplc.test.ArbitraryInstances
 
 import scala.language.implicitConversions
 import scala.reflect.ClassTag

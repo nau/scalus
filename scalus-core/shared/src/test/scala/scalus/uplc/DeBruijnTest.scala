@@ -3,6 +3,7 @@ package scalus.uplc
 import org.scalatest.funsuite.AnyFunSuite
 import org.scalatestplus.scalacheck.ScalaCheckPropertyChecks
 import scalus.uplc.Term.*
+import scalus.uplc.test.ArbitraryInstances
 
 class DeBruijnTest extends AnyFunSuite with ScalaCheckPropertyChecks with ArbitraryInstances:
     test("deBruijnTerm") {

@@ -15,12 +15,6 @@ trait HashConsedRef[+A <: AnyRef] {
 
     def isForward: Boolean = false
 
-    /** @return
-      *   true if we have fully data object here and finValue can be called regradless of the state.
-      *   used for optimization.
-      */
-    def isComplete(hashConsed: HashConsed.State): Boolean
-
     /** Should be called after the decoding of the whole structures.
       *
       * @return
@@ -47,15 +41,11 @@ object HashConsedRef {
             case Some(Right(a)) => a.asInstanceOf[HashConsedRef[A]]
 
     def deferred[A <: AnyRef](
-        complete: HashConsed.State => Boolean,
         op: (HashConsed.State, Int, HSRIdentityHashMap) => A
     ): HashConsedRef[A] =
         new HashConsedRef[A] {
             val createdAt = new Exception()
             var finishedValue: Option[A] = None
-
-            override def isComplete(hashConsed: HashConsed.State) =
-                finishedValue.isDefined || complete(hashConsed)
 
             override def finValue(
                 hashConsed: HashConsed.State,
@@ -114,15 +104,12 @@ object HashConsed {
 
         def cache: A | Null = data
 
-        override def isComplete(hashConsed: State): Boolean =
-            data != null || ref.isComplete(hashConsed)
-
         override def finValue(hashConsed: State, level: Int, parents: HSRIdentityHashMap): A =
-            if data == null then
-                if parents.get(this) != null then throw IllegalStateException("Cyclic reference")
-                parents.put(this, this)
+            if data == null then {
+                // here we does not need check for cyclic references, because
+                //   this is proxuy arround ref,
                 data = ref.finValue(hashConsed, level + 1, parents)
-                parents.remove(this)
+            }
             data.asInstanceOf[A]
 
     }
@@ -130,8 +117,6 @@ object HashConsed {
     class ForwardValueAcceptor(var setValueActions: List[AnyRef => Unit])
 
     class MutRef[A <: AnyRef](var value: A | Null) extends HashConsedRef[A] {
-
-        override def isComplete(hashConsed: State): Boolean = value != null
 
         override def finValue(hashConsed: State, level: Int, parents: HSRIdentityHashMap): A =
             if value == null then throw IllegalStateException("Null reference during reading")
@@ -157,9 +142,6 @@ object HashConsed {
         // var finRef: A | Null = null
 
         override def isForward: Boolean = true
-
-        override def isComplete(hashConsed: State): Boolean =
-            ref != null && ref.isComplete(hashConsed)
 
         override def finValue(hashConsed: State, level: Int, parents: HSRIdentityHashMap): A =
             if ref == null then
@@ -195,8 +177,6 @@ object HashConsed {
     }
 
     case class ConstRef[A <: AnyRef](value: A) extends HashConsedRef[A] {
-
-        override def isComplete(hashConsed: State): Boolean = true
 
         override def finValue(hashConsed: State, level: Int, parents: HSRIdentityHashMap): A = value
 
@@ -256,7 +236,8 @@ object HashConsed {
         if ra.isForward then throw IllegalStateException("Forward reference in setRef")
         val key = (ihc, tag)
         state.refs.get(key) match
-            case None => state.refs.put(key, CachedTaggedRef(tag, ra))
+            case None =>
+                state.refs.put(key, CachedTaggedRef(tag, ra))
             case Some(ref) =>
                 throw IllegalStateException(s"Double setRef for $key")
         state.forwardRefAcceptors.get(key) match

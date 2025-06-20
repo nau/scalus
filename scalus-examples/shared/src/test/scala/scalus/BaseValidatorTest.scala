@@ -10,7 +10,7 @@ import scalus.prelude.*
 import scalus.uplc.*
 import scalus.uplc.eval.BuiltinError
 import scalus.uplc.eval.PlutusVM
-import scalus.testkit.*
+import scalus.testkit.ArbitraryInstances
 
 import scala.util.Failure
 import scala.util.Success

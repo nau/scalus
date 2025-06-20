@@ -2,7 +2,7 @@ package scalus.builtin
 
 import org.bitcoin.NativeSecp256k1
 import org.bouncycastle.crypto.digests.Blake2bDigest
-import org.bouncycastle.crypto.params.Ed25519PublicKeyParameters
+import org.bouncycastle.crypto.params.{Ed25519PrivateKeyParameters, Ed25519PublicKeyParameters}
 import org.bouncycastle.crypto.signers.Ed25519Signer
 import org.bouncycastle.jcajce.provider.digest.{Keccak, RIPEMD160, SHA3}
 import scalus.utils.Utils
@@ -62,6 +62,15 @@ trait JVMPlatformSpecific extends PlatformSpecific {
         verifier.init(false, pubKeyParams)
         verifier.update(msg.bytes, 0, msg.length)
         verifier.verifySignature(sig.bytes)
+
+    override def signEd25519(privateKey: ByteString, message: ByteString): ByteString = {
+        require(privateKey.length == 32, s"Invalid private key length ${privateKey.length}")
+        val privateKeyParams = Ed25519PrivateKeyParameters(privateKey.bytes, 0)
+        val signer = new Ed25519Signer();
+        signer.init(true, privateKeyParams);
+        signer.update(message.bytes, 0, message.length)
+        ByteString.unsafeFromArray(signer.generateSignature())
+    }
 
     override def verifyEcdsaSecp256k1Signature(
         pk: ByteString,

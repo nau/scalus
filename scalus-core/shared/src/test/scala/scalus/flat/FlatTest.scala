@@ -7,6 +7,7 @@ import org.scalatest.funsuite.AnyFunSuite
 import org.scalatestplus.scalacheck.ScalaCheckPropertyChecks
 import scalus.builtin
 import scalus.uplc.*
+import scalus.uplc.test.ArbitraryInstances
 import scalus.utils.Utils
 
 import scala.util.Random

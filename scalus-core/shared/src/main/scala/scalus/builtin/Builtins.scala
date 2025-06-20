@@ -17,6 +17,7 @@ trait PlatformSpecific:
     def blake2b_224(bs: ByteString): ByteString
     def blake2b_256(bs: ByteString): ByteString
     def verifyEd25519Signature(pk: ByteString, msg: ByteString, sig: ByteString): Boolean
+    def signEd25519(privateKey: ByteString, msg: ByteString): ByteString
 
     /** Verify an ECDSA signature made using the SECP256k1 curve.
       *

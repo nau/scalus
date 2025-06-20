@@ -6,7 +6,7 @@ import org.scalatestplus.scalacheck.ScalaCheckPropertyChecks
 import scalus.builtin
 import scalus.builtin.ByteString.*
 import scalus.builtin.Data.*
-import scalus.uplc.ArbitraryInstances
+import scalus.uplc.test.ArbitraryInstances
 import scalus.utils.Utils
 
 import scala.collection.immutable

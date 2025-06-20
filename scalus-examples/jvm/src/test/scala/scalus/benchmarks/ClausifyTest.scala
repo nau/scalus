@@ -17,15 +17,17 @@ class ClausifyTest extends AnyFunSuite, ScalusTest:
     inline val isAlwaysPrintComparison = false
 
     test("F1") {
-        val result = Compiler
+        println("F1: before compilation")
+        val sir = Compiler
             .compile {
                 // (a = a) = (a = a) = (a = a)
                 val formula = (1 <-> 1) <-> ((1 <-> 1) <-> (1 <-> 1))
                 val expected = List.empty[LRVars]
                 require(formula.clauses === expected)
             }
-            .toUplcOptimized(false)
-            .evaluateDebug
+        val uplc = sir.toUplcOptimized(false)
+
+        val result = uplc.evaluateDebug
 
         val scalusBudget = ExBudget(ExCPU(7879192811L), ExMemory(45835971))
         assert(result.isSuccess)

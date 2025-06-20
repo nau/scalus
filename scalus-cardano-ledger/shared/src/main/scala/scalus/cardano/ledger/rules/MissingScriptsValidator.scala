@@ -8,11 +8,24 @@ import scala.util.boundary.break
 // It's Shelley.validateMissingScripts in cardano-ledger
 object MissingScriptsValidator extends STS.Validator {
     override def validate(context: Context, state: State, event: Event): Result = {
-
-        ???
+        for
+            requiredScripts <- allRequiredScripts(state, event)
+            providedReferenceScripts <- allProvidedReferenceScripts(state, event)
+            filteredProvidedReferenceScripts = providedReferenceScripts.intersect(requiredScripts)
+            providedWitnessScripts = allProvidedWitnessScripts(event)
+            providedScripts = filteredProvidedReferenceScripts ++ providedWitnessScripts
+            _ <-
+                if providedScripts == requiredScripts then success
+                else
+                    failure(
+                      IllegalArgumentException(
+                        s"Missing scripts: ${requiredScripts.diff(providedScripts)} transactionId ${event.id}"
+                      )
+                    )
+        yield ()
     }
 
-    private[this] def allRequiredScripts(
+    private def allRequiredScripts(
         state: State,
         event: Event
     ): Either[Error, Set[ScriptHash]] = boundary {
@@ -31,7 +44,33 @@ object MissingScriptsValidator extends STS.Validator {
         Right(result.toSet)
     }
 
-    private[this] def requiredInputScripts(
+    private def allProvidedReferenceScripts(
+        state: State,
+        event: Event
+    ): Either[Error, Set[ScriptHash]] = boundary {
+        val result = (
+          providedInputReferenceScripts(state, event) ++
+              providedReferenceInputReferenceScripts(state, event)
+        ).map {
+            case Right(scriptHash) => scriptHash
+            case Left(error)       => break(Left(error))
+        }
+
+        Right(result.toSet)
+    }
+
+    private def allProvidedWitnessScripts(event: Event): Set[ScriptHash] = {
+        val witnessSet = event.witnessSet
+
+        (
+          witnessSet.nativeScripts.view.map(Script.nativeScriptHash) ++
+              witnessSet.plutusV1Scripts.map(Script.plutusV1ScriptHash) ++
+              witnessSet.plutusV2Scripts.map(Script.plutusV2ScriptHash) ++
+              witnessSet.plutusV3Scripts.map(Script.plutusV3ScriptHash)
+        ).toSet
+    }
+
+    private def requiredInputScripts(
         state: State,
         event: Event
     ): scala.collection.View[Either[Error, ScriptHash]] = {
@@ -46,7 +85,7 @@ object MissingScriptsValidator extends STS.Validator {
         )
     }
 
-    private[this] def requiredCollateralInputScripts(
+    private def requiredCollateralInputScripts(
         state: State,
         event: Event
     ): scala.collection.View[Either[Error, ScriptHash]] = {
@@ -61,11 +100,11 @@ object MissingScriptsValidator extends STS.Validator {
         )
     }
 
-    private[this] def requiredMintScripts(
+    private def requiredMintScripts(
         event: Event
     ): Set[PolicyId] = event.body.value.mint.getOrElse(Map.empty).keySet
 
-    private[this] def requiredVotingProceduresScripts(
+    private def requiredVotingProceduresScripts(
         event: Event
     ): scala.collection.View[ScriptHash] = {
         val votingProcedures =
@@ -82,7 +121,7 @@ object MissingScriptsValidator extends STS.Validator {
         yield scriptHash
     }
 
-    private[this] def requiredWithdrawalScripts(
+    private def requiredWithdrawalScripts(
         event: Event
     ): scala.collection.View[ScriptHash] = {
         val withdrawals = event.body.value.withdrawals.map(_.withdrawals).getOrElse(Map.empty)
@@ -93,7 +132,7 @@ object MissingScriptsValidator extends STS.Validator {
         yield scriptHash
     }
 
-    private[this] def requiredProposalProcedureScripts(
+    private def requiredProposalProcedureScripts(
         event: Event
     ): scala.collection.View[ScriptHash] = {
         val proposalProcedures = event.body.value.proposalProcedures
@@ -112,7 +151,7 @@ object MissingScriptsValidator extends STS.Validator {
         yield scriptHash
     }
 
-    private[this] def requiredCertificateScripts(
+    private def requiredCertificateScripts(
         event: Event
     ): scala.collection.View[ScriptHash] = {
         val certificates = event.body.value.certificates
@@ -159,7 +198,37 @@ object MissingScriptsValidator extends STS.Validator {
         yield scriptHash
     }
 
-    private[this] def requiredTransactionInputScripts(
+    private def providedInputReferenceScripts(
+        state: State,
+        event: Event
+    ): scala.collection.View[Either[Error, ScriptHash]] = {
+        providedTransactionReferenceScripts(
+          event.body.value.inputs,
+          event.id,
+          state.utxo,
+          (transactionId, input, index) =>
+              IllegalArgumentException(
+                s"Missing input $input with index $index in UTxO state for transactionId $transactionId"
+              )
+        )
+    }
+
+    private def providedReferenceInputReferenceScripts(
+        state: State,
+        event: Event
+    ): scala.collection.View[Either[Error, ScriptHash]] = {
+        providedTransactionReferenceScripts(
+          event.body.value.referenceInputs,
+          event.id,
+          state.utxo,
+          (transactionId, input, index) =>
+              IllegalArgumentException(
+                s"Missing reference input $input with index $index in UTxO state for transactionId $transactionId"
+              )
+        )
+    }
+
+    private def requiredTransactionInputScripts(
         inputs: Set[TransactionInput],
         transactionId: TransactionHash,
         utxo: Utxo,
@@ -172,13 +241,13 @@ object MissingScriptsValidator extends STS.Validator {
                     extractScriptHash(output.address) match
                         case Some(scriptHash) => Some(Right(scriptHash))
                         case None             => None
+                // This check allows to be an order independent in the sequence of validation rules
                 case None =>
-                    // This check allows to be an order independent in the sequence of validation rules
                     Some(Left(missingInputError(transactionId, input, index)))
         yield result
     }
 
-    private[this] def providedTransactionReferenceScripts(
+    private def providedTransactionReferenceScripts(
         inputs: Set[TransactionInput],
         transactionId: TransactionHash,
         utxo: Utxo,
@@ -191,27 +260,16 @@ object MissingScriptsValidator extends STS.Validator {
                     output match
                         case babbage: TransactionOutput.Babbage =>
                             babbage.scriptRef match
-                                case Some(ScriptRef(script)) =>
-                                    script match
-                                        case Script.Native(_) =>
-                                            None // No script needed for key reference
-                                        case Script.PlutusV1(_) =>
-                                            None // No script needed for key reference
-                                        case Script.PlutusV2(_) =>
-                                            None // No script needed for key reference
-                                        case Script.PlutusV3(_) =>
-                                            None // No script needed for key reference
-
-                                case None => None
+                                case Some(ScriptRef(script)) => Some(Right(script.scriptHash))
+                                case None                    => None
                         case _: TransactionOutput.Shelley => None
-
+                // This check allows to be an order independent in the sequence of validation rules
                 case None =>
-                    // This check allows to be an order independent in the sequence of validation rules
                     Some(Left(missingInputError(transactionId, input, index)))
         yield result
     }
 
-    private[this] def extractScriptHash(
+    private def extractScriptHash(
         address: Address
     ): Option[ScriptHash] = {
         address match

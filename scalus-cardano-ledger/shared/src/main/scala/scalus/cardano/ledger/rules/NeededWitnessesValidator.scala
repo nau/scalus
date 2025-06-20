@@ -17,7 +17,7 @@ object NeededWitnessesValidator extends STS.Validator {
         yield ()
     }
 
-    private[this] def validateInputs(
+    private def validateInputs(
         context: Context,
         state: State,
         event: Event
@@ -37,7 +37,7 @@ object NeededWitnessesValidator extends STS.Validator {
               )
         )
 
-    private[this] def validateCollateralInputs(
+    private def validateCollateralInputs(
         context: Context,
         state: State,
         event: Event
@@ -57,7 +57,7 @@ object NeededWitnessesValidator extends STS.Validator {
               )
         )
 
-    private[this] def validateVotingProcedures(
+    private def validateVotingProcedures(
         context: Context,
         state: State,
         event: Event
@@ -89,7 +89,7 @@ object NeededWitnessesValidator extends STS.Validator {
         success
     }
 
-    private[this] def validateCertificates(
+    private def validateCertificates(
         context: Context,
         state: State,
         event: Event
@@ -145,7 +145,7 @@ object NeededWitnessesValidator extends STS.Validator {
         success
     }
 
-    private[this] def validateWithdrawals(
+    private def validateWithdrawals(
         context: Context,
         state: State,
         event: Event
@@ -172,7 +172,7 @@ object NeededWitnessesValidator extends STS.Validator {
     }
 
     // TODO add bootstrap witnesses validation
-    private[this] def validateTransactionInputs(
+    private def validateTransactionInputs(
         inputs: Set[TransactionInput],
         transactionId: TransactionHash,
         vkeyWitnesses: Set[VKeyWitness],
@@ -211,7 +211,7 @@ object NeededWitnessesValidator extends STS.Validator {
         success
     }
 
-    private[this] def extractKeyHash(
+    private def extractKeyHash(
         address: Address
     ): Option[Hash[Blake2b_224, HashPurpose.KeyHash | HashPurpose.StakeKeyHash]] = {
         address match

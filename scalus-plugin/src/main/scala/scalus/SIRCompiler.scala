@@ -15,7 +15,7 @@ import dotty.tools.dotc.util.{NoSourcePosition, SourcePosition, SrcPos}
 import scalus.ScalusCompilationMode.{AllDefs, OnlyDerivations}
 import scalus.flat.{byteAsBitString, EncoderState, Flat}
 import scalus.flat.FlatInstantces.given
-import scalus.sir.{AnnotatedSIR, AnnotationsDecl, Binding, ConstrDecl, DataDecl, Module, Recursivity, SIR, SIRBuiltins, SIRPosition, SIRType, SIRVarStorage, TypeBinding}
+import scalus.sir.{AnnotatedSIR, AnnotationsDecl, Binding, ConstrDecl, DataDecl, Module, Recursivity, SIR, SIRBuiltins, SIRPosition, SIRType, SIRVarStorage, SIRVersion, TypeBinding}
 import scalus.uplc.DefaultUni
 
 import scala.annotation.{nowarn, tailrec, unused}
@@ -360,7 +360,7 @@ final class SIRCompiler(options: SIRCompilerOptions = SIRCompilerOptions.default
         } else
             val module =
                 Module(
-                  SIRCompiler.SIRVersion,
+                  SIRVersion,
                   bindingsWithSpecialized
                 )
 
@@ -399,7 +399,7 @@ final class SIRCompiler(options: SIRCompilerOptions = SIRCompilerOptions.default
             else Binding(lb.fullName.name, lb.tp, lb.body)
         }
         if bindings.nonEmpty then
-            val module = Module(SIRCompiler.SIRVersion, bindings)
+            val module = Module(SIRVersion, bindings)
             if options.debugLevel > 0 then
                 report.echo(
                   s"compiled Scalus module ${submodule.symbol.fullName} definitions: ${bindings.map(_.name)}"
@@ -2597,7 +2597,5 @@ object SIRCompiler {
         def empty: Env = Env(Map.empty, Map.empty)
 
     }
-
-    val SIRVersion: (Int, Int) = (1, 0)
 
 }

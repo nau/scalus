@@ -12,7 +12,7 @@ object VerifiedWitnessesValidator extends STS.Validator {
         } yield ()
     }
 
-    private[this] def validateVkeyWitnesses(
+    private def validateVkeyWitnesses(
         context: Context,
         state: State,
         event: Event
@@ -30,7 +30,7 @@ object VerifiedWitnessesValidator extends STS.Validator {
               )
         )
 
-    private[this] def validateBootstrapWitnesses(
+    private def validateBootstrapWitnesses(
         context: Context,
         state: State,
         event: Event
@@ -48,7 +48,7 @@ object VerifiedWitnessesValidator extends STS.Validator {
               )
         )
 
-    private[this] def validateWitnesses(
+    private def validateWitnesses(
         transactionId: TransactionHash,
         keysAndSignatures: scala.collection.View[(ByteString, ByteString)],
         error: (TransactionHash, ByteString, ByteString, Int) => IllegalArgumentException

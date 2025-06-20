@@ -4,12 +4,7 @@ import scalus.Compile
 import scalus.builtin.{Builtins, ByteString, Data, FromData, ToData}
 import scalus.builtin.Builtins.*
 import scalus.builtin.Data.{fromData, toData}
-import scalus.prelude.AssocMap
-import scalus.prelude.List
-import scalus.prelude.Option
-import scalus.prelude.===
-import scalus.prelude.Eq
-import scalus.prelude.given
+import scalus.prelude.{===, AssocMap, Eq, List, Option, Ord, given}
 
 type Hash = ByteString
 type ValidatorHash = Hash
@@ -200,6 +195,25 @@ object IntervalBoundType {
                     case PosInf => true
                     case _      => false
 
+    given Ord[IntervalBoundType] = (x: IntervalBoundType, y: IntervalBoundType) =>
+        x match
+            case NegInf =>
+                y match
+                    case NegInf => Ord.Order.Equal
+                    case _      => Ord.Order.Less
+            case Finite(a) =>
+                y match
+                    case NegInf => Ord.Order.Greater
+                    case Finite(b) =>
+                        if a < b then Ord.Order.Less
+                        else if a > b then Ord.Order.Greater
+                        else Ord.Order.Equal
+                    case PosInf => Ord.Order.Less
+            case PosInf =>
+                y match
+                    case PosInf => Ord.Order.Equal
+                    case _      => Ord.Order.Greater
+
     given toData[T <: IntervalBoundType]: ToData[T] = (a: T) =>
         a match
             case IntervalBoundType.NegInf    => constrData(0, mkNilData())
@@ -237,6 +251,17 @@ object IntervalBound:
                 y match
                     case IntervalBound(bound2, closure2) =>
                         bound === bound2 && closure1 === closure2
+
+    given Ord[IntervalBound] = (x: IntervalBound, y: IntervalBound) =>
+        x match
+            case IntervalBound(bound, closure1) =>
+                y match
+                    case IntervalBound(bound2, closure2) =>
+                        if bound === bound2 then
+                            if closure1 === closure2 then Ord.Order.Equal
+                            else if closure1 then Ord.Order.Greater
+                            else Ord.Order.Less
+                        else summon[Ord[IntervalBoundType]].compare(bound, bound2)
 
     given ToData[IntervalBound] = (a: IntervalBound) =>
         a match
