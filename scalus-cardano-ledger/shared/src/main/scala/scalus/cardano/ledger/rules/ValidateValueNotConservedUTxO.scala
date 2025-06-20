@@ -9,7 +9,7 @@ import scalus.ledger.babbage.ProtocolParams
   */
 object ValidateValueNotConservedUTxO extends STS.Validator {
     override def validate(context: Context, state: State, tx: Transaction): Result = {
-        val params: ProtocolParams = ???
+        val params = context.env.params
         val txBody = tx.body.value
         val mint = txBody.mint.getOrElse(Map.empty)
 
@@ -30,8 +30,12 @@ object ValidateValueNotConservedUTxO extends STS.Validator {
                     }
                     .getOrElse(Coin.zero)
 
-            def lookupStakingDeposit(cred: Credential): Option[Coin] = ???
-            def lookupDRepDeposit(cred: Credential): Option[Coin] = ???
+            def lookupStakingDeposit(cred: Credential): Option[Coin] = {
+                state.certState.dstate.deposits.get(cred)
+            }
+            def lookupDRepDeposit(cred: Credential): Option[Coin] = {
+                state.certState.vstate.dreps.get(cred).map(_.deposit)
+            }
 
             // Compute the key deregistration refunds in a transaction
             val conwayTotalRefundsTxCerts =
@@ -45,6 +49,7 @@ object ValidateValueNotConservedUTxO extends STS.Validator {
                       txBody.certificates
                     )
             val getTotalRefundsTxCerts = conwayTotalRefundsTxCerts
+            // Compute the total refunds from the Certificates of a TransactionBody
             val getTotalRefundsTxBody = getTotalRefundsTxCerts
             val refunds = getTotalRefundsTxBody
 

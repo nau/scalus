@@ -17,7 +17,8 @@ class ValidateValueNotConservedUTxOTest extends AnyFunSuite, ArbitraryInstances 
               fee = Coin.zero,
               mint = None,
               inputs = Set.empty,
-              outputs = IndexedSeq.empty
+              outputs = IndexedSeq.empty,
+              withdrawals = None,
             )
           )
         )
