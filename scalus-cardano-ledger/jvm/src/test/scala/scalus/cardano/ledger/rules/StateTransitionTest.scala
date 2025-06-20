@@ -147,7 +147,7 @@ class StateTransitionTest extends AnyFunSuite, ArbitraryInstances {
         assert(!transaction.body.value.collateralInputs.forall(state.utxo.contains))
         assert(!transaction.body.value.referenceInputs.forall(state.utxo.contains))
     }
-    
+
     test("VerifiedWitnessesValidator VkeyWitnesses rule success") {
         val context = Context()
         val transaction = {
