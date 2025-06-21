@@ -63,8 +63,6 @@ enum Timelock:
       *   Set of validator key hashes
       * @param interval
       *   The transaction validity interval
-      * @param script
-      *   The timelock script to evaluate
       * @return
       *   true if the script evaluates to true, false otherwise
       */

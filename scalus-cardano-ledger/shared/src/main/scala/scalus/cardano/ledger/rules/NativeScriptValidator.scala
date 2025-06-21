@@ -2,7 +2,7 @@ package scalus.cardano.ledger
 package rules
 
 import scalus.cardano.ledger.rules.utils.*
-import scalus.ledger.api.Timelock
+import scalus.ledger.api.{Timelock, ValidityInterval}
 import scala.util.boundary
 import scala.util.boundary.break
 
@@ -18,11 +18,13 @@ object NativeScriptValidator
             referenceNativeScripts <- allReferenceNativeScripts(state, event)
             providedNativeScripts = allProvidedNativeScripts(event)
             nativeScripts = referenceNativeScripts.view ++ providedNativeScripts
+            validatorKeys = allValidatorKeys(event)
+            validityInterval = extractValidityInterval(event)
             _ <-
                 for nativeScript <- nativeScripts
                 do
                     if requiredScriptHashes.contains(nativeScript.scriptHash) &&
-                        !validateNativeScript(nativeScript)
+                        !nativeScript.evaluate(validatorKeys, validityInterval)
                     then
                         break(
                           failure(
@@ -36,9 +38,11 @@ object NativeScriptValidator
         yield ()
     }
 
-    private def validateNativeScript(
-        nativeScript: Timelock
-    ): Boolean = {
-        ???
-    }
+    private def allValidatorKeys(
+        event: Event
+    ): Set[AddrKeyHash] = event.witnessSet.vkeyWitnesses.map(_.vkeyHash.asInstanceOf[AddrKeyHash])
+
+    private def extractValidityInterval(
+        event: Event
+    ): ValidityInterval = ValidityInterval(event.body.value.validityStartSlot, event.body.value.ttl)
 }
