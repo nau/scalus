@@ -73,7 +73,7 @@ trait ArbitraryInstances:
                     Stream(
                       B(
                         builtin.ByteString.unsafeFromArray(
-                          b.bytes.slice(0, b.length / 2)
+                          b.bytes.slice(0, b.size / 2)
                         )
                       )
                     )

@@ -43,7 +43,7 @@ object MemoryUsage {
     def memoryUsageInteger2(i: BigInt): CostingInteger =
         if i == 0 then 1 else (integerLog2(i.abs) / 64) + 1
 
-    def memoryUsageByteString(bs: ByteString): CostingInteger = (bs.length - 1) / 8 + 1
+    def memoryUsageByteString(bs: ByteString): CostingInteger = (bs.size - 1) / 8 + 1
 
     def memoryUsageString(s: String): CostingInteger = s.length
 

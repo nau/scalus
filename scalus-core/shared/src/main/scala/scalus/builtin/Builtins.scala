@@ -229,7 +229,8 @@ private[builtin] abstract class AbstractBuiltins(using ps: PlatformSpecific):
     def lessThanInteger(i1: BigInt, i2: BigInt): Boolean = i1 < i2
     def lessThanEqualsInteger(i1: BigInt, i2: BigInt): Boolean = i1 <= i2
     // Bytestrings
-    def appendByteString(a: ByteString, b: ByteString): ByteString = a ++ b
+    def appendByteString(a: ByteString, b: ByteString): ByteString =
+        ByteString.unsafeFromArray(a.bytes ++ b.bytes)
     def consByteString(char: BigInt, byteString: ByteString): ByteString =
         if char < 0 || char > 255 then
             throw new BuiltinException(s"consByteString: invalid byte value: $char")
@@ -237,17 +238,17 @@ private[builtin] abstract class AbstractBuiltins(using ps: PlatformSpecific):
     def sliceByteString(start: BigInt, n: BigInt, bs: ByteString): ByteString =
         ByteString.fromArray(bs.bytes.drop(start.toInt).take(n.toInt))
 
-    def lengthOfByteString(bs: ByteString): BigInt = bs.length
+    def lengthOfByteString(bs: ByteString): BigInt = bs.bytes.length
     def indexByteString(bs: ByteString, i: BigInt): BigInt =
-        if i < 0 || i >= bs.length then
+        if i < 0 || i >= bs.size then
             throw new BuiltinException(
-              s"index $i out of bounds for bytestring of length ${bs.length}"
+              s"index $i out of bounds for bytestring of length ${bs.size}"
             )
         else BigInt(bs.bytes(i.toInt) & 0xff)
 
     def equalsByteString(a: ByteString, b: ByteString): Boolean = a == b
     def lessThanByteString(a: ByteString, b: ByteString): Boolean =
-        val minLen = math.min(a.length, b.length)
+        val minLen = math.min(a.size, b.size)
         var i = 0
         while i < minLen do
             val ai = a.bytes(i) & 0xff
@@ -255,10 +256,10 @@ private[builtin] abstract class AbstractBuiltins(using ps: PlatformSpecific):
             if ai < bi then return true
             else if ai > bi then return false
             i += 1
-        if a.length < b.length then true
+        if a.size < b.size then true
         else false
     def lessThanEqualsByteString(a: ByteString, b: ByteString): Boolean =
-        val minLen = math.min(a.length, b.length)
+        val minLen = math.min(a.size, b.size)
         var i = 0
         while i < minLen do
             val ai = a.bytes(i) & 0xff
@@ -266,7 +267,7 @@ private[builtin] abstract class AbstractBuiltins(using ps: PlatformSpecific):
             if ai < bi then return true
             else if ai > bi then return false
             i += 1
-        if a.length <= b.length then true
+        if a.size <= b.size then true
         else false
     // Cryptography and hashes
 

@@ -298,8 +298,8 @@ trait NativePlatformSpecific extends PlatformSpecific {
         ByteString.unsafeFromArray(Sodium.blake2b256(bs.bytes))
 
     override def verifyEd25519Signature(pk: ByteString, msg: ByteString, sig: ByteString): Boolean =
-        require(pk.length == 32, s"Invalid public key length ${pk.length}")
-        require(sig.length == 64, s"Invalid signature length ${sig.length}")
+        require(pk.size == 32, s"Invalid public key length ${pk.size}")
+        require(sig.size == 64, s"Invalid signature length ${sig.size}")
         Sodium.verifyEd25519Signature(pk.bytes, msg.bytes, sig.bytes)
 
     override def signEd25519(privateKey: ByteString, msg: ByteString): ByteString = ???

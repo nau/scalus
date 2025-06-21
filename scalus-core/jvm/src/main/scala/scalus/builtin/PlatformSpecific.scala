@@ -26,14 +26,14 @@ trait JVMPlatformSpecific extends PlatformSpecific {
 
     override def blake2b_224(bs: ByteString): ByteString =
         val digest = new Blake2bDigest(224)
-        digest.update(bs.bytes, 0, bs.length)
+        digest.update(bs.bytes, 0, bs.size)
         val hash = new Array[Byte](digest.getDigestSize)
         digest.doFinal(hash, 0)
         ByteString.unsafeFromArray(hash)
 
     override def blake2b_256(bs: ByteString): ByteString =
         val digest = new Blake2bDigest(256)
-        digest.update(bs.bytes, 0, bs.length)
+        digest.update(bs.bytes, 0, bs.size)
         val hash = new Array[Byte](digest.getDigestSize)
         digest.doFinal(hash, 0)
         ByteString.unsafeFromArray(hash)
@@ -43,16 +43,16 @@ trait JVMPlatformSpecific extends PlatformSpecific {
         msg: ByteString,
         sig: ByteString
     ): Boolean = {
-        require(pk.length == 32, s"Invalid public key length ${pk.length}")
+        require(pk.size == 32, s"Invalid public key length ${pk.size}")
         // parity byte 0x02 for compressed public key
         require(NativeSecp256k1.isValidPubKey(0x02 +: pk.bytes), s"Invalid public key ${pk}")
-        require(sig.length == 64, s"Invalid signature length ${sig.length}")
+        require(sig.size == 64, s"Invalid signature length ${sig.size}")
         NativeSecp256k1.schnorrVerify(sig.bytes, msg.bytes, pk.bytes)
     }
 
     override def verifyEd25519Signature(pk: ByteString, msg: ByteString, sig: ByteString): Boolean =
-        require(pk.length == 32, s"Invalid public key length ${pk.length}")
-        require(sig.length == 64, s"Invalid signature length ${sig.length}")
+        require(pk.size == 32, s"Invalid public key length ${pk.size}")
+        require(sig.size == 64, s"Invalid signature length ${sig.size}")
         val pubKeyParams =
             try new Ed25519PublicKeyParameters(pk.bytes, 0)
             catch
@@ -60,15 +60,15 @@ trait JVMPlatformSpecific extends PlatformSpecific {
                     return false
         val verifier = new Ed25519Signer()
         verifier.init(false, pubKeyParams)
-        verifier.update(msg.bytes, 0, msg.length)
+        verifier.update(msg.bytes, 0, msg.size)
         verifier.verifySignature(sig.bytes)
 
     override def signEd25519(privateKey: ByteString, message: ByteString): ByteString = {
-        require(privateKey.length == 32, s"Invalid private key length ${privateKey.length}")
+        require(privateKey.size == 32, s"Invalid private key length ${privateKey.size}")
         val privateKeyParams = Ed25519PrivateKeyParameters(privateKey.bytes, 0)
         val signer = new Ed25519Signer();
         signer.init(true, privateKeyParams);
-        signer.update(message.bytes, 0, message.length)
+        signer.update(message.bytes, 0, message.size)
         ByteString.unsafeFromArray(signer.generateSignature())
     }
 
@@ -78,12 +78,12 @@ trait JVMPlatformSpecific extends PlatformSpecific {
         sig: ByteString
     ): Boolean = {
         require(
-          pk.length == 33,
-          s"Invalid public key length ${pk.length}, expected 33, ${pk.toHex}"
+          pk.size == 33,
+          s"Invalid public key length ${pk.size}, expected 33, ${pk.toHex}"
         )
         require(NativeSecp256k1.isValidPubKey(pk.bytes), s"Invalid public key ${pk}")
-        require(msg.length == 32, s"Invalid message length ${msg.length}, expected 32")
-        require(sig.length == 64, s"Invalid signature length ${sig.length}, expected 64")
+        require(msg.size == 32, s"Invalid message length ${msg.size}, expected 32")
+        require(sig.size == 64, s"Invalid signature length ${sig.size}, expected 64")
 
         val r = BigInt(new BigInteger(1, sig.bytes, 0, 32)) // avoid copying the array
         val s = BigInt(new BigInteger(1, sig.bytes, 32, 32)) // avoid copying the array
@@ -126,8 +126,8 @@ trait JVMPlatformSpecific extends PlatformSpecific {
 
     override def bls12_381_G1_uncompress(bs: ByteString): BLS12_381_G1_Element = {
         require(
-          bs.length == 48,
-          s"Invalid length of bytes for compressed point of G1: expected 48, actual: ${bs.length}, byteString: $bs"
+          bs.size == 48,
+          s"Invalid length of bytes for compressed point of G1: expected 48, actual: ${bs.size}, byteString: $bs"
         )
 
         require(
@@ -142,8 +142,8 @@ trait JVMPlatformSpecific extends PlatformSpecific {
 
     override def bls12_381_G1_hashToGroup(bs: ByteString, dst: ByteString): BLS12_381_G1_Element = {
         require(
-          dst.length <= 255,
-          s"Invalid length of bytes for dst parameter of hashToGroup of G1, expected: <= 255, actual: ${dst.length}"
+          dst.size <= 255,
+          s"Invalid length of bytes for dst parameter of hashToGroup of G1, expected: <= 255, actual: ${dst.size}"
         )
 
         val p = new P1()
@@ -178,8 +178,8 @@ trait JVMPlatformSpecific extends PlatformSpecific {
 
     override def bls12_381_G2_uncompress(bs: ByteString): BLS12_381_G2_Element = {
         require(
-          bs.length == 96,
-          s"Invalid length of bytes for compressed point of G2: expected 96, actual: ${bs.length}, byteString: $bs"
+          bs.size == 96,
+          s"Invalid length of bytes for compressed point of G2: expected 96, actual: ${bs.size}, byteString: $bs"
         )
 
         require(
@@ -194,8 +194,8 @@ trait JVMPlatformSpecific extends PlatformSpecific {
 
     override def bls12_381_G2_hashToGroup(bs: ByteString, dst: ByteString): BLS12_381_G2_Element = {
         require(
-          dst.length <= 255,
-          s"Invalid length of bytes for dst parameter of hashToGroup of G2, expected: <= 255, actual: ${dst.length}"
+          dst.size <= 255,
+          s"Invalid length of bytes for dst parameter of hashToGroup of G2, expected: <= 255, actual: ${dst.size}"
         )
 
         val p = new P2()
