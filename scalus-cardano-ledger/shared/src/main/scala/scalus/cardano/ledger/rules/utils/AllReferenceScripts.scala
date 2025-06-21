@@ -2,41 +2,50 @@ package scalus.cardano.ledger
 package rules
 package utils
 
+import scalus.ledger.api.Timelock
 import scala.util.boundary
 import scala.util.boundary.break
 
 trait AllReferenceScripts {
-    this: STS.Validator =>
+    this: STS =>
 
     protected def allReferenceScripts(
         state: State,
         event: Event
-    ): Either[Error, Set[Script]] = boundary {
-        allReferenceScriptsView(state, event).map(_.toSet)
-    }
+    ): Either[Error, Set[Script]] = allReferenceScripts(state, event, Some(_))
+
+    protected def allReferenceNativeScripts(
+        state: State,
+        event: Event
+    ): Either[Error, Set[Timelock]] = allReferenceScripts(
+      state,
+      event,
+      {
+          case Script.Native(timelock) => Some(timelock)
+          case _                       => None
+      }
+    )
 
     protected def allReferenceScriptHashes(
         state: State,
         event: Event
-    ): Either[Error, Set[ScriptHash]] = {
-        allReferenceScriptsView(state, event).map(scripts => scripts.map(_.scriptHash).toSet)
-    }
+    ): Either[Error, Set[ScriptHash]] =
+        allReferenceScripts(state, event, script => Some(script.scriptHash))
 
-    private def allReferenceScriptsView(
+    private def allReferenceScripts[T](
         state: State,
-        event: Event
-    ): Either[Error, scala.collection.View[Script]] = boundary {
+        event: Event,
+        mapper: Script => Option[T]
+    ): Either[Error, Set[T]] = boundary {
         val result = (
-          inputReferenceScriptsView(state, event) ++ referenceInputReferenceScriptsView(
-            state,
-            event
-          )
-        ).map {
-            case Right(script) => script
+          inputReferenceScriptsView(state, event) ++
+              referenceInputReferenceScriptsView(state, event)
+        ).flatMap {
+            case Right(script) => mapper(script)
             case Left(error)   => break(Left(error))
         }
 
-        Right(result)
+        Right(result.toSet)
     }
 
     private def inputReferenceScriptsView(
@@ -78,16 +87,9 @@ trait AllReferenceScripts {
         for
             (input, index) <- inputs.view.zipWithIndex
             result <- utxo.get(input) match
-                case Some(output) =>
-                    output match
-                        case babbage: TransactionOutput.Babbage =>
-                            babbage.scriptRef match
-                                case Some(ScriptRef(script)) => Some(Right(script))
-                                case None                    => None
-                        case _: TransactionOutput.Shelley => None
+                case Some(output) => output.scriptRef.map(scriptRef => Right(scriptRef.script))
                 // This check allows to be an order independent in the sequence of validation rules
-                case None =>
-                    Some(Left(missingInputError(transactionId, input, index)))
+                case None => Some(Left(missingInputError(transactionId, input, index)))
         yield result
     }
 }

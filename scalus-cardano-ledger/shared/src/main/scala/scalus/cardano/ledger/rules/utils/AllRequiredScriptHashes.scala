@@ -6,26 +6,24 @@ import scala.util.boundary
 import scala.util.boundary.break
 
 trait AllRequiredScriptHashes {
-    this: STS.Validator =>
+    this: STS =>
 
     protected def allRequiredScriptHashes(
         state: State,
         event: Event
     ): Either[Error, Set[ScriptHash]] = boundary {
-        val result =
-            (requiredInputScriptHashesView(state, event) ++ requiredCollateralInputScriptHashesView(
-              state,
-              event
-            ))
-                .map {
-                    case Right(scriptHash) => scriptHash
-                    case Left(error)       => break(Left(error))
-                } ++
-                requiredMintScriptHashes(event) ++
-                requiredVotingProceduresScriptHashesView(event) ++
-                requiredWithdrawalScriptHashesView(event) ++
-                requiredProposalProcedureScriptHashesView(event) ++
-                requiredCertificateScriptHashesView(event)
+        val result = (
+          requiredInputScriptHashesView(state, event) ++
+              requiredCollateralInputScriptHashesView(state, event)
+        ).map {
+            case Right(scriptHash) => scriptHash
+            case Left(error)       => break(Left(error))
+        } ++
+            requiredMintScriptHashes(event) ++
+            requiredVotingProceduresScriptHashesView(event) ++
+            requiredWithdrawalScriptHashesView(event) ++
+            requiredProposalProcedureScriptHashesView(event) ++
+            requiredCertificateScriptHashesView(event)
 
         Right(result.toSet)
     }
@@ -167,13 +165,9 @@ trait AllRequiredScriptHashes {
         for
             (input, index) <- inputs.view.zipWithIndex
             result <- utxo.get(input) match
-                case Some(output) =>
-                    output.address.scriptHash match
-                        case Some(scriptHash) => Some(Right(scriptHash))
-                        case None             => None
+                case Some(output) => output.address.scriptHash.map(Right(_))
                 // This check allows to be an order independent in the sequence of validation rules
-                case None =>
-                    Some(Left(missingInputError(transactionId, input, index)))
+                case None => Some(Left(missingInputError(transactionId, input, index)))
         yield result
     }
 }

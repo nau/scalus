@@ -26,13 +26,13 @@ object NeededWitnessesValidator extends STS.Validator {
           event.id,
           event.witnessSet.vkeyWitnesses,
           state.utxo,
-          (transactionId, input, index) =>
-              IllegalArgumentException(
-                s"Missing input $input with index $index in UTxO state for transactionId $transactionId"
-              ),
           (transactionId, keyHash, input, index) =>
               IllegalArgumentException(
                 s"Missing vkey witness for staking credential $keyHash in input $input with index $index for transactionId $transactionId"
+              ),
+          (transactionId, input, index) =>
+              IllegalArgumentException(
+                s"Missing input $input with index $index in UTxO state for transactionId $transactionId"
               )
         )
 
@@ -46,13 +46,13 @@ object NeededWitnessesValidator extends STS.Validator {
           event.id,
           event.witnessSet.vkeyWitnesses,
           state.utxo,
-          (transactionId, collateralInput, index) =>
-              IllegalArgumentException(
-                s"Missing collateralInput $collateralInput with index $index in UTxO state for transactionId $transactionId"
-              ),
           (transactionId, keyHash, collateralInput, index) =>
               IllegalArgumentException(
                 s"Missing vkey witness for staking credential $keyHash in collateralInput $collateralInput with index $index for transactionId $transactionId"
+              ),
+          (transactionId, collateralInput, index) =>
+              IllegalArgumentException(
+                s"Missing collateralInput $collateralInput with index $index in UTxO state for transactionId $transactionId"
               )
         )
 
@@ -176,36 +176,23 @@ object NeededWitnessesValidator extends STS.Validator {
         transactionId: TransactionHash,
         vkeyWitnesses: Set[VKeyWitness],
         utxo: Utxo,
-        missingInputError: (TransactionHash, TransactionInput, Int) => IllegalArgumentException,
         missingWitnessError: (
             TransactionHash,
             Hash[Blake2b_224, HashPurpose.KeyHash | HashPurpose.StakeKeyHash],
             TransactionInput,
             Int
-        ) => IllegalArgumentException
+        ) => IllegalArgumentException,
+        missingInputError: (TransactionHash, TransactionInput, Int) => IllegalArgumentException
     ): Result = boundary {
-        for (input, index) <- inputs.view.zipWithIndex
-        do
-            utxo.get(input) match
-                case Some(output) =>
-                    output.address.keyHash.foreach { keyHash =>
-                        if !vkeyWitnesses.exists(_.vkeyHash == keyHash)
-                        then
-                            break(
-                              failure(
-                                missingWitnessError(
-                                  transactionId,
-                                  keyHash,
-                                  input,
-                                  index
-                                )
-                              )
-                            )
-                    }
-
+        for
+            (input, index) <- inputs.view.zipWithIndex
+            keyHash <- utxo.get(input) match
+                case Some(output) => output.address.keyHash
                 // This check allows to be an order independent in the sequence of validation rules
-                case None =>
-                    break(failure(missingInputError(transactionId, input, index)))
+                case None => break(failure(missingInputError(transactionId, input, index)))
+        do
+            if !vkeyWitnesses.exists(_.vkeyHash == keyHash)
+            then break(failure(missingWitnessError(transactionId, keyHash, input, index)))
 
         success
     }

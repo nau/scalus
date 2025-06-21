@@ -8,15 +8,15 @@ object MissingScriptsValidator
     extends STS.Validator,
       AllRequiredScriptHashes,
       AllReferenceScripts,
-      AllProvidedScriptHashes {
+      AllProvidedScripts {
     override def validate(context: Context, state: State, event: Event): Result = {
         for
             requiredScriptHashes <- allRequiredScriptHashes(state, event)
             referenceScriptHashes <- allReferenceScriptHashes(state, event)
-            requiredScriptsHashesNonRefs = requiredScriptHashes.diff(referenceScriptHashes)
+            requiredScriptHashesNonRefs = requiredScriptHashes.diff(referenceScriptHashes)
             providedScriptHashes = allProvidedScriptHashes(event)
             _ <-
-                val missing = requiredScriptsHashesNonRefs.diff(providedScriptHashes)
+                val missing = requiredScriptHashesNonRefs.diff(providedScriptHashes)
                 if missing.isEmpty then success
                 else
                     failure(
@@ -25,7 +25,7 @@ object MissingScriptsValidator
                       )
                     )
             _ <-
-                val extra = providedScriptHashes.diff(requiredScriptsHashesNonRefs)
+                val extra = providedScriptHashes.diff(requiredScriptHashesNonRefs)
                 if extra.isEmpty then success
                 else
                     failure(

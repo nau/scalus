@@ -1,38 +1,44 @@
-package scalus.cardano.ledger.rules
+package scalus.cardano.ledger
+package rules
 
 import scalus.cardano.ledger.rules.utils.*
+import scalus.ledger.api.Timelock
+import scala.util.boundary
+import scala.util.boundary.break
 
 // It's validateFailedBabbageScripts in cardano-ledger
 object NativeScriptValidator
     extends STS.Validator,
       AllRequiredScriptHashes,
       AllReferenceScripts,
-      AllProvidedScriptHashes {
-    override def validate(context: Context, state: State, event: Event): Result = {
+      AllProvidedScripts {
+    override def validate(context: Context, state: State, event: Event): Result = boundary {
         for
             requiredScriptHashes <- allRequiredScriptHashes(state, event)
-            referenceScriptHashes <- allReferenceScriptHashes(state, event)
-            requiredScriptsHashesNonRefs = requiredScriptHashes.diff(referenceScriptHashes)
-            providedScriptHashes = allProvidedScriptHashes(event)
-//            _ <-
-//                val missing = requiredScriptsNonRefs.diff(providedScripts)
-//                if missing.isEmpty then success
-//                else
-//                    failure(
-//                      IllegalArgumentException(
-//                        s"Missing scripts: $missing transactionId ${event.id}"
-//                      )
-//                    )
-//            _ <-
-//                val extra = providedScripts.diff(requiredScriptsNonRefs)
-//                if extra.isEmpty then success
-//                else
-//                    failure(
-//                      IllegalArgumentException(
-//                        s"Extra scripts: $extra transactionId ${event.id}"
-//                      )
-//                    )
+            referenceNativeScripts <- allReferenceNativeScripts(state, event)
+            providedNativeScripts = allProvidedNativeScripts(event)
+            nativeScripts = referenceNativeScripts.view ++ providedNativeScripts
+            _ <-
+                for nativeScript <- nativeScripts
+                do
+                    if requiredScriptHashes.contains(nativeScript.scriptHash) &&
+                        !validateNativeScript(nativeScript)
+                    then
+                        break(
+                          failure(
+                            IllegalArgumentException(
+                              s"Invalid native script with scriptHash ${nativeScript.scriptHash} in transactionId ${event.id}"
+                            )
+                          )
+                        )
+
+                success
         yield ()
+    }
+
+    private def validateNativeScript(
+        nativeScript: Timelock
+    ): Boolean = {
         ???
     }
 }
