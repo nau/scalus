@@ -114,7 +114,6 @@ lazy val scalusPlugin = project
             "scalus/utils/Hex.scala",
             "scalus/utils/HashConsed.scala",
             "scalus/utils/HashConsedFlat.scala",
-            "scalus/builtin/ByteString.scala",
             "scalus/builtin/Data.scala",
             "scalus/builtin/List.scala",
             "scalus/sir/SIR.scala",

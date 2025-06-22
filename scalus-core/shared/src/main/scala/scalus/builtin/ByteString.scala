@@ -1,11 +1,12 @@
 package scalus.builtin
 
+import scalus.Compile
 import scalus.utils.Hex
 
 import scala.compiletime.asMatchable
 
 // TODO: replace Array on IArray
-class ByteString private (val bytes: Array[Byte]) {
+class ByteString private[builtin] (val bytes: Array[Byte]) {
 
     /** Gets byte by index
       *
@@ -59,76 +60,91 @@ class ByteString private (val bytes: Array[Byte]) {
     def isEmpty: Boolean = bytes.isEmpty
 }
 
-object ByteString extends ByteStringApi {
+@Compile
+object ByteString extends ByteStringOffchainApi {
+    // These methods are available onchain
+    // Because we make them inline and those are builtins
+    // we don't need to compile this module (so no @Compile on ByteString)
+    extension (self: ByteString)
+        /** Checks if one 'ByteString' is less than another */
+        inline infix def <(that: ByteString): Boolean = Builtins.lessThanByteString(self, that)
 
-    /** Creates an empty ByteString
-      *
-      * Onchain and offchain operation.
-      */
-    val empty = new ByteString(Array.empty)
+        /** Checks if one 'ByteString' is less than or equal to another */
+        inline infix def <=(that: ByteString): Boolean =
+            Builtins.lessThanEqualsByteString(self, that)
 
-    /** Creates a ByteString from an [[Array[Byte]]
-      *
-      * Offchain operation, not available onchain.
-      */
-    def fromArray(bytes: Array[Byte]): ByteString = new ByteString(bytes.clone)
+        /** Checks if one 'ByteString' is greater than another */
+        inline infix def >(that: ByteString): Boolean = Builtins.lessThanByteString(that, self)
 
-    /** Creates a ByteString from a variable number of bytes
-      *
-      * Offchain operation, not available onchain.
-      */
-    def apply(bytes: Byte*): ByteString = new ByteString(bytes.toArray)
+        /** Checks if one 'ByteString' is greater than or equal to another */
+        inline infix def >=(that: ByteString): Boolean =
+            Builtins.lessThanEqualsByteString(that, self)
 
-    /** Creates a ByteString of a given size filled with a specific byte
-      *
-      * Offchain operation, not available onchain.
-      *
-      * @param size
-      *   the size of the ByteString
-      * @param byte
-      *   the byte to fill the ByteString with
-      */
-    def fill(size: Int, byte: Byte): ByteString =
-        val result = new Array[Byte](size)
-        if byte != 0 then java.util.Arrays.fill(result, byte)
-        new ByteString(result)
-
-    /** Creates a ByteString from an array of bytes without copying the array */
-    def unsafeFromArray(bytes: Array[Byte]): ByteString = new ByteString(bytes)
-
-    /** Creates a ByteString from a hexadecimal string
-      *
-      * Onchain and offchain operation.
-      *
-      * @param bytes
-      *   the hexadecimal string to convert to a ByteString
-      */
-    def fromHex(bytes: String): ByteString = new ByteString(Hex.hexToBytes(bytes))
-
-    /** Creates a ByteString from a UTF-8 encoded string
-      *
-      * Onchain and offchain operation.
-      *
-      * @param s
-      *   the string to convert to a ByteString
-      */
-    def fromString(s: String): ByteString = new ByteString(s.getBytes("UTF-8"))
-
-    extension (sc: StringContext)
-        /** Hex string interpolator
+        /** Returns a new ByteString that is a slice of the original ByteString
           *
-          * Works on and offchain. Converts a hexadecimal string to a ByteString.
-          *
+          * @param from
+          *   the starting index of the slice (inclusive)
+          * @param len
+          *   the length of the slice
           * @example
           *   {{{
-          * val hexString = hex"deadbeef"
-          * val withSpaces = hex"de ad be ef"
-          * val upperCase = hex"DEADBEEF"
+          *   hex"1234567890abcdef".slice(2, 4) // returns hex"567890ab"
+          *   hex"1234567890abcdef".slice(5, 4) // returns hex"abcdef"
+          *   hex"1234567890abcdef".slice(9, 4) // returns hex""
+          *   hex"1234567890abcdef".slice(0, 0) // returns hex""
           *   }}}
           */
-        def hex(args: Any*): ByteString =
-            val hexString = sc.s(args*).replace(" ", "")
-            fromHex(hexString)
+        inline def slice(from: BigInt, len: BigInt): ByteString =
+            Builtins.sliceByteString(from, len, self)
+
+        /** Takes the first `n` bytes from the ByteString
+          *
+          * @param n
+          *   the number of bytes to take
+          * @example
+          *   {{{
+          *   hex"1234567890abcdef".take(0) // returns hex""
+          *   hex"1234567890abcdef".take(4) // returns hex"12345678"
+          *   hex"1234567890abcdef".take(20) // returns hex"1234567890abcdef"
+          *   hex"".take(20) // returns hex""
+          *   }}}
+          */
+        inline def take(n: BigInt): ByteString = Builtins.sliceByteString(0, n, self)
+
+        /** Drops the first `n` bytes from the ByteString
+          *
+          * @param n
+          *   the number of bytes to drop
+          * @example
+          *   {{{
+          *   hex"1234567890abcdef".drop(0) // returns hex"1234567890abcdef"
+          *   hex"1234567890abcdef".drop(4) // returns hex"90abcdef"
+          *   hex"1234567890abcdef".drop(20) // returns hex""
+          *   hex"".drop(20) // returns hex""
+          *   }}}
+          */
+        def drop(n: BigInt): ByteString = {
+            self.slice(n, self.length - n)
+        }
+
+        /** Returns the byte at the specified index in the ByteString
+          *
+          * @throws BuiltinException
+          *   if the index is out of bounds (offchain)
+          */
+        inline def at(index: BigInt): BigInt = Builtins.indexByteString(self, index)
+
+        /** Returns the length of the ByteString */
+        inline def length: BigInt = Builtins.lengthOfByteString(self)
+
+        /** Concatenates two ByteStrings and returns a new ByteString */
+        inline infix def ++(that: ByteString): ByteString =
+            Builtins.appendByteString(self, that)
+
+    extension (b: BigInt)
+        /** Prepends a BigInt to a ByteString and returns a new ByteString */
+        inline infix def +:(bs: ByteString): ByteString = Builtins.consByteString(b, bs)
+
 }
 
 given Ordering[ByteString] with
