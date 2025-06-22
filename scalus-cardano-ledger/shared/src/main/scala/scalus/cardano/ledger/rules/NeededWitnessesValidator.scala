@@ -106,7 +106,7 @@ object NeededWitnessesValidator extends STS.Validator {
         for
             (certificate, index) <- certificates.view.zipWithIndex
             keyHash <- certificate match
-                case Certificate.StakeRegistration(credential)   => None
+                case Certificate.StakeRegistration(credential)   => extractKeyHash(credential)
                 case Certificate.StakeDeregistration(credential) => extractKeyHash(credential)
                 case Certificate.StakeDelegation(credential, _)  => extractKeyHash(credential)
                 case certificate: Certificate.PoolRegistration =>

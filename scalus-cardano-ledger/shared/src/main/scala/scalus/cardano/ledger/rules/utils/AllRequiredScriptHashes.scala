@@ -123,7 +123,7 @@ trait AllRequiredScriptHashes {
         for
             certificate <- certificates.view
             scriptHash <- certificate match
-                case Certificate.StakeRegistration(credential)   => None
+                case Certificate.StakeRegistration(credential)   => extractScriptHash(credential)
                 case Certificate.StakeDeregistration(credential) => extractScriptHash(credential)
                 case Certificate.StakeDelegation(credential, _)  => extractScriptHash(credential)
                 case certificate: Certificate.PoolRegistration =>

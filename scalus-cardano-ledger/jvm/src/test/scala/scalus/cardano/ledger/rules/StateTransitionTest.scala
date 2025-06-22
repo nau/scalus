@@ -1,6 +1,6 @@
 package scalus.cardano.ledger.rules
 
-import org.scalacheck.{Arbitrary, Gen}
+import org.scalacheck.Arbitrary
 import org.scalatest.funsuite.AnyFunSuite
 import scalus.cardano.ledger.*
 import scalus.cardano.address.{Address, ShelleyAddress, ShelleyPaymentPart}
@@ -317,12 +317,13 @@ class StateTransitionTest extends AnyFunSuite, ArbitraryInstances {
                     Arbitrary.arbitrary[TransactionInput].sample.get,
                     Arbitrary.arbitrary[TransactionInput].sample.get,
                     Arbitrary.arbitrary[TransactionInput].sample.get,
-                    Arbitrary.arbitrary[TransactionInput].sample.get,
-                    Arbitrary.arbitrary[TransactionInput].sample.get,
                     Arbitrary.arbitrary[TransactionInput].sample.get
                   ),
                   collateralInputs = Set.empty,
-                  referenceInputs = Set.empty,
+                  referenceInputs = Set(
+                    Arbitrary.arbitrary[TransactionInput].sample.get,
+                    Arbitrary.arbitrary[TransactionInput].sample.get
+                  ),
                   validityStartSlot = Some(10),
                   ttl = Some(15)
                 )
@@ -400,7 +401,7 @@ class StateTransitionTest extends AnyFunSuite, ArbitraryInstances {
                 )
 
             State(
-              utxo = List(
+              utxo = Map(
                 transaction.body.value.inputs.head -> TransactionOutput.Babbage(
                   Address.Shelley(signatureTimelock1Address),
                   Value(Coin(1000L)),
@@ -431,21 +432,21 @@ class StateTransitionTest extends AnyFunSuite, ArbitraryInstances {
                   None,
                   None
                 ),
-                transaction.body.value.inputs.tail.tail.tail.tail.tail.head -> TransactionOutput
+                transaction.body.value.referenceInputs.head -> TransactionOutput
                     .Babbage(
                       Address.Shelley(timeStartTimelockAddress),
                       Value(Coin(1000L)),
                       None,
                       Some(ScriptRef(Script.Native(timeStartTimelock)))
                     ),
-                transaction.body.value.inputs.tail.tail.tail.tail.tail.tail.head -> TransactionOutput
+                transaction.body.value.referenceInputs.tail.head -> TransactionOutput
                     .Babbage(
                       Address.Shelley(timeExpireTimelockAddress),
                       Value(Coin(1000L)),
                       None,
                       Some(ScriptRef(Script.Native(timeExpireTimelock)))
                     ),
-              ).toMap
+              )
             )
         }
 
@@ -498,7 +499,7 @@ class StateTransitionTest extends AnyFunSuite, ArbitraryInstances {
                 )
 
             State(
-              utxo = List(
+              utxo = Map(
                 transaction.body.value.inputs.head -> TransactionOutput
                     .Babbage(
                       Address.Shelley(timeStartTimelockAddress),
@@ -513,11 +514,685 @@ class StateTransitionTest extends AnyFunSuite, ArbitraryInstances {
                       None,
                       Some(ScriptRef(Script.Native(timeExpireTimelock)))
                     ),
-              ).toMap
+              )
             )
         }
 
         val result = NativeScriptValidator.validate(context, state, transaction)
+        assert(result.isLeft)
+    }
+
+    test("NeededWitnessesValidator Inputs rule success") {
+        val context = Context()
+        val (privateKey1, publicKey1) = generateKeyPair()
+        val (privateKey2, publicKey2) = generateKeyPair()
+
+        val input1 = Arbitrary.arbitrary[TransactionInput].sample.get
+        val input2 = Arbitrary.arbitrary[TransactionInput].sample.get
+        val transaction = {
+            val tx = randomValidTransaction
+            tx.copy(
+              body = KeepRaw(
+                tx.body.value.copy(
+                  inputs = Set(input1, input2),
+                  collateralInputs = Set.empty,
+                  votingProcedures = None,
+                  certificates = Set.empty,
+                  withdrawals = None
+                )
+              ),
+              witnessSet = tx.witnessSet.copy(
+                vkeyWitnesses = Set(
+                  VKeyWitness(publicKey1, summon[PlatformSpecific].signEd25519(privateKey1, tx.id)),
+                  VKeyWitness(publicKey2, summon[PlatformSpecific].signEd25519(privateKey2, tx.id))
+                )
+              )
+            )
+        }
+
+        val state = State(
+          utxo = Map(
+            input1 -> TransactionOutput.Shelley(
+              Address.Shelley(
+                Arbitrary
+                    .arbitrary[ShelleyAddress]
+                    .sample
+                    .get
+                    .copy(
+                      payment = ShelleyPaymentPart.Key(
+                        Hash(summon[PlatformSpecific].blake2b_224(publicKey1))
+                      )
+                    )
+              ),
+              Value(Coin(1000000L))
+            ),
+            input2 -> TransactionOutput.Shelley(
+              Address.Shelley(
+                Arbitrary
+                    .arbitrary[ShelleyAddress]
+                    .sample
+                    .get
+                    .copy(
+                      payment = ShelleyPaymentPart.Key(
+                        Hash(summon[PlatformSpecific].blake2b_224(publicKey2))
+                      )
+                    )
+              ),
+              Value(Coin(1000000L))
+            )
+          )
+        )
+
+        val result = NeededWitnessesValidator.validate(context, state, transaction)
+        assert(result.isRight)
+    }
+
+    test("NeededWitnessesValidator Inputs rule failure") {
+        val context = Context()
+        val (privateKey1, publicKey1) = generateKeyPair()
+        val (privateKey2, publicKey2) = generateKeyPair()
+
+        val input1 = Arbitrary.arbitrary[TransactionInput].sample.get
+        val input2 = Arbitrary.arbitrary[TransactionInput].sample.get
+        val transaction = {
+            val tx = randomValidTransaction
+            tx.copy(
+              body = KeepRaw(
+                tx.body.value.copy(
+                  inputs = Set(input1, input2),
+                  collateralInputs = Set.empty,
+                  votingProcedures = None,
+                  certificates = Set.empty,
+                  withdrawals = None
+                )
+              ),
+              witnessSet = tx.witnessSet.copy(
+                vkeyWitnesses = Set(
+                  VKeyWitness(publicKey1, summon[PlatformSpecific].signEd25519(privateKey1, tx.id))
+                )
+              )
+            )
+        }
+
+        val state = State(
+          utxo = Map(
+            input1 -> TransactionOutput.Shelley(
+              Address.Shelley(
+                Arbitrary
+                    .arbitrary[ShelleyAddress]
+                    .sample
+                    .get
+                    .copy(
+                      payment = ShelleyPaymentPart.Key(
+                        Hash(summon[PlatformSpecific].blake2b_224(publicKey1))
+                      )
+                    )
+              ),
+              Value(Coin(1000000L))
+            ),
+            input2 -> TransactionOutput.Shelley(
+              Address.Shelley(
+                Arbitrary
+                    .arbitrary[ShelleyAddress]
+                    .sample
+                    .get
+                    .copy(
+                      payment = ShelleyPaymentPart.Key(
+                        Hash(summon[PlatformSpecific].blake2b_224(publicKey2))
+                      )
+                    )
+              ),
+              Value(Coin(1000000L))
+            )
+          )
+        )
+
+        val result = NeededWitnessesValidator.validate(context, state, transaction)
+        assert(result.isLeft)
+    }
+
+    test("NeededWitnessesValidator CollateralInputs rule success") {
+        val context = Context()
+        val (privateKey1, publicKey1) = generateKeyPair()
+        val (privateKey2, publicKey2) = generateKeyPair()
+
+        val collateralInput1 = Arbitrary.arbitrary[TransactionInput].sample.get
+        val collateralInput2 = Arbitrary.arbitrary[TransactionInput].sample.get
+        val transaction = {
+            val tx = randomValidTransaction
+            tx.copy(
+              body = KeepRaw(
+                tx.body.value.copy(
+                  inputs = Set.empty,
+                  collateralInputs = Set(collateralInput1, collateralInput2),
+                  votingProcedures = None,
+                  certificates = Set.empty,
+                  withdrawals = None
+                )
+              ),
+              witnessSet = tx.witnessSet.copy(
+                vkeyWitnesses = Set(
+                  VKeyWitness(publicKey1, summon[PlatformSpecific].signEd25519(privateKey1, tx.id)),
+                  VKeyWitness(publicKey2, summon[PlatformSpecific].signEd25519(privateKey2, tx.id))
+                )
+              )
+            )
+        }
+
+        val state = State(
+          utxo = Map(
+            collateralInput1 -> TransactionOutput.Shelley(
+              Address.Shelley(
+                Arbitrary
+                    .arbitrary[ShelleyAddress]
+                    .sample
+                    .get
+                    .copy(
+                      payment = ShelleyPaymentPart.Key(
+                        Hash(summon[PlatformSpecific].blake2b_224(publicKey1))
+                      )
+                    )
+              ),
+              Value(Coin(1000000L))
+            ),
+            collateralInput2 -> TransactionOutput.Shelley(
+              Address.Shelley(
+                Arbitrary
+                    .arbitrary[ShelleyAddress]
+                    .sample
+                    .get
+                    .copy(
+                      payment = ShelleyPaymentPart.Key(
+                        Hash(summon[PlatformSpecific].blake2b_224(publicKey2))
+                      )
+                    )
+              ),
+              Value(Coin(1000000L))
+            )
+          )
+        )
+
+        val result = NeededWitnessesValidator.validate(context, state, transaction)
+        assert(result.isRight)
+    }
+
+    test("NeededWitnessesValidator CollateralInputs rule failure") {
+        val context = Context()
+        val (privateKey1, publicKey1) = generateKeyPair()
+        val (privateKey2, publicKey2) = generateKeyPair()
+
+        val collateralInput1 = Arbitrary.arbitrary[TransactionInput].sample.get
+        val collateralInput2 = Arbitrary.arbitrary[TransactionInput].sample.get
+        val transaction = {
+            val tx = randomValidTransaction
+            tx.copy(
+              body = KeepRaw(
+                tx.body.value.copy(
+                  inputs = Set.empty,
+                  collateralInputs = Set(collateralInput1, collateralInput2),
+                  votingProcedures = None,
+                  certificates = Set.empty,
+                  withdrawals = None
+                )
+              ),
+              witnessSet = tx.witnessSet.copy(
+                vkeyWitnesses = Set(
+                  VKeyWitness(publicKey1, summon[PlatformSpecific].signEd25519(privateKey1, tx.id)),
+                )
+              )
+            )
+        }
+
+        val state = State(
+          utxo = Map(
+            collateralInput1 -> TransactionOutput.Shelley(
+              Address.Shelley(
+                Arbitrary
+                    .arbitrary[ShelleyAddress]
+                    .sample
+                    .get
+                    .copy(
+                      payment = ShelleyPaymentPart.Key(
+                        Hash(summon[PlatformSpecific].blake2b_224(publicKey1))
+                      )
+                    )
+              ),
+              Value(Coin(1000000L))
+            ),
+            collateralInput2 -> TransactionOutput.Shelley(
+              Address.Shelley(
+                Arbitrary
+                    .arbitrary[ShelleyAddress]
+                    .sample
+                    .get
+                    .copy(
+                      payment = ShelleyPaymentPart.Key(
+                        Hash(summon[PlatformSpecific].blake2b_224(publicKey2))
+                      )
+                    )
+              ),
+              Value(Coin(1000000L))
+            )
+          )
+        )
+
+        val result = NeededWitnessesValidator.validate(context, state, transaction)
+        assert(result.isLeft)
+    }
+
+    test("NeededWitnessesValidator VotingProcedures success") {
+        val context = Context()
+        val (privateKey1, publicKey1) = generateKeyPair()
+        val (privateKey2, publicKey2) = generateKeyPair()
+        val (privateKey3, publicKey3) = generateKeyPair()
+
+        val transaction = {
+            val tx = randomValidTransaction
+            tx.copy(
+              body = KeepRaw(
+                tx.body.value.copy(
+                  inputs = Set.empty,
+                  collateralInputs = Set.empty,
+                  votingProcedures = Some(
+                    VotingProcedures(
+                      Map(
+                        Voter.ConstitutionalCommitteeHotKey(
+                          Hash(summon[PlatformSpecific].blake2b_224(publicKey1))
+                        ) -> genMapOfSizeFromArbitrary(0, 4).sample.get,
+                        Voter.StakingPoolKey(
+                          Hash(summon[PlatformSpecific].blake2b_224(publicKey2))
+                        ) -> genMapOfSizeFromArbitrary(0, 4).sample.get,
+                        Voter.DRepKey(
+                          Hash(summon[PlatformSpecific].blake2b_224(publicKey3))
+                        ) -> genMapOfSizeFromArbitrary(0, 4).sample.get,
+                        Voter.ConstitutionalCommitteeHotScript(
+                          Arbitrary.arbitrary[ScriptHash].sample.get
+                        ) -> genMapOfSizeFromArbitrary(0, 4).sample.get,
+                        Voter.DRepScript(
+                          Arbitrary.arbitrary[ScriptHash].sample.get
+                        ) -> genMapOfSizeFromArbitrary(0, 4).sample.get
+                      )
+                    )
+                  ),
+                  certificates = Set.empty,
+                  withdrawals = None
+                )
+              ),
+              witnessSet = tx.witnessSet.copy(
+                vkeyWitnesses = Set(
+                  VKeyWitness(publicKey1, summon[PlatformSpecific].signEd25519(privateKey1, tx.id)),
+                  VKeyWitness(publicKey2, summon[PlatformSpecific].signEd25519(privateKey2, tx.id)),
+                  VKeyWitness(publicKey3, summon[PlatformSpecific].signEd25519(privateKey3, tx.id))
+                )
+              )
+            )
+        }
+
+        val state = State()
+
+        val result = NeededWitnessesValidator.validate(context, state, transaction)
+        assert(result.isRight)
+    }
+
+    test("NeededWitnessesValidator VotingProcedures failure") {
+        val context = Context()
+        val (privateKey1, publicKey1) = generateKeyPair()
+        val (privateKey2, publicKey2) = generateKeyPair()
+        val (privateKey3, publicKey3) = generateKeyPair()
+
+        val transaction = {
+            val tx = randomValidTransaction
+            tx.copy(
+              body = KeepRaw(
+                tx.body.value.copy(
+                  inputs = Set.empty,
+                  collateralInputs = Set.empty,
+                  votingProcedures = Some(
+                    VotingProcedures(
+                      Map(
+                        Voter.ConstitutionalCommitteeHotKey(
+                          Hash(summon[PlatformSpecific].blake2b_224(publicKey1))
+                        ) -> genMapOfSizeFromArbitrary(0, 4).sample.get,
+                        Voter.StakingPoolKey(
+                          Hash(summon[PlatformSpecific].blake2b_224(publicKey2))
+                        ) -> genMapOfSizeFromArbitrary(0, 4).sample.get,
+                        Voter.DRepKey(
+                          Hash(summon[PlatformSpecific].blake2b_224(publicKey3))
+                        ) -> genMapOfSizeFromArbitrary(0, 4).sample.get,
+                        Voter.ConstitutionalCommitteeHotScript(
+                          Arbitrary.arbitrary[ScriptHash].sample.get
+                        ) -> genMapOfSizeFromArbitrary(0, 4).sample.get,
+                        Voter.DRepScript(
+                          Arbitrary.arbitrary[ScriptHash].sample.get
+                        ) -> genMapOfSizeFromArbitrary(0, 4).sample.get
+                      )
+                    )
+                  ),
+                  certificates = Set.empty,
+                  withdrawals = None
+                )
+              ),
+              witnessSet = tx.witnessSet.copy(
+                vkeyWitnesses = Set(
+                  VKeyWitness(publicKey1, summon[PlatformSpecific].signEd25519(privateKey1, tx.id)),
+                  VKeyWitness(publicKey2, summon[PlatformSpecific].signEd25519(privateKey2, tx.id))
+                )
+              )
+            )
+        }
+
+        val state = State()
+
+        val result = NeededWitnessesValidator.validate(context, state, transaction)
+        assert(result.isLeft)
+    }
+
+    test("NeededWitnessesValidator Withdrawals rule success") {
+        val context = Context()
+        val (privateKey1, publicKey1) = generateKeyPair()
+        val (privateKey2, publicKey2) = generateKeyPair()
+
+        val transaction = {
+            val tx = randomValidTransaction
+            tx.copy(
+              body = KeepRaw(
+                tx.body.value.copy(
+                  inputs = Set.empty,
+                  collateralInputs = Set.empty,
+                  votingProcedures = None,
+                  certificates = Set.empty,
+                  withdrawals = Some(
+                    Withdrawals(
+                      Map(
+                        RewardAccount(
+                          Address.Shelley(
+                            Arbitrary
+                                .arbitrary[ShelleyAddress]
+                                .sample
+                                .get
+                                .copy(
+                                  payment = ShelleyPaymentPart.Key(
+                                    Hash(summon[PlatformSpecific].blake2b_224(publicKey1))
+                                  )
+                                )
+                          )
+                        ) -> Coin(1000000L),
+                        RewardAccount(
+                          Address.Shelley(
+                            Arbitrary
+                                .arbitrary[ShelleyAddress]
+                                .sample
+                                .get
+                                .copy(
+                                  payment = ShelleyPaymentPart.Key(
+                                    Hash(summon[PlatformSpecific].blake2b_224(publicKey2))
+                                  )
+                                )
+                          )
+                        ) -> Coin(2000000L)
+                      )
+                    )
+                  )
+                )
+              ),
+              witnessSet = tx.witnessSet.copy(
+                vkeyWitnesses = Set(
+                  VKeyWitness(publicKey1, summon[PlatformSpecific].signEd25519(privateKey1, tx.id)),
+                  VKeyWitness(publicKey2, summon[PlatformSpecific].signEd25519(privateKey2, tx.id))
+                )
+              )
+            )
+        }
+
+        val state = State()
+
+        val result = NeededWitnessesValidator.validate(context, state, transaction)
+        assert(result.isRight)
+    }
+
+    test("NeededWitnessesValidator Withdrawals rule failure") {
+        val context = Context()
+        val (privateKey1, publicKey1) = generateKeyPair()
+        val (privateKey2, publicKey2) = generateKeyPair()
+
+        val transaction = {
+            val tx = randomValidTransaction
+            tx.copy(
+              body = KeepRaw(
+                tx.body.value.copy(
+                  inputs = Set.empty,
+                  collateralInputs = Set.empty,
+                  votingProcedures = None,
+                  certificates = Set.empty,
+                  withdrawals = Some(
+                    Withdrawals(
+                      Map(
+                        RewardAccount(
+                          Address.Shelley(
+                            Arbitrary
+                                .arbitrary[ShelleyAddress]
+                                .sample
+                                .get
+                                .copy(
+                                  payment = ShelleyPaymentPart.Key(
+                                    Hash(summon[PlatformSpecific].blake2b_224(publicKey1))
+                                  )
+                                )
+                          )
+                        ) -> Coin(1000000L),
+                        RewardAccount(
+                          Address.Shelley(
+                            Arbitrary
+                                .arbitrary[ShelleyAddress]
+                                .sample
+                                .get
+                                .copy(
+                                  payment = ShelleyPaymentPart.Key(
+                                    Hash(summon[PlatformSpecific].blake2b_224(publicKey2))
+                                  )
+                                )
+                          )
+                        ) -> Coin(2000000L)
+                      )
+                    )
+                  )
+                )
+              ),
+              witnessSet = tx.witnessSet.copy(
+                vkeyWitnesses = Set(
+                  VKeyWitness(publicKey1, summon[PlatformSpecific].signEd25519(privateKey1, tx.id))
+                )
+              )
+            )
+        }
+
+        val state = State()
+
+        val result = NeededWitnessesValidator.validate(context, state, transaction)
+        assert(result.isLeft)
+    }
+
+    test("NeededWitnessesValidator Certificates rule success") {
+        val context = Context()
+        val (privateKey, publicKey) = generateKeyPair()
+        val credential = Credential.KeyHash(
+          Hash(summon[PlatformSpecific].blake2b_224(publicKey))
+        )
+
+        val transaction = {
+            val tx = randomValidTransaction
+            tx.copy(
+              body = KeepRaw(
+                tx.body.value.copy(
+                  inputs = Set.empty,
+                  collateralInputs = Set.empty,
+                  votingProcedures = None,
+                  certificates = Set(
+                    Certificate.StakeRegistration(credential),
+                    Certificate.StakeDeregistration(credential),
+                    Certificate
+                        .StakeDelegation(credential, Arbitrary.arbitrary[PoolKeyHash].sample.get),
+                    Certificate.PoolRegistration(
+                      Hash(summon[PlatformSpecific].blake2b_224(publicKey)),
+                      Arbitrary.arbitrary[VrfKeyHash].sample.get,
+                      Arbitrary.arbitrary[Coin].sample.get,
+                      Arbitrary.arbitrary[Coin].sample.get,
+                      Arbitrary.arbitrary[UnitInterval].sample.get,
+                      Arbitrary.arbitrary[RewardAccount].sample.get,
+                      Arbitrary.arbitrary[Set[AddrKeyHash]].sample.get,
+                      Arbitrary.arbitrary[IndexedSeq[Relay]].sample.get,
+                      Arbitrary.arbitrary[Option[PoolMetadata]].sample.get
+                    ),
+                    Certificate
+                        .PoolRetirement(Hash(summon[PlatformSpecific].blake2b_224(publicKey)), 1),
+                    Certificate.RegCert(credential, Arbitrary.arbitrary[Coin].sample.get),
+                    Certificate.UnregCert(credential, Arbitrary.arbitrary[Coin].sample.get),
+                    Certificate.VoteDelegCert(credential, Arbitrary.arbitrary[DRep].sample.get),
+                    Certificate.StakeVoteDelegCert(
+                      credential,
+                      Arbitrary.arbitrary[PoolKeyHash].sample.get,
+                      Arbitrary.arbitrary[DRep].sample.get
+                    ),
+                    Certificate.StakeRegDelegCert(
+                      credential,
+                      Arbitrary.arbitrary[PoolKeyHash].sample.get,
+                      Arbitrary.arbitrary[Coin].sample.get
+                    ),
+                    Certificate.VoteRegDelegCert(
+                      credential,
+                      Arbitrary.arbitrary[DRep].sample.get,
+                      Arbitrary.arbitrary[Coin].sample.get
+                    ),
+                    Certificate.StakeVoteRegDelegCert(
+                      credential,
+                      Arbitrary.arbitrary[PoolKeyHash].sample.get,
+                      Arbitrary.arbitrary[DRep].sample.get,
+                      Arbitrary.arbitrary[Coin].sample.get
+                    ),
+                    Certificate.AuthCommitteeHotCert(
+                      credential,
+                      Arbitrary.arbitrary[Credential].sample.get
+                    ),
+                    Certificate.ResignCommitteeColdCert(
+                      credential,
+                      Arbitrary.arbitrary[Option[Anchor]].sample.get
+                    ),
+                    Certificate.RegDRepCert(
+                      credential,
+                      Arbitrary.arbitrary[Coin].sample.get,
+                      Arbitrary.arbitrary[Option[Anchor]].sample.get
+                    ),
+                    Certificate.UnregDRepCert(credential, Arbitrary.arbitrary[Coin].sample.get),
+                    Certificate.UpdateDRepCert(
+                      credential,
+                      Arbitrary.arbitrary[Option[Anchor]].sample.get
+                    )
+                  ),
+                  withdrawals = None,
+                )
+              ),
+              witnessSet = tx.witnessSet.copy(
+                vkeyWitnesses = Set(
+                  VKeyWitness(publicKey, summon[PlatformSpecific].signEd25519(privateKey, tx.id))
+                )
+              )
+            )
+        }
+
+        val state = State()
+
+        val result = NeededWitnessesValidator.validate(context, state, transaction)
+        assert(result.isRight)
+    }
+
+    test("NeededWitnessesValidator Certificates rule failure") {
+        val context = Context()
+        val (privateKey, publicKey) = generateKeyPair()
+        val credential = Credential.KeyHash(
+          Hash(summon[PlatformSpecific].blake2b_224(publicKey))
+        )
+
+        val transaction = {
+            val tx = randomValidTransaction
+            tx.copy(
+              body = KeepRaw(
+                tx.body.value.copy(
+                  inputs = Set.empty,
+                  collateralInputs = Set.empty,
+                  votingProcedures = None,
+                  certificates = Set(
+                    Certificate.StakeRegistration(credential),
+                    Certificate.StakeDeregistration(credential),
+                    Certificate
+                        .StakeDelegation(credential, Arbitrary.arbitrary[PoolKeyHash].sample.get),
+                    Certificate.PoolRegistration(
+                      Hash(summon[PlatformSpecific].blake2b_224(publicKey)),
+                      Arbitrary.arbitrary[VrfKeyHash].sample.get,
+                      Arbitrary.arbitrary[Coin].sample.get,
+                      Arbitrary.arbitrary[Coin].sample.get,
+                      Arbitrary.arbitrary[UnitInterval].sample.get,
+                      Arbitrary.arbitrary[RewardAccount].sample.get,
+                      Arbitrary.arbitrary[Set[AddrKeyHash]].sample.get,
+                      Arbitrary.arbitrary[IndexedSeq[Relay]].sample.get,
+                      Arbitrary.arbitrary[Option[PoolMetadata]].sample.get
+                    ),
+                    Certificate
+                        .PoolRetirement(Hash(summon[PlatformSpecific].blake2b_224(publicKey)), 1),
+                    Certificate.RegCert(credential, Arbitrary.arbitrary[Coin].sample.get),
+                    Certificate.UnregCert(credential, Arbitrary.arbitrary[Coin].sample.get),
+                    Certificate.VoteDelegCert(credential, Arbitrary.arbitrary[DRep].sample.get),
+                    Certificate.StakeVoteDelegCert(
+                      credential,
+                      Arbitrary.arbitrary[PoolKeyHash].sample.get,
+                      Arbitrary.arbitrary[DRep].sample.get
+                    ),
+                    Certificate.StakeRegDelegCert(
+                      credential,
+                      Arbitrary.arbitrary[PoolKeyHash].sample.get,
+                      Arbitrary.arbitrary[Coin].sample.get
+                    ),
+                    Certificate.VoteRegDelegCert(
+                      credential,
+                      Arbitrary.arbitrary[DRep].sample.get,
+                      Arbitrary.arbitrary[Coin].sample.get
+                    ),
+                    Certificate.StakeVoteRegDelegCert(
+                      credential,
+                      Arbitrary.arbitrary[PoolKeyHash].sample.get,
+                      Arbitrary.arbitrary[DRep].sample.get,
+                      Arbitrary.arbitrary[Coin].sample.get
+                    ),
+                    Certificate.AuthCommitteeHotCert(
+                      credential,
+                      Arbitrary.arbitrary[Credential].sample.get
+                    ),
+                    Certificate.ResignCommitteeColdCert(
+                      credential,
+                      Arbitrary.arbitrary[Option[Anchor]].sample.get
+                    ),
+                    Certificate.RegDRepCert(
+                      credential,
+                      Arbitrary.arbitrary[Coin].sample.get,
+                      Arbitrary.arbitrary[Option[Anchor]].sample.get
+                    ),
+                    Certificate.UnregDRepCert(credential, Arbitrary.arbitrary[Coin].sample.get),
+                    Certificate.UpdateDRepCert(
+                      credential,
+                      Arbitrary.arbitrary[Option[Anchor]].sample.get
+                    )
+                  ),
+                  withdrawals = None,
+                )
+              ),
+              witnessSet = tx.witnessSet.copy(
+                vkeyWitnesses = Set.empty
+              )
+            )
+        }
+
+        val state = State()
+
+        val result = NeededWitnessesValidator.validate(context, state, transaction)
         assert(result.isLeft)
     }
 
