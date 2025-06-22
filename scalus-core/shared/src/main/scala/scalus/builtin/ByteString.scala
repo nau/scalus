@@ -62,6 +62,43 @@ class ByteString private[builtin] (val bytes: Array[Byte]) {
 
 @Compile
 object ByteString extends ByteStringOffchainApi {
+
+    /** Encodes a BigInt value as a Big-Endian (most-significant bytes first) `ByteString`.
+      * @param value
+      *   is the value to encode.
+      * @param size
+      *   is the expected size in number of bytes.
+      * @note
+      *   This function fails (i.e. halts the program) if the value cannot fit in the given size.
+      *   When the size is _too large_, the ByteString is left-padded with zeroes.
+      * @example
+      *   {{{
+      *   ByteString.fromBigIntBigEndian(1_000_000, 3) == hex"0f4240"
+      *   ByteString.fromBigIntBigEndian(1_000_000, 5) == hex"00000f4240"
+      *   ByteString.fromBigIntBigEndian(0, 8) == hex"0000000000000000"
+      *   ByteString.fromBigIntBigEndian(1_000_000, 1) => 💥
+      *   }}}
+      */
+    inline def fromBigIntBigEndian(value: BigInt, size: BigInt): ByteString =
+        Builtins.integerToByteString(true, value, size)
+
+    /** Encodes a BigInt value as a Little-Endian (least-significant bytes first) `ByteString`.
+      *
+      * @param value
+      *   is the value to encode.
+      * @param size
+      *   is the expected size in number of bytes.
+      * @example
+      *   {{{
+      *   ByteString.fromBigIntLittleEndian(1_000_000, 3) == hex"40420f"
+      *   ByteString.fromBigIntLittleEndian(1_000_000, 5) == hex"40420f0000"
+      *   ByteString.fromBigIntLittleEndian(0, 8) == hex"0000000000000000"
+      *   ByteString.fromBigIntLittleEndian(1_000_000, 1) => 💥
+      *   }}}
+      */
+    inline def fromBigIntLittleEndian(value: BigInt, size: BigInt): ByteString =
+        Builtins.integerToByteString(false, value, size)
+
     // These methods are available onchain
     // Because we make them inline and those are builtins
     // we don't need to compile this module (so no @Compile on ByteString)
