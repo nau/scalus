@@ -234,9 +234,27 @@ private[builtin] abstract class AbstractBuiltins(using ps: PlatformSpecific):
     def consByteString(char: BigInt, byteString: ByteString): ByteString =
         if char < 0 || char > 255 then
             throw new BuiltinException(s"consByteString: invalid byte value: $char")
-        ByteString.fromArray(char.toByte +: byteString.bytes)
-    def sliceByteString(start: BigInt, n: BigInt, bs: ByteString): ByteString =
-        ByteString.fromArray(bs.bytes.drop(start.toInt).take(n.toInt))
+        ByteString.unsafeFromArray(char.toByte +: byteString.bytes)
+
+    /** Returns a new ByteString that is a slice of the original ByteString
+      *
+      * @param from
+      *   the starting index of the slice (inclusive)
+      * @param len
+      *   the length of the slice
+      * @param bs
+      *   the original ByteString to slice
+      *
+      * @example
+      *   {{{
+      *   sliceByteString(2, 4, hex"1234567890abcdef") // returns hex"567890ab"
+      *   sliceByteString(5, 4, hex"1234567890abcdef") // returns hex"abcdef"
+      *   sliceByteString(9, 4, hex"1234567890abcdef") // returns hex""
+      *   sliceByteString(0, 0, hex"1234567890abcdef") // returns hex""
+      *   }}}
+      */
+    def sliceByteString(from: BigInt, len: BigInt, bs: ByteString): ByteString =
+        ByteString.unsafeFromArray(bs.bytes.drop(from.toInt).take(len.toInt))
 
     def lengthOfByteString(bs: ByteString): BigInt = bs.bytes.length
     def indexByteString(bs: ByteString, i: BigInt): BigInt =

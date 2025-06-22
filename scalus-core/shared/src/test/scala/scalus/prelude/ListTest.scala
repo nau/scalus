@@ -6,6 +6,8 @@ import org.scalatest.funsuite.AnyFunSuite
 import org.scalatestplus.scalacheck.Checkers.*
 import org.scalatestplus.scalacheck.ScalaCheckPropertyChecks
 import scalus.*
+import scalus.builtin.ByteString.*
+import scalus.ledger.api.v2.OutputDatum
 import scalus.prelude.List.*
 
 // here warnings are incorrect, ignore them
@@ -267,5 +269,16 @@ class ListTest extends AnyFunSuite with ScalaCheckPropertyChecks with ArbitraryI
         check { (list: scala.List[BigInt]) =>
             list == list.asScalus.asScala
         }
+    }
+
+    test("right assoc infix operators") {
+        val ls: List[OutputDatum] =
+            OutputDatum.OutputDatumHash(hex"00") +: List(OutputDatum.NoOutputDatum)
+        assert(ls == List(OutputDatum.OutputDatumHash(hex"00"), OutputDatum.NoOutputDatum))
+        val ls2: List[OutputDatum] =
+            List(OutputDatum.OutputDatumHash(hex"00")) ++: List(OutputDatum.NoOutputDatum)
+        assert(ls2 == List(OutputDatum.OutputDatumHash(hex"00"), OutputDatum.NoOutputDatum))
+        val ls3 = List(BigInt(1)) ++: List(BigInt(12))
+        assert(ls3 == List(BigInt(1), BigInt(12)))
     }
 }
