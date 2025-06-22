@@ -8,13 +8,13 @@ trait ByteStringApi {
     // These methods are available onchain
     // Because we make them inline and those are builtins
     // we don't need to compile this module (so no @Compile on ByteString)
-    extension (bs: ByteString)
-        inline infix def <(that: ByteString): Boolean = Builtins.lessThanByteString(bs, that)
+    extension (self: ByteString)
+        inline infix def <(that: ByteString): Boolean = Builtins.lessThanByteString(self, that)
         inline infix def <=(that: ByteString): Boolean =
-            Builtins.lessThanEqualsByteString(bs, that)
-        inline infix def >(that: ByteString): Boolean = Builtins.lessThanByteString(that, bs)
+            Builtins.lessThanEqualsByteString(self, that)
+        inline infix def >(that: ByteString): Boolean = Builtins.lessThanByteString(that, self)
         inline infix def >=(that: ByteString): Boolean =
-            Builtins.lessThanEqualsByteString(that, bs)
+            Builtins.lessThanEqualsByteString(that, self)
 
         /** Returns a new ByteString that is a slice of the original ByteString
           *
@@ -31,21 +31,35 @@ trait ByteStringApi {
           *   }}}
           */
         inline def slice(from: BigInt, len: BigInt): ByteString =
-            Builtins.sliceByteString(from, len, bs)
+            Builtins.sliceByteString(from, len, self)
+
+        /** Takes the first `n` bytes from the ByteString
+          *
+          * @param n
+          *   the number of bytes to take
+          * @example
+          *   {{{
+          *   hex"1234567890abcdef".take(0) // returns hex""
+          *   hex"1234567890abcdef".take(4) // returns hex"12345678"
+          *   hex"1234567890abcdef".take(20) // returns hex"1234567890abcdef"
+          *   hex"".take(20) // returns hex""
+          *   }}}
+          */
+        inline def take(n: BigInt): ByteString = Builtins.sliceByteString(0, n, self)
 
         /** Returns the byte at the specified index in the ByteString
           *
           * @throws BuiltinException
           *   if the index is out of bounds (offchain)
           */
-        inline def at(index: BigInt): BigInt = Builtins.indexByteString(bs, index)
+        inline def at(index: BigInt): BigInt = Builtins.indexByteString(self, index)
 
         /** Returns the length of the ByteString */
-        inline def length: BigInt = Builtins.lengthOfByteString(bs)
+        inline def length: BigInt = Builtins.lengthOfByteString(self)
 
         /** Concatenates two ByteStrings and returns a new ByteString */
         inline infix def ++(that: ByteString): ByteString =
-            Builtins.appendByteString(bs, that)
+            Builtins.appendByteString(self, that)
     extension (b: BigInt)
         /** Prepends a BigInt to a ByteString and returns a new ByteString */
         inline infix def +:(bs: ByteString): ByteString = Builtins.consByteString(b, bs)
