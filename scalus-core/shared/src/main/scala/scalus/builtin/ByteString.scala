@@ -2,7 +2,6 @@ package scalus.builtin
 
 import scalus.utils.Hex
 
-import scala.annotation.targetName
 import scala.compiletime.asMatchable
 
 // TODO: replace Array on IArray

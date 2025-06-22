@@ -2,17 +2,24 @@ package scalus.builtin
 
 import io.bullet.borer.{Decoder, Encoder, Reader, Writer}
 
-trait ByteStringApi {
+private trait ByteStringApi {
     self: ByteString.type =>
 
     // These methods are available onchain
     // Because we make them inline and those are builtins
     // we don't need to compile this module (so no @Compile on ByteString)
     extension (self: ByteString)
+        /** Checks if one 'ByteString' is less than another */
         inline infix def <(that: ByteString): Boolean = Builtins.lessThanByteString(self, that)
+
+        /** Checks if one 'ByteString' is less than or equal to another */
         inline infix def <=(that: ByteString): Boolean =
             Builtins.lessThanEqualsByteString(self, that)
+
+        /** Checks if one 'ByteString' is greater than another */
         inline infix def >(that: ByteString): Boolean = Builtins.lessThanByteString(that, self)
+
+        /** Checks if one 'ByteString' is greater than or equal to another */
         inline infix def >=(that: ByteString): Boolean =
             Builtins.lessThanEqualsByteString(that, self)
 

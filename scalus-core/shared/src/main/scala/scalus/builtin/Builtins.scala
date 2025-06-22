@@ -256,7 +256,14 @@ private[builtin] abstract class AbstractBuiltins(using ps: PlatformSpecific):
     def sliceByteString(from: BigInt, len: BigInt, bs: ByteString): ByteString =
         ByteString.unsafeFromArray(bs.bytes.drop(from.toInt).take(len.toInt))
 
+    /** Returns the length of the ByteString */
     def lengthOfByteString(bs: ByteString): BigInt = bs.bytes.length
+
+    /** Returns the byte at the specified index in the ByteString
+      *
+      * @throws BuiltinException
+      *   if the index is out of bounds (offchain)
+      */
     def indexByteString(bs: ByteString, i: BigInt): BigInt =
         if i < 0 || i >= bs.size then
             throw new BuiltinException(
@@ -265,6 +272,8 @@ private[builtin] abstract class AbstractBuiltins(using ps: PlatformSpecific):
         else BigInt(bs.bytes(i.toInt) & 0xff)
 
     def equalsByteString(a: ByteString, b: ByteString): Boolean = a == b
+
+    /** Checks if one 'ByteString' is less than another */
     def lessThanByteString(a: ByteString, b: ByteString): Boolean =
         val minLen = math.min(a.size, b.size)
         var i = 0
@@ -276,6 +285,8 @@ private[builtin] abstract class AbstractBuiltins(using ps: PlatformSpecific):
             i += 1
         if a.size < b.size then true
         else false
+
+    /** Checks if one 'ByteString' is less than or equal to another */
     def lessThanEqualsByteString(a: ByteString, b: ByteString): Boolean =
         val minLen = math.min(a.size, b.size)
         var i = 0
