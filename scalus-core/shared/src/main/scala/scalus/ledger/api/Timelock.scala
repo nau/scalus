@@ -37,7 +37,7 @@ enum Timelock:
     case TimeExpire(lockExpire: SlotNo)
 
     @transient lazy val scriptHash: ScriptHash = Hash(
-      summon[PlatformSpecific].blake2b_256(
+      summon[PlatformSpecific].blake2b_224(
         ByteString.unsafeFromArray(Cbor.encode(this).toByteArray.prepended(0))
       )
     )

@@ -3,6 +3,7 @@ package rules
 
 import scalus.cardano.ledger.rules.utils.*
 import scalus.ledger.api.{Timelock, ValidityInterval}
+
 import scala.util.boundary
 import scala.util.boundary.break
 
@@ -12,29 +13,35 @@ object NativeScriptValidator
       AllRequiredScriptHashes,
       AllReferenceScripts,
       AllProvidedScripts {
-    override def validate(context: Context, state: State, event: Event): Result = boundary {
+    override def validate(context: Context, state: State, event: Event): Result = {
         for
             requiredScriptHashes <- allRequiredScriptHashes(state, event)
             referenceNativeScripts <- allReferenceNativeScripts(state, event)
             providedNativeScripts = allProvidedNativeScripts(event)
-            nativeScripts = referenceNativeScripts.view ++ providedNativeScripts
             validatorKeys = allValidatorKeys(event)
             validityInterval = extractValidityInterval(event)
-            _ <-
-                for nativeScript <- nativeScripts
-                do
-                    if requiredScriptHashes.contains(nativeScript.scriptHash) &&
-                        !nativeScript.evaluate(validatorKeys, validityInterval)
-                    then
-                        break(
-                          failure(
-                            IllegalArgumentException(
-                              s"Invalid native script with scriptHash ${nativeScript.scriptHash} in transactionId ${event.id}"
-                            )
-                          )
-                        )
-
-                success
+            _ <- validateNativeScripts(
+              referenceNativeScripts,
+              event.id,
+              requiredScriptHashes,
+              validatorKeys,
+              validityInterval,
+              (transactionId, nativeScript, index) =>
+                  IllegalArgumentException(
+                    s"Invalid reference native script at index $index with scriptHash ${nativeScript.scriptHash} in transactionId $transactionId"
+                  )
+            )
+            _ <- validateNativeScripts(
+              providedNativeScripts,
+              event.id,
+              requiredScriptHashes,
+              validatorKeys,
+              validityInterval,
+              (transactionId, nativeScript, index) =>
+                  IllegalArgumentException(
+                    s"Invalid provided native script at index $index with scriptHash ${nativeScript.scriptHash} in transactionId $transactionId"
+                  )
+            )
         yield ()
     }
 
@@ -45,4 +52,21 @@ object NativeScriptValidator
     private def extractValidityInterval(
         event: Event
     ): ValidityInterval = ValidityInterval(event.body.value.validityStartSlot, event.body.value.ttl)
+
+    private def validateNativeScripts(
+        nativeScripts: Set[Timelock],
+        transactionId: TransactionHash,
+        requiredScriptHashes: Set[ScriptHash],
+        validatorKeys: Set[AddrKeyHash],
+        validityInterval: ValidityInterval,
+        invalidNativeScriptError: (TransactionHash, Timelock, Int) => IllegalArgumentException
+    ): Result = boundary {
+        for (nativeScript, index) <- nativeScripts.zipWithIndex
+        do
+            if requiredScriptHashes.contains(nativeScript.scriptHash) &&
+                !nativeScript.evaluate(validatorKeys, validityInterval)
+            then break(failure(invalidNativeScriptError(transactionId, nativeScript, index)))
+
+        success
+    }
 }

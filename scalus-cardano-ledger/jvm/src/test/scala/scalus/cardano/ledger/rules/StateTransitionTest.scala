@@ -3,7 +3,7 @@ package scalus.cardano.ledger.rules
 import org.scalacheck.{Arbitrary, Gen}
 import org.scalatest.funsuite.AnyFunSuite
 import scalus.cardano.ledger.*
-import scalus.cardano.address.Address
+import scalus.cardano.address.{Address, ShelleyAddress, ShelleyPaymentPart}
 import scalus.ledger.babbage.ProtocolParams
 import upickle.default.read
 import scalus.builtin.{ByteString, PlatformSpecific, given}
@@ -11,6 +11,7 @@ import java.security.SecureRandom
 import org.bouncycastle.crypto.generators.Ed25519KeyPairGenerator
 import org.bouncycastle.crypto.AsymmetricCipherKeyPair
 import org.bouncycastle.crypto.params.{Ed25519KeyGenerationParameters, Ed25519PrivateKeyParameters, Ed25519PublicKeyParameters}
+import scalus.ledger.api.Timelock
 
 class StateTransitionTest extends AnyFunSuite, ArbitraryInstances {
     private val params = read[ProtocolParams](
@@ -282,6 +283,241 @@ class StateTransitionTest extends AnyFunSuite, ArbitraryInstances {
         val state = State()
 
         val result = VerifiedWitnessesValidator.validate(context, state, transaction)
+        assert(result.isLeft)
+    }
+
+    test("NativeScriptValidator rule success") {
+        val context = Context()
+
+        val (privateKey1, publicKey1) = generateKeyPair()
+        val (privateKey2, publicKey2) = generateKeyPair()
+        val (privateKey3, publicKey3) = generateKeyPair()
+
+        val signatureTimelock1 =
+            Timelock.Signature(Hash(summon[PlatformSpecific].blake2b_224(publicKey1)))
+        val signatureTimelock2 =
+            Timelock.Signature(Hash(summon[PlatformSpecific].blake2b_224(publicKey2)))
+        val signatureTimelock3 =
+            Timelock.Signature(Hash(summon[PlatformSpecific].blake2b_224(publicKey3)))
+        val allOfTimelock = Timelock.AllOf(Seq(signatureTimelock1, signatureTimelock2))
+        val anyOfTimelock =
+            Timelock.AnyOf(Seq(signatureTimelock1, signatureTimelock2, signatureTimelock3))
+        val mOfTimelock =
+            Timelock.MOf(2, Seq(signatureTimelock1, signatureTimelock2, signatureTimelock3))
+        val timeStartTimelock = Timelock.TimeStart(5)
+        val timeExpireTimelock = Timelock.TimeExpire(20)
+
+        val transaction = {
+            val tx = randomValidTransaction
+            tx.copy(
+              body = KeepRaw(
+                tx.body.value.copy(
+                  inputs = Set(
+                    Arbitrary.arbitrary[TransactionInput].sample.get,
+                    Arbitrary.arbitrary[TransactionInput].sample.get,
+                    Arbitrary.arbitrary[TransactionInput].sample.get,
+                    Arbitrary.arbitrary[TransactionInput].sample.get,
+                    Arbitrary.arbitrary[TransactionInput].sample.get,
+                    Arbitrary.arbitrary[TransactionInput].sample.get,
+                    Arbitrary.arbitrary[TransactionInput].sample.get
+                  ),
+                  collateralInputs = Set.empty,
+                  referenceInputs = Set.empty,
+                  validityStartSlot = Some(10),
+                  ttl = Some(15)
+                )
+              ),
+              witnessSet = tx.witnessSet.copy(
+                vkeyWitnesses = Set(
+                  VKeyWitness(publicKey1, summon[PlatformSpecific].signEd25519(privateKey1, tx.id)),
+                  VKeyWitness(publicKey2, summon[PlatformSpecific].signEd25519(privateKey2, tx.id))
+                ),
+                nativeScripts = Set(
+                  signatureTimelock1,
+                  signatureTimelock2,
+                  allOfTimelock,
+                  anyOfTimelock,
+                  mOfTimelock
+                )
+              )
+            )
+        }
+        val state = {
+            val signatureTimelock1Address = Arbitrary
+                .arbitrary[ShelleyAddress]
+                .sample
+                .get
+                .copy(
+                  payment = ShelleyPaymentPart.Script(signatureTimelock1.scriptHash)
+                )
+
+            val signatureTimelock2Address = Arbitrary
+                .arbitrary[ShelleyAddress]
+                .sample
+                .get
+                .copy(
+                  payment = ShelleyPaymentPart.Script(signatureTimelock2.scriptHash)
+                )
+
+            val allOfTimelockAddress = Arbitrary
+                .arbitrary[ShelleyAddress]
+                .sample
+                .get
+                .copy(
+                  payment = ShelleyPaymentPart.Script(allOfTimelock.scriptHash)
+                )
+
+            val anyOfTimelockAddress = Arbitrary
+                .arbitrary[ShelleyAddress]
+                .sample
+                .get
+                .copy(
+                  payment = ShelleyPaymentPart.Script(anyOfTimelock.scriptHash)
+                )
+
+            val mOfTimelockAddress = Arbitrary
+                .arbitrary[ShelleyAddress]
+                .sample
+                .get
+                .copy(
+                  payment = ShelleyPaymentPart.Script(mOfTimelock.scriptHash)
+                )
+
+            val timeStartTimelockAddress = Arbitrary
+                .arbitrary[ShelleyAddress]
+                .sample
+                .get
+                .copy(
+                  payment = ShelleyPaymentPart.Script(timeStartTimelock.scriptHash)
+                )
+
+            val timeExpireTimelockAddress = Arbitrary
+                .arbitrary[ShelleyAddress]
+                .sample
+                .get
+                .copy(
+                  payment = ShelleyPaymentPart.Script(timeExpireTimelock.scriptHash)
+                )
+
+            State(
+              utxo = List(
+                transaction.body.value.inputs.head -> TransactionOutput.Babbage(
+                  Address.Shelley(signatureTimelock1Address),
+                  Value(Coin(1000L)),
+                  None,
+                  None
+                ),
+                transaction.body.value.inputs.tail.head -> TransactionOutput.Babbage(
+                  Address.Shelley(signatureTimelock2Address),
+                  Value(Coin(1000L)),
+                  None,
+                  None
+                ),
+                transaction.body.value.inputs.tail.tail.head -> TransactionOutput.Babbage(
+                  Address.Shelley(allOfTimelockAddress),
+                  Value(Coin(1000L)),
+                  None,
+                  None
+                ),
+                transaction.body.value.inputs.tail.tail.tail.head -> TransactionOutput.Babbage(
+                  Address.Shelley(anyOfTimelockAddress),
+                  Value(Coin(1000L)),
+                  None,
+                  None
+                ),
+                transaction.body.value.inputs.tail.tail.tail.tail.head -> TransactionOutput.Babbage(
+                  Address.Shelley(mOfTimelockAddress),
+                  Value(Coin(1000L)),
+                  None,
+                  None
+                ),
+                transaction.body.value.inputs.tail.tail.tail.tail.tail.head -> TransactionOutput
+                    .Babbage(
+                      Address.Shelley(timeStartTimelockAddress),
+                      Value(Coin(1000L)),
+                      None,
+                      Some(ScriptRef(Script.Native(timeStartTimelock)))
+                    ),
+                transaction.body.value.inputs.tail.tail.tail.tail.tail.tail.head -> TransactionOutput
+                    .Babbage(
+                      Address.Shelley(timeExpireTimelockAddress),
+                      Value(Coin(1000L)),
+                      None,
+                      Some(ScriptRef(Script.Native(timeExpireTimelock)))
+                    ),
+              ).toMap
+            )
+        }
+
+        val result = NativeScriptValidator.validate(context, state, transaction)
+        assert(result.isRight)
+    }
+
+    test("NativeScriptValidator rule failure") {
+        val context = Context()
+
+        val timeStartTimelock = Timelock.TimeStart(5)
+        val timeExpireTimelock = Timelock.TimeExpire(20)
+
+        val transaction = {
+            val tx = randomValidTransaction
+            tx.copy(
+              body = KeepRaw(
+                tx.body.value.copy(
+                  inputs = Set(
+                    Arbitrary.arbitrary[TransactionInput].sample.get,
+                    Arbitrary.arbitrary[TransactionInput].sample.get
+                  ),
+                  collateralInputs = Set.empty,
+                  referenceInputs = Set.empty,
+                  validityStartSlot = Some(10),
+                  ttl = Some(25)
+                )
+              ),
+              witnessSet = tx.witnessSet.copy(
+                vkeyWitnesses = Set.empty,
+                nativeScripts = Set.empty
+              )
+            )
+        }
+        val state = {
+            val timeStartTimelockAddress = Arbitrary
+                .arbitrary[ShelleyAddress]
+                .sample
+                .get
+                .copy(
+                  payment = ShelleyPaymentPart.Script(timeStartTimelock.scriptHash)
+                )
+
+            val timeExpireTimelockAddress = Arbitrary
+                .arbitrary[ShelleyAddress]
+                .sample
+                .get
+                .copy(
+                  payment = ShelleyPaymentPart.Script(timeExpireTimelock.scriptHash)
+                )
+
+            State(
+              utxo = List(
+                transaction.body.value.inputs.head -> TransactionOutput
+                    .Babbage(
+                      Address.Shelley(timeStartTimelockAddress),
+                      Value(Coin(1000L)),
+                      None,
+                      Some(ScriptRef(Script.Native(timeStartTimelock)))
+                    ),
+                transaction.body.value.inputs.tail.head -> TransactionOutput
+                    .Babbage(
+                      Address.Shelley(timeExpireTimelockAddress),
+                      Value(Coin(1000L)),
+                      None,
+                      Some(ScriptRef(Script.Native(timeExpireTimelock)))
+                    ),
+              ).toMap
+            )
+        }
+
+        val result = NativeScriptValidator.validate(context, state, transaction)
         assert(result.isLeft)
     }
 
