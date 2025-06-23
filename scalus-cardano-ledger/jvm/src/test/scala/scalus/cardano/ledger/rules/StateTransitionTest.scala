@@ -1393,6 +1393,67 @@ class StateTransitionTest extends AnyFunSuite, ArbitraryInstances {
         assert(result.isRight)
     }
 
+    test("TransactionSizeValidator rule success") {
+        val context = Context()
+        val transaction = {
+            val tx = randomValidTransaction
+            tx.copy(
+              witnessSet = tx.witnessSet.copy(
+                vkeyWitnesses = Set.empty,
+                bootstrapWitnesses = Set.empty,
+                nativeScripts = Set.empty,
+                plutusV1Scripts = Set.empty,
+                plutusV2Scripts = Set.empty,
+                plutusV3Scripts = Set.empty,
+                plutusData = Set.empty,
+                redeemers = None
+              ),
+              auxiliaryData = None,
+              body = KeepRaw(
+                tx.body.value.copy(
+                  inputs = Set(
+                    Arbitrary.arbitrary[TransactionInput].sample.get,
+                    Arbitrary.arbitrary[TransactionInput].sample.get
+                  ),
+                  collateralInputs = Set.empty,
+                  referenceInputs = Set.empty,
+                  outputs = IndexedSeq(Arbitrary.arbitrary[TransactionOutput].sample.get),
+                  votingProcedures = None,
+                  proposalProcedures = Set.empty,
+                  withdrawals = None,
+                  certificates = Set.empty,
+                  mint = None,
+                  requiredSigners = Set.empty
+                )
+              )
+            )
+        }
+
+        val result = TransactionSizeValidator.validate(context, State(), transaction)
+        assert(result.isRight)
+    }
+
+    test("TransactionSizeValidator rule failure") {
+        val context = Context()
+        val inputs = Set.fill(1000) { // Arbitrary large number of inputs
+            Arbitrary.arbitrary[TransactionInput].sample.get
+        }
+
+        val transaction = {
+            val tx = randomValidTransaction
+            tx.copy(
+              body = KeepRaw(
+                tx.body.value.copy(
+                  inputs = inputs
+                )
+              )
+            )
+        }
+
+        val result = TransactionSizeValidator.validate(context, State(), transaction)
+        assert(result.isLeft)
+    }
+
     test("FeeMutator success") {
         val context = Context()
         val state = State()
