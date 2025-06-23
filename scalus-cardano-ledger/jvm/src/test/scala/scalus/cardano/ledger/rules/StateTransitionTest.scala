@@ -3,7 +3,7 @@ package scalus.cardano.ledger.rules
 import org.scalacheck.Arbitrary
 import org.scalatest.funsuite.AnyFunSuite
 import scalus.cardano.ledger.*
-import scalus.cardano.address.{Address, ShelleyAddress, ShelleyPaymentPart}
+import scalus.cardano.address.{Address, ByronAddress, ShelleyAddress, ShelleyPaymentPart}
 import scalus.ledger.babbage.ProtocolParams
 import upickle.default.read
 import scalus.builtin.{ByteString, PlatformSpecific, given}
@@ -1411,19 +1411,23 @@ class StateTransitionTest extends AnyFunSuite, ArbitraryInstances {
               auxiliaryData = None,
               body = KeepRaw(
                 tx.body.value.copy(
-                  inputs = Set(
-                    Arbitrary.arbitrary[TransactionInput].sample.get,
-                    Arbitrary.arbitrary[TransactionInput].sample.get
-                  ),
+                  inputs = Set(Arbitrary.arbitrary[TransactionInput].sample.get),
                   collateralInputs = Set.empty,
                   referenceInputs = Set.empty,
-                  outputs = IndexedSeq(Arbitrary.arbitrary[TransactionOutput].sample.get),
+                  outputs = IndexedSeq(
+                    TransactionOutput.Shelley(
+                      Address.Byron(Arbitrary.arbitrary[ByronAddress].sample.get),
+                      Value(Coin(1000000L))
+                    )
+                  ),
                   votingProcedures = None,
                   proposalProcedures = Set.empty,
                   withdrawals = None,
                   certificates = Set.empty,
                   mint = None,
-                  requiredSigners = Set.empty
+                  requiredSigners = Set.empty,
+                  collateralReturnOutput = None,
+                  networkId = None
                 )
               )
             )
