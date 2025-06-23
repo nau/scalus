@@ -4,11 +4,10 @@ import org.scalatest.funsuite.AnyFunSuite
 import org.scalatestplus.scalacheck.ScalaCheckPropertyChecks
 import scalus.*
 import scalus.builtin.ByteString.*
-import scalus.builtin.Data.{fromData, toData}
-import scalus.builtin.given
+import scalus.builtin.Data.toData
 import scalus.sir.Recursivity.NonRec
 import scalus.sir.SIR.Pattern
-import scalus.sir.SIRType.{substitute, FreeUnificator, SumCaseClass, TypeNothing, TypeVar}
+import scalus.sir.SIRType.{FreeUnificator, SumCaseClass, TypeVar}
 import scalus.sir.lowering.StaticLoweredValue
 import scalus.sir.*
 import scalus.uplc.DefaultFun.*

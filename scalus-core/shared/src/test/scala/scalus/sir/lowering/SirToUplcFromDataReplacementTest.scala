@@ -5,12 +5,11 @@ import scalus.*
 import scalus.Compiler.compile
 import scalus.builtin.*
 import scalus.builtin.ByteString.hex
-import scalus.builtin.Data.{fromData, toData}
-import scalus.sir.*
+import scalus.builtin.Data.toData
 import scalus.ledger.api.v3.*
+import scalus.sir.*
 import scalus.uplc.*
 import scalus.uplc.eval.PlutusVM
-import scalus.uplc.eval.Result
 
 class SirToUplcFromDataReplacementTest extends AnyFunSuite {
 

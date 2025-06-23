@@ -1,13 +1,13 @@
 package scalus.sir
 
 import org.scalatest.funsuite.AnyFunSuite
-import scalus.Compiler.compile
 import scalus.*
+import scalus.Compiler.compile
 import scalus.flat.FlatInstantces.{*, given}
-import scalus.flat.{DecoderState, EncoderState, Uint8Array}
+import scalus.flat.{DecoderState, EncoderState}
 import scalus.utils.{HSRIdentityHashMap, HashConsed, HashConsedDecoderState, HashConsedEncoderState}
 
-import java.io.{BufferedInputStream, BufferedReader, File, FileInputStream}
+import java.io.{BufferedInputStream, File, FileInputStream}
 
 object FlatSIRClausifyTestScope {
 

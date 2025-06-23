@@ -1,5 +1,6 @@
 package scalus.examples
 
+import org.scalatest.funsuite.AnyFunSuite
 import scalus.*
 import scalus.Compiler.compile
 import scalus.builtin.ByteString.*
@@ -7,12 +8,10 @@ import scalus.builtin.Data.toData
 import scalus.builtin.{ByteString, Data}
 import scalus.ledger.api.v1.PubKeyHash
 import scalus.prelude.*
+import scalus.testkit.ScalusTest
 import scalus.uplc.*
 import scalus.uplc.eval.*
-import org.scalatest.funsuite.AnyFunSuite
-import scalus.testkit.ScalusTest
 
-import java.nio.file.{Files, Path}
 import scala.language.implicitConversions
 
 class HelloCardanoTest extends AnyFunSuite with ScalusTest {

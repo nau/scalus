@@ -183,6 +183,10 @@ trait ArbitraryInstances:
                 throw new IllegalArgumentException(
                   s"Unexpected DefaultUni type for constant generation $t"
                 )
+            case DefaultUni.ProtoList | DefaultUni.ProtoPair =>
+                throw new IllegalArgumentException(
+                  s"Unexpected DefaultUni type for constant generation $t"
+                )
 
     given arbitraryConstant: Arbitrary[Constant] = Arbitrary(
       for

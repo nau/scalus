@@ -1,7 +1,7 @@
 package scalus.cardano.ledger
 
 import io.bullet.borer.*
-import scalus.builtin.{ByteString, Data}
+import scalus.builtin.Data
 import scalus.ledger.api.Timelock
 
 /** Represents the witness set for a transaction in Cardano */
