@@ -11,8 +11,8 @@ object NeededWitnessesValidator extends STS.Validator {
             _ <- validateInputs(context, state, event)
             _ <- validateCollateralInputs(context, state, event)
             _ <- validateVotingProcedures(context, state, event)
-            _ <- validateCertificates(context, state, event)
             _ <- validateWithdrawals(context, state, event)
+            _ <- validateCertificates(context, state, event)
         yield ()
     }
 
@@ -109,10 +109,9 @@ object NeededWitnessesValidator extends STS.Validator {
                 case Certificate.StakeRegistration(credential)   => extractKeyHash(credential)
                 case Certificate.StakeDeregistration(credential) => extractKeyHash(credential)
                 case Certificate.StakeDelegation(credential, _)  => extractKeyHash(credential)
-                case certificate: Certificate.PoolRegistration =>
-                    extractKeyHash(Credential.KeyHash(certificate.operator))
+                case certificate: Certificate.PoolRegistration   => Some(certificate.operator)
                 case Certificate.PoolRetirement(poolKeyHash, _) =>
-                    extractKeyHash(Credential.KeyHash(poolKeyHash.asInstanceOf[AddrKeyHash]))
+                    Some(poolKeyHash.asInstanceOf[AddrKeyHash])
                 case Certificate.RegCert(credential, deposit) =>
                     if deposit > Coin.zero then extractKeyHash(credential)
                     else None // No witness needed for zero deposit

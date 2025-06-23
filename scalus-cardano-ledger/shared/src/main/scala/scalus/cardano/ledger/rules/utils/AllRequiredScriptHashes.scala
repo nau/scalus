@@ -126,10 +126,8 @@ trait AllRequiredScriptHashes {
                 case Certificate.StakeRegistration(credential)   => extractScriptHash(credential)
                 case Certificate.StakeDeregistration(credential) => extractScriptHash(credential)
                 case Certificate.StakeDelegation(credential, _)  => extractScriptHash(credential)
-                case certificate: Certificate.PoolRegistration =>
-                    extractScriptHash(Credential.KeyHash(certificate.operator))
-                case Certificate.PoolRetirement(poolKeyHash, _) =>
-                    extractScriptHash(Credential.KeyHash(poolKeyHash.asInstanceOf[AddrKeyHash]))
+                case certificate: Certificate.PoolRegistration   => None
+                case Certificate.PoolRetirement(poolKeyHash, _)  => None
                 case Certificate.RegCert(credential, deposit) =>
                     if deposit > Coin.zero then extractScriptHash(credential)
                     else None // No witness needed for zero deposit

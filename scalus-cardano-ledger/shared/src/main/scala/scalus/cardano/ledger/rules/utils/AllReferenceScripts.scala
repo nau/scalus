@@ -14,6 +14,12 @@ trait AllReferenceScripts {
         event: Event
     ): Either[Error, Set[Script]] = allReferenceScripts(state, event, Some(_))
 
+    protected def allReferenceScriptHashes(
+        state: State,
+        event: Event
+    ): Either[Error, Set[ScriptHash]] =
+        allReferenceScripts(state, event, script => Some(script.scriptHash))
+
     protected def allReferenceNativeScripts(
         state: State,
         event: Event
@@ -26,11 +32,17 @@ trait AllReferenceScripts {
       }
     )
 
-    protected def allReferenceScriptHashes(
+    protected def allReferenceNativeScriptHashes(
         state: State,
         event: Event
-    ): Either[Error, Set[ScriptHash]] =
-        allReferenceScripts(state, event, script => Some(script.scriptHash))
+    ): Either[Error, Set[ScriptHash]] = allReferenceScripts(
+      state,
+      event,
+      {
+          case Script.Native(timelock) => Some(timelock.scriptHash)
+          case _                       => None
+      }
+    )
 
     private def allReferenceScripts[T](
         state: State,

@@ -315,11 +315,12 @@ class StateTransitionTest extends AnyFunSuite, ArbitraryInstances {
                   inputs = Set(
                     Arbitrary.arbitrary[TransactionInput].sample.get,
                     Arbitrary.arbitrary[TransactionInput].sample.get,
-                    Arbitrary.arbitrary[TransactionInput].sample.get,
+                    Arbitrary.arbitrary[TransactionInput].sample.get
+                  ),
+                  collateralInputs = Set(
                     Arbitrary.arbitrary[TransactionInput].sample.get,
                     Arbitrary.arbitrary[TransactionInput].sample.get
                   ),
-                  collateralInputs = Set.empty,
                   referenceInputs = Set(
                     Arbitrary.arbitrary[TransactionInput].sample.get,
                     Arbitrary.arbitrary[TransactionInput].sample.get
@@ -420,13 +421,13 @@ class StateTransitionTest extends AnyFunSuite, ArbitraryInstances {
                   None,
                   None
                 ),
-                transaction.body.value.inputs.tail.tail.tail.head -> TransactionOutput.Babbage(
+                transaction.body.value.collateralInputs.head -> TransactionOutput.Babbage(
                   Address.Shelley(anyOfTimelockAddress),
                   Value(Coin(1000L)),
                   None,
                   None
                 ),
-                transaction.body.value.inputs.tail.tail.tail.tail.head -> TransactionOutput.Babbage(
+                transaction.body.value.collateralInputs.tail.head -> TransactionOutput.Babbage(
                   Address.Shelley(mOfTimelockAddress),
                   Value(Coin(1000L)),
                   None,
@@ -445,7 +446,7 @@ class StateTransitionTest extends AnyFunSuite, ArbitraryInstances {
                       Value(Coin(1000L)),
                       None,
                       Some(ScriptRef(Script.Native(timeExpireTimelock)))
-                    ),
+                    )
               )
             )
         }
@@ -466,10 +467,9 @@ class StateTransitionTest extends AnyFunSuite, ArbitraryInstances {
               body = KeepRaw(
                 tx.body.value.copy(
                   inputs = Set(
-                    Arbitrary.arbitrary[TransactionInput].sample.get,
                     Arbitrary.arbitrary[TransactionInput].sample.get
                   ),
-                  collateralInputs = Set.empty,
+                  collateralInputs = Set(Arbitrary.arbitrary[TransactionInput].sample.get),
                   referenceInputs = Set.empty,
                   validityStartSlot = Some(10),
                   ttl = Some(25)
@@ -477,7 +477,7 @@ class StateTransitionTest extends AnyFunSuite, ArbitraryInstances {
               ),
               witnessSet = tx.witnessSet.copy(
                 vkeyWitnesses = Set.empty,
-                nativeScripts = Set.empty
+                nativeScripts = Set(timeExpireTimelock)
               )
             )
         }
@@ -507,13 +507,13 @@ class StateTransitionTest extends AnyFunSuite, ArbitraryInstances {
                       None,
                       Some(ScriptRef(Script.Native(timeStartTimelock)))
                     ),
-                transaction.body.value.inputs.tail.head -> TransactionOutput
+                transaction.body.value.collateralInputs.head -> TransactionOutput
                     .Babbage(
                       Address.Shelley(timeExpireTimelockAddress),
                       Value(Coin(1000L)),
                       None,
-                      Some(ScriptRef(Script.Native(timeExpireTimelock)))
-                    ),
+                      None
+                    )
               )
             )
         }
@@ -1194,6 +1194,203 @@ class StateTransitionTest extends AnyFunSuite, ArbitraryInstances {
 
         val result = NeededWitnessesValidator.validate(context, state, transaction)
         assert(result.isLeft)
+    }
+
+    test("MissingScriptsValidator rule success") {
+        val context = Context()
+        val (privateKey, publicKey) = generateKeyPair()
+
+        val nativeScript =
+            Timelock.Signature(Hash(summon[PlatformSpecific].blake2b_224(publicKey)))
+        val plutusV1Script = Arbitrary.arbitrary[PlutusV1Script].sample.get
+        val plutusV2Script = Arbitrary.arbitrary[PlutusV2Script].sample.get
+        val plutusV3Script = Arbitrary.arbitrary[PlutusV3Script].sample.get
+
+        val credential1 = Credential.ScriptHash(plutusV1Script.scriptHash)
+        val credential2 = Credential.ScriptHash(plutusV2Script.scriptHash)
+        val credential3 = Credential.ScriptHash(plutusV3Script.scriptHash)
+
+        val input = Arbitrary.arbitrary[TransactionInput].sample.get
+        val collateralInput = Arbitrary.arbitrary[TransactionInput].sample.get
+        val referenceInput = Arbitrary.arbitrary[TransactionInput].sample.get
+        val transaction = {
+            val tx = randomValidTransaction
+            tx.copy(
+              body = KeepRaw(
+                tx.body.value.copy(
+                  inputs = Set(input),
+                  collateralInputs = Set(collateralInput),
+                  referenceInputs = Set.empty,
+                  mint = Some(
+                    Map(
+                      plutusV1Script.scriptHash -> Map.empty,
+                      plutusV2Script.scriptHash -> Map.empty,
+                      plutusV3Script.scriptHash -> Map.empty
+                    )
+                  ),
+                  votingProcedures = Some(
+                    VotingProcedures(
+                      Map(
+                        Voter.ConstitutionalCommitteeHotScript(
+                          nativeScript.scriptHash
+                        ) -> Map.empty,
+                        Voter.DRepScript(nativeScript.scriptHash) -> Map.empty
+                      )
+                    )
+                  ),
+                  withdrawals = Some(
+                    Withdrawals(
+                      Map(
+                        RewardAccount(
+                          Address.Shelley(
+                            Arbitrary
+                                .arbitrary[ShelleyAddress]
+                                .sample
+                                .get
+                                .copy(
+                                  payment = ShelleyPaymentPart.Script(nativeScript.scriptHash)
+                                )
+                          )
+                        ) -> Arbitrary.arbitrary[Coin].sample.get
+                      )
+                    )
+                  ),
+                  proposalProcedures = Set(
+                    Arbitrary
+                        .arbitrary[ProposalProcedure]
+                        .sample
+                        .get
+                        .copy(govAction =
+                            GovAction.ParameterChange(
+                              None,
+                              Arbitrary.arbitrary[ProtocolParamUpdate].sample.get,
+                              Some(nativeScript.scriptHash)
+                            )
+                        ),
+                    Arbitrary
+                        .arbitrary[ProposalProcedure]
+                        .sample
+                        .get
+                        .copy(govAction =
+                            GovAction.TreasuryWithdrawals(
+                              Map.empty,
+                              Some(nativeScript.scriptHash)
+                            )
+                        )
+                  ),
+                  certificates = Set(
+                    Certificate.StakeRegistration(credential1),
+                    Certificate.StakeDeregistration(credential2),
+                    Certificate
+                        .StakeDelegation(credential3, Arbitrary.arbitrary[PoolKeyHash].sample.get),
+                    Certificate.PoolRegistration(
+                      Hash(summon[PlatformSpecific].blake2b_224(publicKey)),
+                      Arbitrary.arbitrary[VrfKeyHash].sample.get,
+                      Arbitrary.arbitrary[Coin].sample.get,
+                      Arbitrary.arbitrary[Coin].sample.get,
+                      Arbitrary.arbitrary[UnitInterval].sample.get,
+                      Arbitrary.arbitrary[RewardAccount].sample.get,
+                      Arbitrary.arbitrary[Set[AddrKeyHash]].sample.get,
+                      Arbitrary.arbitrary[IndexedSeq[Relay]].sample.get,
+                      Arbitrary.arbitrary[Option[PoolMetadata]].sample.get
+                    ),
+                    Certificate
+                        .PoolRetirement(Hash(summon[PlatformSpecific].blake2b_224(publicKey)), 1),
+                    Certificate.RegCert(credential1, Arbitrary.arbitrary[Coin].sample.get),
+                    Certificate.UnregCert(credential2, Arbitrary.arbitrary[Coin].sample.get),
+                    Certificate.VoteDelegCert(credential3, Arbitrary.arbitrary[DRep].sample.get),
+                    Certificate.StakeVoteDelegCert(
+                      credential1,
+                      Arbitrary.arbitrary[PoolKeyHash].sample.get,
+                      Arbitrary.arbitrary[DRep].sample.get
+                    ),
+                    Certificate.StakeRegDelegCert(
+                      credential2,
+                      Arbitrary.arbitrary[PoolKeyHash].sample.get,
+                      Arbitrary.arbitrary[Coin].sample.get
+                    ),
+                    Certificate.VoteRegDelegCert(
+                      credential3,
+                      Arbitrary.arbitrary[DRep].sample.get,
+                      Arbitrary.arbitrary[Coin].sample.get
+                    ),
+                    Certificate.StakeVoteRegDelegCert(
+                      credential1,
+                      Arbitrary.arbitrary[PoolKeyHash].sample.get,
+                      Arbitrary.arbitrary[DRep].sample.get,
+                      Arbitrary.arbitrary[Coin].sample.get
+                    ),
+                    Certificate.AuthCommitteeHotCert(
+                      credential2,
+                      Arbitrary.arbitrary[Credential].sample.get
+                    ),
+                    Certificate.ResignCommitteeColdCert(
+                      credential3,
+                      Arbitrary.arbitrary[Option[Anchor]].sample.get
+                    ),
+                    Certificate.RegDRepCert(
+                      credential1,
+                      Arbitrary.arbitrary[Coin].sample.get,
+                      Arbitrary.arbitrary[Option[Anchor]].sample.get
+                    ),
+                    Certificate.UnregDRepCert(credential2, Arbitrary.arbitrary[Coin].sample.get),
+                    Certificate.UpdateDRepCert(
+                      credential3,
+                      Arbitrary.arbitrary[Option[Anchor]].sample.get
+                    )
+                  ),
+                )
+              ),
+              witnessSet = tx.witnessSet.copy(
+                vkeyWitnesses = Set(
+                  VKeyWitness(publicKey, summon[PlatformSpecific].signEd25519(privateKey, tx.id))
+                ),
+                nativeScripts = Set(nativeScript),
+                plutusV1Scripts = Set(plutusV1Script),
+                plutusV2Scripts = Set(plutusV2Script),
+                plutusV3Scripts = Set(plutusV3Script)
+              )
+            )
+        }
+
+        val state = State(
+          utxo = Map(
+            input -> TransactionOutput.Shelley(
+              Address.Shelley(
+                Arbitrary
+                    .arbitrary[ShelleyAddress]
+                    .sample
+                    .get
+                    .copy(
+                      payment = ShelleyPaymentPart.Script(nativeScript.scriptHash)
+                    )
+              ),
+              Value(Coin(1000000L))
+            ),
+            collateralInput -> TransactionOutput.Shelley(
+              Address.Shelley(
+                Arbitrary
+                    .arbitrary[ShelleyAddress]
+                    .sample
+                    .get
+                    .copy(
+                      payment = ShelleyPaymentPart.Script(nativeScript.scriptHash)
+                    )
+              ),
+              Value(Coin(1000000L))
+            ),
+            referenceInput -> TransactionOutput
+                .Babbage(
+                  Arbitrary.arbitrary[Address].sample.get,
+                  Value(Coin(1000L)),
+                  None,
+                  Some(ScriptRef(Script.Native(nativeScript)))
+                )
+          )
+        )
+
+        val result = MissingScriptsValidator.validate(context, state, transaction)
+        assert(result.isRight)
     }
 
     test("FeeMutator success") {
