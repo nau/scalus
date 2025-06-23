@@ -104,3 +104,23 @@ bench/jmh:run -prof "async:event=itimer;dir=target/async-reports;interval=100000
 Resulting interactive flame graphs will be stored in the `bench/target/async-reports` subdirectory of the project.
 
 For benchmarking of allocations use `event=alloc` instead of `event=cycles` option in the command above.
+
+## Publishing Scalus JS library to NPM
+
+```sbt
+scalusJS / prepareNpmPackage
+```
+
+This will create a `scalus-opt-bundle.js` package in the `scalus-core/js/src/main/npm` directory.
+
+Login to NPM:
+
+```bash
+npm login
+```
+
+Update the version in `scalus-core/js/src/main/npm/package.json` and publish it to NPM:
+
+```bash
+npm publish --access public
+```

@@ -179,7 +179,7 @@ lazy val PluginDependency: List[Def.Setting[?]] = List(scalacOptions ++= {
     Seq(s"-Xplugin:${jar.getAbsolutePath}")
 })
 
-lazy val copyBundle = taskKey[Unit]("Copy fastopt-bundle.js to dist/")
+lazy val prepareNpmPackage = taskKey[Unit]("Make an copy scalus bundle.js to npm directory")
 
 // Scalus Core and Standard Library for JVM and JS
 lazy val scalus = crossProject(JSPlatform, JVMPlatform, NativePlatform)
@@ -224,7 +224,7 @@ lazy val scalus = crossProject(JSPlatform, JVMPlatform, NativePlatform)
       // Add JS-specific settings here
       Compile / npmDependencies += "@noble/curves" -> "1.4.2",
       // copy scalus-*-bundle.js to dist for publishing on npm
-      copyBundle := {
+      prepareNpmPackage := {
           val bundle = (Compile / fullOptJS / webpack).value
           val target = (Compile / sourceDirectory).value / "npm"
           bundle.foreach(f => IO.copyFile(f.data.file, target / f.data.file.getName))
