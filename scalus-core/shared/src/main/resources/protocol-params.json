@@ -703,5 +703,7 @@
     "treasuryCut": 0.2,
     "txFeeFixed": 155381,
     "txFeePerByte": 44,
-    "utxoCostPerByte": 4310
+    "utxoCostPerByte": 4310,
+    "minFeeA": 44,
+    "minFeeB": 155381
 }

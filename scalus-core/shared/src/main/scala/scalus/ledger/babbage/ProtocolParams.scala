@@ -14,6 +14,8 @@ case class ExecutionUnitPrices(priceMemory: Double, priceSteps: Double) derives 
   *   These names are different from CIP-55, don't ask me why.
   */
 case class ProtocolParams(
+    minFeeA: Long,
+    minFeeB: Long,
     collateralPercentage: Long,
     committeeMaxTermLength: Long,
     committeeMinSize: Long,
@@ -74,6 +76,8 @@ object ProtocolParams {
         readwriter[ujson.Value].bimap[ProtocolParams](
           params =>
               ujson.Obj(
+                "min_fee_a" -> params.minFeeA,
+                "min_fee_b" -> params.minFeeB,
                 "collateral_percent" -> params.collateralPercentage,
                 "committee_max_term_length" -> params.committeeMaxTermLength.toString,
                 "committee_min_size" -> params.committeeMinSize.toString,
@@ -127,6 +131,8 @@ object ProtocolParams {
               ),
           json =>
               ProtocolParams(
+                minFeeA = json("min_fee_a").num.toLong,
+                minFeeB = json("min_fee_b").num.toLong,
                 collateralPercentage = json("collateral_percent").num.toLong,
                 committeeMaxTermLength = json("committee_max_term_length").str.toLong,
                 committeeMinSize = json("committee_min_size").str.toLong,

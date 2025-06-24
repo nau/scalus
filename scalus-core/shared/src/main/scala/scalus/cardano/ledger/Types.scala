@@ -211,6 +211,12 @@ case class ExUnits(
     require(mem >= 0, s"Memory units must be non-negative, got $mem")
     require(steps >= 0, s"Step units must be non-negative, got $steps")
 
+    def +(other: ExUnits): ExUnits =
+        ExUnits(mem + other.mem, steps + other.steps)
+
+object ExUnits:
+    val zero: ExUnits = ExUnits(0, 0)
+
 /** Represents execution unit prices in the Cardano blockchain.
   *
   * ExUnitPrices define the cost of execution units in terms of the protocol's currency, with
