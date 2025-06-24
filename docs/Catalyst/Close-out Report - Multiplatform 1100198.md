@@ -7,7 +7,7 @@ Link: [https://cardano.ideascale.com/c/cardano/idea/111227](https://cardano.idea
 
 Project Number: 1100198
 
-Name of Project Manager: Alexander Nemish
+Project Manager: Alexander Nemish
 
 Date Project Started: 2024-03-11
 
@@ -40,34 +40,36 @@ The key performance indicators (KPIs) for this project were:
 
 We successfully addressed these KPIs through the following achievements:
 
-1. Robust Scala 3 implementation of Plutus V1 and V2 CEK virtual machines.
+1. Robust Scala 3 implementation of Plutus V1/V2 CEK virtual machine.
 2. Complete implementation of Plutus V1/V2 built-in functions and data model.
-3. Comprehensive Plutus V1/V2 cost models and budget evaluation logic.
+3. Comprehensive Plutus V1/V2 cost models and execution budget calculation logic.
 4. UPLC parser and pretty-printer implementation.
 5. Successful compilation to JavaScript using [Scala.js](https://www.scala-js.org/).
 6. Successful compilation to native binaries via [Scala Native](https://scala-native.org/en/stable/)
    and [LLVM](https://llvm.org/).
 7. Full compatibility and availability for JVM languages, including Java and Kotlin.
 8. Extensive testing using property-based testing with [ScalaCheck](https://www.scalacheck.org/)
-   and [ScalaTest](https://www.scalatest.org/) and comparing results with the Haskell `uplc` CLI
+   and [ScalaTest](https://www.scalatest.org/), and comparing results with the Haskell `uplc` CLI
    tool to ensure we are getting the same results as the reference implementation.
 9. Passing all Plutus V1 and V2
    [conformance tests](https://github.com/nau/scalus/blob/a87f25a91e58311cfac341ef893dc5ce1af0e571/scalus-core/shared/src/test/scala/scalus/uplc/eval/PlutusConformanceTest.scala#L17)
 10. Extensive testing on \~100k mainnet Plutus scripts, ensuring high accuracy and reliability.
-11. Publishing platform artifacts on Maven Central for JVM, and NPM for JavaScript platforms, making
-    the library easily accessible for developers.
+11. Publishing platform artifacts on [Maven Central](https://central.sonatype.com/) for JVM,
+    and [NPM](https://www.npmjs.com/) for JavaScript platforms, making the library easily accessible
+    for developers.
 12. Integration into the
-    BloxBean [Cardano Client Library (CCL)](https://cardano-client.dev/docs/integrations/scalus-integration-api)
-    as a **TransactionEvaluator** implementation. This integration allows developers to calculate
-    the exact execution budget and fees during Transaction construction, eliminating the need for
-    querying an external service and speed up transaction construction.
+    BloxBean [Cardano Client Library (CCL)](https://cardano-client.dev/docs/integrations/scalus-integration-api) -
+    a JVM transaction building library as a **TransactionEvaluator** implementation. This
+    integration allows developers to calculate the exact execution budget and fees during
+    Transaction construction, eliminating the need for querying an external service and speed up
+    transaction building.
 
 ## Key Achievements
 
 ### Cross-platform Plutus Execution
 
 Provided robust implementations of Plutus V1/V2 Virtual Machine across JVM, JavaScript, and Native
-platforms.
+platforms from the same codebase.
 
 ### Developer Efficiency
 
@@ -76,24 +78,26 @@ productivity.
 
 ### Accuracy and Reliability
 
-Implemented thorough testing against \~100k Cardano mainnet scripts to ensure correctness and
-reliability.
-
 Passed all Plutus V1 and
 V2 [Plutus Conformance](https://github.com/nau/scalus/blob/a87f25a91e58311cfac341ef893dc5ce1af0e571/scalus-core/shared/src/test/scala/scalus/uplc/eval/PlutusConformanceTest.scala#L17),
 demonstrating compatibility with the reference Haskell implementation.
+
+Implemented thorough testing against \~100k Cardano mainnet scripts to ensure correctness and
+reliability.
 
 ### Adoption
 
 Scalus ability to calculate Plutus script budgets and evaluate scripts has been integrated into
 BloxBean [Cardano Client Library (CCL)](https://cardano-client.dev/docs/integrations/scalus-integration-api)
-as a **TransactionEvaluator** implementation and is used in production by Cardano Foundation
+and is used in production by Cardano Foundation.
 
 Current applications and protocols using Scalus include:
 
-* **Binocular** A decentralized optimistic Bitcoin oracle on Cardano.
-* **Hydrozoa Protocol** A simplified and modern Hydra implementation.
-* **Cosmex** A specialized L2 off-chain order book exchange protocol.
+* **[Hydrozoa Protocol](https://github.com/cardano-hydrozoa/hydrozoa/)** A simplified and modern
+  Hydra implementation.
+* **[Binocular](https://github.com/lantr-io/binocular/)** A decentralized optimistic Bitcoin oracle
+  on Cardano.
+* **[Cosmex](https://cosmex.io)** A specialized L2 off-chain order book exchange protocol.
 
 ## Key Learnings
 
