@@ -179,7 +179,7 @@ class MintingPolicyExampleTest extends BaseValidatorTest {
         val appliedValidator =
             validator $ hoskyMintTxOutRef.id.hash $ hoskyMintTxOutRef.idx $ evaledTokens
         val flatSize = Program.plutusV2(appliedValidator).flatEncoded.length
-        assert(flatSize == 2342)
+        assert(flatSize == 2350)
         performMintingPolicyValidatorChecks(appliedValidator)(withScriptContextV2)
     }
 
