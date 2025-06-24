@@ -10,9 +10,9 @@ import scalus.uplc.Constant
 import scalus.uplc.eval.PlutusVM
 import scalus.uplc.eval.Result
 
-object SIRUplcV3LoweringSpec {
+object SIRUplcV3LoweringRandomSpec {
 
-    case class AA(flag: Boolean, a: BigInt)
+    case class AA(flag: Boolean, a: BigInt) derives FromData, ToData
 
     enum BB:
         case C
@@ -21,9 +21,9 @@ object SIRUplcV3LoweringSpec {
 
 }
 
-class SIRUplcV3LoweringSpec extends AnyFunSuite {
+class SIRUplcV3LoweringRandomSpec extends AnyFunSuite {
 
-    import SIRUplcV3LoweringSpec.*
+    import SIRUplcV3LoweringRandomSpec.*
 
     given PlutusVM = PlutusVM.makePlutusV3VM()
 
@@ -37,6 +37,27 @@ class SIRUplcV3LoweringSpec extends AnyFunSuite {
         val term = lowering.lower()
         // println(term.showHighlighted)
         // println(term.evaluateDebug)
+    }
+
+    test("lowering match on simple case class") {
+        val sir = compile { (data: Data) =>
+            // val aa = AA(true, BigInt(123))
+            val aa = Data.fromData[AA](data)
+            aa match {
+                case AA(flag, a) =>
+                    if a != BigInt(123) then {
+                        scalus.prelude.fail("Expected a to be 123")
+                    }
+            }
+        }
+        // println(sir.showHighlighted)
+        val lowering = SirToUplcV3Lowering(sir)
+        val term = lowering.lower()
+        val aa = AA(true, BigInt(123))
+        val termWithData = term $ Term.Const(Constant.Data(Data.toData(aa)))
+        println(term.showHighlighted)
+        val result = termWithData.evaluateDebug
+        assert(result.isSuccess, s"Lowere dcode failed with result: $result")
     }
 
     test("lowering simple enum") {

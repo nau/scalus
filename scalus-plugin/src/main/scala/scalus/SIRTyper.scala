@@ -99,8 +99,11 @@ class SIRTyper(using Context) {
             case tp: AppliedType =>
                 if tp.tycon.isRef(defn.MatchCaseClass) then
                     unsupportedType(tp, "MatchCaseClass", env)
-                else if defn.isFunctionType(tp) then makeSIRFunType(tp, env)
-                else {
+                else if tp.typeSymbol.exists && tp.typeSymbol.isAliasType then
+                    sirTypeInEnvWithErr(tp.dealias, env)
+                else if defn.isFunctionType(tp) then {
+                    makeSIRFunType(tp, env)
+                } else {
                     tp.tycon match
                         case tpc: TypeRef =>
                             if tpc.isTypeAlias || tpc.symbol.isAliasType then
@@ -139,7 +142,7 @@ class SIRTyper(using Context) {
                     binder
                         .paramNames(tp.paramNum)
                         .show // TODO: better way to get the name as string
-                SIRType.TypeVar(paramName, Some(tp.typeSymbol.hashCode))
+                SIRType.TypeVar(paramName, Some(tp.typeSymbol.hashCode), false)
             case tpc: ThisType =>
                 sirTypeInEnv(tpc.underlying, env)
             case tpc: RecThis =>
@@ -150,12 +153,12 @@ class SIRTyper(using Context) {
                 makeSIRFunType(tpm, env)
             case tpp: PolyType =>
                 val params = (tpp.paramNames zip tpp.paramRefs).map { (name, ref) =>
-                    SIRType.TypeVar(name.show, Some(ref.typeSymbol.hashCode()))
+                    SIRType.TypeVar(name.show, Some(ref.typeSymbol.hashCode()), false)
                 }
                 SIRType.TypeLambda(params, sirTypeInEnvWithErr(tpp.resultType, env))
             case tpl: HKTypeLambda =>
                 val params = (tpl.paramNames zip tpl.paramRefs).map { (name, ref) =>
-                    SIRType.TypeVar(name.show, Some(ref.typeSymbol.hashCode()))
+                    SIRType.TypeVar(name.show, Some(ref.typeSymbol.hashCode()), false)
                 }
                 SIRType.TypeLambda(params, sirTypeInEnvWithErr(tpl.resType, env))
             case tpp: TypeBounds =>
@@ -183,7 +186,7 @@ class SIRTyper(using Context) {
                                 //  not sure, if typeVar,typeSymbol is exista and is unique.
                                 // code as binding symbol ?
                                 // TODO: make SymCode long to accept such encoding
-                                SIRType.TypeVar(paramName, Some(symCode))
+                                SIRType.TypeVar(paramName, Some(symCode), false)
                             case other =>
                                 // this is a filled typeVar, which can be substitutef
                                 sirTypeInEnvWithErr(other, env)
@@ -254,7 +257,7 @@ class SIRTyper(using Context) {
                 makeSIRMethodType(mt, env)
             case AppliedType(tycon, args) =>
                 if defn.isFunctionType(tp) then
-                    val retval = makeFunctionClassType(args.map(sirTypeInEnvWithErr(_, env)))
+                    val retval = makeFunctionClassType(args.map(sirTypeInEnvWithErr(_, env)), env)
                     retval
                 else unsupportedType(tp, "AppliedType as function", env)
             case _ =>
@@ -317,10 +320,10 @@ class SIRTyper(using Context) {
         else None
     }
 
-    private def makeFunctionClassType(list: List[SIRType]) = {
+    private def makeFunctionClassType(list: List[SIRType], env: SIRTypeEnv) = {
         val args = list.init
         val res = list.last
-        makeUnaryFun(args, res)
+        makeUnaryFun(args, res, env)
     }
 
     private def tryMakeCaseClassOrCaseParent(
@@ -488,7 +491,8 @@ class SIRTyper(using Context) {
         val name = typeSymbol.fullName.show
         val (typeParamSymbols, paramSymbols) =
             retrieveTypeParamsAndParamsFromConstructor(typeSymbol, env)
-        val tparams = typeParamSymbols.map(s => SIRType.TypeVar(s.name.show, Some(s.hashCode)))
+        val tparams =
+            typeParamSymbols.map(s => SIRType.TypeVar(s.name.show, Some(s.hashCode), false))
         val nVars = env.vars ++ typeParamSymbols.zip(tparams)
         val nEnv = env.copy(vars = nVars)
         val params = paramSymbols.map { s =>
@@ -507,7 +511,6 @@ class SIRTyper(using Context) {
         try
             ConstrDecl(
               name,
-              SIRVarStorage.DEFAULT,
               params,
               tparams,
               parentTypeArgs,
@@ -584,7 +587,9 @@ class SIRTyper(using Context) {
             else
                 val syntethicName = SIRType.syntheticNarrowConstrDeclName(typeSymbol.fullName.show)
                 val sirTypeParams =
-                    s.typeParams.map(tps => SIRType.TypeVar(tps.name.show, Some(tps.hashCode)))
+                    s.typeParams.map(tps =>
+                        SIRType.TypeVar(tps.name.show, Some(tps.hashCode), false)
+                    )
                 val newVars = s.typeParams.zip(sirTypeParams).toMap
                 val nEnv = env.copy(vars = env.vars ++ newVars)
                 val parentTypeArgs = constructorResultType(s).baseType(typeSymbol) match
@@ -598,7 +603,6 @@ class SIRTyper(using Context) {
                 val params = List(TypeBinding("value", paramType))
                 ConstrDecl(
                   syntethicName,
-                  SIRVarStorage.DEFAULT,
                   params,
                   sirTypeParams,
                   parentTypeArgs,
@@ -606,7 +610,9 @@ class SIRTyper(using Context) {
                 )
         }
         val typeParams =
-            typeSymbol.typeParams.map(tp => SIRType.TypeVar(tp.name.show, Some(tp.hashCode())))
+            typeSymbol.typeParams.map(tp =>
+                SIRType.TypeVar(tp.name.show, Some(tp.hashCode()), false)
+            )
         DataDecl(
           typeSymbol.fullName.show,
           constrDecls,
@@ -634,11 +640,11 @@ class SIRTyper(using Context) {
         }
     }
 
-    private def makeUnaryFun(args: List[SIRType], res: SIRType): SIRType = {
+    private def makeUnaryFun(args: List[SIRType], res: SIRType, env: SIRTypeEnv): SIRType = {
         args match
             case Nil          => res
             case head :: Nil  => SIRType.Fun(head, res)
-            case head :: tail => SIRType.Fun(head, makeUnaryFun(tail, res))
+            case head :: tail => SIRType.Fun(head, makeUnaryFun(tail, res, env))
     }
 
     private def makeSIRMethodType(mt: MethodType, env: SIRTypeEnv): SIRType = {
@@ -646,7 +652,7 @@ class SIRTyper(using Context) {
             sirTypeInEnvWithErr(tp, env)
         }
         val res = sirTypeInEnvWithErr(mt.resultType, env)
-        makeUnaryFun(params, res)
+        makeUnaryFun(params, res, env)
     }
 
     private def makeFunTypeLambda(fn: Type): SIRType = ???

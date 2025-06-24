@@ -8,6 +8,7 @@ import scalus.builtin.ByteString.hex
 import scalus.builtin.Data.{fromData, toData}
 import scalus.sir.*
 import scalus.ledger.api.v3.*
+import scalus.ledger.api.v3.ScriptInfo.SpendingScript
 import scalus.uplc.*
 import scalus.uplc.eval.PlutusVM
 import scalus.uplc.eval.Result
@@ -16,11 +17,12 @@ class SirToUplcFromDataReplacementTest extends AnyFunSuite {
 
     given PlutusVM = PlutusVM.makePlutusV3VM()
 
-    test("Import ScriptContext from Data") {
+    /*
+    test("Import ScriptContext from Data and look on tx") {
         val sir = compile { (scData: Data) =>
             val sc = Data.fromData[ScriptContext](scData)
             val tx = sc.txInfo
-            tx.inputs.length
+            tx.inputs.isEmpty
         }
         println(sir.show)
         val lowering = SirToUplcV3Lowering(sir)
@@ -42,7 +44,96 @@ class SirToUplcFromDataReplacementTest extends AnyFunSuite {
         // pending
     }
 
+     */
+
     /*
+    test("Import ScriptInfp from Data and look on datum") {
+        val sir = compile { (spData: Data) =>
+            val scriptInfo = Data.fromData[ScriptInfo](spData)
+            scriptInfo match {
+                case SpendingScript(txOutRef, datum) =>
+                    if datum.isEmpty then scalus.prelude.fail("Expected datum to be present")
+                    else
+                        scalus.prelude.fail("datum is present")
+                        //
+                        // val signed = sc.txInfo.signatories.contains(owner)
+                        // require(signed, "Must be signed")
+                        // val saysHello = sc.redeemer.to[String] == "Hello, World!"
+                        // require(saysHello, "Invalid redeemer")
+                case _ =>
+                    scalus.prelude.fail("Expected SpendingScript")
+            }
+        }
+        val lowering = SirToUplcV3Lowering(sir, generateErrorTraces = true)
+        val term = lowering.lower()
+
+        val ownerPkh = PubKeyHash(hex"1234567890abcdef1234567890abcdef1234567890abcdef12345678")
+        val scriptContext = makeSpendingScriptContext(
+          datum = ownerPkh.toData,
+          redeemer = "Hello, World!".toData,
+          signatories = scalus.prelude.List(ownerPkh)
+        )
+
+        val termWithSc = term $ Term.Const(Constant.Data(Data.toData(scriptContext.scriptInfo)))
+
+        val l = termWithSc.evaluateDebug
+
+        assert(l.isFailure, s"Lowered code should be failed but it's success: $l")
+
+        assert(
+          l.logs.find(_.contains("datum is present")).isDefined,
+          "Expected log message 'datum is present' not found"
+        )
+
+        // pending
+    }
+
+     */
+
+    /*
+    test("Import Option[PubkeyHash] from Data and look on it") {
+        import scalus.prelude.*
+        val sir = compile { (data: Data) =>
+            val optDatum = Data.fromData[scalus.prelude.Option[Datum]](data)
+            optDatum match {
+                case Option.Some(datum) =>
+                case _ =>
+                    scalus.prelude.fail("Expected non-empty PubKeyHash")
+            }
+        }
+        val lowering = SirToUplcV3Lowering(sir, generateErrorTraces = true)
+        val term = lowering.lower()
+
+        val ownerPkh = PubKeyHash(hex"1234567890abcdef1234567890abcdef1234567890abcdef12345678")
+        val scriptContext = makeSpendingScriptContext(
+          datum = ownerPkh.toData,
+          redeemer = "Hello, World!".toData,
+          signatories = scalus.prelude.List(ownerPkh)
+        )
+
+        val optDatum: scalus.prelude.Option[Datum] = scriptContext.scriptInfo match {
+            case SpendingScript(_, x) => x
+            case _                    => scalus.prelude.Option.None
+        }
+
+        val termWithSc = term $ Term.Const(Constant.Data(Data.toData(optDatum)))
+
+        val l = termWithSc.evaluateDebug
+
+        assert(l.isSuccess, s"Lowered code failed with result: $l")
+
+        // println(l)
+        // pending
+    }
+    
+     */
+
+    /*
+    test("apply EqualisByteString builtin") {
+        import scalus.prelude.*
+
+    }*/
+
     test("run Hello World") {
         import scalus.prelude.*
         val sir = compile { (scData: Data) =>
@@ -56,16 +147,28 @@ class SirToUplcFromDataReplacementTest extends AnyFunSuite {
                     require(signed, "Must be signed")
                     val saysHello = sc.redeemer.to[String] == "Hello, World!"
                     require(saysHello, "Invalid redeemer")
+                case _ =>
+                    scalus.prelude.fail("Expected SpendingScript")
             }
         }
         println(sir.showHighlighted)
-        val lowering = SirToUplcV3Lowering(sir)
+        val lowering = SirToUplcV3Lowering(sir, generateErrorTraces = true)
         val term = lowering.lower()
         println(term.showHighlighted)
-        println(term.evaluateDebug)
+        val scriptContext = makeSpendingScriptContext(
+          datum = PubKeyHash(hex"1234567890abcdef1234567890abcdef1234567890abcdef12345678").toData,
+          redeemer = "Hello, World!".toData,
+          signatories = scalus.prelude.List(
+            PubKeyHash(hex"1234567890abcdef1234567890abcdef1234567890abcdef12345678")
+          )
+        )
+        println(s"sc.scriptInfo = ${scriptContext.scriptInfo}")
+        val scData = Data.toData(scriptContext)
+        val scD1 = Data.fromData[ScriptContext](scData)
+        assert(scD1 == scriptContext, "ScriptContext deserialization failed")
+        val termWithSc = term $ Term.Const(Constant.Data(Data.toData(scriptContext)))
+        println(termWithSc.evaluateDebug)
     }
-    
-     */
 
     private def makeSpendingScriptContext(
         datum: Data,

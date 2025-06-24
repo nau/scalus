@@ -957,7 +957,6 @@ object SIRUnify {
                                       env2.copy(path = env.path),
                                       ConstrDecl(
                                         left.name,
-                                        left.storageType,
                                         params,
                                         typeParams,
                                         parentTypeArgs,

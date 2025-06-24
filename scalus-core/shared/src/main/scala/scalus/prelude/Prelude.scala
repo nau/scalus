@@ -38,6 +38,7 @@ extension (self: BigInt)
     def until(other: BigInt): List[BigInt] = List.rangeUntil(self, other)
 
 type Eq[-A] = (A, A) => Boolean
+
 // given Eq[Nothing] = (x: Nothing, y: Nothing) => throw new Exception("EQN")
 inline given Eq[BigInt] = equalsInteger
 inline given Eq[ByteString] = equalsByteString
@@ -265,6 +266,7 @@ inline def ??? : Nothing = throw new NotImplementedError
 enum List[+A]:
     case Nil extends List[Nothing]
     case Cons(head: A, tail: List[A]) extends List[A]
+
 
 @Compile
 object List:
@@ -530,7 +532,8 @@ object List:
                 go(self, 0)
         }
 
-        def contains[B >: A](elem: B)(using eq: Eq[B]): Boolean = find(_ === elem).isDefined
+        def contains[B >: A](elem: B)(using eq: Eq[B]): Boolean =
+            find(_ === elem).isDefined
 
         /** Groups the elements of this list by the keys returned by the specified function.
           *
@@ -1034,9 +1037,13 @@ object Maybe {
                     case Just(value2) => value === value2
 }
 
+/** Alternative to `scala.Option` in onchain code.
+  * @tparam A
+  */
 enum Option[+A]:
+    // note, that order of cases matters, as it is used in serialization
+    case Some(value: A) extends Option[A]
     case None extends Option[Nothing]
-    case Some(value: A)
 
 @Compile
 object Option {

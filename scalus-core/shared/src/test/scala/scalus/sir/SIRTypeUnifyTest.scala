@@ -30,7 +30,7 @@ class SIRTypeUnifyTest extends AnyFunSuite {
       */
 
     test("Unification with upcasting [List[?] and Cons[A]]") {
-        val tA = SIRType.TypeVar("A", Some(11L))
+        val tA = SIRType.TypeVar("A", Some(11L), false)
 
         val listTp = SIRType.List(SIRType.FreeUnificator)
 
@@ -49,7 +49,7 @@ class SIRTypeUnifyTest extends AnyFunSuite {
     }
 
     test("parentSeq fron Cons[A] to List[?]") {
-        val tA = SIRType.TypeVar("A", Some(11L))
+        val tA = SIRType.TypeVar("A", Some(11L), false)
         val consTp = SIRType.List.Cons(tA)
         val listTp = SIRType.List(SIRType.FreeUnificator)
 

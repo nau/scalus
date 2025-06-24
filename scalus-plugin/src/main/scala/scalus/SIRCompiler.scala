@@ -3,7 +3,7 @@ package scalus
 import dotty.tools.dotc.*
 import dotty.tools.dotc.ast.Trees.*
 import dotty.tools.dotc.ast.tpd
-import dotty.tools.dotc.core.Constants.Constant
+import dotty.tools.dotc.core.Constants.{Constant, LongTag}
 import dotty.tools.dotc.core.Contexts.Context
 import dotty.tools.dotc.core.Flags.*
 import dotty.tools.dotc.core.Names.*
@@ -80,6 +80,7 @@ enum CompileDef:
 
 case class SIRCompilerOptions(
     useSubmodules: Boolean = false,
+    universalDataRepresentation: Boolean = true,
     debugLevel: Int = 0
 )
 
@@ -108,6 +109,8 @@ final class SIRCompiler(options: SIRCompilerOptions = SIRCompilerOptions.default
     private val ByteStringSymbolHex = ByteStringModuleSymbol.requiredMethod("hex")
     private val ByteStringStringInterpolatorsMethodSymbol =
         ByteStringModuleSymbol.requiredMethod("StringInterpolators")
+    private val FromDataSymbol = requiredClass("scalus.builtin.FromData")
+    private val ToDataSymbol = requiredClass("scalus.builtin.ToData")
     private val typer = new SIRTyper
     private val pmCompiler = new PatternMatchingCompiler(this)
     private val sirLoader = new SIRLoader(using ctx)
@@ -184,8 +187,6 @@ final class SIRCompiler(options: SIRCompilerOptions = SIRCompilerOptions.default
             FullName(name)
 
     }
-    // private val specializedDefs: mutable.LinkedHashMap[FullName, SIR] =
-    //    mutable.LinkedHashMap.empty
 
     private val CompileAnnot = requiredClassRef("scalus.Compile").symbol.asClass
     private val IgnoreAnnot = requiredClassRef("scalus.Ignore").symbol.asClass
@@ -275,7 +276,7 @@ final class SIRCompiler(options: SIRCompilerOptions = SIRCompilerOptions.default
         val typeParams = td.tpe.typeParams
         val typeParamsSymbols = typeParams.map(_.paramRef.typeSymbol)
         val sirTypeParams = typeParamsSymbols.map { tps =>
-            SIRType.TypeVar(tps.name.show, Some(tps.hashCode))
+            SIRType.TypeVar(tps.name.show, Some(tps.hashCode), false)
         }
         val sirTypeVars = (typeParamsSymbols zip sirTypeParams).toMap
         val baseEnv = Env.empty.copy(
@@ -521,7 +522,7 @@ final class SIRCompiler(options: SIRCompilerOptions = SIRCompilerOptions.default
     private def makeDataDecl(dataInfo: AdtTypeInfo, env: Env, srcPos: SrcPos) = {
         val dataFullName = FullName(dataInfo.dataTypeSymbol)
         val dataTypeParams = dataInfo.dataTypeParams.map { tp =>
-            SIRType.TypeVar(tp.typeSymbol.name.show)
+            SIRType.TypeVar(tp.typeSymbol.name.show, None, false)
         }
         val constrDecls = dataInfo.constructorsSymbols.map { sym =>
             makeConstrDecl(env, srcPos, sym)
@@ -542,13 +543,15 @@ final class SIRCompiler(options: SIRCompilerOptions = SIRCompilerOptions.default
 
     def makeConstrDecl(env: Env, srcPos: SrcPos, constrSymbol: Symbol): ConstrDecl = {
         val typeParams =
-            constrSymbol.typeParams.map(tp => SIRType.TypeVar(tp.name.show, Some(tp.hashCode)))
+            constrSymbol.typeParams.map(tp =>
+                SIRType.TypeVar(tp.name.show, Some(tp.hashCode), false)
+            )
         val envTypeVars1 = constrSymbol.typeParams.foldLeft(env.typeVars) { case (acc, tp) =>
-            acc + (tp -> SIRType.TypeVar(tp.name.show, Some(tp.hashCode)))
+            acc + (tp -> SIRType.TypeVar(tp.name.show, Some(tp.hashCode), false))
         }
         val envTypeVars2 = primaryConstructorTypeParams(constrSymbol).foldLeft(envTypeVars1) {
             case (acc, tp) =>
-                acc + (tp -> SIRType.TypeVar(tp.name.show, Some(tp.hashCode)))
+                acc + (tp -> SIRType.TypeVar(tp.name.show, Some(tp.hashCode), false))
         }
         val nEnv = env.copy(typeVars = envTypeVars2)
         val params = primaryConstructorParams(constrSymbol).map { p =>
@@ -578,7 +581,6 @@ final class SIRCompiler(options: SIRCompilerOptions = SIRCompilerOptions.default
         try
             scalus.sir.ConstrDecl(
               constrSymbol.fullName.show,
-              SIRVarStorage.DEFAULT,
               params,
               typeParams,
               baseTypeArgs,
@@ -752,7 +754,9 @@ final class SIRCompiler(options: SIRCompilerOptions = SIRCompilerOptions.default
                 )
             case (false, false) =>
                 // println( s"external var: module ${e.symbol.owner.fullName.toString()}, ${e.symbol.fullName.toString()}" )
-                val valType = sirTypeInEnv(e.tpe.widen.dealias, e.srcPos, env)
+                if e.symbol.fullName.toString == "scalus.prelude.List$.contains" then
+                    println(s"e.tpe.widen.dealise = ${e.tpe.widen.dealias.show}")
+                val valType = sirTypeInEnv(e.tpe.widen.dealias, e.srcPos, env.copy(debug = true))
                 SIR.ExternalVar(
                   e.symbol.owner.fullName.toString,
                   e.symbol.fullName.toString,
@@ -865,7 +869,8 @@ final class SIRCompiler(options: SIRCompilerOptions = SIRCompilerOptions.default
                 vd.symbol,
                 Recursivity.NonRec,
                 bodyExpr1,
-                vd.sourcePos
+                vd.sourcePos,
+                calculateLocalBindingFlags(vd.tpe)
               )
             )
     }
@@ -917,7 +922,11 @@ final class SIRCompiler(options: SIRCompilerOptions = SIRCompilerOptions.default
             val params = dd.paramss.flatten.collect { case vd: ValDef => vd }
             val typeParams = dd.paramss.flatten.collect { case td: TypeDef => td }
             val typeParamsMap = typeParams.foldLeft(Map.empty[Symbol, SIRType]) { case (acc, td) =>
-                acc + (td.symbol -> SIRType.TypeVar(td.symbol.name.show, Some(td.symbol.hashCode)))
+                acc + (td.symbol -> SIRType.TypeVar(
+                  td.symbol.name.show,
+                  Some(td.symbol.hashCode),
+                  false
+                ))
             }
             val paramVars =
                 if params.isEmpty
@@ -955,6 +964,10 @@ final class SIRCompiler(options: SIRCompilerOptions = SIRCompilerOptions.default
                 paramVars.foldRight(bE) { (v, acc) =>
                     SIR.LamAbs(v, acc, v.anns)
                 }
+            val lbFlags = tryMethodResultType(dd) match {
+                case Some(rtp) => calculateLocalBindingFlags(rtp)
+                case None      => LocalBindingFlags.None
+            }
             CompileMemberDefResult.Compiled(
               LocalBinding(
                 dd.name.show,
@@ -962,7 +975,8 @@ final class SIRCompiler(options: SIRCompilerOptions = SIRCompilerOptions.default
                 dd.symbol,
                 Recursivity.Rec,
                 bodyExpr,
-                dd.sourcePos
+                dd.sourcePos,
+                lbFlags
               )
             )
     }
@@ -990,7 +1004,8 @@ final class SIRCompiler(options: SIRCompilerOptions = SIRCompilerOptions.default
                             NoSymbol,
                             Recursivity.NonRec,
                             body,
-                            stmt.sourcePos
+                            stmt.sourcePos,
+                            LocalBindingFlags.None
                           )
                         )
                     case ScalusCompilationMode.OnlyDerivations =>
@@ -1402,7 +1417,10 @@ final class SIRCompiler(options: SIRCompilerOptions = SIRCompilerOptions.default
                         error(
                           TypeMismatch(
                             fun.toString,
-                            SIRType.Pair(SIRType.TypeVar("A"), SIRType.TypeVar("B")),
+                            SIRType.Pair(
+                              SIRType.TypeVar("A", None, true),
+                              SIRType.TypeVar("B", None, true)
+                            ),
                             other,
                             tree.srcPos
                           ),
@@ -1425,7 +1443,10 @@ final class SIRCompiler(options: SIRCompilerOptions = SIRCompilerOptions.default
                         error(
                           TypeMismatch(
                             fun.toString,
-                            SIRType.Pair(SIRType.TypeVar("A"), SIRType.TypeVar("B")),
+                            SIRType.Pair(
+                              SIRType.TypeVar("A", None, true),
+                              SIRType.TypeVar("B", None, true)
+                            ),
                             other,
                             tree.srcPos
                           ),
@@ -1515,7 +1536,7 @@ final class SIRCompiler(options: SIRCompilerOptions = SIRCompilerOptions.default
                         error(
                           TypeMismatch(
                             fun.toString,
-                            SIRType.List(SIRType.TypeVar("A")),
+                            SIRType.List(SIRType.TypeVar("A", None, false)),
                             other,
                             tree.srcPos
                           ),
@@ -1677,7 +1698,10 @@ final class SIRCompiler(options: SIRCompilerOptions = SIRCompilerOptions.default
                         error(
                           TypeMismatch(
                             "Function type",
-                            SIRType.Fun(SIRType.TypeVar("A"), SIRType.TypeVar("B")),
+                            SIRType.Fun(
+                              SIRType.TypeVar("A", None, false),
+                              SIRType.TypeVar("B", None, false)
+                            ),
                             tp,
                             f.srcPos
                           ),
@@ -2003,6 +2027,16 @@ final class SIRCompiler(options: SIRCompilerOptions = SIRCompilerOptions.default
             case Apply(app @ Select(f, nme.apply), args)
                 if app.symbol.fullName.show == "scala.Tuple2$.apply" =>
                 compileNewConstructor(env, tree.tpe, tree.tpe, args, tree)
+
+            // FromData  calls
+            case app @ Apply(Select(obj, nme.apply), List(arg))
+                if options.universalDataRepresentation && obj.tpe.baseType(FromDataSymbol).exists =>
+                compileFromDataCall(env, app, arg)
+            // ToData calls
+            case app @ Apply(Select(obj, nme.apply), List(arg))
+                if options.universalDataRepresentation && obj.tpe.baseType(ToDataSymbol).exists =>
+                // println(s"determinated ToData call: ${tree.show}")
+                compileToDataCall(env, app, arg)
             /* case class Test(a: Int)
              * val t = Test(42)
              * is translated to
@@ -2189,7 +2223,11 @@ final class SIRCompiler(options: SIRCompilerOptions = SIRCompilerOptions.default
     // }
 
     def sirTypeInEnv(tp: Type, srcPos: SrcPos, env: Env): SIRType = {
-        sirTypeInEnv(tp, SIRTypeEnv(srcPos, env.typeVars))
+        // TODO: add option for tracing typer.  Now - set flag if needed
+        sirTypeInEnv(
+          tp,
+          SIRTypeEnv(srcPos, env.typeVars, trace = if false then env.debug else false)
+        )
     }
 
     protected def sirTypeInEnv(tp: Type, env: SIRTypeEnv): SIRType = {
@@ -2352,7 +2390,7 @@ final class SIRCompiler(options: SIRCompilerOptions = SIRCompilerOptions.default
                 val tupleNameHash = tupleName.hashCode
                 val tupleTypeParams =
                     (1 to size)
-                        .map(i => SIRType.TypeVar(s"T$i", Some(tupleNameHash + i * 5)))
+                        .map(i => SIRType.TypeVar(s"T$i", Some(tupleNameHash + i * 5), false))
                         .toList
                 val tupleParams =
                     tupleTypeParams.map(t => TypeBinding(t.name.toLowerCase, t)).toList
@@ -2361,7 +2399,6 @@ final class SIRCompiler(options: SIRCompilerOptions = SIRCompilerOptions.default
                   List(
                     ConstrDecl(
                       tupleName,
-                      SIRVarStorage.DEFAULT,
                       tupleParams,
                       tupleTypeParams,
                       tupleTypeParams,
@@ -2391,7 +2428,12 @@ final class SIRCompiler(options: SIRCompilerOptions = SIRCompilerOptions.default
 
             }
         }
-        extractResultType(dd.tpe, false, false)
+        if !dd.paramss.exists(_.exists {
+                case vd: ValDef => true
+                case _          => false
+            })
+        then Some(dd.tpe)
+        else extractResultType(dd.tpe, false, false)
     }
 
     private def isFunctionalInterface(tpe: Type): Boolean = {
@@ -2566,6 +2608,44 @@ final class SIRCompiler(options: SIRCompilerOptions = SIRCompilerOptions.default
                     )
                 val newSIR = SIR.Match(newScrutinee, newCases, tp, anns)
                 (newSIR, scrutineeChanged || casesAreChanged)
+    }
+
+    private def calculateLocalBindingFlags(tp: Type): LocalBingingFlags = {
+        if tp.baseType(FromDataSymbol).exists || tp.baseType(ToDataSymbol).exists then
+            LocalBindingFlags.ErasedOnDataRepr
+        else LocalBindingFlags.None
+    }
+
+    private def compileFromDataCall(env: Env, app: Apply, arg: Tree): AnnotatedSIR = {
+        if env.debug then println(s"compileFromDataCall: ${app.show}")
+        val sirType = sirTypeInEnv(app.tpe, app.srcPos, env)
+        SIR.Apply(
+          SIR.ExternalVar(
+            "scalus.builtin.internal.UniversalDataConversion$",
+            "scalus.builtin.internal.UniversalDataConversion$.fromData",
+            SIRType.Fun(SIRType.Data, sirType),
+            AnnotationsDecl.fromSrcPos(app.srcPos)
+          ),
+          compileExpr(env, arg),
+          sirType,
+          AnnotationsDecl.fromSrcPos(app.srcPos)
+        )
+    }
+
+    private def compileToDataCall(env: Env, app: Apply, arg: Tree): AnnotatedSIR = {
+        if env.debug then println(s"compileToDataCall: ${app.show}")
+        val sirType = sirTypeInEnv(arg.tpe, arg.srcPos, env)
+        SIR.Apply(
+          SIR.ExternalVar(
+            "scalus.builtin.internal.UniversalDataConversion$",
+            "scalus.builtin.internal.UniversalDataConversion$.toData",
+            SIRType.Fun(sirType, SIRType.Data),
+            AnnotationsDecl.fromSrcPos(app.srcPos)
+          ),
+          compileExpr(env, arg),
+          SIRType.Data,
+          AnnotationsDecl.fromSrcPos(app.srcPos)
+        )
     }
 
 }

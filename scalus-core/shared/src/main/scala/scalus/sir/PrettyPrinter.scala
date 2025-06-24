@@ -246,7 +246,8 @@ object PrettyPrinter:
 
     def pretty(sirType: SIRType): Doc =
         sirType match
-            case SIRType.TypeVar(name, optId) => text(name + optId.fold("")(id => s"[$id]"))
+            case SIRType.TypeVar(name, optId, isBuiltin) =>
+                text(name + optId.fold("")(id => s"[$id]") + (if isBuiltin then "(b)" else ""))
             case SIRType.Fun(in, out) =>
                 inParens(pretty(in) + text(" -> ") + pretty(out))
             case SIRType.TypeLambda(params, body) =>

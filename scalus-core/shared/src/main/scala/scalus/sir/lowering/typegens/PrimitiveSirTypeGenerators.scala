@@ -3,15 +3,22 @@ package scalus.sir.lowering.typegens
 import scalus.sir.*
 import scalus.sir.lowering.*
 import scalus.sir.lowering.Lowering.tpf
+import scalus.sir.lowering.LoweredValue.Builder.*
 import scalus.uplc.{Constant, DefaultFun, Term}
 
 trait PrimitiveSirTypeGenerator extends SirTypeUplcGenerator {
 
-    def defaultRepresentation: LoweredValueRepresentation = PrimitiveRepresentation.Constant
+    def defaultRepresentation(tp: SIRType)(using LoweringContext): LoweredValueRepresentation =
+        PrimitiveRepresentation.Constant
 
-    def defaultDataRepresentation: LoweredValueRepresentation = PrimitiveRepresentation.PackedData
+    def defaultDataRepresentation(tp: SIRType)(using LoweringContext): LoweredValueRepresentation =
+        PrimitiveRepresentation.PackedData
 
-    def isDataCompatible: Boolean = true
+    def defaultTypeVarReperesentation(tp: SIRType)(using
+        lctx: LoweringContext
+    ): LoweredValueRepresentation = PrimitiveRepresentation.PackedData
+
+    def isDataSupported(tp: SIRType)(using LoweringContext): Boolean = true
 
     def toRepresentation(
         input: LoweredValue,
@@ -19,19 +26,21 @@ trait PrimitiveSirTypeGenerator extends SirTypeUplcGenerator {
         pos: SIRPosition
     )(using
         lctx: LoweringContext
-    ): LoweredValue = new RepresentationProxyLoweredValue(input, outputRepresentation, pos) {
+    ): LoweredValue =
 
-        override def termInternal(gctx: TermGenerationContext): Term =
-            val inputTerm = input.termInternal(gctx)
-            genTranslateTermRepresentation(
-              input,
-              inputTerm,
-              outputRepresentation
-            )(using
-              gctx
-            )
+        new RepresentationProxyLoweredValue(input, outputRepresentation, pos) {
 
-    }
+            override def termInternal(gctx: TermGenerationContext): Term =
+                val inputTerm = input.termInternal(gctx)
+                genTranslateTermRepresentation(
+                  input,
+                  inputTerm,
+                  outputRepresentation
+                )(using
+                  gctx
+                )
+
+        }
 
     override def upcastOne(input: LoweredValue, targetType: SIRType, pos: SIRPosition)(using
         LoweringContext
@@ -54,6 +63,9 @@ trait PrimitiveSirTypeGenerator extends SirTypeUplcGenerator {
             case (PrimitiveRepresentation.PackedData, PrimitiveRepresentation.PackedData) =>
                 input
             case _ =>
+                println(s"input value ${inputValue} ")
+                println(s"create at:")
+                inputValue.createdEx.printStackTrace()
                 throw LoweringException(
                   s"Unsupported conversion for ${inputValue.sirType.show} from ${inputValue.representation} to $outputRepresentation",
                   inputValue.pos
@@ -114,6 +126,25 @@ object SIRTypeUplcIntegerGenerator extends PrimitiveSirTypeGenerator {
 
 object SIRTypeUplcByteStringGenerator extends PrimitiveSirTypeGenerator {
 
+    override def toRepresentation(
+        input: LoweredValue,
+        outputRepresentation: LoweredValueRepresentation,
+        pos: SIRPosition
+    )(using lctx: LoweringContext): LoweredValue = {
+
+        if input.representation == outputRepresentation then input
+        else if input.representation == PrimitiveRepresentation.Constant && outputRepresentation == PrimitiveRepresentation.PackedData
+        then lvBuiltinApply(SIRBuiltins.bData, input, input.sirType, outputRepresentation, pos)
+        else if input.representation == PrimitiveRepresentation.PackedData && outputRepresentation == PrimitiveRepresentation.Constant
+        then lvBuiltinApply(SIRBuiltins.unBData, input, input.sirType, outputRepresentation, pos)
+        else
+            throw LoweringException(
+              s"String type can't be converted to $outputRepresentation",
+              pos
+            )
+
+    }
+
     override def uplcToData(input: Term): Term = {
         DefaultFun.BData.tpf $ input
     }
@@ -150,6 +181,7 @@ object SIRTypeUplcUnitGenerator extends PrimitiveSirTypeGenerator {
 
 object SIRTypeUplcDataGenerator extends PrimitiveSirTypeGenerator {
 
+    // data is invariant.
     override def uplcToData(input: Term): Term = {
         input
     }

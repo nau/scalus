@@ -2,24 +2,140 @@ package scalus.sir.lowering.typegens
 
 import scalus.sir.*
 import scalus.sir.lowering.*
+import scalus.uplc.Term
 
 /** We assume that type variable can be converted to data, and it is impossible to do something
   * meaningful with it in the UPLC, except pass the value as an argument in unchanged form.
   */
 object TypeVarSirTypeGenerator extends SirTypeUplcGenerator {
 
-    override def defaultRepresentation: LoweredValueRepresentation =
-        TypeVarDataRepresentation
+    override def defaultRepresentation(
+        tp: SIRType
+    )(using LoweringContext): LoweredValueRepresentation = {
+        tp match
+            case SIRType.TypeVar(_, _, isBuiltin) =>
+                TypeVarRepresentation(isBuiltin, false)
+            case _ =>
+                throw IllegalStateException(
+                  s"TypeVarSirTypeGenerator can't be used for type ${tp.show}",
+                )
+    }
 
-    override def defaultDataRepresentation: LoweredValueRepresentation =
-        TypeVarDataRepresentation
+    override def defaultDataRepresentation(tp: SIRType)(using
+        LoweringContext
+    ): LoweredValueRepresentation = {
+        tp match
+            case SIRType.TypeVar(_, _, isBuiltin) =>
+                TypeVarRepresentation(isBuiltin, true)
+            case _ =>
+                throw IllegalStateException(
+                  s"TypeVarSirTypeGenerator can't be used for type ${tp.show}",
+                )
+    }
+
+    override def defaultTypeVarReperesentation(tp: SIRType)(using
+        LoweringContext
+    ): LoweredValueRepresentation =
+        defaultDataRepresentation(tp)
+
+    override def isDataSupported(tp: SIRType)(using LoweringContext): Boolean = {
+        true
+    }
 
     override def toRepresentation(
         input: LoweredValue,
         representation: LoweredValueRepresentation,
         pos: SIRPosition
-    )(using lctx: LoweringContext): LoweredValue =
-        input
+    )(using lctx: LoweringContext): LoweredValue = {
+        // to packed data or lambda
+        if input.representation == representation then input
+        else
+            representation match
+                case TypeVarRepresentation(isBuiltin, canBeLambda) =>
+                    // TODO: think about converinv between built-in and non-built-in
+                    new RepresentationProxyLoweredValue(input, representation, pos)
+                case sumRepr: SumCaseClassRepresentation =>
+                    sumRepr match {
+                        case SumCaseClassRepresentation.DataConstr =>
+                            new RepresentationProxyLoweredValue(input, representation, pos)
+                        case SumCaseClassRepresentation.UplcConstr |
+                            SumCaseClassRepresentation.UplcConstrOnData |
+                            SumCaseClassRepresentation.PairIntDataList =>
+                            val r1 =
+                                input.toRepresentation(SumCaseClassRepresentation.DataConstr, pos)
+                            SumCaseSirTypeGenerator.toRepresentation(r1, representation, pos)
+                        case SumCaseClassRepresentation.PackedSumDataList =>
+                            new RepresentationProxyLoweredValue(input, representation, pos)
+                        case SumCaseClassRepresentation.SumDataList =>
+                            val r1 = input.toRepresentation(
+                              SumCaseClassRepresentation.PackedSumDataList,
+                              pos
+                            )
+                            SumDataListSirTypeGenerator.toRepresentation(r1, representation, pos)
+                    }
+                case prodRepr: ProductCaseClassRepresentation =>
+                    prodRepr match {
+                        case ProductCaseClassRepresentation.ProdDataConstr =>
+                            new RepresentationProxyLoweredValue(input, representation, pos)
+                        case ProductCaseClassRepresentation.PackedDataList |
+                            ProductCaseClassRepresentation.ProdDataList =>
+                            val r1 = input.toRepresentation(
+                              ProductCaseClassRepresentation.ProdDataConstr,
+                              pos
+                            )
+                            ProductCaseUplcOnlySirTypeGenerator.toRepresentation(
+                              r1,
+                              representation,
+                              pos
+                            )
+                        case ProductCaseClassRepresentation.OneElementWrapper(repr) =>
+                            SIRType.retrieveConstrDecl(input.sirType) match
+                                case Left(message) =>
+                                    throw LoweringException(
+                                      message,
+                                      pos
+                                    )
+                                case Right(constrDecl) =>
+                                    if constrDecl.params.length != 1 then {
+                                        throw LoweringException(
+                                          s"TypeVarSirTypeGenerator can't convert ${input.sirType.show} to $representation",
+                                          pos
+                                        )
+                                    }
+                                    val tp1 = constrDecl.params.head.tp
+                                    val inrepr = lctx
+                                        .typeGenerator(tp1)
+                                        .defaultTypeVarReperesentation(tp1)
+                                    val r1 = input.toRepresentation(inrepr, pos)
+                                    new RepresentationProxyLoweredValue(r1, representation, pos)
+                    }
+                case PrimitiveRepresentation.PackedData =>
+                    new RepresentationProxyLoweredValue(input, representation, pos)
+                case PrimitiveRepresentation.Constant =>
+                    val r1 = input.toRepresentation(
+                      PrimitiveRepresentation.PackedData,
+                      pos
+                    )
+                    input.sirType match {
+                        case p: SIRType.Primitive =>
+                            lctx.typeGenerator(p)
+                                .toRepresentation(r1, PrimitiveRepresentation.Constant, pos)
+                        case _ =>
+                            throw LoweringException(
+                              s"TypeVarSirTypeGenerator can't convert from ${input.sirType.show} to $representation",
+                              pos
+                            )
+                    }
+                case ErrorRepresentation =>
+                    TypeNothingSirTypeGenerator.toRepresentation(input, representation, pos)
+                case LambdaRepresentation(inRepr, outRepr) =>
+                    ???
+                case _ =>
+                    throw LoweringException(
+                      s"TypeVarSirTypeGenerator can't convert from ${input.sirType.show} to $representation",
+                      pos
+                    )
+    }
 
     override def upcastOne(input: LoweredValue, targetType: SIRType, pos: SIRPosition)(using
         LoweringContext

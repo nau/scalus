@@ -11,11 +11,22 @@ object SumCaseSirTypeGenerator extends SirTypeUplcGenerator {
 
     import scalus.sir.lowering.SumCaseClassRepresentation.*
 
-    override def defaultRepresentation: LoweredValueRepresentation =
+    override def defaultRepresentation(tp: SIRType)(using
+        LoweringContext
+    ): LoweredValueRepresentation =
         SumCaseClassRepresentation.DataConstr
 
-    override def defaultDataRepresentation: LoweredValueRepresentation =
+    override def defaultDataRepresentation(tp: SIRType)(using
+        LoweringContext
+    ): LoweredValueRepresentation =
         SumCaseClassRepresentation.DataConstr
+
+    override def defaultTypeVarReperesentation(tp: SIRType)(using
+        lctx: LoweringContext
+    ): LoweredValueRepresentation =
+        SumCaseClassRepresentation.DataConstr
+
+    override def isDataSupported(tp: SIRType)(using lctx: LoweringContext): Boolean = true
 
     override def toRepresentation(
         input: LoweredValue,
@@ -42,8 +53,6 @@ object SumCaseSirTypeGenerator extends SirTypeUplcGenerator {
                 ???
             case (DataConstr, UplcConstrOnData) =>
                 ???
-            case (DataConstr, ScottEncoding) =>
-                ???
             case (SumDataList, DataConstr) =>
                 ???
             case (SumDataList, SumDataList) =>
@@ -53,8 +62,6 @@ object SumCaseSirTypeGenerator extends SirTypeUplcGenerator {
             case (SumDataList, UplcConstr) =>
                 ???
             case (SumDataList, UplcConstrOnData) =>
-                ???
-            case (SumDataList, ScottEncoding) =>
                 ???
             case (PackedSumDataList, SumDataList) =>
                 lvBuiltinApply(SIRBuiltins.unListData, input, input.sirType, SumDataList, pos)
@@ -66,8 +73,6 @@ object SumCaseSirTypeGenerator extends SirTypeUplcGenerator {
             case (PackedSumDataList, UplcConstr) =>
                 ???
             case (PackedSumDataList, UplcConstrOnData) =>
-                ???
-            case (PackedSumDataList, ScottEncoding) =>
                 ???
             case (UplcConstr, DataConstr) =>
                 ???
@@ -114,7 +119,7 @@ object SumCaseSirTypeGenerator extends SirTypeUplcGenerator {
         }
 
         val constrProductDataConstr =
-            constrProduct.toRepresentation(ProductCaseClassRepresentation.DataConstr, pos)
+            constrProduct.toRepresentation(ProductCaseClassRepresentation.ProdDataConstr, pos)
 
         val retval = new ProxyLoweredValue(constrProductDataConstr) {
             override def sirType: SIRType = targetType
@@ -166,8 +171,6 @@ object SumCaseSirTypeGenerator extends SirTypeUplcGenerator {
                 )
             case UplcConstrOnData =>
                 ???
-            case ScottEncoding =>
-                ???
         }
 
     }
@@ -215,7 +218,10 @@ object SumCaseSirTypeGenerator extends SirTypeUplcGenerator {
             if isUnchecked && cases.length < allConstructors.size then
                 cases :+ SIR.Case(
                   SIR.Pattern.Wildcard,
-                  SIR.Error("Unexpected case", anns),
+                  SIR.Error(
+                    s"Unexpected case at ${anns.pos.file}:${anns.pos.startLine + 1}",
+                    anns
+                  ),
                   anns
                 )
             else cases
@@ -224,9 +230,16 @@ object SumCaseSirTypeGenerator extends SirTypeUplcGenerator {
 
         while casesIter.hasNext do
             casesIter.next() match
-                case c @ SIR.Case(SIR.Pattern.Constr(constrDecl, _, _), _, _) =>
-                    matchedConstructors += constrDecl.name // collect all matched constructors
-                    expandedCases += c
+                case c @ SIR.Case(SIR.Pattern.Constr(constrDecl, _, _), _, anns) =>
+                    constructors.find(_.name == constrDecl.name) match
+                        case None =>
+                            throw LoweringException(
+                              s"Constructor ${constrDecl.name} not found in type ${loweredScrutinee.sirType.show} at ${anns.pos}",
+                              anns.pos
+                            )
+                        case Some(_) =>
+                            matchedConstructors += constrDecl.name // collect all matched constructors
+                            expandedCases += c
                 case SIR.Case(SIR.Pattern.Wildcard, rhs, anns) =>
                     // If we have a wildcard case, it must be the last one
                     if idx != enhancedCases.length - 1 then
@@ -254,15 +267,18 @@ object SumCaseSirTypeGenerator extends SirTypeUplcGenerator {
                         }
             idx += 1
         end while
+
         // Sort the cases by the same order as the constructors
+
         val orderedCases = constructors.map { constr =>
             val optExpandedCase = expandedCases.find(_.pattern match {
                 case Pattern.Constr(constrDecl, _, _) => constrDecl.name == constr.name
                 case _                                => false
             })
             optExpandedCase.getOrElse(
-              throw new IllegalArgumentException(
-                s"Missing case for constructor ${constr.name} at ${anns.pos.file}: ${anns.pos.startLine}, ${anns.pos.startColumn}"
+              throw LoweringException(
+                s"Missing case for constructor ${constr.name}",
+                anns.pos
               )
             )
         }.toList
@@ -274,6 +290,7 @@ object SumCaseSirTypeGenerator extends SirTypeUplcGenerator {
         matchData: SIR.Match,
         loweredScrutinee: LoweredValue
     )(using lctx: LoweringContext): LoweredValue = {
+
         val orderedCases = prepareOrderedCased(matchData, loweredScrutinee)
 
         val prevScope = lctx.scope
@@ -319,7 +336,7 @@ object SumCaseSirTypeGenerator extends SirTypeUplcGenerator {
 
         val lastTerm = lctx.lower(
           SIR.Error(
-            s"Incorrect constructor index for type ${loweredScrutinee.sirType}",
+            s"Incorrect constructor index for type ${loweredScrutinee.sirType.show}",
             matchData.anns
           )
         )
@@ -376,7 +393,7 @@ object SumCaseSirTypeGenerator extends SirTypeUplcGenerator {
                     val tp = typeBinding.tp
                     val prevId = currentTail.id
                     val tpDataRepresentation =
-                        lctx.typeGenerator(tp).defaultDataRepresentation
+                        lctx.typeGenerator(tp).defaultDataRepresentation(tp)
                     val bindedVar = lvNewLazyNamedVar(
                       name,
                       tp,
@@ -390,7 +407,6 @@ object SumCaseSirTypeGenerator extends SirTypeUplcGenerator {
                       ),
                       sirCase.anns.pos
                     )
-                    println(s"created binded var: ${bindedVar.name} with id ${bindedVar.id}")
                     val tailId = s"${dataListId}_b${}"
                     // mb we already have this id in the scope
                     val tailVar =

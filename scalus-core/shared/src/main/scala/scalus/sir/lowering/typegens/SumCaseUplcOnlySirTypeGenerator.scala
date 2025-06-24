@@ -5,11 +5,26 @@ import scalus.sir.lowering.*
 
 object SumCaseUplcOnlySirTypeGenerator extends SirTypeUplcGenerator {
 
-    override def defaultRepresentation: LoweredValueRepresentation =
+    override def defaultRepresentation(tp: SIRType)(using
+        LoweringContext
+    ): LoweredValueRepresentation =
         SumCaseClassRepresentation.UplcConstr
 
-    override def defaultDataRepresentation: LoweredValueRepresentation =
+    override def defaultDataRepresentation(tp: SIRType)(using
+        LoweringContext
+    ): LoweredValueRepresentation =
         SumCaseClassRepresentation.UplcConstr
+
+    // TODO: set position in LoweringContext
+    override def defaultTypeVarReperesentation(
+        tp: SIRType
+    )(using LoweringContext): LoweredValueRepresentation =
+        throw LoweringException(
+          "Type variables with lambdas are not supported in sum cases yet",
+          SIRPosition.empty
+        )
+
+    override def isDataSupported(tp: SIRType)(using lctx: LoweringContext): Boolean = false
 
     override def toRepresentation(
         input: LoweredValue,

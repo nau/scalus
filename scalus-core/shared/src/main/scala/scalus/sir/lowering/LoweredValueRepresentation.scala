@@ -7,6 +7,8 @@ import scalus.sir.*
 sealed trait LoweredValueRepresentation {
     def isPackedData: Boolean
     def isDataCentric: Boolean
+    def isCompatible(repr: LoweredValueRepresentation): Boolean =
+        this == repr
 }
 
 sealed trait SumCaseClassRepresentation(
@@ -19,7 +21,14 @@ object SumCaseClassRepresentation {
     /** Representation for sum case classes that are represented as a Data with DataConstr and
       * DataUnconstr operators to work with the data. the index of the constructor and x is a field.
       */
-    case object DataConstr extends SumCaseClassRepresentation(true, true)
+    case object DataConstr extends SumCaseClassRepresentation(true, true) {
+        override def isCompatible(repr: LoweredValueRepresentation): Boolean =
+            repr match {
+                case DataConstr                  => true
+                case TypeVarRepresentation(_, _) => true
+                case other                       => false
+            }
+    }
 
     /** Representation for sum case classes that are represented as a Pair of Int and DataList.
       */
@@ -46,30 +55,44 @@ object SumCaseClassRepresentation {
       */
     case object UplcConstrOnData extends SumCaseClassRepresentation(false, true)
 
-    case object ScottEncoding extends SumCaseClassRepresentation(false, false)
 }
 
 sealed trait ProductCaseClassRepresentation(val isPackedData: Boolean, val isDataCentric: Boolean)
     extends LoweredValueRepresentation
 
 object ProductCaseClassRepresentation {
+
     case object PackedDataList extends ProductCaseClassRepresentation(true, true)
 
     case object ProdDataList extends ProductCaseClassRepresentation(false, true)
 
     /** Data.Unconstr will give us a pair from data and index of the constructor.
       */
-    case object DataConstr extends ProductCaseClassRepresentation(true, true)
+    case object ProdDataConstr extends ProductCaseClassRepresentation(true, true) {
+
+        override def isCompatible(repr: LoweredValueRepresentation): Boolean =
+            repr match {
+                case ProdDataConstr              => true
+                case TypeVarRepresentation(_, _) => true
+                case other                       => false
+            }
+    }
+
+    case object PairIntDataList extends ProductCaseClassRepresentation(false, true)
 
     case object UplcConstr extends ProductCaseClassRepresentation(false, false)
-
-    case object ScottEncoding extends ProductCaseClassRepresentation(false, false)
 
     case class OneElementWrapper(representation: LoweredValueRepresentation)
         extends ProductCaseClassRepresentation(
           representation.isPackedData,
           representation.isDataCentric
-        )
+        ) {
+        override def isCompatible(repr: LoweredValueRepresentation): Boolean =
+            repr match {
+                case OneElementWrapper(innerRepr) => representation.isCompatible(innerRepr)
+                case other                        => representation.isCompatible(other)
+            }
+    }
 
     // TODO: implement
     // case class PairWrapper(
@@ -79,13 +102,43 @@ object ProductCaseClassRepresentation {
 
 }
 
+/** Representation for lambda function. By default, lanbda-s accept default reperesentation for
+  * input and output types. But when we pass functions to type-parametrized functions, then calling
+  * party does not know about real parameter types and can't use default representation, so pass
+  * parameters as packed data.
+  *
+  * So, we translate higher-order functions to packed data representation when pass as arguments to
+  * type-parametrized functions.
+  */
 case class LambdaRepresentation(
-    input: LoweredValueRepresentation,
-    output: LoweredValueRepresentation
+    inRepr: LoweredValueRepresentation,
+    outRepr: LoweredValueRepresentation
 ) extends LoweredValueRepresentation {
+
     override def isPackedData: Boolean = false
 
     override def isDataCentric: Boolean = false
+
+    override def isCompatible(repr: LoweredValueRepresentation): Boolean = {
+        repr match {
+            case LambdaRepresentation(in, out) =>
+                inRepr.isCompatible(in) && outRepr.isCompatible(out)
+            case TypeVarRepresentation(isBuiltin, canBeLambda) =>
+                isBuiltin || canBeLambda && isTypeVarCompatible(inRepr) && isTypeVarCompatible(
+                  outRepr
+                )
+            case _ => false
+        }
+    }
+
+    def isTypeVarCompatible(repr: LoweredValueRepresentation): Boolean =
+        repr match {
+            case TypeVarRepresentation(_, _) => true
+            case LambdaRepresentation(in, out) =>
+                isTypeVarCompatible(in) && isTypeVarCompatible(out)
+            case _ => repr.isPackedData
+        }
+
 }
 
 sealed trait PrimitiveRepresentation(val isPackedData: Boolean, val isDataCentric: Boolean)
@@ -98,14 +151,17 @@ object PrimitiveRepresentation {
 }
 
 /** TypeVarRepresentation is used for type variables. Usually this is a synonym for some other
-  * specific-type representation.
-  *
-  * for now, assume that TypeVars can't be only serializable to data.
+  * specific-type representation. When this is builtin type variable, it can be freely used in any
+  * type representation, but when it is a lambda, it can be used only in packed data representation.
   */
-case object TypeVarDataRepresentation extends LoweredValueRepresentation {
-    override def isPackedData: Boolean = true
+case class TypeVarRepresentation(isBuiltin: Boolean, canBeLambda: Boolean)
+    extends LoweredValueRepresentation {
 
-    override def isDataCentric: Boolean = true
+    // assume that TypeVarDataRepresentation is a packed data.
+    //  (this is not true for lambda, will check this in code. Usually in all places we also known type)
+    override def isPackedData: Boolean = !isBuiltin && !canBeLambda
+
+    override def isDataCentric: Boolean = isPackedData
 }
 
 case object ErrorRepresentation extends LoweredValueRepresentation {
@@ -119,23 +175,26 @@ object LoweredValueRepresentation {
     def constRepresentation(tp: SIRType)(using lc: LoweringContext): LoweredValueRepresentation = {
         tp match
             case SIRType.SumCaseClass(decl, typeArgs) =>
-                if lc.plutusVersion >= 3 then SumCaseClassRepresentation.DataConstr
-                else SumCaseClassRepresentation.ScottEncoding
+                SumCaseClassRepresentation.DataConstr
             case SIRType.CaseClass(constrDecl, targs, parent) =>
-                if lc.plutusVersion >= 3 then ProductCaseClassRepresentation.DataConstr
-                else ProductCaseClassRepresentation.ScottEncoding
+                ProductCaseClassRepresentation.ProdDataConstr
             case SIRType.TypeLambda(params, body) =>
                 constRepresentation(body)
             case SIRType.Integer | SIRType.Data | SIRType.ByteString | SIRType.String |
                 SIRType.Boolean | SIRType.Unit =>
                 PrimitiveRepresentation.Constant
             case SIRType.Fun(in, out) =>
-                LambdaRepresentation(
-                  constRepresentation(in),
-                  constRepresentation(out)
-                )
-            case SIRType.TypeVar(_, _)  => TypeVarDataRepresentation
-            case SIRType.FreeUnificator => TypeVarDataRepresentation
+                val inRepresentation = lc.typeGenerator(in).defaultRepresentation(in)
+                val outRepresentation = lc.typeGenerator(out).defaultRepresentation(out)
+                LambdaRepresentation(inRepresentation, outRepresentation)
+            case tv @ SIRType.TypeVar(_, _, isBuiltin) =>
+                // for now we don't allow pass variables to type-lambda.
+                lc.typeVars.get(tv) match
+                    case Some(tp) => constRepresentation(tp)
+                    case None =>
+                        TypeVarRepresentation(isBuiltin, canBeLambda = false)
+            case SIRType.FreeUnificator =>
+                TypeVarRepresentation(isBuiltin = false, canBeLambda = false)
             case SIRType.TypeProxy(ref) =>
                 constRepresentation(ref)
             case SIRType.TypeNothing => ErrorRepresentation

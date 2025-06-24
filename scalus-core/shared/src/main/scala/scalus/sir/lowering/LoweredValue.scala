@@ -4,12 +4,15 @@ import scalus.sir.*
 import scalus.sir.lowering.Lowering.tpf
 import scalus.uplc.*
 
+import java.util
 import scala.collection.mutable.Set as MutableSet
 import scala.collection.mutable.Map as MutableMap
 
 /** SEA of nodes - like representation. E.e. each value is node, which manage dependencies.
   */
 trait LoweredValue {
+
+    val createdEx = new RuntimeException("Lovered value created here")
 
     def sirType: SIRType
 
@@ -379,51 +382,74 @@ object LoweredValue {
             lctx: LoweringContext
         ): LoweredValue = {
 
-            def firstArgType(tp: SIRType): SIRType = tp match {
+            def argType(tp: SIRType): SIRType = tp match {
                 case SIRType.Fun(argTp, _) => argTp
                 case SIRType.TypeLambda(params, body) =>
-                    firstArgType(body)
+                    argType(body)
                 case SIRType.TypeProxy(ref) =>
-                    if ref != null then firstArgType(ref.asInstanceOf[SIRType])
+                    if ref != null then argType(ref.asInstanceOf[SIRType])
                     else
                         throw LoweringException(
                           s"Empty type proxy in function application",
                           inPos
                         )
+                case tv: SIRType.TypeVar => tv
+                case SIRType.FreeUnificator =>
+                    SIRType.FreeUnificator
                 case _ =>
                     throw LoweringException(
-                      s"Cannot apply function to argument, because function type is not a function: ${tp.show}",
+                      s"Exprected function type, but have: ${tp.show}",
                       inPos
                     )
             }
 
-            val resType = resTp.getOrElse(
-              SIRType.calculateApplyType(f.sirType, arg.sirType, lctx.typeVars)
-            )
-
-            val targetArgType = firstArgType(f.sirType) match {
-                case SIRType.TypeVar(name, optId) => arg.sirType
-                case SIRType.FreeUnificator       => arg.sirType
-                case other                        => other
+            val (targetArgType, targetArgRepresentation) = argType(f.sirType) match {
+                case SIRType.TypeVar(name, optId, isBuiltin) =>
+                    if isBuiltin then
+                        (
+                          arg.sirType,
+                          lctx.typeGenerator(arg.sirType).defaultRepresentation(arg.sirType)
+                        )
+                    else
+                        (
+                          arg.sirType,
+                          lctx.typeGenerator(arg.sirType).defaultTypeVarReperesentation(arg.sirType)
+                        )
+                case SIRType.FreeUnificator =>
+                    (
+                      arg.sirType,
+                      lctx.typeGenerator(arg.sirType).defaultTypeVarReperesentation(arg.sirType)
+                    )
+                case other =>
+                    (other, lctx.typeGenerator(other).defaultRepresentation(other))
             }
 
-            // println(s"targetArgType = ${targetArgType.show}")
+            // TODO: add to to
+            def isSumCaseClass(tp: SIRType): Boolean = {
+                tp match {
+                    case x: SIRType.SumCaseClass          => true
+                    case SIRType.TypeLambda(params, body) => isSumCaseClass(body)
+                    case SIRType.TypeProxy(ref) =>
+                        if ref != null then isSumCaseClass(ref.asInstanceOf[SIRType])
+                        else false
+                    case _ => false
+                }
+            }
 
-            val targetArgRepresentation = lctx.typeGenerator(targetArgType).defaultRepresentation
-
-            // println(s"targetArgRepresentation = ${targetArgRepresentation}")
-
-            val argInDefaultRepresentation =
-                if SIRType.isPolyFunOrFun(targetArgType) then arg
-                else
+            val argInTargetRepresentation =
+                if isSumCaseClass(targetArgType) then
                     arg
                         .maybeUpcast(targetArgType, inPos)
                         .toRepresentation(
                           targetArgRepresentation,
                           inPos
                         )
+                else arg.toRepresentation(targetArgRepresentation, inPos)
+            // prin tln(s"argInTargetRepresentation = ${argInTargetRepresentation}")
 
-            // println(s"argInDefaultRepresentation = ${argInDefaultRepresentation}")
+            val resType = resTp.getOrElse(
+              SIRType.calculateApplyType(f.sirType, arg.sirType, lctx.typeVars)
+            )
 
             new ComplexLoweredValue(Set.empty, f, arg) {
 
@@ -433,18 +459,22 @@ object LoweredValue {
 
                 override def representation: LoweredValueRepresentation =
                     resRepresentation.getOrElse(
-                      lctx.typeGenerator(resType).defaultRepresentation
+                      f.representation match {
+                          case LambdaRepresentation(inRepr, outRepr) => outRepr
+                          case _ =>
+                              lctx.typeGenerator(resType).defaultRepresentation(resType)
+                      }
                     )
 
                 override def termInternal(gctx: TermGenerationContext): Term = {
                     Term.Apply(
                       f.termWithNeededVars(gctx),
-                      argInDefaultRepresentation.termWithNeededVars(gctx)
+                      argInTargetRepresentation.termWithNeededVars(gctx)
                     )
                 }
 
                 override def show: String = {
-                    s"lvApply(${f.show}, ${argInDefaultRepresentation.show}) at $inPos"
+                    s"lvApply(${f.show}, ${argInTargetRepresentation.show}) at $inPos"
                 }
 
             }
@@ -453,7 +483,9 @@ object LoweredValue {
         def lvEqualsInteger(x: LoweredValue, y: LoweredValue, inPos: SIRPosition)(using
             lctx: LoweringContext
         ): LoweredValue = {
-            new ComplexLoweredValue(Set.empty, x, y) {
+            val xc = x.toRepresentation(PrimitiveRepresentation.Constant, inPos)
+            val yc = y.toRepresentation(PrimitiveRepresentation.Constant, inPos)
+            new ComplexLoweredValue(Set.empty, xc, yc) {
                 override def sirType: SIRType = SIRType.Boolean
 
                 override def pos: SIRPosition = inPos
@@ -476,16 +508,16 @@ object LoweredValue {
         def lvLamAbs(
             name: String,
             tp: SIRType,
-            representation: LoweredValueRepresentation,
+            inputRepresentation: LoweredValueRepresentation,
             f: IdentifiableLoweredValue => LoweringContext ?=> LoweredValue,
             inPos: SIRPosition
         )(using lctx: LoweringContext): LoweredValue = {
-            lvLamAbs(SIR.Var(name, tp, AnnotationsDecl(inPos)), representation, f, inPos)
+            lvLamAbs(SIR.Var(name, tp, AnnotationsDecl(inPos)), inputRepresentation, f, inPos)
         }
 
         def lvLamAbs(
             sirVar: SIR.Var,
-            varRepresentation: LoweredValueRepresentation,
+            inputRepresentation: LoweredValueRepresentation,
             f: IdentifiableLoweredValue => LoweringContext ?=> LoweredValue,
             inPos: SIRPosition
         )(using lctx: LoweringContext): LoweredValue = {
@@ -493,7 +525,7 @@ object LoweredValue {
               id = lctx.uniqueVarName(sirVar.name),
               name = sirVar.name,
               sir = sirVar,
-              representation = varRepresentation
+              representation = inputRepresentation
             )
             val prevScope = lctx.scope
             lctx.scope = lctx.scope.add(newVar)
@@ -502,8 +534,9 @@ object LoweredValue {
             new ComplexLoweredValue(Set(newVar), body) {
                 override def sirType: SIRType = SIRType.Fun(sirVar.tp, body.sirType)
 
-                override def representation: LoweredValueRepresentation =
-                    LambdaRepresentation(newVar.representation, body.representation)
+                override def representation: LoweredValueRepresentation = {
+                    LambdaRepresentation(inputRepresentation, body.representation)
+                }
 
                 override def pos: SIRPosition = inPos
 

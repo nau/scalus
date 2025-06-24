@@ -11,11 +11,22 @@ import scalus.uplc.{DefaultFun, Term}
   */
 object SumDataListSirTypeGenerator extends SirTypeUplcGenerator {
 
-    override def defaultRepresentation: LoweredValueRepresentation =
+    override def defaultRepresentation(tp: SIRType)(using
+        LoweringContext
+    ): LoweredValueRepresentation =
         SumCaseClassRepresentation.SumDataList
 
-    override def defaultDataRepresentation: LoweredValueRepresentation =
+    override def defaultDataRepresentation(tp: SIRType)(using
+        LoweringContext
+    ): LoweredValueRepresentation =
         SumCaseClassRepresentation.PackedSumDataList
+
+    override def defaultTypeVarReperesentation(tp: SIRType)(using
+        LoweringContext
+    ): LoweredValueRepresentation =
+        SumCaseClassRepresentation.PackedSumDataList
+
+    override def isDataSupported(tp: SIRType)(using lctx: LoweringContext): Boolean = true
 
     override def toRepresentation(
         input: LoweredValue,
@@ -52,6 +63,18 @@ object SumDataListSirTypeGenerator extends SirTypeUplcGenerator {
                   SumCaseClassRepresentation.SumDataList,
                   pos
                 )
+            case (_, tv @ TypeVarRepresentation(isBuiltin, canBeLambda)) =>
+                if isBuiltin then
+                    new RepresentationProxyLoweredValue(
+                      input,
+                      tv,
+                      pos
+                    )
+                else {
+                    val inputAsData =
+                        input.toRepresentation(SumCaseClassRepresentation.PackedSumDataList, pos)
+                    new RepresentationProxyLoweredValue(inputAsData, tv, pos)
+                }
             case _ =>
                 println(s"input.tp=${input.sirType.show}")
                 println(s"input=${input}")
@@ -90,12 +113,15 @@ object SumDataListSirTypeGenerator extends SirTypeUplcGenerator {
                 )
             case "scalus.prelude.List$.Cons" =>
                 if constr.args.size != 2 then
-                    throw LoweringException("Non-empy Nil constructor", constr.anns.pos)
+                    throw LoweringException(
+                      s"Constr construnctor with ${constr.args.size} args, should be 2",
+                      constr.anns.pos
+                    )
                 val head = lctx.lower(constr.args.head)
                 val tail = lctx.lower(constr.args.tail.head)
                 val elementType = head.sirType
                 val headDataRepr = head.toRepresentation(
-                  lctx.typeGenerator(elementType).defaultDataRepresentation,
+                  lctx.typeGenerator(elementType).defaultDataRepresentation(elementType),
                   head.pos
                 )
                 val tailDataRepr =
@@ -135,7 +161,7 @@ object SumDataListSirTypeGenerator extends SirTypeUplcGenerator {
                     }
 
                     override def representation: LoweredValueRepresentation = {
-                        lctx.typeGenerator(sel.tp).defaultDataRepresentation
+                        lctx.typeGenerator(sel.tp).defaultDataRepresentation(sel.tp)
                     }
 
                 }
@@ -267,6 +293,9 @@ object SumDataListSirTypeGenerator extends SirTypeUplcGenerator {
 
         val elementType = retrieveElementType(matchData.scrutinee.tp, matchData.anns.pos)
 
+        val consHeadRepresentation =
+            lctx.typeGenerator(elementType).defaultDataRepresentation(elementType)
+
         val consHead = new VariableLoweredValue(
           id = lctx.uniqueVarName("consHead"),
           name = consHeadName,
@@ -275,7 +304,7 @@ object SumDataListSirTypeGenerator extends SirTypeUplcGenerator {
             elementType,
             matchData.anns
           ),
-          representation = lctx.typeGenerator(elementType).defaultDataRepresentation,
+          representation = consHeadRepresentation,
           optRhs = Some(
             new ProxyLoweredValue(listInput) {
                 override def sirType: SIRType = elementType
@@ -286,7 +315,7 @@ object SumDataListSirTypeGenerator extends SirTypeUplcGenerator {
                     DefaultFun.HeadList.tpf $ listInput.termWithNeededVars(gctx)
 
                 override def representation: LoweredValueRepresentation =
-                    lctx.typeGenerator(elementType).defaultDataRepresentation
+                    consHeadRepresentation
 
             }
           )
@@ -321,11 +350,15 @@ object SumDataListSirTypeGenerator extends SirTypeUplcGenerator {
         lctx.scope = lctx.scope.addAll(
           List(listInput, consHead, consTail)
         )
-        val loweredConsBody = lctx.lower(consCase.get.body)
+
+        val loweredConsBody =
+            lctx.lower(consCase.get.body).maybeUpcast(matchData.tp, consCase.get.anns.pos)
         val bodyRepresentation = loweredConsBody.representation
         lctx.scope = prevScope
         val loweredNilBody =
-            lctx.lower(nilCase.get.body).toRepresentation(bodyRepresentation, nilCase.get.anns.pos)
+            lctx.lower(nilCase.get.body)
+                .maybeUpcast(matchData.tp, nilCase.get.anns.pos)
+                .toRepresentation(bodyRepresentation, nilCase.get.anns.pos)
 
         val usedVarsCount = Lowering.filterAndCountVars(
           _ => true,

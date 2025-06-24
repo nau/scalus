@@ -3,6 +3,8 @@ package scalus.sir
 import org.scalatest.funsuite.AnyFunSuite
 import scalus.Compiler.compile
 import scalus.*
+import scalus.sir.SIRUnify.given
+import scalus.sir.SIRUnify.~=~
 
 object SIRTypingScalaToSIRSpecScope {
 
@@ -91,6 +93,94 @@ class SIRTypingScalaToSIRTest extends AnyFunSuite {
                 assert(typeArgs == List(SIRType.Integer))
             case _ => fail(s"unexpected type ${sir.tp}")
 
+    }
+
+    test("check that apply with implicit parameters is mapped to corret SIR.Apply") {
+        import scalus.prelude.*
+        import scalus.prelude.given
+        import scalus.builtin.ByteString
+        import scalus.prelude.EqCompanion.given
+        val sir = compile { (l: scalus.prelude.List[ByteString], v: ByteString) =>
+            l.contains(v)
+        }
+        val lSir = findLastLetBody(sir)
+        lSir match {
+            case SIR.LamAbs(a, SIR.LamAbs(b, body, _), _) =>
+                body match {
+                    case SIR.Apply(
+                          SIR.Apply(
+                            SIR.Apply(
+                              vContains @ SIR.ExternalVar(module, name, tpf, _),
+                              arg1,
+                              tp1,
+                              _
+                            ),
+                            arg2,
+                            tp2,
+                            _
+                          ),
+                          arg3,
+                          tp3,
+                          _
+                        ) =>
+                        assert(name == "scalus.prelude.List$.contains")
+                        println(s"tpf=${tpf.show}")
+                        val aTp = new SIRType.TypeVar("A", None, false)
+                        val bTp = new SIRType.TypeVar("B", None, false)
+                        val tpf1 = tpf match {
+                            case SIRType.TypeLambda(params, SIRType.Fun(ltp, rtpf1)) =>
+                                rtpf1 match {
+                                    case SIRType.TypeLambda(
+                                          p1,
+                                          SIRType.Fun(rtpf2, SIRType.Fun(v, rtpf3))
+                                        ) =>
+                                        assert(ltp ~=~ SIRType.List(aTp))
+                                        assert(
+                                          v ~=~ SIRType.Fun(bTp, SIRType.Fun(bTp, SIRType.Boolean))
+                                        )
+                                        assert(rtpf3 == SIRType.Boolean)
+                                    case _ =>
+                                        this.fail(s"unexpected type for tpf1: ${rtpf1.show}")
+                                }
+                            case _ =>
+                                this.fail(s"unexpected type for tpf: ${tpf.show}")
+                        }
+                        assert(arg1.tp.isInstanceOf[SIRType.SumCaseClass])
+                        assert(arg2.tp == SIRType.ByteString)
+                        assert(
+                          arg3.tp == SIRType.Fun(
+                            SIRType.ByteString,
+                            SIRType.Fun(SIRType.ByteString, SIRType.Boolean)
+                          )
+                        )
+                    case _ =>
+                        this.fail(s"unexpexted tree: ${body}")
+                }
+
+        }
+    }
+
+    test("sirtype from Eq[B] should be a function") {
+        val sir = compile { (x: scalus.prelude.Eq[BigInt]) => x }
+        // println(s"sir.tp=${sir.tp.show}")
+        sir.tp match {
+            case SIRType.Fun(x1, y1) =>
+                x1 match {
+                    case SIRType.Fun(xp1, SIRType.Fun(xp2, SIRType.Boolean)) =>
+                        assert(xp1 == SIRType.Integer)
+                        assert(xp2 == SIRType.Integer)
+                    case _ => fail(s"unexpected type for first argument, should be Fun ${x1.show}")
+                }
+            case _ => fail(s"functional type exprected ${sir.tp}")
+        }
+    }
+
+    private def findLastLetBody(x: SIR): SIR = {
+        x match {
+            case SIR.Decl(data, term)   => findLastLetBody(term)
+            case SIR.Let(_, _, body, _) => findLastLetBody(body)
+            case _                      => x
+        }
     }
 
 }

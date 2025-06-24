@@ -3,20 +3,39 @@ package scalus.sir.lowering.typegens
 import scalus.sir.*
 import scalus.sir.lowering.*
 import scalus.sir.lowering.LoweredValue.Builder.*
+import scalus.uplc.Term
 
-case class FunSirTypeGenerator(genInput: SirTypeUplcGenerator, genOutput: SirTypeUplcGenerator)
-    extends SirTypeUplcGenerator {
+object FunSirTypeGenerator extends SirTypeUplcGenerator {
 
-    override def defaultRepresentation: LoweredValueRepresentation =
-        LambdaRepresentation(
-          genInput.defaultRepresentation,
-          genOutput.defaultRepresentation
-        )
+    override def defaultRepresentation(
+        tp: SIRType
+    )(using lctx: LoweringContext): LoweredValueRepresentation =
+        collect(tp) match {
+            case Some((typeVars, input, output)) =>
+                LambdaRepresentation(
+                  lctx.typeGenerator(input).defaultRepresentation(input),
+                  lctx.typeGenerator(output).defaultRepresentation(output)
+                )
+            case None =>
+                throw IllegalStateException(
+                  s"Function type generator can't be used for type ${tp.show}",
+                )
+        }
 
-    override def defaultDataRepresentation: LoweredValueRepresentation =
+    override def defaultDataRepresentation(
+        tp: SIRType
+    )(using LoweringContext): LoweredValueRepresentation =
         throw IllegalStateException(
           "Can't ask defaultDataRepresentaion acceoss function type generator"
         )
+
+    override def defaultTypeVarReperesentation(
+        tp: SIRType
+    )(using lctx: LoweringContext): LoweredValueRepresentation = {
+        TypeVarRepresentation(false, true)
+    }
+
+    override def isDataSupported(tp: SIRType)(using LoweringContext): Boolean = false
 
     override def toRepresentation(
         input: LoweredValue,
@@ -25,39 +44,88 @@ case class FunSirTypeGenerator(genInput: SirTypeUplcGenerator, genOutput: SirTyp
     )(using
         lctx: LoweringContext
     ): LoweredValue = {
-        throw new RuntimeException("Fun: toRepresentation should not be called directly")
-        (input.representation, outputRepresentation) match {
-            case (
-                  LambdaRepresentation(inputFrom, inputTo),
-                  LambdaRepresentation(outputFrom, outputTo)
-                ) =>
-                if inputFrom == outputFrom && inputTo == outputTo then input
-                else
-                    val sirFunType = retrieveSirFun(input.sirType).getOrElse(
-                      throw LoweringException(
-                        s"Expected function type, got ${input.sirType.show}",
-                        pos
-                      )
-                    )
-                    lvLamAbs(
-                      lctx.uniqueVarName("lambdaArg"),
-                      sirFunType.in,
-                      outputFrom,
-                      v =>
-                          lvApply(
-                            input,
-                            v.toRepresentation(inputFrom, pos),
-                            pos,
-                            Some(sirFunType.out),
-                            Some(inputTo)
-                          ).toRepresentation(outputTo, pos),
+        if input.representation == outputRepresentation then input
+        else {
+            val (typeVars, tpIn, tpOut) = collect(input.sirType)
+                .getOrElse(
+                  throw LoweringException(
+                    s"Function type generator can't convert from ${input.sirType.show} to $outputRepresentation",
+                    pos
+                  )
+                )
+            (input.representation, outputRepresentation) match
+                case (
+                      LambdaRepresentation(inRepr1, outRepr1),
+                      LambdaRepresentation(inRepr2, outRepr2)
+                    ) =>
+                    if inRepr1.isCompatible(inRepr2) && outRepr1.isCompatible(outRepr2) then
+                        new RepresentationProxyLoweredValue(input, outputRepresentation, pos) {
+                            override def termInternal(gctx: TermGenerationContext): Term =
+                                input.termInternal(gctx)
+                        }
+                    else
+                        val newInName = lctx.uniqueVarName("x")
+                        lvLamAbs(
+                          newInName,
+                          tpIn,
+                          inRepr2,
+                          x =>
+                              lvApply(
+                                input,
+                                x.toRepresentation(inRepr1, pos),
+                                pos,
+                                Some(tpOut),
+                                Some(outRepr1)
+                              ).toRepresentation(outRepr2, pos),
+                          pos
+                        )
+                case (
+                      inLambda: LambdaRepresentation,
+                      TypeVarRepresentation(isBuiltin, canBeLambda)
+                    ) =>
+                    if isBuiltin then
+                        new RepresentationProxyLoweredValue(
+                          input,
+                          outputRepresentation,
+                          pos
+                        ) {
+                            override def termInternal(gctx: TermGenerationContext): Term =
+                                input.termInternal(gctx)
+                        }
+                    else if canBeLambda then
+                        toRepresentation(
+                          input,
+                          LambdaRepresentation(
+                            TypeVarRepresentation(isBuiltin, canBeLambda),
+                            TypeVarRepresentation(isBuiltin, canBeLambda)
+                          ),
+                          pos
+                        )
+                    else
+                        throw LoweringException(
+                          s"Can't convert function type ${input.sirType.show} to $outputRepresentation",
+                          pos
+                        )
+                case _ =>
+                    throw LoweringException(
+                      s"Unfunctional representation target (${outputRepresentation}) during conversion for ${input.sirType.show} from ${input.representation} to $outputRepresentation",
                       pos
                     )
-            case _ =>
-                throw LoweringException(
-                  s"Expected function representation, got ${input.representation} and $outputRepresentation",
-                  pos
-                )
+
+        }
+    }
+
+    private def collect(tp: SIRType): Option[(Set[SIRType.TypeVar], SIRType, SIRType)] = {
+        tp match {
+            case SIRType.Fun(input, output) =>
+                Some((Set.empty, input, output))
+            case SIRType.TypeLambda(typeVars, SIRType.Fun(input, output)) =>
+                Some((typeVars.toSet, input, output))
+            case SIRType.TypeProxy(ref) => None
+            case tv: SIRType.TypeVar =>
+                Some(Set.empty, SIRType.FreeUnificator, SIRType.FreeUnificator)
+            case SIRType.TypeProxy(ref) => collect(ref)
+            case _                      => None
         }
     }
 

@@ -47,8 +47,8 @@ class SimpleSirToUplcLoweringTest
 
     test("lower Lam/Apply") {
         import SIRType.{TypeLambda, TypeVar, Unit}
-        val idType = TypeLambda(List(TypeVar("A", Some(1))), TypeVar("A", Some(1)))
-        val x = SIR.Var("x", TypeVar("X", Some(2)), ae)
+        val idType = TypeLambda(List(TypeVar("A", Some(1), false)), TypeVar("A", Some(1), false))
+        val x = SIR.Var("x", TypeVar("X", Some(2), false), ae)
         SIR.Apply(
           SIR.LamAbs(x, x, ae),
           SIR.Const(Constant.Unit, Unit, ae),
@@ -100,8 +100,8 @@ class SimpleSirToUplcLoweringTest
        TxId(name)
        lowers to (\name TxId -> TxId name) name
          */
-        val a1TypeVar = TypeVar("A", Some(1))
-        val a2TypeVar = TypeVar("A", Some(2))
+        val a1TypeVar = TypeVar("A", Some(1), false)
+        val a2TypeVar = TypeVar("A", Some(2), false)
         val tailTypeProxy = new TypeProxy(null)
         val listData =
             DataDecl(
@@ -109,7 +109,6 @@ class SimpleSirToUplcLoweringTest
               List(
                 ConstrDecl(
                   "scalus.prelude.List$.Nil",
-                  DEFAULT,
                   List(),
                   List(),
                   List(TypeNothing),
@@ -117,7 +116,6 @@ class SimpleSirToUplcLoweringTest
                 ),
                 ConstrDecl(
                   "scalus.prelude.List$.Cons",
-                  DEFAULT,
                   List(TypeBinding("head", a2TypeVar), TypeBinding("tail", tailTypeProxy)),
                   List(a2TypeVar),
                   List(a2TypeVar),
@@ -131,7 +129,7 @@ class SimpleSirToUplcLoweringTest
         val txIdData = DataDecl(
           "TxId",
           List(
-            ConstrDecl("TxId", DEFAULT, List(TypeBinding("hash", ByteString)), List(), List(), ae)
+            ConstrDecl("TxId", List(TypeBinding("hash", ByteString)), List(), List(), ae)
           ),
           List(),
           ae
@@ -180,12 +178,11 @@ class SimpleSirToUplcLoweringTest
         lowers to (\Nil Cons -> force Nil) (delay 1) (\h tl -> 2)
          */
         val tailTypeProxy = new SIRType.TypeProxy(null)
-        val a1TypeVar = SIRType.TypeVar("A1", Some(1))
-        val a2TypeVar = SIRType.TypeVar("A2", Some(2))
-        val nilConstr = ConstrDecl("Nil", SIRVarStorage.DEFAULT, List(), List(), List(), ae)
+        val a1TypeVar = SIRType.TypeVar("A1", Some(1), false)
+        val a2TypeVar = SIRType.TypeVar("A2", Some(2), false)
+        val nilConstr = ConstrDecl("Nil", List(), List(), List(), ae)
         val consConstr = ConstrDecl(
           "Cons",
-          SIRVarStorage.DEFAULT,
           List(TypeBinding("head", a2TypeVar), TypeBinding("tail", tailTypeProxy)),
           List(a2TypeVar),
           List(a2TypeVar),
@@ -199,7 +196,6 @@ class SimpleSirToUplcLoweringTest
           List(
             ConstrDecl(
               "TxId",
-              SIRVarStorage.DEFAULT,
               List(TypeBinding("hash", SIRType.ByteString)),
               List(),
               List(),

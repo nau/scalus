@@ -76,7 +76,6 @@ case class ConstrDecl(
     /** Name (usually - full name of symbol, i.s. scalus.prelude.List$.Nit )
       */
     name: String,
-    storageType: SIRVarStorage,
 
     /** Parameters of the constructor.
       */
@@ -303,7 +302,13 @@ object SIR:
         anns: AnnotationsDecl
     ) extends AnnotatedSIR
 
-    sealed trait Pattern
+    sealed trait Pattern {
+        def show: String = this match {
+            case Pattern.Constr(constr, bindings, typeParamsBindings) =>
+                s"${constr.name}, ${bindings.mkString(", ")}"
+            case Pattern.Wildcard => "_"
+        }
+    }
 
     object Pattern:
         case class Constr(

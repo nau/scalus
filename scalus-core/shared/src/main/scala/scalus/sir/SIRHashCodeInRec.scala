@@ -275,7 +275,6 @@ object SIRHashCodeInRec {
             var h = MurmurHash3.productSeed
             h = MurmurHash3.mix(h, "ConstrDecl".hashCode())
             h = MurmurHash3.mix(h, t.name.hashCode())
-            h = MurmurHash3.mix(h, t.storageType.hashCode())
             h = MurmurHash3.mix(h, summon[SIRHashCodeInRec[List[TypeBinding]]](t.params, trace))
             h = MurmurHash3.mix(h, t.typeParams.hashCode())
             h = MurmurHash3.finalizeHash(h, 4)
@@ -288,7 +287,6 @@ object SIRHashCodeInRec {
             trace: util.IdentityHashMap[SIRType, List[SIRType]]
         ): Boolean = {
             a.name == b.name &&
-            a.storageType == b.storageType &&
             summon[SIRHashCodeInRec[List[TypeBinding]]].applyEq(a.params, b.params, trace) &&
             a.typeParams == b.typeParams
         }

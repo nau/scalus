@@ -18,7 +18,7 @@ sealed trait SIRType {
 
     inline def =>>:(that: SIRType): SIRType.TypeLambda =
         this match
-            case x @ SIRType.TypeVar(name, _) => SIRType.TypeLambda(scala.List(x), that)
+            case x: SIRType.TypeVar => SIRType.TypeLambda(scala.List(x), that)
             case other =>
                 throw new IllegalArgumentException(
                   s"Expected type variable at the left of =>>:, got $other"
@@ -117,18 +117,27 @@ object SIRType {
 
     case class Fun(in: SIRType, out: SIRType) extends SIRType {
 
-        override def show: String = s"${in.show} -> ${out.show}"
+        override def show: String = {
+            in match {
+                case inF: Fun =>
+                    s"(${in.show}) -> ${out.show}"
+                case SIRType.TypeLambda(params, body: Fun) =>
+                    s"(${in.show}) -> ${body.show}"
+                case _ =>
+                    s"${in.show} -> ${out.show}"
+            }
+
+        }
 
     }
 
     object Pair {
 
         val constrDecl = {
-            val A = TypeVar("A")
-            val B = TypeVar("B")
+            val A = TypeVar("A", None, true)
+            val B = TypeVar("B", None, true)
             ConstrDecl(
               "Pair",
-              SIRVarStorage.ScottEncoding,
               scala.List(TypeBinding("fst", A), TypeBinding("snd", B)),
               scala.List(A, B),
               scala.Nil,
@@ -151,8 +160,12 @@ object SIRType {
       * means that computations are situated in the process of instantiation of some type-lambda,
       * @param name
       * @param id
+      * @param isBuiltin - if true, then this type variable is a type variable of a builtin uplc function, if false, then
+      *                  this is Scala type variable, which can be represented in uplc in a special form.
+      *                   Note, that buildin type variables can come only from Builtin Functions.
       */
-    case class TypeVar(name: String, optId: Option[Long] = None) extends SIRType {
+    case class TypeVar(name: String, optId: Option[Long] = None, isBuiltin: Boolean)
+        extends SIRType {
 
         override def show: String = name
 
@@ -171,8 +184,8 @@ object SIRType {
     }
 
     object TypeLambda {
-        def apply(param: String, body: TypeVar => SIRType): TypeLambda = {
-            val tv = TypeVar(param)
+        def apply(param: String, body: TypeVar => SIRType, isBuiltin: Boolean): TypeLambda = {
+            val tv = TypeVar(param, None, isBuiltin)
             TypeLambda(scala.List(tv), body(tv))
         }
     }
@@ -181,10 +194,11 @@ object SIRType {
         def apply(
             param1: String,
             param2: String,
-            body: (TypeVar, TypeVar) => SIRType
+            body: (TypeVar, TypeVar) => SIRType,
+            isBuiltin: Boolean
         ): TypeLambda = {
-            val tv1 = TypeVar(param1)
-            val tv2 = TypeVar(param2)
+            val tv1 = TypeVar(param1, None, isBuiltin)
+            val tv2 = TypeVar(param2, None, isBuiltin)
             TypeLambda(scala.List(tv1, tv2), body(tv1, tv2))
         }
     }
@@ -276,14 +290,14 @@ object SIRType {
 
         lazy val dataDecl: DataDecl = {
             val proxy = new TypeProxy(null)
-            val aInCons = TypeVar("A", Some(1))
+            val aInCons = TypeVar("A", Some(1), false)
             val retval = DataDecl(
               "scalus.prelude.List",
               scala.List(NilConstr, Cons.buildConstr(aInCons, proxy)),
-              scala.List(TypeVar("A", Some(2))),
+              scala.List(TypeVar("A", Some(2), false)),
               AnnotationsDecl.empty
             )
-            proxy.ref = SumCaseClass(retval, scala.List(TypeVar("A", Some(1))))
+            proxy.ref = SumCaseClass(retval, scala.List(TypeVar("A", Some(1), false)))
             if !checkAllProxiesFilled(retval.tp) then
                 throw new IllegalStateException(s"List dataDecl has unfilled proxies: ${retval.tp}")
             retval
@@ -306,7 +320,6 @@ object SIRType {
             def buildConstr(a: TypeVar, listSum: SIRType): ConstrDecl = {
                 ConstrDecl(
                   "scalus.prelude.List$.Cons",
-                  SIRVarStorage.ScottEncoding,
                   scala.List(TypeBinding("head", a), TypeBinding("tail", listSum)),
                   scala.List(a),
                   scala.List(a),
@@ -339,7 +352,6 @@ object SIRType {
         val NilConstr =
             ConstrDecl(
               "scalus.prelude.List$.Nil",
-              SIRVarStorage.DEFAULT,
               scala.Nil,
               scala.Nil,
               scala.List(SIRType.TypeNothing),
@@ -448,11 +460,11 @@ object SIRType {
                         println(s"arg=$arg")
                         throw new CaclulateApplyTypeException(message)
             // TypeError(s"Cannot unify $in with $arg, difference at path ${e.path}", null)
-            case tvF @ TypeVar(name, _) =>
+            case tvF: TypeVar =>
                 env.get(tvF) match
                     case Some(f1) => calculateApplyType(tvF, arg, env)
                     case None =>
-                        throw new CaclulateApplyTypeException(s"Unbound type variable $name")
+                        throw new CaclulateApplyTypeException(s"Unbound type variable ${tvF.name}")
             case TypeLambda(params, body) =>
                 val newEnv = params.foldLeft(env) { case (acc, tv) =>
                     acc + (tv -> FreeUnificator)
@@ -472,7 +484,7 @@ object SIRType {
         proxyEnv: Map[SIRType.TypeProxy, SIRType.TypeProxy]
     ): SIRType = {
         rType match
-            case tv @ TypeVar(name, _) =>
+            case tv: TypeVar =>
                 env.get(tv) match
                     case Some(t) => t
                     case None    => tv
@@ -511,11 +523,11 @@ object SIRType {
             case DefaultUni.BLS12_381_G2_Element => BLS12_381_G2_Element
             case DefaultUni.BLS12_381_MlResult   => BLS12_381_MlResult
             case DefaultUni.ProtoList =>
-                val a = TypeVar("A", Some(DefaultUni.ProtoList.hashCode()))
+                val a = TypeVar("A", Some(DefaultUni.ProtoList.hashCode()), true)
                 TypeLambda(scala.List(a), SumCaseClass(List.dataDecl, scala.List(a)))
             case DefaultUni.ProtoPair =>
-                val a = TypeVar("A", Some(DefaultUni.ProtoPair.hashCode()))
-                val b = TypeVar("B", Some(DefaultUni.ProtoPair.hashCode() + 1))
+                val a = TypeVar("A", Some(DefaultUni.ProtoPair.hashCode()), true)
+                val b = TypeVar("B", Some(DefaultUni.ProtoPair.hashCode() + 1), true)
                 TypeLambda(scala.List(a, b), Pair(a, b))
             case DefaultUni.Apply(f, arg) =>
                 f match
@@ -524,7 +536,7 @@ object SIRType {
                     case DefaultUni.Apply(DefaultUni.ProtoPair, a) =>
                         Pair(fromDefaultUni(a), fromDefaultUni(arg))
                     case DefaultUni.ProtoPair =>
-                        val a = TypeVar("A", Some(DefaultUni.ProtoPair.hashCode()))
+                        val a = TypeVar("A", Some(DefaultUni.ProtoPair.hashCode()), true)
                         TypeLambda(scala.List(a), Pair(a, fromDefaultUni(arg)))
                     case _ =>
                         SIRType.Fun(fromDefaultUni(f), fromDefaultUni(arg))
@@ -536,10 +548,10 @@ object SIRType {
             case UplcTypeScheme.Arrow(argType, resType) =>
                 Fun(fromUplcTypeScheme(argType), fromUplcTypeScheme(resType))
             case UplcTypeScheme.All(typeVar, body) =>
-                TypeLambda(scala.List(TypeVar(typeVar)), fromUplcTypeScheme(body))
+                TypeLambda(scala.List(TypeVar(typeVar, None, true)), fromUplcTypeScheme(body))
             case UplcTypeScheme.App(f, arg) =>
                 calculateApplyType(fromUplcTypeScheme(f), fromUplcTypeScheme(arg), Map.empty)
-            case UplcTypeScheme.TVar(name) => TypeVar(name)
+            case UplcTypeScheme.TVar(name) => TypeVar(name, None, true)
     }
 
     def parentsEqSeq(input: SIRType, parent: SIRType): List[SIRType] = {

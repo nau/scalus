@@ -232,8 +232,8 @@ class CompilerPluginToSIRTest extends AnyFunSuite with ScalaCheckPropertyChecks:
 
         val compiledTp = sir.tp
 
-        val a = TypeVar("A", Some(1))
-        val listA = SIRType.List(TypeVar("A", Some(1)))
+        val a = TypeVar("A", Some(1), false)
+        val listA = SIRType.List(a)
         val listData = SIRType.List(SIRType.Data)
         val tailType = SIRType.TypeLambda(List(a), Fun(listA, listA))
 
@@ -1751,7 +1751,6 @@ class CompilerPluginToSIRTest extends AnyFunSuite with ScalaCheckPropertyChecks:
       List(
         ConstrDecl(
           "scalus.ledger.api.v1.PubKeyHash",
-          SIRVarStorage.DEFAULT,
           List(TypeBinding("hash", sirByteString)),
           List.empty,
           List.empty,

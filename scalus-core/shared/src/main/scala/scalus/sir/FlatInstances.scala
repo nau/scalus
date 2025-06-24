@@ -230,7 +230,6 @@ object FlatInstantces:
 
         def bitSizeHCNew(a: ConstrDecl, hashConsed: HashConsed.State): Int =
             val nameSize = summon[Flat[String]].bitSize(a.name)
-            val storageTypeSize = summon[Flat[SIRVarStorage]].bitSize(a.storageType)
             val paramsSize =
                 HashConsedReprFlat.listRepr(TypeBindingFlat).bitSizeHC(a.params, hashConsed)
             val typeParamsSize =
@@ -239,13 +238,12 @@ object FlatInstantces:
                 .listRepr(SIRTypeHashConsedFlat)
                 .bitSizeHC(a.parentTypeArgs, hashConsed)
             val annsSize = AnnotationsDeclFlat.bitSizeHC(a.annotations, hashConsed)
-            nameSize + storageTypeSize + paramsSize + typeParamsSize + parentTypeArgsSize + annsSize
+            nameSize + paramsSize + typeParamsSize + parentTypeArgsSize + annsSize
 
         def encodeHCNew(a: ConstrDecl, encode: HashConsedEncoderState): Unit = {
             val debug = encode.debug
             if debug then println(s"ConstrDecl = ${a}")
             summon[Flat[String]].encode(a.name, encode.encode)
-            summon[Flat[SIRVarStorage]].encode(a.storageType, encode.encode)
             HashConsedReprFlat.listRepr(TypeBindingFlat).encodeHC(a.params, encode)
             summon[HashConsedFlat[List[SIRType.TypeVar]]].encodeHC(a.typeParams, encode)
             HashConsedReprFlat.listRepr(SIRTypeHashConsedFlat).encodeHC(a.parentTypeArgs, encode)
@@ -254,7 +252,6 @@ object FlatInstantces:
 
         def decodeHCNew(decode: HashConsedDecoderState): HashConsedRef[ConstrDecl] = {
             val name = summon[Flat[String]].decode(decode.decode)
-            val storageType = summon[Flat[SIRVarStorage]].decode(decode.decode)
             val params = HashConsedReprFlat.listRepr(TypeBindingFlat).decodeHC(decode)
             val typeParams = summon[HashConsedFlat[List[SIRType.TypeVar]]].decodeHC(decode)
             val parentTypeArgs = HashConsedReprFlat.listRepr(SIRTypeHashConsedFlat).decodeHC(decode)
@@ -267,7 +264,6 @@ object FlatInstantces:
             HashConsedRef.deferred((hs, level, parents) =>
                 ConstrDecl(
                   name,
-                  storageType,
                   params.finValue(hs, level, parents),
                   typeParams,
                   parentTypeArgs.finValue(hs, level, parents),
@@ -659,18 +655,22 @@ object FlatInstantces:
     given HashConsedFlat[SIRType.TypeVar] with
 
         override def bitSizeHC(a: SIRType.TypeVar, hashCons: HashConsed.State): Int =
-            summon[Flat[String]].bitSize(a.name) + summon[Flat[Long]].bitSize(a.optId.getOrElse(0L))
+            summon[Flat[String]].bitSize(a.name) + summon[Flat[Long]].bitSize(
+              a.optId.getOrElse(0L) + 1
+            )
 
         override def encodeHC(a: SIRType.TypeVar, encode: HashConsedEncoderState): Unit =
             summon[Flat[String]].encode(a.name, encode.encode)
             summon[Flat[Long]].encode(a.optId.getOrElse(0L), encode.encode)
+            summon[Flat[Boolean]].encode(a.isBuiltin, encode.encode)
 
         override def decodeHC(decode: HashConsedDecoderState): SIRType.TypeVar =
             val name = summon[Flat[String]].decode(decode.decode)
             val optId = summon[Flat[Long]].decode(decode.decode) match
                 case 0  => None
                 case id => Some(id)
-            SIRType.TypeVar(name, optId)
+            val isBuiltin = summon[Flat[Boolean]].decode(decode.decode)
+            SIRType.TypeVar(name, optId, isBuiltin)
 
     object SIRTypeSumCaseClassFlat extends HashConsedMutRefReprFlat[SIRType, SIRTypeHashConsedRef] {
 

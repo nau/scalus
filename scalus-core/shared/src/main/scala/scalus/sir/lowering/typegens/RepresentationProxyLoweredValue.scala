@@ -4,7 +4,7 @@ import scalus.sir.*
 import scalus.sir.lowering.*
 import scalus.uplc.*
 
-trait RepresentationProxyLoweredValue(
+class RepresentationProxyLoweredValue(
     input: LoweredValue,
     val representation: LoweredValueRepresentation,
     val pos: SIRPosition
@@ -24,7 +24,8 @@ trait RepresentationProxyLoweredValue(
         input.addDependent(value)
     }
 
-    def termInternal(gctx: TermGenerationContext): Term
+    def termInternal(gctx: TermGenerationContext): Term =
+        input.termInternal(gctx)
 
     def show: String = {
         s"RepresentationProxyLoweredValue(${input.show}, $representation)"

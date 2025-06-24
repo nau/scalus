@@ -7,13 +7,26 @@ import scalus.sir.lowering.*
   */
 object TypeNothingSirTypeGenerator extends SirTypeUplcGenerator {
 
-    override def defaultRepresentation: LoweredValueRepresentation =
+    override def defaultRepresentation(tp: SIRType)(using
+        LoweringContext
+    ): LoweredValueRepresentation =
         ErrorRepresentation
 
-    override def defaultDataRepresentation: LoweredValueRepresentation =
+    override def defaultDataRepresentation(
+        tp: SIRType
+    )(using LoweringContext): LoweredValueRepresentation =
         throw IllegalStateException(
           "Can't ask defaultDataRepresentation access Nothing type generator"
         )
+
+    override def defaultTypeVarReperesentation(tp: SIRType)(using
+        lctx: LoweringContext
+    ): LoweredValueRepresentation =
+        throw IllegalStateException(
+          "TypeNothingSirTypeGenerator can't be used for type variables"
+        )
+
+    override def isDataSupported(tp: SIRType)(using LoweringContext): Boolean = false
 
     override def toRepresentation(
         input: LoweredValue,

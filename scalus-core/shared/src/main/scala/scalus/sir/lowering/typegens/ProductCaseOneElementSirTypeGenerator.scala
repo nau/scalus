@@ -4,28 +4,81 @@ import scalus.sir.SIRType.Data
 import scalus.sir.{SIRType, *}
 import scalus.sir.lowering.*
 import scalus.sir.lowering.LoweredValue.Builder.*
+import scalus.sir.lowering.ProductCaseClassRepresentation.{ProdDataConstr, ProdDataList}
 import scalus.uplc.Term
 
-case class ProductCaseOneElementSirTypeGenerator(argGenerator: SirTypeUplcGenerator)
-    extends SirTypeUplcGenerator {
+case class ProductCaseOneElementSirTypeGenerator(
+    argGenerator: SirTypeUplcGenerator,
+) extends SirTypeUplcGenerator {
 
-    override def defaultRepresentation: LoweredValueRepresentation =
+    override def defaultRepresentation(
+        tp: SIRType
+    )(using LoweringContext): LoweredValueRepresentation =
         ProductCaseClassRepresentation.OneElementWrapper(
-          argGenerator.defaultRepresentation
+          argGenerator.defaultRepresentation(tp)
         )
 
-    override def defaultDataRepresentation: LoweredValueRepresentation =
+    override def defaultDataRepresentation(
+        tp: SIRType
+    )(using LoweringContext): LoweredValueRepresentation =
         ProductCaseClassRepresentation.OneElementWrapper(
-          argGenerator.defaultDataRepresentation
+          argGenerator.defaultDataRepresentation(tp)
         )
+
+    override def defaultTypeVarReperesentation(
+        tp: SIRType
+    )(using lctx: LoweringContext): LoweredValueRepresentation =
+        ProductCaseClassRepresentation.OneElementWrapper(
+          argGenerator.defaultTypeVarReperesentation(tp)
+        )
+
+    override def isDataSupported(tp: SIRType)(using lctx: LoweringContext): Boolean =
+        argGenerator.isDataSupported(tp)
 
     override def toRepresentation(
         input: LoweredValue,
         representation: LoweredValueRepresentation,
         pos: SIRPosition
     )(using lctx: LoweringContext): LoweredValue = {
+        (input.representation, representation) match
+            case (
+                  ProductCaseClassRepresentation.OneElementWrapper(argRepr),
+                  ProductCaseClassRepresentation.OneElementWrapper(newArgRepr)
+                ) =>
+                if argRepr == newArgRepr then input
+                else
+                    val newArg = argLoweredValue(input).toRepresentation(newArgRepr, pos)
+                    new ProxyLoweredValue(newArg) {
+                        override def sirType: SIRType = input.sirType
+                        override def pos: SIRPosition = input.pos
+                        override def representation: LoweredValueRepresentation =
+                            ProductCaseClassRepresentation.OneElementWrapper(newArgRepr)
+                        override def termInternal(gctx: TermGenerationContext): Term =
+                            newArg.termInternal(gctx)
+                    }
+            case (ProductCaseClassRepresentation.OneElementWrapper(argRepr), ProdDataList) =>
+                val argInData = argLoweredValue(input).toRepresentation(
+                  argGenerator.defaultDataRepresentation(input.sirType),
+                  pos
+                )
+                lvBuiltinApply2(
+                  SIRBuiltins.mkCons,
+                  argInData,
+                  lvBuiltinApply0(
+                    SIRBuiltins.mkNilData,
+                    SIRType.List(Data),
+                    SumCaseClassRepresentation.SumDataList,
+                    pos
+                  ),
+                  input.sirType,
+                  ProdDataList,
+                  pos
+                )
+            case (ProductCaseClassRepresentation.OneElementWrapper(argRepr), ProdDataConstr) =>
+                input.toRepresentation(ProdDataList, pos).toRepresentation(ProdDataConstr, pos)
+            case (_, _) =>
+                ProductCaseSirTypeGenerator.toRepresentation(input, representation, pos)
 
-        ProductCaseSirTypeGenerator.toRepresentation(input, representation, pos)
     }
 
     override def upcastOne(input: LoweredValue, targetType: SIRType, pos: SIRPosition)(using
@@ -62,8 +115,11 @@ case class ProductCaseOneElementSirTypeGenerator(argGenerator: SirTypeUplcGenera
         }
 
         val constrIndexConstant = lvIntConstant(3, pos)
-        val argValue =
-            argLoweredValue(input).toRepresentation(argGenerator.defaultDataRepresentation, pos)
+        val argValueIn = argLoweredValue(input)
+        val argValue = argValueIn.toRepresentation(
+          argGenerator.defaultDataRepresentation(argValueIn.sirType),
+          pos
+        )
         val prodArgs = lvBuiltinApply2(
           SIRBuiltins.mkCons,
           argValue,
@@ -105,6 +161,13 @@ case class ProductCaseOneElementSirTypeGenerator(argGenerator: SirTypeUplcGenera
     override def genSelect(sel: SIR.Select, loweredScrutinee: LoweredValue)(using
         lctx: LoweringContext
     ): LoweredValue = {
+        //
+        println(
+          s"ProductCaseOneElementSirTypeGenerator.genSelect, loweredScrutinee.sirType=${loweredScrutinee.sirType}, loweredScrutinee=${loweredScrutinee.sirType.show}"
+        )
+        println(s"loweredScutinee.createdEx=${loweredScrutinee.createdEx}")
+        loweredScrutinee.createdEx.printStackTrace()
+        ///
         import ProductCaseOneElementSirTypeGenerator.*
         val sirCaseClass = retrieveCaseClassSirType(loweredScrutinee.sirType, loweredScrutinee.pos)
         val name = sirCaseClass.constrDecl.params.head.name
@@ -213,8 +276,7 @@ object ProductCaseOneElementSirTypeGenerator {
 
         override def pos: SIRPosition = inPos
 
-        override def representation: LoweredValueRepresentation =
-            ProductCaseClassRepresentation.OneElementWrapper(repr)
+        override def representation: LoweredValueRepresentation = repr
 
         override def termInternal(gctx: TermGenerationContext): Term =
             wrapper.termInternal(gctx)

@@ -5,12 +5,22 @@ import scalus.sir.lowering.*
 
 object ProductCaseUplcOnlySirTypeGenerator extends SirTypeUplcGenerator {
 
-    override def defaultRepresentation: LoweredValueRepresentation = ???
+    override def defaultRepresentation(tp: SIRType)(using
+        LoweringContext
+    ): LoweredValueRepresentation = ???
 
-    override def defaultDataRepresentation: LoweredValueRepresentation =
+    override def defaultDataRepresentation(
+        tp: SIRType
+    )(using LoweringContext): LoweredValueRepresentation =
         throw IllegalStateException(
           "Can't ask defaultDataRepresentaion access product case type generator"
         )
+
+    override def defaultTypeVarReperesentation(tp: SIRType)(using
+        LoweringContext
+    ): LoweredValueRepresentation = ???
+
+    override def isDataSupported(tp: SIRType)(using LoweringContext): Boolean = false
 
     override def toRepresentation(
         input: LoweredValue,

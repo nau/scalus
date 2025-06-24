@@ -156,7 +156,7 @@ object SIRBuiltins {
     // Bool
     val ifThenElse: SIR.Builtin = SIR.Builtin(
       DefaultFun.IfThenElse, {
-          val a = SIRType.TypeVar("A", Some("ifThenElse_A".hashCode))
+          val a = SIRType.TypeVar("A", Some("ifThenElse_A".hashCode), true)
           a :=>> (SIRType.Boolean ->: a ->: a ->: a)
       },
       AnnotationsDecl.empty
@@ -166,7 +166,7 @@ object SIRBuiltins {
     val chooseUnit: SIR.Builtin =
         SIR.Builtin(
           DefaultFun.ChooseUnit, {
-              val a = SIRType.TypeVar("A", Some("chooseUnit_A".hashCode))
+              val a = SIRType.TypeVar("A", Some("chooseUnit_A".hashCode), true)
               a :=>> (SIRType.Unit ->: a ->: a)
           },
           AnnotationsDecl.empty
@@ -176,19 +176,19 @@ object SIRBuiltins {
     //   TODO: move to SIR construction
     val trace: SIR.Builtin = SIR.Builtin(
       DefaultFun.Trace,
-      SIRType.TypeLambda("trace_A", a => SIRType.String ->: a ->: a),
+      SIRType.TypeLambda("trace_A", a => SIRType.String ->: a ->: a, true),
       AnnotationsDecl.empty
     )
 
     // Pairs
     val fstPair: SIR.Builtin = SIR.Builtin(
       DefaultFun.FstPair,
-      SIRType.TypeLambda2("fstPair_A", "fstPair_B", (a, b) => SIRType.Pair(a, b) ->: a),
+      SIRType.TypeLambda2("fstPair_A", "fstPair_B", (a, b) => SIRType.Pair(a, b) ->: a, true),
       AnnotationsDecl.empty
     )
     val sndPair: SIR.Builtin = SIR.Builtin(
       DefaultFun.SndPair,
-      SIRType.TypeLambda2("sndPair_A", "sndPair_B", (a, b) => SIRType.Pair(a, b) ->: b),
+      SIRType.TypeLambda2("sndPair_A", "sndPair_B", (a, b) => SIRType.Pair(a, b) ->: b, true),
       AnnotationsDecl.empty
     )
 
@@ -198,29 +198,30 @@ object SIRBuiltins {
       SIRType.TypeLambda2(
         "chooseList_A",
         "chooseList_B",
-        (a, b) => SIRType.List(a) ->: b ->: b ->: b
+        (a, b) => SIRType.List(a) ->: b ->: b ->: b,
+        true
       ),
       AnnotationsDecl.empty
     )
     val mkCons: SIR.Builtin = SIR.Builtin(
       DefaultFun.MkCons,
-      SIRType.TypeLambda("mkCons_A", a => a ->: SIRType.List(a) ->: SIRType.List(a)),
+      SIRType.TypeLambda("mkCons_A", a => a ->: SIRType.List(a) ->: SIRType.List(a), true),
       AnnotationsDecl.empty
     )
     val headList: SIR.Builtin =
         SIR.Builtin(
           DefaultFun.HeadList,
-          SIRType.TypeLambda("headList_A", a => SIRType.List(a) ->: a),
+          SIRType.TypeLambda("headList_A", a => SIRType.List(a) ->: a, true),
           AnnotationsDecl.empty
         )
     val tailList: SIR.Builtin = SIR.Builtin(
       DefaultFun.TailList,
-      SIRType.TypeLambda("tailList_A", a => SIRType.List(a) ->: SIRType.List(a)),
+      SIRType.TypeLambda("tailList_A", a => SIRType.List(a) ->: SIRType.List(a), true),
       AnnotationsDecl.empty
     )
     val nullList: SIR.Builtin = SIR.Builtin(
       DefaultFun.NullList,
-      SIRType.TypeLambda("nullList_A", a => SIRType.List(a) ->: SIRType.Boolean),
+      SIRType.TypeLambda("nullList_A", a => SIRType.List(a) ->: SIRType.Boolean, true),
       AnnotationsDecl.empty
     )
 
@@ -228,7 +229,11 @@ object SIRBuiltins {
     val chooseData: SIR.Builtin =
         SIR.Builtin(
           DefaultFun.ChooseData,
-          SIRType.TypeLambda("chooseData_A", a => SIRType.Data ->: a ->: a ->: a ->: a ->: a ->: a),
+          SIRType.TypeLambda(
+            "chooseData_A",
+            a => SIRType.Data ->: a ->: a ->: a ->: a ->: a ->: a,
+            true
+          ),
           AnnotationsDecl.empty
         )
     val constrData: SIR.Builtin = SIR.Builtin(

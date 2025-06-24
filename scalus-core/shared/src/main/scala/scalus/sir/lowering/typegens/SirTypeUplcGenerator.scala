@@ -13,14 +13,24 @@ trait SirTypeUplcGenerator {
     /** Get default representation. Assumed that input parameters of functions and vars and are in
       * this representation.
       */
-    def defaultRepresentation: LoweredValueRepresentation
-
-    def isDataSupported(tp: SIRType): Boolean = true
+    def defaultRepresentation(tp: SIRType)(using LoweringContext): LoweredValueRepresentation
 
     /** Get default representation for data representation of this type. This representation is used
       * when converting to data.
       */
-    def defaultDataRepresentation: LoweredValueRepresentation
+    def defaultDataRepresentation(tp: SIRType)(using LoweringContext): LoweredValueRepresentation
+
+    /** Get default representation for type variable. This representation is used when converting to
+      * parameters of scala functions with type parameters. (Usually the same as
+      * defaultDataRepresentation, except Lambdas).
+      */
+    def defaultTypeVarReperesentation(tp: SIRType)(using
+        LoweringContext
+    ): LoweredValueRepresentation
+
+    def isDataSupported(tp: SIRType)(using
+        lctx: LoweringContext
+    ): Boolean
 
     def toRepresentation(
         input: LoweredValue,
@@ -77,27 +87,29 @@ object SirTypeUplcGenerator {
                 else if !containsFun(tp, trace) then SumCaseSirTypeGenerator
                 else SumCaseUplcOnlySirTypeGenerator
             case SIRType.CaseClass(constrDecl, typeArgs, optParent) =>
-                // if (constrDecl.name == "scalus.prelude.List$.Nil") then
-                val trace = new IdentityHashMap[SIRType, SIRType]()
-                if !containsFun(tp, trace) then ProductCaseSirTypeGenerator
-                else ProductCaseUplcOnlySirTypeGenerator
+                // TODO: retrieve annotation
+                if constrDecl.name == "scalus.ledger.api.v1.PubKeyHash" then
+                    ProductCaseOneElementSirTypeGenerator(SIRTypeUplcByteStringGenerator)
+                else
+                    val hasFun = containsFun(constrDecl, new IdentityHashMap[SIRType, SIRType]())
+                    if constrDecl.name == "scalus.prelude.List$.Nil" || constrDecl.name == "scalus.prelude.List$.Cons"
+                    then
+                        if hasFun then SumCaseUplcOnlySirTypeGenerator
+                        else SumDataListSirTypeGenerator
+                    else if hasFun then ProductCaseUplcOnlySirTypeGenerator
+                    else ProductCaseSirTypeGenerator
             case SIRType.TypeLambda(_, body) =>
                 SirTypeUplcGenerator(body)
             case SIRType.TypeProxy(ref) =>
                 SirTypeUplcGenerator(ref)
             case SIRType.Fun(input, output) =>
-                FunSirTypeGenerator(
-                  SirTypeUplcGenerator(input),
-                  SirTypeUplcGenerator(output)
-                )
-            case SIRType.TypeVar(_, _) =>
+                FunSirTypeGenerator
+            case SIRType.TypeVar(_, _, _) =>
                 TypeVarSirTypeGenerator
             case SIRType.FreeUnificator =>
                 TypeVarSirTypeGenerator
             case SIRType.TypeNothing =>
                 TypeNothingSirTypeGenerator
-            case SIRType.TypeProxy(ref) =>
-                SirTypeUplcGenerator(ref)
     }
 
     private def containsFun(
