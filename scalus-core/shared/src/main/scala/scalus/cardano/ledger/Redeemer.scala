@@ -55,10 +55,20 @@ sealed trait Redeemers:
                 Redeemer(tag, index, data, exUnits)
             }.toList
 
+    def isEmpty: Boolean = this match
+        case Redeemers.Array(redeemers) => redeemers.isEmpty
+        case Redeemers.Map(redeemers)   => redeemers.isEmpty
+
 object Redeemers:
     /** Array-based representation (legacy format) */
     final case class Array(redeemers: IndexedSeq[Redeemer]) extends Redeemers:
         require(redeemers.nonEmpty, "Must have at least one redeemer")
+
+    def from(redeemers: IterableOnce[Redeemer]): Redeemers =
+        // Convert to map format
+        Map(
+          immutable.Map.from(redeemers.iterator.map(r => ((r.tag, r.index), (r.data, r.exUnits))))
+        )
 
     /** Map-based representation (new format) Maps (tag, index) pairs to (data, exUnits) pairs
       */

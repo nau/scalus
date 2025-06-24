@@ -11,6 +11,11 @@ import upickle.default.ReadWriter as UpickleReadWriter
 import java.util
 import scala.compiletime.asMatchable
 
+enum Era(val value: Int) extends Enumeration {
+    case Babbage extends Era(6)
+    case Conway extends Era(7)
+}
+
 /** Represents an amount of Cardano's native currency (ADA)
   *
   * In Cardano, coins are represented as unsigned integers
@@ -244,7 +249,12 @@ case class ExUnitPrices(
   * @param models
   *   Map from language identifiers to lists of operation costs
   */
-case class CostModels(models: Map[Int, IndexedSeq[Long]]) derives Codec
+case class CostModels(models: Map[Int, IndexedSeq[Long]]) derives Codec {
+    def getLanguageViewEncoding: Array[Byte] = {
+        // Encode the cost models as a CBOR byte array
+        Cbor.encode(this).toByteArray
+    }
+}
 
 /** Represents a constitution in the Cardano blockchain governance system.
   *
