@@ -79,7 +79,7 @@ case class ProductCaseOneElementSirTypeGenerator(
                 input.toRepresentation(ProdDataList, pos).toRepresentation(ProdDataConstr, pos)
             case (
                   ProductCaseClassRepresentation.OneElementWrapper(argRepr),
-                  TypeVarRepresentation(isBuiltin, canBeLambda)
+                  TypeVarRepresentation(isBuiltin)
                 ) =>
                 if isBuiltin then new RepresentationProxyLoweredValue(input, representation, pos)
                 else
@@ -97,7 +97,7 @@ case class ProductCaseOneElementSirTypeGenerator(
                                 newArg.termInternal(gctx)
                         }
             case (
-                  inRepr @ TypeVarRepresentation(isBuiltin, canBeLambda),
+                  inRepr @ TypeVarRepresentation(isBuiltin),
                   outRepr @ ProductCaseClassRepresentation.OneElementWrapper(argRepr)
                 ) =>
                 if isBuiltin then new RepresentationProxyLoweredValue(input, representation, pos)
@@ -272,7 +272,7 @@ case class ProductCaseOneElementSirTypeGenerator(
                   input.representation match {
                       case ProductCaseClassRepresentation.OneElementWrapper(argRepr) =>
                           argRepr
-                      case TypeVarRepresentation(isBuiltin, canBeLambda) =>
+                      case TypeVarRepresentation(isBuiltin) =>
                           if isBuiltin then argGenerator.defaultRepresentation(argType)
                           else argGenerator.defaultTypeVarReperesentation(argType)
                       case _ =>

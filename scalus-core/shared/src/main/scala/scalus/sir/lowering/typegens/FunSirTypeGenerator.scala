@@ -32,7 +32,14 @@ object FunSirTypeGenerator extends SirTypeUplcGenerator {
     override def defaultTypeVarReperesentation(
         tp: SIRType
     )(using lctx: LoweringContext): LoweredValueRepresentation = {
-        TypeVarRepresentation(false, true)
+        // unchanged function.
+        collect(tp) match {
+            case Some((typeVars, input, output)) =>
+                LambdaRepresentation(
+                  lctx.typeGenerator(input).defaultTypeVarReperesentation(input),
+                  lctx.typeGenerator(output).defaultTypeVarReperesentation(output)
+                )
+        }
     }
 
     override def isDataSupported(tp: SIRType)(using LoweringContext): Boolean = false
@@ -81,7 +88,7 @@ object FunSirTypeGenerator extends SirTypeUplcGenerator {
                         )
                 case (
                       inLambda: LambdaRepresentation,
-                      TypeVarRepresentation(isBuiltin, canBeLambda)
+                      TypeVarRepresentation(isBuiltin)
                     ) =>
                     if isBuiltin then
                         new RepresentationProxyLoweredValue(
@@ -92,18 +99,13 @@ object FunSirTypeGenerator extends SirTypeUplcGenerator {
                             override def termInternal(gctx: TermGenerationContext): Term =
                                 input.termInternal(gctx)
                         }
-                    else if canBeLambda then
+                    else
                         toRepresentation(
                           input,
                           LambdaRepresentation(
-                            TypeVarRepresentation(isBuiltin, canBeLambda),
-                            TypeVarRepresentation(isBuiltin, canBeLambda)
+                            TypeVarRepresentation(isBuiltin),
+                            TypeVarRepresentation(isBuiltin)
                           ),
-                          pos
-                        )
-                    else
-                        throw LoweringException(
-                          s"Can't convert function type ${input.sirType.show} to $outputRepresentation",
                           pos
                         )
                 case _ =>

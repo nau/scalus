@@ -24,9 +24,9 @@ object SumCaseClassRepresentation {
     case object DataConstr extends SumCaseClassRepresentation(true, true) {
         override def isCompatible(repr: LoweredValueRepresentation): Boolean =
             repr match {
-                case DataConstr                  => true
-                case TypeVarRepresentation(_, _) => true
-                case other                       => false
+                case DataConstr               => true
+                case TypeVarRepresentation(_) => true
+                case other                    => false
             }
     }
 
@@ -72,9 +72,9 @@ object ProductCaseClassRepresentation {
 
         override def isCompatible(repr: LoweredValueRepresentation): Boolean =
             repr match {
-                case ProdDataConstr              => true
-                case TypeVarRepresentation(_, _) => true
-                case other                       => false
+                case ProdDataConstr           => true
+                case TypeVarRepresentation(_) => true
+                case other                    => false
             }
     }
 
@@ -123,17 +123,15 @@ case class LambdaRepresentation(
         repr match {
             case LambdaRepresentation(in, out) =>
                 inRepr.isCompatible(in) && outRepr.isCompatible(out)
-            case TypeVarRepresentation(isBuiltin, canBeLambda) =>
-                isBuiltin || canBeLambda && isTypeVarCompatible(inRepr) && isTypeVarCompatible(
-                  outRepr
-                )
+            case TypeVarRepresentation(isBuiltin) =>
+                isBuiltin || isTypeVarCompatible(inRepr) && isTypeVarCompatible(outRepr)
             case _ => false
         }
     }
 
     def isTypeVarCompatible(repr: LoweredValueRepresentation): Boolean =
         repr match {
-            case TypeVarRepresentation(_, _) => true
+            case TypeVarRepresentation(_) => true
             case LambdaRepresentation(in, out) =>
                 isTypeVarCompatible(in) && isTypeVarCompatible(out)
             case _ => repr.isPackedData
@@ -152,14 +150,14 @@ object PrimitiveRepresentation {
 
 /** TypeVarRepresentation is used for type variables. Usually this is a synonym for some other
   * specific-type representation. When this is builtin type variable, it can be freely used in any
-  * type representation, but when it is a lambda, it can be used only in packed data representation.
+  * type representation, but when it is not builtin (scala type-var) it can be used only with packed
+  * data representation.
   */
-case class TypeVarRepresentation(isBuiltin: Boolean, canBeLambda: Boolean)
-    extends LoweredValueRepresentation {
+case class TypeVarRepresentation(isBuiltin: Boolean) extends LoweredValueRepresentation {
 
     // assume that TypeVarDataRepresentation is a packed data.
     //  (this is not true for lambda, will check this in code. Usually in all places we also known type)
-    override def isPackedData: Boolean = !isBuiltin && !canBeLambda
+    override def isPackedData: Boolean = !isBuiltin
 
     override def isDataCentric: Boolean = isPackedData
 }
@@ -192,9 +190,9 @@ object LoweredValueRepresentation {
                 lc.typeVars.get(tv) match
                     case Some(tp) => constRepresentation(tp)
                     case None =>
-                        TypeVarRepresentation(isBuiltin, canBeLambda = false)
+                        TypeVarRepresentation(isBuiltin)
             case SIRType.FreeUnificator =>
-                TypeVarRepresentation(isBuiltin = false, canBeLambda = false)
+                TypeVarRepresentation(isBuiltin = false)
             case SIRType.TypeProxy(ref) =>
                 constRepresentation(ref)
             case SIRType.TypeNothing => ErrorRepresentation

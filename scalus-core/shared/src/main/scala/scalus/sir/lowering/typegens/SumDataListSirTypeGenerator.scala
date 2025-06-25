@@ -63,7 +63,7 @@ object SumDataListSirTypeGenerator extends SirTypeUplcGenerator {
                   SumCaseClassRepresentation.SumDataList,
                   pos
                 )
-            case (_, tv @ TypeVarRepresentation(isBuiltin, canBeLambda)) =>
+            case (_, tv @ TypeVarRepresentation(isBuiltin)) =>
                 if isBuiltin then
                     new RepresentationProxyLoweredValue(
                       input,

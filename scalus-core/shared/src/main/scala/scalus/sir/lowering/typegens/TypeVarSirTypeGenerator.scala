@@ -14,7 +14,7 @@ object TypeVarSirTypeGenerator extends SirTypeUplcGenerator {
     )(using LoweringContext): LoweredValueRepresentation = {
         tp match
             case SIRType.TypeVar(_, _, isBuiltin) =>
-                TypeVarRepresentation(isBuiltin, false)
+                TypeVarRepresentation(isBuiltin)
             case _ =>
                 throw IllegalStateException(
                   s"TypeVarSirTypeGenerator can't be used for type ${tp.show}",
@@ -26,7 +26,7 @@ object TypeVarSirTypeGenerator extends SirTypeUplcGenerator {
     ): LoweredValueRepresentation = {
         tp match
             case SIRType.TypeVar(_, _, isBuiltin) =>
-                TypeVarRepresentation(isBuiltin, true)
+                TypeVarRepresentation(isBuiltin)
             case _ =>
                 throw IllegalStateException(
                   s"TypeVarSirTypeGenerator can't be used for type ${tp.show}",
@@ -51,7 +51,7 @@ object TypeVarSirTypeGenerator extends SirTypeUplcGenerator {
         if input.representation == representation then input
         else
             representation match
-                case TypeVarRepresentation(isBuiltin, canBeLambda) =>
+                case TypeVarRepresentation(isBuiltin) =>
                     // TODO: think about converinv between built-in and non-built-in
                     new RepresentationProxyLoweredValue(input, representation, pos)
                 case sumRepr: SumCaseClassRepresentation =>

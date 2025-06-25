@@ -160,11 +160,11 @@ object ProductCaseSirTypeGenerator extends SirTypeUplcGenerator {
             case (ProductCaseClassRepresentation.OneElementWrapper(_), UplcConstr) =>
                 ???
             case (
-                  TypeVarRepresentation(isBuiltin, canBeLambda),
+                  TypeVarRepresentation(isBuiltin),
                   ProductCaseClassRepresentation.ProdDataConstr
                 ) =>
                 RepresentationProxyLoweredValue(input, representation, pos)
-            case (TypeVarRepresentation(isBuiltin, canBeLambda), _) =>
+            case (TypeVarRepresentation(isBuiltin), _) =>
                 if isBuiltin then RepresentationProxyLoweredValue(input, representation, pos)
                 else
                     input
