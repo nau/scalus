@@ -2,7 +2,7 @@ package scalus.cardano.ledger
 
 import io.bullet.borer.derivation.ArrayBasedCodecs.*
 import io.bullet.borer.{Codec, Decoder, Encoder, Writer}
-import scalus.builtin.{ByteString, PlatformSpecific, given}
+import scalus.builtin.{platform, ByteString, PlatformSpecific, given}
 
 /** Represents a verification key witness in Cardano */
 case class VKeyWitness(
@@ -16,5 +16,5 @@ case class VKeyWitness(
     require(signature.size == 64, s"Signature must be 64 bytes, got ${signature.size}")
 
     @transient lazy val vkeyHash: StakeKeyHash = Hash(
-      summon[PlatformSpecific].blake2b_224(vkey)
+      platform.blake2b_224(vkey)
     )

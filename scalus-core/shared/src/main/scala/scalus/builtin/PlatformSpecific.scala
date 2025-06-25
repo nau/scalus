@@ -1,5 +1,12 @@
 package scalus.builtin
 
+/** Provides access to platform-specific built-in functions.
+  *
+  * This is used to access cryptographic primitives and other platform-specific functionality that
+  * may vary between JVM, JS, and other platforms.
+  */
+inline def platform: PlatformSpecific = summon[PlatformSpecific]
+
 /** This is the platform specific part of the builtins. This is mostly cryptographic primitives that
   * have different implementations on different platforms.
   */
