@@ -6,6 +6,7 @@ import io.bullet.borer.*
 import scalus.builtin.ByteString
 import scalus.cardano.address.Address
 import scalus.utils.Hex.toHex
+import upickle.default.ReadWriter as UpickleReadWriter
 
 import java.util
 import scala.compiletime.asMatchable
@@ -203,16 +204,17 @@ final case class Slot(slot: Long) derives Codec {
 /** Represents execution units for Plutus scripts in Cardano */
 case class ExUnits(
     /** Memory units */
-    mem: Long,
+    memory: Long,
 
     /** CPU step units */
     steps: Long
-) derives Codec:
-    require(mem >= 0, s"Memory units must be non-negative, got $mem")
+) derives Codec,
+      UpickleReadWriter:
+    require(memory >= 0, s"Memory units must be non-negative, got $memory")
     require(steps >= 0, s"Step units must be non-negative, got $steps")
 
     def +(other: ExUnits): ExUnits =
-        ExUnits(mem + other.mem, steps + other.steps)
+        ExUnits(memory + other.memory, steps + other.steps)
 
 object ExUnits:
     val zero: ExUnits = ExUnits(0, 0)
@@ -222,15 +224,16 @@ object ExUnits:
   * ExUnitPrices define the cost of execution units in terms of the protocol's currency, with
   * separate prices for memory usage and CPU steps.
   *
-  * @param memPrice
+  * @param priceMemory
   *   Price per memory unit
-  * @param stepPrice
+  * @param priceSteps
   *   Price per step unit
   */
 case class ExUnitPrices(
-    memPrice: NonNegativeInterval,
-    stepPrice: NonNegativeInterval
-) derives Codec
+    priceMemory: NonNegativeInterval,
+    priceSteps: NonNegativeInterval
+) derives Codec,
+      UpickleReadWriter
 
 /** Represents cost models for script languages in the Cardano blockchain.
   *

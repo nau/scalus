@@ -30,24 +30,23 @@ object feesOkValidator extends STS.Validator, AllReferenceScripts {
         event: Event
     ): Either[Error, Coin] = {
         def tierRefScriptFee(
-            multiplier: BigDecimal,
+            multiplier: NonNegativeInterval,
             sizeIncrement: Int,
-            curTierPrice: BigDecimal,
+            curTierPrice: NonNegativeInterval,
             n: Int
         ): Coin = {
             @tailrec
-            def go(acc: BigDecimal, curTierPrice: BigDecimal, n: Int): Coin = {
-                if n < sizeIncrement then
-                    Coin((acc + n * curTierPrice).setScale(0, BigDecimal.RoundingMode.FLOOR).toLong)
+            def go(acc: NonNegativeInterval, curTierPrice: NonNegativeInterval, n: Int): Coin = {
+                if n < sizeIncrement then Coin((acc + curTierPrice * n).floor)
                 else
                     go(
-                      acc + sizeIncrement * curTierPrice,
+                      acc + curTierPrice * sizeIncrement,
                       multiplier * curTierPrice,
                       n - sizeIncrement
                     )
             }
 
-            go(0, curTierPrice, n)
+            go(NonNegativeInterval.zero, curTierPrice, n)
         }
 
         for scripts <- allReferenceScripts(state, event)
@@ -62,7 +61,7 @@ object feesOkValidator extends STS.Validator, AllReferenceScripts {
                 length + scripLength
             }
 
-            val minFeeRefScriptCostPerByte = BigDecimal(
+            val minFeeRefScriptCostPerByte = NonNegativeInterval(
               context.env.params.minFeeRefScriptCostPerByte
             )
 
@@ -73,9 +72,11 @@ object feesOkValidator extends STS.Validator, AllReferenceScripts {
               refScriptsSize
             )
 
-            val minFeeA = context.env.params.minFeeA
-            val minFeeB = context.env.params.minFeeB
-            val transactionSizeFee = Coin(Cbor.encode(event).toByteArray.length * minFeeA + minFeeB)
+            val txFeeFixed = context.env.params.txFeeFixed
+            val txFeePerByte = context.env.params.txFeePerByte
+            val transactionSizeFee = Coin(
+              Cbor.encode(event).toByteArray.length * txFeePerByte + txFeeFixed
+            )
 
             val executionUnitPrices = context.env.params.executionUnitPrices
             val exUnits = event.witnessSet.redeemers
@@ -84,14 +85,13 @@ object feesOkValidator extends STS.Validator, AllReferenceScripts {
                 })
                 .getOrElse(ExUnits.zero)
             val exUnitsFee = Coin(
-//                exUnits.mem * executionUnitPrices.memory + exUnits.cpu * executionUnitPrices.cpu
-              ???
+              (executionUnitPrices.priceMemory * exUnits.memory + executionUnitPrices.priceSteps * exUnits.steps).ceil
             )
 
             refScriptsFee + transactionSizeFee + exUnitsFee
         }
     }
 
-    private val refScriptCostMultiplier = BigDecimal("1.2")
+    private val refScriptCostMultiplier = NonNegativeInterval(1.2)
     private val refScriptCostStride = 25600
 }

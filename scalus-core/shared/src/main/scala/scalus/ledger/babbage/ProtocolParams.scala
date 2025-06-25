@@ -1,12 +1,7 @@
 package scalus.ledger.babbage
 import scalus.ledger.api.ProtocolVersion
 import upickle.default.*
-
-case class MaxTxExecutionUnits(memory: Long, steps: Long) derives ReadWriter
-
-case class MaxBlockExecutionUnits(memory: Long, steps: Long) derives ReadWriter
-
-case class ExecutionUnitPrices(priceMemory: Double, priceSteps: Double) derives ReadWriter
+import scalus.cardano.ledger.{ExUnitPrices, ExUnits, NonNegativeInterval}
 
 /** Protocol parameters for the Cardano blockchain of Babbage era Field names are taken from the
   * `cardano-cli query protocol-parameters` output
@@ -14,8 +9,6 @@ case class ExecutionUnitPrices(priceMemory: Double, priceSteps: Double) derives 
   *   These names are different from CIP-55, don't ask me why.
   */
 case class ProtocolParams(
-    minFeeA: Long,
-    minFeeB: Long,
     collateralPercentage: Long,
     committeeMaxTermLength: Long,
     committeeMinSize: Long,
@@ -23,14 +16,14 @@ case class ProtocolParams(
     dRepActivity: Long,
     dRepDeposit: Long,
     dRepVotingThresholds: DRepVotingThresholds,
-    executionUnitPrices: ExecutionUnitPrices,
+    executionUnitPrices: ExUnitPrices,
     govActionDeposit: Long,
     govActionLifetime: Long,
     maxBlockBodySize: Long,
-    maxBlockExecutionUnits: MaxBlockExecutionUnits,
+    maxBlockExecutionUnits: ExUnits,
     maxBlockHeaderSize: Long,
     maxCollateralInputs: Long,
-    maxTxExecutionUnits: MaxTxExecutionUnits,
+    maxTxExecutionUnits: ExUnits,
     maxTxSize: Long,
     maxValueSize: Long,
     minFeeRefScriptCostPerByte: Long,
@@ -76,8 +69,6 @@ object ProtocolParams {
         readwriter[ujson.Value].bimap[ProtocolParams](
           params =>
               ujson.Obj(
-                "min_fee_a" -> params.minFeeA,
-                "min_fee_b" -> params.minFeeB,
                 "collateral_percent" -> params.collateralPercentage,
                 "committee_max_term_length" -> params.committeeMaxTermLength.toString,
                 "committee_min_size" -> params.committeeMinSize.toString,
@@ -96,8 +87,8 @@ object ProtocolParams {
                 "dvt_p_p_technical_group" -> params.dRepVotingThresholds.ppTechnicalGroup,
                 "dvt_p_p_gov_group" -> params.dRepVotingThresholds.ppGovGroup,
                 "dvt_treasury_withdrawal" -> params.dRepVotingThresholds.treasuryWithdrawal,
-                "price_mem" -> params.executionUnitPrices.priceMemory,
-                "price_step" -> params.executionUnitPrices.priceSteps,
+                "price_mem" -> params.executionUnitPrices.priceMemory.toDouble,
+                "price_step" -> params.executionUnitPrices.priceSteps.toDouble,
                 "gov_action_deposit" -> params.govActionDeposit.toString,
                 "gov_action_lifetime" -> params.govActionLifetime.toString,
                 "max_block_size" -> params.maxBlockBodySize,
@@ -131,8 +122,6 @@ object ProtocolParams {
               ),
           json =>
               ProtocolParams(
-                minFeeA = json("min_fee_a").num.toLong,
-                minFeeB = json("min_fee_b").num.toLong,
                 collateralPercentage = json("collateral_percent").num.toLong,
                 committeeMaxTermLength = json("committee_max_term_length").str.toLong,
                 committeeMinSize = json("committee_min_size").str.toLong,
@@ -153,20 +142,20 @@ object ProtocolParams {
                   ppGovGroup = json("dvt_p_p_gov_group").num,
                   treasuryWithdrawal = json("dvt_treasury_withdrawal").num
                 ),
-                executionUnitPrices = ExecutionUnitPrices(
-                  priceMemory = json("price_mem").num,
-                  priceSteps = json("price_step").num
+                executionUnitPrices = ExUnitPrices(
+                  priceMemory = NonNegativeInterval(json("price_mem").num),
+                  priceSteps = NonNegativeInterval(json("price_step").num)
                 ),
                 govActionDeposit = json("gov_action_deposit").str.toLong,
                 govActionLifetime = json("gov_action_lifetime").str.toLong,
                 maxBlockBodySize = json("max_block_size").num.toLong,
-                maxBlockExecutionUnits = MaxBlockExecutionUnits(
+                maxBlockExecutionUnits = ExUnits(
                   memory = json("max_block_ex_mem").str.toLong,
                   steps = json("max_block_ex_steps").str.toLong
                 ),
                 maxBlockHeaderSize = json("max_block_header_size").num.toLong,
                 maxCollateralInputs = json("max_collateral_inputs").num.toLong,
-                maxTxExecutionUnits = MaxTxExecutionUnits(
+                maxTxExecutionUnits = ExUnits(
                   memory = json("max_tx_ex_mem").str.toLong,
                   steps = json("max_tx_ex_steps").str.toLong
                 ),
