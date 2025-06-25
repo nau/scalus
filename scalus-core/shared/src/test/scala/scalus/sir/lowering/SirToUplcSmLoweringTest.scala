@@ -485,4 +485,6 @@ class SirToUplcSmLoweringTest
 
     }
 
-    test("lower Match / SumCaseClass") {}
+    test("lower Match / SumCaseClass") {
+        
+    }

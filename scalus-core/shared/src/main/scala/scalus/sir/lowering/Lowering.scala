@@ -278,15 +278,7 @@ object Lowering {
     private def lowerNormalApp(app: SIR.Apply)(using lctx: LoweringContext): LoweredValue = {
         val fun = lowerSIR(app.f)
         val arg = lowerSIR(app.arg)
-        val debug = arg match
-            case v: VariableLoweredValue
-                if v.name == "scalus.ledger.api.v1.PubKeyHash$.given_Eq_PubKeyHash" =>
-                println(
-                  s"lowerNormalApp: arg= ${v.sirType.show} at ${app.anns.pos.file}:${app.anns.pos.startLine}"
-                )
-                lctx.debug = true
-                true
-            case _ => false
+        val debug = false
         val result = lvApply(
           fun,
           arg,

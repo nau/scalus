@@ -268,7 +268,6 @@ enum List[+A]:
     case Nil extends List[Nothing]
     case Cons(head: A, tail: List[A]) extends List[A]
 
-
 @Compile
 object List:
     import Option.*
