@@ -4,7 +4,6 @@ import org.scalatest.funsuite.AnyFunSuite
 import scalus.*
 import scalus.sir.*
 import scalus.Compiler.compile
-import scalus.builtin.{*, given}
 import scalus.uplc.Term
 import scalus.uplc.Constant
 import scalus.uplc.eval.PlutusVM

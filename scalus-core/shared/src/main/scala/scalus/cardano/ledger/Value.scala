@@ -1,68 +1,63 @@
 package scalus.cardano.ledger
 
 import io.bullet.borer.{Decoder, Encoder, Reader, Writer}
+import scalus.cardano.ledger
 
 /** Represents a value in Cardano, which can be either pure ADA or ADA with multi-assets */
-enum Value:
-    /** Pure ADA value with no multi-assets */
-    case Ada(coin: Coin)
+case class Value(coin: Coin, assets: ledger.MultiAsset) {
+    // Validate multi-asset map
+    validateMultiAsset(assets)
 
-    /** ADA value with multi-assets */
-    case MultiAsset(
-        coin: Coin,
-        assets: scalus.cardano.ledger.MultiAsset[Long]
-    )
+    def binOp(op: (Long, Long) => Long)(rhs: Value): Value = (this, rhs) match
+        case (Value(coin1, assets1), Value(coin2, assets2)) =>
+            Value(Coin(op(coin1.value, coin2.value)), ledger.MultiAsset.binOp(op)(assets1, assets2))
 
-    /** Get the multi-asset component if present, empty otherwise */
-    def multiAsset: scalus.cardano.ledger.MultiAsset[Long] = this match
-        case Ada(_)                => Map.empty
-        case MultiAsset(_, assets) => assets
+    def +(rhs: Value): Value = binOp(_ + _)(rhs)
 
-object Value:
-    /** Zero value (0 ADA, no assets) */
-    val zero: Value = Value.Ada(Coin.zero)
-
-    /** Create a pure ADA value */
-    def lovelace(amount: Long): Value = Value.Ada(Coin(amount))
-
-    /** Create a Value from coin and multi-asset */
-    def apply(coin: Coin, multiAsset: scalus.cardano.ledger.MultiAsset[Long] = Map.empty): Value =
-        if multiAsset.isEmpty then Value.Ada(coin)
-        else
-            // Validate multi-asset map
-            validateMultiAsset(multiAsset)
-            Value.MultiAsset(coin, multiAsset)
+    def -(rhs: Value): Value = binOp(_ - _)(rhs)
 
     /** Validate a multi-asset map according to Cardano rules */
-    private def validateMultiAsset(multiAsset: scalus.cardano.ledger.MultiAsset[Long]): Unit =
+    private def validateMultiAsset(multiAsset: ledger.MultiAsset): Unit = {
         // Validate that all policy maps are non-empty
         require(
           multiAsset.forall { case (_, assets) => assets.nonEmpty },
-          "Multi-asset map cannot contain empty policy entries"
+          "MultiAsset map cannot contain empty policy entries"
         )
 
-        // Validate that all asset values are positive
         require(
-          multiAsset.forall { case (_, assets) =>
-              assets.forall { case (_, value) => value > 0 }
-          },
-          "Multi-asset values must be positive"
+          multiAsset.values.forall(_.forall { case (_, amount) => amount != 0 }),
+          "MultiAsset cannot contain zeros"
         )
+    }
+}
+
+object Value:
+    /** Zero value (0 ADA, no assets) */
+    val zero: Value = Value(Coin.zero)
+
+    /** Create a pure ADA value */
+    def lovelace(amount: Long): Value = Value(Coin(amount))
+
+    /** Create a Value from coin and multi-asset */
+    def apply(coin: Coin, multiAsset: ledger.MultiAsset = Map.empty): Value =
+        new Value(coin, multiAsset)
 
     /** CBOR encoder for Value */
     given Encoder[Value] with
-        def write(w: Writer, value: Value): Writer = value match
-            case Value.Ada(coin) =>
-                w.write(coin)
-            case Value.MultiAsset(coin, multiAsset) =>
-                w.writeArrayHeader(2)
-                w.write(coin)
-                writeMultiAsset(w, multiAsset)
+        def write(w: Writer, value: Value): Writer =
+            if value.assets.isEmpty then
+                // Pure ADA value
+                w.write(value.coin)
+            else
+                // Multi-asset value
+                w.writeArrayHeader(2) // 2 elements: coin and multi-asset
+                w.write(value.coin)
+                writeMultiAsset(w, value.assets)
 
     /** Helper method to write MultiAsset as CBOR */
     private def writeMultiAsset(
         w: Writer,
-        multiAsset: scalus.cardano.ledger.MultiAsset[Long]
+        multiAsset: ledger.MultiAsset
     ): Writer =
         // Write the map header with number of policies
         w.writeMapHeader(multiAsset.size)
@@ -90,9 +85,9 @@ object Value:
                     r.validationFailure(s"Expected 2 elements for MultiAssetValue, got $size")
 
                 val coin = r.read[Coin]()
-                val multiAsset = r.read[scalus.cardano.ledger.MultiAsset[Long]]()
-                Value.MultiAsset(coin, multiAsset)
+                val multiAsset = r.read[ledger.MultiAsset]()
+                new Value(coin, multiAsset)
             else
                 // Single coin value
                 val coin = r.read[Coin]()
-                Value.Ada(coin)
+                Value(coin)

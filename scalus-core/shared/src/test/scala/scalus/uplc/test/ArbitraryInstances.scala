@@ -73,7 +73,7 @@ trait ArbitraryInstances:
                     Stream(
                       B(
                         builtin.ByteString.unsafeFromArray(
-                          b.bytes.slice(0, b.length / 2)
+                          b.bytes.slice(0, b.size / 2)
                         )
                       )
                     )
@@ -180,6 +180,10 @@ trait ArbitraryInstances:
                 )
             case DefaultUni.Apply(_, _) =>
                 // This case should not happen, as we only generate constants for the known types
+                throw new IllegalArgumentException(
+                  s"Unexpected DefaultUni type for constant generation $t"
+                )
+            case DefaultUni.ProtoList | DefaultUni.ProtoPair =>
                 throw new IllegalArgumentException(
                   s"Unexpected DefaultUni type for constant generation $t"
                 )

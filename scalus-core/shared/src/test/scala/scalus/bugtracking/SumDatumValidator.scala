@@ -6,8 +6,7 @@ import scalus.*
 import scalus.builtin.Builtins.*
 import scalus.builtin.{ByteString, Data, FromData, ToData}
 import scalus.ledger.api.v3.*
-import scalus.prelude.Option.{None, Some}
-import scalus.prelude.{*, given}
+import scalus.prelude.*
 
 @Compile
 object SumDatumValidator extends Validator:

@@ -99,23 +99,8 @@ object OutputDatum {
                         case OutputDatum(datum2) => datum == datum2
                         case _                   => false
 
-    given [T <: scalus.ledger.api.v2.OutputDatum]: ToData[T] = (d: T) =>
-        d match
-            case NoOutputDatum => constrData(0, mkNilData())
-            case OutputDatumHash(datumHash) =>
-                constrData(1, builtin.List(datumHash.toData))
-            case OutputDatum(datum) =>
-                constrData(2, builtin.List(datum))
-
-    given FromData[scalus.ledger.api.v2.OutputDatum] = (d: Data) =>
-        val pair = unConstrData(d)
-        val tag = pair.fst
-        val args = pair.snd
-        if tag == BigInt(0) then NoOutputDatum
-        else if tag == BigInt(1) then new OutputDatumHash(fromData[DatumHash](args.head))
-        else if tag == BigInt(2) then new OutputDatum(fromData[Datum](args.head))
-        else throw new Exception("PT1")
-
+    given ToData[scalus.ledger.api.v2.OutputDatum] = ToData.derived
+    given FromData[scalus.ledger.api.v2.OutputDatum] = FromData.derived
 }
 
 case class TxOut(

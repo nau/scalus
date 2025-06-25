@@ -112,8 +112,8 @@ trait NodeJsPlatformSpecific extends PlatformSpecific {
         hash.update(bs.toUint8Array).digest().toByteString
 
     override def verifyEd25519Signature(pk: ByteString, msg: ByteString, sig: ByteString): Boolean =
-        require(pk.length == 32, s"Invalid public key length ${pk.length}")
-        require(sig.length == 64, s"Invalid signature length ${sig.length}")
+        require(pk.size == 32, s"Invalid public key length ${pk.size}")
+        require(sig.size == 64, s"Invalid signature length ${sig.size}")
         Ed25519Curves.ed25519.verify(sig.toUint8Array, msg.toUint8Array, pk.toUint8Array)
 
     override def signEd25519(privateKey: ByteString, msg: ByteString): ByteString = ???
@@ -132,10 +132,10 @@ trait NodeJsPlatformSpecific extends PlatformSpecific {
         msg: ByteString,
         sig: ByteString
     ): Boolean = {
-        require(pk.length == 33, s"Invalid public key length ${pk.length}, expected 33")
+        require(pk.size == 33, s"Invalid public key length ${pk.size}, expected 33")
         require(isValidPublicKey(pk), s"Invalid public key ${pk}")
-        require(msg.length == 32, s"Invalid message length ${msg.length}, expected 32")
-        require(sig.length == 64, s"Invalid signature length ${sig.length}, expected 64")
+        require(msg.size == 32, s"Invalid message length ${msg.size}, expected 32")
+        require(sig.size == 64, s"Invalid signature length ${sig.size}, expected 64")
 
         Secp256k1Curve.secp256k1.verify(sig.toUint8Array, msg.toUint8Array, pk.toUint8Array)
     }
@@ -145,13 +145,13 @@ trait NodeJsPlatformSpecific extends PlatformSpecific {
         msg: ByteString,
         sig: ByteString
     ): Boolean =
-        require(pk.length == 32, s"Invalid public key length ${pk.length}, expected 33")
+        require(pk.size == 32, s"Invalid public key length ${pk.size}, expected 33")
         require(
           isValidPublicKey(ByteString.fromArray(0x02 +: pk.bytes)),
           s"Invalid public key ${pk}"
         )
-        require(msg.length == 32, s"Invalid message length ${msg.length}, expected 32")
-        require(sig.length == 64, s"Invalid signature length ${sig.length}, expected 64")
+        require(msg.size == 32, s"Invalid message length ${msg.size}, expected 32")
+        require(sig.size == 64, s"Invalid signature length ${sig.size}, expected 64")
         Secp256k1Curve.schnorr.verify(sig.toUint8Array, msg.toUint8Array, pk.toUint8Array)
 
     // BLS12_381 operations

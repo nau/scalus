@@ -1,6 +1,8 @@
 package scalus.ledger.api
+
 import io.bullet.borer.*
-import scalus.cardano.ledger.AddrKeyHash
+import scalus.cardano.ledger.{AddrKeyHash, Hash, ScriptHash}
+import scalus.builtin.{ByteString, PlatformSpecific, given}
 import scalus.ledger.api.Timelock.{lteNegInfty, ltePosInfty}
 
 import scala.annotation.tailrec
@@ -34,6 +36,12 @@ enum Timelock:
     case TimeStart(lockStart: SlotNo)
     case TimeExpire(lockExpire: SlotNo)
 
+    @transient lazy val scriptHash: ScriptHash = Hash(
+      summon[PlatformSpecific].blake2b_224(
+        ByteString.unsafeFromArray(Cbor.encode(this).toByteArray.prepended(0))
+      )
+    )
+
     // String representation of Timelock
     lazy val show: String = this match
         case Timelock.TimeStart(i)  => s"(Start >= $i)"
@@ -55,8 +63,6 @@ enum Timelock:
       *   Set of validator key hashes
       * @param interval
       *   The transaction validity interval
-      * @param script
-      *   The timelock script to evaluate
       * @return
       *   true if the script evaluates to true, false otherwise
       */

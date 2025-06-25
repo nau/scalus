@@ -423,6 +423,34 @@ enum Address {
         case Byron(addr)   => Try(addr.toBase58)
         case Shelley(addr) => addr.toBech32
         case Stake(addr)   => addr.toBech32
+
+    def keyHash: Option[Hash[Blake2b_224, HashPurpose.KeyHash | HashPurpose.StakeKeyHash]] = {
+        this match
+            case Address.Byron(_) =>
+                None // Byron addresses don't have staking credentials
+            case Address.Shelley(shelleyAddress) =>
+                shelleyAddress.payment match
+                    case ShelleyPaymentPart.Key(hash) => Some(hash)
+                    case _: ShelleyPaymentPart.Script => None
+            case Address.Stake(stakeAddress) =>
+                stakeAddress.payload match
+                    case StakePayload.Stake(hash) => Some(hash)
+                    case _: StakePayload.Script   => None
+    }
+
+    def scriptHash: Option[ScriptHash] = {
+        this match
+            case Address.Byron(_) =>
+                None // Byron addresses don't have staking credentials
+            case Address.Shelley(shelleyAddress) =>
+                shelleyAddress.payment match
+                    case _: ShelleyPaymentPart.Key       => None
+                    case ShelleyPaymentPart.Script(hash) => Some(hash)
+            case Address.Stake(stakeAddress) =>
+                stakeAddress.payload match
+                    case _: StakePayload.Stake     => None
+                    case StakePayload.Script(hash) => Some(hash)
+    }
 }
 
 // Conversion utilities between address types

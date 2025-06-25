@@ -1,14 +1,13 @@
 package scalus.cardano.ledger
 
 import io.bullet.borer.Encoder
-import org.scalacheck.{Arbitrary, Gen}
 import org.scalacheck.Arbitrary.arbitrary
-import scalus.builtin.{ByteString, Data}
+import org.scalacheck.{Arbitrary, Gen}
+import scalus.builtin
 import scalus.builtin.Data.*
-import scalus.testutil.ArbitraryDerivation.autoDerived
+import scalus.builtin.{ByteString, Data}
 import scalus.ledger.api.{SlotNo, Timelock}
-import scalus.uplc.test
-import scalus.{builtin, uplc}
+import scalus.testutil.ArbitraryDerivation.autoDerived
 
 import scala.collection.immutable
 
@@ -71,7 +70,8 @@ trait ArbitraryInstances extends scalus.cardano.address.ArbitraryInstances {
           arbitrary[ScriptHash].map(Credential.ScriptHash.apply)
         )
     }
-    given Arbitrary[Coin] = Arbitrary(Gen.choose(0L, Long.MaxValue).map(Coin.apply))
+    // TODO: either use BigInt/BigInterger or limit to 53 bits for Longs
+    given Arbitrary[Coin] = Arbitrary(Gen.choose(0L, 2L ^ 53).map(Coin.apply))
     given Arbitrary[AssetName] = Arbitrary(
       Gen.choose(0, 32).flatMap(genByteStringOfN).map(AssetName.apply)
     )
@@ -116,20 +116,41 @@ trait ArbitraryInstances extends scalus.cardano.address.ArbitraryInstances {
 
     given Arbitrary[Constitution] = autoDerived
 
-    given Arbitrary[Value] = Arbitrary {
-        Gen.oneOf(
-          arbitrary[Coin].map(Value.Ada.apply),
-          for
-              coin <- arbitrary[Coin]
-              assets <- {
-                  given Arbitrary[Long] = Arbitrary(Gen.posNum[Long])
-                  given [A: Arbitrary, B: Arbitrary]: Arbitrary[immutable.Map[A, B]] = Arbitrary(
-                    genMapOfSizeFromArbitrary(1, 8)
-                  )
-                  arbitrary[MultiAsset[Long]]
-              }
-          yield Value.MultiAsset(coin, assets)
+    def genMultiAsset(
+        minPolicies: Int = 1,
+        maxPolicies: Int = 8,
+        minAssets: Int = 1,
+        maxAssets: Int = 8
+    ): Gen[MultiAsset] = {
+        given Arbitrary[Long] = Arbitrary(
+          Gen.oneOf(Gen.choose(Long.MinValue, -1L), Gen.choose(1L, Long.MaxValue))
         )
+        given [A: Arbitrary, B: Arbitrary]: Arbitrary[immutable.Map[A, B]] = Arbitrary(
+          genMapOfSizeFromArbitrary(minAssets, maxAssets)
+        )
+
+        for
+            policies <- Gen.choose(minPolicies, maxPolicies)
+            result <- Gen.mapOfN(
+              policies,
+              for
+                  policyId <- arbitrary[PolicyId]
+                  assets <- arbitrary[immutable.Map[AssetName, Long]]
+              yield (policyId, assets)
+            )
+        yield result
+    }
+
+    given Arbitrary[Value] = Arbitrary {
+        for
+            coin <- arbitrary[Coin]
+            assets <- genMultiAsset(
+              minPolicies = 0,
+              maxPolicies = 4,
+              minAssets = 1,
+              maxAssets = 4
+            )
+        yield Value(coin, assets)
     }
 
     // FIXME: autoDerived for DRep is not working correctly
@@ -242,9 +263,9 @@ trait ArbitraryInstances extends scalus.cardano.address.ArbitraryInstances {
     given Arbitrary[Script] = Arbitrary {
         Gen.oneOf(
           TimelockGen.genTimelock.map(Script.Native.apply),
-          arbitrary[ByteString].map(Script.PlutusV1.apply),
-          arbitrary[ByteString].map(Script.PlutusV2.apply),
-          arbitrary[ByteString].map(Script.PlutusV3.apply),
+          arbitrary[ByteString].map(byteString => Script.PlutusV1(PlutusV1Script(byteString))),
+          arbitrary[ByteString].map(byteString => Script.PlutusV2(PlutusV2Script(byteString))),
+          arbitrary[ByteString].map(byteString => Script.PlutusV3(PlutusV3Script(byteString))),
         )
     }
     given Arbitrary[ScriptRef] = autoDerived
@@ -427,6 +448,21 @@ trait ArbitraryInstances extends scalus.cardano.address.ArbitraryInstances {
                   .map(Redeemers.Map.apply)
           }
         )
+    }
+
+    given Arbitrary[PlutusV1Script] = Arbitrary {
+        for bytes <- genByteStringOfN(32)
+        yield PlutusV1Script(bytes)
+    }
+
+    given Arbitrary[PlutusV2Script] = Arbitrary {
+        for bytes <- genByteStringOfN(32)
+        yield PlutusV2Script(bytes)
+    }
+
+    given Arbitrary[PlutusV3Script] = Arbitrary {
+        for bytes <- genByteStringOfN(32)
+        yield PlutusV3Script(bytes)
     }
 
     given Arbitrary[TransactionWitnessSet] = {

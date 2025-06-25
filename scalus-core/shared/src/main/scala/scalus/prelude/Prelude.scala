@@ -169,6 +169,7 @@ object Prelude {
         ): Boolean = !eq(x, y)
 
     def encodeHex(input: ByteString): String = {
+        import ByteString.*
         val len = lengthOfByteString(input)
 
         val byteToChar =
@@ -180,7 +181,7 @@ object Prelude {
                 val byte = indexByteString(input, i)
                 val char1 = byteToChar(byte / 16)
                 val char2 = byteToChar(byte % 16)
-                consByteString(char1, consByteString(char2, go(i + 1)))
+                char1 +: char2 +: go(i + 1)
             }
         }
         decodeUtf8(go(0))
@@ -653,9 +654,7 @@ object List:
 
         /** Adds an element at the beginning of this list */
         inline def prepended[B >: A](elem: B): List[B] = Cons(elem, self)
-        inline def +:[B >: A](elem: B): List[B] = prepended(elem)
         inline def prependedAll[B >: A](other: List[B]): List[B] = other.appendedAll(self)
-        inline def ++:[B >: A](other: List[B]): List[B] = prependedAll(other)
 
         def appended[B >: A](elem: B): List[B] = self match
             case Nil              => List.single(elem)
@@ -956,6 +955,10 @@ object List:
             val buf = mutable.ListBuffer.empty[A]
             for e <- self do buf.addOne(e)
             buf.toList
+
+    extension [A](elem: A) inline def +:[B >: A](l: List[B]): List[B] = l.prepended(elem)
+    extension [A](left: List[A])
+        inline def ++:[B >: A](other: List[B]): List[B] = other.prependedAll(left)
 
     extension [A](self: scala.Seq[A])
         /** Converts a [[scala.Seq]] to a `List` */

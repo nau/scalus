@@ -1,7 +1,6 @@
 package scalus.cardano.ledger
 package rules
 
-import scalus.cardano.address.{Address, ShelleyPaymentPart, StakePayload}
 import scala.util.boundary
 import scala.util.boundary.break
 
@@ -12,8 +11,8 @@ object NeededWitnessesValidator extends STS.Validator {
             _ <- validateInputs(context, state, event)
             _ <- validateCollateralInputs(context, state, event)
             _ <- validateVotingProcedures(context, state, event)
-            _ <- validateCertificates(context, state, event)
             _ <- validateWithdrawals(context, state, event)
+            _ <- validateCertificates(context, state, event)
         yield ()
     }
 
@@ -27,13 +26,13 @@ object NeededWitnessesValidator extends STS.Validator {
           event.id,
           event.witnessSet.vkeyWitnesses,
           state.utxo,
-          (transactionId, input, index) =>
-              IllegalArgumentException(
-                s"Missing input $input with index $index in UTxO state for transactionId $transactionId"
-              ),
           (transactionId, keyHash, input, index) =>
               IllegalArgumentException(
                 s"Missing vkey witness for staking credential $keyHash in input $input with index $index for transactionId $transactionId"
+              ),
+          (transactionId, input, index) =>
+              IllegalArgumentException(
+                s"Missing input $input with index $index in UTxO state for transactionId $transactionId"
               )
         )
 
@@ -47,13 +46,13 @@ object NeededWitnessesValidator extends STS.Validator {
           event.id,
           event.witnessSet.vkeyWitnesses,
           state.utxo,
-          (transactionId, collateralInput, index) =>
-              IllegalArgumentException(
-                s"Missing collateralInput $collateralInput with index $index in UTxO state for transactionId $transactionId"
-              ),
           (transactionId, keyHash, collateralInput, index) =>
               IllegalArgumentException(
                 s"Missing vkey witness for staking credential $keyHash in collateralInput $collateralInput with index $index for transactionId $transactionId"
+              ),
+          (transactionId, collateralInput, index) =>
+              IllegalArgumentException(
+                s"Missing collateralInput $collateralInput with index $index in UTxO state for transactionId $transactionId"
               )
         )
 
@@ -107,13 +106,12 @@ object NeededWitnessesValidator extends STS.Validator {
         for
             (certificate, index) <- certificates.view.zipWithIndex
             keyHash <- certificate match
-                case Certificate.StakeRegistration(credential)   => None
+                case Certificate.StakeRegistration(credential)   => extractKeyHash(credential)
                 case Certificate.StakeDeregistration(credential) => extractKeyHash(credential)
                 case Certificate.StakeDelegation(credential, _)  => extractKeyHash(credential)
-                case certificate: Certificate.PoolRegistration =>
-                    extractKeyHash(Credential.KeyHash(certificate.operator))
+                case certificate: Certificate.PoolRegistration   => Some(certificate.operator)
                 case Certificate.PoolRetirement(poolKeyHash, _) =>
-                    extractKeyHash(Credential.KeyHash(poolKeyHash.asInstanceOf[AddrKeyHash]))
+                    Some(poolKeyHash.asInstanceOf[AddrKeyHash])
                 case Certificate.RegCert(credential, deposit) =>
                     if deposit > Coin.zero then extractKeyHash(credential)
                     else None // No witness needed for zero deposit
@@ -156,7 +154,7 @@ object NeededWitnessesValidator extends STS.Validator {
 
         for
             (rewardAccount, index) <- withdrawals.view.keySet.zipWithIndex
-            keyHash <- extractKeyHash(rewardAccount.address)
+            keyHash <- rewardAccount.address.keyHash
         do
             if !vkeyWitnesses.exists(_.vkeyHash == keyHash)
             then
@@ -177,53 +175,24 @@ object NeededWitnessesValidator extends STS.Validator {
         transactionId: TransactionHash,
         vkeyWitnesses: Set[VKeyWitness],
         utxo: Utxo,
-        missingInputError: (TransactionHash, TransactionInput, Int) => IllegalArgumentException,
         missingWitnessError: (
             TransactionHash,
             Hash[Blake2b_224, HashPurpose.KeyHash | HashPurpose.StakeKeyHash],
             TransactionInput,
             Int
-        ) => IllegalArgumentException
+        ) => IllegalArgumentException,
+        missingInputError: (TransactionHash, TransactionInput, Int) => IllegalArgumentException
     ): Result = boundary {
-        for (input, index) <- inputs.view.zipWithIndex
-        do
-            utxo.get(input) match
-                case Some(output) =>
-                    extractKeyHash(output.address).foreach { keyHash =>
-                        if !vkeyWitnesses.exists(_.vkeyHash == keyHash)
-                        then
-                            break(
-                              failure(
-                                missingWitnessError(
-                                  transactionId,
-                                  keyHash,
-                                  input,
-                                  index
-                                )
-                              )
-                            )
-                    }
-
+        for
+            (input, index) <- inputs.view.zipWithIndex
+            keyHash <- utxo.get(input) match
+                case Some(output) => output.address.keyHash
                 // This check allows to be an order independent in the sequence of validation rules
-                case None =>
-                    break(failure(missingInputError(transactionId, input, index)))
+                case None => break(failure(missingInputError(transactionId, input, index)))
+        do
+            if !vkeyWitnesses.exists(_.vkeyHash == keyHash)
+            then break(failure(missingWitnessError(transactionId, keyHash, input, index)))
 
         success
-    }
-
-    private def extractKeyHash(
-        address: Address
-    ): Option[Hash[Blake2b_224, HashPurpose.KeyHash | HashPurpose.StakeKeyHash]] = {
-        address match
-            case Address.Byron(_) =>
-                None // Byron addresses don't have staking credentials
-            case Address.Shelley(shelleyAddress) =>
-                shelleyAddress.payment match
-                    case ShelleyPaymentPart.Key(hash) => Some(hash)
-                    case _: ShelleyPaymentPart.Script => None
-            case Address.Stake(stakeAddress) =>
-                stakeAddress.payload match
-                    case StakePayload.Stake(hash) => Some(hash)
-                    case _: StakePayload.Script   => None
     }
 }

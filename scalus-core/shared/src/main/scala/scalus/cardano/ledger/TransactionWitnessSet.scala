@@ -1,7 +1,7 @@
 package scalus.cardano.ledger
 
 import io.bullet.borer.*
-import scalus.builtin.{ByteString, Data}
+import scalus.builtin.Data
 import scalus.ledger.api.Timelock
 
 /** Represents the witness set for a transaction in Cardano */
@@ -16,7 +16,7 @@ case class TransactionWitnessSet(
     bootstrapWitnesses: Set[BootstrapWitness] = Set.empty,
 
     /** Plutus V1 scripts */
-    plutusV1Scripts: Set[ByteString] = Set.empty,
+    plutusV1Scripts: Set[PlutusV1Script] = Set.empty,
 
     /** Plutus data values */
     plutusData: Set[Data] = Set.empty,
@@ -25,10 +25,10 @@ case class TransactionWitnessSet(
     redeemers: Option[Redeemers] = None,
 
     /** Plutus V2 scripts */
-    plutusV2Scripts: Set[ByteString] = Set.empty,
+    plutusV2Scripts: Set[PlutusV2Script] = Set.empty,
 
     /** Plutus V3 scripts */
-    plutusV3Scripts: Set[ByteString] = Set.empty
+    plutusV3Scripts: Set[PlutusV3Script] = Set.empty
 ):
     /** Check if the witness set is empty */
     def isEmpty: Boolean =
@@ -121,11 +121,11 @@ object TransactionWitnessSet:
             var vkeyWitnesses = Set.empty[VKeyWitness]
             var nativeScripts = Set.empty[Timelock]
             var bootstrapWitnesses = Set.empty[BootstrapWitness]
-            var plutusV1Scripts = Set.empty[ByteString]
+            var plutusV1Scripts = Set.empty[PlutusV1Script]
             var plutusData = Set.empty[Data]
             var redeemers: Option[Redeemers] = None
-            var plutusV2Scripts = Set.empty[ByteString]
-            var plutusV3Scripts = Set.empty[ByteString]
+            var plutusV2Scripts = Set.empty[PlutusV2Script]
+            var plutusV3Scripts = Set.empty[PlutusV3Script]
 
             for _ <- 0L until mapSize do
                 val key = r.readInt()

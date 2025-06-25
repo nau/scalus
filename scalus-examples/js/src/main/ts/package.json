@@ -3,6 +3,6 @@
   "version": "0.1.0",
   "main": "evaluate.js",
   "dependencies": {
-    "scalus": "file:../../../../../scalus-core/js/src/main/npm"
+    "scalus": "0.0.1"
   }
 }

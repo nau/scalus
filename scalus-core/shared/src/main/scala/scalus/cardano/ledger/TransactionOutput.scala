@@ -9,6 +9,7 @@ import io.bullet.borer.{Decoder, Encoder, Reader, Writer}
 sealed trait TransactionOutput:
     def address: Address
     def value: Value
+    def scriptRef: Option[ScriptRef]
 
 object TransactionOutput:
     /** Shelley-era transaction output format */
@@ -16,14 +17,15 @@ object TransactionOutput:
         override val address: Address,
         override val value: Value,
         datumHash: Option[DataHash] = None
-    ) extends TransactionOutput
+    ) extends TransactionOutput:
+        override def scriptRef: Option[ScriptRef] = None
 
     /** Babbage-era transaction output format with extended features */
     final case class Babbage(
         override val address: Address,
         override val value: Value,
         datumOption: Option[DatumOption] = None,
-        scriptRef: Option[ScriptRef] = None
+        override val scriptRef: Option[ScriptRef] = None
     ) extends TransactionOutput
 
     /** CBOR encoder for TransactionOutput */

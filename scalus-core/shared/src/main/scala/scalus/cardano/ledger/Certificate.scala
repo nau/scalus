@@ -2,10 +2,13 @@ package scalus.cardano.ledger
 
 import io.bullet.borer.*
 import io.bullet.borer.NullOptions.given
+import scalus.ledger.babbage.ProtocolParams
+
+import scala.collection.mutable
 
 /** Represents a certificate for stake operations on the blockchain
   */
-enum Certificate:
+enum Certificate {
     case StakeRegistration(credential: Credential)
     case StakeDeregistration(credential: Credential)
     case StakeDelegation(credential: Credential, poolKeyHash: PoolKeyHash)
@@ -45,7 +48,80 @@ enum Certificate:
     case UnregDRepCert(drepCredential: Credential, coin: Coin)
     case UpdateDRepCert(drepCredential: Credential, anchor: Option[Anchor])
 
-object Certificate:
+    def lookupRegStakeTxCert: Option[Credential] = this match
+        case Certificate.StakeRegistration(c)              => Some(c)
+        case Certificate.RegCert(c, _)                     => Some(c)
+        case Certificate.StakeRegDelegCert(c, _, _)        => Some(c)
+        case Certificate.VoteRegDelegCert(c, _, _)         => Some(c)
+        case Certificate.StakeVoteRegDelegCert(c, _, _, _) => Some(c)
+        case _                                             => None
+
+    def lookupUnRegStakeTxCert: Option[Credential] = this match
+        case Certificate.StakeDeregistration(c) => Some(c)
+        case Certificate.UnregCert(c, _)        => Some(c)
+        case _                                  => None
+}
+
+object Certificate {
+
+    def shelleyTotalRefundsTxCerts(
+        lookupStakingDeposit: Credential => Option[Coin],
+        params: ProtocolParams,
+        certificates: Iterable[Certificate]
+    ): Coin = {
+        val keyDeposit = params.stakeAddressDeposit
+        val regCreds = mutable.Set.empty[Credential]
+        var totalRefunds = 0L
+        certificates.foreach { cert =>
+            cert.lookupRegStakeTxCert match
+                case Some(cred) =>
+                    // Need to track new delegations in case that the same key is later deregistered in the same transaction.
+                    regCreds += cred
+                case None =>
+                    cert.lookupUnRegStakeTxCert match
+                        case Some(cred) =>
+                            // If the credential is already registered, we can refund the deposit
+                            if regCreds.contains(cred) then
+                                totalRefunds += keyDeposit
+                                regCreds -= cred // Remove to avoid double refund
+                            else
+                                lookupStakingDeposit(cred) match {
+                                    case Some(deposit) =>
+                                        totalRefunds += deposit.value
+                                    case None =>
+                                }
+                        case None =>
+        }
+        Coin(totalRefunds)
+    }
+
+    def conwayDRepRefundsTxCerts(
+        lookupDRepDeposit: Credential => Option[Coin],
+        certificates: Iterable[Certificate]
+    ): Coin = {
+        val drepRegsInTx = mutable.Map.empty[Credential, Coin]
+        var totalRefund = 0L
+
+        certificates.foreach {
+            case Certificate.RegDRepCert(cred, deposit, _) =>
+                // Track registrations
+                drepRegsInTx.put(cred, deposit)
+            case Certificate.UnregDRepCert(cred, _) =>
+                // DRep previously registered in the same tx
+                drepRegsInTx.remove(cred) match {
+                    case Some(deposit) =>
+                        totalRefund += deposit.value
+                    case None =>
+                        // DRep previously registered in some other tx
+                        lookupDRepDeposit(cred).foreach { deposit =>
+                            totalRefund += deposit.value
+                        }
+                }
+            case _ => // Do nothing for other certificate types
+        }
+        Coin(totalRefund)
+    }
+
     given Encoder[Certificate] with
         def write(w: Writer, value: Certificate): Writer = value match
             case Certificate.StakeRegistration(credential) =>
@@ -201,10 +277,10 @@ object Certificate:
 
     given Decoder[Certificate] with
         def read(r: Reader): Certificate =
-//            println(s"Certificate: ${DataItem.stringify(r.dataItem())}")
+            //            println(s"Certificate: ${DataItem.stringify(r.dataItem())}")
             r.readArrayHeader()
             val tag = r.readInt()
-//            println(s"Certificate tag: ${tag}")
+            //            println(s"Certificate tag: ${tag}")
 
             tag match
                 case 0 => Certificate.StakeRegistration(r.read[Credential]())
@@ -308,3 +384,4 @@ object Certificate:
                 r.validationFailure(s"Expected tag 258 for definite Set, got $tag")
             r.read[Set[A]]()
         else r.read[Set[A]]()
+}

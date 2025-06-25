@@ -1186,42 +1186,6 @@ final class SIRCompiler(options: SIRCompilerOptions = SIRCompilerOptions.default
                       ),
                       scalus.uplc.Constant.Unit
                     )
-        // hex"deadbeef" as ByteString for Scala 2 implicit StringInterpolators
-        case expr @ Apply(
-              Select(
-                Apply(
-                  stringInterpolators,
-                  List(
-                    Apply(
-                      Select(stringContext, nme.apply),
-                      List(SeqLiteral(List(Literal(const)), _))
-                    )
-                  )
-                ),
-                hex
-              ),
-              List(SeqLiteral(Nil, _))
-            )
-            if ByteStringStringInterpolatorsMethodSymbol == stringInterpolators.symbol
-                && stringContext.symbol == StringContextSymbol && hex == termName("hex") &&
-                const.tag == Constants.StringTag =>
-            try
-                scalus.uplc.Constant.ByteString(
-                  scalus.builtin.ByteString.fromHex(const.stringValue)
-                )
-            catch
-                case NonFatal(e) =>
-                    error(
-                      GenericError(
-                        s"""Hex string `${const.stringValue}` is not a valid hex string.
-                               |Make sure it contains only hexadecimal characters (0-9, a-f, A-F)
-                               |Error: ${e.getMessage}
-                               |""".stripMargin,
-                        expr.srcPos
-                      ),
-                      scalus.uplc.Constant.Unit
-                    )
-
     }
 
     private def typeReprToDefaultUni(tpe: Type, list: Tree): DefaultUni =
