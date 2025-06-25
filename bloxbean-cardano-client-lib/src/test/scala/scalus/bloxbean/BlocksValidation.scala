@@ -355,7 +355,7 @@ object BlocksValidation:
 //                    pprint.pprintln(w)
                     val scriptDataHash = txb.scriptDataHash
                     val costModels = ScriptDataHashGenerator.getCostModelsForTxWitness(params, w)
-                    val calculatedHash = ScriptDataHashGenerator.generate(
+                    val calculatedHash = ScriptDataHashGenerator.computeScriptDataHash(
                       ledger.Era.Conway,
                       w.redeemers.map(_.toSeq).getOrElse(Seq.empty),
                       w.plutusData,

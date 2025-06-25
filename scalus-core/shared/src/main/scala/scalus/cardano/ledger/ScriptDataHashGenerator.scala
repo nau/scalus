@@ -29,7 +29,7 @@ object ScriptDataHashGenerator {
         CostModels(cmv1 ++ cmv2 ++ cmv3)
     }
 
-    def generate(
+    def computeScriptDataHash(
         era: Era,
         redeemers: Seq[Redeemer],
         datums: KeepRaw[TaggedSet[Data]],
