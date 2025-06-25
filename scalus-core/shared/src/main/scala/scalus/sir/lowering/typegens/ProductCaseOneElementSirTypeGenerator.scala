@@ -5,6 +5,7 @@ import scalus.sir.{SIRType, *}
 import scalus.sir.lowering.*
 import scalus.sir.lowering.LoweredValue.Builder.*
 import scalus.sir.lowering.ProductCaseClassRepresentation.{ProdDataConstr, ProdDataList}
+import scalus.sir.lowering.typegens.ProductCaseOneElementSirTypeGenerator.retrieveArgType
 import scalus.uplc.Term
 
 case class ProductCaseOneElementSirTypeGenerator(
@@ -76,6 +77,47 @@ case class ProductCaseOneElementSirTypeGenerator(
                 )
             case (ProductCaseClassRepresentation.OneElementWrapper(argRepr), ProdDataConstr) =>
                 input.toRepresentation(ProdDataList, pos).toRepresentation(ProdDataConstr, pos)
+            case (
+                  ProductCaseClassRepresentation.OneElementWrapper(argRepr),
+                  TypeVarRepresentation(isBuiltin, canBeLambda)
+                ) =>
+                if isBuiltin then new RepresentationProxyLoweredValue(input, representation, pos)
+                else
+                    import ProductCaseOneElementSirTypeGenerator.*
+                    if argRepr.isCompatible(representation) then
+                        new RepresentationProxyLoweredValue(input, representation, pos)
+                    else
+                        val argValue = argLoweredValue(input)
+                        val newArg = argGenerator.toRepresentation(argValue, representation, pos)
+                        new ProxyLoweredValue(newArg) {
+                            override def sirType: SIRType = input.sirType
+                            override def representation: LoweredValueRepresentation = representation
+                            override def pos: SIRPosition = pos
+                            override def termInternal(gctx: TermGenerationContext): Term =
+                                newArg.termInternal(gctx)
+                        }
+            case (
+                  inRepr @ TypeVarRepresentation(isBuiltin, canBeLambda),
+                  outRepr @ ProductCaseClassRepresentation.OneElementWrapper(argRepr)
+                ) =>
+                if isBuiltin then new RepresentationProxyLoweredValue(input, representation, pos)
+                else
+                    import ProductCaseOneElementSirTypeGenerator.*
+                    val argValue = argLoweredValue(input)
+                    if argRepr.isCompatible(argValue.representation) then
+                        new RepresentationProxyLoweredValue(input, representation, pos)
+                    else
+                        // we need to convert the argument to the new representation
+                        val newArg = argGenerator.toRepresentation(argValue, argRepr, pos)
+                        val inPos = pos
+                        val retval = new ProxyLoweredValue(newArg) {
+                            override def sirType = input.sirType
+                            override def representation: LoweredValueRepresentation = outRepr
+                            override def pos: SIRPosition = inPos
+                            override def termInternal(gctx: TermGenerationContext): Term =
+                                newArg.termInternal(gctx)
+                        }
+                        retval
             case (_, _) =>
                 ProductCaseSirTypeGenerator.toRepresentation(input, representation, pos)
 
@@ -161,13 +203,6 @@ case class ProductCaseOneElementSirTypeGenerator(
     override def genSelect(sel: SIR.Select, loweredScrutinee: LoweredValue)(using
         lctx: LoweringContext
     ): LoweredValue = {
-        //
-        println(
-          s"ProductCaseOneElementSirTypeGenerator.genSelect, loweredScrutinee.sirType=${loweredScrutinee.sirType}, loweredScrutinee=${loweredScrutinee.sirType.show}"
-        )
-        println(s"loweredScutinee.createdEx=${loweredScrutinee.createdEx}")
-        loweredScrutinee.createdEx.printStackTrace()
-        ///
         import ProductCaseOneElementSirTypeGenerator.*
         val sirCaseClass = retrieveCaseClassSirType(loweredScrutinee.sirType, loweredScrutinee.pos)
         val name = sirCaseClass.constrDecl.params.head.name
@@ -225,17 +260,21 @@ case class ProductCaseOneElementSirTypeGenerator(
         }
     }
 
-    private def argLoweredValue(input: LoweredValue): LoweredValue = {
+    private def argLoweredValue(input: LoweredValue)(using LoweringContext): LoweredValue = {
         import ProductCaseOneElementSirTypeGenerator.*
         input match {
             case WrappedArg(constr, arg) => arg
             case other =>
+                val argType = retrieveArgType(other.sirType, other.pos)
                 ArgProxyLoweredValue(
                   other,
-                  retrieveArgType(other.sirType, other.pos),
+                  argType,
                   input.representation match {
                       case ProductCaseClassRepresentation.OneElementWrapper(argRepr) =>
                           argRepr
+                      case TypeVarRepresentation(isBuiltin, canBeLambda) =>
+                          if isBuiltin then argGenerator.defaultRepresentation(argType)
+                          else argGenerator.defaultTypeVarReperesentation(argType)
                       case _ =>
                           throw LoweringException(
                             s"Expected OneElementWrapper representation, got ${input.representation}",

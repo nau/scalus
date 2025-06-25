@@ -421,7 +421,27 @@ object LoweredValue {
                       lctx.typeGenerator(arg.sirType).defaultTypeVarReperesentation(arg.sirType)
                     )
                 case other =>
-                    (other, lctx.typeGenerator(other).defaultRepresentation(other))
+                    f.representation match {
+                        case LambdaRepresentation(inRepr, outRepr) =>
+                            (other, inRepr)
+                        case _ =>
+                            (other, lctx.typeGenerator(other).defaultRepresentation(other))
+                    }
+
+            }
+            if lctx.debug then {
+                println(
+                  s"lvApply: argType(f.sirType) = ${argType(f.sirType).show}, f.sirType = ${f.sirType.show}, arg.sirType = ${arg.sirType.show}"
+                )
+                println(
+                  s"lvApply: f = ${f.show}"
+                )
+                println(
+                  s"lvApply: f.representation = ${f.representation}, arg.representation = ${arg.representation}"
+                )
+                println(
+                  s"lvApply: targetArgType = ${targetArgType.show}, targetArgRepresentation = $targetArgRepresentation"
+                )
             }
 
             // TODO: add to to

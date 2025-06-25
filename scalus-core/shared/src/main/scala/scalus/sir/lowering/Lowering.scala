@@ -170,16 +170,6 @@ object Lowering {
                     val bindingValues = bindings.map { b =>
                         val rhs = lowerSIR(b.value).maybeUpcast(b.tp, anns.pos)
                         val varId = lctx.uniqueVarName(b.name)
-                        if varId == "a21" then {
-                            println(
-                              s"Lowering let binding: ${b.name} with type ${b.tp.show} at ${anns.pos.file}:${anns.pos.startLine}"
-                            )
-                            println(
-                              s"rhs = ${rhs.show}, sirType = ${rhs.sirType.show}, representation = ${rhs.representation}"
-                            )
-                            println("rhs created at: ")
-                            rhs.createdEx.printStackTrace()
-                        }
                         val varVal = VariableLoweredValue(
                           id = varId,
                           name = b.name,
@@ -288,13 +278,28 @@ object Lowering {
     private def lowerNormalApp(app: SIR.Apply)(using lctx: LoweringContext): LoweredValue = {
         val fun = lowerSIR(app.f)
         val arg = lowerSIR(app.arg)
-        lvApply(
+        val debug = arg match
+            case v: VariableLoweredValue
+                if v.name == "scalus.ledger.api.v1.PubKeyHash$.given_Eq_PubKeyHash" =>
+                println(
+                  s"lowerNormalApp: arg= ${v.sirType.show} at ${app.anns.pos.file}:${app.anns.pos.startLine}"
+                )
+                lctx.debug = true
+                true
+            case _ => false
+        val result = lvApply(
           fun,
           arg,
           app.anns.pos,
           Some(app.tp),
           None // representation can depend from fun, so should be calculated.
         )
+        if debug then
+            println(
+              s"lowerNormalApp: result= ${result.show} at ${app.anns.pos.file}:${app.anns.pos.startLine}"
+            )
+            lctx.debug = false
+        result
     }
 
     private def isFromDataType(tp: SIRType): Boolean = tp match {

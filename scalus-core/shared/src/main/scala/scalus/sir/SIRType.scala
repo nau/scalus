@@ -586,6 +586,7 @@ object SIRType {
         }
     }
 
+    @scala.annotation.tailrec
     def retrieveConstrDecl(tp: SIRType): Either[String, ConstrDecl] = {
         tp match {
             case tp: CaseClass => Right(tp.constrDecl)
@@ -596,6 +597,8 @@ object SIRType {
             case _ => Left(s"Expected CaseClass, got ${tp.show} (${tp.getClass.getSimpleName}")
         }
     }
+
+    
 
     def checkAllProxiesFilled(tp: SIRType): Boolean = {
         checkAllProxiesFilledTraced(tp, new util.IdentityHashMap[SIRType, SIRType], Nil)

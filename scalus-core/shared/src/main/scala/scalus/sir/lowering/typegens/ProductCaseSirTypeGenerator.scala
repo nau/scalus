@@ -1,13 +1,15 @@
 package scalus.sir.lowering.typegens
 
 import scala.util.control.NonFatal
-import scalus.sir.*
+import scalus.sir.{SIRType, *}
 import scalus.sir.lowering.*
 import scalus.sir.lowering.LoweredValue.Builder.*
 import scalus.sir.lowering.ProductCaseClassRepresentation.{PackedDataList, PairIntDataList, ProdDataConstr, ProdDataList, UplcConstr}
 import scalus.sir.lowering.SumCaseClassRepresentation.SumDataList
 import scalus.uplc.*
 
+/** Product with one element without parent, represented as an element.
+  */
 object ProductCaseSirTypeGenerator extends SirTypeUplcGenerator {
 
     override def defaultRepresentation(tp: SIRType)(using
@@ -157,6 +159,17 @@ object ProductCaseSirTypeGenerator extends SirTypeUplcGenerator {
                     .toRepresentation(ProdDataConstr, pos)
             case (ProductCaseClassRepresentation.OneElementWrapper(_), UplcConstr) =>
                 ???
+            case (
+                  TypeVarRepresentation(isBuiltin, canBeLambda),
+                  ProductCaseClassRepresentation.ProdDataConstr
+                ) =>
+                RepresentationProxyLoweredValue(input, representation, pos)
+            case (TypeVarRepresentation(isBuiltin, canBeLambda), _) =>
+                if isBuiltin then RepresentationProxyLoweredValue(input, representation, pos)
+                else
+                    input
+                        .toRepresentation(ProductCaseClassRepresentation.ProdDataConstr, pos)
+                        .toRepresentation(representation, pos)
             case _ =>
                 throw LoweringException(
                   s"Unsupported conversion for ${input.sirType.show} from ${input.representation} to $representation",
