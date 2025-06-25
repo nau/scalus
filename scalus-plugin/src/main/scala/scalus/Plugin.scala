@@ -9,6 +9,7 @@ import dotty.tools.dotc.core.StdNames.nme
 import dotty.tools.dotc.core.Symbols.*
 import dotty.tools.dotc.plugins.*
 import dotty.tools.dotc.util.Spans
+import dotty.tools.dotc.typer.Implicits
 import scalus.flat.{DecoderState, FlatInstantces}
 import scalus.flat.FlatInstantces.SIRHashConsedFlat
 import scalus.sir.{RemoveRecursivity, SIR, SIRUnify}
@@ -51,14 +52,27 @@ class ScalusPhase(debugLevel: Int) extends PluginPhase {
     // We need to run before the "patternMatcher" phase to have the SIR available for pattern matching
     override val runsBefore: Set[String] = Set("patternMatcher")
 
+    override def allowsImplicitSearch: Boolean = true
+
     /** Compiles the current compilation unit to SIR and stores it in JARs as .sir file.
       */
-    override def prepareForUnit(tree: Tree)(using Context): Context =
-        if debugLevel > 0 then report.echo(s"Scalus: ${ctx.compilationUnit.source.file.name}")
-        val options = SIRCompilerOptions.default.copy(debugLevel = debugLevel)
-        val compiler = new SIRCompiler(options)
-        compiler.compileModule(tree)
-        ctx
+    override def prepareForUnit(tree: Tree)(using Context): Context = {
+        // bug in dotty: sometimes we called with the wrong phase in context
+        if summon[Context].phase != this then
+            prepareForUnit(tree)(using summon[Context].withPhase(this))
+        else
+            if debugLevel > 0 then report.echo(s"Scalus: ${ctx.compilationUnit.source.file.name}")
+            val options = retrieveCompilerOptions(tree)
+            val compiler = new SIRCompiler(options)
+            compiler.compileModule(tree)
+            ctx
+    }
+
+    override def prepareForApply(tree: tpd.Apply)(using Context): Context = {
+        // bug in dotty: sometimes we called with the wrong phase in context. set phase themself.
+        if summon[Context].phase != this then ctx.withPhase(this)
+        else ctx
+    }
 
     /** Replaces calls to `compile` and `compileDebug` with a fully linked Flat-encoded [[SIR]]
       * representation.
@@ -68,10 +82,13 @@ class ScalusPhase(debugLevel: Int) extends PluginPhase {
         val compileSymbol = compilerModule.requiredMethod("compile")
         val compileDebugSymbol = compilerModule.requiredMethod("compileDebug")
         val isCompileDebug = tree.fun.symbol == compileDebugSymbol
+
         if tree.fun.symbol == compileSymbol || isCompileDebug then
             // report.echo(tree.showIndented(2))
+            val options = retrieveCompilerOptions(tree)
+
             val code = tree.args.head
-            val compiler = new SIRCompiler
+            val compiler = new SIRCompiler(options)
             val start = System.currentTimeMillis()
             val result =
                 val result = compiler.compileToSIR(code, isCompileDebug)
@@ -186,4 +203,146 @@ class ScalusPhase(debugLevel: Int) extends PluginPhase {
         }
         ref(sirToExprFlat).select(decodeLatin1SIR).appliedTo(concatenatedStrings).withSpan(span)
     }
+
+    private def retrieveCompilerOptions(
+        posTree: Tree
+    )(using Context): SIRCompilerOptions = {
+
+        // Default options
+        var backend: String = "SimpleSirToUplcLowering"
+        var generateErrorTraces: Boolean = true
+        var optimizeUplc: Boolean = true
+        var debug: Boolean = false
+        var codeDebugLevel: Int = 0
+        var useUniversalDataConversion: Boolean = false
+
+        def parseTargetLoweringBackend(value: Tree): Unit = {
+            var parsed = true
+            value match {
+                case Ident(name) =>
+                    backend = name.toString
+                case Select(_, name) =>
+                    backend = name.toString
+                case _ =>
+                    parsed = false
+                    report.warning(
+                      s"ScalusPhase: Expected an identifier or select expression for targetLoweringBackend, but found: ${value.show}",
+                      posTree.srcPos
+                    )
+            }
+            if backend == "SirToUplcV3Lowering" then useUniversalDataConversion = true
+            if parsed then println(s"parseTargetLoweringBackend: ${backend}")
+        }
+
+        def parseBooleanValue(value: Tree): Boolean = {
+            value match {
+                case Literal(Constant(flag: Boolean)) => flag
+                case _ =>
+                    report.warning(
+                      s"ScalusPhase: Expected a boolean literal, but found: ${value.show}",
+                      posTree.srcPos
+                    )
+                    false
+            }
+        }
+
+        def parseIntValue(value: Tree): Int = {
+            value match {
+                case Literal(Constant(num: Int)) => num
+                case _ =>
+                    report.warning(
+                      s"ScalusPhase: Expected an integer literal, but found: ${value.show}",
+                      posTree.srcPos
+                    )
+                    0 // default value if parsing fails
+            }
+        }
+
+        def parseArg(arg: Tree, idx: Int): Unit = {
+            arg match
+                case tpd.NamedArg(name, value) =>
+                    if name.toString == "targetLoweringBackend" then
+                        parseTargetLoweringBackend(value)
+                    else if name.toString == "generateErrorTraces" then
+                        generateErrorTraces = parseBooleanValue(value)
+                    else if name.toString == "optimizeUplc" then
+                        optimizeUplc = parseBooleanValue(value)
+                    else if name.toString == "debug" then debug = parseBooleanValue(value)
+                    else if name.toString == "debugLevel" then codeDebugLevel = parseIntValue(value)
+                    else if name.toString == "useUniversalDataConversion" then
+                        useUniversalDataConversion = parseBooleanValue(value)
+                    else {
+                        report.warning(
+                          s"ScalusPhase: Unknown compiler option: $name",
+                          posTree.srcPos
+                        )
+                        false // unknown option, return false to indicate failure to parse this arg.
+                    }
+                case value =>
+                    idx match
+                        case 0 => // targetLoweringBackend
+                            parseTargetLoweringBackend(value)
+                        case 1 => // generateErrorTraces
+                            generateErrorTraces = parseBooleanValue(value)
+                        case 2 => // optimizeUplc
+                            optimizeUplc = parseBooleanValue(value)
+                        case 3 => // debug
+                            debug = parseBooleanValue(value)
+                            if debug then codeDebugLevel = 10
+                        case _ =>
+                            report.warning(
+                              s"ScalusPhase: too many position argiments for scalus.compiler.Options, expected max 4, but found ${idx + 1}",
+                              posTree.srcPos
+                            )
+        }
+
+        val compilerOptionType = requiredClassRef("scalus.Compiler.Options")
+        if !ctx.phase.allowsImplicitSearch then
+            println(
+              s"ScalusPhase: Implicit search is not allowed in phase ${ctx.phase.phaseName}. "
+            )
+        summon[Context].typer.inferImplicit(
+          compilerOptionType,
+          EmptyTree,
+          posTree.span
+        ) match {
+            case Implicits.SearchSuccess(tree, ref, level, isExtension) =>
+                report.echo(s"Found compiler options: ${tree.show}")
+                report.echo(s"deftree=${tree.symbol.defTree.show}")
+                val deftree = tree.symbol.defTree
+                if deftree.isEmpty then
+                    report.warning(
+                      s"CompilerOptions found but deftree is empty, compiler options may be incomplete",
+                      posTree.srcPos
+                    )
+                else
+                    println(s"deftree as tree: ${deftree}")
+                    if deftree.isInstanceOf[tpd.DefDef] then
+                        val defDefTree = deftree.asInstanceOf[tpd.DefDef]
+                        val underTyped = defDefTree.rhs match
+                            case tpd.Typed(obj, tp) =>
+                                obj
+                            case _ => defDefTree
+                        underTyped match
+                            case tpd.Apply(obj, args) =>
+                                report.echo(s"defDefTree.rhs.apply, args=${args}")
+                                if obj.symbol == Symbols.requiredMethod(
+                                      "scalus.Compiler.Options.apply"
+                                    )
+                                then report.echo(s"it's a compiler options call")
+                                else println(s"obj symbol = ${obj.symbol.fullName.show}")
+                                args.zipWithIndex.foreach { case (arg, idx) =>
+                                    parseArg(arg, idx)
+                                }
+                    else report.warning("defdef expected as compiler options", deftree.srcPos)
+            case Implicits.SearchFailure(_) =>
+            // Use default options if not found
+        }
+        SIRCompilerOptions(
+          useSubmodules = false,
+          universalDataRepresentation = useUniversalDataConversion,
+          debugLevel = if debugLevel == 0 then codeDebugLevel else debugLevel
+        )
+    }
+
 }

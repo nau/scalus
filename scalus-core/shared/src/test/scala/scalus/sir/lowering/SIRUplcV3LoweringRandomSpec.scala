@@ -3,6 +3,7 @@ package scalus.sir.lowering
 import org.scalatest.funsuite.AnyFunSuite
 import scalus.*
 import scalus.sir.*
+import scalus.builtin.{Data, FromData, ToData}
 import scalus.Compiler.compile
 import scalus.uplc.Term
 import scalus.uplc.Constant
@@ -13,12 +14,19 @@ object SIRUplcV3LoweringRandomSpec {
 
     case class AA(flag: Boolean, a: BigInt) derives FromData, ToData
 
-    enum BB:
+    enum BB derives FromData, ToData:
         case C
         case D(a: BigInt)
         case E(a: BigInt, b: BigInt)
 
 }
+
+inline given scalus.Compiler.Options = scalus.Compiler.Options(
+  targetLoweringBackend = scalus.Compiler.TargetLoweringBackend.SirToUplcV3Lowering,
+  generateErrorTraces = true,
+  optimizeUplc = true,
+  debug = true
+)
 
 class SIRUplcV3LoweringRandomSpec extends AnyFunSuite {
 

@@ -29,9 +29,6 @@ class SIRLinker(using ctx: Context) {
 
     private val sirLoader = new SIRLoader(using ctx)
 
-    private val sirDataReprGeneratorEnabled = false
-    private val sirDataReprGenerator = new SIRDataReprGenerator(using ctx)
-
     private def error[A](error: CompilationError, defaultValue: A): A = {
         report.error(error.message, error.srcPos)
         defaultValue
@@ -137,30 +134,25 @@ class SIRLinker(using ctx: Context) {
         tp: SIRType,
         anns: AnnotationsDecl
     ): Unit = {
-        if sirDataReprGeneratorEnabled && (fullName.name.endsWith(
-              "derived$FromData"
-            ) || fullName.name.endsWith("derived$ToData"))
-        then retrieveDataRepresentation(moduleName, fullName, tp, srcPos, anns)
-        else
-            // println(s"linkDefinition: ${fullName}")
-            retrieveModule(moduleName, srcPos) match
-                case Left(filename) =>
-                    report.error(
-                      s"Module not found during linking: ${moduleName} , missing filename: ${filename} referenced for name ${fullName.name} from ${anns.pos.file}: ${anns.pos.startLine}",
-                      srcPos
+        // println(s"linkDefinition: ${fullName}")
+        retrieveModule(moduleName, srcPos) match
+            case Left(filename) =>
+                report.error(
+                  s"Module not found during linking: ${moduleName} , missing filename: ${filename} referenced for name ${fullName.name} from ${anns.pos.file}: ${anns.pos.startLine}",
+                  srcPos
+                )
+            case Right(defs) =>
+                if !findAndLinkDefinition(defs, fullName, srcPos) then
+                    error(
+                      SymbolNotFound(
+                        fullName.name,
+                        moduleName,
+                        srcPos,
+                        anns.pos,
+                        defs.keys.map(_.name).toSet
+                      ),
+                      SIR.Error("Symbol not found", AnnotationsDecl.fromSrcPos(srcPos))
                     )
-                case Right(defs) =>
-                    if !findAndLinkDefinition(defs, fullName, srcPos) then
-                        error(
-                          SymbolNotFound(
-                            fullName.name,
-                            moduleName,
-                            srcPos,
-                            anns.pos,
-                            defs.keys.map(_.name).toSet
-                          ),
-                          SIR.Error("Symbol not found", AnnotationsDecl.fromSrcPos(srcPos))
-                        )
     }
 
     private def retrieveModule(
@@ -204,28 +196,13 @@ class SIRLinker(using ctx: Context) {
         anns: AnnotationsDecl
     ): Unit = {
         val nDefs = moduleDefsCache.get(moduleName) match
-            case Some(defs) =>
-                if sirDataReprGeneratorEnabled then {
-                    // will add to mutabe defs as a side effect
-                    val unused = defs.getOrElseUpdate(
-                      fullName,
-                      sirDataReprGenerator.generate(fullName, tp, srcPos)
-                    )
-                }
-                defs
+            case Some(defs) => defs
             case None =>
-                if !sirDataReprGeneratorEnabled then {
-                    report.error(
-                      s"Module not found during linking: ${moduleName} for data representation of ${fullName.name} from ${anns.pos.file}: ${anns.pos.startLine}",
-                      srcPos
-                    )
-                    mutable.LinkedHashMap.empty[FullName, SIR]
-                } else
-                    val defs = mutable.LinkedHashMap(
-                      fullName -> sirDataReprGenerator.generate(fullName, tp, srcPos)
-                    )
-                    moduleDefsCache.put(moduleName, defs)
-                    defs
+                report.error(
+                  s"Module not found during linking: ${moduleName} for data representation of ${fullName.name} from ${anns.pos.file}: ${anns.pos.startLine}",
+                  srcPos
+                )
+                mutable.LinkedHashMap.empty[FullName, SIR]
         if !findAndLinkDefinition(nDefs, fullName, srcPos) then {
             error(
               SymbolNotFound(

@@ -17,6 +17,21 @@ final class Ignore extends Annotation
 trait CompileDerivations
 
 object Compiler:
+
+    enum TargetLoweringBackend:
+        case SimpleSirToUplcLowering
+        case SimpleSirToUplcV3Lowering
+        case SirToUplc110Lowering
+        case SirToUplcV3Lowering
+
+    case class Options(
+        targetLoweringBackend: TargetLoweringBackend =
+            TargetLoweringBackend.SimpleSirToUplcLowering,
+        generateErrorTraces: Boolean = true,
+        optimizeUplc: Boolean = true,
+        debug: Boolean = false
+    )
+
     inline def fieldAsData[A](inline expr: A => Any): Data => Data = ${
         Macros.fieldAsDataMacro('expr)
     }

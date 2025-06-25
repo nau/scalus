@@ -32,6 +32,25 @@ package object scalus {
                 |> ForcedBuiltinsExtractor.apply
         }
 
+        def lowerToUplc(using options: Compiler.Options = Compiler.Options()): Term = {
+            val backend = options.targetLoweringBackend
+            val uplc = backend match
+                case Compiler.TargetLoweringBackend.SimpleSirToUplcLowering =>
+                    SimpleSirToUplcLowering(sir, options.generateErrorTraces).lower()
+                case Compiler.TargetLoweringBackend.SimpleSirToUplcV3Lowering =>
+                    SimpleSirToUplcV3Lowering(sir, options.generateErrorTraces)
+                        .lower()
+                case Compiler.TargetLoweringBackend.SirToUplc110Lowering =>
+                    SirToUplc110Lowering(sir, options.generateErrorTraces).lower()
+                case Compiler.TargetLoweringBackend.SirToUplcV3Lowering =>
+                    SirToUplcV3Lowering(sir, options.generateErrorTraces, options.debug).lower()
+            val retval =
+                if options.optimizeUplc then
+                    uplc |> EtaReduce.apply |> Inliner.apply |> CaseConstrApply.apply |> ForcedBuiltinsExtractor.apply
+                else uplc
+            retval
+        }
+
         @deprecated("Use toUplc().plutusV* instead", "0.8.4")
         def toPlutusProgram(
             version: (Int, Int, Int),

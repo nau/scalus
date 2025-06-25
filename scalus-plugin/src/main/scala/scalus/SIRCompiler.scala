@@ -80,7 +80,7 @@ enum CompileDef:
 
 case class SIRCompilerOptions(
     useSubmodules: Boolean = false,
-    universalDataRepresentation: Boolean = true,
+    universalDataRepresentation: Boolean = false,
     debugLevel: Int = 0
 )
 
@@ -107,8 +107,6 @@ final class SIRCompiler(options: SIRCompilerOptions = SIRCompilerOptions.default
     private val NullSymbol = defn.NullClass
     private val ByteStringModuleSymbol = requiredModule("scalus.builtin.ByteString")
     private val ByteStringSymbolHex = ByteStringModuleSymbol.requiredMethod("hex")
-    private val ByteStringStringInterpolatorsMethodSymbol =
-        ByteStringModuleSymbol.requiredMethod("StringInterpolators")
     private val FromDataSymbol = requiredClass("scalus.builtin.FromData")
     private val ToDataSymbol = requiredClass("scalus.builtin.ToData")
     private val typer = new SIRTyper

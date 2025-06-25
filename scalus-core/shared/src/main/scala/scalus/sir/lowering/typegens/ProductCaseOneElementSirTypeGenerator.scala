@@ -79,7 +79,7 @@ case class ProductCaseOneElementSirTypeGenerator(
                 input.toRepresentation(ProdDataList, pos).toRepresentation(ProdDataConstr, pos)
             case (
                   ProductCaseClassRepresentation.OneElementWrapper(argRepr),
-                  TypeVarRepresentation(isBuiltin)
+                  outRepr @ TypeVarRepresentation(isBuiltin)
                 ) =>
                 if isBuiltin then new RepresentationProxyLoweredValue(input, representation, pos)
                 else
@@ -89,10 +89,11 @@ case class ProductCaseOneElementSirTypeGenerator(
                     else
                         val argValue = argLoweredValue(input)
                         val newArg = argGenerator.toRepresentation(argValue, representation, pos)
+                        val inPos = pos
                         new ProxyLoweredValue(newArg) {
                             override def sirType: SIRType = input.sirType
-                            override def representation: LoweredValueRepresentation = representation
-                            override def pos: SIRPosition = pos
+                            override def representation: LoweredValueRepresentation = outRepr
+                            override def pos: SIRPosition = inPos
                             override def termInternal(gctx: TermGenerationContext): Term =
                                 newArg.termInternal(gctx)
                         }
