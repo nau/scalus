@@ -4,7 +4,8 @@ package rules
 import scalus.cardano.ledger.rules.utils.AllReferenceScripts
 import io.bullet.borer.Cbor
 import scalus.cardano.ledger.Script.PlutusV1
-
+import scala.util.boundary
+import scala.util.boundary.break
 import scala.annotation.tailrec
 
 // It's Babbage.FeesOK in cardano-ledger
@@ -17,17 +18,19 @@ import scala.annotation.tailrec
 //--      fee marked in the transaction
 //--   6) The collateral is equivalent to total collateral asserted by the transaction
 //--   7) There is at least one collateral input
-object feesOkValidator extends STS.Validator, AllReferenceScripts {
+object FeesOkValidator extends STS.Validator, AllReferenceScripts {
     override def validate(context: Context, state: State, event: Event): Result = {
         for
             _ <- feePaidIsGreeterOrEqualThanMinimumFee(context, state, event)
             _ <-
                 if totalExUnitsAreZero(event) then success
-                else {
+                else
                     // validate total collateral
-                    for _ <- collateralConsistsOnlyOfVKeyAddresses()
+                    for
+                        _ <- collateralConsistsOnlyOfVKeyAddresses(state, event)
+                        _ <- collateralInputsDoNotContainAnyNonADA(state, event)
+                        _ <- isAtLeastOneCollateralInput(event)
                     yield ()
-                }
         yield ()
     }
 
@@ -52,11 +55,80 @@ object feesOkValidator extends STS.Validator, AllReferenceScripts {
     }
 
     private def totalExUnitsAreZero(event: Event): Boolean = {
-//        calculateTotalExUnits(event: Event) == ExUnits.zero
-        event.witnessSet.redeemers.isEmpty
+        calculateTotalExUnits(event: Event) == ExUnits.zero
     }
 
-    private def collateralConsistsOnlyOfVKeyAddresses(): Result = { ??? }
+    private def collateralConsistsOnlyOfVKeyAddresses(
+        state: State,
+        event: Event
+    ): Result = boundary {
+        for (collateralInput, index) <- event.body.value.collateralInputs.view.zipWithIndex
+        do
+            state.utxo.get(collateralInput) match
+                case Some(output) =>
+                    if output.address.keyHash.isEmpty then
+                        break(
+                          failure(
+                            IllegalArgumentException(
+                              s"Collateral input $collateralInput at index $index is not a VKey address in UTXO for transactionId ${event.id}"
+                            )
+                          )
+                        )
+
+                // This check allows to be an order independent in the sequence of validation rules
+                case None =>
+                    break(
+                      failure(
+                        IllegalArgumentException(
+                          s"Collateral input $collateralInput at index $index is missing in UTXO for transactionId ${event.id}"
+                        )
+                      )
+                    )
+
+        success
+    }
+
+    private def collateralInputsDoNotContainAnyNonADA(
+        state: State,
+        event: Event
+    ): Result = boundary {
+        for (collateralInput, index) <- event.body.value.collateralInputs.view.zipWithIndex
+        do
+            state.utxo.get(collateralInput) match
+                case Some(output) =>
+                    if output.value.assets.nonEmpty then
+                        break(
+                          failure(
+                            IllegalArgumentException(
+                              s"Collateral input $collateralInput at index $index contains non-ADA assets in UTXO for transactionId ${event.id}"
+                            )
+                          )
+                        )
+
+                // This check allows to be an order independent in the sequence of validation rules
+                case None =>
+                    break(
+                      failure(
+                        IllegalArgumentException(
+                          s"Collateral input $collateralInput at index $index is missing in UTXO for transactionId ${event.id}"
+                        )
+                      )
+                    )
+
+        success
+    }
+
+    private def isAtLeastOneCollateralInput(
+        event: Event
+    ): Result = {
+        if event.body.value.collateralInputs.isEmpty then
+            failure(
+              IllegalArgumentException(
+                s"There is no collateral input in transaction ${event.id}"
+              )
+            )
+        else success
+    }
 
     private def calculateMinTransactionFee(
         context: Context,
