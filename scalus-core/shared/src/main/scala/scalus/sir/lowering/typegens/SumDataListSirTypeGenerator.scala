@@ -107,7 +107,7 @@ object SumDataListSirTypeGenerator extends SirTypeUplcGenerator {
             case "scalus.prelude.List$.Nil" =>
                 lvBuiltinApply0(
                   SIRBuiltins.mkNilData,
-                  SIRType.List(SIRType.FreeUnificator),
+                  SIRType.List.Nil,
                   SumCaseClassRepresentation.SumDataList,
                   constr.anns.pos
                 )
@@ -130,7 +130,7 @@ object SumDataListSirTypeGenerator extends SirTypeUplcGenerator {
                   SIRBuiltins.mkCons,
                   headDataRepr,
                   tailDataRepr,
-                  SIRType.List(elementType),
+                  SIRType.List.Cons(elementType),
                   SumCaseClassRepresentation.SumDataList,
                   constr.anns.pos
                 )
@@ -360,49 +360,71 @@ object SumDataListSirTypeGenerator extends SirTypeUplcGenerator {
                 .maybeUpcast(matchData.tp, nilCase.get.anns.pos)
                 .toRepresentation(bodyRepresentation, nilCase.get.anns.pos)
 
-        val usedVarsCount = Lowering.filterAndCountVars(
-          _ => true,
-          loweredScrutinee,
-          loweredConsBody,
-          loweredNilBody,
-        )
+        if SIRType.isProd(loweredScrutinee.sirType) then
+            val constrDecl = SIRType
+                .retrieveConstrDecl(loweredScrutinee.sirType)
+                .getOrElse(
+                  throw LoweringException(
+                    s"Cannot retrieve constrDecl from ${loweredScrutinee.sirType.show}",
+                    matchData.anns.pos
+                  )
+                )
+            if constrDecl.name == "scalus.prelude.List$.Nil" then {
+                // we can generate only Nil case.
+                println("warning: unused case Cons in List match will be removed")
+                loweredNilBody
+            } else if constrDecl.name == "scalus.prelude.List$.Cons" then {
+                println("warning: unused case Nil in List match will be removed")
+                loweredConsBody
+            } else
+                throw LoweringException(
+                  s"Unknown list constructior ${constrDecl.name}",
+                  matchData.anns.pos
+                )
+        else
+            val usedVarsCount = Lowering.filterAndCountVars(
+              _ => true,
+              loweredScrutinee,
+              loweredConsBody,
+              loweredNilBody,
+            )
 
-        val cDominatedVars = usedVarsCount.filter { case (v, c) =>
-            v.directDepended.size > 1 && c > 1
-        }.keySet
-        val cUsedVars = usedVarsCount.keySet
+            val cDominatedVars = usedVarsCount.filter { case (v, c) =>
+                v.directDepended.size > 1 && c > 1
+            }.keySet
+            val cUsedVars = usedVarsCount.keySet
 
-        val retval = new LoweredValue {
-            override def sirType: SIRType = matchData.tp
+            val retval = new LoweredValue {
+                override def sirType: SIRType = matchData.tp
 
-            override def pos: SIRPosition = matchData.anns.pos
+                override def pos: SIRPosition = matchData.anns.pos
 
-            override def termInternal(gctx: TermGenerationContext): Term = {
-                !(DefaultFun.ChooseList.tpf $ listInput.termWithNeededVars(gctx)
-                    $ ~loweredNilBody.termWithNeededVars(gctx)
-                    $ ~loweredConsBody.termWithNeededVars(gctx))
+                override def termInternal(gctx: TermGenerationContext): Term = {
+                    !(DefaultFun.ChooseList.tpf $ listInput.termWithNeededVars(gctx)
+                        $ ~loweredNilBody.termWithNeededVars(gctx)
+                        $ ~loweredConsBody.termWithNeededVars(gctx))
 
+                }
+
+                override def representation: LoweredValueRepresentation =
+                    bodyRepresentation
+
+                override def dominatingUplevelVars: Set[IdentifiableLoweredValue] = cDominatedVars
+
+                override def usedUplevelVars: Set[IdentifiableLoweredValue] = cUsedVars
+
+                override def addDependent(value: IdentifiableLoweredValue): Unit = {
+                    loweredScrutinee.addDependent(value)
+                    loweredNilBody.addDependent(value)
+                    loweredConsBody.addDependent(value)
+                }
+
+                override def show: String = {
+                    s"SumDataListMatch(${matchData.scrutinee}, ${loweredNilBody}, ${loweredConsBody}) at ${matchData.anns.pos}"
+                }
             }
 
-            override def representation: LoweredValueRepresentation =
-                bodyRepresentation
-
-            override def dominatingUplevelVars: Set[IdentifiableLoweredValue] = cDominatedVars
-
-            override def usedUplevelVars: Set[IdentifiableLoweredValue] = cUsedVars
-
-            override def addDependent(value: IdentifiableLoweredValue): Unit = {
-                loweredScrutinee.addDependent(value)
-                loweredNilBody.addDependent(value)
-                loweredConsBody.addDependent(value)
-            }
-
-            override def show: String = {
-                s"SumDataListMatch(${matchData.scrutinee}, ${loweredNilBody}, ${loweredConsBody}) at ${matchData.anns.pos}"
-            }
-        }
-
-        retval
+            retval
     }
 
 }

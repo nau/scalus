@@ -34,6 +34,7 @@ class SIRUplcV3LoweringRandomSpec extends AnyFunSuite {
 
     given PlutusVM = PlutusVM.makePlutusV3VM()
 
+    
     test("lowering simple case class") {
         val sir = compile {
             val aa = AA(true, BigInt(123))

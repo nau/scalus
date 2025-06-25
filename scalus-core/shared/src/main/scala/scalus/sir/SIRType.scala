@@ -369,6 +369,7 @@ object SIRType {
       * @param trace - trace for recursive entries
       * @return
       */
+    @scala.annotation.tailrec
     def isPolyFunOrFun(
         tp: SIRType,
         trace: java.util.IdentityHashMap[SIRType, SIRType] = new util.IdentityHashMap()
@@ -384,6 +385,29 @@ object SIRType {
                     else isPolyFunOrFun(ref, trace)
                 case _ => false
             }
+    }
+
+    @scala.annotation.tailrec
+    def isSum(tp: SIRType): Boolean = {
+        tp match {
+            case SIRType.SumCaseClass(_, _)  => true
+            case SIRType.TypeLambda(_, body) => isSum(body)
+            case SIRType.TypeProxy(ref) =>
+                if ref == null then false
+                else isSum(ref)
+            case _ => false
+        }
+    }
+
+    def isProd(tp: SIRType): Boolean = {
+        tp match {
+            case SIRType.CaseClass(_, _, _)  => true
+            case SIRType.TypeLambda(_, body) => isProd(body)
+            case SIRType.TypeProxy(ref) =>
+                if ref == null then false
+                else isProd(ref)
+            case _ => false
+        }
     }
 
     /** Check if the type is a function or a polymorphic function  from unit without unfolding type arguments.
@@ -597,8 +621,6 @@ object SIRType {
             case _ => Left(s"Expected CaseClass, got ${tp.show} (${tp.getClass.getSimpleName}")
         }
     }
-
-    
 
     def checkAllProxiesFilled(tp: SIRType): Boolean = {
         checkAllProxiesFilledTraced(tp, new util.IdentityHashMap[SIRType, SIRType], Nil)

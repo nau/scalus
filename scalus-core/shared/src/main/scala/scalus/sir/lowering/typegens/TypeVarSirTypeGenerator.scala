@@ -15,6 +15,8 @@ object TypeVarSirTypeGenerator extends SirTypeUplcGenerator {
         tp match
             case SIRType.TypeVar(_, _, isBuiltin) =>
                 TypeVarRepresentation(isBuiltin)
+            case SIRType.FreeUnificator =>
+                TypeVarRepresentation(false)
             case _ =>
                 throw IllegalStateException(
                   s"TypeVarSirTypeGenerator can't be used for type ${tp.show}",
@@ -24,13 +26,7 @@ object TypeVarSirTypeGenerator extends SirTypeUplcGenerator {
     override def defaultDataRepresentation(tp: SIRType)(using
         LoweringContext
     ): LoweredValueRepresentation = {
-        tp match
-            case SIRType.TypeVar(_, _, isBuiltin) =>
-                TypeVarRepresentation(isBuiltin)
-            case _ =>
-                throw IllegalStateException(
-                  s"TypeVarSirTypeGenerator can't be used for type ${tp.show}",
-                )
+        TypeVarRepresentation(false)
     }
 
     override def defaultTypeVarReperesentation(tp: SIRType)(using

@@ -80,17 +80,37 @@ class SirToUplcSmLoweringTest
         // lowersTo vr"x"
     }
 
-    test("lower Lam/Apply") {
+    test("lower Lam/Apply with builtin type-vars (non-scal)") {
         import SIRType.{TypeLambda, TypeVar, Unit}
         val idType = TypeLambda(List(TypeVar("A", Some(1), false)), TypeVar("A", Some(1), false))
-        val x = SIR.Var("x", TypeVar("X", Some(2), false), ae)
-        SIR.Apply(
+        val x = SIR.Var("x", TypeVar("X", Some(2), true), ae)
+
+        val sir = SIR.Apply(
           SIR.LamAbs(x, x, ae),
           SIR.Const(Constant.Unit, Unit, ae),
           Unit,
           ae
-        ) lowersTo (lam("x")(vr"x") $ Constant.Unit)
+        )
+        val uplc = lower(sir)
+        val expected = lam("x")(vr"x") $ Constant.Unit
+        assert(uplc alphaEq expected)
+    }
 
+    test("lower Lam/Apply with scala type-vars") {
+        import SIRType.{TypeLambda, TypeVar, Unit}
+        val idType = TypeLambda(List(TypeVar("A", Some(1), false)), TypeVar("A", Some(1), false))
+        val x = SIR.Var("x", TypeVar("X", Some(2), false), ae)
+
+        val sir = SIR.Apply(
+          SIR.LamAbs(x, x, ae),
+          SIR.Const(Constant.Unit, Unit, ae),
+          Unit,
+          ae
+        )
+        val uplc = lower(sir)
+        // sscala type-vars are represented as Data.
+        val expected = lam("x")(vr"x") $ (DefaultFun.MkNilData $ Constant.Unit)
+        assert(uplc alphaEq expected)
     }
 
     test("lower builtins") {
@@ -182,10 +202,11 @@ class SirToUplcSmLoweringTest
           )
         )
 
+        // println(s"oriignSir1.tp = ${originSir1.tp.show}")
         val gen1 = scalus.sir.lowering.typegens.SirTypeUplcGenerator(originSir1.tp)
         given LoweringContext = LoweringContext()
-        val representation1 = gen1.defaultRepresentation
-        assert(representation1 == scalus.sir.lowering.ProductCaseClassRepresentation.ProdDataList)
+        val representation1 = gen1.defaultRepresentation(originSir1.tp)
+        assert(representation1 == scalus.sir.lowering.SumCaseClassRepresentation.SumDataList)
 
         val genDataList =
             scalus.sir.lowering.typegens.SirTypeUplcGenerator(SIRType.List(SIRType.Data))
@@ -232,9 +253,9 @@ class SirToUplcSmLoweringTest
     }
 
     test("lower And, Or, Not") {
-        /* And True False
-       lowers to (\True False -> And True False) True False
-         */
+        // And True False
+        // lowers to (\True False -> And True False) True False
+        //
 
         val a = SIR.Var("a", SIRType.Boolean, ae)
         val b = SIR.Var("b", SIRType.Boolean, ae)
@@ -389,9 +410,9 @@ class SirToUplcSmLoweringTest
 
         val sirMatchUplc1 = lower(sirMatch1)
 
-        // println(s"Lowered SIR: ${sirMatchUplc1.pretty.render(100)}")
+        println(s"Lowered SIR: ${sirMatchUplc1.pretty.render(100)}")
 
-        // val uplcExpected1 = lam("Nil", "Cons")(!vr"Nil") $ ~asConstant(1) $ lam("h", "tl")(2)
+        val uplcExpected1 = lam("Nil", "Cons")(!vr"Nil") $ ~asConstant(1) $ lam("h", "tl")(2)
         val uplcExpected = asConstant(1)
 
         assert(
