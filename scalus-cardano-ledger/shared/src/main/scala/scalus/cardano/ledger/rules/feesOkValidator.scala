@@ -8,11 +8,38 @@ import scalus.cardano.ledger.Script.PlutusV1
 import scala.annotation.tailrec
 
 // It's Babbage.FeesOK in cardano-ledger
+//feesOK is a predicate with several parts. Some parts only apply in special circumstances.
+//--   1) The fee paid is >= the minimum fee
+//--   2) If the total ExUnits are 0 in both Memory and Steps, no further part needs to be checked.
+//--   3) The collateral consists only of VKey addresses
+//--   4) The collateral inputs do not contain any non-ADA part
+//--   5) The collateral is sufficient to cover the appropriate percentage of the
+//--      fee marked in the transaction
+//--   6) The collateral is equivalent to total collateral asserted by the transaction
+//--   7) There is at least one collateral input
 object feesOkValidator extends STS.Validator, AllReferenceScripts {
     override def validate(context: Context, state: State, event: Event): Result = {
-        val transactionFee = event.body.value.fee
+        for
+            _ <- feePaidIsGreeterOrEqualThanMinimumFee(context, state, event)
+            _ <-
+                if totalExUnitsAreZero(event) then success
+                else {
+                    // validate total collateral
+                    for _ <- collateralConsistsOnlyOfVKeyAddresses()
+                    yield ()
+                }
+        yield ()
+    }
+
+    //
+    private def feePaidIsGreeterOrEqualThanMinimumFee(
+        context: Context,
+        state: State,
+        event: Event
+    ): Result = {
         for
             minTransactionFee <- calculateMinTransactionFee(context, state, event)
+            transactionFee = event.body.value.fee
             _ <-
                 if transactionFee < minTransactionFee then
                     failure(
@@ -24,33 +51,53 @@ object feesOkValidator extends STS.Validator, AllReferenceScripts {
         yield ()
     }
 
+    private def totalExUnitsAreZero(event: Event): Boolean = {
+//        calculateTotalExUnits(event: Event) == ExUnits.zero
+        event.witnessSet.redeemers.isEmpty
+    }
+
+    private def collateralConsistsOnlyOfVKeyAddresses(): Result = { ??? }
+
     private def calculateMinTransactionFee(
         context: Context,
         state: State,
         event: Event
     ): Either[Error, Coin] = {
-        def tierRefScriptFee(
-            multiplier: NonNegativeInterval,
-            sizeIncrement: Int,
-            curTierPrice: NonNegativeInterval,
-            n: Int
-        ): Coin = {
-            @tailrec
-            def go(acc: NonNegativeInterval, curTierPrice: NonNegativeInterval, n: Int): Coin = {
-                if n < sizeIncrement then Coin((acc + curTierPrice * n).floor)
-                else
-                    go(
-                      acc + curTierPrice * sizeIncrement,
-                      multiplier * curTierPrice,
-                      n - sizeIncrement
-                    )
+        for scripts <- allReferenceScripts(state, event)
+        yield
+            val refScriptsFee = RefScriptsFeeCalculator(context, scripts)
+            val transactionSizeFee = calculateTransactionSizeFee(context, event)
+            val exUnitsFee = calculateExUnitsFee(context, event)
+
+            refScriptsFee + transactionSizeFee + exUnitsFee
+    }
+
+    private object RefScriptsFeeCalculator {
+        def apply(context: Context, scripts: Set[Script]): Coin = {
+            def tierRefScriptFee(
+                multiplier: NonNegativeInterval,
+                sizeIncrement: Int,
+                curTierPrice: NonNegativeInterval,
+                n: Int
+            ): Coin = {
+                @tailrec
+                def go(
+                    acc: NonNegativeInterval,
+                    curTierPrice: NonNegativeInterval,
+                    n: Int
+                ): Coin = {
+                    if n < sizeIncrement then Coin((acc + curTierPrice * n).floor)
+                    else
+                        go(
+                          acc + curTierPrice * sizeIncrement,
+                          multiplier * curTierPrice,
+                          n - sizeIncrement
+                        )
+                }
+
+                go(NonNegativeInterval.zero, curTierPrice, n)
             }
 
-            go(NonNegativeInterval.zero, curTierPrice, n)
-        }
-
-        for scripts <- allReferenceScripts(state, event)
-        yield {
             val refScriptsSize = scripts.foldLeft(0) { case (length, script) =>
                 val scripLength = script match
                     case _: Script.Native => 0 // Native scripts do not contribute to fees
@@ -65,33 +112,42 @@ object feesOkValidator extends STS.Validator, AllReferenceScripts {
               context.env.params.minFeeRefScriptCostPerByte
             )
 
-            val refScriptsFee = tierRefScriptFee(
+            tierRefScriptFee(
               refScriptCostMultiplier,
               refScriptCostStride,
               minFeeRefScriptCostPerByte,
               refScriptsSize
             )
-
-            val txFeeFixed = context.env.params.txFeeFixed
-            val txFeePerByte = context.env.params.txFeePerByte
-            val transactionSizeFee = Coin(
-              Cbor.encode(event).toByteArray.length * txFeePerByte + txFeeFixed
-            )
-
-            val executionUnitPrices = context.env.params.executionUnitPrices
-            val exUnits = event.witnessSet.redeemers
-                .map(_.toSeq.foldLeft(ExUnits.zero) { (exUnits, redeemer) =>
-                    exUnits + redeemer.exUnits
-                })
-                .getOrElse(ExUnits.zero)
-            val exUnitsFee = Coin(
-              (executionUnitPrices.priceMemory * exUnits.memory + executionUnitPrices.priceSteps * exUnits.steps).ceil
-            )
-
-            refScriptsFee + transactionSizeFee + exUnitsFee
         }
+
+        private val refScriptCostMultiplier = NonNegativeInterval(1.2)
+        private val refScriptCostStride = 25600
     }
 
-    private val refScriptCostMultiplier = NonNegativeInterval(1.2)
-    private val refScriptCostStride = 25600
+    private def calculateTransactionSizeFee(context: Context, event: Event): Coin = {
+        val txFeeFixed = context.env.params.txFeeFixed
+        val txFeePerByte = context.env.params.txFeePerByte
+        val transactionSize = Cbor.encode(event).toByteArray.length
+
+        Coin(transactionSize * txFeePerByte + txFeeFixed)
+    }
+
+    private def calculateExUnitsFee(context: Context, event: Event): Coin = {
+        val executionUnitPrices = context.env.params.executionUnitPrices
+        val exUnits = calculateTotalExUnits(event)
+
+        if exUnits == ExUnits.zero then Coin.zero
+        else
+            Coin(
+              (executionUnitPrices.priceMemory * exUnits.memory + executionUnitPrices.priceSteps * exUnits.steps).ceil
+            )
+    }
+
+    private def calculateTotalExUnits(event: Event): ExUnits = {
+        event.witnessSet.redeemers
+            .map(_.toSeq.foldLeft(ExUnits.zero) { (exUnits, redeemer) =>
+                exUnits + redeemer.exUnits
+            })
+            .getOrElse(ExUnits.zero)
+    }
 }
