@@ -34,11 +34,11 @@ object ScriptDataHashGenerator {
         redeemers: Seq[Redeemer],
         datums: KeepRaw[TaggedSet[Data]],
         costModels: CostModels
-    ): Array[Byte] = {
-        if era.value < Era.Conway.value then
-            throw new IllegalArgumentException(
-              s"Script data hash generation is not supported for eras before Conway, got era: $era"
-            )
+    ): DataHash = {
+        require(
+          era.value >= Era.Conway.value,
+          s"Script data hash generation is not supported for eras before Conway, got era: $era"
+        )
         /* ; script data format:
          * ; [ redeemers | datums | language views ]
          * ; The redeemers are exactly the data present in the transaction witness set.
@@ -54,6 +54,6 @@ object ScriptDataHashGenerator {
             else Cbor.encode(Redeemers.from(redeemers)).toByteArray
         val costModelsBytes = costModels.getLanguageViewEncoding
         val encodedBytes = redeemerBytes ++ plutusDataBytes ++ costModelsBytes
-        summon[PlatformSpecific].blake2b_256(ByteString.unsafeFromArray(encodedBytes)).bytes
+        Hash(summon[PlatformSpecific].blake2b_256(ByteString.unsafeFromArray(encodedBytes)))
     }
 }
