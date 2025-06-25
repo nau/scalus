@@ -4,7 +4,9 @@ import io.bullet.borer.{Cbor, Decoder, Encoder}
 import org.scalacheck.Arbitrary
 import org.scalatest.funsuite.AnyFunSuite
 import org.scalatestplus.scalacheck.ScalaCheckPropertyChecks
+import scalus.builtin.ByteString.*
 import scalus.ledger.api.Timelock
+import scalus.utils.Hex.toHex
 
 class CborSerializationTest extends AnyFunSuite, ScalaCheckPropertyChecks, ArbitraryInstances {
     test(s"Hash should serialize and deserialize correctly"):
@@ -156,6 +158,22 @@ class CborSerializationTest extends AnyFunSuite, ScalaCheckPropertyChecks, Arbit
 
     test(s"TransactionWitnessSet should serialize and deserialize correctly"):
         testSerializationRoundTrip[TransactionWitnessSet]()
+//        val a = Arbitrary.arbitrary[TransactionWitnessSet].sample.get
+//        val a = TransactionWitnessSet(
+//          plutusData = KeepRaw(TaggedSet(Set(Data.I(42), Data.I(43)))),
+//          plutusV2Scripts = Set(
+//            PlutusV2Script(hex"1234567890abcdef1234567890abcdef1234567890abcdef1234567890abcdef")
+//          ),
+//        )
+
+    //        val a = TransactionWitnessSet(plutusData = KeepRaw(Set(Data.I(42), Data.I(42))))
+//        println(s"asdf: ${a.plutusData.raw.toHex}")
+//        val encoded = Cbor.encode(a).toByteArray
+//        given OriginalCborByteArray = OriginalCborByteArray(encoded)
+//        val decoded = Cbor.decode(encoded).to[TransactionWitnessSet].value
+//        println(s"Encoded: ${encoded.toHex}")
+//        println(s"Decoded: ${decoded.plutusData.raw.toHex}")
+//        assert(a == decoded)
 
     test(s"UnitInterval should serialize and deserialize correctly"):
         testSerializationRoundTrip[UnitInterval]()
@@ -206,14 +224,12 @@ class CborSerializationTest extends AnyFunSuite, ScalaCheckPropertyChecks, Arbit
         testSerializationRoundTrip[BlockFile]()
 
     test(s"Transaction should serialize and deserialize correctly"):
-        forAll: (a: Transaction) =>
-            val encoded = Cbor.encode(a).toByteArray
-            given OriginalCborByteArray = OriginalCborByteArray(encoded)
-            val decoded = Cbor.decode(encoded).to[Transaction].value
-            assert(a == decoded)
+        testSerializationRoundTrip[Transaction]()
 
     // Helper method to test serialization/deserialization for a given type
-    private def testSerializationRoundTrip[A: Arbitrary: Encoder: Decoder](): Unit = {
+    private def testSerializationRoundTrip[A: Arbitrary: Encoder](using
+        OriginalCborByteArray ?=> Decoder[A]
+    ): Unit = {
         forAll: (a: A) =>
             val encoded = Cbor.encode(a).toByteArray
             given OriginalCborByteArray = OriginalCborByteArray(encoded)

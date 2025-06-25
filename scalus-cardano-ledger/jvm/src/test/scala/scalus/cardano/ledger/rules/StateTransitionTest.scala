@@ -1392,7 +1392,7 @@ class StateTransitionTest extends AnyFunSuite, ArbitraryInstances {
                 plutusV1Scripts = Set.empty,
                 plutusV2Scripts = Set.empty,
                 plutusV3Scripts = Set.empty,
-                plutusData = Set.empty,
+                plutusData = KeepRaw(TaggedSet.empty),
                 redeemers = None
               ),
               auxiliaryData = None,

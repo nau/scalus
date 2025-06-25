@@ -2,16 +2,37 @@ package scalus.cardano.ledger
 
 import io.bullet.borer.Cbor
 import scalus.builtin.{ByteString, Data, PlatformSpecific, given}
+import scalus.ledger.babbage.ProtocolParams
 
-import java.util
-import java.util.List
 import scala.collection.immutable
+import scala.collection.immutable.ListMap
 
 object ScriptDataHashGenerator {
+
+    def getCostModelsForTxWitness(pparams: ProtocolParams, w: TransactionWitnessSet): CostModels = {
+
+        val cmv1 =
+            if w.plutusV1Scripts.nonEmpty then
+                ListMap(0 -> pparams.costModels("PlutusV1").toIndexedSeq)
+            else ListMap.empty[Int, IndexedSeq[Long]]
+
+        val cmv2 =
+            if w.plutusV2Scripts.nonEmpty then
+                ListMap(1 -> pparams.costModels("PlutusV2").toIndexedSeq)
+            else ListMap.empty[Int, IndexedSeq[Long]]
+
+        val cmv3 =
+            if w.plutusV3Scripts.nonEmpty then
+                ListMap(2 -> pparams.costModels("PlutusV3").toIndexedSeq)
+            else ListMap.empty[Int, IndexedSeq[Long]]
+
+        CostModels(cmv1 ++ cmv2 ++ cmv3)
+    }
+
     def generate(
         era: Era,
         redeemers: Seq[Redeemer],
-        datums: Seq[Data],
+        datums: KeepRaw[TaggedSet[Data]],
         costModels: CostModels
     ): Array[Byte] = {
         if era.value < Era.Conway.value then
@@ -25,7 +46,9 @@ object ScriptDataHashGenerator {
          * ; field is an empty string.
          */
 
-        val plutusDataBytes = Cbor.encode(datums.iterator.map(_.toCbor).toArray).toByteArray
+        val plutusDataBytes =
+            if datums.value.isEmpty then Array.empty[Byte]
+            else datums.raw
         val redeemerBytes =
             if redeemers.isEmpty then Array(0xa0.toByte) // Empty map in CBOR
             else Cbor.encode(Redeemers.from(redeemers)).toByteArray

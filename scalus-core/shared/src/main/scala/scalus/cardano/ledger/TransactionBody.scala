@@ -268,7 +268,7 @@ object TransactionBody:
                         inputs = readSet[TransactionInput](r)
 
                     case 1 => // Outputs
-                        outputs = r.read[ArraySeq[TransactionOutput]]()
+                        outputs = r.read[IndexedSeq[TransactionOutput]]()
 
                     case 2 => // Fee
                         fee = Some(r.read[Coin]())

@@ -1,8 +1,33 @@
 package scalus.cardano.ledger
 
-import io.bullet.borer.*
+import io.bullet.borer.{Encoder, *}
 import scalus.builtin.Data
 import scalus.ledger.api.Timelock
+
+opaque type TaggedSet[A] <: Set[A] = Set[A]
+object TaggedSet {
+    inline def empty[A]: TaggedSet[A] = Set.empty[A]
+    inline def apply[A](s: Set[A]): TaggedSet[A] = s
+
+    given [A: Encoder]: Encoder[TaggedSet[A]] with
+        def write(w: Writer, value: TaggedSet[A]): Writer = {
+            // Use indefinite array
+            w.writeTag(Tag.Other(258))
+            w.writeArrayHeader(value.size)
+            value.foreach(w.write(_))
+            w
+        }
+
+    given [A: Decoder]: Decoder[TaggedSet[A]] with
+        def read(r: Reader): TaggedSet[A] = {
+            // Check for indefinite array tag (258)
+            if r.dataItem() == DataItem.Tag then
+                val tag = r.readTag()
+                if tag.code != 258 then
+                    r.validationFailure(s"Expected tag 258 for definite Set, got $tag")
+            r.read[Set[A]]()(using Decoder.fromFactory[A, Set])
+        }
+}
 
 /** Represents the witness set for a transaction in Cardano */
 case class TransactionWitnessSet(
@@ -19,7 +44,7 @@ case class TransactionWitnessSet(
     plutusV1Scripts: Set[PlutusV1Script] = Set.empty,
 
     /** Plutus data values */
-    plutusData: Set[Data] = Set.empty,
+    plutusData: KeepRaw[TaggedSet[Data]] = KeepRaw(TaggedSet(Set.empty)),
 
     /** Redeemers */
     redeemers: Option[Redeemers] = None,
@@ -36,7 +61,7 @@ case class TransactionWitnessSet(
             nativeScripts.isEmpty &&
             bootstrapWitnesses.isEmpty &&
             plutusV1Scripts.isEmpty &&
-            plutusData.isEmpty &&
+            plutusData.value.isEmpty &&
             redeemers.isEmpty &&
             plutusV2Scripts.isEmpty &&
             plutusV3Scripts.isEmpty
@@ -55,7 +80,7 @@ object TransactionWitnessSet:
             if value.nativeScripts.nonEmpty then mapSize += 1
             if value.bootstrapWitnesses.nonEmpty then mapSize += 1
             if value.plutusV1Scripts.nonEmpty then mapSize += 1
-            if value.plutusData.nonEmpty then mapSize += 1
+            if value.plutusData.value.nonEmpty then mapSize += 1
             if value.redeemers.isDefined then mapSize += 1
             if value.plutusV2Scripts.nonEmpty then mapSize += 1
             if value.plutusV3Scripts.nonEmpty then mapSize += 1
@@ -83,9 +108,10 @@ object TransactionWitnessSet:
                 writeSet(w, value.plutusV1Scripts)
 
             // Plutus data (key 4)
-            if value.plutusData.nonEmpty then
+            if value.plutusData.value.nonEmpty then
                 w.writeInt(4)
-                writeSet(w, value.plutusData)
+                // TODO: handle KeepRaw properly when this is implemented: https://github.com/sirthias/borer/issues/764
+                w.write(value.plutusData)
 
             // Redeemers (key 5)
             value.redeemers.foreach { redeemers =>
@@ -114,7 +140,7 @@ object TransactionWitnessSet:
         w
 
     /** CBOR decoder for TransactionWitnessSet */
-    given Decoder[TransactionWitnessSet] with
+    given decoder(using OriginalCborByteArray): Decoder[TransactionWitnessSet] with
         def read(r: Reader): TransactionWitnessSet =
             val mapSize = r.readMapHeader()
 
@@ -122,7 +148,7 @@ object TransactionWitnessSet:
             var nativeScripts = Set.empty[Timelock]
             var bootstrapWitnesses = Set.empty[BootstrapWitness]
             var plutusV1Scripts = Set.empty[PlutusV1Script]
-            var plutusData = Set.empty[Data]
+            var plutusData = KeepRaw(TaggedSet(Set.empty[Data]))
             var redeemers: Option[Redeemers] = None
             var plutusV2Scripts = Set.empty[PlutusV2Script]
             var plutusV3Scripts = Set.empty[PlutusV3Script]
@@ -144,7 +170,7 @@ object TransactionWitnessSet:
                         plutusV1Scripts = readSet(r)
 
                     case 4 => // Plutus data
-                        plutusData = readSet(r)
+                        plutusData = r.read[KeepRaw[TaggedSet[Data]]]()
 
                     case 5 => // Redeemers
                         redeemers = Some(r.read[Redeemers]())

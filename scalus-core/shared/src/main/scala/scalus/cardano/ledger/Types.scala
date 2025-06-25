@@ -300,8 +300,8 @@ object KeepRaw {
             r.dataItem()
             val start = r.cursor
             val value = r.read[A]()
-            r.dataItem() // same here
-            val end = r.cursor
+            val di = r.dataItem()
+            val end = if di == DataItem.EndOfInput then r.input.cursor else r.cursor
             val raw = summon[OriginalCborByteArray].slice(start.toInt, end.toInt)
             KeepRaw(value, raw)
         }

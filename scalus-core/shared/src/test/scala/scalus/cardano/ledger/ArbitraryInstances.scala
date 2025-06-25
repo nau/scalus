@@ -465,6 +465,10 @@ trait ArbitraryInstances extends scalus.cardano.address.ArbitraryInstances {
         yield PlutusV3Script(bytes)
     }
 
+    given [A: Arbitrary]: Arbitrary[TaggedSet[A]] = Arbitrary(
+      genSetOfSizeFromArbitrary(1, 3).map(TaggedSet.apply)
+    )
+
     given Arbitrary[TransactionWitnessSet] = {
         given [A: Arbitrary]: Arbitrary[immutable.Set[A]] = Arbitrary(
           genSetOfSizeFromArbitrary(1, 3)

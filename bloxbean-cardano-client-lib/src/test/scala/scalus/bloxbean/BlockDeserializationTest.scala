@@ -35,6 +35,6 @@ class BlockDeserializationTest extends AnyFunSuite {
       getClass.getResourceAsStream(s"/blocks/block-$num.cbor").readAllBytes()
     )
     private def readBlock(blockBytes: Array[Byte]): BlockFile = {
-        Cbor.decode(blockBytes).to[BlockFile].value
+        BlockFile.fromCborArray(blockBytes)
     }
 }
