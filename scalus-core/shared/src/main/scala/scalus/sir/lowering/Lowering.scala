@@ -278,7 +278,7 @@ object Lowering {
     private def lowerNormalApp(app: SIR.Apply)(using lctx: LoweringContext): LoweredValue = {
         val fun = lowerSIR(app.f)
         val arg = lowerSIR(app.arg)
-        val debug = false
+        val debug = true
         val result = lvApply(
           fun,
           arg,

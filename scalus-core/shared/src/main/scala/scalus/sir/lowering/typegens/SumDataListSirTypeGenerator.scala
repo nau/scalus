@@ -64,22 +64,25 @@ object SumDataListSirTypeGenerator extends SirTypeUplcGenerator {
                   pos
                 )
             case (_, tv @ TypeVarRepresentation(isBuiltin)) =>
-                if isBuiltin then
-                    new RepresentationProxyLoweredValue(
-                      input,
-                      tv,
-                      pos
-                    )
+                if isBuiltin then input
                 else {
                     val inputAsData =
                         input.toRepresentation(SumCaseClassRepresentation.PackedSumDataList, pos)
                     new RepresentationProxyLoweredValue(inputAsData, tv, pos)
                 }
+            case (TypeVarRepresentation(isBuiltin), _) =>
+                if isBuiltin then RepresentationProxyLoweredValue(input, outputRepresentation, pos)
+                else if input.representation == outputRepresentation then input
+                else
+                    val r0 = RepresentationProxyLoweredValue(
+                      input,
+                      SumCaseClassRepresentation.SumDataList,
+                      pos
+                    )
+                    r0.toRepresentation(outputRepresentation, pos)
             case _ =>
-                println(s"input.tp=${input.sirType.show}")
-                println(s"input=${input}")
                 throw LoweringException(
-                  s"Unexpected representation conversion from ${input.representation} to ${outputRepresentation}",
+                  s"Unexpected representation conversion  for ${input.sirType.show} from ${input.representation} to ${outputRepresentation}",
                   pos
                 )
     }

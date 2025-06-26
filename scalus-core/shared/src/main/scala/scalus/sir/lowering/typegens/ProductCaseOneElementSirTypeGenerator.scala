@@ -81,7 +81,7 @@ case class ProductCaseOneElementSirTypeGenerator(
                   ProductCaseClassRepresentation.OneElementWrapper(argRepr),
                   outRepr @ TypeVarRepresentation(isBuiltin)
                 ) =>
-                if isBuiltin then new RepresentationProxyLoweredValue(input, representation, pos)
+                if isBuiltin then input
                 else
                     import ProductCaseOneElementSirTypeGenerator.*
                     if argRepr.isCompatible(representation) then
@@ -119,6 +119,27 @@ case class ProductCaseOneElementSirTypeGenerator(
                                 newArg.termInternal(gctx)
                         }
                         retval
+            case (
+                  inRepr @ ProductCaseClassRepresentation.OneElementWrapper(argRepr),
+                  outRepr @ TypeVarRepresentation(isBuiltin)
+                ) =>
+                if isBuiltin then input
+                else
+                    import ProductCaseOneElementSirTypeGenerator.*
+                    val argValue = argLoweredValue(input)
+                    if argRepr.isCompatible(outRepr) then
+                        new RepresentationProxyLoweredValue(input, representation, pos)
+                    else
+                        // we need to convert the argument to the new representation
+                        val newArg = argGenerator.toRepresentation(argValue, outRepr, pos)
+                        val inPos = pos
+                        new ProxyLoweredValue(newArg) {
+                            override def sirType: SIRType = input.sirType
+                            override def representation: LoweredValueRepresentation = outRepr
+                            override def pos: SIRPosition = inPos
+                            override def termInternal(gctx: TermGenerationContext): Term =
+                                newArg.termInternal(gctx)
+                        }
             case (_, _) =>
                 ProductCaseSirTypeGenerator.toRepresentation(input, representation, pos)
 

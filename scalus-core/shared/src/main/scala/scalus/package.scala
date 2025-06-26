@@ -43,7 +43,11 @@ package object scalus {
                 case Compiler.TargetLoweringBackend.SirToUplc110Lowering =>
                     SirToUplc110Lowering(sir, options.generateErrorTraces).lower()
                 case Compiler.TargetLoweringBackend.SirToUplcV3Lowering =>
-                    SirToUplcV3Lowering(sir, options.generateErrorTraces, options.debug).lower()
+                    SirToUplcV3Lowering(
+                      sir,
+                      generateErrorTraces = options.generateErrorTraces,
+                      debug = options.debug
+                    ).lower()
             val retval =
                 if options.optimizeUplc then
                     uplc |> EtaReduce.apply |> Inliner.apply |> CaseConstrApply.apply |> ForcedBuiltinsExtractor.apply

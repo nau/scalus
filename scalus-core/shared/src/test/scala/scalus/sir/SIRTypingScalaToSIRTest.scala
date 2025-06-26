@@ -156,7 +156,7 @@ class SIRTypingScalaToSIRTest extends AnyFunSuite {
                     case _ =>
                         this.fail(s"unexpexted tree: ${body}")
                 }
-
+            case _ => fail(s"unexpected tree: ${lSir}")
         }
     }
 

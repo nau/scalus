@@ -33,13 +33,7 @@ object FunSirTypeGenerator extends SirTypeUplcGenerator {
         tp: SIRType
     )(using lctx: LoweringContext): LoweredValueRepresentation = {
         // unchanged function.
-        collect(tp) match {
-            case Some((typeVars, input, output)) =>
-                LambdaRepresentation(
-                  lctx.typeGenerator(input).defaultTypeVarReperesentation(input),
-                  lctx.typeGenerator(output).defaultTypeVarReperesentation(output)
-                )
-        }
+        defaultRepresentation(tp)
     }
 
     override def isDataSupported(tp: SIRType)(using LoweringContext): Boolean = false
@@ -90,22 +84,28 @@ object FunSirTypeGenerator extends SirTypeUplcGenerator {
                       inLambda: LambdaRepresentation,
                       TypeVarRepresentation(isBuiltin)
                     ) =>
-                    if isBuiltin then
-                        new RepresentationProxyLoweredValue(
+                    if isBuiltin then input
+                    else
+                        RepresentationProxyLoweredValue(
                           input,
                           outputRepresentation,
                           pos
-                        ) {
-                            override def termInternal(gctx: TermGenerationContext): Term =
-                                input.termInternal(gctx)
-                        }
+                        )
+                case (
+                      TypeVarRepresentation(isBuiltin),
+                      LambdaRepresentation(outInRepr, outOutRepr)
+                    ) =>
+                    new RepresentationProxyLoweredValue(
+                      input,
+                      outputRepresentation,
+                      pos
+                    )
+                case (TypeVarRepresentation(isBuiltin1), TypeVarRepresentation(isBuiltin2)) =>
+                    if isBuiltin2 then input
                     else
-                        toRepresentation(
+                        new RepresentationProxyLoweredValue(
                           input,
-                          LambdaRepresentation(
-                            TypeVarRepresentation(isBuiltin),
-                            TypeVarRepresentation(isBuiltin)
-                          ),
+                          outputRepresentation,
                           pos
                         )
                 case _ =>

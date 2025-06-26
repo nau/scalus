@@ -170,6 +170,8 @@ object ProductCaseSirTypeGenerator extends SirTypeUplcGenerator {
                     input
                         .toRepresentation(ProductCaseClassRepresentation.ProdDataConstr, pos)
                         .toRepresentation(representation, pos)
+            case (_, TypeVarRepresentation(isBuiltin)) =>
+                if isBuiltin then input else toRepresentation(input, ProdDataConstr, pos)
             case _ =>
                 throw LoweringException(
                   s"Unsupported conversion for ${input.sirType.show} from ${input.representation} to $representation",

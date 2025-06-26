@@ -48,8 +48,9 @@ object TypeVarSirTypeGenerator extends SirTypeUplcGenerator {
         else
             representation match
                 case TypeVarRepresentation(isBuiltin) =>
-                    // TODO: think about converinv between built-in and non-built-in
-                    new RepresentationProxyLoweredValue(input, representation, pos)
+                    if isBuiltin then input
+                    else // TODO: think about converinv between built-in and non-built-in
+                        new RepresentationProxyLoweredValue(input, representation, pos)
                 case sumRepr: SumCaseClassRepresentation =>
                     sumRepr match {
                         case SumCaseClassRepresentation.DataConstr =>
@@ -125,8 +126,8 @@ object TypeVarSirTypeGenerator extends SirTypeUplcGenerator {
                 case ErrorRepresentation =>
                     TypeNothingSirTypeGenerator.toRepresentation(input, representation, pos)
                 case LambdaRepresentation(inRepr, outRepr) =>
-                    ???
-                case _ =>
+                    RepresentationProxyLoweredValue(input, representation, pos)
+                case null =>
                     throw LoweringException(
                       s"TypeVarSirTypeGenerator can't convert from ${input.sirType.show} to $representation",
                       pos

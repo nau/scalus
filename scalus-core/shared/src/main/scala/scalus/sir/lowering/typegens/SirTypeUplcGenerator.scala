@@ -78,7 +78,7 @@ object SirTypeUplcGenerator {
             case SIRType.Data =>
                 SIRTypeUplcDataGenerator
             case SIRType.Unit =>
-                SIRTypeUplcUnitGenerator
+                UnitSirTypeGenerator
             case SIRType.SumCaseClass(decl, typeArgs) =>
                 val trace = new IdentityHashMap[SIRType, SIRType]()
                 if decl.name == "scalus.prelude.List" then

@@ -81,6 +81,19 @@ object SumCaseSirTypeGenerator extends SirTypeUplcGenerator {
             case (UplcConstr, PackedSumDataList) =>
                 val asDataList = toRepresentation(input, SumDataList, pos)
                 asDataList.toRepresentation(PackedSumDataList, pos)
+            case (TypeVarRepresentation(inBuiltin), outRepr) =>
+                if inBuiltin then RepresentationProxyLoweredValue(input, representation, pos)
+                else
+                    val r0 = RepresentationProxyLoweredValue(input, DataConstr, pos)
+                    toRepresentation(r0, representation, pos)
+            case (inRepr, TypeVarRepresentation(outBuiltin)) =>
+                if outBuiltin then input
+                else toRepresentation(input, DataConstr, pos)
+            case (_, _) =>
+                throw LoweringException(
+                  s"Unsupported conversion for ${input.sirType.show} from ${input.representation} to $representation",
+                  pos
+                )
         }
     }
 
@@ -171,6 +184,11 @@ object SumCaseSirTypeGenerator extends SirTypeUplcGenerator {
                 )
             case UplcConstrOnData =>
                 ???
+            case _ =>
+                throw LoweringException(
+                  s"Unsupported representation ${loweredScrutinee.representation} for match expression",
+                  matchData.anns.pos
+                )
         }
 
     }

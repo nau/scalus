@@ -4,7 +4,7 @@ import org.scalatest.funsuite.AnyFunSuite
 import org.scalatestplus.scalacheck.ScalaCheckPropertyChecks
 import scalus.*
 import scalus.builtin.ByteString.*
-import scalus.builtin.Data.toData
+import scalus.builtin.Data.{toData, I}
 import scalus.sir.Recursivity.NonRec
 import scalus.sir.SIR.Pattern
 import scalus.sir.SIRType.{FreeUnificator, SumCaseClass, TypeVar}
@@ -30,8 +30,18 @@ class SirToUplcSmLoweringTest
             // assert(SimpleSirToUplcLowering(sir, generateErrorTraces = false).lower() == r)
             assert(SirToUplcV3Lowering(sir, generateErrorTraces = false).lower().alphaEq(r))
 
-    def lower(sir: SIR): Term =
-        SirToUplcV3Lowering(sir, generateErrorTraces = false).lower()
+    def lower(
+        sir: SIR,
+        generateErrorTraces: Boolean = true,
+        upcastTo: SIRType = SIRType.FreeUnificator,
+        representation: LoweredValueRepresentation = TypeVarRepresentation(true)
+    ): Term =
+        SirToUplcV3Lowering(
+          sir,
+          generateErrorTraces = generateErrorTraces,
+          upcastTo = upcastTo,
+          representation = representation
+        ).lower()
 
     extension (term: Term)
         infix def alphaEq(other: Term): Boolean =
@@ -109,7 +119,8 @@ class SirToUplcSmLoweringTest
         )
         val uplc = lower(sir)
         // sscala type-vars are represented as Data.
-        val expected = lam("x")(vr"x") $ (DefaultFun.MkNilData $ Constant.Unit)
+        println("uplc = " + uplc.pretty.render(100))
+        val expected = lam("x1")(vr"x1") $ Constant.Unit
         assert(uplc alphaEq expected)
     }
 
@@ -410,7 +421,7 @@ class SirToUplcSmLoweringTest
 
         val sirMatchUplc1 = lower(sirMatch1)
 
-        println(s"Lowered SIR: ${sirMatchUplc1.pretty.render(100)}")
+        // println(s"Lowered SIR: ${sirMatchUplc1.pretty.render(100)}")
 
         val uplcExpected1 = lam("Nil", "Cons")(!vr"Nil") $ ~asConstant(1) $ lam("h", "tl")(2)
         val uplcExpected = asConstant(1)
@@ -485,4 +496,143 @@ class SirToUplcSmLoweringTest
 
     }
 
-    test("lower Match / SumCaseClass") {}
+    test("lower Match / SumCaseClass for Option[Int]") {
+
+        val someTypeProxy = new SIRType.TypeProxy(null)
+        val aTypeVar = SIRType.TypeVar("A", Some(1), false)
+        val bTypeVar = SIRType.TypeVar("B", Some(2), false)
+        val noneConstr = ConstrDecl(
+          "scalus.prelude.Option$.None",
+          List(),
+          List(),
+          List(SIRType.TypeNothing),
+          ae
+        )
+        val someConstr = ConstrDecl(
+          "scalus.prelude.Option$.Some",
+          List(TypeBinding("value", aTypeVar)),
+          List(aTypeVar),
+          List(aTypeVar),
+          ae
+        )
+        val optionDataDecl =
+            DataDecl("scalus.prelude.Option", List(noneConstr, someConstr), List(bTypeVar), ae)
+
+        def withOptionDecl(sir: SIR) = SIR.Decl(optionDataDecl, sir)
+
+        val sirMatch1 = withOptionDecl(
+          SIR.Match(
+            SIR.Constr(
+              "scalus.prelude.Option$.Some",
+              optionDataDecl,
+              List(SIR.Const(Constant.Integer(42), SIRType.Integer, ae)),
+              optionDataDecl.constrType("scalus.prelude.Option$.Some"),
+              ae
+            ),
+            List(
+              SIR.Case(
+                Pattern.Constr(noneConstr, Nil, Nil),
+                SIR.Const(Constant.Integer(1), SIRType.Integer, ae),
+                ae
+              ),
+              SIR.Case(
+                Pattern
+                    .Constr(someConstr, List("value"), List(SIRType.FreeUnificator)),
+                SIR.Var("value", aTypeVar, ae),
+                ae
+              )
+            ),
+            SIRType.Integer,
+            ae
+          )
+        )
+
+        val sirMatchUplc1 = lower(sirMatch1)
+
+        // println(s"Lowered SIR: ${sirMatchUplc1.pretty.render(100)}")
+
+        val uplcExpected1 = !DefaultFun.HeadList $ (
+          !DefaultFun.MkCons $
+              (DefaultFun.IData $ Term.Const(Constant.Integer(42)))
+              $ Term.Builtin(DefaultFun.MkNilData)
+        )
+
+        val result1 = sirMatchUplc1.evaluateDebug
+
+        // println(s"result1: ${result1}")
+
+        result1 match {
+            case Result.Success(term, _, _, _) =>
+                // from option - in PackedData representation.
+                assert(term == Term.Const(Constant.Data(I(42))))
+            case _ =>
+                fail(s"Expected success, got: ${result1}")
+        }
+
+        def optionType(a: SIRType) = SIRType.typeApply(optionDataDecl.tp, List(a))
+
+        val scrutineeVar = SIR.Var(
+          "scrutinee",
+          SIRType.SumCaseClass(optionDataDecl, List(SIRType.Integer)),
+          ae
+        )
+
+        val sirMatch2 = withOptionDecl(
+          SIR.LamAbs(
+            scrutineeVar,
+            SIR.Match(
+              scrutineeVar,
+              List(
+                SIR.Case(
+                  Pattern.Constr(noneConstr, Nil, Nil),
+                  SIR.Const(Constant.Integer(1), SIRType.Integer, ae),
+                  ae
+                ),
+                SIR.Case(
+                  Pattern
+                      .Constr(someConstr, List("value"), List(SIRType.FreeUnificator)),
+                  SIR.Var("value", aTypeVar, ae),
+                  ae
+                )
+              ),
+              SIRType.Integer,
+              ae
+            ),
+            ae
+          )
+        )
+        // println(s"sirMatch2: ${sirMatch2.pretty.render(100)}")
+
+        val uplcMatch2 = lower(sirMatch2)
+
+        // println("lowered match2: " + uplcMatch2.pretty.render(100))
+
+        val arg1Sir = SIR.Constr(
+          "scalus.prelude.Option$.Some",
+          optionDataDecl,
+          List(SIR.Const(Constant.Integer(42), SIRType.Integer, ae)),
+          SIRType.typeApply(
+            optionDataDecl.constrType("scalus.prelude.Option$.Some"),
+            SIRType.Integer :: Nil
+          ),
+          ae
+        )
+
+        val genArg1 = scalus.sir.lowering.typegens.SirTypeUplcGenerator(arg1Sir.tp)
+        // println("genArg1 = " + genArg1)
+
+        val arg1 = lower(arg1Sir, upcastTo = optionType(SIRType.Integer))
+
+        // println("arg1=" + arg1.pretty.render(100))
+
+        val result2 = (uplcMatch2 $ arg1).evaluateDebug
+
+        result2 match {
+            case Result.Success(term, _, _, _) =>
+                // from option - in PackedData representation.
+                assert(term == Term.Const(Constant.Data(I(42))))
+            case _ =>
+                fail(s"Expected success, got: ${result2}")
+        }
+
+    }
