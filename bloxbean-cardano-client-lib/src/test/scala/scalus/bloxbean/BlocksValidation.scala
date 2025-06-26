@@ -347,9 +347,10 @@ object BlocksValidation:
                 val blockBytes = Files.readAllBytes(path)
                 val bbTxs = readTransactionsFromBlockCbor(blockBytes)
                 val block = BlockFile.fromCborArray(blockBytes).block
-                for ((txb, w), bbtx) <- block.transactionBodies
+                for (((txb, w), bbtx), idx) <- block.transactionBodies
                         .zip(block.transactionWitnessSets)
                         .zip(bbTxs)
+                        .zipWithIndex
                 do
 //                    pprint.pprintln(txb)
 //                    pprint.pprintln(w)
@@ -357,7 +358,7 @@ object BlocksValidation:
                     val costModels = ScriptDataHashGenerator.getCostModelsForTxWitness(params, w)
                     val calculatedHash = ScriptDataHashGenerator.computeScriptDataHash(
                       ledger.Era.Conway,
-                      w.redeemers.map(_.toSeq).getOrElse(Seq.empty),
+                      w.redeemers,
                       w.plutusData,
                       costModels
                     )
@@ -367,6 +368,9 @@ object BlocksValidation:
 
                     if transaction.getWitnessSet.getPlutusV1Scripts != null && transaction.getWitnessSet.getPlutusV1Scripts.size > 0
                     then {
+                        println(
+                          s"PlutusV1 scripts: ${transaction.getWitnessSet.getPlutusV1Scripts.size}"
+                        )
                         costMdls.add(PlutusV1CostModel)
                     }
 
@@ -388,11 +392,16 @@ object BlocksValidation:
                       costMdls
                     )
 
+                    val eq1 = calculatedHash.toHex == bbgenerated.toHex
+                    val eq2 = scriptDataHash.map(_.toHex).contains(calculatedHash.toHex)
+                    val color =
+                        if eq1 && eq2 then Console.GREEN
+                        else if eq1 then Console.YELLOW
+                        else Console.RED
+
                     println(
-                      s"Script data hash: ${scriptDataHash.map(_.toHex)}, calculated: ${calculatedHash.toHex}"
-                    )
-                    println(
-                      s"bb: ${Option(bbtx.tx.getBody.getScriptDataHash).map(_.toHex)}, gen: ${bbgenerated.toHex}"
+                      s"$idx: ${color}data hash: ${scriptDataHash.map(_.toHex)}, calculated: ${calculatedHash.toHex} " +
+                          s"bbgen: ${bbgenerated.toHex}${Console.RESET}"
                     )
 
             catch

@@ -1,6 +1,5 @@
 package scalus.cardano.ledger
 
-import io.bullet.borer.Cbor
 import scalus.builtin.{ByteString, Data, PlatformSpecific, given}
 import scalus.ledger.babbage.ProtocolParams
 
@@ -31,7 +30,7 @@ object ScriptDataHashGenerator {
 
     def computeScriptDataHash(
         era: Era,
-        redeemers: Seq[Redeemer],
+        redeemers: Option[KeepRaw[Redeemers]],
         datums: KeepRaw[TaggedSet[Data]],
         costModels: CostModels
     ): DataHash = {
@@ -46,12 +45,12 @@ object ScriptDataHashGenerator {
          * ; field is an empty string.
          */
 
+        val redeemerBytes = redeemers match
+            case Some(value) => value.raw
+            case None        => Array(0xa0.toByte) // Empty map in CBOR
         val plutusDataBytes =
             if datums.value.isEmpty then Array.empty[Byte]
             else datums.raw
-        val redeemerBytes =
-            if redeemers.isEmpty then Array(0xa0.toByte) // Empty map in CBOR
-            else Cbor.encode(Redeemers.from(redeemers)).toByteArray
         val costModelsBytes = costModels.getLanguageViewEncoding
         val encodedBytes = redeemerBytes ++ plutusDataBytes ++ costModelsBytes
         Hash(summon[PlatformSpecific].blake2b_256(ByteString.unsafeFromArray(encodedBytes)))

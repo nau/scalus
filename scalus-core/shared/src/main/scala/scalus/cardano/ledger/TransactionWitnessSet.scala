@@ -47,7 +47,7 @@ case class TransactionWitnessSet(
     plutusData: KeepRaw[TaggedSet[Data]] = KeepRaw(TaggedSet(Set.empty)),
 
     /** Redeemers */
-    redeemers: Option[Redeemers] = None,
+    redeemers: Option[KeepRaw[Redeemers]] = None,
 
     /** Plutus V2 scripts */
     plutusV2Scripts: Set[PlutusV2Script] = Set.empty,
@@ -149,7 +149,7 @@ object TransactionWitnessSet:
             var bootstrapWitnesses = Set.empty[BootstrapWitness]
             var plutusV1Scripts = Set.empty[PlutusV1Script]
             var plutusData = KeepRaw(TaggedSet(Set.empty[Data]))
-            var redeemers: Option[Redeemers] = None
+            var redeemers: Option[KeepRaw[Redeemers]] = None
             var plutusV2Scripts = Set.empty[PlutusV2Script]
             var plutusV3Scripts = Set.empty[PlutusV3Script]
 
@@ -173,7 +173,7 @@ object TransactionWitnessSet:
                         plutusData = r.read[KeepRaw[TaggedSet[Data]]]()
 
                     case 5 => // Redeemers
-                        redeemers = Some(r.read[Redeemers]())
+                        redeemers = Some(r.read[KeepRaw[Redeemers]]())
 
                     case 6 => // Plutus V2 scripts
                         plutusV2Scripts = readSet(r)

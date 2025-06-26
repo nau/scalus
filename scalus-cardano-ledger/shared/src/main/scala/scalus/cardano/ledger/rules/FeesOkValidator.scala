@@ -268,7 +268,7 @@ object FeesOkValidator extends STS.Validator, AllReferenceScripts {
 
     private def calculateTotalExUnits(event: Event): ExUnits = {
         event.witnessSet.redeemers
-            .map(_.toSeq.foldLeft(ExUnits.zero) { (exUnits, redeemer) =>
+            .map(_.value.toSeq.foldLeft(ExUnits.zero) { (exUnits, redeemer) =>
                 exUnits + redeemer.exUnits
             })
             .getOrElse(ExUnits.zero)
