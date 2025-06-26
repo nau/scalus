@@ -263,14 +263,11 @@ case class CostModels(models: Map[Int, IndexedSeq[Long]]) derives Codec {
                         //     list and the result is encoded as a bytestring. (our apologies)
                         //   * the language ID tag is also encoded twice. first as a uint then as
                         //     a bytestring.
-                        val doubleEncodedLangId =
-                            Cbor.encode(Cbor.encode(langId).toByteArray).toByteArray
                         // PlutusV1: Double-bagged encoding for cost model as well
                         // here we must use indefinite CBOR map encoding for backward compatibility
-                        val doubleEncodedCosts =
-                            Cbor.encode(Cbor.encode(costModel.toList).toByteArray).toByteArray
-                        w.writeBytes(doubleEncodedLangId)
-                        w.writeBytes(doubleEncodedCosts)
+                        val encodedModel = Cbor.encode(costModel.toList).toByteArray
+                        w.writeBytes(Array(0.toByte))
+                        w.writeBytes(encodedModel)
                     case 1 | 2 => // PlutusV2 - uses standard encoding
                         w.writeInt(langId)
                         w.write(costModel)

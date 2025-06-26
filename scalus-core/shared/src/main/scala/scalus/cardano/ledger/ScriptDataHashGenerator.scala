@@ -25,6 +25,8 @@ object ScriptDataHashGenerator {
                 ListMap(2 -> pparams.costModels("PlutusV3").toIndexedSeq)
             else ListMap.empty[Int, IndexedSeq[Long]]
 
+        // FIXME: here we need to check script languages from reference inputs
+
         CostModels(cmv1 ++ cmv2 ++ cmv3)
     }
 

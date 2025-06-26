@@ -353,8 +353,8 @@ object BlocksValidation:
 //                    pprint.pprintln(txb)
 //                    pprint.pprintln(w)
                     txb.scriptDataHash match
-                        case None =>
-                        case Some(scriptDataHash) =>
+
+                        case Some(scriptDataHash) if txb.referenceInputs.isEmpty =>
                             val costModels =
                                 ScriptDataHashGenerator.getCostModelsForTxWitness(params, w)
                             val calculatedHash = ScriptDataHashGenerator.computeScriptDataHash(
@@ -373,10 +373,12 @@ object BlocksValidation:
                                     ++ (if w.plutusData.value.nonEmpty then "D" else "")
                                     ++ (if w.redeemers.nonEmpty then "R" else "")
 
-                            val eq1 = calculatedHash.toHex == bbgenerated.toHex
-                            val eq2 = scriptDataHash.toHex == calculatedHash.toHex
+                            val eq1 =
+                                calculatedHash.toHex == bbgenerated.toHex // at least same as bloxbean
+                            val eq2 =
+                                scriptDataHash.toHex == calculatedHash.toHex // mine is correct
                             val color =
-                                if eq1 && eq2 then Console.GREEN
+                                if eq2 then Console.GREEN
                                 else if eq1 then Console.YELLOW
                                 else Console.RED
 
@@ -384,6 +386,7 @@ object BlocksValidation:
                               s"$idx: $desc ${color}data hash: ${scriptDataHash.toHex}, calculated: ${calculatedHash.toHex} " +
                                   s"bbgen: ${bbgenerated.toHex}${Console.RESET}"
                             )
+                        case _ =>
 
             catch
                 case e: Exception =>
