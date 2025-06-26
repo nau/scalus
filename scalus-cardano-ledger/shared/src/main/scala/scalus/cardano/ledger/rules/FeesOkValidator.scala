@@ -1,0 +1,225 @@
+package scalus.cardano.ledger
+package rules
+
+import scalus.cardano.ledger.rules.utils.AllReferenceScripts
+import io.bullet.borer.Cbor
+import scalus.cardano.ledger.Script.PlutusV1
+import scala.util.boundary
+import scala.util.boundary.break
+import scala.annotation.tailrec
+
+// It's Babbage.FeesOK in cardano-ledger
+//feesOK is a predicate with several parts. Some parts only apply in special circumstances.
+//--   1) The fee paid is >= the minimum fee
+//--   2) If the total ExUnits are 0 in both Memory and Steps, no further part needs to be checked.
+//--   3) The collateral consists only of VKey addresses
+//--   4) The collateral inputs do not contain any non-ADA part
+//--   5) The collateral is sufficient to cover the appropriate percentage of the
+//--      fee marked in the transaction
+//--   6) The collateral is equivalent to total collateral asserted by the transaction
+//--   7) There is at least one collateral input
+object FeesOkValidator extends STS.Validator, AllReferenceScripts {
+    override def validate(context: Context, state: State, event: Event): Result = {
+        for
+            _ <- feePaidIsGreeterOrEqualThanMinimumFee(context, state, event)
+            _ <-
+                if totalExUnitsAreZero(event) then success
+                else
+                    // validate total collateral
+                    for
+                        _ <- collateralConsistsOnlyOfVKeyAddresses(state, event)
+                        _ <- collateralInputsDoNotContainAnyNonADA(state, event)
+                        _ <- isAtLeastOneCollateralInput(event)
+                    yield ()
+        yield ()
+    }
+
+    //
+    private def feePaidIsGreeterOrEqualThanMinimumFee(
+        context: Context,
+        state: State,
+        event: Event
+    ): Result = {
+        for
+            minTransactionFee <- calculateMinTransactionFee(context, state, event)
+            transactionFee = event.body.value.fee
+            _ <-
+                if transactionFee < minTransactionFee then
+                    failure(
+                      IllegalArgumentException(
+                        s"Transaction fee $transactionFee is less than minimum transaction fee $minTransactionFee"
+                      )
+                    )
+                else success
+        yield ()
+    }
+
+    private def totalExUnitsAreZero(event: Event): Boolean = {
+        calculateTotalExUnits(event: Event) == ExUnits.zero
+    }
+
+    private def collateralConsistsOnlyOfVKeyAddresses(
+        state: State,
+        event: Event
+    ): Result = boundary {
+        for (collateralInput, index) <- event.body.value.collateralInputs.view.zipWithIndex
+        do
+            state.utxo.get(collateralInput) match
+                case Some(output) =>
+                    if output.address.keyHash.isEmpty then
+                        break(
+                          failure(
+                            IllegalArgumentException(
+                              s"Collateral input $collateralInput at index $index is not a VKey address in UTXO for transactionId ${event.id}"
+                            )
+                          )
+                        )
+
+                // This check allows to be an order independent in the sequence of validation rules
+                case None =>
+                    break(
+                      failure(
+                        IllegalArgumentException(
+                          s"Collateral input $collateralInput at index $index is missing in UTXO for transactionId ${event.id}"
+                        )
+                      )
+                    )
+
+        success
+    }
+
+    private def collateralInputsDoNotContainAnyNonADA(
+        state: State,
+        event: Event
+    ): Result = boundary {
+        for (collateralInput, index) <- event.body.value.collateralInputs.view.zipWithIndex
+        do
+            state.utxo.get(collateralInput) match
+                case Some(output) =>
+                    if output.value.assets.nonEmpty then
+                        break(
+                          failure(
+                            IllegalArgumentException(
+                              s"Collateral input $collateralInput at index $index contains non-ADA assets in UTXO for transactionId ${event.id}"
+                            )
+                          )
+                        )
+
+                // This check allows to be an order independent in the sequence of validation rules
+                case None =>
+                    break(
+                      failure(
+                        IllegalArgumentException(
+                          s"Collateral input $collateralInput at index $index is missing in UTXO for transactionId ${event.id}"
+                        )
+                      )
+                    )
+
+        success
+    }
+
+    private def isAtLeastOneCollateralInput(
+        event: Event
+    ): Result = {
+        if event.body.value.collateralInputs.isEmpty then
+            failure(
+              IllegalArgumentException(
+                s"There is no collateral input in transaction ${event.id}"
+              )
+            )
+        else success
+    }
+
+    private def calculateMinTransactionFee(
+        context: Context,
+        state: State,
+        event: Event
+    ): Either[Error, Coin] = {
+        for scripts <- allReferenceScripts(state, event)
+        yield
+            val refScriptsFee = RefScriptsFeeCalculator(context, scripts)
+            val transactionSizeFee = calculateTransactionSizeFee(context, event)
+            val exUnitsFee = calculateExUnitsFee(context, event)
+
+            refScriptsFee + transactionSizeFee + exUnitsFee
+    }
+
+    private object RefScriptsFeeCalculator {
+        def apply(context: Context, scripts: Set[Script]): Coin = {
+            def tierRefScriptFee(
+                multiplier: NonNegativeInterval,
+                sizeIncrement: Int,
+                curTierPrice: NonNegativeInterval,
+                n: Int
+            ): Coin = {
+                @tailrec
+                def go(
+                    acc: NonNegativeInterval,
+                    curTierPrice: NonNegativeInterval,
+                    n: Int
+                ): Coin = {
+                    if n < sizeIncrement then Coin((acc + curTierPrice * n).floor)
+                    else
+                        go(
+                          acc + curTierPrice * sizeIncrement,
+                          multiplier * curTierPrice,
+                          n - sizeIncrement
+                        )
+                }
+
+                go(NonNegativeInterval.zero, curTierPrice, n)
+            }
+
+            val refScriptsSize = scripts.foldLeft(0) { case (length, script) =>
+                val scripLength = script match
+                    case _: Script.Native => 0 // Native scripts do not contribute to fees
+                    case Script.PlutusV1(plutusV1Script) => plutusV1Script.byteString.bytes.length
+                    case Script.PlutusV2(plutusV2Script) => plutusV2Script.byteString.bytes.length
+                    case Script.PlutusV3(plutusV3Script) => plutusV3Script.byteString.bytes.length
+
+                length + scripLength
+            }
+
+            val minFeeRefScriptCostPerByte = NonNegativeInterval(
+              context.env.params.minFeeRefScriptCostPerByte
+            )
+
+            tierRefScriptFee(
+              refScriptCostMultiplier,
+              refScriptCostStride,
+              minFeeRefScriptCostPerByte,
+              refScriptsSize
+            )
+        }
+
+        private val refScriptCostMultiplier = NonNegativeInterval(1.2)
+        private val refScriptCostStride = 25600
+    }
+
+    private def calculateTransactionSizeFee(context: Context, event: Event): Coin = {
+        val txFeeFixed = context.env.params.txFeeFixed
+        val txFeePerByte = context.env.params.txFeePerByte
+        val transactionSize = Cbor.encode(event).toByteArray.length
+
+        Coin(transactionSize * txFeePerByte + txFeeFixed)
+    }
+
+    private def calculateExUnitsFee(context: Context, event: Event): Coin = {
+        val executionUnitPrices = context.env.params.executionUnitPrices
+        val exUnits = calculateTotalExUnits(event)
+
+        if exUnits == ExUnits.zero then Coin.zero
+        else
+            Coin(
+              (executionUnitPrices.priceMemory * exUnits.memory + executionUnitPrices.priceSteps * exUnits.steps).ceil
+            )
+    }
+
+    private def calculateTotalExUnits(event: Event): ExUnits = {
+        event.witnessSet.redeemers
+            .map(_.toSeq.foldLeft(ExUnits.zero) { (exUnits, redeemer) =>
+                exUnits + redeemer.exUnits
+            })
+            .getOrElse(ExUnits.zero)
+    }
+}

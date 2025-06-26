@@ -6,7 +6,6 @@ import scalus.builtin.Builtins.*
 import scalus.builtin.Data
 import scalus.builtin.FromData
 import scalus.builtin.ToData
-import scalus.builtin.Data.{fromData, toData, ToData}
 import scalus.ledger.api.v2.OutputDatum.NoOutputDatum
 import scalus.prelude.AssocMap
 import scalus.prelude.List

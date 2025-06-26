@@ -315,12 +315,11 @@ class StateTransitionTest extends AnyFunSuite, ArbitraryInstances {
                   inputs = Set(
                     Arbitrary.arbitrary[TransactionInput].sample.get,
                     Arbitrary.arbitrary[TransactionInput].sample.get,
-                    Arbitrary.arbitrary[TransactionInput].sample.get
-                  ),
-                  collateralInputs = Set(
+                    Arbitrary.arbitrary[TransactionInput].sample.get,
                     Arbitrary.arbitrary[TransactionInput].sample.get,
                     Arbitrary.arbitrary[TransactionInput].sample.get
                   ),
+                  collateralInputs = Set.empty,
                   referenceInputs = Set(
                     Arbitrary.arbitrary[TransactionInput].sample.get,
                     Arbitrary.arbitrary[TransactionInput].sample.get
@@ -421,13 +420,13 @@ class StateTransitionTest extends AnyFunSuite, ArbitraryInstances {
                   None,
                   None
                 ),
-                transaction.body.value.collateralInputs.head -> TransactionOutput.Babbage(
+                transaction.body.value.inputs.tail.tail.tail.head -> TransactionOutput.Babbage(
                   Address.Shelley(anyOfTimelockAddress),
                   Value(Coin(1000L)),
                   None,
                   None
                 ),
-                transaction.body.value.collateralInputs.tail.head -> TransactionOutput.Babbage(
+                transaction.body.value.inputs.tail.tail.tail.tail.head -> TransactionOutput.Babbage(
                   Address.Shelley(mOfTimelockAddress),
                   Value(Coin(1000L)),
                   None,
@@ -467,9 +466,10 @@ class StateTransitionTest extends AnyFunSuite, ArbitraryInstances {
               body = KeepRaw(
                 tx.body.value.copy(
                   inputs = Set(
+                    Arbitrary.arbitrary[TransactionInput].sample.get,
                     Arbitrary.arbitrary[TransactionInput].sample.get
                   ),
-                  collateralInputs = Set(Arbitrary.arbitrary[TransactionInput].sample.get),
+                  collateralInputs = Set.empty,
                   referenceInputs = Set.empty,
                   validityStartSlot = Some(10),
                   ttl = Some(25)
@@ -507,7 +507,7 @@ class StateTransitionTest extends AnyFunSuite, ArbitraryInstances {
                       None,
                       Some(ScriptRef(Script.Native(timeStartTimelock)))
                     ),
-                transaction.body.value.collateralInputs.head -> TransactionOutput
+                transaction.body.value.inputs.tail.head -> TransactionOutput
                     .Babbage(
                       Address.Shelley(timeExpireTimelockAddress),
                       Value(Coin(1000L)),
@@ -1211,7 +1211,6 @@ class StateTransitionTest extends AnyFunSuite, ArbitraryInstances {
         val credential3 = Credential.ScriptHash(plutusV3Script.scriptHash)
 
         val input = Arbitrary.arbitrary[TransactionInput].sample.get
-        val collateralInput = Arbitrary.arbitrary[TransactionInput].sample.get
         val referenceInput = Arbitrary.arbitrary[TransactionInput].sample.get
         val transaction = {
             val tx = randomValidTransaction
@@ -1219,7 +1218,7 @@ class StateTransitionTest extends AnyFunSuite, ArbitraryInstances {
               body = KeepRaw(
                 tx.body.value.copy(
                   inputs = Set(input),
-                  collateralInputs = Set(collateralInput),
+                  collateralInputs = Set.empty,
                   referenceInputs = Set.empty,
                   mint = Some(
                     Map(
@@ -1356,18 +1355,6 @@ class StateTransitionTest extends AnyFunSuite, ArbitraryInstances {
         val state = State(
           utxo = Map(
             input -> TransactionOutput.Shelley(
-              Address.Shelley(
-                Arbitrary
-                    .arbitrary[ShelleyAddress]
-                    .sample
-                    .get
-                    .copy(
-                      payment = ShelleyPaymentPart.Script(nativeScript.scriptHash)
-                    )
-              ),
-              Value(Coin(1000000L))
-            ),
-            collateralInput -> TransactionOutput.Shelley(
               Address.Shelley(
                 Arbitrary
                     .arbitrary[ShelleyAddress]
