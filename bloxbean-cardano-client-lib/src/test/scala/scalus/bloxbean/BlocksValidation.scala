@@ -339,8 +339,6 @@ object BlocksValidation:
             .sorted()
             .iterator()
             .asScala
-            .drop(1)
-            .take(1)
 
         for path <- blocks do
             try
@@ -354,55 +352,38 @@ object BlocksValidation:
                 do
 //                    pprint.pprintln(txb)
 //                    pprint.pprintln(w)
-                    val scriptDataHash = txb.scriptDataHash
-                    val costModels = ScriptDataHashGenerator.getCostModelsForTxWitness(params, w)
-                    val calculatedHash = ScriptDataHashGenerator.computeScriptDataHash(
-                      ledger.Era.Conway,
-                      w.redeemers,
-                      w.plutusData,
-                      costModels
-                    )
+                    txb.scriptDataHash match
+                        case None =>
+                        case Some(scriptDataHash) =>
+                            val costModels =
+                                ScriptDataHashGenerator.getCostModelsForTxWitness(params, w)
+                            val calculatedHash = ScriptDataHashGenerator.computeScriptDataHash(
+                              ledger.Era.Conway,
+                              w.redeemers,
+                              w.plutusData,
+                              costModels
+                            )
 
-                    val transaction = bbtx.tx
-                    val costMdls = new CostMdls()
+                            val bbgenerated: Array[Byte] = generateBloxBeanHash(bbtx, bbtx.tx)
 
-                    if transaction.getWitnessSet.getPlutusV1Scripts != null && transaction.getWitnessSet.getPlutusV1Scripts.size > 0
-                    then {
-                        println(
-                          s"PlutusV1 scripts: ${transaction.getWitnessSet.getPlutusV1Scripts.size}"
-                        )
-                        costMdls.add(PlutusV1CostModel)
-                    }
+                            val desc =
+                                (if w.plutusV1Scripts.nonEmpty then "v1" else "")
+                                    ++ (if w.plutusV2Scripts.nonEmpty then "v2" else "")
+                                    ++ (if w.plutusV3Scripts.nonEmpty then "v3" else "")
+                                    ++ (if w.plutusData.value.nonEmpty then "D" else "")
+                                    ++ (if w.redeemers.nonEmpty then "R" else "")
 
-                    if transaction.getWitnessSet.getPlutusV2Scripts != null && transaction.getWitnessSet.getPlutusV2Scripts.size > 0
-                    then {
-                        costMdls.add(PlutusV2CostModel)
-                    }
+                            val eq1 = calculatedHash.toHex == bbgenerated.toHex
+                            val eq2 = scriptDataHash.toHex == calculatedHash.toHex
+                            val color =
+                                if eq1 && eq2 then Console.GREEN
+                                else if eq1 then Console.YELLOW
+                                else Console.RED
 
-                    if transaction.getWitnessSet.getPlutusV3Scripts != null && transaction.getWitnessSet.getPlutusV3Scripts.size > 0
-                    then {
-                        costMdls.add(PlutusV3CostModel)
-                    }
-
-                    import com.bloxbean.cardano.client.plutus.util.ScriptDataHashGenerator.generate
-                    val bbgenerated = generate(
-                      Era.Conway,
-                      bbtx.tx.getWitnessSet.getRedeemers,
-                      bbtx.tx.getWitnessSet.getPlutusDataList,
-                      costMdls
-                    )
-
-                    val eq1 = calculatedHash.toHex == bbgenerated.toHex
-                    val eq2 = scriptDataHash.map(_.toHex).contains(calculatedHash.toHex)
-                    val color =
-                        if eq1 && eq2 then Console.GREEN
-                        else if eq1 then Console.YELLOW
-                        else Console.RED
-
-                    println(
-                      s"$idx: ${color}data hash: ${scriptDataHash.map(_.toHex)}, calculated: ${calculatedHash.toHex} " +
-                          s"bbgen: ${bbgenerated.toHex}${Console.RESET}"
-                    )
+                            println(
+                              s"$idx: $desc ${color}data hash: ${scriptDataHash.toHex}, calculated: ${calculatedHash.toHex} " +
+                                  s"bbgen: ${bbgenerated.toHex}${Console.RESET}"
+                            )
 
             catch
                 case e: Exception =>
@@ -414,6 +395,37 @@ object BlocksValidation:
         println(
           s"Stats: num scripts ${stats.size}, succ: ${stats.values.map(_.succ).sum}, failed: ${stats.values.map(_.fail).sum}"
         )
+    }
+
+    private def generateBloxBeanHash(bbtx: BlockTx, transaction: Transaction) = {
+        val costMdls = new CostMdls()
+
+        if transaction.getWitnessSet.getPlutusV1Scripts != null && transaction.getWitnessSet.getPlutusV1Scripts.size > 0
+        then {
+            println(
+              s"PlutusV1 scripts: ${transaction.getWitnessSet.getPlutusV1Scripts.size}"
+            )
+            costMdls.add(PlutusV1CostModel)
+        }
+
+        if transaction.getWitnessSet.getPlutusV2Scripts != null && transaction.getWitnessSet.getPlutusV2Scripts.size > 0
+        then {
+            costMdls.add(PlutusV2CostModel)
+        }
+
+        if transaction.getWitnessSet.getPlutusV3Scripts != null && transaction.getWitnessSet.getPlutusV3Scripts.size > 0
+        then {
+            costMdls.add(PlutusV3CostModel)
+        }
+
+        import com.bloxbean.cardano.client.plutus.util.ScriptDataHashGenerator.generate
+        val bbgenerated = generate(
+          Era.Conway,
+          bbtx.tx.getWitnessSet.getRedeemers,
+          bbtx.tx.getWitnessSet.getPlutusDataList,
+          costMdls
+        )
+        bbgenerated
     }
 
     def main(args: Array[String]): Unit = {
