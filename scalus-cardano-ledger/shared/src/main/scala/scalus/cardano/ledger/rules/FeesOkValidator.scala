@@ -19,16 +19,49 @@ import scala.annotation.tailrec
 //--   6) The collateral is equivalent to total collateral asserted by the transaction
 //--   7) There is at least one collateral input
 object FeesOkValidator extends STS.Validator, AllReferenceScripts {
-    override def validate(context: Context, state: State, event: Event): Result = {
+    override def validate(context: Context, state: State, event: Event): Result = boundary {
+        val transactionId = event.id
+        val collateralInputs = event.body.value.collateralInputs
+        val utxo = state.utxo
+
         for
             _ <- feePaidIsGreeterOrEqualThanMinimumFee(context, state, event)
             _ <-
                 if totalExUnitsAreZero(event) then success
                 else
-                    // validate total collateral
+                    val collateralCoins = for
+                        (collateralInput, index) <- collateralInputs.view.zipWithIndex
+                        collateralCoin =
+                            val validatedCollateralCoin = for
+                                collateralOutput <- extractCollateralOutput(
+                                  transactionId,
+                                  collateralInput,
+                                  utxo,
+                                  index
+                                )
+                                _ <- collateralConsistsOnlyOfVKeyAddress(
+                                  transactionId,
+                                  collateralInput,
+                                  collateralOutput,
+                                  index
+                                )
+                                _ <- collateralDoesNotContainAnyNonADA(
+                                  transactionId,
+                                  collateralInput,
+                                  collateralOutput,
+                                  index
+                                )
+                            yield collateralOutput.value.coin
+
+                            validatedCollateralCoin match
+                                case Right(coin) => coin
+                                case Left(error) => break(failure(error))
+                    yield collateralCoin
+
+                    val totalCollateralCoins = collateralCoins.foldLeft(Coin.zero)(_ + _)
+
                     for
-                        _ <- collateralConsistsOnlyOfVKeyAddresses(state, event)
-                        _ <- collateralInputsDoNotContainAnyNonADA(state, event)
+                        _ <- totalCollateralCoinsAreSufficient(context, event, totalCollateralCoins)
                         _ <- isAtLeastOneCollateralInput(event)
                     yield ()
         yield ()
@@ -40,9 +73,9 @@ object FeesOkValidator extends STS.Validator, AllReferenceScripts {
         state: State,
         event: Event
     ): Result = {
+        val transactionFee = event.body.value.fee
         for
             minTransactionFee <- calculateMinTransactionFee(context, state, event)
-            transactionFee = event.body.value.fee
             _ <-
                 if transactionFee < minTransactionFee then
                     failure(
@@ -55,67 +88,82 @@ object FeesOkValidator extends STS.Validator, AllReferenceScripts {
     }
 
     private def totalExUnitsAreZero(event: Event): Boolean = {
-        calculateTotalExUnits(event: Event) == ExUnits.zero
+        // The total ExUnits are zero if there are no redeemers in the witness set
+        // or if all redeemers have ExUnits.zero.
+        // This is a simplified check, as in original haskell cardano code and specification.
+//        calculateTotalExUnits(event: Event) == ExUnits.zero
+        event.witnessSet.redeemers.isEmpty
     }
 
-    private def collateralConsistsOnlyOfVKeyAddresses(
-        state: State,
-        event: Event
-    ): Result = boundary {
-        for (collateralInput, index) <- event.body.value.collateralInputs.view.zipWithIndex
-        do
-            state.utxo.get(collateralInput) match
-                case Some(output) =>
-                    if output.address.keyHash.isEmpty then
-                        break(
-                          failure(
-                            IllegalArgumentException(
-                              s"Collateral input $collateralInput at index $index is not a VKey address in UTXO for transactionId ${event.id}"
-                            )
-                          )
-                        )
-
-                // This check allows to be an order independent in the sequence of validation rules
-                case None =>
-                    break(
-                      failure(
-                        IllegalArgumentException(
-                          s"Collateral input $collateralInput at index $index is missing in UTXO for transactionId ${event.id}"
-                        )
-                      )
-                    )
-
-        success
+    private def extractCollateralOutput(
+        transactionId: TransactionHash,
+        collateralInput: TransactionInput,
+        utxo: Utxo,
+        index: Int
+    ): Either[Error, TransactionOutput] = {
+        utxo.get(collateralInput) match
+            case Some(collateralOutput) => Right(collateralOutput)
+            // This check allows to be an order independent in the sequence of validation rules
+            case None =>
+                Left(
+                  IllegalArgumentException(
+                    s"Collateral input $collateralInput at index $index is missing in UTXO for transactionId $transactionId"
+                  )
+                )
     }
 
-    private def collateralInputsDoNotContainAnyNonADA(
-        state: State,
-        event: Event
-    ): Result = boundary {
-        for (collateralInput, index) <- event.body.value.collateralInputs.view.zipWithIndex
-        do
-            state.utxo.get(collateralInput) match
-                case Some(output) =>
-                    if output.value.assets.nonEmpty then
-                        break(
-                          failure(
-                            IllegalArgumentException(
-                              s"Collateral input $collateralInput at index $index contains non-ADA assets in UTXO for transactionId ${event.id}"
-                            )
-                          )
-                        )
+    private def collateralConsistsOnlyOfVKeyAddress(
+        transactionId: TransactionHash,
+        collateralInput: TransactionInput,
+        collateralOutput: TransactionOutput,
+        index: Int
+    ): Result = {
+        if collateralOutput.address.keyHash.isEmpty then
+            failure(
+              IllegalArgumentException(
+                s"Collateral input $collateralInput at index $index is not a VKey address in UTXO for transactionId $transactionId"
+              )
+            )
+        else success
+    }
 
-                // This check allows to be an order independent in the sequence of validation rules
-                case None =>
-                    break(
-                      failure(
-                        IllegalArgumentException(
-                          s"Collateral input $collateralInput at index $index is missing in UTXO for transactionId ${event.id}"
-                        )
-                      )
-                    )
+    private def collateralDoesNotContainAnyNonADA(
+        transactionId: TransactionHash,
+        collateralInput: TransactionInput,
+        collateralOutput: TransactionOutput,
+        index: Int
+    ): Result = {
+        if collateralOutput.value.assets.nonEmpty then
+            failure(
+              IllegalArgumentException(
+                s"Collateral input $collateralInput at index $index contains non-ADA assets in UTXO for transactionId $transactionId"
+              )
+            )
+        else success
+    }
 
-        success
+    private def totalCollateralCoinsAreSufficient(
+        context: Context,
+        event: Event,
+        totalCollateralCoins: Coin
+    ): Result = {
+        val transactionId = event.id
+        val transactionFee = event.body.value.fee.value
+        val collateralReturnOutput = event.body.value.collateralReturnOutput
+        val collateralPercentage = context.env.params.collateralPercentage
+
+        val deltaCoins = collateralReturnOutput match
+            case Some(collateralReturnOutput) =>
+                collateralReturnOutput.value.coin.value - totalCollateralCoins.value
+            case None => totalCollateralCoins.value
+
+        if deltaCoins < (collateralPercentage / 100) * transactionFee then
+            failure(
+              IllegalArgumentException(
+                s"Total collateral coins $totalCollateralCoins are insufficient for transaction fee $transactionFee with collateral percentage $collateralPercentage% and collateral return output $collateralReturnOutput for transactionId $transactionId"
+              )
+            )
+        else success
     }
 
     private def isAtLeastOneCollateralInput(
@@ -206,12 +254,15 @@ object FeesOkValidator extends STS.Validator, AllReferenceScripts {
 
     private def calculateExUnitsFee(context: Context, event: Event): Coin = {
         val executionUnitPrices = context.env.params.executionUnitPrices
-        val exUnits = calculateTotalExUnits(event)
+        val totalExUnits = calculateTotalExUnits(event)
 
-        if exUnits == ExUnits.zero then Coin.zero
+        if totalExUnits == ExUnits.zero then Coin.zero
         else
             Coin(
-              (executionUnitPrices.priceMemory * exUnits.memory + executionUnitPrices.priceSteps * exUnits.steps).ceil
+              (
+                executionUnitPrices.priceMemory * totalExUnits.memory +
+                    executionUnitPrices.priceSteps * totalExUnits.steps
+              ).ceil
             )
     }
 
