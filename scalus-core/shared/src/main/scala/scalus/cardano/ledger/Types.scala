@@ -250,9 +250,81 @@ case class ExUnitPrices(
   *   Map from language identifiers to lists of operation costs
   */
 case class CostModels(models: Map[Int, IndexedSeq[Long]]) derives Codec {
+
+    /** Generate language view encoding for script integrity hash computation.
+      *
+      * This implements the same logic as Cardano's getLanguageView function. For PlutusV1, it uses
+      * double-bagged encoding for backward compatibility. For PlutusV2/V3, it uses standard
+      * encoding.
+      */
     def getLanguageViewEncoding: Array[Byte] = {
-        // Encode the cost models as a CBOR byte array
-        Cbor.encode(this).toByteArray
+        // Concatenate all language views for languages present in the cost models
+        val languageViews = models.keys.toSeq.sorted.flatMap { langId =>
+            val costModel = models(langId)
+            langId match {
+                case 0 => // PlutusV1 - uses double-bagged encoding for backward compatibility
+                    serializeLanguageView(Language.PlutusV1, costModel, isV1 = true)
+                case 1 => // PlutusV2 - uses standard encoding
+                    serializeLanguageView(Language.PlutusV2, costModel, isV1 = false)
+                case 2 => // PlutusV3 - uses standard encoding
+                    serializeLanguageView(Language.PlutusV3, costModel, isV1 = false)
+                case _ =>
+                    throw new IllegalArgumentException(s"Unknown language ID: $langId")
+            }
+        }
+        languageViews.flatten.toArray
+    }
+
+    /** Serialize a single language view (tag + encoded cost model).
+      *
+      * @param language
+      *   The Plutus language
+      * @param costModel
+      *   The cost model parameters
+      * @param isV1
+      *   Whether this is PlutusV1 (uses double-bagging)
+      * @return
+      *   Array of bytes representing the language view
+      */
+    private def serializeLanguageView(
+        language: Language,
+        costModel: IndexedSeq[Long],
+        isV1: Boolean
+    ): Array[Byte] = {
+        val langId = Language.languageId(language)
+
+        // Encode the language tag
+        val languageTag = if isV1 then {
+            // PlutusV1: Double-bagged encoding - encode language ID twice
+            val singleEncoded = Cbor.encode(langId).toByteArray
+            val doubleEncoded = Cbor.encode(singleEncoded).toByteArray
+            doubleEncoded
+        } else {
+            // PlutusV2/V3: Standard encoding - encode language ID once
+            Cbor.encode(langId).toByteArray
+        }
+
+        // Encode the cost model parameters
+        val costModelEncoded = if costModel.nonEmpty then {
+            if isV1 then {
+                // PlutusV1: Double-bagged encoding for cost model as well
+                // here we must use indefinite CBOR map encoding for backward compatibility
+                val costModelArray = costModel.toList
+                val singleEncoded = Cbor.encode(costModelArray).toByteArray
+                val doubleEncoded = Cbor.encode(singleEncoded).toByteArray
+                doubleEncoded
+            } else {
+                // PlutusV2/V3: Standard encoding
+                val costModelArray = costModel.map(_.toInt).toArray
+                Cbor.encode(costModelArray).toByteArray
+            }
+        } else {
+            // No cost model - encode null
+            Cbor.encode(null).toByteArray
+        }
+
+        // Return the concatenated language tag and cost model encoding
+        languageTag ++ costModelEncoded
     }
 }
 
