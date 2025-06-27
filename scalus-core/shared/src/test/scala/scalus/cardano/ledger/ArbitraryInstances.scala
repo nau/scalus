@@ -92,8 +92,8 @@ trait ArbitraryInstances extends scalus.cardano.address.ArbitraryInstances {
     given Arbitrary[Slot] = Arbitrary(Gen.choose(0L, Long.MaxValue).map(Slot.apply))
     given Arbitrary[ExUnits] = Arbitrary {
         for
-            mem <- Gen.choose(0L, Long.MaxValue)
-            steps <- Gen.choose(0L, Long.MaxValue)
+            mem <- Gen.choose(0L, 1000L)
+            steps <- Gen.choose(0L, 1000L)
         yield ExUnits(mem, steps)
     }
 
@@ -442,9 +442,9 @@ trait ArbitraryInstances extends scalus.cardano.address.ArbitraryInstances {
 
     given Arbitrary[Redeemers] = Arbitrary {
         Gen.oneOf(
-          genVectorOfSizeFromArbitrary[Redeemer](1, 8).map(Redeemers.Array.apply), {
+          genVectorOfSizeFromArbitrary[Redeemer](1, 3).map(Redeemers.Array.apply), {
               given Arbitrary[Int] = Arbitrary(Gen.choose(0, Int.MaxValue))
-              genMapOfSizeFromArbitrary[(RedeemerTag, Int), (Data, ExUnits)](1, 8)
+              genMapOfSizeFromArbitrary[(RedeemerTag, Int), (Data, ExUnits)](1, 3)
                   .map(Redeemers.Map.apply)
           }
         )

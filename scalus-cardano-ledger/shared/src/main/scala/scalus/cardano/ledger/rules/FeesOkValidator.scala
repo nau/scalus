@@ -29,39 +29,49 @@ object FeesOkValidator extends STS.Validator, AllReferenceScripts {
             _ <-
                 if totalExUnitsAreZero(event) then success
                 else
-                    val collateralCoins = for
-                        (collateralInput, index) <- collateralInputs.view.zipWithIndex
-                        collateralCoin =
-                            val validatedCollateralCoin = for
-                                collateralOutput <- extractCollateralOutput(
-                                  transactionId,
-                                  collateralInput,
-                                  utxo,
-                                  index
-                                )
-                                _ <- collateralConsistsOnlyOfVKeyAddress(
-                                  transactionId,
-                                  collateralInput,
-                                  collateralOutput,
-                                  index
-                                )
-                                _ <- collateralDoesNotContainAnyNonADA(
-                                  transactionId,
-                                  collateralInput,
-                                  collateralOutput,
-                                  index
-                                )
-                            yield collateralOutput.value.coin
+                    val collateralCoins =
+                        for
+                            (collateralInput, index) <- collateralInputs.view.zipWithIndex
+                            collateralCoin =
+                                val validatedCollateralCoin =
+                                    for
+                                        collateralOutput <- extractCollateralOutput(
+                                          transactionId,
+                                          collateralInput,
+                                          utxo,
+                                          index
+                                        )
+                                        _ <- collateralConsistsOnlyOfVKeyAddress(
+                                          transactionId,
+                                          collateralInput,
+                                          collateralOutput,
+                                          index
+                                        )
+                                        _ <- collateralDoesNotContainAnyNonADA(
+                                          transactionId,
+                                          collateralInput,
+                                          collateralOutput,
+                                          index
+                                        )
+                                    yield collateralOutput.value.coin
 
-                            validatedCollateralCoin match
-                                case Right(coin) => coin
-                                case Left(error) => break(failure(error))
-                    yield collateralCoin
+                                validatedCollateralCoin match
+                                    case Right(coin) => coin
+                                    case Left(error) => break(failure(error))
+                        yield collateralCoin
 
-                    val totalCollateralCoins = collateralCoins.foldLeft(Coin.zero)(_ + _)
+                    val totalSumOfCollateralCoins = collateralCoins.foldLeft(Coin.zero)(_ + _)
 
                     for
-                        _ <- totalCollateralCoinsAreSufficient(context, event, totalCollateralCoins)
+                        _ <- totalSumOfCollateralCoinsIsSufficient(
+                          context,
+                          event,
+                          totalSumOfCollateralCoins
+                        )
+                        _ <- totalSumOfCollateralCoinsIsEquivalentToTotalCollateral(
+                          event,
+                          totalSumOfCollateralCoins
+                        )
                         _ <- isAtLeastOneCollateralInput(event)
                     yield ()
         yield ()
@@ -142,10 +152,10 @@ object FeesOkValidator extends STS.Validator, AllReferenceScripts {
         else success
     }
 
-    private def totalCollateralCoinsAreSufficient(
+    private def totalSumOfCollateralCoinsIsSufficient(
         context: Context,
         event: Event,
-        totalCollateralCoins: Coin
+        totalSumOfCollateralCoins: Coin
     ): Result = {
         val transactionId = event.id
         val transactionFee = event.body.value.fee.value
@@ -154,16 +164,35 @@ object FeesOkValidator extends STS.Validator, AllReferenceScripts {
 
         val deltaCoins = collateralReturnOutput match
             case Some(collateralReturnOutput) =>
-                collateralReturnOutput.value.coin.value - totalCollateralCoins.value
-            case None => totalCollateralCoins.value
+                totalSumOfCollateralCoins.value - collateralReturnOutput.value.coin.value
+            case None => totalSumOfCollateralCoins.value
 
-        if deltaCoins < (collateralPercentage / 100) * transactionFee then
+        if (deltaCoins * 100) < transactionFee * collateralPercentage then
             failure(
               IllegalArgumentException(
-                s"Total collateral coins $totalCollateralCoins are insufficient for transaction fee $transactionFee with collateral percentage $collateralPercentage% and collateral return output $collateralReturnOutput for transactionId $transactionId"
+                s"Total sum of collateral coins $totalSumOfCollateralCoins are insufficient for transaction fee $transactionFee with collateral percentage $collateralPercentage% and collateral return output $collateralReturnOutput for transactionId $transactionId"
               )
             )
         else success
+    }
+
+    private def totalSumOfCollateralCoinsIsEquivalentToTotalCollateral(
+        event: Event,
+        totalSumOfCollateralCoins: Coin
+    ): Result = {
+        val transactionId = event.id
+        val totalCollateral = event.body.value.totalCollateral
+
+        totalCollateral match
+            case None => success
+            case Some(collateral) =>
+                if collateral.value != totalSumOfCollateralCoins.value then
+                    failure(
+                      IllegalArgumentException(
+                        s"Total collateral $collateral is not equivalent to total sum of collateral coins $totalSumOfCollateralCoins for transactionId $transactionId"
+                      )
+                    )
+                else success
     }
 
     private def isAtLeastOneCollateralInput(

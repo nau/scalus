@@ -1,6 +1,6 @@
 package scalus.cardano.ledger.rules
 
-import org.scalacheck.Arbitrary
+import org.scalacheck.{Arbitrary, Gen}
 import org.scalatest.funsuite.AnyFunSuite
 import scalus.cardano.ledger.*
 import scalus.cardano.address.{Address, ByronAddress, ShelleyAddress, ShelleyPaymentPart}
@@ -287,7 +287,7 @@ class StateTransitionTest extends AnyFunSuite, ArbitraryInstances {
         assert(result.isLeft)
     }
 
-    test("NativeScriptValidator rule success") {
+    test("NativeScriptsValidator rule success") {
         val context = Context()
 
         val (privateKey1, publicKey1) = generateKeyPair()
@@ -308,23 +308,23 @@ class StateTransitionTest extends AnyFunSuite, ArbitraryInstances {
         val timeStartTimelock = Timelock.TimeStart(5)
         val timeExpireTimelock = Timelock.TimeExpire(20)
 
+        val input1 = Arbitrary.arbitrary[TransactionInput].sample.get
+        val input2 = Arbitrary.arbitrary[TransactionInput].sample.get
+        val input3 = Arbitrary.arbitrary[TransactionInput].sample.get
+        val input4 = Arbitrary.arbitrary[TransactionInput].sample.get
+        val input5 = Arbitrary.arbitrary[TransactionInput].sample.get
+
+        val referenceInput1 = Arbitrary.arbitrary[TransactionInput].sample.get
+        val referenceInput2 = Arbitrary.arbitrary[TransactionInput].sample.get
+
         val transaction = {
             val tx = randomValidTransaction
             tx.copy(
               body = KeepRaw(
                 tx.body.value.copy(
-                  inputs = Set(
-                    Arbitrary.arbitrary[TransactionInput].sample.get,
-                    Arbitrary.arbitrary[TransactionInput].sample.get,
-                    Arbitrary.arbitrary[TransactionInput].sample.get,
-                    Arbitrary.arbitrary[TransactionInput].sample.get,
-                    Arbitrary.arbitrary[TransactionInput].sample.get
-                  ),
+                  inputs = Set(input1, input2, input3, input4, input5),
                   collateralInputs = Set.empty,
-                  referenceInputs = Set(
-                    Arbitrary.arbitrary[TransactionInput].sample.get,
-                    Arbitrary.arbitrary[TransactionInput].sample.get
-                  ),
+                  referenceInputs = Set(referenceInput1, referenceInput2),
                   validityStartSlot = Some(10),
                   ttl = Some(15)
                 )
@@ -403,44 +403,44 @@ class StateTransitionTest extends AnyFunSuite, ArbitraryInstances {
 
             State(
               utxo = Map(
-                transaction.body.value.inputs.head -> TransactionOutput.Babbage(
+                input1 -> TransactionOutput.Babbage(
                   Address.Shelley(signatureTimelock1Address),
                   Value(Coin(1000L)),
                   None,
                   None
                 ),
-                transaction.body.value.inputs.tail.head -> TransactionOutput.Babbage(
+                input2 -> TransactionOutput.Babbage(
                   Address.Shelley(signatureTimelock2Address),
                   Value(Coin(1000L)),
                   None,
                   None
                 ),
-                transaction.body.value.inputs.tail.tail.head -> TransactionOutput.Babbage(
+                input3 -> TransactionOutput.Babbage(
                   Address.Shelley(allOfTimelockAddress),
                   Value(Coin(1000L)),
                   None,
                   None
                 ),
-                transaction.body.value.inputs.tail.tail.tail.head -> TransactionOutput.Babbage(
+                input4 -> TransactionOutput.Babbage(
                   Address.Shelley(anyOfTimelockAddress),
                   Value(Coin(1000L)),
                   None,
                   None
                 ),
-                transaction.body.value.inputs.tail.tail.tail.tail.head -> TransactionOutput.Babbage(
+                input5 -> TransactionOutput.Babbage(
                   Address.Shelley(mOfTimelockAddress),
                   Value(Coin(1000L)),
                   None,
                   None
                 ),
-                transaction.body.value.referenceInputs.head -> TransactionOutput
+                referenceInput1 -> TransactionOutput
                     .Babbage(
                       Address.Shelley(timeStartTimelockAddress),
                       Value(Coin(1000L)),
                       None,
                       Some(ScriptRef(Script.Native(timeStartTimelock)))
                     ),
-                transaction.body.value.referenceInputs.tail.head -> TransactionOutput
+                referenceInput2 -> TransactionOutput
                     .Babbage(
                       Address.Shelley(timeExpireTimelockAddress),
                       Value(Coin(1000L)),
@@ -451,25 +451,25 @@ class StateTransitionTest extends AnyFunSuite, ArbitraryInstances {
             )
         }
 
-        val result = NativeScriptValidator.validate(context, state, transaction)
+        val result = NativeScriptsValidator.validate(context, state, transaction)
         assert(result.isRight)
     }
 
-    test("NativeScriptValidator rule failure") {
+    test("NativeScriptsValidator rule failure") {
         val context = Context()
 
         val timeStartTimelock = Timelock.TimeStart(5)
         val timeExpireTimelock = Timelock.TimeExpire(20)
+
+        val input1 = Arbitrary.arbitrary[TransactionInput].sample.get
+        val input2 = Arbitrary.arbitrary[TransactionInput].sample.get
 
         val transaction = {
             val tx = randomValidTransaction
             tx.copy(
               body = KeepRaw(
                 tx.body.value.copy(
-                  inputs = Set(
-                    Arbitrary.arbitrary[TransactionInput].sample.get,
-                    Arbitrary.arbitrary[TransactionInput].sample.get
-                  ),
+                  inputs = Set(input1, input2),
                   collateralInputs = Set.empty,
                   referenceInputs = Set.empty,
                   validityStartSlot = Some(10),
@@ -501,14 +501,14 @@ class StateTransitionTest extends AnyFunSuite, ArbitraryInstances {
 
             State(
               utxo = Map(
-                transaction.body.value.inputs.head -> TransactionOutput
+                input1 -> TransactionOutput
                     .Babbage(
                       Address.Shelley(timeStartTimelockAddress),
                       Value(Coin(1000L)),
                       None,
                       Some(ScriptRef(Script.Native(timeStartTimelock)))
                     ),
-                transaction.body.value.inputs.tail.head -> TransactionOutput
+                input2 -> TransactionOutput
                     .Babbage(
                       Address.Shelley(timeExpireTimelockAddress),
                       Value(Coin(1000L)),
@@ -519,17 +519,19 @@ class StateTransitionTest extends AnyFunSuite, ArbitraryInstances {
             )
         }
 
-        val result = NativeScriptValidator.validate(context, state, transaction)
+        val result = NativeScriptsValidator.validate(context, state, transaction)
         assert(result.isLeft)
     }
 
     test("NeededWitnessesValidator Inputs rule success") {
         val context = Context()
+
         val (privateKey1, publicKey1) = generateKeyPair()
         val (privateKey2, publicKey2) = generateKeyPair()
 
         val input1 = Arbitrary.arbitrary[TransactionInput].sample.get
         val input2 = Arbitrary.arbitrary[TransactionInput].sample.get
+
         val transaction = {
             val tx = randomValidTransaction
             tx.copy(
@@ -537,9 +539,11 @@ class StateTransitionTest extends AnyFunSuite, ArbitraryInstances {
                 tx.body.value.copy(
                   inputs = Set(input1, input2),
                   collateralInputs = Set.empty,
+                  referenceInputs = Set.empty,
                   votingProcedures = None,
                   certificates = Set.empty,
-                  withdrawals = None
+                  withdrawals = None,
+                  requiredSigners = Set.empty
                 )
               ),
               witnessSet = tx.witnessSet.copy(
@@ -590,11 +594,13 @@ class StateTransitionTest extends AnyFunSuite, ArbitraryInstances {
 
     test("NeededWitnessesValidator Inputs rule failure") {
         val context = Context()
+
         val (privateKey1, publicKey1) = generateKeyPair()
         val (privateKey2, publicKey2) = generateKeyPair()
 
         val input1 = Arbitrary.arbitrary[TransactionInput].sample.get
         val input2 = Arbitrary.arbitrary[TransactionInput].sample.get
+
         val transaction = {
             val tx = randomValidTransaction
             tx.copy(
@@ -602,9 +608,11 @@ class StateTransitionTest extends AnyFunSuite, ArbitraryInstances {
                 tx.body.value.copy(
                   inputs = Set(input1, input2),
                   collateralInputs = Set.empty,
+                  referenceInputs = Set.empty,
                   votingProcedures = None,
                   certificates = Set.empty,
-                  withdrawals = None
+                  withdrawals = None,
+                  requiredSigners = Set.empty
                 )
               ),
               witnessSet = tx.witnessSet.copy(
@@ -654,11 +662,13 @@ class StateTransitionTest extends AnyFunSuite, ArbitraryInstances {
 
     test("NeededWitnessesValidator CollateralInputs rule success") {
         val context = Context()
+
         val (privateKey1, publicKey1) = generateKeyPair()
         val (privateKey2, publicKey2) = generateKeyPair()
 
         val collateralInput1 = Arbitrary.arbitrary[TransactionInput].sample.get
         val collateralInput2 = Arbitrary.arbitrary[TransactionInput].sample.get
+
         val transaction = {
             val tx = randomValidTransaction
             tx.copy(
@@ -666,9 +676,11 @@ class StateTransitionTest extends AnyFunSuite, ArbitraryInstances {
                 tx.body.value.copy(
                   inputs = Set.empty,
                   collateralInputs = Set(collateralInput1, collateralInput2),
+                  referenceInputs = Set.empty,
                   votingProcedures = None,
                   certificates = Set.empty,
-                  withdrawals = None
+                  withdrawals = None,
+                  requiredSigners = Set.empty
                 )
               ),
               witnessSet = tx.witnessSet.copy(
@@ -719,11 +731,13 @@ class StateTransitionTest extends AnyFunSuite, ArbitraryInstances {
 
     test("NeededWitnessesValidator CollateralInputs rule failure") {
         val context = Context()
+
         val (privateKey1, publicKey1) = generateKeyPair()
         val (privateKey2, publicKey2) = generateKeyPair()
 
         val collateralInput1 = Arbitrary.arbitrary[TransactionInput].sample.get
         val collateralInput2 = Arbitrary.arbitrary[TransactionInput].sample.get
+
         val transaction = {
             val tx = randomValidTransaction
             tx.copy(
@@ -731,9 +745,11 @@ class StateTransitionTest extends AnyFunSuite, ArbitraryInstances {
                 tx.body.value.copy(
                   inputs = Set.empty,
                   collateralInputs = Set(collateralInput1, collateralInput2),
+                  referenceInputs = Set.empty,
                   votingProcedures = None,
                   certificates = Set.empty,
-                  withdrawals = None
+                  withdrawals = None,
+                  requiredSigners = Set.empty
                 )
               ),
               witnessSet = tx.witnessSet.copy(
@@ -783,6 +799,7 @@ class StateTransitionTest extends AnyFunSuite, ArbitraryInstances {
 
     test("NeededWitnessesValidator VotingProcedures success") {
         val context = Context()
+
         val (privateKey1, publicKey1) = generateKeyPair()
         val (privateKey2, publicKey2) = generateKeyPair()
         val (privateKey3, publicKey3) = generateKeyPair()
@@ -794,6 +811,7 @@ class StateTransitionTest extends AnyFunSuite, ArbitraryInstances {
                 tx.body.value.copy(
                   inputs = Set.empty,
                   collateralInputs = Set.empty,
+                  referenceInputs = Set.empty,
                   votingProcedures = Some(
                     VotingProcedures(
                       Map(
@@ -816,7 +834,8 @@ class StateTransitionTest extends AnyFunSuite, ArbitraryInstances {
                     )
                   ),
                   certificates = Set.empty,
-                  withdrawals = None
+                  withdrawals = None,
+                  requiredSigners = Set.empty
                 )
               ),
               witnessSet = tx.witnessSet.copy(
@@ -837,6 +856,7 @@ class StateTransitionTest extends AnyFunSuite, ArbitraryInstances {
 
     test("NeededWitnessesValidator VotingProcedures failure") {
         val context = Context()
+
         val (privateKey1, publicKey1) = generateKeyPair()
         val (privateKey2, publicKey2) = generateKeyPair()
         val (privateKey3, publicKey3) = generateKeyPair()
@@ -848,6 +868,7 @@ class StateTransitionTest extends AnyFunSuite, ArbitraryInstances {
                 tx.body.value.copy(
                   inputs = Set.empty,
                   collateralInputs = Set.empty,
+                  referenceInputs = Set.empty,
                   votingProcedures = Some(
                     VotingProcedures(
                       Map(
@@ -870,7 +891,8 @@ class StateTransitionTest extends AnyFunSuite, ArbitraryInstances {
                     )
                   ),
                   certificates = Set.empty,
-                  withdrawals = None
+                  withdrawals = None,
+                  requiredSigners = Set.empty
                 )
               ),
               witnessSet = tx.witnessSet.copy(
@@ -890,6 +912,7 @@ class StateTransitionTest extends AnyFunSuite, ArbitraryInstances {
 
     test("NeededWitnessesValidator Withdrawals rule success") {
         val context = Context()
+
         val (privateKey1, publicKey1) = generateKeyPair()
         val (privateKey2, publicKey2) = generateKeyPair()
 
@@ -900,6 +923,7 @@ class StateTransitionTest extends AnyFunSuite, ArbitraryInstances {
                 tx.body.value.copy(
                   inputs = Set.empty,
                   collateralInputs = Set.empty,
+                  referenceInputs = Set.empty,
                   votingProcedures = None,
                   certificates = Set.empty,
                   withdrawals = Some(
@@ -933,7 +957,8 @@ class StateTransitionTest extends AnyFunSuite, ArbitraryInstances {
                         ) -> Coin(2000000L)
                       )
                     )
-                  )
+                  ),
+                  requiredSigners = Set.empty
                 )
               ),
               witnessSet = tx.witnessSet.copy(
@@ -953,6 +978,7 @@ class StateTransitionTest extends AnyFunSuite, ArbitraryInstances {
 
     test("NeededWitnessesValidator Withdrawals rule failure") {
         val context = Context()
+
         val (privateKey1, publicKey1) = generateKeyPair()
         val (privateKey2, publicKey2) = generateKeyPair()
 
@@ -963,6 +989,7 @@ class StateTransitionTest extends AnyFunSuite, ArbitraryInstances {
                 tx.body.value.copy(
                   inputs = Set.empty,
                   collateralInputs = Set.empty,
+                  referenceInputs = Set.empty,
                   votingProcedures = None,
                   certificates = Set.empty,
                   withdrawals = Some(
@@ -996,7 +1023,8 @@ class StateTransitionTest extends AnyFunSuite, ArbitraryInstances {
                         ) -> Coin(2000000L)
                       )
                     )
-                  )
+                  ),
+                  requiredSigners = Set.empty
                 )
               ),
               witnessSet = tx.witnessSet.copy(
@@ -1015,6 +1043,7 @@ class StateTransitionTest extends AnyFunSuite, ArbitraryInstances {
 
     test("NeededWitnessesValidator Certificates rule success") {
         val context = Context()
+
         val (privateKey, publicKey) = generateKeyPair()
         val credential = Credential.KeyHash(
           Hash(platform.blake2b_224(publicKey))
@@ -1027,6 +1056,7 @@ class StateTransitionTest extends AnyFunSuite, ArbitraryInstances {
                 tx.body.value.copy(
                   inputs = Set.empty,
                   collateralInputs = Set.empty,
+                  referenceInputs = Set.empty,
                   votingProcedures = None,
                   certificates = Set(
                     Certificate.StakeRegistration(credential),
@@ -1090,6 +1120,7 @@ class StateTransitionTest extends AnyFunSuite, ArbitraryInstances {
                     )
                   ),
                   withdrawals = None,
+                  requiredSigners = Set.empty
                 )
               ),
               witnessSet = tx.witnessSet.copy(
@@ -1108,6 +1139,7 @@ class StateTransitionTest extends AnyFunSuite, ArbitraryInstances {
 
     test("NeededWitnessesValidator Certificates rule failure") {
         val context = Context()
+
         val (privateKey, publicKey) = generateKeyPair()
         val credential = Credential.KeyHash(
           Hash(platform.blake2b_224(publicKey))
@@ -1120,6 +1152,7 @@ class StateTransitionTest extends AnyFunSuite, ArbitraryInstances {
                 tx.body.value.copy(
                   inputs = Set.empty,
                   collateralInputs = Set.empty,
+                  referenceInputs = Set.empty,
                   votingProcedures = None,
                   certificates = Set(
                     Certificate.StakeRegistration(credential),
@@ -1183,6 +1216,7 @@ class StateTransitionTest extends AnyFunSuite, ArbitraryInstances {
                     )
                   ),
                   withdrawals = None,
+                  requiredSigners = Set.empty
                 )
               ),
               witnessSet = tx.witnessSet.copy(
@@ -1197,8 +1231,84 @@ class StateTransitionTest extends AnyFunSuite, ArbitraryInstances {
         assert(result.isLeft)
     }
 
+    test("NeededWitnessesValidator RequiredSigners rule success") {
+        val context = Context()
+
+        val (privateKey1, publicKey1) = generateKeyPair()
+        val (privateKey2, publicKey2) = generateKeyPair()
+
+        val transaction = {
+            val tx = randomValidTransaction
+            tx.copy(
+              body = KeepRaw(
+                tx.body.value.copy(
+                  inputs = Set.empty,
+                  collateralInputs = Set.empty,
+                  referenceInputs = Set.empty,
+                  votingProcedures = None,
+                  certificates = Set.empty,
+                  withdrawals = None,
+                  requiredSigners = Set(
+                    Hash(summon[PlatformSpecific].blake2b_224(publicKey1)),
+                    Hash(summon[PlatformSpecific].blake2b_224(publicKey2))
+                  )
+                )
+              ),
+              witnessSet = tx.witnessSet.copy(
+                vkeyWitnesses = Set(
+                  VKeyWitness(publicKey1, summon[PlatformSpecific].signEd25519(privateKey1, tx.id)),
+                  VKeyWitness(publicKey2, summon[PlatformSpecific].signEd25519(privateKey2, tx.id))
+                )
+              )
+            )
+        }
+
+        val state = State()
+
+        val result = NeededWitnessesValidator.validate(context, state, transaction)
+        assert(result.isRight)
+    }
+
+    test("NeededWitnessesValidator RequiredSigners rule failure") {
+        val context = Context()
+
+        val (privateKey1, publicKey1) = generateKeyPair()
+        val (privateKey2, publicKey2) = generateKeyPair()
+
+        val transaction = {
+            val tx = randomValidTransaction
+            tx.copy(
+              body = KeepRaw(
+                tx.body.value.copy(
+                  inputs = Set.empty,
+                  collateralInputs = Set.empty,
+                  referenceInputs = Set.empty,
+                  votingProcedures = None,
+                  certificates = Set.empty,
+                  withdrawals = None,
+                  requiredSigners = Set(
+                    Hash(summon[PlatformSpecific].blake2b_224(publicKey1)),
+                    Hash(summon[PlatformSpecific].blake2b_224(publicKey2))
+                  )
+                )
+              ),
+              witnessSet = tx.witnessSet.copy(
+                vkeyWitnesses = Set(
+                  VKeyWitness(publicKey1, summon[PlatformSpecific].signEd25519(privateKey1, tx.id))
+                )
+              )
+            )
+        }
+
+        val state = State()
+
+        val result = NeededWitnessesValidator.validate(context, state, transaction)
+        assert(result.isLeft)
+    }
+
     test("MissingScriptsValidator rule success") {
         val context = Context()
+
         val (privateKey, publicKey) = generateKeyPair()
 
         val nativeScript =
@@ -1220,7 +1330,7 @@ class StateTransitionTest extends AnyFunSuite, ArbitraryInstances {
                 tx.body.value.copy(
                   inputs = Set(input),
                   collateralInputs = Set.empty,
-                  referenceInputs = Set.empty,
+                  referenceInputs = Set(referenceInput),
                   mint = Some(
                     Map(
                       plutusV1Script.scriptHash -> Map.empty,
@@ -1345,7 +1455,7 @@ class StateTransitionTest extends AnyFunSuite, ArbitraryInstances {
                 vkeyWitnesses = Set(
                   VKeyWitness(publicKey, platform.signEd25519(privateKey, tx.id))
                 ),
-                nativeScripts = Set(nativeScript),
+                nativeScripts = Set.empty,
                 plutusV1Scripts = Set(plutusV1Script),
                 plutusV2Scripts = Set(plutusV2Script),
                 plutusV3Scripts = Set(plutusV3Script)
@@ -1381,6 +1491,683 @@ class StateTransitionTest extends AnyFunSuite, ArbitraryInstances {
         assert(result.isRight)
     }
 
+    test("FeesOkValidator rule success") {
+        given Arbitrary[scalus.builtin.Data] = Arbitrary(
+          Gen.const(scalus.builtin.Data.unit) // Simplified for testing
+        )
+
+        val context = Context()
+
+        val (privateKey1, publicKey1) = generateKeyPair()
+        val (privateKey2, publicKey2) = generateKeyPair()
+
+        val collateralInput1 = Arbitrary.arbitrary[TransactionInput].sample.get
+        val collateralInput2 = Arbitrary.arbitrary[TransactionInput].sample.get
+
+        val transaction = {
+            val tx = randomValidTransaction
+            tx.copy(
+              body = KeepRaw(
+                tx.body.value.copy(
+                  inputs = Set.empty,
+                  collateralInputs = Set(collateralInput1, collateralInput2),
+                  collateralReturnOutput = Some(
+                    TransactionOutput.Shelley(
+                      Address.Shelley(
+                        Arbitrary.arbitrary[ShelleyAddress].sample.get
+                      ),
+                      Value(Coin(20000000L))
+                    )
+                  ),
+                  totalCollateral = Some(Coin(60000000L)),
+                  fee = Coin(10000000L),
+                  referenceInputs = Set.empty,
+                  outputs = IndexedSeq.empty,
+                  mint = None,
+                  votingProcedures = None,
+                  withdrawals = None,
+                  proposalProcedures = Set.empty,
+                  certificates = Set.empty,
+                  requiredSigners = Set.empty
+                )
+              ),
+              auxiliaryData = None,
+              witnessSet = tx.witnessSet.copy(
+                vkeyWitnesses = Set.empty,
+                bootstrapWitnesses = Set.empty,
+                nativeScripts = Set.empty,
+                plutusV1Scripts = Set.empty,
+                plutusV2Scripts = Set.empty,
+                plutusV3Scripts = Set.empty,
+                plutusData = KeepRaw(TaggedSet(Set.empty)),
+                redeemers = Some(
+                  KeepRaw(
+                    Redeemers.Array(
+                      IndexedSeq(
+                        Redeemer(
+                          tag = Arbitrary.arbitrary[RedeemerTag].sample.get,
+                          index = Gen.choose(0, Int.MaxValue).sample.get,
+                          data = scalus.builtin.Data.unit,
+                          exUnits = Arbitrary.arbitrary[ExUnits].sample.get
+                        )
+                      )
+                    )
+                  )
+                )
+              )
+            )
+        }
+
+        val state = State(
+          utxo = Map(
+            collateralInput1 -> TransactionOutput.Shelley(
+              Address.Shelley(
+                Arbitrary
+                    .arbitrary[ShelleyAddress]
+                    .sample
+                    .get
+                    .copy(payment =
+                        ShelleyPaymentPart.keyHash(
+                          Hash(summon[PlatformSpecific].blake2b_224(publicKey1))
+                        )
+                    )
+              ),
+              Value(Coin(30000000L))
+            ),
+            collateralInput2 -> TransactionOutput.Shelley(
+              Address.Shelley(
+                Arbitrary
+                    .arbitrary[ShelleyAddress]
+                    .sample
+                    .get
+                    .copy(payment =
+                        ShelleyPaymentPart.keyHash(
+                          Hash(summon[PlatformSpecific].blake2b_224(publicKey2))
+                        )
+                    )
+              ),
+              Value(Coin(30000000L))
+            )
+          )
+        )
+
+        val result = FeesOkValidator.validate(context, state, transaction)
+        assert(result.isRight)
+    }
+
+    test("FeesOkValidator feePaidIsGreeterOrEqualThanMinimumFee rule failure") {
+        given Arbitrary[scalus.builtin.Data] = Arbitrary(
+          Gen.const(scalus.builtin.Data.unit) // Simplified for testing
+        )
+
+        val context = Context()
+
+        val (privateKey1, publicKey1) = generateKeyPair()
+        val (privateKey2, publicKey2) = generateKeyPair()
+
+        val collateralInput1 = Arbitrary.arbitrary[TransactionInput].sample.get
+        val collateralInput2 = Arbitrary.arbitrary[TransactionInput].sample.get
+
+        val transaction = {
+            val tx = randomValidTransaction
+            tx.copy(
+              body = KeepRaw(
+                tx.body.value.copy(
+                  inputs = Set.empty,
+                  collateralInputs = Set(collateralInput1, collateralInput2),
+                  collateralReturnOutput = Some(
+                    TransactionOutput.Shelley(
+                      Address.Shelley(
+                        Arbitrary.arbitrary[ShelleyAddress].sample.get
+                      ),
+                      Value(Coin(20000000L))
+                    )
+                  ),
+                  totalCollateral = Some(Coin(60000000L)),
+                  fee = Coin(1L),
+                  referenceInputs = Set.empty,
+                  outputs = IndexedSeq.empty,
+                  mint = None,
+                  votingProcedures = None,
+                  withdrawals = None,
+                  proposalProcedures = Set.empty,
+                  certificates = Set.empty,
+                  requiredSigners = Set.empty
+                )
+              ),
+              auxiliaryData = None,
+              witnessSet = tx.witnessSet.copy(
+                vkeyWitnesses = Set.empty,
+                bootstrapWitnesses = Set.empty,
+                nativeScripts = Set.empty,
+                plutusV1Scripts = Set.empty,
+                plutusV2Scripts = Set.empty,
+                plutusV3Scripts = Set.empty,
+                plutusData = KeepRaw(TaggedSet(Set.empty)),
+                redeemers = Some(
+                  KeepRaw(
+                    Redeemers.Array(
+                      IndexedSeq(
+                        Redeemer(
+                          tag = Arbitrary.arbitrary[RedeemerTag].sample.get,
+                          index = Gen.choose(0, Int.MaxValue).sample.get,
+                          data = scalus.builtin.Data.unit,
+                          exUnits = Arbitrary.arbitrary[ExUnits].sample.get
+                        )
+                      )
+                    )
+                  )
+                )
+              )
+            )
+        }
+
+        val state = State(
+          utxo = Map(
+            collateralInput1 -> TransactionOutput.Shelley(
+              Address.Shelley(
+                Arbitrary
+                    .arbitrary[ShelleyAddress]
+                    .sample
+                    .get
+                    .copy(payment =
+                        ShelleyPaymentPart.keyHash(
+                          Hash(summon[PlatformSpecific].blake2b_224(publicKey1))
+                        )
+                    )
+              ),
+              Value(Coin(30000000L))
+            ),
+            collateralInput2 -> TransactionOutput.Shelley(
+              Address.Shelley(
+                Arbitrary
+                    .arbitrary[ShelleyAddress]
+                    .sample
+                    .get
+                    .copy(payment =
+                        ShelleyPaymentPart.keyHash(
+                          Hash(summon[PlatformSpecific].blake2b_224(publicKey2))
+                        )
+                    )
+              ),
+              Value(Coin(30000000L))
+            )
+          )
+        )
+
+        val result = FeesOkValidator.validate(context, state, transaction)
+        assert(result.isLeft)
+    }
+
+    test("FeesOkValidator collateralConsistsOnlyOfVKeyAddress rule failure") {
+        given Arbitrary[scalus.builtin.Data] = Arbitrary(
+          Gen.const(scalus.builtin.Data.unit) // Simplified for testing
+        )
+
+        val context = Context()
+
+        val (privateKey1, publicKey1) = generateKeyPair()
+        val (privateKey2, publicKey2) = generateKeyPair()
+
+        val collateralInput1 = Arbitrary.arbitrary[TransactionInput].sample.get
+        val collateralInput2 = Arbitrary.arbitrary[TransactionInput].sample.get
+
+        val transaction = {
+            val tx = randomValidTransaction
+            tx.copy(
+              body = KeepRaw(
+                tx.body.value.copy(
+                  inputs = Set.empty,
+                  collateralInputs = Set(collateralInput1, collateralInput2),
+                  collateralReturnOutput = None,
+                  totalCollateral = None,
+                  fee = Coin(10000000L),
+                  referenceInputs = Set.empty,
+                  outputs = IndexedSeq.empty,
+                  mint = None,
+                  votingProcedures = None,
+                  withdrawals = None,
+                  proposalProcedures = Set.empty,
+                  certificates = Set.empty,
+                  requiredSigners = Set.empty
+                )
+              ),
+              auxiliaryData = None,
+              witnessSet = tx.witnessSet.copy(
+                vkeyWitnesses = Set.empty,
+                bootstrapWitnesses = Set.empty,
+                nativeScripts = Set.empty,
+                plutusV1Scripts = Set.empty,
+                plutusV2Scripts = Set.empty,
+                plutusV3Scripts = Set.empty,
+                plutusData = KeepRaw(TaggedSet(Set.empty)),
+                redeemers = Some(
+                  KeepRaw(
+                    Redeemers.Array(
+                      IndexedSeq(
+                        Redeemer(
+                          tag = Arbitrary.arbitrary[RedeemerTag].sample.get,
+                          index = Gen.choose(0, Int.MaxValue).sample.get,
+                          data = scalus.builtin.Data.unit,
+                          exUnits = Arbitrary.arbitrary[ExUnits].sample.get
+                        )
+                      )
+                    )
+                  )
+                )
+              )
+            )
+        }
+
+        val state = State(
+          utxo = Map(
+            collateralInput1 -> TransactionOutput.Shelley(
+              Address.Shelley(
+                Arbitrary
+                    .arbitrary[ShelleyAddress]
+                    .sample
+                    .get
+                    .copy(payment =
+                        ShelleyPaymentPart.keyHash(
+                          Hash(summon[PlatformSpecific].blake2b_224(publicKey1))
+                        )
+                    )
+              ),
+              Value(Coin(20000000L))
+            ),
+            collateralInput2 -> TransactionOutput.Shelley(
+              Address.Shelley(
+                Arbitrary
+                    .arbitrary[ShelleyAddress]
+                    .sample
+                    .get
+                    .copy(payment =
+                        ShelleyPaymentPart.Script(
+                          Arbitrary.arbitrary[ScriptHash].sample.get
+                        )
+                    )
+              ),
+              Value(Coin(20000000L))
+            )
+          )
+        )
+
+        val result = FeesOkValidator.validate(context, state, transaction)
+        assert(result.isLeft)
+    }
+
+    test("FeesOkValidator collateralDoesNotContainAnyNonADA rule failure") {
+        given Arbitrary[scalus.builtin.Data] = Arbitrary(
+          Gen.const(scalus.builtin.Data.unit) // Simplified for testing
+        )
+
+        val context = Context()
+
+        val (privateKey1, publicKey1) = generateKeyPair()
+        val (privateKey2, publicKey2) = generateKeyPair()
+
+        val collateralInput1 = Arbitrary.arbitrary[TransactionInput].sample.get
+        val collateralInput2 = Arbitrary.arbitrary[TransactionInput].sample.get
+
+        val transaction = {
+            val tx = randomValidTransaction
+            tx.copy(
+              body = KeepRaw(
+                tx.body.value.copy(
+                  inputs = Set.empty,
+                  collateralInputs = Set(collateralInput1, collateralInput2),
+                  collateralReturnOutput = Some(
+                    TransactionOutput.Shelley(
+                      Address.Shelley(
+                        Arbitrary.arbitrary[ShelleyAddress].sample.get
+                      ),
+                      Value(Coin(20000000L))
+                    )
+                  ),
+                  totalCollateral = Some(Coin(60000000L)),
+                  fee = Coin(10000000L),
+                  referenceInputs = Set.empty,
+                  outputs = IndexedSeq.empty,
+                  mint = None,
+                  votingProcedures = None,
+                  withdrawals = None,
+                  proposalProcedures = Set.empty,
+                  certificates = Set.empty,
+                  requiredSigners = Set.empty
+                )
+              ),
+              auxiliaryData = None,
+              witnessSet = tx.witnessSet.copy(
+                vkeyWitnesses = Set.empty,
+                bootstrapWitnesses = Set.empty,
+                nativeScripts = Set.empty,
+                plutusV1Scripts = Set.empty,
+                plutusV2Scripts = Set.empty,
+                plutusV3Scripts = Set.empty,
+                plutusData = KeepRaw(TaggedSet(Set.empty)),
+                redeemers = Some(
+                  KeepRaw(
+                    Redeemers.Array(
+                      IndexedSeq(
+                        Redeemer(
+                          tag = Arbitrary.arbitrary[RedeemerTag].sample.get,
+                          index = Gen.choose(0, Int.MaxValue).sample.get,
+                          data = scalus.builtin.Data.unit,
+                          exUnits = Arbitrary.arbitrary[ExUnits].sample.get
+                        )
+                      )
+                    )
+                  )
+                )
+              )
+            )
+        }
+
+        val state = State(
+          utxo = Map(
+            collateralInput1 -> TransactionOutput.Shelley(
+              Address.Shelley(
+                Arbitrary
+                    .arbitrary[ShelleyAddress]
+                    .sample
+                    .get
+                    .copy(payment =
+                        ShelleyPaymentPart.keyHash(
+                          Hash(summon[PlatformSpecific].blake2b_224(publicKey1))
+                        )
+                    )
+              ),
+              Value(Coin(30000000L))
+            ),
+            collateralInput2 -> TransactionOutput.Shelley(
+              Address.Shelley(
+                Arbitrary
+                    .arbitrary[ShelleyAddress]
+                    .sample
+                    .get
+                    .copy(payment =
+                        ShelleyPaymentPart.keyHash(
+                          Hash(summon[PlatformSpecific].blake2b_224(publicKey2))
+                        )
+                    )
+              ),
+              Value(Coin(30000000L), Arbitrary.arbitrary[MultiAsset].sample.get)
+            )
+          )
+        )
+
+        val result = FeesOkValidator.validate(context, state, transaction)
+        assert(result.isLeft)
+    }
+
+    test("FeesOkValidator totalSumOfCollateralCoinsIsSufficient rule failure") {
+        given Arbitrary[scalus.builtin.Data] = Arbitrary(
+          Gen.const(scalus.builtin.Data.unit) // Simplified for testing
+        )
+
+        val context = Context()
+
+        val (privateKey1, publicKey1) = generateKeyPair()
+        val (privateKey2, publicKey2) = generateKeyPair()
+
+        val collateralInput1 = Arbitrary.arbitrary[TransactionInput].sample.get
+        val collateralInput2 = Arbitrary.arbitrary[TransactionInput].sample.get
+
+        val transaction = {
+            val tx = randomValidTransaction
+            tx.copy(
+              body = KeepRaw(
+                tx.body.value.copy(
+                  inputs = Set.empty,
+                  collateralInputs = Set(collateralInput1, collateralInput2),
+                  collateralReturnOutput = Some(
+                    TransactionOutput.Shelley(
+                      Address.Shelley(
+                        Arbitrary.arbitrary[ShelleyAddress].sample.get
+                      ),
+                      Value(Coin(60000000L))
+                    )
+                  ),
+                  totalCollateral = Some(Coin(60000000L)),
+                  fee = Coin(10000000L),
+                  referenceInputs = Set.empty,
+                  outputs = IndexedSeq.empty,
+                  mint = None,
+                  votingProcedures = None,
+                  withdrawals = None,
+                  proposalProcedures = Set.empty,
+                  certificates = Set.empty,
+                  requiredSigners = Set.empty
+                )
+              ),
+              auxiliaryData = None,
+              witnessSet = tx.witnessSet.copy(
+                vkeyWitnesses = Set.empty,
+                bootstrapWitnesses = Set.empty,
+                nativeScripts = Set.empty,
+                plutusV1Scripts = Set.empty,
+                plutusV2Scripts = Set.empty,
+                plutusV3Scripts = Set.empty,
+                plutusData = KeepRaw(TaggedSet(Set.empty)),
+                redeemers = Some(
+                  KeepRaw(
+                    Redeemers.Array(
+                      IndexedSeq(
+                        Redeemer(
+                          tag = Arbitrary.arbitrary[RedeemerTag].sample.get,
+                          index = Gen.choose(0, Int.MaxValue).sample.get,
+                          data = scalus.builtin.Data.unit,
+                          exUnits = Arbitrary.arbitrary[ExUnits].sample.get
+                        )
+                      )
+                    )
+                  )
+                )
+              )
+            )
+        }
+
+        val state = State(
+          utxo = Map(
+            collateralInput1 -> TransactionOutput.Shelley(
+              Address.Shelley(
+                Arbitrary
+                    .arbitrary[ShelleyAddress]
+                    .sample
+                    .get
+                    .copy(payment =
+                        ShelleyPaymentPart.keyHash(
+                          Hash(summon[PlatformSpecific].blake2b_224(publicKey1))
+                        )
+                    )
+              ),
+              Value(Coin(30000000L))
+            ),
+            collateralInput2 -> TransactionOutput.Shelley(
+              Address.Shelley(
+                Arbitrary
+                    .arbitrary[ShelleyAddress]
+                    .sample
+                    .get
+                    .copy(payment =
+                        ShelleyPaymentPart.keyHash(
+                          Hash(summon[PlatformSpecific].blake2b_224(publicKey2))
+                        )
+                    )
+              ),
+              Value(Coin(30000000L))
+            )
+          )
+        )
+
+        val result = FeesOkValidator.validate(context, state, transaction)
+        assert(result.isLeft)
+    }
+
+    test("FeesOkValidator totalSumOfCollateralCoinsIsEquivalentToTotalCollateral rule failure") {
+        given Arbitrary[scalus.builtin.Data] = Arbitrary(
+          Gen.const(scalus.builtin.Data.unit) // Simplified for testing
+        )
+
+        val context = Context()
+
+        val (privateKey1, publicKey1) = generateKeyPair()
+        val (privateKey2, publicKey2) = generateKeyPair()
+
+        val collateralInput1 = Arbitrary.arbitrary[TransactionInput].sample.get
+        val collateralInput2 = Arbitrary.arbitrary[TransactionInput].sample.get
+
+        val transaction = {
+            val tx = randomValidTransaction
+            tx.copy(
+              body = KeepRaw(
+                tx.body.value.copy(
+                  inputs = Set.empty,
+                  collateralInputs = Set(collateralInput1, collateralInput2),
+                  collateralReturnOutput = Some(
+                    TransactionOutput.Shelley(
+                      Address.Shelley(
+                        Arbitrary.arbitrary[ShelleyAddress].sample.get
+                      ),
+                      Value(Coin(20000000L))
+                    )
+                  ),
+                  totalCollateral = Some(Coin(50000000L)),
+                  fee = Coin(10000000L),
+                  referenceInputs = Set.empty,
+                  outputs = IndexedSeq.empty,
+                  mint = None,
+                  votingProcedures = None,
+                  withdrawals = None,
+                  proposalProcedures = Set.empty,
+                  certificates = Set.empty,
+                  requiredSigners = Set.empty
+                )
+              ),
+              auxiliaryData = None,
+              witnessSet = tx.witnessSet.copy(
+                vkeyWitnesses = Set.empty,
+                bootstrapWitnesses = Set.empty,
+                nativeScripts = Set.empty,
+                plutusV1Scripts = Set.empty,
+                plutusV2Scripts = Set.empty,
+                plutusV3Scripts = Set.empty,
+                plutusData = KeepRaw(TaggedSet(Set.empty)),
+                redeemers = Some(
+                  KeepRaw(
+                    Redeemers.Array(
+                      IndexedSeq(
+                        Redeemer(
+                          tag = Arbitrary.arbitrary[RedeemerTag].sample.get,
+                          index = Gen.choose(0, Int.MaxValue).sample.get,
+                          data = scalus.builtin.Data.unit,
+                          exUnits = Arbitrary.arbitrary[ExUnits].sample.get
+                        )
+                      )
+                    )
+                  )
+                )
+              )
+            )
+        }
+
+        val state = State(
+          utxo = Map(
+            collateralInput1 -> TransactionOutput.Shelley(
+              Address.Shelley(
+                Arbitrary
+                    .arbitrary[ShelleyAddress]
+                    .sample
+                    .get
+                    .copy(payment =
+                        ShelleyPaymentPart.keyHash(
+                          Hash(summon[PlatformSpecific].blake2b_224(publicKey1))
+                        )
+                    )
+              ),
+              Value(Coin(30000000L))
+            ),
+            collateralInput2 -> TransactionOutput.Shelley(
+              Address.Shelley(
+                Arbitrary
+                    .arbitrary[ShelleyAddress]
+                    .sample
+                    .get
+                    .copy(payment =
+                        ShelleyPaymentPart.keyHash(
+                          Hash(summon[PlatformSpecific].blake2b_224(publicKey2))
+                        )
+                    )
+              ),
+              Value(Coin(30000000L))
+            )
+          )
+        )
+
+        val result = FeesOkValidator.validate(context, state, transaction)
+        assert(result.isLeft)
+    }
+
+    test("FeesOkValidator isAtLeastOneCollateralInput rule failure") {
+        given Arbitrary[scalus.builtin.Data] = Arbitrary(
+          Gen.const(scalus.builtin.Data.unit) // Simplified for testing
+        )
+
+        val context = Context()
+
+        val transaction = {
+            val tx = randomValidTransaction
+            tx.copy(
+              body = KeepRaw(
+                tx.body.value.copy(
+                  inputs = Set.empty,
+                  collateralInputs = Set.empty,
+                  collateralReturnOutput = None,
+                  totalCollateral = None,
+                  fee = Coin(10000000L),
+                  referenceInputs = Set.empty,
+                  outputs = IndexedSeq.empty,
+                  mint = None,
+                  votingProcedures = None,
+                  withdrawals = None,
+                  proposalProcedures = Set.empty,
+                  certificates = Set.empty,
+                  requiredSigners = Set.empty
+                )
+              ),
+              auxiliaryData = None,
+              witnessSet = tx.witnessSet.copy(
+                vkeyWitnesses = Set.empty,
+                bootstrapWitnesses = Set.empty,
+                nativeScripts = Set.empty,
+                plutusV1Scripts = Set.empty,
+                plutusV2Scripts = Set.empty,
+                plutusV3Scripts = Set.empty,
+                plutusData = KeepRaw(TaggedSet(Set.empty)),
+                redeemers = Some(
+                  KeepRaw(
+                    Redeemers.Array(
+                      IndexedSeq(
+                        Redeemer(
+                          tag = Arbitrary.arbitrary[RedeemerTag].sample.get,
+                          index = Gen.choose(0, Int.MaxValue).sample.get,
+                          data = scalus.builtin.Data.unit,
+                          exUnits = Arbitrary.arbitrary[ExUnits].sample.get
+                        )
+                      )
+                    )
+                  )
+                )
+              )
+            )
+        }
+
+        val state = State()
+
+        val result = FeesOkValidator.validate(context, state, transaction)
+        assert(result.isLeft)
+    }
+
     test("TransactionSizeValidator rule success") {
         val context = Context()
         val transaction = {
@@ -1414,8 +2201,7 @@ class StateTransitionTest extends AnyFunSuite, ArbitraryInstances {
                   certificates = Set.empty,
                   mint = None,
                   requiredSigners = Set.empty,
-                  collateralReturnOutput = None,
-                  networkId = None
+                  collateralReturnOutput = None
                 )
               )
             )

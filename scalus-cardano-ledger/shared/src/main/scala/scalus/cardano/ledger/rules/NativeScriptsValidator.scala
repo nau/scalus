@@ -8,7 +8,7 @@ import scala.util.boundary
 import scala.util.boundary.break
 
 // It's validateFailedBabbageScripts in cardano-ledger
-object NativeScriptValidator
+object NativeScriptsValidator
     extends STS.Validator,
       AllRequiredScriptHashes,
       AllReferenceScripts,
