@@ -78,7 +78,7 @@ private[builtin] abstract class AbstractBuiltins(using ps: PlatformSpecific):
         ByteString.unsafeFromArray(bs.bytes.drop(from.toInt).take(len.toInt))
 
     /** Returns the length of the ByteString */
-    def lengthOfByteString(bs: ByteString): BigInt = bs.bytes.length
+    def lengthOfByteString(bs: ByteString): BigInt = bs.size
 
     /** Returns the byte at the specified index in the ByteString
       *

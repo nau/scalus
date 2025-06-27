@@ -221,9 +221,9 @@ object FeesOkValidator extends STS.Validator, AllReferenceScripts {
             val refScriptsSize = scripts.foldLeft(0) { case (length, script) =>
                 val scripLength = script match
                     case _: Script.Native => 0 // Native scripts do not contribute to fees
-                    case Script.PlutusV1(plutusV1Script) => plutusV1Script.byteString.bytes.length
-                    case Script.PlutusV2(plutusV2Script) => plutusV2Script.byteString.bytes.length
-                    case Script.PlutusV3(plutusV3Script) => plutusV3Script.byteString.bytes.length
+                    case Script.PlutusV1(plutusV1Script) => plutusV1Script.byteString.size
+                    case Script.PlutusV2(plutusV2Script) => plutusV2Script.byteString.size
+                    case Script.PlutusV3(plutusV3Script) => plutusV3Script.byteString.size
 
                 length + scripLength
             }
