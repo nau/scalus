@@ -132,8 +132,6 @@ class ScriptDataHashGeneratorTest extends AnyFunSuite {
     }
 
     test("Make transaction") {
-        println(makeBBTx())
-        println(makeScalusTx())
         assert(makeBBTx() == makeScalusTx())
     }
 }
