@@ -4,8 +4,7 @@ import org.scalatest.funsuite.AnyFunSuite
 import org.scalatestplus.scalacheck.ScalaCheckPropertyChecks
 import scalus.*
 import scalus.builtin.ByteString.*
-import scalus.builtin.Data.{toData, I}
-import scalus.sir.Recursivity.NonRec
+import scalus.builtin.Data.I
 import scalus.sir.SIR.Pattern
 import scalus.sir.SIRType.{FreeUnificator, SumCaseClass, TypeVar}
 import scalus.sir.lowering.StaticLoweredValue
@@ -68,7 +67,7 @@ class SirToUplcSmLoweringTest
     test("lower Var in let") {
         // now we can't lower var in isolation, so should use Var in some context
         val sir = SIR.Let(
-          NonRec,
+          Recursivity.NonRec,
           List(
             Binding(
               "x",
@@ -137,7 +136,7 @@ class SirToUplcSmLoweringTest
        lowers to (\x -> (\y -> x + y) 2) 1
          */
         SIR.Let(
-          NonRec,
+          Recursivity.NonRec,
           Binding("x", Integer, SIR.Const(asConstant(1), Integer, ae)) :: Binding(
             "y",
             Integer,
@@ -273,7 +272,7 @@ class SirToUplcSmLoweringTest
 
         def withLet(a: Boolean = true, b: Boolean = true)(f: => SIR): SIR = {
             SIR.Let(
-              NonRec,
+              Recursivity.NonRec,
               List(
                 Binding("a", SIRType.Boolean, SIR.Const(Constant.Bool(a), SIRType.Boolean, ae)),
                 Binding("b", SIRType.Boolean, SIR.Const(Constant.Bool(b), SIRType.Boolean, ae))

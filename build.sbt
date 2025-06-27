@@ -117,6 +117,7 @@ lazy val scalusPlugin = project
             "scalus/builtin/Data.scala",
             "scalus/builtin/List.scala",
             "scalus/sir/SIR.scala",
+            "scalus/sir/SIRMacro.scala",
             "scalus/sir/SIRType.scala",
             "scalus/sir/SIRToExpr.scala",
             "scalus/sir/SIRBuiltins.scala",

@@ -46,29 +46,22 @@ case class AnnotationsDecl(
     pos: SIRPosition,
     comment: Option[String] = None,
     data: Map[String, SIR] = Map.empty
-)
+) {
+
+    def ++(data: Map[String, SIR]): AnnotationsDecl = {
+        AnnotationsDecl(
+          pos = pos,
+          comment = comment,
+          data = this.data ++ data
+        )
+    }
+
+}
 
 case object AnnotationsDecl {
     import scala.quoted.*
 
-    inline def empty: AnnotationsDecl = ${ emptyImpl }
-
-    private def emptyImpl(using qctx: Quotes): Expr[AnnotationsDecl] = {
-        val scalaPosition = qctx.reflect.Position.ofMacroExpansion
-        '{
-            AnnotationsDecl(
-              SIRPosition(
-                file = ${ Expr(scalaPosition.sourceFile.path) },
-                startLine = ${ Expr(scalaPosition.startLine) },
-                startColumn = ${ Expr(scalaPosition.startColumn) },
-                endLine = ${ Expr(scalaPosition.endLine) },
-                endColumn = ${ Expr(scalaPosition.endColumn) }
-              ),
-              comment = None,
-              data = Map.empty
-            )
-        }
-    }
+    inline def empty: AnnotationsDecl = ${ SIRMacro.emptyAnnotationsDeclImpl }
 
 }
 
@@ -265,6 +258,28 @@ object SIR:
         extends AnnotatedSIR
 
     case class Const(uplcConst: Constant, tp: SIRType, anns: AnnotationsDecl) extends AnnotatedSIR
+
+    object Const {
+        def boolean(value: Boolean, anns: AnnotationsDecl = AnnotationsDecl.empty): Const = {
+            Const(Constant.Bool(value), SIRType.Boolean, anns)
+        }
+
+        def bool(value: Boolean, anns: AnnotationsDecl = AnnotationsDecl.empty): Const = {
+            boolean(value, anns)
+        }
+
+        def integer(value: BigInt, anns: AnnotationsDecl = AnnotationsDecl.empty): Const = {
+            Const(Constant.Integer(value), SIRType.Integer, anns)
+        }
+
+        def string(value: String, anns: AnnotationsDecl = AnnotationsDecl.empty): Const = {
+            Const(Constant.String(value), SIRType.String, anns)
+        }
+
+        def unit(anns: AnnotationsDecl = AnnotationsDecl.empty): Const = {
+            Const(Constant.Unit, SIRType.Unit, anns)
+        }
+    }
 
     case class And(a: AnnotatedSIR, b: AnnotatedSIR, anns: AnnotationsDecl) extends AnnotatedSIR {
         override def tp: SIRType = SIRType.Boolean

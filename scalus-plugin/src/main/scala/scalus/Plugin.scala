@@ -92,7 +92,8 @@ class ScalusPhase(debugLevel: Int) extends PluginPhase {
             val start = System.currentTimeMillis()
             val result =
                 val result = compiler.compileToSIR(code, isCompileDebug)
-                val linked = SIRLinker().link(result, tree.srcPos)
+                val linked = SIRLinker(SIRLinkerOptions(options.universalDataRepresentation))
+                    .link(result, tree.srcPos)
                 RemoveRecursivity(linked)
 
             if isCompileDebug then

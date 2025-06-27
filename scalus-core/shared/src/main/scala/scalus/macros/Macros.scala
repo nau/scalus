@@ -344,4 +344,5 @@ object Macros {
     def generateCompileCall(code: Expr[Any])(using Quotes): Expr[SIR] = '{
         Compiler.compile($code)
     }
+
 }

@@ -5,10 +5,14 @@ import dotty.tools.dotc.report
 import dotty.tools.dotc.util.SrcPos
 import scalus.sir.{AnnotatedSIR, AnnotationsDecl, Binding, DataDecl, Module, Recursivity, SIR, SIRType}
 
+import scala.annotation.unused
 import scala.collection.mutable
-import scala.util.control.NonFatal
 
 import scalus.sir.SIRVersion
+
+case class SIRLinkerOptions(
+    useUniversalDataConversion: Boolean = false
+)
 
 /** Links SIR definitions and data declarations into a single SIR module.
   *
@@ -18,7 +22,7 @@ import scalus.sir.SIRVersion
   * It traverses the SIR tree and links external definitions and data declarations to the global
   * definitions and data declarations.
   */
-class SIRLinker(using ctx: Context) {
+class SIRLinker(options: SIRLinkerOptions)(using ctx: Context) {
 
     private val globalDefs: mutable.LinkedHashMap[FullName, CompileDef] =
         mutable.LinkedHashMap.empty
@@ -35,8 +39,8 @@ class SIRLinker(using ctx: Context) {
     }
 
     def link(sir: SIR, srcPos: SrcPos): SIR = {
-        traverseAndLink(sir, srcPos)
-        val full: SIR = globalDefs.values.foldRight(sir) {
+        val processed = traverseAndLink(sir, srcPos)
+        val full: SIR = globalDefs.values.foldRight(processed) {
             case (CompileDef.Compiled(b), acc) =>
                 SIR.Let(
                   b.recursivity,
@@ -71,43 +75,77 @@ class SIRLinker(using ctx: Context) {
         dataDecls
     }
 
-    private def traverseAndLink(sir: SIR, srcPos: SrcPos): Unit = sir match
-        case SIR.ExternalVar(moduleName, name, tp, ann) if !globalDefs.contains(FullName(name)) =>
+    private def traverseAndLink(sir: SIR, srcPos: SrcPos): SIR = sir match
+        case SIR.Decl(data, term) =>
+            SIR.Decl(data, traverseAndLink(term, srcPos))
+        case ans: AnnotatedSIR =>
+            traverseAndLinkExpr(ans, srcPos)
+
+    private def traverseAndLinkExpr(sir: AnnotatedSIR, srcPos: SrcPos): AnnotatedSIR = sir match
+        case v @ SIR.ExternalVar(moduleName, name, tp, ann)
+            if !globalDefs.contains(FullName(name)) =>
             linkDefinition(moduleName, FullName(name), srcPos, tp, ann)
-        case SIR.Let(recursivity, bindings, body, anns) =>
-            bindings.foreach(b => traverseAndLink(b.value, srcPos))
-            traverseAndLink(body, srcPos)
-        case SIR.LamAbs(name, term, anns) => traverseAndLink(term, srcPos)
+            v
+        case v @ SIR.Let(recursivity, bindings, body, anns) =>
+            val nBingings =
+                bindings.map(b => Binding(b.name, b.tp, traverseAndLink(b.value, srcPos)))
+            val nBody = traverseAndLink(body, srcPos)
+            SIR.Let(recursivity, nBingings, nBody, anns)
+        case SIR.LamAbs(param, term, anns) =>
+            SIR.LamAbs(param, traverseAndLink(term, srcPos), anns)
         case SIR.Apply(f, arg, tp, anns) =>
-            traverseAndLink(f, srcPos)
-            traverseAndLink(arg, srcPos)
+            val fReplaced =
+                if options.useUniversalDataConversion then
+                    anns.data.get("fromData") match
+                        case Some(v) =>
+                            SIR.ExternalVar(
+                              "scalus.builtin.internal.UniversalDataConversion$",
+                              "scalus.builtin.internal.UniversalDataConversion$.fromData",
+                              SIRType.Fun(SIRType.Data, tp),
+                              AnnotationsDecl.empty.copy(pos = f.anns.pos)
+                            )
+                        case None =>
+                            anns.data.get("toData") match
+                                case Some(v) =>
+                                    SIR.ExternalVar(
+                                      "scalus.builtin.internal.UniversalDataConversion$",
+                                      "scalus.builtin.internal.UniversalDataConversion$.toData",
+                                      SIRType.Fun(arg.tp, SIRType.Data),
+                                      AnnotationsDecl.empty.copy(pos = f.anns.pos)
+                                    )
+                                case None =>
+                                    f
+                else f
+            val nF = traverseAndLinkExpr(fReplaced, srcPos)
+            val nArg = traverseAndLinkExpr(arg, srcPos)
+            SIR.Apply(nF, nArg, tp, anns)
         case SIR.And(lhs, rhs, anns) =>
-            traverseAndLink(lhs, srcPos)
-            traverseAndLink(rhs, srcPos)
+            val nLhs = traverseAndLinkExpr(lhs, srcPos)
+            val nRhs = traverseAndLinkExpr(rhs, srcPos)
+            SIR.And(nLhs, nRhs, anns)
         case SIR.Or(lhs, rhs, anns) =>
-            traverseAndLink(lhs, srcPos)
-            traverseAndLink(rhs, srcPos)
-        case SIR.Not(term, anns) => traverseAndLink(term, srcPos)
+            val nLhs = traverseAndLinkExpr(lhs, srcPos)
+            val nRhs = traverseAndLinkExpr(rhs, srcPos)
+            SIR.Or(nLhs, nRhs, anns)
+        case SIR.Not(term, anns) => SIR.Not(traverseAndLinkExpr(term, srcPos), anns)
         case SIR.IfThenElse(cond, t, f, tp, anns) =>
-            traverseAndLink(cond, srcPos)
-            traverseAndLink(t, srcPos)
-            traverseAndLink(f, srcPos)
-        case SIR.Decl(data, term) => traverseAndLink(term, srcPos)
+            val nCond = traverseAndLinkExpr(cond, srcPos)
+            val nT = traverseAndLinkExpr(t, srcPos)
+            val nR = traverseAndLinkExpr(f, srcPos)
+            SIR.IfThenElse(nCond, nT, nR, tp, anns)
         case SIR.Constr(name, data, args, tp, anns) =>
-            try
-                globalDataDecls.put(FullName(data.name), data)
-                args.foreach(a => traverseAndLink(a, srcPos))
-            catch
-                case NonFatal(e) =>
-                    println(s"Error in traverseAndLink: ${e.getMessage}")
-                    println(s"SIR= ${sir}")
-                    throw e
+            globalDataDecls.put(FullName(data.name), data)
+            val nArgs = args.map(a => traverseAndLink(a, srcPos))
+            SIR.Constr(name, data, nArgs, tp, anns)
         case SIR.Match(scrutinee, cases, rhsType, anns) =>
-            traverseAndLink(scrutinee, srcPos)
-            cases.foreach(c => traverseAndLink(c.body, srcPos))
-        case SIR.Select(scrutinee, _, _, _) =>
-            traverseAndLink(scrutinee, srcPos)
-        case _ => ()
+            val nScrutinee = traverseAndLinkExpr(scrutinee, srcPos)
+            val nCases =
+                cases.map(c => SIR.Case(c.pattern, traverseAndLink(c.body, srcPos), c.anns))
+            SIR.Match(nScrutinee, nCases, rhsType, anns)
+        case SIR.Select(scrutinee, field, tp, anns) =>
+            val nScrutinee = traverseAndLink(scrutinee, srcPos)
+            SIR.Select(nScrutinee, field, tp, anns)
+        case other => other
 
     private def findAndLinkDefinition(
         defs: collection.Map[FullName, SIR],
@@ -117,12 +155,12 @@ class SIRLinker(using ctx: Context) {
         val found = defs.get(fullName)
         for sir <- found do
             globalDefs.update(fullName, CompileDef.Compiling)
-            traverseAndLink(sir, srcPos)
+            val nSir = traverseAndLink(sir, srcPos)
             // TODO: reseatch.  removeing 'remove' triggre fail of  scalus.CompilerPluginTest. 'compile fieldAsData macro'
             globalDefs.remove(fullName)
             globalDefs.update(
               fullName,
-              CompileDef.Compiled(TopLevelBinding(fullName, Recursivity.Rec, sir))
+              CompileDef.Compiled(TopLevelBinding(fullName, Recursivity.Rec, nSir))
             )
         found.isDefined
     }
@@ -131,7 +169,7 @@ class SIRLinker(using ctx: Context) {
         moduleName: String,
         fullName: FullName,
         srcPos: SrcPos,
-        tp: SIRType,
+        @unused tp: SIRType,
         anns: AnnotationsDecl
     ): Unit = {
         // println(s"linkDefinition: ${fullName}")
@@ -186,35 +224,6 @@ class SIRLinker(using ctx: Context) {
                    |""".stripMargin,
               srcPos
             )
-    }
-
-    private def retrieveDataRepresentation(
-        moduleName: String,
-        fullName: FullName,
-        tp: SIRType,
-        srcPos: SrcPos,
-        anns: AnnotationsDecl
-    ): Unit = {
-        val nDefs = moduleDefsCache.get(moduleName) match
-            case Some(defs) => defs
-            case None =>
-                report.error(
-                  s"Module not found during linking: ${moduleName} for data representation of ${fullName.name} from ${anns.pos.file}: ${anns.pos.startLine}",
-                  srcPos
-                )
-                mutable.LinkedHashMap.empty[FullName, SIR]
-        if !findAndLinkDefinition(nDefs, fullName, srcPos) then {
-            error(
-              SymbolNotFound(
-                fullName.name,
-                moduleName,
-                srcPos,
-                anns.pos,
-                nDefs.keys.map(_.name).toSet
-              ),
-              SIR.Error("Symbol not found", AnnotationsDecl.fromSrcPos(srcPos))
-            )
-        }
     }
 
 }

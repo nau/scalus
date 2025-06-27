@@ -3,7 +3,7 @@ package scalus
 import dotty.tools.dotc.*
 import dotty.tools.dotc.ast.Trees.*
 import dotty.tools.dotc.ast.tpd
-import dotty.tools.dotc.core.Constants.{Constant, LongTag}
+import dotty.tools.dotc.core.Constants.Constant
 import dotty.tools.dotc.core.Contexts.Context
 import dotty.tools.dotc.core.Flags.*
 import dotty.tools.dotc.core.Names.*
@@ -13,12 +13,12 @@ import dotty.tools.dotc.core.Types.*
 import dotty.tools.dotc.core.*
 import dotty.tools.dotc.util.{NoSourcePosition, SourcePosition, SrcPos}
 import scalus.ScalusCompilationMode.{AllDefs, OnlyDerivations}
-import scalus.flat.{byteAsBitString, EncoderState, Flat}
+import scalus.flat.{EncoderState, Flat}
 import scalus.flat.FlatInstantces.given
-import scalus.sir.{AnnotatedSIR, AnnotationsDecl, Binding, ConstrDecl, DataDecl, Module, Recursivity, SIR, SIRBuiltins, SIRPosition, SIRType, SIRVarStorage, SIRVersion, TypeBinding}
+import scalus.sir.{AnnotatedSIR, AnnotationsDecl, Binding, ConstrDecl, DataDecl, Module, Recursivity, SIR, SIRBuiltins, SIRPosition, SIRType, SIRVersion, TypeBinding}
 import scalus.uplc.DefaultUni
 
-import scala.annotation.{nowarn, tailrec, unused}
+import scala.annotation.{tailrec, unused}
 import scala.collection.immutable
 import scala.collection.mutable
 import scala.collection.mutable.ListBuffer
@@ -701,7 +701,7 @@ final class SIRCompiler(options: SIRCompilerOptions = SIRCompilerOptions.default
         env: Env,
         e: Tree,
         taTree: Tree,
-        @nowarn targs: List[Tree]
+        @unused targs: List[Tree]
     ): AnnotatedSIR = {
 
         val name = e.symbol.name.show
@@ -1590,15 +1590,22 @@ final class SIRCompiler(options: SIRCompilerOptions = SIRCompilerOptions.default
         val env = fillTypeParamInTypeApply(f.symbol, targs, env0)
         // val isNoSymApply = f match
         //    case Select(qual, nme.apply) if qual.symbol ==
-        val fE = f match
+        val (fSir, annsData) = f match
             case Select(qual, nme.apply) if isFunctionalInterface(qual.tpe) =>
-                // val isFunctionalInterface = qual.tpe.typeSymbol.hasAnnotation(
-                //  Symbols.requiredClass("java.lang.FunctionalInterface")
-                // )
+                val annsData =
+                    if qual.tpe.baseType(FromDataSymbol).exists then
+                        Map("fromData" -> SIR.Const.boolean(true))
+                    else if qual.tpe.baseType(ToDataSymbol).exists then
+                        Map("toData" -> SIR.Const.boolean(true))
+                    else Map.empty[String, SIR]
+
+                    // val isFunctionalInterface = qual.tpe.typeSymbol.hasAnnotation(
+                    //  Symbols.requiredClass("java.lang.FunctionalInterface")
+                    // )
                 val nArgs = args.length
                 val functionN = defn.FunctionSymbol(nArgs)
                 val baseFunction = qual.tpe.baseType(functionN)
-                if qual.tpe.isSingleton && baseFunction.exists then
+                val fSir = if qual.tpe.isSingleton && baseFunction.exists then
                     val termSymbol = qual.tpe.termSymbol
                     if termSymbol.exists then
                         val scalusCompileDerivations =
@@ -1621,7 +1628,8 @@ final class SIRCompiler(options: SIRCompilerOptions = SIRCompilerOptions.default
                             // module for derivation is a companion object of an appropriative
                             compileExpr(env, qual)
                     else
-                        val message = s"Can't resolve term symbol for singleton  ${qual.tpe.show}"
+                        val message =
+                            s"Can't resolve term symbol for singleton  ${qual.tpe.show}"
                         error(
                           GenericError(message, f.srcPos),
                           SIR.Error(message, AnnotationsDecl.fromSrcPos(f.srcPos))
@@ -1632,16 +1640,17 @@ final class SIRCompiler(options: SIRCompilerOptions = SIRCompilerOptions.default
                             compileExpr(env, lambda)
                         case None =>
                             compileExpr(env, qual)
+                (fSir, annsData)
             case Select(qual, nme.apply) =>
-                compileExpr(env, f)
+                (compileExpr(env, f), Map.empty[String, SIR])
             case _ =>
-                compileExpr(env, f)
+                (compileExpr(env, f), Map.empty[String, SIR])
         val applySirType = sirTypeInEnv(applyTpe, applyTree.srcPos, env)
-        val argsE = args.map(compileExpr(env, _))
-        val applyAnns = AnnotationsDecl.fromSrcPos(applyTree.srcPos)
-        if argsE.isEmpty then
+        val argsSir = args.map(compileExpr(env, _))
+        val applyAnns = AnnotationsDecl.fromSrcPos(applyTree.srcPos) ++ annsData
+        if argsSir.isEmpty then
             SIR.Apply(
-              fE,
+              fSir,
               SIR.Const(scalus.uplc.Constant.Unit, SIRType.Unit, applyAnns),
               applySirType,
               applyAnns
@@ -1651,8 +1660,8 @@ final class SIRCompiler(options: SIRCompilerOptions = SIRCompilerOptions.default
             // Apply(f, arg1) arg2 -> ... -> res)
             //  ....
             // Apply(...Apply(... f, arg1), arg2),,, ) res)
-            val partTpes = argsE.foldRight(applySirType)((a, acc) => SIRType.Fun(a.tp, acc))
-            val (applyExpr, applyTpe) = argsE.foldLeft((fE, partTpes)) { (acc, arg) =>
+            val partTpes = argsSir.foldRight(applySirType)((a, acc) => SIRType.Fun(a.tp, acc))
+            val (applyExpr, applyTpe) = argsSir.foldLeft((fSir, partTpes)) { (acc, arg) =>
                 val (fun, tp) = acc
                 val nTp = tp match
                     case SIRType.Fun(t1, t2) => t2
@@ -1990,15 +1999,6 @@ final class SIRCompiler(options: SIRCompilerOptions = SIRCompilerOptions.default
                 if app.symbol.fullName.show == "scala.Tuple2$.apply" =>
                 compileNewConstructor(env, tree.tpe, tree.tpe, args, tree)
 
-            // FromData  calls
-            case app @ Apply(Select(obj, nme.apply), List(arg))
-                if options.universalDataRepresentation && obj.tpe.baseType(FromDataSymbol).exists =>
-                compileFromDataCall(env, app, arg)
-            // ToData calls
-            case app @ Apply(Select(obj, nme.apply), List(arg))
-                if options.universalDataRepresentation && obj.tpe.baseType(ToDataSymbol).exists =>
-                // println(s"determinated ToData call: ${tree.show}")
-                compileToDataCall(env, app, arg)
             /* case class Test(a: Int)
              * val t = Test(42)
              * is translated to
@@ -2078,6 +2078,7 @@ final class SIRCompiler(options: SIRCompilerOptions = SIRCompilerOptions.default
                     compileVirtualCall(env, tree, obj, ident)
                 else compileIdentOrQualifiedSelect(env, tree, tree, Nil)
             // Ignore type application
+            //   actually now all current applications are typeapplications
             case TypeApply(f, targs) =>
                 val nEnv = fillTypeParamInTypeApply(f.symbol, targs, env)
                 compileExpr(nEnv, f)
@@ -2262,7 +2263,7 @@ final class SIRCompiler(options: SIRCompilerOptions = SIRCompilerOptions.default
 
     private def compileTreeInModule(
         env: Env,
-        td: TypeDef,
+        @unused td: TypeDef,
         tree: Tree
     ): Option[LocalBindingOrSubmodule] = {
 
@@ -2304,7 +2305,6 @@ final class SIRCompiler(options: SIRCompilerOptions = SIRCompilerOptions.default
                 }
                 if toProcess then
                     // println(s"valdef: ${vd.symbol.fullName}")
-                    val debug = env.mode == OnlyDerivations || env.debug
                     compileStmt(
                       env,
                       vd,
@@ -2576,38 +2576,6 @@ final class SIRCompiler(options: SIRCompilerOptions = SIRCompilerOptions.default
         if tp.baseType(FromDataSymbol).exists || tp.baseType(ToDataSymbol).exists then
             LocalBindingFlags.ErasedOnDataRepr
         else LocalBindingFlags.None
-    }
-
-    private def compileFromDataCall(env: Env, app: Apply, arg: Tree): AnnotatedSIR = {
-        if env.debug then println(s"compileFromDataCall: ${app.show}")
-        val sirType = sirTypeInEnv(app.tpe, app.srcPos, env)
-        SIR.Apply(
-          SIR.ExternalVar(
-            "scalus.builtin.internal.UniversalDataConversion$",
-            "scalus.builtin.internal.UniversalDataConversion$.fromData",
-            SIRType.Fun(SIRType.Data, sirType),
-            AnnotationsDecl.fromSrcPos(app.srcPos)
-          ),
-          compileExpr(env, arg),
-          sirType,
-          AnnotationsDecl.fromSrcPos(app.srcPos)
-        )
-    }
-
-    private def compileToDataCall(env: Env, app: Apply, arg: Tree): AnnotatedSIR = {
-        if env.debug then println(s"compileToDataCall: ${app.show}")
-        val sirType = sirTypeInEnv(arg.tpe, arg.srcPos, env)
-        SIR.Apply(
-          SIR.ExternalVar(
-            "scalus.builtin.internal.UniversalDataConversion$",
-            "scalus.builtin.internal.UniversalDataConversion$.toData",
-            SIRType.Fun(sirType, SIRType.Data),
-            AnnotationsDecl.fromSrcPos(app.srcPos)
-          ),
-          compileExpr(env, arg),
-          SIRType.Data,
-          AnnotationsDecl.fromSrcPos(app.srcPos)
-        )
     }
 
 }
