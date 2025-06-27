@@ -1,6 +1,5 @@
 package scalus.bloxbean
 
-import io.bullet.borer.Cbor
 import org.scalatest.funsuite.AnyFunSuite
 import scalus.cardano.ledger.*
 
