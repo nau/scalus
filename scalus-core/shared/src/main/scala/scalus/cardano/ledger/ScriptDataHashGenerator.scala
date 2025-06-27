@@ -13,12 +13,22 @@ object ScriptDataHashGenerator {
         w: TransactionWitnessSet,
         refScripts: Set[Script]
     ): CostModels = {
-
-        val v1 = if w.plutusV1Scripts.nonEmpty then Set(Language.PlutusV1) else Set.empty
-        val v2 = if w.plutusV2Scripts.nonEmpty then Set(Language.PlutusV2) else Set.empty
-        val v3 = if w.plutusV3Scripts.nonEmpty then Set(Language.PlutusV3) else Set.empty
-
         val refLangs: TreeSet[Language] = refScripts.view.flatMap(_.language).to(TreeSet)
+        getUsedCostModels(pparams, w, refLangs)
+    }
+
+    def getUsedCostModels(
+        pparams: ProtocolParams,
+        w: TransactionWitnessSet,
+        refLangs: TreeSet[Language]
+    ): CostModels = {
+
+        val v1: TreeSet[Language] =
+            if w.plutusV1Scripts.nonEmpty then TreeSet(Language.PlutusV1) else TreeSet.empty
+        val v2: TreeSet[Language] =
+            if w.plutusV2Scripts.nonEmpty then TreeSet(Language.PlutusV2) else TreeSet.empty
+        val v3: TreeSet[Language] =
+            if w.plutusV3Scripts.nonEmpty then TreeSet(Language.PlutusV3) else TreeSet.empty
         // must be sorted to ensure the same order of cost models
         // must preserve order of languages during traversal, so we use ListMap
         val models = (refLangs ++ v1 ++ v2 ++ v3).view

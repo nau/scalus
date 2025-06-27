@@ -1,6 +1,7 @@
 package scalus.bloxbean
 
 import co.nstant.in.cbor.{model as cbor, CborException}
+import com.bloxbean.cardano.client.api.UtxoSupplier
 import com.bloxbean.cardano.client.api.util.CostModelUtil.{PlutusV1CostModel, PlutusV2CostModel, PlutusV3CostModel}
 import com.bloxbean.cardano.client.backend.api.DefaultUtxoSupplier
 import com.bloxbean.cardano.client.backend.blockfrost.common.Constants
@@ -18,7 +19,7 @@ import scalus.bloxbean.Interop.??
 import scalus.bloxbean.TxEvaluator.ScriptHash
 import scalus.builtin.{platform, ByteString, JVMPlatformSpecific, PlatformSpecific, given}
 import scalus.cardano.ledger
-import scalus.cardano.ledger.{AddrKeyHash, BlockFile, ScriptDataHashGenerator}
+import scalus.cardano.ledger.{AddrKeyHash, BlockFile, Hash, Language, ScriptDataHashGenerator}
 import scalus.ledger.api.{Timelock, ValidityInterval}
 import scalus.ledger.babbage.ProtocolParams
 import scalus.utils.Hex.toHex
@@ -30,6 +31,7 @@ import java.nio.channels.FileChannel
 import java.nio.file.{Files, Path, Paths, StandardOpenOption}
 import java.util
 import java.util.stream.Collectors
+import scala.collection.immutable.TreeSet
 import scala.collection.{immutable, mutable}
 import scala.jdk.CollectionConverters.*
 
@@ -304,6 +306,19 @@ object BlocksValidation:
         val stats = mutable.HashMap.empty[ByteString, Res].withDefaultValue(Res(0, 0))
         val start = System.currentTimeMillis()
 
+        val backendService = new BFBackendService(Constants.BLOCKFROST_MAINNET_URL, apiKey)
+        val utxoSupplier = CachedUtxoSupplier(
+          cwd.resolve("utxos"),
+          DefaultUtxoSupplier(backendService.getUtxoService)
+        )
+        // memory and file cached script supplier using the script service
+        val scriptSupplier = InMemoryCachedScriptSupplier(
+          FileScriptSupplier(
+            cwd.resolve("scripts"),
+            ScriptServiceSupplier(backendService.getScriptService)
+          )
+        )
+
         val params: ProtocolParams = read[ProtocolParams](
           this.getClass.getResourceAsStream("/blockfrost-params-epoch-544.json")
         )(using ProtocolParams.blockfrostParamsRW)
@@ -329,9 +344,12 @@ object BlocksValidation:
 //                    pprint.pprintln(w)
                     txb.scriptDataHash match
 
-                        case Some(scriptDataHash) if txb.referenceInputs.isEmpty =>
+                        case Some(scriptDataHash) =>
+                            val refScriptTypes =
+                                getRefScriptTypes(utxoSupplier, scriptSupplier, txb)
+
                             val costModels =
-                                ScriptDataHashGenerator.getUsedCostModels(params, w, Set.empty)
+                                ScriptDataHashGenerator.getUsedCostModels(params, w, refScriptTypes)
                             val calculatedHash = ScriptDataHashGenerator.computeScriptDataHash(
                               ledger.Era.Conway,
                               w.redeemers,
@@ -373,6 +391,32 @@ object BlocksValidation:
         println(
           s"Stats: num scripts ${stats.size}, succ: ${stats.values.map(_.succ).sum}, failed: ${stats.values.map(_.fail).sum}"
         )
+    }
+
+    private def getRefScriptTypes(
+        utxoSupplier: UtxoSupplier,
+        scriptSupplier: ScriptSupplier,
+        txb: ledger.TransactionBody
+    ): TreeSet[Language] = {
+        import scala.jdk.OptionConverters.RichOptional
+        val refScripts = txb.referenceInputs.view
+            .flatMap { refInputs =>
+                utxoSupplier
+                    .getTxOutput(refInputs.transactionId.toHex, refInputs.index)
+                    .toScala
+                    .flatMap(utxo => Option(utxo.getReferenceScriptHash))
+                    .map { refScriptHash =>
+                        Hash.scriptHash(ByteString.fromHex(refScriptHash))
+                    }
+            }
+            .map { refScriptHash =>
+                scriptSupplier.getScript(refScriptHash.toHex)
+            }
+            .toSet
+        val refScriptTypes = refScripts
+            .map(s => Language.fromId(s.getLanguage.getKey))
+            .to(TreeSet)
+        refScriptTypes
     }
 
     private def generateBloxBeanHash(bbtx: BlockTx, transaction: Transaction) = {
