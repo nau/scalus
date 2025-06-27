@@ -1,6 +1,6 @@
 package scalus.cardano.ledger
 
-import scalus.builtin.{ByteString, Data, PlatformSpecific, given}
+import scalus.builtin.{platform, ByteString, Data, PlatformSpecific, given}
 import scalus.ledger.babbage.ProtocolParams
 
 import scala.collection.immutable
@@ -55,6 +55,6 @@ object ScriptDataHashGenerator {
             else datums.raw
         val costModelsBytes = costModels.getLanguageViewEncoding
         val encodedBytes = redeemerBytes ++ plutusDataBytes ++ costModelsBytes
-        Hash(summon[PlatformSpecific].blake2b_256(ByteString.unsafeFromArray(encodedBytes)))
+        Hash(platform.blake2b_256(ByteString.unsafeFromArray(encodedBytes)))
     }
 }

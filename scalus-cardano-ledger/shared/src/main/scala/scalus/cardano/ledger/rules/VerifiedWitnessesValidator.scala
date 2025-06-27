@@ -3,7 +3,7 @@ package rules
 
 import scala.util.boundary
 import scala.util.boundary.break
-import scalus.builtin.{ByteString, PlatformSpecific, given}
+import scalus.builtin.{platform, ByteString, PlatformSpecific, given}
 
 import scala.util.control.NonFatal
 
@@ -70,7 +70,7 @@ object VerifiedWitnessesValidator extends STS.Validator {
         for ((key, signature), index) <- keysAndSignatures.zipWithIndex
         do
             try
-                if !summon[PlatformSpecific].verifyEd25519Signature(key, transactionId, signature)
+                if !platform.verifyEd25519Signature(key, transactionId, signature)
                 then
                     break(
                       failure(invalidSignatureError(transactionId, key, signature, index, None))

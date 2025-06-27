@@ -19,10 +19,7 @@ import com.bloxbean.cardano.client.quicktx.Tx
 import scalus.*
 import scalus.bloxbean.Interop.toPlutusData
 import scalus.bloxbean.ScalusTransactionEvaluator
-import scalus.builtin.ByteString
-import scalus.builtin.Data
-import scalus.builtin.given
-import scalus.builtin.PlatformSpecific
+import scalus.builtin.{platform, ByteString, Data, PlatformSpecific, given}
 import scalus.utils.Utils
 
 object SendTx:
@@ -98,20 +95,19 @@ object SendTx:
     }
 
     def main(args: Array[String]): Unit =
-        val crypto = summon[PlatformSpecific]
         val cborHex = OptimizedPreimage.doubleCborHex
         val script = PlutusV2Script.builder().cborHex(cborHex).build()
         val scriptAddress = AddressProvider.getEntAddress(script, network)
         val scriptAddressBech32 = scriptAddress.toBech32()
         val preimage = "Scalus rocks!"
         val preimageBytes = ByteString.fromString(preimage)
-        val preimageHash = crypto.sha2_256(preimageBytes)
+        val preimageHash = platform.sha2_256(preimageBytes)
         val pubKeyHashBytes = ByteString.fromArray(sender.hdKeyPair().getPublicKey.getKeyHash)
         val pubKeyHash = pubKeyHashBytes.toHex
         import scalus.builtin.Data.toData
         val datum = (preimageHash, pubKeyHashBytes).toData
         val datumCbor = datum.toCborByteString
-        val datumHash = crypto.blake2b_256(datumCbor)
+        val datumHash = platform.blake2b_256(datumCbor)
         val datumHashHex = datumHash.toHex
         val redeemer = preimageBytes.toData
         println(s"Script SIR")

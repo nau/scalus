@@ -8,9 +8,10 @@ import scalus.cardano.ledger.*
 
 class TimelockTest extends AnyFunSuite with ScalaCheckPropertyChecks with ArbitraryInstances:
 
-    private val crypto: PlatformSpecific = summon[PlatformSpecific]
     // Helper method to create KeyHash for testing
-    private def keyHash(s: String): AddrKeyHash = Hash(crypto.blake2b_224(ByteString.fromString(s)))
+    private def keyHash(s: String): AddrKeyHash = Hash(
+      platform.blake2b_224(ByteString.fromString(s))
+    )
 
     // Test evaluate method
     test("Signature with matching key hash should validate"):

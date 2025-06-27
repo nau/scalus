@@ -1,7 +1,6 @@
 package scalus.uplc.eval
 
-import scalus.builtin.given
-import scalus.builtin.PlatformSpecific
+import scalus.builtin.{platform, PlatformSpecific, given}
 import scalus.ledger.api.BuiltinSemanticsVariant
 import scalus.ledger.api.PlutusLedgerLanguage
 import scalus.uplc.BuiltinsMeaning
@@ -143,7 +142,7 @@ object PlutusVM {
       PlutusLedgerLanguage.PlutusV1,
       params,
       params.semanticVariant,
-      summon[PlatformSpecific]
+      platform
     )
 
     /** Creates a Plutus V1 VM with default parameters.
@@ -157,7 +156,7 @@ object PlutusVM {
           PlutusLedgerLanguage.PlutusV1,
           params,
           params.semanticVariant,
-          summon[PlatformSpecific]
+          platform
         )
     }
 
@@ -173,7 +172,7 @@ object PlutusVM {
           PlutusLedgerLanguage.PlutusV2,
           params,
           params.semanticVariant,
-          summon[PlatformSpecific]
+          platform
         )
 
     /** Creates a Plutus V2 VM with default parameters.
@@ -187,7 +186,7 @@ object PlutusVM {
           PlutusLedgerLanguage.PlutusV2,
           params,
           params.semanticVariant,
-          summon[PlatformSpecific]
+          platform
         )
 
     /** Creates a Plutus V3 VM with custom parameters.
@@ -202,7 +201,7 @@ object PlutusVM {
           PlutusLedgerLanguage.PlutusV3,
           params,
           params.semanticVariant,
-          summon[PlatformSpecific]
+          platform
         )
 
     /** Creates a Plutus V3 VM with default parameters.
@@ -216,7 +215,7 @@ object PlutusVM {
           PlutusLedgerLanguage.PlutusV3,
           params,
           params.semanticVariant,
-          summon[PlatformSpecific]
+          platform
         )
     }
 }

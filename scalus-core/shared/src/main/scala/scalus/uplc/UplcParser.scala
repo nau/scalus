@@ -8,12 +8,7 @@ import cats.parse.Parser0
 import cats.parse.Rfc5234.alpha
 import cats.parse.Rfc5234.digit
 import cats.parse.Rfc5234.hexdig
-import scalus.builtin.BLS12_381_G1_Element
-import scalus.builtin.BLS12_381_G2_Element
-import scalus.builtin.ByteString
-import scalus.builtin.Data
-import scalus.builtin.PlatformSpecific
-import scalus.builtin.given
+import scalus.builtin.{platform, BLS12_381_G1_Element, BLS12_381_G2_Element, ByteString, Data, PlatformSpecific, given}
 import scalus.uplc.DefaultUni.ProtoList
 import scalus.uplc.DefaultUni.ProtoPair
 import scalus.uplc.DefaultUni.asConstant
@@ -220,13 +215,13 @@ object UplcParser:
 
     val conBLS12_381_G1_Element: P[BLS12_381_G1_Element] =
         con0xBS.flatMap { s =>
-            try P.pure(summon[PlatformSpecific].bls12_381_G1_uncompress(s))
+            try P.pure(platform.bls12_381_G1_uncompress(s))
             catch case e: Exception => P.failWith(e.getMessage)
         }
 
     val conBLS12_381_G2_Element: P[BLS12_381_G2_Element] =
         con0xBS.flatMap { s =>
-            try P.pure(summon[PlatformSpecific].bls12_381_G2_uncompress(s))
+            try P.pure(platform.bls12_381_G2_uncompress(s))
             catch case e: Exception => P.failWith(e.getMessage)
         }
 

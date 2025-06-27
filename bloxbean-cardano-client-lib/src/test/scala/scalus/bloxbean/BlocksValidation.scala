@@ -1,14 +1,14 @@
 package scalus.bloxbean
 
 import co.nstant.in.cbor.{model as cbor, CborException}
+import com.bloxbean.cardano.client.api.util.CostModelUtil.{PlutusV1CostModel, PlutusV2CostModel, PlutusV3CostModel}
 import com.bloxbean.cardano.client.backend.api.DefaultUtxoSupplier
 import com.bloxbean.cardano.client.backend.blockfrost.common.Constants
 import com.bloxbean.cardano.client.backend.blockfrost.service.BFBackendService
 import com.bloxbean.cardano.client.crypto.Blake2bUtil
-import com.bloxbean.cardano.client.plutus.spec.{CostMdls, CostModel, Language}
+import com.bloxbean.cardano.client.plutus.spec.CostMdls
 import com.bloxbean.cardano.client.spec.Era
 import com.bloxbean.cardano.client.transaction.spec.*
-import com.bloxbean.cardano.client.api.util.CostModelUtil.{PlutusV1CostModel, PlutusV2CostModel, PlutusV3CostModel}
 import com.bloxbean.cardano.yaci.core.model.serializers.util.WitnessUtil.getArrayBytes
 import com.bloxbean.cardano.yaci.core.model.serializers.util.{TransactionBodyExtractor, WitnessUtil}
 import com.bloxbean.cardano.yaci.core.util.CborSerializationUtil
@@ -16,9 +16,9 @@ import io.bullet.borer.Cbor
 import scalus.*
 import scalus.bloxbean.Interop.??
 import scalus.bloxbean.TxEvaluator.ScriptHash
-import scalus.builtin.{ByteString, JVMPlatformSpecific, PlatformSpecific, given}
+import scalus.builtin.{platform, ByteString, JVMPlatformSpecific, PlatformSpecific, given}
 import scalus.cardano.ledger
-import scalus.cardano.ledger.{AddrKeyHash, BlockFile, CostModels, Language, OriginalCborByteArray, ScriptDataHashGenerator}
+import scalus.cardano.ledger.{AddrKeyHash, BlockFile, ScriptDataHashGenerator}
 import scalus.ledger.api.{Timelock, ValidityInterval}
 import scalus.ledger.babbage.ProtocolParams
 import scalus.utils.Hex.toHex
@@ -29,7 +29,6 @@ import java.math.BigInteger
 import java.nio.channels.FileChannel
 import java.nio.file.{Files, Path, Paths, StandardOpenOption}
 import java.util
-import java.util.Optional
 import java.util.stream.Collectors
 import scala.collection.{immutable, mutable}
 import scala.jdk.CollectionConverters.*
@@ -270,7 +269,7 @@ object BlocksValidation:
                     val scriptHash = JVMPlatformSpecific.blake2b_224(serialized)
                     val keyHashes = w.vkeyWitnesses.map { w =>
                         val key = w.vkey
-                        AddrKeyHash(summon[PlatformSpecific].blake2b_224(key))
+                        AddrKeyHash(platform.blake2b_224(key))
                     }
 
                     if native.evaluate(keyHashes, ValidityInterval(txb.validityStartSlot, txb.ttl))
@@ -308,30 +307,6 @@ object BlocksValidation:
         val params: ProtocolParams = read[ProtocolParams](
           this.getClass.getResourceAsStream("/blockfrost-params-epoch-544.json")
         )(using ProtocolParams.blockfrostParamsRW)
-        val sortedModel = params.costModels.toArray
-            .map {
-                case ("PlutusV1", model) => ledger.Language.PlutusV1.ordinal -> model.toIndexedSeq
-                case ("PlutusV2", model) => ledger.Language.PlutusV2.ordinal -> model.toIndexedSeq
-                case ("PlutusV3", model) => ledger.Language.PlutusV3.ordinal -> model.toIndexedSeq
-            }
-            .sortInPlace()
-
-        /*val costMdls: CostMdls = {
-            val costModelV1 = CostModelUtil
-                .getCostModelFromProtocolParams(params, Language.PLUTUS_V1)
-                .get()
-            val costModelV2 = CostModelUtil
-                .getCostModelFromProtocolParams(params, Language.PLUTUS_V2)
-                .get()
-            val costModelV3 = CostModelUtil
-                .getCostModelFromProtocolParams(params, Language.PLUTUS_V3)
-                .get()
-            val cm = CostMdls()
-            cm.add(costModelV1)
-            cm.add(costModelV2)
-            cm.add(costModelV3)
-            cm
-        }*/
 
         val blocks = Files
             .list(blocksDir)

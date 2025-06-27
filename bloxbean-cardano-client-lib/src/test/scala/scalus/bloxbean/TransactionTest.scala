@@ -4,7 +4,7 @@ import com.bloxbean.cardano.client.transaction.spec
 import com.bloxbean.cardano.client.transaction.util.TransactionUtil.getTxHash
 import io.bullet.borer.Cbor
 import org.scalatest.funsuite.AnyFunSuite
-import scalus.builtin.{ByteString, PlatformSpecific, given}
+import scalus.builtin.{platform, ByteString, PlatformSpecific, given}
 import scalus.cardano.ledger.*
 import scalus.cardano.address.Address
 
@@ -13,8 +13,6 @@ import java.math.BigInteger
 class TransactionTest extends AnyFunSuite {
     private val addr =
         "addr1qxwg0u9fpl8dac9rkramkcgzerjsfdlqgkw0q8hy5vwk8tzk5pgcmdpe5jeh92guy4mke4zdmagv228nucldzxv95clqe35r3m"
-
-    private val crypto = summon[PlatformSpecific]
 
     test("CCL and Scalus transaction hash match") {
         def scalusTransactionHash = {
@@ -40,7 +38,7 @@ class TransactionTest extends AnyFunSuite {
             //        println(AddressBytes.fromBech32(addr).toHex)
             //        println(Cbor.encode(tx).toByteArray.toHex)
             val txbody = Cbor.encode(tx.body).toByteArray
-            val txhash = crypto.blake2b_256(ByteString.fromArray(txbody))
+            val txhash = platform.blake2b_256(ByteString.fromArray(txbody))
             //        println(txhash)
             txhash.toHex
         }
