@@ -331,7 +331,7 @@ object BlocksValidation:
 
                         case Some(scriptDataHash) if txb.referenceInputs.isEmpty =>
                             val costModels =
-                                ScriptDataHashGenerator.getCostModelsForTxWitness(params, w)
+                                ScriptDataHashGenerator.getUsedCostModels(params, w, Set.empty)
                             val calculatedHash = ScriptDataHashGenerator.computeScriptDataHash(
                               ledger.Era.Conway,
                               w.redeemers,

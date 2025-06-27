@@ -4,30 +4,27 @@ import scalus.builtin.{platform, ByteString, Data, PlatformSpecific, given}
 import scalus.ledger.babbage.ProtocolParams
 
 import scala.collection.immutable
-import scala.collection.immutable.ListMap
+import scala.collection.immutable.{ListMap, TreeSet}
 
 object ScriptDataHashGenerator {
 
-    def getCostModelsForTxWitness(pparams: ProtocolParams, w: TransactionWitnessSet): CostModels = {
+    def getUsedCostModels(
+        pparams: ProtocolParams,
+        w: TransactionWitnessSet,
+        refScripts: Set[Script]
+    ): CostModels = {
 
-        val cmv1 =
-            if w.plutusV1Scripts.nonEmpty then
-                ListMap(0 -> pparams.costModels("PlutusV1").toIndexedSeq)
-            else ListMap.empty[Int, IndexedSeq[Long]]
+        val v1 = if w.plutusV1Scripts.nonEmpty then Set(Language.PlutusV1) else Set.empty
+        val v2 = if w.plutusV2Scripts.nonEmpty then Set(Language.PlutusV2) else Set.empty
+        val v3 = if w.plutusV3Scripts.nonEmpty then Set(Language.PlutusV3) else Set.empty
 
-        val cmv2 =
-            if w.plutusV2Scripts.nonEmpty then
-                ListMap(1 -> pparams.costModels("PlutusV2").toIndexedSeq)
-            else ListMap.empty[Int, IndexedSeq[Long]]
-
-        val cmv3 =
-            if w.plutusV3Scripts.nonEmpty then
-                ListMap(2 -> pparams.costModels("PlutusV3").toIndexedSeq)
-            else ListMap.empty[Int, IndexedSeq[Long]]
-
-        // FIXME: here we need to check script languages from reference inputs
-
-        CostModels(cmv1 ++ cmv2 ++ cmv3)
+        val refLangs: TreeSet[Language] = refScripts.view.flatMap(_.language).to(TreeSet)
+        // must be sorted to ensure the same order of cost models
+        // must preserve order of languages during traversal, so we use ListMap
+        val models = (refLangs ++ v1 ++ v2 ++ v3).view
+            .map(l => l.ordinal -> pparams.costModels(l.toString))
+            .to(ListMap)
+        CostModels(models)
     }
 
     def computeScriptDataHash(

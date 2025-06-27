@@ -148,6 +148,12 @@ object Language {
     given Decoder[Language] = Decoder { r =>
         fromId(r.readInt())
     }
+
+    given Ordering[Language] = new Ordering[Language] {
+        def compare(x: Language, y: Language): Int = {
+            Language.languageId(x) - Language.languageId(y)
+        }
+    }
 }
 
 /** Represents a Cardano address bytes */

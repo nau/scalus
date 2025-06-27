@@ -12,7 +12,7 @@ case class ProtocolParams(
     collateralPercentage: Long,
     committeeMaxTermLength: Long,
     committeeMinSize: Long,
-    costModels: Map[String, Seq[Long]],
+    costModels: Map[String, IndexedSeq[Long]],
     dRepActivity: Long,
     dRepDeposit: Long,
     dRepVotingThresholds: DRepVotingThresholds,
@@ -126,7 +126,7 @@ object ProtocolParams {
                 committeeMaxTermLength = json("committee_max_term_length").str.toLong,
                 committeeMinSize = json("committee_min_size").str.toLong,
                 costModels = json("cost_models").obj.map { case (k, v) =>
-                    k -> v.obj.values.map(_.num.toLong).toSeq
+                    k -> v.obj.values.map(_.num.toLong).toIndexedSeq
                 }.toMap,
                 dRepActivity = json("drep_activity").str.toLong,
                 dRepDeposit = json("drep_deposit").str.toLong,
