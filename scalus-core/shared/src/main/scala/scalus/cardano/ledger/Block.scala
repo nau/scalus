@@ -24,7 +24,7 @@ case class Block(
 
     /** List of invalid transaction indices */
     invalidTransactions: IndexedSeq[Int]
-) derives Codec:
+):
     require(
       transactionBodies.size == transactionWitnessSets.size,
       s"Number of transaction bodies (${transactionBodies.size}) must match number of witness sets (${transactionWitnessSets.size})"
@@ -71,4 +71,19 @@ case class Block(
             Transaction(KeepRaw(body), witnessSet, isValid, auxData)
         }
 
-case class BlockFile(era: Int, block: Block) derives Codec
+object Block:
+    /** CBOR encoder for Block */
+    given Encoder[Block] = Encoder.derived
+    given decoder(using OriginalCborByteArray): Decoder[Block] =
+        Decoder.derived[Block]
+
+case class BlockFile(era: Int, block: Block)
+object BlockFile:
+    /** CBOR encoder for BlockFile */
+    given Encoder[BlockFile] = Encoder.derived
+    given decoder(using OriginalCborByteArray): Decoder[BlockFile] =
+        Decoder.derived[BlockFile]
+
+    def fromCborArray(bytes: Array[Byte]): BlockFile =
+        given OriginalCborByteArray = OriginalCborByteArray(bytes)
+        Cbor.decode(bytes).to[BlockFile].value

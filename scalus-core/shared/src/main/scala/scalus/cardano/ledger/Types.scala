@@ -11,6 +11,11 @@ import upickle.default.ReadWriter as UpickleReadWriter
 import java.util
 import scala.compiletime.asMatchable
 
+enum Era(val value: Int) extends Enumeration {
+    case Babbage extends Era(6)
+    case Conway extends Era(7)
+}
+
 /** Represents an amount of Cardano's native currency (ADA)
   *
   * In Cardano, coins are represented as unsigned integers
@@ -143,6 +148,12 @@ object Language {
     given Decoder[Language] = Decoder { r =>
         fromId(r.readInt())
     }
+
+    given Ordering[Language] = new Ordering[Language] {
+        def compare(x: Language, y: Language): Int = {
+            Language.languageId(x) - Language.languageId(y)
+        }
+    }
 }
 
 /** Represents a Cardano address bytes */
@@ -244,7 +255,44 @@ case class ExUnitPrices(
   * @param models
   *   Map from language identifiers to lists of operation costs
   */
-case class CostModels(models: Map[Int, IndexedSeq[Long]]) derives Codec
+case class CostModels(models: Map[Int, IndexedSeq[Long]]) derives Codec {
+
+    private given LanguageViewEncoder: Encoder[CostModels] with
+        def write(w: Writer, costModels: CostModels): Writer = {
+            val size = costModels.models.size
+            w.writeMapHeader(size)
+            for (langId, costModel) <- costModels.models.toArray.sortWith(_._1 < _._1) do
+                langId match
+                    case 0 =>
+                        // For PlutusV1 (language id 0), the language view is the following:
+                        //   * the value of costmdls map at key 0 is encoded as an indefinite length
+                        //     list and the result is encoded as a bytestring. (our apologies)
+                        //   * the language ID tag is also encoded twice. first as a uint then as
+                        //     a bytestring.
+                        // PlutusV1: Double-bagged encoding for cost model as well
+                        // here we must use indefinite CBOR map encoding for backward compatibility
+                        val encodedModel = Cbor.encode(costModel.toList).toByteArray
+                        w.writeBytes(Array(0.toByte))
+                        w.writeBytes(encodedModel)
+                    case 1 | 2 => // PlutusV2 - uses standard encoding
+                        w.writeInt(langId)
+                        w.write(costModel)
+                    case _ =>
+                        throw new IllegalArgumentException(s"Unknown language ID: $langId")
+            end for
+            w
+        }
+
+    /** Generate language view encoding for script integrity hash computation.
+      *
+      * This implements the same logic as Cardano's getLanguageView function. For PlutusV1, it uses
+      * double-bagged encoding for backward compatibility. For PlutusV2/V3, it uses standard
+      * encoding.
+      */
+    def getLanguageViewEncoding: Array[Byte] = {
+        Cbor.encode(this)(using LanguageViewEncoder).toByteArray
+    }
+}
 
 /** Represents a constitution in the Cardano blockchain governance system.
   *
@@ -290,8 +338,8 @@ object KeepRaw {
             r.dataItem()
             val start = r.cursor
             val value = r.read[A]()
-            r.dataItem() // same here
-            val end = r.cursor
+            val di = r.dataItem()
+            val end = if di == DataItem.EndOfInput then r.input.cursor else r.cursor
             val raw = summon[OriginalCborByteArray].slice(start.toInt, end.toInt)
             KeepRaw(value, raw)
         }

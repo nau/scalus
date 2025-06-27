@@ -2,7 +2,7 @@ package scalus.ledger.api
 
 import io.bullet.borer.*
 import scalus.cardano.ledger.{AddrKeyHash, Hash, ScriptHash}
-import scalus.builtin.{ByteString, PlatformSpecific, given}
+import scalus.builtin.{platform, ByteString, PlatformSpecific, given}
 import scalus.ledger.api.Timelock.{lteNegInfty, ltePosInfty}
 
 import scala.annotation.tailrec
@@ -37,7 +37,7 @@ enum Timelock:
     case TimeExpire(lockExpire: SlotNo)
 
     @transient lazy val scriptHash: ScriptHash = Hash(
-      summon[PlatformSpecific].blake2b_224(
+      platform.blake2b_224(
         ByteString.unsafeFromArray(Cbor.encode(this).toByteArray.prepended(0))
       )
     )

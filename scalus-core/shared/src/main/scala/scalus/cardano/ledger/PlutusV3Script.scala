@@ -8,8 +8,6 @@ case class PlutusV3Script(byteString: ByteString) derives Codec {
 
     /** Get the script hash for this Plutus V3 script */
     @transient lazy val scriptHash: ScriptHash = Hash(
-      platform.blake2b_224(
-        ByteString.unsafeFromArray(byteString.bytes.prepended(3))
-      )
+      platform.blake2b_224(ByteString.unsafeFromArray(3 +: byteString.bytes))
     )
 }

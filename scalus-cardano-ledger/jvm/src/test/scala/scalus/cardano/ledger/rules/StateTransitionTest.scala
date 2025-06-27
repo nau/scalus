@@ -6,7 +6,8 @@ import scalus.cardano.ledger.*
 import scalus.cardano.address.{Address, ByronAddress, ShelleyAddress, ShelleyPaymentPart}
 import scalus.ledger.babbage.ProtocolParams
 import upickle.default.read
-import scalus.builtin.{ByteString, PlatformSpecific, given}
+import scalus.builtin.{platform, ByteString, PlatformSpecific, given}
+
 import java.security.SecureRandom
 import org.bouncycastle.crypto.generators.Ed25519KeyPairGenerator
 import org.bouncycastle.crypto.AsymmetricCipherKeyPair
@@ -159,9 +160,9 @@ class StateTransitionTest extends AnyFunSuite, ArbitraryInstances {
             tx.copy(
               witnessSet = tx.witnessSet.copy(
                 vkeyWitnesses = Set(
-                  VKeyWitness(publicKey1, summon[PlatformSpecific].signEd25519(privateKey1, tx.id)),
-                  VKeyWitness(publicKey2, summon[PlatformSpecific].signEd25519(privateKey2, tx.id)),
-                  VKeyWitness(publicKey3, summon[PlatformSpecific].signEd25519(privateKey3, tx.id))
+                  VKeyWitness(publicKey1, platform.signEd25519(privateKey1, tx.id)),
+                  VKeyWitness(publicKey2, platform.signEd25519(privateKey2, tx.id)),
+                  VKeyWitness(publicKey3, platform.signEd25519(privateKey3, tx.id))
                 ),
                 bootstrapWitnesses = Set.empty
               )
@@ -183,11 +184,11 @@ class StateTransitionTest extends AnyFunSuite, ArbitraryInstances {
             tx.copy(
               witnessSet = tx.witnessSet.copy(
                 vkeyWitnesses = Set(
-                  VKeyWitness(publicKey1, summon[PlatformSpecific].signEd25519(privateKey1, tx.id)),
-                  VKeyWitness(publicKey2, summon[PlatformSpecific].signEd25519(privateKey2, tx.id)),
+                  VKeyWitness(publicKey1, platform.signEd25519(privateKey1, tx.id)),
+                  VKeyWitness(publicKey2, platform.signEd25519(privateKey2, tx.id)),
                   VKeyWitness(
                     publicKey3, {
-                        val signature = summon[PlatformSpecific].signEd25519(privateKey3, tx.id)
+                        val signature = platform.signEd25519(privateKey3, tx.id)
                         signature.bytes(0) =
                             (signature.bytes(0) + 1).toByte // Intentionally corrupt the signature
                         signature
@@ -217,19 +218,19 @@ class StateTransitionTest extends AnyFunSuite, ArbitraryInstances {
                 bootstrapWitnesses = Set(
                   BootstrapWitness(
                     publicKey1,
-                    summon[PlatformSpecific].signEd25519(privateKey1, tx.id),
+                    platform.signEd25519(privateKey1, tx.id),
                     genByteStringOfN(32).sample.get,
                     genByteStringOfN(32).sample.get
                   ),
                   BootstrapWitness(
                     publicKey2,
-                    summon[PlatformSpecific].signEd25519(privateKey2, tx.id),
+                    platform.signEd25519(privateKey2, tx.id),
                     genByteStringOfN(32).sample.get,
                     genByteStringOfN(32).sample.get
                   ),
                   BootstrapWitness(
                     publicKey3,
-                    summon[PlatformSpecific].signEd25519(privateKey3, tx.id),
+                    platform.signEd25519(privateKey3, tx.id),
                     genByteStringOfN(32).sample.get,
                     genByteStringOfN(32).sample.get
                   )
@@ -256,19 +257,19 @@ class StateTransitionTest extends AnyFunSuite, ArbitraryInstances {
                 bootstrapWitnesses = Set(
                   BootstrapWitness(
                     publicKey1,
-                    summon[PlatformSpecific].signEd25519(privateKey1, tx.id),
+                    platform.signEd25519(privateKey1, tx.id),
                     genByteStringOfN(32).sample.get,
                     genByteStringOfN(32).sample.get
                   ),
                   BootstrapWitness(
                     publicKey2,
-                    summon[PlatformSpecific].signEd25519(privateKey2, tx.id),
+                    platform.signEd25519(privateKey2, tx.id),
                     genByteStringOfN(32).sample.get,
                     genByteStringOfN(32).sample.get
                   ),
                   BootstrapWitness(
                     publicKey3, {
-                        val signature = summon[PlatformSpecific].signEd25519(privateKey3, tx.id)
+                        val signature = platform.signEd25519(privateKey3, tx.id)
                         signature.bytes(0) =
                             (signature.bytes(0) + 1).toByte // Intentionally corrupt the signature
                         signature
@@ -294,11 +295,11 @@ class StateTransitionTest extends AnyFunSuite, ArbitraryInstances {
         val (privateKey3, publicKey3) = generateKeyPair()
 
         val signatureTimelock1 =
-            Timelock.Signature(Hash(summon[PlatformSpecific].blake2b_224(publicKey1)))
+            Timelock.Signature(Hash(platform.blake2b_224(publicKey1)))
         val signatureTimelock2 =
-            Timelock.Signature(Hash(summon[PlatformSpecific].blake2b_224(publicKey2)))
+            Timelock.Signature(Hash(platform.blake2b_224(publicKey2)))
         val signatureTimelock3 =
-            Timelock.Signature(Hash(summon[PlatformSpecific].blake2b_224(publicKey3)))
+            Timelock.Signature(Hash(platform.blake2b_224(publicKey3)))
         val allOfTimelock = Timelock.AllOf(Seq(signatureTimelock1, signatureTimelock2))
         val anyOfTimelock =
             Timelock.AnyOf(Seq(signatureTimelock1, signatureTimelock2, signatureTimelock3))
@@ -330,8 +331,8 @@ class StateTransitionTest extends AnyFunSuite, ArbitraryInstances {
               ),
               witnessSet = tx.witnessSet.copy(
                 vkeyWitnesses = Set(
-                  VKeyWitness(publicKey1, summon[PlatformSpecific].signEd25519(privateKey1, tx.id)),
-                  VKeyWitness(publicKey2, summon[PlatformSpecific].signEd25519(privateKey2, tx.id))
+                  VKeyWitness(publicKey1, platform.signEd25519(privateKey1, tx.id)),
+                  VKeyWitness(publicKey2, platform.signEd25519(privateKey2, tx.id))
                 ),
                 nativeScripts = Set(
                   signatureTimelock1,
@@ -543,8 +544,8 @@ class StateTransitionTest extends AnyFunSuite, ArbitraryInstances {
               ),
               witnessSet = tx.witnessSet.copy(
                 vkeyWitnesses = Set(
-                  VKeyWitness(publicKey1, summon[PlatformSpecific].signEd25519(privateKey1, tx.id)),
-                  VKeyWitness(publicKey2, summon[PlatformSpecific].signEd25519(privateKey2, tx.id))
+                  VKeyWitness(publicKey1, platform.signEd25519(privateKey1, tx.id)),
+                  VKeyWitness(publicKey2, platform.signEd25519(privateKey2, tx.id))
                 )
               )
             )
@@ -560,7 +561,7 @@ class StateTransitionTest extends AnyFunSuite, ArbitraryInstances {
                     .get
                     .copy(
                       payment = ShelleyPaymentPart.Key(
-                        Hash(summon[PlatformSpecific].blake2b_224(publicKey1))
+                        Hash(platform.blake2b_224(publicKey1))
                       )
                     )
               ),
@@ -574,7 +575,7 @@ class StateTransitionTest extends AnyFunSuite, ArbitraryInstances {
                     .get
                     .copy(
                       payment = ShelleyPaymentPart.Key(
-                        Hash(summon[PlatformSpecific].blake2b_224(publicKey2))
+                        Hash(platform.blake2b_224(publicKey2))
                       )
                     )
               ),
@@ -608,7 +609,7 @@ class StateTransitionTest extends AnyFunSuite, ArbitraryInstances {
               ),
               witnessSet = tx.witnessSet.copy(
                 vkeyWitnesses = Set(
-                  VKeyWitness(publicKey1, summon[PlatformSpecific].signEd25519(privateKey1, tx.id))
+                  VKeyWitness(publicKey1, platform.signEd25519(privateKey1, tx.id))
                 )
               )
             )
@@ -624,7 +625,7 @@ class StateTransitionTest extends AnyFunSuite, ArbitraryInstances {
                     .get
                     .copy(
                       payment = ShelleyPaymentPart.Key(
-                        Hash(summon[PlatformSpecific].blake2b_224(publicKey1))
+                        Hash(platform.blake2b_224(publicKey1))
                       )
                     )
               ),
@@ -638,7 +639,7 @@ class StateTransitionTest extends AnyFunSuite, ArbitraryInstances {
                     .get
                     .copy(
                       payment = ShelleyPaymentPart.Key(
-                        Hash(summon[PlatformSpecific].blake2b_224(publicKey2))
+                        Hash(platform.blake2b_224(publicKey2))
                       )
                     )
               ),
@@ -672,8 +673,8 @@ class StateTransitionTest extends AnyFunSuite, ArbitraryInstances {
               ),
               witnessSet = tx.witnessSet.copy(
                 vkeyWitnesses = Set(
-                  VKeyWitness(publicKey1, summon[PlatformSpecific].signEd25519(privateKey1, tx.id)),
-                  VKeyWitness(publicKey2, summon[PlatformSpecific].signEd25519(privateKey2, tx.id))
+                  VKeyWitness(publicKey1, platform.signEd25519(privateKey1, tx.id)),
+                  VKeyWitness(publicKey2, platform.signEd25519(privateKey2, tx.id))
                 )
               )
             )
@@ -689,7 +690,7 @@ class StateTransitionTest extends AnyFunSuite, ArbitraryInstances {
                     .get
                     .copy(
                       payment = ShelleyPaymentPart.Key(
-                        Hash(summon[PlatformSpecific].blake2b_224(publicKey1))
+                        Hash(platform.blake2b_224(publicKey1))
                       )
                     )
               ),
@@ -703,7 +704,7 @@ class StateTransitionTest extends AnyFunSuite, ArbitraryInstances {
                     .get
                     .copy(
                       payment = ShelleyPaymentPart.Key(
-                        Hash(summon[PlatformSpecific].blake2b_224(publicKey2))
+                        Hash(platform.blake2b_224(publicKey2))
                       )
                     )
               ),
@@ -737,7 +738,7 @@ class StateTransitionTest extends AnyFunSuite, ArbitraryInstances {
               ),
               witnessSet = tx.witnessSet.copy(
                 vkeyWitnesses = Set(
-                  VKeyWitness(publicKey1, summon[PlatformSpecific].signEd25519(privateKey1, tx.id)),
+                  VKeyWitness(publicKey1, platform.signEd25519(privateKey1, tx.id)),
                 )
               )
             )
@@ -753,7 +754,7 @@ class StateTransitionTest extends AnyFunSuite, ArbitraryInstances {
                     .get
                     .copy(
                       payment = ShelleyPaymentPart.Key(
-                        Hash(summon[PlatformSpecific].blake2b_224(publicKey1))
+                        Hash(platform.blake2b_224(publicKey1))
                       )
                     )
               ),
@@ -767,7 +768,7 @@ class StateTransitionTest extends AnyFunSuite, ArbitraryInstances {
                     .get
                     .copy(
                       payment = ShelleyPaymentPart.Key(
-                        Hash(summon[PlatformSpecific].blake2b_224(publicKey2))
+                        Hash(platform.blake2b_224(publicKey2))
                       )
                     )
               ),
@@ -797,13 +798,13 @@ class StateTransitionTest extends AnyFunSuite, ArbitraryInstances {
                     VotingProcedures(
                       Map(
                         Voter.ConstitutionalCommitteeHotKey(
-                          Hash(summon[PlatformSpecific].blake2b_224(publicKey1))
+                          Hash(platform.blake2b_224(publicKey1))
                         ) -> genMapOfSizeFromArbitrary(0, 4).sample.get,
                         Voter.StakingPoolKey(
-                          Hash(summon[PlatformSpecific].blake2b_224(publicKey2))
+                          Hash(platform.blake2b_224(publicKey2))
                         ) -> genMapOfSizeFromArbitrary(0, 4).sample.get,
                         Voter.DRepKey(
-                          Hash(summon[PlatformSpecific].blake2b_224(publicKey3))
+                          Hash(platform.blake2b_224(publicKey3))
                         ) -> genMapOfSizeFromArbitrary(0, 4).sample.get,
                         Voter.ConstitutionalCommitteeHotScript(
                           Arbitrary.arbitrary[ScriptHash].sample.get
@@ -820,9 +821,9 @@ class StateTransitionTest extends AnyFunSuite, ArbitraryInstances {
               ),
               witnessSet = tx.witnessSet.copy(
                 vkeyWitnesses = Set(
-                  VKeyWitness(publicKey1, summon[PlatformSpecific].signEd25519(privateKey1, tx.id)),
-                  VKeyWitness(publicKey2, summon[PlatformSpecific].signEd25519(privateKey2, tx.id)),
-                  VKeyWitness(publicKey3, summon[PlatformSpecific].signEd25519(privateKey3, tx.id))
+                  VKeyWitness(publicKey1, platform.signEd25519(privateKey1, tx.id)),
+                  VKeyWitness(publicKey2, platform.signEd25519(privateKey2, tx.id)),
+                  VKeyWitness(publicKey3, platform.signEd25519(privateKey3, tx.id))
                 )
               )
             )
@@ -851,13 +852,13 @@ class StateTransitionTest extends AnyFunSuite, ArbitraryInstances {
                     VotingProcedures(
                       Map(
                         Voter.ConstitutionalCommitteeHotKey(
-                          Hash(summon[PlatformSpecific].blake2b_224(publicKey1))
+                          Hash(platform.blake2b_224(publicKey1))
                         ) -> genMapOfSizeFromArbitrary(0, 4).sample.get,
                         Voter.StakingPoolKey(
-                          Hash(summon[PlatformSpecific].blake2b_224(publicKey2))
+                          Hash(platform.blake2b_224(publicKey2))
                         ) -> genMapOfSizeFromArbitrary(0, 4).sample.get,
                         Voter.DRepKey(
-                          Hash(summon[PlatformSpecific].blake2b_224(publicKey3))
+                          Hash(platform.blake2b_224(publicKey3))
                         ) -> genMapOfSizeFromArbitrary(0, 4).sample.get,
                         Voter.ConstitutionalCommitteeHotScript(
                           Arbitrary.arbitrary[ScriptHash].sample.get
@@ -874,8 +875,8 @@ class StateTransitionTest extends AnyFunSuite, ArbitraryInstances {
               ),
               witnessSet = tx.witnessSet.copy(
                 vkeyWitnesses = Set(
-                  VKeyWitness(publicKey1, summon[PlatformSpecific].signEd25519(privateKey1, tx.id)),
-                  VKeyWitness(publicKey2, summon[PlatformSpecific].signEd25519(privateKey2, tx.id))
+                  VKeyWitness(publicKey1, platform.signEd25519(privateKey1, tx.id)),
+                  VKeyWitness(publicKey2, platform.signEd25519(privateKey2, tx.id))
                 )
               )
             )
@@ -912,7 +913,7 @@ class StateTransitionTest extends AnyFunSuite, ArbitraryInstances {
                                 .get
                                 .copy(
                                   payment = ShelleyPaymentPart.Key(
-                                    Hash(summon[PlatformSpecific].blake2b_224(publicKey1))
+                                    Hash(platform.blake2b_224(publicKey1))
                                   )
                                 )
                           )
@@ -925,7 +926,7 @@ class StateTransitionTest extends AnyFunSuite, ArbitraryInstances {
                                 .get
                                 .copy(
                                   payment = ShelleyPaymentPart.Key(
-                                    Hash(summon[PlatformSpecific].blake2b_224(publicKey2))
+                                    Hash(platform.blake2b_224(publicKey2))
                                   )
                                 )
                           )
@@ -937,8 +938,8 @@ class StateTransitionTest extends AnyFunSuite, ArbitraryInstances {
               ),
               witnessSet = tx.witnessSet.copy(
                 vkeyWitnesses = Set(
-                  VKeyWitness(publicKey1, summon[PlatformSpecific].signEd25519(privateKey1, tx.id)),
-                  VKeyWitness(publicKey2, summon[PlatformSpecific].signEd25519(privateKey2, tx.id))
+                  VKeyWitness(publicKey1, platform.signEd25519(privateKey1, tx.id)),
+                  VKeyWitness(publicKey2, platform.signEd25519(privateKey2, tx.id))
                 )
               )
             )
@@ -975,7 +976,7 @@ class StateTransitionTest extends AnyFunSuite, ArbitraryInstances {
                                 .get
                                 .copy(
                                   payment = ShelleyPaymentPart.Key(
-                                    Hash(summon[PlatformSpecific].blake2b_224(publicKey1))
+                                    Hash(platform.blake2b_224(publicKey1))
                                   )
                                 )
                           )
@@ -988,7 +989,7 @@ class StateTransitionTest extends AnyFunSuite, ArbitraryInstances {
                                 .get
                                 .copy(
                                   payment = ShelleyPaymentPart.Key(
-                                    Hash(summon[PlatformSpecific].blake2b_224(publicKey2))
+                                    Hash(platform.blake2b_224(publicKey2))
                                   )
                                 )
                           )
@@ -1000,7 +1001,7 @@ class StateTransitionTest extends AnyFunSuite, ArbitraryInstances {
               ),
               witnessSet = tx.witnessSet.copy(
                 vkeyWitnesses = Set(
-                  VKeyWitness(publicKey1, summon[PlatformSpecific].signEd25519(privateKey1, tx.id))
+                  VKeyWitness(publicKey1, platform.signEd25519(privateKey1, tx.id))
                 )
               )
             )
@@ -1016,7 +1017,7 @@ class StateTransitionTest extends AnyFunSuite, ArbitraryInstances {
         val context = Context()
         val (privateKey, publicKey) = generateKeyPair()
         val credential = Credential.KeyHash(
-          Hash(summon[PlatformSpecific].blake2b_224(publicKey))
+          Hash(platform.blake2b_224(publicKey))
         )
 
         val transaction = {
@@ -1033,7 +1034,7 @@ class StateTransitionTest extends AnyFunSuite, ArbitraryInstances {
                     Certificate
                         .StakeDelegation(credential, Arbitrary.arbitrary[PoolKeyHash].sample.get),
                     Certificate.PoolRegistration(
-                      Hash(summon[PlatformSpecific].blake2b_224(publicKey)),
+                      Hash(platform.blake2b_224(publicKey)),
                       Arbitrary.arbitrary[VrfKeyHash].sample.get,
                       Arbitrary.arbitrary[Coin].sample.get,
                       Arbitrary.arbitrary[Coin].sample.get,
@@ -1044,7 +1045,7 @@ class StateTransitionTest extends AnyFunSuite, ArbitraryInstances {
                       Arbitrary.arbitrary[Option[PoolMetadata]].sample.get
                     ),
                     Certificate
-                        .PoolRetirement(Hash(summon[PlatformSpecific].blake2b_224(publicKey)), 1),
+                        .PoolRetirement(Hash(platform.blake2b_224(publicKey)), 1),
                     Certificate.RegCert(credential, Arbitrary.arbitrary[Coin].sample.get),
                     Certificate.UnregCert(credential, Arbitrary.arbitrary[Coin].sample.get),
                     Certificate.VoteDelegCert(credential, Arbitrary.arbitrary[DRep].sample.get),
@@ -1093,7 +1094,7 @@ class StateTransitionTest extends AnyFunSuite, ArbitraryInstances {
               ),
               witnessSet = tx.witnessSet.copy(
                 vkeyWitnesses = Set(
-                  VKeyWitness(publicKey, summon[PlatformSpecific].signEd25519(privateKey, tx.id))
+                  VKeyWitness(publicKey, platform.signEd25519(privateKey, tx.id))
                 )
               )
             )
@@ -1109,7 +1110,7 @@ class StateTransitionTest extends AnyFunSuite, ArbitraryInstances {
         val context = Context()
         val (privateKey, publicKey) = generateKeyPair()
         val credential = Credential.KeyHash(
-          Hash(summon[PlatformSpecific].blake2b_224(publicKey))
+          Hash(platform.blake2b_224(publicKey))
         )
 
         val transaction = {
@@ -1126,7 +1127,7 @@ class StateTransitionTest extends AnyFunSuite, ArbitraryInstances {
                     Certificate
                         .StakeDelegation(credential, Arbitrary.arbitrary[PoolKeyHash].sample.get),
                     Certificate.PoolRegistration(
-                      Hash(summon[PlatformSpecific].blake2b_224(publicKey)),
+                      Hash(platform.blake2b_224(publicKey)),
                       Arbitrary.arbitrary[VrfKeyHash].sample.get,
                       Arbitrary.arbitrary[Coin].sample.get,
                       Arbitrary.arbitrary[Coin].sample.get,
@@ -1137,7 +1138,7 @@ class StateTransitionTest extends AnyFunSuite, ArbitraryInstances {
                       Arbitrary.arbitrary[Option[PoolMetadata]].sample.get
                     ),
                     Certificate
-                        .PoolRetirement(Hash(summon[PlatformSpecific].blake2b_224(publicKey)), 1),
+                        .PoolRetirement(Hash(platform.blake2b_224(publicKey)), 1),
                     Certificate.RegCert(credential, Arbitrary.arbitrary[Coin].sample.get),
                     Certificate.UnregCert(credential, Arbitrary.arbitrary[Coin].sample.get),
                     Certificate.VoteDelegCert(credential, Arbitrary.arbitrary[DRep].sample.get),
@@ -1201,7 +1202,7 @@ class StateTransitionTest extends AnyFunSuite, ArbitraryInstances {
         val (privateKey, publicKey) = generateKeyPair()
 
         val nativeScript =
-            Timelock.Signature(Hash(summon[PlatformSpecific].blake2b_224(publicKey)))
+            Timelock.Signature(Hash(platform.blake2b_224(publicKey)))
         val plutusV1Script = Arbitrary.arbitrary[PlutusV1Script].sample.get
         val plutusV2Script = Arbitrary.arbitrary[PlutusV2Script].sample.get
         val plutusV3Script = Arbitrary.arbitrary[PlutusV3Script].sample.get
@@ -1283,7 +1284,7 @@ class StateTransitionTest extends AnyFunSuite, ArbitraryInstances {
                     Certificate
                         .StakeDelegation(credential3, Arbitrary.arbitrary[PoolKeyHash].sample.get),
                     Certificate.PoolRegistration(
-                      Hash(summon[PlatformSpecific].blake2b_224(publicKey)),
+                      Hash(platform.blake2b_224(publicKey)),
                       Arbitrary.arbitrary[VrfKeyHash].sample.get,
                       Arbitrary.arbitrary[Coin].sample.get,
                       Arbitrary.arbitrary[Coin].sample.get,
@@ -1294,7 +1295,7 @@ class StateTransitionTest extends AnyFunSuite, ArbitraryInstances {
                       Arbitrary.arbitrary[Option[PoolMetadata]].sample.get
                     ),
                     Certificate
-                        .PoolRetirement(Hash(summon[PlatformSpecific].blake2b_224(publicKey)), 1),
+                        .PoolRetirement(Hash(platform.blake2b_224(publicKey)), 1),
                     Certificate.RegCert(credential1, Arbitrary.arbitrary[Coin].sample.get),
                     Certificate.UnregCert(credential2, Arbitrary.arbitrary[Coin].sample.get),
                     Certificate.VoteDelegCert(credential3, Arbitrary.arbitrary[DRep].sample.get),
@@ -1342,7 +1343,7 @@ class StateTransitionTest extends AnyFunSuite, ArbitraryInstances {
               ),
               witnessSet = tx.witnessSet.copy(
                 vkeyWitnesses = Set(
-                  VKeyWitness(publicKey, summon[PlatformSpecific].signEd25519(privateKey, tx.id))
+                  VKeyWitness(publicKey, platform.signEd25519(privateKey, tx.id))
                 ),
                 nativeScripts = Set(nativeScript),
                 plutusV1Scripts = Set(plutusV1Script),
@@ -1392,7 +1393,7 @@ class StateTransitionTest extends AnyFunSuite, ArbitraryInstances {
                 plutusV1Scripts = Set.empty,
                 plutusV2Scripts = Set.empty,
                 plutusV3Scripts = Set.empty,
-                plutusData = Set.empty,
+                plutusData = KeepRaw(TaggedSet.empty),
                 redeemers = None
               ),
               auxiliaryData = None,

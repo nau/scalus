@@ -4,10 +4,6 @@ package rules
 import scalus.ledger.babbage.ProtocolParams
 import upickle.default.read
 
-type V = Option[Throwable]
-
-trait TransitionRule
-
 type Utxo = Map[TransactionInput, TransactionOutput]
 
 // It's mutable state for transient calculation
@@ -161,12 +157,12 @@ object UtxoEnv {
 }
 
 sealed trait STS {
-    final type Context = scalus.cardano.ledger.rules.Context
-    final type State = scalus.cardano.ledger.rules.State
-    final type Event = Transaction
-    type Value <: Unit | State
-    final type Error = Throwable
-    final type Result = Either[Error, Value]
+    type Context = scalus.cardano.ledger.rules.Context
+    type State = scalus.cardano.ledger.rules.State
+    type Event = Transaction
+    type Value
+    type Error = Throwable
+    type Result = Either[Error, Value]
 
     def apply(context: Context, state: State, event: Event): Result
 }
