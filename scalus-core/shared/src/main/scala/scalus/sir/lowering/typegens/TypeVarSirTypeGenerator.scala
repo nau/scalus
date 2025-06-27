@@ -2,7 +2,6 @@ package scalus.sir.lowering.typegens
 
 import scalus.sir.*
 import scalus.sir.lowering.*
-import scalus.uplc.Term
 
 /** We assume that type variable can be converted to data, and it is impossible to do something
   * meaningful with it in the UPLC, except pass the value as an argument in unchanged form.

@@ -37,7 +37,10 @@ class SimpleSirToUplcLoweringTest
         SIR.Error("error", ae) lowersTo Term.Error
         assert(
           SIR.Error("error", ae)
-              .toUplc(generateErrorTraces = true) == !(!Trace $ "error" $ ~Term.Error)
+              .toUplc(
+                generateErrorTraces = true,
+                optimizeUplc = false
+              ) == !(!Trace $ "error" $ ~Term.Error)
         )
     }
 

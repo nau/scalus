@@ -278,7 +278,6 @@ object Lowering {
     private def lowerNormalApp(app: SIR.Apply)(using lctx: LoweringContext): LoweredValue = {
         val fun = lowerSIR(app.f)
         val arg = lowerSIR(app.arg)
-        val debug = false
         val result = lvApply(
           fun,
           arg,
@@ -286,11 +285,6 @@ object Lowering {
           Some(app.tp),
           None // representation can depend from fun, so should be calculated.
         )
-        if debug then
-            println(
-              s"lowerNormalApp: result= ${result.show} at ${app.anns.pos.file}:${app.anns.pos.startLine}"
-            )
-            lctx.debug = false
         result
     }
 

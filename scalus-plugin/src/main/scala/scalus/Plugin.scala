@@ -308,34 +308,32 @@ class ScalusPhase(debugLevel: Int) extends PluginPhase {
           posTree.span
         ) match {
             case Implicits.SearchSuccess(tree, ref, level, isExtension) =>
-                report.echo(s"Found compiler options: ${tree.show}")
-                report.echo(s"deftree=${tree.symbol.defTree.show}")
+                // report.echo(s"Found compiler options: ${tree.show}")
+                // report.echo(s"deftree=${tree.symbol.defTree.show}")
                 val deftree = tree.symbol.defTree
                 if deftree.isEmpty then
                     report.warning(
                       s"CompilerOptions found but deftree is empty, compiler options may be incomplete",
                       posTree.srcPos
                     )
-                else
-                    println(s"deftree as tree: ${deftree}")
-                    if deftree.isInstanceOf[tpd.DefDef] then
-                        val defDefTree = deftree.asInstanceOf[tpd.DefDef]
-                        val underTyped = defDefTree.rhs match
-                            case tpd.Typed(obj, tp) =>
-                                obj
-                            case _ => defDefTree
-                        underTyped match
-                            case tpd.Apply(obj, args) =>
-                                report.echo(s"defDefTree.rhs.apply, args=${args}")
-                                if obj.symbol == Symbols.requiredMethod(
-                                      "scalus.Compiler.Options.apply"
-                                    )
-                                then report.echo(s"it's a compiler options call")
-                                else println(s"obj symbol = ${obj.symbol.fullName.show}")
-                                args.zipWithIndex.foreach { case (arg, idx) =>
-                                    parseArg(arg, idx)
-                                }
-                    else report.warning("defdef expected as compiler options", deftree.srcPos)
+                else if deftree.isInstanceOf[tpd.DefDef] then
+                    val defDefTree = deftree.asInstanceOf[tpd.DefDef]
+                    val underTyped = defDefTree.rhs match
+                        case tpd.Typed(obj, tp) =>
+                            obj
+                        case _ => defDefTree
+                    underTyped match
+                        case tpd.Apply(obj, args) =>
+                            report.echo(s"defDefTree.rhs.apply, args=${args}")
+                            if obj.symbol == Symbols.requiredMethod(
+                                  "scalus.Compiler.Options.apply"
+                                )
+                            then report.echo(s"it's a compiler options call")
+                            else println(s"obj symbol = ${obj.symbol.fullName.show}")
+                            args.zipWithIndex.foreach { case (arg, idx) =>
+                                parseArg(arg, idx)
+                            }
+                else report.warning("defdef expected as compiler options", deftree.srcPos)
             case Implicits.SearchFailure(_) =>
             // Use default options if not found
         }

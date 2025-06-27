@@ -68,7 +68,7 @@ trait LoweredValue {
                     println("parentsSeq1 = " + parentsSeq1.mkString(", "))
 
                     throw LoweringException(
-                      s"Cannot upcast ${this.show} to ${targetType.show}",
+                      s"Cannot upcast ${this.sirType.show} to ${targetType.show}",
                       pos
                     )
                 } else

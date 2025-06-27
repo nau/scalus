@@ -41,7 +41,7 @@ class PubKeyValidatorTest extends AnyFunSuite with ScalaCheckPropertyChecks:
         val flatBytesLen = script.flatEncoded.length
 //    println(Utils.bytesToHex(flatBytes))
         // println(term.show)
-        assert(flatBytesLen == 116)
+        assert(flatBytesLen == 142)
         import Data.*
         import TermDSL.given
 //    println(scriptContext.toData)

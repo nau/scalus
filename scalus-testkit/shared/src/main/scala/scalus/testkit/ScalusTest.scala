@@ -17,13 +17,20 @@ trait ScalusTest extends ArbitraryInstances {
     protected given PlutusVM = PlutusVM.makePlutusV3VM()
 
     extension (self: SIR)
-        def runScript(scriptContext: ScriptContext): Result =
+        def runScript(using
+            scalusOptions: scalus.Compiler.Options = scalus.Compiler.defaultOptions
+        )(
+            scriptContext: ScriptContext
+        ): Result =
             // UPLC program: (ScriptContext as Data) -> ()
-            val script = self.toUplc(generateErrorTraces = true).plutusV3
+            val script = self.toUplc().plutusV3
+            println(s"uplc: ${script.pretty.render(100)}")
             val appliedScript = script $ scriptContext.toData
             appliedScript.evaluateDebug
 
-        def scriptV3(errorTraces: Boolean = true): Program =
+        def scriptV3(using
+            scalusOptions: scalus.Compiler.Options = scalus.Compiler.defaultOptions
+        )(errorTraces: Boolean = true): Program =
             self.toUplc(generateErrorTraces = errorTraces).plutusV3
 
     extension (self: Program)
