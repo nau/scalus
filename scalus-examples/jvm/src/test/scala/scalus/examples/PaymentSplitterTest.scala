@@ -52,7 +52,8 @@ class PaymentSplitterTest extends AnyFunSuite, ScalusTest {
           fee = 2,
           inputs = List(A gives 10),
           outputs = List(A gets 18, B gets 10, C gets 10),
-          expected = success(scalusBudget)
+          // expected = success(scalusBudget)
+          expected = success
         ).runWithDebug()
 
         compareBudgetWithReferenceValue(
@@ -96,7 +97,8 @@ class PaymentSplitterTest extends AnyFunSuite, ScalusTest {
           fee = 2,
           inputs = List(A gives 10),
           outputs = List(A gets 38),
-          expected = failure("Not all payees were paid", scalusBudget)
+          // expected = failure("Not all payees were paid", scalusBudget)
+          expected = failure("Not all payees were paid")
         ).runWithDebug()
 
         compareBudgetWithReferenceValue(
@@ -236,6 +238,16 @@ class PaymentSplitterTest extends AnyFunSuite, ScalusTest {
 
     private val script = {
         try {
+            /*
+            inline given scalus.Compiler.Options = scalus.Compiler.Options(
+              targetLoweringBackend = scalus.Compiler.TargetLoweringBackend.SirToUplcV3Lowering,
+              generateErrorTraces = true,
+              optimizeUplc = true,
+              debug = true
+            )
+            
+             */
+
             val sir = compile(PaymentSplitter.validate)
             // println(s"sir=${sir.pretty.render(100)}")
             val uplc = sir.toUplc(generateErrorTraces = true)

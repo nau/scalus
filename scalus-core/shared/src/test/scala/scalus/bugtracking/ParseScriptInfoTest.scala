@@ -85,6 +85,13 @@ object ParseScriptInfo {
 
 class ParseScriptInfoTest extends AnyFunSuite:
 
+    inline given scalus.Compiler.Options = scalus.Compiler.Options(
+      targetLoweringBackend = scalus.Compiler.TargetLoweringBackend.SirToUplcV3Lowering,
+      generateErrorTraces = true,
+      optimizeUplc = true,
+      debug = false
+    )
+
     test("ScriptInfo parsing") {
         val scriptContext =
             ScriptContext(

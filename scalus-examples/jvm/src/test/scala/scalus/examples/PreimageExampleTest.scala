@@ -85,10 +85,10 @@ class PreimageExampleTest extends BaseValidatorTest {
         val compiled = compile(PreimageValidator.preimageValidator)
 //        println(compiled.showHighlighted)
         // convert SIR to UPLC
-        val validator = compiled.toUplc().plutusV2
+        val validator = compiled.toUplc(generateErrorTraces = true).plutusV2
 //        println(validator.showHighlighted)
         val flatSize = validator.flatEncoded.length
-        assert(flatSize == 1580)
+        assert(flatSize == 1802)
 
 //        performChecks(validator)
     }

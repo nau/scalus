@@ -11,7 +11,7 @@ object CardanoMutator extends STS.Mutator {
             _ <- VerifiedWitnessesValidator.validate(context, state, event)
             _ <- NeededWitnessesValidator.validate(context, state, event)
             _ <- MissingScriptsValidator.validate(context, state, event)
-            _ <- NativeScriptValidator.validate(context, state, event)
+            _ <- NativeScriptsValidator.validate(context, state, event)
             _ <- TransactionSizeValidator.validate(context, state, event)
             state <- RemoveInputsFromUtxoMutator.transit(context, state, event)
             state <- AddOutputsToUtxoMutator.transit(context, state, event)

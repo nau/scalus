@@ -28,9 +28,10 @@ object Compiler:
         targetLoweringBackend: TargetLoweringBackend =
             TargetLoweringBackend.SimpleSirToUplcLowering,
         generateErrorTraces: Boolean = true,
-        optimizeUplc: Boolean = true,
+        optimizeUplc: Boolean = false,
         debug: Boolean = false
     )
+    val defaultOptions: Options = Options()
 
     inline def fieldAsData[A](inline expr: A => Any): Data => Data = ${
         Macros.fieldAsDataMacro('expr)

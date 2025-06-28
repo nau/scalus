@@ -13,6 +13,7 @@ object NeededWitnessesValidator extends STS.Validator {
             _ <- validateVotingProcedures(context, state, event)
             _ <- validateWithdrawals(context, state, event)
             _ <- validateCertificates(context, state, event)
+            _ <- validateRequiredSigners(context, state, event)
         yield ()
     }
 
@@ -166,6 +167,27 @@ object NeededWitnessesValidator extends STS.Validator {
 
         success
     }
+
+    private def validateRequiredSigners(context: Context, state: State, event: Event): Result =
+        boundary {
+            val transactionId = event.id
+            val vkeyWitnesses = event.witnessSet.vkeyWitnesses
+            val requiredSigners = event.body.value.requiredSigners
+
+            for (keyHash, index) <- requiredSigners.view.zipWithIndex
+            do
+                if !vkeyWitnesses.exists(_.vkeyHash == keyHash)
+                then
+                    break(
+                      failure(
+                        IllegalArgumentException(
+                          s"Missing vkey witness for required signer $keyHash with index $index for transactionId $transactionId"
+                        )
+                      )
+                    )
+
+            success
+        }
 
     // TODO add bootstrap witnesses validation
     private def validateTransactionInputs(

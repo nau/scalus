@@ -165,7 +165,10 @@ class MintingPolicyExampleTest extends BaseValidatorTest {
         tokensSIR.toUplc().evaluate
 
     test("Minting Policy Validator") {
-        val validator = MintingPolicy.compiledMintingPolicyScript.toUplc(generateErrorTraces = true)
+        val validator = MintingPolicy.compiledMintingPolicyScript.toUplc(
+          generateErrorTraces = true,
+          optimizeUplc = false
+        )
         val appliedValidator =
             validator $ hoskyMintTxOutRef.id.hash $ hoskyMintTxOutRef.idx $ evaledTokens
         val flatSize = Program.plutusV1(appliedValidator).flatEncoded.length
@@ -175,7 +178,10 @@ class MintingPolicyExampleTest extends BaseValidatorTest {
 
     test("Minting Policy Validator V2") {
         val validator =
-            MintingPolicyV2.compiledMintingPolicyScriptV2.toUplc(generateErrorTraces = true)
+            MintingPolicyV2.compiledMintingPolicyScriptV2.toUplc(
+              generateErrorTraces = true,
+              optimizeUplc = false
+            )
         val appliedValidator =
             validator $ hoskyMintTxOutRef.id.hash $ hoskyMintTxOutRef.idx $ evaledTokens
         val flatSize = Program.plutusV2(appliedValidator).flatEncoded.length
@@ -186,7 +192,10 @@ class MintingPolicyExampleTest extends BaseValidatorTest {
     test("Minting Policy Validator Optimized") {
         // println(MintingPolicy.compiledOptimizedMintingPolicyScript.pretty.render(100))
         val validator =
-            MintingPolicy.compiledOptimizedMintingPolicyScript.toUplc(generateErrorTraces = true)
+            MintingPolicy.compiledOptimizedMintingPolicyScript.toUplc(
+              generateErrorTraces = true,
+              optimizeUplc = false
+            )
         val appliedValidator =
             validator $ hoskyMintTxOutRef.id.hash $ hoskyMintTxOutRef.idx $ evaledTokens
         val flatSize = Program.plutusV1(appliedValidator).flatEncoded.length

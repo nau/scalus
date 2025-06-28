@@ -7,7 +7,6 @@ import scalus.builtin.ByteString.*
 import scalus.builtin.Data.I
 import scalus.sir.SIR.Pattern
 import scalus.sir.SIRType.{FreeUnificator, SumCaseClass, TypeVar}
-import scalus.sir.lowering.StaticLoweredValue
 import scalus.sir.*
 import scalus.uplc.DefaultFun.*
 import scalus.uplc.DefaultUni.asConstant
@@ -60,7 +59,10 @@ class SirToUplcSmLoweringTest
         SIR.Error("error", ae) lowersTo Term.Error
         assert(
           SIR.Error("error", ae)
-              .toUplc(generateErrorTraces = true) == !(!Trace $ "error" $ ~Term.Error)
+              .toUplc(
+                generateErrorTraces = true,
+                optimizeUplc = false
+              ) == !(!Trace $ "error" $ ~Term.Error)
         )
     }
 

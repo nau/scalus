@@ -22,8 +22,35 @@ package object scalus {
             val term = sir.toUplc(generateErrorTraces)
             Program(version, term).doubleCborHex
 
-        def toUplc(generateErrorTraces: Boolean = false): Term =
-            SimpleSirToUplcLowering(sir, generateErrorTraces).lower()
+        def toUplc(using
+            options: Compiler.Options = Compiler.Options()
+        )(
+            generateErrorTraces: Boolean = options.generateErrorTraces,
+            backend: Compiler.TargetLoweringBackend = options.targetLoweringBackend,
+            optimizeUplc: Boolean = options.optimizeUplc,
+            debug: Boolean = options.debug
+        ): Term = {
+            val backend = options.targetLoweringBackend
+            val uplc = backend match
+                case Compiler.TargetLoweringBackend.SimpleSirToUplcLowering =>
+                    SimpleSirToUplcLowering(sir, generateErrorTraces).lower()
+                case Compiler.TargetLoweringBackend.SimpleSirToUplcV3Lowering =>
+                    SimpleSirToUplcV3Lowering(sir, generateErrorTraces).lower()
+                case Compiler.TargetLoweringBackend.SirToUplc110Lowering =>
+                    SirToUplc110Lowering(sir, generateErrorTraces).lower()
+                case Compiler.TargetLoweringBackend.SirToUplcV3Lowering =>
+                    SirToUplcV3Lowering(
+                      sir,
+                      generateErrorTraces = generateErrorTraces,
+                      debug = debug
+                    ).lower()
+            val retval =
+                if optimizeUplc then
+                    uplc |> EtaReduce.apply |> Inliner.apply |> CaseConstrApply.apply |> ForcedBuiltinsExtractor.apply
+                else uplc
+            retval
+        }
+
         def toUplcOptimized(generateErrorTraces: Boolean = false): Term = {
             SimpleSirToUplcLowering(sir, generateErrorTraces).lower()
                 |> EtaReduce.apply

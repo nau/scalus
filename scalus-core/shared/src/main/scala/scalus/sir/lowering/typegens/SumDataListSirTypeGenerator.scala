@@ -92,10 +92,24 @@ object SumDataListSirTypeGenerator extends SirTypeUplcGenerator {
         targetType: SIRType,
         pos: SIRPosition
     )(using lctx: LoweringContext): LoweredValue = {
-        throw LoweringException(
-          s"DataList have no parent types to upcast.",
-          pos
-        )
+        input.representation match {
+            case SumCaseClassRepresentation.SumDataList |
+                SumCaseClassRepresentation.PackedSumDataList =>
+                // no changes
+                new RepresentationProxyLoweredValue(input, input.representation, pos) {
+                    override def sirType: SIRType = targetType
+                }
+            case _ =>
+                // we need to upcast to PackedSumDataList
+                upcastOne(
+                  input.toRepresentation(
+                    SumCaseClassRepresentation.SumDataList,
+                    pos
+                  ),
+                  targetType,
+                  pos
+                )
+        }
     }
 
     def uplcToData(input: Term): Term = {
