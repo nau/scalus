@@ -68,6 +68,24 @@ lazy val root: Project = project
       publish / skip := true
     )
 
+// all JVM projects are aggregated in the jvm project just for convenience
+lazy val jvm: Project = project
+    .in(file("jvm"))
+    .aggregate(
+      scalusPlugin,
+      scalus.jvm,
+      scalusPluginTests,
+      scalusCardanoLedger.jvm,
+      scalusTestkit.jvm,
+      scalusExamples.jvm,
+      scalusDesignPatterns,
+      bench,
+      `scalus-bloxbean-cardano-client-lib`,
+    )
+    .settings(
+      publish / skip := true
+    )
+
 lazy val commonScalacOptions = Seq(
   "-deprecation",
   "-feature",

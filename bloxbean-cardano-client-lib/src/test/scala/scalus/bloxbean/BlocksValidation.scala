@@ -86,7 +86,7 @@ object BlocksValidation:
         val v3Scripts = mutable.HashSet.empty[String]
         var v3ScriptsExecuted = 0
 
-        for blockNum <- 11544518 to 11544519 do
+        for blockNum <- 11544518 to 11662495 do
             val txs = readTransactionsFromBlockCbor(cwd.resolve(s"blocks/block-$blockNum.cbor"))
             val txsWithScripts =
                 val r = mutable.Buffer.empty[
