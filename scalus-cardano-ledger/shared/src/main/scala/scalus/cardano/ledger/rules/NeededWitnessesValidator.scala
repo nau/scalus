@@ -110,7 +110,8 @@ object NeededWitnessesValidator extends STS.Validator {
                 case cert: Certificate.StakeRegistration   => extractKeyHash(cert.credential)
                 case cert: Certificate.StakeDeregistration => extractKeyHash(cert.credential)
                 case cert: Certificate.StakeDelegation     => extractKeyHash(cert.credential)
-                case cert: Certificate.PoolRegistration    => Some(cert.operator)
+                case cert: Certificate.PoolRegistration =>
+                    cert.poolOwners.view.concat(Some(cert.operator))
                 case cert: Certificate.PoolRetirement =>
                     Some(cert.poolKeyHash.asInstanceOf[AddrKeyHash])
                 case cert: Certificate.RegCert =>

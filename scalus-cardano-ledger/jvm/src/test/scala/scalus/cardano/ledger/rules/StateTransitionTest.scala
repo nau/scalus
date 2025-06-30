@@ -1070,7 +1070,7 @@ class StateTransitionTest extends AnyFunSuite, ArbitraryInstances {
                       Arbitrary.arbitrary[Coin].sample.get,
                       Arbitrary.arbitrary[UnitInterval].sample.get,
                       Arbitrary.arbitrary[RewardAccount].sample.get,
-                      Arbitrary.arbitrary[Set[AddrKeyHash]].sample.get,
+                      Set(Hash(platform.blake2b_224(publicKey))),
                       Arbitrary.arbitrary[IndexedSeq[Relay]].sample.get,
                       Arbitrary.arbitrary[Option[PoolMetadata]].sample.get
                     ),
@@ -1166,7 +1166,7 @@ class StateTransitionTest extends AnyFunSuite, ArbitraryInstances {
                       Arbitrary.arbitrary[Coin].sample.get,
                       Arbitrary.arbitrary[UnitInterval].sample.get,
                       Arbitrary.arbitrary[RewardAccount].sample.get,
-                      Arbitrary.arbitrary[Set[AddrKeyHash]].sample.get,
+                      Set(Hash(platform.blake2b_224(publicKey))),
                       Arbitrary.arbitrary[IndexedSeq[Relay]].sample.get,
                       Arbitrary.arbitrary[Option[PoolMetadata]].sample.get
                     ),
