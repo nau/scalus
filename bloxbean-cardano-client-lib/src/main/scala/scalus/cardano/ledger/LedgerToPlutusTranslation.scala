@@ -1,9 +1,7 @@
 package scalus.cardano.ledger
 
-import io.bullet.borer.Cbor
 import scalus.bloxbean.SlotConfig
-import scalus.builtin.Builtins.*
-import scalus.builtin.Data.{toData, ToData}
+import scalus.builtin.Data.toData
 import scalus.builtin.{ByteString, Data}
 import scalus.cardano.address.*
 import scalus.cardano.ledger.*
@@ -72,37 +70,6 @@ given Ordering[GovActionId] with
   */
 object LedgerToPlutusTranslation {
 
-    /** ToData instances for common types.
-      *
-      * These instances enable automatic conversion to Plutus Data format, which is essential for
-      * script parameter passing and on-chain validation.
-      */
-    given ToData[BigInt] = (x: BigInt) => iData(x)
-    given ToData[Int] = (x: Int) => iData(BigInt(x))
-    given ToData[Long] = (x: Long) => iData(BigInt(x))
-
-    /** Helper method for null-safe operations.
-      *
-      * This extension provides a null-coalescing operator similar to other languages, helping with
-      * safe handling of potentially null values from external APIs.
-      */
-    extension [A](inline a: A) inline infix def ??(b: => A): A = if a != null then a else b
-
-    /** Extract script information from reference script bytes.
-      *
-      * This function parses CBOR-encoded script reference data to extract the actual script. Script
-      * references are used in UTxOs to provide scripts without including them in the transaction
-      * witness set.
-      *
-      * @param scriptRefBytes
-      *   CBOR-encoded script reference data
-      * @return
-      *   Parsed Script object
-      */
-    def getScriptFromScriptRefBytes(scriptRefBytes: Array[Byte]): Script = {
-        Cbor.decode(scriptRefBytes).to[Script].value
-    }
-
     /** Creates MachineParams from CostModels and PlutusLedgerLanguage.
       *
       * This function configures the Plutus virtual machine with the appropriate cost models and
@@ -128,23 +95,26 @@ object LedgerToPlutusTranslation {
         // Extract cost parameters based on Plutus version
         val paramsMap = plutus match
             case PlutusLedgerLanguage.PlutusV1 =>
-                val costs = costModels.models
-                    .get(Language.PlutusV1.ordinal)
-                    .getOrElse(throw new IllegalArgumentException("PlutusV1 cost model not found"))
+                val costs = costModels.models.getOrElse(
+                  Language.PlutusV1.ordinal,
+                  throw new IllegalArgumentException("PlutusV1 cost model not found")
+                )
                 val params = PlutusV1Params.fromSeq(costs)
                 writeJs(params).obj.map { (k, v) => (k, v.num.toLong) }.toMap
 
             case PlutusLedgerLanguage.PlutusV2 =>
-                val costs = costModels.models
-                    .get(Language.PlutusV2.ordinal)
-                    .getOrElse(throw new IllegalArgumentException("PlutusV2 cost model not found"))
+                val costs = costModels.models.getOrElse(
+                  Language.PlutusV2.ordinal,
+                  throw new IllegalArgumentException("PlutusV2 cost model not found")
+                )
                 val params = PlutusV2Params.fromSeq(costs)
                 writeJs(params).obj.map { (k, v) => (k, v.num.toLong) }.toMap
 
             case PlutusLedgerLanguage.PlutusV3 =>
-                val costs = costModels.models
-                    .get(Language.PlutusV3.ordinal)
-                    .getOrElse(throw new IllegalArgumentException("PlutusV3 cost model not found"))
+                val costs = costModels.models.getOrElse(
+                  Language.PlutusV3.ordinal,
+                  throw new IllegalArgumentException("PlutusV3 cost model not found")
+                )
                 val params = PlutusV3Params.fromSeq(costs)
                 writeJs(params).obj.map { (k, v) => (k, v.num.toLong) }.toMap
 
