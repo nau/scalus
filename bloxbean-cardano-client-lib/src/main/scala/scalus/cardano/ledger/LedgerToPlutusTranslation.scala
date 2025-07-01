@@ -1001,7 +1001,7 @@ object LedgerToPlutusTranslation {
             case Some(vp) =>
                 AssocMap(
                   prelude.List.from(
-                    vp.procedures.toSeq.sortBy(_._1.toString).map { case (voter, procedures) =>
+                    vp.procedures.toArray.sortBy(_._1.toString).map { case (voter, procedures) =>
                         getVoterV3(voter) -> AssocMap(
                           prelude.List.from(
                             procedures.toSeq.sortBy(_._1.toString).map {
@@ -1029,7 +1029,6 @@ object LedgerToPlutusTranslation {
     def getScriptContextV2(
         redeemer: Redeemer,
         tx: Transaction,
-        txHash: TransactionHash,
         utxos: Map[TransactionInput, TransactionOutput],
         slotConfig: SlotConfig,
         protocolVersion: Int
@@ -1047,7 +1046,6 @@ object LedgerToPlutusTranslation {
         redeemer: Redeemer,
         datum: Option[Data],
         tx: Transaction,
-        txHash: TransactionHash,
         utxos: Map[TransactionInput, TransactionOutput],
         slotConfig: SlotConfig,
         protocolVersion: Int

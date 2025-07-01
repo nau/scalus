@@ -254,6 +254,6 @@ object ProtocolParamUpdate {
             )
         }
     }
-    
+
     given ToData[ProtocolParamUpdate] = ???
 }
