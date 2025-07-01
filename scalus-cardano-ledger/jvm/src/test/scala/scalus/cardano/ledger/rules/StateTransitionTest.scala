@@ -1512,11 +1512,13 @@ class StateTransitionTest extends AnyFunSuite, ArbitraryInstances {
                   inputs = Set.empty,
                   collateralInputs = Set(collateralInput1, collateralInput2),
                   collateralReturnOutput = Some(
-                    TransactionOutput.Shelley(
-                      Address.Shelley(
-                        Arbitrary.arbitrary[ShelleyAddress].sample.get
-                      ),
-                      Value(Coin(20000000L))
+                    Sized(
+                      TransactionOutput.Shelley(
+                        Address.Shelley(
+                          Arbitrary.arbitrary[ShelleyAddress].sample.get
+                        ),
+                        Value(Coin(20000000L))
+                      )
                     )
                   ),
                   totalCollateral = Some(Coin(60000000L)),
@@ -1616,11 +1618,13 @@ class StateTransitionTest extends AnyFunSuite, ArbitraryInstances {
                   inputs = Set.empty,
                   collateralInputs = Set(collateralInput1, collateralInput2),
                   collateralReturnOutput = Some(
-                    TransactionOutput.Shelley(
-                      Address.Shelley(
-                        Arbitrary.arbitrary[ShelleyAddress].sample.get
-                      ),
-                      Value(Coin(20000000L))
+                    Sized(
+                      TransactionOutput.Shelley(
+                        Address.Shelley(
+                          Arbitrary.arbitrary[ShelleyAddress].sample.get
+                        ),
+                        Value(Coin(20000000L))
+                      )
                     )
                   ),
                   totalCollateral = Some(Coin(60000000L)),
@@ -1817,11 +1821,13 @@ class StateTransitionTest extends AnyFunSuite, ArbitraryInstances {
                   inputs = Set.empty,
                   collateralInputs = Set(collateralInput1, collateralInput2),
                   collateralReturnOutput = Some(
-                    TransactionOutput.Shelley(
-                      Address.Shelley(
-                        Arbitrary.arbitrary[ShelleyAddress].sample.get
-                      ),
-                      Value(Coin(20000000L))
+                    Sized(
+                      TransactionOutput.Shelley(
+                        Address.Shelley(
+                          Arbitrary.arbitrary[ShelleyAddress].sample.get
+                        ),
+                        Value(Coin(20000000L))
+                      )
                     )
                   ),
                   totalCollateral = Some(Coin(60000000L)),
@@ -1921,11 +1927,13 @@ class StateTransitionTest extends AnyFunSuite, ArbitraryInstances {
                   inputs = Set.empty,
                   collateralInputs = Set(collateralInput1, collateralInput2),
                   collateralReturnOutput = Some(
-                    TransactionOutput.Shelley(
-                      Address.Shelley(
-                        Arbitrary.arbitrary[ShelleyAddress].sample.get
-                      ),
-                      Value(Coin(60000000L))
+                    Sized(
+                      TransactionOutput.Shelley(
+                        Address.Shelley(
+                          Arbitrary.arbitrary[ShelleyAddress].sample.get
+                        ),
+                        Value(Coin(60000000L))
+                      )
                     )
                   ),
                   totalCollateral = Some(Coin(60000000L)),
@@ -2025,11 +2033,13 @@ class StateTransitionTest extends AnyFunSuite, ArbitraryInstances {
                   inputs = Set.empty,
                   collateralInputs = Set(collateralInput1, collateralInput2),
                   collateralReturnOutput = Some(
-                    TransactionOutput.Shelley(
-                      Address.Shelley(
-                        Arbitrary.arbitrary[ShelleyAddress].sample.get
-                      ),
-                      Value(Coin(20000000L))
+                    Sized(
+                      TransactionOutput.Shelley(
+                        Address.Shelley(
+                          Arbitrary.arbitrary[ShelleyAddress].sample.get
+                        ),
+                        Value(Coin(20000000L))
+                      )
                     )
                   ),
                   totalCollateral = Some(Coin(50000000L)),
@@ -2190,9 +2200,11 @@ class StateTransitionTest extends AnyFunSuite, ArbitraryInstances {
                   collateralInputs = Set.empty,
                   referenceInputs = Set.empty,
                   outputs = IndexedSeq(
-                    TransactionOutput.Shelley(
-                      Address.Byron(Arbitrary.arbitrary[ByronAddress].sample.get),
-                      Value(Coin(1000000L))
+                    Sized(
+                      TransactionOutput.Shelley(
+                        Address.Byron(Arbitrary.arbitrary[ByronAddress].sample.get),
+                        Value(Coin(1000000L))
+                      )
                     )
                   ),
                   votingProcedures = None,
@@ -2229,6 +2241,150 @@ class StateTransitionTest extends AnyFunSuite, ArbitraryInstances {
         }
 
         val result = TransactionSizeValidator.validate(context, State(), transaction)
+        assert(result.isLeft)
+    }
+
+    test("OutputTooSmallUTxOValidator TransactionOutputs success") {
+        val context = Context()
+
+        val output = TransactionOutput.Shelley(
+          Address.Shelley(
+            Arbitrary
+                .arbitrary[ShelleyAddress]
+                .sample
+                .get
+                .copy(payment =
+                    ShelleyPaymentPart.keyHash(
+                      Arbitrary.arbitrary[AddrKeyHash].sample.get
+                    )
+                )
+          ),
+          Value(Coin(1000000000L))
+        )
+
+        val transaction = {
+            val tx = randomValidTransaction
+            tx.copy(
+              body = KeepRaw(
+                tx.body.value.copy(
+                  outputs = IndexedSeq(Sized(output)),
+                  collateralReturnOutput = None
+                )
+              )
+            )
+        }
+
+        val state = State()
+
+        val result = OutputTooSmallUTxOValidator.validate(context, state, transaction)
+        assert(result.isRight)
+    }
+
+    test("OutputTooSmallUTxOValidator TransactionOutputs failure") {
+        val context = Context()
+
+        val output = TransactionOutput.Shelley(
+          Address.Shelley(
+            Arbitrary
+                .arbitrary[ShelleyAddress]
+                .sample
+                .get
+                .copy(payment =
+                    ShelleyPaymentPart.keyHash(
+                      Arbitrary.arbitrary[AddrKeyHash].sample.get
+                    )
+                )
+          ),
+          Value(Coin(1L))
+        )
+
+        val transaction = {
+            val tx = randomValidTransaction
+            tx.copy(
+              body = KeepRaw(
+                tx.body.value.copy(
+                  outputs = IndexedSeq(Sized(output)),
+                  collateralReturnOutput = None
+                )
+              )
+            )
+        }
+
+        val state = State()
+
+        val result = OutputTooSmallUTxOValidator.validate(context, state, transaction)
+        assert(result.isLeft)
+    }
+
+    test("OutputTooSmallUTxOValidator CollateralReturnOutput success") {
+        val context = Context()
+
+        val collateralReturnOutput = TransactionOutput.Shelley(
+          Address.Shelley(
+            Arbitrary
+                .arbitrary[ShelleyAddress]
+                .sample
+                .get
+                .copy(payment =
+                    ShelleyPaymentPart.keyHash(
+                      Arbitrary.arbitrary[AddrKeyHash].sample.get
+                    )
+                )
+          ),
+          Value(Coin(1000000000L))
+        )
+
+        val transaction = {
+            val tx = randomValidTransaction
+            tx.copy(
+              body = KeepRaw(
+                tx.body.value.copy(
+                  outputs = IndexedSeq.empty,
+                  collateralReturnOutput = Some(Sized(collateralReturnOutput))
+                )
+              )
+            )
+        }
+
+        val state = State()
+
+        val result = OutputTooSmallUTxOValidator.validate(context, state, transaction)
+        assert(result.isRight)
+    }
+
+    test("OutputTooSmallUTxOValidator CollateralReturnOutput failure") {
+        val context = Context()
+
+        val collateralReturnOutput = TransactionOutput.Shelley(
+          Address.Shelley(
+            Arbitrary
+                .arbitrary[ShelleyAddress]
+                .sample
+                .get
+                .copy(payment =
+                    ShelleyPaymentPart.keyHash(
+                      Arbitrary.arbitrary[AddrKeyHash].sample.get
+                    )
+                )
+          ),
+          Value(Coin(1L))
+        )
+
+        val transaction = {
+            val tx = randomValidTransaction
+            tx.copy(
+              body = KeepRaw(
+                tx.body.value.copy(
+                  outputs = IndexedSeq.empty,
+                  collateralReturnOutput = Some(Sized(collateralReturnOutput))
+                )
+              )
+            )
+        }
+
+        val state = State()
+
+        val result = OutputTooSmallUTxOValidator.validate(context, state, transaction)
         assert(result.isLeft)
     }
 
@@ -2281,7 +2437,7 @@ class StateTransitionTest extends AnyFunSuite, ArbitraryInstances {
             tx.copy(
               body = KeepRaw(
                 tx.body.value.copy(
-                  outputs = genVectorOfSizeFromArbitrary[TransactionOutput](1, 4).sample.get
+                  outputs = genVectorOfSizeFromArbitrary[Sized[TransactionOutput]](1, 4).sample.get
                 )
               )
             )
@@ -2290,7 +2446,9 @@ class StateTransitionTest extends AnyFunSuite, ArbitraryInstances {
         val result = AddOutputsToUtxoMutator.transit(context, state, transaction)
         assert(state.utxo.isEmpty)
         assert(result.isRight)
-        assert(result.toOption.get.utxo.values.toSeq == transaction.body.value.outputs)
+        assert(result.toOption.get.utxo.values.toSeq == transaction.body.value.outputs.map {
+            _.value
+        })
     }
 
 //    test("CardanoMutator success") {

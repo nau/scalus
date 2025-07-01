@@ -164,7 +164,7 @@ object FeesOkValidator extends STS.Validator, AllReferenceScripts {
 
         val deltaCoins = collateralReturnOutput match
             case Some(collateralReturnOutput) =>
-                totalSumOfCollateralCoins.value - collateralReturnOutput.value.coin.value
+                totalSumOfCollateralCoins.value - collateralReturnOutput.value.value.coin.value
             case None => totalSumOfCollateralCoins.value
 
         if (deltaCoins * 100) < transactionFee * collateralPercentage then

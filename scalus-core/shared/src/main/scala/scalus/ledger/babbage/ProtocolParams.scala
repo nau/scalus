@@ -1,4 +1,5 @@
 package scalus.ledger.babbage
+
 import scalus.ledger.api.ProtocolVersion
 import upickle.default.*
 import scalus.cardano.ledger.{ExUnitPrices, ExUnits, NonNegativeInterval}

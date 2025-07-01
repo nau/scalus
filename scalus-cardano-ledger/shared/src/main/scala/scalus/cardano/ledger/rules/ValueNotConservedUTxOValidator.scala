@@ -7,7 +7,7 @@ import scalus.ledger.babbage.ProtocolParams
   *
   * consumed pp utxo txb = produced pp poolParams txb
   */
-object ValidateValueNotConservedUTxO extends STS.Validator {
+object ValueNotConservedUTxOValidator extends STS.Validator {
     override def validate(context: Context, state: State, tx: Transaction): Result = {
         val params = context.env.params
         val txBody = tx.body.value
@@ -74,7 +74,7 @@ object ValidateValueNotConservedUTxO extends STS.Validator {
               }
             )
             val outputs = txBody.outputs
-                .map(_.value)
+                .map(_.value.value)
                 .foldLeft(Value.zero)(_ + _)
             val shelleyTotalDepositsTxCerts: Coin = Coin.zero // FIXME: implement
             val conwayDRepDepositsTxCerts: Coin = Coin.zero // FIXME: implement

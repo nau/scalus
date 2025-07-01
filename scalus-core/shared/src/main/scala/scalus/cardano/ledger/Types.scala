@@ -350,3 +350,39 @@ object KeepRaw {
         summon[Encoder[A]].write(w, value.value)
     }
 }
+
+case class Sized[A](value: A, size: Int) {
+    override def hashCode: Int =
+        util.Arrays.hashCode(Array(value.hashCode(), size))
+
+    override def equals(obj: Any): Boolean = obj.asMatchable match {
+        case that: Sized[?] =>
+            this.value == that.value && this.size == that.size
+        case _ => false
+    }
+    override def toString: String = s"Sized(value=$value, size=$size)"
+}
+
+object Sized {
+    def apply[A: Encoder](value: A): Sized[A] =
+        new Sized(value, Cbor.encode(value).toByteArray.length)
+
+    given [A: Decoder](using OriginalCborByteArray): Decoder[Sized[A]] =
+        Decoder { r =>
+            // Here we need to call `dataItem()` to ensure the cursor is updated
+            // see https://github.com/sirthias/borer/issues/761#issuecomment-2919035884
+            r.dataItem()
+            val start = r.cursor
+            val value = r.read[A]()
+            val di = r.dataItem()
+            val end = if di == DataItem.EndOfInput then r.input.cursor else r.cursor
+            val raw = summon[OriginalCborByteArray].slice(start.toInt, end.toInt)
+            Sized(value, raw.length)
+        }
+
+    given [A: Encoder]: Encoder[Sized[A]] = (w: Writer, value: Sized[A]) => {
+        // FIXME: use w.writeValueAsRawBytes instead of re-encoding when it's supported:
+        // https://github.com/sirthias/borer/issues/764
+        summon[Encoder[A]].write(w, value.value)
+    }
+}

@@ -575,7 +575,7 @@ trait ArbitraryInstances extends scalus.cardano.address.ArbitraryInstances {
     given Arbitrary[TransactionBody] = Arbitrary {
         for
             inputs <- genSetOfSizeFromArbitrary[TransactionInput](0, 4)
-            outputs <- genVectorOfSizeFromArbitrary[TransactionOutput](0, 4)
+            outputs <- genVectorOfSizeFromArbitrary[Sized[TransactionOutput]](0, 4)
             fee <- arbitrary[Coin]
             ttl <- Gen.option(Gen.choose(0L, Long.MaxValue))
             certificates <- genSetOfSizeFromArbitrary[Certificate](0, 4)
@@ -589,7 +589,7 @@ trait ArbitraryInstances extends scalus.cardano.address.ArbitraryInstances {
             collateralInputs <- genSetOfSizeFromArbitrary[TransactionInput](0, 4)
             requiredSigners <- genSetOfSizeFromArbitrary[AddrKeyHash](0, 4)
             networkId <- Gen.option(Gen.oneOf(Gen.const(0), Gen.const(1)))
-            collateralReturnOutput <- arbitrary[Option[TransactionOutput]]
+            collateralReturnOutput <- arbitrary[Option[Sized[TransactionOutput]]]
             totalCollateral <- arbitrary[Option[Coin]]
             referenceInputs <- genSetOfSizeFromArbitrary[TransactionInput](0, 4)
             votingProcedures <- arbitrary[Option[VotingProcedures]]
@@ -663,6 +663,11 @@ trait ArbitraryInstances extends scalus.cardano.address.ArbitraryInstances {
     given [A: Arbitrary: Encoder]: Arbitrary[KeepRaw[A]] = Arbitrary {
         Arbitrary.arbitrary[A].map(a => KeepRaw(a))
     }
+
+    given [A: Arbitrary: Encoder]: Arbitrary[Sized[A]] = Arbitrary {
+        Arbitrary.arbitrary[A].map(a => Sized(a))
+    }
+
     given Arbitrary[BlockFile] = autoDerived
 
     given Arbitrary[Transaction] = Arbitrary {

@@ -23,9 +23,11 @@ class TransactionTest extends AnyFunSuite {
                     TransactionInput(Hash(ByteString.fill(32, 0)), 0)
                   ),
                   outputs = Vector(
-                    TransactionOutput.Shelley(
-                      address = Address.fromByteString(AddressBytes.fromBech32(addr)),
-                      value = Value.lovelace(2)
+                    Sized(
+                      TransactionOutput.Shelley(
+                        address = Address.fromByteString(AddressBytes.fromBech32(addr)),
+                        value = Value.lovelace(2)
+                      )
                     )
                   ),
                   fee = Coin(0)

@@ -5,7 +5,7 @@ package rules
 object AddOutputsToUtxoMutator extends STS.Mutator {
     override def transit(context: Context, state: State, event: Event): Result = {
         val addedUtxo: Utxo = event.body.value.outputs.view.zipWithIndex.map {
-            case (output, index) =>
+            case (Sized(output, _), index) =>
                 TransactionInput(event.id, index) -> output
         }.toMap
 
