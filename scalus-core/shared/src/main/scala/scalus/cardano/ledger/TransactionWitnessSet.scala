@@ -41,7 +41,7 @@ case class TransactionWitnessSet(
     bootstrapWitnesses: Set[BootstrapWitness] = Set.empty,
 
     /** Plutus V1 scripts */
-    plutusV1Scripts: Set[PlutusV1Script] = Set.empty,
+    plutusV1Scripts: Set[Script.PlutusV1] = Set.empty,
 
     /** Plutus data values */
     plutusData: KeepRaw[TaggedSet[Data]] = KeepRaw(TaggedSet(Set.empty)),
@@ -50,10 +50,10 @@ case class TransactionWitnessSet(
     redeemers: Option[KeepRaw[Redeemers]] = None,
 
     /** Plutus V2 scripts */
-    plutusV2Scripts: Set[PlutusV2Script] = Set.empty,
+    plutusV2Scripts: Set[Script.PlutusV2] = Set.empty,
 
     /** Plutus V3 scripts */
-    plutusV3Scripts: Set[PlutusV3Script] = Set.empty
+    plutusV3Scripts: Set[Script.PlutusV3] = Set.empty
 ):
     /** Check if the witness set is empty */
     def isEmpty: Boolean =
@@ -67,6 +67,8 @@ case class TransactionWitnessSet(
             plutusV3Scripts.isEmpty
 
 object TransactionWitnessSet:
+    import Script.given
+
     /** Empty witness set */
     val empty: TransactionWitnessSet = TransactionWitnessSet()
 
@@ -147,11 +149,11 @@ object TransactionWitnessSet:
             var vkeyWitnesses = Set.empty[VKeyWitness]
             var nativeScripts = Set.empty[Timelock]
             var bootstrapWitnesses = Set.empty[BootstrapWitness]
-            var plutusV1Scripts = Set.empty[PlutusV1Script]
+            var plutusV1Scripts = Set.empty[Script.PlutusV1]
             var plutusData = KeepRaw(TaggedSet(Set.empty[Data]))
             var redeemers: Option[KeepRaw[Redeemers]] = None
-            var plutusV2Scripts = Set.empty[PlutusV2Script]
-            var plutusV3Scripts = Set.empty[PlutusV3Script]
+            var plutusV2Scripts = Set.empty[Script.PlutusV2]
+            var plutusV3Scripts = Set.empty[Script.PlutusV3]
 
             for _ <- 0L until mapSize do
                 val key = r.readInt()

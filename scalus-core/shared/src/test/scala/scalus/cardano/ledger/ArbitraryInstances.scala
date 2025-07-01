@@ -262,10 +262,10 @@ trait ArbitraryInstances extends scalus.cardano.address.ArbitraryInstances {
     // FIXME: autoDerived for Script is not working correctly
     given Arbitrary[Script] = Arbitrary {
         Gen.oneOf(
-          TimelockGen.genTimelock.map(Script.Native.apply),
-          arbitrary[ByteString].map(byteString => Script.PlutusV1(PlutusV1Script(byteString))),
-          arbitrary[ByteString].map(byteString => Script.PlutusV2(PlutusV2Script(byteString))),
-          arbitrary[ByteString].map(byteString => Script.PlutusV3(PlutusV3Script(byteString))),
+          arbitrary[Timelock].map(Script.Native.apply),
+          arbitrary[Script.PlutusV1],
+          arbitrary[Script.PlutusV2],
+          arbitrary[Script.PlutusV3],
         )
     }
     given Arbitrary[ScriptRef] = autoDerived
@@ -450,19 +450,19 @@ trait ArbitraryInstances extends scalus.cardano.address.ArbitraryInstances {
         )
     }
 
-    given Arbitrary[PlutusV1Script] = Arbitrary {
+    given Arbitrary[Script.PlutusV1] = Arbitrary {
         for bytes <- genByteStringOfN(32)
-        yield PlutusV1Script(bytes)
+        yield Script.PlutusV1(bytes)
     }
 
-    given Arbitrary[PlutusV2Script] = Arbitrary {
+    given Arbitrary[Script.PlutusV2] = Arbitrary {
         for bytes <- genByteStringOfN(32)
-        yield PlutusV2Script(bytes)
+        yield Script.PlutusV2(bytes)
     }
 
-    given Arbitrary[PlutusV3Script] = Arbitrary {
+    given Arbitrary[Script.PlutusV3] = Arbitrary {
         for bytes <- genByteStringOfN(32)
-        yield PlutusV3Script(bytes)
+        yield Script.PlutusV3(bytes)
     }
 
     given [A: Arbitrary]: Arbitrary[TaggedSet[A]] = Arbitrary(

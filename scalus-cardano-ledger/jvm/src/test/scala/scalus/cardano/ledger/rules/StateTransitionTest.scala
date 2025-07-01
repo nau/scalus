@@ -1313,9 +1313,9 @@ class StateTransitionTest extends AnyFunSuite, ArbitraryInstances {
 
         val nativeScript =
             Timelock.Signature(Hash(platform.blake2b_224(publicKey)))
-        val plutusV1Script = Arbitrary.arbitrary[PlutusV1Script].sample.get
-        val plutusV2Script = Arbitrary.arbitrary[PlutusV2Script].sample.get
-        val plutusV3Script = Arbitrary.arbitrary[PlutusV3Script].sample.get
+        val plutusV1Script = Arbitrary.arbitrary[Script.PlutusV1].sample.get
+        val plutusV2Script = Arbitrary.arbitrary[Script.PlutusV2].sample.get
+        val plutusV3Script = Arbitrary.arbitrary[Script.PlutusV3].sample.get
 
         val credential1 = Credential.ScriptHash(plutusV1Script.scriptHash)
         val credential2 = Credential.ScriptHash(plutusV2Script.scriptHash)

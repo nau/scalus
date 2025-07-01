@@ -38,7 +38,7 @@ enum Timelock:
 
     @transient lazy val scriptHash: ScriptHash = Hash(
       platform.blake2b_224(
-        ByteString.unsafeFromArray(Cbor.encode(this).toByteArray.prepended(0))
+        ByteString.unsafeFromArray(0 +: Cbor.encode(this).toByteArray)
       )
     )
 

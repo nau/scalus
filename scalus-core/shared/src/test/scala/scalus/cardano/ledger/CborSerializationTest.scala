@@ -147,15 +147,6 @@ class CborSerializationTest extends AnyFunSuite, ScalaCheckPropertyChecks, Arbit
     test(s"Redeemers should serialize and deserialize correctly"):
         testSerializationRoundTrip[Redeemers]()
 
-    test(s"PlutusV1Script should serialize and deserialize correctly"):
-        testSerializationRoundTrip[PlutusV1Script]()
-
-    test(s"PlutusV2Script should serialize and deserialize correctly"):
-        testSerializationRoundTrip[PlutusV2Script]()
-
-    test(s"PlutusV3Script should serialize and deserialize correctly"):
-        testSerializationRoundTrip[PlutusV3Script]()
-
     test(s"TransactionWitnessSet should serialize and deserialize correctly"):
         testSerializationRoundTrip[TransactionWitnessSet]()
 //        val a = Arbitrary.arbitrary[TransactionWitnessSet].sample.get
