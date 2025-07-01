@@ -33,7 +33,7 @@ class BlockDeserializationTest extends AnyFunSuite {
         readBlockFromResources(11649988)
     }
 
-    ignore("decode blocks of epoch 543") {
+    test("decode blocks of epoch 543") {
         val blocks = Files
             .list(blocksDir)
             .filter(f => f.getFileName.toString.endsWith(".cbor"))

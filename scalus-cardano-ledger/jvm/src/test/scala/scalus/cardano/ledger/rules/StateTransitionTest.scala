@@ -340,7 +340,7 @@ class StateTransitionTest extends AnyFunSuite, ArbitraryInstances {
                   allOfTimelock,
                   anyOfTimelock,
                   mOfTimelock
-                )
+                ).map(Script.Native.apply)
               )
             )
         }
@@ -478,7 +478,7 @@ class StateTransitionTest extends AnyFunSuite, ArbitraryInstances {
               ),
               witnessSet = tx.witnessSet.copy(
                 vkeyWitnesses = Set.empty,
-                nativeScripts = Set(timeExpireTimelock)
+                nativeScripts = Set(Script.Native(timeExpireTimelock))
               )
             )
         }

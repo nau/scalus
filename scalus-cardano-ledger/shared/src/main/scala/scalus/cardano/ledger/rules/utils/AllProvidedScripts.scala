@@ -2,24 +2,28 @@ package scalus.cardano.ledger
 package rules
 package utils
 
-import scalus.ledger.api.Timelock
+import scala.collection.View
 
+object AllProvidedScripts extends AllProvidedScripts
 trait AllProvidedScripts {
-    this: STS =>
 
-    protected def allProvidedScriptHashes(event: Event): Set[ScriptHash] =
-        allProvidedScriptHashesView(event).toSet
+    protected def allProvidedScriptHashes(tx: Transaction): Set[ScriptHash] =
+        allProvidedScriptHashesView(tx).toSet
 
-    protected def allProvidedScriptHashesView(event: Event): scala.collection.View[ScriptHash] = {
-        val witnessSet = event.witnessSet
+    protected def allProvidedScriptHashesView(tx: Transaction): View[ScriptHash] = {
+        allProvidedScriptsView(tx).map(_.scriptHash)
+    }
 
-        witnessSet.nativeScripts.view.map(_.scriptHash) ++
-            witnessSet.plutusV1Scripts.view.map(_.scriptHash) ++
-            witnessSet.plutusV2Scripts.view.map(_.scriptHash) ++
-            witnessSet.plutusV3Scripts.view.map(_.scriptHash)
+    def allProvidedScriptsView(tx: Transaction): View[Script] = {
+        val witnessSet = tx.witnessSet
+
+        witnessSet.nativeScripts.view ++
+            witnessSet.plutusV1Scripts.view ++
+            witnessSet.plutusV2Scripts.view ++
+            witnessSet.plutusV3Scripts.view
 
     }
 
-    protected def allProvidedNativeScripts(event: Event): Set[Timelock] =
-        event.witnessSet.nativeScripts
+    protected def allProvidedNativeScripts(tx: Transaction): Set[Script.Native] =
+        tx.witnessSet.nativeScripts
 }

@@ -23,11 +23,11 @@ trait AllReferenceScripts {
     protected def allReferenceNativeScripts(
         state: State,
         event: Event
-    ): Either[Error, Set[Timelock]] = allReferenceScripts(
+    ): Either[Error, Set[Script.Native]] = allReferenceScripts(
       state,
       event,
       {
-          case Script.Native(timelock) => Some(timelock)
+          case timelock: Script.Native => Some(timelock)
           case _                       => None
       }
     )

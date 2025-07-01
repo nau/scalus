@@ -265,7 +265,7 @@ trait ArbitraryInstances extends scalus.cardano.address.ArbitraryInstances {
     // FIXME: autoDerived for Script is not working correctly
     given Arbitrary[Script] = Arbitrary {
         Gen.oneOf(
-          arbitrary[Timelock].map(Script.Native.apply),
+          arbitrary[Script.Native],
           arbitrary[Script.PlutusV1],
           arbitrary[Script.PlutusV2],
           arbitrary[Script.PlutusV3],
@@ -451,6 +451,10 @@ trait ArbitraryInstances extends scalus.cardano.address.ArbitraryInstances {
                   .map(Redeemers.Map.apply)
           }
         )
+    }
+
+    given Arbitrary[Script.Native] = Arbitrary {
+        arbitrary[Timelock].map(Script.Native.apply)
     }
 
     given Arbitrary[Script.PlutusV1] = Arbitrary {

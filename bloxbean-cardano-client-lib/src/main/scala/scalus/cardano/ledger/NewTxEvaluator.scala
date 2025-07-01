@@ -1,14 +1,14 @@
 package scalus.cardano.ledger
 
 import com.bloxbean.cardano.client.plutus.spec.CostMdls
-import io.bullet.borer.Cbor
 import org.slf4j.LoggerFactory
-import scalus.bloxbean.{EvaluatorMode, SlotConfig, TxEvaluationException}
 import scalus.bloxbean.Interop.translateMachineParamsFromCostMdls
+import scalus.bloxbean.{EvaluatorMode, SlotConfig, TxEvaluationException}
 import scalus.builtin.Data.toData
 import scalus.builtin.{ByteString, Data}
 import scalus.cardano.address.*
 import scalus.cardano.ledger.*
+import scalus.cardano.ledger.rules.utils.AllProvidedScripts
 import scalus.ledger
 import scalus.ledger.api
 import scalus.ledger.api.PlutusLedgerLanguage.*
@@ -17,11 +17,10 @@ import scalus.uplc.Term.Const
 import scalus.uplc.eval.*
 import scalus.uplc.{Constant, DeBruijnedProgram, Term}
 
-import java.nio.file.{Files, Path, Paths}
-import scala.beans.BeanProperty
+import java.nio.file.{Files, Paths}
 import scala.collection.immutable
 
-private class NewTxEvaluator(
+class NewTxEvaluator(
     val slotConfig: SlotConfig,
     val initialBudget: ExBudget,
     val protocolMajorVersion: Int,
@@ -29,7 +28,18 @@ private class NewTxEvaluator(
     val mode: EvaluatorMode = EvaluatorMode.EVALUATE_AND_COMPUTE_COST,
     val debugDumpFilesForTesting: Boolean = false
 ) {
-    import NewTxEvaluator.*
+
+    /** Lookup table for resolving scripts and datums during evaluation.
+      *
+      * @param scripts
+      *   Map from script hash to script
+      * @param datums
+      *   Map from datum hash to datum data
+      */
+    case class LookupTable(
+        scripts: Map[ScriptHash, Script],
+        datums: Map[DataHash, Data]
+    )
 
     private val log = LoggerFactory.getLogger(getClass.getName)
 
@@ -62,48 +72,6 @@ private class NewTxEvaluator(
           )
         )
 
-    /** Get the count of datums in the witness set for validation purposes.
-      */
-    private def getDatumCountFromWitnessSet(witnessSet: TransactionWitnessSet): Int = {
-        witnessSet.plutusData.value.size
-    }
-
-    /** Dump transaction and UTxO data to files for debugging and external validation.
-      *
-      * This creates files that can be used with tools like Aiken for comparison testing.
-      */
-    private def dumpTransactionForDebugging(
-        transaction: Transaction,
-        inputUtxos: Map[TransactionInput, TransactionOutput],
-        txHash: TransactionHash
-    ): Unit = {
-        val txHashHex = txHash.toHex
-
-        // Write transaction CBOR
-        Files.write(Paths.get(s"tx-$txHashHex.cbor"), Cbor.encode(transaction).toByteArray)
-
-        // Clean up previous debug logs
-        Files.deleteIfExists(Paths.get("scalus.log"))
-
-        // Write UTxO data in CBOR format for external tools
-        storeUtxosInCborFiles(inputUtxos, txHashHex)
-    }
-
-    /** Store UTxO inputs and outputs in separate CBOR files for debugging.
-      */
-    private def storeUtxosInCborFiles(
-        utxos: Map[TransactionInput, TransactionOutput],
-        txHashHex: String
-    ): Unit = {
-        import io.bullet.borer.Cbor
-
-        val inputs = utxos.keys.toSeq
-        val outputs = utxos.values.toSeq
-
-        Files.write(Path.of(s"ins-$txHashHex.cbor"), Cbor.encode(inputs).toByteArray)
-        Files.write(Path.of(s"outs-$txHashHex.cbor"), Cbor.encode(outputs).toByteArray)
-    }
-
     /** Resolve the script and datum associated with a redeemer.
       *
       * This method implements the core script resolution logic, mapping redeemer tags and indices
@@ -135,10 +103,10 @@ private class NewTxEvaluator(
         utxos: Map[TransactionInput, TransactionOutput]
     ): (Script, Option[Data]) = {
         val index = redeemer.index
-
         redeemer.tag match
             case RedeemerTag.Spend =>
                 findSpendScript(tx, index, lookupTable, utxos)
+
     }
 
     /** Find script for spending a UTxO (Spend redeemer tag).
@@ -372,7 +340,6 @@ private class NewTxEvaluator(
         // Create budget spender based on evaluation mode
         val spender = mode match
             case EvaluatorMode.EVALUATE_AND_COMPUTE_COST => CountingBudgetSpender()
-            case EvaluatorMode.VALIDATE => RestrictingBudgetSpenderWithScriptDump(budget)
 
         val logger = Log()
 
@@ -406,7 +373,7 @@ private class NewTxEvaluator(
       *   5. Tracks total budget consumption
       *   6. Returns all evaluated redeemers
       */
-    private def evalPhaseTwo(
+    def evalPhaseTwo(
         tx: Transaction,
         utxos: Map[TransactionInput, TransactionOutput],
     ): collection.Seq[Redeemer] = {
@@ -466,7 +433,7 @@ private class NewTxEvaluator(
         datums: collection.Seq[(ByteString, Data)],
         utxos: Map[TransactionInput, TransactionOutput]
     ): v2.TxInfo = {
-        ??? // TODO: Implement V2 TxInfo construction
+        LedgerToPlutusTranslation.getTxInfoV2(tx, datums, utxos, slotConfig, protocolMajorVersion)
     }
 
     private def buildTxInfoV3(
@@ -482,7 +449,7 @@ private class NewTxEvaluator(
     }
 
     private def buildScriptPurposeV2(redeemer: Redeemer, tx: Transaction): v2.ScriptPurpose = {
-        ??? // TODO: Implement V2 ScriptPurpose construction
+        LedgerToPlutusTranslation.getScriptPurposeV2(redeemer, tx)
     }
 
     private def buildScriptInfoV3(
@@ -506,56 +473,12 @@ private class NewTxEvaluator(
     private def getAllResolvedScripts(
         tx: Transaction,
         utxos: Map[TransactionInput, TransactionOutput]
-    ): Map[ScriptHash, Script] = ???
-
-    /** Budget spender that enforces execution limits with optional script dumping.
-      */
-    final class RestrictingBudgetSpenderWithScriptDump(val maxBudget: ExBudget)
-        extends BudgetSpender {
-        private var cpuLeft: Long = maxBudget.cpu
-        private var memoryLeft: Long = maxBudget.memory
-
-        def spendBudget(cat: ExBudgetCategory, budget: ExBudget, env: CekValEnv): Unit = {
-            // Optional debug logging for builtin function costs
-            if debugDumpFilesForTesting then
-                cat match
-                    case ExBudgetCategory.BuiltinApp(fun) =>
-                        val logEntry =
-                            s"fun $${fun}, cost: ExBudget { mem: ${budget.memory}, cpu: ${budget.cpu} }\n"
-                        Files.write(
-                          Paths.get("scalus.log"),
-                          logEntry.getBytes,
-                          java.nio.file.StandardOpenOption.CREATE,
-                          java.nio.file.StandardOpenOption.APPEND
-                        )
-                    case _ => // No logging for other categories
-            cpuLeft -= budget.cpu
-            memoryLeft -= budget.memory
-
-            if cpuLeft < 0 || memoryLeft < 0 then throw new OutOfExBudgetError(maxBudget, env)
-        }
-
-        def getSpentBudget: ExBudget =
-            ExBudget.fromCpuAndMemory(maxBudget.cpu - cpuLeft, maxBudget.memory - memoryLeft)
-
-        def reset(): Unit = {
-            cpuLeft = maxBudget.cpu
-            memoryLeft = maxBudget.memory
-        }
-    }
-}
-
-object NewTxEvaluator {
-
-    /** Lookup table for resolving scripts and datums during evaluation.
-      *
-      * @param scripts
-      *   Map from script hash to script
-      * @param datums
-      *   Map from datum hash to datum data
-      */
-    case class LookupTable(
-        scripts: Map[ScriptHash, Script],
-        datums: Map[DataHash, Data]
-    )
+    ): Map[ScriptHash, Script] =
+        // FIXME: resolve reference scripts from UTxOs
+        AllProvidedScripts
+            .allProvidedScriptsView(tx)
+            .map { script =>
+                script.scriptHash -> script
+            }
+            .toMap
 }

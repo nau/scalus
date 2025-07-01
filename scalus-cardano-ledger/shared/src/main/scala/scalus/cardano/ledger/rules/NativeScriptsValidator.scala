@@ -54,7 +54,7 @@ object NativeScriptsValidator
     ): ValidityInterval = ValidityInterval(event.body.value.validityStartSlot, event.body.value.ttl)
 
     private def validateNativeScripts(
-        nativeScripts: Set[Timelock],
+        nativeScripts: Set[Script.Native],
         transactionId: TransactionHash,
         requiredScriptHashes: Set[ScriptHash],
         validatorKeys: Set[AddrKeyHash],
@@ -64,8 +64,8 @@ object NativeScriptsValidator
         for (nativeScript, index) <- nativeScripts.zipWithIndex
         do
             if requiredScriptHashes.contains(nativeScript.scriptHash) &&
-                !nativeScript.evaluate(validatorKeys, validityInterval)
-            then break(failure(invalidNativeScriptError(transactionId, nativeScript, index)))
+                !nativeScript.script.evaluate(validatorKeys, validityInterval)
+            then break(failure(invalidNativeScriptError(transactionId, nativeScript.script, index)))
 
         success
     }

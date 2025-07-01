@@ -1,8 +1,7 @@
 package scalus.cardano.ledger
 
-import io.bullet.borer.{Encoder, *}
+import io.bullet.borer.*
 import scalus.builtin.Data
-import scalus.ledger.api.Timelock
 
 opaque type TaggedSet[A] <: Set[A] = Set[A]
 object TaggedSet {
@@ -35,7 +34,7 @@ case class TransactionWitnessSet(
     vkeyWitnesses: Set[VKeyWitness] = Set.empty,
 
     /** Native scripts */
-    nativeScripts: Set[Timelock] = Set.empty,
+    nativeScripts: Set[Script.Native] = Set.empty,
 
     /** Bootstrap witnesses (for Byron addresses) */
     bootstrapWitnesses: Set[BootstrapWitness] = Set.empty,
@@ -150,7 +149,7 @@ object TransactionWitnessSet:
             val mapSize = r.readMapHeader()
 
             var vkeyWitnesses = Set.empty[VKeyWitness]
-            var nativeScripts = Set.empty[Timelock]
+            var nativeScripts = Set.empty[Script.Native]
             var bootstrapWitnesses = Set.empty[BootstrapWitness]
             var plutusV1Scripts = Set.empty[Script.PlutusV1]
             var plutusData = KeepRaw(TaggedSet(Set.empty[KeepRaw[Data]]))

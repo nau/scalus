@@ -20,7 +20,7 @@ import scalus.bloxbean.TxEvaluator.ScriptHash
 import scalus.builtin.{platform, ByteString, JVMPlatformSpecific, PlatformSpecific, given}
 import scalus.cardano.ledger
 import scalus.cardano.ledger.{AddrKeyHash, BlockFile, Hash, Language, Script, ScriptDataHashGenerator}
-import scalus.ledger.api.{Timelock, ValidityInterval}
+import scalus.ledger.api.ValidityInterval
 import scalus.ledger.babbage.ProtocolParams
 import scalus.utils.Hex.toHex
 import scalus.utils.Utils
@@ -274,7 +274,10 @@ object BlocksValidation:
                         AddrKeyHash(platform.blake2b_224(key))
                     }
 
-                    if native.evaluate(keyHashes, ValidityInterval(txb.validityStartSlot, txb.ttl))
+                    if native.script.evaluate(
+                          keyHashes,
+                          ValidityInterval(txb.validityStartSlot, txb.ttl)
+                        )
                     then stats.getOrElseUpdate(scriptHash, Res(0, 0)).succ += 1
                     else stats.getOrElseUpdate(scriptHash, Res(0, 0)).fail += 1
 
