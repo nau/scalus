@@ -47,7 +47,7 @@ object NativeScriptsValidator
 
     private def allValidatorKeys(
         event: Event
-    ): Set[AddrKeyHash] = event.witnessSet.vkeyWitnesses.map(_.vkeyHash.asInstanceOf[AddrKeyHash])
+    ): Set[AddrKeyHash] = event.witnessSet.vkeyWitnesses.map(_.vkeyHash)
 
     private def extractValidityInterval(
         event: Event

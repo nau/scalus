@@ -57,6 +57,8 @@ object OutputTooBigUTxOValidator extends STS.Validator {
     ): Result = boundary {
         for (Sized(output, _), index) <- outputs
         do
+            // TODO maybe make serialization depending on the protocol version
+            // serSize = fromIntegral $ BSL.length $ serialize (pvMajor protVer) v
             val outputValueSerializationSize = Cbor.encode(output.value).toByteArray.length
 
             if outputValueSerializationSize > maxValueSize then

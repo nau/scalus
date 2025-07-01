@@ -112,8 +112,7 @@ object NeededWitnessesValidator extends STS.Validator {
                 case cert: Certificate.StakeDelegation     => extractKeyHash(cert.credential)
                 case cert: Certificate.PoolRegistration =>
                     cert.poolOwners.view.concat(Some(cert.operator))
-                case cert: Certificate.PoolRetirement =>
-                    Some(cert.poolKeyHash.asInstanceOf[AddrKeyHash])
+                case cert: Certificate.PoolRetirement => Some(cert.poolKeyHash)
                 case cert: Certificate.RegCert =>
                     if cert.coin > Coin.zero then extractKeyHash(cert.credential)
                     else None // No witness needed for zero deposit
