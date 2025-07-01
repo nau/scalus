@@ -18,6 +18,7 @@ import org.slf4j.LoggerFactory
 import scalus.bloxbean.Interop.*
 import scalus.builtin.ByteString
 import scalus.builtin.Data
+import scalus.cardano.ledger.Script
 import scalus.ledger
 import scalus.ledger.api
 import scalus.ledger.api.PlutusLedgerLanguage
@@ -79,6 +80,7 @@ class TxEvaluationException(
     @BeanProperty val logs: Array[String]
 ) extends Exception(message, cause)
 
+@deprecated("Use Script instead", "0.10.1")
 enum ScriptVersion:
     case Native
     case PlutusV1(flatScript: ByteString)
@@ -188,7 +190,7 @@ class TxEvaluator(
         redeemer: Redeemer,
         lookupTable: LookupTable,
         utxos: Map[TransactionInput, TransactionOutput]
-    ): (ScriptVersion, Option[Data]) = {
+    ): (Script, Option[Data]) = {
         val index = redeemer.getIndex.intValue
         val inputs = tx.getBody.getInputs
         redeemer.getTag match
@@ -213,7 +215,7 @@ class TxEvaluator(
                         case OutputDatum.OutputDatum(datum) => Some(datum)
 
                     script match
-                        case ScriptVersion.PlutusV1(_) | ScriptVersion.PlutusV2(_) =>
+                        case _: Script.PlutusV1 | _: Script.PlutusV2 =>
                             datum match
                                 case None =>
                                     throw new IllegalStateException(
@@ -320,9 +322,9 @@ class TxEvaluator(
         import scalus.builtin.Data.toData
 
         val result = findScript(tx, redeemer, lookupTable, utxos) match
-            case (ScriptVersion.Native, _) =>
+            case (_: Script.Native, _) =>
                 throw new IllegalStateException("Native script not supported")
-            case (ScriptVersion.PlutusV1(script), datum) =>
+            case (Script.PlutusV1(script), datum) =>
                 val rdmr = toScalusData(redeemer.getData)
                 val txInfoV1 =
                     getTxInfoV1(tx, txhash, datums, utxos, slotConfig, protocolMajorVersion)
@@ -347,7 +349,7 @@ class TxEvaluator(
                     case None =>
                         evalScript(redeemer, plutusV1VM, script, rdmr, ctxData)
 
-            case (ScriptVersion.PlutusV2(script), datum) =>
+            case (Script.PlutusV2(script), datum) =>
                 val rdmr = toScalusData(redeemer.getData)
                 val txInfo =
                     getTxInfoV2(tx, txhash, datums, utxos, slotConfig, protocolMajorVersion)
@@ -372,7 +374,7 @@ class TxEvaluator(
                     case None =>
                         evalScript(redeemer, plutusV2VM, script, rdmr, ctxData)
 
-            case (ScriptVersion.PlutusV3(script), datum) =>
+            case (Script.PlutusV3(script), datum) =>
                 val rdmr = toScalusData(redeemer.getData)
                 val txInfo =
                     getTxInfoV3(tx, txhash, datums, utxos, slotConfig, protocolMajorVersion)
@@ -409,7 +411,7 @@ class TxEvaluator(
           cpu = redeemer.getExUnits.getSteps.longValue,
           memory = redeemer.getExUnits.getMem.longValue
         )
-        val program = DeBruijnedProgram.fromFlatEncoded(script.bytes)
+        val program = DeBruijnedProgram.fromCbor(script.bytes)
         val applied = args.foldLeft(program) { (acc, arg) =>
             acc $ Const(scalus.uplc.DefaultUni.asConstant(arg))
         }
@@ -529,47 +531,49 @@ object TxEvaluator {
     type Hash = ByteString
 
     case class LookupTable(
-        scripts: collection.Map[ScriptHash, ScriptVersion],
+        scripts: collection.Map[ScriptHash, Script],
         datums: collection.Map[Hash, Data]
     )
 
     def getAllResolvedScripts(
         tx: Transaction,
         utxos: Map[TransactionInput, TransactionOutput]
-    ): Map[ScriptHash, ScriptVersion] = {
+    ): Map[ScriptHash, Script] = {
+        import scalus.utils.Hex.toHex
         val scripts =
-            def decodeToFlat(script: PlutusScript) =
+            def decodeToSingleCbor(script: PlutusScript) =
                 // unwrap the outer CBOR encoding
-                val decoded = Cbor.decode(Hex.hexToBytes(script.getCborHex)).to[Array[Byte]].value
-                // and decode the inner CBOR encoding. Don't ask me why.
-                ByteString.fromArray(Cbor.decode(decoded).to[Array[Byte]].value)
+                ByteString.unsafeFromArray(
+                  Cbor.decode(Hex.hexToBytes(script.getCborHex)).to[Array[Byte]].value
+                )
 
             val native = tx.getWitnessSet.getNativeScripts.asScala
                 .map: script =>
-                    ByteString.fromArray(script.getScriptHash) -> ScriptVersion.Native
+                    val bytes = script.serializeScriptBody()
+                    Cbor.decode(bytes).to[Script.Native].value
 
             val v1 = tx.getWitnessSet.getPlutusV1Scripts.asScala
                 .map: script =>
-                    val flatScript = decodeToFlat(script)
-                    ByteString.fromArray(script.getScriptHash) -> ScriptVersion.PlutusV1(flatScript)
+                    val cborScript = decodeToSingleCbor(script)
+                    Script.PlutusV1(cborScript)
             val v2 = tx.getWitnessSet.getPlutusV2Scripts.asScala
                 .map: script =>
-                    val flatScript = decodeToFlat(script)
-                    ByteString.fromArray(script.getScriptHash) -> ScriptVersion.PlutusV2(flatScript)
+                    val cborScript = decodeToSingleCbor(script)
+                    Script.PlutusV2(cborScript)
             val v3 = tx.getWitnessSet.getPlutusV3Scripts.asScala
                 .map: script =>
-                    val flatScript = decodeToFlat(script)
-                    ByteString.fromArray(script.getScriptHash) -> ScriptVersion.PlutusV3(flatScript)
+                    val cborScript = decodeToSingleCbor(script)
+                    Script.PlutusV3(cborScript)
             native ++ v1 ++ v2 ++ v3
 
-        val referenceScripts = ArrayBuffer.empty[(ScriptHash, ScriptVersion)]
+        val referenceScripts = ArrayBuffer.empty[Script]
 
         for output <- utxos.values do
             if output.getScriptRef != null then
-                val scriptInfo = Interop.getScriptInfoFromScriptRef(output.getScriptRef)
-                referenceScripts += scriptInfo.hash -> scriptInfo.scriptVersion
+                val script = Interop.getScriptFromScriptRefBytes(output.getScriptRef)
+                referenceScripts += script
 
-        (scripts ++ referenceScripts).toMap
+        (scripts ++ referenceScripts).view.map(s => s.scriptHash -> s).toMap
     }
 
     private def getScriptAndDatumLookupTable(
@@ -689,7 +693,7 @@ object TxEvaluator {
 
     private def validateMissingScripts(
         scripts: AlonzoScriptsNeeded,
-        txScripts: collection.Map[ScriptHash, ScriptVersion]
+        txScripts: collection.Map[ScriptHash, Script]
     ): Unit = {
         val received = txScripts.keySet
         val needed = scripts.toSet
@@ -700,7 +704,7 @@ object TxEvaluator {
     private def verifyExactSetOfRedeemers(
         @unused tx: Transaction,
         @unused scripts: AlonzoScriptsNeeded,
-        @unused txScripts: collection.Map[ScriptHash, ScriptVersion]
+        @unused txScripts: collection.Map[ScriptHash, Script]
     ): Unit = {
         // FIXME: implement
     }

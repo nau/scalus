@@ -41,7 +41,7 @@ class TimelockTest extends AnyFunSuite with ScalaCheckPropertyChecks with Arbitr
         val validatorKeys = Set(hash1, hash2)
 
         val script = Timelock.AllOf(
-          Seq(
+          IndexedSeq(
             Timelock.Signature(hash1),
             Timelock.Signature(hash2)
           )
@@ -57,7 +57,7 @@ class TimelockTest extends AnyFunSuite with ScalaCheckPropertyChecks with Arbitr
         val validatorKeys = Set(hash1, hash2)
 
         val script = Timelock.AllOf(
-          Seq(
+          IndexedSeq(
             Timelock.Signature(hash1),
             Timelock.Signature(hash3) // Not in validatorKeys
           )
@@ -73,7 +73,7 @@ class TimelockTest extends AnyFunSuite with ScalaCheckPropertyChecks with Arbitr
         val validatorKeys = Set(hash1, hash2)
 
         val script = Timelock.AnyOf(
-          Seq(
+          IndexedSeq(
             Timelock.Signature(hash3), // Not in validatorKeys
             Timelock.Signature(hash2) // In validatorKeys
           )
@@ -90,7 +90,7 @@ class TimelockTest extends AnyFunSuite with ScalaCheckPropertyChecks with Arbitr
         val validatorKeys = Set(hash1, hash2)
 
         val script = Timelock.AnyOf(
-          Seq(
+          IndexedSeq(
             Timelock.Signature(hash3), // Not in validatorKeys
             Timelock.Signature(hash4) // Not in validatorKeys
           )
@@ -108,7 +108,7 @@ class TimelockTest extends AnyFunSuite with ScalaCheckPropertyChecks with Arbitr
 
         val script = Timelock.MOf(
           2,
-          Seq(
+          IndexedSeq(
             Timelock.Signature(hash1), // Valid
             Timelock.Signature(hash4), // Invalid
             Timelock.Signature(hash2) // Valid
@@ -127,7 +127,7 @@ class TimelockTest extends AnyFunSuite with ScalaCheckPropertyChecks with Arbitr
 
         val script = Timelock.MOf(
           2,
-          Seq(
+          IndexedSeq(
             Timelock.Signature(hash1), // Valid
             Timelock.Signature(hash4), // Invalid
             Timelock.Signature(hash2) // Invalid
@@ -143,7 +143,7 @@ class TimelockTest extends AnyFunSuite with ScalaCheckPropertyChecks with Arbitr
 
         val script = Timelock.MOf(
           0,
-          Seq(
+          IndexedSeq(
             Timelock.Signature(hash1) // Invalid
           )
         )
@@ -205,10 +205,10 @@ class TimelockTest extends AnyFunSuite with ScalaCheckPropertyChecks with Arbitr
 
         // Complex script: AllOf(Signature(hash1), AnyOf(TimeStart(40), Signature(hash3)), TimeExpire(200))
         val script = Timelock.AllOf(
-          Seq(
+          IndexedSeq(
             Timelock.Signature(hash1), // Valid
             Timelock.AnyOf(
-              Seq(
+              IndexedSeq(
                 Timelock.TimeStart(40L), // Valid (40 <= 50)
                 Timelock.Signature(hash3) // Invalid
               )
@@ -308,22 +308,22 @@ class TimelockTest extends AnyFunSuite with ScalaCheckPropertyChecks with Arbitr
 
     test("Complex Timelock structures round-trip encode and decode"):
         // Focus on testing more complex cases explicitly
-        val testCases = Seq(
+        val testCases = IndexedSeq(
           Timelock.AllOf(
-            Seq(
+            IndexedSeq(
               Timelock.Signature(keyHash("deadbeef")),
               Timelock.TimeStart(123L)
             )
           ),
           Timelock.AnyOf(
-            Seq(
+            IndexedSeq(
               Timelock.Signature(keyHash("cafebabe")),
               Timelock.TimeExpire(456L)
             )
           ),
           Timelock.MOf(
             2,
-            Seq(
+            IndexedSeq(
               Timelock.Signature(keyHash("01020304")),
               Timelock.Signature(keyHash("05060708")),
               Timelock.Signature(keyHash("090a0b0c"))
@@ -348,10 +348,10 @@ class TimelockTest extends AnyFunSuite with ScalaCheckPropertyChecks with Arbitr
             if depth <= 0 then Timelock.Signature(keyHash("deadbeef"))
             else
                 Timelock.AllOf(
-                  Seq(
+                  IndexedSeq(
                     createNestedTimelock(depth - 1),
                     Timelock.AnyOf(
-                      Seq(
+                      IndexedSeq(
                         Timelock.TimeStart(depth.toLong),
                         createNestedTimelock(depth - 1)
                       )

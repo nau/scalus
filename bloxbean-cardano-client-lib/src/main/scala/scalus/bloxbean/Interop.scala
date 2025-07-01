@@ -37,6 +37,7 @@ import scalus.builtin.Data.ToData
 import scalus.builtin.Data.toData
 import scalus.builtin.Pair
 import scalus.builtin.given
+import scalus.cardano.ledger.Script
 import scalus.ledger
 import scalus.ledger.api
 import scalus.ledger.api.BuiltinSemanticsVariant
@@ -80,6 +81,7 @@ given Ordering[Redeemer] with
             case 0 => x.getIndex.compareTo(y.getIndex)
             case c => c
 
+@deprecated("Use Script instead", "0.10.1")
 case class ScriptInfo(hash: ByteString, scriptVersion: ScriptVersion)
 
 /** Interoperability between Cardano Client Lib and Scalus */
@@ -149,6 +151,7 @@ object Interop {
     /// Helper for null check
     extension [A](inline a: A) inline infix def ??(b: => A): A = if a != null then a else b
 
+    @deprecated("Use getScriptFromScriptRefBytes", "0.10.1")
     def getScriptInfoFromScriptRef(scriptRef: Array[Byte]): ScriptInfo = {
         // script_ref is encoded as CBOR Array
         val (scriptType, scriptCbor) = Cbor.decode(scriptRef).to[(Byte, Array[Byte])].value
@@ -167,6 +170,10 @@ object Interop {
             case 3 => // Plutus V3
                 val script = ByteString.fromArray(Cbor.decode(scriptCbor).to[Array[Byte]].value)
                 ScriptInfo(hash, ScriptVersion.PlutusV3(script))
+    }
+
+    private[bloxbean] def getScriptFromScriptRefBytes(scriptRefBytes: Array[Byte]): Script = {
+        Cbor.decode(scriptRefBytes).to[Script].value
     }
 
     /** Converts Cardano Client Lib's [[PlutusData]] to Scalus' [[Data]] */
@@ -353,7 +360,7 @@ object Interop {
             getValue(out.getValue),
             getOutputDatum(out),
             if out.getScriptRef != null
-            then prelude.Option.Some(getScriptInfoFromScriptRef(out.getScriptRef).hash)
+            then prelude.Option.Some(getScriptFromScriptRefBytes(out.getScriptRef).scriptHash)
             else prelude.Option.None
           )
         )
@@ -423,7 +430,7 @@ object Interop {
           getValue(out.getValue),
           getOutputDatum(out),
           if out.getScriptRef != null then
-              prelude.Option.Some(getScriptInfoFromScriptRef(out.getScriptRef).hash)
+              prelude.Option.Some(getScriptFromScriptRefBytes(out.getScriptRef).scriptHash)
           else prelude.Option.None
         )
     }

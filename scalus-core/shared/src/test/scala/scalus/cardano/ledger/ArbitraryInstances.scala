@@ -234,9 +234,12 @@ trait ArbitraryInstances extends scalus.cardano.address.ArbitraryInstances {
                 val reducedDepth = depth - 1
 
                 // Generate a list of nested Timelock instances with reduced depth
-                lazy val genNestedTimelocks: Gen[Seq[Timelock]] = for
+                lazy val genNestedTimelocks: Gen[IndexedSeq[Timelock]] = for
                     n <- Gen.choose(1, 5) // Reasonable limit for number of nested scripts
-                    scripts <- Gen.listOfN(n, genTimelockWithDepth(reducedDepth))
+                    scripts <- Gen.buildableOfN[IndexedSeq[Timelock], Timelock](
+                      n,
+                      genTimelockWithDepth(reducedDepth)
+                    )
                 yield scripts
 
                 // Choose between all possible Timelock variants

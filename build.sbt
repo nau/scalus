@@ -374,7 +374,7 @@ lazy val scalusDesignPatterns = project
 // Bloxbean Cardano Client Lib integration and Tx Evaluator implementation
 lazy val `scalus-bloxbean-cardano-client-lib` = project
     .in(file("bloxbean-cardano-client-lib"))
-    .dependsOn(scalus.jvm)
+    .dependsOn(scalus.jvm, scalusCardanoLedger.jvm)
     .settings(
       publish / skip := false,
       scalacOptions ++= commonScalacOptions,

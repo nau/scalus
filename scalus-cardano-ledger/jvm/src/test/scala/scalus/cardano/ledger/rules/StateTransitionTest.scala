@@ -300,11 +300,11 @@ class StateTransitionTest extends AnyFunSuite, ArbitraryInstances {
             Timelock.Signature(Hash(platform.blake2b_224(publicKey2)))
         val signatureTimelock3 =
             Timelock.Signature(Hash(platform.blake2b_224(publicKey3)))
-        val allOfTimelock = Timelock.AllOf(Seq(signatureTimelock1, signatureTimelock2))
+        val allOfTimelock = Timelock.AllOf(IndexedSeq(signatureTimelock1, signatureTimelock2))
         val anyOfTimelock =
-            Timelock.AnyOf(Seq(signatureTimelock1, signatureTimelock2, signatureTimelock3))
+            Timelock.AnyOf(IndexedSeq(signatureTimelock1, signatureTimelock2, signatureTimelock3))
         val mOfTimelock =
-            Timelock.MOf(2, Seq(signatureTimelock1, signatureTimelock2, signatureTimelock3))
+            Timelock.MOf(2, IndexedSeq(signatureTimelock1, signatureTimelock2, signatureTimelock3))
         val timeStartTimelock = Timelock.TimeStart(5)
         val timeExpireTimelock = Timelock.TimeExpire(20)
 

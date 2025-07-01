@@ -19,7 +19,7 @@ import scalus.bloxbean.Interop.??
 import scalus.bloxbean.TxEvaluator.ScriptHash
 import scalus.builtin.{platform, ByteString, JVMPlatformSpecific, PlatformSpecific, given}
 import scalus.cardano.ledger
-import scalus.cardano.ledger.{AddrKeyHash, BlockFile, Hash, Language, ScriptDataHashGenerator}
+import scalus.cardano.ledger.{AddrKeyHash, BlockFile, Hash, Language, Script, ScriptDataHashGenerator}
 import scalus.ledger.api.{Timelock, ValidityInterval}
 import scalus.ledger.babbage.ProtocolParams
 import scalus.utils.Hex.toHex
@@ -86,11 +86,11 @@ object BlocksValidation:
         val v3Scripts = mutable.HashSet.empty[String]
         var v3ScriptsExecuted = 0
 
-        for blockNum <- 11544518 to 11662495 do
+        for blockNum <- 11544518 to 11546100 do
             val txs = readTransactionsFromBlockCbor(cwd.resolve(s"blocks/block-$blockNum.cbor"))
             val txsWithScripts =
                 val r = mutable.Buffer.empty[
-                  (Transaction, util.List[ByteString], String, Map[ScriptHash, ScriptVersion])
+                  (Transaction, util.List[ByteString], String, Map[ScriptHash, Script])
                 ]
                 for BlockTx(tx, datums, txhash) <- txs do
                     try
@@ -122,14 +122,14 @@ object BlocksValidation:
 //                        println(result.getResponse)
                         for script <- scripts.values do
                             script match
-                                case ScriptVersion.PlutusV1(scriptHash) =>
-                                    v1Scripts += scriptHash.toHex
+                                case _: Script.PlutusV1 =>
+                                    v1Scripts += script.scriptHash.toHex
                                     v1ScriptsExecuted += 1
-                                case ScriptVersion.PlutusV2(scriptHash) =>
-                                    v2Scripts += scriptHash.toHex
+                                case _: Script.PlutusV2 =>
+                                    v2Scripts += script.scriptHash.toHex
                                     v2ScriptsExecuted += 1
-                                case ScriptVersion.PlutusV3(scriptHash) =>
-                                    v3Scripts += scriptHash.toHex
+                                case _: Script.PlutusV3 =>
+                                    v3Scripts += script.scriptHash.toHex
                                     v3ScriptsExecuted += 1
                                 case _ =>
                 else

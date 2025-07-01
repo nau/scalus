@@ -214,11 +214,31 @@ object DeBruijnedProgram {
     /** Deserializes a program from a flat-encoded byte array.
       *
       * @param flatEncoded
+      *   the flat-encoded byte array
       * @return
       *   the program
       */
     def fromFlatEncoded(flatEncoded: Array[Byte]): DeBruijnedProgram =
         ProgramFlatCodec.decodeFlat(flatEncoded)
+
+    /** Deserializes a program from a CBOR-encoded byte array.
+      *
+      * @param cbor
+      *   the CBOR-encoded byte array
+      * @return
+      */
+    def fromCbor(cbor: Array[Byte]): DeBruijnedProgram =
+        fromFlatEncoded(Cbor.decode(cbor).to[Array[Byte]].value)
+
+    /** Deserializes a program from a double CBOR-encoded byte array.
+      *
+      * @param cbor
+      *   the CBOR-encoded hex string
+      * @return
+      *   the program
+      */
+    def fromDoubleCbor(cbor: Array[Byte]): DeBruijnedProgram =
+        fromCbor(Cbor.decode(cbor).to[Array[Byte]].value)
 
     /** Deserializes a program from a double-CBOR-encoded hex string.
       *
@@ -228,9 +248,7 @@ object DeBruijnedProgram {
       *   the program
       */
     def fromDoubleCborHex(doubleCborHex: String): DeBruijnedProgram =
-        val cbor = Cbor.decode(Hex.hexToBytes(doubleCborHex)).to[Array[Byte]].value
-        val scriptFlat = Cbor.decode(cbor).to[Array[Byte]].value
-        fromFlatEncoded(scriptFlat)
+        fromDoubleCbor(Hex.hexToBytes(doubleCborHex))
 
     /** Deserializes a program from a CBOR-encoded hex string.
       *
@@ -240,6 +258,5 @@ object DeBruijnedProgram {
       *   the program
       */
     def fromCborHex(cborHex: String): DeBruijnedProgram =
-        val cbor = Cbor.decode(Hex.hexToBytes(cborHex)).to[Array[Byte]].value
-        fromFlatEncoded(cbor)
+        fromCbor(Hex.hexToBytes(cborHex))
 }
