@@ -50,6 +50,9 @@ object Hash {
         val bytes = r.read[ByteString]()(using ByteString.given_Decoder_ByteString)
         Hash[HF, Purpose](bytes)
     }
+
+    given Ordering[HF, Purpose]: Ordering[Hash[HF, Purpose]] =
+        (x: Hash[HF, Purpose], y: Hash[HF, Purpose]) => summon[Ordering[ByteString]].compare(x, y)
 }
 
 type AnyHash = Hash[Any, Any]

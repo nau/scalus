@@ -63,12 +63,15 @@ object Redeemer {
 /** Represents a collection of redeemers in the transaction witness set */
 sealed trait Redeemers:
     /** Convert to list of Redeemer objects */
-    def toSeq: Seq[Redeemer] = this match
+    def toSeq: Seq[Redeemer] = toIndexedSeq
+
+    /** Convert to list of Redeemer objects */
+    def toIndexedSeq: IndexedSeq[Redeemer] = this match
         case Redeemers.Array(list) => list
         case Redeemers.Map(map) =>
             map.map { case ((tag, index), (data, exUnits)) =>
                 Redeemer(tag, index, data, exUnits)
-            }.toSeq
+            }.toIndexedSeq
 
     def isEmpty: Boolean = this match
         case Redeemers.Array(redeemers) => redeemers.isEmpty

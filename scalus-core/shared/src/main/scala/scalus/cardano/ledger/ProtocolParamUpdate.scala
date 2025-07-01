@@ -2,6 +2,7 @@ package scalus.cardano.ledger
 
 import io.bullet.borer.NullOptions.given
 import io.bullet.borer.{Decoder, Encoder, Reader, Writer}
+import scalus.builtin.ToData
 
 /** Represents a protocol parameter update in the Cardano blockchain.
   *
@@ -253,4 +254,6 @@ object ProtocolParamUpdate {
             )
         }
     }
+    
+    given ToData[ProtocolParamUpdate] = ???
 }

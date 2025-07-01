@@ -183,7 +183,3 @@ object ByteString extends ByteStringOffchainApi {
         inline infix def +:(bs: ByteString): ByteString = Builtins.consByteString(b, bs)
 
 }
-
-given Ordering[ByteString] with
-    def compare(x: ByteString, y: ByteString): Int =
-        java.util.Arrays.compareUnsigned(x.bytes, y.bytes)
