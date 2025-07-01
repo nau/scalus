@@ -16,7 +16,7 @@ class ScriptDataHashGeneratorTest extends AnyFunSuite {
         import scalus.cardano.ledger.*
 
         val era = ledger.Era.Conway
-        val datums = KeepRaw(TaggedSet.empty[Data])
+        val datums = KeepRaw(TaggedSet.empty[KeepRaw[Data]])
         val costModels = CostModels(Map.empty)
         val hash = ScriptDataHashGenerator.computeScriptDataHash(era, None, datums, costModels)
 

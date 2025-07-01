@@ -43,8 +43,13 @@ case class TransactionWitnessSet(
     /** Plutus V1 scripts */
     plutusV1Scripts: Set[Script.PlutusV1] = Set.empty,
 
-    /** Plutus data values */
-    plutusData: KeepRaw[TaggedSet[Data]] = KeepRaw(TaggedSet(Set.empty)),
+    /** Plutus data values
+      *
+      * @note
+      *   We need raw CBOR bytes of all `plutusData` for [[ScriptDataHash]] calculation. Also, we
+      *   need raw bytes for each datum for [[DataHash]] calculation.
+      */
+    plutusData: KeepRaw[TaggedSet[KeepRaw[Data]]] = KeepRaw(TaggedSet(Set.empty)),
 
     /** Redeemers */
     redeemers: Option[KeepRaw[Redeemers]] = None,
@@ -67,8 +72,6 @@ case class TransactionWitnessSet(
             plutusV3Scripts.isEmpty
 
 object TransactionWitnessSet:
-    import Script.given
-
     /** Empty witness set */
     val empty: TransactionWitnessSet = TransactionWitnessSet()
 
@@ -150,7 +153,7 @@ object TransactionWitnessSet:
             var nativeScripts = Set.empty[Timelock]
             var bootstrapWitnesses = Set.empty[BootstrapWitness]
             var plutusV1Scripts = Set.empty[Script.PlutusV1]
-            var plutusData = KeepRaw(TaggedSet(Set.empty[Data]))
+            var plutusData = KeepRaw(TaggedSet(Set.empty[KeepRaw[Data]]))
             var redeemers: Option[KeepRaw[Redeemers]] = None
             var plutusV2Scripts = Set.empty[Script.PlutusV2]
             var plutusV3Scripts = Set.empty[Script.PlutusV3]
@@ -172,7 +175,7 @@ object TransactionWitnessSet:
                         plutusV1Scripts = readSet(r)
 
                     case 4 => // Plutus data
-                        plutusData = r.read[KeepRaw[TaggedSet[Data]]]()
+                        plutusData = r.read[KeepRaw[TaggedSet[KeepRaw[Data]]]]()
 
                     case 5 => // Redeemers
                         redeemers = Some(r.read[KeepRaw[Redeemers]]())

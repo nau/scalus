@@ -3,7 +3,7 @@ package scalus.cardano.ledger
 import io.bullet.borer.NullOptions.given
 import io.bullet.borer.derivation.ArrayBasedCodecs.*
 import io.bullet.borer.*
-import scalus.builtin.ByteString
+import scalus.builtin.{platform, ByteString, Data}
 import scalus.cardano.address.Address
 import scalus.utils.Hex.toHex
 import upickle.default.ReadWriter as UpickleReadWriter
@@ -348,6 +348,13 @@ object KeepRaw {
         // FIXME: use w.writeValueAsRawBytes instead of re-encoding when it's supported:
         // https://github.com/sirthias/borer/issues/764
         summon[Encoder[A]].write(w, value.value)
+    }
+}
+
+extension (self: KeepRaw[Data]) {
+    def dataHash: DataHash = {
+        // We need to calculate the hash of the raw bytes, not the decoded data
+        Hash(platform.blake2b_256(ByteString.unsafeFromArray(self.raw)))
     }
 }
 

@@ -8,6 +8,19 @@ import java.nio.file.{Files, Path, Paths}
 class BlockDeserializationTest extends AnyFunSuite {
     private val blocksDir = Paths.get(s"./blocks")
 
+    test("evaluate block 11544748") {
+        val bytes = getClass.getResourceAsStream(s"/blocks/block-11544748.cbor").readAllBytes()
+        given OriginalCborByteArray = OriginalCborByteArray(bytes)
+        val block = readBlock(bytes).block
+        val txn = block.transactions.find(tx => tx.witnessSet.redeemers.nonEmpty).get
+        validateTransaction(txn)
+
+    }
+
+    private def validateTransaction(tx: Transaction): Unit = {
+        println(tx.witnessSet.redeemers)
+    }
+
     test("decode block 11544748") {
         readBlockFromResources(11544748)
     }
