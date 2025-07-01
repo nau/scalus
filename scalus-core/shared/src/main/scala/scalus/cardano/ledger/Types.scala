@@ -383,8 +383,7 @@ object Sized {
             val value = r.read[A]()
             val di = r.dataItem()
             val end = if di == DataItem.EndOfInput then r.input.cursor else r.cursor
-            val raw = summon[OriginalCborByteArray].slice(start.toInt, end.toInt)
-            Sized(value, raw.length)
+            Sized(value, end.toInt - start.toInt)
         }
 
     given [A: Encoder]: Encoder[Sized[A]] = (w: Writer, value: Sized[A]) => {
