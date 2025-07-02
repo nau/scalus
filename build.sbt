@@ -459,6 +459,10 @@ addCommandAlias(
   "scalus-bloxbean-cardano-client-lib/mimaReportBinaryIssues"
 )
 addCommandAlias(
+  "quick",
+  "scalafmtAll;scalafmtSbt;jvm/Test/compile;jvm/testQuick"
+)
+addCommandAlias(
   "precommit",
   "clean;docs/clean;scalusPluginTests/clean;scalafmtAll;scalafmtSbt;Test/compile;scalusPluginTests/Test/compile;test;docs/mdoc"
 )
@@ -482,6 +486,7 @@ logo :=
 
 usefulTasks := Seq(
   UsefulTask("~compile", "Compile with file-watch enabled"),
+  UsefulTask("quick", "Format all, compile and quick test everything on JVM"),
   UsefulTask("precommit", "Format all, clean compile and test everything"),
   UsefulTask("ci", "Clean compile, check formatting and test everything"),
   UsefulTask("mima", "Check binary compatibility with the previous version using MiMa"),

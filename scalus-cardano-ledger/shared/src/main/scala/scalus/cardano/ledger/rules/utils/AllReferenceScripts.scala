@@ -2,7 +2,6 @@ package scalus.cardano.ledger
 package rules
 package utils
 
-import scalus.ledger.api.Timelock
 import scala.util.boundary
 import scala.util.boundary.break
 

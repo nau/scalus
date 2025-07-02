@@ -246,11 +246,7 @@ class NewTxEvaluator(
             log.debug(s"Script context: ${ctxData.toJson}")
 
         // Apply script arguments based on whether datum is present
-        datum match
-            case Some(datumData) =>
-                evalScript(redeemer, plutusV1VM, script, datumData, redeemer.data, ctxData)
-            case None =>
-                evalScript(redeemer, plutusV1VM, script, redeemer.data, ctxData)
+        evalScript(redeemer, plutusV1VM, script, datum.toSeq :+ redeemer.data :+ ctxData*)
     }
 
     /** Evaluate a Plutus V2 script with the V2 script context.
@@ -276,11 +272,7 @@ class NewTxEvaluator(
             log.debug(s"Script context: ${ctxData.toJson}")
 
         // Apply script arguments
-        datum match
-            case Some(datumData) =>
-                evalScript(redeemer, plutusV2VM, script, datumData, redeemer.data, ctxData)
-            case None =>
-                evalScript(redeemer, plutusV2VM, script, redeemer.data, ctxData)
+        evalScript(redeemer, plutusV2VM, script, datum.toSeq :+ redeemer.data :+ ctxData*)
     }
 
     /** Evaluate a Plutus V3 script with the V3 script context.
@@ -324,18 +316,12 @@ class NewTxEvaluator(
         script: ByteString,
         args: Data*
     ): Result = {
-        // Create budget from redeemer execution units
-        val budget = ExBudget.fromCpuAndMemory(
-          cpu = redeemer.exUnits.steps,
-          memory = redeemer.exUnits.memory
-        )
-
         // Parse UPLC program from CBOR
         val program = DeBruijnedProgram.fromCbor(script.bytes)
 
         // Apply arguments to the program
         val applied = args.foldLeft(program): (acc, arg) =>
-            acc $ Const(scalus.uplc.DefaultUni.asConstant(arg))
+            acc $ Const(Constant.Data(arg))
 
         // Optional debug dumping
         if debugDumpFilesForTesting then dumpScriptForDebugging(applied, redeemer)
@@ -343,11 +329,15 @@ class NewTxEvaluator(
         // Create budget spender based on evaluation mode
         val spender = mode match
             case EvaluatorMode.EVALUATE_AND_COMPUTE_COST => CountingBudgetSpender()
-            case EvaluatorMode.VALIDATE =>
+            case EvaluatorMode.VALIDATE                  =>
+                // Create budget from redeemer execution units
+                val budget = ExBudget.fromCpuAndMemory(
+                  cpu = redeemer.exUnits.steps,
+                  memory = redeemer.exUnits.memory
+                )
                 RestrictingBudgetSpenderWithScripDump(budget, debugDumpFilesForTesting)
 
         val logger = Log()
-
         // Execute the script
         try
             val resultTerm = vm.evaluateScript(applied, spender, logger)
@@ -373,19 +363,20 @@ class NewTxEvaluator(
       * This is the main evaluation orchestrator that:
       *   1. Extracts redeemers from the transaction
       *   2. Builds datum and script lookup tables
-      *   3. Optionally runs Phase 1 pre-validation
-      *   4. Evaluates each redeemer sequentially
-      *   5. Tracks total budget consumption
-      *   6. Returns all evaluated redeemers
+      *   3. Evaluates each redeemer sequentially
+      *   4. Tracks total budget consumption
+      *   5. Returns all evaluated redeemers
       */
     def evalPhaseTwo(
         tx: Transaction,
         utxos: Map[TransactionInput, TransactionOutput],
     ): collection.Seq[Redeemer] = {
-        val txHash = tx.id
-        log.debug(s"Starting Phase 2 evaluation for transaction: $txHash")
+        log.debug(s"Starting Phase 2 evaluation for transaction: ${tx.id}")
 
-        val redeemers = extractRedeemersFromWitnessSet(tx.witnessSet)
+        val redeemers = tx.witnessSet.redeemers
+            .getOrElse(throw new IllegalStateException("Transaction does not contain redeemers"))
+            .value
+            .toIndexedSeq // FIXME: should be sorted?
 
         // Build datum lookup table with hash mapping
         val datumsMapping = tx.witnessSet.plutusData.value.view.map { datum =>
@@ -403,8 +394,7 @@ class NewTxEvaluator(
         // Evaluate each redeemer
         var remainingBudget = initialBudget
         val evaluatedRedeemers = for redeemer <- redeemers yield
-            val evaluatedRedeemer =
-                evalRedeemer(tx, datumsMapping, utxos, redeemer, lookupTable)
+            val evaluatedRedeemer = evalRedeemer(tx, datumsMapping, utxos, redeemer, lookupTable)
 
             // Log execution unit differences for debugging
             if evaluatedRedeemer.exUnits != redeemer.exUnits then
@@ -426,12 +416,6 @@ class NewTxEvaluator(
     // These would need to be implemented based on the actual scalus.ledger.api structures
 
     // Helper methods
-
-    private def extractRedeemersFromWitnessSet(witnessSet: TransactionWitnessSet): Seq[Redeemer] = {
-        witnessSet.redeemers match
-            case Some(redeemers) => redeemers.value.toSeq // FIXME: sorted
-            case None            => Seq.empty // No redeemers present
-    }
 
     /** Extract all scripts from transaction and UTxOs.
       */
