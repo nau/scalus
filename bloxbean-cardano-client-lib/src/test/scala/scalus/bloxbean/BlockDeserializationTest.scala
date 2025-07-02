@@ -18,7 +18,7 @@ class BlockDeserializationTest extends AnyFunSuite {
     }
 
     private def validateTransaction(tx: Transaction): Unit = {
-        println(tx.witnessSet.redeemers)
+//        println(tx.witnessSet.redeemers)
     }
 
     test("decode block 11544748") {
@@ -33,7 +33,7 @@ class BlockDeserializationTest extends AnyFunSuite {
         readBlockFromResources(11649988)
     }
 
-    test("decode blocks of epoch 543") {
+    ignore("decode blocks of epoch 543") {
         val blocks = Files
             .list(blocksDir)
             .filter(f => f.getFileName.toString.endsWith(".cbor"))

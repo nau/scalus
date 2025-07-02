@@ -3,12 +3,12 @@ package scalus.cardano.ledger
 import com.bloxbean.cardano.client.plutus.spec.CostMdls
 import org.slf4j.LoggerFactory
 import scalus.bloxbean.Interop.translateMachineParamsFromCostMdls
-import scalus.bloxbean.{EvaluatorMode, SlotConfig, TxEvaluationException}
+import scalus.bloxbean.{EvaluatorMode, RestrictingBudgetSpenderWithScripDump, SlotConfig, TxEvaluationException}
 import scalus.builtin.Data.toData
 import scalus.builtin.{ByteString, Data}
 import scalus.cardano.address.*
 import scalus.cardano.ledger.*
-import scalus.cardano.ledger.LedgerToPlutusTranslation.{getScriptInfoV3, getScriptPurposeV1, getScriptPurposeV2, getTxInfoV1, getTxInfoV2, getTxInfoV3}
+import scalus.cardano.ledger.LedgerToPlutusTranslation.*
 import scalus.cardano.ledger.rules.utils.AllProvidedScripts
 import scalus.ledger
 import scalus.ledger.api
@@ -343,6 +343,8 @@ class NewTxEvaluator(
         // Create budget spender based on evaluation mode
         val spender = mode match
             case EvaluatorMode.EVALUATE_AND_COMPUTE_COST => CountingBudgetSpender()
+            case EvaluatorMode.VALIDATE =>
+                RestrictingBudgetSpenderWithScripDump(budget, debugDumpFilesForTesting)
 
         val logger = Log()
 

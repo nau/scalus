@@ -50,7 +50,7 @@ class HelloCardanoTest extends AnyFunSuite with ScalusTest {
           testName = "HelloCardanoTest.Hello Cardano",
           scalusBudget = scalusBudget,
           refBudget = ExBudget(ExCPU(9375627L), ExMemory(28554L)),
-          isPrintComparison = true
+          isPrintComparison = false
         )
     }
 }
