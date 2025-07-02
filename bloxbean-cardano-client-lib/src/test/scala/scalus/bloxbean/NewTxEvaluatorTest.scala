@@ -12,6 +12,7 @@ import scalus.cardano.address.ShelleyDelegationPart.Null
 import scalus.cardano.address.{Address, Network, ShelleyAddress, ShelleyPaymentPart}
 import scalus.cardano.ledger.*
 import scalus.examples.PubKeyValidator
+import scalus.ledger.api.MajorProtocolVersion
 import scalus.uplc.*
 import scalus.uplc.eval.ExBudget
 
@@ -28,7 +29,7 @@ class NewTxEvaluatorTest extends AnyFunSuite:
         val evaluator = NewTxEvaluator(
           SlotConfig.Mainnet,
           initialBudget = ExBudget.fromCpuAndMemory(10_000000000L, 10_000000L),
-          protocolMajorVersion = 10,
+          protocolMajorVersion = MajorProtocolVersion.plominPV,
           costMdls = costMdls
         )
         inline def requiredPubKeyHash =
@@ -64,7 +65,7 @@ class NewTxEvaluatorTest extends AnyFunSuite:
               outputs = Vector(
                 Sized(
                   TransactionOutput(
-                    address = Address.fromByteString(AddressBytes.fromBech32(addr)),
+                    address = Address.fromBech32(addr),
                     value = Value.lovelace(2)
                   )
                 )
@@ -74,7 +75,7 @@ class NewTxEvaluatorTest extends AnyFunSuite:
             )
           ),
           witnessSet = TransactionWitnessSet(
-            redeemers = Some(KeepRaw(Redeemers.Array(Vector(redeemer)))),
+            redeemers = Some(KeepRaw(Redeemers.from(Seq(redeemer)))),
             plutusV2Scripts = Set(s),
             plutusData = KeepRaw(TaggedSet(Set(KeepRaw(datum)))),
           ),

@@ -407,12 +407,12 @@ object LedgerToPlutusTranslation {
         validityStartSlot: Option[Long],
         ttl: Option[Long],
         slotConfig: SlotConfig,
-        protocolVersion: Int
+        protocolVersion: MajorProtocolVersion
     ): v1.Interval = {
         (validityStartSlot.getOrElse(0L), ttl.getOrElse(0L)) match
             case (0, 0) => v1.Interval.always
             case (0, validTo) =>
-                val closure = if protocolVersion > 8 then false else true
+                val closure = if protocolVersion.version > 8 then false else true
                 val upper = v1.IntervalBound(
                   v1.IntervalBoundType.Finite(BigInt(slotConfig.slotToTime(validTo))),
                   closure
@@ -626,7 +626,7 @@ object LedgerToPlutusTranslation {
         datums: collection.Seq[(ByteString, Data)],
         utxos: Map[TransactionInput, TransactionOutput],
         slotConfig: SlotConfig,
-        protocolVersion: Int
+        protocolVersion: MajorProtocolVersion
     ): v1.TxInfo = {
         val body = tx.body.value
 
@@ -659,7 +659,7 @@ object LedgerToPlutusTranslation {
         datums: collection.Seq[(ByteString, Data)],
         utxos: Map[TransactionInput, TransactionOutput],
         slotConfig: SlotConfig,
-        protocolVersion: Int
+        protocolVersion: MajorProtocolVersion
     ): v2.TxInfo = {
         val body = tx.body.value
         val redeemers =
@@ -713,7 +713,7 @@ object LedgerToPlutusTranslation {
         datums: collection.Seq[(ByteString, Data)],
         utxos: Map[TransactionInput, TransactionOutput],
         slotConfig: SlotConfig,
-        protocolVersion: Int
+        protocolVersion: MajorProtocolVersion
     ): v3.TxInfo = {
         val body = tx.body.value
         val redeemers =
@@ -1031,7 +1031,7 @@ object LedgerToPlutusTranslation {
         tx: Transaction,
         utxos: Map[TransactionInput, TransactionOutput],
         slotConfig: SlotConfig,
-        protocolVersion: Int
+        protocolVersion: MajorProtocolVersion
     ): v2.ScriptContext = {
         val purpose = getScriptPurposeV2(tx, redeemer)
         val datums = tx.witnessSet.plutusData.value.toIndexedSeq
@@ -1048,7 +1048,7 @@ object LedgerToPlutusTranslation {
         tx: Transaction,
         utxos: Map[TransactionInput, TransactionOutput],
         slotConfig: SlotConfig,
-        protocolVersion: Int
+        protocolVersion: MajorProtocolVersion
     ): v3.ScriptContext = {
         val scriptInfo = getScriptInfoV3(tx, redeemer, datum)
         val datums = tx.witnessSet.plutusData.value.toIndexedSeq

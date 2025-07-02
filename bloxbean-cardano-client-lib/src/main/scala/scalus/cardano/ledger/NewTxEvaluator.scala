@@ -13,7 +13,7 @@ import scalus.cardano.ledger.rules.utils.AllProvidedScripts
 import scalus.ledger
 import scalus.ledger.api
 import scalus.ledger.api.PlutusLedgerLanguage.*
-import scalus.ledger.api.{v1, v2, v3, PlutusLedgerLanguage}
+import scalus.ledger.api.{v1, v2, v3, MajorProtocolVersion, PlutusLedgerLanguage}
 import scalus.uplc.Term.Const
 import scalus.uplc.eval.*
 import scalus.uplc.{Constant, DeBruijnedProgram, Term}
@@ -24,7 +24,7 @@ import scala.collection.immutable
 class NewTxEvaluator(
     val slotConfig: SlotConfig,
     val initialBudget: ExBudget,
-    val protocolMajorVersion: Int,
+    val protocolMajorVersion: MajorProtocolVersion,
     val costMdls: CostMdls,
     val mode: EvaluatorMode = EvaluatorMode.EVALUATE_AND_COMPUTE_COST,
     val debugDumpFilesForTesting: Boolean = false
@@ -51,7 +51,7 @@ class NewTxEvaluator(
           translateMachineParamsFromCostMdls(
             costMdls,
             PlutusV1,
-            api.MajorProtocolVersion(protocolMajorVersion)
+            protocolMajorVersion
           )
         )
 
@@ -60,7 +60,7 @@ class NewTxEvaluator(
           translateMachineParamsFromCostMdls(
             costMdls,
             PlutusV2,
-            api.MajorProtocolVersion(protocolMajorVersion)
+            protocolMajorVersion
           )
         )
 
@@ -69,7 +69,7 @@ class NewTxEvaluator(
           translateMachineParamsFromCostMdls(
             costMdls,
             PlutusV3,
-            api.MajorProtocolVersion(protocolMajorVersion)
+            protocolMajorVersion
           )
         )
 

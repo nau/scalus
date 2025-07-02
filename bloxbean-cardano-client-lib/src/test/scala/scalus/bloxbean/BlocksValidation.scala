@@ -68,6 +68,7 @@ object BlocksValidation:
           )
         )
         val protocolParams = backendService.getEpochService.getProtocolParameters(epoch).getValue
+        val utxoResolver = UtxoResolver(utxoSupplier, scriptSupplier)
         val evaluator = ScalusTransactionEvaluator(
           SlotConfig.Mainnet,
           protocolParams,
@@ -94,7 +95,7 @@ object BlocksValidation:
                 ]
                 for BlockTx(tx, datums, txhash) <- txs do
                     try
-                        val utxos = evaluator.resolveUtxos(tx, util.Set.of())
+                        val utxos = utxoResolver.resolveUtxos(tx)
                         val scripts = TxEvaluator.getAllResolvedScripts(tx, utxos)
                         if scripts.nonEmpty then r.addOne((tx, datums, txhash, scripts))
                     catch
