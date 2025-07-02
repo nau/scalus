@@ -682,7 +682,7 @@ object LedgerToPlutusTranslation {
                 .map(hash => v1.PubKeyHash(hash))
           ),
           redeemers = AssocMap(prelude.List.from(redeemers.sorted.map { redeemer =>
-              val purpose = getScriptPurposeV2(redeemer, tx)
+              val purpose = getScriptPurposeV2(tx, redeemer)
               purpose -> redeemer.data
           })),
           data = AssocMap(prelude.List.from(datums.sortBy(_._1.toHex))),
@@ -761,7 +761,7 @@ object LedgerToPlutusTranslation {
 
     /** Get script purpose for Plutus V1/V2 contexts from redeemer.
       */
-    def getScriptPurposeV1(redeemer: Redeemer, tx: Transaction): v1.ScriptPurpose = {
+    def getScriptPurposeV1(tx: Transaction, redeemer: Redeemer): v1.ScriptPurpose = {
         val body = tx.body.value
         val index = redeemer.index
 
@@ -803,8 +803,8 @@ object LedgerToPlutusTranslation {
                 )
     }
 
-    def getScriptPurposeV2(redeemer: Redeemer, tx: Transaction): v1.ScriptPurpose = {
-        getScriptPurposeV1(redeemer, tx)
+    def getScriptPurposeV2(tx: Transaction, redeemer: Redeemer): v1.ScriptPurpose = {
+        getScriptPurposeV1(tx, redeemer)
     }
 
     /** Get script purpose for Plutus V3 contexts from redeemer.
@@ -1033,7 +1033,7 @@ object LedgerToPlutusTranslation {
         slotConfig: SlotConfig,
         protocolVersion: Int
     ): v2.ScriptContext = {
-        val purpose = getScriptPurposeV2(redeemer, tx)
+        val purpose = getScriptPurposeV2(tx, redeemer)
         val datums = tx.witnessSet.plutusData.value.toIndexedSeq
             .map(r => r.dataHash -> r.value)
         val txInfo = getTxInfoV2(tx, datums, utxos, slotConfig, protocolVersion)

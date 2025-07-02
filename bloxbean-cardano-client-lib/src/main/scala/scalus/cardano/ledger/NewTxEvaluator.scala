@@ -8,6 +8,7 @@ import scalus.builtin.Data.toData
 import scalus.builtin.{ByteString, Data}
 import scalus.cardano.address.*
 import scalus.cardano.ledger.*
+import scalus.cardano.ledger.LedgerToPlutusTranslation.{getScriptInfoV3, getScriptPurposeV1, getScriptPurposeV2, getTxInfoV1, getTxInfoV2, getTxInfoV3}
 import scalus.cardano.ledger.rules.utils.AllProvidedScripts
 import scalus.ledger
 import scalus.ledger.api
@@ -126,7 +127,9 @@ class NewTxEvaluator(
         val inputs = tx.body.value.inputs.toArray // FIXME sorted
 
         if !inputs.isDefinedAt(index) then
-            throw new IllegalStateException(s"Input not found: $index in $inputs")
+            throw new IllegalStateException(
+              s"Input not found: $index in ${inputs.mkString("[", ", ", "]")}"
+            )
 
         val input = inputs(index)
         val output = utxos.getOrElse(
@@ -231,8 +234,8 @@ class NewTxEvaluator(
         datum: Option[Data]
     ): Result = {
         // Build V1 script context
-        val txInfoV1 = buildTxInfoV1(tx, datums, utxos)
-        val purpose = buildScriptPurposeV1(redeemer, tx)
+        val txInfoV1 = getTxInfoV1(tx, datums, utxos, slotConfig, protocolMajorVersion)
+        val purpose = getScriptPurposeV1(tx, redeemer)
         val scriptContext = v1.ScriptContext(txInfoV1, purpose)
         val ctxData = scriptContext.toData
 
@@ -261,8 +264,8 @@ class NewTxEvaluator(
         datum: Option[Data]
     ): Result = {
         // Build V2 script context
-        val txInfoV2 = buildTxInfoV2(tx, datums, utxos)
-        val purpose = buildScriptPurposeV2(redeemer, tx)
+        val txInfoV2 = getTxInfoV2(tx, datums, utxos, slotConfig, protocolMajorVersion)
+        val purpose = getScriptPurposeV2(tx, redeemer)
         val scriptContext = v2.ScriptContext(txInfoV2, purpose)
         val ctxData = scriptContext.toData
 
@@ -291,8 +294,8 @@ class NewTxEvaluator(
         datum: Option[Data]
     ): Result = {
         // Build V3 script context
-        val txInfoV3 = buildTxInfoV3(tx, datums, utxos)
-        val scriptInfo = buildScriptInfoV3(tx, redeemer, datum)
+        val txInfoV3 = getTxInfoV3(tx, datums, utxos, slotConfig, protocolMajorVersion)
+        val scriptInfo = getScriptInfoV3(tx, redeemer, datum)
         val scriptContext = v3.ScriptContext(txInfoV3, redeemer.data, scriptInfo)
         val ctxData = scriptContext.toData
 
@@ -419,46 +422,6 @@ class NewTxEvaluator(
 
     // Placeholder methods for building script contexts and purposes
     // These would need to be implemented based on the actual scalus.ledger.api structures
-
-    private def buildTxInfoV1(
-        tx: Transaction,
-        datums: collection.Seq[(ByteString, Data)],
-        utxos: Map[TransactionInput, TransactionOutput]
-    ): v1.TxInfo = {
-        ??? // TODO: Implement V1 TxInfo construction
-    }
-
-    private def buildTxInfoV2(
-        tx: Transaction,
-        datums: collection.Seq[(ByteString, Data)],
-        utxos: Map[TransactionInput, TransactionOutput]
-    ): v2.TxInfo = {
-        LedgerToPlutusTranslation.getTxInfoV2(tx, datums, utxos, slotConfig, protocolMajorVersion)
-    }
-
-    private def buildTxInfoV3(
-        tx: Transaction,
-        datums: collection.Seq[(ByteString, Data)],
-        utxos: Map[TransactionInput, TransactionOutput]
-    ): v3.TxInfo = {
-        ??? // TODO: Implement V3 TxInfo construction
-    }
-
-    private def buildScriptPurposeV1(redeemer: Redeemer, tx: Transaction): v1.ScriptPurpose = {
-        ??? // TODO: Implement V1 ScriptPurpose construction
-    }
-
-    private def buildScriptPurposeV2(redeemer: Redeemer, tx: Transaction): v2.ScriptPurpose = {
-        LedgerToPlutusTranslation.getScriptPurposeV2(redeemer, tx)
-    }
-
-    private def buildScriptInfoV3(
-        tx: Transaction,
-        redeemer: Redeemer,
-        datum: Option[Data]
-    ): v3.ScriptInfo = {
-        ??? // TODO: Implement V3 ScriptInfo construction
-    }
 
     // Helper methods
 
