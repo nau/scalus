@@ -3,6 +3,7 @@ package rules
 
 // inputs and refInputs are disjoint, in Conway and later Eras
 // It's Babbage.disjointRefInputs in cardano-ledger
+// {- inputs ∩ refInputs = ∅ -}
 object InputsAndReferenceInputsDisjointValidator extends STS.Validator {
     override def validate(context: Context, state: State, event: Event): Result = {
 //        ( pvMajor (pp ^. ppProtocolVersionL) > eraProtVerHigh @BabbageEra
