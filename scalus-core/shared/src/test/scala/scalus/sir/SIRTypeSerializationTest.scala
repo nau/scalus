@@ -13,7 +13,16 @@ class SIRTypeSerializationTest extends AnyFunSuite {
         import scalus.flat.*
         val bitSize = ToExprHSSIRFlat.bitSize(sir)
         val encoded = EncoderState(bitSize / 8 + 1)
-        ToExprHSSIRFlat.encode(sir, encoded)
+        try ToExprHSSIRFlat.encode(sir, encoded)
+        catch
+            case e @ ToExprHSSIRFlat.SelfCheckException(msg, origin, decoded, path, l, r) =>
+                println(s"Error encoding SIR: ${msg}")
+                println(s"Origin SIR: ${origin.pretty.render(100)}")
+                println(s"Decoded SIR: ${decoded.pretty.render(100)}")
+                println(s"Path: ${path}")
+                println(s"Left: ${l}")
+                println(s"Right: ${r}")
+                throw e
         val decoded = ToExprHSSIRFlat.decode(DecoderState(encoded.buffer))
         decoded
     }
@@ -75,12 +84,11 @@ class SIRTypeSerializationTest extends AnyFunSuite {
             )
             txInfo
         }
-        // println(s"sir=${sir}")
         // println(sir.pretty.render(100))
         // println(s"sir.tp=${sir.tp.show}")
         val txInfoSIRType = sir.tp match
-            case SIRType.Fun(u, tp) if u == SIRType.Unit => tp
-            case _                                       => fail(s"unexpected type ${sir.tp.show}")
+            case SIRType.Fun(SIRType.Unit, tp) => tp
+            case _ => fail(s"expected function type, we have ${sir.tp.show}")
         val constrDecl = txInfoSIRType match
             case SIRType.CaseClass(constrDecl, typeArgs, _) => constrDecl
             case SIRType.SumCaseClass(dataDecl, typeArgs) =>
@@ -136,10 +144,10 @@ class SIRTypeSerializationTest extends AnyFunSuite {
         assert(params1(8).name == "signatories")
 
         val sir2 = encodeDecodeSIR(sir)
-        val tpF2 = sir2.tp
-        val tp2 = tpF2 match
-            case SIRType.Fun(u, tp) if u == SIRType.Unit => tp
-            case _                                       => fail(s"unexpected type ${tpF2.show}")
+        val tp2 = sir2.tp match {
+            case SIRType.Fun(SIRType.Unit, tp) => tp
+            case _ => fail(s"expected function type, we have ${sir2.tp.show}")
+        }
         val constrDecl2 = tp2 match
             case SIRType.CaseClass(constrDecl, typeArgs, _) => constrDecl
             case SIRType.SumCaseClass(dataDecl, typeArgs) =>

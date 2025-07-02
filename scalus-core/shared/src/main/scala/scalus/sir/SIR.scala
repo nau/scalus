@@ -206,17 +206,11 @@ object SIR:
 
     case class Var(name: String, tp: SIRType, anns: AnnotationsDecl) extends AnnotatedSIR {
 
-        if name == "scalus.prelude.AssocMap$.empty" && !SIRType.isPolyFunOrFun(tp) then
-            throw new RuntimeException("catch incorrect name")
-
         override def toString: String = s"Var($name, ${tp.show})"
     }
 
     case class ExternalVar(moduleName: String, name: String, tp: SIRType, anns: AnnotationsDecl)
         extends AnnotatedSIR {
-
-        if name == "scalus.prelude.AssocMap$.empty" && !SIRType.isPolyFunOrFun(tp) then
-            throw new RuntimeException("catch incorrect name")
 
         override def toString: String = s"ExternalVar($moduleName, $name, ${tp.show})"
 

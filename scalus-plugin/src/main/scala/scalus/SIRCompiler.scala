@@ -2143,7 +2143,13 @@ final class SIRCompiler(options: SIRCompilerOptions = SIRCompilerOptions.default
                     else expr
                 val term = compileExpr(env, expr1)
                 val tp = sirTypeInEnv(tpTree.tpe, tree.srcPos, env)
-                SIR.Cast(term, tp, AnnotationsDecl.fromSrcPos(tree.srcPos))
+                if expr.tpe.widen =:= tpTree.tpe.widen then term
+                else
+                    if env.debug then
+                        println(
+                          s"Typed: ${expr.show} with type ${expr.tpe.show} to ${tpTree.tpe.show} (${tp.show})"
+                        )
+                    SIR.Cast(term, tp, AnnotationsDecl.fromSrcPos(tree.srcPos))
             case Inlined(_, bindings, expr) =>
                 val r = compileBlock(env, bindings, expr)
                 // val t = r.asTerm.show

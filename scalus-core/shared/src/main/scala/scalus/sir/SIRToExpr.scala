@@ -96,6 +96,15 @@ given ToExprHS[SIRType] = SIRTypeToExpr
   */
 object ToExprHSSIRFlat extends HashConsedFlat[SIR] {
 
+    case class SelfCheckException(
+        msg: String,
+        originSir: SIR,
+        decodedSir: SIR,
+        path: List[String],
+        left: Any,
+        right: Any
+    ) extends RuntimeException(msg)
+
     val paranoid = true
 
     override def bitSizeHC(a: SIR, encoderState: HashConsed.State): Int = {
@@ -116,11 +125,17 @@ object ToExprHSSIRFlat extends HashConsedFlat[SIR] {
             val ref = SIRHashConsedFlat.decodeHC(decoderState)
             val sir1 = ref.finValue(decoderState.hashConsed, 0, new HSRIdentityHashMap)
             decoderState.runFinCallbacks()
-            if !a.~=~(sir1) then {
-                println("unification for encoding/decoding failed")
-                println(s"original: ${a}")
-                println(s"decoded: ${sir1}")
-                throw new IllegalStateException("unification for encoding/decoding failed")
+            SIRUnify.unifySIR(a, sir1, SIRUnify.Env.empty) match {
+                case SIRUnify.UnificationSuccess(_, _) =>
+                case SIRUnify.UnificationFailure(path, left, right) =>
+                    throw new SelfCheckException(
+                      "unification for encoding/decoding failed",
+                      a,
+                      sir1,
+                      path,
+                      left,
+                      right
+                    )
             }
         }
     }

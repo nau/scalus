@@ -299,7 +299,19 @@ object SIRUnify {
                                         )
                                     case failure @ UnificationFailure(path, left, right) =>
                                         failure
-                            case failure @ UnificationFailure(path, left, right) => failure
+                            case failure: UnificationFailure[?] => failure
+                    case failure @ UnificationFailure(path, left, right) => failure
+            case (cLeft: SIR.Cast, cRight: SIR.Cast) =>
+                unifySIRExpr(cLeft.term, cRight.term, env.copy(path = "term" :: env.path)) match
+                    case UnificationSuccess(env1, term) =>
+                        unifyType(cLeft.tp, cRight.tp, env1.copy(path = "tp" :: env.path)) match
+                            case UnificationSuccess(env2, tp) =>
+                                UnificationSuccess(
+                                  env2.copy(path = env.path),
+                                  SIR.Cast(term, tp, cLeft.anns)
+                                )
+                            case failure @ UnificationFailure(path, left, right) =>
+                                failure
                     case failure @ UnificationFailure(path, left, right) => failure
             case _ =>
                 UnificationFailure(env.path, left, right)

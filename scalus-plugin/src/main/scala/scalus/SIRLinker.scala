@@ -154,6 +154,8 @@ class SIRLinker(options: SIRLinkerOptions)(using ctx: Context) {
         case SIR.Select(scrutinee, field, tp, anns) =>
             val nScrutinee = traverseAndLink(scrutinee, srcPos)
             SIR.Select(nScrutinee, field, tp, anns)
+        case SIR.Cast(term, tp, anns) =>
+            SIR.Cast(traverseAndLinkExpr(term, srcPos), tp, anns)
         case other => other
 
     private def findAndLinkDefinition(
