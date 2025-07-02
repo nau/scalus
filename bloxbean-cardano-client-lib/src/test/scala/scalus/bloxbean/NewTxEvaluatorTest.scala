@@ -44,7 +44,7 @@ class NewTxEvaluatorTest extends AnyFunSuite:
         val addr =
             "addr1qxwg0u9fpl8dac9rkramkcgzerjsfdlqgkw0q8hy5vwk8tzk5pgcmdpe5jeh92guy4mke4zdmagv228nucldzxv95clqe35r3m"
         val utxo = Map(
-          input -> TransactionOutput.Shelley(
+          input -> TransactionOutput(
             address = Address.Shelley(
               ShelleyAddress(
                 Network.Mainnet,
@@ -52,7 +52,7 @@ class NewTxEvaluatorTest extends AnyFunSuite:
                 delegation = Null
               ),
             ),
-            datumHash = Some(dataHash),
+            datumOption = Some(DatumOption.Hash(dataHash)),
             value = Value.lovelace(2)
           )
         )
@@ -63,7 +63,7 @@ class NewTxEvaluatorTest extends AnyFunSuite:
               inputs = Set(input),
               outputs = Vector(
                 Sized(
-                  TransactionOutput.Shelley(
+                  TransactionOutput(
                     address = Address.fromByteString(AddressBytes.fromBech32(addr)),
                     value = Value.lovelace(2)
                   )
