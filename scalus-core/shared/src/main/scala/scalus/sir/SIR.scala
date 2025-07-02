@@ -205,11 +205,18 @@ object SIR:
     //  Var(x,  TypeRef(1))
 
     case class Var(name: String, tp: SIRType, anns: AnnotationsDecl) extends AnnotatedSIR {
+
+        if name == "scalus.prelude.AssocMap$.empty" && !SIRType.isPolyFunOrFun(tp) then
+            throw new RuntimeException("catch incorrect name")
+
         override def toString: String = s"Var($name, ${tp.show})"
     }
 
     case class ExternalVar(moduleName: String, name: String, tp: SIRType, anns: AnnotationsDecl)
         extends AnnotatedSIR {
+
+        if name == "scalus.prelude.AssocMap$.empty" && !SIRType.isPolyFunOrFun(tp) then
+            throw new RuntimeException("catch incorrect name")
 
         override def toString: String = s"ExternalVar($moduleName, $name, ${tp.show})"
 
@@ -348,6 +355,8 @@ object SIR:
     case class Match(scrutinee: AnnotatedSIR, cases: List[Case], tp: SIRType, anns: AnnotationsDecl)
         extends AnnotatedSIR
 
+    case class Cast(term: AnnotatedSIR, tp: SIRType, anns: AnnotationsDecl) extends AnnotatedSIR
+
     case class Decl(data: DataDecl, term: SIR) extends SIR {
 
         override def tp: SIRType = term.tp
@@ -435,6 +444,9 @@ object SIRChecker {
                   anns,
                   throwOnFirst
                 )
+            case SIR.Cast(term, tp, anns) =>
+                checkSIR(term, throwOnFirst) ++ checkType(tp, throwOnFirst) ++
+                    checkAnnotations(anns, throwOnFirst)
             case SIR.Decl(data, term) =>
                 checkData(data, throwOnFirst) ++ checkSIR(term, throwOnFirst)
         }

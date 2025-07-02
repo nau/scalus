@@ -1,5 +1,7 @@
 package scalus
 
+import scala.annotation.unused
+
 import dotty.tools.dotc.*
 import dotty.tools.dotc.core.*
 import dotty.tools.dotc.core.Contexts.Context
@@ -327,7 +329,7 @@ class SIRTyper(using Context) {
     }
 
     private def tryMakeCaseClassOrCaseParent(
-        originType: Type,
+        @unused originType: Type,
         typeSymbol: Symbol,
         tpArgs: List[SIRType],
         env: SIRTypeEnv
@@ -347,7 +349,7 @@ class SIRTyper(using Context) {
 
     private def tryMakeFunctionalInterface(
         originType: Type,
-        typeSymbol: Symbol,
+        @unused typeSymbol: Symbol,
         env: SIRTypeEnv
     ): Option[SIRType] = {
         if originType <:< Symbols.requiredClassRef("scalus.CompileDerivations")

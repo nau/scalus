@@ -604,6 +604,18 @@ object SIRUnify {
                 UnificationFailure(env.path, left, right)
     }
 
+    /** return sequence, where the first element is the child type, the next elewent is the parent
+      * typeof child (if exists) with free type arguments (because we don't track
+      * covariance/contravariance in SIRType, so depeendencing can be any, and this up to
+      * parentCandidate.)
+      *
+      * (Nil, List[Int]) => List(Nil, List[FreeUnificator])
+      *
+      * @param childCandidate
+      * @param parentCandidate
+      * @param env0
+      * @return
+      */
     def subtypeSeq(childCandidate: SIRType, parentCandidate: SIRType, env0: Env): List[SIRType] = {
 
         @tailrec
@@ -673,10 +685,14 @@ object SIRUnify {
             case (p1: SIRType.Primitive, _) => List.empty
             case (_, p2: SIRType.Primitive) => List.empty
             case (cc1: SIRType.CaseClass, cc2: SIRType.CaseClass) =>
-                unifyType(cc1, cc2, env.withoutUpcasting) match
-                    case UnificationSuccess(_, _) =>
-                        List(cc1)
-                    case UnificationFailure(_, _, _) =>
+                unifyConstrDecl(cc1.constrDecl, cc2.constrDecl, env) match
+                    case UnificationSuccess(env, cc) =>
+                        // we don't want introduce of contrvairance/covariance here, so we just change typeargd
+                        // to FreeUnificator
+                        val freeTypeArgs = cc.typeParams.map(v => (v, SIRType.FreeUnificator)).toMap
+                        val u = SIRType.substitute(cc1, freeTypeArgs, Map.empty)
+                        List(u)
+                    case UnificationFailure(path, l, r) =>
                         List.empty
             case (cc1: SIRType.CaseClass, cc2: SIRType.SumCaseClass) =>
                 cc1.parent match
@@ -691,9 +707,20 @@ object SIRUnify {
             case (ccLeft: SIRType.SumCaseClass, tlRight: SIRType.CaseClass) =>
                 List.empty
             case (ccLeft: SIRType.SumCaseClass, ccRight: SIRType.SumCaseClass) =>
-                unifyType(ccLeft, ccRight, env.withoutUpcasting) match
-                    case UnificationSuccess(_, _) =>
-                        List(ccLeft)
+                unifyDataDecl(ccLeft.decl, ccRight.decl, env) match
+                    case UnificationSuccess(env, decl1) =>
+                        val freeTypeArgs =
+                            decl1.typeParams.map(v => (v, SIRType.FreeUnificator)).toMap
+                        val rt = decl1.tp match
+                            case sm: SIRType.SumCaseClass =>
+                                sm
+                            case tpl: SIRType.TypeLambda =>
+                                SIRType.substitute(tpl.body, freeTypeArgs, Map.empty)
+                            case other =>
+                                throw IllegalStateException(
+                                  s"type of decl can be only SumCaseClass or TypeLambda, we have ${other.show}"
+                                )
+                        List(rt)
                     case UnificationFailure(_, _, _) =>
                         val childName = SIRType.syntheticNarrowConstrDeclName(ccLeft.decl.name)
                         val decls = findChildConstrForSum(ccRight.decl, childName)
@@ -701,13 +728,35 @@ object SIRUnify {
                         else {
                             val headDecl = decls.head
                             unifyType(ccLeft, headDecl.tp, env.withoutUpcasting) match
-                                case UnificationSuccess(env, ccLeft1) =>
+                                case UnificationSuccess(env1, ccLeft1) =>
                                     // here is approximation,
-                                    // TODO:  track type arguments.
+                                    // types will be type-labda, mb substirute types with free unificator
                                     ccLeft1 :: decls.tail.map(d => d.tp)
-                                case UnificationFailure(_, _, _) =>
+                                case UnificationFailure(path, l, r) =>
+                                    if env.debug then
+                                        println(
+                                          s"subtypeSeq: UnificationFailure for ${ccLeft.decl.name} and ${ccRight.decl.name}"
+                                        )
                                     List.empty
                         }
+
+                // unifyType(ccLeft, ccRight, env.withoutUpcasting) match
+                //    case UnificationSuccess(_, _) =>
+                //        List(ccLeft)
+                //    case UnificationFailure(_, _, _) =>
+                //        val childName = SIRType.syntheticNarrowConstrDeclName(ccLeft.decl.name)
+                //        val decls = findChildConstrForSum(ccRight.decl, childName)
+                //        if decls.isEmpty then List.empty
+                //        else {
+                //            val headDecl = decls.head
+                //            unifyType(ccLeft, headDecl.tp, env.withoutUpcasting) match
+                //                case UnificationSuccess(env, ccLeft1) =>
+                //                    // here is approximation,
+                //                    // TODO:  track type arguments.
+                //                    ccLeft1 :: decls.tail.map(d => d.tp)
+                //                case UnificationFailure(_, _, _) =>
+                //                    List.empty
+                //        }
             case (SIRType.Fun(inLeft, outLeft), SIRType.Fun(inRight, outRight)) =>
                 // TODO: add covariance/contravariance to env upcasting.
                 unifyType(inLeft, inRight, env.withoutUpcasting) match

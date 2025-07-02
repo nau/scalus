@@ -179,7 +179,8 @@ object LoweredValueRepresentation {
             case SIRType.TypeLambda(params, body) =>
                 constRepresentation(body)
             case SIRType.Integer | SIRType.Data | SIRType.ByteString | SIRType.String |
-                SIRType.Boolean | SIRType.Unit =>
+                SIRType.Boolean | SIRType.Unit | SIRType.BLS12_381_G1_Element |
+                SIRType.BLS12_381_G2_Element | SIRType.BLS12_381_MlResult =>
                 PrimitiveRepresentation.Constant
             case SIRType.Fun(in, out) =>
                 val inRepresentation = lc.typeGenerator(in).defaultRepresentation(in)
@@ -187,7 +188,7 @@ object LoweredValueRepresentation {
                 LambdaRepresentation(inRepresentation, outRepresentation)
             case tv @ SIRType.TypeVar(_, _, isBuiltin) =>
                 // for now we don't allow pass variables to type-lambda.
-                lc.typeVars.get(tv) match
+                lc.typeUnifyEnv.filledTypes.get(tv) match
                     case Some(tp) => constRepresentation(tp)
                     case None =>
                         TypeVarRepresentation(isBuiltin)
@@ -196,6 +197,13 @@ object LoweredValueRepresentation {
             case SIRType.TypeProxy(ref) =>
                 constRepresentation(ref)
             case SIRType.TypeNothing => ErrorRepresentation
+            case SIRType.TypeProxy(ref) =>
+                constRepresentation(ref)
+            case SIRType.TypeNonCaseModule(name) =>
+                throw LoweringException(
+                  "TypeNonCaseModule is not supported in lowered value representation",
+                  SIRPosition.empty
+                )
     }
 
 }

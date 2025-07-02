@@ -318,3 +318,4 @@ class SirToUplc110Lowering(sir: SIR, generateErrorTraces: Boolean = false):
                       Constant.String(msg)
                     ) $ ~Term.Error)
                 else Term.Error
+            case SIR.Cast(term, tp, anns) => lowerInner(term)

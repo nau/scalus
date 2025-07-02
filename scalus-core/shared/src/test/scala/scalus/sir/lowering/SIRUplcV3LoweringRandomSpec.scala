@@ -24,7 +24,7 @@ object SIRUplcV3LoweringRandomSpec {
 inline given scalus.Compiler.Options = scalus.Compiler.Options(
   targetLoweringBackend = scalus.Compiler.TargetLoweringBackend.SirToUplcV3Lowering,
   generateErrorTraces = true,
-  optimizeUplc = true,
+  optimizeUplc = false,
   debug = true
 )
 

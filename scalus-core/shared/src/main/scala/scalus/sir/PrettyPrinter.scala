@@ -243,6 +243,8 @@ object PrettyPrinter:
                     )).grouped).aligned
             case Builtin(bn, _, _) => pretty(bn).styled(Fg.colorCode(176))
             case Error(msg, _, _)  => text(s"ERROR '$msg'").styled(Fg.colorCode(124))
+            case Cast(expr, tp, anns) =>
+                (kw("cast") & pretty(expr, style) + char(':') & typ(pretty(tp))).grouped.aligned
 
     def pretty(sirType: SIRType): Doc =
         sirType match

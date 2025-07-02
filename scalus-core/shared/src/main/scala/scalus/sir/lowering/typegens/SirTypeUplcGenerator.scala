@@ -96,8 +96,10 @@ object SirTypeUplcGenerator {
                     then
                         if hasFun then SumCaseUplcOnlySirTypeGenerator
                         else SumDataListSirTypeGenerator
-                    else if hasFun then ProductCaseUplcOnlySirTypeGenerator
-                    else ProductCaseSirTypeGenerator
+                    else if hasFun then {
+                        println(s"hasFun for: ${constrDecl}")
+                        ProductCaseUplcOnlySirTypeGenerator
+                    } else ProductCaseSirTypeGenerator
             case SIRType.TypeLambda(_, body) =>
                 SirTypeUplcGenerator(body)
             case SIRType.TypeProxy(ref) =>

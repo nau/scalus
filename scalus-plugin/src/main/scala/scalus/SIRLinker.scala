@@ -11,7 +11,8 @@ import scala.collection.mutable
 import scalus.sir.SIRVersion
 
 case class SIRLinkerOptions(
-    useUniversalDataConversion: Boolean = false
+    useUniversalDataConversion: Boolean,
+    debugLevel: Int
 )
 
 /** Links SIR definitions and data declarations into a single SIR module.
@@ -39,6 +40,8 @@ class SIRLinker(options: SIRLinkerOptions)(using ctx: Context) {
     }
 
     def link(sir: SIR, srcPos: SrcPos): SIR = {
+        if options.debugLevel > 1 then
+            println(s"Linking SIR at ${srcPos.sourcePos.source}:${srcPos.line}, options=$options")
         val processed = traverseAndLink(sir, srcPos)
         val full: SIR = globalDefs.values.foldRight(processed) {
             case (CompileDef.Compiled(b), acc) =>
@@ -114,7 +117,13 @@ class SIRLinker(options: SIRLinkerOptions)(using ctx: Context) {
                                       AnnotationsDecl.empty.copy(pos = f.anns.pos)
                                     )
                                 case None =>
-                                    f
+                                    f match
+                                        case SIR.ExternalVar(moduleName, name, tp, anns) =>
+                                            if name == "scalus.ledger.api.v3.ScriptContext$.given_FromData_ScriptContext(scData)"
+                                            then throw RuntimeException("qqqq")
+                                            else f
+                                        case _ =>
+                                            f
                 else f
             val nF = traverseAndLinkExpr(fReplaced, srcPos)
             val nArg = traverseAndLinkExpr(arg, srcPos)

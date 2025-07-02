@@ -7,7 +7,6 @@ import scalus.uplc.*
 import scalus.uplc.DefaultFun.*
 import scalus.uplc.Term.*
 
-import java.util.function.BooleanSupplier
 import scala.annotation.tailrec
 import scala.collection.mutable.HashMap
 
@@ -318,7 +317,8 @@ class SimpleSirToUplcV3Lowering(sir: SIR, generateErrorTraces: Boolean = false):
                 !(builtinTerms(IfThenElse) $ lowerInner(cond) $ ~lowerInner(
                   t
                 ) $ ~lowerInner(f))
-            case SIR.Builtin(bn, _, _) => builtinTerms(bn)
+            case SIR.Cast(term, tp, anns) => lowerInner(term)
+            case SIR.Builtin(bn, _, _)    => builtinTerms(bn)
             case SIR.Error(msg, _, _) =>
                 if generateErrorTraces
                 then

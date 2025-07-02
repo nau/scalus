@@ -5,6 +5,7 @@ import scalus.uplc.TypeScheme as UplcTypeScheme
 import scalus.sir.SIRType.TypeVar
 
 import java.util
+import scala.annotation.tailrec
 
 sealed trait SIRType {
 
@@ -167,7 +168,7 @@ object SIRType {
     case class TypeVar(name: String, optId: Option[Long] = None, isBuiltin: Boolean)
         extends SIRType {
 
-        override def show: String = name
+        override def show: String = s"${name}#${optId.getOrElse(0L)}"
 
         def :=>>(body: SIRType): TypeLambda = TypeLambda(scala.List(this), body)
 
@@ -387,6 +388,29 @@ object SIRType {
             }
     }
 
+    def collectPolyOrFun(tp: SIRType): Option[(scala.List[TypeVar], SIRType, SIRType)] = {
+
+        @tailrec
+        def collect(
+            tp: SIRType,
+            acc: scala.List[TypeVar]
+        ): Option[(scala.List[TypeVar], SIRType, SIRType)] = {
+            tp match {
+                case SIRType.Fun(in, out) =>
+                    Some((acc, in, out))
+                case SIRType.TypeLambda(params, body) =>
+                    collect(body, acc ++ params)
+                case SIRType.TypeProxy(ref) =>
+                    collect(ref, acc)
+                case _ =>
+                    None
+            }
+        }
+
+        collect(tp, scala.List.empty)
+
+    }
+
     @scala.annotation.tailrec
     def isSum(tp: SIRType): Boolean = {
         tp match {
@@ -399,6 +423,7 @@ object SIRType {
         }
     }
 
+    @tailrec
     def isProd(tp: SIRType): Boolean = {
         tp match {
             case SIRType.CaseClass(_, _, _)  => true
@@ -419,6 +444,7 @@ object SIRType {
       * @param trace - trace for recursive entries
       * @return
       */
+    @tailrec
     def isPolyFunOrFunUnit(
         tp: SIRType,
         trace: java.util.IdentityHashMap[SIRType, SIRType] = new util.IdentityHashMap()
@@ -438,6 +464,7 @@ object SIRType {
     case class TypeApplyException(msg: String, cause: Throwable | Null = null)
         extends RuntimeException(msg, cause)
 
+    @tailrec
     def typeApply(tpl: SIRType, args: List[SIRType]): SIRType =
         if args.isEmpty then tpl
         else
@@ -466,6 +493,18 @@ object SIRType {
         arg: SIRType,
         env: Map[TypeVar, SIRType],
         debug: Boolean = false
+    ): SIRType = {
+        calculateApplyTypeWithUnifyEnv(
+          f,
+          arg,
+          SIRUnify.Env.empty.copy(filledTypes = env, debug = debug)
+        )
+    }
+
+    def calculateApplyTypeWithUnifyEnv(
+        f: SIRType,
+        arg: SIRType,
+        env: SIRUnify.Env,
     ): SIRType =
         f match {
             case Fun(in, out) =>
@@ -473,31 +512,42 @@ object SIRType {
                 SIRUnify.unifyType(
                   in,
                   arg,
-                  SIRUnify.Env.empty.copy(filledTypes = env, debug = debug)
+                  env.withUpcasting
                 ) match
                     case r: SIRUnify.UnificationSuccess[?] =>
                         substitute(out, r.env.filledTypes, Map.empty)
                     case e: SIRUnify.UnificationFailure[?] =>
-                        val message = s"Cannot unify $in with $arg, difference at path ${e.path}"
-                        println(s"fun=$f")
-                        println(s"in=$in")
-                        println(s"arg=$arg")
+                        val lString =
+                            if e.left.isInstanceOf[SIRType] then e.left.asInstanceOf[SIRType].show
+                            else e.left.toString
+                        val rString =
+                            if e.right.isInstanceOf[SIRType] then e.right.asInstanceOf[SIRType].show
+                            else e.right.toString
+                        val message =
+                            s"Cannot unify ${in.show} with ${arg.show}, difference at path ${e.path}, l=${lString}, r=${rString}"
+                        println(message)
+                        val filledTypesDebug = env.filledTypes
+                            .map { (tv, tp) =>
+                                s"${tv.name}[${tv.optId.getOrElse("None")}] -> ${tp.show}"
+                            }
+                            .mkString("\n")
+                        println(s"filledTypesDebug:\n$filledTypesDebug")
                         throw new CaclulateApplyTypeException(message)
             // TypeError(s"Cannot unify $in with $arg, difference at path ${e.path}", null)
             case tvF: TypeVar =>
-                env.get(tvF) match
-                    case Some(f1) => calculateApplyType(tvF, arg, env)
+                env.filledTypes.get(tvF) match
+                    case Some(f1) => calculateApplyTypeWithUnifyEnv(tvF, arg, env)
                     case None =>
                         throw new CaclulateApplyTypeException(s"Unbound type variable ${tvF.name}")
             case TypeLambda(params, body) =>
-                val newEnv = params.foldLeft(env) { case (acc, tv) =>
-                    acc + (tv -> FreeUnificator)
-                }
-                calculateApplyType(body, arg, newEnv, debug)
+                // val newEnv = params.foldLeft(env) { case (acc, tv) =>
+                //    acc + (tv -> FreeUnificator)
+                // }
+                calculateApplyTypeWithUnifyEnv(body, arg, env)
             case TypeProxy(next) =>
                 if next == null then
                     throw CaclulateApplyTypeException(s"TypeProxy is not resolved: $f")
-                else calculateApplyType(next, arg, env, debug)
+                else calculateApplyTypeWithUnifyEnv(next, arg, env)
             case other =>
                 throw CaclulateApplyTypeException(s"Expected function type, got $other", null)
         }

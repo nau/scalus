@@ -710,7 +710,7 @@ final class SIRCompiler(options: SIRCompilerOptions = SIRCompilerOptions.default
         val isInGlobalEnv = globalDefs.contains(fullName)
 
         // println( s"compileIdentOrQualifiedSelect1: ${e.symbol} $name $fullName, term: ${e.show}, loc/glob: $isInLocalEnv/$isInGlobalEnv, env: ${env}" )
-        val sirVar = (isInLocalEnv, isInGlobalEnv) match
+        val (sirVar, origType) = (isInLocalEnv, isInGlobalEnv) match
             case (true, true) =>
                 val localType = env.vars(name)
                 globalDefs(fullName) match
@@ -724,46 +724,63 @@ final class SIRCompiler(options: SIRCompilerOptions = SIRCompilerOptions.default
                                 globalType,
                                 e.srcPos
                               ),
-                              SIR.Var(
-                                e.symbol.fullName.toString,
-                                localType,
-                                AnnotationsDecl.fromSymIn(e.symbol, e.srcPos.sourcePos)
-                              )
+                              ()
                             )
                     case _ =>
-                SIR.Var(
-                  e.symbol.fullName.toString,
-                  localType,
-                  AnnotationsDecl.fromSymIn(e.symbol, e.srcPos.sourcePos)
+                (
+                  SIR.Var(
+                    e.symbol.fullName.toString,
+                    localType,
+                    AnnotationsDecl.fromSymIn(e.symbol, e.srcPos.sourcePos)
+                  ),
+                  localType
                 )
             // local def, use the name
             case (true, false) =>
-                SIR.Var(
-                  e.symbol.name.show,
-                  env.vars(name),
-                  AnnotationsDecl.fromSymIn(e.symbol, e.srcPos.sourcePos)
+                val localType = env.vars(name)
+                (
+                  SIR.Var(
+                    e.symbol.name.show,
+                    localType,
+                    AnnotationsDecl.fromSymIn(e.symbol, e.srcPos.sourcePos)
+                  ),
+                  localType
                 )
             // global def, use full name
             case (false, true) =>
-                SIR.Var(
-                  e.symbol.fullName.toString,
-                  sirTypeInEnv(taTree.tpe.widen, e.srcPos, env),
-                  AnnotationsDecl.fromSymIn(e.symbol, e.srcPos.sourcePos)
+                val origType = sirTypeInEnv(taTree.tpe.widen, e.srcPos, env)
+                val varType =
+                    if isNoArgsMethod(e.symbol) then
+                        // TODO: if e have type parameters, than we should apply obe
+                        SIRType.Fun(SIRType.Unit, origType)
+                    else origType
+                (
+                  SIR.Var(
+                    e.symbol.fullName.toString,
+                    varType,
+                    AnnotationsDecl.fromSymIn(e.symbol, e.srcPos.sourcePos)
+                  ),
+                  origType
                 )
             case (false, false) =>
                 // println( s"external var: module ${e.symbol.owner.fullName.toString()}, ${e.symbol.fullName.toString()}" )
                 if e.symbol.fullName.toString == "scalus.prelude.List$.contains" then
                     println(s"e.tpe.widen.dealise = ${e.tpe.widen.dealias.show}")
-                val valType = sirTypeInEnv(e.tpe.widen.dealias, e.srcPos, env.copy(debug = true))
-                SIR.ExternalVar(
-                  e.symbol.owner.fullName.toString,
-                  e.symbol.fullName.toString,
-                  valType,
-                  AnnotationsDecl.fromSymIn(e.symbol, e.srcPos.sourcePos)
+                val origType = sirTypeInEnv(e.tpe.widen.dealias, e.srcPos, env.copy(debug = true))
+                val valType =
+                    if isNoArgsMethod(e.symbol) then SIRType.Fun(SIRType.Unit, origType)
+                    else origType
+                (
+                  SIR.ExternalVar(
+                    e.symbol.owner.fullName.toString,
+                    e.symbol.fullName.toString,
+                    valType,
+                    AnnotationsDecl.fromSymIn(e.symbol, e.srcPos.sourcePos)
+                  ),
+                  origType
                 )
-
         // TODO: check that this is not from an apply call.
-        if isNoArgsMethod(e.symbol) && !SIRType.isPolyFunOrFun(sirVar.tp)
+        if isNoArgsMethod(e.symbol) && !SIRType.isPolyFunOrFun(origType)
         then
             val anns = AnnotationsDecl.fromSrcPos(e.srcPos)
             val applySirType = sirTypeInEnv(taTree.tpe.widen.dealias, e.srcPos, env)
@@ -2117,13 +2134,16 @@ final class SIRCompiler(options: SIRCompilerOptions = SIRCompilerOptions.default
                           "Closure with not supported form",
                           AnnotationsDecl.fromSrcPos(tree.srcPos)
                         )
-            case Block(stmt, expr) => compileBlock(env, stmt, expr)
+            case Block(stmt, expr)   => compileBlock(env, stmt, expr)
             case Typed(expr, tpTree) =>
+                // if env.debug then println(s"typed-here: expr=${expr.show}, tpTree=${tpTree.show}")
                 val expr1 =
                     if isFunctionalInterface(tpTree.tpe) then
                         tryFixFunctionalInterface(env, expr).getOrElse(expr)
                     else expr
-                compileExpr(env, expr1)
+                val term = compileExpr(env, expr1)
+                val tp = sirTypeInEnv(tpTree.tpe, tree.srcPos, env)
+                SIR.Cast(term, tp, AnnotationsDecl.fromSrcPos(tree.srcPos))
             case Inlined(_, bindings, expr) =>
                 val r = compileBlock(env, bindings, expr)
                 // val t = r.asTerm.show
@@ -2570,6 +2590,11 @@ final class SIRCompiler(options: SIRCompilerOptions = SIRCompilerOptions.default
                     )
                 val newSIR = SIR.Match(newScrutinee, newCases, tp, anns)
                 (newSIR, scrutineeChanged || casesAreChanged)
+            case SIR.Cast(expr, tp, anns) =>
+                val (newExpr, exprChanged) =
+                    specializeAnnotatedSIR(parentSym, expr, env, possibleOverrides, thisClassNames)
+                val newSIR = SIR.Cast(newExpr, tp, anns)
+                (newSIR, exprChanged)
     }
 
     private def calculateLocalBindingFlags(tp: Type): LocalBingingFlags = {

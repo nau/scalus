@@ -5,7 +5,6 @@ import scalus.sir.{SIRType, *}
 import scalus.sir.lowering.*
 import scalus.sir.lowering.LoweredValue.Builder.*
 import scalus.sir.lowering.ProductCaseClassRepresentation.{ProdDataConstr, ProdDataList}
-import scalus.sir.lowering.typegens.ProductCaseOneElementSirTypeGenerator.retrieveArgType
 import scalus.uplc.Term
 
 case class ProductCaseOneElementSirTypeGenerator(

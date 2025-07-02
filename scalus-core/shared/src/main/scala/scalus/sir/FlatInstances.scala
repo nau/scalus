@@ -979,7 +979,7 @@ object FlatInstantces:
     object SIRHashConsedFlat extends HashConsedReprFlat[SIR, HashConsedRef[SIR]]:
         import SIR.*
 
-        final val termTagWidth = 4
+        final val termTagWidth = 5
 
         final val tagVar = 0x00
         final val tagLet = 0x01
@@ -997,6 +997,7 @@ object FlatInstantces:
         final val tagNot = 0x0d
         final val tagDecl = 0x0e
         final val tagSelect = 0xf
+        final val tagCast = 0x10
 
         override def toRepr(a: SIR): HashConsedRef[SIR] = {
             HashConsedRef.fromData(a)
@@ -1072,6 +1073,10 @@ object FlatInstantces:
                     + HashConsedReprFlat.listRepr(SIRCaseHashConsedFlat).bitSizeHC(cases, hashCons)
                     + SIRTypeHashConsedFlat.bitSizeHC(tp, hashCons)
                     + AnnotationsDeclFlat.bitSizeHC(anns, hashCons)
+            case Cast(expr, tp, anns) =>
+                termTagWidth + bitSizeHC(expr, hashCons) +
+                    SIRTypeHashConsedFlat.bitSizeHC(tp, hashCons) +
+                    AnnotationsDeclFlat.bitSizeHC(anns, hashCons)
             case Decl(data, term) =>
                 termTagWidth + DataDeclFlat.bitSizeHC(data, hashCons) + bitSizeHC(term, hashCons)
 
@@ -1157,6 +1162,11 @@ object FlatInstantces:
                     enc.encode.bits(termTagWidth, tagDecl)
                     DataDeclFlat.encodeHC(data, enc)
                     encodeHC(term, enc)
+                case Cast(expr, tp, anns) =>
+                    enc.encode.bits(termTagWidth, tagCast)
+                    encodeHC(expr, enc)
+                    SIRTypeHashConsedFlat.encodeHC(tp, enc)
+                    AnnotationsDeclFlat.encodeHC(anns, enc)
 
         def decodeHC(decoder: HashConsedDecoderState): HashConsedRef[SIR] =
             val tag = decoder.decode.bits8(termTagWidth)
@@ -1349,6 +1359,22 @@ object FlatInstantces:
                     val term = decodeHC(decoder)
                     HashConsedRef.deferred((hs, l, p) =>
                         Decl(data.finValue(hs, l, p), term.finValue(hs, l, p))
+                    )
+                case `tagCast` =>
+                    val expr = decodeHC(decoder)
+                    val tp = SIRTypeHashConsedFlat.decodeHC(decoder)
+                    val anns = AnnotationsDeclFlat.decodeHC(decoder)
+                    HashConsedRef.deferred((hs, l, p) =>
+                        val finExpr = expr.finValue(hs, l, p) match {
+                            case as: AnnotatedSIR => as
+                            case _ =>
+                                throw new IllegalStateException("non-annotated SIR in Cast")
+                        }
+                        Cast(
+                          finExpr,
+                          tp.finValue(hs, l, p),
+                          anns.finValue(hs, l, p)
+                        )
                     )
 
     end SIRHashConsedFlat

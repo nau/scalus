@@ -283,6 +283,8 @@ class SimpleSirToUplcLowering(sir: SIR, generateErrorTraces: Boolean = false):
                 !(builtinTerms(DefaultFun.IfThenElse) $ lowerInner(cond) $ ~lowerInner(
                   t
                 ) $ ~lowerInner(f))
+            case SIR.Cast(term, tp, anns) =>
+                lowerInner(term)
             case SIR.Builtin(bn, _, _) => builtinTerms(bn)
             case SIR.Error(msg, _, _) =>
                 if generateErrorTraces

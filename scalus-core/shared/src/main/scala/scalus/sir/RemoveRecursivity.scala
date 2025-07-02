@@ -65,6 +65,8 @@ object RemoveRecursivity:
                 )
             case Constr(name, data, args, tp, anns) =>
                 Constr(name, data, args.map(removeRecursivity), tp, anns)
+            case Cast(expr, tp, anns) =>
+                Cast(removeRecursivityInExpr(expr), tp, anns)
             case _: Builtin | _: Error | _: Var | _: ExternalVar | _: Const => sir
 
     def isRecursive(name: String, term: SIR, env: List[String] = Nil): Boolean =
@@ -93,4 +95,6 @@ object RemoveRecursivity:
                     case SIR.Case(Pattern.Wildcard, body, anns) =>
                         isRecursive(name, body, env)
                 }
+            case Cast(expr, tp, anns) =>
+                isRecursive(name, expr, env)
             case _: Builtin | _: Error | _: Const => false

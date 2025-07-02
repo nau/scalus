@@ -13,13 +13,15 @@ object SumCaseSirTypeGenerator extends SirTypeUplcGenerator {
 
     override def defaultRepresentation(tp: SIRType)(using
         LoweringContext
-    ): LoweredValueRepresentation =
+    ): LoweredValueRepresentation = {
         SumCaseClassRepresentation.DataConstr
+    }
 
     override def defaultDataRepresentation(tp: SIRType)(using
         LoweringContext
-    ): LoweredValueRepresentation =
+    ): LoweredValueRepresentation = {
         SumCaseClassRepresentation.DataConstr
+    }
 
     override def defaultTypeVarReperesentation(tp: SIRType)(using
         lctx: LoweringContext
@@ -162,6 +164,7 @@ object SumCaseSirTypeGenerator extends SirTypeUplcGenerator {
     ): LoweredValue = {
         val caseClassType = constr.data.constrType(constr.name)
         lctx.typeGenerator(caseClassType).genConstr(constr.copy(tp = caseClassType))
+
     }
 
     override def genMatch(matchData: SIR.Match, loweredScrutinee: LoweredValue)(using
@@ -408,8 +411,9 @@ object SumCaseSirTypeGenerator extends SirTypeUplcGenerator {
         val (lastTail, n) =
             constrPattern.bindings.zip(constrDecl.params).foldLeft((dataListVar, 0)) {
                 case ((currentTail, idx), (name, typeBinding)) =>
-                    val tp = typeBinding.tp
+                    val tp0 = typeBinding.tp
                     val prevId = currentTail.id
+                    val tp = lctx.resolveTypeVarIfNeeded(tp0)
                     val tpDataRepresentation =
                         lctx.typeGenerator(tp).defaultDataRepresentation(tp)
                     val bindedVar = lvNewLazyNamedVar(

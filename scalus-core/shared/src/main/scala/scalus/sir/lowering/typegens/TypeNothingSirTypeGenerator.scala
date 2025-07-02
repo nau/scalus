@@ -22,9 +22,7 @@ object TypeNothingSirTypeGenerator extends SirTypeUplcGenerator {
     override def defaultTypeVarReperesentation(tp: SIRType)(using
         lctx: LoweringContext
     ): LoweredValueRepresentation =
-        throw IllegalStateException(
-          "TypeNothingSirTypeGenerator can't be used for type variables"
-        )
+        ErrorRepresentation
 
     override def isDataSupported(tp: SIRType)(using LoweringContext): Boolean = false
 

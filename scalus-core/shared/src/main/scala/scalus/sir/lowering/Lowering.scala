@@ -2,7 +2,7 @@ package scalus.sir.lowering
 
 import scalus.sir.*
 import scalus.sir.Recursivity.NonRec
-import scalus.sir.lowering.typegens.SirTypeUplcGenerator
+import scalus.sir.lowering.typegens.{ProductCaseUplcOnlySirTypeGenerator, RepresentationProxyLoweredValue, SirTypeUplcGenerator}
 import scalus.sir.lowering.LoweredValue.Builder.*
 import scalus.uplc.*
 
@@ -43,25 +43,50 @@ object Lowering {
                 }
                 lowerSIR(term)
             case constr @ SIR.Constr(name, decl, args, tp, anns) =>
-                lctx.typeGenerator(tp).genConstr(constr)
+                val resolvedType = lctx.resolveTypeVarIfNeeded(tp)
+                val typeGenerator = lctx.typeGenerator(resolvedType)
+                typeGenerator.genConstr(constr)
             case sirMatch @ SIR.Match(scrutinee, cases, rhsType, anns) =>
                 val loweredScrutinee = lowerSIR(scrutinee)
-                try lctx.typeGenerator(scrutinee.tp).genMatch(sirMatch, loweredScrutinee)
-                catch
-                    case NonFatal(e) =>
-                        println(s"scrutinee.tp=${scrutinee.tp}")
-                        println(s"scrutinee=${scrutinee}")
-                        println(s"loweredScrutinee.sirType=${loweredScrutinee.sirType}")
-                        println(s"loweredScrutinee=${loweredScrutinee.show}")
-                        println(
-                          s"lctx.typeGenerator(scrutinee.tp)=${lctx.typeGenerator(scrutinee.tp)}"
-                        )
-                        throw e
+                lctx.typeGenerator(scrutinee.tp).genMatch(sirMatch, loweredScrutinee)
             case SIR.Var(name, tp, anns) =>
                 lctx.scope.getByName(name) match
                     case Some(value) =>
                         // TODO: check types are correct
-                        value
+                        value.sirType match {
+                            case tv: SIRType.TypeVar =>
+                                // if this is type variable, try to resolve it
+                                lctx.tryResolveTypeVar(tv) match
+                                    case Some(resolvedType) =>
+                                        val gen = lctx.typeGenerator(resolvedType)
+                                        val representation =
+                                            if tv.isBuiltin then
+                                                gen.defaultRepresentation(resolvedType)
+                                            else gen.defaultTypeVarReperesentation(resolvedType)
+                                        new RepresentationProxyLoweredValue(
+                                          value,
+                                          representation,
+                                          anns.pos
+                                        ) {
+                                            override def sirType: SIRType = resolvedType
+                                        }
+                                    case None =>
+                                        // TODO!!!: find, hiow this can be possible and insert cheks there
+                                        //  [throw]
+                                        val gen = lctx.typeGenerator(tp)
+                                        val repr =
+                                            if tv.isBuiltin then gen.defaultRepresentation(tp)
+                                            else gen.defaultTypeVarReperesentation(tp)
+                                        new RepresentationProxyLoweredValue(
+                                          value,
+                                          repr,
+                                          anns.pos
+                                        ) {
+                                            override def sirType: SIRType = tp
+                                        }
+                            case _ => value
+
+                        }
                     case None =>
                         throw LoweringException(
                           s"Variable $name not found in the scope at ${anns.pos.file}:${anns.pos.startLine}",
@@ -99,7 +124,30 @@ object Lowering {
                 lowerApp(app)
             case sel @ SIR.Select(scrutinee, field, tp, anns) =>
                 val loweredScrutinee = lowerSIR(scrutinee)
-                SirTypeUplcGenerator(scrutinee.tp).genSelect(sel, loweredScrutinee)
+                loweredScrutinee.sirType match {
+                    case tv: SIRType.TypeVar =>
+                        scrutinee.tp match
+                            case tp1: SIRType.TypeVar =>
+                            //
+                            case other =>
+                                println(
+                                  "lowered scrutinee is typed as type variable, but scrutinee is not"
+                                )
+                                println(s"scrutinee: $scrutinee")
+                                println(s"loweredScrutinee: $loweredScrutinee")
+                                println(s"scrutinee.tp: ${scrutinee.tp.show}")
+                                println(
+                                  s"resolved typevar: ${lctx.typeUnifyEnv.filledTypes.get(tv)}, typeVae = ${tv}"
+                                )
+                                println(
+                                  s"loweredScrutinee.sirType: ${loweredScrutinee.sirType.show}, representation: ${loweredScrutinee.representation}"
+                                )
+                                println(s"lowered scrutinee crerated at:")
+                                loweredScrutinee.createdEx.printStackTrace()
+                                ???
+                    case _ =>
+                }
+                SirTypeUplcGenerator(loweredScrutinee.sirType).genSelect(sel, loweredScrutinee)
             case sirConst @ SIR.Const(const, tp, anns) =>
                 StaticLoweredValue(
                   sirConst,
@@ -142,6 +190,17 @@ object Lowering {
                 val loweredT = lowerSIR(t)
                 val loweredF = lowerSIR(f)
                 lvIfThenElse(loweredCond, loweredT, loweredF, anns.pos)
+            case SIR.Cast(expr, tp, anns) =>
+                val loweredExpr = lowerSIR(expr)
+                try lvCast(loweredExpr, tp, anns.pos)
+                catch
+                    case NonFatal(ex) =>
+                        println(
+                          s"Error lowering cast: ${sir.pretty.render(100)} at ${anns.pos.file}:${anns.pos.startLine + 1}"
+                        )
+                        lctx.debug = true
+                        lvCast(loweredExpr, tp, anns.pos)
+                        throw ex
             case sirBuiltin @ SIR.Builtin(bn, tp, anns) =>
                 StaticLoweredValue(
                   sirBuiltin,
@@ -276,15 +335,74 @@ object Lowering {
     }
 
     private def lowerNormalApp(app: SIR.Apply)(using lctx: LoweringContext): LoweredValue = {
+        val svTypeUnifyEnv = lctx.typeUnifyEnv
+        val (typeVars, fIn, fOut) = SIRType
+            .collectPolyOrFun(app.f.tp)
+            .getOrElse(
+              throw LoweringException(
+                s"""|
+                    |Function type ${app.f.tp.show} is not a function or type lambda.
+                    |app = ${app.pretty.render(100)}
+                    |f = ${app.f.pretty.render(100)}
+                    """.stripMargin('|'),
+                app.anns.pos
+              )
+            )
+        val newEnv = SIRUnify.unifyType(
+          app.arg.tp,
+          fIn,
+          SIRUnify.Env.empty.withUpcasting
+        ) match {
+            case SIRUnify.UnificationSuccess(env, _) =>
+                // SIRUnify.unifyType(app.tp, fOut, env) match
+                //    case SIRUnify.UnificationSuccess(env, _) =>
+                //        env
+                //    case SIRUnify.UnificationFailure(path, l, r) =>
+                //        throw LoweringException(
+                //          s"Unification failure for matchng result and out of f ${app.pretty.render(100)}\n" +
+                //              s"  path: ${path.mkString(" -> ")}, l=$l, r=$r\n" +
+                //              s"  f.tp = ${app.f.tp.show}\n" +
+                //              s"  app.tp: ${app.tp.show}",
+                //          app.anns.pos
+                //        )
+                env
+            case SIRUnify.UnificationFailure(path, l, r) =>
+                throw LoweringException(
+                  s"Unification failure for matching arg and in of f ${app.pretty.render(100)}\n" +
+                      s"  path: ${path.mkString(" -> ")}\n" +
+                      s"  f.tp = ${app.f.tp.show}\n" +
+                      s"  app.arg.tp: ${app.arg.tp.show}",
+                  app.anns.pos
+                )
+        }
+        lctx.typeUnifyEnv = newEnv
+
         val fun = lowerSIR(app.f)
         val arg = lowerSIR(app.arg)
-        val result = lvApply(
-          fun,
-          arg,
-          app.anns.pos,
-          Some(app.tp),
-          None // representation can depend from fun, so should be calculated.
-        )
+        val result =
+            try
+                lvApply(
+                  fun,
+                  arg,
+                  app.anns.pos,
+                  Some(app.tp),
+                  None // representation can depend from fun, so should be calculated.
+                )
+            catch
+                case NonFatal(ex) =>
+                    println(
+                      s"errorl lowering app: ${app.pretty.render(100)} at ${app.anns.pos.file}:${app.anns.pos.startLine + 1}"
+                    )
+                    lctx.debug = true
+                    // redu with debug mode to see the error
+                    lvApply(
+                      fun,
+                      arg,
+                      app.anns.pos,
+                      Some(app.tp),
+                      None // representation can depend from fun, so should be calculated.
+                    )
+        lctx.typeUnifyEnv = svTypeUnifyEnv
         result
     }
 

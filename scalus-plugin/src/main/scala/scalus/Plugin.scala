@@ -12,10 +12,11 @@ import dotty.tools.dotc.util.Spans
 import dotty.tools.dotc.typer.Implicits
 import scalus.flat.{DecoderState, FlatInstantces}
 import scalus.flat.FlatInstantces.SIRHashConsedFlat
-import scalus.sir.{RemoveRecursivity, SIR, SIRUnify}
+import scalus.sir.{RemoveRecursivity, SIR}
 import scalus.utils.{HSRIdentityHashMap, HashConsed, HashConsedDecoderState, HashConsedEncoderState}
 
 import java.nio.charset.StandardCharsets
+import scala.annotation.nowarn
 import scala.collection.immutable
 import scala.language.implicitConversions
 
@@ -62,7 +63,7 @@ class ScalusPhase(debugLevel: Int) extends PluginPhase {
             prepareForUnit(tree)(using summon[Context].withPhase(this))
         else
             if debugLevel > 0 then report.echo(s"Scalus: ${ctx.compilationUnit.source.file.name}")
-            val options = retrieveCompilerOptions(tree)
+            val options = retrieveCompilerOptions(tree, debugLevel > 0)
             val compiler = new SIRCompiler(options)
             compiler.compileModule(tree)
             ctx
@@ -85,21 +86,29 @@ class ScalusPhase(debugLevel: Int) extends PluginPhase {
 
         if tree.fun.symbol == compileSymbol || isCompileDebug then
             // report.echo(tree.showIndented(2))
-            val options = retrieveCompilerOptions(tree)
+            val options = retrieveCompilerOptions(tree, isCompileDebug)
+            if isCompileDebug || debugLevel > 0 then report.echo(s"compiler options: ${options}")
+
+            val localDebugLevel =
+                if options.debugLevel == 0 && debugLevel == 0 && isCompileDebug then 10
+                else if options.debugLevel > debugLevel then options.debugLevel
+                else debugLevel
 
             val code = tree.args.head
             val compiler = new SIRCompiler(options)
             val start = System.currentTimeMillis()
             val result =
                 val result = compiler.compileToSIR(code, isCompileDebug)
-                val linked = SIRLinker(SIRLinkerOptions(options.universalDataRepresentation))
+                val linked = SIRLinker(
+                  SIRLinkerOptions(options.universalDataRepresentation, localDebugLevel)
+                )
                     .link(result, tree.srcPos)
                 RemoveRecursivity(linked)
 
             if isCompileDebug then
                 val time = System.currentTimeMillis() - start
                 report.echo(
-                  s"Scalus compileDebug at ${tree.srcPos.sourcePos.source}:${tree.srcPos.line} in $time ms"
+                  s"Scalus compileDebug at ${tree.srcPos.sourcePos.source}:${tree.srcPos.line} in $time ms, options=${options}"
                 )
 
             convertSIRToTree(result, tree.span, isCompileDebug)
@@ -145,7 +154,8 @@ class ScalusPhase(debugLevel: Int) extends PluginPhase {
             val decodeState = HashConsedDecoderState(DecoderState(bytes), HashConsed.State.empty)
             val decodedRef = SIRHashConsedFlat.decodeHC(decodeState)
             decodeState.runFinCallbacks()
-            val sirRef = decodedRef.finValue(decodeState.hashConsed, 0, new HSRIdentityHashMap)
+            @nowarn val sirRer: SIR =
+                decodedRef.finValue(decodeState.hashConsed, 0, new HSRIdentityHashMap)
             report.echo("ScalusPhace.convertSIRToTree: sir was decoded back successfully")
 
         /*
@@ -196,7 +206,7 @@ class ScalusPhase(debugLevel: Int) extends PluginPhase {
             report.echo(s"string.length: ${codedStr.length},  nParts: ${parts.size}")
             val path = ctx.settings.outputDir.value.file.toPath
                 .resolve(s"${ctx.compilationUnit.source.file.name}_${span.start}.sir")
-            import java.nio.file.{Files, Paths}
+            import java.nio.file.Files
             Files.createDirectories(path.getParent)
             Files.write(path, codedStr.getBytes(StandardCharsets.ISO_8859_1))
             report.echo(s"Scalus: saved SIR to ${path}")
@@ -206,7 +216,8 @@ class ScalusPhase(debugLevel: Int) extends PluginPhase {
     }
 
     private def retrieveCompilerOptions(
-        posTree: Tree
+        posTree: Tree,
+        isCompilerDebug: Boolean
     )(using Context): SIRCompilerOptions = {
 
         // Default options
@@ -231,8 +242,18 @@ class ScalusPhase(debugLevel: Int) extends PluginPhase {
                       posTree.srcPos
                     )
             }
-            if backend == "SirToUplcV3Lowering" then useUniversalDataConversion = true
-            if parsed then println(s"parseTargetLoweringBackend: ${backend}")
+            if backend.equals("SirToUplcV3Lowering") then useUniversalDataConversion = true
+            if parsed then
+                if debugLevel > 0 || isCompilerDebug then
+                    println(
+                      s"parseTargetLoweringBackend: ${backend}, useUniversalDataConversion=${useUniversalDataConversion}"
+                    )
+            else {
+                report.warning(
+                  s"ScalusPhase: Failed to parse targetLoweringBackend, using default: ${backend}",
+                  posTree.srcPos
+                )
+            }
         }
 
         def parseBooleanValue(value: Tree): Boolean = {
@@ -277,7 +298,6 @@ class ScalusPhase(debugLevel: Int) extends PluginPhase {
                           s"ScalusPhase: Unknown compiler option: $name",
                           posTree.srcPos
                         )
-                        false // unknown option, return false to indicate failure to parse this arg.
                     }
                 case value =>
                     idx match
@@ -324,7 +344,7 @@ class ScalusPhase(debugLevel: Int) extends PluginPhase {
                         case _ => defDefTree
                     underTyped match
                         case tpd.Apply(obj, args) =>
-                            report.echo(s"defDefTree.rhs.apply, args=${args}")
+                            // report.echo(s"defDefTree.rhs.apply, args=${args}")
                             if obj.symbol == Symbols.requiredMethod(
                                   "scalus.Compiler.Options.apply"
                                 )
@@ -333,15 +353,33 @@ class ScalusPhase(debugLevel: Int) extends PluginPhase {
                             args.zipWithIndex.foreach { case (arg, idx) =>
                                 parseArg(arg, idx)
                             }
+                        case _ =>
+                            report.warning(
+                              s"ScalusPhase: Expected a call to scalus.Compiler.Options.apply, but found: ${underTyped.show}",
+                              posTree.srcPos
+                            )
                 else report.warning("defdef expected as compiler options", deftree.srcPos)
-            case Implicits.SearchFailure(_) =>
-            // Use default options if not found
+            case failure @ Implicits.SearchFailure(_) =>
+                if isCompilerDebug || debugLevel > 0 then {
+                    report.warning(
+                      s"ScalusPhase: No compiler options found, using default options",
+                      posTree.srcPos
+                    )
+                    report.warning(s"search result: ${failure.show}")
+                } else {
+                    // report.echo("No compiler options found, using default options")
+                }
         }
-        SIRCompilerOptions(
+        val retval = SIRCompilerOptions(
           useSubmodules = false,
           universalDataRepresentation = useUniversalDataConversion,
           debugLevel = if debugLevel == 0 then codeDebugLevel else debugLevel
         )
+        if isCompilerDebug then
+            println(
+              s"retrieveCompilerOptions, retval=${retval}, useUniversalDataConversion=${useUniversalDataConversion}"
+            )
+        retval
     }
 
 }

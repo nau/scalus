@@ -233,11 +233,11 @@ object ProductCaseSirTypeGenerator extends SirTypeUplcGenerator {
     override def genConstr(constr: SIR.Constr)(using
         lctx: LoweringContext
     ): LoweredValue = {
-        val argTypeGens = constr.args.map(_.tp).map(lctx.typeGenerator)
+        val loweredArgs = constr.args.map(arg => lctx.lower(arg))
+        val argTypeGens = loweredArgs.map(_.sirType).map(lctx.typeGenerator)
         val isDataSupported = constr.args.zip(argTypeGens).forall { case (arg, typeGen) =>
             typeGen.isDataSupported(arg.tp)
         }
-        val loweredArgs = constr.args.map(arg => lctx.lower(arg))
         if !isDataSupported then genConstrUplcConstr(constr)
         else
             // check majority
@@ -392,7 +392,33 @@ object ProductCaseSirTypeGenerator extends SirTypeUplcGenerator {
         argTypeGens: Seq[SirTypeUplcGenerator],
     )(using lctx: LoweringContext): LoweredValue = {
         val dataRepresentations = loweredArgs.zip(argTypeGens).map { case (arg, typeGen) =>
-            arg.toRepresentation(typeGen.defaultDataRepresentation(arg.sirType), constr.anns.pos)
+            try
+                arg.toRepresentation(
+                  typeGen.defaultDataRepresentation(arg.sirType),
+                  constr.anns.pos
+                )
+            catch
+                case NonFatal(e) =>
+                    println(
+                      s"error while converting to data representation: arg=${arg}, argTypeGen=${typeGen} "
+                    )
+                    println(
+                      s"arg.sirType = ${arg.sirType.show}, representation = ${arg.representation}, constr.anns.pos = ${constr.anns.pos}"
+                    )
+                    println(
+                      s"defaultDataRepresentation(${arg.sirType.show}) = ${typeGen.defaultDataRepresentation(arg.sirType)}"
+                    )
+                    println(s"typeGen = ${typeGen}")
+                    println(
+                      s"defaultTypeGen(${arg.sirType.show}) = ${lctx.typeGenerator(arg.sirType)}"
+                    )
+                    println(
+                      s"arg created from: ${constr.anns.pos.file}:${constr.anns.pos.startLine + 1}"
+                    )
+                    println(s"arg show: ${arg.show}")
+                    println(s"arg created at: ")
+                    arg.createdEx.printStackTrace()
+                    throw e
         }
         // TODO: check UplcConstrOnData, it can be more efficient
         val s0 = lvBuiltinApply0(
@@ -411,6 +437,15 @@ object ProductCaseSirTypeGenerator extends SirTypeUplcGenerator {
               constr.anns.pos
             )
         }
+
+        // TODO: check correctness of constr.tp
+        // val constrType =
+        //    if SIRtype.isSumCaseClass(constr.tp) then
+        //        ???
+        //    else {
+        //        constr.tp
+        //    }
+
         val retval = new ProxyLoweredValue(dataList) {
             override def sirType: SIRType = constr.tp
 
@@ -421,7 +456,7 @@ object ProductCaseSirTypeGenerator extends SirTypeUplcGenerator {
             }
 
             override def show: String = {
-                s"Constr(${constr.tp.show}, ${dataList.show}) at ${sirType.show}"
+                s"Constr(${constr.tp.show}, ${dataList.show}) at ${sirType.show})"
             }
         }
         retval

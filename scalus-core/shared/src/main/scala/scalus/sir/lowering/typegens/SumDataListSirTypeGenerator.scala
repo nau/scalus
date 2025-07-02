@@ -291,6 +291,7 @@ object SumDataListSirTypeGenerator extends SirTypeUplcGenerator {
                 ("_head", "_tail")
 
         val listInputId = lctx.uniqueVarName("listInput")
+        val listType = matchData.scrutinee.tp
         val listInput = new VariableLoweredValue(
           id = listInputId,
           name = listInputId,
@@ -343,13 +344,13 @@ object SumDataListSirTypeGenerator extends SirTypeUplcGenerator {
           name = consTailName,
           sir = SIR.Var(
             consTailName,
-            elementType,
+            listType,
             matchData.anns
           ),
           representation = SumCaseClassRepresentation.SumDataList,
           optRhs = Some(
             new ProxyLoweredValue(listInput) {
-                override def sirType: SIRType = elementType
+                override def sirType: SIRType = listType
 
                 override def pos: SIRPosition = matchData.anns.pos
 
