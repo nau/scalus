@@ -21,7 +21,7 @@ import scalus.uplc.{Constant, DeBruijnedProgram, Term}
 import java.nio.file.{Files, Paths}
 import scala.collection.immutable
 
-class NewTxEvaluator(
+private[scalus] class NewTxEvaluator(
     val slotConfig: SlotConfig,
     val initialBudget: ExBudget,
     val protocolMajorVersion: MajorProtocolVersion,
@@ -107,7 +107,8 @@ class NewTxEvaluator(
         redeemer.tag match
             case RedeemerTag.Spend =>
                 findSpendScript(tx, index, lookupTable, utxos)
-
+            case _ => // FIXME: handle other redeemer tags
+                findSpendScript(tx, index, lookupTable, utxos)
     }
 
     /** Find script for spending a UTxO (Spend redeemer tag).
@@ -124,7 +125,7 @@ class NewTxEvaluator(
         lookupTable: LookupTable,
         utxos: Map[TransactionInput, TransactionOutput]
     ): (Script, Option[Data]) = {
-        val inputs = tx.body.value.inputs.toArray // FIXME sorted
+        val inputs = tx.body.value.inputs.toArray.sorted // FIXME sorted
 
         if !inputs.isDefinedAt(index) then
             throw new IllegalStateException(
@@ -138,7 +139,7 @@ class NewTxEvaluator(
         )
 
         // Extract script hash from address
-        val scriptHash = extractScriptHashFromAddress(output.address)
+        val scriptHash = output.address.scriptHash
             .getOrElse(
               throw new IllegalStateException(s"No script credential in address: ${output.address}")
             )
@@ -159,17 +160,6 @@ class NewTxEvaluator(
                     throw new IllegalStateException(s"Missing required datum for script: $script")
             case _ => // V3 and Native scripts don't require datums in the traditional sense
         (script, datum)
-    }
-
-    // Helper methods for script hash extraction
-
-    private def extractScriptHashFromAddress(address: Address): Option[ScriptHash] = {
-        address match
-            case Address.Shelley(shelleyAddr) =>
-                shelleyAddr.payment match
-                    case ShelleyPaymentPart.Script(hash) => Some(hash)
-                    case _                               => None
-            case _ => None
     }
 
     private def extractDatumFromOutput(
@@ -423,11 +413,14 @@ class NewTxEvaluator(
         tx: Transaction,
         utxos: Map[TransactionInput, TransactionOutput]
     ): Map[ScriptHash, Script] =
-        // FIXME: resolve reference scripts from UTxOs
-        AllProvidedScripts
+        val provided = AllProvidedScripts
             .allProvidedScriptsView(tx)
-            .map { script =>
+            .map { script => script.scriptHash -> script }
+            .toMap
+        val referenceScripts = utxos.values.flatMap { output =>
+            output.scriptRef.map { case ScriptRef(script) =>
                 script.scriptHash -> script
             }
-            .toMap
+        }.toMap
+        provided ++ referenceScripts
 }

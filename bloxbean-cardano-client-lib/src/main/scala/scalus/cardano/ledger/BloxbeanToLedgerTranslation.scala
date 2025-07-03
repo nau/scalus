@@ -15,31 +15,13 @@ object BloxbeanToLedgerTranslation {
               multiAsset = self.getMultiAssets.asScala.map { ma =>
                   Hash.scriptHash(ByteString.fromHex(ma.getPolicyId)) -> ma.getAssets.asScala.map {
                       asset =>
-                          AssetName.fromString(asset.getName) -> asset.getValue.longValue()
+                          val name =
+                              if asset.getName.startsWith("0x") then
+                                  AssetName.fromHex(asset.getName.drop(2))
+                              else AssetName.fromString(asset.getName)
+                          name -> asset.getValue.longValue()
                   }.toMap
               }.toMap
             )
         }
-
-    def getTransactionOutput(output: Utxo): TransactionOutput = {
-        val address = Address.fromBech32(output.getAddress)
-        val datumOption: Option[DatumOption] =
-            Option(output.getDataHash) -> Option(output.getInlineDatum) match
-                case (Some(dataHash), None) =>
-                    Some(DatumOption.Hash(Hash(ByteString.fromHex(dataHash))))
-                case (None, Some(inlineDatum)) =>
-                    Some(DatumOption.Inline(Data.fromCbor(Hex.hexToBytes(inlineDatum))))
-                case (None, None) => None
-                case (Some(_), Some(_)) =>
-                    throw new IllegalStateException(
-                      "Output cannot have both datum hash and inline datum"
-                    )
-        TransactionOutput.Babbage(
-          address,
-          output.toValue.toLedgerValue,
-          datumOption,
-          None
-        ) // FIXME: scriptRefOpt is not handled here
-    }
-
 }

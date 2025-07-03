@@ -4,7 +4,8 @@ import com.bloxbean.cardano.client.api.UtxoSupplier
 import com.bloxbean.cardano.client.api.model.Utxo
 import com.bloxbean.cardano.client.plutus.spec.{PlutusScript, PlutusV1Script, PlutusV2Script, PlutusV3Script}
 import io.bullet.borer.Cbor
-import scalus.builtin.ByteString
+import scalus.builtin.{ByteString, Data}
+import scalus.cardano.address.Address
 import scalus.cardano.ledger.*
 import scalus.cardano.ledger.BloxbeanToLedgerTranslation.*
 import scalus.utils.Hex
@@ -49,33 +50,28 @@ private[scalus] class ScalusUtxoResolver(
 
         val scripts = mutable.HashMap[ScriptHash, Script]()
 
-        // Get all input UTXOs using utxoSupplier
-        for input <- transaction.body.value.inputs do
-            if !utxos.contains(input) then
-                utxoSupplier.getTxOutput(input.transactionId.toHex, input.index).toScala match
-                    case Some(output) => utxos.put(input, getTransactionOutput(output))
-                    case None => throw new IllegalStateException(s"UTXO not found for input $input")
-
-        // Get all reference input UTXOs including scripts
-        for input <- transaction.body.value.referenceInputs do
+        val allInputs =
+            transaction.body.value.inputs.view ++ transaction.body.value.referenceInputs.view
+        for input <- allInputs do
             if !utxos.contains(input) then
                 utxoSupplier.getTxOutput(input.transactionId.toHex, input.index).toScala match
                     case Some(output) =>
-                        utxos.put(input, getTransactionOutput(output))
                         // Get reference input script if available
-                        Option(output.getReferenceScriptHash).foreach { scriptHash =>
-                            Try(scriptSupplier.getScript(scriptHash)).foreach {
-                                case s: PlutusV1Script =>
-                                    val script = Script.PlutusV1(decodeToSingleCbor(s))
-                                    scripts.put(script.scriptHash, script)
-                                case s: PlutusV2Script =>
-                                    val script = Script.PlutusV2(decodeToSingleCbor(s))
-                                    scripts.put(script.scriptHash, script)
-                                case s: PlutusV3Script =>
-                                    val script = Script.PlutusV3(decodeToSingleCbor(s))
-                                    scripts.put(script.scriptHash, script)
-                            }
+                        val scriptRef = Option(output.getReferenceScriptHash).flatMap {
+                            scriptHash =>
+                                // FIXME: add support for native reference scripts
+                                Try(scriptSupplier.getScript(scriptHash)).map {
+                                    case s: PlutusV1Script =>
+                                        ScriptRef(Script.PlutusV1(decodeToSingleCbor(s)))
+                                    case s: PlutusV2Script =>
+                                        ScriptRef(Script.PlutusV2(decodeToSingleCbor(s)))
+                                    case s: PlutusV3Script =>
+                                        ScriptRef(Script.PlutusV3(decodeToSingleCbor(s)))
+                                }.toOption
                         }
+                        val out = getTransactionOutput(output, scriptRef)
+                        utxos.put(input, out)
+
                     case None =>
                         throw new IllegalStateException(
                           s"Reference UTXO not found for input $input"
@@ -93,7 +89,6 @@ private[scalus] class ScalusUtxoResolver(
         }
 
         // Return resolved UTXOs for all inputs (regular and reference)
-        val allInputs = transaction.body.value.inputs ++ transaction.body.value.referenceInputs
         allInputs.map { input =>
             val output = utxos.getOrElse(
               input,
@@ -102,4 +97,25 @@ private[scalus] class ScalusUtxoResolver(
             input -> output
         }.toMap
     }
+
+    private def getTransactionOutput(
+        output: Utxo,
+        scriptRef: Option[ScriptRef]
+    ): TransactionOutput = {
+        val address = Address.fromBech32(output.getAddress)
+        val datumOption: Option[DatumOption] =
+            Option(output.getDataHash) -> Option(output.getInlineDatum) match
+                case (_, Some(inlineDatum)) =>
+                    Some(DatumOption.Inline(Data.fromCbor(Hex.hexToBytes(inlineDatum))))
+                case (Some(dataHash), None) =>
+                    Some(DatumOption.Hash(Hash(ByteString.fromHex(dataHash))))
+                case (None, None) => None
+        TransactionOutput.Babbage(
+          address,
+          output.toValue.toLedgerValue,
+          datumOption,
+          scriptRef
+        )
+    }
+
 }
