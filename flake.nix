@@ -23,26 +23,13 @@
                 overlays = [ rust-overlay.overlays.default ];
         };
         uplc = plutus.cabalProject.${system}.hsPkgs.plutus-executables.components.exes.uplc;
-        tiny_keccak_wrapper = pkgs.stdenv.mkDerivation {
+        tiny_keccak_wrapper = pkgs.rustPlatform.buildRustPackage (finalAttrs: {
             name = "tiny_keccak_wrapper";
             src = ./scalus-core/native/lib/tiny_keccak_wrapper;  # directory with Rust code
-            nativeBuildInputs = [
-                          pkgs.rustc
-                          pkgs.cargo
-                          pkgs.git               # Added git
-                          pkgs.cacert           # Added SSL certificates
-                          pkgs.pkg-config       # Often needed for Rust builds
-                          pkgs.openssl          # Added OpenSSL
-                        ];
-            buildPhase = ''
-             export CARGO_HOME=$PWD/.cargo
-             cargo build --release
-            '';
-            installPhase = ''
-             mkdir -p $out/lib
-             cp target/release/libtiny_keccak_wrapper.a $out/lib/
-            '';
-        };
+            cargoHash = "sha256-S9NH9JqykVq2Qo/b5xSJJIH7LeGh4UFQ/glusW2EvsQ=";
+            useFetchCargoVendor = true;
+        });
+
         # cardano-cli = cardano-node-flake.packages.${system}.cardano-cli;
       in
       {
@@ -72,6 +59,7 @@
                 uplc
                 async-profiler
                 llvm
+                clang
                 libsodium
                 secp256k1
                 pkgs.rustc
