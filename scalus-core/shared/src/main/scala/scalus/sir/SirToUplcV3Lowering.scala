@@ -1,5 +1,7 @@
 package scalus.sir
 
+import scalus.pretty
+
 import scala.collection.mutable.Map as MutableMap
 
 import scalus.sir.lowering.*
@@ -38,7 +40,18 @@ class SirToUplcV3Lowering(
             val gctx = TermGenerationContext(
               generatedVars = Set.empty
             )
-            val term = retV.termWithNeededVars(gctx)
+            val term = try 
+                retV.termWithNeededVars(gctx)
+            catch
+                case e: IllegalStateException =>
+                    val debugGtx = gctx.copy(processUndefinedValues = true, debug = true)
+                    val uplc = retV.termWithNeededVars(debugGtx)
+                    println(s"generated uplc: ${uplc.pretty.render(100)}")
+                    throw LoweringException(
+                      s"Error generating term for value ${retV.show} of type ${retV.sirType.show}",
+                      retV.pos,
+                      e
+                    )
             if lctx.zCombinatorNeeded then
                 Term.Apply(Term.LamAbs("__z_combinator__", term), ExprBuilder.ZTerm)
             else term

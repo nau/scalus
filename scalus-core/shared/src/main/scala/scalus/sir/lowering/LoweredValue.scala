@@ -169,6 +169,16 @@ class VariableLoweredValue(
     val optRhs: Option[LoweredValue] = None,
     val directDepended: MutableSet[IdentifiableLoweredValue] = MutableSet.empty
 ) extends IdentifiableLoweredValue {
+    
+    if id == "x$1341" && name == "x$1" then {
+        println(
+          s"VariableLoweredValue created with id = $id,  representation = $representation, sirType=${sir.tp.show}"
+        )
+        println(
+          s"SIR=${sir} at ${sir.anns.pos.file}:${sir.anns.pos.startLine + 1}"
+        )
+        //throw RuntimeException("QQQ")
+    }
 
     optRhs.foreach { rhs =>
         rhs.addDependent(this)
@@ -204,9 +214,19 @@ class VariableLoweredValue(
                     //  so variable used once and we can generate rhs term instead of name.
                     rhs.termWithNeededVars(gctx)
                 case None =>
-                    throw new IllegalStateException(
-                      s"Variable $name with id $id is not defined and has no rhs to generate term."
-                    )
+                    if gctx.processUndefinedValues then { 
+                        if gctx.debug then {
+                            println(
+                              s"VariableLoweredValue: generating term for undefined variable $name with id $id"
+                            )
+                            createdEx.printStackTrace()
+                        }
+                        Term.Var(NamedDeBruijn(id))
+                    } else    
+                        throw new IllegalStateException(
+                            s"Variable $name with id $id is not defined and has no rhs to generate term."
+                        )
+                    
             }
     }
 
@@ -722,8 +742,13 @@ object LoweredValue {
 
                 override def pos: SIRPosition = inPos
 
-                override def termInternal(gctx: TermGenerationContext): Term =
+                override def termInternal(gctx: TermGenerationContext): Term = {
+                    if (newVar.id=="x$1341") then 
+                        println(
+                          "printinq termInternal for lvLamAbs with newVar.id = x$1341"
+                        )
                     Term.LamAbs(newVar.id, body.termWithNeededVars(gctx.addGeneratedVar(newVar.id)))
+                }
             }
         }
 
