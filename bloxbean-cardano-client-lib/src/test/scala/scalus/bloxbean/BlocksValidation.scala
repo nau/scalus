@@ -68,7 +68,7 @@ object BlocksValidation:
           )
         )
         val protocolParams = backendService.getEpochService.getProtocolParameters(epoch).getValue
-        val utxoResolver = UtxoResolver(utxoSupplier, scriptSupplier)
+        val utxoResolver = CclUtxoResolver(utxoSupplier, scriptSupplier)
         val evaluator = ScalusTransactionEvaluator(
           SlotConfig.Mainnet,
           protocolParams,

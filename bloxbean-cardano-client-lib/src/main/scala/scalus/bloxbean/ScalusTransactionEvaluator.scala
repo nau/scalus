@@ -129,7 +129,7 @@ class ScalusTransactionEvaluator(
           debugDumpFilesForTesting
         )
 
-    private val utxoResolver = UtxoResolver(utxoSupplier, scriptSupplier)
+    private val utxoResolver = CclUtxoResolver(utxoSupplier, scriptSupplier)
 
     override def evaluateTx(
         transaction: Transaction,

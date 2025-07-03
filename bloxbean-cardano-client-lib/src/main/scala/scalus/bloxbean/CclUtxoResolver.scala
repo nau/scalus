@@ -12,7 +12,7 @@ import scala.jdk.CollectionConverters.*
 import java.util
 import scala.collection.mutable
 
-private[scalus] class UtxoResolver(utxoSupplier: UtxoSupplier, scriptSupplier: ScriptSupplier) {
+private[scalus] class CclUtxoResolver(utxoSupplier: UtxoSupplier, scriptSupplier: ScriptSupplier) {
     def resolveUtxos(transaction: Transaction): Map[TransactionInput, TransactionOutput] =
         resolveUtxos(transaction, util.Set.of())
 

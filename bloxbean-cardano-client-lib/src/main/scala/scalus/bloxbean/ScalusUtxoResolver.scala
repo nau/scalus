@@ -14,7 +14,10 @@ import scala.jdk.OptionConverters.*
 import scala.util.Try
 
 /** Resolves UTXOs for transactions using scalus.cardano.ledger domain classes */
-private[scalus] class UtxoResolver2(utxoSupplier: UtxoSupplier, scriptSupplier: ScriptSupplier) {
+private[scalus] class ScalusUtxoResolver(
+    utxoSupplier: UtxoSupplier,
+    scriptSupplier: ScriptSupplier
+) {
 
     /** Resolve UTXOs for a transaction with no additional input UTXOs */
     def resolveUtxos(transaction: Transaction): Map[TransactionInput, TransactionOutput] =
