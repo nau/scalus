@@ -16,7 +16,6 @@ class BlockDeserializationTest extends AnyFunSuite {
     private val blocksDir = Paths.get(s"./blocks")
 
     test("evaluate block 11544748") {
-        pending
         val bytes = getClass.getResourceAsStream(s"/blocks/block-11544748.cbor").readAllBytes()
         given OriginalCborByteArray = OriginalCborByteArray(bytes)
         val block = readBlock(bytes).block
@@ -49,7 +48,8 @@ class BlockDeserializationTest extends AnyFunSuite {
           protocolMajorVersion = MajorProtocolVersion.plominPV,
           costMdls = costMdls
         )
-        evaluator.evalPhaseTwo(tx, utxos)
+        val redeemers = evaluator.evalPhaseTwo(tx, utxos)
+        assert(redeemers == tx.witnessSet.redeemers.get.value.toIndexedSeq)
     }
 
     test("decode block 11544748") {

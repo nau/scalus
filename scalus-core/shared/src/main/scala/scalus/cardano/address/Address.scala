@@ -112,6 +112,10 @@ object Network {
         case 0x00 => Testnet
         case 0x01 => Mainnet
         case v    => Other(v)
+
+    given Ordering[Network] with
+        def compare(x: Network, y: Network): Int = x.value - y.value
+
 }
 
 /** Type aliases for clarity - matching Rust implementation */

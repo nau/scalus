@@ -107,8 +107,29 @@ private[scalus] class NewTxEvaluator(
         redeemer.tag match
             case RedeemerTag.Spend =>
                 findSpendScript(tx, index, lookupTable, utxos)
-            case _ => // FIXME: handle other redeemer tags
+            case RedeemerTag.Mint =>
+                // FIXME:
                 findSpendScript(tx, index, lookupTable, utxos)
+            case RedeemerTag.Cert =>
+                // FIXME:
+                findSpendScript(tx, index, lookupTable, utxos)
+            case RedeemerTag.Reward =>
+                // FIXME:
+                val withdrawals = tx.body.value.withdrawals.get.withdrawals.toArray.sortBy(_._1)
+                if !withdrawals.isDefinedAt(index) then
+                    throw new IllegalStateException(
+                      s"Withdrawal not found: $index in ${withdrawals.mkString("[", ", ", "]")}"
+                    )
+                val scriptHash = withdrawals(index)._1.address.scriptHash.get
+                lookupTable.scripts(scriptHash) -> None
+
+            case RedeemerTag.Voting =>
+                // FIXME:
+                findSpendScript(tx, index, lookupTable, utxos)
+            case RedeemerTag.Proposing =>
+                // FIXME:
+                findSpendScript(tx, index, lookupTable, utxos)
+
     }
 
     /** Find script for spending a UTxO (Spend redeemer tag).
