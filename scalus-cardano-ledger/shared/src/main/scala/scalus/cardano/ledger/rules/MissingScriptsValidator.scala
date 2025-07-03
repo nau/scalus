@@ -1,22 +1,24 @@
 package scalus.cardano.ledger
 package rules
 
-import scalus.cardano.ledger.rules.utils.*
+import scalus.cardano.ledger.utils.{AllNeededScriptHashesHelper, AllReferenceScriptsHelper, AllWitnessScriptsHelper}
 
 // It's babbageMissingScripts in cardano-ledger
-object MissingScriptsValidator
-    extends STS.Validator,
-      AllRequiredScriptHashes,
-      AllReferenceScripts,
-      AllProvidedScripts {
+object MissingScriptsValidator extends STS.Validator {
     override def validate(context: Context, state: State, event: Event): Result = {
         for
-            requiredScriptHashes <- allRequiredScriptHashes(state, event)
-            referenceScriptHashes <- allReferenceScriptHashes(state, event)
-            requiredScriptHashesNonRefs = requiredScriptHashes.diff(referenceScriptHashes)
-            providedScriptHashes = allProvidedScriptHashes(event)
+            neededScriptHashes <- AllNeededScriptHashesHelper.allNeededScriptHashes(
+              state.utxo,
+              event
+            )
+            referenceScriptHashes <- AllReferenceScriptsHelper.allReferenceScriptHashes(
+              state.utxo,
+              event
+            )
+            witnessScriptHashes = AllWitnessScriptsHelper.allWitnessScriptHashes(event)
+            neededScriptHashesNonRefs = neededScriptHashes.diff(referenceScriptHashes)
             _ <-
-                val missing = requiredScriptHashesNonRefs.diff(providedScriptHashes)
+                val missing = neededScriptHashesNonRefs.diff(witnessScriptHashes)
                 if missing.isEmpty then success
                 else
                     failure(
@@ -25,7 +27,7 @@ object MissingScriptsValidator
                       )
                     )
             _ <-
-                val extra = providedScriptHashes.diff(requiredScriptHashesNonRefs)
+                val extra = witnessScriptHashes.diff(neededScriptHashesNonRefs)
                 if extra.isEmpty then success
                 else
                     failure(

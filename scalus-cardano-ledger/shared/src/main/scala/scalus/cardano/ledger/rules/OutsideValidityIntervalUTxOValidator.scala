@@ -3,7 +3,7 @@ package rules
 
 import scalus.ledger.api.ValidityInterval
 
-// It's Allegra.validateOutsideValidityIntervalUTxO in cardano-ledger
+// It's Babbage.validateOutsideValidityIntervalUTxO in cardano-ledger
 object OutsideValidityIntervalUTxOValidator extends STS.Validator {
     override def validate(context: Context, state: State, event: Event): Result = {
         val transactionId = event.id

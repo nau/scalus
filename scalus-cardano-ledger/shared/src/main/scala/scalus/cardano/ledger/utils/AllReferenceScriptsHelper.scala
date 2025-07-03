@@ -1,42 +1,41 @@
 package scalus.cardano.ledger
-package rules
 package utils
+
+import scalus.cardano.ledger.rules.Utxo
 
 import scala.util.boundary
 import scala.util.boundary.break
 
-trait AllReferenceScripts {
-    this: STS =>
+object AllReferenceScriptsHelper {
+    def allReferenceScripts(
+        utxo: Utxo,
+        transaction: Transaction
+    ): Either[Throwable, Set[Script]] = allReferenceScripts(utxo, transaction, Some(_))
 
-    protected def allReferenceScripts(
-        state: State,
-        event: Event
-    ): Either[Error, Set[Script]] = allReferenceScripts(state, event, Some(_))
+    def allReferenceScriptHashes(
+        utxo: Utxo,
+        transaction: Transaction
+    ): Either[Throwable, Set[ScriptHash]] =
+        allReferenceScripts(utxo, transaction, script => Some(script.scriptHash))
 
-    protected def allReferenceScriptHashes(
-        state: State,
-        event: Event
-    ): Either[Error, Set[ScriptHash]] =
-        allReferenceScripts(state, event, script => Some(script.scriptHash))
-
-    protected def allReferenceNativeScripts(
-        state: State,
-        event: Event
-    ): Either[Error, Set[Script.Native]] = allReferenceScripts(
-      state,
-      event,
+    def allReferenceNativeScripts(
+        utxo: Utxo,
+        transaction: Transaction
+    ): Either[Throwable, Set[Script.Native]] = allReferenceScripts(
+      utxo,
+      transaction,
       {
           case timelock: Script.Native => Some(timelock)
           case _                       => None
       }
     )
 
-    protected def allReferenceNativeScriptHashes(
-        state: State,
-        event: Event
-    ): Either[Error, Set[ScriptHash]] = allReferenceScripts(
-      state,
-      event,
+    def allReferenceNativeScriptHashes(
+        utxo: Utxo,
+        transaction: Transaction
+    ): Either[Throwable, Set[ScriptHash]] = allReferenceScripts(
+      utxo,
+      transaction,
       {
           case Script.Native(timelock) => Some(timelock.scriptHash)
           case _                       => None
@@ -44,13 +43,13 @@ trait AllReferenceScripts {
     )
 
     private def allReferenceScripts[T](
-        state: State,
-        event: Event,
+        utxo: Utxo,
+        transaction: Transaction,
         mapper: Script => Option[T]
-    ): Either[Error, Set[T]] = boundary {
+    ): Either[Throwable, Set[T]] = boundary {
         val result = (
-          inputReferenceScriptsView(state, event) ++
-              referenceInputReferenceScriptsView(state, event)
+          inputReferenceScriptsView(utxo, transaction) ++
+              referenceInputReferenceScriptsView(utxo, transaction)
         ).flatMap {
             case Right(script) => mapper(script)
             case Left(error)   => break(Left(error))
@@ -60,13 +59,13 @@ trait AllReferenceScripts {
     }
 
     private def inputReferenceScriptsView(
-        state: State,
-        event: Event
-    ): scala.collection.View[Either[Error, Script]] = {
+        utxo: Utxo,
+        transaction: Transaction
+    ): scala.collection.View[Either[Throwable, Script]] = {
         transactionReferenceScriptsView(
-          event.body.value.inputs,
-          event.id,
-          state.utxo,
+          transaction.body.value.inputs,
+          transaction.id,
+          utxo,
           (transactionId, input, index) =>
               IllegalArgumentException(
                 s"Missing input $input with index $index in UTxO state for transactionId $transactionId"
@@ -75,13 +74,13 @@ trait AllReferenceScripts {
     }
 
     private def referenceInputReferenceScriptsView(
-        state: State,
-        event: Event
-    ): scala.collection.View[Either[Error, Script]] = {
+        utxo: Utxo,
+        transaction: Transaction
+    ): scala.collection.View[Either[Throwable, Script]] = {
         transactionReferenceScriptsView(
-          event.body.value.referenceInputs,
-          event.id,
-          state.utxo,
+          transaction.body.value.referenceInputs,
+          transaction.id,
+          utxo,
           (transactionId, input, index) =>
               IllegalArgumentException(
                 s"Missing reference input $input with index $index in UTxO state for transactionId $transactionId"
@@ -94,7 +93,7 @@ trait AllReferenceScripts {
         transactionId: TransactionHash,
         utxo: Utxo,
         missingInputError: (TransactionHash, TransactionInput, Int) => IllegalArgumentException
-    ): scala.collection.View[Either[Error, Script]] = {
+    ): scala.collection.View[Either[Throwable, Script]] = {
         for
             (input, index) <- inputs.view.zipWithIndex
             result <- utxo.get(input) match

@@ -1,39 +1,37 @@
-package scalus.cardano.ledger
-package rules
-package utils
+package scalus.cardano.ledger.utils
+
+import scalus.cardano.ledger.rules.Utxo
+import scalus.cardano.ledger.*
 
 import scala.util.boundary
 import scala.util.boundary.break
 
-trait AllRequiredScriptHashes {
-    this: STS =>
-
-    protected def allRequiredScriptHashes(
-        state: State,
-        event: Event
-    ): Either[Error, Set[ScriptHash]] = boundary {
+object AllNeededScriptHashesHelper {
+    def allNeededScriptHashes(
+        utxo: Utxo,
+        transaction: Transaction
+    ): Either[Throwable, Set[ScriptHash]] = boundary {
         val result =
-            requiredInputScriptHashesView(state, event)
+            neededInputScriptHashesView(utxo, transaction)
                 .map {
                     case Right(scriptHash) => scriptHash
                     case Left(error)       => break(Left(error))
                 } ++
-                requiredMintScriptHashes(event) ++
-                requiredVotingProceduresScriptHashesView(event) ++
-                requiredWithdrawalScriptHashesView(event) ++
-                requiredProposalProcedureScriptHashesView(event) ++
-                requiredCertificateScriptHashesView(event)
+                neededMintScriptHashes(transaction) ++
+                neededVotingProceduresScriptHashesView(transaction) ++
+                neededWithdrawalScriptHashesView(transaction) ++
+                neededProposalProcedureScriptHashesView(transaction) ++
+                neededCertificateScriptHashesView(transaction)
 
         Right(result.toSet)
     }
 
-    private def requiredInputScriptHashesView(
-        state: State,
-        event: Event
-    ): scala.collection.View[Either[Error, ScriptHash]] = {
-        val inputs = event.body.value.inputs
-        val utxo = state.utxo
-        val transactionId = event.id
+    private def neededInputScriptHashesView(
+        utxo: Utxo,
+        transaction: Transaction
+    ): scala.collection.View[Either[Throwable, ScriptHash]] = {
+        val inputs = transaction.body.value.inputs
+        val transactionId = transaction.id
 
         for
             (input, index) <- inputs.view.zipWithIndex
@@ -51,15 +49,15 @@ trait AllRequiredScriptHashes {
         yield result
     }
 
-    private def requiredMintScriptHashes(
-        event: Event
-    ): Set[PolicyId] = event.body.value.mint.getOrElse(Map.empty).keySet
+    private def neededMintScriptHashes(
+        transaction: Transaction
+    ): Set[PolicyId] = transaction.body.value.mint.getOrElse(Map.empty).keySet
 
-    private def requiredVotingProceduresScriptHashesView(
-        event: Event
+    private def neededVotingProceduresScriptHashesView(
+        transaction: Transaction
     ): scala.collection.View[ScriptHash] = {
         val votingProcedures =
-            event.body.value.votingProcedures.map(_.procedures).getOrElse(Map.empty)
+            transaction.body.value.votingProcedures.map(_.procedures).getOrElse(Map.empty)
 
         for
             voter <- votingProcedures.keySet.view
@@ -72,10 +70,10 @@ trait AllRequiredScriptHashes {
         yield scriptHash
     }
 
-    private def requiredWithdrawalScriptHashesView(
-        event: Event
+    private def neededWithdrawalScriptHashesView(
+        transaction: Transaction
     ): scala.collection.View[ScriptHash] = {
-        val withdrawals = event.body.value.withdrawals.map(_.withdrawals).getOrElse(Map.empty)
+        val withdrawals = transaction.body.value.withdrawals.map(_.withdrawals).getOrElse(Map.empty)
 
         for
             rewardAccount <- withdrawals.keySet.view
@@ -83,10 +81,10 @@ trait AllRequiredScriptHashes {
         yield scriptHash
     }
 
-    private def requiredProposalProcedureScriptHashesView(
-        event: Event
+    private def neededProposalProcedureScriptHashesView(
+        transaction: Transaction
     ): scala.collection.View[ScriptHash] = {
-        val proposalProcedures = event.body.value.proposalProcedures
+        val proposalProcedures = transaction.body.value.proposalProcedures
 
         for
             proposalProcedure <- proposalProcedures.view
@@ -102,10 +100,10 @@ trait AllRequiredScriptHashes {
         yield scriptHash
     }
 
-    private def requiredCertificateScriptHashesView(
-        event: Event
+    private def neededCertificateScriptHashesView(
+        transaction: Transaction
     ): scala.collection.View[ScriptHash] = {
-        val certificates = event.body.value.certificates
+        val certificates = transaction.body.value.certificates
 
         def extractScriptHash(credential: Credential): Option[ScriptHash] = {
             credential match

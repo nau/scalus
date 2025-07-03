@@ -1,9 +1,9 @@
 package scalus.cardano.ledger
 package rules
 
-import scalus.cardano.ledger.rules.utils.AllReferenceScripts
 import io.bullet.borer.Cbor
 import scalus.cardano.ledger.Script.PlutusV1
+import scalus.cardano.ledger.utils.AllReferenceScriptsHelper
 import scala.util.boundary
 import scala.util.boundary.break
 import scala.annotation.tailrec
@@ -18,7 +18,7 @@ import scala.annotation.tailrec
 //--      fee marked in the transaction
 //--   6) The collateral is equivalent to total collateral asserted by the transaction
 //--   7) There is at least one collateral input
-object FeesOkValidator extends STS.Validator, AllReferenceScripts {
+object FeesOkValidator extends STS.Validator {
     override def validate(context: Context, state: State, event: Event): Result = boundary {
         val transactionId = event.id
         val collateralInputs = event.body.value.collateralInputs
@@ -212,7 +212,7 @@ object FeesOkValidator extends STS.Validator, AllReferenceScripts {
         state: State,
         event: Event
     ): Either[Error, Coin] = {
-        for scripts <- allReferenceScripts(state, event)
+        for scripts <- AllReferenceScriptsHelper.allReferenceScripts(state.utxo, event)
         yield
             val refScriptsFee = RefScriptsFeeCalculator(context, scripts)
             val transactionSizeFee = calculateTransactionSizeFee(context, event)

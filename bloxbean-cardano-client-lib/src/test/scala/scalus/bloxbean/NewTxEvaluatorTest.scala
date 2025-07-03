@@ -10,7 +10,7 @@ import scalus.builtin.ByteString.*
 import scalus.builtin.{platform, ByteString, Data}
 import scalus.cardano.address.ShelleyDelegationPart.Null
 import scalus.cardano.address.{Address, Network, ShelleyAddress, ShelleyPaymentPart}
-import scalus.cardano.ledger.*
+import scalus.cardano.ledger.{SlotConfig as _, *}
 import scalus.examples.PubKeyValidator
 import scalus.ledger.api.MajorProtocolVersion
 import scalus.uplc.*

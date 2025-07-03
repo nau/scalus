@@ -6,7 +6,7 @@ import com.bloxbean.cardano.client.backend.blockfrost.common.Constants
 import com.bloxbean.cardano.client.backend.blockfrost.service.BFBackendService
 import org.scalatest.funsuite.AnyFunSuite
 import scalus.bloxbean.BlocksValidation.apiKey
-import scalus.cardano.ledger.*
+import scalus.cardano.ledger.{SlotConfig as _, *}
 import scalus.ledger.api.MajorProtocolVersion
 import scalus.uplc.eval.ExBudget
 

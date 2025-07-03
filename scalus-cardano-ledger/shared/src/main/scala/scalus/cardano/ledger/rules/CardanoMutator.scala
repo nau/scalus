@@ -17,6 +17,7 @@ object CardanoMutator extends STS.Mutator {
             _ <- OutputTooSmallUTxOValidator.validate(context, state, event)
             _ <- OutputTooBigUTxOValidator.validate(context, state, event)
             _ <- OutsideValidityIntervalUTxOValidator.validate(context, state, event)
+//            _ <- OutsideForecastValidator.validate(context, state, event)
             state <- RemoveInputsFromUtxoMutator.transit(context, state, event)
             state <- AddOutputsToUtxoMutator.transit(context, state, event)
             state <- FeeMutator.transit(context, state, event)

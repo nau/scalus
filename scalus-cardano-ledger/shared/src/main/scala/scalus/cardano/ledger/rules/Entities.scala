@@ -7,7 +7,11 @@ import upickle.default.read
 type Utxo = Map[TransactionInput, TransactionOutput]
 
 // It's mutable state for transient calculation
-class Context(var fee: Coin = Coin.zero, val env: UtxoEnv = UtxoEnv.default)
+class Context(
+    var fee: Coin = Coin.zero,
+    val env: UtxoEnv = UtxoEnv.default,
+    val slotConfig: SlotConfig = SlotConfig.Mainnet
+)
 
 case class State(
     utxo: Utxo = Map.empty,
