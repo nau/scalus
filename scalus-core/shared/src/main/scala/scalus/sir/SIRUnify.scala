@@ -439,27 +439,47 @@ object SIRUnify {
                             case UnificationSuccess(env2, typeArgs) =>
                                 ccLeft.parent match
                                     case None =>
-                                        UnificationSuccess(
-                                          env2.copy(path = env.path),
-                                          SIRType.CaseClass(constrDecl, typeArgs, None)
-                                        )
-                                    case Some(p) =>
-                                        unifyType(
-                                          p,
-                                          ccRight.parent.get,
-                                          env2.copy(path = "parent" :: env2.path)
-                                        ) match
-                                            case UnificationSuccess(env3, parent) =>
+                                        ccRight.parent match
+                                            case None =>
                                                 UnificationSuccess(
-                                                  env3.copy(path = env.path),
-                                                  SIRType.CaseClass(
-                                                    constrDecl,
-                                                    typeArgs,
-                                                    Some(parent)
-                                                  )
+                                                  env2.copy(path = env.path),
+                                                  SIRType.CaseClass(constrDecl, typeArgs, None)
                                                 )
-                                            case failure @ UnificationFailure(path, left, right) =>
-                                                failure
+                                            case Some(rightParent) =>
+                                                UnificationFailure(
+                                                  "parent" :: env.path,
+                                                  ccLeft.parent,
+                                                  ccRight.parent
+                                                )
+                                    case Some(leftParent) =>
+                                        ccRight.parent match
+                                            case None =>
+                                                UnificationFailure(
+                                                  "parent" :: env.path,
+                                                  ccLeft.parent,
+                                                  ccRight.parent
+                                                )
+                                            case Some(ccRightParent) =>
+                                                unifyType(
+                                                  leftParent,
+                                                  ccRightParent,
+                                                  env2.copy(path = "parent" :: env.path)
+                                                ) match
+                                                    case UnificationSuccess(env3, parent) =>
+                                                        UnificationSuccess(
+                                                          env3.copy(path = env.path),
+                                                          SIRType.CaseClass(
+                                                            constrDecl,
+                                                            typeArgs,
+                                                            Some(parent)
+                                                          )
+                                                        )
+                                                    case failure @ UnificationFailure(
+                                                          path,
+                                                          left,
+                                                          right
+                                                        ) =>
+                                                        failure
                             case failure @ UnificationFailure(path, left, right) => failure
                     case failure @ UnificationFailure(path, left, right) =>
                         // if we are in upcasting mode, then try to find common parent type
