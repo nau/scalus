@@ -532,6 +532,12 @@ object SIRType {
                             }
                             .mkString("\n")
                         println(s"filledTypesDebug:\n$filledTypesDebug")
+                        if true then
+                            val unused = SIRUnify.unifyType(
+                                in,
+                                arg,
+                                env.withUpcasting.withDebug
+                            )
                         throw new CaclulateApplyTypeException(message)
             // TypeError(s"Cannot unify $in with $arg, difference at path ${e.path}", null)
             case tvF: TypeVar =>
