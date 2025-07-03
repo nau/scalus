@@ -111,6 +111,16 @@ case class ConstrDecl(
               "Some constructor must have exactly one parent type argument. (name=" + name + ")"
             )
 
+    if name == "scala.Tuple3" then
+        if params.head.name == "t1" then
+            throw new RuntimeException(
+              "Tuple3 constructor must have parameters _1, _2, _3. (name=" + name + ")"
+            )
+        if parentTypeArgs.nonEmpty then
+            throw new RuntimeException(
+              "Tuple3 constructor must not have parent type arguments. (name=" + name + ")"
+            )
+
 }
 
 //  Data~ Lost(Const)

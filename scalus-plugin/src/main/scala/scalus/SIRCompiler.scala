@@ -2381,7 +2381,9 @@ final class SIRCompiler(options: SIRCompilerOptions = SIRCompilerOptions.default
                         .map(i => SIRType.TypeVar(s"T$i", Some(tupleNameHash + i * 5), false))
                         .toList
                 val tupleParams =
-                    tupleTypeParams.map(t => TypeBinding(t.name.toLowerCase, t)).toList
+                    tupleTypeParams.zipWithIndex
+                        .map((t, i) => TypeBinding(s"_${i + 1}", t))
+                        .toList
                 val tupleDecl = DataDecl(
                   tupleName,
                   List(
@@ -2389,7 +2391,7 @@ final class SIRCompiler(options: SIRCompilerOptions = SIRCompilerOptions.default
                       tupleName,
                       tupleParams,
                       tupleTypeParams,
-                      tupleTypeParams,
+                      List.empty,
                       AnnotationsDecl.fromSrcPos(srcPos)
                     )
                   ),

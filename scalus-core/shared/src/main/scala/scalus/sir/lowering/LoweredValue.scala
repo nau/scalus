@@ -54,12 +54,20 @@ trait LoweredValue {
         SIRUnify.unifyType(sirType, targetType, SIRUnify.Env.empty.withoutUpcasting) match
             case SIRUnify.UnificationSuccess(env, tp) =>
                 this
-            case SIRUnify.UnificationFailure(_, _, _) =>
+            case SIRUnify.UnificationFailure(path, l, r) =>
                 // if we cannot unify types, we need to upcast
                 //  to the target type.
                 val parentsSeq =
                     SIRUnify.subtypeSeq(sirType, targetType, SIRUnify.Env.empty)
                 if parentsSeq.isEmpty then {
+                    println(
+                      s"first unify failure: path = ${path}, left = ${l}, right = ${r}"
+                    )
+                    val debugUnification = SIRUnify.unifyType(
+                      sirType,
+                      targetType,
+                      SIRUnify.Env.empty.withoutUpcasting.withDebug
+                    )
                     throw LoweringException(
                       s"Cannot upcast ${this.sirType.show} to ${targetType.show}",
                       pos
