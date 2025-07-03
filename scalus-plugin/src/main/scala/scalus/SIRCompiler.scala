@@ -2257,10 +2257,23 @@ final class SIRCompiler(options: SIRCompilerOptions = SIRCompilerOptions.default
         else
             member.info match
                 case _: MethodType | _: PolyType =>
+                    val mtp = sirTypeInEnv(member.info, tree.srcPos, env)
+                    if member.symbol.flags.is(Flags.Method) then
+                        if env.debug then
+                            println(
+                              s"virtual call: ${qualifierSym.show} ${qualifierTypeSym.show} ${member.symbol.fullName} is method"
+                            )
+                    if member.symbol.fullName.toString == "scalus.prelude.Validator.validate" then
+                        println(
+                          s"validate: ${qualifierSym.show} ${qualifierTypeSym.show} ${member.symbol.fullName}, isMethod=${member.symbol.flags.is(Flags.Method)}"
+                        )
+                        val emptyParams0 =
+                            member.symbol.paramSymss.filterNot(_.exists(_.isType)).isEmpty
+                        println(s"mtp = ${mtp.show}, emptyParams0 = ${emptyParams0}")
                     SIR.ExternalVar(
                       qualifierTypeSym.fullName.toString,
                       member.symbol.fullName.toString,
-                      sirTypeInEnv(member.info.finalResultType, tree.srcPos, env),
+                      sirTypeInEnv(member.info, tree.srcPos, env),
                       AnnotationsDecl.fromSrcPos(tree.srcPos)
                     )
                 case _ =>

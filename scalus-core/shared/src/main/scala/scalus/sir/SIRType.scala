@@ -6,6 +6,7 @@ import scalus.sir.SIRType.TypeVar
 
 import java.util
 import scala.annotation.tailrec
+import scala.annotation.unused
 
 sealed trait SIRType {
 
@@ -101,6 +102,12 @@ object SIRType {
         typeArgs: scala.List[SIRType],
         parent: Option[SIRType]
     ) extends SIRType {
+
+        if constrDecl.name == "scala.Tuple3" then
+            if parent.nonEmpty then
+                throw new IllegalArgumentException(
+                  s"Tuple3 cannot have parent, got $parent"
+                )
 
         override def show: String =
             if typeArgs.isEmpty then constrDecl.name
@@ -532,11 +539,11 @@ object SIRType {
                             }
                             .mkString("\n")
                         println(s"filledTypesDebug:\n$filledTypesDebug")
-                        if true then
-                            val unused = SIRUnify.unifyType(
-                                in,
-                                arg,
-                                env.withUpcasting.withDebug
+                        if false then
+                            @unused val unused = SIRUnify.unifyType(
+                              in,
+                              arg,
+                              env.withUpcasting.withDebug
                             )
                         throw new CaclulateApplyTypeException(message)
             // TypeError(s"Cannot unify $in with $arg, difference at path ${e.path}", null)

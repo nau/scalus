@@ -34,7 +34,16 @@ case class SIRPosition(
     startColumn: Int,
     endLine: Int,
     endColumn: Int
-)
+) {
+
+    def show: String = {
+        s"$file:${startLine + 1}:${startColumn} - ${endLine + 1}:${endColumn}"
+    }
+
+    def isEmpty: Boolean = file.isEmpty && startLine == 0 && startColumn == 0 &&
+        endLine == 0 && endColumn == 0
+
+}
 
 object SIRPosition {
 
@@ -140,6 +149,12 @@ case class DataDecl(
     annotations: AnnotationsDecl
 ) {
 
+    if constructors.isEmpty then
+        throw new RuntimeException(
+          s"Data declaration must have at least one constructor. (name=$name)"
+        )
+    // if (name == "")
+
     private var _tp: SIRType = null
     private var _constrs: Map[String, SIRType] = null
 
@@ -150,8 +165,9 @@ case class DataDecl(
                 case _   => SIRType.TypeLambda(typeParams, SIRType.SumCaseClass(this, typeParams))
         _tp
 
-    def constrType(constrName: String): SIRType =
-        if _constrs == null then
+    def constrType(constrName: String): SIRType = {
+        if _constrs == null then {
+            val nConstrs = constructors.length
             _constrs = constructors
                 .map { c =>
                     val parent = typeParams match
@@ -159,16 +175,18 @@ case class DataDecl(
                         case typeParams =>
                             val tpEnv = typeParams.zip(c.parentTypeArgs).toMap
                             SIRType.substitute(tp, tpEnv, Map.empty)
+                    val optParent = if nConstrs == 1 then None else Some(parent)
                     val sirType = c.typeParams match
-                        case Nil => SIRType.CaseClass(c, Nil, Some(parent))
+                        case Nil => SIRType.CaseClass(c, Nil, optParent)
                         case targs =>
                             SIRType.TypeLambda(
                               c.typeParams,
-                              SIRType.CaseClass(c, c.typeParams, Some(parent))
+                              SIRType.CaseClass(c, c.typeParams, optParent)
                             )
                     c.name -> sirType
                 }
                 .toMap[String, SIRType]
+        }
         _constrs.getOrElse(
           constrName,
           throw new IllegalArgumentException(
@@ -176,6 +194,7 @@ case class DataDecl(
           )
         )
 
+    }
 }
 
 //case class ExternalDataDecl(module: String, name: String)
@@ -222,6 +241,12 @@ object SIR:
     case class ExternalVar(moduleName: String, name: String, tp: SIRType, anns: AnnotationsDecl)
         extends AnnotatedSIR {
 
+        if moduleName == "scalus.examples.HtlcValidator$" && name == "scalus.prelude.Validator.validate" && tp == SIRType.Unit
+        then
+            throw new RuntimeException(
+              "ExternalVar: HtlcValidator.validate has Unit type, but should be function"
+            )
+
         override def toString: String = s"ExternalVar($moduleName, $name, ${tp.show})"
 
     }
@@ -248,6 +273,12 @@ object SIR:
 
     case class Apply(f: AnnotatedSIR, arg: AnnotatedSIR, tp: SIRType, anns: AnnotationsDecl)
         extends AnnotatedSIR {
+
+        if f.tp == SIRType.Unit then
+            throw new RuntimeException(
+              s"Apply: f is Unit, cannot apply to Unit at ${anns.pos.show}.\n" +
+                  s"f: $f"
+            )
 
         // TODO: makr tp computable, not stored.  (implement subst at first).
         /*
