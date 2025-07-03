@@ -425,7 +425,10 @@ class TxEvaluator(
         val spender = mode match
             case EvaluatorMode.EVALUATE_AND_COMPUTE_COST => CountingBudgetSpender()
             case EvaluatorMode.VALIDATE =>
-                RestrictingBudgetSpenderWithScripDump(budget, debugDumpFilesForTesting)
+                scalus.bloxbean.RestrictingBudgetSpenderWithScripDump(
+                  budget,
+                  debugDumpFilesForTesting
+                )
 
         val logger = Log()
         val r =
@@ -494,6 +497,13 @@ class TxEvaluator(
         }
         collectedRedeemers
     }
+
+    @deprecated("Use scalus.bloxbean.RestrictingBudgetSpenderWithScripDump instead", "0.10.1")
+    class RestrictingBudgetSpenderWithScripDump(maxBudget: ExBudget)
+        extends scalus.bloxbean.RestrictingBudgetSpenderWithScripDump(
+          maxBudget,
+          debugDumpFilesForTesting
+        )
 }
 
 object TxEvaluator {

@@ -4,7 +4,7 @@ import scalus.uplc.eval.*
 
 import java.nio.file.Files
 
-private[scalus] final class RestrictingBudgetSpenderWithScripDump(
+private[scalus] class RestrictingBudgetSpenderWithScripDump(
     val maxBudget: ExBudget,
     debugDumpFilesForTesting: Boolean
 ) extends BudgetSpender {
