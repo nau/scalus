@@ -27,7 +27,8 @@ import scalus.ledger.api.v1
 import scalus.ledger.api.v2
 import scalus.ledger.api.v2.OutputDatum
 import scalus.ledger.api.v3
-//import scalus.prelude.Option
+
+import java.nio.file.StandardOpenOption
 import scalus.uplc.Constant
 import scalus.uplc.DeBruijnedProgram
 import scalus.uplc.Term
@@ -166,7 +167,7 @@ class TxEvaluator(
         // aiken tx simulate --cbor tx-$txhash.cbor ins.cbor outs.cbor > aiken.log"
         if debugDumpFilesForTesting then
             Files.write(Paths.get(s"tx-$txhash.cbor"), transaction.serialize())
-            Files.deleteIfExists(java.nio.file.Paths.get("scalus.log"))
+            Files.deleteIfExists(Paths.get("scalus.log"))
             storeInsOutsInCborFiles(inputUtxos, txhash)
 
         evalPhaseTwo(transaction, txhash, datums, inputUtxos, runPhaseOne = true)
@@ -342,6 +343,7 @@ class TxEvaluator(
                     case Some(datum) =>
                         evalScript(
                           redeemer,
+                          txhash,
                           plutusV1VM,
                           script,
                           datum,
@@ -349,7 +351,7 @@ class TxEvaluator(
                           ctxData
                         )
                     case None =>
-                        evalScript(redeemer, plutusV1VM, script, rdmr, ctxData)
+                        evalScript(redeemer, txhash, plutusV1VM, script, rdmr, ctxData)
 
             case (Script.PlutusV2(script), datum) =>
                 val rdmr = toScalusData(redeemer.getData)
@@ -367,6 +369,7 @@ class TxEvaluator(
                     case Some(datum) =>
                         evalScript(
                           redeemer,
+                          txhash,
                           plutusV2VM,
                           script,
                           datum,
@@ -374,7 +377,7 @@ class TxEvaluator(
                           ctxData
                         )
                     case None =>
-                        evalScript(redeemer, plutusV2VM, script, rdmr, ctxData)
+                        evalScript(redeemer, txhash, plutusV2VM, script, rdmr, ctxData)
 
             case (Script.PlutusV3(script), datum) =>
                 val rdmr = toScalusData(redeemer.getData)
@@ -388,7 +391,7 @@ class TxEvaluator(
                     log.debug(s"Datum: ${datum.map(_.toJson)}")
                     log.debug(s"Redeemer: ${rdmr.toJson}")
                     log.debug(s"Script context: ${ctxData.toJson}")
-                evalScript(redeemer, plutusV3VM, script, ctxData)
+                evalScript(redeemer, txhash, plutusV3VM, script, ctxData)
 
         val cost = result.budget
         log.debug(s"Eval result: $result")
@@ -405,6 +408,7 @@ class TxEvaluator(
 
     private def evalScript(
         redeemer: Redeemer,
+        txhash: String,
         vm: PlutusVM,
         script: ByteString,
         args: Data*
@@ -419,10 +423,10 @@ class TxEvaluator(
         }
         if debugDumpFilesForTesting then
             Files.write(
-              java.nio.file.Paths.get(s"script-${redeemer.getTag}-${redeemer.getIndex}.flat"),
+              Paths.get(s"script-$txhash-${redeemer.getTag}-${redeemer.getIndex}.flat"),
               applied.flatEncoded,
-              java.nio.file.StandardOpenOption.CREATE,
-              java.nio.file.StandardOpenOption.TRUNCATE_EXISTING
+              StandardOpenOption.CREATE,
+              StandardOpenOption.TRUNCATE_EXISTING
             )
         val spender = mode match
             case EvaluatorMode.EVALUATE_AND_COMPUTE_COST => CountingBudgetSpender()
@@ -521,7 +525,6 @@ object TxEvaluator {
         tx: Transaction,
         utxos: Map[TransactionInput, TransactionOutput]
     ): Map[ScriptHash, Script] = {
-        import scalus.utils.Hex.toHex
         val scripts =
             def decodeToSingleCbor(script: PlutusScript) =
                 // unwrap the outer CBOR encoding
