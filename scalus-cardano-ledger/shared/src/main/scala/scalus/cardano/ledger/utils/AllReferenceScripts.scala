@@ -1,12 +1,10 @@
 package scalus.cardano.ledger
 package utils
 
-import scalus.cardano.ledger.rules.Utxo
-
 import scala.util.boundary
 import scala.util.boundary.break
 
-object AllReferenceScriptsHelper {
+object AllReferenceScripts {
     def allReferenceScripts(
         utxo: Utxo,
         transaction: Transaction

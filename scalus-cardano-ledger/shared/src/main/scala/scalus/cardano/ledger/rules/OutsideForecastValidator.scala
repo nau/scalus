@@ -2,17 +2,19 @@ package scalus.cardano.ledger
 package rules
 
 // It's Babbage.validateOutsideForecast in cardano-ledger
-// TODO recalculate slotConfig according to slot parameter
+// TODO In our current implementation, SlotConfig operations always succeed, but in the original Haskell version,
+//  EpochInfo does not. Below is the original comment
+//-- | Information about epochs
+//--
+//-- Different epochs may have different sizes and different slot lengths. This
+//-- information is encapsulated by 'EpochInfo'. It is parameterized over a monad
+//-- @m@ because the information about how long each epoch is may depend on
+//-- information derived from the blockchain itself. It ultimately requires acess
+//-- to state, and so either uses the monad for that or uses the monad to reify
+//-- failure due to cached state information being too stale for the current
+//-- query.
 object OutsideForecastValidator extends STS.Validator {
     override def validate(context: Context, state: State, event: Event): Result = {
-        val slotConfig = context.slotConfig
-        val ttl = event.body.value.ttl
-        val nonEmptyRedeemers = !event.witnessSet.redeemers.forall(_.value.isEmpty)
-
-        ttl match
-            case Some(slot) if nonEmptyRedeemers =>
-                slotConfig.slotToTime(slot)
-                ???
-            case _ => success
+        success
     }
 }

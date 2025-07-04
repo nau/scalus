@@ -1,12 +1,10 @@
-package scalus.cardano.ledger.utils
-
-import scalus.cardano.ledger.rules.Utxo
-import scalus.cardano.ledger.*
+package scalus.cardano.ledger
+package utils
 
 import scala.util.boundary
 import scala.util.boundary.break
 
-object AllNeededScriptHashesHelper {
+object AllNeededScriptHashes {
     def allNeededScriptHashes(
         utxo: Utxo,
         transaction: Transaction

@@ -1,7 +1,7 @@
 package scalus.cardano.ledger
 package rules
 
-import scalus.cardano.ledger.utils.MinCoinSizedTransactionOutputHelper
+import scalus.cardano.ledger.utils.MinCoinSizedTransactionOutput
 import scalus.ledger.babbage.ProtocolParams
 import scala.util.boundary
 import scala.util.boundary.break
@@ -59,7 +59,7 @@ object OutputTooSmallUTxOValidator extends STS.Validator {
         for (sizedOutput @ Sized(output, _), index) <- outputs
         do
             val minCoinSizedTransactionOutput =
-                MinCoinSizedTransactionOutputHelper(protocolParams, sizedOutput)
+                MinCoinSizedTransactionOutput(protocolParams, sizedOutput)
 
             if output.value.coin < minCoinSizedTransactionOutput then
                 break(

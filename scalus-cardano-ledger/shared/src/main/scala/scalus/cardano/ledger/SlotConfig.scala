@@ -1,7 +1,5 @@
 package scalus.cardano.ledger
 
-import scalus.ledger.api.PlutusLedgerLanguage.*
-
 case class SlotConfig(zeroTime: Long, zeroSlot: Long, slotLength: Long) {
     def slotToTime(slot: Long): Long = zeroTime + (slot - zeroSlot) * slotLength
     def timeToSlot(time: Long): Long = zeroSlot + ((time - zeroTime) / slotLength)

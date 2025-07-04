@@ -3,7 +3,7 @@ package utils
 
 import scala.collection.View
 
-object AllWitnessScriptsHelper {
+object AllWitnessScripts {
     def allWitnessScriptHashes(tx: Transaction): Set[ScriptHash] =
         allWitnessScriptHashesView(tx).toSet
 

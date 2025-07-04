@@ -1,7 +1,7 @@
 package scalus.cardano.ledger
 package rules
 
-import scalus.cardano.ledger.utils.{AllNeededScriptHashesHelper, AllReferenceScriptsHelper, AllWitnessScriptsHelper}
+import scalus.cardano.ledger.utils.{AllNeededScriptHashes, AllReferenceScripts, AllWitnessScripts}
 import scalus.ledger.api.{Timelock, ValidityInterval}
 
 import scala.util.boundary
@@ -11,15 +11,15 @@ import scala.util.boundary.break
 object NativeScriptsValidator extends STS.Validator {
     override def validate(context: Context, state: State, event: Event): Result = {
         for
-            neededScriptHashes <- AllNeededScriptHashesHelper.allNeededScriptHashes(
+            neededScriptHashes <- AllNeededScriptHashes.allNeededScriptHashes(
               state.utxo,
               event
             )
-            referenceNativeScripts <- AllReferenceScriptsHelper.allReferenceNativeScripts(
+            referenceNativeScripts <- AllReferenceScripts.allReferenceNativeScripts(
               state.utxo,
               event
             )
-            providedNativeScripts = AllWitnessScriptsHelper.allWitnessNativeScripts(event)
+            providedNativeScripts = AllWitnessScripts.allWitnessNativeScripts(event)
             validatorKeys = allValidatorKeys(event)
             validityInterval = extractValidityInterval(event)
             _ <- validateNativeScripts(
