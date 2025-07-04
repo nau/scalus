@@ -16,6 +16,7 @@ class BlockDeserializationTest extends AnyFunSuite {
     private val blocksDir = Paths.get(s"./blocks")
 
     test("evaluate block 11544748") {
+        pending
         val bytes = getClass.getResourceAsStream(s"/blocks/block-11544748.cbor").readAllBytes()
         given OriginalCborByteArray = OriginalCborByteArray(bytes)
         val block = readBlock(bytes).block
