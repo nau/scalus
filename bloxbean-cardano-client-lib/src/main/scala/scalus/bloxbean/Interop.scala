@@ -36,7 +36,6 @@ import scalus.builtin.Data
 import scalus.builtin.Data.ToData
 import scalus.builtin.Data.toData
 import scalus.builtin.Pair
-import scalus.builtin.given
 import scalus.cardano.ledger.Script
 import scalus.ledger
 import scalus.ledger.api

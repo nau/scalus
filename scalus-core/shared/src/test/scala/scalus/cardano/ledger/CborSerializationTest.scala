@@ -6,7 +6,6 @@ import org.scalatest.funsuite.AnyFunSuite
 import org.scalatestplus.scalacheck.ScalaCheckPropertyChecks
 import scalus.builtin.ByteString.*
 import scalus.ledger.api.Timelock
-import scalus.utils.Hex.toHex
 
 class CborSerializationTest extends AnyFunSuite, ScalaCheckPropertyChecks, ArbitraryInstances {
     test(s"Hash should serialize and deserialize correctly"):

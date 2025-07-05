@@ -1,9 +1,6 @@
 package scalus.cardano.ledger
 
-import com.bloxbean.cardano.client.api.model.Utxo
-import scalus.builtin.{ByteString, Data}
-import scalus.cardano.address.Address
-import scalus.utils.Hex
+import scalus.builtin.ByteString
 
 import scala.jdk.CollectionConverters.*
 
