@@ -141,17 +141,14 @@ object BuiltinCostModel {
         Macros.inlineBuiltinCostModelJsonImpl('name)
     }
 
-    val defaultCostModelA: BuiltinCostModel =
+    lazy val defaultCostModelA: BuiltinCostModel =
         BuiltinCostModel.fromJsonString(inlineBuiltinCostModelJson("builtinCostModelA.json"))
 
-    val defaultCostModelB: BuiltinCostModel =
+    lazy val defaultCostModelB: BuiltinCostModel =
         BuiltinCostModel.fromJsonString(inlineBuiltinCostModelJson("builtinCostModelB.json"))
 
-    val defaultCostModelC: BuiltinCostModel =
+    lazy val defaultCostModelC: BuiltinCostModel =
         BuiltinCostModel.fromJsonString(inlineBuiltinCostModelJson("builtinCostModelC.json"))
-
-    @deprecated("Use defaultCostModelA, defaultCostModelB or defaultCostModelC instead", "0.1.0")
-    val defaultCostModel: BuiltinCostModel = defaultCostModelC
 
     given ReadWriter[BuiltinCostModel] = readwriter[ujson.Value].bimap(
       model =>

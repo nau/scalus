@@ -191,7 +191,7 @@ object ProtocolParams {
 
 /*
   Funny thing is that JVM has a limit of 255 parameters in a method if the args are Ints.
-  If it's Long, than the limit is 127.
+  If it's Long, then the limit is 127.
   And we can't generate a constructor call for `PlutusV1Params` or `PlutusV2Params`
   which has more than 127 parameters.
   So I'm using Ints here, and that should be enough for the protocol parameters.
@@ -199,6 +199,17 @@ object ProtocolParams {
   and be a class with public fields.
   I also added a `JsonUtils` object to generate a `ReadWriter` for these classes.
  */
+
+/** Plutus V1 cost model parameters.
+  *
+  * The names of the fields are taken from
+  * [[https://github.com/input-output-hk/plutus/blob/1.40.0.0/plutus-ledger-api/src/PlutusLedgerApi/V1/ParamName.hs]]
+  * and Blockfrost Protocol Parameters JSON uses these names as well in
+  * `blockfrost-params-epoch-544.json`
+  *
+  * But what's really important is the order of the fields because that's the order of the
+  * parameters in the protocol parameters array.
+  */
 class PlutusV1Params {
     var `addInteger-cpu-arguments-intercept`: Long = 0L
     var `addInteger-cpu-arguments-slope`: Long = 0L
@@ -370,6 +381,16 @@ class PlutusV1Params {
     def toJson: String = write(this)
 }
 
+/** Plutus V2 cost model parameters.
+  *
+  * The names of the fields are taken from
+  * [[https://github.com/input-output-hk/plutus/blob/1.40.0.0/plutus-ledger-api/src/PlutusLedgerApi/V2/ParamName.hs]]
+  * and Blockfrost Protocol Parameters JSON uses these names as well in
+  * `blockfrost-params-epoch-544.json`
+  *
+  * But what's really important is the order of the fields because that's the order of the
+  * parameters in the protocol parameters array.
+  */
 class PlutusV2Params {
     var `addInteger-cpu-arguments-intercept`: Long = 0L
     var `addInteger-cpu-arguments-slope`: Long = 0L
@@ -550,7 +571,16 @@ class PlutusV2Params {
     def toJson: String = write(this)
 }
 
-// TODO: make one single style of naming
+/** Plutus V3 cost model parameters.
+  *
+  * The names of the fields are taken from
+  * [[https://github.com/input-output-hk/plutus/blob/1.40.0.0/plutus-ledger-api/src/PlutusLedgerApi/V3/ParamName.hs]]
+  * and Blockfrost Protocol Parameters JSON uses these names as well in
+  * `blockfrost-params-epoch-544.json`
+  *
+  * But what's really important is the order of the fields because that's the order of the
+  * parameters in the protocol parameters array.
+  */
 class PlutusV3Params {
     var `addInteger-cpu-arguments-intercept`: Long = 0L
     var `addInteger-cpu-arguments-slope`: Long = 0L
@@ -745,64 +775,64 @@ class PlutusV3Params {
     var `verifySchnorrSecp256k1Signature-cpu-arguments-intercept`: Long = 0L
     var `verifySchnorrSecp256k1Signature-cpu-arguments-slope`: Long = 0L
     var `verifySchnorrSecp256k1Signature-memory-arguments`: Long = 0L
-    var cekConstrCost_exBudgetCPU: Long = 0L
-    var cekConstrCost_exBudgetMemory: Long = 0L
-    var cekCaseCost_exBudgetCPU: Long = 0L
-    var cekCaseCost_exBudgetMemory: Long = 0L
-    var bls12_381_G1_add_cpu_arguments: Long = 0L
-    var bls12_381_G1_add_memory_arguments: Long = 0L
-    var bls12_381_G1_compress_cpu_arguments: Long = 0L
-    var bls12_381_G1_compress_memory_arguments: Long = 0L
-    var bls12_381_G1_equal_cpu_arguments: Long = 0L
-    var bls12_381_G1_equal_memory_arguments: Long = 0L
-    var bls12_381_G1_hashToGroup_cpu_arguments_intercept: Long = 0L
-    var bls12_381_G1_hashToGroup_cpu_arguments_slope: Long = 0L
-    var bls12_381_G1_hashToGroup_memory_arguments: Long = 0L
-    var bls12_381_G1_neg_cpu_arguments: Long = 0L
-    var bls12_381_G1_neg_memory_arguments: Long = 0L
-    var bls12_381_G1_scalarMul_cpu_arguments_intercept: Long = 0L
-    var bls12_381_G1_scalarMul_cpu_arguments_slope: Long = 0L
-    var bls12_381_G1_scalarMul_memory_arguments: Long = 0L
-    var bls12_381_G1_uncompress_cpu_arguments: Long = 0L
-    var bls12_381_G1_uncompress_memory_arguments: Long = 0L
-    var bls12_381_G2_add_cpu_arguments: Long = 0L
-    var bls12_381_G2_add_memory_arguments: Long = 0L
-    var bls12_381_G2_compress_cpu_arguments: Long = 0L
-    var bls12_381_G2_compress_memory_arguments: Long = 0L
-    var bls12_381_G2_equal_cpu_arguments: Long = 0L
-    var bls12_381_G2_equal_memory_arguments: Long = 0L
-    var bls12_381_G2_hashToGroup_cpu_arguments_intercept: Long = 0L
-    var bls12_381_G2_hashToGroup_cpu_arguments_slope: Long = 0L
-    var bls12_381_G2_hashToGroup_memory_arguments: Long = 0L
-    var bls12_381_G2_neg_cpu_arguments: Long = 0L
-    var bls12_381_G2_neg_memory_arguments: Long = 0L
-    var bls12_381_G2_scalarMul_cpu_arguments_intercept: Long = 0L
-    var bls12_381_G2_scalarMul_cpu_arguments_slope: Long = 0L
-    var bls12_381_G2_scalarMul_memory_arguments: Long = 0L
-    var bls12_381_G2_uncompress_cpu_arguments: Long = 0L
-    var bls12_381_G2_uncompress_memory_arguments: Long = 0L
-    var bls12_381_finalVerify_cpu_arguments: Long = 0L
-    var bls12_381_finalVerify_memory_arguments: Long = 0L
-    var bls12_381_millerLoop_cpu_arguments: Long = 0L
-    var bls12_381_millerLoop_memory_arguments: Long = 0L
-    var bls12_381_mulMlResult_cpu_arguments: Long = 0L
-    var bls12_381_mulMlResult_memory_arguments: Long = 0L
-    var keccak_256_cpu_arguments_intercept: Long = 0L
-    var keccak_256_cpu_arguments_slope: Long = 0L
-    var keccak_256_memory_arguments: Long = 0L
-    var blake2b_224_cpu_arguments_intercept: Long = 0L
-    var blake2b_224_cpu_arguments_slope: Long = 0L
-    var blake2b_224_memory_arguments: Long = 0L
-    var integerToByteString_cpu_arguments_c0: Long = 0L
-    var integerToByteString_cpu_arguments_c1: Long = 0L
-    var integerToByteString_cpu_arguments_c2: Long = 0L
-    var integerToByteString_memory_arguments_intercept: Long = 0L
-    var integerToByteString_memory_arguments_slope: Long = 0L
-    var byteStringToInteger_cpu_arguments_c0: Long = 0L
-    var byteStringToInteger_cpu_arguments_c1: Long = 0L
-    var byteStringToInteger_cpu_arguments_c2: Long = 0L
-    var byteStringToInteger_memory_arguments_intercept: Long = 0L
-    var byteStringToInteger_memory_arguments_slope: Long = 0L
+    var `cekConstrCost-exBudgetCPU`: Long = 0L
+    var `cekConstrCost-exBudgetMemory`: Long = 0L
+    var `cekCaseCost-exBudgetCPU`: Long = 0L
+    var `cekCaseCost-exBudgetMemory`: Long = 0L
+    var `bls12_381_G1_add-cpu-arguments`: Long = 0L
+    var `bls12_381_G1_add-memory-arguments`: Long = 0L
+    var `bls12_381_G1_compress-cpu-arguments`: Long = 0L
+    var `bls12_381_G1_compress-memory-arguments`: Long = 0L
+    var `bls12_381_G1_equal-cpu-arguments`: Long = 0L
+    var `bls12_381_G1_equal-memory-arguments`: Long = 0L
+    var `bls12_381_G1_hashToGroup-cpu-arguments-intercept`: Long = 0L
+    var `bls12_381_G1_hashToGroup-cpu-arguments-slope`: Long = 0L
+    var `bls12_381_G1_hashToGroup-memory-arguments`: Long = 0L
+    var `bls12_381_G1_neg-cpu-arguments`: Long = 0L
+    var `bls12_381_G1_neg-memory-arguments`: Long = 0L
+    var `bls12_381_G1_scalarMul-cpu-arguments-intercept`: Long = 0L
+    var `bls12_381_G1_scalarMul-cpu-arguments-slope`: Long = 0L
+    var `bls12_381_G1_scalarMul-memory-arguments`: Long = 0L
+    var `bls12_381_G1_uncompress-cpu-arguments`: Long = 0L
+    var `bls12_381_G1_uncompress-memory-arguments`: Long = 0L
+    var `bls12_381_G2_add-cpu-arguments`: Long = 0L
+    var `bls12_381_G2_add-memory-arguments`: Long = 0L
+    var `bls12_381_G2_compress-cpu-arguments`: Long = 0L
+    var `bls12_381_G2_compress-memory-arguments`: Long = 0L
+    var `bls12_381_G2_equal-cpu-arguments`: Long = 0L
+    var `bls12_381_G2_equal-memory-arguments`: Long = 0L
+    var `bls12_381_G2_hashToGroup-cpu-arguments-intercept`: Long = 0L
+    var `bls12_381_G2_hashToGroup-cpu-arguments-slope`: Long = 0L
+    var `bls12_381_G2_hashToGroup-memory-arguments`: Long = 0L
+    var `bls12_381_G2_neg-cpu-arguments`: Long = 0L
+    var `bls12_381_G2_neg-memory-arguments`: Long = 0L
+    var `bls12_381_G2_scalarMul-cpu-arguments-intercept`: Long = 0L
+    var `bls12_381_G2_scalarMul-cpu-arguments-slope`: Long = 0L
+    var `bls12_381_G2_scalarMul-memory-arguments`: Long = 0L
+    var `bls12_381_G2_uncompress-cpu-arguments`: Long = 0L
+    var `bls12_381_G2_uncompress-memory-arguments`: Long = 0L
+    var `bls12_381_finalVerify-cpu-arguments`: Long = 0L
+    var `bls12_381_finalVerify-memory-arguments`: Long = 0L
+    var `bls12_381_millerLoop-cpu-arguments`: Long = 0L
+    var `bls12_381_millerLoop-memory-arguments`: Long = 0L
+    var `bls12_381_mulMlResult-cpu-arguments`: Long = 0L
+    var `bls12_381_mulMlResult-memory-arguments`: Long = 0L
+    var `keccak_256-cpu-arguments-intercept`: Long = 0L
+    var `keccak_256-cpu-arguments-slope`: Long = 0L
+    var `keccak_256-memory-arguments`: Long = 0L
+    var `blake2b_224-cpu-arguments-intercept`: Long = 0L
+    var `blake2b_224-cpu-arguments-slope`: Long = 0L
+    var `blake2b_224-memory-arguments`: Long = 0L
+    var `integerToByteString-cpu-arguments-c0`: Long = 0L
+    var `integerToByteString-cpu-arguments-c1`: Long = 0L
+    var `integerToByteString-cpu-arguments-c2`: Long = 0L
+    var `integerToByteString-memory-arguments-intercept`: Long = 0L
+    var `integerToByteString-memory-arguments-slope`: Long = 0L
+    var `byteStringToInteger-cpu-arguments-c0`: Long = 0L
+    var `byteStringToInteger-cpu-arguments-c1`: Long = 0L
+    var `byteStringToInteger-cpu-arguments-c2`: Long = 0L
+    var `byteStringToInteger-memory-arguments-intercept`: Long = 0L
+    var `byteStringToInteger-memory-arguments-slope`: Long = 0L
     var `andByteString-cpu-arguments-intercept`: Long = 0L
     var `andByteString-cpu-arguments-slope1`: Long = 0L
     var `andByteString-cpu-arguments-slope2`: Long = 0L
@@ -893,10 +923,7 @@ private object JsonUtils {
 }
 
 object PlutusV1Params:
-
     given ReadWriter[PlutusV1Params] = JsonUtils.mkClassFieldsReadWriter[PlutusV1Params]
-    // given ReadWriter[PlutusV1Params] = readwriter[ujson.Value].bimap(params => ujson.Obj(), json => new PlutusV1Params)
-
     val (toSeq, fromSeq) = JsonUtils.mkClassFieldsFromSeqIso[PlutusV1Params]
 
 object PlutusV2Params:
