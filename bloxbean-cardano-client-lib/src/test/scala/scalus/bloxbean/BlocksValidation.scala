@@ -287,8 +287,9 @@ object BlocksValidation:
                 case e: Exception =>
                     println(s"Error reading block $path: ${e.getMessage}")
                     e.printStackTrace()
-            println(s"Block $path")
+            print(s"\rBlock $path")
         end for
+        println()
         println(s"Time taken: ${System.currentTimeMillis() - start} ms")
         println(
           s"Stats: num scripts ${stats.size}, succ: ${stats.values.map(_.succ).sum}, failed: ${stats.values.map(_.fail).sum}"
@@ -307,7 +308,6 @@ object BlocksValidation:
         )
 
         val cwd = Paths.get(".")
-        println(s"Current working directory: ${cwd.toAbsolutePath()}")
         val blocksDir = cwd.resolve("blocks")
         val stats = mutable.HashMap.empty[ByteString, Res].withDefaultValue(Res(0, 0))
         val start = System.currentTimeMillis()
@@ -392,8 +392,9 @@ object BlocksValidation:
                 case e: Exception =>
                     println(s"Error reading block $path: ${e.getMessage}")
                     e.printStackTrace()
-            println(s"Block $path")
+            print(s"\rBlock $path")
         end for
+        println()
         println(s"Time taken: ${System.currentTimeMillis() - start} ms")
         println(
           s"Stats: num scripts ${stats.size}, succ: ${stats.values.map(_.succ).sum}, failed: ${stats.values.map(_.fail).sum}"
