@@ -241,7 +241,8 @@ object BlocksValidation:
             BlockTx(transaction, datumsCbor, txHashFromBytes)
     }
 
-    private def validateNativeScriptEvaluation(): Unit = {
+    @main
+    def validateNativeScriptEvaluation(): Unit = {
         case class Res(
             var succ: Int,
             var fail: Int,
@@ -294,7 +295,8 @@ object BlocksValidation:
         )
     }
 
-    private def validateScriptDataHashEvaluation(): Unit = {
+    @main
+    def validateScriptDataHashEvaluation(): Unit = {
         import com.bloxbean.cardano.yaci.core.config.YaciConfig
         YaciConfig.INSTANCE.setReturnBlockCbor(true) // needed to get the block cbor
         YaciConfig.INSTANCE.setReturnTxBodyCbor(true) // needed to get the tx body cbor
@@ -370,19 +372,20 @@ object BlocksValidation:
                                     ++ (if w.plutusData.value.nonEmpty then "D" else "")
                                     ++ (if w.redeemers.nonEmpty then "R" else "")
 
-                            val eq1 =
+                            val sameAsBloxbean =
                                 calculatedHash.toHex == bbgenerated.toHex // at least same as bloxbean
-                            val eq2 =
+                            val scalusHasCorrectHash =
                                 scriptDataHash.toHex == calculatedHash.toHex // mine is correct
                             val color =
-                                if eq2 then Console.GREEN
-                                else if eq1 then Console.YELLOW
+                                if scalusHasCorrectHash then Console.GREEN
+                                else if sameAsBloxbean then Console.YELLOW
                                 else Console.RED
 
-                            println(
-                              s"$idx: $desc ${color}data hash: ${scriptDataHash.toHex}, calculated: ${calculatedHash.toHex} " +
-                                  s"bbgen: ${bbgenerated.toHex}${Console.RESET}"
-                            )
+                            if !scalusHasCorrectHash then
+                                println(
+                                  s"$idx: $desc ${color}data hash: ${scriptDataHash.toHex}, calculated: ${calculatedHash.toHex} " +
+                                      s"bbgen: ${bbgenerated.toHex}${Console.RESET}"
+                                )
                         case _ =>
 
             catch
@@ -428,9 +431,6 @@ object BlocksValidation:
 
         if transaction.getWitnessSet.getPlutusV1Scripts != null && transaction.getWitnessSet.getPlutusV1Scripts.size > 0
         then {
-            println(
-              s"PlutusV1 scripts: ${transaction.getWitnessSet.getPlutusV1Scripts.size}"
-            )
             costMdls.add(PlutusV1CostModel)
         }
 
@@ -454,8 +454,13 @@ object BlocksValidation:
         bbgenerated
     }
 
+    @main
+    def validateBlocks(): Unit = {
+        validateBlocksOfEpoch(543)
+    }
+
     def main(args: Array[String]): Unit = {
-//        validateBlocksOfEpoch(508)
-//        validateNativeScriptEvaluation()
+        validateBlocksOfEpoch(543)
+        validateNativeScriptEvaluation()
         validateScriptDataHashEvaluation()
     }
