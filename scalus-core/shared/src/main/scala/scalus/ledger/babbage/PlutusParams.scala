@@ -1,6 +1,19 @@
 package scalus.ledger.babbage
 
 import upickle.default.*
+
+import java.lang.reflect.Modifier
+
+trait PlutusParams {
+    def toJson: String
+    def numberOfParams: Int =
+        this.getClass.getDeclaredFields
+            .count(field =>
+                !Modifier.isFinal(field.getModifiers) && // excludes vals
+                    !Modifier.isStatic(field.getModifiers) // excludes static/object fields
+            )
+}
+
 /*
   Funny thing is that JVM has a limit of 255 parameters in a method if the args are Ints.
   If it's Long, then the limit is 127.
@@ -22,7 +35,7 @@ import upickle.default.*
   * But what's really important is the order of the fields because that's the order of the
   * parameters in the protocol parameters array.
   */
-class PlutusV1Params {
+class PlutusV1Params extends PlutusParams {
     var `addInteger-cpu-arguments-intercept`: Long = 0L
     var `addInteger-cpu-arguments-slope`: Long = 0L
     var `addInteger-memory-arguments-intercept`: Long = 0L
@@ -203,7 +216,7 @@ class PlutusV1Params {
   * But what's really important is the order of the fields because that's the order of the
   * parameters in the protocol parameters array.
   */
-class PlutusV2Params {
+class PlutusV2Params extends PlutusParams {
     var `addInteger-cpu-arguments-intercept`: Long = 0L
     var `addInteger-cpu-arguments-slope`: Long = 0L
     var `addInteger-memory-arguments-intercept`: Long = 0L
@@ -393,7 +406,7 @@ class PlutusV2Params {
   * But what's really important is the order of the fields because that's the order of the
   * parameters in the protocol parameters array.
   */
-class PlutusV3Params {
+class PlutusV3Params extends PlutusParams {
     var `addInteger-cpu-arguments-intercept`: Long = 0L
     var `addInteger-cpu-arguments-slope`: Long = 0L
     var `addInteger-memory-arguments-intercept`: Long = 0L

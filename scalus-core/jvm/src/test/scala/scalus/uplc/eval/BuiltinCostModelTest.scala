@@ -38,9 +38,18 @@ class BuiltinCostModelTest extends AnyFunSuite:
         val paramsV3Map = writeJs(paramsV3).obj.map { case (k, v) => (k, v.num.toLong) }.toMap
 
 //        println(paramsV1.getClass.getDeclaredFields.map(_.getName).mkString("\n"))
-//        assert(v1.size == paramsV1.getClass.getDeclaredFields.length)
-//        assert(v2.size == paramsV2.getClass.getDeclaredFields.length)
-//        assert(v3.size == paramsV3.getClass.getDeclaredFields.length)
+//        assert(
+//          v1.size == paramsV1.numberOfParams,
+//          s"Expected ${paramsV1.numberOfParams} parameters for PlutusV1, got ${v1.size}. You may need to update the cost model."
+//        )
+//        assert(
+//          v2.size == paramsV2.numberOfParams,
+//          s"Expected ${paramsV2.numberOfParams} parameters for PlutusV2, got ${v2.size}. You may need to update the cost model."
+//        )
+//        assert(
+//          v3.size == paramsV3.numberOfParams,
+//          s"Expected ${paramsV3.numberOfParams} parameters for PlutusV3, got ${v3.size}. You may need to update the cost model."
+//        )
 
         // check that we can read the parameters
         BuiltinCostModel.fromCostModelParams(PlutusV1, BuiltinSemanticsVariant.B, paramsV1Map)

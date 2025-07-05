@@ -66,6 +66,12 @@ case class PoolVotingThresholds(
 
 object ProtocolParams {
     import upickle.default.{readwriter, ReadWriter}
+
+    /** Reads ProtocolParams from JSON string in Blockfrost format */
+    def fromBlockfrostJson(json: String): ProtocolParams = {
+        read[ProtocolParams](json)(using blockfrostParamsRW)
+    }
+
     val blockfrostParamsRW: ReadWriter[ProtocolParams] =
         readwriter[ujson.Value].bimap[ProtocolParams](
           params =>
