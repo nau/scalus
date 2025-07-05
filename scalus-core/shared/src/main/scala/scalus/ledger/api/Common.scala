@@ -1,10 +1,12 @@
 package scalus.ledger.api
+import scalus.cardano.ledger.Language
 import upickle.default.ReadWriter
 
 enum BuiltinSemanticsVariant:
     case A, B, C
 
 object BuiltinSemanticsVariant:
+
     def fromProtocolAndPlutusVersion(
         protocolVersion: ProtocolVersion,
         plutusLedgerLanguage: PlutusLedgerLanguage
@@ -27,9 +29,28 @@ object BuiltinSemanticsVariant:
                 throw new IllegalArgumentException(
                   s"Unsupported protocol version and Plutus language combination $protocolVersion $plutusLedgerLanguage"
                 )
+    def fromProtocolAndPlutusVersion(
+        protocolVersion: MajorProtocolVersion,
+        plutusLedgerLanguage: Language
+    ): BuiltinSemanticsVariant =
+        (protocolVersion, plutusLedgerLanguage) match
+            case (pv, Language.PlutusV1 | Language.PlutusV2) =>
+                if pv < MajorProtocolVersion.changPV then BuiltinSemanticsVariant.A
+                else BuiltinSemanticsVariant.B
+            case (pv, Language.PlutusV3) if pv >= MajorProtocolVersion.changPV =>
+                BuiltinSemanticsVariant.C
+            case _ =>
+                throw new IllegalArgumentException(
+                  s"Unsupported protocol version and Plutus language combination $protocolVersion $plutusLedgerLanguage"
+                )
 
 enum PlutusLedgerLanguage extends java.lang.Enum[PlutusLedgerLanguage]:
     case PlutusV1, PlutusV2, PlutusV3
+
+    def toLanguage: Language = this match
+        case PlutusV1 => Language.PlutusV1
+        case PlutusV2 => Language.PlutusV2
+        case PlutusV3 => Language.PlutusV3
 
 case class ProtocolVersion(major: Int, minor: Int) extends Ordered[ProtocolVersion]
     derives ReadWriter {

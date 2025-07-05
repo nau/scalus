@@ -16,7 +16,7 @@ import scalus.prelude.{AssocMap, List}
 import scalus.uplc.eval.*
 import scalus.{builtin, ledger, prelude}
 
-import scala.collection.mutable
+import scala.collection.{immutable, mutable}
 import scala.math.BigInt
 
 /** Ordering instances for scalus.cardano.ledger types.
@@ -78,54 +78,35 @@ object LedgerToPlutusTranslation {
       *
       * @param costModels
       *   Cost models for different Plutus versions
-      * @param plutus
+      * @param language
       *   Plutus language version (V1, V2, or V3)
       * @param protocolVersion
       *   Major protocol version for semantic variant selection
       * @return
       *   Configured MachineParams for script execution
       */
-    def translateMachineParamsFromCostMdls(
+    def translateMachineParamsFromCostModels(
         costModels: CostModels,
-        plutus: PlutusLedgerLanguage,
+        language: Language,
         protocolVersion: api.MajorProtocolVersion
     ): MachineParams = {
-        import upickle.default.*
+        val params = language match
+            case Language.PlutusV1 =>
+                val costs = costModels.models(language.ordinal)
+                PlutusV1Params.fromSeq(costs)
+            case Language.PlutusV2 =>
+                val costs = costModels.models(language.ordinal)
+                PlutusV2Params.fromSeq(costs)
+            case Language.PlutusV3 =>
+                val costs = costModels.models(language.ordinal)
+                PlutusV3Params.fromSeq(costs)
 
-        // Extract cost parameters based on Plutus version
-        val paramsMap = plutus match
-            case PlutusLedgerLanguage.PlutusV1 =>
-                val costs = costModels.models.getOrElse(
-                  Language.PlutusV1.ordinal,
-                  throw new IllegalArgumentException("PlutusV1 cost model not found")
-                )
-                val params = PlutusV1Params.fromSeq(costs)
-                writeJs(params).obj.map { (k, v) => (k, v.num.toLong) }.toMap
-
-            case PlutusLedgerLanguage.PlutusV2 =>
-                val costs = costModels.models.getOrElse(
-                  Language.PlutusV2.ordinal,
-                  throw new IllegalArgumentException("PlutusV2 cost model not found")
-                )
-                val params = PlutusV2Params.fromSeq(costs)
-                writeJs(params).obj.map { (k, v) => (k, v.num.toLong) }.toMap
-
-            case PlutusLedgerLanguage.PlutusV3 =>
-                val costs = costModels.models.getOrElse(
-                  Language.PlutusV3.ordinal,
-                  throw new IllegalArgumentException("PlutusV3 cost model not found")
-                )
-                val params = PlutusV3Params.fromSeq(costs)
-                writeJs(params).obj.map { (k, v) => (k, v.num.toLong) }.toMap
-
-        // Configure semantic variant and cost models
         val semvar = BuiltinSemanticsVariant.fromProtocolAndPlutusVersion(
           protocolVersion,
-          plutus
+          language
         )
-        val builtinCostModel = BuiltinCostModel.fromCostModelParams(plutus, semvar, paramsMap)
-        val machineCosts = CekMachineCosts.fromMap(paramsMap)
-
+        val builtinCostModel = BuiltinCostModel.fromPlutusParams(params, language, semvar)
+        val machineCosts = CekMachineCosts.fromPlutusParams(params)
         MachineParams(
           machineCosts = machineCosts,
           builtinCostModel = builtinCostModel,

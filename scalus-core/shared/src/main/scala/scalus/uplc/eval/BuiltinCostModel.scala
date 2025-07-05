@@ -1,7 +1,9 @@
 package scalus.uplc.eval
 
+import scalus.cardano.ledger.Language
 import scalus.ledger.api.BuiltinSemanticsVariant
 import scalus.ledger.api.PlutusLedgerLanguage
+import scalus.ledger.babbage.PlutusParams
 import scalus.macros.Macros
 import upickle.default.*
 
@@ -388,6 +390,7 @@ object BuiltinCostModel {
 
     protected[eval] val defaultValue = 300_000_000L
 
+    @deprecated("Use fromPlutusParams instead")
     def fromCostModelParams(
         plutus: PlutusLedgerLanguage,
         semvar: BuiltinSemanticsVariant,
@@ -1470,6 +1473,1081 @@ object BuiltinCostModel {
             )
           )
         )
+
+    def fromPlutusParams(
+        params: PlutusParams,
+        language: Language,
+        semvar: BuiltinSemanticsVariant,
+    ): BuiltinCostModel = {
+        val model = BuiltinCostModel(
+          addInteger = DefaultCostingFun(
+            cpu = TwoArguments.MaxSize(
+              OneVariableLinearFunction(
+                intercept = params.`addInteger-cpu-arguments-intercept`,
+                slope = params.`addInteger-cpu-arguments-slope`
+              )
+            ),
+            memory = TwoArguments.MaxSize(
+              OneVariableLinearFunction(
+                intercept = params.`addInteger-memory-arguments-intercept`,
+                slope = params.`addInteger-memory-arguments-slope`
+              )
+            )
+          ),
+          subtractInteger = DefaultCostingFun(
+            cpu = TwoArguments.MaxSize(
+              OneVariableLinearFunction(
+                intercept = params.`subtractInteger-cpu-arguments-intercept`,
+                slope = params.`subtractInteger-cpu-arguments-slope`
+              )
+            ),
+            memory = TwoArguments.MaxSize(
+              OneVariableLinearFunction(
+                intercept = params.`subtractInteger-memory-arguments-intercept`,
+                slope = params.`subtractInteger-memory-arguments-slope`
+              )
+            )
+          ),
+          multiplyInteger = (language, semvar) match {
+              case (Language.PlutusV1 | Language.PlutusV2, BuiltinSemanticsVariant.A) =>
+                  DefaultCostingFun(
+                    cpu = TwoArguments.AddedSizes(
+                      OneVariableLinearFunction(
+                        intercept = params.`multiplyInteger-cpu-arguments-intercept`,
+                        slope = params.`multiplyInteger-cpu-arguments-slope`
+                      )
+                    ),
+                    memory = TwoArguments.AddedSizes(
+                      OneVariableLinearFunction(
+                        intercept = params.`multiplyInteger-memory-arguments-intercept`,
+                        slope = params.`multiplyInteger-memory-arguments-slope`
+                      )
+                    )
+                  )
+              case (Language.PlutusV1 | Language.PlutusV2, BuiltinSemanticsVariant.B) |
+                  (Language.PlutusV3, BuiltinSemanticsVariant.C) =>
+                  DefaultCostingFun(
+                    cpu = TwoArguments.MultipliedSizes(
+                      OneVariableLinearFunction(
+                        intercept = params.`multiplyInteger-cpu-arguments-intercept`,
+                        slope = params.`multiplyInteger-cpu-arguments-slope`
+                      )
+                    ),
+                    memory = TwoArguments.AddedSizes(
+                      OneVariableLinearFunction(
+                        intercept = params.`multiplyInteger-memory-arguments-intercept`,
+                        slope = params.`multiplyInteger-memory-arguments-slope`
+                      )
+                    )
+                  )
+              case _ =>
+                  throw new IllegalArgumentException(
+                    s"Unsupported combination of Plutus version $language and semantics variant $semvar for multiplyInteger"
+                  )
+          },
+          divideInteger = language match
+              case Language.PlutusV1 | Language.PlutusV2 =>
+                  DefaultCostingFun(
+                    cpu = TwoArguments.ConstAboveDiagonal(
+                      ConstantOrTwoArguments(
+                        constant = params.`divideInteger-cpu-arguments-constant`,
+                        model = TwoArguments.MultipliedSizes(
+                          OneVariableLinearFunction(
+                            intercept =
+                                params.`divideInteger-cpu-arguments-model-arguments-intercept`,
+                            slope = params.`divideInteger-cpu-arguments-model-arguments-slope`
+                          )
+                        )
+                      )
+                    ),
+                    memory = TwoArguments.SubtractedSizes(
+                      SubtractedSizesLinearFunction(
+                        intercept = params.`divideInteger-memory-arguments-intercept`,
+                        slope = params.`divideInteger-memory-arguments-slope`,
+                        minimum = params.`divideInteger-memory-arguments-minimum`
+                      )
+                    )
+                  )
+              case Language.PlutusV3 =>
+                  DefaultCostingFun(
+                    cpu = TwoArguments.ConstAboveDiagonal(
+                      ConstantOrTwoArguments(
+                        constant = params.`divideInteger-cpu-arguments-constant`,
+                        model = TwoArguments.QuadraticInXAndY(
+                          TwoVariableQuadraticFunction(
+                            minimum = params.`divideInteger-cpu-arguments-minimum`,
+                            c00 = params.`divideInteger-cpu-arguments-c00`,
+                            c10 = params.`divideInteger-cpu-arguments-c10`,
+                            c01 = params.`divideInteger-cpu-arguments-c01`,
+                            c20 = params.`divideInteger-cpu-arguments-c20`,
+                            c11 = params.`divideInteger-cpu-arguments-c11`,
+                            c02 = params.`divideInteger-cpu-arguments-c02`
+                          )
+                        )
+                      )
+                    ),
+                    memory = TwoArguments.SubtractedSizes(
+                      SubtractedSizesLinearFunction(
+                        intercept = params.`divideInteger-memory-arguments-intercept`,
+                        slope = params.`divideInteger-memory-arguments-slope`,
+                        minimum = params.`divideInteger-memory-arguments-minimum`
+                      )
+                    )
+                  )
+          ,
+          quotientInteger = language match
+              case Language.PlutusV1 | Language.PlutusV2 =>
+                  DefaultCostingFun(
+                    cpu = TwoArguments.ConstAboveDiagonal(
+                      ConstantOrTwoArguments(
+                        constant = params.`quotientInteger-cpu-arguments-constant`,
+                        model = TwoArguments.MultipliedSizes(
+                          OneVariableLinearFunction(
+                            intercept =
+                                params.`quotientInteger-cpu-arguments-model-arguments-intercept`,
+                            slope = params.`quotientInteger-cpu-arguments-model-arguments-slope`
+                          )
+                        )
+                      )
+                    ),
+                    memory = TwoArguments.SubtractedSizes(
+                      SubtractedSizesLinearFunction(
+                        intercept = params.`quotientInteger-memory-arguments-intercept`,
+                        slope = params.`quotientInteger-memory-arguments-slope`,
+                        minimum = params.`quotientInteger-memory-arguments-minimum`
+                      )
+                    )
+                  )
+              case Language.PlutusV3 =>
+                  DefaultCostingFun(
+                    cpu = TwoArguments.ConstAboveDiagonal(
+                      ConstantOrTwoArguments(
+                        constant = params.`quotientInteger-cpu-arguments-constant`,
+                        model = TwoArguments.QuadraticInXAndY(
+                          TwoVariableQuadraticFunction(
+                            minimum =
+                                params.`quotientInteger-cpu-arguments-model-arguments-minimum`,
+                            c00 = params.`quotientInteger-cpu-arguments-model-arguments-c00`,
+                            c10 = params.`quotientInteger-cpu-arguments-model-arguments-c10`,
+                            c01 = params.`quotientInteger-cpu-arguments-model-arguments-c01`,
+                            c20 = params.`quotientInteger-cpu-arguments-model-arguments-c20`,
+                            c11 = params.`quotientInteger-cpu-arguments-model-arguments-c11`,
+                            c02 = params.`quotientInteger-cpu-arguments-model-arguments-c02`
+                          )
+                        )
+                      )
+                    ),
+                    memory = TwoArguments.SubtractedSizes(
+                      SubtractedSizesLinearFunction(
+                        intercept = params.`quotientInteger-memory-arguments-intercept`,
+                        slope = params.`quotientInteger-memory-arguments-slope`,
+                        minimum = params.`quotientInteger-memory-arguments-minimum`
+                      )
+                    )
+                  )
+          ,
+          remainderInteger = language match
+              case Language.PlutusV1 | Language.PlutusV2 =>
+                  DefaultCostingFun(
+                    cpu = TwoArguments.ConstAboveDiagonal(
+                      ConstantOrTwoArguments(
+                        constant = params.`remainderInteger-cpu-arguments-constant`,
+                        model = TwoArguments.MultipliedSizes(
+                          OneVariableLinearFunction(
+                            intercept =
+                                params.`remainderInteger-cpu-arguments-model-arguments-intercept`,
+                            slope = params.`remainderInteger-cpu-arguments-model-arguments-slope`
+                          )
+                        )
+                      )
+                    ),
+                    memory = TwoArguments.SubtractedSizes(
+                      SubtractedSizesLinearFunction(
+                        intercept = params.`remainderInteger-memory-arguments-intercept`,
+                        slope = params.`remainderInteger-memory-arguments-slope`,
+                        minimum = params.`remainderInteger-memory-arguments-minimum`
+                      )
+                    )
+                  )
+              case Language.PlutusV3 =>
+                  // same as modInteger
+                  DefaultCostingFun(
+                    cpu = TwoArguments.ConstAboveDiagonal(
+                      ConstantOrTwoArguments(
+                        constant = params.`remainderInteger-cpu-arguments-constant`,
+                        model = TwoArguments.QuadraticInXAndY(
+                          TwoVariableQuadraticFunction(
+                            minimum =
+                                params.`remainderInteger-cpu-arguments-model-arguments-minimum`,
+                            c00 = params.`remainderInteger-cpu-arguments-model-arguments-c00`,
+                            c10 = params.`remainderInteger-cpu-arguments-model-arguments-c10`,
+                            c01 = params.`remainderInteger-cpu-arguments-model-arguments-c01`,
+                            c20 = params.`remainderInteger-cpu-arguments-model-arguments-c20`,
+                            c11 = params.`remainderInteger-cpu-arguments-model-arguments-c11`,
+                            c02 = params.`remainderInteger-cpu-arguments-model-arguments-c02`
+                          )
+                        )
+                      )
+                    ),
+                    memory = TwoArguments.LinearInY(
+                      OneVariableLinearFunction(
+                        intercept = params.`remainderInteger-memory-arguments-intercept`,
+                        slope = params.`remainderInteger-memory-arguments-slope`
+                      )
+                    )
+                  )
+          ,
+          modInteger = language match
+              case Language.PlutusV1 | Language.PlutusV2 =>
+                  DefaultCostingFun(
+                    cpu = TwoArguments.ConstAboveDiagonal(
+                      ConstantOrTwoArguments(
+                        constant = params.`modInteger-cpu-arguments-constant`,
+                        model = TwoArguments.MultipliedSizes(
+                          OneVariableLinearFunction(
+                            intercept = params.`modInteger-cpu-arguments-model-arguments-intercept`,
+                            slope = params.`modInteger-cpu-arguments-model-arguments-slope`
+                          )
+                        )
+                      )
+                    ),
+                    memory = TwoArguments.SubtractedSizes(
+                      SubtractedSizesLinearFunction(
+                        intercept = params.`modInteger-memory-arguments-intercept`,
+                        slope = params.`modInteger-memory-arguments-slope`,
+                        minimum = params.`modInteger-memory-arguments-minimum`
+                      )
+                    )
+                  )
+              case Language.PlutusV3 =>
+                  DefaultCostingFun(
+                    cpu = TwoArguments.ConstAboveDiagonal(
+                      ConstantOrTwoArguments(
+                        constant = params.`modInteger-cpu-arguments-constant`,
+                        model = TwoArguments.QuadraticInXAndY(
+                          TwoVariableQuadraticFunction(
+                            minimum = params.`modInteger-cpu-arguments-model-arguments-minimum`,
+                            c00 = params.`modInteger-cpu-arguments-model-arguments-c00`,
+                            c10 = params.`modInteger-cpu-arguments-model-arguments-c10`,
+                            c01 = params.`modInteger-cpu-arguments-model-arguments-c01`,
+                            c20 = params.`modInteger-cpu-arguments-model-arguments-c20`,
+                            c11 = params.`modInteger-cpu-arguments-model-arguments-c11`,
+                            c02 = params.`modInteger-cpu-arguments-model-arguments-c02`
+                          )
+                        )
+                      )
+                    ),
+                    memory = TwoArguments.LinearInY(
+                      OneVariableLinearFunction(
+                        intercept = params.`modInteger-memory-arguments-intercept`,
+                        slope = params.`modInteger-memory-arguments-slope`
+                      )
+                    )
+                  )
+          ,
+          equalsInteger = DefaultCostingFun(
+            cpu = TwoArguments.MinSize(
+              OneVariableLinearFunction(
+                intercept = params.`equalsInteger-cpu-arguments-intercept`,
+                slope = params.`equalsInteger-cpu-arguments-slope`
+              )
+            ),
+            memory = TwoArguments.ConstantCost(
+              cost = params.`equalsInteger-memory-arguments`
+            )
+          ),
+          lessThanInteger = DefaultCostingFun(
+            cpu = TwoArguments.MinSize(
+              OneVariableLinearFunction(
+                intercept = params.`lessThanInteger-cpu-arguments-intercept`,
+                slope = params.`lessThanInteger-cpu-arguments-slope`
+              )
+            ),
+            memory = TwoArguments.ConstantCost(
+              cost = params.`lessThanInteger-memory-arguments`
+            )
+          ),
+          lessThanEqualsInteger = DefaultCostingFun(
+            cpu = TwoArguments.MinSize(
+              OneVariableLinearFunction(
+                intercept = params.`lessThanEqualsInteger-cpu-arguments-intercept`,
+                slope = params.`lessThanEqualsInteger-cpu-arguments-slope`
+              )
+            ),
+            memory = TwoArguments.ConstantCost(
+              cost = params.`lessThanEqualsInteger-memory-arguments`
+            )
+          ),
+          appendByteString = DefaultCostingFun(
+            cpu = TwoArguments.AddedSizes(
+              OneVariableLinearFunction(
+                intercept = params.`appendByteString-cpu-arguments-intercept`,
+                slope = params.`appendByteString-cpu-arguments-slope`
+              )
+            ),
+            memory = TwoArguments.AddedSizes(
+              OneVariableLinearFunction(
+                intercept = params.`appendByteString-memory-arguments-intercept`,
+                slope = params.`appendByteString-memory-arguments-slope`
+              )
+            )
+          ),
+          consByteString = DefaultCostingFun(
+            cpu = TwoArguments.LinearInY(
+              OneVariableLinearFunction(
+                intercept = params.`consByteString-cpu-arguments-intercept`,
+                slope = params.`consByteString-cpu-arguments-slope`
+              )
+            ),
+            memory = TwoArguments.AddedSizes(
+              OneVariableLinearFunction(
+                intercept = params.`consByteString-memory-arguments-intercept`,
+                slope = params.`consByteString-memory-arguments-slope`
+              )
+            )
+          ),
+          sliceByteString = DefaultCostingFun(
+            cpu = ThreeArguments.LinearInZ(
+              OneVariableLinearFunction(
+                intercept = params.`sliceByteString-cpu-arguments-intercept`,
+                slope = params.`sliceByteString-cpu-arguments-slope`
+              )
+            ),
+            memory = ThreeArguments.LinearInZ(
+              OneVariableLinearFunction(
+                intercept = params.`sliceByteString-memory-arguments-intercept`,
+                slope = params.`sliceByteString-memory-arguments-slope`
+              )
+            )
+          ),
+          lengthOfByteString = DefaultCostingFun(
+            cpu = OneArgument.ConstantCost(cost = params.`lengthOfByteString-cpu-arguments`),
+            memory = OneArgument.ConstantCost(cost = params.`lengthOfByteString-memory-arguments`)
+          ),
+          indexByteString = DefaultCostingFun(
+            cpu = TwoArguments.ConstantCost(cost = params.`indexByteString-cpu-arguments`),
+            memory = TwoArguments.ConstantCost(cost = params.`indexByteString-memory-arguments`)
+          ),
+          equalsByteString = DefaultCostingFun(
+            cpu = TwoArguments.LinearOnDiagonal(
+              ConstantOrLinear(
+                constant = params.`equalsByteString-cpu-arguments-constant`,
+                intercept = params.`equalsByteString-cpu-arguments-intercept`,
+                slope = params.`equalsByteString-cpu-arguments-slope`
+              )
+            ),
+            memory = TwoArguments.ConstantCost(cost = params.`equalsByteString-memory-arguments`)
+          ),
+          lessThanByteString = DefaultCostingFun(
+            cpu = TwoArguments.MinSize(
+              OneVariableLinearFunction(
+                intercept = params.`lessThanByteString-cpu-arguments-intercept`,
+                slope = params.`lessThanByteString-cpu-arguments-slope`
+              )
+            ),
+            memory = TwoArguments.ConstantCost(cost = params.`lessThanByteString-memory-arguments`)
+          ),
+          lessThanEqualsByteString = DefaultCostingFun(
+            cpu = TwoArguments.MinSize(
+              OneVariableLinearFunction(
+                intercept = params.`lessThanEqualsByteString-cpu-arguments-intercept`,
+                slope = params.`lessThanEqualsByteString-cpu-arguments-slope`
+              )
+            ),
+            memory = TwoArguments.ConstantCost(
+              cost = params.`lessThanEqualsByteString-memory-arguments`
+            )
+          ),
+          sha2_256 = DefaultCostingFun(
+            cpu = OneArgument.LinearInX(
+              OneVariableLinearFunction(
+                intercept = params.`sha2_256-cpu-arguments-intercept`,
+                slope = params.`sha2_256-cpu-arguments-slope`
+              )
+            ),
+            memory = OneArgument.ConstantCost(cost = params.`sha2_256-memory-arguments`)
+          ),
+          sha3_256 = DefaultCostingFun(
+            cpu = OneArgument.LinearInX(
+              OneVariableLinearFunction(
+                intercept = params.`sha3_256-cpu-arguments-intercept`,
+                slope = params.`sha3_256-cpu-arguments-slope`
+              )
+            ),
+            memory = OneArgument.ConstantCost(cost = params.`sha3_256-memory-arguments`)
+          ),
+          blake2b_256 = DefaultCostingFun(
+            cpu = OneArgument.LinearInX(
+              OneVariableLinearFunction(
+                intercept = params.`blake2b_256-cpu-arguments-intercept`,
+                slope = params.`blake2b_256-cpu-arguments-slope`
+              )
+            ),
+            memory = OneArgument.ConstantCost(
+              cost = params.`blake2b_256-memory-arguments`
+            )
+          ),
+          verifyEd25519Signature = DefaultCostingFun(
+            cpu = ThreeArguments.LinearInY(
+              OneVariableLinearFunction(
+                intercept = params.`verifyEd25519Signature-cpu-arguments-intercept`,
+                slope = params.`verifyEd25519Signature-cpu-arguments-slope`
+              )
+            ),
+            memory = ThreeArguments.ConstantCost(
+              cost = params.`verifyEd25519Signature-memory-arguments`
+            )
+          ),
+          verifyEcdsaSecp256k1Signature = DefaultCostingFun(
+            cpu = ThreeArguments.ConstantCost(
+              cost = params.`verifyEcdsaSecp256k1Signature-cpu-arguments`
+            ),
+            memory = ThreeArguments.ConstantCost(
+              cost = params.`verifyEcdsaSecp256k1Signature-memory-arguments`
+            )
+          ),
+          verifySchnorrSecp256k1Signature = DefaultCostingFun(
+            cpu = ThreeArguments.LinearInY(
+              OneVariableLinearFunction(
+                intercept = params.`verifySchnorrSecp256k1Signature-cpu-arguments-intercept`,
+                slope = params.`verifySchnorrSecp256k1Signature-cpu-arguments-slope`
+              )
+            ),
+            memory = ThreeArguments.ConstantCost(
+              cost = params.`verifySchnorrSecp256k1Signature-memory-arguments`
+            )
+          ),
+          appendString = DefaultCostingFun(
+            cpu = TwoArguments.AddedSizes(
+              OneVariableLinearFunction(
+                intercept = params.`appendString-cpu-arguments-intercept`,
+                slope = params.`appendString-cpu-arguments-slope`
+              )
+            ),
+            memory = TwoArguments.AddedSizes(
+              OneVariableLinearFunction(
+                intercept = params.`appendString-memory-arguments-intercept`,
+                slope = params.`appendString-memory-arguments-slope`
+              )
+            )
+          ),
+          equalsString = DefaultCostingFun(
+            cpu = TwoArguments.LinearOnDiagonal(
+              ConstantOrLinear(
+                constant = params.`equalsString-cpu-arguments-constant`,
+                intercept = params.`equalsString-cpu-arguments-intercept`,
+                slope = params.`equalsString-cpu-arguments-slope`
+              )
+            ),
+            memory = TwoArguments.ConstantCost(
+              cost = params.`equalsString-memory-arguments`
+            )
+          ),
+          encodeUtf8 = DefaultCostingFun(
+            cpu = OneArgument.LinearInX(
+              OneVariableLinearFunction(
+                intercept = params.`encodeUtf8-cpu-arguments-intercept`,
+                slope = params.`encodeUtf8-cpu-arguments-slope`
+              )
+            ),
+            memory = OneArgument.LinearInX(
+              OneVariableLinearFunction(
+                intercept = params.`encodeUtf8-memory-arguments-intercept`,
+                slope = params.`encodeUtf8-memory-arguments-slope`
+              )
+            )
+          ),
+          decodeUtf8 = DefaultCostingFun(
+            cpu = OneArgument.LinearInX(
+              OneVariableLinearFunction(
+                intercept = params.`decodeUtf8-cpu-arguments-intercept`,
+                slope = params.`decodeUtf8-cpu-arguments-slope`
+              )
+            ),
+            memory = OneArgument.LinearInX(
+              OneVariableLinearFunction(
+                intercept = params.`decodeUtf8-memory-arguments-intercept`,
+                slope = params.`decodeUtf8-memory-arguments-slope`
+              )
+            )
+          ),
+          ifThenElse = DefaultCostingFun(
+            cpu = ThreeArguments.ConstantCost(
+              cost = params.`ifThenElse-cpu-arguments`
+            ),
+            memory = ThreeArguments.ConstantCost(
+              cost = params.`ifThenElse-memory-arguments`
+            )
+          ),
+          chooseUnit = DefaultCostingFun(
+            cpu = TwoArguments.ConstantCost(
+              cost = params.`chooseUnit-cpu-arguments`
+            ),
+            memory = TwoArguments.ConstantCost(
+              cost = params.`chooseUnit-memory-arguments`
+            )
+          ),
+          trace = DefaultCostingFun(
+            cpu = TwoArguments.ConstantCost(
+              cost = params.`trace-cpu-arguments`
+            ),
+            memory = TwoArguments.ConstantCost(
+              cost = params.`trace-memory-arguments`
+            )
+          ),
+          fstPair = DefaultCostingFun(
+            cpu = OneArgument.ConstantCost(
+              cost = params.`fstPair-cpu-arguments`
+            ),
+            memory = OneArgument.ConstantCost(
+              cost = params.`fstPair-memory-arguments`
+            )
+          ),
+          sndPair = DefaultCostingFun(
+            cpu = OneArgument.ConstantCost(
+              cost = params.`sndPair-cpu-arguments`
+            ),
+            memory = OneArgument.ConstantCost(
+              cost = params.`sndPair-memory-arguments`
+            )
+          ),
+          chooseList = DefaultCostingFun(
+            cpu = ThreeArguments.ConstantCost(
+              cost = params.`chooseList-cpu-arguments`
+            ),
+            memory = ThreeArguments.ConstantCost(
+              cost = params.`chooseList-memory-arguments`
+            )
+          ),
+          mkCons = DefaultCostingFun(
+            cpu = TwoArguments.ConstantCost(
+              cost = params.`mkCons-cpu-arguments`
+            ),
+            memory = TwoArguments.ConstantCost(
+              cost = params.`mkCons-memory-arguments`
+            )
+          ),
+          headList = DefaultCostingFun(
+            cpu = OneArgument.ConstantCost(
+              cost = params.`headList-cpu-arguments`
+            ),
+            memory = OneArgument.ConstantCost(
+              cost = params.`headList-memory-arguments`
+            )
+          ),
+          tailList = DefaultCostingFun(
+            cpu = OneArgument.ConstantCost(
+              cost = params.`tailList-cpu-arguments`
+            ),
+            memory = OneArgument.ConstantCost(
+              cost = params.`tailList-memory-arguments`
+            )
+          ),
+          nullList = DefaultCostingFun(
+            cpu = OneArgument.ConstantCost(
+              cost = params.`nullList-cpu-arguments`
+            ),
+            memory = OneArgument.ConstantCost(
+              cost = params.`nullList-memory-arguments`
+            )
+          ),
+          chooseData = DefaultCostingFun(
+            cpu = SixArguments.ConstantCost(
+              cost = params.`chooseData-cpu-arguments`
+            ),
+            memory = SixArguments.ConstantCost(
+              cost = params.`chooseData-memory-arguments`
+            )
+          ),
+          constrData = DefaultCostingFun(
+            cpu = TwoArguments.ConstantCost(
+              cost = params.`constrData-cpu-arguments`
+            ),
+            memory = TwoArguments.ConstantCost(
+              cost = params.`constrData-memory-arguments`
+            )
+          ),
+          mapData = DefaultCostingFun(
+            cpu = OneArgument.ConstantCost(
+              cost = params.`mapData-cpu-arguments`
+            ),
+            memory = OneArgument.ConstantCost(
+              cost = params.`mapData-memory-arguments`
+            )
+          ),
+          listData = DefaultCostingFun(
+            cpu = OneArgument.ConstantCost(
+              cost = params.`listData-cpu-arguments`
+            ),
+            memory = OneArgument.ConstantCost(
+              cost = params.`listData-memory-arguments`
+            )
+          ),
+          iData = DefaultCostingFun(
+            cpu = OneArgument.ConstantCost(
+              cost = params.`iData-cpu-arguments`
+            ),
+            memory = OneArgument.ConstantCost(
+              cost = params.`iData-memory-arguments`
+            )
+          ),
+          bData = DefaultCostingFun(
+            cpu = OneArgument.ConstantCost(
+              cost = params.`bData-cpu-arguments`
+            ),
+            memory = OneArgument.ConstantCost(
+              cost = params.`bData-memory-arguments`
+            )
+          ),
+          unConstrData = DefaultCostingFun(
+            cpu = OneArgument.ConstantCost(
+              cost = params.`unConstrData-cpu-arguments`
+            ),
+            memory = OneArgument.ConstantCost(
+              cost = params.`unConstrData-memory-arguments`
+            )
+          ),
+          unMapData = DefaultCostingFun(
+            cpu = OneArgument.ConstantCost(
+              cost = params.`unMapData-cpu-arguments`
+            ),
+            memory = OneArgument.ConstantCost(
+              cost = params.`unMapData-memory-arguments`
+            )
+          ),
+          unListData = DefaultCostingFun(
+            cpu = OneArgument.ConstantCost(
+              cost = params.`unListData-cpu-arguments`
+            ),
+            memory = OneArgument.ConstantCost(
+              cost = params.`unListData-memory-arguments`
+            )
+          ),
+          unIData = DefaultCostingFun(
+            cpu = OneArgument.ConstantCost(
+              cost = params.`unIData-cpu-arguments`
+            ),
+            memory = OneArgument.ConstantCost(
+              cost = params.`unIData-memory-arguments`
+            )
+          ),
+          unBData = DefaultCostingFun(
+            cpu = OneArgument.ConstantCost(
+              cost = params.`unBData-cpu-arguments`
+            ),
+            memory = OneArgument.ConstantCost(
+              cost = params.`unBData-memory-arguments`
+            )
+          ),
+          equalsData = DefaultCostingFun(
+            cpu = TwoArguments.MinSize(
+              OneVariableLinearFunction(
+                intercept = params.`equalsData-cpu-arguments-intercept`,
+                slope = params.`equalsData-cpu-arguments-slope`
+              )
+            ),
+            memory = TwoArguments.ConstantCost(
+              cost = params.`equalsData-memory-arguments`
+            )
+          ),
+          mkPairData = DefaultCostingFun(
+            cpu = TwoArguments.ConstantCost(
+              cost = params.`mkPairData-cpu-arguments`
+            ),
+            memory = TwoArguments.ConstantCost(
+              cost = params.`mkPairData-memory-arguments`
+            )
+          ),
+          mkNilData = DefaultCostingFun(
+            cpu = OneArgument.ConstantCost(
+              cost = params.`mkNilData-cpu-arguments`
+            ),
+            memory = OneArgument.ConstantCost(
+              cost = params.`mkNilData-memory-arguments`
+            )
+          ),
+          mkNilPairData = DefaultCostingFun(
+            cpu = OneArgument.ConstantCost(
+              cost = params.`mkNilPairData-cpu-arguments`
+            ),
+            memory = OneArgument.ConstantCost(
+              cost = params.`mkNilPairData-memory-arguments`
+            )
+          ),
+          serialiseData = DefaultCostingFun(
+            cpu = OneArgument.LinearInX(
+              OneVariableLinearFunction(
+                intercept = params.`serialiseData-cpu-arguments-intercept`,
+                slope = params.`serialiseData-cpu-arguments-slope`
+              )
+            ),
+            memory = OneArgument.LinearInX(
+              OneVariableLinearFunction(
+                intercept = params.`serialiseData-memory-arguments-intercept`,
+                slope = params.`serialiseData-memory-arguments-slope`
+              )
+            )
+          ),
+          blake2b_224 = DefaultCostingFun(
+            cpu = OneArgument.LinearInX(
+              OneVariableLinearFunction(
+                intercept = params.`blake2b_224-cpu-arguments-intercept`,
+                slope = params.`blake2b_224-cpu-arguments-slope`
+              )
+            ),
+            memory = OneArgument.ConstantCost(
+              cost = params.`blake2b_224-memory-arguments`
+            )
+          ),
+          keccak_256 = DefaultCostingFun(
+            cpu = OneArgument.LinearInX(
+              OneVariableLinearFunction(
+                intercept = params.`keccak_256-cpu-arguments-intercept`,
+                slope = params.`keccak_256-cpu-arguments-slope`
+              )
+            ),
+            memory = OneArgument.ConstantCost(
+              cost = params.`keccak_256-memory-arguments`
+            )
+          ),
+          bls12_381_G1_add = DefaultCostingFun(
+            cpu = TwoArguments.ConstantCost(
+              cost = params.`bls12_381_G1_add-cpu-arguments`
+            ),
+            memory = TwoArguments.ConstantCost(
+              cost = params.`bls12_381_G1_add-memory-arguments`
+            )
+          ),
+          bls12_381_G1_neg = DefaultCostingFun(
+            cpu = OneArgument.ConstantCost(
+              cost = params.`bls12_381_G1_neg-cpu-arguments`
+            ),
+            memory = OneArgument.ConstantCost(
+              cost = params.`bls12_381_G1_neg-memory-arguments`
+            )
+          ),
+          bls12_381_G1_scalarMul = DefaultCostingFun(
+            cpu = TwoArguments.LinearInX(
+              OneVariableLinearFunction(
+                intercept = params.`bls12_381_G1_scalarMul-cpu-arguments-intercept`,
+                slope = params.`bls12_381_G1_scalarMul-cpu-arguments-slope`
+              )
+            ),
+            memory = TwoArguments.ConstantCost(
+              cost = params.`bls12_381_G1_scalarMul-memory-arguments`
+            )
+          ),
+          bls12_381_G1_equal = DefaultCostingFun(
+            cpu = TwoArguments.ConstantCost(
+              cost = params.`bls12_381_G1_equal-cpu-arguments`
+            ),
+            memory = TwoArguments.ConstantCost(
+              cost = params.`bls12_381_G1_equal-memory-arguments`
+            )
+          ),
+          bls12_381_G1_compress = DefaultCostingFun(
+            cpu = OneArgument.ConstantCost(
+              cost = params.`bls12_381_G1_compress-cpu-arguments`
+            ),
+            memory = OneArgument.ConstantCost(
+              cost = params.`bls12_381_G1_compress-memory-arguments`
+            )
+          ),
+          bls12_381_G1_uncompress = DefaultCostingFun(
+            cpu = OneArgument.ConstantCost(
+              cost = params.`bls12_381_G1_uncompress-cpu-arguments`
+            ),
+            memory = OneArgument.ConstantCost(
+              cost = params.`bls12_381_G1_uncompress-memory-arguments`
+            )
+          ),
+          bls12_381_G1_hashToGroup = DefaultCostingFun(
+            cpu = TwoArguments.LinearInX(
+              OneVariableLinearFunction(
+                intercept = params.`bls12_381_G1_hashToGroup-cpu-arguments-intercept`,
+                slope = params.`bls12_381_G1_hashToGroup-cpu-arguments-slope`
+              )
+            ),
+            memory = TwoArguments.ConstantCost(
+              cost = params.`bls12_381_G1_hashToGroup-memory-arguments`
+            )
+          ),
+          bls12_381_G2_add = DefaultCostingFun(
+            cpu = TwoArguments.ConstantCost(
+              cost = params.`bls12_381_G2_add-cpu-arguments`
+            ),
+            memory = TwoArguments.ConstantCost(
+              cost = params.`bls12_381_G2_add-memory-arguments`
+            )
+          ),
+          bls12_381_G2_neg = DefaultCostingFun(
+            cpu = OneArgument.ConstantCost(
+              cost = params.`bls12_381_G2_neg-cpu-arguments`
+            ),
+            memory = OneArgument.ConstantCost(
+              cost = params.`bls12_381_G2_neg-memory-arguments`
+            )
+          ),
+          bls12_381_G2_scalarMul = DefaultCostingFun(
+            cpu = TwoArguments.LinearInX(
+              OneVariableLinearFunction(
+                intercept = params.`bls12_381_G2_scalarMul-cpu-arguments-intercept`,
+                slope = params.`bls12_381_G2_scalarMul-cpu-arguments-slope`
+              )
+            ),
+            memory = TwoArguments.ConstantCost(
+              cost = params.`bls12_381_G2_scalarMul-memory-arguments`
+            )
+          ),
+          bls12_381_G2_equal = DefaultCostingFun(
+            cpu = TwoArguments.ConstantCost(
+              cost = params.`bls12_381_G2_equal-cpu-arguments`
+            ),
+            memory = TwoArguments.ConstantCost(
+              cost = params.`bls12_381_G2_equal-memory-arguments`
+            )
+          ),
+          bls12_381_G2_compress = DefaultCostingFun(
+            cpu = OneArgument.ConstantCost(
+              cost = params.`bls12_381_G2_compress-cpu-arguments`
+            ),
+            memory = OneArgument.ConstantCost(
+              cost = params.`bls12_381_G2_compress-memory-arguments`
+            )
+          ),
+          bls12_381_G2_uncompress = DefaultCostingFun(
+            cpu = OneArgument.ConstantCost(
+              cost = params.`bls12_381_G2_uncompress-cpu-arguments`
+            ),
+            memory = OneArgument.ConstantCost(
+              cost = params.`bls12_381_G2_uncompress-memory-arguments`
+            )
+          ),
+          bls12_381_G2_hashToGroup = DefaultCostingFun(
+            cpu = TwoArguments.LinearInX(
+              OneVariableLinearFunction(
+                intercept = params.`bls12_381_G2_hashToGroup-cpu-arguments-intercept`,
+                slope = params.`bls12_381_G2_hashToGroup-cpu-arguments-slope`
+              )
+            ),
+            memory = TwoArguments.ConstantCost(
+              cost = params.`bls12_381_G2_hashToGroup-memory-arguments`
+            )
+          ),
+          bls12_381_millerLoop = DefaultCostingFun(
+            cpu = TwoArguments.ConstantCost(
+              cost = params.`bls12_381_millerLoop-cpu-arguments`
+            ),
+            memory = TwoArguments.ConstantCost(
+              cost = params.`bls12_381_millerLoop-memory-arguments`
+            )
+          ),
+          bls12_381_mulMlResult = DefaultCostingFun(
+            cpu = TwoArguments.ConstantCost(
+              cost = params.`bls12_381_mulMlResult-cpu-arguments`
+            ),
+            memory = TwoArguments.ConstantCost(
+              cost = params.`bls12_381_mulMlResult-memory-arguments`
+            )
+          ),
+          bls12_381_finalVerify = DefaultCostingFun(
+            cpu = TwoArguments.ConstantCost(
+              cost = params.`bls12_381_finalVerify-cpu-arguments`
+            ),
+            memory = TwoArguments.ConstantCost(
+              cost = params.`bls12_381_finalVerify-memory-arguments`
+            )
+          ),
+          integerToByteString = IntegerToByteStringCostingFun(
+            cpu = ThreeArguments.QuadraticInZ(
+              OneVariableQuadraticFunction(
+                c0 = params.`integerToByteString-cpu-arguments-c0`,
+                c1 = params.`integerToByteString-cpu-arguments-c1`,
+                c2 = params.`integerToByteString-cpu-arguments-c2`
+              )
+            ),
+            memory = ThreeArguments.LiteralInYOrLinearInZ(
+              OneVariableLinearFunction(
+                intercept = params.`integerToByteString-memory-arguments-intercept`,
+                slope = params.`integerToByteString-memory-arguments-slope`
+              )
+            )
+          ),
+          byteStringToInteger = DefaultCostingFun(
+            cpu = TwoArguments.QuadraticInY(
+              OneVariableQuadraticFunction(
+                c0 = params.`byteStringToInteger-cpu-arguments-c0`,
+                c1 = params.`byteStringToInteger-cpu-arguments-c1`,
+                c2 = params.`byteStringToInteger-cpu-arguments-c2`
+              )
+            ),
+            memory = TwoArguments.LinearInY(
+              OneVariableLinearFunction(
+                intercept = params.`byteStringToInteger-memory-arguments-intercept`,
+                slope = params.`byteStringToInteger-memory-arguments-slope`
+              )
+            )
+          ),
+          andByteString = DefaultCostingFun(
+            cpu = ThreeArguments.LinearInYAndZ(
+              TwoVariableLinearFunction(
+                intercept = params.`andByteString-cpu-arguments-intercept`,
+                slope1 = params.`andByteString-cpu-arguments-slope1`,
+                slope2 = params.`andByteString-cpu-arguments-slope2`
+              )
+            ),
+            memory = ThreeArguments.LinearInMaxYZ(
+              OneVariableLinearFunction(
+                intercept = params.`andByteString-memory-arguments-intercept`,
+                slope = params.`andByteString-memory-arguments-slope`
+              )
+            )
+          ),
+          orByteString = DefaultCostingFun(
+            cpu = ThreeArguments.LinearInYAndZ(
+              TwoVariableLinearFunction(
+                intercept = params.`orByteString-cpu-arguments-intercept`,
+                slope1 = params.`orByteString-cpu-arguments-slope1`,
+                slope2 = params.`orByteString-cpu-arguments-slope2`
+              )
+            ),
+            memory = ThreeArguments.LinearInMaxYZ(
+              OneVariableLinearFunction(
+                intercept = params.`orByteString-memory-arguments-intercept`,
+                slope = params.`orByteString-memory-arguments-slope`
+              )
+            )
+          ),
+          xorByteString = DefaultCostingFun(
+            cpu = ThreeArguments.LinearInYAndZ(
+              TwoVariableLinearFunction(
+                intercept = params.`xorByteString-cpu-arguments-intercept`,
+                slope1 = params.`xorByteString-cpu-arguments-slope1`,
+                slope2 = params.`xorByteString-cpu-arguments-slope2`
+              )
+            ),
+            memory = ThreeArguments.LinearInMaxYZ(
+              OneVariableLinearFunction(
+                intercept = params.`xorByteString-memory-arguments-intercept`,
+                slope = params.`xorByteString-memory-arguments-slope`
+              )
+            )
+          ),
+          complementByteString = DefaultCostingFun(
+            cpu = OneArgument.LinearInX(
+              OneVariableLinearFunction(
+                intercept = params.`complementByteString-cpu-arguments-intercept`,
+                slope = params.`complementByteString-cpu-arguments-slope`
+              )
+            ),
+            memory = OneArgument.LinearInX(
+              OneVariableLinearFunction(
+                intercept = params.`complementByteString-memory-arguments-intercept`,
+                slope = params.`complementByteString-memory-arguments-slope`
+              )
+            )
+          ),
+          readBit = DefaultCostingFun(
+            cpu = TwoArguments.ConstantCost(
+              cost = params.`readBit-cpu-arguments`
+            ),
+            memory = TwoArguments.ConstantCost(
+              cost = params.`readBit-memory-arguments`
+            )
+          ),
+          writeBits = WriteBitsCostingFun(
+            cpu = ThreeArguments.LinearInY(
+              OneVariableLinearFunction(
+                intercept = params.`writeBits-cpu-arguments-intercept`,
+                slope = params.`writeBits-cpu-arguments-slope`
+              )
+            ),
+            memory = ThreeArguments.LinearInX(
+              OneVariableLinearFunction(
+                intercept = params.`writeBits-memory-arguments-intercept`,
+                slope = params.`writeBits-memory-arguments-slope`
+              )
+            )
+          ),
+          replicateByte = ReplicateByteCostingFun(
+            cpu = TwoArguments.LinearInX(
+              OneVariableLinearFunction(
+                intercept = params.`replicateByte-cpu-arguments-intercept`,
+                slope = params.`replicateByte-cpu-arguments-slope`
+              )
+            ),
+            memory = TwoArguments.LinearInX(
+              OneVariableLinearFunction(
+                intercept = params.`replicateByte-memory-arguments-intercept`,
+                slope = params.`replicateByte-memory-arguments-slope`
+              )
+            )
+          ),
+          shiftByteString = ShiftOrRotateByteStringCostingFun(
+            cpu = TwoArguments.LinearInX(
+              OneVariableLinearFunction(
+                intercept = params.`shiftByteString-cpu-arguments-intercept`,
+                slope = params.`shiftByteString-cpu-arguments-slope`
+              )
+            ),
+            memory = TwoArguments.LinearInX(
+              OneVariableLinearFunction(
+                intercept = params.`shiftByteString-memory-arguments-intercept`,
+                slope = params.`shiftByteString-memory-arguments-slope`
+              )
+            )
+          ),
+          rotateByteString = ShiftOrRotateByteStringCostingFun(
+            cpu = TwoArguments.LinearInX(
+              OneVariableLinearFunction(
+                intercept = params.`rotateByteString-cpu-arguments-intercept`,
+                slope = params.`rotateByteString-cpu-arguments-slope`
+              )
+            ),
+            memory = TwoArguments.LinearInX(
+              OneVariableLinearFunction(
+                intercept = params.`rotateByteString-memory-arguments-intercept`,
+                slope = params.`rotateByteString-memory-arguments-slope`
+              )
+            )
+          ),
+          countSetBits = DefaultCostingFun(
+            cpu = OneArgument.LinearInX(
+              OneVariableLinearFunction(
+                intercept = params.`countSetBits-cpu-arguments-intercept`,
+                slope = params.`countSetBits-cpu-arguments-slope`
+              )
+            ),
+            memory = OneArgument.ConstantCost(
+              cost = params.`countSetBits-memory-arguments`
+            )
+          ),
+          findFirstSetBit = DefaultCostingFun(
+            cpu = OneArgument.LinearInX(
+              OneVariableLinearFunction(
+                intercept = params.`findFirstSetBit-cpu-arguments-intercept`,
+                slope = params.`findFirstSetBit-cpu-arguments-slope`
+              )
+            ),
+            memory = OneArgument.ConstantCost(
+              cost = params.`findFirstSetBit-memory-arguments`
+            )
+          ),
+          ripemd_160 = DefaultCostingFun(
+            cpu = OneArgument.LinearInX(
+              OneVariableLinearFunction(
+                intercept = params.`ripemd_160-cpu-arguments-intercept`,
+                slope = params.`ripemd_160-cpu-arguments-slope`
+              )
+            ),
+            memory = OneArgument.ConstantCost(
+              cost = params.`ripemd_160-memory-arguments`
+            )
+          )
+        )
+
+        model
+    }
 
     /** Read a BuiltinCostModel from an input stream of JSON
       *

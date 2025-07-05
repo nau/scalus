@@ -59,7 +59,7 @@ import scalus.uplc.eval.*
 
 import java.math.BigInteger
 import java.util
-import scala.collection.mutable
+import scala.collection.{immutable, mutable}
 import scala.jdk.CollectionConverters.*
 import scala.math.BigInt
 
@@ -253,27 +253,30 @@ object Interop {
         plutus: PlutusLedgerLanguage,
         protocolVersion: api.MajorProtocolVersion
     ): MachineParams = {
-        import upickle.default.*
-        val paramsMap = plutus match
+        import scalus.cardano.ledger.Language as L
+        val (lang, params) = plutus match
             case PlutusLedgerLanguage.PlutusV1 =>
                 val costs = costMdls.get(Language.PLUTUS_V1)
-                val params = PlutusV1Params.fromSeq(costs.getCosts.toSeq)
-                writeJs(params).obj.map { (k, v) => (k, v.num.toLong) }.toMap
+                L.PlutusV1 -> PlutusV1Params.fromSeq(
+                  immutable.ArraySeq.unsafeWrapArray(costs.getCosts)
+                )
             case PlutusLedgerLanguage.PlutusV2 =>
                 val costs = costMdls.get(Language.PLUTUS_V2)
-                val params = PlutusV2Params.fromSeq(costs.getCosts.toSeq)
-                writeJs(params).obj.map { (k, v) => (k, v.num.toLong) }.toMap
+                L.PlutusV2 -> PlutusV2Params.fromSeq(
+                  immutable.ArraySeq.unsafeWrapArray(costs.getCosts)
+                )
             case PlutusLedgerLanguage.PlutusV3 =>
                 val costs = costMdls.get(Language.PLUTUS_V3)
-                val params = PlutusV3Params.fromSeq(costs.getCosts.toSeq)
-                writeJs(params).obj.map { (k, v) => (k, v.num.toLong) }.toMap
+                L.PlutusV3 -> PlutusV3Params.fromSeq(
+                  immutable.ArraySeq.unsafeWrapArray(costs.getCosts)
+                )
 
         val semvar = BuiltinSemanticsVariant.fromProtocolAndPlutusVersion(
           protocolVersion,
           plutus
         )
-        val builtinCostModel = BuiltinCostModel.fromCostModelParams(plutus, semvar, paramsMap)
-        val machineCosts = CekMachineCosts.fromMap(paramsMap)
+        val builtinCostModel = BuiltinCostModel.fromPlutusParams(params, lang, semvar)
+        val machineCosts = CekMachineCosts.fromPlutusParams(params)
         MachineParams(
           machineCosts = machineCosts,
           builtinCostModel = builtinCostModel,
