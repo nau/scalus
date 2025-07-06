@@ -293,7 +293,7 @@ object Macros {
                           val idx = Expr(index)
                           stmts += Assign(
                             ref.select(field),
-                            '{ if $idx < $size then seq($idx) else 0L }.asTerm
+                            '{ if $idx < $size then seq($idx) else 300_000_000L }.asTerm
                           )
 
                       // { val params = new A(); params.field1 =...; params }

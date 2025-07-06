@@ -512,6 +512,7 @@ class PlutusV1Params extends PlutusParams {
     var `verifyEd25519Signature-memory-arguments`: Long = 300_000_000L
     def toJson: String = write(this)
 
+    // Not available in Plutus V1
     def `divideInteger-cpu-arguments-c00`: Long = 300_000_000L
     def `divideInteger-cpu-arguments-c01`: Long = 300_000_000L
     def `divideInteger-cpu-arguments-c02`: Long = 300_000_000L
@@ -653,7 +654,6 @@ class PlutusV1Params extends PlutusParams {
     def `ripemd_160-cpu-arguments-intercept`: Long = 300_000_000L
     def `ripemd_160-cpu-arguments-slope`: Long = 300_000_000L
     def `ripemd_160-memory-arguments`: Long = 300_000_000L
-    def fromJson(json: String): PlutusParams = read[PlutusV1Params](json)
 }
 
 /** Plutus V2 cost model parameters.
@@ -842,8 +842,19 @@ class PlutusV2Params extends PlutusParams {
     var `verifySchnorrSecp256k1Signature-cpu-arguments-intercept`: Long = 300_000_000L
     var `verifySchnorrSecp256k1Signature-cpu-arguments-slope`: Long = 300_000_000L
     var `verifySchnorrSecp256k1Signature-memory-arguments`: Long = 300_000_000L
+    var `integerToByteString-cpu-arguments-c0`: Long = 300_000_000L
+    var `integerToByteString-cpu-arguments-c1`: Long = 300_000_000L
+    var `integerToByteString-cpu-arguments-c2`: Long = 300_000_000L
+    var `integerToByteString-memory-arguments-intercept`: Long = 300_000_000L
+    var `integerToByteString-memory-arguments-slope`: Long = 300_000_000L
+    var `byteStringToInteger-cpu-arguments-c0`: Long = 300_000_000L
+    var `byteStringToInteger-cpu-arguments-c1`: Long = 300_000_000L
+    var `byteStringToInteger-cpu-arguments-c2`: Long = 300_000_000L
+    var `byteStringToInteger-memory-arguments-intercept`: Long = 300_000_000L
+    var `byteStringToInteger-memory-arguments-slope`: Long = 300_000_000L
     def toJson: String = write(this)
 
+    // Not available in Plutus V2
     def `divideInteger-cpu-arguments-c00`: Long = 300_000_000L
     def `divideInteger-cpu-arguments-c01`: Long = 300_000_000L
     def `divideInteger-cpu-arguments-c02`: Long = 300_000_000L
@@ -920,16 +931,6 @@ class PlutusV2Params extends PlutusParams {
     def `blake2b_224-cpu-arguments-intercept`: Long = 300_000_000L
     def `blake2b_224-cpu-arguments-slope`: Long = 300_000_000L
     def `blake2b_224-memory-arguments`: Long = 300_000_000L
-    def `integerToByteString-cpu-arguments-c0`: Long = 300_000_000L
-    def `integerToByteString-cpu-arguments-c1`: Long = 300_000_000L
-    def `integerToByteString-cpu-arguments-c2`: Long = 300_000_000L
-    def `integerToByteString-memory-arguments-intercept`: Long = 300_000_000L
-    def `integerToByteString-memory-arguments-slope`: Long = 300_000_000L
-    def `byteStringToInteger-cpu-arguments-c0`: Long = 300_000_000L
-    def `byteStringToInteger-cpu-arguments-c1`: Long = 300_000_000L
-    def `byteStringToInteger-cpu-arguments-c2`: Long = 300_000_000L
-    def `byteStringToInteger-memory-arguments-intercept`: Long = 300_000_000L
-    def `byteStringToInteger-memory-arguments-slope`: Long = 300_000_000L
     def `andByteString-cpu-arguments-intercept`: Long = 300_000_000L
     def `andByteString-cpu-arguments-slope1`: Long = 300_000_000L
     def `andByteString-cpu-arguments-slope2`: Long = 300_000_000L
@@ -976,7 +977,6 @@ class PlutusV2Params extends PlutusParams {
     def `ripemd_160-cpu-arguments-intercept`: Long = 300_000_000L
     def `ripemd_160-cpu-arguments-slope`: Long = 300_000_000L
     def `ripemd_160-memory-arguments`: Long = 300_000_000L
-    def fromJson(json: String): PlutusParams = read[PlutusV2Params](json)
 }
 
 /** Plutus V3 cost model parameters.
@@ -1287,6 +1287,8 @@ class PlutusV3Params extends PlutusParams {
     var `ripemd_160-cpu-arguments-intercept`: Long = 300_000_000L
     var `ripemd_160-cpu-arguments-slope`: Long = 300_000_000L
     var `ripemd_160-memory-arguments`: Long = 300_000_000L
+
+    // Not available in Plutus V3, old names kept for compatibility
     def `divideInteger-cpu-arguments-model-arguments-intercept`: Long = 300_000_000L
     def `divideInteger-cpu-arguments-model-arguments-slope`: Long = 300_000_000L
     def `modInteger-cpu-arguments-model-arguments-intercept`: Long = 300_000_000L
@@ -1298,7 +1300,6 @@ class PlutusV3Params extends PlutusParams {
     def `remainderInteger-cpu-arguments-model-arguments-slope`: Long = 300_000_000L
     def `remainderInteger-memory-arguments-minimum`: Long = 300_000_000L
     def toJson: String = write(this)
-    def fromJson(json: String): PlutusParams = read[PlutusV3Params](json)
 }
 
 private object JsonUtils {
