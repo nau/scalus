@@ -5,7 +5,8 @@ import nextra from 'nextra'
  */
 const nextConfig = {
   output: 'export',
-  reactStrictMode: true,
+  //reactStrictMode: true,
+  // trailingSlash: true,
 
   images: {
     unoptimized: true // mandatory, otherwise won't export
