@@ -9,6 +9,18 @@ case class Module(version: (Int, Int), defs: List[Binding])
 
 case class Binding(name: String, tp: SIRType, value: SIR) {
 
+    if name == "scalus.prelude.List$.foldLeft"
+    then {
+        tp match {
+            case SIRType.TypeLambda(tvars, _) =>
+            //
+            case _ =>
+                throw new RuntimeException(
+                  s"Binding: foldLeft must have type type-lambda, but got ${tp.show}"
+                )
+        }
+    }
+
     override def toString: String = s"Binding(\"$name\" [${tp.show}] : $value)"
 
 }
@@ -235,17 +247,37 @@ object SIR:
 
     case class Var(name: String, tp: SIRType, anns: AnnotationsDecl) extends AnnotatedSIR {
 
+        if name == "scalus.prelude.List$.foldLeft"
+        then {
+            tp match {
+                case SIRType.TypeLambda(tvars, _) =>
+                //
+                case _ =>
+                    throw new RuntimeException(
+                      s"ExternalVar: foldLeft must have type type-lambda, but got ${tp.show} at ${anns.pos.show}"
+                    )
+            }
+
+        }
+
         override def toString: String = s"Var($name, ${tp.show})"
     }
 
     case class ExternalVar(moduleName: String, name: String, tp: SIRType, anns: AnnotationsDecl)
         extends AnnotatedSIR {
 
-        if moduleName == "scalus.examples.HtlcValidator$" && name == "scalus.prelude.Validator.validate" && tp == SIRType.Unit
-        then
-            throw new RuntimeException(
-              "ExternalVar: HtlcValidator.validate has Unit type, but should be function"
-            )
+        if name == "scalus.prelude.List$.foldLeft"
+        then {
+            tp match {
+                case SIRType.TypeLambda(tvars, _) =>
+                //
+                case _ =>
+                    throw new RuntimeException(
+                      s"ExternalVar: foldLeft must have type type-lambda, but got ${tp.show} at ${anns.pos.show}"
+                    )
+            }
+
+        }
 
         override def toString: String = s"ExternalVar($moduleName, $name, ${tp.show})"
 

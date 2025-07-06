@@ -1,11 +1,13 @@
 package scalus.sir.lowering
 
+import org.typelevel.paiges.Doc
 import scalus.sir.*
 import scalus.sir.Recursivity.NonRec
 import scalus.sir.lowering.typegens.{ProductCaseUplcOnlySirTypeGenerator, RepresentationProxyLoweredValue, SirTypeUplcGenerator}
 import scalus.sir.lowering.LoweredValue.Builder.*
 import scalus.uplc.*
 
+import scala.annotation.unused
 import scala.util.control.NonFatal
 import scalus.pretty
 
@@ -35,7 +37,8 @@ object Lowering {
     }
 
     def lowerSIR(sir: SIR)(using lctx: LoweringContext): LoweredValue = {
-        sir match
+        lctx.nestingLevel += 1
+        val retval = sir match
             case SIR.Decl(data, term) =>
                 lctx.decls.put(data.name, data).foreach { decl =>
                     // TODO: pass logger.
@@ -48,6 +51,18 @@ object Lowering {
                 typeGenerator.genConstr(constr)
             case sirMatch @ SIR.Match(scrutinee, cases, rhsType, anns) =>
                 val loweredScrutinee = lowerSIR(scrutinee)
+                (scrutinee.tp, loweredScrutinee.sirType) match {
+                    case (tv1: SIRType.TypeVar, tv2: SIRType.TypeVar) =>
+                        println("both scrutinee and loweredScrutinee are type variables")
+                    case (_, tv2: SIRType.TypeVar) =>
+                        println("loweredScrutinee is typed as type variable, but scrutinee is not")
+                        println(s"scrutinee: ${scrutinee.pretty.render(100)}")
+                        println(s"loweredScrutinee: ${loweredScrutinee.pretty.render(100)}")
+                        println(s"lowering scrutinee in debug:")
+                        lctx.debug = true
+                        @unused val unused = lowerSIR(scrutinee)
+                    case _ =>
+                }
                 lctx.typeGenerator(scrutinee.tp).genMatch(sirMatch, loweredScrutinee)
             case SIR.Var(name, tp, anns) =>
                 lctx.scope.getByName(name) match
@@ -219,10 +234,12 @@ object Lowering {
                   term,
                   PrimitiveRepresentation.Constant
                 )
+        lctx.nestingLevel -= 1
+        retval
     }
 
     private def lowerLet(sirLet: SIR.Let)(using lctx: LoweringContext): LoweredValue = {
-        sirLet match
+        val retval = sirLet match
             case SIR.Let(recursivity, bindings, body, anns) =>
                 val prevScope = lctx.scope
                 if recursivity == NonRec then
@@ -237,44 +254,13 @@ object Lowering {
                         )
                         lctx.scope = lctx.scope.add(varVal)
                         (varVal: IdentifiableLoweredValue, rhs)
-                    }.toMap
+                    }.toSeq
                     val bodyValue = lowerSIR(body)
-                    val myVars = bindingValues.keySet
                     lctx.scope = prevScope
-                    new ComplexLoweredValue(myVars, (Seq(bodyValue) ++ bindingValues.values)*) {
-
-                        override def sirType: SIRType = bodyValue.sirType
-
-                        override def pos: SIRPosition = sirLet.anns.pos
-
-                        override def termInternal(gctx: TermGenerationContext): Term = {
-                            val bodyGctx = gctx.copy(
-                              generatedVars = gctx.generatedVars ++ myVars.map(_.id)
-                            )
-                            val bodyTerm = bodyValue.termWithNeededVars(bodyGctx)
-                            bindingValues.foldRight(bodyTerm) { case ((varVal, rhs), term) =>
-                                Term.Apply(
-                                  Term.LamAbs(varVal.id, term),
-                                  rhs.termWithNeededVars(
-                                    gctx.copy(
-                                      generatedVars = gctx.generatedVars + varVal.id
-                                    )
-                                  )
-                                )
-                            }
-                        }
-
-                        override def representation: LoweredValueRepresentation =
-                            bodyValue.representation
-
-                    }
-                else {
+                    LetNonRecLoweredValue(bindingValues, bodyValue, sirLet.anns.pos)
+                else
                     bindings match
                         case List(Binding(name, tp, rhs)) =>
-                            /*  let rec f  = x => f (x + 1)
-                                in f 0
-                                (\f -> f 0) (Z (\f. \x. f (x + 1)))
-                             */
                             lctx.zCombinatorNeeded = true
                             val newVar = VariableLoweredValue(
                               id = lctx.uniqueVarName(name),
@@ -286,36 +272,12 @@ object Lowering {
                             val prevScope = lctx.scope
                             lctx.scope = lctx.scope.add(newVar)
                             val loweredRhs = lowerSIR(rhs).maybeUpcast(tp, anns.pos)
+                            println(
+                              s"added let binding, name=${newVar.name}, id=${newVar.id}, tp=${tp.show}, rhs.tp=${loweredRhs.sirType.show}"
+                            )
                             val loweredBody = lowerSIR(body)
                             lctx.scope = prevScope
-
-                            new ComplexLoweredValue(Set(newVar), loweredRhs, loweredBody) {
-                                override def sirType: SIRType = loweredBody.sirType
-
-                                override def pos: SIRPosition = sirLet.anns.pos
-
-                                override def termInternal(gctx: TermGenerationContext): Term = {
-                                    val nGctx = gctx.copy(
-                                      generatedVars = gctx.generatedVars + newVar.id
-                                    )
-                                    val fixed =
-                                        Term.Apply(
-                                          Term.Var(NamedDeBruijn("__z_combinator__")),
-                                          Term.LamAbs(
-                                            newVar.id,
-                                            loweredRhs.termWithNeededVars(nGctx)
-                                          )
-                                        )
-                                    Term.Apply(
-                                      Term.LamAbs(newVar.id, loweredBody.termWithNeededVars(nGctx)),
-                                      fixed
-                                    )
-                                }
-
-                                override def representation: LoweredValueRepresentation =
-                                    loweredBody.representation
-
-                            }
+                            LetRecLoweredValue(newVar, loweredRhs, loweredBody, sirLet.anns.pos)
                         case Nil =>
                             sys.error(
                               s"Empty let binding at ${sirLet.anns.pos.file}:${sirLet.anns.pos.startLine}"
@@ -324,7 +286,7 @@ object Lowering {
                             sys.error(
                               s"Mutually recursive bindings are not supported: $bindings at ${sirLet.anns.pos.file}:${sirLet.anns.pos.startLine}"
                             )
-                }
+        retval
 
     }
 
@@ -347,6 +309,13 @@ object Lowering {
                     """.stripMargin('|'),
                 app.anns.pos
               )
+            )
+        if lctx.debug then
+            println(
+              s"Lowering app: ${app.pretty.render(100)}\n" +
+                  s"  f.tp = ${app.f.tp.show}\n" +
+                  s"  f = ${app.f}\n" +
+                  s"  typeVars = ${typeVars.map(_.show).mkString(", ")}"
             )
         val newEnv = SIRUnify.unifyType(
           app.arg.tp,
@@ -376,7 +345,6 @@ object Lowering {
                 )
         }
         lctx.typeUnifyEnv = newEnv
-
         val fun = lowerSIR(app.f)
         val arg = lowerSIR(app.arg)
         val result =
@@ -455,9 +423,18 @@ object Lowering {
             override def termInternal(gctx: TermGenerationContext): Term =
                 data.termInternal(gctx)
 
-            override def show: String = {
-                s"FromData(${data.show}, ${app.tp.show})"
+            override def docDef(style: PrettyPrinter.Style): Doc = {
+                val left = Doc.text("FromData(")
+                val right = Doc.text(s", ${app.tp.show})")
+                data.docRef(style).bracketBy(left, right)
             }
+
+            override def docRef(style: PrettyPrinter.Style): Doc = {
+                val left = Doc.text("FromData(")
+                val right = Doc.text(")")
+                data.docRef(style).bracketBy(left, right)
+            }
+
         }
     }
 
@@ -475,9 +452,19 @@ object Lowering {
                 PrimitiveRepresentation.PackedData
             override def termInternal(gctx: TermGenerationContext): Term =
                 value.termInternal(gctx)
-            override def show: String = {
-                s"ToData(${value.show}, ${app.tp.show})"
+
+            override def docDef(style: PrettyPrinter.Style): Doc = {
+                val left = Doc.text("FromData(")
+                val right = Doc.text(s", ${app.tp.show})")
+                value.docRef(style).bracketBy(left, right)
             }
+
+            override def docRef(style: PrettyPrinter.Style): Doc = {
+                val left = Doc.text("FromData(")
+                val right = Doc.text(")")
+                value.docRef(style).bracketBy(left, right)
+            }
+
         }
     }
 
@@ -487,7 +474,27 @@ object Lowering {
 
         val newVars = value.dominatingUplevelVars.filterNot(x => gctx.generatedVars.contains(x.id))
         val nGeneratedVars = gctx.generatedVars ++ newVars.map(_.id)
-        val internalTerm = value.termInternal(gctx.copy(generatedVars = nGeneratedVars))
+        val internalTerm =
+            try value.termInternal(gctx.copy(generatedVars = nGeneratedVars))
+            catch
+                case NonFatal(ex) =>
+                    println(
+                      s"Error generating term for value ${value} of type ${value.sirType.show} at ${value.pos.file}:${value.pos.startLine + 1}\n" +
+                          s"value:\n${value.show}\n" +
+                          s"generatedVars: ${gctx.generatedVars.mkString(", ")}\n" +
+                          s"newVars: ${newVars.map(_.id).mkString(", ")}"
+                    )
+                    value match
+                        case lambda: LambdaLoweredValue if lambda.newVar.name == "param" =>
+                            println(
+                              s"Lambda with param name 'param' at ${value.pos.file}:${value.pos.startLine + 1}"
+                            )
+                            println(
+                              "lambda body created at:" + lambda.body.createdEx.getStackTrace
+                                  .mkString("\n")
+                            )
+                        case _ =>
+                    throw ex
 
         val topSortedNewVars = topologicalSort(newVars)
 

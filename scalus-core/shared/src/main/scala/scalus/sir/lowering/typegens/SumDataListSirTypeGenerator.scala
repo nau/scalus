@@ -1,5 +1,7 @@
 package scalus.sir.lowering.typegens
 
+import org.typelevel.paiges.Doc
+
 import scalus.sir.{SIRType, *}
 import scalus.sir.lowering.*
 import scalus.sir.lowering.Lowering.tpf
@@ -246,6 +248,40 @@ object SumDataListSirTypeGenerator extends SirTypeUplcGenerator {
         }
     }
 
+    case class ListMatchLoweredValue(
+        listInput: LoweredValue,
+        consHead: IdentifiableLoweredValue,
+        consTail: IdentifiableLoweredValue,
+        consBody: LoweredValue,
+        nilBody: LoweredValue,
+        sirType: SIRType,
+        representation: LoweredValueRepresentation,
+        pos: SIRPosition
+    ) extends ComplexLoweredValue(Set(consHead, consTail), listInput, consBody, nilBody) {
+
+        override def termInternal(gctx: TermGenerationContext): Term = {
+            !(DefaultFun.ChooseList.tpf $ listInput.termWithNeededVars(gctx)
+                $ ~nilBody.termWithNeededVars(gctx)
+                $ ~consBody.termWithNeededVars(gctx))
+        }
+
+        override def docDef(style: PrettyPrinter.Style): Doc = {
+            Doc.text("ListMatch") + PrettyPrinter.inBraces(
+              listInput.docRef(style) + Doc.space + Doc.text("match") +
+                  (
+                    (
+                      Doc.text("Cons") + PrettyPrinter.inParens(
+                        consHead.docRef(style) + Doc.text(",") + consTail.docRef(style)
+                      ) + Doc.text(" =>") + consBody.docRef(style).nested(2)
+                    ).grouped +
+                        (Doc.text("Nil") + Doc
+                            .text(" =>") + nilBody.docRef(style).nested(2)).grouped
+                  ).aligned
+            ) + Doc.text(":") + Doc.text(sirType.show)
+        }
+
+    }
+
     override def genMatch(matchData: SIR.Match, loweredScrutinee: LoweredValue)(using
         lctx: LoweringContext
     ): LoweredValue = {
@@ -400,47 +436,36 @@ object SumDataListSirTypeGenerator extends SirTypeUplcGenerator {
                   matchData.anns.pos
                 )
         else
-            val usedVarsCount = Lowering.filterAndCountVars(
-              _ => true,
-              loweredScrutinee,
-              loweredConsBody,
-              loweredNilBody,
+
+            val resType = matchData.tp
+            resType match
+                case tv: SIRType.TypeVar =>
+                    println(s"typevar in List match at ${matchData.anns.pos.show}")
+                case _ =>
+
+            if resType == SIRType.FreeUnificator then
+                throw LoweringException(
+                  s"match branches return unrelated types: ${loweredConsBody.sirType.show} and ${loweredNilBody.sirType.show}",
+                  matchData.anns.pos
+                )
+
+            val consBodyR = loweredConsBody.maybeUpcast(resType, matchData.anns.pos)
+            val resRepresentation = consBodyR.representation
+            val nilBodyR =
+                loweredNilBody
+                    .maybeUpcast(resType, loweredNilBody.pos)
+                    .toRepresentation(resRepresentation, loweredNilBody.pos)
+
+            val retval = ListMatchLoweredValue(
+              listInput,
+              consHead,
+              consTail,
+              consBodyR,
+              nilBodyR,
+              resType,
+              resRepresentation,
+              matchData.anns.pos
             )
-
-            val cDominatedVars = usedVarsCount.filter { case (v, c) =>
-                v.directDepended.size > 1 && c > 1
-            }.keySet
-            val cUsedVars = usedVarsCount.keySet
-
-            val retval = new LoweredValue {
-                override def sirType: SIRType = matchData.tp
-
-                override def pos: SIRPosition = matchData.anns.pos
-
-                override def termInternal(gctx: TermGenerationContext): Term = {
-                    !(DefaultFun.ChooseList.tpf $ listInput.termWithNeededVars(gctx)
-                        $ ~loweredNilBody.termWithNeededVars(gctx)
-                        $ ~loweredConsBody.termWithNeededVars(gctx))
-
-                }
-
-                override def representation: LoweredValueRepresentation =
-                    bodyRepresentation
-
-                override def dominatingUplevelVars: Set[IdentifiableLoweredValue] = cDominatedVars
-
-                override def usedUplevelVars: Set[IdentifiableLoweredValue] = cUsedVars
-
-                override def addDependent(value: IdentifiableLoweredValue): Unit = {
-                    loweredScrutinee.addDependent(value)
-                    loweredNilBody.addDependent(value)
-                    loweredConsBody.addDependent(value)
-                }
-
-                override def show: String = {
-                    s"SumDataListMatch(${matchData.scrutinee}, ${loweredNilBody}, ${loweredConsBody}) at ${matchData.anns.pos}"
-                }
-            }
 
             retval
     }

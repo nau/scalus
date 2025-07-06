@@ -1,5 +1,6 @@
 package scalus.sir.lowering.typegens
 
+import org.typelevel.paiges.Doc
 import scalus.sir.*
 import scalus.sir.lowering.*
 import scalus.uplc.*
@@ -27,8 +28,16 @@ class RepresentationProxyLoweredValue(
     def termInternal(gctx: TermGenerationContext): Term =
         input.termInternal(gctx)
 
-    def show: String = {
-        s"RepresentationProxyLoweredValue(${input.show}, $representation)"
+    override def docDef(style: PrettyPrinter.Style): Doc = {
+        val left = Doc.text("repr.proxy") + Doc.text("(")
+        val right = Doc.text(":") + Doc.text(sirType.show) + PrettyPrinter.inBrackets(
+          representation.doc
+        ) + Doc.text(")")
+        input.docRef(style).bracketBy(left, right)
+    }
+
+    override def docRef(style: PrettyPrinter.Style): Doc = {
+        docDef(style)
     }
 
 }

@@ -4,8 +4,9 @@ import scalus.sir.{SIRType, *}
 import scalus.sir.lowering.Lowering.tpf
 import scalus.sir.lowering.typegens.RepresentationProxyLoweredValue
 import scalus.uplc.*
+import org.typelevel.paiges.Doc
+import scalus.sir.PrettyPrinter.pretty
 
-import java.util
 import scala.annotation.tailrec
 import scala.collection.mutable.Set as MutableSet
 import scala.collection.mutable.Map as MutableMap
@@ -91,7 +92,24 @@ trait LoweredValue {
         value: IdentifiableLoweredValue
     ): Unit
 
-    def show: String
+    def show: String = pretty.render(100)
+
+    /** Pretty print this value with all definitona
+      * @param style - style of printing
+      * @return
+      */
+    def docDef(style: PrettyPrinter.Style = PrettyPrinter.Style.Normal): Doc
+
+    /** Pretty print reference to value
+      * @param style - style of printing
+      * @return
+      */
+    def docRef(style: PrettyPrinter.Style = PrettyPrinter.Style.Normal): Doc
+
+    def pretty: Doc = {
+        docDef(PrettyPrinter.Style.Normal)
+    }
+
 }
 
 case class ConstantLoweredValue(
@@ -107,7 +125,14 @@ case class ConstantLoweredValue(
     override def addDependent(value: IdentifiableLoweredValue): Unit = {
         // constants are not depended on any variables
     }
-    override def show: String = s"ConstantLoweredValue($term, $representation) at ˜$pos"
+
+    override def docDef(style: PrettyPrinter.Style = PrettyPrinter.Style.Normal): Doc = {
+        (PrettyPrinter.pretty(term, style) + Doc.text(":") + Doc.text(sirType.show) + PrettyPrinter
+            .inBrackets(representation.doc)).grouped
+    }
+
+    override def docRef(style: PrettyPrinter.Style): Doc = PrettyPrinter.pretty(term, style)
+
 }
 
 case class StaticLoweredValue(
@@ -122,8 +147,20 @@ case class StaticLoweredValue(
     def usedUplevelVars: Set[IdentifiableLoweredValue] = Set.empty
     def termInternal(gctx: TermGenerationContext): Term = term
     def addDependent(value: IdentifiableLoweredValue): Unit = {}
-    def show: String = {
+    def print: String = {
         s"StaticLoweredValue($term, $representation) at $pos"
+    }
+    def docDef(style: PrettyPrinter.Style = PrettyPrinter.Style.Normal): Doc = {
+        import PrettyPrinter.*
+        Doc.text("static") + inParens(
+          PrettyPrinter.pretty(term, style) + Doc.text(":") + Doc.text(sir.tp.show) + inBrackets(
+            Doc.text(representation.toString)
+          )
+        )
+    }
+
+    def docRef(style: PrettyPrinter.Style): Doc = {
+        PrettyPrinter.pretty(term, style)
     }
 
 }
@@ -169,15 +206,15 @@ class VariableLoweredValue(
     val optRhs: Option[LoweredValue] = None,
     val directDepended: MutableSet[IdentifiableLoweredValue] = MutableSet.empty
 ) extends IdentifiableLoweredValue {
-    
-    if id == "x$1341" && name == "x$1" then {
+
+    if id == "x$126" then {
         println(
           s"VariableLoweredValue created with id = $id,  representation = $representation, sirType=${sir.tp.show}"
         )
         println(
           s"SIR=${sir} at ${sir.anns.pos.file}:${sir.anns.pos.startLine + 1}"
         )
-        //throw RuntimeException("QQQ")
+        // throw RuntimeException("QQQ")
     }
 
     optRhs.foreach { rhs =>
@@ -206,6 +243,9 @@ class VariableLoweredValue(
         Set(this) ++ optRhs.map(rhs => rhs.usedUplevelVars).getOrElse(Set.empty)
 
     override def termInternal(gctx: TermGenerationContext): Term = {
+        if id == "x$126" then
+            println("generating term for x$126")
+            // Thread.dumpStack()
         if gctx.generatedVars.contains(id) then Term.Var(NamedDeBruijn(id))
         else
             optRhs match {
@@ -214,24 +254,42 @@ class VariableLoweredValue(
                     //  so variable used once and we can generate rhs term instead of name.
                     rhs.termWithNeededVars(gctx)
                 case None =>
-                    if gctx.processUndefinedValues then { 
+                    if gctx.processUndefinedValues then {
                         if gctx.debug then {
                             println(
                               s"VariableLoweredValue: generating term for undefined variable $name with id $id"
                             )
-                            createdEx.printStackTrace()
+                            if id == "x$1341" then {
+                                println(s"generatedVars: ${gctx.generatedVars}")
+                            }
+                            // createdEx.printStackTrace()
                         }
                         Term.Var(NamedDeBruijn(id))
-                    } else    
+                    } else
                         throw new IllegalStateException(
-                            s"Variable $name with id $id is not defined and has no rhs to generate term."
+                          s"Variable $name with id $id is not defined and has no rhs to generate term."
                         )
-                    
+
             }
     }
 
-    override def show: String = {
-        s"VariableLoweredValue(id=$id, name=$name, representation=$representation, optRhs=${optRhs.map(_.show)})"
+    def docDef(style: PrettyPrinter.Style = PrettyPrinter.Style.Normal): Doc = {
+        import PrettyPrinter.*
+        val head = (Doc.text("var") + inParens(
+          Doc.text(id) + Doc.text(":") + Doc.text(sirType.show) + inBrackets(
+            Doc.text(representation.toString)
+          )
+        )).grouped
+        optRhs match {
+            case Some(rhs) =>
+                head + Doc.text("=") + rhs.docDef(style)
+            case None =>
+                head
+        }
+    }
+
+    def docRef(style: PrettyPrinter.Style = PrettyPrinter.Style.Normal): Doc = {
+        Doc.text(id)
     }
 
 }
@@ -267,8 +325,17 @@ case class DependendVariableLoweredValue(
 
     }
 
-    override def show: String = {
-        s"DependendVariableLoweredValue(id=$id, name=$name, representation=$representation, rhs=${rhs.show} at = ${sir.anns.pos})"
+    override def docDef(style: PrettyPrinter.Style = PrettyPrinter.Style.Normal): Doc = {
+        import PrettyPrinter.*
+        (Doc.text("depvar") + inParens(
+          Doc.text(id) + Doc.text(":") + Doc.text(sirType.show) + inBrackets(
+            Doc.text(representation.toString)
+          )
+        )).grouped + Doc.text("=") + rhs.docDef(style)
+    }
+
+    override def docRef(style: PrettyPrinter.Style = PrettyPrinter.Style.Normal): Doc = {
+        Doc.text(id)
     }
 
 }
@@ -290,10 +357,23 @@ trait ProxyLoweredValue(val origin: LoweredValue) extends LoweredValue {
     override def addDependent(value: IdentifiableLoweredValue): Unit =
         origin.addDependent(value)
 
-    override def show: String = s"ProxyLoweredValue(${origin.show})"
+    override def docDef(style: PrettyPrinter.Style = PrettyPrinter.Style.Normal): Doc = {
+        (Doc.text("proxy") + PrettyPrinter.inParens(
+          origin.docDef(style) + Doc.text(":") + Doc.text(sirType.show) + PrettyPrinter.inBrackets(
+            representation.doc
+          )
+        )).grouped
+    }
+
+    override def docRef(style: PrettyPrinter.Style): Doc =
+        Doc.text("proxy") + PrettyPrinter.inParens(origin.docRef(style))
 
 }
 
+/** ComplexLoweredValue is a base trait for lowered values that consist of multiple subvalues.
+  * ownVars - var that used in subvalues but defined in this value. (i.e. not propagated up in
+  * dominatedUplevelVars)
+  */
 trait ComplexLoweredValue(ownVars: Set[IdentifiableLoweredValue], subvalues: LoweredValue*)
     extends LoweredValue {
 
@@ -314,9 +394,289 @@ trait ComplexLoweredValue(ownVars: Set[IdentifiableLoweredValue], subvalues: Low
         subvalues.foreach(_.addDependent(value))
     }
 
-    override def show: String = toString
-
     def retrieveSubvalues: Seq[LoweredValue] = subvalues
+
+    override def docRef(style: PrettyPrinter.Style = PrettyPrinter.Style.Normal): Doc = {
+        this.docDef(style)
+    }
+
+}
+
+case class LambdaLoweredValue(newVar: VariableLoweredValue, body: LoweredValue, inPos: SIRPosition)
+    extends ComplexLoweredValue(Set(newVar), body) {
+    override def sirType: SIRType = SIRType.Fun(newVar.sirType, body.sirType)
+
+    override def representation: LoweredValueRepresentation = {
+        LambdaRepresentation(newVar.representation, body.representation)
+    }
+
+    override def pos: SIRPosition = inPos
+
+    override def termInternal(gctx: TermGenerationContext): Term = {
+        if newVar.id == "x$1341" then {
+            println(
+              "printinq termInternal for lvLamAbs with newVar.id = x$1341"
+            )
+        }
+        Term.LamAbs(newVar.id, body.termWithNeededVars(gctx.addGeneratedVar(newVar.id)))
+    }
+
+    override def docDef(style: PrettyPrinter.Style = PrettyPrinter.Style.Normal): Doc = {
+        import PrettyPrinter.*
+        val left = Doc.text("(") +
+            Doc.text("lam") & Doc.text(newVar.id) + Doc.text(":") + Doc.text(
+              sirType.show
+            ) + inBrackets(
+              representation.doc
+            ) + Doc.text(".")
+        val right = Doc.text(")")
+        body.docRef(style).bracketBy(left, right)
+    }
+
+}
+
+abstract class BuiltinApplyLoweredValue(
+    fun: SIR.Builtin,
+    tp: SIRType,
+    repr: LoweredValueRepresentation,
+    inPos: SIRPosition,
+    args: LoweredValue*
+) extends ComplexLoweredValue(Set.empty, args*) {
+
+    override def sirType: SIRType = tp
+
+    override def representation: LoweredValueRepresentation = repr
+
+    override def pos: SIRPosition = inPos
+
+}
+
+case class BuilinApply1LoweredVale(
+    fun: SIR.Builtin,
+    tp: SIRType,
+    repr: LoweredValueRepresentation,
+    inPos: SIRPosition,
+    arg: LoweredValue
+) extends BuiltinApplyLoweredValue(fun, tp, repr, inPos, arg) {
+
+    override def termInternal(gctx: TermGenerationContext): Term =
+        Term.Apply(
+          fun.bn.tpf,
+          arg.termWithNeededVars(gctx)
+        )
+
+    override def docDef(style: PrettyPrinter.Style = PrettyPrinter.Style.Normal): Doc = {
+        import PrettyPrinter.*
+        val left = Doc.text(fun.bn.name) + Doc.text("(")
+        val right = Doc.text(")")
+        arg.docRef(style).bracketBy(left, right).grouped
+    }
+
+}
+
+case class BuilinApply2LoweredVale(
+    fun: SIR.Builtin,
+    tp: SIRType,
+    repr: LoweredValueRepresentation,
+    inPos: SIRPosition,
+    arg1: LoweredValue,
+    arg2: LoweredValue
+) extends BuiltinApplyLoweredValue(fun, tp, repr, inPos, arg1, arg2) {
+
+    override def termInternal(gctx: TermGenerationContext): Term =
+        Term.Apply(
+          Term.Apply(
+            Lowering.forcedBuiltin(fun.bn),
+            arg1.termWithNeededVars(gctx)
+          ),
+          arg2.termWithNeededVars(gctx)
+        )
+
+    override def docDef(style: PrettyPrinter.Style = PrettyPrinter.Style.Normal): Doc = {
+        import PrettyPrinter.*
+        import Doc.*
+        text(fun.bn.name) + inParens(
+          intercalate(lineOrSpace, List(arg1.docRef(style), arg2.docRef(style)))
+        )
+    }
+
+}
+
+case class ApplyLoweredValue(
+    f: LoweredValue,
+    arg: LoweredValue,
+    sirType: SIRType,
+    repr: LoweredValueRepresentation,
+    pos: SIRPosition
+) extends ComplexLoweredValue(Set.empty, f, arg) {
+
+    override def representation: LoweredValueRepresentation = repr
+
+    override def termInternal(gctx: TermGenerationContext): Term = {
+        Term.Apply(
+          f.termWithNeededVars(gctx),
+          arg.termWithNeededVars(gctx)
+        )
+    }
+
+    override def docDef(style: PrettyPrinter.Style = PrettyPrinter.Style.Normal): Doc = {
+        import PrettyPrinter.*
+        import Doc.*
+        ((text("App") + inParens(
+          f.docRef(style).nested(2) + lineOrSpace + arg.docRef(
+            style
+          )
+        )) + lineOrSpace +
+            text(":") + text(sirType.show) + inBrackets(
+              representation.doc.nested(2)
+            ) + lineOrSpace).grouped.aligned
+    }
+
+    override def docRef(style: PrettyPrinter.Style): Doc = {
+        (Doc.text("App") + PrettyPrinter.inParens(
+          f.docRef(style).nested(2) + Doc.lineOrSpace + arg.docRef(style).nested(2)
+        )).grouped
+    }
+
+}
+
+case class LetNonRecLoweredValue(
+    bindings: Seq[(IdentifiableLoweredValue, LoweredValue)],
+    body: LoweredValue,
+    inPos: SIRPosition
+) extends ComplexLoweredValue(bindings.map(_._1).toSet, (bindings.map(_._2) ++ Seq(body))*) {
+
+    override def sirType: SIRType = body.sirType
+
+    override def representation: LoweredValueRepresentation =
+        body.representation
+
+    override def pos: SIRPosition = inPos
+
+    override def termInternal(gctx: TermGenerationContext): Term = {
+        val bodyGctx = gctx.copy(
+          generatedVars = gctx.generatedVars ++ bindings.map(_._1.id)
+        )
+        val bodyTerm = body.termWithNeededVars(bodyGctx)
+        bindings.foldRight(bodyTerm) { case ((varVal, rhs), term) =>
+            Term.Apply(
+              Term.LamAbs(varVal.id, term),
+              rhs.termWithNeededVars(
+                gctx.copy(
+                  generatedVars = gctx.generatedVars + varVal.id
+                )
+              )
+            )
+        }
+    }
+
+    override def docDef(style: PrettyPrinter.Style): Doc = {
+        import PrettyPrinter.*
+
+        val bindingsDoc = bindings.map { case (v, rhs) =>
+            (v.docRef(style) + Doc.text("=") + rhs.docRef(style).nested(2)).grouped
+        }
+        val left = Doc.text("let") + Doc.intercalate(
+          Doc.lineOrSpace,
+          bindingsDoc
+        ) + Doc.text("in")
+        val right = Doc.empty
+        body.docRef(style).bracketBy(left, right)
+    }
+
+    override def addDependent(value: IdentifiableLoweredValue): Unit = {
+        super.addDependent(value)
+        bindings.foreach { case (v, rhs) =>
+            v.addDependent(value)
+        }
+    }
+
+}
+
+case class LetRecLoweredValue(
+    newVar: IdentifiableLoweredValue,
+    rhs: LoweredValue,
+    body: LoweredValue,
+    inPos: SIRPosition
+) extends ComplexLoweredValue(Set(newVar), rhs, body) {
+
+    override def sirType: SIRType = body.sirType
+
+    override def pos: SIRPosition = inPos
+
+    /*  let rec f  = x => f (x + 1)
+        in f 0
+        (\f -> f 0) (Z (\f. \x. f (x + 1)))
+     */
+    override def termInternal(gctx: TermGenerationContext): Term = {
+        val nGctx = gctx.copy(
+          generatedVars = gctx.generatedVars + newVar.id
+        )
+        val fixed =
+            Term.Apply(
+              Term.Var(NamedDeBruijn("__z_combinator__")),
+              Term.LamAbs(
+                newVar.id,
+                rhs.termWithNeededVars(nGctx)
+              )
+            )
+        Term.Apply(
+          Term.LamAbs(newVar.id, body.termWithNeededVars(nGctx)),
+          fixed
+        )
+    }
+
+    override def representation: LoweredValueRepresentation =
+        body.representation
+
+    override def docDef(style: PrettyPrinter.Style = PrettyPrinter.Style.Normal): Doc = {
+        import PrettyPrinter.*
+        val left = Doc.text("(") + Doc.text("letrec") &
+            (newVar.docRef(style) + Doc.text("=") + rhs.docRef(style).nested(2)).grouped & Doc.text(
+              "in"
+            )
+        val right = Doc.text(")")
+        body.docRef(style).bracketBy(left, right)
+    }
+
+    override def addDependent(value: IdentifiableLoweredValue): Unit = {
+        super.addDependent(value)
+        newVar.addDependent(value)
+    }
+
+}
+
+case class IfThenElseLoweredValue(
+    cond: LoweredValue,
+    thenBranch: LoweredValue,
+    elseBranch: LoweredValue,
+    tp: SIRType,
+    repr: LoweredValueRepresentation,
+    inPos: SIRPosition
+) extends ComplexLoweredValue(Set.empty, cond, thenBranch, elseBranch) {
+
+    override def sirType: SIRType = tp
+
+    override def representation: LoweredValueRepresentation = repr
+
+    override def pos: SIRPosition = inPos
+
+    override def termInternal(gctx: TermGenerationContext): Term = {
+        !(DefaultFun.IfThenElse.tpf $
+            cond.termWithNeededVars(gctx) $
+            ~thenBranch.termWithNeededVars(gctx) $
+            ~elseBranch.termWithNeededVars(gctx))
+    }
+
+    override def docDef(style: PrettyPrinter.Style = PrettyPrinter.Style.Normal): Doc = {
+        import PrettyPrinter.*
+        import Doc.*
+        ((text("if") + (lineOrSpace + cond.docRef(style)).nested(2)).grouped
+            + (line + text("then") + (Doc.lineOrSpace + thenBranch.docRef(style)).nested(2)).grouped
+            + (line + text("else") + (Doc.lineOrSpace + thenBranch.docRef(style)).nested(
+              2
+            )).grouped).aligned
+    }
 
 }
 
@@ -377,26 +737,14 @@ object LoweredValue {
 
             val condR = cond.toRepresentation(PrimitiveRepresentation.Constant, inPos)
 
-            // TODO: result type shoulb be least upper bound of thenBranch and elseBranch
-
-            new ComplexLoweredValue(Set.empty, condR, thenBranchR, elseBranchR) {
-                override def sirType: SIRType = resType
-                override def pos: SIRPosition = inPos
-                override def representation: LoweredValueRepresentation =
-                    thenBranchR.representation
-
-                override def termInternal(gctx: TermGenerationContext): Term = {
-                    !(DefaultFun.IfThenElse.tpf $
-                        condR.termWithNeededVars(gctx) $
-                        ~thenBranchR.termWithNeededVars(gctx) $
-                        ~elseBranchR.termWithNeededVars(gctx))
-                }
-
-                override def show: String = {
-                    s"IfThenElse(${condR.show}, ${thenBranchR.show}, ${elseBranchR.show})"
-                }
-
-            }
+            IfThenElseLoweredValue(
+              condR,
+              thenBranchR,
+              elseBranchR,
+              resType,
+              thenBranchR.representation,
+              inPos
+            )
 
         }
 
@@ -415,7 +763,7 @@ object LoweredValue {
                 case vlv: VariableLoweredValue
                     if vlv.id == "scalus.ledger.api.v1.Credential$.given_Eq_Credential252" =>
                     lctx.debug = true
-                    println(
+                    lctx.log(
                       "applying function with id scalus.ledger.api.v1.Credential$.given_Eq_Credential252"
                     )
                     // println(s"resTp = ${resTp.map(_.show)}, resRepresentation = $resRepr")
@@ -425,14 +773,6 @@ object LoweredValue {
                     //        then throw new RuntimeException("QQQQ")
                     //    case _ =>
                     // }
-                case _ =>
-            arg match
-                case vlv: VariableLoweredValue
-                    if vlv.id == "scalus.ledger.api.v1.Credential$.given_Eq_Credential274" =>
-                    lctx.debug = true
-                    println(
-                      "!!!applying argument with id scalus.ledger.api.v1.Credential$.given_Eq_Credential274"
-                    )
                 case _ =>
 
             def argType(tp: SIRType): SIRType = tp match {
@@ -485,25 +825,25 @@ object LoweredValue {
 
             }
             if lctx.debug then {
-                println(
+                lctx.log(
                   s"lvApply: argType(f.sirType) = ${argType(f.sirType).show}, f.sirType = ${f.sirType.show}, arg.sirType = ${arg.sirType.show}"
                 )
-                println(
-                  s"lvApply: f = ${f.show}"
+                lctx.log(
+                  s"lvApply: f = ${f.pretty.render(100)}"
                 )
-                println(
-                  s"lvApply: f.representation = ${f.representation}, arg.representation = ${arg.representation}"
+                lctx.log(
+                  s"lvApply: f.representation = ${f.representation.doc.render(100)}, arg.representation = ${arg.representation.doc.render(100)}"
                 )
                 // println("f.createdAt:")
                 // f.createdEx.printStackTrace()
-                println(
+                lctx.log(
                   s"lvApply: targetArgType = ${targetArgType.show}, targetArgRepresentation = $targetArgRepresentation"
                 )
-                println(
+                lctx.log(
                   s"lvApply: resRepresentation = ${resRepr.getOrElse("None")}"
                 )
-                println(
-                  s"lvApply: arg = ${arg.show}"
+                lctx.log(
+                  s"lvApply: arg = ${arg.pretty.render(80)}"
                 )
 
             }
@@ -542,8 +882,6 @@ object LoweredValue {
                                 override def pos: SIRPosition = inPos
                                 override def termInternal(gctx: TermGenerationContext): Term =
                                     arg.termInternal(gctx)
-                                override def show: String =
-                                    s"Proxy(${arg.show}, typed as $targetArgType from typevar)"
                             }
                             (argTyped, true)
                         case other =>
@@ -558,8 +896,6 @@ object LoweredValue {
                                 override def pos: SIRPosition = inPos
                                 override def termInternal(gctx: TermGenerationContext): Term =
                                     arg.termInternal(gctx)
-                                override def show: String =
-                                    s"Proxy(${arg.show}, typed as $other from resolved typevar)"
                             }
                             (argTyped, false)
                 case _ => (arg, false)
@@ -603,7 +939,7 @@ object LoweredValue {
                     throw LoweringException("Expected that f have function representation", inPos)
 
             if lctx.debug then {
-                println(
+                lctx.log(
                   s"lvApply: resType = ${resType.show}, calculatedResType=${calculatedResType.show}"
                 )
                 // resTp match {
@@ -625,30 +961,21 @@ object LoweredValue {
 
             lctx.debug = prevDebug
 
-            val applied = new ComplexLoweredValue(Set.empty, f, arg) {
-
-                override def sirType: SIRType = calculatedResType
-
-                override def pos: SIRPosition = inPos
-
-                override def representation: LoweredValueRepresentation =
-                    calculatedResRepr
-
-                override def termInternal(gctx: TermGenerationContext): Term = {
-                    Term.Apply(
-                      f.termWithNeededVars(gctx),
-                      argInTargetRepresentation.termWithNeededVars(gctx)
-                    )
-                }
-
-                override def show: String = {
-                    s"lvApply(${f.show}, ${argInTargetRepresentation.show}) at $inPos"
-                }
-
-            }
+            val applied = ApplyLoweredValue(
+              f,
+              argInTargetRepresentation,
+              calculatedResType,
+              calculatedResRepr,
+              inPos
+            )
 
             val retval =
                 if SIRType.isPolyFunOrFun(resType) then
+                    if lctx.debug then {
+                        lctx.log(
+                          s"lvApply: aligning type arguments and representations for resType = ${resType.show}"
+                        )
+                    }
                     val resRepresentation = resRepr.getOrElse(
                       lctx.typeGenerator(resType).defaultRepresentation(resType)
                     )
@@ -658,6 +985,11 @@ object LoweredValue {
                       resRepresentation,
                       inPos
                     )
+                    if lctx.debug then {
+                        lctx.log(
+                          s"lvApply: retval type after aligning = ${retval.sirType.show}"
+                        )
+                    }
                     retval
                 else if SIRType.isSum(resType) then
                     val upcasted = applied.maybeUpcast(resType, inPos)
@@ -673,8 +1005,8 @@ object LoweredValue {
                             applied
 
             if lctx.debug then {
-                println(
-                  s"lvApply: retval = ${retval.show}"
+                lctx.log(
+                  s"lvApply: retval = ${retval.pretty.render(100)}"
                 )
             }
 
@@ -687,24 +1019,14 @@ object LoweredValue {
         ): LoweredValue = {
             val xc = x.toRepresentation(PrimitiveRepresentation.Constant, inPos)
             val yc = y.toRepresentation(PrimitiveRepresentation.Constant, inPos)
-            new ComplexLoweredValue(Set.empty, xc, yc) {
-                override def sirType: SIRType = SIRType.Boolean
-
-                override def pos: SIRPosition = inPos
-
-                override def representation: LoweredValueRepresentation =
-                    PrimitiveRepresentation.Constant
-
-                override def termInternal(gctx: TermGenerationContext): Term = {
-                    Term.Apply(
-                      Term.Apply(
-                        Lowering.forcedBuiltin(DefaultFun.EqualsInteger),
-                        x.termWithNeededVars(gctx)
-                      ),
-                      y.termWithNeededVars(gctx)
-                    )
-                }
-            }
+            BuilinApply2LoweredVale(
+              SIRBuiltins.equalsInteger,
+              SIRType.Boolean,
+              PrimitiveRepresentation.Constant,
+              inPos,
+              xc,
+              yc
+            )
         }
 
         def lvLamAbs(
@@ -733,23 +1055,7 @@ object LoweredValue {
             lctx.scope = lctx.scope.add(newVar)
             val body = f(newVar)(using lctx)
             lctx.scope = prevScope
-            new ComplexLoweredValue(Set(newVar), body) {
-                override def sirType: SIRType = SIRType.Fun(sirVar.tp, body.sirType)
-
-                override def representation: LoweredValueRepresentation = {
-                    LambdaRepresentation(inputRepresentation, body.representation)
-                }
-
-                override def pos: SIRPosition = inPos
-
-                override def termInternal(gctx: TermGenerationContext): Term = {
-                    if (newVar.id=="x$1341") then 
-                        println(
-                          "printinq termInternal for lvLamAbs with newVar.id = x$1341"
-                        )
-                    Term.LamAbs(newVar.id, body.termWithNeededVars(gctx.addGeneratedVar(newVar.id)))
-                }
-            }
+            LambdaLoweredValue(newVar, body, inPos)
         }
 
         /** create let and add it to the current scope.
@@ -799,19 +1105,7 @@ object LoweredValue {
         )(using
             lctx: LoweringContext
         ): LoweredValue = {
-            new ProxyLoweredValue(arg) {
-                override def sirType: SIRType = tp
-
-                override def pos: SIRPosition = inPos
-
-                override def termInternal(gctx: TermGenerationContext): Term =
-                    Term.Apply(
-                      fun.bn.tpf,
-                      arg.termWithNeededVars(gctx)
-                    )
-
-                override def representation: LoweredValueRepresentation = lvr
-            }
+            BuilinApply1LoweredVale(fun, tp, lvr, inPos, arg)
         }
 
         def lvIntConstant(
@@ -861,29 +1155,21 @@ object LoweredValue {
         )(using
             lctx: LoweringContext
         ): LoweredValue = {
-            new ComplexLoweredValue(Set.empty, arg1, arg2) {
-                override def sirType: SIRType = tp
-
-                override def pos: SIRPosition = inPos
-
-                override def termInternal(gctx: TermGenerationContext): Term =
-                    Term.Apply(
-                      Term.Apply(
-                        Lowering.forcedBuiltin(fun.bn),
-                        arg1.termWithNeededVars(gctx)
-                      ),
-                      arg2.termWithNeededVars(gctx)
-                    )
-
-                override def representation: LoweredValueRepresentation = lvr
-            }
+            BuilinApply2LoweredVale(
+              fun,
+              tp,
+              lvr,
+              inPos,
+              arg1,
+              arg2
+            )
         }
 
         def lvCast(expr: LoweredValue, targetType: SIRType, inPos: SIRPosition)(using
             lctx: LoweringContext
         ): LoweredValue = {
             if lctx.debug then {
-                println(
+                lctx.log(
                   s"lvCast: expr.sirType = ${expr.sirType.show}, targetType = ${targetType.show}"
                 )
             }
@@ -893,10 +1179,12 @@ object LoweredValue {
                 changeRepresentation: Boolean = true,
                 printWarning: Boolean = true
             ): LoweredValue = {
-                if printWarning then
-                    println(
-                      s"warning: casting unrelated types ${value.sirType.show} and ${targetType.show}"
+                if printWarning then {
+                    lctx.warn(
+                      s"casting unrelated types ${value.sirType.show} and ${targetType.show}",
+                      inPos
                     )
+                }
                 val valueGen = lctx.typeGenerator(value.sirType)
                 val tvRepr =
                     if changeRepresentation then
@@ -907,7 +1195,14 @@ object LoweredValue {
                     else value
                 new RepresentationProxyLoweredValue(tvRepr, tvRepr.representation, inPos) {
                     override def sirType: SIRType = targetType
-                    override def show: String = s"Cast(${expr.show}, $targetType)"
+
+                    override def docDef(style: PrettyPrinter.Style): Doc =
+                        tvRepr
+                            .docRef(style)
+                            .bracketBy(
+                              Doc.text("cast") + Doc.text("("),
+                              Doc.text(":") + Doc.text(targetType.show) + Doc.text(")")
+                            )
                 }
             }
 
@@ -965,12 +1260,6 @@ object LoweredValue {
             targetRepresentation: LoweredValueRepresentation
         ): (LoweredValue, Boolean) = {
 
-            if lctx.debug then {
-                println(
-                  s"alignWithChange: arg.sirType = ${arg.sirType.show}, targetType = ${targetType.show}, arg.representation = ${arg.representation}  targetRepresentation = $targetRepresentation"
-                )
-            }
-
             SIRType.collectPolyOrFun(arg.sirType) match {
                 case Some((argParams, argIn, argOut)) =>
                     SIRType.collectPolyOrFun(targetType) match {
@@ -987,17 +1276,9 @@ object LoweredValue {
                                 case LambdaRepresentation(inRepr, outRepr) => (inRepr, outRepr)
                                 case _ =>
                                     throw LoweringException(
-                                      s"Expected lambda representation, but got ${arg.representation} for ${arg.show}",
+                                      s"Expected lambda representation, but got ${arg.representation} for arg\n${arg.show}",
                                       inPos
                                     )
-                            }
-                            if lctx.debug then {
-                                println(
-                                  s"alignWithChange: argIn = ${argIn.show}, targetIn = ${targetIn.show}, argOut = ${argOut.show}, targetOut = ${targetOut.show}"
-                                )
-                                println(
-                                  s"alignWithChange: argInRepr = ${argInRepr}, targetInRepr = ${targetInRepr}, argOutRepr = ${argOutRepr}, targetOutRepr = ${targetOutRepr}"
-                                )
                             }
                             // if both are functions, we need to align their type arguments
                             val runUpcast = SIRType.isSum(argIn) && SIRUnify
@@ -1031,23 +1312,14 @@ object LoweredValue {
                             if !(xInAligned eq xInUpcased) then changed = true
                             val yIn = xInAligned.toRepresentation(argInRepr, inPos)
                             if !(yIn eq xInAligned) then changed = true
-                            val xOut = new ComplexLoweredValue(Set.empty, arg, yIn) {
-                                override def sirType: SIRType = argOut
-                                override def representation = argOutRepr
-                                override def pos: SIRPosition = inPos
-                                override def termInternal(gctx: TermGenerationContext): Term =
-                                    Term.Apply(
-                                      arg.termWithNeededVars(gctx),
-                                      yIn.termWithNeededVars(gctx)
-                                    )
-                                override def show: String = s"Apply(${arg.show}, $yIn)"
-                            }
+                            val xOut = ApplyLoweredValue(arg, yIn, argOut, argOutRepr, inPos)
                             val (resOut, outChanged) =
                                 alignWithChange(xOut, targetOut, targetOutRepr)
                             if outChanged then changed = true
                             lctx.scope = prevScope
                             if !changed then (arg, false)
                             else {
+                                /*
                                 val nextArg = new ComplexLoweredValue(Set(xIn), resOut) {
                                     override def sirType: SIRType = targetType
                                     override def pos: SIRPosition = inPos
@@ -1058,10 +1330,13 @@ object LoweredValue {
 
                                     override def representation: LoweredValueRepresentation =
                                         targetRepresentation
-                                    override def show: String = {
-                                        s"Lam(${resOut.show},${xIn.id})"
+                                    override def print: String = {
+                                        s"Lam(${resOut.print},${xIn.id})"
                                     }
                                 }
+                                
+                                 */
+                                val nextArg = LambdaLoweredValue(xIn, resOut, inPos)
                                 (nextArg, true)
                             }
                         case None =>
@@ -1072,10 +1347,7 @@ object LoweredValue {
                             )
                     }
                 case None =>
-                    if lctx.debug then
-                        println(
-                          s"alignWithChange notFun: arg.sirType = ${arg.sirType.show}, targetType = ${targetType.show}, arg.representation = ${arg.representation}  targetRepresentation = $targetRepresentation"
-                        )
+
                     val retval = arg
                         .maybeUpcast(targetType, arg.pos)
                         .toRepresentation(targetRepresentation, arg.pos)
@@ -1087,6 +1359,11 @@ object LoweredValue {
 
         alignWithChange(arg, targetType, targetRepresentation) match {
             case (alignedArg, changed) =>
+                if lctx.debug then {
+                    println(
+                      s"alignTypeArgumentsAndRepresentations: alignedArg.type = ${alignedArg.sirType.show}, changed = $changed"
+                    )
+                }
                 if changed then alignedArg
                 else arg
         }

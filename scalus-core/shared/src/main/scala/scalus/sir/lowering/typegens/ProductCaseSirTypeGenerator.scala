@@ -1,5 +1,7 @@
 package scalus.sir.lowering.typegens
 
+import org.typelevel.paiges.Doc
+
 import scala.util.control.NonFatal
 import scalus.sir.{SIRType, *}
 import scalus.sir.lowering.*
@@ -415,9 +417,6 @@ object ProductCaseSirTypeGenerator extends SirTypeUplcGenerator {
                     println(
                       s"arg created from: ${constr.anns.pos.file}:${constr.anns.pos.startLine + 1}"
                     )
-                    println(s"arg show: ${arg.show}")
-                    println(s"arg created at: ")
-                    arg.createdEx.printStackTrace()
                     throw e
         }
         // TODO: check UplcConstrOnData, it can be more efficient
@@ -452,12 +451,17 @@ object ProductCaseSirTypeGenerator extends SirTypeUplcGenerator {
             override def representation: LoweredValueRepresentation = ProdDataList
 
             override def termInternal(gctx: TermGenerationContext): Term = {
-                dataList.termInternal(gctx)
+                dataList.termWithNeededVars(gctx)
             }
 
-            override def show: String = {
-                s"Constr(${constr.tp.show}, ${dataList.show}) at ${sirType.show})"
+            override def docDef(style: PrettyPrinter.Style): Doc = {
+                val left = Doc.text("Constr(") + Doc.text(constr.tp.show) + Doc.comma
+                val right = Doc.text(")")
+                dataList.docRef(style).bracketBy(left, right)
             }
+
+            override def docRef(style: PrettyPrinter.Style): Doc = docDef(style)
+
         }
         retval
     }

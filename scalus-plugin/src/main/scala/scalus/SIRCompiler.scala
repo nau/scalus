@@ -15,7 +15,7 @@ import dotty.tools.dotc.util.{NoSourcePosition, SourcePosition, SrcPos}
 import scalus.ScalusCompilationMode.{AllDefs, OnlyDerivations}
 import scalus.flat.{EncoderState, Flat}
 import scalus.flat.FlatInstantces.given
-import scalus.sir.{AnnotatedSIR, AnnotationsDecl, Binding, ConstrDecl, DataDecl, Module, Recursivity, SIR, SIRBuiltins, SIRPosition, SIRType, SIRVersion, TypeBinding}
+import scalus.sir.{AnnotatedSIR, AnnotationsDecl, Binding, ConstrDecl, DataDecl, Module, Recursivity, SIR, SIRBuiltins, SIRPosition, SIRType, SIRUnify, SIRVersion, TypeBinding}
 import scalus.uplc.DefaultUni
 
 import scala.annotation.{tailrec, unused}
@@ -68,7 +68,18 @@ object AdtConstructorCallInfo {
         )
 }
 
-case class TopLevelBinding(fullName: FullName, recursivity: Recursivity, body: SIR)
+case class TopLevelBinding(fullName: FullName, recursivity: Recursivity, body: SIR) {
+
+    if fullName.name == "scalus.prelude.List$.foldLeft" then {
+        body.tp match
+            case SIRType.TypeLambda(_, _) =>
+            case _ =>
+                throw new RuntimeException(
+                  s"TopLevelBinding for ${fullName.name} should be a type lambda, but got ${body.tp}"
+                )
+    }
+
+}
 
 enum ScalusCompilationMode:
     case AllDefs
@@ -151,7 +162,21 @@ final class SIRCompiler(options: SIRCompilerOptions = SIRCompilerOptions.default
         flags: LocalBingingFlags
     ) extends LocalBindingOrSubmodule:
 
+        if fullName.name == "scalus.prelude.List$.foldLeft" then {
+            body.tp match
+                case SIRType.TypeLambda(_, _) =>
+                case _ =>
+                    println(s"LocalBinding:foldLeft: tp     : ${tp.show}")
+                    println(s"LocalBinding:foldLeft: body.tp: ${body.tp.show}")
+                    throw new RuntimeException(
+                      s"LocalBinding for body ${name} should be a type lambda, but got ${body.tp.show}"
+                    )
+
+        }
+
         def fullName(using Context): FullName = FullName(symbol)
+
+    end LocalBinding
 
     case class LocalSubmodule(
         name: String,
@@ -936,13 +961,11 @@ final class SIRCompiler(options: SIRCompilerOptions = SIRCompilerOptions.default
             // dd.rawComment
             val params = dd.paramss.flatten.collect { case vd: ValDef => vd }
             val typeParams = dd.paramss.flatten.collect { case td: TypeDef => td }
-            val typeParamsMap = typeParams.foldLeft(Map.empty[Symbol, SIRType]) { case (acc, td) =>
-                acc + (td.symbol -> SIRType.TypeVar(
-                  td.symbol.name.show,
-                  Some(td.symbol.hashCode),
-                  false
-                ))
+            val sirTypeParams = typeParams.map { td =>
+                SIRType.TypeVar(td.symbol.name.show, Some(td.symbol.hashCode), false)
             }
+            val typeParamsMap =
+                typeParams.zip(sirTypeParams).map { case (tp, tv) => (tp.symbol, tv) }.toMap
             val paramVars =
                 if params.isEmpty
                 then
@@ -965,20 +988,28 @@ final class SIRCompiler(options: SIRCompilerOptions = SIRCompilerOptions.default
                 then tryFixFunctionalInterface(env, dd.rhs).getOrElse(dd.rhs)
                 else dd.rhs
             val selfName = if isGlobalDef then FullName(dd.symbol).name else dd.symbol.name.show
-            val selfType =
-                if params.isEmpty then
-                    SIRType.Fun(
-                      SIRType.Unit,
-                      sirTypeInEnv(dd.tpe, SIRTypeEnv(dd.srcPos, env.typeVars))
-                    )
-                else sirTypeInEnv(dd.tpe, SIRTypeEnv(dd.srcPos, env.typeVars))
+            val selfTypeFromDef = sirTypeInEnv(dd.tpe, SIRTypeEnv(dd.srcPos, env.typeVars))
+            // Problem that when self-type is type-lambda, then typevars in params and in sekdfType can be different.
+            // i.e.dd.tpe return one set of variable, params - other.
+            // So, we need to reassemble them and use type variables from params, to be consistent with body type.
+            // (i.e. body.tpe should be consistent with selfType)
             val nTypeVars = env.typeVars ++ typeParamsMap
-            val nVars = env.vars ++ paramNameTypes + (selfName -> selfType)
-            val bE = compileExpr(env.copy(vars = nVars, typeVars = nTypeVars), body)
-            val bodyExpr: scalus.sir.AnnotatedSIR =
-                paramVars.foldRight(bE) { (v, acc) =>
-                    SIR.LamAbs(v, acc, v.anns)
-                }
+            val nVars = env.vars ++ paramNameTypes + (selfName -> selfTypeFromDef)
+            val funBodyExpr = compileExpr(env.copy(vars = nVars, typeVars = nTypeVars), body)
+            val (tpFromBody, bodyExpr) =
+                assembleMethodWithTypeFromBody(
+                  dd.paramss,
+                  sirTypeParams,
+                  paramVars,
+                  funBodyExpr,
+                  selfTypeFromDef,
+                  dd.srcPos,
+                  Map.empty,
+                  typeFromDefMismatchWasFound = false
+                )
+            val selfType =
+                if params.isEmpty then SIRType.Fun(SIRType.Unit, tpFromBody)
+                else tpFromBody
             val lbFlags = tryMethodResultType(dd) match {
                 case Some(rtp) => calculateLocalBindingFlags(rtp)
                 case None      => LocalBindingFlags.None
@@ -994,6 +1025,180 @@ final class SIRCompiler(options: SIRCompilerOptions = SIRCompilerOptions.default
                 lbFlags
               )
             )
+    }
+
+    /** Assemble method type from ddef body type and types of paraneteres. (withput special handling
+      * of method without parameters, which will be applied later)
+      */
+    private def assembleMethodWithTypeFromBody(
+        paramss: List[ParamClause],
+        typeParams: List[SIRType.TypeVar],
+        paramVars: List[SIR.Var],
+        bodyExpr: AnnotatedSIR,
+        typeFromDef: SIRType,
+        pos: SrcPos,
+        typeParamsMapping: Map[SIRType.TypeVar, SIRType.TypeVar],
+        typeFromDefMismatchWasFound: Boolean = false,
+        debug: Boolean = false
+    ): (SIRType, AnnotatedSIR) = {
+
+        /** let we have SIR which depends on type parameters, with tyoe lile SIR.Let(x: T,
+          * Apply(Apply(mkConst,x),mkNil) ) which have type depended from T. (i.e. List[T] in our
+          * case) We change it to have type TypeLambda(T, List[T]) by preprending type lambda to the
+          * tp. Note, that this is not atype calculation, we assume that index is typevar is mathed
+          * withtype-vars in sir and just wrapp type in type-lambda.
+          */
+        def prependTypeLambda(
+            sir: SIR,
+            typeParams: List[SIRType.TypeVar]
+        ): SIR = {
+            if typeParams.isEmpty then sir
+            else
+                sir match
+                    case SIR.Var(name, tp, anns) =>
+                        SIR.Var(name, SIRType.TypeLambda(typeParams, tp), anns)
+                    case SIR.LamAbs(param, term, anss) =>
+                        SIR.LamAbs(param, prependTypeLambda(term, typeParams), anss)
+                    case SIR.Apply(f, arg, tp, anns) =>
+                        SIR.Apply(f, arg, SIRType.TypeLambda(typeParams, tp), anns)
+                    case SIR.Cast(sir, tp, anns) =>
+                        SIR.Cast(sir, SIRType.TypeLambda(typeParams, tp), anns)
+                    case SIR.Constr(name, decl, args, tp, anns) =>
+                        SIR.Constr(
+                          name,
+                          decl,
+                          args,
+                          SIRType.TypeLambda(typeParams, tp),
+                          anns
+                        )
+                    case SIR.Decl(data, term) =>
+                        SIR.Decl(data, prependTypeLambda(term, typeParams))
+                    case other: AnnotatedSIR =>
+                        SIR.Cast(
+                          other,
+                          SIRType.TypeLambda(typeParams, sir.tp),
+                          AnnotationsDecl.fromSrcPos(pos)
+                        )
+        }
+
+        if paramss.isEmpty then
+            if !typeFromDefMismatchWasFound then
+                val retType = SIRType.substitute(typeFromDef, typeParamsMapping, Map.empty)
+                SIRUnify.unifyType(retType, bodyExpr.tp, SIRUnify.Env.empty.withoutUpcasting) match
+                    case SIRUnify.UnificationSuccess(env, r) =>
+                        (retType, bodyExpr)
+                    case SIRUnify.UnificationFailure(_, _, _) =>
+                        (retType, SIR.Cast(bodyExpr, retType, AnnotationsDecl.fromSrcPos(pos)))
+            else (bodyExpr.tp, bodyExpr)
+        else
+            val firstList = paramss.head
+            val next = paramss.tail
+            val isTypeList = firstList.forall {
+                case td: TypeDef => true
+                case _           => false
+            }
+            val isVarList =
+                if isTypeList then false
+                else
+                    firstList.forall {
+                        case vd: ValDef => true
+                        case _          => false
+                    }
+            if isTypeList then {
+                // type lambda
+                val (currentTps, nextTps) = typeParams.splitAt(firstList.size)
+                val (nextTypeFromDef, nextTypeVarMap, mismatchWasFound) = typeFromDef match {
+                    case SIRType.TypeLambda(tvs, nextTypeFromDef) =>
+                        if tvs.length != currentTps.length then {
+                            if !typeFromDefMismatchWasFound then
+                                report.warning(
+                                  s"Type from definition has ${tvs.length} type parameters, but ${currentTps.length} expected",
+                                  pos
+                                )
+                        }
+                        val nextTypeVarMap = tvs
+                            .zip(currentTps)
+                            .foldLeft(
+                              typeParamsMapping
+                            ) { case (acc, (tvFromDef, tvFromParam)) =>
+                                acc + (tvFromDef -> tvFromParam)
+                            }
+                        (nextTypeFromDef, nextTypeVarMap, true)
+                    case _ =>
+                        if !typeFromDefMismatchWasFound then
+                            report.warning(
+                              s"Type from definition is not a type lambda as it should be: ${typeFromDef.show}",
+                              pos
+                            )
+                        (typeFromDef, typeParamsMapping, true)
+                }
+                val (nextType, nextBody) =
+                    assembleMethodWithTypeFromBody(
+                      next,
+                      nextTps,
+                      paramVars,
+                      bodyExpr,
+                      nextTypeFromDef,
+                      pos,
+                      nextTypeVarMap,
+                      mismatchWasFound || typeFromDefMismatchWasFound
+                    )
+                val tp = SIRType.TypeLambda(
+                  currentTps,
+                  nextType
+                )
+                val body = prependTypeLambda(nextBody, currentTps)
+                // TODO: eliminate use of SIR in subterms of annotatedSIR
+                (tp, body.asInstanceOf[AnnotatedSIR])
+            } else if isVarList then
+                // function
+                val (currentVars, nextVars) = paramVars.splitAt(firstList.size)
+                val (nextTypeFromDecl, mismatchFoundInStep) = typeFromDef match {
+                    case SIRType.Fun(_, nextTypeFromDef) =>
+                        (nextTypeFromDef, false)
+                    case SIRType.TypeProxy(SIRType.Fun(_, nextTypeFromDef)) =>
+                        (nextTypeFromDef, false)
+                    case _ =>
+                        if !typeFromDefMismatchWasFound then
+                            report.warning(
+                              s"Type from definition is not a function type as it should be: ${typeFromDef.show}",
+                              pos
+                            )
+                        (typeFromDef, true)
+                }
+                val (outTp, outSIR) =
+                    assembleMethodWithTypeFromBody(
+                      next,
+                      typeParams,
+                      nextVars,
+                      bodyExpr,
+                      nextTypeFromDecl,
+                      pos,
+                      typeParamsMapping,
+                      mismatchFoundInStep || typeFromDefMismatchWasFound
+                    )
+                currentVars.foldRight((outTp, outSIR)) { (p, acc) =>
+                    val (accTp, accSir) = acc
+                    val nextTp = SIRType.Fun(p.tp, accTp)
+                    val nextSir = SIR.LamAbs(p, accSir, p.anns)
+                    (nextTp, nextSir)
+                }
+            else {
+                error(
+                  GenericError("Parameter list should be either type or value", pos),
+                  assembleMethodWithTypeFromBody(
+                    next,
+                    typeParams,
+                    paramVars,
+                    bodyExpr,
+                    typeFromDef,
+                    pos,
+                    typeParamsMapping,
+                    typeFromDefMismatchWasFound
+                  )
+                )
+            }
+
     }
 
     private def compileStmt(

@@ -161,7 +161,6 @@ class SirToUplcSmLoweringTest
 
     test("lower Constr") {
         import SIRType.{TypeVar, TypeProxy, ByteString}
-        import SIRVarStorage.DEFAULT
         /* Nil
        lowers to (\Nil Cons -> force Nil)
        TxId(name)

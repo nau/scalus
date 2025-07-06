@@ -1,6 +1,7 @@
 package scalus.sir.lowering
 
 import scalus.sir.*
+import org.typelevel.paiges.Doc
 
 /** representation, depends on the type of the value.
   */
@@ -9,6 +10,7 @@ sealed trait LoweredValueRepresentation {
     def isDataCentric: Boolean
     def isCompatible(repr: LoweredValueRepresentation): Boolean =
         this == repr
+    def doc: Doc = Doc.text(this.toString)
 }
 
 sealed trait SumCaseClassRepresentation(
@@ -136,6 +138,8 @@ case class LambdaRepresentation(
                 isTypeVarCompatible(in) && isTypeVarCompatible(out)
             case _ => repr.isPackedData
         }
+
+    override def doc: Doc = PrettyPrinter.inParens(inRepr.doc + Doc.text(" -> ") + outRepr.doc)
 
 }
 

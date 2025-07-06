@@ -49,4 +49,16 @@ class LoweringContext(
         typeUnifyEnv.filledTypes.get(tp)
     }
 
+    def log(msg: String): Unit = {
+        val nestingPrefix = "  " * nestingLevel
+        val msgLines = msg.split("\n")
+        for line <- msgLines do {
+            println(s"${nestingPrefix}${line}")
+        }
+    }
+
+    def warn(msg: String, pos: SIRPosition): Unit = {
+        println(s"warning: ${msg} at ${pos.show}")
+    }
+
 }
