@@ -5,6 +5,9 @@ package rules
 // It's Babbage.disjointRefInputs in cardano-ledger
 // {- inputs ∩ refInputs = ∅ -}
 object InputsAndReferenceInputsDisjointValidator extends STS.Validator {
+    override final type Error = TransactionException.NonDisjointInputsAndReferenceInputsException |
+        Throwable
+
     override def validate(context: Context, state: State, event: Event): Result = {
 //        ( pvMajor (pp ^. ppProtocolVersionL) > eraProtVerHigh @BabbageEra
 //            && pvMajor (pp ^. ppProtocolVersionL) < natVersion @11
@@ -14,16 +17,17 @@ object InputsAndReferenceInputsDisjointValidator extends STS.Validator {
         then return success
 
         val transactionId = event.id
-        val inputs = event.body.value.inputs
-        val referenceInputs = event.body.value.referenceInputs
+        val body = event.body.value
+
+        val inputs = body.inputs
+        val referenceInputs = body.referenceInputs
         val intersection = inputs.intersect(referenceInputs)
 
         if intersection.nonEmpty then
             return failure(
-              IllegalArgumentException(
-                s"Inputs and reference inputs intersects: intersection $intersection for transactionId $transactionId"
-              )
-            );
+              TransactionException
+                  .NonDisjointInputsAndReferenceInputsException(transactionId, intersection)
+            )
 
         success
     }

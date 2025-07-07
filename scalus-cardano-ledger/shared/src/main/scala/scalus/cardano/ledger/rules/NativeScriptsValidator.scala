@@ -1,53 +1,64 @@
 package scalus.cardano.ledger
 package rules
 
-import scalus.cardano.ledger.utils.{AllNeededScriptHashes, AllReferenceScripts, AllWitnessScripts}
-import scalus.ledger.api.{Timelock, ValidityInterval}
-
-import scala.util.boundary
-import scala.util.boundary.break
+import scalus.cardano.ledger.utils.{AllNeededScriptHashes, AllProvidedReferenceScripts, AllWitnessesScripts}
+import scalus.ledger.api.ValidityInterval
 
 // It's validateFailedBabbageScripts in cardano-ledger
 object NativeScriptsValidator extends STS.Validator {
+    override final type Error = TransactionException.NativeScriptsException | Throwable
+
     override def validate(context: Context, state: State, event: Event): Result = {
+        val transactionId = event.id
+        val utxo = state.utxo
+
         for
-            neededScriptHashes <- AllNeededScriptHashes.allNeededScriptHashes(
-              state.utxo,
-              event
+            allNeededScriptHashes <- AllNeededScriptHashes.allNeededScriptHashes(
+              event,
+              utxo
             )
-            referenceNativeScripts <- AllReferenceScripts.allReferenceNativeScripts(
-              state.utxo,
-              event
-            )
-            providedNativeScripts = AllWitnessScripts.allWitnessNativeScripts(event)
-            validatorKeys = allValidatorKeys(event)
+
+            allProvidedReferenceNativeScripts <- AllProvidedReferenceScripts
+                .allProvidedReferenceNativeScripts(
+                  event,
+                  utxo
+                )
+
+            allWitnessesNativeScripts = AllWitnessesScripts.allWitnessesNativeScripts(event)
+
+            validatorKeys = extractValidatorKeys(event)
             validityInterval = extractValidityInterval(event)
-            _ <- validateNativeScripts(
-              referenceNativeScripts,
-              event.id,
-              neededScriptHashes,
+
+            invalidWitnessesNativeScriptHashes = invalidNativeScriptHashes(
+              allWitnessesNativeScripts,
+              allNeededScriptHashes,
               validatorKeys,
-              validityInterval,
-              (transactionId, nativeScript, index) =>
-                  IllegalArgumentException(
-                    s"Invalid reference native script at index $index with scriptHash ${nativeScript.scriptHash} in transactionId $transactionId"
-                  )
+              validityInterval
             )
-            _ <- validateNativeScripts(
-              providedNativeScripts,
-              event.id,
-              neededScriptHashes,
+
+            invalidProvidedReferenceNativeScriptHashes = invalidNativeScriptHashes(
+              allProvidedReferenceNativeScripts,
+              allNeededScriptHashes,
               validatorKeys,
-              validityInterval,
-              (transactionId, nativeScript, index) =>
-                  IllegalArgumentException(
-                    s"Invalid provided native script at index $index with scriptHash ${nativeScript.scriptHash} in transactionId $transactionId"
-                  )
+              validityInterval
             )
+
+            _ <-
+                if invalidWitnessesNativeScriptHashes.nonEmpty ||
+                    invalidProvidedReferenceNativeScriptHashes.nonEmpty
+                then
+                    failure(
+                      TransactionException.NativeScriptsException(
+                        transactionId,
+                        invalidWitnessesNativeScriptHashes,
+                        invalidProvidedReferenceNativeScriptHashes
+                      )
+                    )
+                else success
         yield ()
     }
 
-    private def allValidatorKeys(
+    private def extractValidatorKeys(
         event: Event
     ): Set[AddrKeyHash] = event.witnessSet.vkeyWitnesses.map(_.vkeyHash)
 
@@ -55,20 +66,15 @@ object NativeScriptsValidator extends STS.Validator {
         event: Event
     ): ValidityInterval = ValidityInterval(event.body.value.validityStartSlot, event.body.value.ttl)
 
-    private def validateNativeScripts(
+    private def invalidNativeScriptHashes(
         nativeScripts: Set[Script.Native],
-        transactionId: TransactionHash,
         neededScriptHashes: Set[ScriptHash],
         validatorKeys: Set[AddrKeyHash],
-        validityInterval: ValidityInterval,
-        invalidNativeScriptError: (TransactionHash, Timelock, Int) => IllegalArgumentException
-    ): Result = boundary {
-        for (nativeScript, index) <- nativeScripts.zipWithIndex
-        do
-            if neededScriptHashes.contains(nativeScript.scriptHash) &&
+        validityInterval: ValidityInterval
+    ): Set[ScriptHash] = {
+        for
+            nativeScript <- nativeScripts if neededScriptHashes.contains(nativeScript.scriptHash) &&
                 !nativeScript.script.evaluate(validatorKeys, validityInterval)
-            then break(failure(invalidNativeScriptError(transactionId, nativeScript.script, index)))
-
-        success
+        yield nativeScript.scriptHash
     }
 }

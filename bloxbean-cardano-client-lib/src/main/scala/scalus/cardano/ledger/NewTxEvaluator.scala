@@ -9,7 +9,7 @@ import scalus.builtin.{ByteString, Data}
 import scalus.cardano.address.*
 import scalus.cardano.ledger.*
 import scalus.cardano.ledger.LedgerToPlutusTranslation.*
-import scalus.cardano.ledger.utils.AllWitnessScripts
+import scalus.cardano.ledger.utils.AllWitnessesScripts
 import scalus.ledger
 import scalus.ledger.api
 import scalus.ledger.api.PlutusLedgerLanguage.*
@@ -434,8 +434,8 @@ private[scalus] class NewTxEvaluator(
         tx: Transaction,
         utxos: Map[TransactionInput, TransactionOutput]
     ): Map[ScriptHash, Script] =
-        val provided = AllWitnessScripts
-            .allWitnessScriptsView(tx)
+        val provided = AllWitnessesScripts
+            .allWitnessesScriptsView(tx)
             .map { script => script.scriptHash -> script }
             .toMap
         val referenceScripts = utxos.values.flatMap { output =>

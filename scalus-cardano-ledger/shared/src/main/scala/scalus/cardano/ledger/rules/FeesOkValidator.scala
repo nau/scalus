@@ -3,7 +3,7 @@ package rules
 
 import io.bullet.borer.Cbor
 import scalus.cardano.ledger.Script.PlutusV1
-import scalus.cardano.ledger.utils.AllReferenceScripts
+import scalus.cardano.ledger.utils.AllProvidedReferenceScripts
 import scala.util.boundary
 import scala.util.boundary.break
 import scala.annotation.tailrec
@@ -108,7 +108,7 @@ object FeesOkValidator extends STS.Validator {
     private def extractCollateralOutput(
         transactionId: TransactionHash,
         collateralInput: TransactionInput,
-        utxo: Utxo,
+        utxo: UTxO,
         index: Int
     ): Either[Error, TransactionOutput] = {
         utxo.get(collateralInput) match
@@ -212,7 +212,7 @@ object FeesOkValidator extends STS.Validator {
         state: State,
         event: Event
     ): Either[Error, Coin] = {
-        for scripts <- AllReferenceScripts.allReferenceScripts(state.utxo, event)
+        for scripts <- AllProvidedReferenceScripts.allProvidedReferenceScripts(event, state.utxo)
         yield
             val refScriptsFee = RefScriptsFeeCalculator(context, scripts)
             val transactionSizeFee = calculateTransactionSizeFee(context, event)

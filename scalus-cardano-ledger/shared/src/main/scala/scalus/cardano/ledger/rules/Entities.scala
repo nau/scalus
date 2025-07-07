@@ -12,7 +12,7 @@ class Context(
 )
 
 case class State(
-    utxo: Utxo = Map.empty,
+    utxo: UTxO = Map.empty,
     certState: CertState = CertState.empty,
 )
 
@@ -34,12 +34,12 @@ object UtxoEnv {
 }
 
 sealed trait STS {
-    type Context = scalus.cardano.ledger.rules.Context
-    type State = scalus.cardano.ledger.rules.State
-    type Event = Transaction
+    final type Context = scalus.cardano.ledger.rules.Context
+    final type State = scalus.cardano.ledger.rules.State
+    final type Event = Transaction
     type Value
-    type Error = Throwable
-    type Result = Either[Error, Value]
+    type Error = TransactionException | Throwable
+    final type Result = Either[Error, Value]
 
     def apply(context: Context, state: State, event: Event): Result
 }

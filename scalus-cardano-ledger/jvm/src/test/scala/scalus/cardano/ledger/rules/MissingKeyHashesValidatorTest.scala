@@ -6,8 +6,8 @@ import scalus.builtin.platform
 import scalus.cardano.address.{Address, ShelleyAddress, ShelleyPaymentPart}
 import org.scalatest.funsuite.AnyFunSuite
 
-class NeededWitnessesValidatorTest extends AnyFunSuite, ValidatorRulesTestKit {
-    test("NeededWitnessesValidator Inputs rule success") {
+class MissingKeyHashesValidatorTest extends AnyFunSuite, ValidatorRulesTestKit {
+    test("MissingKeyHashesValidator Inputs rule success") {
         val context = Context()
 
         val (privateKey1, publicKey1) = generateKeyPair()
@@ -72,11 +72,11 @@ class NeededWitnessesValidatorTest extends AnyFunSuite, ValidatorRulesTestKit {
           )
         )
 
-        val result = NeededWitnessesValidator.validate(context, state, transaction)
+        val result = MissingKeyHashesValidator.validate(context, state, transaction)
         assert(result.isRight)
     }
 
-    test("NeededWitnessesValidator Inputs rule failure") {
+    test("MissingKeyHashesValidator Inputs rule failure") {
         val context = Context()
 
         val (privateKey1, publicKey1) = generateKeyPair()
@@ -140,11 +140,11 @@ class NeededWitnessesValidatorTest extends AnyFunSuite, ValidatorRulesTestKit {
           )
         )
 
-        val result = NeededWitnessesValidator.validate(context, state, transaction)
+        val result = MissingKeyHashesValidator.validate(context, state, transaction)
         assert(result.isLeft)
     }
 
-    test("NeededWitnessesValidator CollateralInputs rule success") {
+    test("MissingKeyHashesValidator CollateralInputs rule success") {
         val context = Context()
 
         val (privateKey1, publicKey1) = generateKeyPair()
@@ -209,11 +209,11 @@ class NeededWitnessesValidatorTest extends AnyFunSuite, ValidatorRulesTestKit {
           )
         )
 
-        val result = NeededWitnessesValidator.validate(context, state, transaction)
+        val result = MissingKeyHashesValidator.validate(context, state, transaction)
         assert(result.isRight)
     }
 
-    test("NeededWitnessesValidator CollateralInputs rule failure") {
+    test("MissingKeyHashesValidator CollateralInputs rule failure") {
         val context = Context()
 
         val (privateKey1, publicKey1) = generateKeyPair()
@@ -277,11 +277,11 @@ class NeededWitnessesValidatorTest extends AnyFunSuite, ValidatorRulesTestKit {
           )
         )
 
-        val result = NeededWitnessesValidator.validate(context, state, transaction)
+        val result = MissingKeyHashesValidator.validate(context, state, transaction)
         assert(result.isLeft)
     }
 
-    test("NeededWitnessesValidator VotingProcedures success") {
+    test("MissingKeyHashesValidator VotingProcedures success") {
         val context = Context()
 
         val (privateKey1, publicKey1) = generateKeyPair()
@@ -334,11 +334,11 @@ class NeededWitnessesValidatorTest extends AnyFunSuite, ValidatorRulesTestKit {
 
         val state = State()
 
-        val result = NeededWitnessesValidator.validate(context, state, transaction)
+        val result = MissingKeyHashesValidator.validate(context, state, transaction)
         assert(result.isRight)
     }
 
-    test("NeededWitnessesValidator VotingProcedures failure") {
+    test("MissingKeyHashesValidator VotingProcedures failure") {
         val context = Context()
 
         val (privateKey1, publicKey1) = generateKeyPair()
@@ -390,11 +390,11 @@ class NeededWitnessesValidatorTest extends AnyFunSuite, ValidatorRulesTestKit {
 
         val state = State()
 
-        val result = NeededWitnessesValidator.validate(context, state, transaction)
+        val result = MissingKeyHashesValidator.validate(context, state, transaction)
         assert(result.isLeft)
     }
 
-    test("NeededWitnessesValidator Withdrawals rule success") {
+    test("MissingKeyHashesValidator Withdrawals rule success") {
         val context = Context()
 
         val (privateKey1, publicKey1) = generateKeyPair()
@@ -456,11 +456,11 @@ class NeededWitnessesValidatorTest extends AnyFunSuite, ValidatorRulesTestKit {
 
         val state = State()
 
-        val result = NeededWitnessesValidator.validate(context, state, transaction)
+        val result = MissingKeyHashesValidator.validate(context, state, transaction)
         assert(result.isRight)
     }
 
-    test("NeededWitnessesValidator Withdrawals rule failure") {
+    test("MissingKeyHashesValidator Withdrawals rule failure") {
         val context = Context()
 
         val (privateKey1, publicKey1) = generateKeyPair()
@@ -521,11 +521,11 @@ class NeededWitnessesValidatorTest extends AnyFunSuite, ValidatorRulesTestKit {
 
         val state = State()
 
-        val result = NeededWitnessesValidator.validate(context, state, transaction)
+        val result = MissingKeyHashesValidator.validate(context, state, transaction)
         assert(result.isLeft)
     }
 
-    test("NeededWitnessesValidator Certificates rule success") {
+    test("MissingKeyHashesValidator Certificates rule success") {
         val context = Context()
 
         val (privateKey, publicKey) = generateKeyPair()
@@ -617,11 +617,11 @@ class NeededWitnessesValidatorTest extends AnyFunSuite, ValidatorRulesTestKit {
 
         val state = State()
 
-        val result = NeededWitnessesValidator.validate(context, state, transaction)
+        val result = MissingKeyHashesValidator.validate(context, state, transaction)
         assert(result.isRight)
     }
 
-    test("NeededWitnessesValidator Certificates rule failure") {
+    test("MissingKeyHashesValidator Certificates rule failure") {
         val context = Context()
 
         val (privateKey, publicKey) = generateKeyPair()
@@ -711,11 +711,11 @@ class NeededWitnessesValidatorTest extends AnyFunSuite, ValidatorRulesTestKit {
 
         val state = State()
 
-        val result = NeededWitnessesValidator.validate(context, state, transaction)
+        val result = MissingKeyHashesValidator.validate(context, state, transaction)
         assert(result.isLeft)
     }
 
-    test("NeededWitnessesValidator RequiredSigners rule success") {
+    test("MissingKeyHashesValidator RequiredSigners rule success") {
         val context = Context()
 
         val (privateKey1, publicKey1) = generateKeyPair()
@@ -749,11 +749,11 @@ class NeededWitnessesValidatorTest extends AnyFunSuite, ValidatorRulesTestKit {
 
         val state = State()
 
-        val result = NeededWitnessesValidator.validate(context, state, transaction)
+        val result = MissingKeyHashesValidator.validate(context, state, transaction)
         assert(result.isRight)
     }
 
-    test("NeededWitnessesValidator RequiredSigners rule failure") {
+    test("MissingKeyHashesValidator RequiredSigners rule failure") {
         val context = Context()
 
         val (privateKey1, publicKey1) = generateKeyPair()
@@ -786,7 +786,7 @@ class NeededWitnessesValidatorTest extends AnyFunSuite, ValidatorRulesTestKit {
 
         val state = State()
 
-        val result = NeededWitnessesValidator.validate(context, state, transaction)
+        val result = MissingKeyHashesValidator.validate(context, state, transaction)
         assert(result.isLeft)
     }
 }

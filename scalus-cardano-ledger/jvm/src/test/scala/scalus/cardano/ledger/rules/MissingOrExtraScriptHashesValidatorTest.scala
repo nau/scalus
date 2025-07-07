@@ -7,8 +7,8 @@ import scalus.builtin.platform
 import scalus.cardano.address.{Address, ShelleyAddress, ShelleyPaymentPart}
 import org.scalatest.funsuite.AnyFunSuite
 
-class MissingScriptsValidatorTest extends AnyFunSuite, ValidatorRulesTestKit {
-    test("MissingScriptsValidator rule success") {
+class MissingOrExtraScriptHashesValidatorTest extends AnyFunSuite, ValidatorRulesTestKit {
+    test("MissingOrExtraScriptHashesValidator rule success") {
         val context = Context()
 
         val (privateKey, publicKey) = generateKeyPair()
@@ -189,7 +189,7 @@ class MissingScriptsValidatorTest extends AnyFunSuite, ValidatorRulesTestKit {
           )
         )
 
-        val result = MissingScriptsValidator.validate(context, state, transaction)
+        val result = MissingOrExtraScriptHashesValidator.validate(context, state, transaction)
         assert(result.isRight)
     }
 }

@@ -1,59 +1,61 @@
 package scalus.cardano.ledger
 package utils
 
+import scala.collection.View
 import scala.util.boundary
 import scala.util.boundary.break
 
 object AllNeededScriptHashes {
     def allNeededScriptHashes(
-        utxo: Utxo,
-        transaction: Transaction
-    ): Either[Throwable, Set[ScriptHash]] = boundary {
-        val result =
-            neededInputScriptHashesView(utxo, transaction)
-                .map {
-                    case Right(scriptHash) => scriptHash
-                    case Left(error)       => break(Left(error))
-                } ++
-                neededMintScriptHashes(transaction) ++
-                neededVotingProceduresScriptHashesView(transaction) ++
-                neededWithdrawalScriptHashesView(transaction) ++
-                neededProposalProcedureScriptHashesView(transaction) ++
-                neededCertificateScriptHashesView(transaction)
-
-        Right(result.toSet)
+        transaction: Transaction,
+        utxo: UTxO
+    ): Either[TransactionException.BadInputsUTxOException, Set[ScriptHash]] = {
+        allNeededScriptHashesView(transaction, utxo).map(_.toSet)
     }
 
-    private def neededInputScriptHashesView(
-        utxo: Utxo,
-        transaction: Transaction
-    ): scala.collection.View[Either[Throwable, ScriptHash]] = {
-        val inputs = transaction.body.value.inputs
+    def allNeededScriptHashesView(
+        transaction: Transaction,
+        utxo: UTxO
+    ): Either[TransactionException.BadInputsUTxOException, View[ScriptHash]] = {
+        for allNeededInputsScriptHashes <- allNeededInputsScriptHashes(transaction, utxo)
+        yield allNeededInputsScriptHashes.view ++
+            allNeededMintScriptHashes(transaction).view ++
+            allNeededVotingProceduresScriptHashesView(transaction) ++
+            allNeededWithdrawalsScriptHashesView(transaction) ++
+            allNeededProposalProceduresScriptHashesView(transaction) ++
+            allNeededCertificatesScriptHashesView(transaction)
+    }
+
+    def allNeededInputsScriptHashes(
+        transaction: Transaction,
+        utxo: UTxO
+    ): Either[TransactionException.BadInputsUTxOException, Set[ScriptHash]] = boundary {
         val transactionId = transaction.id
+        val inputs = transaction.body.value.inputs
 
-        for
-            (input, index) <- inputs.view.zipWithIndex
-            result <- utxo.get(input) match
-                case Some(output) => output.address.scriptHash.map(Right(_))
+        val result = for
+            input <- inputs
+            scriptHash <- utxo.get(input) match
+                case Some(output) => output.address.scriptHash
                 // This check allows to be an order independent in the sequence of validation rules
-                case None =>
-                    Some(
-                      Left(
-                        IllegalArgumentException(
-                          s"Missing input $input with index $index in UTxO state for transactionId $transactionId"
-                        )
-                      )
-                    )
-        yield result
+                case None => break(Left(TransactionException.BadInputsUTxOException(transactionId)))
+        yield scriptHash
+        Right(result)
     }
 
-    private def neededMintScriptHashes(
+    def allNeededMintScriptHashes(
         transaction: Transaction
     ): Set[PolicyId] = transaction.body.value.mint.getOrElse(Map.empty).keySet
 
-    private def neededVotingProceduresScriptHashesView(
+    def allNeededVotingProceduresScriptHashes(
         transaction: Transaction
-    ): scala.collection.View[ScriptHash] = {
+    ): Set[ScriptHash] = {
+        allNeededVotingProceduresScriptHashesView(transaction).toSet
+    }
+
+    def allNeededVotingProceduresScriptHashesView(
+        transaction: Transaction
+    ): View[ScriptHash] = {
         val votingProcedures =
             transaction.body.value.votingProcedures.map(_.procedures).getOrElse(Map.empty)
 
@@ -68,9 +70,15 @@ object AllNeededScriptHashes {
         yield scriptHash
     }
 
-    private def neededWithdrawalScriptHashesView(
+    def allNeededWithdrawalsScriptHashes(
         transaction: Transaction
-    ): scala.collection.View[ScriptHash] = {
+    ): Set[ScriptHash] = {
+        allNeededWithdrawalsScriptHashesView(transaction).toSet
+    }
+
+    def allNeededWithdrawalsScriptHashesView(
+        transaction: Transaction
+    ): View[ScriptHash] = {
         val withdrawals = transaction.body.value.withdrawals.map(_.withdrawals).getOrElse(Map.empty)
 
         for
@@ -79,9 +87,15 @@ object AllNeededScriptHashes {
         yield scriptHash
     }
 
-    private def neededProposalProcedureScriptHashesView(
+    def allNeededProposalProceduresScriptHashes(
         transaction: Transaction
-    ): scala.collection.View[ScriptHash] = {
+    ): Set[ScriptHash] = {
+        allNeededProposalProceduresScriptHashesView(transaction).toSet
+    }
+
+    def allNeededProposalProceduresScriptHashesView(
+        transaction: Transaction
+    ): View[ScriptHash] = {
         val proposalProcedures = transaction.body.value.proposalProcedures
 
         for
@@ -98,9 +112,15 @@ object AllNeededScriptHashes {
         yield scriptHash
     }
 
-    private def neededCertificateScriptHashesView(
+    def allNeededCertificatesScriptHashes(
         transaction: Transaction
-    ): scala.collection.View[ScriptHash] = {
+    ): Set[ScriptHash] = {
+        allNeededCertificatesScriptHashesView(transaction).toSet
+    }
+
+    def allNeededCertificatesScriptHashesView(
+        transaction: Transaction
+    ): View[ScriptHash] = {
         val certificates = transaction.body.value.certificates
 
         def extractScriptHash(credential: Credential): Option[ScriptHash] = {

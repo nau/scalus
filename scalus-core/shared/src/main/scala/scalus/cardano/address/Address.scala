@@ -428,7 +428,7 @@ enum Address {
         case Shelley(addr) => addr.toBech32
         case Stake(addr)   => addr.toBech32
 
-    def keyHash: Option[Hash[Blake2b_224, HashPurpose.KeyHash | HashPurpose.StakeKeyHash]] = {
+    def keyHash: Option[AddrKeyHash | StakeKeyHash] = {
         this match
             case Address.Byron(_) =>
                 None // Byron addresses don't have staking credentials

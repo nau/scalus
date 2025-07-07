@@ -1,11 +1,103 @@
 package scalus.cardano.ledger
 
-type Utxo = Map[TransactionInput, TransactionOutput]
+sealed abstract class TransactionException(message: String, cause: Throwable)
+    extends RuntimeException(message, cause) {
+    def this(message: String) = this(message, null)
+}
+
+object TransactionException {
+    // It's Shelley.InputSetEmptyUTxO in cardano-ledger
+    final class EmptyInputsException(val transactionId: TransactionHash)
+        extends TransactionException(s"Empty transaction inputs for transactionId $transactionId")
+
+    // It's BabbageNonDisjointRefInputs in cardano-ledger
+    final class NonDisjointInputsAndReferenceInputsException(
+        val transactionId: TransactionHash,
+        val intersection: Set[TransactionInput]
+    ) extends TransactionException(
+          s"Inputs intersects with reference inputs for transactionId $transactionId, intersection: $intersection"
+        )
+
+    // It's Shelley.BadInputsUTxO in cardano-ledger
+    final class BadAllInputsUTxOException(
+        val transactionId: TransactionHash,
+        val missingInputs: Set[TransactionInput],
+        val missingCollateralInputs: Set[TransactionInput],
+        val missingReferenceInputs: Set[TransactionInput]
+    ) extends TransactionException(
+          s"Missing inputs, collateral inputs or reference inputs in UTxO state for transactionId $transactionId, missing inputs: $missingInputs, missing collateral inputs: $missingCollateralInputs, missing reference inputs: $missingReferenceInputs"
+        )
+
+    final class BadInputsUTxOException(
+        val transactionId: TransactionHash
+    ) extends TransactionException(
+          s"Missing inputs in UTxO state for transactionId $transactionId"
+        )
+
+    final class BadCollateralInputsUTxOException(
+        val transactionId: TransactionHash
+    ) extends TransactionException(
+          s"Missing collateral inputs in UTxO state for transactionId $transactionId"
+        )
+
+    final class BadReferenceInputsUTxOException(
+        val transactionId: TransactionHash
+    ) extends TransactionException(
+          s"Missing reference inputs in UTxO state for transactionId $transactionId"
+        )
+
+    // It's Shelley.InvalidWitnessesUTXOW in cardano-ledger
+    final class InvalidVerifiedWitnessesException(
+        val transactionId: TransactionHash,
+        val invalidVkeyWitnesses: Set[VKeyWitness],
+        val invalidBootstrapWitnesses: Set[BootstrapWitness]
+    ) extends TransactionException(
+          s"Invalid verified witnesses for transactionId $transactionId, invalid vkey witnesses: $invalidVkeyWitnesses, invalid bootstrap witnesses: $invalidBootstrapWitnesses"
+        )
+
+    // It's Shelley.MissingVKeyWitnessesUTXOW in cardano-ledger
+    final class MissingKeyHashesException(
+        val transactionId: TransactionHash,
+        val missingInputsKeyHashes: Set[AddrKeyHash | StakeKeyHash],
+        val missingCollateralInputsKeyHashes: Set[AddrKeyHash | StakeKeyHash],
+        val missingVotingProceduresKeyHashes: Set[AddrKeyHash],
+        val missingWithdrawalsKeyHashes: Set[AddrKeyHash | StakeKeyHash],
+        val missingCertificatesKeyHashes: Set[AddrKeyHash | PoolKeyHash],
+        val missingRequiredSignersKeyHashes: Set[AddrKeyHash]
+    ) extends TransactionException(
+          s"Missing key hashes for transactionId $transactionId, missing inputs key hashes: $missingInputsKeyHashes, missing collateral inputs key hashes: $missingCollateralInputsKeyHashes, missing voting procedures key hashes: $missingVotingProceduresKeyHashes, missing withdrawals key hashes: $missingWithdrawalsKeyHashes, missing certificates key hashes: $missingCertificatesKeyHashes, missing required signers key hashes: $missingRequiredSignersKeyHashes"
+        )
+
+    // It's Shelley.MissingScriptWitnessesUTXOW or Shelley.ExtraneousScriptWitnessesUTXOW in cardano-ledger
+    final class MissingOrExtraScriptHashesException(
+        val transactionId: TransactionHash,
+        val missingInputsScriptHashes: Set[ScriptHash],
+        val missingMintScriptHashes: Set[ScriptHash],
+        val missingVotingProceduresScriptHashes: Set[ScriptHash],
+        val missingWithdrawalsScriptHashes: Set[ScriptHash],
+        val missingProposalProceduresScriptHashes: Set[ScriptHash],
+        val missingCertificatesScriptHashes: Set[ScriptHash],
+        val extraScriptHashes: Set[ScriptHash]
+    ) extends TransactionException(
+          s"Missing or extra script hashes for transactionId $transactionId, missing inputs script hashes: $missingInputsScriptHashes, missing mint script hashes: $missingMintScriptHashes, missing voting procedures script hashes: $missingVotingProceduresScriptHashes, missing withdrawals script hashes: $missingWithdrawalsScriptHashes, missing proposal procedures script hashes: $missingProposalProceduresScriptHashes, missing certificates script hashes: $missingCertificatesScriptHashes, extra script hashes: $extraScriptHashes"
+        )
+
+    // It's Shelley.ScriptWitnessNotValidatingUTXOW in cardano-ledger
+    final class NativeScriptsException(
+        val transactionId: TransactionHash,
+        val invalidWitnessesNativeScripts: Set[ScriptHash],
+        val invalidProvidedReferenceNativeScripts: Set[ScriptHash],
+    ) extends TransactionException(
+          s"Invalid native scripts for transactionId $transactionId, invalid witnesses native scripts: $invalidWitnessesNativeScripts, invalid provided reference native scripts: $invalidProvidedReferenceNativeScripts"
+        )
+}
+
+type UTxO = Map[TransactionInput, TransactionOutput]
 type SlotNo = Long
 type GovState = Unit
 type StakeMap = Map[Credential, Coin]
 case class UTxOState(
-    utxo: Utxo, // UtxO entries
+    utxo: UTxO, // UtxO entries
     deposited: Coin, // Lazy field used only for assertions
     fees: Coin, // Accumulated transaction fees
     govState: GovState, // Governance state

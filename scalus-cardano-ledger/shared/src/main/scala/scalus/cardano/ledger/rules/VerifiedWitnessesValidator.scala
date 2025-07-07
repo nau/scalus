@@ -1,88 +1,63 @@
 package scalus.cardano.ledger
 package rules
 
-import scala.util.boundary
-import scala.util.boundary.break
-import scalus.builtin.{platform, ByteString, PlatformSpecific, given}
-
+import scalus.builtin.{platform, ByteString}
 import scala.util.control.NonFatal
 
 // It's Shelley.validateVerifiedWits in cardano-ledger
 object VerifiedWitnessesValidator extends STS.Validator {
+    override final type Error = TransactionException.InvalidVerifiedWitnessesException | Throwable
+
     override def validate(context: Context, state: State, event: Event): Result = {
-        for {
-            _ <- validateVkeyWitnesses(context, state, event)
-            _ <- validateBootstrapWitnesses(context, state, event)
-        } yield ()
-    }
+        val transactionId = event.id
+        val utxo = state.utxo
 
-    private def validateVkeyWitnesses(
-        context: Context,
-        state: State,
-        event: Event
-    ): Result =
-        validateWitnesses(
-          event.id,
-          event.witnessSet.vkeyWitnesses.view.map { vkeyWitness =>
-              (vkeyWitness.vkey, vkeyWitness.signature)
-          },
-          (transactionId, key, signature, index, optionException) =>
-              val message =
-                  s"Invalid vkeyWitness at index $index for transactionId $transactionId: " +
-                      s"key=$key, " +
-                      s"signature=$signature"
-              optionException match
-                  case None            => IllegalArgumentException(message)
-                  case Some(exception) => IllegalArgumentException(message, exception)
-        )
+        val invalidVkeyWitnessesSet = invalidVkeyWitnesses(event, utxo)
+        val invalidBootstrapWitnessesSet = invalidBootstrapWitnesses(event, utxo)
 
-    private def validateBootstrapWitnesses(
-        context: Context,
-        state: State,
-        event: Event
-    ): Result =
-        validateWitnesses(
-          event.id,
-          event.witnessSet.bootstrapWitnesses.view.map { bootstrapWitness =>
-              (bootstrapWitness.publicKey, bootstrapWitness.signature)
-          },
-          (transactionId, key, signature, index, optionException) =>
-              val message =
-                  s"Invalid bootstrapWitness at index $index for transactionId $transactionId: " +
-                      s"key=$key, " +
-                      s"signature=$signature"
-              optionException match
-                  case None            => IllegalArgumentException(message)
-                  case Some(exception) => IllegalArgumentException(message, exception)
-        )
-
-    private def validateWitnesses(
-        transactionId: TransactionHash,
-        keysAndSignatures: scala.collection.View[(ByteString, ByteString)],
-        invalidSignatureError: (
-            TransactionHash,
-            ByteString,
-            ByteString,
-            Int,
-            Option[Throwable]
-        ) => IllegalArgumentException,
-    ): Result = boundary {
-        for ((key, signature), index) <- keysAndSignatures.zipWithIndex
-        do
-            try
-                if !platform.verifyEd25519Signature(key, transactionId, signature)
-                then
-                    break(
-                      failure(invalidSignatureError(transactionId, key, signature, index, None))
-                    )
-            catch
-                case NonFatal(exception) =>
-                    break(
-                      failure(
-                        invalidSignatureError(transactionId, key, signature, index, Some(exception))
-                      )
-                    )
+        if invalidVkeyWitnessesSet.nonEmpty || invalidBootstrapWitnessesSet.nonEmpty
+        then
+            return failure(
+              TransactionException.InvalidVerifiedWitnessesException(
+                transactionId,
+                invalidVkeyWitnessesSet,
+                invalidBootstrapWitnessesSet
+              )
+            )
 
         success
+    }
+
+    private def invalidVkeyWitnesses(
+        event: Event,
+        utxo: UTxO
+    ): Set[VKeyWitness] = {
+        val transactionId = event.id
+        val vkeyWitnesses = event.witnessSet.vkeyWitnesses
+
+        vkeyWitnesses.filterNot(vkeyWitness =>
+            verifyWitness(transactionId, vkeyWitness.vkey, vkeyWitness.signature)
+        )
+    }
+
+    private def invalidBootstrapWitnesses(
+        event: Event,
+        utxo: UTxO
+    ): Set[BootstrapWitness] = {
+        val transactionId = event.id
+        val bootstrapWitnesses = event.witnessSet.bootstrapWitnesses
+
+        bootstrapWitnesses.filterNot(bootstrapWitness =>
+            verifyWitness(transactionId, bootstrapWitness.publicKey, bootstrapWitness.signature)
+        )
+    }
+
+    private def verifyWitness(
+        transactionId: TransactionHash,
+        key: ByteString,
+        signature: ByteString
+    ): Boolean = {
+        try platform.verifyEd25519Signature(key, transactionId, signature)
+        catch case NonFatal(exception) => false
     }
 }
