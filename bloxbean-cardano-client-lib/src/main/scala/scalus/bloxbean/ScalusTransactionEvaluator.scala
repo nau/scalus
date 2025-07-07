@@ -27,6 +27,7 @@ import java.util.List
 import scala.beans.BeanProperty
 import scala.collection.mutable
 import scala.jdk.CollectionConverters.*
+import scala.jdk.OptionConverters.RichOptional
 
 /** Implements [[TransactionEvaluator]] to evaluate a transaction to get script costs using Scalus
   * evaluator. This is a wrapper around [[TxEvaluator]].
@@ -109,19 +110,19 @@ class ScalusTransactionEvaluator(
 
     @BeanProperty
     lazy val costMdls: CostMdls = {
-        val costModelV1 = CostModelUtil
-            .getCostModelFromProtocolParams(protocolParams, Language.PLUTUS_V1)
-            .get()
-        val costModelV2 = CostModelUtil
-            .getCostModelFromProtocolParams(protocolParams, Language.PLUTUS_V2)
-            .get()
-        val costModelV3 = CostModelUtil
-            .getCostModelFromProtocolParams(protocolParams, Language.PLUTUS_V3)
-            .get()
         val cm = CostMdls()
-        cm.add(costModelV1)
-        cm.add(costModelV2)
-        cm.add(costModelV3)
+        CostModelUtil
+            .getCostModelFromProtocolParams(protocolParams, Language.PLUTUS_V1)
+            .toScala
+            .foreach(cm.add)
+        CostModelUtil
+            .getCostModelFromProtocolParams(protocolParams, Language.PLUTUS_V2)
+            .toScala
+            .foreach(cm.add)
+        CostModelUtil
+            .getCostModelFromProtocolParams(protocolParams, Language.PLUTUS_V3)
+            .toScala
+            .foreach(cm.add)
         cm
     }
 
