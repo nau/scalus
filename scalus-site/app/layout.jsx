@@ -72,6 +72,10 @@ export default async function RootLayout({ children }) {
           sidebar={{ defaultMenuCollapseLevel: 2 }}
           pageMap={pageMap}
           // ... Your additional layout options
+          darkMode={false}
+          nextThemes={{
+            forcedTheme: 'light',
+          }}
         >
           {children}
         </Layout>

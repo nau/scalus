@@ -19,6 +19,7 @@ const withNextra = nextra({
   search: {
     codeblocks: false
   },
+  
   contentDirBasePath: '/docs'
 })
  
