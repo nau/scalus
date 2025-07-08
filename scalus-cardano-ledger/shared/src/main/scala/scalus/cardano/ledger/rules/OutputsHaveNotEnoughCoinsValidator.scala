@@ -35,13 +35,13 @@ object OutputsHaveNotEnoughCoinsValidator extends STS.Validator {
 
     private def findInvalidOutputs(
         outputs: IndexedSeq[Sized[TransactionOutput]],
-        protocolParams: ProtocolParams,
+        protocolParams: ProtocolParams
     ): IndexedSeq[(TransactionOutput, Coin)] = {
         for
             sizedOutput @ Sized(output, _) <- outputs
             minCoinSizedTransactionOutput = MinCoinSizedTransactionOutput(
-              protocolParams,
-              sizedOutput
+              sizedOutput,
+              protocolParams
             )
             if output.value.coin < minCoinSizedTransactionOutput
         yield (output, minCoinSizedTransactionOutput)

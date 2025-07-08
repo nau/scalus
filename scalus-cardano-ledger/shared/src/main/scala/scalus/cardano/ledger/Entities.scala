@@ -140,8 +140,55 @@ object TransactionException {
         )
 
     // It's Babbage.FeeTooSmallUTxO in cardano-ledger
+    final class FeeTooSmallException(
+        val transactionId: TransactionHash,
+        val transactionFee: Coin,
+        val minTransactionFee: Coin
+    ) extends TransactionException(
+          s"Transaction fee $transactionFee is too small, minimum required fee is $minTransactionFee for transactionId $transactionId"
+        )
 
-    // TODO placeholder remove after refactoring
+    // It's Alonzo.ScriptsNotPaidUTxO in cardano-ledger
+    final class CollateralsConsistNotOnlyVKeyAddressException(
+        val transactionId: TransactionHash,
+        val invalidCollaterals: Set[(TransactionInput, TransactionOutput)],
+    ) extends TransactionException(
+          s"Collaterals consist not only VKey addresses for transactionId $transactionId, invalid collaterals: $invalidCollaterals"
+        )
+
+    // It's Babbage.CollateralContainsNonADA in cardano-ledger
+    final class CollateralsContainNotOnlyADAException(
+        val transactionId: TransactionHash,
+        val invalidCollaterals: Set[(TransactionInput, TransactionOutput)],
+    ) extends TransactionException(
+          s"Collaterals contain not only ADA for transactionId $transactionId, invalid collaterals: $invalidCollaterals"
+        )
+
+    // It's Alonzo.InsufficientCollateral in cardano-ledger
+    final class InsufficientTotalSumOfCollateralCoinsException(
+        val transactionId: TransactionHash,
+        val totalSumOfCollateralCoins: Coin,
+        val collateralReturnOutput: Option[TransactionOutput],
+        val transactionFee: Coin,
+        val collateralPercentage: Long
+    ) extends TransactionException(
+          s"Insufficient total sum of collateral coins for transactionId $transactionId, total sum of collateral coins: $totalSumOfCollateralCoins, collateral return output: $collateralReturnOutput, transaction fee: $transactionFee, collateral percentage: $collateralPercentage"
+        )
+
+    // It's Babbage.IncorrectTotalCollateralField in cardano-ledger
+    final class IncorrectTotalCollateralException(
+        val transactionId: TransactionHash,
+        val totalSumOfCollateralCoins: Coin,
+        val totalCollateral: Option[Coin]
+    ) extends TransactionException(
+          s"Incorrect total collateral for transactionId $transactionId, total sum of collateral coins: $totalSumOfCollateralCoins, total collateral: $totalCollateral"
+        )
+
+    // It's Babbage.NoCollateralInputs in cardano-ledger
+    final class NoCollateralInputsException(val transactionId: TransactionHash)
+        extends TransactionException(s"No collateral inputs for transactionId $transactionId")
+
+    // TODO placeholder for general exception, remove after finishing development
     final class IllegalArgumentException(message: String) extends TransactionException(message)
 }
 

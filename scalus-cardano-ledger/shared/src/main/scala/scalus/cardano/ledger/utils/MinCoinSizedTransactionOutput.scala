@@ -5,8 +5,8 @@ import scalus.ledger.babbage.ProtocolParams
 
 object MinCoinSizedTransactionOutput {
     def apply(
-        protocolParams: ProtocolParams,
-        sizedTransactionOutput: Sized[TransactionOutput]
+        sizedTransactionOutput: Sized[TransactionOutput],
+        protocolParams: ProtocolParams
     ): Coin = {
         val utxoCostPerByte = protocolParams.utxoCostPerByte
         val transactionOutputSize = sizedTransactionOutput.size

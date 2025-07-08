@@ -111,6 +111,7 @@ object MissingKeyHashesValidator extends STS.Validator {
             .filterNot(keyHash => allWitnessesKeyHashes.exists(_ == keyHash))
             .toSet
     }
+
     private def findMissingRequiredSignersKeyHashes(
         event: Event,
         allWitnessesKeyHashes: Set[AddrKeyHash]
